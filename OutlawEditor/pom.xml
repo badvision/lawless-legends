@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.badvision</groupId>
+    <artifactId>OutlawEditor</artifactId>
+    <name>OutlawEditor</name>
+    <packaging>jar</packaging>
+    <version>1.0-SNAPSHOT</version>
+    <organization>
+        <!-- Used as the 'Vendor' for JNLP generation -->
+        <name>org.badvision</name>
+    </organization>
+    <build>
+        <finalName>OutlawEditor</finalName>
+        <plugins>
+            <plugin>
+                <groupId>com.zenjava</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <version>2.0</version>
+                <configuration>
+                    outlawEditor
+                    <mainClass>org.badvision.outlaweditor.Application</mainClass>
+                    <!-- only required if signing the jar file -->
+                    <keyStoreAlias>example-user</keyStoreAlias>
+                    <keyStorePassword>example-password</keyStorePassword>
+                    <allPermissions>true</allPermissions>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>1.7</source>
+                    <target>1.7</target>
+                </configuration>
+                <version>3.1</version>
+            </plugin>
+            <plugin>
+                <groupId>org.jvnet.jaxb2.maven2</groupId>
+                <artifactId>maven-jaxb2-plugin</artifactId>
+                <version>0.8.3</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <schemaIncludes>
+                                <include>jaxb/OutlawSchema/*.xsd</include>
+                            </schemaIncludes>
+                            <episodeFile>${project.build.directory}/generated-sources/xjc/META-INF/jaxb-OutlawSchema.episode</episodeFile>
+                            <generatePackage>org.badvision.outlaweditor.data.xml</generatePackage>
+                        </configuration>
+                        <id>jaxb-generate-OutlawSchema</id>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.oracle</groupId>
+            <artifactId>javafx</artifactId>
+            <version>2</version>
+            <systemPath>/usr/lib/jvm/jdk1.7.0_21/jre/lib/jfxrt.jar</systemPath>
+            <!--<systemPath>${java.home}/lib/jfxrt.jar</systemPath>-->
+            <scope>system</scope>
+        </dependency>
+    </dependencies>
+
+</project>

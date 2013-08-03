@@ -1,0 +1,25 @@
+/*
+ * Empty Stylesheet file.
+ */
+
+.mainFxmlClass {
+
+}
+
+.moveButton {
+   -fx-graphic: url("arrowUp.png");
+}
+
+.zoomOutButton {
+   -fx-graphic: url("zoomOut.png");
+}
+
+.zoomInButton {
+   -fx-graphic: url("zoomIn.png");
+}
+
+.moveButton, .zoomInButton, .zoomOutButton{
+   -fx-background-color: rgba(0,0,0,0);
+   -fx-content-display: graphic-only;
+   -fx-effect: dropshadow(gaussian, navy, 10, 0.5, 0, 0);
+}

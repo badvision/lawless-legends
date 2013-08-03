@@ -1,0 +1,99 @@
+<?xml version="1.0"?>
+<!--
+To change this template, choose Tools | Templates
+and open the template in the editor.
+-->
+
+<xs:schema version="1.0"
+           xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           elementFormDefault="qualified" targetNamespace="outlaw" xmlns:tns="outlaw">
+    <xs:complexType name="image">
+        <xs:sequence>
+            <xs:element name="category" type="xs:string" maxOccurs="unbounded" minOccurs="0"/>
+            <xs:element name="displayData" type="tns:platformData" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+        <xs:attribute name="name" type="xs:NMTOKEN"/>
+    </xs:complexType>
+    <xs:complexType name="tile">            
+        <xs:complexContent>
+            <xs:extension base="tns:image">
+                <xs:attribute name="id" type="xs:string" use="required"/>
+                <xs:attribute name="obstruction" type="xs:boolean"/>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="platformData">
+        <xs:simpleContent>
+            <xs:extension base="xs:hexBinary">
+                <xs:attribute name="platform" type="xs:string" use="required"/>
+                <xs:attribute name="width" type="xs:int" use="required"/>
+                <xs:attribute name="height" type="xs:int" use="required"/>
+            </xs:extension>
+        </xs:simpleContent>
+    </xs:complexType>
+    <xs:complexType name="script">
+        <xs:sequence>
+            <xs:element name="name" type="xs:string"/>
+            <xs:element name="description" type="xs:string" minOccurs="0"/>
+            <xs:element name="script" type="xs:string"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="locationScript">
+        <xs:complexContent>
+            <xs:extension base="tns:script">
+                <xs:attribute name="x" type="xs:int"/>
+                <xs:attribute name="y" type="xs:int"/>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="intervalScript">
+        <xs:complexContent>
+            <xs:extension base="tns:script">
+                <xs:attribute name="start" type="xs:int" use="optional"/>
+                <xs:attribute name="end" type="xs:int" use="optional"/>
+                <xs:attribute name="period" type="xs:int" use="optional"/>
+                <xs:attribute name="ifTrue" type="xs:string" use="optional"/>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="map">
+        <xs:sequence>
+            <xs:element name="chunk" maxOccurs="unbounded">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="row" maxOccurs="unbounded" type="xs:NMTOKENS"/>
+                    </xs:sequence>
+                    <xs:attribute name="x" type="xs:int"/>
+                    <xs:attribute name="y" type="xs:int"/>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="scripts">
+                <xs:complexType>
+                    <xs:choice maxOccurs="unbounded">
+                        <xs:element name="enter" type="tns:script" minOccurs="0"/>
+                        <xs:element name="exit" type="tns:script" minOccurs="0"/>
+                        <xs:element name="stepOn" type="tns:locationScript" minOccurs="0"/>
+                        <xs:element name="stepOff" type="tns:locationScript" minOccurs="0" />
+                        <xs:element name="interact" type="tns:locationScript" minOccurs="0"/>
+                        <xs:element name="interval" type="tns:intervalScript" minOccurs="0"/>
+                    </xs:choice>
+                </xs:complexType>
+            </xs:element>
+        </xs:sequence>
+        <xs:attribute name="name" type="xs:string"/>
+        <xs:attribute name="width" type="xs:int"/>
+        <xs:attribute name="height" type="xs:int"/>
+        <xs:attribute name="wrap" type="xs:boolean" default="false"/>
+        <xs:attribute name="startX" type="xs:int" default="0"/>
+        <xs:attribute name="startY" type="xs:int" default="0"/>
+    </xs:complexType>
+    <xs:element name="gameData">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="image" minOccurs="0" maxOccurs="unbounded" type="tns:image"/>
+                <xs:element name="tile" minOccurs="0" maxOccurs="unbounded" type="tns:tile"/>
+                <xs:element name="map" minOccurs="0" maxOccurs="unbounded" type="tns:map"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>        
+</xs:schema>

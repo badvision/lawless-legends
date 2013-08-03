@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog" prefer="system">
+    <system systemId="file:/home/brobert/Documents/Personal/LawlessLegends/github/lawless-legends/OutlawEditor/src/main/java/org/badvision/outlaweditor/resources/OutlawSchema.xsd" uri="src/main/resources/jaxb/OutlawSchema/OutlawSchema.xsd"/>
+    <system systemId="file:/home/brobert/Documents/Personal/LawlessLegends/github/lawless-legends/OutlawEditor/src/main/resources/OutlawSchema.xsd" uri="src/main/resources/jaxb/OutlawSchema/OutlawSchema.xsd"/>
+</catalog>

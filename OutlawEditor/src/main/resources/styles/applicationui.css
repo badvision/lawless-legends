@@ -7,15 +7,15 @@
 }
 
 .moveButton {
-   -fx-graphic: url("arrowUp.png");
+   -fx-graphic: url("../images/arrowUp.png");
 }
 
 .zoomOutButton {
-   -fx-graphic: url("zoomOut.png");
+   -fx-graphic: url("../images/zoomOut.png");
 }
 
 .zoomInButton {
-   -fx-graphic: url("zoomIn.png");
+   -fx-graphic: url("../images/zoomIn.png");
 }
 
 .moveButton, .zoomInButton, .zoomOutButton{

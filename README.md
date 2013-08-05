@@ -5,6 +5,12 @@ This project contains all open-source (Apache-licensed) code and assets related 
 
 The Apache license covers everything in here, including any sample game content that might filter in from time to time.  The primary goal for this open-source project is to build out game creation tools and hopefully the majority of a usable game engine that can be used in conjunction with the tools to build a playable RPG game.  By being open-source, we are saying you are free to build your own games with these tools and distribute those games as you see fit.  You are not obligated to distribute your games as open-source or freeware, but we do ask that you consider contributing bug fixes back up to this main branch so that the community can benefit.
 
+Download Links
+--------------
+
+- The most recent copy of Outlaw Editor (aka the Daily build) can be found here: http://8bitweapon.com/lawlesslegends/OutlawEditor.jar
+- Live builds of the Apple platform code (AKA the Apple // series game port) will soon be available 
+
 How to get involved
 -------------------
 
@@ -47,7 +53,7 @@ The apple platform build works as follows:
 
 How to build
 ------------
-(COMING SOON TO A COMPUTER NEAR YOU!)
+Each platform has its own process, refer to each platform's readme for more details.  The Outlaw Editor has more information about how to build it locally using Apache Maven and is described in the OutlawEditor readme.
 
 
 

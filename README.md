@@ -3,7 +3,7 @@ Lawless Legends
 
 This project contains all open-source (Apache-licensed) code and assets related to Lawless Legends and its supporting tools.  This project is currently in its infancy, so don't be surprised if some things move around or seem to appear out of nowhere in the code base.  We're still trying on some ideas of how to manage developer workflow, and feedback is greatly appreciated!
 
-The Apache license covers everything in here, including any sample game content that might filter in from time to time.  The primary goal for this open-source project is to build out game creation tools and hopefully the majority of a usable game engine that can be used in conjunction with the tools to build a playable RPG game.  By being open-source, we are saying you are free to build your own games with these tools and distribute those games as you see fit.  You are not obligated to distribute your games as open-source or freeware, but we do ask that you consider contributing bug fixes back up to this main branch so that the community can benefit.
+The Apache license covers everything in here, including any sample game content that might filter in from time to time.  The primary goal for this open-source project is to build out game creation tools and hopefully the majority of a usable game engine that can be used in conjunction with the tools to build a playable RPG game.  By being open-source, we are saying you are free to build your own games with these tools and distribute those games as you see fit.  You are not obligated to distribute your games as open-source or freeware, but we do ask that you consider contributing bug fixes back up to this main branch so that the community can benefit, and at the very least uphold the terms of the Apache license that apply to this code.
 
 Download Links
 --------------
@@ -18,11 +18,11 @@ Grab a daily build and play with it!  If you are a QA tester or a developer you 
 
 You (yes, you!) can get involved even if you have no programming experience and just want to dabble with retro gaming.  We will need testers who are not afraid to press untold combinations of buttons for the sake of breaking things and telling the programmers how misbehaved our code is.  You are welcome to test our build process for yourself and let us know if there's a way you think we can make it easier -- because ultimately we are striving to collaborate with modern technology while building a game that runs on old pre-internet 8-bit technology: There are bound to be pitfalls and some amount of inconvenience is almost assured!  But despite this, we think we can achieve the following:
 
--Common game creation tools (Outlaw Editor) which run in all modern OS platforms using Java 7 / JavaFX 2.2 (Java 8 compatibility will be assured after Java 8 GA is released)
--Native game development on-platform, meaning you code the Apple engine on the Apple (via Merlin Pro)
--Native program code is managed within the virtual computer's disk image and synchronized out via provided scripts (see Notes to 6502 Coders below)
--Native game development and game previewing is possible on real hardware (using VSDrive/ADT Pro or CDDB), or emulation (using _any_ apple //e or //gs emulator)
--New tricks to teach our old dogs.  Many surprises await!
+- Common game creation tools (Outlaw Editor) which run in all modern OS platforms using Java 7 / JavaFX 2.2 (Java 8 compatibility will be assured after Java 8 GA is released)
+- Native game development on-platform, meaning you code the Apple engine on the Apple (via Merlin Pro)
+- Native program code is managed within the virtual computer's disk image and synchronized out via provided scripts (see Notes to 6502 Coders below)
+- Native game development and game previewing is possible on real hardware (using VSDrive/ADT Pro or CDDB), or emulation (using _any_ apple //e or //gs emulator)
+- New tricks to teach our old dogs.  Many surprises await!
 
 Notes to 6502 Coders
 --------------------
@@ -53,7 +53,8 @@ The apple platform build works as follows:
 
 How to build
 ------------
-Each platform has its own process, refer to each platform's readme for more details.  The Outlaw Editor has more information about how to build it locally using Apache Maven and is described in the OutlawEditor readme.
+- Each platform has its own process, refer to each platform's readme for more details.  
+- The Outlaw Editor has more information about how to build it locally using Apache Maven and is described in the OutlawEditor readme.
 
 
 

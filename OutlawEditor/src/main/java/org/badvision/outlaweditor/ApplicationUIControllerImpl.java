@@ -284,14 +284,14 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
             TileUtils.redrawTile(t);
         }
         Tile tile = currentTile;
+        Image image = currentImage;
         rebuildTileSelectors();
         setCurrentTile(tile);
         if (currentMapEditor != null) {
             currentMapEditor.redraw();
         }
-        if (currentImageEditor != null) {
-            currentImageEditor.redraw();
-        }        
+        rebuildImageSelector();
+        setCurrentImage(image);
     }
     
     @Override

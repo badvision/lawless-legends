@@ -284,14 +284,12 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
             TileUtils.redrawTile(t);
         }
         Tile tile = currentTile;
-        Image image = currentImage;
         rebuildTileSelectors();
         setCurrentTile(tile);
         if (currentMapEditor != null) {
             currentMapEditor.redraw();
         }
         rebuildImageSelector();
-        setCurrentImage(image);
     }
     
     @Override
@@ -710,6 +708,7 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
         if (currentImage != null && currentImage.equals(i)) {
             return;
         }
+        imageSelector.getSelectionModel().select(i);
         currentImage = i;
         if (currentImageEditor != null) {
             currentImageEditor.unregister();
@@ -754,9 +753,10 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
     }
 
     private void rebuildImageSelector() {
+        Image i = getCurrentImage();
         imageSelector.getItems().clear();
         imageSelector.getItems().addAll(Application.gameData.getImage());
-        imageSelector.getSelectionModel().select(getCurrentImage());
+        imageSelector.getSelectionModel().select(i);
     }
 
     public static enum TABS{image,map,tile};

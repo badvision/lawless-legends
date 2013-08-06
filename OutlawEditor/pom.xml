@@ -24,7 +24,17 @@
                     <keyStoreAlias>example-user</keyStoreAlias>
                     <keyStorePassword>example-password</keyStorePassword>
                     <allPermissions>true</allPermissions>
+                    <bundleType>ALL</bundleType>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>package</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>            
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -35,20 +45,6 @@
                 </configuration>
                 <version>3.1</version>
             </plugin>
-
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <configuration>
-                    <archive>
-                        <manifest>
-                            <mainClass>org.badvision.outlaweditor.Application</mainClass>
-                            <packageName>org.badvision.outlaweditor</packageName>
-                        </manifest>
-                    </archive>
-                </configuration>
-            </plugin>            
-            
             <plugin>
                 <groupId>org.jvnet.jaxb2.maven2</groupId>
                 <artifactId>maven-jaxb2-plugin</artifactId>

@@ -21,6 +21,7 @@ import javafx.util.Callback;
 import static org.badvision.outlaweditor.Application.currentPlatform;
 import static org.badvision.outlaweditor.Application.gameData;
 import static org.badvision.outlaweditor.data.PropertyHelper.*;
+import static org.badvision.outlaweditor.UIAction.*;
 import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.TilesetUtils;
 import org.badvision.outlaweditor.data.xml.Image;
@@ -377,7 +378,13 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
 
     @Override
     public void onImageDeletePressed(ActionEvent event) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        if (currentImage == null) return;
+        if (confirm("Delete image '"+currentImage.getName()+"'.  Are you sure?")) {
+            Image del = currentImage;
+            setCurrentImage(null);
+            Application.gameData.getImage().remove(del);
+            rebuildImageSelector();
+        }
     }
 
     @Override
@@ -408,7 +415,13 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
 
     @Override
     public void onMapDeletePressed(ActionEvent event) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        if (currentMap == null) return;
+        if (confirm("Delete map '"+currentMap.getName()+"'.  Are you sure?")) {
+            org.badvision.outlaweditor.data.xml.Map del = currentMap;
+            setCurrentMap(null);
+            Application.gameData.getMap().remove(del);
+            rebuildMapSelectors();
+        }
     }
 
     @Override
@@ -478,7 +491,13 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
 
     @Override
     public void onTileDeletePressed(ActionEvent event) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        if (currentTile == null) return;
+        if (confirm("Delete tile '"+currentTile.getName()+"'.  Are you sure?")) {
+            Tile del = currentTile;
+            setCurrentTile(null);
+            Application.gameData.getTile().remove(del);
+            rebuildTileSelectors();
+        }
     }
 
     @Override

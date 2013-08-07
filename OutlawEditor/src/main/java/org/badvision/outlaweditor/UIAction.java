@@ -145,4 +145,8 @@ public class UIAction {
 
         return img;
     }
+    
+    public static boolean confirm(String string) {
+        return JOptionPane.showConfirmDialog(null, string) == JOptionPane.YES_OPTION;
+    }    
 }

@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 
-<project name="lawless" default="build">
+<project name="game" default="build">
   
-  <property name="projName" value="lawless"/> <!-- base part of output file name -->
+  <property name="projName" value="game"/> <!-- base part of output file name -->
   <property name="src.dir" location="./src"/> 
   <property name="build.dir" value="./build"/>
   <property name="a2copy.dir" value="../tools/A2Copy/dist"/>

@@ -1,5 +1,6 @@
-# Ignore vi swap files
+# Ignore vi swap files, MacOS extra files, etc.
 *.swp
+.DS_Store
 
 # Skip build directories
 **/build/

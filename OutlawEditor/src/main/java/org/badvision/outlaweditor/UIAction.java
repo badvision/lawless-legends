@@ -6,16 +6,27 @@ package org.badvision.outlaweditor;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
+import javafx.scene.layout.HBoxBuilder;
+import javafx.scene.layout.VBoxBuilder;
+import javafx.scene.text.Text;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
 import javax.swing.JOptionPane;
 import javax.xml.bind.JAXB;
 import org.badvision.outlaweditor.data.TilesetUtils;
@@ -87,8 +98,8 @@ public class UIAction {
                 currentSaveFile = f;
             case Save:
                 if (currentSaveFile == null) {
-                    currentSaveFile = FileUtils.getFile(currentSaveFile, "Save game data", Boolean.TRUE, FileUtils.Extension.XML, FileUtils.Extension.ALL);
-                }
+                currentSaveFile = FileUtils.getFile(currentSaveFile, "Save game data", Boolean.TRUE, FileUtils.Extension.XML, FileUtils.Extension.ALL);
+            }
                 if (currentSaveFile != null) {
                     currentSaveFile.delete();
                     JAXB.marshal(Application.gameData, currentSaveFile);
@@ -126,12 +137,13 @@ public class UIAction {
         return menu;
     }
 
-    public static boolean quit() {
-        if (JOptionPane.showConfirmDialog(null, "Quit?  Are you sure?") == JOptionPane.OK_OPTION) {
-            Platform.exit();
-            return true;
-        }
-        return false;
+    public static void quit() {
+        confirm("Quit?  Are you sure?", new Runnable() {
+            @Override
+            public void run() {
+                Platform.exit();
+            }            
+        }, null);
     }
 
     static Image badImage;
@@ -145,8 +157,43 @@ public class UIAction {
 
         return img;
     }
+
+    public static class Choice {
+        String text;
+        Runnable handler;
+        public Choice(String text, Runnable handler) {
+            this.text = text;
+            this.handler = handler;
+        }
+    }
+
+    public static void confirm(String message, Runnable yes, Runnable no) {
+        choose(message, new Choice("Yes", yes), new Choice("No", no));
+    }
     
-    public static boolean confirm(String string) {
-        return JOptionPane.showConfirmDialog(null, string) == JOptionPane.YES_OPTION;
-    }    
+    public static void choose(String message, Choice... choices) {
+        final Stage dialogStage = new Stage();
+
+        HBoxBuilder options = HBoxBuilder.create().alignment(Pos.CENTER).spacing(10.0).padding(new Insets(5));
+        List<Button> buttons = new ArrayList<>();
+        for (final Choice c : choices) {
+            Button b = new Button(c.text);
+            b.setOnAction(new EventHandler<ActionEvent>() {
+                @Override
+                public void handle(ActionEvent t) {
+                    if (c.handler != null) {
+                        c.handler.run();
+                    }
+                    dialogStage.close();
+                }
+            });
+            buttons.add(b);
+        }
+        options.children(buttons);
+        dialogStage.initModality(Modality.WINDOW_MODAL);
+        dialogStage.setScene(new Scene(VBoxBuilder.create().
+                children(new Text(message), options.build()).
+                alignment(Pos.CENTER).padding(new Insets(5)).build()));
+        dialogStage.show();
+    }
 }

@@ -162,7 +162,7 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
             currentImageEditor.setDrawMode(ImageEditor.DrawMode.Pencil5px);
         }
     }
-    
+
     @Override
     public void imageDrawFilledRectMode(ActionEvent event) {
         if (currentImageEditor != null) {
@@ -279,7 +279,7 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
         Application.currentPlatform = Platform.AppleII_DHGR;
         platformChange();
     }
-    
+
     private void platformChange() {
         for (Tile t : Application.gameData.getTile()) {
             TileUtils.redrawTile(t);
@@ -292,7 +292,7 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
         }
         rebuildImageSelector();
     }
-    
+
     @Override
     public void onChangePlatformC64(ActionEvent event) {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
@@ -378,13 +378,18 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
 
     @Override
     public void onImageDeletePressed(ActionEvent event) {
-        if (currentImage == null) return;
-        if (confirm("Delete image '"+currentImage.getName()+"'.  Are you sure?")) {
-            Image del = currentImage;
-            setCurrentImage(null);
-            Application.gameData.getImage().remove(del);
-            rebuildImageSelector();
+        if (currentImage == null) {
+            return;
         }
+        confirm("Delete image '" + currentImage.getName() + "'.  Are you sure?", new Runnable() {
+            @Override
+            public void run() {
+                Image del = currentImage;
+                setCurrentImage(null);
+                Application.gameData.getImage().remove(del);
+                rebuildImageSelector();
+            }
+        }, null);
     }
 
     @Override
@@ -415,13 +420,18 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
 
     @Override
     public void onMapDeletePressed(ActionEvent event) {
-        if (currentMap == null) return;
-        if (confirm("Delete map '"+currentMap.getName()+"'.  Are you sure?")) {
-            org.badvision.outlaweditor.data.xml.Map del = currentMap;
-            setCurrentMap(null);
-            Application.gameData.getMap().remove(del);
-            rebuildMapSelectors();
+        if (currentMap == null) {
+            return;
         }
+        confirm("Delete map '" + currentMap.getName() + "'.  Are you sure?", new Runnable() {
+            @Override
+            public void run() {
+                org.badvision.outlaweditor.data.xml.Map del = currentMap;
+                setCurrentMap(null);
+                Application.gameData.getMap().remove(del);
+                rebuildMapSelectors();
+            }
+        }, null);
     }
 
     @Override
@@ -491,13 +501,20 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
 
     @Override
     public void onTileDeletePressed(ActionEvent event) {
-        if (currentTile == null) return;
-        if (confirm("Delete tile '"+currentTile.getName()+"'.  Are you sure?")) {
-            Tile del = currentTile;
-            setCurrentTile(null);
-            Application.gameData.getTile().remove(del);
-            rebuildTileSelectors();
+        if (currentTile == null) {
+            return;
         }
+        confirm("Delete tile '" + currentTile.getName() + "'.  Are you sure?", new Runnable() {
+
+            @Override
+            public void run() {
+                Tile del = currentTile;
+                setCurrentTile(null);
+                Application.gameData.getTile().remove(del);
+                rebuildTileSelectors();
+            }
+
+        }, null);
     }
 
     @Override
@@ -778,8 +795,12 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
         imageSelector.getSelectionModel().select(i);
     }
 
-    public static enum TABS{image,map,tile};
+    public static enum TABS {
+
+        image, map, tile
+    };
     TABS currentTab;
+
     @Override
     public void imageTabActivated(Event event) {
         currentTab = TABS.image;
@@ -794,7 +815,7 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
     public void tileTabActivated(Event event) {
         currentTab = TABS.tile;
     }
-    
+
     public Editor getVisibleEditor() {
         switch (currentTab) {
             case image:

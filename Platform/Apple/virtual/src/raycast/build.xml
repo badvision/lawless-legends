@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+
+<project name="render" default="build">
+  
+  <property name="projName" value="render"/> <!-- base part of output bin name -->
+  <property name="src.dir" location="."/> 
+  <property name="include.dir" location="../include"/>
+  <property file="${include.dir}/build.props"/> <!-- needs to define CC65_BIN_DIR -->
+
+  <property name="build.dir" value="${src.dir}/build"/>
+  
+  <property name="CA65_TOOL" location="${CC65_BIN_DIR}/ca65"/> 
+  <property name="LD65_TOOL" location="${CC65_BIN_DIR}/ld65"/> 
+  
+  <property name="ASM_SETTINGS" value="-t apple2"/>
+  <property name="ASM_INCLUDES" value="-I .."/>
+  
+  <property name="ORG_ADDR" value="900"/> <!-- load address, in hex -->
+  
+  <property name="BIN_FILE" value="${build.dir}/${projName}.bin#${ORG_ADDR}"/>
+  
+  <target name="all">
+    <antcall target="clean"/>
+    <antcall target="build"/>
+  </target>
+  
+  <target name="clean">
+    <delete failonerror="false" dir="${build.dir}"/>
+  </target>
+  
+  <target name="build">
+
+    <!-- Create build directory -->
+    <mkdir dir="${build.dir}"/>
+    
+    <!-- Compile ASM  -->
+    <apply executable="${CA65_TOOL}" dir="${src.dir}" relative="true" parallel="false" verbose="true">
+      <fileset dir="${src.dir}" includes="*.s"/>
+      <mapper type="glob" from="*.s" to="${build.dir}/*.o"/>
+      <arg line="${ASM_INCLUDES}"/>
+      <arg line="${ASM_SETTINGS}"/>
+      <arg line="-o"/>
+      <targetfile/>
+      <srcfile/>
+    </apply>
+    
+    <!-- Link it -->
+    <apply executable="${LD65_TOOL}" dir="${build.dir}" failonerror="true" verbose="true">
+      <arg line="-t none --start-addr 0x${ORG_ADDR} -o"/>
+      <arg value="${BIN_FILE}"/>
+      <fileset dir="${build.dir}" includes="*.o"/>
+    </apply>
+
+  </target>
+  
+</project>

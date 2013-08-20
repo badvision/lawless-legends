@@ -5,6 +5,7 @@
 package org.badvision.outlaweditor.apple;
 
 import java.util.HashMap;
+import java.util.Map;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.control.Menu;
@@ -20,6 +21,7 @@ import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.ImageEditor;
 import org.badvision.outlaweditor.Platform;
 import org.badvision.outlaweditor.data.DataObserver;
+import org.badvision.outlaweditor.data.TileMap;
 import org.badvision.outlaweditor.data.xml.Image;
 import org.badvision.outlaweditor.data.xml.PlatformData;
 
@@ -375,8 +377,25 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
             importImage(image);
         }
     }
-
+    //selection/map/2/x1/0/y1/0/x2/19/y2/11
     public boolean pasteAppContent(String contentPath) {
+        System.out.println("Clipboard >> "+contentPath);
+        if (contentPath.startsWith("selection/map")) {
+            String[] bufferDetails = contentPath.substring(14).split("/");
+            int mapNumber = Integer.parseInt(bufferDetails[0]);
+            Map<String,Integer> details = new HashMap<>();
+            for (int i = 1; i < bufferDetails.length; i+=2) {
+                details.put(bufferDetails[i], Integer.parseInt(bufferDetails[i+1]));
+            }
+            TileMap map = new TileMap(Application.gameData.getMap().get(mapNumber));
+            byte[] buf = getPlatform().imageRenderer.generatePreview(
+                map,
+                details.get("x1"),
+                details.get("y1"));
+            setData(buf);
+            redraw();
+            return true;
+        }
         return false;
     }
 

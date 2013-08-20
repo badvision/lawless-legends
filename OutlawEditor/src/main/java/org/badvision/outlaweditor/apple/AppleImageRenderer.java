@@ -11,6 +11,7 @@ import org.badvision.outlaweditor.ImageRenderer;
 import org.badvision.outlaweditor.Platform;
 import org.badvision.outlaweditor.data.TileMap;
 import org.badvision.outlaweditor.data.TileUtils;
+import org.badvision.outlaweditor.data.xml.Map;
 import org.badvision.outlaweditor.data.xml.Tile;
 
 /**
@@ -18,7 +19,7 @@ import org.badvision.outlaweditor.data.xml.Tile;
  * @author brobert
  */
 public class AppleImageRenderer extends ImageRenderer {
-
+//
     public static int BLACK = 0xff000000;
     public static int WHITE = 0xffffffff;
     // scanline is 20 16-bit words
@@ -30,13 +31,13 @@ public class AppleImageRenderer extends ImageRenderer {
     }
 
     @Override
-    public WritableImage renderPreview(TileMap map, int startX, int startY) {
+    public byte[] generatePreview(TileMap map, int x1, int y1) {
         byte[] buffer = createImageBuffer();
         int pos = 0;
         for (int y = 0; y < 12; y++) {
             for (int yy = 0; yy < 16; yy++) {
                 for (int x = 0; x < 20; x++) {
-                    Tile t = map.get(x + startX, y + startY);
+                    Tile t = map.get(x + x1, y + y1);
                     if (t == null) {
                         buffer[pos++] = 0;
                         buffer[pos++] = 0;
@@ -48,7 +49,12 @@ public class AppleImageRenderer extends ImageRenderer {
                 }
             }
         }
-        return renderImage(null, buffer);
+        return buffer;
+    }
+
+    @Override
+    public WritableImage renderPreview(TileMap map, int startX, int startY) {
+        return renderImage(null, generatePreview(map, startX, startY));
     }
 
     @Override

@@ -48,16 +48,6 @@ public class Application extends javafx.application.Application {
             @Override
             public void handle(final WindowEvent t) {
                 t.consume();
-                if (quit()) {
-                    javafx.application.Platform.exit();
-//                    System.exit(0);
-                }
-                javafx.application.Platform.runLater(new Runnable() {
-                    @Override
-                    public void run() {
-                        getPrimaryStage().show();
-                    }
-                });
             }
         });
         primaryStage.show();

@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+
+<project name="game" default="build">
+  
+  <property name="projName" value="game"/> <!-- base part of output file name -->
+  <property name="src.dir" location="./src"/> 
+  <property name="build.dir" value="./build"/>
+  <property name="a2copy.dir" value="../tools/A2Copy/dist"/>
+  
+  <property name="IMG_FILE" value="${build.dir}/${projName}.bin#${ORG_ADDR}"/>
+  
+  <target name="all">
+    <antcall target="clean"/>
+    <antcall target="build"/>
+  </target>
+  
+  <target name="clean">
+    <delete failonerror="false" dir="${build.dir}"/>
+    <ant dir="${src.dir}/raycast" target="clean" useNativeBasedir="true" inheritAll="false"/>
+  </target>
+  
+  <target name="build">
+
+    <!-- Create build directory -->
+    <mkdir dir="${build.dir}"/>
+
+    <!-- Build sub-projects -->
+    <echo>Building raycast.</echo>
+    <ant dir="${src.dir}/raycast" target="build" useNativeBasedir="true" inheritAll="false"/>
+
+    <!-- Construct a directory to put on the Apple -->
+    <mkdir dir="${build.dir}/root"/>
+    <copy todir="${build.dir}/root">
+      <fileset dir="${src.dir}/raycast/build" includes="*.bin*"/>
+    </copy>
+    <mkdir dir="${build.dir}/root/"/>
+    <copy todir="${build.dir}/root/assets">
+      <fileset dir="./data/images" includes="*.bin*"/>
+    </copy>
+    <copy todir="${build.dir}/root/assets">
+      <fileset dir="./data/tables" includes="*.bin*"/>
+    </copy>
+
+    <!-- Make a new base image file -->
+    <bunzip2 src="./data/disks/base.2mg.bz2" dest="${build.dir}/${projName}.2mg"/>
+
+    <!-- And stuff the directory into it -->
+    <java jar="${a2copy.dir}/a2copy.jar" fork="true" failonerror="true">
+      <arg value="-put"/>
+      <arg value="${build.dir}/${projName}.2mg"/>
+      <arg value="/"/>
+      <arg value="${build.dir}/root"/>
+    </java>
+
+  </target>
+  
+</project>

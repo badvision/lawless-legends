@@ -1,0 +1,15 @@
+# Ignore vi swap files, MacOS extra files, etc.
+*.swp
+.DS_Store
+
+# Skip build directories
+**/build/
+/OutlawEditor/target/
+/Platform/Apple/tools/A2Copy/nbproject/private/
+/Platform/Apple/tools/A2Copy/dist/
+
+# Don't check in data specific to any particular game
+/Platform/Apple/virtual/data/images/*.bin
+
+# Only check in sample.build.props; each person's build.props will be different.
+/Platform/Apple/virtual/src/include/build.props

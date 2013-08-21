@@ -29,6 +29,7 @@
     <ant dir="${src.dir}/raycast" target="build" useNativeBasedir="true" inheritAll="false"/>
 
     <!-- Construct a directory to put on the Apple -->
+    <delete failonerror="false" dir="${build.dir}/root"/>
     <mkdir dir="${build.dir}/root"/>
     <copy todir="${build.dir}/root">
       <fileset dir="${src.dir}/raycast/build" includes="*.bin*"/>
@@ -42,6 +43,7 @@
     </copy>
 
     <!-- Make a new base image file -->
+    <delete failonerror="false" file="${build.dir}/${projName}.2mg"/>
     <bunzip2 src="./data/disks/base.2mg.bz2" dest="${build.dir}/${projName}.2mg"/>
 
     <!-- And stuff the directory into it -->

@@ -34,7 +34,8 @@
     <mkdir dir="${build.dir}"/>
     
     <!-- Compile ASM  -->
-    <apply executable="${CA65_TOOL}" dir="${src.dir}" relative="true" parallel="false" verbose="true">
+    <apply executable="${CA65_TOOL}" dir="${src.dir}" 
+           relative="true" parallel="false" failonerror="true" verbose="true">
       <fileset dir="${src.dir}" includes="*.s"/>
       <mapper type="glob" from="*.s" to="${build.dir}/*.o"/>
       <arg line="${ASM_INCLUDES}"/>
@@ -45,7 +46,8 @@
     </apply>
     
     <!-- Link it -->
-    <apply executable="${LD65_TOOL}" dir="${build.dir}" failonerror="true" verbose="true">
+    <apply executable="${LD65_TOOL}" dir="${build.dir}" 
+           failonerror="true" verbose="true">
       <arg line="-t none --start-addr 0x${ORG_ADDR} -o"/>
       <arg value="${BIN_FILE}"/>
       <fileset dir="${build.dir}" includes="*.o"/>

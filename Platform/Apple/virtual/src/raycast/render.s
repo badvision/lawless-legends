@@ -14,7 +14,7 @@ DBLBUF = 0 ; whether to double-buffer
 DEBUG = 0 ; turn on verbose logging
 
 ; Constants
-TOPLINE = $2000
+TOPLINE = $2180 ; 24 lines down from top
 NLINES = 126
 SKYCOL = $11 ; blue
 GROUNDCOL = $2 ; orange / black
@@ -38,6 +38,9 @@ PCAST = $14 ; len 2
 STARTADDR = $3C
 ENDADDR = $3E
 DESTADDR = $42
+
+; Other monitor locations
+RESETVEC = $3F2
 
 ; Place to stick ProDOS names temporarily
 NAMEBUF = $280
@@ -961,6 +964,13 @@ TEST:
     LDA #0
     DEX
     BNE @MEMLUP
+    ; make reset go to monitor
+    LDA #<MONITOR
+    STA RESETVEC
+    LDA #>MONITOR
+    STA RESETVEC+1
+    EOR #$A5
+    STA RESETVEC+2
 ; load the pre-raycast data
     LDA #$20 ; addr hi
     PHA
@@ -1015,6 +1025,16 @@ TEST:
     LDX #<@TEX3NAME
     LDA #>@TEX3NAME
     JSR BLOAD
+
+    ; load the fancy frame
+    LDA #>$2000
+    PHA
+    LDA #<$2000
+    PHA
+    LDX #<@FRAMENAME
+    LDA #>@FRAMENAME
+    JSR BLOAD
+
 ; build all the unrolls and tables
     JSR MAKEBLIT
     JSR MAKECBLIT
@@ -1022,7 +1042,6 @@ TEST:
     JSR MAKEDCM
     JSR MAKEBUMPS
     JSR MAKELINES
-    JSR CLRSCR
 ; set up front and back buffers
     LDA #0
     STA FRONTBUF
@@ -1094,6 +1113,8 @@ TEST:
     BNE @ONECOL
 @FLUSH:
     LDY BYTENUM
+    INY
+    INY
     STA SETAUXZP
     JSR BLITROLL
     STA CLRAUXZP
@@ -1127,12 +1148,29 @@ TEST:
     LDA KBD ; stop if ESC is pressed
     CMP #$9B
     BEQ @DONE
+    CMP #$A0 ; pause if space is pressed
+    BNE @NOTSPC
+    BIT KBDSTRB
+@PAUSELUP:
+    LDA KBD
+    BPL @PAUSELUP
+@NOTSPC:
     JMP @ONELVL
 @DONE:
     STA KBDSTRB ; eat the keypress
     BIT SETTEXT
     BIT PAGE1
-    RTS
+; quit the ProDOS way
+    INC RESETVEC+2 ; invalidate reset vector
+    JSR MLI
+    .byte $65
+    .addr @QUITPARMS
+@QUITPARMS:
+    .byte 4, 0
+    .word 0
+    .byte 0
+    .word 0
+
 @DIR: .byte 1
 @TEX0NAME: .byte 21
     .byte "/LL/ASSETS/BUILDING01"
@@ -1144,6 +1182,8 @@ TEST:
     .byte "/LL/ASSETS/BUILDING04"
 @PRECASTNM: .byte 18
     .byte "/LL/ASSETS/PRECAST"
+@FRAMENAME: .byte 16
+    .byte "/LL/ASSETS/FRAME"
 
 CODEEND = *
 

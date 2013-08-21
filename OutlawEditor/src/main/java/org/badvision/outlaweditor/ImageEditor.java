@@ -27,4 +27,6 @@ public abstract class ImageEditor extends Editor<Image, ImageEditor.DrawMode> {
     public abstract void zoomIn();
 
     public abstract void zoomOut();
+    
+    public abstract void exportImage();
 }

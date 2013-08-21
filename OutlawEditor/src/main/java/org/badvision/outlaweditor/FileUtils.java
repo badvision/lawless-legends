@@ -24,7 +24,8 @@ public class FileUtils {
 
         XML("XML files", "xml"),
         TILESET("Tileset", "ots"),
-        ALL("All files", "*");
+        ALL("All files", "*"), 
+        BINARY("Binary", "bin");
         String description;
         String extension;
 

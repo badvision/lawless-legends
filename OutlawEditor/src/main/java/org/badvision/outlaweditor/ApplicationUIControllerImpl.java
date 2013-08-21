@@ -394,7 +394,9 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
 
     @Override
     public void onImageExportPressed(ActionEvent event) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        if (currentImageEditor != null) {
+            currentImageEditor.exportImage();
+        }
     }
 
     @Override

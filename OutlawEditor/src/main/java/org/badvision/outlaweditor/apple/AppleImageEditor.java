@@ -4,8 +4,14 @@
  */
 package org.badvision.outlaweditor.apple;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.control.Menu;
@@ -18,6 +24,7 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import org.badvision.outlaweditor.Application;
+import org.badvision.outlaweditor.FileUtils;
 import org.badvision.outlaweditor.ImageEditor;
 import org.badvision.outlaweditor.Platform;
 import org.badvision.outlaweditor.data.DataObserver;
@@ -42,7 +49,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     protected double zoom = 1.0;
     protected int xScale = 2;
     protected int yScale = 2;
-    
+
     public Platform getPlatform() {
         return Platform.AppleII;
     }
@@ -104,7 +111,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
 
     @Override
     public void redraw() {
-        System.out.println("Redraw "+getPlatform().name());
+        System.out.println("Redraw " + getPlatform().name());
         currentImage = getPlatform().imageRenderer.renderImage(currentImage, getImageData());
         anchorPane.getChildren().get(1).setLayoutX((anchorPane.getWidth() - 30) / 2);
         anchorPane.getChildren().get(2).setLayoutY((anchorPane.getHeight() - 30) / 2);
@@ -353,6 +360,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     public int getWidth() {
         return 40;
     }
+
     public int getHeight() {
         return 192;
     }
@@ -378,20 +386,21 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
         }
     }
     //selection/map/2/x1/0/y1/0/x2/19/y2/11
+
     public boolean pasteAppContent(String contentPath) {
-        System.out.println("Clipboard >> "+contentPath);
+        System.out.println("Clipboard >> " + contentPath);
         if (contentPath.startsWith("selection/map")) {
             String[] bufferDetails = contentPath.substring(14).split("/");
             int mapNumber = Integer.parseInt(bufferDetails[0]);
-            Map<String,Integer> details = new HashMap<>();
-            for (int i = 1; i < bufferDetails.length; i+=2) {
-                details.put(bufferDetails[i], Integer.parseInt(bufferDetails[i+1]));
+            Map<String, Integer> details = new HashMap<>();
+            for (int i = 1; i < bufferDetails.length; i += 2) {
+                details.put(bufferDetails[i], Integer.parseInt(bufferDetails[i + 1]));
             }
             TileMap map = new TileMap(Application.gameData.getMap().get(mapNumber));
             byte[] buf = getPlatform().imageRenderer.generatePreview(
-                map,
-                details.get("x1"),
-                details.get("y1"));
+                    map,
+                    details.get("x1"),
+                    details.get("y1"));
             setData(buf);
             redraw();
             return true;
@@ -417,5 +426,35 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
                 redraw();
             }
         });
+    }
+
+    private int calculateHiresOffset(int y) {
+        return calculateTextOffset(y >> 3) + ((y & 7) << 10);
+    }
+
+    private int calculateTextOffset(int y) {
+        return ((y & 7) << 7) + 40 * (y >> 3);
+    }
+
+    @Override
+    public void exportImage() {
+        byte[] output = new byte[0x02000];
+        int counter = 0;
+        for (int y = 0; y < 192; y++) {
+            int offset = calculateHiresOffset(y);
+            for (int x = 0; x < 40; x++) {
+                output[offset + x] = getImageData()[counter++];
+            }
+        }
+        File out = FileUtils.getFile(null, "Export image", true, FileUtils.Extension.BINARY, FileUtils.Extension.ALL);
+        if (out == null) return;
+        try {
+            FileOutputStream outStream = new FileOutputStream(out);
+            outStream.write(output);
+            outStream.flush();
+            outStream.close();
+        } catch (IOException  ex) {
+            Logger.getLogger(AppleImageEditor.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 }

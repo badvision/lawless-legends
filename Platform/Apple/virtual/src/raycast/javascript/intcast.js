@@ -382,6 +382,12 @@ function byteToHex(d) {
   return "00".substr(0, 2 - hex.length) + hex; 
 }
 
+function wordToHex(d) {
+  assert(d >= 0 && d <= 65535, "word out of range");
+  var hex = Number(d).toString(16).toUpperCase();
+  return "0000".substr(0, 4 - hex.length) + hex; 
+}
+
 // Convert a float to an unsigned byte by truncation
 function ubyte(n) {
   assert(n >=0 && n < 256, "ubyte out of range");

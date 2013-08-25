@@ -1,4 +1,5 @@
 
+    .org $6000
 codeBeg = *
 
     .pc02 ; Enable 65c02 ops
@@ -73,10 +74,11 @@ expandVec1 = $800
 expandVec2 = $900
 expandCode = $A00 ; occupies $34 pages
 textures   = $3E00 ; in aux mem
-tex0 = textures
-tex1 = tex0+TEX_SIZE
-tex2 = tex1+TEX_SIZE
-tex3 = tex2+TEX_SIZE
+tex0       = textures
+tex1       = tex0+TEX_SIZE
+tex2       = tex1+TEX_SIZE
+tex3       = tex2+TEX_SIZE
+texEnd     = tex3+TEX_SIZE
 ; back to main mem
 ;---------------------------------
 
@@ -103,12 +105,12 @@ clrHires  = $C056
 setHires  = $C057
 
 ; ROM routines
-prntAX    = $F941
-rdKey     = $FD0C
+prntax    = $F941
+rdkey     = $FD0C
 crout     = $FD8E
-prByte    = $FDDA
+prbyte    = $FDDA
 cout      = $FDED
-prErr     = $FF2D
+prerr     = $FF2D
 monitor   = $FF69
 
 ; Pixel offsets in the blit table
@@ -124,7 +126,7 @@ texAddrHi: .byte >tex0,>tex1,>tex2,>tex3
 ; fixed precision base 2 logarithms.
 ;
 ; Input : unsigned bytes in X and Y
-; Output: unsigned byte in A
+; Output: unsigned byte in A of the *high* byte of the result only
 ;
 umul_bb_b:
     cpx #4
@@ -137,35 +139,33 @@ umul_bb_b:
     tax
     lda tbl_pow2_b_b,x  ; 2 ^ (log2(x) + log2(y))  =  x * y
     rts
-; handle cases less than 4 handle directly. This halved the size of
-; the tables (or made them more accurate, depending on your point of view)
+; handle cases 0..3 directly. This halved the size of the tables
+; and made them more accurate.
 @x_lt_4:
     lda #0
-    dex
-    bmi @done   ; x=0
-    tya
-    dex
-    bmi @done   ; x=1
-    asl
-    dey
-    bmi @done   ; x=2
-    sty @add+1  ; x=3
-@add:
-    adc #0
+    cpx #2
+    bcc @done   ; x=0 or x=1: the high byte of result will be zero
+    beq @two
+@three:
+    cpy #86     ; x=3: 3*(0..85) results in hi=0
+    bcc @done
+    ina
+    cpy #171    ; 3*(86..170) results in hi=1
+    bcc @done
+    ina         ; 3*(171..255) results in hi=2
+    rts
+@two:
+    cpy #$80    ; x=2: high byte is 1 iff input >= 0x80
+    bcc @done
+    ina
 @done:
     rts
 @y_lt_4:
-    lda #0
-    dey
-    bmi @done   ; y=0
-    txa
-    dey
-    bmi @done   ; y=1
-    asl
-    dey
-    bmi @done   ; y=2
-    stx @add+1  ; y=3
-    bra @add
+    stx tmp     ; switch X and Y
+    tya
+    tax
+    ldy tmp
+    bra @x_lt_4 ; then re-use code
 
 ;-------------------------------------------------------------------------------
 ; Calculate log2 of a 16-bit number.
@@ -811,8 +811,8 @@ bload:
     bcs @err
     rts
 @err:
-    jsr prByte
-    jsr prErr
+    jsr prbyte
+    jsr prerr
     ldx #$FF
     txs
     jmp monitor
@@ -852,13 +852,46 @@ test:
     sta resetVec+1
     eor #$A5
     sta resetVec+2
+
+; Establish the initial player position and direction
+    ; X=2.5, Y=2.5
+    lda #2
+    sta playerX+1
+    sta playerY+1
+    lda #$80
+    sta playerX
+    sta playerY
+    ; direction=0
+    stz playerDir
+
+; Test out log multiplication
+    ldy #$20
+:   lda testLoc,y
+    sta $300,y
+    dey
+    bpl :-
+    jmp $300
+testLoc:
+    ldx #5
+    ldy #8
+    jsr umul_bb_b
+    jmp prbyte
+
 ; Copy our code to aux mem so we can seamlessly switch back and forth
 ; It's wasteful but makes things easy for now.
     ldy #>codeBeg
     ldx #>codeEnd - >codeBeg + 1
     jsr copyToAux
-; Clear out memory
-    jsr clearMem
+
+; Load the texture expansion code
+    lda #>expandVec1
+    pha
+    lda #<expandVec1
+    pha
+    ldx #<@expandName
+    lda #>@expandName
+    jsr bload
+
 ; Load the textures
     lda #>tex0
     pha
@@ -892,6 +925,14 @@ test:
     lda #>@tex3name
     jsr bload
 
+    ; copy all the expansion code and textures to aux mem
+    ldy #>expandVec1
+    ldx #>texEnd - expandVec1 + 1
+    jsr copyToAux
+
+    ; clear out memory
+    jsr clearMem
+
     ; load the fancy frame
     lda #>$2000
     pha
@@ -917,17 +958,6 @@ test:
 
     bit clrText
     bit setHires
-
-; Establish the initial player position and direction
-    ; X=2.5, Y=2.5
-    lda #2
-    sta playerX+1
-    sta playerY+1
-    lda #$80
-    sta playerX
-    sta playerY
-    ; direction=0
-    stz playerDir
 
     lda #63
     sta lineCt
@@ -1001,6 +1031,8 @@ test:
     txs
     jmp monitor
 
+@expandName: .byte 10
+    .byte "/LL/EXPAND"
 @tex0Name: .byte 21
     .byte "/LL/ASSETS/BUILDING01"
 @tex1name: .byte 21

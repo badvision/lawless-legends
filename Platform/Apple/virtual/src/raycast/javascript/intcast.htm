@@ -1,0 +1,66 @@
+<html>
+  <head>
+    <title>JScript Lawless Legends Testbed</title>
+    <!--
+      /*
+      * Example code from the article at: http://dev.opera.com/articles/view/creating-pseudo-3d-games-with-html-5-can-1/
+      * Copyright (c) 2008 Jacob Seidelin, cupboy@gmail.com, http://blog.nihilogic.dk/
+      * The code is available to use under the terms of the MIT License 
+      * [http://www.opensource.org/licenses/mit-license.php]
+      */
+    -->
+    
+    <style type="text/css">
+      
+      div#minimapcontainer {
+      
+      }
+      canvas#minimap {
+      position : absolute;
+      }
+      canvas#minimapobjects {
+      position : absolute;
+      }
+      
+      div#floor {
+      position : absolute;
+      width : 100%;
+      height : 100%;
+      background-color : rgb(128,128,128);
+      }
+      
+      div#ceiling {
+      position : absolute;
+      width : 100%;
+      height : 50%;
+      background-color : rgb(96,96,96);
+      }
+      
+      
+      #screen {
+      position : relative;
+      width : 504px;
+      height : 512px;
+      border : 1px solid black;
+      overflow : hidden;
+      }
+      
+    </style>
+    
+    <script type="text/javascript" src="intcast.js"></script>
+    
+  </head>
+  <body>
+    
+    <div id="screen">
+      <div id="floor"></div>
+      <div id="ceiling"></div>
+    </div>
+    
+    <div id="minimapcontainer">
+      <canvas id="minimap"></canvas>
+      <canvas id="minimapobjects"></canvas>
+    </div>
+    
+  </body>
+</html>

@@ -344,6 +344,8 @@ function castRays(force)
       player.angleNum == prevAngleNum &&
       options == prevOptions)
     return;
+    
+  console.log("Cast: x=" + player.x + ", y=" + player.y + ", angle=" + player.angleNum);
 
   // Cast all the rays and record the data
   lineData = [];

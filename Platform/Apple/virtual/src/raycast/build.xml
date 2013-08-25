@@ -15,10 +15,6 @@
   <property name="ASM_SETTINGS" value="-t apple2"/>
   <property name="ASM_INCLUDES" value="-I .."/>
   
-  <property name="ORG_ADDR" value="900"/> <!-- load address, in hex -->
-  
-  <property name="BIN_FILE" value="${build.dir}/${projName}.bin#${ORG_ADDR}"/>
-  
   <target name="all">
     <antcall target="clean"/>
     <antcall target="build"/>
@@ -33,7 +29,7 @@
     <!-- Create build directory -->
     <mkdir dir="${build.dir}"/>
     
-    <!-- Compile ASM  -->
+    <!-- Assemble all .s files -->
     <apply executable="${CA65_TOOL}" dir="${src.dir}" 
            relative="true" parallel="false" failonerror="true" verbose="true">
       <fileset dir="${src.dir}" includes="*.s"/>
@@ -44,13 +40,29 @@
       <targetfile/>
       <srcfile/>
     </apply>
-    
-    <!-- Link it -->
+
+    <!-- Link the texture expansion code -->
     <apply executable="${LD65_TOOL}" dir="${build.dir}" 
            failonerror="true" verbose="true">
-      <arg line="-t none --start-addr 0x${ORG_ADDR} -o"/>
-      <arg value="${BIN_FILE}"/>
-      <fileset dir="${build.dir}" includes="*.o"/>
+      <arg value="--config"/>
+      <arg value="${src.dir}/link.cfg"/>
+      <arg value="--start-addr"/>
+      <arg value="0x$800"/>
+      <arg value="-o"/>
+      <arg value="${build.dir}/expand.bin#0800"/>
+      <fileset dir="${build.dir}" includes="expand.o"/>
+    </apply>
+
+    <!-- Link the main rendering code -->
+    <apply executable="${LD65_TOOL}" dir="${build.dir}" 
+           failonerror="true" verbose="true">
+      <arg value="--config"/>
+      <arg value="${src.dir}/link.cfg"/>
+      <arg value="--start-addr"/>
+      <arg value="0x$8000"/>
+      <arg value="-o"/>
+      <arg value="${build.dir}/render.bin#8000"/>
+      <fileset dir="${build.dir}" includes="render.o"/>
     </apply>
 
   </target>

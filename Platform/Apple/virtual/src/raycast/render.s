@@ -52,6 +52,8 @@ dist       = $54 ; len 2
 diff       = $56 ; len 2
 
 ; Other monitor locations
+a2l      = $3E
+a2h      = $3F
 resetVec = $3F2
 
 ; Tables and buffers
@@ -107,11 +109,13 @@ setHires  = $C057
 ; ROM routines
 prntax    = $F941
 rdkey     = $FD0C
+getln1    = $FD6F
 crout     = $FD8E
 prbyte    = $FDDA
 cout      = $FDED
 prerr     = $FF2D
 monitor   = $FF69
+getnum    = $FFA7
 
 ; Pixel offsets in the blit table
 blitOffsets: .byte 5,8,11,1,17,20,24
@@ -192,6 +196,8 @@ log2_w_w:
 
 ; Same as above but with with 8-bit input instead of 16. Same output though.
 log2_b_w:
+    cmp #0              ; special case: log(0) we call zero.
+    beq @zero
 @low:                   ; we know high byte is zero
     ldx #7              ; start with exponent=7
     asl                 ; shift up
@@ -204,6 +210,9 @@ log2_b_w:
     ; mantissa now in A, exponent in X. Translate mantissa to log using table, and we're done
     tay
     lda tbl_log2_w_w,y
+    rts
+@zero:
+    tax
     rts
 
 ;-------------------------------------------------------------------------------
@@ -231,6 +240,10 @@ pow2_w_w:
     sec                 ; so we shift a 1 into the high bit of the low byte
 @loLup:
     ror                 ; shift down
+    pha
+    jsr prbyte
+    jsr crout
+    pla
     inx                 ; count up exponent...
     cpx #8              ; ...until we hit 8
     bcc @loLup          ; handy because we need carry to be clear the next go-round
@@ -862,20 +875,24 @@ test:
     sta playerX
     sta playerY
     ; direction=0
-    stz playerDir
+    lda #0
+    sta playerDir
 
 ; Test out log multiplication
-    ldy #$20
-:   lda testLoc,y
-    sta $300,y
-    dey
-    bpl :-
-    jmp $300
-testLoc:
-    ldx #5
-    ldy #8
-    jsr umul_bb_b
-    jmp prbyte
+:   jsr getln1
+    ldy #0
+    jsr getnum
+    ldy a2l
+    ldx a2h
+    jsr pow2_w_w
+    pha
+    txa
+    jsr prbyte
+    pla
+    jsr prbyte
+    jsr crout
+    jsr crout
+    jmp :-
 
 ; Copy our code to aux mem so we can seamlessly switch back and forth
 ; It's wasteful but makes things easy for now.

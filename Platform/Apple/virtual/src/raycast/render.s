@@ -319,10 +319,6 @@ pow2_w_w:
     sec                 ; so we shift a 1 into the high bit of the low byte
 @loLup:
     ror                 ; shift down
-    pha
-    jsr prbyte
-    jsr crout
-    pla
     inx                 ; count up exponent...
     cpx #8              ; ...until we hit 8
     bcc @loLup          ; handy because we need carry to be clear the next go-round
@@ -445,14 +441,13 @@ castRay:
     ; We hit something!
 @hitX:
     DEBUG_STR "  Hit."
-    brk
     sta txNum           ; store the texture number we hit
     lda #0
     sec
     sbc playerX         ; inverse of low byte of player coord
     sta dist            ; is fractional byte of dist.
     lda mapX            ; map X is the integer byte
-    sbc #0
+    sbc playerX+1
     bit stepX
     bmi :+
     ina                 ; if stepping forward, add one to dist
@@ -469,7 +464,11 @@ castRay:
     bmi :+
     eor #$FF            ; ...invert the texture coord
 :   sta txColNum
+    .if DEBUG
+    jmp @debugFinal
+    .else
     rts
+    .endif
     ; taking a step in the Y direction
 @takeStepY:
     tya                 ; get ready to adjust Y by a whole line
@@ -501,14 +500,13 @@ castRay:
 @hitY:
     ; We hit something!
     DEBUG_STR "  Hit."
-    brk
     sta txNum           ; store the texture number we hit
     lda #0
     sec
     sbc playerY         ; inverse of low byte of player coord
     sta dist            ; is fractional byte of dist.
     lda mapY            ; map X is the integer byte
-    sbc #0
+    sbc playerY+1
     bit stepY
     bpl :+
     ina                 ; if stepping backward, add one to dist
@@ -525,7 +523,11 @@ castRay:
     bpl :+
     eor #$FF            ; ...invert the texture coord
 :   sta txColNum
+    .if DEBUG
+    jmp @debugFinal
+    .else
     rts
+    .endif
 
     ; wall calculation: X=dir1, Y=dir2, A=dir2step
 @wallCalc:
@@ -537,15 +539,23 @@ castRay:
     stx @sub2+1
     lda dist            ; calc abs(dist)
     ldx dist+1          ; dist currently in A(lo)/X(hi)
-    bpl :+
-    lda #0
+    bpl @notNeg
+    lda #0              ; invert distance if negative to get absolute value
+    sec
     sbc dist
     tay
     lda #0
     sbc dist+1
     tax                 ; get inverted dist into A(lo)/X(hi)
     tya
-:   jsr log2_w_w        ; calculate log2(abs(dist))
+@notNeg:
+    .if DEBUG
+    sta a2l
+    stx a2h
+    DEBUG_STR "  dist="
+    DEBUG_WORD a2l
+    .endif
+    jsr log2_w_w        ; calculate log2(abs(dist))
     sec
 @sub1:
     sbc #0              ; subtract log2(dir1)
@@ -554,6 +564,8 @@ castRay:
 @sub2:
     sbc #0
     sta diff+1
+    DEBUG_STR "diff="
+    DEBUG_WORD diff
     ; Calculate texture coordinate
     pla                 ; get dir2 back
     jsr log2_b_w        ; calculate log2(dir2)
@@ -563,6 +575,13 @@ castRay:
     txa
     adc diff+1
     tax
+    .if DEBUG
+    sty a2l
+    stx a2h
+    DEBUG_STR "sum="
+    DEBUG_WORD a2l
+    DEBUG_LN
+    .endif
     jsr pow2_w_w        ; calculate 2 ^ sum
     ; fractional part (A-reg) of result is texture coord
     ply                 ; retrieve the step direction
@@ -596,6 +615,14 @@ castRay:
     DEBUG_BYTE sideDistY
     DEBUG_LN
     rts
+@debugFinal:
+    DEBUG_STR "  lineCt="
+    DEBUG_BYTE lineCt
+    DEBUG_STR "txNum="
+    DEBUG_BYTE txNum
+    DEBUG_STR "txCol="
+    DEBUG_BYTE txColNum
+    brk
     .endif
 
 ; Advance pLine to the next line on the hi-res screen

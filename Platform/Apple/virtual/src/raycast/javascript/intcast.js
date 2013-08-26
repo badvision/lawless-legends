@@ -520,7 +520,7 @@ function pow2_w_w(n)
   return result;
 }
 
-function wallCalc(dist, bDir1, bDir2, bStep2)
+function wallCalc(x, dist, bDir1, bDir2, bStep2)
 {
   // Calculate perpendicular distance. Use logarithms for super-speed.
   dist = abs_w_w(dist);
@@ -533,8 +533,13 @@ function wallCalc(dist, bDir1, bDir2, bStep2)
     bWallX ^= 0xFF;
   
   // Calculate line height
-  sum = log2_w_w(64) - diff;
-  lineHeight = uword(pow2_w_w(sum));
+  lineHeight = uword(pow2_w_w(log2_w_w(64) - diff));
+  if (x == debugRay) {
+    console.log("    absDist=$" + wordToHex(dist) +
+                  ", diff=$" + wordToHex(diff) +
+                  ", sum=$" + wordToHex(sum));
+                  
+  }
   return [lineHeight, bWallX]
   
   /* No-log algorithm
@@ -635,7 +640,7 @@ function intCast(x)
         var wPerpWallDist = (bMapX<<8) - wRayPosX;
         if (bStepX < 0)
           wPerpWallDist += 256;
-        nums = wallCalc(wPerpWallDist, bRayDirX, bRayDirY, bStepY);
+        nums = wallCalc(x, wPerpWallDist, bRayDirX, bRayDirY, bStepY);
         lineHeight = nums[0]
         bWallX = nums[1]
         bWallX = uadd_bb_b(bWallX, wRayPosY & 0xFF);
@@ -659,7 +664,7 @@ function intCast(x)
         var wPerpWallDist = (bMapY<<8) - wRayPosY;
         if (bStepY < 0)
           wPerpWallDist += 256;
-        nums = wallCalc(wPerpWallDist, bRayDirY, bRayDirX, bStepX);
+        nums = wallCalc(x, wPerpWallDist, bRayDirY, bRayDirX, bStepX);
         lineHeight = nums[0];
         bWallX = nums[1];
         bWallX = uadd_bb_b(bWallX, wRayPosX & 0xFF);
@@ -671,10 +676,9 @@ function intCast(x)
   }
 
   if (x == debugRay) {
-    console.log("        abs(wPerpWallDist)=$" + wordToHex(Math.abs(wPerpWallDist)) +
-                      ", lineHeight=$" + wordToHex(lineHeight) +
-                      ", wallType=" + map[bMapY][bMapX] +
-                      ", wallX=$" + byteToHex(bWallX));
+    console.log("lineHeight=$" + wordToHex(lineHeight) +
+                ", wallType=" + map[bMapY][bMapX] +
+                ", wallX=$" + byteToHex(bWallX));
   }
 
   // Wrap it all in a nice package.

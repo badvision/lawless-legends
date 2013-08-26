@@ -47,6 +47,7 @@
     <bunzip2 src="./data/disks/base.2mg.bz2" dest="${build.dir}/${projName}.2mg"/>
 
     <!-- And stuff the directory into it -->
+    <echo>Adding files to image.</echo>
     <java jar="${a2copy.dir}/a2copy.jar" fork="true" failonerror="true">
       <arg value="-put"/>
       <arg value="${build.dir}/${projName}.2mg"/>

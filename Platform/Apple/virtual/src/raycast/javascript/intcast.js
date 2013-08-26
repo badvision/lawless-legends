@@ -31,7 +31,7 @@ var player = {
 
 var options = 0;
 
-var debugRay = null; /* Debugging info printed about this ray num, or null for none */
+var debugRay = 0; /* Debugging info printed about this ray num, or null for none */
 
 var maxAngleNum = 16;
 
@@ -590,8 +590,10 @@ function intCast(x)
   
   if (x == debugRay) {
     console.log("intCast: ray=" + x + 
-                ", bDeltaDistX=" + bDeltaDistX +
-                ", bDeltaDistY=" + bDeltaDistY);
+                ", bStepX=" + bStepX +
+                ", bStepY=" + bStepY +
+                ", bDeltaDistX=$" + byteToHex(bDeltaDistX) +
+                ", bDeltaDistY=$" + byteToHex(bDeltaDistY));
   }
 
   // Calculate step and initial sideDist
@@ -606,8 +608,8 @@ function intCast(x)
   bSideDistY = umul_bb_b(bSideDistY, bDeltaDistY);
   
   if (x == debugRay) {
-    console.log("    initial sideDistX=" + bSideDistX + 
-                ", sideDistY=" + bSideDistY);
+    console.log("    initial sideDistX=$" + byteToHex(bSideDistX) + 
+                          ", sideDistY=$" + byteToHex(bSideDistY));
   }
   
   // Distance to wall, and texture coordinate on the wall
@@ -619,17 +621,17 @@ function intCast(x)
   {
     // Jump to next map square in x-direction, OR in y-direction
     if (uless_bb(bSideDistX, bSideDistY)) {
-      bSideDistY -= bSideDistX;
-      bSideDistX = bDeltaDistX;
       bMapX += bStepX;
       if (x == debugRay) {
-        console.log("    side0, mapX=" + bMapX + ", mapY=" + bMapY + 
-                    ", sideDistX=" + bSideDistX + 
-                    ", sideDistY=" + bSideDistY);
+        console.log("    sideX, mapX=" + bMapX + ", mapY=" + bMapY + 
+                    ", bSideDistX=$" + byteToHex(bSideDistX) + 
+                    ", bSideDistY=$" + byteToHex(bSideDistY));
       }
+      bSideDistY -= bSideDistX;
+      bSideDistX = bDeltaDistX
       if (map[bMapY][bMapX] > 0) { 
         if (x == debugRay)
-          console.log("        hit side 0");
+          console.log("        hit X side");
         var wPerpWallDist = (bMapX<<8) - wRayPosX;
         if (bStepX < 0)
           wPerpWallDist += 256;
@@ -643,17 +645,17 @@ function intCast(x)
       }
     }
     else {
-      bSideDistX -= bSideDistY;
-      bSideDistY = bDeltaDistY;
       bMapY += bStepY;
       if (x == debugRay) {
-        console.log("    side1, mapX=" + bMapX + ", mapY=" + bMapY + 
-                    ", sideDistX=" + bSideDistX + 
-                    ", sideDistY=" + bSideDistY);
+        console.log("    sideY, mapX=" + bMapX + ", mapY=" + bMapY + 
+                    ", bSideDistX=$" + byteToHex(bSideDistX) + 
+                    ", bSideDistY=$" + byteToHex(bSideDistY));
       }
+      bSideDistX -= bSideDistY;
+      bSideDistY = bDeltaDistY;
       if (map[bMapY][bMapX] > 0) { 
         if (x == debugRay)
-          console.log("        hit side 1");
+          console.log("        hit Y side");
         var wPerpWallDist = (bMapY<<8) - wRayPosY;
         if (bStepY < 0)
           wPerpWallDist += 256;
@@ -669,8 +671,10 @@ function intCast(x)
   }
 
   if (x == debugRay) {
-    console.log("        perpWallDist=" + wPerpWallDist.toString() +
-                ", lineHeight=" + lineHeight.toString());
+    console.log("        abs(wPerpWallDist)=$" + wordToHex(Math.abs(wPerpWallDist)) +
+                      ", lineHeight=$" + wordToHex(lineHeight) +
+                      ", wallType=" + map[bMapY][bMapX] +
+                      ", wallX=$" + byteToHex(bWallX));
   }
 
   // Wrap it all in a nice package.

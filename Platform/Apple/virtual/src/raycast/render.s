@@ -12,7 +12,7 @@ codeBeg = *
 
 ; Conditional assembly flags
 DOUBLE_BUFFER = 0 ; whether to double-buffer
-DEBUG = 0 ; turn on verbose logging
+DEBUG = 1 ; turn on verbose logging
 
 ; Constants
 TOP_LINE     = $2180 ; 24 lines down from top
@@ -37,7 +37,6 @@ frontBuf   = $13 ; len 1 (value 0 or 1)
 pRayData   = $14 ; len 2
 playerX    = $16 ; len 2 (hi=integer, lo=fraction)
 playerY    = $18 ; len 2 (hi=integer, lo=fraction)
-playerDir  = $19 ; len 1
 rayDirX    = $1A ; len 1
 rayDirY    = $1B ; len 1
 stepX      = $1C ; len 1
@@ -50,6 +49,7 @@ deltaDistX = $52 ; len 1
 deltaDistY = $53 ; len 1
 dist       = $54 ; len 2
 diff       = $56 ; len 2
+playerDir  = $57 ; len 1
 
 ; Other monitor locations
 a2l      = $3E
@@ -67,7 +67,7 @@ blitIndexHi  = $D80 ; size $80
 clrBlitRoll  = $E00 ; size 3*(128/2) = $C0, plus 2 for tya & rts
 XF00         = $F00 ; unused
 
-prodosBuf    = $1000 ; temporary, before building the tables
+prodosBuf    = $AC00 ; temporary, before building the tables
 screen       = $2000
 
 ;---------------------------------
@@ -123,6 +123,85 @@ blitOffsets: .byte 5,8,11,1,17,20,24
 ; texture addresses
 texAddrLo: .byte <tex0,<tex1,<tex2,<tex3
 texAddrHi: .byte >tex0,>tex1,>tex2,>tex3
+
+; Debug macros
+.macro DEBUG_STR str
+.if DEBUG
+    php
+    pha
+    jsr pstr
+    .byte str,0
+    pla
+    plp
+.endif
+.endmacro
+
+.macro DEBUG_BYTE byte
+.if DEBUG
+    php
+    pha
+    lda byte
+    jsr prbyte
+    lda #$A0
+    jsr cout
+    pla
+    plp
+.endif
+.endmacro
+
+.macro DEBUG_WORD word
+.if DEBUG
+    php
+    pha
+    lda word+1
+    jsr prbyte
+    lda word
+    jsr prbyte
+    lda #$A0
+    jsr cout
+    pla
+    plp
+.endif
+.endmacro
+
+.macro DEBUG_LN
+.if DEBUG
+    php
+    pha
+    jsr crout
+    pla
+    plp
+.endif
+.endmacro
+
+; Print a string following the JSR, in high or low bit ASCII, terminated by zero.
+; If the string has a period "." it will be followed automatically by a CR.
+pstr:
+    pla
+    clc
+    adc #1
+    sta @ld+1
+    pla
+    adc #0
+    sta @ld+2
+@ld:
+    lda $2000
+    beq @done
+    ora #$80
+    jsr cout
+    cmp #$AE
+    bne :+
+    jsr crout
+:   inc @ld+1
+    bne @ld
+    inc @ld+2
+    bra @ld
+@done:
+    lda @ld+2
+    pha
+    lda @ld+1
+    pha
+    rts
 
 ;-------------------------------------------------------------------------------
 ; Multiply two bytes, quickly but somewhat inaccurately, using logarithms.
@@ -288,6 +367,12 @@ castRay:
     lda (pRayData),y    ; distance moved in Y direction
     sta deltaDistY      ; for each step
 
+    DEBUG_STR "castRay: deltaDistX="
+    DEBUG_BYTE deltaDistX
+    DEBUG_STR "deltaDistY="
+    DEBUG_BYTE deltaDistY
+    DEBUG_LN
+
     ; Start at the player's position
     lda playerX+1
     sta mapX
@@ -297,8 +382,8 @@ castRay:
     ; Next we need to calculate the initial distance on each side
     ; Start with the X side
     lda playerX         ; fractional byte of player distance
-    bit stepX           ; if stepping in reverse...
-    bpl :+
+    bit stepX           ; if stepping forward...
+    bmi :+
     eor #$FF            ; invert initial dist
 :   tax
     ldy deltaDistX      ; calculate fraction of delta
@@ -306,13 +391,19 @@ castRay:
     sta sideDistX       ; to form initial side dist
     ; Now the Y side
     lda playerY         ; fractional byte of player distance
-    bit stepY           ; if stepping in reverse...
-    bpl :+
+    bit stepY           ; if stepping forward...
+    bmi :+
     eor #$FF            ; invert initial dist
 :   tax
     ldy deltaDistY      ; calculate fraction of delta
     jsr umul_bb_b
     sta sideDistY       ; to form initial side dist
+
+    DEBUG_STR "  initial sdx="
+    DEBUG_BYTE sideDistX
+    DEBUG_STR " sdy="
+    DEBUG_BYTE sideDistY
+    DEBUG_LN
 
     ; We're going to use the Y register to index the map. Initialize it.
     lda mapY
@@ -330,12 +421,6 @@ castRay:
     bcs @takeStepY
     ; taking a step in the X direction
 @takeStepX:
-    lda sideDistY       ; adjust side dist in Y dir
-    sec
-    sbc sideDistX
-    sta sideDistY
-    lda deltaDistX      ; re-init X distance
-    sta sideDistX
     lda stepX           ; advance mapX in the correct direction
     bmi @negX
     inc mapX
@@ -345,10 +430,22 @@ castRay:
     dec mapX
     dey
 @checkX:
+    .if DEBUG
+    DEBUG_STR "  sideX"
+    jsr @debugSideData
+    .endif
+    lda sideDistY       ; adjust side dist in Y dir
+    sec
+    sbc sideDistX
+    sta sideDistY
+    lda deltaDistX      ; re-init X distance
+    sta sideDistX
     lda mapData,y       ; check map at current X/Y position
     beq @DDA_step       ; nothing there? do another step.
     ; We hit something!
 @hitX:
+    DEBUG_STR "  Hit."
+    brk
     sta txNum           ; store the texture number we hit
     lda #0
     sec
@@ -375,12 +472,6 @@ castRay:
     rts
     ; taking a step in the Y direction
 @takeStepY:
-    lda sideDistX       ; adjust side dist in Y dir
-    sec
-    sbc sideDistY
-    sta sideDistX
-    lda deltaDistY      ; re-init Y distance
-    sta sideDistY
     tya                 ; get ready to adjust Y by a whole line
     bit stepY           ; advance mapY in the correct direction
     bmi @negY
@@ -393,11 +484,24 @@ castRay:
     sec
     sbc #16
 @checkY:
+    .if DEBUG
+    DEBUG_STR "  sideY"
+    jsr @debugSideData
+    .endif
     tay                 ; row number to Y so we can index the map
+    lda sideDistX       ; adjust side dist in Y dir
+    sec
+    sbc sideDistY
+    sta sideDistX
+    lda deltaDistY      ; re-init Y distance
+    sta sideDistY
     lda mapData,y       ; check map at current X/Y position
-    beq @DDA_step       ; nothing there? do another step.
-    ; We hit something!
+    bne @hitY       ; nothing there? do another step.
+    jmp @DDA_step
 @hitY:
+    ; We hit something!
+    DEBUG_STR "  Hit."
+    brk
     sta txNum           ; store the texture number we hit
     lda #0
     sec
@@ -480,6 +584,19 @@ castRay:
     lda #$FF            ; clamp large line heights to 255
 :   sta lineCt
     rts                 ; all done with wall calculations
+    .if DEBUG
+@debugSideData:
+    DEBUG_STR ", mapX="
+    DEBUG_BYTE mapX
+    DEBUG_STR "mapY="
+    DEBUG_BYTE mapY
+    DEBUG_STR "sdx="
+    DEBUG_BYTE sideDistX
+    DEBUG_STR "sdy="
+    DEBUG_BYTE sideDistY
+    DEBUG_LN
+    rts
+    .endif
 
 ; Advance pLine to the next line on the hi-res screen
 nextLine:
@@ -850,6 +967,7 @@ copyToAux:
 
 ; Test code to see if things really work
 test:
+    DEBUG_STR "Clearing memory."
 ; Clear ProDOS mem map so it lets us load stuff anywhere we want
     ldx #$18
     lda #1
@@ -878,22 +996,6 @@ test:
     lda #0
     sta playerDir
 
-; Test out log multiplication
-:   jsr getln1
-    ldy #0
-    jsr getnum
-    ldy a2l
-    ldx a2h
-    jsr pow2_w_w
-    pha
-    txa
-    jsr prbyte
-    pla
-    jsr prbyte
-    jsr crout
-    jsr crout
-    jmp :-
-
 ; Copy our code to aux mem so we can seamlessly switch back and forth
 ; It's wasteful but makes things easy for now.
     ldy #>codeBeg
@@ -901,6 +1003,8 @@ test:
     jsr copyToAux
 
 ; Load the texture expansion code
+    DEBUG_STR "Skipping expansion code and textures because of mip problem."
+    .if 0
     lda #>expandVec1
     pha
     lda #<expandVec1
@@ -959,6 +1063,8 @@ test:
     lda #>@frameName
     jsr bload
 
+    .endif
+
 ; Build all the unrolls and tables
     jsr makeBlit
     jsr makeClrBlit
@@ -973,8 +1079,11 @@ test:
     .endif
     sta bacKBuf
 
+    DEBUG_STR "Staying in text mode."
+    .if 0
     bit clrText
     bit setHires
+    .endif
 
     lda #63
     sta lineCt
@@ -1005,7 +1114,7 @@ test:
     inc pixNum
     lda pixNum
     cmp #7
-    bne @oneCol
+    bne @nextCol
 @flush:
     ldy byteNum
     iny                 ; move to right 2 bytes to preserve frame border
@@ -1018,14 +1127,13 @@ test:
     sta pixNum
     inc byteNum
     inc byteNum
-    lda byteNum
-    cmp #18
-    beq @nextLevel
 @nextCol:
     pla
     clc
     adc #4              ; advance to next ray
-    bra @oneCol
+    ldx byteNum
+    cpx #18
+    bne @oneCol
 
 @nextLevel:
 ; flip onto the screen

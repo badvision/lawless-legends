@@ -10,6 +10,14 @@ codeBeg = *
 ; code is at the very end. We jump to it now.
     jmp test
 
+; Vectors for mip-map level selection, called by expansion code.
+    jmp selectMip0
+    jmp selectMip1
+    jmp selectMip2
+    jmp selectMip3
+    jmp selectMip4
+    jmp selectMip5
+
 ; Conditional assembly flags
 DOUBLE_BUFFER = 0 ; whether to double-buffer
 DEBUG = 1 ; turn on verbose logging
@@ -19,12 +27,12 @@ TOP_LINE     = $2180 ; 24 lines down from top
 NLINES       = 128
 SKY_COLOR    = $11 ; blue
 GROUND_COLOR = $2 ; orange / black
-TEX_SIZE     = $800 ; 32 columns x 64 bytes per column
+TEX_SIZE     = $555 ; 32x32 + 16x16 + 8x8 + 4x4 + 2x2 + 1x1
 
 ; My zero page
 lineCt     = $3  ; len 1
 txNum      = $4  ; len 1
-txColNum   = $5  ; len 1
+txColumn   = $5  ; len 1
 pLine      = $6  ; len 2
 pDst       = $8  ; len 2
 pTex       = $A  ; len 2
@@ -72,9 +80,8 @@ screen       = $2000
 
 ;---------------------------------
 ; The following are all in aux mem...
-expandVec1 = $800
-expandVec2 = $900
-expandCode = $A00 ; occupies $34 pages
+expandVec  = $800
+expandCode = $900 ; occupies $35 pages
 textures   = $3E00 ; in aux mem
 tex0       = textures
 tex1       = tex0+TEX_SIZE
@@ -124,12 +131,20 @@ blitOffsets: .byte 5,8,11,1,17,20,24
 texAddrLo: .byte <tex0,<tex1,<tex2,<tex3
 texAddrHi: .byte >tex0,>tex1,>tex2,>tex3
 
+; mipmap level offsets
+MIP_OFFSET_0 = 0
+MIP_OFFSET_1 = $400     ; 32*32
+MIP_OFFSET_2 = $500     ; 32*32 + 16*16
+MIP_OFFSET_3 = $540     ; 32*32 + 16*16 + 8*8
+MIP_OFFSET_4 = $550     ; 32*32 + 16*16 + 8*8 + 4*4
+MIP_OFFSET_5 = $554     ; 32*32 + 16*16 + 8*8 + 4*4 + 2*2
+
 ; Debug macros
 .macro DEBUG_STR str
 .if DEBUG
     php
     pha
-    jsr pstr
+    jsr _debugStr
     .byte str,0
     pla
     plp
@@ -174,9 +189,11 @@ texAddrHi: .byte >tex0,>tex1,>tex2,>tex3
 .endif
 .endmacro
 
-; Print a string following the JSR, in high or low bit ASCII, terminated by zero.
-; If the string has a period "." it will be followed automatically by a CR.
-pstr:
+; Debug support to print a string following the JSR, in high or low bit ASCII, 
+; terminated by zero. If the string has a period "." it will be followed 
+; automatically by the next address and a CR.
+.if DEBUG
+_debugStr:
     pla
     clc
     adc #1
@@ -191,6 +208,19 @@ pstr:
     jsr cout
     cmp #$AE
     bne :+
+    lda #$DB ; [
+    jsr cout
+    lda @ld+1
+    clc
+    adc #4
+    pha
+    lda @ld+2
+    adc #0
+    jsr prbyte
+    pla
+    jsr prbyte
+    lda #$DD ; ]
+    jsr cout
     jsr crout
 :   inc @ld+1
     bne @ld
@@ -202,6 +232,7 @@ pstr:
     lda @ld+1
     pha
     rts
+    .endif
 
 ;-------------------------------------------------------------------------------
 ; Multiply two bytes, quickly but somewhat inaccurately, using logarithms.
@@ -333,7 +364,7 @@ pow2_w_w:
 ; Input: pRayData, plus Y reg: precalculated ray data (4 bytes)
 ;        playerX, playerY (integral and fractional bytes of course)
 ; Output: lineCt - height to draw in double-lines
-;         txColNum - column in the texture to draw
+;         txColumn - column in the texture to draw
 castRay:
     ; First, grab the precalculated ray data from the table.
     ldx #1              ; default X step: forward one column of the map
@@ -459,11 +490,11 @@ castRay:
     ; adjust wall X
     lda playerY         ; fractional player pos
     clc
-    adc txColNum
+    adc txColumn
     bit stepY           ; if stepping forward in X...
     bmi :+
     eor #$FF            ; ...invert the texture coord
-:   sta txColNum
+:   sta txColumn
     .if DEBUG
     jmp @debugFinal
     .else
@@ -518,11 +549,11 @@ castRay:
     ; adjust wall X
     lda playerX         ; fractional player pos
     clc
-    adc txColNum
+    adc txColumn
     bit stepY           ; if stepping backward in Y
     bpl :+
     eor #$FF            ; ...invert the texture coord
-:   sta txColNum
+:   sta txColumn
     .if DEBUG
     jmp @debugFinal
     .else
@@ -587,7 +618,7 @@ castRay:
     ply                 ; retrieve the step direction
     bpl :+              ; if positive, don't flip the texture coord
     eor #$FF            ; negative, flip the coord
-:   sta txColNum
+:   sta txColumn
     ; Calculate line height
     ; we need to subtract diff from log2(64) which is $0600
     lda #0
@@ -597,7 +628,7 @@ castRay:
     lda #6
     sbc diff+1
     tax
-    jsr pow2_w_w        ; calculate 2 ^ (log(64) - diff)
+    jsr pow2_w_w        ; calculate 2 ^ (log(64) - diff)  =~  64.0 / dist
     cpx #0
     beq :+
     lda #$FF            ; clamp large line heights to 255
@@ -621,8 +652,8 @@ castRay:
     DEBUG_STR "txNum="
     DEBUG_BYTE txNum
     DEBUG_STR "txCol="
-    DEBUG_BYTE txColNum
-    brk
+    DEBUG_BYTE txColumn
+    DEBUG_LN
     .endif
 
 ; Advance pLine to the next line on the hi-res screen
@@ -660,21 +691,157 @@ nextLine:
     stx pLine+1
     rts
 
-; Template for blitting code
+; Select mipmap level 0 (64x64 pixels = 32x32 bytes)
+selectMip0:
+    ; pTex is already pointing at level 0, no need to adjust its level.
+    ; However, we do need to move it to the correct column. Currently txColumn
+    ; is 0..255 pixels, which we need to translate to 0..31 columns; that's
+    ; a divide by 8. But then we need to multiply by 32 bytes per column,
+    ; so (1/8)*32 = 4, so we need to multiply by 4 after masking.
+    lda txColumn
+    and #$F8            ; retain upper 5 bits
+    stz tmp
+    asl
+    rol tmp             ; multiplied by 2
+    asl
+    rol tmp             ; multiplied by 4
+    adc pTex            ; adjust pTex by that much
+    sta pTex
+    lda tmp
+    adc pTex+1
+    sta pTex+1
+mipReady:
+    ldy pixNum          ; get offset into the blit roll for this column
+    ldx blitOffsets,y
+    ldy #0              ; default to copying from top of column
+    rts
 
+; Select mipmap level 0 (32x32 pixels = 16x16 bytes)
+selectMip1:
+    ; pTex is pointing at level 0, so we need to move it to level 1.
+    ; Then we need to move it to the correct column. Currently txColumn
+    ; is 0..255 pixels, which we need to translate to 0..15 columns; that's
+    ; a divide by 16. But then we need to multiply by 16 bytes per column,
+    ; so (1/16)*16 = 1 ==> no multiply needed.
+    lda txColumn
+    and #$F0            ; retain upper 4 bits
+    clc
+    adc pTex
+    sta pTex            ; no need to add #<MIP_OFFSET_1, since it is zero.
+    lda pTex+1
+    adc #>MIP_OFFSET_1  ; adjust to mip level 1
+    sta pTex+1
+    jmp mipReady
+
+; Select mipmap level 2 (16x16 pixels = 8x8 bytes)
+selectMip2:
+    ; pTex is pointing at level 0, so we need to move it to level 2.
+    ; Then we need to move it to the correct column. Currently txColumn
+    ; is 0..255 pixels, which we need to translate to 0..8 columns; that's
+    ; a divide by 32. But then we need to multiply by 8 bytes per column,
+    ; so (1/32)*8 = 1/4 ==> overall we need to divide by 4.
+    lda txColumn
+    and #$E0            ; retain upper 3 bits
+    lsr                 ; div by 2
+    lsr                 ; div by 4
+    clc
+    adc pTex
+    sta pTex            ; no need to add #<MIP_OFFSET_2, since it is zero.
+    lda pTex+1
+    adc #>MIP_OFFSET_2  ; adjust to mip level 2
+    sta pTex+1
+    jmp mipReady
+
+; Select mipmap level 3 (8x8 pixels = 4x4 bytes)
+selectMip3:
+    ; pTex is pointing at level 0, so we need to move it to level 3.
+    ; Then we need to move it to the correct column. Currently txColumn
+    ; is 0..255 pixels, which we need to translate to 0..3 columns; that's
+    ; a divide by 64. But then we need to multiply by 4 bytes per column,
+    ; so (1/64)*4 = 1/16 ==> overall we need to divide by 16.
+    lda txColumn
+    and #$C0            ; retain upper 2 bits
+    lsr                 ; div by 2
+    lsr                 ; div by 4
+    lsr                 ; div by 8
+    lsr                 ; div by 16
+    clc
+    adc #<MIP_OFFSET_3  ; = $40, so will never cause carry
+    adc pTex            ; can be non-zero
+    sta pTex
+    lda pTex+1
+    adc #>MIP_OFFSET_3  ; adjust to mip level 3
+    sta pTex+1
+    jmp mipReady
+
+; Select mipmap level 4 (4x4 pixels = 2x2 bytes)
+selectMip4:
+    ; pTex is pointing at level 0, so we need to move it to level 4.
+    ; Then we need to move it to the correct column. Currently txColumn
+    ; is 0..255 pixels, which we need to translate to 0..1 columns; that's
+    ; a divide by 128. But then we need to multiply by 2 bytes per column,
+    ; so (1/128)*2 = 1/64 ==> overall we need to divide by 64
+    lda txColumn
+    and #$80            ; retain the high bit
+    beq :+              ; if not set, result should be zero
+    lda #64             ; else result should be 64
+:   clc
+    adc #<MIP_OFFSET_4  ; = $50, so will never cause carry
+    adc pTex            ; can be non-zero
+    sta pTex
+    lda pTex+1
+    adc #>MIP_OFFSET_4  ; adjust to mip level 4
+    sta pTex+1
+    jmp mipReady
+
+; Select mipmap level 5 (2x2 pixels = 1x1 bytes)
+selectMip5:
+    ; Mip level 5 is super-easy: it's one byte. Not much choice there.
+    lda pTex
+    clc
+    adc #<MIP_OFFSET_5
+    sta pTex
+    lda pTex+1
+    adc #>MIP_OFFSET_5
+    sta pTex+1
+    jmp mipReady
+
+; Draw a ray that was traversed by calcRay
+drawRay:
+    ; Make a pointer to the selected texture
+    ldx txNum
+    lda texAddrLo,x
+    sta pTex
+    lda texAddrHi,x
+    sta pTex+1
+    ; jump to the unrolled expansion code for the selected height
+    lda lineCt
+    asl
+    bcc :+
+    lda #254            ; clamp max height
+:   tax
+    DEBUG_STR "Calling expansion code."
+    sta setAuxRd        ; switch to aux mem where textures and expansion code live
+    jsr @callit         ; call the unrolled code
+    sta clrAuxRd        ; back to main mem
+    rts                 ; and we're done.
+@callit:
+    jmp (expandVec,x)   ; use vector to get to the right code
+
+; Template for blitting code
 blitTemplate: ; comments show byte offset
     lda decodeTo57 ;  0: pixel 3
     asl ;  3: save half of pix 3 in carry
     ora decodeTo01 ;  4: pixel 0
     ora decodeTo23 ;  7: pixel 1
     ora decodeTo45 ; 10: pixel 2
-    sta (0),Y ; 13: even column
+    sta (0),y ; 13: even column
     iny ; 15: prep for odd
     lda decodeTo01 ; 16: pixel 4
     ora decodeTo23 ; 19: pixel 5
     rol ; 22: recover half of pix 3
     ora decodeTo56 ; 23: pixel 6 - after rol to ensure right hi bit
-    sta (0),Y ; 26: odd column
+    sta (0),y ; 26: odd column
     dey ; 28: prep for even
     ; 29 bytes total
 
@@ -694,8 +861,8 @@ makeBlit:
 ; Copy the template
     ldy #29
 @copy:
-    lda blitTemplate,Y
-    sta (pDst),Y
+    lda blitTemplate,y
+    sta (pDst),y
     dey
     bpl @copy
      ; Record the address for the line
@@ -716,14 +883,14 @@ makeBlit:
 @storeLine: ; Subroutine to store pLine to pDst
     lda lineCt
     asl
-    sta (pDst),Y
+    sta (pDst),y
     rts
 @storeIndex: ; Subroutine to store tbl ptr to index
     ldy lineCt
     lda pDst
-    sta blitIndexLo,Y
+    sta blitIndexLo,y
     lda pDst+1
-    sta blitIndexHi,Y
+    sta blitIndexHi,y
     rts
 @advance: ; Subroutine to go to next unroll
     lda #29
@@ -745,7 +912,7 @@ advPDst:
 storeRTS:
     lda #$60
     ldy #0
-    sta (pDst),Y
+    sta (pDst),y
     rts
 
 ; Create code to clear the blit
@@ -754,27 +921,27 @@ makeClrBlit:
     ldy #0
 @lup:
     lda @st
-    sta clrBlitRoll,X
+    sta clrBlitRoll,x
     inx
-    lda blitIndexLo,Y
-    sta clrBlitRoll,X
+    lda blitIndexLo,y
+    sta clrBlitRoll,x
     inx
-    lda blitIndexHi,Y
+    lda blitIndexHi,y
 @st:
-    sta clrBlitRoll,X
+    sta clrBlitRoll,x
     inx
     iny
     iny
     cpy #64
     bne @noSwitch
     lda @tya ; switch from sky color to ground color
-    sta clrBlitRoll,X
+    sta clrBlitRoll,x
     inx
 @noSwitch:
     cpy #NLINES
     bne @lup
     lda @rts
-    sta clrBlitRoll,X
+    sta clrBlitRoll,x
 @rts:
     rts
 @tya:
@@ -819,20 +986,20 @@ makeDecodeTbls:
     and #1
     ora tmp
 @decodeTo01:
-    sta decodeTo01,X
+    sta decodeTo01,x
 @decodeTo23:
     asl
     asl
-    sta decodeTo23,X
+    sta decodeTo23,x
 @decodeTo45:
     asl
     asl
     ora #$80
-    sta decodeTo45,X
+    sta decodeTo45,x
 @decodeTo56:
     asl
     ora #$80
-    sta decodeTo56,X
+    sta decodeTo56,x
 @decodeTo57:
     asl
     asl
@@ -840,7 +1007,7 @@ makeDecodeTbls:
     lsr
     plp
     ror
-    sta decodeTo57,X
+    sta decodeTo57,x
 @next:
     inx
     bne @shiftA
@@ -868,7 +1035,7 @@ clearScreen2:
 @outer:
     stx pDst+1
 @inner:
-    sta (pDst),Y
+    sta (pDst),y
     iny
     bne @inner
     inx
@@ -893,8 +1060,8 @@ makeLines:
     lda pLine
     ldy pLine+1
     sta setAuxZP
-    sta 0,X
-    sty 1,X
+    sta 0,x
+    sty 1,x
     sta clrAuxZP
     jsr nextLine
     inc lineCt
@@ -918,10 +1085,10 @@ setBackBuf:
     sta $FF
     ldx #0
 @lup:
-    lda 1,X
+    lda 1,x
     and #$1F
     ora $FF
-    sta 1,X
+    sta 1,x
     inx
     inx
     bne @lup
@@ -982,8 +1149,8 @@ copyToAux:
     ldy #0
     sty pDst
 @lup:
-    lda (pDst),Y
-    sta (pDst),Y
+    lda (pDst),y
+    sta (pDst),y
     iny
     bne @lup
     inc pDst+1
@@ -994,12 +1161,12 @@ copyToAux:
 
 ; Test code to see if things really work
 test:
-    DEBUG_STR "Clearing memory."
+    DEBUG_STR "Clearing memory map."
 ; Clear ProDOS mem map so it lets us load stuff anywhere we want
     ldx #$18
     lda #1
 @memLup:
-    sta memMap-1,X
+    sta memMap-1,x
     lda #0
     dex
     bne @memLup
@@ -1030,11 +1197,10 @@ test:
     jsr copyToAux
 
 ; Load the texture expansion code
-    DEBUG_STR "Skipping expansion code and textures because of mip problem."
-    .if 0
-    lda #>expandVec1
+    DEBUG_STR "Loading files."
+    lda #>expandVec
     pha
-    lda #<expandVec1
+    lda #<expandVec
     pha
     ldx #<@expandName
     lda #>@expandName
@@ -1074,14 +1240,13 @@ test:
     jsr bload
 
     ; copy all the expansion code and textures to aux mem
-    ldy #>expandVec1
-    ldx #>texEnd - expandVec1 + 1
+    DEBUG_STR "Copying to aux mem."
+    ldy #>expandVec
+    ldx #>texEnd - expandVec + 1
     jsr copyToAux
 
-    ; clear out memory
-    jsr clearMem
-
     ; load the fancy frame
+    DEBUG_STR "Loading frame."
     lda #>$2000
     pha
     lda #<$2000
@@ -1090,9 +1255,8 @@ test:
     lda #>@frameName
     jsr bload
 
-    .endif
-
 ; Build all the unrolls and tables
+    DEBUG_STR "Making tables."
     jsr makeBlit
     jsr makeClrBlit
     jsr makeDecodeTbls
@@ -1106,11 +1270,11 @@ test:
     .endif
     sta bacKBuf
 
-    DEBUG_STR "Staying in text mode."
-    .if 0
+    ;DEBUG_STR "Staying in text mode."
+    ;.if 0
     bit clrText
     bit setHires
-    .endif
+    ;.endif
 
     lda #63
     sta lineCt
@@ -1134,21 +1298,35 @@ test:
 
     lda #0
 
+    ; Calculate the height, texture number, and texture column for one ray
 @oneCol:
-    pha
+    pha                 ; save 
     tay
-    jsr castRay
-    inc pixNum
+    jsr castRay         ; cast the ray across the map
+    jsr drawRay         ; and draw it
+    .if DEBUG
+    DEBUG_STR "Done drawing ray "
+    pla
+    pha
+    lsr
+    lsr
+    jsr prbyte
+    DEBUG_LN
+    .endif
+    inc pixNum          ; do we need to flush the pixel buffer?
     lda pixNum
     cmp #7
-    bne @nextCol
+    bne @nextCol        ; not yet
 @flush:
+    ; flush the blit
+    DEBUG_STR "Flushing."
     ldy byteNum
     iny                 ; move to right 2 bytes to preserve frame border
     iny
     sta setAuxZP
     jsr blitRoll
     sta clrAuxZP
+    DEBUG_STR "Clearing blit."
     jsr clearBlit
     lda #0
     sta pixNum
@@ -1160,7 +1338,8 @@ test:
     adc #4              ; advance to next ray
     ldx byteNum
     cpx #18
-    bne @oneCol
+    beq @nextLevel
+    jmp @oneCol
 
 @nextLevel:
 ; flip onto the screen
@@ -1169,9 +1348,10 @@ test:
     lda frontBuf
     sta bacKBuf
     stx frontBuf
-    lda page1,X
+    lda page1,x
     .endif
 @pauseLup:
+    DEBUG_STR "Done rendering, waiting for key."
     lda kbd
     bpl @pauseLup
 @done:

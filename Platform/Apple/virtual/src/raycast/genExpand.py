@@ -20,9 +20,17 @@ finalSuffixMap = {}
 dstHeights = set()
 
 outFile = open("expand.s", "w")
+outFile.write("    .org $800\n")
 outFile.write("    .pc02\n")
-outFile.write("pshape = 6\n")
-outFile.write("rowblit = $6000\n")
+outFile.write("pTex = $A\n")
+outFile.write("selectMip0 = $6003\n")
+outFile.write("selectMip1 = selectMip0+3\n")
+outFile.write("selectMip2 = selectMip1+3\n")
+outFile.write("selectMip3 = selectMip2+3\n")
+outFile.write("selectMip4 = selectMip3+3\n")
+outFile.write("selectMip5 = selectMip4+3\n")
+outFile.write("rowBlit = $B000\n")
+outFile.write("ROW_STRIDE = 29\n")
 outFile.write("\n")
 
 def calcKey(cmds):
@@ -113,12 +121,12 @@ class Segment:
       first = False
       c = s.cmds[i]
       if c == 'L':
-        outFile.write("    lda (pshape),y\n")
+        outFile.write("    lda (pTex),y\n")
         outFile.write("    iny\n")
       elif c == '<':
         outFile.write("    lsr\n")
       else:
-        outFile.write("    sta %s*15+rowblit,x\n" % c)
+        outFile.write("    sta %s*ROW_STRIDE + rowBlit,x\n" % c)
     else:
       if grouped:
         outFile.write("    rts\n")
@@ -134,9 +142,9 @@ def makeCmds(dstHeight):
 
   # Figure out which texture mip-map level to use
   srcHeight = 2
-  texBase = 0
+  mipLevel = 5
   while srcHeight < textureHeight and srcHeight*2 <= dstHeight:
-    texBase += srcHeight
+    mipLevel -= 1
     srcHeight *= 2
 
   y0 = (screenHeight/2) - (dstHeight/2)
@@ -145,7 +153,7 @@ def makeCmds(dstHeight):
   r = 0
   cmds = []
 
-  texOff = texBase
+  texOff = 0
   if y0 < 0:
     texOff += int((-y0/2) * srcHeight / dstHeight)
     y0 = max(0, y0)
@@ -168,7 +176,7 @@ def makeCmds(dstHeight):
       assert r < dstHeight, "wrapped twice?"
 
   print("%d ->\t%d:\t%s" % (srcHeight, dstHeight, calcKey(cmds)))
-  allHeights.append((srcHeight, dstHeight, texOff, segment(cmds)))
+  allHeights.append((srcHeight, dstHeight, mipLevel, texOff, segment(cmds)))
 
 def flushSeg(seg):
   global allSegs
@@ -274,10 +282,12 @@ while len(segsToOpt) > 0:
     del segsToOpt[dep]
 
 # Now generate the controlling code
-for (srcHeight, dstHeight, texOff, segs) in allHeights:
+for (srcHeight, dstHeight, mipLevel, texOff, segs) in allHeights:
   outFile.write("; Produce %d rows from %d rows\n" % (dstHeight, srcHeight))
   outFile.write("expand_%d:\n" % dstHeight)
-  outFile.write("    ldy #%d\n" % texOff)
+  outFile.write("    jsr selectMip%d\n" % mipLevel)
+  if (texOff != 0):
+    outFile.write("    ldy #%d\n" % texOff)
   for i in range(len(segs)):
     seg = allSegs[segs[i]]
     if seg.refs == 1 and not(seg.generated):

@@ -19,8 +19,8 @@ codeBeg = *
     jmp selectMip5
 
 ; Conditional assembly flags
-DOUBLE_BUFFER = 0 ; whether to double-buffer
-DEBUG = 1 ; turn on verbose logging
+DOUBLE_BUFFER = 1 ; whether to double-buffer
+DEBUG = 0 ; turn on verbose logging
 
 ; Constants
 TOP_LINE       = $2180 ; 24 lines down from top
@@ -59,7 +59,7 @@ deltaDistX = $52 ; len 1
 deltaDistY = $53 ; len 1
 dist       = $54 ; len 2
 diff       = $56 ; len 2
-playerDir  = $57 ; len 1
+playerDir  = $58 ; len 1
 
 ; Other monitor locations
 a2l      = $3E
@@ -1186,12 +1186,15 @@ test:
     sta resetVec+2
 
 ; Establish the initial player position and direction
-    ; X=2.5, Y=2.5
-    lda #2
+    ; X=5.5
+    lda #5
     sta playerX+1
-    sta playerY+1
     lda #$80
     sta playerX
+    ; Y=2.5
+    lda #2
+    sta playerY+1
+    lda #$80
     sta playerY
     ; direction=0
     lda #0
@@ -1261,6 +1264,16 @@ test:
     ldx #<@frameName
     lda #>@frameName
     jsr bload
+
+    .if DOUBLE_BUFFER
+    lda #>$4000
+    pha
+    lda #<$4000
+    pha
+    ldx #<@frameName
+    lda #>@frameName
+    jsr bload
+    .endif
 
 ; Build all the unrolls and tables
     DEBUG_STR "Making tables."
@@ -1361,8 +1374,18 @@ test:
 @pauseLup:
     lda kbd
     bpl @pauseLup
-@done:
     sta kbdStrobe ; eat the keypress
+    cmp #$9B
+    beq @done
+; advance
+    lda playerX
+    clc
+    adc #$40
+    sta playerX
+    bcc :+
+    inc playerX+1
+:   jmp @oneLevel
+@done:
     bit setText
     bit page1
 ; quit to monitor

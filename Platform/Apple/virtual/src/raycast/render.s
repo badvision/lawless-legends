@@ -23,11 +23,13 @@ DOUBLE_BUFFER = 0 ; whether to double-buffer
 DEBUG = 1 ; turn on verbose logging
 
 ; Constants
-TOP_LINE     = $2180 ; 24 lines down from top
-NLINES       = 128
-SKY_COLOR    = $11 ; blue
-GROUND_COLOR = $2 ; orange / black
-TEX_SIZE     = $555 ; 32x32 + 16x16 + 8x8 + 4x4 + 2x2 + 1x1
+TOP_LINE       = $2180 ; 24 lines down from top
+NLINES         = 128
+SKY_COLOR_E    = 1 ; blue
+SKY_COLOR_O    = 1 ; blue
+GROUND_COLOR_E = 4 ; orange
+GROUND_COLOR_O = 0 ; black
+TEX_SIZE       = $555 ; 32x32 + 16x16 + 8x8 + 4x4 + 2x2 + 1x1
 
 ; My zero page
 lineCt     = $3  ; len 1
@@ -70,10 +72,9 @@ decodeTo23   = $900
 decodeTo45   = $A00
 decodeTo56   = $B00
 decodeTo57   = $C00
-blitIndexLo  = $D00 ; size $80
-blitIndexHi  = $D80 ; size $80
-clrBlitRoll  = $E00 ; size 3*(128/2) = $C0, plus 2 for tya & rts
-XF00         = $F00 ; unused
+clrBlitRollE = $D00 ; size 3*(128/2) = $C0, plus 2 for tya and rts
+clrBlitRollO = $DC2 ; size 3*(128/2) = $C0, plus 2 for tya and rts
+XF00         = $E00 ; unused
 
 prodosBuf    = $AC00 ; temporary, before building the tables
 screen       = $2000
@@ -865,8 +866,6 @@ makeBlit:
     sta (pDst),y
     dey
     bpl @copy
-     ; Record the address for the line
-    jsr @storeIndex
 ; Set the line pointers
     ldy #14
     jsr @storeLine
@@ -878,19 +877,11 @@ makeBlit:
     lda lineCt
     cmp #NLINES
     bne @lineLup
-    jsr @storeIndex ; Last addr to index
     jmp storeRTS ; Finish with RTS for cleanliness
 @storeLine: ; Subroutine to store pLine to pDst
     lda lineCt
     asl
     sta (pDst),y
-    rts
-@storeIndex: ; Subroutine to store tbl ptr to index
-    ldy lineCt
-    lda pDst
-    sta blitIndexLo,y
-    lda pDst+1
-    sta blitIndexHi,y
     rts
 @advance: ; Subroutine to go to next unroll
     lda #29
@@ -917,31 +908,50 @@ storeRTS:
 
 ; Create code to clear the blit
 makeClrBlit:
+    lda #<blitRoll
+    sta pDst
+    lda #>blitRoll
+    sta pDst+1
     ldx #0
     ldy #0
 @lup:
     lda @st
-    sta clrBlitRoll,x
+    sta clrBlitRollE,x
+    sta clrBlitRollO,x
     inx
-    lda blitIndexLo,y
-    sta clrBlitRoll,x
+    lda pDst
+    sta clrBlitRollE,x
+    clc
+    adc #29
+    sta clrBlitRollO,x
     inx
-    lda blitIndexHi,y
+    lda pDst+1
 @st:
-    sta clrBlitRoll,x
+    sta clrBlitRollE,x
+    adc #0
+    sta clrBlitRollO,x
     inx
+    lda pDst
+    clc
+    adc #29*2
+    sta pDst
+    lda pDst+1
+    adc #0
+    sta pDst+1
     iny
     iny
     cpy #64
     bne @noSwitch
     lda @tya ; switch from sky color to ground color
-    sta clrBlitRoll,x
+    sta clrBlitRollE,x
+    sta clrBlitRollO,x
     inx
 @noSwitch:
     cpy #NLINES
     bne @lup
     lda @rts
-    sta clrBlitRoll,x
+    sta clrBlitRollE,x
+    sta clrBlitRollO,x
 @rts:
     rts
 @tya:
@@ -949,29 +959,26 @@ makeClrBlit:
 
 ; Clear the blit
 clearBlit:
-    ldy #GROUND_COLOR
-clearBlit2:
     ldx blitOffsets+0
-    lda #SKY_COLOR
-    jsr clrBlitRoll
+    jsr @clear2
     ldx blitOffsets+1
-    lda #SKY_COLOR
-    jsr clrBlitRoll
+    jsr @clear2
     ldx blitOffsets+2
-    lda #SKY_COLOR
-    jsr clrBlitRoll
+    jsr @clear2
     ldx blitOffsets+3
-    lda #SKY_COLOR
-    jsr clrBlitRoll
+    jsr @clear2
     ldx blitOffsets+4
-    lda #SKY_COLOR
-    jsr clrBlitRoll
+    jsr @clear2
     ldx blitOffsets+5
-    lda #SKY_COLOR
-    jsr clrBlitRoll
+    jsr @clear2
     ldx blitOffsets+6
-    lda #SKY_COLOR
-    jmp clrBlitRoll
+@clear2:
+    ldy #GROUND_COLOR_E
+    lda #SKY_COLOR_E
+    jsr clrBlitRollE
+    ldy #GROUND_COLOR_O
+    lda #SKY_COLOR_O
+    jmp clrBlitRollO
 
 ; Construct the pixel decoding tables
 makeDecodeTbls:
@@ -1350,8 +1357,8 @@ test:
     stx frontBuf
     lda page1,x
     .endif
-@pauseLup:
     DEBUG_STR "Done rendering, waiting for key."
+@pauseLup:
     lda kbd
     bpl @pauseLup
 @done:

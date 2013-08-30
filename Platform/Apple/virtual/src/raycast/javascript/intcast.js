@@ -160,6 +160,11 @@ function prepCast(angleNum, x)
   var dirX = Math.cos(angle);
   var dirY = Math.sin(angle);
   
+  if (x == 0)
+    console.log("angleNum=" + angleNum + 
+              ", dirX=" + wordToHex(uword((dirX*64) & 0xFFFF)) + 
+              ", dirY=" + wordToHex(uword((dirY*64) & 0xFFFF)));
+  
   // Compute the camera plane, which is perpendicular to the direction vector
   var planeX = -Math.sin(angle) * 0.5; 
   var planeY = Math.cos(angle) * 0.5; 

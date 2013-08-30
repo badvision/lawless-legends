@@ -2517,27 +2517,6 @@ e_t120orooto:
     iny
     bra e_120orooto
 
-e_130orooo:
-    sta 130*ROW_STRIDE + rowBlit,x
-    sta 131*ROW_STRIDE + rowBlit,x
-    lsr
-    bra e_132oo
-
-e_130otooo:
-    sta 130*ROW_STRIDE + rowBlit,x
-    sta 131*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-e_132oo:
-    sta 132*ROW_STRIDE + rowBlit,x
-    sta 133*ROW_STRIDE + rowBlit,x
-    sta 134*ROW_STRIDE + rowBlit,x
-    rts
-
-e_r130otooo:
-    lsr
-    bra e_130otooo
-
 e_r15ootoo:
     lsr
     sta 15*ROW_STRIDE + rowBlit,x
@@ -2914,27 +2893,6 @@ e_r115otooo:
     lsr
     bra e_115otooo
 
-e_125orooo:
-    sta 125*ROW_STRIDE + rowBlit,x
-    sta 126*ROW_STRIDE + rowBlit,x
-    lsr
-    bra e_127oo
-
-e_125otooo:
-    sta 125*ROW_STRIDE + rowBlit,x
-    sta 126*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-e_127oo:
-    sta 127*ROW_STRIDE + rowBlit,x
-    sta 128*ROW_STRIDE + rowBlit,x
-    sta 129*ROW_STRIDE + rowBlit,x
-    rts
-
-e_r125otooo:
-    lsr
-    bra e_125otooo
-
 e_15orooo:
     sta 15*ROW_STRIDE + rowBlit,x
     sta 16*ROW_STRIDE + rowBlit,x
@@ -3040,17 +2998,6 @@ e_82oo:
     sta 82*ROW_STRIDE + rowBlit,x
     sta 83*ROW_STRIDE + rowBlit,x
     sta 84*ROW_STRIDE + rowBlit,x
-    rts
-
-e_140ootoo:
-    sta 140*ROW_STRIDE + rowBlit,x
-e_141otoo:
-    sta 141*ROW_STRIDE + rowBlit,x
-    sta 142*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    sta 143*ROW_STRIDE + rowBlit,x
-    sta 144*ROW_STRIDE + rowBlit,x
     rts
 
 e_65rootoo:
@@ -3318,30 +3265,6 @@ e_122oo:
     sta 124*ROW_STRIDE + rowBlit,x
     rts
 
-e_125roooto:
-    sta 125*ROW_STRIDE + rowBlit,x
-    lsr
-e_126ooto:
-    sta 126*ROW_STRIDE + rowBlit,x
-e_127oto:
-    sta 127*ROW_STRIDE + rowBlit,x
-    sta 128*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    sta 129*ROW_STRIDE + rowBlit,x
-    rts
-
-e_140otooo:
-    sta 140*ROW_STRIDE + rowBlit,x
-    sta 141*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-e_142oo:
-    sta 142*ROW_STRIDE + rowBlit,x
-    sta 143*ROW_STRIDE + rowBlit,x
-    sta 144*ROW_STRIDE + rowBlit,x
-    rts
-
 e_35otooo:
     sta 35*ROW_STRIDE + rowBlit,x
     sta 36*ROW_STRIDE + rowBlit,x
@@ -3477,25 +3400,6 @@ e_122oro:
     sta 124*ROW_STRIDE + rowBlit,x
     rts
 
-e_135toooro:
-    sta 135*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-e_136ooro:
-    sta 136*ROW_STRIDE + rowBlit,x
-e_137oro:
-    sta 137*ROW_STRIDE + rowBlit,x
-    sta 138*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 139*ROW_STRIDE + rowBlit,x
-    rts
-
-e_t135oooro:
-    lda (pTex),y
-    iny
-    sta 135*ROW_STRIDE + rowBlit,x
-    bra e_136ooro
-
 e_65rotoroo:
     sta 65*ROW_STRIDE + rowBlit,x
     lsr
@@ -3614,17 +3518,6 @@ e_t110orooto:
     lsr
     bra e_112oto
 
-e_155roooo:
-    sta 155*ROW_STRIDE + rowBlit,x
-    lsr
-e_156ooo:
-    sta 156*ROW_STRIDE + rowBlit,x
-e_157oo:
-    sta 157*ROW_STRIDE + rowBlit,x
-    sta 158*ROW_STRIDE + rowBlit,x
-    sta 159*ROW_STRIDE + rowBlit,x
-    rts
-
 e_50otooo:
     sta 50*ROW_STRIDE + rowBlit,x
     sta 51*ROW_STRIDE + rowBlit,x
@@ -3672,66 +3565,16 @@ e_65rotoroto:
     lsr
     bra e_68to
 
-e_150ootoo:
-    sta 150*ROW_STRIDE + rowBlit,x
-    sta 151*ROW_STRIDE + rowBlit,x
-    sta 152*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    sta 153*ROW_STRIDE + rowBlit,x
-    sta 154*ROW_STRIDE + rowBlit,x
-    rts
-
-e_160ootoo:
-    sta 160*ROW_STRIDE + rowBlit,x
-    sta 161*ROW_STRIDE + rowBlit,x
-    sta 162*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    sta 163*ROW_STRIDE + rowBlit,x
-    sta 164*ROW_STRIDE + rowBlit,x
-    rts
-
-e_125ooroo:
+e_125oo:
     sta 125*ROW_STRIDE + rowBlit,x
     sta 126*ROW_STRIDE + rowBlit,x
     sta 127*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 128*ROW_STRIDE + rowBlit,x
-    sta 129*ROW_STRIDE + rowBlit,x
     rts
 
-e_t125ooroo:
+e_t125oo:
     lda (pTex),y
     iny
-    bra e_125ooroo
-
-e_135otooo:
-    sta 135*ROW_STRIDE + rowBlit,x
-    sta 136*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    bra e_137oo
-
-e_135orooo:
-    sta 135*ROW_STRIDE + rowBlit,x
-    sta 136*ROW_STRIDE + rowBlit,x
-    lsr
-e_137oo:
-    sta 137*ROW_STRIDE + rowBlit,x
-    sta 138*ROW_STRIDE + rowBlit,x
-    sta 139*ROW_STRIDE + rowBlit,x
-    rts
-
-e_160orooo:
-    sta 160*ROW_STRIDE + rowBlit,x
-    sta 161*ROW_STRIDE + rowBlit,x
-    lsr
-e_162oo:
-    sta 162*ROW_STRIDE + rowBlit,x
-    sta 163*ROW_STRIDE + rowBlit,x
-    sta 164*ROW_STRIDE + rowBlit,x
-    rts
+    bra e_125oo
 
 e_65orooo:
     sta 65*ROW_STRIDE + rowBlit,x
@@ -3772,56 +3615,6 @@ e_116otoo:
     sta 119*ROW_STRIDE + rowBlit,x
     rts
 
-e_125ootoo:
-    sta 125*ROW_STRIDE + rowBlit,x
-e_126otoo:
-    sta 126*ROW_STRIDE + rowBlit,x
-    sta 127*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    sta 128*ROW_STRIDE + rowBlit,x
-    sta 129*ROW_STRIDE + rowBlit,x
-    rts
-
-e_125rootoo:
-    sta 125*ROW_STRIDE + rowBlit,x
-    lsr
-    bra e_126otoo
-
-e_130rootoo:
-    sta 130*ROW_STRIDE + rowBlit,x
-    lsr
-e_131otoo:
-    sta 131*ROW_STRIDE + rowBlit,x
-    sta 132*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    sta 133*ROW_STRIDE + rowBlit,x
-    sta 134*ROW_STRIDE + rowBlit,x
-    rts
-
-e_r130ootoo:
-    lsr
-    sta 130*ROW_STRIDE + rowBlit,x
-    bra e_131otoo
-
-e_135rootoo:
-    sta 135*ROW_STRIDE + rowBlit,x
-    lsr
-e_136otoo:
-    sta 136*ROW_STRIDE + rowBlit,x
-    sta 137*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    sta 138*ROW_STRIDE + rowBlit,x
-    sta 139*ROW_STRIDE + rowBlit,x
-    rts
-
-e_r135ootoo:
-    lsr
-    sta 135*ROW_STRIDE + rowBlit,x
-    bra e_136otoo
-
 e_60rootoo:
     sta 60*ROW_STRIDE + rowBlit,x
     lsr
@@ -3857,66 +3650,6 @@ e_t115ooroo:
     sta 115*ROW_STRIDE + rowBlit,x
     bra e_116oroo
 
-e_125toooro:
-    sta 125*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-e_126ooro:
-    sta 126*ROW_STRIDE + rowBlit,x
-    sta 127*ROW_STRIDE + rowBlit,x
-    sta 128*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 129*ROW_STRIDE + rowBlit,x
-    rts
-
-e_130tooroo:
-    sta 130*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-e_131oroo:
-    sta 131*ROW_STRIDE + rowBlit,x
-    sta 132*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 133*ROW_STRIDE + rowBlit,x
-    sta 134*ROW_STRIDE + rowBlit,x
-    rts
-
-e_t130ooroo:
-    lda (pTex),y
-    iny
-    sta 130*ROW_STRIDE + rowBlit,x
-    bra e_131oroo
-
-e_140toooro:
-    sta 140*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-e_141ooro:
-    sta 141*ROW_STRIDE + rowBlit,x
-    sta 142*ROW_STRIDE + rowBlit,x
-    sta 143*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 144*ROW_STRIDE + rowBlit,x
-    rts
-
-e_t140oooro:
-    lda (pTex),y
-    iny
-    sta 140*ROW_STRIDE + rowBlit,x
-    bra e_141ooro
-
-e_155toooro:
-    sta 155*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-e_156ooro:
-    sta 156*ROW_STRIDE + rowBlit,x
-    sta 157*ROW_STRIDE + rowBlit,x
-    sta 158*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 159*ROW_STRIDE + rowBlit,x
-    rts
-
 e_60tooroo:
     sta 60*ROW_STRIDE + rowBlit,x
     lda (pTex),y
@@ -3947,17 +3680,17 @@ e_1oroo:
     sta 4*ROW_STRIDE + rowBlit,x
     rts
 
-e_130otooro:
-    sta 130*ROW_STRIDE + rowBlit,x
-    sta 131*ROW_STRIDE + rowBlit,x
+e_125oto:
+    sta 125*ROW_STRIDE + rowBlit,x
+    sta 126*ROW_STRIDE + rowBlit,x
     lda (pTex),y
     iny
-e_132oro:
-    sta 132*ROW_STRIDE + rowBlit,x
-    sta 133*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 134*ROW_STRIDE + rowBlit,x
+    sta 127*ROW_STRIDE + rowBlit,x
     rts
+
+e_r125oto:
+    lsr
+    bra e_125oto
 
 e_t0oooro:
     lda (pTex),y
@@ -3987,43 +3720,6 @@ e_110otooo:
     lda (pTex),y
     iny
     bra e_112oo
-
-e_145orooo:
-    sta 145*ROW_STRIDE + rowBlit,x
-    sta 146*ROW_STRIDE + rowBlit,x
-    lsr
-e_147oo:
-    sta 147*ROW_STRIDE + rowBlit,x
-    sta 148*ROW_STRIDE + rowBlit,x
-    sta 149*ROW_STRIDE + rowBlit,x
-    rts
-
-e_145otooo:
-    sta 145*ROW_STRIDE + rowBlit,x
-    sta 146*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    bra e_147oo
-
-e_165orooo:
-    sta 165*ROW_STRIDE + rowBlit,x
-    sta 166*ROW_STRIDE + rowBlit,x
-    lsr
-e_167oo:
-    sta 167*ROW_STRIDE + rowBlit,x
-    sta 168*ROW_STRIDE + rowBlit,x
-    sta 169*ROW_STRIDE + rowBlit,x
-    rts
-
-e_170orooo:
-    sta 170*ROW_STRIDE + rowBlit,x
-    sta 171*ROW_STRIDE + rowBlit,x
-    lsr
-e_172oo:
-    sta 172*ROW_STRIDE + rowBlit,x
-    sta 173*ROW_STRIDE + rowBlit,x
-    sta 174*ROW_STRIDE + rowBlit,x
-    rts
 
 e_5otooo:
     sta 5*ROW_STRIDE + rowBlit,x
@@ -5917,11 +5613,7 @@ expand_128:
     jsr e_r110otooro
     jsr e_115tooroo
     jsr e_t120orooto
-    sta 125*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 126*ROW_STRIDE + rowBlit,x
-    sta 127*ROW_STRIDE + rowBlit,x
-    rts
+    jmp e_125roo
 
 ; Produce 132 rows from 64 rows
 expand_132:
@@ -5951,7 +5643,7 @@ expand_132:
     jsr e_r110otooro
     jsr e_115tooroo
     jsr e_t120orooto
-    jmp e_125rootoo
+    jmp e_125roo
 
 ; Produce 136 rows from 64 rows
 expand_136:
@@ -5984,11 +5676,7 @@ expand_136:
     jsr e_110tooroo
     jsr e_t115orooto
     jsr e_120orooto
-    jsr e_125rootoo
-    lsr
-    sta 130*ROW_STRIDE + rowBlit,x
-    sta 131*ROW_STRIDE + rowBlit,x
-    rts
+    jmp e_125roo
 
 ; Produce 140 rows from 64 rows
 expand_140:
@@ -6019,15 +5707,7 @@ expand_140:
     jsr e_t110orooto
     jsr e_115roooto
     jsr e_120rootoo
-    jsr e_r125otooo
-    lsr
-    sta 130*ROW_STRIDE + rowBlit,x
-    sta 131*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    sta 132*ROW_STRIDE + rowBlit,x
-    sta 133*ROW_STRIDE + rowBlit,x
-    rts
+    jmp e_r125oto
 
 ; Produce 144 rows from 64 rows
 expand_144:
@@ -6058,12 +5738,7 @@ expand_144:
     jsr e_110rootoo
     jsr e_r115otooo
     jsr e_r120otooro
-    jsr e_125toooro
-    jsr e_130tooroo
-    lda (pTex),y
-    iny
-    sta 135*ROW_STRIDE + rowBlit,x
-    rts
+    jmp e_125too
 
 ; Produce 148 rows from 64 rows
 expand_148:
@@ -6108,20 +5783,7 @@ expand_148:
     lda (pTex),y
     iny
     jsr e_121oroo
-    jsr e_t125ooroo
-    lda (pTex),y
-    iny
-    sta 130*ROW_STRIDE + rowBlit,x
-    sta 131*ROW_STRIDE + rowBlit,x
-    lsr
-    jsr e_132oo
-    lda (pTex),y
-    iny
-    sta 135*ROW_STRIDE + rowBlit,x
-    sta 136*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 137*ROW_STRIDE + rowBlit,x
-    rts
+    jmp e_t125oo
 
 ; Produce 152 rows from 64 rows
 expand_152:
@@ -6169,9 +5831,7 @@ expand_152:
     jsr e_t110orooto
     jsr e_115orooto
     jsr e_120orooto
-    jsr e_125roooto
-    jsr e_130rootoo
-    jmp e_135rootoo
+    jmp e_125roo
 
 ; Produce 156 rows from 64 rows
 expand_156:
@@ -6219,17 +5879,7 @@ expand_156:
     jsr e_r115otooo
     lsr
     jsr e_120otooo
-    jsr e_r125otooo
-    jsr e_r130otooo
-    lsr
-    sta 135*ROW_STRIDE + rowBlit,x
-    sta 136*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    jsr e_137oro
-    sta 140*ROW_STRIDE + rowBlit,x
-    sta 141*ROW_STRIDE + rowBlit,x
-    rts
+    jmp e_r125oto
 
 ; Produce 160 rows from 64 rows
 expand_160:
@@ -6265,17 +5915,7 @@ expand_160:
     jsr e_t110ooroo
     jsr e_t115ooroo
     jsr e_t120ooroo
-    jsr e_t125ooroo
-    jsr e_t130ooroo
-    jsr e_t135ooroo
-    lda (pTex),y
-    iny
-    sta 140*ROW_STRIDE + rowBlit,x
-    sta 141*ROW_STRIDE + rowBlit,x
-    sta 142*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 143*ROW_STRIDE + rowBlit,x
-    rts
+    jmp e_t125oo
 
 ; Produce 164 rows from 64 rows
 expand_164:
@@ -6322,26 +5962,7 @@ expand_164:
     jsr e_110rootoo
     jsr e_115rootoo
     jsr e_120rootoo
-    jsr e_125roooto
-    sta 130*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 131*ROW_STRIDE + rowBlit,x
-    sta 132*ROW_STRIDE + rowBlit,x
-    sta 133*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    sta 134*ROW_STRIDE + rowBlit,x
-    sta 135*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 136*ROW_STRIDE + rowBlit,x
-    sta 137*ROW_STRIDE + rowBlit,x
-    sta 138*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    sta 139*ROW_STRIDE + rowBlit,x
-    jsr e_140roooto
-    sta 145*ROW_STRIDE + rowBlit,x
-    rts
+    jmp e_125roo
 
 ; Produce 168 rows from 64 rows
 expand_168:
@@ -6386,18 +6007,7 @@ expand_168:
     jsr e_110tooroo
     jsr e_115toooro
     jsr e_120toooro
-    jsr e_125toooro
-    jsr e_130otooro
-    jsr e_135otooo
-    lsr
-    jsr e_140otooo
-    lsr
-    sta 145*ROW_STRIDE + rowBlit,x
-    sta 146*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    sta 147*ROW_STRIDE + rowBlit,x
-    rts
+    jmp e_125too
 
 ; Produce 172 rows from 64 rows
 expand_172:
@@ -6443,29 +6053,7 @@ expand_172:
     jsr e_110rootoo
     jsr e_115roooto
     jsr e_120roooto
-    sta 125*ROW_STRIDE + rowBlit,x
-    sta 126*ROW_STRIDE + rowBlit,x
-    lsr
-    jsr e_127oto
-    jsr e_130orooo
-    jsr e_t135ooroo
-    lda (pTex),y
-    iny
-    sta 140*ROW_STRIDE + rowBlit,x
-    sta 141*ROW_STRIDE + rowBlit,x
-    sta 142*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 143*ROW_STRIDE + rowBlit,x
-    sta 144*ROW_STRIDE + rowBlit,x
-    sta 145*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    sta 146*ROW_STRIDE + rowBlit,x
-    sta 147*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 148*ROW_STRIDE + rowBlit,x
-    sta 149*ROW_STRIDE + rowBlit,x
-    rts
+    jmp e_125oro
 
 ; Produce 176 rows from 64 rows
 expand_176:
@@ -6500,16 +6088,7 @@ expand_176:
     jsr e_t110ooroo
     jsr e_115toooro
     jsr e_120toooro
-    jsr e_125otooo
-    jsr e_r130otooo
-    jsr e_r135ootoo
-    sta 140*ROW_STRIDE + rowBlit,x
-    lsr
-    jsr e_141otoo
-    jsr e_145roooto
-    sta 150*ROW_STRIDE + rowBlit,x
-    sta 151*ROW_STRIDE + rowBlit,x
-    rts
+    jmp e_125oto
 
 ; Produce 180 rows from 64 rows
 expand_180:
@@ -6550,19 +6129,7 @@ expand_180:
     jsr e_r110ootoo
     jsr e_115roooto
     jsr e_120roooto
-    jsr e_125orooo
-    jsr e_t130ooroo
-    jsr e_t135ooroo
-    jsr e_140toooro
-    jsr e_145otooo
-    lsr
-    sta 150*ROW_STRIDE + rowBlit,x
-    sta 151*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    sta 152*ROW_STRIDE + rowBlit,x
-    sta 153*ROW_STRIDE + rowBlit,x
-    rts
+    jmp e_125oro
 
 ; Produce 184 rows from 64 rows
 expand_184:
@@ -6596,14 +6163,7 @@ expand_184:
     jsr e_t110ooroo
     jsr e_t115ooroo
     jsr e_120toooro
-    jsr e_125otooo
-    jsr e_r130ootoo
-    jsr e_135rootoo
-    jsr e_140roooto
-    jsr e_145orooo
-    jsr e_t150ooroo
-    sta 155*ROW_STRIDE + rowBlit,x
-    rts
+    jmp e_125oto
 
 ; Produce 188 rows from 64 rows
 expand_188:
@@ -6652,18 +6212,7 @@ expand_188:
     sta 115*ROW_STRIDE + rowBlit,x
     jsr e_116otoo
     jsr e_120roooto
-    jsr e_125orooo
-    jsr e_t130ooroo
-    jsr e_135toooro
-    jsr e_140toooro
-    jsr e_145otooo
-    lsr
-    jsr e_150ootoo
-    sta 155*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 156*ROW_STRIDE + rowBlit,x
-    sta 157*ROW_STRIDE + rowBlit,x
-    rts
+    jmp e_125oro
 
 ; Produce 192 rows from 64 rows
 expand_192:
@@ -6694,13 +6243,7 @@ expand_192:
     jsr e_110roooto
     jsr e_115orooo
     jsr e_t120ooroo
-    jsr e_125toooro
-    jsr e_130otooo
-    jsr e_r135ootoo
-    jsr e_140roooto
-    jsr e_145orooo
-    jsr e_t150ooroo
-    jmp e_155toooro
+    jmp e_125too
 
 ; Produce 200 rows from 64 rows
 expand_200:
@@ -6756,28 +6299,7 @@ expand_200:
     sta 121*ROW_STRIDE + rowBlit,x
     lsr
     jsr e_122oo
-    lda (pTex),y
-    iny
-    sta 125*ROW_STRIDE + rowBlit,x
-    jsr e_126ooro
-    jsr e_130otooo
-    jsr e_r135ootoo
-    jsr e_140roooto
-    jsr e_145orooo
-    jsr e_t150oooro
-    sta 155*ROW_STRIDE + rowBlit,x
-    sta 156*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    jsr e_157oo
-    lsr
-    sta 160*ROW_STRIDE + rowBlit,x
-    sta 161*ROW_STRIDE + rowBlit,x
-    sta 162*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    sta 163*ROW_STRIDE + rowBlit,x
-    rts
+    jmp e_t125oo
 
 ; Produce 208 rows from 64 rows
 expand_208:
@@ -6816,28 +6338,7 @@ expand_208:
     jsr e_110toooro
     jsr e_115otooo
     jsr e_120roooto
-    jsr e_125orooo
-    lda (pTex),y
-    iny
-    sta 130*ROW_STRIDE + rowBlit,x
-    sta 131*ROW_STRIDE + rowBlit,x
-    jsr e_132oro
-    jsr e_135otooo
-    lsr
-    jsr e_140ootoo
-    jsr e_145orooo
-    jsr e_t150ooroo
-    sta 155*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    jsr e_156ooo
-    lsr
-    jsr e_160ootoo
-    sta 165*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 166*ROW_STRIDE + rowBlit,x
-    sta 167*ROW_STRIDE + rowBlit,x
-    rts
+    jmp e_125oro
 
 ; Produce 216 rows from 64 rows
 expand_216:
@@ -6888,29 +6389,7 @@ expand_216:
     jsr e_116ooro
     jsr e_120otooo
     lsr
-    sta 125*ROW_STRIDE + rowBlit,x
-    jsr e_126ooto
-    jsr e_130orooo
-    jsr e_t135oooro
-    jsr e_140otooo
-    jsr e_145roooto
-    jsr e_150orooo
-    jsr e_155toooro
-    sta 160*ROW_STRIDE + rowBlit,x
-    sta 161*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    jsr e_162oo
-    sta 165*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 166*ROW_STRIDE + rowBlit,x
-    sta 167*ROW_STRIDE + rowBlit,x
-    sta 168*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    sta 169*ROW_STRIDE + rowBlit,x
-    sta 170*ROW_STRIDE + rowBlit,x
-    sta 171*ROW_STRIDE + rowBlit,x
+    jsr e_125oo
     rts
 
 ; Produce 224 rows from 64 rows
@@ -6955,47 +6434,7 @@ expand_224:
     jsr e_110otooo
     jsr e_115roooto
     jsr e_120ooroo
-    sta 125*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    sta 126*ROW_STRIDE + rowBlit,x
-    jsr e_127oo
-    jsr e_r130ootoo
-    jsr e_135orooo
-    jsr e_t140oooro
-    jsr e_145otooo
-    sta 150*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 151*ROW_STRIDE + rowBlit,x
-    sta 152*ROW_STRIDE + rowBlit,x
-    sta 153*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    sta 154*ROW_STRIDE + rowBlit,x
-    sta 155*ROW_STRIDE + rowBlit,x
-    sta 156*ROW_STRIDE + rowBlit,x
-    sta 157*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 158*ROW_STRIDE + rowBlit,x
-    sta 159*ROW_STRIDE + rowBlit,x
-    sta 160*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    sta 161*ROW_STRIDE + rowBlit,x
-    jsr e_162oo
-    lsr
-    sta 165*ROW_STRIDE + rowBlit,x
-    sta 166*ROW_STRIDE + rowBlit,x
-    sta 167*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    sta 168*ROW_STRIDE + rowBlit,x
-    sta 169*ROW_STRIDE + rowBlit,x
-    jsr e_170orooo
-    lda (pTex),y
-    iny
-    sta 175*ROW_STRIDE + rowBlit,x
-    rts
+    jmp e_125too
 
 ; Produce 232 rows from 64 rows
 expand_232:
@@ -7061,55 +6500,7 @@ expand_232:
     sta 120*ROW_STRIDE + rowBlit,x
     sta 121*ROW_STRIDE + rowBlit,x
     jsr e_122oto
-    jsr e_125orooo
-    sta 130*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    sta 131*ROW_STRIDE + rowBlit,x
-    jsr e_132oo
-    jsr e_r135ootoo
-    sta 140*ROW_STRIDE + rowBlit,x
-    sta 141*ROW_STRIDE + rowBlit,x
-    lsr
-    jsr e_142oo
-    lda (pTex),y
-    iny
-    sta 145*ROW_STRIDE + rowBlit,x
-    sta 146*ROW_STRIDE + rowBlit,x
-    sta 147*ROW_STRIDE + rowBlit,x
-    sta 148*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 149*ROW_STRIDE + rowBlit,x
-    jsr e_150ootoo
-    jsr e_155roooo
-    lda (pTex),y
-    iny
-    sta 160*ROW_STRIDE + rowBlit,x
-    sta 161*ROW_STRIDE + rowBlit,x
-    sta 162*ROW_STRIDE + rowBlit,x
-    sta 163*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 164*ROW_STRIDE + rowBlit,x
-    sta 165*ROW_STRIDE + rowBlit,x
-    sta 166*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    jsr e_167oo
-    sta 170*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 171*ROW_STRIDE + rowBlit,x
-    sta 172*ROW_STRIDE + rowBlit,x
-    sta 173*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    sta 174*ROW_STRIDE + rowBlit,x
-    sta 175*ROW_STRIDE + rowBlit,x
-    sta 176*ROW_STRIDE + rowBlit,x
-    sta 177*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 178*ROW_STRIDE + rowBlit,x
-    sta 179*ROW_STRIDE + rowBlit,x
-    rts
+    jmp e_125oro
 
 ; Produce 240 rows from 64 rows
 expand_240:
@@ -7167,48 +6558,7 @@ expand_240:
     iny
     sta 120*ROW_STRIDE + rowBlit,x
     jsr e_121ooro
-    jsr e_125ootoo
-    jsr e_130orooo
-    jsr e_t135oooro
-    jsr e_140ootoo
-    jsr e_145orooo
-    jsr e_t150oooro
-    sta 155*ROW_STRIDE + rowBlit,x
-    sta 156*ROW_STRIDE + rowBlit,x
-    sta 157*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    sta 158*ROW_STRIDE + rowBlit,x
-    sta 159*ROW_STRIDE + rowBlit,x
-    jsr e_160orooo
-    lda (pTex),y
-    iny
-    sta 165*ROW_STRIDE + rowBlit,x
-    sta 166*ROW_STRIDE + rowBlit,x
-    sta 167*ROW_STRIDE + rowBlit,x
-    sta 168*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 169*ROW_STRIDE + rowBlit,x
-    sta 170*ROW_STRIDE + rowBlit,x
-    sta 171*ROW_STRIDE + rowBlit,x
-    sta 172*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    sta 173*ROW_STRIDE + rowBlit,x
-    sta 174*ROW_STRIDE + rowBlit,x
-    sta 175*ROW_STRIDE + rowBlit,x
-    sta 176*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 177*ROW_STRIDE + rowBlit,x
-    sta 178*ROW_STRIDE + rowBlit,x
-    sta 179*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    sta 180*ROW_STRIDE + rowBlit,x
-    sta 181*ROW_STRIDE + rowBlit,x
-    sta 182*ROW_STRIDE + rowBlit,x
-    sta 183*ROW_STRIDE + rowBlit,x
-    rts
+    jmp e_125oo
 
 ; Produce 248 rows from 64 rows
 expand_248:
@@ -7273,84 +6623,28 @@ expand_248:
     jsr e_110ooroo
     jsr e_115otooo
     jsr e_120roooto
-    jsr e_125ooroo
-    jsr e_130otooo
-    sta 135*ROW_STRIDE + rowBlit,x
+    jmp e_125oo
+
+e_125oro:
+    sta 125*ROW_STRIDE + rowBlit,x
+    sta 126*ROW_STRIDE + rowBlit,x
     lsr
-    sta 136*ROW_STRIDE + rowBlit,x
-    jsr e_137oo
-    jsr e_t140oooro
-    sta 145*ROW_STRIDE + rowBlit,x
-    sta 146*ROW_STRIDE + rowBlit,x
-    sta 147*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    sta 148*ROW_STRIDE + rowBlit,x
-    sta 149*ROW_STRIDE + rowBlit,x
-    jsr e_150orooo
-    lda (pTex),y
-    iny
-    sta 155*ROW_STRIDE + rowBlit,x
-    jsr e_156ooro
-    jsr e_160ootoo
-    jsr e_165orooo
-    sta 170*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    sta 171*ROW_STRIDE + rowBlit,x
-    jsr e_172oo
-    lsr
-    sta 175*ROW_STRIDE + rowBlit,x
-    sta 176*ROW_STRIDE + rowBlit,x
-    sta 177*ROW_STRIDE + rowBlit,x
-    sta 178*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    sta 179*ROW_STRIDE + rowBlit,x
-    sta 180*ROW_STRIDE + rowBlit,x
-    sta 181*ROW_STRIDE + rowBlit,x
-    sta 182*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 183*ROW_STRIDE + rowBlit,x
-    sta 184*ROW_STRIDE + rowBlit,x
-    sta 185*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    sta 186*ROW_STRIDE + rowBlit,x
-    sta 187*ROW_STRIDE + rowBlit,x
+    sta 127*ROW_STRIDE + rowBlit,x
     rts
 
-e_t150ooroo:
-    lda (pTex),y
-    iny
-    sta 150*ROW_STRIDE + rowBlit,x
-    sta 151*ROW_STRIDE + rowBlit,x
-    sta 152*ROW_STRIDE + rowBlit,x
+e_125roo:
+    sta 125*ROW_STRIDE + rowBlit,x
     lsr
-    sta 153*ROW_STRIDE + rowBlit,x
-    sta 154*ROW_STRIDE + rowBlit,x
+    sta 126*ROW_STRIDE + rowBlit,x
+    sta 127*ROW_STRIDE + rowBlit,x
     rts
 
-e_140roooto:
-    sta 140*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 141*ROW_STRIDE + rowBlit,x
-    sta 142*ROW_STRIDE + rowBlit,x
-    sta 143*ROW_STRIDE + rowBlit,x
+e_125too:
+    sta 125*ROW_STRIDE + rowBlit,x
     lda (pTex),y
     iny
-    sta 144*ROW_STRIDE + rowBlit,x
-    rts
-
-e_t135ooroo:
-    lda (pTex),y
-    iny
-    sta 135*ROW_STRIDE + rowBlit,x
-    sta 136*ROW_STRIDE + rowBlit,x
-    sta 137*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 138*ROW_STRIDE + rowBlit,x
-    sta 139*ROW_STRIDE + rowBlit,x
+    sta 126*ROW_STRIDE + rowBlit,x
+    sta 127*ROW_STRIDE + rowBlit,x
     rts
 
 e_120rootoo:
@@ -7364,17 +6658,6 @@ e_120rootoo:
     sta 124*ROW_STRIDE + rowBlit,x
     rts
 
-e_145roooto:
-    sta 145*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 146*ROW_STRIDE + rowBlit,x
-    sta 147*ROW_STRIDE + rowBlit,x
-    sta 148*ROW_STRIDE + rowBlit,x
-    lda (pTex),y
-    iny
-    sta 149*ROW_STRIDE + rowBlit,x
-    rts
-
 e_t5orooto:
     lda (pTex),y
     iny
@@ -7386,25 +6669,5 @@ e_t5orooto:
     lda (pTex),y
     iny
     sta 9*ROW_STRIDE + rowBlit,x
-    rts
-
-e_t150oooro:
-    lda (pTex),y
-    iny
-    sta 150*ROW_STRIDE + rowBlit,x
-    sta 151*ROW_STRIDE + rowBlit,x
-    sta 152*ROW_STRIDE + rowBlit,x
-    sta 153*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 154*ROW_STRIDE + rowBlit,x
-    rts
-
-e_150orooo:
-    sta 150*ROW_STRIDE + rowBlit,x
-    sta 151*ROW_STRIDE + rowBlit,x
-    lsr
-    sta 152*ROW_STRIDE + rowBlit,x
-    sta 153*ROW_STRIDE + rowBlit,x
-    sta 154*ROW_STRIDE + rowBlit,x
     rts
 

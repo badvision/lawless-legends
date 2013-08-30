@@ -126,6 +126,7 @@ class Segment:
       elif c == '<':
         outFile.write("    lsr\n")
       else:
+        assert c < screenHeight
         outFile.write("    sta %s*ROW_STRIDE + rowBlit,x\n" % c)
     else:
       if grouped:
@@ -154,10 +155,12 @@ def makeCmds(dstHeight):
   cmds = []
 
   texOff = 0
-  if y0 < 0:
+  if y0 < 0 or y1 > screenHeight:
     texOff += int((-y0/2) * srcHeight / dstHeight)
     y0 = max(0, y0)
-    y1 = max(screenHeight/2, y1)
+    y1 = min(screenHeight, y1)
+
+  #print("Doing dstHeight=%d y0=%d y1=%d texOff=%d" % (dstHeight, y0, y1, texOff))
 
   for y in range(y0, y1):
     if b == 0:

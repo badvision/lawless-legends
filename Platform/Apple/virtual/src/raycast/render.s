@@ -140,6 +140,26 @@ MIP_OFFSET_3 = $540     ; 32*32 + 16*16 + 8*8
 MIP_OFFSET_4 = $550     ; 32*32 + 16*16 + 8*8 + 4*4
 MIP_OFFSET_5 = $554     ; 32*32 + 16*16 + 8*8 + 4*4 + 2*2
 
+; Movement amounts when walking at each angle
+; Each entry consists of an X bump and a Y bump, in 8.8 fixed point
+walkDirs:
+    .word $0040, $0000
+    .word $003B, $0018
+    .word $002D, $002D
+    .word $0018, $003B
+    .word $0000, $0040
+    .word $FFE8, $003B
+    .word $FFD3, $002D
+    .word $FFC5, $0018
+    .word $FFC0, $0000
+    .word $FFC5, $FFE8
+    .word $FFD3, $FFD3
+    .word $FFE8, $FFC5
+    .word $0000, $FFC0
+    .word $0018, $FFC5
+    .word $002D, $FFD3
+    .word $003B, $FFE8 
+
 ; Debug macros
 .macro DEBUG_STR str
 .if DEBUG
@@ -811,6 +831,7 @@ selectMip5:
 drawRay:
     ; Make a pointer to the selected texture
     ldx txNum
+    dex                 ; translate tex 1..4 to 0..3
     lda texAddrLo,x
     sta pTex
     lda texAddrHi,x
@@ -1186,8 +1207,8 @@ test:
     sta resetVec+2
 
 ; Establish the initial player position and direction
-    ; X=5.5
-    lda #5
+    ; X=2.5
+    lda #2
     sta playerX+1
     lda #$80
     sta playerX
@@ -1375,16 +1396,87 @@ test:
     lda kbd
     bpl @pauseLup
     sta kbdStrobe ; eat the keypress
-    cmp #$9B
-    beq @done
 ; advance
+    and #$7F
+    cmp #'w'
+    beq @forward
+    cmp #'W'
+    beq @forward
+    cmp #'s'
+    beq @backward
+    cmp #'S'
+    beq @backward
+    cmp #'x'
+    beq @backward
+    cmp #'X'
+    beq @backward
+    cmp #'a'
+    beq @left
+    cmp #'A'
+    beq @left
+    cmp #'d'
+    beq @right
+    cmp #'D'
+    beq @right
+    cmp #$1B
+    beq @done
+    jmp @pauseLup
+@forward:
+    lda playerDir
+    asl
+    asl
+    tax
     lda playerX
     clc
-    adc #$40
+    adc walkDirs,x
     sta playerX
-    bcc :+
-    inc playerX+1
-:   jmp @oneLevel
+    lda playerX+1
+    adc walkDirs+1,x
+    sta playerX+1
+    lda playerY
+    clc
+    adc walkDirs+2,x
+    sta playerY
+    lda playerY+1
+    adc walkDirs+3,x
+    sta playerY+1
+    jmp @oneLevel
+@backward:
+    lda playerDir
+    asl
+    asl
+    tax
+    lda playerX
+    sec
+    sbc walkDirs,x
+    sta playerX
+    lda playerX+1
+    sbc walkDirs+1,x
+    sta playerX+1
+    lda playerY
+    sec
+    sbc walkDirs+2,x
+    sta playerY
+    lda playerY+1
+    sbc walkDirs+3,x
+    sta playerY+1
+    jmp @oneLevel
+@left:
+    dec playerDir
+    lda playerDir
+    cmp #$FF
+    bne :+
+    lda #15
+:   sta playerDir
+    jmp @oneLevel
+@right:
+    inc playerDir
+    lda playerDir
+    cmp #16
+    bne :+
+    lda #0
+:   sta playerDir
+    jmp @oneLevel
 @done:
     bit setText
     bit page1

@@ -42,7 +42,7 @@ pixNum     = $C  ; len 1
 byteNum    = $D  ; len 1
 pTmp       = $E  ; len 2
 tmp        = $10 ; len 2
-bacKBuf    = $12 ; len 1 (value 0 or 1)
+backBuf    = $12 ; len 1 (value 0 or 1)
 frontBuf   = $13 ; len 1 (value 0 or 1)
 pRayData   = $14 ; len 2
 playerX    = $16 ; len 2 (hi=integer, lo=fraction)
@@ -501,8 +501,8 @@ castRay:
     lda mapX            ; map X is the integer byte
     sbc playerX+1
     bit stepX
-    bmi :+
-    ina                 ; if stepping forward, add one to dist
+    bpl :+
+    ina                 ; if stepping backward, add one to dist
 :   sta dist+1
     ldx rayDirX         ; parameters for wall calculation
     ldy rayDirY
@@ -512,7 +512,7 @@ castRay:
     lda playerY         ; fractional player pos
     clc
     adc txColumn
-    bit stepY           ; if stepping forward in X...
+    bit stepX           ; if stepping forward in X...
     bmi :+
     eor #$FF            ; ...invert the texture coord
 :   sta txColumn
@@ -675,6 +675,7 @@ castRay:
     DEBUG_STR "txCol="
     DEBUG_BYTE txColumn
     DEBUG_LN
+    jsr rdkey
     .endif
 
 ; Advance pLine to the next line on the hi-res screen
@@ -1101,7 +1102,7 @@ makeLines:
 ; Set screen lines to current back buf
 setBackBuf:
 ; calculate screen start
-    lda bacKBuf
+    lda backBuf
     asl
     asl
     asl
@@ -1110,12 +1111,11 @@ setBackBuf:
     clc
     adc #$20
     sta setAuxZP
-    sta $FF
     ldx #0
 @lup:
-    lda 1,x
-    and #$1F
-    ora $FF
+    eor 1,x
+    and #$60            ; only two bits control the screen buf
+    eor 1,x
     sta 1,x
     inx
     inx
@@ -1212,7 +1212,7 @@ test:
     sta playerX+1
     lda #$80
     sta playerX
-    ; Y=2.5
+    ; Y=2.6
     lda #2
     sta playerY+1
     lda #$80
@@ -1309,13 +1309,14 @@ test:
     .if DOUBLE_BUFFER
     lda #1
     .endif
-    sta bacKBuf
+    sta backBuf
 
-    ;DEBUG_STR "Staying in text mode."
-    ;.if 0
+    .if DEBUG
+    DEBUG_STR "Staying in text mode."
+    .else
     bit clrText
     bit setHires
-    ;.endif
+    .endif
 
     lda #63
     sta lineCt
@@ -1385,9 +1386,9 @@ test:
 @nextLevel:
 ; flip onto the screen
     .if DOUBLE_BUFFER
-    ldx bacKBuf
+    ldx backBuf
     lda frontBuf
-    sta bacKBuf
+    sta backBuf
     stx frontBuf
     lda page1,x
     .endif

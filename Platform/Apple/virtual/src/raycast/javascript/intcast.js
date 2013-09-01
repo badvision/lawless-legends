@@ -20,12 +20,12 @@ var map = [
 ];
 
 var player = {
-  x : 2.5,      // current x, y position
-  y : 2.5,
+  x : 11.0,      // current x, y position
+  y : 10.5,
   dir : 0,    // the direction that the player is turning, either -1 for left or 1 for right.
   angleNum : 0, // the current angle of rotation
   speed : 0,    // is the playing moving forward (speed = 1) or backwards (speed = -1).
-  moveSpeed : 0.5,  // how far (in map units) does the player move each step/update
+  moveSpeed : 0.25,  // how far (in map units) does the player move each step/update
   rotSpeed : 22.5 * Math.PI / 180 // how much does the player rotate each step/update (in radians)
 }
 

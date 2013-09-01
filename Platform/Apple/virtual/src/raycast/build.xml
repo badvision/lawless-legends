@@ -59,9 +59,9 @@
       <arg value="--config"/>
       <arg value="${src.dir}/link.cfg"/>
       <arg value="--start-addr"/>
-      <arg value="0x$6000"/>
+      <arg value="0x$7000"/>
       <arg value="-o"/>
-      <arg value="${build.dir}/render.bin#6000"/>
+      <arg value="${build.dir}/render.bin#7000"/>
       <fileset dir="${build.dir}" includes="render.o"/>
     </apply>
 

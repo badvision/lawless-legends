@@ -1,7 +1,7 @@
     .org $800
     .pc02
 pTex = $A
-selectMip0 = $6003
+selectMip0 = $7003
 selectMip1 = selectMip0+3
 selectMip2 = selectMip1+3
 selectMip3 = selectMip2+3

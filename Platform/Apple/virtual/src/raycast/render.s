@@ -1,5 +1,5 @@
 
-    .org $6000
+    .org $7000
 codeBeg = *
 
     .pc02 ; Enable 65c02 ops
@@ -82,8 +82,8 @@ screen       = $2000
 ;---------------------------------
 ; The following are all in aux mem...
 expandVec  = $800
-expandCode = $900 ; occupies $35 pages
-textures   = $3E00 ; in aux mem
+expandCode = $900 ; size $2F8C
+textures   = $3900
 tex0       = textures
 tex1       = tex0+TEX_SIZE
 tex2       = tex1+TEX_SIZE

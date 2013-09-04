@@ -1,0 +1,100 @@
+    
+    .pc02
+
+; Select mipmap level 0 (64x64 pixels = 32x32 bytes)
+selectMip0:
+    ; pTex is already pointing at level 0, no need to adjust its level.
+    ; However, we do need to move it to the correct column. Currently txColumn
+    ; is 0..255 pixels, which we need to translate to 0..31 columns; that's
+    ; a divide by 8. But then we need to multiply by 32 bytes per column,
+    ; so (1/8)*32 = 4, so we need to multiply by 4 after masking.
+    lda txColumn
+    and #$F8            ; retain upper 5 bits
+    stz tmp
+    asl
+    rol tmp             ; multiplied by 2
+    asl
+    rol tmp             ; multiplied by 4
+    ldy tmp
+mipReady:
+    clc                 ; adjust pTex by that much
+    adc pTex
+    sta pTex
+    tya
+    adc pTex+1
+    sta pTex+1
+    ldy pixNum          ; get offset into the blit roll for this column
+    ldx @blitOffsets,y
+    ldy #0              ; default to copying from top of column
+    rts
+@blitOffsets: .byte BLIT_OFF0,BLIT_OFF1,BLIT_OFF2,BLIT_OFF3,BLIT_OFF4,BLIT_OFF5,BLIT_OFF6
+
+; Select mipmap level 0 (32x32 pixels = 16x16 bytes)
+selectMip1:
+    ; pTex is pointing at level 0, so we need to move it to level 1.
+    ; Then we need to move it to the correct column. Currently txColumn
+    ; is 0..255 pixels, which we need to translate to 0..15 columns; that's
+    ; a divide by 16. But then we need to multiply by 16 bytes per column,
+    ; so (1/16)*16 = 1 ==> no multiply needed.
+    lda txColumn
+    and #$F0            ; retain upper 4 bits
+    ldy #>MIP_OFFSET_1  ; adjust to mip level 1
+    bra mipReady
+
+; Select mipmap level 2 (16x16 pixels = 8x8 bytes)
+selectMip2:
+    ; pTex is pointing at level 0, so we need to move it to level 2.
+    ; Then we need to move it to the correct column. Currently txColumn
+    ; is 0..255 pixels, which we need to translate to 0..8 columns; that's
+    ; a divide by 32. But then we need to multiply by 8 bytes per column,
+    ; so (1/32)*8 = 1/4 ==> overall we need to divide by 4.
+    lda txColumn
+    and #$E0            ; retain upper 3 bits
+    lsr                 ; div by 2
+    lsr                 ; div by 4
+                        ; no need to add #<MIP_OFFSET_2, since it is zero.
+    ldy #>MIP_OFFSET_2  ; adjust to mip level 2
+    bra mipReady
+
+; Select mipmap level 3 (8x8 pixels = 4x4 bytes)
+selectMip3:
+    ; pTex is pointing at level 0, so we need to move it to level 3.
+    ; Then we need to move it to the correct column. Currently txColumn
+    ; is 0..255 pixels, which we need to translate to 0..3 columns; that's
+    ; a divide by 64. But then we need to multiply by 4 bytes per column,
+    ; so (1/64)*4 = 1/16 ==> overall we need to divide by 16.
+    lda txColumn
+    and #$C0            ; retain upper 2 bits
+    lsr                 ; div by 2
+    lsr                 ; div by 4
+    lsr                 ; div by 8
+    lsr                 ; div by 16
+    clc
+    adc #<MIP_OFFSET_3
+    ldy #>MIP_OFFSET_3  ; adjust to mip level 3
+    bra mipReady
+
+; Select mipmap level 4 (4x4 pixels = 2x2 bytes)
+selectMip4:
+    ; pTex is pointing at level 0, so we need to move it to level 4.
+    ; Then we need to move it to the correct column. Currently txColumn
+    ; is 0..255 pixels, which we need to translate to 0..1 columns; that's
+    ; a divide by 128. But then we need to multiply by 2 bytes per column,
+    ; so (1/128)*2 = 1/64 ==> overall we need to divide by 64
+    lda txColumn
+    and #$80            ; retain the high bit
+    beq :+              ; if not set, result should be zero
+    lda #64             ; else result should be 64
+:   clc
+    adc #<MIP_OFFSET_4
+    ldy #>MIP_OFFSET_4  ; adjust to mip level 4
+    bra mipReady
+
+; Select mipmap level 5 (2x2 pixels = 1x1 bytes)
+selectMip5:
+    ; Mip level 5 is super-easy: it's one byte. Not much choice there.
+    lda #<MIP_OFFSET_5
+    ldy #>MIP_OFFSET_5
+    bra mipReady
+
+

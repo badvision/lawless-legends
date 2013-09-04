@@ -21,16 +21,7 @@ dstHeights = set()
 
 outFile = open("expand.s", "w")
 outFile.write("    .org $800\n")
-outFile.write("    .pc02\n")
-outFile.write("pTex = $A\n")
-outFile.write("selectMip0 = $7003\n")
-outFile.write("selectMip1 = selectMip0+3\n")
-outFile.write("selectMip2 = selectMip1+3\n")
-outFile.write("selectMip3 = selectMip2+3\n")
-outFile.write("selectMip4 = selectMip3+3\n")
-outFile.write("selectMip5 = selectMip4+3\n")
-outFile.write("rowBlit = $B000\n")
-outFile.write("ROW_STRIDE = 29\n")
+outFile.write("    .include \"render.i\"\n")
 outFile.write("\n")
 
 def calcKey(cmds):
@@ -127,7 +118,7 @@ class Segment:
         outFile.write("    lsr\n")
       else:
         assert c < screenHeight
-        outFile.write("    sta %s*ROW_STRIDE + rowBlit,x\n" % c)
+        outFile.write("    sta %s*BLIT_STRIDE + blitRoll,x\n" % c)
     else:
       if grouped:
         outFile.write("    rts\n")
@@ -227,6 +218,9 @@ for h in range(0, 256, 2):
     dstHeight = h
   outFile.write("    .addr expand_%d\n" % dstHeight)
 outFile.write("\n")
+
+# Include the expand header code
+outFile.write("    .include \"expand_hdr.i\"\n")
 
 # Let's optimize.
 segsToOpt = copy.copy(allSegs)

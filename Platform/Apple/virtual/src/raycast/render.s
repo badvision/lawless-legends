@@ -1,6 +1,5 @@
 
     .org $7000
-codeBeg = *
 
     .pc02 ; Enable 65c02 ops
 
@@ -10,135 +9,16 @@ codeBeg = *
 ; code is at the very end. We jump to it now.
     jmp test
 
-; Vectors for mip-map level selection, called by expansion code.
-    jmp selectMip0
-    jmp selectMip1
-    jmp selectMip2
-    jmp selectMip3
-    jmp selectMip4
-    jmp selectMip5
-
 ; Conditional assembly flags
 DOUBLE_BUFFER = 1 ; whether to double-buffer
 DEBUG = 0 ; turn on verbose logging
 
-; Constants
-TOP_LINE       = $2180 ; 24 lines down from top
-NLINES         = 128
-SKY_COLOR_E    = 1 ; blue
-SKY_COLOR_O    = 1 ; blue
-GROUND_COLOR_E = 4 ; orange
-GROUND_COLOR_O = 0 ; black
-TEX_SIZE       = $555 ; 32x32 + 16x16 + 8x8 + 4x4 + 2x2 + 1x1
-
-; My zero page
-lineCt     = $3  ; len 1
-txNum      = $4  ; len 1
-txColumn   = $5  ; len 1
-pLine      = $6  ; len 2
-pDst       = $8  ; len 2
-pTex       = $A  ; len 2
-pixNum     = $C  ; len 1
-byteNum    = $D  ; len 1
-pTmp       = $E  ; len 2
-tmp        = $10 ; len 2
-backBuf    = $12 ; len 1 (value 0 or 1)
-frontBuf   = $13 ; len 1 (value 0 or 1)
-pRayData   = $14 ; len 2
-playerX    = $16 ; len 2 (hi=integer, lo=fraction)
-playerY    = $18 ; len 2 (hi=integer, lo=fraction)
-rayDirX    = $1A ; len 1
-rayDirY    = $1B ; len 1
-stepX      = $1C ; len 1
-stepY      = $1D ; len 1
-mapX       = $1E ; len 1
-mapY       = $1F ; len 1
-sideDistX  = $50 ; len 1
-sideDistY  = $51 ; len 1
-deltaDistX = $52 ; len 1
-deltaDistY = $53 ; len 1
-dist       = $54 ; len 2
-diff       = $56 ; len 2
-playerDir  = $58 ; len 1
-
-; Other monitor locations
-a2l      = $3E
-a2h      = $3F
-resetVec = $3F2
-
-; Tables and buffers
-decodeTo01   = $800
-decodeTo23   = $900
-decodeTo45   = $A00
-decodeTo56   = $B00
-decodeTo57   = $C00
-clrBlitRollE = $D00 ; size 3*(128/2) = $C0, plus 2 for tya and rts
-clrBlitRollO = $DC2 ; size 3*(128/2) = $C0, plus 2 for tya and rts
-XF00         = $E00 ; unused
-
-prodosBuf    = $AC00 ; temporary, before building the tables
-screen       = $2000
-
-;---------------------------------
-; The following are all in aux mem...
-expandVec  = $800
-expandCode = $900 ; size $2F8C
-textures   = $3900
-tex0       = textures
-tex1       = tex0+TEX_SIZE
-tex2       = tex1+TEX_SIZE
-tex3       = tex2+TEX_SIZE
-texEnd     = tex3+TEX_SIZE
-; back to main mem
-;---------------------------------
-
-blitRoll   = $B000      ; Unrolled blitting code. Size 29*128 = $E80, plus 1 for rts
-MLI        = $BF00      ; Entry point for ProDOS MLI
-memMap     = $BF58      ; ProDOS memory map
-
-; I/O locations
-kbd       = $C000
-clrAuxRd  = $C002
-setAuxRd  = $C003
-clrAuxWr  = $C004
-setAuxWr  = $C005
-clrAuxZP  = $C008
-setAuxZP  = $C009
-kbdStrobe = $C010
-clrText   = $C050
-setText   = $C051
-clrMixed  = $C052
-setMixed  = $C053
-page1     = $C054
-page2     = $C055
-clrHires  = $C056
-setHires  = $C057
-
-; ROM routines
-prntax    = $F941
-rdkey     = $FD0C
-getln1    = $FD6F
-crout     = $FD8E
-prbyte    = $FDDA
-cout      = $FDED
-prerr     = $FF2D
-monitor   = $FF69
-getnum    = $FFA7
-
-; Pixel offsets in the blit table
-blitOffsets: .byte 5,8,11,1,17,20,24
+; Shared constants, zero page, buffer locations, etc.
+    .include "render.i"
 
 ; texture addresses
 texAddrLo: .byte <tex0,<tex1,<tex2,<tex3
 texAddrHi: .byte >tex0,>tex1,>tex2,>tex3
-
-; mipmap level offsets
-MIP_OFFSET_0 = 0
-MIP_OFFSET_1 = $400     ; 32*32
-MIP_OFFSET_2 = $500     ; 32*32 + 16*16
-MIP_OFFSET_3 = $540     ; 32*32 + 16*16 + 8*8
-MIP_OFFSET_4 = $550     ; 32*32 + 16*16 + 8*8 + 4*4
-MIP_OFFSET_5 = $554     ; 32*32 + 16*16 + 8*8 + 4*4 + 2*2
 
 ; Movement amounts when walking at each angle
 ; Each entry consists of an X bump and a Y bump, in 8.8 fixed point
@@ -713,121 +593,6 @@ nextLine:
     stx pLine+1
     rts
 
-; Select mipmap level 0 (64x64 pixels = 32x32 bytes)
-selectMip0:
-    ; pTex is already pointing at level 0, no need to adjust its level.
-    ; However, we do need to move it to the correct column. Currently txColumn
-    ; is 0..255 pixels, which we need to translate to 0..31 columns; that's
-    ; a divide by 8. But then we need to multiply by 32 bytes per column,
-    ; so (1/8)*32 = 4, so we need to multiply by 4 after masking.
-    lda txColumn
-    and #$F8            ; retain upper 5 bits
-    stz tmp
-    asl
-    rol tmp             ; multiplied by 2
-    asl
-    rol tmp             ; multiplied by 4
-    adc pTex            ; adjust pTex by that much
-    sta pTex
-    lda tmp
-    adc pTex+1
-    sta pTex+1
-mipReady:
-    ldy pixNum          ; get offset into the blit roll for this column
-    ldx blitOffsets,y
-    ldy #0              ; default to copying from top of column
-    rts
-
-; Select mipmap level 0 (32x32 pixels = 16x16 bytes)
-selectMip1:
-    ; pTex is pointing at level 0, so we need to move it to level 1.
-    ; Then we need to move it to the correct column. Currently txColumn
-    ; is 0..255 pixels, which we need to translate to 0..15 columns; that's
-    ; a divide by 16. But then we need to multiply by 16 bytes per column,
-    ; so (1/16)*16 = 1 ==> no multiply needed.
-    lda txColumn
-    and #$F0            ; retain upper 4 bits
-    clc
-    adc pTex
-    sta pTex            ; no need to add #<MIP_OFFSET_1, since it is zero.
-    lda pTex+1
-    adc #>MIP_OFFSET_1  ; adjust to mip level 1
-    sta pTex+1
-    jmp mipReady
-
-; Select mipmap level 2 (16x16 pixels = 8x8 bytes)
-selectMip2:
-    ; pTex is pointing at level 0, so we need to move it to level 2.
-    ; Then we need to move it to the correct column. Currently txColumn
-    ; is 0..255 pixels, which we need to translate to 0..8 columns; that's
-    ; a divide by 32. But then we need to multiply by 8 bytes per column,
-    ; so (1/32)*8 = 1/4 ==> overall we need to divide by 4.
-    lda txColumn
-    and #$E0            ; retain upper 3 bits
-    lsr                 ; div by 2
-    lsr                 ; div by 4
-    clc
-    adc pTex
-    sta pTex            ; no need to add #<MIP_OFFSET_2, since it is zero.
-    lda pTex+1
-    adc #>MIP_OFFSET_2  ; adjust to mip level 2
-    sta pTex+1
-    jmp mipReady
-
-; Select mipmap level 3 (8x8 pixels = 4x4 bytes)
-selectMip3:
-    ; pTex is pointing at level 0, so we need to move it to level 3.
-    ; Then we need to move it to the correct column. Currently txColumn
-    ; is 0..255 pixels, which we need to translate to 0..3 columns; that's
-    ; a divide by 64. But then we need to multiply by 4 bytes per column,
-    ; so (1/64)*4 = 1/16 ==> overall we need to divide by 16.
-    lda txColumn
-    and #$C0            ; retain upper 2 bits
-    lsr                 ; div by 2
-    lsr                 ; div by 4
-    lsr                 ; div by 8
-    lsr                 ; div by 16
-    clc
-    adc #<MIP_OFFSET_3  ; = $40, so will never cause carry
-    adc pTex            ; can be non-zero
-    sta pTex
-    lda pTex+1
-    adc #>MIP_OFFSET_3  ; adjust to mip level 3
-    sta pTex+1
-    jmp mipReady
-
-; Select mipmap level 4 (4x4 pixels = 2x2 bytes)
-selectMip4:
-    ; pTex is pointing at level 0, so we need to move it to level 4.
-    ; Then we need to move it to the correct column. Currently txColumn
-    ; is 0..255 pixels, which we need to translate to 0..1 columns; that's
-    ; a divide by 128. But then we need to multiply by 2 bytes per column,
-    ; so (1/128)*2 = 1/64 ==> overall we need to divide by 64
-    lda txColumn
-    and #$80            ; retain the high bit
-    beq :+              ; if not set, result should be zero
-    lda #64             ; else result should be 64
-:   clc
-    adc #<MIP_OFFSET_4  ; = $50, so will never cause carry
-    adc pTex            ; can be non-zero
-    sta pTex
-    lda pTex+1
-    adc #>MIP_OFFSET_4  ; adjust to mip level 4
-    sta pTex+1
-    jmp mipReady
-
-; Select mipmap level 5 (2x2 pixels = 1x1 bytes)
-selectMip5:
-    ; Mip level 5 is super-easy: it's one byte. Not much choice there.
-    lda pTex
-    clc
-    adc #<MIP_OFFSET_5
-    sta pTex
-    lda pTex+1
-    adc #>MIP_OFFSET_5
-    sta pTex+1
-    jmp mipReady
-
 ; Draw a ray that was traversed by calcRay
 drawRay:
     ; Make a pointer to the selected texture
@@ -844,12 +609,7 @@ drawRay:
     lda #254            ; clamp max height
 :   tax
     DEBUG_STR "Calling expansion code."
-    sta setAuxRd        ; switch to aux mem where textures and expansion code live
-    jsr @callit         ; call the unrolled code
-    sta clrAuxRd        ; back to main mem
-    rts                 ; and we're done.
-@callit:
-    jmp (expandVec,x)   ; use vector to get to the right code
+    jmp $100            ; was copied here earlier from @callIt
 
 ; Template for blitting code
 blitTemplate: ; comments show byte offset
@@ -981,19 +741,19 @@ makeClrBlit:
 
 ; Clear the blit
 clearBlit:
-    ldx blitOffsets+0
+    ldx #BLIT_OFF0
     jsr @clear2
-    ldx blitOffsets+1
+    ldx #BLIT_OFF1
     jsr @clear2
-    ldx blitOffsets+2
+    ldx #BLIT_OFF2
     jsr @clear2
-    ldx blitOffsets+3
+    ldx #BLIT_OFF3
     jsr @clear2
-    ldx blitOffsets+4
+    ldx #BLIT_OFF4
     jsr @clear2
-    ldx blitOffsets+5
+    ldx #BLIT_OFF5
     jsr @clear2
-    ldx blitOffsets+6
+    ldx #BLIT_OFF6
 @clear2:
     ldy #GROUND_COLOR_E
     lda #SKY_COLOR_E
@@ -1215,6 +975,23 @@ test:
     eor #$A5
     sta resetVec+2
 
+; Put ourselves high on the stack, then copy the expansion caller to low stack.
+    ldx #$FF
+    txs
+    ldx #12
+:   lda @callIt,x
+    sta $100,x
+    dex
+    bpl :-
+    bra :+
+@callIt:
+    sta setAuxRd
+    jsr $10A
+    sta clrAuxRd
+    rts
+    jmp (expandVec,x)
+:
+
 ; Establish the initial player position and direction
     ; X=2.5
     lda #2
@@ -1229,12 +1006,6 @@ test:
     ; direction=0
     lda #0
     sta playerDir
-
-; Copy our code to aux mem so we can seamlessly switch back and forth
-; It's wasteful but makes things easy for now.
-    ldy #>codeBeg
-    ldx #>codeEnd - >codeBeg + 1
-    jsr copyToAux
 
 ; Load the texture expansion code
     DEBUG_STR "Loading files."
@@ -2649,6 +2420,4 @@ precast_15:
     .byte $7F,$06,$05,$6F
     .byte $7F,$07,$05,$56
     .res 4 ; to bring it up to 256 bytes per angle 
-
-codeEnd = *
 

@@ -1006,7 +1006,14 @@ clearBlit:
 makeDecodeTbls:
     ldx #0
 @shiftA:
-    ; extract only bits 0 and 2 for now
+    ; bit 4 controls the high bit (orange/blue vs green/purple)
+    txa
+    asl
+    asl
+    asl
+    and #$80
+    sta tmp+1
+    ; extract only bits 0 and 2 for the pixel data
     txa
     and #4
     lsr
@@ -1015,19 +1022,21 @@ makeDecodeTbls:
     and #1
     ora tmp
 @decodeTo01:
+    ora tmp+1
     sta decodeTo01,x
 @decodeTo23:
     asl
     asl
+    ora tmp+1
     sta decodeTo23,x
 @decodeTo45:
     asl
     asl
-    ora #$80
+    ora tmp+1
     sta decodeTo45,x
 @decodeTo56:
     asl
-    ora #$80
+    ora tmp+1
     sta decodeTo56,x
 @decodeTo57:
     asl

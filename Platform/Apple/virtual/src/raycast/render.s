@@ -3,22 +3,28 @@
 
     .pc02 ; Enable 65c02 ops
 
-; This code is written bottom-up. That is,
-; simple routines first, then routines that
-; call those to build complexity. The main
+; This code is written bottom-up. That is, simple routines first, 
+; then routines that call those to build complexity. The main
 ; code is at the very end. We jump to it now.
-    jmp test
+    jmp main
 
 ; Conditional assembly flags
-DOUBLE_BUFFER = 1 ; whether to double-buffer
-DEBUG = 0 ; turn on verbose logging
+DOUBLE_BUFFER = 1       ; whether to double-buffer
+DEBUG         = 0       ; turn on verbose logging
 
 ; Shared constants, zero page, buffer locations, etc.
     .include "render.i"
 
+; Variables
+backBuf:   .byte 0      ; (value 0 or 1)
+frontBuf:  .byte 0      ; (value 0 or 1)
+mapBase:   .word 0
+nTextures: .byte 0
+
 ; texture addresses
-texAddrLo: .byte <tex0,<tex1,<tex2,<tex3
-texAddrHi: .byte >tex0,>tex1,>tex2,>tex3
+MAX_TEXTURES = 20
+texAddrLo: .res MAX_TEXTURES
+texAddrHi: .res MAX_TEXTURES
 
 ; Movement amounts when walking at each angle
 ; Each entry consists of an X bump and a Y bump, in 8.8 fixed point
@@ -45,7 +51,7 @@ walkDirs:
 .if DEBUG
     php
     pha
-    jsr _debugStr
+    jsr _writeStr
     .byte str,0
     pla
     plp
@@ -90,11 +96,30 @@ walkDirs:
 .endif
 .endmacro
 
-; Debug support to print a string following the JSR, in high or low bit ASCII, 
+.macro DEBUG_RDKEY
+.if DEBUG
+    php
+    pha
+    phx
+    phy
+    jsr rdkey
+    ply
+    plx
+    pla
+    plp
+.endif
+.endmacro
+
+; Non-debug function to print a string. Does not preserve registers.
+.macro WRITE_STR str
+    jsr _writeStr
+    .byte str,0
+.endmacro
+
+; Support to print a string following the JSR, in high or low bit ASCII, 
 ; terminated by zero. If the string has a period "." it will be followed 
 ; automatically by the next address and a CR.
-.if DEBUG
-_debugStr:
+_writeStr:
     pla
     clc
     adc #1
@@ -133,7 +158,6 @@ _debugStr:
     lda @ld+1
     pha
     rts
-    .endif
 
 ;-------------------------------------------------------------------------------
 ; Multiply two bytes, quickly but somewhat inaccurately, using logarithms.
@@ -264,6 +288,7 @@ pow2_w_w:
 ; Cast a ray
 ; Input: pRayData, plus Y reg: precalculated ray data (4 bytes)
 ;        playerX, playerY (integral and fractional bytes of course)
+;        pMap: pointer to current row on the map (mapBase + playerY{>}*height)
 ; Output: lineCt - height to draw in double-lines
 ;         txColumn - column in the texture to draw
 castRay:
@@ -301,12 +326,6 @@ castRay:
     DEBUG_BYTE deltaDistY
     DEBUG_LN
 
-    ; Start at the player's position
-    lda playerX+1
-    sta mapX
-    lda playerY+1
-    sta mapY
-
     ; Next we need to calculate the initial distance on each side
     ; Start with the X side
     lda playerX         ; fractional byte of player distance
@@ -333,14 +352,11 @@ castRay:
     DEBUG_BYTE sideDistY
     DEBUG_LN
 
-    ; We're going to use the Y register to index the map. Initialize it.
-    lda mapY
-    asl                 ; assume map is 16 tiles wide...
-    asl
-    asl                 ; ...multiplying by 16
-    asl
-    adc mapX            ; then add X to get...
-    tay                 ; ...starting index into the map.
+    ; Start at the player's position, and init Y reg for stepping in the X dir
+    ldy playerX+1
+    sty mapX
+    lda playerY+1
+    sta mapY
 
     ; the DDA algorithm
 @DDA_step:
@@ -368,7 +384,7 @@ castRay:
     sta sideDistY
     lda deltaDistX      ; re-init X distance
     sta sideDistX
-    lda mapData,y       ; check map at current X/Y position
+    lda (pMap),y        ; check map at current X/Y position
     beq @DDA_step       ; nothing there? do another step.
     ; We hit something!
 @hitX:
@@ -403,31 +419,35 @@ castRay:
     .endif
     ; taking a step in the Y direction
 @takeStepY:
-    tya                 ; get ready to adjust Y by a whole line
+    lda pMap            ; get ready to switch map row
     bit stepY           ; advance mapY in the correct direction
     bmi @negY
     inc mapY
     clc
-    adc #16             ; next row in the map
+    adc mapWidth
+    bcc @checkY
+    inc pMap+1
     bra @checkY
 @negY:
     dec mapY
     sec
-    sbc #16
+    sbc mapWidth
+    bcs @checkY
+    dec pMap+1
 @checkY:
+    sta pMap
     .if DEBUG
     DEBUG_STR "  sideY"
     jsr @debugSideData
     .endif
-    tay                 ; row number to Y so we can index the map
     lda sideDistX       ; adjust side dist in Y dir
     sec
     sbc sideDistY
     sta sideDistX
     lda deltaDistY      ; re-init Y distance
     sta sideDistY
-    lda mapData,y       ; check map at current X/Y position
-    bne @hitY       ; nothing there? do another step.
+    lda (pMap),y        ; check map at current X/Y position
+    bne @hitY           ; nothing there? do another step.
     jmp @DDA_step
 @hitY:
     ; We hit something!
@@ -546,6 +566,16 @@ castRay:
     DEBUG_STR "sdy="
     DEBUG_BYTE sideDistY
     DEBUG_LN
+    DEBUG_STR "  pMap="
+    DEBUG_WORD pMap
+    DEBUG_STR "y="
+    sty tmp
+    DEBUG_BYTE tmp
+    DEBUG_STR "mapByte="
+    lda (pMap),y
+    sta tmp
+    DEBUG_BYTE tmp
+    DEBUG_LN
     rts
 @debugFinal:
     DEBUG_STR "  lineCt="
@@ -602,6 +632,9 @@ drawRay:
     sta pTex
     lda texAddrHi,x
     sta pTex+1
+    DEBUG_STR "Ready to call, pTex="
+    DEBUG_WORD pTex
+    DEBUG_LN
     ; jump to the unrolled expansion code for the selected height
     lda lineCt
     asl
@@ -811,37 +844,6 @@ makeDecodeTbls:
     bne @shiftA
     rts
 
-; Clear all the memory we're going to fill
-clearMem:
-    ldx #$10
-    lda #$BE
-    jmp clearScreen2
-
-; Clear the screens
-clearScreen:
-    ldx #>screen
-    .if DOUBLE_BUFFER
-    lda #>screen + $40 ; both hi-res screens
-    .else
-    lda #>screen + $20 ; one hi-res screen
-    .endif
-clearScreen2:
-    sta @limit+1
-    ldy #0
-    sty pDst
-    tya
-@outer:
-    stx pDst+1
-@inner:
-    sta (pDst),y
-    iny
-    bne @inner
-    inx
-@limit:
-    cpx #>screen + $20
-    bne @outer
-    rts
-
 ; Build table of screen line pointers
 ; on aux zero-page
 makeLines:
@@ -939,27 +941,55 @@ bload:
     jmp monitor
 @mliCommand: .res 10 ; 10 bytes should be plenty
 
-; Copy X pages starting at pg Y to aux mem
-copyToAux:
-    sta setAuxWr
-    sty pDst+1
+; Copy pTmp -> pDst (advancing both), length in X(lo) / Y(hi)
+copyMem:
+    phx
+    tya
     ldy #0
-    sty pDst
-@lup:
-    lda (pDst),y
+    tax
+    beq @lastPg
+@pageLup:
+    lda (pTmp),y
     sta (pDst),y
     iny
-    bne @lup
+    bne @pageLup
+    inc pTmp+1
     inc pDst+1
     dex
-    bne @lup
-    sta clrAuxWr
+    bne @pageLup
+@lastPg:
+    plx
+    beq @done
+@byteLup:
+    lda (pTmp),y
+    sta (pDst),y
+    inc pTmp
+    bne :+
+    inc pTmp+1
+:   inc pDst
+    bne :+
+    inc pDst+1
+:   dex
+    bne @byteLup
+@done:
     rts
 
-; Test code to see if things really work
-test:
+; Read a byte from pTmp and advance it
+readPtmp:
+    phy
+    ldy #0
+    lda (pTmp),y
+    ply
+    inc pTmp
+    bne :+
+    inc pTmp+1
+:   cmp #0
+    rts
+
+;-------------------------------------------------------------------------------
+initMem:
     DEBUG_STR "Clearing memory map."
-; Clear ProDOS mem map so it lets us load stuff anywhere we want
+    ; Clear ProDOS mem map so it lets us load stuff anywhere we want
     ldx #$18
     lda #1
 @memLup:
@@ -967,94 +997,150 @@ test:
     lda #0
     dex
     bne @memLup
-; Make reset go to monitor
+    ; Make reset go to monitor
     lda #<monitor
     sta resetVec
     lda #>monitor
     sta resetVec+1
     eor #$A5
     sta resetVec+2
-
-; Put ourselves high on the stack, then copy the expansion caller to low stack.
-    ldx #$FF
-    txs
+    ; Copy the expansion caller to low stack.
     ldx #12
 :   lda @callIt,x
     sta $100,x
     dex
     bpl :-
-    bra :+
+    rts
 @callIt:
     sta setAuxRd
     jsr $10A
     sta clrAuxRd
     rts
     jmp (expandVec,x)
-:
 
+;-------------------------------------------------------------------------------
 ; Establish the initial player position and direction
+setPlayerPos:
     ; X=2.5
     lda #2
     sta playerX+1
     lda #$80
     sta playerX
-    ; Y=2.6
-    lda #2
+    ; Y=1.5
+    lda #1
     sta playerY+1
     lda #$80
     sta playerY
     ; direction=0
-    lda #0
+    lda #12
     sta playerDir
+    rts
 
-; Load the texture expansion code
+;-------------------------------------------------------------------------------
+; Load the texture expansion code, copy it to aux mem
+loadFiles:
     DEBUG_STR "Loading files."
     lda #>expandVec
+    sta pTmp+1
+    sta pDst+1
     pha
     lda #<expandVec
+    sta pTmp
+    sta pDst
     pha
     ldx #<@expandName
     lda #>@expandName
     jsr bload
+    ldx #<(textures-expandVec)
+    ldy #>(textures-expandVec)
+    sta setAuxWr
+    jsr copyMem
+    sta clrAuxWr
 
-; Load the textures
-    lda #>tex0
+; Load the map + texture pack
+    lda #8      ; load at $800
+    sta pTmp+1
     pha
-    lda #<tex0
+    lda #0
+    sta pTmp
     pha
-    ldx #<@tex0Name
-    lda #>@tex0Name
+    ldx #<@mapPackName
+    lda #>@mapPackName
     jsr bload
 
-    lda #>tex1
-    pha
-    lda #<tex1
-    pha
-    ldx #<@tex1name
-    lda #>@tex1name
-    jsr bload
+; First comes the map
+    jsr readPtmp
+    cmp #'M'
+    beq :+
+    WRITE_STR "M rec missing."
+    brk
+    ; map starts with width & height
+:   jsr readPtmp
+    sta mapWidth
+    jsr readPtmp
+    sta mapHeight
+    ; next comes length
+    jsr readPtmp
+    tax
+    jsr readPtmp
+    tay
+    ; then the map data
+    lda pTmp
+    sta mapBase
+    lda pTmp+1
+    sta mapBase+1
+    ; skip the map data to find the first texture
+    txa
+    clc
+    adc pTmp
+    sta pTmp
+    tya
+    adc pTmp+1
+    sta pTmp+1
 
-    lda #>tex2
-    pha
-    lda #<tex2
-    pha
-    ldx #<@tex2name
-    lda #>@tex2name
-    jsr bload
+; Copy the textures to aux mem
+    lda #<textures
+    sta pDst
+    lda #>textures
+    sta pDst+1
+    lda #0
+    sta nTextures
 
-    lda #>tex3
+@cpTex:
+    jsr readPtmp
+    beq @cpTexDone
+    cmp #'T'
+    beq :+
+    WRITE_STR "T rec missing"
+    brk
+:   jsr readPtmp        ; len lo
+    tax
+    jsr readPtmp        ; len hi
     pha
-    lda #<tex3
-    pha
-    ldx #<@tex3name
-    lda #>@tex3name
-    jsr bload
-
-    ; copy all the expansion code and textures to aux mem
-    DEBUG_STR "Copying to aux mem."
-    ldy #>expandVec
-    ldx #>texEnd - expandVec + 1
-    jsr copyToAux
+    ldy nTextures       ; record texture address
+    lda pDst
+    sta texAddrLo,y
+    lda pDst+1
+    sta texAddrHi,y
+    inc nTextures
+    ply
+    sta setAuxWr
+    jsr copyMem         ; copy the texture to aux mem
+    sta clrAuxWr
+    bra @cpTex          ; next texture
+@cpTexDone:
+    DEBUG_STR "Loaded "
+    DEBUG_BYTE nTextures
+    DEBUG_STR "textures."
+    .if DEBUG
+    DEBUG_STR "tex1="
+    lda texAddrLo+1
+    sta tmp
+    lda texAddrHi+1
+    sta tmp+1
+    DEBUG_WORD tmp
+    DEBUG_LN
+    .endif
 
     ; load the fancy frame
     DEBUG_STR "Loading frame."
@@ -1065,7 +1151,7 @@ test:
     ldx #<@frameName
     lda #>@frameName
     jsr bload
-
+    ; copy the frame to the other buffer also
     .if DOUBLE_BUFFER
     lda #>$4000
     pha
@@ -1075,15 +1161,18 @@ test:
     lda #>@frameName
     jsr bload
     .endif
+    rts
 
-; Build all the unrolls and tables
-    DEBUG_STR "Making tables."
-    jsr makeBlit
-    jsr makeClrBlit
-    jsr makeDecodeTbls
-    jsr makeLines
+@expandName: .byte 10
+    .byte "/LL/EXPAND"
+@mapPackName: .byte 19
+    .byte "/LL/ASSETS/MAP.PACK"
+@frameName: .byte 16
+    .byte "/LL/ASSETS/FRAME"
 
-; Set up front and back buffers
+;-------------------------------------------------------------------------------
+; Set up front and back buffers, go to hires mode, and clear for first blit.
+graphInit:
     lda #0
     sta frontBuf
     .if DOUBLE_BUFFER
@@ -1100,11 +1189,11 @@ test:
 
     lda #63
     sta lineCt
-    jsr clearBlit
-@oneLevel:
-    lda #0
-    sta pixNum
-    sta byteNum
+    jmp clearBlit
+
+;-------------------------------------------------------------------------------
+; Render one whole frame
+renderFrame:
     .if DOUBLE_BUFFER
     jsr setBackBuf
     .endif
@@ -1118,12 +1207,46 @@ test:
     adc #>precast_0
     sta pRayData+1
 
-    lda #0
+    ; Calculate pointer to the map row based on playerY
+    lda mapBase         ; start at row 0, col 0 of the map
+    ldy mapBase+1
+    ldx playerY+1       ; integral part of player's Y coord
+    beq @gotMapRow
+    clc
+@mapLup:                ; advance forward one row
+    adc mapWidth
+    bcc :+
+    iny
+    clc
+:   dex                 ; until we reach players Y coord
+    bne @mapLup
+@gotMapRow:
+    tax                 ; map row ptr now in X(lo) / Y(hi)
 
+    .if DEBUG
+    phx
+    phy
+    stx tmp
+    sty tmp+1
+    DEBUG_STR "Initial pMap="
+    DEBUG_WORD tmp
+    DEBUG_LN
+    ply
+    plx
+    .endif
+
+    lda #0
+    sta pixNum
+    sta byteNum
+    ; A-reg needs to be zero at this point -- it is the ray offset.
     ; Calculate the height, texture number, and texture column for one ray
 @oneCol:
-    pha                 ; save 
-    tay
+    stx pMap            ; set initial map pointer for the ray
+    sty pMap+1
+    phy                 ; save map row ptr
+    phx
+    pha                 ; save ray offset
+    tay                 ; ray offset where it needs to be
     jsr castRay         ; cast the ray across the map
     jsr drawRay         ; and draw it
     .if DEBUG
@@ -1156,53 +1279,19 @@ test:
     inc byteNum
 @nextCol:
     pla
+    plx
+    ply
     clc
     adc #4              ; advance to next ray
-    ldx byteNum
-    cpx #18
-    beq @nextLevel
-    jmp @oneCol
-
-@nextLevel:
-; flip onto the screen
-    .if DOUBLE_BUFFER
-    ldx backBuf
-    lda frontBuf
-    sta backBuf
-    stx frontBuf
-    lda page1,x
-    .endif
-    DEBUG_STR "Done rendering, waiting for key."
-@pauseLup:
-    lda kbd
-    bpl @pauseLup
-    sta kbdStrobe ; eat the keypress
-; advance
-    and #$7F
-    cmp #'w'
-    beq @forward
-    cmp #'W'
-    beq @forward
-    cmp #'s'
-    beq @backward
-    cmp #'S'
-    beq @backward
-    cmp #'x'
-    beq @backward
-    cmp #'X'
-    beq @backward
-    cmp #'a'
-    beq @left
-    cmp #'A'
-    beq @left
-    cmp #'d'
-    beq @right
-    cmp #'D'
-    beq @right
-    cmp #$1B
+    cmp #$FC            ; check for end of ray table
     beq @done
-    jmp @pauseLup
-@forward:
+    jmp @oneCol         ; go back for another ray
+@done:
+    rts
+
+;-------------------------------------------------------------------------------
+; Move the player forward a quarter step
+moveForward:
     lda playerDir
     asl
     asl
@@ -1221,8 +1310,11 @@ test:
     lda playerY+1
     adc walkDirs+3,x
     sta playerY+1
-    jmp @oneLevel
-@backward:
+    rts
+
+;-------------------------------------------------------------------------------
+; Move the player forward a quarter step
+moveBackward:
     lda playerDir
     asl
     asl
@@ -1241,62 +1333,105 @@ test:
     lda playerY+1
     sbc walkDirs+3,x
     sta playerY+1
-    jmp @oneLevel
-@left:
+    rts
+
+;-------------------------------------------------------------------------------
+; Rotate player 22.5 degrees to the left
+rotateLeft:
     dec playerDir
     lda playerDir
     cmp #$FF
     bne :+
     lda #15
 :   sta playerDir
-    jmp @oneLevel
-@right:
+    rts
+
+;-------------------------------------------------------------------------------
+; Rotate player 22.5 degrees to the right
+rotateRight:
     inc playerDir
     lda playerDir
     cmp #16
     bne :+
     lda #0
 :   sta playerDir
-    jmp @oneLevel
+    rts
+
+;-------------------------------------------------------------------------------
+; Flip back buffer onto the screen
+flip:
+    .if DOUBLE_BUFFER
+    ldx backBuf
+    lda frontBuf
+    sta backBuf
+    stx frontBuf
+    lda page1,x
+    .endif
+    rts
+
+;-------------------------------------------------------------------------------
+; The real action
+main:
+    ; Put ourselves high on the stack
+    ldx #$FF
+    txs
+    ; Set up memory
+    jsr initMem
+    jsr setPlayerPos
+    jsr loadFiles
+    ; Build all the unrolls and tables
+    DEBUG_STR "Making tables."
+    jsr makeBlit
+    jsr makeClrBlit
+    jsr makeDecodeTbls
+    jsr makeLines
+    jsr graphInit
+    ; Render the frame and flip it onto the screen
+@nextFrame:
+    jsr renderFrame
+    jsr flip
+    ; wait for a key
+    DEBUG_STR "Done rendering, waiting for key."
+@pauseLup:
+    lda kbd             ; check for key
+    bpl @pauseLup       ; loop until one is pressed
+    sta kbdStrobe       ; eat the keypress
+    and #$7F            ; convert to low-bit ASCII because assembler uses that
+    cmp #$60            ; lower-case?
+    bcc :+              ; no
+    sec
+    sbc #$20            ; yes, convert to upper case
+    ; Dispatch the keypress
+:   cmp #'W'            ; 'W' for forward
+    bne :+
+    jsr moveForward
+    jmp @nextFrame
+:   cmp #'X'            ; 'X' alternative for 'S'
+    bne :+
+    lda #'S'
+:   cmp #'S'            ; 'S' for backward
+    bne :+
+    jsr moveBackward
+    jmp @nextFrame
+:   cmp #'A'            ; 'A' for left
+    bne :+
+    jsr rotateLeft
+    jmp @nextFrame
+:   cmp #'D'            ; 'D' for right
+    bne :+
+    jsr rotateRight
+    jmp @nextFrame
+:   cmp #$1B            ; ESC to exit
+    beq @done
+    jmp @pauseLup       ; unrecognize key -- go back and get another one.
 @done:
+    ; back to text mode
     bit setText
     bit page1
-; quit to monitor
+    ; quit to monitor
     ldx #$FF
     txs
     jmp monitor
-
-@expandName: .byte 10
-    .byte "/LL/EXPAND"
-@tex0Name: .byte 21
-    .byte "/LL/ASSETS/BUILDING01"
-@tex1name: .byte 21
-    .byte "/LL/ASSETS/BUILDING02"
-@tex2name: .byte 21
-    .byte "/LL/ASSETS/BUILDING03"
-@tex3name: .byte 21
-    .byte "/LL/ASSETS/BUILDING04"
-@precastName: .byte 18
-    .byte "/LL/ASSETS/PRECAST"
-@frameName: .byte 16
-    .byte "/LL/ASSETS/FRAME"
-
-; Map data temporarily encoded here. Soon we want to load this from a file instead.
-mapData:
-    .byte 1,4,3,4,2,3,2,4,3,2,4,3,4,0,0,0
-    .byte 1,0,0,0,0,0,0,3,0,0,2,0,3,0,0,0
-    .byte 1,0,0,0,0,0,0,1,0,0,3,0,2,0,0,0
-    .byte 3,0,0,1,2,3,0,4,0,0,4,0,3,0,0,0
-    .byte 1,0,0,0,0,4,0,0,0,0,0,0,4,0,0,0
-    .byte 2,0,0,2,0,2,0,0,0,0,0,0,4,0,0,0
-    .byte 1,0,0,3,0,0,0,3,0,0,3,0,1,0,0,0
-    .byte 3,0,0,1,0,0,0,3,0,0,2,0,3,0,0,0
-    .byte 1,0,0,2,0,3,0,2,0,0,4,0,3,0,0,0
-    .byte 1,0,0,0,0,2,0,0,0,0,0,0,1,0,0,0
-    .byte 3,0,0,0,0,1,0,0,0,0,0,0,3,0,0,0
-    .byte 1,0,0,4,0,4,0,3,1,2,4,0,2,0,0,0
-    .byte 4,0,0,0,0,0,0,0,0,0,0,0,3,0,0,0
-    .byte 1,2,3,3,3,2,2,1,2,4,2,2,2,0,0,0
 
 ; Following are log/pow lookup tables. For speed, align them on a page boundary.
     .align 256

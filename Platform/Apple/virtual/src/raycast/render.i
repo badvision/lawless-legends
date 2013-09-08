@@ -6,7 +6,7 @@ NLINES         = 128
 SKY_COLOR_E    = $11 ; blue
 SKY_COLOR_O    = $11 ; blue
 GROUND_COLOR_E = $14 ; orange
-GROUND_COLOR_O = $00 ; black
+GROUND_COLOR_O = $10 ; hi-bit black
 TEX_SIZE       = $555 ; 32x32 + 16x16 + 8x8 + 4x4 + 2x2 + 1x1
 
 ; Byte offset for each pixel in the blit unroll
@@ -59,7 +59,7 @@ resetVec = $3F2
 ;---------------------------------
 ; The following are all in aux mem...
 expandVec  = $800 ; size of expansion code: $30E9
-textures   = $3900
+textures   = $4000
 ; back to main mem
 ;---------------------------------
 

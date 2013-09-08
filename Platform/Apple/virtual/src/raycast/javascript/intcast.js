@@ -215,8 +215,8 @@ function prepCast(angleNum, x)
   //
   var scaleFactor = 1.116;
   
-  rayDirX = (rayDirX / scaleFactor) * 128;
-  rayDirY = (rayDirY / scaleFactor) * 128;
+  rayDirX = (rayDirX / scaleFactor) * 127;
+  rayDirY = (rayDirY / scaleFactor) * 127;
 
   rayDirX = ubyte(Math.round(rayDirX) & 0xFF);
   rayDirY = ubyte(Math.round(rayDirY) & 0xFF);

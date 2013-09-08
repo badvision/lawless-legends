@@ -2,7 +2,7 @@
 
 # This program generates optimized texture expansion code.
 
-import copy, os, re, sys
+import copy, math, os, re, sys
 
 # Main control on size vs. speed
 rowInterval = 5
@@ -147,7 +147,14 @@ def makeCmds(dstHeight):
 
   texOff = 0
   if y0 < 0 or y1 > screenHeight:
-    texOff += int((-y0/2) * srcHeight / dstHeight)
+    texOff = -y0 / 2.0 * srcHeight / dstHeight
+    r = int(((texOff*2) % 1) * dstHeight) # the "*2" here is because each byte stores 2 pixels
+    if (texOff % 1) >= 0.5:
+      cmds.append("L")
+      cmds.append("<")
+      b = 2
+    #print("y0=%d texOff=%.3f r=%d b=%d" % (y0, texOff, r, b))
+    texOff = int(texOff)
     y0 = max(0, y0)
     y1 = min(screenHeight, y1)
 
@@ -207,13 +214,11 @@ for dstHeight in range(128,192,4):
 for dstHeight in range(192,256,8):
   makeCmds(dstHeight)
 
-# Create the jump tables for sizes 0..127, 128..255
+# Create the jump table
 dstHeight = 0
 for h in range(0, 256, 2):
   if h == 0:
-    outFile.write("expand_vec1:\n")
-  elif h == 128:
-    outFile.write("\nexpand_vec2:\n")
+    outFile.write("expand_vec:\n")
   if h in dstHeights:
     dstHeight = h
   outFile.write("    .addr expand_%d\n" % dstHeight)

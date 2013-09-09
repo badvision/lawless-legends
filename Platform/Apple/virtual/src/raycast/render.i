@@ -64,8 +64,10 @@ textures   = $4000
 ;---------------------------------
 
 ; Main-mem tables and buffers
-decodeTo01   = $A900
-decodeTo23   = $AA00
+decodeTo01   = $A700
+decodeTo01b  = $A800
+decodeTo23   = $A900
+decodeTo23b  = $AA00
 decodeTo45   = $AB00
 decodeTo56   = $AC00
 decodeTo57   = $AD00

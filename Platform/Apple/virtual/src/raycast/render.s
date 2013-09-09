@@ -652,8 +652,8 @@ blitTemplate: ; comments show byte offset
     ora decodeTo45 ; 10: pixel 2
     sta (0),y ; 13: even column
     iny ; 15: prep for odd
-    lda decodeTo01 ; 16: pixel 4
-    ora decodeTo23 ; 19: pixel 5
+    lda decodeTo01b ; 16: pixel 4
+    ora decodeTo23b ; 19: pixel 5
     rol ; 22: recover half of pix 3
     ora decodeTo56 ; 23: pixel 6 - after rol to ensure right hi bit
     sta (0),y ; 26: odd column
@@ -773,19 +773,45 @@ makeClrBlit:
 
 ; Clear the blit
 clearBlit:
+    lda byteNum
+    and #2
+    bne @alt
     ldx #BLIT_OFF0
-    jsr @clear2
+    jsr @clear1
     ldx #BLIT_OFF1
     jsr @clear2
     ldx #BLIT_OFF2
-    jsr @clear2
+    jsr @clear1
     ldx #BLIT_OFF3
     jsr @clear2
     ldx #BLIT_OFF4
-    jsr @clear2
+    jsr @clear1
     ldx #BLIT_OFF5
     jsr @clear2
     ldx #BLIT_OFF6
+    jmp @clear1
+@alt:
+    ldx #BLIT_OFF0
+    jsr @clear2
+    ldx #BLIT_OFF1
+    jsr @clear1
+    ldx #BLIT_OFF2
+    jsr @clear2
+    ldx #BLIT_OFF3
+    jsr @clear1
+    ldx #BLIT_OFF4
+    jsr @clear2
+    ldx #BLIT_OFF5
+    jsr @clear1
+    ldx #BLIT_OFF6
+    jmp @clear2
+@clear1:
+    ldy #GROUND_COLOR_E
+    lda #SKY_COLOR_E
+    jsr clrBlitRollO
+    ldy #GROUND_COLOR_O
+    lda #SKY_COLOR_O
+    jmp clrBlitRollE
 @clear2:
     ldy #GROUND_COLOR_E
     lda #SKY_COLOR_E
@@ -816,11 +842,19 @@ makeDecodeTbls:
 @decodeTo01:
     ora tmp+1
     sta decodeTo01,x
+@decodeTo01b:   ; put hi bit in bit 6 instead of 7
+    bpl :+
+    ora #$40
+:   sta decodeTo01b,x
 @decodeTo23:
     asl
     asl
     ora tmp+1
     sta decodeTo23,x
+@decodeTo23b:   ; put hi bit in bit 6 instead of 7
+    bpl :+
+    ora #$40
+:   sta decodeTo23b,x
 @decodeTo45:
     asl
     asl
@@ -1022,17 +1056,17 @@ initMem:
 setPlayerPos:
     .if 1  ; for testing only
     ; X=blah
-    lda #8
+    lda #$C
     sta playerX+1
-    lda #$2C
+    lda #$F4
     sta playerX
     ; Y=blah
-    lda #3
+    lda #8
     sta playerY+1
-    lda #$CE
+    lda #$67
     sta playerY
     ; direction=blah
-    lda #1
+    lda #$7
     sta playerDir
     .else
     ; X=1.5
@@ -1201,10 +1235,7 @@ graphInit:
     bit clrText
     bit setHires
     .endif
-
-    lda #63
-    sta lineCt
-    jmp clearBlit
+    rts
 
 ;-------------------------------------------------------------------------------
 ; Render one whole frame
@@ -1263,7 +1294,10 @@ renderFrame:
     pha                 ; save ray offset
     tay                 ; ray offset where it needs to be
     jsr castRay         ; cast the ray across the map
-    jsr drawRay         ; and draw it
+    lda pixNum
+    bne :+
+    jsr clearBlit       ; clear blit on the first pixel
+:   jsr drawRay         ; and draw the ray
     .if DEBUG
     DEBUG_STR "Done drawing ray "
     pla
@@ -1286,8 +1320,6 @@ renderFrame:
     sta setAuxZP
     jsr blitRoll
     sta clrAuxZP
-    DEBUG_STR "Clearing blit."
-    jsr clearBlit
     lda #0
     sta pixNum
     inc byteNum

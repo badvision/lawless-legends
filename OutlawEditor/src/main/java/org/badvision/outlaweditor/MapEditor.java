@@ -256,7 +256,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     }
 
     public void showPreview() {
-        WritableImage img = currentPlatform.imageRenderer.renderPreview(currentMap, posX, posY);
+        WritableImage img = currentPlatform.imageRenderer.renderPreview(currentMap, posX, posY, currentPlatform.maxImageWidth, currentPlatform.maxImageHeight);
         Stage stage = new Stage();
         stage.setTitle("Preview");
         ImageView imgView = new ImageView(img);
@@ -267,7 +267,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
 
     @Override
     public void copy() {
-        WritableImage img = currentPlatform.imageRenderer.renderPreview(currentMap, posX, posY);
+        WritableImage img = currentPlatform.imageRenderer.renderPreview(currentMap, posX, posY, currentPlatform.maxImageWidth, currentPlatform.maxImageHeight);
         java.util.Map<DataFormat,Object> clip = new HashMap<>();
         clip.put(DataFormat.IMAGE, img);
         clip.put(DataFormat.PLAIN_TEXT, "selection/map/"+Application.gameData.getMap().indexOf(getEntity())+"/"+getSelectionInfo());

@@ -23,17 +23,14 @@ public class AppleDHGRImageRenderer extends AppleImageRenderer {
     // If mixed-mode is used then useColor needs to be an 80-boolean array indicating which bytes are supposed to be BW
 
     @Override
-    public byte[] createImageBuffer() {
-        return new byte[80 * 192];
-    }
-
-    @Override
-    public WritableImage renderPreview(TileMap map, int startX, int startY) {
-        byte[] buffer = createImageBuffer();
+    public WritableImage renderPreview(TileMap map, int startX, int startY, int width, int height) {
+        byte[] buffer = createImageBuffer(width, height);
         int pos = 0;
-        for (int y = 0; y < 12; y++) {
+        int numRows = height / 16;
+        int numCols = width / 4;
+        for (int y = 0; y < numRows; y++) {
             for (int yy = 0; yy < 16; yy++) {
-                for (int x = 0; x < 20; x++) {
+                for (int x = 0; x < numCols; x++) {
                     Tile t = map.get(x + startX, y + startY);
                     if (t == null) {
                         buffer[pos++] = 0;
@@ -50,7 +47,7 @@ public class AppleDHGRImageRenderer extends AppleImageRenderer {
                 }
             }
         }
-        return renderImage(null, buffer);
+        return renderImage(null, buffer, width, height);
     }
 
 //    @Override
@@ -65,21 +62,21 @@ public class AppleDHGRImageRenderer extends AppleImageRenderer {
 //    }
 
     @Override
-    public WritableImage renderScanline(WritableImage img, int y, byte[] rawImage) {
+    public WritableImage renderScanline(WritableImage img, int y, int width, byte[] rawImage) {
         if (y < 0) return img;
-        int[] scanline = new int[20];
-        for (int x = 0; x < 80; x += 4) {
-            int scan = rawImage[y * 80 + x + 3] & 255;
+        int[] scanline = new int[width/4];
+        for (int x = 0; x < width; x += 4) {
+            int scan = rawImage[y * width + x + 3] & 255;
             scan <<=7;
-            scan |= rawImage[y * 80 + x + 2] & 255;
+            scan |= rawImage[y * width + x + 2] & 255;
             scan <<=7;
-            scan |= rawImage[y * 80 + x + 1] & 255;
+            scan |= rawImage[y * width + x + 1] & 255;
             scan <<=7;
-            scan |= rawImage[y * 80 + x] & 255;
+            scan |= rawImage[y * width + x] & 255;
             scanline[x / 4] = scan;
         }
-        renderScanline(img.getPixelWriter(), y * 2, scanline, true, false);
-        renderScanline(img.getPixelWriter(), y * 2 + 1, scanline, true, false);
+        renderScanline(img.getPixelWriter(), y * 2, scanline, true, false, width);
+        renderScanline(img.getPixelWriter(), y * 2 + 1, scanline, true, false, width);
         return img;
     }
 //    

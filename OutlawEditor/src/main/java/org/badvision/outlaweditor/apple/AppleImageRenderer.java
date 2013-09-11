@@ -11,7 +11,6 @@ import org.badvision.outlaweditor.ImageRenderer;
 import org.badvision.outlaweditor.Platform;
 import org.badvision.outlaweditor.data.TileMap;
 import org.badvision.outlaweditor.data.TileUtils;
-import org.badvision.outlaweditor.data.xml.Map;
 import org.badvision.outlaweditor.data.xml.Tile;
 
 /**
@@ -25,26 +24,32 @@ public class AppleImageRenderer extends ImageRenderer {
     // scanline is 20 16-bit words
     // If mixed-mode is used then useColor needs to be an 80-boolean array indicating which bytes are supposed to be BW
 
+    public byte[] createImageBuffer(int width, int height) {
+        return new byte[width * height];
+    }    
+        
     @Override
-    public byte[] createImageBuffer() {
-        return new byte[40 * 192];
-    }
-
-    @Override
-    public byte[] generatePreview(TileMap map, int x1, int y1) {
-        byte[] buffer = createImageBuffer();
+    public byte[] renderPreview(TileMap map, int startX, int startY, int width, int height) {
+        byte[] buffer = createImageBuffer(width, height);
         int pos = 0;
-        for (int y = 0; y < 12; y++) {
+        int numRows = height / 16;
+        int numCols = width / 2;
+        boolean isOdd = (width) % 2 == 1;
+        for (int y = 0; y < numRows; y++) {
             for (int yy = 0; yy < 16; yy++) {
-                for (int x = 0; x < 20; x++) {
-                    Tile t = map.get(x + x1, y + y1);
+                for (int x = 0; x < numCols; x++) {
+                    Tile t = map.get(x + startX, y + startY);
                     if (t == null) {
                         buffer[pos++] = 0;
-                        buffer[pos++] = 0;
+                        if (!isOdd) {
+                            buffer[pos++] = 0;
+                        }
                     } else {
                         byte[] tileData = TileUtils.getPlatformData(t, Platform.AppleII);
                         buffer[pos++] = tileData[yy * 2];
-                        buffer[pos++] = tileData[yy * 2 + 1];
+                        if (!isOdd) {
+                            buffer[pos++] = tileData[yy * 2 + 1];
+                        }
                     }
                 }
             }
@@ -53,42 +58,38 @@ public class AppleImageRenderer extends ImageRenderer {
     }
 
     @Override
-    public WritableImage renderPreview(TileMap map, int startX, int startY) {
-        return renderImage(null, generatePreview(map, startX, startY));
-    }
-
-    @Override
-    public WritableImage renderImage(WritableImage img, byte[] rawImage) {
+    public WritableImage renderImage(WritableImage img, byte[] rawImage, int width, int height) {
         if (img == null) {
-            img = new WritableImage(560, 384);
+            img = new WritableImage(width * 14, height * 2);
         }
-        for (int y = 0; y < 192; y++) {
-            renderScanline(img, y, rawImage);
+        for (int y = 0; y <  height; y++) {
+            renderScanline(img, y, width, rawImage);
         }
         return img;
     }
 
     @Override
-    public WritableImage renderScanline(WritableImage img, int y, byte[] rawImage) {
-        int[] scanline = new int[20];
+    public WritableImage renderScanline(WritableImage img, int y,  int width, byte[] rawImage) {
+        int[] scanline = new int[width/2 + 1];
         boolean extraHalfBit = false;
-        for (int x = 0; x < 40; x += 2) {
-            int b1 = rawImage[y * 40 + x] & 255;
-            int b2 = rawImage[y * 40 + x + 1] & 255;
+        for (int x = 0; x < width; x += 2) {
+            int b1 = rawImage[y * width + x] & 255;
+            int b2 = rawImage[y * width + x + 1] & 255;
             int i = hgrToDhgr[(extraHalfBit && x > 0) ? b1 | 0x0100 : b1][b2];
             extraHalfBit = (i & 0x10000000) != 0;
             scanline[x / 2] = i & 0xfffffff;
         }
-        renderScanline(img.getPixelWriter(), y * 2, scanline, true, false);
-        renderScanline(img.getPixelWriter(), y * 2 + 1, scanline, true, false);
+        renderScanline(img.getPixelWriter(), y * 2, scanline, true, false, width);
+        renderScanline(img.getPixelWriter(), y * 2 + 1, scanline, true, false, width);
         return img;
     }
     
-    public static void renderScanline(PixelWriter img, int y, int[] scanline, boolean hiresMode, boolean mixedMode, boolean... useColor) {
+    public static void renderScanline(PixelWriter img, int y, int[] scanline, boolean hiresMode, boolean mixedMode,  int width, boolean... useColor) {
+        int scanlineLength = Math.min(width/2, scanline.length);
         int[][] activePalette = AppleTileRenderer.useSolidPalette ? solidPalette : textPalette;
         int byteCounter = 0;
         int x = 0;
-        for (int s = 0; s < scanline.length; s++) {
+        for (int s = 0; s < scanlineLength; s++) {
             int add = 0;
             int bits = 0;
             if (hiresMode) {

@@ -23,7 +23,7 @@ public class AppleDHGRImageRenderer extends AppleImageRenderer {
     // If mixed-mode is used then useColor needs to be an 80-boolean array indicating which bytes are supposed to be BW
 
     @Override
-    public WritableImage renderPreview(TileMap map, int startX, int startY, int width, int height) {
+    public byte[] renderPreview(TileMap map, int startX, int startY, int width, int height) {
         byte[] buffer = createImageBuffer(width, height);
         int pos = 0;
         int numRows = height / 16;
@@ -47,7 +47,7 @@ public class AppleDHGRImageRenderer extends AppleImageRenderer {
                 }
             }
         }
-        return renderImage(null, buffer, width, height);
+        return buffer;
     }
 
 //    @Override

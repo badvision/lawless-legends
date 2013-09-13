@@ -231,8 +231,8 @@ public enum FillPattern {
             b2 = pattern[y * 4 + 3] & 255;
             i = hgrToDhgr[(extraHalfBit) ? b1 | 0x0100 : b1][b2];
             scan[1] = i & 0xfffffff;
-            AppleImageRenderer.renderScanline(img.getPixelWriter(), y * 2, scan, true, false);
-            AppleImageRenderer.renderScanline(img.getPixelWriter(), y * 2 + 1, scan, true, false);
+            AppleImageRenderer.renderScanline(img.getPixelWriter(), y * 2, scan, true, false, 4);
+            AppleImageRenderer.renderScanline(img.getPixelWriter(), y * 2 + 1, scan, true, false, 4);
         }
         return img;
     }

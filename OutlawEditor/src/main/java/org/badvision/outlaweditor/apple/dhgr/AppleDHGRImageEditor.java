@@ -10,7 +10,6 @@ import javafx.scene.control.Menu;
 import javafx.scene.input.MouseEvent;
 import org.badvision.outlaweditor.Platform;
 import org.badvision.outlaweditor.data.DataObserver;
-import org.badvision.outlaweditor.data.xml.PlatformData;
 
 /**
  *
@@ -49,11 +48,28 @@ public class AppleDHGRImageEditor extends AppleImageEditor implements EventHandl
 
     @Override
     public void redrawScanline(int y) {
-        currentImage = Platform.AppleII_DHGR.imageRenderer.renderScanline(currentImage, y, getImageData());
+        currentImage = Platform.AppleII_DHGR.imageRenderer.renderScanline(currentImage, y, getWidth(), getImageData());
     }
-
+    
+    /**
+     * This takes the current image and dithers it to match the new image dimensions
+     * Most likely it will result in a really bad looking resized copy
+     * but in some cases might look okay
+     * @param newWidth
+     * @param newHeight 
+     */
     @Override
-    public int getWidth() {
-        return 80;
+    public void rescale(int newWidth, int newHeight) {
+        
     }
+    
+    /**
+     * Crops the image (if necessary) or resizes the image leaving the extra space
+     * blank (black)
+     * @param newWidth
+     * @param newHeight 
+     */
+    @Override
+    public void crop(int newWidth, int newHeight) {
+    }    
 }

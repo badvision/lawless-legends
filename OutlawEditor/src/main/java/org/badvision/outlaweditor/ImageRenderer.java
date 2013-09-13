@@ -15,13 +15,12 @@ import org.badvision.outlaweditor.data.xml.Map;
  */
 public abstract class ImageRenderer {
 
-    public abstract WritableImage renderImage(WritableImage img, byte[] rawImage);
+    public abstract WritableImage renderImage(WritableImage img, byte[] rawImage, int width, int height);
 
-    public abstract byte[] createImageBuffer();
+    public abstract byte[] createImageBuffer(int width, int height);
 
-    public abstract WritableImage renderPreview(TileMap map, int startX, int startY);
+    public abstract byte[] renderPreview(TileMap map, int startX, int startY, int width, int height);
 
-    public abstract WritableImage renderScanline(WritableImage currentImage, int y, byte[] imageData);
-
-    public abstract byte[] generatePreview(TileMap map, int x1, int y1);    
+    public abstract WritableImage renderScanline(WritableImage currentImage, int y, int width, byte[] imageData);
+    
 }

@@ -1,11 +1,6 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
 package org.badvision.outlaweditor.apple;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
@@ -27,6 +22,7 @@ import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.FileUtils;
 import org.badvision.outlaweditor.ImageEditor;
 import org.badvision.outlaweditor.Platform;
+import org.badvision.outlaweditor.UIAction;
 import org.badvision.outlaweditor.data.DataObserver;
 import org.badvision.outlaweditor.data.TileMap;
 import org.badvision.outlaweditor.data.xml.Image;
@@ -60,6 +56,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
         redraw();
         screen = new ImageView(currentImage);
         anchorPane.getChildren().add(0, screen);
+        screen.setOnMousePressed(this);
         screen.setOnMouseClicked(this);
         screen.setOnMouseReleased(this);
         screen.setOnMouseDragged(this);
@@ -106,13 +103,13 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     }
 
     public void redrawScanline(int y) {
-        currentImage = getPlatform().imageRenderer.renderScanline(currentImage, y, getImageData());
+        currentImage = getPlatform().imageRenderer.renderScanline(currentImage, y, getWidth(), getImageData());
     }
 
     @Override
     public void redraw() {
         System.out.println("Redraw " + getPlatform().name());
-        currentImage = getPlatform().imageRenderer.renderImage(currentImage, getImageData());
+        currentImage = getPlatform().imageRenderer.renderImage(currentImage, getImageData(), getWidth(), getHeight());
         anchorPane.getChildren().get(1).setLayoutX((anchorPane.getWidth() - 30) / 2);
         anchorPane.getChildren().get(2).setLayoutY((anchorPane.getHeight() - 30) / 2);
         anchorPane.getChildren().get(3).setLayoutX((anchorPane.getWidth() - 30) / 2);
@@ -122,19 +119,13 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
 
     public byte[] getImageData() {
         if (imageData == null) {
-            PlatformData data = null;
-            for (PlatformData d : getEntity().getDisplayData()) {
-                if (d.getPlatform().equalsIgnoreCase(getPlatform().name())) {
-                    data = d;
-                    break;
-                }
-            }
+            PlatformData data = getPlatformData(getPlatform());
             if (data == null) {
                 data = new PlatformData();
-                data.setWidth(40);
-                data.setHeight(192);
+                data.setWidth(getPlatform().maxImageWidth);
+                data.setHeight(getPlatform().maxImageHeight);
                 data.setPlatform(getPlatform().name());
-                data.setValue(getPlatform().imageRenderer.createImageBuffer());
+                data.setValue(getPlatform().imageRenderer.createImageBuffer(getPlatform().maxImageWidth, getPlatform().maxImageHeight));
                 getEntity().getDisplayData().add(data);
             }
             imageData = data.getValue();
@@ -208,13 +199,25 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
 
     @Override
     public void handle(MouseEvent t) {
-        performAction(t.isShiftDown() || t.isSecondaryButtonDown(), t.getEventType().equals(MouseEvent.MOUSE_RELEASED), (int) t.getX() / xScale, (int) t.getY() / yScale);
+        if (performAction(t.isShiftDown() || t.isSecondaryButtonDown(), t.getEventType().equals(MouseEvent.MOUSE_RELEASED), (int) t.getX() / xScale, (int) t.getY() / yScale)) {
+            t.consume();
+        }
+
     }
     protected int lastActionX = -1;
     protected int lastActionY = -1;
+    protected long debounce = -1;
+    public static long DEBOUNCE_THRESHOLD = 50;
 
-    public void performAction(boolean alt, boolean released, int x, int y) {
-        y = Math.min(Math.max(y, 0), 191);
+    public boolean performAction(boolean alt, boolean released, int x, int y) {
+        if (debounce != -1) {
+            long ellapsed = System.currentTimeMillis() - debounce;
+            if (ellapsed <= DEBOUNCE_THRESHOLD) {
+                return false;
+            }
+            debounce = -1;
+        }
+        y = Math.min(Math.max(y, 0), getHeight() - 1);
         x = Math.min(Math.max(x, 0), (getWidth() * 7) - 1);
         boolean canSkip = false;
         if (lastActionX == x && lastActionY == y) {
@@ -225,8 +228,8 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
         switch (currentDrawMode) {
             case Toggle:
                 if (canSkip) {
-                    return;
-                }
+                return false;
+            }
                 if (alt) {
                     toggleHiBit(x, y);
                 } else {
@@ -236,36 +239,39 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
                 break;
             case Pencil1px:
                 if (canSkip) {
-                    return;
-                }
+                return false;
+            }
                 plot(x, y, currentFillPattern, hiBitMatters);
                 redrawScanline(y);
                 break;
             case Pencil3px:
                 if (canSkip) {
-                    return;
-                }
+                return false;
+            }
                 drawBrush(x, y, 3, currentFillPattern, hiBitMatters);
                 break;
             case Pencil5px:
                 if (canSkip) {
-                    return;
-                }
+                return false;
+            }
                 drawBrush(x, y, 5, currentFillPattern, hiBitMatters);
                 break;
             case Rectangle:
                 if (released) {
-                    fillSelection(x, y);
-                    redraw();
-                } else {
-                    updateSelection(x, y);
-                }
+                fillSelection(x, y);
+                redraw();
+                debounce = System.currentTimeMillis();
+            } else {
+                updateSelection(x, y);
+            }
+                break;
         }
+        return true;
 //        observedObjectChanged(getEntity());
     }
     public static Rectangle selectRect = null;
-    public int selectStartX = 0;
-    public int selectStartY = 0;
+    public int selectStartX = -1;
+    public int selectStartY = -1;
 
     private void startSelection(int x, int y) {
         selectRect = new Rectangle(1, 1, Color.NAVY);
@@ -293,6 +299,9 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     }
 
     private void fillSelection(int x, int y) {
+        if (selectRect == null) {
+            return;
+        }
         anchorPane.getChildren().remove(selectRect);
         selectRect = null;
 
@@ -358,11 +367,11 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     }
 
     public int getWidth() {
-        return 40;
+        return getPlatformData(getPlatform()).getWidth();
     }
 
     public int getHeight() {
-        return 192;
+        return getPlatformData(getPlatform()).getHeight();
     }
 
     @Override
@@ -397,10 +406,12 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
                 details.put(bufferDetails[i], Integer.parseInt(bufferDetails[i + 1]));
             }
             TileMap map = new TileMap(Application.gameData.getMap().get(mapNumber));
-            byte[] buf = getPlatform().imageRenderer.generatePreview(
+            byte[] buf = getPlatform().imageRenderer.renderPreview(
                     map,
                     details.get("x1"),
-                    details.get("y1"));
+                    details.get("y1"), 
+                    getWidth(), 
+                    getHeight());
             setData(buf);
             redraw();
             return true;
@@ -419,7 +430,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     }
 
     private void importImage(javafx.scene.image.Image image) {
-        FloydSteinbergDither.floydSteinbergDither(image, getPlatform(), 0, 0, getWidth(), getHeight(), new FloydSteinbergDither.DitherCallback() {
+        FloydSteinbergDither.floydSteinbergDither(image, getPlatform(), 0, 0, getWidth(), getHeight(), getImageData(), getWidth(), new FloydSteinbergDither.DitherCallback() {
             @Override
             public void ditherCompleted(byte[] data) {
                 setData(data);
@@ -447,14 +458,53 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
             }
         }
         File out = FileUtils.getFile(null, "Export image", true, FileUtils.Extension.BINARY, FileUtils.Extension.ALL);
-        if (out == null) return;
+        if (out == null) {
+            return;
+        }
         try {
             FileOutputStream outStream = new FileOutputStream(out);
             outStream.write(output);
             outStream.flush();
             outStream.close();
-        } catch (IOException  ex) {
+        } catch (IOException ex) {
             Logger.getLogger(AppleImageEditor.class.getName()).log(Level.SEVERE, null, ex);
         }
+    }
+
+    @Override
+    public void resize(final int newWidth, final int newHeight) {
+        UIAction.confirm("Do you want to scale the image?  If you select no, the image will be cropped as needed.",
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        rescale(newWidth, newHeight);
+                    }
+                }, new Runnable() {
+                    @Override
+                    public void run() {
+                        crop(newWidth, newHeight);
+                    }
+                });
+    }
+
+    /**
+     * This takes the current image and dithers it to match the new image
+     * dimensions Most likely it will result in a really bad looking resized
+     * copy but in some cases might look okay
+     *
+     * @param newWidth
+     * @param newHeight
+     */
+    public void rescale(int newWidth, int newHeight) {
+    }
+
+    /**
+     * Crops the image (if necessary) or resizes the image leaving the extra
+     * space blank (black)
+     *
+     * @param newWidth
+     * @param newHeight
+     */
+    public void crop(int newWidth, int newHeight) {
     }
 }

@@ -70,12 +70,15 @@ public class FloydSteinbergDither {
             final int startY,
             final int width,
             final int height,
+            final byte[] screen,
+            final int bufferWidth,
             final DitherCallback callback) {
         final AppleImageRenderer renderer = (AppleImageRenderer) platform.imageRenderer;
         final int errorWindow = 6;
         final int overlap = 2;
         final int pixelShift = -2;
-        final WritableImage source = getScaledImage(img, 560, 192);
+        int byteRenderWidth = platform == org.badvision.outlaweditor.Platform.AppleII_DHGR ? 7 : 14;
+        final WritableImage source = getScaledImage(img, width * byteRenderWidth, height);
         AnchorPane pane = new AnchorPane();
         Scene s = new Scene(pane);
         final ImageView previewImage = new ImageView(source);
@@ -98,7 +101,6 @@ public class FloydSteinbergDither {
             public void run() {
                 final WritableImage keepScaled = new WritableImage(source.getPixelReader(), 560, 192);
                 WritableImage tmpScaled = new WritableImage(source.getPixelReader(), 560, 192);
-                final byte[] screen = renderer.createImageBuffer();
                 for (int i = 0; i < screen.length; i++) {
                     screen[i] = (byte) Math.max(255, Math.random() * 256.0);
                 }
@@ -129,8 +131,8 @@ public class FloydSteinbergDither {
                         }
                     });
                     System.out.println("Image type: " + platform.name());
-                    for (int y = startY; y < height + startY; y++) {
-                        for (int x = startX; x < startX + width; x += 2) {
+                    for (int y = 0; y < height; y++) {
+                        for (int x = 0; x < width; x += 2) {
                             Thread.yield();
                             switch (platform) {
                                 case AppleII:
@@ -153,15 +155,15 @@ public class FloydSteinbergDither {
             }
 
             void hiresDither(final byte[] screen, int y, int x, int[] scanline, List<Integer> pixels, WritableImage tmpScaled, int pass, final WritableImage keepScaled) {
-                int bb1 = screen[y * 40 + x] & 255;
-                int bb2 = screen[y * 40 + x + 1] & 255;
+                int bb1 = screen[(y+startY) * bufferWidth + startX + x] & 255;
+                int bb2 = screen[(y+startY) * bufferWidth + startX + x + 1] & 255;
                 int next = bb2 & 127;  // Preserve hi-bit so last pixel stays solid, it is a very minor detail
                 int prev = 0;
-                if (x > 0) {
-                    prev = screen[y * 40 + x - 1] & 255;
+                if ((x+startX) > 0) {
+                    prev = screen[(y+startY) * bufferWidth + startX + x - 1] & 255;
                 }
-                if (x < 38) {
-                    next = screen[y * 40 + x + 2] & 255;
+                if ((x+startX) < 38) {
+                    next = screen[(y+startY) * bufferWidth + startX + x + 2] & 255;
                 }
                 // First byte, compared with a sliding window encompassing the previous byte, if any.
                 int leastError = Integer.MAX_VALUE;
@@ -265,8 +267,8 @@ public class FloydSteinbergDither {
                         tmpScaled.getPixelWriter().setPixels(0, y, 560, (y < 191) ? 2 : 1, keepScaled.getPixelReader(), 0, y);
                     }
                 }
-                screen[y * 40 + x] = (byte) bb1;
-                screen[y * 40 + x + 1] = (byte) bb2;
+                screen[(y+startY) * bufferWidth + startX + x] = (byte) bb1;
+                screen[(y+startY) * bufferWidth + startX + x + 1] = (byte) bb2;
             }
 
             void doubleHiresDither(final byte[] screen, int y, int x, int[] scanline, List<Integer> pixels, WritableImage tmpScaled, int pass, final WritableImage keepScaled) {
@@ -339,10 +341,10 @@ public class FloydSteinbergDither {
 //                        } else {
 //                            tmpScaled.getPixelWriter().setPixels(0, y, 560, (y < 191) ? 2 : 1, keepScaled.getPixelReader(), 0, y);
                 }
-                screen[y * 80 + x] = (byte) bytes[0];
-                screen[y * 80 + x + 1] = (byte) bytes[1];
-                screen[y * 80 + x + 2] = (byte) bytes[2];
-                screen[y * 80 + x + 3] = (byte) bytes[3];
+                screen[(y+startY) * bufferWidth + startX + x] = (byte) bytes[0];
+                screen[(y+startY) * bufferWidth + startX + x + 1] = (byte) bytes[1];
+                screen[(y+startY) * bufferWidth + startX + x + 2] = (byte) bytes[2];
+                screen[(y+startY) * bufferWidth + startX + x + 3] = (byte) bytes[3];
             }
         });
         t.start();
@@ -411,7 +413,7 @@ public class FloydSteinbergDither {
                 throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
             }
         };
-        AppleImageRenderer.renderScanline(fakeWriter, 0, scanline, true, false);
+        AppleImageRenderer.renderScanline(fakeWriter, 0, scanline, true, false, 20);
         double max = 0;
         double min = Double.MAX_VALUE;
         double total = 0;

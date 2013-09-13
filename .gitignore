@@ -5,8 +5,8 @@
 # Skip build directories
 **/build/
 /OutlawEditor/target/
-/Platform/Apple/tools/A2Copy/nbproject/private/
-/Platform/Apple/tools/A2Copy/dist/
+/Platform/Apple/tools/*/nbproject/private/
+/Platform/Apple/tools/*/dist/
 
 # Don't check in data specific to any particular game
 /Platform/Apple/virtual/data/images/*.bin

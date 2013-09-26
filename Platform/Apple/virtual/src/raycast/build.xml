@@ -44,12 +44,12 @@
     <!-- Link the texture expansion code -->
     <apply executable="${LD65_TOOL}" dir="${build.dir}" 
            failonerror="true" verbose="true">
+      <arg value="-o"/>
+      <arg value="${build.dir}/expand.bin#0800"/>
       <arg value="--config"/>
       <arg value="${src.dir}/link.cfg"/>
       <arg value="--start-addr"/>
       <arg value="0x$800"/>
-      <arg value="-o"/>
-      <arg value="${build.dir}/expand.bin#0800"/>
       <fileset dir="${build.dir}" includes="expand.o"/>
     </apply>
 

@@ -1433,6 +1433,7 @@ main:
     jsr makeDecodeTbls
     jsr makeLines
     jsr graphInit
+    bit clrMixed
     ; Render the frame and flip it onto the screen
 @nextFrame:
     jsr renderFrame

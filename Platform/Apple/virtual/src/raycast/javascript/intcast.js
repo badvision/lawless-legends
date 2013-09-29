@@ -342,7 +342,7 @@ var prevY = -1;
 var prevAngleNum = -1;
 var prevOptions = -1;
 
-// Cast all the rays from the player position and draw them [ref BigBlue2d]
+// Cast all the rays from the player position and draw them
 function castRays(force) 
 {
   // If we're already showing this location and angle, no need to re-do it.
@@ -355,10 +355,9 @@ function castRays(force)
     
   console.log("Cast: x=" + player.x + ", y=" + player.y + ", angle=" + player.angleNum);
 
-  // Cast all the rays and record the data
+  // Cast all the rays and record the data [ref BigBlue2d]
   lineData = [];
-  var rayNum;
-  for (rayNum = 0; rayNum < 63; rayNum++) {
+  for (var rayNum = 0; rayNum < 63; rayNum++) {
     data = intCast(rayNum);
     // For display on the PC, expand pixels 8x
     data.height *= 8;
@@ -562,11 +561,11 @@ function wallCalc(x, dist, bDir1, bDir2, bStep2)
 }
 
 // Cast one ray from the player's position through the map until we hit a wall.
-// This version uses only strictly integers, making it easier to port to the
-// 6502. [ref BigBlue2e]
-//
+// [ref BigBlue2e]
+// This version uses only integers, making it easier to port to the 6502.
 function intCast(x)
 {
+  // Start with precalculated data for this ray direction
   var data = precastData[player.angleNum][x];
   
   // Calculate ray position and direction 
@@ -690,7 +689,7 @@ function intCast(x)
                 ", wallX=$" + byteToHex(bWallX));
   }
 
-  // Wrap it all in a nice package.
+  // Wrap it all in a nice package. [ref BigBlue2f]
   return { wallType: map[bMapY][bMapX], 
            textureX: bWallX / 256.0,
            height:   lineHeight };

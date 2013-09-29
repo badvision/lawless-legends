@@ -19,6 +19,7 @@ var map = [
   [1,2,3,3,3,2,2,1,2,4,2,2,2]
 ];
 
+// Player attributes [ref BigBlue2a]
 var player = {
   x : 11.0,      // current x, y position
   y : 10.5,
@@ -107,6 +108,7 @@ function initScreen() {
 
 }
 
+// Set up data tables prior to rendering [ref BigBlue2b]
 function initCast() 
 {
   var i;
@@ -262,7 +264,7 @@ function bindKeys() {
   document.onkeydown = function(e) {
     e = e || window.event;
 
-    switch (e.keyCode) { // which key was pressed?
+    switch (e.keyCode) { // which key was pressed? [ref BigBlue2c]
 
       case 38: // up, move player forward, ie. increase speed
         player.speed = 1;
@@ -340,6 +342,7 @@ var prevY = -1;
 var prevAngleNum = -1;
 var prevOptions = -1;
 
+// Cast all the rays from the player position and draw them [ref BigBlue2d]
 function castRays(force) 
 {
   // If we're already showing this location and angle, no need to re-do it.
@@ -558,8 +561,9 @@ function wallCalc(x, dist, bDir1, bDir2, bStep2)
   */
 }
 
-// Let's try this with strictly integers. This should be the final
-// step before the Apple II code.
+// Cast one ray from the player's position through the map until we hit a wall.
+// This version uses only strictly integers, making it easier to port to the
+// 6502. [ref BigBlue2e]
 //
 function intCast(x)
 {
@@ -626,7 +630,7 @@ function intCast(x)
   var lineHeight;
   var bWallX;
   
-  // Perform DDA
+  // Perform DDA - digital differential analysis
   while (true)
   {
     // Jump to next map square in x-direction, OR in y-direction

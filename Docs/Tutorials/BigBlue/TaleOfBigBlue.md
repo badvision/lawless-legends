@@ -4,12 +4,16 @@ The Tale of Big Blue
 Part 1: Outlaw Editor
 ---------------------
 
+*Hey!* Check out the video screencast of part 1: http://screencast.com/t/ZnRNXVLGi
+
 I'm Martin Haye, and I'm gonnaa to tell you the story of a pixel called Big Blue, and his journey from Seth's mind to an Apple II screen. Along the way we'll be taking a detailed tour of the code and data behind the scenes so you can get a feel for how it all works.
 
 [TODO: back-fill text and links]
 
 Part 2: Casting Rays
 --------------------
+
+*Hey!* Check out the video screencast of part 2: http://screencast.com/t/NNLVxjHZH5
 
 Last time we covered Big Blue's childhood, springing from Seth's mind into Outlaw Editor and then being converted to bits in a file. Now we'll take a detour to introduce ray casting, a critical influence in Blue's life.
 

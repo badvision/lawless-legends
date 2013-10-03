@@ -285,7 +285,7 @@ pow2_w_w:
     rts
 
 ;-------------------------------------------------------------------------------
-; Cast a ray
+; Cast a ray  [ref BigBlue3_60]
 ; Input: pRayData, plus Y reg: precalculated ray data (4 bytes)
 ;        playerX, playerY (integral and fractional bytes of course)
 ;        pMap: pointer to current row on the map (mapBase + playerY{>}*height)
@@ -643,7 +643,7 @@ drawRay:
     DEBUG_STR "Calling expansion code."
     jmp $100            ; was copied here earlier from @callIt
 
-; Template for blitting code
+; Template for blitting code [ref BigBlue3_70]
 blitTemplate: ; comments show byte offset
     lda decodeTo57 ;  0: pixel 3
     asl ;  3: save half of pix 3 in carry
@@ -1052,23 +1052,8 @@ initMem:
     jmp (expandVec,x)
 
 ;-------------------------------------------------------------------------------
-; Establish the initial player position and direction
+; Establish the initial player position and direction [ref BigBlue3_10]
 setPlayerPos:
-    .if 1  ; for testing only
-    ; X=blah
-    lda #$C
-    sta playerX+1
-    lda #$F4
-    sta playerX
-    ; Y=blah
-    lda #8
-    sta playerY+1
-    lda #$67
-    sta playerY
-    ; direction=blah
-    lda #$7
-    sta playerDir
-    .else
     ; X=1.5
     lda #1
     sta playerX+1
@@ -1082,7 +1067,6 @@ setPlayerPos:
     ; direction=0
     lda #0
     sta playerDir
-    .endif
     rts
 
 ;-------------------------------------------------------------------------------
@@ -1286,6 +1270,7 @@ renderFrame:
     sta byteNum
     ; A-reg needs to be zero at this point -- it is the ray offset.
     ; Calculate the height, texture number, and texture column for one ray
+    ; [ref BigBlue3_50]
 @oneCol:
     stx pMap            ; set initial map pointer for the ray
     sty pMap+1
@@ -1449,7 +1434,7 @@ main:
     bcc :+              ; no
     sec
     sbc #$20            ; yes, convert to upper case
-    ; Dispatch the keypress
+    ; Dispatch the keypress [ref BigBlue3_40]
 :   cmp #'W'            ; 'W' for forward
     bne :+
     jsr moveForward
@@ -1484,7 +1469,7 @@ main:
 ; Following are log/pow lookup tables. For speed, align them on a page boundary.
     .align 256
 
-; Table to translate an unsigned byte to 3+5 bit fixed point log2
+; Table to translate an unsigned byte to 3+5 bit fixed point log2 [ref BigBlue3_20]
 tbl_log2_b_b:
     .byte $00,$00,$00,$00,$00,$07,$0C,$11,$15,$19,$1C,$1F,$22,$24,$27,$29
     .byte $2B,$2D,$2E,$30,$32,$33,$34,$36,$37,$38,$3A,$3B,$3C,$3D,$3E,$3F
@@ -1562,7 +1547,7 @@ tbl_pow2_w_w:
 
 ; Precalculated ray initialization parameters. One table for each of the 16 angles.
 ; Each angle has 63 rays, and each ray is provided with 4 parameters (one byte each param):
-; dirX, dirY, deltaX, deltaY
+; dirX, dirY, deltaX, deltaY. [ref BigBlue3_30]
 precast_0:
     .byte $72,$C7,$3E,$7C
     .byte $72,$C9,$3D,$7E

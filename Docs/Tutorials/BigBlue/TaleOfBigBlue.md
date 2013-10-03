@@ -264,11 +264,24 @@ blitTemplate: ; comments show byte offset
     ; 29 bytes total
 ```
 
-All those ``lda`` and ``ora`` instructions are actually performing table lookups. The tables are aligned so that the low byte of the address is the actual value to look up.
+All those ``lda`` and ``ora`` instructions are actually performing table lookups. The tables are aligned so that the low byte of the address is the actual value to look up. Here are the table addresses in memory, and the address of the unrolled code. [BigBlue3_75](https://github.com/badvision/lawless-legends/search?q=BigBlue3_75)
 
-So as you can see, the code takes 7 color pixels from separate bytes and, using these fancy table lookups to quickly shift the bits into their proper place, combines them with binary math into 2 output bytes. 
+```Assembly
+; Main-mem tables and buffers
+decodeTo01   = $A700
+decodeTo01b  = $A800
+decodeTo23   = $A900
+decodeTo23b  = $AA00
+decodeTo45   = $AB00
+decodeTo56   = $AC00
+decodeTo57   = $AD00
+...
+blitRoll     = $B000    ; Unrolled blitting code. Size 29*128 = $E80, plus 1 for rts
+```
 
-The next block will be the same as the first, but instead of ``sta (0),y`` we'll use ``sta (2),y``. And so on for the third block. Then just before calling the blit for the first time, we have code that puts all the screen line addresses into locations 0, 2, 4, etc. so the blitting code will store to the right places on the screen.
+The first code block will go at $B000. The code takes 7 color pixels from separate bytes and, using these fancy table lookups to quickly shift the bits into their proper place, combines them with binary math into 2 output bytes. 
+
+The second code block will be a copy of the first, but instead of ``sta (0),y`` we'll use ``sta (2),y``. And so on for the third block. Then just before calling the blit for the first time, we have code that puts all the screen line addresses into locations 0, 2, 4, etc. so the blitting code will store to the right places on the screen. This level of indirection is used for switching which of the two hi-res screen buffers we write to (so we can draw on the one that's not being displayed, then flip to it instantly... it gives a very crisp feeling to the animation.)
 
 Here's what it the actual unrolled code looks like when we disassemble it on an Apple II after doing some rendering:
 

@@ -359,7 +359,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
 
     public void set(boolean on, int x, int y) {
         byte[] data = getImageData();
-        data[y * getWidth() + (x / 7)] |= (1 << (x % 7));
+        data[y * getWidth() + (x / 7)] |= (1 << (x % 7));  // [ref BigBlue1_10]
         if (!on) {
             data[y * getWidth() + (x / 7)] ^= (1 << (x % 7));
         }

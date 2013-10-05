@@ -6,9 +6,56 @@ Part 1: Outlaw Editor
 
 *Hey!* Check out the video screencast of part 1: http://screencast.com/t/ZnRNXVLGi
 
-I'm Martin Haye, and I'm gonnaa to tell you the story of a pixel called Big Blue, and his journey from Seth's mind to an Apple II screen. Along the way we'll be taking a detailed tour of the code and data behind the scenes so you can get a feel for how it all works.
+I'm Martin Haye, and I'm gonna to tell you the story of a pixel called Big Blue, and his journey from Seth's mind to an Apple II screen. Along the way we'll be taking a tour of the tools, code and data behind the scenes so you can get a feel for how it all works.
 
-[TODO: back-fill text and links] TK
+Big Blue is the upper-left blue pixel in the corner of the building window, shown here in his image in the Outlaw Editor: ![Big Blue's texture image in the Outlaw Editor](blueInEditor.png) 
+
+Seth started out making a 14x16 tile to represent this building in 2D, and called it Building3: ![A building tile](blueTile.png)
+
+Then he put that tile onto a map, along with other tiles. These define where each building will be found in the town. ![Town map](blueMap.png) 
+
+Finally he created the image we saw earlier, by picking a color, picking a drawing mode, and clicking to create pixels in the Outlaw Editor. He named this image "Building3" to correspond with the tile on the map. The resulting image is termed a "texture" and it's going to be used to create the 3-D rendering of that building. When it's saved to disk, the result is an XML file. Here are some pieces of that file.
+
+```XML
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<gameData xmlns="outlaw">
+    <image name="building1">
+        <displayData platform="AppleII" width="40" height="192">D5AAD5AA80AAD5AAD580808000000000000000000000000000000000000000000000000000000000D5AAD58A00A8D5AAD580808000000000000000000000000000000000000000000000000000000000D5AA
+        ...
+    <image name="building3">
+        <displayData platform="AppleII" width="40" height="192">D5AAD5AAD5AAD5AAD580800000000000000000000000000000000000000000000000000000000000D5AAD5AAD5AAD5AAD580800000000000000000000000000000000000000000000000000000000000D5AAD5AAD5AAD5AAD580800000000000000000000000000000000000000000000000000000000000D5AAD5AAD5AAD5AAD580800000000000000000000000000000000000000000000000000000000000A8D5AAD5AAD5AAD5AA80800000000000000000000000000000000000000000000000000000000000A8D5AAD5AAD5AAD5AA80800000000000000000000000000000000000000000000000000000000000A8D5AAD5AAD5
+        ...
+        AA80808000000000000000000000000000000000000000000000000000000000A885D5C2AAFCFF9FAA80808000000000000000000000000000000000000000000000000000000000A885D5C2AAFCFF9FAA808080000000000000000000000000000000000000000000000000000000008080D58280FCFF9F80808080000000000000000000000000000000000000000000000000000000008080D58280FCFF9F8080808000000000000000000000000000000000
+        ...
+    <tile id="TILE8bcf6" obstruction="true" name="building2">
+        <displayData platform="AppleII" width="0" height="0">80808081A0848891A2C4A891A2C5A8D5AAD5AAD5E6E7E6E7EAD7EAD7EAD7EAD7</displayData>
+    </tile>
+    <tile id="TILE9a7b6" obstruction="true" name="building3">
+        <displayData platform="AppleII" width="0" height="0">80808891A2C4E2DDBBF78AD1A2C4EEDDBBF782D5A2D4E2D5BBDDEED5A2D48AD5</displayData>
+    </tile>
+    <map name="main" width="512" height="512">
+        <chunk x="0" y="0">
+            <row>TILE76f18 TILE76f18 TILE76f18 TILE76f18 TILE8bcf6 TILE2aae5 TILE8bcf6 TILE34976 TILE76f18 TILE76f18 TILE76f18 TILE76f18 TILE76f18 TILE76f18 TILE9a7b6 TILE76f18 TILE76f18</row>
+...
+```
+
+If you're familiar with the actual bytes that form high-res graphics on the Apple II you may recognize some of these values. I think Big bBue is actually two of the bits in "A885D5" but that's not terribly important. What is important is that the pixels are stored here in a format that can be easily read by other programs. How did those bits get in the file? Let's take a very brief look at the code.
+
+Outlaw Editor is written in Java, and here's the Java code that actually twiddles the bits:
+
+[Direct code link](https://github.com/badvision/lawless-legends/search?q=BigBlue1_10)
+
+```Java
+    public void set(boolean on, int x, int y) {
+        byte[] data = getImageData();
+        data[y * getWidth() + (x / 7)] |= (1 << (x % 7));
+        if (!on) {
+            data[y * getWidth() + (x / 7)] ^= (1 << (x % 7));
+        }
+        setData(data);
+    }
+```
+
 
 Part 2: Casting Rays
 --------------------
@@ -400,7 +447,7 @@ You'll notice the pixels are found in memory in vertical column order. That's be
 The unrolled code for all heights is over 6,000 lines! Who wrote all that code? Not me. The scale-up code is produced *by a program* that does a better job than I ever could. Here's an excerpt. [Direct code link](https://github.com/badvision/lawless-legends/search?q=BigBlue4_10)
 
 ```Python
-# Now generate the controlling code [ref BigBlue4_10]
+# Now generate the controlling code
 for (srcHeight, dstHeight, mipLevel, texOff, segs) in allHeights:
   outFile.write("; Produce %d rows from %d rows\n" % (dstHeight, srcHeight))
   outFile.write("expand_%d:\n" % dstHeight)

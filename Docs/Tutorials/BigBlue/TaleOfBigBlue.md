@@ -184,7 +184,7 @@ The basic idea is that shoot a bunch of virtual "rays" from the player's eye in 
 
 Let's take a brief look at the code to do this. This is written in Javascript, making it easy to test changes to it before porting them to the Apple II.
 
-The player has a position, X and Y, and a direction, shown in the code marked [code link](https://github.com/badvision/lawless-legends/search?q=BigBlue2a).
+The player has a position, X and Y, and a direction, shown in the code marked [code link](https://github.com/badvision/lawless-legends/search?q=BigBlue2_10).
 
 ```javascript
 // Player attributes
@@ -194,7 +194,7 @@ var player = {
   dir : 0,    // the direction that the player is turning, either -1 for left or 1 for right.
 ```
 
-For efficiency we perform as much math as possible at startup and stick the results into tables, that's done here. Lots of trigonometric functions and square roots so it's good to do this once instead of each time we have to draw the screen. You don't have to understand the math, this is just so you can get a feel for where it is and what it looks like. code link](https://github.com/badvision/lawless-legends/search?q=BigBlue2b)
+For efficiency we perform as much math as possible at startup and stick the results into tables, that's done here. Lots of trigonometric functions and square roots so it's good to do this once instead of each time we have to draw the screen. You don't have to understand the math, this is just so you can get a feel for where it is and what it looks like. code link](https://github.com/badvision/lawless-legends/search?q=BigBlue2_20)
 
 ```javascript
 // Set up data tables prior to rendering
@@ -206,7 +206,7 @@ function initCast()
   precastData = [];
 ```
 
-When you press a key, like to move forward, this code gets called and decides that to do, like update the player's X/Y coordinate or direction. [code link](https://github.com/badvision/lawless-legends/search?q=BigBlue2c)
+When you press a key, like to move forward, this code gets called and decides that to do, like update the player's X/Y coordinate or direction. [code link](https://github.com/badvision/lawless-legends/search?q=BigBlue2_30)
 
 ```javascript
     switch (e.keyCode) { // which key was pressed?
@@ -215,7 +215,7 @@ When you press a key, like to move forward, this code gets called and decides th
         player.speed = 1;
 ```
 
-Then this code cycles through each ray and draws it. [code link](https://github.com/badvision/lawless-legends/search?q=BigBlue2d)
+Then this code cycles through each ray and draws it. [code link](https://github.com/badvision/lawless-legends/search?q=BigBlue2_40)
 
 ```javascript
 // Cast all the rays from the player position and draw them
@@ -226,7 +226,7 @@ function castRays(force)
       player.x == prevX && 
 ```
 
-The complicated math is handled in a separate function. This code traces an individual ray from the player's eye until it hits something on the map. [code link](https://github.com/badvision/lawless-legends/search?q=BigBlue2e)
+The complicated math is handled in a separate function. This code traces an individual ray from the player's eye until it hits something on the map. [code link](https://github.com/badvision/lawless-legends/search?q=BigBlue2_50)
 
 ```javascript
 // Cast one ray from the player's position through the map until we hit a wall.
@@ -240,7 +240,7 @@ function intCast(x)
   var wRayPosX = sword(player.x * 256);
 ```
 
-The results of all this math for a given horizontal coordinate are: (1) the wall type, the coordinate left-to-right on that wall's texture, and the height of the column to draw. [code link](https://github.com/badvision/lawless-legends/search?q=BigBlue2f)
+The results of all this math for a given horizontal coordinate are: (1) the wall type, the coordinate left-to-right on that wall's texture, and the height of the column to draw. [code link](https://github.com/badvision/lawless-legends/search?q=BigBlue2_60)
 
 ```javascript
   // Wrap it all in a nice package.

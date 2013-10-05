@@ -19,7 +19,7 @@ var map = [
   [1,2,3,3,3,2,2,1,2,4,2,2,2]
 ];
 
-// Player attributes [ref BigBlue2a]
+// Player attributes [ref BigBlue2_10]
 var player = {
   x : 11.0,      // current x, y position
   y : 10.5,
@@ -108,7 +108,7 @@ function initScreen() {
 
 }
 
-// Set up data tables prior to rendering [ref BigBlue2b]
+// Set up data tables prior to rendering [ref BigBlue2_20]
 function initCast() 
 {
   var i;
@@ -264,7 +264,7 @@ function bindKeys() {
   document.onkeydown = function(e) {
     e = e || window.event;
 
-    switch (e.keyCode) { // which key was pressed? [ref BigBlue2c]
+    switch (e.keyCode) { // which key was pressed? [ref BigBlue2_30]
 
       case 38: // up, move player forward, ie. increase speed
         player.speed = 1;
@@ -355,7 +355,7 @@ function castRays(force)
     
   console.log("Cast: x=" + player.x + ", y=" + player.y + ", angle=" + player.angleNum);
 
-  // Cast all the rays and record the data [ref BigBlue2d]
+  // Cast all the rays and record the data [ref BigBlue2_40]
   lineData = [];
   for (var rayNum = 0; rayNum < 63; rayNum++) {
     data = intCast(rayNum);
@@ -561,7 +561,7 @@ function wallCalc(x, dist, bDir1, bDir2, bStep2)
 }
 
 // Cast one ray from the player's position through the map until we hit a wall.
-// [ref BigBlue2e]
+// [ref BigBlue2_50]
 // This version uses only integers, making it easier to port to the 6502.
 function intCast(x)
 {
@@ -689,7 +689,7 @@ function intCast(x)
                 ", wallX=$" + byteToHex(bWallX));
   }
 
-  // Wrap it all in a nice package. [ref BigBlue2f]
+  // Wrap it all in a nice package. [ref BigBlue2_60]
   return { wallType: map[bMapY][bMapX], 
            textureX: bWallX / 256.0,
            height:   lineHeight };

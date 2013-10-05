@@ -1,6 +1,21 @@
 The Tale of Big Blue
 ====================
 
+Overview
+--------
+
+This story is told in four parts. The text version with images is below, but you may get more out of watching the screencast video versions. Here are links to those.
+
+| Title                                     | Video link                         |
+| ----------------------------------------- | ---------------------------------- |
+| Part 1: Outlaw Editor                     | http://screencast.com/t/ZnRNXVLGi  |
+| Part 2: Casting Rays                      | http://screencast.com/t/NNLVxjHZH5 |
+| Part 3: ...and calc! and blend! and calc! | http://screencast.com/t/iazZ2F9tMo |
+| Part 4: Scaling to the Finish             | http://screencast.com/t/UDpMwAZyvD |
+
+
+***********************************************************************************
+
 Part 1: Outlaw Editor
 ---------------------
 
@@ -160,6 +175,8 @@ Then it writes out all that compact data we saw earlier using this code. It crea
 That's it for part one. In the next part of the story we'll talk about how we figure out where to show Big Blue on the screen.
 
 
+***********************************************************************************
+
 Part 2: Casting Rays
 --------------------
 
@@ -251,6 +268,8 @@ The results of all this math for a given horizontal coordinate are: (1) the wall
 
 Next time we'll see this code on the Apple II, and take a look at how the results get drawn on the hi-res graphics screen.
 
+
+***********************************************************************************
 
 Part 3: ...and calc! and blend! and calc!
 -----------------------------------------
@@ -479,6 +498,8 @@ B057-   AD 11 AD    LDA   $AD11
 
 See all those 11's, 22's and other numbers at the end of these lines? Believe it or not those are actual pixel values! Originally in the template they were 00. So some code somewhere has filled them in. What code? We'll fill in that last missing piece next time, when we talk about texture scaling in the final chapter of Big Blue's biography.
 
+
+***********************************************************************************
 
 Part 4: Scaling to the Finish
 -----------------------------

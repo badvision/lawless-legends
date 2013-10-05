@@ -255,7 +255,7 @@ Next time we'll see this code on the Apple II, and take a look at how the result
 Part 3: ...and calc! and blend! and calc!
 -----------------------------------------
 
-*Hey!* Check out the video screencast of part 3: TK
+*Hey!* Check out the video screencast of part 3: http://screencast.com/t/iazZ2F9tMo
 
 Let's do some pixel calisthenics! In part 3 we're going to see how all that ray-casting logic works on the Apple II, and then delve into the mysteries of blending color pixels onto the hi-res screen. The final part next time will cover the secret sauce, fast scaling of Big Blue's texture image to the proper size.
 
@@ -483,7 +483,7 @@ See all those 11's, 22's and other numbers at the end of these lines? Believe it
 Part 4: Scaling to the Finish
 -----------------------------
 
-*Hey!* Check out the video screencast of part 4: TK
+*Hey!* Check out the video screencast of part 4: http://screencast.com/t/UDpMwAZyvD
 
 In this last part of the story of Big Blue, let's fill in the missing piece: scaling from fixed size texture images to variable sized columns on the screen.
 

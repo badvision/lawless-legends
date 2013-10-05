@@ -283,7 +283,7 @@ while len(segsToOpt) > 0:
   for dep in bestDeps:
     del segsToOpt[dep]
 
-# Now generate the controlling code
+# Now generate the controlling code [ref BigBlue4_10]
 for (srcHeight, dstHeight, mipLevel, texOff, segs) in allHeights:
   outFile.write("; Produce %d rows from %d rows\n" % (dstHeight, srcHeight))
   outFile.write("expand_%d:\n" % dstHeight)

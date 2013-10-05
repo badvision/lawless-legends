@@ -330,3 +330,99 @@ B057-   AD 11 AD    LDA   $AD11
 ```
 
 See all those 11's, 22's and other numbers at the end of these lines? Believe it or not those are actual pixel values! Originally in the template they were 00. So some code somewhere has filled them in. What code? We'll fill in that last missing piece next time, when we talk about texture scaling in the final chapter of Big Blue's biography.
+
+
+Part 4: Scaling to the Finish
+-----------------------------
+
+*Hey!* Check out the video screencast of part 4: TK
+
+In this last part of the story of Big Blue, let's fill in the missing piece: scaling from fixed size texture images to variable sized columns on the screen.
+
+Recall that our favorite pixel lives in an image, and that image is packed into a structure called a "mipmap". 
+
+![Mipmaps](mipMap.gif)
+http://en.wikipedia.org/wiki/Mipmap
+
+Big Blue's image was originally drawn at 64x64 pixels, but we also store half sizes, quarter sizes, so 32x32, 16x16, 8x8, 4x4, etc. This improves the quality of the output because complicated decisions about which pixels to keep and which to toss when going to a smaller size can be made at packing time instead of drawing time.
+
+So let's say we've figured out, using ray casting, that Big Blue's column should be drawn as the first column on the screen, and it should be 48 pixels high. Those 48 pixels, as discussed last time, need to be written into the bit blitting unrolled code, but how to do so?
+
+Our rendering engine adopts the strategy of always "scaling up", never down. This prevents annoying flickering as things move side-to-side, but you don't have to really understand why. 
+
+Anyway we take the desired size, 48 pixels high, and pick the mip map level lower than that, 32x32 in this case, and scale it up. That means we'll be taking 32 pixels and scaling them up to make 48. Doing the math, that means each input pixel will produce 1.5 output pixels. Of course we can't really have fractional output pixels, so in practice half the input pixels will produce a single output pixel (resulting 16 pixels), and the other half will produce two output pixels (for 32 pixels), totaling 48 pixels.
+
+The trouble is that doing that calculation takes time, and we need to slam those pixels as fast as possible. So again we turn to the strategy of unrolling our code, this time taking it a ways further. A dirty little secret of the rendering engine is that it uses about 13 kbytes of code just for scaling! There is a dedicated subroutine for each possible column height. Let's look at the code for the one we're interested in, 48 pixels high. This is from the file ``expand.s``:
+
+```Assembly
+; Produce 48 rows from 32 rows
+expand_48:
+    jsr selectMip1
+    jsr e_t40orotoo
+    jsr e_r45tooroto
+    jsr e_50rotooro
+    jsr e_t55orotoo
+    jsr e_r60tooroto
+    jsr e_65rotooro
+    jsr e_t70orotoo
+    jsr e_r75tooroto
+    jsr e_80rotooro
+    lda (pTex),y
+    iny
+    sta 85*BLIT_STRIDE + blitRoll,x
+    sta 86*BLIT_STRIDE + blitRoll,x
+    lsr
+    sta 87*BLIT_STRIDE + blitRoll,x
+    rts
+```
+
+The first thing it does is select mipmap level 1 (level 0 is 64x64, level 1 is 32x32). Then it calls a bunch of subroutines with funny names to do the work. Here's the first one:
+
+```Assembly
+e_t40orotoo:
+    lda (pTex),y
+    iny
+    sta 40*BLIT_STRIDE + blitRoll,x
+    sta 41*BLIT_STRIDE + blitRoll,x
+    lsr
+    sta 42*BLIT_STRIDE + blitRoll,x
+    lda (pTex),y
+    iny
+    sta 43*BLIT_STRIDE + blitRoll,x
+    sta 44*BLIT_STRIDE + blitRoll,x
+    rts
+```
+
+To explain what this does: first we fetch a byte from the texture, and increment the pointer into the texture to prepare for a future fetch. ``lda (pTex),y``. Then we use ``sta`` to store that byte *twice* into the unrolled blit code, for lines 40 and 41 on the screen. Our input packs two pixels in each byte, and we get to the other one using ``lsr``. Then we fetch the next input pixel, and store it twice. See the pattern? 1 pixel -> 2 pixels, then 1 pixel -> 1 pixel. This will achieve 48 total output pixels from 32 input pixels.
+
+You'll notice the pixels are found in memory in vertical column order. That's because this is precisely the order we need to find them when we're drawing columns of pixels.
+
+The unrolled code for all heights is over 6,000 lines! Who wrote all that code? Not me. The scale-up code is produced *by a program* that does a better job than I ever could. Here's an excerpt. [Direct code link](https://github.com/badvision/lawless-legends/search?q=BigBlue4_10)
+
+```Python
+# Now generate the controlling code [ref BigBlue4_10]
+for (srcHeight, dstHeight, mipLevel, texOff, segs) in allHeights:
+  outFile.write("; Produce %d rows from %d rows\n" % (dstHeight, srcHeight))
+  outFile.write("expand_%d:\n" % dstHeight)
+  outFile.write("    jsr selectMip%d\n" % mipLevel)
+  if (texOff != 0):
+    outFile.write("    ldy #%d\n" % texOff)
+  for i in range(len(segs)):
+    seg = allSegs[segs[i]]
+    if seg.refs == 1 and not(seg.generated):
+      seg.genCode(False)
+...
+```
+
+And that's the full story of how Big Blue got from Seth's mind to the screen. In short:
+- Seth mouse-clicked to put him into an image
+- That image got packed into mipmaps on the Apple II
+- We used ray casting to determine where on the screen to put Big Blue's column, and how high to make it.
+- Based on the height, a mipmap level was chosen and the pixels replicated to scale up to the proper height, writing the results into the bit blitting code
+- And finally, the bit blitter blended Big Blue's column with pixels from other columns and blasted them onto the screen.
+
+![Blue on screen](blueOnScreen.png)
+
+I hope you enjoyed this brief history of a little pixel that made it big. There have been an awful lot of concepts and code, so don't stress if it sink in. The goal is to give you an overview, a feeling, for what's involved, to pique your interest in some of the concepts involved, and to give you pointers into the code in case you want to explore further.
+
+Thanks for reading!

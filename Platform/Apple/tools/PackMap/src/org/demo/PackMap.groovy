@@ -42,7 +42,7 @@ class PackMap
                 def pos = (lineNum*nBytes + byteNum) * 2 // two hex chars per byte
                 def val = Integer.parseInt(hexStr[pos..pos+1], 16)
                 for (def bitNum in 0..6) {
-                    if (pixBits == 0)
+                    if (pixBits == 0) // [ref BigBlue1_40]
                         pix = (val & 0x80) ? 4 : 0 // grab high bit of first byte of pix
                     if (val & (1<<bitNum))
                         pix |= (1<<pixBits)
@@ -164,7 +164,7 @@ class PackMap
     }
         
 
-    def writeMap(stream, rows, names)
+    def writeMap(stream, rows, names) // [ref BigBlue1_50]
     {
         def width = rows[0].size()
         def height = rows.size()

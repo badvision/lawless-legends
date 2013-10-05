@@ -241,7 +241,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
                 if (canSkip) {
                 return false;
             }
-                plot(x, y, currentFillPattern, hiBitMatters);
+                plot(x, y, currentFillPattern, hiBitMatters); // [ref BigBlue1_30]
                 redrawScanline(y);
                 break;
             case Pencil3px:
@@ -328,7 +328,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
         if (x < 0 || y < 0 || x >= getWidth() * 7 || y >= getHeight()) {
             return;
         }
-        int pat = pattern[(y % 16) * 4 + ((x / 7) % 4)];
+        int pat = pattern[(y % 16) * 4 + ((x / 7) % 4)];  // [ref BigBlue1_20]
         set((pat & (1 << (x % 7))) != 0, x, y);
         if (hiBitMatters) {
             setHiBit(pat >= 128, x, y);

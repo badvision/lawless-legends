@@ -2,12 +2,16 @@
   <head>
     <title>JScript Lawless Legends Testbed</title>
     <!--
-      /*
-      * Example code from the article at: http://dev.opera.com/articles/view/creating-pseudo-3d-games-with-html-5-can-1/
-      * Copyright (c) 2008 Jacob Seidelin, cupboy@gmail.com, http://blog.nihilogic.dk/
-      * The code is available to use under the terms of the MIT License 
-      * [http://www.opensource.org/licenses/mit-license.php]
-      */
+This file is part of the article series by Jacob Seidelin about 
+creating a ray casting engine with JavaScript, DOM and Canvas.
+
+If you have questions or comments, please contact the author at 
+either jseidelin@nihilogic.dk or http://blog.nihilogic.dk/
+
+The code samples here are freely available under the MIT license.
+See: [http://www.nihilogic.dk/licenses/mit-license.txt]
+
+The graphics for sprites and walls are property of id Software.
     -->
     
     <style type="text/css">
@@ -16,33 +20,46 @@
       
       }
       canvas#minimap {
-      position : absolute;
+        position : absolute;
       }
       canvas#minimapobjects {
-      position : absolute;
+        position : absolute;
       }
       
+      div#overlay {
+        position : absolute;
+        width : 310px;
+        height : 190px;
+        padding : 5px;
+        color : white;
+        font-family : lucida console, courier new;
+        font-size : 10px;
+        z-index : 1;
+      }
+
       div#floor {
-      position : absolute;
-      width : 100%;
-      height : 100%;
-      background-color : rgb(128,128,128);
+        position : absolute;
+        width : 100%;
+        height : 100%;
+        background-color : rgb(128,128,128);
+        z-index : -10000000;
       }
       
       div#ceiling {
-      position : absolute;
-      width : 100%;
-      height : 50%;
-      background-color : rgb(96,96,96);
+        position : absolute;
+        width : 100%;
+        height : 50%;
+        background-color : rgb(96,96,96);
+        z-index : -10000000;
       }
       
       
       #screen {
-      position : relative;
-      width : 504px;
-      height : 512px;
-      border : 1px solid black;
-      overflow : hidden;
+        position : relative;
+        width : 504px;
+        height : 512px;
+        border : 1px solid black;
+        overflow : hidden;
       }
       
     </style>
@@ -62,5 +79,7 @@
       <canvas id="minimapobjects"></canvas>
     </div>
     
+    <div id="debug"></div>
+
   </body>
 </html>

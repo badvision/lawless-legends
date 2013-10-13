@@ -1,4 +1,5 @@
 
+// just a few helper functions
 var $ = function(id) { return document.getElementById(id); };
 var dc = function(tag) { return document.createElement(tag); };
 
@@ -19,9 +20,35 @@ var map = [
   [1,2,3,3,3,2,2,1,2,4,2,2,2]
 ];
 
+var itemTypes = [
+	{ img : "sprites/tablechairs.png", block : true },	// 0
+	{ img : "sprites/armor.png", block : true },		// 1
+	{ img : "sprites/plantgreen.png", block : true },	// 2
+	{ img : "sprites/lamp.png", block : false }		// 3
+];
+
+var mapItems = [
+
+	// lamps in center area
+	{type:3, x:9, y:7},
+	{type:3, x:15, y:7},
+
+	// lamps in bottom corridor
+	{type:3, x:5, y:12},
+	{type:3, x:11, y:12},
+	{type:3, x:11, y:12},
+
+	// tables in long bottom room
+	{type:0, x:10, y:10},
+	{type:0, x:11, y:10},
+	// lamps in long bottom room
+	{type:3, x:8, y:10},
+	{type:3, x:11, y:10}
+];
+
 // Player attributes [ref BigBlue2_10]
 var player = {
-  x : 11.0,      // current x, y position
+  x : 7.0,      // current x, y position
   y : 10.5,
   dir : 0,    // the direction that the player is turning, either -1 for left or 1 for right.
   angleNum : 0, // the current angle of rotation
@@ -32,7 +59,7 @@ var player = {
 
 var options = 0;
 
-var debugRay = 0; /* Debugging info printed about this ray num, or null for none */
+var debugRay = null; /* Debugging info printed about this ray num, or null for none */
 
 var maxAngleNum = 16;
 
@@ -43,6 +70,8 @@ var miniMapScale = 8;
 
 var screenWidth = 504;
 var screenHeight = 512;
+
+var showOverlay = true;
 
 var stripWidth = 1;
 var fov = 45 * Math.PI / 180;
@@ -55,6 +84,24 @@ var viewDist = (screenWidth/2) / Math.tan((fov / 2));
 var twoPI = Math.PI * 2;
 
 var numTextures = 4;
+var wallTextures = [
+	"walls/walls_1.png",
+	"walls/walls_2.png",
+	"walls/walls_3.png",
+	"walls/walls_4.png"
+];
+
+var userAgent = navigator.userAgent.toLowerCase();
+var isGecko = userAgent.indexOf("gecko") != -1 && userAgent.indexOf("safari") == -1;
+
+// enable this to use a single image file containing all wall textures. This performs better in Firefox. Opera likes smaller images.
+var useSingleTexture = isGecko;
+
+var screenStrips = [];
+var overlay;
+
+var fps = 0;
+var overlayText = "";
 
 // Tables
 var precastData = [];
@@ -72,40 +119,93 @@ function init() {
 
   initScreen();
   initCast();
+  initSprites();
 
   drawMiniMap();
 
   gameCycle();
+  renderCycle();
 }
 
-var screenStrips = [];
+var spriteMap;
+var visibleSprites = [];
+var oldVisibleSprites = [];
 
-function initScreen() {
+function initSprites() {
+	spriteMap = [];
+	for (var y=0;y<map.length;y++) {
+		spriteMap[y] = [];
+	}
 
-  var screen = $("screen");
+	var screen = $("screen");
 
-  for (var i=0;i<screenWidth;i+=stripWidth) {
-    var strip = dc("div");
-    strip.style.position = "absolute";
-    strip.style.left = i + "px";
-    strip.style.width = stripWidth+"px";
-    strip.style.height = "0px";
-    strip.style.overflow = "hidden";
+	for (var i=0;i<mapItems.length;i++) {
+		var sprite = mapItems[i];
+		var itemType = itemTypes[sprite.type];
+		var img = dc("img");
+		img.src = itemType.img;
+		img.style.display = "none";
+		img.style.position = "absolute";
 
-    strip.style.backgroundColor = "magenta";
+		sprite.visible = false;
+		sprite.block = itemType.block;
+		sprite.img = img;
+		sprite.index = i;
 
-    var img = new Image();
-    img.src = "walls.png";
-    img.style.position = "absolute";
-    img.style.left = "0px";
+		spriteMap[sprite.y][sprite.x] = sprite;
+		screen.appendChild(img);
+	}
 
-    strip.appendChild(img);
-    strip.img = img;  // assign the image to a property on the strip element so we have easy access to the image later
+}
 
-    screenStrips.push(strip);
-    screen.appendChild(strip);
-  }
+var lastGameCycleTime = 0;
+var gameCycleDelay = 1000 / 30; // aim for 30 fps for game logic
 
+function gameCycle() {
+	var now = new Date().getTime();
+
+	// time since last game logic
+	var timeDelta = now - lastGameCycleTime;
+
+	move(timeDelta);
+
+	var cycleDelay = gameCycleDelay; 
+
+	// the timer will likely not run that fast due to the rendering cycle hogging the cpu
+	// so figure out how much time was lost since last cycle
+
+	if (timeDelta > cycleDelay) {
+		cycleDelay = Math.max(1, cycleDelay - (timeDelta - cycleDelay))
+	}
+
+	setTimeout(gameCycle, cycleDelay);
+
+	lastGameCycleTime = now;
+}
+
+
+var lastRenderCycleTime = 0;
+
+function renderCycle() {
+
+	updateMiniMap();
+
+	castRays();
+
+	// time since last rendering
+	var now = new Date().getTime();
+	var timeDelta = now - lastRenderCycleTime;
+	var cycleDelay = 1000 / 30;
+	if (timeDelta > cycleDelay) {
+		cycleDelay = Math.max(1, cycleDelay - (timeDelta - cycleDelay))
+	}
+	lastRenderCycleTime = now;
+	setTimeout(renderCycle, cycleDelay);
+
+	fps = 1000 / timeDelta;
+	if (showOverlay) {
+		updateOverlay();
+	}
 }
 
 // Set up data tables prior to rendering [ref BigBlue2_20]
@@ -113,7 +213,6 @@ function initCast()
 {
   var i;
   
-  console.log("Initializing cast data.");
   precastData = [];
   for (var angleNum = 0; angleNum < maxAngleNum; angleNum++) 
   {
@@ -151,8 +250,6 @@ function initCast()
   tbl_pow2_w_w = [];
   for (i=0; i<256; i++)
     tbl_pow2_w_w[i] = ubyte((Math.pow(2, i / 255) - 1) * 255);
-
-  console.log("Done.");
 }
 
 function prepCast(angleNum, x)
@@ -161,11 +258,6 @@ function prepCast(angleNum, x)
   var angle = angleNum * player.rotSpeed;
   var dirX = Math.cos(angle);
   var dirY = Math.sin(angle);
-  
-  if (x == 0)
-    console.log("angleNum=" + angleNum + 
-              ", dirX=" + wordToHex(uword((dirX*64) & 0xFFFF)) + 
-              ", dirY=" + wordToHex(uword((dirY*64) & 0xFFFF)));
   
   // Compute the camera plane, which is perpendicular to the direction vector
   var planeX = -Math.sin(angle) * 0.5; 
@@ -258,6 +350,116 @@ function printTbl(arr) {
     console.log(line);
 }
 
+function clearSprites() {
+	// clear the visible sprites array but keep a copy in oldVisibleSprites for later.
+	// also mark all the sprites as not visible so they can be added to visibleSprites again during raycasting.
+	oldVisibleSprites = [];
+	for (var i=0;i<visibleSprites.length;i++) {
+		var sprite = visibleSprites[i];
+		oldVisibleSprites[i] = sprite;
+		sprite.visible = false;
+	}
+	visibleSprites = [];
+}
+
+function renderSprites() {
+
+	for (var i=0;i<visibleSprites.length;i++) {
+		var sprite = visibleSprites[i];
+		var img = sprite.img;
+		img.style.display = "block";
+
+		// translate position to viewer space
+		var dx = sprite.x + 0.5 - player.x;
+		var dy = sprite.y + 0.5 - player.y;
+
+		// distance to sprite
+		var dist = Math.sqrt(dx*dx + dy*dy);
+
+		// sprite angle relative to viewing angle
+		var spriteAngle = Math.atan2(dy, dx) - playerAngle();
+
+		// size of the sprite
+		var size = viewDist / (Math.cos(spriteAngle) * dist);
+
+		if (size <= 0) continue;
+
+		// x-position on screen
+		var x = Math.tan(spriteAngle) * viewDist;
+
+		img.style.left = (screenWidth/2 + x - size/2) + "px";
+
+		// y is constant since we keep all sprites at the same height and vertical position
+		img.style.top = ((screenHeight-size)/2)+"px";
+
+		var dbx = sprite.x - player.x;
+		var dby = sprite.y - player.y;
+
+		img.style.width = size + "px";
+		img.style.height =  size + "px";
+
+		var blockDist = dbx*dbx + dby*dby;
+		var zIndex = -Math.floor(blockDist*1000)
+		img.style.zIndex = zIndex;
+		
+		console.log("visible sprite " + sprite.index + ": blockDist=" + blockDist + 
+		            ", spriteAngle=" + spriteAngle + ", size=" + size + 
+		            ", zIndex=" + zIndex);
+	}
+
+	// hide the sprites that are no longer visible
+	for (var i=0;i<oldVisibleSprites.length;i++) {
+		var sprite = oldVisibleSprites[i];
+		if (visibleSprites.indexOf(sprite) < 0) {
+		  console.log("No longer visible sprite " + sprite.index);
+			sprite.visible = false;
+			sprite.img.style.display = "none";
+		}
+	}
+
+}
+
+function updateOverlay() {
+	overlay.innerHTML = "FPS: " + fps.toFixed(1) + "<br/>" + overlayText;
+	overlayText = "";
+}
+
+
+function initScreen() {
+
+  var screen = $("screen");
+
+  for (var i=0;i<screenWidth;i+=stripWidth) {
+		var strip = dc("img");
+    strip.style.position = "absolute";
+		strip.style.left = 0 + "px";
+    strip.style.height = "0px";
+
+		if (useSingleTexture) {
+			strip.src = "walls/walls.png";
+		}
+
+		strip.oldStyles = {
+			left : 0,
+			top : 0,
+			width : 0,
+			height : 0,
+			clip : "",
+			src : ""
+		};
+
+    screenStrips.push(strip);
+    screen.appendChild(strip);
+  }
+
+	// overlay div for adding text like fps count, etc.
+	overlay = dc("div");
+	overlay.id = "overlay";
+	overlay.style.display = showOverlay ? "block" : "none";
+	screen.appendChild(overlay);
+
+}
+
 // bind keyboard events to game functions (movement, etc)
 function bindKeys() {
 
@@ -318,20 +520,6 @@ function bindKeys() {
   }
 }
 
-function gameCycle() {
-
-  move();
-
-  updateMiniMap();
-
-  castRays();
-
-  setTimeout(gameCycle,1000/30); // aim for 30 FPS
-  
-  player.speed = 0;
-  player.dir = 0;
-}
-
 function playerAngle()
 {
   return player.angleNum * player.rotSpeed;
@@ -355,6 +543,8 @@ function castRays(force)
     
   console.log("Cast: x=" + player.x + ", y=" + player.y + ", angle=" + player.angleNum);
 
+	clearSprites();
+
   // Cast all the rays and record the data [ref BigBlue2_40]
   lineData = [];
   for (var rayNum = 0; rayNum < 63; rayNum++) {
@@ -374,6 +564,9 @@ function castRays(force)
   // Draw all the rays
   for (rayNum in lineData)
     drawStrip(rayNum, lineData[rayNum]);
+    
+  // Render all the sprites
+	renderSprites();
 }
 
 function assert(flg, msg) {
@@ -632,7 +825,11 @@ function intCast(x)
   // Perform DDA - digital differential analysis
   while (true)
   {
-    // Jump to next map square in x-direction, OR in y-direction
+		if (spriteMap[bMapY][bMapX] && !spriteMap[bMapY][bMapX].visible) {
+			spriteMap[bMapY][bMapX].visible = true;
+			visibleSprites.push(spriteMap[bMapY][bMapX]);
+		}
+     // Jump to next map square in x-direction, OR in y-direction
     if (uless_bb(bSideDistX, bSideDistY)) {
       bMapX += bStepX;
       if (x == debugRay) {
@@ -692,121 +889,9 @@ function intCast(x)
   // Wrap it all in a nice package. [ref BigBlue2_60]
   return { wallType: map[bMapY][bMapX], 
            textureX: bWallX / 256.0,
-           height:   lineHeight };
-}
-
-function newCast(x)
-{
-  var data = precastData[player.angleNum][x];
-    
-  // Calculate ray position and direction 
-  var rayPosX = player.x;
-  var rayPosY = player.y;
-  var rayDirX = data.rayDirX;
-  var rayDirY = data.rayDirY;
-  
-  // Which box of the map we're in  
-  var mapX = Math.floor(rayPosX);
-  var mapY = Math.floor(rayPosY);
-   
-  // Length of ray from current position to next x or y-side
-  var sideDistX;
-  var sideDistY;
-   
-   // Length of ray from one x or y-side to next x or y-side
-  var deltaDistX = data.deltaDistX;
-  var deltaDistY = data.deltaDistY;
-   
-  if (x == debugRay) {
-    console.log("newCast: ray=" + x + 
-                ", deltaDistX=" + deltaDistX.toString() +
-                ", deltaDistY=" + deltaDistY.toString());
-  }
-
-  // What direction to step in x or y-direction (either +1 or -1)
-  var stepX;
-  var stepY;
-
-  // Calculate step and initial sideDist
-  if (rayDirX < 0) {
-    stepX = -1;
-    sideDistX = (rayPosX % 1) * deltaDistX;
-  }
-  else {
-    stepX = 1;
-    sideDistX = (1.0 - (rayPosX % 1)) * deltaDistX;
-  }
-
-  if (rayDirY < 0) {
-    stepY = -1;
-    sideDistY = (rayPosY % 1) * deltaDistY;
-  }
-  else {
-    stepY = 1;
-    sideDistY = (1.0 - (rayPosY % 1)) * deltaDistY;
-  }  
-
-  // Distance to wall, and texture coordinate on the wall
-  var perpWallDist = 0;
-  var wallX;
-  
-  // Perform DDA
-  while (mapX >= 0 && mapX < mapWidth && mapY >= 0 && mapY < mapHeight)
-  {
-    // Jump to next map square in x-direction, OR in y-direction
-    if (sideDistX < sideDistY) {
-      sideDistX += deltaDistX;
-      mapX += stepX;
-      if (x == debugRay) {
-        console.log("    side0, mapX=" + mapX + ", mapY=" + mapY + 
-                    ", sideDistX=" + sideDistX.toString() + 
-                    ", sideDistY=" + sideDistY.toString());
-      }    
-      if (map[mapY][mapX] > 0) { 
-        if (x == debugRay)
-          console.log("        hit side 0");
-        perpWallDist = (mapX - rayPosX + (1 - stepX) / 2) / rayDirX;
-        wallX = (rayPosY + perpWallDist * rayDirY) % 1;
-        if (rayDirX > 0)
-          wallX = 1 - wallX;
-        break;
-      }
-    }
-    else {
-      sideDistY += deltaDistY;
-      mapY += stepY;
-      if (x == debugRay) {
-        console.log("    side1, mapX=" + mapX + ", mapY=" + mapY + 
-                    ", sideDistX=" + sideDistX.toString() + 
-                    ", sideDistY=" + sideDistY.toString());
-      }    
-      if (map[mapY][mapX] > 0) { 
-        if (x == debugRay)
-          console.log("        hit side 1");
-        perpWallDist = (mapY - rayPosY + (1 - stepY) / 2) / rayDirY;
-        wallX = (rayPosX + perpWallDist * rayDirX) % 1;
-        if (rayDirY < 0) 
-          wallX = 1 - wallX;
-        break;
-      }
-    }
-  }
-  
-  perpWallDist = Math.abs(perpWallDist);
-     
-  if (perpWallDist == 0)
-    return { wallType:0, textureX:0, height:0 };
-  
-  // Calculate height of line to draw on screen
-  var lineHeight = Math.abs(Math.floor(screenHeight / perpWallDist));
-
-  if (x == debugRay) {
-    console.debug("        perpWallDist=" + perpWallDist.toString() +
-                  ", lineHeight=" + lineHeight.toString());
-  }
-
-  // Wrap it all in a nice package.
-  return { wallType:map[mapY][mapX], textureX:wallX, height:lineHeight };
+           height:   lineHeight,
+           xWallHit: bMapX,
+           yWallHit: bMapY };
 }
 
 function drawStrip(stripIdx, lineData)
@@ -820,19 +905,64 @@ function drawStrip(stripIdx, lineData)
   // it half way down the screen and then half the wall height back up.
   var top = Math.round((screenHeight - lineData.height) / 2);
 
-  strip.style.height = lineData.height+"px";
-  strip.style.top = top+"px";
+  var imgTop = 0;
 
-  strip.img.style.height = Math.floor(lineData.height * numTextures) + "px";
-  strip.img.style.width = Math.floor(width*2) +"px";
-  strip.img.style.top = -Math.floor(lineData.height * (lineData.wallType-1)) + "px";
-  
+  var styleHeight;
+  if (useSingleTexture) {
+    // then adjust the top placement according to which wall texture we need
+    imgTop = Math.floor(height * (lineData.wallType-1));
+    var styleHeight = Math.floor(height * numTextures);
+  } else {
+    var styleSrc = wallTextures[lineData.wallType-1];
+    if (strip.oldStyles.src != styleSrc) {
+      strip.src = styleSrc;
+      strip.oldStyles.src = styleSrc
+    }
+    var styleHeight = lineData.height;
+  }
+
+  if (strip.oldStyles.height != styleHeight) {
+    strip.style.height = styleHeight + "px";
+    strip.oldStyles.height = styleHeight
+  }
+
   var texX = Math.round(lineData.textureX*width);
-
   if (texX > width - stripWidth)
     texX = width - stripWidth;
+  //texX += (wallIsShaded ? width : 0);
 
-  strip.img.style.left = -texX + "px";
+  var styleWidth = Math.floor(width*2);
+  if (strip.oldStyles.width != styleWidth) {
+    strip.style.width = styleWidth +"px";
+    strip.oldStyles.width = styleWidth;
+  }
+
+  var styleTop = top - imgTop;
+  if (strip.oldStyles.top != styleTop) {
+    strip.style.top = styleTop + "px";
+    strip.oldStyles.top = styleTop;
+  }
+
+  var styleLeft = stripIdx*stripWidth - texX;
+  if (strip.oldStyles.left != styleLeft) {
+    strip.style.left = styleLeft + "px";
+    strip.oldStyles.left = styleLeft;
+  }
+
+  var styleClip = "rect(" + imgTop + ", " + (texX + stripWidth)  + ", " + (imgTop + lineData.height) + ", " + texX + ")";
+  if (strip.oldStyles.clip != styleClip) {
+    strip.style.clip = styleClip;
+    strip.oldStyles.clip = styleClip;
+  }
+
+  var dwx = lineData.xWallHit - player.x;
+  var dwy = lineData.yWallHit - player.y;
+
+  var wallDist = dwx*dwx + dwy*dwy;
+  strip.style.zIndex = -Math.floor(wallDist*1000);
+  
+  if (stripIdx == debugRay)
+    console.log("wallDist=" + wallDist + ", zIndex=" + (-Math.floor(wallDist*1000)));
 }
 
 function move() {
@@ -862,8 +992,18 @@ function isBlocking(x,y) {
   if (y < 0 || y >= mapHeight || x < 0 || x >= mapWidth)
     return true;
 
+	var ix = Math.floor(x);
+	var iy = Math.floor(y);
+
   // return true if the map block is not 0, ie. if there is a blocking wall.
-  return (map[Math.floor(y)][Math.floor(x)] != 0); 
+	if (map[iy][ix] != 0)
+		return true;
+
+	if (spriteMap[iy][ix] && spriteMap[iy][ix].block)
+		return true;
+
+	return false;
+
 }
 
 function updateMiniMap() {
@@ -922,14 +1062,21 @@ function drawMiniMap() {
       var wall = map[y][x];
 
       if (wall > 0) { // if there is a wall block at this (x,y) ...
-
         ctx.fillStyle = "rgb(200,200,200)";
         ctx.fillRect(         // ... then draw a block on the minimap
           x * miniMapScale,
           y * miniMapScale,
           miniMapScale,miniMapScale
         );
+			}
 
+			if (spriteMap[y][x]) {
+				ctx.fillStyle = "rgb(100,200,100)";
+				ctx.fillRect(
+					x * miniMapScale + miniMapScale*0.25,
+					y * miniMapScale + miniMapScale*0.25,
+					miniMapScale*0.5,miniMapScale*0.5
+				);
       }
     }
   }

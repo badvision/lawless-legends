@@ -30,20 +30,20 @@ var itemTypes = [
 var mapItems = [
 
   // lamps in center area
-  {type:3, x:9, y:7},
-  {type:3, x:15, y:7},
+  {type:3, x:9.5,  y:7.5},
+  {type:3, x:15.5, y:7.5},
 
   // lamps in bottom corridor
-  {type:3, x:5, y:12},
-  {type:3, x:11, y:12},
-  {type:3, x:11, y:12},
+  {type:3, x:5.5,  y:12.5},
+  {type:3, x:11.5, y:12.5},
+  {type:3, x:11.5, y:12.5},
 
   // tables in long bottom room
-  {type:0, x:10, y:10},
-  {type:0, x:11, y:10},
+  {type:0, x:10.5, y:10.5},
+  {type:0, x:11.5, y:10.5},
   // lamps in long bottom room
-  {type:3, x:8, y:10},
-  {type:3, x:11, y:10}
+  {type:3, x:8.5,  y:10.5},
+  {type:3, x:11.5, y:10.5}
 ];
 
 // Player attributes [ref BigBlue2_10]
@@ -152,7 +152,7 @@ function initSprites() {
     sprite.img = img;
     sprite.index = i;
 
-    spriteMap[sprite.y][sprite.x] = sprite;
+    spriteMap[parseInt(sprite.y)][parseInt(sprite.x)] = sprite;
     screen.appendChild(img);
   }
 
@@ -364,67 +364,40 @@ function clearSprites() {
 
 function renderSprites() {
 
+  var sinT = Math.sin(-playerAngle());
+  var cosT = Math.cos(-playerAngle());
+  
   for (var i=0;i<visibleSprites.length;i++) {
     var sprite = visibleSprites[i];
     var img = sprite.img;
     img.style.display = "block";
 
     // translate position to viewer space
-    var dx = sprite.x + 0.5 - player.x;
-    var dy = sprite.y + 0.5 - player.y;
+    var dx = sprite.x - player.x;
+    var dy = sprite.y - player.y;
     
-    // Use rotation matrix
-    var sinT = Math.sin(-playerAngle());
-    var cosT = Math.cos(-playerAngle());
+    // Apply rotation to the position
+    var rx = (dx * cosT) - (dy * sinT);
+    var ry = (dx * sinT) + (dy * cosT);
     
-    var rx = ((sprite.x + 0.5 - player.x) * cosT) - ((sprite.y + 0.5 - player.y) * sinT);
-    var ry = ((sprite.x + 0.5 - player.x) * sinT) + ((sprite.y + 0.5 - player.y) * cosT);
-    
-    var sqDist2 = rx*rx + ry*ry;
-    var dist2 = Math.sqrt(sqDist2);
-
-    // distance to sprite
-    var dist = Math.sqrt(dx*dx + dy*dy);
-
-    // sprite angle relative to viewing angle
-    var spriteAngle = Math.atan2(dy, dx) - playerAngle();
-    dist *= Math.cos(spriteAngle);
-    if (options & 1)
-      dist = dist2;
-    //console.log("Sprite " + visibleSprites[i].index + ": dist=" + dist + ", dist2=" + dist2);
+    var sqDist = rx*rx + ry*ry;
+    var dist = Math.sqrt(sqDist);
 
     // size of the sprite
     var size = viewDist / dist;    
-
     if (size <= 0) continue;
 
     // x-position on screen
-    var x = Math.tan(spriteAngle) * viewDist;
-    if (options & 1)
-      x = ry / dist2 * 252 / 0.38268343236509034;
-
+    var x = ry / dist * 252 / 0.38268343236509034;
     img.style.left = (screenWidth/2 + x - size/2) + "px";
 
     // y is constant since we keep all sprites at the same height and vertical position
     img.style.top = ((screenHeight-size)/2)+"px";
 
-    var dbx = sprite.x - player.x;
-    var dby = sprite.y - player.y;
-
     img.style.width = size + "px";
     img.style.height = size + "px";
 
-    var blockDist = dx*dx + dy*dy;
-    if (options & 1)
-      blockDist = sqDist2;
-    var zIndex = -Math.floor(blockDist*1000)
-    if (options & 2)
-      zIndex = parseInt(size);
-    img.style.zIndex = zIndex;
-    
-    console.log("visible sprite " + sprite.index + ": blockDist=" + blockDist + 
-                ", spriteAngle=" + spriteAngle + ", size=" + size + 
-                ", zIndex=" + zIndex);
+    img.style.zIndex = parseInt(size);
   }
 
   // hide the sprites that are no longer visible
@@ -965,17 +938,7 @@ function drawStrip(stripIdx, lineData)
     strip.oldStyles.clip = styleClip;
   }
 
-  var dwx = lineData.xWallHit + 0.5 - player.x;
-  var dwy = lineData.yWallHit + 0.5 - player.y;
-
-  var wallDist = dwx*dwx + dwy*dwy;
-  var zIndex = -Math.floor(wallDist*1000)
-  if (options & 2)
-    zIndex = lineData.height;
-  strip.style.zIndex = zIndex;
-  
-  if (stripIdx == debugRay)
-    console.log("wallDist=" + wallDist + ", zIndex=" + zIndex);
+  strip.style.zIndex = lineData.height;
 }
 
 function move() {

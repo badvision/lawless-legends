@@ -21,29 +21,29 @@ var map = [
 ];
 
 var itemTypes = [
-	{ img : "sprites/tablechairs.png", block : true },	// 0
-	{ img : "sprites/armor.png", block : true },		// 1
-	{ img : "sprites/plantgreen.png", block : true },	// 2
-	{ img : "sprites/lamp.png", block : false }		// 3
+  { img : "sprites/tablechairs.png", block : true },  // 0
+  { img : "sprites/armor.png", block : true },    // 1
+  { img : "sprites/plantgreen.png", block : true }, // 2
+  { img : "sprites/lamp.png", block : false }   // 3
 ];
 
 var mapItems = [
 
-	// lamps in center area
-	{type:3, x:9, y:7},
-	{type:3, x:15, y:7},
+  // lamps in center area
+  {type:3, x:9, y:7},
+  {type:3, x:15, y:7},
 
-	// lamps in bottom corridor
-	{type:3, x:5, y:12},
-	{type:3, x:11, y:12},
-	{type:3, x:11, y:12},
+  // lamps in bottom corridor
+  {type:3, x:5, y:12},
+  {type:3, x:11, y:12},
+  {type:3, x:11, y:12},
 
-	// tables in long bottom room
-	{type:0, x:10, y:10},
-	{type:0, x:11, y:10},
-	// lamps in long bottom room
-	{type:3, x:8, y:10},
-	{type:3, x:11, y:10}
+  // tables in long bottom room
+  {type:0, x:10, y:10},
+  {type:0, x:11, y:10},
+  // lamps in long bottom room
+  {type:3, x:8, y:10},
+  {type:3, x:11, y:10}
 ];
 
 // Player attributes [ref BigBlue2_10]
@@ -85,10 +85,10 @@ var twoPI = Math.PI * 2;
 
 var numTextures = 4;
 var wallTextures = [
-	"walls/walls_1.png",
-	"walls/walls_2.png",
-	"walls/walls_3.png",
-	"walls/walls_4.png"
+  "walls/walls_1.png",
+  "walls/walls_2.png",
+  "walls/walls_3.png",
+  "walls/walls_4.png"
 ];
 
 var userAgent = navigator.userAgent.toLowerCase();
@@ -132,29 +132,29 @@ var visibleSprites = [];
 var oldVisibleSprites = [];
 
 function initSprites() {
-	spriteMap = [];
-	for (var y=0;y<map.length;y++) {
-		spriteMap[y] = [];
-	}
+  spriteMap = [];
+  for (var y=0;y<map.length;y++) {
+    spriteMap[y] = [];
+  }
 
-	var screen = $("screen");
+  var screen = $("screen");
 
-	for (var i=0;i<mapItems.length;i++) {
-		var sprite = mapItems[i];
-		var itemType = itemTypes[sprite.type];
-		var img = dc("img");
-		img.src = itemType.img;
-		img.style.display = "none";
-		img.style.position = "absolute";
+  for (var i=0;i<mapItems.length;i++) {
+    var sprite = mapItems[i];
+    var itemType = itemTypes[sprite.type];
+    var img = dc("img");
+    img.src = itemType.img;
+    img.style.display = "none";
+    img.style.position = "absolute";
 
-		sprite.visible = false;
-		sprite.block = itemType.block;
-		sprite.img = img;
-		sprite.index = i;
+    sprite.visible = false;
+    sprite.block = itemType.block;
+    sprite.img = img;
+    sprite.index = i;
 
-		spriteMap[sprite.y][sprite.x] = sprite;
-		screen.appendChild(img);
-	}
+    spriteMap[sprite.y][sprite.x] = sprite;
+    screen.appendChild(img);
+  }
 
 }
 
@@ -162,25 +162,25 @@ var lastGameCycleTime = 0;
 var gameCycleDelay = 1000 / 30; // aim for 30 fps for game logic
 
 function gameCycle() {
-	var now = new Date().getTime();
+  var now = new Date().getTime();
 
-	// time since last game logic
-	var timeDelta = now - lastGameCycleTime;
+  // time since last game logic
+  var timeDelta = now - lastGameCycleTime;
 
-	move(timeDelta);
+  move(timeDelta);
 
-	var cycleDelay = gameCycleDelay; 
+  var cycleDelay = gameCycleDelay; 
 
-	// the timer will likely not run that fast due to the rendering cycle hogging the cpu
-	// so figure out how much time was lost since last cycle
+  // the timer will likely not run that fast due to the rendering cycle hogging the cpu
+  // so figure out how much time was lost since last cycle
 
-	if (timeDelta > cycleDelay) {
-		cycleDelay = Math.max(1, cycleDelay - (timeDelta - cycleDelay))
-	}
+  if (timeDelta > cycleDelay) {
+    cycleDelay = Math.max(1, cycleDelay - (timeDelta - cycleDelay))
+  }
 
-	setTimeout(gameCycle, cycleDelay);
+  setTimeout(gameCycle, cycleDelay);
 
-	lastGameCycleTime = now;
+  lastGameCycleTime = now;
 }
 
 
@@ -188,24 +188,24 @@ var lastRenderCycleTime = 0;
 
 function renderCycle() {
 
-	updateMiniMap();
+  updateMiniMap();
 
-	castRays();
+  castRays();
 
-	// time since last rendering
-	var now = new Date().getTime();
-	var timeDelta = now - lastRenderCycleTime;
-	var cycleDelay = 1000 / 30;
-	if (timeDelta > cycleDelay) {
-		cycleDelay = Math.max(1, cycleDelay - (timeDelta - cycleDelay))
-	}
-	lastRenderCycleTime = now;
-	setTimeout(renderCycle, cycleDelay);
+  // time since last rendering
+  var now = new Date().getTime();
+  var timeDelta = now - lastRenderCycleTime;
+  var cycleDelay = 1000 / 30;
+  if (timeDelta > cycleDelay) {
+    cycleDelay = Math.max(1, cycleDelay - (timeDelta - cycleDelay))
+  }
+  lastRenderCycleTime = now;
+  setTimeout(renderCycle, cycleDelay);
 
-	fps = 1000 / timeDelta;
-	if (showOverlay) {
-		updateOverlay();
-	}
+  fps = 1000 / timeDelta;
+  if (showOverlay) {
+    updateOverlay();
+  }
 }
 
 // Set up data tables prior to rendering [ref BigBlue2_20]
@@ -351,77 +351,97 @@ function printTbl(arr) {
 }
 
 function clearSprites() {
-	// clear the visible sprites array but keep a copy in oldVisibleSprites for later.
-	// also mark all the sprites as not visible so they can be added to visibleSprites again during raycasting.
-	oldVisibleSprites = [];
-	for (var i=0;i<visibleSprites.length;i++) {
-		var sprite = visibleSprites[i];
-		oldVisibleSprites[i] = sprite;
-		sprite.visible = false;
-	}
-	visibleSprites = [];
+  // clear the visible sprites array but keep a copy in oldVisibleSprites for later.
+  // also mark all the sprites as not visible so they can be added to visibleSprites again during raycasting.
+  oldVisibleSprites = [];
+  for (var i=0;i<visibleSprites.length;i++) {
+    var sprite = visibleSprites[i];
+    oldVisibleSprites[i] = sprite;
+    sprite.visible = false;
+  }
+  visibleSprites = [];
 }
 
 function renderSprites() {
 
-	for (var i=0;i<visibleSprites.length;i++) {
-		var sprite = visibleSprites[i];
-		var img = sprite.img;
-		img.style.display = "block";
+  for (var i=0;i<visibleSprites.length;i++) {
+    var sprite = visibleSprites[i];
+    var img = sprite.img;
+    img.style.display = "block";
 
-		// translate position to viewer space
-		var dx = sprite.x + 0.5 - player.x;
-		var dy = sprite.y + 0.5 - player.y;
+    // translate position to viewer space
+    var dx = sprite.x + 0.5 - player.x;
+    var dy = sprite.y + 0.5 - player.y;
+    
+    // Use rotation matrix
+    var sinT = Math.sin(-playerAngle());
+    var cosT = Math.cos(-playerAngle());
+    
+    var rx = ((sprite.x + 0.5 - player.x) * cosT) - ((sprite.y + 0.5 - player.y) * sinT);
+    var ry = ((sprite.x + 0.5 - player.x) * sinT) + ((sprite.y + 0.5 - player.y) * cosT);
+    
+    var sqDist2 = rx*rx + ry*ry;
+    var dist2 = Math.sqrt(sqDist2);
 
-		// distance to sprite
-		var dist = Math.sqrt(dx*dx + dy*dy);
+    // distance to sprite
+    var dist = Math.sqrt(dx*dx + dy*dy);
 
-		// sprite angle relative to viewing angle
-		var spriteAngle = Math.atan2(dy, dx) - playerAngle();
+    // sprite angle relative to viewing angle
+    var spriteAngle = Math.atan2(dy, dx) - playerAngle();
+    dist *= Math.cos(spriteAngle);
+    if (options & 1)
+      dist = dist2;
+    //console.log("Sprite " + visibleSprites[i].index + ": dist=" + dist + ", dist2=" + dist2);
 
-		// size of the sprite
-		var size = viewDist / (Math.cos(spriteAngle) * dist);
+    // size of the sprite
+    var size = viewDist / dist;    
 
-		if (size <= 0) continue;
+    if (size <= 0) continue;
 
-		// x-position on screen
-		var x = Math.tan(spriteAngle) * viewDist;
+    // x-position on screen
+    var x = Math.tan(spriteAngle) * viewDist;
+    if (options & 1)
+      x = ry / dist2 * 252 / 0.38268343236509034;
 
-		img.style.left = (screenWidth/2 + x - size/2) + "px";
+    img.style.left = (screenWidth/2 + x - size/2) + "px";
 
-		// y is constant since we keep all sprites at the same height and vertical position
-		img.style.top = ((screenHeight-size)/2)+"px";
+    // y is constant since we keep all sprites at the same height and vertical position
+    img.style.top = ((screenHeight-size)/2)+"px";
 
-		var dbx = sprite.x - player.x;
-		var dby = sprite.y - player.y;
+    var dbx = sprite.x - player.x;
+    var dby = sprite.y - player.y;
 
-		img.style.width = size + "px";
-		img.style.height =  size + "px";
+    img.style.width = size + "px";
+    img.style.height = size + "px";
 
-		var blockDist = dbx*dbx + dby*dby;
-		var zIndex = -Math.floor(blockDist*1000)
-		img.style.zIndex = zIndex;
-		
-		console.log("visible sprite " + sprite.index + ": blockDist=" + blockDist + 
-		            ", spriteAngle=" + spriteAngle + ", size=" + size + 
-		            ", zIndex=" + zIndex);
-	}
+    var blockDist = dx*dx + dy*dy;
+    if (options & 1)
+      blockDist = sqDist2;
+    var zIndex = -Math.floor(blockDist*1000)
+    if (options & 2)
+      zIndex = parseInt(size);
+    img.style.zIndex = zIndex;
+    
+    console.log("visible sprite " + sprite.index + ": blockDist=" + blockDist + 
+                ", spriteAngle=" + spriteAngle + ", size=" + size + 
+                ", zIndex=" + zIndex);
+  }
 
-	// hide the sprites that are no longer visible
-	for (var i=0;i<oldVisibleSprites.length;i++) {
-		var sprite = oldVisibleSprites[i];
-		if (visibleSprites.indexOf(sprite) < 0) {
-		  console.log("No longer visible sprite " + sprite.index);
-			sprite.visible = false;
-			sprite.img.style.display = "none";
-		}
-	}
+  // hide the sprites that are no longer visible
+  for (var i=0;i<oldVisibleSprites.length;i++) {
+    var sprite = oldVisibleSprites[i];
+    if (visibleSprites.indexOf(sprite) < 0) {
+      console.log("No longer visible sprite " + sprite.index);
+      sprite.visible = false;
+      sprite.img.style.display = "none";
+    }
+  }
 
 }
 
 function updateOverlay() {
-	overlay.innerHTML = "FPS: " + fps.toFixed(1) + "<br/>" + overlayText;
-	overlayText = "";
+  overlay.innerHTML = "FPS: " + fps.toFixed(1) + "<br/>" + overlayText;
+  overlayText = "";
 }
 
 
@@ -430,33 +450,33 @@ function initScreen() {
   var screen = $("screen");
 
   for (var i=0;i<screenWidth;i+=stripWidth) {
-		var strip = dc("img");
+    var strip = dc("img");
     strip.style.position = "absolute";
-		strip.style.left = 0 + "px";
+    strip.style.left = 0 + "px";
     strip.style.height = "0px";
 
-		if (useSingleTexture) {
-			strip.src = "walls/walls.png";
-		}
+    if (useSingleTexture) {
+      strip.src = "walls/walls.png";
+    }
 
-		strip.oldStyles = {
-			left : 0,
-			top : 0,
-			width : 0,
-			height : 0,
-			clip : "",
-			src : ""
-		};
+    strip.oldStyles = {
+      left : 0,
+      top : 0,
+      width : 0,
+      height : 0,
+      clip : "",
+      src : ""
+    };
 
     screenStrips.push(strip);
     screen.appendChild(strip);
   }
 
-	// overlay div for adding text like fps count, etc.
-	overlay = dc("div");
-	overlay.id = "overlay";
-	overlay.style.display = showOverlay ? "block" : "none";
-	screen.appendChild(overlay);
+  // overlay div for adding text like fps count, etc.
+  overlay = dc("div");
+  overlay.id = "overlay";
+  overlay.style.display = showOverlay ? "block" : "none";
+  screen.appendChild(overlay);
 
 }
 
@@ -543,7 +563,7 @@ function castRays(force)
     
   console.log("Cast: x=" + player.x + ", y=" + player.y + ", angle=" + player.angleNum);
 
-	clearSprites();
+  clearSprites();
 
   // Cast all the rays and record the data [ref BigBlue2_40]
   lineData = [];
@@ -566,7 +586,7 @@ function castRays(force)
     drawStrip(rayNum, lineData[rayNum]);
     
   // Render all the sprites
-	renderSprites();
+  renderSprites();
 }
 
 function assert(flg, msg) {
@@ -741,16 +761,6 @@ function wallCalc(x, dist, bDir1, bDir2, bStep2)
                   
   }
   return [lineHeight, bWallX]
-  
-  /* No-log algorithm
-  var wInvDir = uword(65536 / bDir1);
-  var dist2 = umul_ww_w(dist, wInvDir);
-  var bWallX = umul_wb_b(dist2, bDir2);
-  if (bStep2 < 0)
-    bWallX = 255 - bWallX;
-  var lineHeight = Math.floor(63 * 256 / dist2);
-  return [lineHeight, bWallX]
-  */
 }
 
 // Cast one ray from the player's position through the map until we hit a wall.
@@ -825,10 +835,10 @@ function intCast(x)
   // Perform DDA - digital differential analysis
   while (true)
   {
-		if (spriteMap[bMapY][bMapX] && !spriteMap[bMapY][bMapX].visible) {
-			spriteMap[bMapY][bMapX].visible = true;
-			visibleSprites.push(spriteMap[bMapY][bMapX]);
-		}
+    if (spriteMap[bMapY][bMapX] && !spriteMap[bMapY][bMapX].visible) {
+      spriteMap[bMapY][bMapX].visible = true;
+      visibleSprites.push(spriteMap[bMapY][bMapX]);
+    }
      // Jump to next map square in x-direction, OR in y-direction
     if (uless_bb(bSideDistX, bSideDistY)) {
       bMapX += bStepX;
@@ -955,14 +965,17 @@ function drawStrip(stripIdx, lineData)
     strip.oldStyles.clip = styleClip;
   }
 
-  var dwx = lineData.xWallHit - player.x;
-  var dwy = lineData.yWallHit - player.y;
+  var dwx = lineData.xWallHit + 0.5 - player.x;
+  var dwy = lineData.yWallHit + 0.5 - player.y;
 
   var wallDist = dwx*dwx + dwy*dwy;
-  strip.style.zIndex = -Math.floor(wallDist*1000);
+  var zIndex = -Math.floor(wallDist*1000)
+  if (options & 2)
+    zIndex = lineData.height;
+  strip.style.zIndex = zIndex;
   
   if (stripIdx == debugRay)
-    console.log("wallDist=" + wallDist + ", zIndex=" + (-Math.floor(wallDist*1000)));
+    console.log("wallDist=" + wallDist + ", zIndex=" + zIndex);
 }
 
 function move() {
@@ -984,6 +997,10 @@ function move() {
 
   player.x = newX; // set new position
   player.y = newY;
+  
+  // Turn off multi-step maneuvers.
+  player.speed = 0;
+  player.dir = 0;
 }
 
 function isBlocking(x,y) {
@@ -992,17 +1009,17 @@ function isBlocking(x,y) {
   if (y < 0 || y >= mapHeight || x < 0 || x >= mapWidth)
     return true;
 
-	var ix = Math.floor(x);
-	var iy = Math.floor(y);
+  var ix = Math.floor(x);
+  var iy = Math.floor(y);
 
   // return true if the map block is not 0, ie. if there is a blocking wall.
-	if (map[iy][ix] != 0)
-		return true;
+  if (map[iy][ix] != 0)
+    return true;
 
-	if (spriteMap[iy][ix] && spriteMap[iy][ix].block)
-		return true;
+  if (spriteMap[iy][ix] && spriteMap[iy][ix].block)
+    return true;
 
-	return false;
+  return false;
 
 }
 
@@ -1068,15 +1085,15 @@ function drawMiniMap() {
           y * miniMapScale,
           miniMapScale,miniMapScale
         );
-			}
+      }
 
-			if (spriteMap[y][x]) {
-				ctx.fillStyle = "rgb(100,200,100)";
-				ctx.fillRect(
-					x * miniMapScale + miniMapScale*0.25,
-					y * miniMapScale + miniMapScale*0.25,
-					miniMapScale*0.5,miniMapScale*0.5
-				);
+      if (spriteMap[y][x]) {
+        ctx.fillStyle = "rgb(100,200,100)";
+        ctx.fillRect(
+          x * miniMapScale + miniMapScale*0.25,
+          y * miniMapScale + miniMapScale*0.25,
+          miniMapScale*0.5,miniMapScale*0.5
+        );
       }
     }
   }

@@ -367,6 +367,13 @@ function renderSprites() {
   var sinT = Math.sin(-playerAngle());
   var cosT = Math.cos(-playerAngle());
   
+  var bSgnSinT = (sinT < 0) ? -1 : 1;
+  var wLogSinT = log2_w_w(uword(Math.abs(sinT)*256));
+  var bSgnCosT = (cosT < 0) ? -1 : 1;
+  var wLogCosT = log2_w_w(uword(Math.abs(cosT)*256));
+  
+  var wLog256 = log2_w_w(256);
+  
   for (var i=0;i<visibleSprites.length;i++) {
     var sprite = visibleSprites[i];
     var img = sprite.img;
@@ -379,6 +386,20 @@ function renderSprites() {
     // Apply rotation to the position
     var rx = (dx * cosT) - (dy * sinT);
     var ry = (dx * sinT) + (dy * cosT);
+
+    var bSgnDx = (dx < 0) ? -1 : 1;
+    var wLogDx = log2_w_w(Math.abs(dx)*256);
+    var bSgnDy = (dy < 0) ? -1 : 1;
+    var wLogDy = log2_w_w(Math.abs(dy)*256);
+    var wRx = bSgnDx*bSgnCosT*pow2_w_w(wLogDx + wLogCosT - wLog256) -
+              bSgnDy*bSgnSinT*pow2_w_w(wLogDy + wLogSinT - wLog256);
+    var wRy = bSgnDx*bSgnSinT*pow2_w_w(wLogDx + wLogSinT - wLog256) + 
+              bSgnDy*bSgnCosT*pow2_w_w(wLogDy + wLogCosT - wLog256);
+    console.log("Sprite " + sprite.index + ": rx=" + rx + ", wRx/256 = " + (wRx/256.0));
+    if (options & 1) {
+      rx = wRx / 256.0;
+      ry = wRy / 256.0;
+    }
     
     var sqDist = rx*rx + ry*ry;
     var dist = Math.sqrt(sqDist);
@@ -643,7 +664,8 @@ function log2_b_b(n) {
   return tbl_log2_b_b[n];
 }
 
-// Fast pow2: take ubyte 5.3 fixed-point logarithm, produce ubyte: 2^n
+// Fast pow2: take ubyte 3.5 fixed-point logarithm, produce high byte: (2^n)>>8,
+// that is, pow2_b_b(log2_b_b(x)+log2_b_b(y)) =~ (x*y)>>8
 function pow2_b_b(n) {
   return tbl_pow2_b_b[n];
 }
@@ -685,6 +707,7 @@ function abs_w_w(n) {
 function log2_w_w(n) {
   if (n == 0)
     return 0;
+  assert(n >= 1, "n must be non-negative for log2_w_w");
     
   // Calculate the exponent, and leave mantissa in n.
   var exp = 8;
@@ -698,7 +721,7 @@ function log2_w_w(n) {
   }
   
   // Combine to form the result
-  return (exp << 8) | tbl_log2_w_w[n & 0xFF];
+  return uword((exp << 8) | tbl_log2_w_w[n & 0xFF]);
 }
 
 // Table-based high precision pow2 - 16 bit to 16 bit
@@ -710,7 +733,7 @@ function pow2_w_w(n)
     result <<= (exp-8);
   else if (exp < 8)
     result >>= (8-exp);
-  return result;
+  return uword(result);
 }
 
 function wallCalc(x, dist, bDir1, bDir2, bStep2)

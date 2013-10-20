@@ -51,7 +51,7 @@ var player = {
   x : 7.0,      // current x, y position
   y : 10.5,
   dir : 0,    // the direction that the player is turning, either -1 for left or 1 for right.
-  angleNum : 0, // the current angle of rotation
+  angleNum : 1, // the current angle of rotation
   speed : 0,    // is the playing moving forward (speed = 1) or backwards (speed = -1).
   moveSpeed : 0.25,  // how far (in map units) does the player move each step/update
   rotSpeed : 22.5 * Math.PI / 180 // how much does the player rotate each step/update (in radians)
@@ -374,6 +374,8 @@ function renderSprites() {
   
   var wLog256 = log2_w_w(256);
   
+  var wLogViewDist = log2_w_w(viewDist*256);
+  
   for (var i=0;i<visibleSprites.length;i++) {
     var sprite = visibleSprites[i];
     var img = sprite.img;
@@ -388,28 +390,46 @@ function renderSprites() {
     var ry = (dx * sinT) + (dy * cosT);
 
     var bSgnDx = (dx < 0) ? -1 : 1;
-    var wLogDx = log2_w_w(Math.abs(dx)*256);
+    var wLogDx = log2_w_w(uword(Math.abs(dx)*256));
     var bSgnDy = (dy < 0) ? -1 : 1;
-    var wLogDy = log2_w_w(Math.abs(dy)*256);
+    var wLogDy = log2_w_w(uword(Math.abs(dy)*256));
     var wRx = bSgnDx*bSgnCosT*pow2_w_w(wLogDx + wLogCosT - wLog256) -
               bSgnDy*bSgnSinT*pow2_w_w(wLogDy + wLogSinT - wLog256);
     var wRy = bSgnDx*bSgnSinT*pow2_w_w(wLogDx + wLogSinT - wLog256) + 
               bSgnDy*bSgnCosT*pow2_w_w(wLogDy + wLogCosT - wLog256);
-    console.log("Sprite " + sprite.index + ": rx=" + rx + ", wRx/256 = " + (wRx/256.0));
     if (options & 1) {
       rx = wRx / 256.0;
       ry = wRy / 256.0;
     }
+    //console.log("Sprite " + sprite.index + ": rx=" + rx + ", wRx/256=" + (wRx/256.0) + ", ry=" + ry + ", wRy/256=" + (wRy/256.0));
     
     var sqDist = rx*rx + ry*ry;
     var dist = Math.sqrt(sqDist);
-
+    
+    var wLogSqRx = Math.max(0, (log2_w_w(Math.abs(wRx)) << 1) - wLog256);
+    var wLogSqRy = Math.max(0, (log2_w_w(Math.abs(wRy)) << 1) - wLog256);
+    var wSqDist = pow2_w_w(wLogSqRx) + pow2_w_w(wLogSqRy);
+    var wLogDist = ((log2_w_w(wSqDist)-wLog256) >> 1) + wLog256;
+    //console.log("Sprite " + sprite.index + ": sqRx=" + (rx*rx) + ", wSqRx=" + (pow2_w_w(wLogSqRx)/256.0) + ", sqRy=" + (ry*ry) + ", wSqRy=" + (pow2_w_w(wLogSqRy)/256.0));
+    //console.log("Sprite " + sprite.index + ": sqDist=" + sqDist + ", wSqDist/256=" + (wSqDist/256.0));
+    //console.log("Sprite " + sprite.index + ": dist=" + dist + ", logDist=" + log2_w_w(dist*256) + ", wLogDist=" + wLogDist);
+    
     // size of the sprite
     var size = viewDist / dist;    
     if (size <= 0) continue;
+    var wSize = pow2_w_w(wLogViewDist - wLogDist);
+    //console.log("Sprite " + sprite.index + ": size=" + size + ", wSize=" + vSize);
 
     // x-position on screen
     var x = ry / dist * 252 / 0.38268343236509034;
+    var bSgnRy = wRy < 0 ? -1 : 1;
+    var wX = bSgnRy * pow2_w_w(log2_w_w(Math.abs(wRy)*256) - wLogDist + log2_w_w(252 / 0.38268343236509034) - wLog256);
+    //console.log("Sprite " + sprite.index + ": x=" + x + ", wX=" + wX);
+    if (options & 1) {
+      size = wSize;
+      x = wX;
+    }
+    
     img.style.left = (screenWidth/2 + x - size/2) + "px";
 
     // y is constant since we keep all sprites at the same height and vertical position

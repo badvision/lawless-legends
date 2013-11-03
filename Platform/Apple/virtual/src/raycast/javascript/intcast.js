@@ -130,8 +130,6 @@ function init() {
 }
 
 var spriteMap;
-var visibleSprites = [];
-var oldVisibleSprites = [];
 
 function initSprites() {
   spriteMap = [];
@@ -352,18 +350,6 @@ function printTbl(arr) {
     console.log(line);
 }
 
-function clearSprites() {
-  // clear the visible sprites array but keep a copy in oldVisibleSprites for later.
-  // also mark all the sprites as not visible so they can be added to visibleSprites again during raycasting.
-  oldVisibleSprites = [];
-  for (var i=0;i<visibleSprites.length;i++) {
-    var sprite = visibleSprites[i];
-    oldVisibleSprites[i] = sprite;
-    sprite.visible = false;
-  }
-  visibleSprites = [];
-}
-
 function intRenderSprites() {
 
   var sinT = Math.sin(-playerAngle());
@@ -404,7 +390,7 @@ function intRenderSprites() {
     var wLogDy = log2_w_w(uword(Math.abs(dy)*256));
     var wRx = bSgnDx*bSgnCosT*pow2_w_w(wLogDx + wLogCosT - wLog256) -
               bSgnDy*bSgnSinT*pow2_w_w(wLogDy + wLogSinT - wLog256);
-              
+                            
     // If sprite is behind the viewer, skip it.
     if (wRx < 0) {
       if (sprite.index == debugSprite)
@@ -464,17 +450,6 @@ function intRenderSprites() {
     img.style.height = wSize + "px";
     img.style.zIndex = wSize;
   }
-
-  // hide the sprites that are no longer visible
-  for (var i=0;i<oldVisibleSprites.length;i++) {
-    var sprite = oldVisibleSprites[i];
-    if (visibleSprites.indexOf(sprite) < 0) {
-      console.log("No longer visible sprite " + sprite.index);
-      sprite.visible = false;
-      sprite.img.style.display = "none";
-    }
-  }
-
 }
 
 function floatRenderSprites() {
@@ -482,8 +457,8 @@ function floatRenderSprites() {
   var sinT = Math.sin(-playerAngle());
   var cosT = Math.cos(-playerAngle());
   
-  for (var i=0;i<visibleSprites.length;i++) {
-    var sprite = visibleSprites[i];
+  for (var i=0;i<allSprites.length;i++) {
+    var sprite = allSprites[i];
     var img = sprite.img;
     img.style.display = "block";
 
@@ -494,6 +469,16 @@ function floatRenderSprites() {
     // Apply rotation to the position
     var rx = (dx * cosT) - (dy * sinT);
     var ry = (dx * sinT) + (dy * cosT);
+    if (sprite.index == debugSprite)
+      console.log("    rx=" + rx);
+    
+    if (rx < 0) {
+      if (sprite.index == debugSprite)
+        console.log("    behind viewer.");
+      sprite.visible = false;
+      sprite.img.style.display = "none";
+      continue;
+    }
 
     var sqDist = rx*rx + ry*ry;
     var dist = Math.sqrt(sqDist);
@@ -514,17 +499,6 @@ function floatRenderSprites() {
 
     img.style.zIndex = parseInt(size);
   }
-
-  // hide the sprites that are no longer visible
-  for (var i=0;i<oldVisibleSprites.length;i++) {
-    var sprite = oldVisibleSprites[i];
-    if (visibleSprites.indexOf(sprite) < 0) {
-      console.log("No longer visible sprite " + sprite.index);
-      sprite.visible = false;
-      sprite.img.style.display = "none";
-    }
-  }
-
 }
 
 function updateOverlay() {
@@ -651,8 +625,6 @@ function castRays(force)
     
   console.log("Cast: x=" + player.x + ", y=" + player.y + ", angle=" + player.angleNum);
 
-  clearSprites();
-
   // Cast all the rays and record the data [ref BigBlue2_40]
   lineData = [];
   for (var rayNum = 0; rayNum < 63; rayNum++) {
@@ -758,12 +730,14 @@ function pow2(n, bits) {
 
 // Fast log2: take ubyte and produce ubyte 3.5 fixed-point: base-2 logarithm
 function log2_b_b(n) {
+  assert(n >= 0 && n <= 255, "input for log2_b_b must be 0..255");
   return tbl_log2_b_b[n];
 }
 
 // Fast pow2: take ubyte 3.5 fixed-point logarithm, produce high byte: (2^n)>>8,
 // that is, pow2_b_b(log2_b_b(x)+log2_b_b(y)) =~ (x*y)>>8
 function pow2_b_b(n) {
+  assert(n >= 0 && n <= 255, "input for pow2_b_b must be 0..255");
   return tbl_pow2_b_b[n];
 }
 
@@ -928,10 +902,6 @@ function intCast(x)
   // Perform DDA - digital differential analysis
   while (true)
   {
-    if (spriteMap[bMapY][bMapX] && !spriteMap[bMapY][bMapX].visible) {
-      spriteMap[bMapY][bMapX].visible = true;
-      visibleSprites.push(spriteMap[bMapY][bMapX]);
-    }
      // Jump to next map square in x-direction, OR in y-direction
     if (uless_bb(bSideDistX, bSideDistY)) {
       bMapX += bStepX;

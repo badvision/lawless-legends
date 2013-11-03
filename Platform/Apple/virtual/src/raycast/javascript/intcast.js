@@ -27,7 +27,7 @@ var itemTypes = [
   { img : "sprites/lamp.png", block : false }   // 3
 ];
 
-var mapItems = [
+var allSprites = [
 
   // lamps in center area
   {type:3, x:9.5,  y:7.5},
@@ -139,8 +139,8 @@ function initSprites() {
 
   var screen = $("screen");
 
-  for (var i=0;i<mapItems.length;i++) {
-    var sprite = mapItems[i];
+  for (var i=0;i<allSprites.length;i++) {
+    var sprite = allSprites[i];
     var itemType = itemTypes[sprite.type];
     var img = dc("img");
     img.src = itemType.img;
@@ -362,7 +362,7 @@ function clearSprites() {
   visibleSprites = [];
 }
 
-function renderSprites() {
+function intRenderSprites() {
 
   var sinT = Math.sin(-playerAngle());
   var cosT = Math.cos(-playerAngle());
@@ -386,26 +386,16 @@ function renderSprites() {
     var dy = sprite.y - player.y;
     
     // Apply rotation to the position
-    var rx = (dx * cosT) - (dy * sinT);
-    var ry = (dx * sinT) + (dy * cosT);
-
     var bSgnDx = (dx < 0) ? -1 : 1;
     var wLogDx = log2_w_w(uword(Math.abs(dx)*256));
     var bSgnDy = (dy < 0) ? -1 : 1;
     var wLogDy = log2_w_w(uword(Math.abs(dy)*256));
-    var wRx = bSgnDx*bSgnCosT*pow2_w_w(wLogDx + wLogCosT - wLog256) -
-              bSgnDy*bSgnSinT*pow2_w_w(wLogDy + wLogSinT - wLog256);
     var wRy = bSgnDx*bSgnSinT*pow2_w_w(wLogDx + wLogSinT - wLog256) + 
               bSgnDy*bSgnCosT*pow2_w_w(wLogDy + wLogCosT - wLog256);
-    if (options & 1) {
-      rx = wRx / 256.0;
-      ry = wRy / 256.0;
-    }
-    //console.log("Sprite " + sprite.index + ": rx=" + rx + ", wRx/256=" + (wRx/256.0) + ", ry=" + ry + ", wRy/256=" + (wRy/256.0));
-    
-    var sqDist = rx*rx + ry*ry;
-    var dist = Math.sqrt(sqDist);
-    
+    var wRx = bSgnDx*bSgnCosT*pow2_w_w(wLogDx + wLogCosT - wLog256) -
+              bSgnDy*bSgnSinT*pow2_w_w(wLogDy + wLogSinT - wLog256);
+
+    // Calculate the distance    
     var wLogSqRx = Math.max(0, (log2_w_w(Math.abs(wRx)) << 1) - wLog256);
     var wLogSqRy = Math.max(0, (log2_w_w(Math.abs(wRy)) << 1) - wLog256);
     var wSqDist = pow2_w_w(wLogSqRx) + pow2_w_w(wLogSqRy);
@@ -415,21 +405,61 @@ function renderSprites() {
     //console.log("Sprite " + sprite.index + ": dist=" + dist + ", logDist=" + log2_w_w(dist*256) + ", wLogDist=" + wLogDist);
     
     // size of the sprite
-    var size = viewDist / dist;    
-    if (size <= 0) continue;
     var wSize = pow2_w_w(wLogViewDist - wLogDist);
     //console.log("Sprite " + sprite.index + ": size=" + size + ", wSize=" + vSize);
 
     // x-position on screen
-    var x = ry / dist * 252 / 0.38268343236509034;
     var bSgnRy = wRy < 0 ? -1 : 1;
-    var wX = bSgnRy * pow2_w_w(log2_w_w(Math.abs(wRy)*256) - wLogDist + log2_w_w(252 / 0.38268343236509034) - wLog256);
+    var wX = bSgnRy * pow2_w_w(log2_w_w(Math.abs(wRy)*256) - wLogDist + log2_w_w(252 / 0.38268343236509034) - wLog256);    
     //console.log("Sprite " + sprite.index + ": x=" + x + ", wX=" + wX);
-    if (options & 1) {
-      size = wSize;
-      x = wX;
+
+    // Update the image with the calculated values
+    img.style.left = (screenWidth/2 + wX - wSize/2) + "px";
+    img.style.top = ((screenHeight-wSize)/2)+"px";
+    img.style.width = wSize + "px";
+    img.style.height = wSize + "px";
+    img.style.zIndex = wSize;
+  }
+
+  // hide the sprites that are no longer visible
+  for (var i=0;i<oldVisibleSprites.length;i++) {
+    var sprite = oldVisibleSprites[i];
+    if (visibleSprites.indexOf(sprite) < 0) {
+      console.log("No longer visible sprite " + sprite.index);
+      sprite.visible = false;
+      sprite.img.style.display = "none";
     }
+  }
+
+}
+
+function floatRenderSprites() {
+
+  var sinT = Math.sin(-playerAngle());
+  var cosT = Math.cos(-playerAngle());
+  
+  for (var i=0;i<visibleSprites.length;i++) {
+    var sprite = visibleSprites[i];
+    var img = sprite.img;
+    img.style.display = "block";
+
+    // translate position to viewer space
+    var dx = sprite.x - player.x;
+    var dy = sprite.y - player.y;
     
+    // Apply rotation to the position
+    var rx = (dx * cosT) - (dy * sinT);
+    var ry = (dx * sinT) + (dy * cosT);
+
+    var sqDist = rx*rx + ry*ry;
+    var dist = Math.sqrt(sqDist);
+    
+    // size of the sprite
+    var size = viewDist / dist;    
+    if (size <= 0) continue;
+
+    // x-position on screen
+    var x = ry / dist * 252 / 0.38268343236509034;
     img.style.left = (screenWidth/2 + x - size/2) + "px";
 
     // y is constant since we keep all sprites at the same height and vertical position
@@ -600,7 +630,10 @@ function castRays(force)
     drawStrip(rayNum, lineData[rayNum]);
     
   // Render all the sprites
-  renderSprites();
+  if (options & 1)
+    floatRenderSprites();
+  else
+    intRenderSprites();
 }
 
 function assert(flg, msg) {

@@ -40,10 +40,10 @@ var allSprites = [
 
   // tables in long bottom room
   {type:0, x:10.5, y:10.5},
-  {type:0, x:11.5, y:10.5},
+  {type:1, x:11.5, y:10.5},
   // lamps in long bottom room
   {type:3, x:8.5,  y:10.5},
-  {type:3, x:11.5, y:10.5}
+  {type:3, x:9.5, y:10.5}
 ];
 
 // Player attributes [ref BigBlue2_10]
@@ -51,7 +51,7 @@ var player = {
   x : 7.0,      // current x, y position
   y : 10.5,
   dir : 0,    // the direction that the player is turning, either -1 for left or 1 for right.
-  angleNum : 1, // the current angle of rotation
+  angleNum : 0, // the current angle of rotation
   speed : 0,    // is the playing moving forward (speed = 1) or backwards (speed = -1).
   moveSpeed : 0.25,  // how far (in map units) does the player move each step/update
   rotSpeed : 22.5 * Math.PI / 180 // how much does the player rotate each step/update (in radians)
@@ -60,6 +60,8 @@ var player = {
 var options = 0;
 
 var debugRay = null; /* Debugging info printed about this ray num, or null for none */
+
+var debugSprite = 2; /* Debugging info printed about this sprite, or null for none */
 
 var maxAngleNum = 16;
 
@@ -376,44 +378,75 @@ function intRenderSprites() {
   
   var wLogViewDist = log2_w_w(viewDist*256);
   
-  for (var i=0;i<visibleSprites.length;i++) {
-    var sprite = visibleSprites[i];
+  for (var i=0;i<allSprites.length;i++) {
+    var sprite = allSprites[i];
     var img = sprite.img;
     img.style.display = "block";
 
+    if (sprite.index == debugSprite)
+      console.log("Sprite " + sprite.index + ":");
+      
     // translate position to viewer space
     var dx = sprite.x - player.x;
     var dy = sprite.y - player.y;
+    if (dx >= 16 || dx >= 16) {
+      if (sprite.index == debugSprite)
+        console.log("    Too far away to be visible (dx=" + dx + ", dy=" + dy + ")");
+      sprite.visible = false;
+      sprite.img.style.display = "none";
+      continue;
+    }
     
     // Apply rotation to the position
     var bSgnDx = (dx < 0) ? -1 : 1;
     var wLogDx = log2_w_w(uword(Math.abs(dx)*256));
     var bSgnDy = (dy < 0) ? -1 : 1;
     var wLogDy = log2_w_w(uword(Math.abs(dy)*256));
-    var wRy = bSgnDx*bSgnSinT*pow2_w_w(wLogDx + wLogSinT - wLog256) + 
-              bSgnDy*bSgnCosT*pow2_w_w(wLogDy + wLogCosT - wLog256);
     var wRx = bSgnDx*bSgnCosT*pow2_w_w(wLogDx + wLogCosT - wLog256) -
               bSgnDy*bSgnSinT*pow2_w_w(wLogDy + wLogSinT - wLog256);
+    if (wRx < 0) {
+      if (sprite.index == debugSprite)
+        console.log("    behind viewer.");
+      sprite.visible = false;
+      sprite.img.style.display = "none";
+      continue;
+    }
+    
+    var wRy = bSgnDx*bSgnSinT*pow2_w_w(wLogDx + wLogSinT - wLog256) + 
+              bSgnDy*bSgnCosT*pow2_w_w(wLogDy + wLogCosT - wLog256);
 
     // Calculate the distance    
     var wLogSqRx = Math.max(0, (log2_w_w(Math.abs(wRx)) << 1) - wLog256);
     var wLogSqRy = Math.max(0, (log2_w_w(Math.abs(wRy)) << 1) - wLog256);
     var wSqDist = pow2_w_w(wLogSqRx) + pow2_w_w(wLogSqRy);
     var wLogDist = ((log2_w_w(wSqDist)-wLog256) >> 1) + wLog256;
-    //console.log("Sprite " + sprite.index + ": sqRx=" + (rx*rx) + ", wSqRx=" + (pow2_w_w(wLogSqRx)/256.0) + ", sqRy=" + (ry*ry) + ", wSqRy=" + (pow2_w_w(wLogSqRy)/256.0));
-    //console.log("Sprite " + sprite.index + ": sqDist=" + sqDist + ", wSqDist/256=" + (wSqDist/256.0));
-    //console.log("Sprite " + sprite.index + ": dist=" + dist + ", logDist=" + log2_w_w(dist*256) + ", wLogDist=" + wLogDist);
     
     // size of the sprite
     var wSize = pow2_w_w(wLogViewDist - wLogDist);
-    //console.log("Sprite " + sprite.index + ": size=" + size + ", wSize=" + vSize);
 
     // x-position on screen
     var bSgnRy = wRy < 0 ? -1 : 1;
     var wX = bSgnRy * pow2_w_w(log2_w_w(Math.abs(wRy)*256) - wLogDist + log2_w_w(252 / 0.38268343236509034) - wLog256);    
-    //console.log("Sprite " + sprite.index + ": x=" + x + ", wX=" + wX);
+    if (sprite.index == debugSprite)
+      console.log("    wRx=" + wRx + ", wRy=" + wRy + ",  wSize=" + wSize + ", wX=" + wX);
+      
+    if (wX + wSize < 0) {
+      if (sprite.index == debugSprite)
+        console.log("    off-screen to left.");
+      sprite.visible = false;
+      sprite.img.style.display = "none";
+      continue;
+    }
+    else if (wX > screenWidth) {
+      if (sprite.index == debugSprite)
+        console.log("    off-screen to right.");
+      sprite.visible = false;
+      sprite.img.style.display = "none";
+      continue;
+    }
 
     // Update the image with the calculated values
+    sprite.visible = true;
     img.style.left = (screenWidth/2 + wX - wSize/2) + "px";
     img.style.top = ((screenHeight-wSize)/2)+"px";
     img.style.width = wSize + "px";

@@ -376,7 +376,7 @@ function intRenderSprites() {
   
   var wLog256 = log2_w_w(256);
   
-  var wLogViewDist = log2_w_w(viewDist*256);
+  var wLogViewDist = log2_w_w(viewDist/8*256); // div by 8 to get to Apple II coords
   
   for (var i=0;i<allSprites.length;i++) {
     var sprite = allSprites[i];
@@ -404,6 +404,8 @@ function intRenderSprites() {
     var wLogDy = log2_w_w(uword(Math.abs(dy)*256));
     var wRx = bSgnDx*bSgnCosT*pow2_w_w(wLogDx + wLogCosT - wLog256) -
               bSgnDy*bSgnSinT*pow2_w_w(wLogDy + wLogSinT - wLog256);
+              
+    // If sprite is behind the viewer, skip it.
     if (wRx < 0) {
       if (sprite.index == debugSprite)
         console.log("    behind viewer.");
@@ -426,18 +428,22 @@ function intRenderSprites() {
 
     // x-position on screen
     var bSgnRy = wRy < 0 ? -1 : 1;
-    var wX = bSgnRy * pow2_w_w(log2_w_w(Math.abs(wRy)*256) - wLogDist + log2_w_w(252 / 0.38268343236509034) - wLog256);    
+    var wX = bSgnRy * pow2_w_w(log2_w_w(Math.abs(wRy)*256) - wLogDist + log2_w_w(252 / 8 / 0.38268343236509034) - wLog256);    
     if (sprite.index == debugSprite)
       console.log("    wRx=" + wRx + ", wRy=" + wRy + ",  wSize=" + wSize + ", wX=" + wX);
       
-    if (wX + wSize < 0) {
+    // If no pixels on screen, skip it
+    var spriteLeft = (screenWidth/8/2) + wX - (wSize/2);
+    var spriteRight = spriteLeft + wSize;
+    var spriteTop = ((screenHeight/8) - wSize) / 2;
+    if (spriteRight < 0) {
       if (sprite.index == debugSprite)
         console.log("    off-screen to left.");
       sprite.visible = false;
       sprite.img.style.display = "none";
       continue;
     }
-    else if (wX > screenWidth) {
+    else if (spriteLeft > (screenWidth/8)) {
       if (sprite.index == debugSprite)
         console.log("    off-screen to right.");
       sprite.visible = false;
@@ -445,10 +451,15 @@ function intRenderSprites() {
       continue;
     }
 
+    // Adjust from Apple II coordinates to PC coords (we render 8 pixels for each 1 Apple pix)
+    spriteLeft *= 8;
+    spriteTop *= 8;
+    wSize *= 8;
+    
     // Update the image with the calculated values
     sprite.visible = true;
-    img.style.left = (screenWidth/2 + wX - wSize/2) + "px";
-    img.style.top = ((screenHeight-wSize)/2)+"px";
+    img.style.left = spriteLeft + "px";
+    img.style.top = spriteTop+"px";
     img.style.width = wSize + "px";
     img.style.height = wSize + "px";
     img.style.zIndex = wSize;

@@ -48,10 +48,10 @@ var allSprites = [
 
 // Player attributes [ref BigBlue2_10]
 var player = {
-  x : 7.0,      // current x, y position
-  y : 10.5,
+  x : 11.5,      // current x, y position
+  y : 1.5,
   dir : 0,    // the direction that the player is turning, either -1 for left or 1 for right.
-  angleNum : 0, // the current angle of rotation
+  angleNum : 4, // the current angle of rotation
   speed : 0,    // is the playing moving forward (speed = 1) or backwards (speed = -1).
   moveSpeed : 0.25,  // how far (in map units) does the player move each step/update
   rotSpeed : 22.5 * Math.PI / 180 // how much does the player rotate each step/update (in radians)
@@ -61,7 +61,7 @@ var options = 0;
 
 var debugRay = null; /* Debugging info printed about this ray num, or null for none */
 
-var debugSprite = 2; /* Debugging info printed about this sprite, or null for none */
+var debugSprite = 3; /* Debugging info printed about this sprite, or null for none */
 
 var maxAngleNum = 16;
 
@@ -414,9 +414,9 @@ function intRenderSprites() {
 
     // x-position on screen
     var bSgnRy = wRy < 0 ? -1 : 1;
-    var wX = bSgnRy * pow2_w_w(log2_w_w(Math.abs(wRy)*256) - wLogDist + log2_w_w(252 / 8 / 0.38268343236509034) - wLog256);    
+    var wX = bSgnRy * pow2_w_w(log2_w_w(Math.abs(wRy)*256) - wLogDist + log2_w_w(252 / 8 / 0.38268343236509034) - wLog256);      
     if (sprite.index == debugSprite)
-      console.log("    wRx=" + wRx + ", wRy=" + wRy + ",  wSize=" + wSize + ", wX=" + wX);
+      console.log("    wRx/256=" + (wRx/256.0) + ", wRy/256=" + (wRy/256.0) + ", wSize=" + wSize + ", wX=" + wX);
       
     // If no pixels on screen, skip it
     var spriteLeft = (screenWidth/8/2) + wX - (wSize/2);
@@ -469,8 +469,6 @@ function floatRenderSprites() {
     // Apply rotation to the position
     var rx = (dx * cosT) - (dy * sinT);
     var ry = (dx * sinT) + (dy * cosT);
-    if (sprite.index == debugSprite)
-      console.log("    rx=" + rx);
     
     if (rx < 0) {
       if (sprite.index == debugSprite)
@@ -685,13 +683,13 @@ function sbyte(n) {
 
 // Convert a float to an unsigned word by truncation
 function uword(n) {
-  assert(n >=0 && n < 65536, "ubyte out of range");
+  assert(n >=0 && n < 65536, "uword out of range");
   return parseInt(n);
 }
 
 // Convert a float to an signed word by truncation
 function sword(n) {
-  assert(n >= -32768 && n < 32768, "sbyte out of range");
+  assert(n >= -32768 && n < 32768, "sword out of range");
   return parseInt(n);
 }
 

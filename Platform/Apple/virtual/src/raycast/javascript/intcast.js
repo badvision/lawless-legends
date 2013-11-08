@@ -73,7 +73,7 @@ var miniMapScale = 8;
 var screenWidth = 504;
 var screenHeight = 512;
 
-var showOverlay = true;
+var showOverlay = false;
 
 var stripWidth = 1;
 var fov = 45 * Math.PI / 180;
@@ -111,6 +111,7 @@ var tbl_log2_b_b = null;
 var tbl_pow2_b_b = null;
 var tbl_log2_w_w = null;
 var tbl_pow2_w_w = null;
+var tbl_wLogSin = null;
 
 function init() {
 
@@ -250,6 +251,14 @@ function initCast()
   tbl_pow2_w_w = [];
   for (i=0; i<256; i++)
     tbl_pow2_w_w[i] = ubyte((Math.pow(2, i / 255) - 1) * 255);
+    
+  // Sine table
+  tbl_wLogSin = [];
+  for (i=0; i<16; i++) {
+    var t = i * player.rotSpeed;
+    var sinT = Math.sin(-t);
+    tbl_wLogSin[i] = log2_w_w(uword(Math.abs(sinT)*256)) | ((sinT < 0) ? 32768 : 0);
+  }
 }
 
 function prepCast(angleNum, x)
@@ -350,20 +359,24 @@ function printTbl(arr) {
     console.log(line);
 }
 
-function intRenderSprites() {
+function calcZ(wLogHeight) {
+  return ubyte(wLogHeight>>4);
+}
 
-  var sinT = Math.sin(-playerAngle());
-  var cosT = Math.cos(-playerAngle());
-  
-  var bSgnSinT = (sinT < 0) ? -1 : 1;
-  var wLogSinT = log2_w_w(uword(Math.abs(sinT)*256));
-  var bSgnCosT = (cosT < 0) ? -1 : 1;
-  var wLogCosT = log2_w_w(uword(Math.abs(cosT)*256));
-  
+function intRenderSprites() 
+{
+  // Constants
   var wLog256 = log2_w_w(256);
+  var wLogViewDist = log2_w_w(viewDist/8*256); // div by 8 to get to Apple II coords  
+
+  // Quantities that are the same for every sprite
+  var bSgnSinT = (tbl_wLogSin[player.angleNum] & 0x8000) ? -1 : 1;
+  var wLogSinT = (tbl_wLogSin[player.angleNum] & 0x7FFF);
+  var cosAngle = (player.angleNum - 4) & 15;
+  var bSgnCosT = (tbl_wLogSin[cosAngle] & 0x8000) ? -1 : 1;
+  var wLogCosT = (tbl_wLogSin[cosAngle] & 0x7FFF);
   
-  var wLogViewDist = log2_w_w(viewDist/8*256); // div by 8 to get to Apple II coords
-  
+  // Now process each sprite
   for (var i=0;i<allSprites.length;i++) {
     var sprite = allSprites[i];
     var img = sprite.img;
@@ -375,13 +388,6 @@ function intRenderSprites() {
     // translate position to viewer space
     var dx = sprite.x - player.x;
     var dy = sprite.y - player.y;
-    if (dx >= 16 || dx >= 16) {
-      if (sprite.index == debugSprite)
-        console.log("    Too far away to be visible (dx=" + dx + ", dy=" + dy + ")");
-      sprite.visible = false;
-      sprite.img.style.display = "none";
-      continue;
-    }
     
     // Apply rotation to the position
     var bSgnDx = (dx < 0) ? -1 : 1;
@@ -410,11 +416,14 @@ function intRenderSprites() {
     var wLogDist = ((log2_w_w(wSqDist)-wLog256) >> 1) + wLog256;
     
     // size of the sprite
-    var wSize = pow2_w_w(wLogViewDist - wLogDist);
+    var wLogSize = wLogViewDist - wLogDist;
+    var wSize = pow2_w_w(wLogSize);
 
     // x-position on screen
     var bSgnRy = wRy < 0 ? -1 : 1;
-    var wX = bSgnRy * pow2_w_w(log2_w_w(Math.abs(wRy)*256) - wLogDist + log2_w_w(252 / 8 / 0.38268343236509034) - wLog256);      
+    // The constant below is cheesy and based on empirical observation rather than understanding.
+    // Sorry :/
+    var wX = bSgnRy * pow2_w_w(log2_w_w(Math.abs(wRy)*256) - wLogDist + log2_w_w(252 / 8 / 0.44) - wLog256);      
     if (sprite.index == debugSprite)
       console.log("    wRx/256=" + (wRx/256.0) + ", wRy/256=" + (wRy/256.0) + ", wSize=" + wSize + ", wX=" + wX);
       
@@ -448,7 +457,9 @@ function intRenderSprites() {
     img.style.top = spriteTop+"px";
     img.style.width = wSize + "px";
     img.style.height = wSize + "px";
-    img.style.zIndex = wSize;
+    // The constant below is cheesy and I'm not sure why it's needed. But it seems to
+    // keep things at roughly the right depth.
+    img.style.zIndex = calcZ(wLogSize-75);
   }
 }
 
@@ -495,7 +506,7 @@ function floatRenderSprites() {
     img.style.width = size + "px";
     img.style.height = size + "px";
 
-    img.style.zIndex = parseInt(size);
+    img.style.zIndex = calcZ(log2_w_w(size/8));
   }
 }
 
@@ -818,14 +829,15 @@ function wallCalc(x, dist, bDir1, bDir2, bStep2)
     bWallX ^= 0xFF;
   
   // Calculate line height
-  lineHeight = uword(pow2_w_w(log2_w_w(64) - diff));
+  wLogHeight = log2_w_w(64) - diff
+  lineHeight = uword(pow2_w_w(wLogHeight));
   if (x == debugRay) {
     console.log("    absDist=$" + wordToHex(dist) +
                   ", diff=$" + wordToHex(diff) +
                   ", sum=$" + wordToHex(sum));
                   
   }
-  return [lineHeight, bWallX]
+  return [wLogHeight, lineHeight, bWallX]
 }
 
 // Cast one ray from the player's position through the map until we hit a wall.
@@ -894,6 +906,7 @@ function intCast(x)
   }
   
   // Distance to wall, and texture coordinate on the wall
+  var wLogHeight;
   var lineHeight;
   var bWallX;
   
@@ -917,8 +930,9 @@ function intCast(x)
         if (bStepX < 0)
           wPerpWallDist += 256;
         nums = wallCalc(x, wPerpWallDist, bRayDirX, bRayDirY, bStepY);
-        lineHeight = nums[0]
-        bWallX = nums[1]
+        wLogHeight = nums[0];
+        lineHeight = nums[1];
+        bWallX = nums[2];
         bWallX = uadd_bb_b(bWallX, wRayPosY & 0xFF);
         if (bStepX >= 0)
           bWallX ^= 0xFF;
@@ -941,8 +955,9 @@ function intCast(x)
         if (bStepY < 0)
           wPerpWallDist += 256;
         nums = wallCalc(x, wPerpWallDist, bRayDirY, bRayDirX, bStepX);
-        lineHeight = nums[0];
-        bWallX = nums[1];
+        wLogHeight = nums[0];
+        lineHeight = nums[1];
+        bWallX = nums[2];
         bWallX = uadd_bb_b(bWallX, wRayPosX & 0xFF);
         if (bStepY < 0)
           bWallX ^= 0xFF;
@@ -961,6 +976,7 @@ function intCast(x)
   return { wallType: map[bMapY][bMapX], 
            textureX: bWallX / 256.0,
            height:   lineHeight,
+           logHeight: wLogHeight,
            xWallHit: bMapX,
            yWallHit: bMapY };
 }
@@ -1026,7 +1042,7 @@ function drawStrip(stripIdx, lineData)
     strip.oldStyles.clip = styleClip;
   }
 
-  strip.style.zIndex = lineData.height;
+  strip.style.zIndex = calcZ(lineData.logHeight);
 }
 
 function move() {

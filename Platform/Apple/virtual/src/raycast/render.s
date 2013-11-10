@@ -1,8 +1,6 @@
 
     .org $7000
 
-    .pc02
-
 ; This code is written bottom-up. That is, simple routines first, 
 ; then routines that call those to build complexity. The main
 ; code is at the very end. We jump to it now.
@@ -172,15 +170,15 @@ umul_bb_b:
 @three:
     cpy #86     ; x=3: 3*(0..85) results in hi=0
     bcc @done
-    ina
+    lda #1
     cpy #171    ; 3*(86..170) results in hi=1
     bcc @done
-    ina         ; 3*(171..255) results in hi=2
+    lda #2      ; 3*(171..255) results in hi=2
     rts
 @two:
     cpy #$80    ; x=2: high byte is 1 iff input >= 0x80
     bcc @done
-    ina
+    lda #1
 @done:
     rts
 @y_lt_4:
@@ -391,7 +389,8 @@ castRay:
     sbc playerX+1
     bit stepX
     bpl :+
-    ina                 ; if stepping backward, add one to dist
+    clc                 ; if stepping backward, add one to dist
+    adc #1
 :   sta dist+1
     ldx rayDirX         ; parameters for wall calculation
     ldy rayDirY
@@ -454,7 +453,8 @@ castRay:
     sbc playerY+1
     bit stepY
     bpl :+
-    ina                 ; if stepping backward, add one to dist
+    clc                 ; if stepping backward, add one to dist
+    adc #1
 :   sta dist+1
     ldx rayDirY         ; parameters for wall calculation
     ldy rayDirX
@@ -477,7 +477,8 @@ castRay:
     ; wall calculation: X=dir1, Y=dir2, A=dir2step
 @wallCalc:
     pha                 ; save step
-    phy                 ; save dir2
+    tya
+    pha                 ; save dir2
     txa
     jsr log2_b_w        ; calc log2(dir1)
     sta @sub1+1         ; save it for later subtraction
@@ -529,10 +530,13 @@ castRay:
     .endif
     jsr pow2_w_w        ; calculate 2 ^ sum
     ; fractional part (A-reg) of result is texture coord
-    ply                 ; retrieve the step direction
+    tax
+    pla                 ; retrieve the step direction
     bpl :+              ; if positive, don't flip the texture coord
+    txa
     eor #$FF            ; negative, flip the coord
-:   sta txColumn
+    tax
+:   stx txColumn
     ; Calculate line height
     ; we need to subtract diff from log2(64) which is $0600
     lda #0
@@ -623,7 +627,7 @@ drawRay:
     asl
     bcc :+
     lda #254            ; clamp max height
-:   tax
+:   sta $10B            ; set vector offset
     DEBUG_STR "Calling expansion code."
     jmp $100            ; was copied here earlier from @callIt
 
@@ -943,7 +947,8 @@ bload:
     ldx #4
     jsr @doMLI
 @close:
-    stz @mliCommand+1 ; close all
+    lda #0
+    sta @mliCommand+1 ; close all
     lda #$CC
     ldx #1
     ; fall through
@@ -1040,7 +1045,7 @@ initMem:
     jsr $10A
     sta clrAuxRd
     rts
-    jmp (expandVec,x)
+    jmp (expandVec)
 
 ;-------------------------------------------------------------------------------
 ; Establish the initial player position and direction [ref BigBlue3_10]
@@ -1147,7 +1152,8 @@ loadFiles:
     lda pDst+1
     sta texAddrHi,y
     inc nTextures
-    ply
+    pla
+    tay
     sta setAuxWr
     jsr copyMem         ; copy the texture to aux mem
     sta clrAuxWr

@@ -26,26 +26,6 @@ MAX_TEXTURES = 20
 texAddrLo: .res MAX_TEXTURES
 texAddrHi: .res MAX_TEXTURES
 
-; Movement amounts when walking at each angle
-; Each entry consists of an X bump and a Y bump, in 8.8 fixed point
-walkDirs:
-    .word $0040, $0000
-    .word $003B, $0018
-    .word $002D, $002D
-    .word $0018, $003B
-    .word $0000, $0040
-    .word $FFE8, $003B
-    .word $FFD3, $002D
-    .word $FFC5, $0018
-    .word $FFC0, $0000
-    .word $FFC5, $FFE8
-    .word $FFD3, $FFD3
-    .word $FFE8, $FFC5
-    .word $0000, $FFC0
-    .word $0018, $FFC5
-    .word $002D, $FFD3
-    .word $003B, $FFE8 
-
 ; Debug macros
 .macro DEBUG_STR str
 .if DEBUG
@@ -2588,4 +2568,32 @@ precast_15:
     .byte $7E,$06,$05,$6F
     .byte $7E,$07,$05,$56
     .res 4 ; to bring it up to 256 bytes per angle
+
+wLog256:      .word 0800
+wLogViewDist: .word 0E3F
+
+; Movement amounts when walking at each angle
+; Each entry consists of an X bump and a Y bump, in 8.8 fixed point
+walkDirs:
+    .word $0040, $0000
+    .word $003B, $0018
+    .word $002D, $002D
+    .word $0018, $003B
+    .word $0000, $0040
+    .word $FFE8, $003B
+    .word $FFD3, $002D
+    .word $FFC5, $0018
+    .word $FFC0, $0000
+    .word $FFC5, $FFE8
+    .word $FFD3, $FFD3
+    .word $FFE8, $FFC5
+    .word $0000, $FFC0
+    .word $0018, $FFC5
+    .word $002D, $FFD3
+    .word $003B, $FFE8
+
+; Sin of each angle, in log8.8 format plus the high bit being the sign (0x8000 = negative)
+sinTbl:
+    .word $0000, $8699, $877F, $87E1, $8800, $87E1, $877F, $8699
+    .word $8195, $0699, $077F, $07E1, $0800, $07E1, $077F, $0699
 

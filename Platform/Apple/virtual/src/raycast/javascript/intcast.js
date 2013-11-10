@@ -105,6 +105,10 @@ var overlay;
 var fps = 0;
 var overlayText = "";
 
+// Constants
+var wLog256;
+var wLogViewDist;
+
 // Tables
 var precastData = [];
 var tbl_log2_b_b = null;
@@ -252,6 +256,10 @@ function initCast()
   for (i=0; i<256; i++)
     tbl_pow2_w_w[i] = ubyte((Math.pow(2, i / 255) - 1) * 255);
     
+  // Sprite math constants
+  wLog256 = log2_w_w(256);
+  wLogViewDist = log2_w_w(viewDist/8*256); // div by 8 to get to Apple II coords  
+
   // Sine table
   tbl_wLogSin = [];
   for (i=0; i<16; i++) {
@@ -340,6 +348,15 @@ function printPrecast() {
     }
     console.log("    .res 4 ; to bring it up to 256 bytes per angle");
   }
+  console.log("");
+
+  console.log("wLog256: .word " + wordToHex(wLog256));
+  console.log("wLogViewDist: .word " + wordToHex(wLogViewDist));
+  console.log("");
+
+  console.log("sinTbl:");
+  for (var i=0; i<maxAngleNum; i++)
+    console.log("    .word " + wordToHex(tbl_wLogSin[i]));
 }
 
 function printTbl(arr) {

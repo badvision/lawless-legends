@@ -132,6523 +132,7234 @@ expand_vec:
     .addr expand_248
 
     .include "expand_hdr.i"
-e_45orooto:
-    sta 45*BLIT_STRIDE + blitRoll,x
-    sta 46*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 47*BLIT_STRIDE + blitRoll,x
-    bra e_48to
+e_28rooto:
+    bmi :+
+    sta 28*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 29*BLIT_STRIDE + blitRoll,x
+:   bvc e_30to
 
-e_45roooto:
-    sta 45*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 46*BLIT_STRIDE + blitRoll,x
-    sta 47*BLIT_STRIDE + blitRoll,x
-    bra e_48to
-
-e_45tooroto:
-    sta 45*BLIT_STRIDE + blitRoll,x
+e_28toroto:
+    bmi :+
+    sta 28*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    sta 46*BLIT_STRIDE + blitRoll,x
-    bra e_47roto
-
-e_45torooto:
-    sta 45*BLIT_STRIDE + blitRoll,x
+e_29roto:
+    bmi :+
+    sta 29*BLIT_STRIDE + blitRoll,x
+:   asl
+e_30to:
+    bmi :+
+    sta 30*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    sta 46*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 47*BLIT_STRIDE + blitRoll,x
-    bra e_48to
+    bmi :+
+    sta 31*BLIT_STRIDE + blitRoll,x
+:   rts
 
-e_45rotoroto:
-    sta 45*BLIT_STRIDE + blitRoll,x
-    lsr
-e_46toroto:
-    sta 46*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
+e_t28oroto:
     iny
-e_47roto:
-    sta 47*BLIT_STRIDE + blitRoll,x
-    lsr
-e_48to:
+    lda (pTex),y
+    bmi :+
+    sta 28*BLIT_STRIDE + blitRoll,x
+:   bvc e_29roto
+
+e_t28rooto:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 28*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 29*BLIT_STRIDE + blitRoll,x
+:   bvc e_30to
+
+e_48rooto:
+    bmi :+
     sta 48*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
+:   asl
+    bmi :+
     sta 49*BLIT_STRIDE + blitRoll,x
-    rts
+:   bvc e_50to
 
-e_r45tooroto:
-    lsr
-    sta 45*BLIT_STRIDE + blitRoll,x
+e_r48ooto:
+    asl
+    bmi :+
+    sta 48*BLIT_STRIDE + blitRoll,x
+    sta 49*BLIT_STRIDE + blitRoll,x
+:   bvc e_50to
+
+e_48toroto:
+    bmi :+
+    sta 48*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    sta 46*BLIT_STRIDE + blitRoll,x
-    bra e_47roto
-
-e_r45torooto:
-    lsr
-    sta 45*BLIT_STRIDE + blitRoll,x
+e_49roto:
+    bmi :+
+    sta 49*BLIT_STRIDE + blitRoll,x
+:   asl
+e_50to:
+    bmi :+
+    sta 50*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    sta 46*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 47*BLIT_STRIDE + blitRoll,x
-    bra e_48to
+    bmi :+
+    sta 51*BLIT_STRIDE + blitRoll,x
+:   rts
 
-e_t45orooto:
+e_r48toroto:
+    asl
+    bvc e_48toroto
+
+e_t48oroto:
+    iny
     lda (pTex),y
+    bmi :+
+    sta 48*BLIT_STRIDE + blitRoll,x
+:   bvc e_49roto
+
+e_t48rooto:
     iny
-    sta 45*BLIT_STRIDE + blitRoll,x
-    sta 46*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 47*BLIT_STRIDE + blitRoll,x
-    bra e_48to
-
-e_60orooto:
-    sta 60*BLIT_STRIDE + blitRoll,x
-    sta 61*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 62*BLIT_STRIDE + blitRoll,x
-    bra e_63to
-
-e_60roooto:
-    sta 60*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 61*BLIT_STRIDE + blitRoll,x
-    sta 62*BLIT_STRIDE + blitRoll,x
-    bra e_63to
-
-e_60tooroto:
-    sta 60*BLIT_STRIDE + blitRoll,x
     lda (pTex),y
-    iny
-    sta 61*BLIT_STRIDE + blitRoll,x
-    bra e_62roto
+    bmi :+
+    sta 48*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 49*BLIT_STRIDE + blitRoll,x
+:   bvc e_50to
 
-e_r60otoroto:
-    lsr
-    sta 60*BLIT_STRIDE + blitRoll,x
-    bra e_61toroto
-
-e_60rotoroto:
-    sta 60*BLIT_STRIDE + blitRoll,x
-    lsr
-e_61toroto:
-    sta 61*BLIT_STRIDE + blitRoll,x
-e_t62roto:
+e_52rotoro:
+    bmi :+
+    sta 52*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 53*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-e_62roto:
-    sta 62*BLIT_STRIDE + blitRoll,x
-    lsr
-e_63to:
-    sta 63*BLIT_STRIDE + blitRoll,x
+    bvc e_54ro
+
+e_r52otoro:
+    asl
+    bmi :+
+    sta 52*BLIT_STRIDE + blitRoll,x
+    sta 53*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    sta 64*BLIT_STRIDE + blitRoll,x
-    rts
+    bvc e_54ro
 
-e_r60tooroto:
-    lsr
-    sta 60*BLIT_STRIDE + blitRoll,x
+e_52tooro:
+    bmi :+
+    sta 52*BLIT_STRIDE + blitRoll,x
+:
+e_t53oro:
+    iny
     lda (pTex),y
-    iny
-    sta 61*BLIT_STRIDE + blitRoll,x
-    bra e_62roto
+e_53oro:
+    bmi :+
+    sta 53*BLIT_STRIDE + blitRoll,x
+:
+e_54ro:
+    bmi :+
+    sta 54*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 55*BLIT_STRIDE + blitRoll,x
+:   rts
 
-e_t60orooto:
+e_r52tooro:
+    asl
+    bvc e_52tooro
+
+e_t52rotoro:
+    iny
     lda (pTex),y
-    iny
-    sta 60*BLIT_STRIDE + blitRoll,x
-    sta 61*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 62*BLIT_STRIDE + blitRoll,x
-    bra e_63to
-
-e_t60rotoroto:
+    bmi :+
+    sta 52*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 53*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    bra e_60rotoroto
+    bvc e_54ro
 
-e_30orooto:
-    sta 30*BLIT_STRIDE + blitRoll,x
-    sta 31*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 32*BLIT_STRIDE + blitRoll,x
-    bra e_33to
-
-e_30roooto:
-    sta 30*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 31*BLIT_STRIDE + blitRoll,x
-    sta 32*BLIT_STRIDE + blitRoll,x
-    bra e_33to
-
-e_30rotoroto:
-    sta 30*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 31*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_32roto
-
-e_30torooto:
-    sta 30*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 31*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 32*BLIT_STRIDE + blitRoll,x
-    bra e_33to
-
-e_r30tooroto:
-    lsr
-    bra e_30tooroto
-
-e_30tooroto:
-    sta 30*BLIT_STRIDE + blitRoll,x
-e_t31oroto:
-    lda (pTex),y
-    iny
-    sta 31*BLIT_STRIDE + blitRoll,x
-e_32roto:
-    sta 32*BLIT_STRIDE + blitRoll,x
-    lsr
-e_33to:
-    sta 33*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 34*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r30torooto:
-    lsr
-    sta 30*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 31*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 32*BLIT_STRIDE + blitRoll,x
-    bra e_33to
-
-e_t30orooto:
-    lda (pTex),y
-    iny
-    sta 30*BLIT_STRIDE + blitRoll,x
-    sta 31*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 32*BLIT_STRIDE + blitRoll,x
-    bra e_33to
-
-e_75orooto:
-    sta 75*BLIT_STRIDE + blitRoll,x
-    bra e_76rooto
-
-e_75roooto:
-    sta 75*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 76*BLIT_STRIDE + blitRoll,x
-    bra e_77oto
-
-e_75rotoroto:
-    sta 75*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 76*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 77*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_78to
-
-e_75tooroto:
-    sta 75*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
+e_76ooto:
+    bmi :+
     sta 76*BLIT_STRIDE + blitRoll,x
     sta 77*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_78to
+:   bvc e_78to
 
-e_r75oooto:
-    lsr
-    sta 75*BLIT_STRIDE + blitRoll,x
-    sta 76*BLIT_STRIDE + blitRoll,x
-    bra e_77oto
-
-e_75torooto:
-    sta 75*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
 e_76rooto:
+    bmi :+
     sta 76*BLIT_STRIDE + blitRoll,x
-    lsr
-e_77oto:
+:   asl
+    bmi :+
     sta 77*BLIT_STRIDE + blitRoll,x
+:   bvc e_78to
+
+e_r76ooto:
+    asl
+    bmi :+
+    sta 76*BLIT_STRIDE + blitRoll,x
+    sta 77*BLIT_STRIDE + blitRoll,x
+:   bvc e_78to
+
+e_76toroto:
+    bmi :+
+    sta 76*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_77roto:
+    bmi :+
+    sta 77*BLIT_STRIDE + blitRoll,x
+:   asl
 e_78to:
+    bmi :+
     sta 78*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
+    bmi :+
     sta 79*BLIT_STRIDE + blitRoll,x
-    rts
+:   rts
 
-e_r75tooroto:
-    lsr
-    sta 75*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
+e_r76toroto:
+    asl
+    bvc e_76toroto
+
+e_t76oroto:
     iny
+    lda (pTex),y
+    bmi :+
     sta 76*BLIT_STRIDE + blitRoll,x
-    sta 77*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_78to
+:   bvc e_77roto
 
-e_r75torooto:
-    lsr
-    bra e_75torooto
-
-e_t75orooto:
-    lda (pTex),y
+e_t76rooto:
     iny
-    sta 75*BLIT_STRIDE + blitRoll,x
-    bra e_76rooto
-
-e_t75rotoroto:
     lda (pTex),y
-    iny
-    sta 75*BLIT_STRIDE + blitRoll,x
-    lsr
+    bmi :+
     sta 76*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
+:   asl
+    bmi :+
     sta 77*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_78to
+:   bvc e_78to
 
-e_50orooto:
-    sta 50*BLIT_STRIDE + blitRoll,x
-    sta 51*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 52*BLIT_STRIDE + blitRoll,x
-    bra e_53to
-
-e_50roooto:
-    sta 50*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 51*BLIT_STRIDE + blitRoll,x
-    sta 52*BLIT_STRIDE + blitRoll,x
-    bra e_53to
-
-e_50tooroto:
-    sta 50*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 51*BLIT_STRIDE + blitRoll,x
-    bra e_52roto
-
-e_50rotoroto:
-    sta 50*BLIT_STRIDE + blitRoll,x
-    lsr
-e_51toroto:
-    sta 51*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_52roto:
-    sta 52*BLIT_STRIDE + blitRoll,x
-    lsr
-e_53to:
-    sta 53*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 54*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r50tooroto:
-    lsr
-    sta 50*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 51*BLIT_STRIDE + blitRoll,x
-    bra e_52roto
-
-e_r50torooto:
-    lsr
-    sta 50*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 51*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 52*BLIT_STRIDE + blitRoll,x
-    bra e_53to
-
-e_t50orooto:
-    lda (pTex),y
-    iny
-    sta 50*BLIT_STRIDE + blitRoll,x
-    sta 51*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 52*BLIT_STRIDE + blitRoll,x
-    bra e_53to
-
-e_t50rotoroto:
-    lda (pTex),y
-    iny
-    bra e_50rotoroto
-
-e_80orooto:
-    sta 80*BLIT_STRIDE + blitRoll,x
-    sta 81*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 82*BLIT_STRIDE + blitRoll,x
-    bra e_83to
-
-e_80roooto:
-    sta 80*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 81*BLIT_STRIDE + blitRoll,x
-    sta 82*BLIT_STRIDE + blitRoll,x
-    bra e_83to
-
-e_80torooto:
-    sta 80*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 81*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 82*BLIT_STRIDE + blitRoll,x
-    bra e_83to
-
-e_80rotoroto:
-    sta 80*BLIT_STRIDE + blitRoll,x
-    lsr
-e_81toroto:
-    sta 81*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_82roto:
-    sta 82*BLIT_STRIDE + blitRoll,x
-    lsr
-e_83to:
-    sta 83*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
+e_84rooto:
+    bmi :+
     sta 84*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r80tooroto:
-    lsr
-    sta 80*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 81*BLIT_STRIDE + blitRoll,x
-    bra e_82roto
-
-e_r80torooto:
-    lsr
-    sta 80*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 81*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 82*BLIT_STRIDE + blitRoll,x
-    bra e_83to
-
-e_t80orooto:
-    lda (pTex),y
-    iny
-    sta 80*BLIT_STRIDE + blitRoll,x
-    sta 81*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 82*BLIT_STRIDE + blitRoll,x
-    bra e_83to
-
-e_t80rotoroto:
-    lda (pTex),y
-    iny
-    bra e_80rotoroto
-
-e_95roooto:
-    sta 95*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 96*BLIT_STRIDE + blitRoll,x
-    sta 97*BLIT_STRIDE + blitRoll,x
-    bra e_98to
-
-e_95rotoroto:
-    sta 95*BLIT_STRIDE + blitRoll,x
-    lsr
-e_96toroto:
-    sta 96*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_97roto:
-    sta 97*BLIT_STRIDE + blitRoll,x
-    lsr
-e_98to:
-    sta 98*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 99*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r95torooto:
-    lsr
-    sta 95*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 96*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 97*BLIT_STRIDE + blitRoll,x
-    bra e_98to
-
-e_t95orooto:
-    lda (pTex),y
-    iny
-    sta 95*BLIT_STRIDE + blitRoll,x
-    sta 96*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 97*BLIT_STRIDE + blitRoll,x
-    bra e_98to
-
-e_40roooto:
-    sta 40*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 41*BLIT_STRIDE + blitRoll,x
-    sta 42*BLIT_STRIDE + blitRoll,x
-    bra e_43to
-
-e_40tooroto:
-    sta 40*BLIT_STRIDE + blitRoll,x
-e_t41oroto:
-    lda (pTex),y
-    iny
-    sta 41*BLIT_STRIDE + blitRoll,x
-e_42roto:
-    sta 42*BLIT_STRIDE + blitRoll,x
-    lsr
-e_43to:
-    sta 43*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 44*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r40tooroto:
-    lsr
-    bra e_40tooroto
-
-e_t40orooto:
-    lda (pTex),y
-    iny
-    sta 40*BLIT_STRIDE + blitRoll,x
-    sta 41*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 42*BLIT_STRIDE + blitRoll,x
-    bra e_43to
-
-e_t40rotoroto:
-    lda (pTex),y
-    iny
-    sta 40*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 41*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_42roto
-
-e_45rootoro:
-    sta 45*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 46*BLIT_STRIDE + blitRoll,x
-    sta 47*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_48ro
-
-e_r45otooro:
-    lsr
-    sta 45*BLIT_STRIDE + blitRoll,x
-    bra e_46tooro
-
-e_r45torotoro:
-    lsr
-    sta 45*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 46*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 47*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_48ro
-
-e_45rotooro:
-    sta 45*BLIT_STRIDE + blitRoll,x
-    lsr
-e_46tooro:
-    sta 46*BLIT_STRIDE + blitRoll,x
-e_t47oro:
-    lda (pTex),y
-    iny
-e_47oro:
-    sta 47*BLIT_STRIDE + blitRoll,x
-e_48ro:
-    sta 48*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 49*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t45orotoro:
-    lda (pTex),y
-    iny
-    sta 45*BLIT_STRIDE + blitRoll,x
-    sta 46*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 47*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_48ro
-
-e_t45rotooro:
-    lda (pTex),y
-    iny
-    bra e_45rotooro
-
-e_85roooto:
+:   asl
+    bmi :+
     sta 85*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 86*BLIT_STRIDE + blitRoll,x
-    bra e_87oto
+:   bvc e_86to
 
-e_85torooto:
+e_r84ooto:
+    asl
+    bmi :+
+    sta 84*BLIT_STRIDE + blitRoll,x
     sta 85*BLIT_STRIDE + blitRoll,x
+:   bvc e_86to
+
+e_84toroto:
+    bmi :+
+    sta 84*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-e_86rooto:
+e_85roto:
+    bmi :+
+    sta 85*BLIT_STRIDE + blitRoll,x
+:   asl
+e_86to:
+    bmi :+
     sta 86*BLIT_STRIDE + blitRoll,x
-    lsr
-e_87oto:
+:   iny
+    lda (pTex),y
+    bmi :+
     sta 87*BLIT_STRIDE + blitRoll,x
-e_88to:
-    sta 88*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 89*BLIT_STRIDE + blitRoll,x
-    rts
+:   rts
 
-e_r85tooroto:
-    lsr
+e_r84toroto:
+    asl
+    bvc e_84toroto
+
+e_t84oroto:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 84*BLIT_STRIDE + blitRoll,x
+:   bvc e_85roto
+
+e_t84rooto:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 84*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
     sta 85*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 86*BLIT_STRIDE + blitRoll,x
-    sta 87*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_88to
+:   bvc e_86to
 
-e_r85torooto:
-    lsr
-    bra e_85torooto
+e_60tooro:
+    bmi :+
+    sta 60*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 61*BLIT_STRIDE + blitRoll,x
+:   bvc e_62ro
 
-e_t85orooto:
-    lda (pTex),y
-    iny
-    sta 85*BLIT_STRIDE + blitRoll,x
-    bra e_86rooto
+e_r60otoro:
+    asl
+    bmi :+
+    sta 60*BLIT_STRIDE + blitRoll,x
+:   bvc e_61toro
 
-e_t85rotoroto:
+e_r60tooro:
+    asl
+    bmi :+
+    sta 60*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    sta 85*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 86*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 87*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_88to
+    bmi :+
+    sta 61*BLIT_STRIDE + blitRoll,x
+:   bvc e_62ro
 
-e_35toooro:
-    sta 35*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
+e_60rotoro:
+    bmi :+
+    sta 60*BLIT_STRIDE + blitRoll,x
+:   asl
+e_61toro:
+    bmi :+
+    sta 61*BLIT_STRIDE + blitRoll,x
+:
+e_t62ro:
     iny
+    lda (pTex),y
+e_62ro:
+    bmi :+
+    sta 62*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 63*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t60rotoro:
+    iny
+    lda (pTex),y
+    bvc e_60rotoro
+
+e_r36otoro:
+    asl
+    bmi :+
     sta 36*BLIT_STRIDE + blitRoll,x
-    bra e_37oro
-
-e_r35otooro:
-    lsr
-    sta 35*BLIT_STRIDE + blitRoll,x
-    bra e_36tooro
-
-e_r35torotoro:
-    lsr
-    sta 35*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 36*BLIT_STRIDE + blitRoll,x
-    lsr
     sta 37*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    bra e_38ro
+    bvc e_38ro
 
-e_35rotooro:
-    sta 35*BLIT_STRIDE + blitRoll,x
-    lsr
+e_r36tooro:
+    asl
+    bvc e_36tooro
+
 e_36tooro:
+    bmi :+
     sta 36*BLIT_STRIDE + blitRoll,x
+:
 e_t37oro:
-    lda (pTex),y
     iny
+    lda (pTex),y
 e_37oro:
+    bmi :+
     sta 37*BLIT_STRIDE + blitRoll,x
+:
 e_38ro:
+    bmi :+
     sta 38*BLIT_STRIDE + blitRoll,x
-    lsr
+:   asl
+    bmi :+
     sta 39*BLIT_STRIDE + blitRoll,x
-    rts
+:   rts
 
-e_t35rootoro:
-    lda (pTex),y
+e_t36ooro:
     iny
-    sta 35*BLIT_STRIDE + blitRoll,x
-    lsr
+    lda (pTex),y
+    bmi :+
     sta 36*BLIT_STRIDE + blitRoll,x
+:   bvc e_37oro
+
+e_t36rotoro:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 36*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
     sta 37*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    bra e_38ro
+    bvc e_38ro
 
-e_35rootoo:
-    sta 35*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 36*BLIT_STRIDE + blitRoll,x
-    bra e_37too
-
-e_r35ootoo:
-    lsr
-    sta 35*BLIT_STRIDE + blitRoll,x
-    sta 36*BLIT_STRIDE + blitRoll,x
-    bra e_37too
-
-e_35torotoo:
-    sta 35*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_36rotoo:
-    sta 36*BLIT_STRIDE + blitRoll,x
-    lsr
-e_37too:
-    sta 37*BLIT_STRIDE + blitRoll,x
-e_t38o:
-    lda (pTex),y
-    iny
-    sta 38*BLIT_STRIDE + blitRoll,x
-    sta 39*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t35orotoo:
-    lda (pTex),y
-    iny
-    sta 35*BLIT_STRIDE + blitRoll,x
-    bra e_36rotoo
-
-e_70orooto:
-    sta 70*BLIT_STRIDE + blitRoll,x
-    sta 71*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 72*BLIT_STRIDE + blitRoll,x
-    bra e_73to
-
-e_70roooto:
-    sta 70*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 71*BLIT_STRIDE + blitRoll,x
-    sta 72*BLIT_STRIDE + blitRoll,x
-    bra e_73to
-
-e_70tooroto:
-    sta 70*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 71*BLIT_STRIDE + blitRoll,x
-    bra e_72roto
-
-e_70rotoroto:
-    sta 70*BLIT_STRIDE + blitRoll,x
-    lsr
-e_71toroto:
-    sta 71*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_72roto:
-    sta 72*BLIT_STRIDE + blitRoll,x
-    lsr
-e_73to:
-    sta 73*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 74*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_70torooto:
-    sta 70*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 71*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 72*BLIT_STRIDE + blitRoll,x
-    bra e_73to
-
-e_r70otoroto:
-    lsr
-    sta 70*BLIT_STRIDE + blitRoll,x
-    bra e_71toroto
-
-e_t70rotoroto:
-    lda (pTex),y
-    iny
-    bra e_70rotoroto
-
-e_50toooro:
-    sta 50*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 51*BLIT_STRIDE + blitRoll,x
-    bra e_52oro
-
-e_r50otooro:
-    lsr
-    sta 50*BLIT_STRIDE + blitRoll,x
-    bra e_51tooro
-
-e_r50torotoro:
-    lsr
-    sta 50*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 51*BLIT_STRIDE + blitRoll,x
-    lsr
+e_52rooto:
+    bmi :+
     sta 52*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_53ro
-
-e_50rotooro:
-    sta 50*BLIT_STRIDE + blitRoll,x
-    lsr
-e_51tooro:
-    sta 51*BLIT_STRIDE + blitRoll,x
-e_t52oro:
-    lda (pTex),y
-    iny
-e_52oro:
-    sta 52*BLIT_STRIDE + blitRoll,x
-e_53ro:
+:   asl
+    bmi :+
     sta 53*BLIT_STRIDE + blitRoll,x
-    lsr
+:   bvc e_54to
+
+e_52toroto:
+    bmi :+
+    sta 52*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_53roto:
+    bmi :+
+    sta 53*BLIT_STRIDE + blitRoll,x
+:   asl
+e_54to:
+    bmi :+
     sta 54*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t50orotoro:
+:   iny
     lda (pTex),y
+    bmi :+
+    sta 55*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r52toroto:
+    asl
+    bvc e_52toroto
+
+e_t52oroto:
     iny
-    sta 50*BLIT_STRIDE + blitRoll,x
-    sta 51*BLIT_STRIDE + blitRoll,x
-    lsr
+    lda (pTex),y
+    bmi :+
     sta 52*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_53ro
+:   bvc e_53roto
 
-e_t50rootoro:
-    lda (pTex),y
-    iny
-    sta 50*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 51*BLIT_STRIDE + blitRoll,x
-    sta 52*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_53ro
-
-e_95toooro:
-    sta 95*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 96*BLIT_STRIDE + blitRoll,x
-    bra e_97oro
-
-e_r95otooro:
-    lsr
-    sta 95*BLIT_STRIDE + blitRoll,x
-    bra e_96tooro
-
-e_95rotooro:
-    sta 95*BLIT_STRIDE + blitRoll,x
-    lsr
-e_96tooro:
-    sta 96*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_97oro:
-    sta 97*BLIT_STRIDE + blitRoll,x
-e_98ro:
-    sta 98*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 99*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t95orotoro:
-    lda (pTex),y
-    iny
-    sta 95*BLIT_STRIDE + blitRoll,x
-    sta 96*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 97*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_98ro
-
-e_25roooto:
-    sta 25*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 26*BLIT_STRIDE + blitRoll,x
-    sta 27*BLIT_STRIDE + blitRoll,x
-    bra e_28to
-
-e_25tooroto:
-    sta 25*BLIT_STRIDE + blitRoll,x
-e_t26oroto:
-    lda (pTex),y
-    iny
-    sta 26*BLIT_STRIDE + blitRoll,x
-e_27roto:
-    sta 27*BLIT_STRIDE + blitRoll,x
-    lsr
-e_28to:
-    sta 28*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 29*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r25tooroto:
-    lsr
-    bra e_25tooroto
-
-e_r25torooto:
-    lsr
-    sta 25*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 26*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 27*BLIT_STRIDE + blitRoll,x
-    bra e_28to
-
-e_t25orooto:
-    lda (pTex),y
-    iny
-    sta 25*BLIT_STRIDE + blitRoll,x
-    sta 26*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 27*BLIT_STRIDE + blitRoll,x
-    bra e_28to
-
-e_55rootoro:
-    sta 55*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 56*BLIT_STRIDE + blitRoll,x
-    bra e_57toro
-
-e_55rotooro:
-    sta 55*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 56*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 57*BLIT_STRIDE + blitRoll,x
-    bra e_58ro
-
-e_r55otooro:
-    lsr
-    sta 55*BLIT_STRIDE + blitRoll,x
-    sta 56*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 57*BLIT_STRIDE + blitRoll,x
-    bra e_58ro
-
-e_t55orotoro:
-    lda (pTex),y
-    iny
-    sta 55*BLIT_STRIDE + blitRoll,x
-    bra e_56rotoro
-
-e_r55torotoro:
-    lsr
-    sta 55*BLIT_STRIDE + blitRoll,x
-e_t56rotoro:
-    lda (pTex),y
-    iny
-e_56rotoro:
-    sta 56*BLIT_STRIDE + blitRoll,x
-    lsr
-e_57toro:
-    sta 57*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_58ro:
-    sta 58*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 59*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t55rotooro:
-    lda (pTex),y
-    iny
-    sta 55*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 56*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 57*BLIT_STRIDE + blitRoll,x
-    bra e_58ro
-
-e_30toooro:
-    sta 30*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 31*BLIT_STRIDE + blitRoll,x
-    bra e_32oro
-
-e_r30otooro:
-    lsr
-    sta 30*BLIT_STRIDE + blitRoll,x
-    bra e_31tooro
-
-e_30rotooro:
-    sta 30*BLIT_STRIDE + blitRoll,x
-    lsr
-e_31tooro:
-    sta 31*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_32oro:
-    sta 32*BLIT_STRIDE + blitRoll,x
-e_33ro:
-    sta 33*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 34*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t30orotoro:
-    lda (pTex),y
-    iny
-    sta 30*BLIT_STRIDE + blitRoll,x
-    sta 31*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 32*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_33ro
-
-e_85toooro:
-    sta 85*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 86*BLIT_STRIDE + blitRoll,x
-    bra e_87oro
-
-e_r85otooro:
-    lsr
-    sta 85*BLIT_STRIDE + blitRoll,x
-    bra e_86tooro
-
-e_85rotooro:
-    sta 85*BLIT_STRIDE + blitRoll,x
-    lsr
-e_86tooro:
-    sta 86*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_87oro:
-    sta 87*BLIT_STRIDE + blitRoll,x
-e_88ro:
-    sta 88*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 89*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r85torotoro:
-    lsr
-    sta 85*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 86*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 87*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_88ro
-
-e_t85orotoro:
-    lda (pTex),y
-    iny
-    sta 85*BLIT_STRIDE + blitRoll,x
-    sta 86*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 87*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_88ro
-
-e_t85rootoro:
-    lda (pTex),y
-    iny
-    sta 85*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 86*BLIT_STRIDE + blitRoll,x
-    sta 87*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_88ro
-
-e_25rotooro:
-    sta 25*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_26tooro
-
-e_r25otooro:
-    lsr
-    bra e_25otooro
-
-e_25otooro:
-    sta 25*BLIT_STRIDE + blitRoll,x
-e_26tooro:
-    sta 26*BLIT_STRIDE + blitRoll,x
-e_t27oro:
-    lda (pTex),y
-    iny
-e_27oro:
-    sta 27*BLIT_STRIDE + blitRoll,x
-e_28ro:
-    sta 28*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 29*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t25orotoro:
-    lda (pTex),y
-    iny
-    sta 25*BLIT_STRIDE + blitRoll,x
-    sta 26*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 27*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_28ro
-
-e_t25rootoro:
-    lda (pTex),y
-    iny
-    sta 25*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 26*BLIT_STRIDE + blitRoll,x
-    sta 27*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_28ro
-
-e_40rootoro:
-    sta 40*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 41*BLIT_STRIDE + blitRoll,x
-    sta 42*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_43ro
-
-e_40toooro:
-    sta 40*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 41*BLIT_STRIDE + blitRoll,x
-    bra e_42oro
-
-e_r40otooro:
-    lsr
-    sta 40*BLIT_STRIDE + blitRoll,x
-    bra e_41tooro
-
-e_r40torotoro:
-    lsr
-    sta 40*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 41*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 42*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_43ro
-
-e_40rotooro:
-    sta 40*BLIT_STRIDE + blitRoll,x
-    lsr
-e_41tooro:
-    sta 41*BLIT_STRIDE + blitRoll,x
-e_t42oro:
-    lda (pTex),y
-    iny
-e_42oro:
-    sta 42*BLIT_STRIDE + blitRoll,x
-e_43ro:
-    sta 43*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 44*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t40orotoro:
-    lda (pTex),y
-    iny
-    sta 40*BLIT_STRIDE + blitRoll,x
-    sta 41*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 42*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_43ro
-
-e_90roooto:
-    sta 90*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 91*BLIT_STRIDE + blitRoll,x
-    sta 92*BLIT_STRIDE + blitRoll,x
-    bra e_93to
-
-e_90tooroto:
-    sta 90*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 91*BLIT_STRIDE + blitRoll,x
-    bra e_92roto
-
-e_90rotoroto:
-    sta 90*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 91*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_92roto:
-    sta 92*BLIT_STRIDE + blitRoll,x
-    lsr
-e_93to:
-    sta 93*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 94*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r90tooroto:
-    lsr
-    sta 90*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 91*BLIT_STRIDE + blitRoll,x
-    bra e_92roto
-
-e_t90orooto:
-    lda (pTex),y
-    iny
-    sta 90*BLIT_STRIDE + blitRoll,x
-    sta 91*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 92*BLIT_STRIDE + blitRoll,x
-    bra e_93to
-
-e_t90rotoroto:
-    lda (pTex),y
-    iny
-    bra e_90rotoroto
-
-e_r40ootoo:
-    lsr
-    sta 40*BLIT_STRIDE + blitRoll,x
-    bra e_41otoo
-
-e_40rootoo:
-    sta 40*BLIT_STRIDE + blitRoll,x
-    lsr
-e_41otoo:
-    sta 41*BLIT_STRIDE + blitRoll,x
-e_42too:
-    sta 42*BLIT_STRIDE + blitRoll,x
-e_t43o:
-    lda (pTex),y
-    iny
-    sta 43*BLIT_STRIDE + blitRoll,x
-    sta 44*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t40orotoo:
-    lda (pTex),y
-    iny
-    sta 40*BLIT_STRIDE + blitRoll,x
-    sta 41*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_42too
-
-e_35tooroo:
-    sta 35*BLIT_STRIDE + blitRoll,x
-e_t36oroo:
-    lda (pTex),y
-    iny
-e_36oroo:
-    sta 36*BLIT_STRIDE + blitRoll,x
-e_37roo:
-    sta 37*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 38*BLIT_STRIDE + blitRoll,x
-    sta 39*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t35ooroo:
-    lda (pTex),y
-    iny
-    sta 35*BLIT_STRIDE + blitRoll,x
-    bra e_36oroo
-
-e_80rootoro:
-    sta 80*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 81*BLIT_STRIDE + blitRoll,x
-    sta 82*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_83ro
-
-e_80toooro:
-    sta 80*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 81*BLIT_STRIDE + blitRoll,x
-    bra e_82oro
-
-e_r80otooro:
-    lsr
-    sta 80*BLIT_STRIDE + blitRoll,x
-    bra e_81tooro
-
-e_r80torotoro:
-    lsr
-    sta 80*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 81*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 82*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_83ro
-
-e_80rotooro:
-    sta 80*BLIT_STRIDE + blitRoll,x
-    lsr
-e_81tooro:
-    sta 81*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_82oro:
-    sta 82*BLIT_STRIDE + blitRoll,x
-e_83ro:
-    sta 83*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 84*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t80orotoro:
-    lda (pTex),y
-    iny
-    sta 80*BLIT_STRIDE + blitRoll,x
-    sta 81*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 82*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_83ro
-
-e_t80rotooro:
-    lda (pTex),y
-    iny
-    bra e_80rotooro
-
-e_90rotooro:
-    sta 90*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 91*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 92*BLIT_STRIDE + blitRoll,x
-    bra e_93ro
-
-e_90torotoro:
-    sta 90*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 91*BLIT_STRIDE + blitRoll,x
-    lsr
-e_92toro:
-    sta 92*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_93ro:
-    sta 93*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 94*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r90otooro:
-    lsr
-    sta 90*BLIT_STRIDE + blitRoll,x
-    sta 91*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 92*BLIT_STRIDE + blitRoll,x
-    bra e_93ro
-
-e_r90torotoro:
-    lsr
-    bra e_90torotoro
-
-e_t90rootoro:
-    lda (pTex),y
-    iny
-    sta 90*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 91*BLIT_STRIDE + blitRoll,x
-    bra e_92toro
-
-e_55orooto:
-    sta 55*BLIT_STRIDE + blitRoll,x
-    bra e_56rooto
-
-e_55roooto:
-    sta 55*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 56*BLIT_STRIDE + blitRoll,x
-    bra e_57oto
-
-e_55rotoroto:
-    sta 55*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 56*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 57*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_58to
-
-e_55torooto:
-    sta 55*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
 e_56rooto:
+    bmi :+
     sta 56*BLIT_STRIDE + blitRoll,x
-    lsr
-e_57oto:
+:   asl
+    bmi :+
     sta 57*BLIT_STRIDE + blitRoll,x
+:   bvc e_58to
+
+e_r56ooto:
+    asl
+    bmi :+
+    sta 56*BLIT_STRIDE + blitRoll,x
+    sta 57*BLIT_STRIDE + blitRoll,x
+:   bvc e_58to
+
+e_56toroto:
+    bmi :+
+    sta 56*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_57roto:
+    bmi :+
+    sta 57*BLIT_STRIDE + blitRoll,x
+:   asl
 e_58to:
+    bmi :+
     sta 58*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
+    bmi :+
     sta 59*BLIT_STRIDE + blitRoll,x
-    rts
+:   rts
 
-e_r55otoroto:
-    lsr
-    sta 55*BLIT_STRIDE + blitRoll,x
+e_r56toroto:
+    asl
+    bvc e_56toroto
+
+e_t56oroto:
+    iny
+    lda (pTex),y
+    bmi :+
     sta 56*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 57*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_58to
+:   bvc e_57roto
 
-e_r55tooroto:
-    lsr
-    sta 55*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
+e_t56rooto:
     iny
+    lda (pTex),y
+    bmi :+
     sta 56*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
     sta 57*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_58to
+:   bvc e_58to
 
-e_35rotoroto:
-    sta 35*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 36*BLIT_STRIDE + blitRoll,x
+e_72rooto:
+    bmi :+
+    sta 72*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 73*BLIT_STRIDE + blitRoll,x
+:   bvc e_74to
+
+e_r72ooto:
+    asl
+    bmi :+
+    sta 72*BLIT_STRIDE + blitRoll,x
+    sta 73*BLIT_STRIDE + blitRoll,x
+:   bvc e_74to
+
+e_72toroto:
+    bmi :+
+    sta 72*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    sta 37*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_38to
-
-e_35torooto:
-    sta 35*BLIT_STRIDE + blitRoll,x
+e_73roto:
+    bmi :+
+    sta 73*BLIT_STRIDE + blitRoll,x
+:   asl
+e_74to:
+    bmi :+
+    sta 74*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    bra e_36rooto
-
-e_35orooto:
-    sta 35*BLIT_STRIDE + blitRoll,x
-e_36rooto:
-    sta 36*BLIT_STRIDE + blitRoll,x
-    lsr
-e_37oto:
-    sta 37*BLIT_STRIDE + blitRoll,x
-e_38to:
-    sta 38*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 39*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r35tooroto:
-    lsr
-    sta 35*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 36*BLIT_STRIDE + blitRoll,x
-    sta 37*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_38to
-
-e_t35orooto:
-    lda (pTex),y
-    iny
-    bra e_35orooto
-
-e_50ooroo:
-    sta 50*BLIT_STRIDE + blitRoll,x
-    bra e_51oroo
-
-e_50tooroo:
-    sta 50*BLIT_STRIDE + blitRoll,x
-e_t51oroo:
-    lda (pTex),y
-    iny
-e_51oroo:
-    sta 51*BLIT_STRIDE + blitRoll,x
-e_52roo:
-    sta 52*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 53*BLIT_STRIDE + blitRoll,x
-    sta 54*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r50tooroo:
-    lsr
-    bra e_50tooroo
-
-e_r20ootoo:
-    lsr
-    sta 20*BLIT_STRIDE + blitRoll,x
-    bra e_21otoo
-
-e_20rootoo:
-    sta 20*BLIT_STRIDE + blitRoll,x
-    lsr
-e_21otoo:
-    sta 21*BLIT_STRIDE + blitRoll,x
-e_22too:
-    sta 22*BLIT_STRIDE + blitRoll,x
-e_t23o:
-    lda (pTex),y
-    iny
-    sta 23*BLIT_STRIDE + blitRoll,x
-    sta 24*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t20orotoo:
-    lda (pTex),y
-    iny
-    sta 20*BLIT_STRIDE + blitRoll,x
-    sta 21*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_22too
-
-e_75rotooro:
+    bmi :+
     sta 75*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 76*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
+:   rts
+
+e_r72toroto:
+    asl
+    bvc e_72toroto
+
+e_t72oroto:
     iny
-    sta 77*BLIT_STRIDE + blitRoll,x
-    bra e_78ro
-
-e_75toooro:
-    sta 75*BLIT_STRIDE + blitRoll,x
     lda (pTex),y
-    iny
-    sta 76*BLIT_STRIDE + blitRoll,x
-    sta 77*BLIT_STRIDE + blitRoll,x
-    bra e_78ro
+    bmi :+
+    sta 72*BLIT_STRIDE + blitRoll,x
+:   bvc e_73roto
 
-e_r75otooro:
-    lsr
-    sta 75*BLIT_STRIDE + blitRoll,x
-    sta 76*BLIT_STRIDE + blitRoll,x
+e_t72rooto:
+    iny
     lda (pTex),y
-    iny
-    sta 77*BLIT_STRIDE + blitRoll,x
-    bra e_78ro
+    bmi :+
+    sta 72*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 73*BLIT_STRIDE + blitRoll,x
+:   bvc e_74to
 
-e_75rootoro:
-    sta 75*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 76*BLIT_STRIDE + blitRoll,x
-e_77toro:
-    sta 77*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_78ro:
-    sta 78*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 79*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r75torotoro:
-    lsr
-    sta 75*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 76*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_77toro
-
-e_t75orotoro:
-    lda (pTex),y
-    iny
-    sta 75*BLIT_STRIDE + blitRoll,x
-    sta 76*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_77toro
-
-e_t75rootoro:
-    lda (pTex),y
-    iny
-    bra e_75rootoro
-
-e_100tooroto:
-    sta 100*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 101*BLIT_STRIDE + blitRoll,x
-    sta 102*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_103to
-
-e_100orooto:
-    sta 100*BLIT_STRIDE + blitRoll,x
-e_101rooto:
-    sta 101*BLIT_STRIDE + blitRoll,x
-    lsr
-e_102oto:
-    sta 102*BLIT_STRIDE + blitRoll,x
-e_103to:
-    sta 103*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 104*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r100tooroto:
-    lsr
-    sta 100*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 101*BLIT_STRIDE + blitRoll,x
-    sta 102*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_103to
-
-e_t100orooto:
-    lda (pTex),y
-    iny
-    bra e_100orooto
-
-e_105roooto:
-    sta 105*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 106*BLIT_STRIDE + blitRoll,x
-    bra e_107oto
-
-e_105tooroto:
-    sta 105*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 106*BLIT_STRIDE + blitRoll,x
-    sta 107*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_108to
-
-e_105orooto:
-    sta 105*BLIT_STRIDE + blitRoll,x
-e_106rooto:
-    sta 106*BLIT_STRIDE + blitRoll,x
-    lsr
-e_107oto:
-    sta 107*BLIT_STRIDE + blitRoll,x
-e_108to:
-    sta 108*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 109*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_105torooto:
-    sta 105*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_106rooto
-
-e_15roooto:
-    sta 15*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 16*BLIT_STRIDE + blitRoll,x
-    bra e_17oto
-
-e_15orooto:
-    sta 15*BLIT_STRIDE + blitRoll,x
-e_16rooto:
-    sta 16*BLIT_STRIDE + blitRoll,x
-    lsr
-e_17oto:
-    sta 17*BLIT_STRIDE + blitRoll,x
-e_18to:
-    sta 18*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 19*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t15orooto:
-    lda (pTex),y
-    iny
-    bra e_15orooto
-
-e_20roooto:
-    sta 20*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 21*BLIT_STRIDE + blitRoll,x
-    bra e_22oto
-
-e_20torooto:
-    sta 20*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_21rooto
-
-e_20orooto:
-    sta 20*BLIT_STRIDE + blitRoll,x
-e_21rooto:
-    sta 21*BLIT_STRIDE + blitRoll,x
-    lsr
-e_22oto:
-    sta 22*BLIT_STRIDE + blitRoll,x
-e_23to:
-    sta 23*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 24*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t20orooto:
-    lda (pTex),y
-    iny
-    bra e_20orooto
-
-e_20rotooro:
-    sta 20*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_21tooro
-
-e_20otooro:
-    sta 20*BLIT_STRIDE + blitRoll,x
-e_21tooro:
-    sta 21*BLIT_STRIDE + blitRoll,x
-e_t22oro:
-    lda (pTex),y
-    iny
-e_22oro:
-    sta 22*BLIT_STRIDE + blitRoll,x
-e_23ro:
-    sta 23*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 24*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_20toooro:
-    sta 20*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 21*BLIT_STRIDE + blitRoll,x
-    bra e_22oro
-
-e_r20otooro:
-    lsr
-    bra e_20otooro
-
-e_80rootoo:
+e_80rooto:
+    bmi :+
     sta 80*BLIT_STRIDE + blitRoll,x
-    lsr
+:   asl
+    bmi :+
     sta 81*BLIT_STRIDE + blitRoll,x
-    bra e_82too
+:   bvc e_82to
 
-e_r80ootoo:
-    lsr
+e_r80ooto:
+    asl
+    bmi :+
     sta 80*BLIT_STRIDE + blitRoll,x
     sta 81*BLIT_STRIDE + blitRoll,x
-    bra e_82too
+:   bvc e_82to
 
-e_80torotoo:
+e_80toroto:
+    bmi :+
     sta 80*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-e_81rotoo:
+e_81roto:
+    bmi :+
     sta 81*BLIT_STRIDE + blitRoll,x
-    lsr
-e_82too:
+:   asl
+e_82to:
+    bmi :+
     sta 82*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
+    bmi :+
     sta 83*BLIT_STRIDE + blitRoll,x
-    sta 84*BLIT_STRIDE + blitRoll,x
-    rts
+:   rts
 
-e_t80orotoo:
-    lda (pTex),y
+e_r80toroto:
+    asl
+    bvc e_80toroto
+
+e_t80oroto:
     iny
+    lda (pTex),y
+    bmi :+
     sta 80*BLIT_STRIDE + blitRoll,x
-    bra e_81rotoo
+:   bvc e_81roto
 
-e_r85ootoo:
-    lsr
-    sta 85*BLIT_STRIDE + blitRoll,x
-    bra e_86otoo
-
-e_85rootoo:
-    sta 85*BLIT_STRIDE + blitRoll,x
-    lsr
-e_86otoo:
-    sta 86*BLIT_STRIDE + blitRoll,x
-e_87too:
-    sta 87*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
+e_88rooto:
+    bmi :+
     sta 88*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
     sta 89*BLIT_STRIDE + blitRoll,x
-    rts
+:   bvc e_90to
 
-e_t85rootoo:
+e_88toroto:
+    bmi :+
+    sta 88*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    bra e_85rootoo
-
-e_r45ootoo:
-    lsr
-    sta 45*BLIT_STRIDE + blitRoll,x
-    bra e_46otoo
-
-e_45rootoo:
-    sta 45*BLIT_STRIDE + blitRoll,x
-    lsr
-e_46otoo:
-    sta 46*BLIT_STRIDE + blitRoll,x
-e_47too:
-    sta 47*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 48*BLIT_STRIDE + blitRoll,x
-    sta 49*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t45orotoo:
-    lda (pTex),y
-    iny
-    sta 45*BLIT_STRIDE + blitRoll,x
-    sta 46*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_47too
-
-e_r75ootoo:
-    lsr
-    sta 75*BLIT_STRIDE + blitRoll,x
-    bra e_76otoo
-
-e_75rootoo:
-    sta 75*BLIT_STRIDE + blitRoll,x
-    lsr
-e_76otoo:
-    sta 76*BLIT_STRIDE + blitRoll,x
-e_77too:
-    sta 77*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 78*BLIT_STRIDE + blitRoll,x
-    sta 79*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t75orotoo:
-    lda (pTex),y
-    iny
-    sta 75*BLIT_STRIDE + blitRoll,x
-    sta 76*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_77too
-
-e_t75rootoo:
-    lda (pTex),y
-    iny
-    bra e_75rootoo
-
-e_105otooro:
-    sta 105*BLIT_STRIDE + blitRoll,x
-e_106tooro:
-    sta 106*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_107oro:
-    sta 107*BLIT_STRIDE + blitRoll,x
-e_108ro:
-    sta 108*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 109*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r105otooro:
-    lsr
-    bra e_105otooro
-
-e_90rootoo:
+e_89roto:
+    bmi :+
+    sta 89*BLIT_STRIDE + blitRoll,x
+:   asl
+e_90to:
+    bmi :+
     sta 90*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_91otoo
-
-e_90ootoo:
-    sta 90*BLIT_STRIDE + blitRoll,x
-e_91otoo:
+:   iny
+    lda (pTex),y
+    bmi :+
     sta 91*BLIT_STRIDE + blitRoll,x
-e_92too:
+:   rts
+
+e_r88toroto:
+    asl
+    bvc e_88toroto
+
+e_t88oroto:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 88*BLIT_STRIDE + blitRoll,x
+:   bvc e_89roto
+
+e_t88rooto:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 88*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 89*BLIT_STRIDE + blitRoll,x
+:   bvc e_90to
+
+e_92rooto:
+    bmi :+
     sta 92*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
+:   asl
+    bmi :+
     sta 93*BLIT_STRIDE + blitRoll,x
+:   bvc e_94to
+
+e_r92ooto:
+    asl
+    bmi :+
+    sta 92*BLIT_STRIDE + blitRoll,x
+    sta 93*BLIT_STRIDE + blitRoll,x
+:   bvc e_94to
+
+e_92toroto:
+    bmi :+
+    sta 92*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_93roto:
+    bmi :+
+    sta 93*BLIT_STRIDE + blitRoll,x
+:   asl
+e_94to:
+    bmi :+
     sta 94*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r90ootoo:
-    lsr
-    bra e_90ootoo
-
-e_t90orotoo:
+:   iny
     lda (pTex),y
-    iny
-    sta 90*BLIT_STRIDE + blitRoll,x
-    sta 91*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_92too
-
-e_r25ootoo:
-    lsr
-    sta 25*BLIT_STRIDE + blitRoll,x
-    bra e_26otoo
-
-e_25rootoo:
-    sta 25*BLIT_STRIDE + blitRoll,x
-    lsr
-e_26otoo:
-    sta 26*BLIT_STRIDE + blitRoll,x
-e_27too:
-    sta 27*BLIT_STRIDE + blitRoll,x
-e_t28o:
-    lda (pTex),y
-    iny
-    sta 28*BLIT_STRIDE + blitRoll,x
-    sta 29*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t25rootoo:
-    lda (pTex),y
-    iny
-    bra e_25rootoo
-
-e_r45otoroo:
-    lsr
-    sta 45*BLIT_STRIDE + blitRoll,x
-    sta 46*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_47roo
-
-e_45tooroo:
-    sta 45*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_46oroo:
-    sta 46*BLIT_STRIDE + blitRoll,x
-e_47roo:
-    sta 47*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 48*BLIT_STRIDE + blitRoll,x
-    sta 49*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r45tooroo:
-    lsr
-    bra e_45tooroo
-
-e_80ooroo:
-    sta 80*BLIT_STRIDE + blitRoll,x
-    bra e_81oroo
-
-e_r80otoroo:
-    lsr
-    sta 80*BLIT_STRIDE + blitRoll,x
-    sta 81*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_82roo
-
-e_80tooroo:
-    sta 80*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_81oroo:
-    sta 81*BLIT_STRIDE + blitRoll,x
-e_82roo:
-    sta 82*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 83*BLIT_STRIDE + blitRoll,x
-    sta 84*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r80tooroo:
-    lsr
-    bra e_80tooroo
-
-e_r95otoroo:
-    lsr
+    bmi :+
     sta 95*BLIT_STRIDE + blitRoll,x
-    sta 96*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_97roo
+:   rts
 
-e_95tooroo:
-    sta 95*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
+e_r92toroto:
+    asl
+    bvc e_92toroto
+
+e_t92oroto:
     iny
-e_96oroo:
+    lda (pTex),y
+    bmi :+
+    sta 92*BLIT_STRIDE + blitRoll,x
+:   bvc e_93roto
+
+e_t92rooto:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 92*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 93*BLIT_STRIDE + blitRoll,x
+:   bvc e_94to
+
+e_96rooto:
+    bmi :+
     sta 96*BLIT_STRIDE + blitRoll,x
-e_97roo:
+:   asl
+    bmi :+
     sta 97*BLIT_STRIDE + blitRoll,x
-    lsr
+:   bvc e_98to
+
+e_r96ooto:
+    asl
+    bmi :+
+    sta 96*BLIT_STRIDE + blitRoll,x
+    sta 97*BLIT_STRIDE + blitRoll,x
+:   bvc e_98to
+
+e_96toroto:
+    bmi :+
+    sta 96*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_97roto:
+    bmi :+
+    sta 97*BLIT_STRIDE + blitRoll,x
+:   asl
+e_98to:
+    bmi :+
     sta 98*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
     sta 99*BLIT_STRIDE + blitRoll,x
-    rts
+:   rts
 
-e_t95ooroo:
-    lda (pTex),y
+e_r96toroto:
+    asl
+    bvc e_96toroto
+
+e_t96oroto:
     iny
-    sta 95*BLIT_STRIDE + blitRoll,x
-    bra e_96oroo
-
-e_r55ootoo:
-    lsr
-    bra e_55ootoo
-
-e_t55orotoo:
     lda (pTex),y
-    iny
-    sta 55*BLIT_STRIDE + blitRoll,x
-    sta 56*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_57too
+    bmi :+
+    sta 96*BLIT_STRIDE + blitRoll,x
+:   bvc e_97roto
 
-e_55ootoo:
-    sta 55*BLIT_STRIDE + blitRoll,x
-e_56otoo:
-    sta 56*BLIT_STRIDE + blitRoll,x
-e_57too:
-    sta 57*BLIT_STRIDE + blitRoll,x
-e_t58o:
+e_t96rooto:
+    iny
     lda (pTex),y
-    iny
-    sta 58*BLIT_STRIDE + blitRoll,x
-    sta 59*BLIT_STRIDE + blitRoll,x
-    rts
+    bmi :+
+    sta 96*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 97*BLIT_STRIDE + blitRoll,x
+:   bvc e_98to
 
-e_t55rootoo:
+e_32tooro:
+    bmi :+
+    sta 32*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    sta 55*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_56otoo
+    bmi :+
+    sta 33*BLIT_STRIDE + blitRoll,x
+:   bvc e_34ro
 
-e_r100otoroo:
-    lsr
-    sta 100*BLIT_STRIDE + blitRoll,x
-    sta 101*BLIT_STRIDE + blitRoll,x
+e_r32otoro:
+    asl
+    bmi :+
+    sta 32*BLIT_STRIDE + blitRoll,x
+:   bvc e_33toro
+
+e_r32tooro:
+    asl
+    bmi :+
+    sta 32*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    bra e_102roo
+    bmi :+
+    sta 33*BLIT_STRIDE + blitRoll,x
+:   bvc e_34ro
 
-e_100tooroo:
-    sta 100*BLIT_STRIDE + blitRoll,x
+e_32rotoro:
+    bmi :+
+    sta 32*BLIT_STRIDE + blitRoll,x
+:   asl
+e_33toro:
+    bmi :+
+    sta 33*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-e_101oroo:
-    sta 101*BLIT_STRIDE + blitRoll,x
-e_102roo:
-    sta 102*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 103*BLIT_STRIDE + blitRoll,x
-    sta 104*BLIT_STRIDE + blitRoll,x
-    rts
+e_34ro:
+    bmi :+
+    sta 34*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 35*BLIT_STRIDE + blitRoll,x
+:   rts
 
-e_t100ooroo:
+e_t32ooro:
+    iny
     lda (pTex),y
-    iny
-    sta 100*BLIT_STRIDE + blitRoll,x
-    bra e_101oroo
+    bmi :+
+    sta 32*BLIT_STRIDE + blitRoll,x
+    sta 33*BLIT_STRIDE + blitRoll,x
+:   bvc e_34ro
 
-e_110tooroto:
-    sta 110*BLIT_STRIDE + blitRoll,x
+e_t32rotoro:
+    iny
     lda (pTex),y
-    iny
-    sta 111*BLIT_STRIDE + blitRoll,x
-    sta 112*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_113to
+    bvc e_32rotoro
 
-e_110orooto:
-    sta 110*BLIT_STRIDE + blitRoll,x
-    sta 111*BLIT_STRIDE + blitRoll,x
-    lsr
-e_112oto:
-    sta 112*BLIT_STRIDE + blitRoll,x
-e_113to:
-    sta 113*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 114*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t110orooto:
-    lda (pTex),y
-    iny
-    bra e_110orooto
-
-e_110rotooro:
-    sta 110*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_111tooro
-
-e_110otooro:
-    sta 110*BLIT_STRIDE + blitRoll,x
-e_111tooro:
-    sta 111*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_112oro:
-    sta 112*BLIT_STRIDE + blitRoll,x
-e_113ro:
-    sta 113*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 114*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r110otooro:
-    lsr
-    bra e_110otooro
-
-e_r40otoroo:
-    lsr
+e_40tooro:
+    bmi :+
     sta 40*BLIT_STRIDE + blitRoll,x
-    sta 41*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    bra e_42roo
+    bmi :+
+    sta 41*BLIT_STRIDE + blitRoll,x
+:   bvc e_42ro
 
-e_40tooroo:
+e_r40otoro:
+    asl
+    bmi :+
     sta 40*BLIT_STRIDE + blitRoll,x
+:   bvc e_41toro
+
+e_r40tooro:
+    asl
+    bmi :+
+    sta 40*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-e_41oroo:
+    bmi :+
     sta 41*BLIT_STRIDE + blitRoll,x
-e_42roo:
+:   bvc e_42ro
+
+e_40rotoro:
+    bmi :+
+    sta 40*BLIT_STRIDE + blitRoll,x
+:   asl
+e_41toro:
+    bmi :+
+    sta 41*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_42ro:
+    bmi :+
     sta 42*BLIT_STRIDE + blitRoll,x
-    lsr
+:   asl
+    bmi :+
     sta 43*BLIT_STRIDE + blitRoll,x
-    sta 44*BLIT_STRIDE + blitRoll,x
-    rts
+:   rts
 
-e_t40ooroo:
-    lda (pTex),y
+e_t40ooro:
     iny
+    lda (pTex),y
+    bmi :+
     sta 40*BLIT_STRIDE + blitRoll,x
-    bra e_41oroo
+    sta 41*BLIT_STRIDE + blitRoll,x
+:   bvc e_42ro
 
-e_90tooroo:
-    sta 90*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
+e_t40rotoro:
     iny
-e_91oroo:
-    sta 91*BLIT_STRIDE + blitRoll,x
-e_92roo:
-    sta 92*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 93*BLIT_STRIDE + blitRoll,x
-    sta 94*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t90ooroo:
     lda (pTex),y
-    iny
-    sta 90*BLIT_STRIDE + blitRoll,x
-    bra e_91oroo
+    bvc e_40rotoro
 
-e_50rootoo:
-    sta 50*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 51*BLIT_STRIDE + blitRoll,x
-    bra e_52too
-
-e_r50ootoo:
-    lsr
-    sta 50*BLIT_STRIDE + blitRoll,x
-    sta 51*BLIT_STRIDE + blitRoll,x
-    bra e_52too
-
-e_50torotoo:
-    sta 50*BLIT_STRIDE + blitRoll,x
+e_44tooro:
+    bmi :+
+    sta 44*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-e_51rotoo:
-    sta 51*BLIT_STRIDE + blitRoll,x
-    lsr
-e_52too:
-    sta 52*BLIT_STRIDE + blitRoll,x
-e_t53o:
-    lda (pTex),y
-    iny
-    sta 53*BLIT_STRIDE + blitRoll,x
-    sta 54*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t50orotoo:
-    lda (pTex),y
-    iny
-    sta 50*BLIT_STRIDE + blitRoll,x
-    bra e_51rotoo
-
-e_70toooro:
-    sta 70*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 71*BLIT_STRIDE + blitRoll,x
-    sta 72*BLIT_STRIDE + blitRoll,x
-    bra e_73ro
-
-e_r70otooro:
-    lsr
-    sta 70*BLIT_STRIDE + blitRoll,x
-    sta 71*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 72*BLIT_STRIDE + blitRoll,x
-    bra e_73ro
-
-e_r70torotoro:
-    lsr
-    sta 70*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_71rotoro:
-    sta 71*BLIT_STRIDE + blitRoll,x
-    lsr
-e_72toro:
-    sta 72*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_73ro:
-    sta 73*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 74*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t70rootoro:
-    lda (pTex),y
-    iny
-    sta 70*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 71*BLIT_STRIDE + blitRoll,x
-    bra e_72toro
-
-e_t70rotooro:
-    lda (pTex),y
-    iny
-    sta 70*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 71*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 72*BLIT_STRIDE + blitRoll,x
-    bra e_73ro
-
-e_100rootoo:
-    sta 100*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_101otoo
-
-e_100ootoo:
-    sta 100*BLIT_STRIDE + blitRoll,x
-e_101otoo:
-    sta 101*BLIT_STRIDE + blitRoll,x
-e_102too:
-    sta 102*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 103*BLIT_STRIDE + blitRoll,x
-    sta 104*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r100ootoo:
-    lsr
-    bra e_100ootoo
-
-e_t100orotoo:
-    lda (pTex),y
-    iny
-    sta 100*BLIT_STRIDE + blitRoll,x
-    sta 101*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_102too
-
-e_105rootoo:
-    sta 105*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_106otoo
-
-e_105ootoo:
-    sta 105*BLIT_STRIDE + blitRoll,x
-e_106otoo:
-    sta 106*BLIT_STRIDE + blitRoll,x
-e_107too:
-    sta 107*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 108*BLIT_STRIDE + blitRoll,x
-    sta 109*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t105orotoo:
-    lda (pTex),y
-    iny
-    sta 105*BLIT_STRIDE + blitRoll,x
-    sta 106*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_107too
-
-e_15toooro:
-    sta 15*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 16*BLIT_STRIDE + blitRoll,x
-    bra e_17oro
-
-e_15rotooro:
-    sta 15*BLIT_STRIDE + blitRoll,x
-    lsr
-e_16tooro:
-    sta 16*BLIT_STRIDE + blitRoll,x
-e_t17oro:
-    lda (pTex),y
-    iny
-e_17oro:
-    sta 17*BLIT_STRIDE + blitRoll,x
-e_18ro:
-    sta 18*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 19*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r15otooro:
-    lsr
-    sta 15*BLIT_STRIDE + blitRoll,x
-    bra e_16tooro
-
-e_10roooto:
-    sta 10*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 11*BLIT_STRIDE + blitRoll,x
-    bra e_12oto
-
-e_10orooto:
-    sta 10*BLIT_STRIDE + blitRoll,x
-    sta 11*BLIT_STRIDE + blitRoll,x
-    lsr
-e_12oto:
-    sta 12*BLIT_STRIDE + blitRoll,x
-    sta 13*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 14*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t10orooto:
-    lda (pTex),y
-    iny
-    bra e_10orooto
-
-e_10otooo:
-    sta 10*BLIT_STRIDE + blitRoll,x
-    sta 11*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_12oo:
-    sta 12*BLIT_STRIDE + blitRoll,x
-    sta 13*BLIT_STRIDE + blitRoll,x
-    sta 14*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_115roooto:
-    sta 115*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 116*BLIT_STRIDE + blitRoll,x
-    bra e_117oto
-
-e_115orooto:
-    sta 115*BLIT_STRIDE + blitRoll,x
-    sta 116*BLIT_STRIDE + blitRoll,x
-    lsr
-e_117oto:
-    sta 117*BLIT_STRIDE + blitRoll,x
-    sta 118*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 119*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r115oooto:
-    lsr
-    sta 115*BLIT_STRIDE + blitRoll,x
-    sta 116*BLIT_STRIDE + blitRoll,x
-    bra e_117oto
-
-e_t115orooto:
-    lda (pTex),y
-    iny
-    bra e_115orooto
-
-e_15rootoo:
-    sta 15*BLIT_STRIDE + blitRoll,x
-    lsr
-e_16otoo:
-    sta 16*BLIT_STRIDE + blitRoll,x
-    sta 17*BLIT_STRIDE + blitRoll,x
-e_t18o:
-    lda (pTex),y
-    iny
-    sta 18*BLIT_STRIDE + blitRoll,x
-    sta 19*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t15rootoo:
-    lda (pTex),y
-    iny
-    bra e_15rootoo
-
-e_25orooo:
-    sta 25*BLIT_STRIDE + blitRoll,x
-    sta 26*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_27oo
-
-e_25otooo:
-    sta 25*BLIT_STRIDE + blitRoll,x
-    sta 26*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_27oo:
-    sta 27*BLIT_STRIDE + blitRoll,x
-    sta 28*BLIT_STRIDE + blitRoll,x
-    sta 29*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_45otooo:
+    bmi :+
     sta 45*BLIT_STRIDE + blitRoll,x
-    sta 46*BLIT_STRIDE + blitRoll,x
+:   bvc e_46ro
+
+e_r44otoro:
+    asl
+    bmi :+
+    sta 44*BLIT_STRIDE + blitRoll,x
+:   bvc e_45toro
+
+e_r44tooro:
+    asl
+    bmi :+
+    sta 44*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-e_47oo:
+    bmi :+
+    sta 45*BLIT_STRIDE + blitRoll,x
+:   bvc e_46ro
+
+e_44rotoro:
+    bmi :+
+    sta 44*BLIT_STRIDE + blitRoll,x
+:   asl
+e_45toro:
+    bmi :+
+    sta 45*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_46ro:
+    bmi :+
+    sta 46*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
     sta 47*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t44ooro:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 44*BLIT_STRIDE + blitRoll,x
+    sta 45*BLIT_STRIDE + blitRoll,x
+:   bvc e_46ro
+
+e_t44rotoro:
+    iny
+    lda (pTex),y
+    bvc e_44rotoro
+
+e_48tooro:
+    bmi :+
+    sta 48*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 49*BLIT_STRIDE + blitRoll,x
+:   bvc e_50ro
+
+e_r48tooro:
+    asl
+    bmi :+
+    sta 48*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 49*BLIT_STRIDE + blitRoll,x
+:   bvc e_50ro
+
+e_48rotoro:
+    bmi :+
+    sta 48*BLIT_STRIDE + blitRoll,x
+:   asl
+e_49toro:
+    bmi :+
+    sta 49*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_50ro:
+    bmi :+
+    sta 50*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 51*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t48ooro:
+    iny
+    lda (pTex),y
+    bmi :+
     sta 48*BLIT_STRIDE + blitRoll,x
     sta 49*BLIT_STRIDE + blitRoll,x
-    rts
+:   bvc e_50ro
 
-e_85otooo:
-    sta 85*BLIT_STRIDE + blitRoll,x
-    sta 86*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
+e_t48rotoro:
     iny
-e_87oo:
-    sta 87*BLIT_STRIDE + blitRoll,x
-    sta 88*BLIT_STRIDE + blitRoll,x
-    sta 89*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_105tooroo:
-    sta 105*BLIT_STRIDE + blitRoll,x
     lda (pTex),y
-    iny
-e_106oroo:
-    sta 106*BLIT_STRIDE + blitRoll,x
-e_107roo:
-    sta 107*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 108*BLIT_STRIDE + blitRoll,x
-    sta 109*BLIT_STRIDE + blitRoll,x
-    rts
+    bvc e_48rotoro
 
-e_r105tooroo:
-    lsr
-    bra e_105tooroo
-
-e_t105ooroo:
-    lda (pTex),y
-    iny
-    sta 105*BLIT_STRIDE + blitRoll,x
-    bra e_106oroo
-
-e_r15otoroo:
-    lsr
-    sta 15*BLIT_STRIDE + blitRoll,x
-    sta 16*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_17roo
-
-e_15tooroo:
-    sta 15*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_16oroo:
-    sta 16*BLIT_STRIDE + blitRoll,x
-e_17roo:
-    sta 17*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 18*BLIT_STRIDE + blitRoll,x
-    sta 19*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t15ooroo:
-    lda (pTex),y
-    iny
-    sta 15*BLIT_STRIDE + blitRoll,x
-    bra e_16oroo
-
-e_20tooroo:
-    sta 20*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_21oroo:
-    sta 21*BLIT_STRIDE + blitRoll,x
-e_22roo:
-    sta 22*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 23*BLIT_STRIDE + blitRoll,x
-    sta 24*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_5tooroo:
-    sta 5*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_6oroo
-
-e_5ooroo:
-    sta 5*BLIT_STRIDE + blitRoll,x
-e_6oroo:
-    sta 6*BLIT_STRIDE + blitRoll,x
-    sta 7*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 8*BLIT_STRIDE + blitRoll,x
-    sta 9*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t5ooroo:
-    lda (pTex),y
-    iny
-    bra e_5ooroo
-
-e_5toooro:
-    sta 5*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 6*BLIT_STRIDE + blitRoll,x
-    bra e_7oro
-
-e_5otooro:
-    sta 5*BLIT_STRIDE + blitRoll,x
-    sta 6*BLIT_STRIDE + blitRoll,x
-e_t7oro:
-    lda (pTex),y
-    iny
-e_7oro:
-    sta 7*BLIT_STRIDE + blitRoll,x
-    sta 8*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 9*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r5otooro:
-    lsr
-    bra e_5otooro
-
-e_110orooo:
-    sta 110*BLIT_STRIDE + blitRoll,x
-    sta 111*BLIT_STRIDE + blitRoll,x
-    lsr
-e_112oo:
-    sta 112*BLIT_STRIDE + blitRoll,x
-    sta 113*BLIT_STRIDE + blitRoll,x
-    sta 114*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_110tooroo:
-    sta 110*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_111oroo
-
-e_110ooroo:
-    sta 110*BLIT_STRIDE + blitRoll,x
-e_111oroo:
-    sta 111*BLIT_STRIDE + blitRoll,x
-e_112roo:
-    sta 112*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 113*BLIT_STRIDE + blitRoll,x
-    sta 114*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r110otoroo:
-    lsr
-    sta 110*BLIT_STRIDE + blitRoll,x
-    sta 111*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_112roo
-
-e_t110ooroo:
-    lda (pTex),y
-    iny
-    bra e_110ooroo
-
-e_115otooro:
-    sta 115*BLIT_STRIDE + blitRoll,x
-    sta 116*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_117oro:
-    sta 117*BLIT_STRIDE + blitRoll,x
-    sta 118*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 119*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r115otooro:
-    lsr
-    bra e_115otooro
-
-e_100toooro:
-    sta 100*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 101*BLIT_STRIDE + blitRoll,x
-    bra e_102oro
-
-e_r100otooro:
-    lsr
-    sta 100*BLIT_STRIDE + blitRoll,x
-    bra e_101tooro
-
-e_100rotooro:
-    sta 100*BLIT_STRIDE + blitRoll,x
-    lsr
-e_101tooro:
-    sta 101*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_102oro:
-    sta 102*BLIT_STRIDE + blitRoll,x
-e_103ro:
-    sta 103*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 104*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t100orotoro:
-    lda (pTex),y
-    iny
-    sta 100*BLIT_STRIDE + blitRoll,x
-    sta 101*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 102*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_103ro
-
-e_t100rootoro:
-    lda (pTex),y
-    iny
-    sta 100*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 101*BLIT_STRIDE + blitRoll,x
-    sta 102*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_103ro
-
-e_105orooo:
-    sta 105*BLIT_STRIDE + blitRoll,x
-    sta 106*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_107oo
-
-e_105otooo:
-    sta 105*BLIT_STRIDE + blitRoll,x
-    sta 106*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_107oo:
-    sta 107*BLIT_STRIDE + blitRoll,x
-    sta 108*BLIT_STRIDE + blitRoll,x
-    sta 109*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r105otooo:
-    lsr
-    bra e_105otooo
-
-e_120orooo:
-    sta 120*BLIT_STRIDE + blitRoll,x
-    sta 121*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_122oo
-
-e_120otooo:
-    sta 120*BLIT_STRIDE + blitRoll,x
-    sta 121*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_122oo:
-    sta 122*BLIT_STRIDE + blitRoll,x
-    sta 123*BLIT_STRIDE + blitRoll,x
-    sta 124*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t120orooo:
-    lda (pTex),y
-    iny
-    sta 120*BLIT_STRIDE + blitRoll,x
-    sta 121*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_122oo
-
-e_15orooo:
-    sta 15*BLIT_STRIDE + blitRoll,x
-    sta 16*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_17oo
-
-e_15otooo:
-    sta 15*BLIT_STRIDE + blitRoll,x
-    sta 16*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_17oo:
-    sta 17*BLIT_STRIDE + blitRoll,x
-    sta 18*BLIT_STRIDE + blitRoll,x
-    sta 19*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r15otooo:
-    lsr
-    bra e_15otooo
-
-e_25tooroo:
-    sta 25*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 26*BLIT_STRIDE + blitRoll,x
-    bra e_27roo
-
-e_25rotoroo:
-    sta 25*BLIT_STRIDE + blitRoll,x
-    lsr
-e_26toroo:
-    sta 26*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_27roo:
-    sta 27*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 28*BLIT_STRIDE + blitRoll,x
-    sta 29*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t25ooroo:
-    lda (pTex),y
-    iny
-    sta 25*BLIT_STRIDE + blitRoll,x
-    sta 26*BLIT_STRIDE + blitRoll,x
-    bra e_27roo
-
-e_r30ootoo:
-    lsr
-    sta 30*BLIT_STRIDE + blitRoll,x
-    bra e_31otoo
-
-e_30rootoo:
-    sta 30*BLIT_STRIDE + blitRoll,x
-    lsr
-e_31otoo:
-    sta 31*BLIT_STRIDE + blitRoll,x
-e_32too:
-    sta 32*BLIT_STRIDE + blitRoll,x
-e_t33o:
-    lda (pTex),y
-    iny
-    sta 33*BLIT_STRIDE + blitRoll,x
-    sta 34*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t30orotoo:
-    lda (pTex),y
-    iny
-    sta 30*BLIT_STRIDE + blitRoll,x
-    sta 31*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_32too
-
-e_85tooroo:
-    sta 85*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 86*BLIT_STRIDE + blitRoll,x
-    bra e_87roo
-
-e_85rotoroo:
-    sta 85*BLIT_STRIDE + blitRoll,x
-    lsr
-e_86toroo:
-    sta 86*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_87roo:
-    sta 87*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 88*BLIT_STRIDE + blitRoll,x
-    sta 89*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r85otoroo:
-    lsr
-    sta 85*BLIT_STRIDE + blitRoll,x
-    bra e_86toroo
-
-e_t85ooroo:
-    lda (pTex),y
-    iny
-    sta 85*BLIT_STRIDE + blitRoll,x
-    sta 86*BLIT_STRIDE + blitRoll,x
-    bra e_87roo
-
-e_95orooo:
-    sta 95*BLIT_STRIDE + blitRoll,x
-    sta 96*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_97oo
-
-e_95otooo:
-    sta 95*BLIT_STRIDE + blitRoll,x
-    sta 96*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_97oo:
-    sta 97*BLIT_STRIDE + blitRoll,x
-    sta 98*BLIT_STRIDE + blitRoll,x
-    sta 99*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r70tooroo:
-    lsr
-    sta 70*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 71*BLIT_STRIDE + blitRoll,x
-    bra e_72roo
-
-e_r70otoroo:
-    lsr
-    sta 70*BLIT_STRIDE + blitRoll,x
-e_71toroo:
-    sta 71*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_72roo:
+e_72tooro:
+    bmi :+
     sta 72*BLIT_STRIDE + blitRoll,x
-    lsr
+:   iny
+    lda (pTex),y
+    bmi :+
     sta 73*BLIT_STRIDE + blitRoll,x
+:   bvc e_74ro
+
+e_r72otoro:
+    asl
+    bmi :+
+    sta 72*BLIT_STRIDE + blitRoll,x
+:   bvc e_73toro
+
+e_72rotoro:
+    bmi :+
+    sta 72*BLIT_STRIDE + blitRoll,x
+:   asl
+e_73toro:
+    bmi :+
+    sta 73*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_74ro:
+    bmi :+
     sta 74*BLIT_STRIDE + blitRoll,x
-    rts
+:   asl
+    bmi :+
+    sta 75*BLIT_STRIDE + blitRoll,x
+:   rts
 
-e_t70ooroo:
+e_r72tooro:
+    asl
+    bmi :+
+    sta 72*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    sta 70*BLIT_STRIDE + blitRoll,x
-    sta 71*BLIT_STRIDE + blitRoll,x
-    bra e_72roo
+    bmi :+
+    sta 73*BLIT_STRIDE + blitRoll,x
+:   bvc e_74ro
 
-e_30tooroo:
-    sta 30*BLIT_STRIDE + blitRoll,x
+e_t72ooro:
+    iny
     lda (pTex),y
-    iny
-e_31oroo:
-    sta 31*BLIT_STRIDE + blitRoll,x
-    sta 32*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 33*BLIT_STRIDE + blitRoll,x
-    sta 34*BLIT_STRIDE + blitRoll,x
-    rts
+    bmi :+
+    sta 72*BLIT_STRIDE + blitRoll,x
+    sta 73*BLIT_STRIDE + blitRoll,x
+:   bvc e_74ro
 
-e_t30ooroo:
+e_t72rotoro:
+    iny
     lda (pTex),y
-    iny
-    sta 30*BLIT_STRIDE + blitRoll,x
-    bra e_31oroo
+    bvc e_72rotoro
 
-e_80otooo:
+e_80ooro:
+    bmi :+
     sta 80*BLIT_STRIDE + blitRoll,x
     sta 81*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    bra e_82oo
+:   bvc e_82ro
 
-e_80orooo:
+e_80tooro:
+    bmi :+
     sta 80*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
     sta 81*BLIT_STRIDE + blitRoll,x
-    lsr
-e_82oo:
+:   bvc e_82ro
+
+e_r80otoro:
+    asl
+    bmi :+
+    sta 80*BLIT_STRIDE + blitRoll,x
+:   bvc e_81toro
+
+e_80rotoro:
+    bmi :+
+    sta 80*BLIT_STRIDE + blitRoll,x
+:   asl
+e_81toro:
+    bmi :+
+    sta 81*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_82ro:
+    bmi :+
     sta 82*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
     sta 83*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r80tooro:
+    asl
+    bmi :+
+    sta 80*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 81*BLIT_STRIDE + blitRoll,x
+:   bvc e_82ro
+
+e_t80rotoro:
+    iny
+    lda (pTex),y
+    bvc e_80rotoro
+
+e_96tooro:
+    bmi :+
+    sta 96*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 97*BLIT_STRIDE + blitRoll,x
+:   bvc e_98ro
+
+e_96rotoro:
+    bmi :+
+    sta 96*BLIT_STRIDE + blitRoll,x
+:   asl
+e_97toro:
+    bmi :+
+    sta 97*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_98ro:
+    bmi :+
+    sta 98*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 99*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r96tooro:
+    asl
+    bmi :+
+    sta 96*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 97*BLIT_STRIDE + blitRoll,x
+:   bvc e_98ro
+
+e_t96ooro:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 96*BLIT_STRIDE + blitRoll,x
+    sta 97*BLIT_STRIDE + blitRoll,x
+:   bvc e_98ro
+
+e_r40ooto:
+    asl
+    bmi :+
+    sta 40*BLIT_STRIDE + blitRoll,x
+:   bvc e_41oto
+
+e_40rooto:
+    bmi :+
+    sta 40*BLIT_STRIDE + blitRoll,x
+:   asl
+e_41oto:
+    bmi :+
+    sta 41*BLIT_STRIDE + blitRoll,x
+:
+e_42to:
+    bmi :+
+    sta 42*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 43*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r40toroto:
+    asl
+    bmi :+
+    sta 40*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 41*BLIT_STRIDE + blitRoll,x
+:   asl
+    bvc e_42to
+
+e_t40oroto:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 40*BLIT_STRIDE + blitRoll,x
+    sta 41*BLIT_STRIDE + blitRoll,x
+:   asl
+    bvc e_42to
+
+e_t40rooto:
+    iny
+    lda (pTex),y
+    bvc e_40rooto
+
+e_28rotoro:
+    bmi :+
+    sta 28*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 29*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_30ro
+
+e_28tooro:
+    bmi :+
+    sta 28*BLIT_STRIDE + blitRoll,x
+:
+e_t29oro:
+    iny
+    lda (pTex),y
+e_29oro:
+    bmi :+
+    sta 29*BLIT_STRIDE + blitRoll,x
+:
+e_30ro:
+    bmi :+
+    sta 30*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 31*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r28tooro:
+    asl
+    bvc e_28tooro
+
+e_56tooro:
+    bmi :+
+    sta 56*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 57*BLIT_STRIDE + blitRoll,x
+:   bvc e_58ro
+
+e_r56otoro:
+    asl
+    bmi :+
+    sta 56*BLIT_STRIDE + blitRoll,x
+:   bvc e_57toro
+
+e_56rotoro:
+    bmi :+
+    sta 56*BLIT_STRIDE + blitRoll,x
+:   asl
+e_57toro:
+    bmi :+
+    sta 57*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_58ro:
+    bmi :+
+    sta 58*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 59*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r56tooro:
+    asl
+    bmi :+
+    sta 56*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 57*BLIT_STRIDE + blitRoll,x
+:   bvc e_58ro
+
+e_t56rotoro:
+    iny
+    lda (pTex),y
+    bvc e_56rotoro
+
+e_76tooro:
+    bmi :+
+    sta 76*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 77*BLIT_STRIDE + blitRoll,x
+:   bvc e_78ro
+
+e_r76otoro:
+    asl
+    bmi :+
+    sta 76*BLIT_STRIDE + blitRoll,x
+:   bvc e_77toro
+
+e_76rotoro:
+    bmi :+
+    sta 76*BLIT_STRIDE + blitRoll,x
+:   asl
+e_77toro:
+    bmi :+
+    sta 77*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_78ro:
+    bmi :+
+    sta 78*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 79*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r76tooro:
+    asl
+    bmi :+
+    sta 76*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 77*BLIT_STRIDE + blitRoll,x
+:   bvc e_78ro
+
+e_t76ooro:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 76*BLIT_STRIDE + blitRoll,x
+    sta 77*BLIT_STRIDE + blitRoll,x
+:   bvc e_78ro
+
+e_t76rotoro:
+    iny
+    lda (pTex),y
+    bvc e_76rotoro
+
+e_84tooro:
+    bmi :+
     sta 84*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r10otooro:
-    lsr
-    sta 10*BLIT_STRIDE + blitRoll,x
-    sta 11*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    bra e_12oro
+    bmi :+
+    sta 85*BLIT_STRIDE + blitRoll,x
+:   bvc e_86ro
 
-e_10toooro:
-    sta 10*BLIT_STRIDE + blitRoll,x
+e_84rotoro:
+    bmi :+
+    sta 84*BLIT_STRIDE + blitRoll,x
+:   asl
+e_85toro:
+    bmi :+
+    sta 85*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-e_11ooro:
-    sta 11*BLIT_STRIDE + blitRoll,x
-e_12oro:
-    sta 12*BLIT_STRIDE + blitRoll,x
-    sta 13*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 14*BLIT_STRIDE + blitRoll,x
-    rts
+e_86ro:
+    bmi :+
+    sta 86*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 87*BLIT_STRIDE + blitRoll,x
+:   rts
 
-e_120roooto:
-    sta 120*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 121*BLIT_STRIDE + blitRoll,x
-    bra e_122oto
-
-e_120orooto:
-    sta 120*BLIT_STRIDE + blitRoll,x
-    sta 121*BLIT_STRIDE + blitRoll,x
-    lsr
-e_122oto:
-    sta 122*BLIT_STRIDE + blitRoll,x
-    sta 123*BLIT_STRIDE + blitRoll,x
+e_r84tooro:
+    asl
+    bmi :+
+    sta 84*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    sta 124*BLIT_STRIDE + blitRoll,x
-    rts
+    bmi :+
+    sta 85*BLIT_STRIDE + blitRoll,x
+:   bvc e_86ro
 
-e_t120orooto:
+e_t84ooro:
+    iny
     lda (pTex),y
-    iny
-    bra e_120orooto
+    bmi :+
+    sta 84*BLIT_STRIDE + blitRoll,x
+    sta 85*BLIT_STRIDE + blitRoll,x
+:   bvc e_86ro
 
-e_5orooto:
-    sta 5*BLIT_STRIDE + blitRoll,x
-    sta 6*BLIT_STRIDE + blitRoll,x
-    lsr
-e_7oto:
-    sta 7*BLIT_STRIDE + blitRoll,x
-    sta 8*BLIT_STRIDE + blitRoll,x
+e_t84rotoro:
+    iny
     lda (pTex),y
-    iny
-    sta 9*BLIT_STRIDE + blitRoll,x
-    rts
+    bvc e_84rotoro
 
-e_t5orooto:
+e_92tooro:
+    bmi :+
+    sta 92*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    bra e_5orooto
+    bmi :+
+    sta 93*BLIT_STRIDE + blitRoll,x
+:   bvc e_94ro
 
-e_120toooro:
-    sta 120*BLIT_STRIDE + blitRoll,x
+e_r92otoro:
+    asl
+    bmi :+
+    sta 92*BLIT_STRIDE + blitRoll,x
+:   bvc e_93toro
+
+e_92rotoro:
+    bmi :+
+    sta 92*BLIT_STRIDE + blitRoll,x
+:   asl
+e_93toro:
+    bmi :+
+    sta 93*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    sta 121*BLIT_STRIDE + blitRoll,x
-    bra e_122oro
+e_94ro:
+    bmi :+
+    sta 94*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 95*BLIT_STRIDE + blitRoll,x
+:   rts
 
-e_120otooro:
-    sta 120*BLIT_STRIDE + blitRoll,x
-    sta 121*BLIT_STRIDE + blitRoll,x
+e_r92tooro:
+    asl
+    bmi :+
+    sta 92*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
+    bmi :+
+    sta 93*BLIT_STRIDE + blitRoll,x
+:   bvc e_94ro
+
+e_t92ooro:
     iny
-e_122oro:
-    sta 122*BLIT_STRIDE + blitRoll,x
-    sta 123*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 124*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r120otooro:
-    lsr
-    bra e_120otooro
-
-e_t0ooroo:
     lda (pTex),y
-    iny
-    sta 0*BLIT_STRIDE + blitRoll,x
-    bra e_1oroo
-
-e_t1oroo:
-    lda (pTex),y
-    iny
-e_1oroo:
-    sta 1*BLIT_STRIDE + blitRoll,x
-    sta 2*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 3*BLIT_STRIDE + blitRoll,x
-    sta 4*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_5orooo:
-    sta 5*BLIT_STRIDE + blitRoll,x
-    sta 6*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_7oo
-
-e_5roooo:
-    sta 5*BLIT_STRIDE + blitRoll,x
-    lsr
-e_6ooo:
-    sta 6*BLIT_STRIDE + blitRoll,x
-e_7oo:
-    sta 7*BLIT_STRIDE + blitRoll,x
-    sta 8*BLIT_STRIDE + blitRoll,x
-    sta 9*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_65rotoroto:
-    sta 65*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 66*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 67*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_68to
-
-e_65orooto:
-    sta 65*BLIT_STRIDE + blitRoll,x
-    sta 66*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 67*BLIT_STRIDE + blitRoll,x
-e_68to:
-    sta 68*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 69*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t65orooto:
-    lda (pTex),y
-    iny
-    bra e_65orooto
-
-e_70rootoo:
-    sta 70*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 71*BLIT_STRIDE + blitRoll,x
-    bra e_72too
-
-e_r70torotoo:
-    lsr
-    sta 70*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_71rotoo:
-    sta 71*BLIT_STRIDE + blitRoll,x
-    lsr
-e_72too:
-    sta 72*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 73*BLIT_STRIDE + blitRoll,x
-    sta 74*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t70orotoo:
-    lda (pTex),y
-    iny
-    sta 70*BLIT_STRIDE + blitRoll,x
-    bra e_71rotoo
-
-e_r110ootoo:
-    lsr
-    sta 110*BLIT_STRIDE + blitRoll,x
-    bra e_111otoo
-
-e_110rootoo:
-    sta 110*BLIT_STRIDE + blitRoll,x
-    lsr
-e_111otoo:
-    sta 111*BLIT_STRIDE + blitRoll,x
-e_112too:
-    sta 112*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 113*BLIT_STRIDE + blitRoll,x
-    sta 114*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t110orotoo:
-    lda (pTex),y
-    iny
-    sta 110*BLIT_STRIDE + blitRoll,x
-    sta 111*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_112too
-
-e_30orooo:
-    sta 30*BLIT_STRIDE + blitRoll,x
-    sta 31*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_32oo
-
-e_30otooo:
-    sta 30*BLIT_STRIDE + blitRoll,x
-    sta 31*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_32oo:
-    sta 32*BLIT_STRIDE + blitRoll,x
-    sta 33*BLIT_STRIDE + blitRoll,x
-    sta 34*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_90orooo:
-    sta 90*BLIT_STRIDE + blitRoll,x
-    sta 91*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_92oo
-
-e_90otooo:
-    sta 90*BLIT_STRIDE + blitRoll,x
-    sta 91*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_92oo:
+    bmi :+
     sta 92*BLIT_STRIDE + blitRoll,x
     sta 93*BLIT_STRIDE + blitRoll,x
-    sta 94*BLIT_STRIDE + blitRoll,x
-    rts
+:   bvc e_94ro
 
-e_r95ootoo:
-    lsr
-    sta 95*BLIT_STRIDE + blitRoll,x
-    bra e_96otoo
-
-e_95rootoo:
-    sta 95*BLIT_STRIDE + blitRoll,x
-    lsr
-e_96otoo:
-    sta 96*BLIT_STRIDE + blitRoll,x
-e_97too:
-    sta 97*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
+e_t92rotoro:
     iny
-    sta 98*BLIT_STRIDE + blitRoll,x
-    sta 99*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t95orotoo:
     lda (pTex),y
-    iny
-    sta 95*BLIT_STRIDE + blitRoll,x
-    sta 96*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_97too
+    bvc e_92rotoro
 
-e_t0orooto:
+e_88tooro:
+    bmi :+
+    sta 88*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    sta 0*BLIT_STRIDE + blitRoll,x
-    sta 1*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_2oto
+e_89oro:
+    bmi :+
+    sta 89*BLIT_STRIDE + blitRoll,x
+:
+e_90ro:
+    bmi :+
+    sta 90*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 91*BLIT_STRIDE + blitRoll,x
+:   rts
 
-e_t0roooto:
+e_r88tooro:
+    asl
+    bvc e_88tooro
+
+e_t88ooro:
+    iny
     lda (pTex),y
+    bmi :+
+    sta 88*BLIT_STRIDE + blitRoll,x
+:   bvc e_89oro
+
+e_t88rotoro:
     iny
-    sta 0*BLIT_STRIDE + blitRoll,x
-    lsr
-e_1ooto:
-    sta 1*BLIT_STRIDE + blitRoll,x
-e_2oto:
-    sta 2*BLIT_STRIDE + blitRoll,x
-    sta 3*BLIT_STRIDE + blitRoll,x
     lda (pTex),y
-    iny
-    sta 4*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_65rotoroo:
-    sta 65*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 66*BLIT_STRIDE + blitRoll,x
+    bmi :+
+    sta 88*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 89*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    bra e_67roo
+    bvc e_90ro
 
-e_65ooroo:
-    sta 65*BLIT_STRIDE + blitRoll,x
-    sta 66*BLIT_STRIDE + blitRoll,x
-e_67roo:
-    sta 67*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 68*BLIT_STRIDE + blitRoll,x
-    sta 69*BLIT_STRIDE + blitRoll,x
-    rts
+e_r100ooto:
+    asl
+    bmi :+
+    sta 100*BLIT_STRIDE + blitRoll,x
+:   bvc e_101oto
 
-e_t65ooroo:
+e_100rooto:
+    bmi :+
+    sta 100*BLIT_STRIDE + blitRoll,x
+:   asl
+e_101oto:
+    bmi :+
+    sta 101*BLIT_STRIDE + blitRoll,x
+:
+e_102to:
+    bmi :+
+    sta 102*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    bra e_65ooroo
+    bmi :+
+    sta 103*BLIT_STRIDE + blitRoll,x
+:   rts
 
-e_20orooo:
+e_t100oroto:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 100*BLIT_STRIDE + blitRoll,x
+    sta 101*BLIT_STRIDE + blitRoll,x
+:   asl
+    bvc e_102to
+
+e_t100rooto:
+    iny
+    lda (pTex),y
+    bvc e_100rooto
+
+e_r104ooto:
+    asl
+    bmi :+
+    sta 104*BLIT_STRIDE + blitRoll,x
+:   bvc e_105oto
+
+e_104rooto:
+    bmi :+
+    sta 104*BLIT_STRIDE + blitRoll,x
+:   asl
+e_105oto:
+    bmi :+
+    sta 105*BLIT_STRIDE + blitRoll,x
+:
+e_106to:
+    bmi :+
+    sta 106*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 107*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t104rooto:
+    iny
+    lda (pTex),y
+    bvc e_104rooto
+
+e_r108ooto:
+    asl
+    bmi :+
+    sta 108*BLIT_STRIDE + blitRoll,x
+:   bvc e_109oto
+
+e_108rooto:
+    bmi :+
+    sta 108*BLIT_STRIDE + blitRoll,x
+:   asl
+e_109oto:
+    bmi :+
+    sta 109*BLIT_STRIDE + blitRoll,x
+:
+e_110to:
+    bmi :+
+    sta 110*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 111*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r20ooto:
+    asl
+    bmi :+
+    sta 20*BLIT_STRIDE + blitRoll,x
+:   bvc e_21oto
+
+e_20rooto:
+    bmi :+
+    sta 20*BLIT_STRIDE + blitRoll,x
+:   asl
+e_21oto:
+    bmi :+
+    sta 21*BLIT_STRIDE + blitRoll,x
+:
+e_22to:
+    bmi :+
+    sta 22*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 23*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t20oroto:
+    iny
+    lda (pTex),y
+    bmi :+
     sta 20*BLIT_STRIDE + blitRoll,x
     sta 21*BLIT_STRIDE + blitRoll,x
-    lsr
-e_22oo:
+:   asl
+    bvc e_22to
+
+e_r24ooto:
+    asl
+    bmi :+
+    sta 24*BLIT_STRIDE + blitRoll,x
+:   bvc e_25oto
+
+e_24rooto:
+    bmi :+
+    sta 24*BLIT_STRIDE + blitRoll,x
+:   asl
+e_25oto:
+    bmi :+
+    sta 25*BLIT_STRIDE + blitRoll,x
+:
+e_26to:
+    bmi :+
+    sta 26*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 27*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t24oroto:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 24*BLIT_STRIDE + blitRoll,x
+    sta 25*BLIT_STRIDE + blitRoll,x
+:   asl
+    bvc e_26to
+
+e_28otoo:
+    bmi :+
+    sta 28*BLIT_STRIDE + blitRoll,x
+:   bvc e_29too
+
+e_r28otoo:
+    asl
+    bmi :+
+    sta 28*BLIT_STRIDE + blitRoll,x
+:   bvc e_29too
+
+e_28rotoo:
+    bmi :+
+    sta 28*BLIT_STRIDE + blitRoll,x
+:   asl
+e_29too:
+    bmi :+
+    sta 29*BLIT_STRIDE + blitRoll,x
+:
+e_t30o:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 30*BLIT_STRIDE + blitRoll,x
+    sta 31*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t28rotoo:
+    iny
+    lda (pTex),y
+    bvc e_28rotoo
+
+e_32otoo:
+    bmi :+
+    sta 32*BLIT_STRIDE + blitRoll,x
+:   bvc e_33too
+
+e_r32otoo:
+    asl
+    bmi :+
+    sta 32*BLIT_STRIDE + blitRoll,x
+:   bvc e_33too
+
+e_32rotoo:
+    bmi :+
+    sta 32*BLIT_STRIDE + blitRoll,x
+:   asl
+e_33too:
+    bmi :+
+    sta 33*BLIT_STRIDE + blitRoll,x
+:
+e_t34o:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 34*BLIT_STRIDE + blitRoll,x
+    sta 35*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t32rotoo:
+    iny
+    lda (pTex),y
+    bvc e_32rotoo
+
+e_36otoo:
+    bmi :+
+    sta 36*BLIT_STRIDE + blitRoll,x
+:   bvc e_37too
+
+e_r36otoo:
+    asl
+    bmi :+
+    sta 36*BLIT_STRIDE + blitRoll,x
+:   bvc e_37too
+
+e_36rotoo:
+    bmi :+
+    sta 36*BLIT_STRIDE + blitRoll,x
+:   asl
+e_37too:
+    bmi :+
+    sta 37*BLIT_STRIDE + blitRoll,x
+:
+e_t38o:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 38*BLIT_STRIDE + blitRoll,x
+    sta 39*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t36rotoo:
+    iny
+    lda (pTex),y
+    bvc e_36rotoo
+
+e_40otoo:
+    bmi :+
+    sta 40*BLIT_STRIDE + blitRoll,x
+:   bvc e_41too
+
+e_r40otoo:
+    asl
+    bmi :+
+    sta 40*BLIT_STRIDE + blitRoll,x
+:   bvc e_41too
+
+e_40rotoo:
+    bmi :+
+    sta 40*BLIT_STRIDE + blitRoll,x
+:   asl
+e_41too:
+    bmi :+
+    sta 41*BLIT_STRIDE + blitRoll,x
+:
+e_t42o:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 42*BLIT_STRIDE + blitRoll,x
+    sta 43*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_44otoo:
+    bmi :+
+    sta 44*BLIT_STRIDE + blitRoll,x
+:   bvc e_45too
+
+e_r44otoo:
+    asl
+    bmi :+
+    sta 44*BLIT_STRIDE + blitRoll,x
+:   bvc e_45too
+
+e_44rotoo:
+    bmi :+
+    sta 44*BLIT_STRIDE + blitRoll,x
+:   asl
+e_45too:
+    bmi :+
+    sta 45*BLIT_STRIDE + blitRoll,x
+:
+e_t46o:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 46*BLIT_STRIDE + blitRoll,x
+    sta 47*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_48otoo:
+    bmi :+
+    sta 48*BLIT_STRIDE + blitRoll,x
+:   bvc e_49too
+
+e_r48otoo:
+    asl
+    bmi :+
+    sta 48*BLIT_STRIDE + blitRoll,x
+:   bvc e_49too
+
+e_48rotoo:
+    bmi :+
+    sta 48*BLIT_STRIDE + blitRoll,x
+:   asl
+e_49too:
+    bmi :+
+    sta 49*BLIT_STRIDE + blitRoll,x
+:
+e_t50o:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 50*BLIT_STRIDE + blitRoll,x
+    sta 51*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_52otoo:
+    bmi :+
+    sta 52*BLIT_STRIDE + blitRoll,x
+:   bvc e_53too
+
+e_r52otoo:
+    asl
+    bmi :+
+    sta 52*BLIT_STRIDE + blitRoll,x
+:   bvc e_53too
+
+e_52rotoo:
+    bmi :+
+    sta 52*BLIT_STRIDE + blitRoll,x
+:   asl
+e_53too:
+    bmi :+
+    sta 53*BLIT_STRIDE + blitRoll,x
+:
+e_t54o:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 54*BLIT_STRIDE + blitRoll,x
+    sta 55*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t52rotoo:
+    iny
+    lda (pTex),y
+    bvc e_52rotoo
+
+e_r16tooro:
+    asl
+    bvc e_16tooro
+
+e_16tooro:
+    bmi :+
+    sta 16*BLIT_STRIDE + blitRoll,x
+:
+e_t17oro:
+    iny
+    lda (pTex),y
+e_17oro:
+    bmi :+
+    sta 17*BLIT_STRIDE + blitRoll,x
+:
+e_18ro:
+    bmi :+
+    sta 18*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 19*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t16ooro:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 16*BLIT_STRIDE + blitRoll,x
+:   bvc e_17oro
+
+e_20tooro:
+    bmi :+
+    sta 20*BLIT_STRIDE + blitRoll,x
+:
+e_t21oro:
+    iny
+    lda (pTex),y
+e_21oro:
+    bmi :+
+    sta 21*BLIT_STRIDE + blitRoll,x
+:
+e_22ro:
+    bmi :+
+    sta 22*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 23*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r20tooro:
+    asl
+    bvc e_20tooro
+
+e_24rotoro:
+    bmi :+
+    sta 24*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 25*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_26ro
+
+e_r24tooro:
+    asl
+    bvc e_24tooro
+
+e_24tooro:
+    bmi :+
+    sta 24*BLIT_STRIDE + blitRoll,x
+:
+e_t25oro:
+    iny
+    lda (pTex),y
+e_25oro:
+    bmi :+
+    sta 25*BLIT_STRIDE + blitRoll,x
+:
+e_26ro:
+    bmi :+
+    sta 26*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 27*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t24ooro:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 24*BLIT_STRIDE + blitRoll,x
+:   bvc e_25oro
+
+e_68tooro:
+    bmi :+
+    sta 68*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 69*BLIT_STRIDE + blitRoll,x
+:   bvc e_70ro
+
+e_r68otoro:
+    asl
+    bmi :+
+    sta 68*BLIT_STRIDE + blitRoll,x
+:   bvc e_69toro
+
+e_68rotoro:
+    bmi :+
+    sta 68*BLIT_STRIDE + blitRoll,x
+:   asl
+e_69toro:
+    bmi :+
+    sta 69*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_70ro:
+    bmi :+
+    sta 70*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 71*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r68tooro:
+    asl
+    bmi :+
+    sta 68*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 69*BLIT_STRIDE + blitRoll,x
+:   bvc e_70ro
+
+e_t68rotoro:
+    iny
+    lda (pTex),y
+    bvc e_68rotoro
+
+e_r36toroto:
+    asl
+    bmi :+
+    sta 36*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 37*BLIT_STRIDE + blitRoll,x
+:   asl
+    bvc e_38to
+
+e_36rooto:
+    bmi :+
+    sta 36*BLIT_STRIDE + blitRoll,x
+:   asl
+e_37oto:
+    bmi :+
+    sta 37*BLIT_STRIDE + blitRoll,x
+:
+e_38to:
+    bmi :+
+    sta 38*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 39*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t36oroto:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 36*BLIT_STRIDE + blitRoll,x
+    sta 37*BLIT_STRIDE + blitRoll,x
+:   asl
+    bvc e_38to
+
+e_t36rooto:
+    iny
+    lda (pTex),y
+    bvc e_36rooto
+
+e_r44ooto:
+    asl
+    bmi :+
+    sta 44*BLIT_STRIDE + blitRoll,x
+:   bvc e_45oto
+
+e_r44toroto:
+    asl
+    bmi :+
+    sta 44*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 45*BLIT_STRIDE + blitRoll,x
+:   asl
+    bvc e_46to
+
+e_44rooto:
+    bmi :+
+    sta 44*BLIT_STRIDE + blitRoll,x
+:   asl
+e_45oto:
+    bmi :+
+    sta 45*BLIT_STRIDE + blitRoll,x
+:
+e_46to:
+    bmi :+
+    sta 46*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 47*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t44oroto:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 44*BLIT_STRIDE + blitRoll,x
+    sta 45*BLIT_STRIDE + blitRoll,x
+:   asl
+    bvc e_46to
+
+e_t44rooto:
+    iny
+    lda (pTex),y
+    bvc e_44rooto
+
+e_104ooro:
+    bmi :+
+    sta 104*BLIT_STRIDE + blitRoll,x
+:   bvc e_105oro
+
+e_r104otoro:
+    asl
+    bmi :+
+    sta 104*BLIT_STRIDE + blitRoll,x
+    sta 105*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_106ro
+
+e_104tooro:
+    bmi :+
+    sta 104*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_105oro:
+    bmi :+
+    sta 105*BLIT_STRIDE + blitRoll,x
+:
+e_106ro:
+    bmi :+
+    sta 106*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 107*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t104ooro:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 104*BLIT_STRIDE + blitRoll,x
+:   bvc e_105oro
+
+e_100rotoro:
+    bmi :+
+    sta 100*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 101*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_102ro
+
+e_r100otoro:
+    asl
+    bmi :+
+    sta 100*BLIT_STRIDE + blitRoll,x
+    sta 101*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_102ro
+
+e_100tooro:
+    bmi :+
+    sta 100*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_101oro:
+    bmi :+
+    sta 101*BLIT_STRIDE + blitRoll,x
+:
+e_102ro:
+    bmi :+
+    sta 102*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 103*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r100tooro:
+    asl
+    bvc e_100tooro
+
+e_t100ooro:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 100*BLIT_STRIDE + blitRoll,x
+:   bvc e_101oro
+
+e_112rooto:
+    bmi :+
+    sta 112*BLIT_STRIDE + blitRoll,x
+:   asl
+e_113oto:
+    bmi :+
+    sta 113*BLIT_STRIDE + blitRoll,x
+    sta 114*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 115*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r112ooto:
+    asl
+    bmi :+
+    sta 112*BLIT_STRIDE + blitRoll,x
+:   bvc e_113oto
+
+e_t112rooto:
+    iny
+    lda (pTex),y
+    bvc e_112rooto
+
+e_72otoo:
+    bmi :+
+    sta 72*BLIT_STRIDE + blitRoll,x
+:   bvc e_73too
+
+e_72rotoo:
+    bmi :+
+    sta 72*BLIT_STRIDE + blitRoll,x
+:   asl
+e_73too:
+    bmi :+
+    sta 73*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 74*BLIT_STRIDE + blitRoll,x
+    sta 75*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r72otoo:
+    asl
+    bmi :+
+    sta 72*BLIT_STRIDE + blitRoll,x
+:   bvc e_73too
+
+e_t72rotoo:
+    iny
+    lda (pTex),y
+    bvc e_72rotoo
+
+e_76otoo:
+    bmi :+
+    sta 76*BLIT_STRIDE + blitRoll,x
+:   bvc e_77too
+
+e_76rotoo:
+    bmi :+
+    sta 76*BLIT_STRIDE + blitRoll,x
+:   asl
+e_77too:
+    bmi :+
+    sta 77*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 78*BLIT_STRIDE + blitRoll,x
+    sta 79*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r76otoo:
+    asl
+    bmi :+
+    sta 76*BLIT_STRIDE + blitRoll,x
+:   bvc e_77too
+
+e_80otoo:
+    bmi :+
+    sta 80*BLIT_STRIDE + blitRoll,x
+:   bvc e_81too
+
+e_80rotoo:
+    bmi :+
+    sta 80*BLIT_STRIDE + blitRoll,x
+:   asl
+e_81too:
+    bmi :+
+    sta 81*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 82*BLIT_STRIDE + blitRoll,x
+    sta 83*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r80otoo:
+    asl
+    bmi :+
+    sta 80*BLIT_STRIDE + blitRoll,x
+:   bvc e_81too
+
+e_t80rotoo:
+    iny
+    lda (pTex),y
+    bvc e_80rotoo
+
+e_84otoo:
+    bmi :+
+    sta 84*BLIT_STRIDE + blitRoll,x
+:   bvc e_85too
+
+e_84rotoo:
+    bmi :+
+    sta 84*BLIT_STRIDE + blitRoll,x
+:   asl
+e_85too:
+    bmi :+
+    sta 85*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 86*BLIT_STRIDE + blitRoll,x
+    sta 87*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r84otoo:
+    asl
+    bmi :+
+    sta 84*BLIT_STRIDE + blitRoll,x
+:   bvc e_85too
+
+e_t84rotoo:
+    iny
+    lda (pTex),y
+    bvc e_84rotoo
+
+e_92otoo:
+    bmi :+
+    sta 92*BLIT_STRIDE + blitRoll,x
+:   bvc e_93too
+
+e_92rotoo:
+    bmi :+
+    sta 92*BLIT_STRIDE + blitRoll,x
+:   asl
+e_93too:
+    bmi :+
+    sta 93*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 94*BLIT_STRIDE + blitRoll,x
+    sta 95*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r92otoo:
+    asl
+    bmi :+
+    sta 92*BLIT_STRIDE + blitRoll,x
+:   bvc e_93too
+
+e_r16ooto:
+    asl
+    bmi :+
+    sta 16*BLIT_STRIDE + blitRoll,x
+:   bvc e_17oto
+
+e_16rooto:
+    bmi :+
+    sta 16*BLIT_STRIDE + blitRoll,x
+:   asl
+e_17oto:
+    bmi :+
+    sta 17*BLIT_STRIDE + blitRoll,x
+:
+e_18to:
+    bmi :+
+    sta 18*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 19*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t16oroto:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 16*BLIT_STRIDE + blitRoll,x
+    sta 17*BLIT_STRIDE + blitRoll,x
+:   asl
+    bvc e_18to
+
+e_112tooro:
+    bmi :+
+    sta 112*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_113oro:
+    bmi :+
+    sta 113*BLIT_STRIDE + blitRoll,x
+    sta 114*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 115*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r112tooro:
+    asl
+    bvc e_112tooro
+
+e_24oroo:
+    bmi :+
+    sta 24*BLIT_STRIDE + blitRoll,x
+:   bvc e_25roo
+
+e_24toroo:
+    bmi :+
+    sta 24*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_25roo:
+    bmi :+
+    sta 25*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 26*BLIT_STRIDE + blitRoll,x
+    sta 27*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t24oroo:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 24*BLIT_STRIDE + blitRoll,x
+:   bvc e_25roo
+
+e_32oroo:
+    bmi :+
+    sta 32*BLIT_STRIDE + blitRoll,x
+:   bvc e_33roo
+
+e_32toroo:
+    bmi :+
+    sta 32*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_33roo:
+    bmi :+
+    sta 33*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 34*BLIT_STRIDE + blitRoll,x
+    sta 35*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t32oroo:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 32*BLIT_STRIDE + blitRoll,x
+:   bvc e_33roo
+
+e_36oroo:
+    bmi :+
+    sta 36*BLIT_STRIDE + blitRoll,x
+:   bvc e_37roo
+
+e_36toroo:
+    bmi :+
+    sta 36*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_37roo:
+    bmi :+
+    sta 37*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 38*BLIT_STRIDE + blitRoll,x
+    sta 39*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t36oroo:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 36*BLIT_STRIDE + blitRoll,x
+:   bvc e_37roo
+
+e_48oroo:
+    bmi :+
+    sta 48*BLIT_STRIDE + blitRoll,x
+:   bvc e_49roo
+
+e_48toroo:
+    bmi :+
+    sta 48*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_49roo:
+    bmi :+
+    sta 49*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 50*BLIT_STRIDE + blitRoll,x
+    sta 51*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t48oroo:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 48*BLIT_STRIDE + blitRoll,x
+:   bvc e_49roo
+
+e_52oroo:
+    bmi :+
+    sta 52*BLIT_STRIDE + blitRoll,x
+:   bvc e_53roo
+
+e_52toroo:
+    bmi :+
+    sta 52*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_53roo:
+    bmi :+
+    sta 53*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 54*BLIT_STRIDE + blitRoll,x
+    sta 55*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r52toroo:
+    asl
+    bvc e_52toroo
+
+e_t52oroo:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 52*BLIT_STRIDE + blitRoll,x
+:   bvc e_53roo
+
+e_80oroo:
+    bmi :+
+    sta 80*BLIT_STRIDE + blitRoll,x
+:   bvc e_81roo
+
+e_80toroo:
+    bmi :+
+    sta 80*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_81roo:
+    bmi :+
+    sta 81*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 82*BLIT_STRIDE + blitRoll,x
+    sta 83*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r80toroo:
+    asl
+    bvc e_80toroo
+
+e_t80oroo:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 80*BLIT_STRIDE + blitRoll,x
+:   bvc e_81roo
+
+e_84oroo:
+    bmi :+
+    sta 84*BLIT_STRIDE + blitRoll,x
+:   bvc e_85roo
+
+e_84toroo:
+    bmi :+
+    sta 84*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_85roo:
+    bmi :+
+    sta 85*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 86*BLIT_STRIDE + blitRoll,x
+    sta 87*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r84toroo:
+    asl
+    bvc e_84toroo
+
+e_t84oroo:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 84*BLIT_STRIDE + blitRoll,x
+:   bvc e_85roo
+
+e_12rooto:
+    bmi :+
+    sta 12*BLIT_STRIDE + blitRoll,x
+:   asl
+    bvc e_13oto
+
+e_12ooto:
+    bmi :+
+    sta 12*BLIT_STRIDE + blitRoll,x
+:
+e_13oto:
+    bmi :+
+    sta 13*BLIT_STRIDE + blitRoll,x
+:
+e_14to:
+    bmi :+
+    sta 14*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 15*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_20rotoo:
+    bmi :+
+    sta 20*BLIT_STRIDE + blitRoll,x
+:   asl
+    bvc e_21too
+
+e_20otoo:
+    bmi :+
+    sta 20*BLIT_STRIDE + blitRoll,x
+:
+e_21too:
+    bmi :+
+    sta 21*BLIT_STRIDE + blitRoll,x
+:
+e_t22o:
+    iny
+    lda (pTex),y
+    bmi :+
     sta 22*BLIT_STRIDE + blitRoll,x
     sta 23*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r20otoo:
+    asl
+    bvc e_20otoo
+
+e_24rotoo:
+    bmi :+
     sta 24*BLIT_STRIDE + blitRoll,x
-    rts
+:   asl
+    bvc e_25too
 
-e_60roooo:
-    sta 60*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 61*BLIT_STRIDE + blitRoll,x
-    bra e_62oo
+e_24otoo:
+    bmi :+
+    sta 24*BLIT_STRIDE + blitRoll,x
+:
+e_25too:
+    bmi :+
+    sta 25*BLIT_STRIDE + blitRoll,x
+:
+e_t26o:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 26*BLIT_STRIDE + blitRoll,x
+    sta 27*BLIT_STRIDE + blitRoll,x
+:   rts
 
-e_60orooo:
+e_r24otoo:
+    asl
+    bvc e_24otoo
+
+e_56rotoo:
+    bmi :+
+    sta 56*BLIT_STRIDE + blitRoll,x
+:   asl
+    bvc e_57too
+
+e_56otoo:
+    bmi :+
+    sta 56*BLIT_STRIDE + blitRoll,x
+:
+e_57too:
+    bmi :+
+    sta 57*BLIT_STRIDE + blitRoll,x
+:
+e_t58o:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 58*BLIT_STRIDE + blitRoll,x
+    sta 59*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r56otoo:
+    asl
+    bvc e_56otoo
+
+e_32rooto:
+    bmi :+
+    sta 32*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 33*BLIT_STRIDE + blitRoll,x
+:   bvc e_34to
+
+e_r32toroto:
+    asl
+    bmi :+
+    sta 32*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_33roto:
+    bmi :+
+    sta 33*BLIT_STRIDE + blitRoll,x
+:   asl
+e_34to:
+    bmi :+
+    sta 34*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 35*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r32ooto:
+    asl
+    bmi :+
+    sta 32*BLIT_STRIDE + blitRoll,x
+    sta 33*BLIT_STRIDE + blitRoll,x
+:   bvc e_34to
+
+e_t32oroto:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 32*BLIT_STRIDE + blitRoll,x
+:   bvc e_33roto
+
+e_r68ooto:
+    asl
+    bmi :+
+    sta 68*BLIT_STRIDE + blitRoll,x
+    sta 69*BLIT_STRIDE + blitRoll,x
+:   bvc e_70to
+
+e_r68toroto:
+    asl
+    bmi :+
+    sta 68*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_69roto:
+    bmi :+
+    sta 69*BLIT_STRIDE + blitRoll,x
+:   asl
+e_70to:
+    bmi :+
+    sta 70*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 71*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t68oroto:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 68*BLIT_STRIDE + blitRoll,x
+:   bvc e_69roto
+
+e_t68rooto:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 68*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 69*BLIT_STRIDE + blitRoll,x
+:   bvc e_70to
+
+e_r108tooro:
+    asl
+    bvc e_108tooro
+
+e_108tooro:
+    bmi :+
+    sta 108*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_109oro:
+    bmi :+
+    sta 109*BLIT_STRIDE + blitRoll,x
+    sta 110*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 111*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t108ooro:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 108*BLIT_STRIDE + blitRoll,x
+:   bvc e_109oro
+
+e_100otoo:
+    bmi :+
+    sta 100*BLIT_STRIDE + blitRoll,x
+:
+e_101too:
+    bmi :+
+    sta 101*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 102*BLIT_STRIDE + blitRoll,x
+    sta 103*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r100otoo:
+    asl
+    bvc e_100otoo
+
+e_104rotoo:
+    bmi :+
+    sta 104*BLIT_STRIDE + blitRoll,x
+:   asl
+    bvc e_105too
+
+e_104otoo:
+    bmi :+
+    sta 104*BLIT_STRIDE + blitRoll,x
+:
+e_105too:
+    bmi :+
+    sta 105*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 106*BLIT_STRIDE + blitRoll,x
+    sta 107*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r104otoo:
+    asl
+    bvc e_104otoo
+
+e_108otoo:
+    bmi :+
+    sta 108*BLIT_STRIDE + blitRoll,x
+:
+e_109too:
+    bmi :+
+    sta 109*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 110*BLIT_STRIDE + blitRoll,x
+    sta 111*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r108otoo:
+    asl
+    bvc e_108otoo
+
+e_112rotoo:
+    bmi :+
+    sta 112*BLIT_STRIDE + blitRoll,x
+:   asl
+    bvc e_113too
+
+e_112otoo:
+    bmi :+
+    sta 112*BLIT_STRIDE + blitRoll,x
+:
+e_113too:
+    bmi :+
+    sta 113*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 114*BLIT_STRIDE + blitRoll,x
+    sta 115*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r112otoo:
+    asl
+    bvc e_112otoo
+
+e_116rooto:
+    bmi :+
+    sta 116*BLIT_STRIDE + blitRoll,x
+:   asl
+    bvc e_117oto
+
+e_116ooto:
+    bmi :+
+    sta 116*BLIT_STRIDE + blitRoll,x
+:
+e_117oto:
+    bmi :+
+    sta 117*BLIT_STRIDE + blitRoll,x
+    sta 118*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 119*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r116ooto:
+    asl
+    bvc e_116ooto
+
+e_8rooto:
+    bmi :+
+    sta 8*BLIT_STRIDE + blitRoll,x
+:   asl
+    bvc e_9oto
+
+e_8ooto:
+    bmi :+
+    sta 8*BLIT_STRIDE + blitRoll,x
+:
+e_9oto:
+    bmi :+
+    sta 9*BLIT_STRIDE + blitRoll,x
+    sta 10*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 11*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r8ooto:
+    asl
+    bvc e_8ooto
+
+e_88rotoo:
+    bmi :+
+    sta 88*BLIT_STRIDE + blitRoll,x
+:   asl
+    bvc e_89too
+
+e_88otoo:
+    bmi :+
+    sta 88*BLIT_STRIDE + blitRoll,x
+:
+e_89too:
+    bmi :+
+    sta 89*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 90*BLIT_STRIDE + blitRoll,x
+    sta 91*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r88otoo:
+    asl
+    bvc e_88otoo
+
+e_96rotoo:
+    bmi :+
+    sta 96*BLIT_STRIDE + blitRoll,x
+:   asl
+    bvc e_97too
+
+e_96otoo:
+    bmi :+
+    sta 96*BLIT_STRIDE + blitRoll,x
+:
+e_97too:
+    bmi :+
+    sta 97*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 98*BLIT_STRIDE + blitRoll,x
+    sta 99*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r96otoo:
+    asl
+    bvc e_96otoo
+
+e_t12ooro:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 12*BLIT_STRIDE + blitRoll,x
+:   bvc e_13oro
+
+e_12tooro:
+    bmi :+
+    sta 12*BLIT_STRIDE + blitRoll,x
+:
+e_t13oro:
+    iny
+    lda (pTex),y
+e_13oro:
+    bmi :+
+    sta 13*BLIT_STRIDE + blitRoll,x
+    sta 14*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 15*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t4ooro:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 4*BLIT_STRIDE + blitRoll,x
+:   bvc e_5oro
+
+e_4tooro:
+    bmi :+
+    sta 4*BLIT_STRIDE + blitRoll,x
+:
+e_t5oro:
+    iny
+    lda (pTex),y
+e_5oro:
+    bmi :+
+    sta 5*BLIT_STRIDE + blitRoll,x
+    sta 6*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 7*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t8ooro:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 8*BLIT_STRIDE + blitRoll,x
+:   bvc e_9oro
+
+e_8tooro:
+    bmi :+
+    sta 8*BLIT_STRIDE + blitRoll,x
+:
+e_t9oro:
+    iny
+    lda (pTex),y
+e_9oro:
+    bmi :+
+    sta 9*BLIT_STRIDE + blitRoll,x
+    sta 10*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 11*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t0ooro:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 0*BLIT_STRIDE + blitRoll,x
+:   bvc e_1oro
+
+e_t1oro:
+    iny
+    lda (pTex),y
+e_1oro:
+    bmi :+
+    sta 1*BLIT_STRIDE + blitRoll,x
+    sta 2*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 3*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r12otoo:
+    asl
+    bvc e_12otoo
+
+e_12otoo:
+    bmi :+
+    sta 12*BLIT_STRIDE + blitRoll,x
+    sta 13*BLIT_STRIDE + blitRoll,x
+:
+e_t14o:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 14*BLIT_STRIDE + blitRoll,x
+    sta 15*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r16otoo:
+    asl
+    bvc e_16otoo
+
+e_16otoo:
+    bmi :+
+    sta 16*BLIT_STRIDE + blitRoll,x
+    sta 17*BLIT_STRIDE + blitRoll,x
+:
+e_t18o:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 18*BLIT_STRIDE + blitRoll,x
+    sta 19*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r4otoo:
+    asl
+    bvc e_4otoo
+
+e_4otoo:
+    bmi :+
+    sta 4*BLIT_STRIDE + blitRoll,x
+    sta 5*BLIT_STRIDE + blitRoll,x
+:
+e_t6o:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 6*BLIT_STRIDE + blitRoll,x
+    sta 7*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r8otoo:
+    asl
+    bvc e_8otoo
+
+e_8otoo:
+    bmi :+
+    sta 8*BLIT_STRIDE + blitRoll,x
+    sta 9*BLIT_STRIDE + blitRoll,x
+:
+e_t10o:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 10*BLIT_STRIDE + blitRoll,x
+    sta 11*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r108ooo:
+    asl
+e_108ooo:
+    bmi :+
+    sta 108*BLIT_STRIDE + blitRoll,x
+:
+e_109oo:
+    bmi :+
+    sta 109*BLIT_STRIDE + blitRoll,x
+    sta 110*BLIT_STRIDE + blitRoll,x
+    sta 111*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_108tooo:
+    bmi :+
+    sta 108*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_109oo
+
+e_12rooo:
+    bmi :+
+    sta 12*BLIT_STRIDE + blitRoll,x
+:   asl
+    bvc e_13oo
+
+e_r12ooo:
+    asl
+e_12ooo:
+    bmi :+
+    sta 12*BLIT_STRIDE + blitRoll,x
+:
+e_13oo:
+    bmi :+
+    sta 13*BLIT_STRIDE + blitRoll,x
+    sta 14*BLIT_STRIDE + blitRoll,x
+    sta 15*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_12tooo:
+    bmi :+
+    sta 12*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_13oo
+
+e_t12ooo:
+    iny
+    lda (pTex),y
+    bvc e_12ooo
+
+e_124rooo:
+    bmi :+
+    sta 124*BLIT_STRIDE + blitRoll,x
+:   asl
+    bvc e_125oo
+
+e_r124ooo:
+    asl
+e_124ooo:
+    bmi :+
+    sta 124*BLIT_STRIDE + blitRoll,x
+:
+e_125oo:
+    bmi :+
+    sta 125*BLIT_STRIDE + blitRoll,x
+    sta 126*BLIT_STRIDE + blitRoll,x
+    sta 127*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_124tooo:
+    bmi :+
+    sta 124*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_125oo
+
+e_88rooo:
+    bmi :+
+    sta 88*BLIT_STRIDE + blitRoll,x
+:   asl
+    bvc e_89oo
+
+e_r88ooo:
+    asl
+e_88ooo:
+    bmi :+
+    sta 88*BLIT_STRIDE + blitRoll,x
+:
+e_89oo:
+    bmi :+
+    sta 89*BLIT_STRIDE + blitRoll,x
+    sta 90*BLIT_STRIDE + blitRoll,x
+    sta 91*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_88tooo:
+    bmi :+
+    sta 88*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_89oo
+
+e_100oroo:
+    bmi :+
+    sta 100*BLIT_STRIDE + blitRoll,x
+:
+e_101roo:
+    bmi :+
+    sta 101*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 102*BLIT_STRIDE + blitRoll,x
+    sta 103*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t100oroo:
+    iny
+    lda (pTex),y
+    bvc e_100oroo
+
+e_104oroo:
+    bmi :+
+    sta 104*BLIT_STRIDE + blitRoll,x
+:
+e_105roo:
+    bmi :+
+    sta 105*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 106*BLIT_STRIDE + blitRoll,x
+    sta 107*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t104oroo:
+    iny
+    lda (pTex),y
+    bvc e_104oroo
+
+e_112oroo:
+    bmi :+
+    sta 112*BLIT_STRIDE + blitRoll,x
+:
+e_113roo:
+    bmi :+
+    sta 113*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 114*BLIT_STRIDE + blitRoll,x
+    sta 115*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t112oroo:
+    iny
+    lda (pTex),y
+    bvc e_112oroo
+
+e_116tooro:
+    bmi :+
+    sta 116*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_117oro
+
+e_116ooro:
+    bmi :+
+    sta 116*BLIT_STRIDE + blitRoll,x
+:
+e_117oro:
+    bmi :+
+    sta 117*BLIT_STRIDE + blitRoll,x
+    sta 118*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 119*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_16toroo:
+    bmi :+
+    sta 16*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_17roo
+
+e_16oroo:
+    bmi :+
+    sta 16*BLIT_STRIDE + blitRoll,x
+:
+e_17roo:
+    bmi :+
+    sta 17*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 18*BLIT_STRIDE + blitRoll,x
+    sta 19*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t16oroo:
+    iny
+    lda (pTex),y
+    bvc e_16oroo
+
+e_20toroo:
+    bmi :+
+    sta 20*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_21roo
+
+e_20oroo:
+    bmi :+
+    sta 20*BLIT_STRIDE + blitRoll,x
+:
+e_21roo:
+    bmi :+
+    sta 21*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 22*BLIT_STRIDE + blitRoll,x
+    sta 23*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t20oroo:
+    iny
+    lda (pTex),y
+    bvc e_20oroo
+
+e_28oroo:
+    bmi :+
+    sta 28*BLIT_STRIDE + blitRoll,x
+:
+e_29roo:
+    bmi :+
+    sta 29*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 30*BLIT_STRIDE + blitRoll,x
+    sta 31*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t28oroo:
+    iny
+    lda (pTex),y
+    bvc e_28oroo
+
+e_40oroo:
+    bmi :+
+    sta 40*BLIT_STRIDE + blitRoll,x
+:
+e_41roo:
+    bmi :+
+    sta 41*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 42*BLIT_STRIDE + blitRoll,x
+    sta 43*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t40oroo:
+    iny
+    lda (pTex),y
+    bvc e_40oroo
+
+e_44toroo:
+    bmi :+
+    sta 44*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_45roo
+
+e_44oroo:
+    bmi :+
+    sta 44*BLIT_STRIDE + blitRoll,x
+:
+e_45roo:
+    bmi :+
+    sta 45*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 46*BLIT_STRIDE + blitRoll,x
+    sta 47*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t44oroo:
+    iny
+    lda (pTex),y
+    bvc e_44oroo
+
+e_56oroo:
+    bmi :+
+    sta 56*BLIT_STRIDE + blitRoll,x
+:
+e_57roo:
+    bmi :+
+    sta 57*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 58*BLIT_STRIDE + blitRoll,x
+    sta 59*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t56oroo:
+    iny
+    lda (pTex),y
+    bvc e_56oroo
+
+e_72oroo:
+    bmi :+
+    sta 72*BLIT_STRIDE + blitRoll,x
+:
+e_73roo:
+    bmi :+
+    sta 73*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 74*BLIT_STRIDE + blitRoll,x
+    sta 75*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t72oroo:
+    iny
+    lda (pTex),y
+    bvc e_72oroo
+
+e_76oroo:
+    bmi :+
+    sta 76*BLIT_STRIDE + blitRoll,x
+:
+e_77roo:
+    bmi :+
+    sta 77*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 78*BLIT_STRIDE + blitRoll,x
+    sta 79*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t76oroo:
+    iny
+    lda (pTex),y
+    bvc e_76oroo
+
+e_88oroo:
+    bmi :+
+    sta 88*BLIT_STRIDE + blitRoll,x
+:
+e_89roo:
+    bmi :+
+    sta 89*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 90*BLIT_STRIDE + blitRoll,x
+    sta 91*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t88oroo:
+    iny
+    lda (pTex),y
+    bvc e_88oroo
+
+e_92oroo:
+    bmi :+
+    sta 92*BLIT_STRIDE + blitRoll,x
+:
+e_93roo:
+    bmi :+
+    sta 93*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 94*BLIT_STRIDE + blitRoll,x
+    sta 95*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t92oroo:
+    iny
+    lda (pTex),y
+    bvc e_92oroo
+
+e_96toroo:
+    bmi :+
+    sta 96*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_97roo
+
+e_96oroo:
+    bmi :+
+    sta 96*BLIT_STRIDE + blitRoll,x
+:
+e_97roo:
+    bmi :+
+    sta 97*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 98*BLIT_STRIDE + blitRoll,x
+    sta 99*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t96oroo:
+    iny
+    lda (pTex),y
+    bvc e_96oroo
+
+e_t64ooro:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 64*BLIT_STRIDE + blitRoll,x
+:   bvc e_65oro
+
+e_64tooro:
+    bmi :+
+    sta 64*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_65oro:
+    bmi :+
+    sta 65*BLIT_STRIDE + blitRoll,x
+:
+e_66ro:
+    bmi :+
+    sta 66*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 67*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t64rotoro:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 64*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 65*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_66ro
+
+e_120otoo:
+    bmi :+
+    sta 120*BLIT_STRIDE + blitRoll,x
+    sta 121*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 122*BLIT_STRIDE + blitRoll,x
+    sta 123*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r120otoo:
+    asl
+    bvc e_120otoo
+
+e_124otoo:
+    bmi :+
+    sta 124*BLIT_STRIDE + blitRoll,x
+    sta 125*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 126*BLIT_STRIDE + blitRoll,x
+    sta 127*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r124otoo:
+    asl
+    bvc e_124otoo
+
+e_104tooo:
+    bmi :+
+    sta 104*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_105oo
+
+e_104rooo:
+    bmi :+
+    sta 104*BLIT_STRIDE + blitRoll,x
+:   asl
+e_105oo:
+    bmi :+
+    sta 105*BLIT_STRIDE + blitRoll,x
+    sta 106*BLIT_STRIDE + blitRoll,x
+    sta 107*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_116tooo:
+    bmi :+
+    sta 116*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_117oo
+
+e_116rooo:
+    bmi :+
+    sta 116*BLIT_STRIDE + blitRoll,x
+:   asl
+e_117oo:
+    bmi :+
+    sta 117*BLIT_STRIDE + blitRoll,x
+    sta 118*BLIT_STRIDE + blitRoll,x
+    sta 119*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_28tooo:
+    bmi :+
+    sta 28*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_29oo
+
+e_28rooo:
+    bmi :+
+    sta 28*BLIT_STRIDE + blitRoll,x
+:   asl
+e_29oo:
+    bmi :+
+    sta 29*BLIT_STRIDE + blitRoll,x
+    sta 30*BLIT_STRIDE + blitRoll,x
+    sta 31*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_36tooo:
+    bmi :+
+    sta 36*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_37oo
+
+e_36rooo:
+    bmi :+
+    sta 36*BLIT_STRIDE + blitRoll,x
+:   asl
+e_37oo:
+    bmi :+
+    sta 37*BLIT_STRIDE + blitRoll,x
+    sta 38*BLIT_STRIDE + blitRoll,x
+    sta 39*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_4tooo:
+    bmi :+
+    sta 4*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_5oo
+
+e_4rooo:
+    bmi :+
+    sta 4*BLIT_STRIDE + blitRoll,x
+:   asl
+e_5oo:
+    bmi :+
+    sta 5*BLIT_STRIDE + blitRoll,x
+    sta 6*BLIT_STRIDE + blitRoll,x
+    sta 7*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_40tooo:
+    bmi :+
+    sta 40*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_41oo
+
+e_40rooo:
+    bmi :+
+    sta 40*BLIT_STRIDE + blitRoll,x
+:   asl
+e_41oo:
+    bmi :+
+    sta 41*BLIT_STRIDE + blitRoll,x
+    sta 42*BLIT_STRIDE + blitRoll,x
+    sta 43*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_44rooo:
+    bmi :+
+    sta 44*BLIT_STRIDE + blitRoll,x
+:   asl
+e_45oo:
+    bmi :+
+    sta 45*BLIT_STRIDE + blitRoll,x
+    sta 46*BLIT_STRIDE + blitRoll,x
+    sta 47*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_76tooo:
+    bmi :+
+    sta 76*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_77oo
+
+e_76rooo:
+    bmi :+
+    sta 76*BLIT_STRIDE + blitRoll,x
+:   asl
+e_77oo:
+    bmi :+
+    sta 77*BLIT_STRIDE + blitRoll,x
+    sta 78*BLIT_STRIDE + blitRoll,x
+    sta 79*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_8tooo:
+    bmi :+
+    sta 8*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_9oo
+
+e_8rooo:
+    bmi :+
+    sta 8*BLIT_STRIDE + blitRoll,x
+:   asl
+e_9oo:
+    bmi :+
+    sta 9*BLIT_STRIDE + blitRoll,x
+    sta 10*BLIT_STRIDE + blitRoll,x
+    sta 11*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_80tooo:
+    bmi :+
+    sta 80*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_81oo
+
+e_80rooo:
+    bmi :+
+    sta 80*BLIT_STRIDE + blitRoll,x
+:   asl
+e_81oo:
+    bmi :+
+    sta 81*BLIT_STRIDE + blitRoll,x
+    sta 82*BLIT_STRIDE + blitRoll,x
+    sta 83*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_84tooo:
+    bmi :+
+    sta 84*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_85oo
+
+e_84rooo:
+    bmi :+
+    sta 84*BLIT_STRIDE + blitRoll,x
+:   asl
+e_85oo:
+    bmi :+
+    sta 85*BLIT_STRIDE + blitRoll,x
+    sta 86*BLIT_STRIDE + blitRoll,x
+    sta 87*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_96tooo:
+    bmi :+
+    sta 96*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_97oo
+
+e_96rooo:
+    bmi :+
+    sta 96*BLIT_STRIDE + blitRoll,x
+:   asl
+e_97oo:
+    bmi :+
+    sta 97*BLIT_STRIDE + blitRoll,x
+    sta 98*BLIT_STRIDE + blitRoll,x
+    sta 99*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t0rooo:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 0*BLIT_STRIDE + blitRoll,x
+:   asl
+e_1oo:
+    bmi :+
+    sta 1*BLIT_STRIDE + blitRoll,x
+    sta 2*BLIT_STRIDE + blitRoll,x
+    sta 3*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_tr0tooo:
+    iny
+    lda (pTex),y
+    asl
+    bmi :+
+    sta 0*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_1oo
+
+e_108oroo:
+    bmi :+
+    sta 108*BLIT_STRIDE + blitRoll,x
+    sta 109*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 110*BLIT_STRIDE + blitRoll,x
+    sta 111*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t108oroo:
+    iny
+    lda (pTex),y
+    bvc e_108oroo
+
+e_116oroo:
+    bmi :+
+    sta 116*BLIT_STRIDE + blitRoll,x
+    sta 117*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 118*BLIT_STRIDE + blitRoll,x
+    sta 119*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t116oroo:
+    iny
+    lda (pTex),y
+    bvc e_116oroo
+
+e_12oroo:
+    bmi :+
+    sta 12*BLIT_STRIDE + blitRoll,x
+    sta 13*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 14*BLIT_STRIDE + blitRoll,x
+    sta 15*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t12oroo:
+    iny
+    lda (pTex),y
+    bvc e_12oroo
+
+e_120oroo:
+    bmi :+
+    sta 120*BLIT_STRIDE + blitRoll,x
+    sta 121*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 122*BLIT_STRIDE + blitRoll,x
+    sta 123*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t120oroo:
+    iny
+    lda (pTex),y
+    bvc e_120oroo
+
+e_124oroo:
+    bmi :+
+    sta 124*BLIT_STRIDE + blitRoll,x
+    sta 125*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 126*BLIT_STRIDE + blitRoll,x
+    sta 127*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t124oroo:
+    iny
+    lda (pTex),y
+    bvc e_124oroo
+
+e_4oroo:
+    bmi :+
+    sta 4*BLIT_STRIDE + blitRoll,x
+    sta 5*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 6*BLIT_STRIDE + blitRoll,x
+    sta 7*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t4oroo:
+    iny
+    lda (pTex),y
+    bvc e_4oroo
+
+e_60oroo:
+    bmi :+
     sta 60*BLIT_STRIDE + blitRoll,x
     sta 61*BLIT_STRIDE + blitRoll,x
-    lsr
-e_62oo:
+:   asl
+    bmi :+
     sta 62*BLIT_STRIDE + blitRoll,x
     sta 63*BLIT_STRIDE + blitRoll,x
-    sta 64*BLIT_STRIDE + blitRoll,x
-    rts
+:   rts
 
-e_t60orooo:
-    lda (pTex),y
+e_t60oroo:
     iny
-    bra e_60orooo
-
-e_10rootoo:
-    sta 10*BLIT_STRIDE + blitRoll,x
-    lsr
-e_11otoo:
-    sta 11*BLIT_STRIDE + blitRoll,x
-    sta 12*BLIT_STRIDE + blitRoll,x
-e_t13o:
     lda (pTex),y
-    iny
-    sta 13*BLIT_STRIDE + blitRoll,x
-    sta 14*BLIT_STRIDE + blitRoll,x
-    rts
+    bvc e_60oroo
 
-e_r5ootoo:
-    lsr
-    sta 5*BLIT_STRIDE + blitRoll,x
-    bra e_6otoo
-
-e_5rootoo:
-    sta 5*BLIT_STRIDE + blitRoll,x
-    lsr
-e_6otoo:
-    sta 6*BLIT_STRIDE + blitRoll,x
-    sta 7*BLIT_STRIDE + blitRoll,x
-e_t8o:
-    lda (pTex),y
-    iny
+e_8oroo:
+    bmi :+
     sta 8*BLIT_STRIDE + blitRoll,x
     sta 9*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t0rootoo:
-    lda (pTex),y
-    iny
-    sta 0*BLIT_STRIDE + blitRoll,x
-    lsr
-e_1otoo:
-    sta 1*BLIT_STRIDE + blitRoll,x
-    sta 2*BLIT_STRIDE + blitRoll,x
-e_t3o:
-    lda (pTex),y
-    iny
-    sta 3*BLIT_STRIDE + blitRoll,x
-    sta 4*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_tr0ootoo:
-    lda (pTex),y
-    iny
-    lsr
-    sta 0*BLIT_STRIDE + blitRoll,x
-    bra e_1otoo
-
-e_55tooroo:
-    sta 55*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_56oroo:
-    sta 56*BLIT_STRIDE + blitRoll,x
-e_57roo:
-    sta 57*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 58*BLIT_STRIDE + blitRoll,x
-    sta 59*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_75tooroo:
-    sta 75*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_76oroo:
-    sta 76*BLIT_STRIDE + blitRoll,x
-e_77roo:
-    sta 77*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 78*BLIT_STRIDE + blitRoll,x
-    sta 79*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t75ooroo:
-    lda (pTex),y
-    iny
-    sta 75*BLIT_STRIDE + blitRoll,x
-    bra e_76oroo
-
-e_tr0otooro:
-    lda (pTex),y
-    iny
-    lsr
-    sta 0*BLIT_STRIDE + blitRoll,x
-    sta 1*BLIT_STRIDE + blitRoll,x
-    bra e_t2oro
-
-e_t2oro:
-    lda (pTex),y
-    iny
-e_2oro:
-    sta 2*BLIT_STRIDE + blitRoll,x
-    sta 3*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 4*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_tr0toooro:
-    lda (pTex),y
-    iny
-    lsr
-    sta 0*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 1*BLIT_STRIDE + blitRoll,x
-    bra e_2oro
-
-e_65rotooro:
-    sta 65*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 66*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 67*BLIT_STRIDE + blitRoll,x
-    bra e_68ro
-
-e_65rootoro:
-    sta 65*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 66*BLIT_STRIDE + blitRoll,x
-e_67toro:
-    sta 67*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_68ro:
-    sta 68*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 69*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r65torotoro:
-    lsr
-    sta 65*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 66*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_67toro
-
-e_10tooroo:
+:   asl
+    bmi :+
     sta 10*BLIT_STRIDE + blitRoll,x
-e_t11oroo:
-    lda (pTex),y
-    iny
     sta 11*BLIT_STRIDE + blitRoll,x
-    sta 12*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 13*BLIT_STRIDE + blitRoll,x
-    sta 14*BLIT_STRIDE + blitRoll,x
-    rts
+:   rts
 
-e_115otooo:
-    sta 115*BLIT_STRIDE + blitRoll,x
-    sta 116*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
+e_t8oroo:
     iny
-    bra e_117oo
-
-e_115orooo:
-    sta 115*BLIT_STRIDE + blitRoll,x
-    sta 116*BLIT_STRIDE + blitRoll,x
-    lsr
-e_117oo:
-    sta 117*BLIT_STRIDE + blitRoll,x
-    sta 118*BLIT_STRIDE + blitRoll,x
-    sta 119*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_r125oo:
-    lsr
-    bra e_125oo
-
-e_125oo:
-    sta 125*BLIT_STRIDE + blitRoll,x
-    sta 126*BLIT_STRIDE + blitRoll,x
-    sta 127*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t125oo:
     lda (pTex),y
-    iny
-    bra e_125oo
+    bvc e_8oroo
 
-e_35otooo:
-    sta 35*BLIT_STRIDE + blitRoll,x
-    sta 36*BLIT_STRIDE + blitRoll,x
+e_120rooto:
+    bmi :+
+    sta 120*BLIT_STRIDE + blitRoll,x
+:   asl
+e_121oto:
+    bmi :+
+    sta 121*BLIT_STRIDE + blitRoll,x
+    sta 122*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    bra e_37oo
+    bmi :+
+    sta 123*BLIT_STRIDE + blitRoll,x
+:   rts
 
-e_35orooo:
-    sta 35*BLIT_STRIDE + blitRoll,x
-    sta 36*BLIT_STRIDE + blitRoll,x
-    lsr
-e_37oo:
-    sta 37*BLIT_STRIDE + blitRoll,x
-    sta 38*BLIT_STRIDE + blitRoll,x
-    sta 39*BLIT_STRIDE + blitRoll,x
-    rts
+e_r120ooto:
+    asl
+    bmi :+
+    sta 120*BLIT_STRIDE + blitRoll,x
+:   bvc e_121oto
 
-e_40otooo:
-    sta 40*BLIT_STRIDE + blitRoll,x
-    sta 41*BLIT_STRIDE + blitRoll,x
+e_4rooto:
+    bmi :+
+    sta 4*BLIT_STRIDE + blitRoll,x
+:   asl
+e_5oto:
+    bmi :+
+    sta 5*BLIT_STRIDE + blitRoll,x
+    sta 6*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    bra e_42oo
+    bmi :+
+    sta 7*BLIT_STRIDE + blitRoll,x
+:   rts
 
-e_40orooo:
-    sta 40*BLIT_STRIDE + blitRoll,x
-    sta 41*BLIT_STRIDE + blitRoll,x
-    lsr
-e_42oo:
-    sta 42*BLIT_STRIDE + blitRoll,x
-    sta 43*BLIT_STRIDE + blitRoll,x
-    sta 44*BLIT_STRIDE + blitRoll,x
-    rts
+e_r4ooto:
+    asl
+    bmi :+
+    sta 4*BLIT_STRIDE + blitRoll,x
+:   bvc e_5oto
 
-e_50otooo:
-    sta 50*BLIT_STRIDE + blitRoll,x
-    sta 51*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_52oo:
-    sta 52*BLIT_STRIDE + blitRoll,x
-    sta 53*BLIT_STRIDE + blitRoll,x
-    sta 54*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_65orooo:
-    sta 65*BLIT_STRIDE + blitRoll,x
-    sta 66*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 67*BLIT_STRIDE + blitRoll,x
+e_68otoo:
+    bmi :+
     sta 68*BLIT_STRIDE + blitRoll,x
+:
+e_69too:
+    bmi :+
     sta 69*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_t65orooo:
+:   iny
     lda (pTex),y
-    iny
-    bra e_65orooo
-
-e_70otooo:
+    bmi :+
     sta 70*BLIT_STRIDE + blitRoll,x
     sta 71*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-e_72oo:
-    sta 72*BLIT_STRIDE + blitRoll,x
-    sta 73*BLIT_STRIDE + blitRoll,x
-    sta 74*BLIT_STRIDE + blitRoll,x
-    rts
+:   rts
 
-e_t70orooo:
-    lda (pTex),y
-    iny
-    sta 70*BLIT_STRIDE + blitRoll,x
-    sta 71*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_72oo
+e_68rotoo:
+    bmi :+
+    sta 68*BLIT_STRIDE + blitRoll,x
+:   asl
+    bvc e_69too
 
-e_75otooo:
-    sta 75*BLIT_STRIDE + blitRoll,x
-    sta 76*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
+e_t0rooto:
     iny
-e_77oo:
-    sta 77*BLIT_STRIDE + blitRoll,x
-    sta 78*BLIT_STRIDE + blitRoll,x
-    sta 79*BLIT_STRIDE + blitRoll,x
-    rts
+    lda (pTex),y
+    bmi :+
+    sta 0*BLIT_STRIDE + blitRoll,x
+:   asl
+e_1oto:
+    bmi :+
+    sta 1*BLIT_STRIDE + blitRoll,x
+    sta 2*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 3*BLIT_STRIDE + blitRoll,x
+:   rts
 
-e_120rootoo:
+e_tr0ooto:
+    iny
+    lda (pTex),y
+    asl
+    bmi :+
+    sta 0*BLIT_STRIDE + blitRoll,x
+:   bvc e_1oto
+
+e_120ooro:
+    bmi :+
     sta 120*BLIT_STRIDE + blitRoll,x
-    lsr
-e_121otoo:
+:
+e_121oro:
+    bmi :+
     sta 121*BLIT_STRIDE + blitRoll,x
     sta 122*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
+:   asl
+    bmi :+
     sta 123*BLIT_STRIDE + blitRoll,x
-    sta 124*BLIT_STRIDE + blitRoll,x
-    rts
+:   rts
 
-e_r120ootoo:
-    lsr
+e_120tooro:
+    bmi :+
     sta 120*BLIT_STRIDE + blitRoll,x
-    bra e_121otoo
-
-e_115tooroo:
-    sta 115*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-e_116oroo:
-    sta 116*BLIT_STRIDE + blitRoll,x
-    sta 117*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 118*BLIT_STRIDE + blitRoll,x
-    sta 119*BLIT_STRIDE + blitRoll,x
-    rts
+    bvc e_121oro
 
-e_t115ooroo:
-    lda (pTex),y
-    iny
-    sta 115*BLIT_STRIDE + blitRoll,x
-    bra e_116oroo
-
-e_120ooroo:
-    sta 120*BLIT_STRIDE + blitRoll,x
-e_121oroo:
-    sta 121*BLIT_STRIDE + blitRoll,x
-    sta 122*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 123*BLIT_STRIDE + blitRoll,x
+e_124tooro:
+    bmi :+
     sta 124*BLIT_STRIDE + blitRoll,x
-    rts
-
+:   iny
+    lda (pTex),y
 e_125oro:
+    bmi :+
     sta 125*BLIT_STRIDE + blitRoll,x
     sta 126*BLIT_STRIDE + blitRoll,x
-    lsr
+:   asl
+    bmi :+
     sta 127*BLIT_STRIDE + blitRoll,x
-    rts
+:   rts
 
-e_100orooo:
+e_r68toroo:
+    asl
+    bmi :+
+    sta 68*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_69roo:
+    bmi :+
+    sta 69*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 70*BLIT_STRIDE + blitRoll,x
+    sta 71*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t68oroo:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 68*BLIT_STRIDE + blitRoll,x
+:   bvc e_69roo
+
+e_t2o:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 2*BLIT_STRIDE + blitRoll,x
+    sta 3*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_tr0otoo:
+    iny
+    lda (pTex),y
+    asl
+    bmi :+
+    sta 0*BLIT_STRIDE + blitRoll,x
+    sta 1*BLIT_STRIDE + blitRoll,x
+:   bvc e_t2o
+
+e_100rooo:
+    bmi :+
     sta 100*BLIT_STRIDE + blitRoll,x
+:   asl
+e_101oo:
+    bmi :+
     sta 101*BLIT_STRIDE + blitRoll,x
-    lsr
-e_102oo:
     sta 102*BLIT_STRIDE + blitRoll,x
     sta 103*BLIT_STRIDE + blitRoll,x
-    sta 104*BLIT_STRIDE + blitRoll,x
-    rts
+:   rts
 
-e_100otooo:
+e_100tooo:
+    bmi :+
     sta 100*BLIT_STRIDE + blitRoll,x
-    sta 101*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    bra e_102oo
+    bvc e_101oo
 
-e_55otooo:
-    sta 55*BLIT_STRIDE + blitRoll,x
-    sta 56*BLIT_STRIDE + blitRoll,x
+e_112rooo:
+    bmi :+
+    sta 112*BLIT_STRIDE + blitRoll,x
+:   asl
+e_113oo:
+    bmi :+
+    sta 113*BLIT_STRIDE + blitRoll,x
+    sta 114*BLIT_STRIDE + blitRoll,x
+    sta 115*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_112tooo:
+    bmi :+
+    sta 112*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
+    bvc e_113oo
+
+e_120rooo:
+    bmi :+
+    sta 120*BLIT_STRIDE + blitRoll,x
+:   asl
+e_121oo:
+    bmi :+
+    sta 121*BLIT_STRIDE + blitRoll,x
+    sta 122*BLIT_STRIDE + blitRoll,x
+    sta 123*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_120tooo:
+    bmi :+
+    sta 120*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_121oo
+
+e_16rooo:
+    bmi :+
+    sta 16*BLIT_STRIDE + blitRoll,x
+:   asl
+e_17oo:
+    bmi :+
+    sta 17*BLIT_STRIDE + blitRoll,x
+    sta 18*BLIT_STRIDE + blitRoll,x
+    sta 19*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_16tooo:
+    bmi :+
+    sta 16*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_17oo
+
+e_20rooo:
+    bmi :+
+    sta 20*BLIT_STRIDE + blitRoll,x
+:   asl
+e_21oo:
+    bmi :+
+    sta 21*BLIT_STRIDE + blitRoll,x
+    sta 22*BLIT_STRIDE + blitRoll,x
+    sta 23*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_20tooo:
+    bmi :+
+    sta 20*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_21oo
+
+e_24rooo:
+    bmi :+
+    sta 24*BLIT_STRIDE + blitRoll,x
+:   asl
+e_25oo:
+    bmi :+
+    sta 25*BLIT_STRIDE + blitRoll,x
+    sta 26*BLIT_STRIDE + blitRoll,x
+    sta 27*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_24tooo:
+    bmi :+
+    sta 24*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_25oo
+
+e_32rooo:
+    bmi :+
+    sta 32*BLIT_STRIDE + blitRoll,x
+:   asl
+e_33oo:
+    bmi :+
+    sta 33*BLIT_STRIDE + blitRoll,x
+    sta 34*BLIT_STRIDE + blitRoll,x
+    sta 35*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_32tooo:
+    bmi :+
+    sta 32*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_33oo
+
+e_48rooo:
+    bmi :+
+    sta 48*BLIT_STRIDE + blitRoll,x
+:   asl
+e_49oo:
+    bmi :+
+    sta 49*BLIT_STRIDE + blitRoll,x
+    sta 50*BLIT_STRIDE + blitRoll,x
+    sta 51*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_48tooo:
+    bmi :+
+    sta 48*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_49oo
+
+e_52rooo:
+    bmi :+
+    sta 52*BLIT_STRIDE + blitRoll,x
+:   asl
+e_53oo:
+    bmi :+
+    sta 53*BLIT_STRIDE + blitRoll,x
+    sta 54*BLIT_STRIDE + blitRoll,x
+    sta 55*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_52tooo:
+    bmi :+
+    sta 52*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_53oo
+
+e_56rooo:
+    bmi :+
+    sta 56*BLIT_STRIDE + blitRoll,x
+:   asl
 e_57oo:
+    bmi :+
     sta 57*BLIT_STRIDE + blitRoll,x
     sta 58*BLIT_STRIDE + blitRoll,x
     sta 59*BLIT_STRIDE + blitRoll,x
-    rts
+:   rts
 
-e_t55orooo:
-    lda (pTex),y
-    iny
-    sta 55*BLIT_STRIDE + blitRoll,x
+e_56tooo:
+    bmi :+
     sta 56*BLIT_STRIDE + blitRoll,x
-    lsr
-    bra e_57oo
+:   iny
+    lda (pTex),y
+    bvc e_57oo
 
-e_t0orooo:
+e_64tooo:
+    bmi :+
+    sta 64*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    sta 0*BLIT_STRIDE + blitRoll,x
-    sta 1*BLIT_STRIDE + blitRoll,x
-    lsr
-e_2oo:
-    sta 2*BLIT_STRIDE + blitRoll,x
-    sta 3*BLIT_STRIDE + blitRoll,x
-    sta 4*BLIT_STRIDE + blitRoll,x
-    rts
+e_65oo:
+    bmi :+
+    sta 65*BLIT_STRIDE + blitRoll,x
+    sta 66*BLIT_STRIDE + blitRoll,x
+    sta 67*BLIT_STRIDE + blitRoll,x
+:   rts
 
-e_tr0otooo:
-    lda (pTex),y
+e_t64ooo:
     iny
-    lsr
-    sta 0*BLIT_STRIDE + blitRoll,x
-    sta 1*BLIT_STRIDE + blitRoll,x
     lda (pTex),y
+    bmi :+
+    sta 64*BLIT_STRIDE + blitRoll,x
+:   bvc e_65oo
+
+e_68tooo:
+    bmi :+
+    sta 68*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+e_69oo:
+    bmi :+
+    sta 69*BLIT_STRIDE + blitRoll,x
+    sta 70*BLIT_STRIDE + blitRoll,x
+    sta 71*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r68ooo:
+    asl
+    bmi :+
+    sta 68*BLIT_STRIDE + blitRoll,x
+:   bvc e_69oo
+
+e_72rooo:
+    bmi :+
+    sta 72*BLIT_STRIDE + blitRoll,x
+:   asl
+e_73oo:
+    bmi :+
+    sta 73*BLIT_STRIDE + blitRoll,x
+    sta 74*BLIT_STRIDE + blitRoll,x
+    sta 75*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t72ooo:
     iny
-    bra e_2oo
+    lda (pTex),y
+    bmi :+
+    sta 72*BLIT_STRIDE + blitRoll,x
+:   bvc e_73oo
+
+e_92rooo:
+    bmi :+
+    sta 92*BLIT_STRIDE + blitRoll,x
+:   asl
+e_93oo:
+    bmi :+
+    sta 93*BLIT_STRIDE + blitRoll,x
+    sta 94*BLIT_STRIDE + blitRoll,x
+    sta 95*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_92tooo:
+    bmi :+
+    sta 92*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bvc e_93oo
 
 ; Produce 2 rows from 2 rows
 expand_2:
     jsr selectMip5
-    lda (pTex),y
     iny
+    lda (pTex),y
+    bmi :+
     sta 63*BLIT_STRIDE + blitRoll,x
-    lsr
+:
+    asl
+    bmi :+
     sta 64*BLIT_STRIDE + blitRoll,x
+:
 expand_0:
     rts
 
 ; Produce 4 rows from 4 rows
 expand_4:
     jsr selectMip4
-    jsr e_t62roto
-    lsr
+    jsr e_t62ro
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 64*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
     sta 65*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 6 rows from 4 rows
 expand_6:
     jsr selectMip4
-    lda (pTex),y
     iny
+    lda (pTex),y
+    bmi :+
     sta 61*BLIT_STRIDE + blitRoll,x
-    jsr e_62roto
+:   jsr e_62ro
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 64*BLIT_STRIDE + blitRoll,x
     sta 65*BLIT_STRIDE + blitRoll,x
-    lsr
+:   asl
+    bmi :+
     sta 66*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 8 rows from 8 rows
 expand_8:
     jsr selectMip3
-    jsr e_t60rotoroto
-    lsr
-    sta 65*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 66*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 67*BLIT_STRIDE + blitRoll,x
-    rts
+    jsr e_t60rotoro
+    jmp e_t64rotoro
 
 ; Produce 10 rows from 8 rows
 expand_10:
     jsr selectMip3
-    lda (pTex),y
     iny
+    lda (pTex),y
+    bmi :+
     sta 59*BLIT_STRIDE + blitRoll,x
-    jsr e_60rotoroto
-    sta 65*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 66*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 67*BLIT_STRIDE + blitRoll,x
-    lsr
+:
+    jsr e_60rotoro
+    jsr e_t64oroto
+    asl
+    bmi :+
     sta 68*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 12 rows from 8 rows
 expand_12:
     jsr selectMip3
     jsr e_t58o
-    jsr e_r60tooroto
-    jmp e_65rotooro
+    jsr e_r60tooro
+    jsr e_t64oroto
+    bmi :+
+    sta 68*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 69*BLIT_STRIDE + blitRoll,x
+:
+    rts
 
 ; Produce 14 rows from 8 rows
 expand_14:
     jsr selectMip3
-    lda (pTex),y
     iny
+    lda (pTex),y
+    bmi :+
     sta 57*BLIT_STRIDE + blitRoll,x
-    jsr e_58ro
-    jsr e_60tooroto
-    jsr e_65rootoo
-    lsr
+:   jsr e_58ro
+    jsr e_60tooro
+    jsr e_t64oroo
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 68*BLIT_STRIDE + blitRoll,x
+    sta 69*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
     sta 70*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 16 rows from 16 rows
 expand_16:
     jsr selectMip2
     jsr e_t56rotoro
-    jsr e_t60rotoroto
-    jsr e_r65torotoro
-    lda (pTex),y
-    iny
-    sta 70*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 71*BLIT_STRIDE + blitRoll,x
-    rts
+    jsr e_t60rotoro
+    jsr e_t64rotoro
+    jmp e_t68rotoro
 
 ; Produce 18 rows from 16 rows
 expand_18:
     jsr selectMip2
-    jsr e_t55orotoro
-    jsr e_t60rotoroto
-    jsr e_65rotoroto
-    lsr
-    sta 70*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
     iny
-    sta 71*BLIT_STRIDE + blitRoll,x
-    lsr
+    lda (pTex),y
+    bmi :+
+    sta 55*BLIT_STRIDE + blitRoll,x
+:
+    jsr e_56rotoro
+    jsr e_t60rotoro
+    jsr e_t64oroto
+    jsr e_r68toroto
+    asl
+    bmi :+
     sta 72*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 20 rows from 16 rows
 expand_20:
     jsr selectMip2
-    lda (pTex),y
+    jsr e_t54o
+    jsr e_r56toroto
+    jsr e_60rotoro
+    jsr e_t64oroto
+    jsr e_r68tooro
     iny
-    sta 54*BLIT_STRIDE + blitRoll,x
-    jsr e_55rotoroto
-    jsr e_60rotoroto
-    jsr e_65rotoroto
-    sta 70*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 71*BLIT_STRIDE + blitRoll,x
     lda (pTex),y
-    iny
+    bmi :+
     sta 72*BLIT_STRIDE + blitRoll,x
-    lsr
+:   asl
+    bmi :+
     sta 73*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 22 rows from 16 rows
 expand_22:
     jsr selectMip2
-    jsr e_t53o
-    jsr e_r55tooroto
-    jsr e_r60otoroto
-    jsr e_65rotooro
-    jmp e_t70rootoro
+    jsr e_t53oro
+    jsr e_t56oroto
+    jsr e_r60otoro
+    jsr e_t64oroto
+    jsr e_68rotoro
+    bmi :+
+    sta 72*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 73*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 74*BLIT_STRIDE + blitRoll,x
+:
+    rts
 
 ; Produce 24 rows from 16 rows
 expand_24:
     jsr selectMip2
-    jsr e_t52oro
-    jsr e_t55orotoo
-    jsr e_r60tooroto
-    jsr e_65rotooro
-    jsr e_t70orotoo
-    lsr
-    sta 75*BLIT_STRIDE + blitRoll,x
-    rts
+    jsr e_t52oroto
+    jsr e_56rotoo
+    jsr e_r60tooro
+    jsr e_t64oroto
+    jsr e_68rotoo
+    jmp e_r72tooro
 
 ; Produce 26 rows from 16 rows
 expand_26:
     jsr selectMip2
-    jsr e_t51oroo
-    jsr e_t55rootoo
-    jsr e_r60tooroto
-    jsr e_65rootoro
-    jsr e_70tooroto
-    sta 75*BLIT_STRIDE + blitRoll,x
-    lsr
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 51*BLIT_STRIDE + blitRoll,x
+:
+    jsr e_52rooto
+    jsr e_r56otoo
+    jsr e_r60tooro
+    jsr e_t64oroo
+    jsr e_t68rooto
+    jsr e_72rotoo
+    asl
+    bmi :+
     sta 76*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 28 rows from 16 rows
 expand_28:
     jsr selectMip2
-    jsr e_t50orooto
-    jsr e_55rotooro
-    jsr e_60tooroto
-    jsr e_65rootoo
-    jsr e_r70tooroo
-    lda (pTex),y
-    iny
-    sta 75*BLIT_STRIDE + blitRoll,x
+    jsr e_t50o
+    jsr e_r52otoo
+    jsr e_r56tooro
+    jsr e_60tooro
+    jsr e_t64oroo
+    jsr e_t68oroto
+    jsr e_72rooto
+    bmi :+
     sta 76*BLIT_STRIDE + blitRoll,x
-    lsr
+:   asl
+    bmi :+
     sta 77*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 30 rows from 16 rows
 expand_30:
     jsr selectMip2
-    lda (pTex),y
     iny
+    lda (pTex),y
+    bmi :+
     sta 49*BLIT_STRIDE + blitRoll,x
-    jsr e_50rootoo
-    jsr e_r55otooro
-    jsr e_60tooroto
-    jsr e_65rootoo
-    jsr e_r70otooro
-    sta 75*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
+:   jsr e_50ro
+    jsr e_52tooro
+    jsr e_56tooro
+    jsr e_60tooro
+    jsr e_t64oroo
+    jsr e_t68oroo
+    jsr e_t72oroo
     iny
+    lda (pTex),y
+    bmi :+
     sta 76*BLIT_STRIDE + blitRoll,x
     sta 77*BLIT_STRIDE + blitRoll,x
-    lsr
+:   asl
+    bmi :+
     sta 78*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 32 rows from 32 rows
 expand_32:
     jsr selectMip1
-    lda (pTex),y
-    iny
-    jsr e_48ro
-    jsr e_t50rotoroto
-    jsr e_r55torotoro
-    jsr e_t60rotoroto
-    jsr e_r65torotoro
-    jsr e_t70rotoroto
-    jmp e_r75torotoro
+    jsr e_t48rotoro
+    jsr e_t52rotoro
+    jsr e_t56rotoro
+    jsr e_t60rotoro
+    jsr e_t64rotoro
+    jsr e_t68rotoro
+    jsr e_t72rotoro
+    jmp e_t76rotoro
 
 ; Produce 34 rows from 32 rows
 expand_34:
     jsr selectMip1
-    jsr e_t47oro
-    jsr e_t50rotoroto
-    jsr e_r55torotoro
-    jsr e_t60rotoroto
-    jsr e_65rotoroto
-    jsr e_r70torotoro
-    jsr e_t75rotoroto
-    lsr
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 47*BLIT_STRIDE + blitRoll,x
+:
+    jsr e_48rotoro
+    jsr e_t52rotoro
+    jsr e_t56rotoro
+    jsr e_t60rotoro
+    jsr e_t64oroto
+    jsr e_r68toroto
+    jsr e_r72toroto
+    jsr e_r76toroto
+    asl
+    bmi :+
     sta 80*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 36 rows from 32 rows
 expand_36:
     jsr selectMip1
-    lda (pTex),y
+    jsr e_t46o
+    jsr e_r48toroto
+    jsr e_r52toroto
+    jsr e_56rotoro
+    jsr e_t60rotoro
+    jsr e_t64oroto
+    jsr e_r68toroto
+    jsr e_r72tooro
+    jsr e_t76rotoro
     iny
-    sta 46*BLIT_STRIDE + blitRoll,x
-    jsr e_47roto
-    jsr e_r50torotoro
-    jsr e_t55orotoro
-    jsr e_t60rotoroto
-    jsr e_65rotoroto
-    jsr e_r70torotoo
-    jsr e_r75torotoro
     lda (pTex),y
-    iny
+    bmi :+
     sta 80*BLIT_STRIDE + blitRoll,x
-    lsr
+:   asl
+    bmi :+
     sta 81*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 38 rows from 32 rows
 expand_38:
     jsr selectMip1
-    jsr e_t45orotoro
-    jsr e_t50rootoro
-    jsr e_t55rotooro
-    jsr e_t60rotoroto
-    jsr e_65rotoroto
-    jsr e_r70otoroto
-    jsr e_r75tooroto
-    lsr
-    sta 80*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
     iny
+    lda (pTex),y
+    bmi :+
+    sta 45*BLIT_STRIDE + blitRoll,x
+:   jsr e_46ro
+    jsr e_t48rotoro
+    jsr e_52toroto
+    jsr e_r56tooro
+    jsr e_t60rotoro
+    jsr e_t64oroto
+    jsr e_r68toroo
+    jsr e_t72rotoro
+    jsr e_t76oroto
+    asl
+    bmi :+
+    sta 80*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
     sta 81*BLIT_STRIDE + blitRoll,x
-    lsr
+:   asl
+    bmi :+
     sta 82*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 40 rows from 32 rows
 expand_40:
     jsr selectMip1
-    lda (pTex),y
-    iny
-    sta 44*BLIT_STRIDE + blitRoll,x
-    jsr e_45rotoroto
-    jsr e_50rotoroto
-    jsr e_55rotoroto
-    jsr e_60rotoroto
-    jsr e_65rotoroto
-    jsr e_70rotoroto
-    jsr e_75rotoroto
-    sta 80*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 81*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 82*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 83*BLIT_STRIDE + blitRoll,x
-    rts
+    jsr e_t44oroto
+    jsr e_r48tooro
+    jsr e_t52rotoo
+    jsr e_r56toroto
+    jsr e_60rotoro
+    jsr e_t64oroto
+    jsr e_r68tooro
+    jsr e_t72rotoo
+    jsr e_r76toroto
+    jmp e_80rotoro
 
 ; Produce 42 rows from 32 rows
 expand_42:
     jsr selectMip1
-    jsr e_t43o
-    jsr e_r45torooto
-    jsr e_r50tooroto
-    jsr e_r55otoroto
-    jsr e_60rotoroto
-    jsr e_65rotoroo
-    jsr e_t70rotooro
-    jsr e_t75rootoro
-    jmp e_t80orotoro
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 43*BLIT_STRIDE + blitRoll,x
+:
+    jsr e_44rotoro
+    jsr e_48toroto
+    jsr e_52rotoro
+    jsr e_56toroto
+    jsr e_60rotoro
+    jsr e_t64oroto
+    jsr e_r68otoro
+    jsr e_t72oroto
+    jsr e_r76otoro
+    jsr e_t80oroto
+    asl
+    bmi :+
+    sta 84*BLIT_STRIDE + blitRoll,x
+:
+    rts
 
 ; Produce 44 rows from 32 rows
 expand_44:
     jsr selectMip1
-    jsr e_t42oro
-    jsr e_t45orotoro
-    jsr e_50torotoo
-    jsr e_r55tooroto
-    jsr e_r60otoroto
-    jsr e_65rotooro
-    jsr e_t70rootoro
-    jsr e_t75orotoo
-    jsr e_r80torooto
-    lsr
+    jsr e_t42o
+    jsr e_r44tooro
+    jsr e_t48rooto
+    jsr e_r52tooro
+    jsr e_t56oroto
+    jsr e_r60otoro
+    jsr e_t64oroto
+    jsr e_68rotoro
+    jsr e_72toroto
+    jsr e_76rotoo
+    jsr e_r80toroo
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 84*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
     sta 85*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 46 rows from 32 rows
 expand_46:
     jsr selectMip1
-    jsr e_t41oroto
-    jsr e_45rotooro
-    jsr e_t50orotoro
-    jsr e_55torooto
-    jsr e_r60otoroto
-    jsr e_65rotooro
-    jsr e_t70orotoo
-    jsr e_r75torooto
-    jsr e_r80otoroo
-    lda (pTex),y
     iny
+    lda (pTex),y
+    bmi :+
+    sta 41*BLIT_STRIDE + blitRoll,x
+:   jsr e_42ro
+    jsr e_t44oroto
+    jsr e_48rotoo
+    jsr e_r52toroo
+    jsr e_t56rooto
+    jsr e_r60otoro
+    jsr e_t64oroto
+    jsr e_68rotoo
+    jsr e_r72tooro
+    jsr e_t76rooto
+    jsr e_r80otoro
+    bmi :+
+    sta 84*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
     sta 85*BLIT_STRIDE + blitRoll,x
-    lsr
+:   asl
+    bmi :+
     sta 86*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 48 rows from 32 rows
 expand_48:
     jsr selectMip1
-    jsr e_t40orotoo
-    jsr e_r45tooroto
-    jsr e_50rotooro
-    jsr e_t55orotoo
-    jsr e_r60tooroto
-    jsr e_65rotooro
-    jsr e_t70orotoo
-    jsr e_r75tooroto
-    jsr e_80rotooro
-    lda (pTex),y
-    iny
-    sta 85*BLIT_STRIDE + blitRoll,x
-    sta 86*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 87*BLIT_STRIDE + blitRoll,x
-    rts
+    jsr e_t40oroto
+    jsr e_44rotoo
+    jsr e_r48tooro
+    jsr e_t52oroto
+    jsr e_56rotoo
+    jsr e_r60tooro
+    jsr e_t64oroto
+    jsr e_68rotoo
+    jsr e_r72tooro
+    jsr e_t76oroto
+    jsr e_80rotoo
+    jmp e_r84tooro
 
 ; Produce 50 rows from 32 rows
 expand_50:
     jsr selectMip1
-    lda (pTex),y
     iny
+    lda (pTex),y
+    bmi :+
     sta 39*BLIT_STRIDE + blitRoll,x
-    jsr e_40rootoro
-    jsr e_45torooto
-    jsr e_r50otooro
-    jsr e_t55orotoo
-    jsr e_r60tooroto
-    jsr e_65rootoro
-    jsr e_70torooto
-    jsr e_r75otooro
-    jsr e_t80orotoo
-    lsr
-    sta 85*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 86*BLIT_STRIDE + blitRoll,x
-    sta 87*BLIT_STRIDE + blitRoll,x
-    lsr
+:
+    jsr e_40rooto
+    jsr e_r44otoro
+    jsr e_48toroo
+    jsr e_t52oroto
+    jsr e_56rotoo
+    jsr e_r60tooro
+    jsr e_t64oroo
+    jsr e_t68rooto
+    jsr e_r72otoro
+    jsr e_76tooro
+    jsr e_t80oroto
+    jsr e_84rotoo
+    asl
+    bmi :+
     sta 88*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 52 rows from 32 rows
 expand_52:
     jsr selectMip1
     jsr e_t38o
-    jsr e_r40otoroo
-    jsr e_t45orotoo
-    jsr e_r50tooroo
-    jsr e_t55rootoo
-    jsr e_r60tooroto
-    jsr e_65rootoro
-    jsr e_70tooroto
-    jsr e_75rotooro
-    jsr e_80torooto
-    jmp e_85rotooro
+    jsr e_r40otoro
+    jsr e_44tooro
+    jsr e_t48oroto
+    jsr e_52rooto
+    jsr e_r56otoo
+    jsr e_r60tooro
+    jsr e_t64oroo
+    jsr e_t68rooto
+    jsr e_72rotoo
+    jsr e_r76tooro
+    jsr e_80toroo
+    jsr e_t84oroto
+    bmi :+
+    sta 88*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 89*BLIT_STRIDE + blitRoll,x
+:
+    rts
 
 ; Produce 54 rows from 32 rows
 expand_54:
     jsr selectMip1
     jsr e_t37oro
-    jsr e_40tooroto
-    jsr e_45rootoro
-    jsr e_50tooroto
-    jsr e_55rootoro
-    jsr e_60tooroto
-    jsr e_65rootoo
-    jsr e_r70tooroo
-    jsr e_t75rootoo
-    jsr e_r80tooroo
-    jsr e_t85rootoo
-    lsr
+    jsr e_40tooro
+    jsr e_t44oroo
+    jsr e_t48rooto
+    jsr e_52rotoo
+    jsr e_r56otoro
+    jsr e_60tooro
+    jsr e_t64oroo
+    jsr e_t68oroto
+    jsr e_72rooto
+    jsr e_r76otoo
+    jsr e_r80tooro
+    jsr e_84toroo
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 88*BLIT_STRIDE + blitRoll,x
+    sta 89*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
     sta 90*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 56 rows from 32 rows
 expand_56:
     jsr selectMip1
     jsr e_t36oroo
-    jsr e_t40orotoo
-    jsr e_r45otooro
-    jsr e_t50orooto
-    jsr e_55rotooro
-    jsr e_60tooroto
-    jsr e_65rootoo
-    jsr e_r70tooroo
-    jsr e_t75orotoo
-    jsr e_r80otooro
-    jsr e_t85orooto
-    sta 90*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 91*BLIT_STRIDE + blitRoll,x
-    rts
+    jsr e_t40oroto
+    jsr e_44rooto
+    jsr e_48rotoo
+    jsr e_r52otoo
+    jsr e_r56tooro
+    jsr e_60tooro
+    jsr e_t64oroo
+    jsr e_t68oroto
+    jsr e_72rooto
+    jsr e_76rotoo
+    jsr e_r80otoo
+    jsr e_r84tooro
+    jmp e_88tooro
 
 ; Produce 58 rows from 32 rows
 expand_58:
     jsr selectMip1
-    jsr e_t35orooto
-    jsr e_40rootoo
-    jsr e_r45tooroo
-    jsr e_t50orooto
-    jsr e_r55otooro
-    jsr e_60tooroto
-    jsr e_65rootoo
-    jsr e_r70otooro
-    jsr e_t75orooto
-    jsr e_80rootoro
-    jsr e_85tooroo
-    lda (pTex),y
     iny
-    sta 90*BLIT_STRIDE + blitRoll,x
-    sta 91*BLIT_STRIDE + blitRoll,x
-    lsr
+    lda (pTex),y
+    bmi :+
+    sta 35*BLIT_STRIDE + blitRoll,x
+:
+    jsr e_36rooto
+    jsr e_40rooto
+    jsr e_44rotoo
+    jsr e_r48otoo
+    jsr e_r52otoro
+    jsr e_56tooro
+    jsr e_60tooro
+    jsr e_t64oroo
+    jsr e_t68oroo
+    jsr e_t72oroto
+    jsr e_76rooto
+    jsr e_80rooto
+    jsr e_r84otoo
+    jsr e_r88otoo
+    asl
+    bmi :+
     sta 92*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 60 rows from 32 rows
 expand_60:
     jsr selectMip1
-    lda (pTex),y
-    iny
-    sta 34*BLIT_STRIDE + blitRoll,x
-    jsr e_35rootoo
-    jsr e_r40otooro
-    jsr e_45tooroto
-    jsr e_50rootoo
-    jsr e_r55otooro
-    jsr e_60tooroto
-    jsr e_65rootoo
-    jsr e_r70otooro
-    jsr e_75tooroto
-    jsr e_80rootoo
-    jsr e_r85otooro
-    sta 90*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 91*BLIT_STRIDE + blitRoll,x
+    jsr e_t34o
+    jsr e_r36otoo
+    jsr e_r40otoo
+    jsr e_r44otoo
+    jsr e_r48tooro
+    jsr e_52tooro
+    jsr e_56tooro
+    jsr e_60tooro
+    jsr e_t64oroo
+    jsr e_t68oroo
+    jsr e_t72oroo
+    jsr e_t76oroto
+    jsr e_80rooto
+    jsr e_84rooto
+    jsr e_88rooto
+    bmi :+
     sta 92*BLIT_STRIDE + blitRoll,x
-    lsr
+:   asl
+    bmi :+
     sta 93*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 62 rows from 32 rows
 expand_62:
     jsr selectMip1
-    jsr e_t33o
-    jsr e_r35otooro
-    jsr e_40tooroo
-    jsr e_t45orooto
-    jsr e_50rootoo
-    jsr e_r55otooro
-    jsr e_60tooroto
-    jsr e_65rootoo
-    jsr e_r70otooro
-    jsr e_75tooroo
-    jsr e_t80orooto
-    jsr e_85rootoo
-    jmp e_r90otooro
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 33*BLIT_STRIDE + blitRoll,x
+:   jsr e_34ro
+    jsr e_36tooro
+    jsr e_40tooro
+    jsr e_44tooro
+    jsr e_48tooro
+    jsr e_52tooro
+    jsr e_56tooro
+    jsr e_60tooro
+    jsr e_t64oroo
+    jsr e_t68oroo
+    jsr e_t72oroo
+    jsr e_t76oroo
+    jsr e_t80oroo
+    jsr e_t84oroo
+    jsr e_t88oroo
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 92*BLIT_STRIDE + blitRoll,x
+    sta 93*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 94*BLIT_STRIDE + blitRoll,x
+:
+    rts
 
 ; Produce 64 rows from 64 rows
 expand_64:
     jsr selectMip0
-    lda (pTex),y
-    iny
-    jsr e_32roto
-    jsr e_r35torotoro
-    jsr e_t40rotoroto
-    jsr e_r45torotoro
-    jsr e_t50rotoroto
-    jsr e_r55torotoro
-    jsr e_t60rotoroto
-    jsr e_r65torotoro
-    jsr e_t70rotoroto
-    jsr e_r75torotoro
-    jsr e_t80rotoroto
-    jsr e_r85torotoro
-    jsr e_t90rotoroto
-    lsr
-    sta 95*BLIT_STRIDE + blitRoll,x
-    rts
+    jsr e_t32rotoro
+    jsr e_t36rotoro
+    jsr e_t40rotoro
+    jsr e_t44rotoro
+    jsr e_t48rotoro
+    jsr e_t52rotoro
+    jsr e_t56rotoro
+    jsr e_t60rotoro
+    jsr e_t64rotoro
+    jsr e_t68rotoro
+    jsr e_t72rotoro
+    jsr e_t76rotoro
+    jsr e_t80rotoro
+    jsr e_t84rotoro
+    jsr e_t88rotoro
+    jmp e_t92rotoro
 
 ; Produce 66 rows from 64 rows
 expand_66:
     jsr selectMip0
-    jsr e_t31oroto
-    jsr e_r35torotoro
-    jsr e_t40rotoroto
-    jsr e_r45torotoro
-    jsr e_t50rotoroto
-    jsr e_r55torotoro
-    jsr e_t60rotoroto
-    jsr e_65rotoroto
-    jsr e_r70torotoro
-    jsr e_t75rotoroto
-    jsr e_r80torotoro
-    jsr e_t85rotoroto
-    jsr e_r90torotoro
-    lda (pTex),y
     iny
-    sta 95*BLIT_STRIDE + blitRoll,x
-    lsr
+    lda (pTex),y
+    bmi :+
+    sta 31*BLIT_STRIDE + blitRoll,x
+:
+    jsr e_32rotoro
+    jsr e_t36rotoro
+    jsr e_t40rotoro
+    jsr e_t44rotoro
+    jsr e_t48rotoro
+    jsr e_t52rotoro
+    jsr e_t56rotoro
+    jsr e_t60rotoro
+    jsr e_t64oroto
+    jsr e_r68toroto
+    jsr e_r72toroto
+    jsr e_r76toroto
+    jsr e_r80toroto
+    jsr e_r84toroto
+    jsr e_r88toroto
+    jsr e_r92toroto
+    asl
+    bmi :+
     sta 96*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 68 rows from 64 rows
 expand_68:
     jsr selectMip0
-    jsr e_t30orotoro
-    lda (pTex),y
+    jsr e_t30o
+    jsr e_r32toroto
+    jsr e_r36toroto
+    jsr e_r40toroto
+    jsr e_r44toroto
+    jsr e_48rotoro
+    jsr e_t52rotoro
+    jsr e_t56rotoro
+    jsr e_t60rotoro
+    jsr e_t64oroto
+    jsr e_r68toroto
+    jsr e_r72toroto
+    jsr e_r76toroto
+    jsr e_r80tooro
+    jsr e_t84rotoro
+    jsr e_t88rotoro
+    jsr e_t92rotoro
     iny
-    sta 35*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 36*BLIT_STRIDE + blitRoll,x
     lda (pTex),y
-    iny
-    sta 37*BLIT_STRIDE + blitRoll,x
-    lsr
-    jsr e_38to
-    jsr e_r40torotoro
-    jsr e_t45rotooro
-    jsr e_t50rotoroto
-    jsr e_r55torotoro
-    jsr e_t60rotoroto
-    jsr e_65rotoroto
-    jsr e_r70torotoro
-    jsr e_t75rotoroto
-    jsr e_r80tooroto
-    jsr e_r85torotoro
-    jsr e_t90rotoroto
-    lsr
-    sta 95*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
+    bmi :+
     sta 96*BLIT_STRIDE + blitRoll,x
-    lsr
+:   asl
+    bmi :+
     sta 97*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 70 rows from 64 rows
 expand_70:
     jsr selectMip0
-    lda (pTex),y
-    iny
-    sta 29*BLIT_STRIDE + blitRoll,x
-    jsr e_30rotoroto
-    jsr e_r35torotoro
-    jsr e_t40orotoro
-    lda (pTex),y
-    iny
-    jsr e_45rotoroto
-    jsr e_r50torooto
-    jsr e_r55torotoro
-    jsr e_t60rotoroto
-    jsr e_65rotoroto
-    jsr e_r70torotoro
-    jsr e_t75orotoro
-    jsr e_t80rotoroto
-    jsr e_r85torooto
-    jsr e_r90torotoro
-    lda (pTex),y
-    iny
-    sta 95*BLIT_STRIDE + blitRoll,x
-    lsr
+    jsr e_t29oro
+    jsr e_t32rotoro
+    jsr e_t36rotoro
+    jsr e_t40oroto
+    jsr e_r44toroto
+    jsr e_r48toroto
+    jsr e_r52otoro
+    jsr e_t56rotoro
+    jsr e_t60rotoro
+    jsr e_t64oroto
+    jsr e_r68toroto
+    jsr e_r72toroto
+    jsr e_76rotoro
+    jsr e_t80rotoro
+    jsr e_t84rotoro
+    jsr e_88toroto
+    jsr e_r92toroto
+    asl
+    bmi :+
     sta 96*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
+    bmi :+
     sta 97*BLIT_STRIDE + blitRoll,x
-    lsr
+:   asl
+    bmi :+
     sta 98*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 72 rows from 64 rows
 expand_72:
     jsr selectMip0
-    jsr e_t28o
-    lsr
-    sta 30*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
+    jsr e_t28oroto
+    jsr e_r32toroto
+    jsr e_r36tooro
+    jsr e_t40rotoro
     iny
-    sta 31*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 32*BLIT_STRIDE + blitRoll,x
     lda (pTex),y
+    jsr e_44rotoo
+    jsr e_r48toroto
+    jsr e_r52toroto
+    jsr e_56rotoro
+    jsr e_t60rotoro
+    jsr e_t64oroto
+    jsr e_r68toroto
+    jsr e_r72tooro
+    jsr e_t76rotoro
+    jsr e_t80rotoo
+    jsr e_r84toroto
+    jsr e_r88toroto
+    jsr e_92rotoro
     iny
-    jsr e_33ro
     lda (pTex),y
-    iny
-    jsr e_35rotooro
-    jsr e_t40rotoroto
-    jsr e_r45tooroto
-    jsr e_r50torotoro
-    jsr e_t55orotoro
-    jsr e_t60rotoroto
-    jsr e_65rotoroto
-    jsr e_r70torotoo
-    jsr e_r75torotoro
-    jsr e_t80rotooro
-    jsr e_t85rotoroto
-    jsr e_r90tooroto
-    lsr
-    sta 95*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 96*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 97*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    jsr e_98ro
+    jsr e_96rotoro
     rts
 
 ; Produce 74 rows from 64 rows
 expand_74:
     jsr selectMip0
-    jsr e_t27oro
-    lda (pTex),y
     iny
-    sta 30*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 31*BLIT_STRIDE + blitRoll,x
     lda (pTex),y
+    bmi :+
+    sta 27*BLIT_STRIDE + blitRoll,x
+:
+    jsr e_28rotoro
+    jsr e_t32rotoo
+    jsr e_r36toroto
+    jsr e_r40tooro
+    jsr e_t44rotoro
+    jsr e_t48rooto
+    jsr e_r52toroto
+    jsr e_r56otoro
+    jsr e_t60rotoro
+    jsr e_t64oroto
+    jsr e_r68toroto
+    jsr e_72rotoro
     iny
-    jsr e_32roto
-    jsr e_35rotoroto
-    jsr e_r40tooroto
-    jsr e_r45torotoro
-    sta 50*BLIT_STRIDE + blitRoll,x
     lda (pTex),y
-    iny
-    sta 51*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 52*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    jsr e_53ro
-    lda (pTex),y
-    iny
-    sta 55*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 56*BLIT_STRIDE + blitRoll,x
-    jsr e_57toro
-    jsr e_t60rotoroto
-    jsr e_65rotoroto
-    lsr
-    sta 70*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 71*BLIT_STRIDE + blitRoll,x
-    jsr e_72roto
-    lsr
-    sta 75*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 76*BLIT_STRIDE + blitRoll,x
-    lsr
-    jsr e_77too
-    jsr e_r80torotoro
-    jsr e_t85rootoro
-    lda (pTex),y
-    iny
-    sta 90*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 91*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    jsr e_92roo
-    lda (pTex),y
-    iny
-    jsr e_95rotoroto
-    lsr
+    jsr e_76rotoo
+    jsr e_r80toroto
+    jsr e_r84toroo
+    jsr e_t88rotoro
+    jsr e_t92rooto
+    jsr e_r96toroto
+    asl
+    bmi :+
     sta 100*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 76 rows from 64 rows
 expand_76:
     jsr selectMip0
-    jsr e_t26oroto
-    jsr e_r30torooto
-    lsr
-    jsr e_35torotoo
-    jsr e_r40torotoro
-    jsr e_t45orotoro
-    jsr e_t50rootoro
-    jsr e_t55rotooro
-    jsr e_t60rotoroto
-    jsr e_65rotoroto
-    jsr e_r70otoroto
-    jsr e_r75tooroto
-    lsr
-    jsr e_80torotoo
-    jsr e_r85torotoro
-    jsr e_90torotoro
-    jsr e_t95orotoro
-    lda (pTex),y
+    jsr e_t26o
+    asl
+    jsr e_28toroto
+    jsr e_r32otoro
+    jsr e_t36rotoo
+    jsr e_r40toroto
+    jsr e_r44tooro
+    jsr e_t48rotoro
+    jsr e_52toroto
+    jsr e_r56tooro
+    jsr e_t60rotoro
+    jsr e_t64oroto
+    jsr e_r68toroo
+    jsr e_t72rotoro
+    jsr e_t76oroto
+    jsr e_r80toroto
+    jsr e_84rotoro
+    jsr e_t88rooto
+    jsr e_r92toroto
+    jsr e_96rotoro
     iny
+    lda (pTex),y
+    bmi :+
     sta 100*BLIT_STRIDE + blitRoll,x
-    lsr
+:   asl
+    bmi :+
     sta 101*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 78 rows from 64 rows
 expand_78:
     jsr selectMip0
-    jsr e_t25orotoro
-    jsr e_t30orotoro
-    jsr e_t35rootoro
-    lda (pTex),y
-    iny
-    sta 40*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 41*BLIT_STRIDE + blitRoll,x
-    sta 42*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    jsr e_43ro
-    jsr e_t45rotooro
-    lda (pTex),y
-    iny
-    jsr e_50rotooro
-    lda (pTex),y
-    iny
-    sta 55*BLIT_STRIDE + blitRoll,x
-    lsr
+    jsr e_t25oro
+    jsr e_t28rotoo
+    jsr e_r32toroto
+    jsr e_r36otoro
+    jsr e_t40rooto
+    jsr e_r44toroto
+    jsr e_48rotoro
+    jsr e_t52oroto
+    asl
+    bmi :+
     sta 56*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
     jsr e_57roo
-    jsr e_t60rotoroto
-    jsr e_65rotoroto
-    jsr e_70rotoroto
-    lsr
-    sta 75*BLIT_STRIDE + blitRoll,x
-    sta 76*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 77*BLIT_STRIDE + blitRoll,x
-    lsr
-    jsr e_78to
-    lsr
-    sta 80*BLIT_STRIDE + blitRoll,x
-    jsr e_81toroto
-    jsr e_r85tooroto
-    jsr e_r90tooroto
-    jsr e_r95torooto
-    lsr
+    jsr e_t60rotoro
+    jsr e_t64oroto
+    jsr e_r68tooro
+    jsr e_t72rotoro
+    jsr e_76toroto
+    jsr e_r80otoro
+    jsr e_t84rotoo
+    jsr e_r88toroto
+    jsr e_92rotoro
+    jsr e_t96rooto
+    asl
+    bmi :+
     sta 100*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
+    bmi :+
     sta 101*BLIT_STRIDE + blitRoll,x
-    lsr
+:   asl
+    bmi :+
     sta 102*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 80 rows from 64 rows
 expand_80:
     jsr selectMip0
-    lda (pTex),y
+    jsr e_t24oroto
+    jsr e_r28tooro
+    jsr e_t32rotoo
+    jsr e_r36toroto
+    jsr e_40rotoro
+    jsr e_t44oroto
+    jsr e_r48tooro
+    jsr e_t52rotoo
+    jsr e_r56toroto
+    jsr e_60rotoro
+    jsr e_t64oroto
+    jsr e_r68tooro
+    jsr e_t72rotoo
+    jsr e_r76toroto
+    jsr e_80rotoro
+    jsr e_t84oroto
+    jsr e_r88tooro
     iny
-    sta 24*BLIT_STRIDE + blitRoll,x
-    sta 25*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 26*BLIT_STRIDE + blitRoll,x
     lda (pTex),y
-    iny
-    jsr e_27roto
-    jsr e_30rotoroto
-    jsr e_35rotoroto
-    sta 40*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 41*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    jsr e_42roto
-    jsr e_45rotoroto
-    jsr e_50rotoroto
-    jsr e_55rotoroto
-    jsr e_60rotoroto
-    jsr e_65rotoroto
-    jsr e_70rotoroto
-    jsr e_75rotoroto
-    jsr e_80rotoroto
-    sta 85*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 86*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 87*BLIT_STRIDE + blitRoll,x
-    lsr
-    jsr e_88to
-    jsr e_90rotoroto
-    jsr e_95rotoroto
-    sta 100*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 101*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 102*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 103*BLIT_STRIDE + blitRoll,x
-    rts
+    jsr e_92rotoo
+    jsr e_r96toroto
+    jmp e_100rotoro
 
 ; Produce 82 rows from 64 rows
 expand_82:
     jsr selectMip0
-    jsr e_t23o
-    jsr e_r25torooto
-    jsr e_r30torooto
-    jsr e_r35tooroto
-    jsr e_r40tooroto
-    lsr
-    sta 45*BLIT_STRIDE + blitRoll,x
-    jsr e_46toroto
-    lsr
-    sta 50*BLIT_STRIDE + blitRoll,x
-    jsr e_51toroto
-    jsr e_55rotoroto
-    jsr e_60rotoroto
-    jsr e_65rotoroo
-    lda (pTex),y
     iny
-    sta 70*BLIT_STRIDE + blitRoll,x
-    lsr
-    jsr e_71toroo
     lda (pTex),y
-    iny
-    sta 75*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 76*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 77*BLIT_STRIDE + blitRoll,x
-    jsr e_78ro
-    jsr e_t80rotooro
-    jsr e_t85rootoro
-    jsr e_t90rootoro
-    jsr e_t95orotoro
-    jmp e_t100orotoro
+    bmi :+
+    sta 23*BLIT_STRIDE + blitRoll,x
+:
+    jsr e_24rotoro
+    jsr e_28toroto
+    jsr e_r32otoro
+    jsr e_t36oroto
+    jsr e_r40tooro
+    jsr e_t44rooto
+    asl
+    jsr e_48toroo
+    jsr e_t52rotoo
+    jsr e_r56toroto
+    jsr e_60rotoro
+    jsr e_t64oroto
+    jsr e_r68otoro
+    jsr e_t72rooto
+    jsr e_r76tooro
+    jsr e_t80rotoo
+    jsr e_r84toroo
+    jsr e_t88rotoro
+    jsr e_92toroto
+    jsr e_96rotoro
+    jsr e_t100oroto
+    asl
+    bmi :+
+    sta 104*BLIT_STRIDE + blitRoll,x
+:
+    rts
 
 ; Produce 84 rows from 64 rows
 expand_84:
     jsr selectMip0
-    jsr e_t22oro
-    jsr e_t25rootoro
-    jsr e_t30orotoro
-    jsr e_35torotoo
-    lsr
-    sta 40*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
+    jsr e_t22o
+    asl
+    jsr e_24toroo
+    jsr e_t28rotoo
+    asl
+    jsr e_32toroo
+    jsr e_t36rotoo
+    jsr e_r40toroto
+    jsr e_44rotoro
+    jsr e_48toroto
+    jsr e_52rotoro
+    jsr e_56toroto
+    jsr e_60rotoro
+    jsr e_t64oroto
+    jsr e_r68otoro
+    jsr e_t72oroto
+    jsr e_r76otoro
+    jsr e_t80oroto
+    jsr e_r84tooro
+    jsr e_t88rooto
+    jsr e_r92tooro
+    jsr e_t96rooto
+    jsr e_r100tooro
     iny
-    sta 41*BLIT_STRIDE + blitRoll,x
-    lsr
-    jsr e_42too
-    jsr e_r45torooto
-    jsr e_r50tooroto
-    jsr e_r55otoroto
-    jsr e_60rotoroto
-    jsr e_65rotoroo
-    jsr e_t70rotooro
-    jsr e_t75rootoro
-    jsr e_t80orotoro
-    jsr e_t85orotoro
-    sta 90*BLIT_STRIDE + blitRoll,x
     lda (pTex),y
-    iny
-    sta 91*BLIT_STRIDE + blitRoll,x
-    lsr
-    jsr e_92too
-    jsr e_r95torooto
-    jsr e_r100tooroto
-    lsr
+    bmi :+
+    sta 104*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
     sta 105*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 86 rows from 64 rows
 expand_86:
     jsr selectMip0
+    jsr e_t21oro
+    jsr e_t24oroto
+    asl
+    bmi :+
+    sta 28*BLIT_STRIDE + blitRoll,x
+    sta 29*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    sta 21*BLIT_STRIDE + blitRoll,x
-    sta 22*BLIT_STRIDE + blitRoll,x
-    lsr
-    jsr e_23to
-    jsr e_25rotoroo
-    lda (pTex),y
-    iny
-    jsr e_30rotooro
-    jsr e_t35rootoro
-    jsr e_t40orotoro
-    sta 45*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 46*BLIT_STRIDE + blitRoll,x
-    lsr
-    jsr e_47too
-    jsr e_r50torooto
-    jsr e_r55tooroto
-    jsr e_r60otoroto
-    jsr e_65rotooro
-    jsr e_t70rootoro
-    jsr e_t75orotoro
-    jsr e_80torotoo
-    jsr e_r85torooto
-    jsr e_r90tooroto
-    lsr
-    sta 95*BLIT_STRIDE + blitRoll,x
+    jsr e_30ro
+    jsr e_t32oroto
+    jsr e_r36otoro
+    jsr e_t40oroto
+    jsr e_r44otoro
+    jsr e_t48oroto
+    jsr e_r52otoro
+    jsr e_t56oroto
+    jsr e_r60otoro
+    jsr e_t64oroto
+    jsr e_68rotoro
+    jsr e_72toroto
+    jsr e_76rotoro
+    jsr e_80toroto
+    jsr e_84rotoro
+    jsr e_88toroto
+    jsr e_92rotoro
     jsr e_96toroto
-    sta 100*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 101*BLIT_STRIDE + blitRoll,x
+    jsr e_100rotoro
+    bmi :+
+    sta 104*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    jsr e_102roo
-    lda (pTex),y
-    iny
+    bmi :+
     sta 105*BLIT_STRIDE + blitRoll,x
-    lsr
+:   asl
+    bmi :+
     sta 106*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 88 rows from 64 rows
 expand_88:
     jsr selectMip0
-    jsr e_t20orotoo
-    jsr e_r25torooto
-    jsr e_r30tooroto
-    sta 35*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 36*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
+    jsr e_t20oroto
+    jsr e_24rotoro
+    jsr e_28toroto
+    jsr e_32rotoo
+    asl
+    jsr e_36toroo
     iny
-    jsr e_37roo
     lda (pTex),y
-    iny
-    jsr e_40rotooro
-    jsr e_t45orotoro
-    jsr e_50torotoo
-    jsr e_r55tooroto
-    jsr e_r60otoroto
-    jsr e_65rotooro
-    jsr e_t70rootoro
-    jsr e_t75orotoo
-    jsr e_r80torooto
-    jsr e_r85tooroto
-    sta 90*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 91*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    jsr e_92roo
-    lda (pTex),y
-    iny
-    jsr e_95rotooro
-    jsr e_t100orotoro
-    sta 105*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 106*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 107*BLIT_STRIDE + blitRoll,x
-    rts
+    jsr e_40rotoo
+    jsr e_r44tooro
+    jsr e_t48rooto
+    jsr e_r52tooro
+    jsr e_t56oroto
+    jsr e_r60otoro
+    jsr e_t64oroto
+    jsr e_68rotoro
+    jsr e_72toroto
+    jsr e_76rotoo
+    jsr e_r80toroo
+    jsr e_t84rotoo
+    jsr e_r88tooro
+    jsr e_t92rooto
+    jsr e_r96tooro
+    jsr e_t100oroto
+    jmp e_r104otoro
 
 ; Produce 90 rows from 64 rows
 expand_90:
     jsr selectMip0
-    lda (pTex),y
     iny
+    lda (pTex),y
+    bmi :+
     sta 19*BLIT_STRIDE + blitRoll,x
-    jsr e_20rotooro
-    jsr e_t25orotoro
-    jsr e_30torooto
-    jsr e_r35tooroto
-    sta 40*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 41*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
+:
+    jsr e_20rotoo
+    jsr e_r24tooro
+    jsr e_t28rooto
+    jsr e_r32otoro
+    jsr e_t36oroto
+    jsr e_40rotoro
+    jsr e_44toroo
     iny
-    jsr e_42roo
     lda (pTex),y
-    iny
-    sta 45*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 46*BLIT_STRIDE + blitRoll,x
-    sta 47*BLIT_STRIDE + blitRoll,x
+    jsr e_48rotoo
+    jsr e_r52tooro
+    jsr e_t56rooto
+    jsr e_r60otoro
+    jsr e_t64oroto
+    jsr e_68rotoo
+    asl
+    bmi :+
+    sta 72*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    jsr e_48ro
-    jsr e_t50orotoo
-    lsr
-    jsr e_55torooto
-    jsr e_r60otoroto
-    jsr e_65rotooro
+    jsr e_73roo
+    jsr e_t76rooto
+    jsr e_r80tooro
+    jsr e_t84oroto
+    asl
+    bmi :+
+    sta 88*BLIT_STRIDE + blitRoll,x
+    sta 89*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    sta 70*BLIT_STRIDE + blitRoll,x
-    jsr e_71rotoro
-    jsr e_75torooto
-    jsr e_r80tooroto
-    jsr e_85rotoroo
-    jsr e_t90rootoro
-    jsr e_t95orotoo
-    lsr
+    jsr e_90ro
+    jsr e_92toroto
+    jsr e_96rotoo
+    asl
+    bmi :+
     sta 100*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    jsr e_101rooto
-    lsr
-    sta 105*BLIT_STRIDE + blitRoll,x
-    sta 106*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 107*BLIT_STRIDE + blitRoll,x
-    lsr
+    jsr e_101roo
+    jsr e_t104rooto
+    asl
+    bmi :+
     sta 108*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 92 rows from 64 rows
 expand_92:
     jsr selectMip0
     jsr e_t18o
-    lsr
-    sta 20*BLIT_STRIDE + blitRoll,x
+    jsr e_r20tooro
+    jsr e_t24oroto
+    jsr e_28rotoro
+    jsr e_32toroo
+    jsr e_t36rooto
+    jsr e_r40tooro
+    jsr e_t44oroto
+    jsr e_48rotoo
+    jsr e_r52toroo
+    jsr e_t56rooto
+    jsr e_r60otoro
+    jsr e_t64oroto
+    jsr e_68rotoo
+    jsr e_r72tooro
+    jsr e_t76rooto
+    jsr e_r80otoro
+    jsr e_84toroto
+    jsr e_88rotoo
+    jsr e_r92tooro
+    jsr e_t96oroto
+    jsr e_r100otoro
+    bmi :+
+    sta 104*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
+    jsr e_105roo
     iny
-    sta 21*BLIT_STRIDE + blitRoll,x
-    sta 22*BLIT_STRIDE + blitRoll,x
-    lsr
-    jsr e_23to
-    jsr e_25rotooro
     lda (pTex),y
-    iny
-    sta 30*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 31*BLIT_STRIDE + blitRoll,x
-    sta 32*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    jsr e_33ro
-    jsr e_35torooto
-    jsr e_r40tooroto
-    jsr e_45rotooro
-    jsr e_t50orotoro
-    jsr e_55torooto
-    jsr e_r60otoroto
-    jsr e_65rotooro
-    jsr e_t70orotoo
-    jsr e_r75torooto
-    jsr e_r80otoroo
-    lda (pTex),y
-    iny
-    jsr e_85rotooro
-    jsr e_t90orotoo
-    lsr
-    sta 95*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 96*BLIT_STRIDE + blitRoll,x
-    jsr e_97roto
-    jsr e_r100otoroo
-    lda (pTex),y
-    iny
-    sta 105*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 106*BLIT_STRIDE + blitRoll,x
-    sta 107*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    jsr e_108ro
+    bmi :+
+    sta 108*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 109*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 94 rows from 64 rows
 expand_94:
     jsr selectMip0
     jsr e_t17oro
-    jsr e_t20orotoo
-    jsr e_r25tooroto
-    jsr e_30rotooro
-    jsr e_t35orotoo
-    lsr
+    jsr e_t20oroto
+    jsr e_24rotoo
+    jsr e_r28tooro
+    jsr e_t32oroto
+    jsr e_36rotoo
+    asl
+    bmi :+
     sta 40*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    sta 41*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 42*BLIT_STRIDE + blitRoll,x
-    jsr e_43to
-    jsr e_r45otoroo
-    jsr e_t50rootoro
-    jsr e_55torooto
-    jsr e_r60otoroto
-    jsr e_65rotooro
-    jsr e_t70orotoo
-    jsr e_r75tooroto
-    jsr e_80rotooro
-    jsr e_t85orotoro
-    sta 90*BLIT_STRIDE + blitRoll,x
+    jsr e_41roo
+    jsr e_t44rooto
+    asl
+    bmi :+
+    sta 48*BLIT_STRIDE + blitRoll,x
+:   jsr e_49toro
+    jsr e_52toroo
+    jsr e_t56rooto
+    jsr e_r60otoro
+    jsr e_t64oroto
+    jsr e_68rotoo
+    jsr e_r72tooro
+    jsr e_t76oroto
+    jsr e_80rotoo
+    jsr e_r84tooro
+    jsr e_t88rooto
+    jsr e_r92otoro
+    jsr e_96toroo
+    jsr e_t100rooto
+    jsr e_r104otoro
+    bmi :+
+    sta 108*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    sta 91*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 92*BLIT_STRIDE + blitRoll,x
-    jsr e_93to
-    jsr e_r95otoroo
-    jsr e_t100rootoro
-    jsr e_105torooto
-    lsr
+    bmi :+
+    sta 109*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
     sta 110*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 96 rows from 64 rows
 expand_96:
     jsr selectMip0
-    lda (pTex),y
-    iny
-    sta 16*BLIT_STRIDE + blitRoll,x
-    sta 17*BLIT_STRIDE + blitRoll,x
-    lsr
-    jsr e_18to
-    jsr e_20rotooro
-    lda (pTex),y
-    iny
-    sta 25*BLIT_STRIDE + blitRoll,x
-    sta 26*BLIT_STRIDE + blitRoll,x
-    lsr
-    jsr e_27too
-    jsr e_r30tooroto
-    jsr e_35rotooro
-    jsr e_t40orotoo
-    jsr e_r45tooroto
-    jsr e_50rotooro
-    jsr e_t55orotoo
-    jsr e_r60tooroto
-    jsr e_65rotooro
-    jsr e_t70orotoo
-    jsr e_r75tooroto
-    jsr e_80rotooro
-    lda (pTex),y
-    iny
-    sta 85*BLIT_STRIDE + blitRoll,x
-    sta 86*BLIT_STRIDE + blitRoll,x
-    lsr
-    jsr e_87too
-    jsr e_r90tooroto
-    jsr e_95rotooro
-    jsr e_t100orotoo
-    lsr
-    sta 105*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 106*BLIT_STRIDE + blitRoll,x
-    sta 107*BLIT_STRIDE + blitRoll,x
-    lsr
-    jsr e_108to
-    sta 110*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 111*BLIT_STRIDE + blitRoll,x
-    rts
+    jsr e_t16oroto
+    jsr e_20rotoo
+    jsr e_r24tooro
+    jsr e_t28oroto
+    jsr e_32rotoo
+    jsr e_r36tooro
+    jsr e_t40oroto
+    jsr e_44rotoo
+    jsr e_r48tooro
+    jsr e_t52oroto
+    jsr e_56rotoo
+    jsr e_r60tooro
+    jsr e_t64oroto
+    jsr e_68rotoo
+    jsr e_r72tooro
+    jsr e_t76oroto
+    jsr e_80rotoo
+    jsr e_r84tooro
+    jsr e_t88oroto
+    jsr e_92rotoo
+    jsr e_r96tooro
+    jsr e_t100oroto
+    jsr e_104rotoo
+    jmp e_r108tooro
 
 ; Produce 98 rows from 64 rows
 expand_98:
     jsr selectMip0
-    jsr e_t15orooto
-    lsr
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 15*BLIT_STRIDE + blitRoll,x
+:
+    jsr e_16rooto
+    asl
+    bmi :+
     sta 20*BLIT_STRIDE + blitRoll,x
     sta 21*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    jsr e_22roo
-    jsr e_t25rootoro
-    jsr e_30torooto
-    lsr
-    sta 35*BLIT_STRIDE + blitRoll,x
-    sta 36*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    jsr e_37roo
-    jsr e_t40orotoo
-    jsr e_r45tooroto
-    jsr e_50rotooro
-    jsr e_t55orotoo
-    jsr e_r60tooroto
-    jsr e_65rootoro
-    jsr e_70torooto
-    lsr
-    sta 75*BLIT_STRIDE + blitRoll,x
+    jsr e_22ro
+    jsr e_24toroo
+    jsr e_t28rooto
+    jsr e_r32otoro
+    jsr e_36toroo
+    jsr e_t40oroto
+    jsr e_44rotoo
+    jsr e_r48tooro
+    jsr e_t52oroto
+    jsr e_56rotoo
+    jsr e_r60tooro
+    jsr e_t64oroo
+    jsr e_t68rooto
+    jsr e_r72otoro
+    bmi :+
     sta 76*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
     jsr e_77roo
-    lda (pTex),y
     iny
+    lda (pTex),y
+    bmi :+
     sta 80*BLIT_STRIDE + blitRoll,x
-    lsr
+:   asl
+    bmi :+
     sta 81*BLIT_STRIDE + blitRoll,x
-    sta 82*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
+:   jsr e_82to
+    asl
+    bmi :+
+    sta 84*BLIT_STRIDE + blitRoll,x
+:   jsr e_85toro
+    jsr e_88tooro
+    jsr e_t92oroto
+    jsr e_96rotoo
+    jsr e_r100tooro
     iny
-    jsr e_83ro
-    jsr e_85torooto
-    jsr e_90rotooro
-    jsr e_t95orotoo
-    jsr e_r100tooroto
+    lda (pTex),y
+    bmi :+
+    sta 104*BLIT_STRIDE + blitRoll,x
     sta 105*BLIT_STRIDE + blitRoll,x
-    lsr
-    jsr e_106tooro
-    lda (pTex),y
-    iny
-    sta 110*BLIT_STRIDE + blitRoll,x
-    sta 111*BLIT_STRIDE + blitRoll,x
-    lsr
+:   asl
+    jsr e_106to
+    bmi :+
+    sta 108*BLIT_STRIDE + blitRoll,x
+:   asl
+    jsr e_109too
+    asl
+    bmi :+
     sta 112*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 100 rows from 64 rows
 expand_100:
     jsr selectMip0
-    lda (pTex),y
-    iny
-    sta 14*BLIT_STRIDE + blitRoll,x
-    sta 15*BLIT_STRIDE + blitRoll,x
-    lsr
+    jsr e_t14o
+    asl
+    bmi :+
     sta 16*BLIT_STRIDE + blitRoll,x
     sta 17*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
     jsr e_18ro
-    jsr e_20torooto
-    jsr e_r25otooro
-    jsr e_t30orotoo
-    jsr e_r35tooroto
-    jsr e_40rootoro
-    jsr e_45torooto
-    jsr e_r50otooro
-    jsr e_t55orotoo
-    jsr e_r60tooroto
-    jsr e_65rootoro
-    jsr e_70torooto
-    jsr e_r75otooro
-    jsr e_t80orotoo
-    jsr e_r85tooroto
-    sta 90*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 91*BLIT_STRIDE + blitRoll,x
-    jsr e_92toro
-    sta 95*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
+    jsr e_20toroo
     iny
-    sta 96*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 97*BLIT_STRIDE + blitRoll,x
-    jsr e_98to
-    jsr e_r100otooro
-    jsr e_t105orotoo
-    lsr
-    sta 110*BLIT_STRIDE + blitRoll,x
     lda (pTex),y
+    jsr e_24rooto
+    jsr e_28rotoo
+    jsr e_r32tooro
+    jsr e_t36oroto
+    jsr e_40rooto
+    jsr e_r44otoro
+    jsr e_48toroo
+    jsr e_t52oroto
+    jsr e_56rotoo
+    jsr e_r60tooro
+    jsr e_t64oroo
+    jsr e_t68rooto
+    jsr e_r72otoro
+    jsr e_76tooro
+    jsr e_t80oroto
+    jsr e_84rotoo
+    jsr e_r88tooro
+    bmi :+
+    sta 92*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    jsr e_93roo
+    jsr e_t96rooto
+    jsr e_r100otoo
+    asl
+    jsr e_104tooro
     iny
-    sta 111*BLIT_STRIDE + blitRoll,x
+    lda (pTex),y
+    bmi :+
+    sta 108*BLIT_STRIDE + blitRoll,x
+    sta 109*BLIT_STRIDE + blitRoll,x
+:   asl
+    jsr e_110to
+    bmi :+
     sta 112*BLIT_STRIDE + blitRoll,x
-    lsr
+:   asl
+    bmi :+
     sta 113*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 102 rows from 64 rows
 expand_102:
     jsr selectMip0
-    jsr e_t13o
-    jsr e_r15otoroo
-    lda (pTex),y
+    jsr e_t13oro
+    jsr e_16toroo
     iny
-    jsr e_20rootoo
-    jsr e_r25tooroto
-    sta 30*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 31*BLIT_STRIDE + blitRoll,x
-    sta 32*BLIT_STRIDE + blitRoll,x
     lda (pTex),y
+    jsr e_20rooto
+    jsr e_24rotoo
+    jsr e_r28tooro
+    jsr e_32toroo
+    jsr e_t36rooto
+    jsr e_40rotoo
+    jsr e_r44tooro
+    jsr e_48toroo
     iny
-    jsr e_33ro
-    jsr e_35torooto
-    jsr e_40rotooro
-    jsr e_t45orooto
-    lsr
-    sta 50*BLIT_STRIDE + blitRoll,x
-    sta 51*BLIT_STRIDE + blitRoll,x
     lda (pTex),y
+    bmi :+
+    sta 52*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 53*BLIT_STRIDE + blitRoll,x
+:   jsr e_54to
+    jsr e_56rotoo
+    jsr e_r60tooro
+    jsr e_t64oroo
+    jsr e_t68rooto
+    jsr e_r72otoo
+    jsr e_r76tooro
+    jsr e_t80oroo
+    jsr e_t84rooto
+    jsr e_r88otoo
+    jsr e_r92tooro
+    jsr e_t96oroo
+    jsr e_t100rooto
+    jsr e_r104otoo
+    jsr e_r108tooro
     iny
-    jsr e_52roo
-    jsr e_t55orotoo
-    jsr e_r60tooroto
-    jsr e_65rootoro
-    jsr e_70torooto
-    jsr e_75rotooro
-    jsr e_t80orooto
-    jsr e_r85otoroo
-    jsr e_t90orotoo
-    lsr
-    jsr e_95tooroo
-    jsr e_t100rootoro
-    jsr e_105tooroto
-    jmp e_110rotooro
+    lda (pTex),y
+    bmi :+
+    sta 112*BLIT_STRIDE + blitRoll,x
+    sta 113*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 114*BLIT_STRIDE + blitRoll,x
+:
+    rts
 
 ; Produce 104 rows from 64 rows
 expand_104:
     jsr selectMip0
-    lda (pTex),y
+    jsr e_t12oroo
     iny
-    jsr e_12oro
-    sta 15*BLIT_STRIDE + blitRoll,x
     lda (pTex),y
-    iny
     jsr e_16rooto
-    jsr e_20rotooro
-    jsr e_t25orooto
-    jsr e_r30otooro
-    jsr e_t35orotoo
-    jsr e_r40otoroo
-    jsr e_t45orotoo
-    jsr e_r50tooroo
-    jsr e_t55rootoo
-    jsr e_r60tooroto
-    jsr e_65rootoro
-    jsr e_70tooroto
-    jsr e_75rotooro
-    jsr e_80torooto
-    jsr e_85rotooro
-    jsr e_t90orooto
-    jsr e_r95otooro
-    jsr e_t100orotoo
-    lsr
-    sta 105*BLIT_STRIDE + blitRoll,x
-    sta 106*BLIT_STRIDE + blitRoll,x
+    jsr e_20rotoo
+    jsr e_r24tooro
+    bmi :+
+    sta 28*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    jsr e_107roo
-    jsr e_t110orotoo
-    lsr
-    sta 115*BLIT_STRIDE + blitRoll,x
-    rts
+    jsr e_29roo
+    jsr e_t32oroto
+    jsr e_36rotoo
+    jsr e_r40otoro
+    jsr e_44tooro
+    jsr e_t48oroto
+    jsr e_52rooto
+    jsr e_r56otoo
+    jsr e_r60tooro
+    jsr e_t64oroo
+    jsr e_t68rooto
+    jsr e_72rotoo
+    jsr e_r76tooro
+    jsr e_80toroo
+    jsr e_t84oroto
+    jsr e_88rotoo
+    jsr e_r92otoro
+    jsr e_96tooro
+    jsr e_t100oroto
+    jsr e_104rooto
+    jsr e_r108otoo
+    jmp e_r112tooro
 
 ; Produce 106 rows from 64 rows
 expand_106:
     jsr selectMip0
-    jsr e_t11oroo
-    jsr e_t15rootoo
-    lsr
-    jsr e_20tooroo
-    jsr e_t25rootoo
-    lsr
-    jsr e_30tooroo
-    lda (pTex),y
     iny
-    sta 35*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 36*BLIT_STRIDE + blitRoll,x
-    jsr e_37too
-    lsr
-    jsr e_40tooroo
     lda (pTex),y
-    iny
-    jsr e_45rootoo
-    jsr e_r50tooroo
-    jsr e_t55rootoo
-    jsr e_r60tooroto
-    jsr e_65rootoro
-    jsr e_70tooroto
-    jsr e_75rootoro
-    sta 80*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 81*BLIT_STRIDE + blitRoll,x
-    jsr e_82roto
-    sta 85*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 86*BLIT_STRIDE + blitRoll,x
-    sta 87*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    jsr e_88ro
-    jsr e_90tooroto
-    sta 95*BLIT_STRIDE + blitRoll,x
-    lsr
+    bmi :+
+    sta 11*BLIT_STRIDE + blitRoll,x
+:
+    jsr e_12rooto
+    jsr e_r16otoo
+    jsr e_r20tooro
+    jsr e_24toroo
+    jsr e_t28oroto
+    jsr e_32rooto
+    jsr e_r36otoo
+    jsr e_r40tooro
+    jsr e_44toroo
+    jsr e_t48oroto
+    jsr e_52rooto
+    jsr e_r56otoo
+    jsr e_r60tooro
+    jsr e_t64oroo
+    jsr e_t68rooto
+    jsr e_72rotoo
+    jsr e_r76otoro
+    jsr e_80tooro
+    jsr e_t84oroo
+    jsr e_t88rooto
+    jsr e_92rotoo
+    asl
+    bmi :+
     sta 96*BLIT_STRIDE + blitRoll,x
-    sta 97*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
+:   jsr e_97toro
+    jsr e_100tooro
+    jsr e_t104oroo
     iny
-    jsr e_98ro
-    jsr e_100tooroto
-    sta 105*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 106*BLIT_STRIDE + blitRoll,x
-    sta 107*BLIT_STRIDE + blitRoll,x
     lda (pTex),y
-    iny
-    jsr e_108ro
-    jsr e_110tooroto
-    sta 115*BLIT_STRIDE + blitRoll,x
-    lsr
+    jsr e_108rooto
+    jsr e_112rotoo
+    asl
+    bmi :+
     sta 116*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 108 rows from 64 rows
 expand_108:
     jsr selectMip0
-    jsr e_t10orooto
-    jsr e_15rotooro
-    jsr e_20torooto
-    jsr e_25rotooro
-    jsr e_30torooto
-    jsr e_35rotooro
-    jsr e_40tooroto
-    jsr e_45rootoro
-    jsr e_50tooroto
-    jsr e_55rootoro
-    jsr e_60tooroto
-    jsr e_65rootoo
-    jsr e_r70tooroo
-    jsr e_t75rootoo
-    jsr e_r80tooroo
-    jsr e_t85rootoo
-    lsr
-    jsr e_90tooroo
-    jsr e_t95orotoo
-    jsr e_r100otoroo
-    jsr e_t105orotoo
-    jsr e_r110otoroo
-    lda (pTex),y
-    iny
-    sta 115*BLIT_STRIDE + blitRoll,x
+    jsr e_t10o
+    jsr e_r12otoo
+    jsr e_r16tooro
+    jsr e_20toroo
+    jsr e_t24oroto
+    jsr e_28rooto
+    jsr e_r32otoo
+    jsr e_r36tooro
+    jsr e_40tooro
+    jsr e_t44oroo
+    jsr e_t48rooto
+    jsr e_52rotoo
+    jsr e_r56otoro
+    jsr e_60tooro
+    jsr e_t64oroo
+    jsr e_t68oroto
+    jsr e_72rooto
+    jsr e_r76otoo
+    jsr e_r80tooro
+    jsr e_84toroo
+    jsr e_t88oroto
+    jsr e_92rooto
+    jsr e_96rotoo
+    jsr e_r100otoro
+    jsr e_104tooro
+    jsr e_t108oroo
+    jsr e_t112rooto
+    bmi :+
     sta 116*BLIT_STRIDE + blitRoll,x
-    lsr
+:   asl
+    bmi :+
     sta 117*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 110 rows from 64 rows
 expand_110:
     jsr selectMip0
+    jsr e_t9oro
+    jsr e_12tooro
+    jsr e_t16oroo
+    jsr e_t20oroto
+    jsr e_24rooto
+    jsr e_r28otoo
+    jsr e_r32otoro
+    jsr e_36tooro
+    jsr e_t40oroo
+    jsr e_t44oroto
+    jsr e_48rooto
+    jsr e_r52otoo
+    jsr e_r56otoro
+    jsr e_60tooro
+    jsr e_t64oroo
+    jsr e_t68oroto
+    jsr e_72rooto
+    jsr e_76rotoo
+    jsr e_r80otoro
+    jsr e_84tooro
+    bmi :+
+    sta 88*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
-    sta 9*BLIT_STRIDE + blitRoll,x
-    jsr e_10rootoo
-    lsr
-    jsr e_15tooroo
-    jsr e_t20orotoo
-    lsr
-    sta 25*BLIT_STRIDE + blitRoll,x
-    jsr e_26toroo
-    jsr e_t30orooto
-    jsr e_r35otooro
-    jsr e_t40orooto
-    jsr e_45rotooro
-    sta 50*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 51*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 52*BLIT_STRIDE + blitRoll,x
-    jsr e_53to
-    jsr e_55rootoro
-    jsr e_60tooroto
-    jsr e_65rootoo
-    jsr e_r70tooroo
-    jsr e_t75orotoo
-    jsr e_r80otoroo
-    jsr e_t85orooto
-    jsr e_r90otooro
-    jsr e_t95orooto
-    jsr e_100rotooro
-    jsr e_105torooto
-    sta 110*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 111*BLIT_STRIDE + blitRoll,x
+    jsr e_89roo
+    jsr e_t92oroto
+    jsr e_96rooto
+    bmi :+
+    sta 100*BLIT_STRIDE + blitRoll,x
+:   asl
+    jsr e_101too
+    jsr e_r104otoro
+    jsr e_108tooro
+    bmi :+
     sta 112*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
+    jsr e_113roo
     iny
-    jsr e_113ro
-    sta 115*BLIT_STRIDE + blitRoll,x
     lda (pTex),y
-    iny
+    bmi :+
     sta 116*BLIT_STRIDE + blitRoll,x
     sta 117*BLIT_STRIDE + blitRoll,x
-    lsr
+:   asl
+    bmi :+
     sta 118*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 112 rows from 64 rows
 expand_112:
     jsr selectMip0
-    jsr e_t8o
-    jsr e_r10otooro
-    jsr e_t15orooto
-    jsr e_20rotooro
-    jsr e_25tooroto
-    jsr e_30rootoo
-    lsr
-    jsr e_35tooroo
-    jsr e_t40orotoo
-    jsr e_r45otooro
-    jsr e_t50orooto
-    jsr e_55rotooro
-    jsr e_60tooroto
-    jsr e_65rootoo
-    jsr e_r70tooroo
-    jsr e_t75orotoo
-    jsr e_r80otooro
-    jsr e_t85orooto
-    jsr e_90rotooro
-    sta 95*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
+    jsr e_t8oroo
     iny
-    sta 96*BLIT_STRIDE + blitRoll,x
-    jsr e_97roto
-    jsr e_100rootoo
-    jsr e_r105tooroo
-    jsr e_t110orotoo
-    jmp e_r115otooro
+    lda (pTex),y
+    bmi :+
+    sta 12*BLIT_STRIDE + blitRoll,x
+    sta 13*BLIT_STRIDE + blitRoll,x
+:   asl
+    jsr e_14to
+    jsr e_16rooto
+    jsr e_20rotoo
+    jsr e_r24otoo
+    jsr e_r28tooro
+    jsr e_32tooro
+    jsr e_t36oroo
+    jsr e_t40oroto
+    jsr e_44rooto
+    jsr e_48rotoo
+    jsr e_r52otoo
+    jsr e_r56tooro
+    jsr e_60tooro
+    jsr e_t64oroo
+    jsr e_t68oroto
+    jsr e_72rooto
+    jsr e_76rotoo
+    jsr e_r80otoo
+    jsr e_r84tooro
+    jsr e_88tooro
+    jsr e_t92oroo
+    jsr e_t96oroto
+    jsr e_100rooto
+    jsr e_104rotoo
+    jsr e_r108otoo
+    jsr e_r112tooro
+    jmp e_116tooro
 
 ; Produce 114 rows from 64 rows
 expand_114:
     jsr selectMip0
-    jsr e_t7oro
-    jsr e_10tooroo
-    jsr e_t15rootoo
-    jsr e_r20otooro
-    jsr e_t25orooto
-    jsr e_30rotooro
-    jsr e_35tooroo
-    lda (pTex),y
     iny
-    jsr e_40rootoo
-    jsr e_r45otoroo
-    jsr e_t50orooto
-    jsr e_55rotooro
-    jsr e_60tooroto
-    jsr e_65rootoo
-    jsr e_r70otoroo
-    jsr e_t75orooto
-    jsr e_80rotooro
-    sta 85*BLIT_STRIDE + blitRoll,x
     lda (pTex),y
-    iny
-    sta 86*BLIT_STRIDE + blitRoll,x
-    sta 87*BLIT_STRIDE + blitRoll,x
-    lsr
-    jsr e_88to
-    jsr e_90rootoo
-    jsr e_r95otoroo
-    jsr e_t100orooto
-    jsr e_r105otooro
-    jsr e_110tooroto
-    jsr e_115rootoo
-    lsr
+    bmi :+
+    sta 7*BLIT_STRIDE + blitRoll,x
+:
+    jsr e_8rooto
+    jsr e_12rooto
+    jsr e_r16otoo
+    jsr e_r20otoo
+    jsr e_r24tooro
+    jsr e_28tooro
+    jsr e_t32oroo
+    jsr e_t36oroo
+    jsr e_t40rooto
+    jsr e_44rooto
+    jsr e_r48otoo
+    jsr e_r52otoo
+    jsr e_r56tooro
+    jsr e_60tooro
+    jsr e_t64oroo
+    jsr e_t68oroo
+    jsr e_t72rooto
+    jsr e_76rooto
+    jsr e_80rotoo
+    jsr e_r84otoo
+    jsr e_r88tooro
+    jsr e_92tooro
+    jsr e_96toroo
+    jsr e_t100oroo
+    jsr e_t104rooto
+    jsr e_108rooto
+    jsr e_112rotoo
+    jsr e_r116otoo
+    asl
+    bmi :+
     sta 120*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 116 rows from 64 rows
 expand_116:
     jsr selectMip0
-    lda (pTex),y
-    iny
-    jsr e_6oroo
-    jsr e_t10orooto
-    jsr e_15rotooro
-    jsr e_20tooroo
-    jsr e_t25rootoo
-    jsr e_r30otooro
-    jsr e_t35orooto
-    jsr e_40rootoo
-    jsr e_r45tooroo
-    jsr e_t50orooto
-    jsr e_r55otooro
-    jsr e_60tooroto
-    jsr e_65rootoo
-    jsr e_r70otooro
-    jsr e_t75orooto
-    jsr e_80rootoro
-    jsr e_85tooroo
-    jsr e_t90orotoo
-    jsr e_r95otooro
-    jsr e_100tooroto
-    jsr e_105rootoo
-    jsr e_r110otoroo
-    jsr e_t115orooto
+    jsr e_t6o
+    jsr e_r8otoo
+    jsr e_r12otoo
+    jsr e_r16tooro
+    jsr e_20tooro
+    jsr e_24toroo
+    jsr e_t28oroo
+    jsr e_t32oroto
+    jsr e_36rooto
+    jsr e_40rooto
+    jsr e_44rotoo
+    jsr e_r48otoo
+    jsr e_r52otoro
+    jsr e_56tooro
+    jsr e_60tooro
+    jsr e_t64oroo
+    jsr e_t68oroo
+    jsr e_t72oroto
+    jsr e_76rooto
+    jsr e_80rooto
+    jsr e_r84otoo
+    jsr e_r88otoo
+    jsr e_r92tooro
+    jsr e_96tooro
+    jsr e_100tooro
+    jsr e_t104oroo
+    jsr e_t108oroo
+    jsr e_t112rooto
+    jsr e_116rooto
+    bmi :+
     sta 120*BLIT_STRIDE + blitRoll,x
-    lsr
+:   asl
+    bmi :+
     sta 121*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 118 rows from 64 rows
 expand_118:
     jsr selectMip0
-    jsr e_t5orooto
-    jsr e_10rootoo
-    jsr e_r15otoroo
-    jsr e_t20orooto
-    sta 25*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 26*BLIT_STRIDE + blitRoll,x
-    sta 27*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
+    jsr e_t5oro
+    jsr e_8tooro
+    jsr e_12tooro
+    jsr e_16toroo
+    jsr e_t20oroo
+    jsr e_t24oroo
+    jsr e_t28rooto
+    jsr e_32rooto
+    jsr e_36rooto
+    jsr e_40rotoo
+    jsr e_r44otoo
+    jsr e_r48otoo
+    jsr e_r52tooro
+    jsr e_56tooro
+    jsr e_60tooro
+    jsr e_t64oroo
+    jsr e_t68oroo
+    jsr e_t72oroo
+    jsr e_t76rooto
+    jsr e_80rooto
+    jsr e_84rooto
+    jsr e_r88otoo
+    jsr e_r92otoo
+    jsr e_r96otoo
+    jsr e_r100tooro
+    jsr e_104tooro
+    jsr e_108tooro
+    jsr e_t112oroo
+    jsr e_t116oroo
     iny
-    jsr e_28ro
-    jsr e_30tooroo
-    jsr e_t35orooto
-    jsr e_40rotooro
-    jsr e_45tooroo
-    jsr e_t50orotoo
-    jsr e_r55otooro
-    jsr e_60tooroto
-    jsr e_65rootoo
-    jsr e_r70otooro
-    jsr e_75torooto
-    jsr e_80rootoo
-    jsr e_r85otoroo
-    jsr e_t90orooto
-    jsr e_95rootoo
-    lsr
-    jsr e_100tooroo
     lda (pTex),y
-    iny
-    jsr e_105orooto
-    jsr e_110rotooro
-    jsr e_115tooroo
-    lda (pTex),y
-    iny
+    bmi :+
     sta 120*BLIT_STRIDE + blitRoll,x
     sta 121*BLIT_STRIDE + blitRoll,x
-    lsr
+:   asl
+    bmi :+
     sta 122*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 120 rows from 64 rows
 expand_120:
     jsr selectMip0
-    lda (pTex),y
-    iny
-    sta 4*BLIT_STRIDE + blitRoll,x
-    jsr e_5rootoo
-    jsr e_r10otooro
-    sta 15*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 16*BLIT_STRIDE + blitRoll,x
-    sta 17*BLIT_STRIDE + blitRoll,x
-    lsr
-    jsr e_18to
-    jsr e_20rootoo
-    jsr e_r25otooro
-    jsr e_30tooroto
-    jsr e_35rootoo
-    jsr e_r40otooro
-    jsr e_45tooroto
-    jsr e_50rootoo
-    jsr e_r55otooro
-    jsr e_60tooroto
-    jsr e_65rootoo
-    jsr e_r70otooro
-    jsr e_75tooroto
-    jsr e_80rootoo
-    jsr e_r85otooro
-    jsr e_90tooroto
-    jsr e_95rootoo
-    jsr e_r100otooro
-    jsr e_105tooroto
-    jsr e_110rootoo
-    jsr e_r115otooro
-    sta 120*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 121*BLIT_STRIDE + blitRoll,x
-    sta 122*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 123*BLIT_STRIDE + blitRoll,x
-    rts
+    jsr e_t4oroo
+    jsr e_t8oroo
+    jsr e_t12oroo
+    jsr e_t16oroto
+    jsr e_20rooto
+    jsr e_24rooto
+    jsr e_28rooto
+    jsr e_32rotoo
+    jsr e_r36otoo
+    jsr e_r40otoo
+    jsr e_r44otoo
+    jsr e_r48tooro
+    jsr e_52tooro
+    jsr e_56tooro
+    jsr e_60tooro
+    jsr e_t64oroo
+    jsr e_t68oroo
+    jsr e_t72oroo
+    jsr e_t76oroto
+    jsr e_80rooto
+    jsr e_84rooto
+    jsr e_88rooto
+    jsr e_92rotoo
+    jsr e_r96otoo
+    jsr e_r100otoo
+    jsr e_r104otoo
+    jsr e_r108tooro
+    jsr e_112tooro
+    jsr e_116tooro
+    jmp e_120tooro
 
 ; Produce 122 rows from 64 rows
 expand_122:
     jsr selectMip0
-    jsr e_t3o
-    jsr e_r5otooro
-    jsr e_10tooroo
-    jsr e_t15orooto
-    sta 20*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 21*BLIT_STRIDE + blitRoll,x
-    sta 22*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
     iny
-    jsr e_23ro
-    jsr e_25tooroo
-    jsr e_t30orooto
-    jsr e_35rootoo
-    jsr e_r40otooro
-    jsr e_t45orooto
-    jsr e_50rootoo
-    jsr e_r55otooro
-    jsr e_60tooroto
-    jsr e_65rootoo
-    jsr e_r70otooro
-    jsr e_75tooroo
-    jsr e_t80orooto
-    jsr e_r85otooro
-    jsr e_90tooroo
-    jsr e_t95orooto
-    jsr e_100rootoo
-    jsr e_r105tooroo
-    jsr e_t110orooto
-    jsr e_115rootoo
-    jmp e_r120otooro
+    lda (pTex),y
+    bmi :+
+    sta 3*BLIT_STRIDE + blitRoll,x
+:
+    jsr e_4rooto
+    jsr e_8rooto
+    jsr e_12rooto
+    jsr e_16rooto
+    jsr e_20rooto
+    jsr e_r24otoo
+    jsr e_r28otoo
+    jsr e_r32otoo
+    jsr e_r36otoo
+    jsr e_r40otoo
+    jsr e_r44tooro
+    jsr e_48tooro
+    jsr e_52tooro
+    jsr e_56tooro
+    jsr e_60tooro
+    jsr e_t64oroo
+    jsr e_t68oroo
+    jsr e_t72oroo
+    jsr e_t76oroo
+    jsr e_t80oroo
+    jsr e_t84rooto
+    jsr e_88rooto
+    jsr e_92rooto
+    jsr e_96rooto
+    jsr e_100rooto
+    jsr e_104rotoo
+    jsr e_r108otoo
+    jsr e_r112otoo
+    jsr e_r116otoo
+    jsr e_r120otoo
+    asl
+    bmi :+
+    sta 124*BLIT_STRIDE + blitRoll,x
+:
+    rts
 
 ; Produce 124 rows from 64 rows
 expand_124:
     jsr selectMip0
-    jsr e_t2oro
-    jsr e_5tooroo
-    jsr e_t10orooto
-    jsr e_15rootoo
-    jsr e_r20otooro
-    jsr e_25tooroo
-    jsr e_t30orotoo
-    jsr e_r35otooro
-    jsr e_40tooroo
-    jsr e_t45orooto
-    jsr e_50rootoo
-    jsr e_r55otooro
-    jsr e_60tooroto
-    jsr e_65rootoo
-    jsr e_r70otooro
-    jsr e_75tooroo
-    jsr e_t80orooto
-    jsr e_85rootoo
-    jsr e_r90otooro
-    jsr e_t95orooto
-    jsr e_100rootoo
-    jsr e_r105otooro
-    jsr e_110tooroo
-    jsr e_t115orooto
-    jsr e_120rootoo
-    lsr
+    jsr e_t2o
+    jsr e_r4otoo
+    jsr e_r8otoo
+    jsr e_r12otoo
+    jsr e_r16otoo
+    jsr e_r20otoo
+    jsr e_r24otoo
+    jsr e_r28otoo
+    jsr e_r32tooro
+    jsr e_36tooro
+    jsr e_40tooro
+    jsr e_44tooro
+    jsr e_48tooro
+    jsr e_52tooro
+    jsr e_56tooro
+    jsr e_60tooro
+    jsr e_t64oroo
+    jsr e_t68oroo
+    jsr e_t72oroo
+    jsr e_t76oroo
+    jsr e_t80oroo
+    jsr e_t84oroo
+    jsr e_t88oroo
+    jsr e_t92oroto
+    jsr e_96rooto
+    jsr e_100rooto
+    jsr e_104rooto
+    jsr e_108rooto
+    jsr e_112rooto
+    jsr e_116rooto
+    jsr e_120rooto
+    bmi :+
+    sta 124*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
     sta 125*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 126 rows from 64 rows
 expand_126:
     jsr selectMip0
-    jsr e_t1oroo
-    jsr e_t5orooto
-    jsr e_10rootoo
-    jsr e_r15otooro
-    jsr e_20tooroo
-    jsr e_t25orooto
-    jsr e_30rootoo
-    jsr e_r35otooro
-    jsr e_40tooroo
-    jsr e_t45orooto
-    jsr e_50rootoo
-    jsr e_r55otooro
-    jsr e_60tooroto
-    jsr e_65rootoo
-    jsr e_r70otooro
-    jsr e_75tooroo
-    jsr e_t80orooto
-    jsr e_85rootoo
-    jsr e_r90otooro
-    jsr e_95tooroo
-    jsr e_t100orooto
-    jsr e_105rootoo
-    jsr e_r110otooro
-    jsr e_115tooroo
-    jsr e_t120orooto
+    jsr e_t1oro
+    jsr e_4tooro
+    jsr e_8tooro
+    jsr e_12tooro
+    jsr e_16tooro
+    jsr e_20tooro
+    jsr e_24tooro
+    jsr e_28tooro
+    jsr e_32tooro
+    jsr e_36tooro
+    jsr e_40tooro
+    jsr e_44tooro
+    jsr e_48tooro
+    jsr e_52tooro
+    jsr e_56tooro
+    jsr e_60tooro
+    jsr e_t64oroo
+    jsr e_t68oroo
+    jsr e_t72oroo
+    jsr e_t76oroo
+    jsr e_t80oroo
+    jsr e_t84oroo
+    jsr e_t88oroo
+    jsr e_t92oroo
+    jsr e_t96oroo
+    jsr e_t100oroo
+    jsr e_t104oroo
+    jsr e_t108oroo
+    jsr e_t112oroo
+    jsr e_t116oroo
+    jsr e_t120oroo
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 124*BLIT_STRIDE + blitRoll,x
     sta 125*BLIT_STRIDE + blitRoll,x
-    lsr
+:   asl
+    bmi :+
     sta 126*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 128 rows from 64 rows
 expand_128:
     jsr selectMip0
-    jsr e_t0orooto
-    jsr e_5rootoo
-    jsr e_r10otooro
-    jsr e_15tooroo
-    jsr e_t20orooto
-    jsr e_25rootoo
-    jsr e_r30otooro
-    jsr e_35tooroo
-    jsr e_t40orooto
-    jsr e_45rootoo
-    jsr e_r50otooro
-    jsr e_55tooroo
-    jsr e_t60orooto
-    jsr e_65rootoo
-    jsr e_r70otooro
-    jsr e_75tooroo
-    jsr e_t80orooto
-    jsr e_85rootoo
-    jsr e_r90otooro
-    jsr e_95tooroo
-    jsr e_t100orooto
-    jsr e_105rootoo
-    jsr e_r110otooro
-    jsr e_115tooroo
-    jsr e_t120orooto
-    jmp e_125roo
+    jsr e_t0oroo
+    jsr e_t4oroo
+    jsr e_t8oroo
+    jsr e_t12oroo
+    jsr e_t16oroo
+    jsr e_t20oroo
+    jsr e_t24oroo
+    jsr e_t28oroo
+    jsr e_t32oroo
+    jsr e_t36oroo
+    jsr e_t40oroo
+    jsr e_t44oroo
+    jsr e_t48oroo
+    jsr e_t52oroo
+    jsr e_t56oroo
+    jsr e_t60oroo
+    jsr e_t64oroo
+    jsr e_t68oroo
+    jsr e_t72oroo
+    jsr e_t76oroo
+    jsr e_t80oroo
+    jsr e_t84oroo
+    jsr e_t88oroo
+    jsr e_t92oroo
+    jsr e_t96oroo
+    jsr e_t100oroo
+    jsr e_t104oroo
+    jsr e_t108oroo
+    jsr e_t112oroo
+    jsr e_t116oroo
+    jsr e_t120oroo
+    jmp e_t124oroo
 
 ; Produce 132 rows from 64 rows
 expand_132:
     jsr selectMip0
-    jsr e_t0rootoo
-    jsr e_r5otooro
-    jsr e_10tooroo
-    jsr e_t15orooto
-    jsr e_20rootoo
-    jsr e_r25otooro
-    jsr e_30toooro
-    jsr e_35tooroo
-    jsr e_t40orooto
-    jsr e_45rootoo
-    jsr e_r50otooro
-    jsr e_55tooroo
-    jsr e_t60orooto
-    jsr e_65orooto
-    jsr e_70rootoo
-    jsr e_r75otooro
-    jsr e_80tooroo
-    jsr e_t85orooto
-    jsr e_90rootoo
-    lsr
-    jsr e_95otooo
-    jsr e_r100otooro
-    jsr e_105tooroo
-    jsr e_t110orooto
-    jsr e_115rootoo
-    jsr e_r120otooro
-    jmp e_125too
+    jsr e_t0rooto
+    jsr e_4rooto
+    jsr e_8rooto
+    jsr e_12rooto
+    jsr e_16rooto
+    jsr e_20rooto
+    jsr e_24rooto
+    jsr e_28rooto
+    jsr e_32oroo
+    jsr e_t36oroo
+    jsr e_t40oroo
+    jsr e_t44oroo
+    jsr e_t48oroo
+    jsr e_t52oroo
+    jsr e_t56oroo
+    jsr e_t60oroo
+    jsr e_t64ooro
+    jsr e_68tooro
+    jsr e_72tooro
+    jsr e_76tooro
+    jsr e_80tooro
+    jsr e_84tooro
+    jsr e_88tooro
+    jsr e_92tooro
+    jsr e_96tooo
+    jsr e_r100otoo
+    jsr e_r104otoo
+    jsr e_r108otoo
+    jsr e_r112otoo
+    jsr e_r116otoo
+    jsr e_r120otoo
+    jmp e_r124otoo
 
 ; Produce 136 rows from 64 rows
 expand_136:
     jsr selectMip0
-    lda (pTex),y
     iny
-    lsr
+    lda (pTex),y
+    asl
+    bmi :+
     sta 0*BLIT_STRIDE + blitRoll,x
-    jsr e_t1oroo
-    jsr e_t5orooto
-    jsr e_10rootoo
-    jsr e_15rootoo
-    jsr e_r20otooro
-    jsr e_25tooroo
-    jsr e_t30ooroo
-    jsr e_t35orooto
-    jsr e_40rootoo
-    lsr
-    jsr e_45otooo
-    jsr e_r50otooro
-    jsr e_55tooroo
-    jsr e_t60orooto
-    jsr e_65orooto
-    jsr e_70rootoo
-    jsr e_r75otooro
-    jsr e_80toooro
-    jsr e_85tooroo
-    jsr e_t90orooto
-    jsr e_95rootoo
-    jsr e_100rootoo
-    jsr e_r105otooro
-    jsr e_110tooroo
-    jsr e_t115ooroo
-    jsr e_t120orooto
-    jmp e_125roo
+:   jsr e_t1oro
+    jsr e_4tooro
+    jsr e_8tooro
+    jsr e_12tooo
+    jsr e_r16otoo
+    jsr e_r20otoo
+    jsr e_r24otoo
+    jsr e_r28otoo
+    jsr e_32rooto
+    jsr e_36rooto
+    jsr e_40rooto
+    jsr e_44rooto
+    jsr e_48oroo
+    jsr e_t52oroo
+    jsr e_t56oroo
+    jsr e_t60oroo
+    jsr e_t64ooro
+    jsr e_68tooro
+    jsr e_72tooro
+    jsr e_76tooro
+    jsr e_80tooo
+    jsr e_r84otoo
+    jsr e_r88otoo
+    jsr e_r92otoo
+    jsr e_r96otoo
+    jsr e_100rooto
+    jsr e_104rooto
+    jsr e_108rooto
+    jsr e_112rooto
+    jsr e_116oroo
+    jsr e_t120oroo
+    jmp e_t124oroo
 
 ; Produce 140 rows from 64 rows
 expand_140:
     jsr selectMip0
-    ldy #1
-    jsr e_t0rootoo
-    jsr e_r5ootoo
-    jsr e_r10otooro
-    jsr e_15toooro
-    jsr e_20tooroo
-    jsr e_t25orooto
-    jsr e_30orooto
-    jsr e_35rootoo
-    jsr e_r40ootoo
-    jsr e_r45otooro
-    jsr e_50toooro
-    jsr e_55tooroo
-    jsr e_t60orooto
-    jsr e_65orooto
-    jsr e_70rootoo
-    jsr e_r75ootoo
-    jsr e_r80otooro
-    jsr e_85toooro
-    jsr e_90tooroo
-    jsr e_t95orooto
-    jsr e_100orooto
-    jsr e_105rootoo
-    jsr e_r110ootoo
-    jsr e_r115otooro
-    jsr e_120toooro
-    jmp e_125too
+    ldy #0
+    jsr e_t0rooto
+    jsr e_4rooo
+    jsr e_t8oroo
+    jsr e_t12oroo
+    jsr e_t16ooro
+    jsr e_20tooro
+    jsr e_24tooro
+    jsr e_28tooo
+    jsr e_r32otoo
+    jsr e_r36otoo
+    jsr e_r40ooto
+    jsr e_44rooto
+    jsr e_48rooto
+    jsr e_52oroo
+    jsr e_t56oroo
+    jsr e_t60oroo
+    jsr e_t64ooro
+    jsr e_68tooro
+    jsr e_72tooro
+    jsr e_76otoo
+    jsr e_r80otoo
+    jsr e_r84otoo
+    jsr e_88rooto
+    jsr e_92rooto
+    jsr e_96rooto
+    jsr e_100oroo
+    jsr e_t104oroo
+    jsr e_t108oroo
+    jsr e_112tooro
+    jsr e_116tooro
+    jsr e_120tooo
+    jmp e_r124otoo
 
 ; Produce 144 rows from 64 rows
 expand_144:
     jsr selectMip0
-    ldy #1
-    jsr e_tr0otooro
-    jsr e_5tooroo
-    jsr e_10tooroo
-    lda (pTex),y
-    iny
-    sta 15*BLIT_STRIDE + blitRoll,x
-    sta 16*BLIT_STRIDE + blitRoll,x
-    lsr
-    jsr e_17oo
-    jsr e_t20orooto
-    jsr e_25roooto
-    jsr e_30rootoo
-    jsr e_r35ootoo
-    jsr e_r40otooro
-    sta 45*BLIT_STRIDE + blitRoll,x
-    jsr e_46tooro
-    jsr e_50tooroo
-    jsr e_55tooroo
-    jsr e_t60orooo
-    jsr e_t65orooto
-    jsr e_70roooto
-    jsr e_75rootoo
-    jsr e_r80ootoo
-    jsr e_r85otooro
-    sta 90*BLIT_STRIDE + blitRoll,x
-    sta 91*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 92*BLIT_STRIDE + blitRoll,x
-    jsr e_93ro
-    jsr e_95tooroo
-    jsr e_100tooroo
-    lda (pTex),y
-    iny
-    sta 105*BLIT_STRIDE + blitRoll,x
-    sta 106*BLIT_STRIDE + blitRoll,x
-    lsr
-    jsr e_107oo
-    jsr e_t110orooto
-    jsr e_115roooto
-    jsr e_120rootoo
-    jmp e_r125oo
+    ldy #0
+    jsr e_tr0otoo
+    jsr e_r4otoo
+    jsr e_r8ooto
+    jsr e_12rooto
+    jsr e_16rooo
+    jsr e_t20oroo
+    jsr e_t24oroo
+    jsr e_28tooro
+    jsr e_32tooro
+    jsr e_36otoo
+    jsr e_r40otoo
+    jsr e_r44ooto
+    jsr e_48rooto
+    jsr e_52rooo
+    jsr e_t56oroo
+    jsr e_t60oroo
+    jsr e_64tooro
+    jsr e_68tooro
+    jsr e_72otoo
+    jsr e_r76otoo
+    jsr e_r80ooto
+    jsr e_84rooto
+    jsr e_88rooo
+    jsr e_t92oroo
+    jsr e_t96oroo
+    jsr e_100tooro
+    jsr e_104tooro
+    jsr e_108otoo
+    jsr e_r112otoo
+    jsr e_r116ooto
+    jsr e_120rooto
+    jmp e_124rooo
 
 ; Produce 148 rows from 64 rows
 expand_148:
     jsr selectMip0
-    ldy #2
-    jsr e_t0orooto
-    jsr e_5orooto
-    jsr e_10roooto
-    jsr e_15rootoo
-    jsr e_20rootoo
-    lsr
-    jsr e_25otooo
-    jsr e_r30otooro
-    sta 35*BLIT_STRIDE + blitRoll,x
+    ldy #1
+    jsr e_t0oroo
+    jsr e_t4ooro
+    jsr e_8tooro
+    jsr e_12otoo
+    jsr e_r16otoo
+    jsr e_20rooto
+    jsr e_24rooto
+    jsr e_28oroo
+    jsr e_t32oroo
     jsr e_36tooro
-    jsr e_40toooro
-    jsr e_45tooroo
-    jsr e_50tooroo
-    lda (pTex),y
-    iny
-    sta 55*BLIT_STRIDE + blitRoll,x
+    jsr e_40tooo
+    jsr e_r44otoo
+    jsr e_r48ooto
+    jsr e_52rooto
     jsr e_56oroo
-    jsr e_t60orooto
-    jsr e_65orooto
-    jsr e_70roooto
-    jsr e_75rootoo
-    jsr e_80rootoo
-    jsr e_r85ootoo
-    lsr
-    jsr e_90otooo
-    jsr e_r95otooro
-    jsr e_100toooro
-    jsr e_105tooroo
-    jsr e_110tooroo
-    jsr e_t115ooroo
-    jsr e_t120orooo
-    lda (pTex),y
-    iny
-    jsr e_125oro
-    rts
+    jsr e_t60oroo
+    jsr e_t64ooro
+    jsr e_68tooro
+    jsr e_72otoo
+    jsr e_r76otoo
+    jsr e_80rooto
+    jsr e_84rooo
+    jsr e_t88oroo
+    jsr e_t92ooro
+    jsr e_96tooro
+    jsr e_100tooo
+    jsr e_r104otoo
+    jsr e_r108ooto
+    jsr e_112rooto
+    jsr e_116oroo
+    jsr e_t120oroo
+    jmp e_124tooro
 
 ; Produce 152 rows from 64 rows
 expand_152:
     jsr selectMip0
-    ldy #2
-    jsr e_tr0ootoo
-    jsr e_r5ootoo
-    lsr
-    jsr e_10otooo
-    jsr e_r15otooro
-    jsr e_20otooro
-    jsr e_25otooro
-    jsr e_30toooro
-    jsr e_35tooroo
-    jsr e_40tooroo
-    jsr e_45tooroo
-    lda (pTex),y
-    iny
-    sta 50*BLIT_STRIDE + blitRoll,x
-    jsr e_51oroo
-    jsr e_t55orooo
-    jsr e_t60orooo
-    jsr e_t65orooto
-    jsr e_70orooto
-    jsr e_75roooto
-    jsr e_80roooto
-    jsr e_85rootoo
-    jsr e_90rootoo
-    jsr e_r95ootoo
-    jsr e_r100ootoo
-    jsr e_r105otooo
-    jsr e_r110otooro
-    jsr e_115otooro
-    jsr e_120otooro
-    jmp e_125too
+    ldy #1
+    jsr e_tr0ooto
+    jsr e_4rooo
+    jsr e_t8oroo
+    jsr e_t12ooro
+    jsr e_16tooro
+    jsr e_20otoo
+    jsr e_r24ooto
+    jsr e_28rooto
+    jsr e_32oroo
+    jsr e_t36oroo
+    jsr e_40tooro
+    jsr e_44otoo
+    jsr e_r48otoo
+    jsr e_52rooto
+    jsr e_56rooo
+    jsr e_t60oroo
+    jsr e_64tooro
+    jsr e_68tooo
+    jsr e_r72otoo
+    jsr e_r76ooto
+    jsr e_80rooo
+    jsr e_t84oroo
+    jsr e_t88ooro
+    jsr e_92tooro
+    jsr e_96otoo
+    jsr e_r100ooto
+    jsr e_104rooto
+    jsr e_108oroo
+    jsr e_t112oroo
+    jsr e_116tooro
+    jsr e_120otoo
+    jmp e_r124otoo
 
 ; Produce 156 rows from 64 rows
 expand_156:
     jsr selectMip0
-    ldy #2
-    jsr e_tr0toooro
-    jsr e_5tooroo
-    jsr e_10tooroo
-    jsr e_15tooroo
-    jsr e_20tooroo
-    jsr e_t25ooroo
-    jsr e_t30ooroo
-    jsr e_t35ooroo
-    jsr e_t40ooroo
-    lda (pTex),y
-    iny
-    sta 45*BLIT_STRIDE + blitRoll,x
-    sta 46*BLIT_STRIDE + blitRoll,x
-    lsr
-    jsr e_47oo
-    lda (pTex),y
-    iny
-    sta 50*BLIT_STRIDE + blitRoll,x
-    sta 51*BLIT_STRIDE + blitRoll,x
-    lsr
-    jsr e_52oo
-    jsr e_t55orooo
-    jsr e_t60orooto
-    jsr e_65orooto
-    jsr e_70orooto
-    jsr e_75orooto
-    jsr e_80orooto
-    jsr e_85roooto
-    jsr e_90roooto
-    jsr e_95roooto
-    jsr e_100rootoo
-    jsr e_105rootoo
-    jsr e_110rootoo
-    jsr e_115rootoo
-    jsr e_120rootoo
-    jmp e_r125oo
+    ldy #1
+    jsr e_tr0tooo
+    jsr e_r4otoo
+    jsr e_r8ooto
+    jsr e_12rooo
+    jsr e_t16oroo
+    jsr e_20tooro
+    jsr e_24tooo
+    jsr e_r28otoo
+    jsr e_32rooto
+    jsr e_36oroo
+    jsr e_t40ooro
+    jsr e_44tooro
+    jsr e_48otoo
+    asl
+    bmi :+
+    sta 52*BLIT_STRIDE + blitRoll,x
+    sta 53*BLIT_STRIDE + blitRoll,x
+:   jsr e_54to
+    jsr e_56rooo
+    jsr e_t60oroo
+    jsr e_t64ooro
+    jsr e_68tooo
+    jsr e_r72otoo
+    jsr e_76rooto
+    jsr e_80oroo
+    jsr e_t84oroo
+    jsr e_88tooro
+    jsr e_92otoo
+    jsr e_r96ooto
+    jsr e_100rooto
+    jsr e_104oroo
+    jsr e_t108ooro
+    jsr e_112tooo
+    jsr e_r116otoo
+    jsr e_120rooto
+    jmp e_124rooo
 
 ; Produce 160 rows from 64 rows
 expand_160:
     jsr selectMip0
-    ldy #3
-    jsr e_t0orooto
-    jsr e_5orooto
-    jsr e_10orooto
-    jsr e_15orooto
-    jsr e_20orooto
-    sta 25*BLIT_STRIDE + blitRoll,x
-    sta 26*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 27*BLIT_STRIDE + blitRoll,x
-    jsr e_28to
-    jsr e_30orooto
-    jsr e_35orooto
-    sta 40*BLIT_STRIDE + blitRoll,x
-    sta 41*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 42*BLIT_STRIDE + blitRoll,x
-    jsr e_43to
-    jsr e_45orooto
-    jsr e_50orooto
-    jsr e_55orooto
-    jsr e_60orooto
-    jsr e_65orooto
-    jsr e_70orooto
-    jsr e_75orooto
-    jsr e_80orooto
-    sta 85*BLIT_STRIDE + blitRoll,x
-    jsr e_86rooto
-    sta 90*BLIT_STRIDE + blitRoll,x
-    sta 91*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 92*BLIT_STRIDE + blitRoll,x
-    jsr e_93to
-    sta 95*BLIT_STRIDE + blitRoll,x
-    sta 96*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 97*BLIT_STRIDE + blitRoll,x
-    jsr e_98to
-    jsr e_100orooto
-    jsr e_105orooto
-    jsr e_110orooto
-    jsr e_115orooto
-    jsr e_120orooto
-    jmp e_125oro
+    ldy #2
+    jsr e_t0oroo
+    jsr e_t4ooro
+    jsr e_8tooo
+    jsr e_r12otoo
+    jsr e_16rooto
+    jsr e_20oroo
+    jsr e_t24ooro
+    jsr e_28tooo
+    jsr e_r32otoo
+    jsr e_36rooto
+    jsr e_40oroo
+    jsr e_t44ooro
+    jsr e_48tooo
+    jsr e_r52otoo
+    jsr e_56rooto
+    jsr e_60oroo
+    jsr e_t64ooro
+    jsr e_68tooo
+    jsr e_r72otoo
+    jsr e_76rooto
+    jsr e_80oroo
+    jsr e_t84ooro
+    jsr e_88tooo
+    jsr e_r92otoo
+    jsr e_96rooto
+    jsr e_100oroo
+    jsr e_t104ooro
+    jsr e_108tooo
+    jsr e_r112otoo
+    jsr e_116rooto
+    jsr e_120oroo
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 124*BLIT_STRIDE + blitRoll,x
+:   jsr e_125oro
+    rts
 
 ; Produce 164 rows from 64 rows
 expand_164:
     jsr selectMip0
-    ldy #3
-    jsr e_tr0ootoo
-    jsr e_5rootoo
-    jsr e_10rootoo
-    jsr e_15rootoo
-    jsr e_20rootoo
-    jsr e_25roooto
-    jsr e_30roooto
-    sta 35*BLIT_STRIDE + blitRoll,x
-    lsr
+    ldy #2
+    jsr e_tr0ooto
+    jsr e_4oroo
+    jsr e_t8ooro
+    jsr e_12tooo
+    jsr e_r16otoo
+    jsr e_20rooto
+    jsr e_24oroo
+    jsr e_28tooro
+    jsr e_32otoo
+    asl
+    bmi :+
     sta 36*BLIT_STRIDE + blitRoll,x
-    jsr e_37oto
-    jsr e_40roooto
-    jsr e_45orooto
-    jsr e_50orooto
-    jsr e_55orooto
-    jsr e_60orooto
-    jsr e_65orooo
-    jsr e_t70orooo
-    lda (pTex),y
-    iny
-    sta 75*BLIT_STRIDE + blitRoll,x
-    sta 76*BLIT_STRIDE + blitRoll,x
-    lsr
-    jsr e_77oo
-    lda (pTex),y
-    iny
-    jsr e_80orooo
-    jsr e_t85ooroo
-    jsr e_t90ooroo
-    jsr e_t95ooroo
-    jsr e_t100ooroo
-    jsr e_t105ooroo
-    jsr e_110tooroo
-    jsr e_115tooroo
-    sta 120*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    jsr e_121oroo
-    jmp e_125too
+:   jsr e_37oto
+    jsr e_40rooo
+    jsr e_t44ooro
+    jsr e_48tooo
+    jsr e_r52otoo
+    jsr e_56rooto
+    jsr e_60oroo
+    jsr e_t64ooro
+    jsr e_68otoo
+    jsr e_r72ooto
+    jsr e_76rooo
+    jsr e_t80oroo
+    jsr e_84tooo
+    jsr e_r88otoo
+    jsr e_92rooto
+    jsr e_96oroo
+    jsr e_t100ooro
+    jsr e_104tooo
+    jsr e_r108ooto
+    jsr e_112rooo
+    jsr e_t116oroo
+    jsr e_120tooro
+    jmp e_124otoo
 
 ; Produce 168 rows from 64 rows
 expand_168:
     jsr selectMip0
-    ldy #3
-    jsr e_tr0otooro
-    jsr e_5otooro
-    jsr e_10otooo
-    jsr e_r15otooo
-    jsr e_r20ootoo
-    jsr e_r25ootoo
-    jsr e_r30ootoo
-    jsr e_35rootoo
-    jsr e_40roooto
-    jsr e_45roooto
-    jsr e_50roooto
-    jsr e_55orooto
-    jsr e_60orooo
-    jsr e_t65orooo
-    jsr e_t70orooo
-    jsr e_t75ooroo
-    lda (pTex),y
+    ldy #2
+    jsr e_tr0otoo
+    jsr e_r4ooto
+    jsr e_8rooo
+    jsr e_t12ooro
+    jsr e_16tooo
+    jsr e_r20ooto
+    jsr e_24rooo
+    jsr e_t28oroo
+    jsr e_32tooo
+    jsr e_r36otoo
+    jsr e_40rooo
+    jsr e_t44oroo
+    jsr e_48tooro
+    jsr e_52otoo
+    jsr e_56rooto
+    jsr e_60oroo
+    jsr e_64tooro
+    jsr e_68otoo
+    jsr e_r72ooto
+    jsr e_76oroo
     iny
+    lda (pTex),y
+    bmi :+
     sta 80*BLIT_STRIDE + blitRoll,x
-    jsr e_81oroo
-    jsr e_85tooroo
-    jsr e_90tooroo
-    jsr e_95toooro
-    jsr e_100toooro
-    jsr e_105otooro
-    jsr e_110otooro
-    jsr e_115otooo
-    lsr
-    jsr e_120otooo
-    jmp e_r125oo
+    sta 81*BLIT_STRIDE + blitRoll,x
+:   jsr e_82ro
+    jsr e_84otoo
+    asl
+    bmi :+
+    sta 88*BLIT_STRIDE + blitRoll,x
+    sta 89*BLIT_STRIDE + blitRoll,x
+:   jsr e_90to
+    jsr e_92rooo
+    jsr e_t96ooro
+    jsr e_100tooo
+    jsr e_r104ooto
+    bmi :+
+    sta 108*BLIT_STRIDE + blitRoll,x
+:   asl
+    jsr e_109oo
+    jsr e_t112oroo
+    jsr e_116tooo
+    jsr e_r120otoo
+    jmp e_124rooo
 
 ; Produce 172 rows from 64 rows
 expand_172:
     jsr selectMip0
-    ldy #4
-    jsr e_t0ooroo
-    jsr e_t5ooroo
-    jsr e_10tooroo
-    jsr e_15toooro
-    jsr e_20toooro
-    jsr e_25otooo
-    lsr
-    jsr e_30otooo
-    jsr e_r35ootoo
-    jsr e_r40ootoo
-    jsr e_45rootoo
-    jsr e_50roooto
-    jsr e_55roooto
-    jsr e_60orooto
-    jsr e_65orooo
-    jsr e_t70ooroo
-    jsr e_t75ooroo
-    jsr e_80tooroo
-    jsr e_85toooro
-    sta 90*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 91*BLIT_STRIDE + blitRoll,x
-    sta 92*BLIT_STRIDE + blitRoll,x
-    jsr e_93ro
-    sta 95*BLIT_STRIDE + blitRoll,x
+    ldy #3
+    jsr e_t0ooro
+    jsr e_4tooo
+    jsr e_r8ooto
+    jsr e_12rooo
+    jsr e_t16ooro
+    jsr e_20tooo
+    jsr e_r24ooto
+    jsr e_28oroo
+    jsr e_t32ooro
+    jsr e_36otoo
+    jsr e_r40ooto
+    jsr e_44oroo
+    jsr e_t48ooro
+    jsr e_52otoo
+    jsr e_r56ooto
+    jsr e_60oroo
+    jsr e_t64ooro
+    jsr e_68otoo
+    jsr e_72rooto
+    jsr e_76oroo
+    jsr e_80tooro
+    jsr e_84otoo
+    jsr e_88rooto
+    jsr e_92oroo
     jsr e_96tooro
-    jsr e_100otooo
-    jsr e_r105otooo
-    jsr e_r110ootoo
-    jsr e_115rootoo
-    jsr e_120roooto
-    jmp e_125roo
+    jsr e_100otoo
+    jsr e_104rooto
+    jsr e_108oroo
+    jsr e_112tooo
+    jsr e_r116otoo
+    jsr e_120rooo
+    jmp e_t124oroo
 
 ; Produce 176 rows from 64 rows
 expand_176:
     jsr selectMip0
-    ldy #4
-    jsr e_t0roooto
-    jsr e_5orooo
-    lda (pTex),y
-    iny
-    sta 10*BLIT_STRIDE + blitRoll,x
-    sta 11*BLIT_STRIDE + blitRoll,x
-    lsr
-    jsr e_12oo
-    jsr e_t15ooroo
-    jsr e_20tooroo
-    sta 25*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 26*BLIT_STRIDE + blitRoll,x
-    jsr e_27oro
-    sta 30*BLIT_STRIDE + blitRoll,x
-    jsr e_31tooro
-    jsr e_35otooo
-    jsr e_r40ootoo
-    jsr e_r45ootoo
-    jsr e_50roooto
-    jsr e_55roooto
-    jsr e_60orooo
-    jsr e_t65orooo
-    jsr e_t70ooroo
-    jsr e_75tooroo
-    jsr e_80toooro
-    sta 85*BLIT_STRIDE + blitRoll,x
-    jsr e_86tooro
-    jsr e_90otooo
-    jsr e_r95ootoo
-    jsr e_r100ootoo
-    jsr e_105roooto
-    sta 110*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 111*BLIT_STRIDE + blitRoll,x
-    jsr e_112oto
-    jsr e_115orooo
-    jsr e_t120orooo
-    jmp e_t125oo
+    ldy #3
+    jsr e_t0rooo
+    jsr e_t4ooro
+    jsr e_8otoo
+    asl
+    jsr e_12ooto
+    jsr e_16oroo
+    jsr e_20tooro
+    jsr e_24otoo
+    jsr e_28rooo
+    jsr e_t32oroo
+    jsr e_36tooo
+    jsr e_r40ooto
+    jsr e_44rooo
+    jsr e_t48ooro
+    jsr e_52otoo
+    jsr e_r56ooto
+    jsr e_60oroo
+    jsr e_64tooro
+    jsr e_68otoo
+    jsr e_72rooo
+    jsr e_t76oroo
+    jsr e_80tooo
+    jsr e_r84ooto
+    jsr e_88rooo
+    jsr e_t92ooro
+    jsr e_96otoo
+    jsr e_r100ooto
+    jsr e_104oroo
+    jsr e_108tooro
+    jsr e_112otoo
+    jsr e_116rooo
+    jsr e_t120oroo
+    jmp e_124tooo
 
 ; Produce 180 rows from 64 rows
 expand_180:
     jsr selectMip0
-    ldy #4
-    jsr e_tr0ootoo
-    jsr e_r5ootoo
-    jsr e_10roooto
-    jsr e_15orooo
-    lda (pTex),y
-    iny
-    jsr e_20orooo
-    jsr e_t25ooroo
-    jsr e_30toooro
-    jsr e_35toooro
-    jsr e_40otooo
-    jsr e_r45ootoo
-    jsr e_r50ootoo
-    jsr e_55roooto
-    jsr e_60orooo
-    jsr e_t65orooo
-    jsr e_t70ooroo
-    jsr e_75toooro
-    jsr e_80toooro
-    jsr e_85otooo
-    jsr e_r90ootoo
-    jsr e_r95ootoo
-    sta 100*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 101*BLIT_STRIDE + blitRoll,x
-    jsr e_102oto
-    jsr e_105orooo
-    lda (pTex),y
-    iny
-    jsr e_110orooo
-    jsr e_t115ooroo
-    jsr e_120toooro
-    jmp e_125too
+    ldy #3
+    jsr e_tr0ooto
+    jsr e_4rooo
+    jsr e_t8ooro
+    jsr e_12otoo
+    jsr e_16rooo
+    jsr e_t20oroo
+    jsr e_24tooo
+    asl
+    bmi :+
+    sta 28*BLIT_STRIDE + blitRoll,x
+    sta 29*BLIT_STRIDE + blitRoll,x
+:   jsr e_30to
+    jsr e_32oroo
+    jsr e_t36ooro
+    jsr e_40otoo
+    jsr e_44rooo
+    jsr e_t48oroo
+    jsr e_52tooo
+    jsr e_r56ooto
+    jsr e_60oroo
+    jsr e_64tooro
+    jsr e_68otoo
+    jsr e_72rooo
+    jsr e_t76ooro
+    jsr e_80tooo
+    jsr e_r84ooto
+    jsr e_88oroo
+    jsr e_92tooro
+    jsr e_96otoo
+    jsr e_100rooo
+    jsr e_t104ooro
+    jsr e_108otoo
+    jsr e_r112ooto
+    jsr e_116oroo
+    jsr e_120tooo
+    jmp e_r124otoo
 
 ; Produce 184 rows from 64 rows
 expand_184:
     jsr selectMip0
-    ldy #4
-    jsr e_tr0toooro
-    sta 5*BLIT_STRIDE + blitRoll,x
-    sta 6*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
+    ldy #3
+    jsr e_tr0tooo
+    jsr e_r4ooto
+    jsr e_8oroo
+    jsr e_12tooo
+    jsr e_r16otoo
+    jsr e_20rooo
+    jsr e_t24ooro
+    jsr e_28otoo
+    jsr e_32rooo
+    jsr e_t36ooro
+    jsr e_40tooo
+    jsr e_r44ooto
+    jsr e_48oroo
+    jsr e_52tooo
+    jsr e_r56ooto
+    jsr e_60oroo
+    jsr e_t64ooro
+    jsr e_68otoo
+    jsr e_72rooo
+    jsr e_t76ooro
+    jsr e_80otoo
+    jsr e_84rooto
+    jsr e_88oroo
+    jsr e_92tooo
+    jsr e_r96ooto
+    jsr e_100oroo
+    jsr e_104tooo
+    jsr e_r108otoo
+    jsr e_112rooo
     iny
-    jsr e_7oo
-    lsr
-    sta 10*BLIT_STRIDE + blitRoll,x
-    jsr e_11otoo
-    jsr e_15rootoo
-    jsr e_20roooto
-    jsr e_25orooo
-    jsr e_t30ooroo
-    jsr e_35toooro
-    jsr e_40toooro
-    jsr e_45otooo
-    jsr e_r50ootoo
-    jsr e_55roooto
-    jsr e_60orooto
-    jsr e_65orooo
-    jsr e_t70ooroo
-    jsr e_75toooro
-    jsr e_80otooo
-    lsr
-    jsr e_85otooo
-    jsr e_r90ootoo
-    jsr e_95roooto
-    jsr e_100orooo
-    jsr e_t105ooroo
-    jsr e_t110ooroo
-    sta 115*BLIT_STRIDE + blitRoll,x
     lda (pTex),y
-    iny
-    sta 116*BLIT_STRIDE + blitRoll,x
-    jsr e_117oro
-    jsr e_120otooo
-    jmp e_r125oo
+    jsr e_116ooro
+    jsr e_120otoo
+    jmp e_124rooo
 
 ; Produce 188 rows from 64 rows
 expand_188:
     jsr selectMip0
-    ldy #5
-    jsr e_t0ooroo
-    jsr e_5toooro
-    jsr e_10otooo
-    jsr e_r15otooo
-    jsr e_r20ootoo
-    jsr e_25roooto
-    jsr e_30orooo
-    jsr e_t35ooroo
-    jsr e_40toooro
-    jsr e_45otooo
-    jsr e_r50ootoo
-    jsr e_55roooto
-    jsr e_60orooto
-    jsr e_65orooo
-    jsr e_t70ooroo
-    jsr e_75toooro
-    jsr e_80otooo
-    jsr e_r85ootoo
-    jsr e_90roooto
-    jsr e_95orooo
-    jsr e_t100ooroo
-    sta 105*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 106*BLIT_STRIDE + blitRoll,x
-    jsr e_107oro
-    sta 110*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 111*BLIT_STRIDE + blitRoll,x
-    jsr e_112oro
-    jsr e_115otooo
-    jsr e_r120ootoo
-    jmp e_125roo
+    ldy #4
+    jsr e_t0ooro
+    jsr e_4otoo
+    jsr e_8rooo
+    jsr e_t12ooro
+    jsr e_16tooo
+    jsr e_r20ooto
+    jsr e_24oroo
+    jsr e_28tooo
+    jsr e_r32ooto
+    jsr e_36oroo
+    jsr e_40tooo
+    jsr e_r44ooto
+    jsr e_48oroo
+    jsr e_52tooo
+    jsr e_r56ooto
+    jsr e_60oroo
+    jsr e_t64ooro
+    jsr e_68otoo
+    jsr e_72rooo
+    jsr e_t76ooro
+    jsr e_80otoo
+    jsr e_84rooo
+    jsr e_t88ooro
+    jsr e_92otoo
+    jsr e_96rooo
+    jsr e_t100ooro
+    jsr e_104otoo
+    jsr e_108rooto
+    jsr e_112oroo
+    jsr e_116tooo
+    jsr e_r120ooto
+    jmp e_124oroo
 
 ; Produce 192 rows from 64 rows
 expand_192:
     jsr selectMip0
-    ldy #5
-    jsr e_t0orooo
-    jsr e_t5ooroo
-    jsr e_10toooro
-    jsr e_15otooo
-    jsr e_r20ootoo
-    jsr e_25roooto
-    jsr e_30orooo
-    jsr e_t35ooroo
-    jsr e_40toooro
-    jsr e_45otooo
-    jsr e_r50ootoo
-    jsr e_55roooto
-    jsr e_60orooo
-    jsr e_t65ooroo
-    jsr e_70toooro
-    jsr e_75otooo
-    jsr e_r80ootoo
-    jsr e_85roooto
-    jsr e_90orooo
-    jsr e_t95ooroo
-    jsr e_100toooro
-    jsr e_105otooo
-    jsr e_r110ootoo
-    jsr e_115roooto
-    jsr e_120orooo
-    jmp e_t125oo
+    ldy #4
+    jsr e_t0oroo
+    jsr e_4tooo
+    jsr e_r8ooto
+    jsr e_12oroo
+    jsr e_16tooo
+    jsr e_r20ooto
+    jsr e_24oroo
+    jsr e_28tooo
+    jsr e_r32ooto
+    jsr e_36oroo
+    jsr e_40tooo
+    jsr e_r44ooto
+    jsr e_48oroo
+    jsr e_52tooo
+    jsr e_r56ooto
+    jsr e_60oroo
+    jsr e_64tooo
+    jsr e_r68ooto
+    jsr e_72oroo
+    jsr e_76tooo
+    jsr e_r80ooto
+    jsr e_84oroo
+    jsr e_88tooo
+    jsr e_r92ooto
+    jsr e_96oroo
+    jsr e_100tooo
+    jsr e_r104ooto
+    jsr e_108oroo
+    jsr e_112tooo
+    jsr e_r116ooto
+    jsr e_120oroo
+    jmp e_124tooo
 
 ; Produce 200 rows from 64 rows
 expand_200:
     jsr selectMip0
-    ldy #5
-    jsr e_tr0otooo
-    jsr e_r5ootoo
-    sta 10*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 11*BLIT_STRIDE + blitRoll,x
-    jsr e_12oo
-    jsr e_t15ooroo
-    jsr e_20toooro
-    jsr e_25otooo
-    jsr e_r30ootoo
-    sta 35*BLIT_STRIDE + blitRoll,x
-    lsr
+    ldy #4
+    jsr e_tr0otoo
+    jsr e_4rooo
+    jsr e_t8ooro
+    jsr e_12ooto
+    jsr e_16oroo
+    jsr e_20tooo
+    jsr e_r24ooto
+    jsr e_28oroo
+    jsr e_32tooo
+    asl
+    bmi :+
     sta 36*BLIT_STRIDE + blitRoll,x
-    jsr e_37oo
-    jsr e_t40ooroo
-    sta 45*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
+:   jsr e_37oo
+    jsr e_t40ooro
+    jsr e_44otoo
+    jsr e_48rooo
     iny
-    sta 46*BLIT_STRIDE + blitRoll,x
-    jsr e_47oro
-    jsr e_50otooo
-    jsr e_r55ootoo
-    jsr e_60roooo
-    jsr e_t65ooroo
-    jsr e_70toooro
-    jsr e_75otooo
-    jsr e_r80ootoo
-    sta 85*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 86*BLIT_STRIDE + blitRoll,x
-    jsr e_87oo
-    jsr e_t90ooroo
-    jsr e_95toooro
-    jsr e_100otooo
-    lsr
-    jsr e_105ootoo
-    sta 110*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 111*BLIT_STRIDE + blitRoll,x
-    jsr e_112oo
-    jsr e_t115ooroo
-    jsr e_120toooro
+    lda (pTex),y
+    bmi :+
+    sta 52*BLIT_STRIDE + blitRoll,x
+:   jsr e_53oro
+    jsr e_56otoo
+    jsr e_60rooo
+    jsr e_64tooo
+    jsr e_r68ooto
+    jsr e_72oroo
+    jsr e_76tooo
+    jsr e_r80ooto
+    jsr e_84oroo
+    jsr e_88otoo
+    jsr e_92rooo
+    jsr e_t96ooro
+    jsr e_100otoo
+    jsr e_104rooo
+    jsr e_t108ooro
+    bmi :+
+    sta 112*BLIT_STRIDE + blitRoll,x
+:   jsr e_113oto
+    jsr e_116oroo
+    jsr e_120tooo
+    asl
+    bmi :+
+    sta 124*BLIT_STRIDE + blitRoll,x
     sta 125*BLIT_STRIDE + blitRoll,x
     sta 126*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
+    bmi :+
     sta 127*BLIT_STRIDE + blitRoll,x
+:
     rts
 
 ; Produce 208 rows from 64 rows
 expand_208:
     jsr selectMip0
-    ldy #6
-    jsr e_t0ooroo
-    jsr e_5toooro
-    jsr e_10otooo
-    jsr e_15roooto
-    jsr e_20orooo
+    ldy #5
+    jsr e_t0ooro
+    jsr e_4otoo
+    jsr e_8rooo
+    jsr e_t12ooo
+    jsr e_r16ooto
+    jsr e_20oroo
+    jsr e_24tooo
+    jsr e_28rooo
+    jsr e_t32ooro
+    jsr e_36otoo
+    jsr e_40oroo
+    bmi :+
+    sta 44*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
+    jsr e_45oo
+    jsr e_r48ooto
+    bmi :+
+    sta 52*BLIT_STRIDE + blitRoll,x
+:   jsr e_53oro
+    jsr e_56otoo
+    jsr e_60rooo
+    jsr e_t64ooo
+    jsr e_r68ooto
+    jsr e_72oroo
+    jsr e_76tooo
+    jsr e_80rooo
+    jsr e_t84ooro
+    jsr e_88otoo
+    jsr e_92oroo
+    jsr e_96tooo
+    jsr e_r100ooto
+    jsr e_104ooro
+    jsr e_108otoo
+    jsr e_112rooo
     iny
-    sta 25*BLIT_STRIDE + blitRoll,x
-    sta 26*BLIT_STRIDE + blitRoll,x
-    jsr e_27oro
-    jsr e_30otooo
-    jsr e_r35ootoo
-    jsr e_40orooo
     lda (pTex),y
-    iny
-    sta 45*BLIT_STRIDE + blitRoll,x
-    jsr e_46oroo
-    sta 50*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 51*BLIT_STRIDE + blitRoll,x
-    jsr e_52oo
-    jsr e_r55ootoo
-    jsr e_60roooto
-    jsr e_65ooroo
-    jsr e_70toooro
-    jsr e_75otooo
-    jsr e_80roooto
-    sta 85*BLIT_STRIDE + blitRoll,x
-    sta 86*BLIT_STRIDE + blitRoll,x
-    lsr
-    jsr e_87oo
-    lda (pTex),y
-    iny
-    sta 90*BLIT_STRIDE + blitRoll,x
-    sta 91*BLIT_STRIDE + blitRoll,x
-    sta 92*BLIT_STRIDE + blitRoll,x
-    jsr e_93ro
-    jsr e_95otooo
-    jsr e_r100ootoo
-    jsr e_105orooo
-    jsr e_t110ooroo
-    sta 115*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
+    bmi :+
     sta 116*BLIT_STRIDE + blitRoll,x
-    jsr e_117oo
-    jsr e_r120ootoo
-    jmp e_125roo
+:   jsr e_117oo
+    jsr e_r120ooto
+    jmp e_124oroo
 
 ; Produce 216 rows from 64 rows
 expand_216:
     jsr selectMip0
-    ldy #6
-    lda (pTex),y
+    ldy #5
     iny
-    lsr
+    lda (pTex),y
+    asl
+    bmi :+
     sta 0*BLIT_STRIDE + blitRoll,x
-    jsr e_1ooto
-    jsr e_5orooo
-    jsr e_10toooro
-    jsr e_15otooo
-    jsr e_20roooto
-    jsr e_25orooo
-    jsr e_30toooro
-    sta 35*BLIT_STRIDE + blitRoll,x
-    sta 36*BLIT_STRIDE + blitRoll,x
-    jsr e_37too
-    jsr e_40roooto
-    sta 45*BLIT_STRIDE + blitRoll,x
-    jsr e_46oroo
-    jsr e_50toooro
-    jsr e_55ootoo
-    jsr e_60roooo
-    jsr e_t65ooroo
-    sta 70*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
+:   jsr e_1oo
+    jsr e_t4ooro
+    jsr e_8ooto
+    jsr e_12oroo
+    jsr e_16tooo
+    jsr e_20rooo
+    jsr e_t24ooro
+    bmi :+
+    sta 28*BLIT_STRIDE + blitRoll,x
+    sta 29*BLIT_STRIDE + blitRoll,x
+:   jsr e_30to
+    jsr e_32oroo
+    jsr e_36otoo
+    jsr e_40rooo
     iny
-    sta 71*BLIT_STRIDE + blitRoll,x
-    jsr e_72oo
-    jsr e_r75ootoo
-    sta 80*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 81*BLIT_STRIDE + blitRoll,x
-    jsr e_82oo
-    jsr e_t85ooroo
-    jsr e_90otooo
-    jsr e_r95ootoo
-    jsr e_100orooo
-    jsr e_t105ooroo
-    sta 110*BLIT_STRIDE + blitRoll,x
-    sta 111*BLIT_STRIDE + blitRoll,x
     lda (pTex),y
+    bmi :+
+    sta 44*BLIT_STRIDE + blitRoll,x
+:   jsr e_45oo
+    jsr e_r48ooto
+    jsr e_52oroo
+    jsr e_56otoo
+    jsr e_60rooo
+    jsr e_64tooo
+    jsr e_r68ooto
+    bmi :+
+    sta 72*BLIT_STRIDE + blitRoll,x
+    sta 73*BLIT_STRIDE + blitRoll,x
+:   jsr e_74ro
+    jsr e_76otoo
+    jsr e_80rooo
+    jsr e_84tooo
+    jsr e_r88ooo
+    jsr e_t92ooro
+    jsr e_96otoo
+    jsr e_100oroo
+    jsr e_104tooo
+    jsr e_r108ooo
     iny
-    jsr e_112oo
-    jsr e_r115oooto
-    jsr e_120orooo
-    jmp e_t125oo
+    lda (pTex),y
+    bmi :+
+    sta 112*BLIT_STRIDE + blitRoll,x
+:   jsr e_113oro
+    jsr e_116ooto
+    jsr e_120oroo
+    jmp e_124tooo
 
 ; Produce 224 rows from 64 rows
 expand_224:
     jsr selectMip0
-    ldy #6
-    jsr e_tr0otooo
-    lsr
-    sta 5*BLIT_STRIDE + blitRoll,x
-    sta 6*BLIT_STRIDE + blitRoll,x
-    jsr e_7oto
-    sta 10*BLIT_STRIDE + blitRoll,x
-    sta 11*BLIT_STRIDE + blitRoll,x
-    lsr
-    jsr e_12oo
-    jsr e_15toooro
+    ldy #5
+    jsr e_tr0otoo
+    jsr e_4rooo
+    jsr e_8tooo
+    jsr e_r12ooo
+    jsr e_t16ooro
+    bmi :+
     sta 20*BLIT_STRIDE + blitRoll,x
-    jsr e_21otoo
-    sta 25*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 26*BLIT_STRIDE + blitRoll,x
-    jsr e_27oo
-    jsr e_t30ooroo
-    jsr e_35otooo
-    lsr
+:   jsr e_21oto
+    jsr e_24oroo
+    jsr e_28otoo
+    jsr e_32rooo
+    jsr e_36tooo
+    asl
+    bmi :+
     sta 40*BLIT_STRIDE + blitRoll,x
-    sta 41*BLIT_STRIDE + blitRoll,x
-    sta 42*BLIT_STRIDE + blitRoll,x
-    jsr e_43to
-    sta 45*BLIT_STRIDE + blitRoll,x
-    sta 46*BLIT_STRIDE + blitRoll,x
-    lsr
-    jsr e_47oo
-    jsr e_50toooro
-    jsr e_55ootoo
-    jsr e_60roooo
-    jsr e_t65ooroo
-    jsr e_70otooo
-    jsr e_r75oooto
-    jsr e_80orooo
-    jsr e_85toooro
-    jsr e_90ootoo
-    sta 95*BLIT_STRIDE + blitRoll,x
-    lsr
+:   jsr e_41oo
+    jsr e_t44ooro
+    bmi :+
+    sta 48*BLIT_STRIDE + blitRoll,x
+    sta 49*BLIT_STRIDE + blitRoll,x
+:   jsr e_50to
+    jsr e_52oroo
+    jsr e_56otoo
+    jsr e_60rooo
+    jsr e_64tooo
+    jsr e_r68ooo
+    jsr e_t72ooro
+    jsr e_76ooto
+    jsr e_80oroo
+    jsr e_84otoo
+    jsr e_88rooo
+    jsr e_92tooo
+    asl
+    bmi :+
     sta 96*BLIT_STRIDE + blitRoll,x
-    jsr e_97oo
-    jsr e_t100ooroo
-    jsr e_105otooo
-    lsr
-    sta 110*BLIT_STRIDE + blitRoll,x
-    sta 111*BLIT_STRIDE + blitRoll,x
-    jsr e_112oto
-    jsr e_115orooo
-    jsr e_120toooro
-    jmp e_125oo
+:   jsr e_97oo
+    jsr e_t100ooro
+    bmi :+
+    sta 104*BLIT_STRIDE + blitRoll,x
+:   jsr e_105oto
+    jsr e_108oroo
+    jsr e_112otoo
+    jsr e_116rooo
+    jsr e_120tooo
+    jmp e_r124ooo
 
 ; Produce 232 rows from 64 rows
 expand_232:
     jsr selectMip0
-    ldy #7
-    jsr e_t0ooroo
-    sta 5*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
+    ldy #6
+    jsr e_t0ooro
+    jsr e_4otoo
+    jsr e_8oroo
+    jsr e_12otoo
+    jsr e_16rooo
+    jsr e_20tooo
+    jsr e_24rooo
     iny
-    jsr e_6ooo
-    lsr
-    sta 10*BLIT_STRIDE + blitRoll,x
-    sta 11*BLIT_STRIDE + blitRoll,x
-    jsr e_12oto
-    jsr e_15orooo
-    sta 20*BLIT_STRIDE + blitRoll,x
     lda (pTex),y
-    iny
-    sta 21*BLIT_STRIDE + blitRoll,x
-    jsr e_22oo
-    jsr e_r25ootoo
-    jsr e_30orooo
-    lda (pTex),y
-    iny
-    sta 35*BLIT_STRIDE + blitRoll,x
+    bmi :+
+    sta 28*BLIT_STRIDE + blitRoll,x
+:   jsr e_29oo
+    jsr e_r32ooto
+    bmi :+
     sta 36*BLIT_STRIDE + blitRoll,x
-    jsr e_37oro
+:   jsr e_37oro
+    bmi :+
     sta 40*BLIT_STRIDE + blitRoll,x
-    jsr e_41otoo
-    sta 45*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 46*BLIT_STRIDE + blitRoll,x
-    jsr e_47oo
-    lda (pTex),y
+:   jsr e_41oto
+    jsr e_44oroo
+    jsr e_48otoo
+    jsr e_52oroo
+    jsr e_56tooo
+    jsr e_60rooo
+    jsr e_t64ooo
+    jsr e_r68ooo
+    jsr e_t72ooro
+    jsr e_76ooto
+    jsr e_80ooro
+    jsr e_84otoo
+    jsr e_88oroo
+    jsr e_92tooo
+    jsr e_96rooo
+    jsr e_100tooo
+    asl
+    bmi :+
+    sta 104*BLIT_STRIDE + blitRoll,x
+:   jsr e_105oo
     iny
-    sta 50*BLIT_STRIDE + blitRoll,x
-    sta 51*BLIT_STRIDE + blitRoll,x
-    jsr e_52oro
-    jsr e_55otooo
-    jsr e_60roooto
-    jsr e_65ooroo
-    jsr e_70otooo
-    jsr e_r75oooto
-    jsr e_80ooroo
-    sta 85*BLIT_STRIDE + blitRoll,x
     lda (pTex),y
-    iny
-    sta 86*BLIT_STRIDE + blitRoll,x
-    jsr e_87oo
-    jsr e_r90ootoo
-    jsr e_95orooo
-    jsr e_100toooro
-    jsr e_105ootoo
-    jsr e_110orooo
-    lda (pTex),y
-    iny
-    sta 115*BLIT_STRIDE + blitRoll,x
-    sta 116*BLIT_STRIDE + blitRoll,x
-    jsr e_117oro
-    jsr e_120otooo
-    jmp e_125roo
+    jsr e_108ooo
+    jsr e_r112ooto
+    jsr e_116ooro
+    jsr e_120otoo
+    jmp e_124oroo
 
 ; Produce 240 rows from 64 rows
 expand_240:
     jsr selectMip0
-    ldy #7
-    jsr e_t0roooto
-    jsr e_5ooroo
-    jsr e_10otooo
-    jsr e_15roooto
+    ldy #6
+    jsr e_t0rooo
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 4*BLIT_STRIDE + blitRoll,x
+:   jsr e_5oo
+    asl
+    bmi :+
+    sta 8*BLIT_STRIDE + blitRoll,x
+:   jsr e_9oo
+    jsr e_t12ooo
+    jsr e_r16ooto
+    bmi :+
     sta 20*BLIT_STRIDE + blitRoll,x
-    jsr e_21oroo
-    jsr e_25otooo
-    jsr e_30roooto
-    sta 35*BLIT_STRIDE + blitRoll,x
+:   jsr e_21oro
+    bmi :+
+    sta 24*BLIT_STRIDE + blitRoll,x
+:   jsr e_25oto
+    bmi :+
+    sta 28*BLIT_STRIDE + blitRoll,x
+:   jsr e_29oro
+    jsr e_32otoo
     jsr e_36oroo
-    jsr e_40otooo
-    jsr e_45roooto
-    jsr e_50ooroo
-    jsr e_55otooo
-    jsr e_60roooto
-    jsr e_65ooroo
-    jsr e_70otooo
-    jsr e_75roooto
-    jsr e_80ooroo
-    jsr e_85otooo
-    jsr e_90roooto
-    sta 95*BLIT_STRIDE + blitRoll,x
+    jsr e_40otoo
+    jsr e_44oroo
+    jsr e_48tooo
+    jsr e_52rooo
+    jsr e_56tooo
+    jsr e_60rooo
+    jsr e_t64ooo
+    jsr e_r68ooo
+    jsr e_t72ooo
+    jsr e_r76ooto
+    jsr e_80ooro
+    bmi :+
+    sta 84*BLIT_STRIDE + blitRoll,x
+    sta 85*BLIT_STRIDE + blitRoll,x
+:   jsr e_86to
+    bmi :+
+    sta 88*BLIT_STRIDE + blitRoll,x
+:   jsr e_89oro
+    jsr e_92otoo
     jsr e_96oroo
-    jsr e_100otooo
-    jsr e_105roooto
-    jsr e_110ooroo
-    jsr e_115otooo
-    jsr e_120roooto
-    jmp e_125oo
+    jsr e_100otoo
+    jsr e_104oroo
+    jsr e_108tooo
+    jsr e_112rooo
+    jsr e_116tooo
+    jsr e_120rooo
+    iny
+    lda (pTex),y
+    jsr e_124ooo
+    rts
 
 ; Produce 248 rows from 64 rows
 expand_248:
     jsr selectMip0
-    ldy #7
-    jsr e_tr0otooo
-    jsr e_5roooo
-    lda (pTex),y
-    iny
-    sta 10*BLIT_STRIDE + blitRoll,x
-    jsr e_11ooro
-    sta 15*BLIT_STRIDE + blitRoll,x
+    ldy #6
+    jsr e_tr0otoo
+    jsr e_4oroo
+    jsr e_8otoo
+    jsr e_12oroo
     jsr e_16otoo
-    jsr e_20orooo
-    sta 25*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 26*BLIT_STRIDE + blitRoll,x
-    jsr e_27oo
-    jsr e_r30ootoo
-    jsr e_35orooo
-    sta 40*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 41*BLIT_STRIDE + blitRoll,x
-    jsr e_42oo
-    lsr
-    sta 45*BLIT_STRIDE + blitRoll,x
-    sta 46*BLIT_STRIDE + blitRoll,x
-    sta 47*BLIT_STRIDE + blitRoll,x
-    jsr e_48to
-    jsr e_50ooroo
-    jsr e_55otooo
-    jsr e_60roooto
-    jsr e_65ooroo
-    jsr e_70otooo
-    sta 75*BLIT_STRIDE + blitRoll,x
-    lsr
+    jsr e_20oroo
+    jsr e_24otoo
+    jsr e_28oroo
+    jsr e_32tooo
+    jsr e_36rooo
+    jsr e_40tooo
+    jsr e_44rooo
+    jsr e_48tooo
+    jsr e_52rooo
+    jsr e_56tooo
+    jsr e_60rooo
+    jsr e_t64ooo
+    jsr e_r68ooo
+    jsr e_t72ooo
+    asl
+    bmi :+
     sta 76*BLIT_STRIDE + blitRoll,x
-    jsr e_77oo
-    lda (pTex),y
+:   jsr e_77oo
     iny
+    lda (pTex),y
+    bmi :+
     sta 80*BLIT_STRIDE + blitRoll,x
-    sta 81*BLIT_STRIDE + blitRoll,x
-    jsr e_82oro
-    sta 85*BLIT_STRIDE + blitRoll,x
-    jsr e_86otoo
-    jsr e_90orooo
-    lda (pTex),y
+:   jsr e_81oo
+    asl
+    bmi :+
+    sta 84*BLIT_STRIDE + blitRoll,x
+:   jsr e_85oo
     iny
-    sta 95*BLIT_STRIDE + blitRoll,x
+    lda (pTex),y
+    jsr e_88ooo
+    jsr e_r92ooto
+    bmi :+
     sta 96*BLIT_STRIDE + blitRoll,x
-    jsr e_97oro
-    jsr e_100ootoo
-    jsr e_105orooo
-    sta 110*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
+    sta 97*BLIT_STRIDE + blitRoll,x
+:   jsr e_98ro
+    bmi :+
+    sta 100*BLIT_STRIDE + blitRoll,x
+:   jsr e_101oto
+    jsr e_104ooro
+    bmi :+
+    sta 108*BLIT_STRIDE + blitRoll,x
+:   jsr e_109oto
+    bmi :+
+    sta 112*BLIT_STRIDE + blitRoll,x
+:   jsr e_113oro
+    jsr e_116ooto
+    jsr e_120ooro
+    jmp e_124otoo
+
+e_60rooo:
+    bmi :+
+    sta 60*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 61*BLIT_STRIDE + blitRoll,x
+    sta 62*BLIT_STRIDE + blitRoll,x
+    sta 63*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_t0oroo:
     iny
-    sta 111*BLIT_STRIDE + blitRoll,x
-    jsr e_112oo
-    jsr e_r115oooto
-    jsr e_120ooroo
-    jmp e_125too
-
-e_125roo:
-    sta 125*BLIT_STRIDE + blitRoll,x
-    lsr
-    sta 126*BLIT_STRIDE + blitRoll,x
-    sta 127*BLIT_STRIDE + blitRoll,x
-    rts
-
-e_125too:
-    sta 125*BLIT_STRIDE + blitRoll,x
     lda (pTex),y
-    iny
-    sta 126*BLIT_STRIDE + blitRoll,x
-    sta 127*BLIT_STRIDE + blitRoll,x
-    rts
+    bmi :+
+    sta 0*BLIT_STRIDE + blitRoll,x
+    sta 1*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 2*BLIT_STRIDE + blitRoll,x
+    sta 3*BLIT_STRIDE + blitRoll,x
+:   rts
 
-e_115rootoo:
-    sta 115*BLIT_STRIDE + blitRoll,x
-    lsr
+e_t64oroto:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 64*BLIT_STRIDE + blitRoll,x
+    sta 65*BLIT_STRIDE + blitRoll,x
+:   asl
+    bmi :+
+    sta 66*BLIT_STRIDE + blitRoll,x
+:   iny
+    lda (pTex),y
+    bmi :+
+    sta 67*BLIT_STRIDE + blitRoll,x
+:   rts
+
+e_r116otoo:
+    asl
+    bmi :+
     sta 116*BLIT_STRIDE + blitRoll,x
     sta 117*BLIT_STRIDE + blitRoll,x
+:   iny
     lda (pTex),y
-    iny
+    bmi :+
     sta 118*BLIT_STRIDE + blitRoll,x
     sta 119*BLIT_STRIDE + blitRoll,x
-    rts
+:   rts
 
-e_65rootoo:
+e_t64oroo:
+    iny
+    lda (pTex),y
+    bmi :+
+    sta 64*BLIT_STRIDE + blitRoll,x
     sta 65*BLIT_STRIDE + blitRoll,x
-    lsr
+:   asl
+    bmi :+
     sta 66*BLIT_STRIDE + blitRoll,x
     sta 67*BLIT_STRIDE + blitRoll,x
-    lda (pTex),y
-    iny
-    sta 68*BLIT_STRIDE + blitRoll,x
-    sta 69*BLIT_STRIDE + blitRoll,x
-    rts
+:   rts
 

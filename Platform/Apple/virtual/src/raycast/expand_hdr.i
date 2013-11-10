@@ -1,6 +1,4 @@
     
-    .pc02
-
 ; Select mipmap level 0 (64x64 pixels = 32x32 bytes)
 selectMip0:
     ; pTex is already pointing at level 0, no need to adjust its level.
@@ -8,9 +6,10 @@ selectMip0:
     ; is 0..255 pixels, which we need to translate to 0..31 columns; that's
     ; a divide by 8. But then we need to multiply by 32 bytes per column,
     ; so (1/8)*32 = 4, so we need to multiply by 4 after masking.
+    lda #0
+    sta tmp
     lda txColumn
     and #$F8            ; retain upper 5 bits
-    stz tmp
     asl
     rol tmp             ; multiplied by 2
     asl
@@ -25,7 +24,8 @@ mipReady:
     sta pTex+1
     ldy pixNum          ; get offset into the blit roll for this column
     ldx @blitOffsets,y
-    ldy #0              ; default to copying from top of column
+    ldy #$FF            ; default to copying from top of column (will be 0 after initial INY in unrolled code)
+    clv                 ; so code can use BVC to branch always without BRA
     rts
 @blitOffsets: .byte BLIT_OFF0,BLIT_OFF1,BLIT_OFF2,BLIT_OFF3,BLIT_OFF4,BLIT_OFF5,BLIT_OFF6
 
@@ -39,7 +39,7 @@ selectMip1:
     lda txColumn
     and #$F0            ; retain upper 4 bits
     ldy #>MIP_OFFSET_1  ; adjust to mip level 1
-    bra mipReady
+    bne mipReady        ; always taken
 
 ; Select mipmap level 2 (16x16 pixels = 8x8 bytes)
 selectMip2:
@@ -54,7 +54,7 @@ selectMip2:
     lsr                 ; div by 4
                         ; no need to add #<MIP_OFFSET_2, since it is zero.
     ldy #>MIP_OFFSET_2  ; adjust to mip level 2
-    bra mipReady
+    bne mipReady        ; always taken
 
 ; Select mipmap level 3 (8x8 pixels = 4x4 bytes)
 selectMip3:
@@ -72,7 +72,7 @@ selectMip3:
     clc
     adc #<MIP_OFFSET_3
     ldy #>MIP_OFFSET_3  ; adjust to mip level 3
-    bra mipReady
+    bne mipReady        ; always taken
 
 ; Select mipmap level 4 (4x4 pixels = 2x2 bytes)
 selectMip4:
@@ -88,13 +88,13 @@ selectMip4:
 :   clc
     adc #<MIP_OFFSET_4
     ldy #>MIP_OFFSET_4  ; adjust to mip level 4
-    bra mipReady
+    bne mipReady        ; always taken
 
 ; Select mipmap level 5 (2x2 pixels = 1x1 bytes)
 selectMip5:
     ; Mip level 5 is super-easy: it's one byte. Not much choice there.
     lda #<MIP_OFFSET_5
     ldy #>MIP_OFFSET_5
-    bra mipReady
+    bne mipReady        ; always taken
 
 

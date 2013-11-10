@@ -3,10 +3,10 @@
 ; Constants
 TOP_LINE       = $2180 ; 24 lines down from top
 NLINES         = 128
-SKY_COLOR_E    = $11 ; blue
-SKY_COLOR_O    = $11 ; blue
-GROUND_COLOR_E = $14 ; orange
-GROUND_COLOR_O = $10 ; hi-bit black
+SKY_COLOR_E    = $22 ; blue
+SKY_COLOR_O    = $22 ; blue
+GROUND_COLOR_E = $28 ; orange
+GROUND_COLOR_O = $20 ; hi-bit black
 TEX_SIZE       = $555 ; 32x32 + 16x16 + 8x8 + 4x4 + 2x2 + 1x1
 
 ; Byte offset for each pixel in the blit unroll

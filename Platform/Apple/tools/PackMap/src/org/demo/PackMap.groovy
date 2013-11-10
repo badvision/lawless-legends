@@ -187,11 +187,14 @@ class PackMap
         }
     }
     
-    // The renderer wants bits of the two pixels interleaved
+    // The renderer wants bits of the two pixels interleaved in a special way.
+    // Given input pix1=00000xyz and pix2=00000qrs, the output will be 00xqyrzs.
+    // So the renderer uses mask 00101010 to extract pix1, and 00010101 for pix2.
+    //
     def combine(pix1, pix2) {
-        return ((pix1 & 1) << 0) | ((pix2 & 1) << 1) |
-               ((pix1 & 2) << 1) | ((pix2 & 2) << 2) |
-               ((pix1 & 4) << 2) | ((pix2 & 4) << 3);
+        return ((pix2 & 1) << 0) | ((pix1 & 1) << 1) |
+               ((pix2 & 2) << 1) | ((pix1 & 2) << 2) |
+               ((pix2 & 4) << 2) | ((pix1 & 4) << 3);
     }
     
     def writeImage(stream, image)

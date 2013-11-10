@@ -1,7 +1,7 @@
 
     .org $7000
 
-    .pc02 ; Enable 65c02 ops
+    .pc02
 
 ; This code is written bottom-up. That is, simple routines first, 
 ; then routines that call those to build complexity. The main
@@ -80,11 +80,15 @@ texAddrHi: .res MAX_TEXTURES
 .if DEBUG
     php
     pha
-    phx
-    phy
+    tya
+    pha
+    txa
+    pha
     jsr rdkey
-    ply
-    plx
+    pla
+    tay
+    pla
+    tax
     pla
     plp
 .endif
@@ -131,7 +135,7 @@ _writeStr:
 :   inc @ld+1
     bne @ld
     inc @ld+2
-    bra @ld
+    bne @ld     ; always taken
 @done:
     lda @ld+2
     pha
@@ -184,7 +188,7 @@ umul_bb_b:
     tya
     tax
     ldy tmp
-    bra @x_lt_4 ; then re-use code
+    jmp @x_lt_4 ; then re-use code
 
 ;-------------------------------------------------------------------------------
 ; Calculate log2 of a 16-bit number.
@@ -358,7 +362,7 @@ castRay:
     bmi @negX
     inc mapX
     iny                 ; also the Y reg which indexes the map
-    bra @checkX
+    jmp @checkX
 @negX:
     dec mapX
     dey
@@ -416,7 +420,7 @@ castRay:
     adc mapWidth
     bcc @checkY
     inc pMap+1
-    bra @checkY
+    bne @checkY         ; always taken
 @negY:
     dec mapY
     sec
@@ -804,20 +808,21 @@ clearBlit:
 makeDecodeTbls:
     ldx #0
 @shiftA:
-    ; bit 4 controls the high bit (orange/blue vs green/purple)
+    ; bit 5 controls the high bit (orange/blue vs green/purple)
     txa
-    asl
     asl
     asl
     and #$80
     sta tmp+1
-    ; extract only bits 0 and 2 for the pixel data
+    ; extract only bits 1 and 3 for the pixel data
     txa
-    and #4
+    and #8      ; bit 3
+    lsr
     lsr
     sta tmp
     txa
-    and #1
+    and #2      ; bit 1
+    lsr
     ora tmp
 @decodeTo01:
     ora tmp+1
@@ -921,14 +926,18 @@ bload:
     jsr @doMLI
     lda @mliCommand+5 ; get handle and put it in place
     sta @mliCommand+1
-    ply ; save ret addr
-    plx
+    pla ; save ret addr
+    tay
+    pla
+    tax
     pla
     sta @mliCommand+2 ; load addr lo
     pla
     sta @mliCommand+3 ; load addr hi
-    phx ; restore ret addr
-    phy
+    txa ; restore ret addr
+    pha
+    tya
+    pha
     lda #$CA ; read
     sta @mliCommand+5 ; also length (more than enough)
     ldx #4
@@ -956,7 +965,8 @@ bload:
 
 ; Copy pTmp -> pDst (advancing both), length in X(lo) / Y(hi)
 copyMem:
-    phx
+    txa
+    pha
     tya
     ldy #0
     tax
@@ -971,8 +981,9 @@ copyMem:
     dex
     bne @pageLup
 @lastPg:
-    plx
+    pla
     beq @done
+    tax
 @byteLup:
     lda (pTmp),y
     sta (pDst),y
@@ -987,16 +998,16 @@ copyMem:
 @done:
     rts
 
-; Read a byte from pTmp and advance it
+; Read a byte from pTmp and advance it. No regs except A are disturbed.
 readPtmp:
-    phy
-    ldy #0
-    lda (pTmp),y
-    ply
+    lda pTmp
+    sta @ld+1
+    lda pTmp+1
+    sta @ld+2
     inc pTmp
-    bne :+
+    bne @ld
     inc pTmp+1
-:   cmp #0
+@ld: lda $100
     rts
 
 ;-------------------------------------------------------------------------------
@@ -1140,7 +1151,7 @@ loadFiles:
     sta setAuxWr
     jsr copyMem         ; copy the texture to aux mem
     sta clrAuxWr
-    bra @cpTex          ; next texture
+    jmp @cpTex          ; next texture
 @cpTexDone:
     DEBUG_STR "Loaded "
     DEBUG_BYTE nTextures
@@ -1234,15 +1245,13 @@ renderFrame:
     tax                 ; map row ptr now in X(lo) / Y(hi)
 
     .if DEBUG
-    phx
-    phy
     stx tmp
     sty tmp+1
     DEBUG_STR "Initial pMap="
     DEBUG_WORD tmp
     DEBUG_LN
-    ply
-    plx
+    ldx tmp
+    ldy tmp+1
     .endif
 
     lda #0
@@ -1254,10 +1263,12 @@ renderFrame:
 @oneCol:
     stx pMap            ; set initial map pointer for the ray
     sty pMap+1
-    phy                 ; save map row ptr
-    phx
     pha                 ; save ray offset
     tay                 ; ray offset where it needs to be
+    lda pMap+1          ; save map row ptr
+    pha
+    txa
+    pha
     jsr castRay         ; cast the ray across the map
     lda pixNum
     bne :+
@@ -1265,8 +1276,8 @@ renderFrame:
 :   jsr drawRay         ; and draw the ray
     .if DEBUG
     DEBUG_STR "Done drawing ray "
-    pla
-    pha
+    tsx
+    lda $103,x          ; retrieve ray offset
     lsr
     lsr
     jsr prbyte
@@ -1291,8 +1302,10 @@ renderFrame:
     inc byteNum
 @nextCol:
     pla
-    plx
-    ply
+    tax
+    pla
+    tay
+    pla
     clc
     adc #4              ; advance to next ray
     cmp #$FC            ; check for end of ray table
@@ -2569,8 +2582,8 @@ precast_15:
     .byte $7E,$07,$05,$56
     .res 4 ; to bring it up to 256 bytes per angle
 
-wLog256:      .word 0800
-wLogViewDist: .word 0E3F
+wLog256:      .word $0800
+wLogViewDist: .word $0E3F
 
 ; Movement amounts when walking at each angle
 ; Each entry consists of an X bump and a Y bump, in 8.8 fixed point

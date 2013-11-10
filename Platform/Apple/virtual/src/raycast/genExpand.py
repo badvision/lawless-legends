@@ -5,7 +5,7 @@
 import copy, math, os, re, sys
 
 # Main control on size vs. speed
-rowInterval = 5
+rowInterval = 4
 
 # Height of textures, in pixels
 textureHeight = 64
@@ -52,9 +52,9 @@ def calcSpace(cmds):
   n = 0
   for c in cmds:
     if c == "L":
-      space += 3 # LDA (ptr),y / INY
+      space += 5 # INY / LDA (ptr),y / BPL
     elif c == "<":
-      space += 1 # LSR
+      space += 3 # ASL / BMI
     else:
       n += c
       space += 3 # STA row,x
@@ -90,6 +90,8 @@ class Segment:
     global outFile, allLabels, generatedLabels
     print("genCode %s, trunc=%r" % (s.label, s.truncPos))
     first = grouped
+    needTransparencyCheck = True
+    prefix = " "
     for i in range(len(s.cmds)):
       if i == s.truncPos:
         if grouped:
@@ -98,32 +100,50 @@ class Segment:
             return
           if s.refs == 1:
             # singletons aren't generated near their target
-            outFile.write("    jmp %s\n" % s.truncLabel) 
+            outFile.write("%s   jmp %s\n" % (prefix, s.truncLabel))
+            prefix = " "
           else:
             # non-singletons are generated near their target
-            outFile.write("    bra %s\n" % s.truncLabel)
+            outFile.write("%s   bvc %s\n" % (prefix, s.truncLabel))
+            prefix = " "
         else:
-          outFile.write("    jsr %s\n" % s.truncLabel)
+          outFile.write("%s   jsr %s\n" % (prefix, s.truncLabel))
+          prefix = " "
         break
       label = calcLabel(s.cmds[i:])
       if label not in generatedLabels and (first or label in allLabels):
+        if prefix != " ":
+          outFile.write("%s\n" % prefix)
+          prefix = " "
         outFile.write("%s:\n" % label)
         generatedLabels.add(label)
+        needTransparencyCheck = True
       first = False
       c = s.cmds[i]
       if c == 'L':
+        outFile.write("%s   iny\n" % prefix)
+        prefix = " "
         outFile.write("    lda (pTex),y\n")
-        outFile.write("    iny\n")
+        needTransparencyCheck = True
       elif c == '<':
-        outFile.write("    lsr\n")
+        outFile.write("%s   asl\n" % prefix)
+        prefix = " "
+        needTransparencyCheck = True
       else:
         assert c < screenHeight
+        if needTransparencyCheck:
+          outFile.write("    bmi :+\n")
+          prefix = ":"
         outFile.write("    sta %s*BLIT_STRIDE + blitRoll,x\n" % c)
+        needTransparencyCheck = False
     else:
       if grouped:
-        outFile.write("    rts\n")
+        outFile.write("%s   rts\n" % prefix)
+        prefix = " "
     if grouped:
       outFile.write("\n")
+    if prefix != " ":
+      outFile.write("%s\n" % prefix)
     outFile.flush()
     s.generated = True
 
@@ -289,7 +309,7 @@ for (srcHeight, dstHeight, mipLevel, texOff, segs) in allHeights:
   outFile.write("expand_%d:\n" % dstHeight)
   outFile.write("    jsr selectMip%d\n" % mipLevel)
   if (texOff != 0):
-    outFile.write("    ldy #%d\n" % texOff)
+    outFile.write("    ldy #%d\n" % (texOff-1)) # -1 because we always do initial INY before LDA (ptr,Y)
   for i in range(len(segs)):
     seg = allSegs[segs[i]]
     if seg.refs == 1 and not(seg.generated):

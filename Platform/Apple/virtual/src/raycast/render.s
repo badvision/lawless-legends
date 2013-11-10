@@ -1455,7 +1455,7 @@ main:
     jmp @nextFrame
 :   cmp #$1B            ; ESC to exit
     beq @done
-    jmp @pauseLup       ; unrecognize key -- go back and get another one.
+    jmp @pauseLup       ; unrecognized key: go back and get another one.
 @done:
     ; back to text mode
     bit setText

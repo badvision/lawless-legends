@@ -15,6 +15,8 @@ import java.nio.channels.Channels
  */
 class PackMap 
 {
+    def TRANSPARENT_COLOR = 15
+    
     def parseMap(tiles, map)
     {
         // Parse each row of the map
@@ -87,6 +89,53 @@ class PackMap
         return result
     }
     
+    /**
+     * Flood fill from the upper left and upper right corners to determine
+     * all transparent areas.
+     */
+    def calcTransparency(img)
+    {
+        def height = img.size
+        def width  = img[0].size
+        
+        // Keep track of which pixels we have traversed
+        def marks = img.collect { new boolean[it.size] }
+
+        // Initial positions to check
+        def queue = [] as Queue
+        queue.add([0, 0, img[0][0]])
+        queue.add([width-1, 0, img[0][width-1]])
+        
+        // While we have anything left to check...
+        while (!queue.isEmpty()) 
+        {
+            // Get a coordinate and color to compare to
+            def (x, y, c) = queue.poll()
+            
+            // If outside the image, skip it
+            if (x < 0 || x >= width || y < 0 || y >= height)
+                continue
+                
+            // Process each pixel only once
+            if (marks[y][x])
+                continue
+            marks[y][x] = true
+                
+            // Stop at color changes
+            if (img[y][x] != c)
+                continue
+                
+            // Found a pixel to change to transparent. Mark it, and check in every
+            // direction for more of the same color.
+            //
+            img[y][x] = TRANSPARENT_COLOR
+            queue.add([x-1, y,   c])
+            queue.add([x,   y-1, c])
+            queue.add([x,   y+1, c])
+            queue.add([x+1, y,   c])
+        }
+    }
+    
     class MultiPix
     {
         def colorValues = [:]
@@ -140,7 +189,7 @@ class PackMap
                 def (color, value) = pix.getHighColor()
                 outRow.add(color)
                 // Distribute the error: 50% to the right, 25% down, 25% down-right
-                /*
+                /* Note: This makes things really look weird, so not doing it any more.
                 if (dx+1 < outWidth)
                     pixBuf[dy][dx+1].addError(pix, color, 0.5)
                 if (dy+1 < outHeight)
@@ -188,13 +237,15 @@ class PackMap
     }
     
     // The renderer wants bits of the two pixels interleaved in a special way.
-    // Given input pix1=00000xyz and pix2=00000qrs, the output will be 00xqyrzs.
-    // So the renderer uses mask 00101010 to extract pix1, and 00010101 for pix2.
+    // Given input pix1=0000QRST and pix2=0000wxyz, the output will be QwRxSyTz.
+    // So the renderer uses mask 10101010 to extract pix1, then shifts left one
+    // bit and uses the same mask to get pix2.
     //
     def combine(pix1, pix2) {
         return ((pix2 & 1) << 0) | ((pix1 & 1) << 1) |
                ((pix2 & 2) << 1) | ((pix1 & 2) << 2) |
-               ((pix2 & 4) << 2) | ((pix1 & 4) << 3);
+               ((pix2 & 4) << 2) | ((pix1 & 4) << 3) |
+               ((pix2 & 8) << 3) | ((pix1 & 8) << 4);
     }
     
     def writeImage(stream, image)
@@ -250,6 +301,9 @@ class PackMap
         def images = names.collect { name ->
             parseImage(dataIn.image.find { it.@name == name })
         }
+        
+        println "Flood-filling transparency from upper corners."
+        images.each { calcTransparency(it) }
         
         // Ready to start writing the output file.
         new File(binPath).withOutputStream { stream ->

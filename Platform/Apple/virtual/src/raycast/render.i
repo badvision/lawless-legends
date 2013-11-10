@@ -4,7 +4,7 @@
 TOP_LINE       = $2180 ; 24 lines down from top
 NLINES         = 128
 SKY_COLOR_E    = $22 ; blue
-SKY_COLOR_O    = $22 ; blue
+SKY_COLOR_O    = $20 ; hi-bit black
 GROUND_COLOR_E = $28 ; orange
 GROUND_COLOR_O = $20 ; hi-bit black
 TEX_SIZE       = $555 ; 32x32 + 16x16 + 8x8 + 4x4 + 2x2 + 1x1

@@ -573,22 +573,28 @@ function bindKeys() {
 
   document.onkeydown = function(e) {
     e = e || window.event;
+    console.log(e.keyCode);
 
     switch (e.keyCode) { // which key was pressed? [ref BigBlue2_30]
-
+    
       case 38: // up, move player forward, ie. increase speed
+      case 87: // w
         player.speed = 1;
         break;
 
       case 40: // down, move player backward, set negative speed
+      case 83: // s
+      case 88: // x
         player.speed = -1;
         break;
 
       case 37: // left, rotate player left
+      case 65: // a
         player.dir = -1;
         break;
 
       case 39: // right, rotate player right
+      case 68: // d
         player.dir = 1;
         break;
         

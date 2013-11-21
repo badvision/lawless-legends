@@ -346,8 +346,14 @@ castRay:
     ; Start at the player's position, and init Y reg for stepping in the X dir
     ldy playerX+1
     sty mapX
-    lda playerY+1
-    sta mapY
+    ldx playerY+1
+    stx mapY
+
+    ; Also init the min/max trackers
+    sty minX
+    sty maxX
+    stx minY
+    stx maxY
 
     ; the DDA algorithm
 @DDA_step:
@@ -543,15 +549,39 @@ castRay:
     sec
     sbc diff
     tay
+    sta depth
     lda #6
     sbc diff+1
     tax
+    lsr                 ; Depth is 4 bits of exponent + upper 4 bits of mantissa
+    ror depth
+    lsr
+    ror depth
+    lsr
+    ror depth
+    lsr
+    ror depth
     jsr pow2_w_w        ; calculate 2 ^ (log(64) - diff)  =~  64.0 / dist
     cpx #0
     beq :+
     lda #$FF            ; clamp large line heights to 255
 :   sta lineCt
-    rts                 ; all done with wall calculations
+    ; Update min/max trackers
+    lda mapX
+    cmp minX
+    bcs :+
+    sta minX
+:   cmp maxX
+    bcc :+
+    sta maxX
+:   lda mapY
+    cmp minY
+    bcs :+
+    sta minY
+:   cmp maxY
+    bcc :+
+    sta maxY
+:   rts                 ; all done with wall calculations
     .if DEBUG
 @debugSideData:
     DEBUG_STR ", mapX="

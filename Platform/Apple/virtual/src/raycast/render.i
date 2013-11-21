@@ -50,6 +50,11 @@ dist       = $54 ; len 2
 diff       = $56 ; len 2
 pMap       = $58 ; len 2
 lineCt     = $5A ; len 1
+depth      = $5B ; len 1
+minX       = $5C ; len 1
+maxX       = $5D ; len 1
+minY       = $5E ; len 1
+maxY       = $5F ; len 1
 
 ; Other monitor locations
 a2l      = $3E

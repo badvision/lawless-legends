@@ -55,6 +55,7 @@ minX       = $5C ; len 1
 maxX       = $5D ; len 1
 minY       = $5E ; len 1
 maxY       = $5F ; len 1
+screenCol  = $60 ; len 1
 
 ; Other monitor locations
 a2l      = $3E

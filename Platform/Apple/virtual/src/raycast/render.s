@@ -271,8 +271,12 @@ pow2_w_w:
 ; Input: pRayData, plus Y reg: precalculated ray data (4 bytes)
 ;        playerX, playerY (integral and fractional bytes of course)
 ;        pMap: pointer to current row on the map (mapBase + playerY{>}*height)
-; Output: lineCt - height to draw in double-lines
-;         txColumn - column in the texture to draw
+;        screenCol: column on the screen for buffer store
+; Output: (where x is screenCol)
+;         heightBuf,x - height to draw in double-lines
+;         depthBuf,x  - depth (log of height basically), for compositing order
+;         txNumBuf,x  - texture number to draw
+;         txColBuf,x  - column in the texture to draw
 castRay:
     ; First, grab the precalculated ray data from the table.
     ldx #1              ; default X step: forward one column of the map
@@ -349,12 +353,6 @@ castRay:
     ldx playerY+1
     stx mapY
 
-    ; Also init the min/max trackers
-    sty minX
-    sty maxX
-    stx minY
-    stx maxY
-
     ; the DDA algorithm
 @DDA_step:
     lda sideDistX
@@ -386,7 +384,8 @@ castRay:
     ; We hit something!
 @hitX:
     DEBUG_STR "  Hit."
-    sta txNum           ; store the texture number we hit
+    ldx screenCol
+    sta txNumBuf,x      ; store the texture number we hit
     lda #0
     sec
     sbc playerX         ; inverse of low byte of player coord
@@ -409,12 +408,12 @@ castRay:
     bit stepX           ; if stepping forward in X...
     bmi :+
     eor #$FF            ; ...invert the texture coord
-:   sta txColumn
+:   ldx screenCol
+    sta txColBuf,x      ; and save the final coordinate
     .if DEBUG
-    jmp @debugFinal
-    .else
-    rts
+    jsr @debugFinal
     .endif
+    rts
     ; taking a step in the Y direction
 @takeStepY:
     lda pMap            ; get ready to switch map row
@@ -450,7 +449,8 @@ castRay:
 @hitY:
     ; We hit something!
     DEBUG_STR "  Hit."
-    sta txNum           ; store the texture number we hit
+    ldx screenCol
+    sta txNumBuf,x      ; store the texture number we hit
     lda #0
     sec
     sbc playerY         ; inverse of low byte of player coord
@@ -473,12 +473,12 @@ castRay:
     bit stepY           ; if stepping backward in Y
     bpl :+
     eor #$FF            ; ...invert the texture coord
-:   sta txColumn
+:   ldx screenCol
+    sta txColBuf,x      ; and save the final coord
     .if DEBUG
-    jmp @debugFinal
-    .else
-    rts
+    jsr @debugFinal
     .endif
+    rts
 
     ; wall calculation: X=dir1, Y=dir2, A=dir2step
 @wallCalc:
@@ -549,23 +549,30 @@ castRay:
     sec
     sbc diff
     tay
-    sta depth
     lda #6
     sbc diff+1
     tax
-    lsr                 ; Depth is 4 bits of exponent + upper 4 bits of mantissa
-    ror depth
-    lsr
-    ror depth
-    lsr
-    ror depth
-    lsr
-    ror depth
+    sta tmp
+    tya
+    lsr tmp             ; Depth is 4 bits of exponent + upper 4 bits of mantissa
+    ror
+    lsr tmp
+    ror
+    lsr tmp
+    ror
+    lsr tmp
+    ror
+    pha                 ; stash it on stack (we don't have X reg free yet for indexed store)
     jsr pow2_w_w        ; calculate 2 ^ (log(64) - diff)  =~  64.0 / dist
     cpx #0
     beq :+
     lda #$FF            ; clamp large line heights to 255
-:   sta lineCt
+:   ldx screenCol
+    sta heightBuf,x     ; save final height to the buffer
+    pla                 ; get the depth back...
+    sta depthBuf,x      ; and save it too
+    lda #0
+    sta linkBuf,x       ; might as well clear the link buffer while we're at it
     ; Update min/max trackers
     lda mapX
     cmp minX
@@ -595,14 +602,17 @@ castRay:
     DEBUG_LN
     rts
 @debugFinal:
-    DEBUG_STR "  lineCt="
-    DEBUG_BYTE lineCt
+    ldx screenCol
+    DEBUG_STR "  height="
+    DEBUG_BYTE heightBuf,x
+    DEBUG_STR "depth="
+    DEBUG_BYTE depthBuf,x
     DEBUG_STR "txNum="
-    DEBUG_BYTE txNum
+    DEBUG_BYTE txNumBuf,x
     DEBUG_STR "txCol="
-    DEBUG_BYTE txColumn
+    DEBUG_BYTE txColBuf,x
     DEBUG_LN
-    jsr rdkey
+    jmp rdkey
     .endif
 
 ; Advance pLine to the next line on the hi-res screen
@@ -1249,25 +1259,33 @@ graphInit:
     rts
 
 ;-------------------------------------------------------------------------------
-; Render one whole frame
-renderFrame:
-    .if DOUBLE_BUFFER
-    jsr setBackBuf
-    .endif
+; Draw all the rays from the current player coord
+drawAllRays:
 
     ; Initialize pointer into precalculated ray table, based on player dir.
     ; The table has 256 bytes per direction.
-    lda #0
-    sta pRayData
+    ldx #0
+    stx pRayData
     lda playerDir
     clc
     adc #>precast_0
     sta pRayData+1
 
+    ; start at column zero
+    stx screenCol
+
+    ; Init the min/max trackers, which are used after casting 
+    ; to filter out non-visible sprites
+    stx maxX
+    stx maxY
+    dex
+    stx minX
+    stx minY
+
     ; Calculate pointer to the map row based on playerY
     lda mapBase         ; start at row 0, col 0 of the map
     ldy mapBase+1
-    ldx playerY+1       ; integral part of player's Y coord
+    ldx playerY+1       ; integer part of player's Y coord
     beq @gotMapRow
     clc
 @mapLup:                ; advance forward one row
@@ -1278,34 +1296,42 @@ renderFrame:
 :   dex                 ; until we reach players Y coord
     bne @mapLup
 @gotMapRow:
-    tax                 ; map row ptr now in X(lo) / Y(hi)
+    sta mapRayOrigin
+    sty mapRayOrigin+1
 
-    .if DEBUG
-    stx tmp
-    sty tmp+1
-    DEBUG_STR "Initial pMap="
-    DEBUG_WORD tmp
-    DEBUG_LN
-    ldx tmp
-    ldy tmp+1
+    ; Calculate the height, depth, texture number, and texture column for one ray
+    ; [ref BigBlue3_50]
+    lda screenCol       ; calculate ray offset...
+@oneCol:
+    asl                 ; as screen column * 4
+    asl
+    tay
+    lda mapRayOrigin    ; set initial map pointer for the ray
+    sta pMap
+    lda mapRayOrigin+1
+    sta pMap+1
+    jsr castRay         ; cast the ray across the map
+    inc screenCol       ; advance to next column
+    lda screenCol
+    cmp #63             ; stop after we do 63 columns = 126 bw pix
+    bne @oneCol
+    rts
+
+;-------------------------------------------------------------------------------
+; Render one whole frame
+renderFrame:
+    .if DOUBLE_BUFFER
+    jsr setBackBuf
     .endif
+
+    jsr castAllRays
 
     lda #0
     sta pixNum
     sta byteNum
-    ; A-reg needs to be zero at this point -- it is the ray offset.
-    ; Calculate the height, texture number, and texture column for one ray
-    ; [ref BigBlue3_50]
+    sta screenCol
+
 @oneCol:
-    stx pMap            ; set initial map pointer for the ray
-    sty pMap+1
-    pha                 ; save ray offset
-    tay                 ; ray offset where it needs to be
-    lda pMap+1          ; save map row ptr
-    pha
-    txa
-    pha
-    jsr castRay         ; cast the ray across the map
     lda pixNum
     bne :+
     jsr clearBlit       ; clear blit on the first pixel
@@ -1319,6 +1345,7 @@ renderFrame:
     jsr prbyte
     DEBUG_LN
     .endif
+    inc screenCol       ; next column
     inc pixNum          ; do we need to flush the pixel buffer?
     lda pixNum
     cmp #7
@@ -2618,6 +2645,14 @@ precast_15:
     .byte $7E,$07,$05,$56
     .res 4 ; to bring it up to 256 bytes per angle
 
+; Rendering buffers
+txNumBuf:  .res 256
+txColBuf:  .res 256
+heightBuf: .res 256
+depthBuf:  .res 256
+linkBuf:   .res 256
+
+; Useful constants
 wLog256:      .word $0800
 wLogViewDist: .word $0E3F
 

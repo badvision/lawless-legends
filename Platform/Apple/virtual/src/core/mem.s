@@ -1,155 +1,299 @@
-;Memory manager
-;------------------
-;Memory is managed in 512-byte blocks (to correspond with Prodos block sizes)
-;In every 64kb memory bank, a lookup table lives at $800-$8FF and identifies
-;what blocks, if any, are used there as well as usage flags to mark free,
-;used, or reserved memory.
+; Memory manager
+; ------------------
 ;
-;Memory is marked as used as it is loaded by the loader, but the caller program
-;should mark memory as free as soon as the memory is no longer in use.  It is
-;very possible that the memory will not be reclaimed right away and could be
-;reinstated as in-use without a loading penalty.
+; Memory is managed in 256-byte pages (to correspond with Prodos block sizes)
+; In each 48kb memory bank (main and aux), a lookup table identifies what pages, 
+; if any, are used there as well as usage flags to mark free, used, or reserved memory.
 ;
-;Another scenario is that free memory will be relocated to auxiliary banks
-;and potentially later restored to active memory at a later time.  Depending on the
-;driver, this might be handled in different ways.  Aux memory should be kept open
-;such that memory can still be reclaimed.  Extended memory (e.g. RamWorks and slinky
-;ram expansions) can adopt a more linear and predictable model if they are large enough.
+; Memory is marked as used as it is loaded by the loader, but the caller program
+; should mark memory as free as soon as the memory is no longer in use.  It is
+; very possible that the memory will not be reclaimed right away and could be
+; reinstated as in-use without a loading penalty.
 ;
-;The goal of using extended ram is to prevent future disk access as much as possible,
-;because even an inefficient o(N) memory search is going to be faster than spinning up
-;a disk.
-;-----------------
-;Page table format:
-;FFFFFppp nnnnnnnn
-;F = Flags
-;	7 - Active/Inactive
+; Another scenario is that free memory will be relocated to auxiliary banks
+; and potentially later restored to active memory at a later time.  Depending on the
+; loader, this might be handled in different ways.  Aux memory should be kept open
+; such that memory can still be reclaimed.  Extended memory (e.g. RamWorks and slinky
+; ram expansions) can adopt a more linear and predictable model if they are large enough.
+;
+; Memory operations are performed in sets. A set is begun with the START_LOAD call, and
+; subsequent QUEUE_LOAD requests are queued up. The set is then executed with 
+; FINISH_LOAD. The purpose of queuing the requests is to allow the disk driver to
+; sort the requests in storage order and thus optimize loading speed. During the period 
+; between START_LOAD and FINISH_LOAD, the area in main memory from $4000 to 5FFF is 
+; reserved for memory manager operations. Therefore, if hi-res graphics are showing it
+; is important to copy them to page 1 ($2000.3FFF) and switch to that display before
+; queueing loads.
+;
+; The goal of using extended ram is to prevent future disk access as much as possible,
+; because even an inefficient o(N) memory search is going to be faster than spinning up
+; a disk.
+;
+; ----------------------------
+; Page table format in memory:
+; FFFFtttt nnnnnnnn
+; F = Flags
+;   7 - Active/Inactive
 ;   6 - Locked (Cannot reclaim for any reason)
-;   5 - Code (1) or Data (0)
-;   4 - Primary (1) or Secondary (0)
-;       Memory blocks are allocated in chunks, the first block is always primary
-;       So detecting primary blocks means we can clear more than one block at a time
-;   3 - Reserved
-;p = Data partition (0-7)
-;n = Block number (0-256)
+;   5 - Primary (1) or Secondary (0)
+;       Memory pages are allocated in chunks, the first page is always primary
+;       So detecting primary pages means we can clear more than one page at a time
+;   4 - Loaded (Memory contains copy of disk-based resource identified below)
+; t = Type of resource (1-15, 0 is invalid)
+; n = Resource number (1-255, 0 is invalid)
 ;
-*=$900
-PAGE_TABLE 		= $800
-READ 			equ $CA
-READ_BLOCK		equ $80
-ERROR_IO		equ $27
-NOT_CONNECTED 	equ $28
+; -------------------------
+; Page file format on disk:
+;   File must be named: DISK.PART.nnn where nnn is the partition number (0-15)
+;   File Header:
+;     byte 0: Total # of pages in header
+;     byte 1-n: Table of repeated resource entries
+;   Resource entry:
+;     byte 0: resource type (1-15), 0 for end of table
+;     byte 1: resource number (1-255)
+;     byte 2: number of pages
+;   The remainder of the file is the page data for the resources, in order of
+;   their table appearance.
+;
+mainLoader = $800
+auxLoader  = $803
 
-INIT_BLOCK_TABLE
-		; Set up block table, marking ZP, Stack, $800-$9FF, Hires, and Prodos system areas as locked.
-		; Large memory drivers should keep blocks in their canonical order if they have 
-		; enough space (>= 800kb).  Since it is only needed to reserve memory in AUX and Main memory,
-		; other drivers can omit block tables if they have sufficient memory.  In these 
-		; situations it might work best if large memory drivers use an alternate
-		; approach to a block table as it makes sense to do so.
+; Monitor routines
+setNorm = $FE84
+monInit = $FB2F
+setVid = $FE93
+setKbd = $FE89
 
-REQUEST_MEMORY
-		; Free memory, relocating anything in the way to auxiliary ram if possible
-		; The end result is that the caller gets a target area of ram to use that is supposedly
-		; not in use by anything else (provided it plays nicely with others...)
-		; If we have to satisfy the target block location (A > 0) then active flags are
-		; ignored right away.  It is necessary for transition code to always make sure
-		; that non-relocatable code segments are loaded in their required places before
-		; JMPing to them.
-		;
-		; A = requested target block location, 0 = don't care
-		;   0 is used because we will never want to load into the stack or into zero page on purpose
-		;   Some loaders in the chain will let us use block 0, but that's only for AUX banks
-		; Y = number of blocks to reserve
-		; Returns: A = target location
-		; 		    If carry set, allocation failed!
+;------------------------------------------------------------------------------
+; Command codes
 
-LOCK_MEMORY
-		; Set memory as locked so that it cannot be reclaimed for any reason.
-		; A = starting block number
-		; Y = number of blocks to lock (0 or 1 both mean one block)
+;------------------------------------------------------------------------------
+RESET_MEMORY = $10
+    ; Input: None
+    ;
+    ; Output: None
+    ;
+    ; Mark all memory as inactive, except the following areas in main memory 
+    ; which are always locked:
+    ;
+    ; 0000.01FF: Zero page and stack
+    ; 0200.02FF: Input buffer and/or scratch space
+    ; 0300.03FF: System vectors, scratch space
+    ; 0400.07FF: Text display
+    ; 0800.xxxx: The memory manager and its page table
+    ; BF00.BFFF: ProDOS system page
+    ;
+    ; Note that this does *not* destroy the contents of memory, so for instance
+    ; future RECALL_MEMORY commands may be able to re-use the existing contents
+    ; of memory if they haven't been reallocated to something else.
+    ;
+    ; This command is acted upon and then passed on to chained loaders.
 
-RELOCATE_MEMORY
-		; Move blocks down the loader chain to whoever can hold them
-		; The goal is to relocate blocks and avoid going back to disk if possible
-		; If this goal cannot be met, then cest la vie! :-)
-		; A reallocation request is reviewed block by block.  A loader can ignore
-		; relocation requests for blocks they still have in memory, even if inactive
-		; A = starting block to relocate
-		; Y = number of blocks to relocate
-		; Returns: Nothing
-		
-DEACTIVATE_MEMORY
-		; Mark a block in memory as free, or rather inactive, so that it can be reused
-		; This also clears the lock bit!   Subsequent blocks are also freed if their
-		; primary bit is not set.  Callers shouldn't use this directly, you
-		; should use REQUEST_MEMORY!
-		; A = block number
-		; Return: nothing
-		
-FIND_BLOCK
-		; Check to see if block is in memory
-		; A = partition number (0-7)
-		; Y = block number
-		; Returns:
-		; 	   Carry clear if block found
-		;	   A = block number in memory (LSB)
-		;	   Y = block number in memory (MSB)
-		;	   Carry set if block not found
-		;	   See load block for failure status codes
+;------------------------------------------------------------------------------
+LOCK_MEMORY = $11
+    ; Input:  X-reg - page address for start of reservation
+    ;         Y-reg - number of pages to reserve
+    ;
+    ; Output: None
+    ;
+    ; Reserve a specific area of memory. If it cannot be reserved for any reason,
+    ; a FATAL_ERROR is triggered.
+    ;
+    ; This command is acted upon immediately and chained loaders are not called.
 
-RECALL_BLOCKS
-		; This is the main loader stub, used to transfer a set of blocks from the most accessible
-		; location to main memory.  For main memory, this is a stub to move memory if possible
-		; or just delegate the work of loading down the chain to the next available device 
-		; in the loader chain.
-		; If the block is not found and there are no more loaders in the chain, 
-		; then an error code is returned.
-		; When blocks are loaded, only the first block is marked primary, others are marked
-		; as secondary.
-		; A = Requested target block location in memory
-		; X = NNNNNPPP; 
-				NNNNN = number of blocks to load (+1 added to value, so 11111 will load 32 blocks)
-				PPP = Partition number (0-7)
-		; Y = Starting block number (0-256)
-		; Returns: Carry clear if successful
-		;   If carry is set, check A for failure status:
-		;       255 = I/O error
-		;		  0 = partition not found (disk switch required)
-		;		  1 = block not found (partition size is too small, probably needs boot disk)
-		JSR MLI
-		db READ_BLOCK
-		db 3	; param count
-		db 1	; unit num (Bit 7 = drive, Bits 6-4 = slot)
-		dw 00 	; buffer location (little endian)
-		dw 00	; block # (little endian)
+;------------------------------------------------------------------------------
+REQUEST_MEMORY = $12
+    ; Input:  X-reg - number of pages to allocate
+    ;
+    ; Output: X-reg - starting memory page that was allocated
+    ;
+    ; Allocate a number of blocks in the memory space of this loader. If there 
+    ; isn't a large enough continguous memory segment available, the system 
+    ; will be halted immediately with HALT_MEMORY.
+    ;
+    ; To allocate main memory, call the main memory loader. To allocate aux
+    ; mem, call that loader instead.
+    ;
+    ; This command is acted upon immediately and chained loaders are not called.
 
-REGISTER_LOADER
-		; Register loader to the end to the loader chain.
-		; So if this has a chain loader registered already, perform a JMP to that loader
-		; Priority is lowest-to-highest order so things should be in this order:
-		; 00: Main memory
-		; 10: Slinky ram (>= 1mb -- can hold full game)
-		; 20: RamWorks (>= 1mb -- can hold full game)
-		; 30: Slinky ram (< 800kb -- unable to hold full game)
-		; 40: RamWorks (< 800kb -- unable to hold full game)
-		; 50: Aux memory
-		; 60: Hard drive/800kb -- Holds full game but slow
-		; 70: Disk II -- Unable to hold full game and also very slow
-		; 80: Serial -- Able to hold full game but really slow and requires extra checks
-		;
-		; Inputs:
-		; A = Priority
-		; Y = MSB loader address
-		; X = LSB loader address
+;------------------------------------------------------------------------------
+START_LOAD = $13
+    ; Input:  X-reg - disk partition number (0 for boot disk, 1-15 for others)
+    ;
+    ; Output: None
+    ;
+    ; Marks the start of a set of QUEUE_LOAD operations, that will be
+    ; acted upon when FINISH_LOAD is finally called.
+    ;
+    ; The partition is recorded and passed on to chained loaders.
+
+
+;------------------------------------------------------------------------------
+QUEUE_LOAD = $14
+    ; Input: X-reg - resource type
+    ;        Y-reg - resource number
+    ;
+    ; Output: X-reg - memory page the load will occur at
+    ;
+    ; This is the main entry for loading resources from disk. It queues a load
+    ; request, allocating main memory to hold the entire resource. Note that
+    ; the load is only queued; it will be completed by FINISH_LOAD.
+    ;
+    ; Note that if the data is already in memory, its former location will
+    ; be returned and no disk access will be queued.
+    ;
+    ; The request is either acted upon by this loader, or passed onto the
+    ; next chained loader. If there is no next loader, a FATAL_ERROR is 
+    ; triggered.
+
+;------------------------------------------------------------------------------
+FINISH_LOAD = $15
+    ; Input: None
+    ;
+    ; Output: None
+    ;
+    ; Completes all prior QUEUE_LOAD requests, clearing the queue. It's the
+    ; last part of a START_LOAD / QUEUE_LOAD / FINISH_LOAD sequence.
+    ;
+    ; This command is acted upon by this loader and passed to chained loaders.
+
+;------------------------------------------------------------------------------
+FREE_MEMORY = $16
+    ; Input: X-reg - starting page number to mark free (must be start of a
+    ;                memory area that was requested, locked, or loaded)
+    ;
+    ; Output: None
+    ;
+    ; Mark a block of memory as free, or rather inactive, so that it can be 
+    ; reused. This also clears the lock bit!
 		
-		
-		
-		
-			
-	
-		
-		
-		
-		
-		
+;------------------------------------------------------------------------------
+FATAL_ERROR = $17
+    ; Input:  X-reg / Y-reg: message number or pointer (see below)
+    ;
+    ; Output: Never returns
+    ;
+    ; Switches to text mode, prints out a predefined or custom error message, 
+    ; plus the call stack, and then halts the system (i.e. it waits forever, 
+    ; user has to press Reset).
+    ;
+    ; If Y-reg is zero, this prints one of these predefined messages based on
+    ; X-reg:
+    LOAD_ERR_INVALID_COMMAND = $01
+    LOAD_ERR_BAD_PARAM       = $02
+    LOAD_ERR_OUT_OF_MEMORY   = $03
+    LOAD_ERR_RESERVED_MEM    = $04
+    LOAD_ERR_UNKNOWN         = $05
+    ;
+    ; If Y-reg is non-zero, it's taken as the high byte of a pointer to
+    ; a zero-terminated, ASCII message to print. X-reg is the low byte of the
+    ; message pointer.
+    ;
+    ; This command halts and thus never returns.
+
+;------------------------------------------------------------------------------
+; code begins here
+* = $800
+ jmp mainLoader
+ jmp auxLoader
+
+nextLoaderVec: jmp diskLoader
+
+mainLoader:
+  lda #0        ; incremented after init
+  bne :+
+  jmp init
+: cmp #RESET_MEMORY
+  bne :+
+  jmp main_reset
+: cmp #LOCK_MEMORY
+  bne :+
+  jmp main_lock
+: cmp #REQUEST_MEMORY
+  bne :+
+  jmp main_req
+: cmp #FATAL_ERROR
+  bne :+
+  jmp fatalError
+: cmp #START_LOAD
+  bcc cmdError
+  cmp #FINISH_LOAD+1
+  bcs cmdError
+; Found a command that needs to be chained to next loader
+  jmp nextLoaderVec
+
+cmdError:
+  ldx #LOAD_ERR_INVALID_COMMAND
+  ldy #0
+fatalError:
+  tya
+  bne customErr
+predefErr:
+  dex
+  beq foundErrMsg
+: iny
+  lda errorText,y
+  bne :-
+  beq predefErr
+foundErrMsg:
+  tya
+  clc
+  adc #<errorText
+  tax
+  ldy #>errorText
+  bcc customErr
+  iny
+customErr:
+  sty pTmp+1
+  stx pTmp
+; Set up text mode, print message
+printErr:
+  jsr setNorm
+  jsr monInit
+  jsr setVid
+  jsr setKbd
+  jsr crout
+  jsr crout
+  ldy #0
+: lda (pTmp),y
+  beq :+
+  jsr cout
+  iny
+  bne :-
+; Print call stack
+  jsr crout
+  tsx
+: cpx #$FF
+  beq :+
+  inx
+  lda 100,x
+  sec
+  sbc #2
+  sta pTmp
+  lda 101,x
+  sbc #0
+  sta pTmp+1
+  and #$C0
+  cmp #$C0
+  beq :-
+  ldy #0
+  lda (pTmp),y
+  cmp #$20
+  bne :-
+  lda pTmp+1
+  jsr prByte
+  lda pTmp
+  jsr prByte
+  lda #$A0
+  jsr cout
+  jmp :-
+; Beep, and loop forever
+: jsr bell
+loopForever: jmp loopForever
+
+errorText:
+  .byte "Invalid command", 0
+  .byte "Bad parameter", 0
+  .byte "Reserved memory", 0
+  .byte "Unknown error", 0
+  .byte 0

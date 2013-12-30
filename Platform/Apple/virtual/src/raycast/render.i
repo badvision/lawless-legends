@@ -1,5 +1,7 @@
 ; Shared definitions for the rendering code
 
+  .include "../include/global.i"
+
 ; Constants
 TOP_LINE       = $2180 ; 24 lines down from top
 NLINES         = 128
@@ -21,15 +23,10 @@ BLIT_OFF6 = 24
 BLIT_STRIDE = 29
 
 ; Renderer zero page
-playerDir  = $3  ; len 1
-playerX    = $4  ; len 2 (hi=integer, lo=fraction)
-playerY    = $6  ; len 2 (hi=integer, lo=fraction)
 pDst       = $8  ; len 2
 pTex       = $A  ; len 2
 pixNum     = $C  ; len 1
 byteNum    = $D  ; len 1
-pTmp       = $E  ; len 2
-tmp        = $10 ; len 2
 mapWidth   = $12 ; len 1
 mapHeight  = $13 ; len 1
 pRayData   = $14 ; len 2
@@ -56,11 +53,9 @@ maxX       = $5D ; len 1
 minY       = $5E ; len 1
 maxY       = $5F ; len 1
 screenCol  = $60 ; len 1
-
-; Other monitor locations
-a2l      = $3E
-a2h      = $3F
-resetVec = $3F2
+playerDir  = $61 ; len 1
+playerX    = $62 ; len 2 (hi=integer, lo=fraction)
+playerY    = $64 ; len 2 (hi=integer, lo=fraction)
 
 ;---------------------------------
 ; The following are all in aux mem...
@@ -84,35 +79,6 @@ prodosBuf    = $B000    ; temporary, before building the tables
 blitRoll     = $B000    ; Unrolled blitting code. Size 29*128 = $E80, plus 1 for rts
 MLI          = $BF00    ; Entry point for ProDOS MLI
 memMap       = $BF58    ; ProDOS memory map
-
-; I/O locations
-kbd       = $C000
-clrAuxRd  = $C002
-setAuxRd  = $C003
-clrAuxWr  = $C004
-setAuxWr  = $C005
-clrAuxZP  = $C008
-setAuxZP  = $C009
-kbdStrobe = $C010
-clrText   = $C050
-setText   = $C051
-clrMixed  = $C052
-setMixed  = $C053
-page1     = $C054
-page2     = $C055
-clrHires  = $C056
-setHires  = $C057
-
-; ROM routines
-prntax    = $F941
-rdkey     = $FD0C
-getln1    = $FD6F
-crout     = $FD8E
-prbyte    = $FDDA
-cout      = $FDED
-prerr     = $FF2D
-monitor   = $FF69
-getnum    = $FFA7
 
 ; mipmap level offsets
 MIP_OFFSET_0 = 0

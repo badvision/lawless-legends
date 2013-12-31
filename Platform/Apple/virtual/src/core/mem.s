@@ -37,6 +37,7 @@
 ;   6 - Primary (1) or Secondary (0)
 ;       Memory pages are allocated in chunks, the first page is always primary
 ;       So detecting primary pages means we can clear more than one page at a time
+;   5 - Locked (cannot be reclaimed for any reason)
 ; t = Type of resource (1-15, 0 is invalid)
 ; n = Resource number (1-255, 0 is invalid)
 ;
@@ -53,8 +54,9 @@
 ;   The remainder of the file is the page data for the resources, in order of
 ;   their table appearance.
 ;
-mainLoader = $800
-auxLoader  = $803
+startMemMgr = $800
+mainLoader  = $803
+auxLoader   = $806
 
 ;------------------------------------------------------------------------------
 ; Command codes
@@ -72,7 +74,8 @@ RESET_MEMORY = $10
     ; 0200.02FF: Input buffer and/or scratch space
     ; 0300.03FF: System vectors, scratch space
     ; 0400.07FF: Text display
-    ; 0800.xxxx: The memory manager and its page table
+    ; 0800.0xFF: The memory manager and its page table
+    ; 2000.5FFF: Hi-res graphics display buffers
     ; BF00.BFFF: ProDOS system page
     ;
     ; Note that this does *not* destroy the contents of memory, so for instance
@@ -183,25 +186,13 @@ CHAIN_LOADER = $17
 		
 ;------------------------------------------------------------------------------
 FATAL_ERROR = $18
-    ; Input:  X-reg / Y-reg: message number or pointer (see below)
+    ; Input:  X-reg / Y-reg: message pointer (X=lo, Y=hi)
     ;
     ; Output: Never returns
     ;
-    ; Switches to text mode, prints out a predefined or custom error message, 
-    ; plus the call stack, and then halts the system (i.e. it waits forever, 
-    ; user has to press Reset).
-    ;
-    ; If Y-reg is zero, this prints one of these predefined messages based on
-    ; X-reg:
-    LOAD_ERR_INVALID_COMMAND = $01
-    LOAD_ERR_BAD_PARAM       = $02
-    LOAD_ERR_OUT_OF_MEMORY   = $03
-    LOAD_ERR_RESERVED_MEM    = $04
-    LOAD_ERR_UNKNOWN         = $05
-    ;
-    ; If Y-reg is non-zero, it's taken as the high byte of a pointer to
-    ; a zero-terminated, ASCII message to print. X-reg is the low byte of the
-    ; message pointer.
+    ; Switches to text mode, prints out the zero-terminated ASCII error message 
+    ; pointed to by the parameters, plus the call stack, and then halts the 
+    ; system (i.e. it waits forever, user has to press Reset).
     ;
     ; This command halts and thus never returns.
 
@@ -215,7 +206,12 @@ FATAL_ERROR = $18
   pPageTbl1 = $6        ; length 2
   pPageTbl2 = $8        ; length 2
 
+  ; memory buffers
+  fileBuffer = $4000    ; len $400
+  headerBuf  = $4400    ; len $1C00
+
   ; Initial vectors
+  jmp init
   jmp main_dispatch
   jmp aux_dispatch
 
@@ -227,19 +223,20 @@ FATAL_ERROR = $18
 
 ;------------------------------------------------------------------------------
 ; Variables
-isInitted:
-  .byte 0
 targetPage:
   .byte 0
 nextLoaderVec: 
   jmp diskLoader
+curPartition:
+  .byte 0
+partitionFileRef:
+  .byte 0
+nHeaderPages:
+  .byte 0
 
 ;------------------------------------------------------------------------------
 main_dispatch:
-  bit isInitted         ; check if initted yet
-  bmi :+
-  jsr init              ; init once only
-: cmp #REQUEST_MEMORY
+  cmp #REQUEST_MEMORY
   bne :+
   jmp main_request
 : cmp #QUEUE_LOAD
@@ -248,7 +245,7 @@ main_dispatch:
 shared_dispatch:
   cmp #RESET_MEMORY
   bne :+
-  jmp main_reset
+  jmp reset
 : cmp #SET_MEM_TARGET
   bne :+
   stx targetPage
@@ -272,25 +269,6 @@ aux_dispatch:
 ; Print fatal error message (custom or predefined) and print the
 ; call stack, then halt.
 fatalError:
-  lda #0        ; default start index
-  cpy #0        ; custom message?
-  bne printErr  ; yes, don't do predef scan
-  ; note, y is now conveniently 0
-; Find a predefined error message in the table of messages
-scanPredef:
-  dex
-  beq foundPredef
-: iny
-  lda errorText,y
-  bne :-
-  beq scanPredef
-foundPredef:
-  tya
-  ldy #>errorText
-  ldx #<errorText
-printErr:
-; Set up text mode, print message
-  pha           ; save index
   sty pTmp+1    ; save message ptr hi...
   stx pTmp      ; ...and lo
   jsr setnorm   ; set up text mode and vectors
@@ -299,10 +277,10 @@ printErr:
   jsr setkbd
   jsr crout     ; a couple newlines
   jsr crout
-  pla           ; restore message pointer
-  tay
+  ldy #0        ; start at first byte of message
 : lda (pTmp),y
   beq :+
+  ora #$80      ; ensure hi-bit ASCII for cout
   jsr cout
   iny
   bne :-
@@ -338,13 +316,6 @@ printErr:
 loopForever: 
   jmp loopForever
 
-errorText:
-  .byte "Invalid command", 0
-  .byte "Bad parameter", 0
-  .byte "Reserved memory", 0
-  .byte "Unknown error", 0
-  .byte 0
-
 ;------------------------------------------------------------------------------
 init:
   ; clear the page tables
@@ -357,8 +328,24 @@ init:
   iny
   cpy #$C0
   bne :-
-  ; make sure init won't get called next time
-  sty isInitted
+  ; Lock page zero through end of memory manager
+  ldy #0
+  lda #$80+$20
+: sta main_pageTbl1,y
+  iny
+  cpy #>codeEnd+1       ; next page after code ends
+  bne :-
+  ; Lock both hi-res pages
+  ldy #$20
+: sta main_pageTbl1,y
+  iny
+  cpy #$60
+  bne :-
+  ; Lock ProDOS system page
+  sta main_pageTbl1+$BF
+  ; Lock pages 0 and 1 in aux mem
+  sta aux_pageTbl1
+  sta aux_pageTbl1+1
   rts
 
 ;------------------------------------------------------------------------------
@@ -386,27 +373,26 @@ aux_setup:
   rts
 
 ;------------------------------------------------------------------------------
-main_reset:
-  ; Set all pages from end of memory manager up to (but not including) ProDOS
-  ; system page as "inactive".
-  ldy #>codeEnd
-  iny
-: lda main_pageTbl1,y
-  and #$7F              ; strip the "active" bit
-  sta main_pageTbl1,y
-  iny
-  cpy #$BF              ; stop just before ProDOS sys page
-  bne :-
-aux_reset:
-  ; Set all pages except zero page and stack to "inactive"
-  ldy #2
-: lda aux_pageTbl1,y
-  and #$7F              ; strip the "active" bit
-  sta aux_pageTbl1,y
-  iny
-  cpy #$C0              ; stop at end of 48K mem bank
-  bne :-
+reset:
+  ; Set all non-locked pages to inactive.
+  jsr main_setup
+  jsr @inactivate
+  jsr aux_setup
+  jsr @inactivate
   jmp nextLoaderVec     ; allow chained loaders to reset also
+@inactivate:
+  ldy #0
+@loop:
+  lda (pPageTbl1),y
+  tax
+  and #$20              ; check lock bit
+  bne :+                ; skip if page is locked
+  txa
+  and #$7F
+  sta (pPageTbl1),y
+: cpy #$C0              ; stop at end of 48K mem bank
+  bne @loop
+  rts
 
 ;------------------------------------------------------------------------------
 main_request:
@@ -450,15 +436,20 @@ shared_request:
   bne :-
   lda tmp+1             ; return starting page
   rts
+
+;------------------------------------------------------------------------------
 reservedErr:
-  ldx #LOAD_ERR_RESERVED_MEM
-produceErr:
-  ldy #0
-  lda #FATAL_ERROR
-  jmp mainLoader
+  ldx #<:+
+  ldy #>:+
+  jmp fatalError
+: .byte "Mem already reserved", 0
+
+;------------------------------------------------------------------------------
 outOfMemErr:
-  ldx #LOAD_ERR_OUT_OF_MEMORY
-  bne produceErr        ; always taken
+  ldx #<:+
+  ldy #>:+
+  jmp fatalError
+: .byte "Out of mem", 0
 
 ;------------------------------------------------------------------------------
 aux_request:
@@ -481,7 +472,7 @@ shared_queueLoad:
   and #$F               ; extract resource type
   cmp tmp               ; is it the type we're looking for?
   bne @skip             ; no, skip it
-  lda (pPageTbl2),y      ; get resource number
+  lda (pPageTbl2),y     ; get resource number
   cmp tmp+1             ; is it the resource # we're looking for?
   beq @found            ; yes! found what we want.
 @skip:
@@ -502,6 +493,258 @@ shared_queueLoad:
 aux_queueLoad:
   jsr aux_setup
   jmp shared_queueLoad
+
+;------------------------------------------------------------------------------
+diskLoader:
+  cmp #START_LOAD
+  bne :+
+  jmp disk_startLoad
+: cmp #QUEUE_LOAD
+  bne :+
+  jmp disk_queueLoad
+: cmp #FINISH_LOAD
+  bne @cmdError
+  jmp disk_finishLoad
+@cmdError:
+  ldx #<:+
+  ldy #>:+
+  jmp fatalError
+  .byte "Invalid command", 0
+
+;------------------------------------------------------------------------------
+openPartition:
+  ; complete the partition file name
+  lda curPartition
+  clc
+  adc #'0'              ; assume partitions 0-9 for now
+  sta @partNumChar
+  ; open the file
+  jsr mli
+  .byte MLI_OPEN
+  .word @openParams
+  bcs prodosError
+  ; grab the file number, since we're going to keep it open
+  lda @openFileRef
+  sta partitionFileRef
+  sta @readFileRef
+  ; Read the first byte, which tells us how many pages in the header
+  lda #<headerBuf
+  sta @readAddr
+  lda #>headerBuf
+  sta @readAddr+1
+  lda #1
+  sta @readLen
+  lda #0
+  sta @readLen+1
+  jsr @doRead
+  ; Grab the number of header pages, then read in the rest of the header
+  ldx headerBuf
+  stx nHeaderPages
+  dex
+  stx @readLen+1
+  lda #$FF
+  sta @readLen
+  lda #1
+  sta @readAddr
+  ; fall into @doRead
+@doRead:
+  jsr mli
+  .byte MLI_READ
+  .word @readParams
+  bcs prodosError
+  rts
+@openParams:
+  .byte 3               ; number of params
+  .word @filename       ; pointer to file name
+  .word fileBuffer      ; pointer to buffer
+@openFileRef:
+  .byte 0               ; returned file number
+@filename:
+  .byte 11              ; length
+  .byte "DISK.PART."
+@partNumChar:
+  .byte "x"             ; x replaced by partition number
+@readParams:
+  .byte 4               ; number of params
+@readFileRef:
+  .byte 0
+@readAddr:
+  .word 0
+@readLen:
+  .word 0
+@readGot:
+  .word 0
+
+;------------------------------------------------------------------------------
+prodosError:
+  ldx #<:+
+  ldy #>:+
+  jmp fatalError
+: .byte "ProDOS error", 0
+
+;------------------------------------------------------------------------------
+disk_startLoad:
+  ; Make sure we don't get start without finish
+  lda curPartition
+  bne sequenceError
+  ; Just record the partition number; it's possible we won't actually be asked
+  ; to queue anything, so we should put off opening the file.
+  stx curPartition
+  rts
+
+;------------------------------------------------------------------------------
+sequenceError:
+  ldx #<:+
+  ldy #>:+
+  jmp fatalError
+: .byte "Bad sequence", 0
+
+;------------------------------------------------------------------------------
+startHeaderScan:
+  lda #<headerBuf       ; start scanning the partition header
+  sta pTmp
+  lda #>headerBuf
+  sta pTmp+1
+  ldy #0
+  rts
+
+;------------------------------------------------------------------------------
+bump128:
+  tya
+  and #$7F
+  tay
+  lda pTmp
+  eor #$80
+  sta pTmp
+  bne :+
+  inc pTmp+1
+: rts
+
+;------------------------------------------------------------------------------
+disk_queueLoad:
+  stx tmp               ; save resource type
+  sty tmp+1             ; and resource num
+  lda partitionFileRef  ; check if we've opened the file yet
+  bne :+                ; yes, don't re-open
+  jsr openPartition     ; open the partition file
+: jsr startHeaderScan   ; start scanning the partition header
+@scan:
+  lda (pTmp),y          ; get resource type
+  beq @notFound         ; if zero, this is end of table: failed to find the resource
+  cmp tmp               ; is it the type we're looking for?
+  bne @next             ; no, skip this resource
+  iny
+  lda (pTmp),y          ; get resource num
+  dey
+  cmp tmp+1             ; is it the number we're looking for
+  bne @next             ; no, skip this resource
+  lda (pTmp),y          ; Yay! We found the one we want. Prepare to mark it
+  ora #$80              ; special mark to say, "We want to load this segment"
+  sta (pTmp),y
+  rts                   ; success! all done.
+@next:
+  iny
+  iny
+  iny
+  bpl @scan
+  jsr bump128
+  jmp @scan
+@notFound:
+  ldx #<:+
+  ldy #>:+
+  jmp fatalError
+: .byte "Resource not found", 0
+
+;------------------------------------------------------------------------------
+disk_finishLoad:
+  lda partitionFileRef  ; See if we actually queued anything (and opened the file)
+  bne :+                ; non-zero means we have work to do
+  rts                   ; nothing to do - return immediately
+: sta @setMarkRefNum    ; copy the file ref number to our MLI param blocks
+  sta @readRefNum
+  sta @closeRefNum
+  lda nHeaderPages      ; set to start reading at first non-header page in file
+  sta @setMarkPos+1
+  lda #0
+  sta @setMarkPos+2
+  jsr startHeaderScan   ; start scanning the partition header
+@scan:
+  lda (pTmp),y          ; get resource type byte
+  iny
+  tax                   ; save type for later
+  beq @done             ; if zero, this is end of table and we're done
+  cmp tmp               ; is it the type we're looking for?
+  bne @bump2            ; no, skip this resource
+  lda (pTmp),y          ; get resource num
+  iny
+  cmp tmp+1             ; is it the number we're looking for
+  bne @bump1            ; no, skip this resource
+  sty @ysave            ; found the resource. Save Y so we can resume later.
+  tay                   ; type already in X; put res # in Y
+  jsr main_queueLoad    ; find the page number allocated to this resource
+  sta @readAddr+1       ; set to read from file into that page
+  ldy @ysave            ; get back to entry in partition header
+  lda (pTmp),y          ; # of pages to read
+  sta @readLen+1
+  jsr mli               ; move the file pointer to the current block
+  .byte MLI_SET_MARK
+  .word @setMarkParams
+  bcs @err
+  jsr mli               ; and read the pages
+  .byte MLI_READ
+  .word @readParams
+  bcs @err
+  ldy @ysave            ; get back to entry in partition header
+  jmp @next             ; and move to next resource entry
+@bump2:
+  iny
+@bump1:
+  iny
+@next:
+  lda (pTmp),y          ; number of pages
+  clc
+  adc @setMarkPos+1     ; advance mark position that far
+  sta @setMarkPos+1
+  bcc :+
+  inc @setMarkPos+2     ; account for files > 64K
+: iny                   ; increment to next entry
+  bpl @scan
+  jsr bump128
+  jmp @scan
+@done:
+  jsr mli               ; now that we're done loading, we can close the partition file
+  .byte MLI_CLOSE
+  .word @closeParams
+  bcs @err
+  lda #0                ; zero out...
+  sta partitionFileRef  ; ... the file reference so we know it's no longer open
+  rts
+@err:
+  jmp prodosError
+@setMarkParams:
+  .byte 2               ; param count
+@setMarkRefNum:
+  .byte 0               ; file reference
+@setMarkPos:
+  .byte 0               ; mark position (3 byte integer)
+  .byte 0
+  .byte 0
+@readParams:
+  .byte 4               ; param count
+@readRefNum:
+  .byte 0               ; file ref num
+@readAddr:
+  .word 0
+@readLen:
+  .word 0
+@readGot:
+  .word 0
+@closeParams:
+  .byte 1               ; param count
+@closeRefNum:
+  .byte 0               ; file ref to close
+@ysave:
+  .byte 0
 
 ;------------------------------------------------------------------------------
 ; Marker for end of the code, so we can compute its length

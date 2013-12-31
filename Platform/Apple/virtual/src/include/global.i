@@ -11,6 +11,31 @@ a2h      = $3F
 ; Other monitor locations
 resetVec = $3F2
 
+; PRODOS
+mli = $BF00
+MLI_QUIT          = $65
+MLI_GET_TIME      = $82
+MLI_CREATE        = $C0
+MLI_DESTROY       = $C1
+MLI_RENAME        = $C2
+MLI_SET_FILE_INFO = $C3
+MLI_GET_FILE_INFO = $C4
+MLI_ONLINE        = $C5
+MLI_SET_PREFIX    = $C6
+MLI_GET_PREFIX    = $C7
+MLI_OPEN          = $C8
+MLI_NEWLINE       = $C9
+MLI_READ          = $CA
+MLI_WRITE         = $CB
+MLI_CLOSE         = $CC
+MLI_FLUSH         = $CD
+MLI_SET_MARK      = $CE
+MLI_GET_MARK      = $CF
+MLI_SET_EOF       = $D0
+MLI_GET_EOF       = $D1
+MLI_SET_BUF       = $D2
+MLI_GET_BUF       = $D3
+
 ; I/O locations
 kbd       = $C000
 clrAuxRd  = $C002

@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 
-<project name="render" default="build">
+<project name="core" default="build">
   
-  <property name="projName" value="render"/> <!-- base part of output bin name -->
+  <property name="projName" value="core"/> <!-- base part of output bin name -->
   <property name="src.dir" location="."/> 
   <property name="include.dir" location="../include"/>
   <property file="${include.dir}/build.props"/> <!-- needs to define CC65_BIN_DIR -->
@@ -41,28 +41,16 @@
       <srcfile/>
     </apply>
 
-    <!-- Link the texture expansion code -->
+    <!-- Link the code into an exectable -->
     <apply executable="${LD65_TOOL}" dir="${build.dir}" 
            failonerror="true" verbose="true">
       <arg value="-o"/>
-      <arg value="${build.dir}/expand.bin#0800"/>
+      <arg value="${build.dir}/core.bin#800"/>
       <arg value="--config"/>
       <arg value="${include.dir}/link.cfg"/>
       <arg value="--start-addr"/>
       <arg value="0x$800"/>
-      <fileset dir="${build.dir}" includes="expand.o"/>
-    </apply>
-
-    <!-- Link the main rendering code -->
-    <apply executable="${LD65_TOOL}" dir="${build.dir}" 
-           failonerror="true" verbose="true">
-      <arg value="-o"/>
-      <arg value="${build.dir}/render.bin#7000"/>
-      <arg value="--config"/>
-      <arg value="${include.dir}/link.cfg"/>
-      <arg value="--start-addr"/>
-      <arg value="0x$7000"/>
-      <fileset dir="${build.dir}" includes="render.o"/>
+      <fileset dir="${build.dir}" includes="*.o"/>
     </apply>
 
   </target>

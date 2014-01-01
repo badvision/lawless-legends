@@ -43,7 +43,7 @@
 ;
 ; -------------------------
 ; Page file format on disk:
-;   File must be named: DISK.PART.nnn where nnn is the partition number (0-15)
+;   File must be named: GAME.PART.nnn where nnn is the partition number (0-15)
 ;   File Header:
 ;     byte 0: Total # of pages in header
 ;     byte 1-n: Table of repeated resource entries
@@ -208,21 +208,18 @@ FATAL_ERROR = $18
 
   ; memory buffers
   fileBuffer = $4000    ; len $400
-  headerBuf  = $4400    ; len $1C00
+  auxBuffer  = $4400    ; len $800
+  headerBuf  = $4C00    ; len $1400
 
   ; Initial vectors
   jmp init
   jmp main_dispatch
   jmp aux_dispatch
 
-  ; Page tables
-  main_pageTbl1: .res $C0
-  main_pageTbl2: .res $C0
-  aux_pageTbl1:  .res $C0
-  aux_pageTbl2:  .res $C0
-
 ;------------------------------------------------------------------------------
 ; Variables
+isAuxCommand:
+  .byte 0
 targetPage:
   .byte 0
 nextLoaderVec: 
@@ -333,7 +330,7 @@ init:
   lda #$80+$20
 : sta main_pageTbl1,y
   iny
-  cpy #>codeEnd+1       ; next page after code ends
+  cpy #>tableEnd       ; next page after page tables
   bne :-
   ; Lock both hi-res pages
   ldy #$20
@@ -358,6 +355,8 @@ main_setup:
   sta pPageTbl2
   lda #>main_pageTbl2
   sta pPageTbl2+1
+  lda #0
+  sta isAuxCommand
   rts
 
 ;------------------------------------------------------------------------------
@@ -370,6 +369,8 @@ aux_setup:
   sta pPageTbl2
   lda #>aux_pageTbl2
   sta pPageTbl2+1
+  lda #$40              ; special flag for marking aux queueing
+  sta isAuxCommand
   rts
 
 ;------------------------------------------------------------------------------
@@ -526,31 +527,31 @@ openPartition:
   ; grab the file number, since we're going to keep it open
   lda @openFileRef
   sta partitionFileRef
-  sta @readFileRef
+  sta readFileRef
   ; Read the first byte, which tells us how many pages in the header
   lda #<headerBuf
-  sta @readAddr
+  sta readAddr
   lda #>headerBuf
-  sta @readAddr+1
+  sta readAddr+1
   lda #1
-  sta @readLen
+  sta readLen
   lda #0
-  sta @readLen+1
+  sta readLen+1
   jsr @doRead
   ; Grab the number of header pages, then read in the rest of the header
   ldx headerBuf
   stx nHeaderPages
   dex
-  stx @readLen+1
+  stx readLen+1
   lda #$FF
-  sta @readLen
+  sta readLen
   lda #1
-  sta @readAddr
+  sta readAddr
   ; fall into @doRead
 @doRead:
   jsr mli
   .byte MLI_READ
-  .word @readParams
+  .word readParams
   bcs prodosError
   rts
 @openParams:
@@ -561,26 +562,48 @@ openPartition:
   .byte 0               ; returned file number
 @filename:
   .byte 11              ; length
-  .byte "DISK.PART."
+  .byte "GAME.PART."
 @partNumChar:
   .byte "x"             ; x replaced by partition number
-@readParams:
+
+readParams:
   .byte 4               ; number of params
-@readFileRef:
+readFileRef:
   .byte 0
-@readAddr:
+readAddr:
   .word 0
-@readLen:
+readLen:
   .word 0
-@readGot:
+readGot:
   .word 0
 
 ;------------------------------------------------------------------------------
 prodosError:
-  ldx #<:+
-  ldy #>:+
+  pha
+  lsr
+  lsr
+  lsr
+  lsr
+  jsr @digit
+  sta @errNum
+  pla
+  jsr @digit
+  sta @errNum+1
+  ldx #<@msg
+  ldy #>@msg
   jmp fatalError
-: .byte "ProDOS error", 0
+@digit:
+  and #$F
+  ora #$B0
+  cmp #$BA
+  bcc :+
+  adc #6
+: rts
+@msg:
+  .byte "ProDOS error $"
+@errNum:
+  .byte "xx"
+  .byte 0
 
 ;------------------------------------------------------------------------------
 disk_startLoad:
@@ -640,6 +663,7 @@ disk_queueLoad:
   bne @next             ; no, skip this resource
   lda (pTmp),y          ; Yay! We found the one we want. Prepare to mark it
   ora #$80              ; special mark to say, "We want to load this segment"
+  ora isAuxCommand      ; record whether the eventual disk read should go to aux mem
   sta (pTmp),y
   rts                   ; success! all done.
 @next:
@@ -660,13 +684,15 @@ disk_finishLoad:
   lda partitionFileRef  ; See if we actually queued anything (and opened the file)
   bne :+                ; non-zero means we have work to do
   rts                   ; nothing to do - return immediately
-: sta @setMarkRefNum    ; copy the file ref number to our MLI param blocks
-  sta @readRefNum
-  sta @closeRefNum
+: sta @setMarkFileRef    ; copy the file ref number to our MLI param blocks
+  sta readFileRef
+  sta @closeFileRef
   lda nHeaderPages      ; set to start reading at first non-header page in file
   sta @setMarkPos+1
   lda #0
   sta @setMarkPos+2
+  sta readAddr
+  sta readLen
   jsr startHeaderScan   ; start scanning the partition header
 @scan:
   lda (pTmp),y          ; get resource type byte
@@ -680,22 +706,29 @@ disk_finishLoad:
   cmp tmp+1             ; is it the number we're looking for
   bne @bump1            ; no, skip this resource
   sty @ysave            ; found the resource. Save Y so we can resume later.
-  tay                   ; type already in X; put res # in Y
+  tay                   ; resource num in Y
+  stx isAuxCommand      ; save flag ($40) to decide where to read
+  txa
+  and #$F               ; mask to get just the resource type
+  tax                   ; resource type in X
   jsr main_queueLoad    ; find the page number allocated to this resource
-  sta @readAddr+1       ; set to read from file into that page
+  sta readTargetPage    ; save for later
   ldy @ysave            ; get back to entry in partition header
   lda (pTmp),y          ; # of pages to read
-  sta @readLen+1
+  sta nPagesToRead      ; save for later
   jsr mli               ; move the file pointer to the current block
   .byte MLI_SET_MARK
   .word @setMarkParams
   bcs @err
-  jsr mli               ; and read the pages
-  .byte MLI_READ
-  .word @readParams
-  bcs @err
-  ldy @ysave            ; get back to entry in partition header
-  jmp @next             ; and move to next resource entry
+  bit isAuxCommand
+  bvs @auxRead          ; decide whether we're reading to main or aux
+  jsr readToMain
+  bcc @resume           ; always taken
+@auxRead:
+  jsr readToAux
+@resume:
+  ldy @ysave
+  jmp @next
 @bump2:
   iny
 @bump1:
@@ -723,30 +756,85 @@ disk_finishLoad:
   jmp prodosError
 @setMarkParams:
   .byte 2               ; param count
-@setMarkRefNum:
+@setMarkFileRef:
   .byte 0               ; file reference
 @setMarkPos:
   .byte 0               ; mark position (3 byte integer)
   .byte 0
   .byte 0
-@readParams:
-  .byte 4               ; param count
-@readRefNum:
-  .byte 0               ; file ref num
-@readAddr:
-  .word 0
-@readLen:
-  .word 0
-@readGot:
-  .word 0
 @closeParams:
   .byte 1               ; param count
-@closeRefNum:
+@closeFileRef:
   .byte 0               ; file ref to close
 @ysave:
   .byte 0
 
-;------------------------------------------------------------------------------
-; Marker for end of the code, so we can compute its length
-codeEnd:
+readTargetPage:
+  .byte 0
+nPagesToRead:
+  .byte 0
 
+;------------------------------------------------------------------------------
+readToMain:
+  lda readTargetPage
+  sta readAddr+1
+  lda nPagesToRead
+  sta readLen+1
+  jsr mli
+  .byte MLI_READ
+  .word readParams
+  bcs @err
+  rts
+@err:
+  jmp prodosError
+
+;------------------------------------------------------------------------------
+readToAux:
+  lda #>auxBuffer       ; we're reading into a buffer in main mem
+  sta readAddr+1
+  lda #>readTargetPage  ; set up copy target page
+  sta @st+1
+@nextGroup:
+  lda nPagesToRead      ; see how many pages we want
+  cmp #8                ; 8 or less?
+  bcc :+                ; yes, read exact
+  lda #8                ; no, limit to 8 pages max
+: sta readLen+1         ; save number of pages
+  jsr mli               ; now read them
+  .byte MLI_READ
+  .word readParams
+  bcs @err
+  lda #>auxBuffer       ; set up copy pointers
+  sta @ld+1
+  sta setAuxWr          ; copy from main to aux mem
+  ldy #0
+@ld:
+  lda $100,y            ; from main mem
+@st:
+  sta $100,y            ; to aux mem
+  iny
+  bne @ld               ; loop to copy a whole page
+  sta clrAuxWr          ; normal memory writes
+  dec nPagesToRead      ; dec total number of pages
+  beq @done             ; when zero, we're done
+  inc @ld+1             ; prep for next page
+  inc @st+1
+  dec readLen+1         ; copy only number of pages we read this round
+  bne @ld               ; loop to copy next page
+  beq @nextGroup        ; always taken
+@done:
+  rts
+@err:
+  jmp prodosError
+
+;------------------------------------------------------------------------------
+; Page tables
+  .align 256
+main_pageTbl1 = *
+main_pageTbl2 = main_pageTbl1 + $C0
+aux_pageTbl1  = main_pageTbl2 + $C0
+aux_pageTbl2  = aux_pageTbl1 + $C0
+
+;------------------------------------------------------------------------------
+; Marker for end of the tables, so we can compute its length
+tableEnd = *

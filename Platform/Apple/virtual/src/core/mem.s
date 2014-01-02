@@ -216,9 +216,14 @@ FATAL_ERROR = $18
   jmp main_dispatch
   jmp aux_dispatch
 
+DEBUG = 1
+  .include "../include/debug.i"
+
 ;------------------------------------------------------------------------------
 ; Variables
 isAuxCommand:
+  .byte 0
+scanStart:
   .byte 0
 targetPage:
   .byte 0
@@ -247,6 +252,9 @@ shared_dispatch:
   bne :+
   stx targetPage
   rts
+: cmp #FREE_MEMORY
+  bne :+
+  jmp main_free
 : cmp #FATAL_ERROR
   bne :+
   jmp fatalError
@@ -259,8 +267,12 @@ aux_dispatch:
   bne :+
   jmp aux_request
 : cmp #QUEUE_LOAD
-  bne shared_dispatch
+  bne :+
   jmp aux_queueLoad
+: cmp #FREE_MEMORY
+  bne :+
+  jmp aux_free
+: jmp shared_dispatch
 
 ;------------------------------------------------------------------------------
 ; Print fatal error message (custom or predefined) and print the
@@ -272,46 +284,65 @@ fatalError:
   jsr textinit
   jsr setvid
   jsr setkbd
-  jsr crout     ; a couple newlines
-  jsr crout
-  ldy #0        ; start at first byte of message
+  ldy #0
+: lda fatalMsg,y  ; print out prefix message
+  beq :+
+  ora #$80
+  jsr cout
+  iny
+  bne :-
+: ldy #0        ; start at first byte of message
 : lda (pTmp),y
   beq :+
   ora #$80      ; ensure hi-bit ASCII for cout
   jsr cout
   iny
   bne :-
+  .if DEBUG
 ; Print call stack
-: jsr crout
-  tsx           ; start at current stack pointer
+: ldy #0
+: lda stackMsg,y
+  beq :+
+  ora #$80
+  jsr cout
+  iny
+  bne :-
+: tsx           ; start at current stack pointer
 @stackLoop:
-  lda 101,x     ; JSR increments PC twice before pushing it
+  lda $101,x     ; JSR increments PC twice before pushing it
   sec
   sbc #2
   tay
-  lda 102,x
+  lda $102,x
   sbc #0
   sta @load+2
   and #$C0      ; avoid accidentally grabbing data from the IO area
   cmp #$C0
-  beq :-
+  beq @next
 @load:
   lda $1000,y   ; is there a JSR there?
   cmp #$20
-  bne :-
+  bne @next     ; no, it's probably not an actual call
   lda @load+2
   jsr prbyte
   tya
   jsr prbyte
   lda #$A0
   jsr cout
+@next:
   inx           ; work up to...
   cpx #$FF      ; ...top of stack
   bcc @stackLoop
+  .endif
+  jsr crout
 ; Beep, and loop forever
   jsr bell
 loopForever: 
   jmp loopForever
+fatalMsg:
+  .byte $8D,"FATAL ERROR: ", 0
+stackMsg:
+  .byte $8D,"  Call stack: ", 0
 
 ;------------------------------------------------------------------------------
 init:
@@ -343,7 +374,17 @@ init:
   ; Lock pages 0 and 1 in aux mem
   sta aux_pageTbl1
   sta aux_pageTbl1+1
+  .if DEBUG
+  jmp test
+  .endif
   rts
+
+;------------------------------------------------------------------------------
+  .if DEBUG
+test:
+  DEBUG_STR "Testing memory manager."
+  jmp reservedErr
+  .endif
 
 ;------------------------------------------------------------------------------
 main_setup:
@@ -406,15 +447,20 @@ shared_request:
   bne @gotPage          ; if SET_MEM_TARGET was called, don't scan
   ; need to scan for a block that has enough pages
   stx tmp               ; save number of pages
-  ldy #1                ; begin scan at page 2 (1+1)
+  ldy scanStart         ; start scanning at end of last block
+  dey
 @blockLoop:
   iny                   ; try next page
   sty tmp+1             ; remember starting page of area
   ldx #0                ; initialize count of free pages found
 @pageLoop:
-  cpy #$C0              ; stop at end of mem
-  bcs outOfMemErr
-  lda (pPageTbl1),y     ; is page active?
+  cpy scanStart         ; are we back where we started?
+  beq outOfMemErr       ; if so, we have failed.
+  cpy #$C0              ; reached end of mem?
+  bne :+                ; no, proceed
+  ldy #$FF              ; yes, start over at beginning of memory
+  bne @blockLoop        ; always taken
+: lda (pPageTbl1),y     ; is page active?
   bmi @blockLoop        ; yes active, skip it
   iny
   inx                   ; got one more inactive page
@@ -435,6 +481,7 @@ shared_request:
   iny
   dex
   bne :-
+  sty scanStart         ; start next scan at page after the last one allocated
   lda tmp+1             ; return starting page
   rts
 
@@ -456,6 +503,36 @@ outOfMemErr:
 aux_request:
   jsr aux_setup
   jmp shared_request
+
+;------------------------------------------------------------------------------
+main_free:
+  jsr main_setup
+shared_free:
+  txa                   ; move page num
+  tay                   ; from X to Y
+  lda (pPageTbl1),y     ; fetch flags of first page
+  and #$C0              ; active and primary?
+  bpl @err              ; no, that's an error
+  lda (pPageTbl1),y     ; clear the active flag
+  and #$7F
+  sta (pPageTbl1),y
+  iny
+@loop:
+  lda (pPageTbl1),y
+  bpl @done
+  and #$7F
+  sta (pPageTbl1),y
+  iny
+  cpy #$C0
+  bne @loop
+@done:
+  rts
+@err:
+  jmp reservedErr
+
+aux_free:
+  jsr aux_setup
+  jmp shared_free
 
 ;------------------------------------------------------------------------------
 main_queueLoad:

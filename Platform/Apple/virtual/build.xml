@@ -17,12 +17,17 @@
   <target name="clean">
     <delete failonerror="false" dir="${build.dir}"/>
     <ant dir="${src.dir}/raycast" target="clean" useNativeBasedir="true" inheritAll="false"/>
+    <ant dir="${src.dir}/core" target="clean" useNativeBasedir="true" inheritAll="false"/>
   </target>
   
   <target name="build">
 
     <!-- Create build directory -->
     <mkdir dir="${build.dir}"/>
+
+    <!-- Build sub-projects -->
+    <echo>Building core.</echo>
+    <ant dir="${src.dir}/core" target="build" useNativeBasedir="true" inheritAll="false"/>
 
     <!-- Build sub-projects -->
     <echo>Building raycast.</echo>
@@ -32,6 +37,7 @@
     <delete failonerror="false" dir="${build.dir}/root"/>
     <mkdir dir="${build.dir}/root"/>
     <copy todir="${build.dir}/root">
+      <fileset dir="${src.dir}/core/build" includes="*.bin*"/>
       <fileset dir="${src.dir}/raycast/build" includes="*.bin*"/>
     </copy>
     <mkdir dir="${build.dir}/root/"/>

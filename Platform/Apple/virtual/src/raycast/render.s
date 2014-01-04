@@ -501,10 +501,6 @@ castRay:
     jmp rdkey
     .endif
 
-castAllRays:
-    DEBUG_STR "castAllRays not implemented yet."
-    brk
-
 ; Advance pLine to the next line on the hi-res screen
 nextLine:
     lda pLine+1 ; Hi byte of line
@@ -542,6 +538,13 @@ nextLine:
 
 ; Draw a ray that was traversed by calcRay
 drawRay:
+    ldx screenCol
+    lda txNumBuf,x
+    sta txNum
+    lda txColBuf,x
+    sta txColumn
+    lda heightBuf,x
+    sta lineCt
     ; Make a pointer to the selected texture
     ldx txNum
     dex                 ; translate tex 1..4 to 0..3
@@ -559,7 +562,7 @@ drawRay:
     lda #254            ; clamp max height
 :   sta $10B            ; set vector offset
     DEBUG_STR "Calling expansion code."
-    jmp $100            ; was copied here earlier from @callIt
+    jmp $100            ; was copied to from @callIt to $100 at init time
 
 ; Template for blitting code [ref BigBlue3_70]
 blitTemplate: ; comments show byte offset
@@ -1149,8 +1152,8 @@ graphInit:
     rts
 
 ;-------------------------------------------------------------------------------
-; Draw all the rays from the current player coord
-drawAllRays:
+; Cast all the rays from the current player coord
+castAllRays:
 
     ; Initialize pointer into precalculated ray table, based on player dir.
     ; The table has 256 bytes per direction.
@@ -1200,7 +1203,9 @@ drawAllRays:
     sta pMap
     lda mapRayOrigin+1
     sta pMap+1
+
     jsr castRay         ; cast the ray across the map
+
     inc screenCol       ; advance to next column
     lda screenCol
     cmp #63             ; stop after we do 63 columns = 126 bw pix
@@ -1228,11 +1233,7 @@ renderFrame:
 :   jsr drawRay         ; and draw the ray
     .if DEBUG
     DEBUG_STR "Done drawing ray "
-    tsx
-    lda $103,x          ; retrieve ray offset
-    lsr
-    lsr
-    jsr prbyte
+    DEBUG_BYTE screenCol
     DEBUG_LN
     .endif
     inc screenCol       ; next column
@@ -1254,17 +1255,9 @@ renderFrame:
     inc byteNum
     inc byteNum
 @nextCol:
-    pla
-    tax
-    pla
-    tay
-    pla
-    clc
-    adc #4              ; advance to next ray
-    cmp #$FC            ; check for end of ray table
-    beq @done
-    jmp @oneCol         ; go back for another ray
-@done:
+    lda byteNum
+    cmp #18
+    bne @oneCol         ; go back for another ray
     rts
 
 ;-------------------------------------------------------------------------------

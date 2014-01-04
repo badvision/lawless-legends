@@ -224,7 +224,7 @@ DEBUG = 1
 isAuxCommand:
   .byte 0
 scanStart:
-  .byte 0
+  .byte $FF, $FF        ; main, aux
 targetPage:
   .byte 0
 nextLoaderVec: 
@@ -275,6 +275,11 @@ aux_dispatch:
 : jmp shared_dispatch
 
 ;------------------------------------------------------------------------------
+orCout:
+  ora #$80
+  jmp cout
+
+;------------------------------------------------------------------------------
 ; Print fatal error message (custom or predefined) and print the
 ; call stack, then halt.
 fatalError:
@@ -284,18 +289,21 @@ fatalError:
   jsr textinit
   jsr setvid
   jsr setkbd
-  ldy #0
+  jsr crout
+  ldy #40
+  lda #'_'
+: jsr orCout
+  dey
+  bne :-
 : lda fatalMsg,y  ; print out prefix message
   beq :+
-  ora #$80
-  jsr cout
+  jsr orCout
   iny
   bne :-
 : ldy #0        ; start at first byte of message
 : lda (pTmp),y
   beq :+
-  ora #$80      ; ensure hi-bit ASCII for cout
-  jsr cout
+  jsr orCout
   iny
   bne :-
   .if DEBUG
@@ -303,8 +311,7 @@ fatalError:
 : ldy #0
 : lda stackMsg,y
   beq :+
-  ora #$80
-  jsr cout
+  jsr orCout
   iny
   bne :-
 : tsx           ; start at current stack pointer
@@ -316,7 +323,7 @@ fatalError:
   lda $102,x
   sbc #0
   sta @load+2
-  and #$C0      ; avoid accidentally grabbing data from the IO area
+  and #$F0      ; avoid accidentally grabbing data from the IO area
   cmp #$C0
   beq @next
 @load:
@@ -327,8 +334,8 @@ fatalError:
   jsr prbyte
   tya
   jsr prbyte
-  lda #$A0
-  jsr cout
+  lda #' '
+  jsr orCout
 @next:
   inx           ; work up to...
   cpx #$FF      ; ...top of stack
@@ -338,11 +345,12 @@ fatalError:
 ; Beep, and loop forever
   jsr bell
 loopForever: 
+ brk
   jmp loopForever
 fatalMsg:
   .byte $8D,"FATAL ERROR: ", 0
 stackMsg:
-  .byte $8D,"  Call stack: ", 0
+  .byte $8D,"Call stk: ", 0
 
 ;------------------------------------------------------------------------------
 init:
@@ -383,7 +391,23 @@ init:
   .if DEBUG
 test:
   DEBUG_STR "Testing memory manager."
-  jmp reservedErr
+@loop:
+  ldx #3
+  lda #REQUEST_MEMORY
+  jsr mainLoader
+  sta tmp
+  DEBUG_STR "Main page: "
+  DEBUG_BYTE tmp
+  DEBUG_LN
+  ldx #3
+  lda #REQUEST_MEMORY
+  jsr auxLoader
+  sta tmp
+  DEBUG_STR "Aux page: "
+  DEBUG_BYTE tmp
+  DEBUG_LN
+  jmp @loop
+  rts
   .endif
 
 ;------------------------------------------------------------------------------
@@ -410,7 +434,7 @@ aux_setup:
   sta pPageTbl2
   lda #>aux_pageTbl2
   sta pPageTbl2+1
-  lda #$40              ; special flag for marking aux queueing
+  lda #1                ; special flag for marking aux queueing
   sta isAuxCommand
   rts
 
@@ -447,26 +471,33 @@ shared_request:
   bne @gotPage          ; if SET_MEM_TARGET was called, don't scan
   ; need to scan for a block that has enough pages
   stx tmp               ; save number of pages
-  ldy scanStart         ; start scanning at end of last block
-  dey
+  ldx isAuxCommand
+  ldy scanStart,x       ; start scanning at end of last block
+  sty @scanEnd
 @blockLoop:
   iny                   ; try next page
   sty tmp+1             ; remember starting page of area
   ldx #0                ; initialize count of free pages found
 @pageLoop:
-  cpy scanStart         ; are we back where we started?
+  tya
+  jsr prbyte
+  cpy @scanEnd          ; are we back where we started?
   beq outOfMemErr       ; if so, we have failed.
   cpy #$C0              ; reached end of mem?
   bne :+                ; no, proceed
   ldy #$FF              ; yes, start over at beginning of memory
   bne @blockLoop        ; always taken
 : lda (pPageTbl1),y     ; is page active?
-  bmi @blockLoop        ; yes active, skip it
-  iny
+  bmi @blockLoop        ; yes active, skip it and look for another block
+  iny                   ; no, move on to next page
   inx                   ; got one more inactive page
   cpx tmp               ; is it enough?
   bcc @pageLoop         ; no, keep going
 @foundBlock:            ; yes, got enough
+  dey
+  tya
+  ldy isAuxCommand
+  sta scanStart,y       ; next time we allocate, start scan here
   ldy tmp+1             ; recall starting page
 @gotPage:
   lda #$C0              ; mark first page as $80 (active) + $40 (primary)
@@ -474,16 +505,17 @@ shared_request:
   bcs reservedErr
   pha
   lda (pPageTbl1),y     ; don't want to reserve same area twice
-  bne reservedErr
+  bmi reservedErr
   pla
   sta (pPageTbl1),y
   lda #$80              ; mark subsequent pages as $80 (active) but not primary
   iny
   dex
   bne :-
-  sty scanStart         ; start next scan at page after the last one allocated
   lda tmp+1             ; return starting page
   rts
+@scanEnd:
+  .byte 0
 
 ;------------------------------------------------------------------------------
 reservedErr:
@@ -740,8 +772,10 @@ disk_queueLoad:
   bne @next             ; no, skip this resource
   lda (pTmp),y          ; Yay! We found the one we want. Prepare to mark it
   ora #$80              ; special mark to say, "We want to load this segment"
-  ora isAuxCommand      ; record whether the eventual disk read should go to aux mem
-  sta (pTmp),y
+  ldx isAuxCommand
+  beq :+
+  ora #$40              ; record that the eventual disk read should go to aux mem
+: sta (pTmp),y
   rts                   ; success! all done.
 @next:
   iny
@@ -914,4 +948,4 @@ aux_pageTbl2  = aux_pageTbl1 + $C0
 
 ;------------------------------------------------------------------------------
 ; Marker for end of the tables, so we can compute its length
-tableEnd = *
+tableEnd = aux_pageTbl2 + $C0

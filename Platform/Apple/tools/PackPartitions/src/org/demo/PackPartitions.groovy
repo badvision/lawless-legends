@@ -332,6 +332,7 @@ class PackPartitions
             assert chunk.num >= 1 && chunk.num <= 255
             hdrBuf.put((byte)chunk.num)
             def nPages = (chunk.buf.position() + 255) >> 8
+            println "  chunk: type=${chunk.type}, num=${chunk.num}, nPages=$nPages"
             hdrBuf.put((byte)nPages)
         }
         

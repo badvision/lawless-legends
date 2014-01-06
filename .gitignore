@@ -14,3 +14,4 @@
 # Only check in sample.build.props; each person's build.props will be different.
 /Platform/Apple/virtual/src/include/build.props
 /Platform/Apple/tools/A2Copy/build/
+/Platform/Apple/tools/PackPartitions/build/

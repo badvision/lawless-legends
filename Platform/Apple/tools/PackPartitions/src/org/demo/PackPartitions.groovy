@@ -13,11 +13,21 @@ import java.nio.channels.Channels
  *
  * @author mhaye
  */
-class PackMap 
+class PackPartitions 
 {
     def TRANSPARENT_COLOR = 15
     
-    def parseMap(tiles, map)
+    def TYPE_CODE  = 1
+    def TYPE_MAP   = 2
+    def TYPE_IMAGE = 3
+    
+    def images = [:]  // img name to img.num, img.buf
+    def tiles  = [:]  // tile name to tile.num, tile.buf
+    def maps   = [:]  // map name to map.num, map.buf
+    
+    def chunks = []   // queue of chunks to be written
+    
+    def parseMap(map, tiles)
     {
         // Parse each row of the map
         map.chunk.row.collect
@@ -213,25 +223,33 @@ class PackMap
     }
         
 
-    def writeMap(stream, rows, names) // [ref BigBlue1_50]
+    def writeMap(buf, rows) // [ref BigBlue1_50]
     {
         def width = rows[0].size()
         def height = rows.size()
+        def unknown = [] as Set
 
-        // Header: one-char code followed by two-byte length 
-        // (length should not include the 5-byte header)
-        //
-        def len = width*height
-        stream.write((int)'M')  // for "Map"
-        stream.write(width)
-        stream.write(height)
-        stream.write(len & 0xFF)
-        stream.write((len>>8) & 0xFF)
+        // Header: just the width and height
+        buf.put((byte)width)
+        buf.put((byte)height)
         
         // After the header comes the raw data
         rows.each { row ->
             row.each { tile ->
-                stream.write(names.findIndexOf { it == tile?.@name } + 1)
+                if (tile?.@obstruction == 'true') {
+                    def name = tile?.@name
+                    if (name in images)
+                        buf.put((byte)images[name].num)
+                    else {
+                        // Alert only once about each unknown name
+                        if (!(name in unknown))
+                            println "Can't match tile name '$name' to any image; treating as blank."
+                        unknown.add(name)
+                        buf.put((byte)0)
+                    }
+                }
+                else
+                    buf.put((byte)0)
             }
         }
     }
@@ -248,10 +266,9 @@ class PackMap
                ((pix2 & 8) << 3) | ((pix1 & 8) << 4);
     }
     
-    def writeImage(stream, image)
+    def writeImage(buf, image)
     {
-        // First, accumulate pixel data for all 5 mip levels plus the orig image
-        def buf = ByteBuffer.allocate(50000)
+        // Write pixel data for all 5 mip levels plus the orig image
         for (def mipLevel in 0..5) 
         {
             // Process double rows
@@ -263,18 +280,71 @@ class PackMap
             if (mipLevel < 5)
                 image = reduceImage(image)
         }
-        def len = buf.position() // len doesn't include 3-byte header
-        
-        // Write the header now that we have the length.
-        stream.write((int)'T') // for 'Texture'
-        stream.write(len & 0xFF)
-        stream.write((len>>8) & 0xFF)
-        
-        // And copy the data to the output
-        def tmp = new byte[buf.position()]
+    }
+    
+    def packImage(imgEl)
+    {
+        def num = images.size() + 1
+        def name = imgEl.@name ?: "img$num"
+        println "Packing image #$num named '${imgEl.@name}'."
+        def pixels = parseImage(imgEl)
+        calcTransparency(pixels)
+        def buf = ByteBuffer.allocate(50000)
+        writeImage(buf, pixels)
+        images[imgEl.@name] = [num:num, buf:buf]
+    }
+    
+    def packMap(mapEl, tileEls)
+    {
+        def num = maps.size() + 1
+        def name = mapEl.@name ?: "map$num"
+        println "Packing map #$num named '$name'."
+        def rows = parseMap(mapEl, tileEls)
+        def buf = ByteBuffer.allocate(50000)
+        writeMap(buf, rows)
+        maps[name] = [num:num, buf:buf]
+    }
+    
+    def writePages(stream, buf)
+    {
+        def endPos = buf.position()
+        def nPages = (endPos + 255) >> 8
+        def bytes = new byte[nPages << 8]
         buf.position(0)
-        buf.get(tmp)
-        stream.write(tmp)
+        buf.get(bytes, 0, endPos)
+        stream.write(bytes)
+    }
+    
+    def writePartition(stream)
+    {
+        // Make a list of all the chunks that will be in the partition
+        def chunks = []
+        maps.values().each { chunks.add([type:TYPE_MAP, num:it.num, buf:it.buf]) }
+        images.values().each { chunks.add([type:TYPE_IMAGE, num:it.num, buf:it.buf]) }
+        
+        // Generate the header chunk. Leave the first byte for the # of pages in the hdr
+        def hdrBuf = ByteBuffer.allocate(50000)
+        hdrBuf.put((byte)0)
+        
+        // Write the three bytes for each resource
+        chunks.each { chunk ->
+            hdrBuf.put((byte)chunk.type)
+            assert chunk.num >= 1 && chunk.num <= 255
+            hdrBuf.put((byte)chunk.num)
+            def nPages = (chunk.buf.position() + 255) >> 8
+            hdrBuf.put((byte)nPages)
+        }
+        
+        // Fix up the first byte to contain the page count of the header
+        def hdrEnd = hdrBuf.position()
+        hdrBuf.position(0)
+        def nPages = (hdrEnd + 255) >> 8
+        hdrBuf.put((byte)nPages)
+        hdrBuf.position(hdrEnd)
+        
+        // Finally, write out each chunk, including the header, as 256-byte pages.
+        writePages(stream, hdrBuf)
+        chunks.each { writePages(stream, it.buf) }
     }
     
     def pack(xmlPath, binPath)
@@ -282,39 +352,19 @@ class PackMap
         // Open the XML data file produced by Outlaw Editor
         def dataIn = new XmlParser().parse(xmlPath)
         
-        // Locate the map named 'main', or failing that, the first map
-        def map = dataIn.map.find { it.@name == 'main' }
-        if (!map) 
-            map = dataIn.map[0]
-        assert map : "Can't find map 'main' nor any map at all";
-            
-        // Identify all the tiles and make a list of rows
-        def rows = parseMap(dataIn.tile, map);
-        
-        // Determine the unique names of all the 'obstruction' tiles. Those
-        // are the ones that turn into texture images.
+        // Pack each image, which has the side-effect of filling in the
+        // image name map.
         //
-        def names = rows.flatten().grep{it?.@obstruction == 'true'}.
-            collect{it.@name}.sort().unique()
+        dataIn.image.each { packImage(it) }
         
-        println "Parsing images."
-        def images = names.collect { name ->
-            parseImage(dataIn.image.find { it.@name == name })
-        }
-        
-        println "Flood-filling transparency from upper corners."
-        images.each { calcTransparency(it) }
+        // Pack each map. This uses the image map filled earlier, and
+        // fills the map name map.
+        //
+        dataIn.map.each { packMap(it, dataIn.tile) }
         
         // Ready to start writing the output file.
-        new File(binPath).withOutputStream { stream ->
-            println "Writing map."
-            writeMap(stream, rows, names)
-            images.eachWithIndex { image, idx ->
-                println "Writing image #${idx+1}."
-                writeImage(stream, image) 
-            }
-            stream.write(0) // properly terminate the file
-        }
+        println "Writing output file."
+        new File(binPath).withOutputStream { stream -> writePartition(stream) }
         
         println "Done."
     }
@@ -322,10 +372,10 @@ class PackMap
     static void main(String[] args) 
     {
         if (args.size() != 2) {
-            println "Usage: convert yourMapFile.xml out.bin"
+            println "Usage: convert yourOutlawFile.xml DISK.PART.0.bin"
             System.exit(1);
         }
-        new PackMap().pack(args[0], args[1])
+        new PackPartitions().pack(args[0], args[1])
     }
 }
 

@@ -24,8 +24,7 @@ class PackPartitions
     def images = [:]  // img name to img.num, img.buf
     def tiles  = [:]  // tile name to tile.num, tile.buf
     def maps   = [:]  // map name to map.num, map.buf
-    
-    def chunks = []   // queue of chunks to be written
+    def code   = [:]  // code name to code.num, code.buf
     
     def parseMap(map, tiles)
     {
@@ -315,10 +314,27 @@ class PackPartitions
         stream.write(bytes)
     }
     
+    def readCode(name, path)
+    {
+        def num = code.size() + 1
+        println "Reading code #$num from '$path'."
+        def inBuf = new byte[256]
+        def outBuf = ByteBuffer.allocate(50000)
+        def stream = new File(path).withInputStream { stream ->
+            while (true) {
+                def got = stream.read(inBuf)
+                if (got < 0) break
+                outBuf.put(inBuf, 0, got)
+            }
+        }
+        code[name] = [num:num, buf:outBuf]
+    }
+    
     def writePartition(stream)
     {
         // Make a list of all the chunks that will be in the partition
         def chunks = []
+        code.values().each { chunks.add([type:TYPE_CODE, num:it.num, buf:it.buf]) }
         maps.values().each { chunks.add([type:TYPE_MAP, num:it.num, buf:it.buf]) }
         images.values().each { chunks.add([type:TYPE_IMAGE, num:it.num, buf:it.buf]) }
         
@@ -332,7 +348,7 @@ class PackPartitions
             assert chunk.num >= 1 && chunk.num <= 255
             hdrBuf.put((byte)chunk.num)
             def nPages = (chunk.buf.position() + 255) >> 8
-            println "  chunk: type=${chunk.type}, num=${chunk.num}, nPages=$nPages"
+            //println "  chunk: type=${chunk.type}, num=${chunk.num}, nPages=$nPages"
             hdrBuf.put((byte)nPages)
         }
         
@@ -350,6 +366,12 @@ class PackPartitions
     
     def pack(xmlPath, binPath)
     {
+        // Read in code chunks. For now these are hard coded, but I guess they ought to
+        // be configured in a config file somewhere...?
+        //
+        readCode("render", "src/raycast/build/render.bin#7000")
+        readCode("expand", "src/raycast/build/expand.bin#0800")
+        
         // Open the XML data file produced by Outlaw Editor
         def dataIn = new XmlParser().parse(xmlPath)
         

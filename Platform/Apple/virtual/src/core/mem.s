@@ -233,8 +233,6 @@ curPartition:
   .byte 0
 partitionFileRef:
   .byte 0
-nHeaderPages:
-  .byte 0
 
 ;------------------------------------------------------------------------------
 main_dispatch:
@@ -257,9 +255,9 @@ shared_dispatch:
   jmp main_free
 : cmp #FATAL_ERROR
   bne :+
-  jmp fatalError
+  jsr fatalError
 ; Pass command to next chained loader
-  jmp nextLoaderVec
+: jmp nextLoaderVec
 
 ;------------------------------------------------------------------------------
 aux_dispatch:
@@ -286,12 +284,14 @@ fatalError:
   sty pTmp+1    ; save message ptr hi...
   stx pTmp      ; ...and lo
   jsr setnorm   ; set up text mode and vectors
-  jsr textinit
+  bit setText
   jsr setvid
   jsr setkbd
+  lda $24
+  beq :+
   jsr crout
-  ldy #40
-  lda #'_'
+: ldy #40
+  lda #'-'
 : jsr orCout
   dey
   bne :-
@@ -345,10 +345,9 @@ fatalError:
 ; Beep, and loop forever
   jsr bell
 loopForever: 
- brk
   jmp loopForever
 fatalMsg:
-  .byte $8D,"FATAL ERROR: ", 0
+  .byte "FATAL ERROR: ", 0
 stackMsg:
   .byte $8D,"Call stk: ", 0
 
@@ -390,6 +389,24 @@ init:
 ;------------------------------------------------------------------------------
   .if DEBUG
 test:
+  DEBUG_STR "Start load."
+  ldx #0                ; partition 0
+  lda #START_LOAD
+  jsr mainLoader
+  DEBUG_STR "Set mem target."
+  ldx #$70              ; load at $7000
+  lda #SET_MEM_TARGET
+  jsr mainLoader
+  DEBUG_STR "Queue load."
+  ldx #1                ; TYPE_CODE = 1
+  ldy #1                ; code resource #1
+  lda #QUEUE_LOAD
+  jsr mainLoader
+  DEBUG_STR "Finish load."
+  lda #FINISH_LOAD
+  jsr mainLoader
+  rts
+  ; obsolete test below: allocate all memory until we run out
   DEBUG_STR "Testing memory manager."
 @loop:
   ldx #3
@@ -521,14 +538,14 @@ shared_request:
 reservedErr:
   ldx #<:+
   ldy #>:+
-  jmp fatalError
+  jsr fatalError
 : .byte "Mem already reserved", 0
 
 ;------------------------------------------------------------------------------
 outOfMemErr:
   ldx #<:+
   ldy #>:+
-  jmp fatalError
+  jsr fatalError
 : .byte "Out of mem", 0
 
 ;------------------------------------------------------------------------------
@@ -591,6 +608,7 @@ shared_queueLoad:
   bne @scanLoop         ; no, keep scanning
   ldx tmp               ; yes, end of memory. Recall type parameter
   ldy tmp+1             ; recall resource number
+  lda #QUEUE_LOAD       ; tell next loader what to do
   jmp nextLoaderVec     ; call next loader so it can load the resource
 @found:
   lda (pPageTbl1),y
@@ -618,15 +636,15 @@ diskLoader:
 @cmdError:
   ldx #<:+
   ldy #>:+
-  jmp fatalError
-  .byte "Invalid command", 0
+  jsr fatalError
+: .byte "Invalid command", 0
 
 ;------------------------------------------------------------------------------
 openPartition:
   ; complete the partition file name
   lda curPartition
   clc
-  adc #'0'              ; assume partitions 0-9 for now
+  adc #'0'              ; assume partition numbers range from 0..9 for now
   sta @partNumChar
   ; open the file
   jsr mli
@@ -647,11 +665,9 @@ openPartition:
   lda #0
   sta readLen+1
   jsr @doRead
-  ; Grab the number of header pages, then read in the rest of the header
-  ldx headerBuf
-  stx nHeaderPages
+  ldx headerBuf         ; grab # of header pages
   dex
-  stx readLen+1
+  stx readLen+1         ; read in the rest of the header
   lda #$FF
   sta readLen
   lda #1
@@ -670,8 +686,9 @@ openPartition:
 @openFileRef:
   .byte 0               ; returned file number
 @filename:
-  .byte 11              ; length
-  .byte "GAME.PART."
+  .byte 15              ; length
+  .byte "/LL/GAME.PART."        ; TODO: Figure out how to avoid specifying full path.
+                                ; If I leave it out, ProDOS complains with error $40.
 @partNumChar:
   .byte "x"             ; x replaced by partition number
 
@@ -700,7 +717,7 @@ prodosError:
   sta @errNum+1
   ldx #<@msg
   ldy #>@msg
-  jmp fatalError
+  jsr fatalError
 @digit:
   and #$F
   ora #$B0
@@ -728,12 +745,12 @@ disk_startLoad:
 sequenceError:
   ldx #<:+
   ldy #>:+
-  jmp fatalError
+  jsr fatalError
 : .byte "Bad sequence", 0
 
 ;------------------------------------------------------------------------------
 startHeaderScan:
-  lda #<headerBuf       ; start scanning the partition header
+  lda #<headerBuf+1     ; start scanning the partition header
   sta pTmp
   lda #>headerBuf
   sta pTmp+1
@@ -754,8 +771,8 @@ bump128:
 
 ;------------------------------------------------------------------------------
 disk_queueLoad:
-  stx tmp               ; save resource type
-  sty tmp+1             ; and resource num
+  stx @resType          ; save resource type
+  sty @resNum           ; and resource num
   lda partitionFileRef  ; check if we've opened the file yet
   bne :+                ; yes, don't re-open
   jsr openPartition     ; open the partition file
@@ -763,22 +780,38 @@ disk_queueLoad:
 @scan:
   lda (pTmp),y          ; get resource type
   beq @notFound         ; if zero, this is end of table: failed to find the resource
-  cmp tmp               ; is it the type we're looking for?
+  cmp @resType          ; is it the type we're looking for?
   bne @next             ; no, skip this resource
-  iny
   lda (pTmp),y          ; get resource num
-  dey
-  cmp tmp+1             ; is it the number we're looking for
+  cmp @resNum           ; is it the number we're looking for
   bne @next             ; no, skip this resource
-  lda (pTmp),y          ; Yay! We found the one we want. Prepare to mark it
+  iny                   ; Yay! We found the one we want.
+  lda (pTmp),y          ; grab the length in pages
+  tax                   ; save for later
+  pha                   ; again for later
+  dey                   ; back to start of 3-byte record
+  dey
+  lda (pTmp),y          ; Get the resource type back
   ora #$80              ; special mark to say, "We want to load this segment"
-  ldx isAuxCommand
+  ldx isAuxCommand      ; if aux, set an extra-special flag so load will go there
   beq :+
   ora #$40              ; record that the eventual disk read should go to aux mem
-: sta (pTmp),y
-  rts                   ; success! all done.
+: sta (pTmp),y          ; save modified type byte with the flags added to it
+  jsr shared_request    ; reserve memory for this resource (main or aux as appropriate)
+  pla                   ; get back the length of the resource
+  tax                   ; in X for page count
+@markLoop:
+  lda (pPageTbl1),y     ; get type / flag byte
+  ora @resType          ; add the type
+  sta (pPageTbl1),y     ; save it back
+  lda @resNum           ; put the resource number in too
+  sta (pPageTbl2),y
+  iny                   ; next page
+  dex                   ; done enough pages yet?
+  bne @markLoop         ; no, go do more pages
+  rts                   ; yes, success! all done.
 @next:
-  iny
+  iny                   ; skip the whole 3-byte record
   iny
   iny
   bpl @scan
@@ -787,19 +820,25 @@ disk_queueLoad:
 @notFound:
   ldx #<:+
   ldy #>:+
-  jmp fatalError
+  jsr fatalError
 : .byte "Resource not found", 0
+@resType:
+  .byte 0
+@resNum:
+  .byte 0
+@resLen:
+  .byte 0
 
 ;------------------------------------------------------------------------------
 disk_finishLoad:
   lda partitionFileRef  ; See if we actually queued anything (and opened the file)
   bne :+                ; non-zero means we have work to do
   rts                   ; nothing to do - return immediately
-: sta @setMarkFileRef    ; copy the file ref number to our MLI param blocks
+: sta @setMarkFileRef   ; copy the file ref number to our MLI param blocks
   sta readFileRef
   sta @closeFileRef
-  lda nHeaderPages      ; set to start reading at first non-header page in file
-  sta @setMarkPos+1
+  lda headerBuf         ; grab # header pages
+  sta @setMarkPos+1     ; set to start reading at first non-header page in file
   lda #0
   sta @setMarkPos+2
   sta readAddr
@@ -807,26 +846,25 @@ disk_finishLoad:
   jsr startHeaderScan   ; start scanning the partition header
 @scan:
   lda (pTmp),y          ; get resource type byte
+  bmi :+                ; hi bit set -> queued for load
+  iny                   ; not set, not queued, so skip over it
   iny
+  bne @next             ; always taken
+: sta isAuxCommand      ; save flag ($40) to decide where to read
+  and #$F               ; mask to get just the resource type
   tax                   ; save type for later
-  beq @done             ; if zero, this is end of table and we're done
-  cmp tmp               ; is it the type we're looking for?
-  bne @bump2            ; no, skip this resource
+  iny
   lda (pTmp),y          ; get resource num
   iny
-  cmp tmp+1             ; is it the number we're looking for
-  bne @bump1            ; no, skip this resource
   sty @ysave            ; found the resource. Save Y so we can resume later.
-  tay                   ; resource num in Y
-  stx isAuxCommand      ; save flag ($40) to decide where to read
-  txa
-  and #$F               ; mask to get just the resource type
-  tax                   ; resource type in X
+  tay                   ; resource num in Y (and type is already in X)
+  jsr @debug
   jsr main_queueLoad    ; find the page number allocated to this resource
   sta readTargetPage    ; save for later
   ldy @ysave            ; get back to entry in partition header
   lda (pTmp),y          ; # of pages to read
   sta nPagesToRead      ; save for later
+  jsr @debug2
   jsr mli               ; move the file pointer to the current block
   .byte MLI_SET_MARK
   .word @setMarkParams
@@ -839,18 +877,13 @@ disk_finishLoad:
   jsr readToAux
 @resume:
   ldy @ysave
-  jmp @next
-@bump2:
-  iny
-@bump1:
-  iny
 @next:
   lda (pTmp),y          ; number of pages
   clc
-  adc @setMarkPos+1     ; advance mark position that far
+  adc @setMarkPos+1     ; advance mark position exactly that far
   sta @setMarkPos+1
   bcc :+
-  inc @setMarkPos+2     ; account for files > 64K
+  inc @setMarkPos+2     ; account for partitions > 64K
 : iny                   ; increment to next entry
   bpl @scan
   jsr bump128
@@ -879,6 +912,20 @@ disk_finishLoad:
   .byte 0               ; file ref to close
 @ysave:
   .byte 0
+@debug:
+  stx $98
+  sty $99
+  DEBUG_STR "Going to load: type="
+  DEBUG_BYTE $98
+  DEBUG_STR "num="
+  DEBUG_BYTE $99
+  rts
+@debug2:
+  DEBUG_STR "nPagesToRead="
+  DEBUG_BYTE nPagesToRead
+  DEBUG_STR ", readTargetPage="
+  DEBUG_BYTE readTargetPage
+  DEBUG_STR "."
 
 readTargetPage:
   .byte 0

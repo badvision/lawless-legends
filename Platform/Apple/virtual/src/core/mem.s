@@ -1,9 +1,9 @@
 ; Memory manager
 ; ------------------
 ;
-; Memory is managed in 256-byte pages (to correspond with Prodos block sizes)
-; In each 48kb memory bank (main and aux), a lookup table identifies what pages, 
-; if any, are used there as well as usage flags to mark free, used, or reserved memory.
+; Memory is managed in variable-sized segments. In each 48kb memory bank (main and aux), 
+; a linked list identifies each segment there as well as usage flags to mark free, used, 
+; or reserved memory.
 ;
 ; Memory is marked as used as it is loaded by the loader, but the caller program
 ; should free it as soon as the memory is no longer in use.  It is very possible that 
@@ -16,28 +16,26 @@
 ; such that memory can still be reclaimed.  Extended memory (e.g. RamWorks and slinky
 ; ram expansions) can adopt a more linear and predictable model if they are large enough.
 ;
-; Memory operations are performed in sets. A set is begun with the START_LOAD call, and
+; Loading operations are performed in sets. A set is begun with the START_LOAD call, and
 ; subsequent QUEUE_LOAD requests are queued up. The set is then executed with 
-; FINISH_LOAD. The purpose of queuing the requests is to allow the disk driver to
+; FINISH_LOAD. The purpose of queuing the requests is to allow the disk loader to
 ; sort the requests in storage order and thus optimize loading speed. During the period 
-; between START_LOAD and FINISH_LOAD, the area in main memory from $4000 to 5FFF is 
-; reserved for memory manager operations. Therefore, if hi-res graphics are showing it
-; is important to copy them to page 1 ($2000.3FFF) and switch to that display before
-; queueing loads.
+; between START_LOAD and FINISH_LOAD, the area in main memory from $4000 to $5FFF is 
+; reserved for loader operations. Therefore, if hi-res graphics on page 2 are being
+; displayed, it is important to copy them to page 1 ($2000.3FFF) and switch to that 
+; page before queueing any loads.
 ;
-; The goal of using extended ram is to prevent future disk access as much as possible,
-; because even an inefficient o(N) memory search is going to be faster than spinning up
-; a disk.
+; Additional loaders may be inserted between main/aux and the disk loader, to implement
+; caching schemes in extended ram. The goal of using extended ram is to prevent future 
+; disk access as much as possible, because even an inefficient o(N) memory search is 
+; going to be faster than spinning up a disk.
 ;
 ; ----------------------------
 ; Page table format in memory:
 ; FFFFtttt nnnnnnnn
 ; F = Flags
 ;   7 - Active/Inactive
-;   6 - Primary (1) or Secondary (0)
-;       Memory pages are allocated in chunks, the first page is always primary
-;       So detecting primary pages means we can clear more than one page at a time
-;   5 - Locked (cannot be reclaimed for any reason)
+;   6 - Locked (cannot be reclaimed for any reason)
 ; t = Type of resource (1-15, 0 is invalid)
 ; n = Resource number (1-255, 0 is invalid)
 ;
@@ -45,14 +43,14 @@
 ; Page file format on disk:
 ;   File must be named: GAME.PART.nnn where nnn is the partition number (0-15)
 ;   File Header:
-;     byte 0: Total # of pages in header
-;     byte 1-n: Table of repeated resource entries
+;     bytes 0-1: Total # of bytes in header (lo, hi)
+;     bytes 2-n: Table of repeated resource entries
 ;   Resource entry:
-;     byte 0: resource type (1-15), 0 for end of table
-;     byte 1: resource number (1-255)
-;     byte 2: number of pages
-;   The remainder of the file is the page data for the resources, in order of
-;   their table appearance.
+;     byte  0:   resource type (1-15), 0 for end of table
+;     byte  1:   resource number (1-255)
+;     bytes 2-3: number of bytes in resource (lo, hi)
+;   The remainder of the file is the data for the resources, in order of their
+;   table appearance.
 ;
 startMemMgr = $800
 mainLoader  = $803
@@ -86,11 +84,11 @@ RESET_MEMORY = $10
 
 ;------------------------------------------------------------------------------
 REQUEST_MEMORY = $11
-    ; Input:  X-reg - number of pages to allocate
+    ; Input:  X-reg(lo) / Y-reg(hi) - number of bytes to allocate
     ;
-    ; Output: A-reg - starting memory page that was allocated
+    ; Output: X-reg(lo) / Y-reg(hi) - address allocated
     ;
-    ; Allocate a number of blocks in the memory space of this loader. If there 
+    ; Allocate a segment in the memory space of this loader. If there 
     ; isn't a large enough continguous memory segment available, the system 
     ; will be halted immediately with HALT_MEMORY.
     ;
@@ -103,12 +101,33 @@ REQUEST_MEMORY = $11
     ; This command is acted upon immediately and chained loaders are not called.
 
 ;------------------------------------------------------------------------------
-SET_MEM_TARGET = $12
-    ; Input: X-reg - page number target
+LOCK_MEMORY = $12
+    ; Input:  X-reg(lo) / Y-reg(hi) - address of segment to lock
     ;
     ; Output: None
     ;
-    ; Sets the target page in memory for the next REQUEST_MEMORY or QUEUE_LOAD 
+    ; Locks a previously requested or loaded segment of memory so that it
+    ; cannot be reclaimed by RESET_MEMORY.
+    ;
+    ; This command is acted upon immediately and chained loaders are not called.
+
+;------------------------------------------------------------------------------
+UNLOCK_MEMORY = $13
+    ; Input: X-reg(lo) / Y-reg(hi) - address of segment to unlock (must be start 
+    ;    of a memory area that was previously locked)
+    ;
+    ; Output: None
+    ;
+    ; Mark a segment of memory as unlocked, so it can be reclaimed by
+    ; RESET_MEMORY.
+		
+;------------------------------------------------------------------------------
+SET_MEM_TARGET = $14
+    ; Input:  X-reg(lo) / Y-reg(hi) - address to target
+    ;
+    ; Output: None
+    ;
+    ; Sets the target address in memory for the next REQUEST_MEMORY or QUEUE_LOAD 
     ; command. This will force allocation at a specific location instead 
     ; allowing the loader to choose.
     ;
@@ -116,7 +135,7 @@ SET_MEM_TARGET = $12
     ; subsequent allocations will revert to their normal behavior.
 		
 ;------------------------------------------------------------------------------
-START_LOAD = $13
+START_LOAD = $15
     ; Input:  X-reg - disk partition number (0 for boot disk, 1-15 for others)
     ;
     ; Output: None
@@ -126,30 +145,30 @@ START_LOAD = $13
     ;
     ; The partition is recorded and passed on to chained loaders.
 
-
 ;------------------------------------------------------------------------------
-QUEUE_LOAD = $14
+QUEUE_LOAD = $16
     ; Input: X-reg - resource type
     ;        Y-reg - resource number
     ;
-    ; Output: A-reg - memory page the load will occur at
+    ; Output: X-reg(lo) / Y-reg (hi) - address the load will occur at
     ;
     ; This is the main entry for loading resources from disk. It queues a load
-    ; request, allocating main memory to hold the entire resource. Note that
-    ; the load is only queued; it will be completed by FINISH_LOAD.
+    ; request, allocating memory to hold the entire resource. Note that
+    ; the load is only queued; it may not be completed until FINISH_LOAD.
     ;
     ; Normally this command chooses the location of the memory area; if you
     ; want to force it to use a particular location, use SET_MEM_TARGET first.
     ;
-    ; Note that if the data is already in memory, its former location will
-    ; be returned and no disk access will be queued.
+    ; Note that if the data is already in memory (in active or inactive state), 
+    ; it will be activated if necessary and its former location will be 
+    ; returned and no disk access will be queued.
     ;
     ; The request is either acted upon by this loader, or passed onto the
     ; next chained loader. If there is no next loader, a FATAL_ERROR is 
     ; triggered.
 
 ;------------------------------------------------------------------------------
-FINISH_LOAD = $15
+FINISH_LOAD = $17
     ; Input: None
     ;
     ; Output: None
@@ -160,17 +179,17 @@ FINISH_LOAD = $15
     ; This command is acted upon by this loader and passed to chained loaders.
 
 ;------------------------------------------------------------------------------
-FREE_MEMORY = $16
-    ; Input: X-reg - starting page number to mark free (must be start of a
-    ;                memory area that was requested, locked, or loaded)
+FREE_MEMORY = $18
+    ; Input: X-reg(lo) / Y-reg(hi) - address of segment to mark as free (must 
+    ;     be start of a memory area that was previously requested or loaded)
     ;
     ; Output: None
     ;
-    ; Mark a block of memory as free, or rather inactive, so that it can be 
+    ; Mark a segment of memory as free, or rather inactive, so that it can be 
     ; reused. This also clears the lock bit!
 		
 ;------------------------------------------------------------------------------
-CHAIN_LOADER = $17
+CHAIN_LOADER = $1E
     ; Input: X-reg / Y-reg - pointer to loader (X=lo, Y=hi) to add to chain
     ;
     ; Output: None
@@ -185,8 +204,8 @@ CHAIN_LOADER = $17
     ; always be inserted after them, not between them.
 		
 ;------------------------------------------------------------------------------
-FATAL_ERROR = $18
-    ; Input:  X-reg / Y-reg: message pointer (X=lo, Y=hi)
+FATAL_ERROR = $1F
+    ; Input:  X-reg(lo) / Y-reg(hi): message pointer
     ;
     ; Output: Never returns
     ;
@@ -202,9 +221,14 @@ FATAL_ERROR = $18
 
   .include "../include/global.i"
 
+  ; constants
+  MAX_SEGS = 100
+
   ; zero page
-  pPageTbl1 = $6        ; length 2
-  pPageTbl2 = $8        ; length 2
+  reqLen = $6           ; length 2
+  resType = $8
+  resNum  = $9
+  isAuxCommand = $A         ; length 1
 
   ; memory buffers
   fileBuffer = $4000    ; len $400
@@ -221,11 +245,13 @@ DEBUG = 1
 
 ;------------------------------------------------------------------------------
 ; Variables
-isAuxCommand:
+targetAddr:
+  .word 0
+unusedSeg:
   .byte 0
 scanStart:
-  .byte $FF, $FF        ; main, aux
-targetPage:
+  .byte 0, 1            ; main, aux
+segNum:
   .byte 0
 nextLoaderVec: 
   jmp diskLoader
@@ -235,27 +261,171 @@ partitionFileRef:
   .byte 0
 
 ;------------------------------------------------------------------------------
+grabSegment:
+  ; Output: Y-reg = segment grabbed
+  ; Note: Does not disturb X reg
+  ldy unusedSeg         ; first unused segment
+  beq @noMore           ; ran out?
+  lda tSegLink,y        ; no, grab next segment in list
+  sta unusedSeg         ; that is now first unused
+  rts                   ; return with Y = the segment grabbed
+@noMore:
+  ldx #<:+
+  ldy #>:+
+  jmp fatalError
+: .byte "No more segments", 0
+
+;------------------------------------------------------------------------------
+releaseSegment:
+  ; Input: X-reg = segment to release
+  lda unusedSeg         ; previous head of list
+  sta tSegLink,x        ; point this segment at it
+  stx unusedSeg         ; this segment is now head of list
+  txa                   ; seg num to accumulator
+  ldy isAuxCommand
+  cmp scanStart,y       ; was this seg the scan start?
+  bne :+                ; no, things are fine
+  tya                   ; yes, need to reset the scan start
+  sta scanStart,y       ; scan at first mem block for (main or aux)
+: rts
+
+;------------------------------------------------------------------------------
+scanForAddr:
+  ; Input:  pTmp - address to scan for
+  ; Output: X-reg - segment found (zero if not found), N and Z set for X-reg
+  ;         carry clear if addr == seg start, set if addr != seg start
+  ldx isAuxCommand      ; grab correct starting segment (0=main mem, 1=aux)
+@loop:
+  ldy tSegLink,x        ; grab link to next segment, which we'll need regardless
+  lda pTmp              ; compare pTmp
+  cmp tSegAdrLo,x       ; to this seg addr
+  lda pTmp+1            ; including...
+  sbc tSegAdrHi,x       ; ...hi byte
+  bcc @next             ; if pTmp < seg addr then keep searching
+  lda pTmp              ; compare pTmp
+  cmp tSegAdrLo,y       ; to *next* seg addr
+  lda pTmp+1            ; including...
+  sbc tSegAdrHi,y       ; ...hi byte
+  bcc @found            ; if pTmp < next seg addr then perfect!
+@next:
+  tya                   ; next in chain
+  tax                   ; to X reg index
+  bne @loop             ; non-zero = not end of chain - loop again
+  rts                   ; fail with X=0
+@found:
+  sec                   ; start out assuming addr != seg start
+  lda pTmp              ; compare scan address...
+  eor tSegAdrLo,x       ; ... to seg start lo
+  bne :+                ; if not equal, leave carry set
+  lda pTmp+1            ; hi byte
+  eor tSegAdrHi,x       ; to hy byte
+  bne :+                ; again, if not equal, leave carry set
+  clc                   ; addr is equal, clear carry
+: txa
+  rts                   ; all done
+
+;------------------------------------------------------------------------------
+scanForResource:
+  ; Input:  resType, resNum: resource type and number to scan for
+  ; Output: X-reg - segment found (zero if not found). N and Z set based on X reg.
+  ldy isAuxCommand      ; grab correct starting segment
+  ldx scanStart,y       ; start scanning at last scan point
+  stx @next+1           ; it also marks the ending point. Yes, self-modifying code.
+@loop:
+  ldy tSegLink,x        ; grab link to next segment, which we'll need regardless
+  lda tSegResNum,x      ; check number
+  cmp resNum            ; same resource number?
+  bne @next             ; no, check next seg
+  lda tSegType,x        ; check get flag + type byte
+  and #$F               ; mask off flags to get just the type
+  cmp resType           ; same type?
+  bne @next             ; no, check next seg
+  ldy isAuxCommand      ; index for setting next scan start
+  txa                   ; set N and Z flags for return
+  sta scanStart,y       ; set this seg as next scanning start
+  rts                   ; all done!
+@next:
+  cpy #11               ; did we loop around to starting point? (filled in at beg)
+  beq @fail             ; if so, failed to find what we wanted
+  tya                   ; next in chain
+  tax                   ; to X reg index
+  bne @loop             ; not end of chain - loop again
+  ldx isAuxCommand      ; end of chain; start at first seg (0=main, 1=aux)
+  jmp @loop             ; keep going until we succeed or reach starting point
+@fail:
+  ldx #0                ; failure return
+  rts
+
+;------------------------------------------------------------------------------
+scanForAvail:
+  ; Input:  reqLen - 16-bit length to scan for
+  ; Output: X-reg - segment found (zero if not found)
+  ldy isAuxCommand      ; grab correct starting segment
+  ldx scanStart,y       ; start scanning at last scan point
+  stx @next+1           ; it also marks the ending point. Yes, self-modifying code.
+@loop:
+  ldy tSegLink,x        ; grab link to next segment, which we'll need regardless
+  lda tSegType,x        ; check flags
+  bmi @next             ; skip active blocks
+  lda tSegAdrLo,x       ; calc this seg addr plus len
+  clc
+  adc reqLen
+  sta @cmp1+1           ; save for later comparison (self-modifying)
+  lda tSegAdrHi,x       ; all 16 bits
+  adc reqLen+1
+  sta @cmp2+1           ; again save for later (self-modifying)
+  lda tSegAdrLo,y       ; compare *next* seg start addr
+@cmp1:
+  cmp #11               ; self-modified earlier
+  lda tSegAdrHi,y       ; all 16 bits
+@cmp2:
+  sbc #11               ; self-modified earlier
+  bcc @next             ; next seg addr < (this seg addr + len)? no good - keep looking
+  ldy isAuxCommand      ; index for setting next scan start
+  txa                   ; set N and Z flags for return
+  sta scanStart,y       ; set this seg as next scanning start
+  rts                   ; all done!
+@next:
+  cpy #11               ; did we loop around to starting point? (filled in at beg)
+  beq @fail             ; if so, failed to find what we wanted
+  tya                   ; next in chain
+  tax                   ; to X reg index
+  bne @loop             ; not end of chain - loop again
+  ldx isAuxCommand      ; end of chain; start at first seg (0=main, 1=aux)
+  jmp @loop             ; keep going until we succeed or reach starting point
+@fail:
+  ldx #0                ; failure return
+  rts
+
+;------------------------------------------------------------------------------
 main_dispatch:
   cmp #REQUEST_MEMORY
   bne :+
   jmp main_request
 : cmp #QUEUE_LOAD
-  bne shared_dispatch
+  bne :+
   jmp main_queueLoad
+: cmp #LOCK_MEMORY
+  bne :+
+  jmp main_lock
+: cmp #UNLOCK_MEMORY
+  bne :+
+  jmp main_unlock
+: cmp #FREE_MEMORY
+  bne shared_dispatch
+  jmp main_free
 shared_dispatch:
   cmp #RESET_MEMORY
   bne :+
   jmp reset
 : cmp #SET_MEM_TARGET
   bne :+
-  stx targetPage
+  stx targetAddr
+  sty targetAddr+1
   rts
-: cmp #FREE_MEMORY
-  bne :+
-  jmp main_free
 : cmp #FATAL_ERROR
   bne :+
-  jsr fatalError
+  jmp fatalError
 ; Pass command to next chained loader
 : jmp nextLoaderVec
 
@@ -267,6 +437,12 @@ aux_dispatch:
 : cmp #QUEUE_LOAD
   bne :+
   jmp aux_queueLoad
+: cmp #LOCK_MEMORY
+  bne :+
+  jmp aux_lock
+: cmp #UNLOCK_MEMORY
+  bne :+
+  jmp aux_unlock
 : cmp #FREE_MEMORY
   bne :+
   jmp aux_free
@@ -353,38 +529,77 @@ stackMsg:
 
 ;------------------------------------------------------------------------------
 init:
-  ; clear the page tables
+  ; clear the segment tables
   ldy #0
   tya
-: sta main_pageTbl1,y
-  sta main_pageTbl2,y
-  sta aux_pageTbl1,y
-  sta aux_pageTbl2,y
+: sta tSegLink,y
+  sta tSegAdrLo,y
+  sta tSegAdrHi,y
+  sta tSegType,y
+  sta tSegResNum,y
   iny
-  cpy #$C0
+  cpy #MAX_SEGS
   bne :-
-  ; Lock page zero through end of memory manager
-  ldy #0
-  lda #$80+$20
-: sta main_pageTbl1,y
+  ; We'll set up 8 initial segments:
+  ; 0: main $0000 -> 4, active + locked
+  ; 1: aux  $0000 -> 2, active + locked
+  ; 2: aux  $0200 -> 3, inactive
+  ; 3: aux  $C000 -> 0, active + locked
+  ; 4: main $0xxx -> 5, inactive (xxx = end of mem mgr tables)
+  ; 5: main $2000 -> 6, active + locked
+  ; 6: main $6000 -> 3, inactive
+  ; 7: main $BF00 -> 0, active + locked
+  ; First, the flags
+  lda #$C0              ; flags for active + locked (with no resource)
+  sta tSegType+0
+  sta tSegType+1
+  sta tSegType+3
+  sta tSegType+5
+  sta tSegType+7
+  ; Next the links
+  ldx #2
+  stx tSegLink+1
+  inx
+  stx tSegLink+2
+  ldx #4
+  stx tSegLink+0
+  inx
+  stx tSegLink+4
+  inx
+  stx tSegLink+5
+  inx
+  stx tSegLink+6
+  ; Then the addresses
+  lda #2
+  sta tSegAdrHi+2
+  ldy #$C0
+  sty tSegAdrHi+3
+  dey
+  sta tSegAdrHi+7
+  lda #<tableEnd
+  sta tSegAdrLo+4
+  lda #>tableEnd
+  sta tSegAdrHi+4
+  lda #$20
+  sta tSegAdrHi+5
+  lda #$60
+  sta tSegAdrHi+6
+  ; Finally, form a long list of the remaining unused segments.
+  ldx #8
+  stx unusedSeg         ; that's the first unused seg
+  ldy #9
+@loop:
+  tya
+  sta tSegLink,x
+  inx
   iny
-  cpy #>tableEnd       ; next page after page tables
-  bne :-
-  ; Lock both hi-res pages
-  ldy #$20
-: sta main_pageTbl1,y
-  iny
-  cpy #$60
-  bne :-
-  ; Lock ProDOS system page
-  sta main_pageTbl1+$BF
-  ; Lock pages 0 and 1 in aux mem
-  sta aux_pageTbl1
-  sta aux_pageTbl1+1
+  cpy #MAX_SEGS         ; did all segments yet?
+  bne @loop             ; no, loop again
   .if DEBUG
   jmp test
-  .endif
+  .else
   rts
+  .endif
 
 ;------------------------------------------------------------------------------
   .if DEBUG
@@ -428,199 +643,226 @@ test:
   .endif
 
 ;------------------------------------------------------------------------------
-main_setup:
-  lda #<main_pageTbl1
-  sta pPageTbl1
-  lda #>main_pageTbl1
-  sta pPageTbl1+1
-  lda #<main_pageTbl2
-  sta pPageTbl2
-  lda #>main_pageTbl2
-  sta pPageTbl2+1
-  lda #0
-  sta isAuxCommand
-  rts
-
-;------------------------------------------------------------------------------
-aux_setup:
-  lda #<aux_pageTbl1
-  sta pPageTbl1
-  lda #>aux_pageTbl1
-  sta pPageTbl1+1
-  lda #<aux_pageTbl2
-  sta pPageTbl2
-  lda #>aux_pageTbl2
-  sta pPageTbl2+1
-  lda #1                ; special flag for marking aux queueing
-  sta isAuxCommand
-  rts
-
-;------------------------------------------------------------------------------
 reset:
   ; Set all non-locked pages to inactive.
-  jsr main_setup
-  jsr @inactivate
-  jsr aux_setup
-  jsr @inactivate
-  jmp nextLoaderVec     ; allow chained loaders to reset also
+  ldx #0                ; main mem first
+  jsr @inactivate       ; inactivate its non-locked segments
+  ldx #1                ; then aux mem
+  jsr @inactivate       ; same thing
+  lda #RESET_MEMORY     ; get command code back
+  jmp nextLoaderVec     ; and allow chained loaders to reset also
 @inactivate:
-  ldy #0
-@loop:
-  lda (pPageTbl1),y
+  lda tSegType,x        ; get flag byte for this segment
   tax
-  and #$20              ; check lock bit
-  bne :+                ; skip if page is locked
-  txa
-  and #$7F
-  sta (pPageTbl1),y
-: cpy #$C0              ; stop at end of 48K mem bank
-  bne @loop
-  rts
-
-;------------------------------------------------------------------------------
-main_request:
-  jsr main_setup
-shared_request:
-  lda targetPage        ; see if SET_MEM_TARGET was called
-  ldy #0
-  sty targetPage        ; clear it for next time
-  tay
-  bne @gotPage          ; if SET_MEM_TARGET was called, don't scan
-  ; need to scan for a block that has enough pages
-  stx tmp               ; save number of pages
-  ldx isAuxCommand
-  ldy scanStart,x       ; start scanning at end of last block
-  sty @scanEnd
-@blockLoop:
-  iny                   ; try next page
-  sty tmp+1             ; remember starting page of area
-  ldx #0                ; initialize count of free pages found
-@pageLoop:
-  tya
-  jsr prbyte
-  cpy @scanEnd          ; are we back where we started?
-  beq outOfMemErr       ; if so, we have failed.
-  cpy #$C0              ; reached end of mem?
-  bne :+                ; no, proceed
-  ldy #$FF              ; yes, start over at beginning of memory
-  bne @blockLoop        ; always taken
-: lda (pPageTbl1),y     ; is page active?
-  bmi @blockLoop        ; yes active, skip it and look for another block
-  iny                   ; no, move on to next page
-  inx                   ; got one more inactive page
-  cpx tmp               ; is it enough?
-  bcc @pageLoop         ; no, keep going
-@foundBlock:            ; yes, got enough
-  dey
-  tya
-  ldy isAuxCommand
-  sta scanStart,y       ; next time we allocate, start scan here
-  ldy tmp+1             ; recall starting page
-@gotPage:
-  lda #$C0              ; mark first page as $80 (active) + $40 (primary)
-: cpy #$C0              ; all pages from $C0.FF are reserved
-  bcs reservedErr
-  pha
-  lda (pPageTbl1),y     ; don't want to reserve same area twice
-  bmi reservedErr
-  pla
-  sta (pPageTbl1),y
-  lda #$80              ; mark subsequent pages as $80 (active) but not primary
-  iny
-  dex
-  bne :-
-  lda tmp+1             ; return starting page
-  rts
-@scanEnd:
-  .byte 0
-
-;------------------------------------------------------------------------------
-reservedErr:
-  ldx #<:+
-  ldy #>:+
-  jsr fatalError
-: .byte "Mem already reserved", 0
+  and #$40              ; segment locked?
+  bne @next             ; yes, skip it
+  txa                   ; no, get back flags
+  and #$7F              ; mask off the 'active' bit
+  sta tSegType,x        ; save it back
+@next:
+  lda tSegLink,x        ; get link to next seg
+  tax                   ; to X reg, and test if end of chain (x=0)
+  bne @inactivate       ; no, not end of chain, so loop again
+  rts                   ; yes, end of chain: done
 
 ;------------------------------------------------------------------------------
 outOfMemErr:
   ldx #<:+
   ldy #>:+
-  jsr fatalError
+  jmp fatalError
 : .byte "Out of mem", 0
 
 ;------------------------------------------------------------------------------
+reservedErr:
+  ldx #<:+
+  ldy #>:+
+  jmp fatalError
+: .byte "Mem reserved", 0
+
+;------------------------------------------------------------------------------
+main_request:
+  lda #0                ; index for main mem
+  bne shared_request    ; always taken
 aux_request:
-  jsr aux_setup
-  jmp shared_request
+  lda #1                ; index for aux mem
+shared_request:
+  sta isAuxCommand      ; save whether we're working on main or aux mem
+  stx reqLen            ; save requested length
+  sty reqLen+1          ; all 16 bits
+shared_alloc:
+  lda #1
+  sta @reclaimFlg       ; we will try to reclaim once
+@try:
+  lda targetAddr+1      ; see if SET_MEM_TARGET was called
+  bne @gotTarget        ; no, we need to choose location
+@chooseAddr:
+  ; no target address has been specified, we need to choose one
+  jsr scanForAvail      ; scan for an available block
+  bne @noSplitStart     ; if found, go into normal split checking
+  ; failed to find a block. If we haven't tried reclaiming, do so now
+  dec @reclaimFlg       ; first time: 1 -> 0, second time 0 -> $FF
+  bmi outOfMemErr       ; so if it's second time, give up
+  jsr reclaim           ; first time, do a reclaim pass
+  jmp @chooseAddr       ; and try again
+@notFound:
+  jmp invalidAddrErr
+@gotTarget:
+  ; target addr was specified. See if we can fulfill the request.
+  sta pTmp+1            ; save target addr
+  lda targetAddr        ; all 16 bits
+  sta pTmp
+  jsr scanForAddr       ; locate block containing target addr
+  beq @notFound         ; fail if we couldn't find it
+  lda tSegType,x        ; check flags
+  bmi reservedErr       ; if already active, can't re-allocate it
+  bcc @noSplitStart     ; scanForAddr clears carry if addr is equal
+@splitStart:
+  ; need to split current segment into (cur..targetAddr) and (targetAddr..next)
+  jsr grabSegment       ; get a new segment, index in Y (doesn't disturb X)
+  lda targetAddr
+  sta tSegAdrLo,y       ; targetAddr is start of new segment
+  lda targetAddr+1
+  sta tSegAdrHi,y       ; all 16 bits
+  lda #0
+  sta tSegType,y        ; clear flags on new segment
+  sta tSegType,x        ; and old segment
+  lda tSegLink,x        ; get link to next existing seg
+  sta tSegLink,y        ; link new segment to it
+  tya
+  sta tSegLink,x        ; link cur segment to new segment
+  tax                   ; new segment number to X
+@noSplitStart:
+  ; segment begins at exactly the right address. Does it end at the right addr?
+  lda tSegAdrLo,x       ; calc seg addr + reqLen
+  clc
+  adc reqLen
+  sta @reqEnd           ; save for later
+  lda tSegAdrHi,x       ; add all 16 bits
+  adc reqLen+1
+  sta @reqEnd+1
+  ldy tSegLink,x        ; index of next seg to Y reg
+  cmp tSegAdrHi,y       ; is end at exactly the right place?
+  bne @splitEnd
+  lda @reqEnd
+  cmp tSegAdrLo,y       ; compare all 16 bits
+  beq @noSplitEnd
+@splitEnd:
+  ; need to split current segment into (cur..reqEnd) and (reqEnd..next)
+  jsr grabSegment       ; get a new segment, index in Y (doesn't disturb X)
+  lda @reqEnd
+  sta tSegAdrLo,y       ; reqEnd is start of new segment
+  lda @reqEnd+1
+  sta tSegAdrHi,y       ; save all 16 bits
+  lda #0
+  sta tSegType,y        ; clear flags on new segment
+  lda tSegLink,x        ; get link to next existing seg
+  sta tSegLink,y        ; link new segment to it
+  tya
+  sta tSegLink,x        ; link cur segment to new segment
+@noSplitEnd:
+  ; current segment begins and ends at exactly the right addresses
+  lda #$80              ; flag segment as active, not locked, not holding a resource
+  sta tSegType,x        ; save the flags and type
+  lda #0
+  sta targetAddr        ; clear targetAddr for next future request
+  sta targetAddr+1
+  sta tSegResNum,x      ; might as well clear resource number too
+  lda tSegAdrLo,x       ; get address for return
+  ldy tSegAdrHi,x       ; all 16 bits
+  stx segNum            ; save seg num in case internal caller routine needs it
+  tax                   ; adr lo to proper register
+  rts                   ; all done!
+@reqEnd:
+  .word 0
+@reclaimFlg:
+  .byte 0
+
+;------------------------------------------------------------------------------
+reclaim:
+  ldx #<:+
+  ldy #>:+
+  jmp fatalError
+: .byte "Reclaim not impl yet", 0
+
+;------------------------------------------------------------------------------
+shared_scan:
+  sta isAuxCommand      ; save whether main or aux mem
+  stx pTmp              ; save addr lo...
+  sty pTmp+1            ; ... and hi
+  jsr scanForAddr       ; scan for block that matches
+  beq invalidAddrErr    ; if not found, invalid
+  bcs invalidAddrErr    ; if addr not exactly equal, invalid
+  lda tSegType,x        ; get existing flags
+  bpl invalidAddrErr    ; must be an active block
+  rts
+
+invalidAddrErr:
+  ldx #<:+
+  ldy #>:+
+  jmp fatalError
+: .byte "Invalid addr", 0
+
+;------------------------------------------------------------------------------
+main_lock:
+  lda #0                ; index for main-mem request
+  beq shared_lock       ; always taken
+aux_lock:
+  lda #1                ; index for aux-mem request
+shared_lock:
+  jsr shared_scan       ; scan for exact memory block
+  ora #$40              ; set the 'locked' flag
+  sta tSegType,x        ; store flags back
+  rts                   ; all done
+
+;------------------------------------------------------------------------------
+main_unlock:
+  lda #0                ; index for main-mem request
+  beq shared_unlock     ; always taken
+aux_unlock:
+  lda #1                ; index for aux-mem request
+shared_unlock:
+  jsr shared_scan       ; scan for exact memory block
+  and #$BF              ; mask off the 'locked' flag
+  sta tSegType,x        ; store flags back
+  rts                   ; all done
 
 ;------------------------------------------------------------------------------
 main_free:
-  jsr main_setup
-shared_free:
-  txa                   ; move page num
-  tay                   ; from X to Y
-  lda (pPageTbl1),y     ; fetch flags of first page
-  and #$C0              ; active and primary?
-  bpl @err              ; no, that's an error
-  lda (pPageTbl1),y     ; clear the active flag
-  and #$7F
-  sta (pPageTbl1),y
-  iny
-@loop:
-  lda (pPageTbl1),y
-  bpl @done
-  and #$7F
-  sta (pPageTbl1),y
-  iny
-  cpy #$C0
-  bne @loop
-@done:
-  rts
-@err:
-  jmp reservedErr
-
+  lda #0                ; index for main-mem request
+  beq shared_free       ; always taken
 aux_free:
-  jsr aux_setup
-  jmp shared_free
+  lda #1                ; index for aux-mem request
+shared_free:
+  jsr shared_scan       ; scan for exact memory block
+  and #$3F              ; remove the 'active' and 'locked' flags
+  sta tSegType,x        ; store flags back
+  rts                   ; all done
 
 ;------------------------------------------------------------------------------
 main_queueLoad:
-  jsr main_setup
-shared_queueLoad:
-  stx tmp               ; save resource type
-  sty tmp+1             ; save resource number
-  ; Scan to see if we already have this resource in memory
-  ldy #0
-@scanLoop:
-  lda (pPageTbl1),y
-  and #$40              ; primary? that is, start of an area?
-  bcc @skip             ; no, skip it
-  lda (pPageTbl1),y
-  and #$F               ; extract resource type
-  cmp tmp               ; is it the type we're looking for?
-  bne @skip             ; no, skip it
-  lda (pPageTbl2),y     ; get resource number
-  cmp tmp+1             ; is it the resource # we're looking for?
-  beq @found            ; yes! found what we want.
-@skip:
-  iny                   ; next page
-  cpy #$C0              ; end of memory?
-  bne @scanLoop         ; no, keep scanning
-  ldx tmp               ; yes, end of memory. Recall type parameter
-  ldy tmp+1             ; recall resource number
-  lda #QUEUE_LOAD       ; tell next loader what to do
-  jmp nextLoaderVec     ; call next loader so it can load the resource
-@found:
-  lda (pPageTbl1),y
-  ora #$80              ; mark this area as active now
-  sta (pPageTbl1),y
-  tya                   ; transfer page num to A-reg for API return
-  rts
-
-;------------------------------------------------------------------------------
+  lda #0                ; flag for main mem
+  beq shared_queueLoad  ; always taken
 aux_queueLoad:
-  jsr aux_setup
-  jmp shared_queueLoad
+  lda #1                ; flag for aux mem
+shared_queueLoad:
+  sta isAuxCommand      ; save whether main or aux
+  stx resType           ; save resource type
+  sty resNum            ; save resource number
+  jsr scanForResource   ; scan to see if we already have this resource in mem
+  beq @notFound         ; nope, pass to next loader
+  lda tSegType,x        ; get flags
+  ora #$80              ; reactivate if necessary
+  sta tSegType,x        ; save modified flag
+  lda tSegAdrHi,x       ; get seg address hi
+  tay                   ; in Y for return
+  lda tSegAdrLo,x       ; addr lo
+  tax                   ; in X for return
+  rts                   ; all done
+@notFound:
+  ldx resType           ; restore res type
+  ldy resNum            ; and number
+  lda #QUEUE_LOAD       ; set to re-try same operation
+  jmp nextLoaderVec     ; pass to next loader
 
 ;------------------------------------------------------------------------------
 diskLoader:
@@ -631,12 +873,11 @@ diskLoader:
   bne :+
   jmp disk_queueLoad
 : cmp #FINISH_LOAD
-  bne @cmdError
+  bne :+
   jmp disk_finishLoad
-@cmdError:
-  ldx #<:+
+: ldx #<:+
   ldy #>:+
-  jsr fatalError
+  jmp fatalError
 : .byte "Invalid command", 0
 
 ;------------------------------------------------------------------------------
@@ -655,30 +896,23 @@ openPartition:
   lda @openFileRef
   sta partitionFileRef
   sta readFileRef
-  ; Read the first byte, which tells us how many pages in the header
+  ; Read the first two bytes, which tells us how many remaining bytes in the header
   lda #<headerBuf
   sta readAddr
   lda #>headerBuf
   sta readAddr+1
-  lda #1
+  lda #2
   sta readLen
   lda #0
   sta readLen+1
-  jsr @doRead
-  ldx headerBuf         ; grab # of header pages
-  dex
-  stx readLen+1         ; read in the rest of the header
-  lda #$FF
-  sta readLen
-  lda #1
+  jsr readToMain
+  lda headerBuf         ; grab header size
+  sta readLen           ; set to read that much
+  lda headerBuf+1       ; hi byte too
+  sta readLen+1
+  lda #2                ; read just after the 2-byte length
   sta readAddr
-  ; fall into @doRead
-@doRead:
-  jsr mli
-  .byte MLI_READ
-  .word readParams
-  bcs prodosError
-  rts
+  jmp readToMain        ; finish by reading the rest of the header
 @openParams:
   .byte 3               ; number of params
   .word @filename       ; pointer to file name
@@ -717,7 +951,7 @@ prodosError:
   sta @errNum+1
   ldx #<@msg
   ldy #>@msg
-  jsr fatalError
+  jmp fatalError
 @digit:
   and #$F
   ora #$B0
@@ -745,12 +979,12 @@ disk_startLoad:
 sequenceError:
   ldx #<:+
   ldy #>:+
-  jsr fatalError
+  jmp fatalError
 : .byte "Bad sequence", 0
 
 ;------------------------------------------------------------------------------
 startHeaderScan:
-  lda #<headerBuf+1     ; start scanning the partition header
+  lda #2                ; start scanning the partition header just after len
   sta pTmp
   lda #>headerBuf
   sta pTmp+1
@@ -758,21 +992,9 @@ startHeaderScan:
   rts
 
 ;------------------------------------------------------------------------------
-bump128:
-  tya
-  and #$7F
-  tay
-  lda pTmp
-  eor #$80
-  sta pTmp
-  bne :+
-  inc pTmp+1
-: rts
-
-;------------------------------------------------------------------------------
 disk_queueLoad:
-  stx @resType          ; save resource type
-  sty @resNum           ; and resource num
+  stx resType           ; save resource type
+  sty resNum            ; and resource num
   lda partitionFileRef  ; check if we've opened the file yet
   bne :+                ; yes, don't re-open
   jsr openPartition     ; open the partition file
@@ -780,16 +1002,20 @@ disk_queueLoad:
 @scan:
   lda (pTmp),y          ; get resource type
   beq @notFound         ; if zero, this is end of table: failed to find the resource
-  cmp @resType          ; is it the type we're looking for?
-  bne @next             ; no, skip this resource
+  iny
+  cmp resType           ; is it the type we're looking for?
+  bne @bump3            ; no, skip this resource
   lda (pTmp),y          ; get resource num
-  cmp @resNum           ; is it the number we're looking for
-  bne @next             ; no, skip this resource
+  cmp resNum            ; is it the number we're looking for
+  bne @bump3            ; no, skip this resource
   iny                   ; Yay! We found the one we want.
-  lda (pTmp),y          ; grab the length in pages
-  tax                   ; save for later
-  pha                   ; again for later
-  dey                   ; back to start of 3-byte record
+  lda (pTmp),y          ; grab the length in bytes
+  sta reqLen            ; save for later
+  iny
+  lda (pTmp),y          ; hi byte too
+  sta reqLen+1
+  dey                   ; back to start of record
+  dey
   dey
   lda (pTmp),y          ; Get the resource type back
   ora #$80              ; special mark to say, "We want to load this segment"
@@ -797,35 +1023,28 @@ disk_queueLoad:
   beq :+
   ora #$40              ; record that the eventual disk read should go to aux mem
 : sta (pTmp),y          ; save modified type byte with the flags added to it
-  jsr shared_request    ; reserve memory for this resource (main or aux as appropriate)
-  pla                   ; get back the length of the resource
-  tax                   ; in X for page count
-@markLoop:
-  lda (pPageTbl1),y     ; get type / flag byte
-  ora @resType          ; add the type
-  sta (pPageTbl1),y     ; save it back
-  lda @resNum           ; put the resource number in too
-  sta (pPageTbl2),y
-  iny                   ; next page
-  dex                   ; done enough pages yet?
-  bne @markLoop         ; no, go do more pages
-  rts                   ; yes, success! all done.
-@next:
-  iny                   ; skip the whole 3-byte record
+  jsr shared_alloc      ; reserve memory for this resource (main or aux as appropriate)
+  stx tmp               ; save lo part of addr temporarily
+  ldx segNum            ; get the segment number back
+  lda resType           ; put resource type in segment descriptor
+  ora #$80              ; add 'active' flag
+  sta tSegType,x
+  lda resNum            ; put resource number in segment descriptor
+  sta tSegResNum,x
+  ldx tmp               ; get back lo part of addr
+  rts                   ; success! all done.
+@bump3:
+  iny                   ; skip the remaining 3 bytes of the 4-byte record
   iny
   iny
-  bpl @scan
-  jsr bump128
-  jmp @scan
+  bne @scan             ; happily, 4-byte records always end at page boundary
+  inc pTmp+1            ; page boundary hit - go to next page of header
+  bne @scan             ; always taken
 @notFound:
   ldx #<:+
   ldy #>:+
-  jsr fatalError
+  jmp fatalError
 : .byte "Resource not found", 0
-@resType:
-  .byte 0
-@resNum:
-  .byte 0
 @resLen:
   .byte 0
 
@@ -837,33 +1056,47 @@ disk_finishLoad:
 : sta @setMarkFileRef   ; copy the file ref number to our MLI param blocks
   sta readFileRef
   sta @closeFileRef
-  lda headerBuf         ; grab # header pages
-  sta @setMarkPos+1     ; set to start reading at first non-header page in file
+  lda headerBuf         ; grab # header bytes
+  sta @setMarkPos       ; set to start reading at first non-header byte in file
+  lda headerBuf
+  sta @setMarkPos+1
   lda #0
   sta @setMarkPos+2
-  sta readAddr
-  sta readLen
   jsr startHeaderScan   ; start scanning the partition header
 @scan:
   lda (pTmp),y          ; get resource type byte
-  bmi :+                ; hi bit set -> queued for load
+  bmi @load             ; hi bit set -> queued for load
   iny                   ; not set, not queued, so skip over it
   iny
   bne @next             ; always taken
-: sta isAuxCommand      ; save flag ($40) to decide where to read
+@load:
+  tax                   ; save flag ($40) to decide where to read
   and #$F               ; mask to get just the resource type
-  tax                   ; save type for later
+  sta resType           ; save type for later
   iny
   lda (pTmp),y          ; get resource num
   iny
-  sty @ysave            ; found the resource. Save Y so we can resume later.
-  tay                   ; resource num in Y (and type is already in X)
+  sta resNum            ; save resource number
   jsr @debug
-  jsr main_queueLoad    ; find the page number allocated to this resource
-  sta readTargetPage    ; save for later
-  ldy @ysave            ; get back to entry in partition header
-  lda (pTmp),y          ; # of pages to read
-  sta nPagesToRead      ; save for later
+  txa                   ; get the flags back
+  ldx #0                ; index for main mem
+  and #$40              ; check for aux flag
+  beq :+                ; not aux, skip
+  inx                   ; index for aux mem
+: stx isAuxCommand      ; save main/aux selector
+  sty @ysave            ; Save Y so we can resume scanning later.
+  iny
+  lda (pTmp),y          ; grab resource length
+  sta readLen           ; save for reading
+  iny
+  lda (pTmp),y          ; hi byte too
+  sta readLen+1
+  jsr scanForResource   ; find the segment number allocated to this resource
+  beq @addrErr          ; it better have been allocated
+  lda tSegAdrLo,x
+  sta readAddr
+  lda tSegAdrHi,x
+  sta readAddr+1
   jsr @debug2
   jsr mli               ; move the file pointer to the current block
   .byte MLI_SET_MARK
@@ -878,16 +1111,20 @@ disk_finishLoad:
 @resume:
   ldy @ysave
 @next:
-  lda (pTmp),y          ; number of pages
+  lda (pTmp),y          ; lo byte of length
   clc
-  adc @setMarkPos+1     ; advance mark position exactly that far
+  adc @setMarkPos       ; advance mark position exactly that far
+  sta @setMarkPos
+  iny
+  lda (pTmp),y          ; hi byte of length
+  adc @setMarkPos+1
   sta @setMarkPos+1
   bcc :+
   inc @setMarkPos+2     ; account for partitions > 64K
 : iny                   ; increment to next entry
-  bpl @scan
-  jsr bump128
-  jmp @scan
+  bne @scan             ; exactly 64 4-byte entries per 256 bytes
+  inc pTmp+1
+  bne @scan             ; always taken
 @done:
   jsr mli               ; now that we're done loading, we can close the partition file
   .byte MLI_CLOSE
@@ -912,32 +1149,25 @@ disk_finishLoad:
   .byte 0               ; file ref to close
 @ysave:
   .byte 0
+@addrErr:
+  jmp invalidAddrErr
 @debug:
-  stx $98
-  sty $99
   DEBUG_STR "Going to load: type="
-  DEBUG_BYTE $98
+  DEBUG_BYTE resType
   DEBUG_STR "num="
-  DEBUG_BYTE $99
+  DEBUG_BYTE resNum
   rts
 @debug2:
-  DEBUG_STR "nPagesToRead="
-  DEBUG_BYTE nPagesToRead
-  DEBUG_STR ", readTargetPage="
-  DEBUG_BYTE readTargetPage
+  DEBUG_STR "readLen="
+  DEBUG_BYTE readLen+1
+  DEBUG_BYTE readLen
+  DEBUG_STR ", readAddr="
+  DEBUG_BYTE readAddr+1
+  DEBUG_BYTE readAddr
   DEBUG_STR "."
-
-readTargetPage:
-  .byte 0
-nPagesToRead:
-  .byte 0
 
 ;------------------------------------------------------------------------------
 readToMain:
-  lda readTargetPage
-  sta readAddr+1
-  lda nPagesToRead
-  sta readLen+1
   jsr mli
   .byte MLI_READ
   .word readParams
@@ -948,51 +1178,85 @@ readToMain:
 
 ;------------------------------------------------------------------------------
 readToAux:
+  lda readAddr
+  sta @st+1
+  lda readAddr+1
+  sta @st+2
+  lda #0
+  sta readAddr
   lda #>auxBuffer       ; we're reading into a buffer in main mem
   sta readAddr+1
-  lda #>readTargetPage  ; set up copy target page
-  sta @st+1
+  lda readLen
+  sta reqLen
+  lda readLen+1
+  sta reqLen+1
 @nextGroup:
-  lda nPagesToRead      ; see how many pages we want
+  ldx reqLen
+  lda reqLen+1          ; see how many pages we want
   cmp #8                ; 8 or less?
-  bcc :+                ; yes, read exact
+  bcc :+                ; yes, read exact amount
   lda #8                ; no, limit to 8 pages max
-: sta readLen+1         ; save number of pages
-  jsr mli               ; now read them
+  ldx #0
+: stx readLen
+  sta readLen+1         ; save number of pages
+  jsr mli               ; now read
   .byte MLI_READ
   .word readParams
   bcs @err
   lda #>auxBuffer       ; set up copy pointers
-  sta @ld+1
-  sta setAuxWr          ; copy from main to aux mem
+  sta @ld+2
+  lda readLen           ; set up:
+  sta @chk+1            ; partial page check
   ldy #0
+  ldx readLen+1         ; number of whole pages
+@copy:
+  sta setAuxWr          ; copy from main to aux mem
 @ld:
   lda $100,y            ; from main mem
 @st:
   sta $100,y            ; to aux mem
   iny
-  bne @ld               ; loop to copy a whole page
+  beq @pageEnd          ; end of full page? - work to do
+@chk:
+  cpy #11               ; end of partial page? (self-modified earlier)
+  bne @ld
+  txa                   ; last page?
+  bne @ld
+  beq @next
+@pageEnd:
+  sta clrAuxWr          ; normal memory writes so we can increment
+  inc @ld+2             ; self-modifying
+  inc @st+2
+  dex                   ; dec page count
+  bne @copy             ; any pages left? go more
+  lda readLen
+  bne @copy             ; partial page left? go more
+@next:
   sta clrAuxWr          ; normal memory writes
-  dec nPagesToRead      ; dec total number of pages
-  beq @done             ; when zero, we're done
-  inc @ld+1             ; prep for next page
-  inc @st+1
-  dec readLen+1         ; copy only number of pages we read this round
-  bne @ld               ; loop to copy next page
-  beq @nextGroup        ; always taken
-@done:
-  rts
+  lda reqLen            ; decrement reqLen by the amount we read
+  sec
+  sbc readLen
+  sta reqLen
+  sta @or+1             ; save lo for later
+  lda reqLen+1          ; all 16 bits of reqLen
+  sbc readLen+1
+  sta reqLen+1
+@or:
+  ora #11               ; self-modified above
+  bne @nextGroup        ; anything left to read, do more
+  rts                   ; all done
 @err:
   jmp prodosError
 
 ;------------------------------------------------------------------------------
-; Page tables
-  .align 256
-main_pageTbl1 = *
-main_pageTbl2 = main_pageTbl1 + $C0
-aux_pageTbl1  = main_pageTbl2 + $C0
-aux_pageTbl2  = aux_pageTbl1 + $C0
+; Segment tables
+
+tSegLink   = *
+tSegType   = tSegLink + MAX_SEGS
+tSegResNum = tSegType + MAX_SEGS
+tSegAdrLo  = tSegResNum + MAX_SEGS
+tSegAdrHi  = tSegAdrLo + MAX_SEGS
 
 ;------------------------------------------------------------------------------
 ; Marker for end of the tables, so we can compute its length
-tableEnd = aux_pageTbl2 + $C0
+tableEnd = tSegAdrHi + MAX_SEGS

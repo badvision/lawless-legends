@@ -304,13 +304,12 @@ class PackPartitions
         maps[name] = [num:num, buf:buf]
     }
     
-    def writePages(stream, buf)
+    def writeBufToStream(stream, buf)
     {
         def endPos = buf.position()
-        def nPages = (endPos + 255) >> 8
-        def bytes = new byte[nPages << 8]
+        def bytes = new byte[endPos]
         buf.position(0)
-        buf.get(bytes, 0, endPos)
+        buf.get(bytes)
         stream.write(bytes)
     }
     
@@ -338,30 +337,33 @@ class PackPartitions
         maps.values().each { chunks.add([type:TYPE_MAP, num:it.num, buf:it.buf]) }
         images.values().each { chunks.add([type:TYPE_IMAGE, num:it.num, buf:it.buf]) }
         
-        // Generate the header chunk. Leave the first byte for the # of pages in the hdr
+        // Generate the header chunk. Leave the first 2 bytes for the # of pages in the hdr
         def hdrBuf = ByteBuffer.allocate(50000)
         hdrBuf.put((byte)0)
+        hdrBuf.put((byte)0)
         
-        // Write the three bytes for each resource
+        // Write the four bytes for each resource
         chunks.each { chunk ->
             hdrBuf.put((byte)chunk.type)
             assert chunk.num >= 1 && chunk.num <= 255
             hdrBuf.put((byte)chunk.num)
-            def nPages = (chunk.buf.position() + 255) >> 8
-            //println "  chunk: type=${chunk.type}, num=${chunk.num}, nPages=$nPages"
-            hdrBuf.put((byte)nPages)
+            def len = chunk.buf.position()
+            //println "  chunk: type=${chunk.type}, num=${chunk.num}, len=$len"
+            hdrBuf.put((byte)(len & 0xFF))
+            hdrBuf.put((byte)(len >> 8))
         }
         
-        // Fix up the first byte to contain the page count of the header
+        // Fix up the first bytes to contain the length of the header
         def hdrEnd = hdrBuf.position()
+        def hdrLen = hdrEnd - 2
         hdrBuf.position(0)
-        def nPages = (hdrEnd + 255) >> 8
-        hdrBuf.put((byte)nPages)
+        hdrBuf.put((byte)(hdrLen & 0xFF))
+        hdrBuf.put((byte)(hdrLen >> 8))
         hdrBuf.position(hdrEnd)
         
-        // Finally, write out each chunk, including the header, as 256-byte pages.
-        writePages(stream, hdrBuf)
-        chunks.each { writePages(stream, it.buf) }
+        // Finally, write out each chunk's data, including the header.
+        writeBufToStream(stream, hdrBuf)
+        chunks.each { writeBufToStream(stream, it.buf) }
     }
     
     def pack(xmlPath, binPath)

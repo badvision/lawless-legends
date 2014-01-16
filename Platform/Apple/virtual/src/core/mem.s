@@ -680,6 +680,16 @@ test:
   ldy #1                ; code resource #1
   lda #QUEUE_LOAD
   jsr mainLoader
+  DEBUG_STR "Set mem target."
+  ldx #0
+  ldy #8                ; load at $800
+  lda #SET_MEM_TARGET
+  jsr auxLoader
+  DEBUG_STR "Queue load."
+  ldx #1                ; TYPE_CODE = 1
+  ldy #2                ; code resource #2
+  lda #QUEUE_LOAD
+  jsr auxLoader
   DEBUG_STR "Finish load."
   lda #FINISH_LOAD
   jsr mainLoader
@@ -1149,7 +1159,6 @@ disk_finishLoad:
   lda (pTmp),y          ; get resource num
   iny
   sta resNum            ; save resource number
-  jsr @debug
   txa                   ; get the flags back
   ldx #0                ; index for main mem
   and #$40              ; check for aux flag
@@ -1157,6 +1166,9 @@ disk_finishLoad:
   inx                   ; index for aux mem
 : stx isAuxCommand      ; save main/aux selector
   sty @ysave            ; Save Y so we can resume scanning later.
+  .if DEBUG
+  jsr @debug1
+  .endif
   lda (pTmp),y          ; grab resource length
   sta readLen           ; save for reading
   iny
@@ -1168,13 +1180,15 @@ disk_finishLoad:
   sta readAddr
   lda tSegAdrHi,x
   sta readAddr+1
+  .if DEBUG
   jsr @debug2
+  .endif
   jsr mli               ; move the file pointer to the current block
   .byte MLI_SET_MARK
   .word @setMarkParams
   bcs @prodosErr
-  bit isAuxCommand
-  bvs @auxRead          ; decide whether we're reading to main or aux
+  lda isAuxCommand
+  bne @auxRead          ; decide whether we're reading to main or aux
   jsr readToMain
   bcc @resume           ; always taken
 @auxRead:
@@ -1222,11 +1236,14 @@ disk_finishLoad:
   .byte 0
 @addrErr:
   jmp invalidAddrErr
-@debug:
+  .if DEBUG
+@debug1:
   DEBUG_STR "Going to load: type="
   DEBUG_BYTE resType
   DEBUG_STR "num="
   DEBUG_BYTE resNum
+  DEBUG_STR "isAux="
+  DEBUG_BYTE isAuxCommand
   rts
 @debug2:
   DEBUG_STR "readLen="
@@ -1234,6 +1251,8 @@ disk_finishLoad:
   DEBUG_STR "readAddr="
   DEBUG_WORD readAddr
   DEBUG_STR "."
+  rts
+  .endif
 
 ;------------------------------------------------------------------------------
 readToMain:
@@ -1268,6 +1287,9 @@ readToAux:
   ldx #0
 : stx readLen
   sta readLen+1         ; save number of pages
+  .if DEBUG
+  jsr @debug1
+  .endif
   jsr mli               ; now read
   .byte MLI_READ
   .word readParams
@@ -1316,6 +1338,12 @@ readToAux:
   rts                   ; all done
 @err:
   jmp prodosError
+ .if DEBUG
+@debug1:
+  DEBUG_STR "Read some, len="
+  DEBUG_WORD readLen
+  jmp crout
+ .endif
 
 ;------------------------------------------------------------------------------
 ; Segment tables

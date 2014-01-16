@@ -222,13 +222,13 @@ FATAL_ERROR = $1F
   .include "../include/global.i"
 
   ; constants
-  MAX_SEGS = 100
+  MAX_SEGS = 96
 
   ; zero page
-  reqLen = $6           ; length 2
-  resType = $8
-  resNum  = $9
-  isAuxCommand = $A         ; length 1
+  reqLen        = $6    ; length 2
+  resType       = $8    ; length 1
+  resNum        = $9    ; length 1
+  isAuxCommand  = $A    ; length 1
 
   ; memory buffers
   fileBuffer = $4000    ; len $400
@@ -575,7 +575,7 @@ init:
   ldy #$C0
   sty tSegAdrHi+3
   dey
-  sta tSegAdrHi+7
+  sty tSegAdrHi+7
   lda #<tableEnd
   sta tSegAdrLo+4
   lda #>tableEnd
@@ -603,7 +603,72 @@ init:
 
 ;------------------------------------------------------------------------------
   .if DEBUG
+printMem:
+  DEBUG_STR "Listing main mem segments."
+  ldy #0
+  jsr @printSegs
+  DEBUG_STR "Listing aux mem segments."
+  ldy #1
+@printSegs:
+  tya
+  tax
+  lda #'s'
+  jsr @prChrEq
+  lda #'t'
+  ldx tSegType,y
+  jsr @prChrEq
+  lda #'n'
+  ldx tSegResNum,y
+  jsr @prChrEq
+  lda #'a'
+  ldx tSegAdrHi,y
+  jsr @prChrEq
+  lda tSegAdrLo,y
+  jsr prbyte
+  jsr crout
+@next:
+  lda tSegLink,y
+  tay
+  bne @printSegs
+  rts
+@prChrEq:
+  pha
+  lda #$A0
+  jsr cout
+  pla
+  jsr orCout
+  lda #'='
+  jsr orCout
+  txa
+  jmp prbyte
+  .endif
+
+;------------------------------------------------------------------------------
+  .if DEBUG
 test:
+  DEBUG_STR "Testing memory manager."
+@loop:
+  ldx #1
+  ldy #4
+  lda #REQUEST_MEMORY
+  jsr mainLoader
+  stx tmp
+  sty tmp+1
+  DEBUG_STR "Main alloc: "
+  DEBUG_WORD tmp
+  DEBUG_LN
+  ldx #2
+  ldy #4
+  lda #REQUEST_MEMORY
+  jsr auxLoader
+  stx tmp
+  sty tmp+1
+  DEBUG_STR "Aux alloc: "
+  DEBUG_WORD tmp
+  DEBUG_LN
+  jmp @loop
+  rts
+
   DEBUG_STR "Start load."
   ldx #0                ; partition 0
   lda #START_LOAD
@@ -620,25 +685,6 @@ test:
   DEBUG_STR "Finish load."
   lda #FINISH_LOAD
   jsr mainLoader
-  rts
-  ; obsolete test below: allocate all memory until we run out
-  DEBUG_STR "Testing memory manager."
-@loop:
-  ldx #3
-  lda #REQUEST_MEMORY
-  jsr mainLoader
-  sta tmp
-  DEBUG_STR "Main page: "
-  DEBUG_BYTE tmp
-  DEBUG_LN
-  ldx #3
-  lda #REQUEST_MEMORY
-  jsr auxLoader
-  sta tmp
-  DEBUG_STR "Aux page: "
-  DEBUG_BYTE tmp
-  DEBUG_LN
-  jmp @loop
   rts
   .endif
 
@@ -682,7 +728,7 @@ reservedErr:
 ;------------------------------------------------------------------------------
 main_request:
   lda #0                ; index for main mem
-  bne shared_request    ; always taken
+  beq shared_request    ; always taken
 aux_request:
   lda #1                ; index for aux mem
 shared_request:
@@ -1250,6 +1296,10 @@ readToAux:
 
 ;------------------------------------------------------------------------------
 ; Segment tables
+
+ .if DEBUG
+ .align 256
+ .endif
 
 tSegLink   = *
 tSegType   = tSegLink + MAX_SEGS

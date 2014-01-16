@@ -353,12 +353,16 @@ class PackPartitions
             hdrBuf.put((byte)(len >> 8))
         }
         
-        // Fix up the first bytes to contain the length of the header
+        // Terminate the header with a zero type
+        hdrBuf.put((byte)0);
+        
+        // Fix up the first bytes to contain the length of the header (including the length
+        // itself)
+        //
         def hdrEnd = hdrBuf.position()
-        def hdrLen = hdrEnd - 2
         hdrBuf.position(0)
-        hdrBuf.put((byte)(hdrLen & 0xFF))
-        hdrBuf.put((byte)(hdrLen >> 8))
+        hdrBuf.put((byte)(hdrEnd & 0xFF))
+        hdrBuf.put((byte)(hdrEnd >> 8))
         hdrBuf.position(hdrEnd)
         
         // Finally, write out each chunk's data, including the header.

@@ -370,8 +370,8 @@ scanForResource:
   tya                   ; next in chain
   tax                   ; to X reg index
   bne @loop             ; not end of chain - loop again
-  ldx isAuxCommand      ; end of chain; start at first seg (0=main, 1=aux)
-  jmp @loop             ; keep going until we succeed or reach starting point
+  ldy isAuxCommand      ; end of chain; start at first seg (0=main, 1=aux)
+  jmp @next             ; keep going until we succeed or reach starting point
 @fail:
   ldx #0                ; failure return
   rts
@@ -412,7 +412,7 @@ scanForAvail:
   tax                   ; to X reg index
   bne @loop             ; not end of chain - loop again
   ldx isAuxCommand      ; end of chain; start at first seg (0=main, 1=aux)
-  jmp @loop             ; keep going until we succeed or reach starting point
+  jmp @next             ; keep going until we succeed or reach starting point
 @fail:
   ldx #0                ; failure return
   rts
@@ -666,6 +666,27 @@ printMem:
 ;------------------------------------------------------------------------------
   .if DEBUG
 test:
+  DEBUG_STR "Start load."
+  ldx #0                ; partition 0
+  lda #START_LOAD
+  jsr mainLoader
+  DEBUG_STR "Set mem target."
+  ldx #0
+  ldy #$70              ; load at $7000
+  lda #SET_MEM_TARGET
+  jsr mainLoader
+  DEBUG_STR "Queue load."
+  ldx #1                ; TYPE_CODE = 1
+  ldy #1                ; code resource #1
+  lda #QUEUE_LOAD
+  jsr mainLoader
+  DEBUG_STR "Finish load."
+  lda #FINISH_LOAD
+  jsr mainLoader
+  DEBUG_STR "Test complete."
+  jmp monitor
+
+  ; obsolete test
   DEBUG_STR "Testing memory manager."
 @loop:
   ldx #1
@@ -689,23 +710,6 @@ test:
   jmp @loop
   rts
 
-  DEBUG_STR "Start load."
-  ldx #0                ; partition 0
-  lda #START_LOAD
-  jsr mainLoader
-  DEBUG_STR "Set mem target."
-  ldx #$70              ; load at $7000
-  lda #SET_MEM_TARGET
-  jsr mainLoader
-  DEBUG_STR "Queue load."
-  ldx #1                ; TYPE_CODE = 1
-  ldy #1                ; code resource #1
-  lda #QUEUE_LOAD
-  jsr mainLoader
-  DEBUG_STR "Finish load."
-  lda #FINISH_LOAD
-  jsr mainLoader
-  rts
   .endif
 
 ;------------------------------------------------------------------------------
@@ -962,7 +966,7 @@ openPartition:
   lda @openFileRef
   sta partitionFileRef
   sta readFileRef
-  ; Read the first two bytes, which tells us how many remaining bytes in the header
+  ; Read the first two bytes, which tells us how long the header is.
   lda #<headerBuf
   sta readAddr
   lda #>headerBuf
@@ -973,7 +977,8 @@ openPartition:
   sta readLen+1
   jsr readToMain
   lda headerBuf         ; grab header size
-  sta readLen           ; set to read that much
+  sta readLen           ; set to read that much. Will actually get 2 extra bytes,
+                        ; but that's no biggie.
   lda headerBuf+1       ; hi byte too
   sta readLen+1
   lda #2                ; read just after the 2-byte length
@@ -1124,13 +1129,14 @@ disk_finishLoad:
   sta @closeFileRef
   lda headerBuf         ; grab # header bytes
   sta @setMarkPos       ; set to start reading at first non-header byte in file
-  lda headerBuf
+  lda headerBuf+1       ; hi byte too
   sta @setMarkPos+1
   lda #0
   sta @setMarkPos+2
   jsr startHeaderScan   ; start scanning the partition header
 @scan:
   lda (pTmp),y          ; get resource type byte
+  beq @done             ; zero = end of header
   bmi @load             ; hi bit set -> queued for load
   iny                   ; not set, not queued, so skip over it
   iny
@@ -1151,7 +1157,6 @@ disk_finishLoad:
   inx                   ; index for aux mem
 : stx isAuxCommand      ; save main/aux selector
   sty @ysave            ; Save Y so we can resume scanning later.
-  iny
   lda (pTmp),y          ; grab resource length
   sta readLen           ; save for reading
   iny
@@ -1167,7 +1172,7 @@ disk_finishLoad:
   jsr mli               ; move the file pointer to the current block
   .byte MLI_SET_MARK
   .word @setMarkParams
-  bcs @err
+  bcs @prodosErr
   bit isAuxCommand
   bvs @auxRead          ; decide whether we're reading to main or aux
   jsr readToMain
@@ -1195,11 +1200,11 @@ disk_finishLoad:
   jsr mli               ; now that we're done loading, we can close the partition file
   .byte MLI_CLOSE
   .word @closeParams
-  bcs @err
+  bcs @prodosErr
   lda #0                ; zero out...
   sta partitionFileRef  ; ... the file reference so we know it's no longer open
   rts
-@err:
+@prodosErr:
   jmp prodosError
 @setMarkParams:
   .byte 2               ; param count
@@ -1225,11 +1230,9 @@ disk_finishLoad:
   rts
 @debug2:
   DEBUG_STR "readLen="
-  DEBUG_BYTE readLen+1
-  DEBUG_BYTE readLen
-  DEBUG_STR ", readAddr="
-  DEBUG_BYTE readAddr+1
-  DEBUG_BYTE readAddr
+  DEBUG_WORD readLen
+  DEBUG_STR "readAddr="
+  DEBUG_WORD readAddr
   DEBUG_STR "."
 
 ;------------------------------------------------------------------------------

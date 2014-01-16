@@ -31,13 +31,33 @@
 ; going to be faster than spinning up a disk.
 ;
 ; ----------------------------
-; Page table format in memory:
-; FFFFtttt nnnnnnnn
-; F = Flags
-;   7 - Active/Inactive
-;   6 - Locked (cannot be reclaimed for any reason)
-; t = Type of resource (1-15, 0 is invalid)
-; n = Resource number (1-255, 0 is invalid)
+; Segment table format in memory:
+; Linked list of segments. Segments are generally indexed by the X register. There is
+; one list of main memory, another list for aux mem. They are intermixed in the segment
+; table space. First segment of main mem is always seg 0; first of aux mem is seg 1.
+;
+; tSegType,x:
+;   FF00tttt nnnnnnnn llllllll aaaaaaaa bbbbbbbb
+;   F = Flags
+;     7 - Active/Inactive
+;     6 - Locked (cannot be reclaimed for any reason)
+;   t = Type of resource (1-15, 0 is invalid)
+; tSegResNum,x:
+;   resource number (1-255, 0 is invalid or no resource loaded)
+; tSegAdrLo,x and tSegAdrHi,x:
+;   address of segment in memory
+; tSegLink,x:
+;   link to next segment
+;
+; Essentially there are three distinct lists. Main mem (starts at seg 0), aux mem
+; (starts at seg 1), and the unused list (starts at segment stored in unusedSeg).
+;
+; There is an extra link associated with each of (main, aux) mem. It's indexed by the 
+; Y register (y=0 is main, y=1 is aux):
+; 
+; scanStart,y:
+;   segment of last successful allocation. Used to quickly pick up for next
+;   allocation.
 ;
 ; -------------------------
 ; Page file format on disk:

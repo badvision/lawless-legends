@@ -666,6 +666,13 @@ printMem:
 ;------------------------------------------------------------------------------
   .if DEBUG
 test:
+  jsr test_load
+  lda #RESET_MEMORY
+  jsr mainLoader
+  jsr test_load
+  DEBUG_STR "Test complete."
+  jmp monitor
+test_load:
   DEBUG_STR "Start load."
   ldx #0                ; partition 0
   lda #START_LOAD
@@ -680,6 +687,11 @@ test:
   ldy #1                ; code resource #1
   lda #QUEUE_LOAD
   jsr mainLoader
+  DEBUG_STR "  addr="
+  stx tmp
+  sty tmp+1
+  DEBUG_WORD tmp
+  DEBUG_LN
   DEBUG_STR "Set mem target."
   ldx #0
   ldy #8                ; load at $800
@@ -690,11 +702,14 @@ test:
   ldy #2                ; code resource #2
   lda #QUEUE_LOAD
   jsr auxLoader
+  DEBUG_STR "  addr="
+  stx tmp
+  sty tmp+1
+  DEBUG_WORD tmp
+  DEBUG_LN
   DEBUG_STR "Finish load."
   lda #FINISH_LOAD
-  jsr mainLoader
-  DEBUG_STR "Test complete."
-  jmp monitor
+  jmp mainLoader
 
   ; obsolete test
   DEBUG_STR "Testing memory manager."
@@ -955,6 +970,9 @@ diskLoader:
 : cmp #FINISH_LOAD
   bne :+
   jmp disk_finishLoad
+: cmp #RESET_MEMORY
+  bne :+
+  rts                   ; do nothing
 : ldx #<:+
   ldy #>:+
   jmp fatalError

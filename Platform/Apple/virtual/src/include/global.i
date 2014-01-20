@@ -1,8 +1,10 @@
 ; Shared definitions for all modules
 
-; Zero page temps
-tmp      = $2  ; len 2
-pTmp     = $4  ; len 2
+; Zero page temporary area. Modules can feel free to use the entire space,
+; but must *not* count on it being preserved when other modules are in
+; control, e.g. when calling other modules, or returning to them.
+zpTempStart = $2                ; 0 and 1 are reserved on c64
+zpTempEnd   = $1F
 
 ; Zero page monitor locations
 a2l      = $3E
@@ -36,7 +38,7 @@ MLI_GET_EOF       = $D1
 MLI_SET_BUF       = $D2
 MLI_GET_BUF       = $D3
 
-; I/O locations
+; I/O soft switches
 kbd       = $C000
 clrAuxRd  = $C002
 setAuxRd  = $C003

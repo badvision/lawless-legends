@@ -23,6 +23,8 @@ BLIT_OFF6 = 24
 BLIT_STRIDE = 29
 
 ; Renderer zero page
+tmp        = $4  ; len 2
+pTmp       = $6  ; len 2
 pDst       = $8  ; len 2
 pTex       = $A  ; len 2
 pixNum     = $C  ; len 1

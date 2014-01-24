@@ -24,6 +24,9 @@
   auxBuffer  = $4400    ; len $800
   headerBuf  = $4C00    ; len $1400
 
+  ; other equates
+  prodosMemMap = $BF58
+
   ; Initial vectors
   jmp init
   jmp main_dispatch
@@ -140,6 +143,8 @@ scanForResource:
   tax                   ; to X reg index
   bne @loop             ; not end of chain - loop again
   ldy isAuxCommand      ; end of chain; start at first seg (0=main, 1=aux)
+  lda scanStart,y
+  tay
   jmp @next             ; keep going until we succeed or reach starting point
 @fail:
   ldx #0                ; failure return
@@ -318,17 +323,29 @@ stackMsg:
 
 ;------------------------------------------------------------------------------
 init:
+  ; clear ProDOS mem map so it lets us load stuff anywhere we want
+  ldx #$18
+  lda #0
+@memLup:
+  sta prodosMemMap-1,x
+  dex
+  bne @memLup
   ; clear the segment tables
-  ldy #0
-  tya
-: sta tSegLink,y
-  sta tSegAdrLo,y
-  sta tSegAdrHi,y
-  sta tSegType,y
-  sta tSegResNum,y
-  iny
-  cpy #MAX_SEGS
+: sta tSegLink,x
+  sta tSegAdrLo,x
+  sta tSegAdrHi,x
+  sta tSegType,x
+  sta tSegResNum,x
+  inx
+  cpx #MAX_SEGS
   bne :-
+  ; make reset go to monitor
+  lda #<monitor
+  sta resetVec
+  lda #>monitor
+  sta resetVec+1
+  eor #$A5
+  sta resetVec+2
   ; We'll set up 8 initial segments:
   ; 0: main $0000 -> 4, active + locked
   ; 1: aux  $0000 -> 2, active + locked
@@ -384,11 +401,23 @@ init:
   iny
   cpy #MAX_SEGS         ; did all segments yet?
   bne @loop             ; no, loop again
-  .if DEBUG
-  jmp test
-  .else
-  rts
-  .endif
+  ; Load code resource #1 at $6000
+  ldx #0
+  lda #START_LOAD
+  jsr mainLoader
+  ldx #0
+  ldy #$60
+  lda #SET_MEM_TARGET
+  jsr mainLoader
+  ldx #RES_TYPE_CODE
+  ldy #1
+  lda #QUEUE_LOAD
+  jsr mainLoader
+  ldx #1                ; keep open for efficiency's sake
+  lda #FINISH_LOAD
+  jsr mainLoader
+  ; And jump to it for further bootstrapping
+  jmp $6000
 
 ;------------------------------------------------------------------------------
   .if DEBUG
@@ -448,7 +477,7 @@ test_load:
   jsr mainLoader
   DEBUG_STR "Set mem target."
   ldx #0
-  ldy #$70              ; load at $7000
+  ldy #$60              ; load at $6000
   lda #SET_MEM_TARGET
   jsr mainLoader
   DEBUG_STR "Queue load."

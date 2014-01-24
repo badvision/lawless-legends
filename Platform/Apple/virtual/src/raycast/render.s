@@ -1,5 +1,5 @@
 
-    .org $7000
+    .org $6000
 
 ; This code is written bottom-up. That is, simple routines first, 
 ; then routines that call those to build complexity. The main
@@ -8,24 +8,21 @@
 
 ; Conditional assembly flags
 DOUBLE_BUFFER = 1       ; whether to double-buffer
-DEBUG         = 0       ; turn on verbose logging
+DEBUG         = 1       ; turn on verbose logging
 
 ; Shared constants, zero page, buffer locations, etc.
     .include "render.i"
 ; Debug macros and support functions
     .include "../include/debug.i"
+; Memory manager
+    .include "../core/mem.i"
 
 ; Variables
 backBuf:   .byte 0      ; (value 0 or 1)
 frontBuf:  .byte 0      ; (value 0 or 1)
-mapBase:   .word 0
-nTextures: .byte 0
+mapHeader: .word 0      ; map with header first
+mapBase:   .word 0      ; first byte after the header
 mapRayOrigin: .word 0
-
-; texture addresses
-MAX_TEXTURES = 20
-texAddrLo: .res MAX_TEXTURES
-texAddrHi: .res MAX_TEXTURES
 
 ;-------------------------------------------------------------------------------
 ; Multiply two bytes, quickly but somewhat inaccurately, using logarithms.
@@ -490,13 +487,21 @@ castRay:
 @debugFinal:
     ldx screenCol
     DEBUG_STR "  height="
-    DEBUG_BYTE heightBuf,x
+    lda heightBuf,x
+    sta tmp
+    DEBUG_BYTE tmp
     DEBUG_STR "depth="
-    DEBUG_BYTE depthBuf,x
+    lda depthBuf,x
+    sta tmp
+    DEBUG_BYTE tmp
     DEBUG_STR "txNum="
-    DEBUG_BYTE txNumBuf,x
+    lda txNumBuf,x
+    sta tmp
+    DEBUG_BYTE tmp
     DEBUG_STR "txCol="
-    DEBUG_BYTE txColBuf,x
+    lda txColBuf,x
+    sta tmp
+    DEBUG_BYTE tmp
     DEBUG_LN
     jmp rdkey
     .endif
@@ -849,123 +854,55 @@ setBackBuf:
     sta clrAuxZP
     rts
 
-; Load file, len-prefixed name in A/X (hi/lo), to addr on stack
-; (push hi byte first, then push lo byte)
-bload:
-    stx @mliCommand+1 ; filename lo
-    sta @mliCommand+2 ; filename hi
-    lda #<prodosBuf
-    sta @mliCommand+3
-    lda #>prodosBuf
-    sta @mliCommand+4
-    lda #$C8 ; open
-    ldx #3
-    jsr @doMLI
-    lda @mliCommand+5 ; get handle and put it in place
-    sta @mliCommand+1
-    pla ; save ret addr
-    tay
-    pla
-    tax
-    pla
-    sta @mliCommand+2 ; load addr lo
-    pla
-    sta @mliCommand+3 ; load addr hi
-    txa ; restore ret addr
-    pha
-    tya
-    pha
-    lda #$CA ; read
-    sta @mliCommand+5 ; also length (more than enough)
-    ldx #4
-    jsr @doMLI
-@close:
-    lda #0
-    sta @mliCommand+1 ; close all
-    lda #$CC
-    ldx #1
-    ; fall through
-@doMLI:
-    sta @mliOp
-    stx @mliCommand
-    jsr MLI
-@mliOp: .byte 0
-    .addr @mliCommand
-    bcs @err
-    rts
-@err:
-    jsr prbyte
-    jsr prerr
-    ldx #$FF
-    txs
-    jmp monitor
-@mliCommand: .res 10 ; 10 bytes should be plenty
-
-; Copy pTmp -> pDst (advancing both), length in X(lo) / Y(hi)
-copyMem:
-    txa
-    pha
-    tya
-    ldy #0
-    tax
-    beq @lastPg
-@pageLup:
-    lda (pTmp),y
-    sta (pDst),y
-    iny
-    bne @pageLup
-    inc pTmp+1
-    inc pDst+1
-    dex
-    bne @pageLup
-@lastPg:
-    pla
-    beq @done
-    tax
-@byteLup:
-    lda (pTmp),y
-    sta (pDst),y
-    inc pTmp
-    bne :+
-    inc pTmp+1
-:   inc pDst
-    bne :+
-    inc pDst+1
-:   dex
-    bne @byteLup
-@done:
-    rts
-
-; Read a byte from pTmp and advance it. No regs except A are disturbed.
-readPtmp:
-    lda pTmp
-    sta @ld+1
-    lda pTmp+1
-    sta @ld+2
-    inc pTmp
-    bne @ld
-    inc pTmp+1
-@ld: lda $100
-    rts
-
 ;-------------------------------------------------------------------------------
 initMem:
-    DEBUG_STR "Clearing memory map."
-    ; Clear ProDOS mem map so it lets us load stuff anywhere we want
-    ldx #$18
-    lda #1
-@memLup:
-    sta memMap-1,x
-    lda #0
-    dex
-    bne @memLup
-    ; Make reset go to monitor
-    lda #<monitor
-    sta resetVec
-    lda #>monitor
-    sta resetVec+1
-    eor #$A5
-    sta resetVec+2
+    DEBUG_STR "Raycast: setting up memory."
+    ; Reserve memory for our tables
+    lda #SET_MEM_TARGET
+    ldx #<tableStart
+    ldy #>tableStart
+    jsr mainLoader
+    lda #REQUEST_MEMORY
+    ldx #<(tableEnd-tableStart)
+    ldy #>(tableEnd-tableStart)
+    jsr mainLoader
+    DEBUG_STR "Loading expansion code."
+    ; Load the texture expansion code into aux mem.
+    lda #SET_MEM_TARGET
+    ldx #<expandVec
+    ldy #>expandVec
+    jsr mainLoader
+    lda #QUEUE_LOAD     ; we assume bootstrapper left the queue open
+    ldx #RES_TYPE_CODE
+    ldy #2              ; hard coded for now: code #2 is texture expander
+    jsr auxLoader
+    ; Load the map into main mem
+    DEBUG_STR "Loading map."
+    lda #QUEUE_LOAD
+    ldx #RES_TYPE_MAP
+    ldy #1              ; map 1 is for now the only map
+    jsr mainLoader
+    stx mapHeader
+    sty mapHeader+1
+    ; Normally the hi-res graphics page is locked. However, we want to load
+    ; the UI frame there, so temporarily unlock it.
+    DEBUG_STR "Loading frame."
+    lda #UNLOCK_MEMORY
+    jsr @graphics
+    ; Load the UI frame
+    lda #SET_MEM_TARGET
+    jsr @graphics
+    lda #QUEUE_LOAD
+    ldx #RES_TYPE_SCREEN
+    ldy #1
+    jsr mainLoader
+    ; Lock the graphics area again
+    lda #LOCK_MEMORY
+    jsr @graphics
+    ; Force the loads to complete now
+    lda #FINISH_LOAD
+    ldx #1              ; keep queue open
+    jsr mainLoader
     ; Copy the expansion caller to low stack.
     ldx #12
 :   lda @callIt,x
@@ -979,6 +916,10 @@ initMem:
     sta clrAuxRd
     rts
     jmp (expandVec)
+@graphics:
+    ldx #0
+    ldy #$20
+    jmp mainLoader
 
 ;-------------------------------------------------------------------------------
 ; Establish the initial player position and direction [ref BigBlue3_10]
@@ -1000,138 +941,53 @@ setPlayerPos:
 
 ;-------------------------------------------------------------------------------
 ; Load the texture expansion code, copy it to aux mem
-loadFiles:
-    DEBUG_STR "Loading files."
-    lda #>expandVec
-    sta pTmp+1
-    sta pDst+1
-    pha
-    lda #<expandVec
-    sta pTmp
-    sta pDst
-    pha
-    ldx #<@expandName
-    lda #>@expandName
-    jsr bload
-    ldx #<(textures-expandVec)
-    ldy #>(textures-expandVec)
-    sta setAuxWr
-    jsr copyMem
-    sta clrAuxWr
-
-; Load the map + texture pack
-    lda #8      ; load at $800
-    sta pTmp+1
-    pha
+loadTextures:
+    DEBUG_STR "Loading textures."
+    ; Scan the map header
+    lda mapHeader
+    sta @get+1
+    lda mapHeader+1
+    sta @get+2
+    jsr @get            ; get map width
+    sta mapWidth        ; and save it
+    jsr @get            ; get map height
+    sta mapHeight       ; and save it
     lda #0
-    sta pTmp
-    pha
-    ldx #<@mapPackName
-    lda #>@mapPackName
-    jsr bload
-
-; First comes the map
-    jsr readPtmp
-    cmp #'M'
-    beq :+
-    WRITE_STR "M rec missing."
-    brk
-    ; map starts with width & height
-:   jsr readPtmp
-    sta mapWidth
-    jsr readPtmp
-    sta mapHeight
-    ; next comes length
-    jsr readPtmp
-    tax
-    jsr readPtmp
-    tay
-    ; then the map data
-    lda pTmp
-    sta mapBase
-    lda pTmp+1
-    sta mapBase+1
-    ; skip the map data to find the first texture
-    txa
-    clc
-    adc pTmp
-    sta pTmp
+    sta txNum
+@lup:
+    jsr @get            ; get texture resource number
+    tax                 ; to X for mem manager
+    beq @done           ; zero = end of texture list
+    lda #QUEUE_LOAD
+    ldy #RES_TYPE_TEXTURE
+    jsr auxLoader       ; we want textures in aux mem
+    txa                 ; addr lo to A for safekeeping
+    ldx txNum         ; get current texture num
+    inx                 ; adjust to be 1-based
+    cpx #MAX_TEXTURES
+    bne :+
+    brk                 ; barf out if too many textures
+:   sta texAddrLo,x      ; save address lo
     tya
-    adc pTmp+1
-    sta pTmp+1
-
-; Copy the textures to aux mem
-    lda #<textures
-    sta pDst
-    lda #>textures
-    sta pDst+1
-    lda #0
-    sta nTextures
-
-@cpTex:
-    jsr readPtmp
-    beq @cpTexDone
-    cmp #'T'
-    beq :+
-    WRITE_STR "T rec missing"
-    brk
-:   jsr readPtmp        ; len lo
-    tax
-    jsr readPtmp        ; len hi
-    pha
-    ldy nTextures       ; record texture address
-    lda pDst
-    sta texAddrLo,y
-    lda pDst+1
-    sta texAddrHi,y
-    inc nTextures
-    pla
-    tay
-    sta setAuxWr
-    jsr copyMem         ; copy the texture to aux mem
-    sta clrAuxWr
-    jmp @cpTex          ; next texture
-@cpTexDone:
-    DEBUG_STR "Loaded "
-    DEBUG_BYTE nTextures
-    DEBUG_STR "textures."
-    .if DEBUG
-    DEBUG_STR "tex1="
-    lda texAddrLo+1
-    sta tmp
-    lda texAddrHi+1
-    sta tmp+1
-    DEBUG_WORD tmp
-    DEBUG_LN
-    .endif
-
-    ; load the fancy frame
-    DEBUG_STR "Loading frame."
-    lda #>$2000
-    pha
-    lda #<$2000
-    pha
-    ldx #<@frameName
-    lda #>@frameName
-    jsr bload
-    ; copy the frame to the other buffer also
-    .if DOUBLE_BUFFER
-    lda #>$4000
-    pha
-    lda #<$4000
-    pha
-    ldx #<@frameName
-    lda #>@frameName
-    jsr bload
-    .endif
-    rts
-
-@expandName: .byte 10
-    .byte "/LL/EXPAND"
-@mapPackName: .byte 19
-    .byte "/LL/ASSETS/MAP.PACK"
-@frameName: .byte 16
-    .byte "/LL/ASSETS/FRAME"
+    sta texAddrHi,x      ; save address hi
+    stx txNum
+    jmp @lup
+@done:
+    ; end of the texture numbers is the base of the map data - record it
+    lda @get+1
+    sta mapBase
+    lda @get+2
+    sta mapBase+1
+    ; finalize the load, and close the queue because textures are the last thing
+    ; to load.
+    lda #FINISH_LOAD
+    ldx #0
+    jmp mainLoader
+@get: lda $1111
+    inc @get+1
+    bne :+
+    inc @get+2
+:   rts
 
 ;-------------------------------------------------------------------------------
 ; Set up front and back buffers, go to hires mode, and clear for first blit.
@@ -1349,7 +1205,7 @@ main:
     ; Set up memory
     jsr initMem
     jsr setPlayerPos
-    jsr loadFiles
+    jsr loadTextures
     ; Build all the unrolls and tables
     DEBUG_STR "Making tables."
     jsr makeBlit

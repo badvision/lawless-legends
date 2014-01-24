@@ -226,29 +226,40 @@ class PackPartitions
     {
         def width = rows[0].size()
         def height = rows.size()
-        def unknown = [] as Set
+        
+        // Determine the set of all referenced textures, and assign numbers to them.
+        def texMap = [:]
+        def texList = []
+        rows.each { row ->
+            row.each { tile ->
+                def id = tile?.@id
+                if (!(id in texMap)) {
+                    texMap[id] = 0
+                    if (tile?.@obstruction == 'true') {
+                        if (tile?.@name in images) {
+                            texList.add(images[tile?.@name].num)
+                            texMap[id] = texList.size()
+                            println "texmap: id=$id name=${tile?.@name} num=${texList.size()}"
+                        }
+                        else
+                            println "Can't match tile name '$name' to any image; treating as blank."
+                    }
+                }
+            }
+        }
 
-        // Header: just the width and height
+        // Header: width and height
         buf.put((byte)width)
         buf.put((byte)height)
+        
+        // Followed by the list of textures
+        texList.each { buf.put((byte)it) }
+        buf.put((byte)0)
         
         // After the header comes the raw data
         rows.each { row ->
             row.each { tile ->
-                if (tile?.@obstruction == 'true') {
-                    def name = tile?.@name
-                    if (name in images)
-                        buf.put((byte)images[name].num)
-                    else {
-                        // Alert only once about each unknown name
-                        if (!(name in unknown))
-                            println "Can't match tile name '$name' to any image; treating as blank."
-                        unknown.add(name)
-                        buf.put((byte)0)
-                    }
-                }
-                else
-                    buf.put((byte)0)
+                buf.put((byte)texMap[tile?.@id])
             }
         }
     }
@@ -375,7 +386,7 @@ class PackPartitions
         // Read in code chunks. For now these are hard coded, but I guess they ought to
         // be configured in a config file somewhere...?
         //
-        readCode("render", "src/raycast/build/render.bin#7000")
+        readCode("render", "src/raycast/build/render.bin#6000")
         readCode("expand", "src/raycast/build/expand.bin#0800")
         
         // Open the XML data file produced by Outlaw Editor

@@ -22,6 +22,8 @@ BLIT_OFF6 = 24
 
 BLIT_STRIDE = 29
 
+MAX_TEXTURES = 62       ; sized to fit memory space below
+
 ; Renderer zero page
 tmp        = $4  ; len 2
 pTmp       = $6  ; len 2
@@ -60,13 +62,13 @@ playerX    = $62 ; len 2 (hi=integer, lo=fraction)
 playerY    = $64 ; len 2 (hi=integer, lo=fraction)
 
 ;---------------------------------
-; The following are all in aux mem...
-expandVec  = $800 ; size of expansion code: $30E9
-textures   = $4000
+; The following are in aux mem...
+expandVec  = $800
 ; back to main mem
 ;---------------------------------
 
 ; Main-mem tables and buffers
+tableStart   = $A700
 decodeTo01   = $A700
 decodeTo01b  = $A800
 decodeTo23   = $A900
@@ -76,10 +78,10 @@ decodeTo56   = $AC00
 decodeTo57   = $AD00
 clrBlitRollE = $AE00    ; size 3*(128/2) = $C0, plus 2 for tya and rts
 clrBlitRollO = $AEC2    ; size 3*(128/2) = $C0, plus 2 for tya and rts
-XAF84        = $AF84    ; unused
-prodosBuf    = $B000    ; temporary, before building the tables
+texAddrLo    = $AF84
+texAddrHi    = texAddrLo + MAX_TEXTURES
 blitRoll     = $B000    ; Unrolled blitting code. Size 29*128 = $E80, plus 1 for rts
-MLI          = $BF00    ; Entry point for ProDOS MLI
+tableEnd     = $BE81
 memMap       = $BF58    ; ProDOS memory map
 
 ; mipmap level offsets

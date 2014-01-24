@@ -42,15 +42,6 @@
       <fileset dir="./data/partitions" includes="*.bin*"/>
     </copy>
     <mkdir dir="${build.dir}/root/"/>
-    <copy todir="${build.dir}/root/assets">
-      <fileset dir="./data/images" includes="*.bin*"/>
-    </copy>
-    <copy todir="${build.dir}/root/assets">
-      <fileset dir="./data/maps" includes="*.bin*"/>
-    </copy>
-    <copy todir="${build.dir}/root/assets">
-      <fileset dir="./data/tables" includes="*.bin*"/>
-    </copy>
 
     <!-- Make a new base image file -->
     <delete failonerror="false" file="${build.dir}/${projName}.2mg"/>

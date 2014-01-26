@@ -879,26 +879,21 @@ initMem:
     ; Load the map into main mem
     DEBUG_STR "Loading map."
     lda #QUEUE_LOAD
-    ldx #RES_TYPE_MAP
+    ldx #RES_TYPE_3D_MAP
     ldy #1              ; map 1 is for now the only map
     jsr mainLoader
     stx mapHeader
     sty mapHeader+1
-    ; Normally the hi-res graphics page is locked. However, we want to load
-    ; the UI frame there, so temporarily unlock it.
     DEBUG_STR "Loading frame."
-    lda #UNLOCK_MEMORY
-    jsr @graphics
     ; Load the UI frame
     lda #SET_MEM_TARGET
-    jsr @graphics
+    ldx #0
+    ldy #$20
+    jsr mainLoader
     lda #QUEUE_LOAD
     ldx #RES_TYPE_SCREEN
     ldy #1
     jsr mainLoader
-    ; Lock the graphics area again
-    lda #LOCK_MEMORY
-    jsr @graphics
     ; Force the loads to complete now
     lda #FINISH_LOAD
     ldx #1              ; keep queue open
@@ -916,10 +911,6 @@ initMem:
     sta clrAuxRd
     rts
     jmp (expandVec)
-@graphics:
-    ldx #0
-    ldy #$20
-    jmp mainLoader
 
 ;-------------------------------------------------------------------------------
 ; Establish the initial player position and direction [ref BigBlue3_10]
@@ -956,10 +947,10 @@ loadTextures:
     sta txNum
 @lup:
     jsr @get            ; get texture resource number
-    tax                 ; to X for mem manager
+    tay                 ; to Y for mem manager
     beq @done           ; zero = end of texture list
     lda #QUEUE_LOAD
-    ldy #RES_TYPE_TEXTURE
+    ldx #RES_TYPE_TEXTURE
     jsr auxLoader       ; we want textures in aux mem
     txa                 ; addr lo to A for safekeeping
     ldx txNum         ; get current texture num

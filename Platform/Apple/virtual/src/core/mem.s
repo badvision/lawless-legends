@@ -142,10 +142,9 @@ scanForResource:
   tya                   ; next in chain
   tax                   ; to X reg index
   bne @loop             ; not end of chain - loop again
-  ldy isAuxCommand      ; end of chain; start at first seg (0=main, 1=aux)
-  lda scanStart,y
-  tay
-  jmp @next             ; keep going until we succeed or reach starting point
+  ldx isAuxCommand      ; start over at beginning of memory chain
+  cpx @next+1           ; back where we started?
+  bne @loop             ; no, loop again
 @fail:
   ldx #0                ; failure return
   rts
@@ -185,8 +184,9 @@ scanForAvail:
   tya                   ; next in chain
   tax                   ; to X reg index
   bne @loop             ; not end of chain - loop again
-  ldx isAuxCommand      ; end of chain; start at first seg (0=main, 1=aux)
-  jmp @next             ; keep going until we succeed or reach starting point
+  ldx isAuxCommand      ; start over at beginning of memory chain
+  cpx @next+1           ; back where we started?
+  bne @loop             ; no, loop again
 @fail:
   ldx #0                ; failure return
   rts
@@ -386,7 +386,7 @@ init:
   sta tSegAdrLo+4
   lda #>tableEnd
   sta tSegAdrHi+4
-  lda #$20
+  lda #$40
   sta tSegAdrHi+5
   lda #$60
   sta tSegAdrHi+6
@@ -902,6 +902,14 @@ disk_queueLoad:
   lda (pTmp),y          ; get resource type
   beq @notFound         ; if zero, this is end of table: failed to find the resource
   iny
+  and #$F               ; mask off any flags we added
+  pha
+  jsr prbyte
+  lda (pTmp),y
+  jsr prbyte
+  lda #$A0
+  jsr cout
+  pla
   cmp resType           ; is it the type we're looking for?
   bne @bump3            ; no, skip this resource
   lda (pTmp),y          ; get resource num
@@ -1110,9 +1118,6 @@ readToAux:
   ldx #0
 : stx readLen
   sta readLen+1         ; save number of pages
-  .if DEBUG
-  jsr @debug1
-  .endif
   jsr mli               ; now read
   .byte MLI_READ
   .word readParams
@@ -1161,12 +1166,6 @@ readToAux:
   rts                   ; all done
 @err:
   jmp prodosError
- .if DEBUG
-@debug1:
-  DEBUG_STR "Read some, len="
-  DEBUG_WORD readLen
-  jmp crout
- .endif
 
 ;------------------------------------------------------------------------------
 ; Segment tables

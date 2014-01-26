@@ -17,14 +17,19 @@ class PackPartitions
 {
     def TRANSPARENT_COLOR = 15
     
-    def TYPE_CODE  = 1
-    def TYPE_MAP   = 2
-    def TYPE_IMAGE = 3
-    
-    def images = [:]  // img name to img.num, img.buf
-    def tiles  = [:]  // tile name to tile.num, tile.buf
-    def maps   = [:]  // map name to map.num, map.buf
-    def code   = [:]  // code name to code.num, code.buf
+    def TYPE_CODE        = 1
+    def TYPE_2D_MAP      = 2
+    def TYPE_3D_MAP      = 3
+    def TYPE_TILE_IMG    = 4
+    def TYPE_TEXTURE_IMG = 5
+    def TYPE_FRAME_IMG   = 6
+
+    def code     = [:]  // code name to code.num, code.buf    
+    def maps2D   = [:]  // map name to map.num, map.buf
+    def maps3D   = [:]  // map name to map.num, map.buf
+    def tiles    = [:]  // tile name to tile.num, tile.buf
+    def textures = [:]  // img name to img.num, img.buf
+    def frames   = [:]  // img name to img.num, img.buf
     
     def parseMap(map, tiles)
     {
@@ -68,9 +73,9 @@ class PackPartitions
         }
     }
     
-    def parseImage(imgEl)
+    def parseTexture(imgEl)
     {
-        // Locate the data for the Apple II (as opposed to C= etc.)
+        // Locate the data for the Apple II (as opposed to C64 etc.)
         def data = imgEl.displayData?.find { it.@platform == "AppleII" }
         assert data : "image '${imgEl.@name}' missing AppleII platform data"
         def rows = pixelize(data)
@@ -97,7 +102,28 @@ class PackPartitions
         
         return result
     }
-    
+
+    /*
+     * Parse raw image data and return it as a buffer.
+     */
+    def parseImageData(imgEl)
+    {
+        // Locate the data for the Apple II (as opposed to C64 etc.)
+        def dataEl = imgEl.displayData?.find { it.@platform == "AppleII" }
+        assert dataEl : "image '${imgEl.@name}' missing AppleII platform data"
+
+        // Parse out the hex data on each line and add it to a buffer.
+        def hexStr = dataEl.text()
+        def outBuf = ByteBuffer.allocate(50000)
+        for (def pos = 0; pos < hexStr.size(); pos += 2) {
+            def val = Integer.parseInt(hexStr[pos..pos+1], 16)
+            outBuf.put((byte)val)
+        }
+        
+        // All done. Return the buffer.
+        return outBuf
+    }
+
     /**
      * Flood fill from the upper left and upper right corners to determine
      * all transparent areas.
@@ -169,7 +195,7 @@ class PackPartitions
     /**
      * Produce a new mip-map level by halving the image's resolution.
      */
-    def reduceImage(imgIn)
+    def reduceTexture(imgIn)
     {
         def inWidth = imgIn[0].size()
         def inHeight = imgIn.size()
@@ -212,7 +238,7 @@ class PackPartitions
         return outRows
     }
     
-    def printImage(rows)
+    def printTexture(rows)
     {
         rows.each { row ->
             print "    "
@@ -222,7 +248,47 @@ class PackPartitions
     }
         
 
-    def writeMap(buf, rows) // [ref BigBlue1_50]
+    def write2DMap(buf, rows)
+    {
+        def width = rows[0].size()
+        def height = rows.size()
+        
+        // Determine the set of all referenced tiles, and assign numbers to them.
+        def tileMap = [:]
+        def tileList = []
+        rows.each { row ->
+            row.each { tile ->
+                def id = tile?.@id
+                def name = tile?.@name
+                if (!tileMap.containsKey(id)) {
+                    tileMap[id] = 0
+                    if (name in tiles) {
+                        tileList.add(tiles[name].num)
+                        tileMap[id] = tileList.size()
+                    }
+                    else if (id)
+                        println "Warning: can't match tile name '$name' to any image; treating as blank."
+                }
+            }
+        }
+
+        // Header: width and height
+        buf.put((byte)width)
+        buf.put((byte)height)
+        
+        // Followed by the list of tiles
+        tileList.each { buf.put((byte)it) }
+        buf.put((byte)0)
+        
+        // After the header comes the raw data
+        rows.each { row ->
+            row.each { tile ->
+                buf.put((byte)tileMap[tile?.@id])
+            }
+        }
+    }
+    
+    def write3DMap(buf, rows) // [ref BigBlue1_50]
     {
         def width = rows[0].size()
         def height = rows.size()
@@ -233,17 +299,19 @@ class PackPartitions
         rows.each { row ->
             row.each { tile ->
                 def id = tile?.@id
-                if (!(id in texMap)) {
+                def name = tile?.@name
+                if (!texMap.containsKey(id)) {
                     texMap[id] = 0
                     if (tile?.@obstruction == 'true') {
-                        if (tile?.@name in images) {
-                            texList.add(images[tile?.@name].num)
+                        if (name in textures) {
+                            texList.add(textures[name].num)
                             texMap[id] = texList.size()
-                            println "texmap: id=$id name=${tile?.@name} num=${texList.size()}"
                         }
-                        else
-                            println "Can't match tile name '$name' to any image; treating as blank."
+                        else if (id)
+                            println "Warning: can't match tile name '$name' to any image; treating as blank."
                     }
+                    else
+                        println "Note: ignoring non-obstruction '$name' until sprite support is added."
                 }
             }
         }
@@ -276,7 +344,7 @@ class PackPartitions
                ((pix2 & 8) << 3) | ((pix1 & 8) << 4);
     }
     
-    def writeImage(buf, image)
+    def writeTexture(buf, image)
     {
         // Write pixel data for all 5 mip levels plus the orig image
         for (def mipLevel in 0..5) 
@@ -288,31 +356,62 @@ class PackPartitions
             }
             // Generate next mip-map level
             if (mipLevel < 5)
-                image = reduceImage(image)
+                image = reduceTexture(image)
         }
     }
     
-    def packImage(imgEl)
+    def packTexture(imgEl)
     {
-        def num = images.size() + 1
+        def num = textures.size() + 1
         def name = imgEl.@name ?: "img$num"
-        println "Packing image #$num named '${imgEl.@name}'."
-        def pixels = parseImage(imgEl)
+        println "Packing texture #$num named '${imgEl.@name}'."
+        def pixels = parseTexture(imgEl)
         calcTransparency(pixels)
         def buf = ByteBuffer.allocate(50000)
-        writeImage(buf, pixels)
-        images[imgEl.@name] = [num:num, buf:buf]
+        writeTexture(buf, pixels)
+        textures[imgEl.@name] = [num:num, buf:buf]
     }
     
-    def packMap(mapEl, tileEls)
+    def packFrameImage(imgEl)
     {
-        def num = maps.size() + 1
+        def num = frames.size() + 1
+        def name = imgEl.@name ?: "img$num"
+        println "Packing frame image #$num named '${imgEl.@name}'."
+        def buf = parseImageData(imgEl)
+        frames[imgEl.@name] = [num:num, buf:buf]
+        return buf
+    }
+    
+    def packTile(imgEl)
+    {
+        def num = tiles.size() + 1
+        def name = imgEl.@name ?: "img$num"
+        println "Packing tile image #$num named '${imgEl.@name}'."
+        def buf = parseImageData(imgEl)
+        tiles[imgEl.@name] = [num:num, buf:buf]
+        return buf
+    }
+    
+    def pack2DMap(mapEl, tileEls)
+    {
+        def num = maps2D.size() + 1
         def name = mapEl.@name ?: "map$num"
-        println "Packing map #$num named '$name'."
+        println "Packing 2D map #$num named '$name'."
         def rows = parseMap(mapEl, tileEls)
         def buf = ByteBuffer.allocate(50000)
-        writeMap(buf, rows)
-        maps[name] = [num:num, buf:buf]
+        write2DMap(buf, rows)
+        maps2D[name] = [num:num, buf:buf]
+    }
+    
+    def pack3DMap(mapEl, tileEls)
+    {
+        def num = maps3D.size() + 1
+        def name = mapEl.@name ?: "map$num"
+        println "Packing 3D map #$num named '$name'."
+        def rows = parseMap(mapEl, tileEls)
+        def buf = ByteBuffer.allocate(50000)
+        write3DMap(buf, rows)
+        maps3D[name] = [num:num, buf:buf]
     }
     
     def writeBufToStream(stream, buf)
@@ -345,8 +444,11 @@ class PackPartitions
         // Make a list of all the chunks that will be in the partition
         def chunks = []
         code.values().each { chunks.add([type:TYPE_CODE, num:it.num, buf:it.buf]) }
-        maps.values().each { chunks.add([type:TYPE_MAP, num:it.num, buf:it.buf]) }
-        images.values().each { chunks.add([type:TYPE_IMAGE, num:it.num, buf:it.buf]) }
+        maps2D.values().each { chunks.add([type:TYPE_2D_MAP, num:it.num, buf:it.buf]) }
+        maps3D.values().each { chunks.add([type:TYPE_3D_MAP, num:it.num, buf:it.buf]) }
+        tiles.values().each { chunks.add([type:TYPE_TILE_IMG, num:it.num, buf:it.buf]) }
+        textures.values().each { chunks.add([type:TYPE_TEXTURE_IMG, num:it.num, buf:it.buf]) }
+        frames.values().each { chunks.add([type:TYPE_FRAME_IMG, num:it.num, buf:it.buf]) }
         
         // Generate the header chunk. Leave the first 2 bytes for the # of pages in the hdr
         def hdrBuf = ByteBuffer.allocate(50000)
@@ -392,15 +494,30 @@ class PackPartitions
         // Open the XML data file produced by Outlaw Editor
         def dataIn = new XmlParser().parse(xmlPath)
         
-        // Pack each image, which has the side-effect of filling in the
-        // image name map.
+        // Pack each tile, which has the side-effect of filling in the
+        // tile name map.
         //
-        dataIn.image.each { packImage(it) }
+        dataIn.tile.each { packTile(it) }
         
-        // Pack each map. This uses the image map filled earlier, and
-        // fills the map name map.
+        // Pack each image, which has the side-effect of filling in the
+        // image name map. Handle frame images separately.
         //
-        dataIn.map.each { packMap(it, dataIn.tile) }
+        dataIn.image.each { image ->
+            if (image.category.text() == "frame" )
+                packFrameImage(image)
+            else
+                packTexture(image)
+        }
+        
+        // Pack each map This uses the image and tile maps filled earlier.
+        dataIn.map.each { map ->
+            if (map?.@name =~ /2D/)
+                pack2DMap(map, dataIn.tile) 
+            else if (map?.@name =~ /3D/)
+                pack3DMap(map, dataIn.tile) 
+            else
+                println "Warning: map name '$name' should contain '2D' or '3D'. Skipping."
+        }
         
         // Ready to start writing the output file.
         println "Writing output file."

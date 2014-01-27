@@ -32,7 +32,7 @@
   jmp main_dispatch
   jmp aux_dispatch
 
-DEBUG = 1
+DEBUG = 0
   .include "../include/debug.i"
 
 ;------------------------------------------------------------------------------

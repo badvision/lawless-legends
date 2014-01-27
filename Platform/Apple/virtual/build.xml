@@ -38,7 +38,6 @@
     <mkdir dir="${build.dir}/root"/>
     <copy todir="${build.dir}/root">
       <fileset dir="${src.dir}/core/build" includes="*.bin*"/>
-      <fileset dir="${src.dir}/raycast/build" includes="*.bin*"/>
       <fileset dir="./data/partitions" includes="*.bin*"/>
     </copy>
     <mkdir dir="${build.dir}/root/"/>

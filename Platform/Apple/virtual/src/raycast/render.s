@@ -8,7 +8,7 @@
 
 ; Conditional assembly flags
 DOUBLE_BUFFER = 1       ; whether to double-buffer
-DEBUG         = 1       ; turn on verbose logging
+DEBUG         = 0       ; turn on verbose logging
 
 ; Shared constants, zero page, buffer locations, etc.
     .include "render.i"
@@ -953,15 +953,15 @@ loadTextures:
     ldx #RES_TYPE_TEXTURE
     jsr auxLoader       ; we want textures in aux mem
     txa                 ; addr lo to A for safekeeping
-    ldx txNum         ; get current texture num
-    inx                 ; adjust to be 1-based
+    ldx txNum           ; get current texture num
+    sta texAddrLo,x     ; save address lo
+    tya
+    sta texAddrHi,x     ; save address hi
+    inx                 ; get ready for next texture
     cpx #MAX_TEXTURES
     bne :+
     brk                 ; barf out if too many textures
-:   sta texAddrLo,x      ; save address lo
-    tya
-    sta texAddrHi,x      ; save address hi
-    stx txNum
+:   stx txNum
     jmp @lup
 @done:
     ; end of the texture numbers is the base of the map data - record it
@@ -1188,6 +1188,27 @@ flip:
     rts
 
 ;-------------------------------------------------------------------------------
+copyScreen:
+    ; Copy all screen data from page 1 to page 2
+    ldy #0
+    ldx #$20
+@outer:
+    stx @inner1+2
+    txa
+    eor #$60            ; page 1 -> page 2
+    sta @inner2+2
+@inner1:
+    lda $2000,y
+@inner2:
+    sta $4000,y
+    iny
+    bne @inner1
+    inx
+    cpx #$40
+    bne @outer
+    rts
+
+;-------------------------------------------------------------------------------
 ; The real action
 main:
     ; Put ourselves high on the stack
@@ -1197,6 +1218,7 @@ main:
     jsr initMem
     jsr setPlayerPos
     jsr loadTextures
+    jsr copyScreen
     ; Build all the unrolls and tables
     DEBUG_STR "Making tables."
     jsr makeBlit

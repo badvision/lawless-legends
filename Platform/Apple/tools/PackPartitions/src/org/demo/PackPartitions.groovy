@@ -104,9 +104,9 @@ class PackPartitions
     }
 
     /*
-     * Parse raw image data and return it as a buffer.
+     * Parse raw tile image data and return it as a buffer.
      */
-    def parseImageData(imgEl)
+    def parseTileData(imgEl)
     {
         // Locate the data for the Apple II (as opposed to C64 etc.)
         def dataEl = imgEl.displayData?.find { it.@platform == "AppleII" }
@@ -119,6 +119,50 @@ class PackPartitions
             def val = Integer.parseInt(hexStr[pos..pos+1], 16)
             outBuf.put((byte)val)
         }
+        
+        // All done. Return the buffer.
+        return outBuf
+    }
+
+    /*
+     * Parse raw frame image data, rearrange it in screen order, and return it as a buffer.
+     */
+    def parseFrameData(imgEl)
+    {
+        // Locate the data for the Apple II (as opposed to C64 etc.)
+        def dataEl = imgEl.displayData?.find { it.@platform == "AppleII" }
+        assert dataEl : "image '${imgEl.@name}' missing AppleII platform data"
+
+        // Parse out the hex data on each line and add it to a buffer.
+        def hexStr = dataEl.text()
+        def arr = new byte[8192]
+        def srcPos = 0
+        def dstPos = 0
+        
+        // Process each line
+        (0..<192).each { y ->
+            
+            // Process all 40 bytes in one line
+            (0..<40).each { x ->
+                arr[dstPos+x] = Integer.parseInt(hexStr[srcPos..srcPos+1], 16)
+                srcPos += 2
+            }
+            
+            // Crazy adjustment to get to next line on Apple II hi-res screen
+            dstPos += 0x400
+            if (dstPos >= 0x2000) {
+                dstPos -= 0x2000
+                dstPos += 0x80
+                if (dstPos >= 0x400) {
+                    dstPos -= 0x400
+                    dstPos += 40
+                }
+            }
+        }
+        
+        // Put the results into the buffer
+        def outBuf = ByteBuffer.allocate(8192)
+        outBuf.put(arr)
         
         // All done. Return the buffer.
         return outBuf
@@ -377,7 +421,7 @@ class PackPartitions
         def num = frames.size() + 1
         def name = imgEl.@name ?: "img$num"
         println "Packing frame image #$num named '${imgEl.@name}'."
-        def buf = parseImageData(imgEl)
+        def buf = parseFrameData(imgEl)
         frames[imgEl.@name] = [num:num, buf:buf]
         return buf
     }
@@ -387,7 +431,7 @@ class PackPartitions
         def num = tiles.size() + 1
         def name = imgEl.@name ?: "img$num"
         println "Packing tile image #$num named '${imgEl.@name}'."
-        def buf = parseImageData(imgEl)
+        def buf = parseTileData(imgEl)
         tiles[imgEl.@name] = [num:num, buf:buf]
         return buf
     }

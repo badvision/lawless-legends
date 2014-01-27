@@ -903,13 +903,6 @@ disk_queueLoad:
   beq @notFound         ; if zero, this is end of table: failed to find the resource
   iny
   and #$F               ; mask off any flags we added
-  pha
-  jsr prbyte
-  lda (pTmp),y
-  jsr prbyte
-  lda #$A0
-  jsr cout
-  pla
   cmp resType           ; is it the type we're looking for?
   bne @bump3            ; no, skip this resource
   lda (pTmp),y          ; get resource num

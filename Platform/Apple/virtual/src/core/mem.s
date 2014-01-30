@@ -32,9 +32,6 @@
   jmp main_dispatch
   jmp aux_dispatch
 
-DEBUG = 0
-  .include "../include/debug.i"
-
 ;------------------------------------------------------------------------------
 ; Variables
 targetAddr:
@@ -51,6 +48,10 @@ curPartition:
   .byte 0
 partitionFileRef:
   .byte 0
+
+;------------------------------------------------------------------------------
+DEBUG = 0
+  .include "../include/debug.i"
 
 ;------------------------------------------------------------------------------
 grabSegment:
@@ -276,9 +277,10 @@ fatalError:
   jsr orCout
   iny
   bne :-
+:
   .if DEBUG
 ; Print call stack
-: ldy #0
+  ldy #0
 : lda stackMsg,y
   beq :+
   jsr orCout
@@ -548,10 +550,10 @@ reset:
   jmp nextLoaderVec     ; and allow chained loaders to reset also
 @inactivate:
   lda tSegType,x        ; get flag byte for this segment
-  tax
+  tay
   and #$40              ; segment locked?
   bne @next             ; yes, skip it
-  txa                   ; no, get back flags
+  tya                   ; no, get back flags
   and #$7F              ; mask off the 'active' bit
   sta tSegType,x        ; save it back
 @next:
@@ -659,8 +661,7 @@ shared_alloc:
   lda #$80              ; flag segment as active, not locked, not holding a resource
   sta tSegType,x        ; save the flags and type
   lda #0
-  sta targetAddr        ; clear targetAddr for next future request
-  sta targetAddr+1
+  sta targetAddr+1      ; clear target address for next time
   sta tSegResNum,x      ; might as well clear resource number too
   lda tSegAdrLo,x       ; get address for return
   ldy tSegAdrHi,x       ; all 16 bits
@@ -745,6 +746,7 @@ shared_queueLoad:
   sty resNum            ; save resource number
   jsr scanForResource   ; scan to see if we already have this resource in mem
   beq @notFound         ; nope, pass to next loader
+  stx segNum            ; save seg num for later
   lda tSegType,x        ; get flags
   ora #$80              ; reactivate if necessary
   sta tSegType,x        ; save modified flag
@@ -752,7 +754,23 @@ shared_queueLoad:
   tay                   ; in Y for return
   lda tSegAdrLo,x       ; addr lo
   tax                   ; in X for return
+  lda targetAddr+1      ; was specific address requested?
+  beq @noChkTarg        ; if not, skip target check
+  cpx targetAddr        ; verify addr lo
+  bne @redo
+  cpy targetAddr        ; verify addr hi
+  bne @redo
+@noChkTarg:
+  lda #0
+  sta targetAddr+1      ; clear targ addr for next time
   rts                   ; all done
+@redo:
+  ; different address requested than what we have: clear current block.
+  lda #0
+  ldx segNum
+  sta tSegType,x
+  sta tSegResNum,x
+  ; fall through to re-load the resource
 @notFound:
   ldx resType           ; restore res type
   ldy resNum            ; and number
@@ -780,6 +798,7 @@ diskLoader:
 
 ;------------------------------------------------------------------------------
 openPartition:
+  DEBUG_STR "Opening part file."
   ; complete the partition file name
   lda curPartition
   clc
@@ -1033,7 +1052,8 @@ disk_finishLoad:
   bne @scan             ; always taken
 @keepOpenChk:
   lda #11               ; self-modified to 0 or 1 at start of routine
-  beq @keepOpen
+  bne @keepOpen
+  DEBUG_STR "Closing part file."
   jsr mli               ; now that we're done loading, we can close the partition file
   .byte MLI_CLOSE
   .word @closeParams

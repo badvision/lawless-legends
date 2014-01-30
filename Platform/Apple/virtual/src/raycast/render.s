@@ -1,6 +1,8 @@
 
     .org $6000
 
+start:
+
 ; This code is written bottom-up. That is, simple routines first, 
 ; then routines that call those to build complexity. The main
 ; code is at the very end. We jump to it now.
@@ -23,6 +25,32 @@ frontBuf:  .byte 0      ; (value 0 or 1)
 mapHeader: .word 0      ; map with header first
 mapBase:   .word 0      ; first byte after the header
 mapRayOrigin: .word 0
+mapNum:    .byte 1
+
+; Sky / ground colors
+skyGndTbl1:
+  .byte $20     ; hi-bit black
+  .byte $20     ; hi-bit black
+  .byte $20     ; hi-bit black
+  .byte $22     ; blue
+  .byte $28     ; orange
+  .byte $2A     ; hi-bit white
+  .byte $2A     ; hi-bit white
+  .byte $2A     ; hi-bit white
+skyGndTbl2:
+  .byte $20     ; hi-bit black
+  .byte $22     ; blue
+  .byte $28     ; orange
+  .byte $22     ; blue
+  .byte $28     ; orange
+  .byte $22     ; blue
+  .byte $28     ; orange
+  .byte $2A     ; hi-bit white
+
+skyColorEven:   .byte $20
+skyColorOdd:    .byte $22
+gndColorEven:   .byte $20
+gndColorOdd:    .byte $28
 
 ;-------------------------------------------------------------------------------
 ; Multiply two bytes, quickly but somewhat inaccurately, using logarithms.
@@ -732,18 +760,18 @@ clearBlit:
     ldx #BLIT_OFF6
     jmp @clear2
 @clear1:
-    ldy #GROUND_COLOR_E
-    lda #SKY_COLOR_E
+    ldy gndColorEven
+    lda skyColorEven
     jsr clrBlitRollO
-    ldy #GROUND_COLOR_O
-    lda #SKY_COLOR_O
+    ldy gndColorOdd
+    lda skyColorOdd
     jmp clrBlitRollE
 @clear2:
-    ldy #GROUND_COLOR_E
-    lda #SKY_COLOR_E
+    ldy gndColorEven
+    lda skyColorEven
     jsr clrBlitRollE
-    ldy #GROUND_COLOR_O
-    lda #SKY_COLOR_O
+    ldy gndColorOdd
+    lda skyColorOdd
     jmp clrBlitRollO
 
 ; Construct the pixel decoding tables
@@ -857,6 +885,12 @@ setBackBuf:
 ;-------------------------------------------------------------------------------
 initMem:
     DEBUG_STR "Raycast: setting up memory."
+    lda #LOCK_MEMORY    ; lock ourselves in before reset
+    ldx #<start
+    ldy #>start
+    jsr mainLoader
+    lda #RESET_MEMORY   ; clear everything else
+    jsr mainLoader
     ; Reserve memory for our tables
     lda #SET_MEM_TARGET
     ldx #<tableStart
@@ -876,14 +910,6 @@ initMem:
     ldx #RES_TYPE_CODE
     ldy #2              ; hard coded for now: code #2 is texture expander
     jsr auxLoader
-    ; Load the map into main mem
-    DEBUG_STR "Loading map."
-    lda #QUEUE_LOAD
-    ldx #RES_TYPE_3D_MAP
-    ldy #1              ; map 1 is for now the only map
-    jsr mainLoader
-    stx mapHeader
-    sty mapHeader+1
     DEBUG_STR "Loading frame."
     ; Load the UI frame
     lda #SET_MEM_TARGET
@@ -894,6 +920,14 @@ initMem:
     ldx #RES_TYPE_SCREEN
     ldy #1
     jsr mainLoader
+    ; Load the map into main mem
+    DEBUG_STR "Loading map."
+    lda #QUEUE_LOAD
+    ldx #RES_TYPE_3D_MAP
+    ldy mapNum          ; hard-coded for now
+    jsr mainLoader
+    stx mapHeader
+    sty mapHeader+1
     ; Force the loads to complete now
     lda #FINISH_LOAD
     ldx #1              ; keep queue open
@@ -1209,6 +1243,50 @@ copyScreen:
     rts
 
 ;-------------------------------------------------------------------------------
+setGndColor:
+    jsr readKbdColor
+    bcs :+
+    sta gndColorEven
+    stx gndColorOdd
+:   rts
+
+setSkyColor:
+    jsr readKbdColor
+    bcs :+
+    sta skyColorEven
+    stx skyColorOdd
+:   rts
+
+readKbdColor:
+    jsr rdkey
+    and #$7F
+    sec
+    sbc #'0'
+    bcc @bad
+    cmp #8
+    bcs @bad
+    tay
+    ldx skyGndTbl1,y
+    lda skyGndTbl2,y
+    rts
+@bad:
+    jsr bell
+    sec
+    rts
+
+;-------------------------------------------------------------------------------
+nextMap:
+    ldx mapNum
+    inx
+    cpx #4
+    bne :+
+    ldx #1
+:   stx mapNum
+    bit setText
+    bit page1
+    jmp main            ; re-init everything
+
+;-------------------------------------------------------------------------------
 ; The real action
 main:
     ; Put ourselves high on the stack
@@ -1263,8 +1341,21 @@ main:
     jsr rotateRight
     jmp @nextFrame
 :   cmp #$1B            ; ESC to exit
-    beq @done
-    jmp @pauseLup       ; unrecognized key: go back and get another one.
+    bne :+
+    jmp @done
+:   cmp #'G'            ; G to set ground color
+    bne :+
+    jsr setGndColor
+    jmp @nextFrame
+:   cmp #'K'            ; K to set sky color
+    bne :+
+    jsr setSkyColor
+    jmp @nextFrame
+:   cmp #'M'            ; M to switch maps
+    bne :+
+    jmp nextMap
+:   jsr bell            ; beep for unrecognized key
+    jmp @pauseLup       ; go back and get another one.
 @done:
     ; back to text mode
     bit setText

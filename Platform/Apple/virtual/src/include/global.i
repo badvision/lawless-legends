@@ -69,6 +69,8 @@ setkbd    = $FE89
 setvid    = $FE93
 prerr     = $FF2D
 bell      = $FF3A
+iosave    = $FF4A
+iorest    = $FF3F
 monitor   = $FF69
 getnum    = $FFA7
 

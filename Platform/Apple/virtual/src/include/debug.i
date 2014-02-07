@@ -1,117 +1,97 @@
 ; Debug macros
-.macro DEBUG_STR str
-.if DEBUG
-    php
-    pha
-    jsr _writeStr
-    .byte str,0
-    pla
-    plp
-.endif
-.endmacro
+!macro prStr {
+	jsr _writeStr
+}
 
-.macro DEBUG_BYTE byte
-.if DEBUG
-    php
-    pha
-    lda byte
-    jsr prbyte
-    lda #$A0
-    jsr cout
-    pla
-    plp
-.endif
-.endmacro
+!macro prByte addr {
+	jsr _prByte
+	!word addr
+}
 
-.macro DEBUG_WORD word
-.if DEBUG
-    php
-    pha
-    lda word+1
-    jsr prbyte
-    lda word
-    jsr prbyte
-    lda #$A0
-    jsr cout
-    pla
-    plp
-.endif
-.endmacro
+!macro prWord addr {
+	jsr _prWord
+	!word addr
+}
 
-.macro DEBUG_LN
-.if DEBUG
-    php
-    pha
-    jsr crout
-    pla
-    plp
-.endif
-.endmacro
+!macro crout {
+	jsr _crout
+}
 
-.macro DEBUG_RDKEY
-.if DEBUG
-    php
-    pha
-    tya
-    pha
-    txa
-    pha
-    jsr rdkey
-    pla
-    tay
-    pla
-    tax
-    pla
-    plp
-.endif
-.endmacro
+!macro waitKey {
+	jsr _waitKey
+}
 
-; Non-debug function to print a string. Does not preserve registers.
-.macro WRITE_STR str
-    jsr _writeStr
-    .byte str,0
-.endmacro
+_getStackByte !zone {
+	inc $101,x
+	bne +
+	inc $102,x
++	lda $101,x
+	sta .ld+1
+	lda $102,x
+	sta .ld+2
+.ld:   
+    lda $2000
+    rts
+}
 
 ; Support to print a string following the JSR, in high or low bit ASCII, 
 ; terminated by zero. If the string has a period "." it will be followed 
-; automatically by the next address and a CR.
-_writeStr:
-    pla
-    clc
-    adc #1
-    sta @ld+1
-    pla
-    adc #0
-    sta @ld+2
-@ld:
-    lda $2000
-    beq @done
+; automatically by a carriage return. Preserves all registers.
+_writeStr: !zone {
+	jsr iosave
+	tsx
+.loop:
+	jsr _getStackByte
+    beq .done
     ora #$80
     jsr cout
-    cmp #$AE
-    bne :+
-    lda #$DB ; [
-    jsr cout
-    lda @ld+1
-    clc
-    adc #4
-    pha
-    lda @ld+2
-    adc #0
-    jsr prbyte
-    pla
-    jsr prbyte
-    lda #$DD ; ]
-    jsr cout
+    cmp #$AE	; "."
+    bne .loop
     jsr crout
-:   inc @ld+1
-    bne @ld
-    inc @ld+2
-    bne @ld     ; always taken
-@done:
-    lda @ld+2
-    pha
-    lda @ld+1
-    pha
-    rts
+    jmp .loop
+.done:
+    jmp iorest
+}
 
+_prByte: !zone {
+	jsr iosave
+	ldy #0
+	; fall through to _prShared...
+}
+
+_prShared: !zone {
+    tsx
+	jsr _getStackByte
+	sta .ld+1
+	jsr _getStackByte
+	sta .ld+2
+.ld:
+	lda $2000,y
+	jsr prbyte
+	dey
+	bpl .ld
+	lda #$A0
+	jsr cout
+	jmp iorest
+}
+
+_prWord: !zone {
+	jsr iosave
+	ldy #1
+	bne _prShared	; always taken
+}
+
+_crout: !zone {
+	php
+	pha
+	jsr crout
+	pla
+	plp
+	rts
+}
+
+_waitKey: !zone {
+	jsr iosave
+	jsr rdkey
+	jmp iorest
+}

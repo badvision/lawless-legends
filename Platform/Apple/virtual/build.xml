@@ -6,6 +6,7 @@
   <property name="src.dir" location="./src"/> 
   <property name="build.dir" value="./build"/>
   <property name="a2copy.dir" value="../tools/A2Copy/dist"/>
+  <property name="pack.dir" value="../tools/PackPartitions/dist"/>
   
   <property name="IMG_FILE" value="${build.dir}/${projName}.bin#${ORG_ADDR}"/>
   
@@ -28,10 +29,15 @@
     <!-- Build sub-projects -->
     <echo>Building core.</echo>
     <ant dir="${src.dir}/core" target="build" useNativeBasedir="true" inheritAll="false"/>
-
-    <!-- Build sub-projects -->
     <echo>Building raycast.</echo>
     <ant dir="${src.dir}/raycast" target="build" useNativeBasedir="true" inheritAll="false"/>
+
+    <!-- Pack the game data -->
+    <echo>Packing game and code resources.</echo>
+    <java jar="${pack.dir}/PackPartitions.jar" fork="true" failonerror="true">
+      <arg value="game/world.xml"/>
+      <arg value="data/partitions/game.part.0.bin"/>
+    </java>
 
     <!-- Construct a directory to put on the Apple -->
     <delete failonerror="false" dir="${build.dir}/root"/>

@@ -354,7 +354,7 @@ class PackPartitions
                         else if (id)
                             println "Warning: can't match tile name '$name' to any image; treating as blank."
                     }
-                    else
+                    else if (name != 'street')
                         println "Note: ignoring non-obstruction '$name' until sprite support is added."
                 }
             }
@@ -408,7 +408,7 @@ class PackPartitions
     {
         def num = textures.size() + 1
         def name = imgEl.@name ?: "img$num"
-        println "Packing texture #$num named '${imgEl.@name}'."
+        //println "Packing texture #$num named '${imgEl.@name}'."
         def pixels = parseTexture(imgEl)
         calcTransparency(pixels)
         def buf = ByteBuffer.allocate(50000)
@@ -420,7 +420,7 @@ class PackPartitions
     {
         def num = frames.size() + 1
         def name = imgEl.@name ?: "img$num"
-        println "Packing frame image #$num named '${imgEl.@name}'."
+        //println "Packing frame image #$num named '${imgEl.@name}'."
         def buf = parseFrameData(imgEl)
         frames[imgEl.@name] = [num:num, buf:buf]
         return buf
@@ -430,7 +430,7 @@ class PackPartitions
     {
         def num = tiles.size() + 1
         def name = imgEl.@name ?: "img$num"
-        println "Packing tile image #$num named '${imgEl.@name}'."
+        //println "Packing tile image #$num named '${imgEl.@name}'."
         def buf = parseTileData(imgEl)
         tiles[imgEl.@name] = [num:num, buf:buf]
         return buf
@@ -440,7 +440,7 @@ class PackPartitions
     {
         def num = maps2D.size() + 1
         def name = mapEl.@name ?: "map$num"
-        println "Packing 2D map #$num named '$name'."
+        //println "Packing 2D map #$num named '$name'."
         def rows = parseMap(mapEl, tileEls)
         def buf = ByteBuffer.allocate(50000)
         write2DMap(buf, rows)
@@ -451,7 +451,7 @@ class PackPartitions
     {
         def num = maps3D.size() + 1
         def name = mapEl.@name ?: "map$num"
-        println "Packing 3D map #$num named '$name'."
+        //println "Packing 3D map #$num named '$name'."
         def rows = parseMap(mapEl, tileEls)
         def buf = ByteBuffer.allocate(50000)
         write3DMap(buf, rows)
@@ -470,7 +470,7 @@ class PackPartitions
     def readCode(name, path)
     {
         def num = code.size() + 1
-        println "Reading code #$num from '$path'."
+        //println "Reading code #$num from '$path'."
         def inBuf = new byte[256]
         def outBuf = ByteBuffer.allocate(50000)
         def stream = new File(path).withInputStream { stream ->
@@ -532,8 +532,9 @@ class PackPartitions
         // Read in code chunks. For now these are hard coded, but I guess they ought to
         // be configured in a config file somewhere...?
         //
-        readCode("render", "src/raycast/build/render.bin#6000")
-        readCode("expand", "src/raycast/build/expand.bin#0800")
+        println "Reading code resources."
+        readCode("render", "src/raycast/build/render.b")
+        readCode("expand", "src/raycast/build/expand.b")
         
         // Open the XML data file produced by Outlaw Editor
         def dataIn = new XmlParser().parse(xmlPath)
@@ -541,11 +542,13 @@ class PackPartitions
         // Pack each tile, which has the side-effect of filling in the
         // tile name map.
         //
+        println "Packing tile images."
         dataIn.tile.each { packTile(it) }
         
         // Pack each image, which has the side-effect of filling in the
         // image name map. Handle frame images separately.
         //
+        println "Packing frame images and textures."
         dataIn.image.each { image ->
             if (image.category.text() == "frame" )
                 packFrameImage(image)
@@ -554,6 +557,7 @@ class PackPartitions
         }
         
         // Pack each map This uses the image and tile maps filled earlier.
+        println "Packing maps."
         dataIn.map.each { map ->
             if (map?.@name =~ /2D/)
                 pack2DMap(map, dataIn.tile) 

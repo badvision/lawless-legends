@@ -8,6 +8,49 @@
 	!word addr
 }
 
+!macro prSpace {
+	jsr _prSpace
+}
+
+!macro prA {
+	jsr _prA
+	jsr _prSpace
+}
+
+!macro prX {
+	jsr _prX
+	jsr _prSpace
+}
+
+!macro prY {
+	jsr _prY
+	jsr _prSpace
+}
+
+!macro prXA {
+	jsr _prX
+	jsr _prA
+	jsr _prSpace
+}
+
+!macro prAX {
+	jsr _prA
+	jsr _prX
+	jsr _prSpace
+}
+
+!macro prXY {
+	jsr _prX
+	jsr _prY
+	jsr _prSpace
+}
+
+!macro prYX {
+	jsr _prY
+	jsr _prX
+	jsr _prSpace
+}
+
 !macro prWord addr {
 	jsr _prWord
 	!word addr
@@ -41,7 +84,6 @@ _writeStr: !zone
 	tsx
 .loop:	jsr _getStackByte
 	beq .done
-	ora #$80
 	jsr cout
 	cmp #$AE	; "."
 	bne .loop
@@ -64,14 +106,48 @@ _prShared: !zone
 	jsr prbyte
 	dey
 	bpl .ld
+	+prSpace
+	jmp iorest
+	
+_prSpace:
+	php
+	pha
 	lda #$A0
 	jsr cout
-	jmp iorest
+	pla
+	plp
+	rts
 
 _prWord: !zone
 	jsr iosave
 	ldy #1
 	bne _prShared	; always taken
+
+_prA: !zone
+	php
+	pha
+	jsr prbyte
+	pla
+	plp
+	rts
+	
+_prX: !zone
+	php
+	pha
+	txa
+	jsr prbyte
+	pla
+	plp
+	rts
+
+_prY: !zone
+	php
+	pha
+	tya
+	jsr prbyte
+	pla
+	plp
+	rts
 
 _crout: !zone
 	php

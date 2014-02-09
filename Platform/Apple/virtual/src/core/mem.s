@@ -1131,7 +1131,7 @@ readToAux: !zone
 ;------------------------------------------------------------------------------
 ; Segment tables
 
- !if DEBUG { !align 256,0 }
+ !if DEBUG { !align 255,0 }
 
 tSegLink	= * : !fill MAX_SEGS
 tSegType	= * : !fill MAX_SEGS

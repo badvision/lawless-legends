@@ -20,8 +20,8 @@ finalSuffixMap = {}
 dstHeights = set()
 
 outFile = open("expand.s", "w")
-outFile.write("    .org $800\n")
-outFile.write("    .include \"render.i\"\n")
+outFile.write("* = $800\n")
+outFile.write("!source \"render.i\"\n")
 outFile.write("\n")
 
 def calcKey(cmds):
@@ -100,14 +100,14 @@ class Segment:
             return
           if s.refs == 1:
             # singletons aren't generated near their target
-            outFile.write("%s   jmp %s\n" % (prefix, s.truncLabel))
+            outFile.write("%s\tjmp %s\n" % (prefix, s.truncLabel))
             prefix = " "
           else:
             # non-singletons are generated near their target
-            outFile.write("%s   bvc %s\n" % (prefix, s.truncLabel))
+            outFile.write("%s\tbvc %s\n" % (prefix, s.truncLabel))
             prefix = " "
         else:
-          outFile.write("%s   jsr %s\n" % (prefix, s.truncLabel))
+          outFile.write("%s\tjsr %s\n" % (prefix, s.truncLabel))
           prefix = " "
         break
       label = calcLabel(s.cmds[i:])
@@ -121,24 +121,24 @@ class Segment:
       first = False
       c = s.cmds[i]
       if c == 'L':
-        outFile.write("%s   iny\n" % prefix)
+        outFile.write("%s\tiny\n" % prefix)
         prefix = " "
-        outFile.write("    lda (pTex),y\n")
+        outFile.write("\tlda (pTex),y\n")
         needTransparencyCheck = True
       elif c == '<':
-        outFile.write("%s   asl\n" % prefix)
+        outFile.write("%s\tasl\n" % prefix)
         prefix = " "
         needTransparencyCheck = True
       else:
         assert c < screenHeight
         if needTransparencyCheck:
-          outFile.write("    bmi :+\n")
-          prefix = ":"
-        outFile.write("    sta %s*BLIT_STRIDE + blitRoll,x\n" % c)
+          outFile.write("\tbmi +\n")
+          prefix = "+"
+        outFile.write("\tsta %s*BLIT_STRIDE + blitRoll,x\n" % c)
         needTransparencyCheck = False
     else:
       if grouped:
-        outFile.write("%s   rts\n" % prefix)
+        outFile.write("%s\trts\n" % prefix)
         prefix = " "
     if grouped:
       outFile.write("\n")
@@ -241,11 +241,11 @@ for h in range(0, 256, 2):
     outFile.write("expand_vec:\n")
   if h in dstHeights:
     dstHeight = h
-  outFile.write("    .addr expand_%d\n" % dstHeight)
+  outFile.write("\t!word expand_%d\n" % dstHeight)
 outFile.write("\n")
 
 # Include the expand header code
-outFile.write("    .include \"expand_hdr.i\"\n")
+outFile.write("!source \"expand_hdr.i\"\n")
 
 # Let's optimize.
 segsToOpt = copy.copy(allSegs)
@@ -307,9 +307,9 @@ while len(segsToOpt) > 0:
 for (srcHeight, dstHeight, mipLevel, texOff, segs) in allHeights:
   outFile.write("; Produce %d rows from %d rows\n" % (dstHeight, srcHeight))
   outFile.write("expand_%d:\n" % dstHeight)
-  outFile.write("    jsr selectMip%d\n" % mipLevel)
+  outFile.write("\tjsr selectMip%d\n" % mipLevel)
   if (texOff != 0):
-    outFile.write("    ldy #%d\n" % (texOff-1)) # -1 because we always do initial INY before LDA (ptr,Y)
+    outFile.write("\tldy #%d\n" % (texOff-1)) # -1 because we always do initial INY before LDA (ptr,Y)
   for i in range(len(segs)):
     seg = allSegs[segs[i]]
     if seg.refs == 1 and not(seg.generated):
@@ -319,9 +319,9 @@ for (srcHeight, dstHeight, mipLevel, texOff, segs) in allHeights:
         if "expand_0" not in generatedLabels:
           outFile.write("expand_0:\n")
           generatedLabels.add("expand_0")
-        outFile.write("    rts\n")
+        outFile.write("\trts\n")
     else:
-      outFile.write("    %s %s\n" % ("jsr" if i < len(segs)-1 else "jmp", calcLabel(seg.cmds)))
+      outFile.write("\t%s %s\n" % ("jsr" if i < len(segs)-1 else "jmp", calcLabel(seg.cmds)))
   outFile.write("\n")
 
 # Generate the misc segments missed earlier

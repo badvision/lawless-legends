@@ -2,7 +2,7 @@
 # Take note of the path delimiters (ie:  the  /  )
 
 # Required entries
-# CC65_BIN_DIR
+# ACME_BIN_DIR
 
 # Examples
-CC65_BIN_DIR=/opt/local/bin
+ACME_BIN_DIR=/Users/me/bin

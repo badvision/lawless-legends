@@ -72,19 +72,19 @@
 ;   The remainder of the file is the data for the resources, in order of their
 ;   table appearance.
 ;
-startMemMgr = $800
-mainLoader  = $803
-auxLoader   = $806
+startMemMgr	= $800
+mainLoader	= $803
+auxLoader	= $806
 
 ;------------------------------------------------------------------------------
 ; Resource types
 
-RES_TYPE_CODE    = 1
-RES_TYPE_2D_MAP  = 2
-RES_TYPE_3D_MAP  = 3
-RES_TYPE_TILE    = 4
-RES_TYPE_TEXTURE = 5
-RES_TYPE_SCREEN  = 6
+RES_TYPE_CODE	= 1
+RES_TYPE_2D_MAP	= 2
+RES_TYPE_3D_MAP	= 3
+RES_TYPE_TILE	= 4
+RES_TYPE_TEXTURE= 5
+RES_TYPE_SCREEN	= 6
 
 ;------------------------------------------------------------------------------
 ; Command codes

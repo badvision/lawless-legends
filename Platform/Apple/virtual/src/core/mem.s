@@ -51,7 +51,7 @@ partitionFileRef:
   !byte 0
 
 ;------------------------------------------------------------------------------
-DEBUG = 1
+DEBUG = 0
   !source "../include/debug.i"
 
 ;------------------------------------------------------------------------------
@@ -129,14 +129,6 @@ scanForResource: !zone scanForResource {
   ldx scanStart,y       ; start scanning at last scan point
   stx .next+1           ; it also marks the ending point. Yes, self-modifying code.
 .loop:
-!if DEBUG {
-	txa
-	jsr prbyte
-	lda .next+1
-	jsr prbyte
-	lda #$a0
-	jsr cout
-}
   ldy tSegLink,x        ; grab link to next segment, which we'll need regardless
   lda tSegResNum,x      ; check number
   cmp resNum            ; same resource number?
@@ -1123,10 +1115,7 @@ disk_finishLoad: !zone disk_finishLoad {
 .keepOpenChk:
   lda #11               ; self-modified to 0 or 1 at start of routine
   bne .keepOpen
-!if DEBUG {
-  +prStr
-  !text "Closing part file." 
-}
+!if DEBUG { +prStr : !text "Closing partition file.",0 } 
   lda partitionFileRef
   jsr closeFile
   lda #0                ; zero out...

@@ -1,674 +1,671 @@
-*
-* Code
-*
-* (c) 2013, Brutal Deluxe Software
-*
+;
+; Code
+;
+; (c) 2013, Brutal Deluxe Software
+;
 
-	org	$6000
-	lst	off
+* 		= 	$1b00		; so it ends just before $2000 
 
-	mx	%11
+		!source	"equates.s"
 
-	use	LL.Equates
+;---------------------------
+;
+; STR: draws a Pascal string
+; CSTR: draws a C string (null terminated)
+; CHAR: draws a single char
+;
 
-*---------------------------
-*
-* STR: draws a Pascal string
-* CSTR: draws a C string (null terminated)
-* CHAR: draws a single char
-*
+;---------------------------
 
-*---------------------------
-
-	jmp	printSTR	; print a Pascal string
-	jmp	printSTACK	; print a Pascal string by the stack
-	jmp	printCSTR	; print a C string
-	jmp	printCSTACK	; print a C string by the stack
+		jmp	printSTR	; print a Pascal string
+		jmp	printSTACK	; print a Pascal string by the stack
+		jmp	printCSTR	; print a C string
+		jmp	printCSTACK	; print a C string by the stack
 printCHAR	jmp	drawCHAR	; pointer to 1/2 HGR printing
-	jmp	tabXY	; sets the X/Y coordinates
-	jmp	setFONT	; sets the font pointer
-	jmp	displayMODE	; sets the display mode
-	jmp	drawMODE	; sets inverse/normal writing mode
+		jmp	tabXY		; sets the X/Y coordinates
+		jmp	setFONT		; sets the font pointer
+		jmp	displayMODE	; sets the display mode
+		jmp	drawMODE	; sets inverse/normal writing mode
 scrollWIN	jmp	scrollWINDOW	; scrolls the 'text' window
 
-*---------------------------
+;---------------------------
 
-* printSTR
-*  Outputs a Pascal string
-* Input:
-*  X: high pointer to Pascal string
-*  Y: low pointer to Pascal string
+; printSTR
+;  Outputs a Pascal string
+; Input:
+;  X: high pointer to Pascal string
+;  Y: low pointer to Pascal string
 
-printSTR	=	*
+printSTR 	!zone
 
-	sty	dpSTR
-	stx	dpSTR+1
+		sty	dpSTR
+		stx	dpSTR+1
 
-printSSTR	=	*	; Entry point for stack
+printSSTR:				; Entry point for stack
 
-printSTR1	jsr	getCHAR	; Get length of string
-	bne	printSTR2
-	rts
+printSTR1	jsr	getCHAR		; Get length of string
+		bne	printSTR2
+		rts
 printSTR2	sta	strLENGTH	; Save it for later
 
-]lp	jsr	getCHAR	; Get a character
-	jsr	printCHAR	; Print it out
+.lp		jsr	getCHAR		; Get a character
+		jsr	printCHAR	; Print it out
 
-	lda	strLENGTH	; Next character
-	bne	]lp	; Until end of string
-	rts
+		lda	strLENGTH	; Next character
+		bne	.lp		; Until end of string
+		rts
 
-*---------------------------
+;---------------------------
 
-* printCSTR
-*  Outputs a C string (null terminated)
-* Input:
-*  X: high pointer to C string
-*  Y: low pointer to C string
+; printCSTR
+;  Outputs a C string (null terminated)
+; Input:
+;  X: high pointer to C string
+;  Y: low pointer to C string
 
-printCSTR	=	*
+printCSTR 	!zone
 
-	sty	dpSTR
-	stx	dpSTR+1
+		sty	dpSTR
+		stx	dpSTR+1
 
-printSCSTR	=	*	; Entry point for stack
+printSCSTR:				; Entry point for stack
 
-]lp	jsr	getCHAR	; Get a character
+.lp		jsr	getCHAR		; Get a character
 
-	cmp	#charNULL
-	beq	printCSTR1	; end of string...
+		cmp	#charNULL
+		beq	printCSTR1	; end of string...
 
-	jsr	printCHAR	; Print it out
+		jsr	printCHAR	; Print it out
 
-	clc	; force BRanch Always
-	bcc	]lp	; if 65c02, put a BRA instead
+		clc			; force BRanch Always
+		bcc	.lp		; if 65c02, put a BRA instead
 
 printCSTR1	rts
 
-*---------------------------
+;---------------------------
 
-* printSTACK
-*  Displays a Pascal string through the stack
+; printSTACK
+;  Displays a Pascal string through the stack
 
-printSTACK	=	*
+printSTACK 	!zone
 
-	pla		; get the stack pointer
-	sta	dpSTR
-	pla
-	sta	dpSTR+1
+		pla			; get the stack pointer
+		sta	dpSTR
+		pla
+		sta	dpSTR+1
 
-	jsr	getCHAR	; Move the pointer
+		jsr	getCHAR		; Move the pointer
 
-	jsr	printSSTR	; call entry point for Pascal string
+		jsr	printSSTR	; call entry point for Pascal string
 
-printSTACK1	=	*	; Share the same return code
+printSTACK1:				; Share the same return code
 
-	dec	dpSTR	; Decrement string pointer
-	lda	dpSTR
-	cmp	#$ff
-	bne	printSTACK2
-	dec	dpSTR+1
+		dec	dpSTR		; Decrement string pointer
+		lda	dpSTR
+		cmp	#$ff
+		bne	printSTACK2
+		dec	dpSTR+1
 
-printSTACK2	lda	dpSTR+1	; Push it to the stack
-	pha
-	lda	dpSTR
-	pha
-	rts		; return
+printSTACK2	lda	dpSTR+1		; Push it to the stack
+		pha
+		lda	dpSTR
+		pha
+		rts			; return
 
-*---------------------------
+;---------------------------
 
-* printCSTACK
-*  Displays a C string through the stack
+; printCSTACK
+;  Displays a C string through the stack
 
-printCSTACK	=	*
+printCSTACK: 	!zone
 
-	pla		; get the stack pointer
-	sta	dpSTR
-	pla
-	sta	dpSTR+1
+		pla		; get the stack pointer
+		sta	dpSTR
+		pla
+		sta	dpSTR+1
+	
+		jsr	getCHAR	; Move the pointer
+	
+		jsr	printSCSTR	; call entry point for C string
+	
+		jmp	printSTACK1	; return code
 
-	jsr	getCHAR	; Move the pointer
+;---------------------------
+; Sub-routines
+;---------------------------
 
-	jsr	printSCSTR	; call entry point for C string
+; WNDLFT = $20 ; left edge of the window
+; WNDWDTH = WNDLFT+1 ; width of text window
+; WNDTOP = WNDWDTH+1 ; top of text window
+; WNDBTM = WNDTOP+1 ; bottom+1 of text window
 
-	jmp	printSTACK1	; return code
+; calcNEXT
+;  Calculates the next display position
 
-*---------------------------
-* Sub-routines
-*---------------------------
+calcNEXT: 	!zone			; Calculates the next char position
 
-* WNDLFT = $20 ; left edge of the window
-* WNDWDTH = WNDLFT+1 ; width of text window
-* WNDTOP = WNDWDTH+1 ; top of text window
-* WNDBTM = WNDTOP+1 ; bottom+1 of text window
+		inc	CH		; next column
 
-* calcNEXT
-*  Calculates the next display position
+		lda	CH		; did we reach the rightmost one?
+		cmp	WNDWDTH
+		bcc	calcNEXT9
+		beq	calcNEXT9
 
-calcNEXT	=	*	; Calculates the next char position
+nextLINE:
 
-	inc	CH	; next column
+		lda	WNDLFT		; yes, next line
+		sta	CH
 
-	lda	CH	; did we reach the rightmost one?
-	cmp	WNDWDTH
-	bcc	calcNEXT9
-	beq	calcNEXT9
+;---
 
-nextLINE	=	*
+		inc	CV
 
-	lda	WNDLFT	; yes, next line
-	sta	CH
+		lda	CV		; did we reach the end of the area?
+		cmp	WNDBTM
+		bcc	calcNEXT9
+		beq	calcNEXT9
 
-*---
+		dec	CV
 
-	inc	CV
-
-	lda	CV	; did we reach the end of the area?
-	cmp	WNDBTM
-	bcc	calcNEXT9
-	beq	calcNEXT9
-
-	dec	CV
-
-	jsr	scrollWIN	; yes, scroll
+		jsr	scrollWIN	; yes, scroll
 
 calcNEXT9	rts
 
-*---------------------------
+;---------------------------
 
-* scrollWINDOW
-*  Scroll one HGR window
+; scrollWINDOW
+;  Scroll one HGR window
 
-scrollWINDOW	=	*
+scrollWINDOW: !zone
 
-* WNDLFT = $20 ; left edge of the window
-* WNDWDTH = WNDLFT+1 ; width of text window
-* WNDTOP = WNDWDTH+1 ; top of text window
-* WNDBTM = WNDTOP+1 ; bottom+1 of text window
+; WNDLFT = $20 ; left edge of the window
+; WNDWDTH = WNDLFT+1 ; width of text window
+; WNDTOP = WNDWDTH+1 ; top of text window
+; WNDBTM = WNDTOP+1 ; bottom+1 of text window
 
-	lda	WNDBTM	; 23 => 24 * 8 = 192
-	clc
-	adc	#1
-	asl
-	asl
-	asl		; *8
-	sta	maxLINE	; the max line
+		lda	WNDBTM		; 23 => 24 * 8 = 192
+		clc
+		adc	#1
+		asl
+		asl
+		asl			; *8
+		sta	maxLINE		; the max line
+	
+		lda	#8		; loop
 
-	lda	#8	; loop
+scrollIT1:
 
-scrollIT1	=	*
-
-	pha
-
-	lda	WNDTOP
-	asl
-	asl
-	asl	; *8
-	tax
+		pha
+	
+		lda	WNDTOP
+		asl
+		asl
+		asl			; *8
+		tax
 
 scrollIT5	lda	tblHGRl,x
-	sta	dpTO
-	lda	tblHGRh,x
-	ora	HPAG
-	sta	dpTO+1
+		sta	dpTO
+		lda	tblHGRh,x
+		ora	HPAG
+		sta	dpTO+1
+	
+		inx
+		lda	tblHGRl,x
+		sta	dpFROM
+		lda	tblHGRh,x
+		ora	HPAG
+		sta	dpFROM+1
+	
+		ldy	WNDLFT		; Copy a line
+.lp1		lda	(dpFROM),y
+		sta	(dpTO),y
+		iny
+		cpy	WNDWDTH
+		bcc	.lp1
+		beq	.lp1
+	
+		cpx	maxLINE
+		bne	scrollIT5
+	
+		ldy	WNDLFT		; Put a blank line
+		lda	#0
+.lp2		sta	(dpTO),y
+		iny
+		cpy	WNDWDTH
+		bcc	.lp2
+		beq	.lp2
+	
+		pla			; next loop
+		sec
+		sbc	#1
+		bne	scrollIT1
+		rts
 
-	inx
-	lda	tblHGRl,x
-	sta	dpFROM
-	lda	tblHGRh,x
-	ora	HPAG
-	sta	dpFROM+1
+;---------------------------
 
-	ldy	WNDLFT	; Copy a line
-]lp	lda	(dpFROM),y
-	sta	(dpTO),y
-	iny
-	cpy	WNDWDTH
-	bcc	]lp
-	beq	]lp
+; scroll2WINDOW
+;  Scroll two HGR window
 
-	cpx	maxLINE
-	bne	scrollIT5
+scroll2WINDOW: !zone
 
-	ldy	WNDLFT	; Put a blank line
-	lda	#0
-]lp	sta	(dpTO),y
-	iny
-	cpy	WNDWDTH
-	bcc	]lp
-	beq	]lp
+; WNDLFT = $20 ; left edge of the window
+; WNDWDTH = WNDLFT+1 ; width of text window
+; WNDTOP = WNDWDTH+1 ; top of text window
+; WNDBTM = WNDTOP+1 ; bottom+1 of text window
 
-	pla	; next loop
-	sec
-	sbc	#1
-	bne	scrollIT1
-	rts
-
-*---------------------------
-
-* scroll2WINDOW
-*  Scroll two HGR window
-
-scroll2WINDOW	=	*
-
-* WNDLFT = $20 ; left edge of the window
-* WNDWDTH = WNDLFT+1 ; width of text window
-* WNDTOP = WNDWDTH+1 ; top of text window
-* WNDBTM = WNDTOP+1 ; bottom+1 of text window
-
-	lda	WNDBTM	; 23 => 24 * 8 = 192
-	clc
-	adc	#1
-	asl
-	asl
-	asl		; *8
-	sta	maxLINE	; the max line
-
-	lda	#8	; loop
+		lda	WNDBTM		; 23 => 24 * 8 = 192
+		clc
+		adc	#1
+		asl
+		asl
+		asl			; *8
+		sta	maxLINE		; the max line
+	
+		lda	#8		; loop
 
 scroll2IT1	=	*
 
-	pha
-
-	lda	WNDTOP
-	asl
-	asl
-	asl	; *8
-	tax
+		pha
+	
+		lda	WNDTOP
+		asl
+		asl
+		asl			; *8
+		tax
 
 scroll2IT5	lda	tblHGRl,x
-	sta	dpTO
-	sta	dpTO2
-	lda	tblHGRh,x
-	ora	HPAG
-	sta	dpTO+1
-	clc
-	adc	#pHGR1
-	sta	dpTO2+1
+		sta	dpTO
+		sta	dpTO2
+		lda	tblHGRh,x
+		ora	HPAG
+		sta	dpTO+1
+		clc
+		adc	#pHGR1
+		sta	dpTO2+1
+	
+		inx
+		lda	tblHGRl,x
+		sta	dpFROM
+		lda	tblHGRh,x
+		ora	HPAG
+		sta	dpFROM+1
+	
+		ldy	WNDLFT		; Copy a line
+.lp1		lda	(dpFROM),y
+		sta	(dpTO),y
+		sta	(dpTO2),y
+		iny
+		cpy	WNDWDTH
+		bcc	.lp1
+		beq	.lp1
+	
+		cpx	maxLINE
+		bne	scroll2IT5
+	
+		ldy	WNDLFT		; Put a blank line
+		lda	#0
+.lp2		sta	(dpTO),y
+		sta	(dpTO2),y
+		iny
+		cpy	WNDWDTH
+		bcc	.lp2
+		beq	.lp2
+	
+		pla			; next loop
+		sec
+		sbc	#1
+		bne	scroll2IT1
+		rts
 
-	inx
-	lda	tblHGRl,x
-	sta	dpFROM
-	lda	tblHGRh,x
-	ora	HPAG
-	sta	dpFROM+1
+;---------------------------
 
-	ldy	WNDLFT	; Copy a line
-]lp	lda	(dpFROM),y
-	sta	(dpTO),y
-	sta	(dpTO2),y
-	iny
-	cpy	WNDWDTH
-	bcc	]lp
-	beq	]lp
+; getCHAR
+;  Gets the character
+; Input:
+;  dpSTR: pointer to the string
+; Output:
+;  A: character
 
-	cpx	maxLINE
-	bne	scroll2IT5
+getCHAR:	!zone			; Gets the character
 
-	ldy	WNDLFT	; Put a blank line
-	lda	#0
-]lp	sta	(dpTO),y
-	sta	(dpTO2),y
-	iny
-	cpy	WNDWDTH
-	bcc	]lp
-	beq	]lp
-
-	pla	; next loop
-	sec
-	sbc	#1
-	bne	scroll2IT1
-	rts
-
-*---------------------------
-
-* getCHAR
-*  Gets the character
-* Input:
-*  dpSTR: pointer to the string
-* Output:
-*  A: character
-
-getCHAR	=	*	; Gets the character
-
-	ldy	#0
-	lda	(dpSTR),y
-
-	dec	strLENGTH
-
-	inc	dpSTR
-	bne	getCHAR1
-	inc	dpSTR+1
+		ldy	#0
+		lda	(dpSTR),y
+	
+		dec	strLENGTH
+	
+		inc	dpSTR
+		bne	getCHAR1
+		inc	dpSTR+1
 getCHAR1	rts
 
-*---------------------------
+;---------------------------
 
-* calcPOS
-*  Calculates the HGR coordinates
-* Input:
-*  Uses CH and CV
-* Output:
-*  X: first HGR line of char
-*  Y: last HGR line of char
+; calcPOS
+;  Calculates the HGR coordinates
+; Input:
+;  Uses CH and CV
+; Output:
+;  X: first HGR line of char
+;  Y: last HGR line of char
 
-calcPOS	=	*	; Calculates the X/Y coordinate of a char
+calcPOS:	!zone	; Calculates the X/Y coordinate of a char
 
-	lda	CV	; from a text row
-	asl
-	asl
-	asl		; *8
-	tax		; to a HGR one
+		lda	CV	; from a text row
+		asl
+		asl
+		asl		; *8
+		tax		; to a HGR one
+	
+		clc
+		adc	#8	; height of a character
+		tay		; max line
+		sty	theY
+		rts
 
-	clc
-	adc	#8	; height of a character
-	tay		; max line
-	sty	theY
-	rts
+;----------
+; Calculate the HGR coordinates
 
-*----------
-* Calculate the HGR coordinates
+calcPOS1	!zone
 
-calcPOS1	=	*
+		lda	tblHGRl,x
+		sta	BASL		; HGR
+		sta	GBASL		; double HGR
+		lda	tblHGRh,x
+		ora	HPAG
+		sta	BASH
+		clc
+		adc	#pHGR1		; for printing
+		sta	GBASH		; on both HGR page
+		rts
 
-	lda	tblHGRl,x
-	sta	BASL	; HGR
-	sta	GBASL	; double HGR
-	lda	tblHGRh,x
-	ora	HPAG
-	sta	BASH
-	clc
-	adc	#pHGR1	; for printing
-	sta	GBASH	; on both HGR page
-	rts
+;---------------------------
 
-*---------------------------
+; tabXY
+;  Sets the X/Y coordinates
+; Input:
+;  X: X coordinate
+;  Y: Y coordinate
 
-* tabXY
-*  Sets the X/Y coordinates
-* Input:
-*  X: X coordinate
-*  Y: Y coordinate
+tabXY		stx	CH
+		sty	CV
+		rts
 
-tabXY	stx	CH
-	sty	CV
-	rts
+;---------------------------
 
-*---------------------------
+; setFONT
+;  Sets the font pointer
+; Input:
+;  X: high pointer of font data
+;  Y: low pointer of font data
 
-* setFONT
-*  Sets the font pointer
-* Input:
-*  X: high pointer of font data
-*  Y: low pointer of font data
+setFONT		!zone			; Sets the font pointer
 
-setFONT	=	*	; Sets the font pointer
+		sty	fontPTR
+		stx	fontPTR+1
+		rts
 
-	sty	fontPTR
-	stx	fontPTR+1
-	rts
+;---------------------------
 
-*---------------------------
+; displayMODE
+;  Sets writing to 1 or 2 HGR page(s)
+; Input:
+;  A: #$20 for HGR1, #$40 for HGR2, #$60 for both pages
 
-* displayMODE
-*  Sets writing to 1 or 2 HGR page(s)
-* Input:
-*  A: #$20 for HGR1, #$40 for HGR2, #$60 for both pages
+displayMODE	!zone			; Sets writing to 1 or 2 HGR page(s)
 
-displayMODE	=	*	; Sets writing to 1 or 2 HGR page(s)
+; Prepare scroll window routine
 
-* Prepare scroll window routine
+		ldx	#>scrollWINDOW
+		stx	scrollWIN+2
+		ldy	#<scrollWINDOW
+		sty	scrollWIN+1
+	
+		ldx	#>drawCHAR
+		ldy	#<drawCHAR
+	
+		cmp	#pHGR3		; Do we ask for HGR1+HGR2 printing?
+		bne	dispMODE1
 
-	ldx	#>scrollWINDOW
-	stx	scrollWIN+2
-	ldy	#scrollWINDOW
-	sty	scrollWIN+1
+; We want to display/scroll on both pages
 
-	ldx	#>drawCHAR
-	ldy	#drawCHAR
+		ldx	#>scroll2WINDOW
+		stx	scrollWIN+2
+		ldy	#<scroll2WINDOW
+		sty	scrollWIN+1
+	
+		lda	#pHGR1
+		ldx	#>draw2CHAR
+		ldy	#<draw2CHAR
 
-	cmp	#pHGR3	; Do we ask for HGR1+HGR2 printing?
-	bne	dispMODE1
+dispMODE1	sta	HPAG		; Page to draw a char
+		sty	printCHAR+1
+		stx	printCHAR+2
+		rts
 
-* We want to display/scroll on both pages
+;---------------------------
 
-	ldx	#>scroll2WINDOW
-	stx	scrollWIN+2
-	ldy	#scroll2WINDOW
-	sty	scrollWIN+1
+; drawMODE
+;  Sets drawing method
+; Input:
+;  A: #$00 for normal, #$FF for inverse
 
-	lda	#pHGR1
-	ldx	#>draw2CHAR
-	ldy	#draw2CHAR
+drawMODE	!zone			; Sets drawing method
 
-dispMODE1	sta	HPAG	; Page to draw a char
-	sty	printCHAR+1
-	stx	printCHAR+2
-	rts
+		sta	INVFLG
+		rts
 
-*---------------------------
+;---------------------------
 
-* drawMODE
-*  Sets drawing method
-* Input:
-*  A: #$00 for normal, #$FF for inverse
+; handleCHAR
+;  Handles command chars
+; Output:
+;  Y: low pointer to font data
+;  X: high pointer to font data
 
-drawMODE	=	*	; Sets drawing method
+handleCHAR	!zone			; Handles command chars
 
-	sta	INVFLG
-	rts
+		cmp	#charCMD
+		bcs	handleCHAR2
+	
+		cmp	#charRET	; any Return to handle?
+		bne	handleCHAR1
+	
+		jsr	nextLINE	; Yes!
+		sec
+		rts
 
-*---------------------------
+handleCHAR1	and	#%01111111
+		sec			; subtract
+		sbc	#charSPACE	; #$20 space
 
-* handleCHAR
-*  Handles command chars
-* Output:
-*  Y: low pointer to font data
-*  X: high pointer to font data
+; Prepare a *8 multiplication
 
-handleCHAR	=	*	; Handles command chars
+		sta	fontIDX
+	
+		lda	#0
+		sta	fontIDX+1
+	
+		asl	fontIDX	; *2
+		rol	fontIDX+1
+		asl	fontIDX	; *4
+		rol	fontIDX+1
+		asl	fontIDX	; *8
+		rol	fontIDX+1
 
-	cmp	#charCMD
-	bcs	handleCHAR2
+; Now, calculate the char data address
 
-	cmp	#charRET	; any Return to handle?
-	bne	handleCHAR1
+		lda	fontIDX
+		clc
+		adc	fontPTR
+		tay
+	
+		lda	fontIDX+1
+		adc	fontPTR+1
+		tax
 
-	jsr	nextLINE	; Yes!
-	sec
-	rts
+; The old routine with a table (faster but more room)
+; tax  ; calculate the pointer
+; lda fontINDEXl,x
+; clc  ; to the font data
+; adc fontPTR
+; tay
+;
+; lda fontINDEXh,x
+; adc fontPTR+1
+; tax
 
-handleCHAR1	and	#%0111_1111
-	sec		; subtract
-	sbc	#charSPACE	; #$20 space
+		clc			; character to print
+		rts
 
-* Prepare a *8 multiplication
+;--- We have a command code
+;
+; #$80: tabXY
+; #$81: setFONT
+; #$82: displayMODE
+; #$83: drawMODE
+; #$84: call routine
 
-	sta	fontIDX
+handleCHAR2	!zone
 
-	lda	#0
-	sta	fontIDX+1
-
-	asl	fontIDX	; *2
-	rol	fontIDX+1
-	asl	fontIDX	; *4
-	rol	fontIDX+1
-	asl	fontIDX	; *8
-	rol	fontIDX+1
-
-* Now, calculate the char data address
-
-	lda	fontIDX
-	clc
-	adc	fontPTR
-	tay
-
-	lda	fontIDX+1
-	adc	fontPTR+1
-	tax
-
-* The old routine with a table (faster but more room)
-* tax  ; calculate the pointer
-* lda fontINDEXl,x
-* clc  ; to the font data
-* adc fontPTR
-* tay
-*
-* lda fontINDEXh,x
-* adc fontPTR+1
-* tax
-
-	clc		; character to print
-	rts
-
-*--- We have a command code
-*
-* #$80: tabXY
-* #$81: setFONT
-* #$82: displayMODE
-* #$83: drawMODE
-* #$84: call routine
-
-handleCHAR2	=	*
-
-	and	#%0000_0111	; Must change if more commands
-	asl
-	tax
-	lda	tblCOMMANDS,x
-	sta	handleCHAR3+1
-	lda	tblCOMMANDS+1,x
-	sta	handleCHAR3+2
+		and	#%00000111	; Must change if more commands
+		asl
+		tax
+		lda	tblCOMMANDS,x
+		sta	handleCHAR3+1
+		lda	tblCOMMANDS+1,x
+		sta	handleCHAR3+2
 
 handleCHAR3	jsr	$bdbd
-	sec
-	rts
+		sec
+		rts
 
-tblCOMMANDS	da	doCMD0,doCMD1,doCMD2,doCMD3
-	da	doCMD4,doCMD0,doCMD0,doCMD0
+tblCOMMANDS	!word	doCMD0,doCMD1,doCMD2,doCMD3
+		!word	doCMD4,doCMD0,doCMD0,doCMD0
 
-*--- tabXY
+;--- tabXY
 
-doCMD0	jsr	getCHAR
-	tax
-	jsr	getCHAR
-	tay
-	jsr	tabXY
-	rts
+doCMD0		jsr	getCHAR
+		tax
+		jsr	getCHAR
+		tay
+		jsr	tabXY
+		rts
 
-*--- setFONT
+;--- setFONT
 
-doCMD1	jsr	getCHAR
-	sta	fontPTR
-	jsr	getCHAR
-	sta	fontPTR+1
-	rts
+doCMD1		jsr	getCHAR
+		sta	fontPTR
+		jsr	getCHAR
+		sta	fontPTR+1
+		rts
 
-*--- displayMODE
+;--- displayMODE
 
-doCMD2	jsr	getCHAR	; HGR page
-	jsr	displayMODE
-	rts
+doCMD2		jsr	getCHAR		; HGR page
+		jsr	displayMODE
+		rts
 
-*--- drawMODE
+;--- drawMODE
 
-doCMD3	jsr	getCHAR	; FF: inverse, 00:normal
-	sta	INVFLG
-	rts
+doCMD3		jsr	getCHAR		; FF: inverse, 00:normal
+		sta	INVFLG
+		rts
 
-*--- execute code (useful for protection)
+;--- execute code (useful for protection)
 
-doCMD4	jsr	getCHAR
-	sta	doCMD45+1
-	jsr	getCHAR
-	sta	doCMD45+2
-doCMD45	jmp	$bdbd
+doCMD4		jsr	getCHAR
+		sta	doCMD45+1
+		jsr	getCHAR
+		sta	doCMD45+2
+doCMD45		jmp	$bdbd
 
-*---------------------------
-* Graphic code
-*---------------------------
+;---------------------------
+; Graphic code
+;---------------------------
 
-* drawCHAR
-*  Draws a character on 1 HGR page
-* Input:
-*  A: the character to draw
+; drawCHAR
+;  Draws a character on 1 HGR page
+; Input:
+;  A: the character to draw
 
-drawCHAR	=	*	; Draws a char on HGR
+drawCHAR	!zone			; Draws a char on HGR
 
-	jsr	handleCHAR	; Sets the font data pointer
-	bcc	drawCHAR1
-	rts
+		jsr	handleCHAR	; Sets the font data pointer
+		bcc	drawCHAR1
+		rts
 
 drawCHAR1	sty	drawCHAR2+1
-	stx	drawCHAR2+2
+		stx	drawCHAR2+2
+	
+		jsr	calcPOS		; calculate min/max of lines
+	
+		ldy	CH		; get the Y
 
-	jsr	calcPOS	; calculate min/max of lines
+.lp		jsr	calcPOS1	; calculate HGR coordinates
 
-	ldy	CH	; get the Y
+drawCHAR2	lda	$bdbd		; pointer to font data
+		eor	INVFLG
+		sta	(BASL),y	; output on HGR screen
+	
+		inc	drawCHAR2+1
+		inx			; loop until 8 lines
+		cpx	theY
+		bne	.lp
+	
+		jsr	calcNEXT	; Prepare next position
+	
+		rts
 
-]lp	jsr	calcPOS1	; calculate HGR coordinates
+;---------------------------
 
-drawCHAR2	lda	$bdbd	; pointer to font data
-	eor	INVFLG
-	sta	(BASL),y	; output on HGR screen
+; draw2CHAR
+;  Draws a character on 2 HGR pages
+; Input:
+;  A: the character to draw
 
-	inc	drawCHAR2+1
-	inx		; loop until 8 lines
-	cpx	theY
-	bne	]lp
+draw2CHAR	!zone			; Draws one char on 2 pages
 
-	jsr	calcNEXT	; Prepare next position
-
-	rts
-
-*---------------------------
-
-* draw2CHAR
-*  Draws a character on 2 HGR pages
-* Input:
-*  A: the character to draw
-
-draw2CHAR	=	*	; Draws one char on 2 pages
-
-	jsr	handleCHAR	; Sets the font data pointer
-	bcc	draw2CHAR1
-	rts
+		jsr	handleCHAR	; Sets the font data pointer
+		bcc	draw2CHAR1
+		rts
 
 draw2CHAR1	sty	draw2CHAR2+1
-	stx	draw2CHAR2+2
+		stx	draw2CHAR2+2
+	
+		jsr	calcPOS		; calculate min/max of lines
+	
+		ldy	CH		; get the Y
 
-	jsr	calcPOS	; calculate min/max of lines
+.lp		jsr	calcPOS1	; calculate HGR coordinates
 
-	ldy	CH	; get the Y
+draw2CHAR2	lda	$bdbd		; pointer to font data
+		eor	INVFLG
+		sta	(BASL),y	; output on HGR screen
+		sta	(GBASL),y	; ditto
+	
+		inc	draw2CHAR2+1
+	
+		inx			; loop until 8 lines
+		cpx	theY
+		bne	.lp
+	
+		jsr	calcNEXT	; Prepare next position
+		rts
 
-]lp	jsr	calcPOS1	; calculate HGR coordinates
+;---------------------------
+; Some data
+;---------------------------
 
-draw2CHAR2	lda	$bdbd	; pointer to font data
-	eor	INVFLG
-	sta	(BASL),y	; output on HGR screen
-	sta	(GBASL),y	; ditto
+theY		!fill	1		; save Y coordinate
+maxLINE		!fill	1		; max line number for scrolling
 
-	inc	draw2CHAR2+1
+fontIDX		!fill	2		; index to char data
+fontPTR		!fill	2		; font data pointer
 
-	inx		; loop until 8 lines
-	cpx	theY
-	bne	]lp
+strLENGTH	!fill	1		; length of string
 
-	jsr	calcNEXT	; Prepare next position
-	rts
+;---------------------------
+; End of the code...
+;---------------------------
 
-*---------------------------
-* Some data
-*---------------------------
-
-theY	ds	1	; save Y coordinate
-maxLINE	ds	1	; max line number for scrolling
-
-fontIDX	ds	2	; index to char data
-fontPTR	ds	2	; font data pointer
-
-strLENGTH	ds	1	; length of string
-
-*---------------------------
-* End of the code...
-*---------------------------
-
-	put	LL.Tables
+		!source	"tables.s"

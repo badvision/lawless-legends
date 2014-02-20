@@ -23,6 +23,7 @@ class PackPartitions
     def TYPE_TILE_IMG    = 4
     def TYPE_TEXTURE_IMG = 5
     def TYPE_FRAME_IMG   = 6
+    def TYPE_FONT        = 7
 
     def code     = [:]  // code name to code.num, code.buf    
     def maps2D   = [:]  // map name to map.num, map.buf
@@ -30,6 +31,7 @@ class PackPartitions
     def tiles    = [:]  // tile name to tile.num, tile.buf
     def textures = [:]  // img name to img.num, img.buf
     def frames   = [:]  // img name to img.num, img.buf
+    def fonts    = [:]
     
     def parseMap(map, tiles)
     {
@@ -466,11 +468,9 @@ class PackPartitions
         buf.get(bytes)
         stream.write(bytes)
     }
-    
-    def readCode(name, path)
+
+    def readBinary(path)
     {
-        def num = code.size() + 1
-        //println "Reading code #$num from '$path'."
         def inBuf = new byte[256]
         def outBuf = ByteBuffer.allocate(50000)
         def stream = new File(path).withInputStream { stream ->
@@ -480,7 +480,21 @@ class PackPartitions
                 outBuf.put(inBuf, 0, got)
             }
         }
-        code[name] = [num:num, buf:outBuf]
+        return outBuf
+    }
+    
+    def readCode(name, path)
+    {
+        def num = code.size() + 1
+        //println "Reading code #$num from '$path'."
+        code[name] = [num:num, buf:readBinary(path)]
+    }
+    
+    def readFont(name, path)
+    {
+        def num = fonts.size() + 1
+        //println "Reading font #$num from '$path'."
+        fonts[name] = [num:num, buf:readBinary(path)]
     }
     
     def writePartition(stream)
@@ -488,11 +502,12 @@ class PackPartitions
         // Make a list of all the chunks that will be in the partition
         def chunks = []
         code.values().each { chunks.add([type:TYPE_CODE, num:it.num, buf:it.buf]) }
-        maps2D.values().each { chunks.add([type:TYPE_2D_MAP, num:it.num, buf:it.buf]) }
-        maps3D.values().each { chunks.add([type:TYPE_3D_MAP, num:it.num, buf:it.buf]) }
-        tiles.values().each { chunks.add([type:TYPE_TILE_IMG, num:it.num, buf:it.buf]) }
-        textures.values().each { chunks.add([type:TYPE_TEXTURE_IMG, num:it.num, buf:it.buf]) }
+        fonts.values().each { chunks.add([type:TYPE_FONT, num:it.num, buf:it.buf]) }
         frames.values().each { chunks.add([type:TYPE_FRAME_IMG, num:it.num, buf:it.buf]) }
+        maps2D.values().each { chunks.add([type:TYPE_2D_MAP, num:it.num, buf:it.buf]) }
+        tiles.values().each { chunks.add([type:TYPE_TILE_IMG, num:it.num, buf:it.buf]) }
+        maps3D.values().each { chunks.add([type:TYPE_3D_MAP, num:it.num, buf:it.buf]) }
+        textures.values().each { chunks.add([type:TYPE_TEXTURE_IMG, num:it.num, buf:it.buf]) }
         
         // Generate the header chunk. Leave the first 2 bytes for the # of pages in the hdr
         def hdrBuf = ByteBuffer.allocate(50000)
@@ -535,6 +550,11 @@ class PackPartitions
         println "Reading code resources."
         readCode("render", "src/raycast/build/render.b")
         readCode("expand", "src/raycast/build/expand.b")
+        readCode("fontEngine", "src/font/build/fontEngine.b")
+        
+        // We have only one font, for now at least.
+        println "Reading fonts."
+        readFont("font", "data/fonts/font.bin")
         
         // Open the XML data file produced by Outlaw Editor
         def dataIn = new XmlParser().parse(xmlPath)

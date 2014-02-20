@@ -20,7 +20,9 @@ DEBUG		= 0		; turn on verbose logging
 ; Debug macros and support functions
 !source "../include/debug.i"
 ; Memory manager
-!source "../core/mem.i"
+!source "../include/mem.i"
+; Font engine
+!source "../include/fontEngine.i"
 
 ; Variables
 backBuf:   	!byte 0		; (value 0 or 1)
@@ -843,6 +845,16 @@ initMem: !zone
 	ldx #<(tableEnd-tableStart)
 	ldy #>(tableEnd-tableStart)
 	jsr mainLoader
+	; Load the font engine
+	!if DEBUG { +prStr : !text "Loading font engine.",0 }
+	lda #SET_MEM_TARGET
+	ldx #<fontEngine
+	ldy #>fontEngine
+	jsr mainLoader
+	lda #QUEUE_LOAD
+	ldx #RES_TYPE_CODE
+	ldy #3			; hard coded for now: code #3 is the font engine
+	jsr mainLoader
 	!if DEBUG { +prStr : !text "Loading expansion code.",0 }
 	; Load the texture expansion code into aux mem.
 	lda #SET_MEM_TARGET
@@ -871,10 +883,30 @@ initMem: !zone
 	jsr mainLoader
 	stx mapHeader
 	sty mapHeader+1
+	; Load the font into main mem
+	lda #QUEUE_LOAD
+	ldx #RES_TYPE_FONT
+	ldy #1			; we have only one font, for now at least
+	jsr mainLoader
+	tya			; save location for when font engine has been loaded
+	pha
+	txa
+	pha
 	; Force the loads to complete now
 	lda #FINISH_LOAD
 	ldx #1	; keep queue open
 	jsr mainLoader
+	pla			; get back the font location
+	tay			; font engine likes *lo* byte in Y
+	pla
+	tax			; and hi byte in X
+	jsr setFONT
+	; Set to write text on both hi-res pages at the same time
+	lda #pHGR3
+	jsr displayMODE
+	; Set to normal (non-inverse) text
+	lda #pNORMAL
+	jsr drawMODE
 	; Copy the expansion caller to low stack.
 	ldx #.callEnd - .callIt - 1
 -	lda .callIt,x
@@ -1235,6 +1267,17 @@ main: !zone
 	jsr makeLines
 	jsr graphInit
 	bit clrMixed
+	; Write some test text
+	ldx #24
+	ldy #2
+	jsr tabXY
+	jsr printSCSTR
+	!raw "Bonjour tout",0
+	ldx #24
+	ldy #3
+	jsr tabXY
+	jsr printSCSTR
+	!raw "le monde.",0
 	; Render the frame and flip it onto the screen
 .nextFrame:
 	jsr renderFrame

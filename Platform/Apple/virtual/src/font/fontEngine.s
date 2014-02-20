@@ -6,7 +6,7 @@
 
 * 		= 	$1b00		; so it ends just before $2000 
 
-		!source	"equates.s"
+		!source	"equates.i"
 
 ;---------------------------
 ;
@@ -668,4 +668,4 @@ strLENGTH	!fill	1		; length of string
 ; End of the code...
 ;---------------------------
 
-		!source	"tables.s"
+		!source	"tables.i"

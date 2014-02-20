@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+
+<project name="core" default="build">
+  
+  <property name="projName" value="font"/> <!-- base part of output bin name -->
+  <property name="src.dir" location="."/> 
+  <property name="include.dir" location="../include"/>
+  <property file="${include.dir}/build.props"/> <!-- needs to define ACME_BIN_DIR -->
+
+  <property name="build.dir" value="${src.dir}/build"/>
+  
+  <property name="ACME_TOOL" location="${ACME_BIN_DIR}/acme"/>
+  
+  <property name="ASM_SETTINGS" value="-f plain"/>
+  
+  <target name="all">
+    <antcall target="clean"/>
+    <antcall target="build"/>
+  </target>
+  
+  <target name="clean">
+    <delete failonerror="false" dir="${build.dir}"/>
+  </target>
+  
+  <target name="build">
+
+    <!-- Create build directory -->
+    <mkdir dir="${build.dir}"/>
+    
+    <!-- Assemble all .s files -->
+    <apply executable="${ACME_TOOL}" dir="${src.dir}" 
+           relative="true" parallel="false" failonerror="true" verbose="true">
+      <fileset dir="${src.dir}" includes="*.s"/>
+      <arg value="-o"/>
+      <arg value="${build.dir}/fontEngine.b"/>
+      <arg line="${ASM_SETTINGS}"/>
+      <srcfile/>
+    </apply>
+
+  </target>
+  
+</project>

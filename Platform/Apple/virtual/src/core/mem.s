@@ -11,7 +11,7 @@
 
 ; Global definitions
 !source "../include/global.i"
-!source "mem.i"
+!source "../include/mem.i"
 
 ; Constants
 MAX_SEGS	= 96

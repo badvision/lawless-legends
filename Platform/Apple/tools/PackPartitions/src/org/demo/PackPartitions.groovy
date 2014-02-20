@@ -291,10 +291,15 @@ class PackPartitions
             row.each { pix -> print pix }
             println ""
         }
+    }  
+    
+    def writeString(buf, str)
+    {
+        str.each { buf.put((byte)it) }
+        buf.put((byte)0);
     }
-        
 
-    def write2DMap(buf, rows)
+    def write2DMap(buf, mapName, rows)
     {
         def width = rows[0].size()
         def height = rows.size()
@@ -322,6 +327,9 @@ class PackPartitions
         buf.put((byte)width)
         buf.put((byte)height)
         
+        // Followed by name
+        writeString(buf, mapName.replaceFirst(/ ?-? ?2D/, ""))
+        
         // Followed by the list of tiles
         tileList.each { buf.put((byte)it) }
         buf.put((byte)0)
@@ -334,7 +342,7 @@ class PackPartitions
         }
     }
     
-    def write3DMap(buf, rows) // [ref BigBlue1_50]
+    def write3DMap(buf, mapName, rows) // [ref BigBlue1_50]
     {
         def width = rows[0].size()
         def height = rows.size()
@@ -365,6 +373,9 @@ class PackPartitions
         // Header: width and height
         buf.put((byte)width)
         buf.put((byte)height)
+        
+        // Followed by name
+        writeString(buf, mapName.replaceFirst(/ ?-? ?3D/, ""))
         
         // Followed by the list of textures
         texList.each { buf.put((byte)it) }
@@ -445,7 +456,7 @@ class PackPartitions
         //println "Packing 2D map #$num named '$name'."
         def rows = parseMap(mapEl, tileEls)
         def buf = ByteBuffer.allocate(50000)
-        write2DMap(buf, rows)
+        write2DMap(buf, name, rows)
         maps2D[name] = [num:num, buf:buf]
     }
     
@@ -456,7 +467,7 @@ class PackPartitions
         //println "Packing 3D map #$num named '$name'."
         def rows = parseMap(mapEl, tileEls)
         def buf = ByteBuffer.allocate(50000)
-        write3DMap(buf, rows)
+        write3DMap(buf, name, rows)
         maps3D[name] = [num:num, buf:buf]
     }
     

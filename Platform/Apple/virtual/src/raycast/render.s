@@ -31,6 +31,8 @@ mapHeader: 	!word 0		; map with header first
 mapBase:   	!word 0		; first byte after the header
 mapRayOrigin:	!word 0
 mapNum:    	!byte 1
+mapName:	!word 0		; pointer to map name
+mapNameLen:	!byte 0		; length of map name
 
 ; Sky / ground colors
 skyGndTbl1:	!byte $20	; hi-bit black
@@ -955,7 +957,17 @@ loadTextures: !zone
 	sta mapWidth	; and save it
 	jsr .get	; get map height
 	sta mapHeight	; and save it
-	lda #0
+	lda .get+1	; current pointer is the map name
+	sta mapName	; save it
+	lda .get+2
+	sta mapName+1
+	lda #$FF	; pre-decrement, since the zero is going to be counted
+	sta mapNameLen
+.skip:	jsr .get	; skip over the map name
+	inc mapNameLen
+	cmp #0
+	bne .skip	; until end-of-string is reached (zero byte)
+	lda #0		; now comes the list of textures.
 	sta txNum
 .lup:	jsr .get	; get texture resource number
 	tay		; to Y for mem manager
@@ -1267,17 +1279,34 @@ main: !zone
 	jsr makeLines
 	jsr graphInit
 	bit clrMixed
-	; Write some test text
-	ldx #24
-	ldy #2
+	; Display the name of the map in the upper left box.
+	lda mapNameLen	; prepare to calculate half the length
+	lsr
+	eor #$FF	; negate
+	clc
+	adc #8		; to center the string
+	sta tmp
+	lda #14		; calculate remainder after string
+	sec
+	sbc tmp
+	sbc mapNameLen
+	sta tmp+1
+	ldx #4		; start of window
+	ldy #1
 	jsr tabXY
-	jsr printSCSTR
-	!raw "Bonjour tout",0
-	ldx #24
-	ldy #3
-	jsr tabXY
-	jsr printSCSTR
-	!raw "le monde.",0
+.slup1	dec tmp		; spaces to put at start of name
+	bmi .done1	
+	lda #$20
+	jsr printCHAR
+	jmp .slup1
+.done1	ldy mapName	; now display the name itself
+	ldx mapName+1
+	jsr printCSTR
+.slup2	dec tmp+1	; spaces after the name
+	bmi .nextFrame	
+	lda #$20
+	jsr printCHAR
+	jmp .slup2
 	; Render the frame and flip it onto the screen
 .nextFrame:
 	jsr renderFrame

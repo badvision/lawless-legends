@@ -37,8 +37,8 @@
     <!-- Pack the game data -->
     <echo>Packing game and code resources.</echo>
     <java jar="${pack.dir}/PackPartitions.jar" fork="true" failonerror="true">
-      <arg value="game/world.xml"/>
-      <arg value="data/partitions/game.part.0.bin"/>
+      <arg value="data/world/world.xml"/>
+      <arg value="build/game.part.0.bin"/>
     </java>
 
     <!-- Construct a directory to put on the Apple -->
@@ -46,7 +46,7 @@
     <mkdir dir="${build.dir}/root"/>
     <copy todir="${build.dir}/root">
       <fileset dir="${src.dir}/core/build" includes="*.bin*"/>
-      <fileset dir="./data/partitions" includes="*.bin*"/>
+      <fileset dir="./build" includes="game.part*.bin"/>
     </copy>
     <mkdir dir="${build.dir}/root/"/>
 

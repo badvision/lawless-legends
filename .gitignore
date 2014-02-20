@@ -10,6 +10,8 @@
 
 # Don't check in data specific to any particular game
 /Platform/Apple/virtual/data/images/*.bin
+/Platform/Apple/virtual/data/fonts/*.bin
+/Platform/Apple/virtual/data/world/*.xml
 
 # Only check in sample.build.props; each person's build.props will be different.
 /Platform/Apple/virtual/src/include/build.props

@@ -49,3 +49,4 @@ setFONT		=	tabXY+3
 displayMODE	=	setFONT+3
 drawMODE	=	displayMODE+3
 scrollWINDOW	=	drawMODE+3
+clearWINDOW	=	scrollWINDOW+3

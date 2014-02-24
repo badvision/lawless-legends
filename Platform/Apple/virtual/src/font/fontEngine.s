@@ -27,6 +27,8 @@ printCHAR	jmp	drawCHAR	; pointer to 1/2 HGR printing
 		jmp	displayMODE	; sets the display mode
 		jmp	drawMODE	; sets inverse/normal writing mode
 scrollWIN	jmp	scrollWINDOW	; scrolls the 'text' window
+clearWIN	jmp	clearWINDOW	; clears the 'text' window
+;		jmp	printDECIMAL	; prints 16-bit word in decimal
 
 ;---------------------------
 
@@ -420,6 +422,11 @@ displayMODE	!zone			; Sets writing to 1 or 2 HGR page(s)
 		ldy	#<scrollWINDOW
 		sty	scrollWIN+1
 	
+		ldx	#>clearWINDOW
+		stx	clearWIN+2
+		ldy	#<clearWINDOW
+		sty	clearWIN+1
+	
 		ldx	#>drawCHAR
 		ldy	#<drawCHAR
 	
@@ -432,6 +439,11 @@ displayMODE	!zone			; Sets writing to 1 or 2 HGR page(s)
 		stx	scrollWIN+2
 		ldy	#<scroll2WINDOW
 		sty	scrollWIN+1
+	
+		ldx	#>clear2WINDOW
+		stx	clearWIN+2
+		ldy	#<clear2WINDOW
+		sty	clearWIN+1
 	
 		lda	#pHGR1
 		ldx	#>draw2CHAR
@@ -650,6 +662,77 @@ draw2CHAR2	lda	$bdbd		; pointer to font data
 		bne	.lp
 	
 		jsr	calcNEXT	; Prepare next position
+		rts
+
+; clearWINDOW
+;  Clears all pixels in the text window
+
+clearWINDOW	!zone			; Clears the text window
+
+		lda	WNDTOP
+		sta	CV
+		
+.line8		jsr	calcPOS		; calculate min/max of lines
+	
+.line1		jsr	calcPOS1	; calculate HGR coordinates
+
+		ldy	WNDLFT
+		lda	#0
+.lp		sta	(BASL),y
+		iny
+		cpy	WNDWDTH
+		bcc	.lp
+		beq	.lp
+		
+		inx			; loop until 8 lines
+		cpx	theY
+		bne	.line1
+		
+		inc	CV		; next set of 8 lines
+		lda	CV
+		cmp	WNDBTM
+		bcc	.line8
+
+		ldx	WNDLFT		; reset cursor pos to window origin
+		ldy	WNDTOP
+		jsr	tabXY
+	
+		rts
+
+; clearWINDOW
+;  Clears all pixels in the text window
+
+clear2WINDOW	!zone			; Clears the text window - both pages
+
+		lda	WNDTOP
+		sta	CV
+		
+.line8		jsr	calcPOS		; calculate min/max of lines
+	
+.line1		jsr	calcPOS1	; calculate HGR coordinates
+
+		ldy	WNDLFT
+		lda	#0
+.lp		sta	(BASL),y
+		sta	(GBASL),y
+		iny
+		cpy	WNDWDTH
+		bcc	.lp
+		beq	.lp
+		
+		inx			; loop until 8 lines
+		cpx	theY
+		bne	.line1
+		
+		inc	CV		; next set of 8 lines
+		lda	CV
+		cmp	WNDBTM
+		bcc	.line8
+
+		ldx	WNDLFT		; reset cursor pos to window origin
+		ldy	WNDTOP
+		jsr	tabXY
+	
 		rts
 
 ;---------------------------

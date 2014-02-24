@@ -224,6 +224,15 @@ FREE_MEMORY = $18
     ; reused. This also clears the lock bit!
 		
 ;------------------------------------------------------------------------------
+CALC_FREE = $19
+    ; Input: None
+    ;
+    ; Output: X-reg(lo) / Y-reg(hi) - bytes of memory currently free
+    ;
+    ; Calculate how much memory this loader has free. Call on main mem
+    ; loader for main mem free, or aux mem loader for aux mem free.
+		
+;------------------------------------------------------------------------------
 CHAIN_LOADER = $1E
     ; Input: X-reg / Y-reg - pointer to loader (X=lo, Y=hi) to add to chain
     ;

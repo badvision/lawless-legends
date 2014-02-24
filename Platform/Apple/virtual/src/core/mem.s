@@ -195,8 +195,11 @@ main_dispatch: !zone
 	bne +
 	jmp main_unlock
 +	cmp #FREE_MEMORY
-	bne shared_dispatch
+	bne +
 	jmp main_free
++	cmp #CALC_FREE
+	bne shared_dispatch
+	jmp main_calcFree
 shared_dispatch:
 	cmp #RESET_MEMORY
 	bne +
@@ -228,6 +231,9 @@ aux_dispatch: !zone
 +	cmp #FREE_MEMORY
 	bne +
 	jmp aux_free
++	cmp #CALC_FREE
+	bne +
+	jmp aux_calcFree
 +	jmp shared_dispatch
 
 ;------------------------------------------------------------------------------
@@ -708,6 +714,43 @@ shared_free:
 	and #$3F		; remove the 'active' and 'locked' flags
 	sta tSegType,x		; store flags back
 	rts			; all done
+
+;------------------------------------------------------------------------------
+main_calcFree: !zone
+; Input:  pTmp - address to scan for
+; Output: X-reg - segment found (zero if not found), N and Z set for X-reg
+;         carry clear if addr == seg start, set if addr != seg start
+	ldx #0
+	beq shared_calcFree
+aux_calcFree:
+	ldx #1
+shared_calcFree:
+	lda #0		; clear out free space counter
+	sta reqLen
+	sta reqLen+1
+.loop:	ldy tSegLink,x	; grab link to next segment
+	lda tSegType,x	; get type with flags
+	bmi .next	; if active, skip to next
+	lda tSegAdrLo,y	; found free space: calculate its length
+	sec
+	sbc tSegAdrLo,x
+	sta tmp
+	lda tSegAdrHi,y
+	sbc tSegAdrHi,x
+	sta tmp+1
+	lda tmp		; then add that length to the total so far
+	clc
+	adc reqLen
+	sta reqLen
+	lda tmp+1
+	adc reqLen+1
+	sta reqLen+1
+.next:	tya		; next in chain
+	tax		; to X reg index
+	bne .loop	; non-zero = not end of chain - loop again
+	ldx reqLen	; get calculated total into X
+	ldy reqLen+1	; and Y
+	rts		; all done
 
 ;------------------------------------------------------------------------------
 main_queueLoad: !zone

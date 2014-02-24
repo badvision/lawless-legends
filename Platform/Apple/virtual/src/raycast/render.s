@@ -35,7 +35,15 @@ mapName:	!word 0		; pointer to map name
 mapNameLen:	!byte 0		; length of map name
 
 ; Sky / ground colors
-skyGndTbl1:	!byte $20	; hi-bit black
+skyGndTbl1:	!byte $00	; lo-bit black
+		!byte $00	; lo-bit black
+		!byte $00	; lo-bit black
+		!byte $02	; violet
+		!byte $08	; green
+		!byte $0A	; lo-bit white
+		!byte $0A	; lo-bit white
+		!byte $0A	; lo-bit white
+		!byte $20	; hi-bit black
 		!byte $20	; hi-bit black
 		!byte $20	; hi-bit black
 		!byte $22	; blue
@@ -43,7 +51,15 @@ skyGndTbl1:	!byte $20	; hi-bit black
 		!byte $2A	; hi-bit white
 		!byte $2A	; hi-bit white
 		!byte $2A	; hi-bit white
-skyGndTbl2:	!byte $20	; hi-bit black
+skyGndTbl2:	!byte $00	; lo-bit black
+		!byte $02	; violet
+		!byte $08	; green
+		!byte $02	; violet
+		!byte $08	; green
+		!byte $02	; violet
+		!byte $08	; green
+		!byte $0A	; lo-bit white
+		!byte $20	; hi-bit black
 		!byte $22	; blue
 		!byte $28	; orange
 		!byte $22	; blue
@@ -940,7 +956,7 @@ setPlayerPos: !zone
 	lda #$80
 	sta playerY
 	; direction=0
-	lda #0
+	lda #4
 	sta playerDir
 	rts
 
@@ -1240,7 +1256,10 @@ readKbdColor: !zone
 	bcc .bad
 	cmp #8
 	bcs .bad
-	tay
+	bit opnApple
+	bpl +
+	ora #8
++	tay
 	ldx skyGndTbl1,y
 	lda skyGndTbl2,y
 	rts
@@ -1252,7 +1271,7 @@ readKbdColor: !zone
 nextMap: !zone
 	ldx mapNum
 	inx
-	cpx #4
+	cpx #6
 	bne +
 	ldx #1
 +	stx mapNum
@@ -1260,6 +1279,52 @@ nextMap: !zone
 	bit page1
 	jmp main	; re-init everything
 
+
+;-------------------------------------------------------------------------------
+; Set the window for the top (map name) bar
+set_window1: !zone
+	lda #1
+	sta wndtop
+	sta cursv
+	lda #2
+	sta wndbtm
+	lda #4
+	sta wndleft
+	sta cursh
+	lda #18
+	sta wndwdth
+	rts
+
+;-------------------------------------------------------------------------------
+; Set the window for the large upper right bar
+set_window2: !zone
+	lda #3
+	sta wndtop
+	sta cursv
+	lda #17
+	sta wndbtm
+	lda #23
+	sta wndleft
+	sta cursh
+	lda #37
+	sta wndwdth
+	rts
+	
+;-------------------------------------------------------------------------------
+; Set the window for the smaller lower right bar
+set_window3: !zone
+	lda #18
+	sta wndtop
+	sta cursv
+	lda #23
+	sta wndbtm
+	lda #23
+	sta wndleft
+	sta cursh
+	lda #37
+	sta wndwdth
+	rts
+	
 ;-------------------------------------------------------------------------------
 ; The real action
 main: !zone
@@ -1280,33 +1345,49 @@ main: !zone
 	jsr graphInit
 	bit clrMixed
 	; Display the name of the map in the upper left box.
-	lda mapNameLen	; prepare to calculate half the length
-	lsr
-	eor #$FF	; negate
-	clc
-	adc #8		; to center the string
-	sta tmp
-	lda #14		; calculate remainder after string
+	jsr set_window1
+	jsr clearWINDOW
+	lda wndwdth
 	sec
-	sbc tmp
+	sbc wndleft
 	sbc mapNameLen
-	sta tmp+1
-	ldx #4		; start of window
-	ldy #1
+	lsr
+	clc
+	adc wndleft
+	tax
+	ldy wndtop
 	jsr tabXY
-.slup1	dec tmp		; spaces to put at start of name
-	bmi .done1	
-	lda #$20
-	jsr printCHAR
-	jmp .slup1
-.done1	ldy mapName	; now display the name itself
+	ldy mapName	; now display the name itself
 	ldx mapName+1
 	jsr printCSTR
-.slup2	dec tmp+1	; spaces after the name
-	bmi .nextFrame	
-	lda #$20
-	jsr printCHAR
-	jmp .slup2
+	; play text in the big window on the top right
+	jsr set_window2
+	jsr clearWINDOW
+	jsr printSCSTR
+	!raw "Loud music",13
+	!raw "brings your at-"
+	!raw "tention to the",13
+	!raw "northwest where"
+	!raw "patrons and",13
+	!raw "'entertainers' "
+	!raw "are enjoying",13
+	!raw "themselves at",13
+	!raw "the town's",13
+	!raw "saloon. One",13
+	!raw "sends you a",13
+	!raw "wink. Perhaps",13
+	!raw "it's your lucky"
+	!raw "day?",0
+	; play characters in the little window on the bottom right
+	jsr set_window3
+	jsr clearWINDOW
+	jsr printSCSTR
+	!raw "Name      Am/Li"
+	!raw "--------  --/--"
+	!raw "Dead Eye  07/21"
+	!raw "Cliff H.  10/36"
+	!raw "Prospect  13/24"
+	!byte 0
 	; Render the frame and flip it onto the screen
 .nextFrame:
 	jsr renderFrame

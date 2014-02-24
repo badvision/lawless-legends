@@ -55,6 +55,8 @@ page1		= $C054
 page2		= $C055
 clrHires	= $C056
 setHires	= $C057
+opnApple	= $C061
+clsApple	= $C062
 
 ; ROM routines
 prntax	= $F941

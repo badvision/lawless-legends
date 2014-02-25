@@ -8,6 +8,7 @@ package org.demo
 
 import java.nio.ByteBuffer
 import java.nio.channels.Channels
+import net.jpountz.lz4.LZ4Factory
 
 /**
  *
@@ -32,6 +33,8 @@ class PackPartitions
     def textures = [:]  // img name to img.num, img.buf
     def frames   = [:]  // img name to img.num, img.buf
     def fonts    = [:]
+    
+    def compressor = LZ4Factory.fastestInstance().highCompressor()
     
     def parseMap(map, tiles)
     {
@@ -471,15 +474,6 @@ class PackPartitions
         maps3D[name] = [num:num, buf:buf]
     }
     
-    def writeBufToStream(stream, buf)
-    {
-        def endPos = buf.position()
-        def bytes = new byte[endPos]
-        buf.position(0)
-        buf.get(bytes)
-        stream.write(bytes)
-    }
-
     def readBinary(path)
     {
         def inBuf = new byte[256]
@@ -508,17 +502,119 @@ class PackPartitions
         fonts[name] = [num:num, buf:readBinary(path)]
     }
     
+    // Transform the LZ4 format to something we call "LZ5", where the small offsets are stored
+    // as one byte instead of two. In our data, that's about 1/3 of the offsets.
+    //
+    def recompress(data, inLen, expOutLen)
+    {
+        def outLen = 0
+        def sp = 0
+        def dp = 0
+        while (true) 
+        {
+            assert dp <= sp
+            
+            // First comes the token: 4 bits literal len, 4 bits match len
+            def token = data[dp++] = (data[sp++] & 0xFF)
+            def matchLen = token & 0xF
+            def literalLen = token >> 4
+            
+            // The literal length might get extended
+            if (literalLen == 15) {
+                while (true) {
+                    token = data[dp++] = (data[sp++] & 0xFF)
+                    literalLen += token
+                    if (token != 0xFF)
+                        break
+                }
+            }
+            
+            // Copy the literal bytes
+            outLen += literalLen
+            for ( ; literalLen > 0; --literalLen)
+                data[dp++] = data[sp++]
+            
+            // The last block has only literals, and no match
+            if (sp == inLen)
+                break
+            
+            // Grab the offset
+            token = data[sp++] & 0xFF
+            def offset = token | ((data[sp++] & 0xFF) << 8)
+            
+            // Re-encode the offset using 1 byte if possible
+            assert offset < 32768
+            if (offset < 128)
+                data[dp++] = offset
+            else {
+                data[dp++] = (offset & 0x7F) | 0x80
+                data[dp++] = (offset >> 7) & 0xFF
+            }
+            
+            // The match length might get extended
+            if (matchLen == 15) {
+                while (true) {
+                    token = data[dp++] = (data[sp++] & 0xFF)
+                    matchLen += token
+                    if (token != 0xFF)
+                        break
+                }
+            }
+            
+            matchLen += 4   // min match length is 4
+            
+            // We do nothing with the match bytes except count them
+            outLen += matchLen
+        }
+        
+        assert outLen == expOutLen
+        return dp
+    }
+    
+    def totalUncompSize = 0
+    def totalLZ4Size = 0
+    def totalLZ5Size = 0
+
+    def compress(buf)
+    {
+        def uncompressedLen = buf.position()
+        totalUncompSize += uncompressedLen
+        def uncompressedData = new byte[uncompressedLen]
+        buf.position(0)
+        buf.get(uncompressedData)
+        def maxCompressedLen = compressor.maxCompressedLength(uncompressedLen)
+        def compressedData = new byte[maxCompressedLen]
+        def compressedLen = compressor.compress(uncompressedData, 0, uncompressedLen, 
+                                                compressedData, 0, maxCompressedLen)
+        totalLZ4Size += compressedLen
+        
+        def recompressedLen = recompress(compressedData, compressedLen, uncompressedLen)
+        totalLZ5Size += recompressedLen
+        
+        if (recompressedLen < uncompressedLen) {
+            //println "  Compress. rawLen=$uncompressedLen compLen=$recompressedLen"
+            return [data:compressedData, len:recompressedLen, compressed:true]
+        }
+        else {
+            //println "  No compress. rawLen=$uncompressedLen compLen=$recompressedLen"
+            return [data:uncompressedData, len:uncompressedLen, compressed:false]
+        }
+    }
+    
     def writePartition(stream)
     {
         // Make a list of all the chunks that will be in the partition
         def chunks = []
-        code.values().each { chunks.add([type:TYPE_CODE, num:it.num, buf:it.buf]) }
-        fonts.values().each { chunks.add([type:TYPE_FONT, num:it.num, buf:it.buf]) }
-        frames.values().each { chunks.add([type:TYPE_FRAME_IMG, num:it.num, buf:it.buf]) }
-        maps2D.values().each { chunks.add([type:TYPE_2D_MAP, num:it.num, buf:it.buf]) }
-        tiles.values().each { chunks.add([type:TYPE_TILE_IMG, num:it.num, buf:it.buf]) }
-        maps3D.values().each { chunks.add([type:TYPE_3D_MAP, num:it.num, buf:it.buf]) }
-        textures.values().each { chunks.add([type:TYPE_TEXTURE_IMG, num:it.num, buf:it.buf]) }
+        code.values().each { chunks.add([type:TYPE_CODE, num:it.num, buf:compress(it.buf)]) }
+        fonts.values().each { chunks.add([type:TYPE_FONT, num:it.num, buf:compress(it.buf)]) }
+        frames.values().each { chunks.add([type:TYPE_FRAME_IMG, num:it.num, buf:compress(it.buf)]) }
+        maps2D.values().each { chunks.add([type:TYPE_2D_MAP, num:it.num, buf:compress(it.buf)]) }
+        tiles.values().each { chunks.add([type:TYPE_TILE_IMG, num:it.num, buf:compress(it.buf)]) }
+        maps3D.values().each { chunks.add([type:TYPE_3D_MAP, num:it.num, buf:compress(it.buf)]) }
+        textures.values().each { chunks.add([type:TYPE_TEXTURE_IMG, num:it.num, buf:compress(it.buf)]) }
+        
+        println "LZ4 compression: $totalUncompSize -> $totalLZ4Size"
+        println "LZ5 compression: $totalUncompSize -> $totalLZ5Size"
         
         // Generate the header chunk. Leave the first 2 bytes for the # of pages in the hdr
         def hdrBuf = ByteBuffer.allocate(50000)
@@ -527,10 +623,10 @@ class PackPartitions
         
         // Write the four bytes for each resource
         chunks.each { chunk ->
-            hdrBuf.put((byte)chunk.type)
+            hdrBuf.put((byte)chunk.type | (chunk.buf.compressed ? 0x10 : 0))
             assert chunk.num >= 1 && chunk.num <= 255
             hdrBuf.put((byte)chunk.num)
-            def len = chunk.buf.position()
+            def len = chunk.buf.len
             //println "  chunk: type=${chunk.type}, num=${chunk.num}, len=$len"
             hdrBuf.put((byte)(len & 0xFF))
             hdrBuf.put((byte)(len >> 8))
@@ -547,10 +643,15 @@ class PackPartitions
         hdrBuf.put((byte)(hdrEnd & 0xFF))
         hdrBuf.put((byte)(hdrEnd >> 8))
         hdrBuf.position(hdrEnd)
+        def hdrData = new byte[hdrEnd]
+        hdrBuf.position(0)
+        hdrBuf.get(hdrData)
         
         // Finally, write out each chunk's data, including the header.
-        writeBufToStream(stream, hdrBuf)
-        chunks.each { writeBufToStream(stream, it.buf) }
+        stream.write(hdrData)
+        chunks.each { 
+            stream.write(it.buf.data, 0, it.buf.len)
+        }
     }
     
     def pack(xmlPath, binPath)

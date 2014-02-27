@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <xs:schema version="1.0"
            xmlns:xs="http://www.w3.org/2001/XMLSchema"
-           elementFormDefault="qualified" targetNamespace="outlaw" xmlns:tns="outlaw">
+           elementFormDefault="qualified" targetNamespace="outlaw" xmlns:tns="outlaw" attributeFormDefault="unqualified">
     <xs:complexType name="image">
         <xs:sequence>
             <xs:element name="category" type="xs:string" maxOccurs="unbounded" minOccurs="0"/>
@@ -30,7 +30,7 @@
         <xs:sequence>
             <xs:element name="name" type="xs:string"/>
             <xs:element name="description" type="xs:string" minOccurs="0"/>
-            <xs:element ref="tns:block"/>
+            <xs:element name="block" type="tns:block"/>
         </xs:sequence>
     </xs:complexType>
     <xs:complexType name="locationScript">
@@ -82,6 +82,55 @@
         <xs:attribute name="startX" type="xs:int" default="0"/>
         <xs:attribute name="startY" type="xs:int" default="0"/>
     </xs:complexType>
+    <xs:complexType name="block">
+        <xs:sequence>
+            <xs:element minOccurs="0" name="next" type="tns:next"/>
+            <xs:choice minOccurs="0" maxOccurs="unbounded">
+                <xs:element name="field" type="tns:field"/>
+                <xs:element name="mutation" type="tns:mutation"/>
+                <xs:element name="statement" type="tns:statement"/>
+                <xs:element name="value" type="tns:value"/>
+            </xs:choice>
+        </xs:sequence>
+        <xs:attribute name="inline" type="xs:boolean"/>
+        <xs:attribute name="type" use="required" type="xs:NCName"/>
+        <xs:attribute name="x" type="xs:integer"/>
+        <xs:attribute name="y" type="xs:integer"/>
+    </xs:complexType>
+    <xs:complexType name="next">
+        <xs:sequence>
+            <xs:element name="block" type="tns:block"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="field">
+        <xs:simpleContent>
+            <xs:extension base="xs:NMTOKEN">
+                <xs:attribute name="name" use="required" type="xs:NCName"/>
+            </xs:extension>
+        </xs:simpleContent>
+    </xs:complexType>
+    <xs:complexType name="mutation">
+        <xs:sequence>
+            <xs:element minOccurs="0" maxOccurs="unbounded" name="arg" type="tns:arg"/>
+        </xs:sequence>
+        <xs:attribute name="name" type="xs:NCName"/>
+        <xs:anyAttribute/>
+    </xs:complexType>
+    <xs:complexType name="arg">
+        <xs:attribute name="name" use="required" type="xs:NCName"/>
+    </xs:complexType>
+    <xs:complexType name="statement">
+        <xs:sequence>
+            <xs:element minOccurs="0" maxOccurs="unbounded" name="block" type="tns:block"/>
+        </xs:sequence>
+        <xs:attribute name="name" use="required" type="xs:NCName"/>
+    </xs:complexType>
+    <xs:complexType name="value">
+        <xs:sequence>
+            <xs:element minOccurs="0" maxOccurs="unbounded" name="block" type="tns:block"/>
+        </xs:sequence>
+        <xs:attribute name="name" use="required" type="xs:NCName"/>
+    </xs:complexType>
     <xs:element name="gameData">
         <xs:complexType>
             <xs:sequence>
@@ -90,69 +139,5 @@
                 <xs:element name="map" minOccurs="0" maxOccurs="unbounded" type="tns:map"/>
             </xs:sequence>
         </xs:complexType>
-    </xs:element>        
-
-    <xs:element name="block">
-        <xs:complexType>
-            <xs:sequence>
-                <xs:element minOccurs="0" ref="tns:next"/>
-                <xs:choice minOccurs="0" maxOccurs="unbounded">
-                    <xs:element ref="tns:field"/>
-                    <xs:element ref="tns:mutation"/>
-                    <xs:element ref="tns:statement"/>
-                    <xs:element ref="tns:value"/>
-                </xs:choice>
-            </xs:sequence>
-            <xs:attribute name="inline" type="xs:boolean"/>
-            <xs:attribute name="type" use="required" type="xs:NCName"/>
-            <xs:attribute name="x" type="xs:integer"/>
-            <xs:attribute name="y" type="xs:integer"/>
-        </xs:complexType>
-    </xs:element>
-    <xs:element name="next">
-        <xs:complexType>
-            <xs:sequence>
-                <xs:element ref="tns:block"/>
-            </xs:sequence>
-        </xs:complexType>
-    </xs:element>
-    <xs:element name="field">
-        <xs:complexType>
-            <xs:simpleContent>
-                <xs:extension base="xs:NMTOKEN">
-                    <xs:attribute name="name" use="required" type="xs:NCName"/>
-                </xs:extension>
-            </xs:simpleContent>
-        </xs:complexType>
-    </xs:element>
-    <xs:element name="mutation">
-        <xs:complexType>
-            <xs:sequence>
-                <xs:element minOccurs="0" maxOccurs="unbounded" ref="tns:arg"/>
-            </xs:sequence>
-            <xs:attribute name="name" type="xs:NCName"/>
-            <xs:anyAttribute/>
-        </xs:complexType>
-    </xs:element>
-    <xs:element name="arg">
-        <xs:complexType>
-            <xs:attribute name="name" use="required" type="xs:NCName"/>
-        </xs:complexType>
-    </xs:element>
-    <xs:element name="statement">
-        <xs:complexType>
-            <xs:sequence>
-                <xs:element minOccurs="0" maxOccurs="unbounded" ref="tns:block"/>
-            </xs:sequence>
-            <xs:attribute name="name" use="required" type="xs:NCName"/>
-        </xs:complexType>
-    </xs:element>
-    <xs:element name="value">
-        <xs:complexType>
-            <xs:sequence>
-                <xs:element minOccurs="0" maxOccurs="unbounded" ref="tns:block"/>
-            </xs:sequence>
-            <xs:attribute name="name" use="required" type="xs:NCName"/>
-        </xs:complexType>
-    </xs:element>
+    </xs:element>    
 </xs:schema>

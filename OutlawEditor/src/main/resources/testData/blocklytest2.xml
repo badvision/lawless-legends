@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<gameData xmlns="outlaw">
+    <map>
+        <scripts>
+            <enter>
+                <name>name</name>
+                <description>description</description>
+                <block type="procedures_defreturn" inline="false" x="213" y="27">
+                    <mutation>
+                        <arg name="x"></arg>
+                        <arg name="y"></arg>
+                    </mutation>
+                    <field name="NAME">Procedure</field>
+                    <statement name="STACK">
+                        <block type="variables_set" inline="true">
+                            <field name="VAR">var1</field>
+                            <value name="VALUE">
+                                <block type="math_number">
+                                    <field name="NUM">0</field>
+                                </block>
+                            </value>
+                            <next>
+                                <block type="controls_if" inline="false">
+                                    <mutation elseif="1" else="1"></mutation>
+                                    <value name="IF0">
+                                        <block type="logic_compare" inline="true">
+                                            <field name="OP">EQ</field>
+                                            <value name="A">
+                                                <block type="variables_get">
+                                                    <field name="VAR">var1</field>
+                                                </block>
+                                            </value>
+                                            <value name="B">
+                                                <block type="math_number">
+                                                    <field name="NUM">0</field>
+                                                </block>
+                                            </value>
+                                        </block>
+                                    </value>
+                                    <statement name="DO0">
+                                        <block type="controls_whileUntil" inline="false">
+                                            <field name="MODE">WHILE</field>
+                                            <statement name="DO">
+                                                <block type="text_append" inline="false">
+                                                    <field name="VAR">var1</field>
+                                                    <value name="TEXT">
+                                                        <block type="text">
+                                                            <field name="TEXT">blah</field>
+                                                        </block>
+                                                    </value>
+                                                </block>
+                                            </statement>
+                                        </block>
+                                    </statement>
+                                    <value name="IF1">
+                                        <block type="logic_operation" inline="true">
+                                            <field name="OP">OR</field>
+                                            <value name="A">
+                                                <block type="logic_boolean">
+                                                    <field name="BOOL">TRUE</field>
+                                                </block>
+                                            </value>
+                                            <value name="B">
+                                                <block type="logic_negate" inline="false">
+                                                    <value name="BOOL">
+                                                        <block type="logic_boolean">
+                                                            <field name="BOOL">FALSE</field>
+                                                        </block>
+                                                    </value>
+                                                </block>
+                                            </value>
+                                        </block>
+                                    </value>
+                                    <statement name="DO1">
+                                        <block type="math_change" inline="true">
+                                            <field name="VAR">x</field>
+                                            <value name="DELTA">
+                                                <block type="math_number">
+                                                    <field name="NUM">1</field>
+                                                </block>
+                                            </value>
+                                        </block>
+                                    </statement>
+                                    <statement name="ELSE">
+                                        <block type="variables_set" inline="true">
+                                            <field name="VAR">x</field>
+                                            <value name="VALUE">
+                                                <block type="procedures_callreturn" inline="false">
+                                                    <mutation name="Procedure">
+                                                        <arg name="x"></arg>
+                                                        <arg name="y"></arg>
+                                                    </mutation>
+                                                    <value name="ARG0">
+                                                        <block type="variables_get">
+                                                            <field name="VAR">x</field>
+                                                        </block>
+                                                    </value>
+                                                    <value name="ARG1">
+                                                        <block type="variables_get">
+                                                            <field name="VAR">y</field>
+                                                        </block>
+                                                    </value>
+                                                </block>
+                                            </value>
+                                        </block>
+                                    </statement>
+                                </block>
+                            </next>
+                        </block>
+                    </statement>
+                    <value name="RETURN">
+                        <block type="logic_null"></block>
+                    </value>
+                </block>
+            </enter>
+        </scripts>
+    </map>
+</gameData>

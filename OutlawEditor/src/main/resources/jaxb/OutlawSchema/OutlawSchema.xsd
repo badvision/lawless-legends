@@ -1,9 +1,4 @@
 <?xml version="1.0"?>
-<!--
-To change this template, choose Tools | Templates
-and open the template in the editor.
--->
-
 <xs:schema version="1.0"
            xmlns:xs="http://www.w3.org/2001/XMLSchema"
            elementFormDefault="qualified" targetNamespace="outlaw" xmlns:tns="outlaw">
@@ -35,7 +30,7 @@ and open the template in the editor.
         <xs:sequence>
             <xs:element name="name" type="xs:string"/>
             <xs:element name="description" type="xs:string" minOccurs="0"/>
-            <xs:element name="script" type="xs:string"/>
+            <xs:element ref="tns:block"/>
         </xs:sequence>
     </xs:complexType>
     <xs:complexType name="locationScript">
@@ -96,4 +91,68 @@ and open the template in the editor.
             </xs:sequence>
         </xs:complexType>
     </xs:element>        
+
+    <xs:element name="block">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element minOccurs="0" ref="tns:next"/>
+                <xs:choice minOccurs="0" maxOccurs="unbounded">
+                    <xs:element ref="tns:field"/>
+                    <xs:element ref="tns:mutation"/>
+                    <xs:element ref="tns:statement"/>
+                    <xs:element ref="tns:value"/>
+                </xs:choice>
+            </xs:sequence>
+            <xs:attribute name="inline" type="xs:boolean"/>
+            <xs:attribute name="type" use="required" type="xs:NCName"/>
+            <xs:attribute name="x" type="xs:integer"/>
+            <xs:attribute name="y" type="xs:integer"/>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="next">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element ref="tns:block"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="field">
+        <xs:complexType>
+            <xs:simpleContent>
+                <xs:extension base="xs:NMTOKEN">
+                    <xs:attribute name="name" use="required" type="xs:NCName"/>
+                </xs:extension>
+            </xs:simpleContent>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="mutation">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element minOccurs="0" maxOccurs="unbounded" ref="tns:arg"/>
+            </xs:sequence>
+            <xs:attribute name="name" type="xs:NCName"/>
+            <xs:anyAttribute/>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="arg">
+        <xs:complexType>
+            <xs:attribute name="name" use="required" type="xs:NCName"/>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="statement">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element minOccurs="0" maxOccurs="unbounded" ref="tns:block"/>
+            </xs:sequence>
+            <xs:attribute name="name" use="required" type="xs:NCName"/>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="value">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element minOccurs="0" maxOccurs="unbounded" ref="tns:block"/>
+            </xs:sequence>
+            <xs:attribute name="name" use="required" type="xs:NCName"/>
+        </xs:complexType>
+    </xs:element>
 </xs:schema>

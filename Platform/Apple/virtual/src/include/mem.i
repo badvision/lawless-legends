@@ -65,10 +65,14 @@
 ;   File Header:
 ;     bytes 0-1: Total # of bytes in header (lo, hi)
 ;     bytes 2-n: Table of repeated resource entries
-;   Resource entry:
-;     byte  0:   resource type (1-15), 0 for end of table
-;     byte  1:   resource number (1-255)
-;     bytes 2-3: number of bytes in resource (lo, hi)
+;   Followed by one entry per resource. Each entry:
+;     byte  0:    low nibble: resource type (1-15), 0 for end of table
+;	          high nibble: reserved (should be zero)
+;     byte  1:    resource number (1-255)
+;     bytes 2-3:  number of on-disk bytes in resource (lo, hi)
+;		  if resource is compressed, this is the compressed size, and the hi bit
+;		  will be set. If so, bytes 4 and 5 will appear; if not, they'll be absent.
+;    (bytes 4-5): (only present if compressed) decompressed size (lo, hi) 
 ;   The remainder of the file is the data for the resources, in order of their
 ;   table appearance.
 ;

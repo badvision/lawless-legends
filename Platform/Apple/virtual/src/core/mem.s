@@ -26,6 +26,7 @@ isAuxCmd	= $A	; len 1
 unused0B	= $B	; len 1
 pSrc		= $C	; len 2
 pDst		= $E	; len 2
+ucLen		= $10	; len 2
 
 ; Memory buffers
 fileBuf		= $4000	; len $400
@@ -911,11 +912,11 @@ sequenceError: !zone
 
 ;------------------------------------------------------------------------------
 startHeaderScan: !zone
-	lda #2	; start scanning the partition header just after len
+	lda #0
 	sta pTmp
 	lda #>headerBuf
 	sta pTmp+1
-	ldy #0
+	ldy #2			; start scanning the partition header just after len
 	rts
 
 ;------------------------------------------------------------------------------
@@ -929,7 +930,7 @@ disk_queueLoad: !zone
 .scan:	lda (pTmp),y		; get resource type
 	beq .notFound		; if zero, this is end of table: failed to find the resource
 	iny
-	and #$F			; mask off any flags we added
+	and #$F			; mask off any flags
 	cmp resType		; is it the type we're looking for?
 	bne .bump3		; no, skip this resource
 	lda (pTmp),y		; get resource num
@@ -960,12 +961,16 @@ disk_queueLoad: !zone
 	sta tSegRes,x
 	ldx tmp			; get back lo part of addr
 	rts			; success! all done.
-.bump3:	iny			; skip the remaining 3 bytes of the 4-byte record
+.bump3:	iny			; skip resource number
 	iny
+	lda (pTmp),y		; get hi byte of length.
+	bpl +			; if hi bit clear, it's not compressed
+	iny			; skip uncompressed size too
 	iny
-	bne .scan		; happily, 4-byte records always end at page boundary
-	inc pTmp+1		; page boundary hit - go to next page of header
-	bne .scan		; always taken
++	iny			; advance to next entry
+	bpl .scan		; if Y is small, loop again
+	jsr adjYpTmp		; keep it small
+	jmp .scan		; go for more
 .notFound:
 	ldx #<+
 	ldy #>+
@@ -993,27 +998,30 @@ disk_finishLoad: !zone
 	bmi .load		; hi bit set -> queued for load
 	iny			; not set, not queued, so skip over it
 	iny
-	bne .next		; always taken
-.load:	tax			; save flag ($40) to decide where to read
+	bne .next
+.load:	tax			; save aux flag ($40) to decide where to read
+	and #$3F		; mask off the aux flag and load flag
+	sta (pTmp),y		; to restore the header to its pristine state
+	iny
 	and #$F			; mask to get just the resource type
 	sta resType		; save type for later
-	sta (pTmp),y		; also restore the header to its pristine state
-	iny
 	lda (pTmp),y		; get resource num
 	iny
 	sta resNum		; save resource number
+	lda #0			; start by assuming main mem
+	sta isAuxCmd
 	txa			; get the flags back
-	ldx #0			; index for main mem
 	and #$40		; check for aux flag
 	beq +			; not aux, skip
-	inx			; index for aux mem
-+	stx isAuxCmd		; save main/aux selector
-	sty .ysave		; Save Y so we can resume scanning later.
+	inc isAuxCmd		; set aux flag
++	sty .ysave		; Save Y so we can resume scanning later.
 	!if DEBUG { jsr .debug1 }
-	lda (pTmp),y		; grab resource length
+	lda (pTmp),y		; grab resource length on disk
 	sta readLen		; save for reading
 	iny
 	lda (pTmp),y		; hi byte too
+	pha			; save the hi-bit flag
+	and #$7F		; mask off the flag to get the real (on-disk) length
 	sta readLen+1
 	jsr scanForResource	; find the segment number allocated to this resource
 	beq .addrErr		; it better have been allocated
@@ -1040,14 +1048,17 @@ disk_finishLoad: !zone
 	sta .setMarkPos
 	iny
 	lda (pTmp),y		; hi byte of length
-	adc .setMarkPos+1
+	bpl +			; if hi bit is clear, resource is uncompressed
+	iny			; skip compressed size
+	iny
++	adc .setMarkPos+1
 	sta .setMarkPos+1
 	bcc +
 	inc .setMarkPos+2	; account for partitions > 64K
 +	iny			; increment to next entry
-	bne .scan		; exactly 64 4-byte entries per 256 bytes
-	inc pTmp+1
-	bne .scan		; always taken
+	bpl .scan		; if Y index is still small, loop again
+	jsr adjYpTmp		; adjust pTmp and Y to make it small again
+	jmp .scan		; back for more
 .keepOpenChk:	lda #11		; self-modified to 0 or 1 at start of routine
 	bne .keepOpen
 	!if DEBUG { +prStr : !text "Closing partition file.",0 }
@@ -1084,6 +1095,18 @@ disk_finishLoad: !zone
 	+prWord readAddr : +crout
 	rts
 } ; end DEBUG
+
+;------------------------------------------------------------------------------
+adjYpTmp: !zone
+	tya
+	and #$7F		; adjust Y index to keep it small
+	tay
+	lda pTmp		; and bump pointer...
+	eor #$80		; ...by 128 bytes
+	sta pTmp
+	bmi +			; if still the same page, we're done
+	inc pTmp+1		; go to next page
++	rts
 
 ;------------------------------------------------------------------------------
 closeFile: !zone
@@ -1132,10 +1155,7 @@ readToAux: !zone
 	ldx #0
 +	stx readLen
 	sta readLen+1		; save number of pages
-	jsr mli			; now read
-	!byte MLI_READ
-	!word readParams
-	bcs .err
+	jsr readToMain		; now read
 	lda #>auxBuf		; set up copy pointers
 	sta .ld+2
 	lda readLen		; set up:
@@ -1172,7 +1192,6 @@ readToAux: !zone
 .or:	ora #11			; self-modified above
 	bne .nextGroup		; anything left to read, do more
 	rts			; all done
-.err:	jmp prodosError
 
 ;------------------------------------------------------------------------------
 lz4Decompress: !zone
@@ -1210,9 +1229,9 @@ lz4Decompress: !zone
 	ldx pDst		; calculate the end of the dest buffer
 	txa			; also put low byte of ptr in X (where we'll use it constantly)
 	clc
-	adc reqLen		; add in the uncompressed length
+	adc ucLen		; add in the uncompressed length
 	sta .endChk1+1		; that's what we'll need to check to see if we're done
-	lda reqLen+1		; grab, but don't add, hi byte of dest length
+	lda ucLen+1		; grab, but don't add, hi byte of dest length
 	adc #0			; no, we don't add pDst+1 - see endChk2
 	sta .endChk2+1		; this is essentially a count of dest page bumps
 	lda pDst+1		; grab the hi byte of dest pointer
@@ -1221,7 +1240,7 @@ lz4Decompress: !zone
 	ldy pSrc		; Y will always track the hi byte of the source ptr
 	lda #0			; so zero out the low byte of the ptr itself
 	sta pSrc
-	sta reqLen+1		; reqLen+1 always needs to be zero
+	sta ucLen+1		; ucLen+1 always needs to be zero
 	; Grab the next token in the compressed data
 .getToken:
 	+LOAD_YSRC		; load next source byte
@@ -1230,11 +1249,11 @@ lz4Decompress: !zone
 	lsr
 	lsr			; ...into the lo 4 bits
 	lsr
-	beq .endChk1		; if reqLen=0, there is no literal data.
-	cmp #$F			; reqLen=15 is a special marker
+	beq .endChk1		; if ucLen=0, there is no literal data.
+	cmp #$F			; ucLen=15 is a special marker
 	bcc +			; not special, go copy the literals
 	jsr .longLen		; special marker: extend the length
-+	sta reqLen		; record resulting length (lo byte)
++	sta ucLen		; record resulting length (lo byte)
 .auxWr1	sta setAuxWr		; this gets self-modified depending on if target is in main or aux mem
 .litCopy:			; loop to copy the literals
 	+LOAD_YSRC		; grab a literal source byte
@@ -1243,9 +1262,9 @@ lz4Decompress: !zone
 	inx			; inc low byte of ptr
 	bne +			; non-zero, done
 	jsr .nextDstPage	; zero, need to go to next page
-+	dec reqLen		; count bytes
++	dec ucLen		; count bytes
 	bne .litCopy		; if non-zero, loop again
-	dec reqLen+1		; low-byte of count is zero. Decrement hi-byte
+	dec ucLen+1		; low-byte of count is zero. Decrement hi-byte
 	bpl .litCopy        	; If non-negative, loop again. NOTE: This would fail if we had blocks >= 32K
 	sta clrAuxWr		; back to writing main mem
 	  
@@ -1309,26 +1328,26 @@ lz4Decompress: !zone
 .auxRd2	sta setAuxRd		; and back to aux mem (if isAuxCmd)
 +	dey			; count bytes -- first page yet?
 	bne .srcLoad		; loop for more
-	dec reqLen+1		; count pages
+	dec ucLen+1		; count pages
 	bpl .srcLoad		; loop for more. NOTE: this would fail if we had blocks >= 32K
 +	rts			; done copying bytes
 }
 .matchShadow_end = *
 	; Subroutine called when length token = $F, to extend the length by additional bytes
 .longLen:
-	sta reqLen		; save what we got so far
+	sta ucLen		; save what we got so far
 -	+LOAD_YSRC		; get another byte
 	cmp #$FF		; special value of $FF? 
 	bcc +			; no, we're done
 	clc
-	adc reqLen		; add $FF to reqLen
-	sta reqLen
+	adc ucLen		; add $FF to ucLen
+	sta ucLen
 	bcc -			; no carry, only lo byte has changed
-	inc reqLen+1		; increment hi byte of reqLen
+	inc ucLen+1		; increment hi byte of ucLen
 	bcs -			; always taken
-+	adc reqLen		; carry already clear (we got here from cmp/bcc)
++	adc ucLen		; carry already clear (we got here from cmp/bcc)
 	bcc +
-	inc reqLen+1
+	inc ucLen+1
 +	rts
 
 nextSrcPage:

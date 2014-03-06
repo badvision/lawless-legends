@@ -36,6 +36,8 @@ class PackPartitions
     
     def compressor = LZ4Factory.fastestInstance().highCompressor()
     
+    def ADD_COMP_CHECKSUMS = true
+    
     def parseMap(map, tiles)
     {
         // Parse each row of the map
@@ -567,33 +569,41 @@ class PackPartitions
             outLen += matchLen
         }
         
+        // If checksums are enabled, add an exclusive-or checksum to the end.
+        if (ADD_COMP_CHECKSUMS) {
+            def cksum = 0
+            (0..<dp).each { cksum ^= data[it] }
+            data[dp++] = (byte) cksum
+        }
+        
         assert outLen == expOutLen
         return dp
     }
     
-    def totalUncompSize = 0
-    def totalLZ4Size = 0
-    def totalLZ4MSize = 0
-
+    def compressionSavings = 0
+    
     def compress(buf)
     {
+        // First, grab the uncompressed data into a byte array
         def uncompressedLen = buf.position()
-        totalUncompSize += uncompressedLen
         def uncompressedData = new byte[uncompressedLen]
         buf.position(0)
         buf.get(uncompressedData)
+        
+        // Now compress it with LZ4
+        assert uncompressedLen < 327678 : "data block too big"
         def maxCompressedLen = compressor.maxCompressedLength(uncompressedLen)
         def compressedData = new byte[maxCompressedLen]
         def compressedLen = compressor.compress(uncompressedData, 0, uncompressedLen, 
                                                 compressedData, 0, maxCompressedLen)
-        totalLZ4Size += compressedLen
-        
+                                            
+        // Then recompress to LZ4M (pretty much always smaller)
         def recompressedLen = recompress(compressedData, compressedLen, uncompressedLen)
-        totalLZ4MSize += recompressedLen
         
-        // If we saved at least 50 bytes, take the compressed version.
-        if ((uncompressedLen - recompressedLen) >= 50) {
+        // If we saved at least 20 bytes, take the compressed version.
+        if ((uncompressedLen - recompressedLen) >= 20) {
             //println "  Compress. rawLen=$uncompressedLen compLen=$recompressedLen"
+            compressionSavings += (uncompressedLen - recompressedLen) - 2 - (ADD_COMP_CHECKSUMS ? 1 : 0)
             return [data:compressedData, len:recompressedLen, 
                     compressed:true, uncompressedLen:uncompressedLen]
         }
@@ -622,13 +632,13 @@ class PackPartitions
         
         // Write the four bytes for each resource (6 for compressed resources)
         chunks.each { chunk ->
-            hdrBuf.put((byte)chunk.type | (chunk.buf.compressed ? 0x10 : 0))
+            hdrBuf.put((byte)chunk.type)
             assert chunk.num >= 1 && chunk.num <= 255
             hdrBuf.put((byte)chunk.num)
             def len = chunk.buf.len
             //println "  chunk: type=${chunk.type}, num=${chunk.num}, len=$len"
             hdrBuf.put((byte)(len & 0xFF))
-            hdrBuf.put((byte)(len >> 8))
+            hdrBuf.put((byte)(len >> 8) | (chunk.buf.compressed ? 0x80 : 0))
             if (chunk.buf.compressed) {
                 def clen = chunk.buf.uncompressedLen;
                 hdrBuf.put((byte)(clen & 0xFF))
@@ -707,15 +717,39 @@ class PackPartitions
         println "Writing output file."
         new File(binPath).withOutputStream { stream -> writePartition(stream) }
         
+        println "Compression saved $compressionSavings bytes."
+        if (compressionSavings > 0) {
+            def endSize = new File(binPath).length()
+            def origSize = endSize + compressionSavings
+            def savPct = String.format("%.1f", compressionSavings * 100.0 / origSize)
+            println "Size $origSize -> $endSize ($savPct% savings)"
+        }
+        
         println "Done."
     }
     
     static void main(String[] args) 
     {
+        // Verify that assertions are enabled
+        def flag = false
+        try {
+            assert false
+        }
+        catch (AssertionError e) {
+            flag = true
+        }
+        if (!flag) {
+            println "Error: assertions must be enabled. Run with 'ea-'"
+            System.exit(1);            
+        }
+        
+        // Check the arguments
         if (args.size() != 2) {
             println "Usage: convert yourOutlawFile.xml DISK.PART.0.bin"
             System.exit(1);
         }
+        
+        // Go for it.
         new PackPartitions().pack(args[0], args[1])
     }
 }

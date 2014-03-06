@@ -502,7 +502,7 @@ class PackPartitions
         fonts[name] = [num:num, buf:readBinary(path)]
     }
     
-    // Transform the LZ4 format to something we call "LZ5", where the small offsets are stored
+    // Transform the LZ4 format to something we call "LZ4M", where the small offsets are stored
     // as one byte instead of two. In our data, that's about 1/3 of the offsets.
     //
     def recompress(data, inLen, expOutLen)
@@ -573,7 +573,7 @@ class PackPartitions
     
     def totalUncompSize = 0
     def totalLZ4Size = 0
-    def totalLZ5Size = 0
+    def totalLZ4MSize = 0
 
     def compress(buf)
     {
@@ -589,11 +589,13 @@ class PackPartitions
         totalLZ4Size += compressedLen
         
         def recompressedLen = recompress(compressedData, compressedLen, uncompressedLen)
-        totalLZ5Size += recompressedLen
+        totalLZ4MSize += recompressedLen
         
-        if (recompressedLen < uncompressedLen) {
+        // If we saved at least 50 bytes, take the compressed version.
+        if ((uncompressedLen - recompressedLen) >= 50) {
             //println "  Compress. rawLen=$uncompressedLen compLen=$recompressedLen"
-            return [data:compressedData, len:recompressedLen, compressed:true]
+            return [data:compressedData, len:recompressedLen, 
+                    compressed:true, uncompressedLen:uncompressedLen]
         }
         else {
             //println "  No compress. rawLen=$uncompressedLen compLen=$recompressedLen"
@@ -613,15 +615,12 @@ class PackPartitions
         maps3D.values().each { chunks.add([type:TYPE_3D_MAP, num:it.num, buf:compress(it.buf)]) }
         textures.values().each { chunks.add([type:TYPE_TEXTURE_IMG, num:it.num, buf:compress(it.buf)]) }
         
-        println "LZ4 compression: $totalUncompSize -> $totalLZ4Size"
-        println "LZ5 compression: $totalUncompSize -> $totalLZ5Size"
-        
         // Generate the header chunk. Leave the first 2 bytes for the # of pages in the hdr
         def hdrBuf = ByteBuffer.allocate(50000)
         hdrBuf.put((byte)0)
         hdrBuf.put((byte)0)
         
-        // Write the four bytes for each resource
+        // Write the four bytes for each resource (6 for compressed resources)
         chunks.each { chunk ->
             hdrBuf.put((byte)chunk.type | (chunk.buf.compressed ? 0x10 : 0))
             assert chunk.num >= 1 && chunk.num <= 255
@@ -630,6 +629,11 @@ class PackPartitions
             //println "  chunk: type=${chunk.type}, num=${chunk.num}, len=$len"
             hdrBuf.put((byte)(len & 0xFF))
             hdrBuf.put((byte)(len >> 8))
+            if (chunk.buf.compressed) {
+                def clen = chunk.buf.uncompressedLen;
+                hdrBuf.put((byte)(clen & 0xFF))
+                hdrBuf.put((byte)(clen >> 8))
+            }
         }
         
         // Terminate the header with a zero type

@@ -23,6 +23,9 @@ reqLen		= $6	; len 2
 resType		= $8	; len 1
 resNum		= $9	; len 1
 isAuxCmd	= $A	; len 1
+unused0B	= $B	; len 1
+pSrc		= $C	; len 2
+pDst		= $E	; len 2
 
 ; Memory buffers
 fileBuf		= $4000	; len $400
@@ -1171,6 +1174,191 @@ readToAux: !zone
 	rts			; all done
 .err:	jmp prodosError
 
+;------------------------------------------------------------------------------
+lz4Decompress: !zone
+; Input: pSrc - pointer to source data
+;        pDst - pointer to destination buffer
+;        reqLen  - length of *destination* data (16-bit)
+; All inputs are destroyed by the process.
+
+!macro LOAD_YSRC {
+	lda (pSrc),y		; load byte
+	iny			; inc low byte of ptr
+	bne +			; non-zero, done
+	jsr nextSrcPage		; zero, need to go to next page
++
+}
+
+  ; Copy the match shadow down to the stack area so it can copy from aux to aux
+	ldx #.matchShadow_end - .matchShadow_beg - 1
+-	lda .matchShadow_beg,x	; get the copy from main RAM
+	sta .matchCopy,x	; and put it down in stack space where it can access both main and aux
+	dex			; next byte
+	bpl -			; loop until we grab them all (including byte 0)
+
+	ldx #<clrAuxWr		; start by assuming write to main mem
+	ldy #<clrAuxRd		; and read from main mem
+	lda isAuxCmd		; if we're decompressing to aux...
+	beq +			; no? keep those values
+	ldx #<setAuxWr		; yes, write to aux mem
+	ldy #<setAuxRd		; and read from aux mem
++ 	stx .auxWr1+1		; set all the write switches for aux/main
+	stx .auxWr2+1
+	sty .auxRd1+1		; and the read switches too
+	sty .auxRd2+1
+	
+	ldx pDst		; calculate the end of the dest buffer
+	txa			; also put low byte of ptr in X (where we'll use it constantly)
+	clc
+	adc reqLen		; add in the uncompressed length
+	sta .endChk1+1		; that's what we'll need to check to see if we're done
+	lda reqLen+1		; grab, but don't add, hi byte of dest length
+	adc #0			; no, we don't add pDst+1 - see endChk2
+	sta .endChk2+1		; this is essentially a count of dest page bumps
+	lda pDst+1		; grab the hi byte of dest pointer
+	sta .dstStore1+2	; self-modify our storage routines
+	sta .dstStore2+2
+	ldy pSrc		; Y will always track the hi byte of the source ptr
+	lda #0			; so zero out the low byte of the ptr itself
+	sta pSrc
+	sta reqLen+1		; reqLen+1 always needs to be zero
+	; Grab the next token in the compressed data
+.getToken:
+	+LOAD_YSRC		; load next source byte
+	pha			; save the token byte. We use half now, and half later
+	lsr			; shift to get the hi 4 bits...
+	lsr
+	lsr			; ...into the lo 4 bits
+	lsr
+	beq .endChk1		; if reqLen=0, there is no literal data.
+	cmp #$F			; reqLen=15 is a special marker
+	bcc +			; not special, go copy the literals
+	jsr .longLen		; special marker: extend the length
++	sta reqLen		; record resulting length (lo byte)
+.auxWr1	sta setAuxWr		; this gets self-modified depending on if target is in main or aux mem
+.litCopy:			; loop to copy the literals
+	+LOAD_YSRC		; grab a literal source byte
+.dstStore1:
+	sta $1100,x		; hi-byte gets self-modified to point to dest page
+	inx			; inc low byte of ptr
+	bne +			; non-zero, done
+	jsr .nextDstPage	; zero, need to go to next page
++	dec reqLen		; count bytes
+	bne .litCopy		; if non-zero, loop again
+	dec reqLen+1		; low-byte of count is zero. Decrement hi-byte
+	bpl .litCopy        	; If non-negative, loop again. NOTE: This would fail if we had blocks >= 32K
+	sta clrAuxWr		; back to writing main mem
+	  
+.endChk1:
+	cpx #11			; end check - self-modified earlier
+	bcc .decodeMatch	; if less, keep going
+.endChk2:
+	lda #0              	; have we finished all pages?
+	bne .decodeMatch	; no, keep going
+	pla			; toss unused match length
+	rts			; all done!
+	; Now that we've finished with the literals, decode the match section
+.decodeMatch:
+	+LOAD_YSRC		; grab first byte of match offset
+	sta tmp			; save for later
+	bmi .far		; if hi bit is set, there will be a second byte
+	lda #0			; otherwise, second byte is assumed to be zero
+	beq .doInv		; always taken
+.far:	+LOAD_YSRC		; grab second byte of offset
+	asl tmp			; toss the unused hi bit of the lo byte
+ 	lsr			; shift out lo bit of the hi byte
+	rol tmp			; to fill in the hi bit of the lo byte
+.doInv:	sta tmp+1		; got the hi byte of the offset now
+	lda #0			; calculate zero minus the offset, to obtain ptr diff
+	sec
+	sbc tmp
+	sta .srcLoad+1		; that's how much less to read from
+	lda .dstStore2+2	; same with hi byte of offset
+	sbc tmp+1
+	sta .srcLoad+2		; to hi byte of offsetted pointer
+.getMatchLen:
+	pla			; recover the token byte
+	and #$F			; mask to get just the match length
+	clc
+	adc #4			; adjust: min match is 4 bytes
+	cmp #$13		; was it the special value $0F? ($F + 4 = $13)
+	bne +			; if not, no need to extend length
+	jsr .longLen		; need to extend the length
++	sty tmp			; save index to source pointer, so we can use Y...
+	tay			; ...to count bytes
+.auxWr2	sta setAuxWr		; self-modified earlier, based on isAuxCmd
+	jsr .matchCopy		; copy match bytes (aux->aux, or main->main)
+	sta clrAuxWr		; back to reading main mem
++ 	ldy tmp			; restore index to source pointer
+	jmp .getToken		; go on to the next token in the compressed stream
+	; Subroutine to copy bytes, either main->main or aux->aux. We put it down in the
+	; stack space ($100) so it can access either area. The stack doesn't get bank-switched
+	; by setAuxRd/clrAuxRd.
+.matchShadow_beg = *
+!pseudopc $100 {
+.matchCopy:
+.auxRd1	sta setAuxRd  		; self-modified based on isAuxCmd
+.srcLoad:
+	lda $1100,x		; self-modified earlier for offsetted source
+.dstStore2:
+	sta $1100,x		; self-modified earlier for dest buffer
+	inx			; inc to next src/dst byte
+	bne +			; non-zero, skip page bump
+	sta clrAuxRd		; page bump needs to operate in main mem
+	jsr .nextDstPage	; do the bump
+.auxRd2	sta setAuxRd		; and back to aux mem (if isAuxCmd)
++	dey			; count bytes -- first page yet?
+	bne .srcLoad		; loop for more
+	dec reqLen+1		; count pages
+	bpl .srcLoad		; loop for more. NOTE: this would fail if we had blocks >= 32K
++	rts			; done copying bytes
+}
+.matchShadow_end = *
+	; Subroutine called when length token = $F, to extend the length by additional bytes
+.longLen:
+	sta reqLen		; save what we got so far
+-	+LOAD_YSRC		; get another byte
+	cmp #$FF		; special value of $FF? 
+	bcc +			; no, we're done
+	clc
+	adc reqLen		; add $FF to reqLen
+	sta reqLen
+	bcc -			; no carry, only lo byte has changed
+	inc reqLen+1		; increment hi byte of reqLen
+	bcs -			; always taken
++	adc reqLen		; carry already clear (we got here from cmp/bcc)
+	bcc +
+	inc reqLen+1
++	rts
+
+nextSrcPage:
+	inc pSrc+1
+	lda pSrc+1
+	cmp #$50		; TODO
+	beq +
+	rts
++	bit rdRamWr		; get current state of aux wr flag
+	php			; and save it
+	sta clrAuxWr		; now write to main mem so we can increment stuff in code blocks
+	; load more pages here
+	; TODO
+	; done loading more here
+	jmp .restoreAuxWr
+
+.nextDstPage:
+	bit rdRamWr		; get current state of aux wr flag
+	php			; and save it
+	sta clrAuxWr		; now write to main mem so we can increment stuff in code blocks
+	inc .srcLoad+2		; inc offset pointer for match copies
+	inc .dstStore1+2	; inc pointers for dest stores
+	inc .dstStore2+2
+	dec .endChk2+1		; decrement total page counter
+.restoreAuxWr:
+	plp			; get back the flag
+	bpl +			; if it wasn't set, skip
+	sta setAuxWr		; otherwise, go back to writing aux mem
++	rts
+  
 ;------------------------------------------------------------------------------
 ; Segment tables
 

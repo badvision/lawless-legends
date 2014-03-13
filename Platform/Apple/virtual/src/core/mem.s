@@ -1061,7 +1061,6 @@ disk_finishLoad: !zone
 	!byte MLI_SET_MARK
 	!word .setMarkParams
 	bcs .prodosErr
-	jsr readToBuf		; read first pages into buffer
 	jsr lz4Decompress	; decompress (or copy if uncompressed)
 .resume	ldy .ysave
 .next	lda (pTmp),y		; lo byte of length
@@ -1150,9 +1149,11 @@ readToMain: !zone
 readToBuf: !zone
 ; Read as much data as we can, up to min(compLen, bufferSize) into the diskBuf.
 	lda #0
-	sta readAddr
+	sta readAddr		; buffer addr always on even page boundary
+	sta pSrc
 	lda #>diskBuf		; we're reading into a buffer in main mem
 	sta readAddr+1
+	sta pSrc+1		; restart src pointer at start of buffer
 .nextGroup:
 	ldx reqLen
 	lda reqLen+1		; see how many pages we want
@@ -1170,6 +1171,7 @@ readToBuf: !zone
 	lda reqLen+1		; all 16 bits of reqLen
 	sbc readLen+1
 	sta reqLen+1
+	ldy #0			; index for reading first byte
 	rts			; all done
 
 ;------------------------------------------------------------------------------
@@ -1189,6 +1191,7 @@ lz4Decompress: !zone
 }
 
 	!if DEBUG { jsr .debug1 }
+	jsr readToBuf		; read first pages into buffer
 	ldx #<clrAuxWr		; start by assuming write to main mem
 	ldy #<clrAuxRd		; and read from main mem
 	lda isAuxCmd		; if we're decompressing to aux...
@@ -1252,6 +1255,7 @@ lz4Decompress: !zone
 	bne .litCopy		; if non-zero, loop again
 	dec ucLen+1		; low-byte of count is zero. Decrement hi-byte
 	bpl .litCopy        	; If non-negative, loop again. NOTE: This would fail if we had blocks >= 32K
+	inc ucLen+1		; to ensure it's zero for the next len decode
 	sta clrAuxWr		; back to writing main mem	  
 .endChk1:
 	cpx #11			; end check - self-modified earlier
@@ -1294,11 +1298,12 @@ lz4Decompress: !zone
 	bne +			; if not, no need to extend length
 	jsr .longLen		; need to extend the length
 +	sty tmp			; save index to source pointer, so we can use Y...
-	!if DEBUG { sta ucLen+1 : jsr .debug3 }
+	!if DEBUG { sta ucLen : jsr .debug3 }
 	tay			; ...to count bytes
 .auxWr2	sta setAuxWr		; self-modified earlier, based on isAuxCmd
 	jsr .matchCopy		; copy match bytes (aux->aux, or main->main)
 	sta clrAuxWr		; back to reading main mem
+	inc ucLen+1		; to make it zero for the next match decode
 + 	ldy tmp			; restore index to source pointer
 	jmp .getToken		; go on to the next token in the compressed stream
 	; Subroutine to copy bytes, either main->main or aux->aux. We put it down in the
@@ -1332,15 +1337,14 @@ lz4Decompress: !zone
 .longLen:
 	sta ucLen		; save what we got so far
 -	+LOAD_YSRC		; get another byte
-	pha			; save it for end-check later
+	cmp #$FF		; check for special there-is-more marker byte
+	php			; save result of that
 	clc
 	adc ucLen		; add $FF to ucLen
-	sta ucLen
 	bcc +			; no carry, only lo byte has changed
 	inc ucLen+1		; increment hi byte of ucLen
-	pla			; get back the byte loaded
-	cmp #$FF		; special value $FF?
-	bne -			; no, go back for more
++	plp			; retrieve comparison status from earlier
+	beq -			; if it was $FF, go back for more len bytes
 	rts
 
 nextSrcPage:
@@ -1351,9 +1355,6 @@ nextSrcPage:
 	bne +			; if not, we're done
 	sta clrAuxWr		; buffer is in main mem
 	jsr readToBuf		; read more pages
-	lda #<diskBuf		; begin again at start of buffer
-	sta pSrc+1
-	ldy #0			; first byte
 .auxWr3	sta setAuxWr		; go back to writing aux mem (self-modified for aux or main)
 	pla			; restore loaded byte
 +	rts

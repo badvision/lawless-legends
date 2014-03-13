@@ -38,6 +38,8 @@ class PackPartitions
     
     def ADD_COMP_CHECKSUMS = true
     
+    def debugCompression = false
+    
     def parseMap(map, tiles)
     {
         // Parse each row of the map
@@ -531,6 +533,9 @@ class PackPartitions
                 }
             }
             
+            if (debugCompression)
+                println "Literal: $literalLen bytes."
+            
             // Copy the literal bytes
             outLen += literalLen
             for ( ; literalLen > 0; --literalLen)
@@ -564,6 +569,9 @@ class PackPartitions
             }
             
             matchLen += 4   // min match length is 4
+            
+            if (debugCompression)
+                println "Match: $matchLen bytes at offset $offset."
             
             // We do nothing with the match bytes except count them
             outLen += matchLen
@@ -602,13 +610,15 @@ class PackPartitions
         
         // If we saved at least 20 bytes, take the compressed version.
         if ((uncompressedLen - recompressedLen) >= 20) {
-            //println "  Compress. rawLen=$uncompressedLen compLen=$recompressedLen"
+            if (debugCompression)
+                println "  Compress. rawLen=$uncompressedLen compLen=$recompressedLen"
             compressionSavings += (uncompressedLen - recompressedLen) - 2 - (ADD_COMP_CHECKSUMS ? 1 : 0)
             return [data:compressedData, len:recompressedLen, 
                     compressed:true, uncompressedLen:uncompressedLen]
         }
         else {
-            //println "  No compress. rawLen=$uncompressedLen compLen=$recompressedLen"
+            if (debugCompression)
+                println "  No compress. rawLen=$uncompressedLen compLen=$recompressedLen"
             return [data:uncompressedData, len:uncompressedLen, compressed:false]
         }
     }
@@ -617,7 +627,12 @@ class PackPartitions
     {
         // Make a list of all the chunks that will be in the partition
         def chunks = []
-        code.values().each { chunks.add([type:TYPE_CODE, num:it.num, buf:compress(it.buf)]) }
+        code.values().each { 
+            debugCompression = (it.num == 1)
+            println "Code #${it.num} debug=$debugCompression."
+            chunks.add([type:TYPE_CODE, num:it.num, buf:compress(it.buf)])
+            debugCompression = false
+        }
         fonts.values().each { chunks.add([type:TYPE_FONT, num:it.num, buf:compress(it.buf)]) }
         frames.values().each { chunks.add([type:TYPE_FRAME_IMG, num:it.num, buf:compress(it.buf)]) }
         maps2D.values().each { chunks.add([type:TYPE_2D_MAP, num:it.num, buf:compress(it.buf)]) }

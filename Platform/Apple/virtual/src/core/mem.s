@@ -16,6 +16,8 @@
 ; Constants
 MAX_SEGS	= 96
 
+DO_COMP_CHECKSUMS = 1		; during compression debugging
+
 ; Zero page temporary variables
 tmp		= $2	; len 2
 pTmp		= $4	; len 2
@@ -23,14 +25,16 @@ reqLen		= $6	; len 2
 resType		= $8	; len 1
 resNum		= $9	; len 1
 isAuxCmd	= $A	; len 1
-unused0B	= $B	; len 1
+isCompressed	= $B	; len 1
 pSrc		= $C	; len 2
 pDst		= $E	; len 2
 ucLen		= $10	; len 2
 
 ; Memory buffers
 fileBuf		= $4000	; len $400
-auxBuf 		= $4400	; len $800
+diskBuf 	= $4400	; len $800
+DISK_BUF_SIZE	= $800
+diskBufEnd	= $4C00
 headerBuf 	= $4C00	; len $1400
 
 ; Other equates
@@ -51,9 +55,12 @@ segNum:		!byte 0
 nextLdVec:	jmp diskLoader
 curPartition:	!byte 0
 partFileRef: 	!byte 0
+!if DO_COMP_CHECKSUMS {
+checksum:	!byte 0
+}
 
 ;------------------------------------------------------------------------------
-DEBUG	= 0
+DEBUG	= 1
 !source "../include/debug.i"
 
 ;------------------------------------------------------------------------------
@@ -980,7 +987,7 @@ disk_queueLoad: !zone
 
 ;------------------------------------------------------------------------------
 disk_finishLoad: !zone
-	stx .keepOpenChk+1	; store flag telling us whether to keep open or close
+	stx .keepOpenChk+1	; store flag telling us whether to keep open (1) or close (0)
 	lda partFileRef		; see if we actually queued anything (and opened the file)
 	bne +			; non-zero means we have work to do
 	rts			; nothing to do - return immediately
@@ -992,10 +999,21 @@ disk_finishLoad: !zone
 	sta .setMarkPos+1
 	lda #0
 	sta .setMarkPos+2
+	jsr setupDecomp		; one-time init for decompression code
 	jsr startHeaderScan	; start scanning the partition header
 .scan:	lda (pTmp),y		; get resource type byte
-	beq .keepOpenChk	; zero = end of header
-	bmi .load		; hi bit set -> queued for load
+	bne .notEnd		; non-zero = not end of header
+	; end of header. Check if we need to close the file.
+.keepOpenChk:
+	lda #11			; self-modified to 0 or 1 at start of routine
+	bne +			; 1 means leave open, 0 means close
+	!if DEBUG { +prStr : !text "Closing partition file.",0 }
+	lda partFileRef		; close the partition file
+	jsr closeFile
+	lda #0			; zero out...
+	sta partFileRef		; ... the file reference so we know it's no longer open
++	rts
+.notEnd	bmi .load		; hi bit set -> queued for load
 	iny			; not set, not queued, so skip over it
 	iny
 	bne .next
@@ -1017,32 +1035,36 @@ disk_finishLoad: !zone
 +	sty .ysave		; Save Y so we can resume scanning later.
 	!if DEBUG { jsr .debug1 }
 	lda (pTmp),y		; grab resource length on disk
-	sta readLen		; save for reading
+	sta reqLen		; save for reading
+	sta ucLen
 	iny
 	lda (pTmp),y		; hi byte too
-	pha			; save the hi-bit flag
+	sta isCompressed	; save flag
 	and #$7F		; mask off the flag to get the real (on-disk) length
-	sta readLen+1
+	sta reqLen+1
+	bit isCompressed	; retrieve flag
+	bpl +			; if uncompressed, we also have the ucLen now
+	iny			; is compressed
+	lda (pTmp),y		; fetch uncomp length
+	sta ucLen		; and save it
+	iny
+	lda (pTmp),y		; hi byte of uncomp len
++	sta ucLen+1		; save uncomp len hi byte
 	jsr scanForResource	; find the segment number allocated to this resource
 	beq .addrErr		; it better have been allocated
-	lda tSegAdrLo,x
-	sta readAddr
-	lda tSegAdrHi,x
-	sta readAddr+1
+	lda tSegAdrLo,x		; grab the address
+	sta pDst		; and save it to the dest point for copy or decompress
+	lda tSegAdrHi,x		; hi byte too
+	sta pDst+1
 	!if DEBUG { jsr .debug2 }
 	jsr mli			; move the file pointer to the current block
 	!byte MLI_SET_MARK
 	!word .setMarkParams
 	bcs .prodosErr
-	lda isAuxCmd
-	bne .auxRead		; decide whether we're reading to main or aux
-	jsr readToMain
-	bcc .resume		; always taken
-.auxRead:
-	jsr readToAux
-.resume:
-	ldy .ysave
-.next:	lda (pTmp),y		; lo byte of length
+	jsr readToBuf		; read first pages into buffer
+	jsr lz4Decompress	; decompress (or copy if uncompressed)
+.resume	ldy .ysave
+.next	lda (pTmp),y		; lo byte of length
 	clc
 	adc .setMarkPos		; advance mark position exactly that far
 	sta .setMarkPos
@@ -1051,23 +1073,15 @@ disk_finishLoad: !zone
 	bpl +			; if hi bit is clear, resource is uncompressed
 	iny			; skip compressed size
 	iny
-+	adc .setMarkPos+1
+	and #$7F		; mask off the flag
++	adc .setMarkPos+1	; bump the high byte of the file mark pos
 	sta .setMarkPos+1
 	bcc +
 	inc .setMarkPos+2	; account for partitions > 64K
 +	iny			; increment to next entry
-	bpl .scan		; if Y index is still small, loop again
+	bmi +			; if Y index is is small, no need to adjust
 	jsr adjYpTmp		; adjust pTmp and Y to make it small again
-	jmp .scan		; back for more
-.keepOpenChk:	lda #11		; self-modified to 0 or 1 at start of routine
-	bne .keepOpen
-	!if DEBUG { +prStr : !text "Closing partition file.",0 }
-	lda partFileRef
-	jsr closeFile
-	lda #0			; zero out...
-	sta partFileRef		; ... the file reference so we know it's no longer open
-.keepOpen:
-	rts
++	jmp .scan		; back for more
 .prodosErr:
 	jmp prodosError
 .addrErr:
@@ -1133,71 +1147,37 @@ readToMain: !zone
 .err:	jmp prodosError
 
 ;------------------------------------------------------------------------------
-readToAux: !zone
-	lda readAddr
-	sta .st+1
-	lda readAddr+1
-	sta .st+2
+readToBuf: !zone
+; Read as much data as we can, up to min(compLen, bufferSize) into the diskBuf.
 	lda #0
 	sta readAddr
-	lda #>auxBuf		; we're reading into a buffer in main mem
+	lda #>diskBuf		; we're reading into a buffer in main mem
 	sta readAddr+1
-	lda readLen
-	sta reqLen
-	lda readLen+1
-	sta reqLen+1
 .nextGroup:
 	ldx reqLen
 	lda reqLen+1		; see how many pages we want
-	cmp #8			; 8 or less?
+	cmp #>DISK_BUF_SIZE	; less than our max?
 	bcc +			; yes, read exact amount
-	lda #8			; no, limit to 8 pages max
+	lda #>DISK_BUF_SIZE	; no, limit to size of buffer
 	ldx #0
 +	stx readLen
 	sta readLen+1		; save number of pages
 	jsr readToMain		; now read
-	lda #>auxBuf		; set up copy pointers
-	sta .ld+2
-	lda readLen		; set up:
-	sta .chk+1		; partial page check
-	ldy #0
-	ldx readLen+1		; number of whole pages
-.copy:	sta setAuxWr		; copy from main to aux mem
-.ld:	lda $100,y		; from main mem
-.st:	sta $100,y		; to aux mem
-	iny
-	beq .pageEnd		; end of full page? - work to do
-.chk:	cpy #11			; end of partial page? (self-modified earlier)
-	bne .ld
-	txa			; last page?
-	bne .ld
-	beq .next
-.pageEnd:
-	sta clrAuxWr		; normal memory writes so we can increment
-	inc .ld+2		; self-modifying
-	inc .st+2
-	dex			; dec page count
-	bne .copy		; any pages left? go more
-	lda readLen
-	bne .copy		; partial page left? go more
-.next:	sta clrAuxWr		; normal memory writes
 	lda reqLen		; decrement reqLen by the amount we read
 	sec
 	sbc readLen
 	sta reqLen
-	sta .or+1		; save lo for later
 	lda reqLen+1		; all 16 bits of reqLen
 	sbc readLen+1
 	sta reqLen+1
-.or:	ora #11			; self-modified above
-	bne .nextGroup		; anything left to read, do more
 	rts			; all done
 
 ;------------------------------------------------------------------------------
 lz4Decompress: !zone
 ; Input: pSrc - pointer to source data
 ;        pDst - pointer to destination buffer
-;        reqLen  - length of *destination* data (16-bit)
+;        ucLen  - length of *destination* data (16-bit)
+;	 isCompressed - if hi bit set, decompress; if not, just copy.
 ; All inputs are destroyed by the process.
 
 !macro LOAD_YSRC {
@@ -1208,25 +1188,20 @@ lz4Decompress: !zone
 +
 }
 
-  ; Copy the match shadow down to the stack area so it can copy from aux to aux
-	ldx #.matchShadow_end - .matchShadow_beg - 1
--	lda .matchShadow_beg,x	; get the copy from main RAM
-	sta .matchCopy,x	; and put it down in stack space where it can access both main and aux
-	dex			; next byte
-	bpl -			; loop until we grab them all (including byte 0)
-
+	!if DEBUG { jsr .debug1 }
 	ldx #<clrAuxWr		; start by assuming write to main mem
 	ldy #<clrAuxRd		; and read from main mem
 	lda isAuxCmd		; if we're decompressing to aux...
 	beq +			; no? keep those values
-	ldx #<setAuxWr		; yes, write to aux mem
-	ldy #<setAuxRd		; and read from aux mem
+	inx			; yes, write to aux mem
+	iny			; and read from aux mem
 + 	stx .auxWr1+1		; set all the write switches for aux/main
+	stx .auxWr3+1
+	stx .auxWr4+1
 	stx .auxWr2+1
 	sty .auxRd1+1		; and the read switches too
 	sty .auxRd2+1
-	
-	ldx pDst		; calculate the end of the dest buffer
++	ldx pDst		; calculate the end of the dest buffer
 	txa			; also put low byte of ptr in X (where we'll use it constantly)
 	clc
 	adc ucLen		; add in the uncompressed length
@@ -1240,6 +1215,11 @@ lz4Decompress: !zone
 	ldy pSrc		; Y will always track the hi byte of the source ptr
 	lda #0			; so zero out the low byte of the ptr itself
 	sta pSrc
+	!if DO_COMP_CHECKSUMS {
+	sta checksum
+	}
+	bit isCompressed	; check compression flag
+	bpl .goLit		; not compressed? Treat as a single literal sequence.
 	sta ucLen+1		; ucLen+1 always needs to be zero
 	; Grab the next token in the compressed data
 .getToken:
@@ -1254,11 +1234,17 @@ lz4Decompress: !zone
 	bcc +			; not special, go copy the literals
 	jsr .longLen		; special marker: extend the length
 +	sta ucLen		; record resulting length (lo byte)
+.goLit:
+	!if DEBUG { jsr .debug2 }
 .auxWr1	sta setAuxWr		; this gets self-modified depending on if target is in main or aux mem
 .litCopy:			; loop to copy the literals
 	+LOAD_YSRC		; grab a literal source byte
 .dstStore1:
 	sta $1100,x		; hi-byte gets self-modified to point to dest page
+	!if DO_COMP_CHECKSUMS {
+	eor checksum
+	sta checksum
+	}
 	inx			; inc low byte of ptr
 	bne +			; non-zero, done
 	jsr .nextDstPage	; zero, need to go to next page
@@ -1266,8 +1252,7 @@ lz4Decompress: !zone
 	bne .litCopy		; if non-zero, loop again
 	dec ucLen+1		; low-byte of count is zero. Decrement hi-byte
 	bpl .litCopy        	; If non-negative, loop again. NOTE: This would fail if we had blocks >= 32K
-	sta clrAuxWr		; back to writing main mem
-	  
+	sta clrAuxWr		; back to writing main mem	  
 .endChk1:
 	cpx #11			; end check - self-modified earlier
 	bcc .decodeMatch	; if less, keep going
@@ -1275,6 +1260,11 @@ lz4Decompress: !zone
 	lda #0              	; have we finished all pages?
 	bne .decodeMatch	; no, keep going
 	pla			; toss unused match length
+	!if DO_COMP_CHECKSUMS {
+	lda checksum		; get computed checksum
+	bne +			; should be zero, because compressor stores checksum byte as part of stream
+	brk			; checksum doesn't match -- abort!
++	}
 	rts			; all done!
 	; Now that we've finished with the literals, decode the match section
 .decodeMatch:
@@ -1304,6 +1294,7 @@ lz4Decompress: !zone
 	bne +			; if not, no need to extend length
 	jsr .longLen		; need to extend the length
 +	sty tmp			; save index to source pointer, so we can use Y...
+	!if DEBUG { sta ucLen+1 : jsr .debug3 }
 	tay			; ...to count bytes
 .auxWr2	sta setAuxWr		; self-modified earlier, based on isAuxCmd
 	jsr .matchCopy		; copy match bytes (aux->aux, or main->main)
@@ -1321,6 +1312,10 @@ lz4Decompress: !zone
 	lda $1100,x		; self-modified earlier for offsetted source
 .dstStore2:
 	sta $1100,x		; self-modified earlier for dest buffer
+	!if DO_COMP_CHECKSUMS {
+	eor checksum
+	sta checksum
+	}
 	inx			; inc to next src/dst byte
 	bne +			; non-zero, skip page bump
 	sta clrAuxRd		; page bump needs to operate in main mem
@@ -1337,47 +1332,75 @@ lz4Decompress: !zone
 .longLen:
 	sta ucLen		; save what we got so far
 -	+LOAD_YSRC		; get another byte
-	cmp #$FF		; special value of $FF? 
-	bcc +			; no, we're done
+	pha			; save it for end-check later
 	clc
 	adc ucLen		; add $FF to ucLen
 	sta ucLen
-	bcc -			; no carry, only lo byte has changed
+	bcc +			; no carry, only lo byte has changed
 	inc ucLen+1		; increment hi byte of ucLen
-	bcs -			; always taken
-+	adc ucLen		; carry already clear (we got here from cmp/bcc)
-	bcc +
-	inc ucLen+1
-+	rts
+	pla			; get back the byte loaded
+	cmp #$FF		; special value $FF?
+	bne -			; no, go back for more
+	rts
 
 nextSrcPage:
-	inc pSrc+1
-	lda pSrc+1
-	cmp #$50		; TODO
-	beq +
-	rts
-+	bit rdRamWr		; get current state of aux wr flag
-	php			; and save it
-	sta clrAuxWr		; now write to main mem so we can increment stuff in code blocks
-	; load more pages here
-	; TODO
-	; done loading more here
-	jmp .restoreAuxWr
+	pha			; save byte that was loaded
+	inc pSrc+1		; go to next page
+	lda pSrc+1		; check the resulting page num
+	cmp #>diskBufEnd	; did we reach end of buffer?
+	bne +			; if not, we're done
+	sta clrAuxWr		; buffer is in main mem
+	jsr readToBuf		; read more pages
+	lda #<diskBuf		; begin again at start of buffer
+	sta pSrc+1
+	ldy #0			; first byte
+.auxWr3	sta setAuxWr		; go back to writing aux mem (self-modified for aux or main)
+	pla			; restore loaded byte
++	rts
 
 .nextDstPage:
-	bit rdRamWr		; get current state of aux wr flag
-	php			; and save it
-	sta clrAuxWr		; now write to main mem so we can increment stuff in code blocks
+	sta clrAuxWr		; write to main mem so we can increment stuff in code blocks
 	inc .srcLoad+2		; inc offset pointer for match copies
 	inc .dstStore1+2	; inc pointers for dest stores
 	inc .dstStore2+2
 	dec .endChk2+1		; decrement total page counter
-.restoreAuxWr:
-	plp			; get back the flag
-	bpl +			; if it wasn't set, skip
-	sta setAuxWr		; otherwise, go back to writing aux mem
-+	rts
+.auxWr4	sta setAuxWr		; go back to writing aux mem (self-modified for aux or main)
+	rts
   
+; Copy the match shadow down to the stack area so it can copy from aux to aux.
+; This needs to be called once before any decompression is done. We shouldn't
+; rely on it being preserved across calls to the memory manager.
+setupDecomp:
+	ldx #.matchShadow_end - .matchShadow_beg - 1
+-	lda .matchShadow_beg,x	; get the copy from main RAM
+	sta .matchCopy,x	; and put it down in stack space where it can access both main and aux
+	dex			; next byte
+	bpl -			; loop until we grab them all (including byte 0)
+	rts
+	
+!if DEBUG {
+.debug1	+prStr : !text "Decompressing: isComp=",0
+	+prByte isCompressed
+	+prStr : !text "isAux=",0
+	+prByte isAuxCmd
+	+prStr : !text "compLen=",0
+	+prWord reqLen
+	+prStr : !text "uncompLen=",0
+	+prWord ucLen
+	+crout
+	rts
+.debug2	+prStr : !text "Lit len=",0
+	+prWord ucLen
+	+crout
+	+waitKey
+	rts
+.debug3	+prStr : !text "Match len=",0
+	+prWord ucLen
+	+crout
+	+waitKey
+	rts
+}
+
 ;------------------------------------------------------------------------------
 ; Segment tables
 

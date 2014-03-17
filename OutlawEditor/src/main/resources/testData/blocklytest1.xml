@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<gameData xmlns="outlaw">
+    <map>
+        <scripts>
+            <enter>
+                <name>name</name>
+                <description>description</description>
+                <block type="variables_set" inline="true" x="245" y="27">
+                    <field name="VAR">var1</field>
+                    <value name="VALUE">
+                        <block type="math_number">
+                            <field name="NUM">0</field>
+                        </block>
+                    </value>
+                    <next>
+                        <block type="controls_if" inline="false">
+                            <value name="IF0">
+                                <block type="logic_compare" inline="true">
+                                    <field name="OP">EQ</field>
+                                    <value name="A">
+                                        <block type="variables_get">
+                                            <field name="VAR">var1</field>
+                                        </block>
+                                    </value>
+                                    <value name="B">
+                                        <block type="math_number">
+                                            <field name="NUM">0</field>
+                                        </block>
+                                    </value>
+                                </block>
+                            </value>
+                            <statement name="DO0">
+                                <block type="controls_whileUntil" inline="false">
+                                    <field name="MODE">WHILE</field>
+                                    <statement name="DO">
+                                        <block type="text_append" inline="false">
+                                            <field name="VAR">var1</field>
+                                            <value name="TEXT">
+                                                <block type="text">
+                                                    <field name="TEXT">blah</field>
+                                                </block>
+                                            </value>
+                                        </block>
+                                    </statement>
+                                </block>
+                            </statement>
+                        </block>
+                    </next>
+                </block>            
+            </enter>
+        </scripts>
+    </map>
+</gameData>

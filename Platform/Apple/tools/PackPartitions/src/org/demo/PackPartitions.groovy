@@ -509,11 +509,12 @@ class PackPartitions
     // Transform the LZ4 format to something we call "LZ4M", where the small offsets are stored
     // as one byte instead of two. In our data, that's about 1/3 of the offsets.
     //
-    def recompress(data, inLen, expOutLen)
+    def recompress(data, inLen, uncompData, uncompLen)
     {
         def outLen = 0
         def sp = 0
         def dp = 0
+        def cksum = 0
         while (true) 
         {
             assert dp <= sp
@@ -534,12 +535,14 @@ class PackPartitions
             }
             
             if (debugCompression)
-                println String.format("Literal: len=\$%x.", literalLen)
+                println String.format("Literal: ptr=\$%x, len=\$%x.", (0x4400+sp), literalLen)
             
             // Copy the literal bytes
             outLen += literalLen
-            for ( ; literalLen > 0; --literalLen)
+            for ( ; literalLen > 0; --literalLen) {
+                cksum ^= data[sp]
                 data[dp++] = data[sp++]
+            }
             
             // The last block has only literals, and no match
             if (sp == inLen)
@@ -558,6 +561,13 @@ class PackPartitions
                 data[dp++] = (offset >> 7) & 0xFF
             }
             
+            // If checksums are enabled, output the checksum so far
+            if (offset < 128 && ADD_COMP_CHECKSUMS) {
+                if (debugCompression)
+                    println String.format("    [chksum=\$%x]", cksum & 0xFF)
+                data[dp++] = (byte) cksum
+            }
+            
             // The match length might get extended
             if (matchLen == 15) {
                 while (true) {
@@ -573,18 +583,21 @@ class PackPartitions
             if (debugCompression)
                 println String.format("Match: offset=\$%x, len=\$%x.", offset, matchLen)
             
-            // We do nothing with the match bytes except count them
-            outLen += matchLen
+            // We do nothing with the match bytes except add them to the checksum
+            (0..<matchLen).each {
+                cksum ^= uncompData[outLen]
+                ++outLen
+            }
         }
         
-        // If checksums are enabled, add an exclusive-or checksum to the end.
+        // If checksums are enabled, output the final checksum
         if (ADD_COMP_CHECKSUMS) {
-            def cksum = 0
-            (0..<dp).each { cksum ^= data[it] }
+            if (debugCompression)
+                println String.format("Final cksum: \$%x", cksum & 0xFF)
             data[dp++] = (byte) cksum
         }
-        
-        assert outLen == expOutLen
+
+        assert outLen == uncompLen
         return dp
     }
     
@@ -606,7 +619,7 @@ class PackPartitions
                                                 compressedData, 0, maxCompressedLen)
                                             
         // Then recompress to LZ4M (pretty much always smaller)
-        def recompressedLen = recompress(compressedData, compressedLen, uncompressedLen)
+        def recompressedLen = recompress(compressedData, compressedLen, uncompressedData, uncompressedLen)
         
         // If we saved at least 20 bytes, take the compressed version.
         if ((uncompressedLen - recompressedLen) >= 20) {

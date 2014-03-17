@@ -17,6 +17,7 @@
 MAX_SEGS	= 96
 
 DO_COMP_CHECKSUMS = 1		; during compression debugging
+DEBUG_DECOMP = 0
 
 ; Zero page temporary variables
 tmp		= $2	; len 2
@@ -1190,7 +1191,7 @@ lz4Decompress: !zone
 +
 }
 
-	!if DEBUG { jsr .debug1 }
+	!if DEBUG_DECOMP { jsr .debug1 }
 	jsr readToBuf		; read first pages into buffer
 	ldx #<clrAuxWr		; start by assuming write to main mem
 	ldy #<clrAuxRd		; and read from main mem
@@ -1238,7 +1239,7 @@ lz4Decompress: !zone
 	jsr .longLen		; special marker: extend the length
 +	sta ucLen		; record resulting length (lo byte)
 .goLit:
-	!if DEBUG { jsr .debug2 }
+	!if DEBUG_DECOMP { jsr .debug2 }
 .auxWr1	sta setAuxWr		; this gets self-modified depending on if target is in main or aux mem
 .litCopy:			; loop to copy the literals
 	+LOAD_YSRC		; grab a literal source byte
@@ -1264,11 +1265,7 @@ lz4Decompress: !zone
 	lda #0              	; have we finished all pages?
 	bne .decodeMatch	; no, keep going
 	pla			; toss unused match length
-	!if DO_COMP_CHECKSUMS {
-	lda checksum		; get computed checksum
-	beq +			; should be zero, because compressor stores checksum byte as part of stream
-	brk			; checksum doesn't match -- abort!
-+	}
+	!if DO_COMP_CHECKSUMS { jsr .verifyCksum }
 	rts			; all done!
 	; Now that we've finished with the literals, decode the match section
 .decodeMatch:
@@ -1276,12 +1273,13 @@ lz4Decompress: !zone
 	sta tmp			; save for later
 	cmp #0
 	bmi .far		; if hi bit is set, there will be a second byte
+	!if DO_COMP_CHECKSUMS { jsr .verifyCksum }
 	lda #0			; otherwise, second byte is assumed to be zero
 	beq .doInv		; always taken
 .far:	+LOAD_YSRC		; grab second byte of offset
 	asl tmp			; toss the unused hi bit of the lo byte
  	lsr			; shift out lo bit of the hi byte
-	rol tmp			; to fill in the hi bit of the lo byte
+	ror tmp			; to fill in the hi bit of the lo byte
 .doInv:	sta tmp+1		; got the hi byte of the offset now
 	lda #0			; calculate zero minus the offset, to obtain ptr diff
 	sec
@@ -1290,7 +1288,7 @@ lz4Decompress: !zone
 	lda .dstStore2+2	; same with hi byte of offset
 	sbc tmp+1
 	sta .srcLoad+2		; to hi byte of offsetted pointer
-	!if DEBUG { jsr .debug4 }
+	!if DEBUG_DECOMP { jsr .debug3 }
 .getMatchLen:
 	pla			; recover the token byte
 	and #$F			; mask to get just the match length
@@ -1300,7 +1298,7 @@ lz4Decompress: !zone
 	bne +			; if not, no need to extend length
 	jsr .longLen		; need to extend the length
 +	sty tmp			; save index to source pointer, so we can use Y...
-	!if DEBUG { sta ucLen : jsr .debug3 }
+	!if DEBUG_DECOMP { sta ucLen : jsr .debug4 }
 	tay			; ...to count bytes
 .auxWr2	sta setAuxWr		; self-modified earlier, based on isAuxCmd
 	jsr .matchCopy		; copy match bytes (aux->aux, or main->main)
@@ -1337,8 +1335,8 @@ lz4Decompress: !zone
 .matchShadow_end = *
 	; Subroutine called when length token = $F, to extend the length by additional bytes
 .longLen:
-	sta ucLen		; save what we got so far
--	+LOAD_YSRC		; get another byte
+-	sta ucLen		; save what we got so far
+	+LOAD_YSRC		; get another byte
 	cmp #$FF		; check for special there-is-more marker byte
 	php			; save result of that
 	clc
@@ -1349,6 +1347,24 @@ lz4Decompress: !zone
 	beq -			; if it was $FF, go back for more len bytes
 	rts
 
+	!if DO_COMP_CHECKSUMS {
+.verifyCksum:
+	+LOAD_YSRC
+	!if DEBUG_DECOMP {
+	+prStr : !text "cksum exp=",0
+	pha
+	jsr prbyte
+	+prStr : !text " got=",0
+	+prByte checksum
+	+crout
+	pla
+	}
+	cmp checksum		; get computed checksum
+	beq +			; should be zero, because compressor stores checksum byte as part of stream
+	brk			; checksum doesn't match -- abort!
++	rts
+	}
+
 nextSrcPage:
 	pha			; save byte that was loaded
 	inc pSrc+1		; go to next page
@@ -1356,7 +1372,11 @@ nextSrcPage:
 	cmp #>diskBufEnd	; did we reach end of buffer?
 	bne +			; if not, we're done
 	sta clrAuxWr		; buffer is in main mem
+	txa
+	pha
 	jsr readToBuf		; read more pages
+	pla
+	tax
 .auxWr3	sta setAuxWr		; go back to writing aux mem (self-modified for aux or main)
 +	pla			; restore loaded byte
 	rts
@@ -1381,7 +1401,7 @@ setupDecomp:
 	bpl -			; loop until we grab them all (including byte 0)
 	rts
 	
-!if DEBUG {
+!if DEBUG_DECOMP {
 .debug1	+prStr : !text "Decompressing: isComp=",0
 	+prByte isCompressed
 	+prStr : !text "isAux=",0
@@ -1405,12 +1425,7 @@ setupDecomp:
 	+prWord ucLen
 	+crout
 	rts
-.debug3	+prStr : !text "len=",0
-	+prWord ucLen
-	+crout
-	+waitKey
-	rts
-.debug4	+prStr : !text "Match src=",0
+.debug3	+prStr : !text "Match src=",0
 	txa			; calculate src address with X (not Y!) as offset
 	clc
 	adc .srcLoad+1
@@ -1437,6 +1452,11 @@ setupDecomp:
 	sbc pTmp+1
 	sta pTmp+1
 	+prWord pTmp		; and print it
+	rts
+.debug4	+prStr : !text "len=",0
+	+prWord ucLen
+	+crout
+	+waitKey
 	rts
 }
 

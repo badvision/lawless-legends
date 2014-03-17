@@ -534,7 +534,7 @@ class PackPartitions
             }
             
             if (debugCompression)
-                println "Literal: $literalLen bytes."
+                println String.format("Literal: len=\$%x.", literalLen)
             
             // Copy the literal bytes
             outLen += literalLen
@@ -571,7 +571,7 @@ class PackPartitions
             matchLen += 4   // min match length is 4
             
             if (debugCompression)
-                println "Match: $matchLen bytes at offset $offset."
+                println String.format("Match: offset=\$%x, len=\$%x.", offset, matchLen)
             
             // We do nothing with the match bytes except count them
             outLen += matchLen
@@ -611,14 +611,14 @@ class PackPartitions
         // If we saved at least 20 bytes, take the compressed version.
         if ((uncompressedLen - recompressedLen) >= 20) {
             if (debugCompression)
-                println "  Compress. rawLen=$uncompressedLen compLen=$recompressedLen"
+                println String.format("  Compress. rawLen=\$%x compLen=\$%x", uncompressedLen, recompressedLen)
             compressionSavings += (uncompressedLen - recompressedLen) - 2 - (ADD_COMP_CHECKSUMS ? 1 : 0)
             return [data:compressedData, len:recompressedLen, 
                     compressed:true, uncompressedLen:uncompressedLen]
         }
         else {
             if (debugCompression)
-                println "  No compress. rawLen=$uncompressedLen compLen=$recompressedLen"
+                println String.format("  No compress. rawLen=\$%x compLen=\$%x", uncompressedLen, recompressedLen)
             return [data:uncompressedData, len:uncompressedLen, compressed:false]
         }
     }

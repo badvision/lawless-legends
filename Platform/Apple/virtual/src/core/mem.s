@@ -1266,7 +1266,7 @@ lz4Decompress: !zone
 	pla			; toss unused match length
 	!if DO_COMP_CHECKSUMS {
 	lda checksum		; get computed checksum
-	bne +			; should be zero, because compressor stores checksum byte as part of stream
+	beq +			; should be zero, because compressor stores checksum byte as part of stream
 	brk			; checksum doesn't match -- abort!
 +	}
 	rts			; all done!
@@ -1274,6 +1274,7 @@ lz4Decompress: !zone
 .decodeMatch:
 	+LOAD_YSRC		; grab first byte of match offset
 	sta tmp			; save for later
+	cmp #0
 	bmi .far		; if hi bit is set, there will be a second byte
 	lda #0			; otherwise, second byte is assumed to be zero
 	beq .doInv		; always taken
@@ -1289,6 +1290,7 @@ lz4Decompress: !zone
 	lda .dstStore2+2	; same with hi byte of offset
 	sbc tmp+1
 	sta .srcLoad+2		; to hi byte of offsetted pointer
+	!if DEBUG { jsr .debug4 }
 .getMatchLen:
 	pla			; recover the token byte
 	and #$F			; mask to get just the match length
@@ -1356,8 +1358,8 @@ nextSrcPage:
 	sta clrAuxWr		; buffer is in main mem
 	jsr readToBuf		; read more pages
 .auxWr3	sta setAuxWr		; go back to writing aux mem (self-modified for aux or main)
-	pla			; restore loaded byte
-+	rts
++	pla			; restore loaded byte
+	rts
 
 .nextDstPage:
 	sta clrAuxWr		; write to main mem so we can increment stuff in code blocks
@@ -1390,15 +1392,51 @@ setupDecomp:
 	+prWord ucLen
 	+crout
 	rts
-.debug2	+prStr : !text "Lit len=",0
+.debug2	+prStr : !text "Lit ptr=",0
+	tya
+	clc
+	adc pSrc
+	sta pTmp
+	lda pSrc+1
+	adc #0
+	sta pTmp+1
+	+prWord pTmp
+	+prStr : !text "len=",0
+	+prWord ucLen
+	+crout
+	rts
+.debug3	+prStr : !text "len=",0
 	+prWord ucLen
 	+crout
 	+waitKey
 	rts
-.debug3	+prStr : !text "Match len=",0
-	+prWord ucLen
-	+crout
-	+waitKey
+.debug4	+prStr : !text "Match src=",0
+	txa			; calculate src address with X (not Y!) as offset
+	clc
+	adc .srcLoad+1
+	sta pTmp
+	lda .srcLoad+2
+	adc #0
+	sta pTmp+1
+	+prWord pTmp
+	+prStr : !text "dst=",0
+	txa			; calculate dest address with X as offset
+	clc
+	adc .dstStore2+1
+	sta tmp
+	lda .dstStore2+2
+	adc #0
+	sta tmp+1
+	+prWord tmp
+	+prStr : !text "offset=",0
+	lda tmp			; now calculate the difference
+	sec
+	sbc pTmp
+	sta pTmp
+	lda tmp+1
+	sbc pTmp+1
+	sta pTmp+1
+	+prWord pTmp		; and print it
 	rts
 }
 

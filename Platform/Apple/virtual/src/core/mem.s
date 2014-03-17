@@ -17,7 +17,7 @@
 MAX_SEGS	= 96
 
 DO_COMP_CHECKSUMS = 1		; during compression debugging
-DEBUG_DECOMP = 0
+DEBUG_DECOMP = 1
 
 ; Zero page temporary variables
 tmp		= $2	; len 2
@@ -30,6 +30,7 @@ isCompressed	= $B	; len 1
 pSrc		= $C	; len 2
 pDst		= $E	; len 2
 ucLen		= $10	; len 2
+checksum	= $12	; len 1
 
 ; Memory buffers
 fileBuf		= $4000	; len $400
@@ -56,9 +57,6 @@ segNum:		!byte 0
 nextLdVec:	jmp diskLoader
 curPartition:	!byte 0
 partFileRef: 	!byte 0
-!if DO_COMP_CHECKSUMS {
-checksum:	!byte 0
-}
 
 ;------------------------------------------------------------------------------
 DEBUG	= 1
@@ -1079,7 +1077,7 @@ disk_finishLoad: !zone
 	bcc +
 	inc .setMarkPos+2	; account for partitions > 64K
 +	iny			; increment to next entry
-	bmi +			; if Y index is is small, no need to adjust
+	bpl +			; if Y index is is small, no need to adjust
 	jsr adjYpTmp		; adjust pTmp and Y to make it small again
 +	jmp .scan		; back for more
 .prodosErr:
@@ -1265,7 +1263,7 @@ lz4Decompress: !zone
 	lda #0              	; have we finished all pages?
 	bne .decodeMatch	; no, keep going
 	pla			; toss unused match length
-	!if DO_COMP_CHECKSUMS { jsr .verifyCksum }
+	!if DO_COMP_CHECKSUMS { jsr .verifyCksum : +waitKey }
 	rts			; all done!
 	; Now that we've finished with the literals, decode the match section
 .decodeMatch:
@@ -1416,11 +1414,11 @@ setupDecomp:
 	tya
 	clc
 	adc pSrc
-	sta pTmp
+	sta .dbgTmp
 	lda pSrc+1
 	adc #0
-	sta pTmp+1
-	+prWord pTmp
+	sta .dbgTmp+1
+	+prWord .dbgTmp
 	+prStr : !text "len=",0
 	+prWord ucLen
 	+crout
@@ -1429,11 +1427,11 @@ setupDecomp:
 	txa			; calculate src address with X (not Y!) as offset
 	clc
 	adc .srcLoad+1
-	sta pTmp
+	sta .dbgTmp
 	lda .srcLoad+2
 	adc #0
-	sta pTmp+1
-	+prWord pTmp
+	sta .dbgTmp+1
+	+prWord .dbgTmp
 	+prStr : !text "dst=",0
 	txa			; calculate dest address with X as offset
 	clc
@@ -1446,18 +1444,18 @@ setupDecomp:
 	+prStr : !text "offset=",0
 	lda tmp			; now calculate the difference
 	sec
-	sbc pTmp
-	sta pTmp
+	sbc .dbgTmp
+	sta .dbgTmp
 	lda tmp+1
-	sbc pTmp+1
-	sta pTmp+1
-	+prWord pTmp		; and print it
+	sbc .dbgTmp+1
+	sta .dbgTmp+1
+	+prWord .dbgTmp		; and print it
 	rts
 .debug4	+prStr : !text "len=",0
 	+prWord ucLen
 	+crout
-	+waitKey
 	rts
+.dbgTmp	!word 0
 }
 
 ;------------------------------------------------------------------------------

@@ -1103,10 +1103,10 @@ disk_finishLoad: !zone
 	+prStr : !text "isAux=",0
 	+prByte isAuxCmd
 	rts
-.debug2:+prStr : !text "readLen=",0
-	+prWord readLen
-	+prStr : !text "readAddr=",0
-	+prWord readAddr : +crout
+.debug2:+prStr : !text "reqLen=",0
+	+prWord reqLen
+	+prStr : !text "pDst=",0
+	+prWord pDst : +crout
 	rts
 } ; end DEBUG
 

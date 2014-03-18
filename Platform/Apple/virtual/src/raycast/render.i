@@ -27,8 +27,7 @@ pDst		= $8	; len 2
 pTex		= $A	; len 2
 pixNum		= $C	; len 1
 byteNum		= $D	; len 1
-mapWidth	= $12	; len 1
-mapHeight	= $13	; len 1
+unused0E	= $E	; len 6
 pRayData	= $14	; len 2
 txNum		= $16	; len 1
 txColumn	= $17	; len 1
@@ -56,6 +55,8 @@ screenCol	= $60	; len 1
 playerDir	= $61	; len 1
 playerX		= $62	; len 2 (hi=integer, lo=fraction)
 playerY		= $64	; len 2 (hi=integer, lo=fraction)
+mapWidth	= $66	; len 1
+mapHeight	= $67	; len 1
 
 ;---------------------------------
 ; The following are in aux mem...
@@ -72,8 +73,8 @@ decodeTo23b	= $AA00
 decodeTo45	= $AB00
 decodeTo56	= $AC00
 decodeTo57	= $AD00
-clrBlitRollE	= $AE00	; size 3*(128/2)	= $C0, plus 2 for tya and rts
-clrBlitRollO	= $AEC2	; size 3*(128/2)	= $C0, plus 2 for tya and rts
+clrBlitRollE	= $AE00	; size 3*(128/2) = $C0, plus 2 for tya and rts
+clrBlitRollO	= $AEC2	; size 3*(128/2) = $C0, plus 2 for tya and rts
 texAddrLo	= $AF84
 texAddrHi	= texAddrLo + MAX_TEXTURES
 blitRoll	= $B000	; Unrolled blitting code. Size 29*128	= $E80, plus 1 for rts

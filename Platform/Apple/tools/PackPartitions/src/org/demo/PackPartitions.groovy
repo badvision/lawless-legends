@@ -640,12 +640,7 @@ class PackPartitions
     {
         // Make a list of all the chunks that will be in the partition
         def chunks = []
-        code.values().each { 
-            debugCompression = (it.num == 1)
-            println "Code #${it.num} debug=$debugCompression."
-            chunks.add([type:TYPE_CODE, num:it.num, buf:compress(it.buf)])
-            debugCompression = false
-        }
+        code.values().each { chunks.add([type:TYPE_CODE, num:it.num, buf:compress(it.buf)]) }
         fonts.values().each { chunks.add([type:TYPE_FONT, num:it.num, buf:compress(it.buf)]) }
         frames.values().each { chunks.add([type:TYPE_FRAME_IMG, num:it.num, buf:compress(it.buf)]) }
         maps2D.values().each { chunks.add([type:TYPE_2D_MAP, num:it.num, buf:compress(it.buf)]) }

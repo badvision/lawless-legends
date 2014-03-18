@@ -44,9 +44,34 @@ prodosMemMap 	= $BF58
 
 ;------------------------------------------------------------------------------
 ; Initial vectors - these have to start at $800
-	jmp init
+codeBegin:
+	clc
+	bcc locationCheck
 	jmp main_dispatch
 	jmp aux_dispatch
+locationCheck:
+	jsr monrts
+	tsx
+	lda $100,x
+	cmp #>*
+	bne +
+	jmp init
++	sta pSrc+1
+	lda #>*
+	sta pDst+1
+	ldy #0
+	sty pSrc
+	sty pDst
+	ldx #>(tableEnd-codeBegin+$100)
+-	lda (pSrc),y
+	sta (pDst),y
+	iny
+	bne -
+	inc pSrc+1
+	inc pDst+1
+	dex
+	bne -
+	jmp codeBegin
 
 ;------------------------------------------------------------------------------
 ; Variables
@@ -317,6 +342,9 @@ fatalError: !zone
 
 ;------------------------------------------------------------------------------
 init: !zone
+; put something interesting on the screen :)
+	jsr home
+	+prStr : !text "Welcome to Lawless Legends.",0
 ; close all files
 	lda #0
 	jsr closeFile

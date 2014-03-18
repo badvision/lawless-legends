@@ -32,7 +32,7 @@
            relative="true" parallel="false" failonerror="true" verbose="true">
       <fileset dir="${src.dir}" includes="*.s"/>
       <arg value="-o"/>
-      <arg value="${build.dir}/core.bin#800"/>
+      <arg value="${build.dir}/core.system.sys#2000"/>
       <arg line="${ASM_SETTINGS}"/>
       <srcfile/>
     </apply>

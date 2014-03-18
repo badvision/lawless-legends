@@ -77,6 +77,7 @@ clsApple	= $C062
 ; ROM routines
 prntax	= $F941
 textinit= $FB2F
+home	= $FC58
 rdkey	= $FD0C
 getln1	= $FD6F
 crout	= $FD8E
@@ -89,6 +90,7 @@ prerr	= $FF2D
 bell	= $FF3A
 iosave	= $FF4A
 iorest	= $FF3F
+monrts	= $FF58
 monitor	= $FF69
 getnum	= $FFA7
 

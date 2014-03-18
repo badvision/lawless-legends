@@ -45,7 +45,7 @@
     <delete failonerror="false" dir="${build.dir}/root"/>
     <mkdir dir="${build.dir}/root"/>
     <copy todir="${build.dir}/root">
-      <fileset dir="${src.dir}/core/build" includes="*.bin*"/>
+      <fileset dir="${src.dir}/core/build" includes="*.sys*"/>
       <fileset dir="./build" includes="game.part*.bin"/>
     </copy>
     <mkdir dir="${build.dir}/root/"/>

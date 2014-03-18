@@ -17,7 +17,7 @@
 MAX_SEGS	= 96
 
 DO_COMP_CHECKSUMS = 1		; during compression debugging
-DEBUG_DECOMP = 1
+DEBUG_DECOMP = 0
 
 ; Zero page temporary variables
 tmp		= $2	; len 2
@@ -59,7 +59,7 @@ curPartition:	!byte 0
 partFileRef: 	!byte 0
 
 ;------------------------------------------------------------------------------
-DEBUG	= 1
+DEBUG	= 0
 !source "../include/debug.i"
 
 ;------------------------------------------------------------------------------
@@ -407,7 +407,6 @@ init: !zone
 	iny
 	cpy #MAX_SEGS	; did all segments yet?
 	bne .loop	; no, loop again
-	!if DEBUG { jmp test }
 ; Load code resource #1 at $6000
 	ldx #0
 	lda #START_LOAD
@@ -944,9 +943,18 @@ disk_queueLoad: !zone
 	bne .bump3		; no, skip this resource
 	iny			; Yay! We found the one we want.
 	lda (pTmp),y		; grab the length in bytes
-	sta reqLen		; save for later
+	tax
 	iny
 	lda (pTmp),y		; hi byte too
+	bpl +			; if uncompressed, treat as normal
+	iny			; otherwise, advance to get uncomp size
+	lda (pTmp),y
+	tax
+	iny
+	lda (pTmp),y
+	dey
+	dey
++	stx reqLen		; save for later
 	sta reqLen+1
 	dey			; back to start of record
 	dey
@@ -1011,7 +1019,8 @@ disk_finishLoad: !zone
 	jsr closeFile
 	lda #0			; zero out...
 	sta partFileRef		; ... the file reference so we know it's no longer open
-+	rts
++	!if DEBUG { jsr printMem }
+	rts
 .notEnd	bmi .load		; hi bit set -> queued for load
 	iny			; not set, not queued, so skip over it
 	iny
@@ -1263,7 +1272,7 @@ lz4Decompress: !zone
 	lda #0              	; have we finished all pages?
 	bne .decodeMatch	; no, keep going
 	pla			; toss unused match length
-	!if DO_COMP_CHECKSUMS { jsr .verifyCksum : +waitKey }
+	!if DO_COMP_CHECKSUMS { jsr .verifyCksum }
 	rts			; all done!
 	; Now that we've finished with the literals, decode the match section
 .decodeMatch:
@@ -1299,8 +1308,9 @@ lz4Decompress: !zone
 	!if DEBUG_DECOMP { sta ucLen : jsr .debug4 }
 	tay			; ...to count bytes
 .auxWr2	sta setAuxWr		; self-modified earlier, based on isAuxCmd
+	; Subroutine does the work. Runs in stack area so it can write *and* read aux mem
 	jsr .matchCopy		; copy match bytes (aux->aux, or main->main)
-	sta clrAuxWr		; back to reading main mem
+	sta clrAuxWr		; back to writing main mem
 	inc ucLen+1		; to make it zero for the next match decode
 + 	ldy tmp			; restore index to source pointer
 	jmp .getToken		; go on to the next token in the compressed stream
@@ -1328,6 +1338,7 @@ lz4Decompress: !zone
 	bne .srcLoad		; loop for more
 	dec ucLen+1		; count pages
 	bpl .srcLoad		; loop for more. NOTE: this would fail if we had blocks >= 32K
+	sta clrAuxRd		; back to reading main mem, for mem mgr code
 +	rts			; done copying bytes
 }
 .matchShadow_end = *

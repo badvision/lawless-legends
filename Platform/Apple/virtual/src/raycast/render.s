@@ -13,7 +13,7 @@ start:
 
 ; Conditional assembly flags
 DOUBLE_BUFFER	= 1		; whether to double-buffer
-DEBUG		= 0		; turn on verbose logging
+DEBUG		= 0		; 1=some logging, 2=lots of logging
 
 ; Shared constants, zero page, buffer locations, etc.
 !source "render.i"
@@ -924,7 +924,10 @@ initMem: !zone
 	jsr displayMODE
 	; Set to normal (non-inverse) text
 	lda #pNORMAL
-	jsr drawMODE
+	jmp drawMODE
+	
+;-------------------------------------------------------------------------------
+setExpansionCaller:
 	; Copy the expansion caller to low stack.
 	ldx #.callEnd - .callIt - 1
 -	lda .callIt,x
@@ -1342,6 +1345,7 @@ main: !zone
 	jsr makeClrBlit
 	jsr makeDecodeTbls
 	jsr makeLines
+	jsr setExpansionCaller
 	jsr graphInit
 	bit clrMixed
 	; Display the name of the map in the upper left box.

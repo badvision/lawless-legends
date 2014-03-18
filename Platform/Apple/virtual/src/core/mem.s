@@ -941,23 +941,7 @@ disk_queueLoad: !zone
 	lda (pTmp),y		; get resource num
 	cmp resNum		; is it the number we're looking for
 	bne .bump3		; no, skip this resource
-	iny			; Yay! We found the one we want.
-	lda (pTmp),y		; grab the length in bytes
-	tax
-	iny
-	lda (pTmp),y		; hi byte too
-	bpl +			; if uncompressed, treat as normal
-	iny			; otherwise, advance to get uncomp size
-	lda (pTmp),y
-	tax
-	iny
-	lda (pTmp),y
-	dey
-	dey
-+	stx reqLen		; save for later
-	sta reqLen+1
-	dey			; back to start of record
-	dey
+	; Yay! We found the one we want.
 	dey
 	lda (pTmp),y		; Get the resource type back
 	ora #$80		; special mark to say, "We want to load this segment"
@@ -965,6 +949,20 @@ disk_queueLoad: !zone
 	beq +
 	ora #$40		; record that the eventual disk read should go to aux mem
 +	sta (pTmp),y		; save modified type byte with the flags added to it
+	iny			; advance past resource type now that we're done with it
+	iny			; skip over resource num
+	lda (pTmp),y		; grab the length in bytes
+	tax			; stash away
+	iny
+	lda (pTmp),y		; hi byte too
+	bpl +			; if uncompressed, treat as normal
+	iny			; otherwise, advance to get uncomp size
+	lda (pTmp),y		; lo byte
+	tax
+	iny
+	lda (pTmp),y		; and hi byte
++	stx reqLen		; save the uncompressed length
+	sta reqLen+1		; both bytes
 	jsr shared_alloc	; reserve memory for this resource (main or aux as appropriate)
 	stx tmp			; save lo part of addr temporarily
 	ldx segNum		; get the segment number back
@@ -976,7 +974,7 @@ disk_queueLoad: !zone
 	ldx tmp			; get back lo part of addr
 	rts			; success! all done.
 .bump3:	iny			; skip resource number
-	iny
+	iny			; skip lo byte of length
 	lda (pTmp),y		; get hi byte of length.
 	bpl +			; if hi bit clear, it's not compressed
 	iny			; skip uncompressed size too
@@ -1171,6 +1169,11 @@ readToBuf: !zone
 	ldx #0
 +	stx readLen
 	sta readLen+1		; save number of pages
+	!if DEBUG {
+	+prStr : !text "Read to buf, len=",0
+	+prWord readLen
+	+crout
+	}
 	jsr readToMain		; now read
 	lda reqLen		; decrement reqLen by the amount we read
 	sec
@@ -1247,6 +1250,7 @@ lz4Decompress: !zone
 +	sta ucLen		; record resulting length (lo byte)
 .goLit:
 	!if DEBUG_DECOMP { jsr .debug2 }
++
 .auxWr1	sta setAuxWr		; this gets self-modified depending on if target is in main or aux mem
 .litCopy:			; loop to copy the literals
 	+LOAD_YSRC		; grab a literal source byte
@@ -1260,20 +1264,26 @@ lz4Decompress: !zone
 	bne +			; non-zero, done
 	jsr .nextDstPage	; zero, need to go to next page
 +	dec ucLen		; count bytes
-	bne .litCopy		; if non-zero, loop again
-	dec ucLen+1		; low-byte of count is zero. Decrement hi-byte
-	bpl .litCopy        	; If non-negative, loop again. NOTE: This would fail if we had blocks >= 32K
-	inc ucLen+1		; to ensure it's zero for the next len decode
-	sta clrAuxWr		; back to writing main mem	  
+	bne +			; low count = 0?
+	lda ucLen+1		; hi count = 0?
+	beq .endChk		; both zero - end of loop
++	lda ucLen		; did low byte wrap around?
+	cmp #$FF
+	bne .litCopy		; no, go again
+	dec ucLen+1		; yes, decrement hi byte
+	jmp .litCopy		; and go again
+.endChk	sta clrAuxWr		; back to writing main mem	  
 .endChk1:
 	cpx #11			; end check - self-modified earlier
 	bcc .decodeMatch	; if less, keep going
 .endChk2:
 	lda #0              	; have we finished all pages?
 	bne .decodeMatch	; no, keep going
+	bit isCompressed
+	bpl +			; if not compressed, no extra work at end
 	pla			; toss unused match length
 	!if DO_COMP_CHECKSUMS { jsr .verifyCksum }
-	rts			; all done!
++	rts			; all done!
 	; Now that we've finished with the literals, decode the match section
 .decodeMatch:
 	+LOAD_YSRC		; grab first byte of match offset

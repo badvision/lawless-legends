@@ -31,6 +31,7 @@ import javax.swing.JOptionPane;
 import javax.xml.bind.JAXB;
 import org.badvision.outlaweditor.data.TilesetUtils;
 import org.badvision.outlaweditor.data.xml.GameData;
+import org.badvision.outlaweditor.data.xml.Script;
 
 /**
  *
@@ -195,5 +196,13 @@ public class UIAction {
                 children(new Text(message), options.build()).
                 alignment(Pos.CENTER).padding(new Insets(5)).build()));
         dialogStage.show();
+    }
+    
+    public static Script createAndEditScript() {
+        Script script = new Script();
+        script.setName("New Script");
+        MythosEditor editor = new MythosEditor(script);
+        editor.show();
+        return script;
     }
 }

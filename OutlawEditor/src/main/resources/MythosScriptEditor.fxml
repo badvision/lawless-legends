@@ -1,14 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import java.lang.*?>
-<?import java.net.*?>
-<?import java.util.*?>
-<?import javafx.scene.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.web.*?>
 
-<AnchorPane id="AnchorPane" prefHeight="400.0" prefWidth="600.0" styleClass="mainFxmlClass" xmlns:fx="http://javafx.com/fxml" fx:controller="org.badvision.outlaweditor.MythosScriptEditorController">
+<AnchorPane id="AnchorPane" prefHeight="748.0" prefWidth="1024.0" styleClass="mainFxmlClass" xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/8" fx:controller="org.badvision.outlaweditor.MythosScriptEditorController">
   <!--    <stylesheets>
         <URL value="@/styles/mythosscripteditor.css"/>
     </stylesheets>-->
@@ -17,20 +14,20 @@
       <menus>
         <Menu mnemonicParsing="false" text="MythosScript">
           <items>
-            <MenuItem mnemonicParsing="false" onAction="#onApplyChangesSelected" text="Apply changes" fx:id="menuItemApplyChanges" />
-            <MenuItem mnemonicParsing="false" onAction="#onAbortChangesSelected" text="Abort changes" fx:id="menuItemAbortChanges" />
+            <MenuItem fx:id="menuItemApplyChanges" mnemonicParsing="false" onAction="#onApplyChangesSelected" text="Apply changes" />
+            <MenuItem fx:id="menuItemAbortChanges" mnemonicParsing="false" onAction="#onAbortChangesSelected" text="Abort changes" />
           </items>
         </Menu>
         <Menu mnemonicParsing="false" text="Edit">
           <items>
-            <MenuItem mnemonicParsing="false" onAction="#onUndoSelected" text="Undo" fx:id="menuItemUndo" />
-            <MenuItem mnemonicParsing="false" onAction="#onRedoSelected" text="Redo" fx:id="menuItemRedo" />
+            <MenuItem fx:id="menuItemUndo" mnemonicParsing="false" onAction="#onUndoSelected" text="Undo" />
+            <MenuItem fx:id="menuItemRedo" mnemonicParsing="false" onAction="#onRedoSelected" text="Redo" />
           </items>
         </Menu>
         <Menu mnemonicParsing="false" text="Help">
           <items>
-            <MenuItem mnemonicParsing="false" onAction="#onMythosHelpSelected" text="Mythos Script Help" fx:id="menuItemMythosHelp" />
-            <MenuItem mnemonicParsing="false" onAction="#onAboutBlocklySelected" text="About Blockly" fx:id="menuItemAboutBlockly" />
+            <MenuItem fx:id="menuItemMythosHelp" mnemonicParsing="false" onAction="#onMythosHelpSelected" text="Mythos Script Help" />
+            <MenuItem fx:id="menuItemAboutBlockly" mnemonicParsing="false" onAction="#onAboutBlocklySelected" text="About Blockly" />
           </items>
         </Menu>
       </menus>

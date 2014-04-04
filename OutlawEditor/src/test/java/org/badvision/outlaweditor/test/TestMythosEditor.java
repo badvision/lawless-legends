@@ -5,9 +5,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 import javax.xml.bind.JAXB;
 import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBElement;
 import javax.xml.bind.Marshaller;
-import javax.xml.namespace.QName;
 import org.badvision.outlaweditor.data.xml.Block;
 import org.badvision.outlaweditor.data.xml.GameData;
 import org.badvision.outlaweditor.data.xml.Map;
@@ -53,7 +51,7 @@ public class TestMythosEditor {
             script.setDescription("description");
             script.setBlock(theBlock);
             map.setScripts(new Scripts());
-            map.getScripts().getEnterOrExitOrStepOn().add(new JAXBElement<Script>(new QName("outlaw", "enter"), Script.class, script));            
+            map.getScripts().getScript().add(script);            
             m.marshal(d, testWriter);
             String testOutput = testWriter.getBuffer().toString();
             assertNotNull(testOutput);
@@ -92,9 +90,9 @@ public class TestMythosEditor {
         assertEquals(1, gd.getMap().size());
         Scripts s = gd.getMap().get(0).getScripts();
         assertNotNull(s);
-        assertNotNull(s.getEnterOrExitOrStepOn());
-        assertEquals(1, s.getEnterOrExitOrStepOn().size());
-        Script scr = (Script) s.getEnterOrExitOrStepOn().get(0).getValue();
+        assertNotNull(s.getScript());
+        assertTrue(s.getScript().size() > 0);
+        Script scr = (Script) s.getScript().get(0);
         return scr.getBlock();
     }
 }

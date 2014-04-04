@@ -1,7 +1,12 @@
 package org.badvision.outlaweditor;
 
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.ResourceBundle;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
+import javafx.concurrent.Worker.State;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -13,6 +18,15 @@ public class MythosScriptEditorController
     implements Initializable {
     
     public static final String MYTHOS_EDITOR = "/mythos/mythos-editor/html/editor.html";
+    private final List<Runnable> onLoadEvents = new ArrayList<>();
+    boolean loaded = false;
+    public synchronized void onLoad(Runnable runnable) {
+        if (loaded) {
+            runnable.run();
+        } else {
+            onLoadEvents.add(runnable);
+        }
+    }
 
     @FXML //  fx:id="editorView"
     WebView editorView; // Value injected by FXMLLoader
@@ -73,6 +87,19 @@ public class MythosScriptEditorController
     
     @Override // This method is called by the FXMLLoader when initialization is complete
     public void initialize(URL fxmlFileLocation, ResourceBundle resources) {
+        editorView.getEngine().getLoadWorker().stateProperty().addListener(
+        new ChangeListener<State>() {
+            public void changed(ObservableValue ov, State oldState, State newState) {
+                if (newState == State.SUCCEEDED) {
+                    loaded = true;
+                    for (Runnable r : onLoadEvents) {
+                        r.run();
+                    }
+                    onLoadEvents.clear();
+                }
+            }
+        });
+
         assert editorView != null : "fx:id=\"editorView\" was not injected: check your FXML file 'MythosScriptEditor.fxml'.";
         assert menuItemAbortChanges != null : "fx:id=\"menuItemAbortChanges\" was not injected: check your FXML file 'MythosScriptEditor.fxml'.";
         assert menuItemAboutBlockly != null : "fx:id=\"menuItemAboutBlockly\" was not injected: check your FXML file 'MythosScriptEditor.fxml'.";

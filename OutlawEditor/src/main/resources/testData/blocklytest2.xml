@@ -2,7 +2,7 @@
 <gameData xmlns="outlaw">
     <map>
         <scripts>
-            <enter>
+            <script>
                 <name>name</name>
                 <description>description</description>
                 <block type="procedures_defreturn" inline="false" x="213" y="27">
@@ -112,7 +112,26 @@
                         <block type="logic_null"></block>
                     </value>
                 </block>
-            </enter>
+            </script>
+            <script>
+                <name>name</name>
+                <description>description</description>
+                <block type="procedures_defreturn" id="2" inline="false" x="3" y="5">
+                    <mutation></mutation>
+                    <field name="NAME">New function2</field>
+                    <statement name="STACK">
+                        <block type="text_moveto" id="20">
+                            <field name="x">0</field>
+                            <field name="y">0</field>
+                            <next>
+                                <block type="math_change" id="32" inline="true">
+                                    <field name="VAR">item</field>
+                                </block>
+                            </next>
+                        </block>
+                    </statement>
+                </block>
+            </script>
         </scripts>
     </map>
 </gameData>

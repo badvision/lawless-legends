@@ -31,6 +31,8 @@ import javax.swing.JOptionPane;
 import javax.xml.bind.JAXB;
 import org.badvision.outlaweditor.data.TilesetUtils;
 import org.badvision.outlaweditor.data.xml.GameData;
+import org.badvision.outlaweditor.data.xml.IntervalScript;
+import org.badvision.outlaweditor.data.xml.Map;
 import org.badvision.outlaweditor.data.xml.Script;
 
 /**
@@ -203,6 +205,10 @@ public class UIAction {
         script.setName("New Script");
         MythosEditor editor = new MythosEditor(script);
         editor.show();
+        if (Application.instance.controller.currentMap.getScripts() == null) {
+            Application.instance.controller.currentMap.setScripts(new Map.Scripts());
+        }
+        Application.instance.controller.currentMap.getScripts().getScript().add(script);
         return script;
     }
 }

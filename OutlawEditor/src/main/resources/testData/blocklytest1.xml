@@ -2,7 +2,7 @@
 <gameData xmlns="outlaw">
     <map>
         <scripts>
-            <enter>
+            <script>
                 <name>name</name>
                 <description>description</description>
                 <block type="variables_set" inline="true" x="245" y="27">
@@ -47,7 +47,7 @@
                         </block>
                     </next>
                 </block>            
-            </enter>
+            </script>
         </scripts>
     </map>
 </gameData>

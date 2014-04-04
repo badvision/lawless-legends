@@ -64,14 +64,9 @@
             </xs:element>
             <xs:element name="scripts">
                 <xs:complexType>
-                    <xs:choice maxOccurs="unbounded">
-                        <xs:element name="enter" type="tns:script" minOccurs="0"/>
-                        <xs:element name="exit" type="tns:script" minOccurs="0"/>
-                        <xs:element name="stepOn" type="tns:locationScript" minOccurs="0"/>
-                        <xs:element name="stepOff" type="tns:locationScript" minOccurs="0" />
-                        <xs:element name="interact" type="tns:locationScript" minOccurs="0"/>
-                        <xs:element name="interval" type="tns:intervalScript" minOccurs="0"/>
-                    </xs:choice>
+                    <xs:sequence>
+                        <xs:element name="script" type="tns:script" minOccurs="1" maxOccurs="unbounded"/>
+                    </xs:sequence>
                 </xs:complexType>
             </xs:element>
         </xs:sequence>
@@ -94,6 +89,9 @@
         </xs:sequence>
         <xs:attribute name="inline" type="xs:boolean"/>
         <xs:attribute name="type" use="required" type="xs:NCName"/>
+        <xs:attribute name="id" type="xs:integer"/>
+        <xs:attribute name="uri" type="xs:string"/>
+        <xs:attribute name="local" type="xs:string"/>
         <xs:attribute name="x" type="xs:integer"/>
         <xs:attribute name="y" type="xs:integer"/>
     </xs:complexType>

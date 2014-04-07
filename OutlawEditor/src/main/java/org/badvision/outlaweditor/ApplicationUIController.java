@@ -10,6 +10,7 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.TextField;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import org.badvision.outlaweditor.data.xml.Image;
 import org.badvision.outlaweditor.data.xml.Map;
@@ -218,6 +219,10 @@ public abstract class ApplicationUIController {
     @FXML
     abstract public void onMapScriptClonePressed(ActionEvent event);
 
+    // Handler for onClick
+    @FXML
+    abstract public void onMapScriptClicked(MouseEvent event);
+    
     // Handler for Button[Button[id=null, styleClass=button]] onAction
     @FXML
     abstract public void onMapScriptDeletePressed(ActionEvent event);

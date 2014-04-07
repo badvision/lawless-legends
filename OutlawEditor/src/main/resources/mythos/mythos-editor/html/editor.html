@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Blockly Demo: Fixed Blockly</title>
+        <script type="text/javascript" src="../../blockly_compressed.js"></script>
+        <script type="text/javascript" src="../../blocks_compressed.js"></script>
+        <script type="text/javascript" src="../../msg/js/en.js"></script>
+        <script type="text/javascript" src="../js/mythos_uncompressed.js"></script>
+        <style>
+            body {
+                background-color: #fff;
+                font-family: sans-serif;
+            }
+            h1 {
+                font-weight: normal;
+                font-size: 140%;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="blocklyDiv" style="height: 550px; width: 800px;"></div>
+
+    <xml id="toolbox" style="display: none">
+        <category name="Variables">
+            <block type="variables_set"></block>
+            <block type="variables_get"></block>
+        </category>
+        <category name="Flow">
+            <block type="controls_if"></block>
+            <block type="flow_for"></block>
+            <block type="flow_repeat"></block>
+            <block type="flow_break"></block>
+            <block type="flow_continue"></block>
+        </category>
+        <category name="Math">
+            <block type="math_number"></block>
+            <block type="math_arithmetic"></block>
+            <block type="math_change"></block>
+            <block type="math_modulo"></block>
+            <block type="math_random_int"></block>
+        </category>
+        <category name="Logic">
+            <block type="logic_compare"></block>
+            <block type="logic_operation"></block>
+            <block type="logic_negate"></block>
+            <block type="logic_boolean"></block>
+            <block type="logic_ternary"></block>
+            <block type="logic_cointoss"></block>
+        </category>
+        <category name="Events">
+        </category>
+        <category name="Text">
+            <block type="text_window"></block>
+            <block type="text_moveto"></block>
+            <block type="text_print"></block>
+            <block type="text_println"></block>
+            <block type="text_mode"></block>
+            <block type="text_scroll"></block>
+            <block type="text"></block>
+            <block type="text_getstring"></block>
+            <block type="text_getnumber"></block>
+            <block type="text_getboolean"></block>
+            <block type="text_getcharacter"></block>
+        </category>
+        <category name="Graphics">
+        </category>
+        <category name="Sound">
+        </category>
+    </xml>
+
+    <script>
+        Mythos.initBlocks();
+        Blockly.inject(document.getElementById('blocklyDiv'),
+                {path: '../../', toolbox: document.getElementById('toolbox')});
+    </script>
+
+</body>
+</html>

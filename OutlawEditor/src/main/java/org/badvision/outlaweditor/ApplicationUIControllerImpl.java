@@ -17,6 +17,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.cell.ComboBoxListCell;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
+import javafx.scene.input.MouseEvent;
 import javafx.util.Callback;
 import static org.badvision.outlaweditor.Application.currentPlatform;
 import static org.badvision.outlaweditor.Application.gameData;
@@ -442,16 +443,16 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
     }
 
     @Override
-    public void onMapScriptAddPressed(ActionEvent event) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
     public void onMapPreviewPressed(ActionEvent event) {
         if (currentMapEditor == null) {
             return;
         }
         currentMapEditor.showPreview();
+    }
+
+    @Override
+    public void onMapScriptAddPressed(ActionEvent event) {
+        createAndEditScript();
     }
 
     @Override
@@ -463,6 +464,12 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
     public void onMapScriptDeletePressed(ActionEvent event) {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
+    
+    @Override
+    public void onMapScriptClicked(MouseEvent event) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
 
     @Override
     public void onMapSelected(ActionEvent event) {

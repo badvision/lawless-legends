@@ -364,8 +364,8 @@ class PackPartitions
                 if (!texMap.containsKey(id)) {
                     texMap[id] = 0
                     if (tile?.@obstruction == 'true') {
-                        if (name in textures) {
-                            texList.add(textures[name].num)
+                        if (stripName(name) in textures) {
+                            texList.add(textures[stripName(name)].num)
                             texMap[id] = texList.size()
                         }
                         else if (id)
@@ -424,6 +424,11 @@ class PackPartitions
         }
     }
     
+    def stripName(name)
+    {
+        return name.toLowerCase().replaceAll(" ", "")
+    }
+    
     def packTexture(imgEl)
     {
         def num = textures.size() + 1
@@ -433,7 +438,7 @@ class PackPartitions
         calcTransparency(pixels)
         def buf = ByteBuffer.allocate(50000)
         writeTexture(buf, pixels)
-        textures[imgEl.@name] = [num:num, buf:buf]
+        textures[stripName(imgEl.@name)] = [num:num, buf:buf]
     }
     
     def packFrameImage(imgEl)

@@ -5,13 +5,13 @@ var dc = function(tag) { return document.createElement(tag); };
 
 var map = [
   [1,4,3,4,2,3,2,4,3,2,4,3,4],
-  [1,0,0,0,0,0,0,3,0,0,2,0,3],
-  [1,0,0,0,0,0,0,1,0,0,3,0,2],
-  [3,0,0,1,2,3,0,4,0,0,4,0,3],
+  [1,0,0,1,0,0,0,3,0,0,2,0,3],
+  [1,1,0,1,1,0,0,1,0,0,3,0,2],
+  [1,0,0,1,2,3,0,4,0,0,4,0,3],
   [1,0,0,0,0,4,0,0,0,0,0,0,4],
-  [2,0,0,2,0,2,0,0,0,0,0,0,4],
-  [1,0,0,3,0,0,0,3,0,0,3,0,1],
-  [3,0,0,1,0,0,0,3,0,0,2,0,3],
+  [2,0,0,0,0,2,0,0,0,0,0,0,4],
+  [0,2,2,2,0,0,0,3,0,0,3,0,1],
+  [3,0,0,2,0,0,0,3,0,0,2,0,3],
   [1,0,0,2,0,3,0,2,0,0,4,0,3],
   [1,0,0,0,0,2,0,0,0,0,0,0,1],
   [3,0,0,0,0,1,0,0,0,0,0,0,3],
@@ -29,6 +29,9 @@ var itemTypes = [
 
 var allSprites = [
 
+  // lamp where tree would be
+  {type:3, x:1.5,  y:4.5},
+
   // lamps in center area
   {type:3, x:9.5,  y:7.5},
   {type:3, x:15.5, y:7.5},
@@ -43,13 +46,13 @@ var allSprites = [
   {type:1, x:11.5, y:10.5},
   // lamps in long bottom room
   {type:3, x:8.5,  y:10.5},
-  {type:3, x:9.5, y:10.5}
+  {type:3, x:9.5,  y:10.5}
 ];
 
 // Player attributes [ref BigBlue2_10]
 var player = {
-  x : 11.5,      // current x, y position
-  y : 1.5,
+  x : 1.5,      // current x, y position
+  y : 2.5,
   dir : 0,    // the direction that the player is turning, either -1 for left or 1 for right.
   angleNum : 4, // the current angle of rotation
   speed : 0,    // is the playing moving forward (speed = 1) or backwards (speed = -1).

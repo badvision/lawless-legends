@@ -2,8 +2,9 @@ package org.badvision.outlaweditor;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.StringReader;
 import java.io.StringWriter;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.event.EventHandler;
@@ -22,7 +23,6 @@ import javax.xml.parsers.ParserConfigurationException;
 import org.badvision.outlaweditor.data.xml.Block;
 import org.badvision.outlaweditor.data.xml.Script;
 import org.w3c.dom.Document;
-import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 /**
@@ -43,10 +43,11 @@ public class MythosEditor {
 
     public void show() {
         primaryStage = new Stage();
-        javafx.application.Platform.setImplicitExit(true);
 
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/MythosScriptEditor.fxml"));
-        fxmlLoader.setResources(null);
+        Map<String,String> properties = new HashMap<>();
+        properties.put(MythosScriptEditorController.ONLOAD_SCRIPT, generateLoadScript());
+        fxmlLoader.setResources(MythosScriptEditorController.createResourceBundle(properties));
         try {
             AnchorPane node = (AnchorPane) fxmlLoader.load();
             controller = fxmlLoader.getController();
@@ -64,23 +65,21 @@ public class MythosEditor {
             }
         });
         primaryStage.show();
-        controller.onLoad(new Runnable() {
+    }
+
+    public void close() {
+        javafx.application.Platform.runLater(new Runnable() {
             @Override
             public void run() {
-                loadScript();
+                primaryStage.getScene().getRoot().setDisable(true);
+                primaryStage.close();
             }
         });
     }
 
-    public void close() {
-        primaryStage.close();
-    }
-
     public void applyChanges() {
         try {
-            String xml = String.valueOf(controller.editorView.getEngine().executeScript("Blockly.Xml.workspaceToDom(Blockly.mainWorkspace).outerHTML"));
-            xml = xml.replace("<xml>", "");
-            xml = xml.replace("</xml>", "");
+            String xml = controller.getScriptXml();
             JAXBContext context = JAXBContext.newInstance("org.badvision.outlaweditor.data.xml");
             Unmarshaller unmarshaller = context.createUnmarshaller();
             DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
@@ -94,31 +93,37 @@ public class MythosEditor {
         }
     }
 
-    public void loadScript() {
+    public String generateLoadScript() {
         if (script == null || script.getBlock() == null) {
-            loadScript(createDefaultScript());
-            return;
+            return generateLoadScript(getDefaultBlockMarkup());
+        } else {
+            try {
+                JAXBContext context = JAXBContext.newInstance(Block.class);
+                StringWriter buffer = new StringWriter();
+                context.createMarshaller().marshal(script.getBlock(), buffer);
+                String xml = buffer.toString();
+                return generateLoadScript(xml);
+            } catch (JAXBException ex) {
+                Logger.getLogger(MythosEditor.class.getName()).log(Level.SEVERE, null, ex);
+            }
         }
-        try {
-            JAXBContext context = JAXBContext.newInstance(Block.class);
-            StringWriter buffer = new StringWriter();
-            context.createMarshaller().marshal(script.getBlock(), buffer);
-            String xml = buffer.toString();
-            loadScript(xml);
-        } catch (JAXBException ex) {
-            Logger.getLogger(MythosEditor.class.getName()).log(Level.SEVERE, null, ex);
-        }
+        return null;
     }
 
-    public void loadScript(String xml) {
+    public String generateLoadScript(String xml) {
         xml = XML_HEADER + xml;
         xml = xml.replaceAll("'", "\\'");
         xml = xml.replaceAll("\n", "");
-        String loadScript = "Blockly.Xml.domToWorkspace(Blockly.mainWorkspace, Blockly.Xml.textToDom('" + xml + "'));";
-        controller.editorView.getEngine().executeScript(loadScript);
+        String loadScript = "Mythos.setScriptXml('"+xml+"');";
+        return loadScript;
     }
 
-    private String createDefaultScript() {
-        return "<xml><block type=\"procedures_defreturn\" id=\"1\" inline=\"false\" x=\"5\" y=\"5\"><mutation></mutation><field name=\"NAME\">New function</field></block></xml>";
+    private String getDefaultBlockMarkup() {
+        return "<xml><block type=\"procedures_defreturn\" id=\"1\" inline=\"false\" x=\"5\" y=\"5\"><mutation></mutation><field name=\"NAME\">NewScript</field></block></xml>";
+    }
+    
+    // Called when the name of the root block is changed in the JS editor
+    public void setFunctionName(String name) {
+        System.out.println("Function title changed! >> "+name);
     }
 }

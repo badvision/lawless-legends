@@ -18,7 +18,6 @@ import org.badvision.outlaweditor.data.xml.Script;
 import org.badvision.outlaweditor.data.xml.Tile;
 
 public abstract class ApplicationUIController {
-
     @FXML // ResourceBundle that was given to the FXMLLoader
     protected ResourceBundle resources;
     @FXML // URL location of the FXML file that was given to the FXMLLoader
@@ -218,10 +217,6 @@ public abstract class ApplicationUIController {
     // Handler for Button[Button[id=null, styleClass=button]] onAction
     @FXML
     abstract public void onMapScriptClonePressed(ActionEvent event);
-
-    // Handler for onClick
-    @FXML
-    abstract public void onMapScriptClicked(MouseEvent event);
     
     // Handler for Button[Button[id=null, styleClass=button]] onAction
     @FXML

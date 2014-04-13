@@ -1,5 +1,23 @@
 if (typeof Mythos === "undefined") {
+    // Hook up the rename function to notify the java editor when changes occur
+    Blockly.Procedures.rename_old = Blockly.Procedures.rename;
+    Blockly.Procedures.rename = function(name) {
+        Mythos.editor.setFunctionName(name);
+        return Blockly.Procedures.rename_old.call(this,name);
+    };
+    
     Mythos = {
+        setScriptXml: function(xml) {
+            Blockly.mainWorkspace.clear();
+            var dom = Blockly.Xml.textToDom(xml);
+            Blockly.Xml.domToWorkspace(Blockly.mainWorkspace, dom);
+            while (Blockly.mainWorkspace.topBlocks_.length > 1) {
+                Blockly.mainWorkspace.topBlocks_[1].dispose();
+            }
+        },
+        getScriptXml: function() {
+            return Blockly.Xml.workspaceToDom(Blockly.mainWorkspace).innerHTML;
+        },
         helpUrl: 'https://docs.google.com/document/d/1VXbiY4G533-cokjQevZFhwvqMMCL--17ziMAoFoeJ5M/edit#heading=h.yv9dmneqjr2b',
         initBlocks: function() {
             Blockly.Blocks['flow_for'] = {

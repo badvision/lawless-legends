@@ -1,6 +1,5 @@
 package org.badvision.outlaweditor;
 
-import org.badvision.outlaweditor.apple.AppleTileRenderer;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -21,12 +20,14 @@ import javafx.scene.input.MouseEvent;
 import javafx.util.Callback;
 import static org.badvision.outlaweditor.Application.currentPlatform;
 import static org.badvision.outlaweditor.Application.gameData;
-import static org.badvision.outlaweditor.data.PropertyHelper.*;
 import static org.badvision.outlaweditor.UIAction.*;
+import org.badvision.outlaweditor.apple.AppleTileRenderer;
+import static org.badvision.outlaweditor.data.PropertyHelper.*;
 import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.TilesetUtils;
 import org.badvision.outlaweditor.data.xml.Image;
 import org.badvision.outlaweditor.data.xml.PlatformData;
+import org.badvision.outlaweditor.data.xml.Script;
 import org.badvision.outlaweditor.data.xml.Tile;
 
 /**
@@ -466,12 +467,6 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
     }
     
     @Override
-    public void onMapScriptClicked(MouseEvent event) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-
-    @Override
     public void onMapSelected(ActionEvent event) {
         setCurrentMap(mapSelect.getSelectionModel().getSelectedItem());
     }
@@ -737,6 +732,7 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
             currentMapEditor.setEntity(m);
             currentMapEditor.buildEditorUI(mapEditorAnchorPane);
         }
+        redrawMapScripts();
     }
 
     public void rebuildMapSelectors() {
@@ -835,6 +831,36 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
                 return currentTileEditor;
         }
         return null;
+    }
+
+    public void redrawMapScripts() {
+        mapScriptsList.setOnEditStart(new EventHandler<ListView.EditEvent<Script>>() {
+            @Override
+            public void handle(ListView.EditEvent<Script> event) {
+                  UIAction.editScript(event.getSource().getItems().get(event.getIndex()));
+            }
+        });
+        mapScriptsList.setCellFactory(new Callback<ListView<Script>, ListCell<Script>>() {
+            @Override
+            public ListCell<Script> call(ListView<Script> param) {
+                return new ListCell<Script>() {
+                    @Override
+                    protected void updateItem(Script item, boolean empty) {
+                        super.updateItem(item, empty);
+                        if (empty || item == null) {                            
+                            setText("");
+                        } else {
+                            setText(item.getName());
+                        }
+                    }
+                };
+            }
+        });
+        if (currentMap == null) {
+            mapScriptsList.getItems().clear();
+        } else {
+            mapScriptsList.getItems().setAll(currentMap.getScripts().getScript());
+        }
     }
 
     abstract public static class EntitySelectorCell<T> extends ComboBoxListCell<T> {

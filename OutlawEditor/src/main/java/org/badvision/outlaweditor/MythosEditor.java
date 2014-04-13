@@ -17,6 +17,7 @@ import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Unmarshaller;
+import javax.xml.namespace.QName;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -100,8 +101,13 @@ public class MythosEditor {
             try {
                 JAXBContext context = JAXBContext.newInstance(Block.class);
                 StringWriter buffer = new StringWriter();
-                context.createMarshaller().marshal(script.getBlock(), buffer);
+                QName qName = new QName("outlaw","block");
+                JAXBElement<Block> root = new JAXBElement<>(qName, Block.class, script.getBlock()); 
+                context.createMarshaller().marshal(root, buffer);
                 String xml = buffer.toString();
+                xml=xml.replace("?>", "?><xml>");
+                xml += "</xml>";
+                System.out.println("xml: "+xml);
                 return generateLoadScript(xml);
             } catch (JAXBException ex) {
                 Logger.getLogger(MythosEditor.class.getName()).log(Level.SEVERE, null, ex);
@@ -111,7 +117,6 @@ public class MythosEditor {
     }
 
     public String generateLoadScript(String xml) {
-        xml = XML_HEADER + xml;
         xml = xml.replaceAll("'", "\\'");
         xml = xml.replaceAll("\n", "");
         String loadScript = "Mythos.setScriptXml('"+xml+"');";
@@ -119,11 +124,17 @@ public class MythosEditor {
     }
 
     private String getDefaultBlockMarkup() {
-        return "<xml><block type=\"procedures_defreturn\" id=\"1\" inline=\"false\" x=\"5\" y=\"5\"><mutation></mutation><field name=\"NAME\">NewScript</field></block></xml>";
+        return XML_HEADER+"<xml><block type=\"procedures_defreturn\" id=\"1\" inline=\"false\" x=\"5\" y=\"5\"><mutation></mutation><field name=\"NAME\">NewScript</field></block></xml>";
     }
     
     // Called when the name of the root block is changed in the JS editor
     public void setFunctionName(String name) {
+        if (script == null) {
+            System.out.println("How can the script be null??  wanted to set script name to "+name);            
+            return;
+        }
+        script.setName(name);
         System.out.println("Function title changed! >> "+name);
+        Application.instance.controller.redrawMapScripts();
     }
 }

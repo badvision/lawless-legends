@@ -27,11 +27,9 @@ import javafx.scene.layout.VBoxBuilder;
 import javafx.scene.text.Text;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import javax.swing.JOptionPane;
 import javax.xml.bind.JAXB;
 import org.badvision.outlaweditor.data.TilesetUtils;
 import org.badvision.outlaweditor.data.xml.GameData;
-import org.badvision.outlaweditor.data.xml.IntervalScript;
 import org.badvision.outlaweditor.data.xml.Map;
 import org.badvision.outlaweditor.data.xml.Script;
 
@@ -203,12 +201,20 @@ public class UIAction {
     public static Script createAndEditScript() {
         Script script = new Script();
         script.setName("New Script");
-        MythosEditor editor = new MythosEditor(script);
-        editor.show();
         if (Application.instance.controller.currentMap.getScripts() == null) {
             Application.instance.controller.currentMap.setScripts(new Map.Scripts());
         }
         Application.instance.controller.currentMap.getScripts().getScript().add(script);
-        return script;
+        return editScript(script);
+    }
+    
+    public static Script editScript(Script script) {
+        if (script == null) {
+            System.err.println("Requested to edit a null script object, ignoring!");
+            return null;
+        }
+        MythosEditor editor = new MythosEditor(script);
+        editor.show();
+        return script;        
     }
 }

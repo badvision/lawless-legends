@@ -16,7 +16,7 @@
 ; Constants
 MAX_SEGS	= 96
 
-DO_COMP_CHECKSUMS = 1		; during compression debugging
+DO_COMP_CHECKSUMS = 0		; during compression debugging
 DEBUG_DECOMP = 0
 
 ; Zero page temporary variables

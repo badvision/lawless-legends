@@ -36,7 +36,7 @@ class PackPartitions
     
     def compressor = LZ4Factory.fastestInstance().highCompressor()
     
-    def ADD_COMP_CHECKSUMS = true
+    def ADD_COMP_CHECKSUMS = false
     
     def debugCompression = false
     

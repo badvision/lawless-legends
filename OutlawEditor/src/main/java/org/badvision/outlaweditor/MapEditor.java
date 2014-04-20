@@ -20,17 +20,22 @@ import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
+import javafx.scene.input.DragEvent;
+import javafx.scene.input.Dragboard;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
+import javafx.scene.input.TransferMode;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
+import static org.badvision.outlaweditor.Application.currentPlatform;
+import org.badvision.outlaweditor.DragDropHelper.DropEventHandler;
 import org.badvision.outlaweditor.data.TileMap;
 import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.xml.Map;
+import org.badvision.outlaweditor.data.xml.Script;
 import org.badvision.outlaweditor.data.xml.Tile;
-import static org.badvision.outlaweditor.Application.currentPlatform;
 
 /**
  *
@@ -48,6 +53,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     TileMap currentMap;
     double tileWidth = currentPlatform.tileRenderer.getWidth() * zoom;
     double tileHeight = currentPlatform.tileRenderer.getHeight() * zoom;
+    public static DragDropHelper<Script> scriptDragDrop = new DragDropHelper<>(Script.class);
 
     @Override
     public void setEntity(Map t) {
@@ -110,7 +116,17 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         drawCanvas.setOnMouseDragged(this);
         drawCanvas.setOnMouseDragReleased(this);
         drawCanvas.setOnMouseReleased(this);
+        scriptDragDrop.registerDropSupport(drawCanvas, new DropEventHandler<Script>() {
+            @Override
+            public void handle(Script script, double x, double y) {
+                assignScript(script, x, y);
+            }
+        });
         anchorPane.getChildren().add(0, drawCanvas);
+    }
+
+    public void assignScript(Script script, double x, double y) {
+        System.out.println("Dropped " + script.getName() + " at " + x + "," + y);
     }
 
     public void togglePanZoom() {
@@ -270,20 +286,20 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     public void copy() {
         byte[] data = currentPlatform.imageRenderer.renderPreview(currentMap, posX, posY, currentPlatform.maxImageWidth, currentPlatform.maxImageHeight);
         WritableImage img = currentPlatform.imageRenderer.renderImage(null, data, currentPlatform.maxImageWidth, currentPlatform.maxImageHeight);
-        java.util.Map<DataFormat,Object> clip = new HashMap<>();
+        java.util.Map<DataFormat, Object> clip = new HashMap<>();
         clip.put(DataFormat.IMAGE, img);
-        clip.put(DataFormat.PLAIN_TEXT, "selection/map/"+Application.gameData.getMap().indexOf(getEntity())+"/"+getSelectionInfo());
-        Clipboard.getSystemClipboard().setContent(clip);        
+        clip.put(DataFormat.PLAIN_TEXT, "selection/map/" + Application.gameData.getMap().indexOf(getEntity()) + "/" + getSelectionInfo());
+        Clipboard.getSystemClipboard().setContent(clip);
     }
 
     @Override
     public String getSelectedAllInfo() {
-        setSelectionArea(posX, posY, posX+19, posY+11);
+        setSelectionArea(posX, posY, posX + 19, posY + 11);
         String result = getSelectionInfo();
-        setSelectionArea(0,0,0,0);
+        setSelectionArea(0, 0, 0, 0);
         return result;
     }
-    
+
     @Override
     public void paste() {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
@@ -296,7 +312,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
 
     @Override
     public void selectNone() {
-        setSelectionArea(0,0,0,0);
+        setSelectionArea(0, 0, 0, 0);
     }
 
     public static enum DrawMode {

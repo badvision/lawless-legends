@@ -13,7 +13,7 @@ start:
 
 ; Conditional assembly flags
 DOUBLE_BUFFER	= 1		; whether to double-buffer
-DEBUG		= 0		; 1=some logging, 2=lots of logging
+DEBUG		= 1		; 1=some logging, 2=lots of logging
 
 ; Shared constants, zero page, buffer locations, etc.
 !source "render.i"
@@ -24,6 +24,9 @@ DEBUG		= 0		; 1=some logging, 2=lots of logging
 ; Font engine
 !source "../include/fontEngine.i"
 
+; Local constants
+MAX_SPRITES	= 16		; max # sprites visible at once
+
 ; Variables
 backBuf:   	!byte 0		; (value 0 or 1)
 frontBuf:  	!byte 0		; (value 0 or 1)
@@ -33,6 +36,7 @@ mapRayOrigin:	!word 0
 mapNum:    	!byte 1
 mapName:	!word 0		; pointer to map name
 mapNameLen:	!byte 0		; length of map name
+nMapSprites:	!byte 0		; number of sprite entries on map to fix up
 
 ; Sky / ground colors
 skyGndTbl1:	!byte $00	; lo-bit black
@@ -288,7 +292,7 @@ castRay: !zone
 	lda stepX		; advance mapX in the correct direction
 	bmi .negX
 	inc mapX
-	iny		; also the Y reg which indexes the map
+	iny			; also the Y reg which indexes the map
 	jmp .checkX
 .negX:	dec mapX
 	dey
@@ -302,6 +306,8 @@ castRay: !zone
 	sta sideDistX
 	lda (pMap),y		; check map at current X/Y position
 	beq .DDA_step		; nothing there? do another step.
+	bpl .hitX
+	jmp .hitSprite
 	; We hit something!
 .hitX:	!if DEBUG >= 2 { +prStr : !text "  Hit.",0 }
 	ldx screenCol
@@ -357,6 +363,7 @@ castRay: !zone
 	lda deltaDistY		; re-init Y distance
 	sta sideDistY
 	lda (pMap),y		; check map at current X/Y position
+	bmi .hitSprite
 	bne .hitY		; nothing there? do another step.
 	jmp .DDA_step
 .hitY:	; We hit something!
@@ -389,6 +396,31 @@ castRay: !zone
 	sta txColBuf,x		; and save the final coord
 	!if DEBUG >= 2 { jsr .debugFinal }
 	rts
+.hitSprite:
+	; We found a sprite cell on the map. We only want to process this sprite once,
+	; so check if we've already done it.
+	and #$40
+	bne .dupeSprite
+	; Haven't seen this one yet. Mark it, and also record the address of the flag
+	; so we can clear it later after tracing all rays.
+	lda (pMap),y		; get back the original byte
+	ora #$40		; add special flag
+	sta (pMap),y		; and store it back
+	ldx nMapSprites		; get ready to store the address so we can fix the flag later
+	cpx #MAX_SPRITES	; check for table overflow
+	bne +
+	brk			; ack! too many sprites
++	tya			; Y reg indexes the map
+	clc
+	adc pMap		; add to map pointer
+	sta mapSpriteL,x	; save lo byte
+	lda #0
+	adc pMap+1		; calculate hi byte of map pointer
+	sta mapSpriteH,x	; and save that too
+	inc nMapSprites		; advance to next table entry
+	!if DEBUG { jsr .debugSprite }
+.dupeSprite:
+	jmp .DDA_step
 
 	; wall calculation: X=dir1, Y=dir2, A=dir2step
 .wallCalc:
@@ -513,6 +545,17 @@ castRay: !zone
 	+prA
 	+crout
 	jmp rdkey
+}
+!if DEBUG {
+.debugSprite:
+	+prStr : !text "Hit sprite, mapX=",0
+	+prByte mapX
+	+prStr : !text "mapY=",0
+	+prByte mapY
+	+prStr : !text "sprite=",0
+	+prA
+	+crout
+	rts
 }
 
 ; Advance pLine to the next line on the hi-res screen
@@ -1045,6 +1088,7 @@ castAllRays: !zone
 	; The table has 256 bytes per direction.
 	ldx #0
 	stx pRayData
+	stx nMapSprites		; clear this while we've got zero in a register
 	lda playerDir
 	clc
 	adc #>precast_0
@@ -1099,6 +1143,9 @@ castAllRays: !zone
 	rts
 
 ;-------------------------------------------------------------------------------
+; Reset sprite flags on the map
+
+;-------------------------------------------------------------------------------
 ; Render one whole frame
 renderFrame: !zone
 	!if DOUBLE_BUFFER { jsr setBackBuf }
@@ -1113,18 +1160,18 @@ renderFrame: !zone
 .oneCol:
 	lda pixNum
 	bne +
-	jsr clearBlit	; clear blit on the first pixel
-+	jsr drawRay	; and draw the ray
+	jsr clearBlit		; clear blit on the first pixel
++	jsr drawRay		; and draw the ray
 	!if DEBUG >= 2 { +prStr : !text "Done drawing ray ",0 : +prByte screenCol : +crout }
-	inc screenCol	; next column
-	inc pixNum	; do we need to flush the pixel buffer?
+	inc screenCol		; next column
+	inc pixNum		; do we need to flush the pixel buffer?
 	lda pixNum
 	cmp #7
-	bne .nextCol	; not yet
+	bne .nextCol		; not yet
 .flush:	; flush the blit
 	!if DEBUG >= 2 { +prStr : !text "Flushing.",0 }
 	ldy byteNum
-	iny		; move to right 2 bytes to preserve frame border
+	iny			; move to right 2 bytes to preserve frame border
 	iny
 	sta setAuxZP
 	jsr blitRoll
@@ -1136,8 +1183,22 @@ renderFrame: !zone
 .nextCol:
 	lda byteNum
 	cmp #18
-	bne .oneCol	; go back for another ray
-	rts
+	bne .oneCol		; go back for another ray
+	; now that we're done tracing rays, we need to reset the sprite flags.
+.resetMapSprites:
+	ldx #0			; index the table with X
+	stx pMap
+.rstLup	cpx nMapSprites		; are we done yet?
+	bcs .done		; if so stop.
+	ldy mapSpriteL,x	; grab lo byte of ptr, stick in Y to index the page
+	lda mapSpriteH,x	; grab hi byte of ptr
+	sta pMap+1
+	lda (pMap),y		; get the sprite byte
+	and #$BF		; mask off the already-done bit
+	sta (pMap),y		; and save it back
+	inx			; next table entry
+	bne .rstLup		; always taken
+.done	rts
 
 ;-------------------------------------------------------------------------------
 ; Move the player forward a quarter step
@@ -2571,12 +2632,16 @@ precast_15:
 	!byte $7E,$07,$05,$56
 	!fill 4	; to bring it up to 256 bytes per angle
 
-; Rendering buffers
+; Column compositing linked buffers
 txNumBuf:	!fill 256
 txColBuf:	!fill 256
 heightBuf:	!fill 256
 depthBuf:	!fill 256
 linkBuf:	!fill 256
+
+; Active sprite restore addresses
+mapSpriteL	!fill MAX_SPRITES
+mapSpriteH	!fill MAX_SPRITES
 
 ; Useful constants
 wLog256:	!word $0800

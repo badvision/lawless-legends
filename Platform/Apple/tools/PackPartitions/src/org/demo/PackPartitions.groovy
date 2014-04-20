@@ -362,17 +362,18 @@ class PackPartitions
                 def id = tile?.@id
                 def name = tile?.@name
                 if (!texMap.containsKey(id)) {
-                    texMap[id] = 0
-                    if (tile?.@obstruction == 'true') {
-                        if (stripName(name) in textures) {
-                            texList.add(textures[stripName(name)].num)
-                            texMap[id] = texList.size()
-                        }
-                        else if (id)
-                            println "Warning: can't match tile name '$name' to any image; treating as blank."
+                    if (name == null || name.toLowerCase() =~ /street|blank|null/)
+                        texMap[id] = 0
+                    else if (stripName(name) in textures) {
+                        texList.add(textures[stripName(name)].num)
+                        texMap[id] = texList.size()
+                        if (tile?.@obstruction != 'true')
+                            texMap[id] |= 0x80; // hi-bit flag to mark sprite cells
                     }
-                    else if (name != 'street')
-                        println "Note: ignoring non-obstruction '$name' until sprite support is added."
+                    else if (id) {
+                        println "Warning: can't match tile name '$name' to any image; treating as blank."
+                        texMap[id] = 0
+                    }
                 }
             }
         }

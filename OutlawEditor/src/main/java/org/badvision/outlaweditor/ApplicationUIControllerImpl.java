@@ -16,7 +16,11 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.cell.ComboBoxListCell;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.DataFormat;
+import javafx.scene.input.Dragboard;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.input.TransferMode;
 import javafx.util.Callback;
 import static org.badvision.outlaweditor.Application.currentPlatform;
 import static org.badvision.outlaweditor.Application.gameData;
@@ -833,6 +837,7 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
         return null;
     }
 
+    public static final DataFormat SCRIPT_DATA_FORMAT = new DataFormat("MythosScript");
     public void redrawMapScripts() {
         mapScriptsList.setOnEditStart(new EventHandler<ListView.EditEvent<Script>>() {
             @Override
@@ -840,10 +845,11 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
                   UIAction.editScript(event.getSource().getItems().get(event.getIndex()));
             }
         });
+        final DragDropHelper<Script> scriptDragDrop = new DragDropHelper<>(Script.class);
         mapScriptsList.setCellFactory(new Callback<ListView<Script>, ListCell<Script>>() {
             @Override
             public ListCell<Script> call(ListView<Script> param) {
-                return new ListCell<Script>() {
+                final ListCell<Script> cell = new ListCell<Script>() {
                     @Override
                     protected void updateItem(Script item, boolean empty) {
                         super.updateItem(item, empty);
@@ -851,9 +857,11 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
                             setText("");
                         } else {
                             setText(item.getName());
+                            scriptDragDrop.registerDragSupport(this, item);
                         }
                     }
                 };
+                return cell;
             }
         });
         if (currentMap == null) {

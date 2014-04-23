@@ -47,16 +47,12 @@ diff		= $56	; len 2
 pMap		= $58	; len 2
 lineCt		= $5A	; len 1
 depth		= $5B	; len 1
-minX		= $5C	; len 1
-maxX		= $5D	; len 1
-minY		= $5E	; len 1
-maxY		= $5F	; len 1
-screenCol	= $60	; len 1
-playerDir	= $61	; len 1
-playerX		= $62	; len 2 (hi=integer, lo=fraction)
-playerY		= $64	; len 2 (hi=integer, lo=fraction)
-mapWidth	= $66	; len 1
-mapHeight	= $67	; len 1
+screenCol	= $5C	; len 1
+playerDir	= $5D	; len 1
+playerX		= $5E	; len 2 (hi=integer, lo=fraction)
+playerY		= $60	; len 2 (hi=integer, lo=fraction)
+mapWidth	= $62	; len 1
+mapHeight	= $63	; len 1
 
 ;---------------------------------
 ; The following are in aux mem...

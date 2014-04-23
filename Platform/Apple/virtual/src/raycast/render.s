@@ -26,6 +26,7 @@ DEBUG		= 1		; 1=some logging, 2=lots of logging
 
 ; Local constants
 MAX_SPRITES	= 16		; max # sprites visible at once
+NUM_COLS	= 63
 
 ; Variables
 backBuf:   	!byte 0		; (value 0 or 1)
@@ -37,6 +38,7 @@ mapNum:    	!byte 1
 mapName:	!word 0		; pointer to map name
 mapNameLen:	!byte 0		; length of map name
 nMapSprites:	!byte 0		; number of sprite entries on map to fix up
+nextLink:	!byte 0		; next link to allocate
 
 ; Sky / ground colors
 skyGndTbl1:	!byte $00	; lo-bit black
@@ -310,8 +312,7 @@ castRay: !zone
 	jmp .hitSprite
 	; We hit something!
 .hitX:	!if DEBUG >= 2 { +prStr : !text "  Hit.",0 }
-	ldx screenCol
-	sta txNumBuf,x		; store the texture number we hit
+	sta txNum		; store the texture number we hit
 	lda #0
 	sec
 	sbc playerX		; inverse of low byte of player coord
@@ -368,8 +369,7 @@ castRay: !zone
 	jmp .DDA_step
 .hitY:	; We hit something!
 	!if DEBUG >= 2 { +prStr : !text "  Hit.",0 }
-	ldx screenCol
-	sta txNumBuf,x		; store the texture number we hit
+	sta txNum		; store the texture number we hit
 	lda #0
 	sec
 	sbc playerY		; inverse of low byte of player coord
@@ -495,28 +495,9 @@ castRay: !zone
 	cpx #0
 	beq +
 	lda #$FF	; clamp large line heights to 255
-+	ldx screenCol
-	sta heightBuf,x	; save final height to the buffer
-	pla		; get the depth back...
-	sta depthBuf,x	; and save it too
-	lda #0
-	sta linkBuf,x	; might as well clear the link buffer while we're at it
-	; Update min/max trackers
-	lda mapX
-	cmp minX
-	bcs +
-	sta minX
-+	cmp maxX
-	bcc +
-	sta maxX
-+	lda mapY
-	cmp minY
-	bcs +
-	sta minY
-+	cmp maxY
-	bcc +
-	sta maxY
-+	rts		; all done with wall calculations
++	tay		; save the height in Y reg
+	pla		; get the depth back
+	jmp saveLink	; save final column data to link buffer
 !if DEBUG >= 2 {
 .debugSideData:
 	+prStr : !text ", mapX=",0
@@ -558,6 +539,52 @@ castRay: !zone
 	rts
 }
 
+; Save a link in the linked column data, sorted according to its depth.
+; Input: 	screenCol: horizontal screen column position 
+;		Y-reg: column height
+;		A-reg: depth index
+;		txNum: texture number
+saveLink: !zone
+	sta tmp			; keep height for storing later
+	sty tmp+1		; same with depth
+ 	ldx screenCol
+	ldy firstLink,x
+	bne .chk1
+.store				; this is the first link for the column
+	lda nextLink
+	sta firstLink,x
+.store2	tax			; switch to the new link's area now
+	bne +
+	brk			; ack! ran out of link space -- too much complexity on screen
++	tya
+	sta linkBuf,x
+	lda tmp
+	sta depthBuf,x
+	lda tmp+1
+	sta heightBuf,x
+	lda txNum
+	sta txNumBuf,x
+	inc nextLink
+	rts	
+.chk1				; does it need to be inserted before the existing first link?
+	lda tmp+1
+	cmp depthBuf,y
+	bcc .store
+	; advance to next link
+.next	tya
+	tax
+	ldy linkBuf,x
+	bne .chk2
+	; put new link here
+.insert	lda nextLink
+	sta linkBuf,x
+	bne .store2		; always taken; also note: Y contains next link (0 for end of chain)
+.chk2				; do we need to insert before this (non-first) link?
+	lda tmp+1
+	cmp depthBuf,y
+	bcc .insert		; found the right place
+	bcs .next		; not the right place to insert, look at next link (always taken)
+
 ; Advance pLine to the next line on the hi-res screen
 nextLine: !zone
 	lda pLine+1	; Hi byte of line
@@ -594,16 +621,19 @@ nextLine: !zone
 
 ; Draw a ray that was traversed by calcRay
 drawRay: !zone
-	ldx screenCol
-	lda txNumBuf,x
+	ldy screenCol
+	ldx firstLink,y
+.lup:	lda txNumBuf,x
 	sta txNum
 	lda txColBuf,x
 	sta txColumn
 	lda heightBuf,x
 	sta lineCt
+	lda linkBuf,x		; get link to next stacked data to draw
+	pha			; save link for later
 	; Make a pointer to the selected texture
 	ldx txNum
-	dex		; translate tex 1..4 to 0..3
+	dex			; translate tex 1..4 to 0..3
 	lda texAddrLo,x
 	sta pTex
 	lda texAddrHi,x
@@ -612,10 +642,14 @@ drawRay: !zone
 	lda lineCt
 	asl
 	bcc +
-	lda #254	; clamp max height
-+	sta $10B	; set vector offset
+	lda #254		; clamp max height
++	sta expanderJmp+1	; set vector offset
 	!if DEBUG >= 2 { +prStr : !text "Calling expansion code.",0 }
-	jmp $100	; was copied to from .callIt to $100 at init time
+	jsr callExpander	; was copied from .callIt to $100 at init time
+	pla			; retrieve link to next in stack
+	tax			; put in X for indexing
+	bne .lup		; if non-zero, we have more to draw
+	rts			; next link was zero - we're done with this ray
 
 ; Template for blitting code [ref BigBlue3_70]
 blitTemplate: !zone	; comments show byte offset
@@ -974,17 +1008,19 @@ setExpansionCaller:
 	; Copy the expansion caller to low stack.
 	ldx #.callEnd - .callIt - 1
 -	lda .callIt,x
-	sta $100,x
+	sta callExpander,x
 	dex
 	bpl -
 	rts
 .callIt:
 !pseudopc $100 {
+callExpander:
 	sta setAuxRd
-	jsr .jmp
+	jsr expanderJmp
 	sta clrAuxRd
 	rts
-.jmp:	jmp (expandVec)
+expanderJmp:
+	jmp (expandVec)
 }
 .callEnd:
 
@@ -1096,14 +1132,17 @@ castAllRays: !zone
 
 	; start at column zero
 	stx screenCol
-
-	; Init the min/max trackers, which are used after casting
-	; to filter out non-visible sprites
-	stx maxX
-	stx maxY
+	
+	; clear the initial column links
+	txa
+	ldx #NUM_COLS-1
+-	sta firstLink,x
 	dex
-	stx minX
-	stx minY
+	bpl -
+	
+	; start allocating column links at #1 (zero would be bad - used to indicate ends of lists)
+	lda #1
+	sta nextLink
 
 	; Calculate pointer to the map row based on playerY
 	lda mapBase		; start at row 0, col 0 of the map
@@ -1138,9 +1177,23 @@ castAllRays: !zone
 
 	inc screenCol		; advance to next column
 	lda screenCol
-	cmp #63			; stop after we do 63 columns = 126 bw pix
+	cmp #NUM_COLS		; stop after we do 63 columns = 126 bw pix
 	bne .oneCol
-	rts
+	; now that we're done tracing rays, we need to reset the sprite flags.
+.resetMapSprites:
+	ldx #0			; index the table with X
+	stx pMap
+.rstLup	cpx nMapSprites		; are we done yet?
+	bcs .done		; if so stop.
+	ldy mapSpriteL,x	; grab lo byte of ptr, stick in Y to index the page
+	lda mapSpriteH,x	; grab hi byte of ptr
+	sta pMap+1
+	lda (pMap),y		; get the sprite byte
+	and #$BF		; mask off the already-done bit
+	sta (pMap),y		; and save it back
+	inx			; next table entry
+	bne .rstLup		; always taken
+.done	rts
 
 ;-------------------------------------------------------------------------------
 ; Reset sprite flags on the map
@@ -1184,21 +1237,7 @@ renderFrame: !zone
 	lda byteNum
 	cmp #18
 	bne .oneCol		; go back for another ray
-	; now that we're done tracing rays, we need to reset the sprite flags.
-.resetMapSprites:
-	ldx #0			; index the table with X
-	stx pMap
-.rstLup	cpx nMapSprites		; are we done yet?
-	bcs .done		; if so stop.
-	ldy mapSpriteL,x	; grab lo byte of ptr, stick in Y to index the page
-	lda mapSpriteH,x	; grab hi byte of ptr
-	sta pMap+1
-	lda (pMap),y		; get the sprite byte
-	and #$BF		; mask off the already-done bit
-	sta (pMap),y		; and save it back
-	inx			; next table entry
-	bne .rstLup		; always taken
-.done	rts
+	rts
 
 ;-------------------------------------------------------------------------------
 ; Move the player forward a quarter step
@@ -1224,7 +1263,7 @@ moveForward: !zone
 	rts
 
 ;-------------------------------------------------------------------------------
-; Move the player forward a quarter step
+; Move the player backward a quarter step
 moveBackward: !zone
 	lda playerDir
 	asl
@@ -2638,6 +2677,7 @@ txColBuf:	!fill 256
 heightBuf:	!fill 256
 depthBuf:	!fill 256
 linkBuf:	!fill 256
+firstLink:	!fill NUM_COLS
 
 ; Active sprite restore addresses
 mapSpriteL	!fill MAX_SPRITES

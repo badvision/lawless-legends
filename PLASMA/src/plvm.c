@@ -274,7 +274,7 @@ int load_mod(byte *mod)
     char filename[32], string[17];
 
     dcitos(mod, filename);
-    printf("Load module %s\n");
+    printf("Load module %s\n", filename);
     int fd = open(filename, O_RDONLY, 0);
     if ((fd > 0) && (len = read(fd, header, 128)) > 0)
     {
@@ -435,7 +435,7 @@ void call(word pc)
             interp(mem_data + (mem_data[pc] + (mem_data[pc + 1] << 8)));
             break;
         case 3: // LIBRARY STDLIB::VIEWPORT
-            printf("Set Window %d, %d, %d, %n/n", POP, POP, POP, POP);
+            printf("Set Window %d, %d, %d, %d/n", POP, POP, POP, POP);
             PUSH(0);
             break;
         case 4: // LIBRARY STDLIB::PUTC

@@ -23,7 +23,7 @@ TXTTYPE	= .TXT
 all: $(PLASM) $(PLVM)
 
 clean:
-	-rm *.o *~ *.a *.BIN
+	-rm *.o *~ *.a *.BIN $(PLASM) $(PLVM)
 
 $(PLASM): $(OBJS) $(INCS)
 	cc $(OBJS) -o $(PLASM)

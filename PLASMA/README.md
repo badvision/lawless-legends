@@ -342,12 +342,12 @@ cout(char), prstr(string), prstrz(stringz) are handy utility routines for printi
     prstr(@okstr)
 ```
 
-memset(val16, addr, len) will fill memory with a 16 bit value.  memcpy(srcaddr, dstaddr, len) will copy memory from one address to another, taking care to copy in the proper direction.
+memset(val16, addr, len) will fill memory with a 16 bit value.  memcpy(dstaddr, srcaddr, len) will copy memory from one address to another, taking care to copy in the proper direction.
 
 ```
     byte nullstr[] = ""
     memset(@nullstr, strlinbuf, maxfill * 2) ; fill line buff with pointer to null string
-    memcpy(strptr + ofst + 1, scrnptr, numchars)
+    memcpy(scrnptr, strptr + ofst + 1, numchars)
 ```
 
 ##Implementation Details

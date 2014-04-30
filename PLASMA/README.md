@@ -18,10 +18,6 @@ The PLASMA low level operations are defined as:
 | OP    |                  Description
 |-------|-----------------------------------
 | ZERO  | push zero on the stack
-| DROP  | drop top stack value
-| DUP   | duplicate top stack value
-| OVER  | duplicate next from top stack value
-| SWAP  | swap two topmost stack values
 | ADD   | add top two values, leave result on top
 | SUB   | subtract next from top from top, leave result on top
 | MUL   | multiply two topmost stack values, leave result on top
@@ -31,36 +27,25 @@ The PLASMA low level operations are defined as:
 | DECR  | decrement top of stack
 | NEG   | negate top of stack
 | COMP  | compliment top of stack
-| BAND  | bit wise AND top two values, leave result on top
+| AND   | bit wise AND top two values, leave result on top
 | IOR   | bit wise inclusive OR top two values, leave result on top
 | XOR   | bit wise exclusive OR top two values, leave result on top
-| NOT   | logical NOT of top of stack
 | LOR   | logical OR top two values, leave result on top
 | LAND  | logical AND top two values, leave result on top
 | SHL   | shift left next from top by top, leave result on top
 | SHR   | shift right next from top by top, leave result on top
-| IDXB  | add top of stack to next from top, leave result on top
+| IDXB  | add top of stack to next from top, leave result on top (ADD)
 | IDXW  | add 2X top of stack to next from top, leave result on top
-| LAA   | load absolute address
+| NOT   | logical NOT of top of stack
+| LA    | load address
 | LLA   | load local address from frame offset
 | CB    | constant byte
 | CW    | constant word
-| LB    | load byte from top of stack address
-| LW    | load word from top of stack address
-| LLB   | load byte from frame offset
-| LLW   | load word from frame offset
-| LAB   | load byte from absolute address
-| LAW   | load word from absolute address
-| SB    | store top of stack byte into next from top address
-| SW    | store top of stack word into next from top address
-| SLB   | store top of stack into local byte at frame offset
-| SLW   | store top of stack into local word at frame offset
-| SAB   | store top of stack into byte at absolute address
-| SAW   | store top of stack into word at absolute address
-| DLB   | duplicate top of stack into local byte at frame offset
-| DLW   | duplicate top of stack into local word at frame offset
-| DAB   | duplicate top of stack into byte at absolute address
-| DAW   | duplicate top of stack into word at absolute address
+| SWAP  | swap two topmost stack values
+| DROP  | drop top stack value
+| DUP   | duplicate top stack value
+| PUSH  | push top to call stack
+| PULL  | pull from call stack
 | BRGT  | branch next from top greater than top
 | BRLT  | branch next from top less than top
 | BREQ  | branch next from top equal to top
@@ -79,8 +64,22 @@ The PLASMA low level operations are defined as:
 | ENTER | allocate frame size and copy stack parameters to local frame
 | LEAVE | deallocate frame and return from sub routine call
 | RET   | return from sub routine call
-| PUSH  | push top to call stack
-| PULL  | pull from call stack
+| LB    | load byte from top of stack address
+| LW    | load word from top of stack address
+| LLB   | load byte from frame offset
+| LLW   | load word from frame offset
+| LAB   | load byte from absolute address
+| LAW   | load word from absolute address
+| SB    | store top of stack byte into next from top address
+| SW    | store top of stack word into next from top address
+| SLB   | store top of stack into local byte at frame offset
+| SLW   | store top of stack into local word at frame offset
+| SAB   | store top of stack into byte at absolute address
+| SAW   | store top of stack into word at absolute address
+| DLB   | duplicate top of stack into local byte at frame offset
+| DLW   | duplicate top of stack into local word at frame offset
+| DAB   | duplicate top of stack into byte at absolute address
+| DAW   | duplicate top of stack into word at absolute address
 
 
 ##PLASMA Compiler/Assembler

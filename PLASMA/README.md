@@ -15,72 +15,72 @@ PLASMA takes an approach that uses the best of all the above implementations to 
 
 The PLASMA low level operations are defined as:
 
-|OP    |                  Description
-|------|-----------------------------------
-|ZERO  | push zero on the stack
-|DROP  | drop top stack value
-|DUP   | duplicate top stack value
-|OVER  | duplicate next from top stack value
-|SWAP  | swap two topmost stack values
-|ADD   | add top two values, leave result on top
-|SUB   | subtract next from top from top, leave result on top
-|MUL   | multiply two topmost stack values, leave result on top
-|DIV   | divide next from top by top, leave result on top
-|MOD   | divide next from top by top, leave remainder on top
-|INCR  | increment top of stack
-|DECR  | decrement top of stack
-|NEG   | negate top of stack
-|COMP  | compliment top of stack
-|BAND  | bit wise AND top two values, leave result on top
-|IOR   | bit wise inclusive OR top two values, leave result on top
-|XOR   | bit wise exclusive OR top two values, leave result on top
-|NOT   | logical NOT of top of stack
-|LOR   | logical OR top two values, leave result on top
-|LAND  | logical AND top two values, leave result on top
-|SHL   | shift left next from top by top, leave result on top
-|SHR   | shift right next from top by top, leave result on top
-|IDXB  | add top of stack to next from top, leave result on top
-|IDXW  | add 2X top of stack to next from top, leave result on top
-|LAA   | load absolute address
-|LLA   | load local address from frame offset
-|CB    | constant byte
-|CW    | constant word
-|LB    | load byte from top of stack address
-|LW    | load word from top of stack address
-|LLB   | load byte from frame offset
-|LLW   | load word from frame offset
-|LAB   | load byte from absolute address
-|LAW   | load word from absolute address
-|SB    | store top of stack byte into next from top address
-|SW    | store top of stack word into next from top address
-|SLB   | store top of stack into local byte at frame offset
-|SLW   | store top of stack into local word at frame offset
-|SAB   | store top of stack into byte at absolute address
-|SAW   | store top of stack into word at absolute address
-|DLB   | duplicate top of stack into local byte at frame offset
-|DLW   | duplicate top of stack into local word at frame offset
-|DAB   | duplicate top of stack into byte at absolute address
-|DAW   | duplicate top of stack into word at absolute address
-|BRGT  | branch next from top greater than top
-|BRLT  | branch next from top less than top
-|BREQ  | branch next from top equal to top
-|BRNE  | branch next from top not equal to top
-|ISEQ  | if next from top is equal to top, set top true
-|ISNE  | if next from top is not equal to top, set top true
-|ISGT  | if next from top is greater than top, set top true
-|ISLT  | if next from top is less than top, set top true
-|ISGE  | if next from top is greater than or equal to top, set top true
-|ISLE  | if next from top is less than or equal to top, set top true
-|BRFLS | branch if top of stack is zero
-|BRTRU | branch if top of stack is non-zero
-|BRNCH | branch to address
-|CALL  | sub routine call with stack parameters
-|ICAL  | sub routine call to indirect address on stack top with stack parameters
-|ENTER | allocate frame size and copy stack parameters to local frame
-|LEAVE | deallocate frame and return from sub routine call
-|RET   | return from sub routine call
-|PUSH  | push top to call stack
-|PULL  | pull from call stack
+| OP    |                  Description
+|-------|-----------------------------------
+| ZERO  | push zero on the stack
+| DROP  | drop top stack value
+| DUP   | duplicate top stack value
+| OVER  | duplicate next from top stack value
+| SWAP  | swap two topmost stack values
+| ADD   | add top two values, leave result on top
+| SUB   | subtract next from top from top, leave result on top
+| MUL   | multiply two topmost stack values, leave result on top
+| DIV   | divide next from top by top, leave result on top
+| MOD   | divide next from top by top, leave remainder on top
+| INCR  | increment top of stack
+| DECR  | decrement top of stack
+| NEG   | negate top of stack
+| COMP  | compliment top of stack
+| BAND  | bit wise AND top two values, leave result on top
+| IOR   | bit wise inclusive OR top two values, leave result on top
+| XOR   | bit wise exclusive OR top two values, leave result on top
+| NOT   | logical NOT of top of stack
+| LOR   | logical OR top two values, leave result on top
+| LAND  | logical AND top two values, leave result on top
+| SHL   | shift left next from top by top, leave result on top
+| SHR   | shift right next from top by top, leave result on top
+| IDXB  | add top of stack to next from top, leave result on top
+| IDXW  | add 2X top of stack to next from top, leave result on top
+| LAA   | load absolute address
+| LLA   | load local address from frame offset
+| CB    | constant byte
+| CW    | constant word
+| LB    | load byte from top of stack address
+| LW    | load word from top of stack address
+| LLB   | load byte from frame offset
+| LLW   | load word from frame offset
+| LAB   | load byte from absolute address
+| LAW   | load word from absolute address
+| SB    | store top of stack byte into next from top address
+| SW    | store top of stack word into next from top address
+| SLB   | store top of stack into local byte at frame offset
+| SLW   | store top of stack into local word at frame offset
+| SAB   | store top of stack into byte at absolute address
+| SAW   | store top of stack into word at absolute address
+| DLB   | duplicate top of stack into local byte at frame offset
+| DLW   | duplicate top of stack into local word at frame offset
+| DAB   | duplicate top of stack into byte at absolute address
+| DAW   | duplicate top of stack into word at absolute address
+| BRGT  | branch next from top greater than top
+| BRLT  | branch next from top less than top
+| BREQ  | branch next from top equal to top
+| BRNE  | branch next from top not equal to top
+| ISEQ  | if next from top is equal to top, set top true
+| ISNE  | if next from top is not equal to top, set top true
+| ISGT  | if next from top is greater than top, set top true
+| ISLT  | if next from top is less than top, set top true
+| ISGE  | if next from top is greater than or equal to top, set top true
+| ISLE  | if next from top is less than or equal to top, set top true
+| BRFLS | branch if top of stack is zero
+| BRTRU | branch if top of stack is non-zero
+| BRNCH | branch to address
+| CALL  | sub routine call with stack parameters
+| ICAL  | sub routine call to indirect address on stack top with stack parameters
+| ENTER | allocate frame size and copy stack parameters to local frame
+| LEAVE | deallocate frame and return from sub routine call
+| RET   | return from sub routine call
+| PUSH  | push top to call stack
+| PULL  | pull from call stack
 
 
 ##PLASMA Compiler/Assembler

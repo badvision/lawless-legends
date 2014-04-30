@@ -731,7 +731,7 @@ void interp(code *ip)
                 call(UWORD_PTR(ip));
                 break;
             case 0x56: // ICALL : TOFP = IP, IP = (TOS) ; indirect call
-                val = POP;
+                val = TO_UWORD(POP);
                 ea = mem_data[val] | (mem_data[val + 1] << 8);
                 call(ea);
                 break;

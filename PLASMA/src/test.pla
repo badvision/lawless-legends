@@ -9,7 +9,7 @@ import testlib
   predef puti
 end
 ;
-; Predeclare and functions called before defined.
+; Predeclare any functions called before defined.
 ;
 predef main
 ;
@@ -20,15 +20,14 @@ word defptr  = main
 ;
 ; Define functions.
 ;
-export def ascii
+def ascii
   byte i
-  cls()
   for i = 32 to 127
     putc(i)
   next
 end
 
-export def nums
+def nums
   word i
   for i = -10 to 10
     puti(i)
@@ -38,6 +37,7 @@ end
 
 export def main
   cls()
+  ascii()
   gotoxy(35,5)
   puts(@hello)
   return nums

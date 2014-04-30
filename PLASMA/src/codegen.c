@@ -557,14 +557,14 @@ void emit_brne(int tag)
     printf("\t%s\t$3E\t\t\t; BRNE\t_B%03d\n", DB, tag);
     printf("\t%s\t_B%03d-*\n", DW, tag);
 }
-void emit_brlt(int tag)
-{
-    printf("\t%s\t$38\t\t\t; BRLT\t_B%03d\n", DB, tag);
-    printf("\t%s\t_B%03d-*\n", DW, tag);
-}
 void emit_brgt(int tag)
 {
-    printf("\t%s\t$3A\t\t\t; BRGT\t_B%03d\n", DB, tag);
+    printf("\t%s\t$38\t\t\t; BRGT\t_B%03d\n", DB, tag);
+    printf("\t%s\t_B%03d-*\n", DW, tag);
+}
+void emit_brlt(int tag)
+{
+    printf("\t%s\t$3A\t\t\t; BRLT\t_B%03d\n", DB, tag);
     printf("\t%s\t_B%03d-*\n", DW, tag);
 }
 void emit_call(int tag, int type)

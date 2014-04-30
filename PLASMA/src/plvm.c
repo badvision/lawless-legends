@@ -17,7 +17,8 @@ int show_state = 0;
  */
 #define BYTE_PTR(bp)	((byte)(*bp++))
 #define WORD_PTR(bp)	((word)(*bp++|(*++bp << 8)))
-#define UWORD_PTR(bp)	((uword)(*bp++|(*++bp << 8)))
+#define UWORD_PTR(bp)	((uword)((*bp++|(*++bp << 8))&0xFFFF))
+#define TO_UWORD(w)	((w)&0xFFFF)
 #define MOD_ADDR	0x1000
 #define DEF_CALL	0x0800
 #define DEF_CALLSZ	0x0800
@@ -502,17 +503,19 @@ OPTBL:	DW	ZERO,ADD,SUB,MUL,DIV,MOD,INCR,DECR		; 00 02 04 06 08 0A 0C 0E
 */
 void interp(code *ip)
 {
-    word val, ea, frmsz, parmcnt;
+    int val, ea, frmsz, parmcnt;
 
     while (1)
     {
         if (show_state)
         {
+            char cmdline[16];
             word *dsp = &eval_stack[EVAL_STACKSZ - 1];
             printf("$%04X: $%02X [ ", ip - mem_data, *ip);
             while (dsp >= esp)
                 printf("$%04X ", (*dsp--) & 0xFFFF);
             printf("]\n");
+            gets(cmdline);
         }
         switch (*ip++)
         {
@@ -548,7 +551,7 @@ void interp(code *ip)
                 PUSH(ea % val);
                 break;
             case 0x0C: // INCR : TOS = TOS + 1
-                TOS++;
+                TOS++;;
                 break;
             case 0x0E: // DECR : TOS = TOS - 1
                 TOS--;
@@ -644,32 +647,28 @@ void interp(code *ip)
                 break;
             case 0x38: // BRGT : TOS-1 > TOS ? IP += (IP)
                 val = POP;
-                ea  = POP;
-                if (ea <= val)
+                if (TOS > val)
                     ip += WORD_PTR(ip) - 2;
                 else
                     ip += 2;
                 break;
             case 0x3A: // BRLT : TOS-1 < TOS ? IP += (IP)
                 val = POP;
-                ea  = TOS;
-                if (ea >= val)
+                if (TOS < val)
                     ip += WORD_PTR(ip) - 2;
                 else
                     ip += 2;
                 break;
             case 0x3C: // BREQ : TOS == TOS-1 ? IP += (IP)
                 val = POP;
-                ea  = TOS;
-                if (ea == val)
+                if (TOS == val)
                     ip += WORD_PTR(ip) - 2;
                 else
                     ip += 2;
                 break;
             case 0x3E: // BRNE : TOS != TOS-1 ? IP += (IP)
                 val = POP;
-                ea  = TOS;
-                if (ea != val)
+                if (TOS != val)
                     ip += WORD_PTR(ip) - 2;
                 else
                     ip += 2;
@@ -680,32 +679,32 @@ void interp(code *ip)
             case 0x40: // ISEQ : TOS = TOS == TOS-1
                 val = POP;
                 ea  = POP;
-                PUSH(ea == val);
+                PUSH((ea == val) ? -1 : 0);
                 break;
             case 0x42: // ISNE : TOS = TOS != TOS-1
                 val = POP;
                 ea  = POP;
-                PUSH(ea != val);
+                PUSH((ea != val) ? -1 : 0);
                 break;
             case 0x44: // ISGT : TOS = TOS-1 > TOS
                 val = POP;
                 ea  = POP;
-                PUSH(ea <= val);
+                PUSH((ea > val) ? -1 : 0);
                 break;
             case 0x46: // ISLT : TOS = TOS-1 < TOS
                 val = POP;
                 ea  = POP;
-                PUSH(ea >= val);
+                PUSH((ea < val) ? -1 : 0);
                 break;
             case 0x48: // ISGE : TOS = TOS-1 >= TOS
                 val = POP;
                 ea  = POP;
-                PUSH(ea < val);
+                PUSH((ea >= val) ? -1 : 0);
                 break;
             case 0x4A: // ISLE : TOS = TOS-1 <= TOS
                 val = POP;
                 ea  = POP;
-                PUSH(ea > val);
+                PUSH((ea <= val) ? -1 : 0);
                 break;
             case 0x4C: // BRFLS : !TOS ? IP += (IP)
                 if (!POP)
@@ -740,14 +739,20 @@ void interp(code *ip)
                 frmsz = BYTE_PTR(ip);
                 mem_data[fp - frmsz]     = fp;
                 mem_data[fp - frmsz + 1] = fp >> 8;
+                if (show_state)
+                    printf("< $%04X: $%04X > ", fp - frmsz, fp);
                 fp -= frmsz;
                 parmcnt = BYTE_PTR(ip);
                 while (parmcnt--)
                 {
                     val = POP;
-                    mem_data[fp + parmcnt + 2] = val;
-                    mem_data[fp + parmcnt + 3] = val >> 8;
+                    mem_data[fp + parmcnt * 2 + 2] = val;
+                    mem_data[fp + parmcnt * 2 + 3] = val >> 8;
+                    if (show_state)
+                        printf("< $%04X: $%04X > ", fp + parmcnt * 2 + 2, mem_data[fp + parmcnt * 2 + 2] | (mem_data[fp + parmcnt * 2 + 3] >> 8));
                 }
+                if (show_state)
+                    printf("\n");
                 break;
             case 0x5A: // LEAVE : DEL FRAME, IP = TOFP
                 fp = mem_data[fp] | (mem_data[fp + 1] << 8);
@@ -759,18 +764,18 @@ void interp(code *ip)
                  * 0x60-0x6F
                  */
             case 0x60: // LB : TOS = BYTE (TOS)
-                val = UPOP;
-                PUSH(mem_data[val]);
+                ea = TO_UWORD(POP);
+                PUSH(mem_data[ea]);
                 break;
             case 0x62: // LW : TOS = WORD (TOS)
-                ea = POP;
+                ea = TO_UWORD(POP);
                 PUSH(mem_data[ea] | (mem_data[ea + 1] << 8));
                 break;
             case 0x64: // LLB : TOS = LOCALBYTE [IP]
-                PUSH(mem_data[fp + BYTE_PTR(ip)]);
+                PUSH(mem_data[TO_UWORD(fp + BYTE_PTR(ip))]);
                 break;
             case 0x66: // LLW : TOS = LOCALWORD [IP]
-                ea = fp + BYTE_PTR(ip);
+                ea = TO_UWORD(fp + BYTE_PTR(ip));
                 PUSH(mem_data[ea] | (mem_data[ea + 1] << 8));
                 break;
             case 0x68: // LAB : TOS = BYTE (IP)
@@ -781,10 +786,10 @@ void interp(code *ip)
                 PUSH(mem_data[ea] | (mem_data[ea + 1] << 8));
                 break;
             case 0x6C: // DLB : TOS = TOS, LOCALBYTE [IP] = TOS
-                mem_data[fp + BYTE_PTR(ip)] = TOS;
+                mem_data[TO_UWORD(fp + BYTE_PTR(ip))] = TOS;
                 break;
             case 0x6E: // DLW : TOS = TOS, LOCALWORD [IP] = TOS
-                ea = fp + BYTE_PTR(ip);
+                ea = TO_UWORD(fp + BYTE_PTR(ip));
                 mem_data[ea]     = TOS;
                 mem_data[ea + 1] = TOS >> 8;
                 break;
@@ -793,38 +798,38 @@ void interp(code *ip)
                  */
             case 0x70: // SB : BYTE (TOS) = TOS-1
                 val = POP;
-                ea  = POP;
+                ea  = TO_UWORD(POP);
                 mem_data[ea] = val;
                 break;
             case 0x72: // SW : WORD (TOS) = TOS-1
                 val = POP;
-                ea  = POP;
+                ea  = TO_UWORD(POP);
                 mem_data[ea]     = val;
                 mem_data[ea + 1] = val >> 8;
                 break;
             case 0x74: // SLB : LOCALBYTE [TOS] = TOS-1
-                mem_data[fp + BYTE_PTR(ip)] = POP;
+                mem_data[TO_UWORD(fp + BYTE_PTR(ip))] = POP;
                 break;
             case 0x76: // SLW : LOCALWORD [TOS] = TOS-1
-                ea  = fp + BYTE_PTR(ip);
+                ea  = TO_UWORD(fp + BYTE_PTR(ip));
                 val = POP;
                 mem_data[ea]     = val;
                 mem_data[ea + 1] = val >> 8;
                 break;
             case 0x78: // SAB : BYTE (IP) = TOS
-                mem_data[WORD_PTR(ip)] = POP;
+                mem_data[TO_UWORD(WORD_PTR(ip))] = POP;
                 break;
             case 0x7A: // SAW : WORD (IP) = TOS
-                ea = WORD_PTR(ip);
+                ea = TO_UWORD(WORD_PTR(ip));
                 val = POP;
                 mem_data[ea]     = val;
                 mem_data[ea + 1] = val >> 8;
                 break;
             case 0x7C: // DAB : TOS = TOS, BYTE (IP) = TOS
-                mem_data[WORD_PTR(ip)] = TOS;
+                mem_data[TO_UWORD(WORD_PTR(ip))] = TOS;
                 break;
             case 0x7E: // DAW : TOS = TOS, WORD (IP) = TOS
-                ea = WORD_PTR(ip);
+                ea = TO_UWORD(WORD_PTR(ip));
                 mem_data[ea]     = TOS;
                 mem_data[ea + 1] = TOS >> 8;
                 break;

@@ -4,6 +4,10 @@
 import stdlib
   predef cls, gotoxy, puts, putc
 end
+
+import testlib
+  predef puti
+end
 ;
 ; Predeclare and functions called before defined.
 ;
@@ -16,7 +20,6 @@ word defptr  = main
 ;
 ; Define functions.
 ;
-
 export def ascii
   byte i
   cls()
@@ -25,10 +28,19 @@ export def ascii
   next
 end
 
+export def nums
+  word i
+  for i = -10 to 10
+    puti(i)
+    putc('\n')
+  next
+end
+
 export def main
   cls()
-  gotoxy(35,15)
-  return puts(@hello)
+  gotoxy(35,5)
+  puts(@hello)
+  return nums
 end
 
 export def indirect

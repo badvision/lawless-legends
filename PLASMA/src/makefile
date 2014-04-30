@@ -20,10 +20,10 @@ TXTTYPE	= .TXT
 #SYSTYPE	= \#ff0000
 #TXTTYPE	= \#040000
 
-all: $(PLASM) $(PLVM)
+all: $(PLASM) $(PLVM) TESTLIB
 
 clean:
-	-rm *.o *~ *.a *.BIN $(PLASM) $(PLVM)
+	-rm *.o *~ *.a *.BIN TESTLIB $(PLASM) $(PLVM)
 
 $(PLASM): $(OBJS) $(INCS)
 	cc $(OBJS) -o $(PLASM)
@@ -31,12 +31,16 @@ $(PLASM): $(OBJS) $(INCS)
 $(PLVM): plvm.c
 	cc plvm.c -o $(PLVM)
 
-test: test.pla $(PLVM) $(PLASM)
+TESTLIB: testlib.pla $(PLVM) $(PLASM)
+	./$(PLASM) -A < testlib.pla > testlib.a
+	acme --setpc 4096 -o TESTLIB testlib.a
+
+test: test.pla TESTLIB $(PLVM) $(PLASM)
 	./$(PLASM) -A < test.pla > test.a
 	acme --setpc 4096 -o TEST.BIN test.a
 	./$(PLVM) TEST.BIN MAIN
 
-debug: test.pla $(PLVM) $(PLASM)
+debug: test.pla TESTLIB $(PLVM) $(PLASM)
 	./$(PLASM) -A < test.pla > test.a
 	acme --setpc 4096 -o TEST.BIN test.a
 	./$(PLVM) -s TEST.BIN MAIN

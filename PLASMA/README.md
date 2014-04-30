@@ -319,8 +319,11 @@ call6502(aReg, xReg, yReg, statusReg, addr) returns a pointer to a four byte str
     const getlin = $FD6A
 
     numchars = (call6502(0, 0, 0, 0, getlin)).xreg ; return char count in X reg
-    prodos(cmd, params)calls ProDOS, returning the status value.
+```
 
+prodos(cmd, params) calls ProDOS, returning the status value.
+
+```
     def read(refnum, buff, len)
         byte params[8]
 

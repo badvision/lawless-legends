@@ -16,7 +16,7 @@ PLASMA takes an approach that uses the best of all the above implementations to 
 The PLASMA low level operations are defined as:
 
 |OP    |                  Description
------------------------------------------
+|------|-----------------------------------
 |ZERO  | push zero on the stack
 |DROP  | drop top stack value
 |DUP   | duplicate top stack value
@@ -193,7 +193,7 @@ Expressions are algebraic.  Data is free-form, but all operations on the evaluat
 More complex expressions can be built up using algebraic unary and binary operations.
 
 | OP   |     Unary Operation
-|--------------------------
+|------|--------------------
 | ^    | byte pointer
 | *    | word pointer
 | @    | address of
@@ -203,7 +203,7 @@ More complex expressions can be built up using algebraic unary and binary operat
 
 
 | OP   |     Binary Operation
-|---------------------------
+|------|---------------------
 | *    | multiply
 | /    | divide
 | %    | modulo

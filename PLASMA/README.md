@@ -152,7 +152,7 @@ There are four basic types of data that can be manipulated: constants, variables
 Values can be treated as pointers by preceding them with a ‘^’ for byte pointers, ‘*’ for word pointers.
 
 ```
-    strlen = ^(srcstr)
+    strlen = ^srcstr
 ```
 
 Addresses of variables and functions can be taken with a preceding ‘@’, address-of operator. Parenthesis can surround an expression to be used as a pointer, but not address-of.
@@ -176,7 +176,7 @@ Functions with parameters or expressions to be used as a function address to cal
     byte key
 
     keyin = @keyin2plus ; address-of keyin2plus function
-    key   = (keyin)()
+    key   = keyin()
 ```
 
 Expressions and Statements

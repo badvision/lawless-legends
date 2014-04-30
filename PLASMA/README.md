@@ -113,9 +113,9 @@ The source code of a PLASMA module first defines constants, variables and data. 
     ;
     ; Array declaration of screen row addresses
     ;
-    word  txtscrn[]   = [$0400,$0480,$0500,$0580,$0600,$0680,$0700,$0780]
-    word              = [$0428,$04A8,$0528,$05A8,$0628,$06A8,$0728,$07A8]
-    word              = [$0450,$04D0,$0550,$05D0,$0650,$06D0,$0750,$07D0]
+    word  txtscrn[]   = $0400,$0480,$0500,$0580,$0600,$0680,$0700,$0780
+    word              = $0428,$04A8,$0528,$05A8,$0628,$06A8,$0728,$07A8
+    word              = $0450,$04D0,$0550,$05D0,$0650,$06D0,$0750,$07D0
     ;
     ; Misc global variables
     ;

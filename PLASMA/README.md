@@ -198,7 +198,7 @@ More complex expressions can be built up using algebraic unary and binary operat
 | *    | word pointer
 | @    | address of
 | -    | negate
-| #    | bitwise compliment
+| ~    | bitwise compliment
 | !    | logical NOT
 
 
@@ -244,7 +244,7 @@ Control structures affect the flow of control through the program.  There are co
             key = $CE ; N
         fin
     else
-       key = key ? $E0
+       key = key | $E0
     fin
 ```
 

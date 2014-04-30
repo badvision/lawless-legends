@@ -15,72 +15,72 @@ PLASMA takes an approach that uses the best of all the above implementations to 
 
 The PLASMA low level operations are defined as:
 
-OP    |                  Description
+|OP    |                  Description
 -----------------------------------------
-ZERO  | push zero on the stack
-DROP  | drop top stack value
-DUP   | duplicate top stack value
-OVER  | duplicate next from top stack value
-SWAP  | swap two topmost stack values
-ADD   | add top two values, leave result on top
-SUB   | subtract next from top from top, leave result on top
-MUL   | multiply two topmost stack values, leave result on top
-DIV   | divide next from top by top, leave result on top
-MOD   | divide next from top by top, leave remainder on top
-INCR  | increment top of stack
-DECR  | decrement top of stack
-NEG   | negate top of stack
-COMP  | compliment top of stack
-BAND  | bit wise AND top two values, leave result on top
-IOR   | bit wise inclusive OR top two values, leave result on top
-XOR   | bit wise exclusive OR top two values, leave result on top
-NOT   | logical NOT of top of stack
-LOR   | logical OR top two values, leave result on top
-LAND  | logical AND top two values, leave result on top
-SHL   | shift left next from top by top, leave result on top
-SHR   | shift right next from top by top, leave result on top
-IDXB  | add top of stack to next from top, leave result on top
-IDXW  | add 2X top of stack to next from top, leave result on top
-LAA   | load absolute address
-LLA   | load local address from frame offset
-CB    | constant byte
-CW    | constant word
-LB    | load byte from top of stack address
-LW    | load word from top of stack address
-LLB   | load byte from frame offset
-LLW   | load word from frame offset
-LAB   | load byte from absolute address
-LAW   | load word from absolute address
-SB    | store top of stack byte into next from top address
-SW    | store top of stack word into next from top address
-SLB   | store top of stack into local byte at frame offset
-SLW   | store top of stack into local word at frame offset
-SAB   | store top of stack into byte at absolute address
-SAW   | store top of stack into word at absolute address
-DLB   | duplicate top of stack into local byte at frame offset
-DLW   | duplicate top of stack into local word at frame offset
-DAB   | duplicate top of stack into byte at absolute address
-DAW   | duplicate top of stack into word at absolute address
-BRGT  | branch next from top greater than top
-BRLT  | branch next from top less than top
-BREQ  | branch next from top equal to top
-BRNE  | branch next from top not equal to top
-ISEQ  | if next from top is equal to top, set top true
-ISNE  | if next from top is not equal to top, set top true
-ISGT  | if next from top is greater than top, set top true
-ISLT  | if next from top is less than top, set top true
-ISGE  | if next from top is greater than or equal to top, set top true
-ISLE  | if next from top is less than or equal to top, set top true
-BRFLS | branch if top of stack is zero
-BRTRU | branch if top of stack is non-zero
-BRNCH | branch to address
-CALL  | sub routine call with stack parameters
-ICAL  | sub routine call to indirect address on stack top with stack parameters
-ENTER | allocate frame size and copy stack parameters to local frame
-LEAVE | deallocate frame and return from sub routine call
-RET   | return from sub routine call
-PUSH  | push top to call stack
-PULL  | pull from call stack
+|ZERO  | push zero on the stack
+|DROP  | drop top stack value
+|DUP   | duplicate top stack value
+|OVER  | duplicate next from top stack value
+|SWAP  | swap two topmost stack values
+|ADD   | add top two values, leave result on top
+|SUB   | subtract next from top from top, leave result on top
+|MUL   | multiply two topmost stack values, leave result on top
+|DIV   | divide next from top by top, leave result on top
+|MOD   | divide next from top by top, leave remainder on top
+|INCR  | increment top of stack
+|DECR  | decrement top of stack
+|NEG   | negate top of stack
+|COMP  | compliment top of stack
+|BAND  | bit wise AND top two values, leave result on top
+|IOR   | bit wise inclusive OR top two values, leave result on top
+|XOR   | bit wise exclusive OR top two values, leave result on top
+|NOT   | logical NOT of top of stack
+|LOR   | logical OR top two values, leave result on top
+|LAND  | logical AND top two values, leave result on top
+|SHL   | shift left next from top by top, leave result on top
+|SHR   | shift right next from top by top, leave result on top
+|IDXB  | add top of stack to next from top, leave result on top
+|IDXW  | add 2X top of stack to next from top, leave result on top
+|LAA   | load absolute address
+|LLA   | load local address from frame offset
+|CB    | constant byte
+|CW    | constant word
+|LB    | load byte from top of stack address
+|LW    | load word from top of stack address
+|LLB   | load byte from frame offset
+|LLW   | load word from frame offset
+|LAB   | load byte from absolute address
+|LAW   | load word from absolute address
+|SB    | store top of stack byte into next from top address
+|SW    | store top of stack word into next from top address
+|SLB   | store top of stack into local byte at frame offset
+|SLW   | store top of stack into local word at frame offset
+|SAB   | store top of stack into byte at absolute address
+|SAW   | store top of stack into word at absolute address
+|DLB   | duplicate top of stack into local byte at frame offset
+|DLW   | duplicate top of stack into local word at frame offset
+|DAB   | duplicate top of stack into byte at absolute address
+|DAW   | duplicate top of stack into word at absolute address
+|BRGT  | branch next from top greater than top
+|BRLT  | branch next from top less than top
+|BREQ  | branch next from top equal to top
+|BRNE  | branch next from top not equal to top
+|ISEQ  | if next from top is equal to top, set top true
+|ISNE  | if next from top is not equal to top, set top true
+|ISGT  | if next from top is greater than top, set top true
+|ISLT  | if next from top is less than top, set top true
+|ISGE  | if next from top is greater than or equal to top, set top true
+|ISLE  | if next from top is less than or equal to top, set top true
+|BRFLS | branch if top of stack is zero
+|BRTRU | branch if top of stack is non-zero
+|BRNCH | branch to address
+|CALL  | sub routine call with stack parameters
+|ICAL  | sub routine call to indirect address on stack top with stack parameters
+|ENTER | allocate frame size and copy stack parameters to local frame
+|LEAVE | deallocate frame and return from sub routine call
+|RET   | return from sub routine call
+|PUSH  | push top to call stack
+|PULL  | pull from call stack
 
 
 ##PLASMA Compiler/Assembler
@@ -192,164 +192,163 @@ Expressions are algebraic.  Data is free-form, but all operations on the evaluat
 
 More complex expressions can be built up using algebraic unary and binary operations.
 
-OP   |     Unary Operation
---------------------------
-^    | byte pointer
-*    | word pointer
-@    | address of
--    | negate
-#    | bitwise compliment
-!    | logical NOT
+|OP   |     Unary Operation
+|--------------------------
+|^    | byte pointer
+|*    | word pointer
+|@    | address of
+|-    | negate
+|#    | bitwise compliment
+|!    | logical NOT
 
 
-OP   |     Binary Operation
----------------------------
-*    | multiply
-/    | divide
-%    | modulo
-+    | add
--    | subtract
-<<   | shift left
->>   | shift right
-&    | bitwise AND
-|    | bitwise OR
-^    | bitwise XOR
-==   | equals
-<>   | not equal
->=   | greater than or equal
->    | greater than
-<=   | less than or equal
-<    | less than
-OR   |  logical OR
-AND  |  logical AND
+|OP   |     Binary Operation
+|---------------------------
+|*    | multiply
+|/    | divide
+|%    | modulo
+|+    | add
+|-    | subtract
+|<<   | shift left
+|>>   | shift right
+|&    | bitwise AND
+||    | bitwise OR
+|^    | bitwise XOR
+|==   | equals
+|<>   | not equal
+|>=   | greater than or equal
+|>    | greater than
+|<=   | less than or equal
+|<    | less than
+|OR   |  logical OR
+|AND  |  logical AND
 
 Statements are built up from expressions and control flow keywords.  Simplicity of syntax took precedence over flexibility and complexity.  The simplest statement is the basic assignment using ‘=’.
 
-<code>
-byte numchars
-numchars = 0
-</code>
+```
+    byte numchars
+    numchars = 0
+```
 
 Expressions can be built up with constants, variables, function calls, addresses, and pointers/arrays.  Comparison operators evaluate to 0 or -1 instead of the more traditional 0 or 1.  The use of -1 allows binary operations to be applied to other non-zero values and still retain a non-zero result.  Any conditional tests check only for zero and non-zero values.
 
-
 Control structures affect the flow of control through the program.  There are conditional and looping constructs.  The most widely used is probably the if/elsif/else/fin construct.
 
-<code>
-if ^pushbttn3 < 128
-    if key == $C0
-        key = $D0 ; P
-    elsif key == $DD
-        key = $CD ; M
-    elsif key == $DE
-        key = $CE ; N
+```
+    if ^pushbttn3 < 128
+        if key == $C0
+            key = $D0 ; P
+        elsif key == $DD
+            key = $CD ; M
+        elsif key == $DE
+            key = $CE ; N
+        fin
+    else
+       key = key ? $E0
     fin
-else
-   key = key ? $E0
-fin
-</code>
+```
 
 The when/is/otherwise/merge statement is similar to the if/elsif/else/fin construct except that it is more efficient.  It selects one path based on the evaluated expressions, then merges the code path back together at the end.  However only the 'when' value is compared against a list of expressions.  The expressions do not need to be constants, they can be any valid expression.  The list of expressions is evaluated in order, so for efficiency sake, place the most common cases earlier in the list.
 
-<code>
-when keypressed
-    is keyarrowup
-        cursup
-    is keyarrowdown
-        cursdown
-    is keyarrowleft
-       cursleft
-    is keyarrowright
-        cursright
-    is keyctrlx
-        cutline
-    is keyctrlv
-        pasteline
-    is keyescape
-        cursoff
-        cmdmode
-        redraw
-    otherwise
-        bell
-wend
-</code>
+```
+    when keypressed
+        is keyarrowup
+            cursup
+        is keyarrowdown
+            cursdown
+        is keyarrowleft
+            cursleft
+        is keyarrowright
+            cursright
+        is keyctrlx
+            cutline
+        is keyctrlv
+            pasteline
+        is keyescape
+            cursoff
+            cmdmode
+            redraw
+        otherwise
+            bell
+    wend
+```
 
 The most common looping statement is the for/next construct.
 
-<code>
-for xscan = 0 to 19
-    (scanptr):[xscan] = val
-next
-</code>
+```
+    for xscan = 0 to 19
+        (scanptr):[xscan] = val
+    next
+```
 
 The for/next statement will efficiently increment or decrement a variable form the starting value to the ending value.  The increment/decrement amount can be set with the step option after the ending value; the default is one.  If the ending value is less than the starting value, use downto instead of to to progress in the negative direction.  Only use positive step values.  The to or downto will add or subtract the step value appropriately.
 
-<code>
-for i = heapmapsz - 1 downto 0
-    if sheapmap.[i] <> $FF
-        mapmask = szmask
-    fin
-next
-</code>
+```
+    for i = heapmapsz - 1 downto 0
+        if sheapmap.[i] <> $FF
+            mapmask = szmask
+        fin
+    next
+```
 
 while/loop statements will continue looping as long as the while expression is non-zero.
 
-<code>
-while !(mask & 1)
-    addr = addr + 16
-    mask = mask >> 1
-loop
-</code>
+```
+    while !(mask & 1)
+        addr = addr + 16
+        mask = mask >> 1
+    loop
+```
 
 Lastly, the repeat/until statement will continue looping as long as the until expression is zero.
 
-<code>
-repeat
-    txtbuf   = read(refnum, @txtbuf + 1, maxlnlen)
-    numlines = numlines + 1
-until txtbuf == 0 or numlines == maxlines
-</code>
+```
+    repeat
+        txtbuf   = read(refnum, @txtbuf + 1, maxlnlen)
+        numlines = numlines + 1
+    until txtbuf == 0 or numlines == maxlines
+```
 
-Runtime
+#Runtime
 
 PLASMA includes a very minimal runtime that nevertheless provides a great deal of functionality to the system.  Two system calls are provided to access native 6502 routines (usually in ROM) and ProDOS.
 
 call6502(aReg, xReg, yReg, statusReg, addr) returns a pointer to a four byte structure containing the A,X,Y and STATUS register results.
 
-<code>
-const xreg = 1
-const getlin = $FD6A
+```
+    const xreg = 1
+    const getlin = $FD6A
 
-numchars = (call6502(0, 0, 0, 0, getlin)).xreg ; return char count in X reg
-prodos(cmd, params)calls ProDOS, returning the status value.
+    numchars = (call6502(0, 0, 0, 0, getlin)).xreg ; return char count in X reg
+    prodos(cmd, params)calls ProDOS, returning the status value.
 
-def read(refnum, buff, len)
-    byte params[8]
+    def read(refnum, buff, len)
+        byte params[8]
 
-    params.0 = 4
-    params.1 = refnum
-    params:2 = buff
-    params:4 = len
-    perr     = prodos($CA, @params)
-    return params:6
-end
-</code>
+        params.0 = 4
+        params.1 = refnum
+        params:2 = buff
+        params:4 = len
+        perr     = prodos($CA, @params)
+        return params:6
+    end
+```
 
 cout(char), prstr(string), prstrz(stringz) are handy utility routines for printing to the standard Apple II COUT routine.
 
-<code>
-cout('.')
-byte okstr[] = "OK"
-prstr(@okstr)
-</code>
+```
+    cout('.')
+    byte okstr[] = "OK"
+    prstr(@okstr)
+```
 
 memset(val16, addr, len) will fill memory with a 16 bit value.  memcpy(srcaddr, dstaddr, len) will copy memory from one address to another, taking care to copy in the proper direction.
 
-<code>
-byte nullstr[] = ""
-memset(@nullstr, strlinbuf, maxfill * 2) ; fill line buff with pointer to null string
-memcpy(strptr + ofst + 1, scrnptr, numchars)
-</code>
+```
+    byte nullstr[] = ""
+    memset(@nullstr, strlinbuf, maxfill * 2) ; fill line buff with pointer to null string
+    memcpy(strptr + ofst + 1, scrnptr, numchars)
+```
 
 #Implementation Details
 

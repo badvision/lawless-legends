@@ -84,7 +84,7 @@ The PLASMA low level operations are defined as:
 
 ##PLASMA Compiler/Assembler
 
-Although the low-level operations could easily by coded by hand, they were chosen to be an easy target for a simple compiler. Think along the lines of an advanced assembler or stripped down C compiler ( C--).  Taking concepts from BASIC, Pascal, C and assembler, the PLASMA compiler is simple yet expressive.
+Although the low-level operations could easily by coded by hand, they were chosen to be an easy target for a simple compiler. Think along the lines of an advanced assembler or stripped down C compiler ( C--).  Taking concepts from BASIC, Pascal, C and assembler, the PLASMA compiler is simple yet expressive. The syntax is line oriented; there is no statement delimiter except newline.
 
 Comments are allowed throughout the source, starting with the ‘;’ character.  The rest of the line is ignored.
 

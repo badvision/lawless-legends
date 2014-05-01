@@ -335,8 +335,7 @@ castRay: !zone
 	bit stepX		; if stepping forward in X...
 	bmi +
 	eor #$FF		; ...invert the texture coord
-+	ldx screenCol
-	sta txColBuf,x		; and save the final coordinate
++	sta txColBuf,x		; and save the final coordinate
 	!if DEBUG >= 2 { jsr .debugFinal }
 	rts
 	; taking a step in the Y direction
@@ -392,8 +391,7 @@ castRay: !zone
 	bit stepY		; if stepping backward in Y
 	bpl +
 	eor #$FF		; ...invert the texture coord
-+	ldx screenCol
-	sta txColBuf,x		; and save the final coord
++	sta txColBuf,x		; and save the final coord
 	!if DEBUG >= 2 { jsr .debugFinal }
 	rts
 .hitSprite:
@@ -406,6 +404,8 @@ castRay: !zone
 	lda (pMap),y		; get back the original byte
 	ora #$40		; add special flag
 	sta (pMap),y		; and store it back
+	and #$3F		; get just the texture number
+	sta txNum		; and save it
 	ldx nMapSprites		; get ready to store the address so we can fix the flag later
 	cpx #MAX_SPRITES	; check for table overflow
 	bne +
@@ -419,6 +419,7 @@ castRay: !zone
 	sta mapSpriteH,x	; and save that too
 	inc nMapSprites		; advance to next table entry
 	!if DEBUG { jsr .debugSprite }
+	jsr spriteFu
 .dupeSprite:
 	jmp .DDA_step
 
@@ -498,6 +499,7 @@ castRay: !zone
 +	tay		; save the height in Y reg
 	pla		; get the depth back
 	jmp saveLink	; save final column data to link buffer
+
 !if DEBUG >= 2 {
 .debugSideData:
 	+prStr : !text ", mapX=",0
@@ -539,11 +541,48 @@ castRay: !zone
 	rts
 }
 
+	; pretend stuff to test out sprite compositing
+spriteFu:
+	lda screenCol
+	pha
+	lda #0
+.lup	sta txColumn
+	lda screenCol
+	cmp #NUM_COLS
+	bcs .done
+	ldy #32		; column height
+	lda #$FF	; depth index
+	jsr saveLink
+	lda txColumn
+	asl
+	asl
+	asl
+	sta txColBuf,x
+	inc screenCol
+	lda txColumn
+	clc
+	adc #1
+	cmp #32
+	bne .lup
+.done	pla
+	sta screenCol
+	rts
+
+;------------------------------------------------------------------------------
 ; Save a link in the linked column data, sorted according to its depth.
+;
+; Note: 	Does *not* fill in txColBuf,x on the assumption that the column
+;       	number needs further computation after this function returns.
+;		Store it in txColBuf,x when it's ready.
+;
 ; Input: 	screenCol: horizontal screen column position 
 ;		Y-reg: column height
 ;		A-reg: depth index
 ;		txNum: texture number
+;
+; Output:	X-reg: index into the link buffers at which data was saved
+;		(can be used for further manipulation of the values there).
+;
 saveLink: !zone
 	sta tmp			; keep height for storing later
 	sty tmp+1		; same with depth

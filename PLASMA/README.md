@@ -363,3 +363,7 @@ FORTH   http://en.wikipedia.org/wiki/Forth_(programming_language)
 
 UCSD Pascal http://wiki.freepascal.org/UCSD_Pascal
 
+p-code  https://www.princeton.edu/~achaney/tmve/wiki100k/docs/P-code_machine.html
+
+
+

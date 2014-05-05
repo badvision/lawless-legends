@@ -367,3 +367,4 @@ p-code  https://www.princeton.edu/~achaney/tmve/wiki100k/docs/P-code_machine.htm
 
 VM02: Apple II Java VM  http://sourceforge.net/projects/vm02/
 
+Threaded code   http://en.wikipedia.org/wiki/Threaded_code

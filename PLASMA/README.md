@@ -365,5 +365,5 @@ UCSD Pascal http://wiki.freepascal.org/UCSD_Pascal
 
 p-code  https://www.princeton.edu/~achaney/tmve/wiki100k/docs/P-code_machine.html
 
-
+VM02: Apple II Java VM  http://sourceforge.net/projects/vm02/
 

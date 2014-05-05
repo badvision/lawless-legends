@@ -356,3 +356,8 @@ memset(val16, addr, len) will fill memory with a 16 bit value.  memcpy(dstaddr, 
 
 The original design concept was to create an efficient, flexible, and expressive environment for building applications directly on the Apple II.  Choosing a stack based architecture was easy after much experience with other stack based implementations. It also makes the compiler simple to implement.  The first take on the stack architecture was to make it a very strict stack architecture in that everything had to be on the stack.  The only opcode with operands was the CONSTANT opcode. This allowed for a very small bytecode interpreter and a very easy compile target.  However, only when adding an opcode with operands that would greatly improved performance, native code generation or code size was it done. The opcode table grew slowly over time but still retains a small runtime interpreter with good native code density.
 
+## References
+B Programming Language USer Manual  http://cm.bell-labs.com/cm/cs/who/dmr/kbman.html
+FORTH   http://en.wikipedia.org/wiki/Forth_(programming_language)
+UCSD Pascal http://wiki.freepascal.org/UCSD_Pascal
+

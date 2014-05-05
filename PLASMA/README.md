@@ -358,6 +358,8 @@ The original design concept was to create an efficient, flexible, and expressive
 
 ## References
 B Programming Language USer Manual  http://cm.bell-labs.com/cm/cs/who/dmr/kbman.html
+
 FORTH   http://en.wikipedia.org/wiki/Forth_(programming_language)
+
 UCSD Pascal http://wiki.freepascal.org/UCSD_Pascal
 

@@ -4,6 +4,7 @@
 import stdlib
   predef cls, gotoxy, puts, putc
 end
+byte loadstr[] = "testlib loaded!\n"
 ;
 ; Define functions.
 ;
@@ -20,4 +21,5 @@ export def puti(i)
   fin
 end
 
+puts(@loadstr);
 done

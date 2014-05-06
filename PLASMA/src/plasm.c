@@ -6,12 +6,30 @@
 
 int main(int argc, char **argv)
 {
-
-        if (argc > 1 && argv[1][0] == '-' && argv[1][1] == 'A')
-            emit_flags(ACME);
-        if (parse_module())
-        {
-            fprintf(stderr, "Compilation complete.\n");
+    int j, i, flags = 0;
+    for (i = 1; i < argc; i++)
+    {
+        if (argv[i][0] == '-')
+        { 
+            j = 1;
+            while (argv[i][j])
+            {
+                switch(argv[i][j++])
+                {
+                    case 'A':
+                        flags |= ACME;
+                        break;
+                    case 'M':
+                        flags |= MODULE;
+                        break;
+                }
+            }
         }
-        return (0);
+    }
+    emit_flags(flags);
+    if (parse_module())
+    {
+        fprintf(stderr, "Compilation complete.\n");
+    }
+    return (0);
 }

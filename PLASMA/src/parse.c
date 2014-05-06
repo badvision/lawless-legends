@@ -863,31 +863,53 @@ int parse_stmnt(void)
         case ID_TOKEN:
             idptr = tokenstr;
             type = id_type(tokenstr, tokenlen);
-            if (type & (VAR_TYPE | FUNC_TYPE))
+            addr = id_tag(tokenstr, tokenlen);
+            if (type & VAR_TYPE)
             {
-                addr = id_tag(tokenstr, tokenlen);
-                if (scan() == SET_TOKEN)
+                int elem_type    = type;
+                long elem_offset = 0;
+                if (scan() == DOT_TOKEN || scantoken == COLON_TOKEN)
                 {
-                    if (type & VAR_TYPE)
-                    {
-                        if (!parse_expr())
-                        {
-                            parse_error("Bad expression");
-                            return (0);
-                        }
-                        if (type & LOCAL_TYPE)
-                            (type & BYTE_TYPE) ? emit_slb(addr) : emit_slw(addr);
-                        else
-                            (type & BYTE_TYPE) ? emit_sab(addr, type) : emit_saw(addr, type);
-                        break;
-                    }
+                    /*
+                     * Structure member offset
+                     */
+                    int elem_size;
+                    elem_type = (scantoken == DOT_TOKEN) ? BYTE_TYPE : WORD_TYPE;
+                    if (!parse_constval(&elem_offset, &elem_size))
+                        scantoken = ID_TOKEN;
+                    else
+                        scan();
+                    printf("Structure offset = %d\n", elem_offset);
                 }
-                else if ((scantoken == EOL_TOKEN) && (type & FUNC_TYPE))
+                if (scantoken == SET_TOKEN)
+                {
+                    if (!parse_expr())
+                    {
+                        parse_error("Bad expression");
+                        return (0);
+                    }
+                    if (type & LOCAL_TYPE)
+                        (elem_type & BYTE_TYPE) ? emit_slb(addr + elem_offset) : emit_slw(addr + elem_offset);
+                    else if (elem_offset)
+                        (elem_type & BYTE_TYPE) ? emit_sab_ofst(addr, elem_offset, type) : emit_saw_ofst(addr, elem_offset, type);
+                    else
+                        (elem_type & BYTE_TYPE) ? emit_sab(addr, type) : emit_saw(addr, type);
+                    break;
+                }
+            }
+            else if (type & FUNC_TYPE)
+            {
+                if (scan() == EOL_TOKEN)
                 {
                     emit_call(addr, type);
                     emit_drop();
                     break;
                 }
+            }
+            else
+            {
+                parse_error("Syntax error");
+                return (0);
             }
             tokenstr = idptr;
         default:
@@ -1160,6 +1182,7 @@ int parse_defs(void)
         c = tokenstr[tokenlen];
         tokenstr[tokenlen] = '\0';
         emit_idfunc(func_tag, type, tokenstr);
+        emit_def(tokenstr, 1);
         tokenstr[tokenlen] = c;
         idlocal_reset();
         if (scan() == OPEN_PAREN_TOKEN)
@@ -1230,6 +1253,7 @@ int parse_defs(void)
         c = tokenstr[tokenlen];
         tokenstr[tokenlen] = '\0';
         emit_idfunc(func_tag, type, tokenstr);
+        emit_def(tokenstr, 0);
         tokenstr[tokenlen] = c;
         if (scan() == OPEN_PAREN_TOKEN)
         {
@@ -1250,7 +1274,6 @@ int parse_defs(void)
             }
             scan();
         }
-        emit_def(1);
         do
         {
             if (scantoken == EOL_TOKEN || scantoken == COMMENT_TOKEN)
@@ -1288,7 +1311,5 @@ int parse_module(void)
         }
     }
     emit_trailer();
-    emit_rld();
-    emit_esd();
     return (0);
 }

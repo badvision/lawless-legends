@@ -236,12 +236,22 @@ int fixup_new(int tag, int type, int size)
 /*
  * Emit assembly code.
  */
-#define BYTECODE_SEG 2
+#define BYTECODE_SEG	8
+#define INIT		 	16
 static int outflags = 0;
 static char *DB = ".BYTE";
 static char *DW = ".WORD";
 static char *DS = ".RES";
 static char LBL = ':';
+char *supper(char *s)
+{
+    static char su[80];
+    int i;
+    for (i = 0; s[i]; i++)
+        su[i] = toupper(s[i]);
+    su[i] = '\0';
+    return su;
+}
 char *tag_string(int tag, int type)
 {
     static char str[16];
@@ -260,6 +270,17 @@ char *tag_string(int tag, int type)
     sprintf(str, "_%c%03d", t, tag);
     return str;
 }
+void emit_dci(char *str, int len)
+{
+    if (len--)
+    {
+        printf("\t; DCI STRING: %s\n", supper(str));
+        printf("\t%s\t$%02X", DB, toupper(*str++) | (len ? 0x80 : 0x00));
+        while (len--)
+            printf(",$%02X", toupper(*str++) | (len ? 0x80 : 0x00));
+        printf("\n");
+    }
+}
 void emit_flags(int flags)
 {
     outflags = flags;
@@ -277,35 +298,83 @@ void emit_header(void)
         printf("; ACME COMPATIBLE OUTPUT\n");
     else
         printf("; CA65 COMPATIBLE OUTPUT\n");
-    printf("_SEGBEGIN%c\n", LBL);
-	printf("\t%s\t_SEGEND-_SEGBEGIN\t; LENGTH OF HEADER + CODE/DATA + BYTECODE SEGMENT\n", DW);
-	printf("\t%s\t$DA7E\t\t\t; MAGIC #\n", DW);
-	printf("\t%s\t_SUBSEG\t\t\t; BYTECODE SUB-SEGMENT\n", DW);
+    if (outflags & MODULE)
+    {
+        printf("_SEGBEGIN%c\n", LBL);
+        printf("\t%s\t_SEGEND-_SEGBEGIN\t; LENGTH OF HEADER + CODE/DATA + BYTECODE SEGMENT\n", DW);
+        printf("\t%s\t$DA7E\t\t\t; MAGIC #\n", DW);
+        printf("\t%s\t_SUBSEG\t\t\t; BYTECODE SUB-SEGMENT\n", DW);
+        printf("\t%s\t_INIT\t\t\t; MODULE INITIALIZATION ROUTINE\n", DW);
+    }
+}
+void emit_rld(void)
+{
+    int i;
+
+    printf(";\n; RE-LOCATEABLE DICTIONARY\n;\n");
+    /*
+     * First emit the bytecode definition entrypoint information.
+     */
+    for (i = 0; i < globals; i++)
+        if (!(idglobal_type[i] & EXTERN_TYPE) && (idglobal_type[i] & DEF_TYPE))
+        {
+            printf("\t%s\t$02\t\t\t; CODE TABLE FIXUP\n", DB);
+            printf("\t%s\t_C%03d\t\t\n", DW, idglobal_tag[i]);
+            printf("\t%s\t$00\n", DB);
+        }
+    /*
+     * Now emit the fixup table.
+     */
+    for (i = 0; i < fixups; i++)
+    {
+        if (fixup_type[i] & EXTERN_TYPE)
+        {
+            printf("\t%s\t$%02X\t\t\t; EXTERNAL FIXUP\n", DB, 0x11 + fixup_size[i]);
+            printf("\t%s\t_F%03d\t\t\n", DW, i);
+            printf("\t%s\t%d\t\t\t; ESD INDEX\n", DB, fixup_tag[i]);
+        }
+        else
+        {
+            printf("\t%s\t$%02X\t\t\t; INTERNAL FIXUP\n", DB, 0x01 + fixup_size[i]);
+            printf("\t%s\t_F%03d\t\t\n", DW, i);
+            printf("\t%s\t$00\n", DB);
+        }
+    }
+    printf("\t%s\t$00\t\t\t; END OF RLD\n", DB);
+}
+void emit_esd(void)
+{
+    int i;
+    
+    printf(";\n; EXTERNAL/ENTRY SYMBOL DICTIONARY\n;\n");
+    for (i = 0; i < globals; i++)
+    {
+        if (idglobal_type[i] & EXTERN_TYPE)
+        {
+            emit_dci(&idglobal_name[i][1], idglobal_name[i][0]);
+            printf("\t%s\t$10\t\t\t; EXTERNAL SYMBOL FLAG\n", DB);
+            printf("\t%s\t%d\t\t\t; ESD INDEX\n", DW, idglobal_tag[i]);
+        }
+        else if  (idglobal_type[i] & EXPORT_TYPE)
+        {
+            emit_dci(&idglobal_name[i][1], idglobal_name[i][0]);
+            printf("\t%s\t$08\t\t\t; ENTRY SYMBOL FLAG\n", DB);
+            printf("\t%s\t%s\t\t\n", DW, tag_string(idglobal_tag[i], idglobal_type[i]));
+        }
+    }
+    printf("\t%s\t$00\t\t\t; END OF ESD\n", DB);
 }
 void emit_trailer(void)
 {
     if (!(outflags & BYTECODE_SEG))
         emit_bytecode_seg();
-    printf("_SEGEND%c\n", LBL);
-}
-char *supper(char *s)
-{
-    static char su[80];
-    int i;
-    for (i = 0; s[i]; i++)
-        su[i] = toupper(s[i]);
-    su[i] = '\0';
-    return su;
-}
-void emit_dci(char *str, int len)
-{
-    if (len--)
+    if (!(outflags & INIT))
+        printf("_INIT\t=\t0\n");
+    if (outflags & MODULE)
     {
-        printf("\t; DCI STRING: %s\n", supper(str));
-        printf("\t%s\t$%02X", DB, toupper(*str++) | (len ? 0x80 : 0x00));
-        while (len--)
-            printf(",$%02X", toupper(*str++) | (len ? 0x80 : 0x00));
-        printf("\n");
+        printf("_SEGEND%c\n", LBL);
+        emit_rld();
+        emit_esd();
     }
 }
 void emit_moddep(char *name, int len)
@@ -317,7 +386,7 @@ void emit_moddep(char *name, int len)
 }
 void emit_bytecode_seg(void)
 {
-    if (!(outflags & BYTECODE_SEG))
+    if ((outflags & MODULE) && !(outflags & BYTECODE_SEG))
         printf("_SUBSEG%c\t\t\t\t; BYTECODE STARTS\n", LBL);
     outflags |= BYTECODE_SEG;
 }
@@ -411,6 +480,19 @@ int emit_data(int vartype, int consttype, long constval, int constsize)
     }
     return (datasize);
 }
+void emit_def(char *name, int is_bytecode)
+{
+    if (!(outflags & MODULE))
+    {
+        printf("%s%c\n", name, LBL);
+        if (is_bytecode)
+        {
+            printf("\tJSR	$03D0\n");
+            printf("\t%s\t$00\n", DB);
+            printf("\t%s\t*+2\n", DW);
+        }
+    }
+}
 void emit_codetag(int tag)
 {
     printf("_B%03d%c\n", tag, LBL);
@@ -491,6 +573,20 @@ void emit_saw(int tag, int type)
     char *taglbl = tag_string(tag, type);
     printf("\t%s\t$7A\t\t\t; SAW\t%s\n", DB, taglbl);
     printf("_F%03d%c\t%s\t%s\t\t\n", fixup, LBL, DW, type & EXTERN_TYPE ? "0" : taglbl);
+}
+void emit_sab_ofst(int tag, int offset, int type)
+{
+    int fixup = fixup_new(tag, type, FIXUP_WORD);
+    char *taglbl = tag_string(tag, type);
+    printf("\t%s\t$78\t\t\t; SAB\t%s\n", DB, taglbl);
+    printf("_F%03d%c\t%s\t%s+%d\t\t\n", fixup, LBL, DW, type & EXTERN_TYPE ? "0" : taglbl, offset);
+}
+void emit_saw_ofst(int tag, int offset, int type)
+{
+    int fixup = fixup_new(tag, type, FIXUP_WORD);
+    char *taglbl = tag_string(tag, type);
+    printf("\t%s\t$7A\t\t\t; SAW\t%s\n", DB, taglbl);
+    printf("_F%03d%c\t%s\t%s+%d\t\t\n", fixup, LBL, DW, type & EXTERN_TYPE ? "0" : taglbl, offset);
 }
 void emit_dab(int tag, int type)
 {
@@ -589,9 +685,6 @@ void emit_ret(void)
 {
     printf("\t%s\t$5C\t\t\t; RET\n", DB);
 }
-void emit_def(int defopt)
-{
-}
 void emit_enter(int framesize, int cparams)
 {
     if (framesize > 2)
@@ -599,6 +692,8 @@ void emit_enter(int framesize, int cparams)
 }
 void emit_start(void)
 {
+    printf("_INIT%c\n", LBL);
+    outflags |= INIT;
 }
 void emit_dup(void)
 {
@@ -715,61 +810,4 @@ int emit_op(t_token op)
             return (0);
     }
     return (1);
-}
-void emit_rld(void)
-{
-    int i;
-
-    printf(";\n; RE-LOCATEABLE DICTIONARY\n;\n");
-    /*
-     * First emit the bytecode definition entrypoint information.
-     */
-    for (i = 0; i < globals; i++)
-        if (!(idglobal_type[i] & EXTERN_TYPE) && (idglobal_type[i] & DEF_TYPE))
-        {
-            printf("\t%s\t$02\t\t\t; CODE TABLE FIXUP\n", DB);
-            printf("\t%s\t_C%03d\t\t\n", DW, idglobal_tag[i]);
-            printf("\t%s\t$00\n", DB);
-        }
-    /*
-     * Now emit the fixup table.
-     */
-    for (i = 0; i < fixups; i++)
-    {
-        if (fixup_type[i] & EXTERN_TYPE)
-        {
-            printf("\t%s\t$%02X\t\t\t; EXTERNAL FIXUP\n", DB, 0x11 + fixup_size[i]);
-            printf("\t%s\t_F%03d\t\t\n", DW, i);
-            printf("\t%s\t%d\t\t\t; ESD INDEX\n", DB, fixup_tag[i]);
-        }
-        else
-        {
-            printf("\t%s\t$%02X\t\t\t; INTERNAL FIXUP\n", DB, 0x01 + fixup_size[i]);
-            printf("\t%s\t_F%03d\t\t\n", DW, i);
-            printf("\t%s\t$00\n", DB);
-        }
-    }
-    printf("\t%s\t$00\t\t\t; END OF RLD\n", DB);
-}
-void emit_esd(void)
-{
-    int i;
-    
-    printf(";\n; EXTERNAL/ENTRY SYMBOL DICTIONARY\n;\n");
-    for (i = 0; i < globals; i++)
-    {
-        if (idglobal_type[i] & EXTERN_TYPE)
-        {
-            emit_dci(&idglobal_name[i][1], idglobal_name[i][0]);
-            printf("\t%s\t$10\t\t\t; EXTERNAL SYMBOL FLAG\n", DB);
-            printf("\t%s\t%d\t\t\t; ESD INDEX\n", DW, idglobal_tag[i]);
-        }
-        else if  (idglobal_type[i] & EXPORT_TYPE)
-        {
-            emit_dci(&idglobal_name[i][1], idglobal_name[i][0]);
-            printf("\t%s\t$08\t\t\t; ENTRY SYMBOL FLAG\n", DB);
-            printf("\t%s\t%s\t\t\n", DW, tag_string(idglobal_tag[i], idglobal_type[i]));
-        }
-    }
-    printf("\t%s\t$00\t\t\t; END OF ESD\n", DB);
 }

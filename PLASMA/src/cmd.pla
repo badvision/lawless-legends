@@ -1,0 +1,500 @@
+const iobuffer    = $0800
+const databuff    = $0C00
+const autorun     = $01FF
+byte version[]    = "PLASMA VM VERSION 0.9"
+byte errorstr[]   = "ERROR: $"
+byte okstr[]      = "OK"
+byte prefix[32]   = ""
+byte perr
+word cmdptr
+
+;
+; Utility functions
+;
+; CALL PRODOS
+; SYSCALL(CMD, PARAMS)
+;
+asm prodos
+	LDA	ESTKL,X
+	LDY	ESTKH,X
+	STA	PARAMS
+	STY	PARAMS+1
+	INX
+	LDA	ESTKL,X
+	STA	CMD
+	STX	ESP
+	JSR	$BF00
+CMD:	!BYTE	00
+PARAMS:	!WORD	0000
+	BIT	LCBNK2
+	LDX	ESP
+	STA	ESTKL,X
+	LDY    	#$00
+	STY	ESTKH,X
+	RTS
+end
+;
+; CALL LOADED SYSTEM PROGRAM
+;
+asm exec
+	LDX	#$FF
+	TXS
+	BIT	ROMEN
+	JMP	$2000
+end
+;
+; SET MEMORY TO 0
+; MEMCLR(ADDR, SIZE)
+;
+asm memclr
+	LDY	#$00
+	LDA 	ESTKL+1,X
+	STA 	DSTL
+	LDA 	ESTKH+1,X
+	STA 	DSTH
+	INC	ESTKL,X
+	INC 	ESTKH,X
+	TYA
+SETMLP 	DEC 	ESTKL,X
+	BNE	+
+	DEC	ESTKH,X
+	BEQ	++
++	STA	(DST),Y
+	INY
+	BNE	SETMLP
+	INC	DSTH
+	BNE	SETMLP
++	INX
+	INX
+	RTS
+end
+;
+; COPY MEMORY
+; MEMCPY(DSTADDR, SRCADDR, SIZE)
+;
+asm memcpy
+	LDY	#$00
+	LDA	ESTKL,X
+	BNE 	+
+	LDA	ESTKH,X
+	BEQ	MEMEXIT
++	LDA	ESTKL+2,X
+	STA 	DSTL
+	LDA	ESTKH+2,X
+	STA 	DSTH
+	LDA	ESTKL+1,X
+	STA 	SRCL
+	LDA	ESTKH+1,X
+	STA 	SRCH
+	CMP	DSTH
+	BCC	REVCPY
+	BNE	FORCPY
+	LDA 	SRCL
+	CMP	DSTL
+	BCS	FORCPY
+REVCPY				; REVERSE DIRECTION COPY
+;	CLC
+	LDA 	ESTKL,X
+	ADC	DSTL
+	STA	DSTL
+	LDA	ESTKH,X
+	ADC	DSTH
+	STA	DSTH
+	CLC
+	LDA 	ESTKL,X
+	ADC	SRCL
+	STA	SRCL
+	LDA	ESTKH,X
+	ADC	SRCH
+	STA	SRCH
+	INC 	ESTKH,X
+REVCPYLP
+	LDA	DSTL
+	BNE	+
+	DEC	DSTH
++	DEC	DSTL
+	LDA	SRCL
+	BNE	+
+	DEC	SRCH
++	DEC	SRCL
+	LDA	(SRC),Y
+	STA	(DST),Y
+	DEC 	ESTKL,X
+	BNE	REVCPYLP
+	DEC	ESTKH,X
+	BNE	REVCPYLP
+	BEQ	MEMEXIT
+FORCPY	INC 	ESTKH,X
+FORCPYLP
+	LDA	(SRC),Y
+	STA	(DST),Y
+	INC	DSTL
+	BNE	+
+	INC	DSTH
++	INC	SRCL
+	BNE	+
+	INC	SRCH
++	DEC 	ESTKL,X
+	BNE	FORCPYLP
+	DEC	ESTKH,X
+	BNE	FORCPYLP
+MEMEXIT	INX
+	INX
+	INX
+	RTS
+end
+;
+; CHAR OUT
+; COUT(CHAR)
+;
+asm cout
+	LDA	ESTKL,X
+    	INX
+	ORA 	#$80
+	BIT	ROMIN
+	JSR	$FDED
+	BIT	LCBNK2
+	RTS
+end
+;
+; CHAR IN
+; RDKEY()
+;
+asm cin
+	BIT	ROMIN
+	STX	ESP
+	JSR     $FD0C
+	LDX	ESP
+	BIT	LCBNK2
+	DEX
+	STA     ESTKL,X
+	LDY	#$00
+	STY     ESTKH,X
+	RTS
+end
+;
+; PRINT STRING
+; PRSTR(STR)
+;
+asm prstr
+	LDY	#$00
+	LDA     ESTKL,X
+	STA     SRCL
+	LDA     ESTKH,X
+	STA     SRCH
+	BIT	ROMIN
+	LDA     (SRC),Y
+	STA     ESTKL,X
+	BEQ     +
+-	INY
+	LDA	(SRC),Y
+	ORA	#$80
+	JSR	$FDED
+	TYA
+	CMP	ESTKL,X
+	BNE	-
++	INX
+	BIT	LCBNK2
+	RTS
+end
+;
+; PRINT BYTE
+;
+asm prbyte
+	LDA	ESTKL,X
+	INX
+	STX     ESP
+	BIT	ROMIN
+	JSR	$FDDA
+	BIT	LCBNK2
+	LDX     ESP
+	RTS
+end
+;
+; READ STRING
+; STR = RDSTR(PROMPTCHAR)
+;
+asm rdstr
+	LDA     ESTKL,X
+	STA     $33
+	STX     ESP
+	BIT	ROMIN
+	JSR     $FD6A
+	BIT	LCBNK2
+	STX     $01FF
+-	LDA	$01FF,X
+	AND	#$7F
+	STA	$01FF,X
+	DEX
+	BPL	-
+	LDX     ESP
+	LDA     #$FF
+	STA     ESTKL,X
+	LDA     #$01
+	STA     ESTKH,X
+	RTS
+end
+asm toupper
+	LDA     ESTKL,X
+	CMP     #'a'
+	BCC     +
+	CMP     #'z'+1
+	BCS     +
+	SEC
+	SBC     #$20
+	STA     ESTKL,X
++	RTS
+end
+;
+; EXIT
+;
+asm reboot
+	BIT	ROMIN
+	LDA	#$00
+	STA	$3F4		; INVALIDATE POWER-UP BYTE
+	JMP	($FFFC)		; RESET
+end
+def crout
+    cout($0D)
+end
+;
+; ProDOS routines
+;
+def getpfx(path)
+    byte params[3]
+
+    ^path    = 0
+    params.0 = 1
+    params:1 = path
+    perr     = prodos($C7, @params)
+    return path
+end
+def setpfx(path)
+    byte params[3]
+
+    params.0 = 1
+    params:1 = path
+    perr     = prodos($C6, @params)
+    return path
+end
+def online
+    byte params[4]
+
+    params.0 = 2
+    params.1 = 0
+    params:2 = $2000
+    perr     = prodos($C5, @params)
+    return $2000
+end
+def open(path, buff)
+    byte params[6]
+
+    params.0 = 3
+    params:1 = path
+    params:3 = buff
+    params.5 = 0
+    perr     = prodos($C8, @params)
+    return params.5
+end
+def close(refnum)
+    byte params[2]
+
+    params.0 = 1
+    params.1 = refnum
+    perr     = prodos($CC, @params)
+    return perr
+end
+def read(refnum, buff, len)
+    byte params[8]
+
+    params.0 = 4
+    params.1 = refnum
+    params:2 = buff
+    params:4 = len
+    params:6 = 0
+    perr     = prodos($CA, @params)
+    return params:6
+end
+;
+; Command mode
+;
+def volumes
+    word strbuf
+    byte i
+
+    strbuf = online()
+    for i = 0 to 15
+        ^strbuf = ^strbuf & $0F
+	if ^strbuf
+	    cout('/')
+	    prstr(strbuf)
+	    crout()
+	fin
+	strbuf = strbuf + 16
+    next
+end
+def catalog(optpath)
+    byte path[64]
+    byte refnum
+    byte firstblk
+    byte entrylen, entriesblk
+    byte i, type, len
+    word entry, filecnt
+
+    if ^optpath
+        memcpy(optpath, @path, ^optpath + 1)
+    else
+        getpfx(@path)
+        prstr(@path)
+        crout()
+    fin
+    refnum = open(@path, iobuffer);
+    if perr
+        return perr
+    fin
+    firstblk = 1
+    repeat
+        if read(refnum, databuff, 512) == 512
+            entry = databuff + 4
+            if firstblk
+                entrylen   = databuff.$23
+                entriesblk = databuff.$24
+                filecnt    = databuff:$25
+                entry      = entry + entrylen
+            fin
+            for i = firstblk to entriesblk
+                type = ^entry
+                if type <> 0
+                    len = type & $0F
+                    ^entry = len
+                    prstr(entry)
+                    if type & $F0 == $D0 ; Is it a directory?
+                        cout('/')
+                        len = len + 1
+		    elsif (entry).$10 == $FF
+		        cout('*')
+			len = len + 1
+                    fin
+                    for len = 19 - len downto 0
+                        cout(' ')
+                    next
+                    filecnt = filecnt - 1
+                fin
+                entry = entry + entrylen
+            next
+            firstblk = 0
+        else
+            filecnt = 0
+        fin
+    until filecnt == 0
+    close(refnum)
+    crout()
+    return 0
+end
+def stripchars(strptr)
+    while ^strptr and ^(strptr + 1) <> ' '
+        memcpy(strptr + 2, strptr + 1, ^strptr)
+        ^strptr = ^strptr - 1
+    loop
+	return ^strptr
+end
+def stripspaces(strptr)
+	while ^strptr and ^(strptr + ^strptr) <= ' '
+        ^strptr = ^strptr - 1
+    loop
+    while ^strptr and ^(strptr + 1) <= ' '
+        memcpy(strptr + 2, strptr + 1, ^strptr)
+        ^strptr = ^strptr - 1
+    loop
+end
+def striptrail(strptr)
+    byte i
+
+    for i = 1 to ^strptr
+        if (strptr)[i] == ' '
+	    ^strptr = i - 1
+	    return
+	fin
+    next
+end
+def parsecmd(strptr)
+    byte cmd
+
+    cmd = 0
+    stripspaces(strptr)
+    if ^strptr
+        cmd = ^(strptr + 1)
+        memcpy(strptr + 2, strptr + 1, ^strptr)
+        ^strptr = ^strptr - 1
+    fin
+    stripspaces(strptr)
+    return cmd
+end
+def resetmemfiles
+    ;
+    ; Close all files
+    ;
+    ^$BFD8 = 0
+    close(0)
+    ;
+    ; Set memory bitmap
+    ;
+    memclr($BF58, 24)
+    ^$BF58 = $CF
+    ^$BF6F = $01
+end
+def execsys(sysfile)
+    byte refnum
+    word len
+
+    if ^sysfile
+        memcpy(sysfile, $280, ^sysfile + 1)
+	striptrail(sysfile)
+	refnum = open(sysfile, iobuffer)
+	if refnum
+	    len = read(refnum, $2000, $FFFF)
+	    resetmemfiles()
+	    if len
+	        memcpy($280, sysfile, ^$280 + 1)
+		if stripchars(sysfile) and ^$2000 == $4C and *$2003 == $EEEE
+		    stripspaces(sysfile)
+		    if ^$2006 <= ^sysfile
+		        memcpy(sysfile, $2006, ^sysfile + 1)
+		    fin
+		fin
+	        striptrail($280)
+		exec()
+	    fin
+	fin
+    fin
+end
+
+resetmemfiles()
+execsys(autorun)
+prstr(@version)
+crout();
+while 1
+    prstr(getpfx(@prefix))
+    cmdptr = rdstr($BA)
+    when toupper(parsecmd(cmdptr))
+        is 'Q'
+	    reboot()
+	is 'C'
+	    catalog(cmdptr)
+	is 'P'
+	    setpfx(cmdptr)
+	is 'V'
+	    volumes();
+	is '-'
+	    execsys(cmdptr)
+	    perr = $46
+    wend
+    if perr
+        prstr(@errorstr)
+	prbyte(perr)
+    else
+        prstr(@okstr)
+    fin
+    crout()
+loop
+done

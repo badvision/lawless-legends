@@ -32,15 +32,15 @@ $(PLVM): plvm.c
 	cc plvm.c -o $(PLVM)
 
 TESTLIB: testlib.pla $(PLVM) $(PLASM)
-	./$(PLASM) -A < testlib.pla > testlib.a
+	./$(PLASM) -AM < testlib.pla > testlib.a
 	acme --setpc 4096 -o TESTLIB testlib.a
 
 test: test.pla TESTLIB $(PLVM) $(PLASM)
-	./$(PLASM) -A < test.pla > test.a
+	./$(PLASM) -AM < test.pla > test.a
 	acme --setpc 4096 -o TEST.BIN test.a
 	./$(PLVM) TEST.BIN MAIN
 
 debug: test.pla TESTLIB $(PLVM) $(PLASM)
-	./$(PLASM) -A < test.pla > test.a
+	./$(PLASM) -AM < test.pla > test.a
 	acme --setpc 4096 -o TEST.BIN test.a
 	./$(PLVM) -s TEST.BIN MAIN

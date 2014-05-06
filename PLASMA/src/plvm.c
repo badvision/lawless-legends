@@ -46,6 +46,10 @@ byte *lastsym = symtbl;
 byte modtbl[MODTBLSZ];
 byte *lastmod = modtbl;
 /*
+ * Predef.
+ */
+void interp(code *ip);
+/*
  * Utility routines.
  * 
  * A DCI string is one that has the high bit set for every character except the last.
@@ -269,7 +273,7 @@ int extern_lookup(byte *esd, int index)
 }
 int load_mod(byte *mod)
 {
-    int len, size, end, magic, bytecode, fixup, addr, modaddr = mark_heap();
+    int len, size, end, magic, bytecode, fixup, addr, init = 0, modaddr = mark_heap();
     byte *moddep, *rld, *esd, *cdd, *sym;
     byte header[128];
     char filename[32], string[17];
@@ -286,7 +290,8 @@ int load_mod(byte *mod)
              * This is a relocatable bytecode module.
              */
             bytecode = header[4] | (header[5] << 8);
-            moddep   = header + 6;
+            init     = header[6] | (header[7] << 8);
+            moddep   = header + 8;
             if (*moddep)
             {
                 /*
@@ -329,6 +334,7 @@ int load_mod(byte *mod)
             printf("Module code+data size: %d\n", len);
             printf("Module magic: $%04X\n", magic);
             printf("Module bytecode: $%04X\n", bytecode);
+            printf("Module init: $%04X\n", init);
         }
         /*
          * Print out the Re-Location Dictionary.
@@ -415,6 +421,14 @@ int load_mod(byte *mod)
      * Reserve heap space for relocated module.
      */
     alloc_heap(end - modaddr);
+    /*
+     * Call init routine.
+     */
+    if (init)
+    {
+        interp(mem_data + init +  modaddr - MOD_ADDR);
+        POP;
+    }
     return (fd > 0);
 }
 void interp(code *ip);

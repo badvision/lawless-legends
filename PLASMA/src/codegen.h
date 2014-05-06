@@ -1,4 +1,5 @@
 #define ACME   1
+#define MODULE 2
 void emit_flags(int flags);
 void emit_header(void);
 void emit_trailer(void);
@@ -10,6 +11,7 @@ void emit_idlocal(char *name, int value);
 void emit_idglobal(int value, int size, char *name);
 void emit_idfunc(int tag, int type, char *name);
 void emit_idconst(char *name, int value);
+void emit_def(char *name, int is_bytecode);
 int emit_data(int vartype, int consttype, long constval, int constsize);
 void emit_codetag(int tag);
 void emit_const(int cval);
@@ -27,6 +29,8 @@ void emit_dlb(int index);
 void emit_dlw(int index);
 void emit_sab(int tag, int type);
 void emit_saw(int tag, int type);
+void emit_sab_ofst(int tag, int offset, int type);
+void emit_saw_ofst(int tag, int ofset, int type);
 void emit_dab(int tag, int type);
 void emit_daw(int tag, int type);
 void emit_call(int tag, int type);
@@ -51,7 +55,6 @@ void emit_pull(void);
 void emit_drop(void);
 void emit_leave(int framesize);
 void emit_ret(void);
-void emit_def(int defopt);
 void emit_enter(int framesize, int cparams);
 void emit_start(void);
 void emit_rld(void);

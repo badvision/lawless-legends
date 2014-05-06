@@ -168,6 +168,8 @@ log2_b_w: !zone
 ; Output: 16 bit unsigned int in A(lo)/X(hi)
 ;
 pow2_w_w: !zone
+	txa			; check for negative input
+	bmi .zero		; if negative, just return zero - cheesy but works
 	lda tbl_pow2_w_w,y	; table gives us log(2) -> mantissa in A
 	cpx #8			; check the exponent
 	bcc .lo			; less than 8? high byte will be zero.
@@ -191,6 +193,9 @@ pow2_w_w: !zone
 	rts
 .mid:	; exponent exactly 8 when we get here
 	ldx #1			; that means high byte should be 1
+	rts
+.zero	lda #0
+	tax
 	rts
 
 ;-------------------------------------------------------------------------------
@@ -567,6 +572,29 @@ spriteFu:
 .done	pla
 	sta screenCol
 	rts
+
+;------------------------------------------------------------------------------
+spriteCalc: !zone
+	ldy #0
+	lda spriteX
+	sec
+	sbc playerX
+	pha
+	lda spriteX+1
+	sbc playerX+1
+	bcs +
+	eor #$FF
+	tax
+	pla
+	eor #$FF
+	adc #1
+	bcc ++
+	inx
++	pla
+++	sty .bSgn1
+	jsr log2_w_w
+	sta .wSum1
+	stx .wSum1+1
 
 ;------------------------------------------------------------------------------
 ; Save a link in the linked column data, sorted according to its depth.
@@ -2747,7 +2775,6 @@ walkDirs:
 	!word $003B, $FFE8
 
 ; Sin of each angle, in log8.8 format plus the high bit being the sign (0x8000 = negative)
-sinTbl:
-	!word $0000, $8699, $877F, $87E1, $8800, $87E1, $877F, $8699
+sinTbl	!word $0000, $8699, $877F, $87E1, $8800, $87E1, $877F, $8699
 	!word $8195, $0699, $077F, $07E1, $0800, $07E1, $077F, $0699
 

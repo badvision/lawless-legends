@@ -385,10 +385,6 @@ function calcZ(wLogHeight) {
 
 function intRenderSprites() 
 {
-  // Constants
-  var wLog256 = log2_w_w(256);
-  var wLogViewDist = log2_w_w(viewDist/8*256); // div by 8 to get to Apple II coords  
-
   // Quantities that are the same for every sprite
   var bSgnSinT = (tbl_wLogSin[player.angleNum] & 0x8000) ? -1 : 1;
   var wLogSinT = (tbl_wLogSin[player.angleNum] & 0x7FFF);
@@ -414,6 +410,7 @@ function intRenderSprites()
     var wLogDx = log2_w_w(uword(Math.abs(dx)*256));
     var bSgnDy = (dy < 0) ? -1 : 1;
     var wLogDy = log2_w_w(uword(Math.abs(dy)*256));
+
     var wRx = bSgnDx*bSgnCosT*pow2_w_w(wLogDx + wLogCosT - wLog256) -
               bSgnDy*bSgnSinT*pow2_w_w(wLogDy + wLogSinT - wLog256);
                             
@@ -443,7 +440,7 @@ function intRenderSprites()
     var bSgnRy = wRy < 0 ? -1 : 1;
     // The constant below is cheesy and based on empirical observation rather than understanding.
     // Sorry :/
-    var wX = bSgnRy * pow2_w_w(log2_w_w(Math.abs(wRy)*256) - wLogDist + log2_w_w(252 / 8 / 0.44) - wLog256);      
+    var wX = bSgnRy * pow2_w_w(log2_w_w(Math.abs(wRy)) - wLogDist + log2_w_w(252 / 8 / 0.44));  
     if (sprite.index == debugSprite)
       console.log("    wRx/256=" + (wRx/256.0) + ", wRy/256=" + (wRy/256.0) + ", wSize=" + wSize + ", wX=" + wX);
       
@@ -576,8 +573,6 @@ function bindKeys() {
 
   document.onkeydown = function(e) {
     e = e || window.event;
-    console.log(e.keyCode);
-
     switch (e.keyCode) { // which key was pressed? [ref BigBlue2_30]
     
       case 38: // up, move player forward, ie. increase speed
@@ -623,17 +618,8 @@ function bindKeys() {
 
   document.onkeyup = function(e) {
     e = e || window.event;
-
-    switch (e.keyCode) {
-      case 38:
-      case 40:
-        player.speed = 0;   // stop the player movement when up/down key is released
-        break;
-      case 37:
-      case 39:
-        player.dir = 0;
-        break;
-    }
+    player.speed = 0;   // stop the player movement when up/down key is released
+    player.dir = 0;
   }
 }
 
@@ -814,6 +800,7 @@ function log2_w_w(n) {
   if (n == 0)
     return 0;
   assert(n >= 1, "n must be non-negative for log2_w_w");
+  assert(n <= 65535, "n must fit within 16 bits for log2_w_w");
     
   // Calculate the exponent, and leave mantissa in n.
   var exp = 8;
@@ -831,8 +818,11 @@ function log2_w_w(n) {
 }
 
 // Table-based high precision pow2 - 16 bit to 16 bit
-function pow2_w_w(n) 
+function pow2_w_w(n)
 {
+  if (n < 0)
+    return 0;
+  assert(n <= 65535, "n must fit within 16 bits for pow2_w_w");
   var exp = n >> 8;
   var result = tbl_pow2_w_w[n & 0xFF] + 256;
   if (exp > 8)
@@ -1072,6 +1062,8 @@ function drawStrip(stripIdx, lineData)
 }
 
 function move() {
+  if (player.speed == 0 && player.dir == 0)
+    return;
   var moveStep = player.speed * player.moveSpeed; // player will move this far along the current direction vector
 
   // add rotation if player is rotating (player.dir != 0)
@@ -1084,9 +1076,9 @@ function move() {
   var newX = player.x + Math.cos(playerAngle()) * moveStep;  // calculate new player position with simple trigonometry
   var newY = player.y + Math.sin(playerAngle()) * moveStep;
 
-  if (isBlocking(newX, newY)) {   // are we allowed to move to the new position?
-    return; // no, bail out.
-  }
+  //if (isBlocking(newX, newY)) {   // are we allowed to move to the new position?
+  //  return; // no, bail out.
+  //}
 
   player.x = newX; // set new position
   player.y = newY;

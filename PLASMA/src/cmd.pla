@@ -41,8 +41,12 @@ SRCH	=	SRC+1
 DST	=	SRC+2
 DSTL	=	DST
 DSTH	=	DST+1
-ESP	=	DST+2
+;*
+;* ASM VARIABLES
+;*
+ESP	!BYTE	0
 end
+;
 ; CALL PRODOS
 ; SYSCALL(CMD, PARAMS)
 ;
@@ -68,10 +72,24 @@ end
 ; CALL LOADED SYSTEM PROGRAM
 ;
 asm exec
-	LDX	#$FE
+	LDA	#$00
+	STA	IFPL
+	LDA	#$BF
+	STA	IFPH
+	LDX	#$FF
 	TXS
-	LDX	ESTKSZ/2
+	LDX	#ESTKSZ/2
+	BIT	ROMEN
 	JMP	$2000
+end
+;
+; EXIT
+;
+asm reboot
+	BIT	ROMEN
+	LDA	#$00
+	STA	$3F4		; INVALIDATE POWER-UP BYTE
+	JMP	($FFFC)		; RESET
 end
 ;
 ; SET MEMORY TO 0
@@ -181,6 +199,7 @@ asm cout
 	ORA 	#$80
 	BIT	ROMEN
 	JSR	$FDED
+	BIT	LCRDEN+LCBNK2
 	RTS
 end
 ;
@@ -196,6 +215,7 @@ asm cin
 	STA     ESTKL,X
 	LDY	#$00
 	STY     ESTKH,X
+	BIT	LCRDEN+LCBNK2
 	RTS
 end
 ;
@@ -219,7 +239,8 @@ asm prstr
 	TYA
 	CMP	ESTKL,X
 	BNE	-
-+	RTS
++	BIT	LCRDEN+LCBNK2
+	RTS
 end
 ;
 ; PRINT BYTE
@@ -230,6 +251,7 @@ asm prbyte
 	BIT	ROMEN
 	JSR	$FDDA
 	LDX     ESP
+	BIT	LCRDEN+LCBNK2
 	RTS
 end
 ;
@@ -253,6 +275,7 @@ asm rdstr
 	STA     ESTKL,X
 	LDA     #$01
 	STA     ESTKH,X
+	BIT	LCRDEN+LCBNK2
 	RTS
 end
 asm toupper
@@ -265,15 +288,6 @@ asm toupper
 	SBC     #$20
 	STA     ESTKL,X
 +	RTS
-end
-;
-; EXIT
-;
-asm reboot
-	BIT	ROMEN
-	LDA	#$00
-	STA	$3F4		; INVALIDATE POWER-UP BYTE
-	JMP	($FFFC)		; RESET
 end
 def crout
     cout($0D)
@@ -303,9 +317,9 @@ def online
 
     params.0 = 2
     params.1 = 0
-    params:2 = $2000
+    params:2 = databuff
     perr     = prodos($C5, @params)
-    return $2000
+    return databuff
 end
 def open(path, buff)
     byte params[6]
@@ -492,7 +506,7 @@ end
 
 resetmemfiles()
 prstr(@version)
-crout();
+crout()
 while 1
     prstr(getpfx(@prefix))
     cmdptr = rdstr($BA)

@@ -1301,6 +1301,7 @@ int parse_module(void)
         if (scantoken != DONE_TOKEN && scantoken != EOF_TOKEN)
         {
             emit_start();
+            emit_def("_INIT", 1);
             prevstmnt = 0;
             while (parse_stmnt()) next_line();
             if (scantoken != DONE_TOKEN)

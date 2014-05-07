@@ -16,9 +16,9 @@ int show_state = 0;
  * Bytecode memory
  */
 #define BYTE_PTR(bp)	((byte)((bp)[0]))
-#define WORD_PTR(bp)	((word)((bp)[0] | ((bp)[1] << 8)))
+#define WORD_PTR(bp)	((word)((bp)[0]  | ((bp)[1] << 8)))
 #define UWORD_PTR(bp)	((uword)((bp)[0] | ((bp)[1] << 8)))
-#define TO_UWORD(w)	((w)&0xFFFF)
+#define TO_UWORD(w)	((uword)((w)))
 #define MOD_ADDR	0x1000
 #define DEF_CALL	0x0800
 #define DEF_CALLSZ	0x0800
@@ -30,8 +30,8 @@ uword sp = 0x01FE, fp = 0xBEFF, heap = 0x6000, xheap = 0x0800, deftbl = DEF_CALL
 
 #define EVAL_STACKSZ	16
 #define PUSH(v)	(*(--esp))=(v)
-#define POP		(*(esp++))
-#define UPOP		((uword)(*(esp++)&0xFFFF))
+#define POP		((word)(*(esp++)))
+#define UPOP		((uword)(*(esp++)))
 #define TOS		(esp[0])
 word eval_stack[EVAL_STACKSZ];
 word *esp = eval_stack + EVAL_STACKSZ;
@@ -649,7 +649,7 @@ void interp(code *ip)
                  * 0x30-0x3F
                  */
             case 0x30: // DROP : TOS =
-                esp++;;
+                POP;
                 break;
             case 0x32: // DUP : TOS = TOS
                 val = TOS;
@@ -661,7 +661,8 @@ void interp(code *ip)
                 mem_data[sp--] = val;
                 break;
             case 0x36: // PULL : TOS = TOSP
-                PUSH(mem_data[++sp] | (mem_data[++sp] << 8));
+                PUSH(mem_data[sp] | (mem_data[sp + 1] << 8));
+                sp += 2;
                 break;
             case 0x38: // BRGT : TOS-1 > TOS ? IP += (IP)
                 val = POP;

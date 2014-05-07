@@ -311,9 +311,7 @@ void emit_header(void)
     }
     else
     {
-        printf("\tJSR\t$3D0\n");
-        printf("\t%s\t$00\t\t\t; MODULE INITIALIZATION ROUTINE\n", DB);
-        printf("\t%s\t_INIT\t\t\t;\n", DW);
+        printf("\tJMP\t_INIT\t\t\t; MODULE INITIALIZATION ROUTINE\n");
     }
 }
 void emit_rld(void)
@@ -493,13 +491,9 @@ void emit_def(char *name, int is_bytecode)
 {
     if (!(outflags & MODULE))
     {
-        printf("%s%c\n", name, LBL);
+        //printf("%s%c\n", name, LBL);
         if (is_bytecode)
-        {
             printf("\tJSR	$03D0\n");
-            printf("\t%s\t$00\n", DB);
-            printf("\t%s\t*+2\n", DW);
-        }
     }
 }
 void emit_codetag(int tag)

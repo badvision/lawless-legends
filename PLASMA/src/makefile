@@ -3,6 +3,7 @@ AFLAGS	= -o $@
 LFLAGS	= -C default.cfg
 PLVM    = plvm
 PLVM02	= PLVM02.SYS
+CMD     = CMD.SYS
 PLASM   = plasm
 INCS    = tokens.h symbols.h lex.h parse.h codegen.h
 OBJS	= plasm.c parse.o lex.o codegen.o
@@ -21,7 +22,7 @@ TXTTYPE	= .TXT
 #SYSTYPE	= \#ff0000
 #TXTTYPE	= \#040000
 
-all: $(PLASM) $(PLVM) $(PLVM02) TESTLIB
+all: $(PLASM) $(PLVM) $(PLVM02) $(CMD) TESTLIB
 
 clean:
 	-rm *.o *~ *.a *.SYM *.SYS *.BIN TESTLIB $(PLASM) $(PLVM)
@@ -37,6 +38,10 @@ cmdexec.a: cmdexec.pla $(PLASM)
 
 $(PLVM02): plvm02.s cmdexec.a
 	acme -o $(PLVM02) -l PLVM02.SYM plvm02.s
+
+$(CMD): cmd.pla $(PLVM) $(PLASM)
+	./$(PLASM) -A < cmd.pla > cmd.a
+	acme --setpc 8192 -o $(CMD) cmd.a
 
 TESTLIB: testlib.pla $(PLVM) $(PLASM)
 	./$(PLASM) -AM < testlib.pla > testlib.a

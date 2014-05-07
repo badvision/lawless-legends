@@ -1,6 +1,5 @@
 const iobuffer    = $0800
 const databuff    = $0C00
-const autorun     = $01FF
 byte version[]    = "PLASMA VM VERSION 0.9"
 byte errorstr[]   = "ERROR: $"
 byte okstr[]      = "OK"
@@ -11,6 +10,39 @@ word cmdptr
 ;
 ; Utility functions
 ;
+asm equates
+;*
+;* BANK SWITCHED MEM
+;*
+LCRDEN 	=	$C080
+LCWTEN	=	$C081
+ROMEN	=	$C082
+LCRWEN 	=	$C083
+LCBNK2	=	$00
+LCBNK1	=	$08
+;*
+;* ZERO PAGE USEAGE
+;*
+ESTKSZ	=	$20
+ESTK	=	$C0
+ESTKL	=	ESTK
+ESTKH	=	ESTK+ESTKSZ/2
+VMZP	=	ESTK+ESTKSZ
+IFP	=	VMZP
+IFPL	=	IFP
+IFPH	=	IFP+1
+IP     	=	IFP+2
+IPL	=	IP
+IPH	=	IP+1
+IPY	=	IP+2
+SRC	=	$06
+SRCL	=	SRC
+SRCH	=	SRC+1
+DST	=	SRC+2
+DSTL	=	DST
+DSTH	=	DST+1
+ESP	=	DST+2
+end
 ; CALL PRODOS
 ; SYSCALL(CMD, PARAMS)
 ;
@@ -26,7 +58,6 @@ asm prodos
 	JSR	$BF00
 CMD:	!BYTE	00
 PARAMS:	!WORD	0000
-	BIT	LCBNK2
 	LDX	ESP
 	STA	ESTKL,X
 	LDY    	#$00
@@ -40,7 +71,6 @@ asm exec
 	LDX	#$FE
 	TXS
 	LDX	ESTKSZ/2
-	BIT	ROMEN
 	JMP	$2000
 end
 ;
@@ -333,7 +363,7 @@ def catalog(optpath)
     word entry, filecnt
 
     if ^optpath
-        memcpy(optpath, @path, ^optpath + 1)
+        memcpy(@path, optpath, ^optpath + 1)
     else
         getpfx(@path)
         prstr(@path)
@@ -384,7 +414,7 @@ def catalog(optpath)
 end
 def stripchars(strptr)
     while ^strptr and ^(strptr + 1) <> ' '
-        memcpy(strptr + 2, strptr + 1, ^strptr)
+        memcpy(strptr + 1, strptr + 2, ^strptr)
         ^strptr = ^strptr - 1
     loop
 	return ^strptr
@@ -394,7 +424,7 @@ def stripspaces(strptr)
         ^strptr = ^strptr - 1
     loop
     while ^strptr and ^(strptr + 1) <= ' '
-        memcpy(strptr + 2, strptr + 1, ^strptr)
+        memcpy(strptr + 1, strptr + 2, ^strptr)
         ^strptr = ^strptr - 1
     loop
 end
@@ -415,7 +445,7 @@ def parsecmd(strptr)
     stripspaces(strptr)
     if ^strptr
         cmd = ^(strptr + 1)
-        memcpy(strptr + 2, strptr + 1, ^strptr)
+        memcpy(strptr + 1, strptr + 2, ^strptr)
         ^strptr = ^strptr - 1
     fin
     stripspaces(strptr)
@@ -439,18 +469,18 @@ def execsys(sysfile)
     word len
 
     if ^sysfile
-        memcpy(sysfile, $280, ^sysfile + 1)
+        memcpy($280, sysfile, ^sysfile + 1)
 	striptrail(sysfile)
 	refnum = open(sysfile, iobuffer)
 	if refnum
 	    len = read(refnum, $2000, $FFFF)
 	    resetmemfiles()
 	    if len
-	        memcpy($280, sysfile, ^$280 + 1)
+	        memcpy(sysfile, $280, ^$280 + 1)
 		if stripchars(sysfile) and ^$2000 == $4C and *$2003 == $EEEE
 		    stripspaces(sysfile)
 		    if ^$2006 <= ^sysfile
-		        memcpy(sysfile, $2006, ^sysfile + 1)
+		        memcpy($2006, sysfile, ^sysfile + 1)
 		    fin
 		fin
 	        striptrail($280)
@@ -461,7 +491,6 @@ def execsys(sysfile)
 end
 
 resetmemfiles()
-execsys(autorun)
 prstr(@version)
 crout();
 while 1

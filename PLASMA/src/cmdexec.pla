@@ -1,9 +1,7 @@
 const iobuffer    = $0800
 const databuff    = $0C00
 const memmap      = $BF58
-const autorun     = $01FF
-byte cmdline[]    = "CMD"
-word cmd          = @cmdline
+const sysfile     = $0280
 byte syshalt[]    = "SYSTEM HALTED..."
 byte perr
 
@@ -35,6 +33,10 @@ end
 ; CALL LOADED SYSTEM PROGRAM
 ;
 asm exec
+	LDA	#$00
+	STA	IFPL
+	LDA	#$BF
+	STA	IFPH
 	LDX	#$FE
 	TXS
 	LDX	ESTKSZ/2
@@ -207,16 +209,14 @@ def resetmemfiles
     ^memmap.0  = $CF
     ^memmap.23 = $01
 end
-def execsys(sysfile)
+def execsys
     byte refnum
 
     if ^sysfile
-        memcpy($280, sysfile, ^sysfile + 1)
 	refnum = open(sysfile, iobuffer)
 	if refnum
 	    if read(refnum, $2000, $FFFF)
 	        resetmemfiles()
-	        memcpy($280, sysfile, ^$280 + 1)
 		exec()
 	    fin
 	fin
@@ -224,10 +224,7 @@ def execsys(sysfile)
 end
 
 resetmemfiles()
-if ^autorun
-    cmd = autorun
-fin
-execsys(cmd)
+execsys
 prstr(@syshalt)
 cin()
 reboot()

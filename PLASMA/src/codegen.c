@@ -1,5 +1,7 @@
 #include <stdio.h>
+#include <ctype.h>
 #include "tokens.h"
+#include "lex.h"
 #include "symbols.h"
 #include "codegen.h"
 /*
@@ -122,7 +124,8 @@ int idglobal_add(char *name, int len, int type, int size)
     if (!(type & EXTERN_TYPE))
     {
         emit_idglobal(globals, size, name);
-    	idglobal_tag[globals] = globals++;
+    	idglobal_tag[globals] = globals;
+    	globals++;
     }
     else
     {
@@ -335,13 +338,13 @@ void emit_rld(void)
     {
         if (fixup_type[i] & EXTERN_TYPE)
         {
-            printf("\t%s\t$%02X\t\t\t; EXTERNAL FIXUP\n", DB, 0x11 + fixup_size[i]);
+            printf("\t%s\t$%02X\t\t\t; EXTERNAL FIXUP\n", DB, 0x11 + fixup_size[i] & 0xFF);
             printf("\t%s\t_F%03d\t\t\n", DW, i);
             printf("\t%s\t%d\t\t\t; ESD INDEX\n", DB, fixup_tag[i]);
         }
         else
         {
-            printf("\t%s\t$%02X\t\t\t; INTERNAL FIXUP\n", DB, 0x01 + fixup_size[i]);
+            printf("\t%s\t$%02X\t\t\t; INTERNAL FIXUP\n", DB, 0x01 + fixup_size[i] & 0xFF);
             printf("\t%s\t_F%03d\t\t\n", DW, i);
             printf("\t%s\t$00\n", DB);
         }

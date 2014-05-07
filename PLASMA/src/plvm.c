@@ -15,9 +15,9 @@ int show_state = 0;
 /*
  * Bytecode memory
  */
-#define BYTE_PTR(bp)	((byte)(*bp++))
-#define WORD_PTR(bp)	((word)(*bp++|(*++bp << 8)))
-#define UWORD_PTR(bp)	((uword)((*bp++|(*++bp << 8))&0xFFFF))
+#define BYTE_PTR(bp)	((byte)((bp)[0]))
+#define WORD_PTR(bp)	((word)((bp)[0] | ((bp)[1] << 8)))
+#define UWORD_PTR(bp)	((uword)((bp)[0] | ((bp)[1] << 8)))
 #define TO_UWORD(w)	((w)&0xFFFF)
 #define MOD_ADDR	0x1000
 #define DEF_CALL	0x0800
@@ -31,7 +31,7 @@ uword sp = 0x01FE, fp = 0xBEFF, heap = 0x6000, xheap = 0x0800, deftbl = DEF_CALL
 #define EVAL_STACKSZ	16
 #define PUSH(v)	(*(--esp))=(v)
 #define POP		(*(esp++))
-#define UPOP		((uword)(*(esp++)))
+#define UPOP		((uword)(*(esp++)&0xFFFF))
 #define TOS		(esp[0])
 word eval_stack[EVAL_STACKSZ];
 word *esp = eval_stack + EVAL_STACKSZ;
@@ -273,7 +273,7 @@ int extern_lookup(byte *esd, int index)
 }
 int load_mod(byte *mod)
 {
-    int len, size, end, magic, bytecode, fixup, addr, init = 0, modaddr = mark_heap();
+    unsigned int len, size, end, magic, bytecode, fixup, addr, init = 0, modaddr = mark_heap();
     byte *moddep, *rld, *esd, *cdd, *sym;
     byte header[128];
     char filename[32], string[17];
@@ -433,9 +433,9 @@ int load_mod(byte *mod)
 }
 void interp(code *ip);
 
-void call(word pc)
+void call(uword pc)
 {
-    int i, s;
+    unsigned int i, s;
     char sz[64];
 
     switch (mem_data[pc++])
@@ -625,15 +625,19 @@ void interp(code *ip)
                 break;
             case 0x26: // LA : TOS = @VAR ; equivalent to CW ADDRESSOF(VAR)
                 PUSH(WORD_PTR(ip));
+                ip += 2;
                 break;
             case 0x28: // LLA : TOS = @LOCALVAR ; equivalent to CW FRAMEPTR+OFFSET(LOCALVAR)
                 PUSH(fp + BYTE_PTR(ip));
+                ip++;
                 break;
             case 0x2A: // CB : TOS = CONSTANTBYTE (IP)
                 PUSH(BYTE_PTR(ip));
+                ip++;
                 break;
             case 0x2C: // CW : TOS = CONSTANTWORD (IP)
                 PUSH(WORD_PTR(ip));
+                ip += 2;
                 break;
             case 0x2E: // SWAP : TOS = TOS-1, TOS-1 = TOS
                 val = POP;
@@ -662,28 +666,28 @@ void interp(code *ip)
             case 0x38: // BRGT : TOS-1 > TOS ? IP += (IP)
                 val = POP;
                 if (TOS > val)
-                    ip += WORD_PTR(ip) - 2;
+                    ip += WORD_PTR(ip);
                 else
                     ip += 2;
                 break;
             case 0x3A: // BRLT : TOS-1 < TOS ? IP += (IP)
                 val = POP;
                 if (TOS < val)
-                    ip += WORD_PTR(ip) - 2;
+                    ip += WORD_PTR(ip);
                 else
                     ip += 2;
                 break;
             case 0x3C: // BREQ : TOS == TOS-1 ? IP += (IP)
                 val = POP;
                 if (TOS == val)
-                    ip += WORD_PTR(ip) - 2;
+                    ip += WORD_PTR(ip);
                 else
                     ip += 2;
                 break;
             case 0x3E: // BRNE : TOS != TOS-1 ? IP += (IP)
                 val = POP;
                 if (TOS != val)
-                    ip += WORD_PTR(ip) - 2;
+                    ip += WORD_PTR(ip);
                 else
                     ip += 2;
                 break;
@@ -722,13 +726,13 @@ void interp(code *ip)
                 break;
             case 0x4C: // BRFLS : !TOS ? IP += (IP)
                 if (!POP)
-                    ip += WORD_PTR(ip) - 2;
+                    ip += WORD_PTR(ip) ;
                 else
                     ip += 2;
                 break;
             case 0x4E: // BRTRU : TOS ? IP += (IP)
                 if (POP)
-                    ip += WORD_PTR(ip) - 2;
+                    ip += WORD_PTR(ip);
                 else
                     ip += 2;
                 break;
@@ -736,27 +740,30 @@ void interp(code *ip)
                  * 0x50-0x5F
                  */
             case 0x50: // BRNCH : IP += (IP)
-                ip += WORD_PTR(ip) - 2;
+                ip += WORD_PTR(ip);
                 break;
             case 0x52: // IBRNCH : IP += TOS
                 ip += POP;
                 break;
             case 0x54: // CALL : TOFP = IP, IP = (IP) ; call
                 call(UWORD_PTR(ip));
+                ip += 2;
                 break;
             case 0x56: // ICALL : TOFP = IP, IP = (TOS) ; indirect call
-                val = TO_UWORD(POP);
+                val = UPOP;
                 ea = mem_data[val] | (mem_data[val + 1] << 8);
                 call(ea);
                 break;
             case 0x58: // ENTER : NEW FRAME, FOREACH PARAM LOCALVAR = TOS
                 frmsz = BYTE_PTR(ip);
+                ip++;
                 mem_data[fp - frmsz]     = fp;
                 mem_data[fp - frmsz + 1] = fp >> 8;
                 if (show_state)
                     printf("< $%04X: $%04X > ", fp - frmsz, fp);
                 fp -= frmsz;
                 parmcnt = BYTE_PTR(ip);
+                ip++;
                 while (parmcnt--)
                 {
                     val = POP;
@@ -782,70 +789,82 @@ void interp(code *ip)
                 PUSH(mem_data[ea]);
                 break;
             case 0x62: // LW : TOS = WORD (TOS)
-                ea = TO_UWORD(POP);
+                ea = UPOP;
                 PUSH(mem_data[ea] | (mem_data[ea + 1] << 8));
                 break;
             case 0x64: // LLB : TOS = LOCALBYTE [IP]
                 PUSH(mem_data[TO_UWORD(fp + BYTE_PTR(ip))]);
+                ip++;
                 break;
             case 0x66: // LLW : TOS = LOCALWORD [IP]
                 ea = TO_UWORD(fp + BYTE_PTR(ip));
                 PUSH(mem_data[ea] | (mem_data[ea + 1] << 8));
+                ip++;
                 break;
             case 0x68: // LAB : TOS = BYTE (IP)
                 PUSH(mem_data[UWORD_PTR(ip)]);
+                ip += 2;
                 break;
             case 0x6A: // LAW : TOS = WORD (IP)
                 ea = UWORD_PTR(ip);
                 PUSH(mem_data[ea] | (mem_data[ea + 1] << 8));
+                ip += 2;
                 break;
             case 0x6C: // DLB : TOS = TOS, LOCALBYTE [IP] = TOS
                 mem_data[TO_UWORD(fp + BYTE_PTR(ip))] = TOS;
+                ip++;
                 break;
             case 0x6E: // DLW : TOS = TOS, LOCALWORD [IP] = TOS
                 ea = TO_UWORD(fp + BYTE_PTR(ip));
                 mem_data[ea]     = TOS;
                 mem_data[ea + 1] = TOS >> 8;
+                ip++;
                 break;
                 /*
                  * 0x70-0x7F
                  */
             case 0x70: // SB : BYTE (TOS) = TOS-1
                 val = POP;
-                ea  = TO_UWORD(POP);
+                ea  = UPOP;
                 mem_data[ea] = val;
                 break;
             case 0x72: // SW : WORD (TOS) = TOS-1
                 val = POP;
-                ea  = TO_UWORD(POP);
+                ea  = UPOP;
                 mem_data[ea]     = val;
                 mem_data[ea + 1] = val >> 8;
                 break;
             case 0x74: // SLB : LOCALBYTE [TOS] = TOS-1
                 mem_data[TO_UWORD(fp + BYTE_PTR(ip))] = POP;
+                ip++;
                 break;
             case 0x76: // SLW : LOCALWORD [TOS] = TOS-1
                 ea  = TO_UWORD(fp + BYTE_PTR(ip));
                 val = POP;
                 mem_data[ea]     = val;
                 mem_data[ea + 1] = val >> 8;
+                ip++;
                 break;
             case 0x78: // SAB : BYTE (IP) = TOS
-                mem_data[TO_UWORD(WORD_PTR(ip))] = POP;
+                mem_data[UWORD_PTR(ip)] = POP;
+                ip += 2;
                 break;
             case 0x7A: // SAW : WORD (IP) = TOS
-                ea = TO_UWORD(WORD_PTR(ip));
+                ea = UWORD_PTR(ip);
                 val = POP;
                 mem_data[ea]     = val;
                 mem_data[ea + 1] = val >> 8;
+                ip += 2;
                 break;
             case 0x7C: // DAB : TOS = TOS, BYTE (IP) = TOS
-                mem_data[TO_UWORD(WORD_PTR(ip))] = TOS;
+                mem_data[UWORD_PTR(ip)] = TOS;
+                ip += 2;
                 break;
             case 0x7E: // DAW : TOS = TOS, WORD (IP) = TOS
-                ea = TO_UWORD(WORD_PTR(ip));
+                ea = UWORD_PTR(ip);
                 mem_data[ea]     = TOS;
                 mem_data[ea + 1] = TOS >> 8;
+                ip += 2;
                 break;
                 /*
                  * Odd codes and everything else are errors.

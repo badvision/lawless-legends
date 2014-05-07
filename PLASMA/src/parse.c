@@ -879,7 +879,6 @@ int parse_stmnt(void)
                         scantoken = ID_TOKEN;
                     else
                         scan();
-                    printf("Structure offset = %d\n", elem_offset);
                 }
                 if (scantoken == SET_TOKEN)
                 {

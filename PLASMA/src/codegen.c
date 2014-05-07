@@ -306,6 +306,12 @@ void emit_header(void)
         printf("\t%s\t_SUBSEG\t\t\t; BYTECODE SUB-SEGMENT\n", DW);
         printf("\t%s\t_INIT\t\t\t; MODULE INITIALIZATION ROUTINE\n", DW);
     }
+    else
+    {
+        printf("\tJSR\t$3D0\n");
+        printf("\t%s\t$00\t\t\t; MODULE INITIALIZATION ROUTINE\n", DB);
+        printf("\t%s\t_INIT\t\t\t;\n", DW);
+    }
 }
 void emit_rld(void)
 {

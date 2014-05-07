@@ -37,8 +37,9 @@ end
 ; CALL LOADED SYSTEM PROGRAM
 ;
 asm exec
-	LDX	#$FF
+	LDX	#$FE
 	TXS
+	LDX	ESTKSZ/2
 	BIT	ROMEN
 	JMP	$2000
 end
@@ -64,8 +65,7 @@ SETMLP 	DEC 	ESTKL,X
 	BNE	SETMLP
 	INC	DSTH
 	BNE	SETMLP
-+	INX
-	INX
+++	INX
 	RTS
 end
 ;
@@ -140,7 +140,6 @@ FORCPYLP
 	BNE	FORCPYLP
 MEMEXIT	INX
 	INX
-	INX
 	RTS
 end
 ;
@@ -149,11 +148,9 @@ end
 ;
 asm cout
 	LDA	ESTKL,X
-    	INX
 	ORA 	#$80
-	BIT	ROMIN
+	BIT	ROMEN
 	JSR	$FDED
-	BIT	LCBNK2
 	RTS
 end
 ;
@@ -161,11 +158,10 @@ end
 ; RDKEY()
 ;
 asm cin
-	BIT	ROMIN
+	BIT	ROMEN
 	STX	ESP
 	JSR     $FD0C
 	LDX	ESP
-	BIT	LCBNK2
 	DEX
 	STA     ESTKL,X
 	LDY	#$00
@@ -182,7 +178,7 @@ asm prstr
 	STA     SRCL
 	LDA     ESTKH,X
 	STA     SRCH
-	BIT	ROMIN
+	BIT	ROMEN
 	LDA     (SRC),Y
 	STA     ESTKL,X
 	BEQ     +
@@ -193,20 +189,16 @@ asm prstr
 	TYA
 	CMP	ESTKL,X
 	BNE	-
-+	INX
-	BIT	LCBNK2
-	RTS
++	RTS
 end
 ;
 ; PRINT BYTE
 ;
 asm prbyte
 	LDA	ESTKL,X
-	INX
 	STX     ESP
-	BIT	ROMIN
+	BIT	ROMEN
 	JSR	$FDDA
-	BIT	LCBNK2
 	LDX     ESP
 	RTS
 end
@@ -218,9 +210,8 @@ asm rdstr
 	LDA     ESTKL,X
 	STA     $33
 	STX     ESP
-	BIT	ROMIN
+	BIT	ROMEN
 	JSR     $FD6A
-	BIT	LCBNK2
 	STX     $01FF
 -	LDA	$01FF,X
 	AND	#$7F
@@ -249,7 +240,7 @@ end
 ; EXIT
 ;
 asm reboot
-	BIT	ROMIN
+	BIT	ROMEN
 	LDA	#$00
 	STA	$3F4		; INVALIDATE POWER-UP BYTE
 	JMP	($FFFC)		; RESET

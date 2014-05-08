@@ -650,36 +650,36 @@ spriteCalc: !zone
 	stx .wLogDy+1
 
 	; Calculate wRx = bSgnDx*bSgnCosT*pow2_w_w(wLogDx + wLogCosT) -
-        ;                 bSgnDy*bSgnSinT*pow2_w_w(wLogDy + wLogSinT)
-        lda .wLogDx		; start with lo byte
-        clc
-        adc .wLogCosT
-        tay			; put it in Y where pow2 wants it
-        lda .wLogDx+1		; now do hi byte
-        adc .wLogCosT+1
-        tax			; in X where pow2 wants it
-        jsr pow2_w_w		; transform from log space to normal space (in: Y=lo,X=hi, out: A=lo,X=hi)
-        tay			; set lo byte aside
-        lda .bSgnDx
-        eor .bSgnCosT		; multiply the two sign bits together
-        beq +			; if result is clear, no negation
-        jsr .negYX		; negate
+	;                 bSgnDy*bSgnSinT*pow2_w_w(wLogDy + wLogSinT)
+	lda .wLogDx		; start with lo byte
+	clc
+	adc .wLogCosT
+	tay			; put it in Y where pow2 wants it
+	lda .wLogDx+1		; now do hi byte
+	adc .wLogCosT+1
+	tax			; in X where pow2 wants it
+	jsr pow2_w_w		; transform from log space to normal space (in: Y=lo,X=hi, out: A=lo,X=hi)
+	tay			; set lo byte aside
+	lda .bSgnDx
+	eor .bSgnCosT		; multiply the two sign bits together
+	beq +			; if result is clear, no negation
+	jsr .negYX		; negate
 +	sty .wRx		; save partial result
 	stx .wRx+1
-        lda .wLogDy		; start with lo byte
-        clc
-        adc .wLogSinT
-        tay			; put it in Y where pow2 wants it
-        lda .wLogDy+1		; now do hi byte
-        adc .wLogSinT+1
-        tax			; in X where pow2 wants it
-        jsr pow2_w_w		; transform from log space to normal space (in: Y=lo,X=hi, out: A=lo,X=hi)
-        tay			; set lo byte aside
-        lda .bSgnDy
-        eor .bSgnSinT		; multiply the two sign bits together
-        eor #1			; one extra inversion since we want to end up subtracting this
-        beq +			; if result is clear, no negation
-        jsr .negYX		; negate
+	lda .wLogDy		; start with lo byte
+	clc
+	adc .wLogSinT
+	tay			; put it in Y where pow2 wants it
+	lda .wLogDy+1		; now do hi byte
+	adc .wLogSinT+1
+	tax			; in X where pow2 wants it
+	jsr pow2_w_w		; transform from log space to normal space (in: Y=lo,X=hi, out: A=lo,X=hi)
+	tay			; set lo byte aside
+	lda .bSgnDy
+	eor .bSgnSinT		; multiply the two sign bits together
+	eor #1			; one extra inversion since we want to end up subtracting this
+	beq +			; if result is clear, no negation
+	jsr .negYX		; negate
 +	tya
 	clc
 	adc .wRx		; add to partial result
@@ -695,36 +695,36 @@ spriteCalc: !zone
 
 
 	; Calculate wRy = bSgnDx*bSgnSinT*pow2_w_w(wLogDx + wLogSinT) + 
-        ;                 bSgnDy*bSgnCosT*pow2_w_w(wLogDy + wLogCosT);
+	;                 bSgnDy*bSgnCosT*pow2_w_w(wLogDy + wLogCosT);
 
 +	lda .wLogDx		; start with lo byte
-        clc
-        adc .wLogSinT
-        tay			; put it in Y where pow2 wants it
-        lda .wLogDx+1		; now do hi byte
-        adc .wLogSinT+1
-        tax			; in X where pow2 wants it
-        jsr pow2_w_w		; transform from log space to normal space (in: Y=lo,X=hi, out: A=lo,X=hi)
-        tay			; set lo byte aside
-        lda .bSgnDx
-        eor .bSgnSinT		; multiply the two sign bits together
-        beq +			; if result is clear, no negation
-        jsr .negYX		; negate
+	clc
+	adc .wLogSinT
+	tay			; put it in Y where pow2 wants it
+	lda .wLogDx+1		; now do hi byte
+	adc .wLogSinT+1
+	tax			; in X where pow2 wants it
+	jsr pow2_w_w		; transform from log space to normal space (in: Y=lo,X=hi, out: A=lo,X=hi)
+	tay			; set lo byte aside
+	lda .bSgnDx
+	eor .bSgnSinT		; multiply the two sign bits together
+	beq +			; if result is clear, no negation
+	jsr .negYX		; negate
 +	sty .wRy		; save partial result
 	stx .wRy+1
-        lda .wLogDy		; start with lo byte
-        clc
-        adc .wLogCosT
-        tay			; put it in Y where pow2 wants it
-        lda .wLogDy+1		; now do hi byte
-        adc .wLogCosT+1
-        tax			; in X where pow2 wants it
-        jsr pow2_w_w		; transform from log space to normal space (in: Y=lo,X=hi, out: A=lo,X=hi)
-        tay			; set lo byte aside
-        lda .bSgnDy
-        eor .bSgnCosT		; multiply the two sign bits together
-        beq +			; if result is clear, no negation
-        jsr .negYX		; negate
+	lda .wLogDy		; start with lo byte
+	clc
+	adc .wLogCosT
+	tay			; put it in Y where pow2 wants it
+	lda .wLogDy+1		; now do hi byte
+	adc .wLogCosT+1
+	tax			; in X where pow2 wants it
+	jsr pow2_w_w		; transform from log space to normal space (in: Y=lo,X=hi, out: A=lo,X=hi)
+	tay			; set lo byte aside
+	lda .bSgnDy
+	eor .bSgnCosT		; multiply the two sign bits together
+	beq +			; if result is clear, no negation
+	jsr .negYX		; negate
 +	tya
 	clc
 	adc .wRy		; add to partial result
@@ -806,6 +806,23 @@ spriteCalc: !zone
 	sta .wSize
 	stx .wSize+1
 
+	; Calculate wSpriteTop = 32 - (wSize >> 1);
+	tay			; stash lo byte of wSize
+	txa			; work on hi byte
+	lsr			; shift right 1 bit
+	tax			; save hi byte to X
+	tya			; work on lo byte
+	ror			; shift right including bit from hi byte
+	tay			; lo byte to Y
+	jsr .invYX		; invert it
+	tya			; lo byte
+	clc
+	adc #32			; add 32
+	sta .wSpriteTop		; save sprite top
+	bcc +			; if no carry, no bump
+	inx			; bump hi byte
++	stx .wSpriteTop+1	; save hi byte
+
 	; Calculate wX = bSgnRy * pow2_w_w(log2_w_w(wRy) - wLogDist + log2_w_w(252 / 8 / 0.44))
 	; Note: log2_w_w(252 / 8 / 0.44) = $626
 	lda .wLogRy		; calc wRy minus wLogDist, lo byte
@@ -825,6 +842,20 @@ spriteCalc: !zone
 	jsr pow2_w_w		; back to normal space (in: Y=lo,X=hi, out: A=lo,X=hi)
 	sta .wX
 	stx .wX+1
+
+	; Calculate spriteLeft = (63/2) + wX - wHalfSize = 31 + wX - wHalfSize
+	clc
+	adc #31			; we already have lo byte of wX in A
+	bcc +			; if no carry, don't bump hi byte
+	inx			; bump hi byte
++	sec
+	sbc .wHalfSize		; now subtract lo byte of wHalfSize
+	sta .spriteLeft		; save lo byte
+	txa
+	sbc .wHalfSize+1	; now work on hi byte
+	sta .spriteLeft+1	; save hi byte
+
+
 
 	; TODO: finish this routine
 
@@ -858,7 +889,7 @@ spriteCalc: !zone
 saveLink: !zone
 	sta tmp			; keep height for storing later
 	sty tmp+1		; same with depth
- 	ldx screenCol
+	ldx screenCol
 	ldy firstLink,x
 	bne .chk1
 .store				; this is the first link for the column

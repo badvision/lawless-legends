@@ -191,10 +191,9 @@ uword lookup_tbl(byte *dci, byte *tbl)
         while (*entry++ & 0x80);
         entry += 2;
     }
-    dcitos(dci, str);
     return 0;
 }
-int add_tbl(byte *dci, int val, byte *tbl, byte **last)
+int add_tbl(byte *dci, int val, byte **last)
 {
     while (*dci & 0x80)
         *(*last)++ = *dci++;
@@ -217,7 +216,7 @@ uword lookup_sym(byte *sym)
 }
 int add_sym(byte *sym, int addr)
 {
-    return add_tbl(sym, addr, symtbl, &lastsym);
+    return add_tbl(sym, addr, &lastsym);
 }
 
 /*
@@ -234,7 +233,7 @@ uword lookup_mod(byte *mod)
 }
 int add_mod(byte *mod, int addr)
 {
-    return add_tbl(mod, addr, symtbl, &lastmod);
+    return add_tbl(mod, addr, &lastmod);
 }
 defcall_add(int bank, int addr)
 {

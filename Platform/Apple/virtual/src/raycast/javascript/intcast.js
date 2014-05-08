@@ -64,7 +64,7 @@ var options = 0;
 
 var debugRay = null; /* Debugging info printed about this ray num, or null for none */
 
-var debugSprite = 3; /* Debugging info printed about this sprite, or null for none */
+var debugSprite = 0; /* Debugging info printed about this sprite, or null for none */
 
 var maxAngleNum = 16;
 
@@ -110,6 +110,7 @@ var overlayText = "";
 
 // Constants
 var wLog256;
+var wLog128;
 var wLogViewDist;
 
 // Tables
@@ -261,6 +262,7 @@ function initCast()
     
   // Sprite math constants
   wLog256 = log2_w_w(256);
+  wLog128 = log2_w_w(128);
   wLogViewDist = log2_w_w(viewDist/8*256); // div by 8 to get to Apple II coords  
 
   // Sine table
@@ -354,6 +356,7 @@ function printPrecast() {
   console.log("");
 
   console.log("wLog256: .word " + wordToHex(wLog256));
+  console.log("wLog128: .word " + wordToHex(wLog128));
   console.log("wLogViewDist: .word " + wordToHex(wLogViewDist));
   console.log("");
 
@@ -383,14 +386,20 @@ function calcZ(wLogHeight) {
   return ubyte(wLogHeight>>4);
 }
 
+/**
+ * This routine uses integer math to perform the calculations originally
+ * developed in floatRenderSprites(). To understand the math, you might
+ * want to start by reading the float version first, then this, and then
+ * finally the 6502 code that does these integer calculations.
+ */
 function intRenderSprites() 
 {
   // Quantities that are the same for every sprite
   var bSgnSinT = (tbl_wLogSin[player.angleNum] & 0x8000) ? -1 : 1;
-  var wLogSinT = (tbl_wLogSin[player.angleNum] & 0x7FFF);
+  var wLogSinT = (tbl_wLogSin[player.angleNum] & 0x7FFF) - wLog256;
   var cosAngle = (player.angleNum - 4) & 15;
   var bSgnCosT = (tbl_wLogSin[cosAngle] & 0x8000) ? -1 : 1;
-  var wLogCosT = (tbl_wLogSin[cosAngle] & 0x7FFF);
+  var wLogCosT = (tbl_wLogSin[cosAngle] & 0x7FFF) - wLog256;
   
   // Now process each sprite
   for (var i=0;i<allSprites.length;i++) {
@@ -411,8 +420,8 @@ function intRenderSprites()
     var bSgnDy = (dy < 0) ? -1 : 1;
     var wLogDy = log2_w_w(uword(Math.abs(dy)*256));
 
-    var wRx = bSgnDx*bSgnCosT*pow2_w_w(wLogDx + wLogCosT - wLog256) -
-              bSgnDy*bSgnSinT*pow2_w_w(wLogDy + wLogSinT - wLog256);
+    var wRx = bSgnDx*bSgnCosT*pow2_w_w(wLogDx + wLogCosT) -
+              bSgnDy*bSgnSinT*pow2_w_w(wLogDy + wLogSinT);
                             
     // If sprite is behind the viewer, skip it.
     if (wRx < 0) {
@@ -423,55 +432,60 @@ function intRenderSprites()
       continue;
     }
     
-    var wRy = bSgnDx*bSgnSinT*pow2_w_w(wLogDx + wLogSinT - wLog256) + 
-              bSgnDy*bSgnCosT*pow2_w_w(wLogDy + wLogCosT - wLog256);
+    var wRy = bSgnDx*bSgnSinT*pow2_w_w(wLogDx + wLogSinT) + 
+              bSgnDy*bSgnCosT*pow2_w_w(wLogDy + wLogCosT);
+
+    // Transform wRy to abs and sign
+    var bSgnRy = 1;
+    if (wRy < 0) {
+      bSgnRy = -1;
+      wRy = -wRy;
+    }
 
     // Calculate the distance    
-    var wLogSqRx = Math.max(0, (log2_w_w(Math.abs(wRx)) << 1) - wLog256);
-    var wLogSqRy = Math.max(0, (log2_w_w(Math.abs(wRy)) << 1) - wLog256);
+    var wLogSqRx = (log2_w_w(wRx) << 1) - wLog256;
+    var wLogSqRy = (log2_w_w(wRy) << 1) - wLog256;
     var wSqDist = pow2_w_w(wLogSqRx) + pow2_w_w(wLogSqRy);
-    var wLogDist = ((log2_w_w(wSqDist)-wLog256) >> 1) + wLog256;
+    var wLogDist = (log2_w_w(wSqDist) + wLog256) >> 1;
     
     // size of the sprite
     var wLogSize = wLogViewDist - wLogDist;
     var wSize = pow2_w_w(wLogSize);
 
     // x-position on screen
-    var bSgnRy = wRy < 0 ? -1 : 1;
     // The constant below is cheesy and based on empirical observation rather than understanding.
     // Sorry :/
-    var wX = bSgnRy * pow2_w_w(log2_w_w(Math.abs(wRy)) - wLogDist + log2_w_w(252 / 8 / 0.44));  
+    var wX = bSgnRy * pow2_w_w(log2_w_w(wRy) - wLogDist + log2_w_w(252 / 8 / 0.44));  
     if (sprite.index == debugSprite)
       console.log("    wRx/256=" + (wRx/256.0) + ", wRy/256=" + (wRy/256.0) + ", wSize=" + wSize + ", wX=" + wX);
       
     // If no pixels on screen, skip it
-    var spriteLeft = (screenWidth/8/2) + wX - (wSize/2);
-    var spriteRight = spriteLeft + wSize;
-    var spriteTop = ((screenHeight/8) - wSize) / 2;
-    if (spriteRight < 0) {
+    var wSpriteTop = 32 - (wSize >> 1);
+    var wSpriteLeft = wX + wSpriteTop;
+    if (wSpriteLeft < -wSize) {
       if (sprite.index == debugSprite)
-        console.log("    off-screen to left.");
+        console.log("    off-screen to left (wSpriteLeft=" + wSpriteLeft + ", -wSize=" + (-wSize) + ").");
       sprite.visible = false;
       sprite.img.style.display = "none";
       continue;
     }
-    else if (spriteLeft > (screenWidth/8)) {
+    else if (wSpriteLeft > 63) {
       if (sprite.index == debugSprite)
-        console.log("    off-screen to right.");
+        console.log("    off-screen to right (wSpriteLeft=" + wSpriteLeft + ", vs 63).");
       sprite.visible = false;
       sprite.img.style.display = "none";
       continue;
     }
 
     // Adjust from Apple II coordinates to PC coords (we render 8 pixels for each 1 Apple pix)
-    spriteLeft *= 8;
-    spriteTop *= 8;
+    wSpriteLeft *= 8;
+    wSpriteTop *= 8;
     wSize *= 8;
     
     // Update the image with the calculated values
     sprite.visible = true;
-    img.style.left = spriteLeft + "px";
-    img.style.top = spriteTop+"px";
+    img.style.left = wSpriteLeft + "px";
+    img.style.top = wSpriteTop+"px";
     img.style.width = wSize + "px";
     img.style.height = wSize + "px";
     // The constant below is cheesy and I'm not sure why it's needed. But it seems to

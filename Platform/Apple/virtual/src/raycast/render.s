@@ -28,6 +28,10 @@ DEBUG		= 1		; 1=some logging, 2=lots of logging
 MAX_SPRITES	= 16		; max # sprites visible at once
 NUM_COLS	= 63
 
+; Useful constants
+W_LOG_256	= $0800
+W_LOG_VIEW_DIST = $0E3F
+
 ; Variables
 backBuf:   	!byte 0		; (value 0 or 1)
 frontBuf:  	!byte 0		; (value 0 or 1)
@@ -575,26 +579,266 @@ spriteFu:
 
 ;------------------------------------------------------------------------------
 spriteCalc: !zone
-	ldy #0
-	lda spriteX
+	lda #0			; track sign bits
+	sta .bSgnSinT
+	sta .bSgnCosT
+	sta .bSgnDx
+	sta .bSgnDy
+	sta .bSgnRy
+
+	; Look up sin of player direction, minus wLog256, and store it
+	lda playerDir
+	asl
+	tay
+	lda sinTbl,y
+	sta .wLogSinT		; store lo byte
+	lda sinTbl+1,y
+	bpl +			; sign bit clear?
+	and #$7F		; sign bit was set - mask it off
+	inc .bSgnSinT		; and update sign flag
++	sec
+	sbc #8			; subtract wLog256
+	sta .wLogSinT+1		; store hi byte
+
+	; Look up cos of player direction, minus wLog256, and store it
+	lda playerDir
+	sec
+	sbc #4			; cos(a) = sin(a - 90 degrees)
+	and #$F			; wrap around
+	asl
+	tay
+	lda sinTbl,y
+	sta .wLogCosT		; store lo byte
+	lda sinTbl+1,y
+	bpl +			; sign bit clear?
+	and #$7F		; sign bit was set - mask it off
+	inc .bSgnCosT		; and update sign byte
++	sec
+	sbc #8			; subtract wLog256
+	sta .wLogCosT+1		; store hi byte
+
+	; Calculate wDx = spriteX - playerX, as abs value and a sign bit
+	lda spriteX		; calculate spriteX - playerX
 	sec
 	sbc playerX
-	pha
-	lda spriteX+1
+	tay			; stash lo byte
+	lda spriteX+1		; work on hi byte
 	sbc playerX+1
-	bcs +
-	eor #$FF
+	tax			; put hi byte in X where we need it
+	bpl +			; if positive, no inversion necessary
+	inc .bSgnDx		; flip sign bit for output
+	jsr .negYX		; negate to get absolute value
++	tya			; lo byte in A where log2 wants it
+	jsr log2_w_w		; wants A=lo, X=Hi
+	sta .wLogDx
+	stx .wLogDx+1
+
+	; Calculate wDy = spriteY - playerY, as abs value and a sign bit
+	lda spriteY		; calculate spriteX - playerX
+	sec
+	sbc playerY
+	tay			; stash lo byte
+	lda spriteY+1		; work on hi byte
+	sbc playerY+1
+	tax			; put hi byte in X where we need it
+	bpl +			; if positive, no inversion necessary
+	inc .bSgnDy		; flip sign bit for output
+	jsr .negYX		; negate to get absolute value
++	tya			; lo byte in A where log2 wants it
+	jsr log2_w_w		; wants A=lo, X=Hi
+	sta .wLogDy
+	stx .wLogDy+1
+
+	; Calculate wRx = bSgnDx*bSgnCosT*pow2_w_w(wLogDx + wLogCosT) -
+        ;                 bSgnDy*bSgnSinT*pow2_w_w(wLogDy + wLogSinT)
+        lda .wLogDx		; start with lo byte
+        clc
+        adc .wLogCosT
+        tay			; put it in Y where pow2 wants it
+        lda .wLogDx+1		; now do hi byte
+        adc .wLogCosT+1
+        tax			; in X where pow2 wants it
+        jsr pow2_w_w		; transform from log space to normal space (in: Y=lo,X=hi, out: A=lo,X=hi)
+        tay			; set lo byte aside
+        lda .bSgnDx
+        eor .bSgnCosT		; multiply the two sign bits together
+        beq +			; if result is clear, no negation
+        jsr .negYX		; negate
++	sty .wRx		; save partial result
+	stx .wRx+1
+        lda .wLogDy		; start with lo byte
+        clc
+        adc .wLogSinT
+        tay			; put it in Y where pow2 wants it
+        lda .wLogDy+1		; now do hi byte
+        adc .wLogSinT+1
+        tax			; in X where pow2 wants it
+        jsr pow2_w_w		; transform from log space to normal space (in: Y=lo,X=hi, out: A=lo,X=hi)
+        tay			; set lo byte aside
+        lda .bSgnDy
+        eor .bSgnSinT		; multiply the two sign bits together
+        eor #1			; one extra inversion since we want to end up subtracting this
+        beq +			; if result is clear, no negation
+        jsr .negYX		; negate
++	tya
+	clc
+	adc .wRx		; add to partial result
+	sta .wRx
+	txa
+	adc .wRx+1		; also hi byte
+	sta .wRx+1
+
+	; if wRx is negative, it means sprite is behind viewer... we get out of school early.
+	bpl +
+	!if DEBUG { +prStr : !text "Sprite is behind viewer.",0 }
+	rts
+
+
+	; Calculate wRy = bSgnDx*bSgnSinT*pow2_w_w(wLogDx + wLogSinT) + 
+        ;                 bSgnDy*bSgnCosT*pow2_w_w(wLogDy + wLogCosT);
+
++	lda .wLogDx		; start with lo byte
+        clc
+        adc .wLogSinT
+        tay			; put it in Y where pow2 wants it
+        lda .wLogDx+1		; now do hi byte
+        adc .wLogSinT+1
+        tax			; in X where pow2 wants it
+        jsr pow2_w_w		; transform from log space to normal space (in: Y=lo,X=hi, out: A=lo,X=hi)
+        tay			; set lo byte aside
+        lda .bSgnDx
+        eor .bSgnSinT		; multiply the two sign bits together
+        beq +			; if result is clear, no negation
+        jsr .negYX		; negate
++	sty .wRy		; save partial result
+	stx .wRy+1
+        lda .wLogDy		; start with lo byte
+        clc
+        adc .wLogCosT
+        tay			; put it in Y where pow2 wants it
+        lda .wLogDy+1		; now do hi byte
+        adc .wLogCosT+1
+        tax			; in X where pow2 wants it
+        jsr pow2_w_w		; transform from log space to normal space (in: Y=lo,X=hi, out: A=lo,X=hi)
+        tay			; set lo byte aside
+        lda .bSgnDy
+        eor .bSgnCosT		; multiply the two sign bits together
+        beq +			; if result is clear, no negation
+        jsr .negYX		; negate
++	tya
+	clc
+	adc .wRy		; add to partial result
+	tay
+	txa
+	adc .wRy+1		; also hi byte
 	tax
-	pla
-	eor #$FF
-	adc #1
-	bcc ++
+	bpl +			; if already positive, skip negation
+	jsr .negYX		; negate to get abs value
+	inc .bSgnRy		; and update sign bit
++	sty .wRy		; save result (we may not actually need to do this, but it helps w/ debug)
+	stx .wRy+1
+	tya			; get lo byte where it needs to be for log2
+	jsr log2_w_w		; calculate the log of wRy
+	sta .wLogRy		; save it for later
+	stx .wLogRy+1
+
+	; Calculate wLogSqRy = (log2_w_w(wRy) << 1) - wLog256;
+	asl			; we already have it in register. Shift it up 1 bit
+	sta .wLogSqRy		; save lo byte
+	txa			; get hi byte
+	rol			; shift up 1 bit, with carry from lo byte
+	sec
+	sbc #8			; subtract wLog256 = $800
+	sta .wLogSqRy+1
+
+	; Calculate wLogSqRx = (log2_w_w(wRx) << 1) - wLog256
++	lda .wRx
+	ldx .wRx+1
+	jsr log2_w_w		; calculate log of wRx
+	asl			; shift it up 1 bit
+	sta .wLogSqRx		; save lo byte
+	tay			; save it also in Y for upcoming pow2
+	txa			; get hi byte
+	rol			; shift up 1 bit, with carry from lo byte
+	sec
+	sbc #8			; subtract wlog256 = $800
+	sta .wLogSqRx+1
+
+	; Calculate wSqDist = pow2_w_w(wLogSqRx) + pow2_w_w(wLogSqRy)
+	tax			; get lo byte where we need for pow2 (hi byte already in Y)
+	jsr pow2_w_w		; convert back to normal space (in: Y=lo,X=hi, out: A=lo,X=hi)
+	sta .wSqDist		; save partial result
+	stx .wSqDist+1
+	ldy .wLogSqRy		; get wLogSqRy into the right regs
+	ldx .wLogSqRy+1
+	jsr pow2_w_w		; convert it back to normal space also (in: Y=lo,X=hi, out: A=lo,X=hi)
+	clc
+	adc .wSqDist		; add to previous partial result (lo byte)
+	sta .wSqDist		; save lo byte
+	tay			; also stash aside
+	txa
+	adc .wSqDist+1		; hi byte of partial
+	sta .wSqDist+1		; save hi byte
+
+	; Calculate wLogDist = (log2_w_w(wSqDist) + wLog256) >> 1
+	txa			; hi byte in X
+	tya			; lo byte in A
+	jsr log2_w_w		; convert to log space
+	tay			; set aside lo byte
+	txa			; work on hi byte
+	clc
+	adc #8			; add wLog256 = $800
+	lsr			; shift right 1 bit -> carry
+	sta .wLogDist+1
+	tya			; finish off lo byte
+	ror			; shift right with carry from hi byte
+	sta .wLogDist
+
+	; Calculate wSize = pow2_w_w(wLogViewDist - wLogDist)
+	lda #<W_LOG_VIEW_DIST	; lo byte of constant
+	sec
+	sbc wLogDist		; minus log dist
+	tay			; lo byte where pow2 wants it
+	lda #>W_LOG_VIEW_DIST	; hi byte of constant
+	sbc wLogDist		; minus log dist
+	tax			; hi byte where pow2 wants it
+	jsr pow2_w_w		; get back from log space to normal space (in: Y=lo,X=hi, out: A=lo,X=hi)
+	sta .wSize
+	stx .wSize+1
+
+	; Calculate wX = bSgnRy * pow2_w_w(log2_w_w(wRy) - wLogDist + log2_w_w(252 / 8 / 0.44))
+	; Note: log2_w_w(252 / 8 / 0.44) = $626
+	lda .wLogRy		; calc wRy minus wLogDist, lo byte
+	sec
+	sbc .wLogDist
+	tay			; stash lo byte temporarily
+	lda .wLogRy+1		; now work on hi byte
+	sbc .wLogDist+1
+	tax			; stash hi byte
+	tya			; back to lo byte
+	clc
+	adc #$26		; add lo byte of const log2_w_w(252 / 8 / 0.44)
+	tay			; put it where pow2 wants it
+	txa			; finish off hi byte
+	adc #6			; hi byte of const
+	tax			; put it where pow2 wants it
+	jsr pow2_w_w		; back to normal space (in: Y=lo,X=hi, out: A=lo,X=hi)
+	sta .wX
+	stx .wX+1
+
+	; TODO: finish this routine
+
+.negYX:				; subroutine to negate value in Y=lo,X=hi.
+	tya
+	eor #$FF		; invert lo byte
+	tay
+	txa
+	eor #$FF		; invert hi byte
+	tax
+	iny			; bump by 1 for true negation
+	bne +
 	inx
-+	pla
-++	sty .bSgn1
-	jsr log2_w_w
-	sta .wSum1
-	stx .wSum1+1
++	rts
 
 ;------------------------------------------------------------------------------
 ; Save a link in the linked column data, sorted according to its depth.
@@ -2749,10 +2993,6 @@ firstLink:	!fill NUM_COLS
 ; Active sprite restore addresses
 mapSpriteL	!fill MAX_SPRITES
 mapSpriteH	!fill MAX_SPRITES
-
-; Useful constants
-wLog256:	!word $0800
-wLogViewDist:	!word $0E3F
 
 ; Movement amounts when walking at each angle
 ; Each entry consists of an X bump and a Y bump, in 8.8 fixed point

@@ -1,0 +1,25 @@
+;
+; Declare all imported modules and their data/functions.
+;
+import stdlib
+  predef cls, gotoxy, puts, putc
+end
+byte loadstr[] = "testlib loaded!\n"
+;
+; Define functions.
+;
+export def puti(i)
+  if i < 0
+    putc('-')
+    i = -i
+  fin
+  if i < 10
+    putc(i + '0')
+  else
+    puti(i / 10)
+    putc(i % 10 + '0')
+  fin
+end
+
+puts(@loadstr);
+done

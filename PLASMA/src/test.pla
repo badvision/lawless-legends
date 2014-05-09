@@ -1,0 +1,53 @@
+;
+; Declare all imported modules and their data/functions.
+;
+import stdlib
+  predef cls, gotoxy, puts, putc
+end
+
+import testlib
+  predef puti
+end
+;
+; Predeclare any functions called before defined.
+;
+predef main
+;
+; Declare all global variables for this module.
+;
+byte hello[] = "Hello, world.\n\n"
+word defptr  = main
+;
+; Define functions.
+;
+def ascii
+  byte i
+  for i = 32 to 127
+    putc(i)
+  next
+end
+
+def nums
+  word i
+  for i = -10 to 10
+    puti(i)
+    putc('\n')
+  next
+end
+
+export def main
+  cls()
+  ascii()
+  gotoxy(35,5)
+  puts(@hello)
+  return nums
+end
+
+export def indirect
+  word mainptr
+  mainptr = @main
+  mainptr()
+end
+
+indirect
+done

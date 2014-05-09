@@ -845,7 +845,7 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
                   UIAction.editScript(event.getSource().getItems().get(event.getIndex()));
             }
         });
-        final DragDropHelper<Script> scriptDragDrop = new DragDropHelper<>(Script.class);
+        final TransferHelper<Script> scriptDragDrop = new TransferHelper<>(Script.class);
         mapScriptsList.setCellFactory(new Callback<ListView<Script>, ListCell<Script>>() {
             @Override
             public ListCell<Script> call(ListView<Script> param) {

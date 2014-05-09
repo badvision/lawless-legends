@@ -57,7 +57,8 @@ var player = {
   angleNum : 4, // the current angle of rotation
   speed : 0,    // is the playing moving forward (speed = 1) or backwards (speed = -1).
   moveSpeed : 0.25,  // how far (in map units) does the player move each step/update
-  rotSpeed : 22.5 * Math.PI / 180 // how much does the player rotate each step/update (in radians)
+  rotSpeed : 22.5 * Math.PI / 180, // how much does the player rotate each step/update (in radians)
+  strafe: false
 }
 
 var options = 0;
@@ -458,16 +459,23 @@ function intRenderSprites()
     var wX = bSgnRy * pow2_w_w(log2_w_w(wRy) - wLogDist + log2_w_w(252 / 8 / 0.44));  
     if (sprite.index == debugSprite)
       console.log("    wRx/256=" + (wRx/256.0) + ", wRy/256=" + (wRy/256.0) + ", wSize=" + wSize + ", wX=" + wX);
-      
+
     // If no pixels on screen, skip it
     var wSpriteTop = 32 - (wSize >> 1);
     var wSpriteLeft = wX + wSpriteTop;
-    if (wSpriteLeft < -wSize) {
+    if (wSpriteLeft < 0) {
+      if (wSpriteLeft < -wSize) {
+        if (sprite.index == debugSprite)
+          console.log("    off-screen to left (wSpriteLeft=" + wSpriteLeft + ", -wSize=" + (-wSize) + ").");
+        sprite.visible = false;
+        sprite.img.style.display = "none";
+        continue;
+      }
+
+      // Sprite overlaps left edge of screen. Need to calculate clipping.
+      var clipTx = pow2_w_w(log2_w_w(-wSpriteLeft) - log2_w_w(wSize) + wLog256);
       if (sprite.index == debugSprite)
-        console.log("    off-screen to left (wSpriteLeft=" + wSpriteLeft + ", -wSize=" + (-wSize) + ").");
-      sprite.visible = false;
-      sprite.img.style.display = "none";
-      continue;
+        console.log("    clipTx=" + clipTx);
     }
     else if (wSpriteLeft > 63) {
       if (sprite.index == debugSprite)
@@ -476,6 +484,11 @@ function intRenderSprites()
       sprite.img.style.display = "none";
       continue;
     }
+
+    // Calculate the texture bump per column. Result is really an 8.8 fix-point.
+    var wTxColBump = pow2_w_w(4096 - wLogSize);
+    if (sprite.index == debugSprite)
+      console.log("    wTxColBump=" + wTxColBump);
 
     // Adjust from Apple II coordinates to PC coords (we render 8 pixels for each 1 Apple pix)
     wSpriteLeft *= 8;
@@ -587,6 +600,7 @@ function bindKeys() {
 
   document.onkeydown = function(e) {
     e = e || window.event;
+    //console.log("keyCode=" + e.keyCode);
     switch (e.keyCode) { // which key was pressed? [ref BigBlue2_30]
     
       case 38: // up, move player forward, ie. increase speed
@@ -600,6 +614,16 @@ function bindKeys() {
         player.speed = -1;
         break;
 
+      case 69: // strafe right
+        player.speed = 0.1;
+        player.strafe = true;
+        break;
+
+      case 81: // strafe left
+        player.speed = -0.1;
+        player.strafe = true;
+        break;
+
       case 37: // left, rotate player left
       case 65: // a
         player.dir = -1;
@@ -609,7 +633,7 @@ function bindKeys() {
       case 68: // d
         player.dir = 1;
         break;
-        
+
       case 49: // '1': toggle option 1
         options ^= 1;
         console.log("options: " + options);
@@ -1087,8 +1111,11 @@ function move() {
   else if (player.angleNum >= maxAngleNum)
     player.angleNum -= maxAngleNum;
 
-  var newX = player.x + Math.cos(playerAngle()) * moveStep;  // calculate new player position with simple trigonometry
-  var newY = player.y + Math.sin(playerAngle()) * moveStep;
+  var angle = playerAngle();
+  if (player.strafe)
+    angle += 90 * Math.PI / 180
+  var newX = player.x + Math.cos(angle) * moveStep;  // calculate new player position with simple trigonometry
+  var newY = player.y + Math.sin(angle) * moveStep;
 
   //if (isBlocking(newX, newY)) {   // are we allowed to move to the new position?
   //  return; // no, bail out.
@@ -1100,6 +1127,7 @@ function move() {
   // Turn off multi-step maneuvers.
   player.speed = 0;
   player.dir = 0;
+  player.strafe = false;
 }
 
 function isBlocking(x,y) {

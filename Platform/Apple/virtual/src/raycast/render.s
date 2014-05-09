@@ -843,17 +843,7 @@ spriteCalc: !zone
 	sta .wX
 	stx .wX+1
 
-	; Calculate spriteLeft = (63/2) + wX - wHalfSize = 31 + wX - wHalfSize
-	clc
-	adc #31			; we already have lo byte of wX in A
-	bcc +			; if no carry, don't bump hi byte
-	inx			; bump hi byte
-+	sec
-	sbc .wHalfSize		; now subtract lo byte of wHalfSize
-	sta .spriteLeft		; save lo byte
-	txa
-	sbc .wHalfSize+1	; now work on hi byte
-	sta .spriteLeft+1	; save hi byte
+	; Calculate spriteLeft = 
 
 
 

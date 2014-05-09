@@ -435,7 +435,7 @@ void interp(code *ip);
 void call(uword pc)
 {
     unsigned int i, s;
-    char sz[64];
+    char c, sz[64];
 
     switch (mem_data[pc++])
     {
@@ -453,7 +453,10 @@ void call(uword pc)
             PUSH(0);
             break;
         case 4: // LIBRARY STDLIB::PUTC
-            putchar(POP);
+            c = POP;
+            if (c == 0x0D)
+                c = '\n';
+            putchar(c);
             PUSH(0);
             break;
         case 5: // LIBRARY STDLIB::PUTS
@@ -461,15 +464,20 @@ void call(uword pc)
             i = mem_data[s++];
             PUSH(i);
             while (i--)
-                putchar(mem_data[s++]);
+            {
+                c = mem_data[s++];
+                if (c == 0x0D)
+                    c = '\n';
+                putchar(c);
+            }
             break;
         case 6: // LIBRARY STDLIB::PUTSZ
             s = POP;
-            while (i = mem_data[s++])
+            while (c = mem_data[s++])
             {
-                if (i == '\r')
-                    i = '\n';
-                putchar(i);
+                if (c == 0x0D)
+                    c = '\n';
+                putchar(c);
             }
             PUSH(0);
             break;

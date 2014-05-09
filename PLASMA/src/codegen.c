@@ -11,7 +11,9 @@ static int  consts   = 0;
 static int  externs  = 0;
 static int  globals  = 0;
 static int  locals   = 0;
+static int  predefs  = 0;
 static int  defs     = 0;
+static int  asmdefs  = 0;
 static int  codetags = 0;
 static int  fixups   = 0;
 static char idconst_name[1024][17];
@@ -23,9 +25,9 @@ static int  localsize = 0;
 static char idlocal_name[128][17];
 static int  idlocal_type[128];
 static int  idlocal_offset[128];
-static char fixup_size[255];
-static int  fixup_type[255];
-static int  fixup_tag[255];
+static char fixup_size[1024];
+static int  fixup_type[1024];
+static int  fixup_tag[1024];
 #define FIXUP_BYTE	0x00
 #define FIXUP_WORD	0x80
 int id_match(char *name, int len, char *id)
@@ -155,13 +157,14 @@ int idfunc_add(char *name, int len, int type, int tag)
         printf("\t\t\t\t\t; %s -> X%03d\n", &idglobal_name[globals - 1][1], tag);
     return (1);
 }
-int idfunc_set(char *name, int len, int type)
+int idfunc_set(char *name, int len, int type, int tag)
 {
     int i;
     if (((i = idglobal_lookup(name, len)) >= 0) && (idglobal_type[i] & FUNC_TYPE))
     {
+        idglobal_tag[i]  = tag;
         idglobal_type[i] = type;
-        return (idglobal_type[i]);
+        return (type);
     }
     parse_error("Undeclared identifier");
     return (0);
@@ -215,9 +218,15 @@ int id_type(char *name, int len)
 int tag_new(int type)
 {
     if (type & EXTERN_TYPE)
+    {
+        if (externs > 254)
+            parse_error("External variable count overflow\n");
         return (externs++);
+    }
+    if (type & PREDEF_TYPE)
+        return (predefs++);
     if (type & ASM_TYPE)
-        return (globals);
+        return (asmdefs++);
     if (type & DEF_TYPE)
         return (defs++);
     if (type & BRANCH_TYPE)
@@ -226,11 +235,6 @@ int tag_new(int type)
 }
 int fixup_new(int tag, int type, int size)
 {
-    if (fixups > 255)
-    {
-        printf("External variable count overflow\n");
-        return (0);
-    }
     fixup_tag[fixups]  = tag;
     fixup_type[fixups] = type;
     fixup_size[fixups] = size;
@@ -268,6 +272,8 @@ char *tag_string(int tag, int type)
         t = 'A';
     else if (type & BRANCH_TYPE)
         t = 'B';
+    else if (type & PREDEF_TYPE)
+        t = 'P';
     else
         t = 'D';
     sprintf(str, "_%c%03d", t, tag);
@@ -418,7 +424,7 @@ void emit_idglobal(int tag, int size, char *name)
 }
 void emit_idfunc(int tag, int type, char *name)
 {
-        printf("%s%c\t\t\t\t\t; %s()\n", tag_string(tag, type), LBL, name);
+    printf("%s%c\t\t\t\t\t; %s()\n", tag_string(tag, type), LBL, name);
 }
 void emit_idconst(char *name, int value)
 {

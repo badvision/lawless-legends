@@ -163,7 +163,7 @@ t_token scan(void)
             switch (scanpos[2])
             {
                 case 'n':
-                    constval = '\n';
+                    constval = 0x0D;
                     break;
                 case 'r':
                     constval = '\r';
@@ -207,7 +207,7 @@ t_token scan(void)
                 switch (scanpos[1])
                 {
                     case 'n':
-                        *scanpos = '\n';
+                        *scanpos = 0x0D;
                         break;
                     case 'r':
                         *scanpos = '\r';

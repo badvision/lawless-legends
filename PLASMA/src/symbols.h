@@ -9,7 +9,6 @@
 #define ASM_TYPE        (1 << 3)
 #define DEF_TYPE        (1 << 4)
 #define BRANCH_TYPE     (1 << 5)
-#define FUNC_TYPE       (ASM_TYPE | DEF_TYPE)
 #define LOCAL_TYPE      (1 << 6)
 #define EXTERN_TYPE		(1 << 7)
 #define ADDR_TYPE       (VAR_TYPE | FUNC_TYPE | EXTERN_TYPE)
@@ -19,7 +18,8 @@
 #define STRING_TYPE     (1 << 10)
 #define TAG_TYPE        (1 << 11)
 #define EXPORT_TYPE     (1 << 12)
-
+#define PREDEF_TYPE		(1 << 13)
+#define FUNC_TYPE       (ASM_TYPE | DEF_TYPE | PREDEF_TYPE)
 int id_match(char *name, int len, char *id);
 int idlocal_lookup(char *name, int len);
 int idglobal_lookup(char *name, int len);
@@ -27,7 +27,7 @@ int idconst_lookup(char *name, int len);
 int idlocal_add(char *name, int len, int type, int size);
 int idglobal_add(char *name, int len, int type, int size);
 int id_add(char *name, int len, int type, int size);
-int idfunc_set(char *name, int len, int type);
+int idfunc_set(char *name, int len, int type, int tag);
 int idfunc_add(char *name, int len, int type, int tag);
 int idconst_add(char *name, int len, int value);
 int id_tag(char *name, int len);

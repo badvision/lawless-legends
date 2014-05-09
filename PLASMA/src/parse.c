@@ -840,8 +840,9 @@ int parse_stmnt(void)
             }
             else
             {
-                parse_error("RETURN outside of function");
-                return (0);
+                if (!parse_expr())
+                    emit_const(0);
+                emit_ret();
             }
             break;
         case EOL_TOKEN:
@@ -1077,7 +1078,7 @@ int parse_vars(int type)
              */
             if (scan() == ID_TOKEN)
             {
-                type |= DEF_TYPE;
+                type |= PREDEF_TYPE;
                 idstr = tokenstr;
                 idlen = tokenlen;
                 idfunc_add(tokenstr, tokenlen, type, tag_new(type));
@@ -1165,13 +1166,14 @@ int parse_defs(void)
         type       |= DEF_TYPE;
         if (idglobal_lookup(tokenstr, tokenlen) >= 0)
         {
-            if (!(id_type(tokenstr, tokenlen) & DEF_TYPE))
+            if (!(id_type(tokenstr, tokenlen) & PREDEF_TYPE))
             {
                 parse_error("Mismatch function type");
                 return (0);
             }
-            idfunc_set(tokenstr, tokenlen, type); // Override any predef type
-            func_tag = id_tag(tokenstr, tokenlen);
+            emit_idfunc(id_tag(tokenstr, tokenlen), PREDEF_TYPE, tokenstr);
+            func_tag = tag_new(type);
+            idfunc_set(tokenstr, tokenlen, type, func_tag); // Override any predef type & tag
         }
         else
         {
@@ -1241,8 +1243,14 @@ int parse_defs(void)
         type       |= ASM_TYPE;
         if (idglobal_lookup(tokenstr, tokenlen) >= 0)
         {
-            idfunc_set(tokenstr, tokenlen, type); // Override any predef type
-            func_tag = id_tag(tokenstr, tokenlen);
+            if (!(id_type(tokenstr, tokenlen) & PREDEF_TYPE))
+            {
+                parse_error("Mismatch function type");
+                return (0);
+            }
+            emit_idfunc(id_tag(tokenstr, tokenlen), PREDEF_TYPE, tokenstr);
+            func_tag = tag_new(type);
+            idfunc_set(tokenstr, tokenlen, type, func_tag); // Override any predef type & tag
         }
         else
         {
@@ -1300,14 +1308,18 @@ int parse_module(void)
         while (parse_defs())            next_line();
         if (scantoken != DONE_TOKEN && scantoken != EOF_TOKEN)
         {
+            emit_bytecode_seg();
             emit_start();
             emit_def("_INIT", 1);
             prevstmnt = 0;
             while (parse_stmnt()) next_line();
             if (scantoken != DONE_TOKEN)
                 parse_error("Missing DONE statement");
-            emit_const(0);
-            emit_ret();
+            if (prevstmnt != RETURN_TOKEN)
+            {
+                emit_const(0);
+                emit_ret();
+            }
         }
     }
     emit_trailer();

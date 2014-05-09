@@ -30,7 +30,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 import static org.badvision.outlaweditor.Application.currentPlatform;
-import org.badvision.outlaweditor.DragDropHelper.DropEventHandler;
+import org.badvision.outlaweditor.TransferHelper.DropEventHandler;
 import org.badvision.outlaweditor.data.TileMap;
 import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.xml.Map;
@@ -53,7 +53,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     TileMap currentMap;
     double tileWidth = currentPlatform.tileRenderer.getWidth() * zoom;
     double tileHeight = currentPlatform.tileRenderer.getHeight() * zoom;
-    public static DragDropHelper<Script> scriptDragDrop = new DragDropHelper<>(Script.class);
+    public static TransferHelper<Script> scriptDragDrop = new TransferHelper<>(Script.class);
 
     @Override
     public void setEntity(Map t) {

@@ -18,7 +18,7 @@ import javafx.scene.input.TransferMode;
  * @author blurry
  * @param <T> Type of object being passed
  */
-public class DragDropHelper<T> {
+public class TransferHelper<T> {
 
     Class type;
     DataFormat format;
@@ -30,15 +30,19 @@ public class DragDropHelper<T> {
         public void handle(T object, double x, double y);
     }
 
-    private DragDropHelper() {
+    private TransferHelper() {
     }
 
-    public DragDropHelper(Class<T> clazz) {
+    public TransferHelper(Class<T> clazz) {
         type = clazz;
+        format = getDataFormat(clazz);
+    }
+
+    public static DataFormat getDataFormat(Class clazz) {
         if (!dataFormats.containsKey(clazz.getName())) {
             dataFormats.put(clazz.getName(), new DataFormat(clazz.getName()));
         }
-        format = dataFormats.get(clazz.getName());
+        return dataFormats.get(clazz.getName());
     }
 
     public void registerDragSupport(final Node source, final T object) {

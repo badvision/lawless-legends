@@ -22,10 +22,10 @@ TXTTYPE	= .TXT
 #SYSTYPE	= \#ff0000
 #TXTTYPE	= \#040000
 
-all: $(PLASM) $(PLVM) $(PLVM02) $(CMD) TESTLIB
+all: $(PLASM) $(PLVM) $(PLVM02) $(CMD) TESTLIB ROD.REL
 
 clean:
-	-rm *.o *~ *.a *.SYM *.SYS *.BIN TESTLIB $(PLASM) $(PLVM)
+	-rm *.o *~ *.a *.SYM *.SYS *.REL TESTLIB $(PLASM) $(PLVM)
 
 $(PLASM): $(OBJS) $(INCS)
 	cc $(OBJS) -o $(PLASM)
@@ -54,11 +54,14 @@ test: test.pla TESTLIB $(PLVM) $(PLASM)
 
 debug: test.pla TESTLIB $(PLVM) $(PLASM)
 	./$(PLASM) -AM < test.pla > test.a
-	acme --setpc 4096 -o TEST.BIN test.a
-	./$(PLVM) -s TEST.BIN MAIN
+	acme --setpc 4096 -o TEST.REL test.a
+	./$(PLVM) -s TEST.REL MAIN
 
 hello: hello.pla $(PLVM) $(PLASM)
 	./$(PLASM) -AM < hello.pla > hello.a
-	acme --setpc 4096 -o HELLO.BIN hello.a
-	./$(PLVM) HELLO.BIN
+	acme --setpc 4096 -o HELLO.REL hello.a
+	./$(PLVM) HELLO.REL
 
+ROD.REL: rod.pla $(PLVM) $(PLASM)
+	./$(PLASM) -AM < rod.pla > rod.a
+	acme --setpc 4096 -o ROD.REL rod.a

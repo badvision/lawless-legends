@@ -272,7 +272,7 @@ int extern_lookup(byte *esd, int index)
 }
 int load_mod(byte *mod)
 {
-    unsigned int len, size, end, magic, bytecode, fixup, addr, init = 0, modaddr = mark_heap();
+    unsigned int len, size, end, magic, bytecode, fixup, addr, sysflags, defcnt = 0, init = 0, modaddr = mark_heap();
     byte *moddep, *rld, *esd, *cdd, *sym;
     byte header[128];
     char filename[32], string[17];
@@ -288,9 +288,11 @@ int load_mod(byte *mod)
             /*
              * This is a relocatable bytecode module.
              */
-            bytecode = header[4] | (header[5] << 8);
-            init     = header[6] | (header[7] << 8);
-            moddep   = header + 8;
+            sysflags = header[4] | (header[5] << 8);
+            bytecode = header[6] | (header[7] << 8);
+            defcnt   = header[8] | (header[9] << 8);
+            init     = header[10] | (header[11] << 8);
+            moddep   = header + 12;
             if (*moddep)
             {
                 /*
@@ -332,7 +334,9 @@ int load_mod(byte *mod)
             printf("Module size: %d\n", size);
             printf("Module code+data size: %d\n", len);
             printf("Module magic: $%04X\n", magic);
+            printf("Module sysflags: $%04X\n", sysflags);
             printf("Module bytecode: $%04X\n", bytecode);
+            printf("Module def count: $%04X\n", defcnt);
             printf("Module init: $%04X\n", init);
         }
         /*
@@ -757,9 +761,8 @@ void interp(code *ip)
                 call(UWORD_PTR(ip));
                 ip += 2;
                 break;
-            case 0x56: // ICALL : TOFP = IP, IP = (TOS) ; indirect call
-                val = UPOP;
-                ea = mem_data[val] | (mem_data[val + 1] << 8);
+            case 0x56: // ICALL : IP = TOS ; indirect call
+                ea = UPOP;
                 call(ea);
                 break;
             case 0x58: // ENTER : NEW FRAME, FOREACH PARAM LOCALVAR = TOS

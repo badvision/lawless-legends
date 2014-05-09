@@ -39,9 +39,9 @@ cmdexec.a: cmdexec.pla $(PLASM)
 $(PLVM02): plvm02.s cmdexec.a
 	acme -o $(PLVM02) -l PLVM02.SYM plvm02.s
 
-$(CMD): cmd.pla $(PLVM) $(PLASM)
+$(CMD): cmd.pla cmdstub.s $(PLVM) $(PLASM)
 	./$(PLASM) -A < cmd.pla > cmd.a
-	acme --setpc 8192 -o $(CMD) cmd.a
+	acme --setpc 8192 -o $(CMD) cmdstub.s
 
 TESTLIB: testlib.pla $(PLVM) $(PLASM)
 	./$(PLASM) -AM < testlib.pla > testlib.a
@@ -56,3 +56,9 @@ debug: test.pla TESTLIB $(PLVM) $(PLASM)
 	./$(PLASM) -AM < test.pla > test.a
 	acme --setpc 4096 -o TEST.BIN test.a
 	./$(PLVM) -s TEST.BIN MAIN
+
+hello: hello.pla $(PLVM) $(PLASM)
+	./$(PLASM) -AM < hello.pla > hello.a
+	acme --setpc 4096 -o HELLO.BIN hello.a
+	./$(PLVM) HELLO.BIN
+

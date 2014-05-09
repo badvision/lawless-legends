@@ -312,7 +312,9 @@ void emit_header(void)
         printf("_SEGBEGIN%c\n", LBL);
         printf("\t%s\t_SEGEND-_SEGBEGIN\t; LENGTH OF HEADER + CODE/DATA + BYTECODE SEGMENT\n", DW);
         printf("\t%s\t$DA7E\t\t\t; MAGIC #\n", DW);
+        printf("\t%s\t0\t\t\t; SYSTEM FLAGS\n", DW);
         printf("\t%s\t_SUBSEG\t\t\t; BYTECODE SUB-SEGMENT\n", DW);
+        printf("\t%s\t_DEFCNT\t\t\t; BYTECODE DEF COUNT\n", DW);
         printf("\t%s\t_INIT\t\t\t; MODULE INITIALIZATION ROUTINE\n", DW);
     }
     else
@@ -385,6 +387,7 @@ void emit_trailer(void)
         printf("_INIT\t=\t0\n");
     if (outflags & MODULE)
     {
+        printf("_DEFCNT\t=\t%d\n", defs);
         printf("_SEGEND%c\n", LBL);
         emit_rld();
         emit_esd();
@@ -703,6 +706,7 @@ void emit_start(void)
 {
     printf("_INIT%c\n", LBL);
     outflags |= INIT;
+    defs++;
 }
 void emit_dup(void)
 {

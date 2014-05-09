@@ -428,15 +428,18 @@ int parse_value(int rvalue)
             /*
              * Function call
              */
-            if (!emit_value && (type & VAR_TYPE))
+            if (!emit_value)
             {
-                if (type & LOCAL_TYPE)
-                    emit_localaddr(value);
-                else
-                    emit_globaladdr(value, type);
+                if (type & VAR_TYPE)
+                {
+                    if (type & LOCAL_TYPE)
+                        emit_llw(value);
+                    else
+                        emit_law(value, type);
+                }
+                else if (type & PTR_TYPE)
+                    emit_lw();
             }
-            //if (type & (VAR_TYPE | PTR_TYPE))
-            //    emit_lw();
             if (!(type & (FUNC_TYPE | CONST_TYPE)))
             {
                 if (scan_lookahead() != CLOSE_PAREN_TOKEN)

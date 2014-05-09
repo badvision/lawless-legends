@@ -1,32 +1,41 @@
 const iobuffer    = $0800
 const databuff    = $0C00
 const MODADDR     = $1000
-
+const symtbl      = $0C00
+const freemem     = $0006
+;
+; Memory allocator screen holes.
+;
+const restxt1     = $0001
+const restxt2     = $0002
+const reshgr1     = $0004
+const reshgr2     = $0008
+const resxhgr1    = $0010
+const resxhgr2    = $0020
+;
+; Pedefined functions.
+;
 predef home, gotoxy, viewport, crout, cout, prstr, cin, rdstr
 predef syscall, romcall
-predef markheap, allocheap, releaseheap, availheap
-predef memclr, memset, memcpy
+predef markheap, allocheap, allocalignheap, releaseheap, availheap
+predef markxheap, allocxheap, releasexheap, availxheap
+predef memclr, memset, memcpy, xmemcpy, memxcpy
 predef uword_isgt, uword_isge, uword_islt, uword_isle
 predef getpfx, setpfx, newline, online, open, close, read, write, create, destroy
+;
+; String pool.
+;
 byte version[]    = "PLASMA VERSION 0.9"
 byte errorstr[]   = "ERROR: $"
 byte okstr[]      = "OK"
-byte heaperr[]    = "ERR: HEAP/FRAME COLLISION.\n"
+byte heaperr[]    = "ERR: OUT OF HEAP\n"
+;byte xheaperr[]   = "ERR: OUT OF AUX HEAP\n"
+byte heapstr[]    = "HEAP START: $"
+byte freestr[]    = "MEM  FREE:  $"
 byte prefix[32]   = ""
-byte readerrstr   = "ERROR READING FILE"
-byte davestr[]    = "Relocateble PLASMA module:"
-byte modsizestr[] = "Module size: $"
-byte modlenstr[]  = "Module len:  $"
-byte modcodestr[] = "Module code: $"
-byte modinitstr[] = "Module init: $"
-byte adddefstr[]  = "Add def call: $"
-byte defstr[]     = "DEF        "
-byte externstr[]  = "EXTERN[$"
-byte internstr[]  = "INTERN     "
-byte wordstr[]    = " WORD"
-byte bytestr[]    = " BYTE"
-byte addrstr[]    = "@$"
-byte luerrstr[]   = "Lookup fail: "
+;
+; Standard Library exported functions.
+;
 byte stdlibstr[]  = "STDLIB"
 byte clsstr[]     = "CLS"
 byte gotoxystr[]  = "GOTOXY"
@@ -38,23 +47,20 @@ byte getcstr[]    = "GETC"
 byte getsstr[]    = "GETS"
 byte sysstr[]     = "SYSCALL"
 byte romstr[]     = "ROMCALL"
-byte getpfxstr[]  = "GETPREFIX"
-byte setpfxstr[]  = "SETPREFIX"
-byte newlinestr[] = "SETNEWLINE"
-byte onlinestr[]  = "ONLINE"
-byte openstr[]    = "OPEN"
-byte closestr[]   = "CLOSE"
-byte readstr[]    = "READ"
-byte writestr[]   = "WRITE"
-byte creatstr[]   = "CREATE"
-byte destroystr[] = "DESTROY"
 byte hpmarkstr[]  = "HEAPMARK"
+byte hpalignstr[] = "HEAPALLOCALIGN"
 byte hpallocstr[] = "HEAPALLOC"
 byte hprelstr[]   = "HEAPRELEASE"
 byte hpavailstr[] = "HEAPAVAIL"
+;byte xhpmarkstr[] = "XHEAPMARK"
+;byte xhpallocstr[]= "XHEAPALLOC"
+;byte xhprelstr[]  = "XHEAPRELEASE"
+;byte xhpavailstr[]= "XHEAPAVAIL"
 byte memclrstr[]  = "MEMCLR"
 byte memsetstr[]  = "MEMSET"
 byte memcpystr[]  = "MEMCPY"
+;byte xmemcpystr[] = "XMEMCPY"
+;byte memxcpystr[] = "MEMXCPY"
 byte uisgtstr[]   = "ISUGT"
 byte uisgestr[]   = "ISUGE"
 byte uisltstr[]   = "ISULT"
@@ -71,33 +77,30 @@ word		  = @sysstr,    @syscall
 word		  = @romstr,    @romcall
 word		  = @hpmarkstr, @markheap
 word		  = @hpallocstr,@allocheap
+word		  = @hpalignstr,@allocalignheap
 word		  = @hprelstr,  @releaseheap
-word		  = @hpavailstr,@availheap
+;word		  = @xhpavailstr,@availxheap
+;word		  = @xhpmarkstr,@markxheap
+;word		  = @xhpallocstr,@allocxheap
+;word		  = @xhprelstr, @releasexheap
+;word		  = @xhpavailstr,@availxheap
 word		  = @memclrstr, @memclr
 word		  = @memsetstr, @memset
 word		  = @memcpystr, @memcpy
+;word		  = @xmemcpystr,@xmemcpy
+;word		  = @memxcpystr,@memxcpy
 word              = @uisgtstr,  @uword_isgt
 word              = @uisgestr,  @uword_isge
 word              = @uisltstr,  @uword_islt
 word              = @uislestr,  @uword_isle
-word              = @getpfxstr, @getpfx
-word		  = @setpfxstr, @setpfx
-word		  = @newlinestr,@newline
-word		  = @onlinestr, @online
-word		  = @openstr,   @open
-word              = @closestr,  @close
-word		  = @readstr,   @read
-word		  = @writestr,  @write
-word		  = @creatstr,  @create
-word		  = @destroystr,@destroy
 word              = 0
-word heap         = $6000
-byte modtbl[256]
-word lastmod      = @modtbl
-byte symtbl[1024]
-word lastsym      = @symtbl
-byte deftbl[2048]
-word lastdef      = @deftbl
+;
+; System variable.
+;
+word heapstart, heap
+;word xheap
+word sysflags
+word lastsym
 word perr
 word cmdptr
 ;
@@ -343,25 +346,122 @@ CPYMEX	INX
 	RTS
 end
 ;
+; COPY FROM MAIN MEM TO AUX MEM.
+;
+; MEMXCPY(SRC, DST, SIZE)
+;
+;asm memxcpy
+;	LDA	ESTKL+2,X
+;	STA	$3C
+;	LDA	ESTKH+2,X
+;	STA	$3D
+;	LDA	ESTKL+1,X
+;	STA	$42
+;	LDA	ESTKH+1,X
+;	STA	$43
+;	LDA	ESTKL,X
+;	CLC
+;	ADC	$3C
+;	STA	$3E
+;	LDA	ESTKH,X
+;	ADC	$3D
+;	STA	$3F
+;	STX     ESP
+;	BIT	ROMEN
+;	SEC
+;	JSR	$C312
+;	BIT	LCRDEN+LCBNK2
+;	LDX     ESP
+;	INX
+;	INX
+;	RTS
+;end
+;
+; COPY FROM AUX MEM TO MAIN MEM.
+;
+; XMEMCPY(SRC, DST, SIZE)
+;
+;asm xmemcpy
+;	LDA	ESTKL+2,X
+;	STA	$3C
+;	LDA	ESTKH+2,X
+;	STA	$3D
+;	LDA	ESTKL+1,X
+;	STA	$42
+;	LDA	ESTKH+1,X
+;	STA	$43
+;	LDA	ESTKL,X
+;	CLC
+;	ADC	$3C
+;	STA	$3E
+;	LDA	ESTKH,X
+;	ADC	$3D
+;	STA	$3F
+;	STX     ESP
+;	BIT	ROMEN
+;	CLC
+;	JSR	$C312
+;	BIT	LCRDEN+LCBNK2
+;	LDX     ESP
+;	INX
+;	INX
+;	RTS
+;end
+;
 ; HOME
 ;
 asm home
+	STX     ESP
+	BIT	ROMEN
+	JSR	$FC58
+	BIT	LCRDEN+LCBNK2
+	LDX     ESP
 	DEX
 	RTS
 end
 ;
-; SET CURSOR POSITION
+; SET VIEWPORT RELATIVE CURSOR POSITION
 ; GOTOXY(X,Y)
 ;
 asm gotoxy
+	LDA	ESTKL+1,X
+	STA	$24
+	LDA	ESTKL,X
+	CLC
+	ADC	$22
+	STA	$25
+	STX     ESP
+	BIT	ROMEN
+	JSR	$FC22
+	BIT	LCRDEN+LCBNK2
+	LDX     ESP
 	INX
 	RTS
 end
 ;
 ; SET VIEWPORT
-; VIEWPORT(LEFT, TOP, RIGHT, BOTTOM)
+; VIEWPORT(LEFT, TOP, WIDTH, HEIGHT)
 ;
 asm viewport
+	LDA	ESTKL+3,X
+	STA	$20
+	LDA	ESTKL+2,X
+	STA	$22
+	LDA	ESTKL+1,X
+	STA	$21
+	LDA	ESTKL,X
+	CLC
+	ADC	$22
+	STA	$23
+	STA	$25
+	DEC	$25
+	LDA	#$00
+	STA	$24
+	STX     ESP
+	BIT	ROMEN
+	JSR	$FB5B
+	BIT	LCRDEN+LCBNK2
+	LDX     ESP
 	INX
 	INX
 	INX
@@ -474,14 +574,15 @@ asm rdstr
 end
 asm toupper
 	LDA     ESTKL,X
+	AND	#$7F
 	CMP     #'a'
 	BCC     +
 	CMP     #'z'+1
 	BCS     +
 	SEC
 	SBC     #$20
-	STA     ESTKL,X
-+	RTS
++	STA     ESTKL,X
+	RTS
 end
 asm uword_isge
 	STY	IPY
@@ -604,50 +705,6 @@ def read(refnum, buff, len)
     perr     = syscall($CA, @params)
     return params:6
 end
-def write(refnum, buff, len)
-    byte params[8]
-
-    params.0 = 4
-    params.1 = refnum
-    params:2 = buff
-    params:4 = len
-    params:6 = 0
-    perr     = syscall($CB, @params)
-    return params:6
-end
-def create(path, access, type, aux)
-    byte params[12]
-
-    params.0  = 7
-    params:1  = path
-    params.3  = access
-    params.4  = type
-    params:5  = aux
-    params.7  = $1
-    params:8  = 0
-    params:10 = 0
-    perr      = syscall($C0, @params)
-    return perr
-end
-def destroy(path)
-    byte params[12]
-
-    params.0 = 1
-    params:1 = path
-    perr     = syscall($C1, @params)
-    return perr
-end
-def newline(refnum, emask, nlchar)
-    byte params[4]
-
-    params.0 = 3
-    params.1 = refnum
-    params.2 = emask
-    params.3 = nlchar
-    perr     = syscall($C9, @params)
-    return perr
-end
-
 ;
 ; Utility routines.
 ; 
@@ -692,10 +749,36 @@ def allocheap(size)
     word addr
     addr = heap
     heap = heap + size
-;    if heap >= @addr
-;        puts(@heaperr)
-;        exit(1)
-;    fin
+    if sysflags & reshgr1
+        if uword_isle(addr, $4000) and uword_isgt(heap, $2000)
+	    addr = $4000
+	    heap = addr + size
+	fin
+    fin
+    if sysflags & reshgr2
+        if uword_isle(addr, $6000) and uword_isgt(heap, $4000)
+	    addr = $6000
+	    heap = addr + size
+	fin
+    fin
+    if uword_isge(heap, @addr)
+        prstr(@heaperr)
+        return 0
+    fin
+    return addr
+end
+def allocalignheap(size, pow2, freeaddr)
+    word align, addr
+    if freeaddr
+        *freeaddr = heap
+    fin
+    align = (1 << pow2) - 1
+    addr = (heap | align) + 1
+    heap = addr + size
+    if uword_isge(heap, @addr)
+        prstr(@heaperr)
+        return 0
+    fin
     return addr
 end
 def freeheap(size)
@@ -710,77 +793,85 @@ def releaseheap(newheap)
     return @newheap - heap;
 end
 ;def availxheap(void)
-;    return 0xC000 - xheap;
+;    return $BF00 - xheap;
 ;end
-;def allocxheap(int size)
-;    uword addr = xheap;
-;    xheap += size;
-;    if (xheap >= 0xC000)
-;    {
-;        printf("Error: xheap extinguished.\n");
-;        exit (1);
-;    }
-;    return addr;
+;def allocxheap(size)
+;    word addr
+;    addr = heap
+;    xheap = xheap + size
+;    if sysflags & restxt1
+;        if uword_isle(addr, $0800) and uword_isgt(xheap, $0400)
+;	    addr = $4000
+;	    xheap = addr + size
+;	fin
+;    fin
+;    if sysflags & restxt2
+;        if uword_isle(addr, $0C00) and uword_isgt(xheap, $0800)
+;	    addr = $4000
+;	    xheap = addr + size
+;	fin
+;    fin
+;    if sysflags & resxhgr1
+;        if uword_isle(addr, $4000) and uword_isgt(xheap, $2000)
+;	    addr = $4000
+;	    xheap = addr + size
+;	fin
+;    fin
+;    if sysflags & resxhgr2
+;        if uword_isle(addr, $6000) and uword_isgt(xheap, $4000)
+;	    addr = $6000
+;	    xheap = addr + size
+;	fin
+;    fin
+;    if uword_isge(xheap, $BF00)
+;        prstr(@xheaperr)
+;        return 0
+;    fin
+;    return addr
 ;end
-;def freexheap(int size)
-;    xheap -= size;
-;    return 0xC000 - heap;
+;def freexheap(size)
+;    xheap = xheap - size
+;    return $BF00 - heap
 ;end
-;def markxheap(void)
-;    return xheap;
+;def markxheap
+;    return xheap
 ;end
-;def releasexheap(uword newxheap)
+;def releasexheap(newxheap)
 ;    xheap = newxheap;
-;    return 0xC000 - xheap;
-;end
-;
-; Copy from data mem to code mem.
-;
-;def xmemcpy(uword src, uword dst, uword size)
-;    while (size--)
-;        mem_code[dst + size] = mem_data[src + size]; 
-;end
-;
-; Copy from code mem to data mem.
-;
-;def memxcpy(uword src, uword dst, uword size)
-;    while (size--)
-;        mem_data[dst + size] = mem_code[src + size]; 
+;    return $BF00 - xheap
 ;end
 ;
 ; DCI table routines,
 ;
-def dumptbl(tbl)
-    byte len
-
-    while ^tbl
-        len = 0
-        while ^tbl & $80
-            cout(^tbl)
-            tbl = tbl + 1
-            len = len + 1
-        loop
-        cout(^tbl)
-        tbl = tbl + 1
-        cout(':')
-        while len < 15
-            cout(' ')
-            len = len + 1
-        loop
-        cout('$')
-        prword(*tbl)
-        crout
-        tbl = tbl + 2
-    loop
-end
+;def dumptbl(tbl)
+;    byte len
+;
+;    while ^tbl
+;        len = 0
+;        while ^tbl & $80
+;            cout(^tbl)
+;            tbl = tbl + 1
+;            len = len + 1
+;        loop
+;        cout(^tbl)
+;        tbl = tbl + 1
+;        cout(':')
+;        while len < 15
+;            cout(' ')
+;            len = len + 1
+;        loop
+;        cout('$')
+;        prword(*tbl)
+;        crout
+;        tbl = tbl + 2
+;    loop
+;end
 def lookuptbl(dci, tbl)
     byte str[20]
     word match
 
     while ^tbl
         dcitos(tbl, @str)
-        prstr(@str)
-        crout
         match = dci
         while ^tbl == ^match
             if !(^tbl & $80)
@@ -794,10 +885,6 @@ def lookuptbl(dci, tbl)
         loop
         tbl = tbl + 3
     loop
-    prstr(@luerrstr)
-    dcitos(dci, @str)
-    prstr(@str)
-    crout
     return 0
 end
 def addtbl(dci, val, last)
@@ -810,16 +897,17 @@ def addtbl(dci, val, last)
     *last  = *last + 1
     **last = val
     *last  = *last + 2
+    ^*last = 0
 end
 ;
 ; Symbol table routines.
 ;
-def dumpsym
-    ;printf("\nSystem Symbol Table:\n");
-    dumptbl(@symtbl)
-end
+;def dumpsym
+;    ;printf("\nSystem Symbol Table:\n");
+;    dumptbl(symtbl)
+;end
 def lookupsym(sym)
-    return lookuptbl(sym, @symtbl)
+    return lookuptbl(sym, symtbl)
 end
 def addsym(sym, addr)
     return addtbl(sym, addr, @lastsym);
@@ -827,38 +915,47 @@ end
 ;
 ; Module routines.
 ;
-def dumpmod
-    ;printf("\nSystem Module Table:\n");
-    dumptbl(@modtbl)
+; Module symbls are entered into the symbol table
+; pre-pended with a '#' to differentiate them
+; from normal symbols.
+;
+def modtosym(mod, dci)
+    byte len, c
+    (dci).0 = '#' | $80
+    len = 0
+    repeat
+        c = (mod).[len]
+        len = len + 1
+        (dci).[len] = c
+    until !(c & $80)
+    return dci
 end
 def lookupmod(mod)
-    return lookuptbl(mod, @modtbl)
+    byte dci[17]
+    return lookuptbl(modtosym(mod, @dci), symtbl)
 end
-def addmod(mod)
-    return addtbl(mod, @lastmod)
+def addmod(mod, addr)
+    byte dci[17]
+    return addtbl(modtosym(mod, @dci), addr, @lastsym)
 end
-def adddef(bank, addr)
-    (lastdef).0 = $20 ; JSR $03D6
-    (lastdef):1 = $03D6
-    (lastdef).3 = bank
-    (lastdef):4 = addr
-    prstr(@adddefstr)
-    prword(lastdef)
-    crout
-    lastdef = lastdef + 6
-    return lastdef - 6
+def adddef(bank, addr, deflast)
+    (*deflast).0 = $20
+    if bank == 0
+        (*deflast):1 = $03D6 ; JSR $03D6 (MAIN MEM INTERP)
+    else
+        (*deflast):1 = $03DC ; JSR $03DC (AUX MEM INTERP)
+    fin
+    (*deflast):3 = addr
+    *deflast = *deflast + 5
+    (*deflast).0 = 0
+    return *deflast - 5
 end
-def lookupdef(bank, addr)
-    word entry
-
-    entry = @deftbl
-    while ^entry == $20
-        if (entry):4 == addr
-            if (entry).3 == bank
-                return entry
-            fin
+def lookupdef(addr, deftbl)
+    while (deftbl).0 == $20
+        if (deftbl):3 == addr
+            return deftbl
         fin
-        entry = entry + 6
+        deftbl = deftbl + 5
     loop
     return 0
 end
@@ -876,67 +973,79 @@ def lookupextern(esd, index)
     return 0
 end
 def loadmod(mod)
-    word refnum, len, size,modend, bytecode, fixup, addr, init, modaddr, modfix
+    word refnum, len, modsize, flags, bytecode, defcnt, fixup, addr, init, modaddr, modfix
+    word deftbl, deflast
     word moddep, rld, esd, cdd, sym;
     byte str[16]
     byte filename[64]
     byte header[128]
 
+    ;
+    ; Read the RELocatable module header (first 128 bytes)
+    ;
     dcitos(mod, @filename)
-    prbyte(filename)
-    cout(' ')
-    prstr(@filename)
-    crout
     refnum = open(@filename, iobuffer)
     if refnum > 0
-    	modaddr = markheap
-        init = 0
-        len = read(refnum, @header, 128)
-        prstr(@modlenstr)
-        prword(len)
-        crout
-        if len > 4 and header:2 == $DA7E ; DAVE
+        init    = 0
+        len     = read(refnum, @header, 128)
+	modsize = header:0
+        if len > 4 and header:2 == $DA7E ; DAVE = magic number :-)
             ;
-            ; This is a relocatable bytecode module.
+            ; This is an EXTended RELocatable (data+bytecode) module.
             ;
-            prstr(@davestr)
-            crout
-            bytecode = header:4
-            init     = header:6
-            moddep   = @header + 8
+            flags    = header:4
+	    sysflags = sysflags | flags
+            bytecode = header:6
+            defcnt   = header:8
+            init     = header:10
+            moddep   = @header + 12
+	    ;
+	    ; Load module dependencies.
+	    ;
             if ^moddep
-                ;
-                ; Load module dependencies.
-                ;
-                close(refnum)
                 while ^moddep
                     if lookupmod(moddep) == 0
-                    	dumpmod
-                        if loadmod(moddep) <> 0
-                    	    dumpmod                            
+		        close(refnum)
+			refnum = 0
+                        if loadmod(moddep) < 0
 			    return perr
 			fin
                     fin
                     moddep = moddep + dcitos(moddep, @str)
-                    prstr(@str)
-                    crout
                 loop
-                modaddr = markheap
-                refnum  = open(@filename, iobuffer)
-                len     = read(refnum, modaddr, 128)
             fin
-        else
-            memcpy(modaddr, @header, len)
+	    ;
+	    ; Init def table.
+	    ;
+	    deftbl   = allocheap(defcnt * 5 + 1)
+	    deflast  = deftbl
+	    ^deflast = 0
+	    if refnum == 0
+	        ;
+		; Reset read pointer.
+		;
+	        refnum = open(@filename, iobuffer)
+		len    = read(refnum, @header, 128)
+	    fin
         fin
-        addr = modaddr + len;
+	;
+	; Alloc heap space for relocated module (data + bytecode).
+	;
+	modaddr = allocheap(modsize)
+	memcpy(modaddr, @header, len)
+	;
+	; Raad in remainder of module into memory for fixups.
+	;
+	addr = modaddr + len;
         repeat
             len  = read(refnum, addr, 4096)
             addr = addr + len
         until len <= 0
         close(refnum)
-        size = addr - modaddr
+	;
+	; Apply all fixups and symbol import/export.
+	;
         len      = *modaddr
-        modend   = modaddr  + len
         modfix   = modaddr  - MODADDR
         bytecode = bytecode + modfix
         rld      = modaddr  + len ; Re-Locatable Directory
@@ -946,38 +1055,17 @@ def loadmod(mod)
             esd = esd + 4
 	loop
         esd = esd + 1
-        ;if showstate
-            ;
-            ; Dump different parts of module.
-            ;
-            prstr(@modsizestr)
-            prword(size)
-            crout
-            ;printf("Module code+data size: %d\n", len);
-            prstr(@modlenstr)
-            prword(len)
-            crout
-            ;printf("Module bytecode: $%04X\n", bytecode);
-            prstr(@modcodestr)
-            prword(bytecode)
-            crout
-            ;printf("Module init: $%04X\n", init);
-            prstr(@modinitstr)
-            prword(init)
-            crout
-        ;fin
         ;
-        ; Print out the Re-Location Dictionary.
+        ; Run through the Re-Location Dictionary.
         ;
-        ;if showstate
-            ;printf("\nRe-Location Dictionary:\n")
-        ;fin
         while ^rld
             if ^rld == $02
+	        ;
+		; This is a bytcode def entry - add it to the def directory.
+		;
                 addr    = (rld):1 + modfix
                 (rld):1 = addr
-                adddef(0, addr)
-                prstr(@defstr)
+                adddef(0, addr, @deflast)
             else
                 addr = (rld):1 + modfix
                 if ^rld & $80
@@ -986,67 +1074,71 @@ def loadmod(mod)
                     fixup = ^addr
                 fin
                 if ^rld & $10
-                    prstr(@externstr)
-                    prbyte((rld).3);"\tEXTERN[$%02X] ", rld[3]);
-                    cout(']')
+		    ;
+		    ; EXTERN reference.
+		    ;
                     fixup = fixup + lookupextern(esd, (rld).3);
                 else
-                    prstr(@internstr);printf("\tINTERN      ")
+		    ;
+		    ; INTERN fixup.
+		    ;
                     fixup = fixup + modfix
                     if uword_isge(fixup, bytecode)
                         ;
-                        ; Replace with call def dictionary.
+                        ; Bytecode address - replace with call def directory.
                         ;
-                        fixup = lookupdef(0, fixup)
+                        fixup = lookupdef(fixup, deftbl)
                     fin
                 fin
                 if ^rld & $80
-                    prstr(@wordstr);printf("WORD")
+		    ;
+		    ; WORD sized fixup.
+                    ;
                     *addr = fixup
                 else
-                    prstr(@bytestr);printf("BYTE")
+		    ;
+		    ; BYTE sized fixup.
+                    ;
                     ^addr = fixup
                 fin
                 
             fin
-            prstr(@addrstr)
-            prword(addr)
-            crout;printf("@$%04X\n", addr)
             rld = rld + 4
         loop
-        ;if showstate printf("\nExternal/Entry Symbol Directory:\n")
+	;
+        ; Run through the External/Entry Symbol Directory.
+	;
         while ^esd
             sym = esd
             esd = esd + dcitos(esd, @str)
-            if ^esd & $10
-                ;if showstate printf("\tIMPORT %s[$%02X]\n", string, esd[1])
-            elsif ^esd & $08
+            ;if ^esd & $10
+                ;
+		; IMPORT symbol - referenced in lookupextern above.
+		;
+            if ^esd & $08
                 addr = (esd):1 + modfix
-                ;if showstate printf("\tEXPORT %s@$%04X\n", string, addr)
+		;
+                ; EXPORT symbol - add it to the global symbol table.
+		;
                 if uword_isge(addr, bytecode)
-                    addr = lookupdef(0, addr)
+		    ;
+		    ; Use the def directory address for bytecode.
+		    ;
+                    addr = lookupdef(0, addr, deftbl)
                 fin
                 addsym(sym, addr)
             fin
             esd = esd + 3
         loop
     else
-        prstr(@readerrstr)
-        crout
-        perr = 0x100
-        return perr
+        perr = perr | 0x100
+        return -perr
     fin
     ;
-    ; Reserve heap space for relocated module.
-    ;
-    allocheap(modend - modaddr)
-    ;
-    ; Call init routine.
+    ; Call init routine if it exists.
     ;
     if init
-        init = adddef(0, init + modfix)
-        cin
-    	return init()
+        return adddef(0, init + modfix, @deflast)()
     fin
     return 0
 end
@@ -1204,44 +1296,39 @@ def execsys(sysfile)
     fin
 end
 def execmod(modfile)
-    byte dci[17]
-    word saveheap, savemod, savesym, savedef
+    byte dci[17], moddci[17]
+    word saveheap, globals
   
-    if stodci(modfile, @dci)
-        saveheap = heap
-        savemod  = lastmod
-        savesym  = lastsym
-	savedef  = lastdef
-	loadmod(@dci)
-        heap     = saveheap
-        lastmod  = savemod
-        lastsym  = savesym
-	lastdef  = savedef
-	^heap    = 0
-	^lastmod = 0
-	^lastsym = 0
-	^lastdef = 0
-  fin
-end
-def initsyms
-    byte dci[17]
-    word globals
-
-    stodci(@stdlibstr, @dci)
-    addmod(@dci, 1)
-    globals = @exports
-    while *globals
-        stodci(*globals, @dci)
-        globals = globals + 2
-        addsym(@dci, *globals)
-        globals = globals + 2
-    loop
+    if stodci(modfile, @moddci)
+        lastsym = symtbl
+        ^lastsym = 0
+        stodci(@stdlibstr, @dci)
+        addmod(@dci, 1)
+        globals = @exports
+        while *globals
+            stodci(*globals, @dci)
+            globals = globals + 2
+            addsym(@dci, *globals)
+            globals = globals + 2
+        loop
+	sysflags = 0
+        heap  = heapstart
+;	xheap = $0400
+	loadmod(@moddci)
+    fin
 end
 
+heapstart = *freemem
+heap = heapstart
 resetmemfiles()
 prstr(@version)
-crout()
-initsyms
+crout
+prstr(@heapstr)
+prword(heap)
+crout
+prstr(@freestr)
+prword(availheap)
+crout
 while 1
     prstr(getpfx(@prefix))
     cmdptr = rdstr($BA)

@@ -36,17 +36,17 @@ def nums
 end
 
 export def main
-  cls()
-  ascii()
-  gotoxy(35,5)
+  cls
+  nums
+  ascii
+  gotoxy(15,5)
   puts(@hello)
-  return nums
 end
 
 export def indirect
   word mainptr
   mainptr = @main
-  mainptr()
+  *mainptr()
 end
 
 indirect

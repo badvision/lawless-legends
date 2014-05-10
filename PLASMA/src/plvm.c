@@ -24,9 +24,8 @@ int show_state = 0;
 #define DEF_CALLSZ	0x0800
 #define DEF_ENTRYSZ	6
 #define MEM_SIZE	65536
-byte mem_data[MEM_SIZE], mem_code[MEM_SIZE];
-byte *mem_bank[2] = {mem_data, mem_code};
-uword sp = 0x01FE, fp = 0xBEFF, heap = 0x6000, xheap = 0x0800, deftbl = DEF_CALL, lastdef = DEF_CALL;
+byte mem_data[MEM_SIZE];
+uword sp = 0x01FE, fp = 0xFFFF, heap = 0x0200, deftbl = DEF_CALL, lastdef = DEF_CALL;
 
 #define EVAL_STACKSZ	16
 #define PUSH(v)	(*(--esp))=(v)
@@ -73,7 +72,6 @@ int stodci(char *str, byte *dci)
     dci[len - 1] &= 0x7F;
     return len;
 }
-
 /*
  * Heap routines.
  */
@@ -105,51 +103,6 @@ int release_heap(uword newheap)
 {
     heap = newheap;
     return fp - heap;
-}
-uword avail_xheap(void)
-{
-    return 0xC000 - xheap;
-}
-uword alloc_xheap(int size)
-{
-    uword addr = xheap;
-    xheap += size;
-    if (xheap >= 0xC000)
-    {
-        printf("Error: xheap extinguished.\n");
-        exit (1);
-    }
-    return addr;
-}
-uword free_xheap(int size)
-{
-    xheap -= size;
-    return 0xC000 - heap;
-}
-uword mark_xheap(void)
-{
-    return xheap;
-}
-int release_xheap(uword newxheap)
-{
-    xheap = newxheap;
-    return 0xC000 - xheap;
-}
-/*
- * Copy from data mem to code mem.
- */
-void xmemcpy(uword src, uword dst, uword size)
-{
-    while (size--)
-        mem_code[dst + size] = mem_data[src + size]; 
-}
-/*
- * Copy from code mem to data mem.
- */
-void memxcpy(uword src, uword dst, uword size)
-{
-    while (size--)
-        mem_data[dst + size] = mem_code[src + size]; 
 }
 /*
  * DCI table routines,
@@ -430,9 +383,9 @@ int load_mod(byte *mod)
     if (init)
     {
         interp(mem_data + init +  modaddr - MOD_ADDR);
-        POP;
+        return POP;
     }
-    return (fd > 0);
+    return 0;
 }
 void interp(code *ip);
 
@@ -447,7 +400,7 @@ void call(uword pc)
             printf("NULL call code\n");
             break;
         case 1: // BYTECODE in mem_code
-            interp(mem_code + (mem_data[pc] + (mem_data[pc + 1] << 8)));
+            //interp(mem_code + (mem_data[pc] + (mem_data[pc + 1] << 8)));
             break;
         case 2: // BYTECODE in mem_data
             interp(mem_data + (mem_data[pc] + (mem_data[pc + 1] << 8)));
@@ -881,7 +834,7 @@ void interp(code *ip)
                  * Odd codes and everything else are errors.
                  */
             default:
-                fprintf(stderr, "Illegal opcode 0x%02X @ 0x%04X\n", ip[-1], ip - mem_code);
+                fprintf(stderr, "Illegal opcode 0x%02X @ 0x%04X\n", ip[-1], ip - mem_data);
         }
     }
 }

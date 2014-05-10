@@ -15,61 +15,7 @@
           <tabs>
             <Tab onSelectionChanged="#tileTabActivated" text="Tiles">
               <content>
-                <AnchorPane id="tilesTab" minHeight="0.0" minWidth="0.0" prefHeight="420.0000999999975" prefWidth="677.0">
-                  <children>
-                    <VBox prefHeight="420.0000999999975" prefWidth="677.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
-                      <children>
-                        <ToolBar prefWidth="686.0">
-                          <items>
-                            <Label text="Tile:" />
-                            <ComboBox fx:id="tileSelector" minWidth="125.0" onAction="#onCurrentTileSelected">
-                              <items>
-                                <FXCollections fx:factory="observableArrayList">
-                                  <String fx:value="Item 1" />
-                                  <String fx:value="Item 2" />
-                                  <String fx:value="Item 3" />
-                                </FXCollections>
-                              </items>
-                            </ComboBox>
-                            <Button mnemonicParsing="false" onAction="#onTileCreatePressed" text="Create new" />
-                            <Button mnemonicParsing="false" onAction="#onTileExportPressed" text="Export" />
-                            <Button mnemonicParsing="false" onAction="#onTileClonePressed" prefWidth="64.9998779296875" text="Clone" />
-                            <Button mnemonicParsing="false" onAction="#onTileDeletePressed" text="Delete" />
-                            <MenuButton mnemonicParsing="false" text="Tools">
-                              <items>
-                                <Menu fx:id="tilePatternMenu" mnemonicParsing="false" text="Pattern" />
-                                <Menu mnemonicParsing="false" text="Draw mode">
-                                  <items>
-                                    <MenuItem mnemonicParsing="false" onAction="#tileBitMode" text="Bit Toggle" />
-                                    <MenuItem mnemonicParsing="false" onAction="#tileDraw1BitMode" text="1 bit-wide" />
-                                    <MenuItem mnemonicParsing="false" onAction="#tileDraw3BitMode" text="3 bit wide" />
-                                  </items>
-                                </Menu>
-                                <MenuItem mnemonicParsing="false" onAction="#tileShift" text="Shift..." />
-                              </items>
-                            </MenuButton>
-                          </items>
-                        </ToolBar>
-                        <HBox prefHeight="387.0" prefWidth="677.0" VBox.vgrow="ALWAYS">
-                          <children>
-                            <AnchorPane id="imageDetailsPane" prefHeight="200.0" prefWidth="200.0">
-                              <children>
-                                <Label layoutX="5.0" layoutY="5.0" prefHeight="29.0" prefWidth="37.0" text="Name" />
-                                <TextField id="" fx:id="tileNameField" layoutX="54.0" layoutY="5.0" prefWidth="147.0" />
-                                <Label layoutX="5.0" layoutY="33.0" prefHeight="29.0" prefWidth="46.0" text="ID" />
-                                <TextField fx:id="tileIdField" layoutX="54.0" layoutY="36.0" prefWidth="147.0" />
-                                <Label layoutX="5.0" layoutY="72.0" text="Category" />
-                                <TextField fx:id="tileCategoryField" layoutX="64.0" layoutY="67.0" prefHeight="26.0" prefWidth="137.0" />
-                                <CheckBox fx:id="tileObstructionField" layoutX="6.0" layoutY="98.0" mnemonicParsing="false" text="Physical Obstruction" />
-                              </children>
-                            </AnchorPane>
-                            <AnchorPane fx:id="tileEditorAnchorPane" prefHeight="387.0" prefWidth="477.0000999999975" HBox.hgrow="ALWAYS" />
-                          </children>
-                        </HBox>
-                      </children>
-                    </VBox>
-                  </children>
-                </AnchorPane>
+                  <fx:include fx:id="tileEditor" source="tileEditorTab.fxml"/>
               </content>
             </Tab>
             <Tab onSelectionChanged="#mapTabActivated" text="Maps">

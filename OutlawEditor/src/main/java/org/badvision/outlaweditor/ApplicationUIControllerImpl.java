@@ -1,6 +1,5 @@
 package org.badvision.outlaweditor;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
@@ -24,7 +23,6 @@ import static org.badvision.outlaweditor.data.PropertyHelper.*;
 import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.TilesetUtils;
 import org.badvision.outlaweditor.data.xml.Image;
-import org.badvision.outlaweditor.data.xml.PlatformData;
 import org.badvision.outlaweditor.data.xml.Script;
 import org.badvision.outlaweditor.data.xml.Tile;
 
@@ -35,8 +33,6 @@ import org.badvision.outlaweditor.data.xml.Tile;
  */
 public class ApplicationUIControllerImpl extends ApplicationUIController {
 
-    public Tile currentTile = null;
-    public TileEditor currentTileEditor = null;
     public org.badvision.outlaweditor.data.xml.Map currentMap = null;
     public MapEditor currentMapEditor = null;
     public Image currentImage = null;
@@ -50,33 +46,6 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
             @Override
             public void observedObjectChanged(Object object) {
                 rebuildTileSelectors();
-            }
-        });
-        tileSelector.setButtonCell(new ComboBoxListCell<Tile>() {
-            {
-                super.setPrefWidth(125);
-            }
-
-            @Override
-            public void updateItem(Tile item, boolean empty) {
-                textProperty().unbind();
-                super.updateItem(item, empty);
-                if (item != null) {
-                    textProperty().bind(tileNameField.textProperty());
-                } else {
-                    setText(null);
-                }
-            }
-        });
-        tileSelector.setCellFactory(new Callback<ListView<Tile>, ListCell<Tile>>() {
-            @Override
-            public ListCell<Tile> call(ListView<Tile> param) {
-                return new EntitySelectorCell<Tile>(tileNameField) {
-                    @Override
-                    public void finishUpdate(Tile item) {
-                        setGraphic(new ImageView(TileUtils.getImage(item, Application.currentPlatform)));
-                    }
-                };
             }
         });
 
@@ -248,11 +217,6 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
     }
 
     @Override
-    public void onCurrentTileSelected(ActionEvent event) {
-        setCurrentTile(tileSelector.getSelectionModel().getSelectedItem());
-    }
-
-    @Override
     public void onImageClonePressed(ActionEvent event) {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
@@ -358,60 +322,19 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
     public void onMapSelected(ActionEvent event) {
         setCurrentMap(mapSelect.getSelectionModel().getSelectedItem());
     }
-
+    
     @Override
-    public void onTileClonePressed(ActionEvent event) {
-        if (currentTile == null) {
-            return;
+    public void platformChange() {
+        for (Tile t : Application.gameData.getTile()) {
+            TileUtils.redrawTile(t);
         }
-        Tile t = new Tile();
-        TileUtils.getId(t);
-        t.setName(currentTile.getName() + " (clone)");
-        t.setObstruction(currentTile.isObstruction());
-        t.getCategory().addAll(currentTile.getCategory());
-        for (PlatformData d : currentTile.getDisplayData()) {
-            PlatformData p = new PlatformData();
-            p.setHeight(d.getHeight());
-            p.setWidth(d.getWidth());
-            p.setPlatform(d.getPlatform());
-            p.setValue(Arrays.copyOf(d.getValue(), d.getValue().length));
-            t.getDisplayData().add(p);
-        }
-        TilesetUtils.add(t);
+        Tile tile = tileEditorController.getCurrentTile();
         rebuildTileSelectors();
-        setCurrentTile(t);
-    }
-
-    @Override
-    public void onTileCreatePressed(ActionEvent event) {
-        Tile t = TileUtils.newTile();
-        t.setName("Untitled");
-        TilesetUtils.add(t);
-        rebuildTileSelectors();
-        setCurrentTile(t);
-    }
-
-    @Override
-    public void onTileDeletePressed(ActionEvent event) {
-        if (currentTile == null) {
-            return;
+        tileEditorController.setCurrentTile(tile);
+        if (currentMapEditor != null) {
+            currentMapEditor.redraw();
         }
-        confirm("Delete tile '" + currentTile.getName() + "'.  Are you sure?", new Runnable() {
-
-            @Override
-            public void run() {
-                Tile del = currentTile;
-                setCurrentTile(null);
-                Application.gameData.getTile().remove(del);
-                rebuildTileSelectors();
-            }
-
-        }, null);
-    }
-
-    @Override
-    public void onTileExportPressed(ActionEvent event) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        rebuildImageSelector();
     }
 
     @Override
@@ -471,95 +394,8 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
     }
 
     @Override
-    public void tileBitMode(ActionEvent event) {
-        if (currentTileEditor != null) {
-            currentTileEditor.setDrawMode(TileEditor.DrawMode.Toggle);
-        }
-    }
-
-    @Override
-    public void tileDraw1BitMode(ActionEvent event) {
-        if (currentTileEditor != null) {
-            currentTileEditor.setDrawMode(TileEditor.DrawMode.Pencil1px);
-        }
-    }
-
-    @Override
-    public void tileDraw3BitMode(ActionEvent event) {
-        if (currentTileEditor != null) {
-            currentTileEditor.setDrawMode(TileEditor.DrawMode.Pencil3px);
-        }
-    }
-
-    @Override
-    public void tileShift(ActionEvent event) {
-        if (currentTileEditor != null) {
-            currentTileEditor.showShiftUI();
-        }
-    }
-
-    private void setCurrentTileEditor(TileEditor editor) {
-        if (editor != null) {
-            editor.buildEditorUI(tileEditorAnchorPane);
-            editor.buildPatternSelector(tilePatternMenu);
-        }
-        currentTileEditor = editor;
-    }
-
-    @Override
-    public Tile getCurrentTile() {
-        return currentTile;
-    }
-
-    @Override
-    public void setCurrentTile(Tile t) {
-        tileSelector.getSelectionModel().select(t);
-        if (t != null && t.equals(currentTile)) {
-            return;
-        }
-        tileEditorAnchorPane.getChildren().clear();
-        if (t == null) {
-            bind(tileIdField.textProperty(), null);
-            bind(tileCategoryField.textProperty(), null);
-            bind(tileObstructionField.selectedProperty(), null);
-            bind(tileNameField.textProperty(), null);
-            tileIdField.setDisable(true);
-            tileCategoryField.setDisable(true);
-            tileObstructionField.setDisable(true);
-            tileNameField.setDisable(true);
-            setCurrentTileEditor(null);
-        } else {
-            if (t.isObstruction() == null) {
-                t.setObstruction(false);
-            }
-            try {
-                tileIdField.setDisable(false);
-                tileCategoryField.setDisable(false);
-                tileObstructionField.setDisable(false);
-                tileNameField.setDisable(false);
-                bind(tileIdField.textProperty(), stringProp(t, "id"));
-                bind(tileCategoryField.textProperty(), categoryProp(t, "category"));
-                bind(tileObstructionField.selectedProperty(), boolProp(t, "obstruction"));
-                bind(tileNameField.textProperty(), stringProp(t, "name"));
-                TileEditor editor = Application.currentPlatform.tileEditor.newInstance();
-                editor.setEntity(t);
-                setCurrentTileEditor(editor);
-            } catch (NoSuchMethodException ex) {
-                Logger.getLogger(ApplicationUIController.class.getName()).log(Level.SEVERE, null, ex);
-            } catch (InstantiationException ex) {
-                Logger.getLogger(ApplicationUIControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
-            } catch (IllegalAccessException ex) {
-                Logger.getLogger(ApplicationUIControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
-            }
-        }
-        currentTile = t;
-    }
-
-    @Override
     public void rebuildTileSelectors() {
-        tileSelector.getItems().clear();
-        tileSelector.getItems().addAll(Application.gameData.getTile());
-        tileSelector.getSelectionModel().select(getCurrentTile());
+        tileEditorController.rebuildTileSelectors();
         mapSelectTile.getItems().clear();
         for (final Tile t : Application.gameData.getTile()) {
             WritableImage img = TileUtils.getImage(t, currentPlatform);
@@ -694,8 +530,10 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
     }
 
     @Override
-    public MapEditor getCurrentMapEditor() {
-        return currentMapEditor;
+    public void completeInflightOperations() {
+        if (currentMapEditor != null) {
+            currentMapEditor.currentMap.updateBackingMap();
+        }
     }
 
     public static enum TABS {
@@ -727,7 +565,7 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
             case map:
                 return currentMapEditor;
             case tile:
-                return currentTileEditor;
+                return tileEditorController.getCurrentTileEditor();
         }
         return null;
     }

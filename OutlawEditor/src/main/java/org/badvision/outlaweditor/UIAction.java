@@ -82,7 +82,7 @@ public class UIAction {
                 currentSaveFile = f;
                 GameData newData = JAXB.unmarshal(currentSaveFile, GameData.class);
                 Application.instance.controller.setCurrentMap(null);
-                Application.instance.controller.setCurrentTile(null);
+                Application.instance.controller.tileEditorController.setCurrentTile(null);
                 TilesetUtils.clear();
                 Application.gameData = newData;
                 Application.instance.controller.rebuildTileSelectors();

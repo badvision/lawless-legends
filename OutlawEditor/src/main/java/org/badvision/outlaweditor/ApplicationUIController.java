@@ -10,7 +10,6 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.TextField;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import org.badvision.outlaweditor.data.xml.Image;
 import org.badvision.outlaweditor.data.xml.Map;
@@ -22,22 +21,17 @@ public abstract class ApplicationUIController {
         return Application.instance.controller;
     }
 
-    abstract public MapEditor getCurrentMapEditor();
-    
-    abstract public void setCurrentTile(Tile tile);
-
-    abstract public Tile getCurrentTile();
-
     abstract void rebuildMapSelectors();
     abstract void rebuildTileSelectors();
-
     abstract void rebuildImageSelector();
 
-    abstract Editor getVisibleEditor();
+    abstract Editor getVisibleEditor();    
     
     @FXML // ResourceBundle that was given to the FXMLLoader
     protected ResourceBundle resources;
     @FXML ApplicationMenuController menuController;
+    @FXML TileEditorTabController tileEditorController;
+    
     @FXML // URL location of the FXML file that was given to the FXMLLoader
     protected URL location;
     @FXML // fx:id="imageCategoryField"
@@ -70,20 +64,6 @@ public abstract class ApplicationUIController {
     protected TextField mapWidthField; // Value injected by FXMLLoader
     @FXML // fx:id="mapWrapAround"
     protected CheckBox mapWrapAround; // Value injected by FXMLLoader
-    @FXML // fx:id="tileCategoryField"
-    protected TextField tileCategoryField; // Value injected by FXMLLoader
-    @FXML // fx:id="tileEditorAnchorPane"
-    protected AnchorPane tileEditorAnchorPane; // Value injected by FXMLLoader
-    @FXML // fx:id="tileIdField"
-    protected TextField tileIdField; // Value injected by FXMLLoader
-    @FXML // fx:id="tileNameField"
-    protected TextField tileNameField; // Value injected by FXMLLoader
-    @FXML // fx:id="tileObstructionField"
-    protected CheckBox tileObstructionField; // Value injected by FXMLLoader
-    @FXML // fx:id="tilePatternMenu"
-    protected Menu tilePatternMenu; // Value injected by FXMLLoader
-    @FXML // fx:id="tileSelector"
-    protected ComboBox<Tile> tileSelector; // Value injected by FXMLLoader
 
     // Handler for MenuItem[javafx.scene.control.MenuItem@3a4bc91a] onAction
     @FXML
@@ -146,10 +126,6 @@ public abstract class ApplicationUIController {
     @FXML
     abstract public void mapZoomOut(ActionEvent event);
 
-    // Handler for ComboBox[fx:id="tileSelector"] onAction
-    @FXML
-    abstract public void onCurrentTileSelected(ActionEvent event);
-
     // Handler for Button[Button[id=null, styleClass=button]] onAction
     @FXML
     abstract public void onImageClonePressed(ActionEvent event);
@@ -204,22 +180,8 @@ public abstract class ApplicationUIController {
     // Handler for ComboBox[id="tileSelect"] onAction
     @FXML
     abstract public void onMapSelected(ActionEvent event);
-
-    // Handler for Button[Button[id=null, styleClass=button]] onAction
-    @FXML
-    abstract public void onTileClonePressed(ActionEvent event);
-
-    // Handler for Button[Button[id=null, styleClass=button]] onAction
-    @FXML
-    abstract public void onTileCreatePressed(ActionEvent event);
-
-    // Handler for Button[Button[id=null, styleClass=button]] onAction
-    @FXML
-    abstract public void onTileDeletePressed(ActionEvent event);
-
-    // Handler for Button[Button[id=null, styleClass=button]] onAction
-    @FXML
-    abstract public void onTileExportPressed(ActionEvent event);
+    
+    abstract public void platformChange();
 
     // Handler for Button[Button[id=null, styleClass=button moveButton]] onAction
     @FXML
@@ -253,27 +215,11 @@ public abstract class ApplicationUIController {
     @FXML
     abstract public void scrollMapUp(ActionEvent event);
 
-    // Handler for MenuItem[javafx.scene.control.MenuItem@3b007e44] onAction
-    @FXML
-    abstract public void tileBitMode(ActionEvent event);
-
-    // Handler for MenuItem[javafx.scene.control.MenuItem@4771c0b8] onAction
-    @FXML
-    abstract public void tileDraw1BitMode(ActionEvent event);
-
-    // Handler for MenuItem[javafx.scene.control.MenuItem@766bd19d] onAction
-    @FXML
-    abstract public void tileDraw3BitMode(ActionEvent event);
-
     @FXML
     abstract public void imageDraw5BitMode(ActionEvent event);
 
     @FXML
     abstract public void tileTabActivated(Event event);
-
-    // Handler for MenuItem[javafx.scene.control.MenuItem@622410f1] onAction
-    @FXML
-    abstract public void tileShift(ActionEvent event);
 
     @FXML // This method is called by the FXMLLoader when initialization is complete
     public void initialize() {
@@ -292,15 +238,10 @@ public abstract class ApplicationUIController {
         assert mapSelectTile != null : "fx:id=\"mapSelectTile\" was not injected: check your FXML file 'ApplicationUI.fxml'.";
         assert mapWidthField != null : "fx:id=\"mapWidthField\" was not injected: check your FXML file 'ApplicationUI.fxml'.";
         assert mapWrapAround != null : "fx:id=\"mapWrapAround\" was not injected: check your FXML file 'ApplicationUI.fxml'.";
-        assert tileCategoryField != null : "fx:id=\"tileCategoryField\" was not injected: check your FXML file 'ApplicationUI.fxml'.";
-        assert tileEditorAnchorPane != null : "fx:id=\"tileEditorAnchorPane\" was not injected: check your FXML file 'ApplicationUI.fxml'.";
-        assert tileIdField != null : "fx:id=\"tileIdField\" was not injected: check your FXML file 'ApplicationUI.fxml'.";
-        assert tileNameField != null : "fx:id=\"tileNameField\" was not injected: check your FXML file 'ApplicationUI.fxml'.";
-        assert tileObstructionField != null : "fx:id=\"tileObstructionField\" was not injected: check your FXML file 'ApplicationUI.fxml'.";
-        assert tilePatternMenu != null : "fx:id=\"tilePatternMenu\" was not injected: check your FXML file 'ApplicationUI.fxml'.";
-        assert tileSelector != null : "fx:id=\"tileSelector\" was not injected: check your FXML file 'ApplicationUI.fxml'.";
 
         // Initialize your logic here: all @FXML variables will have been injected
 
     }
+
+    abstract void completeInflightOperations();
 }

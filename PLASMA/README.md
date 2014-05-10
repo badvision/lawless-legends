@@ -100,9 +100,15 @@ Hexadecimal constants are preceded with a ‘$’ to identify them as such.
 
 ###Constants, Variables and Functions
 
-The source code of a PLASMA module first defines constants, variables and data.  Constants must be initialized with a value.  Variables can have sizes associated with them to declare storage space.  Data can be declared with or without a variable name associated with it.  Arrays, tables, strings and any predeclared data can be created and accessed in multiple ways.
+The source code of a PLASMA module first defines imports, constants, variables and data.  Constants must be initialized with a value.  Variables can have sizes associated with them to declare storage space.  Data can be declared with or without a variable name associated with it.  Arrays, tables, strings and any predeclared data can be created and accessed in multiple ways.
 
 ```
+    ;
+    ; Import standard library functions.
+    ;
+    import stdlib
+        predef putc, puts, getc, gets, cls, memcpy, memset, memclr
+    end
     ;
     ; Constants used for hardware and flags
     ;
@@ -135,9 +141,9 @@ Strings are defined like Pascal strings, a length byte followed by the string ch
     byte txtfile[64] = "UNTITLED"
 ```
 
-Functions are defined after all constants, variables and data.  Functions can be forward declared with a func type in the constant and variable declarations.  Functions have optional parameters and always return a value.  By using one of three function declarations (def, deft and defn) you can have the function loaded as interpreted bytecode, threaded calls into the interpreter, or natively compiled code.  There are space and time tradeoffs between the three choices.  Bytecode is the best choice for the majority of functions.  It has decent performance and is extremely compact.  Threaded code would be the choice for functions that are called often but are not leaf routines, i.e. they themselves call other functions.  Native code is a good choice for small, leaf functions that are called often and need the highest performance.  Simply altering the definition is all that is required to set the function code implementation.  Functions can have their own variable declarations.  However, unlike the global declarations, no data can be predeclared, only storage space.  There is also a limit of 256 bytes of local storage.  Each parameter takes two bytes of local storage, plus two bytes for the previous frame pointer.  If a function has no parameters or local variables, no local frame will be created, improving performance.  A function can specify a value to return.  If no return value is specified, a default of 0 will be returned.
+Functions are defined after all constants, variables and data.  Functions can be forward declared with a *predef* type in the constant and variable declarations.  Functions have optional parameters and always return a value.   Functions can have their own variable declarations.  However, unlike the global declarations, no data can be predeclared, only storage space.  There is also a limit of 254 bytes of local storage.  Each parameter takes two bytes of local storage, plus two bytes for the previous frame pointer.  If a function has no parameters or local variables, no local frame will be created, improving performance.  A function can specify a value to return.  If no return value is specified, a default of 0 will be returned.
 
-After functions are defined, the main code for the module follows.  There is no option to declare how the main code is loaded - it is always bytecode.  The last statement in the module must be done, or else a compile error is issued.
+After functions are defined, the main code for the module follows. The main code will be executed as soon as the module is loaded.  For library modules, this is a good place to do any runtime initialization, before any of the exported functions are called. The last statement in the module must be done, or else a compile error is issued.
 
 There are four basic types of data that can be manipulated: constants, variables, addresses, and functions.  Memory can only be read or written as either a byte or a word.  Bytes are unsigned 8 bit quantities, words are signed 16 bit quantities.  Everything on the evaluation stack is treated as a word.  Other than that, any value can be treated as a pointer, address, function, character, integer, etc.  There are convenience operations in PLASMA to easily manipulate addresses and expressions as pointers, arrays, structures, functions, or combinations thereof.  If a variable is declared as a byte, it can be accessed as a simple, single dimension byte array by using brackets to indicate the offset.  Any expression can calculate the indexed offset.  A word variable can be accessed as a word array in the same fashion.  In order to access expressions or constants as arrays, a type identifier has to be inserted before the brackets.  a ‘.’ character denotes a byte type, a ‘:’ character denotes a word type.  Along with brackets to calculate an indexed offset, a constant can be used after the ‘.’ or ‘:’ and will be added to the base address.  The constant can be a defined const to allow for structure style syntax.  If the offset is a known constant, using the constant offset is a much more efficient way to address the elements over an array index.  Multidimensional arrays are treated as arrays of array pointers.  Multiple brackets can follow the ‘.’ or ‘:’ type identifier, but all but the last index will be treated as a pointer to an array.
 

@@ -18,8 +18,26 @@ import org.badvision.outlaweditor.data.xml.Script;
 import org.badvision.outlaweditor.data.xml.Tile;
 
 public abstract class ApplicationUIController {
+    public static ApplicationUIController getController() {
+        return Application.instance.controller;
+    }
+
+    abstract public MapEditor getCurrentMapEditor();
+    
+    abstract public void setCurrentTile(Tile tile);
+
+    abstract public Tile getCurrentTile();
+
+    abstract void rebuildMapSelectors();
+    abstract void rebuildTileSelectors();
+
+    abstract void rebuildImageSelector();
+
+    abstract Editor getVisibleEditor();
+    
     @FXML // ResourceBundle that was given to the FXMLLoader
     protected ResourceBundle resources;
+    @FXML ApplicationMenuController menuController;
     @FXML // URL location of the FXML file that was given to the FXMLLoader
     protected URL location;
     @FXML // fx:id="imageCategoryField"
@@ -131,45 +149,6 @@ public abstract class ApplicationUIController {
     // Handler for ComboBox[fx:id="tileSelector"] onAction
     @FXML
     abstract public void onCurrentTileSelected(ActionEvent event);
-
-    @FXML
-    abstract public void onChangePlatformAppleSolid(ActionEvent event);
-
-    @FXML
-    abstract public void onChangePlatformAppleText(ActionEvent event);
-
-    @FXML
-    abstract public void onChangePlatformAppleDHGRSolid(ActionEvent event);
-
-    @FXML
-    abstract public void onChangePlatformAppleDHGRText(ActionEvent event);
-    
-    @FXML
-    abstract public void onChangePlatformC64(ActionEvent event);
-
-    @FXML
-    abstract public void onEditCopy(ActionEvent event);
-
-    @FXML
-    abstract public void onEditPaste(ActionEvent event);
-
-    @FXML
-    abstract public void onEditSelect(ActionEvent event);
-
-    @FXML
-    abstract public void onFileOpen(ActionEvent event);
-
-    @FXML
-    abstract public void onFileQuit(ActionEvent event);
-
-    @FXML
-    abstract public void onFileSave(ActionEvent event);
-
-    @FXML
-    abstract public void onFileSaveAs(ActionEvent event);
-
-    @FXML
-    abstract public void onHelpAbout(ActionEvent event);
 
     // Handler for Button[Button[id=null, styleClass=button]] onAction
     @FXML

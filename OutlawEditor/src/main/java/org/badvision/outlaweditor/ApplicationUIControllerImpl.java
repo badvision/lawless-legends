@@ -1,6 +1,5 @@
 package org.badvision.outlaweditor;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -16,16 +15,11 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.cell.ComboBoxListCell;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
-import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.DataFormat;
-import javafx.scene.input.Dragboard;
-import javafx.scene.input.MouseEvent;
-import javafx.scene.input.TransferMode;
 import javafx.util.Callback;
 import static org.badvision.outlaweditor.Application.currentPlatform;
 import static org.badvision.outlaweditor.Application.gameData;
 import static org.badvision.outlaweditor.UIAction.*;
-import org.badvision.outlaweditor.apple.AppleTileRenderer;
 import static org.badvision.outlaweditor.data.PropertyHelper.*;
 import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.TilesetUtils;
@@ -256,116 +250,6 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
     @Override
     public void onCurrentTileSelected(ActionEvent event) {
         setCurrentTile(tileSelector.getSelectionModel().getSelectedItem());
-    }
-
-    @Override
-    public void onChangePlatformAppleSolid(ActionEvent event) {
-        AppleTileRenderer.useSolidPalette = true;
-        Application.currentPlatform = Platform.AppleII;
-        platformChange();
-    }
-
-    @Override
-    public void onChangePlatformAppleText(ActionEvent event) {
-        AppleTileRenderer.useSolidPalette = false;
-        Application.currentPlatform = Platform.AppleII;
-        platformChange();
-    }
-
-    @Override
-    public void onChangePlatformAppleDHGRSolid(ActionEvent event) {
-        AppleTileRenderer.useSolidPalette = true;
-        Application.currentPlatform = Platform.AppleII_DHGR;
-        platformChange();
-    }
-
-    @Override
-    public void onChangePlatformAppleDHGRText(ActionEvent event) {
-        AppleTileRenderer.useSolidPalette = false;
-        Application.currentPlatform = Platform.AppleII_DHGR;
-        platformChange();
-    }
-
-    private void platformChange() {
-        for (Tile t : Application.gameData.getTile()) {
-            TileUtils.redrawTile(t);
-        }
-        Tile tile = currentTile;
-        rebuildTileSelectors();
-        setCurrentTile(tile);
-        if (currentMapEditor != null) {
-            currentMapEditor.redraw();
-        }
-        rebuildImageSelector();
-    }
-
-    @Override
-    public void onChangePlatformC64(ActionEvent event) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void onEditCopy(ActionEvent event) {
-        if (getVisibleEditor() != null) {
-            getVisibleEditor().copy();
-        }
-    }
-
-    @Override
-    public void onEditPaste(ActionEvent event) {
-        if (getVisibleEditor() != null) {
-            getVisibleEditor().paste();
-        }
-    }
-
-    @Override
-    public void onEditSelect(ActionEvent event) {
-        if (getVisibleEditor() != null) {
-            getVisibleEditor().select();
-        }
-    }
-
-    @Override
-    public void onFileOpen(ActionEvent event) {
-        try {
-            UIAction.actionPerformed(UIAction.MAIN_ACTIONS.Load);
-            rebuildImageSelector();
-            rebuildMapSelectors();
-            rebuildTileSelectors();
-        } catch (IOException ex) {
-            Logger.getLogger(ApplicationUIControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
-        }
-    }
-
-    @Override
-    public void onFileQuit(ActionEvent event) {
-        UIAction.quit();
-    }
-
-    @Override
-    public void onFileSave(ActionEvent event) {
-        if (currentMapEditor != null) {
-            currentMapEditor.currentMap.updateBackingMap();
-        }
-        try {
-            UIAction.actionPerformed(UIAction.MAIN_ACTIONS.Save);
-        } catch (IOException ex) {
-            Logger.getLogger(ApplicationUIControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
-        }
-    }
-
-    @Override
-    public void onFileSaveAs(ActionEvent event) {
-        try {
-            UIAction.actionPerformed(UIAction.MAIN_ACTIONS.Save_as);
-        } catch (IOException ex) {
-            Logger.getLogger(ApplicationUIControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
-        }
-    }
-
-    @Override
-    public void onHelpAbout(ActionEvent event) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     @Override
@@ -622,10 +506,12 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
         currentTileEditor = editor;
     }
 
+    @Override
     public Tile getCurrentTile() {
         return currentTile;
     }
 
+    @Override
     public void setCurrentTile(Tile t) {
         tileSelector.getSelectionModel().select(t);
         if (t != null && t.equals(currentTile)) {
@@ -669,6 +555,7 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
         currentTile = t;
     }
 
+    @Override
     public void rebuildTileSelectors() {
         tileSelector.getItems().clear();
         tileSelector.getItems().addAll(Application.gameData.getTile());
@@ -739,6 +626,7 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
         redrawMapScripts();
     }
 
+    @Override
     public void rebuildMapSelectors() {
         mapSelect.getItems().clear();
         mapSelect.getItems().addAll(Application.gameData.getMap());
@@ -797,11 +685,17 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
         return currentImage;
     }
 
-    private void rebuildImageSelector() {
+    @Override
+    public void rebuildImageSelector() {
         Image i = getCurrentImage();
         imageSelector.getItems().clear();
         imageSelector.getItems().addAll(Application.gameData.getImage());
         imageSelector.getSelectionModel().select(i);
+    }
+
+    @Override
+    public MapEditor getCurrentMapEditor() {
+        return currentMapEditor;
     }
 
     public static enum TABS {
@@ -825,6 +719,7 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
         currentTab = TABS.tile;
     }
 
+    @Override
     public Editor getVisibleEditor() {
         switch (currentTab) {
             case image:
@@ -867,7 +762,11 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
         if (currentMap == null) {
             mapScriptsList.getItems().clear();
         } else {
-            mapScriptsList.getItems().setAll(currentMap.getScripts().getScript());
+            if (mapScriptsList.getItems() != null && currentMap.getScripts() != null) {
+                mapScriptsList.getItems().setAll(currentMap.getScripts().getScript());
+            } else {
+                mapScriptsList.getItems().clear();
+            }
         }
     }
 

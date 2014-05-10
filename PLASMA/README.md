@@ -312,16 +312,16 @@ Lastly, the repeat/until statement will continue looping as long as the until ex
 
 PLASMA includes a very minimal runtime that nevertheless provides a great deal of functionality to the system.  Two system calls are provided to access native 6502 routines (usually in ROM) and ProDOS.
 
-call6502(aReg, xReg, yReg, statusReg, addr) returns a pointer to a four byte structure containing the A,X,Y and STATUS register results.
+romcall(aReg, xReg, yReg, statusReg, addr) returns a pointer to a four byte structure containing the A,X,Y and STATUS register results.
 
 ```
     const xreg = 1
     const getlin = $FD6A
 
-    numchars = (call6502(0, 0, 0, 0, getlin)).xreg ; return char count in X reg
+    numchars = (romcall(0, 0, 0, 0, getlin)).xreg ; return char count in X reg
 ```
 
-prodos(cmd, params) calls ProDOS, returning the status value.
+syscall(cmd, params) calls ProDOS, returning the status value.
 
 ```
     def read(refnum, buff, len)
@@ -331,30 +331,37 @@ prodos(cmd, params) calls ProDOS, returning the status value.
         params.1 = refnum
         params:2 = buff
         params:4 = len
-        perr     = prodos($CA, @params)
+        perr     = syscall($CA, @params)
         return params:6
     end
 ```
 
-cout(char), prstr(string), prstrz(stringz) are handy utility routines for printing to the standard Apple II COUT routine.
+putc(char), puts(string), home, gotoxy(x,y), getc() and gets() are other handy utility routines for interacting with the console.
 
 ```
-    cout('.')
+    putc('.')
     byte okstr[] = "OK"
-    prstr(@okstr)
+    puts(@okstr)
 ```
 
-memset(val16, addr, len) will fill memory with a 16 bit value.  memcpy(dstaddr, srcaddr, len) will copy memory from one address to another, taking care to copy in the proper direction.
+memset(addr, len, val) will fill memory with a 16 bit value.  memcpy(dstaddr, srcaddr, len) will copy memory from one address to another, taking care to copy in the proper direction.
 
 ```
     byte nullstr[] = ""
-    memset(@nullstr, strlinbuf, maxfill * 2) ; fill line buff with pointer to null string
+    memset(strlinbuf, maxfill * 2, @nullstr) ; fill line buff with pointer to null string
     memcpy(scrnptr, strptr + ofst + 1, numchars)
 ```
 
 ##Implementation Details
-
+###The Original PLASMA
 The original design concept was to create an efficient, flexible, and expressive environment for building applications directly on the Apple II.  Choosing a stack based architecture was easy after much experience with other stack based implementations. It also makes the compiler simple to implement.  The first take on the stack architecture was to make it a very strict stack architecture in that everything had to be on the stack.  The only opcode with operands was the CONSTANT opcode. This allowed for a very small bytecode interpreter and a very easy compile target.  However, only when adding an opcode with operands that would greatly improved performance, native code generation or code size was it done. The opcode table grew slowly over time but still retains a small runtime interpreter with good native code density.
+
+The VM was constructed such that code generation could ouput native 6502 code, threaded code into the opcode functions, or interpreted bytecodes.  This gave a level of control over speed vs memory.
+
+###The Lawless Legends PLASMA
+This version of PLASMA has dispensed with the native/threaded/bytecode code generation from the original version to focus on code density and the ability to interpret bytecode from AUX memory, should it be available. By focussing on the bytecode interpreter, certain optimizations were implemented that weren't posssible when allowing for threaded/native code.  With theses optimizations, the interpreted bytecode is about the same performance level as the threaded code, with the benefit of code compaction.
+
+Dynamically loadable modules, a backward compatible extension to the .REL format introduced by EDASM, is the new, main feature for this version of PLASMA. A game like Lawless Legends will push the capabilities of the Apple II well beyond anything before it. A powerful OS + language + VM environment is required to achieve the goals set out.
 
 ## References
 B Programming Language User Manual  http://cm.bell-labs.com/cm/cs/who/dmr/kbman.html

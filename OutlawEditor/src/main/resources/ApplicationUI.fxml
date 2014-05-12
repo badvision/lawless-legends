@@ -10,100 +10,17 @@
   <children>
     <VBox prefHeight="500.0" prefWidth="800.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
       <children>
-        <fx:include source="Menubar.fxml"/>
+        <fx:include fx:id="menu" source="Menubar.fxml"/>
         <TabPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" prefHeight="455.0" prefWidth="676.9998779296875" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS">
           <tabs>
             <Tab onSelectionChanged="#tileTabActivated" text="Tiles">
               <content>
-                  <fx:include fx:id="tileEditor" source="tileEditorTab.fxml"/>
+                  <fx:include fx:id="tile" source="tileEditorTab.fxml"/>
               </content>
             </Tab>
             <Tab onSelectionChanged="#mapTabActivated" text="Maps">
               <content>
-                <AnchorPane id="mapsTab" minHeight="0.0" minWidth="0.0">
-                  <children>
-                    <VBox prefHeight="200.0" prefWidth="100.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
-                      <children>
-                        <ToolBar prefWidth="677.0">
-                          <items>
-                            <Label text="Map:" />
-                            <ComboBox fx:id="mapSelect" minWidth="125.0" onAction="#onMapSelected">
-                              <items>
-                                <FXCollections fx:factory="observableArrayList">
-                                  <String fx:value="Item 1" />
-                                  <String fx:value="Item 2" />
-                                  <String fx:value="Item 3" />
-                                </FXCollections>
-                              </items>
-                            </ComboBox>
-                            <Button mnemonicParsing="false" onAction="#onMapCreatePressed" text="Create new" />
-                            <Button mnemonicParsing="false" onAction="#onMapClonePressed" text="Clone" />
-                            <Button mnemonicParsing="false" onAction="#onMapExportPressed" text="Export" />
-                            <Button mnemonicParsing="false" onAction="#onMapDeletePressed" text="Delete" />
-                            <Button mnemonicParsing="false" onAction="#onMapPreviewPressed" text="Preview" />
-                            <MenuButton mnemonicParsing="false" text="Tools">
-                              <items>
-                                <Menu fx:id="mapSelectTile" mnemonicParsing="false" text="Change tile" />
-                                <Menu mnemonicParsing="false" text="Draw mode">
-                                  <items>
-                                    <MenuItem mnemonicParsing="false" onAction="#mapDraw1" text="Radius 1" />
-                                    <MenuItem mnemonicParsing="false" onAction="#mapDraw3" text="Radius 3" />
-                                    <MenuItem mnemonicParsing="false" onAction="#mapDraw5" text="Radius 5" />
-                                    <MenuItem mnemonicParsing="false" onAction="#mapDrawFilledRectMode" text="Filled Rectangle" />
-                                  </items>
-                                </Menu>
-                                <MenuItem mnemonicParsing="false" onAction="#mapTogglePanZoom" text="Toggle pan/zoom controls" />
-                              </items>
-                            </MenuButton>
-                          </items>
-                        </ToolBar>
-                        <HBox prefHeight="389.0" prefWidth="677.0" VBox.vgrow="ALWAYS">
-                          <children>
-                            <AnchorPane prefHeight="200.0" prefWidth="200.0" HBox.hgrow="NEVER">
-                              <children>
-                                <Label text="Name" AnchorPane.leftAnchor="4.0" AnchorPane.topAnchor="14.0" />
-                                <TextField id="mapNameFiled" fx:id="mapNameField" layoutX="53.0" layoutY="11.0" prefWidth="147.0" />
-                                <TextField fx:id="mapWidthField" layoutX="53.0" layoutY="33.0" prefWidth="147.0" />
-                                <Label layoutX="4.0" layoutY="36.0" text="Width" />
-                                <TextField fx:id="mapHeightField" layoutX="53.0" layoutY="55.0" prefWidth="147.0" />
-                                <Label layoutX="4.0" layoutY="58.0" text="Height" />
-                                <CheckBox fx:id="mapWrapAround" contentDisplay="RIGHT" layoutX="4.0" layoutY="77.0" mnemonicParsing="false" text="Wrap at edges" />
-                                <Separator layoutX="4.0" layoutY="101.0" prefWidth="189.0" />
-                                <Label layoutX="4.0" layoutY="108.0" text="Scripts" />
-                                <ScrollPane fitToHeight="true" fitToWidth="true" prefHeight="232.0" prefWidth="200.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="157.0">
-                                  <content>
-                                    <AnchorPane id="Content" minHeight="0.0" minWidth="0.0" prefHeight="200.0" prefWidth="200.0">
-                                      <children>
-                                        <ListView fx:id="mapScriptsList" editable="true" prefHeight="217.0" prefWidth="199.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
-                                      </children>
-                                    </AnchorPane>
-                                  </content>
-                                </ScrollPane>
-                                <ToolBar layoutY="124.0" prefWidth="200.0">
-                                  <items>
-                                    <Button mnemonicParsing="false" onAction="#onMapScriptAddPressed" text="+" />
-                                    <Button mnemonicParsing="false" onAction="#onMapScriptDeletePressed" text="-" />
-                                    <Button mnemonicParsing="false" onAction="#onMapScriptClonePressed" text="Clone" />
-                                  </items>
-                                </ToolBar>
-                              </children>
-                            </AnchorPane>
-                            <AnchorPane fx:id="mapEditorAnchorPane" prefHeight="389.0" prefWidth="477.0000999999975" HBox.hgrow="SOMETIMES">
-                              <children>
-                                <Button alignment="TOP_CENTER" layoutX="265.0" mnemonicParsing="false" onAction="#scrollMapUp" styleClass="moveButton" text="Up" AnchorPane.topAnchor="5.0" />
-                                <Button layoutY="185.0" mnemonicParsing="false" onAction="#scrollMapLeft" rotate="270.0" styleClass="moveButton" text="Left" AnchorPane.leftAnchor="-20.0" />
-                                <Button layoutX="265.0" mnemonicParsing="false" onAction="#scrollMapDown" rotate="180.0" styleClass="moveButton" text="Down" AnchorPane.bottomAnchor="5.0" />
-                                <Button layoutY="175.0" mnemonicParsing="false" onAction="#scrollMapRight" rotate="90.0" styleClass="moveButton" text="Right" AnchorPane.rightAnchor="-15.0" />
-                                <Button mnemonicParsing="false" onAction="#mapZoomIn" styleClass="zoomInButton" text="+" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="5.0" />
-                                <Button mnemonicParsing="false" onAction="#mapZoomOut" prefHeight="23.999908447265625" styleClass="zoomOutButton" text="-" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="30.0" />
-                              </children>
-                            </AnchorPane>
-                          </children>
-                        </HBox>
-                      </children>
-                    </VBox>
-                  </children>
-                </AnchorPane>
+                <fx:include fx:id="map" source="mapEditorTab.fxml"/>
               </content>
             </Tab>
             <Tab onSelectionChanged="#imageTabActivated" text="Images">

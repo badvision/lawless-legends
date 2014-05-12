@@ -75,7 +75,7 @@ public class ApplicationMenuControllerImpl extends ApplicationMenuController {
         try {
             UIAction.actionPerformed(UIAction.MAIN_ACTIONS.Load);
             mainController.rebuildImageSelector();
-            mainController.rebuildMapSelectors();
+            mainController.mapController.rebuildMapSelectors();
             mainController.rebuildTileSelectors();
         } catch (IOException ex) {
             Logger.getLogger(ApplicationUIControllerImpl.class.getName()).log(Level.SEVERE, null, ex);

@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
+#include <ctype.h>
 
 typedef unsigned char  code;
 typedef unsigned char  byte;
@@ -433,7 +435,7 @@ void call(uword pc)
             break;
         case 6: // LIBRARY STDLIB::PUTSZ
             s = POP;
-            while (c = mem_data[s++])
+            while ((c = mem_data[s++]))
             {
                 if (c == 0x0D)
                     c = '\n';
@@ -446,9 +448,8 @@ void call(uword pc)
             break;
         case 8: // LIBRARY STDLIB::GETS
             gets(sz);
-            i = 0;
-            while (sz[i])
-                mem_data[0x200 + i++] = sz[i];
+            for (i = 0; sz[i]; i++)
+                mem_data[0x200 + i] = sz[i];
             mem_data[0x200 + i] = 0;
             mem_data[0x1FF] = i;
             PUSH(i);

@@ -29,6 +29,7 @@ predef markheap, allocheap, allocalignheap, releaseheap, availheap
 predef memset, memcpy, xmemcpy, memxcpy
 predef uword_isgt, uword_isge, uword_islt, uword_isle
 predef getpfx, setpfx, newline, online, open, close, read, write, create, destroy
+predef execmod
 ;
 ; String pool.
 ;
@@ -63,6 +64,7 @@ byte uisgtstr[]   = "ISUGT"
 byte uisgestr[]   = "ISUGE"
 byte uisltstr[]   = "ISULT"
 byte uislestr[]   = "ISULE"
+byte execstr[]    = "EXEC"
 word exports[]    = @clsstr,    @home
 word              = @gotoxystr, @gotoxy
 word		  = @viewstr,   @viewport
@@ -83,12 +85,15 @@ word              = @uisgtstr,  @uword_isgt
 word              = @uisgestr,  @uword_isge
 word              = @uisltstr,  @uword_islt
 word              = @uislestr,  @uword_isle
+word              = @execstr,    @execmod
 word              = 0
+word stdlibsym    = @exports     
 ;
 ; System variable.
 ;
-word heapstart, heap, xheap
-word sysflags
+word heapsttart, heap
+word xheap    = $0400
+word sysflags = 0
 word lastsym
 word perr
 word cmdptr
@@ -1395,36 +1400,34 @@ def execsys(sysfile)
     fin
 end
 def execmod(modfile)
-    byte dci[17], moddci[17]
-    word saveheap, globals
+    byte moddci[17]
+    word saveheap, savexheap, savesym, saveflags
   
     if stodci(modfile, @moddci)
-        lastsym = symtbl
-        ^lastsym = 0
-        stodci(@stdlibstr, @dci)
-        addmod(@dci, 1)
-        globals = @exports
-        while *globals
-            stodci(*globals, @dci)
-            globals = globals + 2
-            addsym(@dci, *globals)
-            globals = globals + 2
-        loop
-	sysflags = 0
-        heap  = heapstart
-	xheap = $0400
-	loadmod(@moddci)
+        saveheap  = heap
+	savexheap = xheap
+	savesym   = lastsym
+	saveflags = sysflags
+	^lastsym  = 0
+	perr      = loadmod(@moddci)
+	sysflags  = saveflags
+	lastsym    = savesym
+	xheap     = savexheap
+	heap      = saveheap
     fin
 end
 
-heapstart = *freemem
-heap = heapstart
 resetmemfiles()
+heap    = *freemem
+lastsym = symtbl
+stodci(@stdlibstr, $0280)
+addmod($0280, 1)
+while *stdlibsym
+    stodci((stdlibsym):0, $0280)
+    addsym($0280, (stdlibsym):2)
+    stdlibsym = stdlibsym + 4
+loop
 prstr(@version)
-;crout
-;prstr(@heapstr)
-;prword(heap)
-;crout
 prstr(@freestr)
 prword(availheap)
 crout

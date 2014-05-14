@@ -2,7 +2,7 @@
 ; Declare all imported modules and their data/functions.
 ;
 import stdlib
-  predef cls, gotoxy, puts, putc
+  predef cls, gotoxy, viewport, puts, putc, putnl, getc
 end
 
 import testlib
@@ -15,7 +15,7 @@ predef main
 ;
 ; Declare all global variables for this module.
 ;
-byte hello[] = "Hello, world.\n\n"
+byte hello[] = "Hello, world.\n"
 word defptr  = main
 ;
 ; Define functions.
@@ -31,14 +31,16 @@ def nums
   word i
   for i = -10 to 10
     puti(i)
-    putc('\n')
+    putnl
   next
 end
 
 export def main
   cls
   nums
+  viewport(12, 12, 16, 8)
   ascii
+  viewport(0, 0, 40, 24)
   gotoxy(15,5)
   puts(@hello)
 end

@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
+#include <ctype.h>
 
 typedef unsigned char  code;
 typedef unsigned char  byte;
@@ -99,7 +101,7 @@ uword mark_heap(void)
 {
     return heap;
 }
-int release_heap(uword newheap)
+uword release_heap(uword newheap)
 {
     heap = newheap;
     return fp - heap;
@@ -146,13 +148,14 @@ uword lookup_tbl(byte *dci, byte *tbl)
     }
     return 0;
 }
-int add_tbl(byte *dci, int val, byte **last)
+uword add_tbl(byte *dci, int val, byte **last)
 {
     while (*dci & 0x80)
         *(*last)++ = *dci++;
     *(*last)++ = *dci++;
     *(*last)++ = val;
     *(*last)++ = val >> 8;
+    return 0;
 }
 
 /*
@@ -167,7 +170,7 @@ uword lookup_sym(byte *sym)
 {
     return lookup_tbl(sym, symtbl);
 }
-int add_sym(byte *sym, int addr)
+uword add_sym(byte *sym, int addr)
 {
     return add_tbl(sym, addr, &lastsym);
 }
@@ -184,18 +187,18 @@ uword lookup_mod(byte *mod)
 {
     return lookup_tbl(mod, modtbl);
 }
-int add_mod(byte *mod, int addr)
+uword add_mod(byte *mod, int addr)
 {
     return add_tbl(mod, addr, &lastmod);
 }
-defcall_add(int bank, int addr)
+uword defcall_add(int bank, int addr)
 {
     mem_data[lastdef]     = bank ? 2 : 1;
     mem_data[lastdef + 1] = addr;
     mem_data[lastdef + 2] = addr >> 8;
     return lastdef++;
 }
-int def_lookup(byte *cdd, int defaddr)
+uword def_lookup(byte *cdd, int defaddr)
 {
     int i, calldef = 0;
     for (i = 0; cdd[i * 4] == 0x02; i++)
@@ -208,7 +211,7 @@ int def_lookup(byte *cdd, int defaddr)
     }
     return calldef;
 }
-int extern_lookup(byte *esd, int index)
+uword extern_lookup(byte *esd, int index)
 {
     byte *sym;
     char string[32];
@@ -225,16 +228,18 @@ int extern_lookup(byte *esd, int index)
 }
 int load_mod(byte *mod)
 {
-    unsigned int len, size, end, magic, bytecode, fixup, addr, sysflags, defcnt = 0, init = 0, modaddr = mark_heap();
+    uword len, size, end, magic, bytecode, fixup, addr, sysflags, defcnt = 0, init = 0, modaddr = mark_heap();
     byte *moddep, *rld, *esd, *cdd, *sym;
     byte header[128];
+    int fd;
     char filename[32], string[17];
 
     dcitos(mod, filename);
     printf("Load module %s\n", filename);
-    int fd = open(filename, O_RDONLY, 0);
+    fd = open(filename, O_RDONLY, 0);
     if ((fd > 0) && (len = read(fd, header, 128)) > 0)
     {
+        modaddr = mark_heap();
         magic = header[2] | (header[3] << 8);
         if (magic == 0xDA7E)
         {
@@ -341,8 +346,7 @@ int load_mod(byte *mod)
                 {
                     if (show_state) printf("BYTE");
                     mem_data[addr] = fixup;
-                }
-                
+                }                
             }
             if (show_state) printf("@$%04X\n", addr);
             rld += 4;
@@ -406,7 +410,8 @@ void call(uword pc)
             interp(mem_data + (mem_data[pc] + (mem_data[pc + 1] << 8)));
             break;
         case 3: // LIBRARY STDLIB::VIEWPORT
-            printf("Set Window %d, %d, %d, %d/n", POP, POP, POP, POP);
+            printf("Set Viewport %d, %d, %d, %d\n", esp[3], esp[2], esp[1], esp[0]);
+            esp += 4;
             PUSH(0);
             break;
         case 4: // LIBRARY STDLIB::PUTC
@@ -430,7 +435,7 @@ void call(uword pc)
             break;
         case 6: // LIBRARY STDLIB::PUTSZ
             s = POP;
-            while (c = mem_data[s++])
+            while ((c = mem_data[s++]))
             {
                 if (c == 0x0D)
                     c = '\n';
@@ -443,9 +448,8 @@ void call(uword pc)
             break;
         case 8: // LIBRARY STDLIB::GETS
             gets(sz);
-            i = 0;
-            while (sz[i])
-                mem_data[0x200 + i++] = sz[i];
+            for (i = 0; sz[i]; i++)
+                mem_data[0x200 + i] = sz[i];
             mem_data[0x200 + i] = 0;
             mem_data[0x1FF] = i;
             PUSH(i);
@@ -459,6 +463,11 @@ void call(uword pc)
             s = POP + 1;
             i = POP + 1;
             printf("\033[%d;%df", s, i);
+            fflush(stdout);
+            PUSH(0);
+            break;
+        case 11: // LIBRARY STDLIB::PUTNL
+            putchar('\n');
             fflush(stdout);
             PUSH(0);
             break;
@@ -847,7 +856,9 @@ char *stdlib_exp[] = {
     "GETC",
     "GETS",
     "CLS",
-    "GOTOXY"
+    "GOTOXY",
+    "PUTNL",
+    0
 };
 
 byte stdlib[] = {
@@ -873,7 +884,7 @@ int main(int argc, char **argv)
          */
         stodci("STDLIB", dci);
         add_mod(dci, 0xFFFF);
-        for (i = 0; i < 8; i++)
+        for (i = 0; stdlib_exp[i]; i++)
         {
             mem_data[i] = i + 3;
             stodci(stdlib_exp[i], dci);

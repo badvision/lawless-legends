@@ -11,7 +11,7 @@ All three systems were implemented using stack architecture.  Pascal and Java we
 
 ##A New Approach
 
-PLASMA takes an approach that uses the best of all the above implementations to create a unique, powerful and efficient platform for developing new applications on the Apple II. One goal was to create a very small VM runtime, bytecode interpreter, and module loader that could adjust the code size vs. performance optimizations to allow for interpreted code, threaded code, or efficiently compiled native code. The decision was made early on to implement a stack based architecture duplicating the approach taken by FORTH. Space in the zero page would be assigned to a 16 bit, 32 element evaluation stack, indexed by the X register. The stack is purposely not split between low and high values so as to allow reading and writing addresses stored directly on the stack. The trade off is that the stack pointer has to be incremented and decremented by two for every push/pop operation. A simple compiler was written so that higher level constructs could be used and global/local variables would hold values instead of using clever stack manipulation. Function/procedure frames would allow for local variables, but with a limitation - the frame could be no larger than 256 bytes. By enforcing this limitation, the function frame could easily be accessed through a frame pointer value in zero page, indexed by the Y register. The call stack uses the 6502's hardware stack resulting in the same 256 byte limitation imposed by the hardware. However, this limitation could be lifted by extending the call sequence to save and restore the return address in the function frame. This was not done initially for performance reasons and simplicity of implementation. One of the goals of PLASMA was to allow for intermixing of functions implemented as bytecode, or native code. Taking a page from the FORTH play book, a function call is implemented as a native subroutine call to an address. If the function is in bytecode, the first thing it does is call back into the interpreter to execute the following bytecode. Function call parameters are pushed onto the evaluation stack in order they are written. The first operation inside of the function call is to pull the parameters off the evaluation stack and put them in local frame storage. Function callers and callees must agree on the number of parameters to avoid stack underflow/overflow. All functions return a value on the evaluation stack regardless of it being used or not. Lastly, PLASMA is not a typed language. Just like assembly, any value can represent a character, integer, or address. It's the programmer's job to know the type. Only bytes and words are known to PLASMA. Bytes are unsigned 8 bit quantities, words are signed 16 bit quantities. All stack operations involve 16 bits of precision.
+PLASMA takes an approach that uses the best of all the above implementations to create a unique, powerful and efficient platform for developing new applications on the Apple II. One goal was to create a very small VM runtime, bytecode interpreter, and module loader that could adjust the code size vs. performance optimizations to allow for interpreted code, threaded code, or efficiently compiled native code. The decision was made early on to implement a stack based architecture duplicating the approach taken by FORTH. Space in the zero page would be assigned to a 16 bit, 32 element evaluation stack, indexed by the X register. A simple compiler was written so that higher level constructs could be used and global/local variables would hold values instead of using clever stack manipulation. Function/procedure frames would allow for local variables, but with a limitation - the frame could be no larger than 256 bytes. By enforcing this limitation, the function frame could easily be accessed through a frame pointer value in zero page, indexed by the Y register. The call stack uses the 6502's hardware stack resulting in the same 256 byte limitation imposed by the hardware. However, this limitation could be lifted by extending the call sequence to save and restore the return address in the function frame. This was not done initially for performance reasons and simplicity of implementation. One of the goals of PLASMA was to allow for intermixing of functions implemented as bytecode, or native code. Taking a page from the FORTH play book, a function call is implemented as a native subroutine call to an address. If the function is in bytecode, the first thing it does is call back into the interpreter to execute the following bytecode. Function call parameters are pushed onto the evaluation stack in order they are written. The first operation inside of the function call is to pull the parameters off the evaluation stack and put them in local frame storage. Function callers and callees must agree on the number of parameters to avoid stack underflow/overflow. All functions return a value on the evaluation stack regardless of it being used or not. Lastly, PLASMA is not a typed language. Just like assembly, any value can represent a character, integer, or address. It's the programmer's job to know the type. Only bytes and words are known to PLASMA. Bytes are unsigned 8 bit quantities, words are signed 16 bit quantities. All stack operations involve 16 bits of precision.
 
 The PLASMA low level operations are defined as:
 
@@ -100,9 +100,15 @@ Hexadecimal constants are preceded with a ‘$’ to identify them as such.
 
 ###Constants, Variables and Functions
 
-The source code of a PLASMA module first defines constants, variables and data.  Constants must be initialized with a value.  Variables can have sizes associated with them to declare storage space.  Data can be declared with or without a variable name associated with it.  Arrays, tables, strings and any predeclared data can be created and accessed in multiple ways.
+The source code of a PLASMA module first defines imports, constants, variables and data.  Constants must be initialized with a value.  Variables can have sizes associated with them to declare storage space.  Data can be declared with or without a variable name associated with it.  Arrays, tables, strings and any predeclared data can be created and accessed in multiple ways.
 
 ```
+    ;
+    ; Import standard library functions.
+    ;
+    import stdlib
+        predef putc, puts, getc, gets, cls, memcpy, memset, memclr
+    end
     ;
     ; Constants used for hardware and flags
     ;
@@ -135,9 +141,9 @@ Strings are defined like Pascal strings, a length byte followed by the string ch
     byte txtfile[64] = "UNTITLED"
 ```
 
-Functions are defined after all constants, variables and data.  Functions can be forward declared with a func type in the constant and variable declarations.  Functions have optional parameters and always return a value.  By using one of three function declarations (def, deft and defn) you can have the function loaded as interpreted bytecode, threaded calls into the interpreter, or natively compiled code.  There are space and time tradeoffs between the three choices.  Bytecode is the best choice for the majority of functions.  It has decent performance and is extremely compact.  Threaded code would be the choice for functions that are called often but are not leaf routines, i.e. they themselves call other functions.  Native code is a good choice for small, leaf functions that are called often and need the highest performance.  Simply altering the definition is all that is required to set the function code implementation.  Functions can have their own variable declarations.  However, unlike the global declarations, no data can be predeclared, only storage space.  There is also a limit of 256 bytes of local storage.  Each parameter takes two bytes of local storage, plus two bytes for the previous frame pointer.  If a function has no parameters or local variables, no local frame will be created, improving performance.  A function can specify a value to return.  If no return value is specified, a default of 0 will be returned.
+Functions are defined after all constants, variables and data.  Functions can be forward declared with a *predef* type in the constant and variable declarations.  Functions have optional parameters and always return a value.   Functions can have their own variable declarations.  However, unlike the global declarations, no data can be predeclared, only storage space.  There is also a limit of 254 bytes of local storage.  Each parameter takes two bytes of local storage, plus two bytes for the previous frame pointer.  If a function has no parameters or local variables, no local frame will be created, improving performance.  A function can specify a value to return.  If no return value is specified, a default of 0 will be returned.
 
-After functions are defined, the main code for the module follows.  There is no option to declare how the main code is loaded - it is always bytecode.  The last statement in the module must be done, or else a compile error is issued.
+After functions are defined, the main code for the module follows. The main code will be executed as soon as the module is loaded.  For library modules, this is a good place to do any runtime initialization, before any of the exported functions are called. The last statement in the module must be done, or else a compile error is issued.
 
 There are four basic types of data that can be manipulated: constants, variables, addresses, and functions.  Memory can only be read or written as either a byte or a word.  Bytes are unsigned 8 bit quantities, words are signed 16 bit quantities.  Everything on the evaluation stack is treated as a word.  Other than that, any value can be treated as a pointer, address, function, character, integer, etc.  There are convenience operations in PLASMA to easily manipulate addresses and expressions as pointers, arrays, structures, functions, or combinations thereof.  If a variable is declared as a byte, it can be accessed as a simple, single dimension byte array by using brackets to indicate the offset.  Any expression can calculate the indexed offset.  A word variable can be accessed as a word array in the same fashion.  In order to access expressions or constants as arrays, a type identifier has to be inserted before the brackets.  a ‘.’ character denotes a byte type, a ‘:’ character denotes a word type.  Along with brackets to calculate an indexed offset, a constant can be used after the ‘.’ or ‘:’ and will be added to the base address.  The constant can be a defined const to allow for structure style syntax.  If the offset is a known constant, using the constant offset is a much more efficient way to address the elements over an array index.  Multidimensional arrays are treated as arrays of array pointers.  Multiple brackets can follow the ‘.’ or ‘:’ type identifier, but all but the last index will be treated as a pointer to an array.
 
@@ -312,16 +318,16 @@ Lastly, the repeat/until statement will continue looping as long as the until ex
 
 PLASMA includes a very minimal runtime that nevertheless provides a great deal of functionality to the system.  Two system calls are provided to access native 6502 routines (usually in ROM) and ProDOS.
 
-call6502(aReg, xReg, yReg, statusReg, addr) returns a pointer to a four byte structure containing the A,X,Y and STATUS register results.
+romcall(aReg, xReg, yReg, statusReg, addr) returns a pointer to a four byte structure containing the A,X,Y and STATUS register results.
 
 ```
     const xreg = 1
     const getlin = $FD6A
 
-    numchars = (call6502(0, 0, 0, 0, getlin)).xreg ; return char count in X reg
+    numchars = (romcall(0, 0, 0, 0, getlin)).xreg ; return char count in X reg
 ```
 
-prodos(cmd, params) calls ProDOS, returning the status value.
+syscall(cmd, params) calls ProDOS, returning the status value.
 
 ```
     def read(refnum, buff, len)
@@ -331,30 +337,37 @@ prodos(cmd, params) calls ProDOS, returning the status value.
         params.1 = refnum
         params:2 = buff
         params:4 = len
-        perr     = prodos($CA, @params)
+        perr     = syscall($CA, @params)
         return params:6
     end
 ```
 
-cout(char), prstr(string), prstrz(stringz) are handy utility routines for printing to the standard Apple II COUT routine.
+putc(char), puts(string), home, gotoxy(x,y), getc() and gets() are other handy utility routines for interacting with the console.
 
 ```
-    cout('.')
+    putc('.')
     byte okstr[] = "OK"
-    prstr(@okstr)
+    puts(@okstr)
 ```
 
-memset(val16, addr, len) will fill memory with a 16 bit value.  memcpy(dstaddr, srcaddr, len) will copy memory from one address to another, taking care to copy in the proper direction.
+memset(addr, len, val) will fill memory with a 16 bit value.  memcpy(dstaddr, srcaddr, len) will copy memory from one address to another, taking care to copy in the proper direction.
 
 ```
     byte nullstr[] = ""
-    memset(@nullstr, strlinbuf, maxfill * 2) ; fill line buff with pointer to null string
+    memset(strlinbuf, maxfill * 2, @nullstr) ; fill line buff with pointer to null string
     memcpy(scrnptr, strptr + ofst + 1, numchars)
 ```
 
 ##Implementation Details
-
+###The Original PLASMA
 The original design concept was to create an efficient, flexible, and expressive environment for building applications directly on the Apple II.  Choosing a stack based architecture was easy after much experience with other stack based implementations. It also makes the compiler simple to implement.  The first take on the stack architecture was to make it a very strict stack architecture in that everything had to be on the stack.  The only opcode with operands was the CONSTANT opcode. This allowed for a very small bytecode interpreter and a very easy compile target.  However, only when adding an opcode with operands that would greatly improved performance, native code generation or code size was it done. The opcode table grew slowly over time but still retains a small runtime interpreter with good native code density.
+
+The VM was constructed such that code generation could ouput native 6502 code, threaded code into the opcode functions, or interpreted bytecodes.  This gave a level of control over speed vs memory.
+
+###The Lawless Legends PLASMA
+This version of PLASMA has dispensed with the native/threaded/bytecode code generation from the original version to focus on code density and the ability to interpret bytecode from AUX memory, should it be available. By focussing on the bytecode interpreter, certain optimizations were implemented that weren't posssible when allowing for threaded/native code.  With theses optimizations, the interpreted bytecode is about the same performance level as the threaded code, with the benefit of code compaction.
+
+Dynamically loadable modules, a backward compatible extension to the .REL format introduced by EDASM, is the new, main feature for this version of PLASMA. A game like Lawless Legends will push the capabilities of the Apple II well beyond anything before it. A powerful OS + language + VM environment is required to achieve the goals set out.
 
 ## References
 B Programming Language User Manual  http://cm.bell-labs.com/cm/cs/who/dmr/kbman.html

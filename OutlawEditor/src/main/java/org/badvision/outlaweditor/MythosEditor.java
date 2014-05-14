@@ -135,6 +135,6 @@ public class MythosEditor {
         }
         script.setName(name);
         System.out.println("Function title changed! >> "+name);
-        Application.instance.controller.redrawMapScripts();
+        Application.instance.controller.mapController.redrawMapScripts();
     }
 }

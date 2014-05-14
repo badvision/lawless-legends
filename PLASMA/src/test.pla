@@ -2,7 +2,7 @@
 ; Declare all imported modules and their data/functions.
 ;
 import stdlib
-  predef cls, gotoxy, puts, putc
+  predef cls, gotoxy, puts, putc, putnl, getc
 end
 
 import testlib
@@ -50,4 +50,6 @@ export def indirect
 end
 
 indirect
+putc(getc)
+putnl
 done

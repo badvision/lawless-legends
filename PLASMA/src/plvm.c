@@ -346,8 +346,7 @@ int load_mod(byte *mod)
                 {
                     if (show_state) printf("BYTE");
                     mem_data[addr] = fixup;
-                }
-                
+                }                
             }
             if (show_state) printf("@$%04X\n", addr);
             rld += 4;
@@ -411,7 +410,8 @@ void call(uword pc)
             interp(mem_data + (mem_data[pc] + (mem_data[pc + 1] << 8)));
             break;
         case 3: // LIBRARY STDLIB::VIEWPORT
-            printf("Set Window %d, %d, %d, %d/n", POP, POP, POP, POP);
+            printf("Set Viewport %d, %d, %d, %d\n", esp[3], esp[2], esp[1], esp[0]);
+            esp += 4;
             PUSH(0);
             break;
         case 4: // LIBRARY STDLIB::PUTC
@@ -463,6 +463,11 @@ void call(uword pc)
             s = POP + 1;
             i = POP + 1;
             printf("\033[%d;%df", s, i);
+            fflush(stdout);
+            PUSH(0);
+            break;
+        case 11: // LIBRARY STDLIB::PUTNL
+            putchar('\n');
             fflush(stdout);
             PUSH(0);
             break;
@@ -851,7 +856,9 @@ char *stdlib_exp[] = {
     "GETC",
     "GETS",
     "CLS",
-    "GOTOXY"
+    "GOTOXY",
+    "PUTNL",
+    0
 };
 
 byte stdlib[] = {
@@ -877,7 +884,7 @@ int main(int argc, char **argv)
          */
         stodci("STDLIB", dci);
         add_mod(dci, 0xFFFF);
-        for (i = 0; i < 8; i++)
+        for (i = 0; stdlib_exp[i]; i++)
         {
             mem_data[i] = i + 3;
             stodci(stdlib_exp[i], dci);

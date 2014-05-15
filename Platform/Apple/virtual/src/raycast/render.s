@@ -625,7 +625,9 @@ spriteCalc: !zone
 	sbc #>W_LOG_256		; subtract wLog256
 	sta wLogCosT+1		; store hi byte
 
-	; Calculate wDx = spriteX - playerX, as abs value and a sign bit
+	!if DEBUG { jsr .debug1 }
+
+	; Calculate wLogDx = log2_w_w(spriteX - playerX), as abs value and a sign bit
 	lda spriteX		; calculate spriteX - playerX
 	sec
 	sbc playerX
@@ -641,7 +643,7 @@ spriteCalc: !zone
 	sta wLogDx
 	stx wLogDx+1
 
-	; Calculate wDy = spriteY - playerY, as abs value and a sign bit
+	; Calculate wLogDy = log2_w_w(spriteY - playerY), as abs value and a sign bit
 	lda spriteY		; calculate spriteX - playerX
 	sec
 	sbc playerY
@@ -656,6 +658,8 @@ spriteCalc: !zone
 	jsr log2_w_w		; wants A=lo, X=Hi
 	sta wLogDy
 	stx wLogDy+1
+
+	!if DEBUG { jsr .debug2 }
 
 	; Calculate wRx = bSgnDx*bSgnCosT*pow2_w_w(wLogDx + wLogCosT) -
 	;                 bSgnDy*bSgnSinT*pow2_w_w(wLogDy + wLogSinT)
@@ -695,6 +699,8 @@ spriteCalc: !zone
 	txa
 	adc wRx+1		; also hi byte
 	sta wRx+1
+
+	!if DEBUG { jsr .debug3 }
 
 	; if wRx is negative, it means sprite is behind viewer... we get out of school early.
 	bpl +
@@ -833,6 +839,8 @@ spriteCalc: !zone
 	inx			; bump hi byte
 +	stx wSpriteTop+1	; save hi byte
 
+	!if DEBUG { jsr .debug4 }
+
 	; Need X position on screen.
 	; The constant below is cheesy and based on empirical observation rather than understanding.
 	; Sorry :/
@@ -854,6 +862,8 @@ spriteCalc: !zone
 	tax			; put it where pow2 wants it
 	jsr pow2_w_w		; back to normal space (in: Y=lo,X=hi, out: A=lo,X=hi)
 	; don't need to actually store wX -- it's only needed for spriteLeft below
+
+	!if DEBUG { jsr .debug5 }
 
 	; Calculate wSpriteLeft = wx + wSpriteTop
 	clc			; lo byte already in A from code above
@@ -935,6 +945,8 @@ spriteCalc: !zone
 	lsr
 	ror depth
 
+	!if DEBUG { jsr .debug6 }
+
 .draw	; Okay, I think we're all done with calculations for this sprite.
 	brk	; would draw sprite here
 
@@ -949,6 +961,62 @@ spriteCalc: !zone
 	bne +
 	inx
 +	rts
+
+	; Code for debugging sprite math
+!if DEBUG {
+.debug1	+prStr : !text "bSgnSinT=",0
+	+prByte bSgnSinT
+	+prStr : !text "wLogSinT=",0
+	+prWord wLogSinT
+	+prStr : !text "bSgnCosT=",0
+	+prByte bSgnCosT
+	+prStr : !text "wLogCosT=",0
+	+prWord wLogCosT
+	+crout
+	rts
+.debug2	+prStr : !text "bSgnDx=",0
+	+prByte bSgnDx
+	+prStr : !text "wLogDx=",0
+	+prWord wLogDx
+	+prStr : !text "bSgnDy=",0
+	+prByte bSgnDy
+	+prStr : !text "wLogDy=",0
+	+prWord wLogDy
+	+crout
+	rts
+.debug3	+prStr : !text "wRx=",0
+	+prWord wRx
+	+crout
+	rts
+.debug4	+prStr : !text "wRy=",0
+	+prWord wRy
+	+prStr : !text "wLogSqRx=",0
+	+prWord wLogSqRx
+	+prStr : !text "wLogSqRy=",0
+	+prWord wLogSqRy
+	+prStr : !text "wSqDist=",0
+	+prWord wSqDist
+	+prStr : !text "wLogSize=",0
+	+prWord wLogSize
+	+prStr : !text "wSize=",0
+	+prWord wSize
+	+prStr : !text "wSpriteTop=",0
+	+prWord wSpriteTop
+	+crout
+	rts
+.debug5 +prStr : !text "wX=",0
+	+prX
+	+prA
+	+crout
+	rts
+.debug6	+prStr : !text "bStartTx=",0
+	+prByte bStartTx
+	+prStr : !text "wTxColBump=",0
+	+prWord wTxColBump
+	+prStr : !text "depth=",0
+	+prByte depth
+	rts
+}
 
 ;------------------------------------------------------------------------------
 

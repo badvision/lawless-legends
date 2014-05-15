@@ -53,6 +53,32 @@ playerX		= $5E	; len 2 (hi=integer, lo=fraction)
 playerY		= $60	; len 2 (hi=integer, lo=fraction)
 mapWidth	= $62	; len 1
 mapHeight	= $63	; len 1
+spriteX		= $64	; len 2
+spriteY		= $66	; len 2
+
+; Sprite calculations zero page
+bSgnSinT	= $90
+bSgnCosT	= $91
+bSgnDx		= $92
+bSgnDy		= $93
+bSgnRy		= $94
+bStartTx	= $95
+wLogSinT	= $96
+wLogCosT	= $98
+wLogDx		= $9A
+wLogDy		= $9C
+wTxColBump	= $9E
+wRx		= $A0
+wRy		= $A2
+wLogRy		= $A4
+wLogSqRx	= $A6
+wLogSqRy	= $A8
+wSqDist		= $AA
+wLogDist	= $AC
+wLogSize	= $AE
+wSize		= $B0
+wSpriteTop	= $B0
+wSpriteLeft	= $B2
 
 ;---------------------------------
 ; The following are in aux mem...

@@ -111,7 +111,6 @@ var overlayText = "";
 
 // Constants
 var wLog256;
-var wLog128;
 var wLogViewDist;
 
 // Tables
@@ -263,7 +262,7 @@ function initCast()
     
   // Sprite math constants
   wLog256 = log2_w_w(256);
-  wLog128 = log2_w_w(128);
+  wLog65536 = 4096; // hard code because it's normally out of range
   wLogViewDist = log2_w_w(viewDist/8*256); // div by 8 to get to Apple II coords  
 
   // Sine table
@@ -357,7 +356,7 @@ function printPrecast() {
   console.log("");
 
   console.log("wLog256: .word " + wordToHex(wLog256));
-  console.log("wLog128: .word " + wordToHex(wLog128));
+  console.log("wLog65536: .word " + wordToHex(wLog65536));
   console.log("wLogViewDist: .word " + wordToHex(wLogViewDist));
   console.log("");
 
@@ -463,6 +462,7 @@ function intRenderSprites()
     // If no pixels on screen, skip it
     var wSpriteTop = 32 - (wSize >> 1);
     var wSpriteLeft = wX + wSpriteTop;
+    var bStartTx = 0;
     if (wSpriteLeft < 0) {
       if (wSpriteLeft < -wSize) {
         if (sprite.index == debugSprite)
@@ -473,11 +473,9 @@ function intRenderSprites()
       }
 
       // Sprite overlaps left edge of screen. Need to calculate clipping.
-      var clipTx = pow2_w_w(log2_w_w(-wSpriteLeft) - log2_w_w(wSize) + wLog256);
-      if (sprite.index == debugSprite)
-        console.log("    clipTx=" + clipTx);
+      bStartTx = Math.min(255, pow2_w_w(log2_w_w(-wSpriteLeft) - wLogSize + wLog256));
     }
-    else if (wSpriteLeft > 63) {
+    else if (wSpriteLeft >= 63) {
       if (sprite.index == debugSprite)
         console.log("    off-screen to right (wSpriteLeft=" + wSpriteLeft + ", vs 63).");
       sprite.visible = false;
@@ -486,9 +484,9 @@ function intRenderSprites()
     }
 
     // Calculate the texture bump per column. Result is really an 8.8 fix-point.
-    var wTxColBump = pow2_w_w(4096 - wLogSize);
+    var wTxColBump = pow2_w_w(wLog65536 - wLogSize);
     if (sprite.index == debugSprite)
-      console.log("    wTxColBump=" + wTxColBump);
+      console.log("    bStartTx=" + bStartTx + ", wTxColBump=" + wTxColBump);
 
     // Adjust from Apple II coordinates to PC coords (we render 8 pixels for each 1 Apple pix)
     wSpriteLeft *= 8;

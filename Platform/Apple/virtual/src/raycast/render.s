@@ -30,6 +30,7 @@ NUM_COLS	= 63
 
 ; Useful constants
 W_LOG_256	= $0800
+W_LOG_65536	= $4000
 W_LOG_VIEW_DIST = $0E3F
 
 ; Variables
@@ -428,9 +429,16 @@ castRay: !zone
 	sta mapSpriteH,x	; and save that too
 	inc nMapSprites		; advance to next table entry
 	!if DEBUG { jsr .debugSprite }
-	jsr spriteFu
+	lda #$80		; put sprite in middle of map square
+	sta spriteX
+	sta spriteY
+	lda mapX		; x coord of sprite
+	sta spriteX+1
+	lda mapY
+	sta spriteY+1		; y coord of sprite
+	jsr spriteCalc		; do all the magic math to put the sprite on the screen
 .dupeSprite:
-	jmp .DDA_step
+	jmp .DDA_step		; trace this ray some more
 
 	; wall calculation: X=dir1, Y=dir2, A=dir2step
 .wallCalc:
@@ -580,25 +588,25 @@ spriteFu:
 ;------------------------------------------------------------------------------
 spriteCalc: !zone
 	lda #0			; track sign bits
-	sta .bSgnSinT
-	sta .bSgnCosT
-	sta .bSgnDx
-	sta .bSgnDy
-	sta .bSgnRy
+	sta bSgnSinT
+	sta bSgnCosT
+	sta bSgnDx
+	sta bSgnDy
+	sta bSgnRy
 
 	; Look up sin of player direction, minus wLog256, and store it
 	lda playerDir
 	asl
 	tay
 	lda sinTbl,y
-	sta .wLogSinT		; store lo byte
+	sta wLogSinT		; store lo byte
 	lda sinTbl+1,y
 	bpl +			; sign bit clear?
 	and #$7F		; sign bit was set - mask it off
-	inc .bSgnSinT		; and update sign flag
+	inc bSgnSinT		; and update sign flag
 +	sec
-	sbc #8			; subtract wLog256
-	sta .wLogSinT+1		; store hi byte
+	sbc #>W_LOG_256		; subtract wLog256
+	sta wLogSinT+1		; store hi byte
 
 	; Look up cos of player direction, minus wLog256, and store it
 	lda playerDir
@@ -608,14 +616,14 @@ spriteCalc: !zone
 	asl
 	tay
 	lda sinTbl,y
-	sta .wLogCosT		; store lo byte
+	sta wLogCosT		; store lo byte
 	lda sinTbl+1,y
 	bpl +			; sign bit clear?
 	and #$7F		; sign bit was set - mask it off
-	inc .bSgnCosT		; and update sign byte
+	inc bSgnCosT		; and update sign byte
 +	sec
-	sbc #8			; subtract wLog256
-	sta .wLogCosT+1		; store hi byte
+	sbc #>W_LOG_256		; subtract wLog256
+	sta wLogCosT+1		; store hi byte
 
 	; Calculate wDx = spriteX - playerX, as abs value and a sign bit
 	lda spriteX		; calculate spriteX - playerX
@@ -626,12 +634,12 @@ spriteCalc: !zone
 	sbc playerX+1
 	tax			; put hi byte in X where we need it
 	bpl +			; if positive, no inversion necessary
-	inc .bSgnDx		; flip sign bit for output
+	inc bSgnDx		; flip sign bit for output
 	jsr .negYX		; negate to get absolute value
 +	tya			; lo byte in A where log2 wants it
 	jsr log2_w_w		; wants A=lo, X=Hi
-	sta .wLogDx
-	stx .wLogDx+1
+	sta wLogDx
+	stx wLogDx+1
 
 	; Calculate wDy = spriteY - playerY, as abs value and a sign bit
 	lda spriteY		; calculate spriteX - playerX
@@ -642,51 +650,51 @@ spriteCalc: !zone
 	sbc playerY+1
 	tax			; put hi byte in X where we need it
 	bpl +			; if positive, no inversion necessary
-	inc .bSgnDy		; flip sign bit for output
+	inc bSgnDy		; flip sign bit for output
 	jsr .negYX		; negate to get absolute value
 +	tya			; lo byte in A where log2 wants it
 	jsr log2_w_w		; wants A=lo, X=Hi
-	sta .wLogDy
-	stx .wLogDy+1
+	sta wLogDy
+	stx wLogDy+1
 
 	; Calculate wRx = bSgnDx*bSgnCosT*pow2_w_w(wLogDx + wLogCosT) -
 	;                 bSgnDy*bSgnSinT*pow2_w_w(wLogDy + wLogSinT)
-	lda .wLogDx		; start with lo byte
+	lda wLogDx		; start with lo byte
 	clc
-	adc .wLogCosT
+	adc wLogCosT
 	tay			; put it in Y where pow2 wants it
-	lda .wLogDx+1		; now do hi byte
-	adc .wLogCosT+1
+	lda wLogDx+1		; now do hi byte
+	adc wLogCosT+1
 	tax			; in X where pow2 wants it
 	jsr pow2_w_w		; transform from log space to normal space (in: Y=lo,X=hi, out: A=lo,X=hi)
 	tay			; set lo byte aside
-	lda .bSgnDx
-	eor .bSgnCosT		; multiply the two sign bits together
+	lda bSgnDx
+	eor bSgnCosT		; multiply the two sign bits together
 	beq +			; if result is clear, no negation
 	jsr .negYX		; negate
-+	sty .wRx		; save partial result
-	stx .wRx+1
-	lda .wLogDy		; start with lo byte
++	sty wRx		; save partial result
+	stx wRx+1
+	lda wLogDy		; start with lo byte
 	clc
-	adc .wLogSinT
+	adc wLogSinT
 	tay			; put it in Y where pow2 wants it
-	lda .wLogDy+1		; now do hi byte
-	adc .wLogSinT+1
+	lda wLogDy+1		; now do hi byte
+	adc wLogSinT+1
 	tax			; in X where pow2 wants it
 	jsr pow2_w_w		; transform from log space to normal space (in: Y=lo,X=hi, out: A=lo,X=hi)
 	tay			; set lo byte aside
-	lda .bSgnDy
-	eor .bSgnSinT		; multiply the two sign bits together
+	lda bSgnDy
+	eor bSgnSinT		; multiply the two sign bits together
 	eor #1			; one extra inversion since we want to end up subtracting this
 	beq +			; if result is clear, no negation
 	jsr .negYX		; negate
 +	tya
 	clc
-	adc .wRx		; add to partial result
-	sta .wRx
+	adc wRx		; add to partial result
+	sta wRx
 	txa
-	adc .wRx+1		; also hi byte
-	sta .wRx+1
+	adc wRx+1		; also hi byte
+	sta wRx+1
 
 	; if wRx is negative, it means sprite is behind viewer... we get out of school early.
 	bpl +
@@ -697,88 +705,88 @@ spriteCalc: !zone
 	; Calculate wRy = bSgnDx*bSgnSinT*pow2_w_w(wLogDx + wLogSinT) + 
 	;                 bSgnDy*bSgnCosT*pow2_w_w(wLogDy + wLogCosT);
 
-+	lda .wLogDx		; start with lo byte
++	lda wLogDx		; start with lo byte
 	clc
-	adc .wLogSinT
+	adc wLogSinT
 	tay			; put it in Y where pow2 wants it
-	lda .wLogDx+1		; now do hi byte
-	adc .wLogSinT+1
+	lda wLogDx+1		; now do hi byte
+	adc wLogSinT+1
 	tax			; in X where pow2 wants it
 	jsr pow2_w_w		; transform from log space to normal space (in: Y=lo,X=hi, out: A=lo,X=hi)
 	tay			; set lo byte aside
-	lda .bSgnDx
-	eor .bSgnSinT		; multiply the two sign bits together
+	lda bSgnDx
+	eor bSgnSinT		; multiply the two sign bits together
 	beq +			; if result is clear, no negation
 	jsr .negYX		; negate
-+	sty .wRy		; save partial result
-	stx .wRy+1
-	lda .wLogDy		; start with lo byte
++	sty wRy		; save partial result
+	stx wRy+1
+	lda wLogDy		; start with lo byte
 	clc
-	adc .wLogCosT
+	adc wLogCosT
 	tay			; put it in Y where pow2 wants it
-	lda .wLogDy+1		; now do hi byte
-	adc .wLogCosT+1
+	lda wLogDy+1		; now do hi byte
+	adc wLogCosT+1
 	tax			; in X where pow2 wants it
 	jsr pow2_w_w		; transform from log space to normal space (in: Y=lo,X=hi, out: A=lo,X=hi)
 	tay			; set lo byte aside
-	lda .bSgnDy
-	eor .bSgnCosT		; multiply the two sign bits together
+	lda bSgnDy
+	eor bSgnCosT		; multiply the two sign bits together
 	beq +			; if result is clear, no negation
 	jsr .negYX		; negate
 +	tya
 	clc
-	adc .wRy		; add to partial result
+	adc wRy		; add to partial result
 	tay
 	txa
-	adc .wRy+1		; also hi byte
+	adc wRy+1		; also hi byte
 	tax
 	bpl +			; if already positive, skip negation
 	jsr .negYX		; negate to get abs value
-	inc .bSgnRy		; and update sign bit
-+	sty .wRy		; save result (we may not actually need to do this, but it helps w/ debug)
-	stx .wRy+1
+	inc bSgnRy		; and update sign bit
++	sty wRy		; save result (we may not actually need to do this, but it helps w/ debug)
+	stx wRy+1
 	tya			; get lo byte where it needs to be for log2
 	jsr log2_w_w		; calculate the log of wRy
-	sta .wLogRy		; save it for later
-	stx .wLogRy+1
+	sta wLogRy		; save it for later
+	stx wLogRy+1
 
 	; Calculate wLogSqRy = (log2_w_w(wRy) << 1) - wLog256;
 	asl			; we already have it in register. Shift it up 1 bit
-	sta .wLogSqRy		; save lo byte
+	sta wLogSqRy		; save lo byte
 	txa			; get hi byte
 	rol			; shift up 1 bit, with carry from lo byte
 	sec
-	sbc #8			; subtract wLog256 = $800
-	sta .wLogSqRy+1
+	sbc #>W_LOG_256		; subtract wLog256 = $800
+	sta wLogSqRy+1
 
 	; Calculate wLogSqRx = (log2_w_w(wRx) << 1) - wLog256
-+	lda .wRx
-	ldx .wRx+1
++	lda wRx
+	ldx wRx+1
 	jsr log2_w_w		; calculate log of wRx
 	asl			; shift it up 1 bit
-	sta .wLogSqRx		; save lo byte
+	sta wLogSqRx		; save lo byte
 	tay			; save it also in Y for upcoming pow2
 	txa			; get hi byte
 	rol			; shift up 1 bit, with carry from lo byte
 	sec
-	sbc #8			; subtract wlog256 = $800
-	sta .wLogSqRx+1
+	sbc #>W_LOG_256		; subtract wlog256 = $800
+	sta wLogSqRx+1
 
 	; Calculate wSqDist = pow2_w_w(wLogSqRx) + pow2_w_w(wLogSqRy)
 	tax			; get lo byte where we need for pow2 (hi byte already in Y)
 	jsr pow2_w_w		; convert back to normal space (in: Y=lo,X=hi, out: A=lo,X=hi)
-	sta .wSqDist		; save partial result
-	stx .wSqDist+1
-	ldy .wLogSqRy		; get wLogSqRy into the right regs
-	ldx .wLogSqRy+1
+	sta wSqDist		; save partial result
+	stx wSqDist+1
+	ldy wLogSqRy		; get wLogSqRy into the right regs
+	ldx wLogSqRy+1
 	jsr pow2_w_w		; convert it back to normal space also (in: Y=lo,X=hi, out: A=lo,X=hi)
 	clc
-	adc .wSqDist		; add to previous partial result (lo byte)
-	sta .wSqDist		; save lo byte
+	adc wSqDist		; add to previous partial result (lo byte)
+	sta wSqDist		; save lo byte
 	tay			; also stash aside
 	txa
-	adc .wSqDist+1		; hi byte of partial
-	sta .wSqDist+1		; save hi byte
+	adc wSqDist+1		; hi byte of partial
+	sta wSqDist+1		; save hi byte
 
 	; Calculate wLogDist = (log2_w_w(wSqDist) + wLog256) >> 1
 	txa			; hi byte in X
@@ -787,24 +795,26 @@ spriteCalc: !zone
 	tay			; set aside lo byte
 	txa			; work on hi byte
 	clc
-	adc #8			; add wLog256 = $800
+	adc #>W_LOG_256		; add wLog256 = $800
 	lsr			; shift right 1 bit -> carry
-	sta .wLogDist+1
+	sta wLogDist+1
 	tya			; finish off lo byte
 	ror			; shift right with carry from hi byte
-	sta .wLogDist
+	sta wLogDist
 
 	; Calculate wSize = pow2_w_w(wLogViewDist - wLogDist)
 	lda #<W_LOG_VIEW_DIST	; lo byte of constant
 	sec
 	sbc wLogDist		; minus log dist
+	sta wLogSize
 	tay			; lo byte where pow2 wants it
 	lda #>W_LOG_VIEW_DIST	; hi byte of constant
 	sbc wLogDist		; minus log dist
+	sta wLogSize+1
 	tax			; hi byte where pow2 wants it
 	jsr pow2_w_w		; get back from log space to normal space (in: Y=lo,X=hi, out: A=lo,X=hi)
-	sta .wSize
-	stx .wSize+1
+	sta wSize
+	stx wSize+1
 
 	; Calculate wSpriteTop = 32 - (wSize >> 1);
 	tay			; stash lo byte of wSize
@@ -814,23 +824,26 @@ spriteCalc: !zone
 	tya			; work on lo byte
 	ror			; shift right including bit from hi byte
 	tay			; lo byte to Y
-	jsr .invYX		; invert it
+	jsr .negYX		; invert it
 	tya			; lo byte
 	clc
 	adc #32			; add 32
-	sta .wSpriteTop		; save sprite top
+	sta wSpriteTop		; save sprite top
 	bcc +			; if no carry, no bump
 	inx			; bump hi byte
-+	stx .wSpriteTop+1	; save hi byte
++	stx wSpriteTop+1	; save hi byte
 
+	; Need X position on screen.
+	; The constant below is cheesy and based on empirical observation rather than understanding.
+	; Sorry :/
 	; Calculate wX = bSgnRy * pow2_w_w(log2_w_w(wRy) - wLogDist + log2_w_w(252 / 8 / 0.44))
 	; Note: log2_w_w(252 / 8 / 0.44) = $626
-	lda .wLogRy		; calc wRy minus wLogDist, lo byte
+	lda wLogRy		; calc wRy minus wLogDist, lo byte
 	sec
-	sbc .wLogDist
+	sbc wLogDist
 	tay			; stash lo byte temporarily
-	lda .wLogRy+1		; now work on hi byte
-	sbc .wLogDist+1
+	lda wLogRy+1		; now work on hi byte
+	sbc wLogDist+1
 	tax			; stash hi byte
 	tya			; back to lo byte
 	clc
@@ -840,14 +853,90 @@ spriteCalc: !zone
 	adc #6			; hi byte of const
 	tax			; put it where pow2 wants it
 	jsr pow2_w_w		; back to normal space (in: Y=lo,X=hi, out: A=lo,X=hi)
-	sta .wX
-	stx .wX+1
+	; don't need to actually store wX -- it's only needed for spriteLeft below
 
-	; Calculate spriteLeft = 
+	; Calculate wSpriteLeft = wx + wSpriteTop
+	clc			; lo byte already in A from code above
+	adc wSpriteTop		; add to spriteTop (which if you think about it, is a function of dist just like spriteLeft)
+	sta wSpriteLeft		; store lo byte of left coord
+	tay			; also set aside for later
+	txa			; hi byte in X from code above
+	adc wSpriteTop+1	; hi byte of top
+	sta wSpriteLeft+1	; save hi byte of left coord
+	bmi .ckLeft		; if negative, check against left side
 
+	; Left coord is positive, check against right side
+	bne .offR		; if there is a hi byte, sprite is off screen to right
+	cpy #NUM_COLS		; right side of screen
+	bcs .offR		; if left >= 63, sprite is off right side.
+	lda #0			; start with first column of texture
+	sta bStartTx		; save starting tex coord
+	jmp .cBump		; sprite starts on screen, might run off to right but that's ok
+.offR	!if DEBUG { +prStr : !text "Sprite is off-screen to right.",0 }
+	rts
 
+.ckLeft	; Left coord is negative, check against left side
+	cmp #$FF		; hi byte should be $FF for sprite to have a chance
+	bcc .offL
+	cpy #0-NUM_COLS		; now check lo byte, should be >= -63
+	bpl .clipL
+.offL	!if DEBUG { +prStr : !text "Sprite is off-screen to left.",0 }
+	rts
+.clipL	; Sprite overlaps left edge of screen; calculate clipping.
+	; Calculate bStartTx = Math.min(255, pow2_w_w(log2_w_w(-wSpriteLeft) - wLogSize + wLog256))
+	lda #0
+	sec
+	sbc wSpriteLeft		; Negate wSpriteLeft to get positive number
+	ldx #0			; We know high byte of wSpriteLeft is $FF, so neg will be 0.
+	jsr log2_w_w		; Get to log space (in: A=lo/X=hi; out: same)
+	sec
+	sbc wLogSize		; subtract lo byte of log size
+	tay			; to Y reg where pow2 expects lo byte
+	txa			; work on hi byte
+	sbc wLogSize+1		; subtract hi byte of log size
+	clc
+	adc #>W_LOG_256		; add wLog256 = $800
+	tax			; to X where pow2 wants the hi byte
+	jsr pow2_w_w		; back to normal space (in: Y=lo,X=hi, out: A=lo,X=hi)
+	cpx #0			; in some anomalous cases, it comes out > 255
+	beq +			; normal case, no clamping
+	lda #$FF		; clamp to 255
++	sta bStartTx
 
-	; TODO: finish this routine
+.cBump	; Calculate the texture bump per column. Result is really an 8.8 fix-point.
+	; wTxColBump = pow2_w_w(wLog65536 - wLogSize)
+	lda #<W_LOG_65536
+	sec
+	sbc wLogSize		; calc lo byte
+	tay			; where pow2 wants it
+	lda #>W_LOG_65536
+	sbc wLogSize+1		; calc hi byte
+	tax			; where pow2 wants it
+	jsr pow2_w_w		; back to normal space (in: Y=lo,X=hi, out: A=lo,X=hi)
+	sta wTxColBump
+	stx wTxColBump+1
+
+.cDepth	; Last thing to do is calculate the depth.
+	; The constant below is cheesy and I'm not sure why it's needed. But it seems to
+	; keep things at roughly the right depth.
+	; Calculate depth = calcZ(wLogSize-75) = (wLogSize-75) >> 4
+	lda wLogSize
+	sec
+	sbc #75
+	sta depth
+	lda wLogSize
+	sbc #0
+	lsr
+	ror depth
+	lsr
+	ror depth
+	lsr
+	ror depth
+	lsr
+	ror depth
+
+.draw	; Okay, I think we're all done with calculations for this sprite.
+	brk	; would draw sprite here
 
 .negYX:				; subroutine to negate value in Y=lo,X=hi.
 	tya
@@ -860,6 +949,8 @@ spriteCalc: !zone
 	bne +
 	inx
 +	rts
+
+;------------------------------------------------------------------------------
 
 ;------------------------------------------------------------------------------
 ; Save a link in the linked column data, sorted according to its depth.

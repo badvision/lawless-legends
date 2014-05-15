@@ -31,15 +31,6 @@ predef uword_isgt, uword_isge, uword_islt, uword_isle
 predef getpfx, setpfx, newline, online, open, close, read, write, create, destroy
 predef execmod
 ;
-; String pool.
-;
-byte version[]    = "PLASMA 0.9\n"
-byte errorstr[]   = "ERR: "
-byte okstr[]      = "OK"
-;byte heapstr[]    = "HEAP START: $"
-byte freestr[]    = "MEM FREE:$"
-byte prefix[32]   = ""
-;
 ; Standard Library exported functions.
 ;
 byte stdlibstr[]  = "STDLIB"
@@ -89,12 +80,20 @@ word              = @execstr,    @execmod
 word              = 0
 word stdlibsym    = @exports     
 ;
+; String pool.
+;
+byte version[]    = "PLASMA 0.9\n"
+byte errorstr[]   = "ERR: "
+byte okstr[]      = "OK"
+byte freestr[]    = "MEM FREE:$"
+byte prefix[32]   = ""
+;
 ; System variable.
 ;
 word heapsttart, heap
+word lastsym  = symtbl
 word xheap    = $0400
 word sysflags = 0
-word lastsym
 word perr
 word cmdptr
 ;
@@ -1417,9 +1416,7 @@ def execmod(modfile)
     fin
 end
 
-resetmemfiles()
-heap    = *freemem
-lastsym = symtbl
+heap = *freemem
 stodci(@stdlibstr, $0280)
 addmod($0280, 1)
 while *stdlibsym
@@ -1427,6 +1424,7 @@ while *stdlibsym
     addsym($0280, (stdlibsym):2)
     stdlibsym = stdlibsym + 4
 loop
+resetmemfiles()
 prstr(@version)
 prstr(@freestr)
 prword(availheap)

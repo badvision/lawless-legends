@@ -9,7 +9,7 @@ To start things off, here is the standard introductory program:
 
 ```
     import STDLIB
-        prefed puts
+        predef puts
     end
     
     byte hello[] = "Hello, world.\n"

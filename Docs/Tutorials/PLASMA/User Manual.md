@@ -18,7 +18,7 @@ To start things off, here is the standard introductory program:
     done
 ```
 
-Three tools are required to build and run this program: **plasm**, **acme**, and **plvm**.  The PLASMA compiler, **plasm**, will convert the PLASMA source code (usually with an extension on .pla) into an assembly language source file.  **acme**, the portable 6502 assembler will convert the assembly source into a binary ready for loading. To execute the module, the PLASMA portable VM, **plvm**, can load and interpret the bytecode. The same binary can be loaded onto the target platform and run there with the appropriate VM. On Linux/Unix from the lawless-legends/PLASMA/src, the steps would be entered as:
+Three tools are required to build and run this program: **plasm**, **acme**, and **plvm**.  The PLASMA compiler, **plasm**, will convert the PLASMA source code (usually with an extension on .pla) into an assembly language source file.  **acme**, the portable 6502 assembler will convert the assembly source into a binary ready for loading. To execute the module, the PLASMA portable VM, **plvm**, can load and interpret the bytecode. The same binary can be loaded onto the target platform and run there with the appropriate VM. On Linux/Unix from lawless-legends/PLASMA/src, the steps would be entered as:
 
 ```
 ./plasm -AM < hello.pla > hello.a

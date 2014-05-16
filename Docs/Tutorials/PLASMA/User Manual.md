@@ -52,7 +52,7 @@ Comments are allowed throughout a PLASMA source file. The format follows that of
 ### Declarations
 The beginning of the source file is the best place for certain declarations. This will help when reading others' code as well as returning to your own after a time.
 
-### Module Dependencies
+#### Module Dependencies
 Module dependencies will direct the loader to make sure these modules are loaded first, thus resolving any outstanding references.  A module dependency is declared with the `import` statement block with predefined function and data definitions. The `import` block is completed with an `end`. An example:
 
 ```
@@ -69,7 +69,7 @@ Module dependencies will direct the loader to make sure these modules are loaded
 
 The `predef` pre-defines functions that can be called throughout the module.  The data declarations, `byte` and `word` will refer to data in those modules. Case is not significant for either the module name nor the pre-defined function/data labels. They are all converted to uppercase with 16 characters significant when the loader resolves them.
 
-### Constant Declarations
+#### Constant Declarations
 Constants help with the readability of source code where hard-coded numbers might not be very descriptive.
 
 ```
@@ -80,26 +80,26 @@ Constants help with the readability of source code where hard-coded numbers migh
 
 These constants can be used in expressions just like a variable name.
 
-### Predefined Functions
+#### Predefined Functions
 Sometimes a function needs to be referenced before it is defined. The `predef` declaration reserves the label for a function. The 'import' declaration block also uses the `predef` declaration to reserve an external function. Outside of an `import` block, `predef` will only predefine a function that must be declared later in the source file, otherwise an error will occur.
 
 ```
     predef exec_file, mydef
 ```
 
-### Global Data & Variable Declarations
+#### Global Data & Variable Declarations
 One of the most powerful features in PLASMA is the flexible data declarations. 
 
-### Native Functions
+#### Native Functions
 An advanced feature of PLASMA is the ability to write functions in native assembly language. This is a very advanced topic that is covered more in-depth in the Advanced Topics section.
 
-### Function Definitions
+#### Function Definitions
 Function definitions **must** come after all other declarations. Once a function definition is written, no other globale declarations are allowed.
 
-### Module Initialization Function
+#### Module Initialization Function
 After all the function definitions are complete, an optional module initiialization routine follows. This is an un-named defintion an is written in-line without a definition declaration. As such, it doesn't have parameters or local variables. Function definitions can be called from within the initialization code.
 
-### Exported Declarations
+#### Exported Declarations
 Data and function labels can be exported so other modules may access this modules data and code. By prepending `export` to the data or functions declaration, the label will become available to the loader for inter-module resolution.
 
 ```
@@ -108,10 +108,10 @@ Data and function labels can be exported so other modules may access this module
     end
 ```
 
-### Module Done
+#### Module Done
 The final declaration of a module source file is the `done` statement. This declares the end of the source file.
 
-## Data Tyoes
+## Data Types
 
 ## Expressions
 

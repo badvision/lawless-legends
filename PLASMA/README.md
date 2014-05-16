@@ -378,6 +378,8 @@ This version of PLASMA has dispensed with the native/threaded/bytecode code gene
 Dynamically loadable modules, a backward compatible extension to the .REL format introduced by EDASM, is the new, main feature for this version of PLASMA. A game like Lawless Legends will push the capabilities of the Apple II well beyond anything before it. A powerful OS + language + VM environment is required to achieve the goals set out.
 
 ## References
+PLASMA User Manual: https://github.com/badvision/lawless-legends/blob/master/Docs/Tutorials/PLASMA/User%20Manual.md
+
 B Programming Language User Manual  http://cm.bell-labs.com/cm/cs/who/dmr/kbman.html
 
 FORTH   http://en.wikipedia.org/wiki/Forth_(programming_language)

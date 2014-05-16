@@ -1,4 +1,4 @@
-# PLASMA Programming Manual
+# PLASMA Programming User Manual
 ## ( Proto Language AsSeMbler for Apple)
 
 ## Introduction

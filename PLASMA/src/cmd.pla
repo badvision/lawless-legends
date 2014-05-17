@@ -372,25 +372,6 @@ end
 ;	RTS
 ;end
 ;
-; SET VIEWPORT RELATIVE CURSOR POSITION
-; GOTOXY(X,Y)
-;
-asm gotoxy
-	LDA	ESTKL+1,X
-	STA	$24
-	LDA	ESTKL,X
-	CLC
-	ADC	$22
-	STA	$25
-	STX     ESP
-	BIT	ROMEN
-	JSR	$FC22
-	BIT	LCRDEN+LCBNK2
-	LDX     ESP
-	INX
-	RTS
-end
-;
 ; SET VIEWPORT
 ; VIEWPORT(LEFT, TOP, WIDTH, HEIGHT)
 ;
@@ -407,13 +388,32 @@ asm viewport
 	LDY	#$00
 	STY	$24
 	LDA	$22
-	STX     ESP
+	INX
+	INX
+	BNE	VTAB
+;	STX     ESP
+;	BIT	ROMEN
+;	JSR	$FB5B
+;	BIT	LCRDEN+LCBNK2
+;	LDX     ESP
+;	INX
+;	RTS
+end
+;
+; SET VIEWPORT RELATIVE CURSOR POSITION
+; GOTOXY(X,Y)
+;
+asm gotoxy
+	LDA	ESTKL+1,X
+	STA	$24
+	LDA	ESTKL,X
+	CLC
+	ADC	$22
+VTAB	STX     ESP
 	BIT	ROMEN
 	JSR	$FB5B
 	BIT	LCRDEN+LCBNK2
 	LDX     ESP
-	INX
-	INX
 	INX
 	RTS
 end
@@ -504,18 +504,6 @@ asm rdstr
 	LDA     #$01
 	STA     ESTKH,X
 	BIT	LCRDEN+LCBNK2
-	RTS
-end
-asm toupper
-	LDA     ESTKL,X
-	AND	#$7F
-	CMP     #'a'
-	BCC     +
-	CMP     #'z'+1
-	BCS     +
-	SEC
-	SBC     #$20
-+	STA     ESTKL,X
 	RTS
 end
 asm uword_isge
@@ -640,28 +628,33 @@ asm stodci
 	INX
 	LDY	#$00
 	LDA	(SRC),Y
-	STA	ESTKL,X
-	STY	ESTKH,X
 	BEQ	++
 	TAY
 	LDA	(SRC),Y
-	JSR	+++
+	JSR	TOUPR
 	BNE	+
 -	LDA	(SRC),Y
-	JSR	+++
+	JSR	TOUPR
 	ORA	#$80
 +	DEY
 	STA	(DST),Y
 	BNE	-
-++	RTS
-+++	AND	#$7F
+	LDA	(SRC),Y
+++	STA	ESTKL,X
+	STY	ESTKH,X
+	RTS
+end
+asm toupper
+	LDA     ESTKL,X
+TOUPR	AND	#$7F
 	CMP     #'a'
 	BCC     +
 	CMP     #'z'+1
 	BCS     +
 	SEC
 	SBC     #$20
-+	RTS
++	STA     ESTKL,X
+	RTS
 end
 ;
 ; Module symbols are entered into the symbol table
@@ -1053,7 +1046,7 @@ def adddef(bank, addr, deflast)
     return *deflast - 5
 end
 def loadmod(mod)
-    word refnum, rdlen, modsize, flags, bytecode, defofst, defcnt, init, fixup
+    word refnum, rdlen, modsize, bytecode, defofst, defcnt, init, fixup
     word addr, defaddr, modaddr, modfix
     word deftbl, deflast
     word moddep, rld, esd, cdd, sym;
@@ -1069,12 +1062,12 @@ def loadmod(mod)
         init    = 0
         rdlen   = read(refnum, @header, 128)
 	modsize = header:0
+	moddep  = @header + 1
         if rdlen > 4 and header:2 == $DA7E ; DAVE = magic number :-)
             ;
             ; This is an EXTended RELocatable (data+bytecode) module.
             ;
-            flags    = header:4
-	    sysflags = sysflags | flags
+	    sysflags = header:4 | sysflags
             defofst  = header:6
             defcnt   = header:8
             init     = header:10
@@ -1082,18 +1075,16 @@ def loadmod(mod)
 	    ;
 	    ; Load module dependencies.
 	    ;
-            if ^moddep
-                while ^moddep
-                    if lookupmod(moddep) == 0
-		        close(refnum)
-			refnum = 0
-                        if loadmod(moddep) < 0
-			    return perr
-			fin
-                    fin
-                    moddep = moddep + dcitos(moddep, @str)
-                loop
-            fin
+            while ^moddep
+                if lookupmod(moddep) == 0
+		    close(refnum)
+	            refnum = 0
+                    if loadmod(moddep) < 0
+	      	        return perr
+		    fin
+                fin
+                moddep = moddep + dcitos(moddep, @str)
+            loop
 	    ;
 	    ; Init def table.
 	    ;
@@ -1111,8 +1102,12 @@ def loadmod(mod)
 	;
 	; Alloc heap space for relocated module (data + bytecode).
 	;
+	moddep  = moddep  + 1
+	modfix  = moddep  - @header ; Adjust to skip header
+	modsize = modsize - modfix
+	rdlen   = rdlen   - modfix
 	modaddr = allocheap(modsize)
-	memcpy(modaddr, @header, rdlen)
+	memcpy(modaddr, moddep, rdlen)
 	;
 	; Read in remainder of module into memory for fixups.
 	;
@@ -1125,11 +1120,11 @@ def loadmod(mod)
 	;
 	; Apply all fixups and symbol import/export.
 	;
-        modfix   = modaddr - MODADDR
+        modfix   = modaddr - modfix - MODADDR
         bytecode = defofst + modfix
         rld      = modaddr + modsize ; Re-Locatable Directory
-        cdd      = rld                ; Code Definition Directory
-        esd      = rld                ; Extern+Entry Symbol Directory
+        cdd      = rld               ; Code Definition Directory
+        esd      = rld               ; Extern+Entry Symbol Directory
         while ^esd <> $00 ; Scan to end of ESD
             esd = esd + 4
 	loop
@@ -1157,20 +1152,14 @@ def loadmod(mod)
                 adddef(defbank, (rld):1 - defofst + defaddr, @deflast)
             else
                 addr = (rld):1 + modfix
-                if ^rld & $80
+                if ^rld & $80 ; WORD sized fixup.
                     fixup = *addr
-                else
+                else	      ; BYTE sized fixup.
                     fixup = ^addr
                 fin
-                if ^rld & $10
-		    ;
-		    ; EXTERN reference.
-		    ;
+                if ^rld & $10 ; EXTERN reference.
                     fixup = fixup + lookupextern(esd, (rld).3);
-                else
-		    ;
-		    ; INTERN fixup.
-		    ;
+                else	      ; INTERN fixup.
                     fixup = fixup + modfix
                     if uword_isge(fixup, bytecode)
                         ;
@@ -1179,15 +1168,9 @@ def loadmod(mod)
                         fixup = lookupdef(fixup - bytecode + defaddr, deftbl)
                     fin
                 fin
-                if ^rld & $80
-		    ;
-		    ; WORD sized fixup.
-                    ;
+                if ^rld & $80 ; WORD sized fixup.
                     *addr = fixup
-                else
-		    ;
-		    ; BYTE sized fixup.
-                    ;
+                else	      ; BYTE sized fixup.
                     ^addr = fixup
                 fin
                 
@@ -1200,15 +1183,11 @@ def loadmod(mod)
         while ^esd
             sym = esd
             esd = esd + dcitos(esd, @str)
-            ;if ^esd & $10
-                ;
-		; IMPORT symbol - referenced in lookupextern above.
-		;
             if ^esd & $08
-                addr = (esd):1 + modfix
 		;
                 ; EXPORT symbol - add it to the global symbol table.
 		;
+                addr = (esd):1 + modfix
                 if uword_isge(addr, bytecode)
 		    ;
 		    ; Use the def directory address for bytecode.

@@ -24,7 +24,7 @@ Lastly, PLASMA is not a typed language. Just like assembly, any value can repres
 The PLASMA low level operations are defined as:
 
 | OP    |                  Description
-|-------|-----------------------------------
+|:-----:|-----------------------------------
 | ZERO  | push zero on the stack
 | ADD   | add top two values, leave result on top
 | SUB   | subtract next from top from top, leave result on top
@@ -206,7 +206,7 @@ Expressions are algebraic.  Data is free-form, but all operations on the evaluat
 More complex expressions can be built up using algebraic unary and binary operations.
 
 | OP   |     Unary Operation
-|------|--------------------
+|:----:|--------------------
 | ^    | byte pointer
 | *    | word pointer
 | @    | address of
@@ -216,7 +216,7 @@ More complex expressions can be built up using algebraic unary and binary operat
 
 
 | OP   |     Binary Operation
-|------|---------------------
+|:----:|---------------------
 | *    | multiply
 | /    | divide
 | %    | modulo

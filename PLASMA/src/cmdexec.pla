@@ -4,7 +4,6 @@ const memmap      = $BF58
 const sysfile     = $0280
 byte syshalt[]    = "SYSTEM HALTED..."
 byte perr
-
 ;
 ; Utility functions
 ;
@@ -77,57 +76,6 @@ SETMLP 	DEC	ESTKL,X
 ++	INX
 	RTS
 end
-;
-; COPY MEMORY
-; MEMCPY(DSTADDR, SRCADDR, SIZE)
-;
-asm memcpy
-	LDY	#$00
-	LDA	ESTKL,X
-	BNE	+
-	LDA	ESTKH,X
-	BEQ	MEMEXIT
-+	LDA	ESTKL+2,X
-	STA	DSTL
-	LDA	ESTKH+2,X
-	STA	DSTH
-	LDA	ESTKL+1,X
-	STA	SRCL
-	LDA	ESTKH+1,X
-	STA	SRCH
-	INC	ESTKH,X
-CPYLP	LDA	(SRC),Y
-	STA	(DST),Y
-	INC	DSTL
-	BNE	+
-	INC	DSTH
-+	INC	SRCL
-	BNE	+
-	INC	SRCH
-+	DEC	ESTKL,X
-	BNE	CPYLP
-	DEC	ESTKH,X
-	BNE	CPYLP
-MEMEXIT	INX
-	INX
-	RTS
-end
-;
-; CHAR OUT
-; COUT(CHAR)
-;
-asm cout
-	LDA	ESTKL,X
-	ORA	#$80
-	BIT	ROMEN
-	JSR	$FDED
-	BIT	LCRDEN+LCBNK2
-	RTS
-end
-;
-; CHAR IN
-; RDKEY()
-;
 asm cin
 	BIT	ROMEN
 	STX	ESP
@@ -163,9 +111,6 @@ asm prstr
 	BNE	-
 +	BIT	LCRDEN+LCBNK2
 	RTS
-end
-def crout
-    cout($0D)
 end
 ;
 ; ProDOS routines

@@ -212,7 +212,7 @@ More complex expressions can be built up using algebraic unary and binary operat
 | @    | address of
 | -    | negate
 | ~    | bitwise compliment
-| !    | logical NOT
+| NOT  | logical NOT
 
 
 | OP   |     Binary Operation

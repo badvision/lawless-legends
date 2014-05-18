@@ -1,6 +1,6 @@
 const MACHID      = $BF98
 const iobuffer    = $0800
-const databuff    = $0C00
+const databuff    = $2000
 const MODADDR     = $1000
 const symtbl      = $0C00
 const freemem     = $0006
@@ -1361,7 +1361,7 @@ def execsys(sysfile)
 	striptrail(sysfile)
 	refnum = open(sysfile, iobuffer)
 	if refnum
-	    len = read(refnum, $2000, $FFFF)
+	    len = read(refnum, databuff, $FFFF)
 	    resetmemfiles()
 	    if len
 	        memcpy(sysfile, $280, ^$280 + 1)

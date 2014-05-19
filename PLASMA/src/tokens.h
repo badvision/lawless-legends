@@ -41,7 +41,7 @@
 #define DONE_TOKEN          TOKEN(27)
 #define RETURN_TOKEN        TOKEN(28)
 #define BREAK_TOKEN         TOKEN(29)
-#define START_TOKEN         TOKEN(30)
+#define SYSFLAGS_TOKEN      TOKEN(30)
 #define EXIT_TOKEN          TOKEN(31)
 #define EVAL_TOKEN          TOKEN(32)
 /*

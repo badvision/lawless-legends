@@ -1024,6 +1024,19 @@ int parse_vars(int type)
     
     switch (scantoken)
     {
+        case SYSFLAGS_TOKEN:
+            if (type & (EXTERN_TYPE | LOCAL_TYPE))
+            {
+                parse_error("sysflags must be global");
+                return (0);
+            }
+            if (!parse_constexpr(&value, &size))
+            {
+                parse_error("Bad constant");
+                return (0);
+            }
+            emit_sysflags(value);
+            break;
         case CONST_TOKEN:
             if (scan() != ID_TOKEN)
             {
@@ -1113,7 +1126,7 @@ int parse_vars(int type)
     }
     return (1);
 }
-int parse_imps(void)
+int parse_mods(void)
 {
     if (scantoken == IMPORT_TOKEN)
     {
@@ -1306,7 +1319,7 @@ int parse_module(void)
     emit_header();
     if (next_line())
     {
-        while (parse_imps())            next_line();
+        while (parse_mods())            next_line();
         while (parse_vars(GLOBAL_TYPE)) next_line();
         while (parse_defs())            next_line();
         if (scantoken != DONE_TOKEN && scantoken != EOF_TOKEN)

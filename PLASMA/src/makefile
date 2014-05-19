@@ -65,3 +65,9 @@ hello: hello.pla $(PLVM) $(PLASM)
 ROD.REL: rod.pla $(PLVM) $(PLASM)
 	./$(PLASM) -AM < rod.pla > rod.a
 	acme --setpc 4096 -o ROD.REL rod.a
+
+HGR1:	hgr1.pla hgr1test.pla $(PLVM) $(PLASM)
+	./$(PLASM) -AM < hgr1test.pla > hgr1test.a
+	acme --setpc 4096 -o HGR1TEST.REL hgr1test.a
+	./$(PLASM) -AM < hgr1.pla > hgr1.a
+	acme --setpc 4096 -o HGR1 hgr1.a

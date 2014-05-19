@@ -275,24 +275,24 @@ int load_mod(byte *mod)
                 len = read(fd, header, 128);
             }
         }
-	/*
-	 * Alloc heap space for relocated module (data + bytecode).
-	 */           
+        /*
+         * Alloc heap space for relocated module (data + bytecode).
+         */           
         moddep += 1;
         hdrlen  = moddep - header;
         len    -= hdrlen;
         modaddr = mark_heap();
         end     = modaddr + len;
-	/*
-	 * Read in remainder of module into memory for fixups.
-	 */
+        /*
+         * Read in remainder of module into memory for fixups.
+         */
         memcpy(mem_data + modaddr, moddep, len);
         while ((len = read(fd, mem_data + end, 4096)) > 0)
             end += len;
         close(fd);
-	/*
-	 * Apply all fixups and symbol import/export.
-	 */
+        /*
+         * Apply all fixups and symbol import/export.
+         */
         modfix    = modaddr - hdrlen - MOD_ADDR;
         bytecode += modfix;
         end       = modaddr - hdrlen + modsize;

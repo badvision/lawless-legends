@@ -4,6 +4,7 @@ void emit_flags(int flags);
 void emit_header(void);
 void emit_trailer(void);
 void emit_moddep(char *name, int len);
+void emit_sysflags(int val);
 void emit_bytecode_seg(void);
 void emit_comment(char *s);
 void emit_asm(char *s);

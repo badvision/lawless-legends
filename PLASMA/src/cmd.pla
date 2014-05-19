@@ -12,7 +12,7 @@ const xreg        = 1
 const yreg        = 2
 const preg        = 3
 ;
-; Memory allocator screen holes.
+; System flags: memory allocator screen holes.
 ;
 const restxt1     = $0001
 const restxt2     = $0002
@@ -91,9 +91,9 @@ byte prefix[32]   = ""
 ; System variable.
 ;
 word heapsttart, heap
-word lastsym  = symtbl
-word xheap    = $0400
-word sysflags = 0
+word lastsym     = symtbl
+word xheap       = $0400
+word systemflags = 0
 word perr
 word cmdptr
 ;
@@ -882,13 +882,13 @@ def allocheap(size)
     word addr
     addr = heap
     heap = heap + size
-    if sysflags & reshgr1
+    if systemflags & reshgr1
         if uword_isle(addr, $4000) and uword_isgt(heap, $2000)
 	    addr = $4000
 	    heap = addr + size
 	fin
     fin
-    if sysflags & reshgr2
+    if systemflags & reshgr2
         if uword_isle(addr, $6000) and uword_isgt(heap, $4000)
 	    addr = $6000
 	    heap = addr + size
@@ -926,25 +926,25 @@ def allocxheap(size)
     word xaddr
     xaddr = xheap
     xheap = xheap + size
-    if sysflags & restxt1
+    if systemflags & restxt1
         if uword_isle(xaddr, $0800) and uword_isgt(xheap, $0400)
 	    xaddr = $0800
 	    xheap = xaddr + size
 	fin
     fin
-    if sysflags & restxt2
+    if systemflags & restxt2
         if uword_isle(xaddr, $0C00) and uword_isgt(xheap, $0800)
 	    xaddr = $0C00
 	    xheap = xaddr + size
 	fin
     fin
-    if sysflags & resxhgr1
+    if systemflags & resxhgr1
         if uword_isle(xaddr, $4000) and uword_isgt(xheap, $2000)
 	    xaddr = $4000
 	    xheap = xaddr + size
 	fin
     fin
-    if sysflags & resxhgr2
+    if systemflags & resxhgr2
         if uword_isle(xaddr, $6000) and uword_isgt(xheap, $4000)
 	    xaddr = $6000
 	    xheap = xaddr + size
@@ -1067,7 +1067,7 @@ def loadmod(mod)
             ;
             ; This is an EXTended RELocatable (data+bytecode) module.
             ;
-	    sysflags = header:4 | sysflags
+	    systemflags = header:4 | systemflags
             defofst  = header:6
             defcnt   = header:8
             init     = header:10
@@ -1383,15 +1383,15 @@ def execmod(modfile)
   
     if stodci(modfile, @moddci)
         saveheap  = heap
-	savexheap = xheap
-	savesym   = lastsym
-	saveflags = sysflags
-	^lastsym  = 0
-	perr      = loadmod(@moddci)
-	sysflags  = saveflags
-	lastsym    = savesym
-	xheap     = savexheap
-	heap      = saveheap
+	savexheap   = xheap
+	savesym     = lastsym
+	saveflags   = systemflags
+	^lastsym    = 0
+	perr        = loadmod(@moddci)
+	systemflags = saveflags
+	lastsym     = savesym
+	xheap       = savexheap
+	heap        = saveheap
     fin
 end
 

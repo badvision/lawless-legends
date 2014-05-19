@@ -244,7 +244,8 @@ int fixup_new(int tag, int type, int size)
  * Emit assembly code.
  */
 #define BYTECODE_SEG	8
-#define INIT		 	16
+#define INIT		16
+#define SYSFLAGS        32
 static int outflags = 0;
 static char *DB = ".BYTE";
 static char *DW = ".WORD";
@@ -312,7 +313,7 @@ void emit_header(void)
         printf("_SEGBEGIN%c\n", LBL);
         printf("\t%s\t_SEGEND-_SEGBEGIN\t; LENGTH OF HEADER + CODE/DATA + BYTECODE SEGMENT\n", DW);
         printf("\t%s\t$DA7E\t\t\t; MAGIC #\n", DW);
-        printf("\t%s\t0\t\t\t; SYSTEM FLAGS\n", DW);
+        printf("\t%s\t_SYSFLAGS\t\t\t; SYSTEM FLAGS\n", DW);
         printf("\t%s\t_SUBSEG\t\t\t; BYTECODE SUB-SEGMENT\n", DW);
         printf("\t%s\t_DEFCNT\t\t\t; BYTECODE DEF COUNT\n", DW);
         printf("\t%s\t_INIT\t\t\t; MODULE INITIALIZATION ROUTINE\n", DW);
@@ -385,6 +386,8 @@ void emit_trailer(void)
         emit_bytecode_seg();
     if (!(outflags & INIT))
         printf("_INIT\t=\t0\n");
+    if (!(outflags & SYSFLAGS))
+        printf("_SYSFLAGS\t=\t0\n");
     if (outflags & MODULE)
     {
         printf("_DEFCNT\t=\t%d\n", defs);
@@ -399,6 +402,11 @@ void emit_moddep(char *name, int len)
         emit_dci(name, len);
     else
         printf("\t%s\t$00\t\t\t; END OF MODULE DEPENDENCIES\n", DB);
+}
+void emit_sysflags(int val)
+{
+    printf("_SYSFLAGS\t=\t$%04X\t\t; SYSTEM FLAGS\n", val);
+    outflags |= SYSFLAGS;
 }
 void emit_bytecode_seg(void)
 {

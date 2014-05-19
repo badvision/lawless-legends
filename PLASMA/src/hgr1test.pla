@@ -1,0 +1,16 @@
+import STDLIB
+    predef memset, memcpy, cin
+end
+import HGR1
+end
+
+byte i = 0
+word hcolor[] = $0000, $552A, $2A55, $7F7F, $8080, $D5AA, $AAD5, $FFFF
+repeat
+    memset($2000, $2000, hcolor[i])
+    i = (i + 1) & 7
+until ^$C000 >= 128
+^$C010
+^$C054
+^$C051
+done

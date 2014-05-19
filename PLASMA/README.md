@@ -205,8 +205,8 @@ Expressions are algebraic.  Data is free-form, but all operations on the evaluat
 
 More complex expressions can be built up using algebraic unary and binary operations.
 
-| OP   |     Unary Operation
-|:----:|--------------------
+| OP   |     Unary Operation |
+|:----:|---------------------|
 | ^    | byte pointer
 | *    | word pointer
 | @    | address of
@@ -215,8 +215,8 @@ More complex expressions can be built up using algebraic unary and binary operat
 | NOT  | logical NOT
 
 
-| OP   |     Binary Operation
-|:----:|---------------------
+| OP   |     Binary Operation |
+|:----:|----------------------|
 | *    | multiply
 | /    | divide
 | %    | modulo
@@ -225,8 +225,8 @@ More complex expressions can be built up using algebraic unary and binary operat
 | <<   | shift left
 | >>   | shift right
 | &    | bitwise AND
-| |    | bitwise OR
 | ^    | bitwise XOR
+| &#124; | bitwise OR
 | ==   | equals
 | <>   | not equal
 | >=   | greater than or equal

@@ -4,6 +4,9 @@
 ## Introduction
 PLASMA is a medium level programming language targetting the 8 bit 6502 processor. Historically, there were simple languages developed in the early history of computers that improved on the tedium of assembly language programming while still being low level enough for system coding. Languages like B, FORTH, and PLASMA fall into this category. The following will take you through the process of writing, building and running a PLASMA module.
 
+### PLASMA Modules
+To keep development compartmentalized and easily managed, PLASMA uses relatively small, dynamically loaded and linked modules. The module format extends the .REL filetype originally defined by the EDASM assembler from the DOS/ProDOS Toolkit from Apple Computer, Inc. PLASMA extends the file format through a backwards compatible extension that the PLASMA loader recognizes to locate the PLASMA bytecode and provide for advanced dynamic loading of module dependencies.
+
 ### Obligatory 'Hello World'
 To start things off, here is the standard introductory program:
 

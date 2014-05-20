@@ -150,6 +150,6 @@ Bytes are unsigned, 8 bit values, stored at an address.  Bytes cannot be manipul
 
 ### Control Flow
 
-### Dynamic Heap Memory Allocation
+## Dynamic Heap Memory Allocation
 
 ## Advanced Topics

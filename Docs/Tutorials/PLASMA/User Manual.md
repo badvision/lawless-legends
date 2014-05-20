@@ -127,6 +127,10 @@ All temporary values are loaded and manipulated on the evaluation stack. This is
 ## Data Types
 PLASMA only really defines two types: `byte`, `word`. All operations take place on word sized quantities, with the exception of loads and stores to byte sized addresses. The interpretation of a value can be an interger, or an address. There are a nuber of operators to identify how a value is to be interpreted.
 
+### Decimal and Hexadecimal Numbers
+
+### Character and String Literals
+
 ### Bytes
 Bytes are unsigned, 8 bit values, stored at an address.  Bytes cannot be manipulated as bytes, but are promoted to words as soon as they are loaded ontp the evaluation stack. When stored to a byte addres, the low order byte of a word is used.
 

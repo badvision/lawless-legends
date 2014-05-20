@@ -82,7 +82,7 @@ Constants help with the readability of source code where hard-coded numbers migh
 These constants can be used in expressions just like a variable name.
 
 #### Predefined Functions
-Sometimes a function needs to be referenced before it is defined. The `predef` declaration reserves the label for a function. The 'import' declaration block also uses the `predef` declaration to reserve an external function. Outside of an `import` block, `predef` will only predefine a function that must be declared later in the source file, otherwise an error will occur.
+Sometimes a function needs to be referenced before it is defined. The `predef` declaration reserves the label for a function. The `import` declaration block also uses the `predef` declaration to reserve an external function. Outside of an `import` block, `predef` will only predefine a function that must be declared later in the source file, otherwise an error will occur.
 
 ```
     predef exec_file, mydef
@@ -95,7 +95,7 @@ One of the most powerful features in PLASMA is the flexible data declarations.
 An advanced feature of PLASMA is the ability to write functions in native assembly language. This is a very advanced topic that is covered more in-depth in the Advanced Topics section.
 
 #### Function Definitions
-Function definitions **must** come after all other declarations. Once a function definition is written, no other globale declarations are allowed.
+Function definitions **must** come after all other declarations. Once a function definition is written, no other global declarations are allowed.
 
 #### Module Initialization Function
 After all the function definitions are complete, an optional module initiialization routine follows. This is an un-named defintion an is written in-line without a definition declaration. As such, it doesn't have parameters or local variables. Function definitions can be called from within the initialization code.
@@ -113,13 +113,13 @@ Data and function labels can be exported so other modules may access this module
 The final declaration of a module source file is the `done` statement. This declares the end of the source file. Anything following this statement is ignored.
 
 ## Stacks
-The basic architecture of PLASMA relies on different stack based data structures. The stacks aren't directly manipulated from PLASMA, but almost every PLASMA operation involves one or more of the stacks. A stack architecture is a very flexible and convenient way to manage an interpreted language, even if it isn't the highest performance.
+The basic architecture of PLASMA relies on different stack based FIFO data structures. The stacks aren't directly manipulated from PLASMA, but almost every PLASMA operation involves one or more of the stacks. A stack architecture is a very flexible and convenient way to manage an interpreted language, even if it isn't the highest performance.
 
 ### Call Stack
 The call stack, where function return addresses are saved, is implemented using the hardware call stack of the CPU. This makes for a fast and efficient implementation of function call/return.
 
 ### Local Frame Stack
-Any dunctiona definition that involves parameters or local variables builds a local frame to contain the variables. Often called automatic variables, they only persist during the lifetime of the function. They are a very powerful tool when implementing recursive algorithms. PLASMA puts a limitation of 254 bytes for the size of the frame, due to the nature of the 6502 CPU. With careful planning, this shouldn't be too constraining.
+Any function definition that involves parameters or local variables builds a local frame to contain the variables. Often called automatic variables, they only persist during the lifetime of the function. They are a very powerful tool when implementing recursive algorithms. PLASMA puts a limitation of 254 bytes for the size of the frame, due to the nature of the 6502 CPU. With careful planning, this shouldn't be too constraining.
 
 ### Evaluation Stack
 All temporary values are loaded and manipulated on the evaluation stack. This is a small (16 element) stack implemeted in high performance memory/registers of the host CPU. Parameters to functions are passed on the evaluation stack, then moved to local variables for named reference inside the funtion.
@@ -149,5 +149,7 @@ Bytes are unsigned, 8 bit values, stored at an address.  Bytes cannot be manipul
 ### Expressions
 
 ### Control Flow
+
+### Dynamic Heap Memory Allocation
 
 ## Advanced Topics

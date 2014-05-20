@@ -57,24 +57,25 @@ Module dependencies will direct the loader to make sure these modules are loaded
 
 ```
     import STDLIB
+        const reshgr1 = $0004
         predef putc, puts, getc, gets, cls, gotoxy
     end
 
     import TESTLIB
-        prefef puti
         byte testdata, teststring
         word testarray
+        predef puti
     end
 ```
 
-The `predef` pre-defines functions that can be called throughout the module.  The data declarations, `byte` and `word` will refer to data in those modules. Case is not significant for either the module name nor the pre-defined function/data labels. They are all converted to uppercase with 16 characters significant when the loader resolves them.
+The `predef` pre-defines functions that can be called throughout the module.  The data declarations, `byte` and `word` will refer to data in those modules. `const` can appear in an `import` block, although not required. It does keep values associated with the imported module in a well-contained block for readability. Case is not significant for either the module name nor the pre-defined function/data labels. They are all converted to uppercase with 16 characters significant when the loader resolves them.
 
 #### Constant Declarations
 Constants help with the readability of source code where hard-coded numbers might not be very descriptive.
 
 ```
     const MACHID  = $BF98
-    const speaker = $1000
+    const speaker = $C030
     const bufflen = 2048
 ```
 
@@ -109,12 +110,40 @@ Data and function labels can be exported so other modules may access this module
 ```
 
 #### Module Done
-The final declaration of a module source file is the `done` statement. This declares the end of the source file.
+The final declaration of a module source file is the `done` statement. This declares the end of the source file. Anything following this statement is ignored.
+
+## Stacks
+The basic architecture of PLASMA relies on different stack based data structures. The stacks aren't directly manipulated from PLASMA, but almost every PLASMA operation involves one or more of the stacks. A stack architecture is a very flexible and convenient way to manage an interpreted language, even if it isn't the highest performance.
+
+### Call Stack
+The call stack, where function return addresses are saved, is implemented using the hardware call stack of the CPU. This makes for a fast and efficient implementation of function call/return.
+
+### Local Frame Stack
+Any dunctiona definition that involves parameters or local variables builds a local frame to contain the variables. Often called automatic variables, they only persist during the lifetime of the function. They are a very powerful tool when implementing recursive algorithms. PLASMA puts a limitation of 254 bytes for the size of the frame, due to the nature of the 6502 CPU. With careful planning, this shouldn't be too constraining.
+
+### Evaluation Stack
+All temporary values are loaded and manipulated on the evaluation stack. This is a small (16 element) stack implemeted in high performance memory/registers of the host CPU. Parameters to functions are passed on the evaluation stack, then moved to local variables for named reference inside the funtion.
 
 ## Data Types
+PLASMA only really defines two types: `byte`, `word`. All operations take place on word sized quantities, with the exception of loads and stores to byte sized addresses. The interpretation of a value can be an interger, or an address. There are a nuber of operators to identify how a value is to be interpreted.
 
-## Expressions
+### Bytes
+Bytes are unsigned, 8 bit values, stored at an address.  Bytes cannot be manipulated as bytes, but are promoted to words as soon as they are loaded ontp the evaluation stack. When stored to a byte addres, the low order byte of a word is used.
 
-## Control Flow
+### Words
 
-## 
+### Addresses
+
+#### Arrays
+
+#### Offsets
+
+#### Pointers
+
+## Function Definitions
+
+### Expressions
+
+### Control Flow
+
+## Advanced Topics

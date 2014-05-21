@@ -50,7 +50,7 @@ TESTLIB: testlib.pla $(PLVM) $(PLASM)
 test: test.pla TESTLIB $(PLVM) $(PLASM)
 	./$(PLASM) -AM < test.pla > test.a
 	acme --setpc 4096 -o TEST.REL test.a
-	./$(PLVM) TEST.REL MAIN
+	./$(PLVM) TEST.REL
 
 debug: test.pla TESTLIB $(PLVM) $(PLASM)
 	./$(PLASM) -AM < test.pla > test.a

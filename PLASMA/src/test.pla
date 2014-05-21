@@ -27,17 +27,17 @@ def ascii
   next
 end
 
-def nums
+def nums(range)
   word i
-  for i = -10 to 10
+  for i = -10 to range
     puti(i)
     putnl
   next
 end
 
-export def main
+export def main(range)
   cls
-  nums
+  nums(range)
   viewport(12, 12, 16, 8)
   ascii
   viewport(0, 0, 40, 24)
@@ -48,7 +48,7 @@ end
 export def indirect
   word mainptr
   mainptr = @main
-  *mainptr()
+  return mainptr(10)
 end
 
 indirect

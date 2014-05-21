@@ -428,19 +428,7 @@ int parse_value(int rvalue)
             /*
              * Function call
              */
-            if (!emit_value)
-            {
-                if (type & VAR_TYPE)
-                {
-                    if (type & LOCAL_TYPE)
-                        emit_llw(value);
-                    else
-                        emit_law(value, type);
-                }
-                else if (type & PTR_TYPE)
-                    emit_lw();
-            }
-            if (!(type & (FUNC_TYPE | CONST_TYPE)))
+            if (emit_value && !(type & (FUNC_TYPE | CONST_TYPE)))
             {
                 if (scan_lookahead() != CLOSE_PAREN_TOKEN)
                     emit_push();
@@ -461,8 +449,21 @@ int parse_value(int rvalue)
                 emit_call(value, type);
             else
             {
-                if (cparams)
-                    emit_pull();
+                if (!emit_value)
+                {
+                    if (type & VAR_TYPE)
+                    {
+                        if (type & LOCAL_TYPE)
+                            emit_llw(value);
+                        else
+                            emit_law(value, type);
+                    }
+                    else if (type & PTR_TYPE)
+                        emit_lw();
+                }
+                else
+                    if (cparams)
+                        emit_pull();
                 emit_ical();
             }
             emit_value = 1;

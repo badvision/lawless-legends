@@ -37,7 +37,6 @@ byte stdlibstr[]  = "STDLIB"
 byte clsstr[]     = "CLS"
 byte gotoxystr[]  = "GOTOXY"
 byte viewstr[]    = "VIEWPORT"
-byte putnlstr[]   = "PUTNL"
 byte putcstr[]    = "PUTC"
 byte putsstr[]    = "PUTS"
 byte getcstr[]    = "GETC"
@@ -59,7 +58,6 @@ byte execstr[]    = "EXEC"
 word exports[]    = @clsstr,    @home
 word              = @gotoxystr, @gotoxy
 word		  = @viewstr,   @viewport
-word		  = @putnlstr,  @crout
 word		  = @putcstr,   @cout
 word		  = @putsstr,   @prstr
 word		  = @getcstr,   @cin
@@ -83,8 +81,9 @@ word stdlibsym    = @exports
 ; String pool.
 ;
 byte version[]    = "PLASMA 0.9\n"
-byte errorstr[]   = "ERR: "
+byte errorstr[]   = "ERR:$"
 byte okstr[]      = "OK"
+byte huhstr[]     = "?\n"
 byte freestr[]    = "MEM FREE:$"
 byte prefix[32]   = ""
 ;
@@ -1411,28 +1410,32 @@ crout
 while 1
     prstr(getpfx(@prefix))
     cmdptr = rdstr($BA)
-    when toupper(parsecmd(cmdptr))
-        is 'Q'
-	    reboot()
-	is 'C'
-	    catalog(cmdptr)
-	is 'P'
-	    setpfx(cmdptr)
-	is 'V'
-	    volumes();
-	is '-'
-	    execsys(cmdptr)
-	    perr = $46
-	is '+'
-	    execmod(cmdptr)
-    wend
-    if perr
-        prstr(@errorstr)
-	prbyte(perr)
-        perr = 0
-    else
-        prstr(@okstr)
+    if ^cmdptr
+        when toupper(parsecmd(cmdptr))
+            is 'Q'
+	        reboot()
+	    is 'C'
+	        catalog(cmdptr)
+	    is 'P'
+	        setpfx(cmdptr)
+	    is 'V'
+	        volumes();
+	    is '-'
+	        execsys(cmdptr)
+	        perr = $46
+	    is '+'
+	        execmod(cmdptr)
+	    otherwise
+	        prstr(@huhstr)
+        wend
+        if perr
+            prstr(@errorstr)
+	    prbyte(perr)
+	    perr = 0
+        else
+            prstr(@okstr)
+        fin
+	crout()
     fin
-    crout()
 loop
 done

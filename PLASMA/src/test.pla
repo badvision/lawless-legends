@@ -2,11 +2,11 @@
 ; Declare all imported modules and their data/functions.
 ;
 import stdlib
-  predef cls, gotoxy, viewport, puts, putc, putnl, getc
+  predef cls, gotoxy, viewport, puts, putc, getc
 end
 
 import testlib
-  predef puti
+  predef puti, putnl
 end
 ;
 ; Predeclare any functions called before defined.

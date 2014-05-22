@@ -542,32 +542,18 @@ void emit_llw(int index)
 {
     printf("\t%s\t$66,$%02X\t\t\t; LLW\t[%d]\n", DB, index, index);
 }
-void emit_lab(int tag, int type)
+void emit_lab(int tag, int offset, int type)
 {
     int fixup = fixup_new(tag, type, FIXUP_WORD);
     char *taglbl = tag_string(tag, type);
-    printf("\t%s\t$68\t\t\t; LAB\t%s\n", DB, taglbl);
-    printf("_F%03d%c\t%s\t%s\t\t\n", fixup, LBL, DW, type & EXTERN_TYPE ? "0" : taglbl);
-}
-void emit_law(int tag, int type)
-{
-    int fixup = fixup_new(tag, type, FIXUP_WORD);
-    char *taglbl = tag_string(tag, type);
-    printf("\t%s\t$6A\t\t\t; LAW\t%s\n", DB, taglbl);
-    printf("_F%03d%c\t%s\t%s\t\t\n", fixup, LBL, DW, type & EXTERN_TYPE ? "0" : taglbl);
-}
-void emit_lab_ofst(int tag, int offset, int type)
-{
-    int fixup = fixup_new(tag, type, FIXUP_WORD);
-    char *taglbl = tag_string(tag, type);
-    printf("\t%s\t$68\t\t\t; LAB\t%s\n", DB, taglbl);
+    printf("\t%s\t$68\t\t\t; LAB\t%s+%d\n", DB, taglbl, offset);
     printf("_F%03d%c\t%s\t%s+%d\t\t\n", fixup, LBL, DW, type & EXTERN_TYPE ? "0" : taglbl, offset);
 }
-void emit_law_ofst(int tag, int offset, int type)
+void emit_law(int tag, int offset, int type)
 {
     int fixup = fixup_new(tag, type, FIXUP_WORD);
     char *taglbl = tag_string(tag, type);
-    printf("\t%s\t$6A\t\t\t; LAW\t%s\n", DB, taglbl);
+    printf("\t%s\t$6A\t\t\t; LAW\t%s+%d\n", DB, taglbl, offset);
     printf("_F%03d%c\t%s\t%s+%d\t\t\n", fixup, LBL, DW, type & EXTERN_TYPE ? "0" : taglbl, offset);
 }
 void emit_sb(void)
@@ -594,32 +580,18 @@ void emit_dlw(int index)
 {
     printf("\t%s\t$6E,$%02X\t\t\t; DLW\t[%d]\n", DB, index, index);
 }
-void emit_sab(int tag, int type)
+void emit_sab(int tag, int offset, int type)
 {
     int fixup = fixup_new(tag, type, FIXUP_WORD);
     char *taglbl = tag_string(tag, type);
-    printf("\t%s\t$78\t\t\t; SAB\t%s\n", DB, taglbl);
-    printf("_F%03d%c\t%s\t%s\t\t\n", fixup, LBL, DW, type & EXTERN_TYPE ? "0" : taglbl);
-}
-void emit_saw(int tag, int type)
-{
-    int fixup = fixup_new(tag, type, FIXUP_WORD);
-    char *taglbl = tag_string(tag, type);
-    printf("\t%s\t$7A\t\t\t; SAW\t%s\n", DB, taglbl);
-    printf("_F%03d%c\t%s\t%s\t\t\n", fixup, LBL, DW, type & EXTERN_TYPE ? "0" : taglbl);
-}
-void emit_sab_ofst(int tag, int offset, int type)
-{
-    int fixup = fixup_new(tag, type, FIXUP_WORD);
-    char *taglbl = tag_string(tag, type);
-    printf("\t%s\t$78\t\t\t; SAB\t%s\n", DB, taglbl);
+    printf("\t%s\t$78\t\t\t; SAB\t%s+%d\n", DB, taglbl, offset);
     printf("_F%03d%c\t%s\t%s+%d\t\t\n", fixup, LBL, DW, type & EXTERN_TYPE ? "0" : taglbl, offset);
 }
-void emit_saw_ofst(int tag, int offset, int type)
+void emit_saw(int tag, int offset, int type)
 {
     int fixup = fixup_new(tag, type, FIXUP_WORD);
     char *taglbl = tag_string(tag, type);
-    printf("\t%s\t$7A\t\t\t; SAW\t%s\n", DB, taglbl);
+    printf("\t%s\t$7A\t\t\t; SAW\t%s+%d\n", DB, taglbl, offset);
     printf("_F%03d%c\t%s\t%s+%d\t\t\n", fixup, LBL, DW, type & EXTERN_TYPE ? "0" : taglbl, offset);
 }
 void emit_dab(int tag, int type)
@@ -640,19 +612,12 @@ void emit_localaddr(int index)
 {
     printf("\t%s\t$28,$%02X\t\t\t; LLA\t[%d]\n", DB, index, index);
 }
-void emit_globaladdr(int tag, int type)
+void emit_globaladdr(int tag, int offset, int type)
 {
     int fixup = fixup_new(tag, type, FIXUP_WORD);
     char *taglbl = tag_string(tag, type);
-    printf("\t%s\t$26\t\t\t; LA\t%s\n", DB, taglbl);
-    printf("_F%03d%c\t%s\t%s\t\t\n", fixup, LBL, DW, type & EXTERN_TYPE ? "0" : taglbl);
-}
-void emit_globaladdrofst(int tag, int ofst, int type)
-{
-    int fixup = fixup_new(tag, type, FIXUP_WORD);
-    char *taglbl = tag_string(tag, type);
-    printf("\t%s\t$26\t\t\t; LA\t%s+%d\n", DB, taglbl, ofst);
-    printf("_F%03d%c\t%s\t%s+%d\t\t\n", fixup, LBL, DW, type & EXTERN_TYPE ? "" : taglbl, ofst);
+    printf("\t%s\t$26\t\t\t; LA\t%s+%d\n", DB, taglbl, offset);
+    printf("_F%03d%c\t%s\t%s+%d\t\t\n", fixup, LBL, DW, type & EXTERN_TYPE ? "" : taglbl, offset);
 }
 void emit_indexbyte(void)
 {

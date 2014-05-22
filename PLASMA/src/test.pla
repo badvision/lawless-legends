@@ -8,15 +8,17 @@ end
 import testlib
   predef puti, putnl
 end
+const mainentry = 2
 ;
 ; Predeclare any functions called before defined.
 ;
-predef main
+predef ascii, main
 ;
 ; Declare all global variables for this module.
 ;
 byte hello[] = "Hello, world.\n"
-word defptr  = main
+word defptr  = @ascii, @main
+word struct[] = 1, 10, 100
 ;
 ; Define functions.
 ;
@@ -48,7 +50,7 @@ end
 export def indirect
   word mainptr
   mainptr = @main
-  return mainptr(10)
+  return defptr:mainentry(struct:2)
 end
 
 indirect

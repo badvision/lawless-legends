@@ -28,7 +28,6 @@ predef syscall, romcall
 predef markheap, allocheap, allocalignheap, releaseheap, availheap
 predef memset, memcpy, xmemcpy, memxcpy
 predef uword_isgt, uword_isge, uword_islt, uword_isle
-predef getpfx, setpfx, newline, online, open, close, read, write, create, destroy
 predef execmod
 ;
 ; Standard Library exported functions.
@@ -50,6 +49,7 @@ byte hprelstr[]   = "HEAPRELEASE"
 byte hpavailstr[] = "HEAPAVAIL"
 byte memsetstr[]  = "MEMSET"
 byte memcpystr[]  = "MEMCPY"
+byte memxcpystr[] = "MEMXCPY"
 byte uisgtstr[]   = "ISUGT"
 byte uisgestr[]   = "ISUGE"
 byte uisltstr[]   = "ISULT"
@@ -70,26 +70,27 @@ word		  = @hpalignstr,@allocalignheap
 word		  = @hprelstr,  @releaseheap
 word		  = @memsetstr, @memset
 word		  = @memcpystr, @memcpy
+word		  = @memxcpystr, @memxcpy
 word              = @uisgtstr,  @uword_isgt
 word              = @uisgestr,  @uword_isge
 word              = @uisltstr,  @uword_islt
 word              = @uislestr,  @uword_isle
-word              = @execstr,    @execmod
+word              = @execstr,   @execmod
 word              = 0
 word stdlibsym    = @exports     
 ;
 ; String pool.
 ;
 byte version[]    = "PLASMA 0.9\n"
+byte freestr[]    = "MEM FREE:$"
 byte errorstr[]   = "ERR:$"
 byte okstr[]      = "OK"
 byte huhstr[]     = "?\n"
-byte freestr[]    = "MEM FREE:$"
 byte prefix[32]   = ""
 ;
 ; System variable.
 ;
-word heapsttart, heap
+word heap
 word lastsym     = symtbl
 word xheap       = $0400
 word systemflags = 0
@@ -112,7 +113,7 @@ LCBNK1	=	$08
 ;*
 ;* ASM VARIABLES
 ;*
-ESP	!BYTE	0
+ESP	=	$E8
 end
 ;
 ; CALL 6502 ROUTINE
@@ -315,7 +316,9 @@ end
 ;
 ; COPY FROM MAIN MEM TO AUX MEM.
 ;
-; MEMXCPY(DST, SRC, SIZE)
+; MEMXCPY(DIR, DST, SRC, SIZE)
+;   DIR = 0 : COPY FROM MAIN TO AUX
+;   DIR = 1 : COPY FROM AUX  TO MAIN
 ;
 asm memxcpy
 	LDA	ESTKL+1,X
@@ -333,43 +336,16 @@ asm memxcpy
 	STA	$43
 	STX     ESP
 	BIT	ROMEN
-	SEC
+	LDA	#$00
+	CMP	ESTKL+3,X
 	JSR	$C311
 	BIT	LCRDEN+LCBNK2
 	LDX     ESP
 	INX
 	INX
+	INX
 	RTS
 end
-;
-; COPY FROM AUX MEM TO MAIN MEM.
-;
-; XMEMCPY(DST, SRC, SIZE)
-;
-;asm xmemcpy
-;	LDA	ESTKL+1,X
-;	STA	$3C
-;	CLC
-;	ADC	ESTKL,X
-;	STA	$3E
-;	LDA	ESTKH+1,X
-;	STA	$3D
-;	ADC	ESTKH,X
-;	STA	$3F
-;	LDA	ESTKL+2,X
-;	STA	$42
-;	LDA	ESTKH+2,X
-;	STA	$43
-;	STX	ESP
-;	BIT	ROMEN
-;	CLC
-;	JSR	$C311
-;	BIT	LCRDEN+LCBNK2
-;	LDX     ESP
-;	INX
-;	INX
-;	RTS
-;end
 ;
 ; SET VIEWPORT
 ; VIEWPORT(LEFT, TOP, WIDTH, HEIGHT)
@@ -1201,7 +1177,7 @@ def loadmod(mod)
 	    ;
 	    ; Move bytecode to AUX bank.
 	    ;
-	    memxcpy(defaddr, bytecode, modsize - (bytecode - modaddr))
+	    memxcpy(0, defaddr, bytecode, modsize - (bytecode - modaddr))
 	    ;
 	    ; Free up the bytecode in main memory.
 	    ;

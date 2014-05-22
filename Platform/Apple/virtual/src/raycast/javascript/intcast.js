@@ -423,6 +423,9 @@ function intRenderSprites()
     var wRx = bSgnDx*bSgnCosT*pow2_w_w(wLogDx + wLogCosT) -
               bSgnDy*bSgnSinT*pow2_w_w(wLogDy + wLogSinT);
                             
+    if (sprite.index == debugSprite)
+      console.log("    wRx=$" + wordToHex(wRx));
+
     // If sprite is behind the viewer, skip it.
     if (wRx < 0) {
       if (sprite.index == debugSprite)
@@ -456,12 +459,18 @@ function intRenderSprites()
     // The constant below is cheesy and based on empirical observation rather than understanding.
     // Sorry :/
     var wX = bSgnRy * pow2_w_w(log2_w_w(wRy) - wLogDist + log2_w_w(252 / 8 / 0.44));  
-    if (sprite.index == debugSprite)
-      console.log("    wRx/256=" + (wRx/256.0) + ", wRy/256=" + (wRy/256.0) + ", wSize=" + wSize + ", wX=" + wX);
+    if (sprite.index == debugSprite) {
+      console.log("    wRy=$" + wordToHex(wRy) + ", wSqDist=$" + wordToHex(wSqDist) + 
+                  ", wLogDist=$" + wordToHex(wLogDist) + ", wLogSize=$" + wordToHex(wLogSize) + 
+                  ", wSize=$" + wordToHex(wSize));
+      //console.log("    wRx/256=" + (wRx/256.0) + ", wRy/256=" + (wRy/256.0) + ", wSize=" + wSize + ", wX=" + wX);
+    }
 
     // If no pixels on screen, skip it
     var wSpriteTop = 32 - (wSize >> 1);
     var wSpriteLeft = wX + wSpriteTop;
+    if (sprite.index == debugSprite)
+      console.log("    wX=$" + wordToHex(wX) + ", wSpriteTop=$" + wordToHex(wSpriteTop) + ", wSpriteLeft=$" + wordToHex(wSpriteLeft));
     var bStartTx = 0;
     if (wSpriteLeft < 0) {
       if (wSpriteLeft < -wSize) {
@@ -485,8 +494,12 @@ function intRenderSprites()
 
     // Calculate the texture bump per column. Result is really an 8.8 fix-point.
     var wTxColBump = pow2_w_w(wLog65536 - wLogSize);
+
+    // Calculate the depth index for blending with walls. The constant below is cheesy and 
+    // I'm not sure why it's needed. But it seems to keep things at roughly the right depth.
+    var bDepth = calcZ(wLogSize-75);
     if (sprite.index == debugSprite)
-      console.log("    bStartTx=" + bStartTx + ", wTxColBump=" + wTxColBump);
+      console.log("    bStartTx=$" + byteToHex(bStartTx) + ", wTxColBump=$" + wordToHex(wTxColBump) + ", bDepth=$" + byteToHex(bDepth));
 
     // Adjust from Apple II coordinates to PC coords (we render 8 pixels for each 1 Apple pix)
     wSpriteLeft *= 8;
@@ -499,9 +512,7 @@ function intRenderSprites()
     img.style.top = wSpriteTop+"px";
     img.style.width = wSize + "px";
     img.style.height = wSize + "px";
-    // The constant below is cheesy and I'm not sure why it's needed. But it seems to
-    // keep things at roughly the right depth.
-    img.style.zIndex = calcZ(wLogSize-75);
+    img.style.zIndex = bDepth;
   }
 }
 

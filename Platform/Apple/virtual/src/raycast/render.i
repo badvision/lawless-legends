@@ -77,8 +77,8 @@ wSqDist		= $AA
 wLogDist	= $AC
 wLogSize	= $AE
 wSize		= $B0
-wSpriteTop	= $B0
-wSpriteLeft	= $B2
+wSpriteTop	= $B2
+wSpriteLeft	= $B4
 
 ;---------------------------------
 ; The following are in aux mem...

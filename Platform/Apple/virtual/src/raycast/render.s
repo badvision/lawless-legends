@@ -30,7 +30,7 @@ NUM_COLS	= 63
 
 ; Useful constants
 W_LOG_256	= $0800
-W_LOG_65536	= $4000
+W_LOG_65536	= $1000
 W_LOG_VIEW_DIST = $0E3F
 
 ; Variables
@@ -795,8 +795,8 @@ spriteCalc: !zone
 	sta wSqDist+1		; save hi byte
 
 	; Calculate wLogDist = (log2_w_w(wSqDist) + wLog256) >> 1
-	txa			; hi byte in X
-	tya			; lo byte in A
+	tax			; stash hi byte in X
+	tya			; retrieve lo byte back to A
 	jsr log2_w_w		; convert to log space
 	tay			; set aside lo byte
 	txa			; work on hi byte
@@ -815,7 +815,7 @@ spriteCalc: !zone
 	sta wLogSize
 	tay			; lo byte where pow2 wants it
 	lda #>W_LOG_VIEW_DIST	; hi byte of constant
-	sbc wLogDist		; minus log dist
+	sbc wLogDist+1		; minus log dist
 	sta wLogSize+1
 	tax			; hi byte where pow2 wants it
 	jsr pow2_w_w		; get back from log space to normal space (in: Y=lo,X=hi, out: A=lo,X=hi)
@@ -934,7 +934,7 @@ spriteCalc: !zone
 	sec
 	sbc #75
 	sta depth
-	lda wLogSize
+	lda wLogSize+1
 	sbc #0
 	lsr
 	ror depth
@@ -948,7 +948,7 @@ spriteCalc: !zone
 	!if DEBUG { jsr .debug6 }
 
 .draw	; Okay, I think we're all done with calculations for this sprite.
-	brk	; would draw sprite here
+	rts	; would draw sprite here
 
 .negYX:				; subroutine to negate value in Y=lo,X=hi.
 	tya
@@ -994,20 +994,23 @@ spriteCalc: !zone
 	+prWord wLogSqRx
 	+prStr : !text "wLogSqRy=",0
 	+prWord wLogSqRy
+	+crout
 	+prStr : !text "wSqDist=",0
 	+prWord wSqDist
+	+prStr : !text "wLogDist=",0
+	+prWord wLogDist
+	+crout
 	+prStr : !text "wLogSize=",0
 	+prWord wLogSize
 	+prStr : !text "wSize=",0
 	+prWord wSize
+	+crout
 	+prStr : !text "wSpriteTop=",0
 	+prWord wSpriteTop
 	+crout
 	rts
 .debug5 +prStr : !text "wX=",0
-	+prX
-	+prA
-	+crout
+	+prXA
 	rts
 .debug6	+prStr : !text "bStartTx=",0
 	+prByte bStartTx

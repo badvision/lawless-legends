@@ -170,9 +170,15 @@ Values can be treated as pointers by preceding them with a ‘^’ for byte poin
 
 Addresses of variables and functions can be taken with a preceding ‘@’, address-of operator. Parenthesis can surround an expression to be used as a pointer, but not address-of.
 
-Functions can have optional parameters when called.  Defined functions without parameters can be called simply:
+Functions can have optional parameters when called and local variables.  Defined functions without parameters can be called simply, without any paranthesis.
 
 ```
+    def drawscrn(topline, leftpos)
+        byte i
+        for i = 0 to 23
+            drawline(textbuff[i + topline], leftpos)
+        next
+    end
     def redraw
         cursoff
         drawscrn(scrntop, scrnleft)

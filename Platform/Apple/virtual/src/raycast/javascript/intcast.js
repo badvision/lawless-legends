@@ -54,7 +54,7 @@ var player = {
   x : 1.5,      // current x, y position
   y : 2.5,
   dir : 0,    // the direction that the player is turning, either -1 for left or 1 for right.
-  angleNum : 4, // the current angle of rotation
+  angleNum : 5, // the current angle of rotation
   speed : 0,    // is the playing moving forward (speed = 1) or backwards (speed = -1).
   moveSpeed : 0.25,  // how far (in map units) does the player move each step/update
   rotSpeed : 22.5 * Math.PI / 180, // how much does the player rotate each step/update (in radians)
@@ -470,7 +470,7 @@ function intRenderSprites()
     var wSpriteTop = 32 - (wSize >> 1);
     var wSpriteLeft = wX + wSpriteTop;
     if (sprite.index == debugSprite)
-      console.log("    wX=$" + wordToHex(wX) + ", wSpriteTop=$" + wordToHex(wSpriteTop) + ", wSpriteLeft=$" + wordToHex(wSpriteLeft));
+      console.log("    wX=$" + wordToHex(wX & 0xFFFF) + ", wSpriteTop=$" + wordToHex(wSpriteTop) + ", wSpriteLeft=$" + wordToHex(wSpriteLeft & 0xFFFF));
     var bStartTx = 0;
     if (wSpriteLeft < 0) {
       if (wSpriteLeft < -wSize) {

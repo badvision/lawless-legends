@@ -436,9 +436,13 @@ castRay: !zone
 	sta spriteX+1
 	lda mapY
 	sta spriteY+1		; y coord of sprite
+	tya			; save Y reg to avoid losing our place on the map
+	pha
 	jsr spriteCalc		; do all the magic math to calculate the sprite's position
-	bcc .spriteDone		; if sprite is off-screen, don't draw it
+	bcc +			; if sprite is off-screen, don't draw it
 	jsr drawSprite		; put it on screen
++	pla
+	tay			; restore map position index
 .spriteDone:
 	jmp .DDA_step		; trace this ray some more
 
@@ -550,6 +554,7 @@ castRay: !zone
 }
 !if DEBUG {
 .debugSprite:
+	+crout
 	+prStr : !text "Hit sprite, mapX=",0
 	+prByte mapX
 	+prStr : !text "mapY=",0
@@ -562,11 +567,13 @@ castRay: !zone
 
 ;------------------------------------------------------------------------------
 ; Perform screen position calculations for a sprite.
-; Input: spriteX, spriteY, playerX, playerY
+; Input: spriteX, spriteY, playerX, playerY, playerDir
 ; Output: clc if sprite is off screen
 ;         sec if sprite is on screen, and sets the following variables:
 ;         lineCt (height), wSpriteLeft, txColumn, wTxColBump, depth
 spriteCalc: !zone
+	!if DEBUG { jsr .debug0 }
+
 	lda #0			; track sign bits
 	sta bSgnSinT
 	sta bSgnCosT
@@ -848,11 +855,16 @@ spriteCalc: !zone
 	adc #6			; hi byte of const
 	tax			; put it where pow2 wants it
 	jsr pow2_w_w		; back to normal space (in: Y=lo,X=hi, out: A=lo,X=hi)
-	; don't need to actually store wX -- it's only needed for spriteLeft below
-
+	tay			; save lo byte to Y
+	lda bSgnRy		; check sign
+	and #1			; only the lo bit counts
+	beq +			; clear, no invert
+	jsr .negYX
++	; don't need to actually store wX -- it's only needed for spriteLeft below
 	!if DEBUG { jsr .debug5 }
 
 	; Calculate wSpriteLeft = wx + wSpriteTop
+	tya
 	clc			; lo byte already in A from code above
 	adc wSpriteTop		; add to spriteTop (which if you think about it, is a function of dist just like spriteLeft)
 	sta wSpriteLeft		; store lo byte of left coord
@@ -860,6 +872,7 @@ spriteCalc: !zone
 	txa			; hi byte in X from code above
 	adc wSpriteTop+1	; hi byte of top
 	sta wSpriteLeft+1	; save hi byte of left coord
+	!if DEBUG { jsr .debug6 }
 	bmi .ckLeft		; if negative, check against left side
 
 	; Left coord is positive, check against right side
@@ -934,7 +947,7 @@ spriteCalc: !zone
 	lsr
 	ror depth
 
-	!if DEBUG { jsr .debug6 }
+	!if DEBUG { jsr .debug7 }
 
 .draw	; Okay, I think we're all done with calculations for this sprite.
 	sec	; flag to say draw it
@@ -954,6 +967,14 @@ spriteCalc: !zone
 
 	; Code for debugging sprite math
 !if DEBUG {
+.debug0 +prStr : !text "playerX=",0
+	+prWord playerX
+	+prStr : !text "playerY=",0
+	+prWord playerY
+	+prStr : !text "playerDir=",0
+	+prByte playerDir
+	+crout
+	rts
 .debug1	+prStr : !text "bSgnSinT=",0
 	+prByte bSgnSinT
 	+prStr : !text "wLogSinT=",0
@@ -1000,24 +1021,32 @@ spriteCalc: !zone
 	+crout
 	rts
 .debug5 +prStr : !text "wX=",0
-	+prXA
+	+prXY
 	rts
-.debug6	+prStr : !text "txColumn=",0
+.debug6 +prStr : !text "wSpriteLeft=",0
+	+prWord wSpriteLeft
+	+crout
+	rts
+.debug7	+prStr : !text "txColumn=",0
 	+prByte txColumn
 	+prStr : !text "wTxColBump=",0
 	+prWord wTxColBump
 	+prStr : !text "depth=",0
 	+prByte depth
+	+crout
 	rts
 }
 
 ;------------------------------------------------------------------------------
 ; Draw sprite on screen. Uses all the variables output by spriteCalc.
 drawSprite: !zone
-	lda screenCol
+	lda screenCol		; save screen column that main raycaster is doing
 	pha
-	lda wSpriteLeft
-	sta screenCol
+	lda wSpriteLeft		; lo byte of left coord
+	ldx wSpriteLeft+1	; hi byte
+	bpl +			; if positive, ok
+	lda #0			; if negative, clamp left coord to 0
++	sta screenCol
 	lda #$80		; fractional byte of txColumn
 	pha
 .lup	lda screenCol
@@ -1038,7 +1067,7 @@ drawSprite: !zone
 	sta txColumn		; and save it
 	bcc .lup		; back for more
 .done	pla			; discard fractional byte
-	pla			; get back to old screen column
+	pla			; get back ray caster's screen column
 	sta screenCol
 	rts
 

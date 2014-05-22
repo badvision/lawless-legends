@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
+#include <ctype.h>
 
 typedef unsigned char  code;
 typedef unsigned char  byte;
@@ -24,9 +26,8 @@ int show_state = 0;
 #define DEF_CALLSZ	0x0800
 #define DEF_ENTRYSZ	6
 #define MEM_SIZE	65536
-byte mem_data[MEM_SIZE], mem_code[MEM_SIZE];
-byte *mem_bank[2] = {mem_data, mem_code};
-uword sp = 0x01FE, fp = 0xBEFF, heap = 0x6000, xheap = 0x0800, deftbl = DEF_CALL, lastdef = DEF_CALL;
+byte mem_data[MEM_SIZE];
+uword sp = 0x01FE, fp = 0xFFFF, heap = 0x0200, deftbl = DEF_CALL, lastdef = DEF_CALL;
 
 #define EVAL_STACKSZ	16
 #define PUSH(v)	(*(--esp))=(v)
@@ -73,7 +74,6 @@ int stodci(char *str, byte *dci)
     dci[len - 1] &= 0x7F;
     return len;
 }
-
 /*
  * Heap routines.
  */
@@ -101,55 +101,10 @@ uword mark_heap(void)
 {
     return heap;
 }
-int release_heap(uword newheap)
+uword release_heap(uword newheap)
 {
     heap = newheap;
     return fp - heap;
-}
-uword avail_xheap(void)
-{
-    return 0xC000 - xheap;
-}
-uword alloc_xheap(int size)
-{
-    uword addr = xheap;
-    xheap += size;
-    if (xheap >= 0xC000)
-    {
-        printf("Error: xheap extinguished.\n");
-        exit (1);
-    }
-    return addr;
-}
-uword free_xheap(int size)
-{
-    xheap -= size;
-    return 0xC000 - heap;
-}
-uword mark_xheap(void)
-{
-    return xheap;
-}
-int release_xheap(uword newxheap)
-{
-    xheap = newxheap;
-    return 0xC000 - xheap;
-}
-/*
- * Copy from data mem to code mem.
- */
-void xmemcpy(uword src, uword dst, uword size)
-{
-    while (size--)
-        mem_code[dst + size] = mem_data[src + size]; 
-}
-/*
- * Copy from code mem to data mem.
- */
-void memxcpy(uword src, uword dst, uword size)
-{
-    while (size--)
-        mem_data[dst + size] = mem_code[src + size]; 
 }
 /*
  * DCI table routines,
@@ -193,13 +148,14 @@ uword lookup_tbl(byte *dci, byte *tbl)
     }
     return 0;
 }
-int add_tbl(byte *dci, int val, byte **last)
+uword add_tbl(byte *dci, int val, byte **last)
 {
     while (*dci & 0x80)
         *(*last)++ = *dci++;
     *(*last)++ = *dci++;
     *(*last)++ = val;
     *(*last)++ = val >> 8;
+    return 0;
 }
 
 /*
@@ -214,7 +170,7 @@ uword lookup_sym(byte *sym)
 {
     return lookup_tbl(sym, symtbl);
 }
-int add_sym(byte *sym, int addr)
+uword add_sym(byte *sym, int addr)
 {
     return add_tbl(sym, addr, &lastsym);
 }
@@ -231,18 +187,18 @@ uword lookup_mod(byte *mod)
 {
     return lookup_tbl(mod, modtbl);
 }
-int add_mod(byte *mod, int addr)
+uword add_mod(byte *mod, int addr)
 {
     return add_tbl(mod, addr, &lastmod);
 }
-defcall_add(int bank, int addr)
+uword defcall_add(int bank, int addr)
 {
     mem_data[lastdef]     = bank ? 2 : 1;
     mem_data[lastdef + 1] = addr;
     mem_data[lastdef + 2] = addr >> 8;
     return lastdef++;
 }
-int def_lookup(byte *cdd, int defaddr)
+uword def_lookup(byte *cdd, int defaddr)
 {
     int i, calldef = 0;
     for (i = 0; cdd[i * 4] == 0x02; i++)
@@ -255,7 +211,7 @@ int def_lookup(byte *cdd, int defaddr)
     }
     return calldef;
 }
-int extern_lookup(byte *esd, int index)
+uword extern_lookup(byte *esd, int index)
 {
     byte *sym;
     char string[32];
@@ -272,55 +228,77 @@ int extern_lookup(byte *esd, int index)
 }
 int load_mod(byte *mod)
 {
-    unsigned int len, size, end, magic, bytecode, fixup, addr, init = 0, modaddr = mark_heap();
+    uword modsize, hdrlen, len, end, magic, bytecode, fixup, addr, sysflags, defcnt = 0, init = 0, modaddr = mark_heap();
+    word modfix;
     byte *moddep, *rld, *esd, *cdd, *sym;
     byte header[128];
+    int fd;
     char filename[32], string[17];
 
     dcitos(mod, filename);
     printf("Load module %s\n", filename);
-    int fd = open(filename, O_RDONLY, 0);
+    fd = open(filename, O_RDONLY, 0);
     if ((fd > 0) && (len = read(fd, header, 128)) > 0)
     {
-        magic = header[2] | (header[3] << 8);
+        moddep  = header + 1;
+        modsize = header[0] | (header[1] << 8);
+        magic   = header[2] | (header[3] << 8);
         if (magic == 0xDA7E)
         {
             /*
              * This is a relocatable bytecode module.
              */
-            bytecode = header[4] | (header[5] << 8);
-            init     = header[6] | (header[7] << 8);
-            moddep   = header + 8;
-            if (*moddep)
+            sysflags = header[4] | (header[5] << 8);
+            bytecode = header[6] | (header[7] << 8);
+            defcnt   = header[8] | (header[9] << 8);
+            init     = header[10] | (header[11] << 8);
+            moddep   = header + 12;
+            /*
+             * Load module dependencies.
+             */
+            while (*moddep)
             {
-                /*
-                 * Load module dependencies.
-                 */
-                close(fd);
-                while (*moddep)
+                if (lookup_mod(moddep) == 0)
                 {
-                    if (lookup_mod(moddep) == 0)
-                        load_mod(moddep);
-                    moddep += dcitos(moddep, string);
+                    if (fd)
+                    {
+                        close(fd);
+                        fd = 0;
+                    }
+                    load_mod(moddep);
                 }
-                modaddr = mark_heap();
-                fd = open(filename, O_RDONLY, 0);
-                len = read(fd, mem_data + modaddr, 128);
+                moddep += dcitos(moddep, string);
             }
-            else
-                memcpy(mem_data + modaddr, header, len);
+            if (fd == 0)
+            {
+                fd = open(filename, O_RDONLY, 0);
+                len = read(fd, header, 128);
+            }
         }
-        addr = modaddr + len;
-        while ((len = read(fd, mem_data + addr, 4096)) > 0)
-            addr += len;
-        close(fd);
-        size    = addr - modaddr;
-        len     = mem_data[modaddr + 0] | (mem_data[modaddr + 1] << 8);
+        /*
+         * Alloc heap space for relocated module (data + bytecode).
+         */           
+        moddep += 1;
+        hdrlen  = moddep - header;
+        len    -= hdrlen;
+        modaddr = mark_heap();
         end     = modaddr + len;
-        rld     = mem_data + modaddr + len; // Re-Locatable Directory
-        esd     = rld; // Extern+Entry Symbol Directory
-        bytecode += modaddr - MOD_ADDR;
-        while (*esd != 0x00) // Scan to end of RLD
+        /*
+         * Read in remainder of module into memory for fixups.
+         */
+        memcpy(mem_data + modaddr, moddep, len);
+        while ((len = read(fd, mem_data + end, 4096)) > 0)
+            end += len;
+        close(fd);
+        /*
+         * Apply all fixups and symbol import/export.
+         */
+        modfix    = modaddr - hdrlen - MOD_ADDR;
+        bytecode += modfix;
+        end       = modaddr - hdrlen + modsize;
+        rld       = mem_data + end; // Re-Locatable Directory
+        esd       = rld;            // Extern+Entry Symbol Directory
+        while (*esd != 0x00)        // Scan to end of RLD
             esd += 4;
         esd++;
         cdd = rld;
@@ -329,10 +307,12 @@ int load_mod(byte *mod)
             /*
              * Dump different parts of module.
              */
-            printf("Module size: %d\n", size);
-            printf("Module code+data size: %d\n", len);
+            printf("Module size: %d\n", end - modaddr + hdrlen);
+            printf("Module code+data size: %d\n", modsize);
             printf("Module magic: $%04X\n", magic);
+            printf("Module sysflags: $%04X\n", sysflags);
             printf("Module bytecode: $%04X\n", bytecode);
+            printf("Module def count: $%04X\n", defcnt);
             printf("Module init: $%04X\n", init);
         }
         /*
@@ -346,7 +326,7 @@ int load_mod(byte *mod)
             {
                 if (show_state) printf("\tDEF         CODE");
                 addr = rld[1] | (rld[2] << 8);
-                addr += modaddr - MOD_ADDR;
+                addr += modfix;
                 rld[1] = addr;
                 rld[2] = addr >> 8;
                 end = rld - mem_data + 4;
@@ -354,7 +334,7 @@ int load_mod(byte *mod)
             else
             {
                 addr = rld[1] | (rld[2] << 8);
-                addr += modaddr - MOD_ADDR;
+                addr += modfix;
                 if (rld[0] & 0x80)
                     fixup = mem_data[addr] | (mem_data[addr + 1] << 8);
                 else
@@ -367,7 +347,7 @@ int load_mod(byte *mod)
                 else
                 {
                     if (show_state) printf("\tINTERN      ");
-                    fixup += modaddr - MOD_ADDR;
+                    fixup += modfix;
                     if (fixup >= bytecode)
                         /*
                          * Replace with call def dictionary.
@@ -384,8 +364,7 @@ int load_mod(byte *mod)
                 {
                     if (show_state) printf("BYTE");
                     mem_data[addr] = fixup;
-                }
-                
+                }                
             }
             if (show_state) printf("@$%04X\n", addr);
             rld += 4;
@@ -402,7 +381,7 @@ int load_mod(byte *mod)
             else if (esd[0] & 0x08)
             {
                 addr = esd[1] | (esd[2] << 8);
-                addr += modaddr - MOD_ADDR;
+                addr += modfix;
                 if (show_state) printf("\tEXPORT %s@$%04X\n", string, addr);
                 if (addr >= bytecode)
                     addr = def_lookup(cdd, addr);
@@ -425,10 +404,10 @@ int load_mod(byte *mod)
      */
     if (init)
     {
-        interp(mem_data + init +  modaddr - MOD_ADDR);
-        POP;
+        interp(mem_data + init +  modfix);
+        return POP;
     }
-    return (fd > 0);
+    return 0;
 }
 void interp(code *ip);
 
@@ -443,13 +422,14 @@ void call(uword pc)
             printf("NULL call code\n");
             break;
         case 1: // BYTECODE in mem_code
-            interp(mem_code + (mem_data[pc] + (mem_data[pc + 1] << 8)));
+            //interp(mem_code + (mem_data[pc] + (mem_data[pc + 1] << 8)));
             break;
         case 2: // BYTECODE in mem_data
             interp(mem_data + (mem_data[pc] + (mem_data[pc + 1] << 8)));
             break;
         case 3: // LIBRARY STDLIB::VIEWPORT
-            printf("Set Window %d, %d, %d, %d/n", POP, POP, POP, POP);
+            printf("Set Viewport %d, %d, %d, %d\n", esp[3], esp[2], esp[1], esp[0]);
+            esp += 4;
             PUSH(0);
             break;
         case 4: // LIBRARY STDLIB::PUTC
@@ -473,7 +453,7 @@ void call(uword pc)
             break;
         case 6: // LIBRARY STDLIB::PUTSZ
             s = POP;
-            while (c = mem_data[s++])
+            while ((c = mem_data[s++]))
             {
                 if (c == 0x0D)
                     c = '\n';
@@ -486,9 +466,8 @@ void call(uword pc)
             break;
         case 8: // LIBRARY STDLIB::GETS
             gets(sz);
-            i = 0;
-            while (sz[i])
-                mem_data[0x200 + i++] = sz[i];
+            for (i = 0; sz[i]; i++)
+                mem_data[0x200 + i] = sz[i];
             mem_data[0x200 + i] = 0;
             mem_data[0x1FF] = i;
             PUSH(i);
@@ -502,6 +481,11 @@ void call(uword pc)
             s = POP + 1;
             i = POP + 1;
             printf("\033[%d;%df", s, i);
+            fflush(stdout);
+            PUSH(0);
+            break;
+        case 11: // LIBRARY STDLIB::PUTNL
+            putchar('\n');
             fflush(stdout);
             PUSH(0);
             break;
@@ -757,9 +741,8 @@ void interp(code *ip)
                 call(UWORD_PTR(ip));
                 ip += 2;
                 break;
-            case 0x56: // ICALL : TOFP = IP, IP = (TOS) ; indirect call
-                val = UPOP;
-                ea = mem_data[val] | (mem_data[val + 1] << 8);
+            case 0x56: // ICALL : IP = TOS ; indirect call
+                ea = UPOP;
                 call(ea);
                 break;
             case 0x58: // ENTER : NEW FRAME, FOREACH PARAM LOCALVAR = TOS
@@ -878,7 +861,7 @@ void interp(code *ip)
                  * Odd codes and everything else are errors.
                  */
             default:
-                fprintf(stderr, "Illegal opcode 0x%02X @ 0x%04X\n", ip[-1], ip - mem_code);
+                fprintf(stderr, "Illegal opcode 0x%02X @ 0x%04X\n", ip[-1], ip - mem_data);
         }
     }
 }
@@ -891,7 +874,9 @@ char *stdlib_exp[] = {
     "GETC",
     "GETS",
     "CLS",
-    "GOTOXY"
+    "GOTOXY",
+    "PUTNL",
+    0
 };
 
 byte stdlib[] = {
@@ -917,7 +902,7 @@ int main(int argc, char **argv)
          */
         stodci("STDLIB", dci);
         add_mod(dci, 0xFFFF);
-        for (i = 0; i < 8; i++)
+        for (i = 0; stdlib_exp[i]; i++)
         {
             mem_data[i] = i + 3;
             stodci(stdlib_exp[i], dci);

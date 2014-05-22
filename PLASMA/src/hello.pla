@@ -1,5 +1,5 @@
 import STDLIB
-	predef puts
+    predef puts
 end
 
 byte hellostr[] = "Hello, world.\n"

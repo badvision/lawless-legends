@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.*?>
+<?import java.util.*?>
+<?import javafx.scene.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<MenuBar styleClass="menu" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.badvision.outlaweditor.ApplicationMenuControllerImpl">
+    <menus>
+        <Menu mnemonicParsing="false" text="File">
+            <items>
+                <MenuItem mnemonicParsing="false" onAction="#onFileOpen" text="Open" />
+                <MenuItem mnemonicParsing="false" onAction="#onFileSave" text="Save" />
+                <MenuItem mnemonicParsing="false" onAction="#onFileSaveAs" text="Save As..." />
+                <MenuItem mnemonicParsing="false" onAction="#onFileQuit" text="Quit" />
+            </items>
+        </Menu>
+        <Menu mnemonicParsing="false" text="Edit">
+            <items>
+                <MenuItem mnemonicParsing="false" onAction="#onEditSelect" text="Select" />
+                <MenuItem mnemonicParsing="false" onAction="#onEditCopy" text="Copy" />
+                <MenuItem mnemonicParsing="false" onAction="#onEditPaste" text="Paste" />
+                <Menu mnemonicParsing="false" text="Change Platform">
+                    <items>
+                        <MenuItem mnemonicParsing="false" onAction="#onChangePlatformAppleSolid" text="Apple (solid)" />
+                        <MenuItem mnemonicParsing="false" onAction="#onChangePlatformAppleText" text="Apple (text-friendly)" />
+                        <MenuItem mnemonicParsing="false" onAction="#onChangePlatformAppleDHGRSolid" text="Apple (DHGR solid)" />
+                        <MenuItem mnemonicParsing="false" onAction="#onChangePlatformAppleDHGRText" text="Apple (DHGR text)" />
+                        <MenuItem mnemonicParsing="false" onAction="#onChangePlatformC64" text="C64" />
+                    </items>
+                </Menu>
+            </items>
+        </Menu>
+        <Menu mnemonicParsing="false" text="Help">
+            <items>
+                <MenuItem mnemonicParsing="false" onAction="#onHelpAbout" text="About" />
+            </items>
+        </Menu>
+    </menus>
+</MenuBar>

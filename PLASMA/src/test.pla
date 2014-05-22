@@ -2,21 +2,23 @@
 ; Declare all imported modules and their data/functions.
 ;
 import stdlib
-  predef cls, gotoxy, puts, putc
+  predef cls, gotoxy, viewport, puts, putc, getc
 end
 
 import testlib
-  predef puti
+  predef puti, putnl
 end
+const mainentry = 2
 ;
 ; Predeclare any functions called before defined.
 ;
-predef main
+predef ascii, main
 ;
 ; Declare all global variables for this module.
 ;
-byte hello[] = "Hello, world.\n\n"
-word defptr  = main
+byte hello[] = "Hello, world.\n"
+word defptr  = @ascii, @main
+word struct[] = 1, 10, 100
 ;
 ; Define functions.
 ;
@@ -27,26 +29,28 @@ def ascii
   next
 end
 
-def nums
+def nums(range)
   word i
-  for i = -10 to 10
+  for i = -10 to range
     puti(i)
-    putc('\n')
+    putnl
   next
 end
 
-export def main
-  cls()
-  ascii()
-  gotoxy(35,5)
+export def main(range)
+  cls
+  nums(range)
+  viewport(12, 12, 16, 8)
+  ascii
+  viewport(0, 0, 40, 24)
+  gotoxy(15,5)
   puts(@hello)
-  return nums
 end
 
 export def indirect
   word mainptr
   mainptr = @main
-  mainptr()
+  return defptr:mainentry(struct:2)
 end
 
 indirect

@@ -81,12 +81,12 @@ public class UIAction {
                 }
                 currentSaveFile = f;
                 GameData newData = JAXB.unmarshal(currentSaveFile, GameData.class);
-                Application.instance.controller.setCurrentMap(null);
-                Application.instance.controller.setCurrentTile(null);
+                Application.instance.controller.mapController.setCurrentMap(null);
+                Application.instance.controller.tileController.setCurrentTile(null);
                 TilesetUtils.clear();
                 Application.gameData = newData;
                 Application.instance.controller.rebuildTileSelectors();
-                Application.instance.controller.rebuildMapSelectors();
+                Application.instance.controller.mapController.rebuildMapSelectors();
                 break;
             case Quit:
                 quit();
@@ -201,10 +201,10 @@ public class UIAction {
     public static Script createAndEditScript() {
         Script script = new Script();
         script.setName("New Script");
-        if (Application.instance.controller.currentMap.getScripts() == null) {
-            Application.instance.controller.currentMap.setScripts(new Map.Scripts());
+        if (Application.instance.controller.mapController.getCurrentMap().getScripts() == null) {
+            Application.instance.controller.mapController.getCurrentMap().setScripts(new Map.Scripts());
         }
-        Application.instance.controller.currentMap.getScripts().getScript().add(script);
+        Application.instance.controller.mapController.getCurrentMap().getScripts().getScript().add(script);
         return editScript(script);
     }
     

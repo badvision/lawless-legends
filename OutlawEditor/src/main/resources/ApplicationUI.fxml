@@ -6,190 +6,21 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<AnchorPane id="AnchorPane" prefHeight="575.0" prefWidth="1000.0" styleClass="mainFxmlClass" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.badvision.outlaweditor.ApplicationUIControllerImpl">
+<AnchorPane id="AnchorPane" prefHeight="575.0" prefWidth="1000.0" styleClass="outlawApp" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.badvision.outlaweditor.ApplicationUIControllerImpl">
   <children>
     <VBox prefHeight="500.0" prefWidth="800.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
       <children>
-        <MenuBar>
-          <menus>
-            <Menu mnemonicParsing="false" text="File">
-              <items>
-                <MenuItem mnemonicParsing="false" onAction="#onFileOpen" text="Open" />
-                <MenuItem mnemonicParsing="false" onAction="#onFileSave" text="Save" />
-                <MenuItem mnemonicParsing="false" onAction="#onFileSaveAs" text="Save As..." />
-                <MenuItem mnemonicParsing="false" onAction="#onFileQuit" text="Quit" />
-              </items>
-            </Menu>
-            <Menu mnemonicParsing="false" text="Edit">
-              <items>
-                <MenuItem mnemonicParsing="false" onAction="#onEditSelect" text="Select" />
-                <MenuItem mnemonicParsing="false" onAction="#onEditCopy" text="Copy" />
-                <MenuItem mnemonicParsing="false" onAction="#onEditPaste" text="Paste" />
-                <Menu mnemonicParsing="false" text="Change Platform">
-                  <items>
-                    <MenuItem mnemonicParsing="false" onAction="#onChangePlatformAppleSolid" text="Apple (solid)" />
-                    <MenuItem mnemonicParsing="false" onAction="#onChangePlatformAppleText" text="Apple (text-friendly)" />
-                    <MenuItem mnemonicParsing="false" onAction="#onChangePlatformAppleDHGRSolid" text="Apple (DHGR solid)" />
-                    <MenuItem mnemonicParsing="false" onAction="#onChangePlatformAppleDHGRText" text="Apple (DHGR text)" />
-                    <MenuItem mnemonicParsing="false" onAction="#onChangePlatformC64" text="C64" />
-                  </items>
-                </Menu>
-              </items>
-            </Menu>
-            <Menu mnemonicParsing="false" text="Help">
-              <items>
-                <MenuItem mnemonicParsing="false" onAction="#onHelpAbout" text="About" />
-              </items>
-            </Menu>
-          </menus>
-        </MenuBar>
+        <fx:include fx:id="menu" source="Menubar.fxml"/>
         <TabPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" prefHeight="455.0" prefWidth="676.9998779296875" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS">
           <tabs>
             <Tab onSelectionChanged="#tileTabActivated" text="Tiles">
               <content>
-                <AnchorPane id="tilesTab" minHeight="0.0" minWidth="0.0" prefHeight="420.0000999999975" prefWidth="677.0">
-                  <children>
-                    <VBox prefHeight="420.0000999999975" prefWidth="677.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
-                      <children>
-                        <ToolBar prefWidth="686.0">
-                          <items>
-                            <Label text="Tile:" />
-                            <ComboBox fx:id="tileSelector" minWidth="125.0" onAction="#onCurrentTileSelected">
-                              <items>
-                                <FXCollections fx:factory="observableArrayList">
-                                  <String fx:value="Item 1" />
-                                  <String fx:value="Item 2" />
-                                  <String fx:value="Item 3" />
-                                </FXCollections>
-                              </items>
-                            </ComboBox>
-                            <Button mnemonicParsing="false" onAction="#onTileCreatePressed" text="Create new" />
-                            <Button mnemonicParsing="false" onAction="#onTileExportPressed" text="Export" />
-                            <Button mnemonicParsing="false" onAction="#onTileClonePressed" prefWidth="64.9998779296875" text="Clone" />
-                            <Button mnemonicParsing="false" onAction="#onTileDeletePressed" text="Delete" />
-                            <MenuButton mnemonicParsing="false" text="Tools">
-                              <items>
-                                <Menu fx:id="tilePatternMenu" mnemonicParsing="false" text="Pattern" />
-                                <Menu mnemonicParsing="false" text="Draw mode">
-                                  <items>
-                                    <MenuItem mnemonicParsing="false" onAction="#tileBitMode" text="Bit Toggle" />
-                                    <MenuItem mnemonicParsing="false" onAction="#tileDraw1BitMode" text="1 bit-wide" />
-                                    <MenuItem mnemonicParsing="false" onAction="#tileDraw3BitMode" text="3 bit wide" />
-                                  </items>
-                                </Menu>
-                                <MenuItem mnemonicParsing="false" onAction="#tileShift" text="Shift..." />
-                              </items>
-                            </MenuButton>
-                          </items>
-                        </ToolBar>
-                        <HBox prefHeight="387.0" prefWidth="677.0" VBox.vgrow="ALWAYS">
-                          <children>
-                            <AnchorPane id="imageDetailsPane" prefHeight="200.0" prefWidth="200.0">
-                              <children>
-                                <Label layoutX="5.0" layoutY="5.0" prefHeight="29.0" prefWidth="37.0" text="Name" />
-                                <TextField id="" fx:id="tileNameField" layoutX="54.0" layoutY="5.0" prefWidth="147.0" />
-                                <Label layoutX="5.0" layoutY="33.0" prefHeight="29.0" prefWidth="46.0" text="ID" />
-                                <TextField fx:id="tileIdField" layoutX="54.0" layoutY="36.0" prefWidth="147.0" />
-                                <Label layoutX="5.0" layoutY="72.0" text="Category" />
-                                <TextField fx:id="tileCategoryField" layoutX="64.0" layoutY="67.0" prefHeight="26.0" prefWidth="137.0" />
-                                <CheckBox fx:id="tileObstructionField" layoutX="6.0" layoutY="98.0" mnemonicParsing="false" text="Physical Obstruction" />
-                              </children>
-                            </AnchorPane>
-                            <AnchorPane fx:id="tileEditorAnchorPane" prefHeight="387.0" prefWidth="477.0000999999975" HBox.hgrow="ALWAYS" />
-                          </children>
-                        </HBox>
-                      </children>
-                    </VBox>
-                  </children>
-                </AnchorPane>
+                  <fx:include fx:id="tile" source="tileEditorTab.fxml"/>
               </content>
             </Tab>
             <Tab onSelectionChanged="#mapTabActivated" text="Maps">
               <content>
-                <AnchorPane id="mapsTab" minHeight="0.0" minWidth="0.0">
-                  <children>
-                    <VBox prefHeight="200.0" prefWidth="100.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
-                      <children>
-                        <ToolBar prefWidth="677.0">
-                          <items>
-                            <Label text="Map:" />
-                            <ComboBox fx:id="mapSelect" minWidth="125.0" onAction="#onMapSelected">
-                              <items>
-                                <FXCollections fx:factory="observableArrayList">
-                                  <String fx:value="Item 1" />
-                                  <String fx:value="Item 2" />
-                                  <String fx:value="Item 3" />
-                                </FXCollections>
-                              </items>
-                            </ComboBox>
-                            <Button mnemonicParsing="false" onAction="#onMapCreatePressed" text="Create new" />
-                            <Button mnemonicParsing="false" onAction="#onMapClonePressed" text="Clone" />
-                            <Button mnemonicParsing="false" onAction="#onMapExportPressed" text="Export" />
-                            <Button mnemonicParsing="false" onAction="#onMapDeletePressed" text="Delete" />
-                            <Button mnemonicParsing="false" onAction="#onMapPreviewPressed" text="Preview" />
-                            <MenuButton mnemonicParsing="false" text="Tools">
-                              <items>
-                                <Menu fx:id="mapSelectTile" mnemonicParsing="false" text="Change tile" />
-                                <Menu mnemonicParsing="false" text="Draw mode">
-                                  <items>
-                                    <MenuItem mnemonicParsing="false" onAction="#mapDraw1" text="Radius 1" />
-                                    <MenuItem mnemonicParsing="false" onAction="#mapDraw3" text="Radius 3" />
-                                    <MenuItem mnemonicParsing="false" onAction="#mapDraw5" text="Radius 5" />
-                                    <MenuItem mnemonicParsing="false" onAction="#mapDrawFilledRectMode" text="Filled Rectangle" />
-                                  </items>
-                                </Menu>
-                                <MenuItem mnemonicParsing="false" onAction="#mapTogglePanZoom" text="Toggle pan/zoom controls" />
-                              </items>
-                            </MenuButton>
-                          </items>
-                        </ToolBar>
-                        <HBox prefHeight="389.0" prefWidth="677.0" VBox.vgrow="ALWAYS">
-                          <children>
-                            <AnchorPane prefHeight="200.0" prefWidth="200.0" HBox.hgrow="NEVER">
-                              <children>
-                                <Label text="Name" AnchorPane.leftAnchor="4.0" AnchorPane.topAnchor="14.0" />
-                                <TextField id="mapNameFiled" fx:id="mapNameField" layoutX="53.0" layoutY="11.0" prefWidth="147.0" />
-                                <TextField fx:id="mapWidthField" layoutX="53.0" layoutY="33.0" prefWidth="147.0" />
-                                <Label layoutX="4.0" layoutY="36.0" text="Width" />
-                                <TextField fx:id="mapHeightField" layoutX="53.0" layoutY="55.0" prefWidth="147.0" />
-                                <Label layoutX="4.0" layoutY="58.0" text="Height" />
-                                <CheckBox fx:id="mapWrapAround" contentDisplay="RIGHT" layoutX="4.0" layoutY="77.0" mnemonicParsing="false" text="Wrap at edges" />
-                                <Separator layoutX="4.0" layoutY="101.0" prefWidth="189.0" />
-                                <Label layoutX="4.0" layoutY="108.0" text="Scripts" />
-                                <ScrollPane fitToHeight="true" fitToWidth="true" prefHeight="232.0" prefWidth="200.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="157.0">
-                                  <content>
-                                    <AnchorPane id="Content" minHeight="0.0" minWidth="0.0" prefHeight="200.0" prefWidth="200.0">
-                                      <children>
-                                        <ListView fx:id="mapScriptsList" editable="true" prefHeight="217.0" prefWidth="199.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
-                                      </children>
-                                    </AnchorPane>
-                                  </content>
-                                </ScrollPane>
-                                <ToolBar layoutY="124.0" prefWidth="200.0">
-                                  <items>
-                                    <Button mnemonicParsing="false" onAction="#onMapScriptAddPressed" text="+" />
-                                    <Button mnemonicParsing="false" onAction="#onMapScriptDeletePressed" text="-" />
-                                    <Button mnemonicParsing="false" onAction="#onMapScriptClonePressed" text="Clone" />
-                                  </items>
-                                </ToolBar>
-                              </children>
-                            </AnchorPane>
-                            <AnchorPane fx:id="mapEditorAnchorPane" prefHeight="389.0" prefWidth="477.0000999999975" HBox.hgrow="SOMETIMES">
-                              <children>
-                                <Button alignment="TOP_CENTER" layoutX="265.0" mnemonicParsing="false" onAction="#scrollMapUp" styleClass="moveButton" text="Up" AnchorPane.topAnchor="5.0" />
-                                <Button layoutY="185.0" mnemonicParsing="false" onAction="#scrollMapLeft" rotate="270.0" styleClass="moveButton" text="Left" AnchorPane.leftAnchor="-20.0" />
-                                <Button layoutX="265.0" mnemonicParsing="false" onAction="#scrollMapDown" rotate="180.0" styleClass="moveButton" text="Down" AnchorPane.bottomAnchor="5.0" />
-                                <Button layoutY="175.0" mnemonicParsing="false" onAction="#scrollMapRight" rotate="90.0" styleClass="moveButton" text="Right" AnchorPane.rightAnchor="-15.0" />
-                                <Button mnemonicParsing="false" onAction="#mapZoomIn" styleClass="zoomInButton" text="+" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="5.0" />
-                                <Button mnemonicParsing="false" onAction="#mapZoomOut" prefHeight="23.999908447265625" styleClass="zoomOutButton" text="-" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="30.0" />
-                              </children>
-                            </AnchorPane>
-                          </children>
-                        </HBox>
-                      </children>
-                    </VBox>
-                  </children>
-                </AnchorPane>
+                <fx:include fx:id="map" source="mapEditorTab.fxml"/>
               </content>
             </Tab>
             <Tab onSelectionChanged="#imageTabActivated" text="Images">

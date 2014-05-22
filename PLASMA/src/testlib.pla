@@ -4,7 +4,7 @@
 import stdlib
   predef cls, gotoxy, puts, putc
 end
-byte loadstr[] = "testlib loaded!\n"
+byte loadstr[] = "testlib loaded!"
 ;
 ; Define functions.
 ;
@@ -20,6 +20,10 @@ export def puti(i)
     putc(i % 10 + '0')
   fin
 end
+export def putnl
+    putc($0D)
+end
 
-puts(@loadstr);
+puts(@loadstr)
+putnl
 done

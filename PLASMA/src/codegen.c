@@ -70,12 +70,12 @@ int idglobal_lookup(char *name, int len)
 }
 int idconst_add(char *name, int len, int value)
 {
+    char c = name[len];
     if (consts > 1024)
     {
         printf("Constant count overflow\n");
         return (0);
     }
-    char c = name[len];
     name[len] = '\0';
     emit_idconst(name, value);
     name[len] = c;
@@ -89,12 +89,12 @@ int idconst_add(char *name, int len, int value)
 }
 int idlocal_add(char *name, int len, int type, int size)
 {
+    char c = name[len];
     if (localsize > 255)
     {
         printf("Local variable size overflow\n");
         return (0);
         }
-    char c = name[len];
     name[len] = '\0';
     emit_idlocal(name, localsize);
     name[len] = c;
@@ -110,12 +110,12 @@ int idlocal_add(char *name, int len, int type, int size)
 }
 int idglobal_add(char *name, int len, int type, int size)
 {
+    char c = name[len];
     if (globals > 1024)
     {
         printf("Global variable count overflow\n");
         return (0);
     }
-    char c = name[len];
     name[len] = '\0';
     name[len] = c;
     idglobal_name[globals][0] = len;
@@ -244,7 +244,8 @@ int fixup_new(int tag, int type, int size)
  * Emit assembly code.
  */
 #define BYTECODE_SEG	8
-#define INIT		 	16
+#define INIT		16
+#define SYSFLAGS        32
 static int outflags = 0;
 static char *DB = ".BYTE";
 static char *DW = ".WORD";
@@ -312,7 +313,9 @@ void emit_header(void)
         printf("_SEGBEGIN%c\n", LBL);
         printf("\t%s\t_SEGEND-_SEGBEGIN\t; LENGTH OF HEADER + CODE/DATA + BYTECODE SEGMENT\n", DW);
         printf("\t%s\t$DA7E\t\t\t; MAGIC #\n", DW);
+        printf("\t%s\t_SYSFLAGS\t\t\t; SYSTEM FLAGS\n", DW);
         printf("\t%s\t_SUBSEG\t\t\t; BYTECODE SUB-SEGMENT\n", DW);
+        printf("\t%s\t_DEFCNT\t\t\t; BYTECODE DEF COUNT\n", DW);
         printf("\t%s\t_INIT\t\t\t; MODULE INITIALIZATION ROUTINE\n", DW);
     }
     else
@@ -383,8 +386,11 @@ void emit_trailer(void)
         emit_bytecode_seg();
     if (!(outflags & INIT))
         printf("_INIT\t=\t0\n");
+    if (!(outflags & SYSFLAGS))
+        printf("_SYSFLAGS\t=\t0\n");
     if (outflags & MODULE)
     {
+        printf("_DEFCNT\t=\t%d\n", defs);
         printf("_SEGEND%c\n", LBL);
         emit_rld();
         emit_esd();
@@ -396,6 +402,11 @@ void emit_moddep(char *name, int len)
         emit_dci(name, len);
     else
         printf("\t%s\t$00\t\t\t; END OF MODULE DEPENDENCIES\n", DB);
+}
+void emit_sysflags(int val)
+{
+    printf("_SYSFLAGS\t=\t$%04X\t\t; SYSTEM FLAGS\n", val);
+    outflags |= SYSFLAGS;
 }
 void emit_bytecode_seg(void)
 {
@@ -459,7 +470,7 @@ int emit_data(int vartype, int consttype, long constval, int constsize)
     }
     else if (consttype & ADDR_TYPE)
     {
-        if (vartype == WORD_TYPE)
+        if (vartype & WORD_TYPE)
         {
             int fixup = fixup_new(constval, consttype, FIXUP_WORD);
             datasize = 2;
@@ -480,7 +491,7 @@ int emit_data(int vartype, int consttype, long constval, int constsize)
     }
     else
     {
-        if (vartype == WORD_TYPE)
+        if (vartype & WORD_TYPE)
         {
             datasize = 2;
             printf("\t%s\t$%04lX\n", DW, constval & 0xFFFF);
@@ -531,19 +542,19 @@ void emit_llw(int index)
 {
     printf("\t%s\t$66,$%02X\t\t\t; LLW\t[%d]\n", DB, index, index);
 }
-void emit_lab(int tag, int type)
+void emit_lab(int tag, int offset, int type)
 {
     int fixup = fixup_new(tag, type, FIXUP_WORD);
     char *taglbl = tag_string(tag, type);
-    printf("\t%s\t$68\t\t\t; LAB\t%s\n", DB, taglbl);
-    printf("_F%03d%c\t%s\t%s\t\t\n", fixup, LBL, DW, type & EXTERN_TYPE ? "0" : taglbl);
+    printf("\t%s\t$68\t\t\t; LAB\t%s+%d\n", DB, taglbl, offset);
+    printf("_F%03d%c\t%s\t%s+%d\t\t\n", fixup, LBL, DW, type & EXTERN_TYPE ? "0" : taglbl, offset);
 }
-void emit_law(int tag, int type)
+void emit_law(int tag, int offset, int type)
 {
     int fixup = fixup_new(tag, type, FIXUP_WORD);
     char *taglbl = tag_string(tag, type);
-    printf("\t%s\t$6A\t\t\t; LAW\t%s\n", DB, taglbl);
-    printf("_F%03d%c\t%s\t%s\t\t\n", fixup, LBL, DW, type & EXTERN_TYPE ? "0" : taglbl);
+    printf("\t%s\t$6A\t\t\t; LAW\t%s+%d\n", DB, taglbl, offset);
+    printf("_F%03d%c\t%s\t%s+%d\t\t\n", fixup, LBL, DW, type & EXTERN_TYPE ? "0" : taglbl, offset);
 }
 void emit_sb(void)
 {
@@ -569,32 +580,18 @@ void emit_dlw(int index)
 {
     printf("\t%s\t$6E,$%02X\t\t\t; DLW\t[%d]\n", DB, index, index);
 }
-void emit_sab(int tag, int type)
+void emit_sab(int tag, int offset, int type)
 {
     int fixup = fixup_new(tag, type, FIXUP_WORD);
     char *taglbl = tag_string(tag, type);
-    printf("\t%s\t$78\t\t\t; SAB\t%s\n", DB, taglbl);
-    printf("_F%03d%c\t%s\t%s\t\t\n", fixup, LBL, DW, type & EXTERN_TYPE ? "0" : taglbl);
-}
-void emit_saw(int tag, int type)
-{
-    int fixup = fixup_new(tag, type, FIXUP_WORD);
-    char *taglbl = tag_string(tag, type);
-    printf("\t%s\t$7A\t\t\t; SAW\t%s\n", DB, taglbl);
-    printf("_F%03d%c\t%s\t%s\t\t\n", fixup, LBL, DW, type & EXTERN_TYPE ? "0" : taglbl);
-}
-void emit_sab_ofst(int tag, int offset, int type)
-{
-    int fixup = fixup_new(tag, type, FIXUP_WORD);
-    char *taglbl = tag_string(tag, type);
-    printf("\t%s\t$78\t\t\t; SAB\t%s\n", DB, taglbl);
+    printf("\t%s\t$78\t\t\t; SAB\t%s+%d\n", DB, taglbl, offset);
     printf("_F%03d%c\t%s\t%s+%d\t\t\n", fixup, LBL, DW, type & EXTERN_TYPE ? "0" : taglbl, offset);
 }
-void emit_saw_ofst(int tag, int offset, int type)
+void emit_saw(int tag, int offset, int type)
 {
     int fixup = fixup_new(tag, type, FIXUP_WORD);
     char *taglbl = tag_string(tag, type);
-    printf("\t%s\t$7A\t\t\t; SAW\t%s\n", DB, taglbl);
+    printf("\t%s\t$7A\t\t\t; SAW\t%s+%d\n", DB, taglbl, offset);
     printf("_F%03d%c\t%s\t%s+%d\t\t\n", fixup, LBL, DW, type & EXTERN_TYPE ? "0" : taglbl, offset);
 }
 void emit_dab(int tag, int type)
@@ -615,19 +612,12 @@ void emit_localaddr(int index)
 {
     printf("\t%s\t$28,$%02X\t\t\t; LLA\t[%d]\n", DB, index, index);
 }
-void emit_globaladdr(int tag, int type)
+void emit_globaladdr(int tag, int offset, int type)
 {
     int fixup = fixup_new(tag, type, FIXUP_WORD);
     char *taglbl = tag_string(tag, type);
-    printf("\t%s\t$26\t\t\t; LA\t%s\n", DB, taglbl);
-    printf("_F%03d%c\t%s\t%s\t\t\n", fixup, LBL, DW, type & EXTERN_TYPE ? "0" : taglbl);
-}
-void emit_globaladdrofst(int tag, int ofst, int type)
-{
-    int fixup = fixup_new(tag, type, FIXUP_WORD);
-    char *taglbl = tag_string(tag, type);
-    printf("\t%s\t$26\t\t\t; LA\t%s+%d\n", DB, taglbl, ofst);
-    printf("_F%03d%c\t%s\t%s+%d\t\t\n", fixup, LBL, DW, type & EXTERN_TYPE ? "" : taglbl, ofst);
+    printf("\t%s\t$26\t\t\t; LA\t%s+%d\n", DB, taglbl, offset);
+    printf("_F%03d%c\t%s\t%s+%d\t\t\n", fixup, LBL, DW, type & EXTERN_TYPE ? "" : taglbl, offset);
 }
 void emit_indexbyte(void)
 {
@@ -703,6 +693,7 @@ void emit_start(void)
 {
     printf("_INIT%c\n", LBL);
     outflags |= INIT;
+    defs++;
 }
 void emit_dup(void)
 {

@@ -556,6 +556,20 @@ void emit_law(int tag, int type)
     printf("\t%s\t$6A\t\t\t; LAW\t%s\n", DB, taglbl);
     printf("_F%03d%c\t%s\t%s\t\t\n", fixup, LBL, DW, type & EXTERN_TYPE ? "0" : taglbl);
 }
+void emit_lab_ofst(int tag, int offset, int type)
+{
+    int fixup = fixup_new(tag, type, FIXUP_WORD);
+    char *taglbl = tag_string(tag, type);
+    printf("\t%s\t$68\t\t\t; LAB\t%s\n", DB, taglbl);
+    printf("_F%03d%c\t%s\t%s+%d\t\t\n", fixup, LBL, DW, type & EXTERN_TYPE ? "0" : taglbl, offset);
+}
+void emit_law_ofst(int tag, int offset, int type)
+{
+    int fixup = fixup_new(tag, type, FIXUP_WORD);
+    char *taglbl = tag_string(tag, type);
+    printf("\t%s\t$6A\t\t\t; LAW\t%s\n", DB, taglbl);
+    printf("_F%03d%c\t%s\t%s+%d\t\t\n", fixup, LBL, DW, type & EXTERN_TYPE ? "0" : taglbl, offset);
+}
 void emit_sb(void)
 {
     printf("\t%s\t$70\t\t\t; SB\n", DB);

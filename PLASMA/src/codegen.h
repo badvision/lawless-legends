@@ -22,6 +22,8 @@ void emit_llb(int index);
 void emit_llw(int index);
 void emit_lab(int tag, int type);
 void emit_law(int tag, int type);
+void emit_lab_ofst(int tag, int offset, int type);
+void emit_law_ofst(int tag, int offset, int type);
 void emit_sb(void);
 void emit_sw(void);
 void emit_slb(int index);

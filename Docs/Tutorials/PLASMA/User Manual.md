@@ -11,7 +11,7 @@ To keep development compartmentalized and easily managed, PLASMA uses relatively
 To start things off, here is the standard introductory program:
 
 ```
-    import STDLIB
+    import stdlib
         predef puts
     end
     
@@ -59,19 +59,19 @@ The beginning of the source file is the best place for certain declarations. Thi
 Module dependencies will direct the loader to make sure these modules are loaded first, thus resolving any outstanding references.  A module dependency is declared with the `import` statement block with predefined function and data definitions. The `import` block is completed with an `end`. An example:
 
 ```
-    import STDLIB
+    import stdlib
         const reshgr1 = $0004
         predef putc, puts, getc, gets, cls, gotoxy
     end
 
-    import TESTLIB
+    import testlib
+        predef puti
         byte testdata, teststring
         word testarray
-        predef puti
     end
 ```
 
-The `predef` pre-defines functions that can be called throughout the module.  The data declarations, `byte` and `word` will refer to data in those modules. `const` can appear in an `import` block, although not required. It does keep values associated with the imported module in a well-contained block for readability. Case is not significant for either the module name nor the pre-defined function/data labels. They are all converted to uppercase with 16 characters significant when the loader resolves them.
+The `predef` pre-defines functions that can be called throughout the module.  The data declarations, `byte` and `word` will refer to data in those modules. `const` can appear in an `import` block, although not required. It does keep values associated with the imported module in a well-contained block for readability and useful with pre-processor file inclusion. Case is not significant for either the module name nor the pre-defined function/data labels. They are all converted to uppercase with 16 characters significant when the loader resolves them.
 
 #### Constant Declarations
 Constants help with the readability of source code where hard-coded numbers might not be very descriptive.
@@ -142,8 +142,9 @@ Bytes are unsigned, 8 bit values, stored at an address.  Bytes cannot be manipul
 ### Addresses
 
 #### Arrays
+##### Multi-Dimensional Arrays
 
-#### Offsets
+#### Offsets (Structure Elements)
 
 #### Pointers
 
@@ -156,3 +157,6 @@ Bytes are unsigned, 8 bit values, stored at an address.  Bytes cannot be manipul
 ## Dynamic Heap Memory Allocation
 
 ## Advanced Topics
+### m4 Pre-Processor
+### Native Assembly Functions
+### Code Optimizations

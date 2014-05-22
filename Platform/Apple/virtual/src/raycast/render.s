@@ -13,7 +13,7 @@ start:
 
 ; Conditional assembly flags
 DOUBLE_BUFFER	= 1		; whether to double-buffer
-DEBUG		= 1		; 1=some logging, 2=lots of logging
+DEBUG		= 0		; 1=some logging, 2=lots of logging
 
 ; Shared constants, zero page, buffer locations, etc.
 !source "render.i"
@@ -408,7 +408,7 @@ castRay: !zone
 	; We found a sprite cell on the map. We only want to process this sprite once,
 	; so check if we've already done it.
 	and #$40
-	bne .dupeSprite
+	bne .spriteDone		; already done, don't do again
 	; Haven't seen this one yet. Mark it, and also record the address of the flag
 	; so we can clear it later after tracing all rays.
 	lda (pMap),y		; get back the original byte
@@ -436,8 +436,10 @@ castRay: !zone
 	sta spriteX+1
 	lda mapY
 	sta spriteY+1		; y coord of sprite
-	jsr spriteCalc		; do all the magic math to put the sprite on the screen
-.dupeSprite:
+	jsr spriteCalc		; do all the magic math to calculate the sprite's position
+	bcc .spriteDone		; if sprite is off-screen, don't draw it
+	jsr drawSprite		; put it on screen
+.spriteDone:
 	jmp .DDA_step		; trace this ray some more
 
 	; wall calculation: X=dir1, Y=dir2, A=dir2step
@@ -558,34 +560,12 @@ castRay: !zone
 	rts
 }
 
-	; pretend stuff to test out sprite compositing
-spriteFu:
-	lda screenCol
-	pha
-	lda #0
-.lup	sta txColumn
-	lda screenCol
-	cmp #NUM_COLS
-	bcs .done
-	ldy #32		; column height
-	lda #$FF	; depth index
-	jsr saveLink
-	lda txColumn
-	asl
-	asl
-	asl
-	sta txColBuf,x
-	inc screenCol
-	lda txColumn
-	clc
-	adc #1
-	cmp #32
-	bne .lup
-.done	pla
-	sta screenCol
-	rts
-
 ;------------------------------------------------------------------------------
+; Perform screen position calculations for a sprite.
+; Input: spriteX, spriteY, playerX, playerY
+; Output: clc if sprite is off screen
+;         sec if sprite is on screen, and sets the following variables:
+;         lineCt (height), wSpriteLeft, txColumn, wTxColBump, depth
 spriteCalc: !zone
 	lda #0			; track sign bits
 	sta bSgnSinT
@@ -705,6 +685,7 @@ spriteCalc: !zone
 	; if wRx is negative, it means sprite is behind viewer... we get out of school early.
 	bpl +
 	!if DEBUG { +prStr : !text "Sprite is behind viewer.",0 }
+	clc
 	rts
 
 
@@ -822,6 +803,12 @@ spriteCalc: !zone
 	sta wSize
 	stx wSize+1
 
+	; Clamp wSize to form lineCt (height of final drawn sprite)
+	cpx #0
+	beq +
+	lda #$FF
++	sta lineCt
+
 	; Calculate wSpriteTop = 32 - (wSize >> 1);
 	tay			; stash lo byte of wSize
 	txa			; work on hi byte
@@ -880,9 +867,10 @@ spriteCalc: !zone
 	cpy #NUM_COLS		; right side of screen
 	bcs .offR		; if left >= 63, sprite is off right side.
 	lda #0			; start with first column of texture
-	sta bStartTx		; save starting tex coord
+	sta txColumn		; save starting tex coord
 	jmp .cBump		; sprite starts on screen, might run off to right but that's ok
 .offR	!if DEBUG { +prStr : !text "Sprite is off-screen to right.",0 }
+	clc
 	rts
 
 .ckLeft	; Left coord is negative, check against left side
@@ -891,9 +879,10 @@ spriteCalc: !zone
 	cpy #0-NUM_COLS		; now check lo byte, should be >= -63
 	bpl .clipL
 .offL	!if DEBUG { +prStr : !text "Sprite is off-screen to left.",0 }
+	clc
 	rts
 .clipL	; Sprite overlaps left edge of screen; calculate clipping.
-	; Calculate bStartTx = Math.min(255, pow2_w_w(log2_w_w(-wSpriteLeft) - wLogSize + wLog256))
+	; Calculate txColumn = Math.min(255, pow2_w_w(log2_w_w(-wSpriteLeft) - wLogSize + wLog256))
 	lda #0
 	sec
 	sbc wSpriteLeft		; Negate wSpriteLeft to get positive number
@@ -911,7 +900,7 @@ spriteCalc: !zone
 	cpx #0			; in some anomalous cases, it comes out > 255
 	beq +			; normal case, no clamping
 	lda #$FF		; clamp to 255
-+	sta bStartTx
++	sta txColumn
 
 .cBump	; Calculate the texture bump per column. Result is really an 8.8 fix-point.
 	; wTxColBump = pow2_w_w(wLog65536 - wLogSize)
@@ -948,7 +937,8 @@ spriteCalc: !zone
 	!if DEBUG { jsr .debug6 }
 
 .draw	; Okay, I think we're all done with calculations for this sprite.
-	rts	; would draw sprite here
+	sec	; flag to say draw it
+	rts	; all done
 
 .negYX:				; subroutine to negate value in Y=lo,X=hi.
 	tya
@@ -1012,8 +1002,8 @@ spriteCalc: !zone
 .debug5 +prStr : !text "wX=",0
 	+prXA
 	rts
-.debug6	+prStr : !text "bStartTx=",0
-	+prByte bStartTx
+.debug6	+prStr : !text "txColumn=",0
+	+prByte txColumn
 	+prStr : !text "wTxColBump=",0
 	+prWord wTxColBump
 	+prStr : !text "depth=",0
@@ -1022,6 +1012,35 @@ spriteCalc: !zone
 }
 
 ;------------------------------------------------------------------------------
+; Draw sprite on screen. Uses all the variables output by spriteCalc.
+drawSprite: !zone
+	lda screenCol
+	pha
+	lda wSpriteLeft
+	sta screenCol
+	lda #$80		; fractional byte of txColumn
+	pha
+.lup	lda screenCol
+	cmp #NUM_COLS
+	bcs .done
+	ldy lineCt		; column height
+	lda depth		; depth index
+	jsr saveLink		; save height and depth, link in to column data
+	lda txColumn		; also save the column number
+	sta txColBuf,x
+	inc screenCol		; next column on screen
+	pla			; fractional byte
+	clc
+	adc wTxColBump		; advance lo byte
+	pha
+	lda txColumn		; integer part
+	adc wTxColBump+1	; advance integer part
+	sta txColumn		; and save it
+	bcc .lup		; back for more
+.done	pla			; discard fractional byte
+	pla			; get back to old screen column
+	sta screenCol
+	rts
 
 ;------------------------------------------------------------------------------
 ; Save a link in the linked column data, sorted according to its depth.

@@ -470,7 +470,7 @@ int emit_data(int vartype, int consttype, long constval, int constsize)
     }
     else if (consttype & ADDR_TYPE)
     {
-        if (vartype == WORD_TYPE)
+        if (vartype & WORD_TYPE)
         {
             int fixup = fixup_new(constval, consttype, FIXUP_WORD);
             datasize = 2;
@@ -491,7 +491,7 @@ int emit_data(int vartype, int consttype, long constval, int constsize)
     }
     else
     {
-        if (vartype == WORD_TYPE)
+        if (vartype & WORD_TYPE)
         {
             datasize = 2;
             printf("\t%s\t$%04lX\n", DW, constval & 0xFFFF);

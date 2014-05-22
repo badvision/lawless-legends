@@ -52,6 +52,15 @@ test: test.pla TESTLIB $(PLVM) $(PLASM)
 	acme --setpc 4096 -o TEST.REL test.a
 	./$(PLVM) TEST.REL
 
+TESTCLS: testcls.pla $(PLVM) $(PLASM)
+	./$(PLASM) -AM < testcls.pla > testcls.a
+	acme --setpc 4096 -o TESTCLS testcls.a
+
+class: class.pla TESTCLS $(PLVM) $(PLASM)
+	./$(PLASM) -AM < class.pla > class.a
+	acme --setpc 4096 -o CLASS.REL class.a
+	./$(PLVM) CLASS.REL
+
 debug: test.pla TESTLIB $(PLVM) $(PLASM)
 	./$(PLASM) -AM < test.pla > test.a
 	acme --setpc 4096 -o TEST.REL test.a

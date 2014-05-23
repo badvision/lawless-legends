@@ -36,13 +36,13 @@ Load module HELLO.REL
 Hello, world.
 ```
 
-A couple of things to note: **plasm** only accepts input from stdin and output to stdout. To build acme compatible module source, tha '-AM' flags must be passed in. The **acme** assembler needs the --setpc 4096 to assemble the module at the proper address, and the -o option sets the output file. The makefile in the lawless-legends/PLASMA/src directory has automated this process. Enter:
+A couple of things to note: **plasm** only accepts input from stdin and output to stdout. To build **acme** compatible module source, tha '-AM' flags must be passed in. The **acme** assembler needs the --setpc 4096 to assemble the module at the proper address, and the -o option sets the output file. The makefile in the lawless-legends/PLASMA/src directory has automated this process. Enter:
 
 ```
 make hello
 ```
 
-for the make program to automate this.
+for the **make** program to build all the dependencies and run the module.
 
 ## Organization of a PLASMA Source File
 ### Comments
@@ -92,19 +92,29 @@ predef exec_file, mydef
 ```
 
 #### Global Data & Variable Declarations
-One of the most powerful features in PLASMA is the flexible data declarations. 
+One of the most powerful features in PLASMA is the flexible data declarations. Data must be defined after all the `import` declarations and before any function definitions, `asm` or `def`. Global labels and data can be defined in multiple ways, and exported for inclusion in other modules. Data can be initialized with constant values, addresses, calculated values (must resolve to a constant), and addresses from imported modules. Here is an exeample using the `predef` line from the previous examples to export an initialized array of 10 function pointer elements (2 defined + null delimiter):
+```
+export word myfuncs[10] = @exec_file, @mydef, $0000
+```
+See the section on arrays for more information.
 
 #### Native Functions
 An advanced feature of PLASMA is the ability to write functions in native assembly language. This is a very advanced topic that is covered more in-depth in the Advanced Topics section.
 
 #### Function Definitions
-Function definitions **must** come after all other declarations. Once a function definition is written, no other global declarations are allowed.
+Function definitions **must** come after all other declarations. Once a function definition is written, no other global declarations are allowed. Function definitions can be `export`ed for inclusion in other modules. Functions can take parameters, passed on the evaluation stack, then copied to the local frame for easy access. Note: there is no mechanism to ensure caller and callee agrre on the number of parameters. Historically, programmers have used Hungarian Notation (http://en.wikipedia.org/wiki/Hungarian_notation) to embedd the parameter number and type in the function name itself. This is a notational aid: the compiler enforces nothing.
+
+Function definitions are completed with the `end` statement. All definitions return a value, even if not specified in the source. A return value of zero will be inserted by the compiler at the `end` of a definition (or a `return` statement without a value).
 
 #### Module Initialization Function
 After all the function definitions are complete, an optional module initiialization routine follows. This is an un-named defintion an is written in-line without a definition declaration. As such, it doesn't have parameters or local variables. Function definitions can be called from within the initialization code.
 
+For libraries or class modules, the initialization routine can perform any up-front work needed before the module is called. For program modules, the initialization routine is the "main" routine, called after all the other module dependencies are loaded and initialized.
+
+A return value is system specific. The default of zero should mean "no error". Negative values should mean "error", and positive values can instruct the system to do extra work, perhaps leaving the module in memory (terminate and stay resident).
+
 #### Exported Declarations
-Data and function labels can be exported so other modules may access this modules data and code. By prepending `export` to the data or functions declaration, the label will become available to the loader for inter-module resolution.
+Data and function labels can be exported so other modules may access this modules data and code. By prepending `export` to the data or functions declaration, the label will become available to the loader for inter-module resolution. Exported labels are converted to uppercase with 16 significant characters.  Although the label will have to match the local version, external modules will match the case-insignificant, short version. Thus, "ThisIsAVeryLongLabelName" would be exported as: "THISISAVERYLONGL".
 
 ```
 export def plot(x, y)
@@ -125,7 +135,7 @@ The basic architecture of PLASMA relies on different stack based FIFO data struc
 The call stack, where function return addresses are saved, is implemented using the hardware call stack of the CPU. This makes for a fast and efficient implementation of function call/return.
 
 ### Local Frame Stack
-Any function definition that involves parameters or local variables builds a local frame to contain the variables. Often called automatic variables, they only persist during the lifetime of the function. They are a very powerful tool when implementing recursive algorithms. PLASMA puts a limitation of 254 bytes for the size of the frame, due to the nature of the 6502 CPU. With careful planning, this shouldn't be too constraining.
+Any function definition that involves parameters or local variables builds a local frame to contain the variables. Often called automatic variables, they only persist during the lifetime of the function. They are a very powerful tool when implementing recursive algorithms. PLASMA puts a limitation of 256 bytes for the size of the frame (2 bytes reserved for previous frame pointer, 254 bytes for local variables), due to the nature of the 6502 CPU (8 bit index register). With careful planning, this shouldn't be too constraining.
 
 ### Evaluation Stack
 All temporary values are loaded and manipulated on the PLASMA evaluation stack. This is a small (16 element) stack implemeted in high performance memory/registers of the host CPU. Parameters to functions are passed on the evaluation stack, then moved to local variables for named reference inside the funtion.
@@ -246,10 +256,22 @@ This contrived example shows how one can access offsets from a variable as eithe
 Pointers are values that represent addresses. In order to get the value pointed to by the address, one must 'dereference' the pointer. All data and code memory has a unique address, all 65536 of them (16 bits). In the Apple II, many addresses are actually connected to hardware instead of memory. Accessing these addresses can make thing happen in the Apple II, or read external inputs like the keyboard and joystick.
 
 ##### Pointer Dereferencing
-Just as there are type override for arrays and offsets, there is a `byte` and `word` type override for pointers. Prepending a value with `^` dereferences a `byte`. Prepending a value with `*` dereferences a `word`. These are unary operators, so they won't be confused with the binary operators using the same symbol.
+Just as there are type override for arrays and offsets, there is a `byte` and `word` type override for pointers. Prepending a value with `^` dereferences a `byte`. Prepending a value with `*` dereferences a `word`. These are unary operators, so they won't be confused with the binary operators using the same symbol. An example getting the length of a Pascal string (length byte at the beginning of character array):
+```
+byte mystring[] = "This is my string"
+byte len
+word strptr
+
+def strlen(strptr)
+    return ^strptr
+end
+```
 
 ##### Addresses of Data/Code
-Along with dereferencing a pointer, there is the question of getting the address of a variable. The `@` operator prepended to a variable name or a function definition name, will return the address of the variable/definition.
+Along with dereferencing a pointer, there is the question of getting the address of a variable. The `@` operator prepended to a variable name or a function definition name, will return the address of the variable/definition. From the previous example, the call to `strlen` would look like:
+```
+puti(strlen(@mystring)) ; would print 17 in this example
+```
 
 ##### Function Pointers
 One very powerful combination of operations is the function pointer. This involves getting the address of a function and saving it in a `word` variable. Then, the function can be called be dereferencing the variable as a function call invocation. PLASMA is smart enough to know what you mean when your code looks like this:

@@ -92,7 +92,7 @@ byte prefix[32]   = ""
 ;
 word heap
 word lastsym     = symtbl
-word xheap       = $0400
+word xheap       = $0800
 word systemflags = 0
 word perr
 word cmdptr

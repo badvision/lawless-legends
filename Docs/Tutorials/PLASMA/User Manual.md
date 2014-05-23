@@ -115,6 +115,9 @@ Data and function labels can be exported so other modules may access this module
 #### Module Done
 The final declaration of a module source file is the `done` statement. This declares the end of the source file. Anything following this statement is ignored.
 
+### m4 Pre-Processor
+The m4 pre-processor can be very helpful when managing module imports and macro facilities. The easiest way to use the pre-processor is to write a module import header for each library module. Any module that depends on a given library can `include()` the shared header file. See the GNU m4 documentation for more information: https://www.gnu.org/software/m4/manual/
+
 ## Stacks
 The basic architecture of PLASMA relies on different stack based FIFO data structures. The stacks aren't directly manipulated from PLASMA, but almost every PLASMA operation involves one or more of the stacks. A stack architecture is a very flexible and convenient way to manage an interpreted language, even if it isn't the highest performance.
 
@@ -125,24 +128,60 @@ The call stack, where function return addresses are saved, is implemented using 
 Any function definition that involves parameters or local variables builds a local frame to contain the variables. Often called automatic variables, they only persist during the lifetime of the function. They are a very powerful tool when implementing recursive algorithms. PLASMA puts a limitation of 254 bytes for the size of the frame, due to the nature of the 6502 CPU. With careful planning, this shouldn't be too constraining.
 
 ### Evaluation Stack
-All temporary values are loaded and manipulated on the evaluation stack. This is a small (16 element) stack implemeted in high performance memory/registers of the host CPU. Parameters to functions are passed on the evaluation stack, then moved to local variables for named reference inside the funtion.
+All temporary values are loaded and manipulated on the PLASMA evaluation stack. This is a small (16 element) stack implemeted in high performance memory/registers of the host CPU. Parameters to functions are passed on the evaluation stack, then moved to local variables for named reference inside the funtion.
 
 ## Data Types
-PLASMA only really defines two types: `byte`, `word`. All operations take place on word sized quantities, with the exception of loads and stores to byte sized addresses. The interpretation of a value can be an interger, or an address. There are a nuber of operators to identify how a value is to be interpreted.
+PLASMA only really defines two data types: `byte`, `word`. All operations take place on word sized quantities, with the exception of loads and stores to byte sized addresses. The interpretation of a value can be an interger, an address, or anything that fits in 16 bits. There are a number of address operators to identify how an address value is to be interpreted.
 
 ### Decimal and Hexadecimal Numbers
+Numbers can be represented in either decimal (base 10), or hexadecimal (base 16). Values beginning with a `$` will be parsed as hexadecimal, in keeping with 6502 assembler syntax.
 
 ### Character and String Literals
+A character literal, represented by a single character or an escaped character enclosed in single quotes `'`, can be used wherever a number is used. String literals, a character sequence enclosed in double quotes `"`, can only appear in a data definition. A length byte will be calculated and prepended to the character data. This is the Pascal style of string definition used throughout PLASMA and ProDOS. When referencing the string, it's address is used:
+```
+    char mystring[] = "This is my string; I am very proud of \n"
+    
+    puts(@mystring)
+```
+Excaped characters, like the `\n` above are replaces with the Carriage Return character.  The list of escaped characters is:
 
-### Bytes
-Bytes are unsigned, 8 bit values, stored at an address.  Bytes cannot be manipulated as bytes, but are promoted to words as soon as they are loaded ontp the evaluation stack. When stored to a byte addres, the low order byte of a word is used.
+| Escaped Char | ASCII Value
+|:------------:|------------
+|   \n         |    13
+|   \t         |     8
+|   \r         |    13
+|   \\\\       |    \
+|   \\0        |    0
 
 ### Words
+Words, 16 bit signed values, are the native sized quanta of PLASMA. All calculations, parameters, and return values are words.
+
+### Bytes
+Bytes are unsigned, 8 bit values, stored at an address.  Bytes cannot be manipulated as bytes, but are promoted to words as soon as they are read onto the evaluation stack. When written to a byte addres, the low order byte of a word is used.
 
 ### Addresses
+Words can represent many things in PLASMA, including addresses. PLASMA uses a 16 bit address space for data and function entrypoints. There are many operators in PLASMA to help with address calculation and access. Due to the signed implementation of word in PLASMA, the Standard Library has some unsigned comparison functions to help with address comparisons.
 
 #### Arrays
+Arrays are the most useful data structure in PLASMA. Using an index into a list of values is indispensible. PLASMA has a flexible array operator. Arrays can be defined in many ways, usually as:
+[`export`] <`byte`, `word`> [`label`] [= < number, character, string, address, ... >]
+For example:
+```
+    predef myfunc
+    
+    byte smallarray[4]
+    byte initbarray[] = 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+    byte string[64] = "Initialized string"
+    word wlabel[]
+    word = 1000, 2000, 3000, 4000 ; Anonymous array
+    word funclist = @myfunc, $0000
+```
+Arrays can be uninitialized and reserve a size, as in `smallarray` above.  Initilized arrays without a size specifier in the definition will take up as much data as is present, as in `initbarray` above. Strings are special arrays that include a hidden length byte in the beginning (Pascal strings). When specified with a size, a minimum size is reserved for the string value. Labels can be defined as arrays without size or initializers; this can be useful when overlapping labels with other arrays or defining the actual array data as anonymous arrays in following lines as in `wlabel` and following lines. Addresses of other data (must be defined previously) or function definitions (pre-defined with predef), including imported references, can be initializers.
+
 ##### Multi-Dimensional Arrays
+Multi-dimensional arrays are implemented as arrays of arrays, not as a single block of memory. This allows constructs such as:
+```
+```
 
 #### Offsets (Structure Elements)
 
@@ -157,6 +196,5 @@ Bytes are unsigned, 8 bit values, stored at an address.  Bytes cannot be manipul
 ## Dynamic Heap Memory Allocation
 
 ## Advanced Topics
-### m4 Pre-Processor
 ### Native Assembly Functions
 ### Code Optimizations

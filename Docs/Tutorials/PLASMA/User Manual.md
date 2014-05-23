@@ -178,23 +178,158 @@ For example:
 ```
 Arrays can be uninitialized and reserve a size, as in `smallarray` above.  Initilized arrays without a size specifier in the definition will take up as much data as is present, as in `initbarray` above. Strings are special arrays that include a hidden length byte in the beginning (Pascal strings). When specified with a size, a minimum size is reserved for the string value. Labels can be defined as arrays without size or initializers; this can be useful when overlapping labels with other arrays or defining the actual array data as anonymous arrays in following lines as in `wlabel` and following lines. Addresses of other data (must be defined previously) or function definitions (pre-defined with predef), including imported references, can be initializers.
 
+##### Type Overrides
+Arrays are usually identified by the data type specifier, `byte` or `word` when the array is defined. However, this can be overridden with the type override specifiers: `:` and `.`. `:` overrides the type to be `word`, `.` overrides the type to be `byte`. An example of accessing a `word` array as `bytes`:
+```
+    word myarray[] = $AABB, $CCDD, $EEFF
+    
+    def prarray
+        byte i
+        for i = 0 to 5
+            puti(myarray.[i])
+        next
+    end
+```
+The override operator becomes more useful when multi-dimenstional arrays are used.
+
 ##### Multi-Dimensional Arrays
 Multi-dimensional arrays are implemented as arrays of arrays, not as a single block of memory. This allows constructs such as:
 ```
+;
+; Hi-Res scanline addresses
+;
+word hgrscan[] = $2000,$2400,$2800,$2C00,$3000,$3400,$3800,$3C00
+word           = $2080,$2480,$2880,$2C80,$3080,$3480,$3880,$3C80
 ```
+...
+```
+def hgrfill(val)
+	byte yscan, xscan
+
+	for yscan = 0 to 191
+		for xscan = 0 to 19
+			hgrscan:[yscan][xscan] = val
+		next
+	next
+end
+```
+Every array dimension except the last is a pointer to another array of pointers, thus the type is word. The last dimension is either `word` or `byte`, but cannot be specified with an array declaration, so the type override is used to identify the type of the final element. In the above example, the memory would be accessed as bytes with the following:
+```
+def hgrfill(val)
+	byte yscan, xscan
+
+	for yscan = 0 to 191
+		for xscan = 0 to 39
+			hgrscan.[yscan][xscan] = val
+		next
+	next
+end
+```
+Notice how xscan goes to 39 instead of 19 in the byte accessed version.
 
 #### Offsets (Structure Elements)
+Structures are another fundamental construct when accessing in-common data. Using fixed element offsets from a given address means you only have to pass one address around to access the entire record. Offsets are specified with a constant expression following the type override specifier.
+```
+    byte myrec[]
+    word = 2
+    byte name[32] = "PLASMA"
+    
+    puti(myrec:0) ; ID = 2
+    puti(myrec.2) ; Name length = 6 (Pascal string puts length byte first)
+```
+This contrived example shows how one can access offsets from a variable as either `byte`s or `word`s regardless of how they were defined. This operator becomes more powerful when combined with pointers, defined next.
 
 #### Pointers
+Pointers are values that represent addresses. In order to get the value pointed to by the address, one must 'dereference' the pointer. All data and code memory has a unique address, all 65536 of them (16 bits). In the Apple II, many addresses are actually connected to hardware instead of memory. Accessing these addresses can make thing happen in the Apple II, or read external inputs like the keyboard and joystick.
+
+##### Pointer Dereferencing
+Just as there are type override for arrays and offsets, there is a `byte` and `word` type override for pointers. Prepending a value with `^` dereferences a `byte`. Prepending a value with `*` dereferences a `word`. These are unary operators, so they won't be confused with the binary operators using the same symbol.
+
+##### Addresses of Data/Code
+Along with dereferencing a pointer, there is the question of getting the address of a variable. The `@` operator prepended to a variable name or a function definition name, will return the address of the variable/definition.
+
+##### Function Pointers
+One very powerful combination of operations is the function pointer. This involves getting the address of a function and saving it in a `word` variable. Then, the function can be called be dereferencing the variable as a function call invocation. PLASMA is smart enough to know what you mean when your code looks like this:
+```
+    word funcptr
+    
+    def addvals(a, b)
+        return a + b
+    end
+    def subvals(a, b)
+        return a - b
+    end
+    
+    funcptr = @addvals
+    puti(funcptr(5, 2)) ; Outputs 7 
+    funcptr = @subvals
+    puti(funcptr(5, 2)) ; Outputs 3
+```
+These concepts can be combined with the structure offsets to create a function table that can be easily changed on the fly. Virtual functions in object oriented languages are implemented this way.
+```
+    predef myinit, mynew, mydelete
+    
+    export word myobject_class = @myinit, @mynew, @mydelete
+    ; Rest of class data/code follows...
+```
+And an external module can call into this library (class) like:
+```
+    import myclass
+        const init   = 0
+        const new    = 2
+        const delete = 4
+        word myobject_class
+    end
+    
+    word an_obj ; an object pointer
+    
+    myobject_class:init()
+    an_obj = myobject_class:new()
+    myobject_class:delete(an_obj)
+```
 
 ## Function Definitions
+Function definitions in PLASMA is what really seperates PLASMA from a low level language like assembly, or even a language like FORTH. 
 
 ### Expressions
 
 ### Control Flow
+PLASMA implements most of the control flow that most higher level languages provide. It may do it in a slightly different way, though. One thing you won't find in PLASMA is GOTO - there are other ways around it.
+
+#### RETURN
+
+#### IF/ELSIF/ELSE/FIN
+
+#### WHEN/IS/OTHERWISE/WEND
+
+#### FOR/NEXT
+
+#### WHILE/LOOP
+
+#### REPEAT/UNTIL
 
 ## Dynamic Heap Memory Allocation
+Memory allocation isn't technically part of the PLASMA specification, but it plays such an integral part of the PLASMA environment that is is covered here.
 
 ## Advanced Topics
+There are some things about PLASMA that aren't necessary to know, but can add to it's effectiveness in a tight situation. Usually you can just code along, and the system will do a pretty reasonable job of carrying out your task. However, a little knowledge in the way to implement small assembly language routines or some coding practices just might be the ticket.
+
 ### Native Assembly Functions
+Assembly code in PLASMA is implemented strictly as a pass-through to the assembler. No syntax checking, or checking at all, is made. All assembly routines *must* come after all data has been declared, and before any PLASMA function definitions.
+
 ### Code Optimizations
+#### Return Values
+PLASMA always returns a value from a function, even if you don't supply one. Probably the easiest optimization to make in PLASMA is to cascade a return value if you don't care about the value you return. This only works if the last thing you do before returning from your routine is calling another definition. You would go from:
+```
+    def mydef
+        ; do some stuff
+        calldef(10) ; call some other def
+    end
+```
+PLASMA will effectively add a RETURN 0 to the end of your function, as well as add code to ignore the result of `calldef(10)`. As long as you don't care about the return value from `mydef`, you can save some code bytes with:
+```
+    def mydef
+        ; do some stuff
+        return calldef(10) ; call some other def
+    end
+```

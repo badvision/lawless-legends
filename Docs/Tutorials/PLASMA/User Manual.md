@@ -165,7 +165,7 @@ Words can represent many things in PLASMA, including addresses. PLASMA uses a 16
 #### Arrays
 Arrays are the most useful data structure in PLASMA. Using an index into a list of values is indispensible. PLASMA has a flexible array operator. Arrays can be defined in many ways, usually as:
 
-[`export`] <`byte`, `word`> [`label`] [= < number, character, string, address, ... >]
+[`export`] <`byte`, `word`> [label] [= < number, character, string, address, ... >]
 
 For example:
 ```
@@ -232,9 +232,10 @@ Notice how xscan goes to 39 instead of 19 in the byte accessed version.
 #### Offsets (Structure Elements)
 Structures are another fundamental construct when accessing in-common data. Using fixed element offsets from a given address means you only have to pass one address around to access the entire record. Offsets are specified with a constant expression following the type override specifier.
 ```
+predef puti ; print an integer
 byte myrec[]
 word = 2
-byte name[32] = "PLASMA"
+byte = "PLASMA"
     
 puti(myrec:0) ; ID = 2
 puti(myrec.2) ; Name length = 6 (Pascal string puts length byte first)

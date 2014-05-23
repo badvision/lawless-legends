@@ -25,9 +25,9 @@ static int  localsize = 0;
 static char idlocal_name[128][17];
 static int  idlocal_type[128];
 static int  idlocal_offset[128];
-static char fixup_size[1024];
-static int  fixup_type[1024];
-static int  fixup_tag[1024];
+static char fixup_size[2048];
+static int  fixup_type[2048];
+static int  fixup_tag[2048];
 #define FIXUP_BYTE	0x00
 #define FIXUP_WORD	0x80
 int id_match(char *name, int len, char *id)
@@ -192,7 +192,6 @@ int id_tag(char *name, int len)
         return (idlocal_offset[i]);
     if ((i = idglobal_lookup(name, len)) >= 0)
         return (idglobal_tag[i]);
-    parse_error("Undeclared identifier");
     return (-1);
 }
 int id_const(char *name, int len)

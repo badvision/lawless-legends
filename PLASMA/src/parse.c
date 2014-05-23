@@ -906,11 +906,6 @@ int parse_stmnt(void)
                     break;
                 }
             }
-            else
-            {
-                parse_error("Syntax error");
-                return (0);
-            }
             tokenstr = idptr;
         default:
             scan_rewind(tokenstr);

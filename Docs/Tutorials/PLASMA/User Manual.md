@@ -149,7 +149,7 @@ Numbers can be represented in either decimal (base 10), or hexadecimal (base 16)
 ### Character and String Literals
 A character literal, represented by a single character or an escaped character enclosed in single quotes `'`, can be used wherever a number is used. String literals, a character sequence enclosed in double quotes `"`, can only appear in a data definition. A length byte will be calculated and prepended to the character data. This is the Pascal style of string definition used throughout PLASMA and ProDOS. When referencing the string, it's address is used:
 ```
-char mystring[] = "This is my string; I am very proud of \n"
+char mystring[] = "This is my string; I am very proud of it.\n"
     
 puts(@mystring)
 ```
@@ -157,9 +157,9 @@ Excaped characters, like the `\n` above are replaces with the Carriage Return ch
 
 | Escaped Char | ASCII Value
 |:------------:|------------
-|   \n         |    13
-|   \t         |     8
-|   \r         |    13
+|   \n         |    NL
+|   \t         |    TAB
+|   \r         |    CR
 |   \\\\       |    \
 |   \\0        |    0
 

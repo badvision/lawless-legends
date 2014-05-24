@@ -309,8 +309,8 @@ void emit_header(void)
         printf("; CA65 COMPATIBLE OUTPUT\n");
     if (outflags & MODULE)
     {
-        printf("_SEGBEGIN%c\n", LBL);
         printf("\t%s\t_SEGEND-_SEGBEGIN\t; LENGTH OF HEADER + CODE/DATA + BYTECODE SEGMENT\n", DW);
+        printf("_SEGBEGIN%c\n", LBL);
         printf("\t%s\t$DA7E\t\t\t; MAGIC #\n", DW);
         printf("\t%s\t_SYSFLAGS\t\t\t; SYSTEM FLAGS\n", DW);
         printf("\t%s\t_SUBSEG\t\t\t; BYTECODE SUB-SEGMENT\n", DW);
@@ -345,13 +345,13 @@ void emit_rld(void)
         if (fixup_type[i] & EXTERN_TYPE)
         {
             printf("\t%s\t$%02X\t\t\t; EXTERNAL FIXUP\n", DB, 0x11 + fixup_size[i] & 0xFF);
-            printf("\t%s\t_F%03d\t\t\n", DW, i);
+            printf("\t%s\t_F%03d-_SEGBEGIN\t\t\n", DW, i);
             printf("\t%s\t%d\t\t\t; ESD INDEX\n", DB, fixup_tag[i]);
         }
         else
         {
             printf("\t%s\t$%02X\t\t\t; INTERNAL FIXUP\n", DB, 0x01 + fixup_size[i] & 0xFF);
-            printf("\t%s\t_F%03d\t\t\n", DW, i);
+            printf("\t%s\t_F%03d-_SEGBEGIN\t\t\n", DW, i);
             printf("\t%s\t$00\n", DB);
         }
     }
@@ -374,7 +374,7 @@ void emit_esd(void)
         {
             emit_dci(&idglobal_name[i][1], idglobal_name[i][0]);
             printf("\t%s\t$08\t\t\t; ENTRY SYMBOL FLAG\n", DB);
-            printf("\t%s\t%s\t\t\n", DW, tag_string(idglobal_tag[i], idglobal_type[i]));
+            printf("\t%s\t%s-_SEGBEGIN\t\t\n", DW, tag_string(idglobal_tag[i], idglobal_type[i]));
         }
     }
     printf("\t%s\t$00\t\t\t; END OF ESD\n", DB);

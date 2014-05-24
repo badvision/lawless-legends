@@ -61,7 +61,7 @@ int dcitos(byte *dci, char *str)
     int len = 0;
     do
         str[len] = *dci & 0x7F;
-    while ((len++ < 15) && (*dci++ & 0x80));
+    while ((len++ < 16) && (*dci++ & 0x80));
     str[len] = 0;
     return len;
 }
@@ -70,7 +70,7 @@ int stodci(char *str, byte *dci)
     int len = 0;
     do
         dci[len] = toupper(*str) | 0x80;
-    while (*str++ && (len++ < 15));
+    while (*str++ && (len++ < 16));
     dci[len - 1] &= 0x7F;
     return len;
 }
@@ -138,7 +138,7 @@ uword lookup_tbl(byte *dci, byte *tbl)
         match = dci;
         while (*entry == *match)
         {
-            if ((*entry & 0x80) == 0)
+            if (!(*entry & 0x80))
                 return entry[1] | (entry[2] << 8);
             entry++;
             match++;
@@ -293,9 +293,9 @@ int load_mod(byte *mod)
         /*
          * Apply all fixups and symbol import/export.
          */
-        modfix    = modaddr - hdrlen - MOD_ADDR;
-        bytecode += modfix;
-        end       = modaddr - hdrlen + modsize;
+        modfix    = modaddr - hdrlen + 2; // - MOD_ADDR;
+        bytecode += modfix - MOD_ADDR;
+        end       = modaddr - hdrlen + modsize + 2;
         rld       = mem_data + end; // Re-Locatable Directory
         esd       = rld;            // Extern+Entry Symbol Directory
         while (*esd != 0x00)        // Scan to end of RLD
@@ -307,13 +307,14 @@ int load_mod(byte *mod)
             /*
              * Dump different parts of module.
              */
+            printf("Module load addr: $%04X\n", modaddr);
             printf("Module size: %d\n", end - modaddr + hdrlen);
             printf("Module code+data size: %d\n", modsize);
             printf("Module magic: $%04X\n", magic);
             printf("Module sysflags: $%04X\n", sysflags);
             printf("Module bytecode: $%04X\n", bytecode);
             printf("Module def count: $%04X\n", defcnt);
-            printf("Module init: $%04X\n", init);
+            printf("Module init: $%04X\n", init ? init + modfix - MOD_ADDR : 0);
         }
         /*
          * Print out the Re-Location Dictionary.
@@ -324,9 +325,9 @@ int load_mod(byte *mod)
         {
             if (rld[0] == 0x02)
             {
-                if (show_state) printf("\tDEF         CODE");
+                if (show_state) printf("\tDEF               CODE");
                 addr = rld[1] | (rld[2] << 8);
-                addr += modfix;
+                addr += modfix - MOD_ADDR;
                 rld[1] = addr;
                 rld[2] = addr >> 8;
                 end = rld - mem_data + 4;
@@ -334,37 +335,49 @@ int load_mod(byte *mod)
             else
             {
                 addr = rld[1] | (rld[2] << 8);
-                addr += modfix;
-                if (rld[0] & 0x80)
-                    fixup = mem_data[addr] | (mem_data[addr + 1] << 8);
-                else
-                    fixup = mem_data[addr];
-                if (rld[0] & 0x10)
+                if (addr > 12)
                 {
-                    if (show_state) printf("\tEXTERN[$%02X] ", rld[3]);
-                    fixup += extern_lookup(esd, rld[3]);
+                    addr += modfix;
+                    if (rld[0] & 0x80)
+                        fixup = (mem_data[addr] | (mem_data[addr + 1] << 8));
+                    else
+                        fixup = mem_data[addr];
+                    if (rld[0] & 0x10)
+                    {
+                        if (show_state) printf("\tEXTERN[$%02X]       ", rld[3]);
+                        fixup += extern_lookup(esd, rld[3]);
+                    }
+                    else
+                    {
+                        fixup += modfix - MOD_ADDR;
+                        if (fixup >= bytecode)
+                        {
+                            /*
+                             * Replace with call def dictionary.
+                             */
+                            if (show_state) printf("\tDEF[$%04X->", fixup);
+                            fixup = def_lookup(cdd, fixup);
+                            if (show_state) printf("$%04X] ", fixup);
+                        }
+                        else
+                            if (show_state) printf("\tINTERN            ");
+                    }
+                    if (rld[0] & 0x80)
+                    {
+                        if (show_state) printf("WORD");
+                        mem_data[addr]     = fixup;
+                        mem_data[addr + 1] = fixup >> 8;
+                    }
+                    else
+                    {
+                        if (show_state) printf("BYTE");
+                        mem_data[addr] = fixup;
+                    }                
                 }
                 else
                 {
-                    if (show_state) printf("\tINTERN      ");
-                    fixup += modfix;
-                    if (fixup >= bytecode)
-                        /*
-                         * Replace with call def dictionary.
-                         */
-                        fixup = def_lookup(cdd, fixup);
+                    if (show_state) printf("\tIGNORE (HDR)    ");
                 }
-                if (rld[0] & 0x80)
-                {
-                    if (show_state) printf("WORD");
-                    mem_data[addr]     = fixup;
-                    mem_data[addr + 1] = fixup >> 8;
-                }
-                else
-                {
-                    if (show_state) printf("BYTE");
-                    mem_data[addr] = fixup;
-                }                
             }
             if (show_state) printf("@$%04X\n", addr);
             rld += 4;
@@ -404,7 +417,7 @@ int load_mod(byte *mod)
      */
     if (init)
     {
-        interp(mem_data + init +  modfix);
+        interp(mem_data + init + modfix - MOD_ADDR);
         return POP;
     }
     return 0;

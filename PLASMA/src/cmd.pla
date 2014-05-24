@@ -634,7 +634,7 @@ end
 ;
 ;def modtosym(mod, dci)
 ;    byte len, c
-;    (dci).0 = '#' | $80
+;    (dci).0 = '#'|$80
 ;    len = 0
 ;    repeat
 ;        c = (mod).[len]
@@ -679,7 +679,7 @@ end
 ;            tbl   = tbl   + 1
 ;            match = match + 1
 ;        loop
-;        while ^tbl & $80
+;        while (^tbl & $80)
 ;            tbl = tbl + 1
 ;        loop
 ;        tbl = tbl + 3
@@ -1030,10 +1030,11 @@ def loadmod(mod)
     dcitos(mod, @filename)
     refnum = open(@filename, iobuffer)
     if refnum > 0
-        init    = 0
         rdlen   = read(refnum, @header, 128)
 	modsize = header:0
-	moddep  = @header + 1
+	moddep  = @header.1
+	defofst = modsize
+        init    = 0
         if rdlen > 4 and header:2 == $DA7E ; DAVE = magic number :-)
             ;
             ; This is an EXTended RELocatable (data+bytecode) module.
@@ -1042,7 +1043,7 @@ def loadmod(mod)
             defofst  = header:6
             defcnt   = header:8
             init     = header:10
-            moddep   = @header + 12
+            moddep   = @header.12
 	    ;
 	    ; Load module dependencies.
 	    ;
@@ -1074,9 +1075,9 @@ def loadmod(mod)
 	; Alloc heap space for relocated module (data + bytecode).
 	;
 	moddep  = moddep  + 1
-	modfix  = moddep  - @header ; Adjust to skip header
+	modfix  = moddep  - @header.2 ; Adjust to skip header
 	modsize = modsize - modfix
-	rdlen   = rdlen   - modfix
+	rdlen   = rdlen   - modfix - 2
 	modaddr = allocheap(modsize)
 	memcpy(modaddr, moddep, rdlen)
 	;
@@ -1091,8 +1092,8 @@ def loadmod(mod)
 	;
 	; Apply all fixups and symbol import/export.
 	;
-        modfix   = modaddr - modfix - MODADDR
-        bytecode = defofst + modfix
+        modfix   = modaddr - modfix
+        bytecode = defofst + modfix - MODADDR
         rld      = modaddr + modsize ; Re-Locatable Directory
         cdd      = rld               ; Code Definition Directory
         esd      = rld               ; Extern+Entry Symbol Directory
@@ -1118,33 +1119,32 @@ def loadmod(mod)
 	        ;
 		; This is a bytcode def entry - add it to the def directory.
 		;
-                ;addr    = (rld):1 + modfix
-                ;(rld):1 = addr
                 adddef(defbank, (rld):1 - defofst + defaddr, @deflast)
             else
                 addr = (rld):1 + modfix
-                if ^rld & $80 ; WORD sized fixup.
-                    fixup = *addr
-                else	      ; BYTE sized fixup.
-                    fixup = ^addr
-                fin
-                if ^rld & $10 ; EXTERN reference.
-                    fixup = fixup + lookupextern(esd, (rld).3);
-                else	      ; INTERN fixup.
-                    fixup = fixup + modfix
-                    if uword_isge(fixup, bytecode)
-                        ;
-                        ; Bytecode address - replace with call def directory.
-                        ;
-                        fixup = lookupdef(fixup - bytecode + defaddr, deftbl)
+                if addr >= modaddr ; Skip fixups to header
+                    if ^rld & $80 ; WORD sized fixup.
+                        fixup = *addr
+                    else	      ; BYTE sized fixup.
+                        fixup = ^addr
+                    fin
+                    if ^rld & $10 ; EXTERN reference.
+                        fixup = fixup + lookupextern(esd, (rld).3)
+                    else	  ; INTERN fixup.
+                        fixup = fixup + modfix - MODADDR
+                        if uword_isge(fixup, bytecode)
+                            ;
+                            ; Bytecode address - replace with call def directory.
+                            ;
+                            fixup = lookupdef(fixup - bytecode + defaddr, deftbl)
+                        fin
+                    fin
+                    if ^rld & $80 ; WORD sized fixup.
+                        *addr = fixup
+                    else	      ; BYTE sized fixup.
+                        ^addr = fixup
                     fin
                 fin
-                if ^rld & $80 ; WORD sized fixup.
-                    *addr = fixup
-                else	      ; BYTE sized fixup.
-                    ^addr = fixup
-                fin
-                
             fin
             rld = rld + 4
         loop
@@ -1163,7 +1163,7 @@ def loadmod(mod)
 		    ;
 		    ; Use the def directory address for bytecode.
 		    ;
-                    addr = lookupdef(0, addr - bytecode + defaddr, deftbl)
+                    addr = lookupdef(addr - bytecode + defaddr, deftbl)
                 fin
                 addsym(sym, addr)
             fin
@@ -1394,7 +1394,6 @@ while 1
 	        volumes();
 	    is '-'
 	        execsys(cmdptr)
-	        perr = $46
 	    is '+'
 	        execmod(cmdptr)
 	    otherwise

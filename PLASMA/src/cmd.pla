@@ -1020,7 +1020,7 @@ def loadmod(mod)
     word refnum, rdlen, modsize, bytecode, defofst, defcnt, init, fixup
     word addr, defaddr, modaddr, modfix
     word deftbl, deflast
-    word moddep, rld, esd, cdd, sym;
+    word moddep, rld, esd, sym
     byte defbank, str[16], filename[64]
     byte header[128]
 
@@ -1095,7 +1095,6 @@ def loadmod(mod)
         modfix   = modaddr - modfix
         bytecode = defofst + modfix - MODADDR
         rld      = modaddr + modsize ; Re-Locatable Directory
-        cdd      = rld               ; Code Definition Directory
         esd      = rld               ; Extern+Entry Symbol Directory
         while ^esd <> $00 ; Scan to end of ESD
             esd = esd + 4

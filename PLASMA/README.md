@@ -380,7 +380,7 @@ The original design concept was to create an efficient, flexible, and expressive
 The VM was constructed such that code generation could ouput native 6502 code, threaded code into the opcode functions, or interpreted bytecodes.  This gave a level of control over speed vs memory.
 
 ###The Lawless Legends PLASMA
-This version of PLASMA has dispensed with the native/threaded/bytecode code generation from the original version to focus on code density and the ability to interpret bytecode from AUX memory, should it be available. By focussing on the bytecode interpreter, certain optimizations were implemented that weren't posssible when allowing for threaded/native code.  With theses optimizations, the interpreted bytecode is about the same performance level as the threaded code, with the benefit of code compaction.
+This version of PLASMA has dispensed with the native/threaded/bytecode code generation from the original version to focus on code density and the ability to interpret bytecode from AUX memory, should it be available. By focussing on the bytecode interpreter, certain optimizations were implemented that weren't posssible when allowing for threaded/native code.  With these optimizations, the interpreted bytecode is about the same performance as the directly threaded code, with the benefits of a dense bytecode in its own address space.
 
 Dynamically loadable modules, a backward compatible extension to the .REL format introduced by EDASM, is the new, main feature for this version of PLASMA. A game like Lawless Legends will push the capabilities of the Apple II well beyond anything before it. A powerful OS + language + VM environment is required to achieve the goals set out.
 

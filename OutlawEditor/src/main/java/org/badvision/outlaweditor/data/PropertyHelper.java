@@ -20,7 +20,7 @@ import javafx.beans.property.adapter.JavaBeanIntegerProperty;
 import javafx.beans.property.adapter.JavaBeanIntegerPropertyBuilder;
 import javafx.beans.property.adapter.JavaBeanStringProperty;
 import javafx.beans.property.adapter.JavaBeanStringPropertyBuilder;
-import org.badvision.outlaweditor.ApplicationUIController;
+import org.badvision.outlaweditor.ui.ApplicationUIController;
 
 /**
  *

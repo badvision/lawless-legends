@@ -8,8 +8,8 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.layout.AnchorPane;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
-import static org.badvision.outlaweditor.UIAction.*;
 import org.badvision.outlaweditor.data.xml.GameData;
+import org.badvision.outlaweditor.ui.ApplicationUIController;
 
 /**
  *
@@ -20,10 +20,18 @@ public class Application extends javafx.application.Application {
     public static GameData gameData = new GameData();
     public static Platform currentPlatform = Platform.AppleII;
     static Application instance;
-    public Stage primaryStage;
-    ApplicationUIControllerImpl controller;
+
+    public static Application getInstance() {
+        return instance;
+    }
+
+    private ApplicationUIController controller;
+    public ApplicationUIController getController() {
+        return controller;
+    }
     
-    public static Stage getPrimaryStage() {
+        public Stage primaryStage;
+public static Stage getPrimaryStage() {
         return instance.primaryStage;
     }
 

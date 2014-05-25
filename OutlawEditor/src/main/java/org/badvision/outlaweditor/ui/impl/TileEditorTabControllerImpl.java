@@ -1,4 +1,4 @@
-package org.badvision.outlaweditor;
+package org.badvision.outlaweditor.ui.impl;
 
 import java.util.Arrays;
 import java.util.logging.Level;
@@ -9,7 +9,9 @@ import javafx.scene.control.ListView;
 import javafx.scene.control.cell.ComboBoxListCell;
 import javafx.scene.image.ImageView;
 import javafx.util.Callback;
-import static org.badvision.outlaweditor.UIAction.confirm;
+import org.badvision.outlaweditor.Application;
+import org.badvision.outlaweditor.TileEditor;
+import static org.badvision.outlaweditor.ui.UIAction.confirm;
 import static org.badvision.outlaweditor.data.PropertyHelper.bind;
 import static org.badvision.outlaweditor.data.PropertyHelper.boolProp;
 import static org.badvision.outlaweditor.data.PropertyHelper.categoryProp;
@@ -18,6 +20,8 @@ import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.TilesetUtils;
 import org.badvision.outlaweditor.data.xml.PlatformData;
 import org.badvision.outlaweditor.data.xml.Tile;
+import org.badvision.outlaweditor.ui.ApplicationUIController;
+import org.badvision.outlaweditor.ui.TileEditorTabController;
 
 /**
  * FXML Controller class for tile editor tab

@@ -171,7 +171,7 @@ public class AppleDHGRTileEditor extends TileEditor {
         byte[] data = TileUtils.getPlatformData(getEntity(), Platform.AppleII_DHGR);
         data[y * 4 + (x / 7)] ^= 128;
         TileUtils.setPlatformData(getEntity(), Platform.AppleII_DHGR, data);
-        TileUtils.redrawTile(getEntity());
+        redraw();
     }
 
     public void setHiBit(boolean on, int x, int y) {
@@ -182,14 +182,14 @@ public class AppleDHGRTileEditor extends TileEditor {
             data[y * 4 + (x / 7)] &= 127;
         }
         TileUtils.setPlatformData(getEntity(), Platform.AppleII_DHGR, data);
-        TileUtils.redrawTile(getEntity());
+        redraw();
     }
 
     public void toggle(int x, int y) {
         byte[] data = TileUtils.getPlatformData(getEntity(), Platform.AppleII_DHGR);
         data[y * 4 + (x / 7)] ^= (1 << (x % 7));
         TileUtils.setPlatformData(getEntity(), Platform.AppleII_DHGR, data);
-        TileUtils.redrawTile(getEntity());
+        redraw();
     }
 
     public void set(boolean on, int x, int y) {
@@ -199,7 +199,7 @@ public class AppleDHGRTileEditor extends TileEditor {
             data[y * 4 + (x / 7)] ^= (1 << (x % 7));
         }
         TileUtils.setPlatformData(getEntity(), Platform.AppleII_DHGR, data);
-        TileUtils.redrawTile(getEntity());
+        redraw();
     }
 
     public void recolorGrid(byte[] spriteData, Shape[][] grid, WritableImage img) {
@@ -244,5 +244,12 @@ public class AppleDHGRTileEditor extends TileEditor {
     @Override
     public void selectNone() {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public void redraw() {
+        if (getEntity() != null) {
+            TileUtils.redrawTile(getEntity());
+        }
     }
 }

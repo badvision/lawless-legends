@@ -1,4 +1,4 @@
-package org.badvision.outlaweditor;
+package org.badvision.outlaweditor.ui;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;

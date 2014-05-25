@@ -60,6 +60,10 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         super.setEntity(t);
         currentMap = new TileMap(t);
     }
+    public TileMap getCurrentMap() {
+        return currentMap;
+    }
+    
     EventHandler<ScrollEvent> scrollHandler = new EventHandler<ScrollEvent>() {
         @Override
         public void handle(ScrollEvent t) {
@@ -125,6 +129,14 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         anchorPane.getChildren().add(0, drawCanvas);
     }
 
+    @Override
+    public void addScript(Script script) {
+        if (getCurrentMap().getBackingMap().getScripts() == null) {
+            getCurrentMap().getBackingMap().setScripts(new Map.Scripts());
+        }
+        getCurrentMap().getBackingMap().getScripts().getScript().add(script);
+    }
+    
     public void assignScript(Script script, double x, double y) {
         System.out.println("Dropped " + script.getName() + " at " + x + "," + y);
     }

@@ -23,6 +23,8 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import org.badvision.outlaweditor.data.xml.Block;
 import org.badvision.outlaweditor.data.xml.Script;
+import org.badvision.outlaweditor.ui.ApplicationUIController;
+import org.badvision.outlaweditor.ui.MythosScriptEditorController;
 import org.w3c.dom.Document;
 import org.xml.sax.SAXException;
 
@@ -135,6 +137,6 @@ public class MythosEditor {
         }
         script.setName(name);
         System.out.println("Function title changed! >> "+name);
-        Application.instance.controller.mapController.redrawMapScripts();
+        ApplicationUIController.getController().redrawScripts();
     }
 }

@@ -22,7 +22,7 @@ import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.FileUtils;
 import org.badvision.outlaweditor.ImageEditor;
 import org.badvision.outlaweditor.Platform;
-import org.badvision.outlaweditor.UIAction;
+import org.badvision.outlaweditor.ui.UIAction;
 import org.badvision.outlaweditor.data.DataObserver;
 import org.badvision.outlaweditor.data.TileMap;
 import org.badvision.outlaweditor.data.xml.Image;

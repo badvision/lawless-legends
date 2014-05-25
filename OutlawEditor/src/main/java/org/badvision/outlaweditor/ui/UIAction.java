@@ -2,7 +2,7 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package org.badvision.outlaweditor;
+package org.badvision.outlaweditor.ui;
 
 import java.io.File;
 import java.io.IOException;
@@ -28,9 +28,11 @@ import javafx.scene.text.Text;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javax.xml.bind.JAXB;
+import org.badvision.outlaweditor.Application;
+import org.badvision.outlaweditor.FileUtils;
+import org.badvision.outlaweditor.MythosEditor;
 import org.badvision.outlaweditor.data.TilesetUtils;
 import org.badvision.outlaweditor.data.xml.GameData;
-import org.badvision.outlaweditor.data.xml.Map;
 import org.badvision.outlaweditor.data.xml.Script;
 
 /**
@@ -81,12 +83,10 @@ public class UIAction {
                 }
                 currentSaveFile = f;
                 GameData newData = JAXB.unmarshal(currentSaveFile, GameData.class);
-                Application.instance.controller.mapController.setCurrentMap(null);
-                Application.instance.controller.tileController.setCurrentTile(null);
+                ApplicationUIController.getController().clearData();
                 TilesetUtils.clear();
                 Application.gameData = newData;
-                Application.instance.controller.rebuildTileSelectors();
-                Application.instance.controller.mapController.rebuildMapSelectors();
+                ApplicationUIController.getController().updateSelectors();
                 break;
             case Quit:
                 quit();
@@ -201,10 +201,7 @@ public class UIAction {
     public static Script createAndEditScript() {
         Script script = new Script();
         script.setName("New Script");
-        if (Application.instance.controller.mapController.getCurrentMap().getScripts() == null) {
-            Application.instance.controller.mapController.getCurrentMap().setScripts(new Map.Scripts());
-        }
-        Application.instance.controller.mapController.getCurrentMap().getScripts().getScript().add(script);
+        ApplicationUIController.getController().getVisibleEditor().addScript(script);
         return editScript(script);
     }
     

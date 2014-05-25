@@ -10,7 +10,7 @@ import javafx.scene.image.WritableImage;
 import javax.swing.JOptionPane;
 import javax.xml.bind.JAXBElement;
 import org.badvision.outlaweditor.Application;
-import org.badvision.outlaweditor.UIAction;
+import org.badvision.outlaweditor.ui.UIAction;
 import org.badvision.outlaweditor.data.xml.Map;
 import org.badvision.outlaweditor.data.xml.Map.Chunk;
 import org.badvision.outlaweditor.data.xml.ObjectFactory;

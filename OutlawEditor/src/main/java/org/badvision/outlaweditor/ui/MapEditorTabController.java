@@ -1,4 +1,4 @@
-package org.badvision.outlaweditor;
+package org.badvision.outlaweditor.ui;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -8,6 +8,7 @@ import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.AnchorPane;
+import org.badvision.outlaweditor.MapEditor;
 import org.badvision.outlaweditor.data.xml.Map;
 import org.badvision.outlaweditor.data.xml.Script;
 
@@ -130,5 +131,9 @@ public abstract class MapEditorTabController {
         assert mapWrapAround != null : "fx:id=\"mapWrapAround\" was not injected: check your FXML file 'mapEditorTab.fxml'.";
     }
 
-    abstract void rebuildTileSelectors();
+    abstract public void rebuildTileSelectors();
+
+    public void completeInflightOperations() {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
 }

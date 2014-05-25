@@ -1,4 +1,4 @@
-package org.badvision.outlaweditor;
+package org.badvision.outlaweditor.ui;
 
 import java.net.URL;
 import java.util.ListResourceBundle;
@@ -14,6 +14,7 @@ import javafx.fxml.Initializable;
 import javafx.scene.control.MenuItem;
 import javafx.scene.web.WebView;
 import netscape.javascript.JSObject;
+import org.badvision.outlaweditor.MythosEditor;
 
 public class MythosScriptEditorController
         implements Initializable {

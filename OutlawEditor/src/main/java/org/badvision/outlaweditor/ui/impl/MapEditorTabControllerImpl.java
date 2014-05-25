@@ -1,4 +1,4 @@
-package org.badvision.outlaweditor;
+package org.badvision.outlaweditor.ui.impl;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -11,16 +11,21 @@ import javafx.scene.control.cell.ComboBoxListCell;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
 import javafx.util.Callback;
+import org.badvision.outlaweditor.Application;
+import org.badvision.outlaweditor.MapEditor;
+import org.badvision.outlaweditor.TransferHelper;
 import static org.badvision.outlaweditor.Application.currentPlatform;
 import static org.badvision.outlaweditor.Application.gameData;
-import static org.badvision.outlaweditor.UIAction.confirm;
-import static org.badvision.outlaweditor.UIAction.createAndEditScript;
+import static org.badvision.outlaweditor.ui.UIAction.confirm;
+import static org.badvision.outlaweditor.ui.UIAction.createAndEditScript;
 import static org.badvision.outlaweditor.data.PropertyHelper.bind;
 import static org.badvision.outlaweditor.data.PropertyHelper.stringProp;
 import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.xml.Script;
 import org.badvision.outlaweditor.data.xml.Tile;
 import org.badvision.outlaweditor.data.xml.Map;
+import org.badvision.outlaweditor.ui.MapEditorTabController;
+import org.badvision.outlaweditor.ui.UIAction;
 
 /**
  *
@@ -176,10 +181,16 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
         if (getCurrentEditor() == null) {
             return null;
         } else {
-            return getCurrentEditor().currentMap.getBackingMap();
+            return getCurrentEditor().getCurrentMap().getBackingMap();
         }
     }
 
+    public void completeInflightOperations() {
+        if (getCurrentEditor() != null) {
+            getCurrentEditor().getCurrentMap().updateBackingMap();
+        }        
+    }
+    
     @Override
     public void setCurrentMap(Map m) {
         if (getCurrentMap() != null && getCurrentMap().equals(m)) {
@@ -268,7 +279,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
     }
 
     @Override
-    void rebuildTileSelectors() {
+    public void rebuildTileSelectors() {
         mapSelectTile.getItems().clear();
         for (final Tile t : Application.gameData.getTile()) {
             WritableImage img = TileUtils.getImage(t, currentPlatform);

@@ -6,7 +6,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<AnchorPane id="AnchorPane" prefHeight="575.0" prefWidth="1000.0" styleClass="outlawApp" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.badvision.outlaweditor.ApplicationUIControllerImpl">
+<AnchorPane id="AnchorPane" prefHeight="575.0" prefWidth="1000.0" styleClass="outlawApp" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.badvision.outlaweditor.ui.impl.ApplicationUIControllerImpl">
   <children>
     <VBox prefHeight="500.0" prefWidth="800.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
       <children>
@@ -25,74 +25,7 @@
             </Tab>
             <Tab onSelectionChanged="#imageTabActivated" text="Images">
               <content>
-                <AnchorPane id="tilesTab" minHeight="0.0" minWidth="0.0" prefHeight="420.0" prefWidth="677.0">
-                  <children>
-                    <VBox prefHeight="420.0000999999975" prefWidth="677.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
-                      <children>
-                        <ToolBar prefWidth="686.0">
-                          <items>
-                            <Label text="Image:" />
-                            <ComboBox id="tileSelect" fx:id="imageSelector" onAction="#onImageSelected">
-                              <items>
-                                <FXCollections fx:factory="observableArrayList">
-                                  <String fx:value="Item 1" />
-                                  <String fx:value="Item 2" />
-                                  <String fx:value="Item 3" />
-                                </FXCollections>
-                              </items>
-                            </ComboBox>
-                            <Button mnemonicParsing="false" onAction="#onImageCreatePressed" text="Create new" />
-                            <Button mnemonicParsing="false" onAction="#onImageClonePressed" text="Clone" />
-                            <Button mnemonicParsing="false" onAction="#onImageExportPressed" text="Export" />
-                            <Button mnemonicParsing="false" onAction="#onImageDeletePressed" text="Delete" />
-                            <MenuButton mnemonicParsing="false" text="Tools">
-                              <items>
-                                <Menu fx:id="imagePatternMenu" mnemonicParsing="false" text="Pattern" />
-                                <Menu mnemonicParsing="false" text="Draw mode">
-                                  <items>
-                                    <MenuItem mnemonicParsing="false" onAction="#imageBitMode" text="Bit Toggle mode" />
-                                    <MenuItem mnemonicParsing="false" onAction="#imageDraw1BitMode" text="1 bit-wide" />
-                                    <MenuItem mnemonicParsing="false" onAction="#imageDraw3BitMode" text="3 bit wide" />
-                                    <MenuItem mnemonicParsing="false" onAction="#imageDraw5BitMode" text="5 bit wide" />
-                                    <MenuItem mnemonicParsing="false" onAction="#imageDrawFilledRectMode" text="Filled Rectangle" />
-                                  </items>
-                                </Menu>
-                                <MenuItem mnemonicParsing="false" onAction="#imageTogglePanZoom" text="Toggle pan/zoom controls" />
-                                <MenuItem mnemonicParsing="false" onAction="#imageShift" text="Shift..." />
-                              </items>
-                            </MenuButton>
-                          </items>
-                        </ToolBar>
-                        <HBox prefHeight="387.0" prefWidth="677.0" VBox.vgrow="ALWAYS">
-                          <children>
-                            <AnchorPane id="imageDetailsPane" prefHeight="200.0" prefWidth="200.0">
-                              <children>
-                                <Label layoutX="4.0" layoutY="14.0" text="Name" />
-                                <TextField id="" fx:id="imageNameField" layoutX="53.0" layoutY="11.0" prefWidth="147.0" />
-                                <Label layoutX="4.0" layoutY="36.0" text="Category" />
-                                <TextField id="tileCategoryField" fx:id="imageCategoryField" layoutX="74.0" layoutY="33.0" prefWidth="126.0" />
-                                <TextField fx:id="imageWidthField" layoutY="55.0" prefWidth="145.0" AnchorPane.leftAnchor="53.0" AnchorPane.rightAnchor="0.0" />
-                                <Label layoutX="4.0" layoutY="58.0" text="Width" />
-                                <TextField id="imageWidthField" fx:id="imageHeightField" layoutX="53.0" layoutY="77.0" prefWidth="147.0" />
-                                <Label layoutX="4.0" layoutY="83.0" text="Height" />
-                              </children>
-                            </AnchorPane>
-                            <AnchorPane id="mapEditorAnchorPane" fx:id="imageEditorAnchorPane" prefHeight="389.0" prefWidth="477.0" HBox.hgrow="ALWAYS">
-                              <children>
-                                <Button layoutX="236.0" mnemonicParsing="false" onAction="#scrollImageUp" styleClass="moveButton" text="Up" AnchorPane.topAnchor="5.0" />
-                                <Button layoutY="185.0" mnemonicParsing="false" onAction="#scrollImageLeft" rotate="270.0" styleClass="moveButton" text="Left" AnchorPane.leftAnchor="-20.0" />
-                                <Button layoutX="236.0" mnemonicParsing="false" onAction="#scrollImageDown" rotate="180.0" styleClass="moveButton" text="Down" AnchorPane.bottomAnchor="5.0" />
-                                <Button layoutY="175.0" mnemonicParsing="false" onAction="#scrollImageRight" rotate="90.0" styleClass="moveButton" text="Right" AnchorPane.rightAnchor="-15.0" />
-                                <Button mnemonicParsing="false" onAction="#imageZoomIn" styleClass="zoomInButton" text="+" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="5.0" />
-                                <Button mnemonicParsing="false" onAction="#imageZoomOut" prefHeight="23.999908447265625" styleClass="zoomOutButton" text="-" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="30.0" />
-                              </children>
-                            </AnchorPane>
-                          </children>
-                        </HBox>
-                      </children>
-                    </VBox>
-                  </children>
-                </AnchorPane>
+                  <fx:include fx:id="image" source="imageEditorTab.fxml"/>
               </content>
             </Tab>
           </tabs>

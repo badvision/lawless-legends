@@ -1,46 +1,37 @@
-package org.badvision.outlaweditor;
+package org.badvision.outlaweditor.ui.impl;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.event.ActionEvent;
-import javafx.event.Event;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
-import javafx.scene.control.TextField;
 import javafx.scene.control.cell.ComboBoxListCell;
-import javafx.scene.input.DataFormat;
 import javafx.util.Callback;
+import org.badvision.outlaweditor.Application;
+import org.badvision.outlaweditor.Editor;
+import org.badvision.outlaweditor.ImageEditor;
 import static org.badvision.outlaweditor.Application.currentPlatform;
-import static org.badvision.outlaweditor.UIAction.*;
-import static org.badvision.outlaweditor.data.PropertyHelper.*;
-import org.badvision.outlaweditor.data.TileUtils;
-import org.badvision.outlaweditor.data.TilesetUtils;
+import static org.badvision.outlaweditor.ui.UIAction.confirm;
+import static org.badvision.outlaweditor.data.PropertyHelper.bind;
+import static org.badvision.outlaweditor.data.PropertyHelper.categoryProp;
+import static org.badvision.outlaweditor.data.PropertyHelper.stringProp;
 import org.badvision.outlaweditor.data.xml.Image;
-import org.badvision.outlaweditor.data.xml.Tile;
+import org.badvision.outlaweditor.ui.ImageEditorTabController;
 
 /**
- * Actual implementation of Application UI, isolated from auto-generated code
+ * FXML Controller class
  *
- * @author brobert
+ * @author blurry
  */
-public class ApplicationUIControllerImpl extends ApplicationUIController {
+public class ImageEditorTabControllerImpl extends ImageEditorTabController {
 
     public Image currentImage = null;
     public ImageEditor currentImageEditor = null;
-
-    @Override
+    /**
+     * Initializes the controller class.
+     */
     public void initialize() {
-        super.initialize();
-
-        TilesetUtils.addObserver(new org.badvision.outlaweditor.data.DataObserver() {
-            @Override
-            public void observedObjectChanged(Object object) {
-                rebuildTileSelectors();
-            }
-        });
-
+        super.initalize();
         imageSelector.setButtonCell(new ComboBoxListCell<Image>() {
             {
                 super.setPrefWidth(125);
@@ -60,13 +51,18 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
         imageSelector.setCellFactory(new Callback<ListView<Image>, ListCell<Image>>() {
             @Override
             public ListCell<Image> call(ListView<Image> param) {
-                return new EntitySelectorCell<Image>(imageNameField) {
+                return new ApplicationUIControllerImpl.EntitySelectorCell<Image>(imageNameField) {
                     @Override
                     public void finishUpdate(Image item) {
                     }
                 };
             }
         });
+    }    
+    
+    @Override
+    public Editor getCurrentEditor() {
+        return currentImageEditor;
     }
 
     @Override
@@ -174,20 +170,7 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
         setCurrentImage(imageSelector.getSelectionModel().getSelectedItem());
     }
 
-    @Override
-    public void platformChange() {
-        for (Tile t : Application.gameData.getTile()) {
-            TileUtils.redrawTile(t);
-        }
-        Tile tile = tileController.getCurrentTile();
-        rebuildTileSelectors();
-        tileController.setCurrentTile(tile);
-        if (mapController.getCurrentEditor() != null) {
-            mapController.getCurrentEditor().redraw();
-        }
-        rebuildImageSelector();
-    }
-
+    
     @Override
     public void scrollImageDown(ActionEvent event) {
         if (currentImageEditor != null) {
@@ -215,13 +198,6 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
             currentImageEditor.scrollBy(0, -1);
         }
     }
-
-    @Override
-    public void rebuildTileSelectors() {
-        tileController.rebuildTileSelectors();
-        mapController.rebuildTileSelectors();
-    }
-
     private void setCurrentImage(Image i) {
         if (currentImage != null && currentImage.equals(i)) {
             return;
@@ -277,93 +253,4 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
         imageSelector.getItems().addAll(Application.gameData.getImage());
         imageSelector.getSelectionModel().select(i);
     }
-
-    @Override
-    public void completeInflightOperations() {
-        if (mapController.getCurrentEditor() != null) {
-            mapController.getCurrentEditor().currentMap.updateBackingMap();
-        }
-    }
-
-    public static enum TABS {
-
-        image, map, tile
-    };
-    TABS currentTab;
-
-    @Override
-    public void imageTabActivated(Event event) {
-        currentTab = TABS.image;
-    }
-
-    @Override
-    public void mapTabActivated(Event event) {
-        currentTab = TABS.map;
-    }
-
-    @Override
-    public void tileTabActivated(Event event) {
-        currentTab = TABS.tile;
-    }
-
-    @Override
-    public Editor getVisibleEditor() {
-        switch (currentTab) {
-            case image:
-                return currentImageEditor;
-            case map:
-                return mapController.getCurrentEditor();
-            case tile:
-                return tileController.getCurrentTileEditor();
-        }
-        return null;
-    }
-
-    public static final DataFormat SCRIPT_DATA_FORMAT = new DataFormat("MythosScript");
-
-    abstract public static class EntitySelectorCell<T> extends ComboBoxListCell<T> {
-
-        static Map<TextField, Object> lastSelected = new HashMap<>();
-        TextField nameField;
-
-        public EntitySelectorCell(TextField tileNameField) {
-            super.setPrefWidth(125);
-            nameField = tileNameField;
-        }
-
-        @Override
-        public void updateSelected(boolean sel) {
-            if (sel) {
-                Object o = lastSelected.get(nameField);
-                if (o != null && !o.equals(getItem())) {
-                    ((ListCell) o).updateSelected(false);
-                }
-                textProperty().unbind();
-                textProperty().bind(nameField.textProperty());
-                lastSelected.put(nameField, this);
-            } else {
-                updateItem(getItem(), false);
-            }
-        }
-
-        @Override
-        public void updateItem(T item, boolean empty) {
-            textProperty().unbind();
-            super.updateItem(item, empty);
-            if (item != null && !(item instanceof String)) {
-                try {
-                    textProperty().bind(stringProp(item, "name"));
-                } catch (NoSuchMethodException ex) {
-                    Logger.getLogger(ApplicationUIControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
-                }
-                finishUpdate(item);
-            } else {
-                setText(null);
-            }
-        }
-
-        public void finishUpdate(T item) {
-        }
-    };
-
 }

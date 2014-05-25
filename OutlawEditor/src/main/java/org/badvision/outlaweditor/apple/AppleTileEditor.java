@@ -80,13 +80,14 @@ public class AppleTileEditor extends TileEditor {
     }
     int lastActionX = -1;
     int lastActionY = -1;
+
     public void performDragAction(int x, int y) {
         performAction(false, x, y);
     }
 
     private void performAction(boolean alt, int x, int y) {
-        y = Math.min(Math.max(y,0), 15);
-        x = Math.min(Math.max(x,0), 13);
+        y = Math.min(Math.max(y, 0), 15);
+        x = Math.min(Math.max(x, 0), 13);
         if (lastActionX == x && lastActionY == y) {
             return;
         }
@@ -108,8 +109,10 @@ public class AppleTileEditor extends TileEditor {
                 }
                 break;
             case Pencil3px:
-                for (int xx = x-1; xx <= x+1; xx++) {
-                    if (xx < 0 || xx >= 14) continue;
+                for (int xx = x - 1; xx <= x + 1; xx++) {
+                    if (xx < 0 || xx >= 14) {
+                        continue;
+                    }
                     pat = currentPattern.getBytePattern()[y * 4 + (xx / 7)];
                     set((pat & (1 << (xx % 7))) != 0, xx, y);
                     if (currentPattern.hiBitMatters) {
@@ -168,7 +171,7 @@ public class AppleTileEditor extends TileEditor {
         byte[] data = TileUtils.getPlatformData(getEntity(), Platform.AppleII);
         data[y * 2 + (x / 7)] ^= 128;
         TileUtils.setPlatformData(getEntity(), Platform.AppleII, data);
-        TileUtils.redrawTile(getEntity());
+        redraw();
     }
 
     public void setHiBit(boolean on, int x, int y) {
@@ -179,14 +182,14 @@ public class AppleTileEditor extends TileEditor {
             data[y * 2 + (x / 7)] &= 127;
         }
         TileUtils.setPlatformData(getEntity(), Platform.AppleII, data);
-        TileUtils.redrawTile(getEntity());
+        redraw();
     }
 
     public void toggle(int x, int y) {
         byte[] data = TileUtils.getPlatformData(getEntity(), Platform.AppleII);
         data[y * 2 + (x / 7)] ^= (1 << (x % 7));
         TileUtils.setPlatformData(getEntity(), Platform.AppleII, data);
-        TileUtils.redrawTile(getEntity());
+        redraw();
     }
 
     public void set(boolean on, int x, int y) {
@@ -196,7 +199,7 @@ public class AppleTileEditor extends TileEditor {
             data[y * 2 + (x / 7)] ^= (1 << (x % 7));
         }
         TileUtils.setPlatformData(getEntity(), Platform.AppleII, data);
-        TileUtils.redrawTile(getEntity());
+        redraw();
     }
 
     public void recolorGrid(byte[] spriteData, Shape[][] grid, WritableImage img) {
@@ -234,5 +237,12 @@ public class AppleTileEditor extends TileEditor {
     @Override
     public void selectNone() {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public void redraw() {
+        if (getEntity() != null) {
+            TileUtils.redrawTile(getEntity());
+        }
     }
 }

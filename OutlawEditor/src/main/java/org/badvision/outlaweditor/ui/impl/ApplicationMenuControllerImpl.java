@@ -1,10 +1,15 @@
-package org.badvision.outlaweditor;
+package org.badvision.outlaweditor.ui.impl;
 
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.event.ActionEvent;
+import org.badvision.outlaweditor.Application;
+import org.badvision.outlaweditor.Platform;
 import org.badvision.outlaweditor.apple.AppleTileRenderer;
+import org.badvision.outlaweditor.ui.ApplicationMenuController;
+import org.badvision.outlaweditor.ui.ApplicationUIController;
+import org.badvision.outlaweditor.ui.UIAction;
 
 /**
  *
@@ -74,8 +79,8 @@ public class ApplicationMenuControllerImpl extends ApplicationMenuController {
         ApplicationUIController mainController = ApplicationUIController.getController();
         try {
             UIAction.actionPerformed(UIAction.MAIN_ACTIONS.Load);
-            mainController.rebuildImageSelector();
-            mainController.mapController.rebuildMapSelectors();
+            mainController.rebuildImageSelectors();
+            mainController.rebuildMapSelectors();
             mainController.rebuildTileSelectors();
         } catch (IOException ex) {
             Logger.getLogger(ApplicationUIControllerImpl.class.getName()).log(Level.SEVERE, null, ex);

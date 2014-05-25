@@ -4,7 +4,7 @@
  * and open the template in the editor.
  */
 
-package org.badvision.outlaweditor;
+package org.badvision.outlaweditor.ui;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -13,6 +13,7 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Menu;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.AnchorPane;
+import org.badvision.outlaweditor.TileEditor;
 import org.badvision.outlaweditor.data.xml.Tile;
 
 /**

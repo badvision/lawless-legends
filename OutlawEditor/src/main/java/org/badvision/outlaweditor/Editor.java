@@ -3,6 +3,7 @@ package org.badvision.outlaweditor;
 import javafx.scene.layout.AnchorPane;
 import org.badvision.outlaweditor.data.DataObserver;
 import org.badvision.outlaweditor.data.DataProducer;
+import org.badvision.outlaweditor.data.xml.Script;
 
 /**
  * Extremely generic editor abstraction -- useful for uniform edit features across application
@@ -52,5 +53,10 @@ public abstract class Editor<T,D> implements DataObserver<T> {
         }
         return selectInfo;
     };
-    
+
+    public void addScript(Script script) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    abstract public void redraw();
 }

@@ -13,13 +13,13 @@ import org.badvision.outlaweditor.data.xml.PlatformData;
  * @author brobert
  */
 public abstract class ImageEditor extends Editor<Image, ImageEditor.DrawMode> {
+
     public static enum DrawMode {
+
         Toggle, Pencil1px, Pencil3px, Pencil5px, Rectangle, Circle, Stamp
     }
 
     abstract public void buildPatternSelector(Menu tilePatternMenu);
-
-    abstract public void redraw();
 
     public abstract void scrollBy(int deltaX, int deltaY);
 
@@ -28,12 +28,12 @@ public abstract class ImageEditor extends Editor<Image, ImageEditor.DrawMode> {
     public abstract void zoomIn();
 
     public abstract void zoomOut();
-    
+
     public abstract void exportImage();
 
     public abstract void resize(int newWidth, int newHeight);
-    
-    public PlatformData getPlatformData(Platform p) {        
+
+    public PlatformData getPlatformData(Platform p) {
         for (PlatformData data : getEntity().getDisplayData()) {
             if (data.getPlatform().equalsIgnoreCase(p.name())) {
                 return data;

@@ -9,6 +9,8 @@ import javafx.scene.image.WritableImage;
 public abstract class TileRenderer {
 
     public abstract WritableImage redrawSprite(byte[] spriteData, WritableImage image);
+
     public abstract int getWidth();
+
     public abstract int getHeight();
 }

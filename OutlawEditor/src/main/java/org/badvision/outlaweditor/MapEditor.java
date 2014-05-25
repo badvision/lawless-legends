@@ -20,11 +20,8 @@ import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
-import javafx.scene.input.DragEvent;
-import javafx.scene.input.Dragboard;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
-import javafx.scene.input.TransferMode;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
@@ -60,10 +57,11 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         super.setEntity(t);
         currentMap = new TileMap(t);
     }
+
     public TileMap getCurrentMap() {
         return currentMap;
     }
-    
+
     EventHandler<ScrollEvent> scrollHandler = new EventHandler<ScrollEvent>() {
         @Override
         public void handle(ScrollEvent t) {
@@ -136,7 +134,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         }
         getCurrentMap().getBackingMap().getScripts().getScript().add(script);
     }
-    
+
     public void assignScript(Script script, double x, double y) {
         System.out.println("Dropped " + script.getName() + " at " + x + "," + y);
     }

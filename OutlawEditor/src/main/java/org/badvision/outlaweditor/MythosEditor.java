@@ -48,7 +48,7 @@ public class MythosEditor {
         primaryStage = new Stage();
 
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/MythosScriptEditor.fxml"));
-        Map<String,String> properties = new HashMap<>();
+        Map<String, String> properties = new HashMap<>();
         properties.put(MythosScriptEditorController.ONLOAD_SCRIPT, generateLoadScript());
         fxmlLoader.setResources(MythosScriptEditorController.createResourceBundle(properties));
         try {
@@ -103,13 +103,13 @@ public class MythosEditor {
             try {
                 JAXBContext context = JAXBContext.newInstance(Block.class);
                 StringWriter buffer = new StringWriter();
-                QName qName = new QName("outlaw","block");
-                JAXBElement<Block> root = new JAXBElement<>(qName, Block.class, script.getBlock()); 
+                QName qName = new QName("outlaw", "block");
+                JAXBElement<Block> root = new JAXBElement<>(qName, Block.class, script.getBlock());
                 context.createMarshaller().marshal(root, buffer);
                 String xml = buffer.toString();
-                xml=xml.replace("?>", "?><xml>");
+                xml = xml.replace("?>", "?><xml>");
                 xml += "</xml>";
-                System.out.println("xml: "+xml);
+                System.out.println("xml: " + xml);
                 return generateLoadScript(xml);
             } catch (JAXBException ex) {
                 Logger.getLogger(MythosEditor.class.getName()).log(Level.SEVERE, null, ex);
@@ -121,22 +121,22 @@ public class MythosEditor {
     public String generateLoadScript(String xml) {
         xml = xml.replaceAll("'", "\\'");
         xml = xml.replaceAll("\n", "");
-        String loadScript = "Mythos.setScriptXml('"+xml+"');";
+        String loadScript = "Mythos.setScriptXml('" + xml + "');";
         return loadScript;
     }
 
     private String getDefaultBlockMarkup() {
-        return XML_HEADER+"<xml><block type=\"procedures_defreturn\" id=\"1\" inline=\"false\" x=\"5\" y=\"5\"><mutation></mutation><field name=\"NAME\">NewScript</field></block></xml>";
+        return XML_HEADER + "<xml><block type=\"procedures_defreturn\" id=\"1\" inline=\"false\" x=\"5\" y=\"5\"><mutation></mutation><field name=\"NAME\">NewScript</field></block></xml>";
     }
-    
+
     // Called when the name of the root block is changed in the JS editor
     public void setFunctionName(String name) {
         if (script == null) {
-            System.out.println("How can the script be null??  wanted to set script name to "+name);            
+            System.out.println("How can the script be null??  wanted to set script name to " + name);
             return;
         }
         script.setName(name);
-        System.out.println("Function title changed! >> "+name);
+        System.out.println("Function title changed! >> " + name);
         ApplicationUIController.getController().redrawScripts();
     }
 }

@@ -47,5 +47,5 @@ public abstract class ApplicationMenuController {
 
     @FXML
     abstract public void onHelpAbout(ActionEvent event);
-    
+
 }

@@ -16,7 +16,7 @@ import org.badvision.outlaweditor.ui.UIAction;
  * @author blurry
  */
 public class ApplicationMenuControllerImpl extends ApplicationMenuController {
-    
+
     @Override
     public void onChangePlatformAppleSolid(ActionEvent event) {
         AppleTileRenderer.useSolidPalette = true;
@@ -116,6 +116,5 @@ public class ApplicationMenuControllerImpl extends ApplicationMenuController {
     public void onHelpAbout(ActionEvent event) {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
-
 
 }

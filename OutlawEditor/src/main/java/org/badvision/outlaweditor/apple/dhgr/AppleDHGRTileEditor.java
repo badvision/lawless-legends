@@ -1,6 +1,5 @@
 package org.badvision.outlaweditor.apple.dhgr;
 
-import org.badvision.outlaweditor.apple.*;
 import javafx.event.EventHandler;
 import javafx.scene.Group;
 import javafx.scene.control.Menu;

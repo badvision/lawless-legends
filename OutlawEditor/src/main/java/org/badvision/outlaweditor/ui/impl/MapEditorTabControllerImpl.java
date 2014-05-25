@@ -188,9 +188,9 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
     public void completeInflightOperations() {
         if (getCurrentEditor() != null) {
             getCurrentEditor().getCurrentMap().updateBackingMap();
-        }        
+        }
     }
-    
+
     @Override
     public void setCurrentMap(Map m) {
         if (getCurrentMap() != null && getCurrentMap().equals(m)) {

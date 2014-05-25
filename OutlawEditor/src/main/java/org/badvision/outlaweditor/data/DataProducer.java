@@ -9,19 +9,21 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import static org.badvision.outlaweditor.data.TileUtils.clear;
 
 /**
  *
  * @author brobert
  */
 public class DataProducer {
-     static Map<Object, List<WeakReference<DataObserver>>> observers;
+
+    static Map<Object, List<WeakReference<DataObserver>>> observers;
+
     static {
         clear();
     }
+
     public static void clear() {
-         observers = new ConcurrentHashMap<>();
+        observers = new ConcurrentHashMap<>();
     }
 
     public static List<WeakReference<DataObserver>> getObservers(Object o) {
@@ -34,7 +36,7 @@ public class DataProducer {
     public static void addObserver(Object o, DataObserver observer) {
         getObservers(o).add(new WeakReference<>(observer));
     }
-     
+
     public static void notifyObservers(Object o) {
         for (WeakReference<DataObserver> ref : getObservers(o)) {
             DataObserver observer = ref.get();

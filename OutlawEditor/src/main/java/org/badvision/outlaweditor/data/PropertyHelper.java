@@ -92,9 +92,9 @@ public class PropertyHelper {
     public static JavaBeanStringProperty stringProp(Object t, String fieldName) throws NoSuchMethodException {
         return new JavaBeanStringPropertyBuilder().bean(t).name(fieldName).build();
     }
-    
+
     static private Map<Property, Property> boundProperties = new HashMap<>();
-   
+
     static public void bind(Property formProp, Property sourceProp) {
         if (boundProperties.containsKey(formProp)) {
             formProp.unbindBidirectional(boundProperties.get(formProp));
@@ -107,5 +107,5 @@ public class PropertyHelper {
             formProp.bindBidirectional(sourceProp);
             boundProperties.put(formProp, sourceProp);
         }
-    }    
+    }
 }

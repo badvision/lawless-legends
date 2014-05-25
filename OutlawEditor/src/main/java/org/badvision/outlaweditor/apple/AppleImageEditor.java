@@ -228,8 +228,8 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
         switch (currentDrawMode) {
             case Toggle:
                 if (canSkip) {
-                return false;
-            }
+                    return false;
+                }
                 if (alt) {
                     toggleHiBit(x, y);
                 } else {
@@ -239,31 +239,31 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
                 break;
             case Pencil1px:
                 if (canSkip) {
-                return false;
-            }
+                    return false;
+                }
                 plot(x, y, currentFillPattern, hiBitMatters); // [ref BigBlue1_30]
                 redrawScanline(y);
                 break;
             case Pencil3px:
                 if (canSkip) {
-                return false;
-            }
+                    return false;
+                }
                 drawBrush(x, y, 3, currentFillPattern, hiBitMatters);
                 break;
             case Pencil5px:
                 if (canSkip) {
-                return false;
-            }
+                    return false;
+                }
                 drawBrush(x, y, 5, currentFillPattern, hiBitMatters);
                 break;
             case Rectangle:
                 if (released) {
-                fillSelection(x, y);
-                redraw();
-                debounce = System.currentTimeMillis();
-            } else {
-                updateSelection(x, y);
-            }
+                    fillSelection(x, y);
+                    redraw();
+                    debounce = System.currentTimeMillis();
+                } else {
+                    updateSelection(x, y);
+                }
                 break;
         }
         return true;
@@ -409,8 +409,8 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
             byte[] buf = getPlatform().imageRenderer.renderPreview(
                     map,
                     details.get("x1"),
-                    details.get("y1"), 
-                    getWidth(), 
+                    details.get("y1"),
+                    getWidth(),
                     getHeight());
             setData(buf);
             redraw();

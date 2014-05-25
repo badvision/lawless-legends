@@ -50,13 +50,13 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
 
     public void redrawAllTabs() {
         if (mapController.getCurrentEditor() != null) {
-            mapController.getCurrentEditor().redraw();            
+            mapController.getCurrentEditor().redraw();
         }
         if (imageController.getCurrentEditor() != null) {
             imageController.getCurrentEditor().redraw();
         }
     }
-    
+
     @Override
     public void updateSelectors() {
         rebuildImageSelectors();

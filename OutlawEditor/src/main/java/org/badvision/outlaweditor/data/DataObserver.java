@@ -1,7 +1,5 @@
 package org.badvision.outlaweditor.data;
 
-import org.badvision.outlaweditor.*;
-
 /**
  *
  * @author brobert

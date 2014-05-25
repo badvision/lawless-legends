@@ -28,12 +28,13 @@ import org.badvision.outlaweditor.ui.TileEditorTabController;
  *
  * @author blurry
  */
-public class TileEditorTabControllerImpl extends TileEditorTabController {   
+public class TileEditorTabControllerImpl extends TileEditorTabController {
+
     @Override
     public void onCurrentTileSelected(ActionEvent event) {
         setCurrentTile(tileSelector.getSelectionModel().getSelectedItem());
     }
-    
+
     @Override
     public void onTileClonePressed(ActionEvent event) {
         ApplicationUIController mainController = ApplicationUIController.getController();
@@ -124,7 +125,6 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
-
     /**
      * Initializes the controller class.
      */
@@ -136,7 +136,7 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
         assert tileObstructionField != null : "fx:id=\"tileObstructionField\" was not injected: check your FXML file 'tileEditorTab.fxml'.";
         assert tilePatternMenu != null : "fx:id=\"tilePatternMenu\" was not injected: check your FXML file 'tileEditorTab.fxml'.";
         assert tileSelector != null : "fx:id=\"tileSelector\" was not injected: check your FXML file 'tileEditorTab.fxml'.";
-        
+
         tileSelector.setButtonCell(new ComboBoxListCell<Tile>() {
             {
                 super.setPrefWidth(125);
@@ -163,9 +163,9 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
                     }
                 };
             }
-        });        
-    }    
-    
+        });
+    }
+
     @Override
     public void setCurrentTileEditor(TileEditor editor) {
         if (editor != null) {

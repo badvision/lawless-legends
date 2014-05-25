@@ -27,6 +27,7 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
 
     public Image currentImage = null;
     public ImageEditor currentImageEditor = null;
+
     /**
      * Initializes the controller class.
      */
@@ -58,8 +59,8 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
                 };
             }
         });
-    }    
-    
+    }
+
     @Override
     public Editor getCurrentEditor() {
         return currentImageEditor;
@@ -170,7 +171,6 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
         setCurrentImage(imageSelector.getSelectionModel().getSelectedItem());
     }
 
-    
     @Override
     public void scrollImageDown(ActionEvent event) {
         if (currentImageEditor != null) {
@@ -198,6 +198,7 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
             currentImageEditor.scrollBy(0, -1);
         }
     }
+
     private void setCurrentImage(Image i) {
         if (currentImage != null && currentImage.equals(i)) {
             return;

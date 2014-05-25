@@ -17,18 +17,25 @@ import org.badvision.outlaweditor.data.xml.Script;
  * @author blurry
  */
 public abstract class MapEditorTabController {
+
     private MapEditor currentEditor;
+
     public MapEditor getCurrentEditor() {
         return currentEditor;
     }
+
     public void setCurrentEditor(MapEditor editor) {
         currentEditor = editor;
     }
+
     public abstract Map getCurrentMap();
+
     public abstract void setCurrentMap(Map m);
+
     public abstract void rebuildMapSelectors();
+
     public abstract void redrawMapScripts();
-    
+
     @FXML // fx:id="mapEditorAnchorPane"
     protected AnchorPane mapEditorAnchorPane; // Value injected by FXMLLoader
     @FXML // fx:id="mapHeightField"

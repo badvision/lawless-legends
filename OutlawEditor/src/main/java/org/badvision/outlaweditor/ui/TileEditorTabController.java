@@ -3,7 +3,6 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-
 package org.badvision.outlaweditor.ui;
 
 import javafx.event.ActionEvent;
@@ -21,22 +20,27 @@ import org.badvision.outlaweditor.data.xml.Tile;
  * @author blurry
  */
 public abstract class TileEditorTabController {
+
     private Tile currentTile;
+
     public Tile getCurrentTile() {
         return currentTile;
     }
+
     public void setCurrentTile(Tile tile) {
         currentTile = tile;
     }
-    
+
     private TileEditor currentEditor;
+
     public TileEditor getCurrentTileEditor() {
         return currentEditor;
     }
+
     public void setCurrentTileEditor(TileEditor editor) {
         currentEditor = editor;
     }
-    
+
     @FXML // fx:id="tileCategoryField"
     protected TextField tileCategoryField; // Value injected by FXMLLoader
     @FXML // fx:id="tileEditorAnchorPane"
@@ -80,5 +84,5 @@ public abstract class TileEditorTabController {
     abstract public void tileShift(ActionEvent event);
 
     abstract public void rebuildTileSelectors();
-    
+
 }

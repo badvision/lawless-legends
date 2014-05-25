@@ -5,8 +5,10 @@ package org.badvision.outlaweditor.apple;
  * @author brobert
  */
 public class AppleNTSCGraphics {
+
     // i Range [-0.5957, 0.5957]
     public static final double MAX_I = 0.5957;
+    
     // q Range [-0.5226, 0.5226]
     public static final double MAX_Q = 0.5226;
     public static final double MAX_Y = 1;

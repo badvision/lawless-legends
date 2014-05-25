@@ -26,12 +26,14 @@ public class Application extends javafx.application.Application {
     }
 
     private ApplicationUIController controller;
+
     public ApplicationUIController getController() {
         return controller;
     }
-    
-        public Stage primaryStage;
-public static Stage getPrimaryStage() {
+
+    public Stage primaryStage;
+
+    public static Stage getPrimaryStage() {
         return instance.primaryStage;
     }
 
@@ -51,7 +53,7 @@ public static Stage getPrimaryStage() {
         } catch (IOException exception) {
             throw new RuntimeException(exception);
         }
-        
+
         primaryStage.setOnCloseRequest(new EventHandler<WindowEvent>() {
             @Override
             public void handle(final WindowEvent t) {

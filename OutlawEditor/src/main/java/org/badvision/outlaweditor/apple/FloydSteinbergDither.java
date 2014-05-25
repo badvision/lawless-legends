@@ -5,8 +5,6 @@ import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.SnapshotParameters;
@@ -155,15 +153,15 @@ public class FloydSteinbergDither {
             }
 
             void hiresDither(final byte[] screen, int y, int x, int[] scanline, List<Integer> pixels, WritableImage tmpScaled, int pass, final WritableImage keepScaled) {
-                int bb1 = screen[(y+startY) * bufferWidth + startX + x] & 255;
-                int bb2 = screen[(y+startY) * bufferWidth + startX + x + 1] & 255;
+                int bb1 = screen[(y + startY) * bufferWidth + startX + x] & 255;
+                int bb2 = screen[(y + startY) * bufferWidth + startX + x + 1] & 255;
                 int next = bb2 & 127;  // Preserve hi-bit so last pixel stays solid, it is a very minor detail
                 int prev = 0;
-                if ((x+startX) > 0) {
-                    prev = screen[(y+startY) * bufferWidth + startX + x - 1] & 255;
+                if ((x + startX) > 0) {
+                    prev = screen[(y + startY) * bufferWidth + startX + x - 1] & 255;
                 }
-                if ((x+startX) < 38) {
-                    next = screen[(y+startY) * bufferWidth + startX + x + 2] & 255;
+                if ((x + startX) < 38) {
+                    next = screen[(y + startY) * bufferWidth + startX + x + 2] & 255;
                 }
                 // First byte, compared with a sliding window encompassing the previous byte, if any.
                 int leastError = Integer.MAX_VALUE;
@@ -267,8 +265,8 @@ public class FloydSteinbergDither {
                         tmpScaled.getPixelWriter().setPixels(0, y, 560, (y < 191) ? 2 : 1, keepScaled.getPixelReader(), 0, y);
                     }
                 }
-                screen[(y+startY) * bufferWidth + startX + x] = (byte) bb1;
-                screen[(y+startY) * bufferWidth + startX + x + 1] = (byte) bb2;
+                screen[(y + startY) * bufferWidth + startX + x] = (byte) bb1;
+                screen[(y + startY) * bufferWidth + startX + x + 1] = (byte) bb2;
             }
 
             void doubleHiresDither(final byte[] screen, int y, int x, int[] scanline, List<Integer> pixels, WritableImage tmpScaled, int pass, final WritableImage keepScaled) {
@@ -293,58 +291,58 @@ public class FloydSteinbergDither {
                 for (int xx = 0; xx < 4; xx++) {
                     // First byte, compared with a sliding window encompassing the previous byte, if any.
                     int leastError = Integer.MAX_VALUE;
-                        int b1 = (bytes[xx] & 0x07f);
-                        for (int c = 0; c < 7; c++) {
-                            int on = b1 | (1 << c);
-                            int off = on ^ (1 << c);
-                            // get values for "off"
-                            int i = (xx == 3) ? off : bytes[3] & 255;
-                            i <<= 7;
-                            i |= (xx == 2) ? off : bytes[2] & 255;
-                            i <<= 7;
-                            i |= (xx == 1) ? off : bytes[1] & 255;
-                            i <<= 7;
-                            i |= (xx == 0) ? off : bytes[0] & 255;
-                            scanline[1] = i;
-                            int errorOff = getError((x + xx) * 7 - overlap + c, y, 28 + (xx * 7) + c - overlap + pixelShift, errorWindow, pixels, tmpScaled.getPixelReader(), scanline);
-                            int off1 = pixels.get(xx * 7 + c + 28 + pixelShift);
-                            // get values for "on"
-                            i = (xx == 3) ? on : bytes[3] & 255;
-                            i <<= 7;
-                            i |= (xx == 2) ? on : bytes[2] & 255;
-                            i <<= 7;
-                            i |= (xx == 1) ? on : bytes[1] & 255;
-                            i <<= 7;
-                            i |= (xx == 0) ? on : bytes[0] & 255;
-                            scanline[1] = i;
-                            int errorOn = getError((x + xx) * 7 - overlap + c, y, 28 + (xx * 7) + c - overlap + pixelShift, errorWindow, pixels, tmpScaled.getPixelReader(), scanline);
-                            int on1 = pixels.get(xx * 7 + c + 28 + pixelShift);
+                    int b1 = (bytes[xx] & 0x07f);
+                    for (int c = 0; c < 7; c++) {
+                        int on = b1 | (1 << c);
+                        int off = on ^ (1 << c);
+                        // get values for "off"
+                        int i = (xx == 3) ? off : bytes[3] & 255;
+                        i <<= 7;
+                        i |= (xx == 2) ? off : bytes[2] & 255;
+                        i <<= 7;
+                        i |= (xx == 1) ? off : bytes[1] & 255;
+                        i <<= 7;
+                        i |= (xx == 0) ? off : bytes[0] & 255;
+                        scanline[1] = i;
+                        int errorOff = getError((x + xx) * 7 - overlap + c, y, 28 + (xx * 7) + c - overlap + pixelShift, errorWindow, pixels, tmpScaled.getPixelReader(), scanline);
+                        int off1 = pixels.get(xx * 7 + c + 28 + pixelShift);
+                        // get values for "on"
+                        i = (xx == 3) ? on : bytes[3] & 255;
+                        i <<= 7;
+                        i |= (xx == 2) ? on : bytes[2] & 255;
+                        i <<= 7;
+                        i |= (xx == 1) ? on : bytes[1] & 255;
+                        i <<= 7;
+                        i |= (xx == 0) ? on : bytes[0] & 255;
+                        scanline[1] = i;
+                        int errorOn = getError((x + xx) * 7 - overlap + c, y, 28 + (xx * 7) + c - overlap + pixelShift, errorWindow, pixels, tmpScaled.getPixelReader(), scanline);
+                        int on1 = pixels.get(xx * 7 + c + 28 + pixelShift);
 
-                            int[] col1;
-                            if (errorOff < errorOn) {
+                        int[] col1;
+                        if (errorOff < errorOn) {
 //                                totalError += errorOff;
-                                b1 = off;
-                                col1 = Palette.parseIntColor(off1);
-                            } else {
+                            b1 = off;
+                            col1 = Palette.parseIntColor(off1);
+                        } else {
 //                                totalError += errorOn;
-                                b1 = on;
-                                col1 = Palette.parseIntColor(on1);
-                            }
-                            if (pass >= nonErrorPasses) {
-                                propagateError((x + xx) * 7 + c, y, tmpScaled, col1, false, false);
-                            }
+                            b1 = on;
+                            col1 = Palette.parseIntColor(on1);
                         }
+                        if (pass >= nonErrorPasses) {
+                            propagateError((x + xx) * 7 + c, y, tmpScaled, col1, false, false);
+                        }
+                    }
 //                        if (totalError < leastError) {
-                            keepScaled.getPixelWriter().setPixels(0, y, 560, (y < 191) ? 2 : 1, tmpScaled.getPixelReader(), 0, y);
+                    keepScaled.getPixelWriter().setPixels(0, y, 560, (y < 191) ? 2 : 1, tmpScaled.getPixelReader(), 0, y);
 //                            leastError = totalError;
-                            bytes[xx] = b1;
+                    bytes[xx] = b1;
 //                        } else {
 //                            tmpScaled.getPixelWriter().setPixels(0, y, 560, (y < 191) ? 2 : 1, keepScaled.getPixelReader(), 0, y);
                 }
-                screen[(y+startY) * bufferWidth + startX + x] = (byte) bytes[0];
-                screen[(y+startY) * bufferWidth + startX + x + 1] = (byte) bytes[1];
-                screen[(y+startY) * bufferWidth + startX + x + 2] = (byte) bytes[2];
-                screen[(y+startY) * bufferWidth + startX + x + 3] = (byte) bytes[3];
+                screen[(y + startY) * bufferWidth + startX + x] = (byte) bytes[0];
+                screen[(y + startY) * bufferWidth + startX + x + 1] = (byte) bytes[1];
+                screen[(y + startY) * bufferWidth + startX + x + 2] = (byte) bytes[2];
+                screen[(y + startY) * bufferWidth + startX + x + 3] = (byte) bytes[3];
             }
         });
         t.start();

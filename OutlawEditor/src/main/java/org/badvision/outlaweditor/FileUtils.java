@@ -24,7 +24,7 @@ public class FileUtils {
 
         XML("XML files", "xml"),
         TILESET("Tileset", "ots"),
-        ALL("All files", "*"), 
+        ALL("All files", "*"),
         BINARY("Binary", "bin");
         String description;
         String extension;
@@ -55,7 +55,7 @@ public class FileUtils {
         if (create) {
             File file = f.showSaveDialog(Application.getPrimaryStage());
             if (!file.getName().contains(".")) {
-                return new File(file.getParentFile(), file.getName()+"."+supportedExtensions[0].extension);
+                return new File(file.getParentFile(), file.getName() + "." + supportedExtensions[0].extension);
             } else {
                 return file;
             }

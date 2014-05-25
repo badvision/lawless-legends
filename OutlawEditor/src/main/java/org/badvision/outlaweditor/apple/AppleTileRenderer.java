@@ -10,16 +10,20 @@ import static org.badvision.outlaweditor.apple.AppleNTSCGraphics.*;
  * @author brobert
  */
 public class AppleTileRenderer extends TileRenderer {
-    public static boolean useSolidPalette = true; 
+
+    public static boolean useSolidPalette = true;
+
     @Override
     public WritableImage redrawSprite(byte[] spriteData, WritableImage img) {
         if (img == null) {
             img = new WritableImage(28, 32);
         }
-        if (spriteData == null) return img;
+        if (spriteData == null) {
+            return img;
+        }
         int[][] palette = useSolidPalette ? solidPalette : textPalette;
         for (int y = 0; y < 16; y++) {
-            int bleedOver = (spriteData[y * 2 + 1] & 192)==192 ? 256 : 0;
+            int bleedOver = (spriteData[y * 2 + 1] & 192) == 192 ? 256 : 0;
             int scan = hgrToDhgr[bleedOver | (spriteData[y * 2] & 255)][spriteData[y * 2 + 1] & 255];
             int last = (scan >> 26) & 3;
             int keep = scan & 0xff;
@@ -27,7 +31,7 @@ public class AppleTileRenderer extends TileRenderer {
             scan |= last;
             for (int x = 0; x < 14; x++) {
                 boolean isHiBit = ((spriteData[y * 2 + x / 7] & 128) != 0);
-                
+
                 int col1 = palette[ (x & 1) << 1][scan & 0x07f];
                 Color color1 = Color.rgb(getRed(col1), getGreen(col1), getBlue(col1));
                 scan >>= 1;

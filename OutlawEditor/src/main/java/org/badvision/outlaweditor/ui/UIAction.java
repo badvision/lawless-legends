@@ -99,8 +99,8 @@ public class UIAction {
                 currentSaveFile = f;
             case Save:
                 if (currentSaveFile == null) {
-                currentSaveFile = FileUtils.getFile(currentSaveFile, "Save game data", Boolean.TRUE, FileUtils.Extension.XML, FileUtils.Extension.ALL);
-            }
+                    currentSaveFile = FileUtils.getFile(currentSaveFile, "Save game data", Boolean.TRUE, FileUtils.Extension.XML, FileUtils.Extension.ALL);
+                }
                 if (currentSaveFile != null) {
                     currentSaveFile.delete();
                     JAXB.marshal(Application.gameData, currentSaveFile);
@@ -143,7 +143,7 @@ public class UIAction {
             @Override
             public void run() {
                 Platform.exit();
-            }            
+            }
         }, null);
     }
 
@@ -160,8 +160,10 @@ public class UIAction {
     }
 
     public static class Choice {
+
         String text;
         Runnable handler;
+
         public Choice(String text, Runnable handler) {
             this.text = text;
             this.handler = handler;
@@ -171,7 +173,7 @@ public class UIAction {
     public static void confirm(String message, Runnable yes, Runnable no) {
         choose(message, new Choice("Yes", yes), new Choice("No", no));
     }
-    
+
     public static void choose(String message, Choice... choices) {
         final Stage dialogStage = new Stage();
 
@@ -197,14 +199,14 @@ public class UIAction {
                 alignment(Pos.CENTER).padding(new Insets(5)).build()));
         dialogStage.show();
     }
-    
+
     public static Script createAndEditScript() {
         Script script = new Script();
         script.setName("New Script");
         ApplicationUIController.getController().getVisibleEditor().addScript(script);
         return editScript(script);
     }
-    
+
     public static Script editScript(Script script) {
         if (script == null) {
             System.err.println("Requested to edit a null script object, ignoring!");
@@ -212,6 +214,6 @@ public class UIAction {
         }
         MythosEditor editor = new MythosEditor(script);
         editor.show();
-        return script;        
+        return script;
     }
 }

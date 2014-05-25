@@ -24,7 +24,8 @@ import org.badvision.outlaweditor.data.xml.Tile;
  * @author brobert
  */
 public enum FillPattern {
-    Violet(true, 2, false,  
+
+    Violet(true, 2, false,
             "+-+-+-+-+-+-+-"),
     DarkViolet1(true, 4, false,
             "+---+---+---+---+---+---+---",
@@ -37,12 +38,12 @@ public enum FillPattern {
     LightViolet1(true, 4, false,
             "+++-+++-+++-+++-+++-+++-+++-",
             "+-+++-+++-+++-+++-+++-+++-++"
-            ),
+    ),
     LightViolet2(true, 4, false,
             "+-+++-+++-+++-+++-+++-+++-++",
             "+++-+++-+++-+++-+++-+++-+++-"
-            ),
-    Green(true, 2, false,  
+    ),
+    Green(true, 2, false,
             "-+-+-+-+-+-+-+"),
     DarkGreen1(true, 4, false,
             "-+---+---+---+---+---+---+--",
@@ -55,11 +56,11 @@ public enum FillPattern {
     LightGreen1(true, 4, false,
             "++-+++-+++-+++-+++-+++-+++-+",
             "-+++-+++-+++-+++-+++-+++-+++"
-            ),
+    ),
     LightGreen2(true, 4, false,
             "-+++-+++-+++-+++-+++-+++-+++",
             "++-+++-+++-+++-+++-+++-+++-+"),
-    Blue(true, 2, true,  
+    Blue(true, 2, true,
             "+-+-+-+-+-+-+-"),
     DarkBlue(true, 4, true,
             "+---+---+---+---+---+---+---",
@@ -72,12 +73,12 @@ public enum FillPattern {
     LightBlue1(true, 4, true,
             "+++-+++-+++-+++-+++-+++-+++-",
             "+-+++-+++-+++-+++-+++-+++-++"
-            ),
+    ),
     LightBlue2(true, 4, true,
             "+-+++-+++-+++-+++-+++-+++-++",
             "+++-+++-+++-+++-+++-+++-+++-"
-            ),
-    Orange(true, 2, true,  
+    ),
+    Orange(true, 2, true,
             "-+-+-+-+-+-+-+"),
     DarkOrange1(true, 4, true,
             "-+---+---+---+---+---+---+--",
@@ -90,17 +91,17 @@ public enum FillPattern {
     LightOrange1(true, 4, true,
             "++-+++-+++-+++-+++-+++-+++-+",
             "-+++-+++-+++-+++-+++-+++-+++"
-            ),
+    ),
     LightOrange2(true, 4, true,
             "-+++-+++-+++-+++-+++-+++-+++",
             "++-+++-+++-+++-+++-+++-+++-+"),
     Black(false, 1, false, "-------"),
     White(false, 1, false, "+++++++"),
-    BW1(false, 4, false, 
+    BW1(false, 4, false,
             "++--++--++--++--++--++--++--",
             "--++--++--++--++--++--++--++"
     ),
-    BW2(false, 4, false, 
+    BW2(false, 4, false,
             "--++--++--++--++--++--++--++",
             "++--++--++--++--++--++--++--"
     );
@@ -115,11 +116,11 @@ public enum FillPattern {
 //    );
 
     public static int[] bitmask(boolean hiBit, String pattern) {
-        int[] out = new int[pattern.length()/7];
+        int[] out = new int[pattern.length() / 7];
         int place = 1;
         int pos = 0;
         int value = hiBit ? 128 : 0;
-        for (int i=0; i < pattern.length(); i++) {
+        for (int i = 0; i < pattern.length(); i++) {
             char c = pattern.charAt(i);
             if (c == '1' || c == '+') {
                 value |= place;
@@ -134,7 +135,7 @@ public enum FillPattern {
         }
         return out;
     }
-    
+
     public static Integer[] buildPattern(boolean hiBit, String... pattern) {
         List<Integer> out = new ArrayList<>();
         for (String s : pattern) {
@@ -144,11 +145,11 @@ public enum FillPattern {
         }
         return out.toArray(new Integer[0]);
     }
-    
+
     public static void buildMenu(Menu target, final DataObserver<FillPattern> dataObserver) {
         target.getItems().clear();
         for (final FillPattern fill : FillPattern.values()) {
-            MenuItem i = new MenuItem(fill.name(), new ImageView(fill.getPreview()));            
+            MenuItem i = new MenuItem(fill.name(), new ImageView(fill.getPreview()));
             i.setOnAction(new EventHandler<ActionEvent>() {
                 @Override
                 public void handle(ActionEvent t) {
@@ -165,7 +166,7 @@ public enum FillPattern {
     WritableImage preview;
 
     private FillPattern(boolean hiBitMatters, int width, boolean hiBit, String... pattern) {
-        this.pattern = buildPattern(hiBit, pattern);        
+        this.pattern = buildPattern(hiBit, pattern);
         this.width = width;
         this.hiBitMatters = hiBitMatters;
         this.bytePattern = getBytePattern();
@@ -177,7 +178,7 @@ public enum FillPattern {
         }
         return preview;
     }
-    
+
     public int[] getBytePattern() {
         int[] out = new int[16 * 4];
         int pos = 0;

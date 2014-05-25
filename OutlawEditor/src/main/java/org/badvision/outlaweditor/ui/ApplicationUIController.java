@@ -14,7 +14,9 @@ public abstract class ApplicationUIController {
     }
 
     abstract public void rebuildTileSelectors();
+
     abstract public void rebuildMapSelectors();
+
     abstract public void rebuildImageSelectors();
 
     public abstract Editor getVisibleEditor();
@@ -51,6 +53,8 @@ public abstract class ApplicationUIController {
     abstract public void completeInflightOperations();
 
     abstract public void clearData();
+
     abstract public void updateSelectors();
+
     abstract public void redrawScripts();
 }

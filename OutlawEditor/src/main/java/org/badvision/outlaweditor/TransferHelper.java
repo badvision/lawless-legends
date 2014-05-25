@@ -27,6 +27,7 @@ public class TransferHelper<T> {
     static Map<String, DataFormat> dataFormats = new HashMap<>();
 
     public interface DropEventHandler<T> {
+
         public void handle(T object, double x, double y);
     }
 
@@ -65,6 +66,7 @@ public class TransferHelper<T> {
             }
         });
     }
+
     public void registerDropSupport(final Node target, final DropEventHandler<T> handler) {
         target.setOnDragOver(new EventHandler<DragEvent>() {
             @Override

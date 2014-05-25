@@ -46,8 +46,8 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
     }
 
     public void put(int x, int y, Tile t) {
-        width = Math.max(x+1, width);
-        height = Math.max(y+1, height);
+        width = Math.max(x + 1, width);
+        height = Math.max(y + 1, height);
         for (int i = size(); i <= y; i++) {
             add(null);
         }

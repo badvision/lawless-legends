@@ -394,7 +394,7 @@ int load_mod(byte *mod)
             else if (esd[0] & 0x08)
             {
                 addr = esd[1] | (esd[2] << 8);
-                addr += modfix;
+                addr += modfix - MOD_ADDR;
                 if (show_state) printf("\tEXPORT %s@$%04X\n", string, addr);
                 if (addr >= bytecode)
                     addr = def_lookup(cdd, addr);

@@ -1157,7 +1157,7 @@ def loadmod(mod)
 		;
                 ; EXPORT symbol - add it to the global symbol table.
 		;
-                addr = (esd):1 + modfix
+                addr = (esd):1 + modfix - MODADDR
                 if uword_isge(addr, bytecode)
 		    ;
 		    ; Use the def directory address for bytecode.

@@ -374,7 +374,7 @@ void emit_esd(void)
         {
             emit_dci(&idglobal_name[i][1], idglobal_name[i][0]);
             printf("\t%s\t$08\t\t\t; ENTRY SYMBOL FLAG\n", DB);
-            printf("\t%s\t%s-_SEGBEGIN\t\t\n", DW, tag_string(idglobal_tag[i], idglobal_type[i]));
+            printf("\t%s\t%s\t\t\n", DW, tag_string(idglobal_tag[i], idglobal_type[i]));
         }
     }
     printf("\t%s\t$00\t\t\t; END OF ESD\n", DB);

@@ -488,7 +488,7 @@ def mydef
     calldef(10) ; call some other def
 end
 ```
-PLASMA will effectively add a RETURN 0 to the end of your function, as well as add code to ignore the result of `calldef(10)`. As long as you don't care about the return value from `mydef`, you can save some code bytes with:
+PLASMA will effectively add a RETURN 0 to the end of your function, as well as add code to ignore the result of `calldef(10)`. As long as you don't care about the return value from `mydef` or want to use its return as the return value fromyour function (cascade the return), you can save some code bytes with:
 ```
 def mydef
     ; do some stuff

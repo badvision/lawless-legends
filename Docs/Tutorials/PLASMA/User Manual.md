@@ -157,11 +157,11 @@ Excaped characters, like the `\n` above are replaces with the Carriage Return ch
 
 | Escaped Char | ASCII Value
 |:------------:|------------
-|   \n         |    NL
+|   \n         |    LF
 |   \t         |    TAB
 |   \r         |    CR
 |   \\\\       |    \
-|   \\0        |    0
+|   \\0        |    NUL
 
 ### Words
 Words, 16 bit signed values, are the native sized quanta of PLASMA. All calculations, parameters, and return values are words.
@@ -389,13 +389,13 @@ PLASMA implements most of the control flow that most higher level languages prov
 Function calls are the easiest ways to pass control to another function. Function calls can be part of an expression, or be all by itself - the same as an empty assignment statement.
 
 ##### RETURN
-`RETURN` will exit the current definition. An optional value can be returned, however, if a value isn't specified a default of zero will be returned. All definitions return a value, regardless of whether it used or not.
+`return` will exit the current definition. An optional value can be returned, however, if a value isn't specified a default of zero will be returned. All definitions return a value, regardless of whether it used or not.
 
 ##### IF/[ELSIF]/[ELSE]/FIN
-The common `IF` test can have optional `ELSIF` and/or `ELSE` clauses. Any expression that is evaluated to non-zero is treated as TRUE, zero is treated as FALSE.
+The common `if` test can have optional `elsif` and/or `else` clauses. Any expression that is evaluated to non-zero is treated as TRUE, zero is treated as FALSE.
 
 ##### WHEN/IS/[OTHERWISE]/WEND
-The complex test case is handled with `WHEN`. Basically a `IF`, `ELSIF`, `ELSE` list of comparisons, it is gernerally more efficient. The `IS` value can be any expression. It is evaluated and tested for equality to the `WHEN` value. 
+The complex test case is handled with `when`. Basically a `if`, `elsifF`, `else` list of comparisons, it is gernerally more efficient. The `is` value can be any expression. It is evaluated and tested for equality to the `when` value. 
 ```
 when key
     is 'A'
@@ -428,8 +428,8 @@ when TRUE
 wend
 ```
 
-##### FOR <TO,DOWNTO> [STEP]/NEXT
-Iteration over a range is handled with the `FOR`/`NEXT` loop. When iterating from a smaller to larger value, the `TO` construct is used; when iterating from larger to smaller, the `DOWNTO` construct is used.
+##### FOR TO,DOWNTO [STEP]/NEXT
+Iteration over a range is handled with the `for`/`next` loop. When iterating from a smaller to larger value, the `to` construct is used; when iterating from larger to smaller, the `downto` construct is used.
 ```
 for a = 1 to 10
     ; do something with a
@@ -439,10 +439,10 @@ for a = 10 downto 1
     ; do something else with a
 next
 ```
-An optional stepping value can be used to change the default iteration step from 1 to something else. Always use a positive value; when iterating using `DOWNTO`, the step value will be subtracted from the current value.
+An optional stepping value can be used to change the default iteration step from 1 to something else. Always use a positive value; when iterating using `downto`, the step value will be subtracted from the current value.
 
 ##### WHILE/LOOP
-For loops that test at the top of the loop, use `WHILE`. The loop will run zero or more times.
+For loops that test at the top of the loop, use `while`. The loop will run zero or more times.
 ```
 a = c ; Who knows what c could be
 while a < 10
@@ -451,14 +451,14 @@ while a < 10
 loop
 ```
 ##### REPEAT/UNTIL
-For loops that always run at least once, use the `REPEAT` loop.
+For loops that always run at least once, use the `repeat` loop.
 ```
 repeat
     update_cursor
 until keypressed
 ```
 ##### BREAK
-To exit early from one of the looping constructs, the `BREAK` statement will break out of it immediately and resume control immediately following the bottom of the loop.
+To exit early from one of the looping constructs, the `break` statement will break out of it immediately and resume control immediately following the bottom of the loop.
 
 ## Advanced Topics
 There are some things about PLASMA that aren't necessary to know, but can add to it's effectiveness in a tight situation. Usually you can just code along, and the system will do a pretty reasonable job of carrying out your task. However, a little knowledge in the way to implement small assembly language routines or some coding practices just might be the ticket.

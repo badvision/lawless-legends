@@ -428,7 +428,7 @@ when TRUE
 wend
 ```
 
-##### FOR TO,DOWNTO [STEP]/NEXT
+##### FOR \<TO,DOWNTO\> [STEP]/NEXT
 Iteration over a range is handled with the `for`/`next` loop. When iterating from a smaller to larger value, the `to` construct is used; when iterating from larger to smaller, the `downto` construct is used.
 ```
 for a = 1 to 10

@@ -317,24 +317,148 @@ myobject_class:delete(an_obj)
 Function definitions in PLASMA is what really seperates PLASMA from a low level language like assembly, or even a language like FORTH. 
 
 ### Expressions
+Exressions are comprised of operators and operations. Operator precedence follows address, arithmatic, binary, and logical from highest to lowest. Parantheses can be used to force operations to happen in a specific order.
 
-### Control Flow
+#### Address Operators
+Address operators can work on any value, i.e. anything can be an address. Parentheses can be used to get the value from a variable, then use that as an address to dereference for any of the post-operators.
+
+| OP   |  Pre-Operation      |
+|:----:|---------------------|
+| ^    | byte pointer
+| *    | word pointer
+| @    | address of
+
+| OP   |  Post-Operation     |
+|:----:|---------------------|
+| .    | byte type override
+| :    | word type override
+| []   | array index
+| ()   | functional call
+
+#### Arithmetic, Bitwise, and Logical Operators
+| OP   |     Unary Operation |
+|:----:|---------------------|
+| -    | negate
+| ~    | bitwise compliment
+| NOT  | logical NOT
+|  !   | logical NOT (alternate)
+
+| OP   |     Binary Operation |
+|:----:|----------------------|
+| *    | multiply
+| /    | divide
+| %    | modulo
+| +    | add
+| -    | subtract
+| <<   | shift left
+| >>   | shift right
+| &    | bitwise AND
+| ^    | bitwise XOR
+| &#124; | bitwise OR
+| ==   | equals
+| <>   | not equal
+| >=   | greater than or equal
+| >    | greater than
+| <=   | less than or equal
+| <    | less than
+| OR   |  logical OR
+| AND  |  logical AND
+
+### Statements
+PLASMA definitions are a list of statements the carry out the algorithm. Statements are generally assignment or control flow in nature.
+
+#### Assignment
+Assignments evaluate an expression and save the result into memory. They can be very simple or quite complex. A simple example:
+```
+byte a
+a = 0
+```
+##### Empty Assignments
+An assignment doesn't even have to save the expression into memory, although the expression will be avaluated. This can be useful when referencing hardware that responds just to being accessed. On the Apple II, the keyboard is read from location $C000, then the strobe, telling the hardware to prepare for another keypress is cleared by just reading the address $C010. In PLASMA, this looks like:
+```
+byte keypress
+
+keypress = ^$C000 ; read keyboard
+^$C010 ; read keyboard strobe, throw away value
+```
+
+#### Control Flow
 PLASMA implements most of the control flow that most higher level languages provide. It may do it in a slightly different way, though. One thing you won't find in PLASMA is GOTO - there are other ways around it.
 
-#### RETURN
+##### CALL
+Function calls are the easiest ways to pass control to another function. Function calls can be part of an expression, or be all by itself - the same as an empty assignment statement.
 
-#### IF/ELSIF/ELSE/FIN
+##### RETURN
+`RETURN` will exit the current definition. An optional value can be returned, however, if a value isn't specified a default of zero will be returned. All definitions return a value, regardless of whether it used or not.
 
-#### WHEN/IS/OTHERWISE/WEND
+##### IF/[ELSIF]/[ELSE]/FIN
+The common `IF` test can have optional `ELSIF` and/or `ELSE` clauses. Any expression that is evaluated to non-zero is treated as TRUE, zero is treated as FALSE.
 
-#### FOR/NEXT
+##### WHEN/IS/[OTHERWISE]/WEND
+The complex test case is handled with `WHEN`. Basically a `IF`, `ELSIF`, `ELSE` list of comparisons, it is gernerally more efficient. The `IS` value can be any expression. It is evaluated and tested for equality to the `WHEN` value. 
+```
+when key
+    is 'A'
+        ; handle A character
+    is 'B'
+        ; handle B character
+```
+...
+```
+    is 'Z'
+        ; handle Z character
+    otherwise
+        ; Not a known key
+wend
+```
+With a little "Yoda-Speak", some fairly complex test can be made:
+```
+const FALSE = 0
+const TRUE  = NOT FALSE
 
-#### WHILE/LOOP
+byte a
 
-#### REPEAT/UNTIL
+when TRUE
+    is (a <= 10)
+        ; 10 or less
+    is (a > 10) AND (a < 20)
+        ; between 10 and 20
+    is (a >= 20)
+        ; 20 or greater
+wend
+```
 
-## Dynamic Heap Memory Allocation
-Memory allocation isn't technically part of the PLASMA specification, but it plays such an integral part of the PLASMA environment that is is covered here.
+##### FOR <TO,DOWNTO> [STEP]/NEXT
+Iteration over a range is handled with the `FOR`/`NEXT` loop. When iterating from a smaller to larger value, the `TO` construct is used; when iterating from larger to smaller, the `DOWNTO` construct is used.
+```
+for a = 1 to 10
+    ; do something with a
+next
+
+for a = 10 downto 1
+    ; do something else with a
+next
+```
+An optional stepping value can be used to change the default iteration step from 1 to something else. Always use a positive value; when iterating using `DOWNTO`, the step value will be subtracted from the current value.
+
+##### WHILE/LOOP
+For loops that test at the top of the loop, use `WHILE`. The loop will run zero or more times.
+```
+a = c ; Who knows what c could be
+while a < 10
+    ; do something
+    a = b * 2 ; b is something special, I'm sure
+loop
+```
+##### REPEAT/UNTIL
+For loops that always run at least once, use the `REPEAT` loop.
+```
+repeat
+    update_cursor
+until keypressed
+```
+##### BREAK
+To exit early from one of the looping constructs, the `BREAK` statement will break out of it immediately and resume control immediately following the bottom of the loop.
 
 ## Advanced Topics
 There are some things about PLASMA that aren't necessary to know, but can add to it's effectiveness in a tight situation. Usually you can just code along, and the system will do a pretty reasonable job of carrying out your task. However, a little knowledge in the way to implement small assembly language routines or some coding practices just might be the ticket.

@@ -467,9 +467,19 @@ To exit early from one of the looping constructs, the `break` statement will bre
 There are some things about PLASMA that aren't necessary to know, but can add to it's effectiveness in a tight situation. Usually you can just code along, and the system will do a pretty reasonable job of carrying out your task. However, a little knowledge in the way to implement small assembly language routines or some coding practices just might be the ticket.
 
 ### Native Assembly Functions
-Assembly code in PLASMA is implemented strictly as a pass-through to the assembler. No syntax checking, or checking at all, is made. All assembly routines *must* come after all data has been declared, and before any PLASMA function definitions.
+Assembly code in PLASMA is implemented strictly as a pass-through to the assembler. No syntax checking, or checking at all, is made. All assembly routines *must* come after all data has been declared, and before any PLASMA function definitions. Native assemlbly functions can't see PLASMA labels and definitions, so they are pretty much relegated to leaf functions. Lasltly, PLASMA modules are relocatable, but labels inside assembly functions don't get flagged for fixups. The assembly code must use all relative branches and only accessing data/code at a fixed address. Data passed in on the PLASMA evalution stack is readily accessed with the X register and the zero page address of the ESTK. The X register must be properly saved, incremented, and/or decremented to remain consistent with the rest of PLASMA. Parameters are "popped" off the evaluation stack with `INX`, and the return value is "pushed" with `DEX`.
 
 ### Code Optimizations
+#### Functions Without Parameters Or Local Variables
+Certain simple functions that don't take parameters or use local variables will skip the Frame Stack Entry/Leave setup. That can speed up the function significantly. The following could be a very useful function:
+```
+def keypress
+    while ^$C000 < 128
+    loop
+    ^$C010
+    return ^$C000
+end
+```
 #### Return Values
 PLASMA always returns a value from a function, even if you don't supply one. Probably the easiest optimization to make in PLASMA is to cascade a return value if you don't care about the value you return. This only works if the last thing you do before returning from your routine is calling another definition. You would go from:
 ```

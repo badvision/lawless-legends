@@ -45,6 +45,9 @@ make hello
 for the **make** program to build all the dependencies and run the module.
 
 ## Organization of a PLASMA Source File
+### Character Case
+All identifiers and reserved words are case insensitive. Case is only significant inside character constants and strings. Imported and exported symbols are always promoted to upper case when resolved. Because some Apple IIs only work easily with uppercase, the eases the chance of mismatched symbol names.
+
 ### Comments
 Comments are allowed throughout a PLASMA source file. The format follows that of an assembler: they begin with a `;` and comment out the rest of the line:
 

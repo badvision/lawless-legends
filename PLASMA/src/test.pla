@@ -1,5 +1,5 @@
 ;
-; Declare all imported modules and their data/functions.
+; Include all imported modules and their data/functions.
 ;
 
 include(stdlib.plh)
@@ -22,7 +22,7 @@ def tens(start)
   i = start
   repeat
     print:hex(i)
-    puts(@spaces)
+    print:str(@spaces)
     print:dec(i)
     print:newln()
     i = i / 10

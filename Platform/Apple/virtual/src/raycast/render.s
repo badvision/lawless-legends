@@ -13,7 +13,7 @@ start:
 
 ; Conditional assembly flags
 DOUBLE_BUFFER	= 1		; whether to double-buffer
-DEBUG		= 0		; 1=some logging, 2=lots of logging
+DEBUG		= 1		; 1=some logging, 2=lots of logging
 
 ; Shared constants, zero page, buffer locations, etc.
 !source "render.i"

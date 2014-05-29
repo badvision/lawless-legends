@@ -25,7 +25,7 @@ Three tools are required to build and run this program: **plasm**, **acme**, and
 
 ```
 ./plasm -AM < hello.pla > hello.a
-acme --setpc 4096 -o HELLO.REL hello.a
+acme --setpc 4094 -o HELLO.REL hello.a
 ./plvm HELLO.REL
 ```
 
@@ -45,6 +45,9 @@ make hello
 for the **make** program to build all the dependencies and run the module.
 
 ## Organization of a PLASMA Source File
+### Character Case
+All identifiers and reserved words are case insensitive. Case is only significant inside character constants and strings. Imported and exported symbols are always promoted to upper case when resolved. Because some Apple IIs only work easily with uppercase, the eases the chance of mismatched symbol names.
+
 ### Comments
 Comments are allowed throughout a PLASMA source file. The format follows that of an assembler: they begin with a `;` and comment out the rest of the line:
 
@@ -157,11 +160,11 @@ Excaped characters, like the `\n` above are replaces with the Carriage Return ch
 
 | Escaped Char | ASCII Value
 |:------------:|------------
-|   \n         |    NL
+|   \n         |    LF
 |   \t         |    TAB
 |   \r         |    CR
 |   \\\\       |    \
-|   \\0        |    0
+|   \\0        |    NUL
 
 ### Words
 Words, 16 bit signed values, are the native sized quanta of PLASMA. All calculations, parameters, and return values are words.
@@ -317,32 +320,166 @@ myobject_class:delete(an_obj)
 Function definitions in PLASMA is what really seperates PLASMA from a low level language like assembly, or even a language like FORTH. 
 
 ### Expressions
+Exressions are comprised of operators and operations. Operator precedence follows address, arithmatic, binary, and logical from highest to lowest. Parantheses can be used to force operations to happen in a specific order.
 
-### Control Flow
+#### Address Operators
+Address operators can work on any value, i.e. anything can be an address. Parentheses can be used to get the value from a variable, then use that as an address to dereference for any of the post-operators.
+
+| OP   |  Pre-Operation      |
+|:----:|---------------------|
+| ^    | byte pointer
+| *    | word pointer
+| @    | address of
+
+| OP   |  Post-Operation     |
+|:----:|---------------------|
+| .    | byte type override
+| :    | word type override
+| []   | array index
+| ()   | functional call
+
+#### Arithmetic, Bitwise, and Logical Operators
+| OP   |     Unary Operation |
+|:----:|---------------------|
+| -    | negate
+| ~    | bitwise compliment
+| NOT  | logical NOT
+|  !   | logical NOT (alternate)
+
+| OP   |     Binary Operation |
+|:----:|----------------------|
+| *    | multiply
+| /    | divide
+| %    | modulo
+| +    | add
+| -    | subtract
+| <<   | shift left
+| >>   | shift right
+| &    | bitwise AND
+| ^    | bitwise XOR
+| &#124; | bitwise OR
+| ==   | equals
+| <>   | not equal
+| >=   | greater than or equal
+| >    | greater than
+| <=   | less than or equal
+| <    | less than
+| OR   |  logical OR
+| AND  |  logical AND
+
+### Statements
+PLASMA definitions are a list of statements the carry out the algorithm. Statements are generally assignment or control flow in nature.
+
+#### Assignment
+Assignments evaluate an expression and save the result into memory. They can be very simple or quite complex. A simple example:
+```
+byte a
+a = 0
+```
+##### Empty Assignments
+An assignment doesn't even have to save the expression into memory, although the expression will be avaluated. This can be useful when referencing hardware that responds just to being accessed. On the Apple II, the keyboard is read from location $C000, then the strobe, telling the hardware to prepare for another keypress is cleared by just reading the address $C010. In PLASMA, this looks like:
+```
+byte keypress
+
+keypress = ^$C000 ; read keyboard
+^$C010 ; read keyboard strobe, throw away value
+```
+
+#### Control Flow
 PLASMA implements most of the control flow that most higher level languages provide. It may do it in a slightly different way, though. One thing you won't find in PLASMA is GOTO - there are other ways around it.
 
-#### RETURN
+##### CALL
+Function calls are the easiest ways to pass control to another function. Function calls can be part of an expression, or be all by itself - the same as an empty assignment statement.
 
-#### IF/ELSIF/ELSE/FIN
+##### RETURN
+`return` will exit the current definition. An optional value can be returned, however, if a value isn't specified a default of zero will be returned. All definitions return a value, regardless of whether it used or not.
 
-#### WHEN/IS/OTHERWISE/WEND
+##### IF/[ELSIF]/[ELSE]/FIN
+The common `if` test can have optional `elsif` and/or `else` clauses. Any expression that is evaluated to non-zero is treated as TRUE, zero is treated as FALSE.
 
-#### FOR/NEXT
+##### WHEN/IS/[OTHERWISE]/WEND
+The complex test case is handled with `when`. Basically a `if`, `elsifF`, `else` list of comparisons, it is gernerally more efficient. The `is` value can be any expression. It is evaluated and tested for equality to the `when` value. 
+```
+when key
+    is 'A'
+        ; handle A character
+    is 'B'
+        ; handle B character
+```
+...
+```
+    is 'Z'
+        ; handle Z character
+    otherwise
+        ; Not a known key
+wend
+```
+With a little "Yoda-Speak", some fairly complex test can be made:
+```
+const FALSE = 0
+const TRUE  = NOT FALSE
 
-#### WHILE/LOOP
+byte a
 
-#### REPEAT/UNTIL
+when TRUE
+    is (a <= 10)
+        ; 10 or less
+    is (a > 10) AND (a < 20)
+        ; between 10 and 20
+    is (a >= 20)
+        ; 20 or greater
+wend
+```
 
-## Dynamic Heap Memory Allocation
-Memory allocation isn't technically part of the PLASMA specification, but it plays such an integral part of the PLASMA environment that is is covered here.
+##### FOR \<TO,DOWNTO\> [STEP]/NEXT
+Iteration over a range is handled with the `for`/`next` loop. When iterating from a smaller to larger value, the `to` construct is used; when iterating from larger to smaller, the `downto` construct is used.
+```
+for a = 1 to 10
+    ; do something with a
+next
+
+for a = 10 downto 1
+    ; do something else with a
+next
+```
+An optional stepping value can be used to change the default iteration step from 1 to something else. Always use a positive value; when iterating using `downto`, the step value will be subtracted from the current value.
+
+##### WHILE/LOOP
+For loops that test at the top of the loop, use `while`. The loop will run zero or more times.
+```
+a = c ; Who knows what c could be
+while a < 10
+    ; do something
+    a = b * 2 ; b is something special, I'm sure
+loop
+```
+##### REPEAT/UNTIL
+For loops that always run at least once, use the `repeat` loop.
+```
+repeat
+    update_cursor
+until keypressed
+```
+##### BREAK
+To exit early from one of the looping constructs, the `break` statement will break out of it immediately and resume control immediately following the bottom of the loop.
 
 ## Advanced Topics
 There are some things about PLASMA that aren't necessary to know, but can add to it's effectiveness in a tight situation. Usually you can just code along, and the system will do a pretty reasonable job of carrying out your task. However, a little knowledge in the way to implement small assembly language routines or some coding practices just might be the ticket.
 
 ### Native Assembly Functions
-Assembly code in PLASMA is implemented strictly as a pass-through to the assembler. No syntax checking, or checking at all, is made. All assembly routines *must* come after all data has been declared, and before any PLASMA function definitions.
+Assembly code in PLASMA is implemented strictly as a pass-through to the assembler. No syntax checking, or checking at all, is made. All assembly routines *must* come after all data has been declared, and before any PLASMA function definitions. Native assemlbly functions can't see PLASMA labels and definitions, so they are pretty much relegated to leaf functions. Lasltly, PLASMA modules are relocatable, but labels inside assembly functions don't get flagged for fixups. The assembly code must use all relative branches and only accessing data/code at a fixed address. Data passed in on the PLASMA evalution stack is readily accessed with the X register and the zero page address of the ESTK. The X register must be properly saved, incremented, and/or decremented to remain consistent with the rest of PLASMA. Parameters are "popped" off the evaluation stack with `INX`, and the return value is "pushed" with `DEX`.
 
 ### Code Optimizations
+#### Functions Without Parameters Or Local Variables
+Certain simple functions that don't take parameters or use local variables will skip the Frame Stack Entry/Leave setup. That can speed up the function significantly. The following could be a very useful function:
+```
+def keypress
+    while ^$C000 < 128
+    loop
+    ^$C010
+    return ^$C000
+end
+```
 #### Return Values
 PLASMA always returns a value from a function, even if you don't supply one. Probably the easiest optimization to make in PLASMA is to cascade a return value if you don't care about the value you return. This only works if the last thing you do before returning from your routine is calling another definition. You would go from:
 ```
@@ -351,7 +488,7 @@ def mydef
     calldef(10) ; call some other def
 end
 ```
-PLASMA will effectively add a RETURN 0 to the end of your function, as well as add code to ignore the result of `calldef(10)`. As long as you don't care about the return value from `mydef`, you can save some code bytes with:
+PLASMA will effectively add a RETURN 0 to the end of your function, as well as add code to ignore the result of `calldef(10)`. As long as you don't care about the return value from `mydef` or want to use its return as the return value fromyour function (cascade the return), you can save some code bytes with:
 ```
 def mydef
     ; do some stuff

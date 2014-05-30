@@ -4,55 +4,77 @@ var $ = function(id) { return document.getElementById(id); };
 var dc = function(tag) { return document.createElement(tag); };
 
 var map = [
-  [1,4,3,4,2,3,2,4,3,2,4,3,4],
-  [1,0,0,1,0,0,0,3,0,0,2,0,3],
-  [1,1,0,1,1,0,0,1,0,0,3,0,2],
-  [1,0,0,1,2,3,0,4,0,0,4,0,3],
-  [1,0,0,0,0,4,0,0,0,0,0,0,4],
-  [2,0,0,0,0,2,0,0,0,0,0,0,4],
-  [0,2,2,2,0,0,0,3,0,0,3,0,1],
-  [3,0,0,2,0,0,0,3,0,0,2,0,3],
-  [1,0,0,2,0,3,0,2,0,0,4,0,3],
-  [1,0,0,0,0,2,0,0,0,0,0,0,1],
-  [3,0,0,0,0,1,0,0,0,0,0,0,3],
-  [1,0,0,4,0,4,0,3,1,2,4,0,2],
-  [4,0,0,0,0,0,0,0,0,0,0,0,3],
-  [1,2,3,3,3,2,2,1,2,4,2,2,2]
+  [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,],
+  [ 0, 1, 2, 0, 1, 0, 0, 3, 0, 0, 1, 4, 5, 1, 0, 0, 0,-1,],
+  [ 4, 0, 0, 7, 0, 2, 1, 0, 1, 2, 0, 0, 0, 0, 0, 1, 0,-1,],
+  [ 0, 5, 0, 0, 0, 0, 0, 0, 7, 1, 8, 9, 0, 2, 1, 0, 0,-1,],
+  [ 1, 0, 0, 2, 0,10,11, 0, 2, 0, 0, 8, 0, 7, 1, 0, 0,-1,],
+  [ 0, 0, 0, 1, 9, 0,12, 0, 0, 0, 4, 5, 0, 0, 0, 3, 0,-1,],
+  [ 3, 0, 0, 0, 0,12,13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,-1,],
+  [ 0, 4, 5, 2, 0, 0, 0, 0,14,15, 0, 7, 2, 0, 0, 0, 0,-1,],
+  [ 2, 0, 0, 7, 0, 4, 5, 0, 2,14, 0, 9, 7, 0, 0, 2, 0,-1,],
+  [ 0, 1, 0, 1, 0,11,10, 0, 8, 0, 0, 4, 0,10,11, 0, 0,-1,],
+  [ 0, 8, 0, 0, 0,10,11, 0, 9, 0, 0, 5, 0, 0, 0, 0, 0,-1,],
+  [ 0, 8, 9, 0, 1, 1, 0, 3, 0, 0, 0, 0, 0,10, 0, 0, 0,-1,],
+  [ 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 0, 0,-1,],
+  [ 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 0,-1,],
+  [ 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0,-1,],
+  [ 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0,-1,],
+  [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,-1,],
+  [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,-1,],
+  [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,]
 ];
 
 var itemTypes = [
   { img : "sprites/tablechairs.png", block : true },  // 0
   { img : "sprites/armor.png", block : true },    // 1
   { img : "sprites/plantgreen.png", block : true }, // 2
-  { img : "sprites/lamp.png", block : false }   // 3
+  { img : "sprites/lamp.png", block : false },  // 3
+  { img : "sprites/lamp.png", block : false },  // 4
+  { img : "sprites/lamp.png", block : false },  // 5
+  { img : "sprites/lamp.png", block : false }   // 6
 ];
 
 var allSprites = [
-
-  // lamp where tree would be
-  {type:3, x:1.5,  y:4.5},
-
-  // lamps in center area
-  {type:3, x:9.5,  y:7.5},
-  {type:3, x:15.5, y:7.5},
-
-  // lamps in bottom corridor
-  {type:3, x:5.5,  y:12.5},
-  {type:3, x:11.5, y:12.5},
-  {type:3, x:11.5, y:12.5},
-
-  // tables in long bottom room
-  {type:0, x:10.5, y:10.5},
-  {type:1, x:11.5, y:10.5},
-  // lamps in long bottom room
-  {type:3, x:8.5,  y:10.5},
-  {type:3, x:9.5,  y:10.5}
+  {type: 6, x: 1.5, y: 5.5},
+  {type: 6, x:14.5, y: 1.5},
+  {type: 6, x: 4.5, y: 4.5},
+  {type: 6, x: 8.5, y: 5.5},
+  {type: 6, x:14.5, y: 6.5},
+  {type: 6, x:15.5, y: 7.5},
+  {type: 6, x: 9.5, y: 9.5},
+  {type: 6, x:12.5, y:10.5},
+  {type: 6, x:14.5, y:10.5},
+  {type: 6, x: 8.5, y:11.5},
+  {type: 6, x:10.5, y:11.5},
+  {type: 6, x:12.5, y:11.5},
+  {type: 6, x: 6.5, y:12.5},
+  {type: 6, x: 8.5, y:12.5},
+  {type: 6, x: 9.5, y:12.5},
+  {type: 6, x:10.5, y:12.5},
+  {type: 6, x:11.5, y:12.5},
+  {type: 6, x: 7.5, y:13.5},
+  {type: 6, x: 9.5, y:13.5},
+  {type: 6, x: 6.5, y:14.5},
+  {type: 6, x:10.5, y:14.5},
+  {type: 6, x: 8.5, y:15.5},
+  {type: 6, x:12.5, y:15.5},
+  {type: 6, x: 1.5, y:16.5},
+  {type: 6, x: 3.5, y:16.5},
+  {type: 6, x: 5.5, y:16.5},
+  {type: 6, x: 6.5, y:16.5},
+  {type: 6, x: 7.5, y:16.5},
+  {type: 6, x: 9.5, y:16.5},
+  {type: 6, x:10.5, y:16.5},
+  {type: 6, x:11.5, y:16.5},
+  {type: 6, x:13.5, y:16.5},
+  {type: 6, x:14.5, y:16.5},
 ];
 
 // Player attributes [ref BigBlue2_10]
 var player = {
   x : 1.5,      // current x, y position
-  y : 2.5,
+  y : 3.5,
   dir : 0,    // the direction that the player is turning, either -1 for left or 1 for right.
   angleNum : 4, // the current angle of rotation
   speed : 0,    // is the playing moving forward (speed = 1) or backwards (speed = -1).
@@ -99,9 +121,6 @@ var wallTextures = [
 
 var userAgent = navigator.userAgent.toLowerCase();
 var isGecko = userAgent.indexOf("gecko") != -1 && userAgent.indexOf("safari") == -1;
-
-// enable this to use a single image file containing all wall textures. This performs better in Firefox. Opera likes smaller images.
-var useSingleTexture = isGecko;
 
 var screenStrips = [];
 var overlay;
@@ -413,6 +432,15 @@ function intRenderSprites()
     // translate position to viewer space
     var dx = sprite.x - player.x;
     var dy = sprite.y - player.y;
+
+    // Prevent things from overflowing    
+    if (dx > 8 || dy > 8) {
+      if (sprite.index == debugSprite)
+        console.log("    too far away (dx=" + dx + ", dy=" + dy + ")");
+      sprite.visible = false;
+      sprite.img.style.display = "none";
+      continue;
+    }
     
     // Apply rotation to the position
     var bSgnDx = (dx < 0) ? -1 : 1;
@@ -470,7 +498,7 @@ function intRenderSprites()
     var wSpriteTop = 32 - (wSize >> 1);
     var wSpriteLeft = wX + wSpriteTop;
     if (sprite.index == debugSprite)
-      console.log("    wX=$" + wordToHex(wX & 0xFFFF) + ", wSpriteTop=$" + wordToHex(wSpriteTop) + ", wSpriteLeft=$" + wordToHex(wSpriteLeft & 0xFFFF));
+      console.log("    wX=$" + wordToHex(wX) + ", wSpriteTop=$" + wordToHex(wSpriteTop) + ", wSpriteLeft=$" + wordToHex(wSpriteLeft));
     var bStartTx = 0;
     if (wSpriteLeft < 0) {
       if (wSpriteLeft < -wSize) {
@@ -578,10 +606,6 @@ function initScreen() {
     strip.style.position = "absolute";
     strip.style.left = 0 + "px";
     strip.style.height = "0px";
-
-    if (useSingleTexture) {
-      strip.src = "walls/walls.png";
-    }
 
     strip.oldStyles = {
       left : 0,
@@ -728,14 +752,16 @@ function assert(flg, msg) {
 }
 
 function byteToHex(d) {
-  assert(d >= 0 && d <= 255, "byte out of range");
-  var hex = Number(d).toString(16).toUpperCase();
+  assert(d >= -127 && d <= 255, "byte out of range");
+  d = Number(d) & 0xFF;
+  var hex = d.toString(16).toUpperCase();
   return "00".substr(0, 2 - hex.length) + hex; 
 }
 
 function wordToHex(d) {
-  assert(d >= 0 && d <= 65535, "word out of range");
-  var hex = Number(d).toString(16).toUpperCase();
+  assert(d >= -32767 && d <= 65535, "word out of range");
+  d = Number(d) & 0xFFFF;
+  var hex = d.toString(16).toUpperCase();
   return "0000".substr(0, 4 - hex.length) + hex; 
 }
 
@@ -976,6 +1002,10 @@ function intCast(x)
   // Perform DDA - digital differential analysis
   while (true)
   {
+    // Return immediately if we hit the edge of the map.
+    if (bMapX < 0 || bMapY < 0 || map[bMapY][bMapX] < 0)
+      return { wallType: -1, textureX: 0, height: 0, logHeight: 1, xWallHit: 0, yWallHit: 0 }
+
      // Jump to next map square in x-direction, OR in y-direction
     if (uless_bb(bSideDistX, bSideDistY)) {
       bMapX += bStepX;
@@ -1060,12 +1090,11 @@ function drawStrip(stripIdx, lineData)
   var imgTop = 0;
 
   var styleHeight;
-  if (useSingleTexture) {
-    // then adjust the top placement according to which wall texture we need
-    imgTop = Math.floor(height * (lineData.wallType-1));
-    var styleHeight = Math.floor(height * numTextures);
+  if (lineData.wallType < 0) {
+    var styleSrc = wallTextures[0];
+    var styleHeight = 0;
   } else {
-    var styleSrc = wallTextures[lineData.wallType-1];
+    var styleSrc = wallTextures[(lineData.wallType-1) % wallTextures.length];
     if (strip.oldStyles.src != styleSrc) {
       strip.src = styleSrc;
       strip.oldStyles.src = styleSrc

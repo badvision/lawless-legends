@@ -40,6 +40,8 @@ class PackPartitions
     
     def debugCompression = false
     
+    def javascriptOut = null
+    
     def parseMap(map, tiles)
     {
         // Parse each row of the map
@@ -348,11 +350,59 @@ class PackPartitions
             }
         }
     }
+   
+    /**
+     * Dump map data to Javascript code, to help in debugging the raycaster. This way,
+     * the Javascript version can run the same map, and we can compare its results to
+     * the 6502 results.
+     */
+    def dumpJsMap(rows, texMap)
+    {
+        def width = rows[0].size()
+        
+        // Write the map data. First comes the sentinel row.
+        javascriptOut.println("var map = [")
+        javascriptOut.print("  [")
+        (0..width).each { javascriptOut.print("-1,") }
+        javascriptOut.println("],")
+        
+        // Now the real map data
+        rows.each { row ->
+            javascriptOut.print("  [")
+            row.each { tile ->
+                def b = texMap[tile?.@id]
+                if ((b & 0x80) == 0)
+                    javascriptOut.format("%2d,", b)
+                else
+                    javascriptOut.print(" 0,")
+            }
+            javascriptOut.println("-1,],")
+        }
+        
+        // Finish the map data with another sentinel row
+        javascriptOut.print("  [")
+        (0..width).each { javascriptOut.print("-1,") }
+        javascriptOut.println("]")
+        javascriptOut.println("];\n")
+        
+        // Then write out the sprites
+        javascriptOut.println("var allSprites = [")
+        rows.eachWithIndex { row, y ->
+            row.eachWithIndex { tile, x ->
+                def b = texMap[tile?.@id]
+                if ((b & 0x80) != 0) {
+                    // y+1 below to account for initial sentinel row
+                    javascriptOut.format("  {type:%2d, x:%2d.5, y:%2d.5},\n", b & 0x7f, x, y+1)
+                }
+            }
+        }
+        javascriptOut.println("];\n")
+    }
     
     def write3DMap(buf, mapName, rows) // [ref BigBlue1_50]
     {
-        def width = rows[0].size()
-        def height = rows.size()
+        def width = rows[0].size() + 1  // Sentinel $FF at end of each row
+        def height = rows.size() + 2    // Sentinel rows of $FF's at start and end
         
         // Determine the set of all referenced textures, and assign numbers to them.
         def texMap = [:]
@@ -389,12 +439,22 @@ class PackPartitions
         texList.each { buf.put((byte)it) }
         buf.put((byte)0)
         
+        // Sentinel row of $FF at start of map
+        (0..width).each { buf.put((byte)0xFF) }
+        
         // After the header comes the raw data
         rows.each { row ->
             row.each { tile ->
                 buf.put((byte)texMap[tile?.@id])
             }
+            buf.put((byte)0xFF) // sentinel at end of row
         }
+
+        // Sentinel row of $FF at end of map
+        (0..width).each { buf.put((byte)0xFF) }
+        
+        if (javascriptOut)
+            dumpJsMap(rows, texMap)
     }
     
     // The renderer wants bits of the two pixels interleaved in a special way.
@@ -697,7 +757,7 @@ class PackPartitions
         }
     }
     
-    def pack(xmlPath, binPath)
+    def pack(xmlPath, binPath, javascriptPath)
     {
         // Read in code chunks. For now these are hard coded, but I guess they ought to
         // be configured in a config file somewhere...?
@@ -731,6 +791,10 @@ class PackPartitions
                 packTexture(image)
         }
         
+        // If doing Javascript debugging, open that output file too.
+        if (javascriptPath)
+            javascriptOut = new File(javascriptPath).newPrintWriter()
+            
         // Pack each map This uses the image and tile maps filled earlier.
         println "Packing maps."
         dataIn.map.each { map ->
@@ -746,6 +810,11 @@ class PackPartitions
         println "Writing output file."
         new File(binPath).withOutputStream { stream -> writePartition(stream) }
         
+        // Finish up Javacript if necessary
+        if (javascriptPath)
+            javascriptOut.close()
+        
+        // Lastly, print stats
         println "Compression saved $compressionSavings bytes."
         if (compressionSavings > 0) {
             def endSize = new File(binPath).length()
@@ -773,13 +842,14 @@ class PackPartitions
         }
         
         // Check the arguments
-        if (args.size() != 2) {
-            println "Usage: convert yourOutlawFile.xml DISK.PART.0.bin"
+        if (args.size() != 2 && args.size() != 3) {
+            println "Usage: convert yourOutlawFile.xml game.part.0.bin [intcastMap.js]"
+            println "   (where intcastMap.js is to aid in debugging the Javascript raycaster)"
             System.exit(1);
         }
         
         // Go for it.
-        new PackPartitions().pack(args[0], args[1])
+        new PackPartitions().pack(args[0], args[1], args.size() > 2 ? args[2] : null)
     }
 }
 

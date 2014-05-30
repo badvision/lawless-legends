@@ -405,6 +405,8 @@ castRay: !zone
 	!if DEBUG >= 2 { jsr .debugFinal }
 	rts
 .hitSprite:
+	cmp #$FF		; check for special mark at edges of map
+	beq .hitEdge
 	; We found a sprite cell on the map. We only want to process this sprite once,
 	; so check if we've already done it.
 	and #$40
@@ -445,6 +447,16 @@ castRay: !zone
 	tay			; restore map position index
 .spriteDone:
 	jmp .DDA_step		; trace this ray some more
+
+	; special case: hit edge of map
+.hitEdge:
+	ldy #0			; height
+	lda #1			; depth
+	sty txNum		; texture number
+	jsr saveLink		; allocate a link and save those
+	lda #0			; column number
+	sta txColBuf,x		; save that too
+	rts			; all done
 
 	; wall calculation: X=dir1, Y=dir2, A=dir2step
 .wallCalc:
@@ -1161,16 +1173,17 @@ nextLine: !zone
 .done:	stx pLine+1
 	rts
 
-; Draw a ray that was traversed by calcRay
+; Draw a ray that was traversed by castRay
 drawRay: !zone
 	ldy screenCol
 	ldx firstLink,y
-.lup:	lda txNumBuf,x
+.lup:	lda heightBuf,x
+	beq .skip
+	sta lineCt
+	lda txNumBuf,x
 	sta txNum
 	lda txColBuf,x
 	sta txColumn
-	lda heightBuf,x
-	sta lineCt
 	lda linkBuf,x		; get link to next stacked data to draw
 	pha			; save link for later
 	; Make a pointer to the selected texture
@@ -1191,7 +1204,7 @@ drawRay: !zone
 	pla			; retrieve link to next in stack
 	tax			; put in X for indexing
 	bne .lup		; if non-zero, we have more to draw
-	rts			; next link was zero - we're done with this ray
+.skip	rts			; next link was zero - we're done with this ray
 
 ; Template for blitting code [ref BigBlue3_70]
 blitTemplate: !zone	; comments show byte offset
@@ -1574,8 +1587,8 @@ setPlayerPos: !zone
 	sta playerX+1
 	lda #$80
 	sta playerX
-	; Y=2.5
-	lda #2
+	; Y=3.5
+	lda #3
 	sta playerY+1
 	lda #$80
 	sta playerY

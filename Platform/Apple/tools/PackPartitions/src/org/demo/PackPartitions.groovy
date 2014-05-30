@@ -440,7 +440,7 @@ class PackPartitions
         buf.put((byte)0)
         
         // Sentinel row of $FF at start of map
-        (0..width).each { buf.put((byte)0xFF) }
+        (0..<width).each { buf.put((byte)0xFF) }
         
         // After the header comes the raw data
         rows.each { row ->
@@ -451,7 +451,7 @@ class PackPartitions
         }
 
         // Sentinel row of $FF at end of map
-        (0..width).each { buf.put((byte)0xFF) }
+        (0..<width).each { buf.put((byte)0xFF) }
         
         if (javascriptOut)
             dumpJsMap(rows, texMap)

@@ -1,5 +1,6 @@
 package org.badvision.outlaweditor.ui.impl;
 
+import org.badvision.outlaweditor.ui.EntitySelectorCell;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.event.ActionEvent;
@@ -52,7 +53,7 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
         imageSelector.setCellFactory(new Callback<ListView<Image>, ListCell<Image>>() {
             @Override
             public ListCell<Image> call(ListView<Image> param) {
-                return new ApplicationUIControllerImpl.EntitySelectorCell<Image>(imageNameField) {
+                return new EntitySelectorCell<Image>(imageNameField) {
                     @Override
                     public void finishUpdate(Image item) {
                     }

@@ -5,7 +5,7 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.web.*?>
 
-<AnchorPane id="AnchorPane" prefHeight="748.0" prefWidth="1024.0" styleClass="mainFxmlClass" xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/8" fx:controller="org.badvision.outlaweditor.MythosScriptEditorController">
+<AnchorPane id="AnchorPane" prefHeight="748.0" prefWidth="1024.0" styleClass="mainFxmlClass" xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/8" fx:controller="org.badvision.outlaweditor.ui.MythosScriptEditorController">
   <!--    <stylesheets>
         <URL value="@/styles/mythosscripteditor.css"/>
     </stylesheets>-->

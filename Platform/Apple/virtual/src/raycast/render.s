@@ -14,6 +14,7 @@ start:
 ; Conditional assembly flags
 DOUBLE_BUFFER	= 1		; whether to double-buffer
 DEBUG		= 1		; 1=some logging, 2=lots of logging
+DEBUG_COLUMN	= -1
 
 ; Shared constants, zero page, buffer locations, etc.
 !source "render.i"
@@ -27,6 +28,15 @@ DEBUG		= 1		; 1=some logging, 2=lots of logging
 ; Local constants
 MAX_SPRITES	= 16		; max # sprites visible at once
 NUM_COLS	= 63
+
+; Starting position and dir. Eventually this will come from the map
+;PLAYER_START_X = $180		; 1.5
+;PLAYER_START_Y = $380		; 3.5
+;PLAYER_START_DIR = 4
+
+PLAYER_START_X = $43E		; 1.5
+PLAYER_START_Y = $67A		; 3.5
+PLAYER_START_DIR = $A
 
 ; Useful constants
 W_LOG_256	= $0800
@@ -533,6 +543,7 @@ castRay: !zone
 	lda #$FF	; clamp large line heights to 255
 +	tay		; save the height in Y reg
 	pla		; get the depth back
+	!if DEBUG { jsr .debugDepth }
 	jmp saveLink	; save final column data to link buffer
 
 !if DEBUG >= 2 {
@@ -574,6 +585,18 @@ castRay: !zone
 	+prStr : !text "sprite=",0
 	+prA
 	+crout
+	rts
+.debugDepth:
+	pha
+	lda screenCol
+	cmp #4
+	bne +
+	+prStr : !text "depth for col4=",0
+	pla
+	pha
+	+prA
+	+crout
++	pla
 	rts
 }
 
@@ -1099,8 +1122,8 @@ drawSprite: !zone
 ;		(can be used for further manipulation of the values there).
 ;
 saveLink: !zone
-	sta tmp			; keep height for storing later
-	sty tmp+1		; same with depth
+	sta tmp			; keep depth for storing later
+	sty tmp+1		; same with height
 	ldx screenCol
 	ldy firstLink,x
 	bne .chk1
@@ -1119,9 +1142,10 @@ saveLink: !zone
 	lda txNum
 	sta txNumBuf,x
 	inc nextLink
+	!if DEBUG { jsr .debugLink }
 	rts	
 .chk1				; does it need to be inserted before the existing first link?
-	lda tmp+1
+	lda tmp
 	cmp depthBuf,y
 	bcc .store
 	; advance to next link
@@ -1134,10 +1158,41 @@ saveLink: !zone
 	sta linkBuf,x
 	bne .store2		; always taken; also note: Y contains next link (0 for end of chain)
 .chk2				; do we need to insert before this (non-first) link?
-	lda tmp+1
+	lda tmp
 	cmp depthBuf,y
 	bcc .insert		; found the right place
 	bcs .next		; not the right place to insert, look at next link (always taken)
+!if DEBUG {
+.debugLink:
+	lda screenCol
+	cmp #DEBUG_COLUMN
+	beq +
+	rts
++	txa
+	pha
+	+prStr : !text "Links for col ",0
+	+prByte screenCol
+	+prStr : !text ": ",0
+	ldx screenCol
+	ldy firstLink,x
+.dlup	+prStr : !text "[ht=",0
+	lda heightBuf,y
+	+prA
+	+prStr : !text "tx=",0
+	lda txNumBuf,y
+	+prA
+	+prStr : !text "dp=",0
+	lda depthBuf,y
+	+prA
+	+prStr : !text "] ",0
+	lda linkBuf,y
+	tay
+	bne .dlup
+	+crout
+	pla
+	tax
+	rts
+}
 
 ; Advance pLine to the next line on the hi-res screen
 nextLine: !zone
@@ -1582,18 +1637,15 @@ expanderJmp:
 ;-------------------------------------------------------------------------------
 ; Establish the initial player position and direction [ref BigBlue3_10]
 setPlayerPos: !zone
-	; X=1.5
-	lda #1
+	lda #>PLAYER_START_X
 	sta playerX+1
-	lda #$80
+	lda #<PLAYER_START_X
 	sta playerX
-	; Y=3.5
-	lda #3
+	lda #>PLAYER_START_Y
 	sta playerY+1
-	lda #$80
+	lda #<PLAYER_START_Y
 	sta playerY
-	; direction=0
-	lda #4
+	lda #PLAYER_START_DIR
 	sta playerDir
 	rts
 

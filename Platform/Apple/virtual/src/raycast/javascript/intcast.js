@@ -73,10 +73,10 @@ var allSprites = [
 
 // Player attributes [ref BigBlue2_10]
 var player = {
-  x : 1.5,      // current x, y position
-  y : 3.5,
+  x : 4.2421875,      // current x, y position
+  y : 6.4765625,
   dir : 0,    // the direction that the player is turning, either -1 for left or 1 for right.
-  angleNum : 4, // the current angle of rotation
+  angleNum : 0xA, // the current angle of rotation
   speed : 0,    // is the playing moving forward (speed = 1) or backwards (speed = -1).
   moveSpeed : 0.25,  // how far (in map units) does the player move each step/update
   rotSpeed : 22.5 * Math.PI / 180, // how much does the player rotate each step/update (in radians)
@@ -85,7 +85,7 @@ var player = {
 
 var options = 0;
 
-var debugRay = 0; /* Debugging info printed about this ray num, or null for none */
+var debugRay = 4; /* Debugging info printed about this ray num, or null for none */
 
 var debugSprite = 0; /* Debugging info printed about this sprite, or null for none */
 

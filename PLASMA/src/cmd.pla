@@ -167,11 +167,9 @@ asm syscall
 	INX
 	LDA	ESTKL,X
 	STA	CMD
-	STX	ESP
 	JSR	$BF00
 CMD:	!BYTE	00
 PARAMS:	!WORD	0000
-	LDX	ESP
 	STA	ESTKL,X
 	LDY    	#$00
 	STY	ESTKH,X
@@ -1018,7 +1016,7 @@ def adddef(bank, addr, deflast)
 end
 def loadmod(mod)
     word refnum, rdlen, modsize, bytecode, defofst, defcnt, init, fixup
-    word addr, defaddr, modaddr, modfix
+    word addr, defaddr, modaddr, modfix, modend
     word deftbl, deflast
     word moddep, rld, esd, sym
     byte defbank, str[16], filename[64]
@@ -1048,7 +1046,7 @@ def loadmod(mod)
 	    ; Load module dependencies.
 	    ;
             while ^moddep
-                if lookupmod(moddep) == 0
+                if !lookupmod(moddep)
 		    close(refnum)
 	            refnum = 0
                     if loadmod(moddep) < 0
@@ -1063,7 +1061,7 @@ def loadmod(mod)
 	    deftbl   = allocheap(defcnt * 5 + 1)
 	    deflast  = deftbl
 	    ^deflast = 0
-	    if refnum == 0
+	    if !refnum
 	        ;
 		; Reset read pointer.
 		;
@@ -1094,9 +1092,10 @@ def loadmod(mod)
 	;
         modfix   = modaddr - modfix
         bytecode = defofst + modfix - MODADDR
-        rld      = modaddr + modsize ; Re-Locatable Directory
-        esd      = rld               ; Extern+Entry Symbol Directory
-        while ^esd <> $00 ; Scan to end of ESD
+        modend   = modaddr + modsize
+        rld      = modend  ; Re-Locatable Directory
+        esd      = rld     ; Extern+Entry Symbol Directory
+        while !^esd        ; Scan to end of ESD
             esd = esd + 4
 	loop
         esd = esd + 1
@@ -1106,6 +1105,7 @@ def loadmod(mod)
 	if ^MACHID & $30 == $30
 	    defbank = 1
 	    defaddr = allocxheap(rld - bytecode)
+	    modend  = bytecode
 	else
 	    defbank  = 0
 	    defaddr = bytecode
@@ -1173,11 +1173,11 @@ def loadmod(mod)
 	    ; Move bytecode to AUX bank.
 	    ;
 	    memxcpy(0, defaddr, bytecode, modsize - (bytecode - modaddr))
-	    ;
-	    ; Free up the bytecode in main memory.
-	    ;
-	    releaseheap(bytecode)
        	fin
+	;
+	; Free up the end-of-module in main memory.
+	;
+	releaseheap(modend)
     else
         perr = perr | 0x100
         return -perr

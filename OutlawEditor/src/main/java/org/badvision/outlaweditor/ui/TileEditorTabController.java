@@ -85,4 +85,7 @@ public abstract class TileEditorTabController {
 
     abstract public void rebuildTileSelectors();
 
+    public void initalize() {
+        
+    }
 }

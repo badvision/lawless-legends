@@ -1,5 +1,6 @@
 package org.badvision.outlaweditor.ui.impl;
 
+import org.badvision.outlaweditor.ui.EntitySelectorCell;
 import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -156,7 +157,7 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
         tileSelector.setCellFactory(new Callback<ListView<Tile>, ListCell<Tile>>() {
             @Override
             public ListCell<Tile> call(ListView<Tile> param) {
-                return new ApplicationUIControllerImpl.EntitySelectorCell<Tile>(tileNameField) {
+                return new EntitySelectorCell<Tile>(tileNameField) {
                     @Override
                     public void finishUpdate(Tile item) {
                         setGraphic(new ImageView(TileUtils.getImage(item, Application.currentPlatform)));

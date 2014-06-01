@@ -13,8 +13,8 @@ start:
 
 ; Conditional assembly flags
 DOUBLE_BUFFER	= 1		; whether to double-buffer
-DEBUG		= 1		; 1=some logging, 2=lots of logging
-DEBUG_COLUMN	= -1
+DEBUG		= 0		; 1=some logging, 2=lots of logging
+DEBUG_COLUMN	= 0
 
 ; Shared constants, zero page, buffer locations, etc.
 !source "render.i"
@@ -1232,15 +1232,15 @@ nextLine: !zone
 drawRay: !zone
 	ldy screenCol
 	ldx firstLink,y
-.lup:	lda heightBuf,x
+.lup:	lda linkBuf,x		; get link to next stacked data to draw
+	pha			; save link for later
+	lda heightBuf,x
 	beq .skip
 	sta lineCt
 	lda txNumBuf,x
 	sta txNum
 	lda txColBuf,x
 	sta txColumn
-	lda linkBuf,x		; get link to next stacked data to draw
-	pha			; save link for later
 	; Make a pointer to the selected texture
 	ldx txNum
 	dex			; translate tex 1..4 to 0..3
@@ -1256,10 +1256,10 @@ drawRay: !zone
 +	sta expanderJmp+1	; set vector offset
 	!if DEBUG >= 2 { +prStr : !text "Calling expansion code.",0 }
 	jsr callExpander	; was copied from .callIt to $100 at init time
-	pla			; retrieve link to next in stack
+.skip	pla			; retrieve link to next in stack
 	tax			; put in X for indexing
 	bne .lup		; if non-zero, we have more to draw
-.skip	rts			; next link was zero - we're done with this ray
+	rts			; next link was zero - we're done with this ray
 
 ; Template for blitting code [ref BigBlue3_70]
 blitTemplate: !zone	; comments show byte offset

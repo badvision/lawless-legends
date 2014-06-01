@@ -358,17 +358,17 @@ class PackPartitions
      */
     def dumpJsMap(rows, texMap)
     {
-        def width = rows[0].size()
+        def width = rows[0].size()+2
         
         // Write the map data. First comes the sentinel row.
         javascriptOut.println("var map = [")
         javascriptOut.print("  [")
-        (0..width).each { javascriptOut.print("-1,") }
+        (0..<width).each { javascriptOut.print("-1,") }
         javascriptOut.println("],")
         
         // Now the real map data
         rows.each { row ->
-            javascriptOut.print("  [")
+            javascriptOut.print("  [-1,")
             row.each { tile ->
                 def b = texMap[tile?.@id]
                 if ((b & 0x80) == 0)
@@ -381,7 +381,7 @@ class PackPartitions
         
         // Finish the map data with another sentinel row
         javascriptOut.print("  [")
-        (0..width).each { javascriptOut.print("-1,") }
+        (0..<width).each { javascriptOut.print("-1,") }
         javascriptOut.println("]")
         javascriptOut.println("];\n")
         
@@ -401,7 +401,7 @@ class PackPartitions
     
     def write3DMap(buf, mapName, rows) // [ref BigBlue1_50]
     {
-        def width = rows[0].size() + 1  // Sentinel $FF at end of each row
+        def width = rows[0].size() + 2  // Sentinel $FF at start and end of each row
         def height = rows.size() + 2    // Sentinel rows of $FF's at start and end
         
         // Determine the set of all referenced textures, and assign numbers to them.
@@ -444,6 +444,7 @@ class PackPartitions
         
         // After the header comes the raw data
         rows.each { row ->
+            buf.put((byte)0xFF) // sentinel at start of row
             row.each { tile ->
                 buf.put((byte)texMap[tile?.@id])
             }

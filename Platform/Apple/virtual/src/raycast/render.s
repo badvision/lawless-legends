@@ -34,8 +34,8 @@ NUM_COLS	= 63
 ;PLAYER_START_Y = $380		; 3.5
 ;PLAYER_START_DIR = 4
 
-PLAYER_START_X = $43E		; 1.5
-PLAYER_START_Y = $67A		; 3.5
+PLAYER_START_X = $53E		; special pos for debugging
+PLAYER_START_Y = $67A
 PLAYER_START_DIR = $A
 
 ; Useful constants

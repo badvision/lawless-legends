@@ -30,13 +30,13 @@ MAX_SPRITES	= 16		; max # sprites visible at once
 NUM_COLS	= 63
 
 ; Starting position and dir. Eventually this will come from the map
-;PLAYER_START_X = $180		; 1.5
-;PLAYER_START_Y = $380		; 3.5
-;PLAYER_START_DIR = 4
+PLAYER_START_X = $280		; 1.5
+PLAYER_START_Y = $380		; 3.5
+PLAYER_START_DIR = 4
 
-PLAYER_START_X = $53E		; special pos for debugging
-PLAYER_START_Y = $67A
-PLAYER_START_DIR = $A
+;PLAYER_START_X = $53E		; special pos for debugging
+;PLAYER_START_Y = $67A
+;PLAYER_START_DIR = $A
 
 ; Useful constants
 W_LOG_256	= $0800

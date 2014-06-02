@@ -95,17 +95,15 @@ class PackPartitions
         def result = rows[0..63].collect { it[0..31] }
         
         // Kludge alert! strip high bits in Building6.
-        if (imgEl.@name == "Building6") {
-            println "hacking high bits in Building6"
+        if (imgEl.@name == "Forestville building 1 - 3d") {
+            println "hacking high bits in texture 'Forestville building 1 - 3d'"
             def rowNum = 0
             result = result.collect { row ->
                 rowNum++
                 row.collect { pix ->
-                    (rowNum <= 25 && pix == 3) ? 7 :
-                    (rowNum <= 25 && pix == 0) ? 4 :
-                    (rowNum >  25 && pix == 4) ? 0 :
-                    (rowNum >  25 && pix == 7) ? 3 :
-                    (rowNum >  25 && pix == 5) ? 0 :
+                    (rowNum <= 48 && pix >= 4) ? pix-4 :
+                    (pix == 4) ? 0 :
+                    (pix == 5) ? 1 :
                     pix
                 }
             }

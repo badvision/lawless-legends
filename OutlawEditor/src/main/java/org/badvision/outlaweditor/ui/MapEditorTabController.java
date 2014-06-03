@@ -127,7 +127,7 @@ public abstract class MapEditorTabController {
     @FXML
     abstract public void scrollMapUp(ActionEvent event);
 
-    protected void initalize() {
+    public void initalize() {
         assert mapEditorAnchorPane != null : "fx:id=\"mapEditorAnchorPane\" was not injected: check your FXML file 'mapEditorTab.fxml'.";
         assert mapHeightField != null : "fx:id=\"mapHeightField\" was not injected: check your FXML file 'mapEditorTab.fxml'.";
         assert mapNameField != null : "fx:id=\"mapNameField\" was not injected: check your FXML file 'mapEditorTab.fxml'.";

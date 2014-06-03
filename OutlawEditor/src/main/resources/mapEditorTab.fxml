@@ -1,19 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import java.lang.*?>
-<?import java.util.*?>
-<?import javafx.scene.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<AnchorPane id="mapsTab" minHeight="0.0" minWidth="0.0" prefHeight="420.0000999999975" prefWidth="677.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.badvision.outlaweditor.ui.impl.MapEditorTabControllerImpl">
+<AnchorPane id="mapsTab" minHeight="0.0" minWidth="0.0" prefHeight="480.0" prefWidth="677.0" stylesheets="@styles/applicationui.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.badvision.outlaweditor.ui.impl.MapEditorTabControllerImpl">
     <children>
         <VBox prefHeight="200.0" prefWidth="100.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
             <children>
                 <ToolBar prefWidth="677.0">
                     <items>
                         <Label text="Map:" />
-                        <ComboBox fx:id="mapSelect" minWidth="125.0" onAction="#onMapSelected"/>
+                        <ComboBox fx:id="mapSelect" minWidth="125.0" onAction="#onMapSelected" />
                         <Button mnemonicParsing="false" onAction="#onMapCreatePressed" text="Create new" />
                         <Button mnemonicParsing="false" onAction="#onMapClonePressed" text="Clone" />
                         <Button mnemonicParsing="false" onAction="#onMapExportPressed" text="Export" />
@@ -35,35 +33,35 @@
                         </MenuButton>
                     </items>
                 </ToolBar>
-                <HBox prefHeight="389.0" prefWidth="677.0" VBox.vgrow="ALWAYS">
+                <HBox prefHeight="438.0" prefWidth="677.0" VBox.vgrow="ALWAYS">
                     <children>
                         <AnchorPane prefHeight="200.0" prefWidth="200.0" HBox.hgrow="NEVER">
                             <children>
                                 <Label text="Name" AnchorPane.leftAnchor="4.0" AnchorPane.topAnchor="14.0" />
                                 <TextField id="mapNameFiled" fx:id="mapNameField" layoutX="53.0" layoutY="11.0" prefWidth="147.0" />
-                                <TextField fx:id="mapWidthField" layoutX="53.0" layoutY="33.0" prefWidth="147.0" />
-                                <Label layoutX="4.0" layoutY="36.0" text="Width" />
-                                <TextField fx:id="mapHeightField" layoutX="53.0" layoutY="55.0" prefWidth="147.0" />
-                                <Label layoutX="4.0" layoutY="58.0" text="Height" />
-                                <CheckBox fx:id="mapWrapAround" contentDisplay="RIGHT" layoutX="4.0" layoutY="77.0" mnemonicParsing="false" text="Wrap at edges" />
-                                <Separator layoutX="4.0" layoutY="101.0" prefWidth="189.0" />
-                                <Label layoutX="4.0" layoutY="108.0" text="Scripts" />
-                                <ScrollPane fitToHeight="true" fitToWidth="true" prefHeight="232.0" prefWidth="200.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="157.0">
+                                <TextField fx:id="mapWidthField" layoutX="53.0" layoutY="45.0" prefWidth="147.0" />
+                                <Label layoutX="4.0" layoutY="50.0" prefHeight="16.0" prefWidth="42.0" text="Width" />
+                                <TextField fx:id="mapHeightField" layoutX="53.0" layoutY="79.0" prefWidth="147.0" />
+                                <Label layoutX="4.0" layoutY="84.0" prefHeight="16.0" prefWidth="42.0" text="Height" />
+                                <CheckBox fx:id="mapWrapAround" contentDisplay="RIGHT" layoutX="25.0" layoutY="111.0" mnemonicParsing="false" text="Wrap at edges" />
+                                <Separator layoutX="6.0" layoutY="140.0" prefWidth="189.0" />
+                                <Label layoutX="4.0" layoutY="141.0" text="Scripts" />
+                                <ScrollPane fitToHeight="true" fitToWidth="true" layoutY="171.0" prefHeight="133.0" prefWidth="201.0" AnchorPane.bottomAnchor="114.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="195.0">
                                     <content>
-                                        <AnchorPane id="Content" minHeight="0.0" minWidth="0.0" prefHeight="200.0" prefWidth="200.0">
+                                        <AnchorPane id="Content" minHeight="0.0" minWidth="0.0" prefHeight="95.0" prefWidth="198.0">
                                             <children>
-                                                <ListView fx:id="mapScriptsList" editable="true" prefHeight="217.0" prefWidth="199.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                                                <ListView fx:id="mapScriptsList" editable="true" prefHeight="130.0" prefWidth="199.0" AnchorPane.bottomAnchor="-2.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
                                             </children>
                                         </AnchorPane>
                                     </content>
                                 </ScrollPane>
-                                <ToolBar layoutY="124.0" prefWidth="200.0">
+                                <ToolBar layoutX="1.0" layoutY="157.0" prefWidth="200.0">
                                     <items>
                                         <Button mnemonicParsing="false" onAction="#onMapScriptAddPressed" text="+" />
                                         <Button mnemonicParsing="false" onAction="#onMapScriptDeletePressed" text="-" />
                                         <Button mnemonicParsing="false" onAction="#onMapScriptClonePressed" text="Clone" />
                                     </items>
-                                </ToolBar>
+                                </ToolBar><TextArea fx:id="scriptInfo" editable="false" layoutY="340.0" prefHeight="100.0" prefWidth="200.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" />
                             </children>
                         </AnchorPane>
                         <AnchorPane fx:id="mapEditorAnchorPane" prefHeight="389.0" prefWidth="477.0000999999975" HBox.hgrow="SOMETIMES">

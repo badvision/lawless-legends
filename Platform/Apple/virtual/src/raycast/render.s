@@ -14,6 +14,7 @@ start:
 ; Conditional assembly flags
 DOUBLE_BUFFER	= 1		; whether to double-buffer
 DEBUG		= 0		; 1=some logging, 2=lots of logging
+DEBUG_COLUMN	= 0
 
 ; Shared constants, zero page, buffer locations, etc.
 !source "render.i"
@@ -27,6 +28,15 @@ DEBUG		= 0		; 1=some logging, 2=lots of logging
 ; Local constants
 MAX_SPRITES	= 16		; max # sprites visible at once
 NUM_COLS	= 63
+
+; Starting position and dir. Eventually this will come from the map
+;PLAYER_START_X = $180		; 1.5
+;PLAYER_START_Y = $380		; 3.5
+;PLAYER_START_DIR = 4
+
+PLAYER_START_X = $53E		; special pos for debugging
+PLAYER_START_Y = $67A
+PLAYER_START_DIR = $A
 
 ; Useful constants
 W_LOG_256	= $0800
@@ -405,6 +415,8 @@ castRay: !zone
 	!if DEBUG >= 2 { jsr .debugFinal }
 	rts
 .hitSprite:
+	cmp #$FF		; check for special mark at edges of map
+	beq .hitEdge
 	; We found a sprite cell on the map. We only want to process this sprite once,
 	; so check if we've already done it.
 	and #$40
@@ -445,6 +457,16 @@ castRay: !zone
 	tay			; restore map position index
 .spriteDone:
 	jmp .DDA_step		; trace this ray some more
+
+	; special case: hit edge of map
+.hitEdge:
+	ldy #0			; height
+	lda #1			; depth
+	sty txNum		; texture number
+	jsr saveLink		; allocate a link and save those
+	lda #0			; column number
+	sta txColBuf,x		; save that too
+	rts			; all done
 
 	; wall calculation: X=dir1, Y=dir2, A=dir2step
 .wallCalc:
@@ -521,6 +543,7 @@ castRay: !zone
 	lda #$FF	; clamp large line heights to 255
 +	tay		; save the height in Y reg
 	pla		; get the depth back
+	!if DEBUG { jsr .debugDepth }
 	jmp saveLink	; save final column data to link buffer
 
 !if DEBUG >= 2 {
@@ -562,6 +585,18 @@ castRay: !zone
 	+prStr : !text "sprite=",0
 	+prA
 	+crout
+	rts
+.debugDepth:
+	pha
+	lda screenCol
+	cmp #4
+	bne +
+	+prStr : !text "depth for col4=",0
+	pla
+	pha
+	+prA
+	+crout
++	pla
 	rts
 }
 
@@ -1087,8 +1122,8 @@ drawSprite: !zone
 ;		(can be used for further manipulation of the values there).
 ;
 saveLink: !zone
-	sta tmp			; keep height for storing later
-	sty tmp+1		; same with depth
+	sta tmp			; keep depth for storing later
+	sty tmp+1		; same with height
 	ldx screenCol
 	ldy firstLink,x
 	bne .chk1
@@ -1107,9 +1142,10 @@ saveLink: !zone
 	lda txNum
 	sta txNumBuf,x
 	inc nextLink
+	!if DEBUG { jsr .debugLink }
 	rts	
 .chk1				; does it need to be inserted before the existing first link?
-	lda tmp+1
+	lda tmp
 	cmp depthBuf,y
 	bcc .store
 	; advance to next link
@@ -1122,10 +1158,41 @@ saveLink: !zone
 	sta linkBuf,x
 	bne .store2		; always taken; also note: Y contains next link (0 for end of chain)
 .chk2				; do we need to insert before this (non-first) link?
-	lda tmp+1
+	lda tmp
 	cmp depthBuf,y
 	bcc .insert		; found the right place
 	bcs .next		; not the right place to insert, look at next link (always taken)
+!if DEBUG {
+.debugLink:
+	lda screenCol
+	cmp #DEBUG_COLUMN
+	beq +
+	rts
++	txa
+	pha
+	+prStr : !text "Links for col ",0
+	+prByte screenCol
+	+prStr : !text ": ",0
+	ldx screenCol
+	ldy firstLink,x
+.dlup	+prStr : !text "[ht=",0
+	lda heightBuf,y
+	+prA
+	+prStr : !text "tx=",0
+	lda txNumBuf,y
+	+prA
+	+prStr : !text "dp=",0
+	lda depthBuf,y
+	+prA
+	+prStr : !text "] ",0
+	lda linkBuf,y
+	tay
+	bne .dlup
+	+crout
+	pla
+	tax
+	rts
+}
 
 ; Advance pLine to the next line on the hi-res screen
 nextLine: !zone
@@ -1161,18 +1228,19 @@ nextLine: !zone
 .done:	stx pLine+1
 	rts
 
-; Draw a ray that was traversed by calcRay
+; Draw a ray that was traversed by castRay
 drawRay: !zone
 	ldy screenCol
 	ldx firstLink,y
-.lup:	lda txNumBuf,x
+.lup:	lda linkBuf,x		; get link to next stacked data to draw
+	pha			; save link for later
+	lda heightBuf,x
+	beq .skip
+	sta lineCt
+	lda txNumBuf,x
 	sta txNum
 	lda txColBuf,x
 	sta txColumn
-	lda heightBuf,x
-	sta lineCt
-	lda linkBuf,x		; get link to next stacked data to draw
-	pha			; save link for later
 	; Make a pointer to the selected texture
 	ldx txNum
 	dex			; translate tex 1..4 to 0..3
@@ -1188,7 +1256,7 @@ drawRay: !zone
 +	sta expanderJmp+1	; set vector offset
 	!if DEBUG >= 2 { +prStr : !text "Calling expansion code.",0 }
 	jsr callExpander	; was copied from .callIt to $100 at init time
-	pla			; retrieve link to next in stack
+.skip	pla			; retrieve link to next in stack
 	tax			; put in X for indexing
 	bne .lup		; if non-zero, we have more to draw
 	rts			; next link was zero - we're done with this ray
@@ -1569,18 +1637,15 @@ expanderJmp:
 ;-------------------------------------------------------------------------------
 ; Establish the initial player position and direction [ref BigBlue3_10]
 setPlayerPos: !zone
-	; X=1.5
-	lda #1
+	lda #>PLAYER_START_X
 	sta playerX+1
-	lda #$80
+	lda #<PLAYER_START_X
 	sta playerX
-	; Y=2.5
-	lda #2
+	lda #>PLAYER_START_Y
 	sta playerY+1
-	lda #$80
+	lda #<PLAYER_START_Y
 	sta playerY
-	; direction=0
-	lda #4
+	lda #PLAYER_START_DIR
 	sta playerDir
 	rts
 

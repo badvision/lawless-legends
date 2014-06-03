@@ -1,5 +1,6 @@
 package org.badvision.outlaweditor.ui.impl;
 
+import org.badvision.outlaweditor.ui.EntitySelectorCell;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.event.ActionEvent;
@@ -185,6 +186,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
         }
     }
 
+    @Override
     public void completeInflightOperations() {
         if (getCurrentEditor() != null) {
             getCurrentEditor().getCurrentMap().updateBackingMap();
@@ -248,7 +250,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
     }
 
     @Override
-    protected void initalize() {
+    public void initalize() {
         super.initalize();
         mapSelect.setButtonCell(new ComboBoxListCell<org.badvision.outlaweditor.data.xml.Map>() {
             {
@@ -256,7 +258,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
             }
 
             @Override
-            public void updateItem(org.badvision.outlaweditor.data.xml.Map item, boolean empty) {
+            public void updateItem(Map item, boolean empty) {
                 textProperty().unbind();
                 super.updateItem(item, empty);
                 if (item != null) {
@@ -266,13 +268,13 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
                 }
             }
         });
-        mapSelect.setCellFactory(new Callback<ListView<org.badvision.outlaweditor.data.xml.Map>, ListCell<org.badvision.outlaweditor.data.xml.Map>>() {
+        mapSelect.setCellFactory(new Callback<ListView<Map>, ListCell<Map>>() {
             @Override
-            public ListCell<org.badvision.outlaweditor.data.xml.Map> call(ListView<org.badvision.outlaweditor.data.xml.Map> param) {
-                return new ApplicationUIControllerImpl.EntitySelectorCell<org.badvision.outlaweditor.data.xml.Map>(mapNameField) {
+            public ListCell<org.badvision.outlaweditor.data.xml.Map> call(ListView<Map> param) {
+                return new EntitySelectorCell<Map>(mapNameField) {
                     @Override
-                    public void finishUpdate(org.badvision.outlaweditor.data.xml.Map item) {
-                    }
+                    public void finishUpdate(Map item) {
+                        }
                 };
             }
         });

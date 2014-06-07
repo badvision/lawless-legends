@@ -1,5 +1,6 @@
 import stdlib
-  predef cls, gotoxy, viewport, putc, puts, getc, gets, syscall
+  predef cls, gotoxy, viewport, putc, puts, getc, gets
+  predef call, syscall
   predef heapmark, heapallocallign, heapalloc, heaprelease, heapavail
   predef memset, memcpy
   predef isugt, isuge, isult, isule

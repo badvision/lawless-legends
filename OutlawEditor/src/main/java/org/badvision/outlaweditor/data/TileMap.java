@@ -1,20 +1,25 @@
 package org.badvision.outlaweditor.data;
 
-import org.badvision.outlaweditor.Platform;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import javafx.scene.image.WritableImage;
+import javafx.scene.paint.Color;
 import javax.swing.JOptionPane;
 import javax.xml.bind.JAXBElement;
 import org.badvision.outlaweditor.Application;
-import org.badvision.outlaweditor.ui.UIAction;
+import org.badvision.outlaweditor.Platform;
 import org.badvision.outlaweditor.data.xml.Map;
 import org.badvision.outlaweditor.data.xml.Map.Chunk;
 import org.badvision.outlaweditor.data.xml.ObjectFactory;
+import org.badvision.outlaweditor.data.xml.Script;
+import org.badvision.outlaweditor.data.xml.Script.LocationTrigger;
 import org.badvision.outlaweditor.data.xml.Tile;
+import org.badvision.outlaweditor.ui.UIAction;
 
 /**
  *
@@ -35,6 +40,57 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
         loadFromMap(m);
     }
 
+    public static final double SATURATION = 0.5;
+    public static final double VALUE = 1.0;
+    public static double HUE = 0;
+    private java.util.Map<Integer, List<Script>> locationScripts = new HashMap<>();
+    private java.util.Map<Script, Color> scriptColors = new HashMap<>();
+    
+    public Color getScriptColor(Script s) {
+        return scriptColors.get(s);
+    }
+    
+    public List<Script> getLocationScripts(int x, int y) {
+        List<Script> list = locationScripts.get(getMortonNumber(x, y));
+        if (list != null) {
+            return list;
+        } else {
+            return Collections.EMPTY_LIST;
+        }
+    }
+
+    public void putLocationScript(int x, int y, Script s) {
+        LocationTrigger trigger = new Script.LocationTrigger();
+        trigger.setX(x);
+        trigger.setY(y);
+        s.getLocationTrigger().add(trigger);
+        registerLocationScript(x, y, s);
+    }
+
+    private void registerLocationScript(int x, int y, Script s) {
+        if (!scriptColors.containsKey(s)) {
+            scriptColors.put(s, Color.hsb(HUE, SATURATION, VALUE));
+            HUE = (HUE + 20) % 360;
+        }
+        int loc = getMortonNumber(x, y);
+        List<Script> list = locationScripts.get(loc);
+        if (list == null) {
+            list = new ArrayList<>();
+            locationScripts.put(loc, list);
+        }
+        list.add(s);
+    }
+
+    private int getMortonNumber(int x, int y) {
+        int morton = 0;
+        for (int i = 0; i < 16; i++) {
+            int mask = 1 << (i);
+            morton += (x & mask) << (i + 1);
+            morton += (y & mask) << i;
+        }
+        return morton;
+    }
+
     public Tile get(int x, int y) {
         if (size() <= y || get(y) == null) {
             return null;
@@ -52,7 +108,7 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
             add(null);
         }
         if (get(y) == null) {
-            set(y, new ArrayList<Tile>());
+            set(y, new ArrayList<>());
         }
         List<Tile> row = get(y);
         for (int i = row.size(); i <= x; i++) {
@@ -93,7 +149,12 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
         width = 0;
         height = 0;
         Set<Tile> unknownTiles = new HashSet<>();
-        for (Chunk c : m.getChunk()) {
+        m.getScripts().getScript().forEach(
+                s -> s.getLocationTrigger().forEach(
+                        l -> registerLocationScript(l.getX(), l.getY(), s)
+                )
+        );
+        m.getChunk().forEach( c-> {
             int y = c.getY();
             for (JAXBElement<List<String>> row : c.getRow()) {
                 int x = c.getX();
@@ -114,7 +175,7 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
                 }
                 y++;
             }
-        }
+        });
         if (!unknownTiles.isEmpty()) {
             int numMissing = unknownTiles.size();
             JOptionPane.showMessageDialog(null, (numMissing > 1

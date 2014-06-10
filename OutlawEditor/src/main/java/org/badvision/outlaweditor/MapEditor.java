@@ -1,19 +1,13 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
 package org.badvision.outlaweditor;
 
 import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.application.Platform;
-import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
 import javafx.scene.Group;
 import javafx.scene.ImageCursor;
-import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.image.ImageView;
@@ -27,7 +21,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 import static org.badvision.outlaweditor.Application.currentPlatform;
-import org.badvision.outlaweditor.TransferHelper.DropEventHandler;
 import org.badvision.outlaweditor.data.TileMap;
 import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.xml.Map;
@@ -62,16 +55,13 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         return currentMap;
     }
 
-    EventHandler<ScrollEvent> scrollHandler = new EventHandler<ScrollEvent>() {
-        @Override
-        public void handle(ScrollEvent t) {
-            if (t.isShiftDown()) {
-                t.consume();
-                if (t.getDeltaY() > 0) {
-                    zoomIn();
-                } else {
-                    zoomOut();
-                }
+    EventHandler<ScrollEvent> scrollHandler = (ScrollEvent t) -> {
+        if (t.isShiftDown()) {
+            t.consume();
+            if (t.getDeltaY() > 0) {
+                zoomIn();
+            } else {
+                zoomOut();
             }
         }
     };
@@ -101,28 +91,19 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         drawCanvas.heightProperty().bind(Application.getPrimaryStage().heightProperty().subtract(120));
         drawCanvas.widthProperty().bind(Application.getPrimaryStage().widthProperty().subtract(200));
 //        drawCanvas.widthProperty().bind(anchorPane.widthProperty());
-        drawCanvas.widthProperty().addListener(new ChangeListener<Number>() {
-            @Override
-            public void changed(ObservableValue<? extends Number> ov, Number t, Number t1) {
-                redraw();
-            }
+        drawCanvas.widthProperty().addListener((ObservableValue<? extends Number> ov, Number t, Number t1) -> {
+            redraw();
         });
-        drawCanvas.heightProperty().addListener(new ChangeListener<Number>() {
-            @Override
-            public void changed(ObservableValue<? extends Number> ov, Number t, Number t1) {
-                redraw();
-            }
+        drawCanvas.heightProperty().addListener((ObservableValue<? extends Number> ov, Number t, Number t1) -> {
+            redraw();
         });
         drawCanvas.addEventFilter(ScrollEvent.ANY, scrollHandler);
         drawCanvas.setOnMousePressed(this);
         drawCanvas.setOnMouseDragged(this);
         drawCanvas.setOnMouseDragReleased(this);
         drawCanvas.setOnMouseReleased(this);
-        scriptDragDrop.registerDropSupport(drawCanvas, new DropEventHandler<Script>() {
-            @Override
-            public void handle(Script script, double x, double y) {
-                assignScript(script, x, y);
-            }
+        scriptDragDrop.registerDropSupport(drawCanvas, (Script script, double x, double y) -> {
+            assignScript(script, x, y);
         });
         anchorPane.getChildren().add(0, drawCanvas);
     }
@@ -140,12 +121,9 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     }
 
     public void togglePanZoom() {
-        for (Node n : anchorPane.getChildren()) {
-            if (n == drawCanvas) {
-                continue;
-            }
+        anchorPane.getChildren().stream().filter((n) -> !(n == drawCanvas)).forEach((n) -> {
             n.setVisible(!n.isVisible());
-        }
+        });
     }
 
     public void scrollBy(int deltaX, int deltaY) {
@@ -198,34 +176,29 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     private long redrawRequested;
     private Thread redrawThread;
 
+    @Override
     public void redraw() {
         redrawRequested = System.nanoTime();
         if (redrawThread == null || redrawThread.isAlive()) {
-            redrawThread = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    long test = redrawRequested;
+            redrawThread = new Thread(() -> {
+                long test = redrawRequested;
+                try {
+                    Thread.sleep(10);
+                } catch (InterruptedException ex) {
+                    Logger.getLogger(MapEditor.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                while (test != redrawRequested) {
+                    test = redrawRequested;
                     try {
                         Thread.sleep(10);
                     } catch (InterruptedException ex) {
                         Logger.getLogger(MapEditor.class.getName()).log(Level.SEVERE, null, ex);
                     }
-                    while (test != redrawRequested) {
-                        test = redrawRequested;
-                        try {
-                            Thread.sleep(10);
-                        } catch (InterruptedException ex) {
-                            Logger.getLogger(MapEditor.class.getName()).log(Level.SEVERE, null, ex);
-                        }
-                    }
-                    Platform.runLater(new Runnable() {
-                        @Override
-                        public void run() {
-                            doRedraw();
-                        }
-                    });
-                    redrawThread = null;
                 }
+                Platform.runLater(() -> {
+                    doRedraw();
+                });
+                redrawThread = null;
             });
             redrawThread.start();
         }

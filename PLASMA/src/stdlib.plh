@@ -1,9 +1,10 @@
 import stdlib
-  predef cls, gotoxy, viewport, putc, puts, getc, gets, syscall, romcall
+  predef cls, gotoxy, viewport, putc, puts, getc, gets
+  predef call, syscall
   predef heapmark, heapallocallign, heapalloc, heaprelease, heapavail
-  predef memset, memcpy, memxcpy
+  predef memset, memcpy
   predef isugt, isuge, isult, isule
-  predef exec
+  predef load, exec
   ;
   ; System flags: memory allocator screen holes.
   ;

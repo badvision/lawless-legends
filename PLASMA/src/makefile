@@ -2,8 +2,8 @@
 AFLAGS	= -o $@
 LFLAGS	= -C default.cfg
 PLVM    = plvm
-PLVM02	= PLVM02.SYS
-CMD     = CMD.SYS
+PLVM02	= PLASMA.SYSTEM\#FF2000
+CMD     = CMD\#FF2000
 PLASM   = plasm
 INCS    = tokens.h symbols.h lex.h parse.h codegen.h
 OBJS	= plasm.c parse.o lex.o codegen.o
@@ -22,10 +22,10 @@ TXTTYPE	= .TXT
 #SYSTYPE	= \#ff0000
 #TXTTYPE	= \#040000
 
-all: $(PLASM) $(PLVM) $(PLVM02) $(CMD) TESTLIB
+all: $(PLASM) $(PLVM) $(PLVM02) $(CMD)
 
 clean:
-	-rm *.o *~ *.a *.SYM *.SYS *.REL TESTLIB $(PLASM) $(PLVM)
+	-rm *.o *~ *.a *FE1000 $(PLVM02) $(CMD) $(PLASM) $(PLVM)
 
 $(PLASM): $(OBJS) $(INCS)
 	cc $(OBJS) -o $(PLASM)
@@ -33,31 +33,28 @@ $(PLASM): $(OBJS) $(INCS)
 $(PLVM): plvm.c
 	cc plvm.c -o $(PLVM)
 
-cmdexec.a: cmdexec.pla $(PLASM)
-	./$(PLASM) -A < cmdexec.pla > cmdexec.a
-
-$(PLVM02): plvm02.s cmdexec.a
-	acme -o $(PLVM02) -l PLVM02.SYM plvm02.s
+$(PLVM02): plvm02.s
+	acme -o $(PLVM02) plvm02.s
 
 $(CMD): cmd.pla cmdstub.s $(PLVM) $(PLASM)
 	./$(PLASM) -A < cmd.pla > cmd.a
 	acme --setpc 8192 -o $(CMD) cmdstub.s
 
-TESTLIB: testlib.pla $(PLVM) $(PLASM)
+TESTLIB\#FE1000: testlib.pla $(PLVM) $(PLASM)
 	m4 < testlib.pla |./$(PLASM) -AM > testlib.a
-	acme --setpc 4094 -o TESTLIB testlib.a
+	acme --setpc 4094 -o TESTLIB\#FE1000 testlib.a
 
-test: test.pla TESTLIB $(PLVM) $(PLASM)
+test: test.pla TESTLIB\#FE1000 $(PLVM) $(PLASM)
 	m4 < test.pla | ./$(PLASM) -AM > test.a
-	acme --setpc 4094 -o TEST.REL test.a
-	./$(PLVM) TEST.REL
+	acme --setpc 4094 -o TEST\#FE1000 test.a
+	./$(PLVM) TEST
 
 debug: test.pla TESTLIB $(PLVM) $(PLASM)
 	m4 < test.pla | ./$(PLASM) -AM > test.a
-	acme --setpc 4094 -o TEST.REL test.a
-	./$(PLVM) -s TEST.REL MAIN
+	acme --setpc 4094 -o TEST\#FE1000 test.a
+	./$(PLVM) -s TEST MAIN
 
 hello: hello.pla $(PLVM) $(PLASM)
 	m4 < hello.pla | ./$(PLASM) -AM > hello.a
-	acme --setpc 4094 -o HELLO.REL hello.a
-	./$(PLVM) HELLO.REL
+	acme --setpc 4094 -o HELLO\#FE1000 hello.a
+	./$(PLVM) HELLO

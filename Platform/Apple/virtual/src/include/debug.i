@@ -12,6 +12,11 @@
 	jsr _prSpace
 }
 
+!macro prChr chr {
+	jsr _writeStr
+	!byte chr, 0
+}
+
 !macro prA {
 	jsr _prA
 	jsr _prSpace
@@ -79,7 +84,7 @@ _getStackByte !zone {
 ; Support to print a string following the JSR, in high or low bit ASCII, 
 ; terminated by zero. If the string has a period "." it will be followed 
 ; automatically by a carriage return. Preserves all registers.
-_writeStr: !zone
+_writeStr: !zone {
 	jsr iosave
 	tsx
 .loop:	jsr _getStackByte
@@ -90,13 +95,15 @@ _writeStr: !zone
 	jsr crout
 	jmp .loop
 .done:	jmp iorest
+}
 
-_prByte: !zone
+_prByte: !zone {
 	jsr iosave
 	ldy #0
 	; fall through to _prShared...
+}
 
-_prShared: !zone
+_prShared: !zone {
 	tsx
 	jsr _getStackByte
 	sta .ld+1
@@ -108,8 +115,9 @@ _prShared: !zone
 	bpl .ld
 	+prSpace
 	jmp iorest
-	
-_prSpace:
+}
+
+_prSpace: !zone {
 	php
 	pha
 	lda #$A0
@@ -117,21 +125,24 @@ _prSpace:
 	pla
 	plp
 	rts
+}
 
-_prWord: !zone
+_prWord: !zone {
 	jsr iosave
 	ldy #1
 	bne _prShared	; always taken
+}
 
-_prA: !zone
+_prA: !zone {
 	php
 	pha
 	jsr prbyte
 	pla
 	plp
 	rts
+}
 	
-_prX: !zone
+_prX: !zone {
 	php
 	pha
 	txa
@@ -139,8 +150,9 @@ _prX: !zone
 	pla
 	plp
 	rts
+}
 
-_prY: !zone
+_prY: !zone {
 	php
 	pha
 	tya
@@ -148,16 +160,19 @@ _prY: !zone
 	pla
 	plp
 	rts
+}
 
-_crout: !zone
+_crout: !zone {
 	php
 	pha
 	jsr crout
 	pla
 	plp
 	rts
+}
 
-_waitKey: !zone
+_waitKey: !zone {
 	jsr iosave
 	jsr rdkey
 	jmp iorest
+}

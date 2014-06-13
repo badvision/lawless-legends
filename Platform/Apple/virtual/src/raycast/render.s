@@ -26,8 +26,10 @@ DEBUG_COLUMN	= 0
 !source "../include/fontEngine.i"
 
 ; Local constants
-MAX_SPRITES	= 16		; max # sprites visible at once
+MAX_SPRITES	= 64		; max # sprites visible at once
 NUM_COLS	= 63
+SPRITE_DIST_LIMIT = 6
+SPRITE_CT_LIMIT = 4
 
 ; Starting position and dir. Eventually this will come from the map
 PLAYER_START_X = $280		; 1.5
@@ -49,7 +51,7 @@ frontBuf:  	!byte 0		; (value 0 or 1)
 mapHeader: 	!word 0		; map with header first
 mapBase:   	!word 0		; first byte after the header
 mapRayOrigin:	!word 0
-mapNum:    	!byte 1
+mapNum:    	!byte 4
 mapName:	!word 0		; pointer to map name
 mapNameLen:	!byte 0		; length of map name
 nMapSprites:	!byte 0		; number of sprite entries on map to fix up
@@ -431,7 +433,9 @@ castRay: !zone
 	ldx nMapSprites		; get ready to store the address so we can fix the flag later
 	cpx #MAX_SPRITES	; check for table overflow
 	bne +
-	brk			; ack! too many sprites
+	lda #'S'
+	sta $7F7		; quickly note it on the text screen
+	bne .spriteDone		; and skip this sprite (always taken)
 +	tya			; Y reg indexes the map
 	clc
 	adc pMap		; add to map pointer
@@ -661,12 +665,17 @@ spriteCalc: !zone
 	inc bSgnDx		; flip sign bit for output
 	jsr .negYX		; negate to get absolute value
 +	tya			; lo byte in A where log2 wants it
-	jsr log2_w_w		; wants A=lo, X=Hi
+	cpx #SPRITE_DIST_LIMIT	; too far away?
+	bmi +
+	!if DEBUG { +prStr : !text "Sprite is too far away (X).",0 }
+	clc
+	rts
++	jsr log2_w_w		; wants A=lo, X=Hi
 	sta wLogDx
 	stx wLogDx+1
 
 	; Calculate wLogDy = log2_w_w(spriteY - playerY), as abs value and a sign bit
-	lda spriteY		; calculate spriteX - playerX
+	lda spriteY		; calculate spriteY - playerY
 	sec
 	sbc playerY
 	tay			; stash lo byte
@@ -677,7 +686,12 @@ spriteCalc: !zone
 	inc bSgnDy		; flip sign bit for output
 	jsr .negYX		; negate to get absolute value
 +	tya			; lo byte in A where log2 wants it
-	jsr log2_w_w		; wants A=lo, X=Hi
+	cpx #SPRITE_DIST_LIMIT	; too far away?
+	bmi +
+	!if DEBUG { +prStr : !text "Sprite is too far away (Y).",0 }
+	clc
+	rts
++	jsr log2_w_w		; wants A=lo, X=Hi
 	sta wLogDy
 	stx wLogDy+1
 
@@ -698,7 +712,7 @@ spriteCalc: !zone
 	eor bSgnCosT		; multiply the two sign bits together
 	beq +			; if result is clear, no negation
 	jsr .negYX		; negate
-+	sty wRx		; save partial result
++	sty wRx			; save partial result
 	stx wRx+1
 	lda wLogDy		; start with lo byte
 	clc
@@ -716,7 +730,7 @@ spriteCalc: !zone
 	jsr .negYX		; negate
 +	tya
 	clc
-	adc wRx		; add to partial result
+	adc wRx			; add to partial result
 	sta wRx
 	txa
 	adc wRx+1		; also hi byte
@@ -747,7 +761,7 @@ spriteCalc: !zone
 	eor bSgnSinT		; multiply the two sign bits together
 	beq +			; if result is clear, no negation
 	jsr .negYX		; negate
-+	sty wRy		; save partial result
++	sty wRy			; save partial result
 	stx wRy+1
 	lda wLogDy		; start with lo byte
 	clc
@@ -764,7 +778,7 @@ spriteCalc: !zone
 	jsr .negYX		; negate
 +	tya
 	clc
-	adc wRy		; add to partial result
+	adc wRy			; add to partial result
 	tay
 	txa
 	adc wRy+1		; also hi byte
@@ -772,7 +786,7 @@ spriteCalc: !zone
 	bpl +			; if already positive, skip negation
 	jsr .negYX		; negate to get abs value
 	inc bSgnRy		; and update sign bit
-+	sty wRy		; save result (we may not actually need to do this, but it helps w/ debug)
++	sty wRy			; save result (we may not actually need to do this, but it helps w/ debug)
 	stx wRy+1
 	tya			; get lo byte where it needs to be for log2
 	jsr log2_w_w		; calculate the log of wRy
@@ -1084,15 +1098,19 @@ drawSprite: !zone
 +	sta screenCol
 	lda #$80		; fractional byte of txColumn
 	pha
-.lup	lda screenCol
-	cmp #NUM_COLS
+.lup	ldx screenCol
+	cpx #NUM_COLS
 	bcs .done
+	inc spriteCtBuf,x	; count sprites in this column
+	lda spriteCtBuf,x	; and check it
+	cmp #SPRITE_CT_LIMIT	; limit to 4 sprites per column
+	bcs .skip
 	ldy lineCt		; column height
 	lda depth		; depth index
 	jsr saveLink		; save height and depth, link in to column data
 	lda txColumn		; also save the column number
 	sta txColBuf,x
-	inc screenCol		; next column on screen
+.skip	inc screenCol		; next column on screen
 	pla			; fractional byte
 	clc
 	adc wTxColBump		; advance lo byte
@@ -1132,6 +1150,7 @@ saveLink: !zone
 	sta firstLink,x
 .store2	tax			; switch to the new link's area now
 	bne +
+	+prChr 'L'
 	brk			; ack! ran out of link space -- too much complexity on screen
 +	tya
 	sta linkBuf,x
@@ -1688,6 +1707,7 @@ loadTextures: !zone
 	inx		; get ready for next texture
 	cpx #MAX_TEXTURES
 	bne +
+	+prChr 'T'
 	brk		; barf out if too many textures
 +	stx txNum
 	jmp .lup
@@ -1744,6 +1764,7 @@ castAllRays: !zone
 	txa
 	ldx #NUM_COLS-1
 -	sta firstLink,x
+	sta spriteCtBuf,x
 	dex
 	bpl -
 	
@@ -2072,6 +2093,7 @@ main: !zone
 	ldx mapName+1
 	jsr printCSTR
 	; play text in the big window on the top right
+!if 0 {
 	jsr set_window2
 	jsr clearWINDOW
 	jsr printSCSTR
@@ -2089,6 +2111,7 @@ main: !zone
 	!raw "wink. Perhaps",13
 	!raw "it's your lucky"
 	!raw "day?",0
+}
 	; play characters in the little window on the bottom right
 	jsr set_window3
 	jsr clearWINDOW
@@ -3284,6 +3307,7 @@ txColBuf:	!fill 256
 heightBuf:	!fill 256
 depthBuf:	!fill 256
 linkBuf:	!fill 256
+spriteCtBuf:	!fill 256
 firstLink:	!fill NUM_COLS
 
 ; Active sprite restore addresses

@@ -149,11 +149,14 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
         width = 0;
         height = 0;
         Set<Tile> unknownTiles = new HashSet<>();
-        m.getScripts().getScript().forEach(
-                s -> s.getLocationTrigger().forEach(
-                        l -> registerLocationScript(l.getX(), l.getY(), s)
-                )
-        );
+        Map.Scripts scripts = m.getScripts();
+        if (scripts != null) {
+            scripts.getScript().forEach(
+                    s -> s.getLocationTrigger().forEach(
+                            l -> registerLocationScript(l.getX(), l.getY(), s)
+                    )
+            );
+        }
         m.getChunk().forEach( c-> {
             int y = c.getY();
             for (JAXBElement<List<String>> row : c.getRow()) {

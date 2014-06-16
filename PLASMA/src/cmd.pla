@@ -184,6 +184,7 @@ end
 ;
 ; SET MEMORY TO VALUE
 ; MEMSET(ADDR, SIZE, VALUE)
+;   With optimizations from Peter Ferrie
 ;
 asm memset
 	LDY     #$00
@@ -193,25 +194,20 @@ asm memset
 	STA     DSTH
 	INC     ESTKL+1,X
 	INC     ESTKH+1,X
-SETMLP	DEC     ESTKL+1,X
+SETMLPL	CLC
+	LDA     ESTKL,X
+SETMLPH	DEC     ESTKL+1,X
 	BNE     +
 	DEC     ESTKH+1,X
 	BEQ     SETMEX
-+	LDA     ESTKL,X
-	STA     (DST),Y
++	STA     (DST),Y
 	INY
-	BNE     +
+	BNE	+
 	INC     DSTH
-+	DEC     ESTKL+1,X
-	BNE     +
-	DEC     ESTKH+1,X
-	BEQ     SETMEX
-+	LDA     ESTKH,X
-	STA     (DST),Y
-	INY
-	BNE     SETMLP
-	INC     DSTH
-	BNE     SETMLP
++	BCS	SETMLPL
+	SEC
+	LDA     ESTKH,X
+	BCS	SETMLPH
 SETMEX	INX
 	INX
 	RTS
@@ -279,6 +275,7 @@ REVCPY	;CLC
 REVCPYLP LDA	(SRC),Y
 	STA	(DST),Y
 	DEY
+	CPY	#$FF
 	BNE	+
 	DEC	DSTH
 	DEC	SRCH

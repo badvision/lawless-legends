@@ -108,6 +108,17 @@ class PackPartitions
                 }
             }
         }
+        else if (imgEl.@name == "Block Tree - 3D") {
+            println "hacking high bits in texture 'Block Tree - 3D'"
+            def rowNum = 0
+            result = result.collect { row ->
+                rowNum++
+                row.collect { pix ->
+                    (pix >= 4) ? pix-4 :
+                    pix
+                }
+            }
+        }
         
         return result
     }

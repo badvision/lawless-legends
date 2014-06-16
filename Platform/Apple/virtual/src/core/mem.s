@@ -17,7 +17,8 @@
 MAX_SEGS	= 96
 
 DO_COMP_CHECKSUMS = 0		; during compression debugging
-DEBUG_DECOMP = 0
+DEBUG_DECOMP 	= 0
+DEBUG		= 0
 
 ; Zero page temporary variables
 tmp		= $2	; len 2
@@ -84,7 +85,6 @@ curPartition:	!byte 0
 partFileRef: 	!byte 0
 
 ;------------------------------------------------------------------------------
-DEBUG	= 0
 !source "../include/debug.i"
 
 ;------------------------------------------------------------------------------

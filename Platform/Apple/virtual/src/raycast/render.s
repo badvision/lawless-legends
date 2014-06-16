@@ -16,6 +16,9 @@ DOUBLE_BUFFER	= 1		; whether to double-buffer
 DEBUG		= 0		; 1=some logging, 2=lots of logging
 DEBUG_COLUMN	= 0
 
+; temporary hack to try blocker sprites
+BLOCKER_FOO	= 0
+
 ; Shared constants, zero page, buffer locations, etc.
 !source "render.i"
 ; Debug macros and support functions
@@ -28,7 +31,7 @@ DEBUG_COLUMN	= 0
 ; Local constants
 MAX_SPRITES	= 64		; max # sprites visible at once
 NUM_COLS	= 63
-SPRITE_DIST_LIMIT = 6
+SPRITE_DIST_LIMIT = 8
 SPRITE_CT_LIMIT = 4
 
 ; Starting position and dir. Eventually this will come from the map
@@ -51,7 +54,7 @@ frontBuf:  	!byte 0		; (value 0 or 1)
 mapHeader: 	!word 0		; map with header first
 mapBase:   	!word 0		; first byte after the header
 mapRayOrigin:	!word 0
-mapNum:    	!byte 4
+mapNum:    	!byte 1
 mapName:	!word 0		; pointer to map name
 mapNameLen:	!byte 0		; length of map name
 nMapSprites:	!byte 0		; number of sprite entries on map to fix up
@@ -419,6 +422,10 @@ castRay: !zone
 .hitSprite:
 	cmp #$FF		; check for special mark at edges of map
 	beq .hitEdge
+!if BLOCKER_FOO {
+	cmp #$c1
+	beq .hitEdge
+}
 	; We found a sprite cell on the map. We only want to process this sprite once,
 	; so check if we've already done it.
 	and #$40
@@ -459,6 +466,11 @@ castRay: !zone
 	jsr drawSprite		; put it on screen
 +	pla
 	tay			; restore map position index
+!if BLOCKER_FOO {
+	lda txNum
+	cmp #1
+	beq .hitEdge
+}
 .spriteDone:
 	jmp .DDA_step		; trace this ray some more
 
@@ -1744,6 +1756,38 @@ graphInit: !zone
 	rts
 
 ;-------------------------------------------------------------------------------
+; Using the current coordinates, calculate pointer on the map to the current row
+; and put it in mapRayOrigin (and also A=lo, Y=hi)
+calcMapOrigin: !zone
+
+	lda mapBase		; start at row 0, col 0 of the map
+	ldy mapBase+1
+	ldx playerY+1		; integer part of player's Y coord
+	beq .gotMapRow
+	clc
+.mapLup:			; advance forward one row
+	adc mapWidth
+	bcc +
+	iny
+	clc
++	dex			; until we reach players Y coord
+	bne .mapLup
+.gotMapRow:
+	sta mapRayOrigin
+	sty mapRayOrigin+1
+	rts
+
+;-------------------------------------------------------------------------------
+; Retrieve the map data where the player currently is
+getMapCell: !zone
+	jsr calcMapOrigin
+	sta pMap
+	sty pMap+1
+	ldy playerX+1
+	lda (pMap),y
+	rts
+
+;-------------------------------------------------------------------------------
 ; Cast all the rays from the current player coord
 castAllRays: !zone
 
@@ -1773,21 +1817,7 @@ castAllRays: !zone
 	sta nextLink
 
 	; Calculate pointer to the map row based on playerY
-	lda mapBase		; start at row 0, col 0 of the map
-	ldy mapBase+1
-	ldx playerY+1		; integer part of player's Y coord
-	beq .gotMapRow
-	clc
-.mapLup:			; advance forward one row
-	adc mapWidth
-	bcc +
-	iny
-	clc
-+	dex			; until we reach players Y coord
-	bne .mapLup
-.gotMapRow:
-	sta mapRayOrigin
-	sty mapRayOrigin+1
+	jsr calcMapOrigin
 
 	; Calculate the height, depth, texture number, and texture column for one ray
 	; [ref BigBlue3_50]
@@ -1870,6 +1900,8 @@ renderFrame: !zone
 ;-------------------------------------------------------------------------------
 ; Move the player forward a quarter step
 moveForward: !zone
+	jsr getMapCell
+	pha
 	lda playerDir
 	asl
 	asl
@@ -1888,7 +1920,14 @@ moveForward: !zone
 	lda playerY+1
 	adc walkDirs+3,x
 	sta playerY+1
-	rts
+	pla
+	cmp #0			; if already in a blocked position, allow to move out of it
+	bne +
+	jsr getMapCell		; check if player moved onto something solid
+	cmp #0
+	beq +			; no, ok
+	jmp moveBackward	; yes, reverse the move
++	rts
 
 ;-------------------------------------------------------------------------------
 ; Move the player backward a quarter step
@@ -2086,7 +2125,9 @@ main: !zone
 	lsr
 	clc
 	adc wndleft
-	tax
+	bpl +
+	lda #0
++	tax
 	ldy wndtop
 	jsr tabXY
 	ldy mapName	; now display the name itself

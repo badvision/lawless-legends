@@ -1,6 +1,7 @@
 package org.badvision.outlaweditor;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.application.Platform;
@@ -10,6 +11,7 @@ import javafx.scene.Group;
 import javafx.scene.ImageCursor;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.Clipboard;
@@ -43,7 +45,6 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     TileMap currentMap;
     double tileWidth = currentPlatform.tileRenderer.getWidth() * zoom;
     double tileHeight = currentPlatform.tileRenderer.getHeight() * zoom;
-    public static TransferHelper<Script> scriptDragDrop = new TransferHelper<>(Script.class);
 
     @Override
     public void setEntity(Map t) {
@@ -102,9 +103,6 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         drawCanvas.setOnMouseDragged(this);
         drawCanvas.setOnMouseDragReleased(this);
         drawCanvas.setOnMouseReleased(this);
-        scriptDragDrop.registerDropSupport(drawCanvas, (Script script, double x, double y) -> {
-            assignScript(script, x, y);
-        });
         anchorPane.getChildren().add(0, drawCanvas);
     }
 
@@ -117,7 +115,11 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     }
 
     public void assignScript(Script script, double x, double y) {
-        System.out.println("Dropped " + script.getName() + " at " + x + "," + y);
+        int xx = (int) (x / tileWidth);
+        int yy = (int) (y / tileHeight);
+        System.out.println("Dropped " + script.getName() + " at " + xx + "," + yy);
+        getCurrentMap().putLocationScript(xx, yy, script);
+        redraw();
     }
 
     public void togglePanZoom() {
@@ -214,6 +216,11 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
                 doDraw(x, y, tile);
             }
         }
+        for (int x = 0; x <= cols; x++) {
+            for (int y = 0; y <= rows; y++) {
+                highlightScripts(x, y, currentMap.getLocationScripts(posX + x, posY + y));
+            }
+        }
         anchorPane.getChildren().get(1).setLayoutX((drawCanvas.getWidth() - 30) / 2);
         anchorPane.getChildren().get(2).setLayoutY((drawCanvas.getHeight() - 30) / 2);
         anchorPane.getChildren().get(3).setLayoutX((drawCanvas.getWidth() - 30) / 2);
@@ -228,6 +235,50 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         } else {
             drawCanvas.getGraphicsContext2D().clearRect(xx, yy, tileWidth, tileHeight);
         }
+    }
+
+    private void highlightScripts(int x, int y, List<Script> scripts) {
+        if (scripts == null || scripts.isEmpty()) {
+            return;
+        }
+        GraphicsContext gc = drawCanvas.getGraphicsContext2D();
+        int idx = 0;
+        int xx = (int) (x * tileWidth);
+        int yy = (int) (y * tileHeight);
+        gc.setLineWidth(2.5);
+        gc.setStroke(currentMap.getScriptColor(scripts.get(0)));
+        gc.rect(xx, yy, tileWidth, tileHeight);
+//        gc.beginPath();
+//        gc.moveTo(xx,yy);
+//        for (int i = 0; i < tileWidth; i += 2, xx += 2) {
+//            idx = (idx + 1) % scripts.size();
+//            gc.setStroke(currentMap.getScriptColor(scripts.get(idx)));
+//            gc.lineTo(xx, yy);
+//        }
+//        for (int i = 0; i < tileHeight; i += 2, yy += 2) {
+//            idx = (idx + 1) % scripts.size();
+//            gc.setStroke(currentMap.getScriptColor(scripts.get(idx)));
+//            gc.lineTo(xx, yy);
+//        }
+//        for (int i = 0; i < tileWidth; i += 2, xx -= 2) {
+//            idx = (idx + 1) % scripts.size();
+//            gc.setStroke(currentMap.getScriptColor(scripts.get(idx)));
+//            gc.lineTo(xx, yy);
+//        }
+//        for (int i = 0; i < tileHeight; i += 2, yy -= 2) {
+//            idx = (idx + 1) % scripts.size();
+//            gc.setStroke(currentMap.getScriptColor(scripts.get(idx)));
+//            gc.lineTo(xx, yy);
+//        }
+//        gc.closePath();
+
+    }
+
+    public void setupDragDrop(TransferHelper<Script> scriptHelper) {
+        scriptHelper.registerDropSupport(drawCanvas, (Script script, double x, double y) -> {
+            assignScript(script, x, y);
+        });
+
     }
 
     @Override

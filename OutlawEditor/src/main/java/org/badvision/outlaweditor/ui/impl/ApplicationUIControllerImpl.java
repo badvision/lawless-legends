@@ -20,11 +20,8 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
     public void initialize() {
         super.initialize();
 
-        TilesetUtils.addObserver(new org.badvision.outlaweditor.data.DataObserver() {
-            @Override
-            public void observedObjectChanged(Object object) {
-                rebuildTileSelectors();
-            }
+        TilesetUtils.addObserver((org.badvision.outlaweditor.data.DataObserver) (Object object) -> {
+            rebuildTileSelectors();
         });
         tileController.initalize();
         mapController.initalize();
@@ -33,9 +30,9 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
 
     @Override
     public void platformChange() {
-        for (Tile t : Application.gameData.getTile()) {
+        Application.gameData.getTile().stream().forEach((t) -> {
             TileUtils.redrawTile(t);
-        }
+        });
         Tile tile = tileController.getCurrentTile();
         rebuildTileSelectors();
         tileController.setCurrentTile(tile);

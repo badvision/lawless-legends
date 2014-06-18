@@ -55,6 +55,11 @@ public abstract class TileEditorTabController {
     protected Menu tilePatternMenu; // Value injected by FXMLLoader
     @FXML // fx:id="tileSelector"
     protected ComboBox<Tile> tileSelector; // Value injected by FXMLLoader
+    @FXML
+    protected CheckBox tileBlockerField;
+
+    @FXML
+    protected CheckBox tileSpriteField;
 
     @FXML
     abstract public void onCurrentTileSelected(ActionEvent event);
@@ -86,6 +91,15 @@ public abstract class TileEditorTabController {
     abstract public void rebuildTileSelectors();
 
     public void initalize() {
-        
+        assert tileSpriteField != null : "fx:id=\"tileSpriteField\" was not injected: check your FXML file 'tileEditorTab.fxml'.";
+        assert tileCategoryField != null : "fx:id=\"tileCategoryField\" was not injected: check your FXML file 'tileEditorTab.fxml'.";
+        assert tileSelector != null : "fx:id=\"tileSelector\" was not injected: check your FXML file 'tileEditorTab.fxml'.";
+        assert tilePatternMenu != null : "fx:id=\"tilePatternMenu\" was not injected: check your FXML file 'tileEditorTab.fxml'.";
+        assert tileBlockerField != null : "fx:id=\"tileBlockerField\" was not injected: check your FXML file 'tileEditorTab.fxml'.";
+        assert tileNameField != null : "fx:id=\"tileNameField\" was not injected: check your FXML file 'tileEditorTab.fxml'.";
+        assert tileEditorAnchorPane != null : "fx:id=\"tileEditorAnchorPane\" was not injected: check your FXML file 'tileEditorTab.fxml'.";
+        assert tileIdField != null : "fx:id=\"tileIdField\" was not injected: check your FXML file 'tileEditorTab.fxml'.";
+        assert tileObstructionField != null : "fx:id=\"tileObstructionField\" was not injected: check your FXML file 'tileEditorTab.fxml'.";
+       
     }
 }

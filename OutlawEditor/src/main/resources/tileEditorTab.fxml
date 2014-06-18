@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import java.lang.*?>
-<?import java.net.*?>
-<?import javafx.collections.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
@@ -13,7 +11,7 @@
                 <ToolBar prefWidth="686.0">
                     <items>
                         <Label text="Tile:" />
-                        <ComboBox fx:id="tileSelector" minWidth="125.0" onAction="#onCurrentTileSelected"/>
+                        <ComboBox fx:id="tileSelector" minWidth="125.0" onAction="#onCurrentTileSelected" />
                         <Button mnemonicParsing="false" onAction="#onTileCreatePressed" text="Create new" />
                         <Button mnemonicParsing="false" onAction="#onTileExportPressed" text="Export" />
                         <Button mnemonicParsing="false" onAction="#onTileClonePressed" prefWidth="64.9998779296875" text="Clone" />
@@ -43,7 +41,7 @@
                                 <TextField fx:id="tileIdField" layoutX="54.0" layoutY="36.0" prefWidth="147.0" />
                                 <Label layoutX="5.0" layoutY="72.0" text="Category" />
                                 <TextField fx:id="tileCategoryField" layoutX="64.0" layoutY="67.0" prefHeight="26.0" prefWidth="137.0" />
-                                <CheckBox fx:id="tileObstructionField" layoutX="6.0" layoutY="98.0" mnemonicParsing="false" text="Physical Obstruction" />
+                                <CheckBox fx:id="tileObstructionField" layoutX="6.0" layoutY="98.0" mnemonicParsing="false" text="Physical Obstruction" /><CheckBox fx:id="tileSpriteField" layoutX="6.0" layoutY="119.0" mnemonicParsing="false" text="Sprite" /><CheckBox fx:id="tileBlockerField" layoutX="6.0" layoutY="140.0" mnemonicParsing="false" text="Blocker" />
                             </children>
                         </AnchorPane>
                         <AnchorPane fx:id="tileEditorAnchorPane" prefHeight="387.0" prefWidth="477.0000999999975" HBox.hgrow="ALWAYS" />

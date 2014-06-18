@@ -47,14 +47,16 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
         t.setName(getCurrentTile().getName() + " (clone)");
         t.setObstruction(getCurrentTile().isObstruction());
         t.getCategory().addAll(getCurrentTile().getCategory());
-        for (PlatformData d : getCurrentTile().getDisplayData()) {
+        getCurrentTile().getDisplayData().stream().map((d) -> {
             PlatformData p = new PlatformData();
             p.setHeight(d.getHeight());
             p.setWidth(d.getWidth());
             p.setPlatform(d.getPlatform());
             p.setValue(Arrays.copyOf(d.getValue(), d.getValue().length));
+            return p;
+        }).forEach((p) -> {
             t.getDisplayData().add(p);
-        }
+        });
         TilesetUtils.add(t);
         mainController.rebuildTileSelectors();
         setCurrentTile(t);
@@ -76,16 +78,11 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
         if (getCurrentTile() == null) {
             return;
         }
-        confirm("Delete tile '" + getCurrentTile().getName() + "'.  Are you sure?", new Runnable() {
-
-            @Override
-            public void run() {
-                Tile del = getCurrentTile();
-                setCurrentTile(null);
-                Application.gameData.getTile().remove(del);
-                mainController.rebuildTileSelectors();
-            }
-
+        confirm("Delete tile '" + getCurrentTile().getName() + "'.  Are you sure?", () -> {
+            Tile del = getCurrentTile();
+            setCurrentTile(null);
+            Application.gameData.getTile().remove(del);
+            mainController.rebuildTileSelectors();
         }, null);
     }
 
@@ -154,16 +151,13 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
                 }
             }
         });
-        tileSelector.setCellFactory(new Callback<ListView<Tile>, ListCell<Tile>>() {
-            @Override
-            public ListCell<Tile> call(ListView<Tile> param) {
-                return new EntitySelectorCell<Tile>(tileNameField) {
-                    @Override
-                    public void finishUpdate(Tile item) {
-                        setGraphic(new ImageView(TileUtils.getImage(item, Application.currentPlatform)));
-                    }
-                };
-            }
+        tileSelector.setCellFactory((ListView<Tile> param) -> {
+            return new EntitySelectorCell<Tile>(tileNameField) {
+                @Override
+                public void finishUpdate(Tile item) {
+                    setGraphic(new ImageView(TileUtils.getImage(item, Application.currentPlatform)));
+                }
+            };
         });
     }
 
@@ -211,9 +205,7 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
                 setCurrentTileEditor(editor);
             } catch (NoSuchMethodException ex) {
                 Logger.getLogger(ApplicationUIController.class.getName()).log(Level.SEVERE, null, ex);
-            } catch (InstantiationException ex) {
-                Logger.getLogger(ApplicationUIControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
-            } catch (IllegalAccessException ex) {
+            } catch (InstantiationException | IllegalAccessException ex) {
                 Logger.getLogger(ApplicationUIControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
             }
         }

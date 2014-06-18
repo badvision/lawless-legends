@@ -2,6 +2,7 @@ package org.badvision.outlaweditor.ui;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Menu;
 import javafx.scene.control.TextField;
@@ -29,8 +30,7 @@ public abstract class ImageEditorTabController {
     protected ComboBox<Image> imageSelector; // Value injected by FXMLLoader
     @FXML // fx:id="imageWidthField"
     protected TextField imageWidthField; // Value injected by FXMLLoader
-    // Handler for MenuItem[javafx.scene.control.MenuItem@3a4bc91a] onAction
-
+    
     @FXML
     public void initalize() {
         assert imageCategoryField != null : "fx:id=\"imageCategoryField\" was not injected: check your FXML file 'ApplicationUI.fxml'.";

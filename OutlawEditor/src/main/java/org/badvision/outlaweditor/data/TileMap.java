@@ -43,8 +43,8 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
     public static final double SATURATION = 0.5;
     public static final double VALUE = 1.0;
     public static double HUE = 0;
-    private java.util.Map<Integer, List<Script>> locationScripts = new HashMap<>();
-    private java.util.Map<Script, Color> scriptColors = new HashMap<>();
+    private final java.util.Map<Integer, List<Script>> locationScripts = new HashMap<>();
+    private final java.util.Map<Script, Color> scriptColors = new HashMap<>();
     
     public Color getScriptColor(Script s) {
         return scriptColors.get(s);

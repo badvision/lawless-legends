@@ -27,7 +27,6 @@ public class TransferHelper<T> {
     static Map<String, DataFormat> dataFormats = new HashMap<>();
 
     public interface DropEventHandler<T> {
-
         public void handle(T object, double x, double y);
     }
 
@@ -48,50 +47,38 @@ public class TransferHelper<T> {
 
     public void registerDragSupport(final Node source, final T object) {
         final String id = type.getName() + "_" + random.nextInt(999999999);
-        source.setOnDragDetected(new EventHandler<MouseEvent>() {
-            @Override
-            public void handle(MouseEvent event) {
-                registry.put(id, object);
-                Dragboard db = source.startDragAndDrop(TransferMode.LINK);
-                ClipboardContent content = new ClipboardContent();
-                content.put(format, id);
-                db.setContent(content);
-                event.consume();
-            }
+        source.setOnDragDetected((MouseEvent event) -> {
+            registry.put(id, object);
+            Dragboard db = source.startDragAndDrop(TransferMode.LINK);
+            ClipboardContent content = new ClipboardContent();
+            content.put(format, id);
+            db.setContent(content);
+            event.consume();
         });
-        source.setOnDragDone(new EventHandler<DragEvent>() {
-            @Override
-            public void handle(DragEvent event) {
-                registry.remove(id);
-            }
+        source.setOnDragDone((DragEvent event) -> {
+            registry.remove(id);
         });
     }
 
     public void registerDropSupport(final Node target, final DropEventHandler<T> handler) {
-        target.setOnDragOver(new EventHandler<DragEvent>() {
-            @Override
-            public void handle(DragEvent event) {
-                Dragboard db = event.getDragboard();
-                if (db.getContentTypes().contains(format)) {
-                    event.acceptTransferModes(TransferMode.LINK);
-                }
-                event.consume();
+        target.setOnDragOver((DragEvent event) -> {
+            Dragboard db = event.getDragboard();
+            if (db.getContentTypes().contains(format)) {
+                event.acceptTransferModes(TransferMode.LINK);
             }
+            event.consume();
         });
-        target.setOnDragDropped(new EventHandler<DragEvent>() {
-            @Override
-            public void handle(DragEvent event) {
-                Dragboard db = event.getDragboard();
-                if (db.getContentTypes().contains(format)) {
-                    event.setDropCompleted(true);
-                    String id = (String) db.getContent(format);
-                    T object = (T) registry.get(id);
-                    handler.handle(object, event.getX(), event.getY());
-                } else {
-                    event.setDropCompleted(false);
-                }
-                event.consume();
+        target.setOnDragDropped((DragEvent event) -> {
+            Dragboard db = event.getDragboard();
+            if (db.getContentTypes().contains(format)) {
+                event.setDropCompleted(true);
+                String id = (String) db.getContent(format);
+                T object = (T) registry.get(id);
+                handler.handle(object, event.getX(), event.getY());
+            } else {
+                event.setDropCompleted(false);
             }
+            event.consume();
         });
     }
 }

@@ -4,7 +4,6 @@ import org.badvision.outlaweditor.ui.EntitySelectorCell;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.MenuItem;
@@ -23,7 +22,6 @@ import static org.badvision.outlaweditor.data.PropertyHelper.bind;
 import static org.badvision.outlaweditor.data.PropertyHelper.stringProp;
 import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.xml.Script;
-import org.badvision.outlaweditor.data.xml.Tile;
 import org.badvision.outlaweditor.data.xml.Map;
 import org.badvision.outlaweditor.ui.MapEditorTabController;
 import org.badvision.outlaweditor.ui.UIAction;
@@ -33,6 +31,7 @@ import org.badvision.outlaweditor.ui.UIAction;
  * @author blurry
  */
 public class MapEditorTabControllerImpl extends MapEditorTabController {
+    final TransferHelper<Script> scriptDragDrop = new TransferHelper<>(Script.class);
 
     @Override
     public void mapDraw1(ActionEvent event) {
@@ -105,14 +104,11 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
         if (currentMap == null) {
             return;
         }
-        confirm("Delete map '" + currentMap.getName() + "'.  Are you sure?", new Runnable() {
-            @Override
-            public void run() {
-                org.badvision.outlaweditor.data.xml.Map del = currentMap;
-                setCurrentMap(null);
-                Application.gameData.getMap().remove(del);
-                rebuildMapSelectors();
-            }
+        confirm("Delete map '" + currentMap.getName() + "'.  Are you sure?", () -> {
+            org.badvision.outlaweditor.data.xml.Map del = currentMap;
+            setCurrentMap(null);
+            Application.gameData.getMap().remove(del);
+            rebuildMapSelectors();
         }, null);
     }
 
@@ -238,6 +234,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
             e.setEntity(m);
             e.buildEditorUI(mapEditorAnchorPane);
             setCurrentEditor(e);
+            e.setupDragDrop(scriptDragDrop);
         }
         redrawMapScripts();
     }
@@ -268,14 +265,9 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
                 }
             }
         });
-        mapSelect.setCellFactory(new Callback<ListView<Map>, ListCell<Map>>() {
+        mapSelect.setCellFactory((ListView<Map> param) -> new EntitySelectorCell<Map>(mapNameField) {
             @Override
-            public ListCell<org.badvision.outlaweditor.data.xml.Map> call(ListView<Map> param) {
-                return new EntitySelectorCell<Map>(mapNameField) {
-                    @Override
-                    public void finishUpdate(Map item) {
-                        }
-                };
+            public void finishUpdate(Map item) {
             }
         });
     }
@@ -283,32 +275,27 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
     @Override
     public void rebuildTileSelectors() {
         mapSelectTile.getItems().clear();
-        for (final Tile t : Application.gameData.getTile()) {
+        Application.gameData.getTile().stream().map((t) -> {
             WritableImage img = TileUtils.getImage(t, currentPlatform);
             ImageView iv = new ImageView(img);
             MenuItem mapSelectItem = new MenuItem(t.getName(), iv);
             mapSelectItem.setGraphic(new ImageView(TileUtils.getImage(t, currentPlatform)));
-            mapSelectItem.setOnAction(new EventHandler<ActionEvent>() {
-                @Override
-                public void handle(ActionEvent event) {
-                    if (getCurrentEditor() != null) {
-                        getCurrentEditor().setCurrentTile(t);
-                    }
+            mapSelectItem.setOnAction((ActionEvent event) -> {
+                if (getCurrentEditor() != null) {
+                    getCurrentEditor().setCurrentTile(t);
                 }
             });
+            return mapSelectItem;
+        }).forEach((mapSelectItem) -> {
             mapSelectTile.getItems().add(mapSelectItem);
-        }
+        });
     }
 
     @Override
     public void redrawMapScripts() {
-        mapScriptsList.setOnEditStart(new EventHandler<ListView.EditEvent<Script>>() {
-            @Override
-            public void handle(ListView.EditEvent<Script> event) {
-                UIAction.editScript(event.getSource().getItems().get(event.getIndex()));
-            }
+        mapScriptsList.setOnEditStart((ListView.EditEvent<Script> event) -> {
+            UIAction.editScript(event.getSource().getItems().get(event.getIndex()));
         });
-        final TransferHelper<Script> scriptDragDrop = new TransferHelper<>(Script.class);
         mapScriptsList.setCellFactory(new Callback<ListView<Script>, ListCell<Script>>() {
             @Override
             public ListCell<Script> call(ListView<Script> param) {

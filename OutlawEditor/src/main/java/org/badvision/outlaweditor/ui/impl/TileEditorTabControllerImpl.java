@@ -46,6 +46,8 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
         TileUtils.getId(t);
         t.setName(getCurrentTile().getName() + " (clone)");
         t.setObstruction(getCurrentTile().isObstruction());
+        t.setSprite(getCurrentTile().isSprite());
+        t.setBlocker(getCurrentTile().isBlocker());
         t.getCategory().addAll(getCurrentTile().getCategory());
         getCurrentTile().getDisplayData().stream().map((d) -> {
             PlatformData p = new PlatformData();
@@ -132,6 +134,8 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
         assert tileIdField != null : "fx:id=\"tileIdField\" was not injected: check your FXML file 'tileEditorTab.fxml'.";
         assert tileNameField != null : "fx:id=\"tileNameField\" was not injected: check your FXML file 'tileEditorTab.fxml'.";
         assert tileObstructionField != null : "fx:id=\"tileObstructionField\" was not injected: check your FXML file 'tileEditorTab.fxml'.";
+        assert tileSpriteField != null : "fx:id=\"tileSpriteField\" was not injected: check your FXML file 'tileEditorTab.fxml'.";
+        assert tileBlockerField != null : "fx:id=\"tileBlockerField\" was not injected: check your FXML file 'tileEditorTab.fxml'.";
         assert tilePatternMenu != null : "fx:id=\"tilePatternMenu\" was not injected: check your FXML file 'tileEditorTab.fxml'.";
         assert tileSelector != null : "fx:id=\"tileSelector\" was not injected: check your FXML file 'tileEditorTab.fxml'.";
 
@@ -181,24 +185,38 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
             bind(tileIdField.textProperty(), null);
             bind(tileCategoryField.textProperty(), null);
             bind(tileObstructionField.selectedProperty(), null);
+            bind(tileSpriteField.selectedProperty(), null);
+            bind(tileBlockerField.selectedProperty(), null);
             bind(tileNameField.textProperty(), null);
             tileIdField.setDisable(true);
             tileCategoryField.setDisable(true);
             tileObstructionField.setDisable(true);
+            tileSpriteField.setDisable(true);
+            tileBlockerField.setDisable(true);
             tileNameField.setDisable(true);
             setCurrentTileEditor(null);
         } else {
             if (t.isObstruction() == null) {
                 t.setObstruction(false);
             }
+            if (t.isSprite() == null) {
+                t.setSprite(false);
+            }
+            if (t.isBlocker() == null) {
+                t.setBlocker(false);
+            }
             try {
                 tileIdField.setDisable(false);
                 tileCategoryField.setDisable(false);
                 tileObstructionField.setDisable(false);
+                tileSpriteField.setDisable(false);
+                tileBlockerField.setDisable(false);
                 tileNameField.setDisable(false);
                 bind(tileIdField.textProperty(), stringProp(t, "id"));
                 bind(tileCategoryField.textProperty(), categoryProp(t, "category"));
                 bind(tileObstructionField.selectedProperty(), boolProp(t, "obstruction"));
+                bind(tileSpriteField.selectedProperty(), boolProp(t, "sprite"));
+                bind(tileBlockerField.selectedProperty(), boolProp(t, "blocker"));
                 bind(tileNameField.textProperty(), stringProp(t, "name"));
                 TileEditor editor = Application.currentPlatform.tileEditor.newInstance();
                 editor.setEntity(t);

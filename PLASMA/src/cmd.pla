@@ -21,7 +21,7 @@ predef crout, cout, prstr, cin, rdstr
 predef markheap, allocheap, allocalignheap, releaseheap, availheap
 predef memset, memcpy
 predef uword_isgt, uword_isge, uword_islt, uword_isle
-predef loadmod, execmod, lookupmod
+predef loadmod, execmod, lookupstrmod
 ;
 ; System variable.
 ;
@@ -77,7 +77,7 @@ word              = @uisltstr,  @uword_islt
 word              = @uislestr,  @uword_isle
 word              = @loadstr,   @loadmod
 word              = @execstr,   @execmod
-word              = @modadrstr, @lookupmod
+word              = @modadrstr, @lookupstrmod
 word              = @machidstr, MACHID
 word              = 0
 word stdlibsym    = @exports     
@@ -504,11 +504,11 @@ asm dcitos
 	STA	SRCH
 	LDY	#$00
 -	LDA	(SRC),Y
+	CMP	#$80
 	AND	#$7F
-	CMP	(SRC),Y
 	INY
 	STA	(DST),Y
-	BCC	-
+	BCS	-
 	TYA
 	LDY	#$00
 	STA	(DST),Y
@@ -602,12 +602,11 @@ asm modtosym
 	INX
 	LDY	#$00
 	LDA	#'#'+$80
-	STA	(DST),Y
--	LDA	(SRC),Y
+-	STA	(DST),Y
+	CMP	#$80
+	LDA	(SRC),Y
 	INY
-	STA	(DST),Y
-	AND	#$80
-	BMI	-
+	BCS	-
 	RTS
 end
 ;
@@ -645,8 +644,8 @@ asm lookuptbl
 	CMP	(SRC),Y
 	BNE	++
 	INY
-	AND	#$80
-	BMI	-
+	CMP	#$80
+	BCS	-
 	LDA	(DST),Y
 	PHA
 	INY
@@ -662,16 +661,14 @@ asm lookuptbl
 	INC	DSTL
 	BNE	++
 	INC	DSTH
-++	AND	#$80
-	BMI	--
+++	CMP	#$80
+	BCS	--
 	LDA	#$02
-	CLC
 	ADC	DSTL
 	STA	DSTL
-	TYA
-	ADC	DSTH
-	STA	DSTH
-	BNE	-
+	BCC	-
+	INC	DSTH
+	BCS	-
 end
 ;
 ; ProDOS routines
@@ -826,6 +823,11 @@ end
 def lookupmod(mod)
     byte dci[17]
     return lookuptbl(modtosym(mod, @dci), symtbl)
+end
+def lookupstrmod(str)
+    byte mod[17]
+    stodci(str, @mod)
+    return lookupmod(@mod)
 end
 def addmod(mod, addr)
     byte dci[17]
@@ -1246,7 +1248,7 @@ heap = *freemem
 ; Init symbol table.
 ;
 stodci(@stdlibstr, heap)
-addmod(heap, @systemflags)
+addmod(heap, @version)
 while *stdlibsym
     stodci((stdlibsym):0, heap)
     addsym(heap, (stdlibsym):2)

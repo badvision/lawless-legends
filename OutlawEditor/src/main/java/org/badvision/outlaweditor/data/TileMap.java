@@ -40,9 +40,9 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
         loadFromMap(m);
     }
 
-    public static final double SATURATION = 0.5;
+    public static final double SATURATION = 0.75;
     public static final double VALUE = 1.0;
-    public static double HUE = 0;
+    public static double HUE = 180;
     private final java.util.Map<Integer, List<Script>> locationScripts = new HashMap<>();
     private final java.util.Map<Script, Color> scriptColors = new HashMap<>();
     
@@ -70,7 +70,7 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
     private void registerLocationScript(int x, int y, Script s) {
         if (!scriptColors.containsKey(s)) {
             scriptColors.put(s, Color.hsb(HUE, SATURATION, VALUE));
-            HUE = (HUE + 20) % 360;
+            HUE = (HUE + 35) % 360;
         }
         int loc = getMortonNumber(x, y);
         List<Script> list = locationScripts.get(loc);

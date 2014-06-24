@@ -12,6 +12,7 @@ import javafx.scene.ImageCursor;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.effect.DropShadow;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.Clipboard;
@@ -237,41 +238,57 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         }
     }
 
+    private static final int dashLength=3;
+    
     private void highlightScripts(int x, int y, List<Script> scripts) {
         if (scripts == null || scripts.isEmpty()) {
             return;
         }
         GraphicsContext gc = drawCanvas.getGraphicsContext2D();
         int idx = 0;
-        int xx = (int) (x * tileWidth);
-        int yy = (int) (y * tileHeight);
-        gc.setLineWidth(2.5);
-        gc.setStroke(currentMap.getScriptColor(scripts.get(0)));
-        gc.rect(xx, yy, tileWidth, tileHeight);
-//        gc.beginPath();
-//        gc.moveTo(xx,yy);
-//        for (int i = 0; i < tileWidth; i += 2, xx += 2) {
-//            idx = (idx + 1) % scripts.size();
-//            gc.setStroke(currentMap.getScriptColor(scripts.get(idx)));
-//            gc.lineTo(xx, yy);
-//        }
-//        for (int i = 0; i < tileHeight; i += 2, yy += 2) {
-//            idx = (idx + 1) % scripts.size();
-//            gc.setStroke(currentMap.getScriptColor(scripts.get(idx)));
-//            gc.lineTo(xx, yy);
-//        }
-//        for (int i = 0; i < tileWidth; i += 2, xx -= 2) {
-//            idx = (idx + 1) % scripts.size();
-//            gc.setStroke(currentMap.getScriptColor(scripts.get(idx)));
-//            gc.lineTo(xx, yy);
-//        }
-//        for (int i = 0; i < tileHeight; i += 2, yy -= 2) {
-//            idx = (idx + 1) % scripts.size();
-//            gc.setStroke(currentMap.getScriptColor(scripts.get(idx)));
-//            gc.lineTo(xx, yy);
-//        }
-//        gc.closePath();
-
+        double xx = x * tileWidth;
+        double yy = y * tileHeight;
+        gc.setLineWidth(4);
+        for (int i = 0; i < tileWidth-2; i += dashLength) {
+            idx = (idx + 1) % scripts.size();
+            gc.beginPath();
+            gc.moveTo(xx,yy);
+            gc.setStroke(currentMap.getScriptColor(scripts.get(idx)));
+            xx += dashLength;
+            gc.lineTo(xx, yy);
+            gc.setEffect(new DropShadow(2, Color.BLACK));
+            gc.stroke();
+        }
+        for (int i = 0; i < tileHeight-2; i += dashLength) {
+            idx = (idx + 1) % scripts.size();
+            gc.beginPath();
+            gc.moveTo(xx,yy);
+            gc.setStroke(currentMap.getScriptColor(scripts.get(idx)));
+            yy += dashLength;
+            gc.lineTo(xx, yy);
+            gc.setEffect(new DropShadow(2, Color.BLACK));
+            gc.stroke();
+        }
+        for (int i = 0; i < tileWidth-2; i += dashLength) {
+            idx = (idx + 1) % scripts.size();
+            gc.beginPath();
+            gc.moveTo(xx,yy);
+            gc.setStroke(currentMap.getScriptColor(scripts.get(idx)));
+            xx -= dashLength;
+            gc.lineTo(xx, yy);
+            gc.setEffect(new DropShadow(2, Color.BLACK));
+            gc.stroke();
+        }
+        for (int i = 0; i < tileHeight-2; i += dashLength) {
+            idx = (idx + 1) % scripts.size();
+            gc.beginPath();
+            gc.moveTo(xx,yy);
+            gc.setStroke(currentMap.getScriptColor(scripts.get(idx)));
+            yy -= dashLength;
+            gc.lineTo(xx, yy);
+            gc.setEffect(new DropShadow(2, Color.BLACK));
+            gc.stroke();
+        }
     }
 
     public void setupDragDrop(TransferHelper<Script> scriptHelper) {

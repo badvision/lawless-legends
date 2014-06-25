@@ -26,17 +26,49 @@
 
     <!-- Create build directory -->
     <mkdir dir="${build.dir}"/>
-    
-    <!-- Assemble all .s files -->
-    <apply executable="${ACME_TOOL}" dir="${src.dir}" 
-           relative="true" parallel="false" failonerror="true" verbose="true">
-      <fileset dir="${src.dir}" includes="*.s"/>
+
+    <!-- Assemble the PLASMA vm -->
+    <apply executable="acme" dir="${src.dir}" 
+           relative="true" parallel="true" failonerror="true" verbose="true">
+      <fileset dir="${src.dir}" includes="plvm02.s"/>
+      <arg line="${ASM_SETTINGS}"/>
       <arg value="-o"/>
       <arg value="${build.dir}/plvm02.system.sys#2000"/>
+      <srcfile/>
+    </apply>
+
+    <!-- Build the PLASMA compiler -->
+    <apply executable="cc" dir="${src.dir}" 
+           relative="true" parallel="true" failonerror="true" verbose="true">
+      <fileset dir="${src.dir}" includes="*.c" excludes="plvm.c"/>
+      <arg value="-o"/>
+      <arg value="${build.dir}/plasm"/>
+    </apply>
+
+    <!-- Translate the game loop from PLASMA to ACME assembly code-->
+    <apply executable="${build.dir}/plasm" dir="${src.dir}" 
+           relative="true" parallel="false" failonerror="true" verbose="true"
+           addsourcefile="false">
+      <fileset dir="${src.dir}" includes="gameloop.pla"/>
+      <arg value="-A"/>
+      <redirector logError="yes">
+        <!-- redirect STDIN; fileset collects relative to its dir, but we need -->
+        <!-- relative to basedir -->
+        <inputmapper type="glob" from="*" to="${src.dir}/*"/>
+        <!-- redirect STDOUT to file in dest-dir -->
+        <outputmapper id="out" type="glob" from="*.pla" to="${build.dir}/*.a"/>
+      </redirector>
+    </apply>
+
+    <!-- Assmeble the ACME code -->
+    <apply executable="acme" dir="${src.dir}" 
+           relative="true" parallel="false" failonerror="true" verbose="true">
+      <fileset dir="${src.dir}" includes="gamestub.s"/>
       <arg line="${ASM_SETTINGS}"/>
+      <arg value="-o"/>
+      <arg value="${build.dir}/gameloop.b"/>
       <srcfile/>
     </apply>
 
   </target>
-  
 </project>

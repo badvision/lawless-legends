@@ -13,8 +13,8 @@ start:
 
 ; Conditional assembly flags
 DOUBLE_BUFFER	= 1		; whether to double-buffer
-DEBUG		= 0		; 1=some logging, 2=lots of logging
-DEBUG_COLUMN	= 0
+DEBUG		= 1		; 1=some logging, 2=lots of logging
+DEBUG_COLUMN	= -1
 
 ; temporary hack to try blocker sprites
 BLOCKER_FOO	= 0
@@ -559,7 +559,6 @@ castRay: !zone
 	lda #$FF	; clamp large line heights to 255
 +	tay		; save the height in Y reg
 	pla		; get the depth back
-	!if DEBUG { jsr .debugDepth }
 	jmp saveLink	; save final column data to link buffer
 
 !if DEBUG >= 2 {
@@ -601,18 +600,6 @@ castRay: !zone
 	+prStr : !text "sprite=",0
 	+prA
 	+crout
-	rts
-.debugDepth:
-	pha
-	lda screenCol
-	cmp #4
-	bne +
-	+prStr : !text "depth for col4=",0
-	pla
-	pha
-	+prA
-	+crout
-+	pla
 	rts
 }
 
@@ -1203,7 +1190,6 @@ saveLink: !zone
 	pha
 	+prStr : !text "Links for col ",0
 	+prByte screenCol
-	+prStr : !text ": ",0
 	ldx screenCol
 	ldy firstLink,x
 .dlup	+prStr : !text "[ht=",0
@@ -1581,6 +1567,15 @@ initMem: !zone
 	ldx #<(tableEnd-tableStart)
 	ldy #>(tableEnd-tableStart)
 	jsr mainLoader
+	; Reserve memory for the PLASMA frame stack
+	lda #SET_MEM_TARGET
+	ldx #<plasmaFrames
+	ldy #>plasmaFrames
+	jsr mainLoader
+	lda #REQUEST_MEMORY
+	ldx #<(plasmaEnd-plasmaFrames)
+	ldy #>(plasmaEnd-plasmaFrames)
+	jsr mainLoader
 	; Load the font engine
 	!if DEBUG { +prStr : !text "Loading font engine.",0 }
 	lda #SET_MEM_TARGET
@@ -1590,6 +1585,16 @@ initMem: !zone
 	lda #QUEUE_LOAD
 	ldx #RES_TYPE_CODE
 	ldy #3			; hard coded for now: code #3 is the font engine
+	jsr mainLoader
+	; Load the font engine
+	!if DEBUG { +prStr : !text "Loading game loop.",0 }
+	lda #SET_MEM_TARGET
+	ldx #<plasmaCode
+	ldy #>plasmaCode
+	jsr mainLoader
+	lda #QUEUE_LOAD
+	ldx #RES_TYPE_CODE
+	ldy #4			; hard coded for now: code #4 is the game loop
 	jsr mainLoader
 	!if DEBUG { +prStr : !text "Loading expansion code.",0 }
 	; Load the texture expansion code into aux mem.
@@ -1637,6 +1642,8 @@ initMem: !zone
 	pla
 	tax			; and hi byte in X
 	jsr setFONT
+	; Test PLASMA
+	jsr plasmaCode
 	; Set to write text on both hi-res pages at the same time
 	lda #pHGR3
 	jsr displayMODE

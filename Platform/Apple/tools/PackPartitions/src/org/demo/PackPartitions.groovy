@@ -776,6 +776,7 @@ class PackPartitions
         readCode("render", "src/raycast/build/render.b")
         readCode("expand", "src/raycast/build/expand.b")
         readCode("fontEngine", "src/font/build/fontEngine.b")
+        readCode("gameloop", "src/plasma/build/gameloop.b")
         
         // We have only one font, for now at least.
         println "Reading fonts."

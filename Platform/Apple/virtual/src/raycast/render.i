@@ -87,21 +87,24 @@ expandVec	= $800
 ;---------------------------------
 
 ; Main-mem tables and buffers
-tableStart	= $A700
-decodeTo01	= $A700
-decodeTo01b	= $A800
-decodeTo23	= $A900
-decodeTo23b	= $AA00
-decodeTo45	= $AB00
-decodeTo56	= $AC00
-decodeTo57	= $AD00
-clrBlitRollE	= $AE00	; size 3*(128/2) = $C0, plus 2 for tya and rts
-clrBlitRollO	= $AEC2	; size 3*(128/2) = $C0, plus 2 for tya and rts
-texAddrLo	= $AF84
+tableStart	= $A000
+decodeTo01	= $A000
+decodeTo01b	= $A100
+decodeTo23	= $A200
+decodeTo23b	= $A300
+decodeTo45	= $A400
+decodeTo56	= $A500
+decodeTo57	= $A600
+clrBlitRollE	= $A700	; size 3*(128/2) = $C0, plus 2 for tya and rts
+clrBlitRollO	= $A7C2	; size 3*(128/2) = $C0, plus 2 for tya and rts
+texAddrLo	= $A884
 texAddrHi	= texAddrLo + MAX_TEXTURES
-blitRoll	= $B000	; Unrolled blitting code. Size 29*128	= $E80, plus 1 for rts
-tableEnd	= $BE81
-memMap		= $BF58	; ProDOS memory map
+blitRoll	= $A900	; Unrolled blitting code. Size 29*128	= $E80, plus 1 for rts
+tableEnd	= $B781
+
+plasmaCode	= $B800
+plasmaFrames	= $BD00
+plasmaEnd	= $BF00	
 
 ; mipmap level offsets
 MIP_OFFSET_0	= 0

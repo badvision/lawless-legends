@@ -17,8 +17,10 @@
   
   <target name="clean">
     <delete failonerror="false" dir="${build.dir}"/>
-    <ant dir="${src.dir}/raycast" target="clean" useNativeBasedir="true" inheritAll="false"/>
     <ant dir="${src.dir}/core" target="clean" useNativeBasedir="true" inheritAll="false"/>
+    <ant dir="${src.dir}/plasma" target="clean" useNativeBasedir="true" inheritAll="false"/>
+    <ant dir="${src.dir}/raycast" target="clean" useNativeBasedir="true" inheritAll="false"/>
+    <ant dir="${src.dir}/font" target="clean" useNativeBasedir="true" inheritAll="false"/>
   </target>
   
   <target name="build">
@@ -29,6 +31,8 @@
     <!-- Build sub-projects -->
     <echo>Building core.</echo>
     <ant dir="${src.dir}/core" target="build" useNativeBasedir="true" inheritAll="false"/>
+    <echo>Building PLASMA.</echo>
+    <ant dir="${src.dir}/plasma" target="build" useNativeBasedir="true" inheritAll="false"/>
     <echo>Building raycast.</echo>
     <ant dir="${src.dir}/raycast" target="build" useNativeBasedir="true" inheritAll="false"/>
     <echo>Building font engine.</echo>
@@ -45,6 +49,7 @@
     <delete failonerror="false" dir="${build.dir}/root"/>
     <mkdir dir="${build.dir}/root"/>
     <copy todir="${build.dir}/root">
+      <fileset dir="${src.dir}/plasma/build" includes="*.sys*"/>
       <fileset dir="${src.dir}/core/build" includes="*.sys*"/>
       <fileset dir="./build" includes="game.part*.bin"/>
     </copy>

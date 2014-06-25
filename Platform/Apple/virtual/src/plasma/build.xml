@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 
-<project name="core" default="build">
+<project name="plasma" default="build">
   
-  <property name="projName" value="core"/> <!-- base part of output bin name -->
+  <property name="projName" value="plasma"/> <!-- base part of output bin name -->
   <property name="src.dir" location="."/> 
   <property name="include.dir" location="../include"/>
   <property file="${include.dir}/build.props"/> <!-- needs to define ACME_BIN_DIR -->
@@ -32,7 +32,7 @@
            relative="true" parallel="false" failonerror="true" verbose="true">
       <fileset dir="${src.dir}" includes="*.s"/>
       <arg value="-o"/>
-      <arg value="${build.dir}/cmd.sys#2000"/>
+      <arg value="${build.dir}/plvm02.system.sys#2000"/>
       <arg line="${ASM_SETTINGS}"/>
       <srcfile/>
     </apply>

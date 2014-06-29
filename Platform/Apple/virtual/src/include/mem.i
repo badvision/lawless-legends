@@ -83,13 +83,16 @@ auxLoader	= $806
 ;------------------------------------------------------------------------------
 ; Resource types
 
-RES_TYPE_CODE	= 1
-RES_TYPE_2D_MAP	= 2
-RES_TYPE_3D_MAP	= 3
-RES_TYPE_TILE	= 4
-RES_TYPE_TEXTURE= 5
-RES_TYPE_SCREEN	= 6
-RES_TYPE_FONT	= 7
+RES_TYPE_CODE	  = 1
+RES_TYPE_2D_MAP	  = 2
+RES_TYPE_3D_MAP	  = 3
+RES_TYPE_TILE	  = 4
+RES_TYPE_TEXTURE  = 5
+RES_TYPE_SCREEN	  = 6
+RES_TYPE_FONT	  = 7
+RES_TYPE_MODULE   = 8
+RES_TYPE_BYTECODE = 9
+RES_TYPE_FIXUP    = 10
 
 ;------------------------------------------------------------------------------
 ; Command codes

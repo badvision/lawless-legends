@@ -632,7 +632,7 @@ class PackPartitions
             assert fixup[sp++] == 2 // code table fixup
             def addr = fixup[sp++] & 0xFF
             addr |= (fixup[sp++] & 0xFF) << 8
-            invDefs[addr] = it*5 + 2  // account for initial placeholder
+            invDefs[addr] = it*5
             addr -= 0x1000
             addr -= byteCodeStart
             assert addr >= 0 && addr < byteCode.size
@@ -644,8 +644,6 @@ class PackPartitions
         def dp = 0
         def stubsSize = defCount * 5
         def newAsmCode = new byte[stubsSize + asmCode.size + 2]
-        newAsmCode[dp++] = 0  // placeholders for aux addr...
-        newAsmCode[dp++] = 0  // ...that fixups were applied to
         (0..<defCount).each {
             newAsmCode[dp++] = 0x20 // JSR
             newAsmCode[dp++] = 0xDC // Aux mem interp ($3DC)
@@ -692,7 +690,7 @@ class PackPartitions
                 target += stubsSize   // account for the stubs we prepended to the asm code
                 println String.format("...adjusted to target offset 0x%04x", target)
             }
-            assert target >= 7 && target < newAsmCode.length
+            assert target >= 5 && target < newAsmCode.length
             
             // Put the adjusted target back in the code
             codeBuf[addr] = (byte)(target & 0xFF)

@@ -83,6 +83,7 @@ segNum:		!byte 0
 nextLdVec:	jmp diskLoader
 curPartition:	!byte 0
 partFileRef: 	!byte 0
+fixupHint:	!word 0
 
 ;------------------------------------------------------------------------------
 !source "../include/debug.i"
@@ -118,9 +119,11 @@ releaseSegment: !zone
 
 ;------------------------------------------------------------------------------
 scanForAddr: !zone
-; Input:  pTmp - address to scan for
+; Input:  X(lo)/Y(hi) - address to scan for
 ; Output: X-reg - segment found (zero if not found), N and Z set for X-reg
 ;         carry clear if addr == seg start, set if addr != seg start
+	stx pTmp	; save target addr
+	sty pTmp+1
 	ldx isAuxCmd	; grab correct starting segment (0=main mem, 1=aux)
 .loop:	ldy tSegLink,x	; grab link to next segment, which we'll need regardless
 	lda pTmp	; compare pTmp
@@ -582,7 +585,11 @@ reset: !zone
 .next:	lda tSegLink,x		; get link to next seg
 	tax			; to X reg, and test if end of chain (x=0)
 	bne .inactivate		; no, not end of chain, so loop again
-	rts			; yes, end of chain: done
+	lda #0			; default to putting fixups at $8000, to avoid fragmentation
+	sta fixupHint
+	lda #$80		
+	sta fixupHint+1
+	rts
 
 ;------------------------------------------------------------------------------
 outOfMemErr: !zone
@@ -608,9 +615,10 @@ shared_request:
 	sta isAuxCmd		; save whether we're working on main or aux mem
 	stx reqLen		; save requested length
 	sty reqLen+1		; all 16 bits
-shared_alloc:	lda #1
+shared_alloc:
+	lda #1
 	sta .reclaimFlg		; we will try to reclaim once
-.try:	lda targetAddr+1	; see if SET_MEM_TARGET was called
+.try:	ldy targetAddr+1	; see if SET_MEM_TARGET was called
 	bne .gotTarget		; no, we need to choose location
 ; no target address has been specified, we need to choose one
 .chooseAddr:
@@ -625,9 +633,7 @@ shared_alloc:	lda #1
 	jmp invalAddr
 ; target addr was specified. See if we can fulfill the request.
 .gotTarget:
-	sta pTmp+1		; save target addr
-	lda targetAddr		; all 16 bits
-	sta pTmp
+	ldx targetAddr		; all 16 bits
 	jsr scanForAddr		; locate block containing target addr
 	beq .notFound		; fail if we couldn't find it
 	lda tSegType,x		; check flags
@@ -692,17 +698,46 @@ shared_alloc:	lda #1
 .reclaimFlg: !byte 0
 
 ;------------------------------------------------------------------------------
+; Free everything that's inactive
 reclaim: !zone
-	ldx #<+
-	ldy #>+
-	jmp fatalError
-+	!text "Reclaim not impl yet", 0
+	ldx isAuxCmd	; grab correct starting segment (0=main mem, 1=aux)
+.loop:	ldy tSegLink,x	; grab link to next segment, which we'll need regardless
+	lda tSegType,x	; check flag and type of this seg
+	bmi .next
+	lda #0
+	sta tSegType,x
+.next:	tya		; next in chain
+	tax		; to X reg index
+	bne .loop	; non-zero = not end of chain - loop again
+	; fall through to coalesce...
+; Join adjacent free blocks of memory, where "free" is defined as having 
+; resource type zero and no flags. Note that it will not join inactive blocks
+; that still have a resource type.
+coalesce: !zone
+	ldx isAuxCmd	; grab correct starting segment (0=main mem, 1=aux)
+.loop:	ldy tSegLink,x	; grab link to next segment, which we'll need regardless
+	beq .done	; no next segment, nothing to join to ==> done
+	lda tSegType,x	; check flag and type of this seg
+	ora tSegType,y	; and next seg
+	bmi .next	; if either is active or has a type, can't combine
+	; we can combine the next segment into this one.
+	stx tmp
+	tya
+	tax
+	jsr releaseSegment
+	lda tSegLink,x	; link to what the combined segment was linked to
+	ldx tmp
+	sta tSegLink,x
+	jmp .loop	; we may be able to combine even more
+.next:	tya		; next in chain
+	tax		; to X reg index
+	bne .loop	; non-zero = not end of chain - loop again
+.done	rts		; all done
+
 
 ;------------------------------------------------------------------------------
 shared_scan: !zone
 	sta isAuxCmd	; save whether main or aux mem
-	stx pTmp	; save addr lo...
-	sty pTmp+1	; ... and hi
 	jsr scanForAddr	; scan for block that matches
 	beq invalAddr	; if not found, invalid
 	bcs invalAddr	; if addr not exactly equal, invalid
@@ -799,7 +834,9 @@ shared_queueLoad:
 	sta isAuxCmd 		; save whether main or aux
 	stx resType		; save resource type
 	sty resNum		; save resource number
-	jsr scanForResource	; scan to see if we already have this resource in mem
+	cpx #RES_TYPE_MODULE	; loading a module?
+	beq .module		; extra work for modules
+.notMod	jsr scanForResource	; scan to see if we already have this resource in mem
 	beq .notFound		; nope, pass to next loader
 	stx segNum		; save seg num for later
 	lda tSegType,x		; get flags
@@ -830,6 +867,54 @@ shared_queueLoad:
 	ldy resNum		; and number
 	lda #QUEUE_LOAD		; set to re-try same operation
 	jmp nextLdVec		; pass to next loader
+; extra work for modules
+.module	lda #RES_TYPE_BYTECODE
+	sta resType
+	lda #1
+	sta isAuxCmd
+	jsr scanForResource	; do we have the aux mem part?
+	beq .reload
+	lda #RES_TYPE_MODULE
+	sta resType
+	lda #0
+	sta isAuxCmd
+	jsr scanForResource	; do we have the main mem part?
+	beq .reload	
+	rts			; we have both parts already -- no need for fixups
+.reload	lda #RES_TYPE_MODULE
+	sta resType
+	lda #0
+	sta isAuxCmd
+	jsr .notMod		; queue the main memory part of the module
+	stx .modRet+1		; save address of main load for eventual return
+	sty .modRet+3		; yes, self-modifying
+	ldx #RES_TYPE_BYTECODE
+	ldy resNum
+	jsr aux_queueLoad	; load the aux mem part (the bytecode)
+	; try to pick a location for the fixups that we can free without fragmenting everything.
+	ldx fixupHint
+	ldy fixupHint+1
+	jsr scanForAddr		; locate block containing target addr
+	beq .frag
+	lda tSegType,x		; check flags
+	bmi .frag		; if already active, can't re-allocate it
+	lda fixupHint		; Okay, found a good place to put it
+	sta targetAddr
+	lda fixupHint+1
+	sta targetAddr+1
+.frag	ldx #RES_TYPE_FIXUP	; queue loading of the fixup resource
+	ldy resNum
+	jsr aux_queueLoad
+	lda fixupHint		; advance hint for next fixup by the size of this fixup
+	clc
+	adc reqLen
+	sta fixupHint
+	lda fixupHint+1
+	adc reqLen+1
+	sta fixupHint+1
+.modRet ldx #11			; all done; return address of the main memory block.
+	ldy #22
+	rts
 
 ;------------------------------------------------------------------------------
 diskLoader: !zone

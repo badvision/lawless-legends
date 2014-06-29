@@ -25,14 +25,20 @@ class PackPartitions
     def TYPE_TEXTURE_IMG = 5
     def TYPE_FRAME_IMG   = 6
     def TYPE_FONT        = 7
+    def TYPE_MODULE      = 8
+    def TYPE_BYTECODE    = 9
+    def TYPE_FIXUP       = 10
 
-    def code     = [:]  // code name to code.num, code.buf    
-    def maps2D   = [:]  // map name to map.num, map.buf
-    def maps3D   = [:]  // map name to map.num, map.buf
-    def tiles    = [:]  // tile name to tile.num, tile.buf
-    def textures = [:]  // img name to img.num, img.buf
-    def frames   = [:]  // img name to img.num, img.buf
-    def fonts    = [:]
+    def code      = [:]  // code name to code.num, code.buf    
+    def maps2D    = [:]  // map name to map.num, map.buf
+    def maps3D    = [:]  // map name to map.num, map.buf
+    def tiles     = [:]  // tile name to tile.num, tile.buf
+    def textures  = [:]  // img name to img.num, img.buf
+    def frames    = [:]  // img name to img.num, img.buf
+    def fonts     = [:]  // font name to font.num, font.buf
+    def modules   = [:]  // module name to module.num, module.buf
+    def bytecodes = [:]  // module name to bytecode.num, bytecode.buf
+    def fixups    = [:]  // module name to fixup.num, fixup.buf
     
     def compressor = LZ4Factory.fastestInstance().highCompressor()
     
@@ -575,6 +581,135 @@ class PackPartitions
         code[name] = [num:num, buf:readBinary(path)]
     }
     
+    def readModule(name, path)
+    {
+        def num = modules.size() + 1
+        println "Reading module #$num from '$path'."
+        def bufObj = readBinary(path)
+        
+        def bufLen = bufObj.position()
+        def buf = new byte[bufLen]
+        bufObj.position(0)
+        bufObj.get(buf)
+        
+        // Look for the magic header 0xDA7E =~ "DAVE"
+        assert (buf[3] & 0xFF) == 0xDA
+        assert (buf[2] & 0xFF) == 0x7E
+        
+        // Determine offsets
+        def asmCodeStart = 12
+        while (buf[asmCodeStart++] != 0)
+            ;
+        def byteCodeStart = ((buf[6] & 0xFF) | ((buf[7] & 0xFF) << 8)) - 0x1000
+        def initStart = ((buf[10] & 0xFF) | ((buf[11] & 0xFF) << 8)) - 2 - 0x1000
+        def fixupStart = ((buf[0] & 0xFF) | ((buf[1] & 0xFF) << 8)) + 2
+        
+        // Other header stuff
+        def defCount = ((buf[8] & 0xFF) | ((buf[9] & 0xFF) << 8))
+        
+        println String.format("asmCodeStart =%04x", asmCodeStart)
+        println String.format("byteCodeStart=%04x", byteCodeStart)
+        println String.format("initStart    =%04x", initStart)
+        println String.format("fixupStart   =%04x", fixupStart)
+        println               "defCount     =$defCount"
+        
+        // Sanity checking on the offsets
+        assert asmCodeStart >= 0 && asmCodeStart < byteCodeStart
+        assert byteCodeStart >= asmCodeStart && byteCodeStart < fixupStart
+        assert initStart == 0 || (initStart >= byteCodeStart && initStart < fixupStart)
+        assert fixupStart < buf.length
+        
+        // Split up the parts now that we know their offsets
+        def asmCode = buf[asmCodeStart..<byteCodeStart]
+        def byteCode = buf[byteCodeStart..<fixupStart]
+        def fixup = buf[fixupStart..<buf.length]
+        
+        // Extract offsets of the bytecode functions from the fixup table
+        def sp = 0
+        def defs = [initStart-byteCodeStart]
+        def invDefs = [:]
+        (1..<defCount).each {
+            assert fixup[sp++] == 2 // code table fixup
+            def addr = fixup[sp++] & 0xFF
+            addr |= (fixup[sp++] & 0xFF) << 8
+            invDefs[addr] = it*5 + 2  // account for initial placeholder
+            addr -= 0x1000
+            addr -= byteCodeStart
+            assert addr >= 0 && addr < byteCode.size
+            defs.add(addr)
+            assert fixup[sp++] == 0  // not sure what the zero byte is
+        }
+        
+        // Construct asm stubs for all the bytecode functions that'll be in aux mem
+        def dp = 0
+        def stubsSize = defCount * 5
+        def newAsmCode = new byte[stubsSize + asmCode.size + 2]
+        newAsmCode[dp++] = 0  // placeholders for aux addr...
+        newAsmCode[dp++] = 0  // ...that fixups were applied to
+        (0..<defCount).each {
+            newAsmCode[dp++] = 0x20 // JSR
+            newAsmCode[dp++] = 0xDC // Aux mem interp ($3DC)
+            newAsmCode[dp++] = 0x03
+            newAsmCode[dp++] = defs[it] & 0xFF
+            newAsmCode[dp++] = (defs[it] >> 8) & 0xFF
+        }
+        
+        // Stick the asm code onto the end of the stubs
+        (0..<asmCode.size).each {
+            newAsmCode[dp++] = asmCode[it]
+        }
+        
+        // Translate offsets in all the fixups
+        def newFixup = []
+        dp = 0
+        while (fixup[sp] != 0) {
+            assert (fixup[sp++] & 0xFF) == 0x81 // We can only handle WORD sized INTERN fixups
+            def addr = fixup[sp++] & 0xFF
+            addr |= (fixup[sp++] & 0xFF) << 8
+            
+            // Fixups can be in the asm section or in the bytecode section. Figure out which this is.
+            def inByteCode = (addr >= byteCodeStart)
+            addr += 2  // apparently offsets don't include the header length
+            println String.format("Fixup addr=0x%04x, inByteCode=%b", addr, inByteCode)
+            
+            // Figure out which buffer to modify, and the offset within it
+            def codeBuf = inByteCode ? byteCode : newAsmCode
+            addr -= inByteCode ? byteCodeStart : asmCodeStart
+            if (!inByteCode)
+                addr += stubsSize   // account for the stubs we prepended to the asm code
+            println String.format("...adjusted addr=0x%04x", addr)
+            
+            def target = (codeBuf[addr] & 0xFF) | ((codeBuf[addr+1] & 0xFF) << 8)
+            println String.format("...target=0x%04x", target)
+            
+            if (invDefs.containsKey(target)) {
+                target = invDefs[target]
+                println String.format("...translated to def offset 0x%04x", target)
+            }
+            else {
+                target -= 0x1000
+                target -= asmCodeStart
+                target += stubsSize   // account for the stubs we prepended to the asm code
+                println String.format("...adjusted to target offset 0x%04x", target)
+            }
+            assert target >= 7 && target < newAsmCode.length
+            
+            // Put the adjusted target back in the code
+            codeBuf[addr] = (byte)(target & 0xFF)
+            codeBuf[addr+1] = (byte)((target >> 8) & 0xFF)
+            
+            // And record the fixup
+            newFixup.add((byte)((addr>>8) & 0xFF) | (inByteCode ? 0x80 : 0))
+            newFixup.add((byte)(addr & 0xFF))
+            assert fixup[sp++] == 0  // not sure what the zero byte is
+        }
+        newFixup.add((byte)0xFF)
+        
+        modules[name] = [num:num, buf:ByteBuffer.wrap(newAsmCode)]
+        bytecodes[name] = [num:num, buf:ByteBuffer.wrap(byteCode.toArray(new byte[byteCode.size]))]
+        fixups[name] = [num:num, buf:ByteBuffer.wrap(newFixup.toArray(new byte[newFixup.size]))]
+    }
+    
     def readFont(name, path)
     {
         def num = fonts.size() + 1
@@ -717,6 +852,11 @@ class PackPartitions
         // Make a list of all the chunks that will be in the partition
         def chunks = []
         code.values().each { chunks.add([type:TYPE_CODE, num:it.num, buf:compress(it.buf)]) }
+        modules.each { k, v ->
+            chunks.add([type:TYPE_MODULE, num:v.num, buf:compress(v.buf)])
+            chunks.add([type:TYPE_BYTECODE, num:v.num, buf:compress(bytecodes[k].buf)])
+            chunks.add([type:TYPE_FIXUP, num:v.num, buf:compress(fixups[k].buf)])
+        }
         fonts.values().each { chunks.add([type:TYPE_FONT, num:it.num, buf:compress(it.buf)]) }
         frames.values().each { chunks.add([type:TYPE_FRAME_IMG, num:it.num, buf:compress(it.buf)]) }
         maps2D.values().each { chunks.add([type:TYPE_2D_MAP, num:it.num, buf:compress(it.buf)]) }
@@ -777,6 +917,9 @@ class PackPartitions
         readCode("expand", "src/raycast/build/expand.b")
         readCode("fontEngine", "src/font/build/fontEngine.b")
         readCode("gameloop", "src/plasma/build/gameloop.b")
+        
+        println "Reading modules."
+        readModule("testmod", "/Users/mhaye/LL/repo/PLASMA/src/foo.b")
         
         // We have only one font, for now at least.
         println "Reading fonts."

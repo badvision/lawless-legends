@@ -698,9 +698,15 @@ shared_alloc:
 .reclaimFlg: !byte 0
 
 ;------------------------------------------------------------------------------
-; Free everything that's inactive
+; Free everything that's inactive, in both the main and aux banks. We do both
+; at the same time to guarantee that we never have the main part of a module
+; without its aux part, or vice versa.
 reclaim: !zone
-	ldx isAuxCmd	; grab correct starting segment (0=main mem, 1=aux)
+	lda isAuxCmd	; save whether current command is aux or not
+	pha
+	lda #1		; we do aux bank first
+	sta isAuxCmd
+.outer	ldx isAuxCmd	; grab correct starting segment (0=main mem, 1=aux)
 .loop:	ldy tSegLink,x	; grab link to next segment, which we'll need regardless
 	lda tSegType,x	; check flag and type of this seg
 	bmi .next
@@ -709,10 +715,17 @@ reclaim: !zone
 .next:	tya		; next in chain
 	tax		; to X reg index
 	bne .loop	; non-zero = not end of chain - loop again
-	; fall through to coalesce...
+	jsr coalesce	; coalesce all free segments together
+	dec isAuxCmd	; do main bank after aux
+	bpl .outer	; back around for that bank
+	pla
+	sta isAuxCmd	; restore aux mode
+	rts		; all done
+
+;------------------------------------------------------------------------------
 ; Join adjacent free blocks of memory, where "free" is defined as having 
 ; resource type zero and no flags. Note that it will not join inactive blocks
-; that still have a resource type.
+; that still have a resource type. Operates on the current bank only.
 coalesce: !zone
 	ldx isAuxCmd	; grab correct starting segment (0=main mem, 1=aux)
 .loop:	ldy tSegLink,x	; grab link to next segment, which we'll need regardless
@@ -732,7 +745,7 @@ coalesce: !zone
 .next:	tya		; next in chain
 	tax		; to X reg index
 	bne .loop	; non-zero = not end of chain - loop again
-.done	rts		; all done
+.done	rts
 
 
 ;------------------------------------------------------------------------------
@@ -785,7 +798,21 @@ shared_free:
 	jsr shared_scan		; scan for exact memory block
 	and #$3F		; remove the 'active' and 'locked' flags
 	sta tSegType,x		; store flags back
-	rts			; all done
+	and #$F			; get down to just the type, without the flags
+	cmp #RES_TYPE_MODULE	; freeing a module?
+	bne .done		; no, all done
+	lda #RES_TYPE_BYTECODE	; we need to look for the corresponding 
+	sta resType		; byte code object
+	lda #1
+	sta isAuxCmd		; it should be over in aux mem
+	lda tSegRes,x		; with the matching segment number
+	sta resNum
+	jsr scanForResource	; go look for the block
+	beq .done		; it really ought to be there, but if not, avoid trashing
+	lda tSegType,x		; get current flags
+	and #$3F		; remove the 'active' and 'locked' flags
+	sta tSegType,x		; store flags back
+.done	rts			; all done
 
 ;------------------------------------------------------------------------------
 main_calcFree: !zone
@@ -895,9 +922,9 @@ shared_queueLoad:
 	ldx fixupHint
 	ldy fixupHint+1
 	jsr scanForAddr		; locate block containing target addr
-	beq .frag
+	beq .frag		; block gone? um, how. Well, whatever.
 	lda tSegType,x		; check flags
-	bmi .frag		; if already active, can't re-allocate it
+	bmi .frag		; if already active, we'll just have to suffer the fixup creating fragmentation
 	lda fixupHint		; Okay, found a good place to put it
 	sta targetAddr
 	lda fixupHint+1
@@ -909,7 +936,7 @@ shared_queueLoad:
 	clc
 	adc reqLen
 	sta fixupHint
-	lda fixupHint+1
+	lda fixupHint+1		; hi byte too
 	adc reqLen+1
 	sta fixupHint+1
 .modRet ldx #11			; all done; return address of the main memory block.
@@ -1117,6 +1144,7 @@ disk_finishLoad: !zone
 	sta .setMarkPos+1
 	lda #0
 	sta .setMarkPos+2
+	sta .nFixups
 	jsr setupDecomp		; one-time init for decompression code
 	jsr startHeaderScan	; start scanning the partition header
 .scan:	lda (pTmp),y		; get resource type byte
@@ -1130,6 +1158,9 @@ disk_finishLoad: !zone
 	jsr closeFile
 	lda #0			; zero out...
 	sta partFileRef		; ... the file reference so we know it's no longer open
++	lda nFixups		; any fixups encountered?
+	bne +
+	jsr doAllFixups		; found fixups - execute and free them
 +	!if DEBUG { jsr printMem }
 	rts
 .notEnd	bmi .load		; hi bit set -> queued for load
@@ -1142,7 +1173,10 @@ disk_finishLoad: !zone
 	iny
 	and #$F			; mask to get just the resource type
 	sta resType		; save type for later
-	lda (pTmp),y		; get resource num
+	cmp #RES_TYPE_FIXUP	; along the way, keep a lookout for fixups
+	bne +
+	inc .nFixups
++	lda (pTmp),y		; get resource num
 	iny
 	sta resNum		; save resource number
 	lda #0			; start by assuming main mem
@@ -1210,8 +1244,8 @@ disk_finishLoad: !zone
 .setMarkPos:	!byte 0		; mark position (3 byte integer)
 		!byte 0
 		!byte 0
-
 .ysave:		!byte 0
+.nFixups:	!byte 0
 
 !if DEBUG {
 .debug1:+prStr : !text "Going to load: type=",0
@@ -1591,6 +1625,48 @@ setupDecomp:
 	rts
 .dbgTmp	!word 0
 }
+
+;------------------------------------------------------------------------------
+; Apply fixups to all modules that were loaded this round, and free the fixup
+; resources from memory.
+doAllFixups: !zone
+	ldx #1		; start at first aux mem segment (0=main mem, 1=aux)
+.loop:	lda tSegType,x	; grab flags & type
+	and #$F		; just type now
+	cmp #RES_TYPE_FIXUP
+	bne .next
+
+
+	lda pTmp	; compare pTmp
+	cmp tSegAdrLo,x	; to this seg addr
+	lda pTmp+1	; including...
+	sbc tSegAdrHi,x	; ...hi byte
+	bcc .next	; if pTmp < seg addr then keep searching
+	lda pTmp	; compare pTmp
+	cmp tSegAdrLo,y	; to *next* seg addr
+	lda pTmp+1	; including...
+	sbc tSegAdrHi,y	; ...hi byte
+	bcc .found	; if pTmp < next seg addr then perfect!
+.next:	lda tSegLink,x	; next in chain
+	tax		; to X reg index
+	bne .loop	; non-zero = not end of chain - loop again
+	rts		; fail with X=0
+.fixupShadow: 
+!pseudopc $100 {
+.getFixupByte:
+	sta setAuxRd
+.fixupAddr = *+1
+	lda $1111
+	sta clrAuxRd
+	rts
+.getBytecode:
+	sta setAuxRd
+.bytecodeAddr = *+1
+	lda $1111
+	sta clrAuxRd
+	rts
+}
+.fixupShadow_end = *
 
 ;------------------------------------------------------------------------------
 ; Segment tables

@@ -1158,7 +1158,7 @@ disk_finishLoad: !zone
 	jsr closeFile
 	lda #0			; zero out...
 	sta partFileRef		; ... the file reference so we know it's no longer open
-+	lda nFixups		; any fixups encountered?
++	lda .nFixups		; any fixups encountered?
 	bne +
 	jsr doAllFixups		; found fixups - execute and free them
 +	!if DEBUG { jsr printMem }
@@ -1630,48 +1630,161 @@ setupDecomp:
 ; Apply fixups to all modules that were loaded this round, and free the fixup
 ; resources from memory.
 doAllFixups: !zone
-	ldx #1		; start at first aux mem segment (0=main mem, 1=aux)
-.loop:	lda tSegType,x	; grab flags & type
-	and #$F		; just type now
+	; copy the shadow code down to $100, so we can read aux mem bytes
+	ldx #.fixupShadow_end - .fixupShadow - 1
+-	lda .fixupShadow,x
+	sta .getFixupByte,x
+	dex
+	bpl -
+	; Now scan aux mem for fixup segments
+	ldx #1			; start at first aux mem segment (0=main mem, 1=aux)
+.loop:	lda tSegType,x		; grab flags & type
+	and #$F			; just type now
 	cmp #RES_TYPE_FIXUP
-	bne .next
+	beq .found
+.next:	lda tSegLink,x		; next in chain
+	tax			; to X reg index
+	bne .loop		; non-zero = not end of chain - loop again
+	rts			; fail with X=0
 
+.found	; Found one fixup seg.
+	lda tSegAdrLo,x		; grab its address
+	sta pSrc		; save to the accessor routine
+	lda tSegAdrHi,x		; hi byte too
+	sta pSrc+1
 
-	lda pTmp	; compare pTmp
-	cmp tSegAdrLo,x	; to this seg addr
-	lda pTmp+1	; including...
-	sbc tSegAdrHi,x	; ...hi byte
-	bcc .next	; if pTmp < seg addr then keep searching
-	lda pTmp	; compare pTmp
-	cmp tSegAdrLo,y	; to *next* seg addr
-	lda pTmp+1	; including...
-	sbc tSegAdrHi,y	; ...hi byte
-	bcc .found	; if pTmp < next seg addr then perfect!
-.next:	lda tSegLink,x	; next in chain
-	tax		; to X reg index
-	bne .loop	; non-zero = not end of chain - loop again
-	rts		; fail with X=0
+	; Find the corresponding main-mem seg
+	stx .resume+1		; save scan position so we can resume later
+	lda tSegRes,x		; get seg num for this fixup
+	sta resNum		; that's what we're looking for
+	lda #RES_TYPE_MODULE	; type module is in main mem
+	sta resType		; that's the type
+	lda #0			; look in main mem
+	sta isAuxCmd
+	jsr scanForResource
+	bne +			; we better find it
+	brk
++	lda tSegAdrLo,x		; get the segment's address
+	sta .mainBase		; and save it
+	lda tSegAdrHi,x		; hi byte too
+	sta .mainBase+1
+
+	; Find the corresponding aux-mem seg
+	lda #RES_TYPE_BYTECODE	; it's of type bytecode
+	sta resType
+	inc isAuxCmd		; it'll be in aux mem
+	jsr scanForResource
+	bne +			; we better find it
+	brk
++	lda tSegAdrLo,x
+	sta .auxBase
+	lda tSegAdrHi,x
+	sta .auxBase+1
+
+	; Process the fixups
+.proc	jsr .fetchFixup		; get key byte
+	tay			; save it aside, and also check the hi bit
+	bmi .fxAux		; yes, it's aux mem fixup
+.fxMain	jsr .fetchFixup		; get the lo byte of the offset
+	clc
+	adc .mainBase
+	sta pDst
+	tya
+	adc .mainBase+1
+	sta pDst+1
+	ldy #0
+	clc
+	jsr .adMain
+	iny
+	jsr .adMain
+	bne .proc		; always taken
+.adMain	lda (pDst),y
+	adc .mainBase,y
+	sta (pDst),y
+	rts
+.fxAux	cmp #$FF		; end of fixups?
+	beq .resume		; if so, resume scanning
+	jsr .fetchFixup		; get lo byte of offset
+	clc
+	adc .auxBase
+	sta pDst
+	tya
+	and #$7F		; mask off the hi bit flag
+	adc .auxBase+1
+	sta pDst+1
+	ldy #0
+	sta setAuxWr
+	jsr .adAux
+	iny
+	jsr .adAux
+	sta clrAuxWr
+	bne .proc		; always taken
+.adAux	jsr .getBytecode
+	adc .mainBase,y
+	sta (pDst),y
+	rts
+.resume ldx #11			; self-modified earlier
+	; fix up the stubs
+	lda .mainBase
+	sta pDst
+	lda .mainBase+1
+	sta pDst+1
+.stub	ldy #0
+	lda (pDst),y
+	cmp #$20		; stubs start with JSR $3xx
+	bne .estub
+	ldy #2
+	lda (pDst),y
+	cmp #3
+	bne .estub
+	clc
+	ldx #0
+	jsr .adStub
+	inx
+	jsr .adStub
+	lda pDst
+	clc
+	adc #5
+	sta pDst
+	bcc .stub
+	inc pDst+1
+	bne .stub		; always taken
+.adStub	iny
+	lda (pDst),y
+	adc .auxBase,x
+	sta (pDst),y
+	rts
+.estub	; done with stubs
+	jmp .next		; go scan for more fixup blocks
+
+.fetchFixup:
+	jsr .getFixupByte	; get a byte from aux mem
+	inc pSrc		; and advance the pointer
+	bne +
+	inc pSrc+1		; hi byte too, if necessary
++	rts
+
 .fixupShadow: 
 !pseudopc $100 {
 .getFixupByte:
 	sta setAuxRd
-.fixupAddr = *+1
-	lda $1111
+	lda (pSrc),y
 	sta clrAuxRd
 	rts
 .getBytecode:
 	sta setAuxRd
-.bytecodeAddr = *+1
-	lda $1111
+	lda (pDst),y
 	sta clrAuxRd
 	rts
 }
 .fixupShadow_end = *
+.mainBase !word 0
+.auxBase  !word 0
 
 ;------------------------------------------------------------------------------
 ; Segment tables
 
- !if DEBUG { !align 255,0 }
+!if DEBUG { !align 255,0 }
 
 tSegLink	= * : !fill MAX_SEGS
 tSegType	= * : !fill MAX_SEGS

@@ -6,6 +6,7 @@
 TOP_LINE	= $2180	; 24 lines down from top
 NLINES		= 128
 TEX_SIZE	= $555	; 32x32 + 16x16 + 8x8 + 4x4 + 2x2 + 1x1
+PLASMA_FRAME_SIZE = $200
 
 ; Byte offset for each pixel in the blit unroll
 BLIT_OFF0	= 5
@@ -55,6 +56,7 @@ mapWidth	= $62	; len 1
 mapHeight	= $63	; len 1
 spriteX		= $64	; len 2
 spriteY		= $66	; len 2
+plasmaFrames	= $68	; len 2
 
 ; Sprite calculations zero page
 bSgnSinT	= $90
@@ -87,24 +89,20 @@ expandVec	= $800
 ;---------------------------------
 
 ; Main-mem tables and buffers
-tableStart	= $A000
-decodeTo01	= $A000
-decodeTo01b	= $A100
-decodeTo23	= $A200
-decodeTo23b	= $A300
-decodeTo45	= $A400
-decodeTo56	= $A500
-decodeTo57	= $A600
-clrBlitRollE	= $A700	; size 3*(128/2) = $C0, plus 2 for tya and rts
-clrBlitRollO	= $A7C2	; size 3*(128/2) = $C0, plus 2 for tya and rts
-texAddrLo	= $A884
+tableStart	= $A700
+decodeTo01	= $A700
+decodeTo01b	= $A800
+decodeTo23	= $A900
+decodeTo23b	= $AA00
+decodeTo45	= $AB00
+decodeTo56	= $AC00
+decodeTo57	= $AD00
+clrBlitRollE	= $AE00	; size 3*(128/2) = $C0, plus 2 for tya and rts
+clrBlitRollO	= $AEC2	; size 3*(128/2) = $C0, plus 2 for tya and rts
+texAddrLo	= $AF84
 texAddrHi	= texAddrLo + MAX_TEXTURES
-blitRoll	= $A900	; Unrolled blitting code. Size 29*128	= $E80, plus 1 for rts
-tableEnd	= $B781
-
-plasmaCode	= $B800
-plasmaFrames	= $BD00
-plasmaEnd	= $BF00	
+blitRoll	= $B000	; Unrolled blitting code. Size 29*128	= $E80, plus 1 for rts
+tableEnd	= $BE81
 
 ; mipmap level offsets
 MIP_OFFSET_0	= 0

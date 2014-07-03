@@ -13,7 +13,7 @@ start:
 
 ; Conditional assembly flags
 DOUBLE_BUFFER	= 1		; whether to double-buffer
-DEBUG		= 1		; 1=some logging, 2=lots of logging
+DEBUG		= 0		; 1=some logging, 2=lots of logging
 DEBUG_COLUMN	= -1
 
 ; temporary hack to try blocker sprites
@@ -1568,14 +1568,12 @@ initMem: !zone
 	ldy #>(tableEnd-tableStart)
 	jsr mainLoader
 	; Reserve memory for the PLASMA frame stack
-	lda #SET_MEM_TARGET
-	ldx #<plasmaFrames
-	ldy #>plasmaFrames
-	jsr mainLoader
 	lda #REQUEST_MEMORY
-	ldx #<(plasmaEnd-plasmaFrames)
-	ldy #>(plasmaEnd-plasmaFrames)
+	ldx #0
+	ldy #>PLASMA_FRAME_SIZE
 	jsr mainLoader
+	stx plasmaFrames
+	sty plasmaFrames+1
 	; Load the font engine
 	!if DEBUG { +prStr : !text "Loading font engine.",0 }
 	lda #SET_MEM_TARGET
@@ -1585,16 +1583,6 @@ initMem: !zone
 	lda #QUEUE_LOAD
 	ldx #RES_TYPE_CODE
 	ldy #3			; hard coded for now: code #3 is the font engine
-	jsr mainLoader
-	; Load the font engine
-	!if DEBUG { +prStr : !text "Loading game loop.",0 }
-	lda #SET_MEM_TARGET
-	ldx #<plasmaCode
-	ldy #>plasmaCode
-	jsr mainLoader
-	lda #QUEUE_LOAD
-	ldx #RES_TYPE_CODE
-	ldy #4			; hard coded for now: code #4 is the game loop
 	jsr mainLoader
 	!if DEBUG { +prStr : !text "Loading expansion code.",0 }
 	; Load the texture expansion code into aux mem.
@@ -1642,8 +1630,6 @@ initMem: !zone
 	pla
 	tax			; and hi byte in X
 	jsr setFONT
-	; Test PLASMA
-	jsr plasmaCode
 	; Set to write text on both hi-res pages at the same time
 	lda #pHGR3
 	jsr displayMODE

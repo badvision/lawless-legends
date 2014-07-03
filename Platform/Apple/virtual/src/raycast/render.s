@@ -13,7 +13,7 @@ start:
 
 ; Conditional assembly flags
 DOUBLE_BUFFER	= 1		; whether to double-buffer
-DEBUG		= 0		; 1=some logging, 2=lots of logging
+DEBUG		= 1		; 1=some logging, 2=lots of logging
 DEBUG_COLUMN	= -1
 
 ; temporary hack to try blocker sprites
@@ -1603,6 +1603,12 @@ initMem: !zone
 	lda #QUEUE_LOAD
 	ldx #RES_TYPE_SCREEN
 	ldy #1
+	jsr mainLoader
+	; Load the game loop module
+	!if DEBUG { +prStr : !text "Loading game loop.",0 }
+	lda #QUEUE_LOAD
+	ldx #RES_TYPE_MODULE
+	ldy #1			; hard coded for now: module #1 is the game loop
 	jsr mainLoader
 	; Load the map into main mem
 	!if DEBUG { +prStr : !text "Loading map.",0 }

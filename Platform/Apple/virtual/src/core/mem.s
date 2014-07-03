@@ -18,7 +18,7 @@ MAX_SEGS	= 96
 
 DO_COMP_CHECKSUMS = 0		; during compression debugging
 DEBUG_DECOMP 	= 0
-DEBUG		= 0
+DEBUG		= 1
 
 ; Zero page temporary variables
 tmp		= $2	; len 2
@@ -347,7 +347,7 @@ fatalError: !zone
 init: !zone
 ; put something interesting on the screen :)
 	jsr home
-	+prStr : !text "Welcome to Lawless Legends.",0
+	+prStr : !text "Welcome to MythOS.",0
 ; close all files
 	lda #0
 	jsr closeFile
@@ -734,6 +734,7 @@ coalesce: !zone
 	ora tSegType,y	; and next seg
 	bmi .next	; if either is active or has a type, can't combine
 	; we can combine the next segment into this one.
+	!if DEBUG { jsr .debug }
 	stx tmp
 	tya
 	tax
@@ -746,6 +747,20 @@ coalesce: !zone
 	tax		; to X reg index
 	bne .loop	; non-zero = not end of chain - loop again
 .done	rts
+!if DEBUG {
+.debug	+prStr : !text "Coalesce ",0
+	pha
+	tya
+	pha
+	lda tSegAdrLo,x
+	ldy tSegAdrHi,x
+	+prYA
+	+crout
+	pla
+	tay
+	pla
+	rts	
+}
 
 
 ;------------------------------------------------------------------------------
@@ -1161,8 +1176,7 @@ disk_finishLoad: !zone
 +	lda .nFixups		; any fixups encountered?
 	bne +
 	jsr doAllFixups		; found fixups - execute and free them
-+	!if DEBUG { jsr printMem }
-	rts
++	rts
 .notEnd	bmi .load		; hi bit set -> queued for load
 	iny			; not set, not queued, so skip over it
 	iny
@@ -1253,7 +1267,6 @@ disk_finishLoad: !zone
 	+prStr : !text "num=",0
 	+prByte resNum
 	+prStr : !text "isAux=",0
-	+prByte isAuxCmd
 	rts
 .debug2:+prStr : !text "reqLen=",0
 	+prWord reqLen
@@ -1630,6 +1643,7 @@ setupDecomp:
 ; Apply fixups to all modules that were loaded this round, and free the fixup
 ; resources from memory.
 doAllFixups: !zone
+	!if DEBUG { +prStr : !text "Doing all fixups.",0 }
 	; copy the shadow code down to $100, so we can read aux mem bytes
 	ldx #.fixupShadow_end - .fixupShadow - 1
 -	lda .fixupShadow,x
@@ -1645,9 +1659,12 @@ doAllFixups: !zone
 .next:	lda tSegLink,x		; next in chain
 	tax			; to X reg index
 	bne .loop		; non-zero = not end of chain - loop again
-	rts			; fail with X=0
+	lda #1
+	sta isAuxCmd
+	jmp coalesce		; really free up the fixup blocks by coalescing them into free mem
 
 .found	; Found one fixup seg.
+	sta tSegLink,x		; just the type (getting rid of 'active' flag)
 	lda tSegAdrLo,x		; grab its address
 	sta pSrc		; save to the accessor routine
 	lda tSegAdrHi,x		; hi byte too
@@ -1681,18 +1698,20 @@ doAllFixups: !zone
 	lda tSegAdrHi,x
 	sta .auxBase+1
 
+	!if DEBUG { jsr .debug1 }
+
 	; Process the fixups
 .proc	jsr .fetchFixup		; get key byte
-	tay			; save it aside, and also check the hi bit
+	tax			; save it aside, and also check the hi bit
 	bmi .fxAux		; yes, it's aux mem fixup
 .fxMain	jsr .fetchFixup		; get the lo byte of the offset
 	clc
 	adc .mainBase
 	sta pDst
-	tya
+	txa
 	adc .mainBase+1
 	sta pDst+1
-	ldy #0
+	!if DEBUG { jsr .debug2 }
 	clc
 	jsr .adMain
 	iny
@@ -1703,16 +1722,16 @@ doAllFixups: !zone
 	sta (pDst),y
 	rts
 .fxAux	cmp #$FF		; end of fixups?
-	beq .resume		; if so, resume scanning
+	beq .stubs		; if so, go do the stubs
 	jsr .fetchFixup		; get lo byte of offset
 	clc
 	adc .auxBase
 	sta pDst
-	tya
+	txa
 	and #$7F		; mask off the hi bit flag
 	adc .auxBase+1
 	sta pDst+1
-	ldy #0
+	!if DEBUG { jsr .debug3 }
 	sta setAuxWr
 	jsr .adAux
 	iny
@@ -1723,20 +1742,25 @@ doAllFixups: !zone
 	adc .mainBase,y
 	sta (pDst),y
 	rts
-.resume ldx #11			; self-modified earlier
-	; fix up the stubs
+.stubs	; fix up the stubs
 	lda .mainBase
 	sta pDst
 	lda .mainBase+1
 	sta pDst+1
 .stub	ldy #0
 	lda (pDst),y
-	cmp #$20		; stubs start with JSR $3xx
-	bne .estub
-	ldy #2
+	cmp #$20		; aux mem stubs marked by JSR $3DC
+	bne .resume		; not a stub, resume scanning
+	iny
 	lda (pDst),y
-	cmp #3
-	bne .estub
+	cmp #$DC
+	bne .resume		; not a stub, resume scanning
+	iny
+	lda (pDst),y
+	cmp #$03
+	bne .resume		; not a stub, resume scanning
+	; found a stub, adjust it.
+	!if DEBUG { jsr .debug4 }
 	clc
 	ldx #0
 	jsr .adStub
@@ -1754,10 +1778,11 @@ doAllFixups: !zone
 	adc .auxBase,x
 	sta (pDst),y
 	rts
-.estub	; done with stubs
+.resume ldx #11			; self-modified earlier
 	jmp .next		; go scan for more fixup blocks
 
 .fetchFixup:
+	ldy #0
 	jsr .getFixupByte	; get a byte from aux mem
 	inc pSrc		; and advance the pointer
 	bne +
@@ -1778,6 +1803,31 @@ doAllFixups: !zone
 	rts
 }
 .fixupShadow_end = *
+!if DEBUG {
+.debug1	+prStr : !text "Found fixup, res=",0
+	+prByte resNum
+	+prStr : !text "mainBase=",0
+	+prWord .mainBase
+	+prStr : !text "auxBase=",0
+	+prWord .auxBase
+	+crout
+	rts
+.debug2	+prStr : !text "  main fixup, addr=",0
+	+prWord pDst
+	+crout
+	+waitKey
+	rts
+.debug3	+prStr : !text "  aux fixup, addr=",0
+	+prWord pDst
+	+crout
+	+waitKey
+	rts
+.debug4	+prStr : !text "  main stub, addr=",0
+	+prWord pDst
+	+crout
+	+waitKey
+	rts
+}
 .mainBase !word 0
 .auxBase  !word 0
 

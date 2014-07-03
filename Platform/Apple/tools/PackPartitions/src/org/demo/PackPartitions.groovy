@@ -626,7 +626,7 @@ class PackPartitions
         
         // Extract offsets of the bytecode functions from the fixup table
         def sp = 0
-        def defs = [initStart-byteCodeStart]
+        def defs = [initStart-byteCodeStart+2]
         def invDefs = [:]
         (1..<defCount).each {
             assert fixup[sp++] == 2 // code table fixup
@@ -703,9 +703,19 @@ class PackPartitions
         }
         newFixup.add((byte)0xFF)
         
-        modules[name] = [num:num, buf:ByteBuffer.wrap(newAsmCode)]
-        bytecodes[name] = [num:num, buf:ByteBuffer.wrap(byteCode.toArray(new byte[byteCode.size]))]
-        fixups[name] = [num:num, buf:ByteBuffer.wrap(newFixup.toArray(new byte[newFixup.size]))]
+        modules[name] = [num:num, buf:wrapByteArray(newAsmCode)]
+        bytecodes[name] = [num:num, buf:wrapByteList(byteCode)]
+        fixups[name] = [num:num, buf:wrapByteList(newFixup)]
+    }
+    
+    def wrapByteArray(array) {
+        def buf = ByteBuffer.wrap(array)
+        buf.position(array.length)
+        return buf
+    }
+    
+    def wrapByteList(list) {
+        return wrapByteArray(list.toArray(new byte[list.size]))
     }
     
     def readFont(name, path)

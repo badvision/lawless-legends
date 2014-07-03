@@ -44,6 +44,18 @@
 	jsr _prSpace
 }
 
+!macro prYA {
+	jsr _prY
+	jsr _prA
+	jsr _prSpace
+}
+
+!macro prAY {
+	jsr _prA
+	jsr _prY
+	jsr _prSpace
+}
+
 !macro prXY {
 	jsr _prX
 	jsr _prY

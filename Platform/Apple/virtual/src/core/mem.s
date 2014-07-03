@@ -18,7 +18,7 @@ MAX_SEGS	= 96
 
 DO_COMP_CHECKSUMS = 0		; during compression debugging
 DEBUG_DECOMP 	= 0
-DEBUG		= 1
+DEBUG		= 0
 
 ; Zero page temporary variables
 tmp		= $2	; len 2
@@ -105,16 +105,16 @@ grabSegment: !zone
 
 ;------------------------------------------------------------------------------
 releaseSegment: !zone
-; Input: X-reg = segment to release
+; Input: Y-reg = segment to release
 	lda unusedSeg	; previous head of list
-	sta tSegLink,x	; point this segment at it
-	stx unusedSeg	; this segment is now head of list
-	txa		; seg num to accumulator
-	ldy isAuxCmd
-	cmp scanStart,y	; was this seg the scan start?
+	sta tSegLink,y	; point this segment at it
+	sty unusedSeg	; this segment is now head of list
+	tya		; seg num to accumulator
+	ldx isAuxCmd
+	cmp scanStart,x	; was this seg the scan start?
 	bne +		; no, things are fine
-	tya		; yes, need to reset the scan start
-	sta scanStart,y	; scan at first mem block for (main or aux)
+	txa		; yes, need to reset the scan start
+	sta scanStart,x	; scan at first mem block for (main or aux)
 +	rts
 
 ;------------------------------------------------------------------------------
@@ -458,9 +458,13 @@ init: !zone
 ;------------------------------------------------------------------------------
 !if DEBUG {
 printMem: !zone
+	jsr printMain
+	jmp printAux
+printMain:
 	+prStr : !text "Listing main mem segments.",0
 	ldy #0
-	jsr .printSegs
+	jmp .printSegs
+printAux:
 	+prStr : !text "Listing aux mem segments.",0
 	ldy #1
 .printSegs:
@@ -494,77 +498,7 @@ printMem: !zone
 	jsr cout
 	txa
 	jmp prbyte
-} ; end DEBUG
-
-;------------------------------------------------------------------------------
-!if DEBUG {
-test: !zone
-	jsr test_load
-	lda #RESET_MEMORY
-	jsr mainLoader
-	jsr test_load
-	+prStr : !text "Test complete.",0
-	jmp monitor
-test_load:
-	+prStr : !text "Start load.",0
-	ldx #0	; partition 0
-	lda #START_LOAD
-	jsr mainLoader
-	+prStr : !text "Set mem target.",0
-	ldx #0
-	ldy #$60	; load at $6000
-	lda #SET_MEM_TARGET
-	jsr mainLoader
-	+prStr : !text "Queue load.",0
-	ldx #RES_TYPE_CODE
-	ldy #1		; code resource #1
-	lda #QUEUE_LOAD
-	jsr mainLoader
-	+prStr : !text "  addr=",0
-	stx tmp
-	sty tmp+1
-	+prWord tmp : +crout
-	+prStr : !text "Set mem target.",0
-	ldx #0
-	ldy #8		; load at $800
-	lda #SET_MEM_TARGET
-	jsr auxLoader
-	+prStr : !text "Queue load.",0
-	ldx #RES_TYPE_CODE
-	ldy #2		; code resource #2
-	lda #QUEUE_LOAD
-	jsr auxLoader
-	+prStr
-	!text "  addr=",0
-	stx tmp
-	sty tmp+1
-	+prWord tmp : +crout
-	+prStr : !text "Finish load.",0
-	ldx #0	; close out
-	lda #FINISH_LOAD
-	jsr mainLoader
-	rts
-; exhaustion test
-	+prStr : !text "Testing memory manager.",0
-.loop:	ldx #1
-	ldy #4
-	lda #REQUEST_MEMORY
-	jsr mainLoader
-	stx tmp
-	sty tmp+1
-	+prStr : !text "Main alloc: ",0
-	+prWord tmp : +crout
-	ldx #2
-	ldy #4
-	lda #REQUEST_MEMORY
-	jsr auxLoader
-	stx tmp
-	sty tmp+1
-	+prStr : !text "Aux alloc: ",0
-	+prWord tmp : +crout
-	jmp .loop
-	rts
-} ; end DEBUG
+} ; end zone
 
 ;------------------------------------------------------------------------------
 reset: !zone
@@ -727,37 +661,34 @@ reclaim: !zone
 ; resource type zero and no flags. Note that it will not join inactive blocks
 ; that still have a resource type. Operates on the current bank only.
 coalesce: !zone
-	ldx isAuxCmd	; grab correct starting segment (0=main mem, 1=aux)
-.loop:	ldy tSegLink,x	; grab link to next segment, which we'll need regardless
-	beq .done	; no next segment, nothing to join to ==> done
-	lda tSegType,x	; check flag and type of this seg
-	ora tSegType,y	; and next seg
-	bmi .next	; if either is active or has a type, can't combine
+	ldx isAuxCmd		; grab correct starting segment (0=main mem, 1=aux)
+.loop:	ldy tSegLink,x		; grab link to next segment, which we'll need regardless
+	beq .done		; no next segment, nothing to join to ==> done
+	lda tSegType,x		; check flag and type of this seg
+	ora tSegType,y		; and next seg
+	bmi .next		; if either is active or has a type, can't combine
 	; we can combine the next segment into this one.
 	!if DEBUG { jsr .debug }
-	stx tmp
-	tya
-	tax
-	jsr releaseSegment
-	lda tSegLink,x	; link to what the combined segment was linked to
-	ldx tmp
+	lda tSegLink,y
 	sta tSegLink,x
-	jmp .loop	; we may be able to combine even more
-.next:	tya		; next in chain
-	tax		; to X reg index
-	bne .loop	; non-zero = not end of chain - loop again
+	stx tmp
+	jsr releaseSegment	; releases seg in Y
+	ldy tmp			; check this segment again, in a tricky way
+.next:	tya			; next in chain
+	tax			; to X reg index
+	bne .loop		; non-zero = not end of chain - loop again
 .done	rts
 !if DEBUG {
 .debug	+prStr : !text "Coalesce ",0
 	pha
-	tya
+	txa
 	pha
-	lda tSegAdrLo,x
-	ldy tSegAdrHi,x
-	+prYA
+	lda tSegAdrLo,y
+	ldx tSegAdrHi,y
+	+prXA
 	+crout
 	pla
-	tay
+	tax
 	pla
 	rts	
 }
@@ -1174,7 +1105,7 @@ disk_finishLoad: !zone
 	lda #0			; zero out...
 	sta partFileRef		; ... the file reference so we know it's no longer open
 +	lda .nFixups		; any fixups encountered?
-	bne +
+	beq +
 	jsr doAllFixups		; found fixups - execute and free them
 +	rts
 .notEnd	bmi .load		; hi bit set -> queued for load
@@ -1664,7 +1595,6 @@ doAllFixups: !zone
 	jmp coalesce		; really free up the fixup blocks by coalescing them into free mem
 
 .found	; Found one fixup seg.
-	sta tSegLink,x		; just the type (getting rid of 'active' flag)
 	lda tSegAdrLo,x		; grab its address
 	sta pSrc		; save to the accessor routine
 	lda tSegAdrHi,x		; hi byte too
@@ -1779,6 +1709,8 @@ doAllFixups: !zone
 	sta (pDst),y
 	rts
 .resume ldx #11			; self-modified earlier
+	lda #0
+	sta tSegType,x		; mark this fixup free, so that coalesce can free it
 	jmp .next		; go scan for more fixup blocks
 
 .fetchFixup:
@@ -1815,17 +1747,14 @@ doAllFixups: !zone
 .debug2	+prStr : !text "  main fixup, addr=",0
 	+prWord pDst
 	+crout
-	+waitKey
 	rts
 .debug3	+prStr : !text "  aux fixup, addr=",0
 	+prWord pDst
 	+crout
-	+waitKey
 	rts
 .debug4	+prStr : !text "  main stub, addr=",0
 	+prWord pDst
 	+crout
-	+waitKey
 	rts
 }
 .mainBase !word 0

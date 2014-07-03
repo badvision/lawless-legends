@@ -584,7 +584,7 @@ class PackPartitions
     def readModule(name, path)
     {
         def num = modules.size() + 1
-        println "Reading module #$num from '$path'."
+        //println "Reading module #$num from '$path'."
         def bufObj = readBinary(path)
         
         def bufLen = bufObj.position()
@@ -607,16 +607,16 @@ class PackPartitions
         // Other header stuff
         def defCount = ((buf[8] & 0xFF) | ((buf[9] & 0xFF) << 8))
         
-        println String.format("asmCodeStart =%04x", asmCodeStart)
-        println String.format("byteCodeStart=%04x", byteCodeStart)
-        println String.format("initStart    =%04x", initStart)
-        println String.format("fixupStart   =%04x", fixupStart)
-        println               "defCount     =$defCount"
+        //println String.format("asmCodeStart =%04x", asmCodeStart)
+        //println String.format("byteCodeStart=%04x", byteCodeStart)
+        //println String.format("initStart    =%04x", initStart)
+        //println String.format("fixupStart   =%04x", fixupStart)
+        //println               "defCount     =$defCount"
         
         // Sanity checking on the offsets
         assert asmCodeStart >= 0 && asmCodeStart < byteCodeStart
         assert byteCodeStart >= asmCodeStart && byteCodeStart < fixupStart
-        assert initStart == 0 || (initStart >= byteCodeStart && initStart < fixupStart)
+        assert initStart == 0 || (initStart+2 >= byteCodeStart && initStart+2 < fixupStart)
         assert fixupStart < buf.length
         
         // Split up the parts now that we know their offsets
@@ -626,7 +626,7 @@ class PackPartitions
         
         // Extract offsets of the bytecode functions from the fixup table
         def sp = 0
-        def defs = [initStart-byteCodeStart+2]
+        def defs = [initStart+2 - byteCodeStart]
         def invDefs = [:]
         (1..<defCount).each {
             assert fixup[sp++] == 2 // code table fixup
@@ -666,29 +666,29 @@ class PackPartitions
             addr |= (fixup[sp++] & 0xFF) << 8
             
             // Fixups can be in the asm section or in the bytecode section. Figure out which this is.
-            def inByteCode = (addr >= byteCodeStart)
             addr += 2  // apparently offsets don't include the header length
-            println String.format("Fixup addr=0x%04x, inByteCode=%b", addr, inByteCode)
+            def inByteCode = (addr >= byteCodeStart)
+            //println String.format("Fixup addr=0x%04x, inByteCode=%b", addr, inByteCode)
             
             // Figure out which buffer to modify, and the offset within it
             def codeBuf = inByteCode ? byteCode : newAsmCode
             addr -= inByteCode ? byteCodeStart : asmCodeStart
             if (!inByteCode)
                 addr += stubsSize   // account for the stubs we prepended to the asm code
-            println String.format("...adjusted addr=0x%04x", addr)
+            //println String.format("...adjusted addr=0x%04x", addr)
             
             def target = (codeBuf[addr] & 0xFF) | ((codeBuf[addr+1] & 0xFF) << 8)
-            println String.format("...target=0x%04x", target)
+            //println String.format("...target=0x%04x", target)
             
             if (invDefs.containsKey(target)) {
                 target = invDefs[target]
-                println String.format("...translated to def offset 0x%04x", target)
+                //println String.format("...translated to def offset 0x%04x", target)
             }
             else {
                 target -= 0x1000
                 target -= asmCodeStart
                 target += stubsSize   // account for the stubs we prepended to the asm code
-                println String.format("...adjusted to target offset 0x%04x", target)
+                //println String.format("...adjusted to target offset 0x%04x", target)
             }
             assert target >= 5 && target < newAsmCode.length
             
@@ -924,10 +924,9 @@ class PackPartitions
         readCode("render", "src/raycast/build/render.b")
         readCode("expand", "src/raycast/build/expand.b")
         readCode("fontEngine", "src/font/build/fontEngine.b")
-        readCode("gameloop", "src/plasma/build/gameloop.b")
         
         println "Reading modules."
-        readModule("testmod", "/Users/mhaye/LL/repo/PLASMA/src/foo.b")
+        readModule("gameloop", "src/plasma/build/gameloop.b")
         
         // We have only one font, for now at least.
         println "Reading fonts."

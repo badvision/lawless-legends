@@ -1610,6 +1610,8 @@ initMem: !zone
 	ldx #RES_TYPE_MODULE
 	ldy #1			; hard coded for now: module #1 is the game loop
 	jsr mainLoader
+	stx .callGameLoop+1
+	sty .callGameLoop+2
 	; Load the map into main mem
 	!if DEBUG { +prStr : !text "Loading map.",0 }
 	lda #QUEUE_LOAD
@@ -1631,6 +1633,15 @@ initMem: !zone
 	lda #FINISH_LOAD
 	ldx #1	; keep queue open
 	jsr mainLoader
+
+	LDA	#$00		; INIT FRAME POINTER
+	STA	$E0
+	LDA	#$BF
+	STA	$E1
+        LDX	#$10		; INIT EVAL STACK INDEX
+.callGameLoop: 
+	jsr $1111		; self-modified with actual address
+	bit $c081
 	pla			; get back the font location
 	tay			; font engine likes *lo* byte in Y
 	pla

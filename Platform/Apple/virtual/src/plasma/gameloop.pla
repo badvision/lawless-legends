@@ -1,80 +1,65 @@
-;
+;==================================================================================================
 ; Handy constants.
-;
 const FALSE = 0
 const TRUE  = !FALSE
-;
+
+;==================================================================================================
 ; Hardware addresses.
-;
 const keyboard  = $C000
 const keystrobe = $C010
-;
-; call() return register structure.
-;
-const Accum = 0
-const Xreg  = 1
-const Yreg  = 2
-const Preg  = 3
-;
-; Processor Status (Preg) flag bits.
-;
-const Cflag = $01
-const Zflag = $02
-const Iflag = $04
-const Dflag = $08
-const Bflag = $10
-const Vflag = $40
-const Sflag = $80
-;
-; CALL 6502 ROUTINE
-; CALL(ADDR, AREG, XREG, YREG, STATUS)
-;
-asm call
-REGVALS =       SRC
-        PHP
-        LDA     ESTKL+4,X
-        STA     TMPL
-        LDA     ESTKH+4,X
-        STA     TMPH
-        LDA     ESTKL,X
-        PHA
-        LDA     ESTKL+1,X
-        TAY
-        LDA     ESTKL+3,X
-        PHA
-        LDA     ESTKL+2,X
-        INX
-        INX
-        INX
-        INX
-        STX     ESP
-        TAX
-        PLA
-        BIT     ROMEN
-        PLP
-        JSR     JMPTMP
-        PHP
-        BIT     LCRDEN+LCBNK2
-        STA     REGVALS+0
-        STX     REGVALS+1
-        STY     REGVALS+2
-        PLA
-        STA     REGVALS+3
-        LDX     ESP
-        LDA     #<REGVALS
-        LDY     #>REGVALS
-        STA     ESTKL,X
-        STY     ESTKH,X
-        PLP
-        RTS
-JMPTMP  JMP     (TMP)
+
+;==================================================================================================
+; Strings.
+byte hellostr[] = "Hello, world.\n"
+
+;==================================================================================================
+; Definitions used by assembly code
+asm __defs
+!SOURCE "../plvm02zp.inc"
+INTERP  =       $03D0
+LCRDEN  =       $C080
+LCWTEN  =       $C081
+ROMEN   =       $C082
+LCRWEN  =       $C083
+LCBNK2  =       $00
+LCBNK1  =       $08
 end
-;
+        
+;==================================================================================================
+; Print a string
+asm puts
+        TXA
+        PHA
+        LDA     ESTKL,X
+        STA     TMPL
+        LDA     ESTKH,X
+        STA     TMPH
+        LDY     #0
+        LDA     (TMPL),Y
+        TAX
+        INY
+        BIT     ROMEN
+-       LDA     (TMPL),Y
+        ORA     #$80
+        JSR     $FDED
+        INY
+        DEX
+        BNE     -
+        BIT     LCRDEN+LCBNK2
+        PLA
+        TAX
+        brk
+        RTS
+end
+
+;==================================================================================================
 ; Main loop.
 ;
-call($FDF0, 65, 0, 0, 0)
-call($FDF0, 65, 0, 0, 0)
-call($FDF0, 65, 0, 0, 0)
-call($FDF0, 13+128, 0, 0, 0)
+def func()
+  puts(@hellostr)
+end
+
+func()
+func()
 
 done

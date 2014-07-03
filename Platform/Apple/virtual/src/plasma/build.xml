@@ -50,7 +50,7 @@
            relative="true" parallel="false" failonerror="true" verbose="true"
            addsourcefile="false">
       <fileset dir="${src.dir}" includes="gameloop.pla"/>
-      <arg value="-A"/>
+      <arg value="-AM"/>
       <redirector logError="yes">
         <!-- redirect STDIN; fileset collects relative to its dir, but we need -->
         <!-- relative to basedir -->
@@ -61,12 +61,13 @@
     </apply>
 
     <!-- Assmeble the ACME code -->
-    <apply executable="acme" dir="${src.dir}" 
+    <apply executable="acme" dir="${build.dir}" 
            relative="true" parallel="false" failonerror="true" verbose="true">
-      <fileset dir="${src.dir}" includes="gamestub.s"/>
-      <arg line="${ASM_SETTINGS}"/>
+      <fileset dir="${build.dir}" includes="*.a"/>
+      <mapper type="glob" from="*.a" to="*.b"/>
+      <arg line="--setpc 4096"/>
       <arg value="-o"/>
-      <arg value="${build.dir}/gameloop.b"/>
+      <targetfile/>
       <srcfile/>
     </apply>
 

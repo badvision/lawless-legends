@@ -253,7 +253,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
             idx = (idx + 1) % scripts.size();
             gc.beginPath();
             gc.moveTo(xx,yy);
-            gc.setStroke(currentMap.getScriptColor(scripts.get(idx)));
+            currentMap.getScriptColor(scripts.get(idx)).ifPresent(gc::setStroke);
             xx += dashLength;
             gc.lineTo(xx, yy);
             gc.setEffect(new DropShadow(2, Color.BLACK));
@@ -263,7 +263,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
             idx = (idx + 1) % scripts.size();
             gc.beginPath();
             gc.moveTo(xx,yy);
-            gc.setStroke(currentMap.getScriptColor(scripts.get(idx)));
+            currentMap.getScriptColor(scripts.get(idx)).ifPresent(gc::setStroke);
             yy += dashLength;
             gc.lineTo(xx, yy);
             gc.setEffect(new DropShadow(2, Color.BLACK));
@@ -273,7 +273,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
             idx = (idx + 1) % scripts.size();
             gc.beginPath();
             gc.moveTo(xx,yy);
-            gc.setStroke(currentMap.getScriptColor(scripts.get(idx)));
+            currentMap.getScriptColor(scripts.get(idx)).ifPresent(gc::setStroke);
             xx -= dashLength;
             gc.lineTo(xx, yy);
             gc.setEffect(new DropShadow(2, Color.BLACK));
@@ -283,7 +283,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
             idx = (idx + 1) % scripts.size();
             gc.beginPath();
             gc.moveTo(xx,yy);
-            gc.setStroke(currentMap.getScriptColor(scripts.get(idx)));
+            currentMap.getScriptColor(scripts.get(idx)).ifPresent(gc::setStroke);
             yy -= dashLength;
             gc.lineTo(xx, yy);
             gc.setEffect(new DropShadow(2, Color.BLACK));

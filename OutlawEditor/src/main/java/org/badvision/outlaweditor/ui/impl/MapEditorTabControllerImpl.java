@@ -306,6 +306,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
                         if (empty || item == null) {
                             setText("");
                         } else {
+                            getCurrentEditor().getCurrentMap().getScriptColor(item).ifPresent(this::setTextFill);
                             setText(item.getName());
                             scriptDragDrop.registerDragSupport(this, item);
                         }

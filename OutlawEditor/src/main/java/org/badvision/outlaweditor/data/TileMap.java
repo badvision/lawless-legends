@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
@@ -46,8 +47,8 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
     private final java.util.Map<Integer, List<Script>> locationScripts = new HashMap<>();
     private final java.util.Map<Script, Color> scriptColors = new HashMap<>();
     
-    public Color getScriptColor(Script s) {
-        return scriptColors.get(s);
+    public Optional<Color> getScriptColor(Script s) {
+        return Optional.ofNullable(scriptColors.get(s));
     }
     
     public List<Script> getLocationScripts(int x, int y) {
@@ -79,6 +80,7 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
             locationScripts.put(loc, list);
         }
         list.add(s);
+        Application.getInstance().getController().redrawScripts();
     }
 
     private int getMortonNumber(int x, int y) {

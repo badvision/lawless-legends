@@ -403,13 +403,16 @@ The complex test case is handled with `when`. Basically a `if`, `elsifF`, `else`
 when key
     is 'A'
         ; handle A character
+        break
     is 'B'
         ; handle B character
+        break
 ```
 ...
 ```
     is 'Z'
         ; handle Z character
+        break
     otherwise
         ; Not a known key
 wend
@@ -424,12 +427,15 @@ byte a
 when TRUE
     is (a <= 10)
         ; 10 or less
+        break
     is (a > 10) AND (a < 20)
         ; between 10 and 20
+        break
     is (a >= 20)
         ; 20 or greater
 wend
 ```
+A `when` clause can fall-through to the following clause, just like C `switch` statements by leaving out the `break` at the end of a clause.
 
 ##### FOR \<TO,DOWNTO\> [STEP]/NEXT
 Iteration over a range is handled with the `for`/`next` loop. When iterating from a smaller to larger value, the `to` construct is used; when iterating from larger to smaller, the `downto` construct is used.

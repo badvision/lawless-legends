@@ -161,6 +161,18 @@ if (typeof Mythos === "undefined") {
                     this.setTooltip('Print text and leave cursor at end of last printed character');
                 }
             };
+            Blockly.Blocks['text_clear_window'] = {
+                init: function() {
+                    this.setHelpUrl('https://docs.google.com/document/d/1VXbiY4G533-cokjQevZFhwvqMMCL--17ziMAoFoeJ5M');
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Clear Window");
+                    this.setOutput(false);
+                    this.setTooltip('Clears text window and moves cursor to the top');
+                }
+            };
             Blockly.Blocks['text_scroll'] = {
                 init: function() {
                     this.setHelpUrl('https://docs.google.com/document/d/1VXbiY4G533-cokjQevZFhwvqMMCL--17ziMAoFoeJ5M');

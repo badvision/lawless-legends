@@ -54,6 +54,10 @@ const CHAIN_LOADER   = $1E
 const FATAL_ERROR    = $1F
 
 ;==================================================================================================
+; Predefined functions, for circular calls
+predef moveBackward
+
+;==================================================================================================
 ; Raycaster variables
 word zp = 0
 const playerDir = $5D

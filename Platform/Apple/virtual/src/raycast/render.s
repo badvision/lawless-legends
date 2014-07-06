@@ -11,6 +11,7 @@ start:
 ; code is at the very end. We jump to it now.
 	jmp initMap
 	jmp renderFrame
+	jmp getMapCell
 
 ; Conditional assembly flags
 DOUBLE_BUFFER	= 1		; whether to double-buffer
@@ -3224,26 +3225,6 @@ firstLink:	!fill NUM_COLS
 ; Active sprite restore addresses
 mapSpriteL	!fill MAX_SPRITES
 mapSpriteH	!fill MAX_SPRITES
-
-; Movement amounts when walking at each angle
-; Each entry consists of an X bump and a Y bump, in 8.8 fixed point
-walkDirs:
-	!word $0040, $0000
-	!word $003B, $0018
-	!word $002D, $002D
-	!word $0018, $003B
-	!word $0000, $0040
-	!word $FFE8, $003B
-	!word $FFD3, $002D
-	!word $FFC5, $0018
-	!word $FFC0, $0000
-	!word $FFC5, $FFE8
-	!word $FFD3, $FFD3
-	!word $FFE8, $FFC5
-	!word $0000, $FFC0
-	!word $0018, $FFC5
-	!word $002D, $FFD3
-	!word $003B, $FFE8
 
 ; Sin of each angle, in log8.8 format plus the high bit being the sign (0x8000 = negative)
 sinTbl	!word $0000, $8699, $877F, $87E1, $8800, $87E1, $877F, $8699

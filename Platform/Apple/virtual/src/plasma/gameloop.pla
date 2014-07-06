@@ -229,6 +229,23 @@ asm renderFrame
         rts
 end
 
+asm isBlocked
+        txa
+        pha
+        bit setROM
+        jsr $6006
+        tay
+        pla
+        tax
+        dex
+        tya
+        sta evalStkL,x
+        lda #0
+        sta evalStkH,x
+        bit setLcRW+lcBank2
+        rts
+end
+
 asm goMon
         bit setROM
         jmp $FF69
@@ -246,20 +263,42 @@ end
 def moveForward()
   *playerX = *playerX + walkDirs[^playerDir * 2]
   *playerY = *playerY + walkDirs[^playerDir * 2 + 1]
+  if isBlocked()
+    moveBackward()
+  fin
+end
+
+def adjustDir(n)
+  ^playerDir = (^playerDir + n) & $F
 end
 
 def moveBackward()
-  ^playerDir = (^playerDir + 8) & $F
+  adjustDir(8)
   moveForward()
-  ^playerDir = (^playerDir + 8) & $F
+  adjustDir(8)
+  if isBlocked()
+    moveForward()
+  fin
 end
 
 def rotateLeft()
-  ^playerDir = (^playerDir - 1) & $F
+  adjustDir(-1)
 end
 
 def rotateRight()
-  ^playerDir = (^playerDir + 1) & $F
+  adjustDir(1)
+end
+
+def strafeRight()
+  adjustDir(4)
+  moveForward()
+  adjustDir(-4)
+end
+
+def strafeLeft()
+  adjustDir(-4)
+  moveForward()
+  adjustDir(4)
 end
 
 def kbdLoop()
@@ -334,11 +373,17 @@ initCmd('W', @moveForward)
 initCmd('A', @rotateLeft)
 initCmd('D', @rotateRight)
 initCmd('S', @moveBackward)
+initCmd('X', @moveBackward)
+initCmd('Z', @strafeLeft)
+initCmd('C', @strafeRight)
 
 initCmd('I', @moveForward)
 initCmd('J', @rotateLeft)
 initCmd('L', @rotateRight)
 initCmd('K', @moveBackward)
+initCmd(',', @moveBackward)
+initCmd('M', @strafeLeft)
+initCmd('.', @strafeRight)
 
 ; Draw the first frame
 renderFrame()

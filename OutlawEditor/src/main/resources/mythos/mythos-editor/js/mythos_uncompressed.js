@@ -84,6 +84,18 @@ if (typeof Mythos === "undefined") {
                             .appendField("Coin toss");
                 }
             };
+            Blockly.Blocks['events_setmap'] = {
+                init: function() {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(false);
+                    this.appendValueInput("VALUE")
+                            .appendField("Set map");
+                    this.setOutput(false);
+                    this.setTooltip('Switch to a different map (by name)');
+                }
+            };
             Blockly.Blocks['text_window'] = {
                 init: function() {
                     this.setHelpUrl(Mythos.helpUrl);

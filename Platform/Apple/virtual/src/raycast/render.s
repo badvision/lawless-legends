@@ -35,6 +35,7 @@ MAX_SPRITES	= 64		; max # sprites visible at once
 NUM_COLS	= 63
 SPRITE_DIST_LIMIT = 8
 SPRITE_CT_LIMIT = 4
+MAX_NAME_LEN = 14
 
 ; Starting position and dir. Eventually this will come from the map
 PLAYER_START_X = $280		; 1.5
@@ -51,8 +52,6 @@ W_LOG_65536	= $1000
 W_LOG_VIEW_DIST = $0E3F
 
 ; Variables
-backBuf:   	!byte 0		; (value 0 or 1)
-frontBuf:  	!byte 0		; (value 0 or 1)
 mapHeader: 	!word 0		; map with header first
 mapBase:   	!word 0		; first byte after the header
 mapRayOrigin:	!word 0
@@ -1610,7 +1609,18 @@ loadTextures: !zone
 	inc mapNameLen
 	cmp #0
 	bne .skip	; until end-of-string is reached (zero byte)
-	lda #0		; now comes the list of textures.
+	lda mapNameLen		; clamp length of map name
+	cmp #MAX_NAME_LEN
+	bcc +
+	lda mapName
+	sta .trunc+1
+	lda mapName+1
+	sta .trunc+2
+	ldx #MAX_NAME_LEN
+	lda #0
+.trunc	sta mapName,x
+	stx mapNameLen
++	lda #0		; now comes the list of textures.
 	sta txNum
 .lup:	jsr .get	; get texture resource number
 	tay		; to Y for mem manager
@@ -1640,11 +1650,16 @@ loadTextures: !zone
 	lda #FINISH_LOAD
 	ldx #0
 	jmp mainLoader
-.get: lda $1111
+.get:	lda $1111
 	inc .get+1
 	bne +
 	inc .get+2
 +	rts
+.set	lda .get+2
+	sta .set2+2
+	ldy .get+1
+.set2	sta $1100,y
+	rts
 
 ;-------------------------------------------------------------------------------
 ; Set up front and back buffers, go to hires mode, and clear for first blit.

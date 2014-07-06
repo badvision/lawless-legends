@@ -63,6 +63,8 @@ word zp = 0
 const playerDir = $5D
 const playerX   = $5E
 const playerY   = $60
+const backBuf   = $6A
+const frontBuf  = $6B
 
 ;==================================================================================================
 ; Strings.
@@ -256,6 +258,57 @@ asm goMon
 end
 
 ;==================================================================================================
+; General methods
+
+def initMap()
+
+  ; Reset memory (our module will stay since memory manager locked it upon load)
+  loader(RESET_MEMORY, MAIN_MEM, 0)
+
+  ; Load the font engine
+  loader(SET_MEM_TARGET, MAIN_MEM, fontEngine)
+  loader(QUEUE_LOAD,     MAIN_MEM, RES_NUM_FONT_ENGINE<<8 | RES_TYPE_CODE)
+
+  ; Load the raycaster
+  loader(SET_MEM_TARGET, MAIN_MEM, raycaster)
+  loader(QUEUE_LOAD,     MAIN_MEM, RES_NUM_RAYCASTER<<8 | RES_TYPE_CODE)
+
+  ; Load the texture expansion code
+  loader(SET_MEM_TARGET, AUX_MEM, expandVec)
+  loader(QUEUE_LOAD,     AUX_MEM, RES_NUM_EXPAND_VEC<<8 | RES_TYPE_CODE)
+
+  ; Load the frame image (and lock it there)
+  loader(SET_MEM_TARGET, MAIN_MEM, $2000)
+  loader(QUEUE_LOAD,     MAIN_MEM, 1<<8 | RES_TYPE_SCREEN)
+  loader(LOCK_MEMORY,    MAIN_MEM, $2000)
+
+  ; Load the font for the font engine
+  pFont = loader(QUEUE_LOAD, MAIN_MEM, 1<<8 | RES_TYPE_FONT)
+
+  ; Load the map
+  pMap = loader(QUEUE_LOAD, MAIN_MEM, mapNum<<8 | RES_TYPE_3D_MAP)
+
+  ; Load everything that we just queued
+  loader(FINISH_LOAD, MAIN_MEM, 1) ; 1 = keep open
+
+  ; Start up the font engine
+  puts(@initFontStr)
+  initFontEngine(pFont)
+
+  ; Start up the raycaster
+  puts(@initRaycastStr)
+  initRaycaster(pMap)
+
+  ; Set initial player position
+  ^playerDir = 1
+  *playerX = $280
+  *playerY = $380
+
+  ; Draw the first frame
+  renderFrame()
+end
+
+;==================================================================================================
 ; Actions
 def initCmd(key, func)
   if key >= $60
@@ -305,6 +358,21 @@ def strafeLeft()
   adjustDir(4)
 end
 
+def flipToFirstPage
+  if ^frontBuf == 1
+    renderFrame()
+  fin
+end
+
+def nextMap()
+  flipToFirstPage()
+  mapNum = mapNum + 1
+  if mapNum > 5
+    mapNum = 1
+  fin
+  initMap()
+end
+
 def kbdLoop()
   word key, func
   while TRUE
@@ -327,50 +395,9 @@ def kbdLoop()
 end
 
 ;==================================================================================================
-; Main loop.
+; Main code.
 ;
 puts(@helloStr)
-
-; Reset memory (our module will stay since memory manager locked it upon load)
-loader(RESET_MEMORY, MAIN_MEM, 0)
-
-; Load the font engine
-loader(SET_MEM_TARGET, MAIN_MEM, fontEngine)
-loader(QUEUE_LOAD,     MAIN_MEM, RES_NUM_FONT_ENGINE<<8 | RES_TYPE_CODE)
-
-; Load the raycaster
-loader(SET_MEM_TARGET, MAIN_MEM, raycaster)
-loader(QUEUE_LOAD,     MAIN_MEM, RES_NUM_RAYCASTER<<8 | RES_TYPE_CODE)
-
-; Load the texture expansion code
-loader(SET_MEM_TARGET, AUX_MEM, expandVec)
-loader(QUEUE_LOAD,     AUX_MEM, RES_NUM_EXPAND_VEC<<8 | RES_TYPE_CODE)
-
-; Load the frame image
-loader(SET_MEM_TARGET, MAIN_MEM, $2000)
-loader(QUEUE_LOAD,     MAIN_MEM, 1<<8 | RES_TYPE_SCREEN)
-
-; Load the font for the font engine
-pFont = loader(QUEUE_LOAD, MAIN_MEM, 1<<8 | RES_TYPE_FONT)
-
-; Load the map
-pMap = loader(QUEUE_LOAD, MAIN_MEM, mapNum<<8 | RES_TYPE_3D_MAP)
-
-; Load everything that we just queued
-loader(FINISH_LOAD, MAIN_MEM, 1) ; 1 = keep open
-
-; Start up the font engine
-puts(@initFontStr)
-initFontEngine(pFont)
-
-; Start up the raycaster
-puts(@initRaycastStr)
-initRaycaster(pMap)
-
-; Set initial player position
-^playerDir = 1
-*playerX = $280
-*playerY = $380
 
 ; Init the command table
 initCmd('W', @moveForward)
@@ -389,8 +416,9 @@ initCmd(',', @moveBackward)
 initCmd('M', @strafeLeft)
 initCmd('.', @strafeRight)
 
-; Draw the first frame
-renderFrame()
+initCmd('N', @nextMap)
+
+initMap()
 
 ; Main keyboard loop
 puts(@loopStr)

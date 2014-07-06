@@ -448,6 +448,10 @@ init: !zone
 	iny			; twice for 2 pages: initial pointer at top of new space
 	iny
 	sty framePtr+1
+	dey
+	dey
+	lda #LOCK_MEMORY	; lock it in place forever
+	jsr mainLoader
 ; Load PLASMA module #1
 	ldx #0
 	lda #START_LOAD
@@ -862,7 +866,7 @@ shared_queueLoad:
 	beq .noChkTarg		; if not, skip target check
 	cpx targetAddr		; verify addr lo
 	bne .redo
-	cpy targetAddr		; verify addr hi
+	cpy targetAddr+1	; verify addr hi
 	bne .redo
 .noChkTarg:
 	lda #0

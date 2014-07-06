@@ -233,7 +233,7 @@ if (typeof Mythos === "undefined") {
                     this.setColour(54);
                     this.appendDummyInput()
                             .appendField("Get Yes or No");
-                    this.setOutput(true, "boolean");
+                    this.setOutput(true, "Boolean");
                     this.setTooltip('');
                 }
             };

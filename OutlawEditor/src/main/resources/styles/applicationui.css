@@ -7,19 +7,25 @@
 }
 
 .moveButton {
-   -fx-graphic: url("../images/arrowUp.png");
+    -fx-graphic: url("../images/arrowUp.png");
 }
 
 .zoomOutButton {
-   -fx-graphic: url("../images/zoomOut.png");
+    -fx-graphic: url("../images/zoomOut.png");
 }
 
 .zoomInButton {
-   -fx-graphic: url("../images/zoomIn.png");
+    -fx-graphic: url("../images/zoomIn.png");
 }
 
 .moveButton, .zoomInButton, .zoomOutButton{
-   -fx-background-color: rgba(0,0,0,0);
-   -fx-content-display: graphic-only;
-   -fx-effect: dropshadow(gaussian, navy, 10, 0.5, 0, 0);
+    -fx-background-color: rgba(0,0,0,0);
+    -fx-content-display: graphic-only;
+    -fx-effect: dropshadow(gaussian, navy, 10, 0.5, 0, 0);
+}
+
+.eraseButton {
+    -fx-graphic: url("../images/eraser-icon.png");
+    -fx-content-display: graphic-only;
+    -fx-background-color: rgba(0,0,0,0);
 }

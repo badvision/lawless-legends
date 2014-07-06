@@ -29,6 +29,7 @@ import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.xml.Map;
 import org.badvision.outlaweditor.data.xml.Script;
 import org.badvision.outlaweditor.data.xml.Tile;
+import org.badvision.outlaweditor.ui.ToolType;
 
 /**
  *
@@ -118,8 +119,14 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     public void assignScript(Script script, double x, double y) {
         int xx = (int) (x / tileWidth);
         int yy = (int) (y / tileHeight);
-        System.out.println("Dropped " + script.getName() + " at " + xx + "," + yy);
         getCurrentMap().putLocationScript(xx, yy, script);
+        redraw();
+    }
+
+    public void unassignScripts(double x, double y) {
+        int xx = (int) (x / tileWidth);
+        int yy = (int) (y / tileHeight);
+        getCurrentMap().removeLocationScripts(xx, yy);
         redraw();
     }
 
@@ -238,8 +245,8 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         }
     }
 
-    private static final int dashLength=3;
-    
+    private static final int dashLength = 3;
+
     private void highlightScripts(int x, int y, List<Script> scripts) {
         if (scripts == null || scripts.isEmpty()) {
             return;
@@ -249,41 +256,41 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         double xx = x * tileWidth;
         double yy = y * tileHeight;
         gc.setLineWidth(4);
-        for (int i = 0; i < tileWidth-2; i += dashLength) {
+        for (int i = 0; i < tileWidth - 2; i += dashLength) {
             idx = (idx + 1) % scripts.size();
             gc.beginPath();
-            gc.moveTo(xx,yy);
-            gc.setStroke(currentMap.getScriptColor(scripts.get(idx)));
+            gc.moveTo(xx, yy);
+            currentMap.getScriptColor(scripts.get(idx)).ifPresent(gc::setStroke);
             xx += dashLength;
             gc.lineTo(xx, yy);
             gc.setEffect(new DropShadow(2, Color.BLACK));
             gc.stroke();
         }
-        for (int i = 0; i < tileHeight-2; i += dashLength) {
+        for (int i = 0; i < tileHeight - 2; i += dashLength) {
             idx = (idx + 1) % scripts.size();
             gc.beginPath();
-            gc.moveTo(xx,yy);
-            gc.setStroke(currentMap.getScriptColor(scripts.get(idx)));
+            gc.moveTo(xx, yy);
+            currentMap.getScriptColor(scripts.get(idx)).ifPresent(gc::setStroke);
             yy += dashLength;
             gc.lineTo(xx, yy);
             gc.setEffect(new DropShadow(2, Color.BLACK));
             gc.stroke();
         }
-        for (int i = 0; i < tileWidth-2; i += dashLength) {
+        for (int i = 0; i < tileWidth - 2; i += dashLength) {
             idx = (idx + 1) % scripts.size();
             gc.beginPath();
-            gc.moveTo(xx,yy);
-            gc.setStroke(currentMap.getScriptColor(scripts.get(idx)));
+            gc.moveTo(xx, yy);
+            currentMap.getScriptColor(scripts.get(idx)).ifPresent(gc::setStroke);
             xx -= dashLength;
             gc.lineTo(xx, yy);
             gc.setEffect(new DropShadow(2, Color.BLACK));
             gc.stroke();
         }
-        for (int i = 0; i < tileHeight-2; i += dashLength) {
+        for (int i = 0; i < tileHeight - 2; i += dashLength) {
             idx = (idx + 1) % scripts.size();
             gc.beginPath();
-            gc.moveTo(xx,yy);
-            gc.setStroke(currentMap.getScriptColor(scripts.get(idx)));
+            gc.moveTo(xx, yy);
+            currentMap.getScriptColor(scripts.get(idx)).ifPresent(gc::setStroke);
             yy -= dashLength;
             gc.lineTo(xx, yy);
             gc.setEffect(new DropShadow(2, Color.BLACK));
@@ -291,9 +298,12 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         }
     }
 
-    public void setupDragDrop(TransferHelper<Script> scriptHelper) {
+    public void setupDragDrop(TransferHelper<Script> scriptHelper, TransferHelper<ToolType> toolHelper) {
         scriptHelper.registerDropSupport(drawCanvas, (Script script, double x, double y) -> {
             assignScript(script, x, y);
+        });
+        toolHelper.registerDropSupport(drawCanvas, (ToolType tool, double x, double y) -> {
+            unassignScripts(x, y);
         });
 
     }

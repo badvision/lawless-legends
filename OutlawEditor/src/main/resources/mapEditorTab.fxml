@@ -59,7 +59,7 @@
                                     <items>
                                         <Button mnemonicParsing="false" onAction="#onMapScriptAddPressed" text="+" />
                                         <Button mnemonicParsing="false" onAction="#onMapScriptDeletePressed" text="-" />
-                                        <Button mnemonicParsing="false" onAction="#onMapScriptClonePressed" text="Clone" />
+                                        <Button mnemonicParsing="false" onAction="#onMapScriptClonePressed" text="Clone" /><Button fx:id="scriptEraseTool" mnemonicParsing="false" prefHeight="34.0" prefWidth="29.0" styleClass="eraseButton" text="E" />
                                     </items>
                                 </ToolBar><TextArea fx:id="scriptInfo" editable="false" layoutY="340.0" prefHeight="100.0" prefWidth="200.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" />
                             </children>

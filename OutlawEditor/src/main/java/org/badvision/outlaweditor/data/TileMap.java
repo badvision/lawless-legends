@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
@@ -45,11 +46,11 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
     public static double HUE = 180;
     private final java.util.Map<Integer, List<Script>> locationScripts = new HashMap<>();
     private final java.util.Map<Script, Color> scriptColors = new HashMap<>();
-    
-    public Color getScriptColor(Script s) {
-        return scriptColors.get(s);
+
+    public Optional<Color> getScriptColor(Script s) {
+        return Optional.ofNullable(scriptColors.get(s));
     }
-    
+
     public List<Script> getLocationScripts(int x, int y) {
         List<Script> list = locationScripts.get(getMortonNumber(x, y));
         if (list != null) {
@@ -67,6 +68,20 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
         registerLocationScript(x, y, s);
     }
 
+    public void removeLocationScripts(int x, int y) {
+        int loc = getMortonNumber(x, y);
+        List<Script> scripts = locationScripts.get(loc);
+        if (scripts != null) {
+            scripts.forEach(s -> {
+                s.getLocationTrigger().removeIf(t -> {
+                    return t.getX() == x && t.getY() == y;
+                });
+            });
+        }
+        locationScripts.remove(loc);
+        Application.getInstance().getController().redrawScripts();
+    }
+
     private void registerLocationScript(int x, int y, Script s) {
         if (!scriptColors.containsKey(s)) {
             scriptColors.put(s, Color.hsb(HUE, SATURATION, VALUE));
@@ -79,6 +94,7 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
             locationScripts.put(loc, list);
         }
         list.add(s);
+        Application.getInstance().getController().redrawScripts();
     }
 
     private int getMortonNumber(int x, int y) {
@@ -157,7 +173,7 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
                     )
             );
         }
-        m.getChunk().forEach( c-> {
+        m.getChunk().forEach(c -> {
             int y = c.getY();
             for (JAXBElement<List<String>> row : c.getRow()) {
                 int x = c.getX();

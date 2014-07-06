@@ -2,6 +2,7 @@ package org.badvision.outlaweditor.ui;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ListView;
@@ -52,7 +53,9 @@ public abstract class MapEditorTabController {
     protected TextField mapWidthField; // Value injected by FXMLLoader
     @FXML // fx:id="mapWrapAround"
     protected CheckBox mapWrapAround; // Value injected by FXMLLoader
-
+    @FXML
+    protected Button scriptEraseTool;
+    
     @FXML
     abstract public void mapDraw1(ActionEvent event);
 

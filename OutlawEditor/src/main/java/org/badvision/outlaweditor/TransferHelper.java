@@ -3,7 +3,7 @@ package org.badvision.outlaweditor;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
-import javafx.event.EventHandler;
+import javafx.scene.ImageCursor;
 import javafx.scene.Node;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.DataFormat;
@@ -11,6 +11,7 @@ import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.TransferMode;
+import org.badvision.outlaweditor.ui.ToolType;
 
 /**
  * Simplify management of drag/drop operations
@@ -27,6 +28,7 @@ public class TransferHelper<T> {
     static Map<String, DataFormat> dataFormats = new HashMap<>();
 
     public interface DropEventHandler<T> {
+
         public void handle(T object, double x, double y);
     }
 
@@ -50,35 +52,50 @@ public class TransferHelper<T> {
         source.setOnDragDetected((MouseEvent event) -> {
             registry.put(id, object);
             Dragboard db = source.startDragAndDrop(TransferMode.LINK);
+            if (type.isAssignableFrom(ToolType.class)) {
+                ToolType tool = (ToolType) object;
+                tool.getIcon().ifPresent(db::setDragView);
+            }
             ClipboardContent content = new ClipboardContent();
             content.put(format, id);
             db.setContent(content);
             event.consume();
+            dropSupportRegisterHandler.run();
         });
         source.setOnDragDone((DragEvent event) -> {
             registry.remove(id);
+            dropSupportRegisterHandler.run();
         });
     }
 
+    Runnable dropSupportRegisterHandler;
+    Runnable dropSupportUnregisterHandler;
+
     public void registerDropSupport(final Node target, final DropEventHandler<T> handler) {
-        target.setOnDragOver((DragEvent event) -> {
-            Dragboard db = event.getDragboard();
-            if (db.getContentTypes().contains(format)) {
-                event.acceptTransferModes(TransferMode.LINK);
-            }
-            event.consume();
-        });
-        target.setOnDragDropped((DragEvent event) -> {
-            Dragboard db = event.getDragboard();
-            if (db.getContentTypes().contains(format)) {
-                event.setDropCompleted(true);
-                String id = (String) db.getContent(format);
-                T object = (T) registry.get(id);
-                handler.handle(object, event.getX(), event.getY());
-            } else {
-                event.setDropCompleted(false);
-            }
-            event.consume();
-        });
+        dropSupportUnregisterHandler = () -> {
+            target.setOnDragOver(null);
+            target.setOnDragDropped(null);
+        };
+        dropSupportRegisterHandler = () -> {
+            target.setOnDragOver((DragEvent event) -> {
+                Dragboard db = event.getDragboard();
+                if (db.getContentTypes().contains(format)) {
+                    event.acceptTransferModes(TransferMode.LINK);
+                }
+                event.consume();
+            });
+            target.setOnDragDropped((DragEvent event) -> {
+                Dragboard db = event.getDragboard();
+                if (db.getContentTypes().contains(format)) {
+                    event.setDropCompleted(true);
+                    String id = (String) db.getContent(format);
+                    T object = (T) registry.get(id);
+                    handler.handle(object, event.getX(), event.getY());
+                } else {
+                    event.setDropCompleted(false);
+                }
+                event.consume();
+            });
+        };
     }
 }

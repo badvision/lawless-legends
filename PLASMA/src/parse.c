@@ -288,108 +288,25 @@ int parse_value(int rvalue)
      */
     while (scan() == OPEN_PAREN_TOKEN
      || scantoken == OPEN_BRACKET_TOKEN
+     || scantoken == PTRB_TOKEN
+     || scantoken == PTRW_TOKEN
      || scantoken == DOT_TOKEN
      || scantoken == COLON_TOKEN)
     {
-        if (scantoken == OPEN_BRACKET_TOKEN)
+        switch (scantoken)
         {
-            /*
-             * Array
-             */
-            if (!emit_value)
-            {
-                if (type & ADDR_TYPE)
-                {
-                    if (type & LOCAL_TYPE)
-                        emit_localaddr(value);
-                    else
-                        emit_globaladdr(value, 0, type);
-                                }
-                else if (type & CONST_TYPE)
-                {
-                    emit_const(value);
-                }
-                emit_value = 1;
-            }
-            if (type & PTR_TYPE)
-                emit_lw();
-            if (!parse_expr())
-            {
-                parse_error("Bad expression");
-                return (0);
-            }
-            if (scantoken != CLOSE_BRACKET_TOKEN)
-            {
-                parse_error("Missing closing bracket");
-                return (0);
-            }
-            if (type & WORD_TYPE)
-            {
-                //type |= WPTR_TYPE;
-                type = WPTR_TYPE;
-                emit_indexword();
-            }
-            else
-            {
-                //type |= BPTR_TYPE;
-                type = BPTR_TYPE;
-                emit_indexbyte();
-            }
-            //type &= ~(ADDR_TYPE | CONST_TYPE);
-        }
-        else if (scantoken == DOT_TOKEN || scantoken == COLON_TOKEN)
-        {
-            /*
-             * Structure member offset or array of arrays
-             */
-            elem_type = (scantoken == DOT_TOKEN) ? BPTR_TYPE : WPTR_TYPE;
-            if (parse_constval(&elem_offset, &elem_size))
-            {
+            case OPEN_BRACKET_TOKEN:
                 /*
-                 * Constant member offset
-                 */
-                if (!emit_value)
-                {
-                    if (type & VAR_TYPE)
-                    {
-                        elem_type = (type & ~VAR_TYPE) | (elem_type == BPTR_TYPE ? BYTE_TYPE : WORD_TYPE);
-                    }
-                    else if (type & CONST_TYPE)
-                    {
-                        value += elem_offset;
-                        emit_const(value);
-                        elem_offset = 0;
-                        emit_value  = 1;
-                    }
-                    else // FUNC_TYPE
-                    {
-                        emit_globaladdr(value, elem_offset, type);
-                        emit_value = 1;
-                    }
-                }
-                else
-                {
-                    if (elem_offset != 0)
-                    {
-                        emit_const(elem_offset);
-                        emit_op(ADD_TOKEN);
-                        elem_offset = 0;
-                    }
-                }
-            }
-            else if (scantoken == OPEN_BRACKET_TOKEN)
-            {
-                /*
-                 * Array of arrays
+                 * Array
                  */
                 if (!emit_value)
                 {
                     if (type & ADDR_TYPE)
                     {
                         if (type & LOCAL_TYPE)
-                            emit_localaddr(value + elem_offset);
+                            emit_localaddr(value);
                         else
-                            emit_globaladdr(value, elem_offset, type);
+                            emit_globaladdr(value, 0, type);
                     }
                     else if (type & CONST_TYPE)
                     {
@@ -397,75 +314,181 @@ int parse_value(int rvalue)
                     }
                     emit_value = 1;
                 }
-                while (parse_expr())
-                {
-                    if (scantoken != COMMA_TOKEN)
-                        break;
-                    emit_indexword();
+                if (type & PTR_TYPE)
                     emit_lw();
+                if (!parse_expr())
+                {
+                    parse_error("Bad expression");
+                    return (0);
                 }
                 if (scantoken != CLOSE_BRACKET_TOKEN)
                 {
                     parse_error("Missing closing bracket");
                     return (0);
                 }
-                if (elem_type & WPTR_TYPE)
-                    emit_indexword();
-                else
-                    emit_indexbyte();
-            }
-            else
-            {
-                parse_error("Invalid member offset");
-                return (0);
-            }
-            type = elem_type; //(type & ~(ADDR_TYPE | CONST_TYPE)) | elem_type;
-        }
-        else if (scantoken == OPEN_PAREN_TOKEN)
-        {
-            /*
-             * Function call
-             */
-            if (emit_value && !(type & (FUNC_TYPE | CONST_TYPE)))
-            {
-                if (scan_lookahead() != CLOSE_PAREN_TOKEN)
-                    emit_push();
-            }
-            cparams = 0;
-            while (parse_expr())
-            {
-                cparams++;
-                if (scantoken != COMMA_TOKEN)
-                    break;
-            }
-            if (scantoken != CLOSE_PAREN_TOKEN)
-            {
-                parse_error("Missing closing parenthesis");
-                return (0);
-            }
-            if (type & (FUNC_TYPE | CONST_TYPE))
-                emit_call(value, type);
-            else
-            {
-                if (!emit_value)
+                if (type & WORD_TYPE)
                 {
-                    if (type & VAR_TYPE)
-                    {
-                        if (type & LOCAL_TYPE)
-                            emit_llw(value + elem_offset);
-                        else
-                            emit_law(value, elem_offset, type);
-                    }
-                    else if (type & PTR_TYPE)
-                        emit_lw();
+                    //type |= WPTR_TYPE;
+                    type = WPTR_TYPE;
+                    emit_indexword();
                 }
                 else
-                    if (cparams)
-                        emit_pull();
-                emit_ical();
-            }
-            emit_value = 1;
-            type = WORD_TYPE; //(type & ~(FUNC_TYPE | CONST_TYPE)) | WORD_TYPE;
+                {
+                    //type |= BPTR_TYPE;
+                    type = BPTR_TYPE;
+                    emit_indexbyte();
+                }
+                //type &= ~(ADDR_TYPE | CONST_TYPE);
+                break;
+            case PTRB_TOKEN:
+            case PTRW_TOKEN:
+                if (!emit_value)
+                {
+                    if (type & FUNC_TYPE)
+                        emit_call(value, type);
+                    else if (type & VAR_TYPE)
+                    {
+                        if (type & LOCAL_TYPE)
+                            (type & BYTE_TYPE) ? emit_llb(value + elem_offset) : emit_llw(value + elem_offset);
+                        else
+                            (type & BYTE_TYPE) ? emit_lab(value, elem_offset, type) : emit_law(value, elem_offset, type);
+                    }
+                    else
+                        (type & BPTR_TYPE) ? emit_lb() : emit_lw();
+                }
+                emit_value = 1;
+                type &= ~(VAR_TYPE | ADDR_TYPE);
+                    type |= WORD_TYPE;
+                scantoken = scantoken == PTRB_TOKEN ? DOT_TOKEN : COLON_TOKEN;
+            case DOT_TOKEN:
+            case COLON_TOKEN:
+                /*
+                 * Structure member offset or array of arrays
+                 */
+                elem_type = (scantoken == DOT_TOKEN) ? BPTR_TYPE : WPTR_TYPE;
+                if (parse_constval(&elem_offset, &elem_size))
+                {
+                    /*
+                     * Constant member offset
+                     */
+                    if (!emit_value)
+                    {
+                        if (type & VAR_TYPE)
+                        {
+                            elem_type = (type & ~VAR_TYPE) | (elem_type == BPTR_TYPE ? BYTE_TYPE : WORD_TYPE);
+                        }
+                        else if (type & CONST_TYPE)
+                        {
+                            value += elem_offset;
+                            emit_const(value);
+                            elem_offset = 0;
+                            emit_value  = 1;
+                        }
+                        else // FUNC_TYPE
+                        {
+                            emit_globaladdr(value, elem_offset, type);
+                            emit_value = 1;
+                        }
+                    }
+                    else
+                    {
+                        if (elem_offset != 0)
+                        {
+                            emit_const(elem_offset);
+                            emit_op(ADD_TOKEN);
+                            elem_offset = 0;
+                        }
+                    }
+                } 
+                else if (scantoken == OPEN_BRACKET_TOKEN)
+                {
+                    /*
+                     * Array of arrays
+                     */
+                    if (!emit_value)
+                    {
+                        if (type & ADDR_TYPE)
+                        {
+                            if (type & LOCAL_TYPE)
+                                emit_localaddr(value + elem_offset);
+                            else
+                                emit_globaladdr(value, elem_offset, type);
+                        }
+                        else if (type & CONST_TYPE)
+                        {
+                            emit_const(value);
+                        }
+                        emit_value = 1;
+                    }
+                    while (parse_expr())
+                    {
+                        if (scantoken != COMMA_TOKEN)
+                            break;
+                        emit_indexword();
+                        emit_lw();
+                    }
+                    if (scantoken != CLOSE_BRACKET_TOKEN)
+                    {
+                        parse_error("Missing closing bracket");
+                        return (0);
+                    }
+                    if (elem_type & WPTR_TYPE)
+                        emit_indexword();
+                    else
+                        emit_indexbyte();
+                }
+                else
+                {
+                    parse_error("Invalid member offset");
+                    return (0);
+                }
+                type = elem_type; //(type & ~(ADDR_TYPE | CONST_TYPE)) | elem_type;
+                break;
+            case OPEN_PAREN_TOKEN:
+                /*
+                 * Function call
+                 */
+                if (emit_value && !(type & (FUNC_TYPE | CONST_TYPE)))
+                {
+                    if (scan_lookahead() != CLOSE_PAREN_TOKEN)
+                        emit_push();
+                }
+                cparams = 0;
+                while (parse_expr())
+                {
+                    cparams++;
+                    if (scantoken != COMMA_TOKEN)
+                        break;
+                }
+                if (scantoken != CLOSE_PAREN_TOKEN)
+                {
+                    parse_error("Missing closing parenthesis");
+                    return (0);
+                }
+                if (type & (FUNC_TYPE | CONST_TYPE))
+                    emit_call(value, type);
+                else
+                {
+                    if (!emit_value)
+                    {
+                        if (type & VAR_TYPE)
+                        {
+                            if (type & LOCAL_TYPE)
+                                emit_llw(value + elem_offset);
+                            else
+                                emit_law(value, elem_offset, type);
+                        }
+                        else if (type & PTR_TYPE)
+                            emit_lw();
+                    }
+                    else
+                        if (cparams)
+                            emit_pull();
+                    emit_ical();
+                }
+                emit_value = 1;
+                type = WORD_TYPE; //(type & ~(FUNC_TYPE | CONST_TYPE)) | WORD_TYPE;
+                break;
         }
     }
     if (emit_value)
@@ -611,15 +634,15 @@ int parse_expr()
 }
 int parse_stmnt(void)
 {
-    int tag_prevbrk, tag_else, tag_endif, tag_while, tag_wend, tag_repeat, tag_for, tag_choice, type, addr, step;
+    int tag_prevbrk, tag_else, tag_endif, tag_while, tag_wend, tag_repeat, tag_for, tag_choice, tag_of;
+    int type, addr, step;
     char *idptr;
 
     /*
-     * Optimization for last function LEAVE
+     * Optimization for last function LEAVE and OF clause.
      */
-    if (scantoken != END_TOKEN && scantoken != DONE_TOKEN)
+    if (scantoken != END_TOKEN && scantoken != DONE_TOKEN && scantoken != OF_TOKEN && scantoken != DEFAULT_TOKEN)
         prevstmnt = scantoken;
-    
     switch (scantoken)
     {
         case IF_TOKEN:
@@ -779,6 +802,7 @@ int parse_stmnt(void)
             tag_prevbrk = break_tag;
             break_tag   = tag_new(BRANCH_TYPE);
             tag_choice  = tag_new(BRANCH_TYPE);
+            tag_of      = tag_new(BRANCH_TYPE);
             if (!parse_expr())
             {
                 parse_error("Bad CASE expression");
@@ -795,13 +819,18 @@ int parse_stmnt(void)
                         return (0);
                     }
                     emit_brne(tag_choice);
+                    emit_codetag(tag_of);
                     while (parse_stmnt()) next_line();
-                    emit_brnch(break_tag);
+                    tag_of = tag_new(BRANCH_TYPE);
+                    if (prevstmnt != BREAK_TOKEN) // Fall through to next OF if no break
+                        emit_brnch(tag_of);
                     emit_codetag(tag_choice);
                     tag_choice = tag_new(BRANCH_TYPE);
                 }
                 else if (scantoken == DEFAULT_TOKEN)
                 {
+                    emit_codetag(tag_of);
+                    tag_of = 0;
                     scan();
                     while (parse_stmnt()) next_line();
                     if (scantoken != ENDCASE_TOKEN)
@@ -816,6 +845,8 @@ int parse_stmnt(void)
                     return (0);
                 }
             }
+            if (tag_of)
+                emit_codetag(tag_of);
             emit_codetag(break_tag);
             emit_drop();
             break_tag = tag_prevbrk;

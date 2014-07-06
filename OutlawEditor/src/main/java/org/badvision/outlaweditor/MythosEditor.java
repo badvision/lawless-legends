@@ -107,6 +107,7 @@ public class MythosEditor {
                 JAXBElement<Block> root = new JAXBElement<>(qName, Block.class, script.getBlock());
                 context.createMarshaller().marshal(root, buffer);
                 String xml = buffer.toString();
+                xml = xml.replaceAll("'", "&apos;");
                 xml = xml.replace("?>", "?><xml>");
                 xml += "</xml>";
                 System.out.println("xml: " + xml);

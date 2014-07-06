@@ -4,97 +4,245 @@ const FALSE = 0
 const TRUE  = !FALSE
 
 ;==================================================================================================
+; Fixed memory locations
+const raycaster  = $6000   ; main mem
+const expandVec  = $800    ; aux mem
+const fontEngine = $BA00   ; main mem
+
+;==================================================================================================
+; Resource numbers
+const RES_NUM_RAYCASTER   = 1
+const RES_NUM_EXPAND_VEC  = 2
+const RES_NUM_FONT_ENGINE = 3
+
+;==================================================================================================
 ; Hardware addresses.
 const keyboard  = $C000
 const keystrobe = $C010
-const ptr = $6000
-const f1 = 0
-const f2 = 2
+
+;==================================================================================================
+; Memory manager definitions
+
+; Resource types
+const RES_TYPE_CODE     = 1
+const RES_TYPE_2D_MAP   = 2
+const RES_TYPE_3D_MAP   = 3
+const RES_TYPE_TILE     = 4
+const RES_TYPE_TEXTURE  = 5
+const RES_TYPE_SCREEN   = 6
+const RES_TYPE_FONT     = 7
+const RES_TYPE_MODULE   = 8
+const RES_TYPE_BYTECODE = 9
+const RES_TYPE_FIXUP    = 10
+
+; Memory banks
+const MAIN_MEM = 0
+const AUX_MEM  = 1
+
+; Command codes
+const RESET_MEMORY   = $10
+const REQUEST_MEMORY = $11
+const LOCK_MEMORY    = $12
+const UNLOCK_MEMORY  = $13
+const SET_MEM_TARGET = $14
+const START_LOAD     = $15
+const QUEUE_LOAD     = $16
+const FINISH_LOAD    = $17
+const FREE_MEMORY    = $18
+const CALC_FREE      = $19
+const CHAIN_LOADER   = $1E
+const FATAL_ERROR    = $1F
 
 ;==================================================================================================
 ; Strings.
-byte hellostr[] = "Hello, world.\n"
-byte str2[] = "Second.\n"
+byte helloStr[] = "Loading Lawless Legends.\n"
+byte initFontStr[] = "Initting font engine.\n"
+byte initRaycastStr[] = "Initting raycaster.\n"
+byte renderFrameStr[] = "Rendering frame.\n"
 
-predef func1, func2
-word myclass
-word table = @func1, @func2
+;==================================================================================================
+; Global variables
+word mapNum = 1
+word pFont
+word pMap
 
 ;==================================================================================================
 ; Definitions used by assembly code
 asm __defs
-; Zero-page
-TMPL    =       $6
-TMPH    =       $7
-ESTKL   =       $C0
-ESTKH   =       $D0
-; Memory bank manipulation
-LCRDEN  =       $C080
-LCWTEN  =       $C081
-ROMEN   =       $C082
-LCRWEN  =       $C083
-LCBNK2  =       $00
-LCBNK1  =       $08
-; ROM routines
-PRBYTE  =       $FDDA
-COUT    =       $FDED
+!source "../../include/global.i"
+!source "../../include/plasma.i"
+!source "../../include/mem.i"
+!source "../../include/fontEngine.i"
+tmp     = $2
+pTmp    = $4
 end
         
 ;==================================================================================================
 ; Print a string
 asm puts
-        TXA
-        PHA
-        LDA     ESTKL,X
-        STA     TMPL
-        LDA     ESTKH,X
-        STA     TMPH
-        LDY     #0
-        LDA     (TMPL),Y
-        TAX
-        INY
-        BIT     ROMEN
--       LDA     (TMPL),Y
-        ORA     #$80
-        JSR     COUT
-        INY
-        DEX
-        BNE     -
-        BIT     LCRDEN+LCBNK2
-        PLA
-        TAX
-        RTS
+        txa
+        pha
+        lda evalStkL,x
+        sta pTmp
+        lda evalStkH,x
+        sta pTmp+1
+        ldy #0
+        lda (pTmp),y
+        tax
+        iny
+        bit setROM
+-       lda (pTmp),y
+        ora #$80
+        jsr cout
+        iny
+        dex
+        bne -
+        bit setLcRW+lcBank2
+        pla
+        tax
+        rts
 end
 
 ;==================================================================================================
 ; Print a 16-bit hex value, followed by a space
 asm printHex
-        BIT     ROMEN
-        LDA     ESTKH,X
-        JSR     PRBYTE
-        LDA     ESTKL,X
-        JSR     PRBYTE
-        LDA     #$A0
-        JSR     COUT
-        BIT     LCRDEN+LCBNK2
-        RTS
+        bit setROM
+        lda evalStkH,x
+        jsr prbyte
+        lda evalStkL,x
+        jsr prbyte
+        lda #$A0
+        jsr cout
+        bit setLcRW+lcBank2
+        rts
+end
+
+;==================================================================================================
+; Allocate memory
+asm loader  ; (cmd, mainOrAux, amount)
+        txa
+        pha
+        bit setROM
+        lda evalStkL+2,x        ; command code
+        pha
+        lda evalStkL+1,x        ; main or aux
+        lsr
+        ldy evalStkH,x          ; address (or other param)
+        lda evalStkL,x
+        tax
+        pla
+        bcs +
+        jsr mainLoader
+        clc
+        bcc ++
++       jsr auxLoader
+++      stx tmp
+        pla
+        tax
+        inx      ; drop second parameter
+        lda tmp
+        sta evalStkL,x
+        tya
+        sta evalStkH,x
+        bit setLcRW+lcBank2
+        rts
+end
+
+asm initFontEngine
+        txa
+        pha
+        bit setROM
+        ldy evalStkL,x   ; font engine likes *lo* byte in Y
+        lda evalStkH,x   ; hi byte in X
+        tax
+        jsr setFONT
+        ; Set to write text on both hi-res pages at the same time
+        lda #pHGR3
+        jsr displayMODE
+        ; Set to normal (non-inverse) text
+        lda #pNORMAL
+        jsr drawMODE
+        pla
+        tax
+        bit setLcRW+lcBank2
+        rts
+end
+
+asm initRaycaster
+        txa
+        pha
+        bit setROM
+        lda evalStkL,x
+        ldy evalStkH,x
+        jsr $6000
+        pla
+        tax
+        bit setLcRW+lcBank2
+        rts
+end
+
+asm renderFrame
+        txa
+        pha
+        bit setROM
+        jsr $6003
+        pla
+        tax
+        bit setLcRW+lcBank2
+        rts
+end
+
+asm goMon
+        bit setROM
+        jmp $FF69
 end
 
 ;==================================================================================================
 ; Main loop.
 ;
-def func1()
-  printHex(1)
-end
-def func2()
-  printHex(2)
-end
+puts(@helloStr)
 
-myclass = @table
-table.f2()
-;(myclass).f2()
-((myclass):f2)()
-puts(@hellostr)
-func1(@hellostr)
+; Reset memory (our module will stay since memory manager locked it upon load)
+loader(RESET_MEMORY, MAIN_MEM, 0)
+
+; Load the font engine
+loader(SET_MEM_TARGET, MAIN_MEM, fontEngine)
+loader(QUEUE_LOAD,     MAIN_MEM, RES_NUM_FONT_ENGINE<<8 | RES_TYPE_CODE)
+
+; Load the raycaster
+loader(SET_MEM_TARGET, MAIN_MEM, raycaster)
+loader(QUEUE_LOAD,     MAIN_MEM, RES_NUM_RAYCASTER<<8 | RES_TYPE_CODE)
+
+; Load the texture expansion code
+loader(SET_MEM_TARGET, AUX_MEM, expandVec)
+loader(QUEUE_LOAD,     AUX_MEM, RES_NUM_EXPAND_VEC<<8 | RES_TYPE_CODE)
+
+; Load the frame image
+loader(SET_MEM_TARGET, MAIN_MEM, $2000)
+loader(QUEUE_LOAD,     MAIN_MEM, 1<<8 | RES_TYPE_SCREEN)
+
+; Load the font for the font engine
+pFont = loader(QUEUE_LOAD, MAIN_MEM, 1<<8 | RES_TYPE_FONT)
+
+; Load the map
+pMap = loader(QUEUE_LOAD, MAIN_MEM, mapNum<<8 | RES_TYPE_3D_MAP)
+
+; Load everything that we just queued
+loader(FINISH_LOAD, MAIN_MEM, 1) ; 1 = keep open
+
+; Start up the font engine
+puts(@initFontStr)
+initFontEngine(pFont)
+
+; Start up the raycaster
+puts(@initRaycastStr)
+initRaycaster(pMap)
+
+; And draw the frame
+puts(@renderFrameStr)
+renderFrame()
+
+; For now, just get out
+goMon()
 
 done

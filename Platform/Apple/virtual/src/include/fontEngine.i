@@ -38,7 +38,7 @@ cursv		=	cursh+1		; Cursor V-pos 0-23 => 0-191
 
 ;---------------------------
 
-fontEngine	=	$1B00
+fontEngine	=	$BA00
 printSTR	=	fontEngine
 printSSTR	=	printSTR+3
 printCSTR	=	printSSTR+3

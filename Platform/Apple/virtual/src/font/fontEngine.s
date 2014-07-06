@@ -4,7 +4,7 @@
 ; (c) 2013, Brutal Deluxe Software
 ;
 
-* 		= 	$1b00		; so it ends just before $2000 
+* 		= 	$BA00		; so it ends just before $BF00
 
 		!source	"equates.i"
 

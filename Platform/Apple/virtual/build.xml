@@ -7,6 +7,7 @@
   <property name="build.dir" value="./build"/>
   <property name="a2copy.dir" value="../tools/A2Copy/dist"/>
   <property name="pack.dir" value="../tools/PackPartitions/dist"/>
+  <property name="plasma.dir" location="../tools/PLASMA/src"/> 
   
   <property name="IMG_FILE" value="${build.dir}/${projName}.bin#${ORG_ADDR}"/>
   
@@ -49,7 +50,7 @@
     <delete failonerror="false" dir="${build.dir}/root"/>
     <mkdir dir="${build.dir}/root"/>
     <copy todir="${build.dir}/root">
-      <fileset dir="${src.dir}/plasma/build" includes="*.sys*"/>
+      <fileset dir="${plasma.dir}" includes="PLVM02.SYSTEM*"/>
       <fileset dir="${src.dir}/core/build" includes="*.sys*"/>
       <fileset dir="./build" includes="game.part*.bin"/>
     </copy>

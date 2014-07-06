@@ -89,20 +89,20 @@ expandVec	= $800
 ;---------------------------------
 
 ; Main-mem tables and buffers
-tableStart	= $A700
-decodeTo01	= $A700
-decodeTo01b	= $A800
-decodeTo23	= $A900
-decodeTo23b	= $AA00
-decodeTo45	= $AB00
-decodeTo56	= $AC00
-decodeTo57	= $AD00
-clrBlitRollE	= $AE00	; size 3*(128/2) = $C0, plus 2 for tya and rts
-clrBlitRollO	= $AEC2	; size 3*(128/2) = $C0, plus 2 for tya and rts
-texAddrLo	= $AF84
+tableStart	= $A200
+decodeTo01	= tableStart+$0000
+decodeTo01b	= tableStart+$0100
+decodeTo23	= tableStart+$0200
+decodeTo23b	= tableStart+$0300
+decodeTo45	= tableStart+$0400
+decodeTo56	= tableStart+$0500
+decodeTo57	= tableStart+$0600
+clrBlitRollE	= tableStart+$0700	; size 3*(128/2) = $C0, plus 2 for tya and rts
+clrBlitRollO	= tableStart+$07C2	; size 3*(128/2) = $C0, plus 2 for tya and rts
+texAddrLo	= tableStart+$0884
 texAddrHi	= texAddrLo + MAX_TEXTURES
-blitRoll	= $B000	; Unrolled blitting code. Size 29*128	= $E80, plus 1 for rts
-tableEnd	= $BE81
+blitRoll	= tableStart+$0900	; Unrolled blitting code. Size 29*128	= $E80, plus 1 for rts
+tableEnd	= tableStart+$01781
 
 ; mipmap level offsets
 MIP_OFFSET_0	= 0

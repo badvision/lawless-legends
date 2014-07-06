@@ -9,7 +9,8 @@ start:
 ; This code is written bottom-up. That is, simple routines first,
 ; then routines that call those to build complexity. The main
 ; code is at the very end. We jump to it now.
-	jmp main
+	jmp initMap
+	jmp renderFrame
 
 ; Conditional assembly flags
 DOUBLE_BUFFER	= 1		; whether to double-buffer
@@ -1550,111 +1551,6 @@ setBackBuf: !zone
 	rts
 
 ;-------------------------------------------------------------------------------
-initMem: !zone
-	!if DEBUG { +prStr : !text "Raycast: setting up memory.",0 }
-	lda #LOCK_MEMORY	; lock ourselves in before reset
-	ldx #<start
-	ldy #>start
-	jsr mainLoader
-	lda #RESET_MEMORY	; clear everything else
-	jsr mainLoader
-	; Reserve memory for our tables
-	lda #SET_MEM_TARGET
-	ldx #<tableStart
-	ldy #>tableStart
-	jsr mainLoader
-	lda #REQUEST_MEMORY
-	ldx #<(tableEnd-tableStart)
-	ldy #>(tableEnd-tableStart)
-	jsr mainLoader
-	; Reserve memory for the PLASMA frame stack
-	lda #REQUEST_MEMORY
-	ldx #0
-	ldy #>PLASMA_FRAME_SIZE
-	jsr mainLoader
-	stx plasmaFrames
-	sty plasmaFrames+1
-	; Load the font engine
-	!if DEBUG { +prStr : !text "Loading font engine.",0 }
-	lda #SET_MEM_TARGET
-	ldx #<fontEngine
-	ldy #>fontEngine
-	jsr mainLoader
-	lda #QUEUE_LOAD
-	ldx #RES_TYPE_CODE
-	ldy #3			; hard coded for now: code #3 is the font engine
-	jsr mainLoader
-	!if DEBUG { +prStr : !text "Loading expansion code.",0 }
-	; Load the texture expansion code into aux mem.
-	lda #SET_MEM_TARGET
-	ldx #<expandVec
-	ldy #>expandVec
-	jsr mainLoader
-	lda #QUEUE_LOAD		; we assume bootstrapper left the queue open
-	ldx #RES_TYPE_CODE
-	ldy #2			; hard coded for now: code #2 is texture expander
-	jsr auxLoader
-	!if DEBUG { +prStr : !text "Loading frame.",0 }
-	; Load the UI frame
-	lda #SET_MEM_TARGET
-	ldx #0
-	ldy #$20
-	jsr mainLoader
-	lda #QUEUE_LOAD
-	ldx #RES_TYPE_SCREEN
-	ldy #1
-	jsr mainLoader
-	; Load the game loop module
-	!if DEBUG { +prStr : !text "Loading game loop.",0 }
-	lda #QUEUE_LOAD
-	ldx #RES_TYPE_MODULE
-	ldy #1			; hard coded for now: module #1 is the game loop
-	jsr mainLoader
-	stx .callGameLoop+1
-	sty .callGameLoop+2
-	; Load the map into main mem
-	!if DEBUG { +prStr : !text "Loading map.",0 }
-	lda #QUEUE_LOAD
-	ldx #RES_TYPE_3D_MAP
-	ldy mapNum		; hard-coded for now
-	jsr mainLoader
-	stx mapHeader
-	sty mapHeader+1
-	; Load the font into main mem
-	lda #QUEUE_LOAD
-	ldx #RES_TYPE_FONT
-	ldy #1			; we have only one font, for now at least
-	jsr mainLoader
-	tya			; save location for when font engine has been loaded
-	pha
-	txa
-	pha
-	; Force the loads to complete now
-	lda #FINISH_LOAD
-	ldx #1	; keep queue open
-	jsr mainLoader
-
-	LDA	#$00		; INIT FRAME POINTER
-	STA	$E0
-	LDA	#$BF
-	STA	$E1
-        LDX	#$10		; INIT EVAL STACK INDEX
-.callGameLoop: 
-	jsr $1111		; self-modified with actual address
-	bit $c081
-	pla			; get back the font location
-	tay			; font engine likes *lo* byte in Y
-	pla
-	tax			; and hi byte in X
-	jsr setFONT
-	; Set to write text on both hi-res pages at the same time
-	lda #pHGR3
-	jsr displayMODE
-	; Set to normal (non-inverse) text
-	lda #pNORMAL
-	jmp drawMODE
-	
-;-------------------------------------------------------------------------------
 setExpansionCaller:
 	; Copy the expansion caller to low stack.
 	ldx #.callEnd - .callIt - 1
@@ -1905,7 +1801,7 @@ renderFrame: !zone
 	lda byteNum
 	cmp #18
 	bne .oneCol		; go back for another ray
-	rts
+	jmp flip		; flip it onto the screen
 
 ;-------------------------------------------------------------------------------
 ; Move the player forward a quarter step
@@ -2048,19 +1944,6 @@ readKbdColor: !zone
 	rts
 
 ;-------------------------------------------------------------------------------
-nextMap: !zone
-	ldx mapNum
-	inx
-	cpx #6
-	bne +
-	ldx #1
-+	stx mapNum
-	bit setText
-	bit page1
-	jmp main	; re-init everything
-
-
-;-------------------------------------------------------------------------------
 ; Set the window for the top (map name) bar
 set_window1: !zone
 	lda #1
@@ -2107,12 +1990,10 @@ set_window3: !zone
 	
 ;-------------------------------------------------------------------------------
 ; The real action
-main: !zone
-	; Put ourselves high on the stack
-	ldx #$FF
-	txs
-	; Set up memory
-	jsr initMem
+initMap: !zone
+	; Record the address of the map
+	sta mapHeader
+	sty mapHeader+1
 	jsr setPlayerPos
 	jsr loadTextures
 	jsr copyScreen
@@ -2143,26 +2024,6 @@ main: !zone
 	ldy mapName	; now display the name itself
 	ldx mapName+1
 	jsr printCSTR
-	; play text in the big window on the top right
-!if 0 {
-	jsr set_window2
-	jsr clearWINDOW
-	jsr printSCSTR
-	!raw "Loud music",13
-	!raw "brings your at-"
-	!raw "tention to the",13
-	!raw "northwest where"
-	!raw "patrons and",13
-	!raw "'entertainers' "
-	!raw "are enjoying",13
-	!raw "themselves at",13
-	!raw "the town's",13
-	!raw "saloon. One",13
-	!raw "sends you a",13
-	!raw "wink. Perhaps",13
-	!raw "it's your lucky"
-	!raw "day?",0
-}
 	; play characters in the little window on the bottom right
 	jsr set_window3
 	jsr clearWINDOW
@@ -2173,6 +2034,8 @@ main: !zone
 	!raw "Cliff H.  10/36"
 	!raw "Prospect  13/24"
 	!byte 0
+	rts
+
 	; Render the frame and flip it onto the screen
 .nextFrame:
 	jsr renderFrame
@@ -2218,9 +2081,6 @@ main: !zone
 	bne +
 	jsr setSkyColor
 	jmp .nextFrame
-+	cmp #'M'	; M to switch maps
-	bne +
-	jmp nextMap
 +	jsr bell	; beep for unrecognized key
 	jmp .pauseLup	; go back and get another one.
 .done:	; back to text mode

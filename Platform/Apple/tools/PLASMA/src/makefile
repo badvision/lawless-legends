@@ -2,7 +2,7 @@
 AFLAGS	= -o $@
 LFLAGS	= -C default.cfg
 PLVM    = plvm
-PLVM02	= PLASMA.SYSTEM\#FF2000
+PLVM02	= PLVM02.SYSTEM.sys#2000
 CMD     = CMD\#FF2000
 PLASM   = plasm
 INCS    = tokens.h symbols.h lex.h parse.h codegen.h

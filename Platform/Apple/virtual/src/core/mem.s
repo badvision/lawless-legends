@@ -12,6 +12,7 @@
 ; Global definitions
 !source "../include/global.i"
 !source "../include/mem.i"
+!source "../include/plasma.i"
 
 ; Constants
 MAX_SEGS	= 96
@@ -394,7 +395,7 @@ init: !zone
 ; 6: main $6000 -> 3, inactive
 ; 7: main $BF00 -> 0, active + locked
 ; First, the flags
-	lda #$C0	; flags for active + locked (with no resource)
+	lda #$C0		; flags for active + locked (with no resource)
 	sta tSegType+0
 	sta tSegType+1
 	sta tSegType+3
@@ -430,30 +431,40 @@ init: !zone
 	sta tSegAdrHi+6
 ; Finally, form a long list of the remaining unused segments.
 	ldx #8
-	stx unusedSeg	; that's the first unused seg
+	stx unusedSeg		; that's the first unused seg
 	ldy #9
 .loop:	tya
 	sta tSegLink,x
 	inx
 	iny
-	cpy #MAX_SEGS	; did all segments yet?
-	bne .loop	; no, loop again
-; Load code resource #1 at $6000
+	cpy #MAX_SEGS		; did all segments yet?
+	bne .loop		; no, loop again
+; Allocate space for the PLASMA frame stack
+	ldx #0
+	ldy #2			; 2 pages
+	lda #REQUEST_MEMORY
+	jsr mainLoader
+	stx framePtr
+	iny			; twice for 2 pages: initial pointer at top of new space
+	iny
+	sty framePtr+1
+; Load PLASMA module #1
 	ldx #0
 	lda #START_LOAD
 	jsr mainLoader
-	ldx #0
-	ldy #$60
-	lda #SET_MEM_TARGET
-	jsr mainLoader
-	ldx #RES_TYPE_CODE
+	ldx #RES_TYPE_MODULE
 	ldy #1
 	lda #QUEUE_LOAD
 	jsr mainLoader
-	ldx #1		; keep open for efficiency's sake
+	stx .gomod+1
+	sty .gomod+2
+	lda #LOCK_MEMORY	; lock it in forever
+	jsr mainLoader
+	ldx #1			; keep open for efficiency's sake
 	lda #FINISH_LOAD
 	jsr mainLoader
-	jmp $6000	; jump to the loaded code for futher bootstrapping
+	ldx #$10		; initial eval stack index
+.gomod:	jmp $1111		; jump to module for further bootstrapping
 
 ;------------------------------------------------------------------------------
 !if DEBUG {
@@ -711,6 +722,26 @@ invalAddr: !zone
 +	!text "Invalid addr", 0
 
 ;------------------------------------------------------------------------------
+; If the resource is a module, this will locate the corresponding bytecode
+; in aux mem. 
+; Returns the segment found in X, or 0 if n/a. Sets Z flag appropriately.
+shared_byteCodeAlso:
+	lda resType
+	cmp #RES_TYPE_MODULE
+	beq +
+	lda #0
+	rts
++	lda #RES_TYPE_BYTECODE
+	sta resType
+	lda #1
+	sta isAuxCmd
+	jsr scanForResource
+	bne +
+	brk			; it better be present!
++	lda tSegType,x
+	rts
+
+;------------------------------------------------------------------------------
 main_lock: !zone
 	lda #0			; index for main-mem request
 	beq shared_lock		; always taken
@@ -720,7 +751,11 @@ shared_lock:
 	jsr shared_scan		; scan for exact memory block
 	ora #$40		; set the 'locked' flag
 	sta tSegType,x		; store flags back
-	rts			; all done
+	jsr shared_byteCodeAlso
+	beq +
+	ora #$40
+	sta tSegType,x
++	rts			; all done
 
 ;------------------------------------------------------------------------------
 main_unlock: !zone
@@ -732,7 +767,11 @@ shared_unlock:
 	jsr shared_scan		; scan for exact memory block
 	and #$BF		; mask off the 'locked' flag
 	sta tSegType,x		; store flags back
-	rts			; all done
+	jsr shared_byteCodeAlso
+	beq +
+	and #$BF
+	sta tSegType,x
++	rts			; all done
 
 ;------------------------------------------------------------------------------
 main_free: !zone
@@ -1193,15 +1232,16 @@ disk_finishLoad: !zone
 .nFixups:	!byte 0
 
 !if DEBUG {
-.debug1:+prStr : !text "Going to load: type=",0
+.debug1:+prStr : !text "Loading: t=",0
 	+prByte resType
-	+prStr : !text "num=",0
+	+prStr : !text "n=",0
 	+prByte resNum
-	+prStr : !text "isAux=",0
+	+prStr : !text "aux=",0
+	+prByte isAuxCmd
 	rts
-.debug2:+prStr : !text "reqLen=",0
+.debug2:+prStr : !text "len=",0
 	+prWord reqLen
-	+prStr : !text "pDst=",0
+	+prStr : !text "dst=",0
 	+prWord pDst : +crout
 	rts
 } ; end DEBUG
@@ -1260,11 +1300,6 @@ readToBuf: !zone
 	ldx #0
 +	stx readLen
 	sta readLen+1		; save number of pages
-	!if DEBUG {
-	+prStr : !text "Read to buf, len=",0
-	+prWord readLen
-	+crout
-	}
 	jsr readToMain		; now read
 	lda reqLen		; decrement reqLen by the amount we read
 	sec

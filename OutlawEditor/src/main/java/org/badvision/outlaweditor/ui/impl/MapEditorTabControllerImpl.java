@@ -1,6 +1,5 @@
 package org.badvision.outlaweditor.ui.impl;
 
-import org.badvision.outlaweditor.ui.EntitySelectorCell;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.event.ActionEvent;
@@ -12,19 +11,21 @@ import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
 import javafx.util.Callback;
 import org.badvision.outlaweditor.Application;
-import org.badvision.outlaweditor.MapEditor;
-import org.badvision.outlaweditor.TransferHelper;
 import static org.badvision.outlaweditor.Application.currentPlatform;
 import static org.badvision.outlaweditor.Application.gameData;
-import static org.badvision.outlaweditor.ui.UIAction.confirm;
-import static org.badvision.outlaweditor.ui.UIAction.createAndEditScript;
+import org.badvision.outlaweditor.MapEditor;
+import org.badvision.outlaweditor.TransferHelper;
 import static org.badvision.outlaweditor.data.PropertyHelper.bind;
 import static org.badvision.outlaweditor.data.PropertyHelper.stringProp;
 import org.badvision.outlaweditor.data.TileUtils;
-import org.badvision.outlaweditor.data.xml.Script;
 import org.badvision.outlaweditor.data.xml.Map;
+import org.badvision.outlaweditor.data.xml.Script;
+import org.badvision.outlaweditor.ui.EntitySelectorCell;
 import org.badvision.outlaweditor.ui.MapEditorTabController;
+import org.badvision.outlaweditor.ui.ToolType;
 import org.badvision.outlaweditor.ui.UIAction;
+import static org.badvision.outlaweditor.ui.UIAction.confirm;
+import static org.badvision.outlaweditor.ui.UIAction.createAndEditScript;
 
 /**
  *
@@ -32,6 +33,7 @@ import org.badvision.outlaweditor.ui.UIAction;
  */
 public class MapEditorTabControllerImpl extends MapEditorTabController {
     final TransferHelper<Script> scriptDragDrop = new TransferHelper<>(Script.class);
+    final TransferHelper<ToolType> toolDragDrop = new TransferHelper<>(ToolType.class);
 
     @Override
     public void mapDraw1(ActionEvent event) {
@@ -234,7 +236,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
             e.setEntity(m);
             e.buildEditorUI(mapEditorAnchorPane);
             setCurrentEditor(e);
-            e.setupDragDrop(scriptDragDrop);
+            e.setupDragDrop(scriptDragDrop, toolDragDrop);
         }
         redrawMapScripts();
     }
@@ -270,6 +272,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
             public void finishUpdate(Map item) {
             }
         });
+        toolDragDrop.registerDragSupport(scriptEraseTool, ToolType.ERASER);
     }
 
     @Override

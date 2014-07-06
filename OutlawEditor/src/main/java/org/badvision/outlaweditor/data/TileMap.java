@@ -46,11 +46,11 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
     public static double HUE = 180;
     private final java.util.Map<Integer, List<Script>> locationScripts = new HashMap<>();
     private final java.util.Map<Script, Color> scriptColors = new HashMap<>();
-    
+
     public Optional<Color> getScriptColor(Script s) {
         return Optional.ofNullable(scriptColors.get(s));
     }
-    
+
     public List<Script> getLocationScripts(int x, int y) {
         List<Script> list = locationScripts.get(getMortonNumber(x, y));
         if (list != null) {
@@ -66,6 +66,20 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
         trigger.setY(y);
         s.getLocationTrigger().add(trigger);
         registerLocationScript(x, y, s);
+    }
+
+    public void removeLocationScripts(int x, int y) {
+        int loc = getMortonNumber(x, y);
+        List<Script> scripts = locationScripts.get(loc);
+        if (scripts != null) {
+            scripts.forEach(s -> {
+                s.getLocationTrigger().removeIf(t -> {
+                    return t.getX() == x && t.getY() == y;
+                });
+            });
+        }
+        locationScripts.remove(loc);
+        Application.getInstance().getController().redrawScripts();
     }
 
     private void registerLocationScript(int x, int y, Script s) {
@@ -159,7 +173,7 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
                     )
             );
         }
-        m.getChunk().forEach( c-> {
+        m.getChunk().forEach(c -> {
             int y = c.getY();
             for (JAXBElement<List<String>> row : c.getRow()) {
                 int x = c.getX();

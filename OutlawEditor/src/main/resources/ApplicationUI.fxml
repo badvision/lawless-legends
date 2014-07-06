@@ -2,7 +2,6 @@
 
 <?import java.lang.*?>
 <?import java.net.*?>
-<?import javafx.collections.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
@@ -10,29 +9,28 @@
   <children>
     <VBox prefHeight="500.0" prefWidth="800.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
       <children>
-        <fx:include fx:id="menu" source="Menubar.fxml"/>
+        <fx:include fx:id="menu" source="Menubar.fxml" />
         <TabPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" prefHeight="455.0" prefWidth="676.9998779296875" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS">
           <tabs>
             <Tab onSelectionChanged="#tileTabActivated" text="Tiles">
               <content>
-                  <fx:include fx:id="tile" source="tileEditorTab.fxml"/>
+                  <fx:include fx:id="tile" source="tileEditorTab.fxml" />
               </content>
             </Tab>
             <Tab onSelectionChanged="#mapTabActivated" text="Maps">
               <content>
-                <fx:include fx:id="map" source="mapEditorTab.fxml"/>
+                <fx:include fx:id="map" source="mapEditorTab.fxml" />
               </content>
             </Tab>
             <Tab onSelectionChanged="#imageTabActivated" text="Images">
               <content>
-                  <fx:include fx:id="image" source="imageEditorTab.fxml"/>
+                  <fx:include fx:id="image" source="imageEditorTab.fxml" />
               </content>
             </Tab>
           </tabs>
         </TabPane>
       </children>
     </VBox>
-    <HBox layoutX="300.0" layoutY="200.0" prefHeight="100.0" prefWidth="200.0" />
   </children>
   <stylesheets>
     <URL value="@styles/applicationui.css" />

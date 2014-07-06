@@ -21,6 +21,6 @@
 # Ignore object and asm files produced by PLASMA
 *.o
 *.a
-PLASMA/src/plasm
-PLASMA/src/plvm
-PLASMA/src/*#*
+/Platform/Apple/tools/PLASMA/src/plasm
+/Platform/Apple/tools/PLASMA/src/plvm
+/Platform/Apple/tools/PLASMA/src/*#*

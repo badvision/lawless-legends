@@ -23,14 +23,21 @@ word table = @func1, @func2
 ;==================================================================================================
 ; Definitions used by assembly code
 asm __defs
-!SOURCE "../plvm02zp.inc"
-INTERP  =       $03D0
+; Zero-page
+TMPL    =       $6
+TMPH    =       $7
+ESTKL   =       $C0
+ESTKH   =       $D0
+; Memory bank manipulation
 LCRDEN  =       $C080
 LCWTEN  =       $C081
 ROMEN   =       $C082
 LCRWEN  =       $C083
 LCBNK2  =       $00
 LCBNK1  =       $08
+; ROM routines
+PRBYTE  =       $FDDA
+COUT    =       $FDED
 end
         
 ;==================================================================================================
@@ -49,7 +56,7 @@ asm puts
         BIT     ROMEN
 -       LDA     (TMPL),Y
         ORA     #$80
-        JSR     $FDED
+        JSR     COUT
         INY
         DEX
         BNE     -
@@ -64,11 +71,11 @@ end
 asm printHex
         BIT     ROMEN
         LDA     ESTKH,X
-        JSR     $FDDA
+        JSR     PRBYTE
         LDA     ESTKL,X
-        JSR     $FDDA
+        JSR     PRBYTE
         LDA     #$A0
-        JSR     $FDED
+        JSR     COUT
         BIT     LCRDEN+LCBNK2
         RTS
 end

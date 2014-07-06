@@ -27,26 +27,8 @@
     <!-- Create build directory -->
     <mkdir dir="${build.dir}"/>
 
-    <!-- Assemble the PLASMA vm -->
-    <apply executable="acme" dir="${src.dir}" 
-           relative="true" parallel="true" failonerror="true" verbose="true">
-      <fileset dir="${src.dir}" includes="plvm02.s"/>
-      <arg line="${ASM_SETTINGS}"/>
-      <arg value="-o"/>
-      <arg value="${build.dir}/plvm02.system.sys#2000"/>
-      <srcfile/>
-    </apply>
-
-    <!-- Build the PLASMA compiler -->
-    <apply executable="cc" dir="${src.dir}" 
-           relative="true" parallel="true" failonerror="true" verbose="true">
-      <fileset dir="${src.dir}" includes="*.c" excludes="plvm.c"/>
-      <arg value="-o"/>
-      <arg value="${build.dir}/plasm"/>
-    </apply>
-
     <!-- Translate the game loop from PLASMA to ACME assembly code-->
-    <apply executable="${build.dir}/plasm" dir="${src.dir}" 
+    <apply executable="../../../tools/PLASMA/src/plasm" dir="${src.dir}" 
            relative="true" parallel="false" failonerror="true" verbose="true"
            addsourcefile="false">
       <fileset dir="${src.dir}" includes="gameloop.pla"/>

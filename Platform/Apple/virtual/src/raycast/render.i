@@ -102,7 +102,7 @@ clrBlitRollO	= tableStart+$07C2	; size 3*(128/2) = $C0, plus 2 for tya and rts
 texAddrLo	= tableStart+$0884
 texAddrHi	= texAddrLo + MAX_TEXTURES
 blitRoll	= tableStart+$0900	; Unrolled blitting code. Size 29*128	= $E80, plus 1 for rts
-tableEnd	= tableStart+$01781
+tableEnd	= tableStart+$1781
 
 ; mipmap level offsets
 MIP_OFFSET_0	= 0

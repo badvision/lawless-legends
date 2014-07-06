@@ -54,17 +54,44 @@ const CHAIN_LOADER   = $1E
 const FATAL_ERROR    = $1F
 
 ;==================================================================================================
+; Raycaster variables
+word zp = 0
+const playerDir = $5D
+const playerX   = $5E
+const playerY   = $60
+
+;==================================================================================================
 ; Strings.
 byte helloStr[] = "Loading Lawless Legends.\n"
 byte initFontStr[] = "Initting font engine.\n"
 byte initRaycastStr[] = "Initting raycaster.\n"
-byte renderFrameStr[] = "Rendering frame.\n"
+byte loopStr[] = "Entering keyboard loop.\n"
 
 ;==================================================================================================
 ; Global variables
 word mapNum = 1
 word pFont
 word pMap
+word cmdTbl[64]
+
+; Movement amounts when walking at each angle
+; Each entry consists of an X bump and a Y bump, in 8.8 fixed point
+word walkDirs[] = $0040, $0000
+word            = $003B, $0018
+word            = $002D, $002D
+word            = $0018, $003B
+word            = $0000, $0040
+word            = $FFE8, $003B
+word            = $FFD3, $002D
+word            = $FFC5, $0018
+word            = $FFC0, $0000
+word            = $FFC5, $FFE8
+word            = $FFD3, $FFD3
+word            = $FFE8, $FFC5
+word            = $0000, $FFC0
+word            = $0018, $FFC5
+word            = $002D, $FFD3
+word            = $003B, $FFE8
 
 ;==================================================================================================
 ; Definitions used by assembly code
@@ -82,6 +109,7 @@ end
 asm puts
         txa
         pha
+        bit setROM
         lda evalStkL,x
         sta pTmp
         lda evalStkH,x
@@ -90,7 +118,6 @@ asm puts
         lda (pTmp),y
         tax
         iny
-        bit setROM
 -       lda (pTmp),y
         ora #$80
         jsr cout
@@ -117,6 +144,14 @@ asm printHex
         rts
 end
 
+asm crout
+        bit setROM
+        jsr crout
+        inx                   ; don't-care return value
+        bit setLcRW+lcBank2
+        rts
+end
+
 ;==================================================================================================
 ; Allocate memory
 asm loader  ; (cmd, mainOrAux, amount)
@@ -139,7 +174,8 @@ asm loader  ; (cmd, mainOrAux, amount)
 ++      stx tmp
         pla
         tax
-        inx      ; drop second parameter
+        inx                     ; drop second and third parameters
+        inx
         lda tmp
         sta evalStkL,x
         tya
@@ -148,7 +184,7 @@ asm loader  ; (cmd, mainOrAux, amount)
         rts
 end
 
-asm initFontEngine
+asm initFontEngine ; (pFont)
         txa
         pha
         bit setROM
@@ -168,7 +204,7 @@ asm initFontEngine
         rts
 end
 
-asm initRaycaster
+asm initRaycaster ; (pMap)
         txa
         pha
         bit setROM
@@ -188,6 +224,7 @@ asm renderFrame
         jsr $6003
         pla
         tax
+        dex                 ; don't-care return value
         bit setLcRW+lcBank2
         rts
 end
@@ -195,6 +232,55 @@ end
 asm goMon
         bit setROM
         jmp $FF69
+end
+
+;==================================================================================================
+; Actions
+def initCmd(key, func)
+  if key >= $60
+    key = key - $20
+  fin
+  cmdTbl[key-$20] = func
+end
+
+def moveForward()
+  *playerX = *playerX + walkDirs[^playerDir * 2]
+  *playerY = *playerY + walkDirs[^playerDir * 2 + 1]
+end
+
+def moveBackward()
+  ^playerDir = (^playerDir + 8) & $F
+  moveForward()
+  ^playerDir = (^playerDir + 8) & $F
+end
+
+def rotateLeft()
+  ^playerDir = (^playerDir - 1) & $F
+end
+
+def rotateRight()
+  ^playerDir = (^playerDir + 1) & $F
+end
+
+def kbdLoop()
+  word key, func
+  while TRUE
+    if ^keyboard >= 128
+      key = ^keyboard & $7F
+      ^keystrobe
+      key = key - $20
+      if key >= $40
+        key = key - $20
+      fin
+      if key >= 0 and key < $40
+        func = cmdTbl[key]
+        if func
+          func()
+          renderFrame()
+        fin
+      fin
+    fin
+  loop
 end
 
 ;==================================================================================================
@@ -238,11 +324,29 @@ initFontEngine(pFont)
 puts(@initRaycastStr)
 initRaycaster(pMap)
 
-; And draw the frame
-puts(@renderFrameStr)
+; Set initial player position
+^playerDir = 1
+*playerX = $280
+*playerY = $380
+
+; Init the command table
+initCmd('W', @moveForward)
+initCmd('A', @rotateLeft)
+initCmd('D', @rotateRight)
+initCmd('S', @moveBackward)
+
+initCmd('I', @moveForward)
+initCmd('J', @rotateLeft)
+initCmd('L', @rotateRight)
+initCmd('K', @moveBackward)
+
+; Draw the first frame
 renderFrame()
 
-; For now, just get out
+; Main keyboard loop
+puts(@loopStr)
+kbdLoop()
+
 goMon()
 
 done

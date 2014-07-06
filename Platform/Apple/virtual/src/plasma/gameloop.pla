@@ -7,10 +7,18 @@ const TRUE  = !FALSE
 ; Hardware addresses.
 const keyboard  = $C000
 const keystrobe = $C010
+const ptr = $6000
+const f1 = 0
+const f2 = 2
 
 ;==================================================================================================
 ; Strings.
 byte hellostr[] = "Hello, world.\n"
+byte str2[] = "Second.\n"
+
+predef func1, func2
+word myclass
+word table = @func1, @func2
 
 ;==================================================================================================
 ; Definitions used by assembly code
@@ -48,18 +56,38 @@ asm puts
         BIT     LCRDEN+LCBNK2
         PLA
         TAX
-        brk
+        RTS
+end
+
+;==================================================================================================
+; Print a 16-bit hex value, followed by a space
+asm printHex
+        BIT     ROMEN
+        LDA     ESTKH,X
+        JSR     $FDDA
+        LDA     ESTKL,X
+        JSR     $FDDA
+        LDA     #$A0
+        JSR     $FDED
+        BIT     LCRDEN+LCBNK2
         RTS
 end
 
 ;==================================================================================================
 ; Main loop.
 ;
-def func()
-  puts(@hellostr)
+def func1()
+  printHex(1)
+end
+def func2()
+  printHex(2)
 end
 
-func()
-func()
+myclass = @table
+table.f2()
+;(myclass).f2()
+((myclass):f2)()
+puts(@hellostr)
+func1(@hellostr)
 
 done

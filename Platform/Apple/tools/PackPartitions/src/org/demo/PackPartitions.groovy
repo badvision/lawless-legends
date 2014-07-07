@@ -422,6 +422,7 @@ class PackPartitions
         // Determine the set of all referenced textures, and assign numbers to them.
         def texMap = [:]
         def texList = []
+        def texFlags = []
         rows.each { row ->
             row.each { tile ->
                 def id = tile?.@id
@@ -430,8 +431,17 @@ class PackPartitions
                     if (name == null || name.toLowerCase() =~ /street|blank|null/)
                         texMap[id] = 0
                     else if (stripName(name) in textures) {
+                        def flags = 0
+                        if (tile?.@obstruction == 'true')
+                            flags |= 1
+                        if (tile?.@sprite == 'true')
+                            flags |= 2
+                        if (tile?.@blocker == 'true')
+                            flags |= 4
                         texList.add(textures[stripName(name)].num)
+                        texFlags.add(flags)
                         texMap[id] = texList.size()
+                        println "tex #${texList.size()}: name=$name flags=$flags"
                         if (tile?.@obstruction != 'true')
                             texMap[id] |= 0x80; // hi-bit flag to mark sprite cells
                     }

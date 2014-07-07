@@ -12,6 +12,7 @@ start:
 	jmp initMap
 	jmp renderFrame
 	jmp getMapCell
+	jmp setColor
 
 ; Conditional assembly flags
 DOUBLE_BUFFER	= 1		; whether to double-buffer
@@ -60,40 +61,6 @@ mapName:	!word 0		; pointer to map name
 mapNameLen:	!byte 0		; length of map name
 nMapSprites:	!byte 0		; number of sprite entries on map to fix up
 nextLink:	!byte 0		; next link to allocate
-
-; Sky / ground colors
-skyGndTbl1:	!byte $00	; lo-bit black
-		!byte $00	; lo-bit black
-		!byte $00	; lo-bit black
-		!byte $02	; violet
-		!byte $08	; green
-		!byte $0A	; lo-bit white
-		!byte $0A	; lo-bit white
-		!byte $0A	; lo-bit white
-		!byte $20	; hi-bit black
-		!byte $20	; hi-bit black
-		!byte $20	; hi-bit black
-		!byte $22	; blue
-		!byte $28	; orange
-		!byte $2A	; hi-bit white
-		!byte $2A	; hi-bit white
-		!byte $2A	; hi-bit white
-skyGndTbl2:	!byte $00	; lo-bit black
-		!byte $02	; violet
-		!byte $08	; green
-		!byte $02	; violet
-		!byte $08	; green
-		!byte $02	; violet
-		!byte $08	; green
-		!byte $0A	; lo-bit white
-		!byte $20	; hi-bit black
-		!byte $22	; blue
-		!byte $28	; orange
-		!byte $22	; blue
-		!byte $28	; orange
-		!byte $22	; blue
-		!byte $28	; orange
-		!byte $2A	; hi-bit white
 
 skyColorEven:   !byte $20
 skyColorOdd:    !byte $22
@@ -1850,36 +1817,8 @@ copyScreen: !zone
 	rts
 
 ;-------------------------------------------------------------------------------
-setGndColor: !zone
-	jsr readKbdColor
-	bcs +
-	sta gndColorEven
-	stx gndColorOdd
-+	rts
-
-setSkyColor: !zone
-	jsr readKbdColor
-	bcs +
-	sta skyColorEven
-	stx skyColorOdd
-+	rts
-
-readKbdColor: !zone
-	jsr rdkey
-	sec
-	sbc #'0'
-	bcc .bad
-	cmp #8
-	bcs .bad
-	bit opnApple
-	bpl +
-	ora #8
-+	tay
-	ldx skyGndTbl1,y
-	lda skyGndTbl2,y
-	rts
-.bad:	jsr bell
-	sec
+setColor: !zone
+	sta skyColorEven,y
 	rts
 
 ;-------------------------------------------------------------------------------

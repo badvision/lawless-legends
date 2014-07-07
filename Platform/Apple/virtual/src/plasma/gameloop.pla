@@ -99,6 +99,42 @@ word            = $0018, $FFC5
 word            = $002D, $FFD3
 word            = $003B, $FFE8
 
+byte skyGndTbl1[] = $00 ; lo-bit black
+byte              = $00 ; lo-bit black
+byte              = $00 ; lo-bit black
+byte              = $02 ; violet
+byte              = $08 ; green
+byte              = $0A ; lo-bit white
+byte              = $0A ; lo-bit white
+byte              = $0A ; lo-bit white
+byte              = $20 ; hi-bit black
+byte              = $20 ; hi-bit black
+byte              = $20 ; hi-bit black
+byte              = $22 ; blue
+byte              = $28 ; orange
+byte              = $2A ; hi-bit white
+byte              = $2A ; hi-bit white
+byte              = $2A ; hi-bit white
+byte skyGndTbl2[] = $00 ; lo-bit black
+byte              = $02 ; violet
+byte              = $08 ; green
+byte              = $02 ; violet
+byte              = $08 ; green
+byte              = $02 ; violet
+byte              = $08 ; green
+byte              = $0A ; lo-bit white
+byte              = $20 ; hi-bit black
+byte              = $22 ; blue
+byte              = $28 ; orange
+byte              = $22 ; blue
+byte              = $28 ; orange
+byte              = $22 ; blue
+byte              = $28 ; orange
+byte              = $2A ; hi-bit white
+
+word skyNum = 0
+word groundNum = 0
+
 ;==================================================================================================
 ; Definitions used by assembly code
 asm __defs
@@ -252,6 +288,19 @@ asm isBlocked
         rts
 end
 
+asm setColor
+        txa
+        pha
+        bit setROM
+        lda evalStkL,x
+        ldy evalStkH,x
+        jsr $6009
+        bit setLcRW+lcBank2
+        pla
+        tax
+        rts
+end
+
 asm goMon
         bit setROM
         jmp $FF69
@@ -373,6 +422,18 @@ def nextMap()
   initMap()
 end
 
+def nextSky()
+  skyNum = (skyNum + 1) & $F
+  setColor(0<<8 | skyGndTbl1[skyNum])
+  setColor(1<<8 | skyGndTbl2[skyNum])
+end
+
+def nextGround()
+  groundNum = (groundNum + 1) & $F
+  setColor(2<<8 | skyGndTbl1[groundNum])
+  setColor(3<<8 | skyGndTbl2[groundNum])
+end
+
 def kbdLoop()
   word key, func
   while TRUE
@@ -417,6 +478,9 @@ initCmd('M', @strafeLeft)
 initCmd('.', @strafeRight)
 
 initCmd('N', @nextMap)
+
+initCmd('Y', @nextSky)
+initCmd('G', @nextGround)
 
 initMap()
 

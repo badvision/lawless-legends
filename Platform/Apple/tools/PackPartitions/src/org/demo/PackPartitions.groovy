@@ -431,18 +431,15 @@ class PackPartitions
                     if (name == null || name.toLowerCase() =~ /street|blank|null/)
                         texMap[id] = 0
                     else if (stripName(name) in textures) {
-                        def flags = 0
+                        def flags = 1
                         if (tile?.@obstruction == 'true')
-                            flags |= 1
-                        if (tile?.@sprite == 'true')
                             flags |= 2
                         if (tile?.@blocker == 'true')
                             flags |= 4
                         texList.add(textures[stripName(name)].num)
                         texFlags.add(flags)
                         texMap[id] = texList.size()
-                        println "tex #${texList.size()}: name=$name flags=$flags"
-                        if (tile?.@obstruction != 'true')
+                        if (tile?.@sprite == 'true')
                             texMap[id] |= 0x80; // hi-bit flag to mark sprite cells
                     }
                     else if (id) {
@@ -462,6 +459,10 @@ class PackPartitions
         
         // Followed by the list of textures
         texList.each { buf.put((byte)it) }
+        buf.put((byte)0)
+        
+        // Followed by the corresponding list of texture flags
+        texFlags.each { buf.put((byte)it) }
         buf.put((byte)0)
         
         // Sentinel row of $FF at start of map

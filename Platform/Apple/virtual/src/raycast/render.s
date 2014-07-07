@@ -11,16 +11,13 @@ start:
 ; code is at the very end. We jump to it now.
 	jmp initMap
 	jmp renderFrame
-	jmp getMapCell
+	jmp isBlocked
 	jmp setColor
 
 ; Conditional assembly flags
 DOUBLE_BUFFER	= 1		; whether to double-buffer
 DEBUG		= 0		; 1=some logging, 2=lots of logging
 DEBUG_COLUMN	= -1
-
-; temporary hack to try blocker sprites
-BLOCKER_FOO	= 0
 
 ; Shared constants, zero page, buffer locations, etc.
 !source "render.i"
@@ -390,14 +387,19 @@ castRay: !zone
 .hitSprite:
 	cmp #$FF		; check for special mark at edges of map
 	beq .hitEdge
-!if BLOCKER_FOO {
-	cmp #$c1
-	beq .hitEdge
-}
 	; We found a sprite cell on the map. We only want to process this sprite once,
 	; so check if we've already done it.
+	tax
 	and #$40
-	bne .spriteDone		; already done, don't do again
+	beq .notDone		; already done, don't do again
+	txa
+	and #$3F
+	tax
+	jsr getTileFlags
+	and #4			; blocker sprite?
+	bne .hitEdge		; if yes, stop tracing here
+	jmp .spriteDone		; if not, keep tracing
+.notDone:
 	; Haven't seen this one yet. Mark it, and also record the address of the flag
 	; so we can clear it later after tracing all rays.
 	lda (pMap),y		; get back the original byte
@@ -434,11 +436,10 @@ castRay: !zone
 	jsr drawSprite		; put it on screen
 +	pla
 	tay			; restore map position index
-!if BLOCKER_FOO {
-	lda txNum
-	cmp #1
-	beq .hitEdge
-}
+	ldx txNum
+	jsr getTileFlags
+	and #4			; blocker sprite?
+	bne .hitEdge		; if yes, stop tracing rays
 .spriteDone:
 	jmp .DDA_step		; trace this ray some more
 
@@ -1554,6 +1555,12 @@ setPlayerPos: !zone
 	rts
 
 ;-------------------------------------------------------------------------------
+getTileFlags: !zone
+	dex			; because tile numbers start at 1 but list at 0
+	lda $1111,x
+	rts
+
+;-------------------------------------------------------------------------------
 ; Load the texture expansion code, copy it to aux mem
 loadTextures: !zone
 	!if DEBUG { +prStr : !text "Loading textures.",0 }
@@ -1607,7 +1614,15 @@ loadTextures: !zone
 	brk		; barf out if too many textures
 +	stx txNum
 	jmp .lup
-.done:	; end of the texture numbers is the base of the map data - record it
+.done:	; end of texture numbers is the list of tile flags
+	lda .get+1
+	sta getTileFlags+2
+	lda .get+2
+	sta getTileFlags+3
+-	jsr .get	; skip over the flags now
+	tay
+	bne -
+	; end of the texture flags is the base of the map data - record it
 	lda .get+1
 	sta mapBase
 	lda .get+2
@@ -1668,13 +1683,18 @@ calcMapOrigin: !zone
 
 ;-------------------------------------------------------------------------------
 ; Retrieve the map data where the player currently is
-getMapCell: !zone
+isBlocked: !zone
 	jsr calcMapOrigin
 	sta pMap
 	sty pMap+1
 	ldy playerX+1
 	lda (pMap),y
-	rts
+	beq +
+	and #$3F
+	tax
+	jsr getTileFlags
+	and #2			; flag 2 is for obstructions
++	rts
 
 ;-------------------------------------------------------------------------------
 ; Cast all the rays from the current player coord

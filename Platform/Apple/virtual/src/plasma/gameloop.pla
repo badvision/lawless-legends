@@ -132,8 +132,8 @@ byte              = $22 ; blue
 byte              = $28 ; orange
 byte              = $2A ; hi-bit white
 
-word skyNum = 0
-word groundNum = 0
+word skyNum = 9
+word groundNum = 10
 
 ;==================================================================================================
 ; Definitions used by assembly code
@@ -367,9 +367,11 @@ def initCmd(key, func)
 end
 
 def moveForward()
+  word wasBlocked 
+  wasBlocked = isBlocked()
   *playerX = *playerX + walkDirs[^playerDir * 2]
   *playerY = *playerY + walkDirs[^playerDir * 2 + 1]
-  if isBlocked()
+  if !wasBlocked and isBlocked()
     moveBackward()
   fin
 end
@@ -379,10 +381,12 @@ def adjustDir(n)
 end
 
 def moveBackward()
+  word wasBlocked 
+  wasBlocked = isBlocked()
   adjustDir(8)
   moveForward()
   adjustDir(8)
-  if isBlocked()
+  if !wasBlocked and isBlocked()
     moveForward()
   fin
 end

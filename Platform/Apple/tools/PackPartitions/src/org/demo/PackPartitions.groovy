@@ -564,11 +564,25 @@ class PackPartitions
     {
         def num = maps3D.size() + 1
         def name = mapEl.@name ?: "map$num"
-        //println "Packing 3D map #$num named '$name'."
+        println "Packing 3D map #$num named '$name'."
+        packScripts(mapEl, num)
         def rows = parseMap(mapEl, tileEls)
         def buf = ByteBuffer.allocate(50000)
         write3DMap(buf, name, rows)
         maps3D[name] = [num:num, buf:buf]
+    }
+    
+    def packScripts(mapEl, mapNum)
+    {
+        if (!mapEl.scripts)
+            return
+        ScriptModule module = new ScriptModule()
+        module.packScripts(mapEl.scripts[0])
+        def num = mapNum + 0x20 // to distinguish from system modules
+        def name = "mapScript$mapNum"
+        modules[name]   = [num:num, buf:wrapByteList(module.data)]
+        bytecodes[name] = [num:num, buf:wrapByteList(module.bytecode)]
+        fixups[name]    = [num:num, buf:wrapByteList(module.fixups)]
     }
     
     def readBinary(path)
@@ -1030,15 +1044,190 @@ class PackPartitions
 class ScriptModule
 {
     def data = []
-    def funcs = []
+    def bytecode = []
     def fixups = []
-    def locationTriggers = []
+    
+    def nScripts = 0
+    
+    def vec_locationTrigger = 0x300
+    def vec_displayStr      = 0x303
     
     def addString(str)
     {
-        data.add((byte)str.length)
-        str.each { ch -> data.add((byte)ch) }
+        assert str.size() < 256 : "String too long, max is 255 characters: $str"
+        def addr = dataAddr()
+        emitDataByte(str.size())
+        str.each { ch -> emitDataByte((byte)ch) }
+        return addr
     }
     
+    def packScripts(scripts)
+    {
+        nScripts = scripts.script.size()
+        makeStubs()
+        scripts.script.eachWithIndex { script, idx ->
+            packScript(idx, script) 
+        }
+        makeInit(scripts)
+        emitFixupByte(0xFF)
+        //println "data: $data"
+        //println "bytecode: $bytecode"
+        //println "fixups: $fixups"
+    }
     
+    def makeStubs()
+    {
+        // Emit a stub for each function, including the init function
+        (0..nScripts).each { it ->
+            emitDataByte(0x20)  // JSR
+            emitDataWord(0x3DC) // Aux mem interp ($3DC)
+            emitDataWord(0)     // Placeholder for the bytecode offset
+        }
+    }
+    
+    def startFunc(scriptNum)
+    {
+        def fixAddr = (scriptNum * 5) + 3
+        assert data[fixAddr] == 0 && data[fixAddr+1] == 0
+        data[fixAddr] = (byte)(bytecodeAddr() & 0xFF)
+        data[fixAddr+1] = (byte)((bytecodeAddr() >> 8) & 0xFF)
+    }
+    
+    def packScript(scriptNum, script)
+    {
+        def name = script.name[0].text()
+        println "   Script '$name'"
+        
+        // Record the function's start address in its corresponding stub
+        startFunc(scriptNum+1)
+        
+        // Process the code inside it
+        assert script.block.size() == 1
+        def proc = script.block[0]
+        assert proc.@type == "procedures_defreturn"
+        assert proc.statement.size() == 1
+        def stmt = proc.statement[0]
+        assert stmt.@name == "STACK"
+        stmt.block.each { packBlock(it) }
+        
+        // And complete the function
+        finishFunc()
+    }
+    
+    def finishFunc()
+    {
+        // Finish off the function with a return value and return opcode
+        emitCodeByte(0)     // ZERO
+        emitCodeByte(0x5C)  // RET
+    }
+    
+    def packBlock(blk)
+    {
+        println "        Block '${blk.@type}'"
+        if (blk.@type == 'text_print')
+            packTextPrint(blk)
+            
+        // Strangely, blocks seem to be chained together, but hierarchically. Whatever.
+        blk.next.each { it.block.each { packBlock(it) } }
+    }
+    
+    def dataAddr()
+    {
+        return data.size()
+    }
+    
+    def bytecodeAddr()
+    {
+        return bytecode.size()
+    }
+    
+    def emitDataByte(b)
+    {
+        data.add((byte)(b & 0xFF))
+    }
+    
+    def emitDataWord(w)
+    {
+        emitDataByte(w)
+        emitDataByte(w >> 8)
+    }
+    
+    def emitCodeByte(b)
+    {
+        bytecode.add((byte)(b & 0xFF))
+    }
+    
+    def emitCodeWord(w)
+    {
+        emitCodeByte(w)
+        emitCodeByte(w >> 8)
+    }
+    
+    def emitFixupByte(b)
+    {
+        fixups.add((byte)(b & 0xFF))
+    }
+    
+    def emitCodeFixup(toAddr)
+    {
+        // Src addr is reversed (i.e. it's hi then lo)
+        emitFixupByte((dataAddr() >> 8) | 0x80)
+        emitFixupByte(dataAddr())
+        emitCodeWord(toAddr)
+    }
+
+    def packTextPrint(blk)
+    {
+        assert blk.value.size() == 1
+        def val = blk.value[0]
+        assert val.@name == 'VALUE'
+        assert val.block.size() == 1
+        def valBlk = val.block[0]
+        assert valBlk.@type == 'text'
+        assert valBlk.field.size() == 1
+        def fld = valBlk.field[0]
+        assert fld.@name == 'TEXT'
+        def text = fld.text()
+        println "            text: '$text'"
+        
+        emitCodeByte(0x26)  // LA
+        emitCodeFixup(addString(text) + ((nScripts+1)*5)) // offset to skip over stubs
+        emitCodeWord(0)     // placeholder for the string address
+        emitCodeByte(0x54)  // CALL
+        emitCodeWord(vec_displayStr)
+    }
+
+    def makeInit(scripts)
+    {
+        startFunc(0)
+        scripts.script.eachWithIndex { script, idx ->
+            script.locationTrigger.each { trig ->
+                def x = trig.@x.toInteger()
+                def y = trig.@y.toInteger()
+                emitCodeByte(0x26)  // LA
+                emitCodeFixup((idx+1) * 5)
+                emitCodeWord(0) // placeholder for func addr
+                emitCodeByte(0x2A) // CB
+                assert x >= 0 && x < 255
+                emitCodeByte(x)
+                emitCodeByte(0x2A) // CB
+                assert y >= 0 && y < 255
+                emitCodeByte(y)
+                emitCodeByte(0x54) // CALL
+                emitCodeWord(vec_locationTrigger)
+            }
+        }
+        finishFunc()
+    }
+    
+    def packFixups()
+    {
+        def buf = []
+        fixups.each { fromOff, fromType, toOff, toType ->
+            assert fromType == 'bytecode'
+            assert toType   == 'data'
+            toOff += (nScripts+1) * 5
+            
+        }
+    }
 }

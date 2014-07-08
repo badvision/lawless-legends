@@ -88,6 +88,7 @@ byte loopStr[] = "Entering keyboard loop.\n"
 word mapNum = 1
 word pFont
 word pMap
+word pScripts
 word cmdTbl[64]
 
 ; Movement amounts when walking at each angle
@@ -371,12 +372,19 @@ def initMap()
   ; Start up the raycaster
   initRaycaster(pMap)
 
+  ; Load the scripts for this map
+  ^$c051
+  pScripts = loader(QUEUE_LOAD, MAIN_MEM, ((mapNum+$20)<<8) | RES_TYPE_MODULE)
+  printHex(pScripts)
+  loader(FINISH_LOAD, MAIN_MEM, 1) ; 1 = keep open
+
   ; Set initial player position
   ^playerDir = 1
   *playerX = $280
   *playerY = $380
 
   ; Draw the first frame
+  printHex($BBCC)
   renderFrame()
 end
 
@@ -512,6 +520,10 @@ def kbdLoop()
   loop
 end
 
+def foofunc
+  puts(@loopStr)
+end
+
 ;==================================================================================================
 ; Main code.
 ;
@@ -542,6 +554,9 @@ initCmd('G', @nextGround)
 initMap()
 
 setWindow2()
+
+printVec.0 = $4c
+printVec:1 = displayStr
 
 ; Main keyboard loop
 puts(@loopStr)

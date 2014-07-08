@@ -1171,8 +1171,8 @@ class ScriptModule
     def emitCodeFixup(toAddr)
     {
         // Src addr is reversed (i.e. it's hi then lo)
-        emitFixupByte((dataAddr() >> 8) | 0x80)
-        emitFixupByte(dataAddr())
+        emitFixupByte((bytecodeAddr() >> 8) | 0x80)
+        emitFixupByte(bytecodeAddr())
         emitCodeWord(toAddr)
     }
 
@@ -1192,7 +1192,6 @@ class ScriptModule
         
         emitCodeByte(0x26)  // LA
         emitCodeFixup(addString(text) + ((nScripts+1)*5)) // offset to skip over stubs
-        emitCodeWord(0)     // placeholder for the string address
         emitCodeByte(0x54)  // CALL
         emitCodeWord(vec_displayStr)
     }
@@ -1206,7 +1205,6 @@ class ScriptModule
                 def y = trig.@y.toInteger()
                 emitCodeByte(0x26)  // LA
                 emitCodeFixup((idx+1) * 5)
-                emitCodeWord(0) // placeholder for func addr
                 emitCodeByte(0x2A) // CB
                 assert x >= 0 && x < 255
                 emitCodeByte(x)

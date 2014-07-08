@@ -19,7 +19,7 @@ MAX_SEGS	= 96
 
 DO_COMP_CHECKSUMS = 0		; during compression debugging
 DEBUG_DECOMP 	= 0
-DEBUG		= 0
+DEBUG		= 1
 
 ; Zero page temporary variables
 tmp		= $2	; len 2
@@ -1150,6 +1150,7 @@ disk_finishLoad: !zone
 +	lda .nFixups		; any fixups encountered?
 	beq +
 	jsr doAllFixups		; found fixups - execute and free them
+	+prStr : !text "Fixups done.",0
 +	rts
 .notEnd	bmi .load		; hi bit set -> queued for load
 	iny			; not set, not queued, so skip over it

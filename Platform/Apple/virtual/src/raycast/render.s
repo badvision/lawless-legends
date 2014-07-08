@@ -1816,6 +1816,10 @@ flip: !zone
 	stx frontBuf
 	lda page1,x
 }
+	; Hack for real (not emulated) IIc: sometimes displays only lo-bit graphics
+	; unless we do this. *HUGE* thanks to Brendan Robert for the fix!
+	sta $C07E		; disable double-hi-res
+	lda $C05F		; disable double-hi-res
 	rts
 
 ;-------------------------------------------------------------------------------

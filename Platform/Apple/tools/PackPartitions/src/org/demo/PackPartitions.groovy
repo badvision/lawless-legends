@@ -1020,8 +1020,25 @@ class PackPartitions
             System.exit(1);
         }
         
+        def m = new ScriptModule()
+        
         // Go for it.
         new PackPartitions().pack(args[0], args[1], args.size() > 2 ? args[2] : null)
     }
 }
 
+class ScriptModule
+{
+    def data = []
+    def funcs = []
+    def fixups = []
+    def locationTriggers = []
+    
+    def addString(str)
+    {
+        data.add((byte)str.length)
+        str.each { ch -> data.add((byte)ch) }
+    }
+    
+    
+}

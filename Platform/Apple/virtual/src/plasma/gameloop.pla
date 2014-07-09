@@ -53,6 +53,8 @@ const CALC_FREE      = $19
 const CHAIN_LOADER   = $1E
 const FATAL_ERROR    = $1F
 
+const printVec = $300
+
 ;==================================================================================================
 ; Predefined functions, for circular calls
 predef moveBackward
@@ -67,10 +69,18 @@ const backBuf   = $6A
 const frontBuf  = $6B
 
 ;==================================================================================================
+; Font engine variables
+const wndleft   = $70  ; left edge of the window
+const wndwdth   = $71  ; right edge (NOT width) of text window
+const wndtop    = $72  ; top of text window
+const wndbtm    = $73  ; bottom+1 of text window
+
+const cursh     = $74  ; Cursor H-pos 0-39
+const cursv     = $75  ; Cursor V-pos 0-23
+
+;==================================================================================================
 ; Strings.
 byte helloStr[] = "Loading Lawless Legends.\n"
-byte initFontStr[] = "Initting font engine.\n"
-byte initRaycastStr[] = "Initting raycaster.\n"
 byte loopStr[] = "Entering keyboard loop.\n"
 
 ;==================================================================================================
@@ -306,6 +316,21 @@ asm goMon
         jmp $FF69
 end
 
+; Display a string using the font engine
+asm displayStr(str)
+  txa
+  pha
+  bit setROM
+  ldy evalStkL,x
+  lda evalStkH,x
+  tax
+  jsr printSTR
+  bit setLcRW+lcBank2
+  pla
+  tax
+  rts
+end
+
 ;==================================================================================================
 ; General methods
 
@@ -341,11 +366,9 @@ def initMap()
   loader(FINISH_LOAD, MAIN_MEM, 1) ; 1 = keep open
 
   ; Start up the font engine
-  puts(@initFontStr)
   initFontEngine(pFont)
 
   ; Start up the raycaster
-  puts(@initRaycastStr)
   initRaycaster(pMap)
 
   ; Set initial player position
@@ -355,6 +378,36 @@ def initMap()
 
   ; Draw the first frame
   renderFrame()
+end
+
+; Window for the map name bar
+def setWindow1()
+  ^wndtop = 1
+  ^wndbtm = 2
+  ^wndleft = 4
+  ^wndwdth = 18
+  ^cursv = ^wndtop
+  ^cursh = ^wndleft
+end
+
+; Window for the large upper right bar
+def setWindow2()
+  ^wndtop = 3
+  ^wndbtm = 17
+  ^wndleft = 23
+  ^wndwdth = 37
+  ^cursv = ^wndtop
+  ^cursh = ^wndleft
+end
+
+; Window for the mid-size lower right bar
+def setWindow3()
+  ^wndtop = 18
+  ^wndbtm = 23
+  ^wndleft = 23
+  ^wndwdth = 37
+  ^cursv = ^wndtop
+  ^cursh = ^wndleft
 end
 
 ;==================================================================================================
@@ -487,6 +540,8 @@ initCmd('Y', @nextSky)
 initCmd('G', @nextGround)
 
 initMap()
+
+setWindow2()
 
 ; Main keyboard loop
 puts(@loopStr)

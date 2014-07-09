@@ -1191,9 +1191,11 @@ class ScriptModule
         println "            text: '$text'"
         
         emitCodeByte(0x26)  // LA
-        emitCodeFixup(addString(text) + ((nScripts+1)*5)) // offset to skip over stubs
+        def textAddr = addString(text)
+        emitCodeFixup(textAddr)
         emitCodeByte(0x54)  // CALL
         emitCodeWord(vec_displayStr)
+        emitCodeByte(0x30) // DROP
     }
 
     def makeInit(scripts)
@@ -1203,16 +1205,17 @@ class ScriptModule
             script.locationTrigger.each { trig ->
                 def x = trig.@x.toInteger()
                 def y = trig.@y.toInteger()
-                emitCodeByte(0x26)  // LA
-                emitCodeFixup((idx+1) * 5)
                 emitCodeByte(0x2A) // CB
                 assert x >= 0 && x < 255
                 emitCodeByte(x)
                 emitCodeByte(0x2A) // CB
                 assert y >= 0 && y < 255
                 emitCodeByte(y)
+                emitCodeByte(0x26)  // LA
+                emitCodeFixup((idx+1) * 5)
                 emitCodeByte(0x54) // CALL
                 emitCodeWord(vec_locationTrigger)
+                emitCodeByte(0x30) // DROP
             }
         }
         finishFunc()

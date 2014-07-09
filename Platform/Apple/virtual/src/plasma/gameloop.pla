@@ -53,11 +53,11 @@ const CALC_FREE      = $19
 const CHAIN_LOADER   = $1E
 const FATAL_ERROR    = $1F
 
-const printVec = $300
+const callbacks = $300
 
 ;==================================================================================================
 ; Predefined functions, for circular calls
-predef moveBackward
+predef moveBackward, setWindow2
 
 ;==================================================================================================
 ; Raycaster variables
@@ -90,6 +90,12 @@ word pFont
 word pMap
 word pScripts
 word cmdTbl[64]
+word nLocTrig = 0
+word locTrig_x[30]
+word locTrig_y[30]
+word locTrig_func[30]
+word prevX
+word prevY
 
 ; Movement amounts when walking at each angle
 ; Each entry consists of an X bump and a Y bump, in 8.8 fixed point
@@ -200,7 +206,7 @@ end
 asm crout
         bit setROM
         jsr crout
-        inx                   ; don't-care return value
+        dex                   ; don't-care return value
         bit setLcRW+lcBank2
         rts
 end
@@ -317,11 +323,24 @@ asm goMon
         jmp $FF69
 end
 
+asm clearWindow
+        bit setROM
+        txa
+        pha
+        jsr clearWINDOW
+        bit setLcRW+lcBank2
+        pla
+        tax
+        dex                   ; don't-care return value
+        rts
+end
+
 ; Display a string using the font engine
-asm displayStr(str)
+asm displayStr ; (str)
   txa
   pha
   bit setROM
+  txa
   ldy evalStkL,x
   lda evalStkH,x
   tax
@@ -366,25 +385,28 @@ def initMap()
   ; Load everything that we just queued
   loader(FINISH_LOAD, MAIN_MEM, 1) ; 1 = keep open
 
+  ; Load the scripts for this map
+  pScripts = loader(QUEUE_LOAD, MAIN_MEM, ((mapNum+$20)<<8) | RES_TYPE_MODULE)
+  loader(FINISH_LOAD, MAIN_MEM, 1) ; 1 = keep open
+
   ; Start up the font engine
   initFontEngine(pFont)
 
   ; Start up the raycaster
   initRaycaster(pMap)
 
-  ; Load the scripts for this map
-  ^$c051
-  pScripts = loader(QUEUE_LOAD, MAIN_MEM, ((mapNum+$20)<<8) | RES_TYPE_MODULE)
-  printHex(pScripts)
-  loader(FINISH_LOAD, MAIN_MEM, 1) ; 1 = keep open
-
   ; Set initial player position
   ^playerDir = 1
   *playerX = $280
   *playerY = $380
 
+  ; Initialize the map scripts
+  setWindow2()
+  *pScripts()
+  prevX = -1
+  prevY = -1
+  
   ; Draw the first frame
-  printHex($BBCC)
   renderFrame()
 end
 
@@ -427,13 +449,36 @@ def initCmd(key, func)
   cmdTbl[key-$20] = func
 end
 
+def checkScript()
+  word x
+  word y
+  word i
+  word func
+  x = playerX.1 - 1
+  y = playerY.1 - 1
+  if x <> prevX or y <> prevY
+    prevX = x
+    prevY = y
+    clearWindow()
+    for i = 0 to nLocTrig-1
+      if x == locTrig_x[i] and y == locTrig_y[i]
+        func = locTrig_func[i]
+        *func()
+      fin
+    next
+  fin
+end
+
 def moveForward()
   word wasBlocked 
+  word func
   wasBlocked = isBlocked()
   *playerX = *playerX + walkDirs[^playerDir * 2]
   *playerY = *playerY + walkDirs[^playerDir * 2 + 1]
   if !wasBlocked and isBlocked()
     moveBackward()
+  else
+    checkScript()
   fin
 end
 
@@ -520,8 +565,11 @@ def kbdLoop()
   loop
 end
 
-def foofunc
-  puts(@loopStr)
+def setLocationTrigger(x, y, func)
+  locTrig_x[nLocTrig] = x
+  locTrig_y[nLocTrig] = y
+  locTrig_func[nLocTrig] = func
+  nLocTrig = nLocTrig + 1
 end
 
 ;==================================================================================================
@@ -551,17 +599,17 @@ initCmd('N', @nextMap)
 initCmd('Y', @nextSky)
 initCmd('G', @nextGround)
 
+callbacks.0 = $4c
+callbacks:1 = @setLocationTrigger
+callbacks.3 = $4c
+callbacks:4 = @displayStr
+
 initMap()
 
 setWindow2()
 
-printVec.0 = $4c
-printVec:1 = displayStr
-
 ; Main keyboard loop
 puts(@loopStr)
 kbdLoop()
-
-goMon()
 
 done

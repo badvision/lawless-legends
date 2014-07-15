@@ -21,7 +21,7 @@ class PackPartitions
     def TYPE_CODE        = 1
     def TYPE_2D_MAP      = 2
     def TYPE_3D_MAP      = 3
-    def TYPE_TILE_IMG    = 4
+    def TYPE_TILE_SET    = 4
     def TYPE_TEXTURE_IMG = 5
     def TYPE_FRAME_IMG   = 6
     def TYPE_FONT        = 7
@@ -32,7 +32,8 @@ class PackPartitions
     def code      = [:]  // code name to code.num, code.buf    
     def maps2D    = [:]  // map name to map.num, map.buf
     def maps3D    = [:]  // map name to map.num, map.buf
-    def tiles     = [:]  // tile name to tile.num, tile.buf
+    def tiles     = [:]  // tile id to tile.buf
+    def tileSets  = [:]  // tileset name to tileset.num, tileset.buf
     def textures  = [:]  // img name to img.num, img.buf
     def frames    = [:]  // img name to img.num, img.buf
     def fonts     = [:]  // font name to font.num, font.buf
@@ -323,45 +324,26 @@ class PackPartitions
         buf.put((byte)0);
     }
 
-    def write2DMap(buf, mapName, rows)
+    def write2DMap(buf, mapName, rows, tileSetNum, tileMap)
     {
         def width = rows[0].size()
         def height = rows.size()
         
-        // Determine the set of all referenced tiles, and assign numbers to them.
-        def tileMap = [:]
-        def tileList = []
-        rows.each { row ->
-            row.each { tile ->
-                def id = tile?.@id
-                def name = tile?.@name
-                if (!tileMap.containsKey(id)) {
-                    tileMap[id] = 0
-                    if (name in tiles) {
-                        tileList.add(tiles[name].num)
-                        tileMap[id] = tileList.size()
-                    }
-                    else if (id)
-                        println "Warning: can't match tile name '$name' to any image; treating as blank."
-                }
-            }
-        }
-
         // Header: width and height
         buf.put((byte)width)
         buf.put((byte)height)
         
+        // Then tileSet number
+        buf.put((byte)tileSetNum)
+        
         // Followed by name
         writeString(buf, mapName.replaceFirst(/ ?-? ?2D/, ""))
-        
-        // Followed by the list of tiles
-        tileList.each { buf.put((byte)it) }
-        buf.put((byte)0)
         
         // After the header comes the raw data
         rows.each { row ->
             row.each { tile ->
-                buf.put((byte)tileMap[tile?.@id])
+                def id = tile?.@id
+                buf.put((byte)(id ? tileMap[tile?.@id] : 0))
             }
         }
     }
@@ -544,12 +526,33 @@ class PackPartitions
     
     def packTile(imgEl)
     {
-        def num = tiles.size() + 1
-        def name = imgEl.@name ?: "img$num"
-        //println "Packing tile image #$num named '${imgEl.@name}'."
         def buf = parseTileData(imgEl)
-        tiles[imgEl.@name] = [num:num, buf:buf]
-        return buf
+        tiles[imgEl.@id] = buf
+    }
+    
+    def packTileSet(rows)
+    {
+        def setNum = tileSets.size() + 1
+        def setName = "tileSet${setNum}"
+        def tileMap = [null:0]
+        def buf = ByteBuffer.allocate(50000)
+        rows.each { row ->
+            row.each { tile ->
+                if (tile) {
+                    def id = tile.@id
+                    if (!tileMap.containsKey(id)) {
+                        def num = tileMap.size() + 1
+                        assert num < 32 : "Only 32 kinds of tiles are allowed on any given map."
+                        tileMap[id] = num
+                        tiles[id].flip() // crazy stuff to append one buffer to another
+                        buf.put(tiles[id])
+                        tiles[id].compact() // more of crazy stuff above
+                    }
+                }
+            }
+        }
+        tileSets[setName] = [num:setNum, buf:buf]
+        return [setNum, tileMap]
     }
     
     def pack2DMap(mapEl, tileEls)
@@ -558,8 +561,9 @@ class PackPartitions
         def name = mapEl.@name ?: "map$num"
         //println "Packing 2D map #$num named '$name'."
         def rows = parseMap(mapEl, tileEls)
+        def (tileSetNum, tileMap) = packTileSet(rows)
         def buf = ByteBuffer.allocate(50000)
-        write2DMap(buf, name, rows)
+        write2DMap(buf, name, rows, tileSetNum, tileMap)
         maps2D[name] = [num:num, buf:buf]
     }
     
@@ -898,7 +902,7 @@ class PackPartitions
         fonts.values().each { chunks.add([type:TYPE_FONT, num:it.num, buf:compress(it.buf)]) }
         frames.values().each { chunks.add([type:TYPE_FRAME_IMG, num:it.num, buf:compress(it.buf)]) }
         maps2D.values().each { chunks.add([type:TYPE_2D_MAP, num:it.num, buf:compress(it.buf)]) }
-        tiles.values().each { chunks.add([type:TYPE_TILE_IMG, num:it.num, buf:compress(it.buf)]) }
+        tileSets.values().each { chunks.add([type:TYPE_TILE_SET, num:it.num, buf:compress(it.buf)]) }
         maps3D.values().each { chunks.add([type:TYPE_3D_MAP, num:it.num, buf:compress(it.buf)]) }
         textures.values().each { chunks.add([type:TYPE_TEXTURE_IMG, num:it.num, buf:compress(it.buf)]) }
         
@@ -965,11 +969,11 @@ class PackPartitions
         // Open the XML data file produced by Outlaw Editor
         def dataIn = new XmlParser().parse(xmlPath)
         
-        // Pack each tile, which has the side-effect of filling in the
-        // tile name map.
-        //
-        println "Packing tile images."
-        dataIn.tile.each { packTile(it) }
+        // Pre-pack the data for each tile
+        println "Packing tiles."
+        dataIn.tile.each { 
+            packTile(it) 
+        }
         
         // Pack each image, which has the side-effect of filling in the
         // image name map. Handle frame images separately.

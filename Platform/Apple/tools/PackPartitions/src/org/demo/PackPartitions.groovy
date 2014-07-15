@@ -414,7 +414,7 @@ class PackPartitions
         javascriptOut.println("];\n")
     }
     
-    def write3DMap(buf, mapName, rows) // [ref BigBlue1_50]
+    def write3DMap(buf, mapName, rows, scriptModule) // [ref BigBlue1_50]
     {
         def width = rows[0].size() + 2  // Sentinel $FF at start and end of each row
         def height = rows.size() + 2    // Sentinel rows of $FF's at start and end
@@ -453,6 +453,9 @@ class PackPartitions
         // Header: width and height
         buf.put((byte)width)
         buf.put((byte)height)
+        
+        // Followed by script module num
+        buf.put((byte)scriptModule)
         
         // Followed by name
         writeString(buf, mapName.replaceFirst(/ ?-? ?3D/, ""))
@@ -565,24 +568,26 @@ class PackPartitions
         def num = maps3D.size() + 1
         def name = mapEl.@name ?: "map$num"
         println "Packing 3D map #$num named '$name'."
-        packScripts(mapEl, num)
+        def scriptModule = packScripts(mapEl, name)
         def rows = parseMap(mapEl, tileEls)
         def buf = ByteBuffer.allocate(50000)
-        write3DMap(buf, name, rows)
+        write3DMap(buf, name, rows, scriptModule)
         maps3D[name] = [num:num, buf:buf]
     }
     
-    def packScripts(mapEl, mapNum)
+    def packScripts(mapEl, mapName)
     {
         if (!mapEl.scripts)
-            return
+            return 0
         ScriptModule module = new ScriptModule()
         module.packScripts(mapEl.scripts[0])
-        def num = mapNum + 0x20 // to distinguish from system modules
-        def name = "mapScript$mapNum"
+        def num = modules.size() + 1
+        def name = "mapScript$num"
+        println "Packing scripts for map $mapName, to module $num."
         modules[name]   = [num:num, buf:wrapByteList(module.data)]
         bytecodes[name] = [num:num, buf:wrapByteList(module.bytecode)]
         fixups[name]    = [num:num, buf:wrapByteList(module.fixups)]
+        return num
     }
     
     def readBinary(path)

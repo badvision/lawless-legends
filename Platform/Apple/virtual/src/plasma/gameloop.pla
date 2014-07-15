@@ -355,6 +355,7 @@ end
 ; General methods
 
 def initMap()
+  word scriptModule
 
   ; Reset memory (our module will stay since memory manager locked it upon load)
   loader(RESET_MEMORY, MAIN_MEM, 0)
@@ -385,9 +386,13 @@ def initMap()
   ; Load everything that we just queued
   loader(FINISH_LOAD, MAIN_MEM, 1) ; 1 = keep open
 
-  ; Load the scripts for this map
-  pScripts = loader(QUEUE_LOAD, MAIN_MEM, ((mapNum+$20)<<8) | RES_TYPE_MODULE)
-  loader(FINISH_LOAD, MAIN_MEM, 1) ; 1 = keep open
+  ; Load the scripts for this map, if it has any.
+  scriptModule = pMap->2  ; first 2 bytes are width and height, third byte is script module num
+  if scriptModule
+    pScripts = loader(QUEUE_LOAD, MAIN_MEM, (scriptModule << 8) | RES_TYPE_MODULE)
+    loader(FINISH_LOAD, MAIN_MEM, 1) ; 1 = keep open
+    *pScripts()
+  fin
 
   ; Start up the font engine
   initFontEngine(pFont)
@@ -402,7 +407,6 @@ def initMap()
 
   ; Initialize the map scripts
   setWindow2()
-  *pScripts()
   prevX = -1
   prevY = -1
   

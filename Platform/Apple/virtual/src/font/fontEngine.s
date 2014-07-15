@@ -750,5 +750,5 @@ strLENGTH	!fill	1		; length of string
 ;---------------------------
 ; End of the code...
 ;---------------------------
-
+		!align 127,0
 		!source	"tables.i"

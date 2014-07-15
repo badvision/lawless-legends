@@ -1573,6 +1573,7 @@ loadTextures: !zone
 	sta mapWidth	; and save it
 	jsr .get	; get map height
 	sta mapHeight	; and save it
+	jsr .get	; ignore script module num (it gets loaded by PLASMA code)
 	lda .get+1	; current pointer is the map name
 	sta mapName	; save it
 	lda .get+2
@@ -1583,9 +1584,9 @@ loadTextures: !zone
 	inc mapNameLen
 	cmp #0
 	bne .skip	; until end-of-string is reached (zero byte)
-	lda mapNameLen		; clamp length of map name
+	lda mapNameLen	; clamp length of map name
 	cmp #MAX_NAME_LEN
-	bcc +
+	bcc .notrnc
 	lda mapName
 	sta .trunc+1
 	lda mapName+1
@@ -1594,7 +1595,7 @@ loadTextures: !zone
 	lda #0
 .trunc	sta mapName,x
 	stx mapNameLen
-+	lda #0		; now comes the list of textures.
+.notrnc	lda #0		; now comes the list of textures.
 	sta txNum
 .lup:	jsr .get	; get texture resource number
 	tay		; to Y for mem manager

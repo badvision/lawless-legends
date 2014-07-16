@@ -143,7 +143,7 @@ CROSS_NORTH
 		LDA REL_X
 		CMP SECTION_WIDTH+VIEWPORT_HORIZ_PAD
 		BGE .1
-.nw 	; Get new NW section
+ 		; Get new NW section
 		LDA (SW_MAP_LOC)
 		STA NW_MAP_ID
 		!loadSection NW_MAP_LOC

@@ -117,24 +117,15 @@ SET_XY
 ;----------------------------------------------------------------------
 ; >> TRIGGER SCRIPT AT TILE (X,Y = Coordinates in section)
 ;----------------------------------------------------------------------
-!macro move_zp_word from, to {
-		ldx #from
-		ldy #to
-		jsr move_zp_word
+!macro move_word from, to {
+		!move_byte from, to
+		!move_byte from+1, to+1
 }
 
 !macro move_byte from, to {
 		LDX from
 		STX to
 }
-
-move_zp_word
-		; Move a two-byte word from (X) to (Y)
-		lda $00,X
-		sta $00,Y
-		lda $01,X
-		sta $01,Y
-		rts
 
 ; >> CROSS NORTH BOUNDARY (Load next section to the north)
 !zone
@@ -146,9 +137,9 @@ CROSS_NORTH
 		ADC #SECTION_HEIGHT
 		STA REL_Y
 		!move_byte NW_MAP_ID, SW_MAP_ID
-		!movezp_word NW_MAP_LOC, SW_MAP_LOC
+		!move_word NW_MAP_LOC, SW_MAP_LOC
 		!move_byte NE_MAP_ID, SE_MAP_ID
-		!movezp_word NE_MAP_LOC, SE_MAP_LOC
+		!move_word NE_MAP_LOC, SE_MAP_LOC
 		LDA REL_X
 		CMP SECTION_WIDTH+VIEWPORT_HORIZ_PAD
 		BGE .1
@@ -182,9 +173,9 @@ CROSS_EAST
 		SBC #SECTION_WIDTH
 		STA REL_X
 		!move_byte NE_MAP_ID, NW_MAP_ID
-		!movezp_word NE_MAP_LOC, NW_MAP_LOC
+		!move_word NE_MAP_LOC, NW_MAP_LOC
 		!move_byte SE_MAP_ID, SW_MAP_ID
-		!movezp_word SE_MAP_LOC, SW_MAP_LOC
+		!move_word SE_MAP_LOC, SW_MAP_LOC
 		LDA REL_Y
 		CMP SECTION_HEIGHT+VIEWPORT_VERT_PAD
 		BGE .1
@@ -220,9 +211,9 @@ CROSS_SOUTH
 		SBC #SECTION_HEIGHT
 		STA REL_Y
 		!move_byte SW_MAP_ID, NW_MAP_ID
-		!movezp_word SW_MAP_LOC, NW_MAP_LOC
+		!move_word SW_MAP_LOC, NW_MAP_LOC
 		!move_byte SE_MAP_ID, NE_MAP_ID
-		!movezp_word SE_MAP_LOC, NE_MAP_LOC
+		!move_word SE_MAP_LOC, NE_MAP_LOC
 		LDA REL_X
 		CMP SECTION_WIDTH+VIEWPORT_HORIZ_PAD
 		BGE .1
@@ -258,9 +249,9 @@ CROSS_WEST
 		ADC #SECTION_WIDTH
 		STA REL_X
 		!move_byte NW_MAP_ID, NE_MAP_ID
-		!movezp_word NW_MAP_LOC, NE_MAP_LOC
+		!move_word NW_MAP_LOC, NE_MAP_LOC
 		!move_byte SW_MAP_ID, SE_MAP_ID
-		!movezp_word SW_MAP_LOC, SE_MAP_LOC
+		!move_word SW_MAP_LOC, SE_MAP_LOC
 		LDA REL_Y
 		CMP SECTION_HEIGHT+VIEWPORT_VERT_PAD
 		BGE .1

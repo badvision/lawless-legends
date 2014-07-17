@@ -117,15 +117,15 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     }
 
     public void assignScript(Script script, double x, double y) {
-        int xx = (int) (x / tileWidth);
-        int yy = (int) (y / tileHeight);
+        int xx = (int) (x / tileWidth) + posX;
+        int yy = (int) (y / tileHeight) + posY;
         getCurrentMap().putLocationScript(xx, yy, script);
         redraw();
     }
 
     public void unassignScripts(double x, double y) {
-        int xx = (int) (x / tileWidth);
-        int yy = (int) (y / tileHeight);
+        int xx = (int) (x / tileWidth) + posX;
+        int yy = (int) (y / tileHeight) + posY;
         getCurrentMap().removeLocationScripts(xx, yy);
         redraw();
     }

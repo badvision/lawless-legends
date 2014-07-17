@@ -1,8 +1,7 @@
 ;@com.wudsn.ide.asm.hardware=APPLE2
 ; Tile routines
 ; ------------------
-;
-
+;     
  * = $6000
 ; Global definitions
 !source "../include/global.i"
@@ -109,7 +108,7 @@ LOAD_SECTION
 ;	| `--- Requires special (rope, raft, etc)
 ;	`----- Script assigned, triggers script lookup 
 ;----------------------------------------------------------------------
-; >> SET X,Y COORDINATES
+; >> SET X,Y COORDINATES FOR VIEWPORT CENTER
 SET_XY
 		STX REL_X
 		STY REL_Y
@@ -140,24 +139,11 @@ CROSS_NORTH
 		!move_word NW_MAP_LOC, SW_MAP_LOC
 		!move_byte NE_MAP_ID, SE_MAP_ID
 		!move_word NE_MAP_LOC, SE_MAP_LOC
-		LDA REL_X
-		CMP SECTION_WIDTH+VIEWPORT_HORIZ_PAD
-		BGE .1
  		; Get new NW section
 		LDA (SW_MAP_LOC)
 		STA NW_MAP_ID
 		!loadSection NW_MAP_LOC
-		LDA REL_X
-		CMP SECTION_WIDTH-VIEWPORT_HORIZ_PAD
-		BGE .2
-		; Skip the NE quadrant if not visible
-		LDA #$FF
-		STA NE_MAP_ID
-		RTS
-		; Skip the NW quadrant if not visible
-.1		LDA #$FF
-		STA NW_MAP_ID
-.2 		; Get the new NE section
+ 		; Get the new NE section
 		LDA (SE_MAP_LOC)
 		STA NE_MAP_ID
 		!loadSection NE_MAP_LOC
@@ -176,25 +162,12 @@ CROSS_EAST
 		!move_word NE_MAP_LOC, NW_MAP_LOC
 		!move_byte SE_MAP_ID, SW_MAP_ID
 		!move_word SE_MAP_LOC, SW_MAP_LOC
-		LDA REL_Y
-		CMP SECTION_HEIGHT+VIEWPORT_VERT_PAD
-		BGE .1
  		; Get new NE section
 		LDY #EAST
 		LDA (NW_MAP_LOC),Y
 		STA NE_MAP_ID
 		!loadSection NE_MAP_LOC
-		LDA REL_Y
-		CMP SECTION_HEIGHT-VIEWPORT_VERT_PAD
-		BGE .2
-		; Skip the SE quadrant if not visible
-		LDA #$FF
-		STA SE_MAP_ID
-		RTS
-		; Skip the NE quadrant if not visible
-.1		LDA #$FF
-		STA NE_MAP_ID
-.2 		; Get the new SE section
+ 		; Get the new SE section
 		LDY #EAST
 		LDA (SW_MAP_LOC),Y
 		STA SE_MAP_ID
@@ -214,25 +187,12 @@ CROSS_SOUTH
 		!move_word SW_MAP_LOC, NW_MAP_LOC
 		!move_byte SE_MAP_ID, NE_MAP_ID
 		!move_word SE_MAP_LOC, NE_MAP_LOC
-		LDA REL_X
-		CMP SECTION_WIDTH+VIEWPORT_HORIZ_PAD
-		BGE .1
 	 	; Get new SW section
 	 	LDY #SOUTH
 		LDA (NW_MAP_LOC),Y
 		STA SW_MAP_ID
 		!loadSection SW_MAP_LOC
-		LDA REL_X
-		CMP SECTION_WIDTH-VIEWPORT_HORIZ_PAD
-		BGE .2
-		; Skip the NE quadrant if not visible
-		LDA #$FF
-		STA SE_MAP_ID
-		RTS
-		; Skip the NW quadrant if not visible
-.1		LDA #$FF
-		STA SW_MAP_ID
-.2 		; Get the new SE section
+ 		; Get the new SE section
 		LDY #SOUTH
 		LDA (SE_MAP_LOC),Y
 		STA SE_MAP_ID
@@ -252,25 +212,12 @@ CROSS_WEST
 		!move_word NW_MAP_LOC, NE_MAP_LOC
 		!move_byte SW_MAP_ID, SE_MAP_ID
 		!move_word SW_MAP_LOC, SE_MAP_LOC
-		LDA REL_Y
-		CMP SECTION_HEIGHT+VIEWPORT_VERT_PAD
-		BGE .1
  		; Get new NW section
 		LDY #WEST
 		LDA (NE_MAP_LOC),Y
 		STA NW_MAP_ID
 		!loadSection NW_MAP_LOC
-		LDA REL_Y
-		CMP SECTION_HEIGHT-VIEWPORT_VERT_PAD
-		BGE .2
-		; Skip the SW quadrant if not visible
-		LDA #$FF
-		STA SW_MAP_ID
-		RTS
-		; Skip the NE quadrant if not visible
-.1		LDA #$FF
-		STA NW_MAP_ID
-.2 		; Get the new SE section
+ 		; Get the new SE section
 		LDY #WEST
 		LDA (SE_MAP_LOC),Y
 		STA SW_MAP_ID
@@ -283,17 +230,57 @@ CROSS_WEST
 ;----------------------------------------------------------------------
 ; >> DRAW
 !zone draw
+!macro drawMapSection ptr, deltaX, deltaY {
+	; Determine X1 and X2 bounds for what is being drawn
+		LDA REL_X
+		SEC
+		SBC #(deltaX+VIEWPORT_HORIZ_PAD)
+		TAX
+		BPL .10
+		;This section isn't at the edge, note that
+		EOR #$FF
+		ADC #$00 ; Carry is still set, so this is really +1
+		BPL .11	; Should be always true
+.10		LDA #0
+.11 	STA X1
+		TXA
+		CLC
+		ADC VIEWPORT_WIDTH
+		CMP SECTION_WIDTH
+		BLT .12
+		LDA #SECTION_WIDTH-1
+.12		STA X2		
+
+		}
+
+	; Determine Y1 and Y2 bounds for what is being drawn
+}
+
 DRAW
 ; For each quadrant, display relevant parts of screen
 .checkNorthQuads
-	LDA REL_Y
-	CMP SECTION_HEIGHT+VIEWPORT_VERT_PAD
-	BGE .checkSouthQuads
+		LDA REL_Y
+		CMP SECTION_HEIGHT+VIEWPORT_VERT_PAD
+		BGE .checkSouthQuads
 ;	Check for NW quadrant area
+		LDA REL_X
+		CMP SECTION_WIDTH+VIEWPORT_HORIZ_PAD
+		BGE .checkNEQuad
+		!drawMapSection NW_MAP_LOC, 0, 0
+		LDA NW_MAP_LOC+1
+		BNE .drawNW
+
+.drawNW
 ;	Check for NE quadrant area
+.checkNEQuad
+
 .checkSouthQuads
 ;	Check for SW quadrant area
+		LDA REL_X
+		CMP SECTION_WIDTH+VIEWPORT_HORIZ_PAD
+		BGE .checkSEQuad
 ;	Check for SE quadrand area
+.checkSEQuad
 	RTS
 .mainDraw
 ; Identify start of map data (upper left)

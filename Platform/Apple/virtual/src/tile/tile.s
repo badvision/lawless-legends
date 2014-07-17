@@ -47,6 +47,17 @@ INIT
 		LDY VIEWPORT_VERT_PAD
 		JSR SET_XY
 		RTS
+
+;----------------------------------------------------------------------
+; >> START LOADING MAP SECTIONS
+START_LOAD
+		LDX #0
+		LDA #START_LOAD
+		JMP mainLoader
+!macro startLoad {
+		JSR START_LOAD
+}
+
 ;----------------------------------------------------------------------
 ; >> LOAD MAP SECTION
 ;	Section number is in A
@@ -64,18 +75,34 @@ LOAD_SECTION
 		LDX #00		; This is a bogus map section, don't load
 		LDY #00
 		RTS
-.doLoad
-		;INSERT LOADER HERE
-		RTS
-!loadSection ptr {
+.doLoad		TAY		; resource # in Y
+		LDX #RES_TYPE_2D_MAP
+		LDA #QUEUE_LOAD
+		JMP mainLoader
+!macro loadSection ptr {
 		JSR LOAD_SECTION
 		STX ptr 
 		STY ptr+1
 }
+
+;----------------------------------------------------------------------
+; >> FINISH LOADING MAP SECTIONS
+FINISH_LOAD
+		LDX #0		; 1 to keep open for next load, 0 for close so you can flip to HGR page 2
+		LDA #FINISH_LOAD
+		JMP mainLoader
+!macro finishLoad {
+		JSR FINISH_LOAD
+}
+
 ;----------------------------------------------------------------------
 ; >> RELEASE MAP SECTION
-!macro releaseMapSection resourceId {
+!macro releaseMapSection ptr {
 	; --> free up unused resource
+		LDX ptr
+		LDY ptr+1
+		LDA #FREE_MEMORY
+		JSR mainLoader
 }
 ;----------------------------------------------------------------------
 ; >> LOAD TILES
@@ -129,8 +156,8 @@ SET_XY
 ; >> CROSS NORTH BOUNDARY (Load next section to the north)
 !zone
 CROSS_NORTH
-		!releaseMapSection SW_MAP_ID
-		!releaseMapSection SE_MAP_ID
+		!releaseMapSection SW_MAP_LOC
+		!releaseMapSection SE_MAP_LOC
 		LDA REL_Y
 		CLC
 		ADC #SECTION_HEIGHT
@@ -140,6 +167,7 @@ CROSS_NORTH
 		!move_byte NE_MAP_ID, SE_MAP_ID
 		!move_word NE_MAP_LOC, SE_MAP_LOC
  		; Get new NW section
+		!startLoad
 		LDA (SW_MAP_LOC)
 		STA NW_MAP_ID
 		!loadSection NW_MAP_LOC
@@ -147,13 +175,14 @@ CROSS_NORTH
 		LDA (SE_MAP_LOC)
 		STA NE_MAP_ID
 		!loadSection NE_MAP_LOC
+		!finishLoad
 		RTS
 ;----------------------------------------------------------------------
 ; >> CROSS EAST BOUNDARY (Load next section to the east)
 !zone
 CROSS_EAST
-		!releaseMapSection NW_MAP_ID
-		!releaseMapSection SW_MAP_ID
+		!releaseMapSection NW_MAP_LOC
+		!releaseMapSection SW_MAP_LOC
 		LDA REL_X
 		SEC
 		SBC #SECTION_WIDTH
@@ -163,6 +192,7 @@ CROSS_EAST
 		!move_byte SE_MAP_ID, SW_MAP_ID
 		!move_word SE_MAP_LOC, SW_MAP_LOC
  		; Get new NE section
+		!startLoad
 		LDY #EAST
 		LDA (NW_MAP_LOC),Y
 		STA NE_MAP_ID
@@ -172,13 +202,14 @@ CROSS_EAST
 		LDA (SW_MAP_LOC),Y
 		STA SE_MAP_ID
 		!loadSection SE_MAP_LOC
+		!finishLoad
 		RTS
 ;----------------------------------------------------------------------
 ; >> CROSS SOUTH BOUNDARY (Load next section to the south)
 !zone
 CROSS_SOUTH
-		!releaseMapSection NW_MAP_ID
-		!releaseMapSection NE_MAP_ID
+		!releaseMapSection NW_MAP_LOC
+		!releaseMapSection NE_MAP_LOC
 		LDA REL_Y
 		SEC
 		SBC #SECTION_HEIGHT
@@ -188,22 +219,24 @@ CROSS_SOUTH
 		!move_byte SE_MAP_ID, NE_MAP_ID
 		!move_word SE_MAP_LOC, NE_MAP_LOC
 	 	; Get new SW section
+		!startLoad
 	 	LDY #SOUTH
 		LDA (NW_MAP_LOC),Y
 		STA SW_MAP_ID
 		!loadSection SW_MAP_LOC
  		; Get the new SE section
 		LDY #SOUTH
-		LDA (SE_MAP_LOC),Y
+		LDA (NE_MAP_LOC),Y
 		STA SE_MAP_ID
 		!loadSection SE_MAP_LOC
+		!finishLoad
 		RTS
 ;----------------------------------------------------------------------
 ; >> CROSS WEST BOUNDARY (load next section to the west)
 !zone
 CROSS_WEST
-		!releaseMapSection NE_MAP_ID
-		!releaseMapSection SE_MAP_ID
+		!releaseMapSection NE_MAP_LOC
+		!releaseMapSection SE_MAP_LOC
 		LDA REL_X
 		CLC
 		ADC #SECTION_WIDTH
@@ -213,6 +246,7 @@ CROSS_WEST
 		!move_byte SW_MAP_ID, SE_MAP_ID
 		!move_word SW_MAP_LOC, SE_MAP_LOC
  		; Get new NW section
+		!startLoad
 		LDY #WEST
 		LDA (NE_MAP_LOC),Y
 		STA NW_MAP_ID
@@ -222,6 +256,7 @@ CROSS_WEST
 		LDA (SE_MAP_LOC),Y
 		STA SW_MAP_ID
 		!loadSection SW_MAP_LOC
+		!finishLoad
 		RTS
 ;----------------------------------------------------------------------
 ; >> SET PLAYER TILE (A = tile)

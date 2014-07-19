@@ -85,6 +85,7 @@ const MAX_LOC_TRIG = 80
 ; Strings.
 byte helloStr[] = "Loading Lawless Legends.\n"
 byte loopStr[] = "Entering keyboard loop.\n"
+byte tooManyTriggers[] = "Too many triggers"
 
 ;==================================================================================================
 ; Global variables
@@ -210,6 +211,14 @@ end
 asm crout
         bit setROM
         jsr crout
+        dex                   ; don't-care return value
+        bit setLcRW+lcBank2
+        rts
+end
+
+asm beep
+        bit setROM
+        jsr bell
         dex                   ; don't-care return value
         bit setLcRW+lcBank2
         rts
@@ -344,20 +353,6 @@ asm goMon
         jmp $FF69
 end
 
-asm fatal
-        bit setROM
-        lda #'F'+$80
-        jsr cout
-        lda #'#'+$80
-        jsr cout
-        lda evalStkH,x
-        jsr prbyte
-        lda evalStkL,x
-        jsr prbyte
-        jsr crout
-        jmp $FF65
-end
-
 asm clearWindow
         bit setROM
         txa
@@ -388,6 +383,10 @@ end
 
 ;==================================================================================================
 ; General methods
+
+def fatal(msg)
+  loader(FATAL_ERROR, MAIN_MEM, msg)
+end
 
 def initMap()
   word scriptModule
@@ -523,8 +522,6 @@ def moveForward()
   *playerY = *playerY + walkDirs[(^playerDir << 1) + 1]
   if !wasBlocked and isBlocked()
     moveBackward()
-  else
-    checkScript()
   fin
 end
 
@@ -564,13 +561,18 @@ def flipToFirstPage
   fin
 end
 
-def nextMap()
+def setMap(is3d, num)
+  mapNum = num
   flipToFirstPage()
+  initMap()
+end
+
+def nextMap()
   mapNum = mapNum + 1
   if mapNum > 8
     mapNum = 1
   fin
-  initMap()
+  setMap(1, mapNum)
 end
 
 def nextSky()
@@ -585,22 +587,29 @@ def nextGround()
   setColor(3<<8 | skyGndTbl2[groundNum])
 end
 
+def getUpperKey()
+  byte key
+  while ^keyboard < 128
+  loop
+  key = ^keyboard & $7F
+  ^keystrobe
+  if key >= $60
+    key = key - $20
+  fin
+  return key
+end
+
 def kbdLoop()
   word key, func
   while TRUE
-    if ^keyboard >= 128
-      key = ^keyboard & $7F
-      ^keystrobe
-      key = key - $20
-      if key >= $40
-        key = key - $20
-      fin
-      if key >= 0 and key < $40
-        func = cmdTbl[key]
-        if func
-          func()
-          renderFrame()
-        fin
+    key = getUpperKey()
+    key = key - $20
+    if key >= 0 and key < $40
+      func = cmdTbl[key]
+      if func
+        func()
+        renderFrame()
+        checkScript()
       fin
     fin
   loop
@@ -608,12 +617,25 @@ end
 
 def setLocationTrigger(x, y, func)
   if nLocTrig == MAX_LOC_TRIG
-    fatal($101)
+    fatal(@tooManyTriggers)
   fin
   locTrig_x[nLocTrig] = x
   locTrig_y[nLocTrig] = y
   locTrig_func[nLocTrig] = func
   nLocTrig = nLocTrig + 1
+end
+
+def getYN()
+  byte key
+  while TRUE
+    key = getUpperKey()
+    if key == 'Y'
+      return 1
+    elsif key == 'N'
+      return 0
+    fin
+    beep()
+  loop
 end
 
 ;==================================================================================================
@@ -645,8 +667,15 @@ initCmd('G', @nextGround)
 
 callbacks.0 = $4c
 callbacks:1 = @setLocationTrigger
+
 callbacks.3 = $4c
 callbacks:4 = @displayStr
+
+callbacks.6 = $4c
+callbacks:7 = @getYN
+
+callbacks.9 = $4c
+callbacks:10 = @setMap
 
 initMap()
 

@@ -29,6 +29,7 @@ class PackPartitions
     def TYPE_BYTECODE    = 9
     def TYPE_FIXUP       = 10
 
+    def mapNames  = [:]  // map name (and short name also) to map.2dor3d, map.num
     def code      = [:]  // code name to code.num, code.buf    
     def maps2D    = [:]  // map name to map.num, map.buf
     def maps3D    = [:]  // map name to map.num, map.buf
@@ -563,8 +564,8 @@ class PackPartitions
     
     def pack2DMap(mapEl, tileEls)
     {
-        def num = maps2D.size() + 1
         def name = mapEl.@name ?: "map$num"
+        def num = mapNames[name][1]
         //println "Packing 2D map #$num named '$name'."
         def rows = parseMap(mapEl, tileEls)
         def (tileSetNum, tileMap) = packTileSet(rows)
@@ -575,8 +576,8 @@ class PackPartitions
     
     def pack3DMap(mapEl, tileEls)
     {
-        def num = maps3D.size() + 1
         def name = mapEl.@name ?: "map$num"
+        def num = mapNames[name][1]
         println "Packing 3D map #$num named '$name'."
         def (scriptModule, locationsWithTriggers) = packScripts(mapEl, name)
         def rows = parseMap(mapEl, tileEls)
@@ -996,6 +997,26 @@ class PackPartitions
         if (javascriptPath)
             javascriptOut = new File(javascriptPath).newPrintWriter()
             
+        // Number all the maps and record them with names
+        def num2D = 0
+        def num3D = 0
+        dataIn.map.each { map ->
+            def name = map?.@name
+            def shortName = name.replaceAll(/[\s-]*[23]D$/, '')
+            if (map?.@name =~ /\s*2D$/) {
+                ++num2D
+                mapNames[name] = ['2D', num2D]
+                mapNames[shortName] = ['2D', num2D]
+            }
+            else if (map?.@name =~ /\s*3D$/) {
+                ++num3D
+                mapNames[name] = ['3D', num3D]
+                mapNames[shortName] = ['3D', num3D]
+            }
+            else
+                println "Warning: map name '${map?.@name}' should contain '2D' or '3D'. Skipping."
+        }
+            
         // Pack each map This uses the image and tile maps filled earlier.
         println "Packing maps."
         dataIn.map.each { map ->
@@ -1049,207 +1070,271 @@ class PackPartitions
             System.exit(1);
         }
         
-        def m = new ScriptModule()
-        
         // Go for it.
         new PackPartitions().pack(args[0], args[1], args.size() > 2 ? args[2] : null)
     }
-}
 
-class ScriptModule
-{
-    def data = []
-    def bytecode = []
-    def fixups = []
-    
-    def nScripts = 0
-    
-    def locationsWithTriggers = []
-    
-    def vec_locationTrigger = 0x300
-    def vec_displayStr      = 0x303
-    
-    def addString(str)
+    class ScriptModule
     {
-        assert str.size() < 256 : "String too long, max is 255 characters: $str"
-        def addr = dataAddr()
-        emitDataByte(str.size())
-        str.each { ch -> emitDataByte((byte)ch) }
-        return addr
-    }
-    
-    def packScripts(scripts)
-    {
-        nScripts = scripts.script.size()
-        makeStubs()
-        scripts.script.eachWithIndex { script, idx ->
-            packScript(idx, script) 
+        def data = []
+        def bytecode = []
+        def fixups = []
+
+        def nScripts = 0
+
+        def locationsWithTriggers = []
+
+        def vec_locationTrigger = 0x300
+        def vec_displayStr      = 0x303
+        def vec_getYN           = 0x306
+        def vec_setMap          = 0x309
+
+        def addString(str)
+        {
+            assert str.size() < 256 : "String too long, max is 255 characters: $str"
+            def addr = dataAddr()
+            emitDataByte(str.size())
+            str.each { ch -> emitDataByte((byte)ch) }
+            return addr
         }
-        makeInit(scripts)
-        emitFixupByte(0xFF)
-        //println "data: $data"
-        //println "bytecode: $bytecode"
-        //println "fixups: $fixups"
-    }
-    
-    def makeStubs()
-    {
-        // Emit a stub for each function, including the init function
-        (0..nScripts).each { it ->
-            emitDataByte(0x20)  // JSR
-            emitDataWord(0x3DC) // Aux mem interp ($3DC)
-            emitDataWord(0)     // Placeholder for the bytecode offset
+
+        def packScripts(scripts)
+        {
+            nScripts = scripts.script.size()
+            makeStubs()
+            scripts.script.eachWithIndex { script, idx ->
+                packScript(idx, script) 
+            }
+            makeInit(scripts)
+            emitFixupByte(0xFF)
+            //println "data: $data"
+            //println "bytecode: $bytecode"
+            //println "fixups: $fixups"
         }
-    }
-    
-    def startFunc(scriptNum)
-    {
-        def fixAddr = (scriptNum * 5) + 3
-        assert data[fixAddr] == 0 && data[fixAddr+1] == 0
-        data[fixAddr] = (byte)(bytecodeAddr() & 0xFF)
-        data[fixAddr+1] = (byte)((bytecodeAddr() >> 8) & 0xFF)
-    }
-    
-    def packScript(scriptNum, script)
-    {
-        def name = script.name[0].text()
-        println "   Script '$name'"
-        
-        if (script.block.size() == 0)
-            return
-        
-        // Record the function's start address in its corresponding stub
-        startFunc(scriptNum+1)
-        
-        // Process the code inside it
-        assert script.block.size() == 1
-        def proc = script.block[0]
-        assert proc.@type == "procedures_defreturn"
-        assert proc.statement.size() == 1
-        def stmt = proc.statement[0]
-        assert stmt.@name == "STACK"
-        stmt.block.each { packBlock(it) }
-        
-        // And complete the function
-        finishFunc()
-    }
-    
-    def finishFunc()
-    {
-        // Finish off the function with a return value and return opcode
-        emitCodeByte(0)     // ZERO
-        emitCodeByte(0x5C)  // RET
-    }
-    
-    def packBlock(blk)
-    {
-        println "        Block '${blk.@type}'"
-        if (blk.@type == 'text_print')
-            packTextPrint(blk)
-            
-        // Strangely, blocks seem to be chained together, but hierarchically. Whatever.
-        blk.next.each { it.block.each { packBlock(it) } }
-    }
-    
-    def dataAddr()
-    {
-        return data.size()
-    }
-    
-    def bytecodeAddr()
-    {
-        return bytecode.size()
-    }
-    
-    def emitDataByte(b)
-    {
-        data.add((byte)(b & 0xFF))
-    }
-    
-    def emitDataWord(w)
-    {
-        emitDataByte(w)
-        emitDataByte(w >> 8)
-    }
-    
-    def emitCodeByte(b)
-    {
-        bytecode.add((byte)(b & 0xFF))
-    }
-    
-    def emitCodeWord(w)
-    {
-        emitCodeByte(w)
-        emitCodeByte(w >> 8)
-    }
-    
-    def emitFixupByte(b)
-    {
-        fixups.add((byte)(b & 0xFF))
-    }
-    
-    def emitCodeFixup(toAddr)
-    {
-        // Src addr is reversed (i.e. it's hi then lo)
-        emitFixupByte((bytecodeAddr() >> 8) | 0x80)
-        emitFixupByte(bytecodeAddr())
-        emitCodeWord(toAddr)
-    }
 
-    def packTextPrint(blk)
-    {
-        assert blk.value.size() == 1
-        def val = blk.value[0]
-        assert val.@name == 'VALUE'
-        assert val.block.size() == 1
-        def valBlk = val.block[0]
-        assert valBlk.@type == 'text'
-        assert valBlk.field.size() == 1
-        def fld = valBlk.field[0]
-        assert fld.@name == 'TEXT'
-        def text = fld.text()
-        println "            text: '$text'"
-        
-        emitCodeByte(0x26)  // LA
-        def textAddr = addString(text)
-        emitCodeFixup(textAddr)
-        emitCodeByte(0x54)  // CALL
-        emitCodeWord(vec_displayStr)
-        emitCodeByte(0x30) // DROP
-    }
-
-    def makeInit(scripts)
-    {
-        startFunc(0)
-        scripts.script.eachWithIndex { script, idx ->
-            script.locationTrigger.each { trig ->
-                def x = trig.@x.toInteger()
-                def y = trig.@y.toInteger()
-                locationsWithTriggers.add([x,y])
-                emitCodeByte(0x2A) // CB
-                assert x >= 0 && x < 255
-                emitCodeByte(x)
-                emitCodeByte(0x2A) // CB
-                assert y >= 0 && y < 255
-                emitCodeByte(y)
-                emitCodeByte(0x26)  // LA
-                emitCodeFixup((idx+1) * 5)
-                emitCodeByte(0x54) // CALL
-                emitCodeWord(vec_locationTrigger)
-                emitCodeByte(0x30) // DROP
+        def makeStubs()
+        {
+            // Emit a stub for each function, including the init function
+            (0..nScripts).each { it ->
+                emitDataByte(0x20)  // JSR
+                emitDataWord(0x3DC) // Aux mem interp ($3DC)
+                emitDataWord(0)     // Placeholder for the bytecode offset
             }
         }
-        finishFunc()
-    }
-    
-    def packFixups()
-    {
-        def buf = []
-        fixups.each { fromOff, fromType, toOff, toType ->
-            assert fromType == 'bytecode'
-            assert toType   == 'data'
-            toOff += (nScripts+1) * 5
+
+        def startFunc(scriptNum)
+        {
+            def fixAddr = (scriptNum * 5) + 3
+            assert data[fixAddr] == 0 && data[fixAddr+1] == 0
+            data[fixAddr] = (byte)(bytecodeAddr() & 0xFF)
+            data[fixAddr+1] = (byte)((bytecodeAddr() >> 8) & 0xFF)
+        }
+
+        def packScript(scriptNum, script)
+        {
+            def name = script.name[0].text()
+            println "   Script '$name'"
+
+            if (script.block.size() == 0)
+                return
+
+            // Record the function's start address in its corresponding stub
+            startFunc(scriptNum+1)
+
+            // Process the code inside it
+            assert script.block.size() == 1
+            def proc = script.block[0]
+            assert proc.@type == "procedures_defreturn"
+            assert proc.statement.size() == 1
+            def stmt = proc.statement[0]
+            assert stmt.@name == "STACK"
+            stmt.block.each { packBlock(it) }
+
+            // And complete the function
+            finishFunc()
+        }
+
+        def finishFunc()
+        {
+            // Finish off the function with a return value and return opcode
+            emitCodeByte(0)     // ZERO
+            emitCodeByte(0x5C)  // RET
+        }
+
+        def packBlock(blk)
+        {
+            println "        Block '${blk.@type}'"
+            switch (blk.@type) 
+            {
+                case 'text_print':
+                    packTextPrint(blk); break
+                case  'controls_if':
+                    packIfStmt(blk); break
+                case 'events_setmap':
+                    packSetMap(blk); break
+                default:
+                    println "Warning: don't know how to pack block of type '${blk.@type}'"
+            }
+
+            // Strangely, blocks seem to be chained together, but hierarchically. Whatever.
+            blk.next.each { it.block.each { packBlock(it) } }
+        }
+
+        def dataAddr()
+        {
+            return data.size()
+        }
+
+        def bytecodeAddr()
+        {
+            return bytecode.size()
+        }
+
+        def emitDataByte(b)
+        {
+            data.add((byte)(b & 0xFF))
+        }
+
+        def emitDataWord(w)
+        {
+            emitDataByte(w)
+            emitDataByte(w >> 8)
+        }
+
+        def emitCodeByte(b)
+        {
+            bytecode.add((byte)(b & 0xFF))
+        }
+
+        def emitCodeWord(w)
+        {
+            emitCodeByte(w)
+            emitCodeByte(w >> 8)
+        }
+
+        def emitFixupByte(b)
+        {
+            fixups.add((byte)(b & 0xFF))
+        }
+
+        def emitCodeFixup(toAddr)
+        {
+            // Src addr is reversed (i.e. it's hi then lo)
+            emitFixupByte((bytecodeAddr() >> 8) | 0x80)
+            emitFixupByte(bytecodeAddr())
+            emitCodeWord(toAddr)
+        }
+
+        def packTextPrint(blk)
+        {
+            assert blk.value.size() == 1
+            def val = blk.value[0]
+            assert val.@name == 'VALUE'
+            assert val.block.size() == 1
+            def valBlk = val.block[0]
+            assert valBlk.@type == 'text'
+            assert valBlk.field.size() == 1
+            def fld = valBlk.field[0]
+            assert fld.@name == 'TEXT'
+            def text = fld.text()
+            println "            text: '$text'"
+
+            emitCodeByte(0x26)  // LA
+            def textAddr = addString(text)
+            emitCodeFixup(textAddr)
+            emitCodeByte(0x54)  // CALL
+            emitCodeWord(vec_displayStr)
+            emitCodeByte(0x30) // DROP
+        }
+
+        def packIfStmt(blk)
+        {
+            assert blk.value.size() == 1
+            def cond = blk.value[0]
+            assert cond.@name == 'IF0'
+            assert cond.block.size() == 1
+            assert cond.block[0].@type == 'text_getboolean'
+
+            print "            Conditional on getboolean,"
+
+            emitCodeByte(0x54)  // CALL
+            emitCodeWord(vec_getYN)
+            emitCodeByte(0x4C)  // BRFS
+            def branchStart = bytecodeAddr()
+            emitCodeWord(0)     // placeholder until we know how far to jump over
+
+            assert blk.statement.size() == 1
+            def doStmt = blk.statement[0]
+            assert doStmt.block.size() == 1
+            packBlock(doStmt.block[0])
             
+            // Now calculate and fix the relative branch
+            def branchEnd = bytecodeAddr()
+            def rel = branchEnd - branchStart
+            bytecode[branchStart] = (byte)(rel & 0xFF)
+            bytecode[branchStart+1] = (byte)((rel >> 8) & 0xFF)
+        }
+
+        def packSetMap(blk)
+        {
+            assert blk.value.size() == 1
+            def mapVal = blk.value[0]
+            assert mapVal.@name == 'VALUE'
+            assert mapVal.block.size() == 1
+            def mapValBlk = mapVal.block[0]
+            assert mapValBlk.@type == 'text'
+            assert mapValBlk.field.size() == 1
+            def mapValFld = mapValBlk.field[0]
+            assert mapValFld.@name == 'TEXT'
+            def mapName = mapValFld.text()
+            def mapNum = mapNames[mapName]
+            assert mapNum
+            println "            Set map to '$mapName' (num $mapNum)"
+            
+            emitCodeByte(0x2A) // CB
+            assert mapNum[0] == '2D' || mapNum[0] == '3D'
+            emitCodeByte(mapNum[0] == '2D' ? 0 : 1)
+            emitCodeByte(0x2A) // CB
+            emitCodeByte(mapNum[1])
+            emitCodeByte(0x54)  // CALL
+            emitCodeWord(vec_setMap)
+            emitCodeByte(0x30) // DROP
+        }
+
+        def makeInit(scripts)
+        {
+            startFunc(0)
+            scripts.script.eachWithIndex { script, idx ->
+                script.locationTrigger.each { trig ->
+                    def x = trig.@x.toInteger()
+                    def y = trig.@y.toInteger()
+                    locationsWithTriggers.add([x,y])
+                    emitCodeByte(0x2A) // CB
+                    assert x >= 0 && x < 255
+                    emitCodeByte(x)
+                    emitCodeByte(0x2A) // CB
+                    assert y >= 0 && y < 255
+                    emitCodeByte(y)
+                    emitCodeByte(0x26)  // LA
+                    emitCodeFixup((idx+1) * 5)
+                    emitCodeByte(0x54) // CALL
+                    emitCodeWord(vec_locationTrigger)
+                    emitCodeByte(0x30) // DROP
+                }
+            }
+            finishFunc()
+        }
+
+        def packFixups()
+        {
+            def buf = []
+            fixups.each { fromOff, fromType, toOff, toType ->
+                assert fromType == 'bytecode'
+                assert toType   == 'data'
+                toOff += (nScripts+1) * 5
+
+            }
         }
     }
+    
 }

@@ -998,7 +998,7 @@ class PackPartitions
             else if (map?.@name =~ /3D/)
                 pack3DMap(map, dataIn.tile) 
             else
-                println "Warning: map name '$name' should contain '2D' or '3D'. Skipping."
+                println "Warning: map name '${map?.@name}' should contain '2D' or '3D'. Skipping."
         }
         
         // Ready to start writing the output file.
@@ -1106,6 +1106,9 @@ class ScriptModule
     {
         def name = script.name[0].text()
         println "   Script '$name'"
+        
+        if (script.block.size() == 0)
+            return
         
         // Record the function's start address in its corresponding stub
         startFunc(scriptNum+1)

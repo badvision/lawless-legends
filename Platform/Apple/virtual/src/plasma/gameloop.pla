@@ -78,6 +78,8 @@ const wndbtm    = $73  ; bottom+1 of text window
 const cursh     = $74  ; Cursor H-pos 0-39
 const cursv     = $75  ; Cursor V-pos 0-23
 
+const MAX_LOC_TRIG = 80
+
 ;==================================================================================================
 ; Strings.
 byte helloStr[] = "Loading Lawless Legends.\n"
@@ -91,9 +93,9 @@ word pMap
 word pScripts
 word cmdTbl[64]
 word nLocTrig = 0
-word locTrig_x[30]
-word locTrig_y[30]
-word locTrig_func[30]
+word locTrig_x[MAX_LOC_TRIG]
+word locTrig_y[MAX_LOC_TRIG]
+word locTrig_func[MAX_LOC_TRIG]
 word prevX
 word prevY
 
@@ -323,6 +325,20 @@ asm goMon
         jmp $FF69
 end
 
+asm fatal
+        bit setROM
+        lda #'F'+$80
+        jsr cout
+        lda #'#'+$80
+        jsr cout
+        lda evalStkH,x
+        jsr prbyte
+        lda evalStkL,x
+        jsr prbyte
+        jsr crout
+        jmp $FF65
+end
+
 asm clearWindow
         bit setROM
         txa
@@ -391,6 +407,7 @@ def initMap()
   if scriptModule
     pScripts = loader(QUEUE_LOAD, MAIN_MEM, (scriptModule << 8) | RES_TYPE_MODULE)
     loader(FINISH_LOAD, MAIN_MEM, 1) ; 1 = keep open
+    nLocTrig = 0
     *pScripts()
   fin
 
@@ -530,7 +547,7 @@ end
 def nextMap()
   flipToFirstPage()
   mapNum = mapNum + 1
-  if mapNum > 5
+  if mapNum > 8
     mapNum = 1
   fin
   initMap()
@@ -570,6 +587,9 @@ def kbdLoop()
 end
 
 def setLocationTrigger(x, y, func)
+  if nLocTrig == MAX_LOC_TRIG
+    fatal($101)
+  fin
   locTrig_x[nLocTrig] = x
   locTrig_y[nLocTrig] = y
   locTrig_func[nLocTrig] = func

@@ -396,7 +396,7 @@ class PackPartitions
         javascriptOut.println("];\n")
     }
     
-    def write3DMap(buf, mapName, rows, scriptModule) // [ref BigBlue1_50]
+    def write3DMap(buf, mapName, rows, scriptModule, locationsWithTriggers) // [ref BigBlue1_50]
     {
         def width = rows[0].size() + 2  // Sentinel $FF at start and end of each row
         def height = rows.size() + 2    // Sentinel rows of $FF's at start and end
@@ -431,6 +431,10 @@ class PackPartitions
                 }
             }
         }
+        
+        // Make a map of all the locations with triggers
+        def locMap = [:]
+        locationsWithTriggers.each { x,y -> locMap[[x,y]] = true }
 
         // Header: width and height
         buf.put((byte)width)
@@ -454,10 +458,12 @@ class PackPartitions
         (0..<width).each { buf.put((byte)0xFF) }
         
         // After the header comes the raw data
-        rows.each { row ->
+        rows.eachWithIndex { row,y ->
             buf.put((byte)0xFF) // sentinel at start of row
-            row.each { tile ->
-                buf.put((byte)texMap[tile?.@id])
+            row.eachWithIndex { tile,x ->
+                // Mark scripted locations with a flag
+                def flags = locMap.containsKey([x,y]) ? 0x20 : 0
+                buf.put((byte)texMap[tile?.@id] | flags)
             }
             buf.put((byte)0xFF) // sentinel at end of row
         }
@@ -572,10 +578,10 @@ class PackPartitions
         def num = maps3D.size() + 1
         def name = mapEl.@name ?: "map$num"
         println "Packing 3D map #$num named '$name'."
-        def scriptModule = packScripts(mapEl, name)
+        def (scriptModule, locationsWithTriggers) = packScripts(mapEl, name)
         def rows = parseMap(mapEl, tileEls)
         def buf = ByteBuffer.allocate(50000)
-        write3DMap(buf, name, rows, scriptModule)
+        write3DMap(buf, name, rows, scriptModule, locationsWithTriggers)
         maps3D[name] = [num:num, buf:buf]
     }
     
@@ -591,7 +597,7 @@ class PackPartitions
         modules[name]   = [num:num, buf:wrapByteList(module.data)]
         bytecodes[name] = [num:num, buf:wrapByteList(module.bytecode)]
         fixups[name]    = [num:num, buf:wrapByteList(module.fixups)]
-        return num
+        return [num, module.locationsWithTriggers]
     }
     
     def readBinary(path)
@@ -1058,6 +1064,8 @@ class ScriptModule
     
     def nScripts = 0
     
+    def locationsWithTriggers = []
+    
     def vec_locationTrigger = 0x300
     def vec_displayStr      = 0x303
     
@@ -1217,6 +1225,7 @@ class ScriptModule
             script.locationTrigger.each { trig ->
                 def x = trig.@x.toInteger()
                 def y = trig.@y.toInteger()
+                locationsWithTriggers.add([x,y])
                 emitCodeByte(0x2A) // CB
                 assert x >= 0 && x < 255
                 emitCodeByte(x)

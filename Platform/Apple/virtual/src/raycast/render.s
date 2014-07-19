@@ -12,6 +12,7 @@ start:
 	jmp initMap
 	jmp renderFrame
 	jmp isBlocked
+	jmp isScripted
 	jmp setColor
 
 ; Conditional assembly flags
@@ -297,6 +298,7 @@ castRay: !zone
 	lda deltaDistX		; re-init X distance
 	sta sideDistX
 	lda (pMap),y		; check map at current X/Y position
+	and #$DF		; mask off script flag
 	beq .DDA_step		; nothing there? do another step.
 	bpl .hitX
 	jmp .hitSprite
@@ -353,6 +355,7 @@ castRay: !zone
 	lda deltaDistY		; re-init Y distance
 	sta sideDistY
 	lda (pMap),y		; check map at current X/Y position
+	and #$DF		; mask off script flag
 	bmi .hitSprite
 	bne .hitY		; nothing there? do another step.
 	jmp .DDA_step
@@ -393,7 +396,7 @@ castRay: !zone
 	and #$40
 	beq .notDone		; already done, don't do again
 	txa
-	and #$3F
+	and #$1F
 	tax
 	jsr getTileFlags
 	and #4			; blocker sprite?
@@ -405,7 +408,7 @@ castRay: !zone
 	lda (pMap),y		; get back the original byte
 	ora #$40		; add special flag
 	sta (pMap),y		; and store it back
-	and #$3F		; get just the texture number
+	and #$1F		; get just the texture number
 	sta txNum		; and save it
 	ldx nMapSprites		; get ready to store the address so we can fix the flag later
 	cpx #MAX_SPRITES	; check for table overflow
@@ -1683,19 +1686,30 @@ calcMapOrigin: !zone
 	rts
 
 ;-------------------------------------------------------------------------------
-; Retrieve the map data where the player currently is
+; Check if the player's current location is an obstruction block
 isBlocked: !zone
 	jsr calcMapOrigin
 	sta pMap
 	sty pMap+1
 	ldy playerX+1
 	lda (pMap),y
+	and #$1F
 	beq +
-	and #$3F
 	tax
 	jsr getTileFlags
 	and #2			; flag 2 is for obstructions
 +	rts
+
+;-------------------------------------------------------------------------------
+; Check if the player's current location has a script flag on it
+isScripted: !zone
+	jsr calcMapOrigin
+	sta pMap
+	sty pMap+1
+	ldy playerX+1
+	lda (pMap),y
+	and #$20
+	rts
 
 ;-------------------------------------------------------------------------------
 ; Cast all the rays from the current player coord

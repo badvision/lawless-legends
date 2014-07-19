@@ -2,6 +2,7 @@
 ; Handy constants.
 const FALSE = 0
 const TRUE  = !FALSE
+const NULL  = 0
 
 ;==================================================================================================
 ; Fixed memory locations
@@ -98,6 +99,7 @@ word locTrig_y[MAX_LOC_TRIG]
 word locTrig_func[MAX_LOC_TRIG]
 word prevX
 word prevY
+word prevScript
 
 ; Movement amounts when walking at each angle
 ; Each entry consists of an X bump and a Y bump, in 8.8 fixed point
@@ -307,13 +309,30 @@ asm isBlocked
         rts
 end
 
+asm isScripted
+        txa
+        pha
+        bit setROM
+        jsr $6009
+        tay
+        pla
+        tax
+        dex
+        tya
+        sta evalStkL,x
+        lda #0
+        sta evalStkH,x
+        bit setLcRW+lcBank2
+        rts
+end
+
 asm setColor
         txa
         pha
         bit setROM
         lda evalStkL,x
         ldy evalStkH,x
-        jsr $6009
+        jsr $600C
         bit setLcRW+lcBank2
         pla
         tax
@@ -426,6 +445,7 @@ def initMap()
   setWindow2()
   prevX = -1
   prevY = -1
+  prevScript = -1
   
   ; Draw the first frame
   renderFrame()
@@ -480,13 +500,18 @@ def checkScript()
   if x <> prevX or y <> prevY
     prevX = x
     prevY = y
-    clearWindow()
-    for i = 0 to nLocTrig-1
-      if x == locTrig_x[i] and y == locTrig_y[i]
-        func = locTrig_func[i]
-        *func()
-      fin
-    next
+    if prevScript
+      clearWindow()
+    fin
+    prevScript = NULL
+    if isScripted()
+      for i = 0 to nLocTrig-1
+        if x == locTrig_x[i] and y == locTrig_y[i]
+          prevScript = locTrig_func[i]
+          *prevScript()
+        fin
+      next
+    fin
   fin
 end
 

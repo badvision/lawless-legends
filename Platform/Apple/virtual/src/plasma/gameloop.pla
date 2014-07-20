@@ -369,18 +369,49 @@ end
 
 ; Display a string using the font engine
 asm displayStr ; (str)
-  txa
-  pha
-  bit setROM
-  txa
-  ldy evalStkL,x
-  lda evalStkH,x
-  tax
-  jsr printSTR
-  bit setLcRW+lcBank2
-  pla
-  tax
-  rts
+    txa
+    pha
+    bit setROM
+    txa
+    lda evalStkL,x
+    sta pTmp
+    lda evalStkH,x
+    sta pTmp+1
+    ldy #0
+    lda (pTmp),y
+    beq ++
+    inc pTmp
+    bne +
+    inc pTmp+1
++
+--  tax
+    ldy #0
+-   lda (pTmp),y
+    dex
+    cmp #$20
+    beq +
+    sta $281,y
+    iny
+    cpx #0    
+    bne -
++   sty $280
+    tya
+    sec
+    adc pTmp
+    sta pTmp
+    bcc +
+    inc pTmp+1
++   txa
+    pha
+    ldy #$80
+    ldx #2
+    jsr printSTR
+    pla
+    bne --
+++  bit setLcRW+lcBank2
+    pla
+    tax
+    rts
 end
 
 ;==================================================================================================

@@ -43,6 +43,7 @@ SECTION_X_START = $60	; X Offset relative to current section being drawn
 SECTION_Y_START = $61	; Y Offset relative to current section being drawn 
 DRAW_WIDTH		= $62	; Number of columns to draw for current section
 DRAW_HEIGTH		= $63	; Number of rows to draw for current section
+DRAW_SECTION	= $64 	; Location of section data being drawn
 
 ; >> INIT (reset map drawing vars)
 INIT
@@ -310,7 +311,8 @@ CROSS_WEST
 		SEC
 		SBC SECTION_Y_START
 		STA DRAW_HEIGHT
-		jsr mainDraw
+		!move_word ptr, DRAW_SECTION
+		jsr mainDraw		
 }
 
 DRAW

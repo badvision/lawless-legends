@@ -19,7 +19,7 @@ MAX_MAP_ID=254	; This means that the total map area can be as big as 5588x5842 t
 
 REL_X=$50	; Will always be in the range 0-43
 REL_Y=$51	; Will always be in the range 0-45
-; Map quadrant data pointers
+; Map quadrant data pointers (Maybe move these to screen holes in 2078-207f?  There might be no advantage to using ZP for these)
 NW_MAP_LOC=$52
 NE_MAP_LOC=$54
 SW_MAP_LOC=$56
@@ -35,6 +35,15 @@ NORTH	=0
 EAST	=1
 SOUTH	=2
 WEST 	=3
+
+;-- Variables used in drawing
+DRAW_X_START	= $5E	; Starting column being drawn (between 0 and VIEWPORT_WIDTH)
+DRAW_Y_START	= $5F	; Starting row being drawn (between 0 and VIEWPORT_WIDTH)
+SECTION_X_START = $60	; X Offset relative to current section being drawn 
+SECTION_Y_START = $61	; Y Offset relative to current section being drawn 
+DRAW_WIDTH		= $62	; Number of columns to draw for current section
+DRAW_HEIGTH		= $63	; Number of rows to draw for current section
+DRAW_SECTION	= $64 	; Location of section data being drawn
 
 ; >> INIT (reset map drawing vars)
 INIT
@@ -131,9 +140,9 @@ FINISH_LOAD
 ;	(Returns Tile # in Y, Flags in A)
 ;	Each tile in memory can be 0-64, the flags are the upper 3 bits
 ;	0 0 0
-;	| | `- Boundary (Can not cross)
-;	| `--- Requires special (rope, raft, etc)
-;	`----- Script assigned, triggers script lookup 
+;	| | `- Script assigned, triggers script lookup
+;	| `--- Boundary (Can not walk on it)
+;	`----- Visible obstruction (Can not see behind it)
 ;----------------------------------------------------------------------
 ; >> SET X,Y COORDINATES FOR VIEWPORT CENTER
 SET_XY
@@ -272,27 +281,45 @@ CROSS_WEST
 		SBC #(deltaX+VIEWPORT_HORIZ_PAD)
 		TAX
 		BPL .10
-		;This section isn't at the edge, note that
-		EOR #$FF
-		ADC #$00 ; Carry is still set, so this is really +1
-		BPL .11	; Should be always true
-.10		LDA #0
-.11 	STA X1
+		LDA #0
+.10 	STA SECTION_X_START
 		TXA
 		CLC
-		ADC VIEWPORT_WIDTH
-		CMP SECTION_WIDTH
-		BLT .12
-		LDA #SECTION_WIDTH-1
-.12		STA X2		
-
-		}
-
+		ADC #VIEWPORT_WIDTH
+		CMP #SECTION_WIDTH
+		BLT .11
+		LDA #SECTION_WIDTH
+.11		
+		SEC
+		SBC SECTION_X_START
+		STA DRAW_WIDTH
 	; Determine Y1 and Y2 bounds for what is being drawn
+		LDA REL_Y
+		SEC
+		SBC #(deltaY+VIEWPORT_VERT_PAD)
+		TAX
+		BPL .20
+		LDA #0
+.20		STA SECTION_Y_START
+		TXA
+		CLC
+		ADC #VIEWPORT_HEIGHT
+		CMP #SECTION_HEIGHT
+		BLT .21
+		LDA #SECTION_HEIGHT
+.21
+		SEC
+		SBC SECTION_Y_START
+		STA DRAW_HEIGHT
+		!move_word ptr, DRAW_SECTION
+		jsr mainDraw		
 }
 
 DRAW
 ; For each quadrant, display relevant parts of screen
+		LDA #00
+		STA DRAW_X_START
+		STA DRAW_Y_START
 .checkNorthQuads
 		LDA REL_Y
 		CMP SECTION_HEIGHT+VIEWPORT_VERT_PAD
@@ -302,22 +329,56 @@ DRAW
 		CMP SECTION_WIDTH+VIEWPORT_HORIZ_PAD
 		BGE .checkNEQuad
 		!drawMapSection NW_MAP_LOC, 0, 0
-		LDA NW_MAP_LOC+1
-		BNE .drawNW
-
-.drawNW
 ;	Check for NE quadrant area
 .checkNEQuad
-
+		LDA REL_X
+		CMP #VIEWPORT_HORIZ_PAD+1
+		BLT .finishTopQuads
+		LDA DRAW_WIDTH
+		STA DRAW_X_START
+		!drawMapSection NE_MAP_LOC, SECTION_WIDTH, 0
+.finishTopQuads		
+;Update Y start for bottom quadrants
+		LDA DRAW_HEIGHT
+		STA DRAW_Y_START
+;-----
 .checkSouthQuads
+		LDA #00
+		STA DRAW_X_START
 ;	Check for SW quadrant area
 		LDA REL_X
 		CMP SECTION_WIDTH+VIEWPORT_HORIZ_PAD
 		BGE .checkSEQuad
-;	Check for SE quadrand area
+		!drawMapSection SW_MAP_LOC, 0, SECTION_HEIGHT
 .checkSEQuad
+;	Check for SE quadrand area
+		LDA REL_X
+		CMP #VIEWPORT_HORIZ_PAD+1
+		BGE .drawSEQuad
+		RTS
+.drawSEQuad		
+		LDA DRAW_WIDTH
+		STA DRAW_X_START
+		!drawMapSection SE_MAP_LOC, SECTION_WIDTH, SECTION_HEIGHT
 	RTS
+
 .mainDraw
+;----- Tracking visible tile data -----
+;There are a total of 512 screen holes in a hires page located in xx78-xx7F and xxF8-xxFF
+;We only need 81 screen holes to track the 9x9 visible area.  So to do this a little translation is needed
+;      78  79  7a  7b  7c  7d  7e  7f  f8 
+;2000   
+;2100  
+;2200  
+; .
+; .
+;2800
+;
+; The calculation goes like this:  Page + $78 + (Row * $100) + (Col & 7) + ((Col & 8) << 4)
+; When the display is drawn, the screen hole is compared to see if there is a different tile to draw 
+; and if there isn't then the tile is skipped.  Otherwise the tile is drawn, etc.
+;--------------------------------------
+
 ; Identify start of map data (upper left)
 ; Display row of tiles
 ; Get tile

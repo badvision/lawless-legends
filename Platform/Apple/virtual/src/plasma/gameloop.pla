@@ -101,6 +101,7 @@ word locTrig_func[MAX_LOC_TRIG]
 word prevX
 word prevY
 word prevScript
+word prevMapNum
 
 ; Movement amounts when walking at each angle
 ; Each entry consists of an X bump and a Y bump, in 8.8 fixed point
@@ -425,7 +426,6 @@ def initMap()
   if scriptModule
     pScripts = loader(QUEUE_LOAD, MAIN_MEM, (scriptModule << 8) | RES_TYPE_MODULE)
     loader(FINISH_LOAD, MAIN_MEM, 1) ; 1 = keep open
-    nLocTrig = 0
   fin
 
   ; Start up the font engine
@@ -441,9 +441,12 @@ def initMap()
 
   ; Initialize the map scripts
   setWindow2()
+  clearWindow()
   prevX = -1
   prevY = -1
   prevScript = -1
+  nLocTrig = 0
+  prevMapNum = mapNum
   if pScripts
     *pScripts()
   fin
@@ -491,6 +494,12 @@ def initCmd(key, func)
   cmdTbl[key-$20] = func
 end
 
+def flipToFirstPage
+  if ^frontBuf == 1
+    renderFrame()
+  fin
+end
+
 def checkScript()
   word x
   word y
@@ -512,6 +521,10 @@ def checkScript()
           *prevScript()
         fin
       next
+    fin
+    if mapNum <> prevMapNum
+      flipToFirstPage()
+      initMap()
     fin
   fin
 end
@@ -557,16 +570,8 @@ def strafeLeft()
   adjustDir(4)
 end
 
-def flipToFirstPage
-  if ^frontBuf == 1
-    renderFrame()
-  fin
-end
-
 def setMap(is3d, num)
   mapNum = num
-  flipToFirstPage()
-  initMap()
 end
 
 def nextMap()

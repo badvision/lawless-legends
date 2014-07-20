@@ -84,16 +84,64 @@ if (typeof Mythos === "undefined") {
                             .appendField("Coin toss");
                 }
             };
-            Blockly.Blocks['events_setmap'] = {
+            Blockly.Blocks['events_set_map'] = {
                 init: function() {
                     this.setHelpUrl(Mythos.helpUrl);
                     this.setColour(54);
                     this.setPreviousStatement(true);
                     this.setNextStatement(false);
-                    this.appendValueInput("VALUE")
-                            .appendField("Set map");
+                    this.appendDummyInput()
+                            .appendField("Set map to")
+                            .appendField(new Blockly.FieldTextInput(""), "NAME");
                     this.setOutput(false);
                     this.setTooltip('Switch to a different map (by name)');
+                }
+            };
+            Blockly.Blocks['events_teleport'] = {
+                init: function() {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Teleport to")
+                            .appendField('x')
+                            .appendField(new Blockly.FieldTextInput("0"), "X")
+                            .appendField('y')
+                            .appendField(new Blockly.FieldTextInput("0"), "Y")
+                            .appendField('facing')
+                            .appendField(new Blockly.FieldTextInput("0"), "FACING")
+                            .appendField('(0-15)');
+                    this.setOutput(false);
+                    this.setTooltip('Teleport the player to a given location and direction on this map.');
+                }
+            };
+            Blockly.Blocks['events_set_sky'] = {
+                init: function() {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Set sky color to")
+                            .appendField(new Blockly.FieldTextInput("0"), "COLOR")
+                            .appendField('(0-15)');
+                    this.setOutput(false);
+                    this.setTooltip('Set color of the sky');
+                }
+            };
+            Blockly.Blocks['events_set_ground'] = {
+                init: function() {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Set ground color to")
+                            .appendField(new Blockly.FieldTextInput("0"), "COLOR")
+                            .appendField('(0-15)');
+                    this.setOutput(false);
+                    this.setTooltip('Set color of the ground');
                 }
             };
             Blockly.Blocks['text_window'] = {

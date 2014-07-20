@@ -426,7 +426,6 @@ def initMap()
     pScripts = loader(QUEUE_LOAD, MAIN_MEM, (scriptModule << 8) | RES_TYPE_MODULE)
     loader(FINISH_LOAD, MAIN_MEM, 1) ; 1 = keep open
     nLocTrig = 0
-    *pScripts()
   fin
 
   ; Start up the font engine
@@ -445,6 +444,9 @@ def initMap()
   prevX = -1
   prevY = -1
   prevScript = -1
+  if pScripts
+    *pScripts()
+  fin
   
   ; Draw the first frame
   renderFrame()
@@ -575,16 +577,30 @@ def nextMap()
   setMap(1, mapNum)
 end
 
-def nextSky()
-  skyNum = (skyNum + 1) & $F
+def setSky(num)
+  skyNum = num
   setColor(0<<8 | skyGndTbl1[skyNum])
   setColor(1<<8 | skyGndTbl2[skyNum])
 end
 
-def nextGround()
-  groundNum = (groundNum + 1) & $F
+def nextSky()
+  setSky((skyNum + 1) & $F)
+end
+
+def setGround(num)
+  groundNum = num
   setColor(2<<8 | skyGndTbl1[groundNum])
   setColor(3<<8 | skyGndTbl2[groundNum])
+end
+
+def nextGround()
+  setGround((groundNum + 1) & $F)
+end
+
+def teleport(x, y, dir)
+  *playerX = ((x+1)<<8) | $80
+  *playerY = ((y+1)<<8) | $80
+  ^playerDir = dir
 end
 
 def getUpperKey()
@@ -676,6 +692,15 @@ callbacks:7 = @getYN
 
 callbacks.9 = $4c
 callbacks:10 = @setMap
+
+callbacks.12 = $4c
+callbacks:13 = @setSky
+
+callbacks.15 = $4c
+callbacks:16 = @setGround
+
+callbacks.18 = $4c
+callbacks:19 = @teleport
 
 initMap()
 

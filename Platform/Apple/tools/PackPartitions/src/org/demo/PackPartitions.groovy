@@ -1088,6 +1088,9 @@ class PackPartitions
         def vec_displayStr      = 0x303
         def vec_getYN           = 0x306
         def vec_setMap          = 0x309
+        def vec_setSky          = 0x30C
+        def vec_setGround       = 0x30F
+        def vec_teleport        = 0x312
 
         def addString(str)
         {
@@ -1133,6 +1136,8 @@ class PackPartitions
         def packScript(scriptNum, script)
         {
             def name = script.name[0].text()
+            if (name == "init") // this special script gets processed later
+                return
             println "   Script '$name'"
 
             if (script.block.size() == 0)
@@ -1170,8 +1175,14 @@ class PackPartitions
                     packTextPrint(blk); break
                 case  'controls_if':
                     packIfStmt(blk); break
-                case 'events_setmap':
+                case 'events_set_map':
                     packSetMap(blk); break
+                case 'events_set_sky':
+                    packSetSky(blk); break
+                case 'events_set_ground':
+                    packSetGround(blk); break
+                case 'events_teleport':
+                    packTeleport(blk); break
                 default:
                     println "Warning: don't know how to pack block of type '${blk.@type}'"
             }
@@ -1277,16 +1288,10 @@ class PackPartitions
 
         def packSetMap(blk)
         {
-            assert blk.value.size() == 1
-            def mapVal = blk.value[0]
-            assert mapVal.@name == 'VALUE'
-            assert mapVal.block.size() == 1
-            def mapValBlk = mapVal.block[0]
-            assert mapValBlk.@type == 'text'
-            assert mapValBlk.field.size() == 1
-            def mapValFld = mapValBlk.field[0]
-            assert mapValFld.@name == 'TEXT'
-            def mapName = mapValFld.text()
+            assert blk.field.size() == 1
+            def fld = blk.field[0]
+            assert fld.@name == 'NAME'
+            def mapName = fld.text()
             def mapNum = mapNames[mapName]
             assert mapNum
             println "            Set map to '$mapName' (num $mapNum)"
@@ -1300,26 +1305,95 @@ class PackPartitions
             emitCodeWord(vec_setMap)
             emitCodeByte(0x30) // DROP
         }
+        
+        def packSetSky(blk)
+        {
+            assert blk.field.size() == 1
+            def fld = blk.field[0]
+            assert fld.@name == 'COLOR'
+            def color = fld.text().toInteger()
+            assert color >= 0 && color <= 15
+            println "            Set sky to $color"
+            
+            emitCodeByte(0x2A) // CB
+            emitCodeByte(color)
+            emitCodeByte(0x54) // CALL
+            emitCodeWord(vec_setSky)
+            emitCodeByte(0x30) // DROP
+        }
+
+        def packSetGround(blk)
+        {
+            assert blk.field.size() == 1
+            def fld = blk.field[0]
+            assert fld.@name == 'COLOR'
+            def color = fld.text().toInteger()
+            assert color >= 0 && color <= 15
+            println "            Set ground to $color"
+            
+            emitCodeByte(0x2A) // CB
+            emitCodeByte(color)
+            emitCodeByte(0x54) // CALL
+            emitCodeWord(vec_setGround)
+            emitCodeByte(0x30) // DROP
+        }
+
+        def packTeleport(blk)
+        {
+            assert blk.field.size() == 3
+            assert blk.field[0].@name == 'X'
+            assert blk.field[1].@name == 'Y'
+            assert blk.field[2].@name == 'FACING'
+            def x = blk.field[0].text().toInteger()
+            def y = blk.field[1].text().toInteger()
+            def facing = blk.field[2].text().toInteger()
+            assert facing >= 0 && facing <= 15
+            println "            Teleport to ($x,$y) facing $facing"
+            
+            emitCodeByte(0x2C) // CW
+            emitCodeWord(x)
+            emitCodeByte(0x2C) // CW
+            emitCodeWord(y)
+            emitCodeByte(0x2A) // CB
+            emitCodeByte(facing)
+            emitCodeByte(0x54) // CALL
+            emitCodeWord(vec_teleport)
+            emitCodeByte(0x30) // DROP
+        }
 
         def makeInit(scripts)
         {
+            println "    Script: special 'init'"
             startFunc(0)
             scripts.script.eachWithIndex { script, idx ->
-                script.locationTrigger.each { trig ->
-                    def x = trig.@x.toInteger()
-                    def y = trig.@y.toInteger()
-                    locationsWithTriggers.add([x,y])
-                    emitCodeByte(0x2A) // CB
-                    assert x >= 0 && x < 255
-                    emitCodeByte(x)
-                    emitCodeByte(0x2A) // CB
-                    assert y >= 0 && y < 255
-                    emitCodeByte(y)
-                    emitCodeByte(0x26)  // LA
-                    emitCodeFixup((idx+1) * 5)
-                    emitCodeByte(0x54) // CALL
-                    emitCodeWord(vec_locationTrigger)
-                    emitCodeByte(0x30) // DROP
+                def name = script.name[0].text()
+                if (name == "init")
+                {
+                    assert script.block.size() == 1
+                    def proc = script.block[0]
+                    assert proc.@type == "procedures_defreturn"
+                    assert proc.statement.size() == 1
+                    def stmt = proc.statement[0]
+                    assert stmt.@name == "STACK"
+                    stmt.block.each { packBlock(it) }
+                }
+                else {
+                    script.locationTrigger.each { trig ->
+                        def x = trig.@x.toInteger()
+                        def y = trig.@y.toInteger()
+                        locationsWithTriggers.add([x,y])
+                        emitCodeByte(0x2A) // CB
+                        assert x >= 0 && x < 255
+                        emitCodeByte(x)
+                        emitCodeByte(0x2A) // CB
+                        assert y >= 0 && y < 255
+                        emitCodeByte(y)
+                        emitCodeByte(0x26)  // LA
+                        emitCodeFixup((idx+1) * 5)
+                        emitCodeByte(0x54) // CALL
+                        emitCodeWord(vec_locationTrigger)
+                        emitCodeByte(0x30) // DROP
+                    }
                 }
             }
             finishFunc()

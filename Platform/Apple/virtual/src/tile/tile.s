@@ -13,8 +13,22 @@ SECTION_WIDTH=22
 SECTION_HEIGHT=23
 VIEWPORT_WIDTH=9
 VIEWPORT_HEIGHT=9
-VIEWPORT_VERT_PAD=0 ; This is the distance between the center of the viewport and the top/bottom
+VIEWPORT_VERT_PAD=4 ; This is the distance between the center of the viewport and the top/bottom
 VIEWPORT_HORIZ_PAD=4 ; This is the distance between the center of the viewport and the left/right
+
+;--------------
+;  0 1 2 3 4 5 6 7 8 9
+;0           .\
+;1           . |_ VERT PAD
+;2           . |
+;3           ./
+;4           X . . . .
+;5            \_____/
+;6               |
+;7              HORIZ PAD
+;8
+;9
+
 MAX_MAP_ID=254	; This means that the total map area can be as big as 5588x5842 tiles!
 
 REL_X=$50	; Will always be in the range 0-43

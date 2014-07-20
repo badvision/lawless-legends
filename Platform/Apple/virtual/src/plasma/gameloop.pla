@@ -94,7 +94,7 @@ word pFont
 word pMap
 word pScripts
 word cmdTbl[64]
-word nLocTrig = 0
+word nLocTrig
 word locTrig_x[MAX_LOC_TRIG]
 word locTrig_y[MAX_LOC_TRIG]
 word locTrig_func[MAX_LOC_TRIG]
@@ -102,6 +102,7 @@ word prevX
 word prevY
 word prevScript
 word prevMapNum
+word redraw
 
 ; Movement amounts when walking at each angle
 ; Each entry consists of an X bump and a Y bump, in 8.8 fixed point
@@ -453,6 +454,7 @@ def initMap()
   
   ; Draw the first frame
   renderFrame()
+  redraw = FALSE
 end
 
 ; Window for the map name bar
@@ -497,6 +499,7 @@ end
 def flipToFirstPage
   if ^frontBuf == 1
     renderFrame()
+    redraw = FALSE
   fin
 end
 
@@ -576,7 +579,7 @@ end
 
 def nextMap()
   mapNum = mapNum + 1
-  if mapNum > 8
+  if mapNum > 20
     mapNum = 1
   fin
   setMap(1, mapNum)
@@ -605,7 +608,12 @@ end
 def teleport(x, y, dir)
   *playerX = ((x+1)<<8) | $80
   *playerY = ((y+1)<<8) | $80
+  prevX = x
+  prevY = y
+  prevScript = -1
+  clearWindow()
   ^playerDir = dir
+  redraw = TRUE
 end
 
 def getUpperKey()
@@ -630,7 +638,12 @@ def kbdLoop()
       if func
         func()
         renderFrame()
+        redraw = FALSE
         checkScript()
+        if redraw
+          renderFrame()
+          redraw = FALSE
+        fin
       fin
     fin
   loop
@@ -653,6 +666,7 @@ def getYN()
     if key == 'Y'
       return 1
     elsif key == 'N'
+      clearWindow()
       return 0
     fin
     beep()

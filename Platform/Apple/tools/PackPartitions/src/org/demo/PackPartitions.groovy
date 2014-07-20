@@ -1136,7 +1136,7 @@ class PackPartitions
         def packScript(scriptNum, script)
         {
             def name = script.name[0].text()
-            if (name == "init") // this special script gets processed later
+            if (name.toLowerCase() == "init") // this special script gets processed later
                 return
             println "   Script '$name'"
 
@@ -1147,7 +1147,6 @@ class PackPartitions
             startFunc(scriptNum+1)
 
             // Process the code inside it
-            assert script.block.size() == 1
             def proc = script.block[0]
             assert proc.@type == "procedures_defreturn"
             assert proc.statement.size() == 1
@@ -1367,15 +1366,16 @@ class PackPartitions
             startFunc(0)
             scripts.script.eachWithIndex { script, idx ->
                 def name = script.name[0].text()
-                if (name == "init")
+                if (name.toLowerCase() == "init")
                 {
-                    assert script.block.size() == 1
-                    def proc = script.block[0]
-                    assert proc.@type == "procedures_defreturn"
-                    assert proc.statement.size() == 1
-                    def stmt = proc.statement[0]
-                    assert stmt.@name == "STACK"
-                    stmt.block.each { packBlock(it) }
+                    if (script.block.size() == 1) {
+                        def proc = script.block[0]
+                        assert proc.@type == "procedures_defreturn"
+                        assert proc.statement.size() == 1
+                        def stmt = proc.statement[0]
+                        assert stmt.@name == "STACK"
+                        stmt.block.each { packBlock(it) }
+                    }
                 }
                 else {
                     script.locationTrigger.each { trig ->

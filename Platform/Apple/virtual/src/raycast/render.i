@@ -86,7 +86,7 @@ wSpriteLeft	= $B4
 
 ;---------------------------------
 ; The following are in aux mem...
-expandVec	= $800
+expandVec	= $2000
 ; back to main mem
 ;---------------------------------
 

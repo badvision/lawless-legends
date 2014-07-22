@@ -388,7 +388,7 @@ castRay: !zone
 	!if DEBUG >= 2 { jsr .debugFinal }
 	rts
 .hitSprite:
-	cmp #$FF		; check for special mark at edges of map
+	cmp #$DF		; check for special mark at edges of map (was $FF but the $20 bit was masked off)
 	beq .hitEdge
 	; We found a sprite cell on the map. We only want to process this sprite once,
 	; so check if we've already done it.

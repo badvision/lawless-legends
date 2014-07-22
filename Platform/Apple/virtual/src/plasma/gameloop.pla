@@ -7,7 +7,7 @@ const NULL  = 0
 ;==================================================================================================
 ; Fixed memory locations
 const raycaster  = $6000   ; main mem
-const expandVec  = $800    ; aux mem
+const expandVec  = $2000   ; aux mem
 const fontEngine = $BA00   ; main mem
 
 ;==================================================================================================
@@ -51,6 +51,7 @@ const QUEUE_LOAD     = $16
 const FINISH_LOAD    = $17
 const FREE_MEMORY    = $18
 const CALC_FREE      = $19
+const DEBUG_MEM      = $1A
 const CHAIN_LOADER   = $1E
 const FATAL_ERROR    = $1F
 
@@ -79,7 +80,7 @@ const wndbtm    = $73  ; bottom+1 of text window
 const cursh     = $74  ; Cursor H-pos 0-39
 const cursv     = $75  ; Cursor V-pos 0-23
 
-const MAX_LOC_TRIG = 80
+const MAX_LOC_TRIG = 128
 
 ;==================================================================================================
 ; Strings.
@@ -103,6 +104,7 @@ word prevY
 word prevScript
 word prevMapNum
 word redraw
+byte titleLoaded = FALSE
 
 ; Movement amounts when walking at each angle
 ; Each entry consists of an X bump and a Y bump, in 8.8 fixed point
@@ -403,12 +405,28 @@ asm displayStr ; (str)
     inc pTmp+1
 +   txa
     pha
-    ldy #$80
+    tya
+    clc
+    adc cursh
+    sec
+    sbc #2
+    cmp wndwdth
+    bcc +
+    lda #$D
+    jsr printCHAR
++   ldy #$80
     ldx #2
     jsr printSTR
-    pla
+    lda cursh
+    cmp wndleft
+    beq +
+    lda #$20
+    jsr printCHAR
++   pla
     bne --
-++  bit setLcRW+lcBank2
+++  lda #$d
+    jsr printCHAR
+    bit setLcRW+lcBank2
     pla
     tax
     rts
@@ -419,6 +437,18 @@ end
 
 def fatal(msg)
   loader(FATAL_ERROR, MAIN_MEM, msg)
+end
+
+def getUpperKey()
+  byte key
+  while ^keyboard < 128
+  loop
+  key = ^keyboard & $7F
+  ^keystrobe
+  if key >= $60
+    key = key - $20
+  fin
+  return key
 end
 
 def initMap()
@@ -439,11 +469,6 @@ def initMap()
   loader(SET_MEM_TARGET, AUX_MEM, expandVec)
   loader(QUEUE_LOAD,     AUX_MEM, RES_NUM_EXPAND_VEC<<8 | RES_TYPE_CODE)
 
-  ; Load the frame image (and lock it there)
-  loader(SET_MEM_TARGET, MAIN_MEM, $2000)
-  loader(QUEUE_LOAD,     MAIN_MEM, 1<<8 | RES_TYPE_SCREEN)
-  loader(LOCK_MEMORY,    MAIN_MEM, $2000)
-
   ; Load the font for the font engine
   pFont = loader(QUEUE_LOAD, MAIN_MEM, 1<<8 | RES_TYPE_FONT)
 
@@ -453,12 +478,22 @@ def initMap()
   ; Load everything that we just queued
   loader(FINISH_LOAD, MAIN_MEM, 1) ; 1 = keep open
 
+  ; Load the frame image (and lock it there)
+  if titleLoaded
+    loader(UNLOCK_MEMORY,MAIN_MEM, $2000)
+    loader(FREE_MEMORY,  MAIN_MEM, $2000)
+    titleLoaded = FALSE
+  fin
+  loader(SET_MEM_TARGET, MAIN_MEM, $2000)
+  loader(QUEUE_LOAD,     MAIN_MEM, 1<<8 | RES_TYPE_SCREEN)
+  loader(LOCK_MEMORY,    MAIN_MEM, $2000)
+
   ; Load the scripts for this map, if it has any.
   scriptModule = pMap->2  ; first 2 bytes are width and height, third byte is script module num
   if scriptModule
     pScripts = loader(QUEUE_LOAD, MAIN_MEM, (scriptModule << 8) | RES_TYPE_MODULE)
-    loader(FINISH_LOAD, MAIN_MEM, 1) ; 1 = keep open
   fin
+  loader(FINISH_LOAD, MAIN_MEM, 0) ; 1 = keep open, for loading textures
 
   ; Start up the font engine
   initFontEngine(pFont)
@@ -502,8 +537,8 @@ end
 def setWindow2()
   ^wndtop = 3
   ^wndbtm = 17
-  ^wndleft = 23
-  ^wndwdth = 37
+  ^wndleft = 22
+  ^wndwdth = 38
   ^cursv = ^wndtop
   ^cursh = ^wndleft
 end
@@ -556,10 +591,10 @@ def checkScript()
         fin
       next
     fin
-    if mapNum <> prevMapNum
-      flipToFirstPage()
-      initMap()
-    fin
+  fin
+  if mapNum <> prevMapNum
+    flipToFirstPage()
+    initMap()
   fin
 end
 
@@ -645,18 +680,6 @@ def teleport(x, y, dir)
   clearWindow()
   ^playerDir = dir
   redraw = TRUE
-end
-
-def getUpperKey()
-  byte key
-  while ^keyboard < 128
-  loop
-  key = ^keyboard & $7F
-  ^keystrobe
-  if key >= $60
-    key = key - $20
-  fin
-  return key
 end
 
 def kbdLoop()
@@ -751,6 +774,17 @@ callbacks:16 = @setGround
 
 callbacks.18 = $4c
 callbacks:19 = @teleport
+
+; Load the title screen
+loader(SET_MEM_TARGET, MAIN_MEM, $2000)
+loader(QUEUE_LOAD,     MAIN_MEM, 2<<8 | RES_TYPE_SCREEN)
+loader(LOCK_MEMORY,    MAIN_MEM, $2000)
+loader(FINISH_LOAD, MAIN_MEM, 1) ; 1 = keep open
+titleLoaded = TRUE
+^$c050
+^$c057
+^$c054
+^$c052
 
 initMap()
 

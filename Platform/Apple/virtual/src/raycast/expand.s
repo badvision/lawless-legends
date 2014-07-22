@@ -1,4 +1,4 @@
-* = $800
+* = $2000
 !source "render.i"
 
 expand_vec:

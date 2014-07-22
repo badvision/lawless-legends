@@ -240,6 +240,14 @@ CALC_FREE = $19
     ; loader for main mem free, or aux mem loader for aux mem free.
 		
 ;------------------------------------------------------------------------------
+DEBUG_MEM = $1A
+    ; Input: None
+    ;
+    ; Output: None
+    ;
+    ; Print out the currently allocated memory blocks and their states.
+
+;------------------------------------------------------------------------------
 CHAIN_LOADER = $1E
     ; Input: X-reg / Y-reg - pointer to loader (X=lo, Y=hi) to add to chain
     ;

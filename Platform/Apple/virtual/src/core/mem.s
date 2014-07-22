@@ -236,6 +236,9 @@ main_dispatch: !zone
 +	cmp #FREE_MEMORY
 	bne +
 	jmp main_free
++	cmp #DEBUG_MEM
+	bne +
+	jmp main_debug
 +	cmp #CALC_FREE
 	bne shared_dispatch
 	jmp main_calcFree
@@ -270,6 +273,9 @@ aux_dispatch: !zone
 +	cmp #FREE_MEMORY
 	bne +
 	jmp aux_free
++	cmp #DEBUG_MEM
+	bne +
+	jmp aux_debug
 +	cmp #CALC_FREE
 	bne +
 	jmp aux_calcFree
@@ -471,15 +477,14 @@ init: !zone
 .gomod:	jmp $1111		; jump to module for further bootstrapping
 
 ;------------------------------------------------------------------------------
-!if DEBUG {
 printMem: !zone
-	jsr printMain
-	jmp printAux
-printMain:
+	jsr main_debug
+	jmp aux_debug
+main_debug:
 	+prStr : !text "Listing main mem segments.",0
 	ldy #0
 	jmp .printSegs
-printAux:
+aux_debug:
 	+prStr : !text "Listing aux mem segments.",0
 	ldy #1
 .printSegs:
@@ -513,7 +518,6 @@ printAux:
 	jsr cout
 	txa
 	jmp prbyte
-} ; end zone
 
 ;------------------------------------------------------------------------------
 reset: !zone
@@ -613,11 +617,15 @@ shared_alloc:
 	adc reqLen+1
 	sta .reqEnd+1
 	ldy tSegLink,x		; index of next seg to Y reg
-	cmp tSegAdrHi,y		; is end at exactly the right place?
-	bne .splitEnd
-	lda .reqEnd
-	cmp tSegAdrLo,y		; compare all 16 bits
+	lda .reqEnd		; compare lo byte first
+	sec
+	sbc tSegAdrLo,y
+	sta .cmpLo+1		; save partial result
+	lda .reqEnd+1		; compare hi byte
+	sbc tSegAdrHi,y
+.cmpLo	ora #$11		; self-modified a few lines ago
 	beq .noSplitEnd
+	bcs .needJoin		; req end > start of next block, need to join
 ; need to split current segment into (cur..reqEnd) and (reqEnd..next)
 .splitEnd:
 	jsr grabSegment		; get a new segment, index in Y (doesn't disturb X)
@@ -643,6 +651,11 @@ shared_alloc:
 	stx segNum		; save seg num in case internal caller routine needs it
 	tax			; adr lo to proper register
 	rts			; all done!
+.needJoin:
+	ldx #<+
+	ldy #>+
+	jmp fatalError
++	!text "Join not impl yet", 0
 .reqEnd: !word 0
 .reclaimFlg: !byte 0
 
@@ -730,7 +743,8 @@ invalAddr: !zone
 ; in aux mem. 
 ; Returns the segment found in X, or 0 if n/a. Sets Z flag appropriately.
 shared_byteCodeAlso:
-	lda resType
+	lda tSegType,x
+	and #$F
 	cmp #RES_TYPE_MODULE
 	beq +
 	lda #0

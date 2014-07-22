@@ -525,7 +525,7 @@ class PackPartitions
     {
         def num = frames.size() + 1
         def name = imgEl.@name ?: "img$num"
-        //println "Packing frame image #$num named '${imgEl.@name}'."
+        println "Packing frame image #$num named '${imgEl.@name}'."
         def buf = parseFrameData(imgEl)
         frames[imgEl.@name] = [num:num, buf:buf]
         return buf
@@ -987,7 +987,7 @@ class PackPartitions
         //
         println "Packing frame images and textures."
         dataIn.image.each { image ->
-            if (image.category.text() == "frame" )
+            if (image.category.text() == "frame" || image.category.text() == "title")
                 packFrameImage(image)
             else
                 packTexture(image)
@@ -1292,8 +1292,8 @@ class PackPartitions
             assert fld.@name == 'NAME'
             def mapName = fld.text()
             def mapNum = mapNames[mapName]
-            assert mapNum
             println "            Set map to '$mapName' (num $mapNum)"
+            assert mapNum : "Map $mapName not found!"
             
             emitCodeByte(0x2A) // CB
             assert mapNum[0] == '2D' || mapNum[0] == '3D'

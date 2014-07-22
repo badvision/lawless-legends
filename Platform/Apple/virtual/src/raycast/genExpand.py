@@ -20,7 +20,7 @@ finalSuffixMap = {}
 dstHeights = set()
 
 outFile = open("expand.s", "w")
-outFile.write("* = $800\n")
+outFile.write("* = $2000\n")
 outFile.write("!source \"render.i\"\n")
 outFile.write("\n")
 

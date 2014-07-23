@@ -560,6 +560,10 @@ def initMap()
   ; Draw the first frame
   renderFrame()
   redraw = FALSE
+
+  while TRUE
+    displayStr(@helloStr)
+  loop
 end
 
 ; Window for the map name bar
@@ -577,7 +581,7 @@ def setWindow2()
   ^wndtop = 3
   ^wndbtm = 17
   ^wndleft = 22
-  ^wndwdth = 38
+  ^wndwdth = 37
   ^cursv = ^wndtop
   ^cursh = ^wndleft
 end

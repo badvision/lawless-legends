@@ -35,6 +35,6 @@ HPAG		=	INVFLG+1	; $20 for HGR1, $40 for HGR2
 
 dpSTR		=	HPAG+1		; Pointer to source string
 
-dpFROM		=	BASL
+dpFROM		=	dpSTR+2
 dpTO		=	dpFROM+2
 dpTO2		=	dpTO+2

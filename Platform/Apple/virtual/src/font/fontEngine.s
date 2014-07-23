@@ -165,7 +165,6 @@ nextLINE:
 		lda	CV		; did we reach the end of the area?
 		cmp	WNDBTM
 		bcc	calcNEXT9
-		beq	calcNEXT9
 
 		dec	CV
 
@@ -256,8 +255,6 @@ scroll2WINDOW: !zone
 ; WNDBTM = WNDTOP+1 ; bottom+1 of text window
 
 		lda	WNDBTM		; 23 => 24 * 8 = 192
-		clc
-		adc	#1
 		asl
 		asl
 		asl			; *8

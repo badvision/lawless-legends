@@ -664,6 +664,10 @@ shared_alloc:
 ; at the same time to guarantee that we never have the main part of a module
 ; without its aux part, or vice versa.
 reclaim: !zone
+	bit $C051
+	+prStr : !text "Reclaim before:",0
+	jsr printMem
+	+waitKey
 	lda isAuxCmd	; save whether current command is aux or not
 	pha
 	lda #1		; we do aux bank first
@@ -671,8 +675,8 @@ reclaim: !zone
 .outer	ldx isAuxCmd	; grab correct starting segment (0=main mem, 1=aux)
 .loop:	ldy tSegLink,x	; grab link to next segment, which we'll need regardless
 	lda tSegType,x	; check flag and type of this seg
-	bmi .next
-	lda #0
+	bmi .next	; active? Skip it.
+	lda #0		; clear all flags and type for this seg
 	sta tSegType,x
 .next:	tya		; next in chain
 	tax		; to X reg index
@@ -682,6 +686,9 @@ reclaim: !zone
 	bpl .outer	; back around for that bank
 	pla
 	sta isAuxCmd	; restore aux mode
+	+prStr : !text "Reclaim after:",0
+	jsr printMem
+	+waitKey
 	rts		; all done
 
 ;------------------------------------------------------------------------------
@@ -694,7 +701,7 @@ coalesce: !zone
 	beq .done		; no next segment, nothing to join to ==> done
 	lda tSegType,x		; check flag and type of this seg
 	ora tSegType,y		; and next seg
-	bmi .next		; if either is active or has a type, can't combine
+	bne .next		; if either is active or has a type, can't combine
 	; we can combine the next segment into this one.
 	!if DEBUG { jsr .debug }
 	lda tSegLink,y

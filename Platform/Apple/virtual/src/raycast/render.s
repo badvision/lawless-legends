@@ -59,6 +59,7 @@ mapName:	!word 0		; pointer to map name
 mapNameLen:	!byte 0		; length of map name
 nMapSprites:	!byte 0		; number of sprite entries on map to fix up
 nextLink:	!byte 0		; next link to allocate
+tablesInitted:	!byte 0		; 1 after init
 
 skyColorEven:   !byte $20
 skyColorOdd:    !byte $22
@@ -1543,21 +1544,6 @@ expanderJmp:
 .callEnd:
 
 ;-------------------------------------------------------------------------------
-; Establish the initial player position and direction [ref BigBlue3_10]
-setPlayerPos: !zone
-	lda #>PLAYER_START_X
-	sta playerX+1
-	lda #<PLAYER_START_X
-	sta playerX
-	lda #>PLAYER_START_Y
-	sta playerY+1
-	lda #<PLAYER_START_Y
-	sta playerY
-	lda #PLAYER_START_DIR
-	sta playerDir
-	rts
-
-;-------------------------------------------------------------------------------
 getTileFlags: !zone
 	dex			; because tile numbers start at 1 but list at 0
 	lda $1111,x
@@ -1911,15 +1897,18 @@ initMap: !zone
 	; Record the address of the map
 	sta mapHeader
 	sty mapHeader+1
-	jsr setPlayerPos
 	jsr loadTextures
 	jsr copyScreen
+	lda tablesInitted
+	bne +
 	; Build all the unrolls and tables
 	!if DEBUG { +prStr : !text "Making tables.",0 }
 	jsr makeBlit
 	jsr makeClrBlit
 	jsr makeDecodeTbls
 	jsr makeLines
++	lda #1
+	sta tablesInitted
 	jsr setExpansionCaller
 	jsr graphInit
 	bit clrMixed

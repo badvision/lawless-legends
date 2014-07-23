@@ -57,6 +57,8 @@ const FATAL_ERROR    = $1F
 
 const callbacks = $300
 
+const OVERMAP = 11
+
 ;==================================================================================================
 ; Predefined functions, for circular calls
 predef moveBackward, setWindow2
@@ -90,21 +92,25 @@ byte tooManyTriggers[] = "Too many triggers"
 
 ;==================================================================================================
 ; Global variables
-word mapNum = 1
+byte mapNum = OVERMAP
 word pFont
 word pMap
 word pScripts
 word cmdTbl[64]
-word nLocTrig
-word locTrig_x[MAX_LOC_TRIG]
-word locTrig_y[MAX_LOC_TRIG]
+byte nLocTrig
+byte locTrig_x[MAX_LOC_TRIG]
+byte locTrig_y[MAX_LOC_TRIG]
 word locTrig_func[MAX_LOC_TRIG]
-word prevX
-word prevY
+byte prevX
+byte prevY
 word prevScript
-word prevMapNum
-word redraw
+byte prevMapNum
+byte redraw
 byte titleLoaded = FALSE
+byte cacheSky, cacheGround
+word cacheX, cacheY
+byte cacheDir
+byte resetLocFromCache = FALSE
 
 ; Movement amounts when walking at each angle
 ; Each entry consists of an X bump and a Y bump, in 8.8 fixed point
@@ -451,6 +457,26 @@ def getUpperKey()
   return key
 end
 
+def setSky(num)
+  skyNum = num
+  setColor(0<<8 | skyGndTbl1[skyNum])
+  setColor(1<<8 | skyGndTbl2[skyNum])
+end
+
+def nextSky()
+  setSky((skyNum + 1) & $F)
+end
+
+def setGround(num)
+  groundNum = num
+  setColor(2<<8 | skyGndTbl1[groundNum])
+  setColor(3<<8 | skyGndTbl2[groundNum])
+end
+
+def nextGround()
+  setGround((groundNum + 1) & $F)
+end
+
 def initMap()
   word scriptModule
 
@@ -498,10 +524,7 @@ def initMap()
   ; Start up the font engine
   initFontEngine(pFont)
 
-  ; Start up the raycaster
-  initRaycaster(pMap)
-
-  ; Set initial player position
+  ; Set initial player position in case the init script doesn't do it
   ^playerDir = 1
   *playerX = $280
   *playerY = $380
@@ -517,7 +540,23 @@ def initMap()
   if pScripts
     *pScripts()
   fin
+
+  ; If we're returning to a map, resume from where the player left off
+  if resetLocFromCache
+    *playerX = cacheX
+    *playerY = cacheY
+    ^playerDir = cacheDir
+    prevX = playerX.1 - 1
+    prevY = playerY.1 - 1
+    setSky(cacheSky)
+    setGround(cacheGround)
+    resetLocFromCache = FALSE
+  fin
   
+  ; Start up the raycaster
+  initRaycaster(pMap)
+  setWindow2()
+
   ; Draw the first frame
   renderFrame()
   redraw = FALSE
@@ -640,6 +679,16 @@ def strafeLeft()
 end
 
 def setMap(is3d, num)
+  ; save player state if we're coming *from* the over-map
+  if mapNum == OVERMAP
+    cacheX = *playerX
+    cacheY = *playerY
+    cacheDir = ^playerDir
+    cacheSky = skyNum
+    cacheGround = groundNum
+  else
+    resetLocFromCache = TRUE
+  fin
   mapNum = num
 end
 
@@ -649,26 +698,6 @@ def nextMap()
     mapNum = 1
   fin
   setMap(1, mapNum)
-end
-
-def setSky(num)
-  skyNum = num
-  setColor(0<<8 | skyGndTbl1[skyNum])
-  setColor(1<<8 | skyGndTbl2[skyNum])
-end
-
-def nextSky()
-  setSky((skyNum + 1) & $F)
-end
-
-def setGround(num)
-  groundNum = num
-  setColor(2<<8 | skyGndTbl1[groundNum])
-  setColor(3<<8 | skyGndTbl2[groundNum])
-end
-
-def nextGround()
-  setGround((groundNum + 1) & $F)
 end
 
 def teleport(x, y, dir)
@@ -785,6 +814,10 @@ titleLoaded = TRUE
 ^$c057
 ^$c054
 ^$c052
+; Hack for real (not emulated) IIc: sometimes displays only lo-bit graphics
+; unless we do this. *HUGE* thanks to Brendan Robert for the fix!
+^$C07E=0   ; disable double-hi-res
+^$C05F     ; disable double-hi-res
 
 initMap()
 

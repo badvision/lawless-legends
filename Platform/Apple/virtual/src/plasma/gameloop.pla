@@ -377,9 +377,9 @@ end
 
 ; Display a string using the font engine
 asm displayStr ; (str)
+    bit setROM
     txa
     pha
-    bit setROM
     lda evalStkL,x
     sta pTmp
     lda evalStkH,x
@@ -394,7 +394,6 @@ asm displayStr ; (str)
 --  tax
     ldy #0
 -   lda (pTmp),y
-
     cmp #$20
     bcc +
     cmp #$80
@@ -402,9 +401,7 @@ asm displayStr ; (str)
 +   lda #$C4
     jsr $fded
     brk
-++
-
-    dex
+++  dex
     cmp #$20
     beq +
     sta $281,y

@@ -1171,6 +1171,7 @@ class PackPartitions
             switch (blk.@type) 
             {
                 case 'text_print':
+                case 'text_println':
                     packTextPrint(blk); break
                 case  'controls_if':
                     packIfStmt(blk); break

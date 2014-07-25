@@ -89,6 +89,7 @@ const MAX_LOC_TRIG = 128
 byte helloStr[] = "Loading Lawless Legends.\n"
 byte loopStr[] = "Entering keyboard loop.\n"
 byte tooManyTriggers[] = "Too many triggers"
+byte asciiTest[] = "!#$%^&*()0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
 ;==================================================================================================
 ; Global variables
@@ -461,6 +462,7 @@ def setSky(num)
   skyNum = num
   setColor(0<<8 | skyGndTbl1[skyNum])
   setColor(1<<8 | skyGndTbl2[skyNum])
+  renderFrame()
 end
 
 def nextSky()
@@ -471,6 +473,7 @@ def setGround(num)
   groundNum = num
   setColor(2<<8 | skyGndTbl1[groundNum])
   setColor(3<<8 | skyGndTbl2[groundNum])
+  renderFrame()
 end
 
 def nextGround()
@@ -524,6 +527,9 @@ def initMap()
   ; Start up the font engine
   initFontEngine(pFont)
 
+  ; Start up the raycaster
+  initRaycaster(pMap)
+
   ; Set initial player position in case the init script doesn't do it
   ^playerDir = 1
   *playerX = $280
@@ -532,6 +538,12 @@ def initMap()
   ; Initialize the map scripts
   setWindow2()
   clearWindow()
+
+  ;while TRUE
+  ;  displayStr(@asciiTest)
+  ;loop
+
+  ^cursv = ^wndbtm - 1
   prevX = -1
   prevY = -1
   prevScript = -1
@@ -553,17 +565,9 @@ def initMap()
     resetLocFromCache = FALSE
   fin
   
-  ; Start up the raycaster
-  initRaycaster(pMap)
-  setWindow2()
-
   ; Draw the first frame
   renderFrame()
   redraw = FALSE
-
-  while TRUE
-    displayStr(@helloStr)
-  loop
 end
 
 ; Window for the map name bar
@@ -624,6 +628,7 @@ def checkScript()
     prevY = y
     if prevScript
       clearWindow()
+      ^cursv = ^wndbtm - 1
     fin
     prevScript = NULL
     if isScripted()
@@ -711,6 +716,7 @@ def teleport(x, y, dir)
   prevY = y
   prevScript = -1
   clearWindow()
+  ^cursv = ^wndbtm - 1
   ^playerDir = dir
   redraw = TRUE
 end
@@ -754,6 +760,7 @@ def getYN()
       return 1
     elsif key == 'N'
       clearWindow()
+      ^cursv = ^wndbtm - 1
       return 0
     fin
     beep()

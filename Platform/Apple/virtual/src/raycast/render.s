@@ -1934,11 +1934,11 @@ initMap: !zone
 	jsr set_window3
 	jsr clearWINDOW
 	jsr printSCSTR
-	!raw "Name      Am/Li"
-	!raw "--------  --/--"
-	!raw "Dead Eye  07/21"
-	!raw "Cliff H.  10/36"
-	!raw "Prospect  13/24"
+	!raw "Name     Am/Li",13
+	!raw "-------- --/--",13
+	!raw "Dead Eye 07/21",13
+	!raw "Cliff H. 10/36",13
+	!raw "Prospect 13/24"
 	!byte 0
 	rts
 

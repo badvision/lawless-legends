@@ -89,7 +89,6 @@ const MAX_LOC_TRIG = 128
 byte helloStr[] = "Loading Lawless Legends.\n"
 byte loopStr[] = "Entering keyboard loop.\n"
 byte tooManyTriggers[] = "Too many triggers"
-byte asciiTest[] = "!#$%^&*()0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
 ;==================================================================================================
 ; Global variables
@@ -381,7 +380,6 @@ asm displayStr ; (str)
     txa
     pha
     bit setROM
-    txa
     lda evalStkL,x
     sta pTmp
     lda evalStkH,x
@@ -396,6 +394,16 @@ asm displayStr ; (str)
 --  tax
     ldy #0
 -   lda (pTmp),y
+
+    cmp #$20
+    bcc +
+    cmp #$80
+    bcc ++
++   lda #$C4
+    jsr $fded
+    brk
+++
+
     dex
     cmp #$20
     beq +
@@ -462,7 +470,6 @@ def setSky(num)
   skyNum = num
   setColor(0<<8 | skyGndTbl1[skyNum])
   setColor(1<<8 | skyGndTbl2[skyNum])
-  renderFrame()
 end
 
 def nextSky()
@@ -473,11 +480,19 @@ def setGround(num)
   groundNum = num
   setColor(2<<8 | skyGndTbl1[groundNum])
   setColor(3<<8 | skyGndTbl2[groundNum])
-  renderFrame()
 end
 
 def nextGround()
   setGround((groundNum + 1) & $F)
+end
+
+def debugMem(bank, code)
+  ^$c051
+  ^$c054
+  printHex(code)
+  loader(DEBUG_MEM, bank, 0)
+  getUpperKey()
+  ^$c050
 end
 
 def initMap()
@@ -539,11 +554,6 @@ def initMap()
   setWindow2()
   clearWindow()
 
-  ;while TRUE
-  ;  displayStr(@asciiTest)
-  ;loop
-
-  ^cursv = ^wndbtm - 1
   prevX = -1
   prevY = -1
   prevScript = -1
@@ -628,7 +638,6 @@ def checkScript()
     prevY = y
     if prevScript
       clearWindow()
-      ^cursv = ^wndbtm - 1
     fin
     prevScript = NULL
     if isScripted()
@@ -716,7 +725,6 @@ def teleport(x, y, dir)
   prevY = y
   prevScript = -1
   clearWindow()
-  ^cursv = ^wndbtm - 1
   ^playerDir = dir
   redraw = TRUE
 end
@@ -760,7 +768,6 @@ def getYN()
       return 1
     elsif key == 'N'
       clearWindow()
-      ^cursv = ^wndbtm - 1
       return 0
     fin
     beep()
@@ -794,24 +801,31 @@ initCmd('N', @nextMap)
 initCmd('Y', @nextSky)
 initCmd('G', @nextGround)
 
+; $300
 callbacks.0 = $4c
 callbacks:1 = @setLocationTrigger
 
+; $303
 callbacks.3 = $4c
 callbacks:4 = @displayStr
 
+; $306
 callbacks.6 = $4c
 callbacks:7 = @getYN
 
+; $309
 callbacks.9 = $4c
 callbacks:10 = @setMap
 
+; $30C
 callbacks.12 = $4c
 callbacks:13 = @setSky
 
+; $30F
 callbacks.15 = $4c
 callbacks:16 = @setGround
 
+; $312
 callbacks.18 = $4c
 callbacks:19 = @teleport
 

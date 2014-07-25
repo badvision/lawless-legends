@@ -20,6 +20,7 @@ MAX_SEGS	= 96
 DO_COMP_CHECKSUMS = 0		; during compression debugging
 DEBUG_DECOMP 	= 0
 DEBUG		= 0
+SANITY_CHECK	= 0
 
 ; Zero page temporary variables
 tmp		= $2	; len 2
@@ -191,7 +192,7 @@ scanForAvail: !zone
 	stx .next+1	; it also marks the ending point. Yes, self-modifying code.
 .loop:	ldy tSegLink,x	; grab link to next segment, which we'll need regardless
 	lda tSegType,x	; check flags
-	bmi .next	; skip active blocks
+	bne .next	; skip allocated blocks (even if inactive)
 	lda tSegAdrLo,x	; calc this seg addr plus len
 	clc
 	adc reqLen
@@ -221,7 +222,8 @@ scanForAvail: !zone
 
 ;------------------------------------------------------------------------------
 main_dispatch: !zone
-	cmp #REQUEST_MEMORY
+!if SANITY_CHECK { jsr saneStart : jsr + : jmp saneEnd }
++	cmp #REQUEST_MEMORY
 	bne +
 	jmp main_request
 +	cmp #QUEUE_LOAD
@@ -258,6 +260,7 @@ shared_dispatch:
 
 ;------------------------------------------------------------------------------
 aux_dispatch: !zone
+!if SANITY_CHECK { jsr saneStart : jsr + : jmp saneEnd }
 	cmp #REQUEST_MEMORY
 	bne +
 	jmp aux_request
@@ -280,6 +283,46 @@ aux_dispatch: !zone
 	bne +
 	jmp aux_calcFree
 +	jmp shared_dispatch
+
+;------------------------------------------------------------------------------
+; Sanity check mode
+!if SANITY_CHECK {
+saneStart: !zone
+	pha
+	tya
+	pha
+	txa
+	pha
+	jsr saneCheck
+	pla
+	tax
+	pla
+	tay
+	+prChr 'M'+$80
+	pla : pha : +prA
+	+prX : +prY
+	pla
+	rts
+
+saneCheck: !zone
+	rts
+
+saneEnd: !zone
+	pha
+	tya
+	pha
+	txa
+	pha
+	jsr saneCheck
+	+prChr 'm'+$80
+	+crout
+	pla
+	tax
+	pla
+	tay
+	pla
+	rts
+}
 
 ;------------------------------------------------------------------------------
 ; Print fatal error message (custom or predefined) and print the
@@ -591,6 +634,7 @@ shared_alloc:
 	beq .notFound		; fail if we couldn't find it
 	lda tSegType,x		; check flags
 	bmi reservedErr		; if already active, can't re-allocate it
+	ldy tSegLink,x		; get link to next seg
 	bcc .noSplitStart	; scanForAddr clears carry if addr is equal
 ; need to split current segment into (cur..targetAddr) and (targetAddr..next)
 .splitStart:
@@ -664,10 +708,6 @@ shared_alloc:
 ; at the same time to guarantee that we never have the main part of a module
 ; without its aux part, or vice versa.
 reclaim: !zone
-	bit $C051
-	+prStr : !text "Reclaim before:",0
-	jsr printMem
-	+waitKey
 	lda isAuxCmd	; save whether current command is aux or not
 	pha
 	lda #1		; we do aux bank first
@@ -686,9 +726,6 @@ reclaim: !zone
 	bpl .outer	; back around for that bank
 	pla
 	sta isAuxCmd	; restore aux mode
-	+prStr : !text "Reclaim after:",0
-	jsr printMem
-	+waitKey
 	rts		; all done
 
 ;------------------------------------------------------------------------------
@@ -822,6 +859,8 @@ shared_free:
 	lda tSegType,x		; get current flags
 	and #$3F		; remove the 'active' and 'locked' flags
 	sta tSegType,x		; store flags back
+	lda #0
+	sta tSegRes,x
 .done	rts			; all done
 
 ;------------------------------------------------------------------------------
@@ -875,7 +914,7 @@ shared_queueLoad:
 	beq .module		; extra work for modules
 .notMod	jsr scanForResource	; scan to see if we already have this resource in mem
 	beq .notFound		; nope, pass to next loader
-	stx segNum		; save seg num for later
+.found	stx segNum		; save seg num for later
 	lda tSegType,x		; get flags
 	ora #$80		; reactivate if necessary
 	sta tSegType,x		; save modified flag
@@ -916,8 +955,7 @@ shared_queueLoad:
 	lda #0
 	sta isAuxCmd
 	jsr scanForResource	; do we have the main mem part?
-	beq .reload	
-	rts			; we have both parts already -- no need for fixups
+	bne .found		; we have both parts already -- no need for fixups
 .reload	lda #RES_TYPE_MODULE
 	sta resType
 	lda #0

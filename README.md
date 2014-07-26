@@ -9,7 +9,9 @@ Download Links
 --------------
 
 - The most recent copy of Outlaw Editor (aka the Daily build) can be found here: https://www.dropbox.com/s/2bhoxqrqjjehmqb/OutlawEditor-jfx.jar
-- Live builds of the Apple platform code (AKA the Apple // series game port) will soon be available 
+- Live builds of the Apple platform code (AKA the Apple // series game port) will soon be available
+
+If you are curious how the Ray Caster works, Martin Haye has made a tutorial with versions in both text and video: https://github.com/badvision/lawless-legends/blob/master/Docs/Tutorials/BigBlue/TaleOfBigBlue.md
 
 How to get involved
 -------------------
@@ -18,9 +20,10 @@ Grab a daily build and play with it!  If you are a QA tester or a developer you 
 
 You (yes, you!) can get involved even if you have no programming experience and just want to dabble with retro gaming.  We will need testers who are not afraid to press untold combinations of buttons for the sake of breaking things and telling the programmers how misbehaved our code is.  You are welcome to test our build process for yourself and let us know if there's a way you think we can make it easier -- because ultimately we are striving to collaborate with modern technology while building a game that runs on old pre-internet 8-bit technology: There are bound to be pitfalls and some amount of inconvenience is almost assured!  But despite this, we think we can achieve the following:
 
-- Common game creation tools (Outlaw Editor) which run in all modern OS platforms using Java 7 / JavaFX 2.2 (Java 8 compatibility will be assured after Java 8 GA is released)
-- Native game development on-platform, meaning you code the Apple engine on the Apple (via Merlin Pro)
+- Common game creation tools (Outlaw Editor) which run in all modern OS platforms using Java 8 / JavaFX
+- Native game development on-platform, meaning you code the Apple engine on the Apple (via the ACME assembler)
 - Native program code is managed within the virtual computer's disk image and synchronized out via provided scripts (see Notes to 6502 Coders below)
+- Much game logic is/will be written in PLASMA, a moderately high level language that runs on the Apple II.
 - Native game development and game previewing is possible on real hardware (using VSDrive/ADT Pro or CDDB), or emulation (using _any_ apple //e or //gs emulator)
 - New tricks to teach our old dogs.  Many surprises await!
 
@@ -30,9 +33,11 @@ Notes to 6502 Coders
 Time to ROL up your sleeves and accumulate some good documentation on Prodos memory layouts and Prodos device drivers!  We're going to make this game so that you can run (and exit back to) Prodos on any 128kb (or more) machine.  That means the //c and //gs will be natively compatible as well.  We have some cool routines written, but are still in our infancy:
 - Fast tile drawing using text page 1 ($400-$7ff) as scratchpad
 - Crazy awesome Hi-res 3D raycaster engine
+- Module-based memory management which can utilize extra ram whenever possible
+- PLASMA interpreter
 
 We need a lot more, and ideas are greatly appreciated for the following:
-- Module-based memory management which can utilize extra ram whenever possible
+- 2D tile drawing engine
 - Mockingboard playback routines
 - Ensoniq DOC playback routines
 - Image depack routines, with support for animation frames and transparent overlays.

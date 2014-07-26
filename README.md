@@ -10,6 +10,7 @@ Download Links
 
 - The most recent copy of Outlaw Editor (aka the Daily build) can be found here: https://www.dropbox.com/s/2bhoxqrqjjehmqb/OutlawEditor-jfx.jar
 - Live builds of the Apple platform code (AKA the Apple // series game port) will soon be available
+- Download the 2014 KFest playable demo disk here: https://www.dropbox.com/s/j7pwpgweu65i4md/Lawless%20Legends%20-%20KFest%20playable%20demo%20-%20v0_50.dsk
 
 If you are curious how the Ray Caster works, Martin Haye has made a tutorial with versions in both text and video: https://github.com/badvision/lawless-legends/blob/master/Docs/Tutorials/BigBlue/TaleOfBigBlue.md
 

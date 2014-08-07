@@ -55,9 +55,11 @@ DRAW_X_START	= $5E	; Starting column being drawn (between 0 and VIEWPORT_WIDTH)
 DRAW_Y_START	= $5F	; Starting row being drawn (between 0 and VIEWPORT_WIDTH)
 SECTION_X_START = $60	; X Offset relative to current section being drawn 
 SECTION_Y_START = $61	; Y Offset relative to current section being drawn 
-DRAW_WIDTH		= $62	; Number of columns to draw for current section
-DRAW_HEIGTH		= $63	; Number of rows to draw for current section
+DRAW_WIDTH		= $62	; Number of columns to draw for current section (cannot be destroyed by drawing loop)
+DRAW_HEIGTH		= $63	; Number of rows to draw for current section (cannot be destroyed by drawing loop)
 DRAW_SECTION	= $64 	; Location of section data being drawn
+X_COUNTER		= $65	; Loop counter used during drawing
+Y_COUNTER		= $66	; Loop counter used during drawing
 
 ; >> INIT (reset map drawing vars)
 INIT
@@ -390,10 +392,36 @@ DRAW
 ;
 ; The calculation goes like this:  Page + $78 + (Row * $100) + (Col & 7) + ((Col & 8) << 4)
 ; When the display is drawn, the screen hole is compared to see if there is a different tile to draw 
-; and if there isn't then the tile is skipped.  Otherwise the tile is drawn, etc.
+; and if there is not then the tile is skipped.  Otherwise the tile is drawn, etc.
 ;--------------------------------------
 
+COL_OFFSET = 2
+ROW_OFFSET = 3
+
 ; Identify start of map data (upper left)
+;tblHGRl, tblHGRh lookups are 24-row based, successive lines inside there are at 0x0400 offsets
+
+		; Self-modifying code: Update all the STA statements in the drawTile section
+		LDA tblHGRl+ROW_OFFSET, Y
+		ADC #COL_OFFSET
+		!for store, 32 {
+			STA drawTile+(store*7)+4
+			!if store=16 {
+				LDA tblHGRl+ROW_OFFSET+1, Y
+			}
+		}
+		LDA tblHGRh+ROW_OFFSET, Y
+		!for store, 32 {
+			STA drawTile+(store*7)+5
+			!if store=15 {
+				LDA tblHGRh+ROW_OFFSET+1, Y
+			} else {
+				!if store < 31 {
+					adc #$04
+				}
+			}
+		}
+
 ; Display row of tiles
 ; Get tile
 ;   Is there a NPC there?
@@ -401,9 +429,33 @@ DRAW
 ;     Yes, use NPC tile
 ; Compare tile to last-drawn tile
 ; Skip if no change
-; Is this the first time we're drawing this row?
+; Is this the first time we are drawing this row?
 ;   -- It is, update the draw pointers
 ; If tile is different then redraw
 ; 	-- unrolled loop for 16 rows at a time
+			LDY #$00
+drawTile	!for row, 16 {
+				!for col, 2 {
+					LDA (TILE_SOURCE),Y
+					STA DRAW_ROW, X
+					INY
+					!if col = 0 {
+						INX 
+					}  else {						
+						DEX
+					}
+				}
+			}
+
 ; Increment row
 ; Draw player
+
+tblHGRl		
+		!byte	$00,$80,$00,$80,$00,$80,$00,$80
+		!byte	$28,$A8,$28,$A8,$28,$A8,$28,$A8
+		!byte	$50,$D0,$50,$D0,$50,$D0,$50,$D0
+
+tblHGRh	
+		!byte	$00,$00,$01,$01,$02,$02,$03,$03
+		!byte	$00,$00,$01,$01,$02,$02,$03,$03
+		!byte	$00,$00,$01,$01,$02,$02,$03,$03

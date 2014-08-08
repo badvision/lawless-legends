@@ -58,8 +58,9 @@ SECTION_Y_START = $61	; Y Offset relative to current section being drawn
 DRAW_WIDTH		= $62	; Number of columns to draw for current section (cannot be destroyed by drawing loop)
 DRAW_HEIGTH		= $63	; Number of rows to draw for current section (cannot be destroyed by drawing loop)
 DRAW_SECTION	= $64 	; Location of section data being drawn
-X_COUNTER		= $65	; Loop counter used during drawing
-Y_COUNTER		= $66	; Loop counter used during drawing
+X_COUNTER		= $66	; Loop counter used during drawing
+Y_COUNTER		= $67	; Loop counter used during drawing
+ROW_LOCATION	= $68	; Used for pointing at row offset in map data
 
 ; >> INIT (reset map drawing vars)
 INIT
@@ -328,7 +329,7 @@ CROSS_WEST
 		SBC SECTION_Y_START
 		STA DRAW_HEIGHT
 		!move_word ptr, DRAW_SECTION
-		jsr mainDraw		
+		jsr mainDraw
 }
 
 DRAW
@@ -399,31 +400,94 @@ COL_OFFSET = 2
 ROW_OFFSET = 3
 
 ; Identify start of map data (upper left)
-;tblHGRl, tblHGRh lookups are 24-row based, successive lines inside there are at 0x0400 offsets
-
 		; Self-modifying code: Update all the STA statements in the drawTile section
+		LDY DRAW_Y_START
 		LDA tblHGRl+ROW_OFFSET, Y
 		ADC #COL_OFFSET
-		!for store, 32 {
-			STA drawTile+(store*7)+4
+		TAX
+		INX
+		!for store, 16 {
+			STA .drawTile+(store*14)+3
+			STX .drawTile+(store*14)+10
 			!if store=16 {
 				LDA tblHGRl+ROW_OFFSET+1, Y
 			}
 		}
 		LDA tblHGRh+ROW_OFFSET, Y
-		!for store, 32 {
-			STA drawTile+(store*7)+5
-			!if store=15 {
+		!for store, 16 {
+			STA .drawTile+(store*14)+4
+			STA .drawTile+(store*14)+11
+			!if store = 7 {
 				LDA tblHGRh+ROW_OFFSET+1, Y
 			} else {
-				!if store < 31 {
+				; We have to calculate the start of the next row but only if we are not already at the last row
+				!if store < 15 {
 					adc #$04
 				}
 			}
 		}
 
+;Calculate data offset == DRAW_SECTION + (row * 22) + 6 == DRAW_SECTION + (row * 2 + row * 4 + row * 16) + 6
+		CLC
+		LDA SECTION_Y_START	;row * 2
+		ASL
+		ADC #HEADER_LENGTH
+		ADC SECTION_X_START
+		STA ROW_LOCATION
+		LDA SECTION_Y_START ; row * 4
+		ASL
+		ASL
+		ADC ROW_LOCATION
+		STA ROW_LOCATION
+		LDA SECTION_Y_START ; row * 16 -- possibly carry
+		ASL
+		ASL
+		ASL
+		ASL
+		ADC ROW_LOCATION
+		STA ROW_LOCATION		
+		LDA DRAW_SECTION + 1
+		ADC #$00	; This is a short way for handling carry without a branch
+		STA ROW_LOCATION + 1
+		LDA DRAW_SECTION
+		ADC ROW_LOCATION
+		STA ROW_LOCATION
+		; Handle carry if needed
+		BCC .doneCalculatingLocation
+		INC ROW_LOCATION + 1
+.doneCalculatingLocation
+		CLC
+		LDA SECTION_Y_START
+		ASL
+		ADC ROW_LOCATION
+		STA ROW_LOCATION
+		LDA SECTION_Y_START
+		ASL
+		ASL
+		ADC ROW_LOCATION
+		STA ROW_LOCATION
+
+		LDX DRAW_X_START		
 ; Display row of tiles
+.next_col
 ; Get tile
+		LDA ROW_LOCATION, X
+		; Calculate location of tile data == tile_base + ((tile & 31) * 16)
+		AND #31
+		ASL
+		ASL
+		ASL
+		ASL
+		STA TILE_SOURCE
+		LDA TILE_BASE
+		ADC #$00
+		STA TILE_SOURCE+1
+		LDA TILE_BASE
+		ADC TILE_SOURCE
+		STA TILE_SOURCE
+		BCC .doenCalculatingTileLocation
+		INC TILE_SOURCE+1
+.doenCalculatingTileLocation
 ;   Is there a NPC there?
 ;     No, use map tile
 ;     Yes, use NPC tile
@@ -434,20 +498,31 @@ ROW_OFFSET = 3
 ; If tile is different then redraw
 ; 	-- unrolled loop for 16 rows at a time
 			LDY #$00
-drawTile	!for row, 16 {
-				!for col, 2 {
-					LDA (TILE_SOURCE),Y
-					STA DRAW_ROW, X
-					INY
-					!if col = 0 {
-						INX 
-					}  else {						
-						DEX
+			TXA	; In the drawing part, we need X=X*2
+			ASL
+			TAX
+.drawTile	!for row, 16 {
+.0					LDA (TILE_SOURCE),Y
+.2					STA DRAW_ROW, X
+.5					INY
+.6					INX
+.7					LDA (TILE_SOURCE),Y
+.9					STA DRAW_ROW, X
+					!if row < 15 {
+.12						INY
+.13						DEX
 					}
 				}
 			}
-
+			DEC X_COUNTER
+			BMI .next_row
+			TXA ; Outside the drawing part we need to put X back (divide by 2)
+			LSR
+			TAX
+			BNE .next_col
 ; Increment row
+.next_row
+
 ; Draw player
 
 tblHGRl		

@@ -280,8 +280,8 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
 
     private void startSelection(int x, int y) {
         selectRect = new Rectangle(1, 1, Color.NAVY);
-        selectRect.setTranslateX(x);
-        selectRect.setTranslateY(y);
+        selectRect.setTranslateX(x * xScale * zoom);
+        selectRect.setTranslateY(y * yScale * zoom);
         selectRect.setOpacity(0.5);
         selectStartX = x;
         selectStartY = y;
@@ -293,10 +293,10 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
             startSelection(x, y);
         }
 
-        double minX = Math.min(selectStartX, x) * xScale;
-        double minY = Math.min(selectStartY, y) * yScale;
-        double maxX = Math.max(selectStartX, x) * xScale;
-        double maxY = Math.max(selectStartY, y) * yScale;
+        double minX = Math.min(selectStartX, x) * xScale * zoom;
+        double minY = Math.min(selectStartY, y) * yScale * zoom;
+        double maxX = Math.max(selectStartX, x) * xScale * zoom;
+        double maxY = Math.max(selectStartY, y) * yScale * zoom;
         selectRect.setTranslateX(minX);
         selectRect.setTranslateY(minY);
         selectRect.setWidth(maxX - minX);

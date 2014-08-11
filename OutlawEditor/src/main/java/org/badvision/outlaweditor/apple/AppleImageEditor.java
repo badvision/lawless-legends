@@ -194,6 +194,11 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
 //
 //                    double newLeft = (left + pointerX) * ratio - pointerX;
 //                    double newTop = (top + pointerY) * ratio - pointerY;
+        // Scale the image and move it so the upper-left corner is still in the right place.
+        screen.setScaleX(zoom);
+        screen.setScaleY(zoom);
+        screen.setTranslateX(getWidth()*7 * (zoom-1));
+        screen.setTranslateY(getHeight() * (zoom-1));
         redraw();
     }
 

@@ -50,17 +50,19 @@ EAST	=1
 SOUTH	=2
 WEST 	=3
 
-;-- Variables used in drawing
+;-- Variables used in drawing which can not be changed by the inner drawing loop
 DRAW_X_START	= $5E	; Starting column being drawn (between 0 and VIEWPORT_WIDTH)
 DRAW_Y_START	= $5F	; Starting row being drawn (between 0 and VIEWPORT_WIDTH)
-SECTION_X_START = $60	; X Offset relative to current section being drawn 
-SECTION_Y_START = $61	; Y Offset relative to current section being drawn 
 DRAW_WIDTH		= $62	; Number of columns to draw for current section (cannot be destroyed by drawing loop)
 DRAW_HEIGTH		= $63	; Number of rows to draw for current section (cannot be destroyed by drawing loop)
 DRAW_SECTION	= $64 	; Location of section data being drawn
+;-- These variables are set in the outer draw section but can be destroyed by the inner routine
+SECTION_X_START = $60	; X Offset relative to current section being drawn 
+SECTION_Y_START = $61	; Y Offset relative to current section being drawn 
 X_COUNTER		= $66	; Loop counter used during drawing
 Y_COUNTER		= $67	; Loop counter used during drawing
 ROW_LOCATION	= $68	; Used for pointing at row offset in map data
+Y_LOC			= $67	; Current row being drawn (between 0 and VIEWPORT_WIDTH)
 
 ; >> INIT (reset map drawing vars)
 INIT
@@ -399,9 +401,14 @@ DRAW
 COL_OFFSET = 2
 ROW_OFFSET = 3
 
+		LDA DRAW_HEIGHT
+		STA Y_COUNTER
+		LDA DRAW_Y_START
+		STA Y_LOC
+.rowLoop		
 ; Identify start of map data (upper left)
 		; Self-modifying code: Update all the STA statements in the drawTile section
-		LDY DRAW_Y_START
+		LDY Y_LOC
 		LDA tblHGRl+ROW_OFFSET, Y
 		ADC #COL_OFFSET
 		TAX
@@ -431,7 +438,7 @@ ROW_OFFSET = 3
 		CLC
 		LDA SECTION_Y_START	;row * 2
 		ASL
-		ADC #HEADER_LENGTH
+		ADC #HEADER_LENGTH  ; +6
 		ADC SECTION_X_START
 		STA ROW_LOCATION
 		LDA SECTION_Y_START ; row * 4
@@ -449,24 +456,15 @@ ROW_OFFSET = 3
 		LDA DRAW_SECTION + 1
 		ADC #$00	; This is a short way for handling carry without a branch
 		STA ROW_LOCATION + 1
-		LDA DRAW_SECTION
+		LDA DRAW_SECTION  ; DRAW_SECTION is done at the very end in case it causes an overflow
 		ADC ROW_LOCATION
 		STA ROW_LOCATION
 		; Handle carry if needed
 		BCC .doneCalculatingLocation
 		INC ROW_LOCATION + 1
 .doneCalculatingLocation
-		CLC
-		LDA SECTION_Y_START
-		ASL
-		ADC ROW_LOCATION
-		STA ROW_LOCATION
-		LDA SECTION_Y_START
-		ASL
-		ASL
-		ADC ROW_LOCATION
-		STA ROW_LOCATION
-
+		LDA DRAW_WIDTH
+		STA X_COUNTER
 		LDX DRAW_X_START		
 ; Display row of tiles
 .next_col
@@ -479,15 +477,15 @@ ROW_OFFSET = 3
 		ASL
 		ASL
 		STA TILE_SOURCE
-		LDA TILE_BASE
+		LDA TILE_BASE + 1
 		ADC #$00
 		STA TILE_SOURCE+1
 		LDA TILE_BASE
 		ADC TILE_SOURCE
 		STA TILE_SOURCE
-		BCC .doenCalculatingTileLocation
+		BCC .doneCalculatingTileLocation
 		INC TILE_SOURCE+1
-.doenCalculatingTileLocation
+.doneCalculatingTileLocation
 ;   Is there a NPC there?
 ;     No, use map tile
 ;     Yes, use NPC tile
@@ -516,13 +514,19 @@ ROW_OFFSET = 3
 			}
 			DEC X_COUNTER
 			BMI .next_row
+			INX
 			TXA ; Outside the drawing part we need to put X back (divide by 2)
 			LSR
 			TAX
-			BNE .next_col
+			BNE .next_col	;Should always branch
 ; Increment row
 .next_row
-
+		DEC Y_COUNTER
+		BPL .notDone
+		RTS
+		INC Y_LOC
+		INC SECTION_Y_START
+	 	JMP .rowLoop
 ; Draw player
 
 tblHGRl		

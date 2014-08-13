@@ -38,6 +38,10 @@ NW_MAP_LOC=$52
 NE_MAP_LOC=$54
 SW_MAP_LOC=$56
 SE_MAP_LOC=$58
+NW_TILESET_LOC=$70
+NE_TILESET_LOC=$72
+SW_TILESET_LOC=$74
+SE_TILESET_LOC=$76
 ; Map section IDs (255 = not loaded)
 NOT_LOADED=$FF
 NW_MAP_ID=$5A
@@ -125,8 +129,8 @@ FINISH_MAP_LOAD
 }
 
 ;----------------------------------------------------------------------
-; >> RELEASE MAP SECTION
-!macro releaseMapSection ptr {
+; >> RELEASE MAP SECTION OR TILESET
+!macro freeResource ptr {
 	; --> free up unused resource
 		LDX ptr
 		LDY ptr+1
@@ -136,6 +140,18 @@ FINISH_MAP_LOAD
 ;----------------------------------------------------------------------
 ; >> LOAD TILES
 ;	Load tile resource (A = Resource ID)
+LOAD_TILESET
+		TAY
+		LDX #RES_TYPE_TILESET
+		LDA #QUEUE_LOAD
+		JMP mainLoader
+!macro loadTileset mapData, ptr {
+		LDY #4
+		LDA (mapData),Y
+		JSR LOAD_TILESET
+		STX ptr
+		STY ptr+1
+}
 ;----------------------------------------------------------------------
 ; >> MOVE NORTH
 ;	Check for boundary
@@ -182,11 +198,32 @@ SET_XY
 		STX to
 }
 
+FREE_ALL_TILES
+		+freeResource NW_TILESET_LOC
+		+freeResource NE_TILESET_LOC
+		+freeResource SW_TILESET_LOC
+		+freeResource SE_TILESET_LOC
+		RTS		
+!macro freeAllTiles {
+		JSR FREE_ALL_TILES
+}
+
+LOAD_ALL_TILES
+		+loadTileset NW_MAP_LOC, NW_TILESET_LOC
+		+loadTileset NE_MAP_LOC, NW_TILESET_LOC
+		+loadTileset SW_MAP_LOC, NW_TILESET_LOC
+		+loadTileset SE_MAP_LOC, NW_TILESET_LOC
+		RTS
+!macro loadAllTiles {
+		JSR LOAD_ALL_TILES
+}
+
 ; >> CROSS NORTH BOUNDARY (Load next section to the north)
 !zone
 CROSS_NORTH
-		+releaseMapSection SW_MAP_LOC
-		+releaseMapSection SE_MAP_LOC
+		+freeAllTiles
+		+freeResource SW_MAP_LOC
+		+freeResource SE_MAP_LOC
 		LDA REL_Y
 		CLC
 		ADC #SECTION_HEIGHT
@@ -205,14 +242,16 @@ CROSS_NORTH
 		LDA (SE_MAP_LOC),Y
 		STA NE_MAP_ID
 		+loadSection NE_MAP_LOC
+		+loadAllTiles
 		+finishLoad
 		RTS
 ;----------------------------------------------------------------------
 ; >> CROSS EAST BOUNDARY (Load next section to the east)
 !zone
 CROSS_EAST
-		+releaseMapSection NW_MAP_LOC
-		+releaseMapSection SW_MAP_LOC
+		+freeAllTiles
+		+freeResource NW_MAP_LOC
+		+freeResource SW_MAP_LOC
 		LDA REL_X
 		SEC
 		SBC #SECTION_WIDTH
@@ -232,14 +271,16 @@ CROSS_EAST
 		LDA (SW_MAP_LOC),Y
 		STA SE_MAP_ID
 		+loadSection SE_MAP_LOC
+		+loadAllTiles
 		+finishLoad
 		RTS
 ;----------------------------------------------------------------------
 ; >> CROSS SOUTH BOUNDARY (Load next section to the south)
 !zone
 CROSS_SOUTH
-		+releaseMapSection NW_MAP_LOC
-		+releaseMapSection NE_MAP_LOC
+		+freeAllTiles
+		+freeResource NW_MAP_LOC
+		+freeResource NE_MAP_LOC
 		LDA REL_Y
 		SEC
 		SBC #SECTION_HEIGHT
@@ -259,14 +300,16 @@ CROSS_SOUTH
 		LDA (NE_MAP_LOC),Y
 		STA SE_MAP_ID
 		+loadSection SE_MAP_LOC
+		+loadAllTiles
 		+finishLoad
 		RTS
 ;----------------------------------------------------------------------
 ; >> CROSS WEST BOUNDARY (load next section to the west)
 !zone
 CROSS_WEST
-		+releaseMapSection NE_MAP_LOC
-		+releaseMapSection SE_MAP_LOC
+		+freeAllTiles
+		+freeResource NE_MAP_LOC
+		+freeResource SE_MAP_LOC
 		LDA REL_X
 		CLC
 		ADC #SECTION_WIDTH
@@ -286,6 +329,7 @@ CROSS_WEST
 		LDA (SE_MAP_LOC),Y
 		STA SW_MAP_ID
 		+loadSection SW_MAP_LOC
+		+loadAllTiles
 		+finishLoad
 		RTS
 ;----------------------------------------------------------------------

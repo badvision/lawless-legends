@@ -54,16 +54,17 @@ WEST 	=3
 DRAW_X_START	= $5E	; Starting column being drawn (between 0 and VIEWPORT_WIDTH)
 DRAW_Y_START	= $5F	; Starting row being drawn (between 0 and VIEWPORT_WIDTH)
 DRAW_WIDTH		= $62	; Number of columns to draw for current section (cannot be destroyed by drawing loop)
-DRAW_HEIGTH		= $63	; Number of rows to draw for current section (cannot be destroyed by drawing loop)
+DRAW_HEIGHT		= $63	; Number of rows to draw for current section (cannot be destroyed by drawing loop)
 DRAW_SECTION	= $64 	; Location of section data being drawn
+TILE_BASE		= $6B	; Location of tile data
 ;-- These variables are set in the outer draw section but can be destroyed by the inner routine
 SECTION_X_START = $60	; X Offset relative to current section being drawn 
 SECTION_Y_START = $61	; Y Offset relative to current section being drawn 
 X_COUNTER		= $66	; Loop counter used during drawing
 Y_COUNTER		= $67	; Loop counter used during drawing
-ROW_LOCATION	= $68	; Used for pointing at row offset in map data
-Y_LOC			= $67	; Current row being drawn (between 0 and VIEWPORT_WIDTH)
-
+Y_LOC			= $68	; Current row being drawn (between 0 and VIEWPORT_WIDTH)
+ROW_LOCATION	= $69	; Used for pointing at row offset in map data
+TILE_SOURCE		= $6D	; Location of tile data
 ; >> INIT (reset map drawing vars)
 INIT
 		LDA #NOT_LOADED
@@ -78,12 +79,12 @@ INIT
 
 ;----------------------------------------------------------------------
 ; >> START LOADING MAP SECTIONS
-START_LOAD
+START_MAP_LOAD
 		LDX #0
 		LDA #START_LOAD
 		JMP mainLoader
 !macro startLoad {
-		JSR START_LOAD
+		JSR START_MAP_LOAD
 }
 
 ;----------------------------------------------------------------------
@@ -115,12 +116,12 @@ LOAD_SECTION
 
 ;----------------------------------------------------------------------
 ; >> FINISH LOADING MAP SECTIONS
-FINISH_LOAD
+FINISH_MAP_LOAD
 		LDX #0		; 1 to keep open for next load, 0 for close so you can flip to HGR page 2
 		LDA #FINISH_LOAD
 		JMP mainLoader
 !macro finishLoad {
-		JSR FINISH_LOAD
+		JSR FINISH_MAP_LOAD
 }
 
 ;----------------------------------------------------------------------
@@ -172,8 +173,8 @@ SET_XY
 ; >> TRIGGER SCRIPT AT TILE (X,Y = Coordinates in section)
 ;----------------------------------------------------------------------
 !macro move_word from, to {
-		!move_byte from, to
-		!move_byte from+1, to+1
+		+move_byte from, to
+		+move_byte from+1, to+1
 }
 
 !macro move_byte from, to {
@@ -184,107 +185,108 @@ SET_XY
 ; >> CROSS NORTH BOUNDARY (Load next section to the north)
 !zone
 CROSS_NORTH
-		!releaseMapSection SW_MAP_LOC
-		!releaseMapSection SE_MAP_LOC
+		+releaseMapSection SW_MAP_LOC
+		+releaseMapSection SE_MAP_LOC
 		LDA REL_Y
 		CLC
 		ADC #SECTION_HEIGHT
 		STA REL_Y
-		!move_byte NW_MAP_ID, SW_MAP_ID
-		!move_word NW_MAP_LOC, SW_MAP_LOC
-		!move_byte NE_MAP_ID, SE_MAP_ID
-		!move_word NE_MAP_LOC, SE_MAP_LOC
+		+move_byte NW_MAP_ID, SW_MAP_ID
+		+move_word NW_MAP_LOC, SW_MAP_LOC
+		+move_byte NE_MAP_ID, SE_MAP_ID
+		+move_word NE_MAP_LOC, SE_MAP_LOC
  		; Get new NW section
-		!startLoad
-		LDA (SW_MAP_LOC)
+		+startLoad
+		LDY #00
+		LDA (SW_MAP_LOC),Y
 		STA NW_MAP_ID
-		!loadSection NW_MAP_LOC
+		+loadSection NW_MAP_LOC
  		; Get the new NE section
-		LDA (SE_MAP_LOC)
+		LDA (SE_MAP_LOC),Y
 		STA NE_MAP_ID
-		!loadSection NE_MAP_LOC
-		!finishLoad
+		+loadSection NE_MAP_LOC
+		+finishLoad
 		RTS
 ;----------------------------------------------------------------------
 ; >> CROSS EAST BOUNDARY (Load next section to the east)
 !zone
 CROSS_EAST
-		!releaseMapSection NW_MAP_LOC
-		!releaseMapSection SW_MAP_LOC
+		+releaseMapSection NW_MAP_LOC
+		+releaseMapSection SW_MAP_LOC
 		LDA REL_X
 		SEC
 		SBC #SECTION_WIDTH
 		STA REL_X
-		!move_byte NE_MAP_ID, NW_MAP_ID
-		!move_word NE_MAP_LOC, NW_MAP_LOC
-		!move_byte SE_MAP_ID, SW_MAP_ID
-		!move_word SE_MAP_LOC, SW_MAP_LOC
+		+move_byte NE_MAP_ID, NW_MAP_ID
+		+move_word NE_MAP_LOC, NW_MAP_LOC
+		+move_byte SE_MAP_ID, SW_MAP_ID
+		+move_word SE_MAP_LOC, SW_MAP_LOC
  		; Get new NE section
-		!startLoad
+		+startLoad
 		LDY #EAST
 		LDA (NW_MAP_LOC),Y
 		STA NE_MAP_ID
-		!loadSection NE_MAP_LOC
+		+loadSection NE_MAP_LOC
  		; Get the new SE section
 		LDY #EAST
 		LDA (SW_MAP_LOC),Y
 		STA SE_MAP_ID
-		!loadSection SE_MAP_LOC
-		!finishLoad
+		+loadSection SE_MAP_LOC
+		+finishLoad
 		RTS
 ;----------------------------------------------------------------------
 ; >> CROSS SOUTH BOUNDARY (Load next section to the south)
 !zone
 CROSS_SOUTH
-		!releaseMapSection NW_MAP_LOC
-		!releaseMapSection NE_MAP_LOC
+		+releaseMapSection NW_MAP_LOC
+		+releaseMapSection NE_MAP_LOC
 		LDA REL_Y
 		SEC
 		SBC #SECTION_HEIGHT
 		STA REL_Y
-		!move_byte SW_MAP_ID, NW_MAP_ID
-		!move_word SW_MAP_LOC, NW_MAP_LOC
-		!move_byte SE_MAP_ID, NE_MAP_ID
-		!move_word SE_MAP_LOC, NE_MAP_LOC
+		+move_byte SW_MAP_ID, NW_MAP_ID
+		+move_word SW_MAP_LOC, NW_MAP_LOC
+		+move_byte SE_MAP_ID, NE_MAP_ID
+		+move_word SE_MAP_LOC, NE_MAP_LOC
 	 	; Get new SW section
-		!startLoad
+		+startLoad
 	 	LDY #SOUTH
 		LDA (NW_MAP_LOC),Y
 		STA SW_MAP_ID
-		!loadSection SW_MAP_LOC
+		+loadSection SW_MAP_LOC
  		; Get the new SE section
 		LDY #SOUTH
 		LDA (NE_MAP_LOC),Y
 		STA SE_MAP_ID
-		!loadSection SE_MAP_LOC
-		!finishLoad
+		+loadSection SE_MAP_LOC
+		+finishLoad
 		RTS
 ;----------------------------------------------------------------------
 ; >> CROSS WEST BOUNDARY (load next section to the west)
 !zone
 CROSS_WEST
-		!releaseMapSection NE_MAP_LOC
-		!releaseMapSection SE_MAP_LOC
+		+releaseMapSection NE_MAP_LOC
+		+releaseMapSection SE_MAP_LOC
 		LDA REL_X
 		CLC
 		ADC #SECTION_WIDTH
 		STA REL_X
-		!move_byte NW_MAP_ID, NE_MAP_ID
-		!move_word NW_MAP_LOC, NE_MAP_LOC
-		!move_byte SW_MAP_ID, SE_MAP_ID
-		!move_word SW_MAP_LOC, SE_MAP_LOC
+		+move_byte NW_MAP_ID, NE_MAP_ID
+		+move_word NW_MAP_LOC, NE_MAP_LOC
+		+move_byte SW_MAP_ID, SE_MAP_ID
+		+move_word SW_MAP_LOC, SE_MAP_LOC
  		; Get new NW section
-		!startLoad
+		+startLoad
 		LDY #WEST
 		LDA (NE_MAP_LOC),Y
 		STA NW_MAP_ID
-		!loadSection NW_MAP_LOC
+		+loadSection NW_MAP_LOC
  		; Get the new SE section
 		LDY #WEST
 		LDA (SE_MAP_LOC),Y
 		STA SW_MAP_ID
-		!loadSection SW_MAP_LOC
-		!finishLoad
+		+loadSection SW_MAP_LOC
+		+finishLoad
 		RTS
 ;----------------------------------------------------------------------
 ; >> SET PLAYER TILE (A = tile)
@@ -306,7 +308,7 @@ CROSS_WEST
 		CLC
 		ADC #VIEWPORT_WIDTH
 		CMP #SECTION_WIDTH
-		BLT .11
+		BMI .11
 		LDA #SECTION_WIDTH
 .11		
 		SEC
@@ -324,14 +326,14 @@ CROSS_WEST
 		CLC
 		ADC #VIEWPORT_HEIGHT
 		CMP #SECTION_HEIGHT
-		BLT .21
+		BMI .21
 		LDA #SECTION_HEIGHT
 .21
 		SEC
 		SBC SECTION_Y_START
 		STA DRAW_HEIGHT
-		!move_word ptr, DRAW_SECTION
-		jsr mainDraw
+		+move_word ptr, DRAW_SECTION
+		JSR MainDraw
 }
 
 DRAW
@@ -342,20 +344,22 @@ DRAW
 .checkNorthQuads
 		LDA REL_Y
 		CMP SECTION_HEIGHT+VIEWPORT_VERT_PAD
-		BGE .checkSouthQuads
+		BMI .checkNWQuad
+		JMP .checkSouthQuads
+.checkNWQuad
 ;	Check for NW quadrant area
 		LDA REL_X
 		CMP SECTION_WIDTH+VIEWPORT_HORIZ_PAD
-		BGE .checkNEQuad
-		!drawMapSection NW_MAP_LOC, 0, 0
+		BPL .checkNEQuad
+		+drawMapSection NW_MAP_LOC, 0, 0
 ;	Check for NE quadrant area
 .checkNEQuad
 		LDA REL_X
 		CMP #VIEWPORT_HORIZ_PAD+1
-		BLT .finishTopQuads
+		BMI .finishTopQuads
 		LDA DRAW_WIDTH
 		STA DRAW_X_START
-		!drawMapSection NE_MAP_LOC, SECTION_WIDTH, 0
+		+drawMapSection NE_MAP_LOC, SECTION_WIDTH, 0
 .finishTopQuads		
 ;Update Y start for bottom quadrants
 		LDA DRAW_HEIGHT
@@ -367,21 +371,21 @@ DRAW
 ;	Check for SW quadrant area
 		LDA REL_X
 		CMP SECTION_WIDTH+VIEWPORT_HORIZ_PAD
-		BGE .checkSEQuad
-		!drawMapSection SW_MAP_LOC, 0, SECTION_HEIGHT
+		BPL .checkSEQuad
+		+drawMapSection SW_MAP_LOC, 0, SECTION_HEIGHT
 .checkSEQuad
 ;	Check for SE quadrand area
 		LDA REL_X
 		CMP #VIEWPORT_HORIZ_PAD+1
-		BGE .drawSEQuad
+		BPL .drawSEQuad
 		RTS
 .drawSEQuad		
 		LDA DRAW_WIDTH
 		STA DRAW_X_START
-		!drawMapSection SE_MAP_LOC, SECTION_WIDTH, SECTION_HEIGHT
+		+drawMapSection SE_MAP_LOC, SECTION_WIDTH, SECTION_HEIGHT
 	RTS
 
-.mainDraw
+MainDraw
 ;----- Tracking visible tile data -----
 ;There are a total of 512 screen holes in a hires page located in xx78-xx7F and xxF8-xxFF
 ;We only need 81 screen holes to track the 9x9 visible area.  So to do this a little translation is needed
@@ -500,16 +504,15 @@ ROW_OFFSET = 3
 			ASL
 			TAX
 .drawTile	!for row, 16 {
-.0					LDA (TILE_SOURCE),Y
-.2					STA DRAW_ROW, X
-.5					INY
-.6					INX
-.7					LDA (TILE_SOURCE),Y
-.9					STA DRAW_ROW, X
-					!if row < 15 {
-.12						INY
-.13						DEX
-					}
+				LDA (TILE_SOURCE),Y ;0
+				STA $2000, X 	;2
+				INY 				;5
+				INX					;6
+				LDA (TILE_SOURCE),Y ;7
+				STA $2000, X 	;9
+				!if row < 15 {
+					INY 			;12
+					DEX 			;13
 				}
 			}
 			DEC X_COUNTER
@@ -518,12 +521,13 @@ ROW_OFFSET = 3
 			TXA ; Outside the drawing part we need to put X back (divide by 2)
 			LSR
 			TAX
-			BNE .next_col	;Should always branch
+			JMP .next_col
 ; Increment row
 .next_row
 		DEC Y_COUNTER
 		BPL .notDone
 		RTS
+.notDone
 		INC Y_LOC
 		INC SECTION_Y_START
 	 	JMP .rowLoop

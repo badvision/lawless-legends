@@ -339,7 +339,7 @@ CROSS_WEST
 ;----------------------------------------------------------------------
 ; >> DRAW
 !zone draw
-!macro drawMapSection ptr, deltaX, deltaY {
+!macro drawMapSection mapPtr, tilesetPtr, deltaX, deltaY {
 	; Determine X1 and X2 bounds for what is being drawn
 		LDA REL_X
 		SEC
@@ -376,7 +376,8 @@ CROSS_WEST
 		SEC
 		SBC SECTION_Y_START
 		STA DRAW_HEIGHT
-		+move_word ptr, DRAW_SECTION
+		+move_word mapPtr, DRAW_SECTION
+		+move_word tilesetPtr, TILE_BASE
 		JSR MainDraw
 }
 
@@ -395,7 +396,7 @@ DRAW
 		LDA REL_X
 		CMP SECTION_WIDTH+VIEWPORT_HORIZ_PAD
 		BPL .checkNEQuad
-		+drawMapSection NW_MAP_LOC, 0, 0
+		+drawMapSection NW_MAP_LOC, NW_TILESET_LOC, 0, 0
 ;	Check for NE quadrant area
 .checkNEQuad
 		LDA REL_X
@@ -403,7 +404,7 @@ DRAW
 		BMI .finishTopQuads
 		LDA DRAW_WIDTH
 		STA DRAW_X_START
-		+drawMapSection NE_MAP_LOC, SECTION_WIDTH, 0
+		+drawMapSection NE_MAP_LOC, NE_TILESET_LOC, SECTION_WIDTH, 0
 .finishTopQuads		
 ;Update Y start for bottom quadrants
 		LDA DRAW_HEIGHT
@@ -416,7 +417,7 @@ DRAW
 		LDA REL_X
 		CMP SECTION_WIDTH+VIEWPORT_HORIZ_PAD
 		BPL .checkSEQuad
-		+drawMapSection SW_MAP_LOC, 0, SECTION_HEIGHT
+		+drawMapSection SW_MAP_LOC, SW_TILESET_LOC, 0, SECTION_HEIGHT
 .checkSEQuad
 ;	Check for SE quadrand area
 		LDA REL_X
@@ -426,7 +427,7 @@ DRAW
 .drawSEQuad		
 		LDA DRAW_WIDTH
 		STA DRAW_X_START
-		+drawMapSection SE_MAP_LOC, SECTION_WIDTH, SECTION_HEIGHT
+		+drawMapSection SE_MAP_LOC, SE_TILESET_LOC, SECTION_WIDTH, SECTION_HEIGHT
 	RTS
 
 MainDraw

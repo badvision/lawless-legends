@@ -53,7 +53,7 @@ import static org.badvision.outlaweditor.apple.AppleNTSCGraphics.hgrToDhgr;
  */
 public class FloydSteinbergDither {
 
-    static final int totalPasses = 6;
+    static final int totalPasses = 1;
     static final int nonErrorPasses = 1;
 
     public static interface DitherCallback {

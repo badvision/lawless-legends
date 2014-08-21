@@ -1,13 +1,13 @@
-;
-; Include all imported modules and their data/functions.
-;
+//
+// Include all imported modules and their data/functions.
+//
 
 include(stdlib.plh)
 include(testlib.plh)
 
-;
-; Declare all global variables for this module.
-;
+//
+// Declare all global variables for this module.
+//
 
 byte hello[] = "Hello, Apple "
 byte a1[] = "1"
@@ -20,9 +20,9 @@ word struct[] = 1, 10, 100, 1000, 10000
 word ptr
 byte spaces[] = "   "
 
-;
-; Define functions.
-;
+//
+// Define functions.
+//
 
 def tens(start)
   word i

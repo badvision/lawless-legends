@@ -1,30 +1,30 @@
-;==================================================================================================
-; Handy constants.
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Handy constants.
 const FALSE = 0
 const TRUE  = !FALSE
 const NULL  = 0
 
-;==================================================================================================
-; Fixed memory locations
-const raycaster  = $6000   ; main mem
-const expandVec  = $2000   ; aux mem
-const fontEngine = $BA00   ; main mem
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Fixed memory locations
+const raycaster  = $6000   // main mem
+const expandVec  = $2000   // aux mem
+const fontEngine = $BA00   // main mem
 
-;==================================================================================================
-; Resource numbers
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Resource numbers
 const RES_NUM_RAYCASTER   = 1
 const RES_NUM_EXPAND_VEC  = 2
 const RES_NUM_FONT_ENGINE = 3
 
-;==================================================================================================
-; Hardware addresses.
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Hardware addresses.
 const keyboard  = $C000
 const keystrobe = $C010
 
-;==================================================================================================
-; Memory manager definitions
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Memory manager definitions
 
-; Resource types
+// Resource types
 const RES_TYPE_CODE     = 1
 const RES_TYPE_2D_MAP   = 2
 const RES_TYPE_3D_MAP   = 3
@@ -36,11 +36,11 @@ const RES_TYPE_MODULE   = 8
 const RES_TYPE_BYTECODE = 9
 const RES_TYPE_FIXUP    = 10
 
-; Memory banks
+// Memory banks
 const MAIN_MEM = 0
 const AUX_MEM  = 1
 
-; Command codes
+// Command codes
 const RESET_MEMORY   = $10
 const REQUEST_MEMORY = $11
 const LOCK_MEMORY    = $12
@@ -59,12 +59,12 @@ const callbacks = $300
 
 const OVERMAP = 11
 
-;==================================================================================================
-; Predefined functions, for circular calls
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Predefined functions, for circular calls
 predef moveBackward, setWindow2
 
-;==================================================================================================
-; Raycaster variables
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Raycaster variables
 word zp = 0
 const playerDir = $5D
 const playerX   = $5E
@@ -72,26 +72,26 @@ const playerY   = $60
 const backBuf   = $6A
 const frontBuf  = $6B
 
-;==================================================================================================
-; Font engine variables
-const wndleft   = $70  ; left edge of the window
-const wndwdth   = $71  ; right edge (NOT width) of text window
-const wndtop    = $72  ; top of text window
-const wndbtm    = $73  ; bottom+1 of text window
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Font engine variables
+const wndleft   = $70  // left edge of the window
+const wndwdth   = $71  // right edge (NOT width) of text window
+const wndtop    = $72  // top of text window
+const wndbtm    = $73  // bottom+1 of text window
 
-const cursh     = $74  ; Cursor H-pos 0-39
-const cursv     = $75  ; Cursor V-pos 0-23
+const cursh     = $74  // Cursor H-pos 0-39
+const cursv     = $75  // Cursor V-pos 0-23
 
 const MAX_LOC_TRIG = 128
 
-;==================================================================================================
-; Strings.
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Strings.
 byte helloStr[] = "Loading Lawless Legends.\n"
 byte loopStr[] = "Entering keyboard loop.\n"
 byte tooManyTriggers[] = "Too many triggers"
 
-;==================================================================================================
-; Global variables
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Global variables
 byte mapNum = OVERMAP
 word pFont
 word pMap
@@ -112,8 +112,8 @@ word cacheX, cacheY
 byte cacheDir
 byte resetLocFromCache = FALSE
 
-; Movement amounts when walking at each angle
-; Each entry consists of an X bump and a Y bump, in 8.8 fixed point
+// Movement amounts when walking at each angle
+// Each entry consists of an X bump and a Y bump, in 8.8 fixed point
 word walkDirs[] = $0040, $0000
 word            = $003B, $0018
 word            = $002D, $002D
@@ -131,44 +131,44 @@ word            = $0018, $FFC5
 word            = $002D, $FFD3
 word            = $003B, $FFE8
 
-byte skyGndTbl1[] = $00 ; lo-bit black
-byte              = $00 ; lo-bit black
-byte              = $00 ; lo-bit black
-byte              = $02 ; violet
-byte              = $08 ; green
-byte              = $0A ; lo-bit white
-byte              = $0A ; lo-bit white
-byte              = $0A ; lo-bit white
-byte              = $20 ; hi-bit black
-byte              = $20 ; hi-bit black
-byte              = $20 ; hi-bit black
-byte              = $22 ; blue
-byte              = $28 ; orange
-byte              = $2A ; hi-bit white
-byte              = $2A ; hi-bit white
-byte              = $2A ; hi-bit white
-byte skyGndTbl2[] = $00 ; lo-bit black
-byte              = $02 ; violet
-byte              = $08 ; green
-byte              = $02 ; violet
-byte              = $08 ; green
-byte              = $02 ; violet
-byte              = $08 ; green
-byte              = $0A ; lo-bit white
-byte              = $20 ; hi-bit black
-byte              = $22 ; blue
-byte              = $28 ; orange
-byte              = $22 ; blue
-byte              = $28 ; orange
-byte              = $22 ; blue
-byte              = $28 ; orange
-byte              = $2A ; hi-bit white
+byte skyGndTbl1[] = $00 // lo-bit black
+byte              = $00 // lo-bit black
+byte              = $00 // lo-bit black
+byte              = $02 // violet
+byte              = $08 // green
+byte              = $0A // lo-bit white
+byte              = $0A // lo-bit white
+byte              = $0A // lo-bit white
+byte              = $20 // hi-bit black
+byte              = $20 // hi-bit black
+byte              = $20 // hi-bit black
+byte              = $22 // blue
+byte              = $28 // orange
+byte              = $2A // hi-bit white
+byte              = $2A // hi-bit white
+byte              = $2A // hi-bit white
+byte skyGndTbl2[] = $00 // lo-bit black
+byte              = $02 // violet
+byte              = $08 // green
+byte              = $02 // violet
+byte              = $08 // green
+byte              = $02 // violet
+byte              = $08 // green
+byte              = $0A // lo-bit white
+byte              = $20 // hi-bit black
+byte              = $22 // blue
+byte              = $28 // orange
+byte              = $22 // blue
+byte              = $28 // orange
+byte              = $22 // blue
+byte              = $28 // orange
+byte              = $2A // hi-bit white
 
 word skyNum = 9
 word groundNum = 10
 
-;==================================================================================================
-; Definitions used by assembly code
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Definitions used by assembly code
 asm __defs
 !source "../../include/global.i"
 !source "../../include/plasma.i"
@@ -178,8 +178,8 @@ tmp     = $2
 pTmp    = $4
 end
         
-;==================================================================================================
-; Print a string
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Print a string
 asm puts
         txa
         pha
@@ -204,8 +204,8 @@ asm puts
         rts
 end
 
-;==================================================================================================
-; Print a 16-bit hex value, followed by a space
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Print a 16-bit hex value, followed by a space
 asm printHex
         bit setROM
         lda evalStkH,x
@@ -234,9 +234,10 @@ asm beep
         rts
 end
 
-;==================================================================================================
-; Allocate memory
-asm loader  ; (cmd, mainOrAux, amount)
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Work with the memory manager
+// Params: cmd, mainOrAux, amount
+asm loader
         txa
         pha
         bit setROM
@@ -266,7 +267,10 @@ asm loader  ; (cmd, mainOrAux, amount)
         rts
 end
 
-asm initFontEngine ; (pFont)
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Set up the font engine
+// Params: pFont
+asm initFontEngine
         txa
         pha
         bit setROM
@@ -286,7 +290,10 @@ asm initFontEngine ; (pFont)
         rts
 end
 
-asm initRaycaster ; (pMap)
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Set up the ray casting engine
+// Params: pMap
+asm initRaycaster
         txa
         pha
         bit setROM
@@ -299,6 +306,9 @@ asm initRaycaster ; (pMap)
         rts
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Render one frame using the ray caster.
+// Params: none
 asm renderFrame
         txa
         pha
@@ -311,6 +321,9 @@ asm renderFrame
         rts
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Is the player's current position a physical obstruction?
+// Params: none
 asm isBlocked
         txa
         pha
@@ -328,6 +341,9 @@ asm isBlocked
         rts
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Is there a script attached to the player's current position?
+// Params: none
 asm isScripted
         txa
         pha
@@ -345,6 +361,9 @@ asm isScripted
         rts
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Set either the sky or ground color
+// Params: (index<<8) | (colorCode)
 asm setColor
         txa
         pha
@@ -358,11 +377,17 @@ asm setColor
         rts
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Jump straight to the system monitor
+// Params: None
 asm goMon
         bit setROM
         jmp $FF69
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Use the font engine to clear the current text window
+// Params: None
 asm clearWindow
         bit setROM
         txa
@@ -375,8 +400,10 @@ asm clearWindow
         rts
 end
 
-; Display a string using the font engine
-asm displayStr ; (str)
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Display a string using the font engine. Automatically splits lines to keep words from breaking.
+// Params: pStr
+asm displayStr
     bit setROM
     txa
     pha
@@ -444,8 +471,8 @@ asm displayStr ; (str)
     rts
 end
 
-;==================================================================================================
-; General methods
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// General methods
 
 def fatal(msg)
   loader(FATAL_ERROR, MAIN_MEM, msg)
@@ -495,31 +522,32 @@ end
 def initMap()
   word scriptModule
 
-  ; Reset memory (our module will stay since memory manager locked it upon load)
+  // Reset memory (our module will stay since memory manager locked it upon load)
   loader(RESET_MEMORY, MAIN_MEM, 0)
 
-  ; Load the font engine
+  // Load the font engine
   loader(SET_MEM_TARGET, MAIN_MEM, fontEngine)
   loader(QUEUE_LOAD,     MAIN_MEM, RES_NUM_FONT_ENGINE<<8 | RES_TYPE_CODE)
 
-  ; Load the raycaster
+  // Load the font for the font engine
+  loader(SET_MEM_TARGET, MAIN_MEM, $9000)
+  pFont = loader(QUEUE_LOAD, MAIN_MEM, 1<<8 | RES_TYPE_FONT)
+
+  // Load the raycaster
   loader(SET_MEM_TARGET, MAIN_MEM, raycaster)
   loader(QUEUE_LOAD,     MAIN_MEM, RES_NUM_RAYCASTER<<8 | RES_TYPE_CODE)
 
-  ; Load the texture expansion code
+  // Load the texture expansion code
   loader(SET_MEM_TARGET, AUX_MEM, expandVec)
   loader(QUEUE_LOAD,     AUX_MEM, RES_NUM_EXPAND_VEC<<8 | RES_TYPE_CODE)
 
-  ; Load the font for the font engine
-  pFont = loader(QUEUE_LOAD, MAIN_MEM, 1<<8 | RES_TYPE_FONT)
-
-  ; Load the map
+  // Load the map
   pMap = loader(QUEUE_LOAD, MAIN_MEM, mapNum<<8 | RES_TYPE_3D_MAP)
 
-  ; Load everything that we just queued
-  loader(FINISH_LOAD, MAIN_MEM, 1) ; 1 = keep open
+  // Load everything that we just queued
+  loader(FINISH_LOAD, MAIN_MEM, 1) // 1 = keep open
 
-  ; Load the frame image (and lock it there)
+  // Load the frame image (and lock it there)
   if titleLoaded
     loader(UNLOCK_MEMORY,MAIN_MEM, $2000)
     loader(FREE_MEMORY,  MAIN_MEM, $2000)
@@ -529,25 +557,25 @@ def initMap()
   loader(QUEUE_LOAD,     MAIN_MEM, 1<<8 | RES_TYPE_SCREEN)
   loader(LOCK_MEMORY,    MAIN_MEM, $2000)
 
-  ; Load the scripts for this map, if it has any.
-  scriptModule = pMap->2  ; first 2 bytes are width and height, third byte is script module num
+  // Load the scripts for this map, if it has any.
+  scriptModule = pMap->2  // first 2 bytes are width and height, third byte is script module num
   if scriptModule
     pScripts = loader(QUEUE_LOAD, MAIN_MEM, (scriptModule << 8) | RES_TYPE_MODULE)
   fin
-  loader(FINISH_LOAD, MAIN_MEM, 0) ; 1 = keep open, for loading textures
+  loader(FINISH_LOAD, MAIN_MEM, 0) // 1 = keep open, for loading textures
 
-  ; Start up the font engine
+  // Start up the font engine
   initFontEngine(pFont)
 
-  ; Start up the raycaster
+  // Start up the raycaster
   initRaycaster(pMap)
 
-  ; Set initial player position in case the init script doesn't do it
+  // Set initial player position in case the init script doesn't do it
   ^playerDir = 1
   *playerX = $280
   *playerY = $380
 
-  ; Initialize the map scripts
+  // Initialize the map scripts
   setWindow2()
   clearWindow()
 
@@ -560,7 +588,7 @@ def initMap()
     *pScripts()
   fin
 
-  ; If we're returning to a map, resume from where the player left off
+  // If we're returning to a map, resume from where the player left off
   if resetLocFromCache
     *playerX = cacheX
     *playerY = cacheY
@@ -572,12 +600,12 @@ def initMap()
     resetLocFromCache = FALSE
   fin
   
-  ; Draw the first frame
+  // Draw the first frame
   renderFrame()
   redraw = FALSE
 end
 
-; Window for the map name bar
+// Window for the map name bar
 def setWindow1()
   ^wndtop = 1
   ^wndbtm = 2
@@ -587,7 +615,7 @@ def setWindow1()
   ^cursh = ^wndleft
 end
 
-; Window for the large upper right bar
+// Window for the large upper right bar
 def setWindow2()
   ^wndtop = 3
   ^wndbtm = 17
@@ -597,7 +625,7 @@ def setWindow2()
   ^cursh = ^wndleft
 end
 
-; Window for the mid-size lower right bar
+// Window for the mid-size lower right bar
 def setWindow3()
   ^wndtop = 18
   ^wndbtm = 23
@@ -607,8 +635,8 @@ def setWindow3()
   ^cursh = ^wndleft
 end
 
-;==================================================================================================
-; Actions
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Actions
 def initCmd(key, func)
   if key >= $60
     key = key - $20
@@ -694,7 +722,7 @@ def strafeLeft()
 end
 
 def setMap(is3d, num)
-  ; save player state if we're coming *from* the over-map
+  // save player state if we're coming *from* the over-map
   if mapNum == OVERMAP
     cacheX = *playerX
     cacheY = *playerY
@@ -771,12 +799,12 @@ def getYN()
   loop
 end
 
-;==================================================================================================
-; Main code.
-;
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Main code.
+//
 puts(@helloStr)
 
-; Init the command table
+// Init the command table
 initCmd('W', @moveForward)
 initCmd('A', @rotateLeft)
 initCmd('D', @rotateRight)
@@ -798,54 +826,54 @@ initCmd('N', @nextMap)
 initCmd('Y', @nextSky)
 initCmd('G', @nextGround)
 
-; $300
+// $300
 callbacks.0 = $4c
 callbacks:1 = @setLocationTrigger
 
-; $303
+// $303
 callbacks.3 = $4c
 callbacks:4 = @displayStr
 
-; $306
+// $306
 callbacks.6 = $4c
 callbacks:7 = @getYN
 
-; $309
+// $309
 callbacks.9 = $4c
 callbacks:10 = @setMap
 
-; $30C
+// $30C
 callbacks.12 = $4c
 callbacks:13 = @setSky
 
-; $30F
+// $30F
 callbacks.15 = $4c
 callbacks:16 = @setGround
 
-; $312
+// $312
 callbacks.18 = $4c
 callbacks:19 = @teleport
 
-; Load the title screen
+// Load the title screen
 loader(SET_MEM_TARGET, MAIN_MEM, $2000)
 loader(QUEUE_LOAD,     MAIN_MEM, 2<<8 | RES_TYPE_SCREEN)
 loader(LOCK_MEMORY,    MAIN_MEM, $2000)
-loader(FINISH_LOAD, MAIN_MEM, 1) ; 1 = keep open
+loader(FINISH_LOAD, MAIN_MEM, 1) // 1 = keep open
 titleLoaded = TRUE
 ^$c050
 ^$c057
 ^$c054
 ^$c052
-; Hack for real (not emulated) IIc: sometimes displays only lo-bit graphics
-; unless we do this. *HUGE* thanks to Brendan Robert for the fix!
-^$C07E=0   ; disable double-hi-res
-^$C05F     ; disable double-hi-res
+// Hack for real (not emulated) IIc: sometimes displays only lo-bit graphics
+// unless we do this. *HUGE* thanks to Brendan Robert for the fix!
+^$C07E=0   // disable double-hi-res
+^$C05F     // disable double-hi-res
 
 initMap()
 
 setWindow2()
 
-; Main keyboard loop
+// Main keyboard loop
 puts(@loopStr)
 kbdLoop()
 

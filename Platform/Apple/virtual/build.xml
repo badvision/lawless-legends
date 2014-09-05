@@ -38,6 +38,8 @@
     <ant dir="${src.dir}/raycast" target="build" useNativeBasedir="true" inheritAll="false"/>
     <echo>Building font engine.</echo>
     <ant dir="${src.dir}/font" target="build" useNativeBasedir="true" inheritAll="false"/>
+    <echo>Building tile engine.</echo>
+    <ant dir="${src.dir}/tile" target="build" useNativeBasedir="true" inheritAll="false"/>
 
     <!-- Pack the game data -->
     <echo>Packing game and code resources.</echo>

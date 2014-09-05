@@ -965,6 +965,7 @@ class PackPartitions
         readCode("render", "src/raycast/build/render.b")
         readCode("expand", "src/raycast/build/expand.b")
         readCode("fontEngine", "src/font/build/fontEngine.b")
+        readCode("tileEngine", "src/tile/build/tile.b")
         
         println "Reading modules."
         readModule("gameloop", "src/plasma/build/gameloop.b")

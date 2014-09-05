@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+
+<project name="tile" default="build">
+  
+  <property name="projName" value="tile"/> <!-- base part of output bin name -->
+  <property name="src.dir" location="."/> 
+  <property name="include.dir" location="../include"/>
+  <property file="${include.dir}/build.props"/> <!-- needs to define ACME_BIN_DIR -->
+
+  <property name="build.dir" value="${src.dir}/build"/>
+  
+  <property name="ACME_TOOL" location="${ACME_BIN_DIR}/acme"/>
+  
+  <property name="ASM_SETTINGS" value="-f plain"/>
+  
+  <target name="all">
+    <antcall target="clean"/>
+    <antcall target="build"/>
+  </target>
+  
+  <target name="clean">
+    <delete failonerror="false" dir="${build.dir}"/>
+  </target>
+  
+  <target name="build">
+
+    <!-- Create build directory -->
+    <mkdir dir="${build.dir}"/>
+    
+    <!-- Assemble all .s files -->
+    <apply executable="${ACME_TOOL}" dir="${src.dir}" 
+           relative="true" parallel="false" failonerror="true" verbose="true">
+      <fileset dir="${src.dir}" includes="*.s"/>
+      <mapper type="glob" from="*.s" to="${build.dir}/*.b"/>
+      <arg line="${ASM_SETTINGS}"/>
+      <arg value="-o"/>
+      <targetfile/>
+      <srcfile/>
+    </apply>
+
+  </target>
+  
+</project>

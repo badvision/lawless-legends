@@ -196,6 +196,40 @@ class PackPartitions
         return outBuf
     }
 
+    /*
+     * Parse raw frame image data, only 126x128 pixels
+     */
+    def parse126Data(imgEl)
+    {
+        // Locate the data for the Apple II (as opposed to C64 etc.)
+        def dataEl = imgEl.displayData?.find { it.@platform == "AppleII" }
+        assert dataEl : "image '${imgEl.@name}' missing AppleII platform data"
+
+        // Parse out the hex data on each line and add it to a buffer.
+        def hexStr = dataEl.text()
+        def arr = new byte[128*18]
+        def srcPos = 0
+        def dstPos = 0
+        
+        // Process each line
+        (0..<128).each { y ->
+            
+            // Process all 18 bytes in one line
+            (0..<18).each { x ->
+                arr[dstPos+x] = Integer.parseInt(hexStr[srcPos..srcPos+1], 16)
+                srcPos += 2
+            }
+            dstPos += 18
+        }
+        
+        // Put the results into the buffer
+        def outBuf = ByteBuffer.allocate(128*18)
+        outBuf.put(arr)
+        
+        // All done. Return the buffer.
+        return outBuf
+    }
+
     /**
      * Flood fill from the upper left and upper right corners to determine
      * all transparent areas.
@@ -529,6 +563,14 @@ class PackPartitions
         def buf = parseFrameData(imgEl)
         frames[imgEl.@name] = [num:num, buf:buf]
         return buf
+    }
+    
+    def pack126(imgEl)
+    {
+        println "Packing 126 image named '${imgEl.@name}'."
+        def buf = parse126Data(imgEl)
+        buf = compress(buf)
+        println "...compressed: ${buf.len} bytes."
     }
     
     def packTile(imgEl)
@@ -989,6 +1031,8 @@ class PackPartitions
         dataIn.image.each { image ->
             if (image.category.text() == "frame" || image.category.text() == "title")
                 packFrameImage(image)
+            else if (image.category.text() == "126")
+                pack126(image)
             else
                 packTexture(image)
         }

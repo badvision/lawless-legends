@@ -50,6 +50,47 @@ class PackPartitions
     
     def javascriptOut = null
     
+    def currentContext = []    
+    def nWarnings = 0
+    
+    /** 
+     * Keep track of context within the XML file, so we can spit out more useful
+     * error and warning messages.
+     */
+    def withContext(name, closure)
+    {
+        def threw = false
+        try {
+            currentContext << name
+            closure()
+        }
+        catch (Throwable e) {
+            threw = true
+            throw e
+        }
+        finally {
+            // Preserve context in the case of an exception
+            if (!threw)
+                currentContext.pop()
+        }
+    }
+    
+    def getContextStr()
+    {
+        return currentContext.join(" -> ")
+    }
+    
+    def printError(str)
+    {
+        System.out.format("Error in ${getContextStr()}: %s\n", str)
+    }
+    
+    def printWarning(str)
+    {
+        System.out.format("Warning in ${getContextStr()}: %s\n", str)
+        ++nWarnings
+    }
+    
     def parseMap(map, tiles)
     {
         // Parse each row of the map
@@ -460,7 +501,7 @@ class PackPartitions
                             texMap[id] |= 0x80; // hi-bit flag to mark sprite cells
                     }
                     else if (id) {
-                        println "Warning: can't match tile name '$name' to any image; treating as blank."
+                        printWarning("can't match tile name '$name' to any image; treating as blank.")
                         texMap[id] = 0
                     }
                 }
@@ -559,7 +600,7 @@ class PackPartitions
     {
         def num = frames.size() + 1
         def name = imgEl.@name ?: "img$num"
-        println "Packing frame image #$num named '${imgEl.@name}'."
+        //println "Packing frame image #$num named '${imgEl.@name}'."
         def buf = parseFrameData(imgEl)
         frames[imgEl.@name] = [num:num, buf:buf]
         return buf
@@ -620,12 +661,14 @@ class PackPartitions
     {
         def name = mapEl.@name ?: "map$num"
         def num = mapNames[name][1]
-        println "Packing 3D map #$num named '$name'."
-        def (scriptModule, locationsWithTriggers) = packScripts(mapEl, name)
-        def rows = parseMap(mapEl, tileEls)
-        def buf = ByteBuffer.allocate(50000)
-        write3DMap(buf, name, rows, scriptModule, locationsWithTriggers)
-        maps3D[name] = [num:num, buf:buf]
+        //println "Packing 3D map #$num named '$name'."
+        withContext("map '$name'") {
+            def (scriptModule, locationsWithTriggers) = packScripts(mapEl, name)
+            def rows = parseMap(mapEl, tileEls)
+            def buf = ByteBuffer.allocate(50000)
+            write3DMap(buf, name, rows, scriptModule, locationsWithTriggers)
+            maps3D[name] = [num:num, buf:buf]
+        }
     }
     
     def packScripts(mapEl, mapName)
@@ -636,7 +679,7 @@ class PackPartitions
         module.packScripts(mapEl.scripts[0])
         def num = modules.size() + 1
         def name = "mapScript$num"
-        println "Packing scripts for map $mapName, to module $num."
+        //println "Packing scripts for map $mapName, to module $num."
         modules[name]   = [num:num, buf:wrapByteList(module.data)]
         bytecodes[name] = [num:num, buf:wrapByteList(module.bytecode)]
         fixups[name]    = [num:num, buf:wrapByteList(module.fixups)]
@@ -1059,7 +1102,7 @@ class PackPartitions
                 mapNames[shortName] = ['3D', num3D]
             }
             else
-                println "Warning: map name '${map?.@name}' should contain '2D' or '3D'. Skipping."
+                printWarning "map name '${map?.@name}' should contain '2D' or '3D'. Skipping."
         }
             
         // Pack each map This uses the image and tile maps filled earlier.
@@ -1070,7 +1113,7 @@ class PackPartitions
             else if (map?.@name =~ /3D/)
                 pack3DMap(map, dataIn.tile) 
             else
-                println "Warning: map name '${map?.@name}' should contain '2D' or '3D'. Skipping."
+                printWarning "map name '${map?.@name}' should contain '2D' or '3D'. Skipping."
         }
         
         // Ready to start writing the output file.
@@ -1095,6 +1138,9 @@ class PackPartitions
     
     static void main(String[] args) 
     {
+        // Set auto-flushing for stdout
+        System.out = new PrintStream(new BufferedOutputStream(System.out), true)
+        
         // Verify that assertions are enabled
         def flag = false
         try {
@@ -1114,9 +1160,42 @@ class PackPartitions
             println "   (where intcastMap.js is to aid in debugging the Javascript raycaster)"
             System.exit(1);
         }
-        
+
+        // If there's an existing error file, remote it.
+        def errorFile = new File("pack_error.txt")
+        if (errorFile.exists())
+            errorFile.delete()
+            
         // Go for it.
-        new PackPartitions().pack(args[0], args[1], args.size() > 2 ? args[2] : null)
+        def inst = new PackPartitions()
+        try {
+            inst.pack(args[0], args[1], args.size() > 2 ? args[2] : null)
+        }
+        catch (Throwable t) {
+            errorFile.withWriter { out ->
+                out.println "Packing error: ${t.message}"
+                out.println "\nContext:"
+                out.println "    ${inst.getContextStr()}"
+                out.println "\nGroovy call stack:"
+                t.getStackTrace().each {
+                    if (it.toString().contains(".groovy:"))
+                        out.println "    $it"
+                }
+            }
+            def msg = "Fatal error encountered in ${inst.getContextStr()}.\nDetails written to file 'pack_error.txt'."
+            println msg
+            System.out.flush()
+            javax.swing.JOptionPane.showMessageDialog(null, msg, "Fatal packing error", 
+                javax.swing.JOptionPane.ERROR_MESSAGE)
+            System.exit(1)
+        }
+        
+        if (inst.nWarnings > 0) {
+            javax.swing.JOptionPane.showMessageDialog(null,
+                "${inst.nWarnings} warning(s) noted during packing.\nCheck console for details.",
+                "Pack warnings",
+                javax.swing.JOptionPane.ERROR_MESSAGE)
+        }
     }
 
     class ScriptModule
@@ -1183,24 +1262,32 @@ class PackPartitions
             def name = script.name[0].text()
             if (name.toLowerCase() == "init") // this special script gets processed later
                 return
-            println "   Script '$name'"
+            //println "   Script '$name'"
+            withContext("script '$name'") 
+            {
+                if (script.block.size() == 0) {
+                    printWarning("empty script found; skipping.")
+                    return
+                }
 
-            if (script.block.size() == 0)
-                return
+                // Record the function's start address in its corresponding stub
+                startFunc(scriptNum+1)
 
-            // Record the function's start address in its corresponding stub
-            startFunc(scriptNum+1)
-
-            // Process the code inside it
-            def proc = script.block[0]
-            assert proc.@type == "procedures_defreturn"
-            assert proc.statement.size() == 1
-            def stmt = proc.statement[0]
-            assert stmt.@name == "STACK"
-            stmt.block.each { packBlock(it) }
-
-            // And complete the function
-            finishFunc()
+                // Process the code inside it
+                def proc = script.block[0]
+                assert proc.@type == "procedures_defreturn"
+                if (proc.statement.size() > 0) {
+                    assert proc.statement.size() == 1
+                    def stmt = proc.statement[0]
+                    assert stmt.@name == "STACK"
+                    stmt.block.each { packBlock(it) }
+                }
+                else
+                    printWarning "empty statement found; skipping."
+                
+                // And complete the function
+                finishFunc()
+            }
         }
 
         def finishFunc()
@@ -1212,24 +1299,25 @@ class PackPartitions
 
         def packBlock(blk)
         {
-            println "        Block '${blk.@type}'"
-            switch (blk.@type) 
-            {
-                case 'text_print':
-                case 'text_println':
-                    packTextPrint(blk); break
-                case  'controls_if':
-                    packIfStmt(blk); break
-                case 'events_set_map':
-                    packSetMap(blk); break
-                case 'events_set_sky':
-                    packSetSky(blk); break
-                case 'events_set_ground':
-                    packSetGround(blk); break
-                case 'events_teleport':
-                    packTeleport(blk); break
-                default:
-                    println "Warning: don't know how to pack block of type '${blk.@type}'"
+            withContext("${blk.@type}") {
+                switch (blk.@type) 
+                {
+                    case 'text_print':
+                    case 'text_println':
+                        packTextPrint(blk); break
+                    case  'controls_if':
+                        packIfStmt(blk); break
+                    case 'events_set_map':
+                        packSetMap(blk); break
+                    case 'events_set_sky':
+                        packSetSky(blk); break
+                    case 'events_set_ground':
+                        packSetGround(blk); break
+                    case 'events_teleport':
+                        packTeleport(blk); break
+                    default:
+                        printWarning "don't know how to pack block of type '${blk.@type}'"
+                }
             }
 
             // Strangely, blocks seem to be chained together, but hierarchically. Whatever.
@@ -1283,7 +1371,10 @@ class PackPartitions
 
         def packTextPrint(blk)
         {
-            assert blk.value.size() == 1
+            if (blk.value.size() == 0) {
+                printWarning "empty text_print block, skipping."
+                return
+            }
             def val = blk.value[0]
             assert val.@name == 'VALUE'
             assert val.block.size() == 1
@@ -1293,7 +1384,7 @@ class PackPartitions
             def fld = valBlk.field[0]
             assert fld.@name == 'TEXT'
             def text = fld.text()
-            println "            text: '$text'"
+            //println "            text: '$text'"
 
             emitCodeByte(0x26)  // LA
             def textAddr = addString(text)
@@ -1305,13 +1396,17 @@ class PackPartitions
 
         def packIfStmt(blk)
         {
+            if (blk.value.size() == 0) {
+                printWarning "missing condition; skipping."
+                return
+            }
             assert blk.value.size() == 1
             def cond = blk.value[0]
             assert cond.@name == 'IF0'
             assert cond.block.size() == 1
             assert cond.block[0].@type == 'text_getboolean'
 
-            print "            Conditional on getboolean,"
+            //print "            Conditional on getboolean,"
 
             emitCodeByte(0x54)  // CALL
             emitCodeWord(vec_getYN)
@@ -1338,7 +1433,11 @@ class PackPartitions
             assert fld.@name == 'NAME'
             def mapName = fld.text()
             def mapNum = mapNames[mapName]
-            println "            Set map to '$mapName' (num $mapNum)"
+            if (!mapNum) {
+                printWarning "map '$mapName' not found; skipping set_map."
+                return
+            }
+            //println "            Set map to '$mapName' (num $mapNum)"
             assert mapNum : "Map $mapName not found!"
             
             emitCodeByte(0x2A) // CB
@@ -1358,7 +1457,7 @@ class PackPartitions
             assert fld.@name == 'COLOR'
             def color = fld.text().toInteger()
             assert color >= 0 && color <= 15
-            println "            Set sky to $color"
+            //println "            Set sky to $color"
             
             emitCodeByte(0x2A) // CB
             emitCodeByte(color)
@@ -1374,7 +1473,7 @@ class PackPartitions
             assert fld.@name == 'COLOR'
             def color = fld.text().toInteger()
             assert color >= 0 && color <= 15
-            println "            Set ground to $color"
+            //println "            Set ground to $color"
             
             emitCodeByte(0x2A) // CB
             emitCodeByte(color)
@@ -1393,7 +1492,7 @@ class PackPartitions
             def y = blk.field[1].text().toInteger()
             def facing = blk.field[2].text().toInteger()
             assert facing >= 0 && facing <= 15
-            println "            Teleport to ($x,$y) facing $facing"
+            //println "            Teleport to ($x,$y) facing $facing"
             
             emitCodeByte(0x2C) // CW
             emitCodeWord(x)
@@ -1408,7 +1507,7 @@ class PackPartitions
 
         def makeInit(scripts)
         {
-            println "    Script: special 'init'"
+            //println "    Script: special 'init'"
             startFunc(0)
             scripts.script.eachWithIndex { script, idx ->
                 def name = script.name[0].text()

@@ -5,7 +5,6 @@ import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.List;
-import javafx.scene.Scene;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.image.Image;
@@ -14,7 +13,6 @@ import javafx.scene.image.PixelReader;
 import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
-import javax.swing.Renderer;
 import org.badvision.outlaweditor.Platform;
 import static org.badvision.outlaweditor.apple.AppleNTSCGraphics.hgrToDhgr;
 
@@ -79,9 +77,9 @@ public class FloydSteinbergDither {
         c.snapshot(sp, newImg);
         return newImg;
     }
-    
+
     public WritableImage getPreviewImage() {
-        return new WritableImage(bufferWidth * byteRenderWidth, height*2);
+        return new WritableImage(bufferWidth * byteRenderWidth, height * 2);
     }
 
     public void setOutputDimensions(int width, int height) {
@@ -90,7 +88,7 @@ public class FloydSteinbergDither {
         screen = platform.imageRenderer.createImageBuffer(width, height);
         resetOutput = true;
     }
-    
+
     public void setDivisor(int divisor) {
         this.divisor = divisor;
     }
@@ -111,21 +109,25 @@ public class FloydSteinbergDither {
     WritableImage tmpScaled;
     int[] scanline;
     List<Integer> pixels;
-    
-    public void restartDither() {
+
+    public byte[] restartDither(int value) {
         keepScaled = new WritableImage(source.getPixelReader(), 560, 192);
         tmpScaled = new WritableImage(source.getPixelReader(), 560, 192);
         for (int i = 0; i < screen.length; i++) {
-            screen[i]=(byte) 255;
-//            screen[i] = (byte) Math.max(255, Math.random() * 256.0);
+            screen[i] = (byte) (value >= 0 ? value : (int) Math.floor(Math.random() * 256.0));
         }
         scanline = new int[3];
         pixels = new ArrayList<>();
+        return screen;
+    }
+    
+    public Image getScratchBuffer() {
+        return keepScaled;
     }
 
     public byte[] dither(boolean propagateError) {
         if (resetOutput) {
-            restartDither();
+            restartDither(0);
             resetOutput = false;
         }
         keepScaled.getPixelWriter().setPixels(0, 0, 560, 192, source.getPixelReader(), 0, 0);
@@ -153,7 +155,7 @@ public class FloydSteinbergDither {
         if ((x + startX) > 0) {
             prev = screen[(y + startY) * bufferWidth + startX + x - 1] & 255;
         }
-        if ((x + startX) < 38) {
+        if ((x + startX) < (bufferWidth-2)) {
             next = screen[(y + startY) * bufferWidth + startX + x + 2] & 255;
         }
         // First byte, compared with a sliding window encompassing the previous byte, if any.
@@ -167,7 +169,7 @@ public class FloydSteinbergDither {
                 int off = on ^ (1 << c);
                 // get values for "off"
                 int i = hgrToDhgr[0][prev];
-                scanline[0] = i & 0x0fffffff;
+                scanline[0] =  i & 0x0fffffff;
                 i = hgrToDhgr[(i & 0x10000000) != 0 ? off | 0x0100 : off][bb2];
                 scanline[1] = i & 0x0fffffff;
 //                                    scanline[2] = hgrToDhgr[(i & 0x10000000) != 0 ? next | 0x0100 : next][0] & 0x0fffffff;
@@ -202,11 +204,11 @@ public class FloydSteinbergDither {
                 }
             }
             if (totalError < leastError) {
-                keepScaled.getPixelWriter().setPixels(0, y, 560, (y < 191) ? 2 : 1, tmpScaled.getPixelReader(), 0, y);
+                keepScaled.getPixelWriter().setPixels(0, y, 560, (y < 190) ? 3 : (y < 191) ? 2 : 1, tmpScaled.getPixelReader(), 0, y);
                 leastError = totalError;
                 bb1 = b1;
             } else {
-                tmpScaled.getPixelWriter().setPixels(0, y, 560, (y < 191) ? 2 : 1, keepScaled.getPixelReader(), 0, y);
+                tmpScaled.getPixelWriter().setPixels(0, y, 560, (y < 190) ? 3 : (y < 191) ? 2 : 1, keepScaled.getPixelReader(), 0, y);
             }
         }
         // Second byte, compared with a sliding window encompassing the next byte, if any.
@@ -251,11 +253,11 @@ public class FloydSteinbergDither {
                 }
             }
             if (totalError < leastError) {
-                keepScaled.getPixelWriter().setPixels(0, y, 560, (y < 191) ? 2 : 1, tmpScaled.getPixelReader(), 0, y);
+                keepScaled.getPixelWriter().setPixels(0, y, 560, (y < 190) ? 3 : (y < 191) ? 2 : 1, tmpScaled.getPixelReader(), 0, y);
                 leastError = totalError;
                 bb2 = b2;
             } else {
-                tmpScaled.getPixelWriter().setPixels(0, y, 560, (y < 191) ? 2 : 1, keepScaled.getPixelReader(), 0, y);
+                tmpScaled.getPixelWriter().setPixels(0, y, 560, (y < 190) ? 3 : (y < 191) ? 2 : 1, keepScaled.getPixelReader(), 0, y);
             }
         }
         screen[(y + startY) * bufferWidth + startX + x] = (byte) bb1;
@@ -313,11 +315,9 @@ public class FloydSteinbergDither {
 
                 int[] col1;
                 if (errorOff < errorOn) {
-//                                totalError += errorOff;
                     b1 = off;
                     col1 = Palette.parseIntColor(off1);
                 } else {
-//                                totalError += errorOn;
                     b1 = on;
                     col1 = Palette.parseIntColor(on1);
                 }
@@ -325,19 +325,15 @@ public class FloydSteinbergDither {
                     propagateError((x + byteOffset) * 7 + bit, y, tmpScaled, col1);
                 }
             }
-//                        if (totalError < leastError) {
-            keepScaled.getPixelWriter().setPixels(0, y, 560, (y < 191) ? 2 : 1, tmpScaled.getPixelReader(), 0, y);
-//                            leastError = totalError;
+            keepScaled.getPixelWriter().setPixels(0, y, 560, (y < 190) ? 3 : (y < 191) ? 2 : 1, tmpScaled.getPixelReader(), 0, y);
             bytes[byteOffset] = b1;
-//                        } else {
-//                            tmpScaled.getPixelWriter().setPixels(0, y, 560, (y < 191) ? 2 : 1, keepScaled.getPixelReader(), 0, y);
+            screen[(y + startY) * bufferWidth + startX + x] = (byte) bytes[0];
+            screen[(y + startY) * bufferWidth + startX + x + 1] = (byte) bytes[1];
+            screen[(y + startY) * bufferWidth + startX + x + 2] = (byte) bytes[2];
+            screen[(y + startY) * bufferWidth + startX + x + 3] = (byte) bytes[3];
         }
-        screen[(y + startY) * bufferWidth + startX + x] = (byte) bytes[0];
-        screen[(y + startY) * bufferWidth + startX + x + 1] = (byte) bytes[1];
-        screen[(y + startY) * bufferWidth + startX + x + 2] = (byte) bytes[2];
-        screen[(y + startY) * bufferWidth + startX + x + 3] = (byte) bytes[3];
     }
-
+    
     public static int ALPHA_SOLID = 255 << 24;
 
     private void propagateError(int x, int y, WritableImage img, int[] newColor) {
@@ -349,7 +345,7 @@ public class FloydSteinbergDither {
                         continue;
                     }
                     int c = img.getPixelReader().getArgb(x + xx, y + yy);
-                    int errorAmount = ((error * coefficients[xx+2][yy]) / divisor);
+                    int errorAmount = ((error * coefficients[xx + 2][yy]) / divisor);
                     img.getPixelWriter().setArgb(x + xx, y + yy, ALPHA_SOLID | Palette.addError(c, i, errorAmount));
                 }
             }

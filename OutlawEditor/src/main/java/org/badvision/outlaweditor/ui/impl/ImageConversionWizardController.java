@@ -85,6 +85,8 @@ public class ImageConversionWizardController implements Initializable {
     private ImageView sourceImageView;
     @FXML
     private ImageView convertedImageView;
+    @FXML
+    private TextField fillValue;
     /**
      * Initializes the controller class.
      */
@@ -96,7 +98,7 @@ public class ImageConversionWizardController implements Initializable {
                 coefficientValue01, coefficientValue02, coefficientValue11, coefficientValue12,
                 coefficientValue21, coefficientValue22, coefficientValue30, coefficientValue31,
                 coefficientValue32, coefficientValue40, coefficientValue41, coefficientValue41,
-                coefficientValue42, divisorValue, outputHeightValue, outputWidthValue                
+                coefficientValue42, divisorValue, outputHeightValue, outputWidthValue, fillValue              
         }) {
             configureNumberValidation(field, "0");
         }
@@ -165,6 +167,16 @@ public class ImageConversionWizardController implements Initializable {
         cropBottomValue.setText(String.valueOf(height));
     }    
 
+    @FXML
+    private void fillOutput(ActionEvent event) {
+        int fill = Integer.parseInt(fillValue.getText());        
+        updateConvertedImageWithData(ditherEngine.restartDither(fill));
+    }
+
+    @FXML
+    private void randomizeOutput(ActionEvent event) {
+        updateConvertedImageWithData(ditherEngine.restartDither(-1));
+    }    
 
     @FXML
     private void performQuantizePass(ActionEvent event) {
@@ -179,6 +191,7 @@ public class ImageConversionWizardController implements Initializable {
         ditherEngine.setCoefficients(getCoefficients());
         ditherEngine.setDivisor(getDivisor());
         byte[] out = ditherEngine.dither(true);
+        sourceImageView.setImage(ditherEngine.getScratchBuffer());
         updateConvertedImageWithData(out);
     }
     

@@ -44,7 +44,7 @@ import static org.badvision.outlaweditor.apple.AppleNTSCGraphics.hgrToDhgr;
  * Modified and adapted to work with Apple Game Server by Brendan Robert (2013)
  * Some of the original code of this class was migrated over to the Palette class which already manages colors in AGS.
  */
-public class FloydSteinbergDither {
+public class ImageDitherEngine {
 
     int byteRenderWidth;
     final int errorWindow = 6;
@@ -59,9 +59,9 @@ public class FloydSteinbergDither {
     int[][] coefficients;
     boolean resetOutput = true;
 
-    public FloydSteinbergDither(org.badvision.outlaweditor.Platform platform) {
+    public ImageDitherEngine(Platform platform) {
         this.platform = platform;
-        byteRenderWidth = platform == org.badvision.outlaweditor.Platform.AppleII_DHGR ? 7 : 14;
+        byteRenderWidth = platform == Platform.AppleII_DHGR ? 7 : 14;
     }
 
     public void setSourceImage(Image img) {

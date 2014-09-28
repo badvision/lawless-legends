@@ -17,7 +17,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
 import javafx.stage.Stage;
 import org.badvision.outlaweditor.Application;
-import org.badvision.outlaweditor.apple.FloydSteinbergDither;
+import org.badvision.outlaweditor.apple.ImageDitherEngine;
 import org.badvision.outlaweditor.ui.ImageConversionPostAction;
 
 /**
@@ -115,7 +115,7 @@ public class ImageConversionWizardController implements Initializable {
     private Image sourceImage;
     private WritableImage preprocessedImage;
     private WritableImage outputPreviewImage;
-    private FloydSteinbergDither ditherEngine;
+    private ImageDitherEngine ditherEngine;
 
     public void setStage(Stage stage) {
         this.stage = stage;
@@ -125,7 +125,7 @@ public class ImageConversionWizardController implements Initializable {
         this.postAction = postAction;
     }
 
-    public void setDitherEngine(FloydSteinbergDither engine) {
+    public void setDitherEngine(ImageDitherEngine engine) {
         this.ditherEngine = engine;
     }
     

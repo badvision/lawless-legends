@@ -429,7 +429,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     }
 
     private void importImage(javafx.scene.image.Image image) {
-        FloydSteinbergDither ditherEngine = new FloydSteinbergDither(getPlatform());
+        ImageDitherEngine ditherEngine = new ImageDitherEngine(getPlatform());
         ditherEngine.setTargetCoordinates(0,0);
         UIAction.openImageConversionModal(image, ditherEngine, getWidth(), getHeight(), this::setData);
     }

@@ -32,7 +32,7 @@ import javax.xml.bind.JAXB;
 import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.FileUtils;
 import org.badvision.outlaweditor.MythosEditor;
-import org.badvision.outlaweditor.apple.FloydSteinbergDither;
+import org.badvision.outlaweditor.apple.ImageDitherEngine;
 import org.badvision.outlaweditor.data.TilesetUtils;
 import org.badvision.outlaweditor.data.xml.GameData;
 import org.badvision.outlaweditor.data.xml.Script;
@@ -209,7 +209,7 @@ public class UIAction {
         return script;
     }
     
-    public static ImageConversionWizardController openImageConversionModal(Image image, FloydSteinbergDither ditherEngine, int targetWidth, int targetHeight, ImageConversionPostAction postAction) {
+    public static ImageConversionWizardController openImageConversionModal(Image image, ImageDitherEngine ditherEngine, int targetWidth, int targetHeight, ImageConversionPostAction postAction) {
         FXMLLoader fxmlLoader = new FXMLLoader(UIAction.class.getResource("/fxml/ImageConversionWizard.fxml"));
         try {
             Stage primaryStage = new Stage();

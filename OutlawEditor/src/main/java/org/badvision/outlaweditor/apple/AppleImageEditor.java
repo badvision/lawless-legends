@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.event.EventHandler;
-import javafx.scene.Node;
 import javafx.scene.control.Menu;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
@@ -23,7 +22,6 @@ import org.badvision.outlaweditor.FileUtils;
 import org.badvision.outlaweditor.ImageEditor;
 import org.badvision.outlaweditor.Platform;
 import org.badvision.outlaweditor.ui.UIAction;
-import org.badvision.outlaweditor.data.DataObserver;
 import org.badvision.outlaweditor.data.TileMap;
 import org.badvision.outlaweditor.data.xml.Image;
 import org.badvision.outlaweditor.data.xml.PlatformData;
@@ -65,11 +63,8 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
 
     @Override
     public void buildPatternSelector(Menu tilePatternMenu) {
-        FillPattern.buildMenu(tilePatternMenu, new DataObserver<FillPattern>() {
-            @Override
-            public void observedObjectChanged(FillPattern object) {
-                changeCurrentPattern(object);
-            }
+        FillPattern.buildMenu(tilePatternMenu, (FillPattern object) -> {
+            changeCurrentPattern(object);
         });
     }
 
@@ -141,16 +136,14 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
                 break;
             }
         }
+        redraw();
     }
 
     @Override
     public void togglePanZoom() {
-        for (Node n : anchorPane.getChildren()) {
-            if (n == screen) {
-                continue;
-            }
+        anchorPane.getChildren().stream().filter((n) -> !(n == screen)).forEach((n) -> {
             n.setVisible(!n.isVisible());
-        }
+        });
     }
 
     @Override
@@ -393,9 +386,10 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
             if (pasteAppContent((String) Clipboard.getSystemClipboard().getContent(DataFormat.PLAIN_TEXT))) {
                 return;
             }
-        };
+        }
         if (Clipboard.getSystemClipboard().hasContent(DataFormat.IMAGE)) {
             javafx.scene.image.Image image = Clipboard.getSystemClipboard().getImage();
+            
             importImage(image);
         }
     }
@@ -435,13 +429,9 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     }
 
     private void importImage(javafx.scene.image.Image image) {
-        FloydSteinbergDither.floydSteinbergDither(image, getPlatform(), 0, 0, getWidth(), getHeight(), getImageData(), getWidth(), new FloydSteinbergDither.DitherCallback() {
-            @Override
-            public void ditherCompleted(byte[] data) {
-                setData(data);
-                redraw();
-            }
-        });
+        FloydSteinbergDither ditherEngine = new FloydSteinbergDither(getPlatform());
+        ditherEngine.setTargetCoordinates(0,0);
+        UIAction.openImageConversionModal(image, ditherEngine, getWidth(), getHeight(), this::setData);
     }
 
     private int calculateHiresOffset(int y) {
@@ -478,18 +468,11 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
 
     @Override
     public void resize(final int newWidth, final int newHeight) {
-        UIAction.confirm("Do you want to scale the image?  If you select no, the image will be cropped as needed.",
-                new Runnable() {
-                    @Override
-                    public void run() {
-                        rescale(newWidth, newHeight);
-                    }
-                }, new Runnable() {
-                    @Override
-                    public void run() {
-                        crop(newWidth, newHeight);
-                    }
-                });
+        UIAction.confirm("Do you want to scale the image?  If you select no, the image will be cropped as needed.", () -> {
+            rescale(newWidth, newHeight);
+        }, () -> {
+            crop(newWidth, newHeight);
+        });
     }
 
     /**

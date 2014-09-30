@@ -10,7 +10,7 @@ The most recent copy of Outlaw Editor (aka the Daily build) can be found here: h
 Running the program
 -------------------
 
-There are no dependencies outside of JavaFX (which will be part of Java in the 8.0 release) so you can start the program by executing the jar file that is built in the target/jfx/app folder "OutlawEditor-jfx.jar"   Depending on your platform you might be able to double-click it.  Or you might have to drop to the commandline and issue this command after going to that directory, like so:
+You can start the program by executing the jar file that is built in the target/jfx/app folder "OutlawEditor-jfx.jar"   Depending on your platform you might be able to double-click it.  Or you might have to drop to the commandline and issue this command after going to that directory, like so:
 
 > java -jar OutlawEditor-jfx.jar
 

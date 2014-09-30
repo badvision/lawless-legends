@@ -164,7 +164,7 @@ public class ImageDitherEngine {
         // First byte, compared with a sliding window encompassing the previous byte, if any.
         int leastError = Integer.MAX_VALUE;
         for (int hi = 0; hi < 2; hi++) {
-            int b1 = (hi << 7) | (bb1 & 0x07f);
+            int b1 = (hi << 7);
             int totalError = 0;
             for (int c = 0; c < 7; c++) {
 //                                for (int c = 6; c >= 0; c--) {
@@ -172,7 +172,7 @@ public class ImageDitherEngine {
                 int off = on ^ (1 << c);
                 // get values for "off"
                 int i = hgrToDhgr[0][prev];
-                scanline[0] =  i;
+                scanline[0] = i;
                 i = hgrToDhgr[(i & 0x010000000) >> 20 | off][bb2];
                 scanline[1] = i;
 //                                    scanline[2] = hgrToDhgr[(i & 0x10000000) != 0 ? next | 0x0100 : next][0] & 0x0fffffff;
@@ -210,15 +210,14 @@ public class ImageDitherEngine {
                 tmpScaled1.getPixelWriter().setPixels(0, y, 560, (y < 190) ? 3 : (y < 191) ? 2 : 1, tmpScaled2.getPixelReader(), 0, y);
                 leastError = totalError;
                 bb1 = b1;
-            } else {
-                tmpScaled2.getPixelWriter().setPixels(0, y, 560, (y < 190) ? 3 : (y < 191) ? 2 : 1, keepScaled.getPixelReader(), 0, y);
-            }
+            }            
         }
         keepScaled.getPixelWriter().setPixels(0, y, 560, (y < 190) ? 3 : (y < 191) ? 2 : 1, tmpScaled1.getPixelReader(), 0, y);
         // Second byte, compared with a sliding window encompassing the next byte, if any.
         leastError = Integer.MAX_VALUE;
         for (int hi = 0; hi < 2; hi++) {
-            int b2 = (hi << 7) | (bb2 & 0x07f);
+            tmpScaled2.getPixelWriter().setPixels(0, y, 560, (y < 190) ? 3 : (y < 191) ? 2 : 1, keepScaled.getPixelReader(), 0, y);
+            int b2 = (hi << 7);
             int totalError = 0;
             for (int c = 0; c < 7; c++) {
 //                                for (int c = 6; c >= 0; c--) {
@@ -261,8 +260,6 @@ public class ImageDitherEngine {
                 tmpScaled1.getPixelWriter().setPixels(0, y, 560, (y < 190) ? 3 : (y < 191) ? 2 : 1, tmpScaled2.getPixelReader(), 0, y);
                 leastError = totalError;
                 bb2 = b2;
-            } else {
-                tmpScaled2.getPixelWriter().setPixels(0, y, 560, (y < 190) ? 3 : (y < 191) ? 2 : 1, keepScaled.getPixelReader(), 0, y);
             }
         }
         keepScaled.getPixelWriter().setPixels(0, y, 560, (y < 190) ? 3 : (y < 191) ? 2 : 1, tmpScaled1.getPixelReader(), 0, y);

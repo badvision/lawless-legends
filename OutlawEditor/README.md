@@ -1,7 +1,7 @@
 Outlaw Editor
 =============
 
-This is a multi-platform RPG game editor.  It is written in (and requires) Java 7 and JavaFX 2.2 to run.  There are no external dependencies, but it is important that you install JavaFX 2.2 as per Oracle's instructions so that the java runtime can find the JavaFX libraries automatically.
+This is a multi-platform RPG game editor.  It is written in (and requires) Java 8 to run.  There are no external dependencies.
 
 Download
 --------

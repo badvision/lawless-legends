@@ -164,6 +164,7 @@ public class ImageDitherEngine {
         // First byte, compared with a sliding window encompassing the previous byte, if any.
         int leastError = Integer.MAX_VALUE;
         for (int hi = 0; hi < 2; hi++) {
+            tmpScaled2.getPixelWriter().setPixels(0, y, 560, (y < 190) ? 3 : (y < 191) ? 2 : 1, keepScaled.getPixelReader(), 0, y);
             int b1 = (hi << 7);
             int totalError = 0;
             for (int c = 0; c < 7; c++) {
@@ -341,8 +342,9 @@ public class ImageDitherEngine {
 
     private void propagateError(int x, int y, WritableImage img, int[] newColor) {
         if (x < 0 || y < 0) return;
+        int pixel = img.getPixelReader().getArgb(x, y);
         for (int i = 0; i < 3; i++) {
-            int error = Palette.getComponent(img.getPixelReader().getArgb(x, y), i) - newColor[i];
+            int error = Palette.getComponent(pixel, i) - newColor[i];
             for (int yy = 0; yy < 3 && y + yy < img.getHeight(); yy++) {
                 for (int xx = -2; xx < 3 && x + xx < img.getWidth(); xx++) {
                     if (x + xx < 0 || coefficients[xx + 2][yy] == 0) {

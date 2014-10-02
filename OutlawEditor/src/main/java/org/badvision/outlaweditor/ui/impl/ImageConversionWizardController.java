@@ -5,6 +5,9 @@ import java.text.NumberFormat;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ResourceBundle;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
@@ -12,8 +15,10 @@ import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
+import javafx.scene.effect.ColorAdjust;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.image.PixelReader;
 import javafx.scene.image.WritableImage;
 import javafx.stage.Stage;
 import org.badvision.outlaweditor.Application;
@@ -26,6 +31,7 @@ import org.badvision.outlaweditor.ui.ImageConversionPostAction;
  * @author blurry
  */
 public class ImageConversionWizardController implements Initializable {
+
     @FXML
     private TextField brightnessValue;
     @FXML
@@ -85,8 +91,9 @@ public class ImageConversionWizardController implements Initializable {
     private ImageView sourceImageView;
     @FXML
     private ImageView convertedImageView;
-    @FXML
-    private TextField fillValue;
+  
+    private ColorAdjust imageAdjustments = new ColorAdjust();
+
     /**
      * Initializes the controller class.
      */
@@ -94,19 +101,29 @@ public class ImageConversionWizardController implements Initializable {
     public void initialize(URL url, ResourceBundle rb) {
         for (TextField field : new TextField[]{
             brightnessValue, contrastValue, hueValue, saturationValue,
-                cropBottomValue, cropLeftValue, cropRightValue, cropTopValue,
-                coefficientValue01, coefficientValue02, coefficientValue11, coefficientValue12,
-                coefficientValue21, coefficientValue22, coefficientValue30, coefficientValue31,
-                coefficientValue32, coefficientValue40, coefficientValue41, coefficientValue41,
-                coefficientValue42, divisorValue, outputHeightValue, outputWidthValue, fillValue              
+            cropBottomValue, cropLeftValue, cropRightValue, cropTopValue,
+            coefficientValue01, coefficientValue02, coefficientValue11, coefficientValue12,
+            coefficientValue21, coefficientValue22, coefficientValue30, coefficientValue31,
+            coefficientValue32, coefficientValue40, coefficientValue41, coefficientValue41,
+            coefficientValue42, divisorValue, outputHeightValue, outputWidthValue
         }) {
             configureNumberValidation(field, "0");
         }
-        
+
         brightnessValue.textProperty().bindBidirectional(brightnessSlider.valueProperty(), NumberFormat.getNumberInstance());
         contrastValue.textProperty().bindBidirectional(contrastSlider.valueProperty(), NumberFormat.getNumberInstance());
         hueValue.textProperty().bindBidirectional(hueSlider.valueProperty(), NumberFormat.getNumberInstance());
         saturationValue.textProperty().bindBidirectional(saturationSlider.valueProperty(), NumberFormat.getNumberInstance());
+
+        brightnessValue.textProperty().addListener((ObservableValue<? extends String> observable, String oldValue, String newValue)
+                -> javafx.application.Platform.runLater(this::updateImageAdjustments));
+        contrastValue.textProperty().addListener((ObservableValue<? extends String> observable, String oldValue, String newValue)
+                -> javafx.application.Platform.runLater(this::updateImageAdjustments));
+        hueValue.textProperty().addListener((ObservableValue<? extends String> observable, String oldValue, String newValue)
+                -> javafx.application.Platform.runLater(this::updateImageAdjustments));
+        saturationValue.textProperty().addListener((ObservableValue<? extends String> observable, String oldValue, String newValue)
+                -> javafx.application.Platform.runLater(this::updateImageAdjustments));
+
         configureFastFloydSteinbergPreset(null);
     }
 
@@ -128,34 +145,48 @@ public class ImageConversionWizardController implements Initializable {
     public void setDitherEngine(ImageDitherEngine engine) {
         this.ditherEngine = engine;
     }
-    
+
     public void setSourceImage(Image image) {
         sourceImage = image;
         preprocessImage();
     }
 
+    private void updateImageAdjustments() {
+        double hue = Double.parseDouble(hueValue.getText());
+        double saturation = Double.parseDouble(saturationValue.getText());
+        double brightness = Double.parseDouble(brightnessValue.getText());
+        double contrast = Double.parseDouble(contrastValue.getText());
+
+        imageAdjustments = new ColorAdjust();
+        imageAdjustments.setContrast(contrast);
+        imageAdjustments.setBrightness(brightness);
+        imageAdjustments.setHue(hue);
+        imageAdjustments.setSaturation(saturation);
+        sourceImageView.setEffect(imageAdjustments);
+    }
+
     private void preprocessImage() {
-        preprocessedImage = new WritableImage(sourceImage.getPixelReader(), (int) sourceImage.getWidth(), (int) sourceImage.getHeight());
-        ditherEngine.setSourceImage(preprocessedImage);
+        PixelReader pixelReader = sourceImage.getPixelReader();
+        preprocessedImage = new WritableImage(pixelReader, (int) sourceImage.getWidth(), (int) sourceImage.getHeight());
         updateSourceView(preprocessedImage);
     }
-    
+
     public void setOutputDimensions(int targetWidth, int targetHeight) {
         ditherEngine.setOutputDimensions(targetWidth, targetHeight);
         outputWidthValue.setText(String.valueOf(targetWidth));
         outputHeightValue.setText(String.valueOf(targetHeight));
         outputPreviewImage = ditherEngine.getPreviewImage();
     }
-    
+
     public int getOutputWidth() {
         return Integer.parseInt(outputWidthValue.getText());
     }
-    
+
     public int getOutputHeight() {
-        return Integer.parseInt(outputHeightValue.getText());        
+        return Integer.parseInt(outputHeightValue.getText());
     }
 
-    private void updateSourceView(WritableImage image) {
+    private void updateSourceView(Image image) {
         sourceImageView.setImage(image);
         sourceImageView.setFitWidth(0);
         sourceImageView.setFitHeight(0);
@@ -165,35 +196,27 @@ public class ImageConversionWizardController implements Initializable {
         defaultTextFieldValues.put(cropBottomValue, String.valueOf(height));
         cropRightValue.setText(String.valueOf(width));
         cropBottomValue.setText(String.valueOf(height));
-    }    
-
-    @FXML
-    private void fillOutput(ActionEvent event) {
-        int fill = Integer.parseInt(fillValue.getText());        
-        updateConvertedImageWithData(ditherEngine.restartDither(fill));
     }
-
-    @FXML
-    private void randomizeOutput(ActionEvent event) {
-        updateConvertedImageWithData(ditherEngine.restartDither(-1));
-    }    
 
     @FXML
     private void performQuantizePass(ActionEvent event) {
-        ditherEngine.setCoefficients(getCoefficients());
-        ditherEngine.setDivisor(getDivisor());
+        prepareForConversion();
         byte[] out = ditherEngine.dither(false);
         updateConvertedImageWithData(out);
     }
-
+    
     @FXML
     private void performDiffusionPass(ActionEvent event) {
-        ditherEngine.setCoefficients(getCoefficients());
-        ditherEngine.setDivisor(getDivisor());
+        prepareForConversion();
         byte[] out = ditherEngine.dither(true);
-        sourceImageView.setImage(ditherEngine.getScratchBuffer());
         updateConvertedImageWithData(out);
     }
+
+    private void prepareForConversion() {
+        ditherEngine.setCoefficients(getCoefficients());
+        ditherEngine.setDivisor(getDivisor());
+        ditherEngine.setSourceImage(sourceImageView.snapshot(null, null));
+    }    
     
     byte[] lastOutput;
     private void updateConvertedImageWithData(byte[] data) {
@@ -211,13 +234,18 @@ public class ImageConversionWizardController implements Initializable {
     private void performCancel(ActionEvent event) {
         stage.close();
     }
-    
+
     private final Map<TextField, String> defaultTextFieldValues = new HashMap<>();
+   private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(3);
     private void configureNumberValidation(TextField field, String defaultValue) {
         defaultTextFieldValues.put(field, defaultValue);
         field.textProperty().addListener((ChangeListener) (ObservableValue observable, Object oldValue, Object newValue) -> {
             if (newValue == null || "".equals(newValue)) {
-                field.textProperty().setValue(defaultTextFieldValues.get(field));
+                scheduler.schedule(() -> {
+                    if (null == field.textProperty().getValue() || field.textProperty().getValue().isEmpty()) {
+                        field.textProperty().setValue(defaultTextFieldValues.get(field));
+                    }
+                }, 250, TimeUnit.MILLISECONDS);
             } else {
                 try {
                     Double.parseDouble(newValue.toString());
@@ -227,7 +255,7 @@ public class ImageConversionWizardController implements Initializable {
             }
         });
     }
-    
+
     private void setCoefficients(int... coeff) {
         coefficientValue30.setText(String.valueOf(coeff[3]));
         coefficientValue40.setText(String.valueOf(coeff[4]));
@@ -242,7 +270,7 @@ public class ImageConversionWizardController implements Initializable {
         coefficientValue32.setText(String.valueOf(coeff[13]));
         coefficientValue42.setText(String.valueOf(coeff[14]));
     }
-    
+
     private int[][] getCoefficients() {
         diffusionCoeffficients[0][0] = 0;
         diffusionCoeffficients[1][0] = 0;
@@ -261,11 +289,11 @@ public class ImageConversionWizardController implements Initializable {
         diffusionCoeffficients[4][2] = Integer.parseInt(coefficientValue42.getText());
         return diffusionCoeffficients;
     }
-    
+
     private void setDivisor(int div) {
         divisorValue.setText(String.valueOf(div));
     }
-    
+
     private int getDivisor() {
         return Integer.valueOf(divisorValue.getText());
     }
@@ -298,8 +326,9 @@ public class ImageConversionWizardController implements Initializable {
                 3, 5, 7, 5, 3,
                 1, 3, 5, 3, 1
         );
-        setDivisor(48);    
+        setDivisor(48);
     }
+
     @FXML
     private void configureStuckiPreset(ActionEvent event) {
         setCoefficients(
@@ -359,4 +388,5 @@ public class ImageConversionWizardController implements Initializable {
         );
         setDivisor(4);
     }
+
 }

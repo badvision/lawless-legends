@@ -205,18 +205,14 @@
 
                                 <Label alignment="CENTER_RIGHT" layoutX="14.0" layoutY="44.0" prefHeight="16.0" prefWidth="53.0" text="Height" textAlignment="RIGHT" />
                                 <TextField fx:id="outputHeightValue" layoutX="69.0" layoutY="39.0" prefHeight="16.0" prefWidth="122.0" promptText="Height (in pixels)" />
-                          <Button layoutX="432.0" layoutY="70.0" mnemonicParsing="false" onAction="#performQuantizePass" prefHeight="26.0" prefWidth="141.0" text="Quantize Pass" AnchorPane.rightAnchor="9.0" />
-                        <Button layoutX="432.0" layoutY="101.0" mnemonicParsing="false" onAction="#performDiffusionPass" text="Error Diffusion Pass" AnchorPane.rightAnchor="9.0" />
-                        <Label layoutX="434.0" layoutY="13.0" text="Fill with" AnchorPane.rightAnchor="98.0" />
-                        <TextField fx:id="fillValue" layoutX="484.0" layoutY="8.0" prefHeight="26.0" prefWidth="44.0" text="0" AnchorPane.rightAnchor="54.0" />
-                        <Button layoutX="531.0" layoutY="8.0" mnemonicParsing="false" onAction="#fillOutput" text="Fill!" AnchorPane.rightAnchor="9.0" />
-                        <Button layoutX="513.0" layoutY="39.0" mnemonicParsing="false" onAction="#randomizeOutput" prefHeight="26.0" prefWidth="140.0" text="Randomize" AnchorPane.rightAnchor="9.0" />
                             </children>
                         </AnchorPane>
                     </content>
                 </Tab>
             </tabs>
         </TabPane>
+        <Button layoutX="14.0" layoutY="438.0" mnemonicParsing="false" onAction="#performQuantizePass" prefHeight="26.0" prefWidth="141.0" text="Quantize Pass" AnchorPane.bottomAnchor="14.0" AnchorPane.leftAnchor="14.0" />
+        <Button layoutX="162.0" layoutY="442.0" mnemonicParsing="false" onAction="#performDiffusionPass" text="Error Diffusion Pass" AnchorPane.bottomAnchor="14.0" AnchorPane.leftAnchor="162.0" />
         <Button layoutX="482.0" layoutY="412.0" mnemonicParsing="false" onAction="#performOK" text="OK" AnchorPane.bottomAnchor="14.0" AnchorPane.rightAnchor="81.0" />
         <Button layoutX="526.0" layoutY="412.0" mnemonicParsing="false" onAction="#performCancel" text="Cancel" AnchorPane.bottomAnchor="14.0" AnchorPane.rightAnchor="14.0" />
     </children>

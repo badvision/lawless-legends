@@ -47,8 +47,8 @@ import static org.badvision.outlaweditor.apple.AppleNTSCGraphics.hgrToDhgr;
 public class ImageDitherEngine {
 
     int byteRenderWidth;
-    final int errorWindow = 6;
-    final int overlap = 2;
+    int errorWindow = 7;
+    int overlap = 3;
     WritableImage source;
     byte[] screen;
     Platform platform;
@@ -56,7 +56,6 @@ public class ImageDitherEngine {
     int height;
     int divisor;
     int[][] coefficients;
-    boolean resetOutput = true;
 
     public ImageDitherEngine(Platform platform) {
         this.platform = platform;
@@ -65,7 +64,6 @@ public class ImageDitherEngine {
 
     public void setSourceImage(Image img) {
         source = getScaledImage(img, bufferWidth * byteRenderWidth, height);
-        resetOutput = true;
     }
 
     private static WritableImage getScaledImage(Image img, int width, int height) {
@@ -85,7 +83,6 @@ public class ImageDitherEngine {
         this.bufferWidth = width;
         this.height = height;
         screen = platform.imageRenderer.createImageBuffer(width, height);
-        resetOutput = true;
     }
 
     public void setDivisor(int divisor) {
@@ -109,31 +106,20 @@ public class ImageDitherEngine {
     WritableImage tmpScaled2;
     int[] scanline;
     List<Integer> pixels;
-
-    public byte[] restartDither(int value) {
-        keepScaled = new WritableImage(source.getPixelReader(), 560, 192);
-        tmpScaled1 = new WritableImage(source.getPixelReader(), 560, 192);
-        tmpScaled2 = new WritableImage(source.getPixelReader(), 560, 192);
-        for (int i = 0; i < screen.length; i++) {
-            screen[i] = (byte) (value >= 0 ? value : (int) Math.floor(Math.random() * 256.0));
-        }
-        scanline = new int[3];
-        pixels = new ArrayList<>();
-        return screen;
-    }
     
     public Image getScratchBuffer() {
         return keepScaled;
     }
 
     public byte[] dither(boolean propagateError) {
-        if (resetOutput) {
-            restartDither(0);
-            resetOutput = false;
+        keepScaled = new WritableImage(source.getPixelReader(), 560, 192);
+        tmpScaled1 = new WritableImage(source.getPixelReader(), 560, 192);
+        tmpScaled2 = new WritableImage(source.getPixelReader(), 560, 192);
+        for (int i = 0; i < screen.length; i++) {
+            screen[i] = (byte) 0;
         }
-        keepScaled.getPixelWriter().setPixels(0, 0, 560, 192, source.getPixelReader(), 0, 0);
-        tmpScaled1.getPixelWriter().setPixels(0, 0, 560, 192, source.getPixelReader(), 0, 0);
-        tmpScaled2.getPixelWriter().setPixels(0, 0, 560, 192, source.getPixelReader(), 0, 0);
+        scanline = new int[3];
+        pixels = new ArrayList<>();
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < bufferWidth; x += 2) {
                 switch (platform) {
@@ -161,11 +147,11 @@ public class ImageDitherEngine {
             next = screen[(y + startY) * bufferWidth + startX + x + 2] & 255;
         }
         // First byte, compared with a sliding window encompassing the previous byte, if any.
-        int leastError = Integer.MAX_VALUE;
+        long leastError = Long.MAX_VALUE;
         for (int hi = 0; hi < 2; hi++) {
             tmpScaled2.getPixelWriter().setPixels(0, y, 560, (y < 190) ? 3 : (y < 191) ? 2 : 1, keepScaled.getPixelReader(), 0, y);
             int b1 = (hi << 7);
-            int totalError = 0;
+            long totalError = 0;
             for (int c = 0; c < 7; c++) {
 //                                for (int c = 6; c >= 0; c--) {
                 int on = b1 | (1 << c);
@@ -176,7 +162,7 @@ public class ImageDitherEngine {
                 i = hgrToDhgr[(i & 0x010000000) >> 20 | off][bb2];
                 scanline[1] = i;
 //                                    scanline[2] = hgrToDhgr[(i & 0x10000000) != 0 ? next | 0x0100 : next][0] & 0x0fffffff;
-                int errorOff = getError(x * 14 - overlap + c * 2, y, 28 + c * 2 - overlap, errorWindow, pixels, tmpScaled2.getPixelReader(), scanline);
+                long errorOff = getError(x * 14 - overlap + c * 2, y, 28 + c * 2 - overlap, errorWindow, pixels, tmpScaled2.getPixelReader(), scanline);
                 int off1 = pixels.get(c * 2 + 28);
                 int off2 = pixels.get(c * 2 + 29);
                 // get values for "on"
@@ -185,7 +171,7 @@ public class ImageDitherEngine {
                 i = hgrToDhgr[(i & 0x010000000) >> 20 | on][bb2];
                 scanline[1] = i;
 //                                    scanline[2] = hgrToDhgr[(i & 0x10000000) != 0 ? next | 0x0100 : next][0] & 0x0fffffff;
-                int errorOn = getError(x * 14 - overlap + c * 2, y, 28 + c * 2 - overlap, errorWindow, pixels, tmpScaled2.getPixelReader(), scanline);
+                long errorOn = getError(x * 14 - overlap + c * 2, y, 28 + c * 2 - overlap, errorWindow, pixels, tmpScaled2.getPixelReader(), scanline);
                 int on1 = pixels.get(c * 2 + 28);
                 int on2 = pixels.get(c * 2 + 29);
                 int[] col1;
@@ -203,7 +189,7 @@ public class ImageDitherEngine {
                 }
                 if (propagateError) {
                     propagateError(x * 14 + c * 2, y, tmpScaled2, col1);
-                    propagateError(x * 14 + c * 2, y, tmpScaled2, col2);
+                    propagateError(x * 14 + c * 2 + 1, y, tmpScaled2, col2);
                 }
             }
             if (totalError < leastError) {
@@ -214,11 +200,11 @@ public class ImageDitherEngine {
         }
         keepScaled.getPixelWriter().setPixels(0, y, 560, (y < 190) ? 3 : (y < 191) ? 2 : 1, tmpScaled1.getPixelReader(), 0, y);
         // Second byte, compared with a sliding window encompassing the next byte, if any.
-        leastError = Integer.MAX_VALUE;
+        leastError = Long.MAX_VALUE;
         for (int hi = 0; hi < 2; hi++) {
             tmpScaled2.getPixelWriter().setPixels(0, y, 560, (y < 190) ? 3 : (y < 191) ? 2 : 1, keepScaled.getPixelReader(), 0, y);
             int b2 = (hi << 7);
-            int totalError = 0;
+            long totalError = 0;
             for (int c = 0; c < 7; c++) {
 //                                for (int c = 6; c >= 0; c--) {
                 int on = b2 | (1 << c);
@@ -228,14 +214,14 @@ public class ImageDitherEngine {
                 scanline[0] = i;
                 scanline[1] = hgrToDhgr[(i & 0x010000000) >> 20 | next][0];
 //                int errorOff = getError(x * 14      - overlap + c * 2, y, 28 + c * 2 - overlap, errorWindow, pixels, tmpScaled2.getPixelReader(), scanline);
-                int errorOff = getError(x * 14 + 14 - overlap + c * 2, y, 14 + c * 2 - overlap, errorWindow, pixels, tmpScaled2.getPixelReader(), scanline);
+                long errorOff = getError(x * 14 + 14 - overlap + c * 2, y, 14 + c * 2 - overlap, errorWindow, pixels, tmpScaled2.getPixelReader(), scanline);
                 int off1 = pixels.get(c * 2 + 14);
                 int off2 = pixels.get(c * 2 + 15);
                 // get values for "on"
                 i = hgrToDhgr[bb1][on];
                 scanline[0] = i;
                 scanline[1] = hgrToDhgr[(i & 0x010000000) >> 20 | next][0];
-                int errorOn = getError(x * 14 + 14 - overlap + c * 2, y, 14 + c * 2 - overlap, errorWindow, pixels, tmpScaled2.getPixelReader(), scanline);
+                long errorOn = getError(x * 14 + 14 - overlap + c * 2, y, 14 + c * 2 - overlap, errorWindow, pixels, tmpScaled2.getPixelReader(), scanline);
                 int on1 = pixels.get(c * 2 + 14);
                 int on2 = pixels.get(c * 2 + 15);
                 int[] col1;

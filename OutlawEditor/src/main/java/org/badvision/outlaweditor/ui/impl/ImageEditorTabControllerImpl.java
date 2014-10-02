@@ -4,10 +4,8 @@ import org.badvision.outlaweditor.ui.EntitySelectorCell;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.event.ActionEvent;
-import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.cell.ComboBoxListCell;
-import javafx.util.Callback;
 import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.Editor;
 import org.badvision.outlaweditor.ImageEditor;
@@ -50,14 +48,9 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
                 }
             }
         });
-        imageSelector.setCellFactory(new Callback<ListView<Image>, ListCell<Image>>() {
+        imageSelector.setCellFactory((ListView<Image> param) -> new EntitySelectorCell<Image>(imageNameField) {
             @Override
-            public ListCell<Image> call(ListView<Image> param) {
-                return new EntitySelectorCell<Image>(imageNameField) {
-                    @Override
-                    public void finishUpdate(Image item) {
-                    }
-                };
+            public void finishUpdate(Image item) {
             }
         });
     }
@@ -149,14 +142,11 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
         if (currentImage == null) {
             return;
         }
-        confirm("Delete image '" + currentImage.getName() + "'.  Are you sure?", new Runnable() {
-            @Override
-            public void run() {
-                Image del = currentImage;
-                setCurrentImage(null);
-                Application.gameData.getImage().remove(del);
-                rebuildImageSelector();
-            }
+        confirm("Delete image '" + currentImage.getName() + "'.  Are you sure?", () -> {
+            Image del = currentImage;
+            setCurrentImage(null);
+            Application.gameData.getImage().remove(del);
+            rebuildImageSelector();
         }, null);
     }
 

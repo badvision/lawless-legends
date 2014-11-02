@@ -4,6 +4,7 @@ import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.canvas.Canvas;
@@ -111,20 +112,17 @@ public class ImageDitherEngine {
         startY = y;
     }
 
-    WritableImage keepScaled;
-    WritableImage tmpScaled1;
-    WritableImage tmpScaled2;
+    int[][][] primaryScratchBuffer;
+    int[][][] secondaryScratchBuffer;
+    int[][][] tertriaryScratchBuffer;
+
     int[] scanline;
     List<Integer> pixels;
 
-    public Image getScratchBuffer() {
-        return keepScaled;
-    }
-
     public byte[] dither(boolean propagateError) {
-        keepScaled = new WritableImage(source.getPixelReader(), pixelRenderWidth, height);
-        tmpScaled1 = new WritableImage(source.getPixelReader(), pixelRenderWidth, height);
-        tmpScaled2 = new WritableImage(source.getPixelReader(), pixelRenderWidth, height);
+        primaryScratchBuffer = generateScratchBuffer(source.getPixelReader(), pixelRenderWidth, height);
+        secondaryScratchBuffer = generateScratchBuffer(source.getPixelReader(), pixelRenderWidth, height);
+        tertriaryScratchBuffer = generateScratchBuffer(source.getPixelReader(), pixelRenderWidth, height);
         for (int i = 0; i < screen.length; i++) {
             screen[i] = (byte) 0;
         }
@@ -146,7 +144,6 @@ public class ImageDitherEngine {
     }
 
     void hiresDither(int y, int x, boolean propagateError) {
-        int ditherVerticalRange = Math.min(3, height - y);
         int bb1 = screen[(y + startY) * bufferWidth + startX + x] & 255;
         int bb2 = screen[(y + startY) * bufferWidth + startX + x + 1] & 255;
         int next = bb2 & 127;  // Preserve hi-bit so last pixel stays solid, it is a very minor detail
@@ -160,7 +157,7 @@ public class ImageDitherEngine {
         // First byte, compared with a sliding window encompassing the previous byte, if any.
         long leastError = Long.MAX_VALUE;
         for (int hi = 0; hi < 2; hi++) {
-            tmpScaled2.getPixelWriter().setPixels(0, y, pixelRenderWidth, ditherVerticalRange, keepScaled.getPixelReader(), 0, y);
+            copyBuffer(primaryScratchBuffer, tertriaryScratchBuffer, y, y+3);
             int b1 = (hi << 7);
             long totalError = 0;
             for (int c = 0; c < 7; c++) {
@@ -171,7 +168,7 @@ public class ImageDitherEngine {
                 scanline[0] = i;
                 i = hgrToDhgr[(i & 0x010000000) >> 20 | off][bb2];
                 scanline[1] = i;
-                double errorOff = getError(x * 14 - overlap + c * 2, y, 28 + c * 2 - overlap + pixelShiftHgr, errorWindow, tmpScaled2.getPixelReader(), scanline);
+                double errorOff = getError(x * 14 - overlap + c * 2, y, 28 + c * 2 - overlap + pixelShiftHgr, errorWindow, tertriaryScratchBuffer, scanline);
                 int off1 = pixels.get(c * 2 + 28 + pixelShiftHgr);
                 int off2 = pixels.get(c * 2 + 29 + pixelShiftHgr);
                 // get values for "on"
@@ -179,7 +176,7 @@ public class ImageDitherEngine {
                 scanline[0] = i;
                 i = hgrToDhgr[(i & 0x010000000) >> 20 | on][bb2];
                 scanline[1] = i;
-                double errorOn = getError(x * 14 - overlap + c * 2, y, 28 + c * 2 - overlap + pixelShiftHgr, errorWindow, tmpScaled2.getPixelReader(), scanline);
+                double errorOn = getError(x * 14 - overlap + c * 2, y, 28 + c * 2 - overlap + pixelShiftHgr, errorWindow, tertriaryScratchBuffer, scanline);
                 int on1 = pixels.get(c * 2 + 28 + pixelShiftHgr);
                 int on2 = pixels.get(c * 2 + 29 + pixelShiftHgr);
                 int[] col1;
@@ -196,21 +193,21 @@ public class ImageDitherEngine {
                     col2 = Palette.parseIntColor(on2);
                 }
                 if (propagateError) {
-                    propagateError(x * 14 + c * 2 + pixelShiftHgr, y, tmpScaled2, col1);
-                    propagateError(x * 14 + c * 2 + 1 + pixelShiftHgr, y, tmpScaled2, col2);
+                    propagateError(x * 14 + c * 2 + pixelShiftHgr, y, tertriaryScratchBuffer, col1);
+                    propagateError(x * 14 + c * 2 + 1 + pixelShiftHgr, y, tertriaryScratchBuffer, col2);
                 }
             }
             if (totalError < leastError) {
-                tmpScaled1.getPixelWriter().setPixels(0, y, pixelRenderWidth, ditherVerticalRange, tmpScaled2.getPixelReader(), 0, y);
+                copyBuffer(tertriaryScratchBuffer, secondaryScratchBuffer, y, y+3);
                 leastError = totalError;
                 bb1 = b1;
             }
         }
-        keepScaled.getPixelWriter().setPixels(0, y, pixelRenderWidth, ditherVerticalRange, tmpScaled1.getPixelReader(), 0, y);
+        copyBuffer(secondaryScratchBuffer, primaryScratchBuffer, y, y+3);
         // Second byte, compared with a sliding window encompassing the next byte, if any.
         leastError = Long.MAX_VALUE;
         for (int hi = 0; hi < 2; hi++) {
-            tmpScaled2.getPixelWriter().setPixels(0, y, pixelRenderWidth, ditherVerticalRange, keepScaled.getPixelReader(), 0, y);
+            copyBuffer(primaryScratchBuffer, tertriaryScratchBuffer, y, y+3);
             int b2 = (hi << 7);
             long totalError = 0;
             for (int c = 0; c < 7; c++) {
@@ -220,14 +217,14 @@ public class ImageDitherEngine {
                 int i = hgrToDhgr[bb1][off];
                 scanline[0] = i;
                 scanline[1] = hgrToDhgr[(i & 0x010000000) >> 20 | next][0];
-                double errorOff = getError(x * 14 + 14 - overlap + c * 2, y, 14 + c * 2 - overlap + pixelShiftHgr, errorWindow, tmpScaled2.getPixelReader(), scanline);
+                double errorOff = getError(x * 14 + 14 - overlap + c * 2, y, 14 + c * 2 - overlap + pixelShiftHgr, errorWindow, tertriaryScratchBuffer, scanline);
                 int off1 = pixels.get(c * 2 + 14 + pixelShiftHgr);
                 int off2 = pixels.get(c * 2 + 15 + pixelShiftHgr);
                 // get values for "on"
                 i = hgrToDhgr[bb1][on];
                 scanline[0] = i;
                 scanline[1] = hgrToDhgr[(i & 0x010000000) >> 20 | next][0];
-                double errorOn = getError(x * 14 + 14 - overlap + c * 2, y, 14 + c * 2 - overlap + pixelShiftHgr, errorWindow, tmpScaled2.getPixelReader(), scanline);
+                double errorOn = getError(x * 14 + 14 - overlap + c * 2, y, 14 + c * 2 - overlap + pixelShiftHgr, errorWindow, tertriaryScratchBuffer, scanline);
                 int on1 = pixels.get(c * 2 + 14 + pixelShiftHgr);
                 int on2 = pixels.get(c * 2 + 15 + pixelShiftHgr);
                 int[] col1;
@@ -244,17 +241,17 @@ public class ImageDitherEngine {
                     col2 = Palette.parseIntColor(on2);
                 }
                 if (propagateError) {
-                    propagateError(x * 14 + c * 2 + 14 + pixelShiftHgr, y, tmpScaled2, col1);
-                    propagateError(x * 14 + c * 2 + 15 + pixelShiftHgr, y, tmpScaled2, col2);
+                    propagateError(x * 14 + c * 2 + 14 + pixelShiftHgr, y, tertriaryScratchBuffer, col1);
+                    propagateError(x * 14 + c * 2 + 15 + pixelShiftHgr, y, tertriaryScratchBuffer, col2);
                 }
             }
             if (totalError < leastError) {
-                tmpScaled1.getPixelWriter().setPixels(0, y, pixelRenderWidth, ditherVerticalRange, tmpScaled2.getPixelReader(), 0, y);
+                copyBuffer(tertriaryScratchBuffer, secondaryScratchBuffer, y, y+3);
                 leastError = totalError;
                 bb2 = b2;
             }
         }
-        keepScaled.getPixelWriter().setPixels(0, y, pixelRenderWidth, ditherVerticalRange, tmpScaled1.getPixelReader(), 0, y);
+        copyBuffer(secondaryScratchBuffer, primaryScratchBuffer, y, y+3);
         screen[(y + startY) * bufferWidth + startX + x] = (byte) bb1;
         screen[(y + startY) * bufferWidth + startX + x + 1] = (byte) bb2;
     }
@@ -294,8 +291,8 @@ public class ImageDitherEngine {
                 i <<= 7;
                 i |= (byteOffset == 0) ? off : bytes[0] & 255;
                 scanline[1] = i;
-                double errorOff = getError((x + byteOffset) * 7 - overlap + bit, y, 28 + (byteOffset * 7) + bit - overlap + pixelShiftDhgr, errorWindow, keepScaled.getPixelReader(), scanline);
-                int offColor = pixels.get(byteOffset * 7 + bit + 28+ pixelShiftDhgr);
+                double errorOff = getError((x + byteOffset) * 7 - overlap + bit, y, 28 + (byteOffset * 7) + bit - overlap + pixelShiftDhgr, errorWindow, primaryScratchBuffer, scanline);
+                int offColor = pixels.get(byteOffset * 7 + bit + 28 + pixelShiftDhgr);
                 // get values for "on"
                 i = (byteOffset == 3) ? on : bytes[3] & 255;
                 i <<= 7;
@@ -305,8 +302,8 @@ public class ImageDitherEngine {
                 i <<= 7;
                 i |= (byteOffset == 0) ? on : bytes[0] & 255;
                 scanline[1] = i;
-                double errorOn = getError((x + byteOffset) * 7 - overlap + bit, y, 28 + (byteOffset * 7) + bit - overlap + pixelShiftDhgr, errorWindow, keepScaled.getPixelReader(), scanline);
-                int onColor = pixels.get(byteOffset * 7 + bit + 28+ pixelShiftDhgr);
+                double errorOn = getError((x + byteOffset) * 7 - overlap + bit, y, 28 + (byteOffset * 7) + bit - overlap + pixelShiftDhgr, errorWindow, primaryScratchBuffer, scanline);
+                int onColor = pixels.get(byteOffset * 7 + bit + 28 + pixelShiftDhgr);
 
                 int[] col1;
                 if (errorOff < errorOn) {
@@ -317,7 +314,7 @@ public class ImageDitherEngine {
                     col1 = Palette.parseIntColor(onColor);
                 }
                 if (propagateError) {
-                    propagateError((x + byteOffset) * 7 + bit, y, keepScaled, col1);
+                    propagateError((x + byteOffset) * 7 + bit, y, primaryScratchBuffer, col1);
                 }
             }
             bytes[byteOffset] = b1;
@@ -330,21 +327,20 @@ public class ImageDitherEngine {
 
     public static int ALPHA_SOLID = 255 << 24;
 
-    private void propagateError(int x, int y, WritableImage img, int[] newColor) {
+    private void propagateError(int x, int y, int[][][] scratchBuffer, int[] newColor) {
         if (x < 0 || y < 0) {
             return;
         }
-        int pixel = img.getPixelReader().getArgb(x, y);
+        int[] pixel = scratchBuffer[y][x];
         for (int i = 0; i < 3; i++) {
-            int error = Palette.getComponent(pixel, i) - newColor[i];
-            for (int yy = 0; yy < 3 && y + yy < img.getHeight(); yy++) {
-                for (int xx = -2; xx < 3 && x + xx < img.getWidth(); xx++) {
+            double error = pixel[i] - newColor[i];
+            for (int yy = 0; yy < 3 && y + yy < scratchBuffer.length; yy++) {
+                for (int xx = -2; xx < 3 && x + xx < scratchBuffer[y].length; xx++) {
                     if (x + xx < 0 || coefficients[xx + 2][yy] == 0) {
                         continue;
                     }
-                    int c = img.getPixelReader().getArgb(x + xx, y + yy);
-                    int errorAmount = ((error * coefficients[xx + 2][yy]) / divisor);
-                    img.getPixelWriter().setArgb(x + xx, y + yy, ALPHA_SOLID | Palette.addError(c, i, errorAmount));
+                    int errorAmount = (int) ((error * coefficients[xx + 2][yy]) / divisor);
+                    scratchBuffer[y+yy][x+xx][i] += errorAmount;
                 }
             }
         }
@@ -382,7 +378,7 @@ public class ImageDitherEngine {
         }
     };
 
-    private double getError(int imageXStart, int y, int scanlineXStart, int window, PixelReader source, int[] scanline) {
+    private double getError(int imageXStart, int y, int scanlineXStart, int window, int[][][] source, int[] scanline) {
         pixels.clear();
         AppleImageRenderer.renderScanline(fakeWriter, 0, scanline, true, false, 20);
         double total = 0;
@@ -391,10 +387,29 @@ public class ImageDitherEngine {
                 continue;
             }
             int[] c1 = Palette.parseIntColor(pixels.get(scanlineXStart + p));
-            int[] c2 = Palette.parseIntColor(source.getArgb(imageXStart + p, y));
+            int[] c2 = source[y][imageXStart + p];
             double dist = Palette.distance(c1, c2);
             total += dist;
         }
         return (int) total;
+    }
+
+    private int[][][] generateScratchBuffer(PixelReader pixelReader, int pixelRenderWidth, int height) {
+        int[][][] out = new int[height][pixelRenderWidth][3];
+        for (int y = 0; y < height; y++) {
+            for (int x=0; x < pixelRenderWidth; x++) {
+                int pixel = pixelReader.getArgb(x, y);
+                out[y][x] = Palette.parseIntColor(pixel);
+            }
+        }
+        return out;
+    }
+
+    private void copyBuffer(int[][][] source, int[][][] target, int start, int end) {
+        for (int y=start; y < end && y < source.length; y++) {
+            for (int x=0; x < source[y].length; x++) {
+                target[y][x] = Arrays.copyOf(source[y][x], 3);
+            }
+        }
     }
 }

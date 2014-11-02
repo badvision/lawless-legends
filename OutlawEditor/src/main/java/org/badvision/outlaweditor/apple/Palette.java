@@ -105,21 +105,4 @@ public abstract class Palette {
                 return 0;
         }
     }
-
-    public static int addError(int color, int component, int error) {
-        int level = getComponent(color, component);
-        level = Math.max(0, Math.min(255, level + error));
-        switch (component) {
-            case 0:
-                color = color & 0x0FFFF | (level << 16);
-                break;
-            case 1:
-                color = color & 0x0FF00FF | (level << 8);
-                break;
-            case 2:
-                color = color & 0x0FFFF00 | level;
-                break;
-        }
-        return color;
-    }
 }

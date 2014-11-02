@@ -166,7 +166,6 @@ public class ImageDitheringTest {
     public double averageErrorForRegion(Image img1, Image img2, int x1, int x2, int y1, int y2) {
         int[] col1 = getAverageColor(img1, x1, x2, y1, y2);
         int[] col2 = getAverageColor(img2, x1, x2, y1, y2);
-        System.out.printf("Col1 %d %d %d, Col2 %d %d %d\n", col1[0], col1[1], col1[2], col2[0], col2[1], col2[2]);
         return Palette.distance_linear(col1, col2);
     }
 

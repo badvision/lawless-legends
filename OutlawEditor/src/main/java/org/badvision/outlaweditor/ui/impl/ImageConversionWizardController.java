@@ -21,7 +21,6 @@ import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelReader;
 import javafx.scene.image.WritableImage;
 import javafx.stage.Stage;
-import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.apple.ImageDitherEngine;
 import org.badvision.outlaweditor.ui.ImageConversionPostAction;
 
@@ -124,7 +123,7 @@ public class ImageConversionWizardController implements Initializable {
         saturationValue.textProperty().addListener((ObservableValue<? extends String> observable, String oldValue, String newValue)
                 -> javafx.application.Platform.runLater(this::updateImageAdjustments));
 
-        configureFastFloydSteinbergPreset(null);
+        configureAtkinsonPreset(null);
     }
 
     private Stage stage;
@@ -221,7 +220,8 @@ public class ImageConversionWizardController implements Initializable {
     byte[] lastOutput;
     private void updateConvertedImageWithData(byte[] data) {
         lastOutput = data;
-        convertedImageView.setImage(Application.currentPlatform.imageRenderer.renderImage(outputPreviewImage, data, getOutputWidth(), getOutputHeight()));
+        convertedImageView.setImage(ditherEngine.getPreviewImage());
+//        convertedImageView.setImage(ditherEngine.getScratchBuffer());
     }
 
     @FXML

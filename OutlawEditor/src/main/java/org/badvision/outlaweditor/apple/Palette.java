@@ -52,11 +52,11 @@ public abstract class Palette {
     }
 
     public int findColor(int color[]) {
-        int lastDiff = COLOR_DISTANCE_MAX;
+        double lastDiff = COLOR_DISTANCE_MAX;
         int bestFit = 0;
         for (int i = 0; i < colors.size(); i++) {
             int test[] = (int[]) colors.get(i);
-            int diff = (int) distance(color, test);
+            double diff = distance(color, test);
             if (diff < lastDiff) {
                 lastDiff = diff;
                 bestFit = i;
@@ -66,8 +66,19 @@ public abstract class Palette {
         return bestFit;
     }
 
-    public static double distance(int color[], int test[]) {
-        return Math.pow(Math.abs(color[0] - test[0]), 3D) + Math.pow(Math.abs(color[1] - test[1]), 3D) + Math.pow(Math.abs(color[2] - test[2]), 3D);
+    public static double distance(int c1[], int c2[]) {
+        double rmean = ( c1[0] + c2[1] ) / 2.0;
+        double r = c1[0] - c2[0];
+        double g = c1[1] - c2[1];
+        double b = c1[2] - c2[2];
+        double weightR = 2.0 + rmean/256.0;
+        double weightG = 4.0;
+        double weightB = 2.0 + (255.0-rmean)/256.0;
+        return Math.sqrt(weightR*(r*r) + weightG*(g*g) + weightB*(b*b)) / 1.73167;
+    }
+    
+    public static double distance_linear(int color[], int test[]) {
+        return Math.sqrt(Math.pow(color[0] - test[0], 2D) + Math.pow(color[1] - test[1], 2D) + Math.pow(color[2] - test[2], 2D));
     }
 
     public static int getR(int color) {
@@ -96,8 +107,19 @@ public abstract class Palette {
     }
 
     public static int addError(int color, int component, int error) {
-        int[] sourceColor = parseIntColor(color);
-        sourceColor[component] = Math.max(0, Math.min(255, sourceColor[component] + error));
-        return toRGBInt(sourceColor);
+        int level = getComponent(color, component);
+        level = Math.max(0, Math.min(255, level + error));
+        switch (component) {
+            case 0:
+                color = color & 0x0FFFF | (level << 16);
+                break;
+            case 1:
+                color = color & 0x0FF00FF | (level << 8);
+                break;
+            case 2:
+                color = color & 0x0FFFF00 | level;
+                break;
+        }
+        return color;
     }
 }

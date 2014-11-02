@@ -47,23 +47,30 @@ import static org.badvision.outlaweditor.apple.AppleNTSCGraphics.hgrToDhgr;
 public class ImageDitherEngine {
 
     int byteRenderWidth;
-    int errorWindow = 7;
-    int overlap = 3;
+    int pixelRenderWidth;
+    final int errorWindow = 6;
+    final int overlap = 3;
+    final int pixelShiftHgr = -2;
+    final int pixelShiftDhgr = -2;
     WritableImage source;
     byte[] screen;
     Platform platform;
     int bufferWidth;
     int height;
     int divisor;
-    int[][] coefficients;
+    public int[][] coefficients;
 
     public ImageDitherEngine(Platform platform) {
         this.platform = platform;
         byteRenderWidth = platform == Platform.AppleII_DHGR ? 7 : 14;
     }
 
+    public Platform getPlatform() {
+        return platform;
+    }
+
     public void setSourceImage(Image img) {
-        source = getScaledImage(img, bufferWidth * byteRenderWidth, height);
+        source = getScaledImage(img, pixelRenderWidth, height);
     }
 
     private static WritableImage getScaledImage(Image img, int width, int height) {
@@ -76,11 +83,14 @@ public class ImageDitherEngine {
     }
 
     public WritableImage getPreviewImage() {
-        return new WritableImage(bufferWidth * byteRenderWidth, height * 2);
+        WritableImage out = new WritableImage(pixelRenderWidth, height * 2);
+        platform.imageRenderer.renderImage(out, screen, bufferWidth, height);
+        return out;
     }
 
     public void setOutputDimensions(int width, int height) {
         this.bufferWidth = width;
+        this.pixelRenderWidth = width * byteRenderWidth;
         this.height = height;
         screen = platform.imageRenderer.createImageBuffer(width, height);
     }
@@ -106,15 +116,15 @@ public class ImageDitherEngine {
     WritableImage tmpScaled2;
     int[] scanline;
     List<Integer> pixels;
-    
+
     public Image getScratchBuffer() {
         return keepScaled;
     }
 
     public byte[] dither(boolean propagateError) {
-        keepScaled = new WritableImage(source.getPixelReader(), 560, 192);
-        tmpScaled1 = new WritableImage(source.getPixelReader(), 560, 192);
-        tmpScaled2 = new WritableImage(source.getPixelReader(), 560, 192);
+        keepScaled = new WritableImage(source.getPixelReader(), pixelRenderWidth, height);
+        tmpScaled1 = new WritableImage(source.getPixelReader(), pixelRenderWidth, height);
+        tmpScaled2 = new WritableImage(source.getPixelReader(), pixelRenderWidth, height);
         for (int i = 0; i < screen.length; i++) {
             screen[i] = (byte) 0;
         }
@@ -136,6 +146,7 @@ public class ImageDitherEngine {
     }
 
     void hiresDither(int y, int x, boolean propagateError) {
+        int ditherVerticalRange = Math.min(3, height - y);
         int bb1 = screen[(y + startY) * bufferWidth + startX + x] & 255;
         int bb2 = screen[(y + startY) * bufferWidth + startX + x + 1] & 255;
         int next = bb2 & 127;  // Preserve hi-bit so last pixel stays solid, it is a very minor detail
@@ -143,17 +154,16 @@ public class ImageDitherEngine {
         if ((x + startX) > 0) {
             prev = screen[(y + startY) * bufferWidth + startX + x - 1] & 255;
         }
-        if ((x + startX) < (bufferWidth-2)) {
+        if ((x + startX) < (bufferWidth - 2)) {
             next = screen[(y + startY) * bufferWidth + startX + x + 2] & 255;
         }
         // First byte, compared with a sliding window encompassing the previous byte, if any.
         long leastError = Long.MAX_VALUE;
         for (int hi = 0; hi < 2; hi++) {
-            tmpScaled2.getPixelWriter().setPixels(0, y, 560, (y < 190) ? 3 : (y < 191) ? 2 : 1, keepScaled.getPixelReader(), 0, y);
+            tmpScaled2.getPixelWriter().setPixels(0, y, pixelRenderWidth, ditherVerticalRange, keepScaled.getPixelReader(), 0, y);
             int b1 = (hi << 7);
             long totalError = 0;
             for (int c = 0; c < 7; c++) {
-//                                for (int c = 6; c >= 0; c--) {
                 int on = b1 | (1 << c);
                 int off = on ^ (1 << c);
                 // get values for "off"
@@ -161,19 +171,17 @@ public class ImageDitherEngine {
                 scanline[0] = i;
                 i = hgrToDhgr[(i & 0x010000000) >> 20 | off][bb2];
                 scanline[1] = i;
-//                                    scanline[2] = hgrToDhgr[(i & 0x10000000) != 0 ? next | 0x0100 : next][0] & 0x0fffffff;
-                long errorOff = getError(x * 14 - overlap + c * 2, y, 28 + c * 2 - overlap, errorWindow, pixels, tmpScaled2.getPixelReader(), scanline);
-                int off1 = pixels.get(c * 2 + 28);
-                int off2 = pixels.get(c * 2 + 29);
+                double errorOff = getError(x * 14 - overlap + c * 2, y, 28 + c * 2 - overlap + pixelShiftHgr, errorWindow, tmpScaled2.getPixelReader(), scanline);
+                int off1 = pixels.get(c * 2 + 28 + pixelShiftHgr);
+                int off2 = pixels.get(c * 2 + 29 + pixelShiftHgr);
                 // get values for "on"
                 i = hgrToDhgr[0][prev];
                 scanline[0] = i;
                 i = hgrToDhgr[(i & 0x010000000) >> 20 | on][bb2];
                 scanline[1] = i;
-//                                    scanline[2] = hgrToDhgr[(i & 0x10000000) != 0 ? next | 0x0100 : next][0] & 0x0fffffff;
-                long errorOn = getError(x * 14 - overlap + c * 2, y, 28 + c * 2 - overlap, errorWindow, pixels, tmpScaled2.getPixelReader(), scanline);
-                int on1 = pixels.get(c * 2 + 28);
-                int on2 = pixels.get(c * 2 + 29);
+                double errorOn = getError(x * 14 - overlap + c * 2, y, 28 + c * 2 - overlap + pixelShiftHgr, errorWindow, tmpScaled2.getPixelReader(), scanline);
+                int on1 = pixels.get(c * 2 + 28 + pixelShiftHgr);
+                int on2 = pixels.get(c * 2 + 29 + pixelShiftHgr);
                 int[] col1;
                 int[] col2;
                 if (errorOff < errorOn) {
@@ -188,42 +196,40 @@ public class ImageDitherEngine {
                     col2 = Palette.parseIntColor(on2);
                 }
                 if (propagateError) {
-                    propagateError(x * 14 + c * 2, y, tmpScaled2, col1);
-                    propagateError(x * 14 + c * 2 + 1, y, tmpScaled2, col2);
+                    propagateError(x * 14 + c * 2 + pixelShiftHgr, y, tmpScaled2, col1);
+                    propagateError(x * 14 + c * 2 + 1 + pixelShiftHgr, y, tmpScaled2, col2);
                 }
             }
             if (totalError < leastError) {
-                tmpScaled1.getPixelWriter().setPixels(0, y, 560, (y < 190) ? 3 : (y < 191) ? 2 : 1, tmpScaled2.getPixelReader(), 0, y);
+                tmpScaled1.getPixelWriter().setPixels(0, y, pixelRenderWidth, ditherVerticalRange, tmpScaled2.getPixelReader(), 0, y);
                 leastError = totalError;
                 bb1 = b1;
-            }            
+            }
         }
-        keepScaled.getPixelWriter().setPixels(0, y, 560, (y < 190) ? 3 : (y < 191) ? 2 : 1, tmpScaled1.getPixelReader(), 0, y);
+        keepScaled.getPixelWriter().setPixels(0, y, pixelRenderWidth, ditherVerticalRange, tmpScaled1.getPixelReader(), 0, y);
         // Second byte, compared with a sliding window encompassing the next byte, if any.
         leastError = Long.MAX_VALUE;
         for (int hi = 0; hi < 2; hi++) {
-            tmpScaled2.getPixelWriter().setPixels(0, y, 560, (y < 190) ? 3 : (y < 191) ? 2 : 1, keepScaled.getPixelReader(), 0, y);
+            tmpScaled2.getPixelWriter().setPixels(0, y, pixelRenderWidth, ditherVerticalRange, keepScaled.getPixelReader(), 0, y);
             int b2 = (hi << 7);
             long totalError = 0;
             for (int c = 0; c < 7; c++) {
-//                                for (int c = 6; c >= 0; c--) {
                 int on = b2 | (1 << c);
                 int off = on ^ (1 << c);
                 // get values for "off"
                 int i = hgrToDhgr[bb1][off];
                 scanline[0] = i;
                 scanline[1] = hgrToDhgr[(i & 0x010000000) >> 20 | next][0];
-//                int errorOff = getError(x * 14      - overlap + c * 2, y, 28 + c * 2 - overlap, errorWindow, pixels, tmpScaled2.getPixelReader(), scanline);
-                long errorOff = getError(x * 14 + 14 - overlap + c * 2, y, 14 + c * 2 - overlap, errorWindow, pixels, tmpScaled2.getPixelReader(), scanline);
-                int off1 = pixels.get(c * 2 + 14);
-                int off2 = pixels.get(c * 2 + 15);
+                double errorOff = getError(x * 14 + 14 - overlap + c * 2, y, 14 + c * 2 - overlap + pixelShiftHgr, errorWindow, tmpScaled2.getPixelReader(), scanline);
+                int off1 = pixels.get(c * 2 + 14 + pixelShiftHgr);
+                int off2 = pixels.get(c * 2 + 15 + pixelShiftHgr);
                 // get values for "on"
                 i = hgrToDhgr[bb1][on];
                 scanline[0] = i;
                 scanline[1] = hgrToDhgr[(i & 0x010000000) >> 20 | next][0];
-                long errorOn = getError(x * 14 + 14 - overlap + c * 2, y, 14 + c * 2 - overlap, errorWindow, pixels, tmpScaled2.getPixelReader(), scanline);
-                int on1 = pixels.get(c * 2 + 14);
-                int on2 = pixels.get(c * 2 + 15);
+                double errorOn = getError(x * 14 + 14 - overlap + c * 2, y, 14 + c * 2 - overlap + pixelShiftHgr, errorWindow, tmpScaled2.getPixelReader(), scanline);
+                int on1 = pixels.get(c * 2 + 14 + pixelShiftHgr);
+                int on2 = pixels.get(c * 2 + 15 + pixelShiftHgr);
                 int[] col1;
                 int[] col2;
                 if (errorOff < errorOn) {
@@ -238,17 +244,17 @@ public class ImageDitherEngine {
                     col2 = Palette.parseIntColor(on2);
                 }
                 if (propagateError) {
-                    propagateError(x * 14 + c * 2 + 14, y, tmpScaled2, col1);
-                    propagateError(x * 14 + c * 2 + 15, y, tmpScaled2, col2);
+                    propagateError(x * 14 + c * 2 + 14 + pixelShiftHgr, y, tmpScaled2, col1);
+                    propagateError(x * 14 + c * 2 + 15 + pixelShiftHgr, y, tmpScaled2, col2);
                 }
             }
             if (totalError < leastError) {
-                tmpScaled1.getPixelWriter().setPixels(0, y, 560, (y < 190) ? 3 : (y < 191) ? 2 : 1, tmpScaled2.getPixelReader(), 0, y);
+                tmpScaled1.getPixelWriter().setPixels(0, y, pixelRenderWidth, ditherVerticalRange, tmpScaled2.getPixelReader(), 0, y);
                 leastError = totalError;
                 bb2 = b2;
             }
         }
-        keepScaled.getPixelWriter().setPixels(0, y, 560, (y < 190) ? 3 : (y < 191) ? 2 : 1, tmpScaled1.getPixelReader(), 0, y);
+        keepScaled.getPixelWriter().setPixels(0, y, pixelRenderWidth, ditherVerticalRange, tmpScaled1.getPixelReader(), 0, y);
         screen[(y + startY) * bufferWidth + startX + x] = (byte) bb1;
         screen[(y + startY) * bufferWidth + startX + x + 1] = (byte) bb2;
     }
@@ -259,22 +265,22 @@ public class ImageDitherEngine {
         }
         scanline[0] = 0;
         if (x >= 4) {
-            scanline[0] = screen[y * 80 + x - 1] << 21;
+            scanline[0] = screen[y * bufferWidth + x - 1] << 21;
         }
         scanline[1] = 0;
-        if (x < 76) {
-            scanline[2] = screen[y * 80 + x + 4];
+        scanline[2] = 0;
+        if (x + 4 < bufferWidth) {
+            scanline[2] = screen[y * bufferWidth + x + 4];
         }
         int bytes[] = new int[]{
-            screen[y * 80 + x] & 255,
-            screen[y * 80 + x + 1] & 255,
-            screen[y * 80 + x + 2] & 255,
-            screen[y * 80 + x + 3] & 255
+            screen[y * bufferWidth + x] & 255,
+            screen[y * bufferWidth + x + 1] & 255,
+            screen[y * bufferWidth + x + 2] & 255,
+            screen[y * bufferWidth + x + 3] & 255
         };
 
         for (int byteOffset = 0; byteOffset < 4; byteOffset++) {
             // First byte, compared with a sliding window encompassing the previous byte, if any.
-            int leastError = Integer.MAX_VALUE;
             int b1 = (bytes[byteOffset] & 0x07f);
             for (int bit = 0; bit < 7; bit++) {
                 int on = b1 | (1 << bit);
@@ -288,8 +294,8 @@ public class ImageDitherEngine {
                 i <<= 7;
                 i |= (byteOffset == 0) ? off : bytes[0] & 255;
                 scanline[1] = i;
-                int errorOff = getError((x + byteOffset) * 7 - overlap + bit, y, 28 + (byteOffset * 7) + bit - overlap, errorWindow, pixels, tmpScaled1.getPixelReader(), scanline);
-                int off1 = pixels.get(byteOffset * 7 + bit + 28);
+                double errorOff = getError((x + byteOffset) * 7 - overlap + bit, y, 28 + (byteOffset * 7) + bit - overlap + pixelShiftDhgr, errorWindow, keepScaled.getPixelReader(), scanline);
+                int offColor = pixels.get(byteOffset * 7 + bit + 28+ pixelShiftDhgr);
                 // get values for "on"
                 i = (byteOffset == 3) ? on : bytes[3] & 255;
                 i <<= 7;
@@ -299,22 +305,21 @@ public class ImageDitherEngine {
                 i <<= 7;
                 i |= (byteOffset == 0) ? on : bytes[0] & 255;
                 scanline[1] = i;
-                int errorOn = getError((x + byteOffset) * 7 - overlap + bit, y, 28 + (byteOffset * 7) + bit - overlap, errorWindow, pixels, tmpScaled1.getPixelReader(), scanline);
-                int on1 = pixels.get(byteOffset * 7 + bit + 28);
+                double errorOn = getError((x + byteOffset) * 7 - overlap + bit, y, 28 + (byteOffset * 7) + bit - overlap + pixelShiftDhgr, errorWindow, keepScaled.getPixelReader(), scanline);
+                int onColor = pixels.get(byteOffset * 7 + bit + 28+ pixelShiftDhgr);
 
                 int[] col1;
                 if (errorOff < errorOn) {
                     b1 = off;
-                    col1 = Palette.parseIntColor(off1);
+                    col1 = Palette.parseIntColor(offColor);
                 } else {
                     b1 = on;
-                    col1 = Palette.parseIntColor(on1);
+                    col1 = Palette.parseIntColor(onColor);
                 }
                 if (propagateError) {
-                    propagateError((x + byteOffset) * 7 + bit, y, tmpScaled1, col1);
+                    propagateError((x + byteOffset) * 7 + bit, y, keepScaled, col1);
                 }
             }
-            keepScaled.getPixelWriter().setPixels(0, y, 560, (y < 190) ? 3 : (y < 191) ? 2 : 1, tmpScaled1.getPixelReader(), 0, y);
             bytes[byteOffset] = b1;
             screen[(y + startY) * bufferWidth + startX + x] = (byte) bytes[0];
             screen[(y + startY) * bufferWidth + startX + x + 1] = (byte) bytes[1];
@@ -322,11 +327,13 @@ public class ImageDitherEngine {
             screen[(y + startY) * bufferWidth + startX + x + 3] = (byte) bytes[3];
         }
     }
-    
+
     public static int ALPHA_SOLID = 255 << 24;
 
     private void propagateError(int x, int y, WritableImage img, int[] newColor) {
-        if (x < 0 || y < 0) return;
+        if (x < 0 || y < 0) {
+            return;
+        }
         int pixel = img.getPixelReader().getArgb(x, y);
         for (int i = 0; i < 3; i++) {
             int error = Palette.getComponent(pixel, i) - newColor[i];
@@ -343,94 +350,51 @@ public class ImageDitherEngine {
         }
     }
 
-    private static int getError(int imageXStart, int y, int scanlineXStart, int window, final List<Integer> pixels, PixelReader source, int[] scanline) {
+    PixelWriter fakeWriter = new PixelWriter() {
+        @Override
+        public PixelFormat getPixelFormat() {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
+
+        @Override
+        public void setArgb(int x, int y, int c) {
+            pixels.add(c);
+        }
+
+        @Override
+        public void setColor(int i, int i1, Color color) {
+        }
+
+        @Override
+        public <T extends Buffer> void setPixels(int i, int i1, int i2, int i3, PixelFormat<T> pf, T t, int i4) {
+        }
+
+        @Override
+        public void setPixels(int i, int i1, int i2, int i3, PixelFormat<ByteBuffer> pf, byte[] bytes, int i4, int i5) {
+        }
+
+        @Override
+        public void setPixels(int i, int i1, int i2, int i3, PixelFormat<IntBuffer> pf, int[] ints, int i4, int i5) {
+        }
+
+        @Override
+        public void setPixels(int i, int i1, int i2, int i3, PixelReader reader, int i4, int i5) {
+        }
+    };
+
+    private double getError(int imageXStart, int y, int scanlineXStart, int window, PixelReader source, int[] scanline) {
         pixels.clear();
-        PixelWriter fakeWriter = new PixelWriter() {
-            @Override
-            public PixelFormat getPixelFormat() {
-                throw new UnsupportedOperationException("Not supported yet.");
-            }
-
-            @Override
-            public void setArgb(int x, int y, int c) {
-                pixels.add(c);
-            }
-
-            @Override
-            public void setColor(int i, int i1, Color color) {
-            }
-
-            @Override
-            public <T extends Buffer> void setPixels(int i, int i1, int i2, int i3, PixelFormat<T> pf, T t, int i4) {
-            }
-
-            @Override
-            public void setPixels(int i, int i1, int i2, int i3, PixelFormat<ByteBuffer> pf, byte[] bytes, int i4, int i5) {
-            }
-
-            @Override
-            public void setPixels(int i, int i1, int i2, int i3, PixelFormat<IntBuffer> pf, int[] ints, int i4, int i5) {
-            }
-
-            @Override
-            public void setPixels(int i, int i1, int i2, int i3, PixelReader reader, int i4, int i5) {
-            }
-        };
         AppleImageRenderer.renderScanline(fakeWriter, 0, scanline, true, false, 20);
-//        double max = 0;
-//        double min = Double.MAX_VALUE;
         double total = 0;
-//        List<Double> err = new ArrayList<>();
         for (int p = 0; p < window; p++) {
-            if ((imageXStart + p) < 0 || (imageXStart + p) >= 560 || scanlineXStart + p < 0) {
+            if ((imageXStart + p) < 0 || (imageXStart + p) >= pixelRenderWidth || scanlineXStart + p < 0) {
                 continue;
             }
             int[] c1 = Palette.parseIntColor(pixels.get(scanlineXStart + p));
             int[] c2 = Palette.parseIntColor(source.getArgb(imageXStart + p, y));
             double dist = Palette.distance(c1, c2);
             total += dist;
-//            max = Math.max(dist, max);
-//            min = Math.min(dist, min);
-//            err.add(dist);
         }
-//        double avg = total/((double) window);
-//        double range = max-min;
-//        double totalDev = 0.0;
-//        for (Double d : err) {
-//            totalDev = Math.pow(d-avg, 2);
-////            errorTotal += (d-min)/range;
-//        }
-//        totalDev /= ((double) window);
-//        double stdDev = Math.sqrt(totalDev);
-//        return (int) (min+(avg*(stdDev/range)));
         return (int) total;
     }
-
-//                int currentPixel = source.getRGB(x, y);
-//
-//                for (int i = 0; i < 3; i++) {
-//                    int error = Palette.getComponent(currentPixel, i) - Palette.getComponent(closestColor, i);
-//                    if (x + 1 < source.getWidth()) {
-//                        int c = source.getRGB(x + 1, y);
-//                        source.setRGB(x + 1, y, Palette.addError(c, i, (error * 7) >> 4));
-//                    }
-//                    if (y + 1 < source.getHeight()) {
-//                        if (x - 1 > 0) {
-//                            int c = source.getRGB(x - 1, y + 1);
-//                            source.setRGB(x - 1, y + 1, Palette.addError(c, i, (error * 3) >> 4));
-//                        }
-//                        {
-//                            int c = source.getRGB(x, y + 1);
-//                            source.setRGB(x, y + 1, Palette.addError(c, i, (error * 5) >> 4));
-//                        }
-//                        if (x + 1 < source.getWidth()) {
-//                            int c = source.getRGB(x + 1, y + 1);
-//                            source.setRGB(x + 1, y + 1, Palette.addError(c, i, error >> 4));
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//        return dest;
-//    }
 }

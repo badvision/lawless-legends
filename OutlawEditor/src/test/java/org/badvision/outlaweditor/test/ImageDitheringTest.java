@@ -3,6 +3,7 @@ package org.badvision.outlaweditor.test;
 import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
+import org.badvision.outlaweditor.apple.AppleTileRenderer;
 import org.badvision.outlaweditor.apple.ImageDitherEngine;
 import org.badvision.outlaweditor.apple.Palette;
 import org.junit.After;
@@ -37,10 +38,12 @@ public class ImageDitheringTest {
 
     @Before
     public void setUp() {
+        AppleTileRenderer.useSolidPalette = false;
         hgrDither = new ImageDitherEngine(org.badvision.outlaweditor.Platform.AppleII);
-        hgrDither.setOutputDimensions(560, 192);
+        hgrDither.setOutputDimensions(40, 192);
         dhgrDither = new ImageDitherEngine(org.badvision.outlaweditor.Platform.AppleII_DHGR);
-        dhgrDither.setOutputDimensions(560, 192);
+        dhgrDither.setOutputDimensions(80, 192);
+        
     }
 
     @After
@@ -189,11 +192,11 @@ public class ImageDitheringTest {
         };
     }
 
-    private void configureAtkinsonDither(ImageDitherEngine ditherEngine) {
+    private void configureBrendanDither(ImageDitherEngine ditherEngine) {
         int[][] coefficients = new int[][]{
-            {0, 0, 0}, {0, 1, 0}, {0, 1, 1}, {0, 1, 0}, {1, 0, 0}};
+            {0, 2, 1}, {0, 1, 0}, {0, 4, 4}, {1, 1, 0}, {4, 2, 0}};
         ditherEngine.setCoefficients(coefficients);
-        ditherEngine.setDivisor(8);
+        ditherEngine.setDivisor(27);
     }
 
     private void fillColor(WritableImage img, Color color) {
@@ -206,7 +209,7 @@ public class ImageDitheringTest {
 
     private WritableImage getTestConversion(ImageDitherEngine dither, WritableImage source) {
         dither.setSourceImage(source);
-        configureAtkinsonDither(dither);
+        configureBrendanDither(dither);
         dither.dither(true);
         return dither.getPreviewImage();
     }

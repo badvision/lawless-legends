@@ -329,7 +329,7 @@ public class ImageConversionWizardController implements Initializable {
                 1, 3, 5, 3, 1
         );
 //        setDivisor(48);
-        setDivisor(50);
+        setDivisor(57);
     }
 
     @FXML
@@ -340,7 +340,7 @@ public class ImageConversionWizardController implements Initializable {
                 1, 2, 4, 2, 1
         );
 //        setDivisor(42);
-        setDivisor(44);
+        setDivisor(52);
     }
 
     @FXML
@@ -360,7 +360,7 @@ public class ImageConversionWizardController implements Initializable {
                 2, 4, 8, 4, 2,
                 0, 0, 0, 0, 0
         );
-        setDivisor(34);
+        setDivisor(37);
 //        setDivisor(32);
     }
 
@@ -372,7 +372,7 @@ public class ImageConversionWizardController implements Initializable {
                 0, 2, 3, 2, 0
         );
 //        setDivisor(32);
-        setDivisor(34);
+        setDivisor(41);
     }
 
     @FXML

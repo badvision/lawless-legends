@@ -66,54 +66,54 @@ public class ImageDitheringTest {
         assertEquals(255.0 * Math.sqrt(3.0), maxDist, 0.01);
     }
 
-    /*
      @Test
-     public void blackTest() {
-     WritableImage blackSource = new WritableImage(560, 192);
-     fillColor(blackSource, Color.BLACK);
-     WritableImage blackConverted = getTestConversion(hgrDither, blackSource);            
-     assertExactImage(blackSource, blackConverted);
+     public void blackTestHGR() {
+         testSolidColor(Color.BLACK, hgrDither, 0.0);
+     }
+     @Test
+     public void blackTestDHGR() {
+         testSolidColor(Color.BLACK, dhgrDither, 0.0);
+     }
+     @Test
+     public void whiteTestHGR() {
+         testSolidColor(Color.WHITE, hgrDither, 3.0);
+     }
+     @Test
+     public void whiteTestDHGR() {
+         testSolidColor(Color.WHITE, dhgrDither, 3.0);
      }
 
-     @Test
-     public void whiteTest() {
-     WritableImage whiteSource = new WritableImage(560, 192);
-     fillColor(whiteSource, Color.WHITE);
-     WritableImage whiteConverted = getTestConversion(hgrDither, whiteSource);            
-     assertLowError(whiteSource, whiteConverted, 16, 1.0);
-     }
-     */
     @Test
     public void grayHGRTest() {
-        testSolidColor(new Color(0.5f, 0.5f, 0.5f, 1.0f), hgrDither, 3.0);
+        testSolidColor(new Color(0.5f, 0.5f, 0.5f, 1.0f), hgrDither, 100.0);
     }
     @Test
     public void grayDHGRTest() {
-        testSolidColor(new Color(0.5f, 0.5f, 0.5f, 1.0f), dhgrDither, 3.0);
+        testSolidColor(new Color(0.5f, 0.5f, 0.5f, 1.0f), dhgrDither, 100.0);
     }
     @Test
     public void redHGRTest() {
-        testSolidColor(new Color(1f, 0f, 0f, 1.0f), hgrDither, 3.0);
+        testSolidColor(new Color(1f, 0f, 0f, 1.0f), hgrDither, 100.0);
     }
     @Test
     public void redDHGRTest() {
-        testSolidColor(new Color(1f, 0f, 0f, 1.0f), dhgrDither, 3.0);
+        testSolidColor(new Color(1f, 0f, 0f, 1.0f), dhgrDither, 100.0);
     }
     @Test
     public void greenHGRTest() {
-        testSolidColor(new Color(0f, 1f, 0f, 1.0f), hgrDither, 3.0);
+        testSolidColor(new Color(0f, 1f, 0f, 1.0f), hgrDither, 100.0);
     }
     @Test
     public void greenDHGRTest() {
-        testSolidColor(new Color(0f, 1f, 0f, 1.0f), dhgrDither, 3.0);
+        testSolidColor(new Color(0f, 1f, 0f, 1.0f), dhgrDither, 100.0);
     }
     @Test
     public void blueHGRTest() {
-        testSolidColor(new Color(0f, 0f, 1f, 1.0f), hgrDither, 3.0);
+        testSolidColor(new Color(0f, 0f, 1f, 1.0f), hgrDither, 100.0);
     }
     @Test
     public void blueDHGRTest() {
-        testSolidColor(new Color(0f, 0f, 1f, 1.0f), dhgrDither, 3.0);
+        testSolidColor(new Color(0f, 0f, 1f, 1.0f), dhgrDither, 100.0);
     }
 
     
@@ -169,7 +169,7 @@ public class ImageDitheringTest {
     public double averageErrorForRegion(Image img1, Image img2, int x1, int x2, int y1, int y2) {
         int[] col1 = getAverageColor(img1, x1, x2, y1, y2);
         int[] col2 = getAverageColor(img2, x1, x2, y1, y2);
-        return Palette.distance_linear(col1, col2);
+        return Palette.distance(col1, col2);
     }
 
     public int[] getAverageColor(Image img, int x1, int x2, int y1, int y2) {
@@ -179,9 +179,9 @@ public class ImageDitheringTest {
             for (int y = y1; y < y2 && y < img.getHeight(); y++) {
                 int color = img.getPixelReader().getArgb(x, y) & 0x0ffffff;
                 int[] col = Palette.parseIntColor(color);
-                colors[0] += col[0];
-                colors[1] += col[1];
-                colors[2] += col[2];
+                colors[0] += (long) col[0];
+                colors[1] += (long) col[1];
+                colors[2] += (long) col[2];
                 pixelCount++;
             }
         }
@@ -194,9 +194,9 @@ public class ImageDitheringTest {
 
     private void configureBrendanDither(ImageDitherEngine ditherEngine) {
         int[][] coefficients = new int[][]{
-            {0, 2, 1}, {0, 1, 0}, {0, 4, 4}, {1, 1, 0}, {4, 2, 0}};
+            {0, 8, 0}, {0, 16, 4}, {0, 32, 8}, {32, 16, 4}, {24, 8, 0}};
         ditherEngine.setCoefficients(coefficients);
-        ditherEngine.setDivisor(27);
+        ditherEngine.setDivisor(240);
     }
 
     private void fillColor(WritableImage img, Color color) {

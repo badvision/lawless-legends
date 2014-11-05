@@ -51,7 +51,7 @@ public class ImageDitherEngine {
     int pixelRenderWidth;
     final int errorWindow = 6;
     final int overlap = 3;
-    final int pixelShiftHgr = -2;
+    final int pixelShiftHgr = -1;
     final int pixelShiftDhgr = -2;
     WritableImage source;
     byte[] screen;
@@ -161,6 +161,7 @@ public class ImageDitherEngine {
             int b1 = (hi << 7);
             long totalError = 0;
             for (int c = 0; c < 7; c++) {
+                int xx = x * 14 + c * 2;
                 int on = b1 | (1 << c);
                 int off = on ^ (1 << c);
                 // get values for "off"
@@ -168,7 +169,7 @@ public class ImageDitherEngine {
                 scanline[0] = i;
                 i = hgrToDhgr[(i & 0x010000000) >> 20 | off][bb2];
                 scanline[1] = i;
-                double errorOff = getError(x * 14 - overlap + c * 2, y, 28 + c * 2 - overlap + pixelShiftHgr, errorWindow, tertriaryScratchBuffer, scanline);
+                double errorOff = getError(xx - overlap, y, 28 + c * 2 - overlap + pixelShiftHgr, errorWindow, tertriaryScratchBuffer, scanline);
                 int off1 = pixels.get(c * 2 + 28 + pixelShiftHgr);
                 int off2 = pixels.get(c * 2 + 29 + pixelShiftHgr);
                 // get values for "on"
@@ -176,7 +177,7 @@ public class ImageDitherEngine {
                 scanline[0] = i;
                 i = hgrToDhgr[(i & 0x010000000) >> 20 | on][bb2];
                 scanline[1] = i;
-                double errorOn = getError(x * 14 - overlap + c * 2, y, 28 + c * 2 - overlap + pixelShiftHgr, errorWindow, tertriaryScratchBuffer, scanline);
+                double errorOn = getError(xx - overlap, y, 28 + c * 2 - overlap + pixelShiftHgr, errorWindow, tertriaryScratchBuffer, scanline);
                 int on1 = pixels.get(c * 2 + 28 + pixelShiftHgr);
                 int on2 = pixels.get(c * 2 + 29 + pixelShiftHgr);
                 int[] col1;
@@ -193,8 +194,8 @@ public class ImageDitherEngine {
                     col2 = Palette.parseIntColor(on2);
                 }
                 if (propagateError) {
-                    propagateError(x * 14 + c * 2 + pixelShiftHgr, y, tertriaryScratchBuffer, col1);
-                    propagateError(x * 14 + c * 2 + 1 + pixelShiftHgr, y, tertriaryScratchBuffer, col2);
+                    propagateError(xx + pixelShiftHgr, y, tertriaryScratchBuffer, col1);
+                    propagateError(xx + 1 + pixelShiftHgr, y, tertriaryScratchBuffer, col2);
                 }
             }
             if (totalError < leastError) {
@@ -211,20 +212,21 @@ public class ImageDitherEngine {
             int b2 = (hi << 7);
             long totalError = 0;
             for (int c = 0; c < 7; c++) {
+                int xx = x * 14 + c * 2 + 14;
                 int on = b2 | (1 << c);
                 int off = on ^ (1 << c);
                 // get values for "off"
                 int i = hgrToDhgr[bb1][off];
                 scanline[0] = i;
                 scanline[1] = hgrToDhgr[(i & 0x010000000) >> 20 | next][0];
-                double errorOff = getError(x * 14 + 14 - overlap + c * 2, y, 14 + c * 2 - overlap + pixelShiftHgr, errorWindow, tertriaryScratchBuffer, scanline);
+                double errorOff = getError(xx - overlap, y, 14 + c * 2 - overlap + pixelShiftHgr, errorWindow, tertriaryScratchBuffer, scanline);
                 int off1 = pixels.get(c * 2 + 14 + pixelShiftHgr);
                 int off2 = pixels.get(c * 2 + 15 + pixelShiftHgr);
                 // get values for "on"
                 i = hgrToDhgr[bb1][on];
                 scanline[0] = i;
                 scanline[1] = hgrToDhgr[(i & 0x010000000) >> 20 | next][0];
-                double errorOn = getError(x * 14 + 14 - overlap + c * 2, y, 14 + c * 2 - overlap + pixelShiftHgr, errorWindow, tertriaryScratchBuffer, scanline);
+                double errorOn = getError(xx - overlap, y, 14 + c * 2 - overlap + pixelShiftHgr, errorWindow, tertriaryScratchBuffer, scanline);
                 int on1 = pixels.get(c * 2 + 14 + pixelShiftHgr);
                 int on2 = pixels.get(c * 2 + 15 + pixelShiftHgr);
                 int[] col1;
@@ -241,8 +243,8 @@ public class ImageDitherEngine {
                     col2 = Palette.parseIntColor(on2);
                 }
                 if (propagateError) {
-                    propagateError(x * 14 + c * 2 + 14 + pixelShiftHgr, y, tertriaryScratchBuffer, col1);
-                    propagateError(x * 14 + c * 2 + 15 + pixelShiftHgr, y, tertriaryScratchBuffer, col2);
+                    propagateError(xx + pixelShiftHgr, y, tertriaryScratchBuffer, col1);
+                    propagateError(xx + 1 + pixelShiftHgr, y, tertriaryScratchBuffer, col2);
                 }
             }
             if (totalError < leastError) {
@@ -407,8 +409,9 @@ public class ImageDitherEngine {
 
     private void copyBuffer(int[][][] source, int[][][] target, int start, int end) {
         for (int y=start; y < end && y < source.length; y++) {
-            for (int x=0; x < source[y].length; x++) {
-                target[y][x] = Arrays.copyOf(source[y][x], 3);
+            int width = source[y].length;
+            for (int x=0; x < width; x++) {
+                System.arraycopy(source[y][x], 0, target[y][x], 0, 3);
             }
         }
     }

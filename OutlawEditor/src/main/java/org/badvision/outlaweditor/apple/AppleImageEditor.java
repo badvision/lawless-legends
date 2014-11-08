@@ -32,7 +32,7 @@ import org.badvision.outlaweditor.data.xml.PlatformData;
  */
 public class AppleImageEditor extends ImageEditor implements EventHandler<MouseEvent> {
 
-    public int[] currentFillPattern = FillPattern.White.bytePattern;
+    public int[] currentFillPattern = FillPattern.White_PC.bytePattern;
     public boolean hiBitMatters = true;
     protected DrawMode currentDrawMode = DrawMode.Pencil1px;
     protected WritableImage currentImage;
@@ -136,9 +136,13 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
                 break;
             }
         }
-        redraw();
     }
 
+    public void setDataAndRedraw(byte[] data) {
+        setData(data);
+        redraw();
+    }
+    
     @Override
     public void togglePanZoom() {
         anchorPane.getChildren().stream().filter((n) -> !(n == screen)).forEach((n) -> {
@@ -390,7 +394,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
         if (Clipboard.getSystemClipboard().hasContent(DataFormat.IMAGE)) {
             javafx.scene.image.Image image = Clipboard.getSystemClipboard().getImage();
             
-            importImage(image);
+            importImage(image);            
         }
     }
     //selection/map/2/x1/0/y1/0/x2/19/y2/11
@@ -431,7 +435,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     private void importImage(javafx.scene.image.Image image) {
         ImageDitherEngine ditherEngine = new ImageDitherEngine(getPlatform());
         ditherEngine.setTargetCoordinates(0,0);
-        UIAction.openImageConversionModal(image, ditherEngine, getWidth(), getHeight(), this::setData);
+        UIAction.openImageConversionModal(image, ditherEngine, getWidth(), getHeight(), this::setDataAndRedraw);
     }
 
     private int calculateHiresOffset(int y) {

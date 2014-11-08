@@ -50,16 +50,16 @@ public class AppleDHGRImageRenderer extends AppleImageRenderer {
         return buffer;
     }
 
-//    @Override
-//    public WritableImage renderImage(WritableImage img, byte[] rawImage) {
-//        if (img == null) {
-//            img = new WritableImage(560, 384);
-//        }
-//        for (int y = 0; y < 192; y++) {
-//            renderScanline(img, y, rawImage);
-//        }
-//        return img;
-//    }
+    @Override
+    public WritableImage renderImage(WritableImage img, byte[] rawImage, int width, int height) {
+        if (img == null) {
+            img = new WritableImage(width * 7, height * 2);
+        }
+        for (int y = 0; y < height; y++) {
+            renderScanline(img, y, width, rawImage);
+        }
+        return img;
+    }
 
     @Override
     public WritableImage renderScanline(WritableImage img, int y, int width, byte[] rawImage) {

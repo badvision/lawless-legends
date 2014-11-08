@@ -4,7 +4,6 @@ import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.canvas.Canvas;
@@ -84,9 +83,7 @@ public class ImageDitherEngine {
     }
 
     public WritableImage getPreviewImage() {
-        WritableImage out = new WritableImage(pixelRenderWidth, height * 2);
-        platform.imageRenderer.renderImage(out, screen, bufferWidth, height);
-        return out;
+        return platform.imageRenderer.renderImage(null, screen, bufferWidth, height);
     }
 
     public void setOutputDimensions(int width, int height) {

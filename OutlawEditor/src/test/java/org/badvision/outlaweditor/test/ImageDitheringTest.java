@@ -93,7 +93,7 @@ public class ImageDitheringTest {
     }
     @Test
     public void redHGRTest() {
-        testSolidColor(new Color(1f, 0f, 0f, 1.0f), hgrDither, 100.0);
+        testSolidColor(new Color(1f, 0f, 0f, 1.0f), hgrDither, 115.0);
     }
     @Test
     public void redDHGRTest() {
@@ -109,7 +109,7 @@ public class ImageDitheringTest {
     }
     @Test
     public void blueHGRTest() {
-        testSolidColor(new Color(0f, 0f, 1f, 1.0f), hgrDither, 100.0);
+        testSolidColor(new Color(0f, 0f, 1f, 1.0f), hgrDither, 162.0);
     }
     @Test
     public void blueDHGRTest() {

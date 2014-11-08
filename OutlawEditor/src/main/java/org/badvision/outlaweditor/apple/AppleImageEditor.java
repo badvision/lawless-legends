@@ -105,6 +105,10 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     public void redraw() {
         System.out.println("Redraw " + getPlatform().name());
         currentImage = getPlatform().imageRenderer.renderImage(currentImage, getImageData(), getWidth(), getHeight());
+        fixPanArrows();
+    }
+
+    public void fixPanArrows() {
         anchorPane.getChildren().get(1).setLayoutX((anchorPane.getWidth() - 30) / 2);
         anchorPane.getChildren().get(2).setLayoutY((anchorPane.getHeight() - 30) / 2);
         anchorPane.getChildren().get(3).setLayoutX((anchorPane.getWidth() - 30) / 2);
@@ -152,10 +156,11 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
 
     @Override
     public void scrollBy(int deltaX, int deltaY) {
-        posX += deltaX * 10;
-        posY += deltaY * 10;
+        posX += deltaX * 20;
+        posY += deltaY * 20;
         posX = Math.max(0, posX);
         posY = Math.max(0, posY);
+        updatePanTranslation();
         redraw();
     }
 
@@ -194,9 +199,13 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
         // Scale the image and move it so the upper-left corner is still in the right place.
         screen.setScaleX(zoom);
         screen.setScaleY(zoom);
-        screen.setTranslateX(getWidth()*7 * (zoom-1));
-        screen.setTranslateY(getHeight() * (zoom-1));
+        updatePanTranslation();
         redraw();
+    }
+
+    public void updatePanTranslation() {
+        screen.setTranslateX((posX - getWidth()*7) * (zoom-1));
+        screen.setTranslateY((posY - getHeight()) * (zoom-1));
     }
 
     @Override

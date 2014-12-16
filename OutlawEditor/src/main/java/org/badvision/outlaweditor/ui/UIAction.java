@@ -139,7 +139,11 @@ public class UIAction {
     }
 
     public static void quit() {
-        confirm("Quit?  Are you sure?", Platform::exit, null);
+        confirm("Quit?  Are you sure?", UIAction::quitWithoutConfirming, null);
+    }
+    
+    public static void quitWithoutConfirming() {
+        Platform.runLater(Platform::exit);
     }
 
     static Image badImage;

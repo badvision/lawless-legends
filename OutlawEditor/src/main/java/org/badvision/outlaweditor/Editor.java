@@ -1,6 +1,6 @@
 package org.badvision.outlaweditor;
 
-import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.Pane;
 import org.badvision.outlaweditor.data.DataObserver;
 import org.badvision.outlaweditor.data.DataProducer;
 import org.badvision.outlaweditor.data.xml.Script;
@@ -28,7 +28,7 @@ public abstract class Editor<T, D> implements DataObserver<T> {
 
     abstract public void showShiftUI();
 
-    abstract public void buildEditorUI(AnchorPane tileEditorAnchorPane);
+    abstract public void buildEditorUI(Pane targetPane);
 
     abstract public void unregister();
 

@@ -6,14 +6,14 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<AnchorPane id="tilesTab" minHeight="0.0" minWidth="0.0" prefHeight="420.0" prefWidth="677.0" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.badvision.outlaweditor.ui.impl.ImageEditorTabControllerImpl">
+<AnchorPane id="tilesTab" minHeight="0.0" minWidth="0.0" prefHeight="420.0" prefWidth="677.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.badvision.outlaweditor.ui.impl.ImageEditorTabControllerImpl">
     <children>
         <VBox prefHeight="420.0000999999975" prefWidth="677.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
             <children>
                 <ToolBar prefWidth="686.0">
                     <items>
                         <Label text="Image:" />
-                        <ComboBox id="tileSelect" fx:id="imageSelector" onAction="#onImageSelected"/>
+                        <ComboBox id="tileSelect" fx:id="imageSelector" onAction="#onImageSelected" />
                         <Button mnemonicParsing="false" onAction="#onImageCreatePressed" text="Create new" />
                         <Button mnemonicParsing="false" onAction="#onImageClonePressed" text="Clone" />
                         <Button mnemonicParsing="false" onAction="#onImageExportPressed" text="Export" />
@@ -52,12 +52,21 @@
                         </AnchorPane>
                         <AnchorPane id="mapEditorAnchorPane" fx:id="imageEditorAnchorPane" prefHeight="389.0" prefWidth="477.0" HBox.hgrow="ALWAYS">
                             <children>
-                                <Button layoutX="236.0" mnemonicParsing="false" onAction="#scrollImageUp" styleClass="moveButton" text="Up" AnchorPane.topAnchor="5.0" />
-                                <Button layoutY="185.0" mnemonicParsing="false" onAction="#scrollImageLeft" rotate="270.0" styleClass="moveButton" text="Left" AnchorPane.leftAnchor="-20.0" />
-                                <Button layoutX="236.0" mnemonicParsing="false" onAction="#scrollImageDown" rotate="180.0" styleClass="moveButton" text="Down" AnchorPane.bottomAnchor="5.0" />
-                                <Button layoutY="175.0" mnemonicParsing="false" onAction="#scrollImageRight" rotate="90.0" styleClass="moveButton" text="Right" AnchorPane.rightAnchor="-15.0" />
-                                <Button mnemonicParsing="false" onAction="#imageZoomIn" styleClass="zoomInButton" text="+" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="5.0" />
-                                <Button mnemonicParsing="false" onAction="#imageZoomOut" prefHeight="23.999908447265625" styleClass="zoomOutButton" text="-" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="30.0" />
+                        <ScrollPane fx:id="imageEditorScrollPane" prefHeight="200.0" prefWidth="200.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                           <content>
+                              <Group>
+                                 <children>
+                                    <Group fx:id="imageEditorZoomGroup">
+                                       <children>
+                                          <AnchorPane fx:id="imageEditorScrollAnchorPane" prefHeight="354.0" prefWidth="446.0" />
+                                       </children>
+                                    </Group>
+                                 </children>
+                              </Group>
+                           </content>
+                        </ScrollPane>
+                                <Button layoutX="433.0" layoutY="5.0" mnemonicParsing="false" onAction="#imageZoomIn" styleClass="zoomInButton" text="+" AnchorPane.rightAnchor="18.0" AnchorPane.topAnchor="5.0" />
+                                <Button layoutX="435.0" layoutY="37.0" mnemonicParsing="false" onAction="#imageZoomOut" prefHeight="23.999908447265625" styleClass="zoomOutButton" text="-" AnchorPane.rightAnchor="18.0" AnchorPane.topAnchor="37.0" />
                             </children>
                         </AnchorPane>
                     </children>

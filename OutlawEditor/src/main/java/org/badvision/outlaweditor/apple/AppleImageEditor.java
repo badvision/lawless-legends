@@ -14,7 +14,7 @@ import javafx.scene.image.WritableImage;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import org.badvision.outlaweditor.Application;
@@ -36,7 +36,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     public boolean hiBitMatters = true;
     protected DrawMode currentDrawMode = DrawMode.Pencil1px;
     protected WritableImage currentImage;
-    protected AnchorPane anchorPane;
+    protected Pane anchorPane;
     protected ImageView screen;
     protected int posX = 0;
     protected int posY = 0;
@@ -49,7 +49,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     }
 
     @Override
-    public void buildEditorUI(AnchorPane editorAnchorPane) {
+    public void buildEditorUI(Pane editorAnchorPane) {
         anchorPane = editorAnchorPane;
         redraw();
         screen = new ImageView(currentImage);
@@ -105,15 +105,8 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     public void redraw() {
         System.out.println("Redraw " + getPlatform().name());
         currentImage = getPlatform().imageRenderer.renderImage(currentImage, getImageData(), getWidth(), getHeight());
-        fixPanArrows();
     }
 
-    public void fixPanArrows() {
-        anchorPane.getChildren().get(1).setLayoutX((anchorPane.getWidth() - 30) / 2);
-        anchorPane.getChildren().get(2).setLayoutY((anchorPane.getHeight() - 30) / 2);
-        anchorPane.getChildren().get(3).setLayoutX((anchorPane.getWidth() - 30) / 2);
-        anchorPane.getChildren().get(4).setLayoutY((anchorPane.getHeight() - 30) / 2);
-    }
     private byte[] imageData = null;
 
     public byte[] getImageData() {
@@ -146,22 +139,12 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
         setData(data);
         redraw();
     }
-    
+
     @Override
     public void togglePanZoom() {
         anchorPane.getChildren().stream().filter((n) -> !(n == screen)).forEach((n) -> {
             n.setVisible(!n.isVisible());
         });
-    }
-
-    @Override
-    public void scrollBy(int deltaX, int deltaY) {
-        posX += deltaX * 20;
-        posY += deltaY * 20;
-        posX = Math.max(0, posX);
-        posY = Math.max(0, posY);
-        updatePanTranslation();
-        redraw();
     }
 
     @Override
@@ -182,30 +165,14 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
         }
     }
 
-    private void zoom(double delta) {
-        double oldZoom = zoom;
-        zoom += delta;
-        zoom = Math.min(Math.max(0.15, zoom), 4.0);
-//                    double left = mapEditorScroll.getHvalue();
-//                    double top = mapEditorScroll.getVvalue();
-//
-//                    double pointerX = t.getX();
-//                    double pointerY = t.getY();
-//
-        double ratio = zoom / oldZoom;
-//
-//                    double newLeft = (left + pointerX) * ratio - pointerX;
-//                    double newTop = (top + pointerY) * ratio - pointerY;
-        // Scale the image and move it so the upper-left corner is still in the right place.
-        screen.setScaleX(zoom);
-        screen.setScaleY(zoom);
-        updatePanTranslation();
-        redraw();
+    @Override
+    public double getZoomScale() {
+        return zoom;
     }
 
-    public void updatePanTranslation() {
-        screen.setTranslateX((posX - getWidth()*7) * (zoom-1));
-        screen.setTranslateY((posY - getHeight()) * (zoom-1));
+    private void zoom(double delta) {
+        zoom += delta;
+        zoom = Math.min(Math.max(0.15, zoom), 4.0);
     }
 
     @Override
@@ -402,8 +369,8 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
         }
         if (Clipboard.getSystemClipboard().hasContent(DataFormat.IMAGE)) {
             javafx.scene.image.Image image = Clipboard.getSystemClipboard().getImage();
-            
-            importImage(image);            
+
+            importImage(image);
         }
     }
     //selection/map/2/x1/0/y1/0/x2/19/y2/11
@@ -443,7 +410,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
 
     private void importImage(javafx.scene.image.Image image) {
         ImageDitherEngine ditherEngine = new ImageDitherEngine(getPlatform());
-        ditherEngine.setTargetCoordinates(0,0);
+        ditherEngine.setTargetCoordinates(0, 0);
         UIAction.openImageConversionModal(image, ditherEngine, getWidth(), getHeight(), this::setDataAndRedraw);
     }
 
@@ -469,11 +436,9 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
         if (out == null) {
             return;
         }
-        try {
-            FileOutputStream outStream = new FileOutputStream(out);
+        try (FileOutputStream outStream = new FileOutputStream(out)) {
             outStream.write(output);
             outStream.flush();
-            outStream.close();
         } catch (IOException ex) {
             Logger.getLogger(AppleImageEditor.class.getName()).log(Level.SEVERE, null, ex);
         }

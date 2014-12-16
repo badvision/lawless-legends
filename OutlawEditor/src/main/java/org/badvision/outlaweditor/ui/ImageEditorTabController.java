@@ -2,9 +2,10 @@ package org.badvision.outlaweditor.ui;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.scene.control.CheckBox;
+import javafx.scene.Group;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Menu;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.AnchorPane;
 import org.badvision.outlaweditor.Editor;
@@ -20,6 +21,12 @@ public abstract class ImageEditorTabController {
     protected TextField imageCategoryField; // Value injected by FXMLLoader
     @FXML // fx:id="imageEditorAnchorPane"
     protected AnchorPane imageEditorAnchorPane; // Value injected by FXMLLoader
+    @FXML
+    protected ScrollPane imageEditorScrollPane;
+    @FXML
+    protected Group imageEditorZoomGroup;
+    @FXML
+    protected AnchorPane imageEditorScrollAnchorPane;
     @FXML // fx:id="imageHeightField"
     protected TextField imageHeightField; // Value injected by FXMLLoader
     @FXML // fx:id="imageNameField"
@@ -40,6 +47,9 @@ public abstract class ImageEditorTabController {
         assert imagePatternMenu != null : "fx:id=\"imagePatternMenu\" was not injected: check your FXML file 'ApplicationUI.fxml'.";
         assert imageSelector != null : "fx:id=\"imageSelector\" was not injected: check your FXML file 'ApplicationUI.fxml'.";
         assert imageWidthField != null : "fx:id=\"imageWidthField\" was not injected: check your FXML file 'ApplicationUI.fxml'.";
+        assert imageEditorScrollPane != null : "fx:id\"imageEditorScrollPane\" was not injected: check your FXML file 'ApplicationUI.fxml'";
+        assert imageEditorZoomGroup != null : "fx:id\"imageEditorZoomGroup\" was not injected: check your FXML file 'ApplicationUI.fxml'";
+        assert imageEditorScrollAnchorPane != null : "fx:id\"imageEditorScrollAnchorPane\" was not injected: check your FXML file 'ApplicationUI.fxml'";
     }
 
     abstract public void rebuildImageSelector();
@@ -95,21 +105,6 @@ public abstract class ImageEditorTabController {
     @FXML
     abstract public void onImageSelected(ActionEvent event);
 
-    // Handler for Button[Button[id=null, styleClass=button moveButton]] onAction
-    @FXML
-    abstract public void scrollImageDown(ActionEvent event);
-
-    // Handler for Button[Button[id=null, styleClass=button moveButton]] onAction
-    @FXML
-    abstract public void scrollImageLeft(ActionEvent event);
-
-    // Handler for Button[Button[id=null, styleClass=button moveButton]] onAction
-    @FXML
-    abstract public void scrollImageRight(ActionEvent event);
-
-    // Handler for Button[Button[id=null, styleClass=button moveButton]] onAction
-    @FXML
-    abstract public void scrollImageUp(ActionEvent event);
 
     @FXML
     abstract public void imageDraw5BitMode(ActionEvent event);

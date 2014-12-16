@@ -113,6 +113,7 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
     public void imageZoomIn(ActionEvent event) {
         if (currentImageEditor != null) {
             currentImageEditor.zoomIn();
+            updateScrollAreaWithScale(currentImageEditor.getZoomScale());
         }
     }
 
@@ -120,6 +121,7 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
     public void imageZoomOut(ActionEvent event) {
         if (currentImageEditor != null) {
             currentImageEditor.zoomOut();
+            updateScrollAreaWithScale(currentImageEditor.getZoomScale());
         }
     }
 
@@ -162,34 +164,6 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
         setCurrentImage(imageSelector.getSelectionModel().getSelectedItem());
     }
 
-    @Override
-    public void scrollImageDown(ActionEvent event) {
-        if (currentImageEditor != null) {
-            currentImageEditor.scrollBy(0, 1);
-        }
-    }
-
-    @Override
-    public void scrollImageLeft(ActionEvent event) {
-        if (currentImageEditor != null) {
-            currentImageEditor.scrollBy(-1, 0);
-        }
-    }
-
-    @Override
-    public void scrollImageRight(ActionEvent event) {
-        if (currentImageEditor != null) {
-            currentImageEditor.scrollBy(1, 0);
-        }
-    }
-
-    @Override
-    public void scrollImageUp(ActionEvent event) {
-        if (currentImageEditor != null) {
-            currentImageEditor.scrollBy(0, -1);
-        }
-    }
-
     private void setCurrentImage(Image i) {
         if (currentImage != null && currentImage.equals(i)) {
             return;
@@ -229,7 +203,7 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
                 Logger.getLogger(ApplicationUIControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
             }
             currentImageEditor.setEntity(i);
-            currentImageEditor.buildEditorUI(imageEditorAnchorPane);
+            currentImageEditor.buildEditorUI(imageEditorScrollAnchorPane);
             currentImageEditor.buildPatternSelector(imagePatternMenu);
         }
     }
@@ -244,5 +218,14 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
         imageSelector.getItems().clear();
         imageSelector.getItems().addAll(Application.gameData.getImage());
         imageSelector.getSelectionModel().select(i);
+    }
+
+    private void updateScrollAreaWithScale(double zoomScale) {
+        double hval = imageEditorScrollPane.getHvalue();
+        double vval = imageEditorScrollPane.getVvalue();
+        imageEditorZoomGroup.setScaleX(zoomScale);
+        imageEditorZoomGroup.setScaleY(zoomScale);
+        imageEditorScrollPane.setHvalue(hval);
+        imageEditorScrollPane.setVvalue(vval);
     }
 }

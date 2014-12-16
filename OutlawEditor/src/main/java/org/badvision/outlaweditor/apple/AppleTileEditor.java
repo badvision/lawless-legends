@@ -6,7 +6,7 @@ import javafx.scene.control.Menu;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.Shape;
@@ -34,7 +34,7 @@ public class AppleTileEditor extends TileEditor {
     }
 
     @Override
-    public void buildEditorUI(AnchorPane tileEditorAnchorPane) {
+    public void buildEditorUI(Pane tileEditorAnchorPane) {
         grid = new Rectangle[14][16];
         gridGroup = new Group();
         for (int y = 0; y < 16; y++) {
@@ -42,17 +42,11 @@ public class AppleTileEditor extends TileEditor {
                 final int xx = x;
                 final int yy = y;
                 Rectangle rect = new Rectangle(zoom * x + 5, zoom * y + 5, zoom - 2, zoom - 2);
-                rect.setOnMouseDragged(new EventHandler<MouseEvent>() {
-                    @Override
-                    public void handle(MouseEvent t) {
-                        performDragAction((int) (t.getX() / zoom), (int) (t.getY() / zoom));
-                    }
+                rect.setOnMouseDragged((MouseEvent t) -> {
+                    performDragAction((int) (t.getX() / zoom), (int) (t.getY() / zoom));
                 });
-                rect.setOnMousePressed(new EventHandler<MouseEvent>() {
-                    @Override
-                    public void handle(MouseEvent t) {
-                        handleMouse(t, xx, yy);
-                    }
+                rect.setOnMousePressed((MouseEvent t) -> {
+                    handleMouse(t, xx, yy);
                 });
                 grid[x][y] = rect;
                 gridGroup.getChildren().add(rect);
@@ -146,11 +140,8 @@ public class AppleTileEditor extends TileEditor {
 
     @Override
     public void buildPatternSelector(Menu tilePatternMenu) {
-        FillPattern.buildMenu(tilePatternMenu, new DataObserver<FillPattern>() {
-            @Override
-            public void observedObjectChanged(FillPattern object) {
-                changeCurrentPattern(object);
-            }
+        FillPattern.buildMenu(tilePatternMenu, (FillPattern object) -> {
+            changeCurrentPattern(object);
         });
     }
 

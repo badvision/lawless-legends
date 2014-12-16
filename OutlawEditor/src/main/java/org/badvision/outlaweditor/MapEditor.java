@@ -19,7 +19,7 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
-import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
@@ -37,7 +37,7 @@ import org.badvision.outlaweditor.ui.ToolType;
  */
 public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventHandler<MouseEvent> {
 
-    AnchorPane anchorPane;
+    Pane anchorPane;
     Canvas drawCanvas;
     private Tile currentTile;
     int posX = 0;
@@ -80,7 +80,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     }
 
     @Override
-    public void buildEditorUI(AnchorPane tileEditorAnchorPane) {
+    public void buildEditorUI(Pane tileEditorAnchorPane) {
         anchorPane = tileEditorAnchorPane;
         initCanvas();
         redraw();

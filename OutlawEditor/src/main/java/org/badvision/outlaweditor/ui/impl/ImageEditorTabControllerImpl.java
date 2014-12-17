@@ -205,6 +205,8 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
             currentImageEditor.setEntity(i);
             currentImageEditor.buildEditorUI(imageEditorScrollAnchorPane);
             currentImageEditor.buildPatternSelector(imagePatternMenu);
+            imageEditorZoomGroup.setScaleX(1.0);
+            imageEditorZoomGroup.setScaleY(1.0);
         }
     }
 

@@ -214,7 +214,7 @@ public class UIAction {
     }
     
     public static ImageConversionWizardController openImageConversionModal(Image image, ImageDitherEngine ditherEngine, int targetWidth, int targetHeight, ImageConversionPostAction postAction) {
-        FXMLLoader fxmlLoader = new FXMLLoader(UIAction.class.getResource("/fxml/ImageConversionWizard.fxml"));
+        FXMLLoader fxmlLoader = new FXMLLoader(UIAction.class.getResource("/imageConversionWizard.fxml"));
         try {
             Stage primaryStage = new Stage();
             AnchorPane node = (AnchorPane) fxmlLoader.load();

@@ -1,16 +1,16 @@
 Outlaw Editor
 =============
 
-This is a multi-platform RPG game editor.  It is written in (and requires) Java 7 and JavaFX 2.2 to run.  There are no external dependencies, but it is important that you install JavaFX 2.2 as per Oracle's instructions so that the java runtime can find the JavaFX libraries automatically.
+This is a multi-platform RPG game editor.  It is written in (and requires) Java 8 to run.  There are no external dependencies.
 
 Download
 --------
-The most recent copy of Outlaw Editor (aka the Daily build) can be found here: https://www.dropbox.com/s/2bhoxqrqjjehmqb/OutlawEditor-jfx.jar
+The most recent copy of Outlaw Editor (aka the Daily build) can be found here: https://www.dropbox.com/s/zrystud66myzlwa/OutlawEditor-jfx.jar
 
 Running the program
 -------------------
 
-There are no dependencies outside of JavaFX (which will be part of Java in the 8.0 release) so you can start the program by executing the jar file that is built in the target/jfx/app folder "OutlawEditor-jfx.jar"   Depending on your platform you might be able to double-click it.  Or you might have to drop to the commandline and issue this command after going to that directory, like so:
+You can start the program by executing the jar file that is built in the target/jfx/app folder "OutlawEditor-jfx.jar"   Depending on your platform you might be able to double-click it.  Or you might have to drop to the commandline and issue this command after going to that directory, like so:
 
 > java -jar OutlawEditor-jfx.jar
 

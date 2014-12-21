@@ -54,11 +54,8 @@ public class Application extends javafx.application.Application {
             throw new RuntimeException(exception);
         }
 
-        primaryStage.setOnCloseRequest(new EventHandler<WindowEvent>() {
-            @Override
-            public void handle(final WindowEvent t) {
-                t.consume();
-            }
+        primaryStage.setOnCloseRequest((final WindowEvent t) -> {
+            t.consume();
         });
         primaryStage.show();
     }

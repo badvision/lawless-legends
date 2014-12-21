@@ -7,7 +7,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javafx.event.EventHandler;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.layout.AnchorPane;
@@ -46,7 +45,6 @@ public class MythosEditor {
 
     public void show() {
         primaryStage = new Stage();
-
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/MythosScriptEditor.fxml"));
         Map<String, String> properties = new HashMap<>();
         properties.put(MythosScriptEditorController.ONLOAD_SCRIPT, generateLoadScript());
@@ -61,22 +59,16 @@ public class MythosEditor {
             throw new RuntimeException(exception);
         }
 
-        primaryStage.setOnCloseRequest(new EventHandler<WindowEvent>() {
-            @Override
-            public void handle(final WindowEvent t) {
-                t.consume();
-            }
+        primaryStage.setOnCloseRequest((final WindowEvent t) -> {
+            t.consume();
         });
         primaryStage.show();
     }
 
     public void close() {
-        javafx.application.Platform.runLater(new Runnable() {
-            @Override
-            public void run() {
-                primaryStage.getScene().getRoot().setDisable(true);
-                primaryStage.close();
-            }
+        javafx.application.Platform.runLater(() -> {
+            primaryStage.getScene().getRoot().setDisable(true);
+            primaryStage.close();
         });
     }
 

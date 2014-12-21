@@ -256,7 +256,7 @@ int parse_value(int rvalue)
     }
     else if (scantoken == CLOSE_PAREN_TOKEN)
     {
-        //                type |= WORD_TYPE;
+        // type |= WORD_TYPE;
         emit_value = 1;
     }
     else
@@ -355,8 +355,8 @@ int parse_value(int rvalue)
                     }
                     else
                         (type & BPTR_TYPE) ? emit_lb() : emit_lw();
+                    emit_value = 1;
                 }
-                emit_value = 1;
                 type &= ~(VAR_TYPE | ADDR_TYPE);
                     type |= WORD_TYPE;
                 scantoken = scantoken == PTRB_TOKEN ? DOT_TOKEN : COLON_TOKEN;
@@ -387,6 +387,7 @@ int parse_value(int rvalue)
                         else // FUNC_TYPE
                         {
                             emit_globaladdr(value, elem_offset, type);
+                            elem_offset = 0;
                             emit_value = 1;
                         }
                     }
@@ -416,9 +417,10 @@ int parse_value(int rvalue)
                         }
                         else if (type & CONST_TYPE)
                         {
-                            emit_const(value);
+                            emit_const(value + elem_offset);
                         }
-                        emit_value = 1;
+                        elem_offset = 0;
+                        emit_value  = 1;
                     }
                     while (parse_expr())
                     {
@@ -442,7 +444,7 @@ int parse_value(int rvalue)
                     parse_error("Invalid member offset");
                     return (0);
                 }
-                type = elem_type; //(type & ~(ADDR_TYPE | CONST_TYPE)) | elem_type;
+                type = elem_type;
                 break;
             case OPEN_PAREN_TOKEN:
                 /*
@@ -869,7 +871,7 @@ int parse_stmnt(void)
                     emit_drop();
                 if (!parse_expr())
                     emit_const(0);
-                emit_leave(idlocal_size());
+                emit_leave();
             }
             else
             {
@@ -983,7 +985,18 @@ int parse_var(int type)
     int  consttype, constsize, arraysize, idlen = 0;
     long size = 1;
     
-    if (scan() == ID_TOKEN)
+    if (scan() == OPEN_BRACKET_TOKEN)
+    {
+        size = 0;
+        parse_constexpr(&size, &constsize);
+        if (scantoken != CLOSE_BRACKET_TOKEN)
+        {
+            parse_error("Missing closing bracket");
+            return (0);
+        }
+        scan();
+    }
+    if (scantoken == ID_TOKEN)
     {
         idstr = tokenstr;
         idlen = tokenlen;
@@ -1039,6 +1052,65 @@ int parse_var(int type)
         id_add(idstr, idlen, type, size);
     return (1);
 }
+int parse_struc(void)
+{
+    long  size;
+    int   type, constsize, offset = 0;
+    char *idstr, strucid[80];
+    int   idlen = 0, struclen = 0;
+
+    if (scan() == ID_TOKEN)
+    {
+        struclen = tokenlen;
+        for (idlen = 0; idlen < struclen; idlen++)
+            strucid[idlen] = tokenstr[idlen];
+    }
+    while (next_line() == BYTE_TOKEN || scantoken == WORD_TOKEN)
+    {
+        size = 1;
+        type = scantoken == BYTE_TOKEN ? BYTE_TYPE : WORD_TYPE;
+        if (scan() == OPEN_BRACKET_TOKEN)
+        {
+            size = 0;
+            parse_constexpr(&size, &constsize);
+            if (scantoken != CLOSE_BRACKET_TOKEN)
+            {
+                parse_error("Missing closing bracket");
+                return (0);
+            }
+            scan();
+        }
+        do {
+            idlen = 0;
+            if (scantoken == ID_TOKEN)
+            {
+                idstr = tokenstr;
+                idlen = tokenlen;
+                if (scan() == OPEN_BRACKET_TOKEN)
+                {
+                    size = 0;
+                    parse_constexpr(&size, &constsize);
+                    if (scantoken != CLOSE_BRACKET_TOKEN)
+                    {
+                        parse_error("Missing closing bracket");
+                        return (0);
+                    }
+                    scan();
+                }                   
+            }
+            if (type & WORD_TYPE)
+                size *= 2;
+            if (idlen)
+                idconst_add(idstr, idlen, offset);
+            offset += size;
+        } while (scantoken == COMMA_TOKEN);
+        if (scantoken != EOL_TOKEN && scantoken != COMMENT_TOKEN)
+            return (0);
+    }
+    if (struclen)
+        idconst_add(strucid, struclen, offset);
+    return (scantoken == END_TOKEN);
+}
 int parse_vars(int type)
 {
     long value;
@@ -1079,6 +1151,13 @@ int parse_vars(int type)
                 return (0);
             }
             idconst_add(idstr, idlen, value);
+            break;
+        case STRUC_TOKEN:
+            if (!parse_struc())
+            {
+                parse_error("Bad structure definition");
+                return (0);
+            }
             break;
         case EXPORT_TOKEN:
             if (type & (EXTERN_TYPE | LOCAL_TYPE))
@@ -1224,7 +1303,6 @@ int parse_defs(void)
         emit_idfunc(func_tag, type, tokenstr);
         emit_def(tokenstr, 1);
         tokenstr[tokenlen] = c;
-        idlocal_reset();
         if (scan() == OPEN_PAREN_TOKEN)
         {
             do
@@ -1244,7 +1322,7 @@ int parse_defs(void)
             scan();
         }
         while (parse_vars(LOCAL_TYPE)) next_line();
-        emit_enter(idlocal_size(), cfnparms);
+        emit_enter(cfnparms);
         prevstmnt = 0;
         while (parse_stmnt()) next_line();
         infunc = 0;
@@ -1261,7 +1339,7 @@ int parse_defs(void)
         if (prevstmnt != RETURN_TOKEN)
         {
             emit_const(0);
-            emit_leave(idlocal_size());
+            emit_leave();
         }
         return (1);
     }

@@ -8,14 +8,13 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.event.EventHandler;
-import javafx.scene.Node;
 import javafx.scene.control.Menu;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import org.badvision.outlaweditor.Application;
@@ -23,7 +22,6 @@ import org.badvision.outlaweditor.FileUtils;
 import org.badvision.outlaweditor.ImageEditor;
 import org.badvision.outlaweditor.Platform;
 import org.badvision.outlaweditor.ui.UIAction;
-import org.badvision.outlaweditor.data.DataObserver;
 import org.badvision.outlaweditor.data.TileMap;
 import org.badvision.outlaweditor.data.xml.Image;
 import org.badvision.outlaweditor.data.xml.PlatformData;
@@ -34,11 +32,11 @@ import org.badvision.outlaweditor.data.xml.PlatformData;
  */
 public class AppleImageEditor extends ImageEditor implements EventHandler<MouseEvent> {
 
-    public int[] currentFillPattern = FillPattern.White.bytePattern;
+    public int[] currentFillPattern = FillPattern.White_PC.bytePattern;
     public boolean hiBitMatters = true;
     protected DrawMode currentDrawMode = DrawMode.Pencil1px;
     protected WritableImage currentImage;
-    protected AnchorPane anchorPane;
+    protected Pane anchorPane;
     protected ImageView screen;
     protected int posX = 0;
     protected int posY = 0;
@@ -51,7 +49,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     }
 
     @Override
-    public void buildEditorUI(AnchorPane editorAnchorPane) {
+    public void buildEditorUI(Pane editorAnchorPane) {
         anchorPane = editorAnchorPane;
         redraw();
         screen = new ImageView(currentImage);
@@ -65,11 +63,8 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
 
     @Override
     public void buildPatternSelector(Menu tilePatternMenu) {
-        FillPattern.buildMenu(tilePatternMenu, new DataObserver<FillPattern>() {
-            @Override
-            public void observedObjectChanged(FillPattern object) {
-                changeCurrentPattern(object);
-            }
+        FillPattern.buildMenu(tilePatternMenu, (FillPattern object) -> {
+            changeCurrentPattern(object);
         });
     }
 
@@ -110,11 +105,8 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     public void redraw() {
         System.out.println("Redraw " + getPlatform().name());
         currentImage = getPlatform().imageRenderer.renderImage(currentImage, getImageData(), getWidth(), getHeight());
-        anchorPane.getChildren().get(1).setLayoutX((anchorPane.getWidth() - 30) / 2);
-        anchorPane.getChildren().get(2).setLayoutY((anchorPane.getHeight() - 30) / 2);
-        anchorPane.getChildren().get(3).setLayoutX((anchorPane.getWidth() - 30) / 2);
-        anchorPane.getChildren().get(4).setLayoutY((anchorPane.getHeight() - 30) / 2);
     }
+
     private byte[] imageData = null;
 
     public byte[] getImageData() {
@@ -143,23 +135,16 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
         }
     }
 
-    @Override
-    public void togglePanZoom() {
-        for (Node n : anchorPane.getChildren()) {
-            if (n == screen) {
-                continue;
-            }
-            n.setVisible(!n.isVisible());
-        }
+    public void setDataAndRedraw(byte[] data) {
+        setData(data);
+        redraw();
     }
 
     @Override
-    public void scrollBy(int deltaX, int deltaY) {
-        posX += deltaX * 10;
-        posY += deltaY * 10;
-        posX = Math.max(0, posX);
-        posY = Math.max(0, posY);
-        redraw();
+    public void togglePanZoom() {
+        anchorPane.getChildren().stream().filter((n) -> !(n == screen)).forEach((n) -> {
+            n.setVisible(!n.isVisible());
+        });
     }
 
     @Override
@@ -180,26 +165,14 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
         }
     }
 
+    @Override
+    public double getZoomScale() {
+        return zoom;
+    }
+
     private void zoom(double delta) {
-        double oldZoom = zoom;
         zoom += delta;
         zoom = Math.min(Math.max(0.15, zoom), 4.0);
-//                    double left = mapEditorScroll.getHvalue();
-//                    double top = mapEditorScroll.getVvalue();
-//
-//                    double pointerX = t.getX();
-//                    double pointerY = t.getY();
-//
-        double ratio = zoom / oldZoom;
-//
-//                    double newLeft = (left + pointerX) * ratio - pointerX;
-//                    double newTop = (top + pointerY) * ratio - pointerY;
-        // Scale the image and move it so the upper-left corner is still in the right place.
-        screen.setScaleX(zoom);
-        screen.setScaleY(zoom);
-        screen.setTranslateX(getWidth()*7 * (zoom-1));
-        screen.setTranslateY(getHeight() * (zoom-1));
-        redraw();
     }
 
     @Override
@@ -280,8 +253,8 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
 
     private void startSelection(int x, int y) {
         selectRect = new Rectangle(1, 1, Color.NAVY);
-        selectRect.setTranslateX(x * xScale * zoom);
-        selectRect.setTranslateY(y * yScale * zoom);
+        selectRect.setTranslateX(x * xScale);
+        selectRect.setTranslateY(y * yScale);
         selectRect.setOpacity(0.5);
         selectStartX = x;
         selectStartY = y;
@@ -293,10 +266,10 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
             startSelection(x, y);
         }
 
-        double minX = Math.min(selectStartX, x) * xScale * zoom;
-        double minY = Math.min(selectStartY, y) * yScale * zoom;
-        double maxX = Math.max(selectStartX, x) * xScale * zoom;
-        double maxY = Math.max(selectStartY, y) * yScale * zoom;
+        double minX = Math.min(selectStartX, x) * xScale;
+        double minY = Math.min(selectStartY, y) * yScale;
+        double maxX = Math.max(selectStartX, x) * xScale;
+        double maxY = Math.max(selectStartY, y) * yScale;
         selectRect.setTranslateX(minX);
         selectRect.setTranslateY(minY);
         selectRect.setWidth(maxX - minX);
@@ -393,9 +366,10 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
             if (pasteAppContent((String) Clipboard.getSystemClipboard().getContent(DataFormat.PLAIN_TEXT))) {
                 return;
             }
-        };
+        }
         if (Clipboard.getSystemClipboard().hasContent(DataFormat.IMAGE)) {
             javafx.scene.image.Image image = Clipboard.getSystemClipboard().getImage();
+
             importImage(image);
         }
     }
@@ -435,13 +409,9 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     }
 
     private void importImage(javafx.scene.image.Image image) {
-        FloydSteinbergDither.floydSteinbergDither(image, getPlatform(), 0, 0, getWidth(), getHeight(), getImageData(), getWidth(), new FloydSteinbergDither.DitherCallback() {
-            @Override
-            public void ditherCompleted(byte[] data) {
-                setData(data);
-                redraw();
-            }
-        });
+        ImageDitherEngine ditherEngine = new ImageDitherEngine(getPlatform());
+        ditherEngine.setTargetCoordinates(0, 0);
+        UIAction.openImageConversionModal(image, ditherEngine, getWidth(), getHeight(), this::setDataAndRedraw);
     }
 
     private int calculateHiresOffset(int y) {
@@ -466,11 +436,9 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
         if (out == null) {
             return;
         }
-        try {
-            FileOutputStream outStream = new FileOutputStream(out);
+        try (FileOutputStream outStream = new FileOutputStream(out)) {
             outStream.write(output);
             outStream.flush();
-            outStream.close();
         } catch (IOException ex) {
             Logger.getLogger(AppleImageEditor.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -478,18 +446,11 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
 
     @Override
     public void resize(final int newWidth, final int newHeight) {
-        UIAction.confirm("Do you want to scale the image?  If you select no, the image will be cropped as needed.",
-                new Runnable() {
-                    @Override
-                    public void run() {
-                        rescale(newWidth, newHeight);
-                    }
-                }, new Runnable() {
-                    @Override
-                    public void run() {
-                        crop(newWidth, newHeight);
-                    }
-                });
+        UIAction.confirm("Do you want to scale the image?  If you select no, the image will be cropped as needed.", () -> {
+            rescale(newWidth, newHeight);
+        }, () -> {
+            crop(newWidth, newHeight);
+        });
     }
 
     /**

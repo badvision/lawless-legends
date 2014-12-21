@@ -54,6 +54,7 @@ public class FileUtils {
         }
         if (create) {
             File file = f.showSaveDialog(Application.getPrimaryStage());
+            if (file == null) return null;
             if (!file.getName().contains(".")) {
                 return new File(file.getParentFile(), file.getName() + "." + supportedExtensions[0].extension);
             } else {

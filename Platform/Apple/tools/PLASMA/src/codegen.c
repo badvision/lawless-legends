@@ -176,15 +176,6 @@ void idglobal_size(int type, int size, int constsize)
     else if (size)
         emit_data(0, 0, 0, size);
 }
-int idlocal_size(void)
-{
-    return (localsize);
-}
-void idlocal_reset(void)
-{
-    locals    = 0;
-    localsize = 2;
-}
 int id_tag(char *name, int len)
 {
     int i;
@@ -397,10 +388,13 @@ void emit_trailer(void)
 }
 void emit_moddep(char *name, int len)
 {
-    if (name)
-        emit_dci(name, len);
-    else
-        printf("\t%s\t$00\t\t\t; END OF MODULE DEPENDENCIES\n", DB);
+    if (outflags & MODULE)
+    {
+        if (name)
+            emit_dci(name, len);
+        else
+            printf("\t%s\t$00\t\t\t; END OF MODULE DEPENDENCIES\n", DB);
+    }
 }
 void emit_sysflags(int val)
 {
@@ -511,6 +505,8 @@ void emit_def(char *name, int is_bytecode)
         if (is_bytecode)
             printf("\tJSR\tINTERP\n");
     }
+    locals    = 0;
+    localsize = 0;
 }
 void emit_codetag(int tag)
 {
@@ -672,9 +668,9 @@ void emit_ical(void)
 {
     printf("\t%s\t$56\t\t\t; ICAL\n", DB);
 }
-void emit_leave(int framesize)
+void emit_leave(void)
 {
-    if (framesize > 2)
+    if (localsize)
         printf("\t%s\t$5A\t\t\t; LEAVE\n", DB);
     else
         printf("\t%s\t$5C\t\t\t; RET\n", DB);
@@ -683,10 +679,10 @@ void emit_ret(void)
 {
     printf("\t%s\t$5C\t\t\t; RET\n", DB);
 }
-void emit_enter(int framesize, int cparams)
+void emit_enter(int cparams)
 {
-    if (framesize > 2)
-        printf("\t%s\t$58,$%02X,$%02X\t\t; ENTER\t%d,%d\n", DB, framesize, cparams, framesize, cparams);
+    if (localsize)
+        printf("\t%s\t$58,$%02X,$%02X\t\t; ENTER\t%d,%d\n", DB, localsize, cparams, localsize, cparams);
 }
 void emit_start(void)
 {

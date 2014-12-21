@@ -1,18 +1,16 @@
 package org.badvision.outlaweditor.apple.dhgr;
 
-import javafx.event.EventHandler;
 import javafx.scene.Group;
 import javafx.scene.control.Menu;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.Shape;
 import org.badvision.outlaweditor.Platform;
 import org.badvision.outlaweditor.TileEditor;
-import org.badvision.outlaweditor.data.DataObserver;
 import org.badvision.outlaweditor.data.xml.Tile;
 import org.badvision.outlaweditor.data.TileUtils;
 
@@ -34,7 +32,7 @@ public class AppleDHGRTileEditor extends TileEditor {
     }
 
     @Override
-    public void buildEditorUI(AnchorPane tileEditorAnchorPane) {
+    public void buildEditorUI(Pane tileEditorAnchorPane) {
         grid = new Rectangle[28][16];
         gridGroup = new Group();
         for (int y = 0; y < 16; y++) {
@@ -42,19 +40,13 @@ public class AppleDHGRTileEditor extends TileEditor {
                 final int xx = x;
                 final int yy = y;
                 Rectangle rect = new Rectangle((zoom/2) * x + 5, zoom * y + 5, zoom/2 - 2, zoom - 2);
-                rect.setOnMouseDragged(new EventHandler<MouseEvent>() {
-                    @Override
-                    public void handle(MouseEvent t) {
-                        performDragAction((int) (t.getX() / (zoom/2)), (int) (t.getY() / zoom));
-                    }
+                rect.setOnMouseDragged((MouseEvent t) -> {
+                    performDragAction((int) (t.getX() / (zoom/2)), (int) (t.getY() / zoom));
                 });
-                rect.setOnMousePressed(new EventHandler<MouseEvent>() {
-                    @Override
-                    public void handle(MouseEvent t) {
-                        handleMouse(t, xx, yy);
-                        lastActionX=-1;
-                        lastActionY=-1;
-                    }
+                rect.setOnMousePressed((MouseEvent t) -> {
+                    handleMouse(t, xx, yy);
+                    lastActionX=-1;
+                    lastActionY=-1;
                 });
                 grid[x][y] = rect;
                 gridGroup.getChildren().add(rect);
@@ -145,11 +137,8 @@ public class AppleDHGRTileEditor extends TileEditor {
 
     @Override
     public void buildPatternSelector(Menu tilePatternMenu) {
-        FillPattern.buildMenu(tilePatternMenu, new DataObserver<FillPattern>() {
-            @Override
-            public void observedObjectChanged(FillPattern object) {
-                changeCurrentPattern(object);
-            }
+        FillPattern.buildMenu(tilePatternMenu, (FillPattern object) -> {
+            changeCurrentPattern(object);
         });
     }
 

@@ -12,7 +12,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
+import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -22,6 +22,7 @@ import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
+import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.HBoxBuilder;
 import javafx.scene.layout.VBoxBuilder;
 import javafx.scene.text.Text;
@@ -31,9 +32,11 @@ import javax.xml.bind.JAXB;
 import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.FileUtils;
 import org.badvision.outlaweditor.MythosEditor;
+import org.badvision.outlaweditor.apple.ImageDitherEngine;
 import org.badvision.outlaweditor.data.TilesetUtils;
 import org.badvision.outlaweditor.data.xml.GameData;
 import org.badvision.outlaweditor.data.xml.Script;
+import org.badvision.outlaweditor.ui.impl.ImageConversionWizardController;
 
 /**
  *
@@ -120,14 +123,11 @@ public class UIAction {
                 currentMenu = new Menu(action.name().replace("_", ""));
             } else {
                 MenuItem item = new MenuItem(action.name().replaceAll("_", " "));
-                item.setOnAction(new EventHandler<ActionEvent>() {
-                    @Override
-                    public void handle(ActionEvent t) {
-                        try {
-                            actionPerformed(action);
-                        } catch (IOException ex) {
-                            Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
-                        }
+                item.setOnAction((ActionEvent t) -> {
+                    try {
+                        actionPerformed(action);
+                    } catch (IOException ex) {
+                        Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
                     }
                 });
                 currentMenu.getItems().add(item);
@@ -139,12 +139,11 @@ public class UIAction {
     }
 
     public static void quit() {
-        confirm("Quit?  Are you sure?", new Runnable() {
-            @Override
-            public void run() {
-                Platform.exit();
-            }
-        }, null);
+        confirm("Quit?  Are you sure?", UIAction::quitWithoutConfirming, null);
+    }
+    
+    public static void quitWithoutConfirming() {
+        Platform.runLater(Platform::exit);
     }
 
     static Image badImage;
@@ -181,14 +180,11 @@ public class UIAction {
         List<Button> buttons = new ArrayList<>();
         for (final Choice c : choices) {
             Button b = new Button(c.text);
-            b.setOnAction(new EventHandler<ActionEvent>() {
-                @Override
-                public void handle(ActionEvent t) {
-                    if (c.handler != null) {
-                        c.handler.run();
-                    }
-                    dialogStage.close();
+            b.setOnAction((ActionEvent t) -> {
+                if (c.handler != null) {
+                    c.handler.run();
                 }
+                dialogStage.close();
             });
             buttons.add(b);
         }
@@ -215,5 +211,25 @@ public class UIAction {
         MythosEditor editor = new MythosEditor(script);
         editor.show();
         return script;
+    }
+    
+    public static ImageConversionWizardController openImageConversionModal(Image image, ImageDitherEngine ditherEngine, int targetWidth, int targetHeight, ImageConversionPostAction postAction) {
+        FXMLLoader fxmlLoader = new FXMLLoader(UIAction.class.getResource("/imageConversionWizard.fxml"));
+        try {
+            Stage primaryStage = new Stage();
+            AnchorPane node = (AnchorPane) fxmlLoader.load();
+            ImageConversionWizardController controller = fxmlLoader.getController();
+            controller.setDitherEngine(ditherEngine);
+            controller.setOutputDimensions(targetWidth, targetHeight);
+            controller.setPostAction(postAction);
+            controller.setSourceImage(image);
+            Scene s = new Scene(node);
+            primaryStage.setScene(s);
+            primaryStage.show();
+            controller.setStage(primaryStage);
+            return controller;
+        } catch (IOException exception) {
+            throw new RuntimeException(exception);
+        }        
     }
 }

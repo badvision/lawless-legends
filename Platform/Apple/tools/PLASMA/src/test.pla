@@ -1,29 +1,36 @@
 //
 // Include all imported modules and their data/functions.
 //
-
 include(stdlib.plh)
 include(testlib.plh)
-
+//
+// Structure definition.
+//
+struc mystruc
+  byte cmd
+  word param
+  byte[3]
+  word data
+end
 //
 // Declare all global variables for this module.
+// Note that arrays are declared with prefix []. postfix [], or no [].
+// Only arrays with predclared sizes need [ and ], such as "int[3] a".
 //
-
-byte hello[] = "Hello, Apple "
-byte a1[] = "1"
-byte a2[] = "]["
-byte a2p[] = "][+"
-byte a2e[] = "//e"
-byte a2c[] = "//c"
-byte a3[] = "///"
-word struct[] = 1, 10, 100, 1000, 10000
+byte[] hello = "Hello, Apple "
+byte[] a1 = "1"
+byte[] a2 = "]["
+byte[] a2p = "][+"
+byte[] a2e = "//e"
+byte[] a2c = "//c"
+byte[] a3 = "///"
+byte[] offsets = "Structure offsets:"
+word array[] = 1, 10, 100, 1000, 10000
 word ptr
-byte spaces[] = "   "
-
+byte spaces = "   "
 //
 // Define functions.
 //
-
 def tens(start)
   word i
   i = start
@@ -35,7 +42,6 @@ def tens(start)
     i = i / 10
   until i == 0
 end
-
 def ascii
   byte i
   i = 32
@@ -44,7 +50,6 @@ def ascii
     i = i + 1
   loop
 end
-
 def nums(range)
   word i
   for i = range downto -range step range/10
@@ -52,7 +57,6 @@ def nums(range)
     putln
   next
 end
-
 export def main(range)
   nums(*range)
   tens(*range*10)
@@ -83,9 +87,8 @@ export def main(range)
   wend
   putln
 end
-
-ptr=@struct
-main(@struct:6)
+ptr = @array
+main(@array:6)
 puti((ptr):6)
 putln
 puti(ptr=>6)
@@ -93,5 +96,15 @@ putln
 puti((ptr).6)
 putln
 puti(ptr->6)
+putln
+puts(@offsets)
+putln
+puti(cmd)
+putln
+puti(param)
+putln
+puti(data)
+putln
+puti(mystruc)
 putln
 done

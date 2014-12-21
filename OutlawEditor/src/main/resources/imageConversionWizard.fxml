@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.image.*?>
+<?import javafx.scene.shape.*?>
+<?import javafx.geometry.*?>
+<?import java.lang.*?>
+<?import java.net.*?>
+<?import java.util.*?>
+<?import javafx.scene.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<AnchorPane id="AnchorPane" maxHeight="482.0" maxWidth="600.0" prefHeight="482.0" prefWidth="600.0" styleClass="mainFxmlClass" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.badvision.outlaweditor.ui.impl.ImageConversionWizardController">
+    <stylesheets>
+        <URL value="@/styles/imageconversionwizard.css" />
+    </stylesheets>
+    <children>
+        <HBox layoutX="14.0" layoutY="14.0" styleClass="imageViews" AnchorPane.bottomAnchor="276.0" AnchorPane.leftAnchor="14.0" AnchorPane.rightAnchor="14.0" AnchorPane.topAnchor="14.0">
+            <children>
+                <StackPane HBox.hgrow="ALWAYS">
+                    <children>
+                        <ScrollPane fitToWidth="true" minHeight="192.0" pannable="true" styleClass="imageViewScroll">
+                            <content>
+                                <AnchorPane minHeight="188.0" styleClass="imageView">
+                                    <children>
+                                        <ImageView fx:id="sourceImageView" fitHeight="185.0" fitWidth="271.0" pickOnBounds="true" preserveRatio="true" />
+                                    </children>
+                                </AnchorPane>
+                            </content>
+                        </ScrollPane>
+                        <Label alignment="BOTTOM_CENTER" text="Source Image" textAlignment="CENTER" StackPane.alignment="BOTTOM_CENTER">
+                            <StackPane.margin>
+                                <Insets bottom="-20.0" />
+                            </StackPane.margin>
+                        </Label>
+                    </children>
+                </StackPane>
+                <Region prefHeight="1" prefWidth="14.0" />
+                <StackPane HBox.hgrow="ALWAYS">
+                    <children>
+                        <ScrollPane fitToWidth="true" minHeight="192.0" pannable="true" styleClass="imageViewScroll">
+                            <content>
+                                <AnchorPane minHeight="188.0" styleClass="imageView">
+                                    <children>
+                                        <ImageView fx:id="convertedImageView" fitHeight="185.0" fitWidth="271.0" pickOnBounds="true" preserveRatio="true" />
+                                    </children>
+                                </AnchorPane>
+                            </content>
+                        </ScrollPane>
+                        <Label alignment="BOTTOM_CENTER" text="Converted" textAlignment="CENTER" StackPane.alignment="BOTTOM_CENTER">
+                            <StackPane.margin>
+                                <Insets bottom="-20.0" />
+                            </StackPane.margin>
+                        </Label>
+                    </children>
+                </StackPane>
+            </children>
+        </HBox>
+        <Separator layoutX="14.0" layoutY="227.0" prefHeight="9.0" prefWidth="442.0" AnchorPane.bottomAnchor="246.0" AnchorPane.leftAnchor="14.0" AnchorPane.rightAnchor="14.0" />
+        <TabPane layoutX="14.0" layoutY="231.0" prefHeight="203.0" prefWidth="582.0" side="BOTTOM" tabClosingPolicy="UNAVAILABLE" AnchorPane.bottomAnchor="48.0" AnchorPane.leftAnchor="9.0" AnchorPane.rightAnchor="9.0">
+            <tabs>
+                <Tab text="Source Adjustments">
+                    <content>
+                        <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
+                            <children>
+                                <Label layoutX="14.0" layoutY="14.0" text="Brightness" AnchorPane.leftAnchor="9.0" />
+                                <TextField fx:id="brightnessValue" layoutX="98.0" layoutY="9.0" prefHeight="26.0" prefWidth="60.0" />
+                                <Slider fx:id="brightnessSlider" blockIncrement="0.1" layoutX="148.0" layoutY="15.0" majorTickUnit="0.5" max="1.0" min="-1.0" minorTickCount="10" prefHeight="16.0" prefWidth="415.0" showTickMarks="true" snapToTicks="true" AnchorPane.leftAnchor="158.0" AnchorPane.rightAnchor="0.0" />
+
+                                <Label layoutX="14.0" layoutY="43.0" text="Contrast" AnchorPane.leftAnchor="9.0" />
+                                <TextField fx:id="contrastValue" layoutX="98.0" layoutY="38.0" prefHeight="26.0" prefWidth="60.0" />
+                                <Slider fx:id="contrastSlider" blockIncrement="0.1" layoutX="148.0" layoutY="44.0" majorTickUnit="0.5" max="1.0" min="-1.0" minorTickCount="10" prefHeight="16.0" prefWidth="415.0" showTickMarks="true" snapToTicks="true" AnchorPane.leftAnchor="158.0" AnchorPane.rightAnchor="0.0" />
+
+                                <Label layoutX="14.0" layoutY="72.0" text="Hue" AnchorPane.leftAnchor="9.0" />
+                                <TextField fx:id="hueValue" layoutX="98.0" layoutY="67.0" prefHeight="26.0" prefWidth="60.0" />
+                                <Slider fx:id="hueSlider" blockIncrement="0.1" layoutX="148.0" layoutY="73.0" majorTickUnit="0.5" max="1.0" min="-1.0" minorTickCount="10" prefHeight="16.0" prefWidth="415.0" showTickMarks="true" snapToTicks="true" AnchorPane.leftAnchor="158.0" AnchorPane.rightAnchor="0.0" />
+
+                                <Label layoutX="14.0" layoutY="101.0" text="Saturation" AnchorPane.leftAnchor="9.0" />
+                                <TextField fx:id="saturationValue" layoutX="98.0" layoutY="96.0" prefHeight="26.0" prefWidth="60.0" />
+                                <Slider fx:id="saturationSlider" blockIncrement="0.1" layoutX="148.0" layoutY="102.0" majorTickUnit="0.5" max="1.0" min="-1.0" minorTickCount="10" prefHeight="16.0" prefWidth="415.0" showTickMarks="true" snapToTicks="true" AnchorPane.leftAnchor="158.0" AnchorPane.rightAnchor="0.0" />
+
+                                <Label layoutX="9.0" layoutY="130.0" text="Crop Top (px)" />
+                                <TextField fx:id="cropTopValue" layoutX="98.0" layoutY="125.0" prefHeight="26.0" prefWidth="60.0" text="0" />
+
+                                <Label layoutX="168.0" layoutY="130.0" text="Left" />
+                                <TextField fx:id="cropLeftValue" layoutX="196.0" layoutY="125.0" prefHeight="26.0" prefWidth="60.0" text="0" />
+
+                                <Label layoutX="266.0" layoutY="130.0" text="Bottom" />
+                                <TextField fx:id="cropBottomValue" layoutX="315.0" layoutY="125.0" prefHeight="26.0" prefWidth="60.0" />
+
+                                <Label layoutX="385.0" layoutY="130.0" text="Right" />
+                                <TextField fx:id="cropRightValue" layoutX="422.0" layoutY="125.0" prefHeight="26.0" prefWidth="60.0" />
+                            </children>
+                        </AnchorPane>
+                    </content>
+                </Tab>
+                <Tab text="Diffusion Coefficients">
+                    <content>
+                        <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="175.0" prefWidth="572.0">
+                            <children>
+                                <GridPane layoutX="14.0" layoutY="14.0" prefHeight="110.0" prefWidth="564.0" AnchorPane.leftAnchor="4.0" AnchorPane.rightAnchor="4.0" AnchorPane.topAnchor="9.0">
+                                    <columnConstraints>
+                                        <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="100.0" />
+                                        <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="100.0" />
+                                        <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="100.0" />
+                                        <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="100.0" />
+                                        <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="100.0" />
+                                    </columnConstraints>
+                                    <rowConstraints>
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                    </rowConstraints>
+                                    <children>
+                                        <Label alignment="CENTER" contentDisplay="CENTER" prefHeight="16.0" prefWidth="17.0" text="X" textAlignment="CENTER" GridPane.columnIndex="2" GridPane.halignment="CENTER" />
+                                        <TextField fx:id="coefficientValue30" text="0" GridPane.columnIndex="3">
+                                            <GridPane.margin>
+                                                <Insets left="5.0" right="5.0" />
+                                            </GridPane.margin>
+                                        </TextField>
+                                        <TextField fx:id="coefficientValue40" text="0" GridPane.columnIndex="4">
+                                            <GridPane.margin>
+                                                <Insets left="5.0" right="5.0" />
+                                            </GridPane.margin>
+                                        </TextField>
+                                        <TextField fx:id="coefficientValue01" text="0" GridPane.rowIndex="1">
+                                            <GridPane.margin>
+                                                <Insets left="5.0" right="5.0" />
+                                            </GridPane.margin>
+                                        </TextField>
+                                        <TextField fx:id="coefficientValue11" text="0" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                                            <GridPane.margin>
+                                                <Insets left="5.0" right="5.0" />
+                                            </GridPane.margin>
+                                        </TextField>
+                                        <TextField fx:id="coefficientValue21" text="0" GridPane.columnIndex="2" GridPane.rowIndex="1">
+                                            <GridPane.margin>
+                                                <Insets left="5.0" right="5.0" />
+                                            </GridPane.margin>
+                                        </TextField>
+                                        <TextField fx:id="coefficientValue31" text="0" GridPane.columnIndex="3" GridPane.rowIndex="1">
+                                            <GridPane.margin>
+                                                <Insets left="5.0" right="5.0" />
+                                            </GridPane.margin>
+                                        </TextField>
+                                        <TextField fx:id="coefficientValue41" text="0" GridPane.columnIndex="4" GridPane.rowIndex="1">
+                                            <GridPane.margin>
+                                                <Insets left="5.0" right="5.0" />
+                                            </GridPane.margin>
+                                        </TextField>
+                                        <TextField fx:id="coefficientValue02" text="0" GridPane.rowIndex="2">
+                                            <GridPane.margin>
+                                                <Insets left="5.0" right="5.0" />
+                                            </GridPane.margin>
+                                        </TextField>
+                                        <TextField fx:id="coefficientValue12" text="0" GridPane.columnIndex="1" GridPane.rowIndex="2">
+                                            <GridPane.margin>
+                                                <Insets left="5.0" right="5.0" />
+                                            </GridPane.margin>
+                                        </TextField>
+                                        <TextField fx:id="coefficientValue22" text="0" GridPane.columnIndex="2" GridPane.rowIndex="2">
+                                            <GridPane.margin>
+                                                <Insets left="5.0" right="5.0" />
+                                            </GridPane.margin>
+                                        </TextField>
+                                        <TextField fx:id="coefficientValue32" text="0" GridPane.columnIndex="3" GridPane.rowIndex="2">
+                                            <GridPane.margin>
+                                                <Insets left="5.0" right="5.0" />
+                                            </GridPane.margin>
+                                        </TextField>
+                                        <TextField fx:id="coefficientValue42" text="0" GridPane.columnIndex="4" GridPane.rowIndex="2">
+                                            <GridPane.margin>
+                                                <Insets left="5.0" right="5.0" />
+                                            </GridPane.margin>
+                                        </TextField>
+                                        <Separator prefWidth="200.0" />
+                                        <Separator prefWidth="200.0" GridPane.columnIndex="1" />
+                                    </children>
+                                </GridPane>
+                                <SplitMenuButton layoutX="430.0" layoutY="120.0" mnemonicParsing="false" text="Select preset..." AnchorPane.bottomAnchor="13.0" AnchorPane.rightAnchor="9.0">
+                                    <items>
+                                        <MenuItem mnemonicParsing="false" onAction="#configureFloydSteinbergPreset" text="Floyd-Steinberg" />
+                                        <MenuItem mnemonicParsing="false" onAction="#configureFastFloydSteinbergPreset" text="Fast Floyd-Steinberg" />
+                                        <MenuItem mnemonicParsing="false" onAction="#configureJarvisJudiceNinkePreset" text="Jarvis-Judice-Ninke" />
+                                        <MenuItem mnemonicParsing="false" onAction="#configureStuckiPreset" text="Stucki" />
+                                        <MenuItem mnemonicParsing="false" onAction="#configureAtkinsonPreset" text="Atkinson" />
+                                        <MenuItem mnemonicParsing="false" onAction="#configureBurkesPreset" text="Burkes" />
+                                        <MenuItem mnemonicParsing="false" onAction="#configureSierraPreset" text="Sierra" />
+                                        <MenuItem mnemonicParsing="false" onAction="#configureTwoRowSierraPreset" text="Two-Row Sierra" />
+                                        <MenuItem mnemonicParsing="false" onAction="#configureSierraLitePreset" text="Sierra Lite" />
+                                    </items>
+                                </SplitMenuButton>
+                                <TextField fx:id="divisorValue" layoutX="375.0" layoutY="131.0" prefHeight="26.0" prefWidth="46.0" text="1" AnchorPane.rightAnchor="161.0" />
+                                <Label layoutX="326.0" layoutY="136.0" text="Divisor" AnchorPane.rightAnchor="212.0" />
+                            </children>
+                        </AnchorPane>
+                    </content>
+                </Tab>
+                <Tab text="Output">
+                    <content>
+                        <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
+                            <children>
+                                <Label alignment="CENTER_RIGHT" layoutX="14.0" layoutY="13.0" prefHeight="16.0" prefWidth="53.0" text="Width" textAlignment="RIGHT" />
+                                <TextField fx:id="outputWidthValue" layoutX="69.0" layoutY="8.0" prefHeight="16.0" prefWidth="122.0" promptText="Width (in pixels)" />
+
+                                <Label alignment="CENTER_RIGHT" layoutX="14.0" layoutY="44.0" prefHeight="16.0" prefWidth="53.0" text="Height" textAlignment="RIGHT" />
+                                <TextField fx:id="outputHeightValue" layoutX="69.0" layoutY="39.0" prefHeight="16.0" prefWidth="122.0" promptText="Height (in pixels)" />
+                            </children>
+                        </AnchorPane>
+                    </content>
+                </Tab>
+            </tabs>
+        </TabPane>
+        <Button layoutX="14.0" layoutY="438.0" mnemonicParsing="false" onAction="#performQuantizePass" prefHeight="26.0" prefWidth="141.0" text="Quantize Pass" AnchorPane.bottomAnchor="14.0" AnchorPane.leftAnchor="14.0" />
+        <Button layoutX="162.0" layoutY="442.0" mnemonicParsing="false" onAction="#performDiffusionPass" text="Error Diffusion Pass" AnchorPane.bottomAnchor="14.0" AnchorPane.leftAnchor="162.0" />
+        <Button layoutX="482.0" layoutY="412.0" mnemonicParsing="false" onAction="#performOK" text="OK" AnchorPane.bottomAnchor="14.0" AnchorPane.rightAnchor="81.0" />
+        <Button layoutX="526.0" layoutY="412.0" mnemonicParsing="false" onAction="#performCancel" text="Cancel" AnchorPane.bottomAnchor="14.0" AnchorPane.rightAnchor="14.0" />
+    </children>
+</AnchorPane>

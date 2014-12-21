@@ -21,13 +21,13 @@ public abstract class ImageEditor extends Editor<Image, ImageEditor.DrawMode> {
 
     abstract public void buildPatternSelector(Menu tilePatternMenu);
 
-    public abstract void scrollBy(int deltaX, int deltaY);
-
     public abstract void togglePanZoom();
 
     public abstract void zoomIn();
 
     public abstract void zoomOut();
+    
+    public abstract double getZoomScale();
 
     public abstract void exportImage();
 

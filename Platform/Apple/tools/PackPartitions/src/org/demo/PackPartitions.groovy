@@ -400,10 +400,42 @@ class PackPartitions
         buf.put((byte)0);
     }
 
-    def write2DMap(buf, mapName, rows, tileSetNum, tileMap)
+    def write2DMap(mapName, rows, tileSetNum, tileMap)
     {
+        maps2D[name] = [num:num, buf:buf]
+        
         def width = rows[0].size()
         def height = rows.size()
+
+        def TILES_PER_ROW = 22
+        def ROWS_PER_SECTION = 23
+        
+        def nHorzSections = (int) ((width + TILES_PER_ROW - 1) / TILES_PER_ROW)
+        def nVertSections = (int) ((height + ROWS_PER_SECTION - 1) / ROWS_PER_SECTION)
+        
+        def buffers = new ByteBuffer[nVertSections][nHorzSections]
+        def sectionNums = new int[nVertSections][nHorzSections]
+        
+        // Allocate a buffer and assign a map number to each section.
+        (0..nVertSections).each { vsect ->
+            (0..nHorzSections).each { hsect ->
+                buffers[vsect][hsect] = ByteBuffer.allocate(512)
+                def num = maps2d.size() + 1
+                def sectName = "$mapName-$hsect-$vsect"
+                maps2d[sectName] = [num:num, buf:buf]
+            }
+        }
+
+        (0..nVertSections).each { vsect ->
+            (0..nHorzSections).each { hsect ->
+
+                // Header: first come links to other map sections - north, east, south, west
+                buf.put((byte) (vsect > 0) ? sectionNums[vsect-1][hsect] : 0) // north
+                buf.put((byte) (hsect > 0) ? sectionNums[vsect][hsect-1] : 0) // east
+                buf.put((byte) (vsect < nVertSections-1) ? sectionNums[vsect+1][hsect] : 0) // south
+                buf.put((byte) (hsect > 0) ? sectionNums[vsect-1][hsect] : 0) // west
+            }
+        }
         
         // Header: width and height
         buf.put((byte)width)
@@ -632,7 +664,7 @@ class PackPartitions
                     def id = tile.@id
                     if (!tileMap.containsKey(id)) {
                         def num = tileMap.size() + 1
-                        assert num < 32 : "Only 32 kinds of tiles are allowed on any given map."
+                        assert num < 32 : "Temporary, need to fix: Only 32 kinds of tiles are allowed on any given map."
                         tileMap[id] = num
                         tiles[id].flip() // crazy stuff to append one buffer to another
                         buf.put(tiles[id])
@@ -652,9 +684,7 @@ class PackPartitions
         //println "Packing 2D map #$num named '$name'."
         def rows = parseMap(mapEl, tileEls)
         def (tileSetNum, tileMap) = packTileSet(rows)
-        def buf = ByteBuffer.allocate(50000)
-        write2DMap(buf, name, rows, tileSetNum, tileMap)
-        maps2D[name] = [num:num, buf:buf]
+        write2DMap(name, rows, tileSetNum, tileMap)
     }
     
     def pack3DMap(mapEl, tileEls)

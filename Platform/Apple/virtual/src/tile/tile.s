@@ -100,8 +100,8 @@ START_MAP_LOAD
 ;	1 Resource ID of next map section (east), FF = none
 ;	2 Resource ID of next map section (south), FF = none
 ;	3 Resource ID of next map section (west), FF = none
-;	4 Tileset resouce id
-;	5 Resource ID of script library (if any)
+;	4 Tileset resource id
+;	5 Resource ID of script library (FF = none)
 LOAD_SECTION
 		CMP #$FF
 		BNE .doLoad

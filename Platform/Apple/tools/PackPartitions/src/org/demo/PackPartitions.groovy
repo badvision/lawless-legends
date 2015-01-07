@@ -402,8 +402,6 @@ class PackPartitions
 
     def write2DMap(mapName, rows, tileSetNum, tileMap)
     {
-        maps2D[name] = [num:num, buf:buf]
-        
         def width = rows[0].size()
         def height = rows.size()
 
@@ -417,41 +415,44 @@ class PackPartitions
         def sectionNums = new int[nVertSections][nHorzSections]
         
         // Allocate a buffer and assign a map number to each section.
-        (0..nVertSections).each { vsect ->
-            (0..nHorzSections).each { hsect ->
-                buffers[vsect][hsect] = ByteBuffer.allocate(512)
-                def num = maps2d.size() + 1
+        (0..<nVertSections).each { vsect ->
+            (0..<nHorzSections).each { hsect ->
+                def buf = ByteBuffer.allocate(512)
+                buffers[vsect][hsect] = buf
+                def num = maps2D.size() + 1
                 def sectName = "$mapName-$hsect-$vsect"
-                maps2d[sectName] = [num:num, buf:buf]
+                maps2D[sectName] = [num:num, buf:buf]
             }
         }
 
-        (0..nVertSections).each { vsect ->
-            (0..nHorzSections).each { hsect ->
-
+        (0..<nVertSections).each { vsect ->
+            (0..<nHorzSections).each { hsect ->
+                
                 // Header: first come links to other map sections - north, east, south, west
-                buf.put((byte) (vsect > 0) ? sectionNums[vsect-1][hsect] : 0) // north
-                buf.put((byte) (hsect > 0) ? sectionNums[vsect][hsect-1] : 0) // east
-                buf.put((byte) (vsect < nVertSections-1) ? sectionNums[vsect+1][hsect] : 0) // south
-                buf.put((byte) (hsect > 0) ? sectionNums[vsect-1][hsect] : 0) // west
-            }
-        }
-        
-        // Header: width and height
-        buf.put((byte)width)
-        buf.put((byte)height)
-        
-        // Then tileSet number
-        buf.put((byte)tileSetNum)
-        
-        // Followed by name
-        writeString(buf, mapName.replaceFirst(/ ?-? ?2D/, ""))
-        
-        // After the header comes the raw data
-        rows.each { row ->
-            row.each { tile ->
-                def id = tile?.@id
-                buf.put((byte)(id ? tileMap[tile?.@id] : 0))
+                def buf = buffers[vsect][hsect]
+                buf.put((byte) (vsect > 0) ? sectionNums[vsect-1][hsect] : 0xFF) // north
+                buf.put((byte) (hsect > 0) ? sectionNums[vsect][hsect-1] : 0xFF) // east
+                buf.put((byte) (vsect < nVertSections-1) ? sectionNums[vsect+1][hsect] : 0xFF) // south
+                buf.put((byte) (hsect > 0) ? sectionNums[vsect-1][hsect] : 0xFF) // west
+                
+                // Then links to the tile set and script library
+                buf.put((byte) tileSetNum)
+                buf.put((byte) 0xFF) // script library placeholder
+                
+                def hOff = hsect * TILES_PER_ROW
+                def vOff = vsect * ROWS_PER_SECTION
+                
+                // After the header comes the raw data
+                (0..<ROWS_PER_SECTION).each { rowNum ->
+                    def y = vOff + rowNum
+                    def row = (y < height) ? rows[y] : null
+                    (0..<TILES_PER_ROW).each { colNum ->
+                        def x = hOff + colNum
+                        def tile = (row && x < width) ? row[x] : null
+                        def id = tile?.@id
+                        buf.put((byte)(id ? tileMap[tile?.@id] : 0))
+                    }
+                }
             }
         }
     }

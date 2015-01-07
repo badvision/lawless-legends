@@ -55,9 +55,13 @@ const DEBUG_MEM      = $1A
 const CHAIN_LOADER   = $1E
 const FATAL_ERROR    = $1F
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Other constants
 const callbacks = $300
-
-const OVERMAP = 11
+const MAP_FLAG_3D = $4000
+const OVERMAP_NUM = 11
+const OVERMAP_IS_3D = 1
+const MAX_LOC_TRIG = 128
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Predefined functions, for circular calls
@@ -65,7 +69,6 @@ predef moveBackward, setWindow2
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Raycaster variables
-word zp = 0
 const playerDir = $5D
 const playerX   = $5E
 const playerY   = $60
@@ -78,21 +81,18 @@ const wndleft   = $70  // left edge of the window
 const wndwdth   = $71  // right edge (NOT width) of text window
 const wndtop    = $72  // top of text window
 const wndbtm    = $73  // bottom+1 of text window
-
 const cursh     = $74  // Cursor H-pos 0-39
 const cursv     = $75  // Cursor V-pos 0-23
-
-const MAX_LOC_TRIG = 128
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Strings.
 byte helloStr[] = "Loading Lawless Legends.\n"
-byte loopStr[] = "Entering keyboard loop.\n"
 byte tooManyTriggers[] = "Too many triggers"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Global variables
-byte mapNum = OVERMAP
+byte mapNum = OVERMAP_NUM
+byte mapIs3D = OVERMAP_IS_3D
 word pFont
 word pMap
 word pScripts
@@ -105,6 +105,7 @@ byte prevX
 byte prevY
 word prevScript
 byte prevMapNum
+byte prevMapIs3D
 byte redraw
 byte titleLoaded = FALSE
 byte cacheSky, cacheGround
@@ -519,7 +520,7 @@ def debugMem(bank, code)
   ^$c050
 end
 
-def initMap()
+def initMap3D()
   word scriptModule
 
   // Reset memory (our module will stay since memory manager locked it upon load)
@@ -584,6 +585,7 @@ def initMap()
   prevScript = -1
   nLocTrig = 0
   prevMapNum = mapNum
+  prevMapIs3D = mapIs3D
   if pScripts
     *pScripts()
   fin
@@ -637,6 +639,13 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Actions
+def resetCmds()
+  byte i
+  for i = 0 to 63
+    cmdTbl[i] = 0
+  next
+end
+
 def initCmd(key, func)
   if key >= $60
     key = key - $20
@@ -674,9 +683,9 @@ def checkScript()
       next
     fin
   fin
-  if mapNum <> prevMapNum
+  if (mapNum <> prevMapNum) or (mapIs3D <> prevMapIs3D)
     flipToFirstPage()
-    initMap()
+    initMap3D()
   fin
 end
 
@@ -721,9 +730,9 @@ def strafeLeft()
   adjustDir(4)
 end
 
-def setMap(is3d, num)
+def setMap(is3D, num)
   // save player state if we're coming *from* the over-map
-  if mapNum == OVERMAP
+  if mapNum == OVERMAP_NUM and mapIs3D == OVERMAP_IS_3D
     cacheX = *playerX
     cacheY = *playerY
     cacheDir = ^playerDir
@@ -732,6 +741,7 @@ def setMap(is3d, num)
   else
     resetLocFromCache = TRUE
   fin
+  mapIs3D = is3D
   mapNum = num
 end
 
@@ -740,7 +750,7 @@ def nextMap()
   if mapNum > 20
     mapNum = 1
   fin
-  setMap(1, mapNum)
+  setMap(mapIs3D, mapNum)
 end
 
 def teleport(x, y, dir)
@@ -799,82 +809,89 @@ def getYN()
   loop
 end
 
+def loadTitle()
+  puts(@helloStr)
+
+  // Load the title screen
+  loader(SET_MEM_TARGET, MAIN_MEM, $2000)
+  loader(QUEUE_LOAD,     MAIN_MEM, 2<<8 | RES_TYPE_SCREEN)
+  loader(LOCK_MEMORY,    MAIN_MEM, $2000)
+  loader(FINISH_LOAD, MAIN_MEM, 1) // 1 = keep open
+  titleLoaded = TRUE
+  ^$c050
+  ^$c057
+  ^$c054
+  ^$c052
+  // Hack for real (not emulated) IIc: sometimes displays only lo-bit graphics
+  // unless we do this. *HUGE* thanks to Brendan Robert for the fix!
+  ^$C07E=0   // disable double-hi-res
+  ^$C05F     // disable double-hi-res
+end
+
+def initCmds3D()
+  resetCmds()
+
+  initCmd('W', @moveForward)
+  initCmd('A', @rotateLeft)
+  initCmd('D', @rotateRight)
+  initCmd('S', @moveBackward)
+  initCmd('X', @moveBackward)
+  initCmd('Z', @strafeLeft)
+  initCmd('C', @strafeRight)
+
+  initCmd('I', @moveForward)
+  initCmd('J', @rotateLeft)
+  initCmd('L', @rotateRight)
+  initCmd('K', @moveBackward)
+  initCmd(',', @moveBackward)
+  initCmd('M', @strafeLeft)
+  initCmd('.', @strafeRight)
+
+  initCmd('N', @nextMap)
+
+  initCmd('Y', @nextSky)
+  initCmd('G', @nextGround)
+
+  // $300
+  callbacks.0 = $4c
+  callbacks:1 = @setLocationTrigger
+
+  // $303
+  callbacks.3 = $4c
+  callbacks:4 = @displayStr
+
+  // $306
+  callbacks.6 = $4c
+  callbacks:7 = @getYN
+
+  // $309
+  callbacks.9 = $4c
+  callbacks:10 = @setMap
+
+  // $30C
+  callbacks.12 = $4c
+  callbacks:13 = @setSky
+
+  // $30F
+  callbacks.15 = $4c
+  callbacks:16 = @setGround
+
+  // $312
+  callbacks.18 = $4c
+  callbacks:19 = @teleport
+end
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Main code.
 //
-puts(@helloStr)
-
-// Init the command table
-initCmd('W', @moveForward)
-initCmd('A', @rotateLeft)
-initCmd('D', @rotateRight)
-initCmd('S', @moveBackward)
-initCmd('X', @moveBackward)
-initCmd('Z', @strafeLeft)
-initCmd('C', @strafeRight)
-
-initCmd('I', @moveForward)
-initCmd('J', @rotateLeft)
-initCmd('L', @rotateRight)
-initCmd('K', @moveBackward)
-initCmd(',', @moveBackward)
-initCmd('M', @strafeLeft)
-initCmd('.', @strafeRight)
-
-initCmd('N', @nextMap)
-
-initCmd('Y', @nextSky)
-initCmd('G', @nextGround)
-
-// $300
-callbacks.0 = $4c
-callbacks:1 = @setLocationTrigger
-
-// $303
-callbacks.3 = $4c
-callbacks:4 = @displayStr
-
-// $306
-callbacks.6 = $4c
-callbacks:7 = @getYN
-
-// $309
-callbacks.9 = $4c
-callbacks:10 = @setMap
-
-// $30C
-callbacks.12 = $4c
-callbacks:13 = @setSky
-
-// $30F
-callbacks.15 = $4c
-callbacks:16 = @setGround
-
-// $312
-callbacks.18 = $4c
-callbacks:19 = @teleport
-
-// Load the title screen
-loader(SET_MEM_TARGET, MAIN_MEM, $2000)
-loader(QUEUE_LOAD,     MAIN_MEM, 2<<8 | RES_TYPE_SCREEN)
-loader(LOCK_MEMORY,    MAIN_MEM, $2000)
-loader(FINISH_LOAD, MAIN_MEM, 1) // 1 = keep open
-titleLoaded = TRUE
-^$c050
-^$c057
-^$c054
-^$c052
-// Hack for real (not emulated) IIc: sometimes displays only lo-bit graphics
-// unless we do this. *HUGE* thanks to Brendan Robert for the fix!
-^$C07E=0   // disable double-hi-res
-^$C05F     // disable double-hi-res
-
-initMap()
-
+loadTitle()
+if mapIs3D
+  initCmds3D()
+  initMap3D()
+else
+  // 2D todo
+fin
 setWindow2()
-
-// Main keyboard loop
-puts(@loopStr)
 kbdLoop()
 
 done

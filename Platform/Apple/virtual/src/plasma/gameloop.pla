@@ -7,6 +7,7 @@ const NULL  = 0
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Fixed memory locations
 const raycaster  = $6000   // main mem
+const tileEngine = $6000   // main mem
 const expandVec  = $2000   // aux mem
 const fontEngine = $BA00   // main mem
 
@@ -15,6 +16,7 @@ const fontEngine = $BA00   // main mem
 const RES_NUM_RAYCASTER   = 1
 const RES_NUM_EXPAND_VEC  = 2
 const RES_NUM_FONT_ENGINE = 3
+const RES_NUM_TILE_ENGINE = 4
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Hardware addresses.
@@ -58,14 +60,18 @@ const FATAL_ERROR    = $1F
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Other constants
 const callbacks = $300
-const MAP_FLAG_3D = $4000
-const OVERMAP_NUM = 11
-const OVERMAP_IS_3D = 1
 const MAX_LOC_TRIG = 128
 
+// 3D mode
+//const OVERMAP_NUM = 11
+//const OVERMAP_IS_3D = 1
+// 2D mode
+const OVERMAP_NUM = 1
+const OVERMAP_IS_3D = 0
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Predefined functions, for circular calls
-predef moveBackward, setWindow2
+// Predefined functions, for circular calls or out-of-order calls
+predef moveBackward, setWindow2, initCmds2D, initCmds3D
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Raycaster variables
@@ -219,6 +225,8 @@ asm printHex
         rts
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Print a carriage return
 asm crout
         bit setROM
         jsr crout
@@ -227,6 +235,8 @@ asm crout
         rts
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Ring the bell
 asm beep
         bit setROM
         jsr bell
@@ -236,7 +246,7 @@ asm beep
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Work with the memory manager
+// Send a command to the memory manager
 // Params: cmd, mainOrAux, amount
 asm loader
         txa
@@ -308,9 +318,24 @@ asm initRaycaster
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Set up the tile engine
+// Params: mapNum
+asm initTileEngine
+        txa
+        pha
+        bit setROM
+        lda evalStkL,x
+        jsr $6000
+        pla
+        tax
+        bit setLcRW+lcBank2
+        rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Render one frame using the ray caster.
 // Params: none
-asm renderFrame
+asm renderFrame3D
         txa
         pha
         bit setROM
@@ -475,10 +500,14 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // General methods
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Fatal error: print message and stop the system.
 def fatal(msg)
   loader(FATAL_ERROR, MAIN_MEM, msg)
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Get a keystroke and convert it to upper case
 def getUpperKey()
   byte key
   while ^keyboard < 128
@@ -491,26 +520,46 @@ def getUpperKey()
   return key
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Set the sky color (relevant to 3D display only)
 def setSky(num)
   skyNum = num
   setColor(0<<8 | skyGndTbl1[skyNum])
   setColor(1<<8 | skyGndTbl2[skyNum])
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Switch to the next sky color (3D only)
 def nextSky()
   setSky((skyNum + 1) & $F)
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Set the ground color (relevant to 3D display only)
 def setGround(num)
   groundNum = num
   setColor(2<<8 | skyGndTbl1[groundNum])
   setColor(3<<8 | skyGndTbl2[groundNum])
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Switch to the next ground color
 def nextGround()
   setGround((groundNum + 1) & $F)
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Render a graphics frame
+def renderFrame()
+  if mapIs3D
+    renderFrame3D()
+  else
+    // TODO: 2D render
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Switch to text mode and display mem manager debug printout, get a key, switch back to graphics.
 def debugMem(bank, code)
   ^$c051
   ^$c054
@@ -520,8 +569,44 @@ def debugMem(bank, code)
   ^$c050
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Clear the command table
+def resetCmds()
+  byte i
+  for i = 0 to 63
+    cmdTbl[i] = 0
+  next
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Establish a keystroke -> command association in the command table
+def initCmd(key, func)
+  if key >= $60
+    key = key - $20
+  fin
+  cmdTbl[key-$20] = func
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Load the Frame Image, and lock it.
+def loadFrameImg()
+  if titleLoaded
+    loader(UNLOCK_MEMORY,MAIN_MEM, $2000)
+    loader(FREE_MEMORY,  MAIN_MEM, $2000)
+    titleLoaded = FALSE
+  fin
+  loader(SET_MEM_TARGET, MAIN_MEM, $2000)
+  loader(QUEUE_LOAD,     MAIN_MEM, 1<<8 | RES_TYPE_SCREEN)
+  loader(LOCK_MEMORY,    MAIN_MEM, $2000)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Load code and data, set up everything to display a 3D map
 def initMap3D()
   word scriptModule
+
+  // Set up the command table
+  initCmds3D()
 
   // Reset memory (our module will stay since memory manager locked it upon load)
   loader(RESET_MEMORY, MAIN_MEM, 0)
@@ -549,14 +634,7 @@ def initMap3D()
   loader(FINISH_LOAD, MAIN_MEM, 1) // 1 = keep open
 
   // Load the frame image (and lock it there)
-  if titleLoaded
-    loader(UNLOCK_MEMORY,MAIN_MEM, $2000)
-    loader(FREE_MEMORY,  MAIN_MEM, $2000)
-    titleLoaded = FALSE
-  fin
-  loader(SET_MEM_TARGET, MAIN_MEM, $2000)
-  loader(QUEUE_LOAD,     MAIN_MEM, 1<<8 | RES_TYPE_SCREEN)
-  loader(LOCK_MEMORY,    MAIN_MEM, $2000)
+  loadFrameImg()
 
   // Load the scripts for this map, if it has any.
   scriptModule = pMap->2  // first 2 bytes are width and height, third byte is script module num
@@ -607,6 +685,65 @@ def initMap3D()
   redraw = FALSE
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Load code and data, set up everything to display a 2D map
+def initMap2D()
+  word scriptModule
+
+  // Set up the command table
+  printHex($1001)
+  initCmds2D()
+
+  // Reset memory (our module will stay since memory manager locked it upon load)
+  printHex($1002)
+  loader(RESET_MEMORY, MAIN_MEM, 0)
+
+  // Load the font engine
+  printHex($1003)
+  loader(SET_MEM_TARGET, MAIN_MEM, fontEngine)
+  loader(QUEUE_LOAD,     MAIN_MEM, RES_NUM_FONT_ENGINE<<8 | RES_TYPE_CODE)
+
+  // Load the font for the font engine
+  printHex($1004)
+  loader(SET_MEM_TARGET, MAIN_MEM, $9000)
+  pFont = loader(QUEUE_LOAD, MAIN_MEM, 1<<8 | RES_TYPE_FONT)
+
+  // Load the tile engine
+  printHex($1005)
+  loader(SET_MEM_TARGET, MAIN_MEM, tileEngine)
+  loader(QUEUE_LOAD,     MAIN_MEM, RES_NUM_TILE_ENGINE<<8 | RES_TYPE_CODE)
+
+  // Load everything that we just queued
+  printHex($1006)
+  loader(FINISH_LOAD, MAIN_MEM, 1) // 1 = keep open
+
+  // Load the frame image (and lock it there)
+  printHex($1007)
+  loadFrameImg()
+
+  // Start up the font engine
+  printHex($1008)
+  initFontEngine(pFont)
+
+  // Start up the tile engine
+  printHex($1009)
+  initTileEngine(mapNum)
+
+  // TODO
+  printHex($1010)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Set up mapNum (2D or 3D depending on state of is3DMap)
+def initMap()
+  if mapIs3D
+    initMap3D()
+  else
+    initMap2D()
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the map name bar
 def setWindow1()
   ^wndtop = 1
@@ -617,6 +754,7 @@ def setWindow1()
   ^cursh = ^wndleft
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the large upper right bar
 def setWindow2()
   ^wndtop = 3
@@ -627,6 +765,7 @@ def setWindow2()
   ^cursh = ^wndleft
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the mid-size lower right bar
 def setWindow3()
   ^wndtop = 18
@@ -638,21 +777,8 @@ def setWindow3()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Actions
-def resetCmds()
-  byte i
-  for i = 0 to 63
-    cmdTbl[i] = 0
-  next
-end
-
-def initCmd(key, func)
-  if key >= $60
-    key = key - $20
-  fin
-  cmdTbl[key-$20] = func
-end
-
+// Make sure page 1 of hi-res is displayed. Do this before doing memory manager operations, since
+// they overwrite page 2.
 def flipToFirstPage
   if ^frontBuf == 1
     renderFrame()
@@ -660,6 +786,8 @@ def flipToFirstPage
   fin
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Check for script(s) attached to the current location, and call them if there are any.
 def checkScript()
   word x
   word y
@@ -685,10 +813,12 @@ def checkScript()
   fin
   if (mapNum <> prevMapNum) or (mapIs3D <> prevMapIs3D)
     flipToFirstPage()
-    initMap3D()
+    initMap()
   fin
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Advance one step forward (3D maps only)
 def moveForward()
   word wasBlocked 
   word func
@@ -700,36 +830,50 @@ def moveForward()
   fin
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Adjust player's direction plus or minus n increments (3D mode)
 def adjustDir(n)
   ^playerDir = (^playerDir + n) & $F
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Move backward one step (3D mode)
 def moveBackward()
   adjustDir(8)
   moveForward()
   adjustDir(8)
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Turn left (3D mode)
 def rotateLeft()
   adjustDir(-1)
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Rotate to the right (3D mode)
 def rotateRight()
   adjustDir(1)
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Sidestep to the right (3D mode)
 def strafeRight()
   adjustDir(4)
   moveForward()
   adjustDir(-4)
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Sidestep to the left (3D mode)
 def strafeLeft()
   adjustDir(-4)
   moveForward()
   adjustDir(4)
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Switch to a new map (2D or 3D)
 def setMap(is3D, num)
   // save player state if we're coming *from* the over-map
   if mapNum == OVERMAP_NUM and mapIs3D == OVERMAP_IS_3D
@@ -745,6 +889,8 @@ def setMap(is3D, num)
   mapNum = num
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Switch to next map in the current 2D or 3D mode.
 def nextMap()
   mapNum = mapNum + 1
   if mapNum > 20
@@ -753,6 +899,8 @@ def nextMap()
   setMap(mapIs3D, mapNum)
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Jump to a new map location (and in 3D mode, point in the given direction)
 def teleport(x, y, dir)
   *playerX = ((x+1)<<8) | $80
   *playerY = ((y+1)<<8) | $80
@@ -764,6 +912,8 @@ def teleport(x, y, dir)
   redraw = TRUE
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Get a key and dispatch it to a command. Then do it again, forever.
 def kbdLoop()
   word key, func
   while TRUE
@@ -785,6 +935,8 @@ def kbdLoop()
   loop
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Associate a location with a trigger function (i.e. a script)
 def setLocationTrigger(x, y, func)
   if nLocTrig == MAX_LOC_TRIG
     fatal(@tooManyTriggers)
@@ -795,6 +947,8 @@ def setLocationTrigger(x, y, func)
   nLocTrig = nLocTrig + 1
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Get a key, and don't return until it's Y or N (or lower-case of those). Returns 1 for Y.
 def getYN()
   byte key
   while TRUE
@@ -809,25 +963,8 @@ def getYN()
   loop
 end
 
-def loadTitle()
-  puts(@helloStr)
-
-  // Load the title screen
-  loader(SET_MEM_TARGET, MAIN_MEM, $2000)
-  loader(QUEUE_LOAD,     MAIN_MEM, 2<<8 | RES_TYPE_SCREEN)
-  loader(LOCK_MEMORY,    MAIN_MEM, $2000)
-  loader(FINISH_LOAD, MAIN_MEM, 1) // 1 = keep open
-  titleLoaded = TRUE
-  ^$c050
-  ^$c057
-  ^$c054
-  ^$c052
-  // Hack for real (not emulated) IIc: sometimes displays only lo-bit graphics
-  // unless we do this. *HUGE* thanks to Brendan Robert for the fix!
-  ^$C07E=0   // disable double-hi-res
-  ^$C05F     // disable double-hi-res
-end
-
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Set up the command table for 3D mode
 def initCmds3D()
   resetCmds()
 
@@ -882,15 +1019,39 @@ def initCmds3D()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Set up the command table for 2D mode
+def initCmds2D()
+  resetCmds()
+
+  //initCmd('W', @moveForward)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Load and display the title screen.
+def loadTitle()
+  puts(@helloStr)
+
+  // Load the title screen
+  loader(SET_MEM_TARGET, MAIN_MEM, $2000)
+  loader(QUEUE_LOAD,     MAIN_MEM, 2<<8 | RES_TYPE_SCREEN)
+  loader(LOCK_MEMORY,    MAIN_MEM, $2000)
+  loader(FINISH_LOAD, MAIN_MEM, 1) // 1 = keep open
+  titleLoaded = TRUE
+  ^$c050
+  ^$c057
+  ^$c054
+  ^$c052
+  // Hack for real (not emulated) IIc: sometimes displays only lo-bit graphics
+  // unless we do this. *HUGE* thanks to Brendan Robert for the fix!
+  ^$C07E=0   // disable double-hi-res
+  ^$C05F     // disable double-hi-res
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Main code.
 //
 loadTitle()
-if mapIs3D
-  initCmds3D()
-  initMap3D()
-else
-  // 2D todo
-fin
+initMap()
 setWindow2()
 kbdLoop()
 

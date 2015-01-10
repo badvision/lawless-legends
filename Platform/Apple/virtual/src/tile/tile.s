@@ -3,10 +3,16 @@
 ; ------------------
 ;     
  * = $6000
+
+; Use hi-bit ASCII for Apple II
+!convtab "../include/hiBitAscii.ct"
+
 ; Global definitions
 !source "../include/global.i"
 !source "../include/mem.i"
 !source "../include/plasma.i"
+
+DEBUG		= 1		; 1=some logging, 2=lots of logging
 
 HEADER_LENGTH=6
 SECTION_WIDTH=22
@@ -69,17 +75,13 @@ Y_COUNTER		= $67	; Loop counter used during drawing
 Y_LOC			= $68	; Current row being drawn (between 0 and VIEWPORT_WIDTH)
 ROW_LOCATION	= $69	; Used for pointing at row offset in map data
 TILE_SOURCE		= $6D	; Location of tile data
-; >> INIT (reset map drawing vars)
-INIT
-		LDA #NOT_LOADED
-		STA NW_MAP_ID
-		STA NE_MAP_ID
-		STA SW_MAP_ID
-		STA SE_MAP_ID
-		LDX VIEWPORT_HORIZ_PAD
-		LDY VIEWPORT_VERT_PAD
-		JSR SET_XY
-		RTS
+
+;----------------------------------------------------------------------
+; Vectors used to call in from the outside.
+		jmp INIT
+
+; Debug support -- must come after jump vectors, since it's not just macros.
+!source "../include/debug.i"
 
 ;----------------------------------------------------------------------
 ; >> START LOADING MAP SECTIONS
@@ -109,6 +111,11 @@ LOAD_SECTION
 		LDY #00
 		RTS
 .doLoad		TAY		; resource # in Y
+!if DEBUG >= 1 {
+	+prStr : !text "load section: mapNum=",0
+	+prY
+	+crout
+} ; end DEBUG
 		LDX #RES_TYPE_2D_MAP
 		LDA #QUEUE_LOAD
 		JMP mainLoader
@@ -142,6 +149,11 @@ FINISH_MAP_LOAD
 ;	Load tile resource (A = Resource ID)
 LOAD_TILESET
 		TAY
+!if DEBUG >= 1 {
+	+prStr : !text "load tileset=",0
+	+prY
+	+crout
+} ; end DEBUG
 		LDX #RES_TYPE_TILESET
 		LDA #QUEUE_LOAD
 		JMP mainLoader
@@ -577,6 +589,52 @@ ROW_OFFSET = 3
 		INC SECTION_Y_START
 	 	JMP .rowLoop
 ; Draw player
+
+
+;----------------------------------------------------------------------
+; >> INIT (reset map drawing vars, load initial map in A)
+INIT
+!if DEBUG >= 1 {
+	+prStr : !text "Init tile engine.",0
+	+prA
+	+crout
+} ; end DEBUG
+		; load the NW map section first
+		STA NW_MAP_ID
+		+startLoad
+		LDA NW_MAP_ID
+		+loadSection NW_MAP_LOC
+		+finishLoad
+		+startLoad
+		; from the NW section we can get the ID of the NE section
+		LDY #EAST
+		LDA (NW_MAP_LOC),Y
+		STA NE_MAP_ID
+		+loadSection NE_MAP_LOC
+		; from the NW section we can get the ID of the SW section
+		LDY #SOUTH
+		LDA (NW_MAP_LOC),Y
+		STA SW_MAP_ID
+		+loadSection SW_MAP_LOC
+		+finishLoad
+		+startLoad
+		; if there's no SW section, there's also no SE section
+		LDA #$FF
+		STA SE_MAP_ID
+		CMP SW_MAP_ID
+		BEQ +
+		; get the SE section from the SW section
+		LDY #EAST
+		LDA (SW_MAP_LOC),Y
+		STA SE_MAP_ID
+		+loadSection SE_MAP_LOC
++		+loadAllTiles
+		+finishLoad
+		; set up the X and Y coordinates
+		LDX VIEWPORT_HORIZ_PAD
+		LDY VIEWPORT_VERT_PAD
+		JSR SET_XY
+		RTS
 
 tblHGRl		
 		!byte	$00,$80,$00,$80,$00,$80,$00,$80

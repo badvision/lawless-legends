@@ -420,6 +420,7 @@ class PackPartitions
                 def buf = ByteBuffer.allocate(512)
                 buffers[vsect][hsect] = buf
                 def num = maps2D.size() + 1
+                sectionNums[vsect][hsect] = num
                 def sectName = "$mapName-$hsect-$vsect"
                 maps2D[sectName] = [num:num, buf:buf]
             }
@@ -431,9 +432,9 @@ class PackPartitions
                 // Header: first come links to other map sections - north, east, south, west
                 def buf = buffers[vsect][hsect]
                 buf.put((byte) (vsect > 0) ? sectionNums[vsect-1][hsect] : 0xFF) // north
-                buf.put((byte) (hsect > 0) ? sectionNums[vsect][hsect-1] : 0xFF) // east
+                buf.put((byte) (hsect < nHorzSections-1) ? sectionNums[vsect][hsect+1] : 0xFF) // east
                 buf.put((byte) (vsect < nVertSections-1) ? sectionNums[vsect+1][hsect] : 0xFF) // south
-                buf.put((byte) (hsect > 0) ? sectionNums[vsect-1][hsect] : 0xFF) // west
+                buf.put((byte) (hsect > 0) ? sectionNums[vsect][hsect-1] : 0xFF) // west
                 
                 // Then links to the tile set and script library
                 buf.put((byte) tileSetNum)

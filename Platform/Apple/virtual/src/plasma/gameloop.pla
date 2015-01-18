@@ -302,9 +302,9 @@ asm initFontEngine
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Set up the ray casting engine
+// Set up the ray casting engine or tile engine (they share the same address)
 // Params: pMap
-asm initRaycaster
+asm initDisplayEngine
         txa
         pha
         bit setROM
@@ -317,25 +317,11 @@ asm initRaycaster
         rts
 end
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Set up the tile engine
-// Params: mapNum
-asm initTileEngine
-        txa
-        pha
-        bit setROM
-        lda evalStkL,x
-        jsr $6000
-        pla
-        tax
-        bit setLcRW+lcBank2
-        rts
-end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Render one frame using the ray caster.
+// Render one frame using the ray caster or tile engine (they share the same address)
 // Params: none
-asm renderFrame3D
+asm renderFrame
         txa
         pha
         bit setROM
@@ -549,16 +535,6 @@ def nextGround()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Render a graphics frame
-def renderFrame()
-  if mapIs3D
-    renderFrame3D()
-  else
-    // TODO: 2D render
-  fin
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Switch to text mode and display mem manager debug printout, get a key, switch back to graphics.
 def debugMem(bank, code)
   ^$c051
@@ -647,7 +623,7 @@ def initMap3D()
   initFontEngine(pFont)
 
   // Start up the raycaster
-  initRaycaster(pMap)
+  initDisplayEngine(pMap)
 
   // Set initial player position in case the init script doesn't do it
   ^playerDir = 1
@@ -691,46 +667,45 @@ def initMap2D()
   word scriptModule
 
   // Set up the command table
-  printHex($1001)
   initCmds2D()
 
   // Reset memory (our module will stay since memory manager locked it upon load)
-  printHex($1002)
   loader(RESET_MEMORY, MAIN_MEM, 0)
 
   // Load the font engine
-  printHex($1003)
   loader(SET_MEM_TARGET, MAIN_MEM, fontEngine)
   loader(QUEUE_LOAD,     MAIN_MEM, RES_NUM_FONT_ENGINE<<8 | RES_TYPE_CODE)
 
   // Load the font for the font engine
-  printHex($1004)
   loader(SET_MEM_TARGET, MAIN_MEM, $9000)
   pFont = loader(QUEUE_LOAD, MAIN_MEM, 1<<8 | RES_TYPE_FONT)
 
   // Load the tile engine
-  printHex($1005)
   loader(SET_MEM_TARGET, MAIN_MEM, tileEngine)
   loader(QUEUE_LOAD,     MAIN_MEM, RES_NUM_TILE_ENGINE<<8 | RES_TYPE_CODE)
 
   // Load everything that we just queued
-  printHex($1006)
   loader(FINISH_LOAD, MAIN_MEM, 1) // 1 = keep open
 
   // Load the frame image (and lock it there)
-  printHex($1007)
   loadFrameImg()
 
   // Start up the font engine
-  printHex($1008)
   initFontEngine(pFont)
 
   // Start up the tile engine
-  printHex($1009)
-  initTileEngine(mapNum)
+  initDisplayEngine(mapNum)
 
-  // TODO
-  printHex($1010)
+  // For now
+  prevX = -1
+  prevY = -1
+  prevScript = -1
+  nLocTrig = 0
+  prevMapNum = mapNum
+  prevMapIs3D = mapIs3D
+  pScripts = NULL
+  renderFrame()
+  redraw = FALSE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

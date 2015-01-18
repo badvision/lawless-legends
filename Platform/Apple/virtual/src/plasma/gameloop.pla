@@ -82,6 +82,11 @@ const backBuf   = $6A
 const frontBuf  = $6B
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Tile engine variables
+const relX = $50
+const relY = $51
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Font engine variables
 const wndleft   = $70  // left edge of the window
 const wndwdth   = $71  // right edge (NOT width) of text window
@@ -326,6 +331,21 @@ asm renderFrame
         pha
         bit setROM
         jsr $6003
+        pla
+        tax
+        dex                 ; don't-care return value
+        bit setLcRW+lcBank2
+        rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Deal with crossing into a new map section
+// Params: none
+asm checkCrossing
+        txa
+        pha
+        bit setROM
+        jsr $6006
         pla
         tax
         dex                 ; don't-care return value
@@ -848,6 +868,29 @@ def strafeLeft()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def move2D(ox, oy)
+  *relX = ox + *relX
+  *relY = oy + *relY
+  checkCrossing()
+end
+
+def moveNorth()
+  move2D(0, -1)
+end
+
+def moveEast()
+  move2D(1, 0)
+end
+
+def moveSouth()
+  move2D(0, 1)
+end
+
+def moveWest()
+  move2D(-1, 0)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Switch to a new map (2D or 3D)
 def setMap(is3D, num)
   // save player state if we're coming *from* the over-map
@@ -998,7 +1041,11 @@ end
 def initCmds2D()
   resetCmds()
 
-  //initCmd('W', @moveForward)
+  initCmd('W', @moveNorth)
+  initCmd('D', @moveEast)
+  initCmd('S', @moveSouth)
+  initCmd('X', @moveSouth)
+  initCmd('A', @moveWest)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

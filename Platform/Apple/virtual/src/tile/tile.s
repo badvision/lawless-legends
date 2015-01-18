@@ -80,6 +80,7 @@ TILE_SOURCE     = $6D   ; Location of tile data
 ; Vectors used to call in from the outside.
 	jmp INIT
 	jmp DRAW
+	jmp CROSS
 
 ; Debug support -- must come after jump vectors, since it's not just macros.
 !source "../include/debug.i"
@@ -220,6 +221,27 @@ LOAD_ALL_TILES
 !macro loadAllTiles {
 	JSR LOAD_ALL_TILES
 }
+
+; >> CHECK CROSSINGS
+!zone
+CROSS
+	LDA REL_Y
+	CMP #VIEWPORT_VERT_PAD-1
+	BPL .10
+	JSR CROSS_NORTH
+.10	LDA REL_Y
+	CMP #VIEWPORT_VERT_PAD+SECTION_HEIGHT
+	BMI .20
+	JSR CROSS_SOUTH
+.20	LDA REL_X
+	CMP #VIEWPORT_HORZ_PAD-1
+	BPL .30
+	JSR CROSS_WEST
+.30	LDA REL_X
+	CMP #VIEWPORT_HORZ_PAD+SECTION_WIDTH
+	BMI .40
+	JSR CROSS_EAST
+.40	RTS
 
 ; >> CROSS NORTH BOUNDARY (Load next section to the north)
 !zone

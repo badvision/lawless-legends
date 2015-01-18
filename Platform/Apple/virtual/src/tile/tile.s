@@ -18,7 +18,7 @@ HEADER_LENGTH=6
 SECTION_WIDTH=22
 SECTION_HEIGHT=23
 VIEWPORT_WIDTH=9
-VIEWPORT_HEIGHT=9
+VIEWPORT_HEIGHT=8
 VIEWPORT_VERT_PAD=4 ; This is the distance between the center of the viewport and the top/bottom
 VIEWPORT_HORIZ_PAD=4 ; This is the distance between the center of the viewport and the left/right
 
@@ -361,6 +361,7 @@ CROSS_WEST
 	SEC
 	SBC SECTION_X_START
 	STA DRAW_WIDTH
+	BMI .30
     ; Determine Y1 and Y2 bounds for what is being drawn
 	LDA REL_Y
 	SEC
@@ -379,64 +380,37 @@ CROSS_WEST
 	SEC
 	SBC SECTION_Y_START
 	STA DRAW_HEIGHT
+	BMI .30
 	+move_word mapPtr, DRAW_SECTION
 	+move_word tilesetPtr, TILE_BASE
 	JSR MainDraw
+.30
 }
 
 DRAW
 ; For each quadrant, display relevant parts of screen
 !if DEBUG { +prStr : !text "In draw.",0 }
-	LDA #00
-	STA DRAW_X_START
-	STA DRAW_Y_START
-.checkNorthQuads
-	LDA REL_Y
-	CMP #(SECTION_HEIGHT+VIEWPORT_VERT_PAD)
-	BMI .checkNWQuad
-	JMP .checkSouthQuads
 .checkNWQuad
-;   Check for NW quadrant area
-	LDA REL_X
-	CMP #(SECTION_WIDTH+VIEWPORT_HORIZ_PAD)
-	BPL .checkNEQuad
-!if DEBUG { +prStr : !text "Draw NW quad.",0 }
+	LDA #00
+	STA DRAW_Y_START
+	STA DRAW_X_START
 	+drawMapSection NW_MAP_LOC, NW_TILESET_LOC, 0, 0
-;   Check for NE quadrant area
 .checkNEQuad
-	LDA REL_X
-	CMP #VIEWPORT_HORIZ_PAD+1
-	BMI .finishTopQuads
 	LDA DRAW_WIDTH
 	STA DRAW_X_START
-!if DEBUG { +prStr : !text "Draw NE quad.",0 }
 	+drawMapSection NE_MAP_LOC, NE_TILESET_LOC, SECTION_WIDTH, 0
-.finishTopQuads     
-;Update Y start for bottom quadrants
+.checkSWQuad
 	LDA DRAW_HEIGHT
 	STA DRAW_Y_START
-;-----
-.checkSouthQuads
 	LDA #00
 	STA DRAW_X_START
-;   Check for SW quadrant area
-	LDA REL_X
-	CMP #(SECTION_WIDTH+VIEWPORT_HORIZ_PAD)
-	BPL .checkSEQuad
-!if DEBUG { +prStr : !text "Draw SW quad.",0 }
 	+drawMapSection SW_MAP_LOC, SW_TILESET_LOC, 0, SECTION_HEIGHT
 .checkSEQuad
-;   Check for SE quadrand area
-	LDA REL_X
-	CMP #(VIEWPORT_HORIZ_PAD+1)
-	BPL .drawSEQuad
-	RTS
-.drawSEQuad     
 	LDA DRAW_WIDTH
 	STA DRAW_X_START
-!if DEBUG { +prStr : !text "Draw SE quad.",0 }
 	+drawMapSection SE_MAP_LOC, SE_TILESET_LOC, SECTION_WIDTH, SECTION_HEIGHT
-    RTS
+!if DEBUG { +prStr : !text "Draw complete.",0 }
+	RTS
 
 MainDraw
 ;----- Tracking visible tile data -----
@@ -458,6 +432,22 @@ MainDraw
 COL_OFFSET = 2
 ROW_OFFSET = 3
 
+	LDA DRAW_SECTION+1	; skip if no map section here
+	BNE .gotMap
+	RTS
+.gotMap
+
+!if DEBUG >= 1 {
+	+prStr : !text "SECTION_X_START=",0
+	+prByte SECTION_X_START
+	+prStr : !text "DRAW_WIDTH=", 0
+	+prByte DRAW_WIDTH
+	+prStr : !text "SECTION_Y_START=",0
+	+prByte SECTION_Y_START
+	+prStr : !text "DRAW_HEIGHT=", 0
+	+prByte DRAW_HEIGHT
+	+crout
+}
 	LDA DRAW_HEIGHT
 	STA Y_COUNTER
 	LDA DRAW_Y_START
@@ -565,7 +555,7 @@ ROW_OFFSET = 3
 	    TXA ; In the drawing part, we need X=X*2
 	    ASL
 	    TAX
-!if DEBUG {
+!if DEBUG >= 2 {
 	+prStr : !text "Draw at ",0
 	+prX
 	+crout
@@ -582,7 +572,7 @@ ROW_OFFSET = 3
 		}
 	    }
 	    DEC X_COUNTER
-	    BMI .next_row
+	    BEQ .next_row
 	    TXA ; Outside the drawing part we need to put X back (divide by 2)
 	    LSR
 	    TAX
@@ -591,7 +581,7 @@ ROW_OFFSET = 3
 ; Increment row
 .next_row
 	DEC Y_COUNTER
-	BPL .notDone
+	BNE .notDone
 	RTS
 .notDone
 	INC Y_LOC
@@ -635,8 +625,8 @@ INIT
 +       +loadAllTiles
 	+finishLoad
 	; set up the X and Y coordinates
-	LDX VIEWPORT_HORIZ_PAD
-	LDY VIEWPORT_VERT_PAD
+	LDX #VIEWPORT_HORIZ_PAD
+	LDY #VIEWPORT_VERT_PAD
 	JSR SET_XY
 	RTS
 

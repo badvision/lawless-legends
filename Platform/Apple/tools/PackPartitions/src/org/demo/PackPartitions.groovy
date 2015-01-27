@@ -450,8 +450,7 @@ class PackPartitions
                     (0..<TILES_PER_ROW).each { colNum ->
                         def x = hOff + colNum
                         def tile = (row && x < width) ? row[x] : null
-                        def id = tile?.@id
-                        buf.put((byte)(id ? tileMap[tile?.@id] : 0))
+                        buf.put((byte)(tile ? tileMap[tile.@id] : 0))
                     }
                 }
             }
@@ -660,18 +659,21 @@ class PackPartitions
         def setName = "tileSet${setNum}"
         def tileMap = [null:0]
         def buf = ByteBuffer.allocate(50000)
+        
+        // Start with the empty tile
+        (0..31).each { buf.put((byte)0) }
+        
+        // Then add each non-null tile to the set
         rows.each { row ->
             row.each { tile ->
-                if (tile) {
-                    def id = tile.@id
-                    if (!tileMap.containsKey(id)) {
-                        def num = tileMap.size() + 1
-                        assert num < 32 : "Temporary, need to fix: Only 32 kinds of tiles are allowed on any given map."
-                        tileMap[id] = num
-                        tiles[id].flip() // crazy stuff to append one buffer to another
-                        buf.put(tiles[id])
-                        tiles[id].compact() // more of crazy stuff above
-                    }
+                def id = tile?.@id
+                if (tile && !tileMap.containsKey(id)) {
+                    def num = tileMap.size()
+                    assert num < 32 : "Temporary, need to fix: Only 32 kinds of tiles are allowed on any given map."
+                    tileMap[id] = num
+                    tiles[id].flip() // crazy stuff to append one buffer to another
+                    buf.put(tiles[id])
+                    tiles[id].compact() // more of crazy stuff above
                 }
             }
         }

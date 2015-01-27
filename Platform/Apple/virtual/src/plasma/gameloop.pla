@@ -872,6 +872,7 @@ def move2D(ox, oy)
   *relX = ox + *relX
   *relY = oy + *relY
   checkCrossing()
+  renderFrame()
 end
 
 def moveNorth()

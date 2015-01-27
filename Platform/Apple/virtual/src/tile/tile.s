@@ -12,7 +12,7 @@
 !source "../include/mem.i"
 !source "../include/plasma.i"
 
-DEBUG       = 1     ; 1=some logging, 2=lots of logging
+DEBUG       = 0     ; 1=some logging, 2=lots of logging
 
 HEADER_LENGTH=6
 SECTION_WIDTH=22
@@ -44,10 +44,10 @@ NW_MAP_LOC=$52
 NE_MAP_LOC=$54
 SW_MAP_LOC=$56
 SE_MAP_LOC=$58
-NW_TILESET_LOC=$70
-NE_TILESET_LOC=$72
-SW_TILESET_LOC=$74
-SE_TILESET_LOC=$76
+NW_TILESET_LOC=$90
+NE_TILESET_LOC=$92
+SW_TILESET_LOC=$94
+SE_TILESET_LOC=$96
 ; Map section IDs (255 = not loaded)
 NOT_LOADED=$FF
 NW_MAP_ID=$5A
@@ -214,9 +214,9 @@ FREE_ALL_TILES
 
 LOAD_ALL_TILES
 	+loadTileset NW_MAP_LOC, NW_TILESET_LOC
-	+loadTileset NE_MAP_LOC, NW_TILESET_LOC
-	+loadTileset SW_MAP_LOC, NW_TILESET_LOC
-	+loadTileset SE_MAP_LOC, NW_TILESET_LOC
+	+loadTileset NE_MAP_LOC, NE_TILESET_LOC
+	+loadTileset SW_MAP_LOC, SW_TILESET_LOC
+	+loadTileset SE_MAP_LOC, SE_TILESET_LOC
 	RTS
 !macro loadAllTiles {
 	JSR LOAD_ALL_TILES
@@ -234,11 +234,11 @@ CROSS
 	BMI .20
 	JSR CROSS_SOUTH
 .20	LDA REL_X
-	CMP #VIEWPORT_HORZ_PAD-1
+	CMP #VIEWPORT_HORIZ_PAD-1
 	BPL .30
 	JSR CROSS_WEST
 .30	LDA REL_X
-	CMP #VIEWPORT_HORZ_PAD+SECTION_WIDTH
+	CMP #VIEWPORT_HORIZ_PAD+SECTION_WIDTH
 	BMI .40
 	JSR CROSS_EAST
 .40	RTS
@@ -431,7 +431,13 @@ DRAW
 	LDA DRAW_WIDTH
 	STA DRAW_X_START
 	+drawMapSection SE_MAP_LOC, SE_TILESET_LOC, SECTION_WIDTH, SECTION_HEIGHT
-!if DEBUG { +prStr : !text "Draw complete.",0 }
+!if DEBUG { 
+	+prStr : !text "Draw complete, REL_X=",0 
+	+prByte REL_X
+	+prStr : !text "REL_Y=",0
+	+prByte REL_Y
+	+crout
+}
 	RTS
 
 MainDraw
@@ -547,22 +553,24 @@ ROW_OFFSET = 3
 ; Get tile
 	TXA
 	TAY
+	LDA #0
+	STA TILE_SOURCE+1
 	LDA (ROW_LOCATION), Y
-	; Calculate location of tile data == tile_base + ((tile & 31) * 16)
+	; Calculate location of tile data == tile_base + ((tile & 31) * 32)
 	AND #31
 	ASL
 	ASL
 	ASL
 	ASL
+	ROL TILE_SOURCE+1
+	ASL
+	ROL TILE_SOURCE+1
+	CLC
+	ADC TILE_BASE	
 	STA TILE_SOURCE
-	LDA TILE_BASE + 1
-	ADC #$00
+	LDA TILE_SOURCE+1
+	ADC TILE_BASE + 1
 	STA TILE_SOURCE+1
-	LDA TILE_BASE
-	ADC TILE_SOURCE
-	STA TILE_SOURCE
-	BCC .doneCalculatingTileLocation
-	INC TILE_SOURCE+1
 .doneCalculatingTileLocation
 ;   Is there a NPC there?
 ;     No, use map tile
@@ -647,7 +655,7 @@ INIT
 +       +loadAllTiles
 	+finishLoad
 	; set up the X and Y coordinates
-	LDX #VIEWPORT_HORIZ_PAD
+	LDX #VIEWPORT_HORIZ_PAD+1
 	LDY #VIEWPORT_VERT_PAD
 	JSR SET_XY
 	RTS

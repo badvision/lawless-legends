@@ -12,7 +12,7 @@
 !source "../include/mem.i"
 !source "../include/plasma.i"
 
-DEBUG       = 0     ; 1=some logging, 2=lots of logging
+DEBUG       = 1     ; 1=some logging, 2=lots of logging
 
 HEADER_LENGTH=6
 SECTION_WIDTH=22
@@ -462,6 +462,7 @@ ROW_OFFSET = 3
 
 	LDA DRAW_SECTION+1	; skip if no map section here
 	BNE .gotMap
+.noDraw
 	RTS
 .gotMap
 
@@ -477,10 +478,16 @@ ROW_OFFSET = 3
 	+crout
 }
 	LDA DRAW_HEIGHT
+	BEQ .noDraw
+	BMI .noDraw
 	STA Y_COUNTER
 	LDA DRAW_Y_START
 	STA Y_LOC
 .rowLoop        
+	LDA DRAW_WIDTH
+	BEQ .noDraw
+	BMI .noDraw
+	STA X_COUNTER
 ; Identify start of map data (upper left)
 	; Self-modifying code: Update all the STA statements in the drawTile section
 	LDA Y_LOC
@@ -545,8 +552,6 @@ ROW_OFFSET = 3
 	BCC .doneCalculatingLocation
 	INC ROW_LOCATION + 1
 .doneCalculatingLocation
-	LDA DRAW_WIDTH
-	STA X_COUNTER
 	LDX DRAW_X_START        
 ; Display row of tiles
 .next_col
@@ -655,7 +660,7 @@ INIT
 +       +loadAllTiles
 	+finishLoad
 	; set up the X and Y coordinates
-	LDX #VIEWPORT_HORIZ_PAD+1
+	LDX #VIEWPORT_HORIZ_PAD
 	LDY #VIEWPORT_VERT_PAD
 	JSR SET_XY
 	RTS

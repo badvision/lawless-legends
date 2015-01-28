@@ -11,7 +11,7 @@ To keep development compartmentalized and easily managed, PLASMA uses relatively
 To start things off, here is the standard introductory program:
 
 ```
-import stdlib
+import cmdsys
     predef puts
 end
     
@@ -62,7 +62,7 @@ The beginning of the source file is the best place for certain declarations. Thi
 Module dependencies will direct the loader to make sure these modules are loaded first, thus resolving any outstanding references.  A module dependency is declared with the `import` statement block with predefined function and data definitions. The `import` block is completed with an `end`. An example:
 
 ```
-import stdlib
+import cmdsys
     const reshgr1 = $0004
     predef putc, puts, getc, gets, cls, gotoxy
 end

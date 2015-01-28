@@ -223,7 +223,7 @@ def hgrfill(val)
 
 	for yscan = 0 to 191
 		for xscan = 0 to 19
-			hgrscan:[yscan][xscan] = val
+			hgrscan:[yscan, xscan] = val
 		next
 	next
 end
@@ -235,7 +235,7 @@ def hgrfill(val)
 
 	for yscan = 0 to 191
 		for xscan = 0 to 39
-			hgrscan.[yscan][xscan] = val
+			hgrscan.[yscan, xscan] = val
 		next
 	next
 end

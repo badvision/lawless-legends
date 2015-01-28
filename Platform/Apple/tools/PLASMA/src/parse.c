@@ -67,22 +67,103 @@ int tos_op_prec(int tos)
 {
     return opsptr <= tos ? 100 : precstack[opsptr];
 }
-int parse_expr(void);
-int parse_term(void)
+long valstack[16];
+int typestack[16];
+int sizestack[16];
+int valptr = -1;
+void push_val(long value, int size, int type)
 {
+    if (++valptr == 16)
+    {
+        parse_error("Stack overflow\n");
+        return;
+    }
+    valstack[valptr]  = value;
+    sizestack[valptr] = size;
+    typestack[valptr] = type;
+}
+int pop_val(long *value, int *size, int *type)
+{
+    if (valptr < 0)
+    {
+        parse_error("Stack underflow\n");
+        return (-1);
+    }
+    *value = valstack[valptr];
+    *size  = sizestack[valptr];
+    *type  = typestack[valptr];
+    return valptr--;
+}
+/*
+ * Constant expression parsing
+ */
+int calc_op(t_token op)
+{
+    long val1, val2;
+    int size1, size2, type1, type2;
+    if (!pop_val(&val2, &size2, &type2))
+        return 0;
+    pop_val(&val1, &size1, &type1);
+    if (type1 != CONST_TYPE || type2 != CONST_TYPE)
+    {
+        parse_error("Bad constant operand");
+        return (0);
+    }
+    switch (op)
+    {
+        case MUL_TOKEN:
+            val1 *= val2;
+            break;
+        case DIV_TOKEN:
+            val1 /= val2;
+            break;
+        case MOD_TOKEN:
+            val1 %= val2;
+            break;
+        case ADD_TOKEN:
+            val1 += val2;
+            break;
+        case SUB_TOKEN:
+            val1 -= val2;
+            break;
+        case SHL_TOKEN:
+            val1 <<= val2;
+            break;
+        case SHR_TOKEN:
+            val1 >>= val2;
+            break;
+        case AND_TOKEN:
+            val1 &= val2;
+            break;
+        case OR_TOKEN:
+            val1 |= val2;
+            break;
+        case EOR_TOKEN:
+            val1 ^= val2;
+            break;
+        default:
+            return (0);
+    }
+    size1 = size1 > size2 ? size1 : size2;
+    push_val(val1, size1, type1);
+    return (1);
+}
+int parse_constexpr(long *value, int *size);
+int parse_constterm(long *value, int *size)
+{
+    int type;
     /*
      * Parse terminal tokens.
      */
-    switch (scan())
+    switch (type = scan())
     {
         case CHAR_TOKEN:
         case INT_TOKEN:
-        case FLOAT_TOKEN:
         case ID_TOKEN:
         case STRING_TOKEN:
             break;
         case OPEN_PAREN_TOKEN:
-            if (!parse_expr())
+            if (!(type = parse_constexpr(value, size)))
             {
                 parse_error("Bad expression in parenthesis");
                 return (0);
@@ -99,13 +180,16 @@ int parse_term(void)
              */
             return (0);
     }
-    return (1);
+    return (type);
 }
-int parse_constval(long *value, int *size)
+int parse_constval(void)
 {
-    int mod = 0, type = 0;
-    *value = 0;
-    while (!parse_term())
+    int mod = 0, type, size;
+    long value;
+
+    value = 0;
+    size  = 1;
+    while (!(type = parse_constterm(&value, &size)))
     {
         switch (scantoken)
         {
@@ -133,54 +217,161 @@ int parse_constval(long *value, int *size)
     /*
      * Determine which terminal type.
      */
-    if (scantoken == STRING_TOKEN)
+    switch (scantoken)
     {
-        *value = constval;
-        *size  = tokenlen - 1;
-        type   = STRING_TYPE;
-        if (mod)
-        {
-            parse_error("Invalid string modifiers");
+        case CLOSE_PAREN_TOKEN:
+            break;
+    	case STRING_TOKEN:
+            size  = tokenlen - 1;
+            value = constval;
+            type  = STRING_TYPE;
+            if (mod)
+            {
+                parse_error("Invalid string modifiers");
+                return (0);
+            }
+            break;
+        case CHAR_TOKEN:
+            size  = 1;
+            value = constval;
+            type  = CONST_TYPE;
+            break;
+        case INT_TOKEN:
+            size  = 2;
+            value = constval;
+            type  = CONST_TYPE;
+            break;
+        case ID_TOKEN:
+            size = 2;
+            type = id_type(tokenstr, tokenlen);
+            if (type & CONST_TYPE)
+                value = id_const(tokenstr, tokenlen);
+            else if ((type & (FUNC_TYPE | EXTERN_TYPE)) || ((type & ADDR_TYPE) && (mod == 8)))
+                value = id_tag(tokenstr, tokenlen);
+            else
+                return (0);
+            break;
+        default:
             return (0);
-        }
-    }
-    else if (scantoken == CHAR_TOKEN)
-    {
-        *value = constval;
-        *size  = 1;
-        type   = CONST_TYPE;
-    }
-    else if (scantoken == INT_TOKEN)
-    {
-        *value = constval;
-        *size  = 2;
-        type   = CONST_TYPE;
-    }
-    else if (scantoken == ID_TOKEN)
-    {
-        type = id_type(tokenstr, tokenlen);
-        if (type & CONST_TYPE)
-            *value = id_const(tokenstr, tokenlen);
-        else if ((type & (FUNC_TYPE | EXTERN_TYPE)) || ((type & ADDR_TYPE) && (mod & 8)))
-            *value = id_tag(tokenstr, tokenlen);
-        else
-        {
-            parse_error("Invalid constant");
-            return (0);
-        }
-    }
-    else
-    {
-        parse_error("Invalid constant");
-        return (0);
     }
     if (mod & 1)
-        *value = -*value;
+        value = -value;
     if (mod & 2)
-        *value = ~*value;
+        value = ~value;
     if (mod & 4)
-        *value = *value ? 0 : -1;
+        value = value ? 0 : -1;
+    push_val(value, size, type);
     return (type);
+}
+int parse_constexpr(long *value, int *size)
+{
+    int prevmatch;
+    int matchop = 0;
+    int optos = opsptr;
+    int i;
+    int type = CONST_TYPE;
+    *value = 0;
+    *size  = 1;
+    do
+    {
+        /*
+         * Parse sequence of double operand operations.
+         */
+        prevmatch = matchop;
+        matchop   = 0;
+        if (parse_constval())
+        {
+            matchop = 1;
+            scan();
+            for (i = 0; i < sizeof(binary_ops_table); i++)
+                if (scantoken == binary_ops_table[i])
+                {
+                    matchop = 2;
+                    if (binary_ops_precedence[i] >= tos_op_prec(optos))
+                        if (!calc_op(pop_op()))
+                        {
+                            parse_error(": Invalid binary operation");
+                            return (0);
+                        }
+                    push_op(scantoken, binary_ops_precedence[i]);
+                    break;
+                }
+        }
+    } while (matchop == 2);
+    if (matchop == 0 && prevmatch == 0)
+        return (0);
+    if (matchop == 0 && prevmatch == 2)
+    {
+        parse_error("Missing operand");
+        return (0);
+    }
+    while (optos < opsptr)
+        if (!calc_op(pop_op()))
+        {
+            parse_error(": Invalid binary operation");
+            return (0);
+        }
+    pop_val(value, size, &type);
+    return (type);
+}
+int parse_const(long *value)
+{
+    /*
+     * Get simple constant.
+     */
+    switch (scan())
+    {
+        case CHAR_TOKEN:
+        case INT_TOKEN:
+            *value = constval;
+            break;
+        case ID_TOKEN:
+            if (id_type(tokenstr, tokenlen) & CONST_TYPE)
+            {
+                *value = id_const(tokenstr, tokenlen);
+                break;
+            }
+        default:
+            *value = 0;
+            return (0);
+    }
+    return (CONST_TYPE);
+}
+/*
+ * Normal expression parsing
+ */
+int parse_expr(void);
+int parse_term(void)
+{
+    /*
+     * Parse terminal tokens.
+     */
+    switch (scan())
+    {
+        case CHAR_TOKEN:
+        case INT_TOKEN:
+        case ID_TOKEN:
+        case STRING_TOKEN:
+            break;
+        case OPEN_PAREN_TOKEN:
+            if (!parse_expr())
+            {
+                parse_error("Bad expression in parenthesis");
+                return (0);
+            }
+            if (scantoken != CLOSE_PAREN_TOKEN)
+            {
+                parse_error("Missing closing parenthesis");
+                return (0);
+            }
+            break;
+        default:
+            /*
+             * Non-terminal token.
+             */
+            return (0);
+    }
+    return (1);
 }
 int parse_value(int rvalue)
 {
@@ -188,8 +379,8 @@ int parse_value(int rvalue)
     int deref = rvalue;
     int optos = opsptr;
     int type = 0, value = 0, emit_value = 0;
-    int elem_size, elem_type;
-    long elem_offset = 0;
+    int ref_type, const_size;
+    long ref_offset, const_offset;
     /*
      * Parse pre operand operators.
      */
@@ -207,8 +398,8 @@ int parse_value(int rvalue)
                     push_op(scantoken, 0);
                 else
                 {
-                    type |= BPTR_TYPE;
                     deref++;
+                    type |= BPTR_TYPE;
                 }
                 break;
             case WPTR_TOKEN:
@@ -216,8 +407,8 @@ int parse_value(int rvalue)
                     push_op(scantoken, 0);
                 else
                 {
-                    type |= WPTR_TYPE;
                     deref++;
+                    type |= WPTR_TYPE;
                 }
                 break;
             case AT_TOKEN:
@@ -286,6 +477,8 @@ int parse_value(int rvalue)
     /*
      * Parse post operand operators.
      */
+    ref_type   = type & ~PTR_TYPE;
+    ref_offset = 0;
     while (scan() == OPEN_PAREN_TOKEN
      || scantoken == OPEN_BRACKET_TOKEN
      || scantoken == PTRB_TOKEN
@@ -295,165 +488,20 @@ int parse_value(int rvalue)
     {
         switch (scantoken)
         {
-            case OPEN_BRACKET_TOKEN:
-                /*
-                 * Array
-                 */
-                if (!emit_value)
-                {
-                    if (type & ADDR_TYPE)
-                    {
-                        if (type & LOCAL_TYPE)
-                            emit_localaddr(value);
-                        else
-                            emit_globaladdr(value, 0, type);
-                    }
-                    else if (type & CONST_TYPE)
-                    {
-                        emit_const(value);
-                    }
-                    emit_value = 1;
-                }
-                if (type & PTR_TYPE)
-                    emit_lw();
-                if (!parse_expr())
-                {
-                    parse_error("Bad expression");
-                    return (0);
-                }
-                if (scantoken != CLOSE_BRACKET_TOKEN)
-                {
-                    parse_error("Missing closing bracket");
-                    return (0);
-                }
-                if (type & WORD_TYPE)
-                {
-                    //type |= WPTR_TYPE;
-                    type = WPTR_TYPE;
-                    emit_indexword();
-                }
-                else
-                {
-                    //type |= BPTR_TYPE;
-                    type = BPTR_TYPE;
-                    emit_indexbyte();
-                }
-                //type &= ~(ADDR_TYPE | CONST_TYPE);
-                break;
-            case PTRB_TOKEN:
-            case PTRW_TOKEN:
-                if (!emit_value)
-                {
-                    if (type & FUNC_TYPE)
-                        emit_call(value, type);
-                    else if (type & VAR_TYPE)
-                    {
-                        if (type & LOCAL_TYPE)
-                            (type & BYTE_TYPE) ? emit_llb(value + elem_offset) : emit_llw(value + elem_offset);
-                        else
-                            (type & BYTE_TYPE) ? emit_lab(value, elem_offset, type) : emit_law(value, elem_offset, type);
-                    }
-                    else
-                        (type & BPTR_TYPE) ? emit_lb() : emit_lw();
-                    emit_value = 1;
-                }
-                else
-                    (type & BPTR_TYPE) ? emit_lb() : emit_lw();
-                type &= ~(VAR_TYPE | ADDR_TYPE);
-                    type |= WORD_TYPE;
-                scantoken = scantoken == PTRB_TOKEN ? DOT_TOKEN : COLON_TOKEN;
-            case DOT_TOKEN:
-            case COLON_TOKEN:
-                /*
-                 * Structure member offset or array of arrays
-                 */
-                elem_type = (scantoken == DOT_TOKEN) ? BPTR_TYPE : WPTR_TYPE;
-                if (parse_constval(&elem_offset, &elem_size))
-                {
-                    /*
-                     * Constant member offset
-                     */
-                    if (!emit_value)
-                    {
-                        if (type & VAR_TYPE)
-                        {
-                            elem_type = (type & ~VAR_TYPE) | (elem_type == BPTR_TYPE ? BYTE_TYPE : WORD_TYPE);
-                        }
-                        else if (type & CONST_TYPE)
-                        {
-                            value += elem_offset;
-                            emit_const(value);
-                            elem_offset = 0;
-                            emit_value  = 1;
-                        }
-                        else // FUNC_TYPE
-                        {
-                            emit_globaladdr(value, elem_offset, type);
-                            elem_offset = 0;
-                            emit_value = 1;
-                        }
-                    }
-                    else
-                    {
-                        if (elem_offset != 0)
-                        {
-                            emit_const(elem_offset);
-                            emit_op(ADD_TOKEN);
-                            elem_offset = 0;
-                        }
-                    }
-                } 
-                else if (scantoken == OPEN_BRACKET_TOKEN)
-                {
-                    /*
-                     * Array of arrays
-                     */
-                    if (!emit_value)
-                    {
-                        if (type & ADDR_TYPE)
-                        {
-                            if (type & LOCAL_TYPE)
-                                emit_localaddr(value + elem_offset);
-                            else
-                                emit_globaladdr(value, elem_offset, type);
-                        }
-                        else if (type & CONST_TYPE)
-                        {
-                            emit_const(value + elem_offset);
-                        }
-                        elem_offset = 0;
-                        emit_value  = 1;
-                    }
-                    while (parse_expr())
-                    {
-                        if (scantoken != COMMA_TOKEN)
-                            break;
-                        emit_indexword();
-                        emit_lw();
-                    }
-                    if (scantoken != CLOSE_BRACKET_TOKEN)
-                    {
-                        parse_error("Missing closing bracket");
-                        return (0);
-                    }
-                    if (elem_type & WPTR_TYPE)
-                        emit_indexword();
-                    else
-                        emit_indexbyte();
-                }
-                else
-                {
-                    parse_error("Invalid member offset");
-                    return (0);
-                }
-                type = elem_type;
-                break;
             case OPEN_PAREN_TOKEN:
                 /*
                  * Function call
                  */
                 if (emit_value)
                 {
+                    if (ref_offset != 0)
+                    {
+                        emit_const(ref_offset);
+                        emit_op(ADD_TOKEN);
+                        ref_offset = 0;
+                    }
+                    if (ref_type & PTR_TYPE)
+                        (ref_type & BPTR_TYPE) ? emit_lb() : emit_lw();
                     if (scan_lookahead() != CLOSE_PAREN_TOKEN)
                         emit_push();
                 }
@@ -469,21 +517,22 @@ int parse_value(int rvalue)
                     parse_error("Missing closing parenthesis");
                     return (0);
                 }
-                if (type & (FUNC_TYPE | CONST_TYPE))
-                    emit_call(value, type);
+                if (ref_type & (FUNC_TYPE | CONST_TYPE))
+                    emit_call(value, ref_type);
                 else
                 {
                     if (!emit_value)
                     {
-                        if (type & VAR_TYPE)
+                        if (type & CONST_TYPE)
+                            emit_const(value);
+                        else if (type & VAR_TYPE)
                         {
                             if (type & LOCAL_TYPE)
-                                emit_llw(value + elem_offset);
+                                emit_llw(value + ref_offset);
                             else
-                                emit_law(value, elem_offset, type);
+                                emit_law(value, ref_offset, type);
+                            ref_offset = 0;
                         }
-                        else if (type & PTR_TYPE)
-                            emit_lw();
                     }
                     else
                         if (cparams)
@@ -491,39 +540,170 @@ int parse_value(int rvalue)
                     emit_ical();
                 }
                 emit_value = 1;
-                type = WORD_TYPE; //(type & ~(FUNC_TYPE | CONST_TYPE)) | WORD_TYPE;
+                ref_type   = 0;
+                break;
+            case OPEN_BRACKET_TOKEN:
+                /*
+                 * Array of arrays
+                 */
+                if (!emit_value)
+                {
+                    if (type & CONST_TYPE)
+                        emit_const(value);
+                    else if (type & ADDR_TYPE)
+                    {
+                        if (type & LOCAL_TYPE)
+                            emit_localaddr(value + ref_offset);
+                        else
+                            emit_globaladdr(value, ref_offset, type);
+                        ref_offset = 0;
+                    }
+                    else
+                    {
+                        parse_error("Bad index reference");
+                        return (0);
+                    }
+                    emit_value = 1;
+                }
+                else
+                {
+                    if (ref_offset != 0)
+                    {
+                        emit_const(ref_offset);
+                        emit_op(ADD_TOKEN);
+                        ref_offset = 0;
+                    }
+                }
+                while (parse_expr())
+                {
+                    if (scantoken != COMMA_TOKEN)
+                        break;
+                    emit_indexword();
+                    emit_lw();
+                }
+                if (scantoken != CLOSE_BRACKET_TOKEN)
+                {
+                    parse_error("Missing closing bracket");
+                    return (0);
+                }
+                if (ref_type & (WPTR_TYPE | WORD_TYPE))
+                {
+                    emit_indexword();
+                    ref_type = WPTR_TYPE;
+                }
+                else
+                {
+                    emit_indexbyte();
+                    ref_type = BPTR_TYPE;
+                }
+                break;
+            case PTRB_TOKEN:
+            case PTRW_TOKEN:
+                /*
+                 * Structure member pointer
+                 */
+                if (!emit_value)
+                {
+                    if (type & CONST_TYPE)
+                        emit_const(value);
+                    else if (type & ADDR_TYPE)
+                    {
+                        if (type & LOCAL_TYPE)
+                            (ref_type & BYTE_TYPE) ? emit_llb(value + ref_offset) : emit_llw(value + ref_offset);
+                        else
+                            (ref_type & BYTE_TYPE) ? emit_lab(value, ref_offset, type) : emit_law(value, ref_offset, type);
+                    }
+                    emit_value = 1;
+                }
+                else
+                {
+                    if (ref_offset != 0)
+                    {
+                        emit_const(ref_offset);
+                        emit_op(ADD_TOKEN);
+                    }
+                    if (ref_type & PTR_TYPE)
+                        (ref_type & BPTR_TYPE) ? emit_lb() : emit_lw();
+                }
+                ref_offset = 0;
+                ref_type = (scantoken == PTRB_TOKEN) ? BPTR_TYPE : WPTR_TYPE;
+                if (!parse_const(&ref_offset))
+                    scan_rewind(tokenstr);
+                break;
+            case DOT_TOKEN:
+            case COLON_TOKEN:
+                /*
+                 * Structure member offset
+                 */
+                ref_type = (ref_type & (VAR_TYPE | CONST_TYPE)) 
+                         ? ((scantoken == DOT_TOKEN) ? BYTE_TYPE : WORD_TYPE)
+                         : ((scantoken == DOT_TOKEN) ? BPTR_TYPE : WPTR_TYPE);
+                if (parse_const(&const_offset))
+                    ref_offset += const_offset;
+                else
+                    scan_rewind(tokenstr);
+                if (!emit_value)
+                {
+                    if (type & CONST_TYPE)
+                    {
+                        value += ref_offset;
+                        ref_offset = 0;
+                    }
+                    else if (type & FUNC_TYPE)
+                    {
+                        emit_globaladdr(value, ref_offset, type);
+                        ref_offset = 0;
+                        emit_value = 1;
+                    }
+                }
                 break;
         }
     }
     if (emit_value)
     {
-        if (rvalue && deref && (type & PTR_TYPE))
-            (type & BPTR_TYPE) ? emit_lb() : emit_lw();
+        if (ref_offset != 0)
+        {
+            emit_const(ref_offset);
+            emit_op(ADD_TOKEN);
+            ref_offset = 0;
+        }
+        if (deref)
+        {
+            if (ref_type & BPTR_TYPE) emit_lb();
+            else if (ref_type & WPTR_TYPE) emit_lw();
+        }
     }
     else
     {
-        if (type & CONST_TYPE)
-            emit_const(value);
-        else if (deref)
+        if (deref)
         {
-            if (type & FUNC_TYPE)
-                emit_call(value, type);
+            if (type & CONST_TYPE)
+            {
+                emit_const(value);
+                if (ref_type & VAR_TYPE)
+                    (ref_type & BYTE_TYPE) ? emit_lb() : emit_lw();
+            }
+            else if (type & FUNC_TYPE)
+                emit_call(value, ref_type);
             else if (type & VAR_TYPE)
             {
                 if (type & LOCAL_TYPE)
-                    (type & BYTE_TYPE) ? emit_llb(value + elem_offset) : emit_llw(value + elem_offset);
+                    (ref_type & BYTE_TYPE) ? emit_llb(value + ref_offset) : emit_llw(value + ref_offset);
                 else
-                    (type & BYTE_TYPE) ? emit_lab(value, elem_offset, type) : emit_law(value, elem_offset, type);
+                    (ref_type & BYTE_TYPE) ? emit_lab(value, ref_offset, ref_type) : emit_law(value, ref_offset, ref_type);
             }
-            else if (type & PTR_TYPE)
-                (type & BPTR_TYPE) ? emit_lb() : emit_lw();
         }
         else
         {
-            if (type & LOCAL_TYPE)
-                emit_localaddr(value + elem_offset);
-            else
-                emit_globaladdr(value, elem_offset, type);
+            if (type & CONST_TYPE)
+                emit_const(value);
+            else if (type & ADDR_TYPE)
+            {
+                if (type & LOCAL_TYPE)
+                    emit_localaddr(value + ref_offset);
+                else
+                    emit_globaladdr(value, ref_offset, ref_type);
+            }
         }
     }
     while (optos < opsptr)
@@ -534,61 +714,9 @@ int parse_value(int rvalue)
             return (0);
         }
     }
-    return (type ? type : WORD_TYPE);
-}
-int parse_constexpr(long *value, int *size)
-{
-    long val1, val2;
-    int type, size1, size2 = 0;
-
-    if (!(type = parse_constval(&val1, &size1)))
-        return (0);
-    if (scan() == ADD_TOKEN)
-    {
-        if (!parse_constval(&val2, &size2))
-            return (0);
-        *value = val1 + val2;
-    }
-    else if (scantoken == SUB_TOKEN)
-    {
-        if (!parse_constval(&val2, &size2))
-            return (0);
-        *value = val1 - val2;
-    }
-    else if (scantoken == MUL_TOKEN)
-    {
-        if (!parse_constval(&val2, &size2))
-            return (0);
-        *value = val1 * val2;
-    }
-    else if (scantoken == DIV_TOKEN)
-    {
-        if (!parse_constval(&val2, &size2))
-            return (0);
-        *value = val1 / val2;
-    }
-    else if (scantoken == AND_TOKEN)
-    {
-        if (!parse_constval(&val2, &size2))
-            return (0);
-        *value = val1 & val2;
-    }
-    else if (scantoken == OR_TOKEN)
-    {
-        if (!parse_constval(&val2, &size2))
-            return (0);
-        *value = val1 | val2;
-    }
-    else if (scantoken == EOR_TOKEN)
-    {
-        if (!parse_constval(&val2, &size2))
-            return (0);
-        *value = val1 ^ val2;
-    }
-    else
-        *value = val1;
-    *size = size1 > size2 ? size1 : size2;
-    return (type);
+    if (type & PTR_TYPE)
+        ref_type = type;
+    return (ref_type ? ref_type : WORD_TYPE);
 }
 int parse_expr()
 {
@@ -853,6 +981,10 @@ int parse_stmnt(void)
                         return (0);
                     }
                 }
+                else if (scantoken == EOL_TOKEN) 
+                {
+                    next_line();
+                }
                 else
                 {
                     parse_error("Bad CASE clause");
@@ -932,7 +1064,7 @@ int parse_stmnt(void)
                      */
                     int elem_size;
                     elem_type = (scantoken == DOT_TOKEN) ? BYTE_TYPE : WORD_TYPE;
-                    if (!parse_constval(&elem_offset, &elem_size))
+                    if (!parse_const(&elem_offset))
                         scantoken = ID_TOKEN;
                     else
                         scan();

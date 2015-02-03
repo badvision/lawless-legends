@@ -81,6 +81,11 @@
 	jsr _waitKey
 }
 
+; Debug code to support macros
+
+	jmp _afterDebug
+
+; Fetch a byte pointed to by the first entry on the stack, and advance that entry.
 _getStackByte !zone {
 	inc $101,x
 	bne +
@@ -188,3 +193,5 @@ _waitKey: !zone {
 	jsr rdkey
 	jmp iorest
 }
+
+_afterDebug:

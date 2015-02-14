@@ -3,6 +3,7 @@ package org.badvision.outlaweditor.apple;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
@@ -113,12 +114,8 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
         if (imageData == null) {
             PlatformData data = getPlatformData(getPlatform());
             if (data == null) {
-                data = new PlatformData();
-                data.setWidth(getPlatform().maxImageWidth);
-                data.setHeight(getPlatform().maxImageHeight);
-                data.setPlatform(getPlatform().name());
-                data.setValue(getPlatform().imageRenderer.createImageBuffer(getPlatform().maxImageWidth, getPlatform().maxImageHeight));
-                getEntity().getDisplayData().add(data);
+                createNewPlatformImage(getPlatform().maxImageWidth, getPlatform().maxImageHeight);
+                data = getPlatformData(getPlatform());
             }
             imageData = data.getValue();
         }
@@ -394,6 +391,22 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
             setData(buf);
             redraw();
             return true;
+        } else if (contentPath.startsWith("selection/image")) {
+            String[] bufferDetails = contentPath.substring(16).split("/");
+            int imageNumber = Integer.parseInt(bufferDetails[0]);
+            if ("all".equals(bufferDetails[1])) {
+                Image sourceImage = Application.gameData.getImage().get(imageNumber);
+                for (PlatformData data : sourceImage.getDisplayData()) {
+                    if (data.getPlatform().equals(getPlatform().toString())) {  
+                        setData(Arrays.copyOf(data.getValue(), data.getValue().length));
+                        redraw();
+                        return true;
+                    }
+                }
+                System.err.println("Unable to paste from source image, no matching platform data.");
+            } else {
+                System.err.println("Unable to paste partial images at this time... sorry. :-(");
+            }
         }
         return false;
     }
@@ -426,9 +439,9 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     public void exportImage() {
         byte[] output = new byte[0x02000];
         int counter = 0;
-        for (int y = 0; y < 192; y++) {
+        for (int y = 0; y < getHeight(); y++) {
             int offset = calculateHiresOffset(y);
-            for (int x = 0; x < 40; x++) {
+            for (int x = 0; x < getWidth(); x++) {
                 output[offset + x] = getImageData()[counter++];
             }
         }
@@ -448,7 +461,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     public void resize(final int newWidth, final int newHeight) {
         UIAction.confirm("Do you want to scale the image?  If you select no, the image will be cropped as needed.", () -> {
             rescale(newWidth, newHeight);
-        }, () -> {
+        }, () -> {            
             crop(newWidth, newHeight);
         });
     }
@@ -462,6 +475,8 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
      * @param newHeight
      */
     public void rescale(int newWidth, int newHeight) {
+        createNewPlatformImage(newWidth, newHeight);
+        importImage(currentImage);
     }
 
     /**
@@ -472,5 +487,14 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
      * @param newHeight
      */
     public void crop(int newWidth, int newHeight) {
+    }
+
+    private void createNewPlatformImage(int width, int height) {
+        PlatformData data = new PlatformData();
+        data.setWidth(width);
+        data.setHeight(height);
+        data.setPlatform(getPlatform().name());
+        data.setValue(getPlatform().imageRenderer.createImageBuffer(width, height));
+        getEntity().getDisplayData().add(data);
     }
 }

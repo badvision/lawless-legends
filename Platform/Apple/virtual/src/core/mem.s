@@ -768,13 +768,16 @@ coalesce: !zone
 
 ;------------------------------------------------------------------------------
 shared_scan: !zone
+	php		; save carry (set to check active flg, clr to skip check)
 	sta isAuxCmd	; save whether main or aux mem
 	jsr scanForAddr	; scan for block that matches
 	beq invalAddr	; if not found, invalid
 	bcs invalAddr	; if addr not exactly equal, invalid
+	plp
 	lda tSegType,x	; get existing flags
+	bcc +		; optionally, skip check of active flag
 	bpl invalAddr	; must be an active block
-	rts
++	rts
 
 invalAddr: !zone
 	ldx #<+
@@ -810,6 +813,7 @@ main_lock: !zone
 aux_lock:
 	lda #1			; index for aux-mem request
 shared_lock:
+	sec			; do check active flag in scan
 	jsr shared_scan		; scan for exact memory block
 	ora #$40		; set the 'locked' flag
 	sta tSegType,x		; store flags back
@@ -826,6 +830,7 @@ main_unlock: !zone
 aux_unlock:
 	lda #1			; index for aux-mem request
 shared_unlock:
+	sec			; do check active flag in scan
 	jsr shared_scan		; scan for exact memory block
 	and #$BF		; mask off the 'locked' flag
 	sta tSegType,x		; store flags back
@@ -842,6 +847,7 @@ main_free: !zone
 aux_free:
 	lda #1			; index for aux-mem request
 shared_free:
+	clc			; do not check for active flg (ok to multiple free)
 	jsr shared_scan		; scan for exact memory block
 	and #$3F		; remove the 'active' and 'locked' flags
 	sta tSegType,x		; store flags back

@@ -12,7 +12,7 @@
 !source "../include/mem.i"
 !source "../include/plasma.i"
 
-DEBUG       = 1     ; 1=some logging, 2=lots of logging
+DEBUG       = 0     ; 1=some logging, 2=lots of logging
 
 HEADER_LENGTH=6
 SECTION_WIDTH=22
@@ -112,10 +112,20 @@ LOAD_SECTION
 	LDX #00     ; This is a bogus map section, don't load
 	LDY #00
 	RTS
-.doLoad     TAY     ; resource # in Y
+.doLoad TAY         ; resource # in Y
+!if DEBUG {
+	+prStr : !text "loadSection: ",0
+	+prY
+}
 	LDX #RES_TYPE_2D_MAP
 	LDA #QUEUE_LOAD
-	JMP mainLoader
+	JSR mainLoader
+!if DEBUG {
+	+prStr : !text "->",0
+	+prYX
+	+crout
+}
+	RTS
 !macro loadSection ptr {
 	JSR LOAD_SECTION
 	STX ptr 
@@ -138,22 +148,38 @@ FINISH_MAP_LOAD
     ; --> free up unused resource
 	LDX ptr
 	LDY ptr+1
+	BEQ +		; skip if null ptr
 	LDA #FREE_MEMORY
 	JSR mainLoader
++
 }
 ;----------------------------------------------------------------------
 ; >> LOAD TILES
 ;   Load tile resource (A = Resource ID)
 LOAD_TILESET
-	TAY
+	TAY	; resource # in Y
+!if DEBUG {
+	+prStr : !text "loadTileset ",0
+	+prY
+}
 	LDX #RES_TYPE_TILESET
 	LDA #QUEUE_LOAD
-	JMP mainLoader
-!macro loadTileset mapData, ptr {
+	JSR mainLoader
+!if DEBUG {
+	+prStr : !text "-> ",0
+	+prYX
+	+crout
+}
+	RTS
+!macro loadTileset mapId, mapData, ptr {
+	LDY #0
+	LDX mapId
+	INX	; if map id is $FF, X is now zero
+	BEQ +	; and if so, skip loading tileset
 	LDY #4
 	LDA (mapData),Y
 	JSR LOAD_TILESET
-	STX ptr
++	STX ptr
 	STY ptr+1
 }
 ;----------------------------------------------------------------------
@@ -213,10 +239,12 @@ FREE_ALL_TILES
 }
 
 LOAD_ALL_TILES
-	+loadTileset NW_MAP_LOC, NW_TILESET_LOC
-	+loadTileset NE_MAP_LOC, NE_TILESET_LOC
-	+loadTileset SW_MAP_LOC, SW_TILESET_LOC
-	+loadTileset SE_MAP_LOC, SE_TILESET_LOC
+	+startLoad
+	+loadTileset NW_MAP_ID, NW_MAP_LOC, NW_TILESET_LOC
+	+loadTileset NE_MAP_ID, NE_MAP_LOC, NE_TILESET_LOC
+	+loadTileset SW_MAP_ID, SW_MAP_LOC, SW_TILESET_LOC
+	+loadTileset SE_MAP_ID, SE_MAP_LOC, SE_TILESET_LOC
+	+finishLoad
 	RTS
 !macro loadAllTiles {
 	JSR LOAD_ALL_TILES
@@ -226,19 +254,19 @@ LOAD_ALL_TILES
 !zone
 CROSS
 	LDA REL_Y
-	CMP #VIEWPORT_VERT_PAD-1
+	CMP #VIEWPORT_VERT_PAD
 	BPL .10
 	JSR CROSS_NORTH
 .10	LDA REL_Y
-	CMP #VIEWPORT_VERT_PAD+SECTION_HEIGHT
+	CMP #(2*SECTION_HEIGHT)-VIEWPORT_VERT_PAD
 	BMI .20
 	JSR CROSS_SOUTH
 .20	LDA REL_X
-	CMP #VIEWPORT_HORIZ_PAD-1
+	CMP #VIEWPORT_HORIZ_PAD
 	BPL .30
 	JSR CROSS_WEST
 .30	LDA REL_X
-	CMP #VIEWPORT_HORIZ_PAD+SECTION_WIDTH
+	CMP #(2*SECTION_WIDTH)-VIEWPORT_HORIZ_PAD
 	BMI .40
 	JSR CROSS_EAST
 .40	RTS
@@ -246,6 +274,17 @@ CROSS
 ; >> CROSS NORTH BOUNDARY (Load next section to the north)
 !zone
 CROSS_NORTH
+	; Get new NW section
+	LDY #NORTH
+	LDA (NW_MAP_LOC),Y
+	CMP #$FF
+	BEQ .noMap
+	TAX
+	; Get new NE section
+	LDA (NE_MAP_LOC),Y
+	PHA
+	TXA
+	PHA
 	+freeAllTiles
 	+freeResource SW_MAP_LOC
 	+freeResource SE_MAP_LOC
@@ -257,23 +296,39 @@ CROSS_NORTH
 	+move_word NW_MAP_LOC, SW_MAP_LOC
 	+move_byte NE_MAP_ID, SE_MAP_ID
 	+move_word NE_MAP_LOC, SE_MAP_LOC
-	; Get new NW section
+	; Load new NW section
 	+startLoad
-	LDY #00
-	LDA (SW_MAP_LOC),Y
+	PLA
 	STA NW_MAP_ID
 	+loadSection NW_MAP_LOC
-	; Get the new NE section
-	LDA (SE_MAP_LOC),Y
+	; Load the new NE section
+	PLA
 	STA NE_MAP_ID
 	+loadSection NE_MAP_LOC
-	+loadAllTiles
 	+finishLoad
+	+loadAllTiles
 	RTS
+.noMap	INC REL_Y
+	JMP bell
+
 ;----------------------------------------------------------------------
 ; >> CROSS EAST BOUNDARY (Load next section to the east)
 !zone
 CROSS_EAST
+	LDA NE_MAP_ID
+	CMP #$FF
+	BEQ .noMap
+	; Get new NE section
+	LDY #EAST
+	LDA (NE_MAP_LOC),Y
+	CMP #$FF
+	BEQ .noMap
+	TAX
+	; Get new SE section
+	LDA (SE_MAP_LOC),Y
+	PHA
+	TXA
+	PHA
 	+freeAllTiles
 	+freeResource NW_MAP_LOC
 	+freeResource SW_MAP_LOC
@@ -285,24 +340,38 @@ CROSS_EAST
 	+move_word NE_MAP_LOC, NW_MAP_LOC
 	+move_byte SE_MAP_ID, SW_MAP_ID
 	+move_word SE_MAP_LOC, SW_MAP_LOC
-	; Get new NE section
+	; Load new NE section
 	+startLoad
-	LDY #EAST
-	LDA (NW_MAP_LOC),Y
+	PLA
 	STA NE_MAP_ID
 	+loadSection NE_MAP_LOC
-	; Get the new SE section
-	LDY #EAST
-	LDA (SW_MAP_LOC),Y
+	; Load the new SE section
+	PLA
 	STA SE_MAP_ID
 	+loadSection SE_MAP_LOC
-	+loadAllTiles
 	+finishLoad
+	+loadAllTiles
 	RTS
+.noMap	DEC REL_X
+	JMP bell
 ;----------------------------------------------------------------------
 ; >> CROSS SOUTH BOUNDARY (Load next section to the south)
 !zone
 CROSS_SOUTH
+	LDA SW_MAP_ID
+	CMP #$FF
+	BEQ .noMap
+	; Get new SW section
+	LDY #SOUTH
+	LDA (SW_MAP_LOC),Y
+	CMP #$FF
+	BEQ .noMap
+	TAX
+	; Get the new SE section
+	LDA (SE_MAP_LOC),Y
+	PHA
+	TXA
+	PHA
 	+freeAllTiles
 	+freeResource NW_MAP_LOC
 	+freeResource NE_MAP_LOC
@@ -314,24 +383,35 @@ CROSS_SOUTH
 	+move_word SW_MAP_LOC, NW_MAP_LOC
 	+move_byte SE_MAP_ID, NE_MAP_ID
 	+move_word SE_MAP_LOC, NE_MAP_LOC
-	; Get new SW section
+	; Load new SW section
 	+startLoad
-	LDY #SOUTH
-	LDA (NW_MAP_LOC),Y
+	PLA
 	STA SW_MAP_ID
 	+loadSection SW_MAP_LOC
-	; Get the new SE section
-	LDY #SOUTH
-	LDA (NE_MAP_LOC),Y
+	; Load the new SE section
+	PLA
 	STA SE_MAP_ID
 	+loadSection SE_MAP_LOC
-	+loadAllTiles
 	+finishLoad
+	+loadAllTiles
 	RTS
+.noMap	DEC REL_Y
+	JMP bell
 ;----------------------------------------------------------------------
 ; >> CROSS WEST BOUNDARY (load next section to the west)
 !zone
 CROSS_WEST
+	; Get new NW section
+	LDY #WEST
+	LDA (NW_MAP_LOC),Y
+	CMP #$FF
+	BEQ .noMap
+	TAX
+	; Get the new SW section
+	LDA (SW_MAP_LOC),Y
+	PHA
+	TXA
+	PHA
 	+freeAllTiles
 	+freeResource NE_MAP_LOC
 	+freeResource SE_MAP_LOC
@@ -343,20 +423,20 @@ CROSS_WEST
 	+move_word NW_MAP_LOC, NE_MAP_LOC
 	+move_byte SW_MAP_ID, SE_MAP_ID
 	+move_word SW_MAP_LOC, SE_MAP_LOC
-	; Get new NW section
+	; Load new NW section
 	+startLoad
-	LDY #WEST
-	LDA (NE_MAP_LOC),Y
+	PLA
 	STA NW_MAP_ID
 	+loadSection NW_MAP_LOC
-	; Get the new SE section
-	LDY #WEST
-	LDA (SE_MAP_LOC),Y
+	; Load the new SW section
+	PLA
 	STA SW_MAP_ID
 	+loadSection SW_MAP_LOC
-	+loadAllTiles
 	+finishLoad
+	+loadAllTiles
 	RTS
+.noMap	INC REL_X
+	JMP bell
 ;----------------------------------------------------------------------
 ; >> SET PLAYER TILE (A = tile)
 ;----------------------------------------------------------------------
@@ -411,33 +491,42 @@ CROSS_WEST
 
 DRAW
 ; For each quadrant, display relevant parts of screen
-!if DEBUG { +prStr : !text "In draw.",0 }
-.checkNWQuad
-	LDA #00
-	STA DRAW_Y_START
-	STA DRAW_X_START
-	+drawMapSection NW_MAP_LOC, NW_TILESET_LOC, 0, 0
-.checkNEQuad
-	LDA DRAW_WIDTH
-	STA DRAW_X_START
-	+drawMapSection NE_MAP_LOC, NE_TILESET_LOC, SECTION_WIDTH, 0
-.checkSWQuad
-	LDA DRAW_HEIGHT
-	STA DRAW_Y_START
-	LDA #00
-	STA DRAW_X_START
-	+drawMapSection SW_MAP_LOC, SW_TILESET_LOC, 0, SECTION_HEIGHT
-.checkSEQuad
-	LDA DRAW_WIDTH
-	STA DRAW_X_START
-	+drawMapSection SE_MAP_LOC, SE_TILESET_LOC, SECTION_WIDTH, SECTION_HEIGHT
-!if DEBUG { 
-	+prStr : !text "Draw complete, REL_X=",0 
+!if DEBUG >= 2 { 
+	+prStr : !text "Draw: REL_X=",0 
 	+prByte REL_X
 	+prStr : !text "REL_Y=",0
 	+prByte REL_Y
 	+crout
 }
+.checkNWQuad
+	LDA #0
+	STA DRAW_Y_START
+	STA DRAW_X_START
+	!if DEBUG >= 2 { +prStr : !text "NW quad.",0 }
+	+drawMapSection NW_MAP_LOC, NW_TILESET_LOC, 0, 0
+.checkNEQuad
+	LDA DRAW_WIDTH
+	BPL +
+	LDA #0
++	STA DRAW_X_START
+	!if DEBUG >= 2 { +prStr : !text "NE quad.",0 }
+	+drawMapSection NE_MAP_LOC, NE_TILESET_LOC, SECTION_WIDTH, 0
+.checkSWQuad
+	LDA DRAW_HEIGHT
+	BPL +
+	LDA #0
++	STA DRAW_Y_START
+	LDA #0
+	STA DRAW_X_START
+	!if DEBUG >= 2 { +prStr : !text "SW quad.",0 }
+	+drawMapSection SW_MAP_LOC, SW_TILESET_LOC, 0, SECTION_HEIGHT
+.checkSEQuad
+	LDA DRAW_WIDTH
+	BPL +
+	LDA #0
++	STA DRAW_X_START
+	!if DEBUG >= 2 { +prStr : !text "SE quad.",0 }
+	+drawMapSection SE_MAP_LOC, SE_TILESET_LOC, SECTION_WIDTH, SECTION_HEIGHT
 	RTS
 
 MainDraw
@@ -457,37 +546,47 @@ MainDraw
 ; and if there is not then the tile is skipped.  Otherwise the tile is drawn, etc.
 ;--------------------------------------
 
+; COL_OFFSET and ROW_OFFSET specify where on the screen the whole map gets drawn.
+; Adjust these so it lands at the right place in the frame image.
 COL_OFFSET = 2
 ROW_OFFSET = 3
+
+!if DEBUG >= 2 {
+	+prStr : !text "   DR_X_ST=",0
+	+prByte DRAW_X_START
+	+prStr : !text "SEC_X_ST=",0
+	+prByte SECTION_X_START
+	+prStr : !text "DR_W=", 0
+	+prByte DRAW_WIDTH
+	+crout
+	+prStr : !text "  +DR_Y_ST=",0
+	+prByte DRAW_Y_START
+	+prStr : !text "SEC_Y_ST=",0
+	+prByte SECTION_Y_START
+	+prStr : !text "DR_H=", 0
+	+prByte DRAW_HEIGHT
+	+crout
+}
 
 	LDA DRAW_SECTION+1	; skip if no map section here
 	BNE .gotMap
 .noDraw
 	RTS
 .gotMap
-
-!if DEBUG >= 1 {
-	+prStr : !text "SECTION_X_START=",0
-	+prByte SECTION_X_START
-	+prStr : !text "DRAW_WIDTH=", 0
-	+prByte DRAW_WIDTH
-	+prStr : !text "SECTION_Y_START=",0
-	+prByte SECTION_Y_START
-	+prStr : !text "DRAW_HEIGHT=", 0
-	+prByte DRAW_HEIGHT
-	+crout
-}
 	LDA DRAW_HEIGHT
 	BEQ .noDraw
 	BMI .noDraw
 	STA Y_COUNTER
 	LDA DRAW_Y_START
+	BMI .noDraw
 	STA Y_LOC
 .rowLoop        
 	LDA DRAW_WIDTH
 	BEQ .noDraw
 	BMI .noDraw
 	STA X_COUNTER
+	LDA DRAW_X_START
+	BMI .noDraw
 ; Identify start of map data (upper left)
 	; Self-modifying code: Update all the STA statements in the drawTile section
 	LDA Y_LOC
@@ -523,35 +622,27 @@ ROW_OFFSET = 3
 	    }
 	}
 
-;Calculate data offset == DRAW_SECTION + (row * 22) + 6 == DRAW_SECTION + (row * 2 + row * 4 + row * 16) + 6
+;Look up data offset (old bit shifting multiplication logic was buggy)
+	LDA DRAW_SECTION
+	LDY DRAW_SECTION + 1
 	CLC
-	LDA SECTION_Y_START ;row * 2
-	ASL
-	ADC #HEADER_LENGTH  ; +6
-	ADC SECTION_X_START
-	STA ROW_LOCATION
-	LDA SECTION_Y_START ; row * 4
-	ASL
-	ASL
-	ADC ROW_LOCATION
-	STA ROW_LOCATION
-	LDA SECTION_Y_START ; row * 16 -- possibly carry
-	ASL
-	ASL
-	ASL
-	ASL
-	ADC ROW_LOCATION
-	STA ROW_LOCATION        
-	LDA DRAW_SECTION + 1
-	ADC #$00    ; This is a short way for handling carry without a branch
-	STA ROW_LOCATION + 1
-	LDA DRAW_SECTION  ; DRAW_SECTION is done at the very end in case it causes an overflow
-	ADC ROW_LOCATION
-	STA ROW_LOCATION
-	; Handle carry if needed
-	BCC .doneCalculatingLocation
-	INC ROW_LOCATION + 1
-.doneCalculatingLocation
+	LDX SECTION_Y_START
+	ADC tblMAPl,X
+	BCC +
+	INY		; handle carry from prev add
++	CPX #12		; rows 0-11 are on 1st page of map, 12-22 on 2nd page
+	BCC +
+	INY		; go to 2nd pg
+	CLC
++	ADC SECTION_X_START
+	BCC +
+	INY		; handle carry from prev add
++	SEC
+	SBC DRAW_X_START	; because it gets added back in later by indexing with X
+	BCS +
+	DEY
++	STA ROW_LOCATION
+	STY ROW_LOCATION + 1
 	LDX DRAW_X_START        
 ; Display row of tiles
 .next_col
@@ -590,12 +681,6 @@ ROW_OFFSET = 3
 	    TXA ; In the drawing part, we need X=X*2
 	    ASL
 	    TAX
-!if DEBUG >= 2 {
-	+prStr : !text "Draw at ",0
-	+prX
-	+crout
-	+waitKey
-}
 .drawTile   !for row, 16 {
 		LDA (TILE_SOURCE),Y	;0
 		STA $2000, X    	;2
@@ -657,8 +742,8 @@ INIT
 	LDA (SW_MAP_LOC),Y
 	STA SE_MAP_ID
 	+loadSection SE_MAP_LOC
-+       +loadAllTiles
-	+finishLoad
++       +finishLoad
+	+loadAllTiles
 	; set up the X and Y coordinates
 	LDX #VIEWPORT_HORIZ_PAD
 	LDY #VIEWPORT_VERT_PAD
@@ -674,3 +759,7 @@ tblHGRh
 	!byte   $20,$20,$21,$21,$22,$22,$23,$23
 	!byte   $20,$20,$21,$21,$22,$22,$23,$23
 	!byte   $20,$20,$21,$21,$22,$22,$23,$23
+
+tblMAPl	!for row, 23 {
+		!byte <((row-1)*22)+6
+	}

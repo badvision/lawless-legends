@@ -400,7 +400,7 @@ class PackPartitions
         buf.put((byte)0);
     }
 
-    def write2DMap(mapName, rows, tileSetNum, tileMap)
+    def write2DMap(mapName, rows)
     {
         def width = rows[0].size()
         def height = rows.size()
@@ -428,20 +428,22 @@ class PackPartitions
 
         (0..<nVertSections).each { vsect ->
             (0..<nHorzSections).each { hsect ->
+
+                def hOff = hsect * TILES_PER_ROW
+                def vOff = vsect * ROWS_PER_SECTION
                 
-                // Header: first come links to other map sections - north, east, south, west
+                def (tileSetNum, tileMap) = packTileSet(rows, hOff, TILES_PER_ROW, vOff, ROWS_PER_SECTION)
+
+                // Header: first come links to other map sections
                 def buf = buffers[vsect][hsect]
-                buf.put((byte) (vsect > 0) ? sectionNums[vsect-1][hsect] : 0xFF) // north
+                buf.put((byte) (vsect > 0) ? sectionNums[vsect-1][hsect] : 0xFF)               // north
                 buf.put((byte) (hsect < nHorzSections-1) ? sectionNums[vsect][hsect+1] : 0xFF) // east
                 buf.put((byte) (vsect < nVertSections-1) ? sectionNums[vsect+1][hsect] : 0xFF) // south
-                buf.put((byte) (hsect > 0) ? sectionNums[vsect][hsect-1] : 0xFF) // west
+                buf.put((byte) (hsect > 0) ? sectionNums[vsect][hsect-1] : 0xFF)               // west
                 
                 // Then links to the tile set and script library
                 buf.put((byte) tileSetNum)
                 buf.put((byte) 0xFF) // script library placeholder
-                
-                def hOff = hsect * TILES_PER_ROW
-                def vOff = vsect * ROWS_PER_SECTION
                 
                 // After the header comes the raw data
                 (0..<ROWS_PER_SECTION).each { rowNum ->
@@ -653,31 +655,104 @@ class PackPartitions
         tiles[imgEl.@id] = buf
     }
     
-    def packTileSet(rows)
+    /** Pack the global tiles, like the player avatar, into their own tile set. */
+    def packGlobalTileSet(dataIn)
     {
         def setNum = tileSets.size() + 1
-        def setName = "tileSet${setNum}"
-        def tileMap = [null:0]
+        assert setNum == 1 : "Special tile set must be first."
+        def setName = "tileSet_special"
+        def tileIds = [] as Set
+        def tileMap = [:]
         def buf = ByteBuffer.allocate(50000)
         
-        // Start with the empty tile
-        (0..31).each { buf.put((byte)0) }
+        // Add each special tile to the set
+        dataIn.tile.each { tile ->
+            def name = tile.@name
+            def id = tile.@id
+            def data = tiles[id]
+            if (name.equalsIgnoreCase("Player avatar - 2D")) {
+                def num = tileMap.size()
+                tileIds.add(id)
+                tileMap[id] = num
+                data.flip() // crazy stuff to append one buffer to another
+                buf.put(data)
+            }
+        }
         
-        // Then add each non-null tile to the set
-        rows.each { row ->
-            row.each { tile ->
-                def id = tile?.@id
-                if (tile && !tileMap.containsKey(id)) {
-                    def num = tileMap.size()
-                    assert num < 32 : "Temporary, need to fix: Only 32 kinds of tiles are allowed on any given map."
-                    tileMap[id] = num
-                    tiles[id].flip() // crazy stuff to append one buffer to another
-                    buf.put(tiles[id])
-                    tiles[id].compact() // more of crazy stuff above
+        tileSets[setName] = [num:setNum, buf:buf, tileMap:tileMap, tileIds:tileIds]
+        return [setNum, tileMap]
+    }
+
+    /** Pack tile images referenced by map rows into a tile set */
+    def packTileSet(rows, xOff, width, yOff, height)
+    {
+        // First, determine the set of unique tile IDs for this map section
+        def tileIds = [] as Set
+        (yOff ..< yOff+height).each { y ->
+            def row = (y < rows.size) ? rows[y] : null
+            (xOff ..< xOff+height).each { x ->
+                def tile = (row && x < row.size) ? row[x] : null
+                tileIds.add(tile?.@id)
+            }
+        }
+
+        assert tileIds.size() > 0
+        
+        // See if there's a good existing tile set we can use/add to.
+        def tileSet = null
+        def bestCommon = 0
+        tileSets.values().each {
+            // Can't combine with the special tileset
+            if (it.num > 1) 
+            {
+                // See if the set we're considering has room for all our tiles
+                def inCommon = it.tileIds.intersect(tileIds)
+                def together = it.tileIds + tileIds
+                if (together.size() <= 32 && inCommon.size() > bestCommon) {
+                    tileSet = it
+                    bestCommon = inCommon.size()
                 }
             }
         }
-        tileSets[setName] = [num:setNum, buf:buf]
+        
+        // If adding to an existing set, update it.
+        def setNum
+        if (tileSet) {
+            setNum = tileSet.num
+            //print "Adding to tileSet $setNum; had ${tileSet.tileIds.size()} tiles"
+            tileSet.tileIds.addAll(tileIds)
+            //println ", now ${tileSet.tileIds.size()}."
+        }
+        // If we can't add to an existing set, make a new one
+        else {
+            setNum = tileSets.size() + 1
+            //println "Creating new tileSet $setNum."
+            tileSet = [num:setNum, buf:ByteBuffer.allocate(50000), tileMap:[:], tileIds:tileIds]
+            tileSets["tileSet${setNum}"] = tileSet
+        }
+        
+        // Start by assuming we'll create a new tileset
+        def tileMap = tileSet.tileMap
+        def buf = tileSet.buf
+        
+        // Then add each non-null tile to the set
+        (yOff ..< yOff+height).each { y ->
+            def row = (y < rows.size) ? rows[y] : null
+            (xOff ..< xOff+height).each { x ->
+                def tile = (row && x < row.size) ? row[x] : null
+                def id = tile?.@id
+                if (tile && !tileMap.containsKey(id)) {
+                    def num = tileMap.size()+1
+                    assert num < 32 : "Error: Only 31 kinds of tiles are allowed on any given map."
+                    tileMap[id] = num
+                    tiles[id].flip() // crazy stuff to append one buffer to another
+                    buf.put(tiles[id])
+                }
+            }
+        }
+        assert tileMap.size() > 0
+        assert buf.position() > 0
+        
         return [setNum, tileMap]
     }
     
@@ -687,8 +762,7 @@ class PackPartitions
         def num = mapNames[name][1]
         //println "Packing 2D map #$num named '$name'."
         def rows = parseMap(mapEl, tileEls)
-        def (tileSetNum, tileMap) = packTileSet(rows)
-        write2DMap(name, rows, tileSetNum, tileMap)
+        write2DMap(name, rows)
     }
     
     def pack3DMap(mapEl, tileEls)
@@ -992,10 +1066,12 @@ class PackPartitions
         
         // Now compress it with LZ4
         assert uncompressedLen < 327678 : "data block too big"
+        assert uncompressedLen > 0
         def maxCompressedLen = compressor.maxCompressedLength(uncompressedLen)
         def compressedData = new byte[maxCompressedLen]
         def compressedLen = compressor.compress(uncompressedData, 0, uncompressedLen, 
                                                 compressedData, 0, maxCompressedLen)
+        assert compressedLen > 0
                                             
         // Then recompress to LZ4M (pretty much always smaller)
         def recompressedLen = recompress(compressedData, compressedLen, uncompressedData, uncompressedLen)
@@ -1101,15 +1177,24 @@ class PackPartitions
         dataIn.tile.each { 
             packTile(it) 
         }
+
+        // Pack the global tile set before other tile sets (contains the player avatar, etc.)
+        packGlobalTileSet(dataIn)
         
         // Pack each image, which has the side-effect of filling in the
         // image name map. Handle frame images separately.
         //
         println "Packing frame images and textures."
         dataIn.image.each { image ->
-            if (image.category.text() == "frame" || image.category.text() == "title")
+            if (image.category.text() == "title")
                 packFrameImage(image)
-            else if (image.category.text() == "126")
+        }
+        dataIn.image.each { image ->
+            if (image.category.text() == "frame")
+                packFrameImage(image)
+        }
+        dataIn.image.each { image ->
+            if (image.category.text() == "126")
                 pack126(image)
             else
                 packTexture(image)

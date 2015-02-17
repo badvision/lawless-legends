@@ -1267,7 +1267,9 @@ disk_finishLoad: !zone
 	!byte MLI_SET_MARK
 	!word .setMarkParams
 	bcs .prodosErr
+!if DEBUG { +prStr : !text "Deco.",0 }
 	jsr lz4Decompress	; decompress (or copy if uncompressed)
+!if DEBUG { +prStr : !text "Done.",0 }
 .resume	ldy .ysave
 .next	lda (pTmp),y		; lo byte of length
 	clc
@@ -1301,7 +1303,7 @@ disk_finishLoad: !zone
 .nFixups:	!byte 0
 
 !if DEBUG {
-.debug1:+prStr : !text "Loading: t=",0
+.debug1:+prStr : !text "Load: t=",0
 	+prByte resType
 	+prStr : !text "n=",0
 	+prByte resNum
@@ -1311,7 +1313,7 @@ disk_finishLoad: !zone
 .debug2:+prStr : !text "len=",0
 	+prWord reqLen
 	+prStr : !text "dst=",0
-	+prWord pDst : +crout
+	+prWord pDst
 	rts
 } ; end DEBUG
 
@@ -1678,7 +1680,7 @@ setupDecomp:
 ; Apply fixups to all modules that were loaded this round, and free the fixup
 ; resources from memory.
 doAllFixups: !zone
-	!if DEBUG { +prStr : !text "Doing all fixups.",0 }
+	!if DEBUG >= 2 { +prStr : !text "Doing all fixups.",0 }
 	; copy the shadow code down to $100, so we can read aux mem bytes
 	ldx #.fixupShadow_end - .fixupShadow - 1
 -	lda .fixupShadow,x
@@ -1732,7 +1734,7 @@ doAllFixups: !zone
 	lda tSegAdrHi,x
 	sta .auxBase+1
 
-	!if DEBUG { jsr .debug1 }
+	!if DEBUG >= 2 { jsr .debug1 }
 
 	; Process the fixups
 .proc	jsr .fetchFixup		; get key byte
@@ -1745,7 +1747,7 @@ doAllFixups: !zone
 	txa
 	adc .mainBase+1
 	sta pDst+1
-	!if DEBUG { jsr .debug2 }
+	!if DEBUG >= 2 { jsr .debug2 }
 	clc
 	jsr .adMain
 	iny
@@ -1765,7 +1767,7 @@ doAllFixups: !zone
 	and #$7F		; mask off the hi bit flag
 	adc .auxBase+1
 	sta pDst+1
-	!if DEBUG { jsr .debug3 }
+	!if DEBUG >= 2 { jsr .debug3 }
 	sta setAuxWr
 	jsr .adAux
 	iny
@@ -1794,7 +1796,7 @@ doAllFixups: !zone
 	cmp #$03
 	bne .resume		; not a stub, resume scanning
 	; found a stub, adjust it.
-	!if DEBUG { jsr .debug4 }
+	!if DEBUG >= 2 { jsr .debug4 }
 	clc
 	ldx #0
 	jsr .adStub
@@ -1839,7 +1841,7 @@ doAllFixups: !zone
 	rts
 }
 .fixupShadow_end = *
-!if DEBUG {
+!if DEBUG >= 2 {
 .debug1	+prStr : !text "Found fixup, res=",0
 	+prByte resNum
 	+prStr : !text "mainBase=",0

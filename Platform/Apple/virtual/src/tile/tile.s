@@ -18,7 +18,7 @@ HEADER_LENGTH=6
 SECTION_WIDTH=22
 SECTION_HEIGHT=23
 VIEWPORT_WIDTH=9
-VIEWPORT_HEIGHT=8
+VIEWPORT_HEIGHT=9
 VIEWPORT_VERT_PAD=4 ; This is the distance between the center of the viewport and the top/bottom
 VIEWPORT_HORIZ_PAD=4 ; This is the distance between the center of the viewport and the left/right
 
@@ -48,6 +48,7 @@ NW_TILESET_LOC=$90
 NE_TILESET_LOC=$92
 SW_TILESET_LOC=$94
 SE_TILESET_LOC=$96
+GLOBAL_TILESET_LOC=$98
 ; Map section IDs (255 = not loaded)
 NOT_LOADED=$FF
 NW_MAP_ID=$5A
@@ -135,10 +136,10 @@ LOAD_SECTION
 ;----------------------------------------------------------------------
 ; >> FINISH LOADING MAP SECTIONS
 FINISH_MAP_LOAD
-	LDX #0      ; 1 to keep open for next load, 0 for close so you can flip to HGR page 2
 	LDA #FINISH_LOAD
 	JMP mainLoader
-!macro finishLoad {
+!macro finishLoad keepOpen {
+	LDX #keepOpen   ; 1 to keep open for next load, 0 for close so you can flip to HGR page 2
 	JSR FINISH_MAP_LOAD
 }
 
@@ -204,7 +205,7 @@ LOAD_TILESET
 ;----------------------------------------------------------------------
 ; >> GET TILE IN CARDINAL DIRECTION AND FLAGS 
 ;   (Returns Tile # in Y, Flags in A)
-;   Each tile in memory can be 0-64, the flags are the upper 3 bits
+;   Each tile in memory can be 0-32, the flags are the upper 3 bits
 ;   0 0 0
 ;   | | `- Script assigned, triggers script lookup
 ;   | `--- Boundary (Can not walk on it)
@@ -229,6 +230,7 @@ SET_XY
 }
 
 FREE_ALL_TILES
+	+freeResource GLOBAL_TILESET_LOC
 	+freeResource NW_TILESET_LOC
 	+freeResource NE_TILESET_LOC
 	+freeResource SW_TILESET_LOC
@@ -239,12 +241,18 @@ FREE_ALL_TILES
 }
 
 LOAD_ALL_TILES
-	+startLoad
+	; global tileset first
+	LDX #RES_TYPE_TILESET
+	LDY #1			; global tileset fixed at resource #1
+	LDA #QUEUE_LOAD
+	JSR mainLoader
+	STX GLOBAL_TILESET_LOC
+	STY GLOBAL_TILESET_LOC+1
+	; then the set for each map section in turn
 	+loadTileset NW_MAP_ID, NW_MAP_LOC, NW_TILESET_LOC
 	+loadTileset NE_MAP_ID, NE_MAP_LOC, NE_TILESET_LOC
 	+loadTileset SW_MAP_ID, SW_MAP_LOC, SW_TILESET_LOC
 	+loadTileset SE_MAP_ID, SE_MAP_LOC, SE_TILESET_LOC
-	+finishLoad
 	RTS
 !macro loadAllTiles {
 	JSR LOAD_ALL_TILES
@@ -305,12 +313,12 @@ CROSS_NORTH
 	PLA
 	STA NE_MAP_ID
 	+loadSection NE_MAP_LOC
-	+finishLoad
+	+finishLoad 1   ; keep open for further loading
 	+loadAllTiles
+	+finishLoad 0   ; all done
 	RTS
 .noMap	INC REL_Y
-	JMP bell
-
+	RTS
 ;----------------------------------------------------------------------
 ; >> CROSS EAST BOUNDARY (Load next section to the east)
 !zone
@@ -349,11 +357,12 @@ CROSS_EAST
 	PLA
 	STA SE_MAP_ID
 	+loadSection SE_MAP_LOC
-	+finishLoad
+	+finishLoad 1   ; keep open for further loading
 	+loadAllTiles
+	+finishLoad 0   ; all done
 	RTS
 .noMap	DEC REL_X
-	JMP bell
+	RTS
 ;----------------------------------------------------------------------
 ; >> CROSS SOUTH BOUNDARY (Load next section to the south)
 !zone
@@ -392,11 +401,12 @@ CROSS_SOUTH
 	PLA
 	STA SE_MAP_ID
 	+loadSection SE_MAP_LOC
-	+finishLoad
+	+finishLoad 1   ; keep open for further loading
 	+loadAllTiles
+	+finishLoad 0   ; all done
 	RTS
 .noMap	DEC REL_Y
-	JMP bell
+	RTS
 ;----------------------------------------------------------------------
 ; >> CROSS WEST BOUNDARY (load next section to the west)
 !zone
@@ -432,11 +442,12 @@ CROSS_WEST
 	PLA
 	STA SW_MAP_ID
 	+loadSection SW_MAP_LOC
-	+finishLoad
+	+finishLoad 1   ; keep open for further loading
 	+loadAllTiles
+	+finishLoad 0   ; all done
 	RTS
 .noMap	INC REL_X
-	JMP bell
+	RTS
 ;----------------------------------------------------------------------
 ; >> SET PLAYER TILE (A = tile)
 ;----------------------------------------------------------------------
@@ -629,14 +640,14 @@ ROW_OFFSET = 3
 	LDX SECTION_Y_START
 	ADC tblMAPl,X
 	BCC +
-	INY		; handle carry from prev add
-+	CPX #12		; rows 0-11 are on 1st page of map, 12-22 on 2nd page
+	INY			; handle carry from prev add
++	CPX #12			; rows 0-11 are on 1st page of map, 12-22 on 2nd page
 	BCC +
-	INY		; go to 2nd pg
+	INY			; go to 2nd pg
 	CLC
 +	ADC SECTION_X_START
 	BCC +
-	INY		; handle carry from prev add
+	INY			; handle carry from prev add
 +	SEC
 	SBC DRAW_X_START	; because it gets added back in later by indexing with X
 	BCS +
@@ -649,9 +660,27 @@ ROW_OFFSET = 3
 ; Get tile
 	TXA
 	TAY
+	; show avatar in the center of the map
+	CMP #VIEWPORT_HORIZ_PAD
+	BNE .notAvatar
+	LDA Y_LOC
+	CMP #VIEWPORT_VERT_PAD
+	BNE .notAvatar
+	LDY GLOBAL_TILESET_LOC
+	LDA GLOBAL_TILESET_LOC+1
+	BNE .store_src		; always taken
+.notAvatar
 	LDA #0
 	STA TILE_SOURCE+1
 	LDA (ROW_LOCATION), Y
+	BNE .not_empty		; zero means empty tile
+.empty
+	LDY #<emptyTile
+	LDA #>emptyTile+1
+	BNE .store_src		; always taken
+.not_empty
+	SEC
+	SBC #1			; tile map is 1-based, tile set indexes are 0-based	
 	; Calculate location of tile data == tile_base + ((tile & 31) * 32)
 	AND #31
 	ASL
@@ -662,10 +691,12 @@ ROW_OFFSET = 3
 	ASL
 	ROL TILE_SOURCE+1
 	CLC
-	ADC TILE_BASE	
-	STA TILE_SOURCE
+	ADC TILE_BASE
+	TAY
 	LDA TILE_SOURCE+1
 	ADC TILE_BASE + 1
+.store_src
+	STY TILE_SOURCE
 	STA TILE_SOURCE+1
 .doneCalculatingTileLocation
 ;   Is there a NPC there?
@@ -718,7 +749,7 @@ INIT
 	+startLoad
 	LDA NW_MAP_ID
 	+loadSection NW_MAP_LOC
-	+finishLoad
+	+finishLoad 1   ; keep open for further loading...
 	+startLoad
 	; from the NW section we can get the ID of the NE section
 	LDY #EAST
@@ -730,7 +761,7 @@ INIT
 	LDA (NW_MAP_LOC),Y
 	STA SW_MAP_ID
 	+loadSection SW_MAP_LOC
-	+finishLoad
+	+finishLoad 1   ; keep open for further loading...
 	+startLoad
 	; if there's no SW section, there's also no SE section
 	LDA #$FF
@@ -742,8 +773,9 @@ INIT
 	LDA (SW_MAP_LOC),Y
 	STA SE_MAP_ID
 	+loadSection SE_MAP_LOC
-+       +finishLoad
++       +finishLoad 1   ; keep open for further loading
 	+loadAllTiles
+	+finishLoad 0   ; all done
 	; set up the X and Y coordinates
 	LDX #VIEWPORT_HORIZ_PAD
 	LDY #VIEWPORT_VERT_PAD
@@ -763,3 +795,5 @@ tblHGRh
 tblMAPl	!for row, 23 {
 		!byte <((row-1)*22)+6
 	}
+
+emptyTile !fill 32

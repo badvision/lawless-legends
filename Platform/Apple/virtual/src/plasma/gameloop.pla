@@ -586,13 +586,14 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load the Frame Image, and lock it.
 def loadFrameImg()
+  byte img
   if titleLoaded
     loader(UNLOCK_MEMORY,MAIN_MEM, $2000)
     loader(FREE_MEMORY,  MAIN_MEM, $2000)
     titleLoaded = FALSE
   fin
   loader(SET_MEM_TARGET, MAIN_MEM, $2000)
-  loader(QUEUE_LOAD,     MAIN_MEM, 1<<8 | RES_TYPE_SCREEN)
+  loader(QUEUE_LOAD,     MAIN_MEM, (3-mapIs3D)<<8 | RES_TYPE_SCREEN)
   loader(LOCK_MEMORY,    MAIN_MEM, $2000)
 end
 
@@ -1056,7 +1057,7 @@ def loadTitle()
 
   // Load the title screen
   loader(SET_MEM_TARGET, MAIN_MEM, $2000)
-  loader(QUEUE_LOAD,     MAIN_MEM, 2<<8 | RES_TYPE_SCREEN)
+  loader(QUEUE_LOAD,     MAIN_MEM, 1<<8 | RES_TYPE_SCREEN)  // title screen is fixed at #1
   loader(LOCK_MEMORY,    MAIN_MEM, $2000)
   loader(FINISH_LOAD, MAIN_MEM, 1) // 1 = keep open
   titleLoaded = TRUE

@@ -207,9 +207,9 @@ LOAD_TILESET
 ;   (Returns Tile # in Y, Flags in A)
 ;   Each tile in memory can be 0-32, the flags are the upper 3 bits
 ;   0 0 0
-;   | | `- Script assigned, triggers script lookup
+;   | | `- Visible obstruction (Can not see behind it)
 ;   | `--- Boundary (Can not walk on it)
-;   `----- Visible obstruction (Can not see behind it)
+;   `----- Script assigned, triggers script lookup
 ;----------------------------------------------------------------------
 ; >> SET X,Y COORDINATES FOR VIEWPORT CENTER
 SET_XY

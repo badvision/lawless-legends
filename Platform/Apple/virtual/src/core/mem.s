@@ -1749,13 +1749,13 @@ doAllFixups: !zone
 	sta pDst+1
 	!if DEBUG >= 2 { jsr .debug2 }
 	clc
-	jsr .adMain
+	jsr .adMain		; recalc and store lo byte
 	iny
-	jsr .adMain
+	jsr .adMain		; recalc and store hi byte
 	bne .proc		; always taken
-.adMain	lda (pDst),y
-	adc .mainBase,y
-	sta (pDst),y
+.adMain	lda (pDst),y		; get num to add to offset
+	adc .mainBase,y		; add the offset
+	sta (pDst),y		; *STORE* back the result
 	rts
 .fxAux	cmp #$FF		; end of fixups?
 	beq .stubs		; if so, go do the stubs
@@ -1769,14 +1769,14 @@ doAllFixups: !zone
 	sta pDst+1
 	!if DEBUG >= 2 { jsr .debug3 }
 	sta setAuxWr
-	jsr .adAux
+	jsr .adAux		; recalc and store lo byte
 	iny
-	jsr .adAux
+	jsr .adAux		; recalc and store hi byte
 	sta clrAuxWr
 	bne .proc		; always taken
-.adAux	jsr .getBytecode
-	adc .mainBase,y
-	sta (pDst),y
+.adAux	jsr .getBytecode	; get num to add to offset
+	adc .mainBase,y		; add the offset
+	sta (pDst),y		; *STORE* back the result
 	rts
 .stubs	; fix up the stubs
 	lda .mainBase

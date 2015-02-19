@@ -400,7 +400,7 @@ class PackPartitions
         buf.put((byte)0);
     }
 
-    def write2DMap(mapName, rows)
+    def write2DMap(mapName, mapEl, rows)
     {
         def width = rows[0].size()
         def height = rows.size()
@@ -434,6 +434,11 @@ class PackPartitions
                 
                 def (tileSetNum, tileMap) = packTileSet(rows, hOff, TILES_PER_ROW, vOff, ROWS_PER_SECTION)
 
+                def xRange = hOff ..< hOff+TILES_PER_ROW
+                def yRange = vOff ..< vOff+ROWS_PER_SECTION
+                def sectName = "$mapName-$hsect-$vsect"
+                def (scriptModule, locationsWithTriggers) = packScripts(mapEl, sectName, xRange, yRange)
+                
                 // Header: first come links to other map sections
                 def buf = buffers[vsect][hsect]
                 buf.put((byte) (vsect > 0) ? sectionNums[vsect-1][hsect] : 0xFF)               // north
@@ -443,7 +448,7 @@ class PackPartitions
                 
                 // Then links to the tile set and script library
                 buf.put((byte) tileSetNum)
-                buf.put((byte) 0xFF) // script library placeholder
+                buf.put((byte) scriptModule)
                 
                 // After the header comes the raw data
                 (0..<ROWS_PER_SECTION).each { rowNum ->
@@ -452,7 +457,8 @@ class PackPartitions
                     (0..<TILES_PER_ROW).each { colNum ->
                         def x = hOff + colNum
                         def tile = (row && x < width) ? row[x] : null
-                        buf.put((byte)(tile ? tileMap[tile.@id] : 0))
+                        def flags = ([colNum, rowNum] in locationsWithTriggers) ? 0x20 : 0
+                        buf.put((byte)((tile ? tileMap[tile.@id] : 0) | flags))
                     }
                 }
             }
@@ -543,10 +549,6 @@ class PackPartitions
             }
         }
         
-        // Make a map of all the locations with triggers
-        def locMap = [:]
-        locationsWithTriggers.each { x,y -> locMap[[x,y]] = true }
-
         // Header: width and height
         buf.put((byte)width)
         buf.put((byte)height)
@@ -573,7 +575,7 @@ class PackPartitions
             buf.put((byte)0xFF) // sentinel at start of row
             row.eachWithIndex { tile,x ->
                 // Mark scripted locations with a flag
-                def flags = locMap.containsKey([x,y]) ? 0x20 : 0
+                def flags = ([x,y] in locationsWithTriggers) ? 0x20 : 0
                 buf.put((byte)texMap[tile?.@id] | flags)
             }
             buf.put((byte)0xFF) // sentinel at end of row
@@ -762,7 +764,7 @@ class PackPartitions
         def num = mapNames[name][1]
         //println "Packing 2D map #$num named '$name'."
         def rows = parseMap(mapEl, tileEls)
-        write2DMap(name, rows)
+        write2DMap(name, mapEl, rows)
     }
     
     def pack3DMap(mapEl, tileEls)
@@ -779,15 +781,17 @@ class PackPartitions
         }
     }
     
-    def packScripts(mapEl, mapName)
+    def packScripts(mapEl, mapName, xRange = null, yRange = null)
     {
         if (!mapEl.scripts)
-            return 0
+            return [0, [] as Set]
         ScriptModule module = new ScriptModule()
-        module.packScripts(mapEl.scripts[0])
+        if (!module.packScripts(mapEl.scripts[0], xRange, yRange))
+            return [0, [] as Set]
+            
         def num = modules.size() + 1
         def name = "mapScript$num"
-        //println "Packing scripts for map $mapName, to module $num."
+        println "Packing scripts for map $mapName, to module $num."
         modules[name]   = [num:num, buf:wrapByteList(module.data)]
         bytecodes[name] = [num:num, buf:wrapByteList(module.bytecode)]
         fixups[name]    = [num:num, buf:wrapByteList(module.fixups)]
@@ -1325,7 +1329,7 @@ class PackPartitions
 
         def nScripts = 0
 
-        def locationsWithTriggers = []
+        def locationsWithTriggers = [] as Set
 
         def vec_locationTrigger = 0x300
         def vec_displayStr      = 0x303
@@ -1344,18 +1348,42 @@ class PackPartitions
             return addr
         }
 
-        def packScripts(scripts)
+        /**
+         * Pack scripts from a map. Either the whole map, or optionally just an X and Y
+         * bounded section of it.
+         * 
+         * Returns true if any matching scripts were found.
+         */
+        def packScripts(inScripts, xRange = null, yRange = null)
         {
+            // If we're only processing a section of the map, make sure this script is
+            // referenced within that section.
+            //
+            def scripts = []
+            inScripts.script.eachWithIndex { script, idx ->
+                def name = script.name[0].text()
+                if (name.toLowerCase() == "init")
+                    scripts << script
+                else if (script.locationTrigger.any { trig ->
+                            (!xRange || trig.@x.toInteger() in xRange) &&
+                            (!yRange || trig.@y.toInteger() in yRange) })
+                    scripts << script
+            }
+                
             nScripts = scripts.script.size()
+            if (nScripts == 0)
+                return false
+                
             makeStubs()
-            scripts.script.eachWithIndex { script, idx ->
+            scripts.eachWithIndex { script, idx ->
                 packScript(idx, script) 
             }
-            makeInit(scripts)
+            makeInit(scripts, xRange, yRange)
             emitFixupByte(0xFF)
             //println "data: $data"
             //println "bytecode: $bytecode"
             //println "fixups: $fixups"
+            return true
         }
 
         def makeStubs()
@@ -1381,6 +1409,7 @@ class PackPartitions
             def name = script.name[0].text()
             if (name.toLowerCase() == "init") // this special script gets processed later
                 return
+            
             //println "   Script '$name'"
             withContext("script '$name'") 
             {
@@ -1455,36 +1484,47 @@ class PackPartitions
 
         def emitDataByte(b)
         {
+            assert b <= 255
             data.add((byte)(b & 0xFF))
         }
 
         def emitDataWord(w)
         {
-            emitDataByte(w)
+            emitDataByte(w & 0xFF)
             emitDataByte(w >> 8)
         }
 
         def emitCodeByte(b)
         {
+            assert b <= 255
             bytecode.add((byte)(b & 0xFF))
         }
 
         def emitCodeWord(w)
         {
-            emitCodeByte(w)
+            emitCodeByte(w & 0xFF)
             emitCodeByte(w >> 8)
         }
 
         def emitFixupByte(b)
         {
+            assert b <= 255
             fixups.add((byte)(b & 0xFF))
+        }
+
+        def emitDataFixup(toAddr)
+        {
+            // Src addr is reversed (i.e. it's hi then lo)
+            emitFixupByte(dataAddr() >> 8)
+            emitFixupByte(dataAddr() & 0xFF)
+            emitDataWord(toAddr)
         }
 
         def emitCodeFixup(toAddr)
         {
-            // Src addr is reversed (i.e. it's hi then lo)
+            // Src addr is reversed (i.e. it's hi then lo), and marked by hi-bit flag.
             emitFixupByte((bytecodeAddr() >> 8) | 0x80)
-            emitFixupByte(bytecodeAddr())
+            emitFixupByte(bytecodeAddr() & 0xFF)
             emitCodeWord(toAddr)
         }
 
@@ -1624,11 +1664,16 @@ class PackPartitions
             emitCodeByte(0x30) // DROP
         }
 
-        def makeInit(scripts)
+        def makeInit(scripts, xRange, yRange)
         {
             //println "    Script: special 'init'"
             startFunc(0)
-            scripts.script.eachWithIndex { script, idx ->
+            
+            // Emit the code the user has stored for the init script. While we're scanning,
+            // might as well also collate all the location triggers into a sorted map.
+            //
+            TreeMap triggers = [:]
+            scripts.eachWithIndex { script, idx ->
                 def name = script.name[0].text()
                 if (name.toLowerCase() == "init")
                 {
@@ -1645,21 +1690,49 @@ class PackPartitions
                     script.locationTrigger.each { trig ->
                         def x = trig.@x.toInteger()
                         def y = trig.@y.toInteger()
-                        locationsWithTriggers.add([x,y])
-                        emitCodeByte(0x2A) // CB
-                        assert x >= 0 && x < 255
-                        emitCodeByte(x)
-                        emitCodeByte(0x2A) // CB
-                        assert y >= 0 && y < 255
-                        emitCodeByte(y)
-                        emitCodeByte(0x26)  // LA
-                        emitCodeFixup((idx+1) * 5)
-                        emitCodeByte(0x54) // CALL
-                        emitCodeWord(vec_locationTrigger)
-                        emitCodeByte(0x30) // DROP
+                        if ((!xRange || x in xRange) && (!yRange || y in yRange))
+                        {
+                            if (xRange)
+                                x -= xRange[0]
+                            if (yRange)
+                                y -= yRange[0]
+                            if (!triggers[y])
+                                triggers[y] = [:] as TreeMap
+                            triggers[y][x] = (idx+1) * 5  // address of function
+                        }
                     }
                 }
             }
+            
+            // If any triggers, register and output a trigger table
+            if (triggers.size()) 
+            {
+                println("Putting trigger table at ${dataAddr()}")
+                
+                // Code to register the table
+                emitCodeByte(0x26)  // LA
+                emitCodeFixup(dataAddr())
+                emitCodeByte(0x54) // CALL
+                emitCodeWord(vec_locationTrigger)
+                emitCodeByte(0x30) // DROP
+                
+                // The table itself goes in the data segment.
+                triggers.each { y, xs ->
+                    println("  Trigger row: y=$y size=${xs.size()}")
+                    emitDataByte(y)
+                    emitDataByte(xs.size() * 3)  // 3 bytes per trigger (x, adrlo, adrhi)
+                    xs.each { x, funcAddr ->
+                        println("    col: x=$x funcAddr=$funcAddr")
+                        emitDataByte(x)
+                        emitDataFixup(funcAddr)
+                        // Record a list of trigger locations for the caller's reference
+                        locationsWithTriggers << [x, y]
+                    }
+                }
+                emitDataByte(0xFF) // mark the end end of the trigger table
+            }
+            
+            // All done with the init function.
             finishFunc()
         }
 

@@ -68,6 +68,7 @@ DRAW_WIDTH      = $62   ; Number of columns to draw for current section (cannot 
 DRAW_HEIGHT     = $63   ; Number of rows to draw for current section (cannot be destroyed by drawing loop)
 DRAW_SECTION    = $64   ; Location of section data being drawn
 TILE_BASE       = $6B   ; Location of tile data
+CALC_MODE       = $6F	; Flag to indicate calculate mode (non-zero) or normal draw mode (zero)
 ;-- These variables are set in the outer draw section but can be destroyed by the inner routine
 SECTION_X_START = $60   ; X Offset relative to current section being drawn 
 SECTION_Y_START = $61   ; Y Offset relative to current section being drawn 
@@ -456,57 +457,25 @@ CROSS_WEST
 ; >> DRAW
 !zone draw
 !macro drawMapSection mapPtr, tilesetPtr, deltaX, deltaY {
-    ; Determine X1 and X2 bounds for what is being drawn
-	LDA REL_X
-	SEC
-	SBC #(deltaX+VIEWPORT_HORIZ_PAD)
-	TAX
-	BPL .10
-	LDA #0
-.10     STA SECTION_X_START
-	TXA
-	CLC
-	ADC #VIEWPORT_WIDTH
-	CMP #SECTION_WIDTH
-	BMI .11
-	LDA #SECTION_WIDTH
-.11     
-	SEC
-	SBC SECTION_X_START
-	STA DRAW_WIDTH
-	BMI .30
-    ; Determine Y1 and Y2 bounds for what is being drawn
-	LDA REL_Y
-	SEC
-	SBC #(deltaY+VIEWPORT_VERT_PAD)
-	TAX
-	BPL .20
-	LDA #0
-.20     STA SECTION_Y_START
-	TXA
-	CLC
-	ADC #VIEWPORT_HEIGHT
-	CMP #SECTION_HEIGHT
-	BMI .21
-	LDA #SECTION_HEIGHT
-.21
-	SEC
-	SBC SECTION_Y_START
-	STA DRAW_HEIGHT
-	BMI .30
 	+move_word mapPtr, DRAW_SECTION
 	+move_word tilesetPtr, TILE_BASE
+	LDX #(deltaX+VIEWPORT_HORIZ_PAD)
+	LDY #(deltaY+VIEWPORT_VERT_PAD)
 	JSR MainDraw
-.30
 }
 
-DRAW
+DRAW	LDA #0
+	BEQ +
+CALC	LDA #1
++	STA CALC_MODE
 ; For each quadrant, display relevant parts of screen
 !if DEBUG >= 2 { 
 	+prStr : !text "Draw: REL_X=",0 
 	+prByte REL_X
 	+prStr : !text "REL_Y=",0
 	+prByte REL_Y
+	+prStr : !text "CALC_MODE=",0
+	+prByte CALC_MODE
 	+crout
 }
 .checkNWQuad
@@ -562,6 +531,63 @@ MainDraw
 COL_OFFSET = 2
 ROW_OFFSET = 3
 
+	STX .subX + 1		; set up subtraction operands...
+	STY .subY + 1		; ... i.e. self-modify them.
+        ; sanity checks
+	LDA mapPtr+1		; skip if no map here
+	BEQ .noDraw
+	LDA DRAW_X_START	; skip on negative start values
+	BMI .ok
+	LDA DRAW_Y_START
+	BMI .noDraw
+	STA Y_LOC		; also set up initial row counter from Y start
+	BPL .ok			; always taken
+.noDraw	RTS
+.ok	; Determine X1 and X2 bounds for what is being drawn
+	LDA REL_X
+	SEC
+.subX	SBC #11			; operand gets self-modified above
+	TAX
+	BPL +
+	LDA #0
++	STA SECTION_X_START
+	TXA
+	CLC
+	ADC #VIEWPORT_WIDTH
+	CMP #SECTION_WIDTH
+	BMI +
+	LDA #SECTION_WIDTH
++	SEC
+	SBC SECTION_X_START
+	STA DRAW_WIDTH
+	BMI .noDraw		; skip if draw width is negative
+	BEQ .noDraw		; ...or zero
+    ; Determine Y1 and Y2 bounds for what is being drawn
+	LDA REL_Y
+	SEC
+.subY	SBC #11			; operand gets self-modified above
+	TAX
+	BPL +
+	LDA #0
++	STA SECTION_Y_START
+	TXA
+	CLC
+	ADC #VIEWPORT_HEIGHT
+	CMP #SECTION_HEIGHT
+	BMI +
+	LDA #SECTION_HEIGHT
++	SEC
+	SBC SECTION_Y_START
+	STA DRAW_HEIGHT
+	STA Y_COUNTER
+	BMI .noDraw		; skip if draw height is negative
+	BEQ .noDraw		; ...or zero
+
+	LDA CALC_MODE		; check the mode
+	BEQ +			; zero is normal (draw)
+	JMP FinishCalc		; nonzero is calc mode
++	; drawing begins
+
 !if DEBUG >= 2 {
 	+prStr : !text "   DR_X_ST=",0
 	+prByte DRAW_X_START
@@ -579,26 +605,9 @@ ROW_OFFSET = 3
 	+crout
 }
 
-	LDA DRAW_SECTION+1	; skip if no map section here
-	BNE .gotMap
-.noDraw
-	RTS
-.gotMap
-	LDA DRAW_HEIGHT
-	BEQ .noDraw
-	BMI .noDraw
-	STA Y_COUNTER
-	LDA DRAW_Y_START
-	BMI .noDraw
-	STA Y_LOC
 .rowLoop        
 	LDA DRAW_WIDTH
-	BEQ .noDraw
-	BMI .noDraw
 	STA X_COUNTER
-	LDA DRAW_X_START
-	BMI .noDraw
-; Identify start of map data (upper left)
 	; Self-modifying code: Update all the STA statements in the drawTile section
 	LDA Y_LOC
 	ASL		; double because each tile is two rows high
@@ -633,7 +642,7 @@ ROW_OFFSET = 3
 	    }
 	}
 
-;Look up data offset (old bit shifting multiplication logic was buggy)
+;Look up map data offset (old bit shifting multiplication logic was buggy)
 	LDA DRAW_SECTION
 	LDY DRAW_SECTION + 1
 	CLC
@@ -738,8 +747,9 @@ ROW_OFFSET = 3
 	INC Y_LOC
 	INC SECTION_Y_START
 	JMP .rowLoop
-; Draw player
 
+FinishCalc
+	BRK
 
 ;----------------------------------------------------------------------
 ; >> INIT (reset map drawing vars, load initial map in A)

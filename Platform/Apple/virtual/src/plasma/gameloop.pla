@@ -957,14 +957,9 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Associate a location with a trigger function (i.e. a script)
-def setLocationTrigger(x, y, func)
-  if nLocTrig == MAX_LOC_TRIG
-    fatal(@tooManyTriggers)
-  fin
-  locTrig_x[nLocTrig] = x
-  locTrig_y[nLocTrig] = y
-  locTrig_func[nLocTrig] = func
-  nLocTrig = nLocTrig + 1
+def setLocationTrigger(tbl)
+  printHex($1001)
+  printHex(tbl)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1008,34 +1003,6 @@ def initCmds3D()
 
   initCmd('Y', @nextSky)
   initCmd('G', @nextGround)
-
-  // $300
-  callbacks.0 = $4c
-  callbacks:1 = @setLocationTrigger
-
-  // $303
-  callbacks.3 = $4c
-  callbacks:4 = @displayStr
-
-  // $306
-  callbacks.6 = $4c
-  callbacks:7 = @getYN
-
-  // $309
-  callbacks.9 = $4c
-  callbacks:10 = @setMap
-
-  // $30C
-  callbacks.12 = $4c
-  callbacks:13 = @setSky
-
-  // $30F
-  callbacks.15 = $4c
-  callbacks:16 = @setGround
-
-  // $312
-  callbacks.18 = $4c
-  callbacks:19 = @teleport
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1072,9 +1039,43 @@ def loadTitle()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Set vectors so that scripts in PLASMA can call back to do things with this engine.
+def setCallbacks()
+
+  // $300
+  callbacks.0 = $4c
+  callbacks:1 = @setLocationTrigger
+
+  // $303
+  callbacks.3 = $4c
+  callbacks:4 = @displayStr
+
+  // $306
+  callbacks.6 = $4c
+  callbacks:7 = @getYN
+
+  // $309
+  callbacks.9 = $4c
+  callbacks:10 = @setMap
+
+  // $30C
+  callbacks.12 = $4c
+  callbacks:13 = @setSky
+
+  // $30F
+  callbacks.15 = $4c
+  callbacks:16 = @setGround
+
+  // $312
+  callbacks.18 = $4c
+  callbacks:19 = @teleport
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Main code.
 //
 loadTitle()
+setCallbacks()
 initMap()
 setWindow2()
 kbdLoop()

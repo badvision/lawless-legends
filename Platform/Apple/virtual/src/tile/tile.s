@@ -12,7 +12,7 @@
 !source "../include/mem.i"
 !source "../include/plasma.i"
 
-DEBUG       = 0     ; 1=some logging, 2=lots of logging
+DEBUG       = 1     ; 1=some logging, 2=lots of logging
 
 HEADER_LENGTH=6
 SECTION_WIDTH=22
@@ -77,6 +77,9 @@ Y_COUNTER       = $67   ; Loop counter used during drawing
 Y_LOC           = $68   ; Current row being drawn (between 0 and VIEWPORT_WIDTH)
 ROW_LOCATION    = $69   ; Used for pointing at row offset in map data
 TILE_SOURCE     = $6D   ; Location of tile data
+SCRIPTS_LOC	= $9A	; Location of script module
+AVATAR_SECTION  = $9C	; Location of section data the avatar is within
+AVATAR_TILE	= $9E	; Tile map entry under the avatar
 
 ;----------------------------------------------------------------------
 ; Vectors used to call in from the outside.
@@ -135,16 +138,6 @@ LOAD_SECTION
 }
 
 ;----------------------------------------------------------------------
-; >> FINISH LOADING MAP SECTIONS
-FINISH_MAP_LOAD
-	LDA #FINISH_LOAD
-	JMP mainLoader
-!macro finishLoad keepOpen {
-	LDX #keepOpen   ; 1 to keep open for next load, 0 for close so you can flip to HGR page 2
-	JSR FINISH_MAP_LOAD
-}
-
-;----------------------------------------------------------------------
 ; >> RELEASE MAP SECTION OR TILESET
 !macro freeResource ptr {
     ; --> free up unused resource
@@ -155,6 +148,7 @@ FINISH_MAP_LOAD
 	JSR mainLoader
 +
 }
+
 ;----------------------------------------------------------------------
 ; >> LOAD TILES
 ;   Load tile resource (A = Resource ID)
@@ -259,6 +253,61 @@ LOAD_ALL_TILES
 	JSR LOAD_ALL_TILES
 }
 
+FREE_SCRIPTS
+	+freeResource SCRIPTS_LOC
+	RTS
+
+!macro freeScripts {
+	JSR FREE_SCRIPTS
+}
+
+!zone
+LOAD_SCRIPTS
+	JSR CALC		; determine which map avatar is on
+	LDY #5
+	LDA (AVATAR_SECTION),Y
+	BNE .got
+	LDA #0
+	STA SCRIPTS_LOC
+	STA SCRIPTS_LOC+1
+	RTS
+.got	TAY	; resource # in Y
+!if DEBUG {
+	+prStr : !text "loadScripts ",0
+	+prY
+}
+	LDX #RES_TYPE_MODULE
+	LDA #QUEUE_LOAD
+	JSR mainLoader
+!if DEBUG {
+	+prStr : !text "-> ",0
+	+prYX
+	+crout
+}
+	STX SCRIPTS_LOC
+	STY SCRIPTS_LOC+1
+	RTS
+
+!macro loadScripts {
+	JSR LOAD_SCRIPTS
+}
+
+!macro finishLoad keepOpen {
+       LDX #keepOpen   ; 1 to keep open for next load, 0 for close so you can flip to HGR page 2
+       LDA #FINISH_LOAD
+       JSR mainLoader
+}
+
+FINISH_MAP_LOAD
+	+finishLoad 1   	; keep open for further loading
+	+loadAllTiles
+	+loadScripts
+	+finishLoad 0   	; all done
+	LDA SCRIPTS_LOC+1	; are there scripts?
+	BNE .scr		; yes, go init them
+	RTS			; no, we're done
+.scr	JMP (SCRIPTS_LOC)	; the init function is always first in the script module
+
 ; >> CHECK CROSSINGS
 !zone
 CROSS
@@ -295,6 +344,7 @@ CROSS_NORTH
 	TXA
 	PHA
 	+freeAllTiles
+	+freeScripts
 	+freeResource SW_MAP_LOC
 	+freeResource SE_MAP_LOC
 	LDA REL_Y
@@ -314,12 +364,10 @@ CROSS_NORTH
 	PLA
 	STA NE_MAP_ID
 	+loadSection NE_MAP_LOC
-	+finishLoad 1   ; keep open for further loading
-	+loadAllTiles
-	+finishLoad 0   ; all done
-	RTS
+	JMP FINISH_MAP_LOAD
 .noMap	INC REL_Y
 	RTS
+
 ;----------------------------------------------------------------------
 ; >> CROSS EAST BOUNDARY (Load next section to the east)
 !zone
@@ -358,10 +406,7 @@ CROSS_EAST
 	PLA
 	STA SE_MAP_ID
 	+loadSection SE_MAP_LOC
-	+finishLoad 1   ; keep open for further loading
-	+loadAllTiles
-	+finishLoad 0   ; all done
-	RTS
+	jmp FINISH_MAP_LOAD
 .noMap	DEC REL_X
 	RTS
 ;----------------------------------------------------------------------
@@ -402,10 +447,7 @@ CROSS_SOUTH
 	PLA
 	STA SE_MAP_ID
 	+loadSection SE_MAP_LOC
-	+finishLoad 1   ; keep open for further loading
-	+loadAllTiles
-	+finishLoad 0   ; all done
-	RTS
+	jmp FINISH_MAP_LOAD
 .noMap	DEC REL_Y
 	RTS
 ;----------------------------------------------------------------------
@@ -443,10 +485,7 @@ CROSS_WEST
 	PLA
 	STA SW_MAP_ID
 	+loadSection SW_MAP_LOC
-	+finishLoad 1   ; keep open for further loading
-	+loadAllTiles
-	+finishLoad 0   ; all done
-	RTS
+	jmp FINISH_MAP_LOAD
 .noMap	INC REL_X
 	RTS
 ;----------------------------------------------------------------------
@@ -583,11 +622,6 @@ ROW_OFFSET = 3
 	BMI .noDraw		; skip if draw height is negative
 	BEQ .noDraw		; ...or zero
 
-	LDA CALC_MODE		; check the mode
-	BEQ +			; zero is normal (draw)
-	JMP FinishCalc		; nonzero is calc mode
-+	; drawing begins
-
 !if DEBUG >= 2 {
 	+prStr : !text "   DR_X_ST=",0
 	+prByte DRAW_X_START
@@ -665,7 +699,7 @@ ROW_OFFSET = 3
 	STY ROW_LOCATION + 1
 	LDX DRAW_X_START        
 ; Display row of tiles
-.next_col
+.draw_col
 ; Get tile
 	TXA
 	TAY
@@ -675,12 +709,16 @@ ROW_OFFSET = 3
 	LDA Y_LOC
 	CMP #VIEWPORT_VERT_PAD
 	BNE .notAvatar
+	LDA (ROW_LOCATION),Y
+	STA AVATAR_TILE
+	LDA DRAW_SECTION
+	STA AVATAR_SECTION
+	LDA DRAW_SECTION + 1
+	STA AVATAR_SECTION + 1
 	LDY GLOBAL_TILESET_LOC
 	LDA GLOBAL_TILESET_LOC+1
 	BNE .store_src		; always taken
 .notAvatar
-	LDA #0
-	STA TILE_SOURCE+1
 	LDA (ROW_LOCATION), Y
 	BNE .not_empty		; zero means empty tile
 .empty
@@ -688,10 +726,12 @@ ROW_OFFSET = 3
 	LDA #>emptyTile+1
 	BNE .store_src		; always taken
 .not_empty
+	; Calculate location of tile data == tile_base + (((tile & 31) - 1) * 32)
+	LDY #0
+	STY TILE_SOURCE+1
+	AND #31
 	SEC
 	SBC #1			; tile map is 1-based, tile set indexes are 0-based	
-	; Calculate location of tile data == tile_base + ((tile & 31) * 32)
-	AND #31
 	ASL
 	ASL
 	ASL
@@ -707,6 +747,11 @@ ROW_OFFSET = 3
 .store_src
 	STY TILE_SOURCE
 	STA TILE_SOURCE+1
+
+	LDA CALC_MODE			; check the mode
+	BEQ .doneCalculatingTileLocation ; zero is normal mode (draw)
+	JMP .next_col			; non-zero is calc mode (so don't draw)
+
 .doneCalculatingTileLocation
 ;   Is there a NPC there?
 ;     No, use map tile
@@ -731,13 +776,13 @@ ROW_OFFSET = 3
 		    INY			;11
 		}
 	    }
-	    DEC X_COUNTER
-	    BEQ .next_row
 	    TXA ; Outside the drawing part we need to put X back (divide by 2)
 	    LSR
 	    TAX
+.next_col   DEC X_COUNTER
+	    BEQ .next_row
 	    INX
-	    JMP .next_col
+	    JMP .draw_col
 ; Increment row
 .next_row
 	DEC Y_COUNTER
@@ -783,14 +828,12 @@ INIT
 	LDA (SW_MAP_LOC),Y
 	STA SE_MAP_ID
 	+loadSection SE_MAP_LOC
-+       +finishLoad 1   ; keep open for further loading
-	+loadAllTiles
-	+finishLoad 0   ; all done
-	; set up the X and Y coordinates
++	; set up the starting X and Y coordinates
 	LDX #VIEWPORT_HORIZ_PAD
 	LDY #VIEWPORT_VERT_PAD
 	JSR SET_XY
-	RTS
+	; load tilesets and scripts
+	JMP FINISH_MAP_LOAD
 
 tblHGRl     
 	!byte   $00,$80,$00,$80,$00,$80,$00,$80

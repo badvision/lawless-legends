@@ -785,13 +785,17 @@ class PackPartitions
     {
         if (!mapEl.scripts)
             return [0, [] as Set]
-        ScriptModule module = new ScriptModule()
-        if (!module.packScripts(mapEl.scripts[0], xRange, yRange))
-            return [0, [] as Set]
             
         def num = modules.size() + 1
         def name = "mapScript$num"
         println "Packing scripts for map $mapName, to module $num."
+        
+        ScriptModule module = new ScriptModule()
+        if (!module.packScripts(mapEl.scripts[0], xRange, yRange)) {
+            println "...no scripts applied; will re-use module num"
+            return [0, [] as Set]
+        }
+            
         modules[name]   = [num:num, buf:wrapByteList(module.data)]
         bytecodes[name] = [num:num, buf:wrapByteList(module.bytecode)]
         fixups[name]    = [num:num, buf:wrapByteList(module.fixups)]

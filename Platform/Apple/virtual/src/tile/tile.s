@@ -68,7 +68,7 @@ DRAW_WIDTH      = $62   ; Number of columns to draw for current section (cannot 
 DRAW_HEIGHT     = $63   ; Number of rows to draw for current section (cannot be destroyed by drawing loop)
 DRAW_SECTION    = $64   ; Location of section data being drawn
 TILE_BASE       = $6B   ; Location of tile data
-CALC_MODE       = $6F	; Flag to indicate calculate mode (non-zero) or normal draw mode (zero)
+UNUSED_6F	= $6F
 ;-- These variables are set in the outer draw section but can be destroyed by the inner routine
 SECTION_X_START = $60   ; X Offset relative to current section being drawn 
 SECTION_Y_START = $61   ; Y Offset relative to current section being drawn 
@@ -78,8 +78,11 @@ Y_LOC           = $68   ; Current row being drawn (between 0 and VIEWPORT_WIDTH)
 ROW_LOCATION    = $69   ; Used for pointing at row offset in map data
 TILE_SOURCE     = $6D   ; Location of tile data
 SCRIPTS_LOC	= $9A	; Location of script module
-AVATAR_SECTION  = $9C	; Location of section data the avatar is within
-AVATAR_TILE	= $9E	; Tile map entry under the avatar
+CALC_MODE       = $9C	; Flag to indicate calculate mode (non-zero) or normal draw mode (zero)
+AVATAR_TILE	= $9D	; Tile map entry under the avatar
+AVATAR_X        = $9E	; X coordinate within avatar map section
+AVATAR_Y        = $9F	; Y coordinate within avatar map section
+AVATAR_SECTION  = $A0	; Location of section data the avatar is within
 
 ;----------------------------------------------------------------------
 ; Vectors used to call in from the outside.
@@ -711,6 +714,21 @@ ROW_OFFSET = 3
 	BNE .notAvatar
 	LDA (ROW_LOCATION),Y
 	STA AVATAR_TILE
+	TYA
+	SEC
+	SBC DRAW_X_START
+	CLC
+	ADC SECTION_X_START
+	STA AVATAR_X
+	LDA SECTION_Y_START
+	STA AVATAR_Y
+!if DEBUG {
+	+prStr : !text "Avatar X=",0
+	+prByte AVATAR_X
+	+prStr : !text "Y=",0
+	+prByte AVATAR_Y
+	+crout
+}
 	LDA DRAW_SECTION
 	STA AVATAR_SECTION
 	LDA DRAW_SECTION + 1

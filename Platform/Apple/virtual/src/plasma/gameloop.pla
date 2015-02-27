@@ -83,8 +83,11 @@ const frontBuf  = $6B
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Tile engine variables
-const relX = $50
-const relY = $51
+const relX      = $50
+const relY      = $51
+const avatarTile= $9D   // the avatar variables are set by tile engine during its draw phase
+const avatarX   = $9E
+const avatarY   = $9F
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Font engine variables
@@ -98,7 +101,6 @@ const cursv     = $75  // Cursor V-pos 0-23
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Strings.
 byte helloStr[] = "Loading Lawless Legends.\n"
-byte tooManyTriggers[] = "Too many triggers"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Global variables
@@ -108,13 +110,9 @@ word pFont
 word pMap
 word pScripts
 word cmdTbl[64]
-byte nLocTrig
-byte locTrig_x[MAX_LOC_TRIG]
-byte locTrig_y[MAX_LOC_TRIG]
-word locTrig_func[MAX_LOC_TRIG]
+word triggerTbl
 byte prevX
 byte prevY
-word prevScript
 byte prevMapNum
 byte prevMapIs3D
 byte redraw
@@ -123,6 +121,7 @@ byte cacheSky, cacheGround
 word cacheX, cacheY
 byte cacheDir
 byte resetLocFromCache = FALSE
+byte anyText = FALSE
 
 // Movement amounts when walking at each angle
 // Each entry consists of an X bump and a Y bump, in 8.8 fixed point
@@ -182,12 +181,26 @@ word groundNum = 10
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
 asm __defs
+
+; Headers
 !source "../../include/global.i"
 !source "../../include/plasma.i"
 !source "../../include/mem.i"
 !source "../../include/fontEngine.i"
-tmp     = $2
-pTmp    = $4
+
+; Optional debug printing support
+DEBUG   = 1
+!if DEBUG { !source "../../include/debug.i" }
+
+; General use
+tmp         = $2
+pTmp        = $4
+
+; Variables that get set by the tile engine when it draws
+avatarTile  = $9D
+avatarX     = $9E   ; from the tile engine
+avatarY     = $9F   ; ...ditto
+
 end
         
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -322,7 +335,6 @@ asm initDisplayEngine
         rts
 end
 
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Render one frame using the ray caster or tile engine (they share the same address)
 // Params: none
@@ -354,43 +366,62 @@ asm checkCrossing
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Is the player's current position a physical obstruction?
-// Params: none
-asm isBlocked
-        txa
+// Scan the trigger table for avatar's current X/Y, return the function
+asm callScriptsAsm
+        lda evalStkL,x  ; get trigger table address
+        sta pTmp        ; save to zero page so we can index it
+        lda evalStkH,x
+        sta pTmp+1
+    ; Scan the Y coordinates.
+-       ldy #0
+        lda (pTmp),y    ; get Y coordinate from table
+!if DEBUG { +prStr : !text "Y=",0 : +prA : +crout }
+        cmp #$FF        ; hmm, is it end of table?
+        bne +           ; if not, advance to next
+        rts             ; table exhausted, give up and return.
++       iny
+        cmp avatarY     ; is this the Y coord we're looking for?
+        beq +           ; if yes, go scan X coords
+        lda (pTmp),y    ; get length of this Y-X-X-X set
+        clc
+        adc pTmp        ; advance past X-coord entries for this Y
+        sta pTmp
+        bcc -           ; and loop to next Y coord
+        inc pTmp+1      ; handle page crossings
+        bne -           ; always taken
+    ; We've now matched the Y coord. Scan X coords.
++       lda (pTmp),y    ; get limit of X-adrLo-adrHi array
+        sta tmp         ; and save it
+        iny             ; advance to first X-coord entry
+        lda #0          ; put a sentinel on the stack...
+        pha             ; ...so we can later know the end of addresses pushed.
+-       lda (pTmp),y    ; get X coordinate from table
+!if DEBUG { +prStr : !text "X=",0 : +prA : +crout }
+        iny
+        cmp avatarX     ; is this the X coord we're looking for?
+        bne +           ; if not, advance to next
+        lda (pTmp),y    ; found a match! save the script's address on the stack
         pha
-        bit setROM
-        jsr $6006
-        tay
-        pla
-        tax
-        dex
-        tya
-        sta evalStkL,x
-        lda #0
-        sta evalStkH,x
-        bit setLcRW+lcBank2
-        rts
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Is there a script attached to the player's current position?
-// Params: none
-asm isScripted
-        txa
+        iny
+        lda (pTmp),y
         pha
-        bit setROM
-        jsr $6009
-        tay
-        pla
-        tax
-        dex
-        tya
-        sta evalStkL,x
-        lda #0
-        sta evalStkH,x
-        bit setLcRW+lcBank2
-        rts
+        dey
++       iny             ; advance over address to next X coord entry
+        iny
+        cpy tmp         ; are we at end of X-coord table?
+        bmi -           ; if not at end, loop to next X coord
+    ; Addresses of matching scripts are now on the stack. Call each one until we hit the sentinel.
+-       pla             ; hi byte of script address
+        bne +           ; sentinel? if not, go call it
+        rts             ; hit the sentinel; we're all done.
++       sta tmp+2       ; save hi byte
+        pla             ; lo byte of script address
+        sta tmp+1       ; save that too
+        lda #$4C        ; JMP opcode
+        sta tmp
+        jsr tmp         ; call the script (it's a PLASMA function, so no need to save/restore X reg)
+        clc
+        bcc -           ; loop back for next script (always taken)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -439,6 +470,9 @@ asm displayStr
     bit setROM
     txa
     pha
+    ; record that text was drawn - for clear window on next script phase    
+    lda #1
+    sta textDrawn
     lda evalStkL,x
     sta pTmp
     lda evalStkH,x
@@ -524,6 +558,18 @@ def getUpperKey()
     key = key - $20
   fin
   return key
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Is the player's current position a physical obstruction?
+def isBlocked()
+  return ^avatarTile & $40
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Is there a script attached to the player's current position?
+def isScripted()
+  return ^avatarTile & $20
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -654,11 +700,11 @@ def initMap3D()
   // Initialize the map scripts
   setWindow2()
   clearWindow()
+  anyText = FALSE
 
   prevX = -1
   prevY = -1
-  prevScript = -1
-  nLocTrig = 0
+  triggerTbl = NULL
   prevMapNum = mapNum
   prevMapIs3D = mapIs3D
   if pScripts
@@ -720,8 +766,7 @@ def initMap2D()
   // For now
   prevX = -1
   prevY = -1
-  prevScript = -1
-  nLocTrig = 0
+  triggerTbl = NULL
   prevMapNum = mapNum
   prevMapIs3D = mapIs3D
   pScripts = NULL
@@ -783,28 +828,74 @@ def flipToFirstPage
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def callScripts(x, y)
+  word p
+  word pNext
+  word script
+  
+  printHex($1001)
+  printHex(x)
+  crout()
+
+  p = triggerTbl
+  while TRUE
+    printHex($1002)
+    printHex(p)
+    printHex(^p)
+    crout()
+    getUpperKey
+
+    if ^p == $FF
+      return
+    fin
+    pNext = p + p.1
+    if ^p == y
+      while p < pNext
+        printHex($1003)
+        printHex(p)
+        printHex(^p)
+        crout()
+
+        if ^p == x
+          script = p:1
+          printHex($1004)
+          printHex(script)
+          crout()
+          *script
+        fin
+        p = p + 3
+      loop
+    fin
+    p = pNext
+  loop
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Check for script(s) attached to the current location, and call them if there are any.
-def checkScript()
+def checkScripts()
   word x
   word y
-  word i
-  word func
-  x = playerX.1 - 1
-  y = playerY.1 - 1
+  if !triggerTbl
+    return
+  fin
+  if mapIs3D
+    x = playerX.1 - 1
+    y = playerY.1 - 1
+  else
+    x = ^avatarX
+    y = ^avatarY
+  fin
   if x <> prevX or y <> prevY
     prevX = x
     prevY = y
-    if prevScript
+    if anyText
       clearWindow()
+      anyText = FALSE
     fin
-    prevScript = NULL
     if isScripted()
-      for i = 0 to nLocTrig-1
-        if x == locTrig_x[i] and y == locTrig_y[i]
-          prevScript = locTrig_func[i]
-          *prevScript()
-        fin
-      next
+      textDrawn = FALSE
+      callScripts(x, y)
+      anyText = ^textDrawn
     fin
   fin
   if (mapNum <> prevMapNum) or (mapIs3D <> prevMapIs3D)
@@ -926,8 +1017,8 @@ def teleport(x, y, dir)
   *playerY = ((y+1)<<8) | $80
   prevX = x
   prevY = y
-  prevScript = -1
   clearWindow()
+  anyText = FALSE
   ^playerDir = dir
   redraw = TRUE
 end
@@ -945,7 +1036,7 @@ def kbdLoop()
         func()
         renderFrame()
         redraw = FALSE
-        checkScript()
+        checkScripts()
         if redraw
           renderFrame()
           redraw = FALSE
@@ -958,9 +1049,15 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Associate a location with a trigger function (i.e. a script)
 def setLocationTrigger(tbl)
-  printHex($1001)
-  printHex(tbl)
-  ^$c053
+  triggerTbl = tbl
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Called by scripts to display a string. We set the flag noting that something has been
+// displayed, then use an assembly routine to do the work.
+def scriptDisplayStr(str)
+  anyText = TRUE
+  displayStr(str)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -973,6 +1070,7 @@ def getYN()
       return 1
     elsif key == 'N'
       clearWindow()
+      anyText = FALSE
       return 0
     fin
     beep()
@@ -1049,7 +1147,7 @@ def setCallbacks()
 
   // $303
   callbacks.3 = $4c
-  callbacks:4 = @displayStr
+  callbacks:4 = @scriptDisplayStr
 
   // $306
   callbacks.6 = $4c

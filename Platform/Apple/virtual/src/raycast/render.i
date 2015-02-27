@@ -56,9 +56,10 @@ mapWidth	= $62	; len 1
 mapHeight	= $63	; len 1
 spriteX		= $64	; len 2
 spriteY		= $66	; len 2
-plasmaFrames	= $68	; len 2
+_unused68       = $68   ; len 2
 backBuf		= $6A	; len 1
 frontBuf	= $6B	; len 1
+_unused6C       = $6C   ; len 4
 
 ; Sprite calculations zero page
 bSgnSinT	= $90

@@ -1724,7 +1724,7 @@ class PackPartitions
                 triggers.each { y, xs ->
                     println("  Trigger row: y=$y size=${xs.size()}")
                     emitDataByte(y)
-                    emitDataByte(xs.size() * 3)  // 3 bytes per trigger (x, adrlo, adrhi)
+                    emitDataByte(2 + (xs.size() * 3))  // 2 bytes for y+off, plus 3 bytes per trigger (x, adrlo, adrhi)
                     xs.each { x, funcAddr ->
                         println("    col: x=$x funcAddr=$funcAddr")
                         emitDataByte(x)

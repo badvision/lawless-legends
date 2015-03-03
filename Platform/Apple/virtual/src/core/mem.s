@@ -88,7 +88,7 @@ partFileRef: 	!byte 0
 fixupHint:	!word 0
 
 ;------------------------------------------------------------------------------
-!source "../include/debug.i"
+!if DEBUG { !source "../include/debug.i" }
 
 ;------------------------------------------------------------------------------
 grabSegment: !zone
@@ -238,9 +238,11 @@ main_dispatch: !zone
 +	cmp #FREE_MEMORY
 	bne +
 	jmp main_free
+!if DEBUG {
 +	cmp #DEBUG_MEM
 	bne +
 	jmp main_debug
+}
 +	cmp #CALC_FREE
 	bne shared_dispatch
 	jmp main_calcFree
@@ -276,9 +278,11 @@ aux_dispatch: !zone
 +	cmp #FREE_MEMORY
 	bne +
 	jmp aux_free
+!if DEBUG {
 +	cmp #DEBUG_MEM
 	bne +
 	jmp aux_debug
+}
 +	cmp #CALC_FREE
 	bne +
 	jmp aux_calcFree
@@ -287,7 +291,7 @@ aux_dispatch: !zone
 ;------------------------------------------------------------------------------
 ; Sanity check mode
 !if SANITY_CHECK {
-saneStart: !zone
+saneStart: !zone {
 	pha
 	tya
 	pha
@@ -298,23 +302,33 @@ saneStart: !zone
 	tax
 	pla
 	tay
-	+prChr 'M'+$80
+	+prChr 'M'
 	pla : pha : +prA
 	+prX : +prY
 	pla
 	rts
+}
 
-saneCheck: !zone
-	rts
+saneCheck: !zone {
+	lda $BF00
+	cmp #$4C
+	beq +
+	brk
++	lda $E1
+	cmp #$BE
+	bcc +
+	brk
++	rts
+}
 
-saneEnd: !zone
+saneEnd: !zone {
 	pha
 	tya
 	pha
 	txa
 	pha
 	jsr saneCheck
-	+prChr 'm'+$80
+	+prChr 'm'
 	+crout
 	pla
 	tax
@@ -322,6 +336,7 @@ saneEnd: !zone
 	tay
 	pla
 	rts
+}
 }
 
 ;------------------------------------------------------------------------------
@@ -397,7 +412,13 @@ fatalError: !zone
 init: !zone
 ; put something interesting on the screen :)
 	jsr home
-	+prStr : !text "Welcome to MythOS.",0
+	ldx #0
+-	lda .welcomeStr,x
+	beq +
+	jsr cout
+	inx
+	bne -
++
 ; close all files
 	lda #0
 	jsr closeFile
@@ -489,14 +510,20 @@ init: !zone
 	cpy #MAX_SEGS		; did all segments yet?
 	bne .loop		; no, loop again
 ; Allocate space for the PLASMA frame stack
+!if SANITY_CHECK {
+	lda #$20
+	sta framePtr+1		; because sanity check verifies it's not $BE or $BF
+}
 	ldx #0
 	ldy #2			; 2 pages
 	lda #REQUEST_MEMORY
 	jsr mainLoader
 	stx framePtr
+	stx outerFramePtr
 	iny			; twice for 2 pages: initial pointer at top of new space
 	iny
 	sty framePtr+1
+	sty outerFramePtr+1
 	dey
 	dey
 	lda #LOCK_MEMORY	; lock it in place forever
@@ -518,8 +545,10 @@ init: !zone
 	jsr mainLoader
 	ldx #$10		; initial eval stack index
 .gomod:	jmp $1111		; jump to module for further bootstrapping
+.welcomeStr !text "Welcome to MythOS.",$8D,0
 
 ;------------------------------------------------------------------------------
+!if DEBUG {
 printMem: !zone
 	jsr main_debug
 	jmp aux_debug
@@ -561,6 +590,7 @@ aux_debug:
 	jsr cout
 	txa
 	jmp prbyte
+}
 
 ;------------------------------------------------------------------------------
 reset: !zone

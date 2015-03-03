@@ -99,10 +99,6 @@ const cursh     = $74  // Cursor H-pos 0-39
 const cursv     = $75  // Cursor V-pos 0-23
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Strings.
-byte helloStr[] = "Loading Lawless Legends.\n"
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Global variables
 byte mapNum = OVERMAP_NUM
 byte mapIs3D = OVERMAP_IS_3D
@@ -121,7 +117,7 @@ byte cacheSky, cacheGround
 word cacheX, cacheY
 byte cacheDir
 byte resetLocFromCache = FALSE
-byte anyText = FALSE
+byte textDrawn = FALSE
 
 // Movement amounts when walking at each angle
 // Each entry consists of an X bump and a Y bump, in 8.8 fixed point
@@ -449,6 +445,14 @@ asm goMon
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Jump straight to the system monitor
+// Params: None
+asm brk
+        bit setROM
+        brk
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Use the font engine to clear the current text window
 // Params: None
 asm clearWindow
@@ -470,9 +474,6 @@ asm displayStr
     bit setROM
     txa
     pha
-    ; record that text was drawn - for clear window on next script phase    
-    lda #1
-    sta textDrawn
     lda evalStkL,x
     sta pTmp
     lda evalStkH,x
@@ -569,6 +570,9 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Is there a script attached to the player's current position?
 def isScripted()
+  puts("avatarTile=")
+  printHex(^avatarTile)
+  crout()
   return ^avatarTile & $20
 end
 
@@ -700,7 +704,7 @@ def initMap3D()
   // Initialize the map scripts
   setWindow2()
   clearWindow()
-  anyText = FALSE
+  textDrawn = FALSE
 
   prevX = -1
   prevY = -1
@@ -760,16 +764,17 @@ def initMap2D()
   // Start up the font engine
   initFontEngine(pFont)
 
-  // Start up the tile engine
-  initDisplayEngine(mapNum)
-
   // For now
   prevX = -1
   prevY = -1
   triggerTbl = NULL
   prevMapNum = mapNum
   prevMapIs3D = mapIs3D
-  pScripts = NULL
+
+  // Start up the tile engine
+  initDisplayEngine(mapNum)
+
+  // And do the first draw.
   renderFrame()
   redraw = FALSE
 end
@@ -832,15 +837,17 @@ def callScripts(x, y)
   word p
   word pNext
   word script
-  
-  printHex($1001)
+
+  puts("callScripts: x=")
   printHex(x)
   crout()
-
+  
   p = triggerTbl
   while TRUE
-    printHex($1002)
+    ^$c051
+    puts("y loop, p=")
     printHex(p)
+    puts("^p=")
     printHex(^p)
     crout()
     getUpperKey
@@ -848,22 +855,33 @@ def callScripts(x, y)
     if ^p == $FF
       return
     fin
-    pNext = p + p.1
+    pNext = p + p->1
+    puts("p->1=")
+    printHex(p->1)
+    crout()
+    puts("pNext=")
+    printHex(pNext)
+    crout()
     if ^p == y
+      p = p + 2
       while p < pNext
-        printHex($1003)
+        puts("  x loop, p=")
         printHex(p)
+        puts("^p=")
         printHex(^p)
+        puts("x=")
+        printHex(x)
         crout()
 
-        if ^p == x
-          script = p:1
-          printHex($1004)
+        if x == ^p
+          script = p->>x
+          puts("    script=")
           printHex(script)
           crout()
           *script
         fin
         p = p + 3
+        getUpperKey
       loop
     fin
     p = pNext
@@ -875,6 +893,9 @@ end
 def checkScripts()
   word x
   word y
+  puts("checkScripts: triggerTbl=")
+  printHex(triggerTbl)
+  crout()
   if !triggerTbl
     return
   fin
@@ -885,17 +906,20 @@ def checkScripts()
     x = ^avatarX
     y = ^avatarY
   fin
+  puts("x=")
+  printHex(x)
+  puts(", y=")
+  printHex(y)
+  crout()
   if x <> prevX or y <> prevY
     prevX = x
     prevY = y
-    if anyText
+    if textDrawn
       clearWindow()
-      anyText = FALSE
+      textDrawn = FALSE
     fin
     if isScripted()
-      textDrawn = FALSE
       callScripts(x, y)
-      anyText = ^textDrawn
     fin
   fin
   if (mapNum <> prevMapNum) or (mapIs3D <> prevMapIs3D)
@@ -1018,7 +1042,7 @@ def teleport(x, y, dir)
   prevX = x
   prevY = y
   clearWindow()
-  anyText = FALSE
+  textDrawn = FALSE
   ^playerDir = dir
   redraw = TRUE
 end
@@ -1056,7 +1080,7 @@ end
 // Called by scripts to display a string. We set the flag noting that something has been
 // displayed, then use an assembly routine to do the work.
 def scriptDisplayStr(str)
-  anyText = TRUE
+  textDrawn = TRUE
   displayStr(str)
 end
 
@@ -1070,7 +1094,7 @@ def getYN()
       return 1
     elsif key == 'N'
       clearWindow()
-      anyText = FALSE
+      textDrawn = FALSE
       return 0
     fin
     beep()
@@ -1119,14 +1143,16 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load and display the title screen.
 def loadTitle()
-  puts(@helloStr)
+  puts("Loading Lawless Legends.\n")
 
   // Load the title screen
+  puts("Loading title screen.\n")
   loader(SET_MEM_TARGET, MAIN_MEM, $2000)
   loader(QUEUE_LOAD,     MAIN_MEM, 1<<8 | RES_TYPE_SCREEN)  // title screen is fixed at #1
   loader(LOCK_MEMORY,    MAIN_MEM, $2000)
   loader(FINISH_LOAD, MAIN_MEM, 1) // 1 = keep open
   titleLoaded = TRUE
+  puts("Title loaded.\n")
   ^$c050
   ^$c057
   ^$c054

@@ -32,7 +32,7 @@
     <!-- Build sub-projects -->
     <echo>Building core.</echo>
     <ant dir="${src.dir}/core" target="build" useNativeBasedir="true" inheritAll="false"/>
-    <echo>Building PLASMA.</echo>
+    <echo>Building game loop.</echo>
     <ant dir="${src.dir}/plasma" target="build" useNativeBasedir="true" inheritAll="false"/>
     <echo>Building raycast.</echo>
     <ant dir="${src.dir}/raycast" target="build" useNativeBasedir="true" inheritAll="false"/>

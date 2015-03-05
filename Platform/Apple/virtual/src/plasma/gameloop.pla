@@ -178,6 +178,9 @@ word groundNum = 10
 // Definitions used by assembly code
 asm __defs
 
+; Use hi-bit ASCII for Apple II
+!convtab "../../include/hiBitAscii.ct"
+
 ; Headers
 !source "../../include/global.i"
 !source "../../include/plasma.i"
@@ -226,14 +229,59 @@ asm puts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Print a 16-bit hex value, followed by a space
+// Print part of a string, until we hit the end or a '%' code. Return how far we got, or -1 for end.
+asm partialPrintf
+        bit setROM
+        lda evalStkL+1,x
+        sta pTmp
+        lda evalStkH+1,x
+        sta pTmp+1
+        ldy #0
+        lda (pTmp),y        ; get length byte
+        sec
+        sbc evalStkL,x      ; minus offset
+        sta tmp             ; to count of characters left to print
+        lda evalStkL,x      ; get desired offset into string
+        tay
+        iny                 ; increment past length byte
+        inx                 ; drop second argument
+        lda #0
+        sta evalStkH,x      ; clear out high byte of return value
+-       lda (pTmp),y
+        ora #$80
+        cmp #'%'            ; stop if we hit % code
+        beq +
+        jsr cout
+        iny
+        dec tmp             ; otherwise go until end of string
+        bne -
+        ldy #0              ; if we hit end of string, return val will be $FF
+        dec evalStkH,x      ; hi byte $FF as well
++       dey                 ; adjust back for length byte
+        tya
+        sta evalStkL,x      ; tell caller how far we got
+        bit setLcRW+lcBank2
+        rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Print a 16-bit hex value
 asm printHex
         bit setROM
         lda evalStkH,x
         jsr prbyte
         lda evalStkL,x
         jsr prbyte
-        lda #$A0
+        bit setLcRW+lcBank2
+        rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Print a single character
+asm printChar
+        bit setROM
+        lda evalStkL,x
+        ora #$80
         jsr cout
         bit setLcRW+lcBank2
         rts
@@ -362,65 +410,6 @@ asm checkCrossing
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Scan the trigger table for avatar's current X/Y, return the function
-asm callScriptsAsm
-        lda evalStkL,x  ; get trigger table address
-        sta pTmp        ; save to zero page so we can index it
-        lda evalStkH,x
-        sta pTmp+1
-    ; Scan the Y coordinates.
--       ldy #0
-        lda (pTmp),y    ; get Y coordinate from table
-!if DEBUG { +prStr : !text "Y=",0 : +prA : +crout }
-        cmp #$FF        ; hmm, is it end of table?
-        bne +           ; if not, advance to next
-        rts             ; table exhausted, give up and return.
-+       iny
-        cmp avatarY     ; is this the Y coord we're looking for?
-        beq +           ; if yes, go scan X coords
-        lda (pTmp),y    ; get length of this Y-X-X-X set
-        clc
-        adc pTmp        ; advance past X-coord entries for this Y
-        sta pTmp
-        bcc -           ; and loop to next Y coord
-        inc pTmp+1      ; handle page crossings
-        bne -           ; always taken
-    ; We've now matched the Y coord. Scan X coords.
-+       lda (pTmp),y    ; get limit of X-adrLo-adrHi array
-        sta tmp         ; and save it
-        iny             ; advance to first X-coord entry
-        lda #0          ; put a sentinel on the stack...
-        pha             ; ...so we can later know the end of addresses pushed.
--       lda (pTmp),y    ; get X coordinate from table
-!if DEBUG { +prStr : !text "X=",0 : +prA : +crout }
-        iny
-        cmp avatarX     ; is this the X coord we're looking for?
-        bne +           ; if not, advance to next
-        lda (pTmp),y    ; found a match! save the script's address on the stack
-        pha
-        iny
-        lda (pTmp),y
-        pha
-        dey
-+       iny             ; advance over address to next X coord entry
-        iny
-        cpy tmp         ; are we at end of X-coord table?
-        bmi -           ; if not at end, loop to next X coord
-    ; Addresses of matching scripts are now on the stack. Call each one until we hit the sentinel.
--       pla             ; hi byte of script address
-        bne +           ; sentinel? if not, go call it
-        rts             ; hit the sentinel; we're all done.
-+       sta tmp+2       ; save hi byte
-        pla             ; lo byte of script address
-        sta tmp+1       ; save that too
-        lda #$4C        ; JMP opcode
-        sta tmp
-        jsr tmp         ; call the script (it's a PLASMA function, so no need to save/restore X reg)
-        clc
-        bcc -           ; loop back for next script (always taken)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set either the sky or ground color
 // Params: (index<<8) | (colorCode)
 asm setColor
@@ -539,12 +528,68 @@ asm displayStr
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Convert a PLASMA string (starts with length, lo-bit ascii) to an assembly string
+// (zero-terminated, hi-bit ascii).
+asm toAsmStr
+  lda evalStkL,x
+  sta pTmp
+  lda evalStkH,x
+  sta pTmp+1
+  ldy #0
+  lda (pTmp),y
+  beq +
+  sta tmp
+- iny
+  lda (pTmp),y
+  ora #$80
+  dey
+  sta (pTmp),y
+  iny
+  dec tmp
+  bne -
+  lda #0
+  sta (pTmp),y
++ rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // General methods
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Fatal error: print message and stop the system.
 def fatal(msg)
+  toAsmStr(msg)
   loader(FATAL_ERROR, MAIN_MEM, msg)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Print a formatted string a'la C printf, with up to four parameters.
+def printf2(str, arg1, arg2)
+  word pos
+  word curArg
+  word p
+  pos = 0
+  curArg = @arg1
+  while TRUE
+    pos = partialPrintf(str, pos)
+    if pos < 0
+      break
+    fin
+    p = str + pos + 2
+    when ^p
+      is 'x'
+        printHex(*curArg)
+        break
+      is '%'
+        printChar('%')
+        break
+      otherwise
+        printHex(^p)
+        fatal("Unknown % code")
+    wend
+    curArg = curArg + 2
+    pos = pos + 2
+  loop
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -570,9 +615,6 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Is there a script attached to the player's current position?
 def isScripted()
-  puts("avatarTile=")
-  printHex(^avatarTile)
-  crout()
   return ^avatarTile & $20
 end
 
@@ -606,10 +648,9 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Switch to text mode and display mem manager debug printout, get a key, switch back to graphics.
-def debugMem(bank, code)
+def debugMem(bank)
   ^$c051
   ^$c054
-  printHex(code)
   loader(DEBUG_MEM, bank, 0)
   getUpperKey()
   ^$c050
@@ -838,50 +879,20 @@ def callScripts(x, y)
   word pNext
   word script
 
-  puts("callScripts: x=")
-  printHex(x)
-  crout()
-  
   p = triggerTbl
   while TRUE
-    ^$c051
-    puts("y loop, p=")
-    printHex(p)
-    puts("^p=")
-    printHex(^p)
-    crout()
-    getUpperKey
-
     if ^p == $FF
       return
     fin
     pNext = p + p->1
-    puts("p->1=")
-    printHex(p->1)
-    crout()
-    puts("pNext=")
-    printHex(pNext)
-    crout()
     if ^p == y
       p = p + 2
       while p < pNext
-        puts("  x loop, p=")
-        printHex(p)
-        puts("^p=")
-        printHex(^p)
-        puts("x=")
-        printHex(x)
-        crout()
-
         if x == ^p
-          script = p->>x
-          puts("    script=")
-          printHex(script)
-          crout()
-          *script
+          script = p=>1
+          script()
         fin
         p = p + 3
-        getUpperKey
       loop
     fin
     p = pNext
@@ -893,9 +904,6 @@ end
 def checkScripts()
   word x
   word y
-  puts("checkScripts: triggerTbl=")
-  printHex(triggerTbl)
-  crout()
   if !triggerTbl
     return
   fin
@@ -906,11 +914,6 @@ def checkScripts()
     x = ^avatarX
     y = ^avatarY
   fin
-  puts("x=")
-  printHex(x)
-  puts(", y=")
-  printHex(y)
-  crout()
   if x <> prevX or y <> prevY
     prevX = x
     prevY = y
@@ -1144,6 +1147,7 @@ end
 // Load and display the title screen.
 def loadTitle()
   puts("Loading Lawless Legends.\n")
+  printf2("Test %x and %x...\n", $1001, $2002)
 
   // Load the title screen
   puts("Loading title screen.\n")

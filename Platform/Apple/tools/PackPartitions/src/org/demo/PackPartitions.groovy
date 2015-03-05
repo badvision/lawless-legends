@@ -788,11 +788,11 @@ class PackPartitions
             
         def num = modules.size() + 1
         def name = "mapScript$num"
-        println "Packing scripts for map $mapName, to module $num."
+        //println "Packing scripts for map $mapName, to module $num."
         
         ScriptModule module = new ScriptModule()
         if (!module.packScripts(mapEl.scripts[0], xRange, yRange)) {
-            println "...no scripts applied; will re-use module num"
+            //println "...no scripts applied; will re-use module num"
             return [0, [] as Set]
         }
             
@@ -1711,8 +1711,6 @@ class PackPartitions
             // If any triggers, register and output a trigger table
             if (triggers.size()) 
             {
-                println("Putting trigger table at ${dataAddr()}")
-                
                 // Code to register the table
                 emitCodeByte(0x26)  // LA
                 emitCodeFixup(dataAddr())
@@ -1722,11 +1720,9 @@ class PackPartitions
                 
                 // The table itself goes in the data segment.
                 triggers.each { y, xs ->
-                    println("  Trigger row: y=$y size=${xs.size()}")
                     emitDataByte(y)
                     emitDataByte(2 + (xs.size() * 3))  // 2 bytes for y+off, plus 3 bytes per trigger (x, adrlo, adrhi)
                     xs.each { x, funcAddr ->
-                        println("    col: x=$x funcAddr=$funcAddr")
                         emitDataByte(x)
                         emitDataFixup(funcAddr)
                         // Record a list of trigger locations for the caller's reference

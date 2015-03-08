@@ -2,20 +2,20 @@ package org.badvision.outlaweditor.ui.impl;
 
 import org.badvision.outlaweditor.ui.EntitySelectorCell;
 import java.util.Arrays;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
-import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
-import javafx.scene.control.cell.ComboBoxListCell;
 import javafx.scene.image.ImageView;
-import javafx.util.Callback;
+import javafx.util.StringConverter;
 import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.TileEditor;
 import static org.badvision.outlaweditor.ui.UIAction.confirm;
 import static org.badvision.outlaweditor.data.PropertyHelper.bind;
 import static org.badvision.outlaweditor.data.PropertyHelper.boolProp;
-import static org.badvision.outlaweditor.data.PropertyHelper.categoryProp;
 import static org.badvision.outlaweditor.data.PropertyHelper.stringProp;
 import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.TilesetUtils;
@@ -30,6 +30,8 @@ import org.badvision.outlaweditor.ui.TileEditorTabController;
  * @author blurry
  */
 public class TileEditorTabControllerImpl extends TileEditorTabController {
+
+    ChangeListener rebuildListener = (ObservableValue value, Object oldValue, Object newValue) -> rebuildTileSelectors();
 
     @Override
     public void onCurrentTileSelected(ActionEvent event) {
@@ -48,7 +50,7 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
         t.setObstruction(getCurrentTile().isObstruction());
         t.setSprite(getCurrentTile().isSprite());
         t.setBlocker(getCurrentTile().isBlocker());
-        t.getCategory().addAll(getCurrentTile().getCategory());
+        t.setCategory(getCurrentTile().getCategory());
         getCurrentTile().getDisplayData().stream().map((d) -> {
             PlatformData p = new PlatformData();
             p.setHeight(d.getHeight());
@@ -90,7 +92,6 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
 
     @Override
     public void tileBitMode(ActionEvent event) {
-        ApplicationUIController mainController = ApplicationUIController.getController();
         if (getCurrentTileEditor() != null) {
             getCurrentTileEditor().setDrawMode(TileEditor.DrawMode.Toggle);
         }
@@ -98,7 +99,6 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
 
     @Override
     public void tileDraw1BitMode(ActionEvent event) {
-        ApplicationUIController mainController = ApplicationUIController.getController();
         if (getCurrentTileEditor() != null) {
             getCurrentTileEditor().setDrawMode(TileEditor.DrawMode.Pencil1px);
         }
@@ -106,7 +106,6 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
 
     @Override
     public void tileDraw3BitMode(ActionEvent event) {
-        ApplicationUIController mainController = ApplicationUIController.getController();
         if (getCurrentTileEditor() != null) {
             getCurrentTileEditor().setDrawMode(TileEditor.DrawMode.Pencil3px);
         }
@@ -114,7 +113,6 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
 
     @Override
     public void tileShift(ActionEvent event) {
-        ApplicationUIController mainController = ApplicationUIController.getController();
         if (getCurrentTileEditor() != null) {
             getCurrentTileEditor().showShiftUI();
         }
@@ -138,30 +136,24 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
         assert tileBlockerField != null : "fx:id=\"tileBlockerField\" was not injected: check your FXML file 'tileEditorTab.fxml'.";
         assert tilePatternMenu != null : "fx:id=\"tilePatternMenu\" was not injected: check your FXML file 'tileEditorTab.fxml'.";
         assert tileSelector != null : "fx:id=\"tileSelector\" was not injected: check your FXML file 'tileEditorTab.fxml'.";
-
-        tileSelector.setButtonCell(new ComboBoxListCell<Tile>() {
-            {
-                super.setPrefWidth(125);
-            }
-
-            @Override
-            public void updateItem(Tile item, boolean empty) {
-                textProperty().unbind();
-                super.updateItem(item, empty);
-                if (item != null) {
-                    textProperty().bind(tileNameField.textProperty());
-                } else {
-                    setText(null);
-                }
-            }
-        });
         tileSelector.setCellFactory((ListView<Tile> param) -> {
-            return new EntitySelectorCell<Tile>(tileNameField) {
+            return new EntitySelectorCell<Tile>(tileNameField, tileCategoryField) {
                 @Override
                 public void finishUpdate(Tile item) {
                     setGraphic(new ImageView(TileUtils.getImage(item, Application.currentPlatform)));
                 }
             };
+        });
+        tileSelector.setConverter(new StringConverter<Tile>() {
+            @Override
+            public String toString(Tile object) {
+                return String.valueOf(object.getCategory() + "/" + object.getName());
+            }
+
+            @Override
+            public Tile fromString(String string) {
+                return null;
+            }
         });
     }
 
@@ -176,6 +168,8 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
 
     @Override
     public void setCurrentTile(Tile t) {
+        tileNameField.textProperty().removeListener(rebuildListener);
+        tileCategoryField.textProperty().removeListener(rebuildListener);
         tileSelector.getSelectionModel().select(t);
         if (t != null && t.equals(getCurrentTile())) {
             return;
@@ -188,6 +182,7 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
             bind(tileSpriteField.selectedProperty(), null);
             bind(tileBlockerField.selectedProperty(), null);
             bind(tileNameField.textProperty(), null);
+
             tileIdField.setDisable(true);
             tileCategoryField.setDisable(true);
             tileObstructionField.setDisable(true);
@@ -213,7 +208,7 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
                 tileBlockerField.setDisable(false);
                 tileNameField.setDisable(false);
                 bind(tileIdField.textProperty(), stringProp(t, "id"));
-                bind(tileCategoryField.textProperty(), categoryProp(t, "category"));
+                bind(tileCategoryField.textProperty(), stringProp(t, "category"));
                 bind(tileObstructionField.selectedProperty(), boolProp(t, "obstruction"));
                 bind(tileSpriteField.selectedProperty(), boolProp(t, "sprite"));
                 bind(tileBlockerField.selectedProperty(), boolProp(t, "blocker"));
@@ -221,6 +216,8 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
                 TileEditor editor = Application.currentPlatform.tileEditor.newInstance();
                 editor.setEntity(t);
                 setCurrentTileEditor(editor);
+                tileNameField.textProperty().addListener(rebuildListener);
+                tileCategoryField.textProperty().addListener(rebuildListener);
             } catch (NoSuchMethodException ex) {
                 Logger.getLogger(ApplicationUIController.class.getName()).log(Level.SEVERE, null, ex);
             } catch (InstantiationException | IllegalAccessException ex) {
@@ -233,7 +230,15 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
     @Override
     public void rebuildTileSelectors() {
         tileSelector.getItems().clear();
-        tileSelector.getItems().addAll(Application.gameData.getTile());
-        tileSelector.getSelectionModel().select(getCurrentTile());
+        List<Tile> allTiles = Application.gameData.getTile();
+        allTiles.sort((Tile o1, Tile o2) -> {
+            int c1 = String.valueOf(o1.getCategory()).compareTo(String.valueOf(o2.getCategory()));
+            if (c1 != 0) {
+                return c1;
+            }
+            return String.valueOf(o1.getName()).compareTo(String.valueOf(o2.getName()));
+        });
+        tileSelector.getItems().addAll(allTiles);
+        tileSelector.getSelectionModel().select(allTiles.indexOf(getCurrentTile()));
     }
 }

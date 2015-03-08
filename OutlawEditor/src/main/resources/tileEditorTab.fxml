@@ -11,7 +11,7 @@
                 <ToolBar prefWidth="686.0">
                     <items>
                         <Label text="Tile:" />
-                        <ComboBox fx:id="tileSelector" minWidth="125.0" onAction="#onCurrentTileSelected" />
+                        <ComboBox fx:id="tileSelector" minWidth="125.0" onAction="#onCurrentTileSelected" prefHeight="26.0" prefWidth="267.0" />
                         <Button mnemonicParsing="false" onAction="#onTileCreatePressed" text="Create new" />
                         <Button mnemonicParsing="false" onAction="#onTileExportPressed" text="Export" />
                         <Button mnemonicParsing="false" onAction="#onTileClonePressed" prefWidth="64.9998779296875" text="Clone" />

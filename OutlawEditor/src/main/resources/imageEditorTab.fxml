@@ -13,7 +13,7 @@
                 <ToolBar prefWidth="686.0">
                     <items>
                         <Label text="Image:" />
-                        <ComboBox id="tileSelect" fx:id="imageSelector" onAction="#onImageSelected" />
+                        <ComboBox id="tileSelect" fx:id="imageSelector" onAction="#onImageSelected" prefHeight="26.0" prefWidth="271.0" />
                         <Button mnemonicParsing="false" onAction="#onImageCreatePressed" text="Create new" />
                         <Button mnemonicParsing="false" onAction="#onImageClonePressed" text="Clone" />
                         <Button mnemonicParsing="false" onAction="#onImageExportPressed" text="Export" />

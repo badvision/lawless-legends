@@ -1,18 +1,22 @@
 package org.badvision.outlaweditor.ui.impl;
 
+import java.util.List;
 import org.badvision.outlaweditor.ui.EntitySelectorCell;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javafx.beans.binding.Bindings;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.scene.control.ListView;
 import javafx.scene.control.cell.ComboBoxListCell;
+import javafx.util.StringConverter;
 import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.Editor;
 import org.badvision.outlaweditor.ImageEditor;
 import static org.badvision.outlaweditor.Application.currentPlatform;
 import static org.badvision.outlaweditor.ui.UIAction.confirm;
 import static org.badvision.outlaweditor.data.PropertyHelper.bind;
-import static org.badvision.outlaweditor.data.PropertyHelper.categoryProp;
 import static org.badvision.outlaweditor.data.PropertyHelper.stringProp;
 import org.badvision.outlaweditor.data.xml.Image;
 import org.badvision.outlaweditor.ui.ImageEditorTabController;
@@ -26,31 +30,27 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
 
     public Image currentImage = null;
     public ImageEditor currentImageEditor = null;
+    ChangeListener rebuildListener = (ObservableValue value, Object oldValue, Object newValue) -> rebuildImageSelector();
 
     /**
      * Initializes the controller class.
      */
     public void initialize() {
         super.initalize();
-        imageSelector.setButtonCell(new ComboBoxListCell<Image>() {
-            {
-                super.setPrefWidth(125);
+        imageSelector.setCellFactory((ListView<Image> param) -> new EntitySelectorCell<Image>(imageNameField, imageCategoryField) {
+            @Override
+            public void finishUpdate(Image item) {
+            }
+        });
+        imageSelector.setConverter(new StringConverter<Image>() {
+            @Override
+            public String toString(Image object) {
+                return String.valueOf(object.getCategory()) + "/" + String.valueOf(object.getName());
             }
 
             @Override
-            public void updateItem(Image item, boolean empty) {
-                textProperty().unbind();
-                super.updateItem(item, empty);
-                if (item != null) {
-                    textProperty().bind(imageNameField.textProperty());
-                } else {
-                    setText(null);
-                }
-            }
-        });
-        imageSelector.setCellFactory((ListView<Image> param) -> new EntitySelectorCell<Image>(imageNameField) {
-            @Override
-            public void finishUpdate(Image item) {
+            public Image fromString(String string) {
+                return null;
             }
         });
     }
@@ -165,6 +165,8 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
     }
 
     private void setCurrentImage(Image i) {
+        imageNameField.textProperty().removeListener(rebuildListener);
+        imageCategoryField.textProperty().removeListener(rebuildListener);
         if (currentImage != null && currentImage.equals(i)) {
             return;
         }
@@ -193,7 +195,7 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
                 imageNameField.setDisable(false);
                 imageWidthField.setDisable(false);
                 bind(imageNameField.textProperty(), stringProp(i, "name"));
-                bind(imageCategoryField.textProperty(), categoryProp(i, "category"));
+                bind(imageCategoryField.textProperty(), stringProp(i, "category"));
             } catch (NoSuchMethodException ex) {
                 Logger.getLogger(ApplicationUIControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
             }
@@ -207,6 +209,8 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
             currentImageEditor.buildPatternSelector(imagePatternMenu);
             imageEditorZoomGroup.setScaleX(1.0);
             imageEditorZoomGroup.setScaleY(1.0);
+            imageNameField.textProperty().addListener(rebuildListener);
+            imageCategoryField.textProperty().addListener(rebuildListener);
         }
     }
 
@@ -218,7 +222,14 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
     public void rebuildImageSelector() {
         Image i = getCurrentImage();
         imageSelector.getItems().clear();
-        imageSelector.getItems().addAll(Application.gameData.getImage());
+        List<Image> allImages = Application.gameData.getImage();
+        allImages.sort((Image o1, Image o2) -> {
+            int c1 = String.valueOf(o1.getCategory()).compareTo(String.valueOf(o2.getCategory()));
+            if (c1 != 0) return c1;
+            return String.valueOf(o1.getName()).compareTo(String.valueOf(o2.getName()));
+        });
+ 
+        imageSelector.getItems().addAll(allImages);
         imageSelector.getSelectionModel().select(i);
     }
 

@@ -267,7 +267,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
                 }
             }
         });
-        mapSelect.setCellFactory((ListView<Map> param) -> new EntitySelectorCell<Map>(mapNameField) {
+        mapSelect.setCellFactory((ListView<Map> param) -> new EntitySelectorCell<Map>(mapNameField, null) {
             @Override
             public void finishUpdate(Map item) {
             }

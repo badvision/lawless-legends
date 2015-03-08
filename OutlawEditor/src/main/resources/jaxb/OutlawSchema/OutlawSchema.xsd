@@ -4,10 +4,10 @@
            elementFormDefault="qualified" targetNamespace="outlaw" xmlns:tns="outlaw" attributeFormDefault="unqualified">
     <xs:complexType name="image">
         <xs:sequence>
-            <xs:element name="category" type="xs:string" maxOccurs="unbounded" minOccurs="0"/>
             <xs:element name="displayData" type="tns:platformData" minOccurs="0" maxOccurs="unbounded"/>
         </xs:sequence>
         <xs:attribute name="name" type="xs:NMTOKEN"/>
+        <xs:attribute name="category" type="xs:string"/>
     </xs:complexType>
     <xs:complexType name="tile">            
         <xs:complexContent>
@@ -32,6 +32,7 @@
         <xs:sequence>
             <xs:element name="name" type="xs:string"/>
             <xs:element name="description" type="xs:string" minOccurs="0"/>
+            <xs:element name="category" type="xs:string" minOccurs="0"/>
             <xs:element name="block" type="tns:block"/>
             <xs:element name="locationTrigger" minOccurs="0" maxOccurs="unbounded">
                 <xs:complexType>
@@ -71,6 +72,7 @@
         <xs:attribute name="name" type="xs:string"/>
         <xs:attribute name="width" type="xs:int"/>
         <xs:attribute name="height" type="xs:int"/>
+        <xs:attribute name="category" type="xs:string"/>
         <xs:attribute name="wrap" type="xs:boolean" default="false"/>
         <xs:attribute name="startX" type="xs:int" default="0"/>
         <xs:attribute name="startY" type="xs:int" default="0"/>

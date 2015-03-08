@@ -45,7 +45,7 @@ public class TileUtils {
 
     public static Map<Platform, WritableImage> getDisplay(Tile t) {
         if (display.get(getId(t)) == null) {
-            display.put(getId(t), new EnumMap<Platform, WritableImage>(Platform.class));
+            display.put(getId(t), new EnumMap<>(Platform.class));
         }
         return display.get(getId(t));
     }

@@ -281,7 +281,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
         Application.gameData.getTile().stream().map((t) -> {
             WritableImage img = TileUtils.getImage(t, currentPlatform);
             ImageView iv = new ImageView(img);
-            MenuItem mapSelectItem = new MenuItem(t.getName(), iv);
+            MenuItem mapSelectItem = new MenuItem(String.valueOf(t.getCategory())+"/"+String.valueOf(t.getName()), iv);
             mapSelectItem.setGraphic(new ImageView(TileUtils.getImage(t, currentPlatform)));
             mapSelectItem.setOnAction((ActionEvent event) -> {
                 if (getCurrentEditor() != null) {

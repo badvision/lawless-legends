@@ -20,6 +20,7 @@ import static org.badvision.outlaweditor.data.PropertyHelper.stringProp;
 import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.xml.Map;
 import org.badvision.outlaweditor.data.xml.Script;
+import org.badvision.outlaweditor.data.xml.Tile;
 import org.badvision.outlaweditor.ui.EntitySelectorCell;
 import org.badvision.outlaweditor.ui.MapEditorTabController;
 import org.badvision.outlaweditor.ui.ToolType;
@@ -278,12 +279,12 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
     @Override
     public void rebuildTileSelectors() {
         mapSelectTile.getItems().clear();
-        Application.gameData.getTile().stream().map((t) -> {
+        Application.gameData.getTile().stream().map((Tile t) -> {
             WritableImage img = TileUtils.getImage(t, currentPlatform);
             ImageView iv = new ImageView(img);
             MenuItem mapSelectItem = new MenuItem(String.valueOf(t.getCategory())+"/"+String.valueOf(t.getName()), iv);
             mapSelectItem.setGraphic(new ImageView(TileUtils.getImage(t, currentPlatform)));
-            mapSelectItem.setOnAction((ActionEvent event) -> {
+            mapSelectItem.setOnAction((event) -> {
                 if (getCurrentEditor() != null) {
                     getCurrentEditor().setCurrentTile(t);
                 }

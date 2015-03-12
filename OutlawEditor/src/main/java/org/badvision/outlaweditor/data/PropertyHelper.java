@@ -32,7 +32,7 @@ public class PropertyHelper {
         return new JavaBeanStringPropertyBuilder().bean(t).name(fieldName).build();
     }
 
-    static private Map<Property, Property> boundProperties = new HashMap<>();
+    private static final Map<Property, Property> boundProperties = new HashMap<>();
 
     static public void bind(Property formProp, Property sourceProp) {
         if (boundProperties.containsKey(formProp)) {

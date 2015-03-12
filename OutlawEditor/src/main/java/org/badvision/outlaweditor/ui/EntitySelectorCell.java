@@ -10,7 +10,6 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.beans.binding.Bindings;
-import javafx.scene.control.ListCell;
 import javafx.scene.control.TextField;
 import javafx.scene.control.cell.ComboBoxListCell;
 import org.badvision.outlaweditor.data.PropertyHelper;
@@ -33,21 +32,7 @@ public abstract class EntitySelectorCell<T> extends ComboBoxListCell<T> {
 
     @Override
     public void updateSelected(boolean sel) {
-//        if (sel) {
-//            Object o = lastSelected.get(nameField);
-//            if (o != null && !o.equals(getItem())) {
-//                ((ListCell) o).updateSelected(false);
-//            }
-//            textProperty().unbind();
-//            if (categoryField != null) {
-//                textProperty().bind(Bindings.concat(categoryField.textProperty(), "/", nameField.textProperty()));
-//            } else {
-//                textProperty().bind(Bindings.concat(nameField.textProperty()));
-//            }
-//            lastSelected.put(nameField, this);
-//        } else {
-            updateItem(getItem(), false);
-//        }
+        updateItem(getItem(), false);
     }
 
     @Override
@@ -59,8 +44,8 @@ public abstract class EntitySelectorCell<T> extends ComboBoxListCell<T> {
                 if (categoryField != null) {
                     textProperty().bind(
                             Bindings.concat(
-                                    PropertyHelper.stringProp(item, "category"), 
-                                    "/", 
+                                    PropertyHelper.stringProp(item, "category"),
+                                    "/",
                                     PropertyHelper.stringProp(item, "name")
                             )
                     );

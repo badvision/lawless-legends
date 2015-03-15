@@ -73,6 +73,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     }
 
     public void changeCurrentPattern(FillPattern pattern) {
+        if (pattern == null) return;
         currentFillPattern = pattern.getBytePattern();
         hiBitMatters = pattern.hiBitMatters;
         lastActionX = -1;

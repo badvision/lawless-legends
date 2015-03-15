@@ -5,6 +5,7 @@ import java.util.List;
 import org.badvision.outlaweditor.ui.EntitySelectorCell;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javafx.beans.binding.Bindings;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
@@ -108,10 +109,15 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
         }
     }
 
+    private void updateZoomLabel() {
+        zoomLabel.setText(String.format("%1.1fx",currentImageEditor.getZoomScale()));
+    }
+    
     @Override
     public void imageZoomIn(ActionEvent event) {
         if (currentImageEditor != null) {
             currentImageEditor.zoomIn();
+            updateZoomLabel();
             updateScrollAreaWithScale(currentImageEditor.getZoomScale());
         }
     }
@@ -120,6 +126,7 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
     public void imageZoomOut(ActionEvent event) {
         if (currentImageEditor != null) {
             currentImageEditor.zoomOut();
+            updateZoomLabel();
             updateScrollAreaWithScale(currentImageEditor.getZoomScale());
         }
     }
@@ -208,8 +215,8 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
             currentImageEditor.setEntity(i);
             currentImageEditor.buildEditorUI(imageEditorScrollAnchorPane);
             currentImageEditor.buildPatternSelector(imagePatternMenu);
-            imageEditorZoomGroup.setScaleX(1.0);
-            imageEditorZoomGroup.setScaleY(1.0);
+//            imageEditorZoomGroup.setScaleX(1.0);
+//            imageEditorZoomGroup.setScaleY(1.0);
             imageNameField.textProperty().addListener(rebuildListener);
             imageCategoryField.textProperty().addListener(rebuildListener);
             if (oldEditorState != null) {

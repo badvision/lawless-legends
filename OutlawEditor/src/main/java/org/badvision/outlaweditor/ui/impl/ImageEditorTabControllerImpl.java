@@ -1,5 +1,6 @@
 package org.badvision.outlaweditor.ui.impl;
 
+import java.util.EnumMap;
 import java.util.List;
 import org.badvision.outlaweditor.ui.EntitySelectorCell;
 import java.util.logging.Level;
@@ -163,14 +164,16 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
     }
 
     private void setCurrentImage(Image i) {
-        imageNameField.textProperty().removeListener(rebuildListener);
-        imageCategoryField.textProperty().removeListener(rebuildListener);
         if (currentImage != null && currentImage.equals(i)) {
             return;
         }
+        imageNameField.textProperty().removeListener(rebuildListener);
+        imageCategoryField.textProperty().removeListener(rebuildListener);
         imageSelector.getSelectionModel().select(i);
         currentImage = i;
+        EnumMap oldEditorState = null;
         if (currentImageEditor != null) {
+            oldEditorState = currentImageEditor.getState();
             currentImageEditor.unregister();
         }
         if (i == null) {
@@ -209,6 +212,9 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
             imageEditorZoomGroup.setScaleY(1.0);
             imageNameField.textProperty().addListener(rebuildListener);
             imageCategoryField.textProperty().addListener(rebuildListener);
+            if (oldEditorState != null) {
+                currentImageEditor.setState(oldEditorState);
+            }
         }
     }
 

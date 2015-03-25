@@ -413,6 +413,13 @@ class PackPartitions
         
         def buffers = new ByteBuffer[nVertSections][nHorzSections]
         def sectionNums = new int[nVertSections][nHorzSections]
+                
+        // Start the map index, which will list all the section numbers.
+        def indexBuf = ByteBuffer.allocate(512)
+        def indexNum = maps2D.size() + 1
+        maps2D[mapName] = [num:indexNum, buf:indexBuf]
+        indexBuf.put((byte)nHorzSections)
+        indexBuf.put((byte)nVertSections)
         
         // Allocate a buffer and assign a map number to each section.
         (0..<nVertSections).each { vsect ->
@@ -423,9 +430,14 @@ class PackPartitions
                 sectionNums[vsect][hsect] = num
                 def sectName = "$mapName-$hsect-$vsect"
                 maps2D[sectName] = [num:num, buf:buf]
+                indexBuf.put((byte)num)
             }
         }
+        
+        // Finish the index buffer with the map name
+        writeString(indexBuf, mapName.replaceFirst(/ ?-? ?2D/, ""))
 
+        // Now create each map section
         (0..<nVertSections).each { vsect ->
             (0..<nHorzSections).each { hsect ->
 

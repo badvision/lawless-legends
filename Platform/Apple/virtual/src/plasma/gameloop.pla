@@ -113,10 +113,6 @@ byte prevMapNum
 byte prevMapIs3D
 byte redraw
 byte titleLoaded = FALSE
-byte cacheSky, cacheGround
-word cacheX, cacheY
-byte cacheDir
-byte resetLocFromCache = FALSE
 byte textDrawn = FALSE
 
 // Movement amounts when walking at each angle
@@ -563,8 +559,19 @@ def fatal(msg)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Print a signed decimal word
+def printDec(n)
+  if n < 0;    printChar('-');           n = -n;      fin
+  if n > 9999; printChar('0' + n/10000); n = n%10000; fin
+  if n > 999;  printChar('0' + n/1000);  n = n%1000;  fin
+  if n > 99;   printChar('0' + n/100);   n = n%100;   fin
+  if n > 9;    printChar('0' + n/10);    n = n%10;    fin
+  printChar('0' + n)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a formatted string a'la C printf, with up to four parameters.
-def printf2(str, arg1, arg2)
+def printf4(str, arg1, arg2, arg3, arg4)
   word pos
   word curArg
   word p
@@ -578,19 +585,24 @@ def printf2(str, arg1, arg2)
     p = str + pos + 2
     when ^p
       is 'x'
-        printHex(*curArg)
-        break
+        printHex(*curArg); break
+      is 'd'
+        printDec(*curArg); break
+      is 's'
+        puts(*curArg); break
       is '%'
-        printChar('%')
-        break
+        printChar('%'); break
       otherwise
-        printHex(^p)
-        fatal("Unknown % code")
+        printHex(^p); fatal("Unknown % code")
     wend
     curArg = curArg + 2
     pos = pos + 2
   loop
 end
+
+def printf1(str, arg1); printf4(str, arg1, 0, 0, 0); end
+def printf2(str, arg1, arg2); printf4(str, arg1, arg2, 0, 0); end
+def printf3(str, arg1, arg2, arg3); printf4(str, arg1, arg2, arg3, 0); end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Get a keystroke and convert it to upper case
@@ -690,7 +702,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load code and data, set up everything to display a 3D map
-def initMap3D()
+def initMap3D(x, y, dir)
   word scriptModule
 
   // Set up the command table
@@ -750,24 +762,10 @@ def initMap3D()
   prevX = -1
   prevY = -1
   triggerTbl = NULL
-  prevMapNum = mapNum
-  prevMapIs3D = mapIs3D
   if pScripts
     *pScripts()
   fin
 
-  // If we're returning to a map, resume from where the player left off
-  if resetLocFromCache
-    *playerX = cacheX
-    *playerY = cacheY
-    ^playerDir = cacheDir
-    prevX = playerX.1 - 1
-    prevY = playerY.1 - 1
-    setSky(cacheSky)
-    setGround(cacheGround)
-    resetLocFromCache = FALSE
-  fin
-  
   // Draw the first frame
   renderFrame()
   redraw = FALSE
@@ -776,7 +774,6 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load code and data, set up everything to display a 2D map
 def initMap2D()
-  word scriptModule
 
   // Set up the command table
   initCmds2D()
@@ -809,8 +806,6 @@ def initMap2D()
   prevX = -1
   prevY = -1
   triggerTbl = NULL
-  prevMapNum = mapNum
-  prevMapIs3D = mapIs3D
 
   // Start up the tile engine
   initDisplayEngine(mapNum)
@@ -822,12 +817,14 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set up mapNum (2D or 3D depending on state of is3DMap)
-def initMap()
+def initMap(x, y, dir)
   if mapIs3D
-    initMap3D()
+    initMap3D(x, y, dir)
   else
-    initMap2D()
+    initMap2D(x, y, dir)
   fin
+  prevMapNum = mapNum
+  prevMapIs3D = mapIs3D
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -904,9 +901,7 @@ end
 def checkScripts()
   word x
   word y
-  if !triggerTbl
-    return
-  fin
+  if !triggerTbl; return; fin
   if mapIs3D
     x = playerX.1 - 1
     y = playerY.1 - 1
@@ -923,11 +918,11 @@ def checkScripts()
     fin
     if isScripted()
       callScripts(x, y)
+      if (mapNum <> prevMapNum) or (mapIs3D <> prevMapIs3D)
+        flipToFirstPage()
+        initMap()
+      fin
     fin
-  fin
-  if (mapNum <> prevMapNum) or (mapIs3D <> prevMapIs3D)
-    flipToFirstPage()
-    initMap()
   fin
 end
 
@@ -1011,23 +1006,6 @@ def moveWest()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Switch to a new map (2D or 3D)
-def setMap(is3D, num)
-  // save player state if we're coming *from* the over-map
-  if mapNum == OVERMAP_NUM and mapIs3D == OVERMAP_IS_3D
-    cacheX = *playerX
-    cacheY = *playerY
-    cacheDir = ^playerDir
-    cacheSky = skyNum
-    cacheGround = groundNum
-  else
-    resetLocFromCache = TRUE
-  fin
-  mapIs3D = is3D
-  mapNum = num
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Switch to next map in the current 2D or 3D mode.
 def nextMap()
   mapNum = mapNum + 1
@@ -1038,16 +1016,19 @@ def nextMap()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Jump to a new map location (and in 3D mode, point in the given direction)
+// Jump to a new map location (and point in the given direction)
 def teleport(x, y, dir)
-  *playerX = ((x+1)<<8) | $80
-  *playerY = ((y+1)<<8) | $80
-  prevX = x
-  prevY = y
-  clearWindow()
-  textDrawn = FALSE
-  ^playerDir = dir
-  redraw = TRUE
+  nextX = x
+  nextY = y
+  nextDir = dir
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Switch to a new map (2D or 3D)
+def setMap(is3D, num, x, y, dir)
+  mapIs3D = is3D
+  mapNum = num
+  teleport(x, y, dir)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1147,7 +1128,6 @@ end
 // Load and display the title screen.
 def loadTitle()
   puts("Loading Lawless Legends.\n")
-  printf2("Test %x and %x...\n", $1001, $2002)
 
   // Load the title screen
   puts("Loading title screen.\n")

@@ -3,14 +3,13 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-
 package org.badvision.outlaweditor.ui;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javafx.scene.control.ListCell;
+import javafx.beans.binding.Bindings;
 import javafx.scene.control.TextField;
 import javafx.scene.control.cell.ComboBoxListCell;
 import org.badvision.outlaweditor.data.PropertyHelper;
@@ -21,27 +20,19 @@ import org.badvision.outlaweditor.ui.impl.ApplicationUIControllerImpl;
  * @author blurry
  */
 public abstract class EntitySelectorCell<T> extends ComboBoxListCell<T> {
-    static Map<TextField, Object> lastSelected = new HashMap<>();
-    TextField nameField;
 
-    public EntitySelectorCell(TextField tileNameField) {
+    static Map<TextField, Object> lastSelected = new HashMap<>();
+    TextField nameField, categoryField;
+
+    public EntitySelectorCell(TextField tileNameField, TextField categoryNameField) {
         super.setPrefWidth(125);
         nameField = tileNameField;
+        categoryField = categoryNameField;
     }
 
     @Override
     public void updateSelected(boolean sel) {
-        if (sel) {
-            Object o = lastSelected.get(nameField);
-            if (o != null && !o.equals(getItem())) {
-                ((ListCell) o).updateSelected(false);
-            }
-            textProperty().unbind();
-            textProperty().bind(nameField.textProperty());
-            lastSelected.put(nameField, this);
-        } else {
-            updateItem(getItem(), false);
-        }
+        updateItem(getItem(), false);
     }
 
     @Override
@@ -50,7 +41,17 @@ public abstract class EntitySelectorCell<T> extends ComboBoxListCell<T> {
         super.updateItem(item, empty);
         if (item != null && !(item instanceof String)) {
             try {
-                textProperty().bind(PropertyHelper.stringProp(item, "name"));
+                if (categoryField != null) {
+                    textProperty().bind(
+                            Bindings.concat(
+                                    PropertyHelper.stringProp(item, "category"),
+                                    "/",
+                                    PropertyHelper.stringProp(item, "name")
+                            )
+                    );
+                } else {
+                    textProperty().bind(PropertyHelper.stringProp(item, "name"));
+                }
             } catch (NoSuchMethodException ex) {
                 Logger.getLogger(ApplicationUIControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
             }
@@ -62,5 +63,5 @@ public abstract class EntitySelectorCell<T> extends ComboBoxListCell<T> {
 
     public void finishUpdate(T item) {
     }
-    
+
 }

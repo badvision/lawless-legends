@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.scene.effect.*?>
 <?import java.lang.*?>
 <?import java.util.*?>
 <?import javafx.scene.*?>
@@ -13,7 +14,7 @@
                 <ToolBar prefWidth="686.0">
                     <items>
                         <Label text="Image:" />
-                        <ComboBox id="tileSelect" fx:id="imageSelector" onAction="#onImageSelected" />
+                        <ComboBox id="tileSelect" fx:id="imageSelector" onAction="#onImageSelected" prefHeight="26.0" prefWidth="271.0" />
                         <Button mnemonicParsing="false" onAction="#onImageCreatePressed" text="Create new" />
                         <Button mnemonicParsing="false" onAction="#onImageClonePressed" text="Clone" />
                         <Button mnemonicParsing="false" onAction="#onImageExportPressed" text="Export" />
@@ -67,6 +68,11 @@
                         </ScrollPane>
                                 <Button layoutX="433.0" layoutY="5.0" mnemonicParsing="false" onAction="#imageZoomIn" styleClass="zoomInButton" text="+" AnchorPane.rightAnchor="18.0" AnchorPane.topAnchor="5.0" />
                                 <Button layoutX="435.0" layoutY="37.0" mnemonicParsing="false" onAction="#imageZoomOut" prefHeight="23.999908447265625" styleClass="zoomOutButton" text="-" AnchorPane.rightAnchor="18.0" AnchorPane.topAnchor="37.0" />
+                        <Label fx:id="zoomLabel" alignment="CENTER" layoutX="428.0" layoutY="69.0" prefHeight="16.0" prefWidth="39.0" text="1x" textFill="WHITE" AnchorPane.rightAnchor="18.0" AnchorPane.topAnchor="69.0">
+                           <effect>
+                              <DropShadow blurType="ONE_PASS_BOX" color="#000240" height="12.0" radius="5.0" spread="0.5" width="10.0" />
+                           </effect>
+                        </Label>
                             </children>
                         </AnchorPane>
                     </children>

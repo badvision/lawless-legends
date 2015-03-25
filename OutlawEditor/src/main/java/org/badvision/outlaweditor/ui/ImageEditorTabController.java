@@ -4,6 +4,7 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.Group;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
@@ -37,19 +38,22 @@ public abstract class ImageEditorTabController {
     protected ComboBox<Image> imageSelector; // Value injected by FXMLLoader
     @FXML // fx:id="imageWidthField"
     protected TextField imageWidthField; // Value injected by FXMLLoader
+    @FXML
+    protected Label zoomLabel;
     
     @FXML
     public void initalize() {
-        assert imageCategoryField != null : "fx:id=\"imageCategoryField\" was not injected: check your FXML file 'ApplicationUI.fxml'.";
-        assert imageEditorAnchorPane != null : "fx:id=\"imageEditorAnchorPane\" was not injected: check your FXML file 'ApplicationUI.fxml'.";
-        assert imageHeightField != null : "fx:id=\"imageHeightField\" was not injected: check your FXML file 'ApplicationUI.fxml'.";
-        assert imageNameField != null : "fx:id=\"imageNameField\" was not injected: check your FXML file 'ApplicationUI.fxml'.";
-        assert imagePatternMenu != null : "fx:id=\"imagePatternMenu\" was not injected: check your FXML file 'ApplicationUI.fxml'.";
-        assert imageSelector != null : "fx:id=\"imageSelector\" was not injected: check your FXML file 'ApplicationUI.fxml'.";
-        assert imageWidthField != null : "fx:id=\"imageWidthField\" was not injected: check your FXML file 'ApplicationUI.fxml'.";
-        assert imageEditorScrollPane != null : "fx:id\"imageEditorScrollPane\" was not injected: check your FXML file 'ApplicationUI.fxml'";
-        assert imageEditorZoomGroup != null : "fx:id\"imageEditorZoomGroup\" was not injected: check your FXML file 'ApplicationUI.fxml'";
-        assert imageEditorScrollAnchorPane != null : "fx:id\"imageEditorScrollAnchorPane\" was not injected: check your FXML file 'ApplicationUI.fxml'";
+        assert imageCategoryField != null : "fx:id=\"imageCategoryField\" was not injected: check your FXML file 'imageEditorTab.fxml'.";
+        assert imageEditorAnchorPane != null : "fx:id=\"imageEditorAnchorPane\" was not injected: check your FXML file 'imageEditorTab.fxml'.";
+        assert imageHeightField != null : "fx:id=\"imageHeightField\" was not injected: check your FXML file 'imageEditorTab.fxml'.";
+        assert imageNameField != null : "fx:id=\"imageNameField\" was not injected: check your FXML file 'imageEditorTab.fxml'.";
+        assert imagePatternMenu != null : "fx:id=\"imagePatternMenu\" was not injected: check your FXML file 'imageEditorTab.fxml'.";
+        assert imageSelector != null : "fx:id=\"imageSelector\" was not injected: check your FXML file 'imageEditorTab.fxml'.";
+        assert imageWidthField != null : "fx:id=\"imageWidthField\" was not injected: check your FXML file 'imageEditorTab.fxml'.";
+        assert imageEditorScrollPane != null : "fx:id\"imageEditorScrollPane\" was not injected: check your FXML file 'imageEditorTab.fxml'";
+        assert imageEditorZoomGroup != null : "fx:id\"imageEditorZoomGroup\" was not injected: check your FXML file 'imageEditorTab.fxml'";
+        assert imageEditorScrollAnchorPane != null : "fx:id\"imageEditorScrollAnchorPane\" was not injected: check your FXML file 'imageEditorTab.fxml'";
+        assert zoomLabel != null : "fx:id=\"zoomLabel\" was not injected: check your FXML file 'imageEditorTab.fxml'.";
     }
 
     abstract public void rebuildImageSelector();

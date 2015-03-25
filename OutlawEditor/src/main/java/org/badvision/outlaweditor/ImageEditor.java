@@ -4,6 +4,7 @@
  */
 package org.badvision.outlaweditor;
 
+import java.util.EnumMap;
 import javafx.scene.control.Menu;
 import org.badvision.outlaweditor.data.xml.Image;
 import org.badvision.outlaweditor.data.xml.PlatformData;
@@ -19,6 +20,10 @@ public abstract class ImageEditor extends Editor<Image, ImageEditor.DrawMode> {
         Toggle, Pencil1px, Pencil3px, Pencil5px, Rectangle, Circle, Stamp
     }
 
+    abstract public EnumMap getState();
+    
+    abstract public void setState(EnumMap oldState);
+    
     abstract public void buildPatternSelector(Menu tilePatternMenu);
 
     public abstract void togglePanZoom();

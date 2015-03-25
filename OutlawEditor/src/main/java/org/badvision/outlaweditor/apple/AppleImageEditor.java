@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
@@ -44,6 +45,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     protected double zoom = 1.0;
     protected int xScale = 2;
     protected int yScale = 2;
+    public static enum StateVars{PATTERN, DRAW_MODE};
 
     public Platform getPlatform() {
         return Platform.AppleII;
@@ -66,21 +68,41 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     public void buildPatternSelector(Menu tilePatternMenu) {
         FillPattern.buildMenu(tilePatternMenu, (FillPattern object) -> {
             changeCurrentPattern(object);
+            state.put(StateVars.PATTERN, object);
         });
     }
 
     public void changeCurrentPattern(FillPattern pattern) {
+        if (pattern == null) return;
         currentFillPattern = pattern.getBytePattern();
         hiBitMatters = pattern.hiBitMatters;
         lastActionX = -1;
         lastActionY = -1;
     }
 
+    EnumMap<StateVars, Object> state = new EnumMap<>(StateVars.class);
+    @Override
+    public EnumMap getState() {
+        return state;
+    }
+
+    @Override
+    public void setState(EnumMap oldState) {
+        state.putAll(oldState);
+        changeCurrentPattern((FillPattern) state.get(StateVars.PATTERN));
+        _setDrawMode((DrawMode) state.get(StateVars.DRAW_MODE));
+    }
+    
     @Override
     public void setDrawMode(DrawMode drawMode) {
+        _setDrawMode(drawMode);
+        state.put(StateVars.DRAW_MODE, drawMode);
+    }
+    
+    private void _setDrawMode(DrawMode drawMode) {
         currentDrawMode = drawMode;
         lastActionX = -1;
-        lastActionY = -1;
+        lastActionY = -1;        
     }
 
     @Override

@@ -8,12 +8,19 @@ start:
 
 ; This code is written bottom-up. That is, simple routines first,
 ; then routines that call those to build complexity. The main
-; code is at the very end. We jump to it now.
-	jmp initMap
-	jmp renderFrame
-	jmp isBlocked
-	jmp isScripted
-	jmp setColor
+; code is at the very end.
+
+;	jmp initMap 	; params: mapNum, x, y, dir
+;	jmp flipToPage1	; params: none
+;	jmp getPos	; params: @x, @y, @dir
+;	jmp setPos	; params: x (0-255), y (0-255), dir (0-15)
+
+; Old vectors
+;	jmp initMap
+;	jmp renderFrame
+;	jmp isBlocked
+;	jmp isScripted
+;	jmp setColor
 
 ; Conditional assembly flags
 DOUBLE_BUFFER	= 1		; whether to double-buffer
@@ -28,6 +35,34 @@ DEBUG_COLUMN	= -1
 !source "../include/mem.i"
 ; Font engine
 !source "../include/fontEngine.i"
+; PLASMA
+!source "../include/plasma.i"
+
+; Experimental, possibly unused, code
+
+; Store a single byte number to a pointer on the PLASMA eval stack. Clears hi byte.
+; A-reg = offset in PLASMA stack (0=first param, 1=second param, etc.)
+; Y-reg = value to store
+; (X-reg = PLASMA's stack pointer, unchanged)
+setPlasmaVar: !zone {
+	stx .add+1
+	sty .val+1
+	clc
+.add	adc #0
+	tay
+	lda evalStkL,y
+	sta .sto1+1
+	sta .sto2+1
+	lda evalStkH,y
+	sta .sto1+2
+	sta .sto2+2
+.val	lda #0
+.sto1	sta $1111
+	ldy #1
+	lda #0
+.sto2	sta $1111,y
++	rts
+}
 
 ; Local constants
 MAX_SPRITES	= 64		; max # sprites visible at once

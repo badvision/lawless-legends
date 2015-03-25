@@ -197,7 +197,23 @@ avatarX     = $9E   ; from the tile engine
 avatarY     = $9F   ; ...ditto
 
 end
-        
+
+asm fooFunc
+        clc
+-       lda evalStkL,x
+        sta pTmp
+        lda evalStkH,x
+        sta pTmp+1
+        ldy #0
+        txa
+        sta (pTmp),y
+        bcs +
+        inx
+        sec
+        bcs -
++       rts
+end
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a string
 asm puts
@@ -1006,21 +1022,11 @@ def moveWest()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Switch to next map in the current 2D or 3D mode.
-def nextMap()
-  mapNum = mapNum + 1
-  if mapNum > 20
-    mapNum = 1
-  fin
-  setMap(mapIs3D, mapNum)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Jump to a new map location (and point in the given direction)
 def teleport(x, y, dir)
-  nextX = x
-  nextY = y
-  nextDir = dir
+  //nextX = x
+  //nextY = y
+  //nextDir = dir
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1106,8 +1112,6 @@ def initCmds3D()
   initCmd('M', @strafeLeft)
   initCmd('.', @strafeRight)
 
-  initCmd('N', @nextMap)
-
   initCmd('Y', @nextSky)
   initCmd('G', @nextGround)
 end
@@ -1127,7 +1131,13 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load and display the title screen.
 def loadTitle()
+  word v1
+  word v2
   puts("Loading Lawless Legends.\n")
+  v1 = 1
+  v2 = 2
+  fooFunc(@v1, @v2)
+  printf2("v1=%d v2=%d\n", v1, v2)
 
   // Load the title screen
   puts("Loading title screen.\n")

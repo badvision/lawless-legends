@@ -274,3 +274,10 @@ FATAL_ERROR = $1F
     ;
     ; This command halts and thus never returns.
 
+;------------------------------------------------------------------------------
+; Convenience for writing assembly routines in PLASMA source
+!macro asmPlasm nArgs {
+    ldy #nArgs
+    jsr _asmPlasm
+}
+_asmPlasm = $809

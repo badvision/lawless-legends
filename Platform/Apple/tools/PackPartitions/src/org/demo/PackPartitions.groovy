@@ -680,18 +680,21 @@ class PackPartitions
         def buf = ByteBuffer.allocate(50000)
         
         // Add each special tile to the set
+        def nFound = 0
         dataIn.tile.each { tile ->
             def name = tile.@name
             def id = tile.@id
             def data = tiles[id]
-            if (name.equalsIgnoreCase("Player avatar - 2D")) {
+            if (name.equalsIgnoreCase("Avatars1 - 2D")) {
                 def num = tileMap.size()
                 tileIds.add(id)
                 tileMap[id] = num
                 data.flip() // crazy stuff to append one buffer to another
                 buf.put(data)
+                nFound += 1
             }
         }
+        assert nFound == 1
         
         tileSets[setName] = [num:setNum, buf:buf, tileMap:tileMap, tileIds:tileIds]
         return [setNum, tileMap]

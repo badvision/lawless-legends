@@ -71,23 +71,7 @@ const OVERMAP_IS_3D = 0
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Predefined functions, for circular calls or out-of-order calls
-predef moveBackward, setWindow2, initCmds2D, initCmds3D
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Raycaster variables
-const playerDir = $5D
-const playerX   = $5E
-const playerY   = $60
-const backBuf   = $6A
-const frontBuf  = $6B
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Tile engine variables
-const relX      = $50
-const relY      = $51
-const avatarTile= $9D   // the avatar variables are set by tile engine during its draw phase
-const avatarX   = $9E
-const avatarY   = $9F
+predef setWindow2, initCmds2D, initCmds3D
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Font engine variables
@@ -115,58 +99,6 @@ byte redraw
 byte titleLoaded = FALSE
 byte textDrawn = FALSE
 
-// Movement amounts when walking at each angle
-// Each entry consists of an X bump and a Y bump, in 8.8 fixed point
-word walkDirs[] = $0040, $0000
-word            = $003B, $0018
-word            = $002D, $002D
-word            = $0018, $003B
-word            = $0000, $0040
-word            = $FFE8, $003B
-word            = $FFD3, $002D
-word            = $FFC5, $0018
-word            = $FFC0, $0000
-word            = $FFC5, $FFE8
-word            = $FFD3, $FFD3
-word            = $FFE8, $FFC5
-word            = $0000, $FFC0
-word            = $0018, $FFC5
-word            = $002D, $FFD3
-word            = $003B, $FFE8
-
-byte skyGndTbl1[] = $00 // lo-bit black
-byte              = $00 // lo-bit black
-byte              = $00 // lo-bit black
-byte              = $02 // violet
-byte              = $08 // green
-byte              = $0A // lo-bit white
-byte              = $0A // lo-bit white
-byte              = $0A // lo-bit white
-byte              = $20 // hi-bit black
-byte              = $20 // hi-bit black
-byte              = $20 // hi-bit black
-byte              = $22 // blue
-byte              = $28 // orange
-byte              = $2A // hi-bit white
-byte              = $2A // hi-bit white
-byte              = $2A // hi-bit white
-byte skyGndTbl2[] = $00 // lo-bit black
-byte              = $02 // violet
-byte              = $08 // green
-byte              = $02 // violet
-byte              = $08 // green
-byte              = $02 // violet
-byte              = $08 // green
-byte              = $0A // lo-bit white
-byte              = $20 // hi-bit black
-byte              = $22 // blue
-byte              = $28 // orange
-byte              = $22 // blue
-byte              = $28 // orange
-byte              = $22 // blue
-byte              = $28 // orange
-byte              = $2A // hi-bit white
-
 word skyNum = 9
 word groundNum = 10
 
@@ -191,39 +123,14 @@ DEBUG   = 1
 tmp         = $2
 pTmp        = $4
 
-; Variables that get set by the tile engine when it draws
-avatarTile  = $9D
-avatarX     = $9E   ; from the tile engine
-avatarY     = $9F   ; ...ditto
-
-end
-
-asm fooFunc
-        clc
--       lda evalStkL,x
-        sta pTmp
-        lda evalStkH,x
-        sta pTmp+1
-        ldy #0
-        txa
-        sta (pTmp),y
-        bcs +
-        inx
-        sec
-        bcs -
-+       rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a string
 asm puts
-        txa
-        pha
-        bit setROM
-        lda evalStkL,x
+        +asmPlasm 1
         sta pTmp
-        lda evalStkH,x
-        sta pTmp+1
+        sty pTmp+1
         ldy #0
         lda (pTmp),y
         tax
@@ -234,16 +141,13 @@ asm puts
         iny
         dex
         bne -
-        bit setLcRW+lcBank2
-        pla
-        tax
         rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print part of a string, until we hit the end or a '%' code. Return how far we got, or -1 for end.
 asm partialPrintf
-        bit setROM
+        +asmPlasm 2
         lda evalStkL+1,x
         sta pTmp
         lda evalStkH+1,x
@@ -257,8 +161,6 @@ asm partialPrintf
         tay
         iny                 ; increment past length byte
         inx                 ; drop second argument
-        lda #0
-        sta evalStkH,x      ; clear out high byte of return value
 -       lda (pTmp),y
         ora #$80
         cmp #'%'            ; stop if we hit % code
@@ -267,65 +169,50 @@ asm partialPrintf
         iny
         dec tmp             ; otherwise go until end of string
         bne -
-        ldy #0              ; if we hit end of string, return val will be $FF
-        dec evalStkH,x      ; hi byte $FF as well
-+       dey                 ; adjust back for length byte
+        ldy #$FF            ; if we hit end of string, return -1
         tya
-        sta evalStkL,x      ; tell caller how far we got
-        bit setLcRW+lcBank2
+        rts
++       dey                 ; adjust back for length byte
+        tya                 ; that's the lo byte of return
+        ldy #0              ; hi byte of return is zero
         rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a 16-bit hex value
 asm printHex
-        bit setROM
-        lda evalStkH,x
-        jsr prbyte
-        lda evalStkL,x
-        jsr prbyte
-        bit setLcRW+lcBank2
-        rts
+        +asmPlasm 1
+        tax
+        tya
+        jmp prntax
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a single character
 asm printChar
-        bit setROM
-        lda evalStkL,x
-        ora #$80
-        jsr cout
-        bit setLcRW+lcBank2
-        rts
+        +asmPlasm 1
+        jmp cout
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a carriage return
 asm crout
-        bit setROM
-        jsr crout
-        dex                   ; don't-care return value
-        bit setLcRW+lcBank2
-        rts
+        +asmPlasm 0
+        jmp crout
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Ring the bell
 asm beep
-        bit setROM
-        jsr bell
-        dex                   ; don't-care return value
-        bit setLcRW+lcBank2
-        rts
+        +asmPlasm 0
+        jmp bell
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Send a command to the memory manager
 // Params: cmd, mainOrAux, amount
 asm loader
-        txa
-        pha
-        bit setROM
+        +asmPlasm 3
         lda evalStkL+2,x        ; command code
         pha
         lda evalStkL+1,x        ; main or aux
@@ -335,30 +222,15 @@ asm loader
         tax
         pla
         bcs +
-        jsr mainLoader
-        clc
-        bcc ++
-+       jsr auxLoader
-++      stx tmp
-        pla
-        tax
-        inx                     ; drop second and third parameters
-        inx
-        lda tmp
-        sta evalStkL,x
-        tya
-        sta evalStkH,x
-        bit setLcRW+lcBank2
-        rts
+        jmp mainLoader          ; ret value in A=lo/Y=hi
++       jmp auxLoader           ; ditto
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set up the font engine
 // Params: pFont
 asm initFontEngine
-        txa
-        pha
-        bit setROM
+        +asmPlasm 1
         ldy evalStkL,x   ; font engine likes *lo* byte in Y
         lda evalStkH,x   ; hi byte in X
         tax
@@ -368,73 +240,7 @@ asm initFontEngine
         jsr displayMODE
         ; Set to normal (non-inverse) text
         lda #pNORMAL
-        jsr drawMODE
-        pla
-        tax
-        bit setLcRW+lcBank2
-        rts
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Set up the ray casting engine or tile engine (they share the same address)
-// Params: pMap
-asm initDisplayEngine
-        txa
-        pha
-        bit setROM
-        lda evalStkL,x
-        ldy evalStkH,x
-        jsr $6000
-        pla
-        tax
-        bit setLcRW+lcBank2
-        rts
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Render one frame using the ray caster or tile engine (they share the same address)
-// Params: none
-asm renderFrame
-        txa
-        pha
-        bit setROM
-        jsr $6003
-        pla
-        tax
-        dex                 ; don't-care return value
-        bit setLcRW+lcBank2
-        rts
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Deal with crossing into a new map section
-// Params: none
-asm checkCrossing
-        txa
-        pha
-        bit setROM
-        jsr $6006
-        pla
-        tax
-        dex                 ; don't-care return value
-        bit setLcRW+lcBank2
-        rts
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Set either the sky or ground color
-// Params: (index<<8) | (colorCode)
-asm setColor
-        txa
-        pha
-        bit setROM
-        lda evalStkL,x
-        ldy evalStkH,x
-        jsr $600C
-        bit setLcRW+lcBank2
-        pla
-        tax
-        rts
+        jmp drawMODE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -457,28 +263,17 @@ end
 // Use the font engine to clear the current text window
 // Params: None
 asm clearWindow
-        bit setROM
-        txa
-        pha
-        jsr clearWINDOW
-        bit setLcRW+lcBank2
-        pla
-        tax
-        dex                   ; don't-care return value
-        rts
+        +asmPlasm 0
+        jmp clearWINDOW
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display a string using the font engine. Automatically splits lines to keep words from breaking.
 // Params: pStr
 asm displayStr
-    bit setROM
-    txa
-    pha
-    lda evalStkL,x
+    +asmPlasm 1
     sta pTmp
-    lda evalStkH,x
-    sta pTmp+1
+    sty pTmp+1
     ldy #0
     lda (pTmp),y
     beq ++
@@ -532,11 +327,7 @@ asm displayStr
 +   pla
     bne --
 ++  lda #$d
-    jsr printCHAR
-    bit setLcRW+lcBank2
-    pla
-    tax
-    rts
+    jmp printCHAR
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -635,23 +426,10 @@ def getUpperKey()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Is the player's current position a physical obstruction?
-def isBlocked()
-  return ^avatarTile & $40
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Is there a script attached to the player's current position?
-def isScripted()
-  return ^avatarTile & $20
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set the sky color (relevant to 3D display only)
 def setSky(num)
   skyNum = num
-  setColor(0<<8 | skyGndTbl1[skyNum])
-  setColor(1<<8 | skyGndTbl2[skyNum])
+  setColor(0, skyNum)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -664,12 +442,11 @@ end
 // Set the ground color (relevant to 3D display only)
 def setGround(num)
   groundNum = num
-  setColor(2<<8 | skyGndTbl1[groundNum])
-  setColor(3<<8 | skyGndTbl2[groundNum])
+  setColor(1, groundNum)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Switch to the next ground color
+// Switch to the next ground color (3D only)
 def nextGround()
   setGround((groundNum + 1) & $F)
 end
@@ -1131,13 +908,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load and display the title screen.
 def loadTitle()
-  word v1
-  word v2
   puts("Loading Lawless Legends.\n")
-  v1 = 1
-  v2 = 2
-  fooFunc(@v1, @v2)
-  printf2("v1=%d v2=%d\n", v1, v2)
 
   // Load the title screen
   puts("Loading title screen.\n")

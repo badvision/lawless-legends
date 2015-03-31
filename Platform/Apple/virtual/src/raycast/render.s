@@ -10,17 +10,12 @@ start:
 ; then routines that call those to build complexity. The main
 ; code is at the very end.
 
-;	jmp initMap 	; params: mapNum, x, y, dir
-;	jmp flipToPage1	; params: none
-;	jmp getPos	; params: @x, @y, @dir
-;	jmp setPos	; params: x (0-255), y (0-255), dir (0-15)
-
-; Old vectors
-;	jmp initMap
-;	jmp renderFrame
-;	jmp isBlocked
-;	jmp isScripted
-;	jmp setColor
+	jmp pl_initMap 		; params: pMapData, x, y, dir; return: map name (as C str)
+	jmp pl_flipToPage1	; params: none; return: nothing
+	jmp pl_getPos		; params: @x, @y, @dir; return: nothing
+	jmp pl_setPos		; params: x (0-255), y (0-255), dir (0-15); return: nothing
+	jmp pl_advance		; params: none; return: 1 if new pos *and* scripted
+	jmp pl_setColor		; params: slot (0=sky/1=ground), color (0-15); return: nothing
 
 ; Conditional assembly flags
 DOUBLE_BUFFER	= 1		; whether to double-buffer
@@ -37,32 +32,6 @@ DEBUG_COLUMN	= -1
 !source "../include/fontEngine.i"
 ; PLASMA
 !source "../include/plasma.i"
-
-; Experimental, possibly unused, code
-
-; Store a single byte number to a pointer on the PLASMA eval stack. Clears hi byte.
-; A-reg = offset in PLASMA stack (0=first param, 1=second param, etc.)
-; Y-reg = value to store
-; (X-reg = PLASMA's stack pointer, unchanged)
-setPlasmaVar: !zone {
-	stx .add+1
-	sty .val+1
-	clc
-.add	adc #0
-	tay
-	lda evalStkL,y
-	sta .sto1+1
-	sta .sto2+1
-	lda evalStkH,y
-	sta .sto1+2
-	sta .sto2+2
-.val	lda #0
-.sto1	sta $1111
-	ldy #1
-	lda #0
-.sto2	sta $1111,y
-+	rts
-}
 
 ; Local constants
 MAX_SPRITES	= 64		; max # sprites visible at once
@@ -1707,8 +1676,41 @@ calcMapOrigin: !zone
 	rts
 
 ;-------------------------------------------------------------------------------
-; Check if the player's current location is an obstruction block
-isBlocked: !zone
+; Advance in current direction if not blocked. 
+; Params: none
+; Return 1 if player is on a new block *and* that block has script(s).
+pl_advance: !zone
+	txa
+	pha			; save PLASMA eval stk pos
+        bit setROM		; switch out PLASMA while we work
+	lda playerDir
+	asl
+	asl			; shift twice: each dir is 4 bytes in table
+	tax
+
+	; Advance the coordinates based on the direction.
+	; Along the way, we save each one on the stack for later compare or restore
+	lda playerX
+	pha
+	clc
+	adc walkDirs,x
+	sta playerX
+	lda playerX+1
+	pha
+	adc walkDirs+1,x
+	sta playerX
+
+	lda playerY
+	pha
+	clc
+	adc walkDirs+2,x
+	sta playerY
+	lda playerY+1
+	pha
+	clc
+	adc walkDirs+3,x
+
+	; Check if the new position is blocked
 	jsr calcMapOrigin
 	sta pMap
 	sty pMap+1
@@ -1718,8 +1720,48 @@ isBlocked: !zone
 	beq +
 	tax
 	jsr getTileFlags
-	and #2			; flag 2 is for obstructions
-+	rts
+	sta tmp+1
+	and #2			; tile flag 2 is for obstructions
+	beq .ok
+	; Blocked! Restore old position.
+	pla
+	sta playerY+1
+	pla
+	sta playerY
+	pla
+	sta playerX+1
+	pla
+	sta playerX
+	ldy #0
+	beq .done
+.ok	; Not blocked. See if we're in a new map tile.
+	pla
+	eor playerY+1
+	sta tmp
+	pla
+	pla
+	eor playerX+1
+	ora tmp
+	tay
+	pla
+	tya
+	beq .done		; if not a new position, return zero
+	; It is a new position. Is script hint set?
+	ldy playerX+1
+	lda (pMap),y
+	ldy #0
+	and #$20		; map flag $20 is the script hint
+	beq .done		; if not scripted, return zero
+	iny			; else return 1
+.done	pla
+	tax			; restore PLASMA eval stk pos
+	dex			; make room for return value
+	tya			; retrieve ret value
+	sta evalStkL,x		; and store it
+	lda #0
+	sta evalStkH,x
+        bit setLcRW+lcBank2	; switch PLASMA runtime back in
+	rts
 
 ;-------------------------------------------------------------------------------
 ; Check if the player's current location has a script flag on it
@@ -1844,19 +1886,25 @@ renderFrame: !zone
 
 ;-------------------------------------------------------------------------------
 ; Flip back buffer onto the screen
-flip: !zone
+pl_flipToPage1: !zone
+	lda frontBuf
+	beq +
+flip:
 !if DOUBLE_BUFFER {
-	ldx backBuf
+	ldy backBuf
 	lda frontBuf
 	sta backBuf
-	stx frontBuf
-	lda page1,x
+	sty frontBuf
+	lda page1,y
 }
 	; Hack for real (not emulated) IIc: sometimes displays only lo-bit graphics
 	; unless we do this. *HUGE* thanks to Brendan Robert for the fix!
 	sta $C07E		; disable double-hi-res
 	lda $C05F		; disable double-hi-res
-	rts
++	rts
+
+;-------------------------------------------------------------------------------
++	jmp flip
 
 ;-------------------------------------------------------------------------------
 copyScreen: !zone
@@ -1877,61 +1925,81 @@ copyScreen: !zone
 	rts
 
 ;-------------------------------------------------------------------------------
-setColor: !zone
+; Called by PLASMA code to get the position on the map.
+; Parameters: @x, @y, @dir
+; Returns: Nothing
+pl_getPos: !zone {
+	lda playerDir
+	jsr .sto
+	inx
+	lda playerY+1
+	jsr .sto
+	inx
+	lda playerX+1
+	; Now fall thru, and exit with X incremented twice (3 params - 1 return slot = 2)
+.sto	ldy evalStkL,x
+	sty pTmp
+	ldy evalStkH,x
+	sty pTmp+1
+	ldy #0
+	sta (pTmp),y
+	tya
+	iny
+	sta (pTmp),y
+	rts
+}
+
+;-------------------------------------------------------------------------------
+; Called by PLASMA code to set the position on the map.
+; Parameters: x, y, dir
+; Returns: Nothing
+pl_setPos: !zone {
+	lda evalStkL,x
+	and #15
+	sta playerDir
+	lda evalStkL+1,x
+	sta playerY+1
+	lda evalStkL+2,x
+	sta playerX+1
+	lda #$80
+	sta playerY
+	sta playerX
+	rts
+}
+
+;-------------------------------------------------------------------------------
+pl_setColor: !zone
+	lda evalStkL,x		; color number
+	tay
+	lda skyGndTbl2,y
+	pha
+	lda skyGndTbl1,y
+	pha
+	lda evalStkH,x		; slot
+	and #1
+	asl
+	tay
+	pla
 	sta skyColorEven,y
+	pla
+	sta skyColorOdd,y
+	inx			; toss unused stack slot (parms=2, ret=1, diff=1)
 	rts
 
-;-------------------------------------------------------------------------------
-; Set the window for the top (map name) bar
-set_window1: !zone
-	lda #1
-	sta wndtop
-	sta cursv
-	lda #2
-	sta wndbtm
-	lda #4
-	sta wndleft
-	sta cursh
-	lda #18
-	sta wndwdth
-	rts
-
-;-------------------------------------------------------------------------------
-; Set the window for the large upper right bar
-set_window2: !zone
-	lda #3
-	sta wndtop
-	sta cursv
-	lda #17
-	sta wndbtm
-	lda #23
-	sta wndleft
-	sta cursh
-	lda #37
-	sta wndwdth
-	rts
-	
-;-------------------------------------------------------------------------------
-; Set the window for the smaller lower right bar
-set_window3: !zone
-	lda #18
-	sta wndtop
-	sta cursv
-	lda #23
-	sta wndbtm
-	lda #23
-	sta wndleft
-	sta cursh
-	lda #37
-	sta wndwdth
-	rts
-	
 ;-------------------------------------------------------------------------------
 ; The real action
-initMap: !zone
+pl_initMap: !zone
+	txa
+	pha			; save PLASMA's eval stack pos
 	; Record the address of the map
+	lda evalStkL+3,x
 	sta mapHeader
-	sty mapHeader+1
+	lda evalStkH+3,x
+	sta mapHeader+1
+	; Record player X, Y and dir
+	jsr pl_setPos
+	; Proceed with loading
+        bit setROM		; switch out PLASMA while we work
 	jsr loadTextures
 	jsr copyScreen
 	lda tablesInitted
@@ -1947,34 +2015,17 @@ initMap: !zone
 	jsr setExpansionCaller
 	jsr graphInit
 	bit clrMixed
-	; Display the name of the map in the upper left box.
-	jsr set_window1
-	jsr clearWINDOW
-	lda wndwdth
-	sec
-	sbc wndleft
-	sbc mapNameLen
-	lsr
-	clc
-	adc wndleft
-	bpl +
-	lda #0
-+	tax
-	ldy wndtop
-	jsr tabXY
-	ldy mapName	; now display the name itself
-	ldx mapName+1
-	jsr printCSTR
-	; play characters in the little window on the bottom right
-	jsr set_window3
-	jsr clearWINDOW
-	jsr printSCSTR
-	!raw "Name     Am/Li",13
-	!raw "-------- --/--",13
-	!raw "Dead Eye 07/21",13
-	!raw "Cliff H. 10/36",13
-	!raw "Prospect 13/24"
-	!byte 0
+	; Return the map name (as a C str)
+        bit setLcRW+lcBank2		; switch PLASMA runtime back in
+	pla				; restore PLASMA's eval stk pos
+	tax
+        inx
+        inx				; toss 3 slots (params=4, ret=1, diff=3)
+        inx
+	lda mapName
+	sta evalStkL,x			; return map name to PLASMA caller
+	lda mapName+1
+	sta evalStkH,x
 	rts
 
 ; Following are log/pow lookup tables. For speed, align them on a page boundary.
@@ -3116,4 +3167,59 @@ mapSpriteH	!fill MAX_SPRITES
 ; Sin of each angle, in log8.8 format plus the high bit being the sign (0x8000 = negative)
 sinTbl	!word $0000, $8699, $877F, $87E1, $8800, $87E1, $877F, $8699
 	!word $8195, $0699, $077F, $07E1, $0800, $07E1, $077F, $0699
+
+; Dithering patterns for sky and ground, encoded specially for this engine. 16 different combinations.
+skyGndTbl1:
+	!byte $00 ; lo-bit black
+	!byte $00 ; lo-bit black
+	!byte $00 ; lo-bit black
+	!byte $02 ; violet
+	!byte $08 ; green
+	!byte $0A ; lo-bit white
+	!byte $0A ; lo-bit white
+	!byte $0A ; lo-bit white
+	!byte $20 ; hi-bit black
+	!byte $20 ; hi-bit black
+	!byte $20 ; hi-bit black
+	!byte $22 ; blue
+	!byte $28 ; orange
+	!byte $2A ; hi-bit white
+	!byte $2A ; hi-bit white
+	!byte $2A ; hi-bit white
+skyGndTbl2:
+	!byte $00 ; lo-bit black
+	!byte $02 ; violet
+	!byte $08 ; green
+	!byte $02 ; violet
+	!byte $08 ; green
+	!byte $02 ; violet
+	!byte $08 ; green
+	!byte $0A ; lo-bit white
+	!byte $20 ; hi-bit black
+	!byte $22 ; blue
+	!byte $28 ; orange
+	!byte $22 ; blue
+	!byte $28 ; orange
+	!byte $22 ; blue
+	!byte $28 ; orange
+	!byte $2A ; hi-bit white
+
+; Movement amounts when walking at each angle
+; Each entry consists of an X bump and a Y bump, in 8.8 fixed point
+walkDirs !word $0040, $0000
+	 !word $003B, $0018
+	 !word $002D, $002D
+	 !word $0018, $003B
+	 !word $0000, $0040
+	 !word $FFE8, $003B
+	 !word $FFD3, $002D
+	 !word $FFC5, $0018
+	 !word $FFC0, $0000
+	 !word $FFC5, $FFE8
+	 !word $FFD3, $FFD3
+	 !word $FFE8, $FFC5
+	 !word $0000, $FFC0
+	 !word $0018, $FFC5
+	 !word $002D, $FFD3
+	 !word $003B, $FFE8
 

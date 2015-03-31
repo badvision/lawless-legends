@@ -52,6 +52,7 @@ codeBegin:
 	bcc locationCheck
 	jmp main_dispatch
 	jmp aux_dispatch
+	jmp __asmPlasm
 locationCheck:
 	jsr monrts
 	tsx
@@ -1895,6 +1896,44 @@ doAllFixups: !zone
 }
 .mainBase !word 0
 .auxBase  !word 0
+
+;------------------------------------------------------------------------------
+; Utility routine for convenient assembly routines in PLASMA code. 
+; Params: Y=number of parameters passed from PLASMA routine
+; 1. Save PLASMA's X register index to evalStk
+; 2. Switch to ROM
+; 3. Load the last parameter into A=lo, Y=hi
+; 4. Run the calling routine (X still points into evalStk for add'l params if needed)
+; 5. Switch back to LC RAM
+; 6. Restore PLASMA's X register, and advance it over the parameter(s)
+; 7. Store A=lo/Y=hi into PLASMA return value
+; 8. Return to PLASMA
+__asmPlasm: !zone
+	pla		; save address of calling routine, so we can call it
+	clc
+	adc #1
+	sta .jsr+1
+	pla
+	adc #0
+	sta .jsr+2
+	dey
+	sty tmp		; adjust PLASMA stack pointer to skip over params
+	txa
+.add	adc tmp
+	pha		; and save that
+	bit setROM	; switch to ROM
+	lda evalStkL,x	; get last param to A=lo
+	ldy evalStkH,x	; ...Y=hi
+.jsr	jsr $1111	; call the routine to do work
+	bit setLcRW+lcBank2	; read from language card (where PLASMA runtime lives)
+	sta tmp		; save return value lo
+	pla
+	tax		; restore adjusted PLASMA stack pointer
+	lda tmp
+	sta evalStkL,x	; store return value
+	tya
+	sta evalStkH,x
+	rts		; and return to PLASMA interpreter
 
 ;------------------------------------------------------------------------------
 ; Segment tables

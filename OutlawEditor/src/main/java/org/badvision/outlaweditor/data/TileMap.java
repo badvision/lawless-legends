@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import javafx.scene.control.Alert;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
 import javax.swing.JOptionPane;
@@ -197,9 +198,12 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
         });
         if (!unknownTiles.isEmpty()) {
             int numMissing = unknownTiles.size();
-            JOptionPane.showMessageDialog(null, (numMissing > 1
-                    ? "There were " + numMissing + " missing tiles." : "There was a missing tile.")
+            Alert missingTileAlert = new Alert(Alert.AlertType.WARNING);
+            missingTileAlert.setContentText(
+                    (numMissing > 1
+                            ? "There were " + numMissing + " missing tiles." : "There was a missing tile.  ")
                     + "Blank placeholders have been added.");
+            missingTileAlert.showAndWait();
         }
         backingMap = m;
         backingMapStale = false;

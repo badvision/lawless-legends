@@ -6,10 +6,9 @@ const NULL  = 0
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Fixed memory locations
-const raycaster  = $6000   // main mem
-const tileEngine = $6000   // main mem
-const expandVec  = $2000   // aux mem
-const fontEngine = $BA00   // main mem
+const displayEngine = $6000   // main mem (raycaster and tile engine at same location)
+const expandVec     = $2000   // aux mem (only for raycaster)
+const fontEngine    = $BA00   // main mem
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Resource numbers
@@ -101,6 +100,15 @@ byte textDrawn = FALSE
 
 word skyNum = 9
 word groundNum = 10
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// API to call rendering engine (same API for raycaster and tile engine)
+const initDisplay = displayEngine + 0  // params: pMapData, x, y, dir; return: map name (as C str)
+const flipToPage1 = displayEngine + 3  // params: none; return: nothing
+const getPos      = displayEngine + 6  // params: @x, @y, @dir; return: nothing
+const setPos      = displayEngine + 9  // params: x (0-255), y (0-255), dir (0-15); return: nothing
+const advance     = displayEngine + 12 // params: none; return: 1 if new pos *and* scripted
+const setColor    = displayEngine + 15 // params: slot (0=sky/1=ground), color (0-15); return: nothing
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -252,7 +260,7 @@ asm goMon
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Jump straight to the system monitor
+// Execute a monitor breakpoint
 // Params: None
 asm brk
         bit setROM
@@ -462,15 +470,6 @@ def debugMem(bank)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Clear the command table
-def resetCmds()
-  byte i
-  for i = 0 to 63
-    cmdTbl[i] = 0
-  next
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Establish a keystroke -> command association in the command table
 def initCmd(key, func)
   if key >= $60
@@ -495,7 +494,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load code and data, set up everything to display a 3D map
-def initMap3D(x, y, dir)
+def initMap(x, y, dir)
   word scriptModule
 
   // Set up the command table
@@ -504,24 +503,22 @@ def initMap3D(x, y, dir)
   // Reset memory (our module will stay since memory manager locked it upon load)
   loader(RESET_MEMORY, MAIN_MEM, 0)
 
-  // Load the font engine
+  // Load the font engine and its font
   loader(SET_MEM_TARGET, MAIN_MEM, fontEngine)
   loader(QUEUE_LOAD,     MAIN_MEM, RES_NUM_FONT_ENGINE<<8 | RES_TYPE_CODE)
 
-  // Load the font for the font engine
   loader(SET_MEM_TARGET, MAIN_MEM, $9000)
   pFont = loader(QUEUE_LOAD, MAIN_MEM, 1<<8 | RES_TYPE_FONT)
 
-  // Load the raycaster
-  loader(SET_MEM_TARGET, MAIN_MEM, raycaster)
-  loader(QUEUE_LOAD,     MAIN_MEM, RES_NUM_RAYCASTER<<8 | RES_TYPE_CODE)
-
-  // Load the texture expansion code
-  loader(SET_MEM_TARGET, AUX_MEM, expandVec)
-  loader(QUEUE_LOAD,     AUX_MEM, RES_NUM_EXPAND_VEC<<8 | RES_TYPE_CODE)
-
-  // Load the map
-  pMap = loader(QUEUE_LOAD, MAIN_MEM, mapNum<<8 | RES_TYPE_3D_MAP)
+  // Queue loading of the raycaster or tile engine and the map data
+  loader(SET_MEM_TARGET, MAIN_MEM, displayEngine)
+  if mapIs3D
+    loader(QUEUE_LOAD, MAIN_MEM, RES_NUM_RAYCASTER<<8 | RES_TYPE_CODE)
+    pMap = loader(QUEUE_LOAD, MAIN_MEM, mapNum<<8 | RES_TYPE_3D_MAP)
+  else
+    loader(QUEUE_LOAD, MAIN_MEM, RES_NUM_TILE_ENGINE<<8 | RES_TYPE_CODE)
+    pMap = loader(QUEUE_LOAD, MAIN_MEM, mapNum<<8 | RES_TYPE_2D_MAP)
+  fin
 
   // Load everything that we just queued
   loader(FINISH_LOAD, MAIN_MEM, 1) // 1 = keep open
@@ -539,13 +536,8 @@ def initMap3D(x, y, dir)
   // Start up the font engine
   initFontEngine(pFont)
 
-  // Start up the raycaster
-  initDisplayEngine(pMap)
-
-  // Set initial player position in case the init script doesn't do it
-  ^playerDir = 1
-  *playerX = $280
-  *playerY = $380
+  // Start up the display engine with map data and starting position
+  cMapName = initDisplay(pMap, x, y, dir)
 
   // Initialize the map scripts
   setWindow2()
@@ -558,66 +550,6 @@ def initMap3D(x, y, dir)
   if pScripts
     *pScripts()
   fin
-
-  // Draw the first frame
-  renderFrame()
-  redraw = FALSE
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Load code and data, set up everything to display a 2D map
-def initMap2D()
-
-  // Set up the command table
-  initCmds2D()
-
-  // Reset memory (our module will stay since memory manager locked it upon load)
-  loader(RESET_MEMORY, MAIN_MEM, 0)
-
-  // Load the font engine
-  loader(SET_MEM_TARGET, MAIN_MEM, fontEngine)
-  loader(QUEUE_LOAD,     MAIN_MEM, RES_NUM_FONT_ENGINE<<8 | RES_TYPE_CODE)
-
-  // Load the font for the font engine
-  loader(SET_MEM_TARGET, MAIN_MEM, $9000)
-  pFont = loader(QUEUE_LOAD, MAIN_MEM, 1<<8 | RES_TYPE_FONT)
-
-  // Load the tile engine
-  loader(SET_MEM_TARGET, MAIN_MEM, tileEngine)
-  loader(QUEUE_LOAD,     MAIN_MEM, RES_NUM_TILE_ENGINE<<8 | RES_TYPE_CODE)
-
-  // Load everything that we just queued
-  loader(FINISH_LOAD, MAIN_MEM, 1) // 1 = keep open
-
-  // Load the frame image (and lock it there)
-  loadFrameImg()
-
-  // Start up the font engine
-  initFontEngine(pFont)
-
-  // For now
-  prevX = -1
-  prevY = -1
-  triggerTbl = NULL
-
-  // Start up the tile engine
-  initDisplayEngine(mapNum)
-
-  // And do the first draw.
-  renderFrame()
-  redraw = FALSE
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Set up mapNum (2D or 3D depending on state of is3DMap)
-def initMap(x, y, dir)
-  if mapIs3D
-    initMap3D(x, y, dir)
-  else
-    initMap2D(x, y, dir)
-  fin
-  prevMapNum = mapNum
-  prevMapIs3D = mapIs3D
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -651,16 +583,6 @@ def setWindow3()
   ^wndwdth = 37
   ^cursv = ^wndtop
   ^cursh = ^wndleft
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Make sure page 1 of hi-res is displayed. Do this before doing memory manager operations, since
-// they overwrite page 2.
-def flipToFirstPage
-  if ^frontBuf == 1
-    renderFrame()
-    redraw = FALSE
-  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -712,7 +634,7 @@ def checkScripts()
     if isScripted()
       callScripts(x, y)
       if (mapNum <> prevMapNum) or (mapIs3D <> prevMapIs3D)
-        flipToFirstPage()
+        flipToPage1()
         initMap()
       fin
     fin
@@ -871,38 +793,40 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set up the command table for 3D mode
 def initCmds3D()
-  resetCmds()
 
-  initCmd('W', @moveForward)
-  initCmd('A', @rotateLeft)
-  initCmd('D', @rotateRight)
-  initCmd('S', @moveBackward)
-  initCmd('X', @moveBackward)
-  initCmd('Z', @strafeLeft)
-  initCmd('C', @strafeRight)
+  // Clear the command table
+  byte i
+  for i = 0 to 63
+    cmdTbl[i] = 0
+  next
 
-  initCmd('I', @moveForward)
-  initCmd('J', @rotateLeft)
-  initCmd('L', @rotateRight)
-  initCmd('K', @moveBackward)
-  initCmd(',', @moveBackward)
-  initCmd('M', @strafeLeft)
-  initCmd('.', @strafeRight)
+  // Handle 3D vs 2D commands separately
+  if mapIs3D
+    initCmd('W', @moveForward)
+    initCmd('A', @rotateLeft)
+    initCmd('D', @rotateRight)
+    initCmd('S', @moveBackward)
+    initCmd('X', @moveBackward)
+    initCmd('Z', @strafeLeft)
+    initCmd('C', @strafeRight)
 
-  initCmd('Y', @nextSky)
-  initCmd('G', @nextGround)
-end
+    initCmd('I', @moveForward)
+    initCmd('J', @rotateLeft)
+    initCmd('L', @rotateRight)
+    initCmd('K', @moveBackward)
+    initCmd(',', @moveBackward)
+    initCmd('M', @strafeLeft)
+    initCmd('.', @strafeRight)
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Set up the command table for 2D mode
-def initCmds2D()
-  resetCmds()
-
-  initCmd('W', @moveNorth)
-  initCmd('D', @moveEast)
-  initCmd('S', @moveSouth)
-  initCmd('X', @moveSouth)
-  initCmd('A', @moveWest)
+    initCmd('Y', @nextSky)
+    initCmd('G', @nextGround)
+  else
+    initCmd('W', @moveNorth)
+    initCmd('D', @moveEast)
+    initCmd('S', @moveSouth)
+    initCmd('X', @moveSouth)
+    initCmd('A', @moveWest)
+  end
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

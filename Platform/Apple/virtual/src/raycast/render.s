@@ -1987,6 +1987,18 @@ pl_setColor: !zone
 	rts
 
 ;-------------------------------------------------------------------------------
+; Load texture expansion code into aux mem
+loadExpand: !zone
+        lda #SET_MEM_TARGET
+        ldx #<expandVec
+        ldy #>expandVec
+        jsr auxLoader
+        lda #QUEUE_LOAD
+	ldx #RES_TYPE_TEXTURE
+	ldy #RES_NUM_EXPAND_VEC
+	jmp auxLoader
+
+;-------------------------------------------------------------------------------
 ; The real action
 pl_initMap: !zone
 	txa
@@ -2000,6 +2012,7 @@ pl_initMap: !zone
 	jsr pl_setPos
 	; Proceed with loading
         bit setROM		; switch out PLASMA while we work
+        jsr loadExpand
 	jsr loadTextures
 	jsr copyScreen
 	lda tablesInitted

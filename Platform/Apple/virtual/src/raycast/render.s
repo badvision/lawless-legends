@@ -10,11 +10,13 @@ start:
 ; then routines that call those to build complexity. The main
 ; code is at the very end.
 
-	jmp pl_initMap 		; params: pMapData, x, y, dir; return: map name (as C str)
+	jmp pl_initMap 		; params: pMapData, x, y, dir
 	jmp pl_flipToPage1	; params: none; return: nothing
-	jmp pl_getPos		; params: @x, @y, @dir; return: nothing
-	jmp pl_setPos		; params: x (0-255), y (0-255), dir (0-15); return: nothing
-	jmp pl_advance		; params: none; return: 1 if new pos *and* scripted
+	jmp pl_getPos		; params: @x, @y; return: nothing
+	jmp pl_setPos		; params: x (0-255), y (0-255); return: nothing
+	jmp pl_getDir		; params: none; return: dir (0-15)
+	jmp pl_setDir		; params: dir (0-15); return: nothing
+	jmp pl_advance		; params: none; return: 0 if same, 1 if new map tile, 2 if new and scripted
 	jmp pl_setColor		; params: slot (0=sky/1=ground), color (0-15); return: nothing
 
 ; Conditional assembly flags
@@ -38,7 +40,6 @@ MAX_SPRITES	= 64		; max # sprites visible at once
 NUM_COLS	= 63
 SPRITE_DIST_LIMIT = 8
 SPRITE_CT_LIMIT = 4
-MAX_NAME_LEN = 14
 
 ; Starting position and dir. Eventually this will come from the map
 PLAYER_START_X = $280		; 1.5
@@ -59,8 +60,6 @@ mapHeader: 	!word 0		; map with header first
 mapBase:   	!word 0		; first byte after the header
 mapRayOrigin:	!word 0
 mapNum:    	!byte 1
-mapName:	!word 0		; pointer to map name
-mapNameLen:	!byte 0		; length of map name
 nMapSprites:	!byte 0		; number of sprite entries on map to fix up
 nextLink:	!byte 0		; next link to allocate
 tablesInitted:	!byte 0		; 1 after init
@@ -1554,7 +1553,8 @@ getTileFlags: !zone
 	rts
 
 ;-------------------------------------------------------------------------------
-; Load the texture expansion code, copy it to aux mem
+; Parse map header, and load the textures into aux mem. Also loads the script
+; module and inits it.
 loadTextures: !zone
 	!if DEBUG { +prStr : !text "Loading textures.",0 }
 	; Scan the map header
@@ -1566,29 +1566,14 @@ loadTextures: !zone
 	sta mapWidth	; and save it
 	jsr .get	; get map height
 	sta mapHeight	; and save it
-	jsr .get	; ignore script module num (it gets loaded by PLASMA code)
-	lda .get+1	; current pointer is the map name
-	sta mapName	; save it
-	lda .get+2
-	sta mapName+1
-	lda #$FF	; pre-decrement, since the zero is going to be counted
-	sta mapNameLen
-.skip:	jsr .get	; skip over the map name
-	inc mapNameLen
-	cmp #0
-	bne .skip	; until end-of-string is reached (zero byte)
-	lda mapNameLen	; clamp length of map name
-	cmp #MAX_NAME_LEN
-	bcc .notrnc
-	lda mapName
-	sta .trunc+1
-	lda mapName+1
-	sta .trunc+2
-	ldx #MAX_NAME_LEN
-	lda #0
-.trunc	sta mapName,x
-	stx mapNameLen
-.notrnc	lda #0		; now comes the list of textures.
+	jsr .get	; get script module num
+	tay		; and get ready to load it
+	lda #QUEUE_LOAD
+	ldx #RES_TYPE_MODULE
+	jsr mainLoader	; queue script to load
+	stx .scInit+1	; store its location so we call its init...
+	sty .scInit+2	; ...after it loads of course.
+	lda #0		; now comes the list of textures.
 	sta txNum
 .lup:	jsr .get	; get texture resource number
 	tay		; to Y for mem manager
@@ -1625,17 +1610,14 @@ loadTextures: !zone
 	; to load.
 	lda #FINISH_LOAD
 	ldx #0
-	jmp mainLoader
+	jsr mainLoader
+	; finally, init the scripts.
+.scInit	jmp $1111
 .get:	lda $1111
 	inc .get+1
 	bne +
 	inc .get+2
 +	rts
-.set	lda .get+2
-	sta .set2+2
-	ldy .get+1
-.set2	sta $1100,y
-	rts
 
 ;-------------------------------------------------------------------------------
 ; Set up front and back buffers, go to hires mode, and clear for first blit.
@@ -1678,7 +1660,9 @@ calcMapOrigin: !zone
 ;-------------------------------------------------------------------------------
 ; Advance in current direction if not blocked. 
 ; Params: none
-; Return 1 if player is on a new block *and* that block has script(s).
+; Return: 0 if same map tile;
+;         1 if pos is on a new map tile;
+;         2 if that new tile is also scripted
 pl_advance: !zone
 	txa
 	pha			; save PLASMA eval stk pos
@@ -1717,7 +1701,7 @@ pl_advance: !zone
 	ldy playerX+1
 	lda (pMap),y
 	and #$1F
-	beq +
+	beq .ok			; empty tiles are never blocked
 	tax
 	jsr getTileFlags
 	sta tmp+1
@@ -1745,34 +1729,23 @@ pl_advance: !zone
 	tay
 	pla
 	tya
-	beq .done		; if not a new position, return zero
+	beq .done		; if not a new map tile, return zero
 	; It is a new position. Is script hint set?
 	ldy playerX+1
 	lda (pMap),y
-	ldy #0
+	ldy #1
 	and #$20		; map flag $20 is the script hint
-	beq .done		; if not scripted, return zero
-	iny			; else return 1
+	beq .done		; if not scripted, return one
+	iny			; else return 2
 .done	pla
 	tax			; restore PLASMA eval stk pos
 	dex			; make room for return value
 	tya			; retrieve ret value
 	sta evalStkL,x		; and store it
 	lda #0
-	sta evalStkH,x
+	sta evalStkH,x		; hi byte of return is zero
         bit setLcRW+lcBank2	; switch PLASMA runtime back in
-	rts
-
-;-------------------------------------------------------------------------------
-; Check if the player's current location has a script flag on it
-isScripted: !zone
-	jsr calcMapOrigin
-	sta pMap
-	sty pMap+1
-	ldy playerX+1
-	lda (pMap),y
-	and #$20
-	rts
+	rts			; and return to PLASMA
 
 ;-------------------------------------------------------------------------------
 ; Cast all the rays from the current player coord
@@ -1926,17 +1899,14 @@ copyScreen: !zone
 
 ;-------------------------------------------------------------------------------
 ; Called by PLASMA code to get the position on the map.
-; Parameters: @x, @y, @dir
+; Parameters: @x, @y
 ; Returns: Nothing
 pl_getPos: !zone {
-	lda playerDir
-	jsr .sto
-	inx
 	lda playerY+1
 	jsr .sto
 	inx
 	lda playerX+1
-	; Now fall thru, and exit with X incremented twice (3 params - 1 return slot = 2)
+	; Now fall thru, and exit with X incremented once (2 params - 1 return slot = 1)
 .sto	ldy evalStkL,x
 	sty pTmp
 	ldy evalStkH,x
@@ -1951,19 +1921,39 @@ pl_getPos: !zone {
 
 ;-------------------------------------------------------------------------------
 ; Called by PLASMA code to set the position on the map.
-; Parameters: x, y, dir
+; Parameters: x, y
 ; Returns: Nothing
 pl_setPos: !zone {
 	lda evalStkL,x
-	and #15
-	sta playerDir
-	lda evalStkL+1,x
 	sta playerY+1
-	lda evalStkL+2,x
+	lda evalStkL,x
 	sta playerX+1
 	lda #$80
 	sta playerY
 	sta playerX
+	rts
+}
+
+;-------------------------------------------------------------------------------
+; Called by PLASMA code to get the player's direction
+; Parameters: dir (0-15)
+; Returns: Nothing
+pl_getDir: !zone {
+	lda playerDir
+	sta evalStkL,x
+	lda #0
+	sta evalStkH,x
+	rts
+}
+
+;-------------------------------------------------------------------------------
+; Called by PLASMA code to set the player's direction
+; Parameters: dir (0-15)
+; Returns: Nothing
+pl_setDir: !zone {
+	lda evalStkL,x
+	and #15
+	sta playerDir
 	rts
 }
 
@@ -1987,18 +1977,6 @@ pl_setColor: !zone
 	rts
 
 ;-------------------------------------------------------------------------------
-; Load texture expansion code into aux mem
-loadExpand: !zone
-        lda #SET_MEM_TARGET
-        ldx #<expandVec
-        ldy #>expandVec
-        jsr auxLoader
-        lda #QUEUE_LOAD
-	ldx #RES_TYPE_TEXTURE
-	ldy #RES_NUM_EXPAND_VEC
-	jmp auxLoader
-
-;-------------------------------------------------------------------------------
 ; The real action
 pl_initMap: !zone
 	txa
@@ -2012,7 +1990,6 @@ pl_initMap: !zone
 	jsr pl_setPos
 	; Proceed with loading
         bit setROM		; switch out PLASMA while we work
-        jsr loadExpand
 	jsr loadTextures
 	jsr copyScreen
 	lda tablesInitted
@@ -2035,10 +2012,6 @@ pl_initMap: !zone
         inx
         inx				; toss 3 slots (params=4, ret=1, diff=3)
         inx
-	lda mapName
-	sta evalStkL,x			; return map name to PLASMA caller
-	lda mapName+1
-	sta evalStkH,x
 	rts
 
 ; Following are log/pow lookup tables. For speed, align them on a page boundary.

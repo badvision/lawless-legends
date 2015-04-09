@@ -434,9 +434,6 @@ class PackPartitions
             }
         }
         
-        // Finish the index buffer with the map name
-        writeString(indexBuf, mapName.replaceFirst(/ ?-? ?2D/, ""))
-
         // Now create each map section
         (0..<nVertSections).each { vsect ->
             (0..<nHorzSections).each { hsect ->
@@ -567,9 +564,6 @@ class PackPartitions
         
         // Followed by script module num
         buf.put((byte)scriptModule)
-        
-        // Followed by name
-        writeString(buf, mapName.replaceFirst(/ ?-? ?3D/, ""))
         
         // Followed by the list of textures
         texList.each { buf.put((byte)it) }
@@ -798,18 +792,12 @@ class PackPartitions
     
     def packScripts(mapEl, mapName, xRange = null, yRange = null)
     {
-        if (!mapEl.scripts)
-            return [0, [] as Set]
-            
         def num = modules.size() + 1
         def name = "mapScript$num"
         //println "Packing scripts for map $mapName, to module $num."
         
         ScriptModule module = new ScriptModule()
-        if (!module.packScripts(mapEl.scripts[0], xRange, yRange)) {
-            //println "...no scripts applied; will re-use module num"
-            return [0, [] as Set]
-        }
+        module.packScripts(mapName, mapEl.scripts ? mapEl.scripts[0] : [], xRange, yRange)
             
         modules[name]   = [num:num, buf:wrapByteList(module.data)]
         bytecodes[name] = [num:num, buf:wrapByteList(module.bytecode)]
@@ -1350,7 +1338,7 @@ class PackPartitions
 
         def locationsWithTriggers = [] as Set
 
-        def vec_locationTrigger = 0x300
+        def vec_setScriptInfo   = 0x300
         def vec_displayStr      = 0x303
         def vec_getYN           = 0x306
         def vec_setMap          = 0x309
@@ -1370,10 +1358,8 @@ class PackPartitions
         /**
          * Pack scripts from a map. Either the whole map, or optionally just an X and Y
          * bounded section of it.
-         * 
-         * Returns true if any matching scripts were found.
          */
-        def packScripts(inScripts, xRange = null, yRange = null)
+        def packScripts(mapName, inScripts, xRange = null, yRange = null)
         {
             // If we're only processing a section of the map, make sure this script is
             // referenced within that section.
@@ -1388,21 +1374,19 @@ class PackPartitions
                             (!yRange || trig.@y.toInteger() in yRange) })
                     scripts << script
             }
-                
             nScripts = scripts.script.size()
-            if (nScripts == 0)
-                return false
-                
+              
+            // Even if there were no scripts, we still need an init to display
+            // the map name.
             makeStubs()
             scripts.eachWithIndex { script, idx ->
                 packScript(idx, script) 
             }
-            makeInit(scripts, xRange, yRange)
+            makeInit(mapName, scripts, xRange, yRange)
             emitFixupByte(0xFF)
             //println "data: $data"
             //println "bytecode: $bytecode"
             //println "fixups: $fixups"
-            return true
         }
 
         def makeStubs()
@@ -1683,7 +1667,7 @@ class PackPartitions
             emitCodeByte(0x30) // DROP
         }
 
-        def makeInit(scripts, xRange, yRange)
+        def makeInit(mapName, scripts, xRange, yRange)
         {
             //println "    Script: special 'init'"
             startFunc(0)
@@ -1723,29 +1707,28 @@ class PackPartitions
                 }
             }
             
-            // If any triggers, register and output a trigger table
-            if (triggers.size()) 
-            {
-                // Code to register the table
-                emitCodeByte(0x26)  // LA
-                emitCodeFixup(dataAddr())
-                emitCodeByte(0x54) // CALL
-                emitCodeWord(vec_locationTrigger)
-                emitCodeByte(0x30) // DROP
-                
-                // The table itself goes in the data segment.
-                triggers.each { y, xs ->
-                    emitDataByte(y)
-                    emitDataByte(2 + (xs.size() * 3))  // 2 bytes for y+off, plus 3 bytes per trigger (x, adrlo, adrhi)
-                    xs.each { x, funcAddr ->
-                        emitDataByte(x)
-                        emitDataFixup(funcAddr)
-                        // Record a list of trigger locations for the caller's reference
-                        locationsWithTriggers << [x, y]
-                    }
+            // Code to register the table and map name
+            emitCodeByte(0x26)  // LA
+            def textAddr = addString(mapName)
+            emitCodeFixup(textAddr)
+            emitCodeByte(0x26)  // LA
+            emitCodeFixup(dataAddr())
+            emitCodeByte(0x54) // CALL
+            emitCodeWord(vec_setScriptInfo)
+            emitCodeByte(0x30) // DROP
+
+            // The table itself goes in the data segment.
+            triggers.each { y, xs ->
+                emitDataByte(y)
+                emitDataByte(2 + (xs.size() * 3))  // 2 bytes for y+off, plus 3 bytes per trigger (x, adrlo, adrhi)
+                xs.each { x, funcAddr ->
+                    emitDataByte(x)
+                    emitDataFixup(funcAddr)
+                    // Record a list of trigger locations for the caller's reference
+                    locationsWithTriggers << [x, y]
                 }
-                emitDataByte(0xFF) // mark the end end of the trigger table
             }
+            emitDataByte(0xFF) // mark the end end of the trigger table
             
             // All done with the init function.
             finishFunc()

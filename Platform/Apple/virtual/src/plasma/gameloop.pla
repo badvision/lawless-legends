@@ -59,7 +59,6 @@ const FATAL_ERROR    = $1F
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Other constants
 const callbacks = $300
-const MAX_LOC_TRIG = 128
 
 // 3D mode
 //const OVERMAP_NUM = 11
@@ -70,7 +69,7 @@ const OVERMAP_IS_3D = 0
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Predefined functions, for circular calls or out-of-order calls
-predef setWindow2, initCmds2D, initCmds3D
+predef setWindow2, initCmds
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Font engine variables
@@ -87,28 +86,14 @@ byte mapNum = OVERMAP_NUM
 byte mapIs3D = OVERMAP_IS_3D
 word pFont
 word pMap
-word pScripts
 word cmdTbl[64]
 word triggerTbl
-byte prevX
-byte prevY
-byte prevMapNum
-byte prevMapIs3D
 byte redraw
 byte titleLoaded = FALSE
 byte textDrawn = FALSE
 
 word skyNum = 9
 word groundNum = 10
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// API to call rendering engine (same API for raycaster and tile engine)
-const initDisplay = displayEngine + 0  // params: pMapData, x, y, dir; return: map name (as C str)
-const flipToPage1 = displayEngine + 3  // params: none; return: nothing
-const getPos      = displayEngine + 6  // params: @x, @y, @dir; return: nothing
-const setPos      = displayEngine + 9  // params: x (0-255), y (0-255), dir (0-15); return: nothing
-const advance     = displayEngine + 12 // params: none; return: 1 if new pos *and* scripted
-const setColor    = displayEngine + 15 // params: slot (0=sky/1=ground), color (0-15); return: nothing
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -131,6 +116,33 @@ DEBUG   = 1
 tmp         = $2
 pTmp        = $4
 
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// API to call rendering engine (same API for raycaster and tile engine)
+asm initDisplay   // params: pMapData, x, y, dir
+        jmp $6000
+end
+asm flipToPage1  // no params
+        jmp $6003
+end
+asm getPos       // params: @x, @y
+        jmp $6006
+end
+asm setPos       // params: x (0-255), y (0-255)
+        jmp $6009
+end
+asm getDir       // no params; returns: dir (0-15)
+        jmp $600C
+end
+asm setDir       // params: dir (0-15)
+        jmp $600F
+end
+asm advance      // no params; return: 0 if same pos, 1 if new pos, 2 if new pos and scripted
+        jmp $6012
+end
+asm setColor     // params: slot (0=sky/1=ground), color (0-15)
+        jmp $6015
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -495,10 +507,8 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load code and data, set up everything to display a 3D map
 def initMap(x, y, dir)
-  word scriptModule
-
   // Set up the command table
-  initCmds3D()
+  initCmds()
 
   // Reset memory (our module will stay since memory manager locked it upon load)
   loader(RESET_MEMORY, MAIN_MEM, 0)
@@ -515,6 +525,8 @@ def initMap(x, y, dir)
   if mapIs3D
     loader(QUEUE_LOAD, MAIN_MEM, RES_NUM_RAYCASTER<<8 | RES_TYPE_CODE)
     pMap = loader(QUEUE_LOAD, MAIN_MEM, mapNum<<8 | RES_TYPE_3D_MAP)
+    loader(SET_MEM_TARGET, AUX_MEM, expandVec)
+    loader(QUEUE_LOAD, AUX_MEM, RES_NUM_EXPAND_VEC<<8 | RES_TYPE_CODE)
   else
     loader(QUEUE_LOAD, MAIN_MEM, RES_NUM_TILE_ENGINE<<8 | RES_TYPE_CODE)
     pMap = loader(QUEUE_LOAD, MAIN_MEM, mapNum<<8 | RES_TYPE_2D_MAP)
@@ -526,30 +538,18 @@ def initMap(x, y, dir)
   // Load the frame image (and lock it there)
   loadFrameImg()
 
-  // Load the scripts for this map, if it has any.
-  scriptModule = pMap->2  // first 2 bytes are width and height, third byte is script module num
-  if scriptModule
-    pScripts = loader(QUEUE_LOAD, MAIN_MEM, (scriptModule << 8) | RES_TYPE_MODULE)
-  fin
-  loader(FINISH_LOAD, MAIN_MEM, 0) // 1 = keep open, for loading textures
-
   // Start up the font engine
   initFontEngine(pFont)
 
-  // Start up the display engine with map data and starting position
-  cMapName = initDisplay(pMap, x, y, dir)
-
-  // Initialize the map scripts
+  // Set up for map scripts
   setWindow2()
   clearWindow()
   textDrawn = FALSE
 
-  prevX = -1
-  prevY = -1
+  // Start up the display engine with map data and starting position. This will also load and
+  // init the script module, if any, which will end up calling us back at the setTrigger
   triggerTbl = NULL
-  if pScripts
-    *pScripts()
-  fin
+  initDisplay(pMap, x, y, dir)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -586,11 +586,17 @@ def setWindow3()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def callScripts(x, y)
+// Check for script(s) attached to the current location, and call them if there are any.
+def checkScripts()
+  word x
+  word y
   word p
   word pNext
   word script
 
+  if !triggerTbl; return; fin
+  setWindow2()
+  getPos(@x, @y)
   p = triggerTbl
   while TRUE
     if ^p == $FF
@@ -612,52 +618,23 @@ def callScripts(x, y)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Check for script(s) attached to the current location, and call them if there are any.
-def checkScripts()
-  word x
-  word y
-  if !triggerTbl; return; fin
-  if mapIs3D
-    x = playerX.1 - 1
-    y = playerY.1 - 1
-  else
-    x = ^avatarX
-    y = ^avatarY
-  fin
-  if x <> prevX or y <> prevY
-    prevX = x
-    prevY = y
-    if textDrawn
-      clearWindow()
-      textDrawn = FALSE
-    fin
-    if isScripted()
-      callScripts(x, y)
-      if (mapNum <> prevMapNum) or (mapIs3D <> prevMapIs3D)
-        flipToPage1()
-        initMap()
-      fin
-    fin
-  fin
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Advance one step forward (3D maps only)
 def moveForward()
-  word wasBlocked 
-  word func
-  wasBlocked = isBlocked()
-  *playerX = *playerX + walkDirs[^playerDir << 1]
-  *playerY = *playerY + walkDirs[(^playerDir << 1) + 1]
-  if !wasBlocked and isBlocked()
-    moveBackward()
+  byte val
+  val = advance()
+  if val > 0 and textDrawn
+    clearWindow()
+    textDrawn = FALSE
+  fin
+  if val == 2
+    checkScripts()
   fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Adjust player's direction plus or minus n increments (3D mode)
+// Adjust player's direction plus or minus n increments
 def adjustDir(n)
-  ^playerDir = (^playerDir + n) & $F
+  setDir((getDir() + n) & 15)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -697,35 +674,24 @@ def strafeLeft()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def move2D(ox, oy)
-  *relX = ox + *relX
-  *relY = oy + *relY
-  checkCrossing()
-  redraw = TRUE
-end
-
 def moveNorth()
-  move2D(0, -1)
+  setDir(0)
+  moveForward()
 end
 
 def moveEast()
-  move2D(1, 0)
+  setDir(4)
+  moveForward()
 end
 
 def moveSouth()
-  move2D(0, 1)
+  setDir(8)
+  moveForward()
 end
 
 def moveWest()
-  move2D(-1, 0)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Jump to a new map location (and point in the given direction)
-def teleport(x, y, dir)
-  //nextX = x
-  //nextY = y
-  //nextDir = dir
+  setDir(12)
+  moveForward()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -733,7 +699,9 @@ end
 def setMap(is3D, num, x, y, dir)
   mapIs3D = is3D
   mapNum = num
-  teleport(x, y, dir)
+  flipToPage1()
+  initMap(x, y, dir)
+  checkScripts()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -745,24 +713,18 @@ def kbdLoop()
     key = key - $20
     if key >= 0 and key < $40
       func = cmdTbl[key]
-      if func
-        func()
-        renderFrame()
-        redraw = FALSE
-        checkScripts()
-        if redraw
-          renderFrame()
-          redraw = FALSE
-        fin
-      fin
+      if func; func(); fin
     fin
   loop
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Associate a location with a trigger function (i.e. a script)
-def setLocationTrigger(tbl)
-  triggerTbl = tbl
+// Set initial info for the scripts on this map: the trigger table and the name of the map. This
+// is called by the init function for the scripts.
+def setScriptInfo(mapName, trigTbl)
+  setWindow1()
+  displayStr(mapName)
+  triggerTbl = trigTbl
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -792,7 +754,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set up the command table for 3D mode
-def initCmds3D()
+def initCmds()
 
   // Clear the command table
   byte i
@@ -826,7 +788,7 @@ def initCmds3D()
     initCmd('S', @moveSouth)
     initCmd('X', @moveSouth)
     initCmd('A', @moveWest)
-  end
+  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -858,7 +820,7 @@ def setCallbacks()
 
   // $300
   callbacks.0 = $4c
-  callbacks:1 = @setLocationTrigger
+  callbacks:1 = @setScriptInfo
 
   // $303
   callbacks.3 = $4c
@@ -879,10 +841,6 @@ def setCallbacks()
   // $30F
   callbacks.15 = $4c
   callbacks:16 = @setGround
-
-  // $312
-  callbacks.18 = $4c
-  callbacks:19 = @teleport
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

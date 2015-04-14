@@ -863,7 +863,6 @@ pl_initMap !zone
 	; Figure out which map section the specified pos falls within.
 	; We can temporarily use the DRAW_* variables for our work here, since
 	; we're not actually drawing yet.
-	LDY INDEX_MAP_ID	; Y reg will track the final segment #
 
 	LDA #0
 	STA ORIGIN_X
@@ -882,89 +881,103 @@ pl_initMap !zone
 	LDA evalStkH+1,X
 	STA Y_COUNTER
 
-	; First let's do the vertical aspect.
--	LDA Y_COUNTER
-	BNE +
-	LDA REL_Y
-	CMP #SECTION_HEIGHT
-	BCC .gotrow
-+	LDX DRAW_HEIGHT
-	INX
-	CPX N_VERT_SECT
-	BEQ +
-	STX DRAW_HEIGHT
-	TYA			; go
-	CLC			;   south
-	ADC N_HORZ_SECT		;        one
-	TAY			;           section
-	LDA ORIGIN_Y
-	CLC
-	ADC #SECTION_HEIGHT
-	STA ORIGIN_Y
-	BCC +
-	INC ORIGIN_Y+1
-+	LDA REL_Y
-	SEC
-	SBC #SECTION_HEIGHT
-	STA REL_Y
-	BCS -
-	DEC Y_COUNTER
-	BCC -			; always taken
+	LDA #NOT_LOADED
+	STA NW_MAP_ID
+	STA NE_MAP_ID
+	STA SW_MAP_ID
+	LDA INDEX_MAP_ID
+	STA SE_MAP_ID
 
-	; Then the horizontal.
-.gotrow	
--	LDA X_COUNTER
-	BNE +
-	LDA REL_X
-	CMP #SECTION_WIDTH
-	BCC .gotcol
-+	LDX DRAW_WIDTH
-	INX
-	CPX N_HORZ_SECT
-	BEQ +
-	STX DRAW_WIDTH
-	INY			; go east one section
+	; First, let's to the horizontal aspect.
+.testx	LDA X_COUNTER		; high byte of X
+	BNE +			; if set, we have a long way to go
+	LDA REL_X		; low byte of X
+	CMP #(2*SECTION_WIDTH)-VIEWPORT_HORIZ_PAD
+	BCC .testy
+	; go east young person
++	LDY SE_MAP_ID
+	STY SW_MAP_ID
+	INY
+	INC DRAW_WIDTH
+	LDA DRAW_WIDTH
+	CMP N_HORZ_SECT
+	BCC +
+	LDY #NOT_LOADED
++	STY SE_MAP_ID
+	; adjust origin
 	LDA ORIGIN_X
 	CLC
 	ADC #SECTION_WIDTH
 	STA ORIGIN_X
 	BCC +
 	INC ORIGIN_X+1
-+	LDA REL_X
++	; adjust X
+	LDA REL_X
 	SEC
 	SBC #SECTION_WIDTH
 	STA REL_X
-	BCS -
+	BCS .testx
 	DEC X_COUNTER
-	BCC -			; always taken
+	BCC .testx		; always taken
 
-	; Y reg now contains the map segment containing the player position.
-	; REL_X is now 0 .. SECTION_WIDTH-1
-	; REL_Y is now 0 .. SECTION_HEIGHT-1
-	; ORIGIN_X and ORIGIN_Y now represent the rest of the player position
-.gotcol	
-	; I think what needs to happen here:
-	; if REL_Y < VIEWPORT_VERT_PAD
-	;	NW_MAP_ID = #NOT_LOADED
-	;	NE_MAP_ID = #NOT_LOADED
-	; 	if REL_X < VIEWPORT_HORIZ_PAD
-	;		SW_MAP_ID = #NOT_LOADED
-	; 		SE_MAP_ID = Y
-	;	else
-	;		SW_MAP_ID = Y
-	;		SE_MAP_ID = Y+1 (or #NOT_LOADED if beyond last seg)
-	; else
-	; 	if REL_X < VIEWPORT_HORIZ_PAD
-	;		NW_MAP_ID = #NOT_LOADED
-	; 		NE_MAP_ID = Y
-	;		SW_MAP_ID = #NOT_LOADED
-	;		SE_MAP_ID = Y+N_HORZ_SECT (or #NOT_LOADED if beyond last seg)
-	;	else
-	;		NW_MAP_ID = Y
-	;		NE_MAP_ID = Y+1 (or #NOT_LOADED if beyond last seg)
-	;		SW_MAP_ID = Y+N_HORZ_SECT (or #NOT_LOADED if beyond last seg)
-	;		SE_MAP_ID = Y+1+N_HORZ_SECT (or #NOT_LOADED if beyond last seg)
-	; plus adjustments to REL_X, REL_Y, ORIGIN_X, ORIGIN_Y
+.testy	; Now let's do the vertical aspect.
+-	LDA Y_COUNTER		; high byte of Y
+	BNE +			; if set, we have a long way to go
+	LDA REL_Y		; low byte of Y
+	CMP #(2*SECTION_HEIGHT)-VIEWPORT_VERT_PAD
+	BCC .load
+	; go south young person
++	LDA SW_MAP_ID
+	STA NW_MAP_ID
+	CMP #NOT_LOADED
+	BEQ +
+	CLC
+	ADC N_HORZ_SECT
+	INC DRAW_HEIGHT
+	LDY DRAW_HEIGHT
+	CPY N_VERT_SECT
+	BCC +
+	LDA #NOT_LOADED
++	STA SW_MAP_ID
+	LDA SE_MAP_ID
+	STA NE_MAP_ID
+	CMP #NOT_LOADED
+	BEQ +
+	CLC
+	ADC N_HORZ_SECT
+	CPY N_VERT_SECT
+	BCC +
+	LDA #NOT_LOADED
++	STA SE_MAP_ID
+	; adjust origin
+	LDA ORIGIN_Y
+	CLC
+	ADC #SECTION_HEIGHT
+	STA ORIGIN_Y
+	BCC +
+	INC ORIGIN_Y+1
++	; adjust Y
+	LDA REL_Y
+	SEC
+	SBC #SECTION_HEIGHT
+	STA REL_Y
+	BCS .testy
+	DEC Y_COUNTER
+	BCC .testy		; always taken
+
+.load	; At this point, all sections are correct, 
+	; and REL_X, REL_Y, ORIGIN_X and ORIGIN_Y are set.
+	; Time to load the map segments.
+	+startLoad
+	LDA NW_MAP_ID
+	+loadSection NW_MAP_LOC
+	LDA NE_MAP_ID
+	+loadSection NE_MAP_LOC
+	LDA SW_MAP_ID
+	+loadSection SW_MAP_LOC
+	LDA SE_MAP_ID
+	+loadSection SE_MAP_LOC
+	jsr FINISH_MAP_LOAD
 
 	; all done
         BIT setLcRW+lcBank2		; switch PLASMA runtime back in

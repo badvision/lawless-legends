@@ -10,7 +10,8 @@ start:
 ; then routines that call those to build complexity. The main
 ; code is at the very end.
 
-	jmp pl_initMap 		; params: pMapData, x, y, dir
+; Here are the entry points for PLASMA code. Identical API for 2D and 3D.
+	jmp pl_initMap 		; params: mapNum, pMapData, x, y, dir
 	jmp pl_flipToPage1	; params: none; return: nothing
 	jmp pl_getPos		; params: @x, @y; return: nothing
 	jmp pl_setPos		; params: x (0-255), y (0-255); return: nothing
@@ -1626,12 +1627,12 @@ graphInit: !zone
 	sta frontBuf
 	!if DOUBLE_BUFFER { lda #1 }
 	sta backBuf
-
 !if DEBUG >= 2 {
 	+prStr : !text "Staying in text mode.",0
 } else {
 	bit clrText
 	bit setHires
+	bit clrMixed
 }
 	rts
 
@@ -1718,7 +1719,9 @@ pl_advance: !zone
 	sta playerX
 	ldy #0
 	beq .done
-.ok	; Not blocked. See if we're in a new map tile.
+.ok	; Not blocked. Render at the new position
+	jsr renderFrame
+	; See if we're in a new map tile.
 	pla
 	eor playerY+1
 	sta tmp
@@ -1858,11 +1861,17 @@ renderFrame: !zone
 	jmp flip		; flip it onto the screen
 
 ;-------------------------------------------------------------------------------
-; Flip back buffer onto the screen
+; Called by PLASMA code to ensure that hi res page 1 is showing. Usually in
+; preparation for doing memory manager work (mem mgr uses hi res page 2)
 pl_flipToPage1: !zone
 	lda frontBuf
-	beq +
-flip:
+	bne +
+	rts
++	jmp renderFrame		; so that page 1 has updated graphics on it.
+
+;-------------------------------------------------------------------------------
+; Flip back buffer onto the screen
+flip: !zone
 !if DOUBLE_BUFFER {
 	ldy backBuf
 	lda frontBuf
@@ -1874,7 +1883,7 @@ flip:
 	; unless we do this. *HUGE* thanks to Brendan Robert for the fix!
 	sta $C07E		; disable double-hi-res
 	lda $C05F		; disable double-hi-res
-+	rts
+	rts
 
 ;-------------------------------------------------------------------------------
 +	jmp flip
@@ -1926,7 +1935,7 @@ pl_getPos: !zone {
 pl_setPos: !zone {
 	lda evalStkL,x
 	sta playerY+1
-	lda evalStkL,x
+	lda evalStkL+1,x
 	sta playerX+1
 	lda #$80
 	sta playerY
@@ -1987,9 +1996,11 @@ pl_initMap: !zone
 	lda evalStkH+3,x
 	sta mapHeader+1
 	; Record player X, Y and dir
+	jsr pl_setDir
+	inx
 	jsr pl_setPos
 	; Proceed with loading
-        bit setROM		; switch out PLASMA while we work
+        bit setROM		; switch out PLASMA runtime while we work
 	jsr loadTextures
 	jsr copyScreen
 	lda tablesInitted
@@ -2004,13 +2015,12 @@ pl_initMap: !zone
 	sta tablesInitted
 	jsr setExpansionCaller
 	jsr graphInit
-	bit clrMixed
-	; Return the map name (as a C str)
-        bit setLcRW+lcBank2		; switch PLASMA runtime back in
-	pla				; restore PLASMA's eval stk pos
+        bit setLcRW+lcBank2	; switch PLASMA runtime back in
+	pla			; restore PLASMA's eval stk pos
 	tax
         inx
-        inx				; toss 3 slots (params=4, ret=1, diff=3)
+        inx			; toss 4 slots (params=5, ret=1, diff=4)
+        inx
         inx
 	rts
 

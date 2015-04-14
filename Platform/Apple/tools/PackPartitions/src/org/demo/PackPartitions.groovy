@@ -414,13 +414,6 @@ class PackPartitions
         def buffers = new ByteBuffer[nVertSections][nHorzSections]
         def sectionNums = new int[nVertSections][nHorzSections]
                 
-        // Start the map index, which will list all the section numbers.
-        def indexBuf = ByteBuffer.allocate(512)
-        def indexNum = maps2D.size() + 1
-        maps2D[mapName] = [num:indexNum, buf:indexBuf]
-        indexBuf.put((byte)nHorzSections)
-        indexBuf.put((byte)nVertSections)
-        
         // Allocate a buffer and assign a map number to each section.
         (0..<nVertSections).each { vsect ->
             (0..<nHorzSections).each { hsect ->
@@ -430,7 +423,6 @@ class PackPartitions
                 sectionNums[vsect][hsect] = num
                 def sectName = "$mapName-$hsect-$vsect"
                 maps2D[sectName] = [num:num, buf:buf]
-                indexBuf.put((byte)num)
             }
         }
         
@@ -448,12 +440,20 @@ class PackPartitions
                 def sectName = "$mapName-$hsect-$vsect"
                 def (scriptModule, locationsWithTriggers) = packScripts(mapEl, sectName, xRange, yRange)
                 
-                // Header: first come links to other map sections
+                // Header: first come links to other map sections.
+                // The first section is always 0xFF for north and west. So instead, use that
+                // space to record the total number of horizontal and vertical sections.
                 def buf = buffers[vsect][hsect]
-                buf.put((byte) (vsect > 0) ? sectionNums[vsect-1][hsect] : 0xFF)               // north
+                if (vsect == 0 && hsect == 0)
+                    buf.put((byte) nHorzSections);
+                else
+                    buf.put((byte) (vsect > 0) ? sectionNums[vsect-1][hsect] : 0xFF)           // north
                 buf.put((byte) (hsect < nHorzSections-1) ? sectionNums[vsect][hsect+1] : 0xFF) // east
                 buf.put((byte) (vsect < nVertSections-1) ? sectionNums[vsect+1][hsect] : 0xFF) // south
-                buf.put((byte) (hsect > 0) ? sectionNums[vsect][hsect-1] : 0xFF)               // west
+                if (vsect == 0 && hsect == 0)
+                    buf.put((byte) nVertSections);
+                else
+                    buf.put((byte) (hsect > 0) ? sectionNums[vsect][hsect-1] : 0xFF)           // west
                 
                 // Then links to the tile set and script library
                 buf.put((byte) tileSetNum)

@@ -68,7 +68,7 @@ DRAW_WIDTH      = $62   ; Number of columns to draw for current section (cannot 
 DRAW_HEIGHT     = $63   ; Number of rows to draw for current section (cannot be destroyed by drawing loop)
 DRAW_SECTION    = $64   ; Location of section data being drawn
 TILE_BASE       = $6B   ; Location of tile data
-UNUSED_6F	= $6F
+INDEX_MAP_ID	= $6F	; ID of the first map section
 ;-- These variables are set in the outer draw section but can be destroyed by the inner routine
 SECTION_X_START = $60   ; X Offset relative to current section being drawn 
 SECTION_Y_START = $61   ; Y Offset relative to current section being drawn 
@@ -82,13 +82,23 @@ CALC_MODE       = $9C	; Flag to indicate calculate mode (non-zero) or normal dra
 AVATAR_TILE	= $9D	; Tile map entry under the avatar
 AVATAR_X        = $9E	; X coordinate within avatar map section
 AVATAR_Y        = $9F	; Y coordinate within avatar map section
-AVATAR_SECTION  = $A0	; Location of section data the avatar is within
+AVATAR_SECTION  = $A0	; Location of section data the avatar is within (pointer)
+N_HORZ_SECT	= $A2	; Number of horizontal sections in the whole map
+N_VERT_SECT	= $A3	; Number of vertical sections
+ORIGIN_X	= $A4	; 16-bit origin for X (add REL_X to get avatar's global map X)
+ORIGIN_Y	= $A6	; 16-bit origin for Y (add REL_Y to get avatar's global map Y)
+next_zp		= $A8
 
 ;----------------------------------------------------------------------
-; Vectors used to call in from the outside.
-	jmp INIT
-	jmp DRAW
-	jmp CROSS
+; Here are the entry points for PLASMA code. Identical API for 2D and 3D.
+	JMP pl_initMap 		; params: pMapData, x, y, dir
+	JMP pl_flipToPage1	; params: none; return: nothing
+	JMP pl_getPos		; params: @x, @y; return: nothing
+	JMP pl_setPos		; params: x (0-255), y (0-255); return: nothing
+	JMP pl_getDir		; params: none; return: dir (0-15)
+	JMP pl_setDir		; params: dir (0-15); return: nothing
+	JMP pl_advance		; params: none; return: 0 if same, 1 if new map tile, 2 if new and scripted
+	JMP pl_setColor		; params: slot (0=sky/1=ground), color (0-15); return: nothing
 
 ; Debug support -- must come after jump vectors, since it's not just macros.
 !source "../include/debug.i"
@@ -108,14 +118,18 @@ START_MAP_LOAD
 ;   Section number is in A
 ;   Returns location of loaded data (Y = hi, X = lo)
 ;   First 6 bytes are header information
-;   0 Resource ID of next map section (north), FF = none
+;   0 Resource ID of next map section (north), FF = none. 
+;     For first map section, records # sections wide instead.
+;     Subsequent sections are numbered sequentially from first.
 ;   1 Resource ID of next map section (east), FF = none
+;     For first map section, records # sections high instead.
+;     Subsequent sections are numbered sequentially from first.
 ;   2 Resource ID of next map section (south), FF = none
 ;   3 Resource ID of next map section (west), FF = none
 ;   4 Tileset resource id
 ;   5 Resource ID of script library (FF = none)
 LOAD_SECTION
-	CMP #$FF
+	CMP #NOT_LOADED
 	BNE .doLoad
 	LDX #00     ; This is a bogus map section, don't load
 	LDY #00
@@ -336,9 +350,12 @@ CROSS
 !zone
 CROSS_NORTH
 	; Get new NW section
+	LDA NW_MAP_ID		; the first map section 
+	CMP INDEX_MAP_ID	;      doesn't have north and west links
+	BEQ .noMap
 	LDY #NORTH
 	LDA (NW_MAP_LOC),Y
-	CMP #$FF
+	CMP #NOT_LOADED
 	BEQ .noMap
 	TAX
 	; Get new NE section
@@ -376,12 +393,12 @@ CROSS_NORTH
 !zone
 CROSS_EAST
 	LDA NE_MAP_ID
-	CMP #$FF
+	CMP #NOT_LOADED
 	BEQ .noMap
 	; Get new NE section
 	LDY #EAST
 	LDA (NE_MAP_LOC),Y
-	CMP #$FF
+	CMP #NOT_LOADED
 	BEQ .noMap
 	TAX
 	; Get new SE section
@@ -417,12 +434,12 @@ CROSS_EAST
 !zone
 CROSS_SOUTH
 	LDA SW_MAP_ID
-	CMP #$FF
+	CMP #NOT_LOADED
 	BEQ .noMap
 	; Get new SW section
 	LDY #SOUTH
 	LDA (SW_MAP_LOC),Y
-	CMP #$FF
+	CMP #NOT_LOADED
 	BEQ .noMap
 	TAX
 	; Get the new SE section
@@ -458,9 +475,12 @@ CROSS_SOUTH
 !zone
 CROSS_WEST
 	; Get new NW section
+	LDA NW_MAP_ID		; the first map section 
+	CMP INDEX_MAP_ID	;      doesn't have north and west links
+	BEQ .noMap
 	LDY #WEST
 	LDA (NW_MAP_LOC),Y
-	CMP #$FF
+	CMP #NOT_LOADED
 	BEQ .noMap
 	TAX
 	; Get the new SW section
@@ -576,8 +596,6 @@ ROW_OFFSET = 3
 	STX .subX + 1		; set up subtraction operands...
 	STY .subY + 1		; ... i.e. self-modify them.
         ; sanity checks
-	LDA mapPtr+1		; skip if no map here
-	BEQ .noDraw
 	LDA DRAW_X_START	; skip on negative start values
 	BMI .ok
 	LDA DRAW_Y_START
@@ -680,6 +698,7 @@ ROW_OFFSET = 3
 	}
 
 ;Look up map data offset (old bit shifting multiplication logic was buggy)
+;Note that for null map (DRAW_SECTION+1 == 0) this result simply gets overridden later.
 	LDA DRAW_SECTION
 	LDY DRAW_SECTION + 1
 	CLC
@@ -733,10 +752,12 @@ ROW_OFFSET = 3
 	STA AVATAR_SECTION
 	LDA DRAW_SECTION + 1
 	STA AVATAR_SECTION + 1
-	LDY GLOBAL_TILESET_LOC
+	LDY GLOBAL_TILESET_LOC	; first tile in global tileset is avatar
 	LDA GLOBAL_TILESET_LOC+1
 	BNE .store_src		; always taken
 .notAvatar
+	LDA DRAW_SECTION+1
+	BEQ .empty		; handle null map: treat it as entirely empty
 	LDA (ROW_LOCATION), Y
 	BNE .not_empty		; zero means empty tile
 .empty
@@ -815,6 +836,146 @@ FinishCalc
 	BRK
 
 ;----------------------------------------------------------------------
+; >> pl_initMap
+; params: mapNum, pMapData, x, y, dir
+pl_initMap !zone
+	TXA
+	PHA		; save PLASMA's eval stack pos
+        BIT setROM	; switch out PLASMA while we work
+
+        ; PLASMA code has already loaded the Northwest-most map section. Record its ID and address.
+        LDA evalStkL+4,X
+        STA INDEX_MAP_ID
+        LDA evalStkL+3,X
+        STA NW_MAP_LOC
+        LDA evalStkH+3,X
+        STA NW_MAP_LOC+1
+
+	; Get the number of horizontal and vertical sections (overloaded the meaning of
+	; the North and West for the first map segment only)
+	LDY #NORTH
+	LDA (NW_MAP_LOC),Y
+	STA N_HORZ_SECT
+	LDY #WEST
+	LDA (NW_MAP_LOC),Y
+	STA N_VERT_SECT
+
+	; Figure out which map section the specified pos falls within.
+	; We can temporarily use the DRAW_* variables for our work here, since
+	; we're not actually drawing yet.
+	LDY INDEX_MAP_ID	; Y reg will track the final segment #
+
+	LDA #0
+	STA ORIGIN_X
+	STA ORIGIN_X+1
+	STA ORIGIN_Y
+	STA ORIGIN_Y+1
+	STA DRAW_WIDTH
+	STA DRAW_HEIGHT
+
+	LDA evalStkL+2,X
+	STA REL_X
+	LDA evalStkH+2,X
+	STA X_COUNTER
+	LDA evalStkL+1,X
+	STA REL_Y
+	LDA evalStkH+1,X
+	STA Y_COUNTER
+
+	; First let's do the vertical aspect.
+-	LDA Y_COUNTER
+	BNE +
+	LDA REL_Y
+	CMP #SECTION_HEIGHT
+	BCC .gotrow
++	LDX DRAW_HEIGHT
+	INX
+	CPX N_VERT_SECT
+	BEQ +
+	STX DRAW_HEIGHT
+	TYA			; go
+	CLC			;   south
+	ADC N_HORZ_SECT		;        one
+	TAY			;           section
+	LDA ORIGIN_Y
+	CLC
+	ADC #SECTION_HEIGHT
+	STA ORIGIN_Y
+	BCC +
+	INC ORIGIN_Y+1
++	LDA REL_Y
+	SEC
+	SBC #SECTION_HEIGHT
+	STA REL_Y
+	BCS -
+	DEC Y_COUNTER
+	BCC -			; always taken
+
+	; Then the horizontal.
+.gotrow	
+-	LDA X_COUNTER
+	BNE +
+	LDA REL_X
+	CMP #SECTION_WIDTH
+	BCC .gotcol
++	LDX DRAW_WIDTH
+	INX
+	CPX N_HORZ_SECT
+	BEQ +
+	STX DRAW_WIDTH
+	INY			; go east one section
+	LDA ORIGIN_X
+	CLC
+	ADC #SECTION_WIDTH
+	STA ORIGIN_X
+	BCC +
+	INC ORIGIN_X+1
++	LDA REL_X
+	SEC
+	SBC #SECTION_WIDTH
+	STA REL_X
+	BCS -
+	DEC X_COUNTER
+	BCC -			; always taken
+
+	; Y reg now contains the map segment containing the player position.
+	; REL_X is now 0 .. SECTION_WIDTH-1
+	; REL_Y is now 0 .. SECTION_HEIGHT-1
+	; ORIGIN_X and ORIGIN_Y now represent the rest of the player position
+.gotcol	
+	; I think what needs to happen here:
+	; if REL_Y < VIEWPORT_VERT_PAD
+	;	NW_MAP_ID = #NOT_LOADED
+	;	NE_MAP_ID = #NOT_LOADED
+	; 	if REL_X < VIEWPORT_HORIZ_PAD
+	;		SW_MAP_ID = #NOT_LOADED
+	; 		SE_MAP_ID = Y
+	;	else
+	;		SW_MAP_ID = Y
+	;		SE_MAP_ID = Y+1 (or #NOT_LOADED if beyond last seg)
+	; else
+	; 	if REL_X < VIEWPORT_HORIZ_PAD
+	;		NW_MAP_ID = #NOT_LOADED
+	; 		NE_MAP_ID = Y
+	;		SW_MAP_ID = #NOT_LOADED
+	;		SE_MAP_ID = Y+N_HORZ_SECT (or #NOT_LOADED if beyond last seg)
+	;	else
+	;		NW_MAP_ID = Y
+	;		NE_MAP_ID = Y+1 (or #NOT_LOADED if beyond last seg)
+	;		SW_MAP_ID = Y+N_HORZ_SECT (or #NOT_LOADED if beyond last seg)
+	;		SE_MAP_ID = Y+1+N_HORZ_SECT (or #NOT_LOADED if beyond last seg)
+	; plus adjustments to REL_X, REL_Y, ORIGIN_X, ORIGIN_Y
+
+	; all done
+        BIT setLcRW+lcBank2		; switch PLASMA runtime back in
+	PLA				; restore PLASMA's eval stk pos
+	TAX
+        INX
+        INX				; toss 3 slots (params=4, ret=1, diff=3)
+        INX
+	RTS	
+
+;----------------------------------------------------------------------
 ; >> INIT (reset map drawing vars, load initial map in A)
 INIT
 	; load the NW map section first
@@ -837,7 +998,7 @@ INIT
 	+finishLoad 1   ; keep open for further loading...
 	+startLoad
 	; if there's no SW section, there's also no SE section
-	LDA #$FF
+	LDA #NOT_LOADED
 	STA SE_MAP_ID
 	CMP SW_MAP_ID
 	BEQ +

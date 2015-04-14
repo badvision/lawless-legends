@@ -120,7 +120,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // API to call rendering engine (same API for raycaster and tile engine)
-asm initDisplay   // params: pMapData, x, y, dir
+asm initDisplay   // params: mapNum, pMapData, x, y, dir
         jmp $6000
 end
 asm flipToPage1  // no params
@@ -129,7 +129,7 @@ end
 asm getPos       // params: @x, @y
         jmp $6006
 end
-asm setPos       // params: x (0-255), y (0-255)
+asm setPos       // params: x, y
         jmp $6009
 end
 asm getDir       // no params; returns: dir (0-15)
@@ -549,7 +549,7 @@ def initMap(x, y, dir)
   // Start up the display engine with map data and starting position. This will also load and
   // init the script module, if any, which will end up calling us back at the setTrigger
   triggerTbl = NULL
-  initDisplay(pMap, x, y, dir)
+  initDisplay(mapNum, pMap, x, y, dir)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

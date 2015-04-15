@@ -84,10 +84,11 @@ AVATAR_X        = $9E	; X coordinate within avatar map section
 AVATAR_Y        = $9F	; Y coordinate within avatar map section
 AVATAR_SECTION  = $A0	; Location of section data the avatar is within (pointer)
 N_HORZ_SECT	= $A2	; Number of horizontal sections in the whole map
-N_VERT_SECT	= $A3	; Number of vertical sections
+N_VERT_SECT	= $A3	; Number of vertical sections in the whole map
 ORIGIN_X	= $A4	; 16-bit origin for X (add REL_X to get avatar's global map X)
 ORIGIN_Y	= $A6	; 16-bit origin for Y (add REL_Y to get avatar's global map Y)
-next_zp		= $A8
+AVATAR_DIR	= $A8	; direction (0-15, though only 0,4,8,12 are valid)
+next_zp		= $A9
 
 ;----------------------------------------------------------------------
 ; Here are the entry points for PLASMA code. Identical API for 2D and 3D.
@@ -349,7 +350,14 @@ CROSS
 ; >> CROSS NORTH BOUNDARY (Load next section to the north)
 !zone
 CROSS_NORTH
-	; Get new NW section
+	; Adjust origin
+	LDA ORIGIN_Y
+	SEC
+	SBC #SECTION_HEIGHT
+	STA ORIGIN_Y
+	BCS +
+	DEC ORIGIN_Y+1
++	; Get new NW section
 	LDA NW_MAP_ID		; the first map section 
 	CMP INDEX_MAP_ID	;      doesn't have north and west links
 	BEQ .noMap
@@ -392,7 +400,13 @@ CROSS_NORTH
 ; >> CROSS EAST BOUNDARY (Load next section to the east)
 !zone
 CROSS_EAST
-	LDA NE_MAP_ID
+	; adjust origin
+	LDA ORIGIN_X
+	CLC
+	ADC #SECTION_WIDTH
+	BCC +
+	INC ORIGIN_X+1
++	LDA NE_MAP_ID
 	CMP #NOT_LOADED
 	BEQ .noMap
 	; Get new NE section
@@ -433,7 +447,13 @@ CROSS_EAST
 ; >> CROSS SOUTH BOUNDARY (Load next section to the south)
 !zone
 CROSS_SOUTH
-	LDA SW_MAP_ID
+	; adjust origin
+	LDA ORIGIN_Y
+	CLC
+	ADC #SECTION_HEIGHT
+	BCC +
+	INC ORIGIN_Y+1
++	LDA SW_MAP_ID
 	CMP #NOT_LOADED
 	BEQ .noMap
 	; Get new SW section
@@ -474,7 +494,14 @@ CROSS_SOUTH
 ; >> CROSS WEST BOUNDARY (load next section to the west)
 !zone
 CROSS_WEST
-	; Get new NW section
+	; Adjust origin
+	LDA ORIGIN_X
+	SEC
+	SBC #SECTION_WIDTH
+	STA ORIGIN_X
+	BCS +
+	DEC ORIGIN_X+1
++	; Get new NW section
 	LDA NW_MAP_ID		; the first map section 
 	CMP INDEX_MAP_ID	;      doesn't have north and west links
 	BEQ .noMap
@@ -860,10 +887,27 @@ pl_initMap !zone
 	LDA (NW_MAP_LOC),Y
 	STA N_VERT_SECT
 
-	; Figure out which map section the specified pos falls within.
+	; Record the facing direction for later use
+	JSR pl_setDir
+
+	; The bullk of the work is taken care of by a helper function.
+	INX			; skip dir so that X/Y pos are at top of eval stack
+	JSR SETPOS
+
+	; all done
+        BIT setLcRW+lcBank2	; switch PLASMA runtime back in
+	PLA			; restore PLASMA's eval stk pos
+	TAX
+        INX
+        INX			; toss 3 slots (params=4, ret=1, diff=3)
+        INX
+	RTS	
+
+;----------------------------------------------------------------------
+SETPOS:
+	; Figure out which map sections we need to load.
 	; We can temporarily use the DRAW_* variables for our work here, since
 	; we're not actually drawing yet.
-
 	LDA #0
 	STA ORIGIN_X
 	STA ORIGIN_X+1
@@ -872,13 +916,13 @@ pl_initMap !zone
 	STA DRAW_WIDTH
 	STA DRAW_HEIGHT
 
-	LDA evalStkL+2,X
+	LDA evalStkL+1,X	; X lo
 	STA REL_X
-	LDA evalStkH+2,X
+	LDA evalStkH+1,X	; X hi
 	STA X_COUNTER
-	LDA evalStkL+1,X
+	LDA evalStkL,X		; Y lo
 	STA REL_Y
-	LDA evalStkH+1,X
+	LDA evalStkH,X		; Y hi
 	STA Y_COUNTER
 
 	LDA #NOT_LOADED
@@ -977,55 +1021,189 @@ pl_initMap !zone
 	+loadSection SW_MAP_LOC
 	LDA SE_MAP_ID
 	+loadSection SE_MAP_LOC
-	jsr FINISH_MAP_LOAD
+	JSR FINISH_MAP_LOAD
 
-	; all done
-        BIT setLcRW+lcBank2		; switch PLASMA runtime back in
-	PLA				; restore PLASMA's eval stk pos
+	; And finally, render the first frame.
+	JMP DRAW
+
+;----------------------------------------------------------------------
+; >> pl_flipToPage1
+; No-op, because in 2D we don't use hi-res page 2
+pl_flipToPage1:
+	dex		; no-op still needs a return slot
+	rts
+
+;----------------------------------------------------------------------
+; >> pl_setColor
+; No-op, because in 2D we don't have sky and ground colors
+pl_setColor:
+	rts
+
+;----------------------------------------------------------------------
+; >> pl_setPos
+; Params: X, Y
+pl_setPos:
+	TXA
+	PHA			; save PLASMA eval stk pos
+        BIT setROM		; switch out PLASMA while we work
+        JSR SETPOS		; bulk of the work done by a helper function
+        BIT setLcRW+lcBank2	; switch PLASMA runtime back in
+	PLA			; restore PLASMA's eval stk pos
 	TAX
-        INX
-        INX				; toss 3 slots (params=4, ret=1, diff=3)
-        INX
+        INX			; toss 1 slot (params=2, ret=1, diff=1)
 	RTS	
 
 ;----------------------------------------------------------------------
-; >> INIT (reset map drawing vars, load initial map in A)
-INIT
-	; load the NW map section first
-	STA NW_MAP_ID
-	+startLoad
-	LDA NW_MAP_ID
-	+loadSection NW_MAP_LOC
-	+finishLoad 1   ; keep open for further loading...
-	+startLoad
-	; from the NW section we can get the ID of the NE section
-	LDY #EAST
-	LDA (NW_MAP_LOC),Y
-	STA NE_MAP_ID
-	+loadSection NE_MAP_LOC
-	; from the NW section we can get the ID of the SW section
-	LDY #SOUTH
-	LDA (NW_MAP_LOC),Y
-	STA SW_MAP_ID
-	+loadSection SW_MAP_LOC
-	+finishLoad 1   ; keep open for further loading...
-	+startLoad
-	; if there's no SW section, there's also no SE section
-	LDA #NOT_LOADED
-	STA SE_MAP_ID
-	CMP SW_MAP_ID
+; >> pl_getPos
+; Params: @X, @Y
+pl_getPos: !zone {
+	LDA ORIGIN_Y
+	CLC
+	ADC REL_Y
+	JSR .sto
+	LDA ORIGIN_Y+1
+	ADC #0
+	JSR .sto2
+	INX
+	LDA ORIGIN_X
+	CLC
+	ADC REL_X
+	JSR .sto
+	LDA ORIGIN_X+1
+	ADC #0
+	; Now fall thru, and exit with X incremented once (2 params - 1 return slot = 1)
+.sto	LDY evalStkL,X		; lo byte of address
+	STY .sto2+1
+	LDY evalStkH,X		; hi byte of address
+	STY .sto2+2
+	LDY #0
+.sto2	STA $1000,Y		; self-modified above
+	INY
+	RTS
+}
+
+;----------------------------------------------------------------------
+; >> pl_getDir
+; Params: None
+pl_getDir:
+	LDA AVATAR_DIR		; take our 0..3
+	ASL			; 	and translate
+	ASL			;		to 0..15
+	STA evalStkL,X
+	LDA #0
+	STA evalStkH,X
+	RTS
+
+;----------------------------------------------------------------------
+; >> pl_setDir
+; Params: dir
+pl_setDir:
+	LDA evalStkL,X		; take input 0..15
+	LSR			; 	and translate
+	LSR			;		to our 0..3
+	STA AVATAR_DIR
+	RTS
+
+;----------------------------------------------------------------------
+INNER_ADVANCE: !zone {
+
+        LDA AVATAR_DIR
+        CMP #NORTH
+        BNE +
+        LDA REL_Y		; if at the very top of all map segs, don't move
+        ORA ORIGIN_Y
+        ORA ORIGIN_Y+1
+        BEQ .skip
+        DEC REL_Y
+        JMP .check
+
++	CMP #EAST
+	BNE +
+	INC REL_X
+	BNE .check		; always taken
+
++	CMP #SOUTH
+	BNE +
+	INC REL_Y
+	BNE .check		; always taken
+
++	CMP #WEST
+	BNE +
+	LDA REL_X		; if at the very left of all map segs, don't move
+	ORA ORIGIN_X
+	ORA ORIGIN_X+1
+	BEQ .skip
+	DEC REL_X
+	JMP .check
+
++	BRK			; if it's not 1 of the 4 dirs, what could it be?
+
+.check	JMP CROSS		; possibly load new map segments
+}
+
+;----------------------------------------------------------------------
+ADVANCE: !zone {
+        LDA REL_X		; save X
+        PHA
+        LDA REL_Y		; and save Y
+        PHA			; 	for later comparison
+
+        JSR INNER_ADVANCE
+
+        JSR CHECK
+	LDA AVATAR_TILE		; get tile flags
+	AND #$20		; obstructed?
 	BEQ +
-	; get the SE section from the SW section
-	LDY #EAST
-	LDA (SW_MAP_LOC),Y
-	STA SE_MAP_ID
-	+loadSection SE_MAP_LOC
-+	; set up the starting X and Y coordinates
-	LDX #VIEWPORT_HORIZ_PAD
-	LDY #VIEWPORT_VERT_PAD
-	JSR SET_XY
-	; load tilesets and scripts
-	JMP FINISH_MAP_LOAD
+
+	; Player moved to an obstructed place. Undo!
+	LDA AVATAR_DIR
+	PHA
+	CLC
+	ADC #2			; North <-> South... East <-> West
+	AND #3
+	STA AVATAR_DIR
+	JSR INNER_ADVANCE	; move back the opposite dir
+	JSR CHECK
+	PLA
+	STA AVATAR_DIR
+
++	LDY #0			; default return: didn't move
+	PLA
+	EOR REL_Y
+	STA .or+1
+	PLA
+	EOR REL_X
+.or	ORA #11			; self-modified above
+	BEQ .ret
+	INY			; moved
+	LDA AVATAR_TILE
+	AND #$10		; check script flag
+	BEQ .ret
+	INY			; moved and also new place is scripted
+.ret	RTS
+}
+
+;----------------------------------------------------------------------
+; >> pl_advance
+; Params: none; return: 0 if same, 1 if new map tile, 2 if new and scripted
+; Advance in the current direction
+pl_advance: !zone {
+	TXA
+	PHA			; save PLASMA eval stk pos
+        BIT setROM		; switch out PLASMA while we work
+
+        JSR ADVANCE		; most of the work done by helper function
+
+        BIT setLcRW+lcBank2	; switch PLASMA runtime back in
+	PLA			; restore PLASMA's eval stk pos
+	TAX
+        DEX			; make room for ret val (params=0, ret=1, diff=-1)
+        TYA			; get ret val
+        STA evalStkL,X		; 	and save it
+        LDA #0			; hi byte of ret val
+        STA evalStkH,X		;	is always zero
+	RTS	
+}
 
 tblHGRl     
 	!byte   $00,$80,$00,$80,$00,$80,$00,$80
@@ -1041,4 +1219,3 @@ tblMAPl	!for row, 23 {
 		!byte <((row-1)*22)+6
 	}
 
-emptyTile !fill 32

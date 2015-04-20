@@ -82,8 +82,8 @@ const cursv     = $75  // Cursor V-pos 0-23
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Global variables
-byte mapNum = OVERMAP_NUM
-byte mapIs3D = OVERMAP_IS_3D
+byte mapNum
+byte mapIs3D
 word pFont
 word pMap
 word cmdTbl[64]
@@ -116,6 +116,10 @@ DEBUG   = 1
 tmp         = $2
 pTmp        = $4
 
+; NOTE ABOUT ABSOLUTE ADDRESSES
+; You cannot use them: this code, including variable space, can be loaded *anywhere*.
+; So don't declare any variables as !byte or !word here.
+
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -146,6 +150,18 @@ asm setColor     // params: slot (0=sky/1=ground), color (0-15)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Simply retrieve the X register. Used to double-check that we're not leaking PLASMA eval
+// stack entries.
+asm getXReg
+        txa
+        dex               ; make room for return value
+        sta evalStkL,x
+        lda #0
+        sta evalStkH,x
+        rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a string
 asm puts
         +asmPlasm 1
@@ -167,8 +183,9 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print part of a string, until we hit the end or a '%' code. Return how far we got, or -1 for end.
 asm partialPrintf
+!zone {
         +asmPlasm 2
-        lda evalStkL+1,x
+        lda evalStkL+1,x    ; get string pointer
         sta pTmp
         lda evalStkH+1,x
         sta pTmp+1
@@ -177,10 +194,11 @@ asm partialPrintf
         sec
         sbc evalStkL,x      ; minus offset
         sta tmp             ; to count of characters left to print
+        bcc .eos            ; avoid overrunning
+        beq .eos
         lda evalStkL,x      ; get desired offset into string
         tay
         iny                 ; increment past length byte
-        inx                 ; drop second argument
 -       lda (pTmp),y
         ora #$80
         cmp #'%'            ; stop if we hit % code
@@ -189,13 +207,14 @@ asm partialPrintf
         iny
         dec tmp             ; otherwise go until end of string
         bne -
-        ldy #$FF            ; if we hit end of string, return -1
+.eos    ldy #$FF            ; if we hit end of string, return -1
         tya
         rts
 +       dey                 ; adjust back for length byte
         tya                 ; that's the lo byte of return
         ldy #0              ; hi byte of return is zero
         rts
+}
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -211,6 +230,7 @@ end
 // Print a single character
 asm printChar
         +asmPlasm 1
+        ora #$80
         jmp cout
 end
 
@@ -242,8 +262,12 @@ asm loader
         tax
         pla
         bcs +
-        jmp mainLoader          ; ret value in A=lo/Y=hi
-+       jmp auxLoader           ; ditto
+        jsr mainLoader          ; ret value in X=lo/Y=hi
+        txa
+        rts
++       jsr auxLoader           ; ditto
+        txa
+        rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -276,6 +300,8 @@ end
 // Params: None
 asm brk
         bit setROM
+        bit setText
+        bit page1
         brk
 end
 
@@ -537,19 +563,17 @@ def initMap(x, y, dir)
 
   // Load the frame image (and lock it there)
   loadFrameImg()
+  loader(FINISH_LOAD, MAIN_MEM, 1) // 1 = keep open
 
   // Start up the font engine
   initFontEngine(pFont)
 
-  // Set up for map scripts
-  setWindow2()
-  clearWindow()
-  textDrawn = FALSE
-
   // Start up the display engine with map data and starting position. This will also load and
-  // init the script module, if any, which will end up calling us back at the setTrigger
+  // init the script module, if any, which will end up calling us back at the setScriptInfo
   triggerTbl = NULL
+  printf2("initDisplay: mapNum=%d pMap=%x\n", mapNum, pMap)
   initDisplay(mapNum, pMap, x, y, dir)
+  puts("Back from initDisplay.\n")
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -708,7 +732,14 @@ end
 // Get a key and dispatch it to a command. Then do it again, forever.
 def kbdLoop()
   word key, func
+  byte xreg, tmp
+  xreg = getXReg()
   while TRUE
+    tmp = getXReg()
+    if tmp <> xreg
+      printf2("Error: x reg changed from %x to %x\n", xreg, tmp)
+      brk()
+    fin
     key = getUpperKey()
     key = key - $20
     if key >= 0 and key < $40
@@ -722,9 +753,20 @@ end
 // Set initial info for the scripts on this map: the trigger table and the name of the map. This
 // is called by the init function for the scripts.
 def setScriptInfo(mapName, trigTbl)
-  setWindow1()
-  displayStr(mapName)
+
+  printf2("scriptInfo: mapName=%x trigTbl=%x\n", mapName, trigTbl)
+
+  // Record the trigger table pointer
   triggerTbl = trigTbl
+
+  // Display map name
+  setWindow1()
+  //displayStr(mapName)
+
+  // Set up for drawing other script text.
+  setWindow2()
+  clearWindow()
+  textDrawn = FALSE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -848,8 +890,10 @@ end
 //
 loadTitle()
 setCallbacks()
-initMap()
-setWindow2()
+mapIs3D = OVERMAP_IS_3D
+mapNum = OVERMAP_NUM
+initMap(4, 4, 0)
+checkScripts()
 kbdLoop()
 
 done

@@ -12,7 +12,7 @@
 !source "../include/mem.i"
 !source "../include/plasma.i"
 
-DEBUG       = 1     ; 1=some logging, 2=lots of logging
+DEBUG       = 0     ; 1=some logging, 2=lots of logging
 
 HEADER_LENGTH=6
 SECTION_WIDTH=22
@@ -88,7 +88,8 @@ N_VERT_SECT	= $A3	; Number of vertical sections in the whole map
 ORIGIN_X	= $A4	; 16-bit origin for X (add REL_X to get avatar's global map X)
 ORIGIN_Y	= $A6	; 16-bit origin for Y (add REL_Y to get avatar's global map Y)
 AVATAR_DIR	= $A8	; direction (0-15, though only 0,4,8,12 are valid)
-next_zp		= $A9
+PLASMA_X	= $A9	; save for PLASMA's X reg
+next_zp		= $AA
 
 ;----------------------------------------------------------------------
 ; Here are the entry points for PLASMA code. Identical API for 2D and 3D.
@@ -282,10 +283,12 @@ FREE_SCRIPTS
 !zone
 LOAD_SCRIPTS
 	JSR CALC		; determine which map avatar is on
+	LDA AVATAR_SECTION+1	; no section? no scripts
+	BEQ .none
 	LDY #5
-	LDA (AVATAR_SECTION),Y
-	BNE .got
-	LDA #0
+	LDA (AVATAR_SECTION),Y	; check script module ID
+	BNE .got		; if any, go load it
+.none	LDA #0			; else, no scripts
 	STA SCRIPTS_LOC
 	STA SCRIPTS_LOC+1
 	RTS
@@ -324,7 +327,13 @@ FINISH_MAP_LOAD
 	LDA SCRIPTS_LOC+1	; are there scripts?
 	BNE .scr		; yes, go init them
 	RTS			; no, we're done
-.scr	JMP (SCRIPTS_LOC)	; the init function is always first in the script module
+.scr	!if DEBUG { +prStr : !text "Calling script init.",0 }
+	LDX PLASMA_X
+        BIT setLcRW+lcBank2	; switch PLASMA runtime back in
+	JSR .callit		; perform script init
+        BIT setROM		; switch out PLASMA so we're ready to render
+        RTS
+.callit	JMP (SCRIPTS_LOC)	; the init function is always first in the script module
 
 ; >> CHECK CROSSINGS
 !zone
@@ -553,9 +562,9 @@ CROSS_WEST
 	JSR MainDraw
 }
 
-DRAW	LDA #0
+DRAW:	LDA #0
 	BEQ +
-CALC	LDA #1
+CALC:	LDA #1
 +	STA CALC_MODE
 ; For each quadrant, display relevant parts of screen
 !if DEBUG >= 2 { 
@@ -571,6 +580,7 @@ CALC	LDA #1
 	LDA #0
 	STA DRAW_Y_START
 	STA DRAW_X_START
+	STA AVATAR_SECTION+1
 	!if DEBUG >= 2 { +prStr : !text "NW quad.",0 }
 	+drawMapSection NW_MAP_LOC, NW_TILESET_LOC, 0, 0
 .checkNEQuad
@@ -865,9 +875,8 @@ FinishCalc
 ;----------------------------------------------------------------------
 ; >> pl_initMap
 ; params: mapNum, pMapData, x, y, dir
-pl_initMap !zone
-	TXA
-	PHA		; save PLASMA's eval stack pos
+pl_initMap: !zone
+	STX PLASMA_X	; save PLASMA's eval stack pos
         BIT setROM	; switch out PLASMA while we work
 
         ; PLASMA code has already loaded the Northwest-most map section. Record its ID and address.
@@ -887,6 +896,18 @@ pl_initMap !zone
 	LDA (NW_MAP_LOC),Y
 	STA N_VERT_SECT
 
+!if DEBUG {
+	+prStr : !text "mapID=",0
+	+prByte INDEX_MAP_ID
+	+prStr : !text "loc=",0
+	+prWord NW_MAP_LOC
+	+prStr : !text "nhorz=",0
+	+prByte N_HORZ_SECT
+	+prStr : !text "nvert=",0
+	+prByte N_VERT_SECT
+	+crout
+}
+
 	; Record the facing direction for later use
 	JSR pl_setDir
 
@@ -896,10 +917,10 @@ pl_initMap !zone
 
 	; all done
         BIT setLcRW+lcBank2	; switch PLASMA runtime back in
-	PLA			; restore PLASMA's eval stk pos
-	TAX
+	LDX PLASMA_X		; restore PLASMA's eval stk pos
         INX
-        INX			; toss 3 slots (params=4, ret=1, diff=3)
+        INX			; toss 4 slots (params=5, ret=1, diff=4)
+        INX
         INX
 	RTS	
 
@@ -925,6 +946,16 @@ SETPOS:
 	LDA evalStkH,X		; Y hi
 	STA Y_COUNTER
 
+!if DEBUG {
+	+prStr : !text "X=",0
+	+prByte X_COUNTER
+	+prByte REL_X
+	+prStr : !text "Y=",0
+	+prByte Y_COUNTER
+	+prByte REL_Y
+	+crout
+}
+
 	LDA #NOT_LOADED
 	STA NW_MAP_ID
 	STA NE_MAP_ID
@@ -936,10 +967,11 @@ SETPOS:
 .testx	LDA X_COUNTER		; high byte of X
 	BNE +			; if set, we have a long way to go
 	LDA REL_X		; low byte of X
-	CMP #(2*SECTION_WIDTH)-VIEWPORT_HORIZ_PAD
+	CMP #SECTION_WIDTH-VIEWPORT_HORIZ_PAD
 	BCC .testy
-	; go east young person
-+	LDY SE_MAP_ID
++	; go east young person
+	!if DEBUG { +prStr : !text "Go east.", 0 }
+	LDY SE_MAP_ID
 	STY SW_MAP_ID
 	INY
 	INC DRAW_WIDTH
@@ -968,10 +1000,11 @@ SETPOS:
 -	LDA Y_COUNTER		; high byte of Y
 	BNE +			; if set, we have a long way to go
 	LDA REL_Y		; low byte of Y
-	CMP #(2*SECTION_HEIGHT)-VIEWPORT_VERT_PAD
+	CMP #SECTION_HEIGHT-VIEWPORT_VERT_PAD
 	BCC .load
-	; go south young person
-+	LDA SW_MAP_ID
++	; go south young person
+	!if DEBUG { +prStr : !text "Go south.", 0 }
+	LDA SW_MAP_ID
 	STA NW_MAP_ID
 	CMP #NOT_LOADED
 	BEQ +
@@ -1009,9 +1042,31 @@ SETPOS:
 	DEC Y_COUNTER
 	BCC .testy		; always taken
 
-.load	; At this point, all sections are correct, 
+.load	; Adjust REL_X and REL_Y because the algorithm above puts the
+        ; target section in SE.
+	LDA REL_X
+	CLC
+	ADC #SECTION_WIDTH
+	STA REL_X
+	LDA REL_Y
+	CLC
+	ADC #SECTION_HEIGHT
+	STA REL_Y
+	; At this point, all sections are correct, 
 	; and REL_X, REL_Y, ORIGIN_X and ORIGIN_Y are set.
 	; Time to load the map segments.
+!if DEBUG {
+	+prStr : !text "NW=",0 : +prByte NW_MAP_ID
+	+prStr : !text "NE=",0 : +prByte NE_MAP_ID
+	+prStr : !text "SW=",0 : +prByte SW_MAP_ID
+	+prStr : !text "SE=",0 : +prByte SE_MAP_ID
+	+crout
+	+prStr : !text "ORIGIN_X=",0 : +prWord ORIGIN_X
+	+prStr : !text "REL_X=",0 : +prByte REL_X
+	+prStr : !text "ORIGIN_Y=",0 : +prWord ORIGIN_Y
+	+prStr : !text "REL_Y=",0 : +prByte REL_Y
+	+crout
+}
 	+startLoad
 	LDA NW_MAP_ID
 	+loadSection NW_MAP_LOC
@@ -1030,14 +1085,14 @@ SETPOS:
 ; >> pl_flipToPage1
 ; No-op, because in 2D we don't use hi-res page 2
 pl_flipToPage1:
-	dex		; no-op still needs a return slot
+	dex		; no-op still needs a return slot (0 param - 1 ret = -1)
 	rts
 
 ;----------------------------------------------------------------------
 ; >> pl_setColor
 ; No-op, because in 2D we don't have sky and ground colors
 pl_setColor:
-	rts
+	rts		; no need to mess with X: 1 param - 1 ret = 0
 
 ;----------------------------------------------------------------------
 ; >> pl_setPos
@@ -1139,6 +1194,7 @@ INNER_ADVANCE: !zone {
 +	BRK			; if it's not 1 of the 4 dirs, what could it be?
 
 .check	JMP CROSS		; possibly load new map segments
+.skip	RTS
 }
 
 ;----------------------------------------------------------------------
@@ -1150,7 +1206,7 @@ ADVANCE: !zone {
 
         JSR INNER_ADVANCE
 
-        JSR CHECK
+        JSR CALC
 	LDA AVATAR_TILE		; get tile flags
 	AND #$20		; obstructed?
 	BEQ +
@@ -1163,7 +1219,7 @@ ADVANCE: !zone {
 	AND #3
 	STA AVATAR_DIR
 	JSR INNER_ADVANCE	; move back the opposite dir
-	JSR CHECK
+	JSR CALC
 	PLA
 	STA AVATAR_DIR
 
@@ -1219,3 +1275,4 @@ tblMAPl	!for row, 23 {
 		!byte <((row-1)*22)+6
 	}
 
+emptyTile: !fill 32

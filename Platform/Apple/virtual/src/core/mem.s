@@ -1916,8 +1916,9 @@ __asmPlasm: !zone
 	pla
 	adc #0
 	sta .jsr+2
+	; adjust PLASMA stack pointer to skip over params
 	dey
-	sty tmp		; adjust PLASMA stack pointer to skip over params
+	sty tmp
 	txa
 .add	adc tmp
 	pha		; and save that

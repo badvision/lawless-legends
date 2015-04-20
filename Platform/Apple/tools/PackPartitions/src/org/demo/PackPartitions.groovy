@@ -23,11 +23,12 @@ class PackPartitions
     def TYPE_3D_MAP      = 3
     def TYPE_TILE_SET    = 4
     def TYPE_TEXTURE_IMG = 5
-    def TYPE_FRAME_IMG   = 6
+    def TYPE_SCREEN      = 6
     def TYPE_FONT        = 7
     def TYPE_MODULE      = 8
     def TYPE_BYTECODE    = 9
     def TYPE_FIXUP       = 10
+    def TYPE_PORTRAIT    = 11
 
     def mapNames  = [:]  // map name (and short name also) to map.2dor3d, map.num
     def code      = [:]  // code name to code.num, code.buf    
@@ -37,6 +38,7 @@ class PackPartitions
     def tileSets  = [:]  // tileset name to tileset.num, tileset.buf
     def textures  = [:]  // img name to img.num, img.buf
     def frames    = [:]  // img name to img.num, img.buf
+    def portraits = [:]  // img name to img.num, img.buf
     def fonts     = [:]  // font name to font.num, font.buf
     def modules   = [:]  // module name to module.num, module.buf
     def bytecodes = [:]  // module name to bytecode.num, bytecode.buf
@@ -649,12 +651,14 @@ class PackPartitions
         return buf
     }
     
-    def pack126(imgEl)
+    def packPortrait(imgEl)
     {
-        println "Packing 126 image named '${imgEl.@name}'."
+        def num = portraits.size() + 1
+        def name = imgEl.@name ?: "img$num"
+        //println "Packing 126 image named '${imgEl.@name}'."
         def buf = parse126Data(imgEl)
-        buf = compress(buf)
-        println "...compressed: ${buf.len} bytes."
+        portraits[imgEl.@name] = [num:num, buf:buf]
+        //println "...compressed: ${buf.len} bytes."
     }
     
     def packTile(imgEl)
@@ -1113,7 +1117,8 @@ class PackPartitions
             chunks.add([type:TYPE_FIXUP, num:v.num, buf:compress(fixups[k].buf)])
         }
         fonts.values().each { chunks.add([type:TYPE_FONT, num:it.num, buf:compress(it.buf)]) }
-        frames.values().each { chunks.add([type:TYPE_FRAME_IMG, num:it.num, buf:compress(it.buf)]) }
+        frames.values().each { chunks.add([type:TYPE_SCREEN, num:it.num, buf:compress(it.buf)]) }
+        portraits.values().each { chunks.add([type:TYPE_PORTRAIT, num:it.num, buf:compress(it.buf)]) }
         maps2D.values().each { chunks.add([type:TYPE_2D_MAP, num:it.num, buf:compress(it.buf)]) }
         tileSets.values().each { chunks.add([type:TYPE_TILE_SET, num:it.num, buf:compress(it.buf)]) }
         maps3D.values().each { chunks.add([type:TYPE_3D_MAP, num:it.num, buf:compress(it.buf)]) }
@@ -1130,6 +1135,7 @@ class PackPartitions
             assert chunk.num >= 1 && chunk.num <= 255
             hdrBuf.put((byte)chunk.num)
             def len = chunk.buf.len
+            println "chunk: type=${chunk.type} num=${chunk.num} len=${len}"
             //println "  chunk: type=${chunk.type}, num=${chunk.num}, len=$len"
             hdrBuf.put((byte)(len & 0xFF))
             hdrBuf.put((byte)(len >> 8) | (chunk.buf.compressed ? 0x80 : 0))
@@ -1195,26 +1201,64 @@ class PackPartitions
         // Pack each image, which has the side-effect of filling in the
         // image name map. Handle frame images separately.
         //
-        println "Packing frame images and textures."
-        dataIn.image.each { image ->
-            if (image.category.text() == "title")
-                packFrameImage(image)
+        println "Packing frame images."
+        def titleFound = false
+        def uiFramesFound = 0
+        def imageNamesPacked = [:]
+        for (def pass = 0; pass < 5; pass++)
+        {
+            switch (pass) {
+                case 0: println "Packing title screen."; break
+                case 1: println "Packing UI frames."; break
+                case 2: println "Packing other frame images."; break
+                case 3: println "Packing textures."; break
+                case 4: println "Packing portraits."; break
+            }
+            dataIn.image.each { image ->
+                def category = image.@category.toLowerCase()
+                def name = image.@name.toLowerCase()
+                if (category == "fullscreen" && name == "title") {
+                    if (pass == 0) {
+                        packFrameImage(image)
+                        titleFound = true
+                        imageNamesPacked[name] = true
+                    }
+                }
+                else if (category == "uiframe") {
+                    if (pass == 1) {
+                        packFrameImage(image)
+                        ++uiFramesFound
+                        imageNamesPacked[name] = true
+                    }
+                }
+                else if (category == "fullscreen") {
+                    if (pass == 2) {
+                        packFrameImage(image)
+                        imageNamesPacked[name] = true
+                    }
+                }
+                else if (category == "wall" || category == "sprite") {
+                    if (pass == 3) {
+                        packTexture(image)
+                        imageNamesPacked[name] = true
+                    }
+                }
+                else if (category == "portrait") {
+                    if (pass == 4) {
+                        packPortrait(image)
+                        imageNamesPacked[name] = true
+                    }
+                }
+            }
         }
-        dataIn.image.each { image ->
-            if (image.category.text() == "frame")
-                packFrameImage(image)
-        }
-        dataIn.image.each { image ->
-            if (image.category.text() == "126")
-                pack126(image)
-            else
-                packTexture(image)
-        }
+        assert titleFound : "Couldn't find title image. Should be category='FULLSCREEN', name='title'"
+        assert uiFramesFound == 2 : "Need exactly 2 UI frames, found $uiFramesFound instead."
         
-        // If doing Javascript debugging, open that output file too.
-        if (javascriptPath)
-            javascriptOut = new File(javascriptPath).newPrintWriter()
-            
+        dataIn.image.each { image ->
+            if (!(image.@name.toLowerCase() in imageNamesPacked))
+                println "Warning: couldn't classify image named '${image.@name}', category '${image.@category}'."
+        }
+                    
         // Number all the maps and record them with names
         def num2D = 0
         def num3D = 0

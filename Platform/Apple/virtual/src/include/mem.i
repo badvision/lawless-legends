@@ -93,6 +93,7 @@ RES_TYPE_FONT	  = 7
 RES_TYPE_MODULE   = 8
 RES_TYPE_BYTECODE = 9
 RES_TYPE_FIXUP    = 10
+RES_TYPE_PORTRAIT = 11
 
 ;------------------------------------------------------------------------------
 ; Command codes

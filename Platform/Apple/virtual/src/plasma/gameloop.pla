@@ -729,6 +729,16 @@ def setMap(is3D, num, x, y, dir)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def debugPos()
+  word x, y
+  ^$c053
+  x = $1111
+  y = $2222
+  getPos(@x, @y)
+  printf2("x=$%x y=$%x\n", x, y)  
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Get a key and dispatch it to a command. Then do it again, forever.
 def kbdLoop()
   word key, func
@@ -746,6 +756,7 @@ def kbdLoop()
       func = cmdTbl[key]
       if func; func(); fin
     fin
+    debugPos()
   loop
 end
 

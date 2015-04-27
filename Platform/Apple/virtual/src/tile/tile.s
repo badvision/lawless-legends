@@ -332,7 +332,8 @@ FINISH_MAP_LOAD
         BIT setLcRW+lcBank2	; switch PLASMA runtime back in
 	JSR .callit		; perform script init
         BIT setROM		; switch out PLASMA so we're ready to render
-        RTS
+!if DEBUG { +prStr : !text "Back from script init.",0 }
+	RTS
 .callit	JMP (SCRIPTS_LOC)	; the init function is always first in the script module
 
 ; >> CHECK CROSSINGS
@@ -359,32 +360,45 @@ CROSS
 ; >> CROSS NORTH BOUNDARY (Load next section to the north)
 !zone
 CROSS_NORTH
-	; Get new NW section
-	LDA NW_MAP_ID		; the first map section 
-	CMP INDEX_MAP_ID	;      doesn't have north and west links
-	BEQ .noMap
+	; Do not allow advancing way past edge of map
+	LDA NW_MAP_ID
+	AND NE_MAP_ID
+	CMP #NOT_LOADED
+	BNE .ok
+	INC REL_Y
+	RTS
+.ok	; Get new NW section
+	LDX #NOT_LOADED
+	LDY NW_MAP_ID
+	CPY INDEX_MAP_ID	; the first map section
+	BEQ .gotNW 		;	doesn't have north and west links
+	CPY #NOT_LOADED
+	BEQ .gotNW
 	LDY #NORTH
 	LDA (NW_MAP_LOC),Y
-	CMP #NOT_LOADED
-	BEQ .noMap
 	TAX
-	; Adjust origin
-	LDA ORIGIN_Y
-	SEC
-	SBC #SECTION_HEIGHT
-	STA ORIGIN_Y
-	BCS +
-	DEC ORIGIN_Y+1
-+	; Get new NE section
+.gotNW	LDA #NOT_LOADED
+	LDY NE_MAP_ID
+	CPY INDEX_MAP_ID
+	BEQ .gotNE
+	CPY #NOT_LOADED
+	BEQ .gotNE
+	LDY #NORTH
 	LDA (NE_MAP_LOC),Y
-	PHA
+.gotNE	PHA
 	TXA
 	PHA
 	+freeAllTiles
 	+freeScripts
 	+freeResource SW_MAP_LOC
 	+freeResource SE_MAP_LOC
-	LDA REL_Y
+	LDA ORIGIN_Y
+	SEC
+	SBC #SECTION_HEIGHT
+	STA ORIGIN_Y
+	BCS +
+	DEC ORIGIN_Y+1
++	LDA REL_Y
 	CLC
 	ADC #SECTION_HEIGHT
 	STA REL_Y
@@ -402,8 +416,6 @@ CROSS_NORTH
 	STA NE_MAP_ID
 	+loadSection NE_MAP_LOC
 	JMP FINISH_MAP_LOAD
-.noMap	INC REL_Y
-	RTS
 ;----------------------------------------------------------------------
 ; >> CROSS EAST BOUNDARY (Load next section to the east)
 !zone
@@ -431,12 +443,14 @@ CROSS_EAST
 	TXA
 	PHA
 	+freeAllTiles
+	+freeScripts
 	+freeResource NW_MAP_LOC
 	+freeResource SW_MAP_LOC
 	; Adjust origin and relative pos
 	LDA ORIGIN_X
 	CLC
 	ADC #SECTION_WIDTH
+	STA ORIGIN_X
 	BCC +
 	INC ORIGIN_X+1
 +	LDA REL_X
@@ -461,30 +475,38 @@ CROSS_EAST
 ; >> CROSS SOUTH BOUNDARY (Load next section to the south)
 !zone
 CROSS_SOUTH
+	; Do not allow advancing way past edge of map
+	LDA SW_MAP_ID
+	AND SE_MAP_ID
+	CMP #NOT_LOADED
+	BNE .ok
+	DEC REL_Y
+	RTS
+.ok	; Get new SW section
+	LDY #SOUTH
 	LDA SW_MAP_ID
 	CMP #NOT_LOADED
-	BEQ .noMap
-	; Get new SW section
-	LDY #SOUTH
+	BEQ .gotSW
 	LDA (SW_MAP_LOC),Y
+.gotSW	TAX
+	LDA SE_MAP_ID
 	CMP #NOT_LOADED
-	BEQ .noMap
-	TAX
-	; adjust origin
-	LDA ORIGIN_Y
-	CLC
-	ADC #SECTION_HEIGHT
-	BCC +
-	INC ORIGIN_Y+1
-+	; Get the new SE section
+	BEQ .gotSE
 	LDA (SE_MAP_LOC),Y
-	PHA
+.gotSE	PHA
 	TXA
 	PHA
 	+freeAllTiles
+	+freeScripts
 	+freeResource NW_MAP_LOC
 	+freeResource NE_MAP_LOC
-	LDA REL_Y
+	LDA ORIGIN_Y
+	CLC
+	ADC #SECTION_HEIGHT
+	STA ORIGIN_Y
+	BCC +
+	INC ORIGIN_Y+1
++	LDA REL_Y
 	SEC
 	SBC #SECTION_HEIGHT
 	STA REL_Y
@@ -502,37 +524,50 @@ CROSS_SOUTH
 	STA SE_MAP_ID
 	+loadSection SE_MAP_LOC
 	jmp FINISH_MAP_LOAD
-.noMap	DEC REL_Y
-	RTS
 ;----------------------------------------------------------------------
 ; >> CROSS WEST BOUNDARY (load next section to the west)
 !zone
 CROSS_WEST
-	; Get new NW section
-	LDA NW_MAP_ID		; the first map section 
-	CMP INDEX_MAP_ID	;      doesn't have north and west links
-	BEQ .noMap
-	LDY #WEST
-	LDA (NW_MAP_LOC),Y
+	; Do not allow advancing way past edge of map
+	LDA NW_MAP_ID
+	AND SW_MAP_ID
 	CMP #NOT_LOADED
-	BEQ .noMap
+	BNE .ok
+	INC REL_X
+	RTS
+.ok	; Get new NW section
+	LDX #NOT_LOADED
+	LDY NW_MAP_ID
+	CPY INDEX_MAP_ID	; the first map section
+	BEQ .gotNW 		;	doesn't have north and west links
+	CPY #NOT_LOADED
+	BEQ .gotNW
+	LDY #WEST
+	LDA (NE_MAP_LOC),Y
 	TAX
-	; Adjust origin
+.gotNW	LDA #NOT_LOADED
+	LDY SW_MAP_ID
+	CPY INDEX_MAP_ID
+	BEQ .gotSW
+	CPY #NOT_LOADED
+	BEQ .gotSW
+	LDY #WEST
+	LDA (SW_MAP_LOC),Y
+.gotSW	PHA
+	TXA
+	PHA
+	+freeAllTiles
+	+freeScripts
+	+freeResource NE_MAP_LOC
+	+freeResource SE_MAP_LOC
+	; Adjust origin and relative pos
 	LDA ORIGIN_X
 	SEC
 	SBC #SECTION_WIDTH
 	STA ORIGIN_X
 	BCS +
 	DEC ORIGIN_X+1
-+	; Get the new SW section
-	LDA (SW_MAP_LOC),Y
-	PHA
-	TXA
-	PHA
-	+freeAllTiles
-	+freeResource NE_MAP_LOC
-	+freeResource SE_MAP_LOC
-	LDA REL_X
++	LDA REL_X
 	CLC
 	ADC #SECTION_WIDTH
 	STA REL_X
@@ -550,8 +585,6 @@ CROSS_WEST
 	STA SW_MAP_ID
 	+loadSection SW_MAP_LOC
 	jmp FINISH_MAP_LOAD
-.noMap	INC REL_X
-	RTS
 ;----------------------------------------------------------------------
 ; >> SET PLAYER TILE (A = tile)
 ;----------------------------------------------------------------------
@@ -783,7 +816,7 @@ ROW_OFFSET = 3
 	STA AVATAR_X
 	LDA SECTION_Y_START
 	STA AVATAR_Y
-!if DEBUG {
+!if DEBUG >= 2 {
 	+prStr : !text "Avatar X=",0
 	+prByte AVATAR_X
 	+prStr : !text "Y=",0
@@ -1121,6 +1154,15 @@ pl_setPos:
 ; >> pl_getPos
 ; Params: @X, @Y
 pl_getPos: !zone {
+!if DEBUG {
+	BIT setROM
+	+prStr : !text "O_X=",0 : +prWord ORIGIN_X
+	+prStr : !text "R_X=",0 : +prByte REL_X
+	+prStr : !text "O_Y=",0 : +prWord ORIGIN_Y
+	+prStr : !text "R_Y=",0 : +prByte REL_Y
+	+crout
+	BIT setLcRW+lcBank2
+}
 	LDA ORIGIN_Y
 	CLC
 	ADC REL_Y
@@ -1135,7 +1177,7 @@ pl_getPos: !zone {
 	JSR .sto
 	LDA ORIGIN_X+1
 	ADC #0
-	; Now fall thru, and exit with X incremented once (2 params - 1 return slot = 1)
+	JMP .sto2		; Note: total X incr: 1 (2 parms - 1 ret = 1)
 .sto	LDY evalStkL,X		; lo byte of address
 	STY .sto2+1
 	LDY evalStkH,X		; hi byte of address
@@ -1170,9 +1212,6 @@ pl_setDir:
 
 ;----------------------------------------------------------------------
 INNER_ADVANCE: !zone {
-
-	!if DEBUG { +prStr : !text "Inner adv: DIR=",0 : +prByte AVATAR_DIR : +crout }
-
         LDA AVATAR_DIR
         CMP #NORTH
         BNE +
@@ -1263,8 +1302,7 @@ ADVANCE: !zone {
 ; Params: none; return: 0 if same, 1 if new map tile, 2 if new and scripted
 ; Advance in the current direction
 pl_advance: !zone {
-	TXA
-	PHA			; save PLASMA eval stk pos
+	STX PLASMA_X		; save PLASMA eval stk pos
         BIT setROM		; switch out PLASMA while we work
 
         JSR ADVANCE		; most of the work done by helper function
@@ -1275,8 +1313,7 @@ pl_advance: !zone {
         TAY
 
         BIT setLcRW+lcBank2	; switch PLASMA runtime back in
-	PLA			; restore PLASMA's eval stk pos
-	TAX
+	LDX PLASMA_X		; restore PLASMA's eval stk pos
         DEX			; make room for ret val (params=0, ret=1, diff=-1)
         TYA			; get ret val
         STA evalStkL,X		; 	and save it

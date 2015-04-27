@@ -12,7 +12,7 @@
 !source "../include/mem.i"
 !source "../include/plasma.i"
 
-DEBUG       = 0     ; 1=some logging, 2=lots of logging
+DEBUG       = 1     ; 1=some logging, 2=lots of logging
 
 HEADER_LENGTH=6
 SECTION_WIDTH=22
@@ -359,14 +359,7 @@ CROSS
 ; >> CROSS NORTH BOUNDARY (Load next section to the north)
 !zone
 CROSS_NORTH
-	; Adjust origin
-	LDA ORIGIN_Y
-	SEC
-	SBC #SECTION_HEIGHT
-	STA ORIGIN_Y
-	BCS +
-	DEC ORIGIN_Y+1
-+	; Get new NW section
+	; Get new NW section
 	LDA NW_MAP_ID		; the first map section 
 	CMP INDEX_MAP_ID	;      doesn't have north and west links
 	BEQ .noMap
@@ -375,7 +368,14 @@ CROSS_NORTH
 	CMP #NOT_LOADED
 	BEQ .noMap
 	TAX
-	; Get new NE section
+	; Adjust origin
+	LDA ORIGIN_Y
+	SEC
+	SBC #SECTION_HEIGHT
+	STA ORIGIN_Y
+	BCS +
+	DEC ORIGIN_Y+1
++	; Get new NE section
 	LDA (NE_MAP_LOC),Y
 	PHA
 	TXA
@@ -404,35 +404,42 @@ CROSS_NORTH
 	JMP FINISH_MAP_LOAD
 .noMap	INC REL_Y
 	RTS
-
 ;----------------------------------------------------------------------
 ; >> CROSS EAST BOUNDARY (Load next section to the east)
 !zone
 CROSS_EAST
-	; adjust origin
-	LDA ORIGIN_X
-	CLC
-	ADC #SECTION_WIDTH
-	BCC +
-	INC ORIGIN_X+1
-+	LDA NE_MAP_ID
+	; Do not allow advancing way past edge of map
+	LDA NE_MAP_ID
+	AND SE_MAP_ID
 	CMP #NOT_LOADED
-	BEQ .noMap
-	; Get new NE section
+	BNE .ok
+	DEC REL_X
+	RTS
+.ok	; Get new NE section
 	LDY #EAST
+	LDX NE_MAP_ID
+	CPX #NOT_LOADED
+	BEQ .gotNE
 	LDA (NE_MAP_LOC),Y
-	CMP #NOT_LOADED
-	BEQ .noMap
 	TAX
-	; Get new SE section
+.gotNE	; Get new SE section
+	LDA SE_MAP_ID
+	CMP #NOT_LOADED
+	BEQ .gotSE
 	LDA (SE_MAP_LOC),Y
-	PHA
+.gotSE	PHA
 	TXA
 	PHA
 	+freeAllTiles
 	+freeResource NW_MAP_LOC
 	+freeResource SW_MAP_LOC
-	LDA REL_X
+	; Adjust origin and relative pos
+	LDA ORIGIN_X
+	CLC
+	ADC #SECTION_WIDTH
+	BCC +
+	INC ORIGIN_X+1
++	LDA REL_X
 	SEC
 	SBC #SECTION_WIDTH
 	STA REL_X
@@ -450,19 +457,11 @@ CROSS_EAST
 	STA SE_MAP_ID
 	+loadSection SE_MAP_LOC
 	jmp FINISH_MAP_LOAD
-.noMap	DEC REL_X
-	RTS
 ;----------------------------------------------------------------------
 ; >> CROSS SOUTH BOUNDARY (Load next section to the south)
 !zone
 CROSS_SOUTH
-	; adjust origin
-	LDA ORIGIN_Y
-	CLC
-	ADC #SECTION_HEIGHT
-	BCC +
-	INC ORIGIN_Y+1
-+	LDA SW_MAP_ID
+	LDA SW_MAP_ID
 	CMP #NOT_LOADED
 	BEQ .noMap
 	; Get new SW section
@@ -471,7 +470,13 @@ CROSS_SOUTH
 	CMP #NOT_LOADED
 	BEQ .noMap
 	TAX
-	; Get the new SE section
+	; adjust origin
+	LDA ORIGIN_Y
+	CLC
+	ADC #SECTION_HEIGHT
+	BCC +
+	INC ORIGIN_Y+1
++	; Get the new SE section
 	LDA (SE_MAP_LOC),Y
 	PHA
 	TXA
@@ -503,14 +508,7 @@ CROSS_SOUTH
 ; >> CROSS WEST BOUNDARY (load next section to the west)
 !zone
 CROSS_WEST
-	; Adjust origin
-	LDA ORIGIN_X
-	SEC
-	SBC #SECTION_WIDTH
-	STA ORIGIN_X
-	BCS +
-	DEC ORIGIN_X+1
-+	; Get new NW section
+	; Get new NW section
 	LDA NW_MAP_ID		; the first map section 
 	CMP INDEX_MAP_ID	;      doesn't have north and west links
 	BEQ .noMap
@@ -519,7 +517,14 @@ CROSS_WEST
 	CMP #NOT_LOADED
 	BEQ .noMap
 	TAX
-	; Get the new SW section
+	; Adjust origin
+	LDA ORIGIN_X
+	SEC
+	SBC #SECTION_WIDTH
+	STA ORIGIN_X
+	BCS +
+	DEC ORIGIN_X+1
++	; Get the new SW section
 	LDA (SW_MAP_LOC),Y
 	PHA
 	TXA
@@ -929,11 +934,15 @@ SETPOS:
 	; Figure out which map sections we need to load.
 	; We can temporarily use the DRAW_* variables for our work here, since
 	; we're not actually drawing yet.
-	LDA #0
+	LDA #<(0-SECTION_WIDTH)
 	STA ORIGIN_X
+	LDA #>(0-SECTION_WIDTH)
 	STA ORIGIN_X+1
+	LDA #<(0-SECTION_HEIGHT)
 	STA ORIGIN_Y
+	LDA #>(0-SECTION_HEIGHT)
 	STA ORIGIN_Y+1
+	LDA #0
 	STA DRAW_WIDTH
 	STA DRAW_HEIGHT
 
@@ -1162,12 +1171,18 @@ pl_setDir:
 ;----------------------------------------------------------------------
 INNER_ADVANCE: !zone {
 
+	!if DEBUG { +prStr : !text "Inner adv: DIR=",0 : +prByte AVATAR_DIR : +crout }
+
         LDA AVATAR_DIR
         CMP #NORTH
         BNE +
-        LDA REL_Y		; if at the very top of all map segs, don't move
-        ORA ORIGIN_Y
-        ORA ORIGIN_Y+1
+        LDA ORIGIN_Y		; if at the very top of all map segs, don't move
+        CLC
+        ADC REL_Y
+        STA .or1+1
+        LDA ORIGIN_Y+1
+        ADC #0
+.or1    ORA #$11		; self-modified above
         BEQ .skip
         DEC REL_Y
         JMP .check
@@ -1184,9 +1199,13 @@ INNER_ADVANCE: !zone {
 
 +	CMP #WEST
 	BNE +
-	LDA REL_X		; if at the very left of all map segs, don't move
-	ORA ORIGIN_X
-	ORA ORIGIN_X+1
+        LDA ORIGIN_X		; if at the very left of all map segs, don't move
+        CLC
+        ADC REL_X
+        STA .or2+1
+        LDA ORIGIN_X+1
+        ADC #0
+.or2    ORA #$11		; self-modified above
 	BEQ .skip
 	DEC REL_X
 	JMP .check
@@ -1249,6 +1268,11 @@ pl_advance: !zone {
         BIT setROM		; switch out PLASMA while we work
 
         JSR ADVANCE		; most of the work done by helper function
+        TYA
+        PHA
+        JSR DRAW
+        PLA
+        TAY
 
         BIT setLcRW+lcBank2	; switch PLASMA runtime back in
 	PLA			; restore PLASMA's eval stk pos

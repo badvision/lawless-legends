@@ -883,6 +883,8 @@ shared_free:
 	and #$3F		; remove the 'active' and 'locked' flags
 	sta tSegType,x		; store flags back
 	and #$F			; get down to just the type, without the flags
+	cmp #RES_TYPE_BYTECODE	; explicitly freeing bytecode obj?
+	beq .fatal		; that is not allowed
 	cmp #RES_TYPE_MODULE	; freeing a module?
 	bne .done		; no, all done
 	lda #RES_TYPE_BYTECODE	; we need to look for the corresponding 
@@ -896,9 +898,11 @@ shared_free:
 	lda tSegType,x		; get current flags
 	and #$3F		; remove the 'active' and 'locked' flags
 	sta tSegType,x		; store flags back
-	lda #0
-	sta tSegRes,x
 .done	rts			; all done
+.fatal	ldx #<+
+	ldy #>+
+	jmp fatalError
++	!text "Don't free bytecode.", 0
 
 ;------------------------------------------------------------------------------
 main_calcFree: !zone
@@ -987,12 +991,18 @@ shared_queueLoad:
 	sta isAuxCmd
 	jsr scanForResource	; do we have the aux mem part?
 	beq .reload
+	stx .modres+1
 	lda #RES_TYPE_MODULE
 	sta resType
 	lda #0
 	sta isAuxCmd
 	jsr scanForResource	; do we have the main mem part?
-	bne .found		; we have both parts already -- no need for fixups
+	beq .reload
+.modres	ldy #11			; self-modified above
+	lda tSegType,y
+	ora #$80		; reactivate bytecode if necessary
+	sta tSegType,y
+	bne .found		; (always taken) we have both parts -- no need for fixups
 .reload	lda #RES_TYPE_MODULE
 	sta resType
 	lda #0

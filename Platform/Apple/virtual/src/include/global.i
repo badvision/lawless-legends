@@ -11,6 +11,7 @@ a2l		= $3E
 a2h		= $3F
 
 ; Other monitor locations
+inbuf		= $200
 resetVec	= $3F2
 
 ; PRODOS

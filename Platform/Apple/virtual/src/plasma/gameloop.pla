@@ -249,6 +249,26 @@ asm beep
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Read a string from the keyboard, turn it into a PLASMA string and return a pointer to the string.
+asm getstr
+        +asmPlasm 0
+        jsr getln1
+        txa
+        pha
+        beq +
+-       lda inbuf-1,x
+        and #$7F
+        sta inbuf,x
+        dex
+        bne -
++       pla
+        sta inbuf,x
+        lda #<inbuf
+        ldy #>inbuf
+        rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Send a command to the memory manager
 // Params: cmd, mainOrAux, amount
 asm loader
@@ -414,11 +434,13 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a signed decimal word
 def printDec(n)
-  if n < 0;    printChar('-');           n = -n;      fin
-  if n > 9999; printChar('0' + n/10000); n = n%10000; fin
-  if n > 999;  printChar('0' + n/1000);  n = n%1000;  fin
-  if n > 99;   printChar('0' + n/100);   n = n%100;   fin
-  if n > 9;    printChar('0' + n/10);    n = n%10;    fin
+  word n0
+  if n < 0;     printChar('-');           n = -n;      fin
+  n0 = n
+  if n0 > 9999; printChar('0' + n/10000); n = n%10000; fin
+  if n0 > 999;  printChar('0' + n/1000);  n = n%1000;  fin
+  if n0 > 99;   printChar('0' + n/100);   n = n%100;   fin
+  if n0 > 9;    printChar('0' + n/10);    n = n%10;    fin
   printChar('0' + n)
 end
 
@@ -456,6 +478,31 @@ end
 def printf1(str, arg1); printf4(str, arg1, 0, 0, 0); end
 def printf2(str, arg1, arg2); printf4(str, arg1, arg2, 0, 0); end
 def printf3(str, arg1, arg2, arg3); printf4(str, arg1, arg2, arg3, 0); end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def parseDec(str)
+  word n
+  word pend
+  word p
+  byte neg
+  neg = FALSE
+  n = 0
+  p = str + 1
+  pend = p + ^str
+  while p < pend
+    if p == (str+1) and ^p == '-'
+      neg = TRUE
+    elsif ^p >= '0' and ^p <= '9'
+      n = (n*10) + (^p - '0')
+    else
+      break
+    fin
+    p = p+1
+  loop
+
+  if neg; return -n; fin
+  return n
+end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Get a keystroke and convert it to upper case
@@ -739,6 +786,20 @@ def debugPos()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def teleport()
+  word x, y
+  ^$c053
+  if ^$25 < 20; ^$25 = 20; crout(); fin
+  puts("X: ")
+  x = parseDec(getstr())
+  printf1("Got %d\n", x)
+  puts("Y: ")
+  y = parseDec(getstr())
+  printf1("Got %d\n", y)
+  setMap(mapIs3D, mapNum, x, y, 0)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Get a key and dispatch it to a command. Then do it again, forever.
 def kbdLoop()
   word key, func
@@ -815,7 +876,10 @@ def initCmds()
     cmdTbl[i] = 0
   next
 
-  // Handle 3D vs 2D commands separately
+  // Commands common to both 2D and 3D
+  initCmd('T', @teleport)
+
+  // Commands handled differently in 3D vs 2D
   if mapIs3D
     initCmd('W', @moveForward)
     initCmd('A', @rotateLeft)
@@ -841,6 +905,12 @@ def initCmds()
     initCmd('S', @moveSouth)
     initCmd('X', @moveSouth)
     initCmd('A', @moveWest)
+
+    initCmd('I', @moveNorth)
+    initCmd('J', @moveWest)
+    initCmd('L', @moveEast)
+    initCmd('K', @moveSouth)
+    initCmd(',', @moveSouth)
   fin
 end
 

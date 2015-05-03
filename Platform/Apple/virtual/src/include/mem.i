@@ -277,6 +277,16 @@ FATAL_ERROR = $1F
 
 ;------------------------------------------------------------------------------
 ; Convenience for writing assembly routines in PLASMA source
+; Macro param: number of parameters passed from PLASMA routine
+; 1. Save PLASMA's X register index
+; 2. Switch to ROM
+; 3. Load the last parameter (if any) into A=lo, Y=hi
+; 4. Run the calling routine (X still points into evalStk for add'l params if needed)
+; 5. Switch back to LC RAM
+; 6. Restore PLASMA's X register, and advance it over the parameter(s), leaving
+;    space for the return value.
+; 7. Store A=lo/Y=hi into PLASMA return value
+; 8. Return to PLASMA
 !macro asmPlasm nArgs {
     ldy #nArgs
     jsr _asmPlasm

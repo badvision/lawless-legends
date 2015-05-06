@@ -573,7 +573,7 @@ def loadFrameImg()
     titleLoaded = FALSE
   fin
   loader(SET_MEM_TARGET, MAIN_MEM, $2000)
-  loader(QUEUE_LOAD,     MAIN_MEM, (3-mapIs3D)<<8 | RES_TYPE_SCREEN)
+  loader(QUEUE_LOAD,     MAIN_MEM, (mapIs3D+2)<<8 | RES_TYPE_SCREEN)
   loader(LOCK_MEMORY,    MAIN_MEM, $2000)
 end
 
@@ -618,9 +618,7 @@ def initMap(x, y, dir)
   // Start up the display engine with map data and starting position. This will also load and
   // init the script module, if any, which will end up calling us back at the setScriptInfo
   triggerTbl = NULL
-  printf2("initDisplay: mapNum=%d pMap=%x\n", mapNum, pMap)
   initDisplay(mapNum, pMap, x, y, dir)
-  puts("Back from initDisplay.\n")
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -776,22 +774,17 @@ def setMap(is3D, num, x, y, dir)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def debugPos()
-  word x, y
-  ^$c053
-  getPos(@x, @y)
-  printf2("x=%d y=%d\n", x, y)  
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 def teleport()
   word x, y
   ^$c053
-  if ^$25 < 20; ^$25 = 20; crout(); fin
-  puts("X: ")
+  if ^$25 < 23; ^$25 = 23; fin
+  getPos(@x, @y)
+  printf2("\nCurrent location: X=%d Y=%d\n", x, y)
+  puts("New X: ")
   x = parseDec(getstr())
-  puts("Y: ")
+  puts("New Y: ")
   y = parseDec(getstr())
+  ^$c052
   setMap(mapIs3D, mapNum, x, y, 0)
 end
 
@@ -813,7 +806,6 @@ def kbdLoop()
       func = cmdTbl[key]
       if func; func(); fin
     fin
-    debugPos()
   loop
 end
 
@@ -821,8 +813,6 @@ end
 // Set initial info for the scripts on this map: the trigger table and the name of the map. This
 // is called by the init function for the scripts.
 def setScriptInfo(mapName, trigTbl)
-
-  printf2("scriptInfo: mapName=%x trigTbl=%x\n", mapName, trigTbl)
 
   // Record the trigger table pointer
   triggerTbl = trigTbl

@@ -1135,7 +1135,6 @@ class PackPartitions
             assert chunk.num >= 1 && chunk.num <= 255
             hdrBuf.put((byte)chunk.num)
             def len = chunk.buf.len
-            println "chunk: type=${chunk.type} num=${chunk.num} len=${len}"
             //println "  chunk: type=${chunk.type}, num=${chunk.num}, len=$len"
             hdrBuf.put((byte)(len & 0xFF))
             hdrBuf.put((byte)(len >> 8) | (chunk.buf.compressed ? 0x80 : 0))

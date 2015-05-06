@@ -1005,11 +1005,23 @@ SETPOS:
 	LDA INDEX_MAP_ID
 	STA SE_MAP_ID
 
-	; First, let's to the horizontal aspect.
-.testx	LDA X_COUNTER		; high byte of X
+	; Adjust REL_X and REL_Y because the algorithm puts the
+        ; target section in SE.
+	LDA REL_X
+	CLC
+	ADC #SECTION_WIDTH
+	STA REL_X
+	LDA REL_Y
+	CLC
+	ADC #SECTION_HEIGHT
+	STA REL_Y
+
+.testx	; First, let's to the horizontal aspect.
+!if DEBUG { jsr .dbg }
+	LDA X_COUNTER		; high byte of X
 	BNE +			; if set, we have a long way to go
 	LDA REL_X		; low byte of X
-	CMP #SECTION_WIDTH-VIEWPORT_HORIZ_PAD
+	CMP #(2*SECTION_WIDTH)-VIEWPORT_HORIZ_PAD
 	BCC .testy
 +	; go east young person
 	!if DEBUG { +prStr : !text "Go east.", 0 }
@@ -1039,10 +1051,11 @@ SETPOS:
 	BCC .testx		; always taken
 
 .testy	; Now let's do the vertical aspect.
+!if DEBUG { jsr .dbg }
 -	LDA Y_COUNTER		; high byte of Y
 	BNE +			; if set, we have a long way to go
 	LDA REL_Y		; low byte of Y
-	CMP #SECTION_HEIGHT-VIEWPORT_VERT_PAD
+	CMP #(2*SECTION_HEIGHT)-VIEWPORT_VERT_PAD
 	BCC .load
 +	; go south young person
 	!if DEBUG { +prStr : !text "Go south.", 0 }
@@ -1084,7 +1097,9 @@ SETPOS:
 	DEC Y_COUNTER
 	BCC .testy		; always taken
 
-.load	; Adjust REL_X and REL_Y because the algorithm above puts the
+.load	
+!if 0 {
+	; Adjust REL_X and REL_Y because the algorithm above puts the
         ; target section in SE.
 	LDA REL_X
 	CLC
@@ -1094,21 +1109,10 @@ SETPOS:
 	CLC
 	ADC #SECTION_HEIGHT
 	STA REL_Y
+}
 	; At this point, all sections are correct, 
 	; and REL_X, REL_Y, ORIGIN_X and ORIGIN_Y are set.
 	; Time to load the map segments.
-!if DEBUG {
-	+prStr : !text "NW=",0 : +prByte NW_MAP_ID
-	+prStr : !text "NE=",0 : +prByte NE_MAP_ID
-	+prStr : !text "SW=",0 : +prByte SW_MAP_ID
-	+prStr : !text "SE=",0 : +prByte SE_MAP_ID
-	+crout
-	+prStr : !text "ORIGIN_X=",0 : +prWord ORIGIN_X
-	+prStr : !text "REL_X=",0 : +prByte REL_X
-	+prStr : !text "ORIGIN_Y=",0 : +prWord ORIGIN_Y
-	+prStr : !text "REL_Y=",0 : +prByte REL_Y
-	+crout
-}
 	+startLoad
 	LDA NW_MAP_ID
 	+loadSection NW_MAP_LOC
@@ -1121,7 +1125,23 @@ SETPOS:
 	JSR FINISH_MAP_LOAD
 
 	; And finally, render the first frame.
-	JMP DRAW
+	JSR DRAW
+!if DEBUG { JSR .dbg }
+	RTS
+
+!if DEBUG {
+.dbg	+prStr : !text "NW=",0 : +prByte NW_MAP_ID
+	+prStr : !text "NE=",0 : +prByte NE_MAP_ID
+	+prStr : !text "SW=",0 : +prByte SW_MAP_ID
+	+prStr : !text "SE=",0 : +prByte SE_MAP_ID
+	+crout
+	+prStr : !text "O_X=",0 : +prWord ORIGIN_X
+	+prStr : !text "R_X=",0 : +prByte REL_X
+	+prStr : !text "O_Y=",0 : +prWord ORIGIN_Y
+	+prStr : !text "R_Y=",0 : +prByte REL_Y
+	+crout
+	rts
+}
 
 ;----------------------------------------------------------------------
 ; >> pl_flipToPage1

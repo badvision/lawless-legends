@@ -148,6 +148,9 @@ end
 asm setColor     // params: slot (0=sky/1=ground), color (0-15)
         jmp $6015
 end
+asm render      // no params
+        jmp $6018
+end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Simply retrieve the X register. Used to double-check that we're not leaking PLASMA eval
@@ -697,6 +700,7 @@ end
 def moveForward()
   byte val
   val = advance()
+  printf1("advance returned %d\n", val)
   if val > 0 and textDrawn
     clearWindow()
     textDrawn = FALSE
@@ -724,12 +728,16 @@ end
 // Turn left (3D mode)
 def rotateLeft()
   adjustDir(-1)
+  render()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Rotate to the right (3D mode)
 def rotateRight()
   adjustDir(1)
+  puts("About to call render.\n")
+  render()
+  puts("Back from render.\n")
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -788,17 +796,17 @@ def teleport()
   if ^$25 < 23; ^$25 = 23; fin
   getPos(@x, @y)
   printf4("\nCurrent: 3D=%d Map=%d X=%d Y=%d ", mapIs3D, mapNum, x, y)
-  printf1(" Dir=%d\n", getDir())
+  printf1("Dir=%d\n", getDir())
 
-  puts("New 3D: ")
+  puts("3D : ")
   mapIs3D = parseDec(readStr())
-  puts("New Map: ")
+  puts("Map: ")
   mapNum = parseDec(readStr())
-  puts("New X: ")
+  puts("X  : ")
   x = parseDec(readStr())
-  puts("New Y: ")
+  puts("Y  : ")
   y = parseDec(readStr())
-  puts("New Dir: ")
+  puts("Dir: ")
   dir = parseDec(readStr())
 
   ^$c052
@@ -809,6 +817,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def oldTeleport(x, y, dir)
   printf3("Old teleport: x=%d y=%d dir=%d\n", x, y, dir)
+  puts("Doing nothing for now.\n")
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

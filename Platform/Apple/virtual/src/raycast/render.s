@@ -19,6 +19,7 @@ start:
 	jmp pl_setDir		; params: dir (0-15); return: nothing
 	jmp pl_advance		; params: none; return: 0 if same, 1 if new map tile, 2 if new and scripted
 	jmp pl_setColor		; params: slot (0=sky/1=ground), color (0-15); return: nothing
+	jmp pl_render		; params: none
 
 ; Conditional assembly flags
 DOUBLE_BUFFER	= 1		; whether to double-buffer
@@ -1689,7 +1690,7 @@ pl_advance: !zone
 	lda playerX+1
 	pha
 	adc walkDirs+1,x
-	sta playerX
+	sta playerX+1
 
 	lda playerY
 	pha
@@ -1700,6 +1701,7 @@ pl_advance: !zone
 	pha
 	clc
 	adc walkDirs+3,x
+	sta playerY+1
 
 	; Check if the new position is blocked
 	jsr calcMapOrigin
@@ -1715,6 +1717,7 @@ pl_advance: !zone
 	and #2			; tile flag 2 is for obstructions
 	beq .ok
 	; Blocked! Restore old position.
+	+prStr : !text "Blocked.", 0
 	pla
 	sta playerY+1
 	pla
@@ -1742,10 +1745,10 @@ pl_advance: !zone
 	; It is a new position. Is script hint set?
 	ldy playerX+1
 	lda (pMap),y
-	ldy #1
+	ldy #1			; ret val 1 = new blk but no script
 	and #$20		; map flag $20 is the script hint
 	beq .done		; if not scripted, return one
-	iny			; else return 2
+	iny			; else return 2 = new blk and a script
 .done	pla
 	tax			; restore PLASMA eval stk pos
 	dex			; make room for return value
@@ -1753,6 +1756,22 @@ pl_advance: !zone
 	sta evalStkL,x		; and store it
 	lda #0
 	sta evalStkH,x		; hi byte of return is zero
+        bit setLcRW+lcBank2	; switch PLASMA runtime back in
+	rts			; and return to PLASMA
+
+;-------------------------------------------------------------------------------
+; Render at the current position and direction.
+; Params: none
+; Return: none
+pl_render: !zone
+	txa
+	pha			; save PLASMA eval stk pos
+        bit setROM		; switch out PLASMA while we work
+        jsr renderFrame
+	pla
+	tax			; restore PLASMA eval stk pos
+	jsr prbyte
+	jsr crout
         bit setLcRW+lcBank2	; switch PLASMA runtime back in
 	rts			; and return to PLASMA
 
@@ -1946,6 +1965,7 @@ pl_setPos: !zone {
 	lda #$80
 	sta playerY
 	sta playerX
+	inx		; 2 params - 1 ret = +1
 	rts
 }
 
@@ -1955,6 +1975,7 @@ pl_setPos: !zone {
 ; Returns: Nothing
 pl_getDir: !zone {
 	lda playerDir
+	dex
 	sta evalStkL,x
 	lda #0
 	sta evalStkH,x
@@ -1969,6 +1990,7 @@ pl_setDir: !zone {
 	lda evalStkL,x
 	and #15
 	sta playerDir
+	dex		; 0 param - 1 ret = -1
 	rts
 }
 

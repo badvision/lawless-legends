@@ -101,6 +101,7 @@ next_zp		= $AA
 	JMP pl_setDir		; params: dir (0-15); return: nothing
 	JMP pl_advance		; params: none; return: 0 if same, 1 if new map tile, 2 if new and scripted
 	JMP pl_setColor		; params: slot (0=sky/1=ground), color (0-15); return: nothing
+	jmp pl_render		; params: none
 
 ; Debug support -- must come after jump vectors, since it's not just macros.
 !source "../include/debug.i"
@@ -1167,7 +1168,8 @@ pl_setPos:
         BIT setLcRW+lcBank2	; switch PLASMA runtime back in
 	PLA			; restore PLASMA's eval stk pos
 	TAX
-        INX			; toss 1 slot (params=2, ret=1, diff=1)
+        INX			; toss 1 slot (params=2, ret=0, diff=2)
+        INX
 	RTS	
 
 ;----------------------------------------------------------------------
@@ -1340,6 +1342,20 @@ pl_advance: !zone {
         STA evalStkL,X		; 	and save it
         LDA #0			; hi byte of ret val
         STA evalStkH,X		;	is always zero
+	RTS	
+}
+
+;----------------------------------------------------------------------
+; >> pl_render
+; Params: none; return: none
+; Draw at the current position.
+pl_render: !zone {
+	STX PLASMA_X		; save PLASMA eval stk pos
+        BIT setROM		; switch out PLASMA while we work
+
+        JSR DRAW
+
+        BIT setLcRW+lcBank2	; switch PLASMA runtime back in
 	RTS	
 }
 

@@ -20,7 +20,7 @@ MAX_SEGS	= 96
 DO_COMP_CHECKSUMS = 0		; during compression debugging
 DEBUG_DECOMP 	= 0
 DEBUG		= 0
-SANITY_CHECK	= 0
+SANITY_CHECK	= 0		; also prints out request data
 
 ; Zero page temporary variables
 tmp		= $2	; len 2
@@ -652,7 +652,7 @@ shared_alloc:
 	jsr scanForAvail	; scan for an available block
 	bne .noSplitStart	; if found, go into normal split checking
 ; failed to find a block. If we haven't tried reclaiming, do so now
-	dec .reclaimFlg		; first time: 1 -> 0, second time 0 -> $FF
+.recl	dec .reclaimFlg		; first time: 1 -> 0, second time 0 -> $FF
 	bmi outOfMemErr		; so if it's second time, give up
 	jsr reclaim		; first time, do a reclaim pass
 	jmp .chooseAddr		; and try again
@@ -700,7 +700,7 @@ shared_alloc:
 	sbc tSegAdrHi,y
 .cmpLo	ora #$11		; self-modified a few lines ago
 	beq .noSplitEnd
-	bcs .needJoin		; req end > start of next block, need to join
+	bcs .recl		; req end > start of next block, need to reclaim
 ; need to split current segment into (cur..reqEnd) and (reqEnd..next)
 .splitEnd:
 	jsr grabSegment		; get a new segment, index in Y (doesn't disturb X)
@@ -726,11 +726,6 @@ shared_alloc:
 	stx segNum		; save seg num in case internal caller routine needs it
 	tax			; adr lo to proper register
 	rts			; all done!
-.needJoin:
-	ldx #<+
-	ldy #>+
-	jmp fatalError
-+	!text "Join not impl yet", 0
 .reqEnd: !word 0
 .reclaimFlg: !byte 0
 

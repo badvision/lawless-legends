@@ -61,11 +61,11 @@ const FATAL_ERROR    = $1F
 const callbacks = $300
 
 // 3D mode
-//const OVERMAP_NUM = 11
-//const OVERMAP_IS_3D = 1
+const OVERMAP_NUM = 11
+const OVERMAP_IS_3D = 1
 // 2D mode
-const OVERMAP_NUM = 1
-const OVERMAP_IS_3D = 0
+//const OVERMAP_NUM = 1
+//const OVERMAP_IS_3D = 0
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Predefined functions, for circular calls or out-of-order calls
@@ -89,7 +89,7 @@ word pMap
 word cmdTbl[64]
 word triggerTbl
 byte redraw
-byte titleLoaded = FALSE
+byte frameLoaded = 0
 byte textDrawn = FALSE
 
 word skyNum = 9
@@ -250,7 +250,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Read a string from the keyboard, turn it into a PLASMA string and return a pointer to the string.
-asm getstr
+asm readStr
         +asmPlasm 0
         jsr getln1
         txa
@@ -567,14 +567,17 @@ end
 // Load the Frame Image, and lock it.
 def loadFrameImg()
   byte img
-  if titleLoaded
-    loader(UNLOCK_MEMORY,MAIN_MEM, $2000)
-    loader(FREE_MEMORY,  MAIN_MEM, $2000)
-    titleLoaded = FALSE
+  img = mapIs3D+2
+  if frameLoaded <> img
+    if frameLoaded
+      loader(UNLOCK_MEMORY,MAIN_MEM, $2000)
+      loader(FREE_MEMORY,  MAIN_MEM, $2000)
+    fin
+    loader(SET_MEM_TARGET, MAIN_MEM, $2000)
+    loader(QUEUE_LOAD,     MAIN_MEM, img<<8 | RES_TYPE_SCREEN)
+    loader(LOCK_MEMORY,    MAIN_MEM, $2000)
+    frameLoaded = img
   fin
-  loader(SET_MEM_TARGET, MAIN_MEM, $2000)
-  loader(QUEUE_LOAD,     MAIN_MEM, (mapIs3D+2)<<8 | RES_TYPE_SCREEN)
-  loader(LOCK_MEMORY,    MAIN_MEM, $2000)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -618,7 +621,10 @@ def initMap(x, y, dir)
   // Start up the display engine with map data and starting position. This will also load and
   // init the script module, if any, which will end up calling us back at the setScriptInfo
   triggerTbl = NULL
+  setWindow2()
+  puts("Calling initDisplay.\n")
   initDisplay(mapNum, pMap, x, y, dir)
+  puts("Back from initDisplay.\n")
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -776,16 +782,33 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def teleport()
   word x, y
+  byte dir
+  
   ^$c053
   if ^$25 < 23; ^$25 = 23; fin
   getPos(@x, @y)
-  printf2("\nCurrent location: X=%d Y=%d\n", x, y)
+  printf4("\nCurrent: 3D=%d Map=%d X=%d Y=%d ", mapIs3D, mapNum, x, y)
+  printf1(" Dir=%d\n", getDir())
+
+  puts("New 3D: ")
+  mapIs3D = parseDec(readStr())
+  puts("New Map: ")
+  mapNum = parseDec(readStr())
   puts("New X: ")
-  x = parseDec(getstr())
+  x = parseDec(readStr())
   puts("New Y: ")
-  y = parseDec(getstr())
+  y = parseDec(readStr())
+  puts("New Dir: ")
+  dir = parseDec(readStr())
+
   ^$c052
-  setMap(mapIs3D, mapNum, x, y, 0)
+
+  setMap(mapIs3D, mapNum, x, y, dir)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def oldTeleport(x, y, dir)
+  printf3("Old teleport: x=%d y=%d dir=%d\n", x, y, dir)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -813,6 +836,8 @@ end
 // Set initial info for the scripts on this map: the trigger table and the name of the map. This
 // is called by the init function for the scripts.
 def setScriptInfo(mapName, trigTbl)
+
+  puts("In setScriptInfo\n")
 
   // Record the trigger table pointer
   triggerTbl = trigTbl
@@ -911,7 +936,7 @@ def loadTitle()
   loader(QUEUE_LOAD,     MAIN_MEM, 1<<8 | RES_TYPE_SCREEN)  // title screen is fixed at #1
   loader(LOCK_MEMORY,    MAIN_MEM, $2000)
   loader(FINISH_LOAD, MAIN_MEM, 1) // 1 = keep open
-  titleLoaded = TRUE
+  frameLoaded = 1
   puts("Title loaded.\n")
   ^$c050
   ^$c057
@@ -950,6 +975,10 @@ def setCallbacks()
   // $30F
   callbacks.15 = $4c
   callbacks:16 = @setGround
+
+  // $312
+  callbacks.18 = $4c
+  callbacks:19 = @oldTeleport
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

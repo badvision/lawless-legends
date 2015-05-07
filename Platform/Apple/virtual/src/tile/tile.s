@@ -1215,7 +1215,8 @@ pl_getDir:
 	LDA AVATAR_DIR		; take our 0..3
 	ASL			; 	and translate
 	ASL			;		to 0..15
-	STA evalStkL,X
+	DEX			; make a place for it on eval stk
+	STA evalStkL,X		; and save it
 	LDA #0
 	STA evalStkH,X
 	RTS

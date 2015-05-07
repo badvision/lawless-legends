@@ -64,6 +64,7 @@ mapNum:    	!byte 1
 nMapSprites:	!byte 0		; number of sprite entries on map to fix up
 nextLink:	!byte 0		; next link to allocate
 tablesInitted:	!byte 0		; 1 after init
+plasmaStk:      !byte 0
 
 skyColorEven:   !byte $20
 skyColorOdd:    !byte $22
@@ -1613,7 +1614,12 @@ loadTextures: !zone
 	ldx #0
 	jsr mainLoader
 	; finally, init the scripts.
-.scInit	jmp $1111
+!if DEBUG { +prStr : !text "Calling script init ",0 : +prWord .scInit+1 : +crout }
+	ldx plasmaStk
+        bit setLcRW+lcBank2	; switch PLASMA runtime back in
+.scInit	jsr $1111		; self-modified earlier
+        bit setROM		; back to ROM so we can work normally
+        rts
 .get:	lda $1111
 	inc .get+1
 	bne +
@@ -1989,7 +1995,9 @@ pl_setColor: !zone
 ; The real action
 pl_initMap: !zone
 	txa
-	pha			; save PLASMA's eval stack pos
+	clc
+	adc #5			; 5 params
+	sta plasmaStk		; save PLASMA's eval stack pos, without our params
 	; Record the address of the map
 	lda evalStkL+3,x
 	sta mapHeader
@@ -2015,13 +2023,10 @@ pl_initMap: !zone
 	sta tablesInitted
 	jsr setExpansionCaller
 	jsr graphInit
+	jsr renderFrame
         bit setLcRW+lcBank2	; switch PLASMA runtime back in
-	pla			; restore PLASMA's eval stk pos
-	tax
-        inx
-        inx			; toss 4 slots (params=5, ret=1, diff=4)
-        inx
-        inx
+	ldx plasmaStk		; restore PLASMA's eval stk pos
+	dex			; make room for dummy return (inc'd over params earlier)
 	rts
 
 ; Following are log/pow lookup tables. For speed, align them on a page boundary.

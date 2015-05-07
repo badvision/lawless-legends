@@ -468,7 +468,11 @@ class PackPartitions
                     (0..<TILES_PER_ROW).each { colNum ->
                         def x = hOff + colNum
                         def tile = (row && x < width) ? row[x] : null
-                        def flags = ([colNum, rowNum] in locationsWithTriggers) ? 0x20 : 0
+                        def flags = 0
+                        if ([colNum, rowNum] in locationsWithTriggers)
+                            flags |= 0x20
+                        if (tile?.@obstruction == 'true')
+                            flags |= 0x40
                         buf.put((byte)((tile ? tileMap[tile.@id] : 0) | flags))
                     }
                 }

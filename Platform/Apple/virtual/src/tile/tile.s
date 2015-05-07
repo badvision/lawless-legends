@@ -1286,7 +1286,7 @@ ADVANCE: !zone {
 
         JSR CALC
 	LDA AVATAR_TILE		; get tile flags
-	AND #$20		; obstructed?
+	AND #$40		; obstructed?
 	BEQ +
 
 	; Player moved to an obstructed place. Undo!
@@ -1311,7 +1311,7 @@ ADVANCE: !zone {
 	BEQ .ret
 	INY			; moved
 	LDA AVATAR_TILE
-	AND #$10		; check script flag
+	AND #$20		; check script flag
 	BEQ .ret
 	INY			; moved and also new place is scripted
 .ret	RTS

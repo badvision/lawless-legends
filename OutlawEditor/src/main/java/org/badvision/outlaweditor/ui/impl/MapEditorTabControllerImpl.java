@@ -1,5 +1,7 @@
 package org.badvision.outlaweditor.ui.impl;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.event.ActionEvent;
@@ -7,6 +9,7 @@ import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.cell.ComboBoxListCell;
+import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
 import javafx.util.Callback;
@@ -310,9 +313,16 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
                         if (empty || item == null) {
                             setText("");
                         } else {
+                            ImageView visibleIcon = getVisibleIcon(item);
+                            visibleIcon.setOnMouseClicked((e)->{
+                                toggleVisibility(visibleIcon, item);
+                                mapScriptsList.getSelectionModel().clearSelection();
+                            });
+                            setGraphic(visibleIcon);
                             getCurrentEditor().getCurrentMap().getScriptColor(item).ifPresent(this::setTextFill);
                             setText(item.getName());
                             scriptDragDrop.registerDragSupport(this, item);
+                            visibleIcon.setMouseTransparent(false);
                         }
                     }
                 };
@@ -327,6 +337,28 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
             } else {
                 mapScriptsList.getItems().clear();
             }
+        }
+    }
+    
+    public static final Image VISIBLE_IMAGE = new Image("images/visible.png");
+    public static final Image INVISIBLE_IMAGE = new Image("images/not_visible.png");
+    
+    private ImageView getVisibleIcon(Script script) {
+        if (getCurrentEditor().isScriptVisible(script)) {
+            return new ImageView(VISIBLE_IMAGE);
+        } else {
+            return new ImageView(INVISIBLE_IMAGE);
+        }
+    }
+    
+    private void toggleVisibility(ImageView visibilityIcon, Script script) {
+        if (script.getName() == null) return;
+        if (getCurrentEditor().isScriptVisible(script)) {
+            getCurrentEditor().setScriptVisible(script, false);
+            visibilityIcon.setImage(INVISIBLE_IMAGE);
+        } else {
+            getCurrentEditor().setScriptVisible(script, true);
+            visibilityIcon.setImage(VISIBLE_IMAGE);
         }
     }
 }

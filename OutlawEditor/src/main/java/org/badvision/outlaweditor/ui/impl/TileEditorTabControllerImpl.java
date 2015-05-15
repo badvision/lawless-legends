@@ -229,6 +229,7 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
 
     @Override
     public void rebuildTileSelectors() {
+        Tile t = getCurrentTile();
         tileSelector.getItems().clear();
         List<Tile> allTiles = Application.gameData.getTile();
         allTiles.sort((Tile o1, Tile o2) -> {
@@ -240,5 +241,6 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
         });
         tileSelector.getItems().addAll(allTiles);
         tileSelector.getSelectionModel().select(allTiles.indexOf(getCurrentTile()));
+        setCurrentTile(t);
     }
 }

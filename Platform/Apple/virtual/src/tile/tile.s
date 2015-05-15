@@ -220,10 +220,9 @@ LOAD_TILESET
 ;----------------------------------------------------------------------
 ; >> GET TILE IN CARDINAL DIRECTION AND FLAGS 
 ;   (Returns Tile # in Y, Flags in A)
-;   Each tile in memory can be 0-32, the flags are the upper 3 bits
-;   0 0 0
-;   | | `- Visible obstruction (Can not see behind it)
-;   | `--- Boundary (Can not walk on it)
+;   Each tile in memory can be 0-63, the flags are the upper 2 bits
+;   0 0
+;   | `--- Obstructed / Boundary (Can not walk on it)
 ;   `----- Script assigned, triggers script lookup
 ;----------------------------------------------------------------------
 ; >> SET X,Y COORDINATES FOR VIEWPORT CENTER
@@ -841,15 +840,16 @@ ROW_OFFSET = 3
 	LDA #>emptyTile+1
 	BNE .store_src		; always taken
 .not_empty
-	; Calculate location of tile data == tile_base + (((tile & 31) - 1) * 32)
+	; Calculate location of tile data == tile_base + (((tile & 63) - 1) * 32)
 	LDY #0
 	STY TILE_SOURCE+1
-	AND #31
+	AND #63
 	SEC
 	SBC #1			; tile map is 1-based, tile set indexes are 0-based	
 	ASL
 	ASL
 	ASL
+	ROL TILE_SOURCE+1
 	ASL
 	ROL TILE_SOURCE+1
 	ASL
@@ -1289,8 +1289,7 @@ ADVANCE: !zone {
 
         JSR CALC
 	LDA AVATAR_TILE		; get tile flags
-	AND #$40		; obstructed?
-	BEQ +
+	BPL +			; no hi bit = not obstructed
 
 	; Player moved to an obstructed place. Undo!
 	LDA AVATAR_DIR
@@ -1314,7 +1313,7 @@ ADVANCE: !zone {
 	BEQ .ret
 	INY			; moved
 	LDA AVATAR_TILE
-	AND #$20		; check script flag
+	AND #$40		; check script flag
 	BEQ .ret
 	INY			; moved and also new place is scripted
 .ret	RTS

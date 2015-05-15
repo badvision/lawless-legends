@@ -91,6 +91,7 @@ word triggerTbl
 byte redraw
 byte frameLoaded = 0
 byte textDrawn = FALSE
+byte needRender = FALSE
 
 word skyNum = 9
 word groundNum = 10
@@ -125,30 +126,39 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // API to call rendering engine (same API for raycaster and tile engine)
 asm initDisplay   // params: mapNum, pMapData, x, y, dir
+        +asmPlasm 5
         jmp $6000
 end
 asm flipToPage1  // no params
+        +asmPlasm 0
         jmp $6003
 end
 asm getPos       // params: @x, @y
+        +asmPlasm 2
         jmp $6006
 end
 asm setPos       // params: x, y
+        +asmPlasm 2
         jmp $6009
 end
 asm getDir       // no params; returns: dir (0-15)
+        +asmPlasm 0
         jmp $600C
 end
 asm setDir       // params: dir (0-15)
+        +asmPlasm 1
         jmp $600F
 end
 asm advance      // no params; return: 0 if same pos, 1 if new pos, 2 if new pos and scripted
+        +asmPlasm 0
         jmp $6012
 end
 asm setColor     // params: slot (0=sky/1=ground), color (0-15)
+        +asmPlasm 2
         jmp $6015
 end
 asm render      // no params
+        +asmPlasm 0
         jmp $6018
 end
 
@@ -156,11 +166,9 @@ end
 // Simply retrieve the X register. Used to double-check that we're not leaking PLASMA eval
 // stack entries.
 asm getXReg
+        +asmPlasm 0
         txa
-        dex               ; make room for return value
-        sta evalStkL,x
-        lda #0
-        sta evalStkH,x
+        ldy #0
         rts
 end
 
@@ -628,6 +636,7 @@ def initMap(x, y, dir)
   puts("Calling initDisplay.\n")
   initDisplay(mapNum, pMap, x, y, dir)
   puts("Back from initDisplay.\n")
+  needRender = FALSE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -700,12 +709,20 @@ end
 def moveForward()
   byte val
   val = advance()
-  printf1("advance returned %d\n", val)
-  if val > 0 and textDrawn
+
+  // If not blocked, render at the new position.
+  if val > 0
+    needRender = TRUE
+  fin
+
+  // If we're on a new map tile, clear text from script(s) on the old tile.
+  if val >= 2 and textDrawn
     clearWindow()
     textDrawn = FALSE
   fin
-  if val == 2
+
+  // If there are script(s) on the new tile, run them.
+  if val == 3
     checkScripts()
   fin
 end
@@ -728,16 +745,14 @@ end
 // Turn left (3D mode)
 def rotateLeft()
   adjustDir(-1)
-  render()
+  needRender = TRUE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Rotate to the right (3D mode)
 def rotateRight()
   adjustDir(1)
-  puts("About to call render.\n")
-  render()
-  puts("Back from render.\n")
+  needRender = TRUE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -788,7 +803,7 @@ def setMap(is3D, num, x, y, dir)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def teleport()
+def kbdTeleport()
   word x, y
   byte dir
   
@@ -815,9 +830,11 @@ def teleport()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def oldTeleport(x, y, dir)
-  printf3("Old teleport: x=%d y=%d dir=%d\n", x, y, dir)
-  puts("Doing nothing for now.\n")
+def teleport(x, y, dir)
+  printf3("Teleport: x=%d y=%d dir=%d\n", x, y, dir)
+  setPos(x, y)
+  setDir(dir)
+  needRender = TRUE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -838,6 +855,10 @@ def kbdLoop()
       func = cmdTbl[key]
       if func; func(); fin
     fin
+    if needRender
+      render()
+      needRender = FALSE
+    fin
   loop
 end
 
@@ -855,10 +876,8 @@ def setScriptInfo(mapName, trigTbl)
   setWindow1()
   //displayStr(mapName)
 
-  // Set up for drawing other script text.
+  // Back to the main text window.
   setWindow2()
-  clearWindow()
-  textDrawn = FALSE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -897,7 +916,7 @@ def initCmds()
   next
 
   // Commands common to both 2D and 3D
-  initCmd('T', @teleport)
+  initCmd('T', @kbdTeleport)
 
   // Commands handled differently in 3D vs 2D
   if mapIs3D
@@ -987,7 +1006,7 @@ def setCallbacks()
 
   // $312
   callbacks.18 = $4c
-  callbacks:19 = @oldTeleport
+  callbacks:19 = @teleport
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

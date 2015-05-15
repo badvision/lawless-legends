@@ -1906,14 +1906,16 @@ doAllFixups: !zone
 ; Utility routine for convenient assembly routines in PLASMA code. 
 ; Params: Y=number of parameters passed from PLASMA routine
 ; 1. Save PLASMA's X register index to evalStk
-; 2. Switch to ROM
-; 3. Load the last parameter into A=lo, Y=hi
-; 4. Run the calling routine (X still points into evalStk for add'l params if needed)
-; 5. Switch back to LC RAM
-; 6. Restore PLASMA's X register, and advance it over the parameter(s)
-; 7. Store A=lo/Y=hi into PLASMA return value
-; 8. Return to PLASMA
+; 2. Verify X register is in the range 0-$10
+; 3. Switch to ROM
+; 4. Load the *last* parameter into A=lo, Y=hi
+; 5. Run the calling routine (X still points into evalStk for add'l params if needed)
+; 6. Switch back to LC RAM
+; 7. Restore PLASMA's X register, and advance it over the parameter(s)
+; 8. Store A=lo/Y=hi into PLASMA return value
+; 9. Return to PLASMA
 __asmPlasm: !zone
+	bit setROM	; switch to ROM
 	pla		; save address of calling routine, so we can call it
 	clc
 	adc #1
@@ -1925,9 +1927,12 @@ __asmPlasm: !zone
 	dey
 	sty tmp
 	txa
-.add	adc tmp
+	cpx #$11
+	bcs .badx	; X must be in range 0..$10
+.add	adc tmp		; carry cleared by cpx above
 	pha		; and save that
-	bit setROM	; switch to ROM
+	cmp #$11	; again, X must be in range 0..$10
+	bcs .badx
 	lda evalStkL,x	; get last param to A=lo
 	ldy evalStkH,x	; ...Y=hi
 .jsr	jsr $1111	; call the routine to do work
@@ -1940,6 +1945,16 @@ __asmPlasm: !zone
 	tya
 	sta evalStkH,x
 	rts		; and return to PLASMA interpreter
+.badx	jsr crout	; X reg ran outside valid range. Print and abort.
+	lda #'X'
+	jsr cout
+	txa
+	jsr prbyte
+	jsr crout
+	ldx #<+
+	ldy #>+
+	jmp fatalError
++	!text $8D, "PLASMA x-reg out of range", 0
 
 ;------------------------------------------------------------------------------
 ; Segment tables

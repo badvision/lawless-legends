@@ -1668,13 +1668,11 @@ calcMapOrigin: !zone
 ;-------------------------------------------------------------------------------
 ; Advance in current direction if not blocked. 
 ; Params: none
-; Return: 0 if same map tile;
-;         1 if pos is on a new map tile;
-;         2 if that new tile is also scripted
+; Return: 0 if blocked;
+;	  1 if advanced but still within same map tile;
+;         2 if pos is on a new map tile;
+;         3 if that new tile is also scripted
 pl_advance: !zone
-	txa
-	pha			; save PLASMA eval stk pos
-        bit setROM		; switch out PLASMA while we work
 	lda playerDir
 	asl
 	asl			; shift twice: each dir is 4 bytes in table
@@ -1699,7 +1697,6 @@ pl_advance: !zone
 	sta playerY
 	lda playerY+1
 	pha
-	clc
 	adc walkDirs+3,x
 	sta playerY+1
 
@@ -1728,9 +1725,7 @@ pl_advance: !zone
 	sta playerX
 	ldy #0
 	beq .done
-.ok	; Not blocked. Render at the new position
-	jsr renderFrame
-	; See if we're in a new map tile.
+.ok	; Not blocked. See if we're in a new map tile.
 	pla
 	eor playerY+1
 	sta tmp
@@ -1741,39 +1736,26 @@ pl_advance: !zone
 	tay
 	pla
 	tya
-	beq .done		; if not a new map tile, return zero
-	; It is a new position. Is script hint set?
+	bne +
+	iny			; not a new map tile, return 1
+	bne .done		; always taken
++	; It is a new map tile. Is script hint set?
 	ldy playerX+1
 	lda (pMap),y
-	ldy #1			; ret val 1 = new blk but no script
+	ldy #2			; ret val 2 = new blk but no script
 	and #$20		; map flag $20 is the script hint
 	beq .done		; if not scripted, return one
-	iny			; else return 2 = new blk and a script
-.done	pla
-	tax			; restore PLASMA eval stk pos
-	dex			; make room for return value
-	tya			; retrieve ret value
-	sta evalStkL,x		; and store it
-	lda #0
-	sta evalStkH,x		; hi byte of return is zero
-        bit setLcRW+lcBank2	; switch PLASMA runtime back in
-	rts			; and return to PLASMA
+	iny			; else return 3 = new blk and a script
+.done	tya			; retrieve ret value
+	ldy #0			; hi byte of ret is always 0
+	rts			; all done
 
 ;-------------------------------------------------------------------------------
 ; Render at the current position and direction.
 ; Params: none
 ; Return: none
 pl_render: !zone
-	txa
-	pha			; save PLASMA eval stk pos
-        bit setROM		; switch out PLASMA while we work
-        jsr renderFrame
-	pla
-	tax			; restore PLASMA eval stk pos
-	jsr prbyte
-	jsr crout
-        bit setLcRW+lcBank2	; switch PLASMA runtime back in
-	rts			; and return to PLASMA
+	jmp renderFrame
 
 ;-------------------------------------------------------------------------------
 ; Cast all the rays from the current player coord
@@ -1934,12 +1916,16 @@ copyScreen: !zone
 ;-------------------------------------------------------------------------------
 ; Called by PLASMA code to get the position on the map.
 ; Parameters: @x, @y
-; Returns: Nothing
+; Returns: Nothing (but stores into the addressed variables)
 pl_getPos: !zone {
 	lda playerY+1
+	sec
+	sbc #1			; adjust for border guards
 	jsr .sto
 	inx
 	lda playerX+1
+	sec
+	sbc #1			; adjust for border guards
 	; Now fall thru, and exit with X incremented once (2 params - 1 return slot = 1)
 .sto	ldy evalStkL,x
 	sty pTmp
@@ -1958,14 +1944,16 @@ pl_getPos: !zone {
 ; Parameters: x, y
 ; Returns: Nothing
 pl_setPos: !zone {
-	lda evalStkL,x
+	clc
+	adc #1			; adjust for border guards
 	sta playerY+1
 	lda evalStkL+1,x
+	clc
+	adc #1			; adjust for border guards
 	sta playerX+1
 	lda #$80
 	sta playerY
 	sta playerX
-	inx		; 2 params - 1 ret = +1
 	rts
 }
 
@@ -1975,10 +1963,7 @@ pl_setPos: !zone {
 ; Returns: Nothing
 pl_getDir: !zone {
 	lda playerDir
-	dex
-	sta evalStkL,x
-	lda #0
-	sta evalStkH,x
+	ldy #0
 	rts
 }
 
@@ -1987,35 +1972,28 @@ pl_getDir: !zone {
 ; Parameters: dir (0-15)
 ; Returns: Nothing
 pl_setDir: !zone {
-	lda evalStkL,x
 	and #15
 	sta playerDir
-	dex		; 0 param - 1 ret = -1
 	rts
 }
 
 ;-------------------------------------------------------------------------------
 pl_setColor: !zone
-	lda evalStkL,x		; color number
-	tay
-	lda skyGndTbl2,y
-	pha
-	lda skyGndTbl1,y
-	pha
-	lda evalStkH,x		; slot
+	and #15
+	tay			; color number
+	lda evalStkL+1,x
 	and #1
-	asl
-	tay
-	pla
-	sta skyColorEven,y
-	pla
-	sta skyColorOdd,y
-	inx			; toss unused stack slot (parms=2, ret=1, diff=1)
+	tax			; slot
+	lda skyGndTbl1,y
+	sta skyColorEven,x
+	lda skyGndTbl2,y
+	sta skyColorOdd,x
 	rts
 
 ;-------------------------------------------------------------------------------
 ; The real action
 pl_initMap: !zone
+	; Figure out PLASMA stack for calling script init
 	txa
 	clc
 	adc #5			; 5 params
@@ -2030,7 +2008,6 @@ pl_initMap: !zone
 	inx
 	jsr pl_setPos
 	; Proceed with loading
-        bit setROM		; switch out PLASMA runtime while we work
 	jsr loadTextures
 	jsr copyScreen
 	lda tablesInitted
@@ -2045,11 +2022,7 @@ pl_initMap: !zone
 	sta tablesInitted
 	jsr setExpansionCaller
 	jsr graphInit
-	jsr renderFrame
-        bit setLcRW+lcBank2	; switch PLASMA runtime back in
-	ldx plasmaStk		; restore PLASMA's eval stk pos
-	dex			; make room for dummy return (inc'd over params earlier)
-	rts
+	jmp renderFrame
 
 ; Following are log/pow lookup tables. For speed, align them on a page boundary.
 	!align 255,0

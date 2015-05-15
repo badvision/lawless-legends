@@ -470,9 +470,9 @@ class PackPartitions
                         def tile = (row && x < width) ? row[x] : null
                         def flags = 0
                         if ([colNum, rowNum] in locationsWithTriggers)
-                            flags |= 0x20
-                        if (tile?.@obstruction == 'true')
                             flags |= 0x40
+                        if (tile?.@obstruction == 'true')
+                            flags |= 0x80
                         buf.put((byte)((tile ? tileMap[tile.@id] : 0) | flags))
                     }
                 }
@@ -727,7 +727,7 @@ class PackPartitions
                 // See if the set we're considering has room for all our tiles
                 def inCommon = it.tileIds.intersect(tileIds)
                 def together = it.tileIds + tileIds
-                if (together.size() <= 32 && inCommon.size() > bestCommon) {
+                if (together.size() <= 64 && inCommon.size() > bestCommon) {
                     tileSet = it
                     bestCommon = inCommon.size()
                 }
@@ -762,7 +762,7 @@ class PackPartitions
                 def id = tile?.@id
                 if (tile && !tileMap.containsKey(id)) {
                     def num = tileMap.size()+1
-                    assert num < 32 : "Error: Only 31 kinds of tiles are allowed on any given map."
+                    assert num < 64 : "Error: Only 63 kinds of tiles are allowed on any given map."
                     tileMap[id] = num
                     tiles[id].flip() // crazy stuff to append one buffer to another
                     buf.put(tiles[id])
@@ -1748,7 +1748,9 @@ class PackPartitions
                                 y -= yRange[0]
                             if (!triggers[y])
                                 triggers[y] = [:] as TreeMap
-                            triggers[y][x] = (idx+1) * 5  // address of function
+                            if (!triggers[y][x])
+                                triggers[y][x] = []
+                            triggers[y][x].add((idx+1) * 5)  // address of function
                         }
                     }
                 }
@@ -1767,10 +1769,16 @@ class PackPartitions
             // The table itself goes in the data segment.
             triggers.each { y, xs ->
                 emitDataByte(y)
-                emitDataByte(2 + (xs.size() * 3))  // 2 bytes for y+off, plus 3 bytes per trigger (x, adrlo, adrhi)
-                xs.each { x, funcAddr ->
-                    emitDataByte(x)
-                    emitDataFixup(funcAddr)
+                def size = 2  // 2 bytes for y+off
+                xs.each { x, funcAddrs ->
+                    size += funcAddrs.size() * 3  // plus 3 bytes per trigger (x, adrlo, adrhi)
+                }
+                emitDataByte(size)
+                xs.each { x, funcAddrs ->
+                    funcAddrs.each { funcAddr ->
+                        emitDataByte(x)
+                        emitDataFixup(funcAddr)
+                    }
                     // Record a list of trigger locations for the caller's reference
                     locationsWithTriggers << [x, y]
                 }

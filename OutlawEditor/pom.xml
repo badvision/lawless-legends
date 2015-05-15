@@ -79,7 +79,7 @@
         <dependency>
             <groupId>javafx-packager</groupId>
             <artifactId>javafx-packager</artifactId>
-            <version>1.7</version>
+            <version>1.8</version>
             <systemPath>${java.home}/../lib/ant-javafx.jar</systemPath>
             <scope>system</scope>
         </dependency>

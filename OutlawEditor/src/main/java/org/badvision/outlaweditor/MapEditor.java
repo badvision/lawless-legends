@@ -1,9 +1,12 @@
 package org.badvision.outlaweditor;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
@@ -247,8 +250,33 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
 
     private static final int dashLength = 3;
 
+    private final Set<Script> invisibleScripts = new HashSet<>();
+
+    public boolean isScriptVisible(Script script) {
+        return !invisibleScripts.contains(script);
+    }
+
+    public void setScriptVisible(Script script, boolean visible) {
+        setScriptVisible(script, visible, true);
+    }
+
+    public void setScriptVisible(Script script, boolean visible, boolean redraw) {
+        if (visible) {
+            invisibleScripts.remove(script);
+        } else {
+            invisibleScripts.add(script);
+        }
+        if (redraw) {
+            redraw();
+        }
+    }
+
     private void highlightScripts(int x, int y, List<Script> scripts) {
         if (scripts == null || scripts.isEmpty()) {
+            return;
+        }
+        List<Script> visibleScripts = scripts.stream().filter(this::isScriptVisible).collect(Collectors.toList());
+        if (visibleScripts.isEmpty()) {
             return;
         }
         GraphicsContext gc = drawCanvas.getGraphicsContext2D();
@@ -257,40 +285,40 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         double yy = y * tileHeight;
         gc.setLineWidth(4);
         for (int i = 0; i < tileWidth - 2; i += dashLength) {
-            idx = (idx + 1) % scripts.size();
+            idx = (idx + 1) % visibleScripts.size();
             gc.beginPath();
             gc.moveTo(xx, yy);
-            currentMap.getScriptColor(scripts.get(idx)).ifPresent(gc::setStroke);
+            currentMap.getScriptColor(visibleScripts.get(idx)).ifPresent(gc::setStroke);
             xx += dashLength;
             gc.lineTo(xx, yy);
             gc.setEffect(new DropShadow(2, Color.BLACK));
             gc.stroke();
         }
         for (int i = 0; i < tileHeight - 2; i += dashLength) {
-            idx = (idx + 1) % scripts.size();
+            idx = (idx + 1) % visibleScripts.size();
             gc.beginPath();
             gc.moveTo(xx, yy);
-            currentMap.getScriptColor(scripts.get(idx)).ifPresent(gc::setStroke);
+            currentMap.getScriptColor(visibleScripts.get(idx)).ifPresent(gc::setStroke);
             yy += dashLength;
             gc.lineTo(xx, yy);
             gc.setEffect(new DropShadow(2, Color.BLACK));
             gc.stroke();
         }
         for (int i = 0; i < tileWidth - 2; i += dashLength) {
-            idx = (idx + 1) % scripts.size();
+            idx = (idx + 1) % visibleScripts.size();
             gc.beginPath();
             gc.moveTo(xx, yy);
-            currentMap.getScriptColor(scripts.get(idx)).ifPresent(gc::setStroke);
+            currentMap.getScriptColor(visibleScripts.get(idx)).ifPresent(gc::setStroke);
             xx -= dashLength;
             gc.lineTo(xx, yy);
             gc.setEffect(new DropShadow(2, Color.BLACK));
             gc.stroke();
         }
         for (int i = 0; i < tileHeight - 2; i += dashLength) {
-            idx = (idx + 1) % scripts.size();
+            idx = (idx + 1) % visibleScripts.size();
             gc.beginPath();
             gc.moveTo(xx, yy);
-            currentMap.getScriptColor(scripts.get(idx)).ifPresent(gc::setStroke);
+            currentMap.getScriptColor(visibleScripts.get(idx)).ifPresent(gc::setStroke);
             yy -= dashLength;
             gc.lineTo(xx, yy);
             gc.setEffect(new DropShadow(2, Color.BLACK));

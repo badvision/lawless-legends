@@ -1,12 +1,16 @@
 package org.badvision.outlaweditor.ui.impl;
 
+import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.event.ActionEvent;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
-import javafx.scene.control.MenuItem;
+import javafx.scene.control.Menu;
+import javafx.scene.control.RadioMenuItem;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.cell.ComboBoxListCell;
+import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
 import javafx.util.Callback;
@@ -197,8 +201,10 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
         if (getCurrentMap() != null && getCurrentMap().equals(m)) {
             return;
         }
+        Tile currentTile = null;
 //        mapEditorAnchorPane.getChildren().clear();
         if (getCurrentEditor() != null) {
+            currentTile = getCurrentEditor().getCurrentTile();
             getCurrentEditor().unregister();
         }
         if (m == null) {
@@ -238,6 +244,9 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
             e.buildEditorUI(mapEditorAnchorPane);
             setCurrentEditor(e);
             e.setupDragDrop(scriptDragDrop, toolDragDrop);
+            if (currentTile != null) {
+                e.setCurrentTile(currentTile);
+            }
         }
         redrawMapScripts();
     }
@@ -279,19 +288,40 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
     @Override
     public void rebuildTileSelectors() {
         mapSelectTile.getItems().clear();
-        Application.gameData.getTile().stream().map((Tile t) -> {
+        
+        ToggleGroup tileGroup = new ToggleGroup();
+        HashMap<String,Menu> submenus = new HashMap<>();
+        Application.gameData.getTile().stream().forEach((Tile t) -> {
             WritableImage img = TileUtils.getImage(t, currentPlatform);
             ImageView iv = new ImageView(img);
-            MenuItem mapSelectItem = new MenuItem(String.valueOf(t.getCategory())+"/"+String.valueOf(t.getName()), iv);
-            mapSelectItem.setGraphic(new ImageView(TileUtils.getImage(t, currentPlatform)));
-            mapSelectItem.setOnAction((event) -> {
+            String category = String.valueOf(t.getCategory());
+            Menu categoryMenu = submenus.get(category);
+            if (categoryMenu == null) {
+                categoryMenu = new Menu(category);
+                submenus.put(category, categoryMenu);
+            }
+            final Menu theMenu = categoryMenu;
+            RadioMenuItem tileSelection = new RadioMenuItem(String.valueOf(t.getName()), iv);
+            tileSelection.setToggleGroup(tileGroup);
+            if (getCurrentEditor() != null && getCurrentEditor().getCurrentTile() == t) {
+                tileGroup.selectToggle(tileSelection);
+                theMenu.setStyle("-fx-font-weight:bold; -fx-text-fill:blue");
+            }
+            tileSelection.setGraphic(new ImageView(TileUtils.getImage(t, currentPlatform)));
+            tileSelection.setOnAction((event) -> {
                 if (getCurrentEditor() != null) {
                     getCurrentEditor().setCurrentTile(t);
                 }
+                tileGroup.selectToggle(tileSelection);
+                submenus.values().stream().forEach((menu) -> {
+                    menu.setStyle(null);
+                });
+                theMenu.setStyle("-fx-font-weight:bold; -fx-text-fill:blue");
             });
-            return mapSelectItem;
-        }).forEach((mapSelectItem) -> {
-            mapSelectTile.getItems().add(mapSelectItem);
+            categoryMenu.getItems().add(tileSelection);
+        });
+        submenus.values().stream().forEach((menu) -> {
+            mapSelectTile.getItems().add(menu);
         });
     }
 
@@ -310,9 +340,16 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
                         if (empty || item == null) {
                             setText("");
                         } else {
+                            ImageView visibleIcon = getVisibleIcon(item);
+                            visibleIcon.setOnMouseClicked((e)->{
+                                toggleVisibility(visibleIcon, item);
+                                mapScriptsList.getSelectionModel().clearSelection();
+                            });
+                            setGraphic(visibleIcon);
                             getCurrentEditor().getCurrentMap().getScriptColor(item).ifPresent(this::setTextFill);
                             setText(item.getName());
                             scriptDragDrop.registerDragSupport(this, item);
+                            visibleIcon.setMouseTransparent(false);
                         }
                     }
                 };
@@ -327,6 +364,28 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
             } else {
                 mapScriptsList.getItems().clear();
             }
+        }
+    }
+    
+    public static final Image VISIBLE_IMAGE = new Image("images/visible.png");
+    public static final Image INVISIBLE_IMAGE = new Image("images/not_visible.png");
+    
+    private ImageView getVisibleIcon(Script script) {
+        if (getCurrentEditor().isScriptVisible(script)) {
+            return new ImageView(VISIBLE_IMAGE);
+        } else {
+            return new ImageView(INVISIBLE_IMAGE);
+        }
+    }
+    
+    private void toggleVisibility(ImageView visibilityIcon, Script script) {
+        if (script.getName() == null) return;
+        if (getCurrentEditor().isScriptVisible(script)) {
+            getCurrentEditor().setScriptVisible(script, false);
+            visibilityIcon.setImage(INVISIBLE_IMAGE);
+        } else {
+            getCurrentEditor().setScriptVisible(script, true);
+            visibilityIcon.setImage(VISIBLE_IMAGE);
         }
     }
 }

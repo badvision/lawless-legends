@@ -150,7 +150,7 @@ public class UIAction {
 
     public static WritableImage getBadImage(int width, int height) {
         if (badImage == null) {
-            badImage = new Image("/images/icon_brokenLink.png");
+            badImage = new Image("images/icon_brokenLink.png");
         }
         WritableImage img = new WritableImage(width, height);
         img.getPixelWriter().setPixels(0, 0, (int) badImage.getWidth(), (int) badImage.getHeight(), badImage.getPixelReader(), 0, 0);

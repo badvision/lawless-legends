@@ -26,6 +26,7 @@
                                         <MenuItem mnemonicParsing="false" onAction="#mapDraw3" text="Radius 3" />
                                         <MenuItem mnemonicParsing="false" onAction="#mapDraw5" text="Radius 5" />
                                         <MenuItem mnemonicParsing="false" onAction="#mapDrawFilledRectMode" text="Filled Rectangle" />
+                                        <MenuItem mnemonicParsing="false" onAction="#mapEraser" text="Eraser" />
                                     </items>
                                 </Menu>
                                 <MenuItem mnemonicParsing="false" onAction="#mapTogglePanZoom" text="Toggle pan/zoom controls" />

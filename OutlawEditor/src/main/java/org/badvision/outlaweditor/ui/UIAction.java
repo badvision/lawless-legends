@@ -10,32 +10,53 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import javafx.animation.FadeTransition;
+import javafx.animation.ScaleTransition;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
+import javafx.scene.effect.BlurType;
+import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
+import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.HBoxBuilder;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBoxBuilder;
+import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.util.Callback;
+import javafx.util.Duration;
 import javax.xml.bind.JAXB;
 import org.badvision.outlaweditor.Application;
+import static org.badvision.outlaweditor.Application.currentPlatform;
 import org.badvision.outlaweditor.FileUtils;
 import org.badvision.outlaweditor.MythosEditor;
 import org.badvision.outlaweditor.apple.ImageDitherEngine;
+import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.TilesetUtils;
 import org.badvision.outlaweditor.data.xml.GameData;
 import org.badvision.outlaweditor.data.xml.Script;
+import org.badvision.outlaweditor.data.xml.Tile;
 import org.badvision.outlaweditor.ui.impl.ImageConversionWizardController;
 
 /**
@@ -141,7 +162,7 @@ public class UIAction {
     public static void quit() {
         confirm("Quit?  Are you sure?", UIAction::quitWithoutConfirming, null);
     }
-    
+
     public static void quitWithoutConfirming() {
         Platform.runLater(Platform::exit);
     }
@@ -212,7 +233,7 @@ public class UIAction {
         editor.show();
         return script;
     }
-    
+
     public static ImageConversionWizardController openImageConversionModal(Image image, ImageDitherEngine ditherEngine, int targetWidth, int targetHeight, ImageConversionPostAction postAction) {
         FXMLLoader fxmlLoader = new FXMLLoader(UIAction.class.getResource("/imageConversionWizard.fxml"));
         try {
@@ -230,6 +251,106 @@ public class UIAction {
             return controller;
         } catch (IOException exception) {
             throw new RuntimeException(exception);
-        }        
+        }
+    }
+
+    public static final int GRID_SPACING = 7;
+    public static final int MAX_TILES_PER_ROW = 16;
+    public static AnchorPane currentTileSelector;
+
+    public static void showTileSelectModal(Pane anchorPane, String category, Callback<Tile,?> callback) {
+        if (currentTileSelector != null) {
+            return;
+        }
+        currentTileSelector = new AnchorPane();
+
+        int TILE_WIDTH = Application.currentPlatform.tileRenderer.getWidth();
+        int TILE_HEIGHT = Application.currentPlatform.tileRenderer.getHeight();
+
+        List<Tile> tiles = Application.gameData.getTile().stream().filter((Tile t) -> {
+            return category == null || t.getCategory().equals(category);
+        }).collect(Collectors.toList());
+
+        int tilesPerRow = (int) Math.min(tiles.size(), Math.min(MAX_TILES_PER_ROW, anchorPane.getWidth() / (TILE_WIDTH + GRID_SPACING)));
+        int numRows = (tiles.size() + tilesPerRow - 1) / tilesPerRow;
+        int prefWidth = tilesPerRow * (TILE_WIDTH + GRID_SPACING) + GRID_SPACING;
+        currentTileSelector.setPrefWidth(prefWidth);
+        currentTileSelector.setPrefHeight(Math.min(numRows * (TILE_HEIGHT + GRID_SPACING) + GRID_SPACING, prefWidth));
+        for (int i = 0; i < tiles.size(); i++) {
+            final Tile tile = tiles.get(i);
+            ImageView tileIcon = new ImageView(TileUtils.getImage(tile, currentPlatform));
+            currentTileSelector.getChildren().add(tileIcon);
+            tileIcon.setOnMouseClicked((e) -> {
+                e.consume();
+                callback.call(tile);
+                closeCurrentTileSelector();
+            });
+            tileIcon.setOnMouseEntered((e) -> {
+                tileIcon.setEffect(new DropShadow(BlurType.GAUSSIAN, Color.CORNSILK, 5.0, 0.5, 0, 0));
+                ScaleTransition st = new ScaleTransition(Duration.millis(150), tileIcon);
+                st.setAutoReverse(false);
+                st.setToX(1.25);
+                st.setToY(1.25);
+                st.play();
+            });
+            tileIcon.setOnMouseExited((e) -> {
+                tileIcon.setEffect(null);
+                ScaleTransition st = new ScaleTransition(Duration.millis(150), tileIcon);
+                st.setAutoReverse(false);
+                st.setToX(1);
+                st.setToY(1);
+                st.play();
+            });
+            tileIcon.setLayoutX(GRID_SPACING + (i % tilesPerRow) * (TILE_WIDTH + GRID_SPACING));
+            tileIcon.setLayoutY(GRID_SPACING + (i / tilesPerRow) * (TILE_HEIGHT + GRID_SPACING));
+        }
+        currentTileSelector.setLayoutX((anchorPane.getWidth() - currentTileSelector.getPrefWidth()) / 2);
+        currentTileSelector.setLayoutY((anchorPane.getHeight() - currentTileSelector.getPrefHeight()) / 2);
+        currentTileSelector.setBackground(
+                new Background(
+                        new BackgroundFill(
+                                new Color(0.7, 0.7, 0.9, 0.75),
+                                new CornerRadii(10.0),
+                                null)));
+        currentTileSelector.setEffect(new DropShadow(5.0, 1.0, 1.0, Color.BLACK));        
+        anchorPane.getChildren().add(currentTileSelector);
+        Application.getPrimaryStage().getScene().addEventHandler(KeyEvent.KEY_PRESSED, cancelTileSelectKeyHandler);
+        Application.getPrimaryStage().getScene().addEventFilter(MouseEvent.MOUSE_PRESSED, cancelTileSelectMouseHandler);
+    }
+
+    private static final EventHandler<MouseEvent> cancelTileSelectMouseHandler = (MouseEvent e) -> {
+        if (! (e.getSource() instanceof ImageView)) {
+            e.consume();
+        }
+        closeCurrentTileSelector();
+    };
+    
+    private static final EventHandler<KeyEvent> cancelTileSelectKeyHandler = (KeyEvent e) -> {
+        if (e.getCode() == KeyCode.ESCAPE) {
+            closeCurrentTileSelector();
+        }
+    };
+
+    public static void closeCurrentTileSelector() {
+        Application.getPrimaryStage().getScene().removeEventHandler(KeyEvent.KEY_PRESSED, cancelTileSelectKeyHandler);
+        Application.getPrimaryStage().getScene().removeEventFilter(MouseEvent.MOUSE_PRESSED, cancelTileSelectMouseHandler);
+
+        fadeOut(currentTileSelector, (ActionEvent ev) -> {
+            if (currentTileSelector != null) {
+                Pane parent = (Pane) currentTileSelector.getParent();
+                parent.getChildren().remove(currentTileSelector);
+                currentTileSelector = null;
+            }
+        });
+    }
+
+    public static void fadeOut(Node node, EventHandler<ActionEvent> callback) {
+        FadeTransition ft = new FadeTransition(Duration.millis(250), node);
+        ft.setFromValue(1.0);
+        ft.setToValue(0.0);
+        ft.setCycleCount(1);
+        ft.setAutoReverse(false);
+        ft.setOnFinished(callback);
+        ft.play();
     }
 }

@@ -600,6 +600,11 @@ CROSS_WEST
 	JSR MainDraw
 }
 
+;----------------------------------------------------------------------
+; >> pl_render
+; Params: none; return: none
+; Draw at the current position.
+pl_render:
 DRAW:	LDA #0
 	BEQ +
 CALC:	LDA #1
@@ -916,7 +921,6 @@ FinishCalc
 ; params: mapNum, pMapData, x, y, dir
 pl_initMap: !zone
 	STX PLASMA_X	; save PLASMA's eval stack pos
-        BIT setROM	; switch out PLASMA while we work
 
         ; PLASMA code has already loaded the Northwest-most map section. Record its ID and address.
         LDA evalStkL+4,X
@@ -952,18 +956,12 @@ pl_initMap: !zone
 
 	; The bullk of the work is taken care of by a helper function.
 	INX			; skip dir so that X/Y pos are at top of eval stack
-	JSR SETPOS
-
-	; all done
-        BIT setLcRW+lcBank2	; switch PLASMA runtime back in
-	LDX PLASMA_X		; restore PLASMA's eval stk pos
-        INX
-        INX			; toss 4 slots (params=5, ret=1, diff=4)
-        INX
-        INX
-	RTS	
+	JMP SETPOS
 
 ;----------------------------------------------------------------------
+; >> pl_setPos
+; Params: X, Y
+pl_setPos:
 SETPOS:
 	; Figure out which map sections we need to load.
 	; We can temporarily use the DRAW_* variables for our work here, since
@@ -1148,42 +1146,24 @@ SETPOS:
 ; >> pl_flipToPage1
 ; No-op, because in 2D we don't use hi-res page 2
 pl_flipToPage1:
-	dex		; no-op still needs a return slot (0 param - 1 ret = -1)
 	rts
 
 ;----------------------------------------------------------------------
 ; >> pl_setColor
 ; No-op, because in 2D we don't have sky and ground colors
 pl_setColor:
-	rts		; no need to mess with X: 1 param - 1 ret = 0
-
-;----------------------------------------------------------------------
-; >> pl_setPos
-; Params: X, Y
-pl_setPos:
-	TXA
-	PHA			; save PLASMA eval stk pos
-        BIT setROM		; switch out PLASMA while we work
-        JSR SETPOS		; bulk of the work done by a helper function
-        BIT setLcRW+lcBank2	; switch PLASMA runtime back in
-	PLA			; restore PLASMA's eval stk pos
-	TAX
-        INX			; toss 1 slot (params=2, ret=0, diff=2)
-        INX
-	RTS	
+	rts
 
 ;----------------------------------------------------------------------
 ; >> pl_getPos
 ; Params: @X, @Y
 pl_getPos: !zone {
 !if DEBUG {
-	BIT setROM
 	+prStr : !text "O_X=",0 : +prWord ORIGIN_X
 	+prStr : !text "R_X=",0 : +prByte REL_X
 	+prStr : !text "O_Y=",0 : +prWord ORIGIN_Y
 	+prStr : !text "R_Y=",0 : +prByte REL_Y
 	+crout
-	BIT setLcRW+lcBank2
 }
 	LDA ORIGIN_Y
 	CLC
@@ -1199,7 +1179,7 @@ pl_getPos: !zone {
 	JSR .sto
 	LDA ORIGIN_X+1
 	ADC #0
-	JMP .sto2		; Note: total X incr: 1 (2 parms - 1 ret = 1)
+	JMP .sto2
 .sto	LDY evalStkL,X		; lo byte of address
 	STY .sto2+1
 	LDY evalStkH,X		; hi byte of address
@@ -1217,10 +1197,7 @@ pl_getDir:
 	LDA AVATAR_DIR		; take our 0..3
 	ASL			; 	and translate
 	ASL			;		to 0..15
-	DEX			; make a place for it on eval stk
-	STA evalStkL,X		; and save it
-	LDA #0
-	STA evalStkH,X
+	LDY #0
 	RTS
 
 ;----------------------------------------------------------------------
@@ -1279,7 +1256,12 @@ INNER_ADVANCE: !zone {
 }
 
 ;----------------------------------------------------------------------
-ADVANCE: !zone {
+; >> pl_advance
+; Params: none; return: 0 if blocked, 1 if same, 2 if new map tile, 3 if new and scripted
+; Advance in the current direction
+pl_advance: !zone {
+	STX PLASMA_X		; save PLASMA eval stk pos
+
         LDA REL_X		; save X
         PHA
         LDA REL_Y		; and save Y
@@ -1311,51 +1293,14 @@ ADVANCE: !zone {
 	EOR REL_X
 .or	ORA #11			; self-modified above
 	BEQ .ret
-	INY			; moved
+	LDY #2			; moved, so return at least 2.
 	LDA AVATAR_TILE
 	AND #$40		; check script flag
 	BEQ .ret
-	INY			; moved and also new place is scripted
-.ret	RTS
-}
-
-;----------------------------------------------------------------------
-; >> pl_advance
-; Params: none; return: 0 if same, 1 if new map tile, 2 if new and scripted
-; Advance in the current direction
-pl_advance: !zone {
-	STX PLASMA_X		; save PLASMA eval stk pos
-        BIT setROM		; switch out PLASMA while we work
-
-        JSR ADVANCE		; most of the work done by helper function
-        TYA
-        PHA
-        JSR DRAW
-        PLA
-        TAY
-
-        BIT setLcRW+lcBank2	; switch PLASMA runtime back in
-	LDX PLASMA_X		; restore PLASMA's eval stk pos
-        DEX			; make room for ret val (params=0, ret=1, diff=-1)
-        TYA			; get ret val
-        STA evalStkL,X		; 	and save it
-        LDA #0			; hi byte of ret val
-        STA evalStkH,X		;	is always zero
-	RTS	
-}
-
-;----------------------------------------------------------------------
-; >> pl_render
-; Params: none; return: none
-; Draw at the current position.
-pl_render: !zone {
-	STX PLASMA_X		; save PLASMA eval stk pos
-        BIT setROM		; switch out PLASMA while we work
-
-        JSR DRAW
-
-        BIT setLcRW+lcBank2	; switch PLASMA runtime back in
-	RTS	
+	INY			; moved and also new place is scripted, return 3.
+.ret	TYA
+	LDY #0			; hi byte of return always zero
+	RTS
 }
 
 tblHGRl     

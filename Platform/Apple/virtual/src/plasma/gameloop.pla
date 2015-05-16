@@ -60,12 +60,12 @@ const FATAL_ERROR    = $1F
 // Other constants
 const callbacks = $300
 
-// 3D mode
-const OVERMAP_NUM = 11
-const OVERMAP_IS_3D = 1
-// 2D mode
-//const OVERMAP_NUM = 1
-//const OVERMAP_IS_3D = 0
+// 3D map start
+//const OVERMAP_NUM = 11
+//const OVERMAP_IS_3D = 1
+// 2D map start
+const OVERMAP_NUM = 1
+const OVERMAP_IS_3D = 0
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Predefined functions, for circular calls or out-of-order calls
@@ -807,6 +807,7 @@ def kbdTeleport()
   word x, y
   byte dir
   
+  flipToPage1()
   ^$c053
   if ^$25 < 23; ^$25 = 23; fin
   getPos(@x, @y)

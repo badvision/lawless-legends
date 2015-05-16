@@ -1937,7 +1937,7 @@ __asmPlasm: !zone
 	ldy evalStkH,x	; ...Y=hi
 .jsr	jsr $1111	; call the routine to do work
 	bit setLcRW+lcBank2	; read from language card (where PLASMA runtime lives)
-	sta tmp		; save return value lo
+	sta tmp		; stash return value lo
 	pla
 	tax		; restore adjusted PLASMA stack pointer
 	lda tmp

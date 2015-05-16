@@ -655,7 +655,7 @@ shared_alloc:
 .recl	dec .reclaimFlg		; first time: 1 -> 0, second time 0 -> $FF
 	bmi outOfMemErr		; so if it's second time, give up
 	jsr reclaim		; first time, do a reclaim pass
-	jmp .chooseAddr		; and try again
+	jmp .try		; and try again
 .notFound:
 	jmp invalAddr
 ; target addr was specified. See if we can fulfill the request.
@@ -734,6 +734,7 @@ shared_alloc:
 ; at the same time to guarantee that we never have the main part of a module
 ; without its aux part, or vice versa.
 reclaim: !zone
+	!if DEBUG { +prStr : !text "Reclaim.",0 }
 	lda isAuxCmd	; save whether current command is aux or not
 	pha
 	lda #1		; we do aux bank first
@@ -766,7 +767,7 @@ coalesce: !zone
 	ora tSegType,y		; and next seg
 	bne .next		; if either is active or has a type, can't combine
 	; we can combine the next segment into this one.
-	!if DEBUG { jsr .debug }
+	!if DEBUG >= 2 { jsr .debug }
 	lda tSegLink,y
 	sta tSegLink,x
 	stx tmp
@@ -776,7 +777,7 @@ coalesce: !zone
 	tax			; to X reg index
 	bne .loop		; non-zero = not end of chain - loop again
 .done	rts
-!if DEBUG {
+!if DEBUG >= 2 {
 .debug	+prStr : !text "Coalesce ",0
 	pha
 	txa
@@ -1303,9 +1304,9 @@ disk_finishLoad: !zone
 	!byte MLI_SET_MARK
 	!word .setMarkParams
 	bcs .prodosErr
-!if DEBUG { +prStr : !text "Deco.",0 }
+!if DEBUG >= 2 { +prStr : !text "Deco.",0 }
 	jsr lz4Decompress	; decompress (or copy if uncompressed)
-!if DEBUG { +prStr : !text "Done.",0 }
+!if DEBUG >= 2 { +prStr : !text "Done.",0 }
 .resume	ldy .ysave
 .next	lda (pTmp),y		; lo byte of length
 	clc
@@ -1339,17 +1340,28 @@ disk_finishLoad: !zone
 .nFixups:	!byte 0
 
 !if DEBUG {
-.debug1:+prStr : !text "Load: t=",0
-	+prByte resType
+.debug1:+prStr : !text "Ld t=",0
+	pha
+	lda resType
+	jsr prhex
+	lda #" "
+	jsr cout
+	pla
 	+prStr : !text "n=",0
 	+prByte resNum
 	+prStr : !text "aux=",0
-	+prByte isAuxCmd
+	pha
+	lda isAuxCmd
+	jsr prhex
+	lda #" "
+	jsr cout
+	pla
 	rts
-.debug2:+prStr : !text "len=",0
+.debug2:+prStr : !text "rawLen=",0
 	+prWord reqLen
 	+prStr : !text "dst=",0
 	+prWord pDst
+	+crout
 	rts
 } ; end DEBUG
 

@@ -431,7 +431,7 @@ castRay: !zone
 	adc pMap+1		; calculate hi byte of map pointer
 	sta mapSpriteH,x	; and save that too
 	inc nMapSprites		; advance to next table entry
-	!if DEBUG { jsr .debugSprite }
+	!if DEBUG >= 2 { jsr .debugSprite }
 	lda #$80		; put sprite in middle of map square
 	sta spriteX
 	sta spriteY
@@ -569,7 +569,7 @@ castRay: !zone
 	+crout
 	jmp rdkey
 }
-!if DEBUG {
+!if DEBUG >= 2 {
 .debugSprite:
 	+crout
 	+prStr : !text "Hit sprite, mapX=",0
@@ -589,7 +589,7 @@ castRay: !zone
 ;         sec if sprite is on screen, and sets the following variables:
 ;         lineCt (height), wSpriteLeft, txColumn, wTxColBump, depth
 spriteCalc: !zone
-	!if DEBUG { jsr .debug0 }
+	!if DEBUG >= 2 { jsr .debug0 }
 
 	lda #0			; track sign bits
 	sta bSgnSinT
@@ -629,7 +629,7 @@ spriteCalc: !zone
 	sbc #>W_LOG_256		; subtract wLog256
 	sta wLogCosT+1		; store hi byte
 
-	!if DEBUG { jsr .debug1 }
+	!if DEBUG >= 2 { jsr .debug1 }
 
 	; Calculate wLogDx = log2_w_w(spriteX - playerX), as abs value and a sign bit
 	lda spriteX		; calculate spriteX - playerX
@@ -645,7 +645,7 @@ spriteCalc: !zone
 +	tya			; lo byte in A where log2 wants it
 	cpx #SPRITE_DIST_LIMIT	; too far away?
 	bmi +
-	!if DEBUG { +prStr : !text "Sprite is too far away (X).",0 }
+	!if DEBUG >= 2 { +prStr : !text "Sprite is too far away (X).",0 }
 	clc
 	rts
 +	jsr log2_w_w		; wants A=lo, X=Hi
@@ -666,14 +666,14 @@ spriteCalc: !zone
 +	tya			; lo byte in A where log2 wants it
 	cpx #SPRITE_DIST_LIMIT	; too far away?
 	bmi +
-	!if DEBUG { +prStr : !text "Sprite is too far away (Y).",0 }
+	!if DEBUG >= 2 { +prStr : !text "Sprite is too far away (Y).",0 }
 	clc
 	rts
 +	jsr log2_w_w		; wants A=lo, X=Hi
 	sta wLogDy
 	stx wLogDy+1
 
-	!if DEBUG { jsr .debug2 }
+	!if DEBUG >= 2 { jsr .debug2 }
 
 	; Calculate wRx = bSgnDx*bSgnCosT*pow2_w_w(wLogDx + wLogCosT) -
 	;                 bSgnDy*bSgnSinT*pow2_w_w(wLogDy + wLogSinT)
@@ -714,11 +714,11 @@ spriteCalc: !zone
 	adc wRx+1		; also hi byte
 	sta wRx+1
 
-	!if DEBUG { jsr .debug3 }
+	!if DEBUG >= 2 { jsr .debug3 }
 
 	; if wRx is negative, it means sprite is behind viewer... we get out of school early.
 	bpl +
-	!if DEBUG { +prStr : !text "Sprite is behind viewer.",0 }
+	!if DEBUG >= 2 { +prStr : !text "Sprite is behind viewer.",0 }
 	clc
 	rts
 
@@ -860,7 +860,7 @@ spriteCalc: !zone
 	inx			; bump hi byte
 +	stx wSpriteTop+1	; save hi byte
 
-	!if DEBUG { jsr .debug4 }
+	!if DEBUG >= 2 { jsr .debug4 }
 
 	; Need X position on screen.
 	; The constant below is cheesy and based on empirical observation rather than understanding.
@@ -888,7 +888,7 @@ spriteCalc: !zone
 	beq +			; clear, no invert
 	jsr .negYX
 +	; don't need to actually store wX -- it's only needed for spriteLeft below
-	!if DEBUG { jsr .debug5 }
+	!if DEBUG >= 2 { jsr .debug5 }
 
 	; Calculate wSpriteLeft = wx + wSpriteTop
 	tya
@@ -899,7 +899,7 @@ spriteCalc: !zone
 	txa			; hi byte in X from code above
 	adc wSpriteTop+1	; hi byte of top
 	sta wSpriteLeft+1	; save hi byte of left coord
-	!if DEBUG { jsr .debug6 }
+	!if DEBUG >= 2 { jsr .debug6 }
 	bmi .ckLeft		; if negative, check against left side
 
 	; Left coord is positive, check against right side
@@ -909,7 +909,7 @@ spriteCalc: !zone
 	lda #0			; start with first column of texture
 	sta txColumn		; save starting tex coord
 	jmp .cBump		; sprite starts on screen, might run off to right but that's ok
-.offR	!if DEBUG { +prStr : !text "Sprite is off-screen to right.",0 }
+.offR	!if DEBUG >= 2 { +prStr : !text "Sprite is off-screen to right.",0 }
 	clc
 	rts
 
@@ -918,7 +918,7 @@ spriteCalc: !zone
 	bcc .offL
 	cpy #0-NUM_COLS		; now check lo byte, should be >= -63
 	bpl .clipL
-.offL	!if DEBUG { +prStr : !text "Sprite is off-screen to left.",0 }
+.offL	!if DEBUG >= 2 { +prStr : !text "Sprite is off-screen to left.",0 }
 	clc
 	rts
 .clipL	; Sprite overlaps left edge of screen; calculate clipping.
@@ -974,7 +974,7 @@ spriteCalc: !zone
 	lsr
 	ror depth
 
-	!if DEBUG { jsr .debug7 }
+	!if DEBUG >= 2 { jsr .debug7 }
 
 .draw	; Okay, I think we're all done with calculations for this sprite.
 	sec	; flag to say draw it
@@ -993,7 +993,7 @@ spriteCalc: !zone
 +	rts
 
 	; Code for debugging sprite math
-!if DEBUG {
+!if DEBUG >= 2 {
 .debug0 +prStr : !text "playerX=",0
 	+prWord playerX
 	+prStr : !text "playerY=",0
@@ -1139,7 +1139,7 @@ saveLink: !zone
 	lda txNum
 	sta txNumBuf,x
 	inc nextLink
-	!if DEBUG { jsr .debugLink }
+	!if DEBUG >= 2 { jsr .debugLink }
 	rts	
 .chk1				; does it need to be inserted before the existing first link?
 	lda tmp
@@ -1159,7 +1159,7 @@ saveLink: !zone
 	cmp depthBuf,y
 	bcc .insert		; found the right place
 	bcs .next		; not the right place to insert, look at next link (always taken)
-!if DEBUG {
+!if DEBUG >= 2 {
 .debugLink:
 	lda screenCol
 	cmp #DEBUG_COLUMN
@@ -1620,6 +1620,7 @@ loadTextures: !zone
         bit setLcRW+lcBank2	; switch PLASMA runtime back in
 .scInit	jsr $1111		; self-modified earlier
         bit setROM		; back to ROM so we can work normally
+!if DEBUG { +prStr : !text "Back from script init. ",0 }
         rts
 .get:	lda $1111
 	inc .get+1

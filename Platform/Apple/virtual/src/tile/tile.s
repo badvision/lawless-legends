@@ -920,7 +920,10 @@ FinishCalc
 ; >> pl_initMap
 ; params: mapNum, pMapData, x, y, dir
 pl_initMap: !zone
-	STX PLASMA_X	; save PLASMA's eval stack pos
+	TXA
+	CLC
+	ADC #5
+	STA PLASMA_X	; save PLASMA's eval stack pos, without our params on it
 
         ; PLASMA code has already loaded the Northwest-most map section. Record its ID and address.
         LDA evalStkL+4,X

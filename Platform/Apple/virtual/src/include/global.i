@@ -90,6 +90,7 @@ rdkey		= $FD0C
 getln1		= $FD6F
 crout		= $FD8E
 prbyte		= $FDDA
+prhex		= $FDE3
 cout		= $FDED
 setnorm		= $FE84
 setkbd		= $FE89

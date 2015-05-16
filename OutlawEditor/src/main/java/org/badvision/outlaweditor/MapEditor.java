@@ -16,14 +16,19 @@ import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.effect.DropShadow;
+import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
+import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.FillRule;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 import static org.badvision.outlaweditor.Application.currentPlatform;
@@ -33,6 +38,7 @@ import org.badvision.outlaweditor.data.xml.Map;
 import org.badvision.outlaweditor.data.xml.Script;
 import org.badvision.outlaweditor.data.xml.Tile;
 import org.badvision.outlaweditor.ui.ToolType;
+import org.badvision.outlaweditor.ui.UIAction;
 
 /**
  *
@@ -75,6 +81,10 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     @Override
     public void setDrawMode(DrawMode drawMode) {
         this.drawMode = drawMode;
+        if (drawMode == DrawMode.Eraser) {
+            ImageCursor cursor = new ImageCursor(new Image("images/eraser.png"));
+            drawCanvas.setCursor(cursor);
+        }
     }
 
     @Override
@@ -85,10 +95,24 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     @Override
     public void buildEditorUI(Pane tileEditorAnchorPane) {
         anchorPane = tileEditorAnchorPane;
+        Application.getPrimaryStage().getScene().addEventHandler(KeyEvent.KEY_PRESSED, this::keyPressed);
         initCanvas();
         redraw();
     }
 
+    private void keyPressed(KeyEvent e) {
+        if (e.isControlDown() && e.getCode() == KeyCode.SPACE) {
+            e.consume();
+            String category = null;
+            if (currentTile != null) {
+                category = currentTile.getCategory();
+            }                 
+            if (this.equals(Application.getInstance().getController().getVisibleEditor())) {
+                UIAction.showTileSelectModal((AnchorPane) anchorPane, category, this::setCurrentTile);
+            }
+        }
+    }
+    
     public void initCanvas() {
         if (drawCanvas != null) {
             anchorPane.getChildren().remove(drawCanvas);
@@ -218,7 +242,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     }
 
     private synchronized void doRedraw() {
-        drawCanvas.getGraphicsContext2D().clearRect(0, 0, drawCanvas.getWidth(), drawCanvas.getHeight());
+        clearCanvas();
         int cols = (int) (drawCanvas.getWidth() / tileWidth);
         int rows = (int) (drawCanvas.getHeight() / tileHeight);
         for (int x = 0; x <= cols; x++) {
@@ -238,13 +262,27 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         anchorPane.getChildren().get(4).setLayoutY((drawCanvas.getHeight() - 30) / 2);
     }
 
+    public void clearCanvas() {
+        boolean oddEvenColumn = false;
+        boolean oddEven;
+        for (int x=0; x < drawCanvas.getWidth(); x += 10) {
+            oddEven = oddEvenColumn;
+            for (int y=0; y < drawCanvas.getHeight(); y += 10) {
+                drawCanvas.getGraphicsContext2D().setFill(oddEven ? Color.BLACK : Color.NAVY);
+                drawCanvas.getGraphicsContext2D().fillRect(x, y, 10, 10);
+                oddEven = !oddEven;
+            }
+            oddEvenColumn = !oddEvenColumn;
+        }
+    }
+
     private void doDraw(int x, int y, Tile tile) {
         double xx = x * tileWidth;
         double yy = y * tileHeight;
         if (tile != null) {
             drawCanvas.getGraphicsContext2D().drawImage(TileUtils.getImage(tile, currentPlatform), xx, yy, tileWidth, tileHeight);
         } else {
-            drawCanvas.getGraphicsContext2D().clearRect(xx, yy, tileWidth, tileHeight);
+//            drawCanvas.getGraphicsContext2D().clearRect(xx, yy, tileWidth, tileHeight);
         }
     }
 
@@ -342,6 +380,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         drawCanvas.heightProperty().unbind();
         anchorPane.getChildren().remove(drawCanvas);
         currentMap.updateBackingMap();
+        Application.getPrimaryStage().getScene().removeEventHandler(KeyEvent.KEY_PRESSED, this::keyPressed);
     }
 
     /**
@@ -353,11 +392,16 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
 
     /**
      * @param currentTile the currentTile to set
+     * @return Same tile (necessary for callback support)
      */
-    public void setCurrentTile(Tile currentTile) {
+    public Tile setCurrentTile(Tile currentTile) {
+        if (drawMode == DrawMode.Eraser) {
+            drawMode = DrawMode.Pencil1px;
+        }
         this.currentTile = currentTile;
         ImageCursor cursor = new ImageCursor(TileUtils.getImage(currentTile, currentPlatform), 2, 2);
         drawCanvas.setCursor(cursor);
+        return currentTile;
     }
 
     public void showPreview() {
@@ -406,7 +450,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
 
     public static enum DrawMode {
 
-        Pencil1px, Pencil3px, Pencil5px, FilledRect
+        Pencil1px, Pencil3px, Pencil5px, FilledRect, Eraser
     };
 
     public void plot(final int x, final int y, final Tile t) {
@@ -488,7 +532,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
 
     @Override
     public void handle(MouseEvent t) {
-        if (getCurrentTile() == null) {
+        if (getCurrentTile() == null && drawMode != DrawMode.Eraser) {
             System.out.println("No tile selected, ignoring");
             return;
         }
@@ -504,6 +548,14 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         lastDrawMode = drawMode;
         lastTile = getCurrentTile();
         switch (drawMode) {
+            case Eraser: {
+                if (canSkip) {
+                    return;
+                }
+                plot(x,y,null);
+                redraw();
+                break;
+            }
             case Pencil1px:
                 if (canSkip) {
                     return;

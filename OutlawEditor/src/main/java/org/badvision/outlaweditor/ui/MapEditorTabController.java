@@ -57,6 +57,9 @@ public abstract class MapEditorTabController {
     protected Button scriptEraseTool;
     
     @FXML
+    abstract public void mapEraser(ActionEvent event);
+    
+    @FXML
     abstract public void mapDraw1(ActionEvent event);
 
     @FXML

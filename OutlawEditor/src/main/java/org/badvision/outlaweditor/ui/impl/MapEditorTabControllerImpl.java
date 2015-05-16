@@ -41,6 +41,13 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
     final TransferHelper<ToolType> toolDragDrop = new TransferHelper<>(ToolType.class);
 
     @Override
+    public void mapEraser(ActionEvent event) {
+        if (getCurrentEditor() != null) {
+            getCurrentEditor().setDrawMode(MapEditor.DrawMode.Eraser);
+        }
+    }
+
+    @Override
     public void mapDraw1(ActionEvent event) {
         if (getCurrentEditor() != null) {
             getCurrentEditor().setDrawMode(MapEditor.DrawMode.Pencil1px);
@@ -284,7 +291,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
         });
         toolDragDrop.registerDragSupport(scriptEraseTool, ToolType.ERASER);
     }
-
+    
     @Override
     public void rebuildTileSelectors() {
         mapSelectTile.getItems().clear();

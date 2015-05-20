@@ -96,6 +96,13 @@ byte needRender = FALSE
 word skyNum = 9
 word groundNum = 10
 
+// Queue setMap / teleport, since otherwise script might be replaced while executing
+byte q_mapIs3D
+byte q_mapNum = 0
+word q_x
+word q_y
+byte q_dir
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
 asm __defs
@@ -633,9 +640,7 @@ def initMap(x, y, dir)
   // init the script module, if any, which will end up calling us back at the setScriptInfo
   triggerTbl = NULL
   setWindow2()
-  puts("Calling initDisplay.\n")
   initDisplay(mapNum, pMap, x, y, dir)
-  puts("Back from initDisplay.\n")
   needRender = FALSE
 end
 
@@ -793,13 +798,20 @@ def moveWest()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Switch to a new map (2D or 3D)
+// Switch to a new map (2D or 3D) and establish position on it
 def setMap(is3D, num, x, y, dir)
-  mapIs3D = is3D
-  mapNum = num
-  flipToPage1()
-  initMap(x, y, dir)
-  checkScripts()
+  if is3D == mapIs3D and num == mapNum
+    setPos(x, y)
+    setDir(dir)
+    needRender = TRUE
+  else
+    mapIs3D = is3D
+    mapNum = num
+    flipToPage1()
+    initMap(x, y, dir)
+  fin
+  // Don't check scripts, because we often land on an "Exit to wilderness?" script
+  //NO:checkScripts()  
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -811,8 +823,7 @@ def kbdTeleport()
   ^$c053
   if ^$25 < 23; ^$25 = 23; fin
   getPos(@x, @y)
-  printf4("\nCurrent: 3D=%d Map=%d X=%d Y=%d ", mapIs3D, mapNum, x, y)
-  printf1("Dir=%d\n", getDir())
+  printf3("\nCurrent: X=%d Y=%d Facing=%d\n", x, y, getDir())
 
   puts("3D : ")
   mapIs3D = parseDec(readStr())
@@ -822,7 +833,7 @@ def kbdTeleport()
   x = parseDec(readStr())
   puts("Y  : ")
   y = parseDec(readStr())
-  puts("Dir: ")
+  puts("Facing: ")
   dir = parseDec(readStr())
 
   ^$c052
@@ -831,11 +842,32 @@ def kbdTeleport()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def teleport(x, y, dir)
-  printf3("Teleport: x=%d y=%d dir=%d\n", x, y, dir)
-  setPos(x, y)
-  setDir(dir)
-  needRender = TRUE
+def showPos()
+  word x, y
+  byte dir
+  
+  flipToPage1()
+  ^$c053
+  if ^$25 < 23; ^$25 = 23; fin
+  getPos(@x, @y)
+  printf3("\nCurrent: X=%d Y=%d Facing=%d\n", x, y, getDir())
+  puts("Hit any key.\n")
+  getUpperKey()
+  ^$c052
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def queue_setMap(is3D, num, x, y, dir)
+  q_mapIs3D = is3D
+  q_mapNum = num
+  q_x = x
+  q_y = y
+  q_dir = dir
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def queue_teleport(x, y, dir)
+  queue_setMap(mapIs3D, mapNum, x, y, dir)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -856,6 +888,10 @@ def kbdLoop()
       func = cmdTbl[key]
       if func; func(); fin
     fin
+    if q_mapNum
+      setMap(q_mapIs3D, q_mapNum, q_x, q_y, q_dir)
+      q_mapNum = 0
+    fin
     if needRender
       render()
       needRender = FALSE
@@ -867,8 +903,6 @@ end
 // Set initial info for the scripts on this map: the trigger table and the name of the map. This
 // is called by the init function for the scripts.
 def setScriptInfo(mapName, trigTbl)
-
-  puts("In setScriptInfo\n")
 
   // Record the trigger table pointer
   triggerTbl = trigTbl
@@ -918,6 +952,7 @@ def initCmds()
 
   // Commands common to both 2D and 3D
   initCmd('T', @kbdTeleport)
+  initCmd('P', @showPos)
 
   // Commands handled differently in 3D vs 2D
   if mapIs3D
@@ -960,13 +995,11 @@ def loadTitle()
   puts("Loading Lawless Legends.\n")
 
   // Load the title screen
-  puts("Loading title screen.\n")
   loader(SET_MEM_TARGET, MAIN_MEM, $2000)
   loader(QUEUE_LOAD,     MAIN_MEM, 1<<8 | RES_TYPE_SCREEN)  // title screen is fixed at #1
   loader(LOCK_MEMORY,    MAIN_MEM, $2000)
   loader(FINISH_LOAD, MAIN_MEM, 1) // 1 = keep open
   frameLoaded = 1
-  puts("Title loaded.\n")
   ^$c050
   ^$c057
   ^$c054
@@ -995,7 +1028,7 @@ def setCallbacks()
 
   // $309
   callbacks.9 = $4c
-  callbacks:10 = @setMap
+  callbacks:10 = @queue_setMap
 
   // $30C
   callbacks.12 = $4c
@@ -1007,7 +1040,7 @@ def setCallbacks()
 
   // $312
   callbacks.18 = $4c
-  callbacks:19 = @teleport
+  callbacks:19 = @queue_teleport
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

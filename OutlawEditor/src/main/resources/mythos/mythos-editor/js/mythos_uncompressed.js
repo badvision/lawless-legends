@@ -92,9 +92,16 @@ if (typeof Mythos === "undefined") {
                     this.setNextStatement(false);
                     this.appendDummyInput()
                             .appendField("Set map to")
-                            .appendField(new Blockly.FieldTextInput(""), "NAME");
+                            .appendField(new Blockly.FieldTextInput(""), "NAME")
+                            .appendField('x')
+                            .appendField(new Blockly.FieldTextInput("0"), "X")
+                            .appendField('y')
+                            .appendField(new Blockly.FieldTextInput("0"), "Y")
+                            .appendField('facing')
+                            .appendField(new Blockly.FieldTextInput("0"), "FACING")
+                            .appendField('(0-15)');
                     this.setOutput(false);
-                    this.setTooltip('Switch to a different map (by name)');
+                    this.setTooltip('Switch to a different map (by name) and set position on it');
                 }
             };
             Blockly.Blocks['events_teleport'] = {

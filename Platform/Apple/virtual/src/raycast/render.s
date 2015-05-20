@@ -1945,6 +1945,7 @@ pl_getPos: !zone {
 ; Parameters: x, y
 ; Returns: Nothing
 pl_setPos: !zone {
+	lda evalStkL,x		; normally handled by asmplasm, but we're also called by pl_initMap
 	clc
 	adc #1			; adjust for border guards
 	sta playerY+1
@@ -1973,6 +1974,7 @@ pl_getDir: !zone {
 ; Parameters: dir (0-15)
 ; Returns: Nothing
 pl_setDir: !zone {
+	lda evalStkL,x		; normally handled by asmplasm, but we're also called by pl_initMap
 	and #15
 	sta playerDir
 	rts

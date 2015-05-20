@@ -1637,23 +1637,51 @@ class PackPartitions
 
         def packSetMap(blk)
         {
-            assert blk.field.size() == 1
-            def fld = blk.field[0]
-            assert fld.@name == 'NAME'
-            def mapName = fld.text()
-            def mapNum = mapNames[mapName]
-            if (!mapNum) {
-                printWarning "map '$mapName' not found; skipping set_map."
-                return
+            def mapNum, x=0, y=0, facing=0
+
+            blk.field.eachWithIndex { fld, idx ->
+                switch (fld.@name)
+                {
+                    case 'NAME':
+                        def mapName = fld.text()
+                        mapNum = mapNames[mapName]
+                        if (!mapNum) {
+                            printWarning "map '$mapName' not found; skipping set_map."
+                            return
+                        }
+                        break
+                        
+                    case 'X':
+                        x = fld.text().toInteger()
+                        break
+                        
+                    case 'Y':
+                        y = fld.text().toInteger()
+                        break
+                
+                    case 'FACING':
+                        facing = fld.text().toInteger()
+                        assert facing >= 0 && facing <= 15
+                        break
+                    
+                    default:
+                        assert false : "Unknown field ${fld.@name}"
+                }
             }
+            
             //println "            Set map to '$mapName' (num $mapNum)"
-            assert mapNum : "Map $mapName not found!"
             
             emitCodeByte(0x2A) // CB
             assert mapNum[0] == '2D' || mapNum[0] == '3D'
             emitCodeByte(mapNum[0] == '2D' ? 0 : 1)
             emitCodeByte(0x2A) // CB
             emitCodeByte(mapNum[1])
+            emitCodeByte(0x2C) // CW
+            emitCodeWord(x)
+            emitCodeByte(0x2C) // CW
+            emitCodeWord(y)
+            emitCodeByte(0x2A) // CB
+            emitCodeByte(facing)
             emitCodeByte(0x54)  // CALL
             emitCodeWord(vec_setMap)
             emitCodeByte(0x30) // DROP

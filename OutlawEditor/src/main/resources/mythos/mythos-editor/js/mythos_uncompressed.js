@@ -1,3 +1,5 @@
+/* global Blockly */
+
 if (typeof Mythos === "undefined") {
     // Hook up the rename function to notify the java editor when changes occur
     Blockly.Procedures.rename_old = Blockly.Procedures.rename;

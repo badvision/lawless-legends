@@ -14,6 +14,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
 import javafx.util.Callback;
+import javax.xml.bind.JAXBException;
 import org.badvision.outlaweditor.Application;
 import static org.badvision.outlaweditor.Application.currentPlatform;
 import static org.badvision.outlaweditor.Application.gameData;
@@ -25,18 +26,21 @@ import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.xml.Map;
 import org.badvision.outlaweditor.data.xml.Script;
 import org.badvision.outlaweditor.data.xml.Tile;
+import org.badvision.outlaweditor.ui.ApplicationUIController;
 import org.badvision.outlaweditor.ui.EntitySelectorCell;
 import org.badvision.outlaweditor.ui.MapEditorTabController;
 import org.badvision.outlaweditor.ui.ToolType;
 import org.badvision.outlaweditor.ui.UIAction;
 import static org.badvision.outlaweditor.ui.UIAction.confirm;
 import static org.badvision.outlaweditor.ui.UIAction.createAndEditScript;
+import static org.badvision.outlaweditor.ui.UIAction.editScript;
 
 /**
  *
  * @author blurry
  */
 public class MapEditorTabControllerImpl extends MapEditorTabController {
+
     final TransferHelper<Script> scriptDragDrop = new TransferHelper<>(Script.class);
     final TransferHelper<ToolType> toolDragDrop = new TransferHelper<>(ToolType.class);
 
@@ -144,9 +148,46 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
         createAndEditScript();
     }
 
+    int errorCount = 0;
+    long gagTimeout = 0;
+
     @Override
     public void onMapScriptClonePressed(ActionEvent event) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        Script source = mapScriptsList.getSelectionModel().getSelectedItem();
+        if (source == null) {
+            String message = "First select a script and then press Clone";
+            if (gagTimeout == 0 || gagTimeout < System.currentTimeMillis()) {
+                gagTimeout = System.currentTimeMillis() + 15000;
+                errorCount = 1;
+            } else {
+                switch (++errorCount) {
+                    case 3:
+                        message = "Seriously, select a script first";
+                        break;
+                    case 4:
+                        message = "By select, I mean move the mouse and click on something";
+                        break;
+                    case 5:
+                        message = "I really can't help you";
+                        break;
+                    case 6:
+                        message = "Bored?  Lonely?  Have you trolled any YouTube comments lately?";
+                        break;
+                    default:
+                }
+            }
+            UIAction.alert(message);
+        } else {
+            try {
+                Script script = TransferHelper.cloneObject(source, Script.class, "script");
+                script.setName(source.getName() + " CLONE");
+                getCurrentEditor().addScript(script);
+                editScript(script);
+            } catch (JAXBException ex) {
+                Logger.getLogger(MapEditorTabControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
+                UIAction.alert("Error occured when attempting clone operation:\n" + ex.getMessage());
+            }
+        }
     }
 
     @Override
@@ -225,6 +266,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
             mapWrapAround.setDisable(true);
             setCurrentEditor(null);
         } else {
+            sortScripts(m);
             if (m.getHeight() == null) {
                 m.setHeight(512);
             }
@@ -291,13 +333,13 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
         });
         toolDragDrop.registerDragSupport(scriptEraseTool, ToolType.ERASER);
     }
-    
+
     @Override
     public void rebuildTileSelectors() {
         mapSelectTile.getItems().clear();
-        
+
         ToggleGroup tileGroup = new ToggleGroup();
-        HashMap<String,Menu> submenus = new HashMap<>();
+        HashMap<String, Menu> submenus = new HashMap<>();
         Application.gameData.getTile().stream().forEach((Tile t) -> {
             WritableImage img = TileUtils.getImage(t, currentPlatform);
             ImageView iv = new ImageView(img);
@@ -348,7 +390,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
                             setText("");
                         } else {
                             ImageView visibleIcon = getVisibleIcon(item);
-                            visibleIcon.setOnMouseClicked((e)->{
+                            visibleIcon.setOnMouseClicked((e) -> {
                                 toggleVisibility(visibleIcon, item);
                                 mapScriptsList.getSelectionModel().clearSelection();
                             });
@@ -367,16 +409,17 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
             mapScriptsList.getItems().clear();
         } else {
             if (mapScriptsList.getItems() != null && getCurrentMap().getScripts() != null) {
+                sortScripts(getCurrentMap());
                 mapScriptsList.getItems().setAll(getCurrentMap().getScripts().getScript());
             } else {
                 mapScriptsList.getItems().clear();
             }
         }
     }
-    
+
     public static final Image VISIBLE_IMAGE = new Image("images/visible.png");
     public static final Image INVISIBLE_IMAGE = new Image("images/not_visible.png");
-    
+
     private ImageView getVisibleIcon(Script script) {
         if (getCurrentEditor().isScriptVisible(script)) {
             return new ImageView(VISIBLE_IMAGE);
@@ -384,9 +427,11 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
             return new ImageView(INVISIBLE_IMAGE);
         }
     }
-    
+
     private void toggleVisibility(ImageView visibilityIcon, Script script) {
-        if (script.getName() == null) return;
+        if (script.getName() == null) {
+            return;
+        }
         if (getCurrentEditor().isScriptVisible(script)) {
             getCurrentEditor().setScriptVisible(script, false);
             visibilityIcon.setImage(INVISIBLE_IMAGE);
@@ -394,5 +439,16 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
             getCurrentEditor().setScriptVisible(script, true);
             visibilityIcon.setImage(VISIBLE_IMAGE);
         }
+    }
+
+    private void sortScripts(Map m) {
+        m.getScripts().getScript().sort((a, b) -> {
+            if (a.getName().equalsIgnoreCase("init")) {
+                return -1;
+            } else if (b.getName().equalsIgnoreCase("init")) {
+                return 1;
+            }
+            return a.getName().compareTo(b.getName());
+        });
     }
 }

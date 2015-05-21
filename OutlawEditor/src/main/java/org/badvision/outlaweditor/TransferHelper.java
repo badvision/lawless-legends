@@ -11,6 +11,13 @@ import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.TransferMode;
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBElement;
+import javax.xml.bind.JAXBException;
+import javax.xml.bind.Marshaller;
+import javax.xml.bind.util.JAXBSource;
+import javax.xml.namespace.QName;
+import org.badvision.outlaweditor.data.xml.Script;
 import org.badvision.outlaweditor.ui.ToolType;
 
 /**
@@ -97,5 +104,18 @@ public class TransferHelper<T> {
                 event.consume();
             });
         };
+    }
+
+    public static <U> U cloneObject(U source, Class<U> type, String nodeType) throws JAXBException {
+        JAXBContext sourceJAXBContext = JAXBContext.newInstance(source.getClass());
+        Marshaller jaxbMarshaller = sourceJAXBContext.createMarshaller();
+
+        // format the XML output
+        jaxbMarshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
+        JAXBContext targetJAXBContext = JAXBContext.newInstance(source.getClass());
+        QName qName = new QName("info.source4code.jaxb.model", nodeType);
+        JAXBElement<U> root = new JAXBElement<>(qName, type, source);
+        JAXBElement<U> cloneRoot = (JAXBElement<U>) targetJAXBContext.createUnmarshaller().unmarshal(new JAXBSource(sourceJAXBContext, root), type);
+        return cloneRoot.getValue();
     }
 }

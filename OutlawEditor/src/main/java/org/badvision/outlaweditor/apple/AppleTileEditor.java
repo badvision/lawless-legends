@@ -12,7 +12,6 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.Shape;
 import org.badvision.outlaweditor.Platform;
 import org.badvision.outlaweditor.TileEditor;
-import org.badvision.outlaweditor.data.DataObserver;
 import org.badvision.outlaweditor.data.xml.Tile;
 import org.badvision.outlaweditor.data.TileUtils;
 
@@ -24,6 +23,7 @@ public class AppleTileEditor extends TileEditor {
 
     FillPattern currentPattern = FillPattern.DarkViolet1;
     DrawMode drawMode = DrawMode.Toggle;
+    public static final long SAFE_WAIT_TIME = 100;
 
     @Override
     public void setEntity(Tile t) {
@@ -74,6 +74,7 @@ public class AppleTileEditor extends TileEditor {
     }
     int lastActionX = -1;
     int lastActionY = -1;
+    long debounceTime = 0;
 
     public void performDragAction(int x, int y) {
         performAction(false, x, y);
@@ -82,9 +83,10 @@ public class AppleTileEditor extends TileEditor {
     private void performAction(boolean alt, int x, int y) {
         y = Math.min(Math.max(y, 0), 15);
         x = Math.min(Math.max(x, 0), 13);
-        if (lastActionX == x && lastActionY == y) {
+        if ((lastActionX == x && lastActionY == y) && (debounceTime > System.currentTimeMillis())) {
             return;
         }
+        debounceTime = System.currentTimeMillis() + SAFE_WAIT_TIME;
         lastActionX = x;
         lastActionY = y;
         switch (drawMode) {

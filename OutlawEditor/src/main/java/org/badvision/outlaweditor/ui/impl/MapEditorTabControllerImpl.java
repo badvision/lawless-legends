@@ -225,6 +225,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
             mapWrapAround.setDisable(true);
             setCurrentEditor(null);
         } else {
+            sortScripts(m);
             if (m.getHeight() == null) {
                 m.setHeight(512);
             }
@@ -367,6 +368,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
             mapScriptsList.getItems().clear();
         } else {
             if (mapScriptsList.getItems() != null && getCurrentMap().getScripts() != null) {
+                sortScripts(getCurrentMap());
                 mapScriptsList.getItems().setAll(getCurrentMap().getScripts().getScript());
             } else {
                 mapScriptsList.getItems().clear();
@@ -394,5 +396,16 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
             getCurrentEditor().setScriptVisible(script, true);
             visibilityIcon.setImage(VISIBLE_IMAGE);
         }
+    }
+
+    private void sortScripts(Map m) {
+        m.getScripts().getScript().sort((a,b)-> {
+            if (a.getName().equalsIgnoreCase("init")) {
+                return -1;
+            } else if (b.getName().equalsIgnoreCase("init")) {
+                return 1;
+            }
+            return a.getName().compareTo(b.getName());
+        });
     }
 }

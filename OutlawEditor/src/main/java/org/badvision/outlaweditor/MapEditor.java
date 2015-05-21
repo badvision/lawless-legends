@@ -28,7 +28,6 @@ import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.FillRule;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 import static org.badvision.outlaweditor.Application.currentPlatform;

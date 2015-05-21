@@ -129,7 +129,6 @@ public class MythosEditor {
             return;
         }
         script.setName(name);
-        System.out.println("Function title changed! >> " + name);
         ApplicationUIController.getController().redrawScripts();
     }
 }

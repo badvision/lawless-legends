@@ -193,6 +193,10 @@ public class UIAction {
     public static void confirm(String message, Runnable yes, Runnable no) {
         choose(message, new Choice("Yes", yes), new Choice("No", no));
     }
+    
+    public static void alert(String message) {
+        choose(message, new Choice("Ok", null));
+    }
 
     public static void choose(String message, Choice... choices) {
         final Stage dialogStage = new Stage();

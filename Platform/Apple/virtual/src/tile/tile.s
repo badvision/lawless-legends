@@ -89,7 +89,8 @@ ORIGIN_X	= $A4	; 16-bit origin for X (add REL_X to get avatar's global map X)
 ORIGIN_Y	= $A6	; 16-bit origin for Y (add REL_Y to get avatar's global map Y)
 AVATAR_DIR	= $A8	; direction (0-15, though only 0,4,8,12 are valid)
 PLASMA_X	= $A9	; save for PLASMA's X reg
-next_zp		= $AA
+SCRIPTS_ID      = $AA	; Module number of scripts
+next_zp		= $AB
 
 ;----------------------------------------------------------------------
 ; Here are the entry points for PLASMA code. Identical API for 2D and 3D.
@@ -272,6 +273,12 @@ LOAD_ALL_TILES
 	JSR LOAD_ALL_TILES
 }
 
+!macro finishLoad keepOpen {
+       LDX #keepOpen   ; 1 to keep open for next load, 0 for close so you can flip to HGR page 2
+       LDA #FINISH_LOAD
+       JSR mainLoader
+}
+
 FREE_SCRIPTS
 	+freeResource SCRIPTS_LOC
 	RTS
@@ -281,8 +288,9 @@ FREE_SCRIPTS
 }
 
 !zone
-LOAD_SCRIPTS
+LOAD_SCRIPTS:
 	JSR CALC		; determine which map avatar is on
+LOAD_SCRIPTS_NO_CALC:
 	LDA AVATAR_SECTION+1	; no section? no scripts
 	BEQ .none
 	LDY #5
@@ -292,49 +300,43 @@ LOAD_SCRIPTS
 	STA SCRIPTS_LOC
 	STA SCRIPTS_LOC+1
 	RTS
-.got	TAY	; resource # in Y
-!if DEBUG {
-	+prStr : !text "loadScripts ",0
-	+prY
-}
+.got	CMP SCRIPTS_ID
+	BNE .diff
+	+finishLoad 0   	; all done
+	RTS
+.diff	STA SCRIPTS_ID
+	TAY			; resource # in Y
 	LDX #RES_TYPE_MODULE
 	LDA #QUEUE_LOAD
 	JSR mainLoader
 !if DEBUG {
+	+prStr : !text "loadScripts ",0
+	+prByte SCRIPTS_ID
 	+prStr : !text "-> ",0
 	+prYX
 	+crout
 }
 	STX SCRIPTS_LOC
 	STY SCRIPTS_LOC+1
+	+finishLoad 0   	; all done
+!if DEBUG { +prStr : !text "Calling init script.",0 }
+	LDX PLASMA_X
+        BIT setLcRW+lcBank2	; switch PLASMA runtime back in
+	JSR .callit		; perform script init
+        BIT setROM		; switch out PLASMA so we're ready to render
+!if DEBUG { +prStr : !text "Back from init script.",0 }
 	RTS
+.callit	JMP (SCRIPTS_LOC)	; the init function is always first in the script module
 
 !macro loadScripts {
 	JSR LOAD_SCRIPTS
-}
-
-!macro finishLoad keepOpen {
-       LDX #keepOpen   ; 1 to keep open for next load, 0 for close so you can flip to HGR page 2
-       LDA #FINISH_LOAD
-       JSR mainLoader
 }
 
 FINISH_MAP_LOAD
 	+finishLoad 1   	; keep open for further loading
 	+loadAllTiles
 	+loadScripts
-	+finishLoad 0   	; all done
-	LDA SCRIPTS_LOC+1	; are there scripts?
-	BNE .scr		; yes, go init them
-	RTS			; no, we're done
-.scr	!if DEBUG { +prStr : !text "Calling script init.",0 }
-	LDX PLASMA_X
-        BIT setLcRW+lcBank2	; switch PLASMA runtime back in
-	JSR .callit		; perform script init
-        BIT setROM		; switch out PLASMA so we're ready to render
-!if DEBUG { +prStr : !text "Back from script init.",0 }
 	RTS
-.callit	JMP (SCRIPTS_LOC)	; the init function is always first in the script module
 
 ; >> CHECK CROSSINGS
 !zone
@@ -1004,6 +1006,7 @@ SETPOS:
 	STA NW_MAP_ID
 	STA NE_MAP_ID
 	STA SW_MAP_ID
+	STA SCRIPTS_ID
 	LDA INDEX_MAP_ID
 	STA SE_MAP_ID
 
@@ -1302,6 +1305,9 @@ pl_advance: !zone {
 	BEQ .ret
 	INY			; moved and also new place is scripted, return 3.
 .ret	TYA
+	PHA
+	JSR LOAD_SCRIPTS_NO_CALC ; we might have moved to a new place; load new scripts.
+	PLA
 	LDY #0			; hi byte of return always zero
 	RTS
 }

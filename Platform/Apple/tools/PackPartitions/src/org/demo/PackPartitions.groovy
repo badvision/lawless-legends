@@ -1794,7 +1794,12 @@ class PackPartitions
             emitCodeWord(vec_setScriptInfo)
             emitCodeByte(0x30) // DROP
 
-            // The table itself goes in the data segment.
+            // The table itself goes in the data segment. First comes the X
+            // and Y origins.
+            emitDataWord(xRange ? xRange[0] : 0)
+            emitDataWord(yRange ? yRange[0] : 0)
+            
+            // Then the Y tables
             triggers.each { y, xs ->
                 emitDataByte(y)
                 def size = 2  // 2 bytes for y+off

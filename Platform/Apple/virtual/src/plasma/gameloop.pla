@@ -87,6 +87,7 @@ byte mapIs3D
 word pFont
 word pMap
 word cmdTbl[64]
+word triggerOriginX, triggerOriginY
 word triggerTbl
 byte redraw
 byte frameLoaded = 0
@@ -689,6 +690,8 @@ def checkScripts()
   if !triggerTbl; return; fin
   setWindow2()
   getPos(@x, @y)
+  x = x - triggerOriginX
+  y = y - triggerOriginY
   p = triggerTbl
   while TRUE
     if ^p == $FF
@@ -904,8 +907,12 @@ end
 // is called by the init function for the scripts.
 def setScriptInfo(mapName, trigTbl)
 
+  // Grab the trigger table origins (used so the table can be more compact)
+  triggerOriginX = trigTbl=>0
+  triggerOriginY = trigTbl=>2
+
   // Record the trigger table pointer
-  triggerTbl = trigTbl
+  triggerTbl = trigTbl + 4
 
   // Display map name
   setWindow1()
@@ -1050,6 +1057,7 @@ loadTitle()
 setCallbacks()
 mapIs3D = OVERMAP_IS_3D
 mapNum = OVERMAP_NUM
+//initMap(6, 123, 12)  // per Seth. Need to have this in a script in the future
 initMap(4, 4, 0)
 checkScripts()
 kbdLoop()

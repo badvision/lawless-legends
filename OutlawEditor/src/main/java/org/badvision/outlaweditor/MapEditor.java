@@ -16,6 +16,7 @@ import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.effect.DropShadow;
+import javafx.scene.effect.Glow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
@@ -128,10 +129,15 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         });
         drawCanvas.addEventFilter(ScrollEvent.ANY, scrollHandler);
         drawCanvas.setOnMousePressed(this);
+        drawCanvas.setOnMouseMoved(this);
         drawCanvas.setOnMouseDragged(this);
         drawCanvas.setOnMouseDragReleased(this);
         drawCanvas.setOnMouseReleased(this);
         anchorPane.getChildren().add(0, drawCanvas);
+        cursorAssistant = new Rectangle(tileWidth, tileHeight, new Color(0.2,0.2,1.0,0.4));
+        cursorAssistant.setMouseTransparent(true);
+        cursorAssistant.setEffect(new Glow(1.0));
+        anchorPane.getChildren().add(cursorAssistant);
     }
 
     @Override
@@ -215,14 +221,9 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     @Override
     public void redraw() {
         redrawRequested = System.nanoTime();
-        if (redrawThread == null || redrawThread.isAlive()) {
+        if (redrawThread == null || !redrawThread.isAlive()) {
             redrawThread = new Thread(() -> {
-                long test = redrawRequested;
-                try {
-                    Thread.sleep(10);
-                } catch (InterruptedException ex) {
-                    Logger.getLogger(MapEditor.class.getName()).log(Level.SEVERE, null, ex);
-                }
+                long test = 0;
                 while (test != redrawRequested) {
                     test = redrawRequested;
                     try {
@@ -447,6 +448,17 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         setSelectionArea(0, 0, 0, 0);
     }
 
+    Rectangle cursorAssistant;
+    private void updateCursorAssistant(MouseEvent t) {
+        if (t.getEventType() == MouseEvent.MOUSE_EXITED) {
+            cursorAssistant.setVisible(false);
+        } else {
+            cursorAssistant.setVisible(true);
+            cursorAssistant.setTranslateX(t.getX() - (t.getX() % tileWidth));
+            cursorAssistant.setTranslateY(t.getY() - (t.getY() % tileHeight));
+        }
+    }
+
     public static enum DrawMode {
 
         Pencil1px, Pencil3px, Pencil5px, FilledRect, Eraser
@@ -531,8 +543,9 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
 
     @Override
     public void handle(MouseEvent t) {
+        updateCursorAssistant(t);
+        if (!t.isPrimaryButtonDown() && drawMode != DrawMode.FilledRect && t.getEventType() != MouseEvent.MOUSE_RELEASED) return;
         if (getCurrentTile() == null && drawMode != DrawMode.Eraser) {
-            System.out.println("No tile selected, ignoring");
             return;
         }
         t.consume();
@@ -576,7 +589,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
             case FilledRect:
                 if (t.getEventType().equals(MouseEvent.MOUSE_RELEASED)) {
                     fillSelection(t.getX(), t.getY());
-                } else {
+                } else if (t.isPrimaryButtonDown()) {
                     updateSelection(t.getX(), t.getY());
                 }
         }

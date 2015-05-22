@@ -442,6 +442,9 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
     }
 
     private void sortScripts(Map m) {
+        if (m == null || m.getScripts() == null || m.getScripts().getScript() == null) {
+            return;
+        }
         m.getScripts().getScript().sort((a, b) -> {
             if (a.getName().equalsIgnoreCase("init")) {
                 return -1;

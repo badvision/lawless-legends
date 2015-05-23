@@ -11,7 +11,6 @@ import java.util.Set;
 import javafx.scene.control.Alert;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
-import javax.swing.JOptionPane;
 import javax.xml.bind.JAXBElement;
 import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.Platform;
@@ -85,7 +84,7 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
 
     private void registerLocationScript(int x, int y, Script s) {
         if (!scriptColors.containsKey(s)) {
-            scriptColors.put(s, Color.hsb(HUE, SATURATION, VALUE));
+            scriptColors.put(s, Color.hsb(HUE, SATURATION, 0.75 + Math.cos(HUE / Math.PI / 2.0)/8.0));
             HUE = (HUE + 27) % 360;
         }
         int loc = getMortonNumber(x, y);

@@ -84,8 +84,7 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
     }
 
     public static enum TABS {
-
-        image, map, tile
+        image, map, tile, scripting
     };
     TABS currentTab;
 
@@ -103,6 +102,11 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
     public void tileTabActivated(Event event) {
         currentTab = TABS.tile;
     }
+    
+    @Override
+    public void scriptTabActivated(Event event) {
+        currentTab = TABS.scripting;
+    }
 
     @Override
     public Editor getVisibleEditor() {
@@ -113,8 +117,9 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
                 return mapController.getCurrentEditor();
             case tile:
                 return tileController.getCurrentTileEditor();
+            default:
+                return null;
         }
-        return null;
     }
 
     public static final DataFormat SCRIPT_DATA_FORMAT = new DataFormat("MythosScript");

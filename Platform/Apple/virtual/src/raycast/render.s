@@ -1986,6 +1986,7 @@ pl_setColor: !zone
 	tay			; color number
 	lda evalStkL+1,x
 	and #1
+	asl
 	tax			; slot
 	lda skyGndTbl1,y
 	sta skyColorEven,x

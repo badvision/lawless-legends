@@ -263,6 +263,9 @@ class PackPartitions
                 srcPos += 2
             }
             dstPos += 18
+            
+            // Skip unused source data
+            srcPos += (40 - 18)*2
         }
         
         // Put the results into the buffer
@@ -652,7 +655,6 @@ class PackPartitions
         //println "Packing frame image #$num named '${imgEl.@name}'."
         def buf = parseFrameData(imgEl)
         frames[imgEl.@name] = [num:num, buf:buf]
-        return buf
     }
     
     def packPortrait(imgEl)
@@ -662,7 +664,7 @@ class PackPartitions
         //println "Packing 126 image named '${imgEl.@name}'."
         def buf = parse126Data(imgEl)
         portraits[imgEl.@name] = [num:num, buf:buf]
-        //println "...compressed: ${buf.len} bytes."
+        //println "...uncompressed: ${buf.position()} bytes."
     }
     
     def packTile(imgEl)
@@ -1784,9 +1786,15 @@ class PackPartitions
                 }
             }
             
+            // Process the map name
+            def shortName = mapName.replaceAll(/[\s-]*[23][dD][-0-9]*$/, '').take(12)
+            def extra = (12 - shortName.length()) >> 1
+            shortName = (" " * extra) + shortName
+            
             // Code to register the table and map name
             emitCodeByte(0x26)  // LA
-            def textAddr = addString(mapName)
+            println "Adding string: $shortName"
+            def textAddr = addString(shortName)
             emitCodeFixup(textAddr)
             emitCodeByte(0x26)  // LA
             emitCodeFixup(dataAddr())

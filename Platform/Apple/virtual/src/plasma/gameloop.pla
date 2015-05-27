@@ -36,6 +36,7 @@ const RES_TYPE_FONT     = 7
 const RES_TYPE_MODULE   = 8
 const RES_TYPE_BYTECODE = 9
 const RES_TYPE_FIXUP    = 10
+const RES_TYPE_PORTRAIT = 11
 
 // Memory banks
 const MAIN_MEM = 0
@@ -96,6 +97,7 @@ byte needRender = FALSE
 
 word skyNum = 9
 word groundNum = 10
+byte portraitNum = 1
 
 // Queue setMap / teleport, since otherwise script might be replaced while executing
 byte q_mapIs3D
@@ -168,6 +170,95 @@ end
 asm render      // no params
         +asmPlasm 0
         jmp $6018
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+asm blitPortrait      // params: srcData, dstScreenPtr
+        +asmPlasm 2
+
+        ; Save the dest pointer
+        sta pTmp
+        sty pTmp+1
+
+        ; Save the source pointer
+        lda evalStkL+1,x
+        sta tmp
+        lda evalStkH+1,x
+        sta tmp+1
+        
+        ; Create the following subroutine, used to copy pixels from aux to main:
+        ; 0010-   8D 03 C0    STA   $C003
+        ; 0013-   B1 02       LDA   ($02),Y
+        ; 0015-   91 04       STA   ($04),Y
+        ; 0017-   88          DEY
+        ; 0018-   10 F9       BPL   $0013
+        ; 001A-   8D 02 C0    STA   $C002
+        ; 001D-   60          RTS
+        lda #$8D
+        sta $10
+        sta $1A
+        ldx #2
+        stx $14
+        stx $1B
+        inx
+        stx $11
+        lda #$C0
+        sta $12
+        sta $1C
+        lda #$B1
+        sta $13
+        lda #$91
+        sta $15
+        inx
+        stx $16
+        lda #$88
+        sta $17
+        lda #$10
+        sta $18
+        lda #$F9
+        sta $19
+        lda #$60
+        sta $1D
+
+        ; Outer copy loop
+        ldx #128  ; line count
+.loop   ldy #17   ; byte count minus 1
+        jsr $10   ; copy pixel bytes
+
+        ; Advance to next row of data
+        lda tmp
+        clc
+        adc #18
+        sta tmp
+        bcc +
+        inc tmp+1
++
+        ; Fun code to advance to the next hi-res line
+        ldy pTmp+1
+        iny
+        iny
+        iny
+        iny
+        cpy #$40
+        bcc .ok2
+        tya
+        sbc #$20  ; carry already set
+        tay
+        lda pTmp
+        eor #$80
+        bmi .ok
+        iny
+        cpy #$24
+        bcc .ok
+        ldy #$20
+        adc #$27  ; carry was set, so actually adding $28
+.ok     sta pTmp
+.ok2    sty pTmp+1
+
+        ; Loop until we've done all rows.
+        dex
+        bne .loop
+        rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -353,6 +444,19 @@ asm clearWindow
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Display a string using the font engine, but without any break checking.
+// Params: pStr
+asm rawDisplayStr
+  +asmPlasm 1
+  pha
+  tya
+  tax           ; hi byte of addr to X
+  pla
+  tay           ; lo byte of addr to Y
+  jmp printSTR
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display a string using the font engine. Automatically splits lines to keep words from breaking.
 // Params: pStr
 asm displayStr
@@ -360,58 +464,61 @@ asm displayStr
     sta pTmp
     sty pTmp+1
     ldy #0
-    lda (pTmp),y
-    beq ++
-    inc pTmp
+    lda (pTmp),y  ; get string length
+    beq .done     ; if zero, get out.
+    inc pTmp      ; advance past string len
     bne +
     inc pTmp+1
 +
---  tax
+--  tax           ; length will be tracked in X reg
     ldy #0
--   lda (pTmp),y
-    cmp #$20
+-   lda (pTmp),y  ; next character
+    cmp #$20      ; check for invalid control chars
     bcc +
-    cmp #$80
+    cmp #$80      ; check for invalid hi-bit chars
     bcc ++
-+   lda #$C4
++   lda #$C4      ; failure path
     jsr $fded
     brk
-++  dex
-    cmp #$20
+++  dex           ; used a char
+    cmp #$20      ; is the char a space?
     beq +
-    sta $281,y
+    sta $281,y    ; no, save to word buffer
     iny
-    cpx #0    
+    cpx #0        ; last char?
     bne -
-+   sty $280
++   sty $280      ; found a word break; save word length.
     tya
     sec
-    adc pTmp
+    adc pTmp      ; advance main pointer over word
     sta pTmp
     bcc +
     inc pTmp+1
-+   txa
++   txa           ; save X reg
     pha
-    tya
+    tya           ; string length
     clc
-    adc cursh
+    adc cursh     ; ...plus cursor pos
     sec
     sbc #2
-    cmp wndwdth
+    cmp wndwdth   ; ...vs. window width
     bcc +
-    lda #$D
+    lda #$D       ; force a line break
     jsr printCHAR
-+   ldy #$80
++   tya           ; if zero length (e.g. string starts with space), just print the space
+    beq +
+    ldy #$80      ; now display string at $280 (word buf)
     ldx #2
     jsr printSTR
     lda cursh
     cmp wndleft
-    beq +
-    lda #$20
+    beq ++
++   lda #$20
     jsr printCHAR
-+   pla
+++  pla           ; restore string length
     bne --
-++  lda #$d
+.done:
+    lda #$d
     jmp printCHAR
 end
 
@@ -542,6 +649,7 @@ end
 def setSky(num)
   skyNum = num
   setColor(0, skyNum)
+  needRender = TRUE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -555,6 +663,7 @@ end
 def setGround(num)
   groundNum = num
   setColor(1, groundNum)
+  needRender = TRUE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -646,36 +755,40 @@ def initMap(x, y, dir)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Window for the map name bar
-def setWindow1()
-  ^wndtop = 1
-  ^wndbtm = 2
-  ^wndleft = 4
-  ^wndwdth = 18
+def setWindow(top, btm, lft, rt)
+  ^wndtop = top
+  ^wndbtm = btm
+  ^wndleft = lft
+  ^wndwdth = rt
   ^cursv = ^wndtop
   ^cursh = ^wndleft
+end
+
+// Window for the map name bar
+def setWindow1()
+  setWindow(1, 2, 5, 17)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the large upper right bar
 def setWindow2()
-  ^wndtop = 3
-  ^wndbtm = 17
-  ^wndleft = 22
-  ^wndwdth = 37
-  ^cursv = ^wndtop
-  ^cursh = ^wndleft
+  setWindow(3, 17, 22, 37)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the mid-size lower right bar
 def setWindow3()
-  ^wndtop = 18
-  ^wndbtm = 23
-  ^wndleft = 23
-  ^wndwdth = 37
-  ^cursv = ^wndtop
-  ^cursh = ^wndleft
+  setWindow(18, 23, 23, 37)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Window for the map area (used for clearing it)
+def setMapWindow()
+  if mapIs3D
+    setWindow(3, 19, 2, 19)
+  else
+    setWindow(3, 21, 2, 19)
+  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -808,9 +921,13 @@ def setMap(is3D, num, x, y, dir)
     setDir(dir)
     needRender = TRUE
   else
+    flipToPage1()
+    setWindow1();   clearWindow()
+    rawDisplayStr("Traveling...")
+    setMapWindow(); clearWindow()    
+    setWindow2();   clearWindow()
     mapIs3D = is3D
     mapNum = num
-    flipToPage1()
     initMap(x, y, dir)
   fin
   // Don't check scripts, because we often land on an "Exit to wilderness?" script
@@ -853,8 +970,11 @@ def showPos()
   ^$c053
   if ^$25 < 23; ^$25 = 23; fin
   getPos(@x, @y)
-  printf3("\nCurrent: X=%d Y=%d Facing=%d\n", x, y, getDir())
-  puts("Hit any key.\n")
+  printf2("\nX=%d Y=%d ", x, y)
+  if mapIs3D
+    printf3("Facing=%d Sky=%d Ground=%d", getDir(), skyNum, groundNum)
+  fin
+  puts("\nHit any key.\n")
   getUpperKey()
   ^$c052
 end
@@ -916,7 +1036,8 @@ def setScriptInfo(mapName, trigTbl)
 
   // Display map name
   setWindow1()
-  //displayStr(mapName)
+  clearWindow()
+  rawDisplayStr(mapName)
 
   // Back to the main text window.
   setWindow2()
@@ -934,6 +1055,10 @@ end
 // Get a key, and don't return until it's Y or N (or lower-case of those). Returns 1 for Y.
 def getYN()
   byte key
+  if needRender
+    render()
+    needRender = FALSE
+  fin
   while TRUE
     key = getUpperKey()
     if key == 'Y'
@@ -945,6 +1070,34 @@ def getYN()
     fin
     beep()
   loop
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Test out portrait drawing
+def testPortrait()
+  byte img
+  word srcData
+
+  flipToPage1()
+  
+  setWindow2()
+  clearWindow()
+
+  setMapWindow()
+  clearWindow()
+
+  srcData = loader(QUEUE_LOAD, AUX_MEM, portraitNum<<8 | RES_TYPE_PORTRAIT)
+  loader(FINISH_LOAD, MAIN_MEM, 0) // 0 = close
+
+  if mapIs3D
+    blitPortrait(srcData, $2182)  // start at 3rd text line
+  else
+    blitPortrait(srcData, $2202)  // start at 4th text line
+  fin
+
+  loader(FREE_MEMORY, AUX_MEM, srcData)
+
+  portraitNum = portraitNum + 1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -960,6 +1113,7 @@ def initCmds()
   // Commands common to both 2D and 3D
   initCmd('T', @kbdTeleport)
   initCmd('P', @showPos)
+  initCmd('/', @testPortrait)
 
   // Commands handled differently in 3D vs 2D
   if mapIs3D

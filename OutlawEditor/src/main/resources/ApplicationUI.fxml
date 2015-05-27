@@ -27,6 +27,11 @@
                   <fx:include fx:id="image" source="imageEditorTab.fxml" />
               </content>
             </Tab>
+            <Tab onSelectionChanged="#scriptTabActivated" text="Scripting">
+              <content>
+                  <fx:include fx:id="scripting" source="globalScriptEditorTab.fxml" />
+              </content>
+            </Tab>
           </tabs>
         </TabPane>
       </children>

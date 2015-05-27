@@ -13,6 +13,8 @@ import javafx.scene.control.cell.ComboBoxListCell;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 import javafx.util.Callback;
 import javax.xml.bind.JAXBException;
 import org.badvision.outlaweditor.Application;
@@ -26,7 +28,6 @@ import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.xml.Map;
 import org.badvision.outlaweditor.data.xml.Script;
 import org.badvision.outlaweditor.data.xml.Tile;
-import org.badvision.outlaweditor.ui.ApplicationUIController;
 import org.badvision.outlaweditor.ui.EntitySelectorCell;
 import org.badvision.outlaweditor.ui.MapEditorTabController;
 import org.badvision.outlaweditor.ui.ToolType;
@@ -383,6 +384,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
             @Override
             public ListCell<Script> call(ListView<Script> param) {
                 final ListCell<Script> cell = new ListCell<Script>() {
+                    
                     @Override
                     protected void updateItem(Script item, boolean empty) {
                         super.updateItem(item, empty);
@@ -397,6 +399,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
                             setGraphic(visibleIcon);
                             getCurrentEditor().getCurrentMap().getScriptColor(item).ifPresent(this::setTextFill);
                             setText(item.getName());
+                            setFont(Font.font(null, FontWeight.BOLD, 12.0));
                             scriptDragDrop.registerDragSupport(this, item);
                             visibleIcon.setMouseTransparent(false);
                         }
@@ -442,6 +445,9 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
     }
 
     private void sortScripts(Map m) {
+        if (m == null || m.getScripts() == null || m.getScripts().getScript() == null) {
+            return;
+        }
         m.getScripts().getScript().sort((a, b) -> {
             if (a.getName().equalsIgnoreCase("init")) {
                 return -1;

@@ -46,6 +46,9 @@ public abstract class ApplicationUIController {
     @FXML
     abstract public void imageTabActivated(Event event);
 
+    @FXML
+    abstract public void scriptTabActivated(Event event);
+
     @FXML // This method is called by the FXMLLoader when initialization is complete
     public void initialize() {
     }

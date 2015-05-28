@@ -19,6 +19,7 @@ import org.badvision.outlaweditor.data.xml.Map.Chunk;
 import org.badvision.outlaweditor.data.xml.ObjectFactory;
 import org.badvision.outlaweditor.data.xml.Script;
 import org.badvision.outlaweditor.data.xml.Script.LocationTrigger;
+import org.badvision.outlaweditor.data.xml.Scripts;
 import org.badvision.outlaweditor.data.xml.Tile;
 import org.badvision.outlaweditor.ui.UIAction;
 
@@ -165,7 +166,7 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
         width = 0;
         height = 0;
         Set<Tile> unknownTiles = new HashSet<>();
-        Map.Scripts scripts = m.getScripts();
+        Scripts scripts = m.getScripts();
         if (scripts != null) {
             scripts.getScript().forEach(
                     s -> s.getLocationTrigger().forEach(

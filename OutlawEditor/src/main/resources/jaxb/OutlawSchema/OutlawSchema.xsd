@@ -42,10 +42,10 @@
             </xs:element>
             <xs:element name="intervalTrigger" minOccurs="0" maxOccurs="unbounded">
                 <xs:complexType>
-                <xs:attribute name="start" type="xs:int" use="optional"/>
-                <xs:attribute name="end" type="xs:int" use="optional"/>
-                <xs:attribute name="period" type="xs:int" use="optional"/>
-                <xs:attribute name="ifTrue" type="xs:string" use="optional"/>
+                    <xs:attribute name="start" type="xs:int" use="optional"/>
+                    <xs:attribute name="end" type="xs:int" use="optional"/>
+                    <xs:attribute name="period" type="xs:int" use="optional"/>
+                    <xs:attribute name="ifTrue" type="xs:string" use="optional"/>
                 </xs:complexType>
             </xs:element>
         </xs:sequence>
@@ -61,13 +61,7 @@
                     <xs:attribute name="y" type="xs:int"/>
                 </xs:complexType>
             </xs:element>
-            <xs:element name="scripts">
-                <xs:complexType>
-                    <xs:sequence>
-                        <xs:element name="script" type="tns:script" minOccurs="1" maxOccurs="unbounded"/>
-                    </xs:sequence>
-                </xs:complexType>
-            </xs:element>
+            <xs:element name="scripts" type="tns:scripts"/>
         </xs:sequence>
         <xs:attribute name="name" type="xs:string"/>
         <xs:attribute name="width" type="xs:int"/>
@@ -76,6 +70,16 @@
         <xs:attribute name="wrap" type="xs:boolean" default="false"/>
         <xs:attribute name="startX" type="xs:int" default="0"/>
         <xs:attribute name="startY" type="xs:int" default="0"/>
+    </xs:complexType>
+    <xs:complexType name="global">
+        <xs:sequence>
+            <xs:element name="scripts" type="tns:scripts"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="scripts">
+        <xs:sequence>
+            <xs:element name="script" type="tns:script" minOccurs="1" maxOccurs="unbounded"/>
+        </xs:sequence>
     </xs:complexType>
     <xs:complexType name="block">
         <xs:sequence>
@@ -132,6 +136,7 @@
     <xs:element name="gameData">
         <xs:complexType>
             <xs:sequence>
+                <xs:element name="global" minOccurs="0" maxOccurs="1" type="tns:global"/>
                 <xs:element name="image" minOccurs="0" maxOccurs="unbounded" type="tns:image"/>
                 <xs:element name="tile" minOccurs="0" maxOccurs="unbounded" type="tns:tile"/>
                 <xs:element name="map" minOccurs="0" maxOccurs="unbounded" type="tns:map"/>

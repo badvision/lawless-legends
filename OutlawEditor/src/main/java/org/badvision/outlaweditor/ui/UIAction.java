@@ -52,6 +52,7 @@ import static org.badvision.outlaweditor.Application.currentPlatform;
 import org.badvision.outlaweditor.FileUtils;
 import org.badvision.outlaweditor.MythosEditor;
 import org.badvision.outlaweditor.apple.ImageDitherEngine;
+import org.badvision.outlaweditor.data.DataUtilities;
 import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.TilesetUtils;
 import org.badvision.outlaweditor.data.xml.GameData;
@@ -110,6 +111,7 @@ public class UIAction {
                 ApplicationUIController.getController().clearData();
                 TilesetUtils.clear();
                 Application.gameData = newData;
+                DataUtilities.ensureGlobalExists();
                 ApplicationUIController.getController().updateSelectors();
                 break;
             case Quit:

@@ -31,6 +31,8 @@ public abstract class ApplicationUIController {
     protected MapEditorTabController mapController;
     @FXML
     protected ImageEditorTabController imageController;
+    @FXML
+    protected GlobalEditorTabController globalController;
 
     @FXML // URL location of the FXML file that was given to the FXMLLoader
     protected URL location;
@@ -47,7 +49,7 @@ public abstract class ApplicationUIController {
     abstract public void imageTabActivated(Event event);
 
     @FXML
-    abstract public void scriptTabActivated(Event event);
+    abstract public void globalTabActivated(Event event);
 
     @FXML // This method is called by the FXMLLoader when initialization is complete
     public void initialize() {

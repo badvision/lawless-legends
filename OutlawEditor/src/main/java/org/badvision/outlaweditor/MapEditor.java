@@ -36,6 +36,7 @@ import org.badvision.outlaweditor.data.TileMap;
 import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.xml.Map;
 import org.badvision.outlaweditor.data.xml.Script;
+import org.badvision.outlaweditor.data.xml.Scripts;
 import org.badvision.outlaweditor.data.xml.Tile;
 import org.badvision.outlaweditor.ui.ToolType;
 import org.badvision.outlaweditor.ui.UIAction;
@@ -143,7 +144,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     @Override
     public void addScript(Script script) {
         if (getCurrentMap().getBackingMap().getScripts() == null) {
-            getCurrentMap().getBackingMap().setScripts(new Map.Scripts());
+            getCurrentMap().getBackingMap().setScripts(new Scripts());
         }
         getCurrentMap().getBackingMap().getScripts().getScript().add(script);
     }

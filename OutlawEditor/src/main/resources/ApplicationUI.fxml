@@ -27,9 +27,9 @@
                   <fx:include fx:id="image" source="imageEditorTab.fxml" />
               </content>
             </Tab>
-            <Tab onSelectionChanged="#scriptTabActivated" text="Scripting">
+            <Tab onSelectionChanged="#globalTabActivated" text="Scripting">
               <content>
-                  <fx:include fx:id="scripting" source="globalScriptEditorTab.fxml" />
+                  <fx:include fx:id="global" source="globalEditorTab.fxml" />
               </content>
             </Tab>
           </tabs>

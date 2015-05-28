@@ -163,7 +163,7 @@ asm advance      // no params; return: 0 if same pos, 1 if new pos, 2 if new pos
         +asmPlasm 0
         jmp $6012
 end
-asm setColor     // params: slot (0=sky/1=ground), color (0-15)
+asm setColor     // params: slot (0=sky/1=ground), color (0-17)
         +asmPlasm 2
         jmp $6015
 end
@@ -655,7 +655,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Switch to the next sky color (3D only)
 def nextSky()
-  setSky((skyNum + 1) & $F)
+  setSky((skyNum + 1) % 18)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -669,7 +669,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Switch to the next ground color (3D only)
 def nextGround()
-  setGround((groundNum + 1) & $F)
+  setGround((groundNum + 1) % 18)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1073,19 +1073,27 @@ def getYN()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Test out portrait drawing
-def testPortrait()
-  byte img
+// Display a portrait drawing (typically called from scripts)
+def setPortrait(portraitNum)
   word srcData
+  byte cx, cy
 
   flipToPage1()
   
-  setWindow2()
-  clearWindow()
+  // We're going to switch windows. Save the cursor pos in the text window.
+  cx = ^cursh
+  cy = ^cursv
 
+  // Now clear out the map area
   setMapWindow()
   clearWindow()
 
+  // Restore the cursor position
+  setWindow2()
+  ^cursh = cx
+  ^cursv = cy
+
+  // Load the portrait image and display it
   srcData = loader(QUEUE_LOAD, AUX_MEM, portraitNum<<8 | RES_TYPE_PORTRAIT)
   loader(FINISH_LOAD, MAIN_MEM, 0) // 0 = close
 
@@ -1095,8 +1103,22 @@ def testPortrait()
     blitPortrait(srcData, $2202)  // start at 4th text line
   fin
 
-  loader(FREE_MEMORY, AUX_MEM, srcData)
+  needRender = FALSE  // suppress display of map for this frame
 
+  loader(FREE_MEMORY, AUX_MEM, srcData)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Clear the displayed portrait drawing
+def clrPortrait()
+  render()
+  needRender = FALSE
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Test out portrait drawing
+def testPortrait()
+  setPortrait(portraitNum)
   portraitNum = portraitNum + 1
 end
 
@@ -1202,6 +1224,14 @@ def setCallbacks()
   // $312
   callbacks.18 = $4c
   callbacks:19 = @queue_teleport
+
+  // $315
+  callbacks.21 = $4c
+  callbacks:22 = @setPortrait
+
+  // $318
+  callbacks.24 = $4c
+  callbacks:25 = @clrPortrait
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -134,7 +134,7 @@ if (typeof Mythos === "undefined") {
                     this.appendDummyInput()
                             .appendField("Set sky color to")
                             .appendField(new Blockly.FieldTextInput("0"), "COLOR")
-                            .appendField('(0-15)');
+                            .appendField('(0-17)');
                     this.setOutput(false);
                     this.setTooltip('Set color of the sky');
                 }
@@ -148,7 +148,7 @@ if (typeof Mythos === "undefined") {
                     this.appendDummyInput()
                             .appendField("Set ground color to")
                             .appendField(new Blockly.FieldTextInput("0"), "COLOR")
-                            .appendField('(0-15)');
+                            .appendField('(0-17)');
                     this.setOutput(false);
                     this.setTooltip('Set color of the ground');
                 }
@@ -292,6 +292,31 @@ if (typeof Mythos === "undefined") {
                             .appendField("Get Yes or No");
                     this.setOutput(true, "Boolean");
                     this.setTooltip('');
+                }
+            };
+            Blockly.Blocks['graphics_set_portrait'] = {
+                init: function() {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Display portrait ")
+                            .appendField(new Blockly.FieldTextInput(""), "NAME");
+                    this.setOutput(false);
+                    this.setTooltip('Display the given portait image (by name)');
+                }
+            };
+            Blockly.Blocks['graphics_clr_portrait'] = {
+                init: function() {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Clear portrait");
+                    this.setOutput(false);
+                    this.setTooltip('Stop displaying a portrait, return to map display');
                 }
             };
         }

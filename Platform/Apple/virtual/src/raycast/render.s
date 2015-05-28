@@ -1982,7 +1982,6 @@ pl_setDir: !zone {
 
 ;-------------------------------------------------------------------------------
 pl_setColor: !zone
-	and #15
 	tay			; color number
 	lda evalStkL+1,x
 	and #1
@@ -3168,7 +3167,7 @@ mapSpriteH	!fill MAX_SPRITES
 sinTbl	!word $0000, $8699, $877F, $87E1, $8800, $87E1, $877F, $8699
 	!word $8195, $0699, $077F, $07E1, $0800, $07E1, $077F, $0699
 
-; Dithering patterns for sky and ground, encoded specially for this engine. 16 different combinations.
+; Dithering patterns for sky and ground, encoded specially for this engine. 18 different combinations.
 skyGndTbl1:
 	!byte $00 ; lo-bit black
 	!byte $00 ; lo-bit black
@@ -3186,6 +3185,8 @@ skyGndTbl1:
 	!byte $2A ; hi-bit white
 	!byte $2A ; hi-bit white
 	!byte $2A ; hi-bit white
+	!byte $00 ; lo-bit black
+	!byte $20 ; hi-bit black
 skyGndTbl2:
 	!byte $00 ; lo-bit black
 	!byte $02 ; violet
@@ -3202,6 +3203,8 @@ skyGndTbl2:
 	!byte $28 ; orange
 	!byte $22 ; blue
 	!byte $28 ; orange
+	!byte $2A ; hi-bit white
+	!byte $0A ; lo-bit white
 	!byte $2A ; hi-bit white
 
 ; Movement amounts when walking at each angle

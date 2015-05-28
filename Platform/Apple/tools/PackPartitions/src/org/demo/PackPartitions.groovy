@@ -1394,6 +1394,8 @@ class PackPartitions
         def vec_setSky          = 0x30C
         def vec_setGround       = 0x30F
         def vec_teleport        = 0x312
+        def vec_setPortrait     = 0x315
+        def vec_clrPortrait     = 0x318
 
         def addString(str)
         {
@@ -1515,6 +1517,10 @@ class PackPartitions
                         packSetGround(blk); break
                     case 'events_teleport':
                         packTeleport(blk); break
+                    case 'graphics_set_portrait':
+                        packSetPortrait(blk); break
+                    case 'graphics_clr_portrait':
+                        packClrPortrait(blk); break
                     default:
                         printWarning "don't know how to pack block of type '${blk.@type}'"
                 }
@@ -1689,13 +1695,51 @@ class PackPartitions
             emitCodeByte(0x30) // DROP
         }
         
+        def packSetPortrait(blk)
+        {
+            def portraitNum, portraitName
+
+            blk.field.eachWithIndex { fld, idx ->
+                switch (fld.@name)
+                {
+                    case 'NAME':
+                        portraitName = fld.text()
+                        def portrait = portraits[portraitName]
+                        if (!portrait) {
+                            printWarning "portrait '$portraitName' not found; skipping set_portrait."
+                            return
+                        }
+                        portraitNum = portrait.num
+                        break
+                        
+                    default:
+                        assert false : "Unknown field ${fld.@name}"
+                }
+            }
+            
+            emitCodeByte(0x2A) // CB
+            emitCodeByte(portraitNum)
+            emitCodeByte(0x54)  // CALL
+            emitCodeWord(vec_setPortrait)
+            emitCodeByte(0x30) // DROP
+        }
+        
+        def packClrPortrait(blk)
+        {
+            assert blk.field.size() == 0
+            
+            emitCodeByte(0x54)  // CALL
+            emitCodeWord(vec_clrPortrait)
+            emitCodeByte(0x30) // DROP
+        }
+        
         def packSetSky(blk)
         {
             assert blk.field.size() == 1
             def fld = blk.field[0]
             assert fld.@name == 'COLOR'
             def color = fld.text().toInteger()
-            assert color >= 0 && color <= 15
+            assert color >= 0 && color <= 17
             //println "            Set sky to $color"
             
             emitCodeByte(0x2A) // CB
@@ -1711,7 +1755,7 @@ class PackPartitions
             def fld = blk.field[0]
             assert fld.@name == 'COLOR'
             def color = fld.text().toInteger()
-            assert color >= 0 && color <= 15
+            assert color >= 0 && color <= 17
             //println "            Set ground to $color"
             
             emitCodeByte(0x2A) // CB
@@ -1793,7 +1837,6 @@ class PackPartitions
             
             // Code to register the table and map name
             emitCodeByte(0x26)  // LA
-            println "Adding string: $shortName"
             def textAddr = addString(shortName)
             emitCodeFixup(textAddr)
             emitCodeByte(0x26)  // LA

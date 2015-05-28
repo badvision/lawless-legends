@@ -26,6 +26,7 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
         tileController.initalize();
         mapController.initalize();
         imageController.initalize();
+        globalController.initialize();
     }
 
     @Override
@@ -65,7 +66,11 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
 
     @Override
     public void redrawScripts() {
-        mapController.redrawMapScripts();
+        if (currentTab == TABS.map) {
+            mapController.redrawMapScripts();
+        } else {
+            globalController.redrawGlobalScripts();
+        }
     }
 
     @Override
@@ -84,7 +89,7 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
     }
 
     public static enum TABS {
-        image, map, tile, scripting
+        image, map, tile, global
     };
     TABS currentTab;
 
@@ -104,8 +109,8 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
     }
     
     @Override
-    public void scriptTabActivated(Event event) {
-        currentTab = TABS.scripting;
+    public void globalTabActivated(Event event) {
+        currentTab = TABS.global;
     }
 
     @Override
@@ -117,6 +122,8 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
                 return mapController.getCurrentEditor();
             case tile:
                 return tileController.getCurrentTileEditor();
+            case global:
+                return globalController.getCurrentEditor();
             default:
                 return null;
         }

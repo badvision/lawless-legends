@@ -9,7 +9,7 @@ import javax.xml.bind.Marshaller;
 import org.badvision.outlaweditor.data.xml.Block;
 import org.badvision.outlaweditor.data.xml.GameData;
 import org.badvision.outlaweditor.data.xml.Map;
-import org.badvision.outlaweditor.data.xml.Map.Scripts;
+import org.badvision.outlaweditor.data.xml.Scripts;
 import org.badvision.outlaweditor.data.xml.Script;
 import org.junit.Test;
 import static org.junit.Assert.*;

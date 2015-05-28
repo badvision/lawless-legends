@@ -1,15 +1,19 @@
 package org.badvision.outlaweditor.ui;
 
-import java.net.URL;
-import java.util.ResourceBundle;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.fxml.Initializable;
 import javafx.scene.control.ListView;
+import org.badvision.outlaweditor.GlobalEditor;
+import org.badvision.outlaweditor.data.xml.Script;
 
-public abstract class GlobalScriptTabController implements Initializable {
+public abstract class GlobalEditorTabController {
+    private final GlobalEditor currentEditor = new GlobalEditor();
+
+    public GlobalEditor getCurrentEditor() {
+        return currentEditor;
+    }
     @FXML
-    protected ListView<?> globalScriptList;
+    protected ListView<Script> globalScriptList;
     @FXML
     protected ListView<?> dataTypeList;
     @FXML
@@ -34,7 +38,8 @@ public abstract class GlobalScriptTabController implements Initializable {
     @FXML
     abstract protected void onVariableClonePressed(ActionEvent event);
     
-    @Override
-    public void initialize(URL url, ResourceBundle rb) {
+    abstract public void redrawGlobalScripts();
+    public void initialize() {
+        redrawGlobalScripts();
     }    
 }

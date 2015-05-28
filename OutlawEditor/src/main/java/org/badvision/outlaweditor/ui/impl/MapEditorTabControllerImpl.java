@@ -22,11 +22,13 @@ import static org.badvision.outlaweditor.Application.currentPlatform;
 import static org.badvision.outlaweditor.Application.gameData;
 import org.badvision.outlaweditor.MapEditor;
 import org.badvision.outlaweditor.TransferHelper;
+import org.badvision.outlaweditor.data.DataUtilities;
 import static org.badvision.outlaweditor.data.PropertyHelper.bind;
 import static org.badvision.outlaweditor.data.PropertyHelper.stringProp;
 import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.xml.Map;
 import org.badvision.outlaweditor.data.xml.Script;
+import org.badvision.outlaweditor.data.xml.Scripts;
 import org.badvision.outlaweditor.data.xml.Tile;
 import org.badvision.outlaweditor.ui.EntitySelectorCell;
 import org.badvision.outlaweditor.ui.MapEditorTabController;
@@ -267,7 +269,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
             mapWrapAround.setDisable(true);
             setCurrentEditor(null);
         } else {
-            sortScripts(m);
+            DataUtilities.sortScripts(m.getScripts());
             if (m.getHeight() == null) {
                 m.setHeight(512);
             }
@@ -412,7 +414,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
             mapScriptsList.getItems().clear();
         } else {
             if (mapScriptsList.getItems() != null && getCurrentMap().getScripts() != null) {
-                sortScripts(getCurrentMap());
+                DataUtilities.sortScripts(getCurrentMap().getScripts());
                 mapScriptsList.getItems().setAll(getCurrentMap().getScripts().getScript());
             } else {
                 mapScriptsList.getItems().clear();
@@ -442,19 +444,5 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
             getCurrentEditor().setScriptVisible(script, true);
             visibilityIcon.setImage(VISIBLE_IMAGE);
         }
-    }
-
-    private void sortScripts(Map m) {
-        if (m == null || m.getScripts() == null || m.getScripts().getScript() == null) {
-            return;
-        }
-        m.getScripts().getScript().sort((a, b) -> {
-            if (a.getName().equalsIgnoreCase("init")) {
-                return -1;
-            } else if (b.getName().equalsIgnoreCase("init")) {
-                return 1;
-            }
-            return a.getName().compareTo(b.getName());
-        });
     }
 }

@@ -185,7 +185,7 @@ asm blitPortrait      // params: srcData, dstScreenPtr
         sta tmp
         lda evalStkH+1,x
         sta tmp+1
-        
+
         ; Create the following subroutine, used to copy pixels from aux to main:
         ; 0010-   8D 03 C0    STA   $C003
         ; 0013-   B1 02       LDA   ($02),Y
@@ -258,6 +258,7 @@ asm blitPortrait      // params: srcData, dstScreenPtr
         ; Loop until we've done all rows.
         dex
         bne .loop
+
         rts
 end
 
@@ -1241,8 +1242,8 @@ loadTitle()
 setCallbacks()
 mapIs3D = OVERMAP_IS_3D
 mapNum = OVERMAP_NUM
-//initMap(6, 123, 12)  // per Seth. Need to have this in a script in the future
-initMap(4, 4, 0)
+initMap(6, 123, 12)  // per Seth. Need to have this in a script in the future
+//initMap(4, 4, 0)
 checkScripts()
 kbdLoop()
 

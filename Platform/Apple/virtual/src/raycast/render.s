@@ -1756,7 +1756,15 @@ pl_advance: !zone
 ; Params: none
 ; Return: none
 pl_render: !zone
-	jmp renderFrame
+	jsr setExpansionCaller	; $100 area is often overwritten
+	lda $2000		; check if hgr2 was overwritten by mem mgr
+	cmp $4000
+	bne +
+	lda $2001
+	cmp $4001
+	beq ++
++	jsr copyScreen		; if it was, restore by copying hgr1 to hgr2
+++	jmp renderFrame		; then go ahead and render
 
 ;-------------------------------------------------------------------------------
 ; Cast all the rays from the current player coord

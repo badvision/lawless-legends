@@ -171,6 +171,69 @@ asm render      // no params
         +asmPlasm 0
         jmp $6018
 end
+///////////////////////////////////////////////////////////////////////////////////////////////////
+asm pushAuxStr     // params: none; ret: $200 (inbuf)
+        stx tmp     ; save PLASMA's X reg eval stack index
+        tsx
+        lda $103,x  ; get PLASMA's Y-reg value from its place in the stack
+        tay
+
+        ; Create the following subroutine, used to copy chars from aux to main:
+        ;0010-   8D 03 C0    STA   $C003
+        ;0013-   C8          INY
+        ;0014-   D0 02       BNE   $0018
+        ;0016-   E6 F5       INC   $F5
+        ;0018-   B1 F4       LDA   ($F4),Y
+        ;001A-   8D 02 C0    STA   $C002
+        ;001D-   60          RTS
+        lda #$8D
+        sta $10
+        sta $1A
+        ldx #2
+        stx $15
+        stx $1B
+        inx
+        stx $11
+        lda #$C0
+        sta $12
+        sta $1C
+        lda #$C8
+        sta $13
+        lda #$D0
+        sta $14
+        lda #$E6
+        sta $16
+        ldx #$F5
+        stx $17
+        lda #$B1
+        sta $18
+        dex
+        stx $19
+        lda #$60
+        sta $1D
+
+        ; Get string length and save it
+        jsr $10
+        sta $200
+        ldx #0
+        ; Copy entire string
+-       cpx $200
+        beq +
+        jsr $10
+        inx
+        sta $200,x
+        bne -
++       tsx
+        tya
+        sta $103,x      ; modify PLASMA's Y reg so it picks up code execution just after the string
+        ldx tmp         ; retrieve PLASMA's eval stack ptr
+        dex             ; make room for ret value
+        lda #0
+        sta evalStkL,x  ; return value lo (<$200)
+        lda #2
+        sta evalStkH,x  ; and hi (>$200)
+        rts
+end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 asm blitPortrait      // params: srcData, dstScreenPtr
@@ -1204,35 +1267,39 @@ def setCallbacks()
 
   // $303
   callbacks.3 = $4c
-  callbacks:4 = @scriptDisplayStr
+  callbacks:4 = @pushAuxStr
 
   // $306
   callbacks.6 = $4c
-  callbacks:7 = @getYN
+  callbacks:7 = @scriptDisplayStr
 
   // $309
   callbacks.9 = $4c
-  callbacks:10 = @queue_setMap
+  callbacks:10 = @getYN
 
   // $30C
   callbacks.12 = $4c
-  callbacks:13 = @setSky
+  callbacks:13 = @queue_setMap
 
   // $30F
   callbacks.15 = $4c
-  callbacks:16 = @setGround
+  callbacks:16 = @setSky
 
   // $312
   callbacks.18 = $4c
-  callbacks:19 = @queue_teleport
+  callbacks:19 = @setGround
 
   // $315
   callbacks.21 = $4c
-  callbacks:22 = @setPortrait
+  callbacks:22 = @queue_teleport
 
   // $318
   callbacks.24 = $4c
-  callbacks:25 = @clrPortrait
+  callbacks:25 = @setPortrait
+
+  // $31B
+  callbacks.27 = $4c
+  callbacks:28 = @clrPortrait
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

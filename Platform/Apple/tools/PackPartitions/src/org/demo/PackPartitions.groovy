@@ -1384,26 +1384,29 @@ class PackPartitions
         def fixups = []
 
         def nScripts = 0
+        def nStringBytes = 0
 
         def locationsWithTriggers = [] as Set
 
         def vec_setScriptInfo   = 0x300
-        def vec_displayStr      = 0x303
-        def vec_getYN           = 0x306
-        def vec_setMap          = 0x309
-        def vec_setSky          = 0x30C
-        def vec_setGround       = 0x30F
-        def vec_teleport        = 0x312
-        def vec_setPortrait     = 0x315
-        def vec_clrPortrait     = 0x318
+        def vec_pushAuxStr      = 0x303
+        def vec_displayStr      = 0x306
+        def vec_getYN           = 0x309
+        def vec_setMap          = 0x30C
+        def vec_setSky          = 0x30F
+        def vec_setGround       = 0x312
+        def vec_teleport        = 0x315
+        def vec_setPortrait     = 0x318
+        def vec_clrPortrait     = 0x31B
 
-        def addString(str)
+        def emitAuxString(str)
         {
+            emitCodeByte(0x54)  // CALL
+            emitCodeWord(vec_pushAuxStr)
             assert str.size() < 256 : "String too long, max is 255 characters: $str"
-            def addr = dataAddr()
-            emitDataByte(str.size())
-            str.each { ch -> emitDataByte((byte)ch) }
-            return addr
+            emitCodeByte(str.size())
+            str.each { ch -> emitCodeByte((byte)ch) }
+            nStringBytes += str.size() + 1
         }
 
         /**
@@ -1435,6 +1438,8 @@ class PackPartitions
             }
             makeInit(mapName, scripts, xRange, yRange)
             emitFixupByte(0xFF)
+            
+            //println "  Code stats: data=${data.size}, bytecode=${bytecode.size} (str=$nStringBytes), fixups=${fixups.size}"
             //println "data: $data"
             //println "bytecode: $bytecode"
             //println "fixups: $fixups"
@@ -1603,9 +1608,7 @@ class PackPartitions
             def text = fld.text()
             //println "            text: '$text'"
 
-            emitCodeByte(0x26)  // LA
-            def textAddr = addString(text)
-            emitCodeFixup(textAddr)
+            emitAuxString(text)
             emitCodeByte(0x54)  // CALL
             emitCodeWord(vec_displayStr)
             emitCodeByte(0x30) // DROP
@@ -1836,9 +1839,7 @@ class PackPartitions
             shortName = (" " * extra) + shortName
             
             // Code to register the table and map name
-            emitCodeByte(0x26)  // LA
-            def textAddr = addString(shortName)
-            emitCodeFixup(textAddr)
+            emitAuxString(shortName)
             emitCodeByte(0x26)  // LA
             emitCodeFixup(dataAddr())
             emitCodeByte(0x54) // CALL

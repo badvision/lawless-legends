@@ -2018,6 +2018,15 @@ pl_initMap: !zone
 	jsr pl_setDir
 	inx
 	jsr pl_setPos
+	; Reserve memory for all our tables.
+	lda #SET_MEM_TARGET
+	ldx #<tableStart
+	ldy #>tableStart
+	jsr mainLoader
+	lda #REQUEST_MEMORY
+	ldx #<(tableEnd-tableStart)
+	ldy #>(tableEnd-tableStart)
+	jsr mainLoader
 	; Proceed with loading
 	jsr loadTextures
 	jsr copyScreen

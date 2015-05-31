@@ -620,6 +620,7 @@ reset: !zone
 
 ;------------------------------------------------------------------------------
 outOfMemErr: !zone
+	!if DEBUG { jsr main_debug }
 	ldx #<+
 	ldy #>+
 	jmp fatalError
@@ -1006,9 +1007,10 @@ shared_queueLoad:
 	jsr .notMod		; queue the main memory part of the module
 	stx .modRet+1		; save address of main load for eventual return
 	sty .modRet+3		; yes, self-modifying
+	lda #QUEUE_LOAD
 	ldx #RES_TYPE_BYTECODE
 	ldy resNum
-	jsr aux_queueLoad	; load the aux mem part (the bytecode)
+	jsr aux_dispatch	; load the aux mem part (the bytecode)
 	; try to pick a location for the fixups that we can free without fragmenting everything.
 	ldx fixupHint
 	ldy fixupHint+1
@@ -1020,9 +1022,10 @@ shared_queueLoad:
 	sta targetAddr
 	lda fixupHint+1
 	sta targetAddr+1
-.frag	ldx #RES_TYPE_FIXUP	; queue loading of the fixup resource
+.frag	lda #QUEUE_LOAD
+	ldx #RES_TYPE_FIXUP	; queue loading of the fixup resource
 	ldy resNum
-	jsr aux_queueLoad
+	jsr aux_dispatch
 	lda fixupHint		; advance hint for next fixup by the size of this fixup
 	clc
 	adc reqLen
@@ -1194,6 +1197,7 @@ disk_queueLoad: !zone
 	lda (pTmp),y		; and hi byte
 +	stx reqLen		; save the uncompressed length
 	sta reqLen+1		; both bytes
+	!if DEBUG { +prStr : !text "uclen=",0 : +prWord reqLen : +crout }
 	jsr shared_alloc	; reserve memory for this resource (main or aux as appropriate)
 	stx tmp			; save lo part of addr temporarily
 	ldx segNum		; get the segment number back

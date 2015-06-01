@@ -460,6 +460,11 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         }
     }
 
+    public void removeScript(Script script) {
+        getCurrentMap().removeScriptFromMap(script);
+        redraw();
+    }
+
     public static enum DrawMode {
 
         Pencil1px, Pencil3px, Pencil5px, FilledRect, Eraser

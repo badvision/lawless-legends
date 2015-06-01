@@ -28,8 +28,14 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
     protected void onScriptDeletePressed(ActionEvent event) {
         Script script = globalScriptList.getSelectionModel().getSelectedItem();
         if (script != null) {
-            getCurrentEditor().removeScript(script);
-            redrawGlobalScripts();
+            UIAction.confirm(
+                    "Are you sure you want to delete the script "
+                    + script.getName()
+                    + "?  There is no undo for this!",
+                    () -> {
+                        getCurrentEditor().removeScript(script);
+                        redrawGlobalScripts();
+                    }, null);
         }
     }
 

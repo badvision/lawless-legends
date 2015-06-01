@@ -195,7 +195,18 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
 
     @Override
     public void onMapScriptDeletePressed(ActionEvent event) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        Script script = mapScriptsList.getSelectionModel().getSelectedItem();
+        if (script != null) {
+            UIAction.confirm(
+                    "Are you sure you want to delete the script "
+                    + script.getName()
+                    + "?  There is no undo for this!",
+                    () -> {
+                        getCurrentEditor().removeScript(script);
+                        redrawMapScripts();
+                    },
+                    null);
+        };
     }
 
     @Override
@@ -288,8 +299,10 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
                 bind(mapNameField.textProperty(), stringProp(m, "name"));
 //                bind(mapWidthField.textProperty(), intProp(m, "width"));
 //                bind(mapWrapAround.selectedProperty(),boolProp(m, "wrap"));
+
             } catch (NoSuchMethodException ex) {
-                Logger.getLogger(ApplicationUIControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(ApplicationUIControllerImpl.class
+                        .getName()).log(Level.SEVERE, null, ex);
             }
             MapEditor e = new MapEditor();
             e.setEntity(m);
@@ -386,7 +399,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
             @Override
             public ListCell<Script> call(ListView<Script> param) {
                 final ListCell<Script> cell = new ListCell<Script>() {
-                    
+
                     @Override
                     protected void updateItem(Script item, boolean empty) {
                         super.updateItem(item, empty);

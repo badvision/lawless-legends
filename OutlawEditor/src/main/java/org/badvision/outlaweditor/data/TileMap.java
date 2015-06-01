@@ -213,4 +213,12 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
     public static boolean isNullTile(String tileId) {
         return tileId.equalsIgnoreCase(NULL_TILE_ID);
     }
+
+    public void removeScriptFromMap(Script script) {
+        script.getLocationTrigger().clear();
+        locationScripts.values().stream().filter((scripts) -> !(scripts == null)).forEach((scripts) -> {
+            scripts.remove(script);
+        });
+        backingMap.getScripts().getScript().remove(script);
+    }
 }

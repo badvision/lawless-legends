@@ -541,11 +541,11 @@ asm displayStr
 ++  dex           ; used a char
     cmp #$20      ; is the char a space?
     beq +
-    sta $281,y    ; no, save to word buffer
+    sta $2E1,y    ; no, save to word buffer
     iny
     cpx #0        ; last char?
     bne -
-+   sty $280      ; found a word break; save word length.
++   sty $2E0      ; found a word break; save word length.
     tya
     sec
     adc pTmp      ; advance main pointer over word
@@ -565,7 +565,7 @@ asm displayStr
     jsr printCHAR
 +   tya           ; if zero length (e.g. string starts with space), just print the space
     beq +
-    ldy #$80      ; now display string at $280 (word buf)
+    ldy #$E0      ; now display string at $2E0 (word buf)
     ldx #2
     jsr printSTR
     lda cursh
@@ -767,6 +767,54 @@ def loadFrameImg()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def setWindow(top, btm, lft, rt)
+  ^wndtop = top
+  ^wndbtm = btm
+  ^wndleft = lft
+  ^wndwdth = rt
+  ^cursv = ^wndtop
+  ^cursh = ^wndleft
+end
+
+// Window for the map name bar
+def setWindow1()
+  setWindow(1, 2, 5, 17)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Window for the large upper right bar
+def setWindow2()
+  setWindow(3, 17, 22, 37)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Window for the mid-size lower right bar
+def setWindow3()
+  setWindow(18, 23, 22, 37)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Window for the map area (used for clearing it)
+def setMapWindow()
+  if mapIs3D
+    setWindow(3, 19, 2, 19)
+  else
+    setWindow(3, 21, 2, 19)
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Show some faked-up data for player characters
+def fakeChars()
+  setWindow3()
+  rawDisplayStr("Name     Lif Gun")
+  rawDisplayStr("-------- --- ---")
+  rawDisplayStr("Blak Bart 12  4 ")
+  rawDisplayStr("Wyld Bill  8  2 ")
+  rawDisplayStr("LucyLwls   9  6")
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load code and data, set up everything to display a 3D map
 def initMap(x, y, dir)
   // Set up the command table
@@ -810,43 +858,9 @@ def initMap(x, y, dir)
   setWindow2()
   initDisplay(mapNum, pMap, x, y, dir)
   needRender = FALSE
-end
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def setWindow(top, btm, lft, rt)
-  ^wndtop = top
-  ^wndbtm = btm
-  ^wndleft = lft
-  ^wndwdth = rt
-  ^cursv = ^wndtop
-  ^cursh = ^wndleft
-end
-
-// Window for the map name bar
-def setWindow1()
-  setWindow(1, 2, 5, 17)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Window for the large upper right bar
-def setWindow2()
-  setWindow(3, 17, 22, 37)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Window for the mid-size lower right bar
-def setWindow3()
-  setWindow(18, 23, 23, 37)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Window for the map area (used for clearing it)
-def setMapWindow()
-  if mapIs3D
-    setWindow(3, 19, 2, 19)
-  else
-    setWindow(3, 21, 2, 19)
-  fin
+  // Display some fake character data.
+  fakeChars()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

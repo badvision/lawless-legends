@@ -891,7 +891,12 @@ def moveForward()
 
   // If not blocked, render at the new position.
   if val > 0
-    needRender = TRUE
+    if !mapIs3D
+      render()
+      needRender = FALSE
+    else
+      needRender = TRUE
+    fin
   fin
 
   // If we're on a new map tile, clear text from script(s) on the old tile.
@@ -1113,10 +1118,6 @@ end
 // Get a key, and don't return until it's Y or N (or lower-case of those). Returns 1 for Y.
 def getYN()
   byte key
-  if needRender
-    render()
-    needRender = FALSE
-  fin
   while TRUE
     key = getUpperKey()
     if key == 'Y'
@@ -1294,6 +1295,10 @@ def setCallbacks()
   // $31B
   callbacks.27 = $4c
   callbacks:28 = @clrPortrait
+
+  // $31E
+  callbacks.30 = $4c
+  callbacks:31 = @moveBackward
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

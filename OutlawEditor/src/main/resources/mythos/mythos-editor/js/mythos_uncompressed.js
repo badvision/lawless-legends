@@ -125,6 +125,18 @@ if (typeof Mythos === "undefined") {
                     this.setTooltip('Teleport the player to a given location and direction on this map.');
                 }
             };
+            Blockly.Blocks['events_move_backward'] = {
+                init: function() {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Move backward");
+                    this.setOutput(false);
+                    this.setTooltip('Moves the player one step backward.');
+                }
+            };
             Blockly.Blocks['events_set_sky'] = {
                 init: function() {
                     this.setHelpUrl(Mythos.helpUrl);

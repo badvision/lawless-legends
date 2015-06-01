@@ -1398,6 +1398,7 @@ class PackPartitions
         def vec_teleport        = 0x315
         def vec_setPortrait     = 0x318
         def vec_clrPortrait     = 0x31B
+        def vec_moveBackward    = 0x31E
 
         def emitAuxString(str)
         {
@@ -1522,6 +1523,8 @@ class PackPartitions
                         packSetGround(blk); break
                     case 'events_teleport':
                         packTeleport(blk); break
+                    case 'events_move_backward':
+                        packMoveBackward(blk); break
                     case 'graphics_set_portrait':
                         packSetPortrait(blk); break
                     case 'graphics_clr_portrait':
@@ -1788,6 +1791,16 @@ class PackPartitions
             emitCodeByte(facing)
             emitCodeByte(0x54) // CALL
             emitCodeWord(vec_teleport)
+            emitCodeByte(0x30) // DROP
+        }
+
+        def packMoveBackward(blk)
+        {
+            assert blk.field.size() == 0
+            //println "            Move backward"
+            
+            emitCodeByte(0x54) // CALL
+            emitCodeWord(vec_moveBackward)
             emitCodeByte(0x30) // DROP
         }
 

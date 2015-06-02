@@ -3,7 +3,9 @@ package org.badvision.outlaweditor;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -114,7 +116,8 @@ public class MythosEditor {
     public String generateLoadScript(String xml) {
         xml = xml.replaceAll("'", "\\'");
         xml = xml.replaceAll("\n", "");
-        String loadScript = "Mythos.setScriptXml('" + xml + "');";
+        String loadScript = "Mythos.initCustomDefinitions();";
+        loadScript += "Mythos.setScriptXml('" + xml + "');";
         return loadScript;
     }
 
@@ -130,5 +133,9 @@ public class MythosEditor {
         }
         script.setName(name);
         ApplicationUIController.getController().redrawScripts();
+    }
+    
+    public List getUserTypes() {
+        return new ArrayList();
     }
 }

@@ -2,14 +2,17 @@
 
 if (typeof Mythos === "undefined") {
     // Hook up the rename function to notify the java editor when changes occur
+    if (typeof window === "undefined") {
+        window = {};
+    }
     Blockly.Procedures.rename_old = Blockly.Procedures.rename;
-    Blockly.Procedures.rename = function(name) {
+    Blockly.Procedures.rename = function (name) {
         Mythos.editor.setFunctionName(name);
-        return Blockly.Procedures.rename_old.call(this,name);
+        return Blockly.Procedures.rename_old.call(this, name);
     };
-    
+
     Mythos = {
-        setScriptXml: function(xml) {
+        setScriptXml: function (xml) {
             Blockly.mainWorkspace.clear();
             var dom = Blockly.Xml.textToDom(xml);
             Blockly.Xml.domToWorkspace(Blockly.mainWorkspace, dom);
@@ -17,13 +20,46 @@ if (typeof Mythos === "undefined") {
                 Blockly.mainWorkspace.topBlocks_[1].dispose();
             }
         },
-        getScriptXml: function() {
+        getScriptXml: function () {
             return Blockly.Xml.workspaceToDom(Blockly.mainWorkspace).innerHTML;
         },
         helpUrl: 'https://docs.google.com/document/d/1VXbiY4G533-cokjQevZFhwvqMMCL--17ziMAoFoeJ5M/edit#heading=h.yv9dmneqjr2b',
-        initBlocks: function() {
+        initCustomDefinitions: function() {
+            Mythos.addUserDefinedTypes();
+            Mythos.addVariablesFromGlobalScope();
+            Mythos.addFunctionsFromGlobalScope();
+            Mythos.addVariablesFromLocalScope();
+            Mythos.addFunctionsFromLocalScope();
+        },
+        addUserDefinedTypes: function() {
+            var toolbarCategory = document.getElementById("customTypes");
+            for (var userType in Mythos.editor.getUserTypes()) {
+                var typeNode = document.createElement("block");
+                typeNode.setAttribute("type", "new_"+userType);                
+                toolbarCategory.appendChild(typeNode);
+                Mythos.buildCustomType(userType);
+            }
+        },
+        buildCustomType: function(userType) {
+            //Blockly.Blocks['new_']
+        },
+        addVariablesFromGlobalScope: function() {
+            
+        },
+        addFunctionsFromGlobalScope: function() {
+            var toolbarCategory = document.getElementById("globalFunctions");
+            
+        },
+        addVariablesFromLocalScope: function() {
+            
+        },
+        addFunctionsFromLocalScope: function() {
+            var toolbarCategory = document.getElementById("localFunctions");
+            
+        },
+        initBlocks: function () {
             Blockly.Blocks['flow_for'] = {
-                init: function() {
+                init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
                     this.setColour(180);
                     this.appendDummyInput()
@@ -46,7 +82,7 @@ if (typeof Mythos === "undefined") {
                 }
             };
             Blockly.Blocks['flow_repeat'] = {
-                init: function() {
+                init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
                     this.setColour(180);
                     this.appendDummyInput()
@@ -63,7 +99,7 @@ if (typeof Mythos === "undefined") {
                 }
             };
             Blockly.Blocks['flow_break'] = {
-                init: function() {
+                init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
                     this.setColour(180);
                     this.appendDummyInput()
@@ -71,7 +107,7 @@ if (typeof Mythos === "undefined") {
                 }
             };
             Blockly.Blocks['flow_continue'] = {
-                init: function() {
+                init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
                     this.setColour(180);
                     this.appendDummyInput()
@@ -79,7 +115,7 @@ if (typeof Mythos === "undefined") {
                 }
             };
             Blockly.Blocks['logic_cointoss'] = {
-                init: function() {
+                init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
                     this.setColour(210);
                     this.appendDummyInput()
@@ -87,7 +123,7 @@ if (typeof Mythos === "undefined") {
                 }
             };
             Blockly.Blocks['events_set_map'] = {
-                init: function() {
+                init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
                     this.setColour(54);
                     this.setPreviousStatement(true);
@@ -107,7 +143,7 @@ if (typeof Mythos === "undefined") {
                 }
             };
             Blockly.Blocks['events_teleport'] = {
-                init: function() {
+                init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
                     this.setColour(54);
                     this.setPreviousStatement(true);
@@ -138,7 +174,7 @@ if (typeof Mythos === "undefined") {
                 }
             };
             Blockly.Blocks['events_set_sky'] = {
-                init: function() {
+                init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
                     this.setColour(54);
                     this.setPreviousStatement(true);
@@ -152,7 +188,7 @@ if (typeof Mythos === "undefined") {
                 }
             };
             Blockly.Blocks['events_set_ground'] = {
-                init: function() {
+                init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
                     this.setColour(54);
                     this.setPreviousStatement(true);
@@ -166,7 +202,7 @@ if (typeof Mythos === "undefined") {
                 }
             };
             Blockly.Blocks['text_window'] = {
-                init: function() {
+                init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
                     this.setColour(54);
                     this.setPreviousStatement(true);
@@ -189,7 +225,7 @@ if (typeof Mythos === "undefined") {
                 }
             };
             Blockly.Blocks['text_moveto'] = {
-                init: function() {
+                init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
                     this.setColour(54);
                     this.setPreviousStatement(true);
@@ -205,7 +241,7 @@ if (typeof Mythos === "undefined") {
                 }
             };
             Blockly.Blocks['text_println'] = {
-                init: function() {
+                init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
                     this.setColour(54);
                     this.setPreviousStatement(true);
@@ -217,7 +253,7 @@ if (typeof Mythos === "undefined") {
                 }
             };
             Blockly.Blocks['text_print'] = {
-                init: function() {
+                init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
                     this.setColour(54);
                     this.setPreviousStatement(true);
@@ -229,7 +265,7 @@ if (typeof Mythos === "undefined") {
                 }
             };
             Blockly.Blocks['text_mode'] = {
-                init: function() {
+                init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
                     this.setColour(54);
                     this.setPreviousStatement(true);
@@ -243,7 +279,7 @@ if (typeof Mythos === "undefined") {
                 }
             };
             Blockly.Blocks['text_clear_window'] = {
-                init: function() {
+                init: function () {
                     this.setHelpUrl('https://docs.google.com/document/d/1VXbiY4G533-cokjQevZFhwvqMMCL--17ziMAoFoeJ5M');
                     this.setColour(54);
                     this.setPreviousStatement(true);
@@ -255,7 +291,7 @@ if (typeof Mythos === "undefined") {
                 }
             };
             Blockly.Blocks['text_scroll'] = {
-                init: function() {
+                init: function () {
                     this.setHelpUrl('https://docs.google.com/document/d/1VXbiY4G533-cokjQevZFhwvqMMCL--17ziMAoFoeJ5M');
                     this.setColour(54);
                     this.setPreviousStatement(true);
@@ -267,7 +303,7 @@ if (typeof Mythos === "undefined") {
                 }
             };
             Blockly.Blocks['text_getstring'] = {
-                init: function() {
+                init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
                     this.setColour(54);
                     this.appendDummyInput()
@@ -277,7 +313,7 @@ if (typeof Mythos === "undefined") {
                 }
             };
             Blockly.Blocks['text_getnumber'] = {
-                init: function() {
+                init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
                     this.setColour(54);
                     this.appendDummyInput()
@@ -287,7 +323,7 @@ if (typeof Mythos === "undefined") {
                 }
             };
             Blockly.Blocks['text_getcharacter'] = {
-                init: function() {
+                init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
                     this.setColour(54);
                     this.appendDummyInput()
@@ -297,7 +333,7 @@ if (typeof Mythos === "undefined") {
                 }
             };
             Blockly.Blocks['text_getboolean'] = {
-                init: function() {
+                init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
                     this.setColour(54);
                     this.appendDummyInput()
@@ -307,7 +343,7 @@ if (typeof Mythos === "undefined") {
                 }
             };
             Blockly.Blocks['graphics_set_portrait'] = {
-                init: function() {
+                init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
                     this.setColour(54);
                     this.setPreviousStatement(true);
@@ -320,7 +356,7 @@ if (typeof Mythos === "undefined") {
                 }
             };
             Blockly.Blocks['graphics_clr_portrait'] = {
-                init: function() {
+                init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
                     this.setColour(54);
                     this.setPreviousStatement(true);

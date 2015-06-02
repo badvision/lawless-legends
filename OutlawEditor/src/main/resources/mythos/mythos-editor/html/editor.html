@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <meta charset="utf-8">
+        <meta charset="utf-8"></meta>
         <title>Blockly Demo: Fixed Blockly</title>
         <script type="text/javascript" src="../../blockly_compressed.js"></script>
         <script type="text/javascript" src="../../blocks_compressed.js"></script>
@@ -22,9 +22,13 @@
         <div id="blocklyDiv" style="height: 700px; width: 996px;"></div>
 
     <xml id="toolbox" style="display: none">
-        <category name="Variables">
+        <category id="variables" name="Variables">
             <block type="variables_set"></block>
             <block type="variables_get"></block>
+        </category>
+        <category id="functions" name="Functions">
+            <category id="globalFunctions" name="Global"></category>
+            <category id="localFunctions" name="Local"></category>
         </category>
         <category name="Flow">
             <block type="controls_if"></block>
@@ -68,6 +72,8 @@
             <block type="text_getnumber"></block>
             <block type="text_getboolean"></block>
             <block type="text_getcharacter"></block>
+        </category>
+        <category var="customTypes" name="Custom Types">
         </category>
         <category name="Graphics">
             <block type="graphics_set_portrait"></block>

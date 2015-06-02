@@ -3,6 +3,7 @@ package org.badvision.outlaweditor.ui;
 import java.net.URL;
 import java.util.ListResourceBundle;
 import java.util.Map;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.Set;
 import javafx.beans.value.ChangeListener;
@@ -12,6 +13,10 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.TextInputDialog;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.web.PromptData;
 import javafx.scene.web.WebView;
 import netscape.javascript.JSObject;
 import org.badvision.outlaweditor.MythosEditor;
@@ -95,17 +100,28 @@ public class MythosScriptEditorController
         final String loadScript = resources.getString(ONLOAD_SCRIPT);
         if (loadScript != null) {
             editorView.getEngine().getLoadWorker().stateProperty().addListener(
-                    new ChangeListener<State>() {
-                        @Override
-                        public void changed(ObservableValue ov, State oldState, State newState) {
-                            if (newState == State.SUCCEEDED) {
-                                mythos = (JSObject) editorView.getEngine().executeScript("Mythos");
-                                mythos.setMember("editor", editor);
-                                editorView.getEngine().executeScript(loadScript);
-                            }
+                    (value, old, newState) -> {
+                        if (newState == State.SUCCEEDED) {
+                            mythos = (JSObject) editorView.getEngine().executeScript("Mythos");
+                            mythos.setMember("editor", editor);
+                            editorView.getEngine().executeScript(loadScript);
                         }
                     });
+
+            editorView.getEngine().setPromptHandler((PromptData prompt) -> {
+                TextInputDialog dialog = new TextInputDialog(prompt.getDefaultValue());
+                dialog.setTitle("MythosScript Editor");
+                dialog.setHeaderText("Respond and press OK, or Cancel to abort");
+                ImageView graphic = new ImageView(new Image("images/revolver_icon.png"));
+                graphic.setFitHeight(50.0);
+                graphic.setFitWidth(50.0);
+                graphic.setSmooth(true);
+                dialog.setGraphic(graphic);
+                dialog.setContentText(prompt.getMessage());
+                return dialog.showAndWait().orElse("");
+            });
         }
+
         editorView.getEngine().load(getClass().getResource(MYTHOS_EDITOR).toExternalForm());
     }
 

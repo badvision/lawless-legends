@@ -1399,6 +1399,7 @@ class PackPartitions
         def vec_setPortrait     = 0x318
         def vec_clrPortrait     = 0x31B
         def vec_moveBackward    = 0x31E
+        def vec_getCharacter    = 0x321
 
         def emitAuxString(str)
         {
@@ -1513,6 +1514,8 @@ class PackPartitions
                     case 'text_print':
                     case 'text_println':
                         packTextPrint(blk); break
+                    case 'text_getanykey':
+                        packGetAnyKey(); break
                     case  'controls_if':
                         packIfStmt(blk); break
                     case 'events_set_map':
@@ -1614,6 +1617,15 @@ class PackPartitions
             emitAuxString(text)
             emitCodeByte(0x54)  // CALL
             emitCodeWord(vec_displayStr)
+            emitCodeByte(0x30) // DROP
+        }
+
+        def packGetAnyKey(blk)
+        {
+            //println "            get any key"
+
+            emitCodeByte(0x54)  // CALL
+            emitCodeWord(vec_getCharacter)
             emitCodeByte(0x30) // DROP
         }
 

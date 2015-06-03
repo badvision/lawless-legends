@@ -1313,6 +1313,10 @@ def setCallbacks()
   // $31E
   callbacks.30 = $4c
   callbacks:31 = @moveBackward
+
+  // $321
+  callbacks.33 = $4c
+  callbacks:34 = @getUpperKey
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -264,6 +264,18 @@ if (typeof Mythos === "undefined") {
                     this.setTooltip('Print text and leave cursor at end of last printed character');
                 }
             };
+            Blockly.Blocks['text_getanykey'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Get any key");
+                    this.setOutput(false);
+                    this.setTooltip('Get a key from the keyboard (and discard it)');
+                }
+            };
             Blockly.Blocks['text_mode'] = {
                 init: function () {
                     this.setHelpUrl(Mythos.helpUrl);

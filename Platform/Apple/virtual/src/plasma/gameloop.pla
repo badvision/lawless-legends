@@ -812,6 +812,7 @@ def fakeChars()
   rawDisplayStr("Blak Bart 12  4 ")
   rawDisplayStr("Wyld Bill  8  2 ")
   rawDisplayStr("LucyLwls   9  6")
+  setWindow2()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

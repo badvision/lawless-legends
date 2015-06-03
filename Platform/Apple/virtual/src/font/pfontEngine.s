@@ -1,0 +1,1373 @@
+;Title: Proportional Text HGR app
+;Author: Andrew Hogan
+;This is a collection of routines that prints proportional
+;width fonts on the apple][ Hi-Res screen. These routines
+;borrow heavily from code developed 3/2014 used to plot
+;2240 digits of pi on HGR screen using 3x5 pixel font.
+;And, proportional font plottong app for Dbl-Lo-Res
+;developed 5/2014. These routines have been tailored 
+;for the Lawless Legends project.
+
+;RevCursColHsion list:
+
+;8/08 v.01 original concept w/self contained demo
+;9/29 v.05 8-bit BMP code for M, m, W, w
+;9/30 v.08 i, j, t, p, q BMPs modified
+;          ROM rtn calls replaced w/lookup table
+;     v.09 1-pixel & 2-pixel scrolling (buggy), left
+;10/1 v.10 center justify
+;10/2 v.11 9pixel tall text
+;10/3 v.12 inverse (black txt on white bkgnd)
+;10/4 v.13 type-over - clears existing pixels
+;10/5 v.16 underline txt
+;10/6 v.20 demo & app split; ctrl-chr code added
+;10/7 v.21 line length parse auto split accommodate
+;10/8 v.22 plot blk pixels on blk bkgnd (erase char)
+;10/13 v.23 input a string (one line only)
+;10/14 v.24 input a single char
+;10/27 v.25 comments updated
+
+	MSB ON  	;Directive to set hi bit of chars
+	ORG $4000	;$4000..5FFF is HGR2 page of RAM
+
+zTmp1	EQU $FC 	;zero page Temporary variables
+zTmp2	EQU $FD
+zTmp3	EQU $FE
+L.Adr	EQU $1E 	;Zero page address variable
+H.Adr	EQU $1F 	;for general indrct adrs indexing
+InBufr	EQU $200	;Input Buffer
+InBufrX	EQU $2FF	;Input Buffer index (length)
+
+TxOut	EQU $DB5C	;ApleSft Txt char Out (for testing)
+
+Font0	EQU $5A00	;Font0 bitmap defs
+HgrTbHi	EQU $5E74	;HGR base address lookup table
+HgrTbLo	EQU $5F34	;" Lo order value
+Demo.Do	EQU $6000	;Demo app
+Kbd.Rd	EQU $C000	;read keyboard
+Kbd.Clr	EQU $C010	;clear keyboard strobe
+
+	JMP Demo.Do	;Do a demo of the routines
+
+CharRate	DFB $80	;plot rate {0..FF} 0=fastest
+WaitStat	DFB 0	;Wait State {0,1,2,3,4,5,6,7}
+NoPlt.Flg	DFB 0	;flag: NO PLOT - only get width
+InvTx.Flg	DFB 0	;flag: Inverse (black on white) text
+MskTx.Flg	DFB 0 	;flag: mask HGR before plotting text
+UndTx.Flg	DFB 0 	;flag: Underline text
+CtrJs.Flg	DFB 0 	;flag: center justify
+BkgColor	DFB $80	;color byte {0,80=blk,FF=wht,etc}
+FrgColor	DFB $FF	;color byte
+CursColL	DFB 0	;Lo-byte of 16-bit horz X-pos value 
+CursColH	DFB 0	;Hi-byte X-position {0..279}
+CursRow		DFB 0	;vertical Y-position {0..191}
+ChrWdth		DFB 0	;character width (number of pixels)
+PltChar		DFB 0	;character to be plotted {0..110}
+AscChar		DFB 0	;Ascii Char value {$80..$FF}
+
+;When using ASCii character values, the values must be
+;tested for control codes before they can be plotted
+;using the plot character routine.
+PlotAsc	JMP TestChr	;API call address
+
+;If you know which of the {0..110} bitmapped characters
+;you want plotted, you can bypass testing for control 
+;codes, making this a faster way to plot.
+PlotBmp	JMP PlotFnt	;API call address
+
+;To get a single character using a flashing cursor on
+;the HGR screen use GetAsc. The GetYN flag forces the
+;user to input either Y or N. No character is output
+;to the screen, which allows us to do a password input.
+;ChrWdth, PltChar & AscChar will have values after the
+;routine executes. Similar to Aplsft GET A$ construct.
+GetYN.Flg	DFB $00	;flag: force Y/N input
+CursIcn	DFB 103 	;cursor icon 103=cactus
+GetAsc	JMP Get.Chr	;API call address
+
+;To get a string of text up to 40 chars long using a
+;flashing cursor use GetStr. It allows use of either
+;left arrow or delete key to backspace.
+GetStr	JMP In.Str
+
+;This routine converts (x,y) {0..279,0..191} to HGR address 
+;{$2000..$3FFF} and an offset bit (for the pixel within the
+;byte) using a lookup table and integer division. 
+;Then, it loops and stores the HGR addresses (2-byte) for
+;9 consecutive lines in an array.
+;For HPplot (x,y) y={0..191} represented by bits y=ABCDEFGH
+;HGR mem map occupies {$2000..$2FFF} so 'y' is used to make
+;a base address for indirect indexed addressing along with
+;value $2=PPP=010 for HGR page-1 and $4 for HGR page-2.
+;Applesoft ROM routine HPOSN uses page bits PPP and y-axis
+;bits ABCDEFG to create based address |PPPFGHCD|EABAB000|
+;which is stored in zero page $26, $27; $E5 stores offset.
+;This routine uses the same zero page addresses.
+
+GBasL	EQU $26	;LoByte HGR mem pg base adr EABABxxx
+GBasH	EQU $27	;HiByte PPPFGHCD for Y=ABCDEFGH P=page
+HgrHrz	EQU $E5	;horizontal index added to base adr
+
+GetAdr	LDA CursRow	;Get vert cursor position & save it
+	PHA  		;Then, clear storage used for indexing
+	LDX #$00	;into array of stored addrs, 1 per line
+	STX zTmp3	;Lp1 {0..9} vertical size of the bitmap
+	JSR GetOfst	;Get bit offset by dividing {0..279} by 7
+GA.Lp1	JSR GetBase	;Get initial addrs location frm lookup tbl
+GA.Lp2	LDY zTmp3	;Get index into stored addresses
+	CLC
+	LDA GBasL	;get lo-byte of HGR address
+	ADC HgrHrz	;add the horizontal position offset byte
+	STA GA.Ary,Y	;store the composite address in the array
+	INY
+	LDA GBasH	;load the hi-byte of HGR address; store 
+	STA GA.Ary,Y	;that also (each array element is 2-bytes)
+	INY
+	STY zTmp3	;save the index value of the array
+	TYA
+	CMP #18 	;when we've stored 9 pairs, we're done
+	BPL GA.Done
+	INC CursRow	;increment the {0..191} down one line
+	LDA CursRow
+	AND #$07	;check if it crosses the 'n'* 7th line
+	BEQ GA.Lp1	;if so, use ROM to recalc new addrs, else,
+	LDA GBasH	;get HiByt of adrs wrd |pppFGHcd|eABABxxx|
+	CLC  		;(line position is ABCDEFGH bit pattern)
+	ADC #$04	;increment the FGH bit pattern
+	STA GBasH	;and save the result. This is faster
+	JMP GA.Lp2	;than using the GetBase routine every time.
+GA.Done	PLA  		;restore vertical position
+	STA CursRow 
+	RTS
+GetBase	LDX CursRow	;Look-up the base HGR memory location
+GetBasX	LDA HgrTbHi,X	;(ie. the mem address of the left edge
+	STA GBasH	;of the HGR screen)
+	LDA HgrTbLo,X	;using a look-up table 192 bytes long x2
+	STA GBasL
+	RTS
+GetOfst	LDA CursColL	;Div 16-bit numerator by 8-bit denominator
+	STA HgrHrz	;HgrHrz 7to0 bit numerator
+	LDA CursColH
+	STA zTmp2	;zTmp2 15to8 bit numerator
+	LDX #8
+	ASL HgrHrz
+D16x8L1	ROL
+	BCS D16x8L2
+	CMP #7
+	BCC D16x8L3
+D16x8L2	SBC #7
+	SEC
+D16x8L3	ROL HgrHrz	;8-bit quotient (offset byte)
+	DEX
+	BNE D16x8L1
+	STA H.Bit	;8-bit remainder (offset bit)
+	RTS
+H.Bit	DFB 0 		;offset bit - pixels {0..7}
+GA.Ary	DS 18,$0	;Define Storage: 16 bytes preset to 0
+; 
+;This routine plots the bitmap patters on the HGR screen
+;using indirect addressing based on the array of 2-byte 
+;address words generated by the prior code.
+
+MskBytL	EQU $FA	;Mask byte 1st
+MskBytH	EQU $FB	;Mask byte 2nd
+MskByte	EQU $E3	;Mask byte
+ChrX10L	DFB $00	;char val x9 offset into bitmap table
+ChrX10H	DFB $00	;LO & HI bytes
+ChrX10i	DFB $00	;char font bmp index
+Byt2nd	DFB $00	;2nd byte of bitmap when stratling 2-bytes
+Flg2nd	DFB $00	;flag indicating 2nd byte is needed
+MlpIdx	DFB $00	;Main loop index into address table
+Flg8xcp	DFB $00	;flag: 8-pixel char exception
+FlgBchr	DFB $00	;flag: black character
+RtMrgnL	DFB $00	;
+RtMrgnH	DFB $00	;
+SvY	DFB $00	;
+
+PlotFnt	LDX NoPlt.Flg
+	BNE GetWdth
+	JSR GetAdr	;first, load DS.Ary w/2-byte HGR addrs
+	LDA FrgColor
+	AND #$7F
+	EOR #$7F
+	STA FlgBchr
+GetWdth	LDA #0
+	STA MskBytH	;clear mask byte
+	STA Flg8xcp	;clear 8 pixel char exception
+	TAY
+	STA ChrX10H	;clear HI byte of x10 multiplier
+	LDA PltChar	;load the font char {0..110}
+	CLC
+	ASL  
+	STA ChrX10L	;multiply it by 10 to get an index value
+	ASL  		;into the array of bytes that make-up the
+	ROL ChrX10H	;1-byte (wide) by 10-byte (long) block of
+	ASL
+	ROL ChrX10H
+	ADC ChrX10L 
+	STA ChrX10L 
+	LDA ChrX10H
+	ADC #0
+	STA ChrX10H	;save index value {0..990}
+
+	CLC
+	LDA #>Font0	;get base address of Font bitmap table
+	ADC ChrX10L	;and add the PlotChar x10 offset to it
+	STA L.Adr
+	LDA #<Font0
+	ADC ChrX10H 
+	STA H.Adr
+
+	STY MlpIdx	;clear Main Loop index
+	LDA (L.Adr),Y	;get character width
+	STA ChrWdth
+	LDX NoPlt.Flg
+	BEQ PltGo
+	RTS
+PltGo	TAX
+	LDA MskTblC,X
+	STA MskByte
+	STA MskBytL
+	CPX #8
+	BNE Tst7th
+	LDA #3
+	STA MskBytH
+Tst7th	CPX #7
+	BNE MrgnOk
+	LDA #1
+	STA MskBytH
+
+MrgnOk	INY
+
+LpPlot	STY ChrX10i
+	LDA #0  	;right shifted pixels 'fall-off' to the
+	STA Flg2nd	;and clear the flag
+	STA Byt2nd
+	LDX InvTx.Flg
+	BEQ InvSkp1
+	LDX ChrWdth
+	CPX #7
+	BMI NoRtBar
+	EOR #$01
+	STA Byt2nd	;adjacent, 2nd-byte; so start w/blnk byte
+NoRtBar	LDA (L.Adr),Y	;get 1-byte (of 9) containg the bitmap img
+	LDX UndTx.Flg	;underline flag
+	BEQ NoIUlin
+	CPY #8
+	BNE NoIUlin
+	LDA MskByte
+NoIUlin	EOR #$FF
+	AND MskByte	;these 8 lines of code added 9/29/2014 to
+	STA zTmp3	;mask off non-plotted XORed bits
+	JMP InvSkp2
+
+InvSkp1	STA Byt2nd
+	LDA (L.Adr),Y	;get 1-byte (of 9) containing bitmap
+	LDX UndTx.Flg	;underline flag
+	BEQ NoTUlin
+	CPY #8
+	BNE NoTUlin
+	LDA MskByte
+NoTUlin	STA zTmp3	;save it for future lft/rght pixel shiftng
+InvSkp2	LDX ChrWdth	;get character width
+	CPX #7
+	BMI Flg2Skp
+	STX Flg2nd	;if >= 7 then set 2nd-byte-flag
+Flg2Skp	CPX #8 		;accommodate 8-bit wide M m W w chars.
+	BNE No8th
+	TAX 		;if 8 pixel char
+	ASL 		;then shift high bit out
+	ROL Byt2nd	;and roll bit into 2nd byte
+	TXA
+	AND #$7F	;and strip off the high bit
+	STA zTmp3	;and save bitmap
+	LDX UndTx.Flg
+	BEQ No8Ulin
+	CPY #8
+	BNE No8Ulin
+	LDA #3
+	ORA Byt2nd
+	STA Byt2nd
+No8Ulin	LDX H.Bit
+	CPX #6 		;if 8 pixel char AND
+	BNE No8th	;H.Bit (offset) is max
+	STX Flg8xcp	;then set 8 pixel exception flag
+
+No8th	LDX H.Bit	;get pixel offset {0..7} 
+	BEQ NoAdj	;if 0, bitmap in array needs no adjustmt
+	LDA zTmp3	;get the pixel pattern to be shifted
+			;    because HGR doesn't display 8th bit
+	ASL  		;shift pixel pattern 2x, to 7th bit
+			;       (representing the last visible pixel)
+LpLBmp	ASL  	;into the CGA.Ary flag. That CGA.Ary value is
+	ROL Byt2nd	;is then 'ROL'ed into the 2nd-byte.
+	DEX  	;decrement the loop index
+	BNE LpLBmp	;if another shift needed, then loop again
+			;     now shift the pixel pattrn back 1 positn
+	LSR  		;so all pixels are visible [8th bit not
+	STA zTmp3	;visible]. Save the pixel pattern.
+	CPY #1
+	BNE LpLMskp	;Only shift mask bits on 1st loop
+
+	LDX H.Bit	;Do the same shifting for the mask bits.
+	LDA MskBytL
+	ASL
+LpLMsk	ASL
+	ROL MskBytH
+	DEX
+	BNE LpLMsk
+	LSR
+	STA MskBytL
+
+LpLMskp	LDA Byt2nd	;if pixels got rolled into 2nd byte
+	ORA Flg2nd	;then set 2nd-byte-flag
+	STA Flg2nd
+	LDX MskTx.Flg	;code needed when using mask mode
+	BEQ NoAdj	;and char pixels blank
+	LDA MskBytH
+	BEQ NoAdj
+	STA Flg2nd
+
+NoAdj	LDX MlpIdx	;get indx into 2-byt adrs wrds {0,2,4,etc}
+	LDA GA.Ary,X	;get lo-byte HGR address word from array
+	STA zTmp1	;save in Zpage adrs (to do indrct adrssng)
+	INX  		;update 2-byte index to point to the hi-byte
+	LDA GA.Ary,X	;get hi-byte HGR address word
+	STA zTmp2	;save in Zpage+1 address
+	LDY MskTx.Flg
+	BEQ NoMask
+	LDY #0  	;clear the byte offset index
+	LDA MskBytL	;Load mask bit pattern
+
+DoAgn	PHA
+	AND zTmp3
+	STA zTmp3
+	PLA
+	EOR #$FF	;flip the mask so it works with AND
+	AND (zTmp1),Y	;Mask off bits where char BMP will go
+	ORA zTmp3	;add the char BMP bits into the pixels
+	ORA #$80	;   (set high bit for the demo)
+	STA (zTmp1),Y	;write to HGR. Use indrct, indxd adrssing
+	LDA Flg2nd	;check if pixel pattern crosses 2-bytes
+	BEQ Chk8xcp	;if not, then skip to next line of bitmap
+	LDA #0
+	STA Flg2nd	;else, first, clear the flag
+	LDA Byt2nd	;get the 2nd byte
+	STA zTmp3	;store it in pixel pattern to be plotted
+	LDA MskBytH
+	INY  		;increment the byte offset index
+	JMP DoAgn	;go plot the 2nd half of the pixel pattern
+Chk8xcp	LDA Flg8xcp
+	BEQ SkpLine
+	INY
+	LDA InvTx.Flg
+	BNE Chk8xcI
+	LDA (zTmp1),Y
+	AND #$FE
+	STA (zTmp1),Y
+	JMP SkpLine
+Chk8xcI	LDA (zTmp1),Y
+	ORA #1
+	STA (zTmp1),Y
+	JMP SkpLine
+
+NoMask	LDY #0  	;clear the byte offset index
+DoAgnNM	LDA (zTmp1),Y	;get HGR pixels
+	PHA
+	LDA FlgBchr
+	BEQ NoBchrP
+	LDA zTmp3
+	EOR #$FF
+	STA zTmp3
+	PLA
+	AND zTmp3
+	JMP NoBchrQ
+NoBchrP	PLA
+	ORA zTmp3	;add the char BMP bits into the pixels
+NoBchrQ	ORA #$80	;   (set high bit for the demo)
+	STA (zTmp1),Y	;write to HGR. Use indrct, indxd adrssing
+	LDA Flg2nd	;check if pixel pattern crosses 2-bytes
+	BEQ SkpLine	;if not, then skip to next line of bitmap
+	LDA #0
+	STA Flg2nd	;else, first, clear the flag
+	LDA Byt2nd	;get the 2nd byte
+	STA zTmp3	;store it in pixel pattern to be plotted
+	INY  		;increment the byte offset index
+	JMP DoAgnNM	;go plot the 2nd half of the pixel pattern
+
+SkpLine	INX  		;increment the array index
+	STX MlpIdx 
+	CPX #$12	;if > 18 then we're done
+	BEQ DonePlot
+	LDY ChrX10i	;else get the index into the bitmap array
+	INY  		;advanc indx to nxt pixl pattern in array
+	JMP LpPlot	;loop thru all 9 pixl patrns in the bitmap
+DonePlot	LDX CtrJs.Flg 
+	BEQ MvCurs
+	JSR CtrJstfy
+MvCurs	JMP AdvCurs
+MskTblC	DFB $01 	;Mask Table for Chars
+	DFB $03
+	DFB $07
+	DFB $0F
+	DFB $1F
+	DFB $3F
+	DFB $7F
+	DFB $FF
+	DFB $FF
+
+;This section advances the character cursor to the right n pixels.
+;If the cursor gets to the right side of the screen then it 
+;returns to the left, 0, and advances, vertically, 9 lines.
+
+CursY	DFB 24 	;Cursor home position - Y vert
+CursXl	DFB 154 ;Cursor home lo byte - X horz
+CursXh	DFB 0 	;Cursor home hi byte - X horz
+CursXml	DFB 210 ;Cursor midpoint lo byte - X horz
+CursXmh	DFB 0 	;Cursor midpoint hi byte - X horz
+CursXrl	DFB 7 	;Cursor lo byte right boundary
+CursXrh	DFB 1 	;Cursor hi byte right boundary
+CursYb	DFB 130 ;Cursor txt bottom boundary
+AdvCurs	LDA CursColL	;get lo-byte of {0..279}
+	SEC
+	ADC ChrWdth	;add char width (about 5 pixels)
+	STA CursColL	;save lo-byte
+	LDA CursColH	;get hi-byte of {0..279}
+	ADC #0
+	STA CursColH
+	CMP CursXrh	;if pixel position {0..255} 
+	BMI DoneCurs	;then done
+	LDA CursColL	;else check if past 263
+	CMP CursXrl
+	BMI DoneCurs	;if not then done
+DoCrLf	LDA CtrJs.Flg
+	BEQ Adv154
+	LDA CursXml
+	BNE Adv210
+Adv154	LDA CursXl	;if so then reset the horizontal
+Adv210	STA CursColL	;position to 154
+	LDA CursXh
+	STA CursColH
+	STA WrdWdth	;and, clear Word Width total
+	STA TtlScrl	;and ticker scroll total
+	LDA CursRow	;Get vertical {0..191}
+	CLC
+	ADC #9  	;increment by 9 lines, down
+	CMP CursYb	;check if it's past 130
+	BCC DoneLin	;if not then done
+	JSR ScrlTxt	;else scroll the text up 1 line
+	RTS
+DoneLin	STA CursRow	;save vertical position
+DoneCurs LDA CharRate	;get character rate / delay time
+	BEQ Wait.skp	;skip if no wait
+	JSR WtL.Wait	;delay before plotting next char
+Wait.skp	RTS
+
+;Wait that can be interrupted by a key or button press.
+WtL.V1	DFB $10
+WtL.Wait LSR  		;cut param in half to make compatible
+WtL.Lp1	STA WtL.V1	;with values used by MON.WAIT
+WtL.Lp2	LDX Kbd.Rd	;check for key press (but do NOT
+	BMI WtL.Prs	;clear the keyboard strobe)
+	DEC WtL.V1
+	BNE WtL.Lp2	;count down to 0
+	SEC
+	SBC #1 		;and then count down again & again
+	BNE WtL.Lp1	;starting from 1 less than before
+	RTS
+WtL.Prs	LDA #0 	;	if wait interrupted then do
+	STA CharRate	;plotting as fast as possible
+	LDA #$FF
+	STA ChBflip
+	RTS
+
+;Routine: Scroll screen up 1 character line
+;This routine scrolls a window defined by 
+;Left, Right, Top, Bottom - Margin parameters.
+;It scrolls using by moving bytes (so scrolling
+;only works along 7-pixel boundaries of HGR).
+;Vertically, the margins can be anywhere along
+;{0..191}. Horizontally, the margins are at the
+;borders of {0, 7, 14, 21 .. 273} pixel columns.
+LfMrgn	DFB 22 		;left margin (byte #)
+RtMrgn	DFB 38 		;right margin (byte #)
+TpMrgn	DFB 23 		;top margin (v-line)
+BtMrgn	DFB 135 	;bottom margin (v-line)
+ScrlTxt	LDX TpMrgn 
+	STX zTmp3	;Duplicate top margin val in zero-pg
+ScrLp1	LDX zTmp3
+	INX  	;go thru each line 1 by 1
+	STX zTmp3
+	JSR GetBasX	;Get base value of line address
+	LDA GBasL
+	STA zTmp1	;and save into zero-pg
+	LDA GBasH
+	STA zTmp2
+	TXA
+	CLC
+	ADC #9  	;go down 9 (txt is 9 pixels tall)
+	TAX
+	JSR GetBasX	;Get base address, again
+	LDY LfMrgn
+ScrLp2	LDA (GBasL),Y	;copy the pixels from down screen
+	STA (zTmp1),Y	;to 8 lines up
+	INY
+	CPY RtMrgn	;do from left margin to right margin
+	BNE ScrLp2
+	CPX BtMrgn	;keep looping until all the way to
+	BNE ScrLp1	;the bottom margin.
+
+	LDX zTmp3	;Clear the last 8 pixel lines
+ScrLp3	INX  		;so a new text line can be plotted
+	JSR ClrChkF	;Check background color
+	BEQ ScrClbw	;then clear the bottom txt row
+	JMP ClrSlp3
+ScrClbw	JMP ClrSlp1
+
+;Routine: clear screen
+;Home cursor within the window boudaries set by margin params
+;and clear the window.
+ClrFlip	DFB 0
+ClrFlpF	DFB 0
+ClrHome	LDA CursXl	;home the cursor
+	STA CursColL	;{0..279} lo byte
+	LDA CursXh
+	STA CursColH	;{0..279} hi byte  
+	LDA CursY
+	STA CursRow	;{0..191}
+	JSR ClrChkF	;check if B/W or Color
+	LDX TpMrgn	;get top margin & use it
+	LDA ClrFlpF
+	BNE ClrColr
+ClrSlp1	JSR GetBasX	;to get the base address
+	LDY LfMrgn
+	LDA BkgColor
+ClrSlp2	STA (GBasL),Y
+	INY
+	CPY RtMrgn
+	BNE ClrSlp2
+	INX
+	CPX BtMrgn
+	BNE ClrSlp1
+	RTS
+
+ClrColr	LDA BkgColor
+	TAY
+	EOR #$7F
+	STA ClrFlip
+	LDA LfMrgn
+	AND #1
+	BEQ ClrSlp3
+	TYA
+	STA ClrFlip 
+ClrSlp3	JSR GetBasX	;to get the base address
+	LDY LfMrgn
+	LDA ClrFlip
+ClrSlp4	EOR #$7F
+	STA (GBasL),Y
+	INY
+	CPY RtMrgn
+	BNE ClrSlp4
+	INX
+	CPX BtMrgn
+	BNE ClrSlp3
+	RTS
+
+ClrChkF	LDA BkgColor
+	TAY
+	AND #$7F
+	EOR #$7F
+	BEQ ClrChk1
+	TYA
+	AND #$7F
+ClrChk1	STA ClrFlpF
+	RTS
+
+;Center Justify
+;Start with the cursor in the center column, 
+;Get width of letter to be plotted, use ticker scrolling 
+;to shift the line half the char width prior to plotting it.
+WrdWdth	DFB 0 	;sum of char widths
+WrdScrl	DFB 0 	;half of word width
+LtrScrl	DFB 0 	;half of char width
+TtlScrl	DFB 0 	;cumulative sum of scrolls
+LpNScrl	DFB 0 	;number of scroll loops
+CtrJstfy CLC
+	LDA WrdWdth
+	ADC ChrWdth
+	ADC #1
+	STA WrdWdth	;WrdWdth = WrdWdth + ChrWdth
+	TAX
+	LDA ChrWdth
+	LSR 
+	STA LtrScrl	;LtrScrl = ChrWdth / 2
+	CLC
+	LDA TtlScrl
+	ADC LtrScrl
+	STA TtlScrl	;TtlScrl = TtlScrl + LtrScrl
+	TXA  		;Get WrdWdth
+	LSR
+	STA WrdScrl	;WrdScrl = WrdWdth / 2
+	SEC
+	SBC TtlScrl
+	TAX  		;Delta = WrdScrl - TtlScrl
+	CLC
+	ADC TtlScrl
+	LDY Flg2px	;2-pixel shifting?
+	BEQ CtrSTs	;if not, Save TtlScrl
+	LSR  		;else divide by 2
+	ASL  		;then x 2 (to make even #)
+CtrSTs	STA TtlScrl	;Save TtlScrl
+	TXA  		;Get Delta
+	CLC
+	ADC LtrScrl
+	LDY Flg2px	;2-pixel shifting? 
+	BEQ CtrSLps	;if not, Save LpNScrl
+	LSR
+CtrSLps	STA LpNScrl	;Save # of scroll loops
+	LDA CursColL	;get current column LoByte
+	SEC  		;(CLC is intentional, here)
+	SBC LpNScrl	;bump it back
+	STA CursColL	;save lo-byte
+	LDA CursColH	;get hi-byte of {0..279}
+	SBC #0
+	STA CursColH
+	LDA LpNScrl	;Get # of scroll loops
+CtrLp1	JSR Sc1.Bgn
+	DEC LpNScrl
+	BNE CtrLp1
+	RTS
+
+;Routine: Scroll char width
+Tikr.Mod	DFB 0 	;ticker mode
+Tikr.Flg	DFB 0 	;ticker flag
+NoBf.Flg	DFB 0 	;no-buffer-use flag
+Sc1.Tkr	RTS
+
+;Routine: shift one line of text left by 2 pixels
+;Using a buffer of unshifted and preshifted pixel
+;bytes, this routine uses ASLs and ROLs to shift 
+;8 consecutive lines
+Sc1.Bgn	LDX #0
+	STX Sc1LpC
+	LDA CursRow 
+	PHA
+	SEC
+	LDA RtMrgn
+	SBC LfMrgn
+	STA MrgnVl
+; 
+Sc1.LpM	JSR GetBase
+	CLC
+	LDA GBasL
+	ADC LfMrgn
+	STA GBasL
+
+Sc1.Lp0	LDY #0
+Sc1.Lp1	LDA (GBasL),Y	;get pixel byte
+	STA Ary1,Y	;save unaltered pixels
+	TAX
+	AND #$80
+	STA AryHB,Y	;save High (color) bit
+	TXA
+	ASL  		;shift pixels right
+	STA Ary2,Y	;save shifted pixels
+	INY
+	CPY MrgnVl
+	BNE Sc1.Lp1
+	LDA #0
+	STA Ary1,Y	;Clear buffer byte
+
+	LDX Flg2px
+	BNE Sc1.2px
+
+	TAX
+	TAY
+Sc1.LpS	INX
+	LDA Ary1,X	;Get unaltered pixels
+	DEX
+	LSR  		;shift them left
+	LDA Ary2,X	;get shifted pixels
+	ROR  		;roll them left
+	LSR  		;1-more left to get past high bit
+	ORA AryHB,X	;put high bit back into byte
+	STA (GBasL),Y	;plot on screen
+	INY
+	INX
+	CPX MrgnVl
+	BNE Sc1.LpS
+	BEQ Sc1.Nxt
+
+Sc1.2px	TAX
+	TAY
+Sc1.Lp2	INX
+	LDA Ary1,X	;Get unaltered pixels
+	DEX
+	LSR  		;shift them left
+	ROR Ary2,X	;ROL them into right shifted pixels
+	LSR  		;shift them left again
+	LDA Ary2,X	;get shifted pixels
+	ROR  		;roll them left
+	LSR  		;1-more left to get past high bit
+	ORA AryHB,X	;put high bit back into byte
+	STA (GBasL),Y	;plot on screen
+	INY
+	INX
+	CPX MrgnVl
+	BNE Sc1.Lp2
+
+Sc1.Nxt	INC Sc1LpC
+	LDA Sc1LpC
+	CMP #9
+	BEQ Sc1.Dn
+	INC CursRow	;increment the {0..191} down one line
+	LDA CursRow
+	AND #$07	;check if it crosses the 'n'* 7th line
+	BEQ Sc1.LpM	;if so, use ROM to recalc new addrs, else,
+	LDA GBasH	;get HiByt of adrs wrd |pppFGHcd|eABABxxx|
+	CLC  		;(line position is ABCDEFGH bit pattern)
+	ADC #$04	;increment the FGH bit pattern
+	STA GBasH	;and save the result. This is faster
+	JMP Sc1.Lp0	;than using the GetBase routine every time.
+Sc1.Dn	PLA  		;restore vertical position
+	STA CursRow 
+	RTS
+
+MrgnVl	DFB 0  	;Margin Value
+Sc1LpC	DFB 0  	;Loop count
+Flg2px	DFB 0  	;Flag: shift two pixels (vs. one)
+Ary1	DS 21,0 	;unshifted pixel bytes
+Ary2	DS 21,0 	;shifted pixel bytes
+AryHB	DS 21,0 	;high bits
+
+LdSvFlg	DFB $00
+BmpBkp	DS 16,$0	;Define Storage: 16 bytes preset to 0
+
+;Routine: Get Char
+;Input a single character using flashing cursor.
+;Control characters are captured except for 
+;Ctrl-E which is used to enter extended chars.
+Get.Chr	LDA #0 		;clear
+	STA InBfrX	;index into input buffer
+	JSR In.sCur	;save cursor position
+Get.Lp1	JSR CurFlsh	;flash cursor
+	LDA Kbd.Rd	;check keybd for char
+	BPL Get.Lp1	;if none, keep looping
+	STA Kbd.Clr	;else clear kbd strobe
+	LDX WaitStat	;waiting for ext char?
+	BEQ Get.Ext	;if not, check for Ctl-E
+	JSR In.eChP	;else get ext char val
+	JMP Get.Wdt	;and its width
+Get.Ext	CMP #$85
+	BNE Get.Ch3	;Ctrl-E (extended char)
+	LDA #3
+	STA WaitStat	;if pressed, wait for val
+	JMP Get.Lp1
+Get.Ch3	LDX InBfrX	;else normal char pressed
+	STA InBufr,X	;store ASCII char w/hi-bit
+	AND #$7F	;strip off hi-bit
+	STA AscChar	;save it
+	SEC
+	SBC #32 	;adjust to {0..95}
+	BMI Get.tYN
+	STA PltChar	;save char val to be plotted
+Get.Wdt	LDX #1
+	STX NoPlt.Flg	;set No Plot flag
+	JSR PlotFnt	;get the char width
+	LDX #0 		;clear No Plot flag
+	STX NoPlt.Flg
+Get.tYN	LDX GetYN.Flg	;test for Y/N
+	BEQ Get.Dn	;if no test, then done
+	LDA AscChar 
+	AND #$5F	;force upper case
+	ORA #$80	;force hi-bit
+	CMP #'Y'
+	BEQ Get.Dn
+	CMP #'N'
+	BEQ Get.Dn
+	JSR SndErr	;if not Y/N, sound ERR
+	JMP Get.Lp1	;and keep looping
+Get.Dn	JSR In.Bfr	;save char to input buffer
+	LDA ChBufr	;restore PltChar & ChrWdth
+	STA PltChar	;after flashing cursor
+	LDA CwBufr	;is erased
+	STA ChrWdth
+	JMP In.Exit	;append $0 delimiter
+
+;Routine: Sound Error tone
+;Used to give user feedback that the input is bad
+SndErr	LDY #$03 	;loop thrice
+SndLp3	LDX #$64	;Load X-register w/pitch val
+SndLp2	TXA
+	CLC   		;Clear carry flag
+SndLp1	SBC #$01	;Subtract from Acc with carry
+	BNE SndLp1	;loop if Acc is not 0
+	STA $C030	;toggle the speaker output
+	DEX 		;Decrement X-register
+	CPX #$32	;Compare to Pitch parameter
+	BNE SndLp2	;loop if not equal
+	DEY 		;step 'Loops' parameter down to zero
+	BNE SndLp3	;loop if not equal
+	RTS
+
+;Routine: Input string (simple, one-line)
+;Input a line of characters keeping track of cursor
+;positions by way of character widths, allowing use
+;of delete key; ignore control keys except Escape, 
+;Return, and Delete; treat left arrow like Delete.
+;The ASCII string is stored in the input buffer at
+;$200 followed by $00 delimiter & the length of the
+;string is at $2FF.
+In.Str	LDA #0
+	STA WaitStat 	;clear wait state
+	STA InBfrX	;clear buffer index
+	JSR In.sCur	;save cursor position
+In.Key	JSR CurFlsh	;flash cursor
+	LDA Kbd.Rd	;read the keyboard
+	BPL In.Key	;if not pressed, loop
+	STA Kbd.Clr	;else clear the kbd strobe
+	LDX WaitStat	;get wait status
+	BEQ In.cTst	;if none then test ctrl chars
+	JSR In.eChP	;else, get extended char
+	JMP In.Plt
+In.cTst	CMP #$85 
+	BNE In.cTs2	;Ctrl-E (extended char)
+	LDA #3 		;set wait state for extended char
+	STA WaitStat
+	JMP In.Key
+In.cTs2	CMP #$9B	;check for ESC key
+	BNE In.cTs3	;if ESC then exit app
+	PLA
+	PLA
+	RTS
+In.cTs3	CMP #$FF
+	BNE In.cTs4
+	JMP In.DEL	;DELETE key?
+In.cTs4	CMP #$88
+	BNE In.cTs5
+	JMP In.DEL	;Left Arrow key?
+In.cTs5	CMP #$8D
+	BNE In.cTs6	;Return key?
+In.Exit	LDA #0
+	LDX InBfrX
+	STX InBufrX
+	STA InBufr,X
+	STA ChBufr,X
+	STA CwBufr,X
+	RTS
+In.cTs6	CMP #' '
+	BMI In.Key	;ignore all other Ctl keys
+	LDX InBfrX
+	STA InBufr,X	;store ASCII char w/hi-bit
+	AND #$7F	;strip off hi-bit
+	SEC
+	SBC #32 	;adjust to {0..95}
+	STA PltChar	;store character to be plotted
+	STA NwPChar	;and save it
+In.Plt	LDX #1
+	STX NoPlt.Flg	;set No Plot flag
+	JSR PlotFnt	;get the char width
+	LDX #0 		;clear No Plot flag
+	STX NoPlt.Flg
+	CLC
+	LDA CursColL	;does new char width go past
+	ADC ChrWdth	;right margin?
+	STA CursColL
+	LDA CursColH
+	ADC #0
+	STA CursColH
+	CMP CursXrh	;if so, ignore it, sound ERR,
+	BMI In.Bchk	;wait for different key press
+	CLC
+	LDA CursColL	;allow 2 more pixels for cursor
+	ADC #2
+	CMP CursXrl 
+	BPL In.Err
+In.Bchk	LDX InBfrMx
+	CPX InBfrX	;check for buffer overflow
+	BPL In.SvCh	;if ok, store in buffer
+In.Err	JSR In.rCur	;else, restore cursor position
+	JSR SndErr	;and make ERR sound
+	JMP In.Key
+In.Bfr	LDX InBfrX
+	LDA PltChar	;save plot val & char width
+	STA ChBufr,X	;into respective buffers
+	LDA ChrWdth
+	STA CwBufr,X
+	INX
+	STX InBfrX
+	LDX #0
+	STX ChBflip	;reset cursor sequence
+	JSR CurBplt	;erase cursor
+	RTS
+In.SvCh	JSR In.Bfr 
+	LDA NwPChar	;restore new plot char
+	STA PltChar
+	JSR PlotFnt	;plot it
+	JSR In.sCur	;save new cursor position
+	JMP In.Key
+In.sCur	LDA CursColL	;get cursor position and
+	STA sCrsXl	;save it
+	LDA CursColH
+	STA sCrsXh
+	LDA CursRow
+	STA sCrsY
+	RTS
+In.rCur	LDA sCrsXl	;restore cursor position
+	STA CursColL
+	LDA sCrsXh
+	STA CursColH
+	LDA sCrsY
+	STA CursRow
+	RTS
+In.eChP	AND #$0F	;clamp the value
+	CLC
+	ADC #95 	;calculate offset
+	STA PltChar	;store character to be plotted
+	STA NwPChar	;and save it
+	ADC #32
+	STA AscChar
+	ADC #160
+	LDX InBfrX
+	STA InBufr,X	;store char in buffer
+	LDX #0
+	STX WaitStat	;clear wait state
+	RTS
+In.DEL	LDX InBfrX	;get buffer index
+	BEQ In.DlDn	;make sure it's not zero
+	DEX
+	STX InBfrX	;decrement it
+	LDA CwBufr,X	;get char width from buffer
+	STA ChrWdth	;save it
+	CLC
+	LDA CursColL	;subtract char width from
+	SBC ChrWdth	;cursor position, to reposition
+	STA CursColL	;cursor one char to the left
+	LDA CursColH
+	SBC #0
+	STA CursColH
+	JSR In.sCur	;save new cursor position
+	LDA ChBufr,X	;get char from buffer
+	STA PltChar	;save it
+	LDX #$80
+	STX FrgColor	;set foregnd color to black
+	JSR DelPlot	;delete the character
+In.DlDn	JMP In.Key
+CurFlsh	LDA #$C0	;set wait time
+	JSR WtL.Lp1	;count down to flash
+	LDA ChBflip
+	EOR #$FF
+	STA ChBflip
+	BMI CurPlot
+CurBplt	LDA #$80
+	STA FrgColor
+CurPlot	LDA CursIcn	;get cursor icon/char
+DelPlot	STA PltChar	;store it
+	JSR PlotFnt	;plot it
+	LDA #$FF
+	STA FrgColor
+	JSR In.rCur	;put cursor left of icon
+	LDA #0
+	STA PltChar	;plot char val
+	STA ChrWdth	;char width val
+	RTS
+NwPChar	DFB 0 	;new char's Font index value
+InBfrX	DFB 0  	;x reg index into buffer
+InBfrMx	DFB 40 	;max buffer size
+sCrsXl	DFB 0 	;start X cursor position lo byt
+sCrsXh	DFB 0 	;start X cursor hi byte
+sCrsY	DFB 0  	;start Y cursor position
+ChBflip	DFB 0 	;blink flip
+ChBufr	DS 40,0	;input buffer ($200 not used)
+CwBufr	DS 40,0	;Char Width Buffer
+
+;Test for Control Keys when using ASCII characters
+TestChr	LDA #0
+	STA ChrWdth
+	LDA AscChar	;get the ASCII character
+	AND #$7F	;strip off HiBit
+	TAX 		;save it
+	AND #$E0	;check for Ctrl-character
+	BEQ TestCtl	;if so, test it
+	TXA
+	CLC 		;else
+	SBC #31 	;adjust to {0..95}
+	STA PltChar	;store character to be plotted
+	LDA WaitStat	;get wait status
+	BNE WaitPrm	;if waiting, then get parameter
+	JMP PlotFnt	;else done
+WaitPrm	JMP GetParm
+
+;This section tests for control characters. 
+;The following control-codes are used. Those that
+;require a paramter to follow will set a wait state
+;CODE__STATE__DESCRIPTION___
+;Ctrl-A (1) foreground/character color (not implemented)
+;Ctrl-B (2) background color 
+;Ctrl-E (3) extended character {A..I} 
+;Ctrl-F (4) font {0,1,2} (not implemented)
+;Ctrl-T (5) horizonTal position {000..279} base-10
+;Ctrl-V (6) vertical position {000..191}
+;Ctrl-R (7) character/ticker rate {00..FF} (not used)
+;Ctrl-L n/a toggle underLine mode
+;Ctrl-M n/a Carriage return w/line feed
+;Ctrl-N n/a Normal mode (un-toggle special modes)
+;Ctrl-Q n/a Home cursor & clear screen
+;Ctrl-\ n/a Ticker Tape scroll Mode 0=off
+;Ctrl-] n/a Ticker Tape scroll Mode 1=on
+;Ctrl-P n/a toggle between ticker/scroll mode
+;Ctrl-U n/a (right arrow) move +1 column
+;Ctrl-H n/a (left  arrow) move -1 column
+;Ctrl-J n/a (down  arrow) move +1 row
+;Ctrl-K n/a (up    arrow) move -1 row
+;Ctrl-I n/a Inverse (swap foregnd/bkgnd colors)
+;Ctrl-Y n/a center justify 
+TestCtl	TXA 		;restore character
+	CMP #$0D	;Ctrl-M?
+	BNE TCl.01	;no - keep testing
+	JMP DoCrLf	;yes - do CR / LF
+TCl.01	CMP #$11	;Ctrl-Q?
+	BNE TCl.02	;no - keep testing
+	LDA NoPlt.Flg
+	BEQ TCl.01a
+	RTS
+TCl.01a	JMP ClrHome	;yes - do HOME command
+TCl.02	CMP #$01	;Ctrl-A? foreground color
+	BNE TCl.03	;no - keep testing
+	STA WaitStat	;yes - set wait state
+	RTS
+TCl.03	CMP #$02	;Ctrl-B? background color
+	BNE TCl.04	;no - keep testing
+	STA WaitStat	;yes - set wait state
+	RTS
+TCl.04	CMP #$05	;Ctrl-E? extended character
+	BNE TCl.05	;no - keep testing
+	LDA #3 		;yes - set wait state
+	STA WaitStat
+	RTS
+TCl.05	CMP #$06	;Ctrl-F? change font
+	BNE TCl.06	;no - keep testing
+; LDA #4 	;yes - not implemented
+; STA WaitStat
+	RTS
+TCl.06	CMP #$14	;Ctrl-T? HTAB
+	BNE TCl.07	;no - keep testing
+	LDA #5 		;yes - set wait state
+	STA WaitStat
+	RTS
+TCl.07	CMP #$16	;Ctrl-V? VTAB
+	BNE TCl.08	;no - keep testing
+	LDA #6 		;yes - set wait state
+	STA WaitStat
+	RTS
+TCl.08	CMP #$12	;Ctrl-R? Char/Ticker rate
+	BNE TCl.09	;no - keep testing
+	LDA #7 		;yes - not used
+	STA WaitStat
+	RTS
+TCl.09	CMP #$1C	;Ctrl-\? Ticker mode OFF
+	BNE TCl.10	;no - keep testing
+TCl.09a	LDA #0
+	STA Tikr.Mod	;clear ticker mode
+	STA Tikr.Flg	;and clear ticker flag
+	RTS
+TCl.10	CMP #$1D	;Ctrl-]? Ticker mode ON
+	BNE TCl.11	;no - keep testing
+TCl.10a	LDA #$FF	;set ticker mode
+	STA Tikr.Mod	;ticker flag is set later
+	RTS
+TCl.11	CMP #$10	;Ctrl-P? toggle ticker
+	BNE TCl.12	;no - keep testing
+	LDA NoPlt.Flg
+	BEQ TCl.11a
+	RTS
+TCl.11a	LDA Tikr.Mod
+	BNE TCl.09a
+	JMP TCl.10a
+TCl.12	CMP #$09	;Ctrl-I? inverse (tab key)
+	BNE TCl.13	;no - keep testing
+	LDA NoPlt.Flg
+	BEQ TCl.12a
+	RTS
+TCl.12a	LDA InvTx.Flg	;toggle flag byte
+	EOR #$FF
+	STA InvTx.Flg
+	RTS
+TCl.13	CMP #$0C	;Ctrl-L underline mode
+	BNE TCl.14	;no - keep testing
+	LDA NoPlt.Flg
+	BEQ TCl.13a
+	RTS
+TCl.13a	LDA UndTx.Flg	;toggle flag byte
+	EOR #$FF
+	STA UndTx.Flg
+	RTS
+TCl.14	CMP #$15	;Ctrl-U right arrow
+	BNE TCl.15	;no - keep testing
+	LDA NoPlt.Flg
+	BEQ TCl.14a
+	LDA #1
+	STA ChrWdth
+	RTS
+TCl.14a	LDA #0 		;since moving right only one dot
+	STA ChrWdth	;char width param is set to 0
+	LDA Tikr.Flg
+	BNE TCl.14t	;if not using ticker scrolling
+	JMP AdvCurs	;advance the cursor, else,
+TCl.14t	DEC NoBf.Flg	;set do-not-use-buffer-data flag
+; JSR SetGrClr	;GrColor(byte) <- BkgColor(nibble)
+; JMP iT.Begn	;and initialize ticker params
+	RTS
+TCl.15	CMP #$08	;Ctrl-H left arrow
+	BNE TCl.16	;no - keep testing
+	LDA NoPlt.Flg
+	BEQ TCl.15a
+	RTS
+TCl.15a	LDA Tikr.Flg
+	BNE TCl.15t	;if not using ticker
+	SEC 		;then move cursor left one dot
+	LDA CursColL
+	SBC #1
+	STA CursColL
+	LDA CursColH
+	SBC #0
+	STA CursColH
+	SEC
+	LDA CursXl
+	SBC CursColL
+	LDA CursXh
+	SBC CursColH
+	BCC TCl.15t
+	LDA CursXl
+	STA CursColL
+	LDA CursXh
+	STA CursColH
+TCl.15t	RTS
+TCl.16	CMP #$0A	;Ctrl-J down arrow
+	BNE TCl.17	;no - keep testing
+	LDA NoPlt.Flg
+	BEQ TCl.16a
+	RTS
+TCl.16a	CLC
+	LDA CursRow	;move cursor down 1 pixel
+	ADC #1
+	CMP CursYb	;check for bottom of window
+	BCC TCl.16t
+	LDA CursYb
+TCl.16t	STA CursRow
+	RTS
+TCl.17	CMP #$0B	;Ctrl-K up arrow
+	BNE TCl.19	;no - keep testing
+	LDA NoPlt.Flg
+	BEQ TCl.17a
+	RTS
+TCl.17a	LDA CursRow
+	SEC 		;move cursor up 1 pixel
+	SBC #1
+	CMP TpMrgn	;check for top of window
+	BCS Tcl.17t
+	LDA TpMrgn
+TCl.17t	STA CursRow
+	RTS
+TCl.19	CMP #$19	;Ctrl-Y center justifY
+	BNE TCl.20
+	LDA NoPlt.Flg
+	BEQ TCl.19a
+	RTS
+TCl.19a	LDA CtrJs.Flg	;get current state
+	BNE TCl.19t	;if set, then clear it
+	LDA #$FF
+	STA Tikr.Mod	;set ticker mode flag
+	STA CtrJs.Flg	;set center justify flag
+TCl.19c	LDA CursXml
+	STA CursColL
+	LDA CursXmh
+	STA CursColH
+	RTS
+TCl.19t	LDA #0
+	STA CtrJs.Flg	;set center justify flag
+	STA Tikr.Mod	;set ticker mode flag
+	RTS
+TCl.20	CMP #$0E	;Ctrl-N normal txt mode
+	BNE TCl.XX
+	LDA #0
+	STA InvTx.Flg
+	STA MskTx.Flg
+	STA UndTx.Flg
+	STA CtrJs.Flg
+	LDA #$80
+	STA BkgColor
+TCl.XX	RTS
+
+;Act on parameters that follow control key.
+;Foreground, background, special character and change font
+;parameters are only one alpha character long. Htab, Vtab
+;and char/ticker rate parameters are 2 alpha chars long.
+;Color is Hex char {0..F}
+;Font is {0..2}
+;Change font is {A..O} corresponding to BMP {96..110}
+;Vtab & Htab is {00..39} decimal, leading zero required
+;Char/Ticker rate is {00..FF}, leading zero required
+Flg.FBc	DFB $00 	;Foreground background color
+Flg.Prm2 DFB $00	;Parameter digit 1st/2nd
+Wp.Dig1	DFB $00 	;1st digit of parameter
+Wp.Dig2	DFB $00 	;2nd digit of parameter
+Wp.Dig3	DFB $00 	;3rd digit of parameter
+GetParm	LDA WaitStat	;Get the Wait State
+	CMP #1 		;1=Foreground color
+	BNE WPr.01	;no - keep looking
+	LDA #0 		;yes - 
+	STA Flg.FBc	;clear Fore/Bkgnd clr flag
+	JMP Wp.StClr	;set color
+WPr.01	CMP #2 		;2=Background color
+	BNE Wpr.02
+	LDA #1 		;yes - 
+	STA Flg.FBc	;set Fore/Bkgnd clr flag
+	JMP Wp.StClr
+Wpr.02	CMP #3 		;3=Special Character
+	BNE Wpr.03
+	JMP Wp.eChar 
+Wpr.03	CMP #4 		;4=Change Font
+	BNE Wpr.04
+	JMP Wp.CFnt 
+Wpr.04	CMP #5 		;5=HTAB
+	BNE Wpr.05
+	JMP Wp.Tab 
+Wpr.05	CMP #6 		;6=VTAB
+	BNE Wpr.06
+	JMP Wp.Tab 
+Wpr.06	CMP #7 		;7=Change Char/Ticker Rate
+	BNE Wpr.Clr
+	JMP Wp.cRate
+	RTS
+Wpr.Clr	LDX #0 		;clear the wait parameter flags
+	STX Flg.Prm2
+	STX Wp.Dig1
+	STX WaitStat 
+	RTS 		;restore alpha char
+
+;Chage Color
+Wp.StClr	TXA 	;restore the alpha char
+	SEC
+	SBC #$30	;change Chr"#" to Val#
+	AND #$1F	;mask off most letters/chars
+	TAX 		;save 'dirty' Val#
+	AND #$0F	;strip off low nibble
+	TAY 		;save color
+	TXA 		;restore Acc
+	AND #$10	;mask to check of letter
+	BNE Wp.Ashft	;alpha shift to #
+	TYA 		;restore color
+	JMP WpClrOk 
+Wp.Ashft	TYA 	;restor masked 'dirty' val
+	CLC 		;which is 'A..F'
+	ADC #9 		;shift to numeric equivalent
+	AND #$07	;mask it to be safe
+WpClrOk	TAX
+	LDA HclrTbl,X
+	LDX Flg.FBc	;get Fore/Bkgnd clr flag
+	BEQ Wp.SvFC	;0 = foreground
+	STA BkgColor	;1 = background
+	JMP Wpr.Clr
+Wp.SvFC	STA FrgColor
+	JMP Wpr.Clr
+HclrTbl	DFB $00 	;0-black (hi bit clear)
+	DFB $2A 	;1-green
+	DFB $55 	;2-magenta
+	DFB $7F 	;3-white
+	DFB $80 	;4-black (hi bit set)
+	DFB $AA 	;5-orange
+	DFB $D5 	;6-blue
+	DFB $FF 	;7-white
+
+;Write Extended Character
+Wp.eChar TXA 		;restore alpha char
+	SEC
+	SBC #64 	;adjust and
+	AND #$1F	;clamp the value
+	CMP #$12	;and check it
+	BMI Wp.eChr1
+	AND #$0F
+Wp.eChr1 CLC
+	ADC #95 	;calculate offset
+	STA PltChar	;store the char to be drawn
+	JSR Wpr.Clr
+	JMP PlotFnt	;plot the character
+
+;Change Font
+Wp.CFnt	TXA 		;restore alpha char
+	SEC
+	SBC #$30	;change Chr"#" to Val#
+	AND #$03	;mask off digit
+	CMP #4
+	BEQ Wp.CfDn
+; STA Slct.Fnt	;store the font selection
+; JSR SetFTBA	;update table parameters
+Wp.CfDn	RTS 		;JMP Wpr.Clr
+
+;Do Tab
+;these digits are treated as base-10
+T1.Val	DFB $0
+Wp.Tab	TXA 		;restore alpha char
+	SEC
+	SBC #$30	;change Chr"#" to Val#
+	AND #$0F	;mask off digit
+	TAX
+	CMP #10		;digit >9
+	BMI Wp.TvOk	;no - ok
+	LDX #9		;yes - clamp to 9
+Wp.TvOk	LDA Flg.Prm2	;is 2nd of 2 digits?
+	BNE Wp.Cmb	;yes - combine
+	TXA
+	STA Wp.Dig1	;else save it, and,
+	INC Flg.Prm2	;set 2nd digit flag
+	RTS
+Wp.Cmb	STX Wp.Dig2	;save digit
+	LDA Wp.Dig1	;get 1st digit
+	ASL 		;multiply by 10
+	STA T1.Val	;10=8+2
+	ASL
+	ASL
+	ADC T1.Val
+	ADC Wp.Dig2	;add digits together
+	TAX
+	LDA WaitStat
+	CMP #5 		;is param for Htab?
+	BNE Wp.VtVal	;no - then do Vtab
+	TXA 		;yes - then restore param
+; STX GrAdCol	;and change column value
+	BPL Wp.Tdn
+Wp.VtVal	TXA 	;if Vtab then restore param
+	LSR 		;make it an even value
+	ASL 
+; STA GrAdRow	;store it as a row parameter
+Wp.Tdn	JMP Wpr.Clr
+
+;Chage char/ticker rate
+;these digits are treated as base-16
+Wp.cRate TXA 		;restore alpha char
+	SEC
+	SBC #$30	;change Chr"#" to Val#
+	AND #$1F	;mask off digit
+	TAX
+	CMP #10 	;digit >9
+	BMI Wp.RvOk	;no - ok
+	SEC
+	SBC #7 		;make A..F be 11..15
+	TAX
+Wp.RvOk	LDA Flg.Prm2	;is 2nd of 2 digits?
+	BNE Wp.rCmb	;yes - combine
+	TXA  		;no - clamp to {0..F}
+	AND #$0F
+	STA Wp.Dig1	;and save it
+	INC Flg.Prm2	;set 2nd digit flag
+	RTS
+Wp.rCmb	STX Wp.Dig2	;save digit
+	LDA Wp.Dig1	;get 1st digit
+	ASL 		;shift it
+	ASL
+	ASL
+	ASL
+	ORA Wp.Dig2	;combine the digits
+	STA CharRate	;store the rate parameter
+	JMP Wpr.Clr

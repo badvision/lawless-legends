@@ -1252,6 +1252,8 @@ def loadTitle()
   puts("Loading Lawless Legends.\n")
 
   // Load the title screen
+  loader(UNLOCK_MEMORY,  MAIN_MEM, $2000)
+  loader(FREE_MEMORY,    MAIN_MEM, $2000)
   loader(SET_MEM_TARGET, MAIN_MEM, $2000)
   loader(QUEUE_LOAD,     MAIN_MEM, 1<<8 | RES_TYPE_SCREEN)  // title screen is fixed at #1
   loader(LOCK_MEMORY,    MAIN_MEM, $2000)

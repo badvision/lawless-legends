@@ -314,10 +314,12 @@ saneCheck: !zone {
 	lda $BF00
 	cmp #$4C
 	beq +
+	+prChr 'S'
 	brk
 +	lda $E1
 	cmp #$BE
 	bcc +
+	+prChr 's'
 	brk
 +	rts
 }
@@ -420,6 +422,8 @@ init: !zone
 	inx
 	bne -
 +
+; relocate ProDOS to the aux LC bank
+	jsr moveProDOS
 ; close all files
 	lda #0
 	jsr closeFile
@@ -429,6 +433,7 @@ init: !zone
 .clr:	sta prodosMemMap-1,x
 	dex
 	bne .clr
+
 ; clear the segment tables
 -	sta tSegLink,x
 	sta tSegAdrLo,x
@@ -529,6 +534,15 @@ init: !zone
 	dey
 	lda #LOCK_MEMORY	; lock it in place forever
 	jsr mainLoader
+; Reserve hi-res page 1
+	lda #SET_MEM_TARGET
+	ldx #0
+	ldy #$20		; at $2000
+	jsr mainLoader
+	lda #REQUEST_MEMORY
+	ldx #0
+	ldy #$20		; length $2000
+	jsr mainLoader
 ; Load PLASMA module #1
 	ldx #0
 	lda #START_LOAD
@@ -547,6 +561,135 @@ init: !zone
 	ldx #$10		; initial eval stack index
 .gomod:	jmp $1111		; jump to module for further bootstrapping
 .welcomeStr !text "Welcome to MythOS.",$8D,0
+
+;------------------------------------------------------------------------------
+moveProDOS: !zone
+; only do this once
+	lda $BFBB
+	cmp #$4C
+	bne +
+	rts
++
+; copy the ProDOS code from main memory to aux
+	ldy #0
+	ldx #$D0
+	bit $C08B	; turn on language card
+	bit $C08B	; 	for writing
+.pglup	stx .ld+2
+	stx .st+2
+.bylup	sta clrAuxZP
+.ld	lda $D000,Y
+	sta setAuxZP
+.st	sta $D000,Y
+	iny
+	bne .bylup
+	inx
+	bne .pglup
+	sta clrAuxZP
+	bit $C081
+; patch into the main ProDOS MLI entry point
+	lda #$4C	; jmp
+	sta $BFBB
+	lda #<enterProDOS1
+	sta $BFBC
+	lda #>enterProDOS1
+	sta $BFBD
+; patch into the interrupt handler
+	lda #$4C	; jmp
+	sta $BFEB
+	lda #<enterProDOS2
+	sta $BFEC
+	lda #>enterProDOS2
+	sta $BFED
+; patch into the shared MLI/IRQ exit routine
+	lda #$4C	; jmp
+	sta $BFA0
+	lda #<exitProDOS
+	sta $BFA1
+	lda #>exitProDOS
+	sta $BFA2
+; now blow away the main LC area as a check
+	bit $C089
+	bit $C089
+	ldx #$D0
+	lda #0
+	tay
+.clrlup	stx .st2+2
+.st2	sta $D000,Y
+	iny
+	bne .st2
+	inx
+	cpx #$F8
+	bne .clrlup
+; it's very convenient to have the monitor in the LC
+.cpmon	stx .ld3+2
+	stx .st3+2
+.ld3	lda $F800,Y
+.st3	sta $F800,Y
+	iny
+	bne .ld3
+	inx
+	bne .cpmon
+; all done
+.done	rts
+
+;------------------------------------------------------------------------------
+; Normal entry point for ProDOS MLI calls. This patches the code at $BFBB.
+enterProDOS1: !zone
+	pla		; saved A reg
+	sta .ld2+1
+	pla		; lo byte of ret addr
+	sta .ld1+1
+	pla		; hi byte of ret addr
+	sta setAuxZP	; switch to aux stack/ZP/LC
+	pha		; hi byte of ret addr
+.ld1	lda #11		; self-modified earlier
+	pha		; lo byte of ret addr
+.ld2	lda #11		; saved A reg
+	pha
+	lda $E000	; this is what the original code at $BFBB did
+	jmp $BFBE	; jump back in where ProDOS enter left off
+
+;------------------------------------------------------------------------------
+; Entry point for ProDOS interrupt handler. This patches the code at $BFEB.
+enterProDOS2: !zone
+	pla		; saved P reg
+	sta .ld2+1
+	pla		; ret addr lo
+	sta .ld1+1
+	pla		; ret addr hi
+	sta setAuxZP	; switch to aux stack/ZP/LC
+	pha
+.ld1	lda #11		; self-modified earlier
+	pha
+.ld2	lda #11		; 	ditto
+	pha
+	bit $C08B	; this is what the original code at $BFEB did
+	jmp $BFEE	; back to where ProDOS left off
+
+;------------------------------------------------------------------------------
+; Shared exit point for ProDOS MLI and IRQ handlers. This patches the code
+; at $BFA0.
+exitProDOS: !zone
+	sta .ld4+1	; preserve A reg
+	pla		; saved A reg
+	sta .ld3+1
+	pla		; lo byte of ret addr
+	sta .ld2+1
+	pla		; hi byte of ret addr
+	sta .ld1+1
+	pla		; saved P reg
+	sta clrAuxZP	; back to main stack/ZP/LC
+	pha
+.ld1	lda #11		; self-modified earlier
+	pha
+.ld2	lda #11		;	ditto
+	pha
+.ld3	lda #11		;	ditto
+	pha
+.ld4	lda #11		;	ditto
+	eor $E000	; this is what the original code at $BFA0 did
+	jmp $BFA3	; back to where ProDOS left off
 
 ;------------------------------------------------------------------------------
 !if DEBUG {
@@ -631,7 +774,7 @@ reservedErr: !zone
 	ldx #<+
 	ldy #>+
 	jmp fatalError
-+	!text "Mem reserved", 0
++	!text "Mem already alloc'd", 0
 
 ;------------------------------------------------------------------------------
 main_request: !zone

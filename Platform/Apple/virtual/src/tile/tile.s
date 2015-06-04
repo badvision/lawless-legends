@@ -321,9 +321,7 @@ LOAD_SCRIPTS_NO_CALC:
 	+finishLoad 0   	; all done
 !if DEBUG { +prStr : !text "Calling init script.",0 }
 	LDX PLASMA_X
-        BIT setLcRW+lcBank2	; switch PLASMA runtime back in
 	JSR .callit		; perform script init
-        BIT setROM		; switch out PLASMA so we're ready to render
 !if DEBUG { +prStr : !text "Back from init script.",0 }
 	RTS
 .callit	JMP (SCRIPTS_LOC)	; the init function is always first in the script module

@@ -479,7 +479,6 @@ end
 // Jump straight to the system monitor
 // Params: None
 asm goMon
-        bit setROM
         jmp $FF69
 end
 
@@ -487,7 +486,6 @@ end
 // Execute a monitor breakpoint
 // Params: None
 asm brk
-        bit setROM
         bit setText
         bit page1
         brk

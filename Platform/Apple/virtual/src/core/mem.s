@@ -468,8 +468,10 @@ init: !zone
 ; 3: aux  $C000 -> 0, active + locked
 ; 4: main $0xxx -> 5, inactive (xxx = end of mem mgr tables)
 ; 5: main $2000 -> 6, active + locked
-; 6: main $6000 -> 3, inactive
-; 7: main $BF00 -> 0, active + locked
+; 6: main $6000 -> 7, inactive
+; 7: main $BF00 -> 8, active + locked
+; 8: main $E000 -> 9, inactive
+; 9: main $F800 -> 0, active + locked
 ; First, the flags
 	lda #$C0		; flags for active + locked (with no resource)
 	sta tSegType+0
@@ -477,6 +479,7 @@ init: !zone
 	sta tSegType+3
 	sta tSegType+5
 	sta tSegType+7
+	sta tSegType+9
 ; Next the links
 	ldx #2
 	stx tSegLink+1
@@ -490,6 +493,10 @@ init: !zone
 	stx tSegLink+5
 	inx
 	stx tSegLink+6
+	inx
+	stx tSegLink+7
+	inx
+	stx tSegLink+8
 ; Then the addresses
 	lda #2
 	sta tSegAdrHi+2
@@ -505,10 +512,14 @@ init: !zone
 	sta tSegAdrHi+5
 	lda #$60
 	sta tSegAdrHi+6
+	lda #$E0
+	sta tSegAdrHi+8
+	lda #$F8
+	sta tSegAdrHi+9
 ; Finally, form a long list of the remaining unused segments.
-	ldx #8
+	ldx #10
 	stx unusedSeg		; that's the first unused seg
-	ldy #9
+	ldy #11
 .loop:	tya
 	sta tSegLink,x
 	inx
@@ -573,8 +584,8 @@ moveProDOS: !zone
 ; copy the ProDOS code from main memory to aux
 	ldy #0
 	ldx #$D0
-	bit $C08B	; turn on language card
-	bit $C08B	; 	for writing
+	bit setLcRW+lcBank1	; turn on language card
+	bit setLcRW+lcBank1	; 	for writing
 .pglup	stx .ld+2
 	stx .st+2
 .bylup	sta clrAuxZP
@@ -586,7 +597,6 @@ moveProDOS: !zone
 	inx
 	bne .pglup
 	sta clrAuxZP
-	bit $C081
 ; patch into the main ProDOS MLI entry point
 	lda #$4C	; jmp
 	sta $BFBB
@@ -609,8 +619,8 @@ moveProDOS: !zone
 	lda #>exitProDOS
 	sta $BFA2
 ; now blow away the main LC area as a check
-	bit $C089
-	bit $C089
+	bit setLcWr+lcBank1	; only clear bank 1, because bank 2 is PLASMA runtime
+	bit setLcWr+lcBank1	; 	write to it
 	ldx #$D0
 	lda #0
 	tay
@@ -671,25 +681,23 @@ enterProDOS2: !zone
 ; Shared exit point for ProDOS MLI and IRQ handlers. This patches the code
 ; at $BFA0.
 exitProDOS: !zone
-	sta .ld4+1	; preserve A reg
-	pla		; saved A reg
+	pla			; saved A reg
 	sta .ld3+1
-	pla		; lo byte of ret addr
+	pla			; P-reg for RTI
 	sta .ld2+1
-	pla		; hi byte of ret addr
+	pla			; hi byte of ret addr
 	sta .ld1+1
-	pla		; saved P reg
-	sta clrAuxZP	; back to main stack/ZP/LC
-	pha
-.ld1	lda #11		; self-modified earlier
-	pha
-.ld2	lda #11		;	ditto
-	pha
-.ld3	lda #11		;	ditto
-	pha
-.ld4	lda #11		;	ditto
-	eor $E000	; this is what the original code at $BFA0 did
-	jmp $BFA3	; back to where ProDOS left off
+	pla			; lo byte of ret addr
+	sta clrAuxZP		; back to main stack/ZP/LC
+	bit setLcRW+lcBank2	; switch in PLASMA
+	bit setLcRW+lcBank2	; 	for write as well as read
+	pha			; lo byte of ret addr
+.ld1	lda #11			; self-modified earlier
+	pha			; hi byte of ret addr
+.ld2	lda #11			;	ditto
+	pha			; P-reg for RTI
+.ld3	lda #11			; self-modified earlier (the saved A reg)
+	rti			; RTI pops P-reg and *exact* return addr (not adding 1)
 
 ;------------------------------------------------------------------------------
 !if DEBUG {
@@ -2074,7 +2082,6 @@ doAllFixups: !zone
 ; 8. Store A=lo/Y=hi into PLASMA return value
 ; 9. Return to PLASMA
 __asmPlasm: !zone
-	bit setROM	; switch to ROM
 	pla		; save address of calling routine, so we can call it
 	clc
 	adc #1
@@ -2095,7 +2102,6 @@ __asmPlasm: !zone
 	lda evalStkL,x	; get last param to A=lo
 	ldy evalStkH,x	; ...Y=hi
 .jsr	jsr $1111	; call the routine to do work
-	bit setLcRW+lcBank2	; read from language card (where PLASMA runtime lives)
 	sta tmp		; stash return value lo
 	pla
 	tax		; restore adjusted PLASMA stack pointer

@@ -1762,6 +1762,7 @@ pl_render: !zone
 	cmp $4001
 	beq ++
 +	jsr copyScreen		; if it was, restore by copying hgr1 to hgr2
+	jsr makeLines
 ++	jmp renderFrame		; then go ahead and render
 
 ;-------------------------------------------------------------------------------

@@ -1,3 +1,4 @@
+;@com.wudsn.ide.asm.hardware=APPLE2
 ;Title: Proportional Text HGR app
 ;Author: Andrew Hogan
 ;This is a collection of routines that prints proportional
@@ -27,8 +28,16 @@
 ;10/14 v.24 input a single char
 ;10/27 v.25 comments updated
 
-	MSB ON  	;Directive to set hi bit of chars
-	ORG $4000	;$4000..5FFF is HGR2 page of RAM
+* = $6000
+
+; Use hi-bit ASCII for Apple II
+!convtab "../include/hiBitAscii.ct"
+
+; Global definitions
+!source "../include/global.i"
+!source "../include/debug.i"
+
+DEBUG       = 0     ; 1=some logging, 2=lots of logging
 
 zTmp1	EQU $FC 	;zero page Temporary variables
 zTmp2	EQU $FD

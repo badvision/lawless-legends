@@ -53,11 +53,25 @@ codeBegin:
 	jmp main_dispatch
 	jmp aux_dispatch
 	jmp __asmPlasm
+
+; Vectors for debug macros
+	jmp __writeStr
+	jmp __prByte
+	jmp __prSpace
+	jmp __prWord
+	jmp __prA
+	jmp __prX
+	jmp __prY
+	jmp __crout
+	jmp __waitKey
+
+;------------------------------------------------------------------------------
+; Relocation code
 locationCheck:
 	jsr monrts
 	tsx
 	lda $100,x
-	cmp #>*
+	cmp #>locationCheck
 	bne +
 	jmp init
 +	sta pSrc+1
@@ -90,6 +104,117 @@ fixupHint:	!word 0
 
 ;------------------------------------------------------------------------------
 !if DEBUG { !source "../include/debug.i" }
+
+; Debug code to support macros
+
+; Fetch a byte pointed to by the first entry on the stack, and advance that entry.
+_getStackByte !zone {
+	inc $101,x
+	bne +
+	inc $102,x
++	lda $101,x
+	sta .ld+1
+	lda $102,x
+	sta .ld+2
+.ld:   	lda $2000
+	rts
+}
+
+; Support to print a string following the JSR, in high or low bit ASCII, 
+; terminated by zero. If the string has a period "." it will be followed 
+; automatically by a carriage return. Preserves all registers.
+__writeStr: !zone {
+	jsr iosave
+	tsx
+.loop:	jsr _getStackByte
+	beq .done
+	jsr cout
+	cmp #$AE	; "."
+	bne .loop
+	jsr crout
+	jmp .loop
+.done:	jmp iorest
+}
+
+__prByte: !zone {
+	jsr iosave
+	ldy #0
+	; fall through to _prShared...
+}
+
+_prShared: !zone {
+	tsx
+	jsr _getStackByte
+	sta .ld+1
+	jsr _getStackByte
+	sta .ld+2
+.ld:	lda $2000,y
+	jsr prbyte
+	dey
+	bpl .ld
+	+prSpace
+	jmp iorest
+}
+
+__prSpace: !zone {
+	php
+	pha
+	lda #$A0
+	jsr cout
+	pla
+	plp
+	rts
+}
+
+__prWord: !zone {
+	jsr iosave
+	ldy #1
+	bne _prShared	; always taken
+}
+
+__prA: !zone {
+	php
+	pha
+	jsr prbyte
+	pla
+	plp
+	rts
+}
+	
+__prX: !zone {
+	php
+	pha
+	txa
+	jsr prbyte
+	pla
+	plp
+	rts
+}
+
+__prY: !zone {
+	php
+	pha
+	tya
+	jsr prbyte
+	pla
+	plp
+	rts
+}
+
+__crout: !zone {
+	php
+	pha
+	jsr crout
+	pla
+	plp
+	rts
+}
+
+__waitKey: !zone {
+	jsr iosave
+	jsr rdkey
+	jmp iorest
+}
 
 ;------------------------------------------------------------------------------
 grabSegment: !zone
@@ -415,13 +540,7 @@ fatalError: !zone
 init: !zone
 ; put something interesting on the screen :)
 	jsr home
-	ldx #0
--	lda .welcomeStr,x
-	beq +
-	jsr cout
-	inx
-	bne -
-+
+	+prStr : !text "Welcome to Mythos.",$8D,0
 ; relocate ProDOS to the aux LC bank
 	jsr moveProDOS
 ; close all files
@@ -571,7 +690,6 @@ init: !zone
 	jsr mainLoader
 	ldx #$10		; initial eval stack index
 .gomod:	jmp $1111		; jump to module for further bootstrapping
-.welcomeStr !text "Welcome to MythOS.",$8D,0
 
 ;------------------------------------------------------------------------------
 moveProDOS: !zone

@@ -120,8 +120,7 @@ asm __defs
 !source "../../include/fontEngine.i"
 
 ; Optional debug printing support
-DEBUG   = 1
-!if DEBUG { !source "../../include/debug.i" }
+DEBUG   = 0
 
 ; General use
 tmp         = $2

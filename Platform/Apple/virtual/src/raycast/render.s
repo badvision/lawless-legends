@@ -28,8 +28,6 @@ DEBUG_COLUMN	= -1
 
 ; Shared constants, zero page, buffer locations, etc.
 !source "render.i"
-; Debug macros and support functions
-!source "../include/debug.i"
 ; Memory manager
 !source "../include/mem.i"
 ; Font engine

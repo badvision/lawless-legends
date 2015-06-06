@@ -104,9 +104,6 @@ next_zp		= $AB
 	JMP pl_setColor		; params: slot (0=sky/1=ground), color (0-15); return: nothing
 	jmp pl_render		; params: none
 
-; Debug support -- must come after jump vectors, since it's not just macros.
-!source "../include/debug.i"
-
 ;----------------------------------------------------------------------
 ; >> START LOADING MAP SECTIONS
 START_MAP_LOAD

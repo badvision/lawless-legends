@@ -13,14 +13,13 @@
 !source "../include/global.i"
 !source "../include/mem.i"
 !source "../include/plasma.i"
-!source "../include/debug.i"
 
 ; Constants
 MAX_SEGS	= 96
 
 DO_COMP_CHECKSUMS = 0		; during compression debugging
 DEBUG_DECOMP 	= 0
-DEBUG		= 1
+DEBUG		= 0
 SANITY_CHECK	= 0		; also prints out request data
 
 ; Zero page temporary variables
@@ -875,15 +874,11 @@ init: !zone
 !if SANITY_CHECK {
 	lda #$20
 	sta framePtr+1		; because sanity check verifies it's not $BE or $BF
-}
-	
-	jsr printMem
-	brk
-
+}	
 	ldx #0
 	ldy #2			; 2 pages
 	lda #REQUEST_MEMORY
-	jsr mainLoader
+	jsr main_dispatch
 	stx framePtr
 	stx outerFramePtr
 	iny			; twice for 2 pages: initial pointer at top of new space
@@ -893,31 +888,31 @@ init: !zone
 	dey
 	dey
 	lda #LOCK_MEMORY	; lock it in place forever
-	jsr mainLoader
+	jsr main_dispatch
 ; Reserve hi-res page 1
 	lda #SET_MEM_TARGET
 	ldx #0
 	ldy #$20		; at $2000
-	jsr mainLoader
+	jsr main_dispatch
 	lda #REQUEST_MEMORY
 	ldx #0
 	ldy #$20		; length $2000
-	jsr mainLoader
+	jsr main_dispatch
 ; Load PLASMA module #1
 	ldx #0
 	lda #START_LOAD
-	jsr mainLoader
+	jsr main_dispatch
 	ldx #RES_TYPE_MODULE
 	ldy #1
 	lda #QUEUE_LOAD
-	jsr mainLoader
+	jsr main_dispatch
 	stx .gomod+1
 	sty .gomod+2
 	lda #LOCK_MEMORY	; lock it in forever
-	jsr mainLoader
+	jsr main_dispatch
 	ldx #1			; keep open for efficiency's sake
 	lda #FINISH_LOAD
-	jsr mainLoader
+	jsr main_dispatch
 	ldx #$10		; initial eval stack index
 .gomod:	jmp $1111		; jump to module for further bootstrapping
 
@@ -1596,7 +1591,6 @@ disk_finishLoad: !zone
 	lda #0
 	sta setMarkPos+2
 	sta .nFixups
-	jsr setupDecomp		; one-time init for decompression code
 	jsr startHeaderScan	; start scanning the partition header
 .scan:	lda (pTmp),y		; get resource type byte
 	bne .notEnd		; non-zero = not end of header
@@ -1908,18 +1902,6 @@ lz4Decompress: !zone
 	!if DEBUG_DECOMP { sta ucLen : jsr .debug4 }
 	tay			; ...to count bytes
 .auxWr2	sta setAuxWr		; self-modified earlier, based on isAuxCmd
-	; Subroutine does the work. Runs in stack area so it can write *and* read aux mem
-	jsr .matchCopy		; copy match bytes (aux->aux, or main->main)
-	sta clrAuxWr		; back to writing main mem
-	inc ucLen+1		; to make it zero for the next match decode
-+ 	ldy tmp			; restore index to source pointer
-	jmp .getToken		; go on to the next token in the compressed stream
-	; Subroutine to copy bytes, either main->main or aux->aux. We put it down in the
-	; stack space ($100) so it can access either area. The stack doesn't get bank-switched
-	; by setAuxRd/clrAuxRd.
-.matchShadow_beg = *
-!pseudopc $100 {
-.matchCopy:
 .auxRd1	sta setAuxRd  		; self-modified based on isAuxCmd
 .srcLoad:
 	lda $1100,x		; self-modified earlier for offsetted source
@@ -1939,9 +1921,10 @@ lz4Decompress: !zone
 	dec ucLen+1		; count pages
 	bpl .srcLoad		; loop for more. NOTE: this would fail if we had blocks >= 32K
 	sta clrAuxRd		; back to reading main mem, for mem mgr code
-+	rts			; done copying bytes
-}
-.matchShadow_end = *
+	sta clrAuxWr		; back to writing main mem
+	inc ucLen+1		; to make it zero for the next match decode
++ 	ldy tmp			; restore index to source pointer
+	jmp .getToken		; go on to the next token in the compressed stream
 	; Subroutine called when length token = $F, to extend the length by additional bytes
 .longLen:
 -	sta ucLen		; save what we got so far
@@ -1999,17 +1982,6 @@ nextSrcPage:
 .auxWr4	sta setAuxWr		; go back to writing aux mem (self-modified for aux or main)
 	rts
   
-; Copy the match shadow down to the stack area so it can copy from aux to aux.
-; This needs to be called once before any decompression is done. We shouldn't
-; rely on it being preserved across calls to the memory manager.
-setupDecomp:
-	ldx #.matchShadow_end - .matchShadow_beg - 1
--	lda .matchShadow_beg,x	; get the copy from main RAM
-	sta .matchCopy,x	; and put it down in stack space where it can access both main and aux
-	dex			; next byte
-	bpl -			; loop until we grab them all (including byte 0)
-	rts
-	
 !if DEBUG_DECOMP {
 .debug1	+prStr : !text "Decompressing: isComp=",0
 	+prByte isCompressed
@@ -2074,12 +2046,6 @@ setupDecomp:
 ; resources from memory.
 doAllFixups: !zone
 	!if DEBUG >= 2 { +prStr : !text "Doing all fixups.",0 }
-	; copy the shadow code down to $100, so we can read aux mem bytes
-	ldx #.fixupShadow_end - .fixupShadow - 1
--	lda .fixupShadow,x
-	sta .getFixupByte,x
-	dex
-	bpl -
 	; Now scan aux mem for fixup segments
 	ldx #1			; start at first aux mem segment (0=main mem, 1=aux)
 .loop:	lda tSegType,x		; grab flags & type
@@ -2167,7 +2133,9 @@ doAllFixups: !zone
 	jsr .adAux		; recalc and store hi byte
 	sta clrAuxWr
 	bne .proc		; always taken
-.adAux	jsr .getBytecode	; get num to add to offset
+.adAux	sta setAuxRd
+	lda (pDst),y		; get num to add to offset
+	sta clrAuxRd
 	adc .mainBase,y		; add the offset
 	sta (pDst),y		; *STORE* back the result
 	rts
@@ -2214,26 +2182,13 @@ doAllFixups: !zone
 
 .fetchFixup:
 	ldy #0
-	jsr .getFixupByte	; get a byte from aux mem
+	sta setAuxRd
+	lda (pSrc),y
+	sta clrAuxRd
 	inc pSrc		; and advance the pointer
 	bne +
 	inc pSrc+1		; hi byte too, if necessary
 +	rts
-
-.fixupShadow: 
-!pseudopc $100 {
-.getFixupByte:
-	sta setAuxRd
-	lda (pSrc),y
-	sta clrAuxRd
-	rts
-.getBytecode:
-	sta setAuxRd
-	lda (pDst),y
-	sta clrAuxRd
-	rts
-}
-.fixupShadow_end = *
 !if DEBUG >= 2 {
 .debug1	+prStr : !text "Found fixup, res=",0
 	+prByte resNum

@@ -28,8 +28,6 @@ DEBUG_COLUMN	= -1
 
 ; Shared constants, zero page, buffer locations, etc.
 !source "render.i"
-; Debug macros and support functions
-!source "../include/debug.i"
 ; Memory manager
 !source "../include/mem.i"
 ; Font engine
@@ -1617,9 +1615,7 @@ loadTextures: !zone
 	; finally, init the scripts.
 !if DEBUG { +prStr : !text "Calling script init ",0 : +prWord .scInit+1 : +crout }
 	ldx plasmaStk
-        bit setLcRW+lcBank2	; switch PLASMA runtime back in
 .scInit	jsr $1111		; self-modified earlier
-        bit setROM		; back to ROM so we can work normally
 !if DEBUG { +prStr : !text "Back from script init. ",0 }
         rts
 .get:	lda $1111
@@ -1764,6 +1760,7 @@ pl_render: !zone
 	cmp $4001
 	beq ++
 +	jsr copyScreen		; if it was, restore by copying hgr1 to hgr2
+	jsr makeLines
 ++	jmp renderFrame		; then go ahead and render
 
 ;-------------------------------------------------------------------------------

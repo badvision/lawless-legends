@@ -104,9 +104,6 @@ next_zp		= $AB
 	JMP pl_setColor		; params: slot (0=sky/1=ground), color (0-15); return: nothing
 	jmp pl_render		; params: none
 
-; Debug support -- must come after jump vectors, since it's not just macros.
-!source "../include/debug.i"
-
 ;----------------------------------------------------------------------
 ; >> START LOADING MAP SECTIONS
 START_MAP_LOAD
@@ -321,9 +318,7 @@ LOAD_SCRIPTS_NO_CALC:
 	+finishLoad 0   	; all done
 !if DEBUG { +prStr : !text "Calling init script.",0 }
 	LDX PLASMA_X
-        BIT setLcRW+lcBank2	; switch PLASMA runtime back in
 	JSR .callit		; perform script init
-        BIT setROM		; switch out PLASMA so we're ready to render
 !if DEBUG { +prStr : !text "Back from init script.",0 }
 	RTS
 .callit	JMP (SCRIPTS_LOC)	; the init function is always first in the script module

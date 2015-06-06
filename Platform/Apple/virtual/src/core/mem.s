@@ -4,7 +4,7 @@
 ;
 ; See detailed description in mem.i
 
- * = $800
+* = $2000			; PLASMA loader loads us initially at $2000
 
 ; Use hi-bit ASCII for Apple II
 !convtab "../include/hiBitAscii.ct"
@@ -46,36 +46,391 @@ headerBuf 	= $4C00	; len $1400
 prodosMemMap 	= $BF58
 
 ;------------------------------------------------------------------------------
-; Initial vectors - these have to start at $800
-codeBegin:
-	clc
-	bcc locationCheck
-	jmp main_dispatch
-	jmp aux_dispatch
-	jmp __asmPlasm
-locationCheck:
-	jsr monrts
-	tsx
-	lda $100,x
-	cmp #>*
-	bne +
-	jmp init
-+	sta pSrc+1
-	lda #>*
-	sta pDst+1
+; Relocate all the pieces to their correct locations
+relocate:
+; first our lo memory piece goes to $800 (two pages should be plenty)
 	ldy #0
-	sty pSrc
-	sty pDst
-	ldx #>(tableEnd-codeBegin+$100)
--	lda (pSrc),y
-	sta (pDst),y
+-	lda loMemBegin,y
+	sta $800,y
+	lda loMemBegin+$100,y
+	sta $900,y
 	iny
 	bne -
-	inc pSrc+1
-	inc pDst+1
-	dex
-	bne -
-	jmp codeBegin
+; copy the ProDOS code from main memory to aux
+	bit setLcRW+lcBank1	; only copy bank 1, because bank 2 is PLASMA runtime
+	bit setLcRW+lcBank1	; 	write to it
+	ldy #0
+	ldx #$D0
+.pglup	stx .ld+2
+	stx .st+2
+.bylup	sta clrAuxZP		; get byte from main LC
+.ld	lda $D000,y
+	sta setAuxZP		; temporarily turn on aux LC
+.st	sta $D000,y
+	iny
+	bne .bylup
+	inx			; all pages until we hit $00
+	bne .pglup
+	sta clrAuxZP		; ...back to main LC
+; patch into the main ProDOS MLI entry point
+	lda #$4C	; jmp
+	sta $BFBB
+	lda #<enterProDOS1
+	sta $BFBC
+	lda #>enterProDOS1
+	sta $BFBD
+; patch into the interrupt handler
+	lda #$4C	; jmp
+	sta $BFEB
+	lda #<enterProDOS2
+	sta $BFEC
+	lda #>enterProDOS2
+	sta $BFED
+; patch into the shared MLI/IRQ exit routine
+	lda #$4C	; jmp
+	sta $BFA0
+	lda #<exitProDOS
+	sta $BFA1
+	lda #>exitProDOS
+	sta $BFA2
+; now blow away the main RAM LC area as a check
+	ldx #$D0
+	lda #0
+	tay
+.clrlup	stx .st2+2
+.st2	sta $D000,Y
+	iny
+	bne .st2
+	inx
+	cpx #$F8
+	bne .clrlup
+; it's very convenient to have the monitor in the LC for debugging
+	bit setLcWr+lcBank1	; read from ROM, write to LC RAM
+.cpmon	stx .ld3+2
+	stx .st3+2
+.ld3	lda $F800,Y
+.st3	sta $F800,Y
+	iny
+	bne .ld3
+	inx
+	bne .cpmon
+; Place the bulk of the memory manager code into the newly cleared LC
+	ldx #>hiMemBegin
+.cpmm	stx .ld4+2
+.ld4	lda hiMemBegin,y
+.st4	sta $D000,y
+	iny
+	bne .ld4
+	inc .st4+2
+	inx
+	cpx #>(hiMemEnd+$100)
+	bne .cpmm
+; Ready to actually init the memory manager in its final location.
+	; fall through to j_init...
+
+;------------------------------------------------------------------------------
+; Vectors and debug support code - these go in low memory at $800
+loMemBegin: !pseudopc $800 {
+	jmp j_init
+	jmp j_main_dispatch
+	jmp j_aux_dispatch
+	jmp __asmPlasm
+
+; Vectors for debug macros
+	jmp __writeStr
+	jmp __prByte
+	jmp __prSpace
+	jmp __prWord
+	jmp __prA
+	jmp __prX
+	jmp __prY
+	jmp __crout
+	jmp __waitKey
+
+j_init:
+	bit setLcRW+lcBank1	; switch in mem mgr
+	bit setLcRW+lcBank1
+	jsr init
+	bit setLcRW+lcBank2	; back to PLASMA
+	rts
+
+j_main_dispatch:
+	bit setLcRW+lcBank1	; switch in mem mgr
+	bit setLcRW+lcBank1
+	jsr main_dispatch
+	bit setLcRW+lcBank2	; back to PLASMA
+	rts
+
+j_aux_dispatch:
+	bit setLcRW+lcBank1	; switch in mem mgr
+	bit setLcRW+lcBank1
+	jsr aux_dispatch
+	bit setLcRW+lcBank2	; back to PLASMA
+	rts
+
+;------------------------------------------------------------------------------
+; Normal entry point for ProDOS MLI calls. This patches the code at $BFBB.
+enterProDOS1: !zone
+	pla		; saved A reg
+	sta .ld2+1
+	pla		; lo byte of ret addr
+	sta .ld1+1
+	pla		; hi byte of ret addr
+	sta setAuxZP	; switch to aux stack/ZP/LC
+	pha		; hi byte of ret addr
+.ld1	lda #11		; self-modified earlier
+	pha		; lo byte of ret addr
+.ld2	lda #11		; saved A reg
+	pha
+	lda $E000	; this is what the original code at $BFBB did
+	jmp $BFBE	; jump back in where ProDOS enter left off
+
+;------------------------------------------------------------------------------
+; Entry point for ProDOS interrupt handler. This patches the code at $BFEB.
+enterProDOS2: !zone
+	pla		; saved P reg
+	sta .ld2+1
+	pla		; ret addr lo
+	sta .ld1+1
+	pla		; ret addr hi
+	sta setAuxZP	; switch to aux stack/ZP/LC
+	pha
+.ld1	lda #11		; self-modified earlier
+	pha
+.ld2	lda #11		; 	ditto
+	pha
+	bit $C08B	; this is what the original code at $BFEB did
+	jmp $BFEE	; back to where ProDOS left off
+
+;------------------------------------------------------------------------------
+; Shared exit point for ProDOS MLI and IRQ handlers. This patches the code
+; at $BFA0.
+exitProDOS: !zone
+	pla			; saved A reg
+	sta .ld3+1
+	pla			; P-reg for RTI
+	sta .ld2+1
+	pla			; hi byte of ret addr
+	sta .ld1+1
+	pla			; lo byte of ret addr
+	sta clrAuxZP		; back to main stack/ZP/LC
+	pha			; lo byte of ret addr
+.ld1	lda #11			; self-modified earlier
+	pha			; hi byte of ret addr
+.ld2	lda #11			;	ditto
+	pha			; P-reg for RTI
+.ld3	lda #11			; self-modified earlier (the saved A reg)
+	; Note! We leave LC bank 1 enabled, since that's where the memory
+	; manager lives, and it's the only code that calls ProDOS.
+	rti			; RTI pops P-reg and *exact* return addr (not adding 1)
+
+;------------------------------------------------------------------------------
+; Utility routine for convenient assembly routines in PLASMA code. 
+; Params: Y=number of parameters passed from PLASMA routine
+; 1. Save PLASMA's X register index to evalStk
+; 2. Verify X register is in the range 0-$10
+; 3. Load the *last* parameter into A=lo, Y=hi
+; 4. Run the calling routine (X still points into evalStk for add'l params if needed)
+; 5. Restore PLASMA's X register, and advance it over the parameter(s)
+; 6. Store A=lo/Y=hi into PLASMA return value
+; 7. Return to PLASMA
+__asmPlasm: !zone
+	pla		; save address of calling routine, so we can call it
+	clc
+	adc #1
+	sta .jsr+1
+	pla
+	adc #0
+	sta .jsr+2
+	; adjust PLASMA stack pointer to skip over params
+	dey
+	sty tmp
+	txa
+	cpx #$11
+	bcs .badx	; X must be in range 0..$10
+.add	adc tmp		; carry cleared by cpx above
+	pha		; and save that
+	cmp #$11	; again, X must be in range 0..$10
+	bcs .badx
+	lda evalStkL,x	; get last param to A=lo
+	ldy evalStkH,x	; ...Y=hi
+.jsr	jsr $1111	; call the routine to do work
+	sta tmp		; stash return value lo
+	pla
+	tax		; restore adjusted PLASMA stack pointer
+	lda tmp
+	sta evalStkL,x	; store return value
+	tya
+	sta evalStkH,x
+	rts		; and return to PLASMA interpreter
+.badx	; X reg ran outside valid range. Print and abort.
+	+prStr : !text $8D,"X=",0
+	+prX
+	ldx #<+
+	ldy #>+
+	jmp fatalError
++	!text $8D, "PLASMA x-reg out of range", 0
+
+;------------------------------------------------------------------------------
+; Debug code to support macros
+
+; Fetch a byte pointed to by the first entry on the stack, and advance that entry.
+_getStackByte !zone {
+	inc $101,x
+	bne +
+	inc $102,x
++	lda $101,x
+	sta .ld+1
+	lda $102,x
+	sta .ld+2
+.ld:   	lda $2000
+	rts
+}
+
+; Support to print a string following the JSR, in high or low bit ASCII, 
+; terminated by zero. If the string has a period "." it will be followed 
+; automatically by a carriage return. Preserves all registers.
+__writeStr: !zone {
+	jsr iosave
+	tsx
+.loop:	jsr _getStackByte
+	beq .done
+	jsr cout
+	cmp #$AE	; "."
+	bne .loop
+	jsr crout
+	jmp .loop
+.done:	jmp iorest
+}
+
+__prByte: !zone {
+	jsr iosave
+	ldy #0
+	; fall through to _prShared...
+}
+
+_prShared: !zone {
+	tsx
+	jsr _getStackByte
+	sta .ld+1
+	jsr _getStackByte
+	sta .ld+2
+.ld:	lda $2000,y
+	jsr prbyte
+	dey
+	bpl .ld
+	+prSpace
+	jmp iorest
+}
+
+__prSpace: !zone {
+	php
+	pha
+	lda #$A0
+	jsr cout
+	pla
+	plp
+	rts
+}
+
+__prWord: !zone {
+	jsr iosave
+	ldy #1
+	bne _prShared	; always taken
+}
+
+__prA: !zone {
+	php
+	pha
+	jsr prbyte
+	pla
+	plp
+	rts
+}
+	
+__prX: !zone {
+	php
+	pha
+	txa
+	jsr prbyte
+	pla
+	plp
+	rts
+}
+
+__prY: !zone {
+	php
+	pha
+	tya
+	jsr prbyte
+	pla
+	plp
+	rts
+}
+
+__crout: !zone {
+	php
+	pha
+	jsr crout
+	pla
+	plp
+	rts
+}
+
+__waitKey: !zone {
+	jsr iosave
+	jsr rdkey
+	jmp iorest
+}
+
+!macro callMLI cmd, parms {
+	lda #cmd
+	ldx #<parms
+	ldy #>parms
+	jsr _callMLI
+}
+
+; Call MLI from main memory rather than LC, since it lives in aux LC.
+_callMLI:	sta .cmd
+		stx .params
+		sty .params+1
+		jsr mli
+.cmd		!byte 0
+.params		!word 0
+		rts
+
+; Out ProDOS param blocks can't be in LC ram
+openParams:	!byte 3		; param count
+		!word filename	; pointer to file name
+		!word fileBuf	; pointer to buffer
+openFileRef:	!byte 0		; returned file number
+filename:	!byte 15	; length
+		!raw "/LL/GAME.PART."	; TODO: Figure out how to avoid specifying full path. "raw" for ProDOS
+		; If I leave it out, ProDOS complains with error $40.
+partNumChar:	!raw "x"	; "x" replaced by partition number
+
+readParams:	!byte 4		; param count
+readFileRef:	!byte 0		; file ref to read
+readAddr:	!word 0
+readLen:	!word 0
+readGot:	!word 0
+
+setMarkParams:	!byte 2		; param count
+setMarkFileRef:	!byte 0		; file reference to set mark in
+setMarkPos:	!byte 0		; mark position (3 byte integer)
+		!byte 0
+		!byte 0
+
+closeParams:	!byte 1		; param count
+closeFileRef:	!byte 0		; file ref to close
+
+paramsEnd = *
+} ; end of !pseodupc $800
+loMemEnd = *
+
+;------------------------------------------------------------------------------
+; The remainder of the code gets relocated up into the Language Card, bank 1.
+hiMemBegin: !pseudopc $D000 {
 
 ;------------------------------------------------------------------------------
 ; Variables
@@ -87,9 +442,6 @@ nextLdVec:	jmp diskLoader
 curPartition:	!byte 0
 partFileRef: 	!byte 0
 fixupHint:	!word 0
-
-;------------------------------------------------------------------------------
-!if DEBUG { !source "../include/debug.i" }
 
 ;------------------------------------------------------------------------------
 grabSegment: !zone
@@ -314,10 +666,12 @@ saneCheck: !zone {
 	lda $BF00
 	cmp #$4C
 	beq +
+	+prChr 'S'
 	brk
 +	lda $E1
 	cmp #$BE
 	bcc +
+	+prChr 's'
 	brk
 +	rts
 }
@@ -413,13 +767,7 @@ fatalError: !zone
 init: !zone
 ; put something interesting on the screen :)
 	jsr home
-	ldx #0
--	lda .welcomeStr,x
-	beq +
-	jsr cout
-	inx
-	bne -
-+
+	+prStr : !text "Welcome to Mythos.",0
 ; close all files
 	lda #0
 	jsr closeFile
@@ -429,6 +777,7 @@ init: !zone
 .clr:	sta prodosMemMap-1,x
 	dex
 	bne .clr
+
 ; clear the segment tables
 -	sta tSegLink,x
 	sta tSegAdrLo,x
@@ -463,8 +812,10 @@ init: !zone
 ; 3: aux  $C000 -> 0, active + locked
 ; 4: main $0xxx -> 5, inactive (xxx = end of mem mgr tables)
 ; 5: main $2000 -> 6, active + locked
-; 6: main $6000 -> 3, inactive
-; 7: main $BF00 -> 0, active + locked
+; 6: main $6000 -> 7, inactive
+; 7: main $BF00 -> 8, active + locked
+; 8: main $E000 -> 9, inactive
+; 9: main $F800 -> 0, active + locked
 ; First, the flags
 	lda #$C0		; flags for active + locked (with no resource)
 	sta tSegType+0
@@ -472,6 +823,7 @@ init: !zone
 	sta tSegType+3
 	sta tSegType+5
 	sta tSegType+7
+	sta tSegType+9
 ; Next the links
 	ldx #2
 	stx tSegLink+1
@@ -485,6 +837,10 @@ init: !zone
 	stx tSegLink+5
 	inx
 	stx tSegLink+6
+	inx
+	stx tSegLink+7
+	inx
+	stx tSegLink+8
 ; Then the addresses
 	lda #2
 	sta tSegAdrHi+2
@@ -492,18 +848,22 @@ init: !zone
 	sty tSegAdrHi+3
 	dey
 	sty tSegAdrHi+7
-	lda #<tableEnd
+	lda #<paramsEnd
 	sta tSegAdrLo+4
-	lda #>tableEnd
+	lda #>paramsEnd
 	sta tSegAdrHi+4
 	lda #$40
 	sta tSegAdrHi+5
 	lda #$60
 	sta tSegAdrHi+6
+	lda #$E0
+	sta tSegAdrHi+8
+	lda #$F8
+	sta tSegAdrHi+9
 ; Finally, form a long list of the remaining unused segments.
-	ldx #8
+	ldx #10
 	stx unusedSeg		; that's the first unused seg
-	ldy #9
+	ldy #11
 .loop:	tya
 	sta tSegLink,x
 	inx
@@ -514,11 +874,11 @@ init: !zone
 !if SANITY_CHECK {
 	lda #$20
 	sta framePtr+1		; because sanity check verifies it's not $BE or $BF
-}
+}	
 	ldx #0
 	ldy #2			; 2 pages
 	lda #REQUEST_MEMORY
-	jsr mainLoader
+	jsr main_dispatch
 	stx framePtr
 	stx outerFramePtr
 	iny			; twice for 2 pages: initial pointer at top of new space
@@ -528,25 +888,33 @@ init: !zone
 	dey
 	dey
 	lda #LOCK_MEMORY	; lock it in place forever
-	jsr mainLoader
+	jsr main_dispatch
+; Reserve hi-res page 1
+	lda #SET_MEM_TARGET
+	ldx #0
+	ldy #$20		; at $2000
+	jsr main_dispatch
+	lda #REQUEST_MEMORY
+	ldx #0
+	ldy #$20		; length $2000
+	jsr main_dispatch
 ; Load PLASMA module #1
 	ldx #0
 	lda #START_LOAD
-	jsr mainLoader
+	jsr main_dispatch
 	ldx #RES_TYPE_MODULE
 	ldy #1
 	lda #QUEUE_LOAD
-	jsr mainLoader
+	jsr main_dispatch
 	stx .gomod+1
 	sty .gomod+2
 	lda #LOCK_MEMORY	; lock it in forever
-	jsr mainLoader
+	jsr main_dispatch
 	ldx #1			; keep open for efficiency's sake
 	lda #FINISH_LOAD
-	jsr mainLoader
+	jsr main_dispatch
 	ldx #$10		; initial eval stack index
 .gomod:	jmp $1111		; jump to module for further bootstrapping
-.welcomeStr !text "Welcome to MythOS.",$8D,0
 
 ;------------------------------------------------------------------------------
 !if DEBUG {
@@ -631,7 +999,7 @@ reservedErr: !zone
 	ldx #<+
 	ldy #>+
 	jmp fatalError
-+	!text "Mem reserved", 0
++	!text "Mem already alloc'd", 0
 
 ;------------------------------------------------------------------------------
 main_request: !zone
@@ -1063,14 +1431,12 @@ openPartition: !zone
 	lda curPartition
 	clc
 	adc #'0'		; assume partition numbers range from 0..9 for now
-	sta .partNumChar
+	sta partNumChar
 ; open the file
-	jsr mli
-	!byte MLI_OPEN
-	!word .openParams
+	+callMLI MLI_OPEN, openParams
 	bcs prodosError
 ; grab the file number, since we're going to keep it open
-	lda .openFileRef
+	lda openFileRef
 	sta partFileRef
 	sta readFileRef
 ; Read the first two bytes, which tells us how long the header is.
@@ -1091,21 +1457,6 @@ openPartition: !zone
 	lda #2			; read just after the 2-byte length
 	sta readAddr
 	jmp readToMain		; finish by reading the rest of the header
-
-.openParams:	!byte 3		; number of params
-		!word .filename	; pointer to file name
-		!word fileBuf	; pointer to buffer
-.openFileRef:	!byte 0		; returned file number
-.filename:	!byte 15	; length
-		!raw "/LL/GAME.PART."	; TODO: Figure out how to avoid specifying full path. "raw" for ProDOS
-		; If I leave it out, ProDOS complains with error $40.
-.partNumChar:	!raw "x"	; "x" replaced by partition number
-
-readParams:	!byte 4	; number of params
-readFileRef:	!byte 0
-readAddr:	!word 0
-readLen:	!word 0
-readGot:	!word 0
 
 ;------------------------------------------------------------------------------
 prodosError: !zone
@@ -1231,16 +1582,15 @@ disk_finishLoad: !zone
 	lda partFileRef		; see if we actually queued anything (and opened the file)
 	bne +			; non-zero means we have work to do
 	rts			; nothing to do - return immediately
-+	sta .setMarkFileRef	; copy the file ref number to our MLI param blocks
++	sta setMarkFileRef	; copy the file ref number to our MLI param blocks
 	sta readFileRef
 	lda headerBuf		; grab # header bytes
-	sta .setMarkPos		; set to start reading at first non-header byte in file
+	sta setMarkPos		; set to start reading at first non-header byte in file
 	lda headerBuf+1		; hi byte too
-	sta .setMarkPos+1
+	sta setMarkPos+1
 	lda #0
-	sta .setMarkPos+2
+	sta setMarkPos+2
 	sta .nFixups
-	jsr setupDecomp		; one-time init for decompression code
 	jsr startHeaderScan	; start scanning the partition header
 .scan:	lda (pTmp),y		; get resource type byte
 	bne .notEnd		; non-zero = not end of header
@@ -1304,9 +1654,7 @@ disk_finishLoad: !zone
 	lda tSegAdrHi,x		; hi byte too
 	sta pDst+1
 	!if DEBUG { jsr .debug2 }
-	jsr mli			; move the file pointer to the current block
-	!byte MLI_SET_MARK
-	!word .setMarkParams
+	+callMLI MLI_SET_MARK, setMarkParams  ; move the file pointer to the current block
 	bcs .prodosErr
 !if DEBUG >= 2 { +prStr : !text "Deco.",0 }
 	jsr lz4Decompress	; decompress (or copy if uncompressed)
@@ -1314,18 +1662,18 @@ disk_finishLoad: !zone
 .resume	ldy .ysave
 .next	lda (pTmp),y		; lo byte of length
 	clc
-	adc .setMarkPos		; advance mark position exactly that far
-	sta .setMarkPos
+	adc setMarkPos		; advance mark position exactly that far
+	sta setMarkPos
 	iny
 	lda (pTmp),y		; hi byte of length
 	bpl +			; if hi bit is clear, resource is uncompressed
 	iny			; skip compressed size
 	iny
 	and #$7F		; mask off the flag
-+	adc .setMarkPos+1	; bump the high byte of the file mark pos
-	sta .setMarkPos+1
++	adc setMarkPos+1	; bump the high byte of the file mark pos
+	sta setMarkPos+1
 	bcc +
-	inc .setMarkPos+2	; account for partitions > 64K
+	inc setMarkPos+2	; account for partitions > 64K
 +	iny			; increment to next entry
 	bpl +			; if Y index is is small, no need to adjust
 	jsr adjYpTmp		; adjust pTmp and Y to make it small again
@@ -1335,11 +1683,6 @@ disk_finishLoad: !zone
 .addrErr:
 	jmp invalAddr
 
-.setMarkParams:	!byte 2		; param count
-.setMarkFileRef:!byte 0		; file reference
-.setMarkPos:	!byte 0		; mark position (3 byte integer)
-		!byte 0
-		!byte 0
 .ysave:		!byte 0
 .nFixups:	!byte 0
 
@@ -1383,24 +1726,16 @@ adjYpTmp: !zone
 
 ;------------------------------------------------------------------------------
 closeFile: !zone
-	sta .closeFileRef
-	jsr mli			; now that we're done loading, we can close the partition file
-	!byte MLI_CLOSE
-	!word .closeParams
+	sta closeFileRef
+	+callMLI MLI_CLOSE, closeParams
 	bcs .prodosErr
 	rts
 .prodosErr:
 	jmp prodosError
-.closeParams:
-	!byte 1			; param count
-.closeFileRef:
-	!byte 0			; file ref to close
 
 ;------------------------------------------------------------------------------
 readToMain: !zone
-	jsr mli
-	!byte MLI_READ
-	!word readParams
+	+callMLI MLI_READ, readParams
 	bcs .err
 	rts
 .err:	jmp prodosError
@@ -1567,18 +1902,6 @@ lz4Decompress: !zone
 	!if DEBUG_DECOMP { sta ucLen : jsr .debug4 }
 	tay			; ...to count bytes
 .auxWr2	sta setAuxWr		; self-modified earlier, based on isAuxCmd
-	; Subroutine does the work. Runs in stack area so it can write *and* read aux mem
-	jsr .matchCopy		; copy match bytes (aux->aux, or main->main)
-	sta clrAuxWr		; back to writing main mem
-	inc ucLen+1		; to make it zero for the next match decode
-+ 	ldy tmp			; restore index to source pointer
-	jmp .getToken		; go on to the next token in the compressed stream
-	; Subroutine to copy bytes, either main->main or aux->aux. We put it down in the
-	; stack space ($100) so it can access either area. The stack doesn't get bank-switched
-	; by setAuxRd/clrAuxRd.
-.matchShadow_beg = *
-!pseudopc $100 {
-.matchCopy:
 .auxRd1	sta setAuxRd  		; self-modified based on isAuxCmd
 .srcLoad:
 	lda $1100,x		; self-modified earlier for offsetted source
@@ -1598,9 +1921,10 @@ lz4Decompress: !zone
 	dec ucLen+1		; count pages
 	bpl .srcLoad		; loop for more. NOTE: this would fail if we had blocks >= 32K
 	sta clrAuxRd		; back to reading main mem, for mem mgr code
-+	rts			; done copying bytes
-}
-.matchShadow_end = *
+	sta clrAuxWr		; back to writing main mem
+	inc ucLen+1		; to make it zero for the next match decode
++ 	ldy tmp			; restore index to source pointer
+	jmp .getToken		; go on to the next token in the compressed stream
 	; Subroutine called when length token = $F, to extend the length by additional bytes
 .longLen:
 -	sta ucLen		; save what we got so far
@@ -1658,17 +1982,6 @@ nextSrcPage:
 .auxWr4	sta setAuxWr		; go back to writing aux mem (self-modified for aux or main)
 	rts
   
-; Copy the match shadow down to the stack area so it can copy from aux to aux.
-; This needs to be called once before any decompression is done. We shouldn't
-; rely on it being preserved across calls to the memory manager.
-setupDecomp:
-	ldx #.matchShadow_end - .matchShadow_beg - 1
--	lda .matchShadow_beg,x	; get the copy from main RAM
-	sta .matchCopy,x	; and put it down in stack space where it can access both main and aux
-	dex			; next byte
-	bpl -			; loop until we grab them all (including byte 0)
-	rts
-	
 !if DEBUG_DECOMP {
 .debug1	+prStr : !text "Decompressing: isComp=",0
 	+prByte isCompressed
@@ -1733,12 +2046,6 @@ setupDecomp:
 ; resources from memory.
 doAllFixups: !zone
 	!if DEBUG >= 2 { +prStr : !text "Doing all fixups.",0 }
-	; copy the shadow code down to $100, so we can read aux mem bytes
-	ldx #.fixupShadow_end - .fixupShadow - 1
--	lda .fixupShadow,x
-	sta .getFixupByte,x
-	dex
-	bpl -
 	; Now scan aux mem for fixup segments
 	ldx #1			; start at first aux mem segment (0=main mem, 1=aux)
 .loop:	lda tSegType,x		; grab flags & type
@@ -1826,7 +2133,9 @@ doAllFixups: !zone
 	jsr .adAux		; recalc and store hi byte
 	sta clrAuxWr
 	bne .proc		; always taken
-.adAux	jsr .getBytecode	; get num to add to offset
+.adAux	sta setAuxRd
+	lda (pDst),y		; get num to add to offset
+	sta clrAuxRd
 	adc .mainBase,y		; add the offset
 	sta (pDst),y		; *STORE* back the result
 	rts
@@ -1873,26 +2182,13 @@ doAllFixups: !zone
 
 .fetchFixup:
 	ldy #0
-	jsr .getFixupByte	; get a byte from aux mem
+	sta setAuxRd
+	lda (pSrc),y
+	sta clrAuxRd
 	inc pSrc		; and advance the pointer
 	bne +
 	inc pSrc+1		; hi byte too, if necessary
 +	rts
-
-.fixupShadow: 
-!pseudopc $100 {
-.getFixupByte:
-	sta setAuxRd
-	lda (pSrc),y
-	sta clrAuxRd
-	rts
-.getBytecode:
-	sta setAuxRd
-	lda (pDst),y
-	sta clrAuxRd
-	rts
-}
-.fixupShadow_end = *
 !if DEBUG >= 2 {
 .debug1	+prStr : !text "Found fixup, res=",0
 	+prByte resNum
@@ -1919,60 +2215,6 @@ doAllFixups: !zone
 .auxBase  !word 0
 
 ;------------------------------------------------------------------------------
-; Utility routine for convenient assembly routines in PLASMA code. 
-; Params: Y=number of parameters passed from PLASMA routine
-; 1. Save PLASMA's X register index to evalStk
-; 2. Verify X register is in the range 0-$10
-; 3. Switch to ROM
-; 4. Load the *last* parameter into A=lo, Y=hi
-; 5. Run the calling routine (X still points into evalStk for add'l params if needed)
-; 6. Switch back to LC RAM
-; 7. Restore PLASMA's X register, and advance it over the parameter(s)
-; 8. Store A=lo/Y=hi into PLASMA return value
-; 9. Return to PLASMA
-__asmPlasm: !zone
-	bit setROM	; switch to ROM
-	pla		; save address of calling routine, so we can call it
-	clc
-	adc #1
-	sta .jsr+1
-	pla
-	adc #0
-	sta .jsr+2
-	; adjust PLASMA stack pointer to skip over params
-	dey
-	sty tmp
-	txa
-	cpx #$11
-	bcs .badx	; X must be in range 0..$10
-.add	adc tmp		; carry cleared by cpx above
-	pha		; and save that
-	cmp #$11	; again, X must be in range 0..$10
-	bcs .badx
-	lda evalStkL,x	; get last param to A=lo
-	ldy evalStkH,x	; ...Y=hi
-.jsr	jsr $1111	; call the routine to do work
-	bit setLcRW+lcBank2	; read from language card (where PLASMA runtime lives)
-	sta tmp		; stash return value lo
-	pla
-	tax		; restore adjusted PLASMA stack pointer
-	lda tmp
-	sta evalStkL,x	; store return value
-	tya
-	sta evalStkH,x
-	rts		; and return to PLASMA interpreter
-.badx	jsr crout	; X reg ran outside valid range. Print and abort.
-	lda #'X'
-	jsr cout
-	txa
-	jsr prbyte
-	jsr crout
-	ldx #<+
-	ldy #>+
-	jmp fatalError
-+	!text $8D, "PLASMA x-reg out of range", 0
-
-;------------------------------------------------------------------------------
 ; Segment tables
 
 !if DEBUG { !align 255,0 }
@@ -1986,3 +2228,6 @@ tSegAdrHi	= * : !fill MAX_SEGS
 ;------------------------------------------------------------------------------
 ; Marker for end of the tables, so we can compute its length
 tableEnd = *
+
+} ; end of !pseudopc $D000
+hiMemEnd = *

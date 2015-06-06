@@ -1011,7 +1011,7 @@ WaitPrm	JMP GetParm
 
 ;This section tests for control characters. 
 ;The following control-codes are used. Those that
-;r=ire a paramter to follow will set a wait state
+;require a paramter to follow will set a wait state
 ;CODE__STATE__DESCRIPTION___
 ;Ctrl-A (1) foreground/character color (not implemented)
 ;Ctrl-B (2) background color 
@@ -1217,8 +1217,8 @@ TCl_XX	RTS
 ;Color is Hex char {0..F}
 ;Font is {0..2}
 ;Change font is {A..O} corresponding to BMP {96..110}
-;Vtab & Htab is {00..39} decimal, leading zero r=ired
-;Char/Ticker rate is {00..FF}, leading zero r=ired
+;Vtab & Htab is {00..39} decimal, leading zero required
+;Char/Ticker rate is {00..FF}, leading zero required
 Flg_FBc	!byte $00 	;Foreground background color
 Flg_Prm2 !byte $00	;Parameter digit 1st/2nd
 Wp_Dig1	!byte $00 	;1st digit of parameter

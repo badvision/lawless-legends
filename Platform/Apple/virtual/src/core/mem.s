@@ -103,7 +103,7 @@ partFileRef: 	!byte 0
 fixupHint:	!word 0
 
 ;------------------------------------------------------------------------------
-!if DEBUG { !source "../include/debug.i" }
+!source "../include/debug.i"
 
 ; Debug code to support macros
 
@@ -540,7 +540,7 @@ fatalError: !zone
 init: !zone
 ; put something interesting on the screen :)
 	jsr home
-	+prStr : !text "Welcome to Mythos.",$8D,0
+	+prStr : !text "Welcome to Mythos.",0
 ; relocate ProDOS to the aux LC bank
 	jsr moveProDOS
 ; close all files

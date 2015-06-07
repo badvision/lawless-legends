@@ -5,6 +5,7 @@
 
 fontEngine = $E000
 
-SetFont = fontEngine
-PlotAsc = SetFont+3
-ClearWindow = PlotAsc+3
+SetFont		= fontEngine
+SetWindow	= SetFont+3
+ClearWindow	= SetWindow+3
+DisplayStr	= ClearWindow+3

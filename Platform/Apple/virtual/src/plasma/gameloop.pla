@@ -458,17 +458,6 @@ asm loader
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Set up the font engine
-// Params: pFont
-asm initFontEngine
-        +asmPlasm 1
-        ldy evalStkH,x   ; hi byte in Y
-        lda evalStkL,x   ; lo byte in X
-        tax
-        jmp SetFont
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Jump straight to the system monitor
 // Params: None
 asm goMon
@@ -484,12 +473,34 @@ asm brk
         brk
 end
 
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Set up the font engine
+// Params: pFont
+asm setFont
+  +asmPlasm 1
+  bit setLcRW+lcBank2
+  bit setLcRW+lcBank2
+  jmp SetFont
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Use the font engine to clear the current text window
+asm setWindow
+  +asmPlasm 4
+  bit setLcRW+lcBank2
+  bit setLcRW+lcBank2
+  jmp SetWindow
+end
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Use the font engine to clear the current text window
 // Params: None
 asm clearWindow
-        +asmPlasm 0
-        jmp ClearWindow
+  +asmPlasm 0
+  bit setLcRW+lcBank2
+  bit setLcRW+lcBank2
+  jmp ClearWindow
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -499,24 +510,7 @@ asm displayStr
   +asmPlasm 1
   bit setLcRW+lcBank2
   bit setLcRW+lcBank2
-  sta pTmp          ; save string pointer lo
-  sty pTmp+1        ;   and hi
-  ldy #0
-  lda (pTmp),y      ; get length
-  beq ++            ; if zero, get out
-- pha               ; save length counter
-  inc pTmp          ; bump to next char
-  bne +
-  inc pTmp+1        ; page bump
-+ ldy #0
-  lda (pTmp),y      ; fetch character
-  jsr PlotAsc       ;   and plot it
-  pla               ; retrieve length counter
-  sec
-  sbc #1            ; decrement
-  bne -             ; go until it hits zero
-++                  ; all done
-  rts
+  jmp DisplayStr
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -706,15 +700,6 @@ def loadFrameImg()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def setWindow(top, btm, lft, rt)
-  ^wndtop = top
-  ^wndbtm = btm
-  ^wndleft = lft
-  ^wndwdth = rt
-  ^cursv = ^wndtop
-  ^cursh = ^wndleft
-end
-
 // Window for the map name bar
 def setWindow1()
   setWindow(1, 2, 5, 17)
@@ -789,8 +774,8 @@ def initMap(x, y, dir)
   loadFrameImg()
   loader(FINISH_LOAD, MAIN_MEM, 1) // 1 = keep open
 
-  // Start up the font engine
-  initFontEngine(pFont)
+  // Tell the font engine where to find its font
+  setFont(pFont)
 
   // Start up the display engine with map data and starting position. This will also load and
   // init the script module, if any, which will end up calling us back at the setScriptInfo

@@ -36,6 +36,7 @@
 ; Global definitions
 !source "../include/global.i"
 !source "../include/mem.i"
+!source "../include/plasma.i"
 
 DEBUG		= 0		; 1=some logging, 2=lots of logging
 
@@ -48,6 +49,9 @@ H_Adr		= $15		;for general indrct adrs indexing
 MskBytL		= $16		;Mask byte 1st
 MskBytH		= $17		;Mask byte 2nd
 MskByte		= $18		;Mask byte
+unused19	= $19
+PrsAdrL		= $1A		;pointer for string parsing (lo)
+PrsAdrH		= $1B		;	(hi)
 GBasL		= $26		;LoByte HGR mem pg base adr EABABxxx
 GBasH		= $27		;HiByte PPPFGHCD for Y=ABCDEFGH P=page
 
@@ -57,16 +61,22 @@ InBufrX		= $2FF		;Input Buffer index (length)
 Kbd_Rd		= $C000		;read keyboard
 Kbd_Clr		= $C010		;clear keyboard strobe
 
-;Initialize the font engine. Address of font in X=lo/Y=hi.
-Init		JMP DoInit	;API call address
+;Set the address of the font
+SetFont		JMP SetFont	;API call address
+
+;Set the window boundaries (byte-oriented bounds)
+SetWindow	JMP SetWnd	;API call address 
+
+;Clear the window
+ClearWindow	JMP ClrHome	;API call address
+
+;Display a string, with proper word wrapping
+DisplayStr	JMP DoParse	; API call address
 
 ;When using ASCii character values, the values must be
 ;tested for control codes before they can be plotted
 ;using the plot character routine.
 PlotAsc		JMP TestChr	;API call address
-
-; Clear the window
-ClearWindow	JMP ClrHome
 
 ;If you know which of the {0..110} bitmapped characters
 ;you want plotted, you can bypass testing for control 
@@ -105,8 +115,8 @@ ChrWdth		!byte 0		;character width (number of pixels)
 PltChar		!byte 0		;character to be plotted {0..110}
 AscChar		!byte 0		;Ascii Char value {$80..$FF}
 
-;Simple init routine. Just records the font address.
-DoInit		STX Font0
+;Just record the font address.
+DoSetFont	STA Font0
 		STY Font0+1
 		RTS
 
@@ -193,9 +203,6 @@ Flg2nd	!byte $00	;flag indicating 2nd byte is needed
 MlpIdx	!byte $00	;Main loop index into address table
 Flg8xcp	!byte $00	;flag: 8-pixel char exception
 FlgBchr	!byte $00	;flag: black character
-RtMrgnL	!byte $00	;
-RtMrgnH	!byte $00	;
-SvY	!byte $00	;
 
 PlotFnt	LDX NoPlt_Flg
 	BNE GetWdth
@@ -495,6 +502,60 @@ WtL_Prs	LDA #0 	;	if wait interrupted then do
 	STA ChBflip
 	RTS
 
+;Routine: Set window boundaries. Paramaters are pushed on the PLASMA
+;stack in the order Top, Bottom, Left, Right. But because that stack
+;grows downward, we see them in this order:
+SW_RT	= 0
+SW_LT	= 1
+SW_BTM	= 2
+SW_TOP	= 3
+SetWnd	LDA evalStkL+SW_TOP,X	;get top coord (in units of 8-pixel lins)
+	ASL			;multiply by 8
+	ASL
+	ASL
+	STA CursY		;save the top Y coord
+	STA TpMrgn		;also as the margin
+	LDA evalStkL+SW_BTM,X	;get bottom coord (again in 8-pixel lines)
+	ASL
+	ASL			;multiply by 8
+	ASL
+	STA CursYb		;save the bottom Y coord
+	STA BtMrgn		;also as the margin
+	LDA evalStkL+SW_LT,X	;lo byte of left X
+	STA CursXl
+	LDA evalStkH+SW_LT,X	;hi byte of left X
+	STA CursXh
+	LDA evalStkL+SW_RT,X	;lo byte of right X
+	STA CursXrl
+	LDA evalStkH+SW_RT,X	;hi byte of right X
+	STA CursXrh
+	LDA CursXl		;sum the left X and right X
+	CLC
+	ADC CursXrl
+	TAY			;save lo byte
+	LDA CursXh		;sum the hi byte
+	ADC CursXrh
+	LSR			;divide by 2 to find the midpoint
+	STA CursXmh		;save midpoint lo byte
+	TYA
+	ROR			;divide lo byte by 2, with bit from hi byte
+	STA CursXml		;save midpoint hi byte
+	LDA CursXrl		;need to figure out byte number of right side
+	STA CursColL
+	LDA CursXrh
+	STA CursColH
+	JSR GetOfst		;we have a routine for that
+	LDA HgrHrz
+	STA RtMrgn		;that's the right margin for scrolling
+	LDA CursXl		;similarly we need to figure out the byte number of the left side
+	STA CursColL
+	LDA CursXh
+	STA CursColH
+	JSR GetOfst
+	LDA HgrHrz
+	STA LfMrgn		;that's the left margin for scrolling
+	RTS
+
 ;Routine: Scroll screen up 1 character line
 ;This routine scrolls a window defined by 
 ;Left, Right, Top, Bottom - Margin parameters.
@@ -596,6 +657,98 @@ ClrChkF	LDA BkgColor
 	AND #$7F
 ClrChk1	STA ClrFlpF
 	RTS
+
+;Routine: parser w/auto line break
+DoParse	STA PrsAdrL
+	STY PrsAdrH
+	LDA CursXrl	;right coord
+	SEC
+	SBC CursXl	;minus left coord
+	STA LinWdth	;equals line width (max of 255 for now)
+	LDY #0  	;parse starting at beginning
+	STY TtlWdth
+	LDA (PrsAdrL),Y ;Get the length
+	STA Pa_Len
+	INY
+Pa_Lp0	STY Pa_iBgn 
+Pa_Lp1	STY Pa_iSv
+	LDA (PrsAdrL),Y ;Get the character
+	STA AscChar
+	CPY Pa_Len	;reached end of string?
+	BCC Pa_Go
+	BEQ Pa_Go
+	JMP ParsDn
+Pa_Go	ORA #$80	;set hi bit in case
+	CMP #$8D
+	BEQ Pa_Spc
+	LDX #1
+	STX NoPlt_Flg	;set NO PLOT flag
+	JSR PlotAsc 	;do plot routine to strip off Ctrl
+	LDX #0  	;codes & get char width
+	STX NoPlt_Flg 	;clear NO PLOT flag
+	LDA ChrWdth
+	BEQ Pa_Tskp
+	SEC  		;use SEC to always 'add 1'
+	ADC TtlWdth
+	STA TtlWdth
+Pa_Tskp	LDA AscChar
+	CMP #' '
+	BEQ Pa_Spc
+	LDA TtlWdth
+	CMP LinWdth
+	BPL Pa_ToFr 	;too far! force CR/LF
+	LDY Pa_iSv
+	INY
+	JMP Pa_Lp1
+Pa_ToFr	LDA #$8D
+	STA AscChar
+	JSR PlotAsc
+	LDY #0
+	STY TtlWdth
+	LDY Pa_iBgn
+	JMP Pa_Lp0
+;
+Pa_Spc	LDY Pa_iSv
+	STY Pa_iEnd
+	LDY Pa_iBgn
+	CPY Pa_iEnd
+	BEQ Pa_Dn2
+Pa_Lp2	STY Pa_iSv
+	LDA (PrsAdrL),Y ;Get the character
+	STA AscChar 	;**add code
+	JSR PlotAsc 	;if space & at left then don't plot
+	LDY Pa_iSv
+	INY
+	CPY Pa_iEnd
+	BEQ Pa_Dn2
+	BNE Pa_Lp2
+Pa_Dn2	STY Pa_iSv
+	LDA TtlWdth
+	CMP LinWdth
+	BPL Pa_Dn3
+	LDA (PrsAdrL),Y ;Get the character
+	CMP #$8D
+	BEQ Pa_Dn3
+	STA AscChar 
+	JSR PlotAsc 
+	JMP Pa_Dn4
+Pa_Dn3	LDY Pa_iSv
+	INY
+	STY Pa_iBgn
+	JMP Pa_ToFr
+Pa_Dn4	LDY Pa_iSv
+	INY
+	JMP Pa_Lp0
+ParsDn	LDY #7
+	STY CursXrl
+	RTS
+;
+LinWdth	!byte 112 	;max line width
+TtlWdth	!byte $00 	;total word width
+Pa_iBgn	!byte $00 	;parser indx begin
+Pa_iEnd	!byte $00 	;parser indx end
+Pa_iSv	!byte $00	;Save Msg Y index
+Pa_Len	!byte $00	;length of string
 
 ;Center Justify
 ;Start with the cursor in the center column, 

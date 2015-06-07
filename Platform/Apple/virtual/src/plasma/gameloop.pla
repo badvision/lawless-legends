@@ -8,7 +8,7 @@ const NULL  = 0
 // Fixed memory locations
 const displayEngine = $6000   // main mem (raycaster and tile engine at same location)
 const expandVec     = $2000   // aux mem (only for raycaster)
-const fontEngine    = $BA00   // main mem
+const fontEngine    = $E000   // main mem
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Resource numbers
@@ -462,16 +462,10 @@ end
 // Params: pFont
 asm initFontEngine
         +asmPlasm 1
-        ldy evalStkL,x   ; font engine likes *lo* byte in Y
-        lda evalStkH,x   ; hi byte in X
+        ldy evalStkH,x   ; hi byte in Y
+        lda evalStkL,x   ; lo byte in X
         tax
-        jsr setFONT
-        ; Set to write text on both hi-res pages at the same time
-        lda #pHGR3
-        jsr displayMODE
-        ; Set to normal (non-inverse) text
-        lda #pNORMAL
-        jmp drawMODE
+        jmp SetFont
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -495,86 +489,34 @@ end
 // Params: None
 asm clearWindow
         +asmPlasm 0
-        jmp clearWINDOW
+        jmp ClearWindow
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Display a string using the font engine, but without any break checking.
-// Params: pStr
-asm rawDisplayStr
-  +asmPlasm 1
-  pha
-  tya
-  tax           ; hi byte of addr to X
-  pla
-  tay           ; lo byte of addr to Y
-  jmp printSTR
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Display a string using the font engine. Automatically splits lines to keep words from breaking.
+// Display a string using the font engine.
 // Params: pStr
 asm displayStr
-    +asmPlasm 1
-    sta pTmp
-    sty pTmp+1
-    ldy #0
-    lda (pTmp),y  ; get string length
-    beq .done     ; if zero, get out.
-    inc pTmp      ; advance past string len
-    bne +
-    inc pTmp+1
-+
---  tax           ; length will be tracked in X reg
-    ldy #0
--   lda (pTmp),y  ; next character
-    cmp #$20      ; check for invalid control chars
-    bcc +
-    cmp #$80      ; check for invalid hi-bit chars
-    bcc ++
-+   lda #$C4      ; failure path
-    jsr $fded
-    brk
-++  dex           ; used a char
-    cmp #$20      ; is the char a space?
-    beq +
-    sta $2E1,y    ; no, save to word buffer
-    iny
-    cpx #0        ; last char?
-    bne -
-+   sty $2E0      ; found a word break; save word length.
-    tya
-    sec
-    adc pTmp      ; advance main pointer over word
-    sta pTmp
-    bcc +
-    inc pTmp+1
-+   txa           ; save X reg
-    pha
-    tya           ; string length
-    clc
-    adc cursh     ; ...plus cursor pos
-    sec
-    sbc #2
-    cmp wndwdth   ; ...vs. window width
-    bcc +
-    lda #$D       ; force a line break
-    jsr printCHAR
-+   tya           ; if zero length (e.g. string starts with space), just print the space
-    beq +
-    ldy #$E0      ; now display string at $2E0 (word buf)
-    ldx #2
-    jsr printSTR
-    lda cursh
-    cmp wndleft
-    beq ++
-+   lda #$20
-    jsr printCHAR
-++  pla           ; restore string length
-    bne --
-.done:
-    lda #$d
-    jmp printCHAR
+  +asmPlasm 1
+  bit setLcRW+lcBank2
+  bit setLcRW+lcBank2
+  sta pTmp          ; save string pointer lo
+  sty pTmp+1        ;   and hi
+  ldy #0
+  lda (pTmp),y      ; get length
+  beq ++            ; if zero, get out
+- pha               ; save length counter
+  inc pTmp          ; bump to next char
+  bne +
+  inc pTmp+1        ; page bump
++ ldy #0
+  lda (pTmp),y      ; fetch character
+  jsr PlotAsc       ;   and plot it
+  pla               ; retrieve length counter
+  sec
+  sbc #1            ; decrement
+  bne -             ; go until it hits zero
+++                  ; all done
+  rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -804,11 +746,11 @@ end
 // Show some faked-up data for player characters
 def fakeChars()
   setWindow3()
-  rawDisplayStr("Name     Lif Gun")
-  rawDisplayStr("-------- --- ---")
-  rawDisplayStr("Blak Bart 12  4 ")
-  rawDisplayStr("Wyld Bill  8  2 ")
-  rawDisplayStr("LucyLwls   9  6")
+  displayStr("Name     Lif Gun")
+  displayStr("-------- --- ---")
+  displayStr("Blak Bart 12  4 ")
+  displayStr("Wyld Bill  8  2 ")
+  displayStr("LucyLwls   9  6")
   setWindow2()
 end
 
@@ -998,7 +940,7 @@ def setMap(is3D, num, x, y, dir)
   else
     flipToPage1()
     setWindow1();   clearWindow()
-    rawDisplayStr("Traveling...")
+    displayStr("Traveling...")
     setMapWindow(); clearWindow()    
     setWindow2();   clearWindow()
     mapIs3D = is3D
@@ -1112,7 +1054,7 @@ def setScriptInfo(mapName, trigTbl)
   // Display map name
   setWindow1()
   clearWindow()
-  rawDisplayStr(mapName)
+  displayStr(mapName)
 
   // Back to the main text window.
   setWindow2()

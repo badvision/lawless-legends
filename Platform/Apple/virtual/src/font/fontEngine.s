@@ -39,15 +39,15 @@
 
 DEBUG		= 0		; 1=some logging, 2=lots of logging
 
-zTmp1		= $2 		;zero page Temporary variables
-zTmp2		= $3
-zTmp3		= $4
-HgrHrz		= $5		;horizontal index added to base adr
-L_Adr		= $6 		;Zero page address variable
-H_Adr		= $7 		;for general indrct adrs indexing
-MskBytL		= $8		;Mask byte 1st
-MskBytH		= $9		;Mask byte 2nd
-MskByte		= $A		;Mask byte
+zTmp1		= $10 		;zero page Temporary variables
+zTmp2		= $11
+zTmp3		= $12
+HgrHrz		= $13		;horizontal index added to base adr
+L_Adr		= $14		;Zero page address variable
+H_Adr		= $15		;for general indrct adrs indexing
+MskBytL		= $16		;Mask byte 1st
+MskBytH		= $17		;Mask byte 2nd
+MskByte		= $18		;Mask byte
 GBasL		= $26		;LoByte HGR mem pg base adr EABABxxx
 GBasH		= $27		;HiByte PPPFGHCD for Y=ABCDEFGH P=page
 
@@ -57,23 +57,6 @@ InBufrX		= $2FF		;Input Buffer index (length)
 Kbd_Rd		= $C000		;read keyboard
 Kbd_Clr		= $C010		;clear keyboard strobe
 
-Font0		!word 0		;address of font
-CharRate	!byte $80	;plot rate {0..FF} 0=fastest
-WaitStat	!byte 0		;Wait State {0,1,2,3,4,5,6,7}
-NoPlt_Flg	!byte 0		;flag: NO PLOT - only get width
-InvTx_Flg	!byte 0		;flag: Inverse (black on white) text
-MskTx_Flg	!byte 0 	;flag: mask HGR before plotting text
-UndTx_Flg	!byte 0 	;flag: Underline text
-CtrJs_Flg	!byte 0 	;flag: center justify
-BkgColor	!byte $80	;color byte {0,80=blk,FF=wht,etc}
-FrgColor	!byte $FF	;color byte
-CursColL	!byte 0		;Lo-byte of 16-bit horz X-pos value 
-CursColH	!byte 0		;Hi-byte X-position {0..279}
-CursRow		!byte 0		;vertical Y-position {0..191}
-ChrWdth		!byte 0		;character width (number of pixels)
-PltChar		!byte 0		;character to be plotted {0..110}
-AscChar		!byte 0		;Ascii Char value {$80..$FF}
-
 ;Initialize the font engine. Address of font in X=lo/Y=hi.
 Init		JMP DoInit	;API call address
 
@@ -81,6 +64,9 @@ Init		JMP DoInit	;API call address
 ;tested for control codes before they can be plotted
 ;using the plot character routine.
 PlotAsc		JMP TestChr	;API call address
+
+; Clear the window
+ClearWindow	JMP ClrHome
 
 ;If you know which of the {0..110} bitmapped characters
 ;you want plotted, you can bypass testing for control 
@@ -101,6 +87,23 @@ GetAsc		JMP Get_Chr	;API call address
 ;flashing cursor use GetStr. It allows use of either
 ;left arrow or delete key to backspace.
 GetStr		JMP In_Str
+
+Font0		!word 0		;address of font
+CharRate	!byte $80	;plot rate {0..FF} 0=fastest
+WaitStat	!byte 0		;Wait State {0,1,2,3,4,5,6,7}
+NoPlt_Flg	!byte 0		;flag: NO PLOT - only get width
+InvTx_Flg	!byte 0		;flag: Inverse (black on white) text
+MskTx_Flg	!byte 0 	;flag: mask HGR before plotting text
+UndTx_Flg	!byte 0 	;flag: Underline text
+CtrJs_Flg	!byte 0 	;flag: center justify
+BkgColor	!byte $80	;color byte {0,80=blk,FF=wht,etc}
+FrgColor	!byte $FF	;color byte
+CursColL	!byte 0		;Lo-byte of 16-bit horz X-pos value 
+CursColH	!byte 0		;Hi-byte X-position {0..279}
+CursRow		!byte 0		;vertical Y-position {0..191}
+ChrWdth		!byte 0		;character width (number of pixels)
+PltChar		!byte 0		;character to be plotted {0..110}
+AscChar		!byte 0		;Ascii Char value {$80..$FF}
 
 ;Simple init routine. Just records the font address.
 DoInit		STX Font0
@@ -993,9 +996,9 @@ ChBufr	!fill 40,0	;input buffer ($200 not used)
 CwBufr	!fill 40,0	;Char Width Buffer
 
 ;Test for Control Keys when using ASCII characters
-TestChr	LDA #0
-	STA ChrWdth
-	LDA AscChar	;get the ASCII character
+TestChr	STA AscChar	;store the ASCII character
+	LDX #0
+	STX ChrWdth
 	AND #$7F	;strip off HiBit
 	TAX 		;save it
 	AND #$E0	;check for Ctrl-character

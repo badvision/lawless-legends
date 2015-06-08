@@ -504,6 +504,16 @@ asm clearWindow
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Display a character using the font engine.
+// Params: ch
+asm displayChar
+  +asmPlasm 1
+  bit setLcRW+lcBank2
+  bit setLcRW+lcBank2
+  jmp DisplayChar
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display a string using the font engine.
 // Params: pStr
 asm displayStr
@@ -702,28 +712,29 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the map name bar
 def setWindow1()
-  setWindow(1, 2, 5, 17)
+  setWindow(8, 18, 35, 119)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the large upper right bar
 def setWindow2()
-  setWindow(3, 17, 22, 37)
+  setWindow(24, 136, 154, 266)
+  displayChar('N'-$40) // Set normal mode - clear all special modes
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the mid-size lower right bar
 def setWindow3()
-  setWindow(18, 23, 22, 37)
+  setWindow(144, 184, 154, 266)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the map area (used for clearing it)
 def setMapWindow()
   if mapIs3D
-    setWindow(3, 19, 2, 19)
+    setWindow(24, 152, 14, 140)
   else
-    setWindow(3, 21, 2, 19)
+    setWindow(24, 168, 14, 140)
   fin
 end
 
@@ -731,11 +742,14 @@ end
 // Show some faked-up data for player characters
 def fakeChars()
   setWindow3()
-  displayStr("Name     Lif Gun")
-  displayStr("-------- --- ---")
-  displayStr("Blak Bart 12  4 ")
-  displayStr("Wyld Bill  8  2 ")
-  displayStr("LucyLwls   9  6")
+  displayChar('L'-$40)
+  displayStr("Name          Life Gun\n")
+  displayChar('L'-$40)
+  displayStr("Black Bart     12    4\n")
+  displayStr("Wyld Bill         8    2\n")
+  displayStr("Lucy Lawless   ")
+  displayChar('U'-$40)
+  displayStr("9    6")
   setWindow2()
 end
 
@@ -925,7 +939,9 @@ def setMap(is3D, num, x, y, dir)
   else
     flipToPage1()
     setWindow1();   clearWindow()
+    displayChar('Y'-$40) // center mode
     displayStr("Traveling...")
+    displayChar('N'-$40) // normal mode
     setMapWindow(); clearWindow()    
     setWindow2();   clearWindow()
     mapIs3D = is3D
@@ -1039,7 +1055,9 @@ def setScriptInfo(mapName, trigTbl)
   // Display map name
   setWindow1()
   clearWindow()
+  displayChar('Y'-$40) // center mode
   displayStr(mapName)
+  displayChar('N'-$40) // normal mode
 
   // Back to the main text window.
   setWindow2()

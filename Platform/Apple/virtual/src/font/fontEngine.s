@@ -62,7 +62,7 @@ Kbd_Rd		= $C000		;read keyboard
 Kbd_Clr		= $C010		;clear keyboard strobe
 
 ;Set the address of the font
-SetFont		JMP SetFont	;API call address
+SetFont		JMP DoSetFont	;API call address
 
 ;Set the window boundaries (byte-oriented bounds)
 SetWindow	JMP SetWnd	;API call address 
@@ -70,13 +70,11 @@ SetWindow	JMP SetWnd	;API call address
 ;Clear the window
 ClearWindow	JMP ClrHome	;API call address
 
+;Display a character, including interpreting special codes
+DisplayChar	JMP DoPlAsc
+
 ;Display a string, with proper word wrapping
 DisplayStr	JMP DoParse	; API call address
-
-;When using ASCii character values, the values must be
-;tested for control codes before they can be plotted
-;using the plot character routine.
-PlotAsc		JMP TestChr	;API call address
 
 ;If you know which of the {0..110} bitmapped characters
 ;you want plotted, you can bypass testing for control 
@@ -99,15 +97,15 @@ GetAsc		JMP Get_Chr	;API call address
 GetStr		JMP In_Str
 
 Font0		!word 0		;address of font
-CharRate	!byte $80	;plot rate {0..FF} 0=fastest
+CharRate	!byte 0		;plot rate {0..FF} 0=fastest
 WaitStat	!byte 0		;Wait State {0,1,2,3,4,5,6,7}
 NoPlt_Flg	!byte 0		;flag: NO PLOT - only get width
 InvTx_Flg	!byte 0		;flag: Inverse (black on white) text
 MskTx_Flg	!byte 0 	;flag: mask HGR before plotting text
 UndTx_Flg	!byte 0 	;flag: Underline text
 CtrJs_Flg	!byte 0 	;flag: center justify
-BkgColor	!byte $80	;color byte {0,80=blk,FF=wht,etc}
-FrgColor	!byte $FF	;color byte
+BkgColor	!byte 0		;color byte {0,80=blk,FF=wht,etc}
+FrgColor	!byte $7F	;color byte
 CursColL	!byte 0		;Lo-byte of 16-bit horz X-pos value 
 CursColH	!byte 0		;Hi-byte X-position {0..279}
 CursRow		!byte 0		;vertical Y-position {0..191}
@@ -509,18 +507,17 @@ SW_RT	= 0
 SW_LT	= 1
 SW_BTM	= 2
 SW_TOP	= 3
-SetWnd	LDA evalStkL+SW_TOP,X	;get top coord (in units of 8-pixel lins)
-	ASL			;multiply by 8
-	ASL
-	ASL
+SetWnd	LDA evalStkL+SW_TOP,X	;get top coord
 	STA CursY		;save the top Y coord
-	STA TpMrgn		;also as the margin
-	LDA evalStkL+SW_BTM,X	;get bottom coord (again in 8-pixel lines)
-	ASL
-	ASL			;multiply by 8
-	ASL
+	STA CursRow		;also as current cursor vertical pos
+	SEC
+	SBC #1			;adjust by 1
+	STA TpMrgn		;	for scrolling margin
+	LDA evalStkL+SW_BTM,X	;get bottom coord
 	STA CursYb		;save the bottom Y coord
-	STA BtMrgn		;also as the margin
+	SEC
+	SBC #1			;adjust by 1
+	STA BtMrgn		;	for scrolling margin
 	LDA evalStkL+SW_LT,X	;lo byte of left X
 	STA CursXl
 	LDA evalStkH+SW_LT,X	;hi byte of left X
@@ -638,8 +635,7 @@ ClrColr	LDA BkgColor
 ClrSlp3	JSR GetBasX	;to get the base address
 	LDY LfMrgn
 	LDA ClrFlip
-ClrSlp4	EOR #$7F
-	STA (GBasL),Y
+ClrSlp4	STA (GBasL),Y
 	INY
 	CPY RtMrgn
 	BNE ClrSlp4
@@ -677,13 +673,14 @@ Pa_Lp1	STY Pa_iSv
 	CPY Pa_Len	;reached end of string?
 	BCC Pa_Go
 	BEQ Pa_Go
-	JMP ParsDn
-Pa_Go	ORA #$80	;set hi bit in case
+	JMP Pa_Spc
+Pa_Go	ORA #$80	;set hi bit for consistent tests
+	STA AscChar
 	CMP #$8D
 	BEQ Pa_Spc
 	LDX #1
 	STX NoPlt_Flg	;set NO PLOT flag
-	JSR PlotAsc 	;do plot routine to strip off Ctrl
+	JSR TestChr 	;do plot routine to strip off Ctrl
 	LDX #0  	;codes & get char width
 	STX NoPlt_Flg 	;clear NO PLOT flag
 	LDA ChrWdth
@@ -700,9 +697,12 @@ Pa_Tskp	LDA AscChar
 	LDY Pa_iSv
 	INY
 	JMP Pa_Lp1
-Pa_ToFr	LDA #$8D
+Pa_ToFr	LDY Pa_iSv	;if word too big
+	CPY Pa_iBgn	;	for one line
+	BEQ Pa_Spc	;		then split the word
+	LDA #$8D
 	STA AscChar
-	JSR PlotAsc
+	JSR TestChr
 	LDY #0
 	STY TtlWdth
 	LDY Pa_iBgn
@@ -716,21 +716,24 @@ Pa_Spc	LDY Pa_iSv
 Pa_Lp2	STY Pa_iSv
 	LDA (PrsAdrL),Y ;Get the character
 	STA AscChar 	;**add code
-	JSR PlotAsc 	;if space & at left then don't plot
+	JSR TestChr 	;if space & at left then don't plot
 	LDY Pa_iSv
 	INY
 	CPY Pa_iEnd
-	BEQ Pa_Dn2
 	BNE Pa_Lp2
 Pa_Dn2	STY Pa_iSv
-	LDA TtlWdth
+	CPY Pa_Len	;end of the message?
+	BCC Pa_Dn2b
+	BEQ Pa_Dn2b
+	JMP ParsDn	;if so, stop here
+Pa_Dn2b	LDA TtlWdth
 	CMP LinWdth
 	BPL Pa_Dn3
 	LDA (PrsAdrL),Y ;Get the character
 	CMP #$8D
 	BEQ Pa_Dn3
 	STA AscChar 
-	JSR PlotAsc 
+	JSR TestChr 
 	JMP Pa_Dn4
 Pa_Dn3	LDY Pa_iSv
 	INY
@@ -739,9 +742,7 @@ Pa_Dn3	LDY Pa_iSv
 Pa_Dn4	LDY Pa_iSv
 	INY
 	JMP Pa_Lp0
-ParsDn	LDY #7
-	STY CursXrl
-	RTS
+ParsDn	RTS
 ;
 LinWdth	!byte 112 	;max line width
 TtlWdth	!byte $00 	;total word width
@@ -1149,8 +1150,8 @@ ChBufr	!fill 40,0	;input buffer ($200 not used)
 CwBufr	!fill 40,0	;Char Width Buffer
 
 ;Test for Control Keys when using ASCII characters
-TestChr	STA AscChar	;store the ASCII character
-	LDX #0
+DoPlAsc	STA AscChar	;store the ASCII character
+TestChr	LDX #0
 	STX ChrWdth
 	AND #$7F	;strip off HiBit
 	TAX 		;save it
@@ -1362,7 +1363,8 @@ TCl_20	CMP #$0E	;Ctrl-N normal txt mode
 	STA MskTx_Flg
 	STA UndTx_Flg
 	STA CtrJs_Flg
-	LDA #$80
+	STA CharRate
+	LDA #0
 	STA BkgColor
 TCl_XX	RTS
 

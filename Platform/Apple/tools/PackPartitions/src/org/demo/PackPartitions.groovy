@@ -1859,9 +1859,7 @@ class PackPartitions
             }
             
             // Process the map name
-            def shortName = mapName.replaceAll(/[\s-]*[23][dD][-0-9]*$/, '').take(12)
-            def extra = (12 - shortName.length()) >> 1
-            shortName = (" " * extra) + shortName
+            def shortName = mapName.replaceAll(/[\s-]*[23][dD][-0-9]*$/, '').take(16)
             
             // Code to register the table and map name
             emitAuxString(shortName)

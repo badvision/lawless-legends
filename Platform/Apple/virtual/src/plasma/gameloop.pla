@@ -732,9 +732,9 @@ end
 // Window for the map area (used for clearing it)
 def setMapWindow()
   if mapIs3D
-    setWindow(24, 152, 14, 140)
+    setWindow(24, 153, 14, 140)
   else
-    setWindow(24, 168, 14, 140)
+    setWindow(24, 169, 14, 140)
   fin
 end
 

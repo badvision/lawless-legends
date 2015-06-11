@@ -70,6 +70,9 @@ SetWindow	JMP SetWnd	;API call address
 ;Clear the window
 ClearWindow	JMP ClrHome	;API call address
 
+;Copy the window pg 1 to pg 2
+CopyWindow	JMP CpWnd	;API call address
+
 ;Display a character, including interpreting special codes
 DisplayChar	JMP DoPlAsc
 
@@ -654,6 +657,26 @@ ClrChkF	LDA BkgColor
 ClrChk1	STA ClrFlpF
 	RTS
 
+;Routine: copy hi-res page 1 to page 2, the window area only
+CpWnd	LDX TpMrgn
+CpWnd1	LDA HgrTbHi,X	;(ie. the mem address of the left edge
+	STA GBasH	;of the HGR screen)
+	EOR #$60	;turn off $20 bit, turn on $40 bit to get page 2
+	STA H_Adr
+	LDA HgrTbLo,X	;using a look-up table 192 bytes long x2
+	STA GBasL
+	STA L_Adr
+	LDY LfMrgn
+CpWnd2	LDA (GBasL),Y
+	STA (L_Adr),Y
+	INY
+	CPY RtMrgn
+	BNE CpWnd2
+	INX
+	CPX BtMrgn
+	BNE CpWnd1
+	RTS
+
 ;Routine: parser w/auto line break
 DoParse	STA PrsAdrL
 	STY PrsAdrH
@@ -697,11 +720,14 @@ Pa_Tskp	LDA AscChar
 	LDY Pa_iSv
 	INY
 	JMP Pa_Lp1
-Pa_ToFr	LDY Pa_iSv	;if word too big
-	CPY Pa_iBgn	;	for one line
-	BEQ Pa_Spc	;		then split the word
+Pa_ToFr	!if DEBUG { +prChr '+' }
+	;MH: I added this, but it doesn't actually work. Skips first char on line sometimes.
+	;LDY Pa_iSv	;if word too big
+	;CPY Pa_iBgn	;	for one line
+	;BEQ Pa_Spc	;		then split the word
 	LDA #$8D
 	STA AscChar
+	!if DEBUG { +prChr '!' : ora #$80 : jsr cout }
 	JSR TestChr
 	LDY #0
 	STY TtlWdth
@@ -716,6 +742,7 @@ Pa_Spc	LDY Pa_iSv
 Pa_Lp2	STY Pa_iSv
 	LDA (PrsAdrL),Y ;Get the character
 	STA AscChar 	;**add code
+	!if DEBUG { ora #$80 : jsr cout }
 	JSR TestChr 	;if space & at left then don't plot
 	LDY Pa_iSv
 	INY
@@ -732,7 +759,8 @@ Pa_Dn2b	LDA TtlWdth
 	LDA (PrsAdrL),Y ;Get the character
 	CMP #$8D
 	BEQ Pa_Dn3
-	STA AscChar 
+	STA AscChar
+	!if DEBUG { +prChr '>' : ora #$80 : jsr cout }
 	JSR TestChr 
 	JMP Pa_Dn4
 Pa_Dn3	LDY Pa_iSv
@@ -742,7 +770,8 @@ Pa_Dn3	LDY Pa_iSv
 Pa_Dn4	LDY Pa_iSv
 	INY
 	JMP Pa_Lp0
-ParsDn	RTS
+ParsDn	!if DEBUG { +prChr '<' : +crout : BIT $C053 }
+	RTS
 ;
 LinWdth	!byte 112 	;max line width
 TtlWdth	!byte $00 	;total word width

@@ -504,6 +504,16 @@ asm clearWindow
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Use the font engine to copy the current text window to hi-res page 2
+// Params: None
+asm copyWindow
+  +asmPlasm 0
+  bit setLcRW+lcBank2
+  bit setLcRW+lcBank2
+  jmp CopyWindow
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display a character using the font engine.
 // Params: ch
 asm displayChar
@@ -746,10 +756,11 @@ def fakeChars()
   displayStr("Name         Life Gun\n")
   displayChar('L'-$40)
   displayStr("Black Bart     12    4\n")
-  displayStr("Wyld Bill         8    2\n")
+  displayStr("Wyld Bill        8    2\n")
   displayStr("Lucy Lawless   ")
-  displayChar('H'-$40)
+  displayChar('H'-$40)  // back 1 pixel
   displayStr("9    6")
+  if mapIs3D; copyWindow(); fin
   setWindow2()
 end
 
@@ -846,6 +857,7 @@ def moveForward()
   if val > 0
     if !mapIs3D
       render()
+      if textDrawn and mapIs3D; copyWindow(); fin
       needRender = FALSE
     else
       needRender = TRUE
@@ -855,6 +867,7 @@ def moveForward()
   // If we're on a new map tile, clear text from script(s) on the old tile.
   if val >= 2 and textDrawn
     clearWindow()
+    if textDrawn and mapIs3D; copyWindow(); fin
     textDrawn = FALSE
   fin
 
@@ -1035,6 +1048,7 @@ def kbdLoop()
     fin
     if needRender
       render()
+      if textDrawn and mapIs3D; copyWindow(); fin
       needRender = FALSE
     fin
   loop
@@ -1058,6 +1072,7 @@ def setScriptInfo(mapName, trigTbl)
   displayChar('Y'-$40) // center mode
   displayStr(mapName)
   displayChar('N'-$40) // normal mode
+  if mapIs3D; copyWindow(); fin
 
   // Back to the main text window.
   setWindow2()
@@ -1081,6 +1096,7 @@ def getYN()
       return 1
     elsif key == 'N'
       clearWindow()
+      if textDrawn and mapIs3D; clearWindow(); fin
       textDrawn = FALSE
       return 0
     fin
@@ -1128,6 +1144,7 @@ end
 // Clear the displayed portrait drawing
 def clrPortrait()
   render()
+  if textDrawn and mapIs3D; copyWindow(); fin
   needRender = FALSE
 end
 

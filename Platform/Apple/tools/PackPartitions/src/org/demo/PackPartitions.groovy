@@ -1220,7 +1220,7 @@ class PackPartitions
                 case 4: println "Packing portraits."; break
             }
             dataIn.image.each { image ->
-                def category = image.@category.toLowerCase()
+                def category = image.@category?.toLowerCase()
                 def name = image.@name.toLowerCase()
                 if (category == "fullscreen" && name == "title") {
                     if (pass == 0) {

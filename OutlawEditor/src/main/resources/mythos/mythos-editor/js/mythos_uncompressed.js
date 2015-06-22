@@ -36,14 +36,17 @@ if (typeof Mythos === "undefined") {
 //            Mythos.editor.log("Add local functions");
             Mythos.addFunctionsFromLocalScope();
 //            Mythos.editor.log("Reinitalizing toolbox");
-            Blockly.mainWorkspace.updateToolbox(document.getElementById('toolbox'));
+            Mythos.workspace.updateToolbox(document.getElementById('toolbox'));
 //            Mythos.editor.log("Done");
         },
         each: function (list, func) {
-//            Mythos.editor.log(list.toString());
-            if (list && list.length > 0) {
+            if (list && list instanceof Array) {
                 for (var i = 0; i < list.length; i++) {
                     func(list[i]);
+                }
+            } else if (list) {
+                for (var i=0; i < list.size(); i++) {
+                    func(list.get(i));
                 }
             }
         },
@@ -146,10 +149,11 @@ if (typeof Mythos === "undefined") {
         addFunctionsFromGlobalScope: function () {
             var toolbarCategory = document.getElementById("globalFunctions");
             Mythos.each(Mythos.editor.getGlobalFunctions(), function (func) {
+                Mythos.editor.log("Adding "+func.getName());
                 var scriptNode = document.createElement("block");
                 scriptNode.setAttribute("type", "global_" + func.getName());
                 toolbarCategory.appendChild(scriptNode);
-                Blockly.blocks['global_' + func.getName()] = {
+                Blockly.Blocks['global_' + func.getName()] = {
                     init: function () {
                         this.setColour(250);
                         this.appendDummyInput()
@@ -159,6 +163,7 @@ if (typeof Mythos === "undefined") {
                     }
                 };
             });
+            Mythos.editor.log(toolbarCategory.outerHTML);
         },
         addVariablesFromLocalScope: function () {
 

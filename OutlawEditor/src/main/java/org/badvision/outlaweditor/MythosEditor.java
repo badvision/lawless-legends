@@ -3,6 +3,7 @@ package org.badvision.outlaweditor;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -139,7 +140,7 @@ public class MythosEditor {
 
    public List<Script> getGlobalFunctions() {
         if (Application.gameData.getGlobal().getScripts() == null) {
-            return Collections.emptyList();
+            return new ArrayList<>();
         } else {
             List<Script> scripts = Application.gameData.getGlobal().getScripts().getScript();
             List<Script> filteredList = scripts.stream().filter((Script s) -> {
@@ -151,7 +152,7 @@ public class MythosEditor {
 
     public List<UserType> getUserTypes() {
         if (Application.gameData.getGlobal().getUserTypes() == null) {
-            return Collections.emptyList();
+            return new ArrayList<>();
         } else {
             return Application.gameData.getGlobal().getUserTypes().getUserType();
         }
@@ -159,7 +160,7 @@ public class MythosEditor {
 
     public List<Variable> getGlobalVariables() {
         if (Application.gameData.getGlobal().getVariables() == null) {
-            return Collections.emptyList();
+            return new ArrayList<>();
         } else {
             return Application.gameData.getGlobal().getVariables().getVariable();
         }

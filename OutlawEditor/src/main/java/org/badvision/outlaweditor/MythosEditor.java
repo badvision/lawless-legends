@@ -3,12 +3,13 @@ package org.badvision.outlaweditor;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.StringWriter;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.layout.AnchorPane;
@@ -23,6 +24,8 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import org.badvision.outlaweditor.data.xml.Block;
+import org.badvision.outlaweditor.data.xml.Global.UserTypes.UserType;
+import org.badvision.outlaweditor.data.xml.Global.Variables.Variable;
 import org.badvision.outlaweditor.data.xml.Script;
 import org.badvision.outlaweditor.ui.ApplicationUIController;
 import org.badvision.outlaweditor.ui.MythosScriptEditorController;
@@ -104,7 +107,6 @@ public class MythosEditor {
                 xml = xml.replaceAll("'", "&apos;");
                 xml = xml.replace("?>", "?><xml>");
                 xml += "</xml>";
-                System.out.println("xml: " + xml);
                 return generateLoadScript(xml);
             } catch (JAXBException ex) {
                 Logger.getLogger(MythosEditor.class.getName()).log(Level.SEVERE, null, ex);
@@ -134,8 +136,44 @@ public class MythosEditor {
         script.setName(name);
         ApplicationUIController.getController().redrawScripts();
     }
-    
-    public List getUserTypes() {
-        return new ArrayList();
+
+   public List<Script> getGlobalFunctions() {
+        if (Application.gameData.getGlobal().getScripts() == null) {
+            return Collections.emptyList();
+        } else {
+            List<Script> scripts = Application.gameData.getGlobal().getScripts().getScript();
+            List<Script> filteredList = scripts.stream().filter((Script s) -> {
+                return s.getName() != null && !s.equals(script);
+            }).collect(Collectors.toList());
+            return filteredList;
+        }
     }
-}
+
+    public List<UserType> getUserTypes() {
+        if (Application.gameData.getGlobal().getUserTypes() == null) {
+            return Collections.emptyList();
+        } else {
+            return Application.gameData.getGlobal().getUserTypes().getUserType();
+        }
+    }
+
+    public List<Variable> getGlobalVariables() {
+        if (Application.gameData.getGlobal().getVariables() == null) {
+            return Collections.emptyList();
+        } else {
+            return Application.gameData.getGlobal().getVariables().getVariable();
+        }
+    }
+
+    public List<Variable> getVariablesByType(String type) {
+        return getGlobalVariables().stream().filter(
+                (Variable v) -> {
+                    return v.getType().equals(type);
+                }).collect(Collectors.toList());
+    }
+    
+    public void log(String message) {
+        System.out.println(message);
+    }
+}   
+ 

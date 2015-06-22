@@ -3,11 +3,8 @@ package org.badvision.outlaweditor.ui;
 import java.net.URL;
 import java.util.ListResourceBundle;
 import java.util.Map;
-import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.Set;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
 import javafx.concurrent.Worker.State;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -107,7 +104,7 @@ public class MythosScriptEditorController
                             editorView.getEngine().executeScript(loadScript);
                         }
                     });
-
+            
             editorView.getEngine().setPromptHandler((PromptData prompt) -> {
                 TextInputDialog dialog = new TextInputDialog(prompt.getDefaultValue());
                 dialog.setTitle("MythosScript Editor");

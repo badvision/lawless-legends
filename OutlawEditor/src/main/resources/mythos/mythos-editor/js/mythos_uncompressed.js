@@ -24,38 +24,148 @@ if (typeof Mythos === "undefined") {
             return Blockly.Xml.workspaceToDom(Blockly.mainWorkspace).innerHTML;
         },
         helpUrl: 'https://docs.google.com/document/d/1VXbiY4G533-cokjQevZFhwvqMMCL--17ziMAoFoeJ5M/edit#heading=h.yv9dmneqjr2b',
-        initCustomDefinitions: function() {
+        initCustomDefinitions: function () {
+//            Mythos.editor.log("Add user defined types");
             Mythos.addUserDefinedTypes();
+//            Mythos.editor.log("Add global variables");
             Mythos.addVariablesFromGlobalScope();
+//            Mythos.editor.log("Add global functions");
             Mythos.addFunctionsFromGlobalScope();
+//            Mythos.editor.log("Add local variables");
             Mythos.addVariablesFromLocalScope();
+//            Mythos.editor.log("Add local functions");
             Mythos.addFunctionsFromLocalScope();
+//            Mythos.editor.log("Reinitalizing toolbox");
+            Blockly.mainWorkspace.updateToolbox(document.getElementById('toolbox'));
+//            Mythos.editor.log("Done");
         },
-        addUserDefinedTypes: function() {
-            var toolbarCategory = document.getElementById("customTypes");
-            for (var userType in Mythos.editor.getUserTypes()) {
-                var typeNode = document.createElement("block");
-                typeNode.setAttribute("type", "new_"+userType);                
-                toolbarCategory.appendChild(typeNode);
-                Mythos.buildCustomType(userType);
+        each: function (list, func) {
+//            Mythos.editor.log(list.toString());
+            if (list && list.length > 0) {
+                for (var i = 0; i < list.length; i++) {
+                    func(list[i]);
+                }
             }
         },
-        buildCustomType: function(userType) {
-            //Blockly.Blocks['new_']
+        addUserDefinedTypes: function () {
+            var toolbarCategory = document.getElementById("customTypes");
+            Mythos.each(Mythos.editor.getUserTypes(), function (userType) {
+                var typeNode = document.createElement("block");
+                typeNode.setAttribute("type", "userType_" + userType.getName());
+                toolbarCategory.appendChild(typeNode);
+                var getNode = document.createElement("block");
+                getNode.setAttribute("type", "get_" + userType.getName());
+                toolbarCategory.appendChild(getNode);
+                var setNode = document.createElement("block");
+                setNode.setAttribute("type", "set_" + userType.getName());
+                toolbarCategory.appendChild(setNode);
+                Mythos.buildCustomTypeBlocks(userType);
+            });
         },
-        addVariablesFromGlobalScope: function() {
-            
+        buildCustomType: function (userType) {
+            Blockly.Blocks['userType_' + userType.getName()] = {
+                init: function () {
+                    var typeConstructor = this;
+                    typeConstructor.setColour(200);
+                    typeConstructor.appendDummyInput()
+                            .appendField("Create " + userType.getName());
+                    Mythos.each(userType.getAttribute(), function (attribute) {
+                        typeConstructor.appendValueInput(attribute.getName())
+                                .setAlign(Blockly.ALIGN_RIGHT)
+                                .setCheck(attribute.getType())
+                                .appendField(attribute.getName());
+                    });
+                    typeConstructor.setPreviousStatement(true);
+                    typeConstructor.setNextStatement(true);
+                    typeConstructor.setOutput(true, userType.getName());
+                }
+            };
+            Blockly.Blocks['set_' + userType.getName()] = {
+                init: function () {
+                    var typeSetter = this;
+                    typeSetter.setColour(200);
+                    typeSetter.appendValueInput("Set ")
+                            .setAlign(Blockly.ALIGN_LEFT)
+                            .setCheck(null)
+                            .appendField(Mythos.getVariableDropdown(userType), "VAR")
+                            .appendField(".")
+                            .appendField(Mythos.getAttributeDropdoen(userType), "ATTR");
+                    typeSetter.setPreviousStatement(true);
+                    typeSetter.setNextStatement(true);
+                    typeSetter.setOutput(false);
+                }
+            };
+            Blockly.Blocks['get_' + userType.getName()] = {
+                init: function () {
+                    var typeGetter = this;
+                    typeGetter.setColour(200);
+                    typeGetter.appendDummyInput()
+                            .setAlign(Blockly.ALIGN_LEFT)
+                            .setCheck(null)
+                            .appendField(Mythos.getVariableDropdown(userType), "VAR")
+                            .appendField(".")
+                            .appendField(Mythos.getAttributeDropdoen(userType), "ATTR");
+                    typeGetter.setPreviousStatement(false);
+                    typeGetter.setNextStatement(false);
+                    typeGetter.setOutput(true, null);
+                }
+            };
         },
-        addFunctionsFromGlobalScope: function() {
+        getVariableDropdown: function (userType) {
+            var variables = Mythos.editor.getVariablesByType(userType.getName());
+            var options = [];
+            Mythos.each(variables, function (variable) {
+                options.push([variable.getName(), variable.getName()]);
+            });
+            return Blockly.FieldDropdown(options);
+        },
+        getAttributeDropdown: function (userType) {
+            var options = [];
+            Mythos.each(userType.getAttribute(), function (attribute) {
+                options.push([attribute.getName(), attribute.getName()]);
+            });
+            return Blockly.FieldDropdown(options);
+        },
+        addVariablesFromGlobalScope: function () {
+            Blockly.Variables.allVariables_old = Blockly.Variables.allVariables;
+            Blockly.Variables.allVariables = function (workspace) {
+                var list = Blockly.Variables.allVariables_old(workspace);
+                var variable;
+                Mythos.each(Mythos.editor.getVariablesByType("String"), function (variable) {
+                    list.push(variable.getName());
+                });
+                Mythos.each(Mythos.editor.getVariablesByType("Number"), function (variable) {
+                    list.push(variable.getName());
+                });
+                Mythos.each(Mythos.editor.getVariablesByType("Boolean"), function (variable) {
+                    list.push(variable.getName());
+                });
+                return list;
+            };
+        },
+        addFunctionsFromGlobalScope: function () {
             var toolbarCategory = document.getElementById("globalFunctions");
-            
+            Mythos.each(Mythos.editor.getGlobalFunctions(), function (func) {
+                var scriptNode = document.createElement("block");
+                scriptNode.setAttribute("type", "global_" + func.getName());
+                toolbarCategory.appendChild(scriptNode);
+                Blockly.blocks['global_' + func.getName()] = {
+                    init: function () {
+                        this.setColour(250);
+                        this.appendDummyInput()
+                                .appendField("Global " + func.getName());
+                        this.setPreviousStatement(true);
+                        this.setNextStatement(true);
+                    }
+                };
+            });
         },
-        addVariablesFromLocalScope: function() {
-            
+        addVariablesFromLocalScope: function () {
+
         },
-        addFunctionsFromLocalScope: function() {
-            var toolbarCategory = document.getElementById("localFunctions");
-            
+        addFunctionsFromLocalScope: function () {
+//            var toolbarCategory = document.getElementById("localFunctions");
+
         },
         initBlocks: function () {
             Blockly.Blocks['flow_for'] = {
@@ -162,7 +272,7 @@ if (typeof Mythos === "undefined") {
                 }
             };
             Blockly.Blocks['events_move_backward'] = {
-                init: function() {
+                init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
                     this.setColour(54);
                     this.setPreviousStatement(true);

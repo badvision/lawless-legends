@@ -74,6 +74,40 @@
     <xs:complexType name="global">
         <xs:sequence>
             <xs:element name="scripts" type="tns:scripts"/>
+            <xs:element name="userTypes" minOccurs="0" maxOccurs="1">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="userType" minOccurs="0" maxOccurs="unbounded">
+                            <xs:complexType>
+                                <xs:sequence>
+                                    <xs:element name="attribute" minOccurs="1" maxOccurs="unbounded">
+                                        <xs:complexType>
+                                            <xs:attribute name="name" use="required" type="xs:NCName"/>
+                                            <xs:attribute name="type" use="required" type="xs:NMTOKEN"/>
+                                            <xs:attribute name="comment" type="xs:string"/>                            
+                                        </xs:complexType>
+                                    </xs:element>
+                                </xs:sequence>
+                                <xs:attribute name="name" use="required" type="xs:NCName"/>                            
+                                <xs:attribute name="comment" use="required" type="xs:string"/>                            
+                            </xs:complexType>
+                        </xs:element>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="variables">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="variable" minOccurs="0" maxOccurs="unbounded">
+                            <xs:complexType>
+                                <xs:attribute name="name" use="required" type="xs:NCName"/>
+                                <xs:attribute name="type" use="required" type="xs:NMTOKEN"/>
+                                <xs:attribute name="comment" type="xs:string"/>                                
+                            </xs:complexType>
+                        </xs:element>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
         </xs:sequence>
     </xs:complexType>
     <xs:complexType name="scripts">

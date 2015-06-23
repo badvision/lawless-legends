@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.layout.AnchorPane;
@@ -24,9 +25,11 @@ import javax.xml.namespace.QName;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
+import org.badvision.outlaweditor.data.xml.Arg;
 import org.badvision.outlaweditor.data.xml.Block;
 import org.badvision.outlaweditor.data.xml.Global.UserTypes.UserType;
 import org.badvision.outlaweditor.data.xml.Global.Variables.Variable;
+import org.badvision.outlaweditor.data.xml.Mutation;
 import org.badvision.outlaweditor.data.xml.Script;
 import org.badvision.outlaweditor.ui.ApplicationUIController;
 import org.badvision.outlaweditor.ui.MythosScriptEditorController;
@@ -138,13 +141,13 @@ public class MythosEditor {
         ApplicationUIController.getController().redrawScripts();
     }
 
-   public List<Script> getGlobalFunctions() {
+    public List<Script> getGlobalFunctions() {
         if (Application.gameData.getGlobal().getScripts() == null) {
             return new ArrayList<>();
         } else {
             List<Script> scripts = Application.gameData.getGlobal().getScripts().getScript();
             List<Script> filteredList = scripts.stream().filter((Script s) -> {
-                return s.getName() != null && !s.equals(script);
+                return s.getName() != null;
             }).collect(Collectors.toList());
             return filteredList;
         }
@@ -172,9 +175,20 @@ public class MythosEditor {
                     return v.getType().equals(type);
                 }).collect(Collectors.toList());
     }
-    
+
+    public List<String> getParametersForScript(Script script) {
+        List<String> allArgs = new ArrayList();
+        script.getBlock().getFieldOrMutationOrStatement()
+                .stream().filter((o) -> (o instanceof Mutation))
+                .map((o) -> (Mutation) o).findFirst().ifPresent((m) -> {
+                    m.getArg().stream().forEach((a) -> {
+                        allArgs.add(a.getName());
+                    });
+                });
+        return allArgs;
+    }
+
     public void log(String message) {
         System.out.println(message);
     }
-}   
- 
+}

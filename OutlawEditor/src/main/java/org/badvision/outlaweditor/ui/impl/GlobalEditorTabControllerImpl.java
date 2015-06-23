@@ -21,7 +21,7 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
 
     @Override
     protected void onScriptAddPressed(ActionEvent event) {
-        UIAction.createAndEditScript();
+        UIAction.createAndEditScript(Application.gameData.getGlobal());
     }
 
     @Override
@@ -50,7 +50,7 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
                 Script script = TransferHelper.cloneObject(source, Script.class, "script");
                 script.setName(source.getName() + " CLONE");
                 getCurrentEditor().addScript(script);
-                editScript(script);
+                editScript(script, Application.gameData.getGlobal());
             } catch (JAXBException ex) {
                 Logger.getLogger(MapEditorTabControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
                 UIAction.alert("Error occured when attempting clone operation:\n" + ex.getMessage());
@@ -86,7 +86,7 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
     public void redrawGlobalScripts() {
         DataUtilities.ensureGlobalExists();
         globalScriptList.setOnEditStart((ListView.EditEvent<Script> event) -> {
-            UIAction.editScript(event.getSource().getItems().get(event.getIndex()));
+            UIAction.editScript(event.getSource().getItems().get(event.getIndex()), Application.gameData.getGlobal());
         });
         globalScriptList.setCellFactory(new Callback<ListView<Script>, ListCell<Script>>() {
             @Override

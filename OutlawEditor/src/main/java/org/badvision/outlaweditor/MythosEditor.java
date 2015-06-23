@@ -4,14 +4,12 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.layout.AnchorPane;
@@ -25,12 +23,12 @@ import javax.xml.namespace.QName;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-import org.badvision.outlaweditor.data.xml.Arg;
 import org.badvision.outlaweditor.data.xml.Block;
-import org.badvision.outlaweditor.data.xml.Global.UserTypes.UserType;
-import org.badvision.outlaweditor.data.xml.Global.Variables.Variable;
 import org.badvision.outlaweditor.data.xml.Mutation;
+import org.badvision.outlaweditor.data.xml.Scope;
 import org.badvision.outlaweditor.data.xml.Script;
+import org.badvision.outlaweditor.data.xml.UserType;
+import org.badvision.outlaweditor.data.xml.Variable;
 import org.badvision.outlaweditor.ui.ApplicationUIController;
 import org.badvision.outlaweditor.ui.MythosScriptEditorController;
 import org.w3c.dom.Document;
@@ -43,13 +41,15 @@ import org.xml.sax.SAXException;
  */
 public class MythosEditor {
 
+    Scope scope;
     Script script;
     Stage primaryStage;
     MythosScriptEditorController controller;
     public static final String XML_HEADER = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n";
 
-    public MythosEditor(Script theScript) {
+    public MythosEditor(Script theScript, Scope theScope) {
         script = theScript;
+        scope = theScope;
     }
 
     public void show() {

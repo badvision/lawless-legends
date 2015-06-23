@@ -56,6 +56,7 @@ import org.badvision.outlaweditor.data.DataUtilities;
 import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.TilesetUtils;
 import org.badvision.outlaweditor.data.xml.GameData;
+import org.badvision.outlaweditor.data.xml.Scope;
 import org.badvision.outlaweditor.data.xml.Script;
 import org.badvision.outlaweditor.data.xml.Tile;
 import org.badvision.outlaweditor.ui.impl.ImageConversionWizardController;
@@ -223,19 +224,19 @@ public class UIAction {
         dialogStage.show();
     }
 
-    public static Script createAndEditScript() {
+    public static Script createAndEditScript(Scope scope) {
         Script script = new Script();
         script.setName("New Script");
         ApplicationUIController.getController().getVisibleEditor().addScript(script);
-        return editScript(script);
+        return editScript(script, scope);
     }
 
-    public static Script editScript(Script script) {
+    public static Script editScript(Script script, Scope scope) {
         if (script == null) {
             System.err.println("Requested to edit a null script object, ignoring!");
             return null;
         }
-        MythosEditor editor = new MythosEditor(script);
+        MythosEditor editor = new MythosEditor(script, scope);
         editor.show();
         return script;
     }

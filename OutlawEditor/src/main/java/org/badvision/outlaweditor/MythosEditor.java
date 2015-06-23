@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.layout.AnchorPane;
@@ -141,18 +142,6 @@ public class MythosEditor {
         ApplicationUIController.getController().redrawScripts();
     }
 
-    public List<Script> getGlobalFunctions() {
-        if (Application.gameData.getGlobal().getScripts() == null) {
-            return new ArrayList<>();
-        } else {
-            List<Script> scripts = Application.gameData.getGlobal().getScripts().getScript();
-            List<Script> filteredList = scripts.stream().filter((Script s) -> {
-                return s.getName() != null;
-            }).collect(Collectors.toList());
-            return filteredList;
-        }
-    }
-
     public List<UserType> getUserTypes() {
         if (Application.gameData.getGlobal().getUserTypes() == null) {
             return new ArrayList<>();
@@ -161,16 +150,44 @@ public class MythosEditor {
         }
     }
 
-    public List<Variable> getGlobalVariables() {
-        if (Application.gameData.getGlobal().getVariables() == null) {
+    public List<Script> getGlobalFunctions() {
+        return getFunctions(Application.gameData.getGlobal());
+    }
+    public List<Script> getLocalFunctions() {
+        return getFunctions(scope);
+    }
+    private List<Script> getFunctions(Scope scriptScope) {
+        if (scriptScope.getScripts() == null) {
             return new ArrayList<>();
         } else {
-            return Application.gameData.getGlobal().getVariables().getVariable();
+            List<Script> scripts = scriptScope.getScripts().getScript();
+            List<Script> filteredList = scripts.stream().filter((Script s) -> {
+                return s.getName() != null;
+            }).collect(Collectors.toList());
+            return filteredList;
         }
     }
 
+    public List<Variable> getGlobalVariables() {
+        return getVariables(Application.gameData.getGlobal());
+    }
+
+    public List<Variable> getLocalVariables() {
+        return getVariables(scope);
+    }
+    
+    private List<Variable> getVariables(Scope scriptScope) {
+        if (scriptScope.getVariables() == null) {
+            return new ArrayList<>();
+        } else {
+            return scriptScope.getVariables().getVariable();
+        }        
+    }
+
     public List<Variable> getVariablesByType(String type) {
-        return getGlobalVariables().stream().filter(
+        Stream<Variable> allGlobals = getGlobalVariables().stream();
+        Stream<Variable> allLocals = getLocalVariables().stream();
+        return Stream.concat(allGlobals, allLocals).filter(
                 (Variable v) -> {
                     return v.getType().equals(type);
                 }).collect(Collectors.toList());
@@ -178,6 +195,7 @@ public class MythosEditor {
 
     public List<String> getParametersForScript(Script script) {
         List<String> allArgs = new ArrayList();
+        if (script.getBlock() != null && script.getBlock().getFieldOrMutationOrStatement() != null) {
         script.getBlock().getFieldOrMutationOrStatement()
                 .stream().filter((o) -> (o instanceof Mutation))
                 .map((o) -> (Mutation) o).findFirst().ifPresent((m) -> {
@@ -185,6 +203,7 @@ public class MythosEditor {
                         allArgs.add(a.getName());
                     });
                 });
+        }
         return allArgs;
     }
 

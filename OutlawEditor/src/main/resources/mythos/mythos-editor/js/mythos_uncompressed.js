@@ -27,12 +27,10 @@ if (typeof Mythos === "undefined") {
         initCustomDefinitions: function () {
 //            Mythos.editor.log("Add user defined types");
             Mythos.addUserDefinedTypes();
-//            Mythos.editor.log("Add global variables");
-            Mythos.addVariablesFromGlobalScope();
+//            Mythos.editor.log("Add custom variables");
+            Mythos.addCustomVariables();
 //            Mythos.editor.log("Add global functions");
             Mythos.addFunctionsFromGlobalScope();
-//            Mythos.editor.log("Add local variables");
-            Mythos.addVariablesFromLocalScope();
 //            Mythos.editor.log("Add local functions");
             Mythos.addFunctionsFromLocalScope();
 //            Mythos.editor.log("Reinitalizing toolbox");
@@ -92,7 +90,7 @@ if (typeof Mythos === "undefined") {
                             .setCheck(null)
                             .appendField(Mythos.getVariableDropdown(userType), "VAR")
                             .appendField(".")
-                            .appendField(Mythos.getAttributeDropdoen(userType), "ATTR");
+                            .appendField(Mythos.getAttributeDropdown(userType), "ATTR");
                     typeSetter.setPreviousStatement(true);
                     typeSetter.setNextStatement(true);
                     typeSetter.setOutput(false);
@@ -107,7 +105,7 @@ if (typeof Mythos === "undefined") {
                             .setCheck(null)
                             .appendField(Mythos.getVariableDropdown(userType), "VAR")
                             .appendField(".")
-                            .appendField(Mythos.getAttributeDropdoen(userType), "ATTR");
+                            .appendField(Mythos.getAttributeDropdown(userType), "ATTR");
                     typeGetter.setPreviousStatement(false);
                     typeGetter.setNextStatement(false);
                     typeGetter.setOutput(true, null);
@@ -129,7 +127,58 @@ if (typeof Mythos === "undefined") {
             });
             return Blockly.FieldDropdown(options);
         },
-        addVariablesFromGlobalScope: function () {
+        addFunctionsFromScope: function(target, prefix, functions) {
+            Mythos.each(functions, function (func) {
+                var scriptNode = document.createElement("block");
+                scriptNode.setAttribute("type", prefix + "_" + func.getName());
+                target.appendChild(scriptNode);
+                scriptNode = document.createElement("block");
+                scriptNode.setAttribute("type", prefix + "ignore_" + func.getName());
+                target.appendChild(scriptNode);
+                Blockly.Blocks[prefix + 'ignore_' + func.getName()] = {
+                    init: function () {
+                        this.setPreviousStatement(true);
+                        this.setNextStatement(true);
+                        this.setColour(250);
+                        this.appendDummyInput()
+                                .appendField(prefix + " " + func.getName());
+                        var functionBlock = this;
+                        Mythos.each(Mythos.editor.getParametersForScript(func), function (argName) {
+                            functionBlock.appendValueInput(argName)
+                                    .setAlign(Blockly.ALIGN_RIGHT)
+                                    .setCheck(null)
+                                    .appendField(argName);
+                        });
+                    }
+                };
+                Blockly.Blocks[prefix + '_' + func.getName()] = {
+                    init: function () {
+                        this.setColour(250);
+                        this.setPreviousStatement(false);
+                        this.setNextStatement(false);
+                        this.setOutput(true, null);
+                        this.appendDummyInput()
+                                .appendField(prefix + " " + func.getName());
+                        var functionBlock = this;
+                        Mythos.each(Mythos.editor.getParametersForScript(func), function (argName) {
+                            functionBlock.appendValueInput(argName)
+                                    .setAlign(Blockly.ALIGN_RIGHT)
+                                    .setCheck(null)
+                                    .appendField(argName);
+                        });
+                    }
+                };
+            });            
+        },
+        addFunctionsFromGlobalScope: function () {
+            var toolbarCategory = document.getElementById("globalFunctions");
+            Mythos.addFunctionsFromScope(toolbarCategory, "Global", Mythos.editor.getGlobalFunctions());
+        },
+        addFunctionsFromLocalScope: function () {
+            var toolbarCategory = document.getElementById("localFunctions");
+            Mythos.addFunctionsFromScope(toolbarCategory, "Local", Mythos.editor.getLocalFunctions());
+        },
+        addCustomVariables: function () {
             Blockly.Variables.allVariables_old = Blockly.Variables.allVariables;
             Blockly.Variables.allVariables = function (workspace) {
                 var list = Blockly.Variables.allVariables_old(workspace);
@@ -144,57 +193,6 @@ if (typeof Mythos === "undefined") {
                 });
                 return list;
             };
-        },
-        addFunctionsFromGlobalScope: function () {
-            var toolbarCategory = document.getElementById("globalFunctions");
-            Mythos.each(Mythos.editor.getGlobalFunctions(), function (func) {
-                var scriptNode = document.createElement("block");
-                scriptNode.setAttribute("type", "global_" + func.getName());
-                toolbarCategory.appendChild(scriptNode);
-                scriptNode = document.createElement("block");
-                scriptNode.setAttribute("type", "globalignore_" + func.getName());
-                toolbarCategory.appendChild(scriptNode);
-                Blockly.Blocks['globalignore_' + func.getName()] = {
-                    init: function () {
-                        this.setPreviousStatement(true);
-                        this.setNextStatement(true);
-                        this.setColour(250);
-                        this.appendDummyInput()
-                                .appendField("Global " + func.getName());
-                        var functionBlock = this;
-                        Mythos.each(Mythos.editor.getParametersForScript(func), function (argName) {
-                            functionBlock.appendValueInput(argName)
-                                    .setAlign(Blockly.ALIGN_RIGHT)
-                                    .setCheck(null)
-                                    .appendField(argName);
-                        });
-                    }
-                };
-                Blockly.Blocks['global_' + func.getName()] = {
-                    init: function () {
-                        this.setColour(250);
-                        this.setPreviousStatement(false);
-                        this.setNextStatement(false);
-                        this.setOutput(true, null);
-                        this.appendDummyInput()
-                                .appendField("Global " + func.getName());
-                        var functionBlock = this;
-                        Mythos.each(Mythos.editor.getParametersForScript(func), function (argName) {
-                            functionBlock.appendValueInput(argName)
-                                    .setAlign(Blockly.ALIGN_RIGHT)
-                                    .setCheck(null)
-                                    .appendField(argName);
-                        });
-                    }
-                };
-            });
-        },
-        addVariablesFromLocalScope: function () {
-
-        },
-        addFunctionsFromLocalScope: function () {
-//            var toolbarCategory = document.getElementById("localFunctions");
-
         },
         initBlocks: function () {
             Blockly.Blocks['flow_for'] = {

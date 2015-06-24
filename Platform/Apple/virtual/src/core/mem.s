@@ -42,6 +42,18 @@ DISK_BUF_SIZE	= $800
 diskBufEnd	= $4C00
 headerBuf 	= $4C00	; len $1400
 
+; Memory used only during garbage collection
+gcHash_first	= $5000	; index is srcLo ^ srcHi; result points into remaining gcHash tables.
+gcHash_srcLo	= $5100
+gcHash_srcHi	= $5200
+gcHash_link	= $5300
+gcHash_dstLo	= $5400
+gcHash_dstHi	= $5500
+
+; Heap area
+heapStart	= $F000	; must be page aligned
+heapEnd		= $F800	; must be page aligned
+
 ; Other equates
 prodosMemMap 	= $BF58
 
@@ -169,6 +181,49 @@ j_aux_dispatch:
 	rts
 
 ;------------------------------------------------------------------------------
+; Print fatal error message (custom or predefined) and print the
+; call stack, then halt.
+
+_inlineFatal:
+	pla
+	tax
+	pla
+	tay
+	inx
+	bne fatalError
+	iny
+fatalError: !zone
+	sty pTmp+1	; save message ptr hi...
+	stx pTmp	; ...and lo
+	jsr setnorm	; set up text mode and vectors
+	bit setText
+	jsr setvid
+	jsr setkbd
+	lda $24		; check if we're already at start of screen line
+	beq +		; no, no need for CR
+	jsr crout	; carriage return to get to start of screen line
++	ldy #40		; set up to print 40 dashes
+	lda #'-'
+.dash:	jsr cout
+	dey
+	bne .dash
+.msg1:	lda .prefix,y	; print out prefix message
+	beq +
+	jsr cout
+	iny
+	bne .msg1
++	tay		; start at first byte of user message
+.msg2	lda (pTmp),y
+	beq .msg3
+	jsr cout
+	iny
+	bne .msg2
+.msg3:	jsr crout
+	jsr bell	; beep
+.inf: 	jmp .inf	; and loop forever
+.prefix:!text "FATAL ERROR: ", 0
+
+;------------------------------------------------------------------------------
 ; Normal entry point for ProDOS MLI calls. This patches the code at $BFBB.
 enterProDOS1: !zone
 	pla		; saved A reg
@@ -266,10 +321,8 @@ __asmPlasm: !zone
 .badx	; X reg ran outside valid range. Print and abort.
 	+prStr : !text $8D,"X=",0
 	+prX
-	ldx #<+
-	ldy #>+
-	jmp fatalError
-+	!text $8D, "PLASMA x-reg out of range", 0
+	jsr inlineFatal
+	!text $8D, "PlasmXRng", 0
 
 ;------------------------------------------------------------------------------
 ; Debug code to support macros
@@ -425,6 +478,316 @@ closeParams:	!byte 1		; param count
 closeFileRef:	!byte 0		; file ref to close
 
 paramsEnd = *
+
+;------------------------------------------------------------------------------
+; Heap management variables
+MAX_TYPES 	= 16
+
+nTypes		!byte 0
+typeTblL	!fill MAX_TYPES
+typeTblH	!fill MAX_TYPES
+typeLen		!fill MAX_TYPES		; length does not include type byte
+
+heapTop		!word 0
+gcHash_top	!byte 0
+
+;------------------------------------------------------------------------------
+; Heap management routines
+
+; Set the table for the next type in order. Starts with type 1, then 2, etc.
+; x=ptr lo, y = ptr hi. Tbl: type size, then offsets of ptrs within type, then 0.
+setTypeTbl: !zone
+	tya		; save addr hi
+	ldy nTypes
+	cpy #MAX_TYPES
+	bmi +
+	+prChr 'T'
+	brk
++	sta typeTblL,y	; addr hi
+	sta .ld+2
+	txa		; addr lo
+	sta typeTblH,y
+.ld	lda $1000,x	; self-modified above: fetch length byte
+	sta typeLen,y	; save that too
+	inc nTypes	; bump type count
+	rts
+
+; Clear the heap
+heapReset: !zone
+	lda #<heapStart
+	sta heapTop
+	lda #>heapStart
+	sta heapTop
+	lda #0
+	sta nHeapBlks
+	; fall through to:
+; Zero memory heapTop.heapEnd
+heapClr: !zone
+	lda #0
+	ldx heapTop
+	ldy heapTop+1
+.pg	sty .st+2
+.st	sta $1000,x	; self-modified above
+	inx
+	bne .st
+	iny
+	cpy #>heapEnd
+	bne .pg
+	rts
+
+; Allocate a block on the heap. X = $00.7F for string block, $81.FF for type $00.7F
+heapAlloc: !zone
+	lda heapTop
+	sta pTmp
+	lda heapTop+1
+	sta pTmp+1
+	txa
+	ldy #0
+	sta (pTmp),y	; save obj type on heap
+	bpl .gotlen
+	and #$7F
+	tay
+	lda typeLen,y
+.gotlen	ldy pTmp+1
+	sec		; add 1 for type byte
+	adc pTmp
+	bcc +
+	iny
+	cpy #>heapEnd
+	bcs .needgc
++	sta heapTop
+	sty heapTop+1
+	rts
+.needgc	jsr inlineFatal : !text "GcNotImpl",0
+
+; Input : Carry set = add if not found, clear = check only, don't add
+; Output: Y-reg = index
+;	  Carry clear = not found (added if requested), set = found
+gcHash_chk: !zone
+	lda pSrc
+	eor pSrc+1
+	tax
+	lda gcHash_first,x
+	beq .add
+-	tay
+	lda gcHash_srcLo,y
+	eor pSrc
+	beq .found
+	lda gcHash_link,y
+	bne -
+.notfnd	bcc .ret
+	inc gcHash_top
+	ldy gcHash_top
+	lda pSrc
+	sta gcHash_srcLo,y
+	lda pSrc+1
+	sta gcHash_srcHi,y
+	lda #0
+	sta gcHash_dstHi,y
+	lda gcHash_first,x
+	sta gcHash_link,y
+	tya
+	sta gcHash_first,x
+.ret	clc
+	rts
+.found	sec
+	rts
+
+; Verify the integrity of the heap
+heapCheck: !zone
+	lda heapTop
+	sta pTmp
+	lda heapTop+1
+	sta pTmp+1
+	ldy #0
+.blklup	lda (pTmp),y
+	bmi .isobj
+	; it's a string; check its characters
+	pha		; save length
+	beq .nxtblk	; handle zero-length string
+	tax
+.stlup	lda (pTmp),y
+	beq heapCorrupt
+	bmi heapCorrupt
+	iny
+	dex
+	bne .stlup
+.nxtblk	pla		; get length back
+	sec
+	adc pTmp
+	sta pTmp
+	bcc .blklup
+	inc pTmp+1
+	lda pTmp+1
+	cmp #>heapEnd
+	bcc .blklup
+	bcs heapCorrupt
+.isobj	and #$7F
+	tax
+	cpx #MAX_TYPES
+	bcs heapCorrupt
+	lda typeLen,x
+	pha		; save length for later
+	lda typeTblL,x
+	sta .getoff+1
+	lda typeTblH,x
+	sta .getoff+2
+	ldx #0		; starts at len byte, which we immediately skip
+.getoff	inx
+	lda $1000,x	; self-modified above: get next pointer offset for type
+	beq .nxtblk	; zero marks end of offset table
+	tay
+	iny		; not much we can do to validate lo byte, so skip it
+	cpy tmp		; ensure offset is within type length
+	beq +		; 	the very end is ok
+	bcs corrup	;		but not beyond
++	lda (pTmp),y	; get hi byte of ptr
+	beq +		; null is ok
+	cmp #>heapStart	; else check if < start of heap
+	bcc heapCorrupt
+	cmp #>heapEnd	; or > than end of heap
+	bcc .getoff
+heapCorrupt:
+	ldx pTmp
+	lda pTmp+1
+	jsr prntax
+	jsr inlineFatal : !text "HeapCorrupt",0
+
+; Phase 1 of Garbage Collection: mark accessible heap blocks starting from the root block
+gc1_mark: !zone
+	ldx #0			; clear the hash table
+	stx gcHash_top
+	txa
+-	sta gcHash_first,x
+	inx
+	bne -
+	lda #<heapStart		; global block is at very start of heap
+	sta pSrc
+	lda #>heapEnd
+	sta pSrc+1
+	sec
+	jsr gcHash_chk		; seed the hash, and thus our queue, with the global block
+	clv			; clear V flag to mark phase 1
+	bvc .start
+; Phase 3 of Garbage Collection: fix all pointers
+gc3_fix:
+	bit .rts		; set V flag to mark phase 3
+.start	lda #0
+	sta resNum		; initialize block counter (note: blk #0 in hash is not used)
+.outer	inc resNum		; advance to next block in hash
+	ldx resNum
+	cpx gcHash_top		; finished all blocks?
+	beq .trav		; 	last blk? if so still need to trav it
+	bcs .rts		; 		or if past last blk, we're done
+.trav	ldy gcHash_srcLo,x	; get pointer to block, lo byte first
+	lda gcHash_srcHi,x	;	then hi byte
+	bvc +
+	ldy gcHash_dstLo,x	; in pointer fix mode, use the block's final location
+	lda gcHash_dstHi,x
++	sty pTmp		; store object pointer so we can dereference it
+	sta pTmp+1
+	ldy #0			; first byte
+	lda (pTmp),y		;	is the type
+	bpl .outer		; 		or, if not hi bit, just a string so skip (no ptrs)
+	and #$7F		; mask off hi bit to get type number
+	tax
+	lda typeTblL,x		; get pointer to type table
+	sta .ldof+1
+	lda typeTblH,x
+	sta .ldof+2
+	ldx #1			; skip size byte, access first ptr offset
+.ldof	lda $1111,x		; self-modified above: get offset entry
+	beq .outer		; zero marks end of list -> go to next block
+	tay
+	lda (pTmp),y		; grab pointer at that offset
+	sta pSrc
+	sty .fix+1		; save pointer offset for use if fixing pointers in phase 3
+	iny
+	lda (pTmp),y
+	sta pSrc+1
+	stx tmp+1		; save index into type entry
+	sec			; sec = we want to add to hash if it's not there
+	bvc +
+	clc			; in phase 3, we don't want to add to hash
++	jsr gcHash_chk		; go add it to the hash; ignore return flag
+	bvc +			; skip pointer fixing in phase 1
+	bcc heapCorrupt		; in phase 3, pointer must be in hash!
+.fix	ldy #11			; restore pointer offset
+	lda gcHash_dstLo,x	; get new location
+	sta (pTmp),y		; update the pointer
+	iny
+	lda gcHash_dstHi,x	; hi byte too
+	sta (pTmp),y
++	ldx tmp+1		; restore type entry index
+	inx			; next offset entry
+	bne .ldof		; always taken
+.rts	rts			; this needs to be an RTS instruction - used to set V flag
+
+; Phase 2 of Garbage Collection: sweep all accessible blocks together
+gc2_sweep: !zone
+	lda #<heapStart
+	sta pSrc
+	sta pDst
+	lda #>heapStart
+	sta pSrc+1
+	sta pDst+1
+.outer	clc			; clc = do not add to hash
+	jsr gcHash_chk		; is this block in hash?
+	; note: next 20 lines or so *must* preserve the carry flag
+	bcc +
+	lda pDst
+	sta gcHash_dstLo,x	; record new address
+	eor pSrc
+	sta tmp
+	lda pDst+1
+	sta gcHash_dstHi,x	;	in hash table
+	eor pSrc+1
+	ora tmp
+	sta tmp			; this will be zero iff all 16 bits of pSrc == pDst
++	ldy #0			; index of type byte in heap block
+	lda (pSrc),y		; ...still need to preserve carry flag...
+	bpl .gotlen
+	and #$7F
+	tax
+	lda typeLen,x
+.gotlen	sta reqLen		; save len for later
+	bcc .advSrc		; finally act on carry (hash check flg): if block not in hash, skip block
+	tax			; and in index for copying
+	lda tmp			; check for pSrc == pDst
+	beq .advDst		; if equal, no need to copy
++	inx			; set up to copy type byte as well
+.cplup	lda (pSrc),y
+	sta (pDst),y
+	iny
+	dex
+	bne .cplup
+.advDst	lda pDst		; advance dest
+	sec			; +1 for type byte
+	adc reqLen
+	sta pDst
+	bcc .advSrc
+	inc pDst+1
+.advSrc	lda pSrc		; advance source
+	sec			; +1 for type byte
+	adc reqLen
+	sta pSrc
+	bcc +
+	inc pSrc+1
++	cmp heapTop		; end of heap yet? (lo byte check)
+	lda pSrc+1
+	sbc heapTop+1		;	(hi byte check)
+	bcc .outer		; if not, loop again
+	rts
+
+doGC: !zone
+	lda nHeapBlks
+	bne +			; edge case: if nothing on heap, skip collection
+	rts
++	jsr gc1_mark		; mark reachable blocks
+	jsr gc2_sweep		; sweep them into one place
+	jsr gc3_fix		; adjust all pointers
+	jmp heapClear		; and clear newly freed space
+
 } ; end of !pseodupc $800
 loMemEnd = *
 
@@ -453,10 +816,7 @@ grabSegment: !zone
 	lda tSegLink,y	; no, grab next segment in list
 	sta unusedSeg	; that is now first unused
 	rts		; return with Y = the segment grabbed
-.fail:	ldx #<+
-	ldy #>+
-	jmp fatalError
-+	!text "No more segments", 0
+.fail:	jsr inlineFatal : !text "MaxSegs", 0
 
 ;------------------------------------------------------------------------------
 releaseSegment: !zone
@@ -695,75 +1055,6 @@ saneEnd: !zone {
 }
 
 ;------------------------------------------------------------------------------
-; Print fatal error message (custom or predefined) and print the
-; call stack, then halt.
-fatalError: !zone
-	sty pTmp+1	; save message ptr hi...
-	stx pTmp	; ...and lo
-	jsr setnorm	; set up text mode and vectors
-	bit setText
-	jsr setvid
-	jsr setkbd
-	lda $24		; check if we're already at start of screen line
-	beq +		; no, no need for CR
-	jsr crout	; carriage return to get to start of screen line
-+	ldy #40		; set up to print 40 dashes
-	lda #'-'
-.dash:	jsr cout
-	dey
-	bne .dash
-.msg1:	lda .prefix,y	; print out prefix message
-	beq +
-	jsr cout
-	iny
-	bne .msg1
-+	tay		; start at first byte of user message
-.msg2	lda (pTmp),y
-	beq .msg3
-	jsr cout
-	iny
-	bne .msg2
-.msg3:
-!if DEBUG {
-; Print call stack
-	ldy #0
-.msg4	lda .stkMsg,y
-	beq +
-	jsr cout
-	iny
-	bne .msg4
-+	tsx		; start at current stack pointer
-.stackLoop:
-	lda $101,x	; JSR increments PC twice before pushing it
-	sec
-	sbc #2
-	tay
-	lda $102,x
-	sbc #0
-	sta .load+2
-	and #$F0	; avoid accidentally grabbing data from the IO area
-	cmp #$C0
-	beq .next
-.load:	lda $1000,y	; is there a JSR there?
-	cmp #$20
-	bne .next	; no, it's probably not an actual call
-	lda .load+2
-	jsr prbyte
-	tya
-	jsr prbyte
-	lda #' '
-	jsr cout
-.next:	inx	; work up to...
-	cpx #$FF	; ...top of stack
-	bcc .stackLoop
-}
-	jsr crout
-	jsr bell	; beep
-.inf: 	jmp .inf	; and loop forever
-.prefix:!text "FATAL ERROR: ", 0
-.stkMsg:!text $8D,"Call stk: ", 0
-
-;------------------------------------------------------------------------------
 init: !zone
 ; put something interesting on the screen :)
 	jsr home
@@ -989,17 +1280,11 @@ reset: !zone
 ;------------------------------------------------------------------------------
 outOfMemErr: !zone
 	!if DEBUG { jsr main_debug }
-	ldx #<+
-	ldy #>+
-	jmp fatalError
-+	!text "Out of mem", 0
+	jsr inlineFatal : !text "OutOfMem", 0
 
 ;------------------------------------------------------------------------------
 reservedErr: !zone
-	ldx #<+
-	ldy #>+
-	jmp fatalError
-+	!text "Mem already alloc'd", 0
+	jsr inlineFatal : !text "DblAlloc", 0
 
 ;------------------------------------------------------------------------------
 main_request: !zone
@@ -1176,10 +1461,7 @@ shared_scan: !zone
 +	rts
 
 invalAddr: !zone
-	ldx #<+
-	ldy #>+
-	jmp fatalError
-+	!text "Invalid addr", 0
+	jsr inlineFatal : !text "InvalAdr", 0
 
 ;------------------------------------------------------------------------------
 ; If the resource is a module, this will locate the corresponding bytecode
@@ -1264,10 +1546,7 @@ shared_free:
 	and #$3F		; remove the 'active' and 'locked' flags
 	sta tSegType,x		; store flags back
 .done	rts			; all done
-.fatal	ldx #<+
-	ldy #>+
-	jmp fatalError
-+	!text "Don't free bytecode.", 0
+.fatal	jsr inlineFatal : !text "NoFreeBcode", 0
 
 ;------------------------------------------------------------------------------
 main_calcFree: !zone
@@ -1419,10 +1698,7 @@ diskLoader: !zone
 +	cmp #RESET_MEMORY
 	bne +
 	rts			; do nothing
-+	ldx #<+
-	ldy #>+
-	jmp fatalError
-+	!text "Invalid command", 0
++	jsr inlineFatal : !text "InvalCmd", 0
 
 ;------------------------------------------------------------------------------
 openPartition: !zone
@@ -1470,18 +1746,16 @@ prodosError: !zone
 	pla
 	jsr .digit
 	sta .num+1
-	ldx #<.msg
-	ldy #>.msg
-	jmp fatalError
+	jsr inlineFatal
+.msg:	!text "ProDOSErr $"
+.num:	!text "xx"
+	!byte 0
 .digit:	and #$F
 	ora #$B0
 	cmp #$BA
 	bcc +
 	adc #6
 +	rts
-.msg:	!text "ProDOS error $"
-.num:	!text "xx"
-	!byte 0
 
 ;------------------------------------------------------------------------------
 disk_startLoad: !zone
@@ -1495,10 +1769,7 @@ disk_startLoad: !zone
 
 ;------------------------------------------------------------------------------
 sequenceError: !zone
-	ldx #<+
-	ldy #>+
-	jmp fatalError
-+	!text "Bad sequence", 0
+	jsr linlineFatal : !text "BadSeq", 0
 
 ;------------------------------------------------------------------------------
 startHeaderScan: !zone
@@ -1570,10 +1841,7 @@ disk_queueLoad: !zone
 	jsr adjYpTmp		; keep it small
 	jmp .scan		; go for more
 .notFound:
-	ldx #<+
-	ldy #>+
-	jmp fatalError
-+	!text "Resource not found", 0
+	jsr inlineFatal : !text "ResNotFnd", 0
 .resLen: !byte 0
 
 ;------------------------------------------------------------------------------
@@ -2219,11 +2487,11 @@ doAllFixups: !zone
 
 !if DEBUG { !align 255,0 }
 
-tSegLink	= * : !fill MAX_SEGS
-tSegType	= * : !fill MAX_SEGS
-tSegRes		= * : !fill MAX_SEGS
-tSegAdrLo	= * : !fill MAX_SEGS
-tSegAdrHi	= * : !fill MAX_SEGS
+tSegLink	!fill MAX_SEGS
+tSegType	!fill MAX_SEGS
+tSegRes		!fill MAX_SEGS
+tSegAdrLo	!fill MAX_SEGS
+tSegAdrHi	!fill MAX_SEGS
 
 ;------------------------------------------------------------------------------
 ; Marker for end of the tables, so we can compute its length

@@ -28,7 +28,6 @@ import static org.badvision.outlaweditor.data.PropertyHelper.stringProp;
 import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.xml.Map;
 import org.badvision.outlaweditor.data.xml.Script;
-import org.badvision.outlaweditor.data.xml.Scripts;
 import org.badvision.outlaweditor.data.xml.Tile;
 import org.badvision.outlaweditor.ui.EntitySelectorCell;
 import org.badvision.outlaweditor.ui.MapEditorTabController;
@@ -148,7 +147,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
 
     @Override
     public void onMapScriptAddPressed(ActionEvent event) {
-        createAndEditScript();
+        createAndEditScript(getCurrentMap());
     }
 
     int errorCount = 0;
@@ -185,7 +184,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
                 Script script = TransferHelper.cloneObject(source, Script.class, "script");
                 script.setName(source.getName() + " CLONE");
                 getCurrentEditor().addScript(script);
-                editScript(script);
+                editScript(script, getCurrentMap());
             } catch (JAXBException ex) {
                 Logger.getLogger(MapEditorTabControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
                 UIAction.alert("Error occured when attempting clone operation:\n" + ex.getMessage());
@@ -393,7 +392,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
     @Override
     public void redrawMapScripts() {
         mapScriptsList.setOnEditStart((ListView.EditEvent<Script> event) -> {
-            UIAction.editScript(event.getSource().getItems().get(event.getIndex()));
+            UIAction.editScript(event.getSource().getItems().get(event.getIndex()), getCurrentMap());
         });
         mapScriptsList.setCellFactory(new Callback<ListView<Script>, ListCell<Script>>() {
             @Override

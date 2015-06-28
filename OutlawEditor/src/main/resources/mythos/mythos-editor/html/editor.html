@@ -86,7 +86,7 @@
 
     <script>
         Mythos.initBlocks();
-        Blockly.inject(document.getElementById('blocklyDiv'),
+        Mythos.workspace = Blockly.inject(document.getElementById('blocklyDiv'),
                 {path: '../../', toolbox: document.getElementById('toolbox')});
     </script>
 

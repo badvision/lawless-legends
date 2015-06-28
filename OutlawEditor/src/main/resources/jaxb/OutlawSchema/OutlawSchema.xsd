@@ -50,36 +50,78 @@
             </xs:element>
         </xs:sequence>
     </xs:complexType>
-    <xs:complexType name="map">
-        <xs:sequence>
-            <xs:element name="chunk" maxOccurs="unbounded">
-                <xs:complexType>
-                    <xs:sequence>
-                        <xs:element name="row" maxOccurs="unbounded" type="xs:NMTOKENS"/>
-                    </xs:sequence>
-                    <xs:attribute name="x" type="xs:int"/>
-                    <xs:attribute name="y" type="xs:int"/>
-                </xs:complexType>
-            </xs:element>
-            <xs:element name="scripts" type="tns:scripts"/>
-        </xs:sequence>
-        <xs:attribute name="name" type="xs:string"/>
-        <xs:attribute name="width" type="xs:int"/>
-        <xs:attribute name="height" type="xs:int"/>
-        <xs:attribute name="category" type="xs:string"/>
-        <xs:attribute name="wrap" type="xs:boolean" default="false"/>
-        <xs:attribute name="startX" type="xs:int" default="0"/>
-        <xs:attribute name="startY" type="xs:int" default="0"/>
-    </xs:complexType>
-    <xs:complexType name="global">
-        <xs:sequence>
-            <xs:element name="scripts" type="tns:scripts"/>
-        </xs:sequence>
-    </xs:complexType>
     <xs:complexType name="scripts">
         <xs:sequence>
-            <xs:element name="script" type="tns:script" minOccurs="1" maxOccurs="unbounded"/>
+            <xs:element name="script" type="tns:script" minOccurs="0" maxOccurs="unbounded"/>
         </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="variable">
+        <xs:attribute name="name" use="required" type="xs:NCName"/>
+        <xs:attribute name="type" use="required" type="xs:NMTOKEN"/>
+        <xs:attribute name="comment" type="xs:string"/>
+    </xs:complexType>
+    <xs:complexType name="variables">
+        <xs:sequence>
+            <xs:element name="variable" minOccurs="0" maxOccurs="unbounded" type="tns:variable"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="map">
+        <xs:complexContent>
+            <xs:extension base="tns:scope">
+                <xs:sequence>
+                    <xs:element name="chunk" maxOccurs="unbounded">
+                        <xs:complexType>
+                            <xs:sequence>
+                                <xs:element name="row" maxOccurs="unbounded" type="xs:NMTOKENS"/>
+                            </xs:sequence>
+                            <xs:attribute name="x" type="xs:int"/>
+                            <xs:attribute name="y" type="xs:int"/>
+                        </xs:complexType>
+                    </xs:element>
+                </xs:sequence>
+                <xs:attribute name="name" type="xs:string"/>
+                <xs:attribute name="width" type="xs:int"/>
+                <xs:attribute name="height" type="xs:int"/>
+                <xs:attribute name="category" type="xs:string"/>
+                <xs:attribute name="wrap" type="xs:boolean" default="false"/>
+                <xs:attribute name="startX" type="xs:int" default="0"/>
+                <xs:attribute name="startY" type="xs:int" default="0"/>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="global">
+        <xs:complexContent>
+            <xs:extension base="tns:scope">
+                <xs:sequence>
+                    <xs:element name="userTypes" minOccurs="0" maxOccurs="1">
+                        <xs:complexType>
+                            <xs:sequence>
+                                <xs:element name="userType" minOccurs="0" maxOccurs="unbounded" type="tns:userType"/>
+                            </xs:sequence>
+                        </xs:complexType>
+                    </xs:element>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="userType">
+        <xs:sequence>
+            <xs:element name="attribute" minOccurs="1" maxOccurs="unbounded">
+                <xs:complexType>
+                    <xs:attribute name="name" use="required" type="xs:NCName"/>
+                    <xs:attribute name="type" use="required" type="xs:NMTOKEN"/>
+                    <xs:attribute name="comment" type="xs:string"/>                            
+                </xs:complexType>
+            </xs:element>
+        </xs:sequence>
+        <xs:attribute name="name" use="required" type="xs:NCName"/>                            
+        <xs:attribute name="comment" use="required" type="xs:string"/>                            
+    </xs:complexType>
+    <xs:complexType name="scope">
+        <xs:sequence>
+            <xs:element name="scripts" type="tns:scripts"/>
+            <xs:element name="variables" type="tns:variables"/>
+        </xs:sequence>        
     </xs:complexType>
     <xs:complexType name="block">
         <xs:sequence>

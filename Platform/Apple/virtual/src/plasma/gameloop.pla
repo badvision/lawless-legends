@@ -753,12 +753,14 @@ end
 def fakeChars()
   setWindow3()
   displayChar('L'-$40)
-  displayStr("Name         Life Gun\n")
+  displayStr("Name        Life Gun\n")
   displayChar('L'-$40)
-  displayStr("Black Bart     12    4\n")
-  displayStr("Wyld Bill        8    2\n")
-  displayStr("Lucy Lawless   ")
-  displayChar('H'-$40)  // back 1 pixel
+  displayStr("Black Bart   ")
+  displayChar('U'-$40) // right 1 pix
+  displayStr("12    4\n")
+  displayStr("Wyld Bill       8    2\n")
+  displayStr("Lucy Lawless ")
+  displayChar('U'-$40) // right 1 pix
   displayStr("9    6")
   if mapIs3D; copyWindow(); fin
   setWindow2()

@@ -779,7 +779,7 @@ init: !zone
 	sta setAuxRd
 	lda $2000
 	sta clrAuxRd
-	cmp #1
+	cmp #2
 	beq +
 	ldx #<.auxMsg
 	ldy #>.auxMsg

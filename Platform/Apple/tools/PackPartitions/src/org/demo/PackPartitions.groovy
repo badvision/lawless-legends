@@ -1401,10 +1401,27 @@ class PackPartitions
         def vec_moveBackward    = 0x31E
         def vec_getCharacter    = 0x321
 
-        def emitAuxString(str)
+        def emitAuxString(inStr)
         {
             emitCodeByte(0x54)  // CALL
             emitCodeWord(vec_pushAuxStr)
+            def buf = new StringBuilder()
+            def prev = ' '
+            inStr.each { ch ->
+                if (ch == '^') {
+                    if (prev == '^')
+                        buf.append(ch)
+                }
+                else if (prev == '^') {
+                    def cp = Character.codePointAt(ch.toUpperCase(), 0)
+                    if (cp > 64 && cp < 96)
+                        buf.appendCodePoint(cp - 64)
+                }
+                else
+                    buf.append(ch)
+                prev = ch
+            }
+            def str = buf.toString()
             assert str.size() < 256 : "String too long, max is 255 characters: $str"
             emitCodeByte(str.size())
             str.each { ch -> emitCodeByte((byte)ch) }

@@ -768,6 +768,24 @@ init: !zone
 ; put something interesting on the screen :)
 	jsr home
 	+prStr : !text "Welcome to Mythos.",0
+; verify that aux mem exists
+	sta clrAuxWr
+	lda #1
+	sta $2000
+	sta setAuxWr
+	lda #2
+	sta $2000
+	sta clrAuxWr
+	sta setAuxRd
+	lda $2000
+	sta clrAuxRd
+	cmp #1
+	beq +
+	ldx #<.auxMsg
+	ldy #>.auxMsg
+	jmp fatalError
+.auxMsg	!text "Aux mem required",0
++
 ; close all files
 	lda #0
 	jsr closeFile

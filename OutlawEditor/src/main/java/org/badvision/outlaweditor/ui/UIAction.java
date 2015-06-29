@@ -4,10 +4,14 @@
  */
 package org.badvision.outlaweditor.ui;
 
+import java.beans.IntrospectionException;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -56,9 +60,12 @@ import org.badvision.outlaweditor.data.DataUtilities;
 import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.TilesetUtils;
 import org.badvision.outlaweditor.data.xml.GameData;
+import org.badvision.outlaweditor.data.xml.Global;
 import org.badvision.outlaweditor.data.xml.Scope;
 import org.badvision.outlaweditor.data.xml.Script;
 import org.badvision.outlaweditor.data.xml.Tile;
+import org.badvision.outlaweditor.data.xml.Variable;
+import org.badvision.outlaweditor.data.xml.Variables;
 import org.badvision.outlaweditor.ui.impl.ImageConversionWizardController;
 
 /**
@@ -240,6 +247,39 @@ public class UIAction {
         editor.show();
         return script;
     }
+    
+    public static void createAndEditVariable(Scope scope) throws IntrospectionException {
+        Variable newVariable = new Variable();
+        newVariable.setName("changeme");
+        newVariable.setType("String");
+        newVariable.setComment("");
+        Optional<Variable> var = editAndGetVariable(newVariable);
+        if (var.isPresent()) {
+            if (scope.getVariables() == null) {
+                scope.setVariables(new Variables());
+            }
+            scope.getVariables().getVariable().add(var.get());
+        }
+    }
+    
+    public static void editVariable(Variable var, Global global) {
+        try {
+            editAndGetVariable(var);
+        } catch (IntrospectionException ex) {
+            Logger.getLogger(UIAction.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+
+    public static Optional<Variable> editAndGetVariable(Variable v) throws IntrospectionException {
+        ModalEditor editor = new ModalEditor();
+        Map<String, ModalEditor.EditControl> controls = new LinkedHashMap<>();
+
+        controls.put("name", new ModalEditor.TextControl());
+        controls.put("type", new ModalEditor.TextControl());
+        controls.put("comment", new ModalEditor.TextControl());
+        
+        return editor.editObject(v, controls, Variable.class, "Variable", "Edit and press OK, or Cancel to abort");
+    }    
 
     public static ImageConversionWizardController openImageConversionModal(Image image, ImageDitherEngine ditherEngine, int targetWidth, int targetHeight, ImageConversionPostAction postAction) {
         FXMLLoader fxmlLoader = new FXMLLoader(UIAction.class.getResource("/imageConversionWizard.fxml"));

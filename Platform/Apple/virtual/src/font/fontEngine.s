@@ -554,6 +554,9 @@ SetWnd	LDA evalStkL+SW_TOP,X	;get top coord
 	JSR GetOfst
 	LDA HgrHrz
 	STA LfMrgn		;that's the left margin for scrolling
+	LDA #0
+	STA TtlScrl		;clear centering variables
+	STA WrdWdth
 	RTS
 
 ;Routine: Scroll screen up 1 character line

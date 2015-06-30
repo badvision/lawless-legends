@@ -25,6 +25,7 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import org.badvision.outlaweditor.data.xml.Block;
+import org.badvision.outlaweditor.data.xml.Global;
 import org.badvision.outlaweditor.data.xml.Mutation;
 import org.badvision.outlaweditor.data.xml.Scope;
 import org.badvision.outlaweditor.data.xml.Script;
@@ -143,15 +144,16 @@ public class MythosEditor {
     }
 
     public List<UserType> getUserTypes() {
-        if (Application.gameData.getGlobal().getUserTypes() == null) {
+        Global global = (Global) getGlobalScope();
+        if (global.getUserTypes() == null) {
             return new ArrayList<>();
         } else {
-            return Application.gameData.getGlobal().getUserTypes().getUserType();
+            return global.getUserTypes().getUserType();
         }
     }
 
     public List<Script> getGlobalFunctions() {
-        return getFunctions(Application.gameData.getGlobal());
+        return getFunctions(getGlobalScope());
     }
     public List<Script> getLocalFunctions() {
         return getFunctions(scope);
@@ -169,9 +171,17 @@ public class MythosEditor {
     }
 
     public List<Variable> getGlobalVariables() {
-        return getVariables(Application.gameData.getGlobal());
+        return getVariables(getGlobalScope());
     }
 
+    public static Scope getGlobalScope() {
+        return Application.gameData.getGlobal();
+    }
+
+    private boolean isGlobalScope() {
+        return scope.equals(getGlobalScope());
+    }
+    
     public List<Variable> getLocalVariables() {
         return getVariables(scope);
     }
@@ -185,7 +195,10 @@ public class MythosEditor {
     }
 
     public List<Variable> getVariablesByType(String type) {
-        Stream<Variable> allGlobals = getGlobalVariables().stream();
+        Stream<Variable> allGlobals = Stream.empty();
+        if (!isGlobalScope()) {
+            allGlobals = getGlobalVariables().stream();
+        }
         Stream<Variable> allLocals = getLocalVariables().stream();
         return Stream.concat(allGlobals, allLocals).filter(
                 (Variable v) -> {

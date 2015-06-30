@@ -1,10 +1,13 @@
 package org.badvision.outlaweditor.ui.impl;
 
+import java.beans.IntrospectionException;
+import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.event.ActionEvent;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.control.Tooltip;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.util.Callback;
@@ -13,12 +16,19 @@ import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.TransferHelper;
 import org.badvision.outlaweditor.data.DataUtilities;
 import org.badvision.outlaweditor.data.xml.Script;
+import org.badvision.outlaweditor.data.xml.Variable;
 import org.badvision.outlaweditor.ui.GlobalEditorTabController;
 import org.badvision.outlaweditor.ui.UIAction;
 import static org.badvision.outlaweditor.ui.UIAction.editScript;
 
 public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
 
+    @Override
+    public void initialize() {
+        super.initialize();
+    }
+
+    
     @Override
     protected void onScriptAddPressed(ActionEvent event) {
         UIAction.createAndEditScript(Application.gameData.getGlobal());
@@ -72,14 +82,51 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
 
     @Override
     protected void onVariableAddPressed(ActionEvent event) {
+        try {
+            UIAction.createAndEditVariable(Application.gameData.getGlobal());
+            redrawGlobalVariables();
+        } catch (IntrospectionException ex) {
+            Logger.getLogger(GlobalEditorTabControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     @Override
     protected void onVariableDeletePressed(ActionEvent event) {
+        Variable var = variableList.getSelectionModel().getSelectedItem();
+        if (var != null) {
+            UIAction.confirm(
+                    "Are you sure you want to delete the variable "
+                    + var.getName()
+                    + "?  There is no undo for this!",
+                    () -> {
+                        Application.gameData.getGlobal().getVariables().getVariable().remove(var);
+                        redrawGlobalVariables();
+                    }, null);
+        }
     }
 
     @Override
     protected void onVariableClonePressed(ActionEvent event) {
+        Variable source = variableList.getSelectionModel().getSelectedItem();
+        if (source == null) {
+            String message = "First select a variable and then press Clone";
+            UIAction.alert(message);
+        } else {
+            try {
+                Variable variable = TransferHelper.cloneObject(source, Variable.class, "variable");
+                variable.setName(source.getName() + " CLONE");
+                Optional<Variable> newVar = UIAction.editAndGetVariable(variable);
+                if (newVar.isPresent()) {
+                    Application.gameData.getGlobal().getVariables().getVariable().add(newVar.get());
+                    redrawGlobalVariables();
+                }
+            } catch (JAXBException ex) {
+                Logger.getLogger(MapEditorTabControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
+                UIAction.alert("Error occured when attempting clone operation:\n" + ex.getMessage());
+            } catch (IntrospectionException ex) {
+                Logger.getLogger(GlobalEditorTabControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
     }
 
     @Override
@@ -99,17 +146,8 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
                         if (empty || item == null) {
                             setText("");
                         } else {
-//                            ImageView visibleIcon = getVisibleIcon(item);
-//                            visibleIcon.setOnMouseClicked((e) -> {
-//                                toggleVisibility(visibleIcon, item);
-//                                mapScriptsList.getSelectionModel().clearSelection();
-//                            });
-//                            setGraphic(visibleIcon);
-//                            getCurrentEditor().getCurrentMap().getScriptColor(item).ifPresent(this::setTextFill);
                             setText(item.getName());
                             setFont(Font.font(null, FontWeight.BOLD, 12.0));
-//                            scriptDragDrop.registerDragSupport(this, item);
-//                            visibleIcon.setMouseTransparent(false);
                         }
                     }
                 };
@@ -122,6 +160,46 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
         } else {
             globalScriptList.getItems().clear();
         }
+    }
+
+    @Override
+    public void redrawGlobalVariables() {
+        DataUtilities.ensureGlobalExists();
+       variableList.setOnEditStart((ListView.EditEvent<Variable> event) -> {
+            UIAction.editVariable(event.getSource().getItems().get(event.getIndex()), Application.gameData.getGlobal());
+        });
+        variableList.setCellFactory(new Callback<ListView<Variable>, ListCell<Variable>>() {
+            @Override
+            public ListCell<Variable> call(ListView<Variable> param) {
+                final ListCell<Variable> cell = new ListCell<Variable>() {
+                    @Override
+                    protected void updateItem(Variable item, boolean empty) {
+                        super.updateItem(item, empty);
+                        if (empty || item == null) {
+                            setText("");
+                        } else {
+                            setText(item.getName());
+                            if (item.getComment() != null && !(item.getComment().isEmpty())) {
+                                setTooltip(new Tooltip(item.getComment()));
+                            }
+                            setFont(Font.font(null, FontWeight.BOLD, 12.0));
+                        }
+                    }
+                };
+                return cell;
+            }
+        });
+        if (variableList.getItems() != null && Application.gameData.getGlobal().getVariables()!= null) {
+            DataUtilities.sortVariables(Application.gameData.getGlobal().getVariables());
+            variableList.getItems().setAll(Application.gameData.getGlobal().getVariables().getVariable());
+        } else {
+            variableList.getItems().clear();
+        }
+     }
+
+    @Override
+    public void redrawGlobalDataTypes() {
+        DataUtilities.ensureGlobalExists();
     }
 
 }

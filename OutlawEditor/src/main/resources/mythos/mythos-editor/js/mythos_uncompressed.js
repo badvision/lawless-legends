@@ -183,13 +183,19 @@ if (typeof Mythos === "undefined") {
             Blockly.Variables.allVariables = function (workspace) {
                 var list = Blockly.Variables.allVariables_old(workspace);
                 Mythos.each(Mythos.editor.getVariablesByType("String"), function (variable) {
-                    list.push(variable.getName());
+                    if (list.indexOf(variable.getName()) < 0) {
+                        list.push(variable.getName());
+                    }
                 });
                 Mythos.each(Mythos.editor.getVariablesByType("Number"), function (variable) {
-                    list.push(variable.getName());
+                    if (list.indexOf(variable.getName()) < 0) {
+                        list.push(variable.getName());
+                    }
                 });
                 Mythos.each(Mythos.editor.getVariablesByType("Boolean"), function (variable) {
-                    list.push(variable.getName());
+                    if (list.indexOf(variable.getName()) < 0) {
+                        list.push(variable.getName());
+                    }
                 });
                 return list;
             };

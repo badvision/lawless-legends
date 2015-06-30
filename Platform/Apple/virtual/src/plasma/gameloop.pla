@@ -105,6 +105,7 @@ byte q_mapNum = 0
 word q_x
 word q_y
 byte q_dir
+word mapNameHash = 0
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -325,6 +326,40 @@ asm getXReg
         +asmPlasm 0
         txa
         ldy #0
+        rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Calculate 16-bit hash of a string
+asm hashString
+        +asmPlasm 1
+        sta pTmp
+        sty pTmp+1
+        ldy #0
+        sty tmp+1
+        lda (pTmp),y
+        tax
+        iny
+-       clc
+        adc (pTmp),y
+        bcc +
+        inc tmp+1
++       asl
+        rol tmp+1
+        bcc +
+        ora #1
++       asl
+        rol tmp+1
+        bcc +
+        ora #1
++       asl
+        rol tmp+1
+        bcc +
+        ora #1
++       iny
+        dex
+        bne -
+        ldy tmp+1
         rts
 end
 
@@ -956,6 +991,7 @@ def setMap(is3D, num, x, y, dir)
     setWindow1();   clearWindow()
     displayChar('Y'-$40) // center mode
     displayStr("Traveling...")
+    mapNameHash = 0 // because we replaced the title text
     displayChar('N'-$40) // normal mode
     setMapWindow(); clearWindow()    
     setWindow2();   clearWindow()
@@ -969,6 +1005,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def kbdTeleport()
+  byte d3, num
   word x, y
   byte dir
   
@@ -979,9 +1016,10 @@ def kbdTeleport()
   printf3("\nCurrent: X=%d Y=%d Facing=%d\n", x, y, getDir())
 
   puts("3D : ")
-  mapIs3D = parseDec(readStr())
+  d3 = parseDec(readStr())
+  if d3 > 1; d3 = 1; fin
   puts("Map: ")
-  mapNum = parseDec(readStr())
+  num = parseDec(readStr())
   puts("X  : ")
   x = parseDec(readStr())
   puts("Y  : ")
@@ -991,7 +1029,7 @@ def kbdTeleport()
 
   ^$c052
 
-  setMap(mapIs3D, mapNum, x, y, dir)
+  setMap(d3, num, x, y, dir)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1060,6 +1098,7 @@ end
 // Set initial info for the scripts on this map: the trigger table and the name of the map. This
 // is called by the init function for the scripts.
 def setScriptInfo(mapName, trigTbl)
+  word newNameHash
 
   // Grab the trigger table origins (used so the table can be more compact)
   triggerOriginX = trigTbl=>0
@@ -1069,12 +1108,16 @@ def setScriptInfo(mapName, trigTbl)
   triggerTbl = trigTbl + 4
 
   // Display map name
-  setWindow1()
-  clearWindow()
-  displayChar('Y'-$40) // center mode
-  displayStr(mapName)
-  displayChar('N'-$40) // normal mode
-  if mapIs3D; copyWindow(); fin
+  newNameHash = hashString(mapName)
+  if newNameHash <> mapNameHash
+    setWindow1()
+    clearWindow()
+    displayChar('Y'-$40) // center mode
+    displayStr(mapName)
+    displayChar('N'-$40) // normal mode
+    if mapIs3D; copyWindow(); fin
+    mapNameHash = newNameHash
+  fin
 
   // Back to the main text window.
   setWindow2()

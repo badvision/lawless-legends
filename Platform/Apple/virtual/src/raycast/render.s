@@ -62,7 +62,6 @@ mapRayOrigin:	!word 0
 mapNum:    	!byte 1
 nMapSprites:	!byte 0		; number of sprite entries on map to fix up
 nextLink:	!byte 0		; next link to allocate
-tablesInitted:	!byte 0		; 1 after init
 plasmaStk:      !byte 0
 
 skyColorEven:   !byte $20
@@ -2027,16 +2026,12 @@ pl_initMap: !zone
 	; Proceed with loading
 	jsr loadTextures
 	jsr copyScreen
-	lda tablesInitted
-	bne +
 	; Build all the unrolls and tables
 	!if DEBUG { +prStr : !text "Making tables.",0 }
 	jsr makeBlit
 	jsr makeClrBlit
 	jsr makeDecodeTbls
 	jsr makeLines
-+	lda #1
-	sta tablesInitted
 	jsr setExpansionCaller
 	jsr graphInit
 	jmp renderFrame

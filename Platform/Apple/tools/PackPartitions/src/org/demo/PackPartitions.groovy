@@ -405,11 +405,41 @@ class PackPartitions
         buf.put((byte)0);
     }
 
+    def calcMapExtent(rows)
+    {
+        // Determine the last row that has a majority of tiles filled
+        def height = 1
+        rows.eachWithIndex { row, y ->
+            def filled = 0
+            row.each { tile ->
+                if (tile) {
+                    filled += 1
+                }
+            }
+            if (filled > row.size() / 2)
+                height = y+1
+        }
+        
+        // Determine the last column that has a majority of tiles filled
+        def width = 1
+        (0..<rows[0].size()).each { x ->
+            def filled = 0
+            (0..<rows.size()).each { y ->
+                if (rows[y][x])
+                    filled += 1
+            }
+            if (filled > rows[0].size() / 2)
+                width = x+1
+        }
+        
+        return [width, height]
+    }
+    
     def write2DMap(mapName, mapEl, rows)
     {
-        def width = rows[0].size()
-        def height = rows.size()
-
+        def width, height
+        (width, height) = calcMapExtent(rows)
+        
         def TILES_PER_ROW = 22
         def ROWS_PER_SECTION = 23
         
@@ -443,7 +473,8 @@ class PackPartitions
                 def xRange = hOff ..< hOff+TILES_PER_ROW
                 def yRange = vOff ..< vOff+ROWS_PER_SECTION
                 def sectName = "$mapName-$hsect-$vsect"
-                def (scriptModule, locationsWithTriggers) = packScripts(mapEl, sectName, xRange, yRange)
+                def (scriptModule, locationsWithTriggers) = 
+                    packScripts(mapEl, sectName, width, height, xRange, yRange)
                 
                 // Header: first come links to other map sections.
                 // The first section is always 0xFF for north and west. So instead, use that
@@ -792,22 +823,23 @@ class PackPartitions
         def num = mapNames[name][1]
         //println "Packing 3D map #$num named '$name'."
         withContext("map '$name'") {
-            def (scriptModule, locationsWithTriggers) = packScripts(mapEl, name)
             def rows = parseMap(mapEl, tileEls)
+            def (scriptModule, locationsWithTriggers) = packScripts(mapEl, name, rows[0].size(), rows.size())
             def buf = ByteBuffer.allocate(50000)
             write3DMap(buf, name, rows, scriptModule, locationsWithTriggers)
             maps3D[name] = [num:num, buf:buf]
         }
     }
     
-    def packScripts(mapEl, mapName, xRange = null, yRange = null)
+    def packScripts(mapEl, mapName, totalWidth, totalHeight, xRange = null, yRange = null)
     {
         def num = modules.size() + 1
         def name = "mapScript$num"
         //println "Packing scripts for map $mapName, to module $num."
         
         ScriptModule module = new ScriptModule()
-        module.packScripts(mapName, mapEl.scripts ? mapEl.scripts[0] : [], xRange, yRange)
+        module.packScripts(mapName, mapEl.scripts ? mapEl.scripts[0] : [], 
+            totalWidth, totalHeight, xRange, yRange)
             
         modules[name]   = [num:num, buf:wrapByteList(module.data)]
         bytecodes[name] = [num:num, buf:wrapByteList(module.bytecode)]
@@ -1432,7 +1464,7 @@ class PackPartitions
          * Pack scripts from a map. Either the whole map, or optionally just an X and Y
          * bounded section of it.
          */
-        def packScripts(mapName, inScripts, xRange = null, yRange = null)
+        def packScripts(mapName, inScripts, maxX, maxY, xRange = null, yRange = null)
         {
             // If we're only processing a section of the map, make sure this script is
             // referenced within that section.
@@ -1455,7 +1487,7 @@ class PackPartitions
             scripts.eachWithIndex { script, idx ->
                 packScript(idx, script) 
             }
-            makeInit(mapName, scripts, xRange, yRange)
+            makeInit(mapName, scripts, xRange, yRange, maxX, maxY)
             emitFixupByte(0xFF)
             
             //println "  Code stats: data=${data.size}, bytecode=${bytecode.size} (str=$nStringBytes), fixups=${fixups.size}"
@@ -1833,7 +1865,7 @@ class PackPartitions
             emitCodeByte(0x30) // DROP
         }
 
-        def makeInit(mapName, scripts, xRange, yRange)
+        def makeInit(mapName, scripts, xRange, yRange, maxX, maxY)
         {
             //println "    Script: special 'init'"
             startFunc(0)
@@ -1878,10 +1910,14 @@ class PackPartitions
             // Process the map name
             def shortName = mapName.replaceAll(/[\s-]*[23][dD][-0-9]*$/, '').take(16)
             
-            // Code to register the table and map name
+            // Code to register the  map name, trigger table, and map extent.
             emitAuxString(shortName)
             emitCodeByte(0x26)  // LA
             emitCodeFixup(dataAddr())
+            emitCodeByte(0x2C) // CW
+            emitCodeWord(maxX)
+            emitCodeByte(0x2C) // CW
+            emitCodeWord(maxY)
             emitCodeByte(0x54) // CALL
             emitCodeWord(vec_setScriptInfo)
             emitCodeByte(0x30) // DROP

@@ -85,6 +85,8 @@ const cursv     = $75  // Cursor V-pos 0-23
 // Global variables
 byte mapNum
 byte mapIs3D
+word totalMapWidth
+word totalMapHeight
 word pFont
 word pMap
 word cmdTbl[64]
@@ -960,23 +962,47 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def moveNorth()
-  setDir(0)
-  moveForward()
+  word x, y
+  getPos(@x, @y)
+  if y > 4
+    setDir(0)
+    moveForward()
+  else
+    beep()
+  fin
 end
 
 def moveEast()
-  setDir(4)
-  moveForward()
+  word x, y
+  getPos(@x, @y)
+  if x < totalMapWidth-5
+    setDir(4)
+    moveForward()
+  else
+    beep()
+  fin
 end
 
 def moveSouth()
-  setDir(8)
-  moveForward()
+  word x, y
+  getPos(@x, @y)
+  if y < totalMapHeight-5
+    setDir(8)
+    moveForward()
+  else
+    beep()
+  fin
 end
 
 def moveWest()
-  setDir(12)
-  moveForward()
+  word x, y
+  getPos(@x, @y)
+  if x > 4
+    setDir(12)
+    moveForward()
+  else
+    beep()
+  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1095,9 +1121,9 @@ def kbdLoop()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Set initial info for the scripts on this map: the trigger table and the name of the map. This
-// is called by the init function for the scripts.
-def setScriptInfo(mapName, trigTbl)
+// Set initial info for the scripts on this map: the name of the map, its trigger table, and the
+// maximum extent (width, height). This is called by the init function for the scripts.
+def setScriptInfo(mapName, trigTbl, wdt, hgt)
   word newNameHash
 
   // Grab the trigger table origins (used so the table can be more compact)
@@ -1106,6 +1132,10 @@ def setScriptInfo(mapName, trigTbl)
 
   // Record the trigger table pointer
   triggerTbl = trigTbl + 4
+
+  // Record the maximum width and height
+  totalMapWidth = wdt
+  totalMapHeight = hgt
 
   // Display map name
   newNameHash = hashString(mapName)

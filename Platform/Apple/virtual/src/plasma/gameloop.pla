@@ -205,7 +205,9 @@ asm pushAuxStr     // params: none; ret: $200 (inbuf)
         ; Get string length and save it
         iny             ; advance to next code byte
         bne +
-        inc $F4         ; next pg if necessary
+        inc $F5         ; next pg if necessary
+        tsx
+        inc $105,x      ; also PLASMA's copy of the page pointer
 +       jsr $10
         sta $200
         ldx #0
@@ -214,7 +216,11 @@ asm pushAuxStr     // params: none; ret: $200 (inbuf)
         beq ++
         iny             ; advance to next code byte
         bne +
-        inc $F4         ; next pg if necessary
+        inc $F5         ; next pg if necessary
+        stx tmp+1
+        tsx
+        inc $105,x      ; also PLASMA's copy of the page pointer
+        ldx tmp+1
 +       jsr $10         ; now fetch the byte from aux mem
         inx
         sta $200,x      ; and stuff it in the string / input buffer
@@ -679,6 +685,14 @@ def parseDec(str)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def parseDecWithDefault(str, default)
+  if ^str == 0
+    return default
+  fin
+  return parseDec(str)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Get a keystroke and convert it to upper case
 def getUpperKey()
   byte key
@@ -1041,17 +1055,17 @@ def kbdTeleport()
   getPos(@x, @y)
   printf3("\nCurrent: X=%d Y=%d Facing=%d\n", x, y, getDir())
 
-  puts("3D : ")
-  d3 = parseDec(readStr())
+  printf1("3D [%d]: ", mapIs3D)
+  d3 = parseDecWithDefault(readStr(), mapIs3D)
   if d3 > 1; d3 = 1; fin
-  puts("Map: ")
-  num = parseDec(readStr())
-  puts("X  : ")
-  x = parseDec(readStr())
-  puts("Y  : ")
-  y = parseDec(readStr())
-  puts("Facing: ")
-  dir = parseDec(readStr())
+  printf1("Map [%d]: ", mapNum)
+  num = parseDecWithDefault(readStr(), mapNum)
+  printf1("X [%d]  : ", x)
+  x = parseDecWithDefault(readStr(), x)
+  printf1("Y [%d] : ", y)
+  y = parseDecWithDefault(readStr(), y)
+  printf1("Facing [%d]: ", dir)
+  dir = parseDecWithDefault(readStr(), dir)
 
   ^$c052
 
@@ -1159,6 +1173,11 @@ end
 def scriptDisplayStr(str)
   textDrawn = TRUE
   displayStr(str)
+end
+
+def scriptDisplayStrNL(str)
+  scriptDisplayStr(str)
+  displayStr("\n")
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1321,39 +1340,47 @@ def setCallbacks()
 
   // $309
   callbacks.9 = $4c
-  callbacks:10 = @getYN
+  callbacks:10 = @scriptDisplayStrNL
 
   // $30C
   callbacks.12 = $4c
-  callbacks:13 = @queue_setMap
+  callbacks:13 = @getYN
 
   // $30F
   callbacks.15 = $4c
-  callbacks:16 = @setSky
+  callbacks:16 = @queue_setMap
 
   // $312
   callbacks.18 = $4c
-  callbacks:19 = @setGround
+  callbacks:19 = @setSky
 
   // $315
   callbacks.21 = $4c
-  callbacks:22 = @queue_teleport
+  callbacks:22 = @setGround
 
   // $318
   callbacks.24 = $4c
-  callbacks:25 = @setPortrait
+  callbacks:25 = @queue_teleport
 
   // $31B
   callbacks.27 = $4c
-  callbacks:28 = @clrPortrait
+  callbacks:28 = @setPortrait
 
   // $31E
   callbacks.30 = $4c
-  callbacks:31 = @moveBackward
+  callbacks:31 = @clrPortrait
 
   // $321
   callbacks.33 = $4c
-  callbacks:34 = @getUpperKey
+  callbacks:34 = @moveBackward
+
+  // $324
+  callbacks.36 = $4c
+  callbacks:37 = @getUpperKey
+
+  // $327
+  callbacks.39 = $4c
+  callbacks:40 = @clearWindow
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

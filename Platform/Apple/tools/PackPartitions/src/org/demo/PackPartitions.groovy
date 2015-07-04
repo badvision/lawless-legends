@@ -1423,15 +1423,17 @@ class PackPartitions
         def vec_setScriptInfo   = 0x300
         def vec_pushAuxStr      = 0x303
         def vec_displayStr      = 0x306
-        def vec_getYN           = 0x309
-        def vec_setMap          = 0x30C
-        def vec_setSky          = 0x30F
-        def vec_setGround       = 0x312
-        def vec_teleport        = 0x315
-        def vec_setPortrait     = 0x318
-        def vec_clrPortrait     = 0x31B
-        def vec_moveBackward    = 0x31E
-        def vec_getCharacter    = 0x321
+        def vec_displayStrNL    = 0x309
+        def vec_getYN           = 0x30C
+        def vec_setMap          = 0x30F
+        def vec_setSky          = 0x312
+        def vec_setGround       = 0x315
+        def vec_teleport        = 0x318
+        def vec_setPortrait     = 0x31B
+        def vec_clrPortrait     = 0x31E
+        def vec_moveBackward    = 0x321
+        def vec_getCharacter    = 0x324
+        def vec_clrTextWindow   = 0x327
 
         def emitAuxString(inStr)
         {
@@ -1563,6 +1565,8 @@ class PackPartitions
                     case 'text_print':
                     case 'text_println':
                         packTextPrint(blk); break
+                    case 'text_clear_window':
+                        packClearWindow(blk); break
                     case 'text_getanykey':
                         packGetAnyKey(); break
                     case  'controls_if':
@@ -1665,7 +1669,17 @@ class PackPartitions
 
             emitAuxString(text)
             emitCodeByte(0x54)  // CALL
-            emitCodeWord(vec_displayStr)
+            emitCodeWord(blk.@type == 'text_print' ? vec_displayStr : vec_displayStrNL)
+            emitCodeByte(0x30) // DROP
+        }
+
+        def packClearWindow(blk)
+        {
+            assert blk.value.size() == 0
+            //println "            clearWindow"
+
+            emitCodeByte(0x54)  // CALL
+            emitCodeWord(vec_clrTextWindow)
             emitCodeByte(0x30) // DROP
         }
 

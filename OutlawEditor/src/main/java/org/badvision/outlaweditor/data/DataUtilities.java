@@ -19,6 +19,8 @@ public class DataUtilities {
         entities.sort((a,b)->{
             String nameA = a == null ? "" : nullSafe(a.getName());
             String nameB = b == null ? "" : nullSafe(b.getName());
+            if (nameA.equalsIgnoreCase("init")) return -1;
+            if (nameB.equalsIgnoreCase("init")) return 1;
             return nameA.compareTo(nameB);
         });
     }

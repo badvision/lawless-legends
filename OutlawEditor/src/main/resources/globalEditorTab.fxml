@@ -40,7 +40,7 @@
                             <items>
                                 <Button mnemonicParsing="false" onAction="#onDataTypeAddPressed" text="+" />
                                 <Button mnemonicParsing="false" onAction="#onDataTypeDeletePressed" text="-" />
-                                <Button mnemonicParsing="false" onAction="#onDeleteClonePressed" text="Clone" />
+                                <Button mnemonicParsing="false" onAction="#onDataTypeClonePressed" text="Clone" />
                             </items>
                         </ToolBar>
                         <ScrollPane fitToHeight="true" fitToWidth="true" prefHeight="419.0" prefWidth="201.0">

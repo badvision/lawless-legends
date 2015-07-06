@@ -32,7 +32,7 @@ public abstract class GlobalEditorTabController {
     @FXML
     abstract protected void onDataTypeDeletePressed(ActionEvent event);
     @FXML
-    abstract protected void onDeleteClonePressed(ActionEvent event);
+    abstract protected void onDataTypeClonePressed(ActionEvent event);
     @FXML
     abstract protected void onVariableAddPressed(ActionEvent event);
     @FXML

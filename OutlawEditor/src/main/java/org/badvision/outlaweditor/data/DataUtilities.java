@@ -1,42 +1,40 @@
 package org.badvision.outlaweditor.data;
 
+import java.util.List;
 import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.data.xml.Global;
-import org.badvision.outlaweditor.data.xml.Scripts;
-import org.badvision.outlaweditor.data.xml.Variables;
+import org.badvision.outlaweditor.data.xml.NamedEntity;
 
 public class DataUtilities {
-    public static void sortScripts(Scripts s) {
-        if (s == null || s.getScript() == null) {
-            return;
-        }
-        s.getScript().sort((a, b) -> {
-            if (a.getName().equalsIgnoreCase("init")) {
-                return -1;
-            } else if (b.getName().equalsIgnoreCase("init")) {
-                return 1;
-            }
-            return a.getName().compareTo(b.getName());
-        });
-    }    
-
     public static void ensureGlobalExists() {
         if (Application.gameData.getGlobal() == null) {
             Application.gameData.setGlobal(new Global());
         }
     }
 
-    public static void sortVariables(Variables vars) {
-        if (vars == null || vars.getVariable()== null) {
+    public static void sortNamedEntities(List<? extends NamedEntity> entities) {
+        if (entities == null) {
             return;
         }
-        vars.getVariable().sort((a, b) -> {
-            if (a.getName().equalsIgnoreCase("init")) {
-                return -1;
-            } else if (b.getName().equalsIgnoreCase("init")) {
-                return 1;
-            }
-            return a.getName().compareTo(b.getName());
+        entities.sort((a,b)->{
+            String nameA = a == null ? "" : nullSafe(a.getName());
+            String nameB = b == null ? "" : nullSafe(b.getName());
+            return nameA.compareTo(nameB);
         });
     }
+    
+    public static String nullSafe(String str) {
+        if (str == null) return "";
+        return str;
+    }
+    
+    public static String uppercaseFirst(String str) {
+        StringBuilder b = new StringBuilder(str);
+        int i = 0;
+        do {
+            b.replace(i, i + 1, b.substring(i, i + 1).toUpperCase());
+            i = b.indexOf(" ", i) + 1;
+        } while (i > 0 && i < b.length());
+        return b.toString();
+    }    
 }

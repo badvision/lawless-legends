@@ -16,6 +16,7 @@ import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.TransferHelper;
 import org.badvision.outlaweditor.data.DataUtilities;
 import org.badvision.outlaweditor.data.xml.Script;
+import org.badvision.outlaweditor.data.xml.UserType;
 import org.badvision.outlaweditor.data.xml.Variable;
 import org.badvision.outlaweditor.ui.GlobalEditorTabController;
 import org.badvision.outlaweditor.ui.UIAction;
@@ -26,9 +27,75 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
     @Override
     public void initialize() {
         super.initialize();
+        variableList.setOnEditStart((ListView.EditEvent<Variable> event) -> {
+            UIAction.editVariable(event.getSource().getItems().get(event.getIndex()), Application.gameData.getGlobal());
+            variableList.getSelectionModel().clearSelection();
+        });
+        variableList.setCellFactory(new Callback<ListView<Variable>, ListCell<Variable>>() {
+            @Override
+            public ListCell<Variable> call(ListView<Variable> param) {
+                final ListCell<Variable> cell = new ListCell<Variable>() {
+                    @Override
+                    protected void updateItem(Variable item, boolean empty) {
+                        super.updateItem(item, empty);
+                        if (empty || item == null) {
+                            setText("");
+                        } else {
+                            setText(item.getName());
+                            if (item.getComment() != null && !(item.getComment().isEmpty())) {
+                                setTooltip(new Tooltip(item.getComment()));
+                            }
+                            setFont(Font.font(null, FontWeight.BOLD, 12.0));
+                        }
+                    }
+                };
+                return cell;
+            }
+        });
+        globalScriptList.setOnEditStart((ListView.EditEvent<Script> event) -> {
+            UIAction.editScript(event.getSource().getItems().get(event.getIndex()), Application.gameData.getGlobal());
+            globalScriptList.getSelectionModel().clearSelection();
+        });
+        globalScriptList.setCellFactory(new Callback<ListView<Script>, ListCell<Script>>() {
+            @Override
+            public ListCell<Script> call(ListView<Script> param) {
+                final ListCell<Script> cell = new ListCell<Script>() {
+
+                    @Override
+                    protected void updateItem(Script item, boolean empty) {
+                        super.updateItem(item, empty);
+                        if (empty || item == null) {
+                            setText("");
+                        } else {
+                            setText(item.getName());
+                            setFont(Font.font(null, FontWeight.BOLD, 12.0));
+                        }
+                    }
+                };
+                return cell;
+            }
+        });
+        dataTypeList.setOnEditStart((ListView.EditEvent<UserType> event) -> {
+            UIAction.editUserType(event.getSource().getItems().get(event.getIndex()));
+            dataTypeList.getSelectionModel().clearSelection();
+        });
+        dataTypeList.setCellFactory((listView) -> new ListCell<UserType>() {
+            @Override
+            protected void updateItem(UserType item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText("");
+                } else {
+                    setText(item.getName());
+                    if (item.getComment() != null && !(item.getComment().isEmpty())) {
+                        setTooltip(new Tooltip(item.getComment()));
+                    }
+                    setFont(Font.font(null, FontWeight.BOLD, 12.0));
+                }
+            }
+        });
     }
 
-    
     @Override
     protected void onScriptAddPressed(ActionEvent event) {
         UIAction.createAndEditScript(Application.gameData.getGlobal());
@@ -70,14 +137,31 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
 
     @Override
     protected void onDataTypeAddPressed(ActionEvent event) {
+        try {
+            UIAction.createAndEditUserType();
+            redrawGlobalDataTypes();
+        } catch (IntrospectionException ex) {
+            Logger.getLogger(GlobalEditorTabControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     @Override
     protected void onDataTypeDeletePressed(ActionEvent event) {
+        UserType type = dataTypeList.getSelectionModel().getSelectedItem();
+        if (type != null) {
+            UIAction.confirm(
+                    "Are you sure you want to delete the user-defined type "
+                    + type.getName()
+                    + "?  There is no undo for this!",
+                    () -> {
+                        Application.gameData.getGlobal().getUserTypes().getUserType().remove(type);
+                        redrawGlobalDataTypes();
+                    }, null);
+        }
     }
 
     @Override
-    protected void onDeleteClonePressed(ActionEvent event) {
+    protected void onDataTypeClonePressed(ActionEvent event) {
     }
 
     @Override
@@ -132,30 +216,8 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
     @Override
     public void redrawGlobalScripts() {
         DataUtilities.ensureGlobalExists();
-        globalScriptList.setOnEditStart((ListView.EditEvent<Script> event) -> {
-            UIAction.editScript(event.getSource().getItems().get(event.getIndex()), Application.gameData.getGlobal());
-        });
-        globalScriptList.setCellFactory(new Callback<ListView<Script>, ListCell<Script>>() {
-            @Override
-            public ListCell<Script> call(ListView<Script> param) {
-                final ListCell<Script> cell = new ListCell<Script>() {
-
-                    @Override
-                    protected void updateItem(Script item, boolean empty) {
-                        super.updateItem(item, empty);
-                        if (empty || item == null) {
-                            setText("");
-                        } else {
-                            setText(item.getName());
-                            setFont(Font.font(null, FontWeight.BOLD, 12.0));
-                        }
-                    }
-                };
-                return cell;
-            }
-        });
         if (globalScriptList.getItems() != null && Application.gameData.getGlobal().getScripts() != null) {
-            DataUtilities.sortScripts(Application.gameData.getGlobal().getScripts());
+            DataUtilities.sortNamedEntities(Application.gameData.getGlobal().getScripts().getScript());
             globalScriptList.getItems().setAll(Application.gameData.getGlobal().getScripts().getScript());
         } else {
             globalScriptList.getItems().clear();
@@ -165,41 +227,22 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
     @Override
     public void redrawGlobalVariables() {
         DataUtilities.ensureGlobalExists();
-       variableList.setOnEditStart((ListView.EditEvent<Variable> event) -> {
-            UIAction.editVariable(event.getSource().getItems().get(event.getIndex()), Application.gameData.getGlobal());
-        });
-        variableList.setCellFactory(new Callback<ListView<Variable>, ListCell<Variable>>() {
-            @Override
-            public ListCell<Variable> call(ListView<Variable> param) {
-                final ListCell<Variable> cell = new ListCell<Variable>() {
-                    @Override
-                    protected void updateItem(Variable item, boolean empty) {
-                        super.updateItem(item, empty);
-                        if (empty || item == null) {
-                            setText("");
-                        } else {
-                            setText(item.getName());
-                            if (item.getComment() != null && !(item.getComment().isEmpty())) {
-                                setTooltip(new Tooltip(item.getComment()));
-                            }
-                            setFont(Font.font(null, FontWeight.BOLD, 12.0));
-                        }
-                    }
-                };
-                return cell;
-            }
-        });
-        if (variableList.getItems() != null && Application.gameData.getGlobal().getVariables()!= null) {
-            DataUtilities.sortVariables(Application.gameData.getGlobal().getVariables());
+        if (variableList.getItems() != null && Application.gameData.getGlobal().getVariables() != null) {
+            DataUtilities.sortNamedEntities(Application.gameData.getGlobal().getVariables().getVariable());
             variableList.getItems().setAll(Application.gameData.getGlobal().getVariables().getVariable());
         } else {
             variableList.getItems().clear();
         }
-     }
+    }
 
     @Override
     public void redrawGlobalDataTypes() {
         DataUtilities.ensureGlobalExists();
+        if (dataTypeList.getItems() != null && Application.gameData.getGlobal().getUserTypes() != null) {
+            DataUtilities.sortNamedEntities(Application.gameData.getGlobal().getUserTypes().getUserType());
+            dataTypeList.getItems().setAll(Application.gameData.getGlobal().getUserTypes().getUserType());
+        } else {
+            dataTypeList.getItems().clear();
+        }
     }
-
 }

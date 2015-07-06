@@ -55,6 +55,8 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
         rebuildImageSelectors();
         rebuildMapSelectors();
         rebuildTileSelectors();
+        globalController.redrawGlobalDataTypes();
+        globalController.redrawGlobalVariables();
         redrawScripts();
     }
 
@@ -66,11 +68,8 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
 
     @Override
     public void redrawScripts() {
-        if (currentTab == TABS.map) {
-            mapController.redrawMapScripts();
-        } else {
-            globalController.redrawGlobalScripts();
-        }
+        mapController.redrawMapScripts();
+        globalController.redrawGlobalScripts();
     }
 
     @Override

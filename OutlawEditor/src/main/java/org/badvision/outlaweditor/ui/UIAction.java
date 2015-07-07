@@ -29,6 +29,10 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.cell.ComboBoxTableCell;
+import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.effect.BlurType;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
@@ -50,6 +54,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import javafx.util.Duration;
+import javafx.util.converter.DefaultStringConverter;
 import javax.xml.bind.JAXB;
 import org.badvision.outlaweditor.Application;
 import static org.badvision.outlaweditor.Application.currentPlatform;
@@ -64,6 +69,7 @@ import org.badvision.outlaweditor.data.xml.Global;
 import org.badvision.outlaweditor.data.xml.Scope;
 import org.badvision.outlaweditor.data.xml.Script;
 import org.badvision.outlaweditor.data.xml.Tile;
+import org.badvision.outlaweditor.data.xml.UserType;
 import org.badvision.outlaweditor.data.xml.Variable;
 import org.badvision.outlaweditor.data.xml.Variables;
 import org.badvision.outlaweditor.ui.impl.ImageConversionWizardController;
@@ -203,7 +209,7 @@ public class UIAction {
     public static void confirm(String message, Runnable yes, Runnable no) {
         choose(message, new Choice("Yes", yes), new Choice("No", no));
     }
-    
+
     public static void alert(String message) {
         choose(message, new Choice("Ok", null));
     }
@@ -247,7 +253,7 @@ public class UIAction {
         editor.show();
         return script;
     }
-    
+
     public static void createAndEditVariable(Scope scope) throws IntrospectionException {
         Variable newVariable = new Variable();
         newVariable.setName("changeme");
@@ -261,7 +267,7 @@ public class UIAction {
             scope.getVariables().getVariable().add(var.get());
         }
     }
-    
+
     public static void editVariable(Variable var, Global global) {
         try {
             editAndGetVariable(var);
@@ -277,9 +283,55 @@ public class UIAction {
         controls.put("name", new ModalEditor.TextControl());
         controls.put("type", new ModalEditor.TextControl());
         controls.put("comment", new ModalEditor.TextControl());
-        
+
         return editor.editObject(v, controls, Variable.class, "Variable", "Edit and press OK, or Cancel to abort");
-    }    
+    }
+
+    public static void createAndEditUserType() throws IntrospectionException {
+        UserType type = new UserType();
+        if (editAndGetUserType(type).isPresent()) {
+            if (Application.gameData.getGlobal().getUserTypes() == null) {
+                Application.gameData.getGlobal().setUserTypes(new Global.UserTypes());
+            }
+            Application.gameData.getGlobal().getUserTypes().getUserType().add(type);
+        }
+    }
+
+    public static void editUserType(UserType type) {
+        try {
+            editAndGetUserType(type);
+        } catch (IntrospectionException ex) {
+            Logger.getLogger(UIAction.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+
+    public static Optional<UserType> editAndGetUserType(UserType type) throws IntrospectionException {
+        ModalEditor editor = new ModalEditor();
+        Map<String, ModalEditor.EditControl> controls = new LinkedHashMap<>();
+
+        Map<String, Callback<TableColumn<
+                Variable, String>, TableCell<Variable, String>>> attributeControls = new LinkedHashMap<>();
+
+        attributeControls.put("name", TextFieldTableCell.<Variable, String>forTableColumn(new DefaultStringConverter() {
+            @Override
+            public String toString(String value) {
+                return value == null ? "Change Me" : value;
+            }
+        }));
+        attributeControls.put("type", ComboBoxTableCell.<Variable, String>forTableColumn(new DefaultStringConverter() {
+            @Override
+            public String toString(String value) {
+                return value == null ? "String" : value;
+            }            
+        }, "String","Boolean","Number"));
+        attributeControls.put("comment", TextFieldTableCell.<Variable, String>forTableColumn(new DefaultStringConverter()));
+
+        controls.put("name", new ModalEditor.TextControl());
+        controls.put("attribute", new ModalEditor.TableControl(attributeControls, Variable.class));
+        controls.put("comment", new ModalEditor.TextControl());
+
+        return editor.editObject(type, controls, UserType.class, "User Type", "Edit and press OK, or Cancel to abort");
+    }
 
     public static ImageConversionWizardController openImageConversionModal(Image image, ImageDitherEngine ditherEngine, int targetWidth, int targetHeight, ImageConversionPostAction postAction) {
         FXMLLoader fxmlLoader = new FXMLLoader(UIAction.class.getResource("/imageConversionWizard.fxml"));
@@ -305,7 +357,7 @@ public class UIAction {
     public static final int MAX_TILES_PER_ROW = 16;
     public static AnchorPane currentTileSelector;
 
-    public static void showTileSelectModal(Pane anchorPane, String category, Callback<Tile,?> callback) {
+    public static void showTileSelectModal(Pane anchorPane, String category, Callback<Tile, ?> callback) {
         if (currentTileSelector != null) {
             return;
         }
@@ -359,19 +411,19 @@ public class UIAction {
                                 new Color(0.7, 0.7, 0.9, 0.75),
                                 new CornerRadii(10.0),
                                 null)));
-        currentTileSelector.setEffect(new DropShadow(5.0, 1.0, 1.0, Color.BLACK));        
+        currentTileSelector.setEffect(new DropShadow(5.0, 1.0, 1.0, Color.BLACK));
         anchorPane.getChildren().add(currentTileSelector);
         Application.getPrimaryStage().getScene().addEventHandler(KeyEvent.KEY_PRESSED, cancelTileSelectKeyHandler);
         Application.getPrimaryStage().getScene().addEventFilter(MouseEvent.MOUSE_PRESSED, cancelTileSelectMouseHandler);
     }
 
     private static final EventHandler<MouseEvent> cancelTileSelectMouseHandler = (MouseEvent e) -> {
-        if (! (e.getSource() instanceof ImageView)) {
+        if (!(e.getSource() instanceof ImageView)) {
             e.consume();
         }
         closeCurrentTileSelector();
     };
-    
+
     private static final EventHandler<KeyEvent> cancelTileSelectKeyHandler = (KeyEvent e) -> {
         if (e.getCode() == KeyCode.ESCAPE) {
             closeCurrentTileSelector();

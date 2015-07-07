@@ -2,12 +2,19 @@
 <xs:schema version="1.0"
            xmlns:xs="http://www.w3.org/2001/XMLSchema"
            elementFormDefault="qualified" targetNamespace="outlaw" xmlns:tns="outlaw" attributeFormDefault="unqualified">
+    <xs:complexType name="namedEntity">
+        <xs:attribute name="name" use="required" type="xs:NCName"/>
+        <xs:attribute name="comment" type="xs:string"/>
+    </xs:complexType>
     <xs:complexType name="image">
-        <xs:sequence>
-            <xs:element name="displayData" type="tns:platformData" minOccurs="0" maxOccurs="unbounded"/>
-        </xs:sequence>
-        <xs:attribute name="name" type="xs:NMTOKEN"/>
-        <xs:attribute name="category" type="xs:string"/>
+        <xs:complexContent>
+            <xs:extension base="tns:namedEntity">
+                <xs:sequence>
+                    <xs:element name="displayData" type="tns:platformData" minOccurs="0" maxOccurs="unbounded"/>
+                </xs:sequence>
+                <xs:attribute name="category" type="xs:string"/>
+            </xs:extension>
+        </xs:complexContent>
     </xs:complexType>
     <xs:complexType name="tile">            
         <xs:complexContent>
@@ -29,26 +36,29 @@
         </xs:simpleContent>
     </xs:complexType>
     <xs:complexType name="script">
-        <xs:sequence>
-            <xs:element name="name" type="xs:string"/>
-            <xs:element name="description" type="xs:string" minOccurs="0"/>
-            <xs:element name="category" type="xs:string" minOccurs="0"/>
-            <xs:element name="block" type="tns:block"/>
-            <xs:element name="locationTrigger" minOccurs="0" maxOccurs="unbounded">
-                <xs:complexType>
-                    <xs:attribute name="x" type="xs:int"/>
-                    <xs:attribute name="y" type="xs:int"/>
-                </xs:complexType>
-            </xs:element>
-            <xs:element name="intervalTrigger" minOccurs="0" maxOccurs="unbounded">
-                <xs:complexType>
-                    <xs:attribute name="start" type="xs:int" use="optional"/>
-                    <xs:attribute name="end" type="xs:int" use="optional"/>
-                    <xs:attribute name="period" type="xs:int" use="optional"/>
-                    <xs:attribute name="ifTrue" type="xs:string" use="optional"/>
-                </xs:complexType>
-            </xs:element>
-        </xs:sequence>
+        <xs:complexContent>
+            <xs:extension base="tns:namedEntity">
+                <xs:sequence>
+                    <xs:element name="description" type="xs:string" minOccurs="0"/>
+                    <xs:element name="category" type="xs:string" minOccurs="0"/>
+                    <xs:element name="block" type="tns:block"/>
+                    <xs:element name="locationTrigger" minOccurs="0" maxOccurs="unbounded">
+                        <xs:complexType>
+                            <xs:attribute name="x" type="xs:int"/>
+                            <xs:attribute name="y" type="xs:int"/>
+                        </xs:complexType>
+                    </xs:element>
+                    <xs:element name="intervalTrigger" minOccurs="0" maxOccurs="unbounded">
+                        <xs:complexType>
+                            <xs:attribute name="start" type="xs:int" use="optional"/>
+                            <xs:attribute name="end" type="xs:int" use="optional"/>
+                            <xs:attribute name="period" type="xs:int" use="optional"/>
+                            <xs:attribute name="ifTrue" type="xs:string" use="optional"/>
+                        </xs:complexType>
+                    </xs:element>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
     </xs:complexType>
     <xs:complexType name="scripts">
         <xs:sequence>
@@ -56,9 +66,11 @@
         </xs:sequence>
     </xs:complexType>
     <xs:complexType name="variable">
-        <xs:attribute name="name" use="required" type="xs:NCName"/>
-        <xs:attribute name="type" use="required" type="xs:NMTOKEN"/>
-        <xs:attribute name="comment" type="xs:string"/>
+        <xs:complexContent>
+            <xs:extension base="tns:namedEntity">
+                <xs:attribute name="type" use="required" type="xs:NMTOKEN"/>
+            </xs:extension>
+        </xs:complexContent>
     </xs:complexType>
     <xs:complexType name="variables">
         <xs:sequence>
@@ -105,17 +117,13 @@
         </xs:complexContent>
     </xs:complexType>
     <xs:complexType name="userType">
-        <xs:sequence>
-            <xs:element name="attribute" minOccurs="1" maxOccurs="unbounded">
-                <xs:complexType>
-                    <xs:attribute name="name" use="required" type="xs:NCName"/>
-                    <xs:attribute name="type" use="required" type="xs:NMTOKEN"/>
-                    <xs:attribute name="comment" type="xs:string"/>                            
-                </xs:complexType>
-            </xs:element>
-        </xs:sequence>
-        <xs:attribute name="name" use="required" type="xs:NCName"/>                            
-        <xs:attribute name="comment" use="required" type="xs:string"/>                            
+        <xs:complexContent>
+            <xs:extension base="tns:namedEntity">
+                <xs:sequence>
+                    <xs:element name="attribute" minOccurs="1" maxOccurs="unbounded" type="tns:variable"/>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
     </xs:complexType>
     <xs:complexType name="scope">
         <xs:sequence>

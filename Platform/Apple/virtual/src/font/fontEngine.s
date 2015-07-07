@@ -40,7 +40,10 @@
 
 DEBUG		= 0		; 1=some logging, 2=lots of logging
 
-zTmp1		= $10 		;zero page Temporary variables
+T1_Val		= $D	 	;zero page Temporary variables
+T1_vLo		= $E
+T1_vHi		= $F
+zTmp1		= $10
 zTmp2		= $11
 zTmp3		= $12
 HgrHrz		= $13		;horizontal index added to base adr
@@ -1506,43 +1509,130 @@ Wp_CFnt	TXA 		;restore alpha char
 ; JSR SetFTBA	;update table parameters
 Wp_CfDn	RTS 		;JMP Wpr_Clr
 
-;Do Tab
-;these digits are treated as base-10
-T1_Val	!byte $0
-Wp_Tab	TXA 		;restore alpha char
-	SEC
+;** Do Tabs ** revised 6/30/2015 by AJH
+;hTab - sets plot cursor column {0..279} 2-byte
+;vTab - sets plot cursor row {0..191} 1-byte
+;Format of the command is: <tab char>###
+;However the code is written to accommodate one,
+;two or three numerals [following the tab char]
+;then followed by a non-numeral.
+;The tab works relative to the window parameters
+;used by the "AdvCurs" routine.
+;The ### digits are treated as base-10.
+Flg_PsC	!byte 0		;flag: plot separator char
+;
+Wp_Tab	TXA		;restore alpha char
+	CMP #$30	;is alpha char < '0'?
+	BMI Wp_CkPrm2	;if so then ## delimited
+	CMP #$3A	;is alpha char > '9'?
+	BPL Wp_CkPrm2	;if so then ## delimited
+	SEC 		;else get tab ##
 	SBC #$30	;change Chr"#" to Val#
 	AND #$0F	;mask off digit
-	TAX
-	CMP #10		;digit >9
-	BMI Wp_TvOk	;no - ok
-	LDX #9		;yes - clamp to 9
-Wp_TvOk	LDA Flg_Prm2	;is 2nd of 2 digits?
-	BNE Wp_Cmb	;yes - combine
-	TXA
-	STA Wp_Dig1	;else save it, and,
-	INC Flg_Prm2	;set 2nd digit flag
+	LDX Flg_Prm2
+	BNE Wp_Tdg2	;is 1st of 3 digits?
+	STA Wp_Dig1	;if so, save in Dig1
+	INC Flg_Prm2	;inc index of parm digit #
 	RTS
-Wp_Cmb	STX Wp_Dig2	;save digit
-	LDA Wp_Dig1	;get 1st digit
-	ASL 		;multiply by 10
-	STA T1_Val	;10=8+2
+Wp_Tdg2	CPX #1
+	BNE Wp_Tdg3	;is 2nd of 3 digits?
+	STA Wp_Dig2	;if so, save in Dig2
+	INC Flg_Prm2	;inc index of parm digit #
+	RTS
+Wp_Tdg3	STA Wp_Dig3	;save 3rd digit
+	INC Flg_Prm2	;inc index of parm digit #
+Wp_CkPrm2 LDX Flg_Prm2	;check index value
+	BNE Wp_CmbNz	;non-zero number of digits
+	JMP Wp_LdHtVt	;when no digits, load margin
+;combine the parm digits - from none, up to 3 digits
+Wp_CmbNz CPX #1
+	BNE Wp_CmbN2	;is parm single digit?
+	LDA Wp_Dig1
+	STA T1_vLo	;if so, then use it as low byte
+	JMP Wp_CkHtVt	;check hTab/vTab value
+Wp_CmbN2 CPX #2
+	BNE Wp_CmbN3	;is parm 2-digit?
+	LDA Wp_Dig1
+	JSR Wp_Tmx10	;multiply 1st digit by 10
+	ADC Wp_Dig2	;save combined value
+	STA T1_vLo	;in low byte
+	JMP Wp_CkHtVt	;check hTab/vTab value
+Wp_Tmx10 ASL 		;multiply by 10
+	STA T1_Val	;one ASL is 2x
 	ASL
-	ASL
-	ADC T1_Val
-	ADC Wp_Dig2	;add digits together
-	TAX
+	ASL 		;three ASL is 8x
+	ADC T1_Val	;10x = 8x + 2x
+	RTS
+Wp_CmbN3 LDA Wp_Dig1	;combine 3 digits
+	CMP #3		;clamp highest digit to 2
+	BMI Wp_CmbN3c	;since no tab is > 2##
+	LDA #2
+Wp_CmbN3c JSR Wp_Tmx10	;multiply clamped digit x10
+	JSR Wp_Tmx10	;multiply x10 again
+	STA T1_vLo	;save x100 in low byte
+	LDA Wp_Dig2	;get 2nd digit
+	JSR Wp_Tmx10	;multiply x10
+	ADC T1_vLo	;combine x100 + x10
+	STA T1_vLo	;save it
+	LDA #0
+	ADC #0		;update hi-bit for
+	STA T1_vHi	;values > 25#
+	LDA Wp_Dig3	;get 3rd digit
+	ADC T1_vLo	;combine x100+x10+x1
+	STA T1_vLo	;save it
+	LDA #0
+	JMP Wp_CfHtVt	;chk Ht/Vt val & clr flg
+;when no digits, load margin by setting tab
+Wp_LdHtVt LDA #0	;to zero
+	STA T1_vLo	;clear lo-byte
+;check Htab / Vtab value & assign the parameter
+Wp_CkHtVt LDA #0	;clear hi-byte when
+	STA T1_vHi	;parm is 1 or 2-digit
+	LDA #1
+Wp_CfHtVt STA Flg_PsC	;set Plot Separator flag
 	LDA WaitStat
-	CMP #5 		;is param for Htab?
-	BNE Wp_VtVal	;no - then do Vtab
-	TXA 		;yes - then restore param
-; STX GrAdCol	;and change column value
-	BPL Wp_Tdn
-Wp_VtVal	TXA 	;if Vtab then restore param
-	LSR 		;make it an even value
-	ASL 
-; STA GrAdRow	;store it as a row parameter
-Wp_Tdn	JMP Wpr_Clr
+	CMP #5		;is param for hTab?
+	BNE Wp_VtVal	;no - then go do vTab
+	LDA T1_vLo	;yes - then hTab
+;
+	CLC 		;hTAB: get param add it to 
+	ADC CursXl	;left window margin {0..278}
+	STA CursColL	;move plot cursor from the
+	LDA T1_vHi	;left margin to the tab value
+	ADC CursXh
+	STA CursColH	
+	SEC 		;Check to make sure the tab
+	LDA CursXrl	;didn't put the plot cursor
+	SBC #1		;beyond the right margin.
+	SBC CursColL	;By subtracting 1 pixels
+	LDA CursXrh	;it puts us on the
+	SBC CursColH	;right margin.
+	BCS Wp_TbOk
+	LDA CursXrl	;If too far, fix hTab
+	STA CursColL
+	LDA CursXrh
+	STA CursColH
+	JMP Wp_TbOk
+;
+Wp_VtVal LDA T1_vLo	;vTAB: get param & add it to 
+	CLC 		;botm window margin {0..190}
+	ADC CursY	;Move plot cursor from the
+	STA CursRow	;top margin to the tab value
+	SEC 		;Check to make sure the tab
+	LDA CursYb	;didn't put the plot cursor
+	SBC #1		;beyond the bottommargin.
+	SBC CursRow
+	BCS Wp_TbOk
+	LDA CursYb	;If too far, fix vTab
+	STA CursRow
+;
+Wp_TbOk	LDA Flg_PsC	;if param was 3-digits
+	BEQ Wp_Tdn	;then done
+Wp_ClrPfl LDA #0	;else, for 1 or 2-digits,
+	STA Flg_PsC	;clear the Plot Separator flag
+	JSR Wpr_Clr	;Clear the wait state flags
+	JMP TestChr	;and plot the non-numeric char
+Wp_Tdn	JMP Wpr_Clr	;Clear wait state flags & end
 
 ;Chage char/ticker rate
 ;these digits are treated as base-16

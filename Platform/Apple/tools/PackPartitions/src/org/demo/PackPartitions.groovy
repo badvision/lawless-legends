@@ -1462,6 +1462,19 @@ class PackPartitions
             nStringBytes += str.size() + 1
         }
 
+        def getScriptName(script)
+        {
+            if (script.block.size() == 0)
+                return null
+                
+            def blk = script.block[0]
+            if (blk.field.size() == 0)
+                return null
+                
+            assert blk.field[0].@name == "NAME"
+            return blk.field[0].text()
+        }
+        
         /**
          * Pack scripts from a map. Either the whole map, or optionally just an X and Y
          * bounded section of it.
@@ -1473,8 +1486,8 @@ class PackPartitions
             //
             def scripts = []
             inScripts.script.eachWithIndex { script, idx ->
-                def name = script.name[0].text()
-                if (name.toLowerCase() == "init")
+                def name = getScriptName(script)
+                if (name != null && name.toLowerCase() == "init")
                     scripts << script
                 else if (script.locationTrigger.any { trig ->
                             (!xRange || trig.@x.toInteger() in xRange) &&
@@ -1518,7 +1531,7 @@ class PackPartitions
 
         def packScript(scriptNum, script)
         {
-            def name = script.name[0].text()
+            def name = getScriptName(script)
             if (name.toLowerCase() == "init") // this special script gets processed later
                 return
             
@@ -1889,8 +1902,8 @@ class PackPartitions
             //
             TreeMap triggers = [:]
             scripts.eachWithIndex { script, idx ->
-                def name = script.name[0].text()
-                if (name.toLowerCase() == "init")
+                def name = getScriptName(script)
+                if (name != null && name.toLowerCase() == "init")
                 {
                     if (script.block.size() == 1) {
                         def proc = script.block[0]

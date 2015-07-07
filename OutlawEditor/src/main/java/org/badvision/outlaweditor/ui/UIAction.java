@@ -126,6 +126,7 @@ public class UIAction {
                 TilesetUtils.clear();
                 Application.gameData = newData;
                 DataUtilities.ensureGlobalExists();
+                DataUtilities.cleanupAllScriptNames();
                 ApplicationUIController.getController().updateSelectors();
                 break;
             case Quit:

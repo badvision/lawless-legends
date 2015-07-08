@@ -28,6 +28,7 @@ import static org.badvision.outlaweditor.data.PropertyHelper.stringProp;
 import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.xml.Map;
 import org.badvision.outlaweditor.data.xml.Script;
+import org.badvision.outlaweditor.data.xml.Scripts;
 import org.badvision.outlaweditor.data.xml.Tile;
 import org.badvision.outlaweditor.ui.EntitySelectorCell;
 import org.badvision.outlaweditor.ui.MapEditorTabController;
@@ -279,7 +280,9 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
             mapWrapAround.setDisable(true);
             setCurrentEditor(null);
         } else {
-            DataUtilities.sortNamedEntities(m.getScripts().getScript());
+            if (m.getScripts() != null) {
+                DataUtilities.sortNamedEntities(m.getScripts().getScript());
+            };
             if (m.getHeight() == null) {
                 m.setHeight(512);
             }

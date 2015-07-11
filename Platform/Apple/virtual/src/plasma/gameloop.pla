@@ -568,6 +568,36 @@ asm displayStr
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Display a string using the font engine.
+// Params: pStr
+asm rawDisplayStr
+  +asmPlasm 1
+  bit setLcRW+lcBank2
+  bit setLcRW+lcBank2
+  sta pTmp
+  sty pTmp+1
+  ldy #0
+  lda (pTmp),y
+  sta tmp
+- cpy tmp
+  bcc +
+  rts
++ iny
+  lda (pTmp),y
+  ora #$80
+  cmp #"^"
+  bne +
+  iny
+  lda (pTmp),y
+  and #$1F
+  ora #$80
++ sty tmp+1
+  jsr DisplayChar
+  ldy tmp+1
+  bne -
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Convert a PLASMA string (starts with length, lo-bit ascii) to an assembly string
 // (zero-terminated, hi-bit ascii).
 asm toAsmStr
@@ -794,16 +824,10 @@ end
 // Show some faked-up data for player characters
 def fakeChars()
   setWindow3()
-  displayChar('L'-$40)
-  displayStr("Name        Life Gun\n")
-  displayChar('L'-$40)
-  displayStr("Black Bart   ")
-  displayChar('U'-$40) // right 1 pix
-  displayStr("12    4\n")
-  displayStr("Wyld Bill       8    2\n")
-  displayStr("Lucy Lawless ")
-  displayChar('U'-$40) // right 1 pix
-  displayStr("9    6")
+  rawDisplayStr("^LName^T065Life^T090Gun^L\n")
+  rawDisplayStr("Black Bart^T06512^T0904\n")
+  rawDisplayStr("Wyld Bill^T0658^T0902\n")
+  rawDisplayStr("Lucy Lawls^T0659^T0906")
   if mapIs3D; copyWindow(); fin
   setWindow2()
 end

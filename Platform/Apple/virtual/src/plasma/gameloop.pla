@@ -73,15 +73,6 @@ const OVERMAP_IS_3D = 0
 predef setWindow2, initCmds
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Font engine variables
-const wndleft   = $70  // left edge of the window
-const wndwdth   = $71  // right edge (NOT width) of text window
-const wndtop    = $72  // top of text window
-const wndbtm    = $73  // bottom+1 of text window
-const cursh     = $74  // Cursor H-pos 0-39
-const cursv     = $75  // Cursor V-pos 0-23
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Global variables
 byte mapNum
 byte mapIs3D
@@ -1172,6 +1163,7 @@ end
 // displayed, then use an assembly routine to do the work.
 def scriptDisplayStr(str)
   textDrawn = TRUE
+  flipToPage1()
   displayStr(str)
 end
 
@@ -1207,8 +1199,9 @@ def setPortrait(portraitNum)
   flipToPage1()
   
   // We're going to switch windows. Save the cursor pos in the text window.
-  cx = ^cursh
-  cy = ^cursv
+  //FIXME: This is from old font engine, need to change for new eng.
+  //cx = ^cursh
+  //cy = ^cursv
 
   // Now clear out the map area
   setMapWindow()
@@ -1216,8 +1209,9 @@ def setPortrait(portraitNum)
 
   // Restore the cursor position
   setWindow2()
-  ^cursh = cx
-  ^cursv = cy
+  //FIXME: This is from old font engine, need to change for new eng.
+  //^cursh = cx
+  //^cursv = cy
 
   // Load the portrait image and display it
   srcData = loader(QUEUE_LOAD, AUX_MEM, portraitNum<<8 | RES_TYPE_PORTRAIT)

@@ -1034,6 +1034,48 @@ def moveWest()
   fin
 end
 
+def moveFast()
+  byte i
+  for i = 0 to 5
+    setDir(0)
+    advance()
+    render()
+    setDir(0)
+    advance()
+    render()
+    setDir(0)
+    advance()
+    render()
+    setDir(4)
+    advance()
+    render()
+    setDir(4)
+    advance()
+    render()
+    setDir(4)
+    advance()
+    render()
+    setDir(8)
+    advance()
+    render()
+    setDir(8)
+    advance()
+    render()
+    setDir(8)
+    advance()
+    render()
+    setDir(12)
+    advance()
+    render()
+    setDir(12)
+    advance()
+    render()
+    setDir(12)
+    advance()
+    render()
+  next
+end
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Switch to a new map (2D or 3D) and establish position on it
 def setMap(is3D, num, x, y, dir)
@@ -1309,6 +1351,8 @@ def initCmds()
     initCmd('X', @moveSouth)
     initCmd('A', @moveWest)
 
+    initCmd('*', @moveFast)
+
     initCmd('I', @moveNorth)
     initCmd('J', @moveWest)
     initCmd('L', @moveEast)
@@ -1338,6 +1382,9 @@ def loadTitle()
   // unless we do this. *HUGE* thanks to Brendan Robert for the fix!
   ^$C07E=0   // disable double-hi-res
   ^$C05F     // disable double-hi-res
+
+  // Wait for a key.
+  getUpperKey()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -14,7 +14,7 @@ public class AppleTileRenderer extends TileRenderer {
     public static boolean useSolidPalette = true;
 
     @Override
-    public WritableImage redrawSprite(byte[] spriteData, WritableImage img) {
+    public WritableImage redrawSprite(byte[] spriteData, WritableImage img, boolean useBleedOver) {
         if (img == null) {
             img = new WritableImage(28, 32);
         }
@@ -23,12 +23,14 @@ public class AppleTileRenderer extends TileRenderer {
         }
         int[][] palette = useSolidPalette ? solidPalette : textPalette;
         for (int y = 0; y < 16; y++) {
-            int bleedOver = (spriteData[y * 2 + 1] & 192) == 192 ? 256 : 0;
+            int bleedOver = useBleedOver ? (spriteData[y * 2 + 1] & 192) == 192 ? 256 : 0 : 0;
             int scan = hgrToDhgr[bleedOver | (spriteData[y * 2] & 255)][spriteData[y * 2 + 1] & 255];
             int last = (scan >> 26) & 3;
             int keep = scan & 0xff;
             scan <<= 2;
-            scan |= last;
+            if (useBleedOver) {
+                scan |= last;
+            }
             for (int x = 0; x < 14; x++) {
                 boolean isHiBit = ((spriteData[y * 2 + x / 7] & 128) != 0);
 

@@ -162,6 +162,22 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
 
     @Override
     protected void onDataTypeClonePressed(ActionEvent event) {
+        UserType source = dataTypeList.getSelectionModel().getSelectedItem();
+        if (source == null) {
+            String message = "First select a data type and then press Clone";
+            UIAction.alert(message);
+        } else {
+            try {
+                UserType newType = TransferHelper.cloneObject(source, UserType.class, "userType");
+                newType.setName(source.getName() + " CLONE");
+                Application.gameData.getGlobal().getUserTypes().getUserType().add(newType);
+                redrawGlobalDataTypes();
+                UIAction.editUserType(newType);
+            } catch (JAXBException ex) {
+                Logger.getLogger(MapEditorTabControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
+                UIAction.alert("Error occured when attempting clone operation:\n" + ex.getMessage());
+            }
+        }
     }
 
     @Override

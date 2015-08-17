@@ -28,7 +28,6 @@ import static org.badvision.outlaweditor.data.PropertyHelper.stringProp;
 import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.xml.Map;
 import org.badvision.outlaweditor.data.xml.Script;
-import org.badvision.outlaweditor.data.xml.Scripts;
 import org.badvision.outlaweditor.data.xml.Tile;
 import org.badvision.outlaweditor.ui.EntitySelectorCell;
 import org.badvision.outlaweditor.ui.MapEditorTabController;
@@ -206,7 +205,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
                         redrawMapScripts();
                     },
                     null);
-        };
+        }
     }
 
     @Override
@@ -282,7 +281,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
         } else {
             if (m.getScripts() != null) {
                 DataUtilities.sortNamedEntities(m.getScripts().getScript());
-            };
+            }
             if (m.getHeight() == null) {
                 m.setHeight(512);
             }
@@ -321,6 +320,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
     @Override
     public void rebuildMapSelectors() {
         mapSelect.getItems().clear();
+        DataUtilities.sortMaps(Application.gameData.getMap());
         mapSelect.getItems().addAll(Application.gameData.getMap());
         mapSelect.getSelectionModel().select(getCurrentMap());
     }

@@ -168,6 +168,6 @@ public enum FillPattern {
         for (int i=0; i < pattern.length; i++) {
             b[i]=(byte) pattern[i];
         }
-        return Platform.AppleII_DHGR.tileRenderer.redrawSprite(b, null);
+        return Platform.AppleII_DHGR.tileRenderer.redrawSprite(b, null, true);
     }
 }

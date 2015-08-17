@@ -3,7 +3,6 @@ package org.badvision.outlaweditor.apple.dhgr;
 import org.badvision.outlaweditor.apple.*;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
-import org.badvision.outlaweditor.TileRenderer;
 import static org.badvision.outlaweditor.apple.AppleNTSCGraphics.*;
 
 /**
@@ -12,7 +11,7 @@ import static org.badvision.outlaweditor.apple.AppleNTSCGraphics.*;
  */
 public class AppleDHGRTileRenderer extends AppleTileRenderer {
     @Override
-    public WritableImage redrawSprite(byte[] spriteData, WritableImage img) {
+    public WritableImage redrawSprite(byte[] spriteData, WritableImage img, boolean useBleedOver) {
         if (img == null) {
             img = new WritableImage(28, 32);
         }
@@ -30,7 +29,9 @@ public class AppleDHGRTileRenderer extends AppleTileRenderer {
             int last = (scan >> 26) & 3;
             int keep = scan & 0xff;
             scan <<= 2;
-            scan |= last;
+            if (useBleedOver) {
+                scan |= last;
+            }
             for (int x = 0; x < 14; x++) {
                 boolean isHiBit = ((spriteData[y * 2 + x / 7] & 128) != 0);
                 

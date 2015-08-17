@@ -4,10 +4,10 @@ import java.util.List;
 import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.data.xml.Field;
 import org.badvision.outlaweditor.data.xml.Global;
+import org.badvision.outlaweditor.data.xml.Map;
 import org.badvision.outlaweditor.data.xml.NamedEntity;
 import org.badvision.outlaweditor.data.xml.Scope;
 import org.badvision.outlaweditor.data.xml.Script;
-import org.badvision.outlaweditor.data.xml.Scripts;
 
 public class DataUtilities {
 
@@ -17,6 +17,23 @@ public class DataUtilities {
         }
     }
 
+    public static void sortMaps(List<? extends Map> entities) {
+        if (entities == null) {
+            return;
+        }
+        entities.sort((a, b) -> {
+            String nameA = a == null ? "" : nullSafe(a.getName());
+            String nameB = b == null ? "" : nullSafe(b.getName());
+            if (nameA.equalsIgnoreCase("init")) {
+                return -1;
+            }
+            if (nameB.equalsIgnoreCase("init")) {
+                return 1;
+            }
+            return nameA.compareTo(nameB);
+        });
+    }
+    
     public static void sortNamedEntities(List<? extends NamedEntity> entities) {
         if (entities == null) {
             return;

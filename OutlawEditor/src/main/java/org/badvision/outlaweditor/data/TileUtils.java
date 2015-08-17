@@ -60,7 +60,7 @@ public class TileUtils {
                 System.err.println("Unable to find any platform support for '" + d.getPlatform() + "'");
                 continue;
             }
-            displays.put(p, p.tileRenderer.redrawSprite(d.getValue(), displays.get(p)));
+            displays.put(p, p.tileRenderer.redrawSprite(d.getValue(), displays.get(p), false));
         }
         DataProducer.notifyObservers(t);
     }
@@ -79,7 +79,7 @@ public class TileUtils {
     public static WritableImage getImage(Tile t, Platform p) {
         Map<Platform, WritableImage> displays = getDisplay(t);
         byte[] data = getPlatformData(t, p);
-        return displays.put(p, p.tileRenderer.redrawSprite(data, displays.get(p)));
+        return displays.put(p, p.tileRenderer.redrawSprite(data, displays.get(p), false));
     }
 
     public static void setImage(Tile t, Platform p, WritableImage img) {

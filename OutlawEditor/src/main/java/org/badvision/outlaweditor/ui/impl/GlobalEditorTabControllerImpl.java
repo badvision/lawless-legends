@@ -6,11 +6,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.event.ActionEvent;
 import javafx.scene.control.ListCell;
-import javafx.scene.control.ListView;
 import javafx.scene.control.Tooltip;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
-import javafx.util.Callback;
 import javax.xml.bind.JAXBException;
 import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.TransferHelper;
@@ -27,57 +25,46 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
     @Override
     public void initialize() {
         super.initialize();
-        variableList.setOnEditStart((ListView.EditEvent<Variable> event) -> {
-            UIAction.editVariable(event.getSource().getItems().get(event.getIndex()), Application.gameData.getGlobal());
-            variableList.getSelectionModel().clearSelection();
-        });
-        variableList.setCellFactory(new Callback<ListView<Variable>, ListCell<Variable>>() {
+        variableList.setCellFactory((listView) -> new ListCell<Variable>() {
             @Override
-            public ListCell<Variable> call(ListView<Variable> param) {
-                final ListCell<Variable> cell = new ListCell<Variable>() {
-                    @Override
-                    protected void updateItem(Variable item, boolean empty) {
-                        super.updateItem(item, empty);
-                        if (empty || item == null) {
-                            setText("");
-                        } else {
-                            setText(item.getName());
-                            if (item.getComment() != null && !(item.getComment().isEmpty())) {
-                                setTooltip(new Tooltip(item.getComment()));
-                            }
-                            setFont(Font.font(null, FontWeight.BOLD, 12.0));
-                        }
+            protected void updateItem(Variable item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText("");
+                } else {
+                    setText(item.getName());
+                    if (item.getComment() != null && !(item.getComment().isEmpty())) {
+                        setTooltip(new Tooltip(item.getComment()));
                     }
-                };
-                return cell;
+                    setFont(Font.font(null, FontWeight.BOLD, 12.0));
+                }
             }
-        });
-        globalScriptList.setOnEditStart((ListView.EditEvent<Script> event) -> {
-            UIAction.editScript(event.getSource().getItems().get(event.getIndex()), Application.gameData.getGlobal());
-            globalScriptList.getSelectionModel().clearSelection();
-        });
-        globalScriptList.setCellFactory(new Callback<ListView<Script>, ListCell<Script>>() {
-            @Override
-            public ListCell<Script> call(ListView<Script> param) {
-                final ListCell<Script> cell = new ListCell<Script>() {
 
-                    @Override
-                    protected void updateItem(Script item, boolean empty) {
-                        super.updateItem(item, empty);
-                        if (empty || item == null) {
-                            setText("");
-                        } else {
-                            setText(item.getName());
-                            setFont(Font.font(null, FontWeight.BOLD, 12.0));
-                        }
-                    }
-                };
-                return cell;
+            @Override
+            public void startEdit() {
+                UIAction.editVariable(getItem(), Application.gameData.getGlobal());
+                cancelEdit();
+                updateItem(getItem(), false);
             }
         });
-        dataTypeList.setOnEditStart((ListView.EditEvent<UserType> event) -> {
-            UIAction.editUserType(event.getSource().getItems().get(event.getIndex()));
-            dataTypeList.getSelectionModel().clearSelection();
+        globalScriptList.setCellFactory((listView) -> new ListCell<Script>() {
+            @Override
+            protected void updateItem(Script item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText("");
+                } else {
+                    setText(item.getName());
+                    setFont(Font.font(null, FontWeight.BOLD, 12.0));
+                }
+            }
+
+            @Override
+            public void startEdit() {
+                UIAction.editScript(getItem(), Application.gameData.getGlobal());
+                cancelEdit();
+                updateItem(getItem(), false);
+            }
         });
         dataTypeList.setCellFactory((listView) -> new ListCell<UserType>() {
             @Override
@@ -92,6 +79,13 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
                     }
                     setFont(Font.font(null, FontWeight.BOLD, 12.0));
                 }
+            }
+
+            @Override
+            public void startEdit() {
+                UIAction.editUserType(getItem());
+                cancelEdit();
+                updateItem(getItem(), false);
             }
         });
     }
@@ -162,6 +156,25 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
 
     @Override
     protected void onDataTypeClonePressed(ActionEvent event) {
+        UserType source = dataTypeList.getSelectionModel().getSelectedItem();
+        if (source == null) {
+            String message = "First select a data type and then press Clone";
+            UIAction.alert(message);
+        } else {
+            try {
+                UserType newType = TransferHelper.cloneObject(source, UserType.class, "userType");
+                newType.setName(source.getName() + " CLONE");
+                if (UIAction.editAndGetUserType(newType) != null) {
+                    Application.gameData.getGlobal().getUserTypes().getUserType().add(newType);
+                    redrawGlobalDataTypes();
+                }
+            } catch (JAXBException ex) {
+                Logger.getLogger(MapEditorTabControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
+                UIAction.alert("Error occured when attempting clone operation:\n" + ex.getMessage());
+            } catch (IntrospectionException ex) {
+                Logger.getLogger(GlobalEditorTabControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
     }
 
     @Override

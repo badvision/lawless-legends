@@ -137,13 +137,171 @@ relocate:
 	inx
 	cpx #>(hiMemEnd+$100)
 	bne .cpmm
-; Ready to actually init the memory manager in its final location.
-	; fall through to j_init...
+	lda .st4+2
+	cmp #$E0
+	bcc init
+	lda #"b"
+	jsr cout
+	brk		; mem mgr got too big!
+
+;------------------------------------------------------------------------------
+init: !zone
+	bit setLcRW+lcBank1	; switch in mem mgr
+	bit setLcRW+lcBank1
+; put something interesting on the screen :)
+	jsr home
+	+prStr : !text "Welcome to Mythos.",0
+; close all files
+	lda #0
+	jsr closeFile
+; clear ProDOS mem map so it lets us load stuff anywhere we want
+	ldx #$18
+	lda #0
+.clr:	sta prodosMemMap-1,x
+	dex
+	bne .clr
+
+; clear the segment tables
+-	sta tSegLink,x
+	sta tSegAdrLo,x
+	sta tSegAdrHi,x
+	sta tSegType,x
+	sta tSegRes,x
+	inx
+	cpx #MAX_SEGS
+	bne -
+; clear other pointers
+	sta targetAddr+1
+	sta scanStart
+	sta partFileRef
+	sta curPartition
+	lda #<diskLoader
+	sta nextLdVec+1
+	lda #>diskLoader
+	sta nextLdVec+2
+	lda #1
+	sta scanStart+1
+; make reset go to monitor
+	lda #<monitor
+	sta resetVec
+	lda #>monitor
+	sta resetVec+1
+	eor #$A5
+	sta resetVec+2
+; We'll set up 8 initial segments:
+; 0: main $0000 -> 4, active + locked
+; 1: aux  $0000 -> 2, active + locked
+; 2: aux  $0200 -> 3, inactive
+; 3: aux  $C000 -> 0, active + locked
+; 4: main $0xxx -> 5, inactive (xxx = end of mem mgr tables)
+; 5: main $2000 -> 6, active + locked
+; 6: main $6000 -> 7, inactive
+; 7: main $BF00 -> 8, active + locked
+; 8: main $E000 -> 9, inactive
+; 9: main $F000 -> 0, active + locked
+; First, the flags
+	lda #$C0		; flags for active + locked (with no resource)
+	sta tSegType+0
+	sta tSegType+1
+	sta tSegType+3
+	sta tSegType+5
+	sta tSegType+7
+	sta tSegType+9
+; Next the links
+	ldx #2
+	stx tSegLink+1
+	inx
+	stx tSegLink+2
+	ldx #4
+	stx tSegLink+0
+	inx
+	stx tSegLink+4
+	inx
+	stx tSegLink+5
+	inx
+	stx tSegLink+6
+	inx
+	stx tSegLink+7
+	inx
+	stx tSegLink+8
+; Then the addresses
+	lda #2
+	sta tSegAdrHi+2
+	ldy #$C0
+	sty tSegAdrHi+3
+	dey
+	sty tSegAdrHi+7
+	lda #<paramsEnd
+	sta tSegAdrLo+4
+	lda #>paramsEnd
+	sta tSegAdrHi+4
+	lda #$40
+	sta tSegAdrHi+5
+	lda #$60
+	sta tSegAdrHi+6
+	lda #$E0
+	sta tSegAdrHi+8
+	lda #$F0
+	sta tSegAdrHi+9
+; Finally, form a long list of the remaining unused segments.
+	ldx #10
+	stx unusedSeg		; that's the first unused seg
+	ldy #11
+.loop:	tya
+	sta tSegLink,x
+	inx
+	iny
+	cpy #MAX_SEGS		; did all segments yet?
+	bne .loop		; no, loop again
+; Allocate space for the PLASMA frame stack
+!if SANITY_CHECK {
+	lda #$20
+	sta framePtr+1		; because sanity check verifies it's not $BE or $BF
+}	
+	ldx #0
+	ldy #2			; 2 pages
+	lda #REQUEST_MEMORY
+	jsr main_dispatch
+	stx framePtr
+	stx outerFramePtr
+	iny			; twice for 2 pages: initial pointer at top of new space
+	iny
+	sty framePtr+1
+	sty outerFramePtr+1
+	dey
+	dey
+	lda #LOCK_MEMORY	; lock it in place forever
+	jsr main_dispatch
+; Reserve hi-res page 1
+	lda #SET_MEM_TARGET
+	ldx #0
+	ldy #$20		; at $2000
+	jsr main_dispatch
+	lda #REQUEST_MEMORY
+	ldx #0
+	ldy #$20		; length $2000
+	jsr main_dispatch
+; Load PLASMA module #1
+	ldx #0
+	lda #START_LOAD
+	jsr main_dispatch
+	ldx #RES_TYPE_MODULE
+	ldy #1
+	lda #QUEUE_LOAD
+	jsr main_dispatch
+	stx .gomod+1
+	sty .gomod+2
+	lda #LOCK_MEMORY	; lock it in forever
+	jsr main_dispatch
+	ldx #1			; keep open for efficiency's sake
+	lda #FINISH_LOAD
+	jsr main_dispatch
+	ldx #$10		; initial eval stack index
+.gomod:	jmp $1111		; jump to module for further bootstrapping
 
 ;------------------------------------------------------------------------------
 ; Vectors and debug support code - these go in low memory at $800
 loMemBegin: !pseudopc $800 {
-	jmp j_init
 	jmp j_main_dispatch
 	jmp j_aux_dispatch
 	jmp __asmPlasm
@@ -181,10 +339,9 @@ j_aux_dispatch:
 	rts
 
 ;------------------------------------------------------------------------------
-; Print fatal error message (custom or predefined) and print the
-; call stack, then halt.
+; Print fatal error message then halt.
 
-_inlineFatal:
+inlineFatal:
 	pla
 	tax
 	pla
@@ -207,21 +364,14 @@ fatalError: !zone
 .dash:	jsr cout
 	dey
 	bne .dash
-.msg1:	lda .prefix,y	; print out prefix message
-	beq +
-	jsr cout
-	iny
-	bne .msg1
-+	tay		; start at first byte of user message
+	+prStr : !text "FATAL ERROR: ",0
 .msg2	lda (pTmp),y
 	beq .msg3
 	jsr cout
 	iny
 	bne .msg2
-.msg3:	jsr crout
-	jsr bell	; beep
+.msg3:	jsr bell	; beep
 .inf: 	jmp .inf	; and loop forever
-.prefix:!text "FATAL ERROR: ", 0
 
 ;------------------------------------------------------------------------------
 ; Normal entry point for ProDOS MLI calls. This patches the code at $BFBB.
@@ -298,7 +448,7 @@ __asmPlasm: !zone
 	adc #0
 	sta .jsr+2
 	; adjust PLASMA stack pointer to skip over params
-	dey
+	dey		; leave 1 slot for ret value
 	sty tmp
 	txa
 	cpx #$11
@@ -321,8 +471,7 @@ __asmPlasm: !zone
 .badx	; X reg ran outside valid range. Print and abort.
 	+prStr : !text $8D,"X=",0
 	+prX
-	jsr inlineFatal
-	!text $8D, "PlasmXRng", 0
+	jsr inlineFatal : !text "PlasmXRng", 0
 
 ;------------------------------------------------------------------------------
 ; Debug code to support macros
@@ -490,12 +639,17 @@ typeLen		!fill MAX_TYPES		; length does not include type byte
 
 heapTop		!word 0
 gcHash_top	!byte 0
+nHeapBlks	!byte 0
 
 ;------------------------------------------------------------------------------
 ; Heap management routines
 
-; Set the table for the next type in order. Starts with type 1, then 2, etc.
-; x=ptr lo, y = ptr hi. Tbl: type size, then offsets of ptrs within type, then 0.
+; Set the table for the next type in order. Starts with type 0, then 1, etc.
+; By convention, type 0 is used for the Global object, from which all others
+; valid objects are reachable (and invalid garbage if not reachable from there).
+;
+; x=ptr lo, y = ptr hi. 
+; Tbl: type size 01-7F, then (byte) offsets of ptrs within type, then 0.
 setTypeTbl: !zone
 	tya		; save addr hi
 	ldy nTypes
@@ -535,7 +689,8 @@ heapClr: !zone
 	bne .pg
 	rts
 
-; Allocate a block on the heap. X = $00.7F for string block, $81.FF for type $00.7F
+; Allocate a block on the heap. X = $00.7F for string block, $80.FF for type $00.7F.
+; and yes, type $00 is valid (conventionally used for the Global Object).
 heapAlloc: !zone
 	lda heapTop
 	sta pTmp
@@ -568,7 +723,7 @@ gcHash_chk: !zone
 	eor pSrc+1
 	tax
 	lda gcHash_first,x
-	beq .add
+	beq .notfnd
 -	tay
 	lda gcHash_srcLo,y
 	eor pSrc
@@ -577,6 +732,7 @@ gcHash_chk: !zone
 	bne -
 .notfnd	bcc .ret
 	inc gcHash_top
+	beq .corrup		; too many blks, or infinite loop? barf out
 	ldy gcHash_top
 	lda pSrc
 	sta gcHash_srcLo,y
@@ -592,6 +748,7 @@ gcHash_chk: !zone
 	rts
 .found	sec
 	rts
+.corrup	jmp heapCorrupt
 
 ; Verify the integrity of the heap
 heapCheck: !zone
@@ -632,21 +789,21 @@ heapCheck: !zone
 	sta .getoff+1
 	lda typeTblH,x
 	sta .getoff+2
-	ldx #0		; starts at len byte, which we immediately skip
-.getoff	inx
-	lda $1000,x	; self-modified above: get next pointer offset for type
+	ldx #0		; type entry starts at len byte, which we immediately skip
+.tscan	inx
+.getoff	lda $1000,x	; self-modified above: get next pointer offset for type
 	beq .nxtblk	; zero marks end of offset table
 	tay
 	iny		; not much we can do to validate lo byte, so skip it
 	cpy tmp		; ensure offset is within type length
-	beq +		; 	the very end is ok
-	bcs corrup	;		but not beyond
+	beq +		; 	the very end is ok because len doesn't include type byte
+	bcs heapCorrupt	;		but beyond end is not ok
 +	lda (pTmp),y	; get hi byte of ptr
-	beq +		; null is ok
+	beq .tscan	; null is ok
 	cmp #>heapStart	; else check if < start of heap
 	bcc heapCorrupt
-	cmp #>heapEnd	; or > than end of heap
-	bcc .getoff
+	cmp #>heapEnd	; or >= than end of heap
+	bcc .tscan
 heapCorrupt:
 	ldx pTmp
 	lda pTmp+1
@@ -665,7 +822,7 @@ gc1_mark: !zone
 	sta pSrc
 	lda #>heapEnd
 	sta pSrc+1
-	sec
+	sec			; sec means add if not found
 	jsr gcHash_chk		; seed the hash, and thus our queue, with the global block
 	clv			; clear V flag to mark phase 1
 	bvc .start
@@ -711,7 +868,7 @@ gc3_fix:
 	clc			; in phase 3, we don't want to add to hash
 +	jsr gcHash_chk		; go add it to the hash; ignore return flag
 	bvc +			; skip pointer fixing in phase 1
-	bcc heapCorrupt		; in phase 3, pointer must be in hash!
+	bcc .corrup		; in phase 3, pointer must be in hash!
 .fix	ldy #11			; restore pointer offset
 	lda gcHash_dstLo,x	; get new location
 	sta (pTmp),y		; update the pointer
@@ -722,6 +879,7 @@ gc3_fix:
 	inx			; next offset entry
 	bne .ldof		; always taken
 .rts	rts			; this needs to be an RTS instruction - used to set V flag
+.corrup	jmp heapCorrupt
 
 ; Phase 2 of Garbage Collection: sweep all accessible blocks together
 gc2_sweep: !zone
@@ -786,7 +944,7 @@ doGC: !zone
 +	jsr gc1_mark		; mark reachable blocks
 	jsr gc2_sweep		; sweep them into one place
 	jsr gc3_fix		; adjust all pointers
-	jmp heapClear		; and clear newly freed space
+	jmp heapClr		; and clear newly freed space
 
 } ; end of !pseodupc $800
 loMemEnd = *
@@ -1053,159 +1211,6 @@ saneEnd: !zone {
 	rts
 }
 }
-
-;------------------------------------------------------------------------------
-init: !zone
-; put something interesting on the screen :)
-	jsr home
-	+prStr : !text "Welcome to Mythos.",0
-; close all files
-	lda #0
-	jsr closeFile
-; clear ProDOS mem map so it lets us load stuff anywhere we want
-	ldx #$18
-	lda #0
-.clr:	sta prodosMemMap-1,x
-	dex
-	bne .clr
-
-; clear the segment tables
--	sta tSegLink,x
-	sta tSegAdrLo,x
-	sta tSegAdrHi,x
-	sta tSegType,x
-	sta tSegRes,x
-	inx
-	cpx #MAX_SEGS
-	bne -
-; clear other pointers
-	sta targetAddr+1
-	sta scanStart
-	sta partFileRef
-	sta curPartition
-	lda #<diskLoader
-	sta nextLdVec+1
-	lda #>diskLoader
-	sta nextLdVec+2
-	lda #1
-	sta scanStart+1
-; make reset go to monitor
-	lda #<monitor
-	sta resetVec
-	lda #>monitor
-	sta resetVec+1
-	eor #$A5
-	sta resetVec+2
-; We'll set up 8 initial segments:
-; 0: main $0000 -> 4, active + locked
-; 1: aux  $0000 -> 2, active + locked
-; 2: aux  $0200 -> 3, inactive
-; 3: aux  $C000 -> 0, active + locked
-; 4: main $0xxx -> 5, inactive (xxx = end of mem mgr tables)
-; 5: main $2000 -> 6, active + locked
-; 6: main $6000 -> 7, inactive
-; 7: main $BF00 -> 8, active + locked
-; 8: main $E000 -> 9, inactive
-; 9: main $F800 -> 0, active + locked
-; First, the flags
-	lda #$C0		; flags for active + locked (with no resource)
-	sta tSegType+0
-	sta tSegType+1
-	sta tSegType+3
-	sta tSegType+5
-	sta tSegType+7
-	sta tSegType+9
-; Next the links
-	ldx #2
-	stx tSegLink+1
-	inx
-	stx tSegLink+2
-	ldx #4
-	stx tSegLink+0
-	inx
-	stx tSegLink+4
-	inx
-	stx tSegLink+5
-	inx
-	stx tSegLink+6
-	inx
-	stx tSegLink+7
-	inx
-	stx tSegLink+8
-; Then the addresses
-	lda #2
-	sta tSegAdrHi+2
-	ldy #$C0
-	sty tSegAdrHi+3
-	dey
-	sty tSegAdrHi+7
-	lda #<paramsEnd
-	sta tSegAdrLo+4
-	lda #>paramsEnd
-	sta tSegAdrHi+4
-	lda #$40
-	sta tSegAdrHi+5
-	lda #$60
-	sta tSegAdrHi+6
-	lda #$E0
-	sta tSegAdrHi+8
-	lda #$F8
-	sta tSegAdrHi+9
-; Finally, form a long list of the remaining unused segments.
-	ldx #10
-	stx unusedSeg		; that's the first unused seg
-	ldy #11
-.loop:	tya
-	sta tSegLink,x
-	inx
-	iny
-	cpy #MAX_SEGS		; did all segments yet?
-	bne .loop		; no, loop again
-; Allocate space for the PLASMA frame stack
-!if SANITY_CHECK {
-	lda #$20
-	sta framePtr+1		; because sanity check verifies it's not $BE or $BF
-}	
-	ldx #0
-	ldy #2			; 2 pages
-	lda #REQUEST_MEMORY
-	jsr main_dispatch
-	stx framePtr
-	stx outerFramePtr
-	iny			; twice for 2 pages: initial pointer at top of new space
-	iny
-	sty framePtr+1
-	sty outerFramePtr+1
-	dey
-	dey
-	lda #LOCK_MEMORY	; lock it in place forever
-	jsr main_dispatch
-; Reserve hi-res page 1
-	lda #SET_MEM_TARGET
-	ldx #0
-	ldy #$20		; at $2000
-	jsr main_dispatch
-	lda #REQUEST_MEMORY
-	ldx #0
-	ldy #$20		; length $2000
-	jsr main_dispatch
-; Load PLASMA module #1
-	ldx #0
-	lda #START_LOAD
-	jsr main_dispatch
-	ldx #RES_TYPE_MODULE
-	ldy #1
-	lda #QUEUE_LOAD
-	jsr main_dispatch
-	stx .gomod+1
-	sty .gomod+2
-	lda #LOCK_MEMORY	; lock it in forever
-	jsr main_dispatch
-	ldx #1			; keep open for efficiency's sake
-	lda #FINISH_LOAD
-	jsr main_dispatch
-	ldx #$10		; initial eval stack index
-.gomod:	jmp $1111		; jump to module for further bootstrapping
 
 ;------------------------------------------------------------------------------
 !if DEBUG {
@@ -1769,7 +1774,7 @@ disk_startLoad: !zone
 
 ;------------------------------------------------------------------------------
 sequenceError: !zone
-	jsr linlineFatal : !text "BadSeq", 0
+	jsr inlineFatal : !text "BadSeq", 0
 
 ;------------------------------------------------------------------------------
 startHeaderScan: !zone

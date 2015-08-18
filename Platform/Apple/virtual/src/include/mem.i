@@ -76,9 +76,8 @@
 ;   The remainder of the file is the data for the resources, in order of their
 ;   table appearance.
 ;
-startMemMgr	= $800
-mainLoader	= $803
-auxLoader	= $806
+mainLoader	= $800
+auxLoader	= mainLoader+3
 
 ;------------------------------------------------------------------------------
 ; Resource types
@@ -280,21 +279,19 @@ FATAL_ERROR = $1F
 ; Macro param: number of parameters passed from PLASMA to the asm routine
 ; 1. Save PLASMA's X register index to evalStk
 ; 2. Verify X register is in the range 0-$10
-; 3. Switch to ROM
-; 4. Load the *last* parameter into A=lo, Y=hi
-; 5. Run the calling routine (X still points into evalStk for add'l params if needed)
-; 6. Switch back to LC RAM
-; 7. Restore PLASMA's X register, and advance it over the parameter(s)
-; 8. Store A=lo/Y=hi into PLASMA return value
-; 9. Return to PLASMA
+; 3. Load the *last* parameter into A=lo, Y=hi
+; 4. Run the calling routine (X still points into evalStk for add'l params if needed)
+; 5. Restore PLASMA's X register, and advance it over the parameter(s)
+; 6. Store A=lo/Y=hi into PLASMA return value
+; 7. Return to PLASMA
 !macro asmPlasm nArgs {
     ldy #nArgs
     jsr _asmPlasm
 }
-_asmPlasm = $809
+_asmPlasm = auxLoader+3
 
 ; Debug support routines (defined in core/mem.s)
-_writeStr   = $80C
+_writeStr   = _asmPlasm+3
 _prByte     = _writeStr+3
 _prSpace    = _prByte+3
 _prWord     = _prSpace+3

@@ -50,10 +50,6 @@ gcHash_link	= $5300
 gcHash_dstLo	= $5400
 gcHash_dstHi	= $5500
 
-; Heap area
-heapStart	= $F000	; must be page aligned
-heapEnd		= $F800	; must be page aligned
-
 ; Other equates
 prodosMemMap 	= $BF58
 
@@ -651,6 +647,8 @@ typeTblL	!fill MAX_TYPES
 typeTblH	!fill MAX_TYPES
 typeLen		!fill MAX_TYPES		; length does not include type byte
 
+heapStartPg	!byte 0
+heapEndPg	!byte 0
 heapTop		!word 0
 gcHash_top	!byte 0
 nHeapBlks	!byte 0
@@ -682,12 +680,11 @@ setTypeTbl: !zone
 
 ; Clear the heap
 heapReset: !zone
-	lda #<heapStart
-	sta heapTop
-	lda #>heapStart
-	sta heapTop
 	lda #0
+	sta heapTop
 	sta nHeapBlks
+	lda heapStartPg
+	sta heapTop
 	; fall through to:
 ; Zero memory heapTop.heapEnd
 heapClr: !zone
@@ -699,7 +696,7 @@ heapClr: !zone
 	inx
 	bne .st
 	iny
-	cpy #>heapEnd
+	cpy heapEndPg
 	bne .pg
 	rts
 
@@ -722,7 +719,7 @@ heapAlloc: !zone
 	adc pTmp
 	bcc +
 	iny
-	cpy #>heapEnd
+	cpy heapEndPg
 	bcs .needgc
 +	sta heapTop
 	sty heapTop+1
@@ -790,7 +787,7 @@ heapCheck: !zone
 	bcc .blklup
 	inc pTmp+1
 	lda pTmp+1
-	cmp #>heapEnd
+	cmp heapEndPg
 	bcc .blklup
 	bcs heapCorrupt
 .isobj	and #$7F
@@ -814,9 +811,9 @@ heapCheck: !zone
 	bcs heapCorrupt	;		but beyond end is not ok
 +	lda (pTmp),y	; get hi byte of ptr
 	beq .tscan	; null is ok
-	cmp #>heapStart	; else check if < start of heap
+	cmp heapStartPg	; else check if < start of heap
 	bcc heapCorrupt
-	cmp #>heapEnd	; or >= than end of heap
+	cmp heapEndPg	; or >= than end of heap
 	bcc .tscan
 heapCorrupt:
 	ldx pTmp
@@ -832,9 +829,8 @@ gc1_mark: !zone
 -	sta gcHash_first,x
 	inx
 	bne -
-	lda #<heapStart		; global block is at very start of heap
-	sta pSrc
-	lda #>heapEnd
+	stx pSrc		; X is zero'd from loop above
+	lda heapStartPg
 	sta pSrc+1
 	sec			; sec means add if not found
 	jsr gcHash_chk		; seed the hash, and thus our queue, with the global block
@@ -897,10 +893,10 @@ gc3_fix:
 
 ; Phase 2 of Garbage Collection: sweep all accessible blocks together
 gc2_sweep: !zone
-	lda #<heapStart
+	lda #0
 	sta pSrc
 	sta pDst
-	lda #>heapStart
+	lda heapStartPg
 	sta pSrc+1
 	sta pDst+1
 .outer	clc			; clc = do not add to hash

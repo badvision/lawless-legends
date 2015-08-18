@@ -248,20 +248,14 @@ DEBUG_MEM = $1A
     ; Print out the currently allocated memory blocks and their states.
 
 ;------------------------------------------------------------------------------
-CHAIN_LOADER = $1E
-    ; Input: X-reg / Y-reg - pointer to loader (X=lo, Y=hi) to add to chain
+CHECK_MEM = $1E
+    ; Input: None
     ;
     ; Output: None
     ;
-    ; Add a loader to the chain just after this loader. The current next
-    ; loader (if there is one) will be passed to the new loader with another
-    ; CHAIN_LOADER command.
-    ;
-    ; The purpose of a loader chain is to insert faster devices between the
-    ; main/aux loader (fastest) and the disk loader (slowest). Note that the 
-    ; main mem and aux mem loaders are conceptually one; a chained loader will
-    ; always be inserted after them, not between them.
-		
+    ; Check that memory manager structures (and heap structures, if a heap
+    ; has been set) are all intact.
+        
 ;------------------------------------------------------------------------------
 FATAL_ERROR = $1F
     ; Input:  X-reg(lo) / Y-reg(hi): message pointer
@@ -274,6 +268,84 @@ FATAL_ERROR = $1F
     ;
     ; This command halts and thus never returns.
 
+;------------------------------------------------------------------------------
+HEAP_SET = $20
+    ; Input:  X-reg(lo) / Y-reg(hi): pointer to allocated block for heap
+    ;
+    ; Output: None
+    ;
+    ; Establishes a block of memory to use as a garbage collected small-object 
+    ; heap. The block must be page-aligned and sized in whole pages, and 
+    ; generally should be locked first.
+
+;------------------------------------------------------------------------------
+HEAP_TYPE = $21
+    ; Input:  X-reg(lo) / Y-reg(hi): pointer to type table
+    ;
+    ; Output: None
+    ;
+    ; Adds a type to the list of known heap types. Each type will be assigned
+    ; a number starting at $80 and going up to $81, $82, etc. By convention 
+    ; type $80 should be the single "Global" object from which all others live
+    ; objects can be traced.
+    ;
+    ; The type table for the type should be laid out as follows:
+    ;  byte 0: length byte (1 to 127)
+    ;  byte 1: offset of first pointer (1 to 127)
+    ;  byte 2: offset of second pointer
+    ;  ...
+    ;  byte n: zero (0) value marks end of table
+
+;------------------------------------------------------------------------------
+HEAP_ALLOC = $22
+    ; Input:  X-reg: string length $01-7F, or type code $80-FF
+    ;
+    ; Output: X-reg(lo) / Y-reg(hi): pointer to allocated object space
+    ;
+    ; Allocates an object on the heap. If X <= $7F, it's a string object
+    ; (no internal pointers). If X >= $80, it's a typed object corresponding
+    ; to the types added with HEAP_TYPE.
+    ;
+    ; The first byte of the returned block will be the length or type code,
+    ; (which you must never change), and subsequent bytes are initialized to 
+    ; all zero.
+    ;
+    ; By convention, the very first block allocated should be of the "Global" 
+    ; type ($80) and all other live objects must be traceable from there.
+
+;------------------------------------------------------------------------------
+HEAP_COLLECT = $23
+    ; Input:  None.
+    ;
+    ; Output: X-reg(lo) / Y-reg(hi): free space in heap after collection
+    ;
+    ; Traces objects in the heap to determine which ones are "live", that is,
+    ; reachable from the very first object allocated. By convention, that first
+    ; object should be of the "Global" type, i.e. $80, and everything reachable
+    ; from pointers there is considered live.
+    ;
+    ; Live objects are then coalesced together in contiguous memory, squeezing 
+    ; out any objects that can no longer be reached.
+    ;
+    ; NOTE: The main memory area from $4000.5FFF is used during the collection
+    ; process. Therefore, HEAP_COLLECT should not be run during a
+    ; START_LOAD..FINISH_LOAD sequence, nor when hi-res page 2 is being shown.
+
+;------------------------------------------------------------------------------
+CHAIN_LOADER = $30
+    ; Input: X-reg / Y-reg - pointer to loader (X=lo, Y=hi) to add to chain
+    ;
+    ; Output: None
+    ;
+    ; Add a loader to the chain just after this loader. The current next
+    ; loader (if there is one) will be passed to the new loader with another
+    ; CHAIN_LOADER command.
+    ;
+    ; The purpose of a loader chain is to insert faster devices between the
+    ; main/aux loader (fastest) and the disk loader (slowest). Note that the 
+    ; main mem and aux mem loaders are conceptually one; a chained loader will
+    ; always be inserted after them, not between them.
+        
 ;------------------------------------------------------------------------------
 ; Convenience for writing assembly routines in PLASMA source
 ; Macro param: number of parameters passed from PLASMA to the asm routine

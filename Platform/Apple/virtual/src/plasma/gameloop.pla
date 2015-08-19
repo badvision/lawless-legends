@@ -38,10 +38,6 @@ const RES_TYPE_BYTECODE = 9
 const RES_TYPE_FIXUP    = 10
 const RES_TYPE_PORTRAIT = 11
 
-// Memory banks
-const MAIN_MEM = 0
-const AUX_MEM  = 1
-
 // Command codes
 const RESET_MEMORY   = $10
 const REQUEST_MEMORY = $11
@@ -471,23 +467,31 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Send a command to the memory manager
-// Params: cmd, mainOrAux, amount
-asm loader
-        +asmPlasm 3
-        lda evalStkL+2,x        ; command code
+// Params: cmd, wordParam
+asm mmgr
+        +asmPlasm 2
+        lda evalStkL+1,x        ; command code
         pha
-        lda evalStkL+1,x        ; main or aux
-        lsr
         ldy evalStkH,x          ; address (or other param)
         lda evalStkL,x
         tax
         pla
-        bcs +
         jsr mainLoader          ; ret value in X=lo/Y=hi
-        txa
+        txa                     ;    to A=lo/Y=hi for asmPlasm
         rts
-+       jsr auxLoader           ; ditto
-        txa
+end
+
+// Aux version of memory manager command
+asm auxMmgr
+        +asmPlasm 2
+        lda evalStkL+1,x        ; command code
+        pha
+        ldy evalStkH,x          ; address (or other param)
+        lda evalStkL,x
+        tax
+        pla
+        jsr auxLoader           ; ret value in X=lo/Y=hi
+        txa                     ;    to A=lo/Y=hi for asmPlasm
         rts
 end
 
@@ -629,7 +633,7 @@ end
 // Fatal error: print message and stop the system.
 def fatal(msg)
   toAsmStr(msg)
-  loader(FATAL_ERROR, MAIN_MEM, msg)
+  mmgr(FATAL_ERROR, msg)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -756,16 +760,6 @@ def nextGround()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Switch to text mode and display mem manager debug printout, get a key, switch back to graphics.
-def debugMem(bank)
-  ^$c051
-  ^$c054
-  loader(DEBUG_MEM, bank, 0)
-  getUpperKey()
-  ^$c050
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Establish a keystroke -> command association in the command table
 def initCmd(key, func)
   if key >= $60
@@ -781,12 +775,12 @@ def loadFrameImg()
   img = mapIs3D+2
   if frameLoaded <> img
     if frameLoaded
-      loader(UNLOCK_MEMORY,MAIN_MEM, $2000)
-      loader(FREE_MEMORY,  MAIN_MEM, $2000)
+      mmgr(UNLOCK_MEMORY,$2000)
+      mmgr(FREE_MEMORY,  $2000)
     fin
-    loader(SET_MEM_TARGET, MAIN_MEM, $2000)
-    loader(QUEUE_LOAD,     MAIN_MEM, img<<8 | RES_TYPE_SCREEN)
-    loader(LOCK_MEMORY,    MAIN_MEM, $2000)
+    mmgr(SET_MEM_TARGET, $2000)
+    mmgr(QUEUE_LOAD,     img<<8 | RES_TYPE_SCREEN)
+    mmgr(LOCK_MEMORY,    $2000)
     frameLoaded = img
   fin
 end
@@ -839,33 +833,33 @@ def initMap(x, y, dir)
   initCmds()
 
   // Reset memory (our module will stay since memory manager locked it upon load)
-  loader(RESET_MEMORY, MAIN_MEM, 0)
+  mmgr(RESET_MEMORY, 0)
 
   // Load the font engine and its font
-  loader(SET_MEM_TARGET, MAIN_MEM, fontEngine)
-  loader(QUEUE_LOAD,     MAIN_MEM, RES_NUM_FONT_ENGINE<<8 | RES_TYPE_CODE)
+  mmgr(SET_MEM_TARGET, fontEngine)
+  mmgr(QUEUE_LOAD,     RES_NUM_FONT_ENGINE<<8 | RES_TYPE_CODE)
 
-  loader(SET_MEM_TARGET, MAIN_MEM, $9000)
-  pFont = loader(QUEUE_LOAD, MAIN_MEM, 1<<8 | RES_TYPE_FONT)
+  mmgr(SET_MEM_TARGET, $9000)
+  pFont = mmgr(QUEUE_LOAD, 1<<8 | RES_TYPE_FONT)
 
   // Queue loading of the raycaster or tile engine and the map data
-  loader(SET_MEM_TARGET, MAIN_MEM, displayEngine)
+  mmgr(SET_MEM_TARGET, displayEngine)
   if mapIs3D
-    loader(QUEUE_LOAD, MAIN_MEM, RES_NUM_RAYCASTER<<8 | RES_TYPE_CODE)
-    pMap = loader(QUEUE_LOAD, MAIN_MEM, mapNum<<8 | RES_TYPE_3D_MAP)
-    loader(SET_MEM_TARGET, AUX_MEM, expandVec)
-    loader(QUEUE_LOAD, AUX_MEM, RES_NUM_EXPAND_VEC<<8 | RES_TYPE_CODE)
+    mmgr(QUEUE_LOAD, RES_NUM_RAYCASTER<<8 | RES_TYPE_CODE)
+    pMap = mmgr(QUEUE_LOAD, mapNum<<8 | RES_TYPE_3D_MAP)
+    auxMmgr(SET_MEM_TARGET, expandVec)
+    auxMmgr(QUEUE_LOAD, RES_NUM_EXPAND_VEC<<8 | RES_TYPE_CODE)
   else
-    loader(QUEUE_LOAD, MAIN_MEM, RES_NUM_TILE_ENGINE<<8 | RES_TYPE_CODE)
-    pMap = loader(QUEUE_LOAD, MAIN_MEM, mapNum<<8 | RES_TYPE_2D_MAP)
+    mmgr(QUEUE_LOAD, RES_NUM_TILE_ENGINE<<8 | RES_TYPE_CODE)
+    pMap = mmgr(QUEUE_LOAD, mapNum<<8 | RES_TYPE_2D_MAP)
   fin
 
   // Load everything that we just queued
-  loader(FINISH_LOAD, MAIN_MEM, 1) // 1 = keep open
+  mmgr(FINISH_LOAD, 1) // 1 = keep open
 
   // Load the frame image (and lock it there)
   loadFrameImg()
-  loader(FINISH_LOAD, MAIN_MEM, 1) // 1 = keep open
+  mmgr(FINISH_LOAD, 1) // 1 = keep open
 
   // Tell the font engine where to find its font
   setFont(pFont)
@@ -1280,8 +1274,8 @@ def setPortrait(portraitNum)
   //^cursv = cy
 
   // Load the portrait image and display it
-  srcData = loader(QUEUE_LOAD, AUX_MEM, portraitNum<<8 | RES_TYPE_PORTRAIT)
-  loader(FINISH_LOAD, MAIN_MEM, 0) // 0 = close
+  srcData = auxMmgr(QUEUE_LOAD, portraitNum<<8 | RES_TYPE_PORTRAIT)
+  mmgr(FINISH_LOAD, 0) // 0 = close
 
   if mapIs3D
     blitPortrait(srcData, $2182)  // start at 3rd text line
@@ -1291,7 +1285,7 @@ def setPortrait(portraitNum)
 
   needRender = FALSE  // suppress display of map for this frame
 
-  loader(FREE_MEMORY, AUX_MEM, srcData)
+  auxMmgr(FREE_MEMORY, srcData)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1367,12 +1361,12 @@ def loadTitle()
   puts("Loading Lawless Legends.\n")
 
   // Load the title screen
-  loader(UNLOCK_MEMORY,  MAIN_MEM, $2000)
-  loader(FREE_MEMORY,    MAIN_MEM, $2000)
-  loader(SET_MEM_TARGET, MAIN_MEM, $2000)
-  loader(QUEUE_LOAD,     MAIN_MEM, 1<<8 | RES_TYPE_SCREEN)  // title screen is fixed at #1
-  loader(LOCK_MEMORY,    MAIN_MEM, $2000)
-  loader(FINISH_LOAD, MAIN_MEM, 1) // 1 = keep open
+  mmgr(UNLOCK_MEMORY,  $2000)
+  mmgr(FREE_MEMORY,    $2000)
+  mmgr(SET_MEM_TARGET, $2000)
+  mmgr(QUEUE_LOAD,     1<<8 | RES_TYPE_SCREEN)  // title screen is fixed at #1
+  mmgr(LOCK_MEMORY,    $2000)
+  mmgr(FINISH_LOAD, 1) // 1 = keep open
   frameLoaded = 1
   ^$c050
   ^$c057

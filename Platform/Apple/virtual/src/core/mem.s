@@ -80,7 +80,7 @@ relocate:
 	lda $D000
 	cmp #1
 	beq .gotaux
-.noaux	jsr inlineFatal : !text "Aux mem required",0
+.noaux	jsr inlineFatal : !text "AuxMemReq",0
 .gotaux	ldy #0
 	ldx #$D0
 .pglup	stx .ld+2
@@ -656,35 +656,27 @@ nHeapBlks	!byte 0
 ;------------------------------------------------------------------------------
 ; Heap management routines
 
-; Set the table for the next type in order. Starts with type 0, then 1, etc.
-; By convention, type 0 is used for the Global object, from which all others
-; valid objects are reachable (and invalid garbage if not reachable from there).
-;
-; x=ptr lo, y = ptr hi. 
-; Tbl: type size 01-7F, then (byte) offsets of ptrs within type, then 0.
-setTypeTbl: !zone
-	tya		; save addr hi
-	ldy nTypes
-	cpy #MAX_TYPES
-	bmi +
-	+prChr 'T'
-	brk
-+	sta typeTblL,y	; addr hi
-	sta .ld+2
-	txa		; addr lo
-	sta typeTblH,y
-.ld	lda $1000,x	; self-modified above: fetch length byte
-	sta typeLen,y	; save that too
-	inc nTypes	; bump type count
-	rts
-
-; Clear the heap
-heapReset: !zone
+;------------------------------------------------------------------------------
+; Establish a new heap
+heapSet: !zone
+	txa		; addr must be page-aligned
+	beq +
+.inval	jmp invalParam
++	lda isAuxCmd
+	bne .inval	; must be in main mem
+	sec		; check for valid
+	jsr shared_scan
+	lda tSegAdrLo,y	; end must also be page-aligned
+	bne .inval
+	; Good to go. Record the start and end pages
+	lda pTmp+1
+	sta heapStartPg
+	sta heapTop+1
+	lda tSegAdrHi,y
+	sta heapEndPg
 	lda #0
 	sta heapTop
 	sta nHeapBlks
-	lda heapStartPg
-	sta heapTop
 	; fall through to:
 ; Zero memory heapTop.heapEnd
 heapClr: !zone
@@ -700,8 +692,32 @@ heapClr: !zone
 	bne .pg
 	rts
 
-; Allocate a block on the heap. X = $00.7F for string block, $80.FF for type $00.7F.
-; and yes, type $00 is valid (conventionally used for the Global Object).
+;------------------------------------------------------------------------------
+; Set the table for the next type in order. Starts with type $80, then $81, etc.
+; By convention, type $80 is used for the Global object, from which all other
+; live objects are reachable (and invalid garbage if not reachable from there).
+;
+; x=ptr lo, y = ptr hi. 
+; Tbl: type size 01-7F, then (byte) offsets of ptrs 01-7F within type, then 0.
+heapAddType: !zone
+	tya		; save addr hi
+	ldy nTypes
+	cpy #MAX_TYPES
+	bmi +
+	+prChr 'T'
+	brk
++	sta typeTblL,y	; addr hi
+	sta .ld+2
+	txa		; addr lo
+	sta typeTblH,y
+.ld	lda $1000,x	; self-modified above: fetch length byte
+	sta typeLen,y	; save that too
+	inc nTypes	; bump type count
+	rts
+
+; Allocate a block on the heap. X = $00.7F for string block, $80.FF for a typed obj.
+; And yes, type $80 is valid (conventionally used for the Global Object).
+; And yes, string length $00 is valid (it's an empty string).
 heapAlloc: !zone
 	lda heapTop
 	sta pTmp
@@ -709,7 +725,7 @@ heapAlloc: !zone
 	sta pTmp+1
 	txa
 	ldy #0
-	sta (pTmp),y	; save obj type on heap
+	sta (pTmp),y	; save obj type or len on heap
 	bpl .gotlen
 	and #$7F
 	tay
@@ -724,7 +740,7 @@ heapAlloc: !zone
 +	sta heapTop
 	sty heapTop+1
 	rts
-.needgc	jsr inlineFatal : !text "GcNotImpl",0
+.needgc	jsr inlineFatal : !text "NeedCollect",0
 
 ; Input : Carry set = add if not found, clear = check only, don't add
 ; Output: Y-reg = index
@@ -763,7 +779,7 @@ gcHash_chk: !zone
 
 ; Verify integrity of memory manager structures
 memCheck: !zone
-	jsr heapCheck	; check heap if there is one
+	jsr heapCheck	; heap check (if there is one)
 	ldx #0		; check main bank
 	jsr .chk
 	ldx #1		; 	then aux
@@ -781,46 +797,52 @@ memCheck: !zone
 .done	rts
 
 ; Verify the integrity of the heap
-heapCheck: !zone
+heapCheck:
+	lda #0
+	sta pTmp	; we'll use pTmp for scanning
 	lda heapStartPg
-	bne +			; skip check if no heap defined
-	rts
-+	lda heapTop
-	sta pTmp
-	lda heapTop+1
-	sta pTmp+1
+	bne +		; skip check if no heap defined
+.done	rts
++	sta pTmp+1
+.blklup	lda pTmp
+	cmp heapTop	; have we reached current top-of-heap?
+	lda pTmp+1
+	sbc heapTop+1
+	bcs .done	;	if so we're done
 	ldy #0
-.blklup	lda (pTmp),y
+	lda (pTmp),y
 	bmi .isobj
 	; it's a string; check its characters
-	pha		; save length
+	sta tmp		; save length
 	beq .nxtblk	; handle zero-length string
 	tax
-.stlup	lda (pTmp),y
-	beq heapCorrupt
-	bmi heapCorrupt
-	iny
+.stlup	iny
+	lda (pTmp),y
+	beq heapCorrupt	; strings shouldn't have zero bytes embedded
+	bmi heapCorrupt	; strings should be lo-bit ASCII
 	dex
 	bne .stlup
-.nxtblk	pla		; get length back
-	sec
-	adc pTmp
+	; advance to next heap block
+.nxtblk	lda tmp		; get length back
+	sec		; add 1 for type byte
+	adc pTmp	; advance scan ptr
 	sta pTmp
-	bcc .blklup
+	bcc .blklup	; go again
 	inc pTmp+1
 	lda pTmp+1
 	cmp heapEndPg
-	bcc .blklup
 	bcs heapCorrupt
+	bcc .blklup	; always taken
+	; it's an object; check its pointers
 .isobj	and #$7F
 	tax
 	cpx #MAX_TYPES
 	bcs heapCorrupt
 	lda typeLen,x
-	pha		; save length for later
-	lda typeTblL,x
-	sta .getoff+1
-	lda typeTblH,x
+	sta tmp		; save length for .nxtblk to use later (and also for checking below)
+	lda typeTblL,x	; get type table address for this type
+	sta .getoff+1	; set up for pointer offset fetching
+	lda typeTblH,x	;	hi byte too
 	sta .getoff+2
 	ldx #0		; type entry starts at len byte, which we immediately skip
 .tscan	inx
@@ -1024,8 +1046,9 @@ releaseSegment: !zone
 
 ;------------------------------------------------------------------------------
 scanForAddr: !zone
-; Input:  X(lo)/Y(hi) - address to scan for
+; Input:  X(lo)/Y(hi) - address to scan for (gets stored in pTmp)
 ; Output: X-reg - segment found (zero if not found), N and Z set for X-reg
+;	  Y-reg - next segment in chain
 ;         carry clear if addr == seg start, set if addr != seg start
 	stx pTmp	; save target addr
 	sty pTmp+1
@@ -1046,11 +1069,11 @@ scanForAddr: !zone
 	bne .loop	; non-zero = not end of chain - loop again
 	rts		; fail with X=0
 .found:	sec		; start out assuming addr != seg start
-	lda pTmp	; compare scan address...
+	lda pTmp	; compare scan address lo...
 	eor tSegAdrLo,x	; ... to seg start lo
 	bne +		; if not equal, leave carry set
 	lda pTmp+1	; hi byte
-	eor tSegAdrHi,x	; to hy byte
+	eor tSegAdrHi,x	; to hi byte
 	bne +		; again, if not equal, leave carry set
 	clc		; addr is equal, clear carry
 +	txa
@@ -1168,6 +1191,18 @@ aux_dispatch:
 +	cmp #CHECK_MEM
 	bne +
 	jmp memCheck
++	cmp #HEAP_SET
+	bne +
+	jmp heapSet
++	cmp #HEAP_ADD_TYPE
+	bne +
+	jmp heapAddType
++	cmp #HEAP_ALLOC
+	bne +
+	jmp heapAlloc
++	cmp #HEAP_COLLECT
+	bne +
+	jmp heapCollect
 +	cmp #FATAL_ERROR
 	bne +
 	jmp fatalError
@@ -1324,7 +1359,7 @@ shared_alloc:
 	jsr reclaim		; first time, do a reclaim pass
 	jmp .try		; and try again
 .notFound:
-	jmp invalAddr
+	jmp invalParam
 ; target addr was specified. See if we can fulfill the request.
 .gotTarget:
 	ldx targetAddr		; all 16 bits
@@ -1464,16 +1499,16 @@ coalesce: !zone
 shared_scan: !zone
 	php		; save carry (set to check active flg, clr to skip check)
 	jsr scanForAddr	; scan for block that matches
-	beq invalAddr	; if not found, invalid
-	bcs invalAddr	; if addr not exactly equal, invalid
+	beq invalParam	; if not found, invalid
+	bcs invalParam	; if addr not exactly equal, invalid
 	plp
 	lda tSegType,x	; get existing flags
 	bcc +		; optionally, skip check of active flag
-	bpl invalAddr	; must be an active block
+	bpl invalParam	; must be an active block
 +	rts
 
-invalAddr: !zone
-	jsr inlineFatal : !text "InvalAdr", 0
+invalParam: !zone
+	jsr inlineFatal : !text "InvalParam", 0
 
 ;------------------------------------------------------------------------------
 ; If the resource is a module, this will locate the corresponding bytecode
@@ -1936,7 +1971,7 @@ disk_finishLoad: !zone
 .prodosErr:
 	jmp prodosError
 .addrErr:
-	jmp invalAddr
+	jmp invalParam
 
 .ysave:		!byte 0
 .nFixups:	!byte 0

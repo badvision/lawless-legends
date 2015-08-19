@@ -272,9 +272,12 @@ HEAP_SET = $20
     ; Establishes a block of memory to use as a garbage collected small-object 
     ; heap. The block must be page-aligned and sized in whole pages, and 
     ; generally should be locked first.
+    ;
+    ; Also clears the table of heap types, so HEAP_ADD_TYPE will start again
+    ; setting the global type ($80).
 
 ;------------------------------------------------------------------------------
-HEAP_TYPE = $21
+HEAP_ADD_TYPE = $21
     ; Input:  X-reg(lo) / Y-reg(hi): pointer to type table
     ;
     ; Output: None
@@ -293,7 +296,7 @@ HEAP_TYPE = $21
 
 ;------------------------------------------------------------------------------
 HEAP_ALLOC = $22
-    ; Input:  X-reg: string length $01-7F, or type code $80-FF
+    ; Input:  X-reg: string length $00-7F, or type code $80-FF
     ;
     ; Output: X-reg(lo) / Y-reg(hi): pointer to allocated object space
     ;
@@ -307,6 +310,13 @@ HEAP_ALLOC = $22
     ;
     ; By convention, the very first block allocated should be of the "Global" 
     ; type ($80) and all other live objects must be traceable from there.
+    ;
+    ; If there's no room on the heap, an fatal error will be thrown. The system
+    ; assumes that HEAP_COLLECT is not safe to run at any time. Rather, you
+    ; should call it periodically when you're certain no pointers to heap
+    ; objects (except the global object) are on the system stack.
+    ;
+    ; Note: strings of length zero are considered valid and supported.
 
 ;------------------------------------------------------------------------------
 HEAP_COLLECT = $23

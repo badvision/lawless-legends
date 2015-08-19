@@ -761,9 +761,31 @@ gcHash_chk: !zone
 	rts
 .corrup	jmp heapCorrupt
 
+; Verify integrity of memory manager structures
+memCheck: !zone
+	jsr heapCheck	; check heap if there is one
+	ldx #0		; check main bank
+	jsr .chk
+	ldx #1		; 	then aux
+.chk	lda tSegLink,x
+	tay
+	beq .done
+	lda tSegAdrLo,y	; verify addresses are in ascending order
+	cmp tSegAdrLo,x
+	lda tSegAdrHi,y
+	sbc tSegAdrHi,x
+	tya
+	tax
+	bcs .chk
+	jsr inlineFatal : !text "MTblCorrupt",0
+.done	rts
+
 ; Verify the integrity of the heap
 heapCheck: !zone
-	lda heapTop
+	lda heapStartPg
+	bne +			; skip check if no heap defined
+	rts
++	lda heapTop
 	sta pTmp
 	lda heapTop+1
 	sta pTmp+1
@@ -1104,31 +1126,38 @@ scanForAvail: !zone
 ;------------------------------------------------------------------------------
 main_dispatch: !zone
 !if SANITY_CHECK { jsr saneStart : jsr + : jmp saneEnd }
+	pha
+	lda #0
+	beq .go
+aux_dispatch:
+	pha
+	lda #1
+.go	sta isAuxCmd
+	pla
 +	cmp #REQUEST_MEMORY
 	bne +
-	jmp main_request
+	jmp mem_request
 +	cmp #QUEUE_LOAD
 	bne +
-	jmp main_queueLoad
+	jmp mem_queueLoad
 +	cmp #LOCK_MEMORY
 	bne +
-	jmp main_lock
+	jmp mem_lock
 +	cmp #UNLOCK_MEMORY
 	bne +
-	jmp main_unlock
+	jmp mem_unlock
 +	cmp #FREE_MEMORY
 	bne +
-	jmp main_free
+	jmp mem_free
 !if DEBUG {
 +	cmp #DEBUG_MEM
 	bne +
-	jmp main_debug
+	jmp mem_debug
 }
 +	cmp #CALC_FREE
-	bne shared_dispatch
-	jmp main_calcFree
-shared_dispatch:
-	cmp #RESET_MEMORY
+	bne +
+	jmp mem_calcFree
++	cmp #RESET_MEMORY
 	bne +
 	jmp reset
 +	cmp #SET_MEM_TARGET
@@ -1136,38 +1165,13 @@ shared_dispatch:
 	stx targetAddr
 	sty targetAddr+1
 	rts
++	cmp #CHECK_MEM
+	bne +
+	jmp memCheck
 +	cmp #FATAL_ERROR
 	bne +
 	jmp fatalError
 +	jmp nextLdVec	; Pass command to next chained loader
-
-;------------------------------------------------------------------------------
-aux_dispatch: !zone
-!if SANITY_CHECK { jsr saneStart : jsr + : jmp saneEnd }
-	cmp #REQUEST_MEMORY
-	bne +
-	jmp aux_request
-+	cmp #QUEUE_LOAD
-	bne +
-	jmp aux_queueLoad
-+	cmp #LOCK_MEMORY
-	bne +
-	jmp aux_lock
-+	cmp #UNLOCK_MEMORY
-	bne +
-	jmp aux_unlock
-+	cmp #FREE_MEMORY
-	bne +
-	jmp aux_free
-!if DEBUG {
-+	cmp #DEBUG_MEM
-	bne +
-	jmp aux_debug
-}
-+	cmp #CALC_FREE
-	bne +
-	jmp aux_calcFree
-+	jmp shared_dispatch
 
 ;------------------------------------------------------------------------------
 ; Sanity check mode
@@ -1228,11 +1232,11 @@ printMem: !zone
 	jsr main_debug
 	jmp aux_debug
 main_debug:
-	+prStr : !text "Listing main mem segments.",0
+	+prStr : !text "MainMem:",0
 	ldy #0
 	jmp .printSegs
 aux_debug:
-	+prStr : !text "Listing aux mem segments.",0
+	+prStr : !text "AuxMem:",0
 	ldy #1
 .printSegs:
 	tya
@@ -1302,13 +1306,7 @@ reservedErr: !zone
 	jsr inlineFatal : !text "DblAlloc", 0
 
 ;------------------------------------------------------------------------------
-main_request: !zone
-	lda #0			; index for main mem
-	beq shared_request	; always taken
-aux_request:
-	lda #1			; index for aux mem
-shared_request:
-	sta isAuxCmd		; save whether we're working on main or aux mem
+mem_request: !zone
 	stx reqLen		; save requested length
 	sty reqLen+1		; all 16 bits
 shared_alloc:
@@ -1465,7 +1463,6 @@ coalesce: !zone
 ;------------------------------------------------------------------------------
 shared_scan: !zone
 	php		; save carry (set to check active flg, clr to skip check)
-	sta isAuxCmd	; save whether main or aux mem
 	jsr scanForAddr	; scan for block that matches
 	beq invalAddr	; if not found, invalid
 	bcs invalAddr	; if addr not exactly equal, invalid
@@ -1500,12 +1497,7 @@ shared_byteCodeAlso:
 	rts
 
 ;------------------------------------------------------------------------------
-main_lock: !zone
-	lda #0			; index for main-mem request
-	beq shared_lock		; always taken
-aux_lock:
-	lda #1			; index for aux-mem request
-shared_lock:
+mem_lock: !zone
 	sec			; do check active flag in scan
 	jsr shared_scan		; scan for exact memory block
 	ora #$40		; set the 'locked' flag
@@ -1517,12 +1509,7 @@ shared_lock:
 +	rts			; all done
 
 ;------------------------------------------------------------------------------
-main_unlock: !zone
-	lda #0			; index for main-mem request
-	beq shared_unlock	; always taken
-aux_unlock:
-	lda #1			; index for aux-mem request
-shared_unlock:
+mem_unlock: !zone
 	sec			; do check active flag in scan
 	jsr shared_scan		; scan for exact memory block
 	and #$BF		; mask off the 'locked' flag
@@ -1534,12 +1521,7 @@ shared_unlock:
 +	rts			; all done
 
 ;------------------------------------------------------------------------------
-main_free: !zone
-	lda #0			; index for main-mem request
-	beq shared_free		; always taken
-aux_free:
-	lda #1			; index for aux-mem request
-shared_free:
+mem_free: !zone
 	clc			; do not check for active flg (ok to multiple free)
 	jsr shared_scan		; scan for exact memory block
 	and #$3F		; remove the 'active' and 'locked' flags
@@ -1564,18 +1546,14 @@ shared_free:
 .fatal	jsr inlineFatal : !text "NoFreeBcode", 0
 
 ;------------------------------------------------------------------------------
-main_calcFree: !zone
+mem_calcFree: !zone
 ; Input:  pTmp - address to scan for
 ; Output: X-reg - segment found (zero if not found), N and Z set for X-reg
 ;         carry clear if addr == seg start, set if addr != seg start
-	ldx #0
-	beq shared_calcFree
-aux_calcFree:
-	ldx #1
-shared_calcFree:
 	lda #0		; clear out free space counter
 	sta reqLen
 	sta reqLen+1
+	ldx isAuxCmd
 .loop:	ldy tSegLink,x	; grab link to next segment
 	lda tSegType,x	; get type with flags
 	bmi .next	; if active, skip to next
@@ -1601,13 +1579,7 @@ shared_calcFree:
 	rts		; all done
 
 ;------------------------------------------------------------------------------
-main_queueLoad: !zone
-	lda #0			; flag for main mem
-	beq shared_queueLoad 	; always taken
-aux_queueLoad:
-	lda #1			; flag for aux mem
-shared_queueLoad:
-	sta isAuxCmd 		; save whether main or aux
+mem_queueLoad: !zone
 	stx resType		; save resource type
 	sty resNum		; save resource number
 	cpx #RES_TYPE_MODULE	; loading a module?

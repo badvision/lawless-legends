@@ -103,20 +103,15 @@ RESET_MEMORY = $10
     ;
     ; Output: None
     ;
-    ; Mark all memory as inactive, except the following areas in main memory 
-    ; which are always locked:
-    ;
-    ; 0000.01FF: Zero page and stack
-    ; 0200.02FF: Input buffer and/or scratch space
-    ; 0300.03FF: System vectors, scratch space
-    ; 0400.07FF: Text display
-    ; 0800.0xFF: The memory manager and its page table
-    ; 4000.5FFF: Reserved during queue operations
-    ; BF00.BFFF: ProDOS system page
+    ; Mark all non-locked memory segments as inactive.
     ;
     ; Note that this does *not* destroy the contents of memory, so for instance
-    ; future RECALL_MEMORY commands may be able to re-use the existing contents
+    ; future QUEUE_LOAD commands may be able to re-use the existing contents
     ; of memory if they haven't been reallocated to something else.
+    ;
+    ; Also note that this does not erase the small-object heap if one has been
+    ; established. But it also doesn't check that the heap has been properly
+    ; protected by locking, that's your job.
     ;
     ; This command is acted upon and then passed on to chained loaders.
 

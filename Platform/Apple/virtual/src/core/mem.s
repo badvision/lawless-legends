@@ -203,12 +203,12 @@ init: !zone
 ; 1: aux  $0000 -> 2, active + locked
 ; 2: aux  $0200 -> 3, inactive
 ; 3: aux  $C000 -> 0, active + locked
-; 4: main $0xxx -> 5, inactive (xxx = end of mem mgr tables)
-; 5: main $2000 -> 6, active + locked
+; 4: main $0xxx -> 5, inactive (xxx = end of mem mgr low mem portion)
+; 5: main $4000 -> 6, active + locked
 ; 6: main $6000 -> 7, inactive
 ; 7: main $BF00 -> 8, active + locked
 ; 8: main $E000 -> 9, inactive
-; 9: main $F000 -> 0, active + locked
+; 9: main $F800 -> 0, active + locked
 ; First, the flags
 	lda #$C0		; flags for active + locked (with no resource)
 	sta tSegType+0
@@ -251,7 +251,7 @@ init: !zone
 	sta tSegAdrHi+6
 	lda #$E0
 	sta tSegAdrHi+8
-	lda #$F0
+	lda #$F8
 	sta tSegAdrHi+9
 ; Finally, form a long list of the remaining unused segments.
 	ldx #10
@@ -377,7 +377,7 @@ fatalError: !zone
 	+prStr : !text "FATAL ERROR: ",0
 
 	ldx #$FF	; for asm str, max length
-	lda (pTmp),y	; first byte
+	lda (pTmp),y	; first byte (Y ends at 0 in loop above)
 	bmi .msg	; 	if hi bit, it's a zero-terminated asm string
 	tax		; else it's the length byte of a PLASMA string
 	iny		; advance to first char

@@ -1349,8 +1349,6 @@ def loadTitle()
   puts("Loading Lawless Legends.\n")
 
   // Load the title screen
-  mmgr(UNLOCK_MEMORY,  $2000)
-  mmgr(FREE_MEMORY,    $2000)
   mmgr(SET_MEM_TARGET, $2000)
   mmgr(QUEUE_LOAD,     1<<8 | RES_TYPE_SCREEN)  // title screen is fixed at #1
   mmgr(LOCK_MEMORY,    $2000)

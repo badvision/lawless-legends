@@ -1010,48 +1010,6 @@ def moveWest()
   fin
 end
 
-def moveFast()
-  byte i
-  for i = 0 to 5
-    setDir(0)
-    advance()
-    render()
-    setDir(0)
-    advance()
-    render()
-    setDir(0)
-    advance()
-    render()
-    setDir(4)
-    advance()
-    render()
-    setDir(4)
-    advance()
-    render()
-    setDir(4)
-    advance()
-    render()
-    setDir(8)
-    advance()
-    render()
-    setDir(8)
-    advance()
-    render()
-    setDir(8)
-    advance()
-    render()
-    setDir(12)
-    advance()
-    render()
-    setDir(12)
-    advance()
-    render()
-    setDir(12)
-    advance()
-    render()
-  next
-end
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Switch to a new map (2D or 3D) and establish position on it
 def setMap(is3D, num, x, y, dir)
@@ -1327,8 +1285,6 @@ def initCmds()
     initCmd('X', @moveSouth)
     initCmd('A', @moveWest)
 
-    initCmd('*', @moveFast)
-
     initCmd('I', @moveNorth)
     initCmd('J', @moveWest)
     initCmd('L', @moveEast)
@@ -1350,10 +1306,10 @@ def loadTitle()
   mmgr(LOCK_MEMORY,    $2000)
   mmgr(FINISH_LOAD, 1) // 1 = keep open
   frameLoaded = 1
-  ^$c050
-  ^$c057
-  ^$c054
-  ^$c052
+  ^$C050     // graphics
+  ^$C057     // hi-res
+  ^$C054     // page 1
+  ^$C052     // full screen
   // Hack for real (not emulated) IIc: sometimes displays only lo-bit graphics
   // unless we do this. *HUGE* thanks to Brendan Robert for the fix!
   ^$C07E=0   // disable double-hi-res
@@ -1432,7 +1388,6 @@ setCallbacks()
 mapIs3D = OVERMAP_IS_3D
 mapNum = OVERMAP_NUM
 initMap(6, 123, 12)  // per Seth. Need to have this in a script in the future
-//initMap(4, 4, 0)
 checkScripts()
 kbdLoop()
 

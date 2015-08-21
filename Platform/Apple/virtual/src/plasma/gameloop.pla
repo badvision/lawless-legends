@@ -121,6 +121,10 @@ DEBUG   = 0
 tmp         = $2
 pTmp        = $4
 
+; 16-bit random number seed - incremented by ROM kbd routine
+seed        = $4E
+magic       = $2227 ; there are 2048 magic values that work; this one caught my eye.
+
 ; NOTE ABOUT ABSOLUTE ADDRESSES
 ; You cannot use them: this code, including variable space, can be loaded *anywhere*.
 ; So don't declare any variables as !byte or !word here.
@@ -577,7 +581,7 @@ asm displayStr
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Display a string using the font engine.
+// Display a string using the font engine but not its parser.
 // Params: pStr
 asm rawDisplayStr
   +asmPlasm 1
@@ -604,6 +608,50 @@ asm rawDisplayStr
   jsr DisplayChar
   ldy tmp+1
   bne -
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Random number generator
+// Adapted from http://codebase64.org/doku.php?id=base:small_fast_16-bit_prng
+asm rand16
+  +asmPlasm 0
+
+  lda seed
+  beq .lowZero ; $0000 and $8000 are special values to test for
+ 
+  ; Do a normal shift
+  asl seed
+  lda seed+1
+  rol
+  bcc .noEor
+ 
+.doEor:
+  ; high byte is in .A
+  eor #>magic
+  sta seed+1
+  tay        ; for asmPlasm, return hi byte in Y, lo byte in A
+  lda seed
+  eor #<magic
+  sta seed
+  rts
+ 
+.lowZero:
+  lda seed+1
+  beq .doEor ; High byte is also zero, so apply the EOR
+             ; For speed, you could store 'magic' into 'seed' directly
+             ; instead of running the EORs
+ 
+  ; wasn't zero, check for $8000
+  asl
+  beq .noEor ; if $00 is left after the shift, then it was $80
+  bcs .doEor ; else, do the EOR based on the carry bit as usual
+ 
+.noEor:
+  sta seed+1
+  tay        ; for asmPlasm, return hi byte in Y, lo byte in A
+  lda seed
+  rts
+
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

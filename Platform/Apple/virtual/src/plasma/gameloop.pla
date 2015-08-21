@@ -50,8 +50,13 @@ const FINISH_LOAD    = $17
 const FREE_MEMORY    = $18
 const CALC_FREE      = $19
 const DEBUG_MEM      = $1A
+const CHECK_MEM      = $1B
 const CHAIN_LOADER   = $1E
 const FATAL_ERROR    = $1F
+const HEAP_SET       = $20
+const HEAP_ADD_TYPE  = $21
+const HEAP_ALLOC     = $22
+const HEAP_COLLECT   = $23
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Other constants
@@ -72,21 +77,21 @@ predef setWindow2, initCmds
 // Global variables
 byte mapNum
 byte mapIs3D
+word mapNameHash = 0
 word totalMapWidth
 word totalMapHeight
-word pFont
-word pMap
-word cmdTbl[64]
-word triggerOriginX, triggerOriginY
-word triggerTbl
-byte redraw
-byte frameLoaded = 0
-byte textDrawn = FALSE
-byte needRender = FALSE
 
 word skyNum = 9
 word groundNum = 10
 byte portraitNum = 1
+
+word triggerOriginX, triggerOriginY
+word triggerTbl
+
+word cmdTbl[64]
+byte frameLoaded = 0
+byte textDrawn = FALSE
+byte needRender = FALSE
 
 // Queue setMap / teleport, since otherwise script might be replaced while executing
 byte q_mapIs3D
@@ -94,7 +99,7 @@ byte q_mapNum = 0
 word q_x
 word q_y
 byte q_dir
-word mapNameHash = 0
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -602,37 +607,11 @@ asm rawDisplayStr
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Convert a PLASMA string (starts with length, lo-bit ascii) to an assembly string
-// (zero-terminated, hi-bit ascii).
-asm toAsmStr
-  lda evalStkL,x
-  sta pTmp
-  lda evalStkH,x
-  sta pTmp+1
-  ldy #0
-  lda (pTmp),y
-  beq +
-  sta tmp
-- iny
-  lda (pTmp),y
-  ora #$80
-  dey
-  sta (pTmp),y
-  iny
-  dec tmp
-  bne -
-  lda #0
-  sta (pTmp),y
-+ rts
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // General methods
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Fatal error: print message and stop the system.
 def fatal(msg)
-  toAsmStr(msg)
   mmgr(FATAL_ERROR, msg)
 end
 
@@ -829,6 +808,9 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load code and data, set up everything to display a 3D map
 def initMap(x, y, dir)
+  word pFont
+  word pMap
+
   // Set up the command table
   initCmds()
 

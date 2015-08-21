@@ -375,13 +375,21 @@ fatalError: !zone
 	dey
 	bne .dash
 	+prStr : !text "FATAL ERROR: ",0
-.msg2	lda (pTmp),y
-	beq .msg3
+
+	ldx #$FF	; for asm str, max length
+	lda (pTmp),y	; first byte
+	bmi .msg	; 	if hi bit, it's a zero-terminated asm string
+	tax		; else it's the length byte of a PLASMA string
+	iny		; advance to first char
+.msg	lda (pTmp),y
+	beq .done
+	ora #$80	; set hi bit of PLASMA strings for cout
 	jsr cout
 	iny
-	bne .msg2
-.msg3:	jsr bell	; beep
-.inf: 	jmp .inf	; and loop forever
+	dex
+	bne .msg
+.done:	jsr bell
+.hang: 	jmp .hang	; loop forever
 
 ;------------------------------------------------------------------------------
 ; Normal entry point for ProDOS MLI calls. This patches the code at $BFBB.
@@ -739,6 +747,8 @@ heapAlloc: !zone
 	bcs .needgc
 +	sta heapTop
 	sty heapTop+1
+	ldx pTmp	; return ptr in X=lo/Y=hi
+	ldy pTmp+1
 	rts
 .needgc	jsr inlineFatal : !text "NeedCollect",0
 
@@ -797,7 +807,7 @@ memCheck: !zone
 .done	rts
 
 ; Verify the integrity of the heap
-heapCheck:
+heapCheck: !zone
 	lda #0
 	sta pTmp	; we'll use pTmp for scanning
 	lda heapStartPg
@@ -991,14 +1001,22 @@ gc2_sweep: !zone
 	bcc .outer		; if not, loop again
 	rts
 
-doGC: !zone
+heapCollect: !zone
 	lda nHeapBlks
 	bne +			; edge case: if nothing on heap, skip collection
 	rts
 +	jsr gc1_mark		; mark reachable blocks
 	jsr gc2_sweep		; sweep them into one place
 	jsr gc3_fix		; adjust all pointers
-	jmp heapClr		; and clear newly freed space
+	jsr heapClr		; and clear newly freed space
+	lda #0			; heap end lo always 0
+	sec
+	sbc heapTop		; calculate new free space
+	tax
+	lda heapEndPg		; hi byte too
+	sbc heapTop+1
+	tay			; free space to X=lo/Y=hi
+	rts
 
 } ; end of !pseodupc $800
 loMemEnd = *

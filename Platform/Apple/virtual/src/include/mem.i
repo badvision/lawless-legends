@@ -243,7 +243,7 @@ DEBUG_MEM = $1A
     ; Print out the currently allocated memory blocks and their states.
 
 ;------------------------------------------------------------------------------
-CHECK_MEM = $1E
+CHECK_MEM = $1B
     ; Input: None
     ;
     ; Output: None
@@ -252,14 +252,31 @@ CHECK_MEM = $1E
     ; has been set) are all intact.
         
 ;------------------------------------------------------------------------------
+CHAIN_LOADER = $1E
+    ; Input: X-reg / Y-reg - pointer to loader (X=lo, Y=hi) to add to chain
+    ;
+    ; Output: None
+    ;
+    ; Add a loader to the chain just after this loader. The current next
+    ; loader (if there is one) will be passed to the new loader with another
+    ; CHAIN_LOADER command.
+    ;
+    ; The purpose of a loader chain is to insert faster devices between the
+    ; main/aux loader (fastest) and the disk loader (slowest). Note that the 
+    ; main mem and aux mem loaders are conceptually one; a chained loader will
+    ; always be inserted after them, not between them.
+        
+;------------------------------------------------------------------------------
 FATAL_ERROR = $1F
-    ; Input:  X-reg(lo) / Y-reg(hi): message pointer
+    ; Input:  X-reg(lo) / Y-reg(hi): message pointer. Message can be:
+    ; (1) a zero-terminated, hi-bit ASCII string, (assembly style), or
+    ; (2) a length-prefixed, lo-bit ASCII string (PLASMA / ProDOS style)
     ;
     ; Output: Never returns
     ;
-    ; Switches to text mode, prints out the zero-terminated ASCII error message 
-    ; pointed to by the parameters, plus the call stack, and then halts the 
-    ; system (i.e. it waits forever, user has to press Reset).
+    ; Switches to text mode, prints out the error message pointed to by the 
+    ; parameters, plus the call stack, and then halts the system (i.e. it waits 
+    ; forever, user has to press Reset).
     ;
     ; This command halts and thus never returns.
 
@@ -336,21 +353,6 @@ HEAP_COLLECT = $23
     ; process. Therefore, HEAP_COLLECT should not be run during a
     ; START_LOAD..FINISH_LOAD sequence, nor when hi-res page 2 is being shown.
 
-;------------------------------------------------------------------------------
-CHAIN_LOADER = $30
-    ; Input: X-reg / Y-reg - pointer to loader (X=lo, Y=hi) to add to chain
-    ;
-    ; Output: None
-    ;
-    ; Add a loader to the chain just after this loader. The current next
-    ; loader (if there is one) will be passed to the new loader with another
-    ; CHAIN_LOADER command.
-    ;
-    ; The purpose of a loader chain is to insert faster devices between the
-    ; main/aux loader (fastest) and the disk loader (slowest). Note that the 
-    ; main mem and aux mem loaders are conceptually one; a chained loader will
-    ; always be inserted after them, not between them.
-        
 ;------------------------------------------------------------------------------
 ; Convenience for writing assembly routines in PLASMA source
 ; Macro param: number of parameters passed from PLASMA to the asm routine

@@ -6,10 +6,13 @@ const NULL  = 0
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Fixed memory locations
-const seed          = $4E     // Incremented continuously by montitor's rdkey routine
+const seed          = $4E     // Incremented continuously by keyboard read routine
 const displayEngine = $6000   // main mem (raycaster and tile engine at same location)
 const expandVec     = $2000   // aux mem (only for raycaster)
 const fontEngine    = $E000   // main mem
+const heapStart     = $F000   // main mem
+
+const heapSize      = $800
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Resource numbers
@@ -69,6 +72,44 @@ const callbacks = $300
 // 2D map start
 const OVERMAP_NUM = 1
 const OVERMAP_IS_3D = 0
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Structures for testing the heap system
+const TYPE_GLOBAL = $80
+struc Global
+  byte type
+  word id
+  word players
+end
+
+const TYPE_PLAYER = $81
+struc Player
+  byte type
+  word id
+  word nextObj
+  word name
+  byte muscle
+  byte quickness
+  word items
+  word health
+end
+
+const TYPE_ITEM = $82
+struc Item
+  byte type
+  word id
+  word nextObj
+  word name
+  byte kind
+  byte cost
+end
+
+// Table per type, starts with length, then pointer offsets, ending with zero.
+byte typeTbl_Global[] = Global, players, 0
+byte typeTbl_Player[] = Player, nextObj, items, 0
+byte typeTbl_Item[]   = Item, nextObj, 0
+
+byte typeCounts[256]
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Predefined functions, for circular calls or out-of-order calls
@@ -482,9 +523,9 @@ asm mmgr
         +asmPlasm 2
         lda evalStkL+1,x        ; command code
         pha
-        ldy evalStkH,x          ; address (or other param)
+        ldy evalStkH,x          ; address (or other param)... hi byte in Y
         lda evalStkL,x
-        tax
+        tax                     ;     ...lo byte in X
         pla
         jsr mainLoader          ; ret value in X=lo/Y=hi
         txa                     ;    to A=lo/Y=hi for asmPlasm
@@ -1349,6 +1390,8 @@ def loadTitle()
   puts("Loading Lawless Legends.\n")
 
   // Load the title screen
+  mmgr(UNLOCK_MEMORY,  $2000)
+  mmgr(FREE_MEMORY,    $2000)
   mmgr(SET_MEM_TARGET, $2000)
   mmgr(QUEUE_LOAD,     1<<8 | RES_TYPE_SCREEN)  // title screen is fixed at #1
   mmgr(LOCK_MEMORY,    $2000)
@@ -1429,8 +1472,51 @@ def setCallbacks()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def newObj(typeNum)
+  typeCounts[typeNum] = typeCounts[typeNum] + 1
+  return mmgr(HEAP_ALLOC, type)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def freeObj(ptr)
+  byte typeNum
+  if ptr == NULL; return; fin
+  typeNum = ^ptr
+  typeCounts[typeNum] = typeCounts[typeNum] - 1
+  if typeCounts[typeNum] == 0
+    when type
+      is TYPE_GLOBAL
+        fatal("can't free global obj")
+      is TYPE_PLAYER
+        freeObj(ptr:nextObj)
+        freeObj(ptr:name)
+        freeObj(ptr:items)
+        break
+      is TYPE_ITEM
+        freeObj(ptr:nextObj)
+        freeObj(ptr:name)
+        break
+    wend
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Set up the small-object heap
+def initHeap()
+  mmgr(SET_MEM_TARGET, heapStart)
+  mmgr(REQUEST_MEMORY, heapSize)
+  mmgr(LOCK_MEMORY,    heapStart)
+  mmgr(HEAP_SET,       heapStart)
+  mmgr(HEAP_ADD_TYPE,  typeTbl_Global)
+  mmgr(HEAP_ADD_TYPE,  typeTbl_Player)
+  mmgr(HEAP_ADD_TYPE,  typeTbl_Item)
+  newObj(TYPE_GLOBAL)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Main code.
 //
+initHeap()
 loadTitle()
 setCallbacks()
 mapIs3D = OVERMAP_IS_3D

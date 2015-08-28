@@ -19,8 +19,8 @@ MAX_SEGS	= 96
 
 DO_COMP_CHECKSUMS = 0		; during compression debugging
 DEBUG_DECOMP 	= 0
-DEBUG		= 0
-SANITY_CHECK	= 0		; also prints out request data
+DEBUG		= 1
+SANITY_CHECK	= 1		; also prints out request data
 
 ; Zero page temporary variables
 tmp		= $2	; len 2
@@ -56,14 +56,17 @@ prodosMemMap 	= $BF58
 ;------------------------------------------------------------------------------
 ; Relocate all the pieces to their correct locations
 relocate:
-; first our lo memory piece goes to $800 (two pages should be plenty)
+; first our lo memory piece goes to $800
 	ldy #0
--	lda loMemBegin,y
-	sta $800,y
-	lda loMemBegin+$100,y
-	sta $900,y
+	ldx #>(loMemEnd-loMemBegin+$FF)
+.lold	lda loMemBegin,y
+.lost	sta $800,y
 	iny
-	bne -
+	bne .lold
+	inc .lold+2
+	inc .lost+2
+	dex
+	bne .lold
 ; set up to copy the ProDOS code from main memory to aux
 	bit setLcRW+lcBank1	; only copy bank 1, because bank 2 is PLASMA runtime
 	bit setLcRW+lcBank1	; 	write to it
@@ -1167,7 +1170,7 @@ scanForAvail: !zone
 ;------------------------------------------------------------------------------
 main_dispatch: !zone
 !if SANITY_CHECK { jsr saneStart : jsr + : jmp saneEnd }
-	pha
++	pha
 	lda #0
 	beq .go
 aux_dispatch:
@@ -1193,7 +1196,7 @@ aux_dispatch:
 !if DEBUG {
 +	cmp #DEBUG_MEM
 	bne +
-	jmp mem_debug
+	jmp printMem
 }
 +	cmp #CALC_FREE
 	bne +

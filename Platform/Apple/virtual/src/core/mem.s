@@ -688,6 +688,7 @@ heapSet: !zone
 	lda #0
 	sta heapTop
 	sta nHeapBlks
+	sta nTypes
 	; fall through to:
 ; Zero memory heapTop.heapEnd
 heapClr: !zone
@@ -717,10 +718,10 @@ heapAddType: !zone
 	bmi +
 	+prChr 'T'
 	brk
-+	sta typeTblL,y	; addr hi
++	sta typeTblH,y	; addr hi
 	sta .ld+2
 	txa		; addr lo
-	sta typeTblH,y
+	sta typeTblL,y
 .ld	lda $1000,x	; self-modified above: fetch length byte
 	sta typeLen,y	; save that too
 	inc nTypes	; bump type count
@@ -737,11 +738,15 @@ heapAlloc: !zone
 	txa
 	ldy #0
 	sta (pTmp),y	; save obj type or len on heap
+	tay		; test hi bit
 	bpl .gotlen
 	and #$7F
 	tay
 	lda typeLen,y
 .gotlen	ldy pTmp+1
+	+prStr : !text "heapAllocLen=", 0
+	+prA
+	+crout
 	sec		; add 1 for type byte
 	adc pTmp
 	bcc +
@@ -750,6 +755,9 @@ heapAlloc: !zone
 	bcs .needgc
 +	sta heapTop
 	sty heapTop+1
+	+prStr : !text "heapAllocRet=", 0
+	+prWord pTmp
+	+crout
 	ldx pTmp	; return ptr in X=lo/Y=hi
 	ldy pTmp+1
 	rts

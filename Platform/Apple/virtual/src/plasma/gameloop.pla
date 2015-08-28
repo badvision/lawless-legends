@@ -109,7 +109,10 @@ byte typeTbl_Global[] = Global, players, 0
 byte typeTbl_Player[] = Player, nextObj, items, 0
 byte typeTbl_Item[]   = Item, nextObj, 0
 
+byte typeLengths[10]
 byte typeCounts[256]
+byte checkCounts[256]
+word nextObjID = 0
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Predefined functions, for circular calls or out-of-order calls
@@ -1473,8 +1476,14 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def newObj(typeNum)
+  word ptr
   typeCounts[typeNum] = typeCounts[typeNum] + 1
-  return mmgr(HEAP_ALLOC, type)
+  ptr = mmgr(HEAP_ALLOC, typeNum)
+  if typeNum >= $80
+    nextObjID = nextObjID + 1
+    ptr=>id = nextObjID
+  fin
+  return ptr
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1507,16 +1516,102 @@ def initHeap()
   mmgr(REQUEST_MEMORY, heapSize)
   mmgr(LOCK_MEMORY,    heapStart)
   mmgr(HEAP_SET,       heapStart)
-  mmgr(HEAP_ADD_TYPE,  typeTbl_Global)
-  mmgr(HEAP_ADD_TYPE,  typeTbl_Player)
-  mmgr(HEAP_ADD_TYPE,  typeTbl_Item)
+  mmgr(HEAP_ADD_TYPE,  @typeTbl_Global)
+  typeLengths[TYPE_GLOBAL & $7F] = Global
+  mmgr(HEAP_ADD_TYPE,  @typeTbl_Player)
+  typeLengths[TYPE_PLAYER & $7F] = Global
+  mmgr(HEAP_ADD_TYPE,  @typeTbl_Item)
+  typeLengths[TYPE_ITEM & $7F] = Global
   newObj(TYPE_GLOBAL)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def randomLetter()
+  return (rand16() % 26) + 'A'
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Locate the heap string with the specified length. If none exists, create a new random string.
+def findTestString(len)
+  word p, t, p2
+  p = heapStart
+  while *p
+    t = ^p
+    if t == len
+      return p
+    elsif t < $80
+      p = p + t
+    elsif t < TYPE_GLOBAL or t > TYPE_ITEM
+      fatal("Unknown type in heap")
+    else
+      p = p + typeLengths[t & $7F]
+    fin
+  loop
+  p = newObj(len)
+  printf1("New string at %x\n", p)
+  p2 = p
+  for t = 1 to len
+    p2 = p2+1
+    printf1("Setting %x to 'X'\n", p2)
+    ^$c083
+    ^$c083
+    p2->0 = 'X'
+  next
+  return p
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Check the object counts on the heap
+def checkHeapCounts()
+  word p, t
+  byte bad
+
+  // Clear the check array
+  for t = 0 to 255; checkCounts[t] = 0; next
+  
+  // Now traverse the heap, counting the number of each object type
+  p = heapStart
+  while *p
+    t = ^p
+    checkCounts[t] = checkCounts[t] + 1
+    if t < $80
+      p = p + t
+    elsif t < TYPE_GLOBAL or t > TYPE_ITEM
+      fatal("Unknown type in heap")
+    else
+      p = p + typeLengths[t & $7F]
+    fin
+  loop
+
+  // Then verify the counts
+  bad = 0
+  for t = 0 to 255
+    if typeCounts[t] <> checkCounts[t]
+      printf3("Count for type %d should be %d, got %d\n", t, checkCounts[t], typeCounts[t])
+      bad = bad+1
+    fin
+  next
+
+  if bad
+    fatal("Heap errors found.")
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Test out the heap
+def testHeap()
+  word p
+  checkHeapCounts()
+  p = findTestString(10)
+  printf2("Test string: %x '%s'\n", p, p)
+  getUpperKey()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Main code.
 //
 initHeap()
+testHeap()
 loadTitle()
 setCallbacks()
 mapIs3D = OVERMAP_IS_3D

@@ -1611,7 +1611,7 @@ end
 // Main code.
 //
 initHeap()
-testHeap()
+//testHeap()
 loadTitle()
 setCallbacks()
 mapIs3D = OVERMAP_IS_3D

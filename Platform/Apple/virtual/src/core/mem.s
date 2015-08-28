@@ -19,8 +19,8 @@ MAX_SEGS	= 96
 
 DO_COMP_CHECKSUMS = 0		; during compression debugging
 DEBUG_DECOMP 	= 0
-DEBUG		= 1
-SANITY_CHECK	= 1		; also prints out request data
+DEBUG		= 0
+SANITY_CHECK	= 0		; also prints out request data
 
 ; Zero page temporary variables
 tmp		= $2	; len 2
@@ -744,9 +744,6 @@ heapAlloc: !zone
 	tay
 	lda typeLen,y
 .gotlen	ldy pTmp+1
-	+prStr : !text "heapAllocLen=", 0
-	+prA
-	+crout
 	sec		; add 1 for type byte
 	adc pTmp
 	bcc +
@@ -755,9 +752,6 @@ heapAlloc: !zone
 	bcs .needgc
 +	sta heapTop
 	sty heapTop+1
-	+prStr : !text "heapAllocRet=", 0
-	+prWord pTmp
-	+crout
 	ldx pTmp	; return ptr in X=lo/Y=hi
 	ldy pTmp+1
 	rts

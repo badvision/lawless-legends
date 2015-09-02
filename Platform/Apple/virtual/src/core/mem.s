@@ -35,6 +35,9 @@ pDst		= $E	; len 2
 ucLen		= $10	; len 2
 checksum	= $12	; len 1
 
+plasmaNextOp	= $F0	; PLASMA's dispatch loop
+plasmaXTbl	= $D300	; op table for auXiliary code execution
+
 ; Memory buffers
 fileBuf		= $4000	; len $400
 diskBuf 	= $4400	; len $800
@@ -54,7 +57,7 @@ gcHash_dstHi	= $5500
 prodosMemMap 	= $BF58
 
 ;------------------------------------------------------------------------------
-; Relocate all the pieces to their correct locations
+; Relocate all the pieces to their correct locations and perform patching.
 relocate:
 ; first our lo memory piece goes to $800
 	ldy #0
@@ -152,10 +155,63 @@ relocate:
 	bne .cpmm
 	lda .st4+2
 	cmp #$E0
-	bcc init
+	bcc +
 	lda #"b"
 	jsr cout
 	brk		; mem mgr got too big!
++
+
+; Patch PLASMA's memory accessors to gain access to writing main LC, and
+; to read/write bank 2 in aux LC.
+
+	; first copy the stub code into PLASMA's bank
+	bit setLcRW+lcBank2	; PLASMA's bank
+	ldx #(plasmaAccessorsEnd-plasmaAccessorsStart-1)
+-	lda plasmaAccessorsStart,x
+	sta LBXX,x
+	dex
+	bpl -
+
+	; now record PLASMA's original routines, and patch it to call our stubs
+	lda plasmaXTbl+$60	; LBX
+	sta oLBX+1
+	lda #<LBXX
+	sta plasmaXTbl+$60
+	lda plasmaXTbl+$61
+	sta oLBX+2
+	lda #>LBXX
+	sta plasmaXTbl+$61
+
+	lda plasmaXTbl+$62	; LWX
+	sta oLWX+1
+	lda #<LWXX
+	sta plasmaXTbl+$62
+	lda plasmaXTbl+$63
+	sta oLWX+2
+	lda #>LWXX
+	sta plasmaXTbl+$63
+
+	lda plasmaXTbl+$70	; SBX
+	sta oSBX+1
+	lda #<SBXX
+	sta plasmaXTbl+$70
+	iny
+	lda plasmaXTbl+$71
+	sta oSBX+2
+	lda #>SBXX
+	sta plasmaXTbl+$71
+
+	lda plasmaXTbl+$72	; SWX
+	sta oSWX+1
+	lda #<SWXX
+	sta plasmaXTbl+$72
+	iny
+	lda plasmaXTbl+$73
+	sta oSWX+2
+	lda #>SWXX
+	sta plasmaXTbl+$73
+
+	; fall through into init...
 
 ;------------------------------------------------------------------------------
 init: !zone
@@ -313,6 +369,57 @@ init: !zone
 .gomod:	jmp $1111		; jump to module for further bootstrapping
 
 ;------------------------------------------------------------------------------
+; Special PLASMA memory accessors
+
+plasmaAccessorsStart:
+!pseudopc $DF00 {
+
+; Plasma load byte/word with special handling for $D000.DFFF in aux language card
+LBXX: !zone {
+	clv			; clear V to denote LBX (as opposed to LWX)
+	bvc .shld		; always taken
+LWXX:	bit monrts		; set V to denote LWX (not LBX)
+.shld	lda evalStkH,x		; hi byte of address to load from
+	cmp #$D0
+	bcc .norm
+	cmp #$E0
+	bcs .norm
+	sty tmp
+	jsr l_LXXX		; helper function in low memory because it switches us out (we're in main LC)
+	ldy tmp
+	jmp plasmaNextOp
+.norm	bvs oLWX
+oLBX:	jmp $1111		; modified to be addr of original LBX
+oLWX:	jmp $1111		; modified to be addr of original LWX
+
+} ; zone
+
+; Plasma store byte/word with special handling for $D000.DFFF and $E000.FFFF
+SBXX: !zone {
+	clv			; clear V to denote SBX (as opposed to SWX)
+	bvc .shst		; always taken
+SWXX:	bit monrts		; set V to denote SWX (not SBX)
+.shst	lda evalStkH+1,x	; get hi byte of pointer to store to
+	cmp #$D0		; in $0000.CFFF range,
+	bcc .norm		;	just do normal store
+	bit setLcRW+lcBank2	; PLASMA normally write-protects the LC,
+	bit setLcRW+lcBank2	; 	but let's allow writing there
+	cmp #$E0		; in $E000.FFFF range do normal store after write-enable
+	bcs .norm
+	sty tmp
+	jsr l_SXXX		; helper function in low memory because it switches us out (we're in main LC)
+	ldy tmp
+	inx
+	inx
+	jmp plasmaNextOp
+.norm	bvs oSWX
+oSBX:	jmp $1111		; modified to be addr of original SBX
+oSWX:	jmp $1111		; modified to be addr of original SWX
+} ; zone
+} ; pseudopc
+plasmaAccessorsEnd:
+
+;------------------------------------------------------------------------------
 ; Vectors and debug support code - these go in low memory at $800
 loMemBegin: !pseudopc $800 {
 	jmp j_main_dispatch
@@ -449,6 +556,47 @@ exitProDOS: !zone
 	; Note! We leave LC bank 1 enabled, since that's where the memory
 	; manager lives, and it's the only code that calls ProDOS.
 	rti			; RTI pops P-reg and *exact* return addr (not adding 1)
+
+;------------------------------------------------------------------------------
+; Replacement memory accessors for PLASMA, so we can utilize language card mem
+; including the hard-to-reach aux-bank $D000.DFFF
+
+l_LXXX:	!zone {
+	sta .ld+2
+	lda evalStkL,x
+	sta .ld+1
+	sta setAuxZP
+	ldy #1
+.ldlup	sta .lhb+1
+.ld	lda $1111,y		; self-modified above
+	dey
+	bne .ldlup
+	sta clrAuxZP
+	sta evalStkL,x
+	bvc +
+.lhb	lda #11			; self-modified above
+	sta evalStkH,x
++	rts
+}
+
+l_SXXX:	!zone {
+	sta .st+2		; in $D000.DFFF range, we jump through hoops to write to AUX LC
+	lda evalStkL+1,x	; lo byte of pointer
+	sta .st+1
+	lda evalStkH,x		; hi byte of value to store
+	sta .shb+1
+	lda evalStkL,x		; lo byte of value
+	sta setAuxZP		; switch to aux LC
++	ldy #0
+.st	sta $1111,y		; self-modified above
+	bvc +			; for SBX, don't write hi byte
+.shb	lda #11			; self-modified above
+	iny
+	cpy #2
+	bne .st			; loop to write hi byte also
++	sta clrAuxZP		; back to main LC
+	rts
+}
 
 ;------------------------------------------------------------------------------
 ; Utility routine for convenient assembly routines in PLASMA code. 
@@ -897,14 +1045,14 @@ gc1_mark: !zone
 	bvc .start
 ; Phase 3 of Garbage Collection: fix all pointers
 gc3_fix:
-	bit .rts		; set V flag to mark phase 3
+	bit monrts		; set V flag to mark phase 3
 .start	lda #0
 	sta resNum		; initialize block counter (note: blk #0 in hash is not used)
 .outer	inc resNum		; advance to next block in hash
 	ldx resNum
 	cpx gcHash_top		; finished all blocks?
 	beq .trav		; 	last blk? if so still need to trav it
-	bcs .rts		; 		or if past last blk, we're done
+	bcs .done		; 		or if past last blk, we're done
 .trav	ldy gcHash_srcLo,x	; get pointer to block, lo byte first
 	lda gcHash_srcHi,x	;	then hi byte
 	bvc +
@@ -947,7 +1095,7 @@ gc3_fix:
 +	ldx tmp+1		; restore type entry index
 	inx			; next offset entry
 	bne .ldof		; always taken
-.rts	rts			; this needs to be an RTS instruction - used to set V flag
+.done	rts
 .corrup	jmp heapCorrupt
 
 ; Phase 2 of Garbage Collection: sweep all accessible blocks together

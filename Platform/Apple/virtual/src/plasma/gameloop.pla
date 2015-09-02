@@ -1553,8 +1553,6 @@ def findTestString(len)
   for t = 1 to len
     p2 = p2+1
     printf1("Setting %x to 'X'\n", p2)
-    ^$c083
-    ^$c083
     p2->0 = 'X'
   next
   return p

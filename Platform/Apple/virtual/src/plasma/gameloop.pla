@@ -101,7 +101,7 @@ struc Item
   word nextObj
   word name
   byte kind
-  byte cost
+  word cost
 end
 
 // Table per type, starts with length, then pointer offsets, ending with zero.
@@ -113,6 +113,13 @@ byte typeLengths[10]
 byte typeCounts[256]
 byte checkCounts[256]
 word nextObjID = 0
+
+word global  // the global heap object, from which all live objects must be reachable
+
+byte vowels[] = 'a', 'e', 'i', 'o', 'u'
+const N_VOWELS = 5
+byte consonants[] = 'b', 'c', 'd', 'f', 'g', 'h', 'j', 'k', 'm', 'n', 'p', 'r', 's', 't', 0
+const N_CONSONANTS = 14
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Predefined functions, for circular calls or out-of-order calls
@@ -144,7 +151,6 @@ byte q_mapNum = 0
 word q_x
 word q_y
 byte q_dir
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -736,12 +742,14 @@ def printf4(str, arg1, arg2, arg3, arg4)
     fin
     p = str + pos + 2
     when ^p
-      is 'x'
-        printHex(*curArg); break
+      is 'c'
+        printChar(*curArg); break
       is 'd'
         printDec(*curArg); break
       is 's'
         puts(*curArg); break
+      is 'x'
+        printHex(*curArg); break
       is '%'
         printChar('%'); break
       otherwise
@@ -1519,15 +1527,18 @@ def initHeap()
   mmgr(HEAP_ADD_TYPE,  @typeTbl_Global)
   typeLengths[TYPE_GLOBAL & $7F] = Global
   mmgr(HEAP_ADD_TYPE,  @typeTbl_Player)
-  typeLengths[TYPE_PLAYER & $7F] = Global
+  typeLengths[TYPE_PLAYER & $7F] = Player
   mmgr(HEAP_ADD_TYPE,  @typeTbl_Item)
-  typeLengths[TYPE_ITEM & $7F] = Global
-  newObj(TYPE_GLOBAL)
+  typeLengths[TYPE_ITEM & $7F] = Item
+  global = newObj(TYPE_GLOBAL)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def randomLetter()
-  return (rand16() % 26) + 'A'
+def randomVowel()
+  return vowels[rand16() % N_VOWELS]
+end
+def randomConsonant()
+  return consonants[rand16() % N_CONSONANTS]
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1540,22 +1551,29 @@ def findTestString(len)
     if t == len
       return p
     elsif t < $80
-      p = p + t
+      p = p + t + 1
     elsif t < TYPE_GLOBAL or t > TYPE_ITEM
       fatal("Unknown type in heap")
     else
-      p = p + typeLengths[t & $7F]
+      p = p + typeLengths[t & $7F] + 1
     fin
   loop
   p = newObj(len)
-  printf1("New string at %x\n", p)
   p2 = p
   for t = 1 to len
     p2 = p2+1
-    printf1("Setting %x to 'X'\n", p2)
-    p2->0 = 'X'
+    if    t == 1; p2->0 = randomConsonant() - 'a' + 'A'
+    elsif t & 1;  p2->0 = randomConsonant()
+    else          p2->0 = randomVowel()
+    fin
   next
+  printf3("    len %d str @ %x = \"%s\"\n", len, p, p)
   return p
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def randomString()
+  return findTestString((rand16() % 10) + 1)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1571,13 +1589,14 @@ def checkHeapCounts()
   p = heapStart
   while *p
     t = ^p
+    printf2("  Type $%x obj at $%x\n", t, p)
     checkCounts[t] = checkCounts[t] + 1
     if t < $80
-      p = p + t
+      p = p + t + 1
     elsif t < TYPE_GLOBAL or t > TYPE_ITEM
       fatal("Unknown type in heap")
     else
-      p = p + typeLengths[t & $7F]
+      p = p + typeLengths[t & $7F] + 1
     fin
   loop
 
@@ -1585,7 +1604,7 @@ def checkHeapCounts()
   bad = 0
   for t = 0 to 255
     if typeCounts[t] <> checkCounts[t]
-      printf3("Count for type %d should be %d, got %d\n", t, checkCounts[t], typeCounts[t])
+      printf3("Count for type $%x should be %d, got %d\n", t, checkCounts[t], typeCounts[t])
       bad = bad+1
     fin
   next
@@ -1595,13 +1614,66 @@ def checkHeapCounts()
   fin
 end
 
+def addItem(addTo)
+  word p
+
+  // Create the object, link it into the player's list
+  puts("  Adding item.\n")
+  p = newObj(TYPE_ITEM)
+  p=>nextObj = addTo=>items
+  addTo=>items = p
+
+  // Assign attributes
+  p=>name = randomString()
+  p->kind = rand16()
+  p->cost = rand16()
+
+  return p
+end
+
+def addPlayer()
+  word p
+  byte nItems, i
+
+  // Create the object, and link it in to the global list
+  puts("Adding player.\n")
+  p = newObj(TYPE_PLAYER)
+  p=>nextObj = global=>players
+  global=>players = p
+
+  // Assign attributes
+  p->name = randomString()
+  p->muscle = rand16()
+  p->quickness = rand16()
+
+  nItems = rand16() % 3
+  for i = 0 to nItems
+    addItem(p)
+  next
+
+  p->health = rand16()
+  return p
+end
+
+def collect()
+  word nFree
+  puts("Checking heap counts.\n")
+  checkHeapCounts()
+  puts("Collecting garbage.\n")
+  nFree = mmgr(HEAP_COLLECT, 0)
+  puts("  heap avail=%d\n", nFree)
+end
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Test out the heap
 def testHeap()
   word p
-  checkHeapCounts()
-  p = findTestString(10)
-  printf2("Test string: %x '%s'\n", p, p)
+  collect()
+  addPlayer()
+  collect()
+  addPlayer()
+  collect()
+  puts("Heap test complete. Hit a key.\n")
   getUpperKey()
 end
 
@@ -1609,7 +1681,7 @@ end
 // Main code.
 //
 initHeap()
-//testHeap()
+testHeap()
 loadTitle()
 setCallbacks()
 mapIs3D = OVERMAP_IS_3D

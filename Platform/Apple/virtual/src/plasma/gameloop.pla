@@ -1661,7 +1661,8 @@ def collect()
   checkHeapCounts()
   puts("Collecting garbage.\n")
   nFree = mmgr(HEAP_COLLECT, 0)
-  puts("  heap avail=%d\n", nFree)
+  printf1("  heap avail=$%x\n", nFree)
+  getUpperKey()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

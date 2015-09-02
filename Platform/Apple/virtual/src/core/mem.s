@@ -300,9 +300,9 @@ init: !zone
 	sty tSegAdrHi+3
 	dey
 	sty tSegAdrHi+7
-	lda #<paramsEnd
+	lda #<lastLoMem
 	sta tSegAdrLo+4
-	lda #>paramsEnd
+	lda #>lastLoMem
 	sta tSegAdrHi+4
 	lda #$40
 	sta tSegAdrHi+5
@@ -795,8 +795,6 @@ setMarkPos:	!byte 0		; mark position (3 byte integer)
 closeParams:	!byte 1		; param count
 closeFileRef:	!byte 0		; file ref to close
 
-paramsEnd = *
-
 ;------------------------------------------------------------------------------
 ; Heap management variables
 MAX_TYPES 	= 16
@@ -810,7 +808,6 @@ heapStartPg	!byte 0
 heapEndPg	!byte 0
 heapTop		!word 0
 gcHash_top	!byte 0
-nHeapBlks	!byte 0
 
 ;------------------------------------------------------------------------------
 ; Heap management routines
@@ -835,7 +832,6 @@ heapSet: !zone
 	sta heapEndPg
 	lda #0
 	sta heapTop
-	sta nHeapBlks
 	sta nTypes
 	; fall through to:
 ; Zero memory heapTop.heapEnd
@@ -1155,12 +1151,13 @@ gc2_sweep: !zone
 	rts
 
 heapCollect: !zone
-	lda nHeapBlks
-	bne +			; edge case: if nothing on heap, skip collection
-	rts
-+	jsr gc1_mark		; mark reachable blocks
+	+prStr : !text "Phase 1.",0
+	jsr gc1_mark		; mark reachable blocks
+	+prStr : !text "Phase 2.",0
 	jsr gc2_sweep		; sweep them into one place
+	+prStr : !text "Phase 3.",0
 	jsr gc3_fix		; adjust all pointers
+	+prStr : !text "Phase 4.",0
 	jsr heapClr		; and clear newly freed space
 	lda #0			; heap end lo always 0
 	sec
@@ -1171,6 +1168,7 @@ heapCollect: !zone
 	tay			; free space to X=lo/Y=hi
 	rts
 
+lastLoMem = *
 } ; end of !pseodupc $800
 loMemEnd = *
 

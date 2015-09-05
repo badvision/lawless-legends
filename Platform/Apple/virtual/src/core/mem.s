@@ -195,7 +195,6 @@ relocate:
 	sta oSBX+1
 	lda #<SBXX
 	sta plasmaXTbl+$70
-	iny
 	lda plasmaXTbl+$71
 	sta oSBX+2
 	lda #>SBXX
@@ -205,7 +204,6 @@ relocate:
 	sta oSWX+1
 	lda #<SWXX
 	sta plasmaXTbl+$72
-	iny
 	lda plasmaXTbl+$73
 	sta oSWX+2
 	lda #>SWXX
@@ -388,9 +386,13 @@ LWXX:	bit monrts		; set V to denote LWX (not LBX)
 	jsr l_LXXX		; helper function in low memory because it switches us out (we're in main LC)
 	ldy tmp
 	jmp plasmaNextOp
-.norm	bvs oLWX
+.norm	ora evalStkL,x
+	beq nullPtr
+	bvs oLWX
 oLBX:	jmp $1111		; modified to be addr of original LBX
 oLWX:	jmp $1111		; modified to be addr of original LWX
+nullPtr	sta clrAuxRd
+	jsr inlineFatal : !text "NullPtr",0
 
 } ; zone
 
@@ -402,8 +404,8 @@ SWXX:	bit monrts		; set V to denote SWX (not SBX)
 .shst	lda evalStkH+1,x	; get hi byte of pointer to store to
 	cmp #$D0		; in $0000.CFFF range,
 	bcc .norm		;	just do normal store
-	bit setLcRW+lcBank2	; PLASMA normally write-protects the LC,
-	bit setLcRW+lcBank2	; 	but let's allow writing there
+	inc setLcRW+lcBank2	; PLASMA normally write-protects the LC,
+	inc setLcRW+lcBank2	; 	but let's allow writing there. Don't use BIT as it affects V flg.
 	cmp #$E0		; in $E000.FFFF range do normal store after write-enable
 	bcs .norm
 	sty tmp
@@ -412,7 +414,9 @@ SWXX:	bit monrts		; set V to denote SWX (not SBX)
 	inx
 	inx
 	jmp plasmaNextOp
-.norm	bvs oSWX
+.norm	ora evalStkL+1,x
+	beq nullPtr
+	bvs oSWX
 oSBX:	jmp $1111		; modified to be addr of original SBX
 oSWX:	jmp $1111		; modified to be addr of original SWX
 } ; zone
@@ -854,7 +858,9 @@ heapClr: !zone
 ; live objects are reachable (and invalid garbage if not reachable from there).
 ;
 ; x=ptr lo, y = ptr hi. 
-; Tbl: type size 01-7F, then (byte) offsets of ptrs 01-7F within type, then 0.
+; Tbl: type size 01-7F including type byte, 
+;      then (byte) offsets of ptrs 01-7F within type, 
+;      then 0.
 heapAddType: !zone
 	tya		; save addr hi
 	ldy nTypes
@@ -867,6 +873,8 @@ heapAddType: !zone
 	txa		; addr lo
 	sta typeTblL,y
 .ld	lda $1000,x	; self-modified above: fetch length byte
+	sec
+	sbc #1		; adjust to be like a string, in that it doesn't include type byte itself
 	sta typeLen,y	; save that too
 	inc nTypes	; bump type count
 	rts
@@ -879,16 +887,13 @@ heapAlloc: !zone
 	sta pTmp
 	lda heapTop+1
 	sta pTmp+1
-	txa
 	ldy #0
-	sta (pTmp),y	; save obj type or len on heap
-	tay		; test hi bit
+	txa
+	sta (pTmp),y	; save obj type or string len on heap
 	bpl .gotlen
-	and #$7F
-	tay
-	lda typeLen,y
+	lda typeLen-$80,x
 .gotlen	ldy pTmp+1
-	sec		; add 1 for type byte
+	sec		; add 1 to include type byte or len byte for strings
 	adc pTmp
 	bcc +
 	iny
@@ -901,9 +906,11 @@ heapAlloc: !zone
 	rts
 .needgc	jsr inlineFatal : !text "NeedCollect",0
 
-; Input : Carry set = add if not found, clear = check only, don't add
+; Check if blk pSrc is in GC hash; optionally add it if not.
+; Input : pSrc = blk to check/add
+;	  Carry set = add if not found, clear = check only, don't add
 ; Output: Y-reg = index
-;	  Carry clear = not found (added if requested), set = found
+;	  Carry set = found, clear = not found (added if requested)
 gcHash_chk: !zone
 	lda pSrc
 	eor pSrc+1
@@ -983,7 +990,7 @@ heapCheck: !zone
 	bne .stlup
 	; advance to next heap block
 .nxtblk	lda tmp		; get length back
-	sec		; add 1 for type byte
+	sec		; add 1 to account for type byte or string len byte
 	adc pTmp	; advance scan ptr
 	sta pTmp
 	bcc .blklup	; go again
@@ -1010,8 +1017,7 @@ heapCheck: !zone
 	tay
 	iny		; not much we can do to validate lo byte, so skip it
 	cpy tmp		; ensure offset is within type length
-	beq +		; 	the very end is ok because len doesn't include type byte
-	bcs heapCorrupt	;		but beyond end is not ok
+	bcs heapCorrupt	;	beyond end is not ok
 +	lda (pTmp),y	; get hi byte of ptr
 	beq .tscan	; null is ok
 	cmp heapStartPg	; else check if < start of heap
@@ -1026,15 +1032,15 @@ heapCorrupt:
 
 ; Phase 1 of Garbage Collection: mark accessible heap blocks starting from the root block
 gc1_mark: !zone
-	ldx #0			; clear the hash table
+	ldx #0			; clear the hash table and set pSrc to the global blk
 	stx gcHash_top
+	stx pSrc
+	lda heapStartPg
+	sta pSrc+1
 	txa
 -	sta gcHash_first,x
 	inx
 	bne -
-	stx pSrc		; X is zero'd from loop above
-	lda heapStartPg
-	sta pSrc+1
 	sec			; sec means add if not found
 	jsr gcHash_chk		; seed the hash, and thus our queue, with the global block
 	clv			; clear V flag to mark phase 1
@@ -1056,6 +1062,7 @@ gc3_fix:
 	lda gcHash_dstHi,x
 +	sty pTmp		; store object pointer so we can dereference it
 	sta pTmp+1
+	+prWord pTmp
 	ldy #0			; first byte
 	lda (pTmp),y		;	is the type
 	bpl .outer		; 		or, if not hi bit, just a string so skip (no ptrs)
@@ -1069,26 +1076,30 @@ gc3_fix:
 .ldof	lda $1111,x		; self-modified above: get offset entry
 	beq .outer		; zero marks end of list -> go to next block
 	tay
-	lda (pTmp),y		; grab pointer at that offset
+	stx tmp+1		; save index into type entry
+	lda (pTmp),y		; grab pointer at entry offset
 	sta pSrc
 	sty .fix+1		; save pointer offset for use if fixing pointers in phase 3
 	iny
 	lda (pTmp),y
 	sta pSrc+1
-	stx tmp+1		; save index into type entry
+	ora pSrc
+	beq .next		; skip null pointer
 	sec			; sec = we want to add to hash if it's not there
 	bvc +
 	clc			; in phase 3, we don't want to add to hash
-+	jsr gcHash_chk		; go add it to the hash; ignore return flag
-	bvc +			; skip pointer fixing in phase 1
++	jsr gcHash_chk		; go add it to the hash
+	bvc .next		; skip pointer fixing in phase 1
 	bcc .corrup		; in phase 3, pointer must be in hash!
-.fix	ldy #11			; restore pointer offset
+	tya
+	tax			; put block number in X
+.fix	ldy #11			; restore pointer offset (self-modified above)
 	lda gcHash_dstLo,x	; get new location
 	sta (pTmp),y		; update the pointer
 	iny
 	lda gcHash_dstHi,x	; hi byte too
 	sta (pTmp),y
-+	ldx tmp+1		; restore type entry index
+.next	ldx tmp+1		; restore type entry index
 	inx			; next offset entry
 	bne .ldof		; always taken
 .done	rts
@@ -1105,13 +1116,19 @@ gc2_sweep: !zone
 .outer	clc			; clc = do not add to hash
 	jsr gcHash_chk		; is this block in hash?
 	; note: next 20 lines or so *must* preserve the carry flag
-	bcc +
+	bcc +			; if not in hash, don't set any dest addr
+	
+	+prWord pSrc
+	+prStr : !text "->",0
+	+prWord pDst
+	+crout
+
 	lda pDst
-	sta gcHash_dstLo,x	; record new address
+	sta gcHash_dstLo,y	; record new address
 	eor pSrc
 	sta tmp
 	lda pDst+1
-	sta gcHash_dstHi,x	;	in hash table
+	sta gcHash_dstHi,y	;	in hash table
 	eor pSrc+1
 	ora tmp
 	sta tmp			; this will be zero iff all 16 bits of pSrc == pDst
@@ -1123,23 +1140,23 @@ gc2_sweep: !zone
 	lda typeLen,x
 .gotlen	sta reqLen		; save len for later
 	bcc .advSrc		; finally act on carry (hash check flg): if block not in hash, skip block
-	tax			; and in index for copying
+	tax			; and in index for byte-copy count
 	lda tmp			; check for pSrc == pDst
 	beq .advDst		; if equal, no need to copy
-+	inx			; set up to copy type byte as well
+	inx			; set up to copy type/len byte as well
 .cplup	lda (pSrc),y
 	sta (pDst),y
 	iny
 	dex
 	bne .cplup
 .advDst	lda pDst		; advance dest
-	sec			; +1 for type byte
+	sec			; add 1 for type/len byte
 	adc reqLen
 	sta pDst
 	bcc .advSrc
 	inc pDst+1
 .advSrc	lda pSrc		; advance source
-	sec			; +1 for type byte
+	sec			; add 1 for type/len byte
 	adc reqLen
 	sta pSrc
 	bcc +
@@ -1147,7 +1164,13 @@ gc2_sweep: !zone
 +	cmp heapTop		; end of heap yet? (lo byte check)
 	lda pSrc+1
 	sbc heapTop+1		;	(hi byte check)
-	bcc .outer		; if not, loop again
+	bcs .done		; if not, loop again
+	jmp .outer
+.done	lda pDst		; done sweeping, so set new heap top.
+	sta heapTop
+	lda pDst+1
+	sta heapTop+1
+	+prWord heapTop
 	rts
 
 heapCollect: !zone

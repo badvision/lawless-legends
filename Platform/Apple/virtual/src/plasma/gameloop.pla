@@ -106,8 +106,8 @@ end
 
 // Table per type, starts with length, then pointer offsets, ending with zero.
 byte typeTbl_Global[] = Global, players, 0
-byte typeTbl_Player[] = Player, nextObj, items, 0
-byte typeTbl_Item[]   = Item, nextObj, 0
+byte typeTbl_Player[] = Player, nextObj, name, items, 0
+byte typeTbl_Item[]   = Item, nextObj, name, 0
 
 byte typeLengths[10]
 byte typeCounts[256]
@@ -435,6 +435,13 @@ asm puts
         dex
         bne -
         rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Get a character from the keyboard
+asm rdkey
+        +asmPlasm 0
+        jmp rdkey
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -801,11 +808,7 @@ end
 // Get a keystroke and convert it to upper case
 def getUpperKey()
   byte key
-  while ^keyboard < 128
-    seed = seed+1
-  loop
-  key = ^keyboard & $7F
-  ^keystrobe
+  key = rdkey()
   if key >= $60
     key = key - $20
   fin
@@ -1497,24 +1500,23 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def freeObj(ptr)
   byte typeNum
+  printf2("  freeObj ptr=$%x", ptr)
   if ptr == NULL; return; fin
   typeNum = ^ptr
   typeCounts[typeNum] = typeCounts[typeNum] - 1
-  if typeCounts[typeNum] == 0
-    when type
-      is TYPE_GLOBAL
-        fatal("can't free global obj")
-      is TYPE_PLAYER
-        freeObj(ptr:nextObj)
-        freeObj(ptr:name)
-        freeObj(ptr:items)
-        break
-      is TYPE_ITEM
-        freeObj(ptr:nextObj)
-        freeObj(ptr:name)
-        break
-    wend
-  fin
+  when type
+    is TYPE_GLOBAL
+      fatal("can't free global obj")
+    is TYPE_PLAYER
+      freeObj(ptr=>nextObj)
+      freeObj(ptr=>name)
+      freeObj(ptr=>items)
+      break
+    is TYPE_ITEM
+      freeObj(ptr=>nextObj)
+      freeObj(ptr=>name)
+      break
+  wend
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1555,7 +1557,7 @@ def findTestString(len)
     elsif t < TYPE_GLOBAL or t > TYPE_ITEM
       fatal("Unknown type in heap")
     else
-      p = p + typeLengths[t & $7F] + 1
+      p = p + typeLengths[t & $7F]
     fin
   loop
   p = newObj(len)
@@ -1590,13 +1592,16 @@ def checkHeapCounts()
   while *p
     t = ^p
     printf2("  Type $%x obj at $%x\n", t, p)
+    if p < heapStart or (p-heapStart) >= heapSize
+      fatal("Invalid pointer in heap")
+    fin
     checkCounts[t] = checkCounts[t] + 1
     if t < $80
       p = p + t + 1
     elsif t < TYPE_GLOBAL or t > TYPE_ITEM
       fatal("Unknown type in heap")
     else
-      p = p + typeLengths[t & $7F] + 1
+      p = p + typeLengths[t & $7F]
     fin
   loop
 
@@ -1604,7 +1609,7 @@ def checkHeapCounts()
   bad = 0
   for t = 0 to 255
     if typeCounts[t] <> checkCounts[t]
-      printf3("Count for type $%x should be %d, got %d\n", t, checkCounts[t], typeCounts[t])
+      printf3("Count for type $%x should be %d, got %d\n", t, typeCounts[t], checkCounts[t])
       bad = bad+1
     fin
   next
@@ -1638,11 +1643,9 @@ def addPlayer()
   // Create the object, and link it in to the global list
   puts("Adding player.\n")
   p = newObj(TYPE_PLAYER)
-  p=>nextObj = global=>players
-  global=>players = p
 
   // Assign attributes
-  p->name = randomString()
+  p=>name = randomString()
   p->muscle = rand16()
   p->quickness = rand16()
 
@@ -1652,17 +1655,46 @@ def addPlayer()
   next
 
   p->health = rand16()
+
+  p=>nextObj = global=>players
+  global=>players = p
+
   return p
+end
+
+def unlinkPlayer(toRemove)
+  word p
+  word prev
+  prev = NULL
+  p = global=>players
+  if p == toRemove
+    global=>players = p=>nextObj
+    p=>nextObj = NULL
+    return
+  fin
+  while p
+    if p == toRemove
+      prev=>nextObj = p=>nextObj
+      p=>nextObj = NULL
+      return
+    fin
+    p = p=>nextObj
+  loop
+  fatal("Obj to unlink not in list")
 end
 
 def collect()
   word nFree
-  puts("Checking heap counts.\n")
-  checkHeapCounts()
+  puts("*** NEED TO DO MEM CHECK SOON\n")
+  // memMgr(MEM_CHECK, 0)
   puts("Collecting garbage.\n")
   nFree = mmgr(HEAP_COLLECT, 0)
   printf1("  heap avail=$%x\n", nFree)
   getUpperKey()
+  puts("Checking heap counts.\n")
+  checkHeapCounts()
+  puts("*** NEED TO DO MEM CHECK SOON\n")
+  // memMgr(MEM_CHECK, 0)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1673,6 +1705,19 @@ def testHeap()
   addPlayer()
   collect()
   addPlayer()
+  collect()
+  p = global=>players
+  while p
+    printf1("A player: $%x\n", p)
+    p = p=>nextObj
+  loop
+  p = global=>players
+  p = p=>nextObj
+  printf1("Unlinking player $%x\n", p)
+  unlinkPlayer(p)
+  puts("Freeing player\n")
+  freeObj(p)
+  puts("Collecting.\n")
   collect()
   puts("Heap test complete. Hit a key.\n")
   getUpperKey()

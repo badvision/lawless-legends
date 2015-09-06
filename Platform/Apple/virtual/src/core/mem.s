@@ -19,7 +19,7 @@ MAX_SEGS	= 96
 
 DO_COMP_CHECKSUMS = 0		; during compression debugging
 DEBUG_DECOMP 	= 0
-DEBUG		= 0
+DEBUG		= 1
 SANITY_CHECK	= 0		; also prints out request data
 
 ; Zero page temporary variables
@@ -943,8 +943,15 @@ gcHash_chk: !zone
 	rts
 .corrup	jmp heapCorrupt
 
+!if DEBUG = 0 {
+debugOnly:
+	jsr inlineFatal : !text "DebugOnly",0	
+}
+
 ; Verify integrity of memory manager structures
 memCheck: !zone
+!if DEBUG = 0 { jmp debugOnly }
+!if DEBUG {
 	jsr heapCheck	; heap check (if there is one)
 	ldx #0		; check main bank
 	jsr .chk
@@ -1017,13 +1024,16 @@ heapCheck: !zone
 	tay
 	iny		; not much we can do to validate lo byte, so skip it
 	cpy tmp		; ensure offset is within type length
-	bcs heapCorrupt	;	beyond end is not ok
+	beq +		; 	very end is ok
+	bcs heapCorrupt	;		beyond end is not ok
 +	lda (pTmp),y	; get hi byte of ptr
 	beq .tscan	; null is ok
 	cmp heapStartPg	; else check if < start of heap
 	bcc heapCorrupt
 	cmp heapEndPg	; or >= than end of heap
 	bcc .tscan
+}
+
 heapCorrupt:
 	ldx pTmp
 	lda pTmp+1
@@ -1117,12 +1127,6 @@ gc2_sweep: !zone
 	jsr gcHash_chk		; is this block in hash?
 	; note: next 20 lines or so *must* preserve the carry flag
 	bcc +			; if not in hash, don't set any dest addr
-	
-	+prWord pSrc
-	+prStr : !text "->",0
-	+prWord pDst
-	+crout
-
 	lda pDst
 	sta gcHash_dstLo,y	; record new address
 	eor pSrc
@@ -1143,6 +1147,12 @@ gc2_sweep: !zone
 	tax			; and in index for byte-copy count
 	lda tmp			; check for pSrc == pDst
 	beq .advDst		; if equal, no need to copy
+	
+	+prWord pSrc
+	+prStr : !text "->",0
+	+prWord pDst
+	+crout
+
 	inx			; set up to copy type/len byte as well
 .cplup	lda (pSrc),y
 	sta (pDst),y

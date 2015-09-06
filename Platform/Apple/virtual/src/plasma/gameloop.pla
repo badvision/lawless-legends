@@ -808,7 +808,10 @@ end
 // Get a keystroke and convert it to upper case
 def getUpperKey()
   byte key
+  word oldSeed
+  oldSeed = *seed  // for now, make the seed stay consistent, for randomized heap testing
   key = rdkey()
+  *seed = oldSeed
   if key >= $60
     key = key - $20
   fin
@@ -1500,23 +1503,27 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def freeObj(ptr)
   byte typeNum
-  printf2("  freeObj ptr=$%x", ptr)
   if ptr == NULL; return; fin
   typeNum = ^ptr
   typeCounts[typeNum] = typeCounts[typeNum] - 1
-  when type
-    is TYPE_GLOBAL
-      fatal("can't free global obj")
-    is TYPE_PLAYER
-      freeObj(ptr=>nextObj)
-      freeObj(ptr=>name)
-      freeObj(ptr=>items)
-      break
-    is TYPE_ITEM
-      freeObj(ptr=>nextObj)
-      freeObj(ptr=>name)
-      break
-  wend
+  printf3("  freeObj p=$%x t=$%x newCt=%d\n", ptr, typeNum, typeCounts[typeNum])
+  if typeNum >= $80
+    when typeNum
+      is TYPE_GLOBAL
+        fatal("can't free global obj")
+      is TYPE_PLAYER
+        freeObj(ptr=>nextObj)
+        freeObj(ptr=>name)
+        freeObj(ptr=>items)
+        break
+      is TYPE_ITEM
+        freeObj(ptr=>nextObj)
+        freeObj(ptr=>name)
+        break
+      otherwise
+        fatal("unknown obj type encountered in heap")
+    wend
+  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1551,6 +1558,7 @@ def findTestString(len)
   while *p
     t = ^p
     if t == len
+      printf2("    re-use len %d str @ %x\n", len, p)
       return p
     elsif t < $80
       p = p + t + 1
@@ -1607,7 +1615,13 @@ def checkHeapCounts()
 
   // Then verify the counts
   bad = 0
-  for t = 0 to 255
+  for t = 0 to 127
+    if (typeCounts[t] > 0) and (checkCounts[t] <> 1)
+      printf3("Count for type $%x should be 1, got %d\n", t, checkCounts[t])
+      bad = bad+1
+    fin
+  next
+  for t = 128 to 255
     if typeCounts[t] <> checkCounts[t]
       printf3("Count for type $%x should be %d, got %d\n", t, typeCounts[t], checkCounts[t])
       bad = bad+1
@@ -1662,55 +1676,76 @@ def addPlayer()
   return p
 end
 
+def countList(p)
+  word n
+  n = 0
+  while p
+    n = n+1
+    p = p=>nextObj
+  loop
+  return n
+end
+
 def unlinkPlayer(toRemove)
   word p
   word prev
+  word n, n2
+    
+  // Count number of players before
+  n = countList(global=>players)
+
+  // Now unlink
   prev = NULL
   p = global=>players
   if p == toRemove
     global=>players = p=>nextObj
-    p=>nextObj = NULL
-    return
+  else
+    while p
+      if p == toRemove
+        prev=>nextObj = p=>nextObj
+        break
+      fin
+      prev = p
+      p = p=>nextObj
+    loop
   fin
-  while p
-    if p == toRemove
-      prev=>nextObj = p=>nextObj
-      p=>nextObj = NULL
-      return
-    fin
-    p = p=>nextObj
-  loop
-  fatal("Obj to unlink not in list")
+
+  if !p
+    fatal("Obj to unlink not in list")
+  fin
+
+  p=>nextObj = NULL
+
+  // Check count after
+  n2 = countList(global=>players)
+  if n-1 <> n2
+    printf2("Info: n before=%d after=%d\n", n, n2)
+    fatal("Unlink didn't work")
+  fin
 end
 
 def collect()
   word nFree
-  puts("*** NEED TO DO MEM CHECK SOON\n")
-  // memMgr(MEM_CHECK, 0)
+  mmgr(CHECK_MEM, 0)
   puts("Collecting garbage.\n")
   nFree = mmgr(HEAP_COLLECT, 0)
   printf1("  heap avail=$%x\n", nFree)
   getUpperKey()
   puts("Checking heap counts.\n")
   checkHeapCounts()
-  puts("*** NEED TO DO MEM CHECK SOON\n")
-  // memMgr(MEM_CHECK, 0)
+  mmgr(CHECK_MEM, 0)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Test out the heap
 def testHeap()
   word p
+  *seed = 0
   collect()
   addPlayer()
   collect()
   addPlayer()
   collect()
-  p = global=>players
-  while p
-    printf1("A player: $%x\n", p)
-    p = p=>nextObj
-  loop
   p = global=>players
   p = p=>nextObj
   printf1("Unlinking player $%x\n", p)

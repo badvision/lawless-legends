@@ -1686,19 +1686,29 @@ def countList(p)
   return n
 end
 
-def unlinkPlayer(toRemove)
+def randomFromList(p)
+  word n
+  n = rand16() % countList(p)
+  while n > 0
+    p = p=>nextObj
+    n = n-1
+  loop
+  return p
+end
+
+def unlinkFromList(pList, toRemove)
   word p
   word prev
   word n, n2
     
   // Count number of players before
-  n = countList(global=>players)
+  n = countList(*pList)
 
   // Now unlink
   prev = NULL
-  p = global=>players
+  p = *pList
   if p == toRemove
-    global=>players = p=>nextObj
+    *pList = p=>nextObj
   else
     while p
       if p == toRemove
@@ -1717,7 +1727,7 @@ def unlinkPlayer(toRemove)
   p=>nextObj = NULL
 
   // Check count after
-  n2 = countList(global=>players)
+  n2 = countList(*pList)
   if n-1 <> n2
     printf2("Info: n before=%d after=%d\n", n, n2)
     fatal("Unlink didn't work")
@@ -1746,10 +1756,9 @@ def testHeap()
   collect()
   addPlayer()
   collect()
-  p = global=>players
-  p = p=>nextObj
+  p = randomFromList(global=>players)
   printf1("Unlinking player $%x\n", p)
-  unlinkPlayer(p)
+  unlinkFromList(global + players, p)
   puts("Freeing player\n")
   freeObj(p)
   puts("Collecting.\n")

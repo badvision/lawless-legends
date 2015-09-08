@@ -1506,7 +1506,6 @@ def freeObj(ptr)
   if ptr == NULL; return; fin
   typeNum = ^ptr
   printf3("  freeObj p=$%x t=$%x ct=%d\n", ptr, typeNum, typeCounts[typeNum])
-  printf1("  typeCounts[10]=%d\n", typeCounts[10])
   if typeCounts[typeNum] == 0
     fatal("Can't decr count past 0")
   fin
@@ -1640,14 +1639,18 @@ def checkHeapCounts()
   fin
 end
 
+def addToList(addTo, p)
+  p=>nextObj = *addTo
+  *addTo = p
+end
+
 def addItem(addTo)
   word p
 
   // Create the object, link it into the player's list
   puts("  Adding item.\n")
   p = newObj(TYPE_ITEM)
-  p=>nextObj = addTo=>items
-  addTo=>items = p
+  addToList(addTo + items, p)
 
   // Assign attributes
   p=>name = randomString()
@@ -1677,8 +1680,7 @@ def addPlayer()
 
   p->health = rand16()
 
-  p=>nextObj = global=>players
-  global=>players = p
+  addToList(global + players, p)
 
   return p
 end
@@ -1742,11 +1744,12 @@ def randomHeapAction()
 
   // Random actions
   acted = FALSE
-  when rand16() % 5
+  when rand16() % 11
 
     // Add player
     is 0
-      if countList(global=>players) < 5
+    is 1
+      if countList(global=>players) < 10
         puts("\n*** ADDING PLAYER ***\n")
         addPlayer()
         acted = TRUE
@@ -1754,8 +1757,8 @@ def randomHeapAction()
       break
 
     // Remove player
-    is 1
-      if countList(global=>players) > 2
+    is 2
+      if countList(global=>players) > 5
         puts("\n*** REMOVING PLAYER ***\n")
         p = randomFromList(global=>players)
         printf1("Unlinking player $%x\n", p)
@@ -1767,7 +1770,9 @@ def randomHeapAction()
       break
 
     // Add item
-    is 2
+    is 3
+    is 4
+    is 5
       p = randomFromList(global=>players)
       if p and countList(p=>items) > 2
         puts("\n*** ADDING ITEM ***\n")
@@ -1777,7 +1782,8 @@ def randomHeapAction()
       break
 
     // Remove item
-    is 3
+    is 6
+    is 7
       p = randomFromList(global=>players)
       if p and countList(p=>items) > 0
         puts("\n*** REMOVING ITEM ***\n")
@@ -1788,15 +1794,30 @@ def randomHeapAction()
       fin
       break
 
+    // Trade item
+    is 8
+    is 9
+      p = randomFromList(global=>players)
+      if p
+        p2 = randomFromList(p=>items)
+        if p2
+          puts("\n*** TRADING ITEM ***\n")
+          unlinkFromList(p + items, p2)
+          p = randomFromList(global=>players)
+          addToList(p + items, p2)
+        fin
+      fin
+      break
+
     // Garbage collect
-    is 4
+    is 10
       puts("\n*** COLLECTING GARBAGE ***\n")
       collect()
       acted = TRUE
   wend
 
   if acted
-    printf1("  typeCounts[10]=%d\n", typeCounts[10])
+    mmgr(CHECK_MEM, 0)
     puts("Hit a key: ")
     getUpperKey()
     crout()

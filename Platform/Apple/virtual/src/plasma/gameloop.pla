@@ -1505,8 +1505,12 @@ def freeObj(ptr)
   byte typeNum
   if ptr == NULL; return; fin
   typeNum = ^ptr
+  printf3("  freeObj p=$%x t=$%x ct=%d\n", ptr, typeNum, typeCounts[typeNum])
+  printf1("  typeCounts[10]=%d\n", typeCounts[10])
+  if typeCounts[typeNum] == 0
+    fatal("Can't decr count past 0")
+  fin
   typeCounts[typeNum] = typeCounts[typeNum] - 1
-  printf3("  freeObj p=$%x t=$%x newCt=%d\n", ptr, typeNum, typeCounts[typeNum])
   if typeNum >= $80
     when typeNum
       is TYPE_GLOBAL
@@ -1559,6 +1563,7 @@ def findTestString(len)
     t = ^p
     if t == len
       printf2("    re-use len %d str @ %x\n", len, p)
+      typeCounts[len] = typeCounts[len] + 1
       return p
     elsif t < $80
       p = p + t + 1
@@ -1591,6 +1596,8 @@ end
 def checkHeapCounts()
   word p, t
   byte bad
+  //word testStr
+  //testStr = "  Type $%x obj at $%x\n"
 
   // Clear the check array
   for t = 0 to 255; checkCounts[t] = 0; next
@@ -1599,7 +1606,7 @@ def checkHeapCounts()
   p = heapStart
   while *p
     t = ^p
-    printf2("  Type $%x obj at $%x\n", t, p)
+    //printf2(testStr, t, p)
     if p < heapStart or (p-heapStart) >= heapSize
       fatal("Invalid pointer in heap")
     fin
@@ -1617,7 +1624,7 @@ def checkHeapCounts()
   bad = 0
   for t = 0 to 127
     if (typeCounts[t] > 0) and (checkCounts[t] <> 1)
-      printf3("Count for type $%x should be 1, got %d\n", t, checkCounts[t])
+      printf2("Count for type $%x should be 1, got %d\n", t, checkCounts[t])
       bad = bad+1
     fin
   next
@@ -1678,6 +1685,7 @@ end
 
 def countList(p)
   word n
+  word testStr
   n = 0
   while p
     n = n+1
@@ -1689,7 +1697,7 @@ end
 def randomFromList(p)
   word n
   n = rand16() % countList(p)
-  while n > 0
+  while p and n > 0
     p = p=>nextObj
     n = n-1
   loop
@@ -1698,71 +1706,114 @@ end
 
 def unlinkFromList(pList, toRemove)
   word p
-  word prev
-  word n, n2
-    
-  // Count number of players before
-  n = countList(*pList)
 
   // Now unlink
-  prev = NULL
   p = *pList
-  if p == toRemove
-    *pList = p=>nextObj
-  else
-    while p
-      if p == toRemove
-        prev=>nextObj = p=>nextObj
-        break
-      fin
-      prev = p
-      p = p=>nextObj
-    loop
-  fin
+  while p
+    if p == toRemove
+      *pList = p=>nextObj
+      break
+    fin
+    pList = p + nextObj
+    p = *pList
+  loop
 
   if !p
     fatal("Obj to unlink not in list")
   fin
 
   p=>nextObj = NULL
-
-  // Check count after
-  n2 = countList(*pList)
-  if n-1 <> n2
-    printf2("Info: n before=%d after=%d\n", n, n2)
-    fatal("Unlink didn't work")
-  fin
 end
 
 def collect()
   word nFree
   mmgr(CHECK_MEM, 0)
-  puts("Collecting garbage.\n")
   nFree = mmgr(HEAP_COLLECT, 0)
   printf1("  heap avail=$%x\n", nFree)
-  getUpperKey()
-  puts("Checking heap counts.\n")
   checkHeapCounts()
   mmgr(CHECK_MEM, 0)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Do something random to the heap
+def randomHeapAction()
+  byte acted
+  word p, p2
+
+  // Random actions
+  acted = FALSE
+  when rand16() % 5
+
+    // Add player
+    is 0
+      if countList(global=>players) < 5
+        puts("\n*** ADDING PLAYER ***\n")
+        addPlayer()
+        acted = TRUE
+      fin
+      break
+
+    // Remove player
+    is 1
+      if countList(global=>players) > 2
+        puts("\n*** REMOVING PLAYER ***\n")
+        p = randomFromList(global=>players)
+        printf1("Unlinking player $%x\n", p)
+        unlinkFromList(global + players, p)
+        puts("Freeing player\n")
+        freeObj(p)
+        acted = TRUE
+      fin
+      break
+
+    // Add item
+    is 2
+      p = randomFromList(global=>players)
+      if p and countList(p=>items) > 2
+        puts("\n*** ADDING ITEM ***\n")
+        addItem(p)
+        acted = TRUE
+      fin
+      break
+
+    // Remove item
+    is 3
+      p = randomFromList(global=>players)
+      if p and countList(p=>items) > 0
+        puts("\n*** REMOVING ITEM ***\n")
+        p2 = randomFromList(p=>items)
+        unlinkFromList(p + items, p2)
+        freeObj(p2)
+        acted = TRUE
+      fin
+      break
+
+    // Garbage collect
+    is 4
+      puts("\n*** COLLECTING GARBAGE ***\n")
+      collect()
+      acted = TRUE
+  wend
+
+  if acted
+    printf1("  typeCounts[10]=%d\n", typeCounts[10])
+    puts("Hit a key: ")
+    getUpperKey()
+    crout()
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Test out the heap
 def testHeap()
-  word p
-  *seed = 0
+  *seed = 0  // start with fixed seed for repeatable results
   collect()
-  addPlayer()
-  collect()
-  addPlayer()
-  collect()
-  p = randomFromList(global=>players)
-  printf1("Unlinking player $%x\n", p)
-  unlinkFromList(global + players, p)
-  puts("Freeing player\n")
-  freeObj(p)
-  puts("Collecting.\n")
-  collect()
+
+  // Random actions
+  while TRUE
+    randomHeapAction()
+  loop
+
   puts("Heap test complete. Hit a key.\n")
   getUpperKey()
 end

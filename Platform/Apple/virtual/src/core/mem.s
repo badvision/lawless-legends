@@ -331,6 +331,13 @@ init: !zone
 	jsr main_dispatch
 	stx framePtr
 	stx outerFramePtr
+	stx .frameSet+1
+	stx frameChk+1
+	sty .frameSet+2
+	sty frameChk+2
+	lda #$AA		; store sentinel byte at bottom of frame
+.frameSet:
+	sta $1111		; self-modified above
 	iny			; twice for 2 pages: initial pointer at top of new space
 	iny
 	sty framePtr+1
@@ -630,6 +637,10 @@ __asmPlasm: !zone
 	pha		; and save that
 	cmp #$11	; again, X must be in range 0..$10
 	bcs .badx
+frameChk:
+	lda $1111	; self-modified by init code
+	cmp #$AA	; check for sentinel value
+	bne .badFrame
 	lda evalStkL,x	; get last param to A=lo
 	ldy evalStkH,x	; ...Y=hi
 .jsr	jsr $1111	; call the routine to do work
@@ -644,7 +655,9 @@ __asmPlasm: !zone
 .badx	; X reg ran outside valid range. Print and abort.
 	+prStr : !text $8D,"X=",0
 	+prX
-	jsr inlineFatal : !text "PlasmXRng", 0
+	jsr inlineFatal : !text "PlasmXRng",0
+.badFrame:
+	jsr inlineFatal : !text "PlasmFrm",0
 
 ;------------------------------------------------------------------------------
 ; Debug code to support macros
@@ -1072,7 +1085,6 @@ gc3_fix:
 	lda gcHash_dstHi,x
 +	sty pTmp		; store object pointer so we can dereference it
 	sta pTmp+1
-	+prWord pTmp
 	ldy #0			; first byte
 	lda (pTmp),y		;	is the type
 	bpl .outer		; 		or, if not hi bit, just a string so skip (no ptrs)
@@ -1147,12 +1159,6 @@ gc2_sweep: !zone
 	tax			; and in index for byte-copy count
 	lda tmp			; check for pSrc == pDst
 	beq .advDst		; if equal, no need to copy
-	
-	+prWord pSrc
-	+prStr : !text "->",0
-	+prWord pDst
-	+crout
-
 	inx			; set up to copy type/len byte as well
 .cplup	lda (pSrc),y
 	sta (pDst),y
@@ -1180,17 +1186,12 @@ gc2_sweep: !zone
 	sta heapTop
 	lda pDst+1
 	sta heapTop+1
-	+prWord heapTop
 	rts
 
 heapCollect: !zone
-	+prStr : !text "Phase 1.",0
 	jsr gc1_mark		; mark reachable blocks
-	+prStr : !text "Phase 2.",0
 	jsr gc2_sweep		; sweep them into one place
-	+prStr : !text "Phase 3.",0
 	jsr gc3_fix		; adjust all pointers
-	+prStr : !text "Phase 4.",0
 	jsr heapClr		; and clear newly freed space
 	lda #0			; heap end lo always 0
 	sec

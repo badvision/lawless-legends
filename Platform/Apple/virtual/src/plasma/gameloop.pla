@@ -1505,7 +1505,7 @@ def freeObj(ptr)
   byte typeNum
   if ptr == NULL; return; fin
   typeNum = ^ptr
-  printf3("  freeObj p=$%x t=$%x ct=%d\n", ptr, typeNum, typeCounts[typeNum])
+  //printf3("  freeObj p=$%x t=$%x ct=%d\n", ptr, typeNum, typeCounts[typeNum])
   if typeCounts[typeNum] == 0
     fatal("Can't decr count past 0")
   fin
@@ -1744,12 +1744,14 @@ def randomHeapAction()
 
   // Random actions
   acted = FALSE
-  when rand16() % 11
+  when rand16() % 12
 
     // Add player
     is 0
     is 1
-      if countList(global=>players) < 10
+    is 2
+    is 3
+      if countList(global=>players) < 15
         puts("\n*** ADDING PLAYER ***\n")
         addPlayer()
         acted = TRUE
@@ -1757,8 +1759,8 @@ def randomHeapAction()
       break
 
     // Remove player
-    is 2
-      if countList(global=>players) > 5
+    is 4
+      if countList(global=>players) > 8
         puts("\n*** REMOVING PLAYER ***\n")
         p = randomFromList(global=>players)
         printf1("Unlinking player $%x\n", p)
@@ -1770,11 +1772,11 @@ def randomHeapAction()
       break
 
     // Add item
-    is 3
-    is 4
     is 5
+    is 6
+    is 7
       p = randomFromList(global=>players)
-      if p and countList(p=>items) > 2
+      if p and countList(p=>items) < 10
         puts("\n*** ADDING ITEM ***\n")
         addItem(p)
         acted = TRUE
@@ -1782,10 +1784,9 @@ def randomHeapAction()
       break
 
     // Remove item
-    is 6
-    is 7
+    is 8
       p = randomFromList(global=>players)
-      if p and countList(p=>items) > 0
+      if p and p=>items
         puts("\n*** REMOVING ITEM ***\n")
         p2 = randomFromList(p=>items)
         unlinkFromList(p + items, p2)
@@ -1795,22 +1796,20 @@ def randomHeapAction()
       break
 
     // Trade item
-    is 8
     is 9
+    is 10
       p = randomFromList(global=>players)
-      if p
+      if p and p=>items
+        puts("\n*** TRADING ITEM ***\n")
         p2 = randomFromList(p=>items)
-        if p2
-          puts("\n*** TRADING ITEM ***\n")
-          unlinkFromList(p + items, p2)
-          p = randomFromList(global=>players)
-          addToList(p + items, p2)
-        fin
+        unlinkFromList(p + items, p2)
+        p = randomFromList(global=>players)
+        addToList(p + items, p2)
       fin
       break
 
     // Garbage collect
-    is 10
+    is 11
       puts("\n*** COLLECTING GARBAGE ***\n")
       collect()
       acted = TRUE
@@ -1818,9 +1817,9 @@ def randomHeapAction()
 
   if acted
     mmgr(CHECK_MEM, 0)
-    puts("Hit a key: ")
-    getUpperKey()
-    crout()
+    //puts("Hit a key: ")
+    //getUpperKey()
+    //crout()
   fin
 end
 

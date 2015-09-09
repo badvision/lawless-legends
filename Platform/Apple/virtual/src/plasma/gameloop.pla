@@ -74,7 +74,7 @@ const OVERMAP_NUM = 1
 const OVERMAP_IS_3D = 0
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Structures for testing the heap system
+// Structures for the heap
 const TYPE_GLOBAL = $80
 struc Global
   byte type
@@ -109,17 +109,7 @@ byte typeTbl_Global[] = Global, players, 0
 byte typeTbl_Player[] = Player, nextObj, name, items, 0
 byte typeTbl_Item[]   = Item, nextObj, name, 0
 
-byte typeLengths[10]
-byte typeCounts[256]
-byte checkCounts[256]
-word nextObjID = 0
-
 word global  // the global heap object, from which all live objects must be reachable
-
-byte vowels[] = 'a', 'e', 'i', 'o', 'u'
-const N_VOWELS = 5
-byte consonants[] = 'b', 'c', 'd', 'f', 'g', 'h', 'j', 'k', 'm', 'n', 'p', 'r', 's', 't', 0
-const N_CONSONANTS = 14
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Predefined functions, for circular calls or out-of-order calls
@@ -1489,47 +1479,6 @@ def setCallbacks()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def newObj(typeNum)
-  word ptr
-  typeCounts[typeNum] = typeCounts[typeNum] + 1
-  ptr = mmgr(HEAP_ALLOC, typeNum)
-  if typeNum >= $80
-    nextObjID = nextObjID + 1
-    ptr=>id = nextObjID
-  fin
-  return ptr
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def freeObj(ptr)
-  byte typeNum
-  if ptr == NULL; return; fin
-  typeNum = ^ptr
-  //printf3("  freeObj p=$%x t=$%x ct=%d\n", ptr, typeNum, typeCounts[typeNum])
-  if typeCounts[typeNum] == 0
-    fatal("Can't decr count past 0")
-  fin
-  typeCounts[typeNum] = typeCounts[typeNum] - 1
-  if typeNum >= $80
-    when typeNum
-      is TYPE_GLOBAL
-        fatal("can't free global obj")
-      is TYPE_PLAYER
-        freeObj(ptr=>nextObj)
-        freeObj(ptr=>name)
-        freeObj(ptr=>items)
-        break
-      is TYPE_ITEM
-        freeObj(ptr=>nextObj)
-        freeObj(ptr=>name)
-        break
-      otherwise
-        fatal("unknown obj type encountered in heap")
-    wend
-  fin
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set up the small-object heap
 def initHeap()
   mmgr(SET_MEM_TARGET, heapStart)
@@ -1537,312 +1486,41 @@ def initHeap()
   mmgr(LOCK_MEMORY,    heapStart)
   mmgr(HEAP_SET,       heapStart)
   mmgr(HEAP_ADD_TYPE,  @typeTbl_Global)
-  typeLengths[TYPE_GLOBAL & $7F] = Global
   mmgr(HEAP_ADD_TYPE,  @typeTbl_Player)
-  typeLengths[TYPE_PLAYER & $7F] = Player
   mmgr(HEAP_ADD_TYPE,  @typeTbl_Item)
-  typeLengths[TYPE_ITEM & $7F] = Item
-  global = newObj(TYPE_GLOBAL)
+  global = mmgr(HEAP_ALLOC, TYPE_GLOBAL)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def randomVowel()
-  return vowels[rand16() % N_VOWELS]
-end
-def randomConsonant()
-  return consonants[rand16() % N_CONSONANTS]
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Locate the heap string with the specified length. If none exists, create a new random string.
-def findTestString(len)
-  word p, t, p2
-  p = heapStart
-  while *p
-    t = ^p
-    if t == len
-      printf2("    re-use len %d str @ %x\n", len, p)
-      typeCounts[len] = typeCounts[len] + 1
-      return p
-    elsif t < $80
-      p = p + t + 1
-    elsif t < TYPE_GLOBAL or t > TYPE_ITEM
-      fatal("Unknown type in heap")
-    else
-      p = p + typeLengths[t & $7F]
-    fin
-  loop
-  p = newObj(len)
-  p2 = p
-  for t = 1 to len
-    p2 = p2+1
-    if    t == 1; p2->0 = randomConsonant() - 'a' + 'A'
-    elsif t & 1;  p2->0 = randomConsonant()
-    else          p2->0 = randomVowel()
-    fin
-  next
-  printf3("    len %d str @ %x = \"%s\"\n", len, p, p)
-  return p
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def randomString()
-  return findTestString((rand16() % 10) + 1)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Check the object counts on the heap
-def checkHeapCounts()
-  word p, t
-  byte bad
-  //word testStr
-  //testStr = "  Type $%x obj at $%x\n"
-
-  // Clear the check array
-  for t = 0 to 255; checkCounts[t] = 0; next
-  
-  // Now traverse the heap, counting the number of each object type
-  p = heapStart
-  while *p
-    t = ^p
-    //printf2(testStr, t, p)
-    if p < heapStart or (p-heapStart) >= heapSize
-      fatal("Invalid pointer in heap")
-    fin
-    checkCounts[t] = checkCounts[t] + 1
-    if t < $80
-      p = p + t + 1
-    elsif t < TYPE_GLOBAL or t > TYPE_ITEM
-      fatal("Unknown type in heap")
-    else
-      p = p + typeLengths[t & $7F]
-    fin
-  loop
-
-  // Then verify the counts
-  bad = 0
-  for t = 0 to 127
-    if (typeCounts[t] > 0) and (checkCounts[t] <> 1)
-      printf2("Count for type $%x should be 1, got %d\n", t, checkCounts[t])
-      bad = bad+1
-    fin
-  next
-  for t = 128 to 255
-    if typeCounts[t] <> checkCounts[t]
-      printf3("Count for type $%x should be %d, got %d\n", t, typeCounts[t], checkCounts[t])
-      bad = bad+1
-    fin
-  next
-
-  if bad
-    fatal("Heap errors found.")
-  fin
-end
-
+// Call like this: addToList(player + items, itemToAdd)
 def addToList(addTo, p)
   p=>nextObj = *addTo
   *addTo = p
 end
 
-def addItem(addTo)
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Call like this: removeFromList(player + items, itemToRemove)
+def removeFromList(pList, toRemove)
   word p
 
-  // Create the object, link it into the player's list
-  puts("  Adding item.\n")
-  p = newObj(TYPE_ITEM)
-  addToList(addTo + items, p)
-
-  // Assign attributes
-  p=>name = randomString()
-  p->kind = rand16()
-  p->cost = rand16()
-
-  return p
-end
-
-def addPlayer()
-  word p
-  byte nItems, i
-
-  // Create the object, and link it in to the global list
-  puts("Adding player.\n")
-  p = newObj(TYPE_PLAYER)
-
-  // Assign attributes
-  p=>name = randomString()
-  p->muscle = rand16()
-  p->quickness = rand16()
-
-  nItems = rand16() % 3
-  for i = 0 to nItems
-    addItem(p)
-  next
-
-  p->health = rand16()
-
-  addToList(global + players, p)
-
-  return p
-end
-
-def countList(p)
-  word n
-  word testStr
-  n = 0
-  while p
-    n = n+1
-    p = p=>nextObj
-  loop
-  return n
-end
-
-def randomFromList(p)
-  word n
-  n = rand16() % countList(p)
-  while p and n > 0
-    p = p=>nextObj
-    n = n-1
-  loop
-  return p
-end
-
-def unlinkFromList(pList, toRemove)
-  word p
-
-  // Now unlink
   p = *pList
-  while p
-    if p == toRemove
-      *pList = p=>nextObj
-      break
-    fin
+  while p and p <> toRemove
     pList = p + nextObj
     p = *pList
   loop
 
-  if !p
-    fatal("Obj to unlink not in list")
+  if p
+    *pList = p=>nextObj
+    p=>nextObj = NULL
+  else
+    fatal("InvalUnlink")
   fin
-
-  p=>nextObj = NULL
-end
-
-def collect()
-  word nFree
-  mmgr(CHECK_MEM, 0)
-  nFree = mmgr(HEAP_COLLECT, 0)
-  printf1("  heap avail=$%x\n", nFree)
-  checkHeapCounts()
-  mmgr(CHECK_MEM, 0)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Do something random to the heap
-def randomHeapAction()
-  byte acted
-  word p, p2
-
-  // Random actions
-  acted = FALSE
-  when rand16() % 12
-
-    // Add player
-    is 0
-    is 1
-    is 2
-    is 3
-      if countList(global=>players) < 15
-        puts("\n*** ADDING PLAYER ***\n")
-        addPlayer()
-        acted = TRUE
-      fin
-      break
-
-    // Remove player
-    is 4
-      if countList(global=>players) > 8
-        puts("\n*** REMOVING PLAYER ***\n")
-        p = randomFromList(global=>players)
-        printf1("Unlinking player $%x\n", p)
-        unlinkFromList(global + players, p)
-        puts("Freeing player\n")
-        freeObj(p)
-        acted = TRUE
-      fin
-      break
-
-    // Add item
-    is 5
-    is 6
-    is 7
-      p = randomFromList(global=>players)
-      if p and countList(p=>items) < 10
-        puts("\n*** ADDING ITEM ***\n")
-        addItem(p)
-        acted = TRUE
-      fin
-      break
-
-    // Remove item
-    is 8
-      p = randomFromList(global=>players)
-      if p and p=>items
-        puts("\n*** REMOVING ITEM ***\n")
-        p2 = randomFromList(p=>items)
-        unlinkFromList(p + items, p2)
-        freeObj(p2)
-        acted = TRUE
-      fin
-      break
-
-    // Trade item
-    is 9
-    is 10
-      p = randomFromList(global=>players)
-      if p and p=>items
-        puts("\n*** TRADING ITEM ***\n")
-        p2 = randomFromList(p=>items)
-        unlinkFromList(p + items, p2)
-        p = randomFromList(global=>players)
-        addToList(p + items, p2)
-      fin
-      break
-
-    // Garbage collect
-    is 11
-      puts("\n*** COLLECTING GARBAGE ***\n")
-      collect()
-      acted = TRUE
-  wend
-
-  if acted
-    mmgr(CHECK_MEM, 0)
-    //puts("Hit a key: ")
-    //getUpperKey()
-    //crout()
-  fin
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Test out the heap
-def testHeap()
-  *seed = 0  // start with fixed seed for repeatable results
-  collect()
-
-  // Random actions
-  while TRUE
-    randomHeapAction()
-  loop
-
-  puts("Heap test complete. Hit a key.\n")
-  getUpperKey()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Main code.
 //
 initHeap()
-testHeap()
 loadTitle()
 setCallbacks()
 mapIs3D = OVERMAP_IS_3D

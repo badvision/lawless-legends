@@ -2,6 +2,11 @@
 *.swp
 .DS_Store
 
+# Ignore utility shortcuts that build and run
+g
+m
+mg
+
 # Skip build directories
 **/build/
 /OutlawEditor/target/

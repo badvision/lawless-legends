@@ -19,7 +19,7 @@ MAX_SEGS	= 96
 
 DO_COMP_CHECKSUMS = 0		; during compression debugging
 DEBUG_DECOMP 	= 0
-DEBUG		= 1
+DEBUG		= 0
 SANITY_CHECK	= 0		; also prints out request data
 
 ; Zero page temporary variables
@@ -1189,6 +1189,8 @@ gc2_sweep: !zone
 	rts
 
 heapCollect: !zone
+	lda partFileRef		; check if the buffer space is already in use
+	bne .partOpen
 	jsr gc1_mark		; mark reachable blocks
 	jsr gc2_sweep		; sweep them into one place
 	jsr gc3_fix		; adjust all pointers
@@ -1201,6 +1203,8 @@ heapCollect: !zone
 	sbc heapTop+1
 	tay			; free space to X=lo/Y=hi
 	rts
+.partOpen:
+	jsr inlineFatal : !text "NdClose",0
 
 lastLoMem = *
 } ; end of !pseodupc $800

@@ -42,7 +42,7 @@
       </redirector>
     </apply>
 
-    <!-- Assmeble the ACME code -->
+    <!-- Assemble the ACME code -->
     <apply executable="acme" dir="${build.dir}" 
            relative="true" parallel="false" failonerror="true" verbose="true">
       <fileset dir="${build.dir}" includes="*.a"/>

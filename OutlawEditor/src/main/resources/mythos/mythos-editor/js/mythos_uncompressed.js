@@ -8,10 +8,10 @@
  * governing permissions and limitations under the License.
  */
  
-/* global Blockly */
+/* global Blockly, goog */
 
 if (typeof Mythos === "undefined") {
-    // Hook up the rename function to notify the java editor when changes occur
+// Hook up the rename function to notify the java editor when changes occur
     if (typeof window === "undefined") {
         window = {};
     }
@@ -20,7 +20,6 @@ if (typeof Mythos === "undefined") {
         Mythos.editor.setFunctionName(name);
         return Blockly.Procedures.rename_old.call(this, name);
     };
-
     Mythos = {
         setScriptXml: function (xml) {
             Blockly.mainWorkspace.clear();
@@ -89,8 +88,7 @@ if (typeof Mythos === "undefined") {
                             typeConstructor.appendValueInput(attribute.getName())
                                     .setAlign(Blockly.ALIGN_RIGHT)
                                     .setCheck(attribute.getType())
-                                    .appendField(attribute.getName())
-                                    
+                                    .appendField(attribute.getName());
                         });
                     } catch (error) {
                         Mythos.editor.log(error);
@@ -484,6 +482,63 @@ if (typeof Mythos === "undefined") {
                     this.setTooltip('Scrolls text window up one line');
                 }
             };
+            Blockly.Blocks['text_area'] = {
+                init: function () {
+                    var field = new Blockly.FieldTextArea('', this.checkSpelling);
+                    field.block_ = this;
+                    this.setHelpUrl(Blockly.Msg.TEXT_TEXT_HELPURL);
+                    this.setColour(Blockly.Blocks.texts.HUE);
+                    this.appendDummyInput()
+                            .appendField("Big")
+                            .appendField(this.newQuote_(true))
+                            .appendField(field, 'TEXT')
+                            .appendField(this.newQuote_(false));
+                    this.setOutput(true, 'String');
+                    this.setTooltip(Blockly.Msg.TEXT_TEXT_TOOLTIP);
+//                    this.setMutator(new Blockly.Mutator(['text']));
+                },
+                newQuote_: function (open) {
+                    var file;
+                    if (open === this.RTL) {
+                        file = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAKCAQAAAAqJXdxAAAAqUlEQVQI1z3KvUpCcRiA8ef9E4JNHhI0aFEacm1o0BsI0Slx8wa8gLauoDnoBhq7DcfWhggONDmJJgqCPA7neJ7p934EOOKOnM8Q7PDElo/4x4lFb2DmuUjcUzS3URnGib9qaPNbuXvBO3sGPHJDRG6fGVdMSeWDP2q99FQdFrz26Gu5Tq7dFMzUvbXy8KXeAj57cOklgA+u1B5AoslLtGIHQMaCVnwDnADZIFIrXsoXrgAAAABJRU5ErkJggg==';
+                    } else {
+                        file = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAKCAQAAAAqJXdxAAAAn0lEQVQI1z3OMa5BURSF4f/cQhAKjUQhuQmFNwGJEUi0RKN5rU7FHKhpjEH3TEMtkdBSCY1EIv8r7nFX9e29V7EBAOvu7RPjwmWGH/VuF8CyN9/OAdvqIXYLvtRaNjx9mMTDyo+NjAN1HNcl9ZQ5oQMM3dgDUqDo1l8DzvwmtZN7mnD+PkmLa+4mhrxVA9fRowBWmVBhFy5gYEjKMfz9AylsaRRgGzvZAAAAAElFTkSuQmCC';
+                    }
+                    return new Blockly.FieldImage(file, 12, 12, '"');
+                },
+                checkSpelling: function(value) {
+                    this.block_.setCommentText(Mythos.editor.checkSpelling(value));
+                    return value;
+                }
+            };
+            Blockly.Blocks['text'] = {
+                init: function () {
+                    var field = new Blockly.FieldTextInput('', this.checkSpelling);
+                    field.block_ = this;
+                    this.setHelpUrl(Blockly.Msg.TEXT_TEXT_HELPURL);
+                    this.setColour(Blockly.Blocks.texts.HUE);
+                    this.appendDummyInput()
+                            .appendField(this.newQuote_(true))
+                            .appendField(field, 'TEXT')
+                            .appendField(this.newQuote_(false));
+                    this.setOutput(true, 'String');
+                    this.setTooltip(Blockly.Msg.TEXT_TEXT_TOOLTIP);
+//                    this.setMutator(new Blockly.Mutator(['text_area']));
+                },
+                newQuote_: function (open) {
+                    var file;
+                    if (open === this.RTL) {
+                        file = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAKCAQAAAAqJXdxAAAAqUlEQVQI1z3KvUpCcRiA8ef9E4JNHhI0aFEacm1o0BsI0Slx8wa8gLauoDnoBhq7DcfWhggONDmJJgqCPA7neJ7p934EOOKOnM8Q7PDElo/4x4lFb2DmuUjcUzS3URnGib9qaPNbuXvBO3sGPHJDRG6fGVdMSeWDP2q99FQdFrz26Gu5Tq7dFMzUvbXy8KXeAj57cOklgA+u1B5AoslLtGIHQMaCVnwDnADZIFIrXsoXrgAAAABJRU5ErkJggg==';
+                    } else {
+                        file = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAKCAQAAAAqJXdxAAAAn0lEQVQI1z3OMa5BURSF4f/cQhAKjUQhuQmFNwGJEUi0RKN5rU7FHKhpjEH3TEMtkdBSCY1EIv8r7nFX9e29V7EBAOvu7RPjwmWGH/VuF8CyN9/OAdvqIXYLvtRaNjx9mMTDyo+NjAN1HNcl9ZQ5oQMM3dgDUqDo1l8DzvwmtZN7mnD+PkmLa+4mhrxVA9fRowBWmVBhFy5gYEjKMfz9AylsaRRgGzvZAAAAAElFTkSuQmCC';
+                    }
+                    return new Blockly.FieldImage(file, 12, 12, '"');
+                },
+                checkSpelling: function(value) {
+                    this.block_.setCommentText(Mythos.editor.checkSpelling(value));
+                    return value;
+                }
+            };
             Blockly.Blocks['text_getstring'] = {
                 init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
@@ -553,3 +608,138 @@ if (typeof Mythos === "undefined") {
     };
 }
 ;
+//------
+goog.provide('Blockly.FieldTextArea');
+goog.require('Blockly.Field');
+goog.require('Blockly.Msg');
+goog.require('goog.asserts');
+goog.require('goog.userAgent');
+
+/**
+ * Class for an editable text field.
+ * @param {string} text The initial content of the field.
+ * @param {Function} opt_changeHandler An optional function that is called
+ *     to validate any constraints on what the user entered.  Takes the new
+ *     text as an argument and returns either the accepted text, a replacement
+ *     text, or null to abort the change.FFF
+ * @extends {Blockly.Field}
+ * @constructor
+ */
+Blockly.FieldTextArea = function (text, opt_changeHandler) {
+    Blockly.FieldTextInput.superClass_.constructor.call(this, text);
+    this.changeHandler_ = opt_changeHandler;
+};
+goog.inherits(Blockly.FieldTextArea, Blockly.FieldTextInput);
+/**
+ * Clone this FieldTextArea.
+ * @return {!Blockly.FieldTextArea} The result of calling the constructor again
+ *   with the current values of the arguments used during construction.
+ */
+Blockly.FieldTextArea.prototype.clone = function () {
+    return new Blockly.FieldTextArea(this.getText(), this.changeHandler_);
+};
+/**
+ * Show the inline free-text editor on top of the text.
+ * @param {boolean=} opt_quietInput True if editor should be created without
+ *     focus.  Defaults to false.
+ * @private
+ */
+Blockly.FieldTextInput.prototype.showEditor_ = function (opt_quietInput) {
+    var quietInput = opt_quietInput || false;
+    if (!quietInput && (goog.userAgent.MOBILE || goog.userAgent.ANDROID ||
+            goog.userAgent.IPAD)) {
+        // Mobile browsers have issues with in-line textareas (focus & keyboards).
+        var newValue = window.prompt(Blockly.Msg.CHANGE_VALUE_TITLE, this.text_);
+        if (this.sourceBlock_ && this.changeHandler_) {
+            var override = this.changeHandler_(newValue);
+            if (override !== undefined) {
+                newValue = override;
+            }
+        }
+        if (newValue !== null) {
+            this.setText(newValue);
+        }
+        return;
+    }
+
+    Blockly.WidgetDiv.show(this, this.sourceBlock_.RTL, this.widgetDispose_());
+    var div = Blockly.WidgetDiv.DIV;
+    // Create the input.
+    var htmlInput = goog.dom.createDom('textarea', 'blocklyHtmlInput');
+    htmlInput.setAttribute('spellcheck', this.spellcheck_);
+    htmlInput.setAttribute('cols', 80);
+    htmlInput.setAttribute('rows', 7);
+    var fontSize = (Blockly.FieldTextInput.FONTSIZE *
+            this.sourceBlock_.workspace.scale) + 'pt';
+    div.style.fontSize = fontSize;
+    div.style.width = "30em";
+    htmlInput.style.width = "30em";
+    htmlInput.style.fontSize = fontSize;
+    htmlInput.style.backgroundColor = "#eee";
+    /** @type {!HTMLTextArea} */
+    Blockly.FieldTextInput.htmlInput_ = htmlInput;
+    div.appendChild(htmlInput);
+
+    htmlInput.value = htmlInput.defaultValue = this.text_;
+    htmlInput.oldValue_ = null;
+    this.validate_();
+    this.resizeEditor_();
+    if (!quietInput) {
+        htmlInput.focus();
+        htmlInput.select();
+    }
+
+    // Bind to keydown -- trap Enter without IME and Esc to hide.
+    htmlInput.onKeyDownWrapper_ =
+            Blockly.bindEvent_(htmlInput, 'keydown', this, this.onHtmlInputKeyDown_);
+    // Bind to keyup -- trap Enter; resize after every keystroke.
+    htmlInput.onKeyUpWrapper_ =
+            Blockly.bindEvent_(htmlInput, 'keyup', this, this.onHtmlInputChange_);
+    // Bind to keyPress -- repeatedly resize when holding down a key.
+    htmlInput.onKeyPressWrapper_ =
+            Blockly.bindEvent_(htmlInput, 'keypress', this, this.onHtmlInputChange_);
+    var workspaceSvg = this.sourceBlock_.workspace.getCanvas();
+    htmlInput.onWorkspaceChangeWrapper_ =
+            Blockly.bindEvent_(workspaceSvg, 'blocklyWorkspaceChange', this,
+                    this.resizeEditor_);
+};
+
+/**
+ * Handle key down to the editor.
+ * @param {!Event} e Keyboard event.
+ * @private
+ */
+Blockly.FieldTextInput.prototype.onHtmlInputKeyDown_ = function (e) {
+    var htmlInput = Blockly.FieldTextInput.htmlInput_;
+    var escKey = 27;
+    if (e.keyCode === escKey) {
+        this.setText(htmlInput.defaultValue);
+        Blockly.WidgetDiv.hide();
+    }
+};
+/**
+ * Handle a change to the editor.
+ * @param {!Event} e Keyboard event.
+ * @private
+ */
+Blockly.FieldTextArea.prototype.onHtmlInputChange_ = function (e) {
+    var htmlInput = Blockly.FieldTextArea.htmlInput_;
+    if (e.keyCode === 27) {
+        // Esc
+        this.setText(htmlInput.defaultValue);
+        Blockly.WidgetDiv.hide();
+    } else {
+        // Update source block.
+        var text = htmlInput.value;
+        if (text !== htmlInput.oldValue_) {
+            htmlInput.oldValue_ = text;
+            this.setText(text);
+            this.validate_();
+        } else if (goog.userAgent.WEBKIT) {
+            // Cursor key.  Render the source block to show the caret moving.
+            // Chrome only (version 26, OS X).
+            this.sourceBlock_.render();
+        }
+        this.resizeEditor_();
+    }
+};

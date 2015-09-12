@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -41,6 +42,9 @@ import org.badvision.outlaweditor.data.xml.Scope;
 import org.badvision.outlaweditor.data.xml.Script;
 import org.badvision.outlaweditor.data.xml.UserType;
 import org.badvision.outlaweditor.data.xml.Variable;
+import org.badvision.outlaweditor.spelling.SpellChecker;
+import org.badvision.outlaweditor.spelling.SpellResponse;
+import org.badvision.outlaweditor.spelling.Suggestion;
 import org.badvision.outlaweditor.ui.ApplicationUIController;
 import org.badvision.outlaweditor.ui.MythosScriptEditorController;
 import org.w3c.dom.Document;
@@ -58,10 +62,12 @@ public class MythosEditor {
     Stage primaryStage;
     MythosScriptEditorController controller;
     public static final String XML_HEADER = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n";
+    SpellChecker spellChecker;
 
     public MythosEditor(Script theScript, Scope theScope) {
         script = theScript;
         scope = theScope;
+        spellChecker = new SpellChecker();
     }
 
     public void show() {
@@ -146,7 +152,6 @@ public class MythosEditor {
     // Called when the name of the root block is changed in the JS editor
     public void setFunctionName(String name) {
         if (script == null) {
-            System.out.println("How can the script be null??  wanted to set script name to " + name);
             return;
         }
         script.setName(name);
@@ -165,9 +170,11 @@ public class MythosEditor {
     public List<Script> getGlobalFunctions() {
         return getFunctions(getGlobalScope());
     }
+
     public List<Script> getLocalFunctions() {
         return getFunctions(scope);
     }
+
     private List<Script> getFunctions(Scope scriptScope) {
         if (scriptScope.getScripts() == null) {
             return new ArrayList<>();
@@ -191,17 +198,17 @@ public class MythosEditor {
     private boolean isGlobalScope() {
         return scope.equals(getGlobalScope());
     }
-    
+
     public List<Variable> getLocalVariables() {
         return getVariables(scope);
     }
-    
+
     private List<Variable> getVariables(Scope scriptScope) {
         if (scriptScope.getVariables() == null) {
             return new ArrayList<>();
         } else {
             return scriptScope.getVariables().getVariable();
-        }        
+        }
     }
 
     public List<Variable> getVariablesByType(String type) {
@@ -219,18 +226,36 @@ public class MythosEditor {
     public List<String> getParametersForScript(Script script) {
         List<String> allArgs = new ArrayList();
         if (script.getBlock() != null && script.getBlock().getFieldOrMutationOrStatement() != null) {
-        script.getBlock().getFieldOrMutationOrStatement()
-                .stream().filter((o) -> (o instanceof Mutation))
-                .map((o) -> (Mutation) o).findFirst().ifPresent((m) -> {
-                    m.getArg().stream().forEach((a) -> {
-                        allArgs.add(a.getName());
-                    });
+            script.getBlock().getFieldOrMutationOrStatement()
+                    .stream().filter((o) -> (o instanceof Mutation))
+                    .map((o) -> (Mutation) o).findFirst().ifPresent((m) -> {
+                m.getArg().stream().forEach((a) -> {
+                    allArgs.add(a.getName());
                 });
+            });
         }
         return allArgs;
     }
 
+    public String checkSpelling(String value) {
+        SpellResponse result = spellChecker.check(value);
+        if (result.getErrors() == 0) {
+            return null;
+        } else {
+            StringBuilder message = new StringBuilder();
+            result.getCorrections().forEach((SpellResponse.Source source, Set<Suggestion> suggestions) -> {
+                message
+                        .append(source.word)
+                        .append(" : ")
+                        .append(suggestions.stream().map(Suggestion::getWord).collect(Collectors.joining(", ")))
+                        .append("\n");
+            });
+            return message.toString();
+        }
+    }
+
     public void log(String message) {
+        Logger.getLogger(getClass().getName()).warning(message);
         System.out.println(message);
     }
 }

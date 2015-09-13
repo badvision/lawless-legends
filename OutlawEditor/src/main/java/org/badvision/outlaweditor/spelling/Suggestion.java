@@ -9,18 +9,43 @@
  */
 package org.badvision.outlaweditor.spelling;
 
+import static org.badvision.outlaweditor.data.DataUtilities.rankMatch;
+
 public class Suggestion implements Comparable<Suggestion> {
+
+    public String original;
     public String word;
-    public double similarity;    
+    public double similarity;
+    private double similarityRank = -1;
+
     public String getWord() {
         return word;
     }
+
     public double getSimilarity() {
         return similarity;
     }
 
     @Override
     public int compareTo(Suggestion o) {
-        return (int) Math.signum(o.similarity - similarity);
+        if (similarity == o.similarity) {
+            
+            double rank1 = getSimilarityRank();
+            double rank2 = o.getSimilarityRank();
+            if (rank1 == rank2) {
+                return (word.compareTo(o.word));
+            } else {
+                // Normalize result to -1, 0 or 1 so there is no rounding issues!
+                return (int) Math.signum(rank2 - rank1);
+            }
+        }
+        return (int) Math.signum(similarity - o.similarity);
+    }
+
+    private double getSimilarityRank() {
+        if (similarityRank < 0) {
+            similarityRank = rankMatch(word, original, 3) + rankMatch(word, original, 2);
+        }
+        return similarityRank;
     }
 }

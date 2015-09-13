@@ -143,7 +143,7 @@ public class DataUtilities {
                 }
             }
         }
-        return Math.max(m, n) - dist[m][n];
+        return dist[m][n];
     }
 
     /**
@@ -155,7 +155,7 @@ public class DataUtilities {
      * @param c1
      * @param c2
      * @param width Search window size
-     * @return Overall similarity score (higher is beter)
+     * @return Overall similarity score (higher is better)
      */
     public static double rankMatch(String c1, String c2, int width) {
         double score = 0;

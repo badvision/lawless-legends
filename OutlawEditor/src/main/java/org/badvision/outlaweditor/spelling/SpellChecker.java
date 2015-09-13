@@ -28,7 +28,6 @@ import org.badvision.outlaweditor.data.DataUtilities;
  */
 public class SpellChecker {
     private static HashMap<Character, Set<String>> dictionary;
-    private final double SIMILARITY_THRESHOLD = 0.5;
 
     public SpellChecker() {
         loadDictionary();
@@ -41,15 +40,10 @@ public class SpellChecker {
         for (String word : words) {
             Set<Suggestion> suggestions = getSuggestions(word);
             if (suggestions != null && !suggestions.isEmpty()) {
-                Suggestion first = suggestions.stream().findFirst().get();
-                if (first.similarity == 1.0) {
-                    continue;
-                } else {
-                    SpellResponse.Source source = new SpellResponse.Source();
-                    source.start = pos;
-                    source.word = word;
-                    response.corrections.put(source, suggestions);
-                }
+                SpellResponse.Source source = new SpellResponse.Source();
+                source.start = pos;
+                source.word = word;
+                response.corrections.put(source, suggestions);
             }
 
             pos += word.length() + 1;
@@ -86,16 +80,18 @@ public class SpellChecker {
         String lower = word.toLowerCase();
         Character first = lower.charAt(0);
         Set<String> words = dictionary.get(first);
+        int length = lower.length();
+        double threshold = length <= 2 ? 0 : Math.log(length-1) * 1.75;
         if (words != null) {
-            if (words.contains(lower)) {
+            if (lower.length() <= 2 || words.contains(lower)) {
                 return null;
             }
             words.parallelStream().forEach((String dictWord) -> {
                 int distance = DataUtilities.levenshteinDistance(lower, dictWord);
-                double similarity = distance / ((double) Math.max(lower.length(), dictWord.length()));
-                if (similarity >= SIMILARITY_THRESHOLD) {
+                if (distance <= threshold) {
                     Suggestion suggestion = new Suggestion();
-                    suggestion.similarity = similarity;
+                    suggestion.original = lower;
+                    suggestion.similarity = distance;
                     suggestion.word = dictWord;
                     suggestions.add(suggestion);
                 }

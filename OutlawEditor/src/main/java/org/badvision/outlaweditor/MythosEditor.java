@@ -246,8 +246,8 @@ public class MythosEditor {
             result.getCorrections().forEach((SpellResponse.Source source, Set<Suggestion> suggestions) -> {
                 message
                         .append(source.word)
-                        .append(" : ")
-                        .append(suggestions.stream().map(Suggestion::getWord).collect(Collectors.joining(", ")))
+                        .append(": ")
+                        .append(suggestions.stream().map(Suggestion::getWord).limit(5).collect(Collectors.joining(",")))
                         .append("\n");
             });
             return message.toString();

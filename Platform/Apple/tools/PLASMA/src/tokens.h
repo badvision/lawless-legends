@@ -113,6 +113,7 @@
 #define COMMA_TOKEN         TOKEN(',')
 #define COMMENT_TOKEN       TOKEN(';')
 #define EOL_TOKEN           TOKEN(0)
+#define INCLUDE_TOKEN       TOKEN(0x7E)
 #define EOF_TOKEN           TOKEN(0x7F)
 
 typedef unsigned char t_token;

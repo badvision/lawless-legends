@@ -11,7 +11,7 @@
 //
 // Include all imported modules and their data/functions.
 //
-include(cmdsys.plh)
+include "cmdsys.plh"
 //
 // Module data.
 //

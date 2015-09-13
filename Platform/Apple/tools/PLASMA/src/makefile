@@ -41,20 +41,20 @@ $(CMD): cmd.pla cmdstub.s $(PLVM) $(PLASM)
 	acme --setpc 8192 -o $(CMD) cmdstub.s
 
 TESTLIB\#FE1000: testlib.pla $(PLVM) $(PLASM)
-	m4 < testlib.pla |./$(PLASM) -AM > testlib.a
+	./$(PLASM) -AM < testlib.pla > testlib.a
 	acme --setpc 4094 -o TESTLIB\#FE1000 testlib.a
 
 test: test.pla TESTLIB\#FE1000 $(PLVM) $(PLASM)
-	m4 < test.pla | ./$(PLASM) -AM > test.a
+	./$(PLASM) -AM < test.pla > test.a
 	acme --setpc 4094 -o TEST\#FE1000 test.a
 	./$(PLVM) TEST
 
 debug: test.pla TESTLIB $(PLVM) $(PLASM)
-	m4 < test.pla | ./$(PLASM) -AM > test.a
+	./$(PLASM) -AM < test.pla > test.a
 	acme --setpc 4094 -o TEST\#FE1000 test.a
 	./$(PLVM) -s TEST MAIN
 
 hello: hello.pla $(PLVM) $(PLASM)
-	m4 < hello.pla | ./$(PLASM) -AM > hello.a
+	./$(PLASM) -AM < hello.pla > hello.a
 	acme --setpc 4094 -o HELLO\#FE1000 hello.a
 	./$(PLVM) HELLO

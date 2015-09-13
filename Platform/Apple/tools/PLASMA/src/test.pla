@@ -11,8 +11,8 @@
 //
 // Include all imported modules and their data/functions.
 //
-include(cmdsys.plh)
-include(testlib.plh)
+include "cmdsys.plh"
+include "testlib.plh"
 //
 // Structure definition.
 //

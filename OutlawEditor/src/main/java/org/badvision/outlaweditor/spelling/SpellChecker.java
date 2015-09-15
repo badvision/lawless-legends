@@ -87,7 +87,7 @@ public class SpellChecker {
                 return null;
             }
             words.parallelStream().forEach((String dictWord) -> {
-                int distance = DataUtilities.levenshteinDistance(lower, dictWord);
+                int distance = DataUtilities.levenshteinDistance(lower, dictWord, (int) threshold);
                 if (distance <= threshold) {
                     Suggestion suggestion = new Suggestion();
                     suggestion.original = lower;
@@ -96,6 +96,13 @@ public class SpellChecker {
                     suggestions.add(suggestion);
                 }
             });
+            if (suggestions.isEmpty()) {
+                Suggestion suggestion = new Suggestion();
+                suggestion.original = lower;
+                suggestion.similarity = 100;
+                suggestion.word = "????";
+                suggestions.add(suggestion);
+            }
         }
         
         return suggestions;

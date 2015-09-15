@@ -113,11 +113,13 @@ public class DataUtilities {
      *
      * @param s
      * @param t
+     * @param limit
      * @return Distance (higher is better)
      */
-    public static int levenshteinDistance(String s, String t) {
-        if (s == null || t == null || s.length() == 0 || t.length() == 0) {
-            return -1;
+    public static int levenshteinDistance(String s, String t, int limit) {
+        int sizeDiff = Math.abs(s.length() - t.length());
+        if (sizeDiff > limit) {
+            return sizeDiff;
         }
 
         s = s.toLowerCase().replaceAll("[^a-zA-Z0-9\\s]", "");
@@ -132,6 +134,7 @@ public class DataUtilities {
             dist[0][i] = i;
         }
         for (int j = 1; j <= n; j++) {
+            int min = 100;
             for (int i = 1; i <= m; i++) {
                 if (s.charAt(i - 1) == t.charAt(j - 1)) {
                     dist[i][j] = dist[i - 1][j - 1];
@@ -141,6 +144,10 @@ public class DataUtilities {
                     int sub = dist[i - 1][j - 1] + 1;
                     dist[i][j] = Math.min(Math.min(del, insert), sub);
                 }
+                min = Math.min(min, dist[i][j]);
+            }
+            if (min > limit) {
+                return min;
             }
         }
         return dist[m][n];
@@ -191,8 +198,8 @@ public class DataUtilities {
 
         @Override
         public int compare(String o1, String o2) {
-            double s1 = levenshteinDistance(match, o1);
-            double s2 = levenshteinDistance(match, o2);
+            double s1 = levenshteinDistance(match, o1,20);
+            double s2 = levenshteinDistance(match, o2,20);
             if (s2 == s1) {
                 s1 = rankMatch(o1, match, 3) + rankMatch(o1, match, 2);
                 s2 = rankMatch(o2, match, 3) + rankMatch(o2, match, 2);
@@ -224,7 +231,7 @@ public class DataUtilities {
         RankingComparator r = new RankingComparator(match);
         List<String> candidates = new ArrayList<>(search);
         Collections.sort(candidates, r);
-        double score = levenshteinDistance(match, candidates.get(0));
+        double score = levenshteinDistance(match, candidates.get(0), 20);
         if (score > 1) {
             return candidates.get(0);
         }

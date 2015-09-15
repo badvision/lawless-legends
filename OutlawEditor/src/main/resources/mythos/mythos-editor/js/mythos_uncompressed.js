@@ -502,9 +502,12 @@ if (typeof Mythos === "undefined") {
                     }
                     return new Blockly.FieldImage(file, 12, 12, '"');
                 },
-                checkSpelling: function(value) {
+                checkSpelling: function(value) {                    
                     if (this.sourceBlock_) {
-                        this.sourceBlock_.setCommentText(Mythos.editor.checkSpelling(value));
+                        if (value !== this.lastSpellCheck_) {
+                            this.sourceBlock_.setCommentText(Mythos.editor.checkSpelling(value));
+                        }
+                        this.lastSpellCheck_ = value;
                     }
                     return value;
                 }

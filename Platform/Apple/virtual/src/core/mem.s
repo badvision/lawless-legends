@@ -907,27 +907,63 @@ heapAddType: !zone
 ; And yes, string length $00 is valid (it's an empty string).
 heapAlloc: !zone
 	lda heapTop
-	sta pTmp
+	sta pSrc
 	lda heapTop+1
-	sta pTmp+1
+	sta pSrc+1
 	ldy #0
 	txa
-	sta (pTmp),y	; save obj type or string len on heap
+	sta (pSrc),y	; save obj type or string len on heap
 	bpl .gotlen
 	lda typeLen-$80,x
-.gotlen	ldy pTmp+1
+.gotlen	ldy pSrc+1
 	sec		; add 1 to include type byte or len byte for strings
-	adc pTmp
+	adc pSrc
 	bcc +
 	iny
 	cpy heapEndPg
 	bcs .needgc
 +	sta heapTop
 	sty heapTop+1
-	ldx pTmp	; return ptr in X=lo/Y=hi
-	ldy pTmp+1
+retPSrc:
+	ldx pSrc	; return ptr in X=lo/Y=hi
+	ldy pSrc+1
 	rts
 .needgc	jsr inlineFatal : !text "NeedCollect",0
+
+; Re-use existing string or allocate new and copy.
+heapIntern: !zone
+	stx pTmp
+	sty pTmp+1
+	jsr startHeapScan
+	bcs .notfnd	; handle case of empty heap
+.blklup	bvs .nxtblk
+	; it's a string
+	inx		; +1 to compare length byte also
+.stlup	lda (pTmp),y	; compare string bytes until non-matching (or all bytes done)
+	cmp (pSrc),y
+	bne .nxtblk
+	iny
+	dex
+	bne .stlup
+	; found a match!
+.found	beq retPSrc
+	; advance to next heap block
+.nxtblk	jsr nextHeapBlk
+	bcc .blklup	; go process next block
+.notfnd	lda (pTmp),y	; get string length
+	pha		; save it
+	tax
+	jsr heapAlloc	; make space for it
+	pla		; string length back
+	tax
+	inx		; add 1 to copy length byte also
+	ldy #0
+.cplup	lda (pSrc),y	; copy the string's characters
+	sta (pTmp),y
+	iny
+	dex
+	bne .cplup
+	beq .found	; always taken
 
 ; Check if blk pSrc is in GC hash; optionally add it if not.
 ; Input : pSrc = blk to check/add
@@ -994,49 +1030,23 @@ memCheck: !zone
 
 ; Verify the integrity of the heap
 heapCheck: !zone
-	lda #0
-	sta pTmp	; we'll use pTmp for scanning
-	lda heapStartPg
-	bne +		; skip check if no heap defined
-.done	rts
-+	sta pTmp+1
-.blklup	lda pTmp
-	cmp heapTop	; have we reached current top-of-heap?
-	lda pTmp+1
-	sbc heapTop+1
-	bcs .done	;	if so we're done
-	ldy #0
-	lda (pTmp),y
-	bmi .isobj
+	jsr startHeapScan
+.blklup	bcc +		; if top-of-heap, we're done
+	rts
++	bvs .isobj	; handle objects separately
 	; it's a string; check its characters
-	sta tmp		; save length
 	beq .nxtblk	; handle zero-length string
-	tax
 .stlup	iny
-	lda (pTmp),y
+	lda (pSrc),y
 	beq heapCorrupt	; strings shouldn't have zero bytes embedded
 	bmi heapCorrupt	; strings should be lo-bit ASCII
 	dex
 	bne .stlup
 	; advance to next heap block
-.nxtblk	lda tmp		; get length back
-	sec		; add 1 to account for type byte or string len byte
-	adc pTmp	; advance scan ptr
-	sta pTmp
-	bcc .blklup	; go again
-	inc pTmp+1
-	lda pTmp+1
-	cmp heapEndPg
-	bcs heapCorrupt
-	bcc .blklup	; always taken
+.nxtblk	jsr nextHeapBlk
+	jmp .blklup	; go again
 	; it's an object; check its pointers
-.isobj	and #$7F
-	tax
-	cpx #MAX_TYPES
-	bcs heapCorrupt
-	lda typeLen,x
-	sta tmp		; save length for .nxtblk to use later (and also for checking below)
-	lda typeTblL,x	; get type table address for this type
+.isobj	lda typeTblL,x	; get type table address for this type
 	sta .getoff+1	; set up for pointer offset fetching
 	lda typeTblH,x	;	hi byte too
 	sta .getoff+2
@@ -1046,22 +1056,72 @@ heapCheck: !zone
 	beq .nxtblk	; zero marks end of offset table
 	tay
 	iny		; not much we can do to validate lo byte, so skip it
-	cpy tmp		; ensure offset is within type length
+	cpy reqLen	; ensure offset is within type length
 	beq +		; 	very end is ok
 	bcs heapCorrupt	;		beyond end is not ok
-+	lda (pTmp),y	; get hi byte of ptr
++	lda (pSrc),y	; get hi byte of ptr
 	beq .tscan	; null is ok
 	cmp heapStartPg	; else check if < start of heap
 	bcc heapCorrupt
 	cmp heapEndPg	; or >= than end of heap
 	bcc .tscan
-}
+	; fall through to heapCorrupt...
+} ; if DEBUG
 
 heapCorrupt:
-	ldx pTmp
-	lda pTmp+1
-	jsr prntax
-	jsr inlineFatal : !text "HeapCorrupt",0
+       ldx pTmp
+       lda pTmp+1
+       jsr prntax
+       jsr inlineFatal : !text "HeapCorrupt",0
+
+; Begin a heap scan by setting pTmp to start-of-heap, then returns
+; everything as per nextHeapBlk below
+startHeapScan: !zone
+	lda #0
+	ldx heapStartPg
+	sta pDst		; used in gc2 sweep init
+	stx pDst+1
+	jmp .pgadv
+
+; Add tmp to pSrc, and sanity check against top of heap.
+; Get current block on heap during heap scan
+; Output: reqLen (and A): size of heap block
+;	  N and Z: set according to size of heap block
+;	  Y: 0
+;         C: set if end of heap reached
+;         V: clear if string, set if object
+;	  X: index into type table (if block is an object),
+;            or string length (if block is a string)
+nextHeapBlk:
+	lda pSrc
+	ldx pSrc+1
+	sec		; add 1 to account for type byte or string len byte
+	adc tmp
+	bcc +
+	inx
+.pgadv	stx pSrc+1
++	sta pSrc
+	cpx heapEndPg
+	bcs heapCorrupt
+getHeapBlk:
+	ldy #0		; so we always return a nice useful Y index
+	cmp heapTop	; have we reached current top-of-heap?
+	txa
+	sbc heapTop+1
+	bcs .done	;	if so we're done
+	lda (pSrc),y
+	bmi .isobj
+	clv		; it's a stirng
+	tax
+.gotlen	sta reqLen
+.done	rts
+.isobj	and #$7F
+	tax
+	cpx nTypes
+	bcs heapCorrupt
+	bit monrts	; set V flag
+	lda typeLen,x
+	bvs .gotlen	; always taken
 
 ; Phase 1 of Garbage Collection: mark accessible heap blocks starting from the root block
 gc1_mark: !zone
@@ -1139,16 +1199,11 @@ gc3_fix:
 
 ; Phase 2 of Garbage Collection: sweep all accessible blocks together
 gc2_sweep: !zone
-	lda #0
-	sta pSrc
-	sta pDst
-	lda heapStartPg
-	sta pSrc+1
-	sta pDst+1
+	jsr startHeapScan	; init pSrc and pDst, set reqLen to length of first block
+	bcs .done		; stop if heap is empty
 .outer	clc			; clc = do not add to hash
 	jsr gcHash_chk		; is this block in hash?
-	; note: next 20 lines or so *must* preserve the carry flag
-	bcc +			; if not in hash, don't set any dest addr
+	bcc .advSrc		; if not in hash, skip this block
 	lda pDst
 	sta gcHash_dstLo,y	; record new address
 	eor pSrc
@@ -1156,19 +1211,9 @@ gc2_sweep: !zone
 	lda pDst+1
 	sta gcHash_dstHi,y	;	in hash table
 	eor pSrc+1
-	ora tmp
-	sta tmp			; this will be zero iff all 16 bits of pSrc == pDst
-+	ldy #0			; index of type byte in heap block
-	lda (pSrc),y		; ...still need to preserve carry flag...
-	bpl .gotlen
-	and #$7F
-	tax
-	lda typeLen,x
-.gotlen	sta reqLen		; save len for later
-	bcc .advSrc		; finally act on carry (hash check flg): if block not in hash, skip block
-	tax			; and in index for byte-copy count
-	lda tmp			; check for pSrc == pDst
+	ora tmp			; this will be zero iff all 16 bits of pSrc == pDst
 	beq .advDst		; if equal, no need to copy
+	ldx reqLen		; index for byte-copy count
 	inx			; set up to copy type/len byte as well
 .cplup	lda (pSrc),y
 	sta (pDst),y
@@ -1181,17 +1226,8 @@ gc2_sweep: !zone
 	sta pDst
 	bcc .advSrc
 	inc pDst+1
-.advSrc	lda pSrc		; advance source
-	sec			; add 1 for type/len byte
-	adc reqLen
-	sta pSrc
-	bcc +
-	inc pSrc+1
-+	cmp heapTop		; end of heap yet? (lo byte check)
-	lda pSrc+1
-	sbc heapTop+1		;	(hi byte check)
-	bcs .done		; if not, loop again
-	jmp .outer
+.advSrc	jsr nextHeapBlk		; advance to next src block
+	bcc .outer		; and process it
 .done	lda pDst		; done sweeping, so set new heap top.
 	sta heapTop
 	lda pDst+1
@@ -1417,6 +1453,9 @@ aux_dispatch:
 +	cmp #HEAP_ALLOC
 	bne +
 	jmp heapAlloc
++	cmp #HEAP_INTERN
+	bne +
+	jmp heapIntern
 +	cmp #HEAP_COLLECT
 	bne +
 	jmp heapCollect

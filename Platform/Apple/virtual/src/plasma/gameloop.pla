@@ -32,11 +32,6 @@ const RES_NUM_FONT_ENGINE = 3
 const RES_NUM_TILE_ENGINE = 4
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Hardware addresses.
-const keyboard  = $C000
-const keystrobe = $C010
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Memory manager definitions
 
 // Resource types
@@ -70,7 +65,8 @@ const FATAL_ERROR    = $1F
 const HEAP_SET       = $20
 const HEAP_ADD_TYPE  = $21
 const HEAP_ALLOC     = $22
-const HEAP_COLLECT   = $23
+const HEAP_INTERN    = $23
+const HEAP_COLLECT   = $24
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Other constants
@@ -92,32 +88,12 @@ struc Global
   word players
 end
 
-const TYPE_PLAYER = $81
-struc Player
-  byte type
-  word id
-  word nextObj
-  word name
-  byte muscle
-  byte quickness
-  word items
-  word health
-end
-
-const TYPE_ITEM = $82
-struc Item
-  byte type
-  word id
-  word nextObj
-  word name
-  byte kind
-  word cost
-end
+include "playtype_consts.plh"
 
 // Table per type, starts with length, then pointer offsets, ending with zero.
 byte typeTbl_Global[] = Global, players, 0
-byte typeTbl_Player[] = Player, nextObj, name, items, 0
-byte typeTbl_Item[]   = Item, nextObj, name, 0
+
+include "playtype_tbls.plh"
 
 word global  // the global heap object, from which all live objects must be reachable
 
@@ -1504,7 +1480,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Call like this: addToList(player + items, itemToAdd)
 def addToList(addTo, p)
-  p=>nextObj = *addTo
+  p=>p_nextObj = *addTo
   *addTo = p
 end
 
@@ -1515,13 +1491,13 @@ def removeFromList(pList, toRemove)
 
   p = *pList
   while p and p <> toRemove
-    pList = p + nextObj
+    pList = p + p_nextObj
     p = *pList
   loop
 
   if p
-    *pList = p=>nextObj
-    p=>nextObj = NULL
+    *pList = p=>p_nextObj
+    p=>p_nextObj = NULL
   else
     fatal("InvalUnlink")
   fin

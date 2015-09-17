@@ -1,6 +1,9 @@
 # Ignore vi swap files, MacOS extra files, etc.
 *.swp
 .DS_Store
+*.old
+*.bak
+*.orig
 
 # Ignore utility shortcuts that build and run
 g

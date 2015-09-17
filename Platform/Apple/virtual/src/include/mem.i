@@ -346,7 +346,19 @@ HEAP_ALLOC = $22
     ; Note: strings of length zero are considered valid and supported.
 
 ;------------------------------------------------------------------------------
-HEAP_COLLECT = $23
+HEAP_INTERN = $23
+    ; Input:  X-reg(lo) / Y-reg(hi): PLASMA-style string in regular RAM
+    ;
+    ; Output: X-reg(lo) / Y-reg(hi): pointer to allocated object space
+    ;
+    ; Checks for existing, or allocates space for and copies, a PLASMA-style
+    ; string starting with a length byte.
+    ;
+    ; If an identical string is already on the heap, returns a pointer to that.
+    ; Else, allocates heap space and copy the string into it.
+
+;------------------------------------------------------------------------------
+HEAP_COLLECT = $24
     ; Input:  None.
     ;
     ; Output: X-reg(lo) / Y-reg(hi): free space in heap after collection

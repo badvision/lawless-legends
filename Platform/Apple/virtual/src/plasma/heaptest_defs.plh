@@ -72,17 +72,6 @@ def addTypes()
   typeLengths[TYPE_PLAYER & $7F] = Player
   mmgr(HEAP_ADD_TYPE, @typeTbl_Item)
   typeLengths[TYPE_ITEM & $7F] = Item
-
-  testStrings[0] = @testStr1
-  testStrings[1] = @testStr2
-  testStrings[2] = @testStr3
-  testStrings[3] = @testStr4
-  testStrings[4] = @testStr5
-  testStrings[5] = @testStr6
-  testStrings[6] = @testStr7
-  testStrings[7] = @testStr8
-  testStrings[8] = @testStr9
-  testStrings[9] = @testStr10
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -958,8 +958,8 @@ heapIntern: !zone
 	tax
 	inx		; add 1 to copy length byte also
 	ldy #0
-.cplup	lda (pSrc),y	; copy the string's characters
-	sta (pTmp),y
+.cplup	lda (pTmp),y	; copy the string's characters
+	sta (pSrc),y
 	iny
 	dex
 	bne .cplup

@@ -50,43 +50,10 @@ def freeObj(ptr)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def randomVowel()
-  return vowels[rand16() % N_VOWELS]
-end
-def randomConsonant()
-  return consonants[rand16() % N_CONSONANTS]
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Locate the heap string with the specified length. If none exists, create a new random string.
+// Locate the heap string with the specified length.
 def findTestString(len)
-  word p, t, p2
-  p = heapStart
-  while *p
-    t = ^p
-    if t == len
-      printf2("    re-use len %d str @ %x\n", len, p)
-      typeCounts[len] = typeCounts[len] + 1
-      return p
-    elsif t < $80
-      p = p + t + 1
-    elsif t < TYPE_GLOBAL or t > TYPE_ITEM
-      fatal("Unknown type in heap")
-    else
-      p = p + typeLengths[t & $7F]
-    fin
-  loop
-  p = newObj(len)
-  p2 = p
-  for t = 1 to len
-    p2 = p2+1
-    if    t == 1; p2->0 = randomConsonant() - 'a' + 'A'
-    elsif t & 1;  p2->0 = randomConsonant()
-    else          p2->0 = randomVowel()
-    fin
-  next
-  printf3("    len %d str @ %x = \"%s\"\n", len, p, p)
-  return p
+  typeCounts[len] = typeCounts[len] + 1
+  return mmgr(HEAP_INTERN, testStrings[len-1])
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -105,6 +72,17 @@ def addTypes()
   typeLengths[TYPE_PLAYER & $7F] = Player
   mmgr(HEAP_ADD_TYPE, @typeTbl_Item)
   typeLengths[TYPE_ITEM & $7F] = Item
+
+  testStrings[0] = @testStr1
+  testStrings[1] = @testStr2
+  testStrings[2] = @testStr3
+  testStrings[3] = @testStr4
+  testStrings[4] = @testStr5
+  testStrings[5] = @testStr6
+  testStrings[6] = @testStr7
+  testStrings[7] = @testStr8
+  testStrings[8] = @testStr9
+  testStrings[9] = @testStr10
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

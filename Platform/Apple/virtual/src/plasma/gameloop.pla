@@ -79,21 +79,8 @@ const callbacks = $300
 const OVERMAP_NUM = 1
 const OVERMAP_IS_3D = 0
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Structures for the heap
-const TYPE_GLOBAL = $80
-struc Global
-  byte type
-  word id
-  word players
-end
-
-include "playtype_consts.plh"
-
-// Table per type, starts with length, then pointer offsets, ending with zero.
-byte typeTbl_Global[] = Global, players, 0
-
-include "playtype_tbls.plh"
+//include "playtype_consts.plh"
+include "heaptest_consts.plh"
 
 word global  // the global heap object, from which all live objects must be reachable
 
@@ -1465,19 +1452,6 @@ def setCallbacks()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Set up the small-object heap
-def initHeap()
-  mmgr(SET_MEM_TARGET, heapStart)
-  mmgr(REQUEST_MEMORY, heapSize)
-  mmgr(LOCK_MEMORY,    heapStart)
-  mmgr(HEAP_SET,       heapStart)
-  mmgr(HEAP_ADD_TYPE,  @typeTbl_Global)
-  mmgr(HEAP_ADD_TYPE,  @typeTbl_Player)
-  mmgr(HEAP_ADD_TYPE,  @typeTbl_Item)
-  global = mmgr(HEAP_ALLOC, TYPE_GLOBAL)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Call like this: addToList(player + items, itemToAdd)
 def addToList(addTo, p)
   p=>p_nextObj = *addTo
@@ -1503,10 +1477,23 @@ def removeFromList(pList, toRemove)
   fin
 end
 
+include "heaptest_defs.plh"
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Set up the small-object heap
+def initHeap()
+  mmgr(SET_MEM_TARGET, heapStart)
+  mmgr(REQUEST_MEMORY, heapSize)
+  mmgr(LOCK_MEMORY,    heapStart)
+  mmgr(HEAP_SET,       heapStart)
+  addTypes()
+end
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Main code.
 //
 initHeap()
+testHeap()
 loadTitle()
 setCallbacks()
 mapIs3D = OVERMAP_IS_3D

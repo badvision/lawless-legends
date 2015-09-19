@@ -29,7 +29,7 @@ MAX_SEGS	= 96
 
 DO_COMP_CHECKSUMS = 0		; during compression debugging
 DEBUG_DECOMP 	= 0
-DEBUG		= 0
+DEBUG		= 1
 SANITY_CHECK	= 0		; also prints out request data
 
 ; Zero page temporary variables
@@ -1096,7 +1096,7 @@ nextHeapBlk:
 	lda pSrc
 	ldx pSrc+1
 	sec		; add 1 to account for type byte or string len byte
-	adc tmp
+	adc reqLen
 	bcc +
 	inx
 .pgadv	stx pSrc+1
@@ -1213,6 +1213,7 @@ gc2_sweep: !zone
 	eor pSrc+1
 	ora tmp			; this will be zero iff all 16 bits of pSrc == pDst
 	beq .advDst		; if equal, no need to copy
+	ldy #0
 	ldx reqLen		; index for byte-copy count
 	inx			; set up to copy type/len byte as well
 .cplup	lda (pSrc),y

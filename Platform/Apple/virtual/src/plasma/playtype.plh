@@ -5,8 +5,9 @@ const TYPE_GLOBAL = $80
 struc Global
   byte t_type
   word p_players
+  word p_enemyGroups
 end
-byte typeTbl_Global[] = Global, p_players, 0
+byte typeTbl_Global[] = Global, p_players, p_enemyGroups, 0
 
 const TYPE_PLAYER = $81
 struc Player
@@ -99,7 +100,7 @@ struc Weapon
   word r_meleeDmg       // 3 hex digits: num dice, die size, add. E.g. $361 = 3d6+1
   word r_projectileDmg  // ditto
   byte ba_attacks[3]    // each is: 0=none, 1=single, 2=double, 3+ = multi-shot
-  byte b_range
+  byte b_weaponRange
   word s_combatText
 end
 byte typeTbl_Weapon[] = Weapon, p_nextObj, s_name, p_modifiers, s_combatText, 0
@@ -142,12 +143,26 @@ struc Enemy
   word p_nextObj
   word s_name
   byte ba_images[2]
-  word w_hitPoints
+  word w_health
   byte b_hitBonus
   byte b_attackType   // 1=melee, 2=projectile
   word s_attackText
+  byte b_enemyAttackRange
+  byte b_chanceToHit
+  word r_enemyDmg     // 3 hex digits: num dice, die size, add. E.g. $361 = 3d6+1
+  word r_groupSize    // number encountered, as 3 hex digits for dice
+  word r_initialRange
 end
 byte typeTbl_Enemy[] = Enemy, p_nextObj, s_name, s_attackText, 0
+
+const TYPE_ENEMY_GROUP = $8A
+struc EnemyGroup
+  byte t_type
+  word p_nextObj
+  word p_enemies
+  byte b_enemyGroupRange
+end
+byte typeTbl_EnemyGroup[] = EnemyGroup, p_nextObj, p_enemies, 0
 
 // Weapon kinds
 const KIND_BOW          = 1;  byte[] kind_bow_str           = "bow(s)"

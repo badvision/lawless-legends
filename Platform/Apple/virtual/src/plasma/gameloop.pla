@@ -1495,6 +1495,7 @@ end
 //
 initHeap()
 addToList(global + p_players, new_Player_Hue_Hauser())
+addToList(global + p_enemyGroups, new_EnemyGroup_Dirt_Bags())
 loadTitle()
 setCallbacks()
 mapIs3D = OVERMAP_IS_3D

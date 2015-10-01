@@ -12,6 +12,7 @@ def addTypes()
   mmgr(HEAP_ADD_TYPE, @typeTbl_Armor)
   mmgr(HEAP_ADD_TYPE, @typeTbl_Stuff)
   mmgr(HEAP_ADD_TYPE, @typeTbl_Enemy)
+  mmgr(HEAP_ADD_TYPE, @typeTbl_EnemyGroup)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -41,6 +42,19 @@ def encodeDice(nDice, dieSize, add)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def rollDice(encoded)
+  byte i, nDice, dieSize, add, result
+  nDice = encoded >> 12
+  dieSize = (encoded >> 8) & $F
+  add = encoded & $F
+  result = 0
+  for i = 1 to nDice
+    result = result + (rand16() % dieSize) + 1
+  next
+  return result + add
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def new_Weapon_Handgun
   word p
   p = mmgr(HEAP_ALLOC, TYPE_WEAPON)
@@ -53,7 +67,7 @@ def new_Weapon_Handgun
   p->r_meleeDmg = encodeDice(1, 6, 0)  // 1d6
   p->r_projectileDmg = encodeDice(1, 6, 0)  // 1d6
   p->ba_attacks[0] = 1  // single attack
-  p->b_range = 40
+  p->b_weaponRange = 40
   p->s_combatText = mmgr(HEAP_INTERN, "shoots")
   return p
 end
@@ -106,3 +120,36 @@ def new_Player_Hue_Hauser
   // All done with the player.
   return p
 end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def new_Enemy_Dirt_Bag
+  word p
+  p = mmgr(HEAP_ALLOC, TYPE_ENEMY)
+  p=>s_name = mmgr(HEAP_INTERN, "Dirt-Bag(s)")
+  p=>w_health = rollDice(encodeDice(1, 6, 0))
+  p->b_attackType = 1 // melee
+  p->s_attackText = mmgr(HEAP_INTERN, "swings at")
+  p->b_enemyAttackRange = 5
+  p->b_chanceToHit = 15
+  p=>r_enemyDmg = encodeDice(1, 6, 0) // 1d6
+  p=>r_groupSize = encodeDice(1, 4, 0) // 1d4
+  return p
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def new_EnemyGroup_Dirt_Bags
+  word p, enem, groupSize
+  p = mmgr(HEAP_ALLOC, TYPE_ENEMY_GROUP)
+  enem = new_Enemy_Dirt_Bag()
+  p->b_enemyGroupRange = rollDice(enem=>r_initialRange)
+
+  groupSize = rollDice(enem=>r_groupSize)
+  addToList(p + p_enemies, enem)
+  while groupSize > 1
+    addToList(p + p_enemies, new_Enemy_Dirt_Bag())
+    groupSize = groupSize - 1
+  loop
+
+  return p
+end
+

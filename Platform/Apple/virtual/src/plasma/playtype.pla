@@ -1,0 +1,108 @@
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def addTypes()
+  mmgr(HEAP_ADD_TYPE, @typeTbl_Global)
+  global = mmgr(HEAP_ALLOC, TYPE_GLOBAL)
+
+  mmgr(HEAP_ADD_TYPE, @typeTbl_Player)
+  mmgr(HEAP_ADD_TYPE, @typeTbl_Item)
+  mmgr(HEAP_ADD_TYPE, @typeTbl_Modifier)
+  mmgr(HEAP_ADD_TYPE, @typeTbl_Effect)
+  mmgr(HEAP_ADD_TYPE, @typeTbl_Item)
+  mmgr(HEAP_ADD_TYPE, @typeTbl_Weapon)
+  mmgr(HEAP_ADD_TYPE, @typeTbl_Armor)
+  mmgr(HEAP_ADD_TYPE, @typeTbl_Stuff)
+  mmgr(HEAP_ADD_TYPE, @typeTbl_Enemy)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def new_Modifier(kind, value)
+  word p
+  p = mmgr(HEAP_ALLOC, TYPE_MODIFIER)
+  p->b_modKind = kind
+  p->b_modValue = value
+  return p
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def new_Armor_Chaps
+  word p
+  p = mmgr(HEAP_ALLOC, TYPE_ARMOR)
+  p=>s_name = mmgr(HEAP_INTERN, "Chaps")
+  p->b_itemKind = KIND_PANTS
+  p=>w_cost = -99 // for now
+  // no modifiers, max uses, etc. for now
+  p->b_armorValue = 2
+  return p
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def encodeDice(nDice, dieSize, add)
+  return (nDice << 12) | (dieSize << 8) | add
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def new_Weapon_Handgun
+  word p
+  p = mmgr(HEAP_ALLOC, TYPE_WEAPON)
+  p=>s_name = mmgr(HEAP_INTERN, "Handgun")
+  p->b_itemKind = KIND_HANDGUN
+  p=>w_cost = -99 // for now
+  // no modifiers, max uses, etc. for now
+  p->b_ammoKind = KIND_BULLET
+  p->b_clipSize = 6
+  p->r_meleeDmg = encodeDice(1, 6, 0)  // 1d6
+  p->r_projectileDmg = encodeDice(1, 6, 0)  // 1d6
+  p->ba_attacks[0] = 1  // single attack
+  p->b_range = 40
+  p->s_combatText = mmgr(HEAP_INTERN, "shoots")
+  return p
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def calcPlayerArmor(player)
+  word pItem
+  player->b_armor = 0
+  pItem = player=>p_items
+  while pItem
+    if pItem->t_type == TYPE_ARMOR
+      player->b_armor = player->b_armor + pItem->b_armorValue
+    fin
+    pItem = pItem=>p_nextObj
+  loop
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def new_Player_Hue_Hauser
+  word p, pItem
+  p = mmgr(HEAP_ALLOC, TYPE_PLAYER)
+  p=>s_name = mmgr(HEAP_INTERN, "Hue Hauser")
+  p->b_intelligence = 5
+  p->b_strength = 6
+  p->b_agility = 3
+  p->b_bravery = 6
+  p->b_stamina = 4
+  p->b_charisma = 7
+  p->b_spirit = 5
+
+  // Basic skills
+  p->b_aiming = 2
+  p->b_dodging = 3
+  p->b_wilderness = 5
+
+  // Skills
+  addToList(p + p_skills, new_Modifier(KIND_MINING, 0))
+  addToList(p + p_skills, new_Modifier(KIND_NATIVE_BOND, 0))
+  addToList(p + p_skills, new_Modifier(KIND_PYRE_WARE, 0))
+
+  // Items
+  addToList(p + p_items, new_Armor_Chaps())
+  addToList(p + p_items, new_Weapon_Handgun())
+
+  // Calculated attributes
+  calcPlayerArmor(p)
+
+  // (No buffs or debuffs to start with.)
+
+  // All done with the player.
+  return p
+end

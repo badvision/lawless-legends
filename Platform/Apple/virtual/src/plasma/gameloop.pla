@@ -79,8 +79,8 @@ const callbacks = $300
 const OVERMAP_NUM = 1
 const OVERMAP_IS_3D = 0
 
-//include "playtype_consts.plh"
-include "heaptest_consts.plh"
+include "playtype.plh"
+//include "heaptest.plh"
 
 word global  // the global heap object, from which all live objects must be reachable
 
@@ -1477,7 +1477,8 @@ def removeFromList(pList, toRemove)
   fin
 end
 
-include "heaptest_defs.plh"
+include "playtype.pla"
+//include "heaptest.pla"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set up the small-object heap
@@ -1493,7 +1494,7 @@ end
 // Main code.
 //
 initHeap()
-testHeap()
+addToList(global + p_players, new_Player_Hue_Hauser())
 loadTitle()
 setCallbacks()
 mapIs3D = OVERMAP_IS_3D

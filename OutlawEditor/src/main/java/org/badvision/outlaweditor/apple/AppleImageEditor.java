@@ -100,7 +100,12 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     public void setState(EnumMap oldState) {
         state.putAll(oldState);
         changeCurrentPattern((FillPattern) state.get(StateVars.PATTERN));
-        _setDrawMode((DrawMode) state.get(StateVars.DRAW_MODE));
+        DrawMode oldDrawMode = (DrawMode) state.get(StateVars.DRAW_MODE);
+        if (oldDrawMode != null) {
+            _setDrawMode(oldDrawMode);
+        } else {
+            state.put(StateVars.DRAW_MODE, currentDrawMode);
+        }
     }
     
     @Override

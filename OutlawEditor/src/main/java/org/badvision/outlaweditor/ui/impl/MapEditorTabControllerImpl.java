@@ -7,7 +7,6 @@
  * ANY KIND, either express or implied. See the License for the specific language 
  * governing permissions and limitations under the License.
  */
- 
 package org.badvision.outlaweditor.ui.impl;
 
 import java.util.HashMap;
@@ -25,7 +24,6 @@ import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
-import javafx.util.Callback;
 import javax.xml.bind.JAXBException;
 import org.badvision.outlaweditor.Application;
 import static org.badvision.outlaweditor.Application.currentPlatform;
@@ -121,11 +119,11 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
     public void onMapCreatePressed(ActionEvent event) {
         org.badvision.outlaweditor.data.xml.Map m = new org.badvision.outlaweditor.data.xml.Map();
         m.setName("Untitled");
-        gameData.getMap().add(m);
         m.setWidth(512);
         m.setHeight(512);
-        setCurrentMap(m);
+        gameData.getMap().add(m);
         rebuildMapSelectors();
+        setCurrentMap(m);
     }
 
     @Override
@@ -269,7 +267,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
 
     @Override
     public void setCurrentMap(Map m) {
-        if (getCurrentMap() != null && getCurrentMap().equals(m)) {
+        if (m != null && m.equals(getCurrentMap())) {
             return;
         }
         Tile currentTile = null;
@@ -329,10 +327,11 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
 
     @Override
     public void rebuildMapSelectors() {
+        Map m = mapSelect.getSelectionModel().getSelectedItem();
         mapSelect.getItems().clear();
         DataUtilities.sortMaps(Application.gameData.getMap());
         mapSelect.getItems().addAll(Application.gameData.getMap());
-        mapSelect.getSelectionModel().select(getCurrentMap());
+        mapSelect.getSelectionModel().select(m);
     }
 
     @Override
@@ -407,43 +406,34 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
         mapScriptsList.setOnEditStart((ListView.EditEvent<Script> event) -> {
             UIAction.editScript(event.getSource().getItems().get(event.getIndex()), getCurrentMap());
         });
-        mapScriptsList.setCellFactory(new Callback<ListView<Script>, ListCell<Script>>() {
+        mapScriptsList.setCellFactory((ListView<Script> param) -> new ListCell<Script>() {
             @Override
-            public ListCell<Script> call(ListView<Script> param) {
-                final ListCell<Script> cell = new ListCell<Script>() {
-
-                    @Override
-                    protected void updateItem(Script item, boolean empty) {
-                        super.updateItem(item, empty);
-                        if (empty || item == null) {
-                            setText("");
-                        } else {
-                            ImageView visibleIcon = getVisibleIcon(item);
-                            visibleIcon.setOnMouseClicked((e) -> {
-                                toggleVisibility(visibleIcon, item);
-                                mapScriptsList.getSelectionModel().clearSelection();
-                            });
-                            setGraphic(visibleIcon);
-                            getCurrentEditor().getCurrentMap().getScriptColor(item).ifPresent(this::setTextFill);
-                            setText(item.getName());
-                            setFont(Font.font(null, FontWeight.BOLD, 12.0));
-                            scriptDragDrop.registerDragSupport(this, item);
-                            visibleIcon.setMouseTransparent(false);
-                        }
-                    }
-                };
-                return cell;
+            protected void updateItem(Script item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText("");
+                } else {
+                    ImageView visibleIcon = getVisibleIcon(item);
+                    visibleIcon.setOnMouseClicked((e) -> {
+                        toggleVisibility(visibleIcon, item);
+                        mapScriptsList.getSelectionModel().clearSelection();
+                    });
+                    setGraphic(visibleIcon);
+                    getCurrentEditor().getCurrentMap().getScriptColor(item).ifPresent(this::setTextFill);
+                    setText(item.getName());
+                    setFont(Font.font(null, FontWeight.BOLD, 12.0));
+                    scriptDragDrop.registerDragSupport(this, item);
+                    visibleIcon.setMouseTransparent(false);
+                }
             }
         });
         if (getCurrentMap() == null) {
             mapScriptsList.getItems().clear();
+        } else if (mapScriptsList.getItems() != null && getCurrentMap().getScripts() != null) {
+            DataUtilities.sortNamedEntities(getCurrentMap().getScripts().getScript());
+            mapScriptsList.getItems().setAll(getCurrentMap().getScripts().getScript());
         } else {
-            if (mapScriptsList.getItems() != null && getCurrentMap().getScripts() != null) {
-                DataUtilities.sortNamedEntities(getCurrentMap().getScripts().getScript());
-                mapScriptsList.getItems().setAll(getCurrentMap().getScripts().getScript());
-            } else {
-                mapScriptsList.getItems().clear();
-            }
+            mapScriptsList.getItems().clear();
         }
     }
 

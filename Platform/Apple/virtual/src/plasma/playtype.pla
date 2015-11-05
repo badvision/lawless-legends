@@ -64,6 +64,7 @@ def new_Weapon_Handgun
   // no modifiers, max uses, etc. for now
   p->b_ammoKind = KIND_BULLET
   p->b_clipSize = 6
+  p->b_clipCurrent = p->b_clipSize
   p->r_meleeDmg = encodeDice(1, 6, 0)  // 1d6
   p->r_projectileDmg = encodeDice(1, 6, 0)  // 1d6
   p->ba_attacks[0] = 1  // single attack
@@ -97,6 +98,9 @@ def new_Player_Hue_Hauser
   p->b_stamina = 4
   p->b_charisma = 7
   p->b_spirit = 5
+
+  p->w_maxHealth = 12
+  p->w_health = 12
 
   // Basic skills
   p->b_aiming = 2

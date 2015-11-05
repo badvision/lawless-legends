@@ -20,3 +20,4 @@ ClearWindow	= SetWindow+3
 CopyWindow	= ClearWindow+3
 DisplayChar	= CopyWindow+3
 DisplayStr	= DisplayChar+3
+CalcWidth	= DisplayStr+3

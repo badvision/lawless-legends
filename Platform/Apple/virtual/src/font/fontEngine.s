@@ -92,6 +92,10 @@ DisplayChar	JMP DoPlAsc
 ;Display a string, with proper word wrapping
 DisplayStr	JMP DoParse	; API call address
 
+;Calculate width of a string without plotting it.
+;Does not do line breaking
+CalcWidth	JMP DoCWdth
+
 ;If you know which of the {0..110} bitmapped characters
 ;you want plotted, you can bypass testing for control 
 ;codes, making this a faster way to plot.
@@ -788,6 +792,39 @@ Pa_Dn4	LDY Pa_iSv
 	JMP Pa_Lp0
 ParsDn	!if DEBUG { +prChr '<' : +crout : BIT $C053 }
 	RTS
+;
+;Routine: Calculate width of string without plotting it
+DoCWdth	STA PrsAdrL
+	STY PrsAdrH
+	LDY #0  	;parse starting at beginning
+	STY TtlWdth
+	LDA (PrsAdrL),Y ;Get the length
+	STA Pa_Len
+	INY
+Cw_Lp	LDA (PrsAdrL),Y ;Get the character
+	STA AscChar
+	CPY Pa_Len	;reached end of string?
+	BCC Cw_Go
+	BEQ Cw_Go
+	LDA TtlWdth	;return width in A=lo/Y=hi
+	LDY #0
+	RTS
+Cw_Go	ORA #$80	;set hi bit for consistent tests
+	STA AscChar
+	STY Pa_iSv
+	LDX #1
+	STX NoPlt_Flg	;set NO PLOT flag
+	JSR TestChr 	;do plot routine to strip off Ctrl
+	LDX #0  	;codes & get char width
+	STX NoPlt_Flg 	;clear NO PLOT flag
+	LDA ChrWdth
+	BEQ Cw_Tskp
+	SEC  		;use SEC to always 'add 1'
+	ADC TtlWdth
+	STA TtlWdth
+Cw_Tskp	LDY Pa_iSv
+	INY
+	JMP Cw_Lp
 ;
 LinWdth	!byte 112 	;max line width
 TtlWdth	!byte $00 	;total word width

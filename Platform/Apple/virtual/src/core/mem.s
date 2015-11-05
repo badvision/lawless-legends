@@ -495,6 +495,7 @@ fatalError: !zone
 	stx pTmp	; ...and lo
 	jsr setnorm	; set up text mode and vectors
 	bit setText
+	bit page1
 	jsr setvid
 	jsr setkbd
 	lda $24		; check if we're already at start of screen line

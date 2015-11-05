@@ -11,7 +11,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Handy constants.
 const FALSE = 0
-const TRUE  = !FALSE
+const TRUE  = 1
 const NULL  = 0
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -71,13 +71,6 @@ const HEAP_COLLECT   = $24
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Other constants
 const callbacks = $300
-
-// 3D map start
-//const OVERMAP_NUM = 11
-//const OVERMAP_IS_3D = 1
-// 2D map start
-const OVERMAP_NUM = 1
-const OVERMAP_IS_3D = 0
 
 include "playtype.plh"
 //include "heaptest.plh"
@@ -773,7 +766,7 @@ def getUpperKey()
   byte key
   word oldSeed
   oldSeed = *seed  // for now, make the seed stay consistent, for randomized heap testing
-  key = rdkey()
+  key = rdkey() & $7F
   *seed = oldSeed
   if key >= $60
     key = key - $20
@@ -1498,10 +1491,10 @@ addToList(global + p_players, new_Player_Hue_Hauser())
 addToList(global + p_enemyGroups, new_EnemyGroup_Dirt_Bags())
 loadTitle()
 setCallbacks()
-mapIs3D = OVERMAP_IS_3D
-mapNum = OVERMAP_NUM
-initMap(6, 123, 12)  // per Seth. Need to have this in a script in the future
-checkScripts()
+// Start map/loc per Seth. Need to have this in a script in the futurecheckScripts()
+mapIs3D = 0
+mapNum = 1
+initMap(6, 123, 12)
 kbdLoop()
 
 done

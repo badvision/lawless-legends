@@ -134,6 +134,7 @@ DEBUG   = 0
 ; General use
 tmp         = $2
 pTmp        = $4
+ysav1       = $35
 
 ; 16-bit random number seed - incremented by ROM kbd routine
 seed        = $4E
@@ -183,6 +184,7 @@ asm render      // no params
         +asmPlasm 0
         jmp $6018
 end
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 asm pushAuxStr     // params: none; ret: $200 (inbuf)
         stx tmp     ; save PLASMA's X reg eval stack index
@@ -244,6 +246,34 @@ asm pushAuxStr     // params: none; ret: $200 (inbuf)
         sta evalStkL,x  ; return value lo (<$200)
         lda #2
         sta evalStkH,x  ; and hi (>$200)
+        rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+asm buildString
+        +asmPlasm 1
+        sta cswl
+        sty cswh
+        lda #0
+        sta inbuf
+        rts
+end
+
+asm addToString
+        sty ysav1
+        inc inbuf
+        ldy inbuf
+        sta inbuf,y
+        ldy ysav1
+        rts
+end
+
+asm finishString
+        +asmPlasm 0
+        jsr setvid
+        lda #<inbuf
+        ldy #>inbuf
+        ldx inbuf
         rts
 end
 
@@ -748,6 +778,17 @@ def printf1(str, arg1); printf4(str, arg1, 0, 0, 0); end
 def printf2(str, arg1, arg2); printf4(str, arg1, arg2, 0, 0); end
 def printf3(str, arg1, arg2, arg3); printf4(str, arg1, arg2, arg3, 0); end
 
+// Like printf, but displays text using font engine
+def displayf4(str, arg1, arg2, arg3, arg4)
+  buildString(@addToString)
+  printf4(str, arg1, arg2, arg3, arg4)
+  displayStr(finishString())
+end
+
+def displayf1(str, arg1); displayf4(str, arg1, 0, 0, 0); end
+def displayf2(str, arg1, arg2); displayf4(str, arg1, arg2, 0, 0); end
+def displayf3(str, arg1, arg2, arg3); displayf4(str, arg1, arg2, arg3, 0); end
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def parseDec(str)
   word n
@@ -901,13 +942,10 @@ def displayPlayerData(player)
   word pi
 
   // Display the player's name and health
-  printf1("player=$%x\n", player)
   rawDisplayStr(player=>s_name)
-  puts("Going to show health\n")
   rightJustifyNum(player=>w_health, CHAR_WND_LIFE_X)
 
   // Locate the first weapon, and display it's clip
-  puts("Going to show items\n")
   pi = player=>p_items
   while pi and pi->t_type <> TYPE_WEAPON; pi = pi=>p_nextObj; loop
   if pi
@@ -1379,7 +1417,77 @@ end
 // Test out portrait drawing
 def testPortrait()
   setPortrait(portraitNum)
+  printf1("portraitNum=%d\n", portraitNum)
   portraitNum = portraitNum + 1
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def countList(p)
+  word n
+  n = 0
+  while p
+    n = n+1
+    p = p=>p_nextObj
+  loop
+  return n
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Call like this: addToList(player + items, itemToAdd)
+def addToList(addTo, p)
+  p=>p_nextObj = *addTo
+  *addTo = p
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Call like this: removeFromList(player + items, itemToRemove)
+def removeFromList(pList, toRemove)
+  word p
+
+  p = *pList
+  while p and p <> toRemove
+    pList = p + p_nextObj
+    p = *pList
+  loop
+
+  if p
+    *pList = p=>p_nextObj
+    p=>p_nextObj = NULL
+  else
+    fatal("InvalUnlink")
+  fin
+end
+
+include "playtype.pla"
+//include "heaptest.pla"
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def combat()
+  word p, p2
+
+  // Create the enemy group(s).
+  global=>p_enemyGroups = NULL
+  addToList(global + p_enemyGroups, new_EnemyGroup_Dirt_Bags())
+
+  // Display portrait of first group
+  printf1("enemy: $%x\n", global=>p_enemyGroups=>p_enemies)
+  printf1("portrait: %d\n", global=>p_enemyGroups=>p_enemies=>ba_images[0])
+  setPortrait(global=>p_enemyGroups=>p_enemies=>ba_images[0])
+
+  // Say who we're fighting
+  setWindow2()
+  clearWindow()
+  displayStr("Uh oh, it's gunna' be one of THOSE days.\n")
+  p = global=>p_enemyGroups
+  while p
+    displayf2("%d %s draw their weapons on you!\n", countList(p=>p_enemies), p=>p_enemies=>s_name)
+    p = p=>p_nextObj
+  loop
+
+  // You mean the monsters? That will be first seen when combat starts. The player will be walking around minding their own business when all of the sudden...the disk
+  // drive lights up then the portrait pops up  and text says "Uh Oh, it's gunna' be one of THOSE days! 6 Shitkickers draw their weapons on you! 
+  // Do you: F) Fight R)Run
+  // YEah after each round...if you kill one, the next round says you face 5 shitkickers fight or run
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1396,6 +1504,7 @@ def initCmds()
   initCmd('T', @kbdTeleport)
   initCmd('P', @showPos)
   initCmd('/', @testPortrait)
+  initCmd('!', @combat)
 
   // Commands handled differently in 3D vs 2D
   if mapIs3D
@@ -1520,35 +1629,6 @@ def setCallbacks()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Call like this: addToList(player + items, itemToAdd)
-def addToList(addTo, p)
-  p=>p_nextObj = *addTo
-  *addTo = p
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Call like this: removeFromList(player + items, itemToRemove)
-def removeFromList(pList, toRemove)
-  word p
-
-  p = *pList
-  while p and p <> toRemove
-    pList = p + p_nextObj
-    p = *pList
-  loop
-
-  if p
-    *pList = p=>p_nextObj
-    p=>p_nextObj = NULL
-  else
-    fatal("InvalUnlink")
-  fin
-end
-
-include "playtype.pla"
-//include "heaptest.pla"
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set up the small-object heap
 def initHeap()
   mmgr(SET_MEM_TARGET, heapStart)
@@ -1563,7 +1643,6 @@ end
 //
 initHeap()
 addToList(global + p_players, new_Player_Hue_Hauser())
-addToList(global + p_enemyGroups, new_EnemyGroup_Dirt_Bags())
 loadTitle()
 setCallbacks()
 // Start map/loc per Seth. Need to have this in a script in the futurecheckScripts()

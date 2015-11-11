@@ -17,6 +17,10 @@ zpTempStart	= $2                ; 0 and 1 are reserved on c64
 zpTempEnd	= $1F
 
 ; Zero page monitor locations
+cswl		= $36
+cswh		= $37
+kswl		= $38
+kswh		= $39
 a2l		= $3E
 a2h		= $3F
 

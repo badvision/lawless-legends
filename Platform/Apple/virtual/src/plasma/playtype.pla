@@ -131,6 +131,7 @@ def new_Enemy_Dirt_Bag
   p = mmgr(HEAP_ALLOC, TYPE_ENEMY)
   p=>s_name = mmgr(HEAP_INTERN, "Dirt-Bag(s)")
   p=>w_health = rollDice(encodeDice(1, 6, 0))
+  p->ba_images[0] = 32  // Gunman5
   p->b_attackType = 1 // melee
   p->s_attackText = mmgr(HEAP_INTERN, "swings at")
   p->b_enemyAttackRange = 5

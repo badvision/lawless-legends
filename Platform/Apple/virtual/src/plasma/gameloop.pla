@@ -1566,10 +1566,23 @@ def combat()
     p = p=>p_nextObj
   loop
 
-  // You mean the monsters? That will be first seen when combat starts. The player will be walking around minding their own business when all of the sudden...the disk
-  // drive lights up then the portrait pops up  and text says "Uh Oh, it's gunna' be one of THOSE days! 6 Shitkickers draw their weapons on you! 
-  // Do you: F) Fight R)Run
-  // YEah after each round...if you kill one, the next round says you face 5 shitkickers fight or run
+  displayStr("Do you: F)ight or R)un?")
+  while TRUE
+    n = getUpperKey()
+    if n == 'F'
+      clearWindow()
+      displayStr("Fight!")
+      break
+    elsif n == 'R'
+      clearWindow()
+      displayStr("Coward.")
+      textDrawn = TRUE
+      needRender = TRUE
+      break
+    fin
+    beep()
+  loop
+
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

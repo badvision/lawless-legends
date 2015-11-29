@@ -1545,7 +1545,19 @@ def combat()
   // Say who we're fighting
   setWindow2()
   clearWindow()
-  displayStr("Uh oh, it's gunna' be one of THOSE days.\n")
+  when rand16() % 5
+    is 0
+      s = "Uh oh, it's gunna' be one of THOSE days.\n"; break
+    is 1
+      s = "Smells like trouble!\n"; break
+    is 2
+      s = "The hairs on the back of your neck reach for the sky!\n"; break
+    is 3
+      s = "You've got a bad feeling about this...\n"; break
+    otherwise
+      s = "Momma said there'd be days like this!\n"; break
+  wend
+  displayStr(s)
   p = global=>p_enemyGroups
   while p
     n = countList(p=>p_enemies)

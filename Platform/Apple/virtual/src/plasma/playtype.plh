@@ -6,6 +6,7 @@ struc Global
   byte t_type
   word p_players
   word p_enemyGroups
+  word p_combatFirst
 end
 byte typeTbl_Global[] = Global, p_players, p_enemyGroups, 0
 
@@ -14,6 +15,9 @@ struc Player
   byte t_type
   word p_nextObj
   word s_name
+  byte b_combatOrder
+  word p_combatNext
+  word w_health
 
   // Innate attributes
   byte b_intelligence
@@ -33,7 +37,6 @@ struc Player
   byte b_wilderness
 
   // Status
-  word w_health
   word w_maxHealth
 
   // Lists
@@ -142,8 +145,11 @@ struc Enemy
   byte t_type
   word p_nextObj
   word s_name
-  byte ba_images[2]
+  byte b_combatOrder
+  word p_combatNext
   word w_health
+
+  byte ba_images[2]
   byte b_hitBonus
   byte b_attackType   // 1=melee, 2=projectile
   word s_attackText

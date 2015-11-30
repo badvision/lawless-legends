@@ -658,7 +658,8 @@ asm setFont
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Use the font engine to clear the current text window
+// Use the font engine to clear the current text window.
+// Parameters: top, bottom, left, right
 asm setWindow
   +asmPlasm 4
   bit setLcRW+lcBank2
@@ -968,29 +969,29 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the map name bar
 def setWindow1()
-  setWindow(8, 18, 35, 119)
+  setWindow(8, 18, 35, 119) // Top, Bottom, Left, Right
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the large upper right bar
 def setWindow2()
-  setWindow(24, 136, 154, 269)
-  displayChar('N'-$40) // Set normal mode - clear all special modes
+  displayChar('N'-$40) // Set normal mode - clear all special modes (like underline, etc.)
+  setWindow(24, 132, 154, 269) // Top, Bottom, Left, Right
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the mid-size lower right bar
 def setWindow3()
-  setWindow(144, 184, 154, 269)
+  setWindow(144, 184, 154, 269) // Top, Bottom, Left, Right
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the map area (used for clearing it)
 def setMapWindow()
   if mapIs3D
-    setWindow(24, 153, 14, 140)
+    setWindow(24, 153, 14, 140) // Top, Bottom, Left, Right
   else
-    setWindow(24, 169, 14, 140)
+    setWindow(24, 169, 14, 140) // Top, Bottom, Left, Right
   fin
 end
 

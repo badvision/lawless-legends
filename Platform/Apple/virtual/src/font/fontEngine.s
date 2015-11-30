@@ -605,14 +605,14 @@ ScrLp1	LDX zTmp3
 	JSR GetBasX	;Get base address, again
 	LDY LfMrgn
 ScrLp2	LDA (GBasL),Y	;copy the pixels from down screen
-	STA (zTmp1),Y	;to 8 lines up
+	STA (zTmp1),Y	;to 9 lines up
 	INY
 	CPY RtMrgn	;do from left margin to right margin
 	BNE ScrLp2
 	CPX BtMrgn	;keep looping until all the way to
 	BNE ScrLp1	;the bottom margin.
 
-	LDX zTmp3	;Clear the last 8 pixel lines
+	LDX zTmp3	;Clear the last 9 pixel lines
 ScrLp3	INX  		;so a new text line can be plotted
 	JSR ClrChkF	;Check background color
 	BEQ ScrClbw	;then clear the bottom txt row
@@ -643,7 +643,8 @@ ClrSlp2	STA (GBasL),Y
 	BNE ClrSlp2
 	INX
 	CPX BtMrgn
-	BNE ClrSlp1
+	BCC ClrSlp1	;loop while less than
+	BEQ ClrSlp1	;...or equal
 	RTS
 
 ClrColr	LDA BkgColor

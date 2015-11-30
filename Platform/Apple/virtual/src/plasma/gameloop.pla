@@ -763,7 +763,7 @@ asm rand16
   bcc .noEor
  
 .doEor:
-  ; high byte is in .A
+  ; high byte is in A
   eor #>magic
   sta seed+1
   tay        ; for asmPlasm, return hi byte in Y, lo byte in A
@@ -982,7 +982,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the mid-size lower right bar
 def setWindow3()
-  setWindow(144, 184, 154, 269) // Top, Bottom, Left, Right
+  setWindow(144, 180, 154, 269) // Top, Bottom, Left, Right
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1579,11 +1579,14 @@ def playerMelee(pPlayer, pWeapon)
   pEnemy=>w_health = pEnemy=>w_health - dmg
 
   isPlural = FALSE
-  displayf3("%s pummels %s for %d damage.\n", pPlayer=>s_name, pEnemy=>s_name, dmg)
-  if pEnemy=>w_health < 0
-    displayf1("%s is killed!\n", pEnemy=>s_name)
+  buildString(@addToString)
+  printf3("%s pummels %s for %d damage.", pPlayer=>s_name, pEnemy=>s_name, dmg)
+  if pEnemy=>w_health <= 0
+    printf1(" %s is killed!", pEnemy=>s_name)
     nEnemiesFighting = nEnemiesFighting - 1
   fin
+  puts("\n")
+  displayStr(finishString(0))
 
   return TRUE
 end
@@ -1599,13 +1602,15 @@ def playerShoot(pPlayer, pWeapon)
   // TODO: Add extra melee damage for skills, strength, etc.
   // TODO: consider enemy dodge
   pEnemy=>w_health = pEnemy=>w_health - dmg
-  
-  isPlural = FALSE
-  displayf3("%s shoots %s for %d damage.\n", pPlayer=>s_name, pEnemy=>s_name, dmg)
-  if pEnemy=>w_health < 0
-    displayf1("%s is killed!\n", pEnemy=>s_name)
+
+  buildString(@addToString)
+  printf3("%s shoots %s for %d damage.", pPlayer=>s_name, pEnemy=>s_name, dmg)
+  if pEnemy=>w_health <= 0
+    printf1(" %s is killed!", pEnemy=>s_name)
     nEnemiesFighting = nEnemiesFighting - 1
   fin
+  puts("\n")
+  displayStr(finishString(0))
 
   return TRUE
 end
@@ -1669,14 +1674,17 @@ def playerCombatTurn(pl)
 
   while TRUE
     key = getUpperKey()
-    if key == 'M' and playerMelee(pl, pWeapon)
+    if key == 'M'
+      if playerMelee(pl, pWeapon); return; fin
       break
     elsif key == 'F'
       isFleeing = TRUE
       return
-    elsif key == 'D' and playerDodge(pl)
+    elsif key == 'D'
+      if playerDodge(pl); return; fin
       break
-    elsif key == 'S' and canShoot and playerShoot(pl, pWeapon)
+    elsif key == 'S' and canShoot
+      if playerShoot(pl, pWeapon); return; fin
       break
     elsif key == 'R' and canReload
       pWeapon->b_clipCurrent = pWeapon->b_clipSize
@@ -1753,6 +1761,9 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def startCombat()
   word p, p2, n, s
+
+  // Setup
+  isFleeing = FALSE
 
   // Create the enemy group(s).
   global=>p_enemyGroups = NULL

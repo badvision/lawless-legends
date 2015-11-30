@@ -36,7 +36,7 @@ def new_Armor_Chaps
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def encodeDice(nDice, dieSize, add)
+def encodeDice(nDice, dieSize, add)  // ndice=0..15, dieSize=0..15, add=0..255
   return (nDice << 12) | (dieSize << 8) | add
 end
 
@@ -46,11 +46,12 @@ def rollDice(encoded)
   nDice = encoded >> 12
   dieSize = (encoded >> 8) & $F
   add = encoded & $F
-  result = 0
+  result = add
   for i = 1 to nDice
-    result = result + (rand16() % dieSize) + 1
+    add = (rand16() % dieSize) + 1
+    result = result + add
   next
-  return result + add
+  return result
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -137,6 +138,7 @@ def new_Enemy_Dirt_Bag
   p->b_chanceToHit = 15
   p=>r_enemyDmg = encodeDice(1, 6, 0) // 1d6
   p=>r_groupSize = encodeDice(1, 4, 0) // 1d4
+  p=>r_initialRange = encodeDice(2, 10, 0)
   return p
 end
 

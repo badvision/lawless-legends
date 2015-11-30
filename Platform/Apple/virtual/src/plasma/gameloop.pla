@@ -1638,7 +1638,6 @@ def playerCombatTurn(pl)
   loop
 
   // Let them know their options
-  printf3("pWeapon=$%x name=$%x '%s'\n", pWeapon, pWeapon=>s_name, pWeapon=>s_name)
   buildString(@addToString)
   printf1("%s, your turn.\n\nWeapon: ", pl=>s_name)
   if pWeapon
@@ -1748,19 +1747,6 @@ def determineCombatOrder()
     loop
     p = p=>p_nextObj
   loop
-
-  // For debuggging, print out the order
-  printf2("nPlayersFighting=%d nEnemiesFighting=%d.\nCombat order:\n", nPlayersFighting, nEnemiesFighting)
-  p = global=>p_combatFirst
-  while p
-    printf2("  %s (n=%d)\n", p=>s_name, p->b_combatOrder)
-    p = p=>p_combatNext
-  loop
-
-  // FIXME: for debugging only
-  ^$C051
-  getUpperKey()
-  ^$C050
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

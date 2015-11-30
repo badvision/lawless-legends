@@ -8,7 +8,7 @@ struc Global
   word p_enemyGroups
   word p_combatFirst
 end
-byte typeTbl_Global[] = Global, p_players, p_enemyGroups, 0
+byte typeTbl_Global[] = Global, p_players, p_enemyGroups, p_combatFirst, 0
 
 const TYPE_PLAYER = $81
 struc Player
@@ -45,7 +45,7 @@ struc Player
   word p_buffs   // list:Effect
   word p_debuffs // list:Effect
 end
-byte typeTbl_Player[] = Player, p_nextObj, s_name, p_skills, p_items, p_buffs, p_debuffs, 0
+byte typeTbl_Player[] = Player, p_nextObj, s_name, p_combatNext, p_skills, p_items, p_buffs, p_debuffs, 0
 
 // Combat skills, weapon modifiers, etc.
 const TYPE_MODIFIER = $82
@@ -108,7 +108,7 @@ struc Weapon
 end
 byte typeTbl_Weapon[] = Weapon, p_nextObj, s_name, p_modifiers, s_combatText, 0
 
-const TYPE_ARMOR = $87
+const TYPE_ARMOR = $86
 struc Armor
   // General item properties
   byte t_type
@@ -126,7 +126,7 @@ end
 byte typeTbl_Armor[] = Armor, p_nextObj, s_name, p_modifiers, 0
 
 // Countable things, e.g. ammo and pelts
-const TYPE_STUFF = $88
+const TYPE_STUFF = $87
 struc Stuff
   // General item properties
   byte t_type
@@ -140,7 +140,7 @@ struc Stuff
 end
 byte typeTbl_Stuff[] = Stuff, p_nextObj, s_name, 0
 
-const TYPE_ENEMY = $89
+const TYPE_ENEMY = $88
 struc Enemy
   byte t_type
   word p_nextObj
@@ -159,9 +159,9 @@ struc Enemy
   word r_groupSize    // number encountered, as 3 hex digits for dice
   word r_initialRange
 end
-byte typeTbl_Enemy[] = Enemy, p_nextObj, s_name, s_attackText, 0
+byte typeTbl_Enemy[] = Enemy, p_nextObj, s_name, p_combatNext, s_attackText, 0
 
-const TYPE_ENEMY_GROUP = $8A
+const TYPE_ENEMY_GROUP = $89
 struc EnemyGroup
   byte t_type
   word p_nextObj

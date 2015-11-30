@@ -1,10 +1,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def addTypes()
   mmgr(HEAP_ADD_TYPE, @typeTbl_Global)
-  global = mmgr(HEAP_ALLOC, TYPE_GLOBAL)
-
   mmgr(HEAP_ADD_TYPE, @typeTbl_Player)
-  mmgr(HEAP_ADD_TYPE, @typeTbl_Item)
   mmgr(HEAP_ADD_TYPE, @typeTbl_Modifier)
   mmgr(HEAP_ADD_TYPE, @typeTbl_Effect)
   mmgr(HEAP_ADD_TYPE, @typeTbl_Item)
@@ -13,6 +10,8 @@ def addTypes()
   mmgr(HEAP_ADD_TYPE, @typeTbl_Stuff)
   mmgr(HEAP_ADD_TYPE, @typeTbl_Enemy)
   mmgr(HEAP_ADD_TYPE, @typeTbl_EnemyGroup)
+
+  global = mmgr(HEAP_ALLOC, TYPE_GLOBAL)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -65,11 +64,11 @@ def new_Weapon_Handgun
   p->b_ammoKind = KIND_BULLET
   p->b_clipSize = 6
   p->b_clipCurrent = p->b_clipSize
-  p->r_meleeDmg = encodeDice(1, 6, 0)  // 1d6
-  p->r_projectileDmg = encodeDice(1, 6, 0)  // 1d6
+  p=>r_meleeDmg = encodeDice(1, 6, 0)  // 1d6
+  p=>r_projectileDmg = encodeDice(1, 6, 0)  // 1d6
   p->ba_attacks[0] = 1  // single attack
   p->b_weaponRange = 40
-  p->s_combatText = mmgr(HEAP_INTERN, "shoots")
+  p=>s_combatText = mmgr(HEAP_INTERN, "shoots")
   return p
 end
 
@@ -99,8 +98,8 @@ def new_Player_Hue_Hauser
   p->b_charisma = 7
   p->b_spirit = 5
 
-  p->w_maxHealth = 12
-  p->w_health = 12
+  p=>w_maxHealth = 12
+  p=>w_health = 12
 
   // Basic skills
   p->b_aiming = 2
@@ -133,7 +132,7 @@ def new_Enemy_Dirt_Bag
   p=>w_health = rollDice(encodeDice(1, 6, 0))
   p->ba_images[0] = 32  // Gunman5
   p->b_attackType = 1 // melee
-  p->s_attackText = mmgr(HEAP_INTERN, "swings at")
+  p=>s_attackText = mmgr(HEAP_INTERN, "swings at")
   p->b_enemyAttackRange = 5
   p->b_chanceToHit = 15
   p=>r_enemyDmg = encodeDice(1, 6, 0) // 1d6

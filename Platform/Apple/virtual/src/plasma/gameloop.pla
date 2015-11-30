@@ -119,6 +119,7 @@ byte isPlural
 // Combat variables that don't need to be saved in game state
 byte nPlayersFighting
 byte nEnemiesFighting
+byte isFleeing
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -1546,15 +1547,153 @@ def enemyCanFight(p)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def chooseEnemy(maxDist)
+  word p
+  byte n
+  
+  // TODO: Consider distance of enemies
+  n = rand16() % nEnemiesFighting
+  p = global=>p_combatFirst
+  while TRUE
+    if p->t_type == TYPE_ENEMY and enemyCanFight(p)
+      if n == 0; return p; fin
+      n = n - 1
+    fin
+    p = p=>p_combatNext
+  loop
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def playerMelee(pPlayer, pWeapon)
+  word pEnemy, dmg
+  pEnemy = chooseEnemy(5)  // max distance 5 feet for melee
+  if !pEnemy; return FALSE; fin
+  if pWeapon
+    dmg = rollDice(pWeapon=>r_meleeDmg)
+  else
+    dmg = (rand16() % 6) + 1   // default to 1d6 for fists
+  fin
+  // TODO: Add extra melee damage for skills, strength, etc.
+  // TODO: consider enemy dodge
+  pEnemy=>w_health = pEnemy=>w_health - dmg
+
+  isPlural = FALSE
+  displayf3("%s pummels %s for %d damage.\n", pPlayer=>s_name, pEnemy=>s_name, dmg)
+  if pEnemy=>w_health < 0
+    displayf1("%s is killed!\n", pEnemy=>s_name)
+    nEnemiesFighting = nEnemiesFighting - 1
+  fin
+
+  return TRUE
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def playerShoot(pPlayer, pWeapon)
+  word pEnemy, dmg
+  pEnemy = chooseEnemy(pWeapon->b_weaponRange)
+  if !pEnemy; return FALSE; fin
+
+  // TODO: consider multi-shot weapons
+  dmg = rollDice(pWeapon=>r_projectileDmg)
+  // TODO: Add extra melee damage for skills, strength, etc.
+  // TODO: consider enemy dodge
+  pEnemy=>w_health = pEnemy=>w_health - dmg
+  
+  isPlural = FALSE
+  displayf3("%s shoots %s for %d damage.\n", pPlayer=>s_name, pEnemy=>s_name, dmg)
+  if pEnemy=>w_health < 0
+    displayf1("%s is killed!\n", pEnemy=>s_name)
+    nEnemiesFighting = nEnemiesFighting - 1
+  fin
+
+  return TRUE
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def playerDodge(pPlayer)
+  displayStr("TODO: player dodge.\n")
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def chooseWeapon(player)
+  displayStr("TODO: choose weapon\n")
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def playerCombatTurn(pl)
-  displayf1("Player turn: %s\n", pl=>s_name)
-  getUpperKey()
+  word p, pWeapon
+  byte key, nWeapons
+  byte canShoot, canReload, canChange
+
+  // Count weapons, and take the first as the current one.
+  nWeapons = 0
+  pWeapon = NULL
+  p = pl=>p_items
+  while p
+    if p->t_type == TYPE_WEAPON
+      if !pWeapon; pWeapon = p; fin
+      nWeapons = nWeapons + 1
+    fin
+    p = p=>p_nextObj
+  loop
+
+  // Let them know their options
+  printf3("pWeapon=$%x name=$%x '%s'\n", pWeapon, pWeapon=>s_name, pWeapon=>s_name)
+  buildString(@addToString)
+  printf1("%s, your turn.\n\nWeapon: ", pl=>s_name)
+  if pWeapon
+    printf2("%s.\nLoaded: %d\n", pWeapon=>s_name, pWeapon->b_clipCurrent)
+    // TODO: display avail ammo as well
+  else
+    puts("none.\n")
+  fin
+
+  puts("\nOptions: M)elee")
+  if pWeapon
+    if pWeapon->b_clipCurrent
+      canShoot = TRUE
+      puts(", S)hoot")
+    fin
+    if pWeapon->b_clipCurrent < pWeapon->b_clipSize
+      // TODO: Need to check for enough ammo, and use it up.
+      canReload = TRUE
+      puts(", R)eload")
+    fin
+    if nWeapons >= 2
+      canChange = TRUE
+      puts(", C)hange weapon")
+    fin
+  fin
+  puts(", D)odge, F)lee.\n")
+  displayStr(finishString(0))
+
+  while TRUE
+    key = getUpperKey()
+    if key == 'M' and playerMelee(pl, pWeapon)
+      break
+    elsif key == 'F'
+      isFleeing = TRUE
+      return
+    elsif key == 'D' and playerDodge(pl)
+      break
+    elsif key == 'S' and canShoot and playerShoot(pl, pWeapon)
+      break
+    elsif key == 'R' and canReload
+      pWeapon->b_clipCurrent = pWeapon->b_clipSize
+      displayStr("Reloaded.")
+      break
+    elsif key == 'C' and canChange
+      chooseWeapon(pl)
+      break
+    fin
+    beep()
+  loop
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def enemyCombatTurn(pe)
-  displayf1("Enemy turn: %s\n", pe=>s_name)
-  getUpperKey()
+  isPlural = FALSE
+  displayf1("TODO: Enemy turn for %s\n", pe=>s_name)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1633,7 +1772,7 @@ def startCombat()
   addToList(global + p_enemyGroups, new_EnemyGroup_Dirt_Bags())
 
   // Display portrait of first group
-  setPortrait(global=>p_enemyGroups=>p_enemies=>ba_images[0])
+  setPortrait(global=>p_enemyGroups=>p_enemies->ba_images[0])
 
   // We're going to do all our text drawing in window 2. Also, might as well
   // set everything up so that the map gets redrawn when combat finishes.
@@ -1681,7 +1820,7 @@ def startCombat()
     n = getUpperKey()
     if n == 'F'
       clearWindow()
-      displayStr("Fight!")
+      displayStr("Fight!\n")
       return TRUE
     elsif n == 'R'
       clearWindow()
@@ -1700,19 +1839,23 @@ def doCombat()
   // Show portrait and threat details, find out if player wants to fight (vs. run)
   if !startCombat(); return; fin
 
-  // Do each round of combat until player wins or loses.
+  // Do each round of combat until player wins, loses, or flees
   while TRUE
     determineCombatOrder()
     p = global=>p_combatFirst
     while p
-      clearWindow()
+      displayStr("\n")
       if !nPlayersFighting
         displayStr("You lost.")
         return
       elsif !nEnemiesFighting
         displayStr("You won!")
         return
+      elsif isFleeing
+        displayStr("You have fled.")
+        return
       fin
+
       when p->t_type
         is TYPE_PLAYER
           playerCombatTurn(p); break

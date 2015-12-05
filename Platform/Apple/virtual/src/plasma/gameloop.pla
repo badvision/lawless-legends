@@ -1509,6 +1509,19 @@ def countList(p)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def countListFiltered(p, offset, filterFunc)
+  word n
+  n = 0
+  while p
+    if filterFunc(p)
+      n = n+1
+    fin
+    p = *(p + offset)
+  loop
+  return n
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Call like this: addToList(player + items, itemToAdd)
 def addToList(addTo, p)
   p=>p_nextObj = *addTo
@@ -1538,12 +1551,7 @@ include "playtype.pla"
 //include "heaptest.pla"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def playerCanFight(p)
-  return p=>w_health > 0
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def enemyCanFight(p)
+def canFight(p)
   return p=>w_health > 0
 end
 
@@ -1556,7 +1564,7 @@ def chooseEnemy(maxDist)
   n = rand16() % nEnemiesFighting
   p = global=>p_combatFirst
   while TRUE
-    if p->t_type == TYPE_ENEMY and enemyCanFight(p)
+    if p->t_type == TYPE_ENEMY and canFight(p)
       if n == 0; return p; fin
       n = n - 1
     fin
@@ -1626,10 +1634,55 @@ def chooseWeapon(player)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def combatPause()
+  word n
+  for n = 1 to 2000
+  next
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def displayOpponents()
+  word p
+  byte count, first
+
+  buildString(@addToString)
+  puts("You face ")
+  first = TRUE
+  p = global=>p_enemyGroups
+  while p
+    if !first
+      if p=>p_nextObj
+        puts(", ")
+      else
+        puts(" and ")
+      fin
+    fin
+    first = FALSE
+    count = countListFiltered(p=>p_enemies, p_nextObj, @canFight)
+    isPlural = (count <> 1)
+    printf3("%d %s at %d'", count, p=>p_enemies=>s_name, p->b_enemyGroupRange)
+    p = p=>p_nextObj
+  loop
+  puts(".\n")
+  displayStr(finishString(isPlural))
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def displayOption(key, str)
+  buildString(@addToString)
+  printf2("  (%c)^T033%s\n", key, str)
+  rawDisplayStr(finishString(0))
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def playerCombatTurn(pl)
   word p, pWeapon
-  byte key, nWeapons
+  byte nWeapons, key
   byte canShoot, canReload, canChange
+
+  // Tell what the player currently faces
+  displayOpponents()
+  combatPause()
 
   // Count weapons, and take the first as the current one.
   nWeapons = 0
@@ -1644,36 +1697,43 @@ def playerCombatTurn(pl)
   loop
 
   // Let them know their options
-  buildString(@addToString)
-  printf1("%s, your turn.\n\nWeapon: ", pl=>s_name)
-  if pWeapon
-    printf2("%s.\nLoaded: %d\n", pWeapon=>s_name, pWeapon->b_clipCurrent)
-    // TODO: display avail ammo as well
-  else
-    puts("none.\n")
-  fin
+  displayStr("\n")
+  when rand16() % 5
+    is 0
+      displayStr("Think fast!"); break
+    is 1
+      displayStr("Do you:"); break
+    is 2
+      displayStr("Suck it up:"); break
+    is 3
+      displayStr("Options:"); break
+    otherwise
+      displayStr("Decisions, decisions..."); break
+  wend
+  displayStr("\n")
 
-  puts("\nOptions: M)elee")
+  displayOption('M', "Melee")
   if pWeapon
     if pWeapon->b_clipCurrent
       canShoot = TRUE
-      puts(", S)hoot")
+      displayOption('S', "Shoot")
     fin
     if pWeapon->b_clipCurrent < pWeapon->b_clipSize
       // TODO: Need to check for enough ammo, and use it up.
       canReload = TRUE
-      puts(", R)eload")
+      displayOption('R', "Reload")
     fin
     if nWeapons >= 2
       canChange = TRUE
-      puts(", C)hange weapon")
+      displayOption('C', "Change weapon")
     fin
   fin
-  puts(", D)odge, F)lee.\n")
-  displayStr(finishString(0))
+  displayOption('D', "Dodge")
+  displayOption('F', "Flee")
 
   while TRUE
     key = getUpperKey()
+    displayStr("\n")
     if key == 'M'
       if playerMelee(pl, pWeapon); return; fin
       break
@@ -1700,8 +1760,12 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def enemyCombatTurn(pe)
+  if !canFight(pe)
+    return
+  fin
   isPlural = FALSE
   displayf1("TODO: Enemy turn for %s\n", pe=>s_name)
+  combatPause()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1734,7 +1798,7 @@ def determineCombatOrder()
   global=>p_combatFirst = NULL
   p = global=>p_players
   while p
-    if playerCanFight(p)
+    if canFight(p)
       p->b_combatOrder = rand16() % (p->b_agility * 10)
       combatInsert(p)
       nPlayersFighting = nPlayersFighting + 1
@@ -1747,7 +1811,7 @@ def determineCombatOrder()
   while p
     p2 = p=>p_enemies
     while p2
-      if enemyCanFight(p2)
+      if canFight(p2)
         p2->b_combatOrder = rand16() % p2->b_chanceToHit
         combatInsert(p2)
         nEnemiesFighting = nEnemiesFighting + 1
@@ -1813,7 +1877,9 @@ def startCombat()
     p = p=>p_nextObj
   loop
 
-  displayStr("Do you: F)ight or R)un?")
+  rawDisplayStr("\nDo you:\n")
+  displayOption('F', "Fight")
+  displayOption('R', "Run")
   while TRUE
     n = getUpperKey()
     if n == 'F'
@@ -1845,9 +1911,17 @@ def doCombat()
       displayStr("\n")
       if !nPlayersFighting
         displayStr("You lost.")
+//Lose: You bought the farm, with your life! Thank's for playing! Relead last save ? Y/N
+//Lose: Didn't see that coming...to see a fine player like you slaughtered like a common rodent...Well, let's reload and try that again, ok? Y/N
         return
       elsif !nEnemiesFighting
         displayStr("You won!")
+//WIN: You survive the ordeal and rifle through the carnage to find X gold. (if player gets random item) Upon further searching you find a 
+//Win: That was a close call! You see something shimmering on the ground and find X gold.
+//Win: Looks like you live to fight another day anyway! You get X experience and discover X gold.
+//I forgot to add experience to the above ones
+//   WIN: You survive the ordeal and rifle through the carnage to find X gold and receive x experience. (if player gets random item) Upon further searching you find a 
+//Win: That was a close call! You see something shimmering on the ground and find X gold and x expereince.
         return
       elsif isFleeing
         displayStr("You have fled.")
@@ -1862,6 +1936,7 @@ def doCombat()
         otherwise
           brk()
       wend
+      combatPause()
       p = p=>p_combatNext
     loop
   loop

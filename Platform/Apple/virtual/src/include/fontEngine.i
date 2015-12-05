@@ -21,3 +21,5 @@ CopyWindow	= ClearWindow+3
 DisplayChar	= CopyWindow+3
 DisplayStr	= DisplayChar+3
 CalcWidth	= DisplayStr+3
+SaveCursor	= CalcWidth+3
+RestCursor	= SaveCursor+3

@@ -668,6 +668,24 @@ asm setWindow
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Save the cursor position (1 save slot)
+asm saveCursor
+  +asmPlasm 0
+  bit setLcRW+lcBank2
+  bit setLcRW+lcBank2
+  jmp SaveCursor
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Restore the cursor position (1 save slot)
+asm restoreCursor
+  +asmPlasm 0
+  bit setLcRW+lcBank2
+  bit setLcRW+lcBank2
+  jmp RestCursor
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Use the font engine to clear the current text window
 // Params: None
 asm clearWindow
@@ -798,6 +816,26 @@ end
 // Fatal error: print message and stop the system.
 def fatal(msg)
   mmgr(FATAL_ERROR, msg)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Return the max of two unsigned 16-bit numbers
+def max(a, b)
+  if a < b
+    return b
+  else
+    return a
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Return the min of two unsigned 16-bit numbers
+def min(a, b)
+  if a < b
+    return a
+  else
+    return b
+  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1038,7 +1076,10 @@ end
 // Display the party data on the screen
 def showParty()
   word p
+
+  saveCursor()
   setWindow3()
+  clearWindow()
 
   // Display header
   rawDisplayStr("^LName")  // begin underline mode
@@ -1056,6 +1097,7 @@ def showParty()
   // Finish up
   if mapIs3D; copyWindow(); fin
   setWindow2()
+  restoreCursor()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1452,9 +1494,7 @@ def setPortrait(portraitNum)
   flipToPage1()
   
   // We're going to switch windows. Save the cursor pos in the text window.
-  //FIXME: This is from old font engine, need to change for new eng.
-  //cx = ^cursh
-  //cy = ^cursv
+  saveCursor()
 
   // Now clear out the map area
   setMapWindow()
@@ -1462,9 +1502,7 @@ def setPortrait(portraitNum)
 
   // Restore the cursor position
   setWindow2()
-  //FIXME: This is from old font engine, need to change for new eng.
-  //^cursh = cx
-  //^cursv = cy
+  restoreCursor()
 
   // Load the portrait image and display it
   srcData = auxMmgr(QUEUE_LOAD, portraitNum<<8 | RES_TYPE_PORTRAIT)
@@ -1499,7 +1537,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def countList(p)
-  word n
+  byte n
   n = 0
   while p
     n = n+1
@@ -1510,7 +1548,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def countListFiltered(p, offset, filterFunc)
-  word n
+  byte n
   n = 0
   while p
     if filterFunc(p)
@@ -1519,6 +1557,20 @@ def countListFiltered(p, offset, filterFunc)
     p = *(p + offset)
   loop
   return n
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def randomFromListFiltered(p, offset, filterFunc)
+  byte n
+  n = rand16() % countListFiltered(p, offset, filterFunc)
+  while p
+    if filterFunc(p)
+      if n == 0; return p; fin
+      n = n+1
+    fin
+    p = *(p + offset)
+  loop
+  return NULL
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1792,8 +1844,33 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def enemyCombatTurn(pe)
-  isPlural = FALSE
-  displayf1("\nTODO: Enemy turn for %s.\n", pe=>s_name)
+  word pl
+  byte roll, dam
+
+  // Choose a target
+  pl = randomFromListFiltered(global=>p_players, p_nextObj, @canFight)
+  if !pl; return; fin
+
+  buildString(@addToString)
+  printf3("\n%s %s %s ", pe=>s_name, pe=>s_attackText, pl=>s_name)
+
+  // Roll to hit
+  roll = rand16() % 100
+  if roll <= pe->b_chanceToHit
+    dam = rollDice(pe=>r_enemyDmg)
+    printf1("and hits for %d damage!", dam)
+    pl=>w_health = max(0, pl=>w_health - dam)
+    if pl=>w_health == 0
+      printf1(" %s is killed!", pl=>s_name)
+    fin
+    showParty()
+  else
+    puts("and misses.")
+  fin
+  puts("\n")
+
+  displayStr(finishString(0))
+  printf2("chance=%d roll=%d\n", pe->b_chanceToHit, roll)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

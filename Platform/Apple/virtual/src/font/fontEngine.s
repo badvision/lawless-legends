@@ -96,6 +96,12 @@ DisplayStr	JMP DoParse	; API call address
 ;Does not do line breaking
 CalcWidth	JMP DoCWdth
 
+;Save the cursor position
+SaveCursor	JMP SvCurs
+
+;Restore the cursor position
+RestCursor	JMP RsCurs
+
 ;If you know which of the {0..110} bitmapped characters
 ;you want plotted, you can bypass testing for control 
 ;codes, making this a faster way to plot.
@@ -518,6 +524,27 @@ WtL_Prs	LDA #0 	;	if wait interrupted then do
 	STA CharRate	;plotting as fast as possible
 	LDA #$FF
 	STA ChBflip
+	RTS
+
+;Routine: Save the cursor position. There is exactly one save slot.
+BCursColL	!byte 0		;Saved Lo-byte of 16-bit horz X-pos value 
+BCursColH	!byte 0		;Saved Hi-byte X-position {0..279}
+BCursRow	!byte 0		;Saved vertical Y-position {0..191}
+SvCurs	LDA CursColL
+	STA BCursColL
+	LDA CursColH
+	STA BCursColH
+	LDA CursRow
+	STA BCursRow
+	RTS
+
+;Routine: Restore the cursor position. There is exactly one save slot.
+RsCurs	LDA BCursColL
+	STA CursColL
+	LDA BCursColH
+	STA CursColH
+	LDA BCursRow
+	STA CursRow
 	RTS
 
 ;Routine: Set window boundaries. Paramaters are pushed on the PLASMA

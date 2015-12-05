@@ -38,6 +38,7 @@ struc Player
 
   // Status
   word w_maxHealth
+  byte b_combatChoice
 
   // Lists
   word p_skills  // list:Modifier

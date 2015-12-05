@@ -1588,7 +1588,7 @@ def playerMelee(pPlayer, pWeapon)
 
   isPlural = FALSE
   buildString(@addToString)
-  printf3("%s pummels %s for %d damage.", pPlayer=>s_name, pEnemy=>s_name, dmg)
+  printf3("\n%s pummels %s for %d damage.", pPlayer=>s_name, pEnemy=>s_name, dmg)
   if pEnemy=>w_health <= 0
     printf1(" %s is killed!", pEnemy=>s_name)
     nEnemiesFighting = nEnemiesFighting - 1
@@ -1612,7 +1612,7 @@ def playerShoot(pPlayer, pWeapon)
   pEnemy=>w_health = pEnemy=>w_health - dmg
 
   buildString(@addToString)
-  printf3("%s shoots %s for %d damage.", pPlayer=>s_name, pEnemy=>s_name, dmg)
+  printf3("\n%s shoots %s for %d damage.", pPlayer=>s_name, pEnemy=>s_name, dmg)
   if pEnemy=>w_health <= 0
     printf1(" %s is killed!", pEnemy=>s_name)
     nEnemiesFighting = nEnemiesFighting - 1
@@ -1625,12 +1625,12 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def playerDodge(pPlayer)
-  displayStr("TODO: player dodge.\n")
+  displayStr("\nTODO: player dodge.\n")
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def chooseWeapon(player)
-  displayStr("TODO: choose weapon\n")
+  displayStr("\nTODO: choose weapon\n")
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1646,7 +1646,7 @@ def displayOpponents()
   byte count, first
 
   buildString(@addToString)
-  puts("You face ")
+  puts("\nYou face ")
   first = TRUE
   p = global=>p_enemyGroups
   while p
@@ -1675,7 +1675,7 @@ def displayOption(key, str)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def playerCombatTurn(pl)
+def playerCombatChoose(pl)
   word p, pWeapon
   byte nWeapons, key
   byte canShoot, canReload, canChange
@@ -1732,40 +1732,68 @@ def playerCombatTurn(pl)
   displayOption('F', "Flee")
 
   while TRUE
-    key = getUpperKey()
-    displayStr("\n")
-    if key == 'M'
-      if playerMelee(pl, pWeapon); return; fin
-      break
-    elsif key == 'F'
-      isFleeing = TRUE
-      return
-    elsif key == 'D'
-      if playerDodge(pl); return; fin
-      break
-    elsif key == 'S' and canShoot
-      if playerShoot(pl, pWeapon); return; fin
-      break
-    elsif key == 'R' and canReload
-      pWeapon->b_clipCurrent = pWeapon->b_clipSize
-      displayStr("Reloaded.")
-      break
-    elsif key == 'C' and canChange
-      chooseWeapon(pl)
-      break
-    fin
+    pl->b_combatChoice = getUpperKey()
+    when pl->b_combatChoice
+      is 'M'
+        return
+      is 'F'
+        isFleeing = TRUE
+        return
+      is 'D'
+        return
+      is 'S'
+        if canShoot; return; fin
+        break
+      is 'R'
+        if canReload; return; fin
+        break
+      is 'C'
+        if canChange; return; fin
+        break
+    wend
     beep()
   loop
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def playerCombatTurn(pl)
+  word pWeapon
+
+  // Get weapon
+  pWeapon = pl=>p_items
+  while pWeapon
+    if pWeapon->t_type == TYPE_WEAPON; break; fin
+    pWeapon = pWeapon=>p_nextObj
+  loop
+
+  // Execute the player's choice
+  when pl->b_combatChoice
+    is 'M'
+      playerMelee(pl, pWeapon)
+      break
+    is 'F'
+      break
+    is 'D'
+      playerDodge(pl)
+      break
+    is 'S'
+      playerShoot(pl, pWeapon)
+      break
+    is 'R'
+      pWeapon->b_clipCurrent = pWeapon->b_clipSize
+      displayf1("%s has reloaded.\n", pl=>s_name)
+      break
+    is 'C'
+      isPlural = FALSE
+      displayf2("%s changed to using %s.\n", pl=>s_name, pWeapon=>s_name)
+      break
+  wend
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def enemyCombatTurn(pe)
-  if !canFight(pe)
-    return
-  fin
   isPlural = FALSE
-  displayf1("TODO: Enemy turn for %s\n", pe=>s_name)
-  combatPause()
+  displayf1("\nTODO: Enemy turn for %s.\n", pe=>s_name)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1905,17 +1933,25 @@ def doCombat()
 
   // Do each round of combat until player wins, loses, or flees
   while TRUE
+    p = global=>p_players
+    while p
+      if canFight(p)
+        playerCombatChoose(p)
+      fin
+      p = p=>p_nextObj
+    loop
+
     determineCombatOrder()
+
     p = global=>p_combatFirst
     while p
-      displayStr("\n")
       if !nPlayersFighting
-        displayStr("You lost.")
+        displayStr("\nYou lost.")
 //Lose: You bought the farm, with your life! Thank's for playing! Relead last save ? Y/N
 //Lose: Didn't see that coming...to see a fine player like you slaughtered like a common rodent...Well, let's reload and try that again, ok? Y/N
         return
       elsif !nEnemiesFighting
-        displayStr("You won!")
+        displayStr("\nYou won!")
 //WIN: You survive the ordeal and rifle through the carnage to find X gold. (if player gets random item) Upon further searching you find a 
 //Win: That was a close call! You see something shimmering on the ground and find X gold.
 //Win: Looks like you live to fight another day anyway! You get X experience and discover X gold.
@@ -1924,19 +1960,21 @@ def doCombat()
 //Win: That was a close call! You see something shimmering on the ground and find X gold and x expereince.
         return
       elsif isFleeing
-        displayStr("You have fled.")
+        displayStr("\nYou have fled.")
         return
       fin
 
-      when p->t_type
-        is TYPE_PLAYER
-          playerCombatTurn(p); break
-        is TYPE_ENEMY
-          enemyCombatTurn(p); break
-        otherwise
-          brk()
-      wend
-      combatPause()
+      if canFight(p)
+        when p->t_type
+          is TYPE_PLAYER
+            playerCombatTurn(p); break
+          is TYPE_ENEMY
+            enemyCombatTurn(p); break
+          otherwise
+            brk()
+        wend
+        combatPause()
+      fin
       p = p=>p_combatNext
     loop
   loop

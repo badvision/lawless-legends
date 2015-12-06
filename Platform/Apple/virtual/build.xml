@@ -29,6 +29,12 @@
     <!-- Create build directory -->
     <mkdir dir="${build.dir}"/>
 
+    <!-- Generate code from tables -->
+    <echo>Generating code from tables.</echo>
+    <java jar="${pack.dir}/PackPartitions.jar" fork="true" failonerror="true">
+      <arg value="-dataGen"/>
+    </java>
+
     <!-- Build sub-projects -->
     <echo>Building core.</echo>
     <ant dir="${src.dir}/core" target="build" useNativeBasedir="true" inheritAll="false"/>

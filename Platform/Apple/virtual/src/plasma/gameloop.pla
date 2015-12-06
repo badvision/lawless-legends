@@ -1653,26 +1653,53 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def playerShoot(pPlayer, pWeapon)
-  word pEnemy, dmg
+  word pEnemy, pSkill, dmg
+  word chance
+  byte roll
+
   pEnemy = chooseEnemy(pWeapon->b_weaponRange)
   if !pEnemy; return FALSE; fin
 
-  // TODO: consider multi-shot weapons
-  dmg = rollDice(pWeapon=>r_projectileDmg)
-  // TODO: Add extra melee damage for skills, strength, etc.
-  // TODO: consider enemy dodge
-  pEnemy=>w_health = pEnemy=>w_health - dmg
+  // Figure out chance to hit. First come agility and aim.
+  chance = (pPlayer->b_agility * 4) + pPlayer->b_aiming
 
-  buildString(@addToString)
-  printf3("\n%s shoots %s for %d damage.", pPlayer=>s_name, pEnemy=>s_name, dmg)
-  if pEnemy=>w_health <= 0
-    printf1(" %s is killed!", pEnemy=>s_name)
-    nEnemiesFighting = nEnemiesFighting - 1
+  // Add in skill modifier, if any
+  pSkill = pPlayer=>p_skills
+  while pSkill
+    if pSkill=>b_modKind == pWeapon=>b_itemKind
+      chance = chance + pSkill=>b_modValue
+    fin
+    pSkill = pSkill=>p_nextObj
+  loop
+
+  // Nobody can have 100% chance to hit. Let's cap it at 90%.
+  chance = min(90, chance)
+
+  roll = rand16() % 100
+  if roll >= chance
+
+    // Miss!
+    displayf2("\n%s shoots at %s but misses.\n", pPlayer=>s_name, pEnemy=>s_name)
+
+  else
+
+    // TODO: consider multi-shot weapons
+    dmg = rollDice(pWeapon=>r_projectileDmg)
+    // TODO: Add extra melee damage for skills, strength, etc.
+    // TODO: consider enemy dodge
+    pEnemy=>w_health = pEnemy=>w_health - dmg
+
+    buildString(@addToString)
+    printf3("\n%s shoots %s for %d damage.", pPlayer=>s_name, pEnemy=>s_name, dmg)
+    if pEnemy=>w_health <= 0
+      printf1(" %s is killed!", pEnemy=>s_name)
+      nEnemiesFighting = nEnemiesFighting - 1
+    fin
+    puts("\n")
+    displayStr(finishString(0))
+
+    return TRUE
   fin
-  puts("\n")
-  displayStr(finishString(0))
-
-  return TRUE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1688,7 +1715,8 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def combatPause()
   word n
-  for n = 1 to 2000
+  for n = 1 to 3000
+
   next
 end
 

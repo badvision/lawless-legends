@@ -1403,7 +1403,6 @@ scanForAvail: !zone
 
 ;------------------------------------------------------------------------------
 main_dispatch: !zone
-!if SANITY_CHECK { jsr saneStart : jsr + : jmp saneEnd }
 +	pha
 	lda #0
 	beq .go
@@ -1412,6 +1411,7 @@ aux_dispatch:
 	lda #1
 .go	sta isAuxCmd
 	pla
+!if SANITY_CHECK { jsr saneStart : jsr + : jmp saneEnd }
 +	cmp #REQUEST_MEMORY
 	bne +
 	jmp mem_request
@@ -1481,7 +1481,10 @@ saneStart: !zone {
 	pla
 	tay
 	+prChr 'M'
-	pla : pha : +prA
+	lda isAuxCmd
+	beq +
+	+prChr 'a'
++	pla : pha : +prA
 	+prX : +prY
 	pla
 	rts

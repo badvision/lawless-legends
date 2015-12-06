@@ -1356,6 +1356,28 @@ class PackPartitions
         println "Done."
     }
     
+    void genEnemy(outStream, columns, data)
+    {
+        outStream.print("new enemy\n")
+        columns.eachWithIndex { col, idx ->
+            outStream.println(String.format("    %s=%s", col, data[idx]))
+        }
+    }
+    
+    void dataGen()
+    {
+        // Translate enemies to code
+        new File("src/plasma/gen_enemies.pla").withOutputStream { outStream ->
+            def columns
+            new File("data/world/enemies.tsv").eachLine { line ->
+                if (columns)
+                    genEnemy(outStream, columns, line.split("\t"))
+                else
+                    columns = line.split("\t")
+            }
+        }
+    }
+    
     static void main(String[] args) 
     {
         // Set auto-flushing for stdout
@@ -1370,14 +1392,15 @@ class PackPartitions
             flag = true
         }
         if (!flag) {
-            println "Error: assertions must be enabled. Run with 'ea-'"
+            println "Error: assertions must be enabled. Run with '-ea'"
             System.exit(1);            
         }
         
         // Check the arguments
-        if (args.size() != 2 && args.size() != 3) {
+        if (!((args.size() == 1 && args[0] == "-dataGen") || args.size() == 2 || args.size() == 3)) {
             println "Usage: convert yourOutlawFile.xml game.part.0.bin [intcastMap.js]"
             println "   (where intcastMap.js is to aid in debugging the Javascript raycaster)"
+            println "   or: convert -dataGen"
             System.exit(1);
         }
 
@@ -1389,7 +1412,10 @@ class PackPartitions
         // Go for it.
         def inst = new PackPartitions()
         try {
-            inst.pack(args[0], args[1], args.size() > 2 ? args[2] : null)
+            if (args[0] == "-dataGen")
+                inst.dataGen()
+            else
+                inst.pack(args[0], args[1], args.size() > 2 ? args[2] : null)
         }
         catch (Throwable t) {
             errorFile.withWriter { out ->

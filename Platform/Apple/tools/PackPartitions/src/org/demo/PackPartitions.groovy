@@ -1356,22 +1356,80 @@ class PackPartitions
         println "Done."
     }
     
-    void genEnemy(outStream, columns, data)
+    def humanNameToFuncName(str)
     {
-        outStream.print("new enemy\n")
-        columns.eachWithIndex { col, idx ->
-            outStream.println(String.format("    %s=%s", col, data[idx]))
+        def buf = new StringBuilder()
+        def inParen = false
+        def inSlash = false
+        str.each { ch ->
+            if (ch >= 'A' && ch <= 'Z')
+                buf.append(ch)
+            else if (ch >= 'a' && ch <= 'z')
+                buf.append(ch)
         }
+        return buf.toString()
+    }
+    
+    void genEnemy(out, columns, data)
+    {
+        assert columns[0] == "Name"
+        def name = data[0]
+        
+        out.print("def ${humanNameToFuncName(name)}\n")
+        
+        assert columns[1] == "Image1"
+        def image1 = data[1]
+        
+        assert columns[2] == "Image2"
+        def image2 = data[2]
+        
+        assert columns[3] == "Hit Points"
+        def hitPoints = data[3]
+        
+        assert columns[4] == "Attack Type"
+        def attackType = data[4]
+        
+        assert columns[5] == "Attack Text"
+        def attackText = data[5]
+
+        assert columns[6] == "Range"
+        def range = data[6]
+        
+        assert columns[7] == "Chance To Hit"
+        def chanceToHit = data[7]
+        
+        assert columns[8] == "Hit Mod"
+        def hitMod = data[8]
+        
+        assert columns[9] == "Damage"
+        def damage = data[9]
+        
+        assert columns[10] == "Experience"
+        def experience = data[10]
+        
+        assert columns[11] == "Map Code"
+        def mapCode = data[11]
+        
+        assert columns[12] == "Group size"
+        def groupSize = data[12]
+        
+        assert columns[13] == "Loot Class Code"
+        def lootClassCode = data[13]
+        
+        assert columns[14].toLowerCase() =~ /gold loot/
+        def goldLoot = data[14]
+        
+        
     }
     
     void dataGen()
     {
         // Translate enemies to code
-        new File("src/plasma/gen_enemies.pla").withOutputStream { outStream ->
+        new File("src/plasma/gen_enemies.pla").withWriter { out ->
             def columns
             new File("data/world/enemies.tsv").eachLine { line ->
                 if (columns)
-                    genEnemy(outStream, columns, line.split("\t"))
+                    genEnemy(out, columns, line.split("\t"))
                 else
                     columns = line.split("\t")
             }
@@ -1420,6 +1478,7 @@ class PackPartitions
         catch (Throwable t) {
             errorFile.withWriter { out ->
                 out.println "Packing error: ${t.message}"
+                out.println "       detail: $t"
                 out.println "\nContext:"
                 out.println "    ${inst.getContextStr()}"
                 out.println "\nGroovy call stack:"

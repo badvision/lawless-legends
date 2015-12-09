@@ -27,7 +27,21 @@
     <!-- Create build directory -->
     <mkdir dir="${build.dir}"/>
 
+    <!-- Same with combat code -->
+    <echo>combat.pla</echo>
+    <apply executable="../../../tools/PLASMA/src/plasm" dir="${src.dir}" 
+           relative="true" parallel="false" failonerror="true" verbose="true"
+           addsourcefile="false">
+      <fileset dir="${src.dir}" includes="combat.pla"/>
+      <arg value="-AM"/>
+      <redirector logError="yes">
+        <inputmapper type="glob" from="*" to="${src.dir}/*"/>
+        <outputmapper id="out" type="glob" from="*.pla" to="${build.dir}/*.a"/>
+      </redirector>
+    </apply>
+
     <!-- Translate the game loop from PLASMA to ACME assembly code-->
+    <echo>gameloop.pla</echo>
     <apply executable="../../../tools/PLASMA/src/plasm" dir="${src.dir}" 
            relative="true" parallel="false" failonerror="true" verbose="true"
            addsourcefile="false">

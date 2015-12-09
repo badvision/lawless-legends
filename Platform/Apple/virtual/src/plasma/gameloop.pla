@@ -8,11 +8,7 @@
 // governing permissions and limitations under the License.
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Handy constants.
-const FALSE = 0
-const TRUE  = 1
-const NULL  = 0
+include "gamelib.plh"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Fixed memory locations
@@ -30,43 +26,6 @@ const RES_NUM_RAYCASTER   = 1
 const RES_NUM_EXPAND_VEC  = 2
 const RES_NUM_FONT_ENGINE = 3
 const RES_NUM_TILE_ENGINE = 4
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Memory manager definitions
-
-// Resource types
-const RES_TYPE_CODE     = 1
-const RES_TYPE_2D_MAP   = 2
-const RES_TYPE_3D_MAP   = 3
-const RES_TYPE_TILE     = 4
-const RES_TYPE_TEXTURE  = 5
-const RES_TYPE_SCREEN   = 6
-const RES_TYPE_FONT     = 7
-const RES_TYPE_MODULE   = 8
-const RES_TYPE_BYTECODE = 9
-const RES_TYPE_FIXUP    = 10
-const RES_TYPE_PORTRAIT = 11
-
-// Command codes
-const RESET_MEMORY   = $10
-const REQUEST_MEMORY = $11
-const LOCK_MEMORY    = $12
-const UNLOCK_MEMORY  = $13
-const SET_MEM_TARGET = $14
-const START_LOAD     = $15
-const QUEUE_LOAD     = $16
-const FINISH_LOAD    = $17
-const FREE_MEMORY    = $18
-const CALC_FREE      = $19
-const DEBUG_MEM      = $1A
-const CHECK_MEM      = $1B
-const CHAIN_LOADER   = $1E
-const FATAL_ERROR    = $1F
-const HEAP_SET       = $20
-const HEAP_ADD_TYPE  = $21
-const HEAP_ALLOC     = $22
-const HEAP_INTERN    = $23
-const HEAP_COLLECT   = $24
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Other constants
@@ -102,8 +61,6 @@ word triggerTbl
 
 word cmdTbl[64]
 byte frameLoaded = 0
-byte textDrawn = FALSE
-byte needRender = FALSE
 
 // Queue setMap / teleport, since otherwise script might be replaced while executing
 byte q_mapIs3D
@@ -115,12 +72,28 @@ byte q_dir
 // For decimal conversion and display tabbing
 byte decimalBuf[7]
 byte tabBuf[5]
-byte isPlural
 
-// Combat variables that don't need to be saved in game state
-byte nPlayersFighting
-byte nEnemiesFighting
-byte isFleeing
+// Game library functions
+
+predef _getGlobals, _rand16
+predef _printf1, _printf2, _printf3, _printf4
+predef _displayf1, _displayf2, _displayf3, _displayf4
+predef _rollDice, _buildString, _addToString, _finishString, _rawDisplayStr, _displayStr
+predef _puts, _min, _max
+predef _countList, _countListFiltered, _randomFromListFiltered, _addToList, _getUpperKey, _beep
+predef _showParty, _mmgr, _setPortrait, _setWindow1, _setWindow2, _setWindow3, _clearWindow
+predef _getYN, _reboot, _brk
+
+word gameLib_addrs = _getGlobals, _rand16
+word = _printf1, _printf2, _printf3, _printf4
+word = _displayf1, _displayf2, _displayf3, _displayf4
+word = _rollDice, _buildString, _addToString, _finishString, _rawDisplayStr, _displayStr
+word = _puts, _min, _max
+word = _countList, _countListFiltered, _randomFromListFiltered, _addToList, _getUpperKey, _beep
+word = _showParty, _mmgr, _setPortrait, _setWindow1, _setWindow2, _setWindow3, _clearWindow
+word = _getYN, _reboot, _brk
+
+word = 0  // end of library functions
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -260,7 +233,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // String building for display with the font engine. Includes plurality processing to handily 
 // handle things like "Dirt bag(s)" and "his/their"
-asm buildString
+asm _buildString
         +asmPlasm 1
         sta cswl
         sty cswh
@@ -269,7 +242,7 @@ asm buildString
         rts
 end
 
-asm addToString
+asm _addToString
         sty ysav1
         inc inbuf
         ldy inbuf
@@ -278,7 +251,7 @@ asm addToString
         rts
 end
 
-asm finishString
+asm _finishString
 !zone {
         +asmPlasm 1
         sta tmp     ; save isPlural flag
@@ -489,7 +462,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a string
-asm puts
+asm _puts
         +asmPlasm 1
         sta pTmp
         sty pTmp+1
@@ -576,7 +549,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Ring the bell
-asm beep
+asm _beep
         +asmPlasm 0
         jmp bell
 end
@@ -604,7 +577,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Send a command to the memory manager
 // Params: cmd, wordParam
-asm mmgr
+asm _mmgr
         +asmPlasm 2
         lda evalStkL+1,x        ; command code
         pha
@@ -641,7 +614,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Execute a monitor breakpoint
 // Params: None
-asm brk
+asm _brk
         bit setText
         bit page1
         brk
@@ -651,7 +624,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Reboot the machine
 // Params: None
-asm reboot
+asm _reboot
         inc $3F4    ; invalidate reset vector
         jmp $FA62   ; and reset
 end
@@ -698,7 +671,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Use the font engine to clear the current text window
 // Params: None
-asm clearWindow
+asm _clearWindow
   +asmPlasm 0
   bit setLcRW+lcBank2
   bit setLcRW+lcBank2
@@ -728,7 +701,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display a string using the font engine.
 // Params: pStr
-asm displayStr
+asm _displayStr
   +asmPlasm 1
   bit setLcRW+lcBank2
   bit setLcRW+lcBank2
@@ -748,7 +721,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display a string using the font engine but not its parser.
 // Params: pStr
-asm rawDisplayStr
+asm _rawDisplayStr
   +asmPlasm 1
   bit setLcRW+lcBank2
   bit setLcRW+lcBank2
@@ -778,7 +751,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Random number generator
 // Adapted from http://codebase64.org/doku.php?id=base:small_fast_16-bit_prng
-asm rand16
+asm _rand16
   +asmPlasm 0
 
   lda seed
@@ -820,6 +793,10 @@ asm rand16
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Data structures
+include "playtype.pla"
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // General methods
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -830,7 +807,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Return the max of two unsigned 16-bit numbers
-def max(a, b)
+def _max(a, b)
   if a < b
     return b
   else
@@ -840,7 +817,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Return the min of two unsigned 16-bit numbers
-def min(a, b)
+def _min(a, b)
   if a < b
     return a
   else
@@ -867,7 +844,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a formatted string a'la C printf, with up to four parameters.
-def printf4(str, arg1, arg2, arg3, arg4)
+def _printf4(str, arg1, arg2, arg3, arg4)
   word pos
   word curArg
   word p
@@ -898,20 +875,20 @@ def printf4(str, arg1, arg2, arg3, arg4)
   loop
 end
 
-def printf1(str, arg1); printf4(str, arg1, 0, 0, 0); end
-def printf2(str, arg1, arg2); printf4(str, arg1, arg2, 0, 0); end
-def printf3(str, arg1, arg2, arg3); printf4(str, arg1, arg2, arg3, 0); end
+def _printf1(str, arg1); printf4(str, arg1, 0, 0, 0); end
+def _printf2(str, arg1, arg2); printf4(str, arg1, arg2, 0, 0); end
+def _printf3(str, arg1, arg2, arg3); printf4(str, arg1, arg2, arg3, 0); end
 
 // Like printf, but displays text using font engine
-def displayf4(str, arg1, arg2, arg3, arg4)
+def _displayf4(str, arg1, arg2, arg3, arg4)
   buildString(@addToString)
   printf4(str, arg1, arg2, arg3, arg4)
   displayStr(finishString(isPlural))
 end
 
-def displayf1(str, arg1); displayf4(str, arg1, 0, 0, 0); end
-def displayf2(str, arg1, arg2); displayf4(str, arg1, arg2, 0, 0); end
-def displayf3(str, arg1, arg2, arg3); displayf4(str, arg1, arg2, arg3, 0); end
+def _displayf1(str, arg1); displayf4(str, arg1, 0, 0, 0); end
+def _displayf2(str, arg1, arg2); displayf4(str, arg1, arg2, 0, 0); end
+def _displayf3(str, arg1, arg2, arg3); displayf4(str, arg1, arg2, arg3, 0); end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def parseDec(str)
@@ -948,16 +925,32 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Get a keystroke and convert it to upper case
-def getUpperKey()
+def _getUpperKey()
   byte key
-  word oldSeed
-  oldSeed = *seed  // for now, make the seed stay consistent, for randomized heap testing
   key = rdkey() & $7F
-  *seed = oldSeed
   if key >= $60
     key = key - $20
   fin
   return key
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def _encodeDice(nDice, dieSize, add)  // ndice=0..15, dieSize=0..15, add=0..255
+  return (nDice << 12) | (dieSize << 8) | add
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def _rollDice(encoded)
+  byte i, nDice, dieSize, add, result
+  nDice = encoded >> 12
+  dieSize = (encoded >> 8) & $F
+  add = encoded & $F
+  result = add
+  for i = 1 to nDice
+    add = (rand16() % dieSize) + 1
+    result = result + add
+  next
+  return result
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1016,20 +1009,20 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the map name bar
-def setWindow1()
+def _setWindow1()
   setWindow(8, 18, 35, 119) // Top, Bottom, Left, Right
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the large upper right bar
-def setWindow2()
+def _setWindow2()
   displayChar('N'-$40) // Set normal mode - clear all special modes (like underline, etc.)
   setWindow(24, 132, 154, 269) // Top, Bottom, Left, Right
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the mid-size lower right bar
-def setWindow3()
+def _setWindow3()
   setWindow(144, 180, 154, 269) // Top, Bottom, Left, Right
 end
 
@@ -1485,7 +1478,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Get a key, and don't return until it's Y or N (or lower-case of those). Returns 1 for Y.
-def getYN()
+def _getYN()
   byte key
   while TRUE
     key = getUpperKey()
@@ -1503,7 +1496,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display a portrait drawing (typically called from scripts)
-def setPortrait(portraitNum)
+def _setPortrait(portraitNum)
   word srcData
   byte cx, cy
 
@@ -1552,7 +1545,7 @@ def testPortrait()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def countList(p)
+def _countList(p)
   byte n
   n = 0
   while p
@@ -1563,7 +1556,7 @@ def countList(p)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def countListFiltered(p, offset, filterFunc)
+def _countListFiltered(p, offset, filterFunc)
   byte n
   n = 0
   while p
@@ -1576,7 +1569,7 @@ def countListFiltered(p, offset, filterFunc)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def randomFromListFiltered(p, offset, filterFunc)
+def _randomFromListFiltered(p, offset, filterFunc)
   byte n
   n = rand16() % countListFiltered(p, offset, filterFunc)
   while p
@@ -1591,7 +1584,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Call like this: addToList(player + items, itemToAdd)
-def addToList(addTo, p)
+def _addToList(addTo, p)
   // Get to the end of the list
   while *addTo
     addTo = (*addTo) + p_nextObj
@@ -1602,7 +1595,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Call like this: removeFromList(player + items, itemToRemove)
-def removeFromList(pList, toRemove)
+def _removeFromList(pList, toRemove)
   word p
 
   p = *pList
@@ -1619,523 +1612,19 @@ def removeFromList(pList, toRemove)
   fin
 end
 
-include "playtype.pla"
-//include "heaptest.pla"
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def canFight(p)
-  return p=>w_health > 0
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def chooseEnemy(maxDist)
-  word p
-  byte n
-  
-  // TODO: Consider distance of enemies
-  n = rand16() % nEnemiesFighting
-  p = global=>p_combatFirst
-  while TRUE
-    if p->t_type == TYPE_ENEMY and canFight(p)
-      if n == 0; return p; fin
-      n = n - 1
-    fin
-    p = p=>p_combatNext
-  loop
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def playerMelee(pPlayer, pWeapon)
-  word pEnemy, dmg
-  pEnemy = chooseEnemy(5)  // max distance 5 feet for melee
-  if !pEnemy; return FALSE; fin
-  if pWeapon
-    dmg = rollDice(pWeapon=>r_meleeDmg)
-  else
-    dmg = (rand16() % 6) + 1   // default to 1d6 for fists
-  fin
-  // TODO: Add extra melee damage for skills, strength, etc.
-  // TODO: consider enemy dodge
-  pEnemy=>w_health = pEnemy=>w_health - dmg
-
-  isPlural = FALSE
-  buildString(@addToString)
-  printf3("\n%s pummels %s for %d damage.", pPlayer=>s_name, pEnemy=>s_name, dmg)
-  if pEnemy=>w_health <= 0
-    printf1(" %s is killed!", pEnemy=>s_name)
-    nEnemiesFighting = nEnemiesFighting - 1
-  fin
-  puts("\n")
-  displayStr(finishString(0))
-
-  return TRUE
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def playerShoot(pPlayer, pWeapon)
-  word pEnemy, pSkill, dmg
-  word chance
-  byte roll
-
-  pEnemy = chooseEnemy(pWeapon->b_weaponRange)
-  if !pEnemy; return FALSE; fin
-
-  // Figure out chance to hit. First come agility and aim.
-  chance = (pPlayer->b_agility * 4) + pPlayer->b_aiming
-
-  // Add in skill modifier, if any
-  pSkill = pPlayer=>p_skills
-  while pSkill
-    if pSkill=>b_modKind == pWeapon=>b_itemKind
-      chance = chance + pSkill=>b_modValue
-    fin
-    pSkill = pSkill=>p_nextObj
-  loop
-
-  // Nobody can have 100% chance to hit. Let's cap it at 90%.
-  chance = min(90, chance)
-
-  roll = rand16() % 100
-  if roll >= chance
-
-    // Miss!
-    displayf2("\n%s shoots at %s but misses.\n", pPlayer=>s_name, pEnemy=>s_name)
-
-  else
-
-    // TODO: consider multi-shot weapons
-    dmg = rollDice(pWeapon=>r_projectileDmg)
-    // TODO: Add extra melee damage for skills, strength, etc.
-    // TODO: consider enemy dodge
-    pEnemy=>w_health = pEnemy=>w_health - dmg
-
-    buildString(@addToString)
-    printf3("\n%s shoots %s for %d damage.", pPlayer=>s_name, pEnemy=>s_name, dmg)
-    if pEnemy=>w_health <= 0
-      printf1(" %s is killed!", pEnemy=>s_name)
-      nEnemiesFighting = nEnemiesFighting - 1
-    fin
-    puts("\n")
-    displayStr(finishString(0))
-
-    return TRUE
-  fin
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def playerDodge(pPlayer)
-  displayStr("\n%s dodges.\n", pPlayer=>s_name)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def chooseWeapon(player)
-  displayStr("\nTODO: choose weapon\n")
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def combatPause()
-  word n
-  for n = 1 to 3000
-
-  next
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayOpponents()
-  word p
-  byte count, first
-
-  buildString(@addToString)
-  puts("\nYou face ")
-  first = TRUE
-  p = global=>p_enemyGroups
-  while p
-    if !first
-      if p=>p_nextObj
-        puts(", ")
-      else
-        puts(" and ")
-      fin
-    fin
-    first = FALSE
-    count = countListFiltered(p=>p_enemies, p_nextObj, @canFight)
-    isPlural = (count <> 1)
-    printf3("%d %s at %d'", count, p=>p_enemies=>s_name, p->b_enemyGroupRange)
-    p = p=>p_nextObj
-  loop
-  puts(".\n")
-  displayStr(finishString(isPlural))
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayOption(key, str)
-  buildString(@addToString)
-  printf2("  (%c)^T033%s\n", key, str)
-  rawDisplayStr(finishString(0))
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def playerCombatChoose(pl)
-  word p, pWeapon
-  byte nWeapons, key
-  byte canShoot, canReload, canChange
-
-  // Count weapons, and take the first as the current one.
-  nWeapons = 0
-  pWeapon = NULL
-  p = pl=>p_items
-  while p
-    if p->t_type == TYPE_WEAPON
-      if !pWeapon; pWeapon = p; fin
-      nWeapons = nWeapons + 1
-    fin
-    p = p=>p_nextObj
-  loop
-
-  // NPCs always melee for now
-  if pl=>b_playerFlags & PLAYER_FLAG_NPC
-    pl->b_combatChoice = 'M'
-    return
-  fin
-
-  // Tell what the player currently faces
-  displayOpponents()
-  combatPause()
-
-  // Let them know their options
-  displayStr("\n")
-  when rand16() % 5
-    is 0
-      displayStr("Think fast!"); break
-    is 1
-      displayStr("Do you:"); break
-    is 2
-      displayStr("Suck it up:"); break
-    is 3
-      displayStr("Options:"); break
-    otherwise
-      displayStr("Decisions, decisions..."); break
-  wend
-  displayStr("\n")
-
-  displayOption('M', "Melee")
-  if pWeapon
-    if pWeapon->b_clipCurrent
-      canShoot = TRUE
-      displayOption('S', "Shoot")
-    fin
-    if pWeapon->b_clipCurrent < pWeapon->b_clipSize
-      // TODO: Need to check for enough ammo, and use it up.
-      canReload = TRUE
-      displayOption('R', "Reload")
-    fin
-    if nWeapons >= 2
-      canChange = TRUE
-      displayOption('C', "Change weapon")
-    fin
-  fin
-  displayOption('D', "Dodge")
-  displayOption('F', "Flee")
-
-  while TRUE
-    pl->b_combatChoice = getUpperKey()
-    when pl->b_combatChoice
-      is 'M'
-        return
-      is 'F'
-        isFleeing = TRUE
-        return
-      is 'D'
-        return
-      is 'S'
-        if canShoot; return; fin
-        break
-      is 'R'
-        if canReload; return; fin
-        break
-      is 'C'
-        if canChange; return; fin
-        break
-    wend
-    beep()
-  loop
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def playerCombatTurn(pl)
-  word pWeapon
-
-  // Get weapon
-  pWeapon = pl=>p_items
-  while pWeapon
-    if pWeapon->t_type == TYPE_WEAPON; break; fin
-    pWeapon = pWeapon=>p_nextObj
-  loop
-
-  // Execute the player's choice
-  when pl->b_combatChoice
-    is 'M'
-      playerMelee(pl, pWeapon)
-      break
-    is 'F'
-      break
-    is 'D'
-      playerDodge(pl)
-      break
-    is 'S'
-      playerShoot(pl, pWeapon)
-      break
-    is 'R'
-      pWeapon->b_clipCurrent = pWeapon->b_clipSize
-      displayf1("%s has reloaded.\n", pl=>s_name)
-      break
-    is 'C'
-      isPlural = FALSE
-      displayf2("%s changed to using %s.\n", pl=>s_name, pWeapon=>s_name)
-      break
-  wend
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def enemyCombatTurn(pe)
-  word pl
-  byte roll, dam
-
-  // Choose a target
-  pl = randomFromListFiltered(global=>p_players, p_nextObj, @canFight)
-  if !pl; return; fin
-
-  buildString(@addToString)
-  printf3("\n%s %s %s ", pe=>s_name, pe=>s_attackText, pl=>s_name)
-
-  // Roll to hit
-  roll = rand16() % 100
-  if roll <= pe->b_chanceToHit
-    dam = rollDice(pe=>r_enemyDmg)
-    printf1("and hits for %d damage!", dam)
-    pl=>w_health = max(0, pl=>w_health - dam)
-    if pl=>w_health == 0
-      printf1(" %s is killed!", pl=>s_name)
-    fin
-    showParty()
-  else
-    puts("and misses.")
-  fin
-  puts("\n")
-
-  displayStr(finishString(0))
-  printf2("chance=%d roll=%d\n", pe->b_chanceToHit, roll)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def combatInsert(toAdd)
-  word p, pPrev
-
-  // Find the proper position based on combat order number (keep largest first in the list)
-  pPrev = global + p_combatFirst
-  while TRUE
-    p = *pPrev
-    if !p or p->b_combatOrder < toAdd->b_combatOrder
-      break
-    fin
-    pPrev = p + p_combatNext
-  loop
-
-  // Add it right there.
-  toAdd=>p_combatNext = *pPrev
-  *pPrev = toAdd
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def determineCombatOrder()
-  word p, p2
-
-  nPlayersFighting = 0
-  nEnemiesFighting = 0
-
-  // Do each player character, with random chance based on their agility
-  global=>p_combatFirst = NULL
-  p = global=>p_players
-  while p
-    if canFight(p)
-      p->b_combatOrder = rand16() % (p->b_agility * 10)
-      combatInsert(p)
-      if (!(p=>b_playerFlags & PLAYER_FLAG_NPC)) // only count real players
-        nPlayersFighting = nPlayersFighting + 1
-      fin
-    fin
-    p = p=>p_nextObj
-  loop
-
-  // Then all the enemies, with random chance based on their chance to hit.
-  p = global=>p_enemyGroups
-  while p
-    p2 = p=>p_enemies
-    while p2
-      if canFight(p2)
-        p2->b_combatOrder = rand16() % p2->b_chanceToHit
-        combatInsert(p2)
-        nEnemiesFighting = nEnemiesFighting + 1
-      fin
-      p2 = p2=>p_nextObj
-    loop
-    p = p=>p_nextObj
-  loop
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def startCombat()
-  word p, p2, n, s
-
-  // Setup
-  isFleeing = FALSE
-
-  // Create the enemy group(s).
-  global=>p_enemyGroups = NULL
-  when rand16() % 2
-    is 0
-      addToList(global + p_enemyGroups, new_EnemyGroup_Dirt_Bags())
-      break
-    otherwise
-      addToList(global + p_enemyGroups, new_EnemyGroup_Flesh_Feeders())
-      break
-  wend
-
-  // Display portrait of first group
-  setPortrait(global=>p_enemyGroups=>p_enemies->ba_images[0])
-
-  // We're going to do all our text drawing in window 2. Also, might as well
-  // set everything up so that the map gets redrawn when combat finishes.
-  setWindow2()
-  clearWindow()
-  textDrawn = TRUE
-  needRender = TRUE
-
-  // Say who we're fighting
-  when rand16() % 5
-    is 0
-      s = "Uh oh, it's gunna' be one of THOSE days.\n"; break
-    is 1
-      s = "Smells like trouble!\n"; break
-    is 2
-      s = "The hairs on the back of your neck reach for the sky!\n"; break
-    is 3
-      s = "You've got a bad feeling about this...\n"; break
-    otherwise
-      s = "Momma said there'd be days like this!\n"; break
-  wend
-  displayStr(s)
-  p = global=>p_enemyGroups
-  while p
-    n = countList(p=>p_enemies)
-    isPlural = (n <> 1)
-    when rand16() % 5
-      is 0
-        s = "From out of nowhere comes/come %d %s to have their way with you!\n"; break
-      is 1
-        s = "%d nasty %s comes/come to stake their claim on you!\n"; break
-      is 2
-        s = "It's gone from bad to worse, %d %s is/are looking for trouble!\n"; break
-      is 3
-        s = "%d %s is/are sniffing you out, shoulda' bathed last week!\n"; break
-      otherwise
-        s = "You mutter a curse under your breath as you see %d %s approach you with malice!\n"; break
-    wend
-    displayf2(s, n, p=>p_enemies=>s_name)
-    p = p=>p_nextObj
-  loop
-
-  rawDisplayStr("\nDo you:\n")
-  displayOption('B', "Battle")
-  displayOption('F', "Flee")
-  while TRUE
-    n = getUpperKey()
-    if n == 'B'
-      clearWindow()
-      displayStr("Battle!\n")
-      return TRUE
-    elsif n == 'F'
-      clearWindow()
-      displayStr("Coward.")
-      return FALSE
-    fin
-    beep()
-  loop
-
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def doCombat()
-  word p
-
-  // Show portrait and threat details, find out if player wants to fight (vs. run)
-  if !startCombat(); return; fin
-
-  // Do each round of combat until player wins, loses, or flees
-  while TRUE
-    p = global=>p_players
-    while p
-      if canFight(p)
-        playerCombatChoose(p)
-      fin
-      p = p=>p_nextObj
-    loop
-
-    determineCombatOrder()
-
-    p = global=>p_combatFirst
-    while p
-      if !nPlayersFighting
-        setPortrait(PORTRAIT_DEATH)
-        when rand16() % 2
-          is 0
-            displayStr("\nYou bought the farm, with your life! Thank's for playing! Reload last save?\n"); break
-          otherwise
-            displayStr("\nDidn't see that coming... to see a fine player like you slaughtered like a common rodent... Well, let's reload and try that again, ok?\n")
-        wend
-        if (!getYN())
-          displayStr("Ah, okay. Well... just hit a key when you're ready then.")
-          getUpperKey()
-        fin
-        reboot()
-      elsif !nEnemiesFighting
-        setPortrait(PORTRAIT_COMBATWIN)
-        when rand16() % 3
-          is 0
-            displayStr("\nYou survive the ordeal and rifle through the carnage.\n"); break
-          is 1
-            displayStr("\nThat was a close call! You see search the ground.\n"); break
-          otherwise
-            displayStr("\nLooks like you live to fight another day anyway!\n"); break
-        wend
-        getUpperKey()
-        return
-      elsif isFleeing
-        displayStr("\nYou have fled.")
-        return
-      fin
-
-      if canFight(p)
-        when p->t_type
-          is TYPE_PLAYER
-            playerCombatTurn(p); break
-          is TYPE_ENEMY
-            enemyCombatTurn(p); break
-          otherwise
-            brk()
-        wend
-        combatPause()
-      fin
-      p = p=>p_combatNext
-    loop
-  loop
-end
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Show player data
-def showPlayerSheet(pl)
+def showPlayerSheet(num)
+  word pl
   word x, y
   byte dir
+
+  pl = global=>p_players
+  while num > 0
+    pl = pl=>p_nextObj
+    num = num - 1
+  loop
+
   getPos(@x, @y)
   dir = getDir()
 
@@ -2161,23 +1650,27 @@ def showPlayerSheet(pl)
 end
 
 def showPlayer1()
-  showPlayerSheet(global=>p_players)
+  showPlayerSheet(0)
 end
-
 def showPlayer2()
-  if global=>p_players=>p_nextObj
-    showPlayerSheet(global=>p_players=>p_nextObj)
-  else
-    beep()
-  fin
+  showPlayerSheet(1)
+end
+def showPlayer3()
+  showPlayerSheet(2)
 end
 
-def showPlayer3()
-  if global=>p_players=>p_nextObj and global=>p_players=>p_nextObj=>p_nextObj
-    showPlayerSheet(global=>p_players=>p_nextObj=>p_nextObj)
-  else
-    beep()
-  fin
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def testCombat()
+  // Create the enemy group(s).
+  global=>p_enemyGroups = NULL
+  when rand16() % 2
+    is 0
+      addToList(global + p_enemyGroups, new_EnemyGroup_Dirt_Bags())
+      break
+    otherwise
+      addToList(global + p_enemyGroups, new_EnemyGroup_Flesh_Feeders())
+      break
+  wend
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2194,7 +1687,7 @@ def initCmds()
   initCmd('T', @kbdTeleport)
   initCmd('P', @showPos)
   initCmd('/', @testPortrait)
-  initCmd('!', @doCombat)
+  initCmd('!', @testCombat)
   initCmd('1', @showPlayer1)
   initCmd('2', @showPlayer2)
   initCmd('3', @showPlayer3)
@@ -2332,8 +1825,38 @@ def initHeap()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def _getGlobals()
+  return global
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Set up the library vectors so we can share the library routines
+def setLibVecs()
+  word sp, dp
+
+  // We're going to put the vectors at a known location, and lock that space
+  mmgr(SET_MEM_TARGET, gameLibVecs)
+  mmgr(REQUEST_MEMORY, $100)
+  mmgr(LOCK_MEMORY,    gameLibVecs)
+
+  // Now set up the jump vectors
+  sp = gameLib_addrs
+  dp = gameLibVecs
+  while *sp
+    dp.0 = $4c
+    dp:1 = @setScriptInfo
+    dp = dp + 3
+    sp = sp + 2
+  loop
+
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Main code.
 //
+textDrawn = FALSE
+needRender = TRUE
+setLibVecs()
 initHeap()
 addToList(global + p_players, new_Player_Hue_Hauser())
 addToList(global + p_players, new_Player_Mokahnu())

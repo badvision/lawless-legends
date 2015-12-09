@@ -1356,16 +1356,52 @@ class PackPartitions
         println "Done."
     }
     
-    def humanNameToFuncName(str)
+    def isAlnum(ch)
+    {
+        if (Character.isAlphabetic(ch.charAt(0) as int))
+            return true
+        if (Character.isDigit(ch.charAt(0) as int))
+            return true
+        return false
+    }
+    
+    def humanNameToSymbol(str, allUpper)
     {
         def buf = new StringBuilder()
         def inParen = false
         def inSlash = false
-        str.each { ch ->
-            if (ch >= 'A' && ch <= 'Z')
-                buf.append(ch)
-            else if (ch >= 'a' && ch <= 'z')
-                buf.append(ch)
+        def needUnderscore = false
+        str.eachWithIndex { ch, idx ->
+            if (ch == '(') {
+                inParen = true
+                ch = 0
+            }
+            else if (ch == ')') {
+                inParen = false
+                ch = 0
+            }
+            else if (ch == '/') {
+                inSlash = true
+                ch = 0
+            }
+            else if (!isAlnum(ch))
+                inSlash = false
+            
+            if (ch && !inParen && !inSlash) {
+                if (ch >= 'A' && ch <= 'Z')
+                    needUnderscore = true
+                if (ch == ' ' || ch == '_')
+                    needUnderscore = true
+                if (isAlnum(ch)) {
+                    if (needUnderscore && idx > 0)
+                        buf.append('_')
+                    needUnderscore = false
+                    if (allUpper)
+                        buf.append(ch.toUpperCase())
+                    else
+                        buf.append(ch.toLowerCase())
+                }
+            }
         }
         return buf.toString()
     }
@@ -1375,7 +1411,7 @@ class PackPartitions
         assert columns[0] == "Name"
         def name = data[0]
         
-        out.print("def ${humanNameToFuncName(name)}\n")
+        out.print("def new_enemy_${humanNameToSymbol(name, false)}\n")
         
         assert columns[1] == "Image1"
         def image1 = data[1]
@@ -1419,11 +1455,27 @@ class PackPartitions
         assert columns[14].toLowerCase() =~ /gold loot/
         def goldLoot = data[14]
         
-        
+        out.println("end\n")
     }
     
-    void dataGen()
+    void dataGen(xmlPath)
     {
+        // Open the XML data file produced by Outlaw Editor
+        def dataIn = new XmlParser().parse(xmlPath)
+        
+        // Translate image names to constants
+        new File("src/plasma/gen_images.plh").withWriter { out ->
+            def portraitNum = 0
+            dataIn.image.each { image ->
+                def category = image.@category?.toLowerCase()
+                def name = image.@name
+                if (category == "portrait") {
+                    ++portraitNum
+                    out.println "const PORTRAIT_${humanNameToSymbol(name, true)} = $portraitNum"
+                }
+            }
+        }
+        
         // Translate enemies to code
         new File("src/plasma/gen_enemies.pla").withWriter { out ->
             def columns
@@ -1455,10 +1507,10 @@ class PackPartitions
         }
         
         // Check the arguments
-        if (!((args.size() == 1 && args[0] == "-dataGen") || args.size() == 2 || args.size() == 3)) {
+        if (!(args.size() == 2 || args.size() == 3)) {
             println "Usage: convert yourOutlawFile.xml game.part.0.bin [intcastMap.js]"
             println "   (where intcastMap.js is to aid in debugging the Javascript raycaster)"
-            println "   or: convert -dataGen"
+            println "   or: convert yourOutlawFile.xml -dataGen"
             System.exit(1);
         }
 
@@ -1470,8 +1522,8 @@ class PackPartitions
         // Go for it.
         def inst = new PackPartitions()
         try {
-            if (args[0] == "-dataGen")
-                inst.dataGen()
+            if (args[1] == "-dataGen")
+                inst.dataGen(args[0])
             else
                 inst.pack(args[0], args[1], args.size() > 2 ? args[2] : null)
         }

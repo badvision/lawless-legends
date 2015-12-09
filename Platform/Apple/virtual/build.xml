@@ -32,6 +32,7 @@
     <!-- Generate code from tables -->
     <echo>Generating code from tables.</echo>
     <java jar="${pack.dir}/PackPartitions.jar" fork="true" failonerror="true">
+      <arg value="data/world/world.xml"/>
       <arg value="-dataGen"/>
     </java>
 

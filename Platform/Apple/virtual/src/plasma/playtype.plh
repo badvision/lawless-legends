@@ -10,6 +10,8 @@ struc Global
 end
 byte typeTbl_Global[] = Global, p_players, p_enemyGroups, p_combatFirst, 0
 
+const PLAYER_FLAG_NPC  = $01
+
 const TYPE_PLAYER = $81
 struc Player
   byte t_type
@@ -39,6 +41,7 @@ struc Player
   // Status
   word w_maxHealth
   byte b_combatChoice
+  byte b_playerFlags
 
   // Lists
   word p_skills  // list:Modifier

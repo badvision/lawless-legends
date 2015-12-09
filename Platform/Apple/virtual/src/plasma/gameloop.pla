@@ -76,6 +76,7 @@ const CHAR_WND_LIFE_X = 91
 const CHAR_WND_GUN_X = 114
 
 include "playtype.plh"
+include "gen_images.plh"
 //include "heaptest.plh"
 
 word global  // the global heap object, from which all live objects must be reachable
@@ -644,6 +645,15 @@ asm brk
         bit setText
         bit page1
         brk
+end
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Reboot the machine
+// Params: None
+asm reboot
+        inc $3F4    ; invalidate reset vector
+        jmp $FA62   ; and reset
 end
 
 
@@ -1421,10 +1431,25 @@ def kbdLoop()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def showMapName(mapName)
+  word newNameHash
+
+  newNameHash = hashString(mapName)
+  if newNameHash <> mapNameHash
+    setWindow1()
+    clearWindow()
+    displayChar('Y'-$40) // center mode
+    displayStr(mapName)
+    displayChar('N'-$40) // normal mode
+    if mapIs3D; copyWindow(); fin
+    mapNameHash = newNameHash
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set initial info for the scripts on this map: the name of the map, its trigger table, and the
 // maximum extent (width, height). This is called by the init function for the scripts.
 def setScriptInfo(mapName, trigTbl, wdt, hgt)
-  word newNameHash
 
   // Grab the trigger table origins (used so the table can be more compact)
   triggerOriginX = trigTbl=>0
@@ -1438,16 +1463,7 @@ def setScriptInfo(mapName, trigTbl, wdt, hgt)
   totalMapHeight = hgt
 
   // Display map name
-  newNameHash = hashString(mapName)
-  if newNameHash <> mapNameHash
-    setWindow1()
-    clearWindow()
-    displayChar('Y'-$40) // center mode
-    displayStr(mapName)
-    displayChar('N'-$40) // normal mode
-    if mapIs3D; copyWindow(); fin
-    mapNameHash = newNameHash
-  fin
+  showMapName(mapName)
 
   // Back to the main text window.
   setWindow2()
@@ -1576,6 +1592,10 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Call like this: addToList(player + items, itemToAdd)
 def addToList(addTo, p)
+  // Get to the end of the list
+  while *addTo
+    addTo = (*addTo) + p_nextObj
+  loop
   p=>p_nextObj = *addTo
   *addTo = p
 end
@@ -1704,7 +1724,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def playerDodge(pPlayer)
-  displayStr("\nTODO: player dodge.\n")
+  displayStr("\n%s dodges.\n", pPlayer=>s_name)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1760,10 +1780,6 @@ def playerCombatChoose(pl)
   byte nWeapons, key
   byte canShoot, canReload, canChange
 
-  // Tell what the player currently faces
-  displayOpponents()
-  combatPause()
-
   // Count weapons, and take the first as the current one.
   nWeapons = 0
   pWeapon = NULL
@@ -1775,6 +1791,16 @@ def playerCombatChoose(pl)
     fin
     p = p=>p_nextObj
   loop
+
+  // NPCs always melee for now
+  if pl=>b_playerFlags & PLAYER_FLAG_NPC
+    pl->b_combatChoice = 'M'
+    return
+  fin
+
+  // Tell what the player currently faces
+  displayOpponents()
+  combatPause()
 
   // Let them know their options
   displayStr("\n")
@@ -1934,7 +1960,9 @@ def determineCombatOrder()
     if canFight(p)
       p->b_combatOrder = rand16() % (p->b_agility * 10)
       combatInsert(p)
-      nPlayersFighting = nPlayersFighting + 1
+      if (!(p=>b_playerFlags & PLAYER_FLAG_NPC)) // only count real players
+        nPlayersFighting = nPlayersFighting + 1
+      fin
     fin
     p = p=>p_nextObj
   loop
@@ -1964,7 +1992,14 @@ def startCombat()
 
   // Create the enemy group(s).
   global=>p_enemyGroups = NULL
-  addToList(global + p_enemyGroups, new_EnemyGroup_Dirt_Bags())
+  when rand16() % 2
+    is 0
+      addToList(global + p_enemyGroups, new_EnemyGroup_Dirt_Bags())
+      break
+    otherwise
+      addToList(global + p_enemyGroups, new_EnemyGroup_Flesh_Feeders())
+      break
+  wend
 
   // Display portrait of first group
   setPortrait(global=>p_enemyGroups=>p_enemies->ba_images[0])
@@ -2011,15 +2046,15 @@ def startCombat()
   loop
 
   rawDisplayStr("\nDo you:\n")
-  displayOption('F', "Fight")
-  displayOption('R', "Run")
+  displayOption('B', "Battle")
+  displayOption('F', "Flee")
   while TRUE
     n = getUpperKey()
-    if n == 'F'
+    if n == 'B'
       clearWindow()
-      displayStr("Fight!\n")
+      displayStr("Battle!\n")
       return TRUE
-    elsif n == 'R'
+    elsif n == 'F'
       clearWindow()
       displayStr("Coward.")
       return FALSE
@@ -2051,18 +2086,29 @@ def doCombat()
     p = global=>p_combatFirst
     while p
       if !nPlayersFighting
-        displayStr("\nYou lost.")
-//Lose: You bought the farm, with your life! Thank's for playing! Relead last save ? Y/N
-//Lose: Didn't see that coming...to see a fine player like you slaughtered like a common rodent...Well, let's reload and try that again, ok? Y/N
-        return
+        setPortrait(PORTRAIT_DEATH)
+        when rand16() % 2
+          is 0
+            displayStr("\nYou bought the farm, with your life! Thank's for playing! Reload last save?\n"); break
+          otherwise
+            displayStr("\nDidn't see that coming... to see a fine player like you slaughtered like a common rodent... Well, let's reload and try that again, ok?\n")
+        wend
+        if (!getYN())
+          displayStr("Ah, okay. Well... just hit a key when you're ready then.")
+          getUpperKey()
+        fin
+        reboot()
       elsif !nEnemiesFighting
-        displayStr("\nYou won!")
-//WIN: You survive the ordeal and rifle through the carnage to find X gold. (if player gets random item) Upon further searching you find a 
-//Win: That was a close call! You see something shimmering on the ground and find X gold.
-//Win: Looks like you live to fight another day anyway! You get X experience and discover X gold.
-//I forgot to add experience to the above ones
-//   WIN: You survive the ordeal and rifle through the carnage to find X gold and receive x experience. (if player gets random item) Upon further searching you find a 
-//Win: That was a close call! You see something shimmering on the ground and find X gold and x expereince.
+        setPortrait(PORTRAIT_COMBATWIN)
+        when rand16() % 3
+          is 0
+            displayStr("\nYou survive the ordeal and rifle through the carnage.\n"); break
+          is 1
+            displayStr("\nThat was a close call! You see search the ground.\n"); break
+          otherwise
+            displayStr("\nLooks like you live to fight another day anyway!\n"); break
+        wend
+        getUpperKey()
         return
       elsif isFleeing
         displayStr("\nYou have fled.")
@@ -2086,6 +2132,55 @@ def doCombat()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Show player data
+def showPlayerSheet(pl)
+  word x, y
+  byte dir
+  getPos(@x, @y)
+  dir = getDir()
+
+  // First, display the player's name in the title bar
+  showMapName(pl=>s_name)
+
+  // Next, show stats in the main map area
+  setMapWindow()
+  clearWindow()
+  displayStr("Stats")
+
+  // Show inventory in the right hand area
+  setWindow2()
+  clearWindow()
+  displayStr("Inventory")
+
+  // Wait, then back to normal
+  getUpperKey()
+
+  setWindow2()
+  clearWindow()
+  initMap(x, y, dir)
+end
+
+def showPlayer1()
+  showPlayerSheet(global=>p_players)
+end
+
+def showPlayer2()
+  if global=>p_players=>p_nextObj
+    showPlayerSheet(global=>p_players=>p_nextObj)
+  else
+    beep()
+  fin
+end
+
+def showPlayer3()
+  if global=>p_players=>p_nextObj and global=>p_players=>p_nextObj=>p_nextObj
+    showPlayerSheet(global=>p_players=>p_nextObj=>p_nextObj)
+  else
+    beep()
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set up the command table for 3D mode
 def initCmds()
 
@@ -2100,6 +2195,9 @@ def initCmds()
   initCmd('P', @showPos)
   initCmd('/', @testPortrait)
   initCmd('!', @doCombat)
+  initCmd('1', @showPlayer1)
+  initCmd('2', @showPlayer2)
+  initCmd('3', @showPlayer3)
 
   // Commands handled differently in 3D vs 2D
   if mapIs3D
@@ -2238,6 +2336,7 @@ end
 //
 initHeap()
 addToList(global + p_players, new_Player_Hue_Hauser())
+addToList(global + p_players, new_Player_Mokahnu())
 loadTitle()
 setCallbacks()
 // Start map/loc per Seth. Need to have this in a script in the futurecheckScripts()

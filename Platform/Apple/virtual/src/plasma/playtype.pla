@@ -36,6 +36,42 @@ def new_Armor_Chaps
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def new_Armor_ShamanHeaddress()
+  word p
+  p = mmgr(HEAP_ALLOC, TYPE_ARMOR)
+  p=>s_name = mmgr(HEAP_INTERN, "Shaman Headdress(es)")
+  p->b_itemKind = KIND_HAT
+  p=>w_cost = -99 // for now
+  // no modifiers, max uses, etc. for now
+  p->b_armorValue = 2
+  return p
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def new_Armor_TahnkuPants()
+  word p
+  p = mmgr(HEAP_ALLOC, TYPE_ARMOR)
+  p=>s_name = mmgr(HEAP_INTERN, "Tahnku Pants")
+  p->b_itemKind = KIND_PANTS
+  p=>w_cost = -99 // for now
+  // no modifiers, max uses, etc. for now
+  p->b_armorValue = 2
+  return p
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def new_Armor_TahnkuVest()
+  word p
+  p = mmgr(HEAP_ALLOC, TYPE_ARMOR)
+  p=>s_name = mmgr(HEAP_INTERN, "Tahnku Vest(s)")
+  p->b_itemKind = KIND_SHIRT
+  p=>w_cost = -99 // for now
+  // no modifiers, max uses, etc. for now
+  p->b_armorValue = 2
+  return p
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def encodeDice(nDice, dieSize, add)  // ndice=0..15, dieSize=0..15, add=0..255
   return (nDice << 12) | (dieSize << 8) | add
 end
@@ -70,6 +106,45 @@ def new_Weapon_Handgun
   p->ba_attacks[0] = 1  // single attack
   p->b_weaponRange = 40
   p=>s_combatText = mmgr(HEAP_INTERN, "shoots")
+  return p
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def new_Weapon_SpiritBow
+  word p
+  p = mmgr(HEAP_ALLOC, TYPE_WEAPON)
+  p=>s_name = mmgr(HEAP_INTERN, "Spirit Bow")
+  p->b_itemKind = KIND_BOW
+  p=>w_cost = -99 // for now
+  // no modifiers, max uses, etc. for now
+  p->b_ammoKind = KIND_ARROW
+  p->b_clipSize = 12
+  p->b_clipCurrent = p->b_clipSize
+  p=>r_meleeDmg = encodeDice(3, 6, 0)  // 3d6
+  p=>r_projectileDmg = encodeDice(2, 6, 5)  // 2d6+5
+  p->ba_attacks[0] = 1  // single attack
+  p->ba_attacks[1] = 3  // triple attack
+  p->b_weaponRange = 100
+  p=>s_combatText = mmgr(HEAP_INTERN, "shoots")
+  return p
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def new_Weapon_SpiritBlade
+  word p
+  p = mmgr(HEAP_ALLOC, TYPE_WEAPON)
+  p=>s_name = mmgr(HEAP_INTERN, "Spirit Blade")
+  p->b_itemKind = KIND_BOW
+  p=>w_cost = -99 // for now
+  // no modifiers, max uses, etc. for now
+  p->b_ammoKind = 0
+  p->b_clipSize = 0
+  p->b_clipCurrent = p->b_clipSize
+  p=>r_meleeDmg = encodeDice(7, 6, 0)  // 7d6
+  p=>r_projectileDmg = 0
+  p->ba_attacks[0] = 1  // single attack
+  p->b_weaponRange = 10
+  p=>s_combatText = mmgr(HEAP_INTERN, "slices")
   return p
 end
 
@@ -127,12 +202,60 @@ def new_Player_Hue_Hauser
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def new_Player_Mokahnu
+  word p, pItem
+  p = mmgr(HEAP_ALLOC, TYPE_PLAYER)
+  p=>s_name = mmgr(HEAP_INTERN, "Mokahnu")
+  p->b_intelligence = 7
+  p->b_strength = 4
+  p->b_agility = 6
+  p->b_bravery = 7
+  p->b_stamina = 6
+  p->b_charisma = 7
+  p->b_spirit = 10
+
+  p=>w_maxHealth = 40
+  p=>w_health = 40
+
+  p->b_playerFlags = PLAYER_FLAG_NPC
+
+  // Basic skills
+  p->b_aiming = 4
+  p->b_dodging = 3
+  p->b_wilderness = 5
+
+  // Skills
+  addToList(p + p_skills, new_Modifier(KIND_MINING, 0))
+  addToList(p + p_skills, new_Modifier(KIND_NATIVE_BOND, 10))
+  addToList(p + p_skills, new_Modifier(KIND_PYRE_WARE, 0))
+  addToList(p + p_skills, new_Modifier(KIND_BLADE, 3))
+  addToList(p + p_skills, new_Modifier(KIND_BOW, 3))
+  addToList(p + p_skills, new_Modifier(KIND_RIFLE, 3))
+  addToList(p + p_skills, new_Modifier(KIND_BLADE, 3))
+
+  // Items
+  addToList(p + p_items, new_Armor_ShamanHeaddress())
+  addToList(p + p_items, new_Armor_TahnkuPants())
+  addToList(p + p_items, new_Armor_TahnkuVest())
+  addToList(p + p_items, new_Weapon_SpiritBow())
+  addToList(p + p_items, new_Weapon_SpiritBlade())
+
+  // Calculated attributes
+  calcPlayerArmor(p)
+
+  // (No buffs or debuffs to start with.)
+
+  // All done with the player.
+  return p
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def new_Enemy_Dirt_Bag
   word p
   p = mmgr(HEAP_ALLOC, TYPE_ENEMY)
   p=>s_name = mmgr(HEAP_INTERN, "Dirt-Bag(s)")
   p=>w_health = rollDice(encodeDice(1, 6, 0))
-  p->ba_images[0] = 32  // Gunman5
+  p->ba_images[0] = PORTRAIT_GUNMAN5
   p->b_attackType = 1 // melee
   p=>s_attackText = mmgr(HEAP_INTERN, "swings at")
   p->b_enemyAttackRange = 5
@@ -154,6 +277,40 @@ def new_EnemyGroup_Dirt_Bags
   addToList(p + p_enemies, enem)
   while groupSize > 1
     addToList(p + p_enemies, new_Enemy_Dirt_Bag())
+    groupSize = groupSize - 1
+  loop
+
+  return p
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def new_Enemy_Flesh_Feeder
+  word p
+  p = mmgr(HEAP_ALLOC, TYPE_ENEMY)
+  p=>s_name = mmgr(HEAP_INTERN, "Flesh Feeder(s)")
+  p=>w_health = rollDice(encodeDice(6, 6, 0))
+  p->ba_images[0] = PORTRAIT_U_D_MAN1
+  p->b_attackType = 1 // melee
+  p=>s_attackText = mmgr(HEAP_INTERN, "bites")
+  p->b_enemyAttackRange = 5
+  p->b_chanceToHit = 40
+  p=>r_enemyDmg = encodeDice(3, 6, 0) // 3d6
+  p=>r_groupSize = encodeDice(1, 6, 0) // 1d6
+  p=>r_initialRange = encodeDice(1, 5, 0)
+  return p
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def new_EnemyGroup_Flesh_Feeders
+  word p, enem, groupSize
+  p = mmgr(HEAP_ALLOC, TYPE_ENEMY_GROUP)
+  enem = new_Enemy_Flesh_Feeder()
+  p->b_enemyGroupRange = rollDice(enem=>r_initialRange)
+
+  groupSize = rollDice(enem=>r_groupSize)
+  addToList(p + p_enemies, enem)
+  while groupSize > 1
+    addToList(p + p_enemies, new_Enemy_Flesh_Feeder())
     groupSize = groupSize - 1
   loop
 

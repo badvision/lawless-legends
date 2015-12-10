@@ -1213,20 +1213,25 @@ class PackPartitions
             stream.write(it.buf.data, 0, it.buf.len)
         }
     }
-    
+
+    def readAllCode()
+    {
+        readCode("render", "src/raycast/build/render.b")
+        readCode("expand", "src/raycast/build/expand.b")
+        readCode("fontEngine", "src/font/build/fontEngine.b")
+        readCode("tileEngine", "src/tile/build/tile.b")
+
+        readModule("gameloop", "src/plasma/build/gameloop.b")
+        readModule("combat", "src/plasma/build/combat.b")
+    }
+        
     def pack(xmlPath, binPath, javascriptPath)
     {
         // Read in code chunks. For now these are hard coded, but I guess they ought to
         // be configured in a config file somewhere...?
         //
         println "Reading code resources."
-        readCode("render", "src/raycast/build/render.b")
-        readCode("expand", "src/raycast/build/expand.b")
-        readCode("fontEngine", "src/font/build/fontEngine.b")
-        readCode("tileEngine", "src/tile/build/tile.b")
-        
-        println "Reading modules."
-        readModule("gameloop", "src/plasma/build/gameloop.b")
+        readAllCode()
         
         // We have only one font, for now at least.
         println "Reading fonts."
@@ -1458,7 +1463,7 @@ class PackPartitions
         out.println("end\n")
     }
     
-    void dataGen(xmlPath)
+    def dataGen(xmlPath)
     {
         // Open the XML data file produced by Outlaw Editor
         def dataIn = new XmlParser().parse(xmlPath)
@@ -1484,6 +1489,17 @@ class PackPartitions
                     genEnemy(out, columns, line.split("\t"))
                 else
                     columns = line.split("\t")
+            }
+        }
+        
+        // Produce a list of assembly and PLASMA code segments
+        readAllCode()
+        new File("src/plasma/gen_modules.plh").withWriter { out ->
+            code.each { k, v ->
+                out.println "const CODE_${humanNameToSymbol(k, true)} = ${v.num}"
+            }
+            modules.each { k, v ->
+                out.println "const MODULE_${humanNameToSymbol(k, true)} = ${v.num}"
             }
         }
     }

@@ -21,13 +21,6 @@ const heapStart     = $F000   // main mem
 const heapSize      = $800
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Resource numbers
-const RES_NUM_RAYCASTER   = 1
-const RES_NUM_EXPAND_VEC  = 2
-const RES_NUM_FONT_ENGINE = 3
-const RES_NUM_TILE_ENGINE = 4
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Other constants
 const callbacks = $300
 
@@ -36,7 +29,7 @@ const CHAR_WND_GUN_X = 114
 
 include "playtype.plh"
 include "gen_images.plh"
-//include "heaptest.plh"
+include "gen_modules.plh"
 
 word global  // the global heap object, from which all live objects must be reachable
 
@@ -78,20 +71,20 @@ byte tabBuf[5]
 predef _getGlobals, _rand16
 predef _printf1, _printf2, _printf3, _printf4
 predef _displayf1, _displayf2, _displayf3, _displayf4
-predef _rollDice, _buildString, _addToString, _finishString, _rawDisplayStr, _displayStr
+predef _buildString, _addToString, _finishString, _rawDisplayStr, _displayStr
 predef _puts, _min, _max
 predef _countList, _countListFiltered, _randomFromListFiltered, _addToList, _getUpperKey, _beep
 predef _showParty, _mmgr, _setPortrait, _setWindow1, _setWindow2, _setWindow3, _clearWindow
-predef _getYN, _reboot, _brk
+predef _getYN, _reboot, _brk, _encodeDice, _rollDice
 
-word gameLib_addrs = _getGlobals, _rand16
-word = _printf1, _printf2, _printf3, _printf4
-word = _displayf1, _displayf2, _displayf3, _displayf4
-word = _rollDice, _buildString, _addToString, _finishString, _rawDisplayStr, _displayStr
-word = _puts, _min, _max
-word = _countList, _countListFiltered, _randomFromListFiltered, _addToList, _getUpperKey, _beep
-word = _showParty, _mmgr, _setPortrait, _setWindow1, _setWindow2, _setWindow3, _clearWindow
-word = _getYN, _reboot, _brk
+word gameLib_addrs = @_getGlobals, @_rand16
+word = @_printf1, @_printf2, @_printf3, @_printf4
+word = @_displayf1, @_displayf2, @_displayf3, @_displayf4
+word = @_buildString, @_addToString, @_finishString, @_rawDisplayStr, @_displayStr
+word = @_puts, @_min, @_max
+word = @_countList, @_countListFiltered, @_randomFromListFiltered, @_addToList, @_getUpperKey, @_beep
+word = @_showParty, @_mmgr, @_setPortrait, @_setWindow1, @_setWindow2, @_setWindow3, @_clearWindow
+word = @_getYN, @_reboot, @_brk, @_encodeDice, @_rollDice
 
 word = 0  // end of library functions
 
@@ -622,9 +615,13 @@ end
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Reboot the machine
+// Clear the screen and reboot the machine
 // Params: None
 asm _reboot
+        bit setROM
+        jsr home
+        bit setText
+        bit page1
         inc $3F4    ; invalidate reset vector
         jmp $FA62   ; and reset
 end
@@ -1077,7 +1074,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display the party data on the screen
-def showParty()
+def _showParty()
   word p
 
   saveCursor()
@@ -1106,7 +1103,6 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load code and data, set up everything to display a 3D map
 def initMap(x, y, dir)
-  word pFont
   word pMap
 
   // Set up the command table
@@ -1115,22 +1111,15 @@ def initMap(x, y, dir)
   // Reset memory (our module will stay since memory manager locked it upon load)
   mmgr(RESET_MEMORY, 0)
 
-  // Load the font engine and its font
-  mmgr(SET_MEM_TARGET, fontEngine)
-  mmgr(QUEUE_LOAD,     RES_NUM_FONT_ENGINE<<8 | RES_TYPE_CODE)
-
-  mmgr(SET_MEM_TARGET, $9000)
-  pFont = mmgr(QUEUE_LOAD, 1<<8 | RES_TYPE_FONT)
-
   // Queue loading of the raycaster or tile engine and the map data
   mmgr(SET_MEM_TARGET, displayEngine)
   if mapIs3D
-    mmgr(QUEUE_LOAD, RES_NUM_RAYCASTER<<8 | RES_TYPE_CODE)
+    mmgr(QUEUE_LOAD, CODE_RENDER<<8 | RES_TYPE_CODE)
     pMap = mmgr(QUEUE_LOAD, mapNum<<8 | RES_TYPE_3D_MAP)
     auxMmgr(SET_MEM_TARGET, expandVec)
-    auxMmgr(QUEUE_LOAD, RES_NUM_EXPAND_VEC<<8 | RES_TYPE_CODE)
+    auxMmgr(QUEUE_LOAD, CODE_EXPAND<<8 | RES_TYPE_CODE)
   else
-    mmgr(QUEUE_LOAD, RES_NUM_TILE_ENGINE<<8 | RES_TYPE_CODE)
+    mmgr(QUEUE_LOAD, CODE_TILE_ENGINE<<8 | RES_TYPE_CODE)
     pMap = mmgr(QUEUE_LOAD, mapNum<<8 | RES_TYPE_2D_MAP)
   fin
 
@@ -1140,9 +1129,6 @@ def initMap(x, y, dir)
   // Load the frame image (and lock it there)
   loadFrameImg()
   mmgr(FINISH_LOAD, 1) // 1 = keep open
-
-  // Tell the font engine where to find its font
-  setFont(pFont)
 
   // Start up the display engine with map data and starting position. This will also load and
   // init the script module, if any, which will end up calling us back at the setScriptInfo
@@ -1661,6 +1647,20 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def testCombat()
+  word combatEngine
+  word x, y
+  byte dir
+
+  // Save the map position
+  getPos(@x, @y)
+  dir = getDir()
+
+  // Load the combat engine
+  flipToPage1()
+  mmgr(RESET_MEMORY, 0)
+  combatEngine = mmgr(QUEUE_LOAD, MODULE_COMBAT<<8 | RES_TYPE_MODULE)
+  mmgr(FINISH_LOAD, 1) // 0 = close
+
   // Create the enemy group(s).
   global=>p_enemyGroups = NULL
   when rand16() % 2
@@ -1671,6 +1671,17 @@ def testCombat()
       addToList(global + p_enemyGroups, new_EnemyGroup_Flesh_Feeders())
       break
   wend
+
+  // Run the combat engine
+  combatEngine()
+
+  // Clear out the heap
+  global=>p_enemyGroups = NULL
+  mmgr(HEAP_COLLECT, 0)
+
+  // Resume where we left off
+  setWindow2()
+  initMap(x, y, dir)  
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1730,6 +1741,8 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load and display the title screen.
 def loadTitle()
+  word pFont
+
   puts("Loading Lawless Legends.\n")
 
   // Load the title screen
@@ -1748,6 +1761,19 @@ def loadTitle()
   // unless we do this. *HUGE* thanks to Brendan Robert for the fix!
   ^$C07E=0   // disable double-hi-res
   ^$C05F     // disable double-hi-res
+
+  // Load the font engine and its font, and lock them in place forever.
+  mmgr(SET_MEM_TARGET, fontEngine)
+  mmgr(QUEUE_LOAD,     CODE_FONT_ENGINE<<8 | RES_TYPE_CODE)
+  mmgr(LOCK_MEMORY,    fontEngine)
+
+  mmgr(SET_MEM_TARGET, $9000)
+  pFont = mmgr(QUEUE_LOAD, 1<<8 | RES_TYPE_FONT)
+  mmgr(LOCK_MEMORY, pFont)
+  mmgr(FINISH_LOAD, 1) // 1 = keep open
+
+  // Tell the font engine where to find its font
+  setFont(pFont)
 
   // Wait for a key.
   getUpperKey()
@@ -1835,18 +1861,18 @@ def setLibVecs()
   word sp, dp
 
   // We're going to put the vectors at a known location, and lock that space
-  mmgr(SET_MEM_TARGET, gameLibVecs)
-  mmgr(REQUEST_MEMORY, $100)
-  mmgr(LOCK_MEMORY,    gameLibVecs)
+  _mmgr(SET_MEM_TARGET, gameLibVecs)
+  _mmgr(REQUEST_MEMORY, $100)
+  _mmgr(LOCK_MEMORY,    gameLibVecs)
 
   // Now set up the jump vectors
-  sp = gameLib_addrs
+  sp = @gameLib_addrs
   dp = gameLibVecs
   while *sp
-    dp.0 = $4c
-    dp:1 = @setScriptInfo
-    dp = dp + 3
+    dp->0 = $4c
+    dp=>1 = *sp
     sp = sp + 2
+    dp = dp + 3
   loop
 
 end

@@ -72,25 +72,6 @@ def new_Armor_TahnkuVest()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def encodeDice(nDice, dieSize, add)  // ndice=0..15, dieSize=0..15, add=0..255
-  return (nDice << 12) | (dieSize << 8) | add
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def rollDice(encoded)
-  byte i, nDice, dieSize, add, result
-  nDice = encoded >> 12
-  dieSize = (encoded >> 8) & $F
-  add = encoded & $F
-  result = add
-  for i = 1 to nDice
-    add = (rand16() % dieSize) + 1
-    result = result + add
-  next
-  return result
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 def new_Weapon_Handgun
   word p
   p = mmgr(HEAP_ALLOC, TYPE_WEAPON)

@@ -1,0 +1,112 @@
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1 
+// (the "License"); you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-1.1>.
+// Unless required by applicable law or agreed to in writing, software distributed under 
+// the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF 
+// ANY KIND, either express or implied. See the License for the specific language 
+// governing permissions and limitations under the License.
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Handy constants.
+const FALSE = 0
+const TRUE  = 1
+const NULL  = 0
+
+// Library shared variables
+const textDrawn = $3CD
+const needRender = $3CE
+const isPlural = $3CF
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Memory manager definitions
+
+// Resource types
+const RES_TYPE_CODE     = 1
+const RES_TYPE_2D_MAP   = 2
+const RES_TYPE_3D_MAP   = 3
+const RES_TYPE_TILE     = 4
+const RES_TYPE_TEXTURE  = 5
+const RES_TYPE_SCREEN   = 6
+const RES_TYPE_FONT     = 7
+const RES_TYPE_MODULE   = 8
+const RES_TYPE_BYTECODE = 9
+const RES_TYPE_FIXUP    = 10
+const RES_TYPE_PORTRAIT = 11
+
+// Command codes
+const RESET_MEMORY   = $10
+const REQUEST_MEMORY = $11
+const LOCK_MEMORY    = $12
+const UNLOCK_MEMORY  = $13
+const SET_MEM_TARGET = $14
+const START_LOAD     = $15
+const QUEUE_LOAD     = $16
+const FINISH_LOAD    = $17
+const FREE_MEMORY    = $18
+const CALC_FREE      = $19
+const DEBUG_MEM      = $1A
+const CHECK_MEM      = $1B
+const CHAIN_LOADER   = $1E
+const FATAL_ERROR    = $1F
+const HEAP_SET       = $20
+const HEAP_ADD_TYPE  = $21
+const HEAP_ALLOC     = $22
+const HEAP_INTERN    = $23
+const HEAP_COLLECT   = $24
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Shared library routines
+const gameLibVecs = $1F00
+
+const getGlobals      = gameLibVecs + 3*0
+const rand16          = gameLibVecs + 3*1
+const printf1         = gameLibVecs + 3*2
+const printf2         = gameLibVecs + 3*3
+const printf3         = gameLibVecs + 3*4
+const printf4         = gameLibVecs + 3*5
+const displayf1       = gameLibVecs + 3*6
+const displayf2       = gameLibVecs + 3*7
+const displayf3       = gameLibVecs + 3*8
+const displayf4       = gameLibVecs + 3*9
+const buildString     = gameLibVecs + 3*10
+const addToString     = gameLibVecs + 3*11
+const finishString    = gameLibVecs + 3*12
+const rawDisplayStr   = gameLibVecs + 3*13
+const displayStr      = gameLibVecs + 3*14
+const puts            = gameLibVecs + 3*15
+const min             = gameLibVecs + 3*16
+const max             = gameLibVecs + 3*17
+const countList       = gameLibVecs + 3*18
+const countListFiltered = gameLibVecs + 3*19
+const randomFromListFiltered = gameLibVecs + 3*20
+const addToList       = gameLibVecs + 3*21
+const getUpperKey     = gameLibVecs + 3*22
+const beep            = gameLibVecs + 3*23
+const showParty       = gameLibVecs + 3*24
+const mmgr            = gameLibVecs + 3*25
+const setPortrait     = gameLibVecs + 3*26
+const setWindow1      = gameLibVecs + 3*27
+const setWindow2      = gameLibVecs + 3*28
+const setWindow3      = gameLibVecs + 3*29
+const clearWindow     = gameLibVecs + 3*30
+const getYN           = gameLibVecs + 3*31
+const reboot          = gameLibVecs + 3*32
+const brk             = gameLibVecs + 3*33
+const encodeDice         = gameLibVecs + 3*34
+const rollDice         = gameLibVecs + 3*35
+const FUNCN36         = gameLibVecs + 3*36
+const FUNCN37         = gameLibVecs + 3*37
+const FUNCN38         = gameLibVecs + 3*38
+const FUNCN39         = gameLibVecs + 3*39
+const FUNCN40         = gameLibVecs + 3*40
+const FUNCN41         = gameLibVecs + 3*41
+const FUNCN42         = gameLibVecs + 3*42
+const FUNCN43         = gameLibVecs + 3*43
+const FUNCN44         = gameLibVecs + 3*44
+const FUNCN45         = gameLibVecs + 3*45
+const FUNCN46         = gameLibVecs + 3*46
+const FUNCN47         = gameLibVecs + 3*47
+const FUNCN48         = gameLibVecs + 3*48
+const FUNCN49         = gameLibVecs + 3*49

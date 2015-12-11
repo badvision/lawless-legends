@@ -20,6 +20,7 @@ mg
 /Platform/Apple/virtual/data/images/*.bin
 /Platform/Apple/virtual/data/fonts/*.bin
 /Platform/Apple/virtual/data/world/*.xml
+/Platform/Apple/virtual/data/world/*.tsv
 
 # Only check in sample.build.props; each person's build.props will be different.
 /Platform/Apple/virtual/src/include/build.props
@@ -33,6 +34,9 @@ mg
 /Platform/Apple/tools/PLASMA/src/plvm
 /Platform/Apple/tools/PLASMA/src/PLVM02.SYSTEM.sys
 /Platform/Apple/tools/PLASMA/src/*#*
+
+# Ignore other auto-generated files
+/Platform/Apple/virtual/src/plasma/gen_*.pl?
 
 # Packer sometimes produces an error text file.
 error_stack.txt

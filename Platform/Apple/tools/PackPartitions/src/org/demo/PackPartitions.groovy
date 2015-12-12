@@ -278,7 +278,8 @@ class PackPartitions
         }
         
         // Put the results into the buffer
-        def outBuf = ByteBuffer.allocate(128*18)
+        def outBuf = ByteBuffer.allocate(128*18 + 1)
+        outBuf.put((byte)0) // animFlags = 0 to start with
         outBuf.put(arr)
         
         // All done. Return the buffer.
@@ -701,9 +702,42 @@ class PackPartitions
     {
         def num = portraits.size() + 1
         def name = imgEl.@name ?: "img$num"
-        //println "Packing 126 image named '${imgEl.@name}'."
+        def animFrameNum
+        def animFlags
+        def m = (name =~ /^(.*)\*(\d+)(\w*)$/)
+        if (m) {
+            name = m[0][1]
+            animFrameNum = m[0][2].toInteger()
+            animFlags = m[0][3].toLowerCase()
+        }
+        //println "Packing 126 image named '$name'."
         def buf = parse126Data(imgEl)
-        portraits[imgEl.@name] = [num:num, buf:buf]
+        if (animFrameNum == 1) {
+            def flagByte
+            switch (animFlags) {
+                case ""  : flagByte = 0; break
+                case "f" : flagByte = 1; break
+                case "fb": flagByte = 2; break
+                case "r" : flagByte = 3; break
+                default  : throw "Unrecognized animation flags '$animFlags'"
+            }
+            def newBuf = ByteBuffer.allocate(50000) // plenty of room
+            buf.flip()  // crazy stuff to append one buffer to another
+            newBuf.put(buf)
+            def endPos = newBuf.position()
+            newBuf.position(0)
+            newBuf.put((byte) flagByte)
+            newBuf.position(endPos)
+            portraits[name] = [num:num, buf:newBuf]
+        }
+        else if (animFrameNum > 1) {
+            if (!portraits[name])
+                throw new Exception("Can't find first frame for animation '$name'")
+            buf.flip()  // crazy stuff to append one buffer to another
+            portraits[name].buf.put(buf)
+        }
+        else
+            portraits[name] = [num:num, buf:buf]
         //println "...uncompressed: ${buf.position()} bytes."
     }
     
@@ -1252,7 +1286,6 @@ class PackPartitions
         // Pack each image, which has the side-effect of filling in the
         // image name map. Handle frame images separately.
         //
-        println "Packing frame images."
         def titleFound = false
         def uiFramesFound = 0
         def imageNamesPacked = [:]
@@ -1265,7 +1298,7 @@ class PackPartitions
                 case 3: println "Packing textures."; break
                 case 4: println "Packing portraits."; break
             }
-            dataIn.image.each { image ->
+            dataIn.image.sort{it.@name.toLowerCase()}.each { image ->
                 def category = image.@category?.toLowerCase()
                 def name = image.@name.toLowerCase()
                 if (category == "fullscreen" && name == "title") {
@@ -1555,6 +1588,7 @@ class PackPartitions
                         out.println "    $it"
                 }
             }
+            errorFile.eachLine { println it }
             def msg = "Fatal error encountered in ${inst.getContextStr()}.\nDetails written to file 'pack_error.txt'."
             println msg
             System.out.flush()

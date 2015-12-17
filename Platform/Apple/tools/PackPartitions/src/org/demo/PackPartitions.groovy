@@ -279,7 +279,7 @@ class PackPartitions
         
         // Put the results into the buffer
         def outBuf = ByteBuffer.allocate(128*18 + 1)
-        outBuf.put((byte)0) // animFlags = 0 to start with
+        outBuf.put((byte)1) // to start with: 1 frame, no flags
         outBuf.put(arr)
         
         // All done. Return the buffer.
@@ -716,9 +716,9 @@ class PackPartitions
             def flagByte
             switch (animFlags) {
                 case ""  : flagByte = 0; break
-                case "f" : flagByte = 1; break
-                case "fb": flagByte = 2; break
-                case "r" : flagByte = 3; break
+                case "f" : flagByte = 0x20; break
+                case "fb": flagByte = 0x40; break
+                case "r" : flagByte = 0x80; break
                 default  : throw "Unrecognized animation flags '$animFlags'"
             }
             def newBuf = ByteBuffer.allocate(50000) // plenty of room
@@ -726,7 +726,7 @@ class PackPartitions
             newBuf.put(buf)
             def endPos = newBuf.position()
             newBuf.position(0)
-            newBuf.put((byte) flagByte)
+            newBuf.put((byte) (1 + flagByte))
             newBuf.position(endPos)
             portraits[name] = [num:num, buf:newBuf]
         }
@@ -734,7 +734,14 @@ class PackPartitions
             if (!portraits[name])
                 throw new Exception("Can't find first frame for animation '$name'")
             buf.flip()  // crazy stuff to append one buffer to another
-            portraits[name].buf.put(buf)
+            def out = portraits[name].buf
+            out.put(buf)
+            
+            // Increment the frame count
+            def endPos = out.position()
+            out.position(0)
+            out.put((byte)(out.get() + 1))
+            out.position(endPos)
         }
         else
             portraits[name] = [num:num, buf:buf]

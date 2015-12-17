@@ -803,7 +803,7 @@ def fatal(msg)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Return the max of two unsigned 16-bit numbers
+// Return the max of two signed 16-bit numbers
 def _max(a, b)
   if a < b
     return b
@@ -813,7 +813,7 @@ def _max(a, b)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Return the min of two unsigned 16-bit numbers
+// Return the min of two signed 16-bit numbers
 def _min(a, b)
   if a < b
     return a

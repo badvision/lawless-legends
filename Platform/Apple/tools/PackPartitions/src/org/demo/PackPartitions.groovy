@@ -702,7 +702,7 @@ class PackPartitions
     {
         def num = portraits.size() + 1
         def name = imgEl.@name ?: "img$num"
-        def animFrameNum
+        def animFrameNum = 0
         def animFlags
         def m = (name =~ /^(.*)\*(\d+)(\w*)$/)
         if (m) {
@@ -733,14 +733,18 @@ class PackPartitions
         else if (animFrameNum > 1) {
             if (!portraits[name])
                 throw new Exception("Can't find first frame for animation '$name'")
+            num = portraits.size()  // in other words, do not increment
             buf.flip()  // crazy stuff to append one buffer to another
+            buf.get() // skip 1st byte - unused flags
             def out = portraits[name].buf
             out.put(buf)
             
             // Increment the frame count
-            def endPos = out.position()
+            def endPos = out.position()            
             out.position(0)
-            out.put((byte)(out.get() + 1))
+            def before = out.get()
+            out.position(0)
+            out.put((byte)(before+1))
             out.position(endPos)
         }
         else
@@ -1511,12 +1515,22 @@ class PackPartitions
         // Translate image names to constants
         new File("src/plasma/gen_images.plh").withWriter { out ->
             def portraitNum = 0
-            dataIn.image.each { image ->
+            dataIn.image.sort{it.@name.toLowerCase()}.each { image ->
                 def category = image.@category?.toLowerCase()
                 def name = image.@name
                 if (category == "portrait") {
-                    ++portraitNum
-                    out.println "const PORTRAIT_${humanNameToSymbol(name, true)} = $portraitNum"
+                    def animFrameNum = 0
+                    def animFlags
+                    def m = (name =~ /^(.*)\*(\d+)(\w*)$/)
+                    if (m) {
+                        name = m[0][1]
+                        animFrameNum = m[0][2].toInteger()
+                        animFlags = m[0][3].toLowerCase()
+                    }
+                    if (animFrameNum <= 1) {
+                        ++portraitNum
+                        out.println "const PORTRAIT_${humanNameToSymbol(name, true)} = $portraitNum"
+                    }
                 }
             }
         }

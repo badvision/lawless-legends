@@ -24,8 +24,17 @@ const heapSize      = $800
 // Other constants
 const callbacks = $300
 
+const kbd       = $C000
+const kbdStrobe = $C010
+
 const CHAR_WND_LIFE_X = 91
-const CHAR_WND_GUN_X = 114
+const CHAR_WND_GUN_X  = 114
+
+const ANIM_FLAG_FWD      = $20
+const ANIM_FLAG_FWD_BKWD = $40
+const ANIM_FLAG_RANDOM   = $80
+
+const ANIM_PAUSE_MAX = 250
 
 include "playtype.plh"
 include "gen_images.plh"
@@ -35,7 +44,7 @@ word global  // the global heap object, from which all live objects must be reac
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Predefined functions, for circular calls or out-of-order calls
-predef setWindow2, initCmds
+predef setWindow2, initCmds, nextAnimFrame
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Global variables
@@ -66,8 +75,15 @@ byte q_dir
 byte decimalBuf[7]
 byte tabBuf[5]
 
-// Game library functions
+// Animation tracking
+word curPortrait = 0
+byte animFlags
+byte animDir
+byte animNumFrames
+byte animFrame
+word animPauseCt
 
+// Game library functions
 predef _getGlobals, _rand16
 predef _printf1, _printf2, _printf3, _printf4
 predef _displayf1, _displayf2, _displayf3, _displayf4
@@ -112,7 +128,7 @@ ysav1       = $35
 
 ; 16-bit random number seed - incremented by ROM kbd routine
 seed        = $4E
-magic       = $2227 ; there are 2048 magic values that work; this one caught my eye.
+magic       = $2227 ; there are 2048 magic values that work; this one caught my eye. - MH
 
 ; NOTE ABOUT ABSOLUTE ADDRESSES
 ; You cannot use them: this code, including variable space, can be loaded *anywhere*.
@@ -157,6 +173,43 @@ end
 asm render      // no params
         +asmPlasm 0
         jmp $6018
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+asm setAuxCopy
+        rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+asm readAuxByte     // params: ptr; ret: char
+        +asmPlasm 1
+
+        ; Create the following subroutine, used to copy one char from aux to main:
+        ;0010-   8D 03 C0    STA   $C003
+        ;0013-   AD XX XX    LDA   $XXXX
+        ;0016-   8D 02 C0    STA   $C002
+        ;0019-   60          RTS
+
+        sta $14
+        sty $15
+        lda #$8D
+        sta $10
+        sta $16
+        ldx #2
+        stx $17
+        inx
+        stx $11
+        lda #$C0
+        sta $12
+        sta $18
+        lda #$AD
+        sta $13
+        lda #$60
+        sta $19
+
+        ; And call the routine
+        ldy #0
+        jmp $10
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -369,7 +422,7 @@ asm blitPortrait      // params: srcData, dstScreenPtr
 
         ; Outer copy loop
         ldx #128  ; line count
-.loop   ldy #17   ; byte count minus 1
+.loop   ldy #17   ; byte count minus 1. There are 18 bytes per line
         jsr $10   ; copy pixel bytes
 
         ; Advance to next row of data
@@ -924,7 +977,19 @@ end
 // Get a keystroke and convert it to upper case
 def _getUpperKey()
   byte key
-  key = rdkey() & $7F
+  while ^kbd < 128
+    *seed = *seed + 1
+    animPauseCt = animPauseCt - 1
+    if animPauseCt < 0
+      if curPortrait and animNumFrames > 1
+        nextAnimFrame()
+      fin
+      animPauseCt = ANIM_PAUSE_MAX
+    fin
+  loop
+  key = ^kbd
+  ^kbdStrobe
+  key = key & $7F
   if key >= $60
     key = key - $20
   fin
@@ -1176,6 +1241,19 @@ def checkScripts()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Perform rendering, copy if necessary, clear appropriate flags
+def doRender()
+  if curPortrait
+    auxMmgr(FREE_MEMORY, curPortrait)
+    curPortrait = 0
+  fin
+
+  render()
+  if textDrawn and mapIs3D; copyWindow(); fin
+  needRender = FALSE
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Advance one step forward (3D maps only)
 def moveForward()
   byte val
@@ -1184,9 +1262,7 @@ def moveForward()
   // If not blocked, render at the new position.
   if val > 0
     if !mapIs3D
-      render()
-      if textDrawn and mapIs3D; copyWindow(); fin
-      needRender = FALSE
+      doRender()
     else
       needRender = TRUE
     fin
@@ -1402,9 +1478,7 @@ def kbdLoop()
       q_mapNum = 0
     fin
     if needRender
-      render()
-      if textDrawn and mapIs3D; copyWindow(); fin
-      needRender = FALSE
+      doRender()
     fin
   loop
 end
@@ -1481,6 +1555,68 @@ def _getYN()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Show the current animation frame
+def showAnimFrame()
+  word pData
+
+  // Determine data pointer based on current animation frame
+  if !curPortrait; return; fin
+  pData = curPortrait + 1 + (animFrame * 2304)   // 18*128 = 2304
+
+  // Show it on-screen
+  if mapIs3D
+    blitPortrait(pData, $2182)  // start at 3rd text line
+  else
+    blitPortrait(pData, $2202)  // start at 4th text line
+  fin
+
+  needRender = FALSE  // suppress display of map for this frame
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Advance to next frame of current animation, if any
+def nextAnimFrame()
+  word oldAnimFrame
+  if !curPortrait; return; fin
+  oldAnimFrame = animFrame
+
+  // Choose a new direction based on the flags. Do this the first time, and about once per 4 frames.
+  if !animDir or (rand16() % 4) == 0
+    if animFlags & ANIM_FLAG_FWD
+      animDir = 'F'
+    elsif animFlags & ANIM_FLAG_FWD_BKWD
+      if rand16() % 2
+        animDir = 'F'
+      else
+        animDir = 'B'
+      fin
+    elsif (animFlags & ANIM_FLAG_RANDOM)
+      animDir = 'R'
+    else
+      animDir = 0
+    fin
+  fin
+
+  // Advance in the current direction
+  if animDir == 'F' // forward
+    animFrame = (animFrame+1) % animNumFrames
+  elsif animDir == 'B' // backward
+    animFrame = (animFrame-1) % animNumFrames
+  elsif animDir == 'R' // random
+    animFrame = rand16() % animNumFrames
+  fin
+
+  // And show it.
+  if animFrame <> oldAnimFrame
+    showAnimFrame()
+  fin
+
+  // Reset the animation pause
+  animPauseCt = ANIM_PAUSE_MAX
+
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display a portrait drawing (typically called from scripts)
 def _setPortrait(portraitNum)
   word srcData
@@ -1500,26 +1636,22 @@ def _setPortrait(portraitNum)
   restoreCursor()
 
   // Load the portrait image and display it
-  srcData = auxMmgr(QUEUE_LOAD, portraitNum<<8 | RES_TYPE_PORTRAIT)
+  curPortrait = auxMmgr(QUEUE_LOAD, portraitNum<<8 | RES_TYPE_PORTRAIT)
   mmgr(FINISH_LOAD, 0) // 0 = close
+  animFrame = 0
+  animFlags = readAuxByte(curPortrait)
+  animNumFrames = animFlags & $F
+  animDir = 0
+  animPauseCt = ANIM_PAUSE_MAX
 
-  if mapIs3D
-    blitPortrait(srcData, $2182)  // start at 3rd text line
-  else
-    blitPortrait(srcData, $2202)  // start at 4th text line
-  fin
-
-  needRender = FALSE  // suppress display of map for this frame
-
-  auxMmgr(FREE_MEMORY, srcData)
+  // And show the first frame
+  showAnimFrame()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Clear the displayed portrait drawing
 def clrPortrait()
-  render()
-  if textDrawn and mapIs3D; copyWindow(); fin
-  needRender = FALSE
+  doRender()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

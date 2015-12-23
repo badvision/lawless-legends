@@ -1594,7 +1594,14 @@ reset: !zone
 
 ;------------------------------------------------------------------------------
 outOfMemErr: !zone
-	!if DEBUG { jsr main_debug }
+!if DEBUG { 
+	lda isAuxCmd
+	bne +
+	jsr main_debug
+	jmp ++
++	jsr aux_debug
+++
+}
 	jsr inlineFatal : !text "OutOfMem", 0
 
 ;------------------------------------------------------------------------------

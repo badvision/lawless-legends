@@ -55,7 +55,6 @@ def playerMelee(pPlayer, pWeapon)
   // TODO: consider enemy dodge
   pEnemy=>w_health = pEnemy=>w_health - dmg
 
-  isPlural = FALSE
   buildString(@addToString)
   printf3("\n%s pummels %s for %d damage.", pPlayer=>s_name, pEnemy=>s_name, dmg)
   if pEnemy=>w_health <= 0
@@ -141,6 +140,7 @@ end
 def displayOpponents()
   word p
   byte count, first
+  byte isPlural
 
   buildString(@addToString)
   puts("\nYou face ")
@@ -284,10 +284,11 @@ def playerCombatTurn(pl)
       break
     is 'R'
       pWeapon->b_clipCurrent = pWeapon->b_clipSize
+      setPlural(FALSE)
       displayf1("%s has reloaded.\n", pl=>s_name)
       break
     is 'C'
-      isPlural = FALSE
+      setPlural(FALSE)
       displayf2("%s changed to using %s.\n", pl=>s_name, pWeapon=>s_name)
       break
   wend
@@ -393,8 +394,8 @@ def startCombat()
   // set everything up so that the map gets redrawn when combat finishes.
   setWindow2()
   clearWindow()
-  textDrawn = TRUE
-  needRender = TRUE
+  setTextDrawn(TRUE)
+  setNeedRender(TRUE)
 
   // Say who we're fighting
   when rand16() % 5
@@ -413,7 +414,7 @@ def startCombat()
   p = global=>p_enemyGroups
   while p
     n = countList(p=>p_enemies)
-    isPlural = (n <> 1)
+    setPlural(n <> 1)
     when rand16() % 5
       is 0
         s = "From out of nowhere comes/come %d %s to have their way with you!\n"; break
@@ -471,7 +472,7 @@ def doCombat()
 
     p = global=>p_combatFirst
     while p
-      if TRUE or !nPlayersFighting
+      if !nPlayersFighting
         setPortrait(PORTRAIT_DEATH)
         when rand16() % 2
           is 0

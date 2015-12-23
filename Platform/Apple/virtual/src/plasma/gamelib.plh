@@ -14,11 +14,6 @@ const FALSE = 0
 const TRUE  = 1
 const NULL  = 0
 
-// Library shared variables
-const textDrawn = $3CD
-const needRender = $3CE
-const isPlural = $3CF
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Memory manager definitions
 
@@ -94,11 +89,11 @@ const clearWindow     = gameLibVecs + 3*30
 const getYN           = gameLibVecs + 3*31
 const reboot          = gameLibVecs + 3*32
 const brk             = gameLibVecs + 3*33
-const encodeDice         = gameLibVecs + 3*34
-const rollDice         = gameLibVecs + 3*35
-const FUNCN36         = gameLibVecs + 3*36
-const FUNCN37         = gameLibVecs + 3*37
-const FUNCN38         = gameLibVecs + 3*38
+const encodeDice      = gameLibVecs + 3*34
+const rollDice        = gameLibVecs + 3*35
+const setNeedRender   = gameLibVecs + 3*36
+const setPlural       = gameLibVecs + 3*37
+const setTextDrawn    = gameLibVecs + 3*38
 const FUNCN39         = gameLibVecs + 3*39
 const FUNCN40         = gameLibVecs + 3*40
 const FUNCN41         = gameLibVecs + 3*41

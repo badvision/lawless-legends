@@ -112,7 +112,8 @@ next_zp		= $AB
 	JMP pl_setDir		; params: dir (0-15); return: nothing
 	JMP pl_advance		; params: none; return: 0 if same, 1 if new map tile, 2 if new and scripted
 	JMP pl_setColor		; params: slot (0=sky/1=ground), color (0-15); return: nothing
-	jmp pl_render		; params: none
+	JMP pl_render		; params: none
+	JMP pl_texControl	; params: 1=load, 0=unload
 
 ;----------------------------------------------------------------------
 ; >> START LOADING MAP SECTIONS
@@ -1220,6 +1221,12 @@ pl_setDir:
 	LSR			;		to our 0..3
 	STA AVATAR_DIR
 	RTS
+
+;----------------------------------------------------------------------
+; >> pl_texControl
+; No-op, because in 2D there aren't textures
+pl_texControl:
+	rts
 
 ;----------------------------------------------------------------------
 INNER_ADVANCE: !zone {

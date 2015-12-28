@@ -60,7 +60,7 @@ byte isPlural = FALSE
 
 word skyNum = 9
 word groundNum = 10
-byte portraitNum = 1
+byte portraitNum = 0
 
 word triggerOriginX, triggerOriginY
 word triggerTbl
@@ -180,6 +180,10 @@ end
 asm render      // no params
         +asmPlasm 0
         jmp $6018
+end
+asm texControl  // params: load (1=load, 0=unload)
+        +asmPlasm 1
+        jmp $601B
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1267,6 +1271,7 @@ def clearPortrait()
   if curPortrait
     auxMmgr(FREE_MEMORY, curPortrait)
     curPortrait = 0
+    texControl(1) // 1=load
     needRender = TRUE
   fin
 end
@@ -1666,6 +1671,9 @@ def _setPortrait(portraitNum)
   // We're going to switch windows. Save the cursor pos in the text window.
   saveCursor()
 
+  // Make room by unloading the textures
+  texControl(0)
+
   // Now clear out the map area
   setMapWindow()
   clearWindow()
@@ -1686,20 +1694,25 @@ def _setPortrait(portraitNum)
 
   // And show the first frame
   showAnimFrame()
-end
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Clear the displayed portrait drawing
-def clrPortrait()
-  doRender()
+  // Do not render over the portrait
+  needRender = FALSE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Test out portrait drawing
-def testPortrait()
-  setPortrait(portraitNum)
+def nextPortrait()
   portraitNum = portraitNum + 1
-  needRender = FALSE
+  setPortrait(portraitNum)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Test out portrait drawing
+def prevPortrait()
+  if portraitNum > 1
+    portraitNum = portraitNum - 1
+  fin
+  setPortrait(portraitNum)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1883,7 +1896,8 @@ def initCmds()
   // Commands common to both 2D and 3D
   initCmd('T', @kbdTeleport)
   initCmd('P', @showPos)
-  initCmd('/', @testPortrait)
+  initCmd('/', @nextPortrait)
+  initCmd('?', @prevPortrait)
   initCmd('!', @testCombat)
   initCmd('1', @showPlayer1)
   initCmd('2', @showPlayer2)
@@ -2011,7 +2025,7 @@ def setCallbacks()
 
   // $31E
   callbacks.30 = $4c
-  callbacks:31 = @clrPortrait
+  callbacks:31 = @clearPortrait
 
   // $321
   callbacks.33 = $4c

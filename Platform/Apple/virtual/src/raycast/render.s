@@ -29,6 +29,7 @@ start:
 	jmp pl_advance		; params: none; return: 0 if same, 1 if new map tile, 2 if new and scripted
 	jmp pl_setColor		; params: slot (0=sky/1=ground), color (0-15); return: nothing
 	jmp pl_render		; params: none
+	jmp pl_texControl	; params: 0=unload textures, 1=load textures
 
 ; Conditional assembly flags
 DOUBLE_BUFFER	= 1		; whether to double-buffer
@@ -72,6 +73,7 @@ mapNum:    	!byte 1
 nMapSprites:	!byte 0		; number of sprite entries on map to fix up
 nextLink:	!byte 0		; next link to allocate
 plasmaStk:      !byte 0
+nTextures:	!byte 0
 
 skyColorEven:   !byte $20
 skyColorOdd:    !byte $22
@@ -1562,10 +1564,12 @@ getTileFlags: !zone
 	rts
 
 ;-------------------------------------------------------------------------------
-; Parse map header, and load the textures into aux mem. Also loads the script
-; module and inits it.
+; Parse map header, and load the textures into aux mem. Also, loads the script
+; module, and if A-reg is nonzero, inits it.
 loadTextures: !zone
 	!if DEBUG { +prStr : !text "Loading textures.",0 }
+	; Save parameter (non-zero: init scripts)
+	pha
 	; Scan the map header
 	lda mapHeader
 	sta .get+1
@@ -1603,6 +1607,8 @@ loadTextures: !zone
 +	stx txNum
 	jmp .lup
 .done:	; end of texture numbers is the list of tile flags
+	lda txNum
+	sta nTextures
 	lda .get+1
 	sta getTileFlags+2
 	lda .get+2
@@ -1621,16 +1627,50 @@ loadTextures: !zone
 	ldx #0
 	jsr mainLoader
 	; finally, init the scripts.
+	pla
+	beq .fin
 !if DEBUG { +prStr : !text "Calling script init ",0 : +prWord .scInit+1 : +crout }
 	ldx plasmaStk
 .scInit	jsr $1111		; self-modified earlier
 !if DEBUG { +prStr : !text "Back from script init. ",0 }
-        rts
+.fin    rts
 .get:	lda $1111
 	inc .get+1
 	bne +
 	inc .get+2
 +	rts
+
+;-------------------------------------------------------------------------------
+; Plasma interface to texture control: 1 to load textures, 0 to unload
+pl_texControl: !zone {
+	cmp #0
+	beq .unload
+	lda #0	; don't re-init scripts
+	jmp loadTextures
+.unload	ldx #0
+-	txa
+	pha
+	ldy texAddrHi,x
+	lda texAddrLo,x
+
+	+prStr : !text "tex ",0
+	+prX
+	+prYA
+	+crout
+
+	tax
+	lda #FREE_MEMORY
+	jsr auxLoader
+	pla
+	tax
+	lda #0
+	sta texAddrLo,x
+	sta texAddrHi,x
+	inx
+	cpx nTextures
+	bne -
+	rts
+}
 
 ;-------------------------------------------------------------------------------
 ; Set up front and back buffers, go to hires mode, and clear for first blit.
@@ -2033,6 +2073,7 @@ pl_initMap: !zone
 	ldy #>(tableEnd-tableStart)
 	jsr mainLoader
 	; Proceed with loading
+	lda #1			; non-zero to init scripts also
 	jsr loadTextures
 	jsr copyScreen
 	; Build all the unrolls and tables

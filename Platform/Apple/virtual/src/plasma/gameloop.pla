@@ -1144,7 +1144,7 @@ def displayPlayerData(player)
   // Display the player's name and health
   rawDisplayStr(player=>s_name)
   rightJustifyNum(player=>w_health, CHAR_WND_LIFE_X)
-
+  
   // Locate the first weapon, and display it's clip
   pi = player=>p_items
   while pi and pi->t_type <> TYPE_WEAPON; pi = pi=>p_nextObj; loop
@@ -1187,7 +1187,7 @@ def _showParty()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Load code and data, set up everything to display a 3D map
+// Load code and data, set up everything to display a 2D or 3D map
 def initMap(x, y, dir)
   word pMap
 
@@ -1262,13 +1262,19 @@ def checkScripts()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Perform rendering, copy if necessary, clear appropriate flags
-def doRender()
+// Display a portrait drawing (typically called from scripts)
+def clearPortrait()
   if curPortrait
     auxMmgr(FREE_MEMORY, curPortrait)
     curPortrait = 0
+    needRender = TRUE
   fin
+end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Perform rendering, copy if necessary, clear appropriate flags
+def doRender()
+  if curPortrait; clearPortrait(); fin
   render()
   if textDrawn and mapIs3D; copyWindow(); fin
   needRender = FALSE
@@ -1654,11 +1660,7 @@ def _setPortrait(portraitNum)
   word srcData
   byte cx, cy
 
-  if curPortrait
-    auxMmgr(FREE_MEMORY, curPortrait)
-    curPortrait = 0
-  fin
-
+  clearPortrait()
   flipToPage1()
   
   // We're going to switch windows. Save the cursor pos in the text window.
@@ -1816,14 +1818,27 @@ def showPlayer3()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def saveMapPos()
+  global->b_mapIs3D = mapIs3D
+  global->b_mapNum = mapNum
+  getPos(global + w_mapX, global + w_mapY)
+  global->b_mapDir = getDir()
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def restoreMapPos()
+  mapIs3D = global->b_mapIs3D
+  mapNum = global->b_mapNum
+  initMap(global=>w_mapX, global=>w_mapY, global->b_mapDir)  
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def testCombat()
   word combatEngine
   word x, y
   byte dir
 
-  // Save the map position
-  getPos(@x, @y)
-  dir = getDir()
+  saveMapPos()
 
   // Load the combat engine
   flipToPage1()
@@ -1850,8 +1865,9 @@ def testCombat()
   mmgr(HEAP_COLLECT, 0)
 
   // Resume where we left off
+  clearPortrait()
   setWindow2()
-  initMap(x, y, dir)  
+  restoreMapPos()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

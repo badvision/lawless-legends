@@ -437,12 +437,10 @@ def startCombat()
   while TRUE
     n = getUpperKey()
     if n == 'B'
-      clearWindow()
-      displayStr("Battle!\n")
+      displayStr("\nBattle!\n")
       return TRUE
     elsif n == 'F'
-      clearWindow()
-      displayStr("Coward.")
+      displayStr("\nCoward.\n")
       return FALSE
     fin
     beep()

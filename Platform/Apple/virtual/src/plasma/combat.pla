@@ -394,8 +394,6 @@ def startCombat()
   // set everything up so that the map gets redrawn when combat finishes.
   setWindow2()
   clearWindow()
-  setTextDrawn(TRUE)
-  setNeedRender(TRUE)
 
   // Say who we're fighting
   when rand16() % 5
@@ -440,7 +438,7 @@ def startCombat()
       displayStr("\nBattle!\n")
       return TRUE
     elsif n == 'F'
-      displayStr("\nCoward.\n")
+      displayStr("\nCoward.")
       return FALSE
     fin
     beep()
@@ -492,7 +490,7 @@ def doCombat()
           is 1
             displayStr("\nThat was a close call! You see search the ground.\n"); break
           otherwise
-            displayStr("\nLooks like you live to fight another day anyway!\n"); break
+            displayStr("\nLooks like you live to fight another day!\n"); break
         wend
         getUpperKey()
         return

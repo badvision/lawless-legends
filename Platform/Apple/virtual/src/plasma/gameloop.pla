@@ -97,7 +97,7 @@ predef _puts, _min, _max
 predef _countList, _countListFiltered, _randomFromListFiltered, _addToList, _getUpperKey, _beep
 predef _showParty, _mmgr, _setPortrait, _setWindow1, _setWindow2, _setWindow3, _clearWindow
 predef _getYN, _reboot, _brk, _encodeDice, _rollDice
-predef _setNeedRender, _setPlural, _setTextDrawn
+predef _setPlural
 
 word gameLib_addrs = @_getGlobals, @_rand16
 word = @_printf1, @_printf2, @_printf3, @_printf4
@@ -107,7 +107,7 @@ word = @_puts, @_min, @_max
 word = @_countList, @_countListFiltered, @_randomFromListFiltered, @_addToList, @_getUpperKey, @_beep
 word = @_showParty, @_mmgr, @_setPortrait, @_setWindow1, @_setWindow2, @_setWindow3, @_clearWindow
 word = @_getYN, @_reboot, @_brk, @_encodeDice, @_rollDice
-word = @_setNeedRender, @_setPlural, @_setTextDrawn
+word = @_setPlural
 
 word = 0  // end of library functions
 
@@ -888,16 +888,8 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Setter functions for library use
-def _setNeedRender(flg)
-  needRender = flg
-end
-
 def _setPlural(flg)
   isPlural = flg
-end
-
-def _setTextDrawn(flg)
-  textDrawn = flg
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1878,6 +1870,7 @@ def testCombat()
   mmgr(HEAP_COLLECT, 0)
 
   // Resume where we left off
+  textDrawn = TRUE
   clearPortrait()
   setWindow2()
   restoreMapPos()

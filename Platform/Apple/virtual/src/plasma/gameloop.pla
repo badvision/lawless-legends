@@ -22,8 +22,6 @@ const heapSize      = $800
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Other constants
-const callbacks = $300
-
 const kbd       = $C000
 const kbdStrobe = $C010
 
@@ -55,6 +53,7 @@ word totalMapWidth
 word totalMapHeight
 
 byte needRender = FALSE
+byte renderLoaded = FALSE
 byte textDrawn = FALSE
 byte isPlural = FALSE
 
@@ -89,24 +88,33 @@ byte animFrame
 word animPauseCt
 
 // Game library functions
+predef _setScriptInfo, _pushAuxStr, _scriptDisplayStr, _scriptDisplayStrNL, _getYN
+predef _queue_setMap, _setSky, _setGround, _queue_teleport, _setPortrait, _clearPortrait
+predef _moveBackward, _getUpperKey, _clearWindow, _setPortrait
+
 predef _getGlobals, _rand16
-predef _printf1, _printf2, _printf3, _printf4
-predef _displayf1, _displayf2, _displayf3, _displayf4
+predef _printf1, _printf2, _printf3
+predef _displayf1, _displayf2, _displayf3
 predef _buildString, _addToString, _finishString, _rawDisplayStr, _displayStr
 predef _puts, _min, _max
-predef _countList, _countListFiltered, _randomFromListFiltered, _addToList, _getUpperKey, _beep
-predef _showParty, _mmgr, _setPortrait, _setWindow1, _setWindow2, _setWindow3, _clearWindow
-predef _getYN, _reboot, _brk, _encodeDice, _rollDice
+predef _countList, _countListFiltered, _randomFromListFiltered, _addToList, _beep
+predef _showParty, _mmgr, _setWindow1, _setWindow2, _setWindow3
+predef _reboot, _brk, _encodeDice, _rollDice
 predef _setPlural
 
-word gameLib_addrs = @_getGlobals, @_rand16
-word = @_printf1, @_printf2, @_printf3, @_printf4
-word = @_displayf1, @_displayf2, @_displayf3, @_displayf4
+word gameLib_addrs = @_setScriptInfo, @_pushAuxStr, @_scriptDisplayStr, @_scriptDisplayStrNL, @_getYN
+word = @_queue_setMap, @_setSky, @_setGround, @_queue_teleport, @_setPortrait, @_clearPortrait
+word = @_moveBackward, @_getUpperKey, @_clearWindow
+word = 14,15,16,17,18,19
+
+word = @_getGlobals, @_rand16
+word = @_printf1, @_printf2, @_printf3
+word = @_displayf1, @_displayf2, @_displayf3
 word = @_buildString, @_addToString, @_finishString, @_rawDisplayStr, @_displayStr
 word = @_puts, @_min, @_max
-word = @_countList, @_countListFiltered, @_randomFromListFiltered, @_addToList, @_getUpperKey, @_beep
-word = @_showParty, @_mmgr, @_setPortrait, @_setWindow1, @_setWindow2, @_setWindow3, @_clearWindow
-word = @_getYN, @_reboot, @_brk, @_encodeDice, @_rollDice
+word = @_countList, @_countListFiltered, @_randomFromListFiltered, @_addToList, @_beep
+word = @_showParty, @_mmgr, @_setWindow1, @_setWindow2, @_setWindow3
+word = @_reboot, @_brk, @_encodeDice, @_rollDice
 word = @_setPlural
 
 word = 0  // end of library functions
@@ -137,9 +145,9 @@ ysav1       = $35
 seed        = $4E
 magic       = $2227 ; there are 2048 magic values that work; this one caught my eye. - MH
 
-; NOTE ABOUT ABSOLUTE ADDRESSES
-; You cannot use them: this code, including variable space, can be loaded *anywhere*.
-; So don't declare any variables as !byte or !word here.
+; NOTE ABOUT ABSOLUTE CODE ADDRESSING (e.g. STA .var, JMP .label, etc.)
+; We cannot use it: this code, including variable space, can be loaded *anywhere*.
+; So don't JMP to labels, declare any variables as !byte or !word here, etc.
 
 end
 
@@ -224,7 +232,7 @@ asm readAuxByte     // params: ptr; ret: char
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-asm pushAuxStr     // params: none; ret: $200 (inbuf)
+asm _pushAuxStr     // params: none; ret: $200 (inbuf)
         stx tmp     ; save PLASMA's X reg eval stack index
         tsx
         lda $103,x  ; get PLASMA's Y-reg value from its place in the stack
@@ -910,8 +918,8 @@ def convertDec(n)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Print a formatted string a'la C printf, with up to four parameters.
-def _printf4(str, arg1, arg2, arg3, arg4)
+// Print a formatted string a'la C printf, with up to three parameters.
+def _printf3(str, arg1, arg2, arg3)
   word pos
   word curArg
   word p
@@ -942,20 +950,18 @@ def _printf4(str, arg1, arg2, arg3, arg4)
   loop
 end
 
-def _printf1(str, arg1); printf4(str, arg1, 0, 0, 0); end
-def _printf2(str, arg1, arg2); printf4(str, arg1, arg2, 0, 0); end
-def _printf3(str, arg1, arg2, arg3); printf4(str, arg1, arg2, arg3, 0); end
+def _printf1(str, arg1); printf3(str, arg1, 0, 0); end
+def _printf2(str, arg1, arg2); printf3(str, arg1, arg2, 0); end
 
 // Like printf, but displays text using font engine
-def _displayf4(str, arg1, arg2, arg3, arg4)
+def _displayf3(str, arg1, arg2, arg3)
   buildString(@addToString)
-  printf4(str, arg1, arg2, arg3, arg4)
+  printf3(str, arg1, arg2, arg3)
   displayStr(finishString(isPlural))
 end
 
-def _displayf1(str, arg1); displayf4(str, arg1, 0, 0, 0); end
-def _displayf2(str, arg1, arg2); displayf4(str, arg1, arg2, 0, 0); end
-def _displayf3(str, arg1, arg2, arg3); displayf4(str, arg1, arg2, arg3, 0); end
+def _displayf1(str, arg1); displayf3(str, arg1, 0, 0); end
+def _displayf2(str, arg1, arg2); displayf3(str, arg1, arg2, 0); end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def parseDec(str)
@@ -1034,7 +1040,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set the sky color (relevant to 3D display only)
-def setSky(num)
+def _setSky(num)
   skyNum = num
   setColor(0, skyNum)
   needRender = TRUE
@@ -1048,7 +1054,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set the ground color (relevant to 3D display only)
-def setGround(num)
+def _setGround(num)
   groundNum = num
   setColor(1, groundNum)
   needRender = TRUE
@@ -1204,6 +1210,7 @@ def initMap(x, y, dir)
     mmgr(QUEUE_LOAD, CODE_TILE_ENGINE<<8 | RES_TYPE_CODE)
     pMap = mmgr(QUEUE_LOAD, mapNum<<8 | RES_TYPE_2D_MAP)
   fin
+  renderLoaded = TRUE
 
   // Load everything that we just queued
   mmgr(FINISH_LOAD, 1) // 1 = keep open
@@ -1259,11 +1266,13 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display a portrait drawing (typically called from scripts)
-def clearPortrait()
+def _clearPortrait()
   if curPortrait
     auxMmgr(FREE_MEMORY, curPortrait)
     curPortrait = 0
-    texControl(1) // 1=load
+    if renderLoaded
+      texControl(1) // 1=load
+    fin
     needRender = TRUE
   fin
 end
@@ -1313,7 +1322,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Move backward one step (3D mode)
-def moveBackward()
+def _moveBackward()
   adjustDir(8)
   moveForward()
   adjustDir(8)
@@ -1466,7 +1475,7 @@ def showPos()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def queue_setMap(is3D, num, x, y, dir)
+def _queue_setMap(is3D, num, x, y, dir)
   q_mapIs3D = is3D
   q_mapNum = num
   q_x = x
@@ -1475,7 +1484,7 @@ def queue_setMap(is3D, num, x, y, dir)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def queue_teleport(x, y, dir)
+def _queue_teleport(x, y, dir)
   queue_setMap(mapIs3D, mapNum, x, y, dir)
 end
 
@@ -1528,7 +1537,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set initial info for the scripts on this map: the name of the map, its trigger table, and the
 // maximum extent (width, height). This is called by the init function for the scripts.
-def setScriptInfo(mapName, trigTbl, wdt, hgt)
+def _setScriptInfo(mapName, trigTbl, wdt, hgt)
 
   // Grab the trigger table origins (used so the table can be more compact)
   triggerOriginX = trigTbl=>0
@@ -1551,13 +1560,13 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Called by scripts to display a string. We set the flag noting that something has been
 // displayed, then use an assembly routine to do the work.
-def scriptDisplayStr(str)
+def _scriptDisplayStr(str)
   textDrawn = TRUE
   flipToPage1()
   displayStr(str)
 end
 
-def scriptDisplayStrNL(str)
+def _scriptDisplayStrNL(str)
   scriptDisplayStr(str)
   displayStr("\n")
 end
@@ -1663,8 +1672,10 @@ def _setPortrait(portraitNum)
   // We're going to switch windows. Save the cursor pos in the text window.
   saveCursor()
 
-  // Make room by unloading the textures
-  texControl(0)
+  // Make room by unloading the textures (only if renderer is loaded)
+  if renderLoaded
+    texControl(0)
+  fin
 
   // Now clear out the map area
   setMapWindow()
@@ -1746,7 +1757,7 @@ def _randomFromListFiltered(p, offset, filterFunc)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Call like this: addToList(player + items, itemToAdd)
+// Call like this: addToList(@player=>p_items, itemToAdd)
 def _addToList(addTo, p)
   // Get to the end of the list
   while *addTo
@@ -1826,7 +1837,7 @@ end
 def saveMapPos()
   global->b_mapIs3D = mapIs3D
   global->b_mapNum = mapNum
-  getPos(global + w_mapX, global + w_mapY)
+  getPos(@global=>w_mapX, @global=>w_mapY)
   global->b_mapDir = getDir()
 end
 
@@ -1848,6 +1859,7 @@ def testCombat()
   // Load the combat engine
   flipToPage1()
   mmgr(RESET_MEMORY, 0)
+  renderLoaded = FALSE
   combatEngine = mmgr(QUEUE_LOAD, MODULE_COMBAT<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 1) // 0 = close
 
@@ -1855,10 +1867,10 @@ def testCombat()
   global=>p_enemyGroups = NULL
   when rand16() % 2
     is 0
-      addToList(global + p_enemyGroups, new_EnemyGroup_Dirt_Bags())
+      addToList(@global=>p_enemyGroups, new_EnemyGroup_Dirt_Bags())
       break
     otherwise
-      addToList(global + p_enemyGroups, new_EnemyGroup_Flesh_Feeders())
+      addToList(@global=>p_enemyGroups, new_EnemyGroup_Flesh_Feeders())
       break
   wend
 
@@ -1973,67 +1985,6 @@ def loadTitle()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Set vectors so that scripts in PLASMA can call back to do things with this engine.
-def setCallbacks()
-
-  // $300
-  callbacks.0 = $4c
-  callbacks:1 = @setScriptInfo
-
-  // $303
-  callbacks.3 = $4c
-  callbacks:4 = @pushAuxStr
-
-  // $306
-  callbacks.6 = $4c
-  callbacks:7 = @scriptDisplayStr
-
-  // $309
-  callbacks.9 = $4c
-  callbacks:10 = @scriptDisplayStrNL
-
-  // $30C
-  callbacks.12 = $4c
-  callbacks:13 = @getYN
-
-  // $30F
-  callbacks.15 = $4c
-  callbacks:16 = @queue_setMap
-
-  // $312
-  callbacks.18 = $4c
-  callbacks:19 = @setSky
-
-  // $315
-  callbacks.21 = $4c
-  callbacks:22 = @setGround
-
-  // $318
-  callbacks.24 = $4c
-  callbacks:25 = @queue_teleport
-
-  // $31B
-  callbacks.27 = $4c
-  callbacks:28 = @setPortrait
-
-  // $31E
-  callbacks.30 = $4c
-  callbacks:31 = @clearPortrait
-
-  // $321
-  callbacks.33 = $4c
-  callbacks:34 = @moveBackward
-
-  // $324
-  callbacks.36 = $4c
-  callbacks:37 = @getUpperKey
-
-  // $327
-  callbacks.39 = $4c
-  callbacks:40 = @clearWindow
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set up the small-object heap
 def initHeap()
   mmgr(SET_MEM_TARGET, heapStart)
@@ -2073,14 +2024,11 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Main code.
 //
-textDrawn = FALSE
-needRender = TRUE
 setLibVecs()
 initHeap()
-addToList(global + p_players, new_Player_Hue_Hauser())
-addToList(global + p_players, new_Player_Mokahnu())
+addToList(@global=>p_players, new_Player_Hue_Hauser())
+addToList(@global=>p_players, new_Player_Mokahnu())
 loadTitle()
-setCallbacks()
 // Start map/loc per Seth. Need to have this in a script in the futurecheckScripts()
 mapIs3D = 0
 mapNum = 1

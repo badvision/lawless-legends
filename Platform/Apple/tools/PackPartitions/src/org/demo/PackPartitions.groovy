@@ -1637,20 +1637,20 @@ class PackPartitions
 
         def locationsWithTriggers = [] as Set
 
-        def vec_setScriptInfo   = 0x300
-        def vec_pushAuxStr      = 0x303
-        def vec_displayStr      = 0x306
-        def vec_displayStrNL    = 0x309
-        def vec_getYN           = 0x30C
-        def vec_setMap          = 0x30F
-        def vec_setSky          = 0x312
-        def vec_setGround       = 0x315
-        def vec_teleport        = 0x318
-        def vec_setPortrait     = 0x31B
-        def vec_clrPortrait     = 0x31E
-        def vec_moveBackward    = 0x321
-        def vec_getCharacter    = 0x324
-        def vec_clrTextWindow   = 0x327
+        def vec_setScriptInfo   = 0x1F00
+        def vec_pushAuxStr      = 0x1F03
+        def vec_displayStr      = 0x1F06
+        def vec_displayStrNL    = 0x1F09
+        def vec_getYN           = 0x1F0C
+        def vec_setMap          = 0x1F0F
+        def vec_setSky          = 0x1F12
+        def vec_setGround       = 0x1F15
+        def vec_teleport        = 0x1F18
+        def vec_setPortrait     = 0x1F1B
+        def vec_clrPortrait     = 0x1F1E
+        def vec_moveBackward    = 0x1F21
+        def vec_getCharacter    = 0x1F24
+        def vec_clrTextWindow   = 0x1F27
 
         def emitAuxString(inStr)
         {

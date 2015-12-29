@@ -1652,12 +1652,6 @@ pl_texControl: !zone {
 	pha
 	ldy texAddrHi,x
 	lda texAddrLo,x
-
-	+prStr : !text "tex ",0
-	+prX
-	+prYA
-	+crout
-
 	tax
 	lda #FREE_MEMORY
 	jsr auxLoader

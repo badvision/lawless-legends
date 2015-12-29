@@ -190,7 +190,7 @@ def playerCombatChoose(pl)
   loop
 
   // NPCs always melee for now
-  if pl=>b_playerFlags & PLAYER_FLAG_NPC
+  if pl->b_playerFlags & PLAYER_FLAG_NPC
     pl->b_combatChoice = 'M'
     return
   fin
@@ -301,7 +301,7 @@ def enemyCombatTurn(pe)
 
   // Choose a target
   pl = randomFromListFiltered(global=>p_players, p_nextObj, @canFight)
-  if !pl; return; fin
+  if !pl; return FALSE; fin
 
   buildString(@addToString)
   printf3("\n%s %s %s ", pe=>s_name, pe=>s_attackText, pl=>s_name)
@@ -322,6 +322,7 @@ def enemyCombatTurn(pe)
   puts("\n")
 
   displayStr(finishString(0))
+  return TRUE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -329,7 +330,7 @@ def combatInsert(toAdd)
   word p, pPrev
 
   // Find the proper position based on combat order number (keep largest first in the list)
-  pPrev = global + p_combatFirst
+  pPrev = @global=>p_combatFirst
   while TRUE
     p = *pPrev
     if !p or p->b_combatOrder < toAdd->b_combatOrder
@@ -458,7 +459,7 @@ def doCombat()
   while TRUE
     p = global=>p_players
     while p
-      if canFight(p)
+      if canFight(p) and nEnemiesFighting
         playerCombatChoose(p)
       fin
       p = p=>p_nextObj
@@ -502,13 +503,15 @@ def doCombat()
       if canFight(p)
         when p->t_type
           is TYPE_PLAYER
-            playerCombatTurn(p); break
+            playerCombatTurn(p)
+            combatPause()
+            break
           is TYPE_ENEMY
-            enemyCombatTurn(p); break
+            if enemyCombatTurn(p); combatPause(); fin
+            break
           otherwise
             brk()
         wend
-        combatPause()
       fin
       p = p=>p_combatNext
     loop

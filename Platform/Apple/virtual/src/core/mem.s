@@ -1525,46 +1525,76 @@ saneEnd: !zone {
 ;------------------------------------------------------------------------------
 !if DEBUG {
 printMem: !zone
-	jsr main_debug
-	jmp aux_debug
-main_debug:
+	lda $24		; check if we're already at start of screen line
+	beq +		; no, no need for CR
+	jsr crout	; carriage return to get to start of screen line
++	lda isAuxCmd
+	bne aux_printMem
+main_printMem:
 	+prStr : !text "MainMem:",0
 	ldy #0
-	jmp .printSegs
-aux_debug:
-	+prStr : !text "AuxMem:",0
+	beq +
+aux_printMem:
+	+prStr : !text "AuxMem: ",0
 	ldy #1
++	ldx #14
 .printSegs:
-	tya
-	tax
-	lda #'s'
-	jsr .prChrEq
-	lda #'t'
-	ldx tSegType,y
-	jsr .prChrEq
-	lda #'n'
-	ldx tSegRes,y
-	jsr .prChrEq
-	lda #'a'
-	ldx tSegAdrHi,y
-	jsr .prChrEq
+-	+prSpace
+	dex
+	bne -
+	lda #'$'
+	jsr cout
+	lda tSegAdrHi,y
+	jsr prbyte
 	lda tSegAdrLo,y
 	jsr prbyte
-	jsr crout
-.next:	lda tSegLink,y
-	tay
-	bne .printSegs
-	rts
-.prChrEq:
+	lda #','
+	jsr cout
+	lda #'L'
+	jsr cout
+	lda tSegLink,y
+	tax
+	lda tSegAdrLo,x
+	sec
+	sbc tSegAdrLo,y
 	pha
-	lda #$A0
-	jsr cout
+	lda tSegAdrHi,x
+	sbc tSegAdrHi,y
+	jsr prbyte
 	pla
-	jsr cout
-	lda #'='
-	jsr cout
+	jsr prbyte
+	lda tSegType,y
+	tax
+	and #$40
+	beq +
+	lda #'*'
+	bne ++
++	lda #'+'
+	cpx #0
+	bmi ++
+	lda #'-'
+++	jsr cout
 	txa
-	jmp prbyte
+	and #$F
+	tax
+	jsr prhex
+	txa
+	beq +
+	lda #':'
+	jsr cout
+	lda tSegRes,y
+	+prA
+	jmp .next
++	ldx #4
+-	+prSpace
+	dex
+	bne -
+.next:	ldx #3		; 2 spaces before next entry
+	lda tSegLink,y
+	tay
+	beq +
+	jmp .printSegs
++	jmp crout
 }
 
 ;------------------------------------------------------------------------------
@@ -1594,14 +1624,7 @@ reset: !zone
 
 ;------------------------------------------------------------------------------
 outOfMemErr: !zone
-!if DEBUG { 
-	lda isAuxCmd
-	bne +
-	jsr main_debug
-	jmp ++
-+	jsr aux_debug
-++
-}
+	!if DEBUG { jsr printMem }
 	jsr inlineFatal : !text "OutOfMem", 0
 
 ;------------------------------------------------------------------------------
@@ -1776,6 +1799,7 @@ shared_scan: !zone
 +	rts
 
 invalParam: !zone
+	!if DEBUG { jsr printMem }
 	jsr inlineFatal : !text "InvalParam", 0
 
 ;------------------------------------------------------------------------------

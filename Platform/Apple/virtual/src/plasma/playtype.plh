@@ -1,4 +1,14 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1 
+// (the "License"); you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-1.1>.
+// Unless required by applicable law or agreed to in writing, software distributed under 
+// the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF 
+// ANY KIND, either express or implied. See the License for the specific language 
+// governing permissions and limitations under the License.
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Structures for the heap
 
 const TYPE_GLOBAL = $80
@@ -15,7 +25,6 @@ struc Global
   word w_mapY
   byte b_mapDir
 end
-byte typeTbl_Global[] = Global, p_players, p_enemyGroups, p_combatFirst, 0
 
 const PLAYER_FLAG_NPC  = $01
 
@@ -56,7 +65,6 @@ struc Player
   word p_buffs   // list:Effect
   word p_debuffs // list:Effect
 end
-byte typeTbl_Player[] = Player, p_nextObj, s_name, p_combatNext, p_skills, p_items, p_buffs, p_debuffs, 0
 
 // Combat skills, weapon modifiers, etc.
 const TYPE_MODIFIER = $82
@@ -66,7 +74,6 @@ struc Modifier
   byte b_modKind
   byte b_modValue
 end
-byte typeTbl_Modifier[] = Modifier, p_nextObj, 0
 
 // Buffs and debuffs, that last until a specified time
 const TYPE_EFFECT = $83
@@ -78,7 +85,6 @@ struc Effect
   word s_effectDescrip
   word w_endTurn
 end
-byte typeTbl_Effect[] = Effect, p_nextObj, s_effectDescrip, 0
 
 const TYPE_ITEM = $84
 struc Item
@@ -89,7 +95,6 @@ struc Item
   word w_cost
   word p_modifiers  // list:modifier
 end
-byte typeTbl_Item[] = Item, p_nextObj, s_name, p_modifiers, 0
 
 const WEAPON_FLAG_SINGLE_USE  = $01
 const WEAPON_FLAG_WHOLE_GROUP = $02
@@ -117,7 +122,6 @@ struc Weapon
   byte b_weaponRange
   word s_combatText
 end
-byte typeTbl_Weapon[] = Weapon, p_nextObj, s_name, p_modifiers, s_combatText, 0
 
 const TYPE_ARMOR = $86
 struc Armor
@@ -134,7 +138,6 @@ struc Armor
   // Armor properties
   byte b_armorValue
 end
-byte typeTbl_Armor[] = Armor, p_nextObj, s_name, p_modifiers, 0
 
 // Countable things, e.g. ammo and pelts
 const TYPE_STUFF = $87
@@ -149,7 +152,6 @@ struc Stuff
   word w_count
   word w_maxCount
 end
-byte typeTbl_Stuff[] = Stuff, p_nextObj, s_name, 0
 
 const TYPE_ENEMY = $88
 struc Enemy
@@ -170,7 +172,6 @@ struc Enemy
   word r_groupSize    // number encountered, as 3 hex digits for dice
   word r_initialRange
 end
-byte typeTbl_Enemy[] = Enemy, p_nextObj, s_name, p_combatNext, s_attackText, 0
 
 const TYPE_ENEMY_GROUP = $89
 struc EnemyGroup
@@ -179,37 +180,29 @@ struc EnemyGroup
   word p_enemies
   byte b_enemyGroupRange
 end
-byte typeTbl_EnemyGroup[] = EnemyGroup, p_nextObj, p_enemies, 0
 
 // Weapon kinds
-const KIND_BOW          = 1;  byte[] kind_bow_str           = "bow(s)"
-const KIND_BLADE        = 2;  byte[] kind_blade_str         = "blade(s)"
-const KIND_EXPLOSIVE    = 3;  byte[] kind_explosive_str     = "explosive(s)"
-const KIND_HANDGUN      = 4;  byte[] kind_handgun_str       = "handgun(s)"
-const KIND_HAND_TO_HAND = 5;  byte[] kind_hand_to_hand_str  = "hand to hand"
-const KIND_RIFLE        = 6;  byte[] kind_rifle_str         = "rifle(s)"
-const KIND_THROWING     = 7;  byte[] kind_throwing_str      = "throwing"
+const KIND_BOW          = 1;
+const KIND_BLADE        = 2;
+const KIND_EXPLOSIVE    = 3;
+const KIND_HANDGUN      = 4;
+const KIND_HAND_TO_HAND = 5;
+const KIND_RIFLE        = 6;
+const KIND_THROWING     = 7;
 // Skill kinds
-const KIND_MINING       = 8;  byte[] kind_mining_str        = "mining"
-const KIND_NATIVE_BOND  = 9;  byte[] kind_native_bond_str   = "native bond"
-const KIND_PYRE_WARE    = 10; byte[] kind_pyre_ware_str     = "pyre ware"
+const KIND_MINING       = 8;
+const KIND_NATIVE_BOND  = 9;
+const KIND_PYRE_WARE    = 10
 // Ammo kinds
-const KIND_BULLET       = 11; byte[] kind_bullet_str        = "bullet(s)"
-const KIND_ARROW        = 12; byte[] kind_arrow_str         = "arrow(s)"
-const KIND_BUCK         = 13; byte[] kind_buck_str          = "buck"
-const KIND_QUARREL      = 14; byte[] kind_quarrel_str       = "quarrel(s)"
+const KIND_BULLET       = 11
+const KIND_ARROW        = 12
+const KIND_BUCK         = 13
+const KIND_QUARREL      = 14
 // Armor kinds
-const KIND_SHOES        = 15; byte[] kind_shoes_str         = "shoes"
-const KIND_COAT         = 16; byte[] kind_coat_str          = "coat(s)"
-const KIND_HAT          = 17; byte[] kind_hat_str           = "hat(s)"
-const KIND_PANTS        = 18; byte[] kind_pants_str         = "pants"
-const KIND_SHIRT        = 19; byte[] kind_shirt_str         = "shirt(s)"
-const KIND_GLOVES       = 20; byte[] kind_gloves_str        = "gloves"
-const KIND_SHIELD       = 21; byte[] kind_shield_str        = "shield(s)"
-
-// Text table for translating a kind to a string
-word[] kinds = @kind_bow_str, @kind_blade_str, @kind_explosive_str, @kind_handgun_str, @kind_hand_to_hand_str, @kind_rifle_str, @kind_throwing_str
-word         = @kind_mining_str, @kind_native_bond_str, @kind_pyre_ware_str
-word         = @kind_bullet_str, @kind_arrow_str, @kind_buck_str, @kind_quarrel_str
-word         = @kind_shoes_str, @kind_coat_str, @kind_hat_str, @kind_pants_str, @kind_shirt_str, @kind_gloves_str, @kind_shield_str
-word         = NULL
+const KIND_SHOES        = 15
+const KIND_COAT         = 16
+const KIND_HAT          = 17
+const KIND_PANTS        = 18
+const KIND_SHIRT        = 19
+const KIND_GLOVES       = 20
+const KIND_SHIELD       = 21

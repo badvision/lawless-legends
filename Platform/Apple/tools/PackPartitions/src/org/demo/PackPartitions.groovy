@@ -955,10 +955,10 @@ class PackPartitions
         //println               "defCount     =$defCount"
         
         // Sanity checking on the offsets
-        assert asmCodeStart >= 0 && asmCodeStart < byteCodeStart
-        assert byteCodeStart >= asmCodeStart && byteCodeStart < fixupStart
-        assert initStart == 0 || (initStart+2 >= byteCodeStart && initStart+2 < fixupStart)
-        assert fixupStart < buf.length
+        assert asmCodeStart >= 0 && asmCodeStart <= byteCodeStart
+        assert byteCodeStart >= asmCodeStart && byteCodeStart <= fixupStart
+        assert initStart == 0 || (initStart+2 >= byteCodeStart && initStart+2 <= fixupStart)
+        assert fixupStart <= buf.length
         
         // Split up the parts now that we know their offsets
         def asmCode = buf[asmCodeStart..<byteCodeStart]
@@ -1267,6 +1267,7 @@ class PackPartitions
         readCode("tileEngine", "src/tile/build/tile.b")
 
         readModule("gameloop", "src/plasma/build/gameloop.b")
+        readModule("globalScripts", "src/plasma/build/globalScripts.b")
         readModule("combat", "src/plasma/build/combat.b")
     }
         

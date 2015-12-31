@@ -1851,7 +1851,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def testCombat()
-  word globalScripts, callScript
+  word globalScripts
   word combatEngine
   word x, y
   byte dir
@@ -1865,16 +1865,15 @@ def testCombat()
   combatEngine = mmgr(QUEUE_LOAD, MODULE_COMBAT<<8 | RES_TYPE_MODULE)
   globalScripts = mmgr(QUEUE_LOAD, MODULE_GLOBAL_SCRIPTS<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 1) // 1 = keep open
-  callScript = globalScripts()
 
   // Create the enemy group(s).
   global=>p_enemyGroups = NULL
   when rand16() % 2
     is 0
-      addToList(@global=>p_enemyGroups, callScript(script_new_EnemyGroup_Dirt_Bags))
+      addToList(@global=>p_enemyGroups, globalScripts()=>script_new_EnemyGroup_Dirt_Bags())
       break
     otherwise
-      addToList(@global=>p_enemyGroups, callScript(script_new_EnemyGroup_Flesh_Feeders))
+      addToList(@global=>p_enemyGroups, globalScripts()=>script_new_EnemyGroup_Flesh_Feeders())
       break
   wend
 
@@ -2038,16 +2037,11 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Create the party
 def initParty()
-  word globalScripts, callScript
-
+  word globalScripts
   globalScripts = mmgr(QUEUE_LOAD, MODULE_GLOBAL_SCRIPTS<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 1) // 1 = keep open
-
-  callScript = globalScripts()
-  addToList(@global=>p_players, callScript(script_new_Player_Hue_Hauser))
-  addToList(@global=>p_players, callScript(script_new_Player_Mokahnu))
-
-  // No need for the global scripts now that everything has been created
+  addToList(@global=>p_players, globalScripts()=>script_new_Player_Hue_Hauser())
+  addToList(@global=>p_players, globalScripts()=>script_new_Player_Mokahnu())
   mmgr(FREE_MEMORY, globalScripts)
 end
 

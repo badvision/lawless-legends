@@ -12,6 +12,16 @@ include "gamelib.plh"
 include "playtype.plh"
 include "gen_images.plh"
 
+predef new_Modifier, new_Armor_Chaps, new_Armor_ShamanHeaddress, new_Armor_TahnkuPants, new_Armor_TahnkuVest 
+predef new_Weapon_Handgun, new_Weapon_SpiritBow, new_Weapon_SpiritBlade, calcPlayerArmor, new_Player_Hue_Hauser 
+predef new_Player_Mokahnu, new_Enemy_Dirt_Bag, new_EnemyGroup_Dirt_Bags, new_Enemy_Flesh_Feeder
+predef new_EnemyGroup_Flesh_Feeders
+
+word[] funcTbl = @new_Modifier, @new_Armor_Chaps, @new_Armor_ShamanHeaddress, @new_Armor_TahnkuPants, @new_Armor_TahnkuVest
+word           = @new_Weapon_Handgun, @new_Weapon_SpiritBow, @new_Weapon_SpiritBlade, @calcPlayerArmor, @new_Player_Hue_Hauser 
+word           = @new_Player_Mokahnu, @new_Enemy_Dirt_Bag, @new_EnemyGroup_Dirt_Bags, @new_Enemy_Flesh_Feeder
+word           = @new_EnemyGroup_Flesh_Feeders
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def new_Modifier(kind, value)
   word p
@@ -296,27 +306,5 @@ def new_EnemyGroup_Flesh_Feeders
   return p
 end
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def callGlobalScript(n)
-  when n
-    is 0; return new_Modifier()
-    is 1; return new_Armor_Chaps()
-    is 2; return new_Armor_ShamanHeaddress()
-    is 3; return new_Armor_TahnkuPants()
-    is 4; return new_Armor_TahnkuVest()
-    is 5; return new_Weapon_Handgun()
-    is 6; return new_Weapon_SpiritBow()
-    is 7; return new_Weapon_SpiritBlade()
-    is 8; return calcPlayerArmor()
-    is 9; return new_Player_Hue_Hauser()
-    is 10; return new_Player_Mokahnu()
-    is 11; return new_Enemy_Dirt_Bag()
-    is 12; return new_EnemyGroup_Dirt_Bags()
-    is 13; return new_Enemy_Flesh_Feeder()
-    is 14; return new_EnemyGroup_Flesh_Feeders()
-    otherwise; brk()
-  wend
-end
-
-return @callGlobalScript
+return @funcTbl
 done

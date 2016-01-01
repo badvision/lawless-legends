@@ -31,7 +31,7 @@
     <apply executable="../../../tools/PLASMA/src/plasm" dir="${src.dir}" 
            relative="true" parallel="false" failonerror="true" verbose="true"
            addsourcefile="false">
-      <fileset dir="${src.dir}" includes="*.pla" excludes="gen_*,heaptest*,playtype*"/>
+      <fileset dir="${src.dir}" includes="*.pla" excludes="heaptest*,playtype*"/>
       <arg value="-AM"/>
       <redirector logError="yes">
         <!-- redirect STDIN; fileset collects relative to its dir, but we need -->

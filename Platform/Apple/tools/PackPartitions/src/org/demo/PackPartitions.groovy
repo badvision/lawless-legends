@@ -719,7 +719,7 @@ class PackPartitions
                 case "f" : flagByte = 0x20; break
                 case "fb": flagByte = 0x40; break
                 case "r" : flagByte = 0x80; break
-                default  : throw "Unrecognized animation flags '$animFlags'"
+                default  : throw new Exception("Unrecognized animation flags '$animFlags'")
             }
             def newBuf = ByteBuffer.allocate(50000) // plenty of room
             buf.flip()  // crazy stuff to append one buffer to another
@@ -1456,12 +1456,27 @@ class PackPartitions
         return buf.toString()
     }
     
+    def parseDice(str)
+    {
+        // Handle single value
+        if (str =~ /^\d+$/)
+            return str
+            
+        // Otherwise parse things like "2d6+1"
+        def m = (str =~ /^(\d+)[dD](\d+)([-+]\d+)?$/)
+        if (!m) throw new Exception("Cannot parse dice string '$str'")
+        def nDice = m[0][1].toInteger()
+        def dieSize = m[0][2].toInteger()
+        def add = m[0][4] ? m[0][3].toInteger() : 0
+        return "encodeDice($nDice,$dieSize,$add)"
+    }
+    
     void genEnemy(out, columns, data)
     {
         assert columns[0] == "Name"
         def name = data[0]
         
-        out.print("def new_enemy_${humanNameToSymbol(name, false)}\n")
+        out.print("def new_enemy_${humanNameToSymbol(name, false)}()\n")
         
         assert columns[1] == "Image1"
         def image1 = data[1]
@@ -1505,6 +1520,21 @@ class PackPartitions
         assert columns[14].toLowerCase() =~ /gold loot/
         def goldLoot = data[14]
         
+        out.println("  word p; p = mmgr(HEAP_ALLOC, TYPE_ENEMY)")
+        out.println("  p=>s_name = mmgr(HEAP_INTERN, \"$name\")")
+        out.println("  p=>w_health = rollDice(${parseDice(hitPoints)}) // $hitPoints")
+        out.println("  p->ba_images[0] = PORTRAIT_${humanNameToSymbol(image1, true)}")
+        def attackTypeCode = attackType.toLowerCase() == "melee" ? 1 :
+                             attackType.toLowerCase() == "projectile" ? 2 :
+                             0
+        if (!attackTypeCode) throw new Exception("Can't parse attack type '$attackType'")
+        out.println("  p->b_attackType = $attackTypeCode // $attackType")
+        out.println("  p=>s_attackText = mmgr(HEAP_INTERN, \"$attackText\")")
+        out.println("  p->b_enemyAttackRange = ${range.replace("'", "").toInteger()}")
+        out.println("  p->b_chanceToHit = ${chanceToHit.toInteger()}")
+        out.println("  p=>r_enemyDmg = ${parseDice(damage)} // $damage")
+        out.println("  p=>r_groupSize = ${parseDice(groupSize)} // $groupSize")
+        out.println("  return p")
         out.println("end\n")
     }
     
@@ -1537,14 +1567,35 @@ class PackPartitions
         }
         
         // Translate enemies to code
-        new File("src/plasma/gen_enemies.pla").withWriter { out ->
-            def columns
-            new File("data/world/enemies.tsv").eachLine { line ->
-                if (columns)
-                    genEnemy(out, columns, line.split("\t"))
-                else
-                    columns = line.split("\t")
+        def enemyLines = new File("data/world/enemies.tsv").readLines()
+        new File("src/plasma/gen_enemies.plh").withWriter { out ->
+            out.println("// Generated code - DO NOT MODIFY BY HAND\n")
+            enemyLines[1..-1].eachWithIndex { line, index ->
+                out.println("const new_enemy_${humanNameToSymbol(line.split("\t")[0], false)} = ${index*2}")
             }
+        }
+        new File("src/plasma/gen_enemies.pla").withWriter { out ->
+            out.println("// Generated code - DO NOT MODIFY BY HAND")
+            out.println()
+            out.println("include \"gamelib.plh\"")
+            out.println("include \"playtype.plh\"")
+            out.println("include \"gen_images.plh\"")
+            out.println()
+
+            def columns = enemyLines[0].split("\t")
+            enemyLines[1..-1].each { line ->
+                out.println("predef new_enemy_${humanNameToSymbol(line.split("\t")[0], false)}")
+            }
+            enemyLines[1..-1].eachWithIndex { line, index ->
+                out.print((index == 0) ? "\nword[] funcTbl = " : "word = ")
+                out.println("@new_enemy_${humanNameToSymbol(line.split("\t")[0], false)}")
+            }
+            out.println()
+            enemyLines[1..-1].each { line ->
+                genEnemy(out, columns, line.split("\t"))
+            }
+            out.println("return @funcTbl")
+            out.println("done")
         }
         
         // Produce a list of assembly and PLASMA code segments

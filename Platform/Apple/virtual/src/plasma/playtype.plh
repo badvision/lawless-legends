@@ -170,7 +170,6 @@ struc Enemy
   byte b_chanceToHit
   word r_enemyDmg     // 3 hex digits: num dice, die size, add. E.g. $361 = 3d6+1
   word r_groupSize    // number encountered, as 3 hex digits for dice
-  word r_initialRange
 end
 
 const TYPE_ENEMY_GROUP = $89

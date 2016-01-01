@@ -1529,8 +1529,8 @@ class PackPartitions
         out.println("  return makeEnemy(" +
                     "\"$name\", " +
                     "${parseDice(hitPoints)}, " +
-                    "PORTRAIT_${humanNameToSymbol(image1, true)}, " +
-                    (image2.size() > 0 ? "PORTRAIT_${humanNameToSymbol(image2, true)}, " : "0, ") +
+                    "PO${humanNameToSymbol(image1, false)}, " +
+                    (image2.size() > 0 ? "PO${humanNameToSymbol(image2, false)}, " : "0, ") +
                     "$attackTypeCode, " +
                     "\"$attackText\", " +
                     "${range.replace("'", "").toInteger()}, " +
@@ -1562,7 +1562,7 @@ class PackPartitions
                     }
                     if (animFrameNum <= 1) {
                         ++portraitNum
-                        out.println "const PORTRAIT_${humanNameToSymbol(name, true)} = $portraitNum"
+                        out.println "const PO${humanNameToSymbol(name, false)} = $portraitNum"
                     }
                 }
             }

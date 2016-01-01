@@ -11,6 +11,8 @@
 include "gamelib.plh"
 include "playtype.plh"
 include "gen_images.plh"
+include "gen_enemies.plh"
+include "gen_modules.plh"
 
 word global
 
@@ -171,7 +173,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayOption(key, str)
   buildString(@addToString)
-  printf2("  (%c)^T033%s\n", key, str)
+  printf2("\n  (%c)^T033%s ", key, str)
   rawDisplayStr(finishString(0))
 end
 
@@ -217,7 +219,6 @@ def playerCombatChoose(pl)
     otherwise
       displayStr("Decisions, decisions..."); break
   wend
-  displayStr("\n")
 
   displayOption('M', "Melee")
   if pWeapon
@@ -240,6 +241,7 @@ def playerCombatChoose(pl)
 
   while TRUE
     pl->b_combatChoice = getUpperKey()
+    displayStr("\n")
     when pl->b_combatChoice
       is 'M'
         return
@@ -386,17 +388,52 @@ def determineCombatOrder()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def makeEnemyGroup(enemyFunc)
+  word p, enem, groupSize
+  p = mmgr(HEAP_ALLOC, TYPE_ENEMY_GROUP)
+  enem = enemyFunc()
+  p->b_enemyGroupRange = max(1, rand16() % (enem->b_enemyAttackRange))
+  if enem=>r_groupSize == 0  // handle unique enemies
+    groupSize = 1
+  else  
+    groupSize = rollDice(enem=>r_groupSize)
+  fin
+  addToList(p + p_enemies, enem)
+  while groupSize > 1
+    addToList(p + p_enemies, enemyFunc())
+    groupSize = groupSize - 1
+  loop
+
+  return p
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def makeAllEnemies()
+  word enemiesModule
+  word enemyNum, enemyTbl, enemyFunc
+
+  enemiesModule = mmgr(QUEUE_LOAD, MODULE_GEN_ENEMIES<<8 | RES_TYPE_MODULE)
+  mmgr(FINISH_LOAD, 1) // 1 = keep open
+
+  global=>p_enemyGroups = NULL
+  enemyNum = rand16() % NUM_ENEMIES
+  enemyTbl = enemiesModule()
+  enemyFunc = *((enemyNum<<1) + enemyTbl)
+  addToList(@global=>p_enemyGroups, makeEnemyGroup(enemyFunc))
+
+  mmgr(FREE_MEMORY, enemiesModule)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def startCombat()
   word p, p2, n, s
 
   // Setup
   isFleeing = FALSE
+  makeAllEnemies()
 
   // Display portrait of first group
   setPortrait(global=>p_enemyGroups=>p_enemies->b_image)
-
-  // If portrait was already in memory, the memory mgr load might still be open. Close it.
-  mmgr(FINISH_LOAD, 0)
 
   // We're going to do all our text drawing in window 2. Also, might as well
   // set everything up so that the map gets redrawn when combat finishes.
@@ -447,10 +484,10 @@ def startCombat()
   while TRUE
     n = getUpperKey()
     if n == 'B'
-      displayStr("\nBattle!\n")
+      displayStr("\n\nBattle! \n")
       return TRUE
     elsif n == 'F'
-      displayStr("\nCoward.")
+      displayStr("\n\nCoward. ")
       return FALSE
     fin
     beep()
@@ -481,7 +518,7 @@ def doCombat()
     p = global=>p_combatFirst
     while p
       if !nPlayersFighting
-        setPortrait(PORTRAIT_DEATH)
+        setPortrait(POdeath)
         when rand16() % 2
           is 0
             displayStr("\nYou bought the farm, with your life! Thanks for playing! Reload last save?\n"); break
@@ -495,7 +532,7 @@ def doCombat()
         fin
         reboot()
       elsif !nEnemiesFighting
-        setPortrait(PORTRAIT_COMBATWIN)
+        setPortrait(POcombatwin)
         when rand16() % 3
           is 0
             displayStr("\nYou survive the ordeal and rifle through the carnage.\n"); break

@@ -162,7 +162,7 @@ struc Enemy
   word p_combatNext
   word w_health
 
-  byte ba_images[2]
+  byte b_image
   byte b_hitBonus
   byte b_attackType   // 1=melee, 2=projectile
   word s_attackText

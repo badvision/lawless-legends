@@ -1269,6 +1269,7 @@ class PackPartitions
         readModule("gameloop", "src/plasma/build/gameloop.b")
         readModule("globalScripts", "src/plasma/build/globalScripts.b")
         readModule("combat", "src/plasma/build/combat.b")
+        readModule("gen_enemies", "src/plasma/build/gen_enemies.b")
     }
         
     def pack(xmlPath, binPath, javascriptPath)
@@ -1420,7 +1421,7 @@ class PackPartitions
         def buf = new StringBuilder()
         def inParen = false
         def inSlash = false
-        def needUnderscore = false
+        def needSeparator = false
         str.eachWithIndex { ch, idx ->
             if (ch == '(') {
                 inParen = true
@@ -1438,18 +1439,19 @@ class PackPartitions
                 inSlash = false
             
             if (ch && !inParen && !inSlash) {
-                if (ch >= 'A' && ch <= 'Z')
-                    needUnderscore = true
-                if (ch == ' ' || ch == '_')
-                    needUnderscore = true
+                if ((ch >= 'A' && ch <= 'Z') || ch == ' ' || ch == '_')
+                    needSeparator = (idx > 0)
                 if (isAlnum(ch)) {
-                    if (needUnderscore && idx > 0)
-                        buf.append('_')
-                    needUnderscore = false
-                    if (allUpper)
+                    if (allUpper) {
+                        if (needSeparator)
+                            buf.append('_')
                         buf.append(ch.toUpperCase())
-                    else
-                        buf.append(ch.toLowerCase())
+                    }
+                    else {
+                        // Camel case
+                        buf.append(needSeparator ? ch.toUpperCase() : ch.toLowerCase())
+                    }
+                    needSeparator = false
                 }
             }
         }
@@ -1468,7 +1470,7 @@ class PackPartitions
         def nDice = m[0][1].toInteger()
         def dieSize = m[0][2].toInteger()
         def add = m[0][4] ? m[0][3].toInteger() : 0
-        return "encodeDice($nDice,$dieSize,$add)"
+        return String.format("\$%X", ((nDice << 12) | (dieSize << 8) | add))
     }
     
     void genEnemy(out, columns, data)
@@ -1476,7 +1478,7 @@ class PackPartitions
         assert columns[0] == "Name"
         def name = data[0]
         
-        out.print("def new_enemy_${humanNameToSymbol(name, false)}()\n")
+        out.print("def NE${humanNameToSymbol(name, false)}()\n")
         
         assert columns[1] == "Image1"
         def image1 = data[1]
@@ -1489,6 +1491,10 @@ class PackPartitions
         
         assert columns[4] == "Attack Type"
         def attackType = data[4]
+        def attackTypeCode = attackType.toLowerCase() == "melee" ? 1 :
+                             attackType.toLowerCase() == "projectile" ? 2 :
+                             0
+        if (!attackTypeCode) throw new Exception("Can't parse attack type '$attackType'")
         
         assert columns[5] == "Attack Text"
         def attackText = data[5]
@@ -1520,22 +1526,18 @@ class PackPartitions
         assert columns[14].toLowerCase() =~ /gold loot/
         def goldLoot = data[14]
         
-        out.println("  word p; p = mmgr(HEAP_ALLOC, TYPE_ENEMY)")
-        out.println("  p=>s_name = mmgr(HEAP_INTERN, \"$name\")")
-        out.println("  p=>w_health = rollDice(${parseDice(hitPoints)}) // $hitPoints")
-        out.println("  p->ba_images[0] = PORTRAIT_${humanNameToSymbol(image1, true)}")
-        def attackTypeCode = attackType.toLowerCase() == "melee" ? 1 :
-                             attackType.toLowerCase() == "projectile" ? 2 :
-                             0
-        if (!attackTypeCode) throw new Exception("Can't parse attack type '$attackType'")
-        out.println("  p->b_attackType = $attackTypeCode // $attackType")
-        out.println("  p=>s_attackText = mmgr(HEAP_INTERN, \"$attackText\")")
-        out.println("  p->b_enemyAttackRange = ${range.replace("'", "").toInteger()}")
-        out.println("  p->b_chanceToHit = ${chanceToHit.toInteger()}")
-        out.println("  p=>r_enemyDmg = ${parseDice(damage)} // $damage")
-        out.println("  p=>r_groupSize = ${parseDice(groupSize)} // $groupSize")
-        out.println("  return p")
-        out.println("end\n")
+        out.println("  return makeEnemy(" +
+                    "\"$name\", " +
+                    "${parseDice(hitPoints)}, " +
+                    "PORTRAIT_${humanNameToSymbol(image1, true)}, " +
+                    (image2.size() > 0 ? "PORTRAIT_${humanNameToSymbol(image2, true)}, " : "0, ") +
+                    "$attackTypeCode, " +
+                    "\"$attackText\", " +
+                    "${range.replace("'", "").toInteger()}, " +
+                    "${chanceToHit.toInteger()}, " +
+                    "${parseDice(damage)}, " +
+                    "${parseDice(groupSize)})")
+        out.println("end")
     }
     
     def dataGen(xmlPath)
@@ -1571,8 +1573,9 @@ class PackPartitions
         new File("src/plasma/gen_enemies.plh").withWriter { out ->
             out.println("// Generated code - DO NOT MODIFY BY HAND\n")
             enemyLines[1..-1].eachWithIndex { line, index ->
-                out.println("const new_enemy_${humanNameToSymbol(line.split("\t")[0], false)} = ${index*2}")
+                out.println("const CE${humanNameToSymbol(line.split("\t")[0], false)} = ${index*2}")
             }
+            out.println("const NUM_ENEMIES = ${enemyLines.size - 1}")
         }
         new File("src/plasma/gen_enemies.pla").withWriter { out ->
             out.println("// Generated code - DO NOT MODIFY BY HAND")
@@ -1584,11 +1587,11 @@ class PackPartitions
 
             def columns = enemyLines[0].split("\t")
             enemyLines[1..-1].each { line ->
-                out.println("predef new_enemy_${humanNameToSymbol(line.split("\t")[0], false)}")
+                out.println("predef NE${humanNameToSymbol(line.split("\t")[0], false)}")
             }
             enemyLines[1..-1].eachWithIndex { line, index ->
                 out.print((index == 0) ? "\nword[] funcTbl = " : "word = ")
-                out.println("@new_enemy_${humanNameToSymbol(line.split("\t")[0], false)}")
+                out.println("@NE${humanNameToSymbol(line.split("\t")[0], false)}")
             }
             out.println()
             enemyLines[1..-1].each { line ->

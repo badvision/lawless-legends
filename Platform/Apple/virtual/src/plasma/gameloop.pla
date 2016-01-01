@@ -37,6 +37,7 @@ const ANIM_PAUSE_MAX = 300
 include "playtype.plh"
 include "gen_images.plh"
 include "gen_modules.plh"
+include "gen_enemies.plh"
 include "globalScripts.plh"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -105,7 +106,7 @@ predef _puts, _min, _max
 predef _countList, _countListFiltered, _randomFromListFiltered, _addToList, _beep
 predef _showParty, _mmgr, _setWindow1, _setWindow2, _setWindow3
 predef _reboot, _brk, _encodeDice, _rollDice
-predef _setPlural
+predef _setPlural, _makeEnemy
 
 word gameLib_addrs = @_setScriptInfo, @_pushAuxStr, @_scriptDisplayStr, @_scriptDisplayStrNL, @_getYN
 word = @_queue_setMap, @_setSky, @_setGround, @_queue_teleport, @_setPortrait, @_clearPortrait
@@ -120,7 +121,7 @@ word = @_puts, @_min, @_max
 word = @_countList, @_countListFiltered, @_randomFromListFiltered, @_addToList, @_beep
 word = @_showParty, @_mmgr, @_setWindow1, @_setWindow2, @_setWindow3
 word = @_reboot, @_brk, @_encodeDice, @_rollDice
-word = @_setPlural
+word = @_setPlural, @_makeEnemy
 
 word = 0  // end of library functions
 
@@ -1850,8 +1851,49 @@ def restoreMapPos()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def _makeEnemy(name, healthDice, image0, image1, attackType, attackText, attackRange, chanceToHit, dmg, groupSize)
+  word p; p = mmgr(HEAP_ALLOC, TYPE_ENEMY)
+  p=>s_name = mmgr(HEAP_INTERN, name)
+  p=>w_health = rollDice(healthDice) // 4d6
+  if !image1 or (rand16() % 2)
+    p->b_image = image0
+  else
+    p->b_image = image1
+  fin
+  p->b_attackType = attackType
+  p=>s_attackText = mmgr(HEAP_INTERN, attackText)
+  p->b_enemyAttackRange = attackRange
+  p->b_chanceToHit = chanceToHit
+  p=>r_enemyDmg = dmg
+  p=>r_groupSize = groupSize
+  return p
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def makeEnemyGroup(enemyFunc)
+  word p, enem, groupSize
+  p = mmgr(HEAP_ALLOC, TYPE_ENEMY_GROUP)
+  enem = enemyFunc()
+  p->b_enemyGroupRange = max(1, rand16() % (enem->b_enemyAttackRange))
+  if enem=>r_groupSize == 0  // handle unique enemies
+    groupSize = 1
+  else  
+    groupSize = rollDice(enem=>r_groupSize)
+  fin
+  addToList(p + p_enemies, enem)
+  while groupSize > 1
+    addToList(p + p_enemies, enemyFunc())
+    groupSize = groupSize - 1
+  loop
+
+  return p
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def testCombat()
   word globalScripts
+  word enemiesModule
+  word enemyNum, enemyTbl, enemyFunc
   word combatEngine
   word x, y
   byte dir
@@ -1864,21 +1906,19 @@ def testCombat()
   renderLoaded = FALSE
   combatEngine = mmgr(QUEUE_LOAD, MODULE_COMBAT<<8 | RES_TYPE_MODULE)
   globalScripts = mmgr(QUEUE_LOAD, MODULE_GLOBAL_SCRIPTS<<8 | RES_TYPE_MODULE)
+  enemiesModule = mmgr(QUEUE_LOAD, MODULE_GEN_ENEMIES<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 1) // 1 = keep open
 
   // Create the enemy group(s).
   global=>p_enemyGroups = NULL
-  when rand16() % 2
-    is 0
-      addToList(@global=>p_enemyGroups, globalScripts()=>script_new_EnemyGroup_Dirt_Bags())
-      break
-    otherwise
-      addToList(@global=>p_enemyGroups, globalScripts()=>script_new_EnemyGroup_Flesh_Feeders())
-      break
-  wend
+  enemyNum = rand16() % NUM_ENEMIES
+  enemyTbl = enemiesModule()
+  enemyFunc = *((enemyNum<<1) + enemyTbl)
+  addToList(@global=>p_enemyGroups, makeEnemyGroup(enemyFunc))
 
   // No need for the global scripts now that everything has been created
   mmgr(FREE_MEMORY, globalScripts)
+  mmgr(FREE_MEMORY, enemiesModule)
 
   // Run the combat engine
   combatEngine()

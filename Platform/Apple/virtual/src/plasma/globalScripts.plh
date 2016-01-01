@@ -19,7 +19,3 @@ const script_new_Weapon_SpiritBlade = 14
 const script_calcPlayerArmor = 16
 const script_new_Player_Hue_Hauser = 18
 const script_new_Player_Mokahnu = 20
-const script_new_Enemy_Dirt_Bag = 22
-const script_new_EnemyGroup_Dirt_Bags = 24
-const script_new_Enemy_Flesh_Feeder = 26
-const script_new_EnemyGroup_Flesh_Feeders = 28

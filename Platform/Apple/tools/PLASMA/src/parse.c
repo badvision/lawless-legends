@@ -1460,6 +1460,7 @@ int parse_defs(void)
         {
             if (!(id_type(tokenstr, tokenlen) & PREDEF_TYPE))
             {
+                // TODO: Print symbols
                 parse_error("Mismatch function type");
                 return (0);
             }

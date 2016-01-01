@@ -13,14 +13,12 @@ include "playtype.plh"
 include "gen_images.plh"
 
 predef new_Modifier, new_Armor_Chaps, new_Armor_ShamanHeaddress, new_Armor_TahnkuPants, new_Armor_TahnkuVest 
-predef new_Weapon_Handgun, new_Weapon_SpiritBow, new_Weapon_SpiritBlade, calcPlayerArmor, new_Player_Hue_Hauser 
-predef new_Player_Mokahnu, new_Enemy_Dirt_Bag, new_EnemyGroup_Dirt_Bags, new_Enemy_Flesh_Feeder
-predef new_EnemyGroup_Flesh_Feeders
+predef new_Weapon_Handgun, new_Weapon_SpiritBow, new_Weapon_SpiritBlade, calcPlayerArmor
+predef new_Player_Hue_Hauser, new_Player_Mokahnu
 
 word[] funcTbl = @new_Modifier, @new_Armor_Chaps, @new_Armor_ShamanHeaddress, @new_Armor_TahnkuPants, @new_Armor_TahnkuVest
-word           = @new_Weapon_Handgun, @new_Weapon_SpiritBow, @new_Weapon_SpiritBlade, @calcPlayerArmor, @new_Player_Hue_Hauser 
-word           = @new_Player_Mokahnu, @new_Enemy_Dirt_Bag, @new_EnemyGroup_Dirt_Bags, @new_Enemy_Flesh_Feeder
-word           = @new_EnemyGroup_Flesh_Feeders
+word           = @new_Weapon_Handgun, @new_Weapon_SpiritBow, @new_Weapon_SpiritBlade, @calcPlayerArmor
+word           = @new_Player_Hue_Hauser, @new_Player_Mokahnu
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def new_Modifier(kind, value)

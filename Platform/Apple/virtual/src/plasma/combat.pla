@@ -157,7 +157,11 @@ def displayOpponents()
     first = FALSE
     count = countListFiltered(p=>p_enemies, p_nextObj, @canFight)
     isPlural = (count <> 1)
-    printf3("%d %s at %d'", count, p=>p_enemies=>s_name, p->b_enemyGroupRange)
+    if (p=>p_enemies=>r_groupSize == 0)
+      printf2("%s at %d'", p=>p_enemies=>s_name, p->b_enemyGroupRange)
+    else
+      printf3("%d %s at %d'", count, p=>p_enemies=>s_name, p->b_enemyGroupRange)
+    fin
     p = p=>p_nextObj
   loop
   puts(".\n")
@@ -389,7 +393,7 @@ def startCombat()
   isFleeing = FALSE
 
   // Display portrait of first group
-  setPortrait(global=>p_enemyGroups=>p_enemies->ba_images[0])
+  setPortrait(global=>p_enemyGroups=>p_enemies->b_image)
 
   // If portrait was already in memory, the memory mgr load might still be open. Close it.
   mmgr(FINISH_LOAD, 0)
@@ -417,19 +421,23 @@ def startCombat()
   while p
     n = countList(p=>p_enemies)
     setPlural(n <> 1)
-    when rand16() % 5
-      is 0
-        s = "From out of nowhere comes/come %d %s to have their way with you!\n"; break
-      is 1
-        s = "%d nasty %s comes/come to stake their claim on you!\n"; break
-      is 2
-        s = "It's gone from bad to worse, %d %s is/are looking for trouble!\n"; break
-      is 3
-        s = "%d %s is/are sniffing you out, shoulda' bathed last week!\n"; break
-      otherwise
-        s = "You mutter a curse under your breath as you see %d %s approach you with malice!\n"; break
-    wend
-    displayf2(s, n, p=>p_enemies=>s_name)
+    if p=>p_enemies=>r_groupSize == 0
+      displayf1("%s is in a fightin' mood!\n", p=>p_enemies=>s_name)
+    else
+      when rand16() % 5
+        is 0
+          s = "From out of nowhere comes/come %d %s to have their way with you!\n"; break
+        is 1
+          s = "%d nasty %s comes/come to stake their claim on you!\n"; break
+        is 2
+          s = "It's gone from bad to worse, %d %s is/are looking for trouble!\n"; break
+        is 3
+          s = "%d %s is/are sniffing you out, shoulda' bathed last week!\n"; break
+        otherwise
+          s = "You mutter a curse under your breath as you see %d %s approach you with malice!\n"; break
+      wend
+      displayf2(s, n, p=>p_enemies=>s_name)
+    fin
     p = p=>p_nextObj
   loop
 

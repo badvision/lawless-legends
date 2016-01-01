@@ -7,7 +7,6 @@
  * ANY KIND, either express or implied. See the License for the specific language 
  * governing permissions and limitations under the License.
  */
- 
 package org.badvision.outlaweditor;
 
 import java.util.HashMap;
@@ -20,6 +19,7 @@ import java.util.stream.Collectors;
 import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
+import javafx.scene.CacheHint;
 import javafx.scene.Group;
 import javafx.scene.ImageCursor;
 import javafx.scene.Scene;
@@ -40,6 +40,7 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.StrokeType;
 import javafx.stage.Stage;
 import static org.badvision.outlaweditor.Application.currentPlatform;
 import org.badvision.outlaweditor.data.TileMap;
@@ -58,7 +59,7 @@ import org.badvision.outlaweditor.ui.UIAction;
 public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventHandler<MouseEvent> {
 
     Pane anchorPane;
-    Canvas drawCanvas;
+    Pane drawCanvas;
     private Tile currentTile;
     int posX = 0;
     int posY = 0;
@@ -117,20 +118,20 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
             String category = null;
             if (currentTile != null) {
                 category = currentTile.getCategory();
-            }                 
+            }
             if (this.equals(Application.getInstance().getController().getVisibleEditor())) {
                 UIAction.showTileSelectModal((AnchorPane) anchorPane, category, this::setCurrentTile);
             }
         }
     }
-    
+
     public void initCanvas() {
         if (drawCanvas != null) {
             anchorPane.getChildren().remove(drawCanvas);
         }
-        drawCanvas = new Canvas();
-        drawCanvas.heightProperty().bind(Application.getPrimaryStage().heightProperty().subtract(120));
-        drawCanvas.widthProperty().bind(Application.getPrimaryStage().widthProperty().subtract(200));
+        drawCanvas = new Pane();
+//        drawCanvas.heightProperty().bind(Application.getPrimaryStage().heightProperty().subtract(120));
+//        drawCanvas.widthProperty().bind(Application.getPrimaryStage().widthProperty().subtract(200));
 //        drawCanvas.widthProperty().bind(anchorPane.widthProperty());
         drawCanvas.widthProperty().addListener((ObservableValue<? extends Number> ov, Number t, Number t1) -> {
             redraw();
@@ -145,7 +146,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         drawCanvas.setOnMouseDragReleased(this);
         drawCanvas.setOnMouseReleased(this);
         anchorPane.getChildren().add(0, drawCanvas);
-        cursorAssistant = new Rectangle(tileWidth, tileHeight, new Color(0.2,0.2,1.0,0.4));
+        cursorAssistant = new Rectangle(tileWidth, tileHeight, new Color(0.2, 0.2, 1.0, 0.4));
         cursorAssistant.setMouseTransparent(true);
         cursorAssistant.setEffect(new Glow(1.0));
         anchorPane.getChildren().add(cursorAssistant);
@@ -254,8 +255,8 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
 
     private synchronized void doRedraw() {
         clearCanvas();
-        int cols = (int) (drawCanvas.getWidth() / tileWidth);
-        int rows = (int) (drawCanvas.getHeight() / tileHeight);
+        int cols = (int) (getCanvasWidth() / tileWidth) - 1;
+        int rows = (int) (getCanvasHeight() / tileHeight) - 1;
         for (int x = 0; x <= cols; x++) {
             for (int y = 0; y <= rows; y++) {
                 Tile tile = currentMap.get(posX + x, posY + y);
@@ -276,11 +277,15 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     public void clearCanvas() {
         boolean oddEvenColumn = false;
         boolean oddEven;
-        for (int x=0; x < drawCanvas.getWidth(); x += 10) {
+        drawCanvas.getChildren().clear();
+        for (int x = 0; x < drawCanvas.getWidth()-10; x += 10) {
             oddEven = oddEvenColumn;
-            for (int y=0; y < drawCanvas.getHeight(); y += 10) {
-                drawCanvas.getGraphicsContext2D().setFill(oddEven ? Color.BLACK : Color.NAVY);
-                drawCanvas.getGraphicsContext2D().fillRect(x, y, 10, 10);
+            for (int y = 0; y < drawCanvas.getHeight()-10; y += 10) {
+                Rectangle r = new Rectangle(10, 10);
+                r.setX(x);
+                r.setY(y);
+                r.setFill(oddEven ? Color.BLACK : Color.NAVY);
+                drawCanvas.getChildren().add(r);
                 oddEven = !oddEven;
             }
             oddEvenColumn = !oddEvenColumn;
@@ -291,7 +296,12 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         double xx = x * tileWidth;
         double yy = y * tileHeight;
         if (tile != null) {
-            drawCanvas.getGraphicsContext2D().drawImage(TileUtils.getImage(tile, currentPlatform), xx, yy, tileWidth, tileHeight);
+            ImageView img = new ImageView(TileUtils.getImage(tile, currentPlatform));
+            img.setX(xx);
+            img.setY(yy);
+            img.setCache(true);
+            img.setCacheHint(CacheHint.SPEED);
+            drawCanvas.getChildren().add(img);
         } else {
 //            drawCanvas.getGraphicsContext2D().clearRect(xx, yy, tileWidth, tileHeight);
         }
@@ -328,51 +338,16 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         if (visibleScripts.isEmpty()) {
             return;
         }
-        GraphicsContext gc = drawCanvas.getGraphicsContext2D();
         int idx = 0;
         double xx = x * tileWidth;
         double yy = y * tileHeight;
-        gc.setLineWidth(4);
-        for (int i = 0; i < tileWidth - 2; i += dashLength) {
-            idx = (idx + 1) % visibleScripts.size();
-            gc.beginPath();
-            gc.moveTo(xx, yy);
-            currentMap.getScriptColor(visibleScripts.get(idx)).ifPresent(gc::setStroke);
-            xx += dashLength;
-            gc.lineTo(xx, yy);
-            gc.setEffect(new DropShadow(2, Color.BLACK));
-            gc.stroke();
-        }
-        for (int i = 0; i < tileHeight - 2; i += dashLength) {
-            idx = (idx + 1) % visibleScripts.size();
-            gc.beginPath();
-            gc.moveTo(xx, yy);
-            currentMap.getScriptColor(visibleScripts.get(idx)).ifPresent(gc::setStroke);
-            yy += dashLength;
-            gc.lineTo(xx, yy);
-            gc.setEffect(new DropShadow(2, Color.BLACK));
-            gc.stroke();
-        }
-        for (int i = 0; i < tileWidth - 2; i += dashLength) {
-            idx = (idx + 1) % visibleScripts.size();
-            gc.beginPath();
-            gc.moveTo(xx, yy);
-            currentMap.getScriptColor(visibleScripts.get(idx)).ifPresent(gc::setStroke);
-            xx -= dashLength;
-            gc.lineTo(xx, yy);
-            gc.setEffect(new DropShadow(2, Color.BLACK));
-            gc.stroke();
-        }
-        for (int i = 0; i < tileHeight - 2; i += dashLength) {
-            idx = (idx + 1) % visibleScripts.size();
-            gc.beginPath();
-            gc.moveTo(xx, yy);
-            currentMap.getScriptColor(visibleScripts.get(idx)).ifPresent(gc::setStroke);
-            yy -= dashLength;
-            gc.lineTo(xx, yy);
-            gc.setEffect(new DropShadow(2, Color.BLACK));
-            gc.stroke();
-        }
+        Rectangle r = new Rectangle(xx, yy, tileWidth - 2, tileHeight - 2);
+        r.setStrokeWidth(4);
+        r.setStrokeDashOffset(0.5);
+        r.setStrokeType(StrokeType.CENTERED);
+        r.setFill(null);
+        currentMap.getScriptColor(visibleScripts.get(idx)).ifPresent(r::setStroke);
+        drawCanvas.getChildren().add(r);
     }
 
     public void setupDragDrop(TransferHelper<Script> scriptHelper, TransferHelper<ToolType> toolHelper) {
@@ -387,8 +362,8 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
 
     @Override
     public void unregister() {
-        drawCanvas.widthProperty().unbind();
-        drawCanvas.heightProperty().unbind();
+//        drawCanvas.widthProperty().unbind();
+//        drawCanvas.heightProperty().unbind();
         anchorPane.getChildren().remove(drawCanvas);
         currentMap.updateBackingMap();
         Application.getPrimaryStage().getScene().removeEventHandler(KeyEvent.KEY_PRESSED, this::keyPressed);
@@ -460,6 +435,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     }
 
     Rectangle cursorAssistant;
+
     private void updateCursorAssistant(MouseEvent t) {
         if (t.getEventType() == MouseEvent.MOUSE_EXITED) {
             cursorAssistant.setVisible(false);
@@ -473,6 +449,14 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     public void removeScript(Script script) {
         getCurrentMap().removeScriptFromMap(script);
         redraw();
+    }
+
+    private double getCanvasWidth() {
+        return Application.getPrimaryStage().getWidth() - 200.0;
+    }
+
+    private double getCanvasHeight() {
+        return Application.getPrimaryStage().getHeight() - 120.0;
     }
 
     public static enum DrawMode {
@@ -560,7 +544,9 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     @Override
     public void handle(MouseEvent t) {
         updateCursorAssistant(t);
-        if (!t.isPrimaryButtonDown() && drawMode != DrawMode.FilledRect && t.getEventType() != MouseEvent.MOUSE_RELEASED) return;
+        if (!t.isPrimaryButtonDown() && drawMode != DrawMode.FilledRect && t.getEventType() != MouseEvent.MOUSE_RELEASED) {
+            return;
+        }
         if (getCurrentTile() == null && drawMode != DrawMode.Eraser) {
             return;
         }
@@ -580,7 +566,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
                 if (canSkip) {
                     return;
                 }
-                plot(x,y,null);
+                plot(x, y, null);
                 redraw();
                 break;
             }

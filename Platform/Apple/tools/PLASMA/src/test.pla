@@ -27,10 +27,6 @@ end
 //
 const constval = 2*(2+3) // a test expression should evaluate to 10
 //
-// Absolute function address
-//
-const nullfunc = $300
-//
 // Declare all global variables for this module.
 // Note that arrays are declared with prefix []. postfix [], or no [].
 // Only arrays with predclared sizes need [ and ], such as "int[3] a".
@@ -106,9 +102,6 @@ export def main(range)
   wend
   putln
 end
-puts("Calling null func.\n")
-^nullfunc = $60
-nullfunc()
 ptr = @main
 ptr(@array:6)
 ptr = @array

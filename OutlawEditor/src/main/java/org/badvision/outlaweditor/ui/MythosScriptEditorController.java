@@ -129,6 +129,7 @@ public class MythosScriptEditorController
             });
         }
 
+        //TODO: Verify the path conversion works in Win7 with a jar file
         editorView.getEngine().load(getClass().getResource(MYTHOS_EDITOR).toExternalForm());
     }
 

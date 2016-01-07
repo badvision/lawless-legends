@@ -89,7 +89,12 @@ public class TileUtils {
     public static WritableImage getImage(Tile t, Platform p) {
         Map<Platform, WritableImage> displays = getDisplay(t);
         byte[] data = getPlatformData(t, p);
-        return displays.put(p, p.tileRenderer.redrawSprite(data, displays.get(p), false));
+        WritableImage image = displays.get(p);
+        if (image == null) {
+            image = p.tileRenderer.redrawSprite(data, displays.get(p), false);
+            displays.put(p, image);
+        }
+        return image;
     }
 
     public static void setImage(Tile t, Platform p, WritableImage img) {

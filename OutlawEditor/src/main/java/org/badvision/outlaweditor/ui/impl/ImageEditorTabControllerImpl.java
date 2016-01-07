@@ -7,7 +7,6 @@
  * ANY KIND, either express or implied. See the License for the specific language 
  * governing permissions and limitations under the License.
  */
- 
 package org.badvision.outlaweditor.ui.impl;
 
 import java.util.EnumMap;
@@ -21,13 +20,16 @@ import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.scene.control.ListView;
 import javafx.util.StringConverter;
+import javax.xml.bind.JAXBException;
 import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.Editor;
 import org.badvision.outlaweditor.ImageEditor;
 import static org.badvision.outlaweditor.Application.currentPlatform;
+import org.badvision.outlaweditor.TransferHelper;
 import static org.badvision.outlaweditor.ui.UIAction.confirm;
 import static org.badvision.outlaweditor.data.PropertyHelper.bind;
 import static org.badvision.outlaweditor.data.PropertyHelper.stringProp;
+import org.badvision.outlaweditor.data.xml.GameData;
 import org.badvision.outlaweditor.data.xml.Image;
 import org.badvision.outlaweditor.ui.ImageEditorTabController;
 
@@ -120,9 +122,9 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
     }
 
     private void updateZoomLabel() {
-        zoomLabel.setText(String.format("%1.1fx",currentImageEditor.getZoomScale()));
+        zoomLabel.setText(String.format("%1.1fx", currentImageEditor.getZoomScale()));
     }
-    
+
     @Override
     public void imageZoomIn(ActionEvent event) {
         if (currentImageEditor != null) {
@@ -143,7 +145,18 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
 
     @Override
     public void onImageClonePressed(ActionEvent event) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        try {
+            if (getCurrentImage() == null) {
+                return;
+            }
+            Image clone = TransferHelper.cloneObject(getCurrentImage(), Image.class, "image");
+            clone.setName(clone.getName()+" clone");
+            Application.gameData.getImage().add(clone);
+            setCurrentImage(clone);
+            rebuildImageSelector();
+        } catch (JAXBException ex) {
+            Logger.getLogger(ImageEditorTabControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     @Override
@@ -246,10 +259,12 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
         List<Image> allImages = Application.gameData.getImage();
         allImages.sort((Image o1, Image o2) -> {
             int c1 = String.valueOf(o1.getCategory()).compareTo(String.valueOf(o2.getCategory()));
-            if (c1 != 0) return c1;
+            if (c1 != 0) {
+                return c1;
+            }
             return String.valueOf(o1.getName()).compareTo(String.valueOf(o2.getName()));
         });
- 
+
         imageSelector.getItems().addAll(allImages);
         imageSelector.getSelectionModel().select(i);
     }

@@ -65,7 +65,7 @@ byte isPlural = FALSE
 
 word skyNum = 9
 word groundNum = 10
-byte portraitNum = 60
+byte portraitNum = 0
 
 word triggerOriginX, triggerOriginY
 word triggerTbl

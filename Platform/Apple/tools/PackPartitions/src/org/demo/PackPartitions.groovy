@@ -1095,7 +1095,7 @@ class PackPartitions
             }
             
             if (debugCompression)
-                println String.format("Literal: ptr=\$%x, len=\$%x.", (0x4400+sp), literalLen)
+                println String.format("Literal: ptr=\$%x, len=\$%x.", sp, literalLen)
             
             // Copy the literal bytes
             outLen += literalLen

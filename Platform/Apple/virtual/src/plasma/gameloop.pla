@@ -65,7 +65,7 @@ byte isPlural = FALSE
 
 word skyNum = 9
 word groundNum = 10
-byte portraitNum = 0
+byte portraitNum = 60
 
 word triggerOriginX, triggerOriginY
 word triggerTbl
@@ -1708,6 +1708,7 @@ end
 // Test out portrait drawing
 def nextPortrait()
   portraitNum = portraitNum + 1
+  printf1("Portrait #%d\n", portraitNum)
   setPortrait(portraitNum)
 end
 

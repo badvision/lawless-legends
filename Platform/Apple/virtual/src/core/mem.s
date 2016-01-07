@@ -2443,13 +2443,16 @@ lz4Decompress: !zone
 	cpx #11			; end check - self-modified earlier
 	bcc .decodeMatch	; if less, keep going
 .endChk2:
-	lda #0              	; have we finished all pages?
-	bne .decodeMatch	; no, keep going
+	lda #0              	; have we finished all pages? - self modified and decremented
+	bmi .endBad		; negative? that's very bad (because we never have blocks >= 32Kbytes)
+	bne .decodeMatch	; non-zero? keep going.
 	bit isCompressed
 	bpl +			; if not compressed, no extra work at end
 	pla			; toss unused match length
 	!if DO_COMP_CHECKSUMS { jsr .verifyCksum }
 +	rts			; all done!
+.endBad	+prChr 'O'		; diagnostic letter
+	brk			; barf out
 	; Now that we've finished with the literals, decode the match section
 .decodeMatch:
 	+LOAD_YSRC		; grab first byte of match offset
@@ -2483,6 +2486,9 @@ lz4Decompress: !zone
 +	sty tmp			; save index to source pointer, so we can use Y...
 	!if DEBUG_DECOMP { sta ucLen : jsr .debug4 }
 	tay			; ...to count bytes
+	bne +
+	dec ucLen+1		; special case for len being an exact multiple of 256
++
 .auxWr2	sta setAuxWr		; self-modified earlier, based on isAuxCmd
 .auxRd1	sta setAuxRd  		; self-modified based on isAuxCmd
 .srcLoad:
@@ -2556,6 +2562,7 @@ nextSrcPage:
 	rts
 
 .nextDstPage:
+	; FIXME: We don't need to switch main/aux here
 	sta clrAuxWr		; write to main mem so we can increment stuff in code blocks
 	inc .srcLoad+2		; inc offset pointer for match copies
 	inc .dstStore1+2	; inc pointers for dest stores

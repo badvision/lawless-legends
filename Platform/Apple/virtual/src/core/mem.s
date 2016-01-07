@@ -2377,10 +2377,8 @@ lz4Decompress: !zone
 	iny			; and read from aux mem
 + 	stx .auxWr1+1		; set all the write switches for aux/main
 	stx .auxWr3+1
-	stx .auxWr4+1
 	stx .auxWr2+1
 	sty .auxRd1+1		; and the read switches too
-	sty .auxRd2+1
 +	ldx pDst		; calculate the end of the dest buffer
 	txa			; also put low byte of ptr in X (where we'll use it constantly)
 	clc
@@ -2501,9 +2499,7 @@ lz4Decompress: !zone
 	}
 	inx			; inc to next src/dst byte
 	bne +			; non-zero, skip page bump
-	sta clrAuxRd		; page bump needs to operate in main mem
 	jsr .nextDstPage	; do the bump
-.auxRd2	sta setAuxRd		; and back to aux mem (if isAuxCmd)
 +	dey			; count bytes -- first page yet?
 	bne .srcLoad		; loop for more
 	dec ucLen+1		; count pages
@@ -2562,13 +2558,10 @@ nextSrcPage:
 	rts
 
 .nextDstPage:
-	; FIXME: We don't need to switch main/aux here
-	sta clrAuxWr		; write to main mem so we can increment stuff in code blocks
 	inc .srcLoad+2		; inc offset pointer for match copies
 	inc .dstStore1+2	; inc pointers for dest stores
 	inc .dstStore2+2
 	dec .endChk2+1		; decrement total page counter
-.auxWr4	sta setAuxWr		; go back to writing aux mem (self-modified for aux or main)
 	rts
   
 !if DEBUG_DECOMP {

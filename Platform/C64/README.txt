@@ -18,5 +18,5 @@ Features:
 
 Tools used:
 	64tass compiler
-	GangEd for tiles (data saved separately as videomem, colormem and bitmap) and fonts
+	GangEd and Pixcen used for tiles (data saved separately as videomem, colormem and bitmap), bitmap part for fonts saved under fonts.map filename
 	SpritePad for sprites

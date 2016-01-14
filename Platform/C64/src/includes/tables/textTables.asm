@@ -1,10 +1,10 @@
 fontsTable_LO
-	.for l=0, l<=60, l=l+1
+	.for l=0, l<=130, l=l+1
 		.byte <FONTS+l*8-1
 	.next
 
 fontsTable_HI
-	.for l=0, l<=60, l=l+1
+	.for l=0, l<=130, l=l+1
 		.byte >FONTS+l*8-1
 	.next
 

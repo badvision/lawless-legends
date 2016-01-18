@@ -2,7 +2,7 @@
 searchText
 
 	;Clear old text
-	ldy #15
+	ldy #16
 	lda #0
 -
 	.for step=0, step<=15, step=step+1

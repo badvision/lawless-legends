@@ -51,6 +51,10 @@ mapOffsetPointer_HI = $34
 playerPosition_LO = $35
 playerPosition_HI = $36
 
+outputCursor = $37
+wordCursor = $38
+ignoreNextCharacterFlag = $39
+
 BANK_START_ADDR=$4000 ;$4000 - $7FFF
 SCREEN=$6000 ;Bitmap range: $6000 - $7F3F
 SCREEN_VIDEO_RAM=$5C00 ;Screen Video RAM range: $5C00 - $5FFF
@@ -283,7 +287,8 @@ jmp *
 .binary "binary/colormem.PRG",2,64*4
 
 *=FONTS
-.binary "binary/fonts.PRG",2,8*26+8*26+8*3
+.binary "binary/fonts.map",0,8*8*130
+
 
 *=MAP_DATA
 ;.binary "binary/map.bin" ;TODO: As we have no map file yet, let's use fake map for test purposes
@@ -296,3 +301,4 @@ Raster_Indicator
 	.byte 0
 Raster_Indicator_Key_Pressed
 	.byte 0
+.byte $FF

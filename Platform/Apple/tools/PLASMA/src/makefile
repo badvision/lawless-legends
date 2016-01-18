@@ -5,8 +5,9 @@ PLVM    = plvm
 PLVM02	= PLVM02.SYSTEM.sys#2000
 CMD     = CMD\#FF2000
 PLASM   = plasm
+JAR     = $(PLASM).jar
 INCS    = tokens.h symbols.h lex.h parse.h codegen.h
-OBJS	= plasm.c parse.o lex.o codegen.o
+SRCS	= plasm.c parse.c lex.c codegen.c
 #
 # Image filetypes for Virtual ][
 #
@@ -22,13 +23,18 @@ TXTTYPE	= .TXT
 #SYSTYPE	= \#ff0000
 #TXTTYPE	= \#040000
 
-all: $(PLASM) $(PLVM) $(PLVM02) $(CMD)
+all: $(PLASM) $(JAR) $(PLVM) $(PLVM02) $(CMD)
 
 clean:
 	-rm *.o *~ *.a *FE1000 $(PLVM02) $(CMD) $(PLASM) $(PLVM)
 
-$(PLASM): $(OBJS) $(INCS)
-	cc $(OBJS) -o $(PLASM)
+jar: $(JAR)
+
+$(PLASM): $(SRCS) $(INCS)
+	cc $(SRCS) -o $(PLASM)
+
+$(JAR): $(SRCS) $(INCS)
+	docker run -t -v "$(shell pwd):/project" mhaye/nestedvm:v3 /bin/bash -c "cd /project && nestedvm-c2jar $(JAR) plasma.Plasma $(SRCS)"
 
 $(PLVM): plvm.c
 	cc plvm.c -o $(PLVM)

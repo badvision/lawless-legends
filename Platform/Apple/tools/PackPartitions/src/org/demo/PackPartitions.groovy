@@ -19,7 +19,6 @@ import java.nio.ByteBuffer
 import java.nio.channels.Channels
 import net.jpountz.lz4.LZ4Factory
 import java.nio.charset.StandardCharsets
-import plasma.Plasma
 
 /**
  *
@@ -1269,25 +1268,26 @@ class PackPartitions
         }
     }
     
-    def compileModule(moduleName, codeDir)
+    def runNestedvm(programClass, programName, args, inDir, inFile, outFile)
     {
-        def codeFile = new File(codeDir + moduleName + ".pla")
-        def acmeFile = new File(codeDir + "build/" + moduleName + ".b")
-        
         def prevStdin = System.in
         def prevStdout = System.out
         def prevUserDir = System.getProperty("user.dir")
         def result
         try 
         {
-            System.setProperty("user.dir", new File(codeDir).getAbsolutePath())
-            codeFile.withInputStream { inStream ->
-                System.in = inStream
-                acmeFile.withOutputStream { outStream ->
-                    System.out = new PrintStream(outStream)
-                    String[] args = ["-AM"]
-                    result = new Plasma().run(args)
+            System.setProperty("user.dir", new File(inDir).getAbsolutePath())
+            if (inFile) {
+                inFile.withInputStream { inStream ->
+                    System.in = inStream
+                    outFile.withOutputStream { outStream ->
+                        System.out = new PrintStream(outStream)
+                        result = programClass.newInstance().run(args)
+                    }
                 }
+            }
+            else {
+                result = programClass.newInstance().run(args)
             }
         } finally {
             System.in = prevStdin
@@ -1295,22 +1295,51 @@ class PackPartitions
             System.setProperty("user.dir", prevUserDir)
         }
         if (result != 0)
-            throw new Exception("PLASMA compiler failed with code $result")
+            throw new Exception("$programName failed with code $result")
+    }
+    
+    def assembleCode(codeName, inDir)
+    {
+        if (!binaryStubsOnly) {
+            println "Assembling ${codeName}.s"
+            String[] args = ["acme", "-f", "plain",
+                             "-o", "build/" + codeName + ".b", 
+                             codeName + ".s"]
+            runNestedvm(acme.Acme.class,  "ACME assembler", args, inDir, null, null)
+        }
+        readCode(codeName, inDir + "build/" + codeName + ".b")
+    }
+    
+    def compileModule(moduleName, codeDir)
+    {
+        if (!binaryStubsOnly)
+        {
+            println "Compiling ${moduleName}.pla"
+            String[] args = ["plasm", "-AM"]
+            runNestedvm(plasma.Plasma.class,  "PLASMA compiler", args, codeDir, 
+                new File(codeDir + moduleName + ".pla"), 
+                new File(codeDir + "build/" + moduleName + ".b"))
+
+            args = ["acme", "--setpc", "4096",
+                    "-o", moduleName + ".b", 
+                    moduleName + ".a"]
+            runNestedvm(acme.Acme.class,  "ACME assembler", args, codeDir + "build/", null, null)
+        }
+
+        readModule(moduleName, codeDir + "build/" + moduleName + ".b")
     }
 
     def readAllCode()
     {
-        readCode("render", "src/raycast/build/render.b")
-        readCode("expand", "src/raycast/build/expand.b")
-        readCode("fontEngine", "src/font/build/fontEngine.b")
-        readCode("tileEngine", "src/tile/build/tile.b")
+        assembleCode("render", "src/raycast/")
+        assembleCode("expand", "src/raycast/")
+        assembleCode("fontEngine", "src/font/")
+        assembleCode("tileEngine", "src/tile/")
 
         compileModule("gameloop", "src/plasma/")
-        
-        readModule("gameloop", "src/plasma/build/gameloop.b")
-        readModule("globalScripts", "src/plasma/build/globalScripts.b")
-        readModule("combat", "src/plasma/build/combat.b")
-        readModule("gen_enemies", "src/plasma/build/gen_enemies.b")
+        compileModule("globalScripts", "src/plasma/")
+        compileModule("combat", "src/plasma/")
+        compileModule("gen_enemies", "src/plasma/")
     }
         
     def pack(xmlPath, binPath, javascriptPath)

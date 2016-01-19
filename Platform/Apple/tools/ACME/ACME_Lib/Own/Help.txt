@@ -1,0 +1,26 @@
+!eof
+
+If you have written files that you often need to include in your sources, you can store them in this directory.
+
+This way they can be accessed in ACME sources using
+
+	!source <Own/insert_name_of_your_file_here>
+
+or
+
+	!binary <Own/insert_name_of_your_file_here>
+
+
+Please bear in mind that you cannot assemble such source codes on a machine that does *not* have your own include files. If you want to freely give away your programs though, there are two ways to do this:
+
+ a) Change those references to "normal" quotes and store your own library files in the same directory as the file that includes them. This means editing by hand, therefore the "Own" directory would lose its meaning.
+
+ b) Store your library files into a uniquely-named subdirectory inside the library tree and give away that part of the library as well. The position of such a personal directory inside the library tree should be chosen intelligently - it wouldn't be helpful if every single user of ACME would place his/her directory at the top level of the library. If your files are only of use for one specific computer, then you should create a new directory called "3rdParty" in that computer's directory and put your own directory inside it. The name of your own directory may be your name or IRC nick, for example.
+
+Demo groups, software houses and the like should use this method as well, forming paths like this:
+
+	!binary <Acorn/3rdParty/BlackAdder/Baldrick.a>
+	!source <C64/3rdParty/WyldStallons/Scroller.a>
+
+If you have a file that you think should be added to the "normal" library tree, just send me an e-mail and I'll include it in the next release. Well, at least I might consider it. :)
+

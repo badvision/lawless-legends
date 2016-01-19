@@ -1,0 +1,3 @@
+!eof
+
+This directory contains files that are useful when writing programs for the 6502 processor, but which are independent of the computer used.

@@ -1271,29 +1271,31 @@ class PackPartitions
     
     def compileModule(moduleName, codeDir)
     {
+        def codeFile = new File(codeDir + moduleName + ".pla")
+        def acmeFile = new File(codeDir + "build/" + moduleName + ".b")
+        
         def prevStdin = System.in
         def prevStdout = System.out
+        def prevUserDir = System.getProperty("user.dir")
+        def result
         try 
         {
-            println "old user.dir=${System.getProperty('user.dir')}"
             System.setProperty("user.dir", new File(codeDir).getAbsolutePath())
-            println "new user.dir=${System.getProperty('user.dir')}"
-            def codeFile = new File(codeDir + moduleName + ".pla")
             codeFile.withInputStream { inStream ->
                 System.in = inStream
-                def acmeFile = new File(codeDir + "build/" + moduleName + ".b")
                 acmeFile.withOutputStream { outStream ->
                     System.out = new PrintStream(outStream)
-                    String[] args = new String[1]
-                    args[0] = "-AM"
-                    def result = Plasma.main(args)
-                    println("result=$result")
+                    String[] args = ["-AM"]
+                    result = new Plasma().run(args)
                 }
             }
         } finally {
             System.in = prevStdin
             System.out = prevStdout
+            System.setProperty("user.dir", prevUserDir)
         }
+        if (result != 0)
+            throw new Exception("PLASMA compiler failed with code $result")
     }
 
     def readAllCode()

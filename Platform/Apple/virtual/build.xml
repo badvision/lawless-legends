@@ -29,25 +29,6 @@
     <!-- Create build directory -->
     <mkdir dir="${build.dir}"/>
 
-    <!-- Generate code from tables -->
-    <echo>Generating code from tables.</echo>
-    <java jar="${pack.dir}/PackPartitions.jar" fork="true" failonerror="true">
-      <arg value="data/world/world.xml"/>
-      <arg value="-dataGen"/>
-    </java>
-
-    <!-- Build sub-projects -->
-    <echo>Building core.</echo>
-    <ant dir="${src.dir}/core" target="build" useNativeBasedir="true" inheritAll="false"/>
-    <echo>Building game loop.</echo>
-    <ant dir="${src.dir}/plasma" target="build" useNativeBasedir="true" inheritAll="false"/>
-    <echo>Building raycast.</echo>
-    <ant dir="${src.dir}/raycast" target="build" useNativeBasedir="true" inheritAll="false"/>
-    <echo>Building font engine.</echo>
-    <ant dir="${src.dir}/font" target="build" useNativeBasedir="true" inheritAll="false"/>
-    <echo>Building tile engine.</echo>
-    <ant dir="${src.dir}/tile" target="build" useNativeBasedir="true" inheritAll="false"/>
-
     <!-- Pack the game data -->
     <echo>Packing game and code resources.</echo>
     <java jar="${pack.dir}/PackPartitions.jar" fork="true" failonerror="true">

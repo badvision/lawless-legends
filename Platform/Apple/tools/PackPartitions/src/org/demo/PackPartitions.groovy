@@ -1302,6 +1302,7 @@ class PackPartitions
     {
         if (!binaryStubsOnly) {
             println "Assembling ${codeName}.s"
+            new File(inDir + "build").mkdir()
             String[] args = ["acme", "-f", "plain",
                              "-o", "build/" + codeName + ".b", 
                              codeName + ".s"]
@@ -1310,15 +1311,26 @@ class PackPartitions
         readCode(codeName, inDir + "build/" + codeName + ".b")
     }
     
+    def assembleCore(inDir)
+    {
+        if (!binaryStubsOnly) {
+            println "Assembling mem.s"
+            new File(inDir + "build").mkdir()
+            String[] args = ["acme", "-o", "build/cmd.sys#2000", "mem.s"]
+            runNestedvm(acme.Acme.class,  "ACME assembler", args, inDir, null, null)
+        }
+    }
+    
     def compileModule(moduleName, codeDir)
     {
         if (!binaryStubsOnly)
         {
             println "Compiling ${moduleName}.pla"
             String[] args = ["plasm", "-AM"]
+            new File(codeDir + "build").mkdir()
             runNestedvm(plasma.Plasma.class,  "PLASMA compiler", args, codeDir, 
                 new File(codeDir + moduleName + ".pla"), 
-                new File(codeDir + "build/" + moduleName + ".b"))
+                new File(codeDir + "build/" + moduleName + ".a"))
 
             args = ["acme", "--setpc", "4096",
                     "-o", moduleName + ".b", 
@@ -1331,6 +1343,8 @@ class PackPartitions
 
     def readAllCode()
     {
+        assembleCore("src/core/")
+        
         assembleCode("render", "src/raycast/")
         assembleCode("expand", "src/raycast/")
         assembleCode("fontEngine", "src/font/")
@@ -1719,10 +1733,8 @@ class PackPartitions
         // Go for it.
         def inst = new PackPartitions()
         try {
-            if (args[1] == "-dataGen")
-                inst.dataGen(args[0])
-            else
-                inst.pack(args[0], args[1], args.size() > 2 ? args[2] : null)
+            new PackPartitions().dataGen(args[0])
+            inst.pack(args[0], args[1], args.size() > 2 ? args[2] : null)
         }
         catch (Throwable t) {
             errorFile.withWriter { out ->

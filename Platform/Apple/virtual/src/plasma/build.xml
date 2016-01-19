@@ -20,6 +20,9 @@
   
   <target name="clean">
     <delete failonerror="false" dir="${build.dir}"/>
+    <delete>
+      <fileset dir="." includes="gen_*.pl?"/>
+    </delete>
   </target>
   
   <target name="build">

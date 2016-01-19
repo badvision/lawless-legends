@@ -64,6 +64,8 @@ class PackPartitions
     def currentContext = []    
     def nWarnings = 0
     
+    def binaryStubsOnly = false
+    
     /** 
      * Keep track of context within the XML file, so we can spit out more useful
      * error and warning messages.
@@ -905,6 +907,8 @@ class PackPartitions
     {
         def inBuf = new byte[256]
         def outBuf = ByteBuffer.allocate(50000)
+        if (binaryStubsOnly)
+            return outBuf
         def stream = new File(path).withInputStream { stream ->
             while (true) {
                 def got = stream.read(inBuf)
@@ -927,6 +931,10 @@ class PackPartitions
         def num = modules.size() + 1
         //println "Reading module #$num from '$path'."
         def bufObj = readBinary(path)
+        if (binaryStubsOnly) {
+            modules[name] = [num:num, buf:bufObj]
+            return
+        }
         
         def bufLen = bufObj.position()
         def buf = new byte[bufLen]
@@ -1602,7 +1610,9 @@ class PackPartitions
         }
         
         // Produce a list of assembly and PLASMA code segments
+        binaryStubsOnly = true
         readAllCode()
+        binaryStubsOnly = false
         new File("src/plasma/gen_modules.plh").withWriter { out ->
             code.each { k, v ->
                 out.println "const CODE_${humanNameToSymbol(k, true)} = ${v.num}"

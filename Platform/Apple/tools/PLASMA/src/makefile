@@ -34,7 +34,7 @@ $(PLASM): $(SRCS) $(INCS)
 	cc $(SRCS) -o $(PLASM)
 
 $(JAR): $(SRCS) $(INCS)
-	docker run -t -v "$(shell pwd):/project" mhaye/nestedvm:v3 /bin/bash -c "cd /project && nestedvm-c2jar $(JAR) plasma.Plasma $(SRCS)"
+	docker run -t -v "$(shell pwd):/project" mhaye/nestedvm:v4 /bin/bash -c "cd /project && nestedvm-c2jar $(JAR) plasma.Plasma $(SRCS)"
 
 $(PLVM): plvm.c
 	cc plvm.c -o $(PLVM)

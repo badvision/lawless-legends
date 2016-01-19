@@ -18,6 +18,8 @@ package org.demo
 import java.nio.ByteBuffer
 import java.nio.channels.Channels
 import net.jpountz.lz4.LZ4Factory
+import java.nio.charset.StandardCharsets
+import plasma.Plasma
 
 /**
  *
@@ -909,7 +911,7 @@ class PackPartitions
         def outBuf = ByteBuffer.allocate(50000)
         if (binaryStubsOnly)
             return outBuf
-        def stream = new File(path).withInputStream { stream ->
+        new File(path).withInputStream { stream ->
             while (true) {
                 def got = stream.read(inBuf)
                 if (got < 0) break
@@ -1266,6 +1268,33 @@ class PackPartitions
             stream.write(it.buf.data, 0, it.buf.len)
         }
     }
+    
+    def compileModule(moduleName, codeDir)
+    {
+        def prevStdin = System.in
+        def prevStdout = System.out
+        try 
+        {
+            println "old user.dir=${System.getProperty('user.dir')}"
+            System.setProperty("user.dir", new File(codeDir).getAbsolutePath())
+            println "new user.dir=${System.getProperty('user.dir')}"
+            def codeFile = new File(codeDir + moduleName + ".pla")
+            codeFile.withInputStream { inStream ->
+                System.in = inStream
+                def acmeFile = new File(codeDir + "build/" + moduleName + ".b")
+                acmeFile.withOutputStream { outStream ->
+                    System.out = new PrintStream(outStream)
+                    String[] args = new String[1]
+                    args[0] = "-AM"
+                    def result = Plasma.main(args)
+                    println("result=$result")
+                }
+            }
+        } finally {
+            System.in = prevStdin
+            System.out = prevStdout
+        }
+    }
 
     def readAllCode()
     {
@@ -1274,6 +1303,8 @@ class PackPartitions
         readCode("fontEngine", "src/font/build/fontEngine.b")
         readCode("tileEngine", "src/tile/build/tile.b")
 
+        compileModule("gameloop", "src/plasma/")
+        
         readModule("gameloop", "src/plasma/build/gameloop.b")
         readModule("globalScripts", "src/plasma/build/globalScripts.b")
         readModule("combat", "src/plasma/build/combat.b")

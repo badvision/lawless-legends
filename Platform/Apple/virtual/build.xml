@@ -33,7 +33,6 @@
     <echo>Packing game and code resources.</echo>
     <java jar="${pack.dir}/PackPartitions.jar" fork="true" failonerror="true">
       <arg value="data/world/world.xml"/>
-      <arg value="build"/>
     </java>
   </target>
   

@@ -1329,66 +1329,49 @@ class PackPartitions
         // Pack the global tile set before other tile sets (contains the player avatar, etc.)
         packGlobalTileSet(dataIn)
         
-        // Pack each image, which has the side-effect of filling in the
-        // image name map. Handle frame images separately.
-        //
-        def titleFound = false
-        def uiFramesFound = 0
-        def imageNamesPacked = [:]
-        for (def pass = 0; pass < 5; pass++)
-        {
-            switch (pass) {
-                case 0: println "Packing title screen."; break
-                case 1: println "Packing UI frames."; break
-                case 2: println "Packing other frame images."; break
-                case 3: println "Packing textures."; break
-                case 4: println "Packing portraits."; break
-            }
-            dataIn.image.sort{it.@name.toLowerCase()}.each { image ->
-                def category = image.@category?.toLowerCase()
-                def name = image.@name.toLowerCase()
-                if (category == "fullscreen" && name == "title") {
-                    if (pass == 0) {
-                        packFrameImage(image)
-                        titleFound = true
-                        imageNamesPacked[name] = true
-                    }
-                }
-                else if (category == "uiframe") {
-                    if (pass == 1) {
-                        packFrameImage(image)
-                        ++uiFramesFound
-                        imageNamesPacked[name] = true
-                    }
-                }
-                else if (category == "fullscreen") {
-                    if (pass == 2) {
-                        packFrameImage(image)
-                        imageNamesPacked[name] = true
-                    }
-                }
-                else if (category == "wall" || category == "sprite") {
-                    if (pass == 3) {
-                        packTexture(image)
-                        imageNamesPacked[name] = true
-                    }
-                }
-                else if (category == "portrait") {
-                    if (pass == 4) {
-                        packPortrait(image)
-                        imageNamesPacked[name] = true
-                    }
-                }
-            }
-        }
-        assert titleFound : "Couldn't find title image. Should be category='FULLSCREEN', name='title'"
-        assert uiFramesFound == 2 : "Need exactly 2 UI frames, found $uiFramesFound instead."
+        // Divvy up the images by category
+        def titleImgs      = []
+        def uiFrameImgs    = []
+        def fullscreenImgs = []
+        def textureImgs    = []
+        def portraitImgs   = []
         
-        dataIn.image.each { image ->
-            if (!(image.@name.toLowerCase() in imageNamesPacked))
-                println "Warning: couldn't classify image named '${image.@name}', category '${image.@category}'."
+        dataIn.image.sort{it.@name.toLowerCase()}.each { image ->
+            def category = image.@category?.toLowerCase()
+            def name = image.@name.toLowerCase()
+            if (category == "fullscreen" && name == "title")
+                titleImgs << image
+            else if (category == "uiframe")
+                uiFrameImgs << image
+            else if (category == "fullscreen")
+                fullscreenImgs << image
+            else if (category == "wall" || category == "sprite")
+                textureImgs << image
+            else if (category == "portrait")
+                portraitImgs << image
+            else
+                println "Warning: couldn't classify image named '${name}', category '${category}'."            
         }
-                    
+        
+        assert titleImgs.size() == 1 : "Couldn't find title image. Should be category='FULLSCREEN', name='title'"
+        assert uiFrameImgs.size() == 2 : "Need exactly 2 UI frames, found ${uiFramesImgs.size()} instead."
+        
+        // Pack each image, which has the side-effect of filling in the image name map.
+        println "Packing title screen."
+        titleImgs.each { image -> packFrameImage(image) }
+        
+        println "Packing UI frames."
+        uiFrameImgs.each { image -> packFrameImage(image) }
+        
+        println "Packing other frame images."
+        fullscreenImgs.each { image -> packFrameImage(image) }
+        
+        println "Packing textures."
+        textureImgs.each { image -> packTexture(image) }
+        
+        println "Packing portraits."
+        portraitImgs.each { image -> packPortrait(image) }
+        
         // Number all the maps and record them with names
         def num2D = 0
         def num3D = 0
@@ -1679,7 +1662,7 @@ class PackPartitions
         }
         
         // Check the arguments
-        if (args.size() != 2) {
+        if (args.size() != 1) {
             println "Usage: packPartitions yourOutlawFile.xml"
             System.exit(1);
         }

@@ -33,32 +33,8 @@
     <echo>Packing game and code resources.</echo>
     <java jar="${pack.dir}/PackPartitions.jar" fork="true" failonerror="true">
       <arg value="data/world/world.xml"/>
-      <arg value="build/game.part.0.bin"/>
+      <arg value="build"/>
     </java>
-
-    <!-- Construct a directory to put on the Apple -->
-    <delete failonerror="false" dir="${build.dir}/root"/>
-    <mkdir dir="${build.dir}/root"/>
-    <copy todir="${build.dir}/root">
-      <fileset dir="${plasma.dir}" includes="PLVM02.SYSTEM*"/>
-      <fileset dir="${src.dir}/core/build" includes="*.sys*"/>
-      <fileset dir="./build" includes="game.part*.bin"/>
-    </copy>
-    <mkdir dir="${build.dir}/root/"/>
-
-    <!-- Make a new base image file -->
-    <delete failonerror="false" file="${build.dir}/${projName}.2mg"/>
-    <bunzip2 src="./data/disks/base.2mg.bz2" dest="${build.dir}/${projName}.2mg"/>
-
-    <!-- And stuff the directory into it -->
-    <echo>Adding files to image.</echo>
-    <java jar="${a2copy.dir}/a2copy.jar" fork="true" failonerror="true">
-      <arg value="-put"/>
-      <arg value="${build.dir}/${projName}.2mg"/>
-      <arg value="/"/>
-      <arg value="${build.dir}/root"/>
-    </java>
-
   </target>
   
 </project>

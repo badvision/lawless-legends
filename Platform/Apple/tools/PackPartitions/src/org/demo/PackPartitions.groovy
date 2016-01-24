@@ -19,6 +19,8 @@ import java.nio.ByteBuffer
 import java.nio.channels.Channels
 import net.jpountz.lz4.LZ4Factory
 import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.util.zip.GZIPInputStream
 
 /**
  *
@@ -59,8 +61,6 @@ class PackPartitions
     def ADD_COMP_CHECKSUMS = false
     
     def debugCompression = false
-    
-    def javascriptOut = null
     
     def currentContext = []    
     def nWarnings = 0
@@ -527,54 +527,6 @@ class PackPartitions
         }
     }
    
-    /**
-     * Dump map data to Javascript code, to help in debugging the raycaster. This way,
-     * the Javascript version can run the same map, and we can compare its results to
-     * the 6502 results.
-     */
-    def dumpJsMap(rows, texMap)
-    {
-        def width = rows[0].size()+2
-        
-        // Write the map data. First comes the sentinel row.
-        javascriptOut.println("var map = [")
-        javascriptOut.print("  [")
-        (0..<width).each { javascriptOut.print("-1,") }
-        javascriptOut.println("],")
-        
-        // Now the real map data
-        rows.each { row ->
-            javascriptOut.print("  [-1,")
-            row.each { tile ->
-                def b = texMap[tile?.@id]
-                if ((b & 0x80) == 0)
-                    javascriptOut.format("%2d,", b)
-                else
-                    javascriptOut.print(" 0,")
-            }
-            javascriptOut.println("-1,],")
-        }
-        
-        // Finish the map data with another sentinel row
-        javascriptOut.print("  [")
-        (0..<width).each { javascriptOut.print("-1,") }
-        javascriptOut.println("]")
-        javascriptOut.println("];\n")
-        
-        // Then write out the sprites
-        javascriptOut.println("var allSprites = [")
-        rows.eachWithIndex { row, y ->
-            row.eachWithIndex { tile, x ->
-                def b = texMap[tile?.@id]
-                if ((b & 0x80) != 0) {
-                    // y+1 below to account for initial sentinel row
-                    javascriptOut.format("  {type:%2d, x:%2d.5, y:%2d.5},\n", b & 0x7f, x, y+1)
-                }
-            }
-        }
-        javascriptOut.println("];\n")
-    }
-    
     def write3DMap(buf, mapName, rows, scriptModule, locationsWithTriggers) // [ref BigBlue1_50]
     {
         def width = rows[0].size() + 2  // Sentinel $FF at start and end of each row
@@ -642,9 +594,6 @@ class PackPartitions
 
         // Sentinel row of $FF at end of map
         (0..<width).each { buf.put((byte)0xFF) }
-        
-        if (javascriptOut)
-            dumpJsMap(rows, texMap)
     }
     
     // The renderer wants bits of the two pixels interleaved in a special way.
@@ -1356,7 +1305,7 @@ class PackPartitions
         compileModule("gen_enemies", "src/plasma/")
     }
         
-    def pack(xmlPath, binPath, javascriptPath)
+    def pack(xmlPath)
     {
         // Read in code chunks. For now these are hard coded, but I guess they ought to
         // be configured in a config file somewhere...?
@@ -1471,13 +1420,11 @@ class PackPartitions
                 printWarning "map name '${map?.@name}' should contain '2D' or '3D'. Skipping."
         }
         
-        // Ready to start writing the output file.
+        // Ready to write the output file.
         println "Writing output file."
+        new File("build/root").mkdir()
+        def binPath = new File("build/root/game.part.0.bin").path
         new File(binPath).withOutputStream { stream -> writePartition(stream) }
-        
-        // Finish up Javacript if necessary
-        if (javascriptPath)
-            javascriptOut.close()
         
         // Lastly, print stats
         println "Compression saved $compressionSavings bytes."
@@ -1487,8 +1434,6 @@ class PackPartitions
             def savPct = String.format("%.1f", compressionSavings * 100.0 / origSize)
             println "Size $origSize -> $endSize ($savPct% savings)"
         }
-        
-        println "Done."
     }
     
     def isAlnum(ch)
@@ -1699,6 +1644,22 @@ class PackPartitions
         }
     }
     
+    def createImage()
+    {
+        // Copy the PLASMA VM file to the output directory
+        Files.copy(new File("PLVM02.SYSTEM.sys").toPath(), new File("build/root/PLVM02.SYSTEM.sys").toPath())
+        
+        // Copy the memory manager to the output directory
+        Files.copy(new File("src/core/build/cmd.sys#2000").toPath(), new File("build/root/cmd.sys#2000").toPath())
+        
+        // Decompress the base image
+        Files.copy(new GZIPInputStream(new FileInputStream("data/disks/base.2mg.gz")), new File("build/game.2mg").toPath())
+        
+        // Now put the files into the image
+        String[] args = ["-put", "build/game.2mg", "/", "build/root"]
+        new a2copy.A2Copy().main(args)
+    }
+    
     static void main(String[] args) 
     {
         // Set auto-flushing for stdout
@@ -1718,12 +1679,11 @@ class PackPartitions
         }
         
         // Check the arguments
-        if (!(args.size() == 2 || args.size() == 3)) {
-            println "Usage: convert yourOutlawFile.xml game.part.0.bin [intcastMap.js]"
-            println "   (where intcastMap.js is to aid in debugging the Javascript raycaster)"
-            println "   or: convert yourOutlawFile.xml -dataGen"
+        if (args.size() != 2) {
+            println "Usage: packPartitions yourOutlawFile.xml"
             System.exit(1);
         }
+        def xmlFile = new File(args[0])
 
         // If there's an existing error file, remote it.
         def errorFile = new File("pack_error.txt")
@@ -1733,8 +1693,20 @@ class PackPartitions
         // Go for it.
         def inst = new PackPartitions()
         try {
-            new PackPartitions().dataGen(args[0])
-            inst.pack(args[0], args[1], args.size() > 2 ? args[2] : null)
+            // Blow away everything in the build directory, and recreate it
+            def buildDir = new File("build")
+            if (buildDir.exists())
+                buildDir.deleteDir()
+            buildDir.mkdirs()
+            
+            // Create PLASMA headers
+            new PackPartitions().dataGen(xmlFile)
+            
+            // Pack everything into a binary file
+            inst.pack(xmlFile)
+            
+            // And create the final disk image
+            inst.createImage()
         }
         catch (Throwable t) {
             errorFile.withWriter { out ->

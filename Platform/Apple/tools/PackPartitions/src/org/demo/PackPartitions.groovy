@@ -21,6 +21,8 @@ import net.jpountz.lz4.LZ4Factory
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.util.zip.GZIPInputStream
+import java.security.MessageDigest
+import javax.xml.bind.DatatypeConverter
 
 /**
  *
@@ -43,6 +45,7 @@ class PackPartitions
     def TYPE_PORTRAIT    = 11
 
     def mapNames  = [:]  // map name (and short name also) to map.2dor3d, map.num
+    def sysCode   = [:]  // memory manager
     def code      = [:]  // code name to code.num, code.buf    
     def maps2D    = [:]  // map name to map.num, map.buf
     def maps3D    = [:]  // map name to map.num, map.buf
@@ -66,6 +69,7 @@ class PackPartitions
     def nWarnings = 0
     
     def binaryStubsOnly = false
+    def cache = [:]
     
     /** 
      * Keep track of context within the XML file, so we can spit out more useful
@@ -117,6 +121,14 @@ class PackPartitions
                 (tileId == "_") ? null : tiles.find{ it.@id == tileId }
             }
         }
+    }
+    
+    def calcImageHash(imgEl)
+    {
+        def data = imgEl.displayData?.find { it.@platform == "AppleII" }
+        assert data : "image '${imgEl.@name}' missing AppleII platform data"
+        byte[] bytes = MessageDigest.getInstance("MD5").digest(data.toString().getBytes())
+        return DatatypeConverter.printHexBinary(bytes)
     }
     
     def pixelize(dataEl)
@@ -628,26 +640,77 @@ class PackPartitions
     {
         return name.toLowerCase().replaceAll(" ", "")
     }
+
+    def grabFromCache(kind, addTo, name, hash)
+    {
+        def key = kind + ":" + name
+        if (cache.containsKey(key) && cache[key].hash == hash) {
+            def num = addTo.size() + 1
+            addTo[name] = [num:num, buf:wrapByteArray(cache[key].data)]
+            return true
+        }
+        return false
+    }
+    
+    def addToCache(kind, addTo, name, hash, buf)
+    {
+        def num = addTo.size() + 1
+        addTo[name] = [num:num, buf:buf]
+        
+        def uncompressedLen = buf.position()
+        def uncompressedData = new byte[uncompressedLen]
+        buf.position(0)
+        buf.get(uncompressedData)
+
+        def key = kind + ":" + name
+        cache[key] = [hash:hash, data:uncompressedData]
+    }
+    
+    def grabEntireFromCache(kind, addTo, hash)
+    {
+        if (cache.containsKey(kind) && cache[kind].hash == hash) {
+            cache[kind].ents.each { ent ->
+                def num = addTo.size() + 1
+                addTo[ent.name] = [num: ent.num, buf: wrapByteArray(ent.data)]
+            }
+            return true
+        }
+        return false
+    }
+    
+    def addEntireToCache(kind, addTo, hash)
+    {
+        def ents = []
+        addTo.each { name, ent ->
+            def buf = ent.buf
+            def uncompressedLen = buf.position()
+            def uncompressedData = new byte[uncompressedLen]
+            buf.position(0)
+            buf.get(uncompressedData)
+            ents << [name:name, num:ent.num, data:uncompressedData]
+        }
+        cache[kind] = [hash:hash, ents:ents]
+    }
     
     def packTexture(imgEl)
     {
-        def num = textures.size() + 1
-        def name = imgEl.@name ?: "img$num"
-        //println "Packing texture #$num named '${imgEl.@name}'."
-        def pixels = parseTexture(imgEl)
-        calcTransparency(pixels)
-        def buf = ByteBuffer.allocate(50000)
-        writeTexture(buf, pixels)
-        textures[stripName(imgEl.@name)] = [num:num, buf:buf]
+        def name = stripName(imgEl.@name)
+        def hash = calcImageHash(imgEl)
+        if (!grabFromCache("texture", textures, name, hash)) {
+            def pixels = parseTexture(imgEl)
+            calcTransparency(pixels)
+            def buf = ByteBuffer.allocate(50000)
+            writeTexture(buf, pixels)
+            addToCache("texture", textures, name, hash, buf)
+        }
     }
     
     def packFrameImage(imgEl)
     {
-        def num = frames.size() + 1
         def name = imgEl.@name ?: "img$num"
-        //println "Packing frame image #$num named '${imgEl.@name}'."
-        def buf = parseFrameData(imgEl)
-        frames[imgEl.@name] = [num:num, buf:buf]
+        def hash = calcImageHash(imgEl)
+        if (!grabFromCache("frame", frames, name, hash))
+            addToCache("frame", frames, name, hash, parseFrameData(imgEl))
     }
     
     def packPortrait(imgEl)
@@ -1002,9 +1065,7 @@ class PackPartitions
         }
         newFixup.add((byte)0xFF)
         
-        modules[name] = [num:num, buf:wrapByteArray(newAsmCode)]
-        bytecodes[name] = [num:num, buf:wrapByteList(byteCode)]
-        fixups[name] = [num:num, buf:wrapByteList(newFixup)]
+        return [wrapByteArray(newAsmCode), wrapByteList(byteCode), wrapByteList(newFixup)]
     }
     
     def wrapByteArray(array) {
@@ -1247,47 +1308,115 @@ class PackPartitions
             throw new Exception("$programName failed with code $result")
     }
     
+    def getCodeDeps(codeFile)
+    {
+        def baseDir = codeFile.getParentFile()
+        
+        // If we've cached deps for this file, just return that.
+        def key = "codeDeps:" + codeFile.toString()
+        def hash = codeFile.lastModified()
+        def deps = []
+        if (cache.containsKey(key) && cache[key].hash == hash)
+            deps = cache[key].deps
+        else {
+            codeFile.eachLine { line ->
+                def m = line =~ /^\s*include\s+"([^"]+)"\s*$/
+                if (m)
+                    deps << new File(baseDir, m.group(1))
+                m = line =~ /\s*!source "([^"]+)"\s*$/
+                if (m) {
+                    if (codeFile ==~ /.*\.pla$/) {
+                        // Asm includes inside a plasma file have an extra level of ".."
+                        // because they end up getting processed within the "build" dir.
+                        deps << new File(new File(baseDir, "build"), m.group(1)).getCanonicalFile()
+                    }
+                    else
+                        deps << new File(baseDir, m.group(1)).getCanonicalFile()
+                }
+            }
+            cache[key] = [hash:hash, deps:deps]
+        }
+        
+        // Recursively calc deps of the deps
+        deps.each { dep -> getCodeDeps(dep) }
+        
+        // And return everything we found.
+        return deps
+    }
+    
+    def getLastDep(codeFile)
+    {
+        codeFile = codeFile.getCanonicalFile()
+        def time = codeFile.lastModified()
+        getCodeDeps(codeFile).each { dep ->
+            time = Math.max(time, getLastDep(dep))
+        }
+        return time
+    }
+    
     def assembleCode(codeName, inDir)
     {
-        if (!binaryStubsOnly) {
-            println "Assembling ${codeName}.s"
-            new File(inDir + "build").mkdir()
-            String[] args = ["acme", "-f", "plain",
-                             "-o", "build/" + codeName + ".b", 
-                             codeName + ".s"]
-            runNestedvm(acme.Acme.class,  "ACME assembler", args, inDir, null, null)
-        }
-        readCode(codeName, inDir + "build/" + codeName + ".b")
+        if (binaryStubsOnly)
+            return addToCache("code", code, codeName, 1, ByteBuffer.allocate(1))
+            
+        def hash = getLastDep(new File(inDir, codeName + ".s"))
+        if (grabFromCache("code", code, codeName, hash))
+            return
+            
+        println "Assembling ${codeName}.s"
+        new File(inDir + "build").mkdir()
+        String[] args = ["acme", "-f", "plain",
+                         "-o", "build/" + codeName + ".b", 
+                         codeName + ".s"]
+        runNestedvm(acme.Acme.class,  "ACME assembler", args, inDir, null, null)
+        addToCache("code", code, codeName, hash, readBinary(inDir + "build/" + codeName + ".b"))
     }
     
     def assembleCore(inDir)
     {
-        if (!binaryStubsOnly) {
-            println "Assembling mem.s"
-            new File(inDir + "build").mkdir()
-            String[] args = ["acme", "-o", "build/cmd.sys#2000", "mem.s"]
-            runNestedvm(acme.Acme.class,  "ACME assembler", args, inDir, null, null)
-        }
+        if (binaryStubsOnly)
+            return addToCache("sysCode", sysCode, "mem", 1, ByteBuffer.allocate(1))
+        
+        def hash = getLastDep(new File(inDir, "mem.s"))
+        if (grabFromCache("sysCode", sysCode, "mem", hash))
+            return
+            
+        println "Assembling mem.s"
+        new File(inDir + "build").mkdir()
+        String[] args = ["acme", "-o", "build/cmd.sys#2000", "mem.s"]
+        runNestedvm(acme.Acme.class,  "ACME assembler", args, inDir, null, null)
+        addToCache("sysCode", sysCode, "mem", hash, readBinary(inDir + "build/cmd.sys#2000"))
     }
     
     def compileModule(moduleName, codeDir)
     {
-        if (!binaryStubsOnly)
+        if (binaryStubsOnly)
+            return addToCache("modules", modules, moduleName, 1, ByteBuffer.allocate(1))
+        
+        def hash = getLastDep(new File(codeDir + moduleName + ".pla"))
+        if (grabFromCache("modules", modules, moduleName, hash) &&
+            grabFromCache("bytecodes", bytecodes, moduleName, hash) &&
+            grabFromCache("fixups", fixups, moduleName, hash))
         {
-            println "Compiling ${moduleName}.pla"
-            String[] args = ["plasm", "-AM"]
-            new File(codeDir + "build").mkdir()
-            runNestedvm(plasma.Plasma.class,  "PLASMA compiler", args, codeDir, 
-                new File(codeDir + moduleName + ".pla"), 
-                new File(codeDir + "build/" + moduleName + ".a"))
-
-            args = ["acme", "--setpc", "4096",
-                    "-o", moduleName + ".b", 
-                    moduleName + ".a"]
-            runNestedvm(acme.Acme.class,  "ACME assembler", args, codeDir + "build/", null, null)
+            return
         }
+            
+        println "Compiling ${moduleName}.pla"
+        String[] args = ["plasm", "-AM"]
+        new File(codeDir + "build").mkdir()
+        runNestedvm(plasma.Plasma.class,  "PLASMA compiler", args, codeDir, 
+            new File(codeDir + moduleName + ".pla"), 
+            new File(codeDir + "build/" + moduleName + ".a"))
 
-        readModule(moduleName, codeDir + "build/" + moduleName + ".b")
+        args = ["acme", "--setpc", "4096",
+                "-o", moduleName + ".b", 
+                moduleName + ".a"]
+        runNestedvm(acme.Acme.class,  "ACME assembler", args, codeDir + "build/", null, null)
+        def module, bytecode, fixup
+        (module, bytecode, fixup) = readModule(moduleName, codeDir + "build/" + moduleName + ".b")
+        addToCache("modules", modules, moduleName, hash, module)
+        addToCache("bytecodes", bytecodes, moduleName, hash, bytecode)
+        addToCache("fixups", fixups, moduleName, hash, fixup)
     }
 
     def readAllCode()
@@ -1307,18 +1436,25 @@ class PackPartitions
         
     def pack(xmlPath)
     {
+        // Save time by using cache of previous run
+        File cacheFile = new File(xmlPath.toString()+".cache")
+        if (cacheFile.exists()) {
+            ObjectInputStream out = new ObjectInputStream(new FileInputStream(cacheFile));
+            cache = out.readObject();
+            out.close()
+        }
+        
         // Read in code chunks. For now these are hard coded, but I guess they ought to
         // be configured in a config file somewhere...?
         //
-        println "Reading code resources."
         readAllCode()
         
         // We have only one font, for now at least.
-        println "Reading fonts."
         readFont("font", "data/fonts/font.bin")
         
         // Open the XML data file produced by Outlaw Editor
         def dataIn = new XmlParser().parse(xmlPath)
+        def xmlLastMod = xmlPath.lastModified()
         
         // Pre-pack the data for each tile
         println "Packing tiles."
@@ -1370,7 +1506,10 @@ class PackPartitions
         textureImgs.each { image -> packTexture(image) }
         
         println "Packing portraits."
-        portraitImgs.each { image -> packPortrait(image) }
+        if (!grabEntireFromCache("portraits", portraits, xmlLastMod)) {
+            portraitImgs.each { image -> packPortrait(image) }
+            addEntireToCache("portraits", portraits, xmlLastMod)
+        }
         
         // Number all the maps and record them with names
         def num2D = 0
@@ -1409,7 +1548,7 @@ class PackPartitions
         def binPath = new File("build/root/game.part.0.bin").path
         new File(binPath).withOutputStream { stream -> writePartition(stream) }
         
-        // Lastly, print stats
+        // Print stats
         println "Compression saved $compressionSavings bytes."
         if (compressionSavings > 0) {
             def endSize = new File(binPath).length()
@@ -1417,6 +1556,13 @@ class PackPartitions
             def savPct = String.format("%.1f", compressionSavings * 100.0 / origSize)
             println "Size $origSize -> $endSize ($savPct% savings)"
         }
+        
+        // Write a new cache file
+        File newCacheFile = new File(xmlPath.toString()+".cache.new")
+        ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(newCacheFile));
+        out.writeObject(cache);
+        out.close()
+        newCacheFile.renameTo(cacheFile)
     }
     
     def isAlnum(ch)
@@ -1552,13 +1698,31 @@ class PackPartitions
         out.println("end")
     }
     
+    def replaceIfDiff(oldFile)
+    {
+        def newFile = new File(oldFile + ".new")
+        oldFile = new File(oldFile)
+        
+        def newText = newFile.text
+        def oldText = oldFile.text
+        
+        if (newText == oldText) {
+            //println "Same text, deleting $newFile"
+            newFile.delete()
+        }
+        else {
+            //println "Changed text, renaming $newFile to $oldFile"
+            newFile.renameTo(oldFile)
+        }
+    }
+    
     def dataGen(xmlPath)
     {
         // Open the XML data file produced by Outlaw Editor
         def dataIn = new XmlParser().parse(xmlPath)
         
         // Translate image names to constants
-        new File("src/plasma/gen_images.plh").withWriter { out ->
+        new File("src/plasma/gen_images.plh.new").withWriter { out ->
             def portraitNum = 0
             dataIn.image.sort{it.@name.toLowerCase()}.each { image ->
                 def category = image.@category?.toLowerCase()
@@ -1579,17 +1743,19 @@ class PackPartitions
                 }
             }
         }
+        replaceIfDiff("src/plasma/gen_images.plh")
         
         // Translate enemies to code
         def enemyLines = new File("data/world/enemies.tsv").readLines()
-        new File("src/plasma/gen_enemies.plh").withWriter { out ->
+        new File("src/plasma/gen_enemies.plh.new").withWriter { out ->
             out.println("// Generated code - DO NOT MODIFY BY HAND\n")
             enemyLines[1..-1].eachWithIndex { line, index ->
                 out.println("const CE${humanNameToSymbol(line.split("\t")[0], false)} = ${index*2}")
             }
             out.println("const NUM_ENEMIES = ${enemyLines.size - 1}")
         }
-        new File("src/plasma/gen_enemies.pla").withWriter { out ->
+        replaceIfDiff("src/plasma/gen_enemies.plh")
+        new File("src/plasma/gen_enemies.pla.new").withWriter { out ->
             out.println("// Generated code - DO NOT MODIFY BY HAND")
             out.println()
             out.println("include \"gamelib.plh\"")
@@ -1612,12 +1778,13 @@ class PackPartitions
             out.println("return @funcTbl")
             out.println("done")
         }
+        replaceIfDiff("src/plasma/gen_enemies.pla")
         
         // Produce a list of assembly and PLASMA code segments
         binaryStubsOnly = true
         readAllCode()
         binaryStubsOnly = false
-        new File("src/plasma/gen_modules.plh").withWriter { out ->
+        new File("src/plasma/gen_modules.plh.new").withWriter { out ->
             code.each { k, v ->
                 out.println "const CODE_${humanNameToSymbol(k, true)} = ${v.num}"
             }
@@ -1625,6 +1792,7 @@ class PackPartitions
                 out.println "const MODULE_${humanNameToSymbol(k, true)} = ${v.num}"
             }
         }
+        replaceIfDiff("src/plasma/gen_modules.plh")
     }
     
     def createImage()
@@ -1687,7 +1855,7 @@ class PackPartitions
             
             // Pack everything into a binary file
             inst.pack(xmlFile)
-            
+
             // And create the final disk image
             inst.createImage()
         }

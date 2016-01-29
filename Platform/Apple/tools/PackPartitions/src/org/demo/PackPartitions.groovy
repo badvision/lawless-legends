@@ -18,6 +18,11 @@ package org.demo
 import java.nio.ByteBuffer
 import java.nio.channels.Channels
 import net.jpountz.lz4.LZ4Factory
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.util.zip.GZIPInputStream
+import java.security.MessageDigest
+import javax.xml.bind.DatatypeConverter
 
 /**
  *
@@ -40,6 +45,7 @@ class PackPartitions
     def TYPE_PORTRAIT    = 11
 
     def mapNames  = [:]  // map name (and short name also) to map.2dor3d, map.num
+    def sysCode   = [:]  // memory manager
     def code      = [:]  // code name to code.num, code.buf    
     def maps2D    = [:]  // map name to map.num, map.buf
     def maps3D    = [:]  // map name to map.num, map.buf
@@ -59,10 +65,11 @@ class PackPartitions
     
     def debugCompression = false
     
-    def javascriptOut = null
-    
     def currentContext = []    
     def nWarnings = 0
+    
+    def binaryStubsOnly = false
+    def cache = [:]
     
     /** 
      * Keep track of context within the XML file, so we can spit out more useful
@@ -114,6 +121,14 @@ class PackPartitions
                 (tileId == "_") ? null : tiles.find{ it.@id == tileId }
             }
         }
+    }
+    
+    def calcImageHash(imgEl)
+    {
+        def data = imgEl.displayData?.find { it.@platform == "AppleII" }
+        assert data : "image '${imgEl.@name}' missing AppleII platform data"
+        byte[] bytes = MessageDigest.getInstance("MD5").digest(data.toString().getBytes())
+        return DatatypeConverter.printHexBinary(bytes)
     }
     
     def pixelize(dataEl)
@@ -524,54 +539,6 @@ class PackPartitions
         }
     }
    
-    /**
-     * Dump map data to Javascript code, to help in debugging the raycaster. This way,
-     * the Javascript version can run the same map, and we can compare its results to
-     * the 6502 results.
-     */
-    def dumpJsMap(rows, texMap)
-    {
-        def width = rows[0].size()+2
-        
-        // Write the map data. First comes the sentinel row.
-        javascriptOut.println("var map = [")
-        javascriptOut.print("  [")
-        (0..<width).each { javascriptOut.print("-1,") }
-        javascriptOut.println("],")
-        
-        // Now the real map data
-        rows.each { row ->
-            javascriptOut.print("  [-1,")
-            row.each { tile ->
-                def b = texMap[tile?.@id]
-                if ((b & 0x80) == 0)
-                    javascriptOut.format("%2d,", b)
-                else
-                    javascriptOut.print(" 0,")
-            }
-            javascriptOut.println("-1,],")
-        }
-        
-        // Finish the map data with another sentinel row
-        javascriptOut.print("  [")
-        (0..<width).each { javascriptOut.print("-1,") }
-        javascriptOut.println("]")
-        javascriptOut.println("];\n")
-        
-        // Then write out the sprites
-        javascriptOut.println("var allSprites = [")
-        rows.eachWithIndex { row, y ->
-            row.eachWithIndex { tile, x ->
-                def b = texMap[tile?.@id]
-                if ((b & 0x80) != 0) {
-                    // y+1 below to account for initial sentinel row
-                    javascriptOut.format("  {type:%2d, x:%2d.5, y:%2d.5},\n", b & 0x7f, x, y+1)
-                }
-            }
-        }
-        javascriptOut.println("];\n")
-    }
-    
     def write3DMap(buf, mapName, rows, scriptModule, locationsWithTriggers) // [ref BigBlue1_50]
     {
         def width = rows[0].size() + 2  // Sentinel $FF at start and end of each row
@@ -639,9 +606,6 @@ class PackPartitions
 
         // Sentinel row of $FF at end of map
         (0..<width).each { buf.put((byte)0xFF) }
-        
-        if (javascriptOut)
-            dumpJsMap(rows, texMap)
     }
     
     // The renderer wants bits of the two pixels interleaved in a special way.
@@ -676,26 +640,77 @@ class PackPartitions
     {
         return name.toLowerCase().replaceAll(" ", "")
     }
+
+    def grabFromCache(kind, addTo, name, hash)
+    {
+        def key = kind + ":" + name
+        if (cache.containsKey(key) && cache[key].hash == hash) {
+            def num = addTo.size() + 1
+            addTo[name] = [num:num, buf:wrapByteArray(cache[key].data)]
+            return true
+        }
+        return false
+    }
+    
+    def addToCache(kind, addTo, name, hash, buf)
+    {
+        def num = addTo.size() + 1
+        addTo[name] = [num:num, buf:buf]
+        
+        def uncompressedLen = buf.position()
+        def uncompressedData = new byte[uncompressedLen]
+        buf.position(0)
+        buf.get(uncompressedData)
+
+        def key = kind + ":" + name
+        cache[key] = [hash:hash, data:uncompressedData]
+    }
+    
+    def grabEntireFromCache(kind, addTo, hash)
+    {
+        if (cache.containsKey(kind) && cache[kind].hash == hash) {
+            cache[kind].ents.each { ent ->
+                def num = addTo.size() + 1
+                addTo[ent.name] = [num: ent.num, buf: wrapByteArray(ent.data)]
+            }
+            return true
+        }
+        return false
+    }
+    
+    def addEntireToCache(kind, addTo, hash)
+    {
+        def ents = []
+        addTo.each { name, ent ->
+            def buf = ent.buf
+            def uncompressedLen = buf.position()
+            def uncompressedData = new byte[uncompressedLen]
+            buf.position(0)
+            buf.get(uncompressedData)
+            ents << [name:name, num:ent.num, data:uncompressedData]
+        }
+        cache[kind] = [hash:hash, ents:ents]
+    }
     
     def packTexture(imgEl)
     {
-        def num = textures.size() + 1
-        def name = imgEl.@name ?: "img$num"
-        //println "Packing texture #$num named '${imgEl.@name}'."
-        def pixels = parseTexture(imgEl)
-        calcTransparency(pixels)
-        def buf = ByteBuffer.allocate(50000)
-        writeTexture(buf, pixels)
-        textures[stripName(imgEl.@name)] = [num:num, buf:buf]
+        def name = stripName(imgEl.@name)
+        def hash = calcImageHash(imgEl)
+        if (!grabFromCache("texture", textures, name, hash)) {
+            def pixels = parseTexture(imgEl)
+            calcTransparency(pixels)
+            def buf = ByteBuffer.allocate(50000)
+            writeTexture(buf, pixels)
+            addToCache("texture", textures, name, hash, buf)
+        }
     }
     
     def packFrameImage(imgEl)
     {
-        def num = frames.size() + 1
         def name = imgEl.@name ?: "img$num"
-        //println "Packing frame image #$num named '${imgEl.@name}'."
-        def buf = parseFrameData(imgEl)
-        frames[imgEl.@name] = [num:num, buf:buf]
+        def hash = calcImageHash(imgEl)
+        if (!grabFromCache("frame", frames, name, hash))
+            addToCache("frame", frames, name, hash, parseFrameData(imgEl))
     }
     
     def packPortrait(imgEl)
@@ -905,7 +920,9 @@ class PackPartitions
     {
         def inBuf = new byte[256]
         def outBuf = ByteBuffer.allocate(50000)
-        def stream = new File(path).withInputStream { stream ->
+        if (binaryStubsOnly)
+            return outBuf
+        new File(path).withInputStream { stream ->
             while (true) {
                 def got = stream.read(inBuf)
                 if (got < 0) break
@@ -927,6 +944,10 @@ class PackPartitions
         def num = modules.size() + 1
         //println "Reading module #$num from '$path'."
         def bufObj = readBinary(path)
+        if (binaryStubsOnly) {
+            modules[name] = [num:num, buf:bufObj]
+            return
+        }
         
         def bufLen = bufObj.position()
         def buf = new byte[bufLen]
@@ -1044,9 +1065,7 @@ class PackPartitions
         }
         newFixup.add((byte)0xFF)
         
-        modules[name] = [num:num, buf:wrapByteArray(newAsmCode)]
-        bytecodes[name] = [num:num, buf:wrapByteList(byteCode)]
-        fixups[name] = [num:num, buf:wrapByteList(newFixup)]
+        return [wrapByteArray(newAsmCode), wrapByteList(byteCode), wrapByteList(newFixup)]
     }
     
     def wrapByteArray(array) {
@@ -1258,34 +1277,184 @@ class PackPartitions
             stream.write(it.buf.data, 0, it.buf.len)
         }
     }
+    
+    def runNestedvm(programClass, programName, args, inDir, inFile, outFile)
+    {
+        def prevStdin = System.in
+        def prevStdout = System.out
+        def prevUserDir = System.getProperty("user.dir")
+        def result
+        try 
+        {
+            System.setProperty("user.dir", new File(inDir).getAbsolutePath())
+            if (inFile) {
+                inFile.withInputStream { inStream ->
+                    System.in = inStream
+                    outFile.withOutputStream { outStream ->
+                        System.out = new PrintStream(outStream)
+                        result = programClass.newInstance().run(args)
+                    }
+                }
+            }
+            else {
+                result = programClass.newInstance().run(args)
+            }
+        } finally {
+            System.in = prevStdin
+            System.out = prevStdout
+            System.setProperty("user.dir", prevUserDir)
+        }
+        if (result != 0)
+            throw new Exception("$programName failed with code $result")
+    }
+    
+    def getCodeDeps(codeFile)
+    {
+        def baseDir = codeFile.getParentFile()
+        
+        // If we've cached deps for this file, just return that.
+        def key = "codeDeps:" + codeFile.toString()
+        def hash = codeFile.lastModified()
+        def deps = []
+        if (cache.containsKey(key) && cache[key].hash == hash)
+            deps = cache[key].deps
+        else {
+            codeFile.eachLine { line ->
+                def m = line =~ /^\s*include\s+"([^"]+)"\s*$/
+                if (m)
+                    deps << new File(baseDir, m.group(1))
+                m = line =~ /\s*!source "([^"]+)"\s*$/
+                if (m) {
+                    if (codeFile ==~ /.*\.pla$/) {
+                        // Asm includes inside a plasma file have an extra level of ".."
+                        // because they end up getting processed within the "build" dir.
+                        deps << new File(new File(baseDir, "build"), m.group(1)).getCanonicalFile()
+                    }
+                    else
+                        deps << new File(baseDir, m.group(1)).getCanonicalFile()
+                }
+            }
+            cache[key] = [hash:hash, deps:deps]
+        }
+        
+        // Recursively calc deps of the deps
+        deps.each { dep -> getCodeDeps(dep) }
+        
+        // And return everything we found.
+        return deps
+    }
+    
+    def getLastDep(codeFile)
+    {
+        codeFile = codeFile.getCanonicalFile()
+        def time = codeFile.lastModified()
+        getCodeDeps(codeFile).each { dep ->
+            time = Math.max(time, getLastDep(dep))
+        }
+        return time
+    }
+    
+    def assembleCode(codeName, inDir)
+    {
+        if (binaryStubsOnly)
+            return addToCache("code", code, codeName, 1, ByteBuffer.allocate(1))
+            
+        def hash = getLastDep(new File(inDir, codeName + ".s"))
+        if (grabFromCache("code", code, codeName, hash))
+            return
+            
+        println "Assembling ${codeName}.s"
+        new File(inDir + "build").mkdir()
+        String[] args = ["acme", "-f", "plain",
+                         "-o", "build/" + codeName + ".b", 
+                         codeName + ".s"]
+        runNestedvm(acme.Acme.class,  "ACME assembler", args, inDir, null, null)
+        addToCache("code", code, codeName, hash, readBinary(inDir + "build/" + codeName + ".b"))
+    }
+    
+    def assembleCore(inDir)
+    {
+        if (binaryStubsOnly)
+            return addToCache("sysCode", sysCode, "mem", 1, ByteBuffer.allocate(1))
+        
+        def hash = getLastDep(new File(inDir, "mem.s"))
+        if (grabFromCache("sysCode", sysCode, "mem", hash))
+            return
+            
+        println "Assembling mem.s"
+        new File(inDir + "build").mkdir()
+        String[] args = ["acme", "-o", "build/cmd.sys#2000", "mem.s"]
+        runNestedvm(acme.Acme.class,  "ACME assembler", args, inDir, null, null)
+        addToCache("sysCode", sysCode, "mem", hash, readBinary(inDir + "build/cmd.sys#2000"))
+    }
+    
+    def compileModule(moduleName, codeDir)
+    {
+        if (binaryStubsOnly)
+            return addToCache("modules", modules, moduleName, 1, ByteBuffer.allocate(1))
+        
+        def hash = getLastDep(new File(codeDir + moduleName + ".pla"))
+        if (grabFromCache("modules", modules, moduleName, hash) &&
+            grabFromCache("bytecodes", bytecodes, moduleName, hash) &&
+            grabFromCache("fixups", fixups, moduleName, hash))
+        {
+            return
+        }
+            
+        println "Compiling ${moduleName}.pla"
+        String[] args = ["plasm", "-AM"]
+        new File(codeDir + "build").mkdir()
+        runNestedvm(plasma.Plasma.class,  "PLASMA compiler", args, codeDir, 
+            new File(codeDir + moduleName + ".pla"), 
+            new File(codeDir + "build/" + moduleName + ".a"))
+
+        args = ["acme", "--setpc", "4096",
+                "-o", moduleName + ".b", 
+                moduleName + ".a"]
+        runNestedvm(acme.Acme.class,  "ACME assembler", args, codeDir + "build/", null, null)
+        def module, bytecode, fixup
+        (module, bytecode, fixup) = readModule(moduleName, codeDir + "build/" + moduleName + ".b")
+        addToCache("modules", modules, moduleName, hash, module)
+        addToCache("bytecodes", bytecodes, moduleName, hash, bytecode)
+        addToCache("fixups", fixups, moduleName, hash, fixup)
+    }
 
     def readAllCode()
     {
-        readCode("render", "src/raycast/build/render.b")
-        readCode("expand", "src/raycast/build/expand.b")
-        readCode("fontEngine", "src/font/build/fontEngine.b")
-        readCode("tileEngine", "src/tile/build/tile.b")
+        assembleCore("src/core/")
+        
+        assembleCode("render", "src/raycast/")
+        assembleCode("expand", "src/raycast/")
+        assembleCode("fontEngine", "src/font/")
+        assembleCode("tileEngine", "src/tile/")
 
-        readModule("gameloop", "src/plasma/build/gameloop.b")
-        readModule("globalScripts", "src/plasma/build/globalScripts.b")
-        readModule("combat", "src/plasma/build/combat.b")
-        readModule("gen_enemies", "src/plasma/build/gen_enemies.b")
+        compileModule("gameloop", "src/plasma/")
+        compileModule("globalScripts", "src/plasma/")
+        compileModule("combat", "src/plasma/")
+        compileModule("gen_enemies", "src/plasma/")
     }
         
-    def pack(xmlPath, binPath, javascriptPath)
+    def pack(xmlPath)
     {
+        // Save time by using cache of previous run
+        File cacheFile = new File(xmlPath.toString()+".cache")
+        if (cacheFile.exists()) {
+            ObjectInputStream out = new ObjectInputStream(new FileInputStream(cacheFile));
+            cache = out.readObject();
+            out.close()
+        }
+        
         // Read in code chunks. For now these are hard coded, but I guess they ought to
         // be configured in a config file somewhere...?
         //
-        println "Reading code resources."
         readAllCode()
         
         // We have only one font, for now at least.
-        println "Reading fonts."
         readFont("font", "data/fonts/font.bin")
         
         // Open the XML data file produced by Outlaw Editor
         def dataIn = new XmlParser().parse(xmlPath)
+        def xmlLastMod = xmlPath.lastModified()
         
         // Pre-pack the data for each tile
         println "Packing tiles."
@@ -1296,66 +1465,52 @@ class PackPartitions
         // Pack the global tile set before other tile sets (contains the player avatar, etc.)
         packGlobalTileSet(dataIn)
         
-        // Pack each image, which has the side-effect of filling in the
-        // image name map. Handle frame images separately.
-        //
-        def titleFound = false
-        def uiFramesFound = 0
-        def imageNamesPacked = [:]
-        for (def pass = 0; pass < 5; pass++)
-        {
-            switch (pass) {
-                case 0: println "Packing title screen."; break
-                case 1: println "Packing UI frames."; break
-                case 2: println "Packing other frame images."; break
-                case 3: println "Packing textures."; break
-                case 4: println "Packing portraits."; break
-            }
-            dataIn.image.sort{it.@name.toLowerCase()}.each { image ->
-                def category = image.@category?.toLowerCase()
-                def name = image.@name.toLowerCase()
-                if (category == "fullscreen" && name == "title") {
-                    if (pass == 0) {
-                        packFrameImage(image)
-                        titleFound = true
-                        imageNamesPacked[name] = true
-                    }
-                }
-                else if (category == "uiframe") {
-                    if (pass == 1) {
-                        packFrameImage(image)
-                        ++uiFramesFound
-                        imageNamesPacked[name] = true
-                    }
-                }
-                else if (category == "fullscreen") {
-                    if (pass == 2) {
-                        packFrameImage(image)
-                        imageNamesPacked[name] = true
-                    }
-                }
-                else if (category == "wall" || category == "sprite") {
-                    if (pass == 3) {
-                        packTexture(image)
-                        imageNamesPacked[name] = true
-                    }
-                }
-                else if (category == "portrait") {
-                    if (pass == 4) {
-                        packPortrait(image)
-                        imageNamesPacked[name] = true
-                    }
-                }
-            }
-        }
-        assert titleFound : "Couldn't find title image. Should be category='FULLSCREEN', name='title'"
-        assert uiFramesFound == 2 : "Need exactly 2 UI frames, found $uiFramesFound instead."
+        // Divvy up the images by category
+        def titleImgs      = []
+        def uiFrameImgs    = []
+        def fullscreenImgs = []
+        def textureImgs    = []
+        def portraitImgs   = []
         
-        dataIn.image.each { image ->
-            if (!(image.@name.toLowerCase() in imageNamesPacked))
-                println "Warning: couldn't classify image named '${image.@name}', category '${image.@category}'."
+        dataIn.image.sort{it.@name.toLowerCase()}.each { image ->
+            def category = image.@category?.toLowerCase()
+            def name = image.@name.toLowerCase()
+            if (category == "fullscreen" && name == "title")
+                titleImgs << image
+            else if (category == "uiframe")
+                uiFrameImgs << image
+            else if (category == "fullscreen")
+                fullscreenImgs << image
+            else if (category == "wall" || category == "sprite")
+                textureImgs << image
+            else if (category == "portrait")
+                portraitImgs << image
+            else
+                println "Warning: couldn't classify image named '${name}', category '${category}'."            
         }
-                    
+        
+        assert titleImgs.size() == 1 : "Couldn't find title image. Should be category='FULLSCREEN', name='title'"
+        assert uiFrameImgs.size() == 2 : "Need exactly 2 UI frames, found ${uiFramesImgs.size()} instead."
+        
+        // Pack each image, which has the side-effect of filling in the image name map.
+        println "Packing title screen."
+        titleImgs.each { image -> packFrameImage(image) }
+        
+        println "Packing UI frames."
+        uiFrameImgs.each { image -> packFrameImage(image) }
+        
+        println "Packing other frame images."
+        fullscreenImgs.each { image -> packFrameImage(image) }
+        
+        println "Packing textures."
+        textureImgs.each { image -> packTexture(image) }
+        
+        println "Packing portraits."
+        if (!grabEntireFromCache("portraits", portraits, xmlLastMod)) {
+            portraitImgs.each { image -> packPortrait(image) }
+            addEntireToCache("portraits", portraits, xmlLastMod)
+        }
+        
         // Number all the maps and record them with names
         def num2D = 0
         def num3D = 0
@@ -1387,15 +1542,13 @@ class PackPartitions
                 printWarning "map name '${map?.@name}' should contain '2D' or '3D'. Skipping."
         }
         
-        // Ready to start writing the output file.
+        // Ready to write the output file.
         println "Writing output file."
+        new File("build/root").mkdir()
+        def binPath = new File("build/root/game.part.0.bin").path
         new File(binPath).withOutputStream { stream -> writePartition(stream) }
         
-        // Finish up Javacript if necessary
-        if (javascriptPath)
-            javascriptOut.close()
-        
-        // Lastly, print stats
+        // Print stats
         println "Compression saved $compressionSavings bytes."
         if (compressionSavings > 0) {
             def endSize = new File(binPath).length()
@@ -1404,7 +1557,12 @@ class PackPartitions
             println "Size $origSize -> $endSize ($savPct% savings)"
         }
         
-        println "Done."
+        // Write a new cache file
+        File newCacheFile = new File(xmlPath.toString()+".cache.new")
+        ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(newCacheFile));
+        out.writeObject(cache);
+        out.close()
+        newCacheFile.renameTo(cacheFile)
     }
     
     def isAlnum(ch)
@@ -1540,13 +1698,31 @@ class PackPartitions
         out.println("end")
     }
     
+    def replaceIfDiff(oldFile)
+    {
+        def newFile = new File(oldFile + ".new")
+        oldFile = new File(oldFile)
+        
+        def newText = newFile.text
+        def oldText = oldFile.text
+        
+        if (newText == oldText) {
+            //println "Same text, deleting $newFile"
+            newFile.delete()
+        }
+        else {
+            //println "Changed text, renaming $newFile to $oldFile"
+            newFile.renameTo(oldFile)
+        }
+    }
+    
     def dataGen(xmlPath)
     {
         // Open the XML data file produced by Outlaw Editor
         def dataIn = new XmlParser().parse(xmlPath)
         
         // Translate image names to constants
-        new File("src/plasma/gen_images.plh").withWriter { out ->
+        new File("src/plasma/gen_images.plh.new").withWriter { out ->
             def portraitNum = 0
             dataIn.image.sort{it.@name.toLowerCase()}.each { image ->
                 def category = image.@category?.toLowerCase()
@@ -1567,17 +1743,19 @@ class PackPartitions
                 }
             }
         }
+        replaceIfDiff("src/plasma/gen_images.plh")
         
         // Translate enemies to code
         def enemyLines = new File("data/world/enemies.tsv").readLines()
-        new File("src/plasma/gen_enemies.plh").withWriter { out ->
+        new File("src/plasma/gen_enemies.plh.new").withWriter { out ->
             out.println("// Generated code - DO NOT MODIFY BY HAND\n")
             enemyLines[1..-1].eachWithIndex { line, index ->
                 out.println("const CE${humanNameToSymbol(line.split("\t")[0], false)} = ${index*2}")
             }
             out.println("const NUM_ENEMIES = ${enemyLines.size - 1}")
         }
-        new File("src/plasma/gen_enemies.pla").withWriter { out ->
+        replaceIfDiff("src/plasma/gen_enemies.plh")
+        new File("src/plasma/gen_enemies.pla.new").withWriter { out ->
             out.println("// Generated code - DO NOT MODIFY BY HAND")
             out.println()
             out.println("include \"gamelib.plh\"")
@@ -1600,10 +1778,13 @@ class PackPartitions
             out.println("return @funcTbl")
             out.println("done")
         }
+        replaceIfDiff("src/plasma/gen_enemies.pla")
         
         // Produce a list of assembly and PLASMA code segments
+        binaryStubsOnly = true
         readAllCode()
-        new File("src/plasma/gen_modules.plh").withWriter { out ->
+        binaryStubsOnly = false
+        new File("src/plasma/gen_modules.plh.new").withWriter { out ->
             code.each { k, v ->
                 out.println "const CODE_${humanNameToSymbol(k, true)} = ${v.num}"
             }
@@ -1611,6 +1792,23 @@ class PackPartitions
                 out.println "const MODULE_${humanNameToSymbol(k, true)} = ${v.num}"
             }
         }
+        replaceIfDiff("src/plasma/gen_modules.plh")
+    }
+    
+    def createImage()
+    {
+        // Copy the PLASMA VM file to the output directory
+        Files.copy(new File("PLVM02.SYSTEM.sys").toPath(), new File("build/root/PLVM02.SYSTEM.sys").toPath())
+        
+        // Copy the memory manager to the output directory
+        Files.copy(new File("src/core/build/cmd.sys#2000").toPath(), new File("build/root/cmd.sys#2000").toPath())
+        
+        // Decompress the base image
+        Files.copy(new GZIPInputStream(new FileInputStream("data/disks/base.2mg.gz")), new File("build/game.2mg").toPath())
+        
+        // Now put the files into the image
+        String[] args = ["-put", "build/game.2mg", "/", "build/root"]
+        new a2copy.A2Copy().main(args)
     }
     
     static void main(String[] args) 
@@ -1632,12 +1830,11 @@ class PackPartitions
         }
         
         // Check the arguments
-        if (!(args.size() == 2 || args.size() == 3)) {
-            println "Usage: convert yourOutlawFile.xml game.part.0.bin [intcastMap.js]"
-            println "   (where intcastMap.js is to aid in debugging the Javascript raycaster)"
-            println "   or: convert yourOutlawFile.xml -dataGen"
+        if (args.size() != 1) {
+            println "Usage: packPartitions yourOutlawFile.xml"
             System.exit(1);
         }
+        def xmlFile = new File(args[0])
 
         // If there's an existing error file, remote it.
         def errorFile = new File("pack_error.txt")
@@ -1647,10 +1844,20 @@ class PackPartitions
         // Go for it.
         def inst = new PackPartitions()
         try {
-            if (args[1] == "-dataGen")
-                inst.dataGen(args[0])
-            else
-                inst.pack(args[0], args[1], args.size() > 2 ? args[2] : null)
+            // Blow away everything in the build directory, and recreate it
+            def buildDir = new File("build")
+            if (buildDir.exists())
+                buildDir.deleteDir()
+            buildDir.mkdirs()
+            
+            // Create PLASMA headers
+            new PackPartitions().dataGen(xmlFile)
+            
+            // Pack everything into a binary file
+            inst.pack(xmlFile)
+
+            // And create the final disk image
+            inst.createImage()
         }
         catch (Throwable t) {
             errorFile.withWriter { out ->

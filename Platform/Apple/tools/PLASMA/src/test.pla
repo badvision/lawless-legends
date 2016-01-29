@@ -125,4 +125,5 @@ puti(mystruc)
 putln
 puts(@constr); puti(constval); putln
 puts("Hello from in-line string!\n")
+puts("Hi \$41pple.\n");
 done

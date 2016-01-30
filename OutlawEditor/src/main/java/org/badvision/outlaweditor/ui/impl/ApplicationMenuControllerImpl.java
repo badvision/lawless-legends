@@ -15,6 +15,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.event.ActionEvent;
 import org.badvision.outlaweditor.Application;
+import org.badvision.outlaweditor.Editor;
 import org.badvision.outlaweditor.Platform;
 import org.badvision.outlaweditor.apple.AppleTileRenderer;
 import org.badvision.outlaweditor.ui.ApplicationMenuController;
@@ -125,6 +126,14 @@ public class ApplicationMenuControllerImpl extends ApplicationMenuController {
     @Override
     public void onHelpAbout(ActionEvent event) {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public void performUndo(ActionEvent event) {
+        Editor editor = ApplicationUIController.getController().getVisibleEditor();
+        if (editor != null) {
+            editor.undo();
+        }
     }
 
 }

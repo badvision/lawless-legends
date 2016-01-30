@@ -10,10 +10,15 @@
  
 package org.badvision.outlaweditor;
 
+import java.util.LinkedList;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javafx.scene.layout.Pane;
+import javax.xml.bind.JAXBException;
 import org.badvision.outlaweditor.data.DataObserver;
 import org.badvision.outlaweditor.data.DataProducer;
 import org.badvision.outlaweditor.data.xml.Script;
+import org.jvnet.jaxb2_commons.lang.CopyTo2;
 
 /**
  * Extremely generic editor abstraction -- useful for uniform edit features
@@ -22,6 +27,8 @@ import org.badvision.outlaweditor.data.xml.Script;
  * @author brobert
  */
 public abstract class Editor<T, D> implements DataObserver<T> {
+    public static final int UNDO_HISTORY_LENGTH = 10;
+    LinkedList<T> undoStates = new LinkedList<>();
 
     T editEntity;
 
@@ -84,4 +91,23 @@ public abstract class Editor<T, D> implements DataObserver<T> {
     }
 
     abstract public void redraw();
+    
+    protected void trackState() {
+        if (undoStates.size() >= UNDO_HISTORY_LENGTH) {
+            undoStates.removeLast();
+        }
+        try {
+            undoStates.push(TransferHelper.cloneObject(getEntity(), (Class<T>) getEntity().getClass(), getEntity().getClass().getName()));
+        } catch (JAXBException ex) {
+            Logger.getLogger(Editor.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    
+    public void undo() {
+        if (!undoStates.isEmpty()) {
+            CopyTo2 undoState = (CopyTo2) undoStates.removeFirst();
+            undoState.copyTo(getEntity());
+            redraw();
+        }
+    }
 }

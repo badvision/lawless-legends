@@ -33,10 +33,10 @@ import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.FileUtils;
 import org.badvision.outlaweditor.ImageEditor;
 import org.badvision.outlaweditor.Platform;
-import org.badvision.outlaweditor.ui.UIAction;
 import org.badvision.outlaweditor.data.TileMap;
 import org.badvision.outlaweditor.data.xml.Image;
 import org.badvision.outlaweditor.data.xml.PlatformData;
+import org.badvision.outlaweditor.ui.UIAction;
 
 /**
  *
@@ -242,6 +242,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
                 if (canSkip) {
                     return false;
                 }
+                trackState();
                 if (alt) {
                     toggleHiBit(x, y);
                 } else {
@@ -253,6 +254,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
                 if (canSkip) {
                     return false;
                 }
+                trackState();
                 plot(x, y, currentFillPattern, hiBitMatters); // [ref BigBlue1_30]
                 redrawScanline(y);
                 break;
@@ -260,12 +262,14 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
                 if (canSkip) {
                     return false;
                 }
+                trackState();
                 drawBrush(x, y, 3, currentFillPattern, hiBitMatters);
                 break;
             case Pencil5px:
                 if (canSkip) {
                     return false;
                 }
+                trackState();
                 drawBrush(x, y, 5, currentFillPattern, hiBitMatters);
                 break;
             case Rectangle:

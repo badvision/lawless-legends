@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.scene.input.*?>
 <?import java.lang.*?>
 <?import java.util.*?>
 <?import javafx.scene.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<MenuBar styleClass="menu" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.badvision.outlaweditor.ui.impl.ApplicationMenuControllerImpl">
+<MenuBar styleClass="menu" xmlns="http://javafx.com/javafx/8.0.40" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.badvision.outlaweditor.ui.impl.ApplicationMenuControllerImpl">
     <menus>
         <Menu mnemonicParsing="false" text="File">
             <items>
@@ -21,6 +22,11 @@
                 <MenuItem mnemonicParsing="false" onAction="#onEditSelect" text="Select" />
                 <MenuItem mnemonicParsing="false" onAction="#onEditCopy" text="Copy" />
                 <MenuItem mnemonicParsing="false" onAction="#onEditPaste" text="Paste" />
+            <MenuItem mnemonicParsing="false" onAction="#performUndo" text="Undo">
+               <accelerator>
+                  <KeyCodeCombination alt="UP" code="Z" control="DOWN" meta="UP" shift="UP" shortcut="UP" />
+               </accelerator>
+            </MenuItem>
                 <Menu mnemonicParsing="false" text="Change Platform">
                     <items>
                         <MenuItem mnemonicParsing="false" onAction="#onChangePlatformAppleSolid" text="Apple (solid)" />

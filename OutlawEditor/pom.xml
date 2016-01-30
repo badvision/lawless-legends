@@ -60,6 +60,17 @@
                             </schemaIncludes>
                             <episodeFile>${project.build.directory}/generated-sources/xjc/META-INF/jaxb-OutlawSchema.episode</episodeFile>
                             <generatePackage>org.badvision.outlaweditor.data.xml</generatePackage>
+                            <args>
+                                <arg>-Xcopyable</arg>
+                                <arg>-Xmergeable</arg>
+                            </args>
+                            <plugins>
+                                <plugin>                                                                
+                                    <groupId>org.jvnet.jaxb2_commons</groupId>
+                                    <artifactId>jaxb2-basics</artifactId>
+                                    <version>0.11.0</version>
+                                </plugin>                                
+                            </plugins>
                         </configuration>
                         <id>jaxb-generate-OutlawSchema</id>
                     </execution>
@@ -69,7 +80,7 @@
     </build>
 
     <dependencies>
-<!--        <dependency>
+        <!--        <dependency>
             <groupId>com.oracle</groupId>
             <artifactId>javafx</artifactId>
             <version>2</version>
@@ -89,6 +100,11 @@
             <version>4.11</version>
             <scope>test</scope>
             <type>jar</type>
+        </dependency>
+        <dependency>
+            <groupId>org.jvnet.jaxb2_commons</groupId>
+            <artifactId>jaxb2-basics</artifactId>
+            <version>0.11.0</version>
         </dependency>
     </dependencies>
 </project>

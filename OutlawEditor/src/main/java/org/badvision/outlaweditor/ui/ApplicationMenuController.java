@@ -58,4 +58,7 @@ public abstract class ApplicationMenuController {
     @FXML
     abstract public void onHelpAbout(ActionEvent event);
 
+    @FXML
+    abstract public void performUndo(ActionEvent event);    
+    
 }

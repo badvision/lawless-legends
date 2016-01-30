@@ -7,7 +7,6 @@
  * ANY KIND, either express or implied. See the License for the specific language 
  * governing permissions and limitations under the License.
  */
- 
 package org.badvision.outlaweditor;
 
 import java.io.ByteArrayInputStream;
@@ -19,6 +18,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
@@ -29,6 +30,9 @@ import javafx.stage.FileChooser;
  * @author brobert
  */
 public class FileUtils {
+
+    private FileUtils() {
+    }
 
     public static enum Extension {
 
@@ -64,7 +68,9 @@ public class FileUtils {
         }
         if (create) {
             File file = f.showSaveDialog(Application.getPrimaryStage());
-            if (file == null) return null;
+            if (file == null) {
+                return null;
+            }
             if (!file.getName().contains(".")) {
                 return new File(file.getParentFile(), file.getName() + "." + supportedExtensions[0].extension);
             } else {
@@ -132,8 +138,8 @@ public class FileUtils {
     }
 
     public static byte[] decompress(byte[] bytesToDecompress) {
-        int numberOfBytesToDecompress = bytesToDecompress.length;
         try {
+            int numberOfBytesToDecompress = bytesToDecompress.length;
             Inflater inflater = new Inflater();
             inflater.setInput(
                     bytesToDecompress,
@@ -152,9 +158,9 @@ public class FileUtils {
                     numberOfBytesAfterDecompression);
             inflater.end();
             return returnValues;
-        } catch (DataFormatException dfe) {
-            dfe.printStackTrace(System.err);
+        } catch (DataFormatException ex) {
+            Logger.getLogger(FileUtils.class.getName()).log(Level.SEVERE, null, ex);
+            return null;
         }
-        return null;
     }
 }

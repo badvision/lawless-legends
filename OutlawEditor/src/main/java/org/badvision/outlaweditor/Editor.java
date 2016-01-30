@@ -27,7 +27,7 @@ import org.jvnet.jaxb2_commons.lang.CopyTo2;
  * @author brobert
  */
 public abstract class Editor<T, D> implements DataObserver<T> {
-    public static final int UNDO_HISTORY_LENGTH = 20;
+    public static final int UNDO_HISTORY_LENGTH = 50;
     LinkedList<T> undoStates = new LinkedList<>();
 
     T editEntity;

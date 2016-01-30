@@ -62,6 +62,12 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     }
 
     @Override
+    protected void onEntityUpdated() {
+        super.onEntityUpdated();
+        data = null;
+    }
+    
+    @Override
     public void buildEditorUI(Pane editorAnchorPane) {
         anchorPane = editorAnchorPane;
         redraw();
@@ -145,28 +151,24 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
         currentImage = getPlatform().imageRenderer.renderImage(currentImage, getImageData(), getWidth(), getHeight());
     }
 
-    private byte[] imageData = null;
-
-    public byte[] getImageData() {
-        if (imageData == null) {
-            PlatformData data = getPlatformData(getPlatform());
+    PlatformData data = null;
+    public PlatformData getPlatformData() {
+        if (data == null) {
+            data = getPlatformData(getPlatform());
             if (data == null) {
                 createNewPlatformImage(getPlatform().maxImageWidth, getPlatform().maxImageHeight);
                 data = getPlatformData(getPlatform());
             }
-            imageData = data.getValue();
         }
-        return imageData;
+        return data;
+    }
+    
+    public byte[] getImageData() {
+        return getPlatformData().getValue();
     }
 
     public void setData(byte[] data) {
-        imageData = data;
-        for (PlatformData d : getEntity().getDisplayData()) {
-            if (d.getPlatform().equalsIgnoreCase(getPlatform().name())) {
-                d.setValue(data);
-                break;
-            }
-        }
+        getPlatformData().setValue(data);
     }
 
     public void setDataAndRedraw(byte[] data) {

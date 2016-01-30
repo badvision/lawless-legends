@@ -27,7 +27,7 @@ import org.jvnet.jaxb2_commons.lang.CopyTo2;
  * @author brobert
  */
 public abstract class Editor<T, D> implements DataObserver<T> {
-    public static final int UNDO_HISTORY_LENGTH = 10;
+    public static final int UNDO_HISTORY_LENGTH = 20;
     LinkedList<T> undoStates = new LinkedList<>();
 
     T editEntity;
@@ -35,6 +35,7 @@ public abstract class Editor<T, D> implements DataObserver<T> {
     public void setEntity(T t) {
         editEntity = t;
         DataProducer.addObserver(t, this);
+        onEntityUpdated();
     }
 
     public T getEntity() {
@@ -107,7 +108,12 @@ public abstract class Editor<T, D> implements DataObserver<T> {
         if (!undoStates.isEmpty()) {
             CopyTo2 undoState = (CopyTo2) undoStates.removeFirst();
             undoState.copyTo(getEntity());
+            onEntityUpdated();
             redraw();
         }
+    }
+    
+    protected void onEntityUpdated() {
+        
     }
 }

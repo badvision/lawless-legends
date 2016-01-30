@@ -69,9 +69,8 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     double tileHeight = currentPlatform.tileRenderer.getHeight() * zoom;
 
     @Override
-    public void setEntity(Map t) {
-        super.setEntity(t);
-        currentMap = new TileMap(t);
+    protected void onEntityUpdated() {
+        currentMap = new TileMap(getEntity());
     }
 
     public TileMap getCurrentMap() {
@@ -557,6 +556,12 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     DrawMode lastDrawMode = null;
     Tile lastTile = null;
 
+    @Override
+    protected void trackState() {
+        currentMap.updateBackingMap();
+        super.trackState();
+    }    
+    
     @Override
     public void handle(MouseEvent t) {
         updateCursorAssistant(t);

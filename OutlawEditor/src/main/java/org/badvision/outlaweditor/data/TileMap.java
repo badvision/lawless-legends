@@ -7,7 +7,6 @@
  * ANY KIND, either express or implied. See the License for the specific language 
  * governing permissions and limitations under the License.
  */
- 
 package org.badvision.outlaweditor.data;
 
 import java.io.Serializable;
@@ -95,7 +94,7 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
 
     private void registerLocationScript(int x, int y, Script s) {
         if (!scriptColors.containsKey(s)) {
-            scriptColors.put(s, Color.hsb(HUE, SATURATION, 0.75 + Math.cos(HUE / Math.PI / 2.0)/8.0));
+            scriptColors.put(s, Color.hsb(HUE, SATURATION, 0.75 + Math.cos(HUE / Math.PI / 2.0) / 8.0));
             HUE = (HUE + 27) % 360;
         }
         int loc = getMortonNumber(x, y);
@@ -178,7 +177,8 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
         Set<Tile> unknownTiles = new HashSet<>();
         Scripts scripts = m.getScripts();
         if (scripts != null) {
-            scripts.getScript().forEach(
+            List<Script> allScripts = new ArrayList<>(scripts.getScript());
+            allScripts.forEach(
                     s -> s.getLocationTrigger().forEach(
                             l -> registerLocationScript(l.getX(), l.getY(), s)
                     )

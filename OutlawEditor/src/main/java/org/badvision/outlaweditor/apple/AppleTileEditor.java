@@ -10,7 +10,6 @@
  
 package org.badvision.outlaweditor.apple;
 
-import javafx.event.EventHandler;
 import javafx.scene.Group;
 import javafx.scene.control.Menu;
 import javafx.scene.image.WritableImage;
@@ -22,8 +21,8 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.Shape;
 import org.badvision.outlaweditor.Platform;
 import org.badvision.outlaweditor.TileEditor;
-import org.badvision.outlaweditor.data.xml.Tile;
 import org.badvision.outlaweditor.data.TileUtils;
+import org.badvision.outlaweditor.data.xml.Tile;
 
 /**
  *
@@ -99,6 +98,7 @@ public class AppleTileEditor extends TileEditor {
         debounceTime = System.currentTimeMillis() + SAFE_WAIT_TIME;
         lastActionX = x;
         lastActionY = y;
+        trackState();
         switch (drawMode) {
             case Toggle:
                 if (alt) {

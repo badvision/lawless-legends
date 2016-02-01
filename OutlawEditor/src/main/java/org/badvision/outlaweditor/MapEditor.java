@@ -69,9 +69,8 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     double tileHeight = currentPlatform.tileRenderer.getHeight() * zoom;
 
     @Override
-    public void setEntity(Map t) {
-        super.setEntity(t);
-        currentMap = new TileMap(t);
+    protected void onEntityUpdated() {
+        currentMap = new TileMap(getEntity());
     }
 
     public TileMap getCurrentMap() {
@@ -558,6 +557,12 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     Tile lastTile = null;
 
     @Override
+    protected void trackState() {
+        currentMap.updateBackingMap();
+        super.trackState();
+    }    
+    
+    @Override
     public void handle(MouseEvent t) {
         updateCursorAssistant(t);
         if (!t.isPrimaryButtonDown() && drawMode != DrawMode.FilledRect && t.getEventType() != MouseEvent.MOUSE_RELEASED) return;
@@ -580,6 +585,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
                 if (canSkip) {
                     return;
                 }
+                trackState();
                 plot(x,y,null);
                 redraw();
                 break;
@@ -588,22 +594,26 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
                 if (canSkip) {
                     return;
                 }
+                trackState();
                 plot(x, y, getCurrentTile());
                 break;
             case Pencil3px:
                 if (canSkip) {
                     return;
                 }
+                trackState();
                 drawBrush(x, y, 2, getCurrentTile());
                 break;
             case Pencil5px:
                 if (canSkip) {
                     return;
                 }
+                trackState();
                 drawBrush(x, y, 5, getCurrentTile());
                 break;
             case FilledRect:
                 if (t.getEventType().equals(MouseEvent.MOUSE_RELEASED)) {
+                    trackState();
                     fillSelection(t.getX(), t.getY());
                 } else if (t.isPrimaryButtonDown()) {
                     updateSelection(t.getX(), t.getY());

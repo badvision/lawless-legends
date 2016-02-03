@@ -906,13 +906,11 @@ class PackPartitions
         def name = "mapScript$num"
         //println "Packing scripts for map $mapName, to module $num."
         
+        def scriptDir = "build/"
         ScriptModule module = new ScriptModule()
-        module.packScripts(mapName, mapEl.scripts ? mapEl.scripts[0] : [], 
+        module.packScripts(mapName, new File(new File(scriptDir), name+".pla"), mapEl.scripts ? mapEl.scripts[0] : [], 
             totalWidth, totalHeight, xRange, yRange)
-            
-        modules[name]   = [num:num, buf:wrapByteList(module.data)]
-        bytecodes[name] = [num:num, buf:wrapByteList(module.bytecode)]
-        fixups[name]    = [num:num, buf:wrapByteList(module.fixups)]
+        compileModule(name, scriptDir)
         return [num, module.locationsWithTriggers]
     }
     
@@ -1890,55 +1888,32 @@ class PackPartitions
 
     class ScriptModule
     {
-        def data = []
-        def bytecode = []
-        def fixups = []
-
-        def nScripts = 0
-        def nStringBytes = 0
-
+        PrintWriter out
         def locationsWithTriggers = [] as Set
+        def scriptNames = [:]
+        def indent = 0
 
-        def vec_setScriptInfo   = 0x1F00
-        def vec_pushAuxStr      = 0x1F03
-        def vec_displayStr      = 0x1F06
-        def vec_displayStrNL    = 0x1F09
-        def vec_getYN           = 0x1F0C
-        def vec_setMap          = 0x1F0F
-        def vec_setSky          = 0x1F12
-        def vec_setGround       = 0x1F15
-        def vec_teleport        = 0x1F18
-        def vec_setPortrait     = 0x1F1B
-        def vec_clrPortrait     = 0x1F1E
-        def vec_moveBackward    = 0x1F21
-        def vec_getCharacter    = 0x1F24
-        def vec_clrTextWindow   = 0x1F27
-
-        def emitAuxString(inStr)
+        def emitString(inStr)
         {
-            emitCodeByte(0x54)  // CALL
-            emitCodeWord(vec_pushAuxStr)
-            def buf = new StringBuilder()
-            def prev = ' '
+            out << '\"'
+            def prev = '\0'
             inStr.each { ch ->
                 if (ch == '^') {
                     if (prev == '^')
-                        buf.append(ch)
+                        out << ch
                 }
+                else if (ch == '\"')
+                    out << "\\\""
                 else if (prev == '^') {
                     def cp = Character.codePointAt(ch.toUpperCase(), 0)
                     if (cp > 64 && cp < 96)
-                        buf.appendCodePoint(cp - 64)
+                        out << "\\\$" << String.format("%02X", cp - 64)
                 }
                 else
-                    buf.append(ch)
+                    out << ch
                 prev = ch
             }
-            def str = buf.toString()
-            assert str.size() < 256 : "String too long, max is 255 characters: $str"
-            emitCodeByte(str.size())
-            str.each { ch -> emitCodeByte((byte)ch) }
-            nStringBytes += str.size() + 1
+            out << '\"'
         }
 
         def getScriptName(script)
@@ -1947,8 +1922,11 @@ class PackPartitions
                 return null
                 
             def blk = script.block[0]
-            if (blk.field.size() == 0)
+            if (blk.field.size() == 0) {
+                if (scriptNames.containsKey(script))
+                    return scriptNames[script]
                 return null
+            }
                 
             assert blk.field[0].@name == "NAME"
             return blk.field[0].text()
@@ -1958,72 +1936,59 @@ class PackPartitions
          * Pack scripts from a map. Either the whole map, or optionally just an X and Y
          * bounded section of it.
          */
-        def packScripts(mapName, inScripts, maxX, maxY, xRange = null, yRange = null)
+        def packScripts(mapName, outFile, inScripts, maxX, maxY, xRange = null, yRange = null)
         {
-            // If we're only processing a section of the map, make sure this script is
-            // referenced within that section.
-            //
+            out = new PrintWriter(new FileWriter(outFile))
+            out << "// Generated code - DO NOT MODIFY BY HAND\n\n"
+            out << "include \"../src/plasma/gamelib.plh\"\n"
+            out << "include \"../src/plasma/playtype.plh\"\n"
+            out << "include \"../src/plasma/gen_images.plh\"\n\n"
+
+            // Determine which scripts are referenced in the specified section of the map.
+            def initScript
             def scripts = []
             inScripts.script.eachWithIndex { script, idx ->
                 def name = getScriptName(script)
-                if (name != null && name.toLowerCase() == "init")
-                    scripts << script
+                if (name != null && name.toLowerCase() == "init") {
+                    initScript = script
+                }
                 else if (script.locationTrigger.any { trig ->
                             (!xRange || trig.@x.toInteger() in xRange) &&
                             (!yRange || trig.@y.toInteger() in yRange) })
+                {
                     scripts << script
+                    scriptNames[script] = "trig_$idx"
+                }
             }
-            nScripts = scripts.script.size()
               
             // Even if there were no scripts, we still need an init to display
             // the map name.
-            makeStubs()
+            makeTriggerTbl(scripts, xRange, yRange)
             scripts.eachWithIndex { script, idx ->
                 packScript(idx, script) 
             }
-            makeInit(mapName, scripts, xRange, yRange, maxX, maxY)
-            emitFixupByte(0xFF)
+            makeInit(mapName, initScript, maxX, maxY)
             
-            //println "  Code stats: data=${data.size}, bytecode=${bytecode.size} (str=$nStringBytes), fixups=${fixups.size}"
-            //println "data: $data"
-            //println "bytecode: $bytecode"
-            //println "fixups: $fixups"
+            out.close()
         }
 
-        def makeStubs()
-        {
-            // Emit a stub for each function, including the init function
-            (0..nScripts).each { it ->
-                emitDataByte(0x20)  // JSR
-                emitDataWord(0x3DC) // Aux mem interp ($3DC)
-                emitDataWord(0)     // Placeholder for the bytecode offset
-            }
-        }
-
-        def startFunc(scriptNum)
-        {
-            def fixAddr = (scriptNum * 5) + 3
-            assert data[fixAddr] == 0 && data[fixAddr+1] == 0
-            data[fixAddr] = (byte)(bytecodeAddr() & 0xFF)
-            data[fixAddr+1] = (byte)((bytecodeAddr() >> 8) & 0xFF)
+        def outIndented(str) {
+            out << ("  " * indent) << str
         }
 
         def packScript(scriptNum, script)
         {
-            def name = getScriptName(script)
-            if (name.toLowerCase() == "init") // this special script gets processed later
-                return
-            
             //println "   Script '$name'"
-            withContext("script '$name'") 
+            withContext("script $scriptNum") 
             {
                 if (script.block.size() == 0) {
                     printWarning("empty script found; skipping.")
                     return
                 }
 
-                // Record the function's start address in its corresponding stub
-                startFunc(scriptNum+1)
+                // Record the function's name and start its definition
+                out << "def script$scriptNum()\n"
+                indent = 1
 
                 // Process the code inside it
                 def proc = script.block[0]
@@ -2038,15 +2003,8 @@ class PackPartitions
                     printWarning "empty statement found; skipping."
                 
                 // And complete the function
-                finishFunc()
+                out << "end\n\n"
             }
-        }
-
-        def finishFunc()
-        {
-            // Finish off the function with a return value and return opcode
-            emitCodeByte(0)     // ZERO
-            emitCodeByte(0x5C)  // RET
         }
 
         def packBlock(blk)
@@ -2060,7 +2018,7 @@ class PackPartitions
                     case 'text_clear_window':
                         packClearWindow(blk); break
                     case 'text_getanykey':
-                        packGetAnyKey(); break
+                        packGetAnyKey(blk); break
                     case  'controls_if':
                         packIfStmt(blk); break
                     case 'events_set_map':
@@ -2085,61 +2043,16 @@ class PackPartitions
             // Strangely, blocks seem to be chained together, but hierarchically. Whatever.
             blk.next.each { it.block.each { packBlock(it) } }
         }
-
-        def dataAddr()
+        
+        def getSingle(els, name = null, type = null)
         {
-            return data.size()
-        }
-
-        def bytecodeAddr()
-        {
-            return bytecode.size()
-        }
-
-        def emitDataByte(b)
-        {
-            assert b <= 255
-            data.add((byte)(b & 0xFF))
-        }
-
-        def emitDataWord(w)
-        {
-            emitDataByte(w & 0xFF)
-            emitDataByte(w >> 8)
-        }
-
-        def emitCodeByte(b)
-        {
-            assert b <= 255
-            bytecode.add((byte)(b & 0xFF))
-        }
-
-        def emitCodeWord(w)
-        {
-            emitCodeByte(w & 0xFF)
-            emitCodeByte(w >> 8)
-        }
-
-        def emitFixupByte(b)
-        {
-            assert b <= 255
-            fixups.add((byte)(b & 0xFF))
-        }
-
-        def emitDataFixup(toAddr)
-        {
-            // Src addr is reversed (i.e. it's hi then lo)
-            emitFixupByte(dataAddr() >> 8)
-            emitFixupByte(dataAddr() & 0xFF)
-            emitDataWord(toAddr)
-        }
-
-        def emitCodeFixup(toAddr)
-        {
-            // Src addr is reversed (i.e. it's hi then lo), and marked by hi-bit flag.
-            emitFixupByte((bytecodeAddr() >> 8) | 0x80)
-            emitFixupByte(bytecodeAddr() & 0xFF)
-            emitCodeWord(toAddr)
+            assert els.size() == 1
+            def first = els[0]
+            if (name)
+                assert first.@name == name
+            if (type)
+                assert first.@type == type
+            return first
         }
 
         def packTextPrint(blk)
@@ -2148,40 +2061,22 @@ class PackPartitions
                 printWarning "empty text_print block, skipping."
                 return
             }
-            def val = blk.value[0]
-            assert val.@name == 'VALUE'
-            assert val.block.size() == 1
-            def valBlk = val.block[0]
-            assert valBlk.@type == 'text'
-            assert valBlk.field.size() == 1
-            def fld = valBlk.field[0]
-            assert fld.@name == 'TEXT'
-            def text = fld.text()
-            //println "            text: '$text'"
-
-            emitAuxString(text)
-            emitCodeByte(0x54)  // CALL
-            emitCodeWord(blk.@type == 'text_print' ? vec_displayStr : vec_displayStrNL)
-            emitCodeByte(0x30) // DROP
+            def text = getSingle(getSingle(getSingle(blk.value, 'VALUE').block, null, 'text').field, 'TEXT').text()
+            outIndented("${blk.@type == 'text_print' ? 'scriptDisplayStr' : 'scriptDisplayStrNL'}(")
+            emitString(text)
+            out << ")\n"
         }
 
         def packClearWindow(blk)
         {
             assert blk.value.size() == 0
-            //println "            clearWindow"
-
-            emitCodeByte(0x54)  // CALL
-            emitCodeWord(vec_clrTextWindow)
-            emitCodeByte(0x30) // DROP
+            outIndented("clearWindow()\n")
         }
 
         def packGetAnyKey(blk)
         {
-            //println "            get any key"
-
-            emitCodeByte(0x54)  // CALL
-            emitCodeWord(vec_getCharacter)
-            emitCodeByte(0x30) // DROP
+            assert blk.value.size() == 0
+            outIndented("getUpperKey()\n")
         }
 
         def packIfStmt(blk)
@@ -2190,152 +2085,74 @@ class PackPartitions
                 printWarning "missing condition; skipping."
                 return
             }
-            assert blk.value.size() == 1
-            def cond = blk.value[0]
-            assert cond.@name == 'IF0'
-            assert cond.block.size() == 1
-            assert cond.block[0].@type == 'text_getboolean'
-
-            //print "            Conditional on getboolean,"
-
-            emitCodeByte(0x54)  // CALL
-            emitCodeWord(vec_getYN)
-            emitCodeByte(0x4C)  // BRFS
-            def branchStart = bytecodeAddr()
-            emitCodeWord(0)     // placeholder until we know how far to jump over
-
-            assert blk.statement.size() == 1
-            def doStmt = blk.statement[0]
-            assert doStmt.block.size() == 1
-            packBlock(doStmt.block[0])
-            
-            // Now calculate and fix the relative branch
-            def branchEnd = bytecodeAddr()
-            def rel = branchEnd - branchStart
-            bytecode[branchStart] = (byte)(rel & 0xFF)
-            bytecode[branchStart+1] = (byte)((rel >> 8) & 0xFF)
+            def cond = getSingle(blk.value, 'IF0')
+            outIndented("if (")
+            def ctype = getSingle(cond.block)
+            switch (ctype.@type) {
+                case 'text_getboolean':
+                    out << "getYN()"
+                    break
+                default:
+                    assert false : "Conditional on ${ctype.@type} not yet implemented."
+            }
+            out << ")\n"
+            ++indent
+            packBlock(getSingle(getSingle(blk.statement).block))
+            --indent
+            outIndented("fin\n")
         }
 
         def packSetMap(blk)
         {
-            def mapNum, x=0, y=0, facing=0
-
-            blk.field.eachWithIndex { fld, idx ->
-                switch (fld.@name)
-                {
-                    case 'NAME':
-                        def mapName = fld.text()
-                        mapNum = mapNames[mapName]
-                        if (!mapNum) {
-                            printWarning "map '$mapName' not found; skipping set_map."
-                            return
-                        }
-                        break
-                        
-                    case 'X':
-                        x = fld.text().toInteger()
-                        break
-                        
-                    case 'Y':
-                        y = fld.text().toInteger()
-                        break
-                
-                    case 'FACING':
-                        facing = fld.text().toInteger()
-                        assert facing >= 0 && facing <= 15
-                        break
-                    
-                    default:
-                        assert false : "Unknown field ${fld.@name}"
-                }
+            assert blk.field.size() == 4
+            assert blk.field[0].@name == 'NAME'
+            assert blk.field[1].@name == 'X'
+            assert blk.field[2].@name == 'Y'
+            assert blk.field[3].@name == 'FACING'
+            def mapName = blk.field[0].text()
+            def mapNum = mapNames[mapName]
+            if (!mapNum) {
+                printWarning "map '$mapName' not found; skipping set_map."
+                return
             }
-            
-            //println "            Set map to '$mapName' (num $mapNum)"
-            
-            emitCodeByte(0x2A) // CB
             assert mapNum[0] == '2D' || mapNum[0] == '3D'
-            emitCodeByte(mapNum[0] == '2D' ? 0 : 1)
-            emitCodeByte(0x2A) // CB
-            emitCodeByte(mapNum[1])
-            emitCodeByte(0x2C) // CW
-            emitCodeWord(x)
-            emitCodeByte(0x2C) // CW
-            emitCodeWord(y)
-            emitCodeByte(0x2A) // CB
-            emitCodeByte(facing)
-            emitCodeByte(0x54)  // CALL
-            emitCodeWord(vec_setMap)
-            emitCodeByte(0x30) // DROP
+            def x = blk.field[1].text().toInteger()
+            def y = blk.field[2].text().toInteger()
+            def facing = blk.field[3].text().toInteger()
+            assert facing >= 0 && facing <= 15
+            
+            outIndented("queue_setMap(${mapNum[0] == '2D' ? 0 : 1}, ${mapNum[1]}, $x, $y)\n")
         }
         
         def packSetPortrait(blk)
         {
-            def portraitNum, portraitName
-
-            blk.field.eachWithIndex { fld, idx ->
-                switch (fld.@name)
-                {
-                    case 'NAME':
-                        portraitName = fld.text()
-                        def portrait = portraits[portraitName]
-                        if (!portrait) {
-                            printWarning "portrait '$portraitName' not found; skipping set_portrait."
-                            return
-                        }
-                        portraitNum = portrait.num
-                        break
-                        
-                    default:
-                        assert false : "Unknown field ${fld.@name}"
-                }
+            def portraitName = getSingle(blk.field, 'NAME').text()
+            def portrait = portraits[portraitName]
+            if (!portrait) {
+                printWarning "portrait '$portraitName' not found; skipping set_portrait."
+                return
             }
-            
-            emitCodeByte(0x2A) // CB
-            emitCodeByte(portraitNum)
-            emitCodeByte(0x54)  // CALL
-            emitCodeWord(vec_setPortrait)
-            emitCodeByte(0x30) // DROP
+            outIndented("setPortrait(${portrait.num})\n")
         }
         
         def packClrPortrait(blk)
         {
             assert blk.field.size() == 0
-            
-            emitCodeByte(0x54)  // CALL
-            emitCodeWord(vec_clrPortrait)
-            emitCodeByte(0x30) // DROP
+            outIndented("clearPortrait()\n")
         }
         
         def packSetSky(blk)
         {
-            assert blk.field.size() == 1
-            def fld = blk.field[0]
-            assert fld.@name == 'COLOR'
-            def color = fld.text().toInteger()
+            def color = getSingle(blk.field, 'COLOR').text().toInteger()
             assert color >= 0 && color <= 17
-            //println "            Set sky to $color"
-            
-            emitCodeByte(0x2A) // CB
-            emitCodeByte(color)
-            emitCodeByte(0x54) // CALL
-            emitCodeWord(vec_setSky)
-            emitCodeByte(0x30) // DROP
+            outIndented("setSky($color)\n")
         }
 
         def packSetGround(blk)
         {
-            assert blk.field.size() == 1
-            def fld = blk.field[0]
-            assert fld.@name == 'COLOR'
-            def color = fld.text().toInteger()
+            def color = getSingle(blk.field, 'COLOR').text().toInteger()
             assert color >= 0 && color <= 17
-            //println "            Set ground to $color"
-            
-            emitCodeByte(0x2A) // CB
-            emitCodeByte(color)
-            emitCodeByte(0x54) // CALL
-            emitCodeWord(vec_setGround)
-            emitCodeByte(0x30) // DROP
+            outIndented("setGround($color)\n")
         }
 
         def packTeleport(blk)
@@ -2348,123 +2165,79 @@ class PackPartitions
             def y = blk.field[1].text().toInteger()
             def facing = blk.field[2].text().toInteger()
             assert facing >= 0 && facing <= 15
-            //println "            Teleport to ($x,$y) facing $facing"
-            
-            emitCodeByte(0x2C) // CW
-            emitCodeWord(x)
-            emitCodeByte(0x2C) // CW
-            emitCodeWord(y)
-            emitCodeByte(0x2A) // CB
-            emitCodeByte(facing)
-            emitCodeByte(0x54) // CALL
-            emitCodeWord(vec_teleport)
-            emitCodeByte(0x30) // DROP
+            outIndented("queue_teleport($x, $y, $facing)\n")
         }
 
         def packMoveBackward(blk)
         {
             assert blk.field.size() == 0
-            //println "            Move backward"
-            
-            emitCodeByte(0x54) // CALL
-            emitCodeWord(vec_moveBackward)
-            emitCodeByte(0x30) // DROP
+            outIndented("moveBackward()\n")
         }
-
-        def makeInit(mapName, scripts, xRange, yRange, maxX, maxY)
+        
+        def makeTriggerTbl(scripts, xRange, yRange)
         {
-            //println "    Script: special 'init'"
-            startFunc(0)
-            
-            // Emit the code the user has stored for the init script. While we're scanning,
-            // might as well also collate all the location triggers into a sorted map.
-            //
+            // Emit a predefinition for each function
+            scripts.eachWithIndex { script, idx ->
+                out << "predef script$idx\n"
+            }
+
+            // Collate all the matching location triggers into a sorted map.
             TreeMap triggers = [:]
             scripts.eachWithIndex { script, idx ->
-                def name = getScriptName(script)
-                if (name != null && name.toLowerCase() == "init")
-                {
-                    if (script.block.size() == 1) {
-                        def proc = script.block[0]
-                        assert proc.@type == "procedures_defreturn"
-                        assert proc.statement.size() == 1
-                        def stmt = proc.statement[0]
-                        assert stmt.@name == "STACK"
-                        stmt.block.each { packBlock(it) }
-                    }
-                }
-                else {
-                    script.locationTrigger.each { trig ->
-                        def x = trig.@x.toInteger()
-                        def y = trig.@y.toInteger()
-                        if ((!xRange || x in xRange) && (!yRange || y in yRange))
-                        {
-                            if (xRange)
-                                x -= xRange[0]
-                            if (yRange)
-                                y -= yRange[0]
-                            if (!triggers[y])
-                                triggers[y] = [:] as TreeMap
-                            if (!triggers[y][x])
-                                triggers[y][x] = []
-                            triggers[y][x].add((idx+1) * 5)  // address of function
-                        }
+                script.locationTrigger.each { trig ->
+                    def x = trig.@x.toInteger()
+                    def y = trig.@y.toInteger()
+                    if ((!xRange || x in xRange) && (!yRange || y in yRange))
+                    {
+                        if (xRange)
+                            x -= xRange[0]
+                        if (yRange)
+                            y -= yRange[0]
+                        if (!triggers[y])
+                            triggers[y] = [:] as TreeMap
+                        if (!triggers[y][x])
+                            triggers[y][x] = []
+                        triggers[y][x].add("script$idx")
                     }
                 }
             }
             
-            // Process the map name
-            def shortName = mapName.replaceAll(/[\s-]*[23][dD][-0-9]*$/, '').take(16)
-            
-            // Code to register the  map name, trigger table, and map extent.
-            emitAuxString(shortName)
-            emitCodeByte(0x26)  // LA
-            emitCodeFixup(dataAddr())
-            emitCodeByte(0x2C) // CW
-            emitCodeWord(maxX)
-            emitCodeByte(0x2C) // CW
-            emitCodeWord(maxY)
-            emitCodeByte(0x54) // CALL
-            emitCodeWord(vec_setScriptInfo)
-            emitCodeByte(0x30) // DROP
-
-            // The table itself goes in the data segment. First comes the X
+            // Now output code for the table. First comes the X
             // and Y origins.
-            emitDataWord(xRange ? xRange[0] : 0)
-            emitDataWord(yRange ? yRange[0] : 0)
+            out << "byte[] triggerTbl = ${xRange ? xRange[0] : 0}, ${yRange ? yRange[0] : 0} // origin X,Y\n"
             
             // Then the Y tables
             triggers.each { y, xs ->
-                emitDataByte(y)
                 def size = 2  // 2 bytes for y+off
-                xs.each { x, funcAddrs ->
-                    size += funcAddrs.size() * 3  // plus 3 bytes per trigger (x, adrlo, adrhi)
+                xs.each { x, funcs ->
+                    size += funcs.size() * 3  // plus 3 bytes per trigger (x, adrlo, adrhi)
                 }
-                emitDataByte(size)
-                xs.each { x, funcAddrs ->
-                    funcAddrs.each { funcAddr ->
-                        emitDataByte(x)
-                        emitDataFixup(funcAddr)
+                out << "byte = $y, $size // Y=$y, size=$size\n"
+                xs.each { x, funcs ->
+                    funcs.each { func ->
+                        out << "  byte = $x; word = @$func // X=$x\n"
                     }
                     // Record a list of trigger locations for the caller's reference
                     locationsWithTriggers << [x, y]
                 }
             }
-            emitDataByte(0xFF) // mark the end end of the trigger table
-            
-            // All done with the init function.
-            finishFunc()
+            out << "byte = \$FF\n\n"
         }
 
-        def packFixups()
+        def makeInit(mapName, scripts, maxX, maxY)
         {
-            def buf = []
-            fixups.each { fromOff, fromType, toOff, toType ->
-                assert fromType == 'bytecode'
-                assert toType   == 'data'
-                toOff += (nScripts+1) * 5
-
+            // Emit the code the user has stored for the init script.
+            scripts.each { script ->
+                if (script.block.size() == 1)
+                    packBlock(getSingle(getSingle(script.block, null, 'procedures_defreturn').statement, 'STACK'))
             }
+            
+            // Code to register the  map name, trigger table, and map extent.
+            def shortName = mapName.replaceAll(/[\s-]*[23][dD][-0-9]*$/, '').take(16)
+            out << "setScriptInfo(\"$shortName\", triggerTbl, $maxX, $maxY)\n"
+
+            // All done with the init function.
+            out << "done\n"
         }
     }
     

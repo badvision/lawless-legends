@@ -94,10 +94,9 @@ byte animFrame
 word animPauseCt
 
 // Game library functions
-predef _setScriptInfo, _pushAuxStr, _scriptDisplayStr, _scriptDisplayStrNL, _getYN
+predef _setScriptInfo, _scriptDisplayStr, _scriptDisplayStrNL, _getYN
 predef _queue_setMap, _setSky, _setGround, _queue_teleport, _setPortrait, _clearPortrait
 predef _moveBackward, _getUpperKey, _clearWindow, _setPortrait
-
 predef _getGlobals, _rand16
 predef _printf1, _printf2, _printf3
 predef _displayf1, _displayf2, _displayf3
@@ -108,11 +107,9 @@ predef _showParty, _mmgr, _setWindow1, _setWindow2, _setWindow3
 predef _reboot, _brk, _encodeDice, _rollDice
 predef _setPlural, _makeEnemy
 
-word gameLib_addrs = @_setScriptInfo, @_pushAuxStr, @_scriptDisplayStr, @_scriptDisplayStrNL, @_getYN
+word gameLib_addrs = @_setScriptInfo, @_scriptDisplayStr, @_scriptDisplayStrNL, @_getYN
 word = @_queue_setMap, @_setSky, @_setGround, @_queue_teleport, @_setPortrait, @_clearPortrait
 word = @_moveBackward, @_getUpperKey, @_clearWindow
-word = 14,15,16,17,18,19
-
 word = @_getGlobals, @_rand16
 word = @_printf1, @_printf2, @_printf3
 word = @_displayf1, @_displayf2, @_displayf3
@@ -235,70 +232,6 @@ asm readAuxByte     // params: ptr; ret: char
         ; And call the routine
         ldy #0
         jmp $10
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-asm _pushAuxStr     // params: none; ret: $200 (inbuf)
-        stx tmp     ; save PLASMA's X reg eval stack index
-        tsx
-        lda $103,x  ; get PLASMA's Y-reg value from its place in the stack
-        tay
-
-        ; Create the following subroutine, used to copy chars from aux to main:
-        ;0010-   8D 03 C0    STA   $C003
-        ;0013-   B1 F4       LDA   ($F4),Y
-        ;0015-   8D 02 C0    STA   $C002
-        ;0018-   60          RTS
-        lda #$8D
-        sta $10
-        sta $15
-        ldx #2
-        stx $16
-        inx
-        stx $11
-        lda #$C0
-        sta $12
-        sta $17
-        lda #$B1
-        sta $13
-        lda #$F4
-        sta $14
-        lda #$60
-        sta $18
-
-        ; Get string length and save it
-        iny             ; advance to next code byte
-        bne +
-        inc $F5         ; next pg if necessary
-        tsx
-        inc $105,x      ; also PLASMA's copy of the page pointer
-+       jsr $10
-        sta $200
-        ldx #0
-        ; Copy entire string
-.lup    cpx $200
-        beq ++
-        iny             ; advance to next code byte
-        bne +
-        inc $F5         ; next pg if necessary
-        stx tmp+1
-        tsx
-        inc $105,x      ; also PLASMA's copy of the page pointer
-        ldx tmp+1
-+       jsr $10         ; now fetch the byte from aux mem
-        inx
-        sta $200,x      ; and stuff it in the string / input buffer
-        bne .lup        ; always taken
-++      tsx
-        tya
-        sta $103,x      ; modify PLASMA's Y reg so it picks up code execution just after the string
-        ldx tmp         ; retrieve PLASMA's eval stack ptr
-        dex             ; make room for ret value
-        lda #0
-        sta evalStkL,x  ; return value lo (<$200)
-        lda #2
-        sta evalStkH,x  ; and hi (>$200)
-        rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

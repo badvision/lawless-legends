@@ -2121,7 +2121,7 @@ class PackPartitions
             def facing = blk.field[3].text().toInteger()
             assert facing >= 0 && facing <= 15
             
-            outIndented("queue_setMap(${mapNum[0] == '2D' ? 0 : 1}, ${mapNum[1]}, $x, $y)\n")
+            outIndented("queue_setMap(${mapNum[0] == '2D' ? 0 : 1}, ${mapNum[1]}, $x, $y, $facing)\n")
         }
         
         def packSetPortrait(blk)
@@ -2204,7 +2204,7 @@ class PackPartitions
             
             // Now output code for the table. First comes the X
             // and Y origins.
-            out << "byte[] triggerTbl = ${xRange ? xRange[0] : 0}, ${yRange ? yRange[0] : 0} // origin X,Y\n"
+            out << "word[] triggerTbl = ${xRange ? xRange[0] : 0}, ${yRange ? yRange[0] : 0} // origin X,Y\n"
             
             // Then the Y tables
             triggers.each { y, xs ->
@@ -2234,7 +2234,7 @@ class PackPartitions
             
             // Code to register the  map name, trigger table, and map extent.
             def shortName = mapName.replaceAll(/[\s-]*[23][dD][-0-9]*$/, '').take(16)
-            out << "setScriptInfo(\"$shortName\", triggerTbl, $maxX, $maxY)\n"
+            out << "setScriptInfo(\"$shortName\", @triggerTbl, $maxX, $maxY)\n"
 
             // All done with the init function.
             out << "done\n"

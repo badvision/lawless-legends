@@ -908,8 +908,9 @@ class PackPartitions
         
         def scriptDir = "build/"
         ScriptModule module = new ScriptModule()
-        module.packScripts(mapName, new File(new File(scriptDir), name+".pla"), mapEl.scripts ? mapEl.scripts[0] : [], 
+        module.packScripts(mapName, new File(new File(scriptDir), name+".pla.new"), mapEl.scripts ? mapEl.scripts[0] : [], 
             totalWidth, totalHeight, xRange, yRange)
+        replaceIfDiff(scriptDir + name + ".pla")
         compileModule(name, scriptDir)
         return [num, module.locationsWithTriggers]
     }
@@ -1702,7 +1703,7 @@ class PackPartitions
         oldFile = new File(oldFile)
         
         def newText = newFile.text
-        def oldText = oldFile.text
+        def oldText = oldFile.exists() ? oldFile.text : ""
         
         if (newText == oldText) {
             //println "Same text, deleting $newFile"
@@ -1792,16 +1793,25 @@ class PackPartitions
         }
         replaceIfDiff("src/plasma/gen_modules.plh")
     }
+
+    def copyIfNewer(fromFile, toFile)
+    {
+        if (!toFile.exists())
+            Files.copy(fromFile.toPath(), toFile.toPath())
+    }
     
     def createImage()
     {
         // Copy the PLASMA VM file to the output directory
-        Files.copy(new File("PLVM02.SYSTEM.sys").toPath(), new File("build/root/PLVM02.SYSTEM.sys").toPath())
+        copyIfNewer(new File("PLVM02.SYSTEM.sys"), new File("build/root/PLVM02.SYSTEM.sys"))
         
         // Copy the memory manager to the output directory
-        Files.copy(new File("src/core/build/cmd.sys#2000").toPath(), new File("build/root/cmd.sys#2000").toPath())
+        copyIfNewer(new File("src/core/build/cmd.sys#2000"), new File("build/root/cmd.sys#2000"))
         
         // Decompress the base image
+        def dst = new File("build/game.2mg")
+        if (dst.exists())
+            dst.delete()
         Files.copy(new GZIPInputStream(new FileInputStream("data/disks/base.2mg.gz")), new File("build/game.2mg").toPath())
         
         // Now put the files into the image
@@ -1842,11 +1852,10 @@ class PackPartitions
         // Go for it.
         def inst = new PackPartitions()
         try {
-            // Blow away everything in the build directory, and recreate it
+            // Create the build directory if necessary
             def buildDir = new File("build")
-            if (buildDir.exists())
-                buildDir.deleteDir()
-            buildDir.mkdirs()
+            if (!buildDir.exists())
+                buildDir.mkdirs()
             
             // Create PLASMA headers
             new PackPartitions().dataGen(xmlFile)

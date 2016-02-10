@@ -1901,6 +1901,7 @@ class PackPartitions
         def locationsWithTriggers = [] as Set
         def scriptNames = [:]
         def indent = 0
+        def variables = [] as Set
 
         def emitString(inStr)
         {
@@ -1952,7 +1953,8 @@ class PackPartitions
             out << "include \"../src/plasma/gamelib.plh\"\n"
             out << "include \"../src/plasma/playtype.plh\"\n"
             out << "include \"../src/plasma/gen_images.plh\"\n\n"
-
+            out << "word global\n\n"
+            
             // Determine which scripts are referenced in the specified section of the map.
             def initScript
             def scripts = []
@@ -1966,7 +1968,7 @@ class PackPartitions
                             (!yRange || trig.@y.toInteger() in yRange) })
                 {
                     scripts << script
-                    scriptNames[script] = "trig_$idx"
+                    scriptNames[script] = (name == null) ? "trig_$idx" : "sc_${humanNameToSymbol(name, false)}"
                 }
             }
               
@@ -1996,7 +1998,7 @@ class PackPartitions
                 }
 
                 // Record the function's name and start its definition
-                out << "def script$scriptNum()\n"
+                out << "def ${scriptNames[script]}()\n"
                 indent = 1
 
                 // Process the code inside it
@@ -2045,7 +2047,7 @@ class PackPartitions
                     case 'graphics_clr_portrait':
                         packClrPortrait(blk); break
                     default:
-                        printWarning "don't know how to pack block of type '${blk.@type}'"
+                        printError "don't know how to pack block of type '${blk.@type}'"
                 }
             }
 
@@ -2187,7 +2189,7 @@ class PackPartitions
         {
             // Emit a predefinition for each function
             scripts.eachWithIndex { script, idx ->
-                out << "predef script$idx\n"
+                out << "predef ${scriptNames[script]}\n"
             }
 
             // Collate all the matching location triggers into a sorted map.
@@ -2206,7 +2208,7 @@ class PackPartitions
                             triggers[y] = [:] as TreeMap
                         if (!triggers[y][x])
                             triggers[y][x] = []
-                        triggers[y][x].add("script$idx")
+                        triggers[y][x].add(scriptNames[script])
                     }
                 }
             }
@@ -2240,6 +2242,9 @@ class PackPartitions
                 if (script.block.size() == 1)
                     packBlock(getSingle(getSingle(script.block, null, 'procedures_defreturn').statement, 'STACK'))
             }
+            
+            // Set up the pointer to global vars
+            out << "global = getGlobals()\n"
             
             // Code to register the  map name, trigger table, and map extent.
             def shortName = mapName.replaceAll(/[\s-]*[23][dD][-0-9]*$/, '').take(16)

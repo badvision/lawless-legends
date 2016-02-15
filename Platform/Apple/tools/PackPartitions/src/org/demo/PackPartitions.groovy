@@ -1401,6 +1401,7 @@ class PackPartitions
         }
             
         println "Compiling ${moduleName}.pla"
+        System.out.flush()
         String[] args = ["plasm", "-AM"]
         new File(codeDir + "build").mkdir()
         runNestedvm(plasma.Plasma.class,  "PLASMA compiler", args, codeDir, 
@@ -1990,7 +1991,7 @@ class PackPartitions
         def packScript(scriptNum, script)
         {
             //println "   Script '$name'"
-            withContext("script $scriptNum") 
+            withContext(scriptNames[script]) 
             {
                 if (script.block.size() == 0) {
                     printWarning("empty script found; skipping.")
@@ -2000,6 +2001,13 @@ class PackPartitions
                 // Record the function's name and start its definition
                 out << "def ${scriptNames[script]}()\n"
                 indent = 1
+                
+                // Need to queue up the script, to find out what variables need
+                // to be declared.
+                def outerOutput = out
+                def buf = new StringWriter()
+                out = new PrintWriter(buf)
+                variables = [] as Set
 
                 // Process the code inside it
                 def proc = script.block[0]
@@ -2012,9 +2020,19 @@ class PackPartitions
                 }
                 else
                     printWarning "empty statement found; skipping."
+                    
+                // Define all the variables that were mentioned
+                out.close()
+                out = outerOutput
+                variables.each { var ->
+                    outIndented("word $var\n")
+                }
+                variables.each { var ->
+                    outIndented("$var = 0\n")
+                }
                 
                 // And complete the function
-                out << "end\n\n"
+                out << buf.toString() + "end\n\n"
             }
         }
 
@@ -2046,6 +2064,8 @@ class PackPartitions
                         packSetPortrait(blk); break
                     case 'graphics_clr_portrait':
                         packClrPortrait(blk); break
+                    case 'variables_set':
+                        packVarSet(blk); break
                     default:
                         printError "don't know how to pack block of type '${blk.@type}'"
                 }
@@ -2089,27 +2109,99 @@ class PackPartitions
             assert blk.value.size() == 0
             outIndented("getUpperKey()\n")
         }
+        
+        def packVarSet(blk)
+        {
+            def name = "v_" + humanNameToSymbol(getSingle(blk.field, 'VAR'), false)
+            variables << name
+            outIndented("$name = ")
+            packExpr(getSingle(getSingle(blk.value).block))
+            out << "\n"
+        }
+        
+        def isStringExpr(blk)
+        {
+            return blk.@type == "text_getstring" || blk.@type == "text"
+        }
+        
+        def packLogicCompare(blk)
+        {
+            def op = getSingle(blk.field, "OP").text()
+            assert blk.value[0].@name == 'A'
+            assert blk.value[1].@name == 'B'
+            def val1 = getSingle(blk.value[0].block)
+            def val2 = getSingle(blk.value[1].block)
+            switch (op) {
+                case 'EQ':
+                    if (isStringExpr(val1) || isStringExpr(val2)) {
+                        out << "strcmpIgnoreCase("
+                        packExpr(val1)
+                        out << ", "
+                        packExpr(val2)
+                        out << ") == 0"
+                    }
+                    else {
+                        packExpr(val1)
+                        out << " == "
+                        packExpr(val2)
+                    }
+                    break
+                default:
+                    assert false : "Compare op '$op' not yet implemented."
+            }
+        }
+        
+        def packVarGet(blk)
+        {
+            def name = "v_" + humanNameToSymbol(getSingle(blk.field, "VAR").text(), false)
+            variables << name
+            out << name
+        }
 
+        def packExpr(blk)
+        {
+            switch (blk.@type) {
+                case 'text_getboolean':
+                    out << "getYN()"
+                    break
+                case 'text_getstring':
+                    out << "getStringResponse()"
+                    break
+                case 'logic_compare':
+                    packLogicCompare(blk)
+                    break
+                case 'variables_get':
+                    packVarGet(blk)
+                    break
+                case 'text':
+                    emitString(getSingle(blk.field, 'TEXT').text())
+                    break
+                default:
+                    assert false : "Expression type '${blk.@type}' not yet implemented."
+            }
+        }
+        
         def packIfStmt(blk)
         {
             if (blk.value.size() == 0) {
                 printWarning "missing condition; skipping."
                 return
             }
-            def cond = getSingle(blk.value, 'IF0')
-            outIndented("if (")
-            def ctype = getSingle(cond.block)
-            switch (ctype.@type) {
-                case 'text_getboolean':
-                    out << "getYN()"
-                    break
-                default:
-                    assert false : "Conditional on ${ctype.@type} not yet implemented."
+            blk.statement.eachWithIndex { stmt, idx ->
+                if (stmt.@name == "ELSE")
+                    outIndented("else\n")
+                else {
+                    assert stmt.@name == "DO$idx"
+                    def val = blk.value[idx]
+                    assert val.@name == "IF$idx"
+                    outIndented("${idx==0 ? 'if' : 'else if'} ")
+                    packExpr(getSingle(val.block))
+                    out << "\n"
+                }
+                ++indent
+                packBlock(getSingle(stmt.block))
+                --indent
             }
-            out << ")\n"
-            ++indent
-            packBlock(getSingle(getSingle(blk.statement).block))
-            --indent
             outIndented("fin\n")
         }
 

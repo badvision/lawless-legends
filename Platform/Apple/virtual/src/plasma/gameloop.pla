@@ -105,7 +105,7 @@ predef _puts, _min, _max
 predef _countList, _countListFiltered, _randomFromListFiltered, _addToList, _beep
 predef _showParty, _mmgr, _setWindow1, _setWindow2, _setWindow3
 predef _reboot, _brk, _encodeDice, _rollDice
-predef _setPlural, _makeEnemy
+predef _setPlural, _makeEnemy, _getStringResponse, _strcmpi
 
 word gameLib_addrs = @_setScriptInfo, @_scriptDisplayStr, @_scriptDisplayStrNL, @_getYN
 word = @_queue_setMap, @_setSky, @_setGround, @_queue_teleport, @_setPortrait, @_clearPortrait
@@ -118,7 +118,7 @@ word = @_puts, @_min, @_max
 word = @_countList, @_countListFiltered, @_randomFromListFiltered, @_addToList, @_beep
 word = @_showParty, @_mmgr, @_setWindow1, @_setWindow2, @_setWindow3
 word = @_reboot, @_brk, @_encodeDice, @_rollDice
-word = @_setPlural, @_makeEnemy
+word = @_setPlural, @_makeEnemy, @_getStringResponse, @_strcmpi
 
 word = 0  // end of library functions
 
@@ -1801,6 +1801,16 @@ def _makeEnemy(name, healthDice, image0, image1, attackType, attackText, attackR
   p=>r_enemyDmg = dmg
   p=>r_groupSize = groupSize
   return p
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def _getStringResponse()
+  fatal("getStringResponse() not yet implemented.")
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def _strcmpi(a, b)
+  fatal("strcmpi() not yet implemented.")
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

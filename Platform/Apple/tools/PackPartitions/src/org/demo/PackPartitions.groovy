@@ -70,6 +70,7 @@ class PackPartitions
     
     def binaryStubsOnly = false
     def cache = [:]
+    def buildDir
     
     /** 
      * Keep track of context within the XML file, so we can spit out more useful
@@ -906,7 +907,8 @@ class PackPartitions
         def name = "mapScript$num"
         //println "Packing scripts for map $mapName, to module $num."
         
-        def scriptDir = "build/"
+        def scriptDir = "build/src/mapScripts/"
+        new File(scriptDir).mkdirs()
         ScriptModule module = new ScriptModule()
         module.packScripts(mapName, new File(new File(scriptDir), name+".pla.new"), mapEl.scripts ? mapEl.scripts[0] : [], 
             totalWidth, totalHeight, xRange, yRange)
@@ -1321,16 +1323,16 @@ class PackPartitions
             codeFile.eachLine { line ->
                 def m = line =~ /^\s*include\s+"([^"]+)"\s*$/
                 if (m)
-                    deps << new File(baseDir, m.group(1))
-                m = line =~ /\s*!source "([^"]+)"\s*$/
+                    deps << jitCopy(new File(baseDir, m.group(1)))
+                m = line =~ /\s*!(source|convtab) "([^"]+)"\s*$/
                 if (m) {
                     if (codeFile ==~ /.*\.pla$/) {
                         // Asm includes inside a plasma file have an extra level of ".."
                         // because they end up getting processed within the "build" dir.
-                        deps << new File(new File(baseDir, "build"), m.group(1)).getCanonicalFile()
+                        deps << jitCopy(new File(new File(baseDir, "build"), m.group(2)).getCanonicalFile())
                     }
                     else
-                        deps << new File(baseDir, m.group(1)).getCanonicalFile()
+                        deps << jitCopy(new File(baseDir, m.group(2)).getCanonicalFile())
                 }
             }
             cache[key] = [hash:hash, deps:deps]
@@ -1343,9 +1345,28 @@ class PackPartitions
         return deps
     }
     
+    def jitCopy(dstFile)
+    {
+        dstFile = dstFile.getCanonicalFile()
+        if (!dstFile.path.startsWith(buildDir.path))
+            return dstFile
+         
+        def partial = dstFile.path.substring(buildDir.path.size()+1)
+        def srcFile = new File(partial).getCanonicalFile()
+        if (!srcFile.exists() || srcFile.lastModified() < dstFile.lastModified())
+            return dstFile
+        
+        if (dstFile.exists())
+            dstFile.delete()
+        else
+            dstFile.getParentFile().mkdirs()
+        Files.copy(srcFile.toPath(), dstFile.toPath())
+        return dstFile
+    }
+
     def getLastDep(codeFile)
     {
-        codeFile = codeFile.getCanonicalFile()
+        codeFile = jitCopy(codeFile)
         def time = codeFile.lastModified()
         getCodeDeps(codeFile).each { dep ->
             time = Math.max(time, getLastDep(dep))
@@ -1392,6 +1413,7 @@ class PackPartitions
         if (binaryStubsOnly)
             return addToCache("modules", modules, moduleName, 1, ByteBuffer.allocate(1))
         
+        codeDir = "build/" + codeDir
         def hash = getLastDep(new File(codeDir + moduleName + ".pla"))
         if (grabFromCache("modules", modules, moduleName, hash) &&
             grabFromCache("bytecodes", bytecodes, moduleName, hash) &&
@@ -1436,6 +1458,8 @@ class PackPartitions
         
     def pack(xmlPath)
     {
+        buildDir = new File("build").getCanonicalFile()
+        
         // Save time by using cache of previous run
         File cacheFile = new File(xmlPath.toString()+".cache")
         if (cacheFile.exists()) {
@@ -1457,7 +1481,7 @@ class PackPartitions
         def xmlLastMod = xmlPath.lastModified()
         
         // Pre-pack the data for each tile
-        println "Packing tiles."
+        println "Packing images."
         dataIn.tile.each { 
             packTile(it) 
         }
@@ -1485,6 +1509,8 @@ class PackPartitions
                 textureImgs << image
             else if (category == "portrait")
                 portraitImgs << image
+            else if (category == "background")
+                null; // pass for now
             else
                 println "Warning: couldn't classify image named '${name}', category '${category}'."            
         }
@@ -1493,19 +1519,10 @@ class PackPartitions
         assert uiFrameImgs.size() == 2 : "Need exactly 2 UI frames, found ${uiFramesImgs.size()} instead."
         
         // Pack each image, which has the side-effect of filling in the image name map.
-        println "Packing title screen."
         titleImgs.each { image -> packFrameImage(image) }
-        
-        println "Packing UI frames."
         uiFrameImgs.each { image -> packFrameImage(image) }
-        
-        println "Packing other frame images."
         fullscreenImgs.each { image -> packFrameImage(image) }
-        
-        println "Packing textures."
         textureImgs.each { image -> packTexture(image) }
-        
-        println "Packing portraits."
         if (!grabEntireFromCache("portraits", portraits, xmlLastMod)) {
             portraitImgs.each { image -> packPortrait(image) }
             addEntireToCache("portraits", portraits, xmlLastMod)
@@ -1951,9 +1968,9 @@ class PackPartitions
         {
             out = new PrintWriter(new FileWriter(outFile))
             out << "// Generated code - DO NOT MODIFY BY HAND\n\n"
-            out << "include \"../src/plasma/gamelib.plh\"\n"
-            out << "include \"../src/plasma/playtype.plh\"\n"
-            out << "include \"../src/plasma/gen_images.plh\"\n\n"
+            out << "include \"../plasma/gamelib.plh\"\n"
+            out << "include \"../plasma/playtype.plh\"\n"
+            out << "include \"../plasma/gen_images.plh\"\n\n"
             out << "word global\n\n"
             
             // Determine which scripts are referenced in the specified section of the map.
@@ -2134,7 +2151,7 @@ class PackPartitions
             switch (op) {
                 case 'EQ':
                     if (isStringExpr(val1) || isStringExpr(val2)) {
-                        out << "strcmpIgnoreCase("
+                        out << "strcmpi("
                         packExpr(val1)
                         out << ", "
                         packExpr(val2)
@@ -2194,7 +2211,7 @@ class PackPartitions
                     assert stmt.@name == "DO$idx"
                     def val = blk.value[idx]
                     assert val.@name == "IF$idx"
-                    outIndented("${idx==0 ? 'if' : 'else if'} ")
+                    outIndented("${idx==0 ? 'if' : 'elsif'} ")
                     packExpr(getSingle(val.block))
                     out << "\n"
                 }

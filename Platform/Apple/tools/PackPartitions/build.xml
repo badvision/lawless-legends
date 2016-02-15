@@ -11,14 +11,20 @@
     <description>Builds, tests, and runs the project PackPartitions.</description>
     <import file="nbproject/build-impl.xml"/>
     <target name="-post-jar">
-	<echo message="Packaging ${application.title} into a single JAR at ${dist.jar}"/>
+        <echo message="Packaging ${application.title} into a single JAR at ${dist.jar}"/>
         <move file="${dist.jar}" tofile="dist/${application.title}-thin.jar"/>
-	<jar jarfile="${dist.jar}">
-	    <zipfileset src="dist/${application.title}-thin.jar" />
-	    <zipgroupfileset dir="dist/lib" includes="*.jar" excludes="META-INF/*"/>
-            <manifest>
-                <attribute name="Main-Class" value="${main.class}"/>
-            </manifest>
+        <jar jarfile="${dist.jar}">
+            <zipfileset src="dist/${application.title}-thin.jar" />
+            <zipgroupfileset dir="dist/lib" includes="*.jar" excludes="META-INF/*"/>
+                <manifest>
+                    <attribute name="Main-Class" value="${main.class}"/>
+                </manifest>
+            <fileset dir="../..">
+                <include name="virtual/src/**/*.pla"/>
+                <include name="virtual/src/**/*.plh"/>
+                <include name="virtual/src/**/*.s"/>
+                <include name="virtual/src/**/*.i"/>
+            </fileset>
         </jar>
     </target>
 </project>

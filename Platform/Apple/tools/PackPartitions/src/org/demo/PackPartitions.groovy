@@ -901,19 +901,26 @@ class PackPartitions
         }
     }
     
+    def makeScriptName(mapName)
+    {
+        // Strip "- 2D" etc from the map name
+        return humanNameToSymbol(mapName.replaceAll(/\s*-\s*[23][dD]\s*/, ""), false)
+    }
+    
     def packScripts(mapEl, mapName, totalWidth, totalHeight, xRange = null, yRange = null)
     {
         def num = modules.size() + 1
-        def name = "mapScript$num"
+        def name = makeScriptName(mapName)
         //println "Packing scripts for map $mapName, to module $num."
         
         def scriptDir = "build/src/mapScripts/"
-        new File(scriptDir).mkdirs()
+        if (!new File(scriptDir).exists())
+            new File(scriptDir).mkdirs()
         ScriptModule module = new ScriptModule()
         module.packScripts(mapName, new File(new File(scriptDir), name+".pla.new"), mapEl.scripts ? mapEl.scripts[0] : [], 
             totalWidth, totalHeight, xRange, yRange)
         replaceIfDiff(scriptDir + name + ".pla")
-        compileModule(name, scriptDir)
+        compileModule(name, scriptDir, false) // false=not verbose
         return [num, module.locationsWithTriggers]
     }
     
@@ -1309,6 +1316,54 @@ class PackPartitions
             throw new Exception("$programName failed with code $result")
     }
     
+    /**
+     * Copy a file, either from the local area (during development) or failing that,
+     * from the jar file resources (for end-users).
+     */
+    def jitCopy(dstFile)
+    {
+        dstFile = dstFile.getCanonicalFile()
+        if (!dstFile.path.startsWith(buildDir.path))
+            return dstFile
+         
+        def partial = dstFile.path.substring(buildDir.path.size()+1)
+        
+        // See if it's in the local directory
+        def srcFile = new File(partial).getCanonicalFile()
+        if (srcFile.exists()) {
+            if (dstFile.exists()) {
+                if (srcFile.lastModified() <= dstFile.lastModified())
+                    return dstFile
+                dstFile.delete()
+            }
+            else
+                dstFile.getParentFile().mkdirs()
+            if (!(srcFile.equals(dstFile)))
+                Files.copy(srcFile.toPath(), dstFile.toPath())
+            return dstFile
+        }
+        
+        // See if it's in the resources of the jar file
+        def res = getClass().getResource("/virtual/" + partial)
+        if (!res)
+            res = getClass().getResource("/" + partial)
+        if (res) {
+            //println "Found resource: $res"
+            def m = res.toString() =~ /^jar:file:(.*)!.*$/
+            assert m
+            srcFile = new File(java.net.URLDecoder.decode(m.group(1), "UTF-8"))
+            if (dstFile.exists()) {
+                if (srcFile.lastModified() <= dstFile.lastModified())
+                    return dstFile
+                dstFile.delete()
+            }
+            else
+                dstFile.getParentFile().mkdirs()
+            Files.copy(res.openStream(), dstFile.toPath())
+        }
+        return dstFile
+    }
+
     def getCodeDeps(codeFile)
     {
         def baseDir = codeFile.getParentFile()
@@ -1345,25 +1400,6 @@ class PackPartitions
         return deps
     }
     
-    def jitCopy(dstFile)
-    {
-        dstFile = dstFile.getCanonicalFile()
-        if (!dstFile.path.startsWith(buildDir.path))
-            return dstFile
-         
-        def partial = dstFile.path.substring(buildDir.path.size()+1)
-        def srcFile = new File(partial).getCanonicalFile()
-        if (!srcFile.exists() || srcFile.lastModified() < dstFile.lastModified())
-            return dstFile
-        
-        if (dstFile.exists())
-            dstFile.delete()
-        else
-            dstFile.getParentFile().mkdirs()
-        Files.copy(srcFile.toPath(), dstFile.toPath())
-        return dstFile
-    }
-
     def getLastDep(codeFile)
     {
         codeFile = jitCopy(codeFile)
@@ -1379,6 +1415,7 @@ class PackPartitions
         if (binaryStubsOnly)
             return addToCache("code", code, codeName, 1, ByteBuffer.allocate(1))
             
+        inDir = "build/" + inDir
         def hash = getLastDep(new File(inDir, codeName + ".s"))
         if (grabFromCache("code", code, codeName, hash))
             return
@@ -1397,6 +1434,7 @@ class PackPartitions
         if (binaryStubsOnly)
             return addToCache("sysCode", sysCode, "mem", 1, ByteBuffer.allocate(1))
         
+        inDir = "build/" + inDir
         def hash = getLastDep(new File(inDir, "mem.s"))
         if (grabFromCache("sysCode", sysCode, "mem", hash))
             return
@@ -1408,7 +1446,7 @@ class PackPartitions
         addToCache("sysCode", sysCode, "mem", hash, readBinary(inDir + "build/cmd.sys#2000"))
     }
     
-    def compileModule(moduleName, codeDir)
+    def compileModule(moduleName, codeDir, verbose = true)
     {
         if (binaryStubsOnly)
             return addToCache("modules", modules, moduleName, 1, ByteBuffer.allocate(1))
@@ -1421,8 +1459,9 @@ class PackPartitions
         {
             return
         }
-            
-        println "Compiling ${moduleName}.pla"
+
+        if (verbose)
+            println "Compiling ${moduleName}.pla"
         System.out.flush()
         String[] args = ["plasm", "-AM"]
         new File(codeDir + "build").mkdir()
@@ -1458,8 +1497,6 @@ class PackPartitions
         
     def pack(xmlPath)
     {
-        buildDir = new File("build").getCanonicalFile()
-        
         // Save time by using cache of previous run
         File cacheFile = new File(xmlPath.toString()+".cache")
         if (cacheFile.exists()) {
@@ -1474,7 +1511,8 @@ class PackPartitions
         readAllCode()
         
         // We have only one font, for now at least.
-        readFont("font", "data/fonts/font.bin")
+        jitCopy(new File("build/data/fonts/font.bin"))
+        readFont("font", "build/data/fonts/font.bin")
         
         // Open the XML data file produced by Outlaw Editor
         def dataIn = new XmlParser().parse(xmlPath)
@@ -1739,7 +1777,8 @@ class PackPartitions
         def dataIn = new XmlParser().parse(xmlPath)
         
         // Translate image names to constants
-        new File("src/plasma/gen_images.plh.new").withWriter { out ->
+        new File("build/src/plasma").mkdirs()
+        new File("build/src/plasma/gen_images.plh.new").withWriter { out ->
             def portraitNum = 0
             dataIn.image.sort{it.@name.toLowerCase()}.each { image ->
                 def category = image.@category?.toLowerCase()
@@ -1760,19 +1799,19 @@ class PackPartitions
                 }
             }
         }
-        replaceIfDiff("src/plasma/gen_images.plh")
+        replaceIfDiff("build/src/plasma/gen_images.plh")
         
         // Translate enemies to code
-        def enemyLines = new File("data/world/enemies.tsv").readLines()
-        new File("src/plasma/gen_enemies.plh.new").withWriter { out ->
+        def enemyLines = jitCopy(new File("build/data/world/enemies.tsv")).readLines()
+        new File("build/src/plasma/gen_enemies.plh.new").withWriter { out ->
             out.println("// Generated code - DO NOT MODIFY BY HAND\n")
             enemyLines[1..-1].eachWithIndex { line, index ->
                 out.println("const CE${humanNameToSymbol(line.split("\t")[0], false)} = ${index*2}")
             }
             out.println("const NUM_ENEMIES = ${enemyLines.size - 1}")
         }
-        replaceIfDiff("src/plasma/gen_enemies.plh")
-        new File("src/plasma/gen_enemies.pla.new").withWriter { out ->
+        replaceIfDiff("build/src/plasma/gen_enemies.plh")
+        new File("build/src/plasma/gen_enemies.pla.new").withWriter { out ->
             out.println("// Generated code - DO NOT MODIFY BY HAND")
             out.println()
             out.println("include \"gamelib.plh\"")
@@ -1795,13 +1834,13 @@ class PackPartitions
             out.println("return @funcTbl")
             out.println("done")
         }
-        replaceIfDiff("src/plasma/gen_enemies.pla")
+        replaceIfDiff("build/src/plasma/gen_enemies.pla")
         
         // Produce a list of assembly and PLASMA code segments
         binaryStubsOnly = true
         readAllCode()
         binaryStubsOnly = false
-        new File("src/plasma/gen_modules.plh.new").withWriter { out ->
+        new File("build/src/plasma/gen_modules.plh.new").withWriter { out ->
             code.each { k, v ->
                 out.println "const CODE_${humanNameToSymbol(k, true)} = ${v.num}"
             }
@@ -1809,7 +1848,7 @@ class PackPartitions
                 out.println "const MODULE_${humanNameToSymbol(k, true)} = ${v.num}"
             }
         }
-        replaceIfDiff("src/plasma/gen_modules.plh")
+        replaceIfDiff("build/src/plasma/gen_modules.plh")
     }
 
     def copyIfNewer(fromFile, toFile)
@@ -1821,16 +1860,17 @@ class PackPartitions
     def createImage()
     {
         // Copy the PLASMA VM file to the output directory
-        copyIfNewer(new File("PLVM02.SYSTEM.sys"), new File("build/root/PLVM02.SYSTEM.sys"))
+        copyIfNewer(jitCopy(new File("build/tools/PLASMA/src/PLVM02.SYSTEM.sys")), new File("build/root/PLVM02.SYSTEM.sys"))
         
         // Copy the memory manager to the output directory
-        copyIfNewer(new File("src/core/build/cmd.sys#2000"), new File("build/root/cmd.sys#2000"))
+        copyIfNewer(new File("build/src/core/build/cmd.sys#2000"), new File("build/root/cmd.sys#2000"))
         
         // Decompress the base image
         def dst = new File("build/game.2mg")
         if (dst.exists())
             dst.delete()
-        Files.copy(new GZIPInputStream(new FileInputStream("data/disks/base.2mg.gz")), new File("build/game.2mg").toPath())
+        Files.copy(new GZIPInputStream(new FileInputStream(jitCopy(new File("build/data/disks/base.2mg.gz")))), 
+            new File("build/game.2mg").toPath())
         
         // Now put the files into the image
         String[] args = ["-put", "build/game.2mg", "/", "build/root"]
@@ -1868,17 +1908,21 @@ class PackPartitions
             errorFile.delete()
             
         // Go for it.
-        def inst = new PackPartitions()
+        def inst
         try {
             // Create the build directory if necessary
-            def buildDir = new File("build")
+            def buildDir = new File("build").getCanonicalFile()
             if (!buildDir.exists())
                 buildDir.mkdirs()
             
             // Create PLASMA headers
-            new PackPartitions().dataGen(xmlFile)
+            inst = new PackPartitions()
+            inst.buildDir = buildDir
+            inst.dataGen(xmlFile)
             
             // Pack everything into a binary file
+            inst = new PackPartitions() // make a new one without stubs
+            inst.buildDir = buildDir
             inst.pack(xmlFile)
 
             // And create the final disk image
@@ -1888,8 +1932,10 @@ class PackPartitions
             errorFile.withWriter { out ->
                 out.println "Packing error: ${t.message}"
                 out.println "       detail: $t"
-                out.println "\nContext:"
-                out.println "    ${inst.getContextStr()}"
+                if (inst) {
+                    out.println "\nContext:"
+                    out.println "    ${inst.getContextStr()}"
+                }
                 out.println "\nGroovy call stack:"
                 t.getStackTrace().each {
                     if (it.toString().contains(".groovy:"))

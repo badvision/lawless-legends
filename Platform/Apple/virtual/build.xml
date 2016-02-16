@@ -25,11 +25,6 @@
   </target>
   
   <target name="build">
-
-    <!-- Create build directory -->
-    <mkdir dir="${build.dir}"/>
-
-    <!-- Pack the game data -->
     <java jar="${pack.dir}/PackPartitions.jar" fork="true" failonerror="true">
       <arg value="data/world/world.xml"/>
     </java>

@@ -1344,11 +1344,10 @@ class PackPartitions
         }
         
         // See if it's in the resources of the jar file
-        def res = getClass().getResource("/virtual/" + partial)
+        def res = getClass().getResource("/virtual/" + partial.replace("\\", "/"))
         if (!res)
-            res = getClass().getResource("/" + partial)
+            res = getClass().getResource("/" + partial.replace("\\", "/"))
         if (res) {
-            //println "Found resource: $res"
             def m = res.toString() =~ /^jar:file:(.*)!.*$/
             assert m
             srcFile = new File(java.net.URLDecoder.decode(m.group(1), "UTF-8"))
@@ -1617,6 +1616,7 @@ class PackPartitions
         ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(newCacheFile));
         out.writeObject(cache);
         out.close()
+        cacheFile.delete() // needed on Windows
         newCacheFile.renameTo(cacheFile)
     }
     
@@ -1767,6 +1767,7 @@ class PackPartitions
         }
         else {
             //println "Changed text, renaming $newFile to $oldFile"
+            oldFile.delete() // needed on Windows
             newFile.renameTo(oldFile)
         }
     }
@@ -1775,6 +1776,12 @@ class PackPartitions
     {
         // Open the XML data file produced by Outlaw Editor
         def dataIn = new XmlParser().parse(xmlPath)
+
+        // When generating code, we need to use Unix linebreaks since that's what
+        // the PLASMA compiler expects to see.
+        def oldSep = System.getProperty("line.separator")
+        assert oldSep != "\n"
+        System.setProperty("line.separator", "\n")
         
         // Translate image names to constants
         new File("build/src/plasma").mkdirs()
@@ -1849,6 +1856,9 @@ class PackPartitions
             }
         }
         replaceIfDiff("build/src/plasma/gen_modules.plh")
+        
+        // Put back the default line separator
+        System.setProperty("line.separator", oldSep)        
     }
 
     def copyIfNewer(fromFile, toFile)

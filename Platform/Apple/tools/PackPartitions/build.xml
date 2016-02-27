@@ -25,9 +25,7 @@
                 <include name="virtual/src/**/*.s"/>
                 <include name="virtual/src/**/*.i"/>
                 <include name="virtual/src/**/*.ct"/>
-                <include name="virtual/data/fonts/*.bin"/>
                 <include name="virtual/data/disks/*.gz"/>
-                <include name="virtual/data/world/*.tsv"/>
                 <include name="tools/PLASMA/src/PLVM02.SYSTEM.sys"/>
             </fileset>
         </jar>

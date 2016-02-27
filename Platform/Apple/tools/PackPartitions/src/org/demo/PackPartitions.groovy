@@ -1330,6 +1330,8 @@ class PackPartitions
         
         // See if it's in the local directory
         def srcFile = new File(partial).getCanonicalFile()
+        if (!srcFile.exists())
+            srcFile = new File(srcFile.getName()) // try current directory
         if (srcFile.exists()) {
             if (dstFile.exists()) {
                 if (srcFile.lastModified() <= dstFile.lastModified())
@@ -1780,7 +1782,6 @@ class PackPartitions
         // When generating code, we need to use Unix linebreaks since that's what
         // the PLASMA compiler expects to see.
         def oldSep = System.getProperty("line.separator")
-        assert oldSep != "\n"
         System.setProperty("line.separator", "\n")
         
         // Translate image names to constants
@@ -1906,11 +1907,12 @@ class PackPartitions
         }
         
         // Check the arguments
-        if (args.size() != 1) {
-            println "Usage: packPartitions yourOutlawFile.xml"
+        if (args.size() > 1) {
+            println "Usage: java -jar packPartitions.jar [path/to/world.xml]"
+            println "If no path supplied, assumes world.xml in current directory."
             System.exit(1);
         }
-        def xmlFile = new File(args[0])
+        def xmlFile = new File(args.size() == 1 ? args[0] : "world.xml")
 
         // If there's an existing error file, remote it.
         def errorFile = new File("pack_error.txt")

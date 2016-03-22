@@ -465,7 +465,7 @@ asm hashString
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Print a string
+// Print a string to the current character output vector
 asm _puts
         +asmPlasm 1
         sta pTmp
@@ -642,9 +642,7 @@ end
 // Set up the font engine
 // Params: pFont
 asm setFont
-  +asmPlasm 1
-  bit setLcRW+lcBank2
-  bit setLcRW+lcBank2
+  +asmPlasm_bank2 1
   jmp SetFont
 end
 
@@ -652,37 +650,37 @@ end
 // Use the font engine to clear the current text window.
 // Parameters: top, bottom, left, right
 asm setWindow
-  +asmPlasm 4
-  bit setLcRW+lcBank2
-  bit setLcRW+lcBank2
+  +asmPlasm_bank2 4
   jmp SetWindow
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Save the cursor position (1 save slot)
 asm saveCursor
-  +asmPlasm 0
-  bit setLcRW+lcBank2
-  bit setLcRW+lcBank2
+  +asmPlasm_bank2 0
   jmp SaveCursor
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Restore the cursor position (1 save slot)
 asm restoreCursor
-  +asmPlasm 0
-  bit setLcRW+lcBank2
-  bit setLcRW+lcBank2
+  +asmPlasm_bank2 0
   jmp RestCursor
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Read a keyboard string up to 40 chars using the Font Engine. Returns a zero-terminated string
+// in the input buffer at $200, with the length stored in $2FF.
+asm rawGetStr
+  +asmPlasm_bank2 0
+  jmp GetStr
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Use the font engine to clear the current text window
 // Params: None
 asm _clearWindow
-  +asmPlasm 0
-  bit setLcRW+lcBank2
-  bit setLcRW+lcBank2
+  +asmPlasm_bank2 0
   jmp ClearWindow
 end
 
@@ -690,9 +688,7 @@ end
 // Use the font engine to copy the current text window to hi-res page 2
 // Params: None
 asm copyWindow
-  +asmPlasm 0
-  bit setLcRW+lcBank2
-  bit setLcRW+lcBank2
+  +asmPlasm_bank2 0
   jmp CopyWindow
 end
 
@@ -700,9 +696,7 @@ end
 // Display a character using the font engine.
 // Params: ch
 asm displayChar
-  +asmPlasm 1
-  bit setLcRW+lcBank2
-  bit setLcRW+lcBank2
+  +asmPlasm_bank2 1
   jmp DisplayChar
 end
 
@@ -710,9 +704,7 @@ end
 // Display a string using the font engine.
 // Params: pStr
 asm _displayStr
-  +asmPlasm 1
-  bit setLcRW+lcBank2
-  bit setLcRW+lcBank2
+  +asmPlasm_bank2 1
   jmp DisplayStr
 end
 
@@ -720,9 +712,7 @@ end
 // Calculate string width using the font engine.
 // Params: pStr
 asm calcWidth
-  +asmPlasm 1
-  bit setLcRW+lcBank2
-  bit setLcRW+lcBank2
+  +asmPlasm_bank2 1
   jmp CalcWidth
 end
 
@@ -730,9 +720,7 @@ end
 // Display a string using the font engine but not its parser.
 // Params: pStr
 asm _rawDisplayStr
-  +asmPlasm 1
-  bit setLcRW+lcBank2
-  bit setLcRW+lcBank2
+  +asmPlasm_bank2 1
   sta pTmp
   sty pTmp+1
   ldy #0
@@ -827,6 +815,19 @@ def _min(a, b)
   else
     return b
   fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Read a string from the keyboard using the font manager, and intern it to the heap.
+def _getStringResponse()
+  word p
+  rawGetStr()
+  rawDisplayStr("\n") // so Outlaw user doesn't have to remember to make a newline
+  for p = ($1FF + ^$2FF) downto $200
+    p->1 = (^p & $7F)
+  next
+  ^$200 = ^$2FF
+  return mmgr(HEAP_INTERN, $200)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -932,6 +933,15 @@ def parseDecWithDefault(str, default)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Convert a lower-case character to upper-case (or return unchanged if it's not lower-case)
+def charToUpper(c)
+  if c >= 'a' and c <= 'z'
+    return c - $20
+  fin
+  return c
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Get a keystroke and convert it to upper case
 def _getUpperKey()
   byte key
@@ -947,11 +957,7 @@ def _getUpperKey()
   loop
   key = ^kbd
   ^kbdStrobe
-  key = key & $7F
-  if key >= $60
-    key = key - $20
-  fin
-  return key
+  return charToUpper(key & $7F)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1804,13 +1810,19 @@ def _makeEnemy(name, healthDice, image0, image1, attackType, attackText, attackR
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _getStringResponse()
-  fatal("getStringResponse() not yet implemented.")
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 def _strcmpi(a, b)
-  fatal("strcmpi() not yet implemented.")
+  word limit, lenDiff, diff
+  lenDiff = ^a - ^b
+  limit = a + min(^a, ^b)
+  while a < limit
+    a++
+    b++
+    diff = charToUpper(^a) - charToUpper(^b)
+    if diff <> 0
+      return diff
+    fin
+  loop
+  return lenDiff
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

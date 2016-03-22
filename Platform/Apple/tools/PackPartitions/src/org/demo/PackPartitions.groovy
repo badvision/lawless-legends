@@ -1864,8 +1864,10 @@ class PackPartitions
 
     def copyIfNewer(fromFile, toFile)
     {
-        if (!toFile.exists())
+        if (!toFile.exists() || fromFile.lastModified() > toFile.lastModified()) {
+            toFile.delete()
             Files.copy(fromFile.toPath(), toFile.toPath())
+        }
     }
     
     def createImage()

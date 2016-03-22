@@ -23,3 +23,4 @@ DisplayStr	= DisplayChar+3
 CalcWidth	= DisplayStr+3
 SaveCursor	= CalcWidth+3
 RestCursor	= SaveCursor+3
+GetStr          = RestCursor+3

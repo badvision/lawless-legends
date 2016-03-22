@@ -102,6 +102,11 @@ SaveCursor	JMP SvCurs
 ;Restore the cursor position
 RestCursor	JMP RsCurs
 
+;To get a string of text up to 40 chars long using a
+;flashing cursor use GetStr. It allows use of either
+;left arrow or delete key to backspace.
+GetStr		JMP In_Str
+
 ;If you know which of the {0..110} bitmapped characters
 ;you want plotted, you can bypass testing for control 
 ;codes, making this a faster way to plot.
@@ -116,11 +121,6 @@ PlotBmp		JMP PlotFnt	;API call address
 GetYN_Flg	!byte $00	;flag: force Y/N input
 CursIcn		!byte 103 	;cursor icon 103=cactus
 GetAsc		JMP Get_Chr	;API call address
-
-;To get a string of text up to 40 chars long using a
-;flashing cursor use GetStr. It allows use of either
-;left arrow or delete key to backspace.
-GetStr		JMP In_Str
 
 Font0		!word 0		;address of font
 CharRate	!byte 0		;plot rate {0..FF} 0=fastest

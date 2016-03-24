@@ -917,7 +917,8 @@ class PackPartitions
         if (!new File(scriptDir).exists())
             new File(scriptDir).mkdirs()
         ScriptModule module = new ScriptModule()
-        module.packScripts(mapName, new File(new File(scriptDir), name+".pla.new"), mapEl.scripts ? mapEl.scripts[0] : [], 
+        module.packMapScripts(mapName, new File(new File(scriptDir), name+".pla.new"), 
+            mapEl.scripts ? mapEl.scripts[0] : [], 
             totalWidth, totalHeight, xRange, yRange)
         replaceIfDiff(scriptDir + name + ".pla")
         compileModule(name, scriptDir, false) // false=not verbose
@@ -1377,10 +1378,10 @@ class PackPartitions
             deps = cache[key].deps
         else {
             codeFile.eachLine { line ->
-                def m = line =~ /^\s*include\s+"([^"]+)"\s*$/
+                def m = line =~ /^\s*include\s+"([^"]+)"/
                 if (m)
                     deps << jitCopy(new File(baseDir, m.group(1)))
-                m = line =~ /\s*!(source|convtab) "([^"]+)"\s*$/
+                m = line =~ /^\s*!(source|convtab) "([^"]+)"/
                 if (m) {
                     if (codeFile ==~ /.*\.pla$/) {
                         // Asm includes inside a plasma file have an extra level of ".."
@@ -1491,9 +1492,35 @@ class PackPartitions
         assembleCode("tileEngine", "src/tile/")
 
         compileModule("gameloop", "src/plasma/")
+        compileModule("gen_globalScripts", "src/plasma/")
         compileModule("globalScripts", "src/plasma/")
         compileModule("combat", "src/plasma/")
         compileModule("gen_enemies", "src/plasma/")
+    }
+    
+    /**
+     * Number all the maps and record them with names
+     */
+    def numberMaps(dataIn)
+    {
+        def num2D = 0
+        def num3D = 0
+        dataIn.map.each { map ->
+            def name = map?.@name
+            def shortName = name.replaceAll(/[\s-]*[23]D$/, '')
+            if (map?.@name =~ /\s*2D$/) {
+                ++num2D
+                mapNames[name] = ['2D', num2D]
+                mapNames[shortName] = ['2D', num2D]
+            }
+            else if (map?.@name =~ /\s*3D$/) {
+                ++num3D
+                mapNames[name] = ['3D', num3D]
+                mapNames[shortName] = ['3D', num3D]
+            }
+            else
+                printWarning "map name '${map?.@name}' should contain '2D' or '3D'. Skipping."
+        }
     }
         
     def pack(xmlPath)
@@ -1568,24 +1595,7 @@ class PackPartitions
         }
         
         // Number all the maps and record them with names
-        def num2D = 0
-        def num3D = 0
-        dataIn.map.each { map ->
-            def name = map?.@name
-            def shortName = name.replaceAll(/[\s-]*[23]D$/, '')
-            if (map?.@name =~ /\s*2D$/) {
-                ++num2D
-                mapNames[name] = ['2D', num2D]
-                mapNames[shortName] = ['2D', num2D]
-            }
-            else if (map?.@name =~ /\s*3D$/) {
-                ++num3D
-                mapNames[name] = ['3D', num3D]
-                mapNames[shortName] = ['3D', num3D]
-            }
-            else
-                printWarning "map name '${map?.@name}' should contain '2D' or '3D'. Skipping."
-        }
+        numberMaps(dataIn)
             
         // Pack each map This uses the image and tile maps filled earlier.
         println "Packing maps."
@@ -1809,6 +1819,17 @@ class PackPartitions
         }
         replaceIfDiff("build/src/plasma/gen_images.plh")
         
+        // Before we can generate global script code, we need to identify and number
+        // all the maps.
+        numberMaps(dataIn)
+        
+        // Translate global scripts to code
+        def gsmod = new ScriptModule()
+        gsmod.genScriptDefs(new File("build/src/plasma/gen_globalScripts.plh.new"), dataIn.global.scripts)
+        replaceIfDiff("build/src/plasma/gen_globalScripts.plh")
+        gsmod.packGlobalScripts(new File("build/src/plasma/gen_globalScripts.pla.new"), dataIn.global.scripts)
+        replaceIfDiff("build/src/plasma/gen_globalScripts.pla")
+        
         // Translate enemies to code
         def enemyLines = jitCopy(new File("build/data/world/enemies.tsv")).readLines()
         new File("build/src/plasma/gen_enemies.plh.new").withWriter { out ->
@@ -2019,19 +2040,76 @@ class PackPartitions
             assert blk.field[0].@name == "NAME"
             return blk.field[0].text()
         }
-        
-        /**
-         * Pack scripts from a map. Either the whole map, or optionally just an X and Y
-         * bounded section of it.
-         */
-        def packScripts(mapName, outFile, inScripts, maxX, maxY, xRange = null, yRange = null)
+
+        def startScriptFile(outFile)
         {
             out = new PrintWriter(new FileWriter(outFile))
             out << "// Generated code - DO NOT MODIFY BY HAND\n\n"
             out << "include \"../plasma/gamelib.plh\"\n"
             out << "include \"../plasma/playtype.plh\"\n"
             out << "include \"../plasma/gen_images.plh\"\n\n"
-            out << "word global\n\n"
+            out << "word global\n\n"            
+        }
+        
+        /**
+         * Generate header for a set of scripts.
+         */
+        def genScriptDefs(outFile, inScripts)
+        {
+            out = new PrintWriter(new FileWriter(outFile))
+            out << "// Generated code - DO NOT MODIFY BY HAND\n\n"
+            
+            // Generate a name for each script, and a constant in the function table.
+            inScripts.script.eachWithIndex { script, idx ->
+                def name = getScriptName(script)
+                assert name
+                scriptNames[script] = "sc_${humanNameToSymbol(name, false)}"
+                out << "const ${scriptNames[script]} = ${idx*2}\n"
+            }
+            out.close()
+        }
+
+        /**
+         * Pack a set of scripts that are not associated with any particular map.
+         */
+        def packGlobalScripts(outFile, inScripts)
+        {
+            startScriptFile(outFile)
+            
+            // Pre-define each function
+            inScripts.script.each { script ->
+                out << "predef ${scriptNames[script]}\n"
+            }
+            out << "\n"
+            
+            // Make a table of all the functions
+            inScripts.script.eachWithIndex { script, idx ->
+                if (idx == 0)
+                    out << "word[] funcTbl = @${scriptNames[script]}\n"
+                else
+                    out << "word           = @${scriptNames[script]}\n"
+            }
+            out << "\n"
+                
+            // Generate the actual script code
+            inScripts.script.each { script ->
+                packScript(script) 
+            }
+            
+            // Set up the pointer to global vars and finish up the module.
+            out << "global = getGlobals()\n"
+            out << "return @funcTbl\n"
+            out << "done\n"
+            out.close()
+        }
+
+        /**
+         * Pack scripts from a map. Either the whole map, or optionally just an X and Y
+         * bounded section of it.
+         */
+        def packMapScripts(mapName, outFile, inScripts, maxX, maxY, xRange = null, yRange = null)
+        {
+            startScriptFile(outFile)
             
             // Determine which scripts are referenced in the specified section of the map.
             def initScript
@@ -2053,8 +2131,8 @@ class PackPartitions
             // Even if there were no scripts, we still need an init to display
             // the map name.
             makeTriggerTbl(scripts, xRange, yRange)
-            scripts.eachWithIndex { script, idx ->
-                packScript(idx, script) 
+            scripts.each { script ->
+                packScript(script) 
             }
             makeInit(mapName, initScript, maxX, maxY)
             
@@ -2065,7 +2143,7 @@ class PackPartitions
             out << ("  " * indent) << str
         }
 
-        def packScript(scriptNum, script)
+        def packScript(script)
         {
             //println "   Script '$name'"
             withContext(scriptNames[script]) 

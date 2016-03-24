@@ -38,7 +38,8 @@ include "playtype.plh"
 include "gen_images.plh"
 include "gen_modules.plh"
 include "gen_enemies.plh"
-include "globalScripts.plh"
+include "globalScripts.plh"      // old-style
+include "gen_globalScripts.plh"  // new-style
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Data structures
@@ -52,8 +53,8 @@ predef setWindow2, initCmds, nextAnimFrame
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Global variables
-byte mapNum
-byte mapIs3D
+byte mapNum = -1
+byte mapIs3D = -1
 word mapNameHash = 0
 word totalMapWidth
 word totalMapHeight
@@ -74,11 +75,11 @@ word cmdTbl[64]
 byte frameLoaded = 0
 
 // Queue setMap / teleport, since otherwise script might be replaced while executing
-byte q_mapIs3D
-byte q_mapNum = 0
-word q_x
-word q_y
-byte q_dir
+byte q_mapIs3D = 0
+byte q_mapNum = 1
+word q_x = 0
+word q_y = 0
+byte q_dir = 0
 
 // For decimal conversion and display tabbing
 byte decimalBuf[7]
@@ -1998,11 +1999,23 @@ end
 // Create the party
 def initParty()
   word globalScripts
+
+  // Old-style
   globalScripts = mmgr(QUEUE_LOAD, MODULE_GLOBAL_SCRIPTS<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 1) // 1 = keep open
   addToList(@global=>p_players, globalScripts()=>script_new_Player_Hue_Hauser())
   addToList(@global=>p_players, globalScripts()=>script_new_Player_Mokahnu())
   mmgr(FREE_MEMORY, globalScripts)
+
+  // New-style
+  globalScripts = mmgr(QUEUE_LOAD, MODULE_GEN_GLOBAL_SCRIPTS<<8 | RES_TYPE_MODULE)
+  mmgr(FINISH_LOAD, 1) // 1 = keep open
+  globalScripts()=>sc_newGame()
+  mmgr(FREE_MEMORY, globalScripts)
+  mapIs3D = q_mapIs3D
+  mapNum = q_mapNum
+  q_mapNum = 0
+  initMap(q_x, q_y, q_dir)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2010,12 +2023,8 @@ end
 //
 setLibVecs()
 initHeap()
-initParty()
 loadTitle()
-// Start map/loc per Seth. Need to have this in a script in the future()
-mapIs3D = 0
-mapNum = 1
-initMap(6, 123, 12)
+initParty()
 kbdLoop()
 
 done

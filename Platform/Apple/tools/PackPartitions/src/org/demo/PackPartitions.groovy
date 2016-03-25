@@ -1526,7 +1526,7 @@ class PackPartitions
     def pack(xmlPath)
     {
         // Save time by using cache of previous run
-        File cacheFile = new File(xmlPath.toString()+".cache")
+        File cacheFile = new File("build/world.cache")
         if (cacheFile.exists()) {
             ObjectInputStream out = new ObjectInputStream(new FileInputStream(cacheFile));
             cache = out.readObject();
@@ -1624,7 +1624,7 @@ class PackPartitions
         }
         
         // Write a new cache file
-        File newCacheFile = new File(xmlPath.toString()+".cache.new")
+        File newCacheFile = new File("build/world.cache.new")
         ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(newCacheFile));
         out.writeObject(cache);
         out.close()
@@ -1900,14 +1900,13 @@ class PackPartitions
         copyIfNewer(new File("build/src/core/build/cmd.sys#2000"), new File("build/root/cmd.sys#2000"))
         
         // Decompress the base image
-        def dst = new File("build/game.2mg")
+        def dst = new File("game.2mg")
         if (dst.exists())
             dst.delete()
-        Files.copy(new GZIPInputStream(new FileInputStream(jitCopy(new File("build/data/disks/base.2mg.gz")))), 
-            new File("build/game.2mg").toPath())
+        Files.copy(new GZIPInputStream(new FileInputStream(jitCopy(new File("build/data/disks/base.2mg.gz")))), dst.toPath())
         
         // Now put the files into the image
-        String[] args = ["-put", "build/game.2mg", "/", "build/root"]
+        String[] args = ["-put", "game.2mg", "/", "build/root"]
         new a2copy.A2Copy().main(args)
     }
     
@@ -1937,10 +1936,16 @@ class PackPartitions
         }
         def xmlFile = new File(args.size() == 1 ? args[0] : "world.xml")
 
-        // If there's an existing error file, remote it.
+        // If there's an existing error file, remove it first, so user doesn't
+        // get confused by an old file.
         def errorFile = new File("pack_error.txt")
         if (errorFile.exists())
             errorFile.delete()
+            
+        // Also remove existing game image if any, for the same reason.
+        def gameFile = new File("game.2mg")
+        if (gameFile.exists())
+            gameFile.delete()
             
         // Go for it.
         def inst

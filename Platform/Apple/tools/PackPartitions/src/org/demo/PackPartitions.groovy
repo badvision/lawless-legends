@@ -921,7 +921,7 @@ class PackPartitions
             mapEl.scripts ? mapEl.scripts[0] : [], 
             totalWidth, totalHeight, xRange, yRange)
         replaceIfDiff(scriptDir + name + ".pla")
-        compileModule(name, scriptDir, false) // false=not verbose
+        compileModule(name, "src/mapScripts/", false) // false=not verbose
         return [num, module.locationsWithTriggers]
     }
     
@@ -1291,8 +1291,10 @@ class PackPartitions
     {
         def prevStdin = System.in
         def prevStdout = System.out
+        def prevStderr = System.err
         def prevUserDir = System.getProperty("user.dir")
         def result
+        def errBuf = new ByteArrayOutputStream()
         try 
         {
             System.setProperty("user.dir", new File(inDir).getAbsolutePath())
@@ -1301,6 +1303,7 @@ class PackPartitions
                     System.in = inStream
                     outFile.withOutputStream { outStream ->
                         System.out = new PrintStream(outStream)
+                        System.err = new PrintStream(errBuf)
                         result = programClass.newInstance().run(args)
                     }
                 }
@@ -1311,10 +1314,15 @@ class PackPartitions
         } finally {
             System.in = prevStdin
             System.out = prevStdout
+            System.err = prevStderr
             System.setProperty("user.dir", prevUserDir)
         }
-        if (result != 0)
-            throw new Exception("$programName failed with code $result")
+        if (result != 0) {
+            def errStr = errBuf.toString("UTF-8")
+            if (errStr.length() > 0)
+                errStr = "\nError output:\n" + errStr + "-----\n"
+            throw new Exception("$programName (cd $inDir && ${args.join(' ')}) < $inFile > $outFile failed with code $result." + errStr)
+        }
     }
     
     /**

@@ -1206,7 +1206,7 @@ def checkEncounter(x, y)
     p = p=>p_nextObj
   loop
 
-  // Roll for an encounter in the zone. If none, get out early.
+  // Roll for an encounter in the zone.
   d = rand16() % 1000
   if p_bestZone and d < p_bestZone=>w_encChance
     // Encounter!
@@ -1300,12 +1300,15 @@ def moveForward()
   fin
 
   // If there are script(s) on the new tile, run them.
-  getPos(@x, @y)
   if val == 3
-    if (!checkScripts(x, y))
-      checkEncounter(x, y)
+    getPos(@x, @y)
+    if !checkScripts(x, y)
+      if global=>p_encounterZones
+        checkEncounter(x, y)
+      fin
     fin
-  else
+  elsif global=>p_encounterZones
+    getPos(@x, @y)
     checkEncounter(x, y)
   fin
 end

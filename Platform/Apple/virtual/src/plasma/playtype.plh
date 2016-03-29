@@ -17,6 +17,7 @@ struc Global
   word p_players
   word p_enemyGroups
   word p_combatFirst
+  word p_encounterZones
 
   // Map position
   byte b_mapIs3D
@@ -170,6 +171,7 @@ struc Enemy
   byte b_chanceToHit
   word r_enemyDmg     // 3 hex digits: num dice, die size, add. E.g. $361 = 3d6+1
   word r_groupSize    // number encountered, as 3 hex digits for dice
+  word s_enemyCode
 end
 
 const TYPE_ENEMY_GROUP = $89
@@ -178,6 +180,17 @@ struc EnemyGroup
   word p_nextObj
   word p_enemies
   byte b_enemyGroupRange
+end
+
+const TYPE_ENCOUNTER_ZONE = $8A
+struc EncounterZone
+  byte t_type
+  word p_nextObj
+  word s_name   // enemy code
+  word w_encX
+  word w_encY
+  word w_encMaxDist
+  word w_encChance
 end
 
 // Weapon kinds

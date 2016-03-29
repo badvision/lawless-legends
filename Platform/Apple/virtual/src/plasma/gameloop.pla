@@ -106,7 +106,7 @@ predef _puts, _min, _max
 predef _countList, _countListFiltered, _randomFromListFiltered, _addToList, _beep
 predef _showParty, _mmgr, _setWindow1, _setWindow2, _setWindow3
 predef _reboot, _brk, _encodeDice, _rollDice
-predef _setPlural, _makeEnemy, _getStringResponse, _strcmpi
+predef _setPlural, _makeEnemy, _getStringResponse, _strcmpi, _addEncounterZone
 
 word gameLib_addrs = @_setScriptInfo, @_scriptDisplayStr, @_scriptDisplayStrNL, @_getYN
 word = @_queue_setMap, @_setSky, @_setGround, @_queue_teleport, @_setPortrait, @_clearPortrait
@@ -119,7 +119,7 @@ word = @_puts, @_min, @_max
 word = @_countList, @_countListFiltered, @_randomFromListFiltered, @_addToList, @_beep
 word = @_showParty, @_mmgr, @_setWindow1, @_setWindow2, @_setWindow3
 word = @_reboot, @_brk, @_encodeDice, @_rollDice
-word = @_setPlural, @_makeEnemy, @_getStringResponse, @_strcmpi
+word = @_setPlural, @_makeEnemy, @_getStringResponse, @_strcmpi, @_addEncounterZone
 
 word = 0  // end of library functions
 
@@ -819,6 +819,16 @@ def _min(a, b)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Return the absolute value of a number
+def abs(n)
+  if n < 0
+    return -n
+  else
+    return n
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Read a string from the keyboard using the font manager, and intern it to the heap.
 def _getStringResponse()
   word p
@@ -1161,6 +1171,10 @@ def initMap(x, y, dir)
   loadFrameImg()
   mmgr(FINISH_LOAD, 1) // 1 = keep open
 
+  // Clear the list of encounter zones
+  global=>p_encounterZones = NULL
+  printf1("Cleared zones: $%x\n", global=>p_encounterZones)
+
   // Start up the display engine with map data and starting position. This will also load and
   // init the script module, if any, which will end up calling us back at the setScriptInfo
   triggerTbl = NULL
@@ -1173,23 +1187,53 @@ def initMap(x, y, dir)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Check for script(s) attached to the current location, and call them if there are any.
-def checkScripts()
-  word x
-  word y
+// Check for a random encounter at this position
+def checkEncounter(x, y)
+  word p
+  word p_bestZone, bestDist
+  word d
+
+  // Find the zone that's closest, but not too far.
+  bestDist = INT_MAX
+  p_bestZone = NULL
+  p = global=>p_encounterZones
+  while p
+    d = min(abs(x - p=>w_encX), abs(y - p=>w_encY))
+    if d < bestDist and (p=>w_encMaxDist == 0 or d < p=>w_encMaxDist))
+      p_bestZone = p
+      bestDist = d
+    fin
+    p = p=>p_nextObj
+  loop
+
+  // Roll for an encounter in the zone. If none, get out early.
+  d = rand16() % 1000
+  if p_bestZone and d < p_bestZone=>w_encChance
+    // Encounter!
+    setWindow2()
+    clearWindow()
+    displayf1("Encounter! %s\n", p_bestZone=>s_name)
+    getYN()
+    clearWindow()
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Check for script(s) attached to the given location, and call them if there are any.
+// Returns TRUE if any were triggered.
+def checkScripts(x, y)
   word p
   word pNext
   word script
+  byte anyTriggered
 
-  if !triggerTbl; return; fin
-  setWindow2()
-  getPos(@x, @y)
+  anyTriggered = FALSE
   x = x - triggerOriginX
   y = y - triggerOriginY
   p = triggerTbl
-  while TRUE
+  while p
     if ^p == $FF
-      return
+      break
     fin
     pNext = p + p->1
     if ^p == y
@@ -1197,13 +1241,17 @@ def checkScripts()
       while p < pNext
         if x == ^p
           script = p=>1
+          setWindow2()
           script()
+          anyTriggered = TRUE
         fin
         p = p + 3
       loop
     fin
     p = pNext
   loop
+  printf1("anyTriggered=%d\n", anyTriggered)
+  return anyTriggered
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1232,6 +1280,7 @@ end
 // Advance one step forward (3D maps only)
 def moveForward()
   byte val
+  word x, y
   val = advance()
 
   // If not blocked, render at the new position.
@@ -1251,8 +1300,13 @@ def moveForward()
   fin
 
   // If there are script(s) on the new tile, run them.
+  getPos(@x, @y)
   if val == 3
-    checkScripts()
+    if (!checkScripts(x, y))
+      checkEncounter(x, y)
+    fin
+  else
+    checkEncounter(x, y)
   fin
 end
 
@@ -1792,7 +1846,7 @@ def restoreMapPos()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _makeEnemy(name, healthDice, image0, image1, attackType, attackText, attackRange, chanceToHit, dmg, groupSize)
+def _makeEnemy(name, healthDice, image0, image1, attackType, attackText, attackRange, chanceToHit, dmg, groupSize, code)
   word p; p = mmgr(HEAP_ALLOC, TYPE_ENEMY)
   p=>s_name = mmgr(HEAP_INTERN, name)
   p=>w_health = rollDice(healthDice) // 4d6
@@ -1807,7 +1861,20 @@ def _makeEnemy(name, healthDice, image0, image1, attackType, attackText, attackR
   p->b_chanceToHit = chanceToHit
   p=>r_enemyDmg = dmg
   p=>r_groupSize = groupSize
+  p=>s_enemyCode = mmgr(HEAP_INTERN, code)
   return p
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def _addEncounterZone(code, x, y, dist, chance)
+  word p; p = mmgr(HEAP_ALLOC, TYPE_ENCOUNTER_ZONE)
+  p=>s_name = mmgr(HEAP_INTERN, code)
+  p=>w_encX = x
+  p=>w_encY = y
+  p=>w_encMaxDist = dist
+  p=>w_encChance = chance
+  addToList(@global=>p_encounterZones, p)
+  printf1("Added zone: $%x\n", global=>p_encounterZones)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

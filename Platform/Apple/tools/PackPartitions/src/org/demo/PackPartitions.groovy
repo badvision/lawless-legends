@@ -883,8 +883,10 @@ class PackPartitions
         def name = mapEl.@name ?: "map$num"
         def num = mapNames[name][1]
         //println "Packing 2D map #$num named '$name'."
-        def rows = parseMap(mapEl, tileEls)
-        write2DMap(name, mapEl, rows)
+        withContext("map '$name'") {
+            def rows = parseMap(mapEl, tileEls)
+            write2DMap(name, mapEl, rows)
+        }
     }
     
     def pack3DMap(mapEl, tileEls)
@@ -1769,7 +1771,8 @@ class PackPartitions
                     "${range.replace("'", "").toInteger()}, " +
                     "${chanceToHit.toInteger()}, " +
                     "${parseDice(damage)}, " +
-                    "${parseDice(groupSize)})")
+                    "${parseDice(groupSize)}, " +
+                    "\"$mapCode\")")
         out.println("end")
     }
     
@@ -2137,8 +2140,8 @@ class PackPartitions
                             (!yRange || trig.@y.toInteger() in yRange) })
                 {
                     scripts << script
-                    scriptNames[script] = (name == null) ? "trig_$idx" : "sc_${humanNameToSymbol(name, false)}"
                 }
+                scriptNames[script] = (name == null) ? "trig_$idx" : "sc_${humanNameToSymbol(name, false)}"
             }
               
             // Even if there were no scripts, we still need an init to display
@@ -2224,6 +2227,8 @@ class PackPartitions
                         packSetSky(blk); break
                     case 'events_set_ground':
                         packSetGround(blk); break
+                    case 'events_add_encounter_zone':
+                        packAddEncounterZone(blk); break
                     case 'events_teleport':
                         packTeleport(blk); break
                     case 'events_move_backward':
@@ -2426,6 +2431,25 @@ class PackPartitions
             outIndented("setGround($color)\n")
         }
 
+        def packAddEncounterZone(blk)
+        {
+            assert blk.field.size() == 5
+            assert blk.field[0].@name == 'CODE'
+            assert blk.field[1].@name == 'X'
+            assert blk.field[2].@name == 'Y'
+            assert blk.field[3].@name == 'MAXDIST'
+            assert blk.field[4].@name == 'CHANCE'
+            def code = blk.field[0].text()
+            def x = blk.field[1].text().toInteger()
+            def y = blk.field[2].text().toInteger()
+            def maxDist = blk.field[3].text().toInteger()
+            def chance = (int)(blk.field[4].text().toFloat() * 10.0)
+            assert chance > 0 && chance <= 1000
+            outIndented("addEncounterZone(")
+            emitString(code)
+            out << ", $x, $y, $maxDist, $chance)\n"
+        }
+
         def packTeleport(blk)
         {
             assert blk.field.size() == 3
@@ -2495,13 +2519,11 @@ class PackPartitions
             out << "byte = \$FF\n\n"
         }
 
-        def makeInit(mapName, scripts, maxX, maxY)
+        def makeInit(mapName, script, maxX, maxY)
         {
-            // Emit the code the user has stored for the init script.
-            scripts.each { script ->
-                if (script.block.size() == 1)
-                    packBlock(getSingle(getSingle(script.block, null, 'procedures_defreturn').statement, 'STACK'))
-            }
+            // Emit the code the user has stored for the init script (if any)
+            if (script)
+                packScript(script)
             
             // Set up the pointer to global vars
             out << "global = getGlobals()\n"
@@ -2510,6 +2532,10 @@ class PackPartitions
             def shortName = mapName.replaceAll(/[\s-]*[23][dD][-0-9]*$/, '').take(16)
             out << "setScriptInfo(\"$shortName\", @triggerTbl, $maxX, $maxY)\n"
 
+            // Call init script if one was defined
+            if (script)
+                out << "sc_${humanNameToSymbol(getScriptName(script), false)}()\n"
+            
             // All done with the init function.
             out << "done\n"
         }

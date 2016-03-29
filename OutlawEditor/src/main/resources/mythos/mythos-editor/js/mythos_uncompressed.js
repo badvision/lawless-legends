@@ -369,6 +369,28 @@ if (typeof Mythos === "undefined") {
                     this.setTooltip('Set color of the ground');
                 }
             };
+            Blockly.Blocks['events_add_encounter_zone'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Add encounter zone for enemy code")
+                            .appendField(new Blockly.FieldTextInput(""), "CODE")
+                            .appendField('at X=')
+                            .appendField(new Blockly.FieldTextInput("0"), "X")
+                            .appendField('Y=')
+                            .appendField(new Blockly.FieldTextInput("0"), "Y")
+                            .appendField('with max dist')
+                            .appendField(new Blockly.FieldTextInput("0"), "MAXDIST")
+                            .appendField('(0=inf), and chance')
+                            .appendField(new Blockly.FieldTextInput("0.0"), "CHANCE")
+                            .appendField('%');
+                    this.setOutput(false);
+                    this.setTooltip('Add an encounter zone');
+                }
+            };
             Blockly.Blocks['text_window'] = {
                 init: function () {
                     this.setHelpUrl(Mythos.helpUrl);

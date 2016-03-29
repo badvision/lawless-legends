@@ -8,7 +8,7 @@
 // governing permissions and limitations under the License.
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-byte typeTbl_Global[] = Global, p_players, p_enemyGroups, p_combatFirst, 0
+byte typeTbl_Global[] = Global, p_players, p_enemyGroups, p_combatFirst, p_encounterZones, 0
 byte typeTbl_Player[] = Player, p_nextObj, s_name, p_combatNext, p_skills, p_items, p_buffs, p_debuffs, 0
 byte typeTbl_Modifier[] = Modifier, p_nextObj, 0
 byte typeTbl_Effect[] = Effect, p_nextObj, s_effectDescrip, 0
@@ -18,9 +18,11 @@ byte typeTbl_Armor[] = Armor, p_nextObj, s_name, p_modifiers, 0
 byte typeTbl_Stuff[] = Stuff, p_nextObj, s_name, 0
 byte typeTbl_Enemy[] = Enemy, p_nextObj, s_name, p_combatNext, s_attackText, 0
 byte typeTbl_EnemyGroup[] = EnemyGroup, p_nextObj, p_enemies, 0
+byte typeTbl_EncounterZone[] = EncounterZone, p_nextObj, s_name, 0
 
 word typeTbls = @typeTbl_Global, @typeTbl_Player, @typeTbl_Modifier, @typeTbl_Effect, @typeTbl_Item
 word          = @typeTbl_Weapon, @typeTbl_Armor, @typeTbl_Stuff, @typeTbl_Enemy, @typeTbl_EnemyGroup
+word          = @typeTbl_EncounterZone
 word          = 0
 
 byte[] kind_bow_str           = "bow(s)"

@@ -13,6 +13,8 @@
 const FALSE = 0
 const TRUE  = 1
 const NULL  = 0
+const INT_MAX = 32767
+const INT_MIN = -32768
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Memory manager definitions
@@ -102,7 +104,7 @@ const setPlural           = gameLibVecs + 3*43
 const makeEnemy           = gameLibVecs + 3*44
 const getStringResponse   = gameLibVecs + 3*45
 const strcmpi             = gameLibVecs + 3*46
-const FUNCN47             = gameLibVecs + 3*47
+const addEncounterZone    = gameLibVecs + 3*47
 const FUNCN48             = gameLibVecs + 3*48
 const FUNCN49             = gameLibVecs + 3*49
 const FUNCN50             = gameLibVecs + 3*50

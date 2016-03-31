@@ -1713,7 +1713,7 @@ class PackPartitions
         assert columns[0] == "Name"
         def name = data[0]
         
-        out.print("def NE${humanNameToSymbol(name, false)}()\n")
+        out.println("def NE_${humanNameToSymbol(name, false)}()")
         
         assert columns[1] == "Image1"
         def image1 = data[1]
@@ -1771,8 +1771,7 @@ class PackPartitions
                     "${range.replace("'", "").toInteger()}, " +
                     "${chanceToHit.toInteger()}, " +
                     "${parseDice(damage)}, " +
-                    "${parseDice(groupSize)}, " +
-                    "\"$mapCode\")")
+                    "${parseDice(groupSize)})")
         out.println("end")
     }
     
@@ -1845,10 +1844,7 @@ class PackPartitions
         def enemyLines = jitCopy(new File("build/data/world/enemies.tsv")).readLines()
         new File("build/src/plasma/gen_enemies.plh.new").withWriter { out ->
             out.println("// Generated code - DO NOT MODIFY BY HAND\n")
-            enemyLines[1..-1].eachWithIndex { line, index ->
-                out.println("const CE${humanNameToSymbol(line.split("\t")[0], false)} = ${index*2}")
-            }
-            out.println("const NUM_ENEMIES = ${enemyLines.size - 1}")
+            out.println("const enemy_forZone = 0")
         }
         replaceIfDiff("build/src/plasma/gen_enemies.plh")
         new File("build/src/plasma/gen_enemies.pla.new").withWriter { out ->
@@ -1860,17 +1856,64 @@ class PackPartitions
             out.println()
 
             def columns = enemyLines[0].split("\t")
+            out.println("predef _enemy_forZone")
+            out.println("word[] funcTbl = @_enemy_forZone\n")
+
+            // Pre-define all the enemy creation functions
             enemyLines[1..-1].each { line ->
-                out.println("predef NE${humanNameToSymbol(line.split("\t")[0], false)}")
+                out.println("predef NE_${humanNameToSymbol(line.split("\t")[0], false)}")
             }
-            enemyLines[1..-1].eachWithIndex { line, index ->
-                out.print((index == 0) ? "\nword[] funcTbl = " : "word = ")
-                out.println("@NE${humanNameToSymbol(line.split("\t")[0], false)}")
+
+            // Figure out the mapping between "map code" and "enemy"
+            def codeToFunc = [:]
+            enemyLines[1..-1].each { line ->
+                def data = line.split("\t")
+                assert columns[0] == "Name"
+                def name = data[0]
+                assert columns[11] == "Map Code"
+                def mapCodes = data[11]
+                mapCodes.split(",").each { code ->
+                    code = code.trim()
+                    if (!codeToFunc.containsKey(code))
+                        codeToFunc[code] = []
+                    codeToFunc[code] << "NE_${humanNameToSymbol(name, false)}"
+                }
+            }
+            
+            // Output that.
+            codeToFunc.sort().each { code, funcs ->
+                out.print("word[] ct_${humanNameToSymbol(code, false)} = ")
+                funcs.eachWithIndex { func, index ->
+                    if (index > 0)
+                        out.print(", ")
+                    out.print("@$func")
+                }
+                out.println()
             }
             out.println()
+            
+            // Now output a function for each enemy
             enemyLines[1..-1].each { line ->
                 genEnemy(out, columns, line.split("\t"))
             }
+            out.println()
+            
+            // Utility func
+            out.println("def randFrom(arr, siz)")
+            out.println("  return *(((rand16() % siz) << 2) + arr)")
+            out.println("end\n")
+            
+            // And finally, a function to select an enemy given a map code.
+            out.println("def _enemy_forZone(mapCode)")
+            codeToFunc.sort().each { code, funcs ->
+                out.println("  if strcmpi(mapCode, \"$code\") == 0; ")
+                out.println("    return randFrom(@ct_${humanNameToSymbol(code, false)}, ${funcs.size()})")
+                out.println("  fin")
+            }
+            out.println("  puts(mapCode)")
+            out.println("  fatal(\"No enemies match\")")
+            out.println("end\n")
+            
             out.println("return @funcTbl")
             out.println("done")
         }

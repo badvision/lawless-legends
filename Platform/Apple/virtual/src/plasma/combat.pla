@@ -13,8 +13,11 @@ include "playtype.plh"
 include "gen_images.plh"
 include "gen_enemies.plh"
 include "gen_modules.plh"
+include "combat.plh"
 
 word global
+predef _combat_zoneEncounter
+word[] funcTbl = @_combat_zoneEncounter
 
 // Combat variables that don't need to be saved in game state
 byte nPlayersFighting
@@ -408,29 +411,27 @@ def makeEnemyGroup(enemyFunc)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def makeAllEnemies()
+def makeRandomGroup(mapCode)
   word enemiesModule
-  word enemyNum, enemyTbl, enemyFunc
+  word enemyFunc
 
   enemiesModule = mmgr(QUEUE_LOAD, MODULE_GEN_ENEMIES<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 1) // 1 = keep open
 
   global=>p_enemyGroups = NULL
-  enemyNum = rand16() % NUM_ENEMIES
-  enemyTbl = enemiesModule()
-  enemyFunc = *((enemyNum<<1) + enemyTbl)
+  enemyFunc = enemiesModule()=>enemy_forZone(mapCode)
   addToList(@global=>p_enemyGroups, makeEnemyGroup(enemyFunc))
 
   mmgr(FREE_MEMORY, enemiesModule)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def startCombat()
+def startCombat(mapCode)
   word p, p2, n, s
 
   // Setup
   isFleeing = FALSE
-  makeAllEnemies()
+  makeRandomGroup(mapCode)
 
   // Display portrait of first group
   setPortrait(global=>p_enemyGroups=>p_enemies->b_image)
@@ -496,12 +497,12 @@ def startCombat()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def doCombat()
+def _combat_zoneEncounter(s_encZone)
   word p
   byte answer
 
   // Show portrait and threat details, find out if player wants to fight (vs. run)
-  if !startCombat(); return; fin
+  if !startCombat(s_encZone); return; fin
 
   // Do each round of combat until player wins, loses, or flees
   while TRUE
@@ -537,14 +538,16 @@ def doCombat()
           is 0
             displayStr("\nYou survive the ordeal and rifle through the carnage.\n"); break
           is 1
-            displayStr("\nThat was a close call! You see search the ground.\n"); break
+            displayStr("\nThat was a close call! You search the ground.\n"); break
           otherwise
             displayStr("\nLooks like you live to fight another day!\n"); break
         wend
         getUpperKey()
+        // Note: no need to clear heap -- the caller does that.
         return
       elsif isFleeing
         displayStr("\nYou have fled.")
+        // Note: no need to clear heap -- the caller does that.
         return
       fin
 
@@ -570,5 +573,5 @@ end
 // initialization code
 
 global = getGlobals()
-doCombat()
+return @funcTbl
 done

@@ -41,6 +41,7 @@ mg
 
 # Ignore other auto-generated files
 /Platform/Apple/virtual/src/plasma/gen_*.pl?
+/Platform/Apple/virtual/game.2mg
 
 # Packer sometimes produces an error text file.
 error_stack.txt

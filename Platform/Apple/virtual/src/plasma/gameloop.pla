@@ -40,6 +40,7 @@ include "gen_modules.plh"
 include "gen_enemies.plh"
 include "globalScripts.plh"      // old-style
 include "gen_globalScripts.plh"  // new-style
+include "combat.plh"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Data structures
@@ -49,7 +50,7 @@ word global  // the global heap object, from which all live objects must be reac
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Predefined functions, for circular calls or out-of-order calls
-predef setWindow2, initCmds, nextAnimFrame
+predef setWindow2, initCmds, nextAnimFrame, checkEncounter
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Global variables
@@ -106,7 +107,7 @@ predef _puts, _min, _max
 predef _countList, _countListFiltered, _randomFromListFiltered, _addToList, _beep
 predef _showParty, _mmgr, _setWindow1, _setWindow2, _setWindow3
 predef _reboot, _brk, _encodeDice, _rollDice
-predef _setPlural, _makeEnemy, _getStringResponse, _strcmpi, _addEncounterZone
+predef _setPlural, _makeEnemy, _getStringResponse, _strcmpi, _addEncounterZone, _fatal
 
 word gameLib_addrs = @_setScriptInfo, @_scriptDisplayStr, @_scriptDisplayStrNL, @_getYN
 word = @_queue_setMap, @_setSky, @_setGround, @_queue_teleport, @_setPortrait, @_clearPortrait
@@ -119,7 +120,7 @@ word = @_puts, @_min, @_max
 word = @_countList, @_countListFiltered, @_randomFromListFiltered, @_addToList, @_beep
 word = @_showParty, @_mmgr, @_setWindow1, @_setWindow2, @_setWindow3
 word = @_reboot, @_brk, @_encodeDice, @_rollDice
-word = @_setPlural, @_makeEnemy, @_getStringResponse, @_strcmpi, @_addEncounterZone
+word = @_setPlural, @_makeEnemy, @_getStringResponse, @_strcmpi, @_addEncounterZone, @_fatal
 
 word = 0  // end of library functions
 
@@ -794,7 +795,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Fatal error: print message and stop the system.
-def fatal(msg)
+def _fatal(msg)
   mmgr(FATAL_ERROR, msg)
 end
 
@@ -1171,9 +1172,8 @@ def initMap(x, y, dir)
   loadFrameImg()
   mmgr(FINISH_LOAD, 1) // 1 = keep open
 
-  // Clear the list of encounter zones
+  // Clear the list of encounter zones from any previous maps
   global=>p_encounterZones = NULL
-  printf1("Cleared zones: $%x\n", global=>p_encounterZones)
 
   // Start up the display engine with map data and starting position. This will also load and
   // init the script module, if any, which will end up calling us back at the setScriptInfo
@@ -1184,38 +1184,6 @@ def initMap(x, y, dir)
 
   // Display the party characters
   showParty()
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Check for a random encounter at this position
-def checkEncounter(x, y)
-  word p
-  word p_bestZone, bestDist
-  word d
-
-  // Find the zone that's closest, but not too far.
-  bestDist = INT_MAX
-  p_bestZone = NULL
-  p = global=>p_encounterZones
-  while p
-    d = min(abs(x - p=>w_encX), abs(y - p=>w_encY))
-    if d < bestDist and (p=>w_encMaxDist == 0 or d < p=>w_encMaxDist))
-      p_bestZone = p
-      bestDist = d
-    fin
-    p = p=>p_nextObj
-  loop
-
-  // Roll for an encounter in the zone.
-  d = rand16() % 1000
-  if p_bestZone and d < p_bestZone=>w_encChance
-    // Encounter!
-    setWindow2()
-    clearWindow()
-    displayf1("Encounter! %s\n", p_bestZone=>s_name)
-    getYN()
-    clearWindow()
-  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1849,7 +1817,7 @@ def restoreMapPos()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _makeEnemy(name, healthDice, image0, image1, attackType, attackText, attackRange, chanceToHit, dmg, groupSize, code)
+def _makeEnemy(name, healthDice, image0, image1, attackType, attackText, attackRange, chanceToHit, dmg, groupSize)
   word p; p = mmgr(HEAP_ALLOC, TYPE_ENEMY)
   p=>s_name = mmgr(HEAP_INTERN, name)
   p=>w_health = rollDice(healthDice) // 4d6
@@ -1864,7 +1832,6 @@ def _makeEnemy(name, healthDice, image0, image1, attackType, attackText, attackR
   p->b_chanceToHit = chanceToHit
   p=>r_enemyDmg = dmg
   p=>r_groupSize = groupSize
-  p=>s_enemyCode = mmgr(HEAP_INTERN, code)
   return p
 end
 
@@ -1877,7 +1844,6 @@ def _addEncounterZone(code, x, y, dist, chance)
   p=>w_encMaxDist = dist
   p=>w_encChance = chance
   addToList(@global=>p_encounterZones, p)
-  printf1("Added zone: $%x\n", global=>p_encounterZones)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1897,7 +1863,7 @@ def _strcmpi(a, b)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def testCombat()
+def doCombat(mapCode)
   word combatEngine
   word x, y
   byte dir
@@ -1912,9 +1878,9 @@ def testCombat()
   mmgr(FINISH_LOAD, 1) // 1 = keep open
 
   // Run the combat engine
-  combatEngine()
+  combatEngine()=>combat_zoneEncounter(mapCode)
 
-  // Clear out the heap
+  // Clear enemies out of the heap
   global=>p_enemyGroups = NULL
   mmgr(HEAP_COLLECT, 0)
 
@@ -1923,6 +1889,41 @@ def testCombat()
   clearPortrait()
   setWindow2()
   restoreMapPos()
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Check for a random encounter at this position
+def checkEncounter(x, y)
+  word p
+  word p_bestZone, bestDist
+  word d
+
+  // Find the zone that's closest, but not too far.
+  bestDist = INT_MAX
+  p_bestZone = NULL
+  p = global=>p_encounterZones
+  while p
+    d = min(abs(x - p=>w_encX), abs(y - p=>w_encY))
+    if d < bestDist and (p=>w_encMaxDist == 0 or d < p=>w_encMaxDist))
+      p_bestZone = p
+      bestDist = d
+    fin
+    p = p=>p_nextObj
+  loop
+
+  // Roll for an encounter in the zone.
+  d = rand16() % 1000
+  if p_bestZone and d < p_bestZone=>w_encChance
+    // Encounter!
+    doCombat(p_bestZone=>s_name)
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def testCombat
+  if global=>p_encounterZones
+    doCombat(global=>p_encounterZones=>s_name)
+  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

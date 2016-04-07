@@ -1181,6 +1181,7 @@ def initMap(x, y, dir)
   setWindow2()
   initDisplay(mapNum, pMap, x, y, dir)
   needRender = FALSE
+  curPortrait = 0
 
   // Display the party characters
   showParty()
@@ -1218,7 +1219,6 @@ def checkScripts(x, y)
     fin
     p = pNext
   loop
-  printf1("anyTriggered=%d\n", anyTriggered)
   return anyTriggered
 end
 

@@ -1871,7 +1871,7 @@ class PackPartitions
                 assert columns[0] == "Name"
                 def name = data[0]
                 assert columns[11] == "Map Code"
-                def mapCodes = data[11]
+                def mapCodes = data[11].replace("\"", "")
                 mapCodes.split(",").each { code ->
                     code = code.trim()
                     if (!codeToFunc.containsKey(code))

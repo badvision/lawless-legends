@@ -23,7 +23,7 @@ public abstract class ImageEditor extends Editor<Image, ImageEditor.DrawMode> {
 
     public static enum DrawMode {
 
-        Toggle, Pencil1px, Pencil3px, Pencil5px, Rectangle, Circle, Stamp
+        Toggle, Pencil1px, Pencil3px, Pencil5px, Rectangle, Circle, Stamp, Select
     }
 
     abstract public EnumMap getState();

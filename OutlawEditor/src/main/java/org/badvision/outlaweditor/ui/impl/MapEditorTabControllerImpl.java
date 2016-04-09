@@ -286,6 +286,8 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
             mapWidthField.setDisable(true);
             mapWrapAround.setDisable(true);
             setCurrentEditor(null);
+            cursorInfo.textProperty().unbind();
+            cursorInfo.setText("");
         } else {
             if (m.getScripts() != null) {
                 DataUtilities.sortNamedEntities(m.getScripts().getScript());
@@ -321,6 +323,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
             if (currentTile != null) {
                 e.setCurrentTile(currentTile);
             }
+            cursorInfo.textProperty().bind(e.cursorInfoProperty());
         }
         redrawMapScripts();
     }

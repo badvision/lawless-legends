@@ -11,6 +11,8 @@
 package org.badvision.outlaweditor;
 
 import java.util.EnumMap;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.scene.control.Menu;
 import org.badvision.outlaweditor.data.xml.Image;
 import org.badvision.outlaweditor.data.xml.PlatformData;
@@ -51,5 +53,10 @@ public abstract class ImageEditor extends Editor<Image, ImageEditor.DrawMode> {
             }
         }
         return null;
+    }
+
+    StringProperty cursorInfo = new SimpleStringProperty();
+    public StringProperty cursorInfoProperty() {
+        return cursorInfo;
     }
 }

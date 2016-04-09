@@ -15,6 +15,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.TextField;
@@ -65,6 +66,8 @@ public abstract class MapEditorTabController {
     protected CheckBox mapWrapAround; // Value injected by FXMLLoader
     @FXML
     protected Button scriptEraseTool;
+    @FXML
+    protected Label cursorInfo;
     
     @FXML
     abstract public void mapEraser(ActionEvent event);
@@ -152,6 +155,7 @@ public abstract class MapEditorTabController {
         assert mapSelectTile != null : "fx:id=\"mapSelectTile\" was not injected: check your FXML file 'mapEditorTab.fxml'.";
         assert mapWidthField != null : "fx:id=\"mapWidthField\" was not injected: check your FXML file 'mapEditorTab.fxml'.";
         assert mapWrapAround != null : "fx:id=\"mapWrapAround\" was not injected: check your FXML file 'mapEditorTab.fxml'.";
+        assert cursorInfo != null : "fx:id=\"cursorInfo\" was not injected: check your FXML file 'imageEditorTab.fxml'.";
     }
 
     abstract public void rebuildTileSelectors();

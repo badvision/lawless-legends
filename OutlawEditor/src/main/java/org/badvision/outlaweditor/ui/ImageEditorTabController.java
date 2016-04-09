@@ -10,6 +10,8 @@
  
 package org.badvision.outlaweditor.ui;
 
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.Group;
@@ -50,6 +52,8 @@ public abstract class ImageEditorTabController {
     protected TextField imageWidthField; // Value injected by FXMLLoader
     @FXML
     protected Label zoomLabel;
+    @FXML
+    protected Label cursorInfo;
     
     @FXML
     public void initalize() {
@@ -64,6 +68,7 @@ public abstract class ImageEditorTabController {
         assert imageEditorZoomGroup != null : "fx:id\"imageEditorZoomGroup\" was not injected: check your FXML file 'imageEditorTab.fxml'";
         assert imageEditorScrollAnchorPane != null : "fx:id\"imageEditorScrollAnchorPane\" was not injected: check your FXML file 'imageEditorTab.fxml'";
         assert zoomLabel != null : "fx:id=\"zoomLabel\" was not injected: check your FXML file 'imageEditorTab.fxml'.";
+        assert cursorInfo != null : "fx:id=\"cursorInfo\" was not injected: check your FXML file 'imageEditorTab.fxml'.";
     }
 
     abstract public void rebuildImageSelector();

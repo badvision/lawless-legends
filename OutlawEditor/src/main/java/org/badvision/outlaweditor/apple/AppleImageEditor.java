@@ -75,6 +75,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
         redraw();
         screen = new ImageView(currentImage);
         anchorPane.getChildren().add(0, screen);
+        screen.setOnMouseMoved(this);
         screen.setOnMousePressed(this);
         screen.setOnMouseClicked(this);
         screen.setOnMouseReleased(this);
@@ -223,7 +224,13 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
 
     @Override
     public void handle(MouseEvent t) {
-        if (performAction(t.isShiftDown() || t.isSecondaryButtonDown(), t.getEventType().equals(MouseEvent.MOUSE_RELEASED), (int) t.getX() / xScale, (int) t.getY() / yScale)) {
+        int x = (int) t.getX() / xScale;
+        int y = (int) t.getY() / yScale;
+        cursorInfoProperty().set("X="+x+"("+(x/7)+","+(x%7)+") Y="+y);
+        if (t.getEventType().equals(MouseEvent.MOUSE_MOVED)) {
+            return;
+        }
+        if (performAction(t.isShiftDown() || t.isSecondaryButtonDown(), t.getEventType().equals(MouseEvent.MOUSE_RELEASED), x, y)) {
             t.consume();
         }
 
@@ -424,6 +431,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     }
 
     byte[] copyData = null;
+
     @Override
     public void copy() {
         java.util.Map<DataFormat, Object> clip = new HashMap<>();
@@ -482,7 +490,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
                 }
                 sourceData = platformData.getValue();
             }
-            
+
             if ("all".equals(bufferDetails[1])) {
                 setData(Arrays.copyOf(sourceData, sourceData.length));
                 redraw();
@@ -496,14 +504,14 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
                 int pasteX = lastActionX;
                 int pasteY = lastActionY;
                 // fix odd/even: Try to nudge left or right where it might work best.
-                if ((xStart%2) != pasteX %2) {
-                    if (pasteX == 0 || pasteX % 7 > 3 || (pasteX + (xEnd-xStart)/7) < getWidth()) {
+                if ((xStart % 2) != pasteX % 2) {
+                    if (pasteX == 0 || pasteX % 7 > 3 || (pasteX + (xEnd - xStart) / 7) < getWidth()) {
                         pasteX++;
                     } else {
                         pasteX--;
                     }
                 }
-                System.out.println("Paste to "+pasteX+","+pasteY);
+                System.out.println("Paste to " + pasteX + "," + pasteY);
                 for (int sourceY = yStart, targetY = pasteY; sourceY <= yEnd; sourceY++, targetY++) {
                     if (targetY < 0 || targetY >= getHeight()) {
                         continue;
@@ -511,11 +519,11 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
                     int sourceRow = sourceY * getWidth();
                     int targetRow = targetY * getWidth();
                     for (int sourceX = xStart, targetX = pasteX; sourceX <= xEnd; sourceX++, targetX++) {
-                        if (targetX < 0 || targetX/7 >= getWidth()) {
+                        if (targetX < 0 || targetX / 7 >= getWidth()) {
                             continue;
                         }
-                        int targetLoc = targetRow + targetX/7;
-                        byte sourceByte = sourceData[sourceRow + sourceX/7];
+                        int targetLoc = targetRow + targetX / 7;
+                        byte sourceByte = sourceData[sourceRow + sourceX / 7];
                         byte targetByte = targetData[targetLoc];
                         int targetBit = targetX % 7;
                         int sourceBit = sourceX % 7;

@@ -18,6 +18,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import javafx.application.Platform;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
 import javafx.scene.Group;
@@ -508,6 +510,12 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
             }
         }
     }
+    
+    StringProperty cursorInfo = new SimpleStringProperty();
+    public StringProperty cursorInfoProperty() {
+        return cursorInfo;
+    }
+    
     public static Rectangle selectRect = null;
     public double selectStartX = 0;
     public double selectStartY = 0;
@@ -564,14 +572,15 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     
     @Override
     public void handle(MouseEvent t) {
+        int x = (int) (t.getX() / tileWidth) + posX;
+        int y = (int) (t.getY() / tileHeight) + posY;
         updateCursorAssistant(t);
+        cursorInfo.set("X="+x+" Y="+y);
         if (!t.isPrimaryButtonDown() && drawMode != DrawMode.FilledRect && t.getEventType() != MouseEvent.MOUSE_RELEASED) return;
         if (getCurrentTile() == null && drawMode != DrawMode.Eraser) {
             return;
         }
         t.consume();
-        int x = (int) (t.getX() / tileWidth) + posX;
-        int y = (int) (t.getY() / tileHeight) + posY;
         boolean canSkip = false;
         if (getCurrentTile() == lastTile && x == lastX && y == lastY && drawMode == lastDrawMode) {
             canSkip = true;

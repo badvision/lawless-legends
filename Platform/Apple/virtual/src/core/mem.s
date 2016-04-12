@@ -84,21 +84,19 @@ relocate:
 	bit setLcRW+lcBank1	; only copy bank 1, because bank 2 is PLASMA runtime
 	bit setLcRW+lcBank1	; 	write to it
 ; verify that aux mem exists
-	ldx #1
+	inx
 	stx $D000
 	sta setAuxZP
 	inx
 	stx $D000
-	lda $D000
-	cmp #2
+	cpx $D000
 	bne .noaux
 	sta clrAuxZP
-	lda $D000
-	cmp #1
+	dex
+	cpx $D000
 	beq .gotaux
 .noaux	jsr inlineFatal : !text "AuxMemReq",0
-.gotaux	ldy #0
-	ldx #$D0
+.gotaux	ldx #$D0
 .pglup	stx .ld+2
 	stx .st+2
 .bylup	sta clrAuxZP		; get byte from main LC
@@ -111,30 +109,27 @@ relocate:
 	bne .pglup
 	sta clrAuxZP		; ...back to main LC
 ; patch into the main ProDOS MLI entry point
-	lda #$4C	; jmp
-	sta $BFBB
+	ldx #$4C	; jmp
+	stx $BFBB
 	lda #<enterProDOS1
 	sta $BFBC
 	lda #>enterProDOS1
 	sta $BFBD
 ; patch into the interrupt handler
-	lda #$4C	; jmp
-	sta $BFEB
+	stx $BFEB
 	lda #<enterProDOS2
 	sta $BFEC
 	lda #>enterProDOS2
 	sta $BFED
 ; patch into the shared MLI/IRQ exit routine
-	lda #$4C	; jmp
-	sta $BFA0
+	stx $BFA0
 	lda #<exitProDOS
 	sta $BFA1
 	lda #>exitProDOS
 	sta $BFA2
 ; now blow away the main RAM LC area as a check
 	ldx #$D0
-	lda #0
-	tay
+	tya
 .clrlup	stx .st2+2
 .st2	sta $D000,Y
 	iny
@@ -289,7 +284,7 @@ init: !zone
 	stx tSegLink+1
 	inx
 	stx tSegLink+2
-	ldx #4
+	inx
 	stx tSegLink+0
 	inx
 	stx tSegLink+4
@@ -323,12 +318,10 @@ init: !zone
 ; Finally, form a long list of the remaining unused segments.
 	ldx #10
 	stx unusedSeg		; that's the first unused seg
-	ldy #11
-.loop:	tya
-	sta tSegLink,x
-	inx
-	iny
-	cpy #MAX_SEGS		; did all segments yet?
+.loop:	inx
+	txa
+	sta tSegLink-1,x
+	cpx #MAX_SEGS-1		; did all segments yet?
 	bne .loop		; no, loop again
 ; Allocate space for the PLASMA frame stack
 !if SANITY_CHECK {
@@ -636,19 +629,21 @@ __asmPlasm_bank2:
 	bit setLcRW+lcBank2
 	bit setLcRW+lcBank2
 __asmPlasm: !zone
-	pla		; save address of calling routine, so we can call it
-	clc
-	adc #1
-	sta .jsr+1
-	pla
-	adc #0
-	sta .jsr+2
+	cpx #$11
+	bcs .badx	; X must be in range 0..$10
 	; adjust PLASMA stack pointer to skip over params
 	dey		; leave 1 slot for ret value
 	sty tmp
+	pla		; save address of calling routine, so we can call it
+	tay
+	pla
+	iny
+	sty .jsr+1
+	bne .noadd
+	adc #1
+.noadd
+	sta .jsr+2
 	txa
-	cpx #$11
-	bcs .badx	; X must be in range 0..$10
 .add	adc tmp		; carry cleared by cpx above
 	pha		; and save that
 	cmp #$11	; again, X must be in range 0..$10
@@ -1002,8 +997,8 @@ gcHash_chk: !zone
 	sta gcHash_link,y
 	tya
 	sta gcHash_first,x
-.ret	clc
-	rts
+	clc
+.ret	rts
 .found	sec
 	rts
 .corrup	jmp heapCorrupt
@@ -1621,7 +1616,7 @@ reset: !zone
 .next:	lda tSegLink,x		; get link to next seg
 	tax			; to X reg, and test if end of chain (x=0)
 	bne .inactivate		; no, not end of chain, so loop again
-	lda #0			; default to putting fixups at $8000, to avoid fragmentation
+;;	lda #0			; default to putting fixups at $8000, to avoid fragmentation
 	sta fixupHint
 	lda #$80		
 	sta fixupHint+1

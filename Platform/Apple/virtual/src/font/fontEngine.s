@@ -249,7 +249,7 @@ GetWdth	LDA #0
 	ROL ChrX10H
 	ADC ChrX10L 
 	STA ChrX10L 
-	BNE +
+	BCC +
 	INC ChrX10H	;save index value {0..990}
 +
 	CLC

@@ -216,8 +216,6 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
             imageNameField.setDisable(true);
             imageWidthField.setDisable(true);
             currentImageEditor = null;
-            cursorInfo.textProperty().unbind();
-            cursorInfo.setText("");
         } else {
             if (i.getName() == null) {
                 i.setName("Untitled");
@@ -248,7 +246,12 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
                 currentImageEditor.setState(oldEditorState);
             }
         }
-        cursorInfo.textProperty().bind(currentImageEditor.cursorInfoProperty());
+        if (currentImageEditor != null) {
+            cursorInfo.textProperty().bind(currentImageEditor.cursorInfoProperty());
+        } else {
+            cursorInfo.textProperty().unbind();
+            cursorInfo.setText("");
+        }
     }
 
     private Image getCurrentImage() {

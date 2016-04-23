@@ -292,14 +292,17 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
                 drawBrush(x, y, 5, currentFillPattern, hiBitMatters);
                 break;
             case Rectangle:
+                debounce = System.currentTimeMillis()-10;
                 if (released) {
+                    trackState();
                     fillSelection(x, y);
                     redraw();
                     debounce = System.currentTimeMillis();
+                    return true;
                 } else {
                     updateSelection(x, y);
+                    return false;
                 }
-                break;
             case Select:
                 debounce = System.currentTimeMillis();
                 if (selectionFinished && !released) {
@@ -341,17 +344,12 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
         int startY = Math.min(selectStartY, y);
         int endY = Math.max(selectStartY, y);
 
-        selectStartX = startX;
-        selectStartY = startY;
-        selectEndX = endX;
-        selectEndY = endY;
-
         selectRect.setTranslateX(startX * xScale);
         selectRect.setTranslateY(startY * yScale);
         selectRect.setWidth((endX - startX) * xScale);
         selectRect.setHeight((endY - startY) * yScale);
 
-        setSelectionArea(selectStartX, selectStartY, selectEndX, selectEndY);
+        setSelectionArea(startX, startY, endX, endY);
     }
 
     private void fillSelection(int x, int y) {

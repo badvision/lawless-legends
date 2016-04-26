@@ -1520,6 +1520,9 @@ def _setScriptInfo(mapName, trigTbl, wdt, hgt)
   // Display map name
   showMapName(mapName)
 
+  // Get ready for new encounter zones
+  global=>p_encounterZones = NULL
+
   // Back to the main text window.
   setWindow2()
 end

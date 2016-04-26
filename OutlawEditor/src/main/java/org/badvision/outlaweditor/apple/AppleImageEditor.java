@@ -7,7 +7,6 @@
  * ANY KIND, either express or implied. See the License for the specific language 
  * governing permissions and limitations under the License.
  */
- 
 package org.badvision.outlaweditor.apple;
 
 import java.io.File;
@@ -55,7 +54,10 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     protected double zoom = 1.0;
     protected int xScale = 2;
     protected int yScale = 2;
-    public static enum StateVars{PATTERN, DRAW_MODE};
+
+    public static enum StateVars {
+        PATTERN, DRAW_MODE
+    };
 
     public Platform getPlatform() {
         return Platform.AppleII;
@@ -66,13 +68,14 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
         super.onEntityUpdated();
         data = null;
     }
-    
+
     @Override
     public void buildEditorUI(Pane editorAnchorPane) {
         anchorPane = editorAnchorPane;
         redraw();
         screen = new ImageView(currentImage);
         anchorPane.getChildren().add(0, screen);
+        screen.setOnMouseMoved(this);
         screen.setOnMousePressed(this);
         screen.setOnMouseClicked(this);
         screen.setOnMouseReleased(this);
@@ -89,7 +92,9 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     }
 
     public void changeCurrentPattern(FillPattern pattern) {
-        if (pattern == null) return;
+        if (pattern == null) {
+            return;
+        }
         currentFillPattern = pattern.getBytePattern();
         hiBitMatters = pattern.hiBitMatters;
         lastActionX = -1;
@@ -97,6 +102,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     }
 
     EnumMap<StateVars, Object> state = new EnumMap<>(StateVars.class);
+
     @Override
     public EnumMap getState() {
         return state;
@@ -113,17 +119,21 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
             state.put(StateVars.DRAW_MODE, currentDrawMode);
         }
     }
-    
+
     @Override
     public void setDrawMode(DrawMode drawMode) {
         _setDrawMode(drawMode);
         state.put(StateVars.DRAW_MODE, drawMode);
     }
-    
+
     private void _setDrawMode(DrawMode drawMode) {
         currentDrawMode = drawMode;
         lastActionX = -1;
-        lastActionY = -1;        
+        lastActionY = -1;
+        selectionFinished = false;
+        if (drawMode != DrawMode.Stamp) {
+            selectNone();
+        }
     }
 
     @Override
@@ -152,6 +162,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     }
 
     PlatformData data = null;
+
     public PlatformData getPlatformData() {
         if (data == null) {
             data = getPlatformData(getPlatform());
@@ -162,7 +173,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
         }
         return data;
     }
-    
+
     public byte[] getImageData() {
         return getPlatformData().getValue();
     }
@@ -213,7 +224,13 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
 
     @Override
     public void handle(MouseEvent t) {
-        if (performAction(t.isShiftDown() || t.isSecondaryButtonDown(), t.getEventType().equals(MouseEvent.MOUSE_RELEASED), (int) t.getX() / xScale, (int) t.getY() / yScale)) {
+        int x = (int) t.getX() / xScale;
+        int y = (int) t.getY() / yScale;
+        cursorInfoProperty().set("X="+x+"("+(x/7)+","+(x%7)+") Y="+y);
+        if (t.getEventType().equals(MouseEvent.MOUSE_MOVED)) {
+            return;
+        }
+        if (performAction(t.isShiftDown() || t.isSecondaryButtonDown(), t.getEventType().equals(MouseEvent.MOUSE_RELEASED), x, y)) {
             t.consume();
         }
 
@@ -283,15 +300,28 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
                     updateSelection(x, y);
                 }
                 break;
+            case Select:
+                debounce = System.currentTimeMillis();
+                if (selectionFinished && !released) {
+                    startSelection(x, y);
+                } else {
+                    updateSelection(x, y);
+                }
+                selectionFinished = released;
+                return false;
         }
         return true;
 //        observedObjectChanged(getEntity());
     }
+    public boolean selectionFinished = false;
     public static Rectangle selectRect = null;
     public int selectStartX = -1;
     public int selectStartY = -1;
+    public int selectEndX = -1;
+    public int selectEndY = -1;
 
     private void startSelection(int x, int y) {
+        selectNone();
         selectRect = new Rectangle(1, 1, Color.NAVY);
         selectRect.setTranslateX(x * xScale);
         selectRect.setTranslateY(y * yScale);
@@ -306,14 +336,22 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
             startSelection(x, y);
         }
 
-        double minX = Math.min(selectStartX, x) * xScale;
-        double minY = Math.min(selectStartY, y) * yScale;
-        double maxX = Math.max(selectStartX, x) * xScale;
-        double maxY = Math.max(selectStartY, y) * yScale;
-        selectRect.setTranslateX(minX);
-        selectRect.setTranslateY(minY);
-        selectRect.setWidth(maxX - minX);
-        selectRect.setHeight(maxY - minY);
+        int startX = Math.min(selectStartX, x);
+        int endX = Math.max(selectStartX, x);
+        int startY = Math.min(selectStartY, y);
+        int endY = Math.max(selectStartY, y);
+
+        selectStartX = startX;
+        selectStartY = startY;
+        selectEndX = endX;
+        selectEndY = endY;
+
+        selectRect.setTranslateX(startX * xScale);
+        selectRect.setTranslateY(startY * yScale);
+        selectRect.setWidth((endX - startX) * xScale);
+        selectRect.setHeight((endY - startY) * yScale);
+
+        setSelectionArea(selectStartX, selectStartY, selectEndX, selectEndY);
     }
 
     private void fillSelection(int x, int y) {
@@ -392,12 +430,15 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
         return getPlatformData(getPlatform()).getHeight();
     }
 
+    byte[] copyData = null;
+
     @Override
     public void copy() {
         java.util.Map<DataFormat, Object> clip = new HashMap<>();
         clip.put(DataFormat.IMAGE, currentImage);
         clip.put(DataFormat.PLAIN_TEXT, "selection/image/" + Application.gameData.getImage().indexOf(getEntity()) + "/" + getSelectionInfo());
         Clipboard.getSystemClipboard().setContent(clip);
+        copyData = Arrays.copyOf(getImageData(), getImageData().length);
     }
 
     @Override
@@ -416,6 +457,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     //selection/map/2/x1/0/y1/0/x2/19/y2/11
 
     public boolean pasteAppContent(String contentPath) {
+        trackState();
         System.out.println("Clipboard >> " + contentPath);
         if (contentPath.startsWith("selection/map")) {
             String[] bufferDetails = contentPath.substring(14).split("/");
@@ -437,18 +479,65 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
         } else if (contentPath.startsWith("selection/image")) {
             String[] bufferDetails = contentPath.substring(16).split("/");
             int imageNumber = Integer.parseInt(bufferDetails[0]);
+            Image sourceImage = Application.gameData.getImage().get(imageNumber);
+            byte[] sourceData;
+            if (sourceImage.equals(getEntity())) {
+                sourceData = copyData;
+            } else {
+                PlatformData platformData = sourceImage.getDisplayData().stream().filter(d -> d.getPlatform().equals(getPlatform().name())).findFirst().orElse(null);
+                if (platformData == null) {
+                    throw new NullPointerException("Unable to paste from source image, no matching platform data.");
+                }
+                sourceData = platformData.getValue();
+            }
+
             if ("all".equals(bufferDetails[1])) {
-                Image sourceImage = Application.gameData.getImage().get(imageNumber);
-                for (PlatformData data : sourceImage.getDisplayData()) {
-                    if (data.getPlatform().equals(getPlatform().toString())) {  
-                        setData(Arrays.copyOf(data.getValue(), data.getValue().length));
-                        redraw();
-                        return true;
+                setData(Arrays.copyOf(sourceData, sourceData.length));
+                redraw();
+                return true;
+            } else {
+                int xStart = Integer.parseInt(bufferDetails[2]);
+                int yStart = Integer.parseInt(bufferDetails[4]);
+                int xEnd = Integer.parseInt(bufferDetails[6]);
+                int yEnd = Integer.parseInt(bufferDetails[8]);
+                byte[] targetData = getImageData();
+                int pasteX = lastActionX;
+                int pasteY = lastActionY;
+                // fix odd/even: Try to nudge left or right where it might work best.
+                if ((xStart % 2) != pasteX % 2) {
+                    if (pasteX == 0 || pasteX % 7 > 3 || (pasteX + (xEnd - xStart) / 7) < getWidth()) {
+                        pasteX++;
+                    } else {
+                        pasteX--;
                     }
                 }
-                System.err.println("Unable to paste from source image, no matching platform data.");
-            } else {
-                System.err.println("Unable to paste partial images at this time... sorry. :-(");
+                System.out.println("Paste to " + pasteX + "," + pasteY);
+                for (int sourceY = yStart, targetY = pasteY; sourceY <= yEnd; sourceY++, targetY++) {
+                    if (targetY < 0 || targetY >= getHeight()) {
+                        continue;
+                    }
+                    int sourceRow = sourceY * getWidth();
+                    int targetRow = targetY * getWidth();
+                    for (int sourceX = xStart, targetX = pasteX; sourceX <= xEnd; sourceX++, targetX++) {
+                        if (targetX < 0 || targetX / 7 >= getWidth()) {
+                            continue;
+                        }
+                        int targetLoc = targetRow + targetX / 7;
+                        byte sourceByte = sourceData[sourceRow + sourceX / 7];
+                        byte targetByte = targetData[targetLoc];
+                        int targetBit = targetX % 7;
+                        int sourceBit = sourceX % 7;
+                        // Remove hi-bit and image bit
+                        targetByte &= 0x07f ^ (1 << targetBit);
+                        // Copy hi-bit
+                        targetByte |= sourceByte & 0x080;
+                        // Copy x bit
+                        targetByte |= ((sourceByte >> sourceBit) & 1) << targetBit;
+                        targetData[targetLoc] = targetByte;
+                    }
+                }
+                setDataAndRedraw(targetData);
+                return true;
             }
         }
         return false;
@@ -456,12 +545,16 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
 
     @Override
     public void select() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        _setDrawMode(DrawMode.Select);
     }
 
     @Override
     public void selectNone() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        selectStartX = selectStartY = selectEndX = selectEndY = -1;
+        setSelectionArea(selectStartX, selectStartY, selectEndX, selectEndY);
+        if (selectRect != null) {
+            anchorPane.getChildren().remove(selectRect);
+        }
     }
 
     private void importImage(javafx.scene.image.Image image) {
@@ -504,7 +597,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     public void resize(final int newWidth, final int newHeight) {
         UIAction.confirm("Do you want to scale the image?  If you select no, the image will be cropped as needed.", () -> {
             rescale(newWidth, newHeight);
-        }, () -> {            
+        }, () -> {
             crop(newWidth, newHeight);
         });
     }

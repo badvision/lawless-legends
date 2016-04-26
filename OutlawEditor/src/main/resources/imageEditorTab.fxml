@@ -7,14 +7,14 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<AnchorPane id="tilesTab" minHeight="0.0" minWidth="0.0" prefHeight="420.0" prefWidth="677.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.badvision.outlaweditor.ui.impl.ImageEditorTabControllerImpl">
+<AnchorPane id="tilesTab" minHeight="0.0" minWidth="0.0" prefHeight="420.0" prefWidth="677.0" xmlns="http://javafx.com/javafx/8.0.40" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.badvision.outlaweditor.ui.impl.ImageEditorTabControllerImpl">
     <children>
         <VBox prefHeight="420.0000999999975" prefWidth="677.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
             <children>
                 <ToolBar prefWidth="686.0">
                     <items>
                         <Label text="Image:" />
-                        <ComboBox id="tileSelect" fx:id="imageSelector" onAction="#onImageSelected" prefHeight="26.0" prefWidth="271.0" />
+                        <ComboBox id="tileSelect" fx:id="imageSelector" onAction="#onImageSelected" prefHeight="27.0" prefWidth="242.0" />
                         <Button mnemonicParsing="false" onAction="#onImageCreatePressed" text="Create new" />
                         <Button mnemonicParsing="false" onAction="#onImageClonePressed" text="Clone" />
                         <Button mnemonicParsing="false" onAction="#onImageExportPressed" text="Export" />
@@ -35,6 +35,7 @@
                                 <MenuItem mnemonicParsing="false" onAction="#imageShift" text="Shift..." />
                             </items>
                         </MenuButton>
+                  <Label fx:id="cursorInfo" text="cursorInfo" />
                     </items>
                 </ToolBar>
                 <HBox prefHeight="387.0" prefWidth="677.0" VBox.vgrow="ALWAYS">

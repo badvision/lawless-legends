@@ -4,7 +4,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<AnchorPane id="mapsTab" minHeight="0.0" minWidth="0.0" prefHeight="480.0" prefWidth="677.0" stylesheets="@styles/applicationui.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.badvision.outlaweditor.ui.impl.MapEditorTabControllerImpl">
+<AnchorPane id="mapsTab" minHeight="0.0" minWidth="0.0" prefHeight="480.0" prefWidth="677.0" stylesheets="@styles/applicationui.css" xmlns="http://javafx.com/javafx/8.0.40" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.badvision.outlaweditor.ui.impl.MapEditorTabControllerImpl">
     <children>
         <VBox prefHeight="200.0" prefWidth="100.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
             <children>
@@ -32,6 +32,7 @@
                                 <MenuItem mnemonicParsing="false" onAction="#mapTogglePanZoom" text="Toggle pan/zoom controls" />
                             </items>
                         </MenuButton>
+                  <Label fx:id="cursorInfo" text="CursorInfo" />
                     </items>
                 </ToolBar>
                 <HBox prefHeight="438.0" prefWidth="677.0" VBox.vgrow="ALWAYS">

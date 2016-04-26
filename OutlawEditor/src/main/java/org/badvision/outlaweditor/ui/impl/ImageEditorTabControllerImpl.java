@@ -11,10 +11,8 @@ package org.badvision.outlaweditor.ui.impl;
 
 import java.util.EnumMap;
 import java.util.List;
-import org.badvision.outlaweditor.ui.EntitySelectorCell;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javafx.beans.binding.Bindings;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
@@ -22,16 +20,16 @@ import javafx.scene.control.ListView;
 import javafx.util.StringConverter;
 import javax.xml.bind.JAXBException;
 import org.badvision.outlaweditor.Application;
+import static org.badvision.outlaweditor.Application.currentPlatform;
 import org.badvision.outlaweditor.Editor;
 import org.badvision.outlaweditor.ImageEditor;
-import static org.badvision.outlaweditor.Application.currentPlatform;
 import org.badvision.outlaweditor.TransferHelper;
-import static org.badvision.outlaweditor.ui.UIAction.confirm;
 import static org.badvision.outlaweditor.data.PropertyHelper.bind;
 import static org.badvision.outlaweditor.data.PropertyHelper.stringProp;
-import org.badvision.outlaweditor.data.xml.GameData;
 import org.badvision.outlaweditor.data.xml.Image;
+import org.badvision.outlaweditor.ui.EntitySelectorCell;
 import org.badvision.outlaweditor.ui.ImageEditorTabController;
+import static org.badvision.outlaweditor.ui.UIAction.confirm;
 
 /**
  * FXML Controller class
@@ -205,6 +203,8 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
         if (currentImageEditor != null) {
             oldEditorState = currentImageEditor.getState();
             currentImageEditor.unregister();
+            cursorInfo.textProperty().unbind();
+            cursorInfo.setText("");
         }
         if (i == null) {
             bind(imageCategoryField.textProperty(), null);
@@ -245,6 +245,12 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
             if (oldEditorState != null) {
                 currentImageEditor.setState(oldEditorState);
             }
+        }
+        if (currentImageEditor != null) {
+            cursorInfo.textProperty().bind(currentImageEditor.cursorInfoProperty());
+        } else {
+            cursorInfo.textProperty().unbind();
+            cursorInfo.setText("");
         }
     }
 

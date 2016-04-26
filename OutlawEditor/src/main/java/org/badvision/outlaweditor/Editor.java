@@ -67,7 +67,7 @@ public abstract class Editor<T, D> implements DataObserver<T> {
         startY = Math.min(y1, y2);
         endX = Math.max(x1, x2);
         endY = Math.max(y1, y2);
-        if (startX + startY + endX + endY == 0) {
+        if (startX + startY + endX + endY <= 0) {
             selectInfo = null;
         } else {
             selectInfo = "x1/" + startX + "/y1/" + startY + "/x2/" + endX + "/y2/" + endY;
@@ -79,7 +79,6 @@ public abstract class Editor<T, D> implements DataObserver<T> {
     }
 
     String selectInfo;
-
     public String getSelectionInfo() {
         if (selectInfo == null) {
             return getSelectedAllInfo();

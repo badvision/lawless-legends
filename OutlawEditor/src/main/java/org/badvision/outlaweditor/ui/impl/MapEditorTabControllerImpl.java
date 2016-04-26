@@ -322,6 +322,12 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
                 e.setCurrentTile(currentTile);
             }
         }
+        if (getCurrentEditor() != null) {
+            cursorInfo.textProperty().bind(getCurrentEditor().cursorInfoProperty());            
+        } else {            
+            cursorInfo.textProperty().unbind();
+            cursorInfo.setText("");
+        }
         redrawMapScripts();
     }
 

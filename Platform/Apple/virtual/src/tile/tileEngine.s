@@ -304,7 +304,7 @@ LOAD_SCRIPTS_NO_CALC:
 	LDY #5
 	LDA (AVATAR_SECTION),Y	; check script module ID
 	BNE .got		; if any, go load it
-.none	LDA #0			; else, no scripts
+.none	;;LDA #0		; else, no scripts
 	STA SCRIPTS_LOC
 	STA SCRIPTS_LOC+1
 	RTS

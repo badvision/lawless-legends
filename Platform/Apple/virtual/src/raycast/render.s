@@ -147,7 +147,7 @@ log2_w_w: !zone
 
 ; Same as above but with with 8-bit input instead of 16. Same output though.
 log2_b_w: !zone
-	cmp #0		; special case: log(0) we call zero.
+	tax		; special case: log(0) we call zero.
 	beq .zero
 .low:			; we know high byte is zero
 	ldx #7		; start with exponent=7
@@ -159,9 +159,8 @@ log2_b_w: !zone
 .gotMant:		; mantissa now in A, exponent in X. Translate mantissa to log using table, and we're done
 	tay
 	lda tbl_log2_w_w,y
-	rts
-.zero:	tax
-	rts
+.zero:	rts
+
 
 ;-------------------------------------------------------------------------------
 ; Calculate 2^n for a fixed-point n
@@ -326,11 +325,11 @@ castRay: !zone
 	sta dist		; is fractional byte of dist.
 	lda mapX		; map X is the integer byte
 	sbc playerX+1
+	tax
 	bit stepX
 	bpl +
-	clc			; if stepping backward, add one to dist
-	adc #1
-+	sta dist+1
+	inx			; if stepping backward, add one to dist
++	stx dist+1
 	ldx rayDirX		; parameters for wall calculation
 	ldy rayDirY
 	lda stepY
@@ -383,11 +382,11 @@ castRay: !zone
 	sta dist		; is fractional byte of dist.
 	lda mapY		; map X is the integer byte
 	sbc playerY+1
+	tax
 	bit stepY
 	bpl +
-	clc			; if stepping backward, add one to dist
-	adc #1
-+	sta dist+1
+	inx			; if stepping backward, add one to dist
++	stx dist+1
 	ldx rayDirY		; parameters for wall calculation
 	ldy rayDirX
 	lda stepX
@@ -541,11 +540,11 @@ castRay: !zone
 	ror
 	pha		; stash it on stack (we don't have X reg free yet for indexed store)
 	jsr pow2_w_w	; calculate 2 ^ (log(64) - diff)  =~  64.0 / dist
-	cpx #0
+	tay		; save the height in Y reg
+	txa
 	beq +
-	lda #$FF	; clamp large line heights to 255
-+	tay		; save the height in Y reg
-	pla		; get the depth back
+	ldy #$FF	; clamp large line heights to 255
++	pla		; get the depth back
 	jmp saveLink	; save final column data to link buffer
 
 !if DEBUG >= 2 {
@@ -846,14 +845,13 @@ spriteCalc: !zone
 	stx wSize+1
 
 	; Clamp wSize to form lineCt (height of final drawn sprite)
-	cpx #0
-	beq +
-	lda #$FF
-+	sta lineCt
-
-	; Calculate wSpriteTop = 32 - (wSize >> 1);
 	tay			; stash lo byte of wSize
 	txa			; work on hi byte
+	beq +
+	ldy #$FF
++	sty lineCt
+
+	; Calculate wSpriteTop = 32 - (wSize >> 1);
 	lsr			; shift right 1 bit
 	tax			; save hi byte to X
 	tya			; work on lo byte
@@ -1366,10 +1364,9 @@ makeClrBlit: !zone
 	clc
 	adc #29*2
 	sta pDst
-	lda pDst+1
-	adc #0
-	sta pDst+1
-	iny
+	bcc +
+	inc pDst+1
++	iny
 	iny
 	cpy #64
 	bne .noSwitch
@@ -1443,14 +1440,10 @@ makeDecodeTbls: !zone
 	sta tmp+1
 			; extract only bits 1 and 3 for the pixel data
 	txa
-	and #8		; bit 3
+	and #$0a	; bits 3 and 1
 	lsr
-	lsr
-	sta tmp
-	txa
-	and #2		; bit 1
-	lsr
-	ora tmp
+	lsr		; bit 1 -> carry
+	adc #0
 .decodeTo01:
 	ora tmp+1
 	sta decodeTo01,x
@@ -1643,11 +1636,11 @@ loadTextures: !zone
 ;-------------------------------------------------------------------------------
 ; Plasma interface to texture control: 1 to load textures, 0 to unload
 pl_texControl: !zone {
-	cmp #0
+	tax
 	beq .unload
 	lda #0	; don't re-init scripts
 	jmp loadTextures
-.unload	ldx #0
+.unload
 -	txa
 	pha
 	ldy texAddrHi,x
@@ -1966,14 +1959,14 @@ copyScreen: !zone
 ; Parameters: @x, @y
 ; Returns: Nothing (but stores into the addressed variables)
 pl_getPos: !zone {
-	lda playerY+1
-	sec
-	sbc #1			; adjust for border guards
+	ldy playerY+1
+	dey			; adjust for border guards
+	tya
 	jsr .sto
 	inx
-	lda playerX+1
-	sec
-	sbc #1			; adjust for border guards
+	ldy playerX+1
+	dey			; adjust for border guards
+	tya
 	; Now fall thru, and exit with X incremented once (2 params - 1 return slot = 1)
 .sto	ldy evalStkL,x
 	sty pTmp

@@ -2075,13 +2075,16 @@ class PackPartitions
         {
             out << '\"'
             def prev = '\0'
+            def count = 0
             inStr.each { ch ->
                 if (ch == '^') {
                     if (prev == '^')
                         out << ch
                 }
-                else if (ch == '\"')
+                else if (ch == '\"') {
                     out << "\\\""
+                    ++count  // account for extra backslash
+                }
                 else if (prev == '^') {
                     def cp = Character.codePointAt(ch.toUpperCase(), 0)
                     if (cp > 64 && cp < 96)
@@ -2089,9 +2092,12 @@ class PackPartitions
                 }
                 else
                     out << ch
+                ++count
                 prev = ch
             }
             out << '\"'
+            if (count >= 255)
+                throw new Exception("String must be 254 characters or less: '$inStr'")
         }
 
         def getScriptName(script)

@@ -108,6 +108,7 @@ predef _countList, _countListFiltered, _randomFromListFiltered, _addToList, _bee
 predef _showParty, _mmgr, _setWindow1, _setWindow2, _setWindow3
 predef _reboot, _brk, _encodeDice, _rollDice
 predef _setPlural, _makeEnemy, _getStringResponse, _strcmpi, _addEncounterZone, _fatal
+predef _pause
 
 word gameLib_addrs = @_setScriptInfo, @_scriptDisplayStr, @_scriptDisplayStrNL, @_getYN
 word = @_queue_setMap, @_setSky, @_setGround, @_queue_teleport, @_setPortrait, @_clearPortrait
@@ -121,6 +122,7 @@ word = @_countList, @_countListFiltered, @_randomFromListFiltered, @_addToList, 
 word = @_showParty, @_mmgr, @_setWindow1, @_setWindow2, @_setWindow3
 word = @_reboot, @_brk, @_encodeDice, @_rollDice
 word = @_setPlural, @_makeEnemy, @_getStringResponse, @_strcmpi, @_addEncounterZone, @_fatal
+word = @_pause
 
 word = 0  // end of library functions
 
@@ -970,6 +972,21 @@ def _getUpperKey()
   key = ^kbd
   ^kbdStrobe
   return charToUpper(key & $7F)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Pause for a specified count period, advancing the animation periodically.
+def _pause(count)
+  while count >= 0
+    animPauseCt = animPauseCt - 1
+    if animPauseCt < 0
+      if curPortrait and animNumFrames > 1
+        nextAnimFrame()
+      fin
+      animPauseCt = ANIM_PAUSE_MAX
+    fin
+    count--
+  loop
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

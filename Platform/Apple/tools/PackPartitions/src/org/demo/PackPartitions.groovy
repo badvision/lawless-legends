@@ -67,6 +67,7 @@ class PackPartitions
     
     def currentContext = []    
     def nWarnings = 0
+    def warningBuf = new StringBuilder()
     
     def binaryStubsOnly = false
     def cache = [:]
@@ -99,14 +100,11 @@ class PackPartitions
         return currentContext.join(" -> ")
     }
     
-    def printError(str)
-    {
-        System.out.format("Error in ${getContextStr()}: %s\n", str)
-    }
-    
     def printWarning(str)
     {
-        System.out.format("Warning in ${getContextStr()}: %s\n", str)
+        def msg = String.format("Warning in ${getContextStr()}: %s\n", str)
+        System.out.print(msg)
+        warningBuf.append(msg)
         ++nWarnings
     }
     
@@ -2006,6 +2004,10 @@ class PackPartitions
         if (errorFile.exists())
             errorFile.delete()
             
+        def warningFile = new File("pack_warning.txt")
+        if (warningFile.exists())
+            warningFile.delete()
+            
         // Also remove existing game image if any, for the same reason.
         def gameFile = new File("game.2mg")
         if (gameFile.exists())
@@ -2056,8 +2058,12 @@ class PackPartitions
         }
         
         if (inst.nWarnings > 0) {
+            warningFile.withWriter { out ->
+                out.println "Packing warnings:\n"
+                out.write(inst.warningBuf.toString())
+            }
             javax.swing.JOptionPane.showMessageDialog(null,
-                "${inst.nWarnings} warning(s) noted during packing.\nCheck console for details.",
+                "${inst.nWarnings} warning(s) noted during packing.\nDetails written to file 'pack_warning.txt'.",
                 "Pack warnings",
                 javax.swing.JOptionPane.ERROR_MESSAGE)
         }
@@ -2076,28 +2082,33 @@ class PackPartitions
             out << '\"'
             def prev = '\0'
             def count = 0
-            inStr.each { ch ->
-                if (ch == '^') {
-                    if (prev == '^')
+            def stop = false
+            inStr.eachWithIndex { ch, idx ->
+                if (!stop) {
+                    if (count >= 255) {
+                        printWarning("String must be 254 characters or less. Everything after the following will be discarded: '${inStr[0..idx]}'")
+                        stop = true
+                    }
+                    else if (ch == '^') {
+                        if (prev == '^')
+                            out << ch
+                    }
+                    else if (ch == '\"') {
+                        out << "\\\""
+                        ++count  // account for extra backslash
+                    }
+                    else if (prev == '^') {
+                        def cp = Character.codePointAt(ch.toUpperCase(), 0)
+                        if (cp > 64 && cp < 96)
+                            out << "\\\$" << String.format("%02X", cp - 64)
+                    }
+                    else
                         out << ch
+                    ++count
+                    prev = ch
                 }
-                else if (ch == '\"') {
-                    out << "\\\""
-                    ++count  // account for extra backslash
-                }
-                else if (prev == '^') {
-                    def cp = Character.codePointAt(ch.toUpperCase(), 0)
-                    if (cp > 64 && cp < 96)
-                        out << "\\\$" << String.format("%02X", cp - 64)
-                }
-                else
-                    out << ch
-                ++count
-                prev = ch
             }
             out << '\"'
-            if (count >= 255)
-                throw new Exception("String must be 254 characters or less: '$inStr'")
         }
 
         def getScriptName(script)
@@ -2299,7 +2310,7 @@ class PackPartitions
                     case 'variables_set':
                         packVarSet(blk); break
                     default:
-                        printError "don't know how to pack block of type '${blk.@type}'"
+                        printWarning "don't know how to pack block of type '${blk.@type}'"
                 }
             }
 

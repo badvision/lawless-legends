@@ -487,7 +487,7 @@ Adv210	STA CursColL	;position to 154
 	STA WrdWdth	;and, clear Word Width total
 	STA TtlScrl	;and ticker scroll total
 	LDA CursRow	;Get vertical {0..191}
-	ADC #9  	;increment by 9 lines, down
+	ADC #8  	;increment by 9 lines, down (carry is set already)
 	CMP CursYb	;check if it's past 130
 	BCC DoneLin	;if not then done
 	JMP ScrlTxt	;else scroll the text up 1 line
@@ -987,7 +987,7 @@ Sc1_Nxt	INC Sc1LpC
 	AND #$07	;check if it crosses the 'n'* 7th line
 	BEQ Sc1_LpM	;if so, use ROM to recalc new addrs, else,
 	LDA GBasH	;get HiByt of adrs wrd |pppFGHcd|eABABxxx|
-	CLC  		;(line position is ABCDEFGH bit pattern)
+;;	CLC  		;(line position is ABCDEFGH bit pattern)
 	ADC #$04	;increment the FGH bit pattern
 	STA GBasH	;and save the result. This is faster
 	JMP Sc1_Lp0	;than using the GetBase routine every time.
@@ -1640,7 +1640,7 @@ Wp_CfHtVt STA Flg_PsC	;set Plot Separator flag
 	BNE Wp_VtVal	;no - then go do vTab
 	LDA T1_vLo	;yes - then hTab
 ;
-;;	CLC 		;hTAB: get param add it to 
+	CLC 		;hTAB: get param add it to 
 	ADC CursXl	;left window margin {0..278}
 	STA CursColL	;move plot cursor from the
 	LDA T1_vHi	;left margin to the tab value

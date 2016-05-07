@@ -205,7 +205,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     }
 
     private void zoom(double delta) {
-        double oldZoom = zoom;
+//        double oldZoom = zoom;
         zoom += delta;
         zoom = Math.min(Math.max(0.15, zoom), 4.0);
 //                    double left = mapEditorScroll.getHvalue();
@@ -214,7 +214,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
 //                    double pointerX = t.getX();
 //                    double pointerY = t.getY();
 //
-        double ratio = zoom / oldZoom;
+//                    double ratio = zoom / oldZoom;
 //
 //                    double newLeft = (left + pointerX) * ratio - pointerX;
 //                    double newTop = (top + pointerY) * ratio - pointerY;
@@ -549,10 +549,10 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         anchorPane.getChildren().remove(selectRect);
         selectRect = null;
 
-        int startx = (int) (selectStartX / tileWidth);
-        int starty = (int) (selectStartY / tileHeight);
-        int endx = (int) (x / tileWidth);
-        int endy = (int) (y / tileHeight);
+        int startx = (int) (selectStartX / tileWidth) + posX;
+        int starty = (int) (selectStartY / tileHeight) + posY;
+        int endx = (int) (x / tileWidth) + posX;
+        int endy = (int) (y / tileHeight) + posY;
         for (int yy = Math.min(starty, endy); yy <= Math.max(starty, endy); yy++) {
             for (int xx = Math.min(startx, endx); xx <= Math.max(startx, endx); xx++) {
                 plot(xx, yy, getCurrentTile());

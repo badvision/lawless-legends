@@ -7,7 +7,6 @@
  * ANY KIND, either express or implied. See the License for the specific language 
  * governing permissions and limitations under the License.
  */
- 
 package org.badvision.outlaweditor;
 
 import java.util.HashMap;
@@ -125,7 +124,18 @@ public class TransferHelper<T> {
         JAXBContext targetJAXBContext = JAXBContext.newInstance(source.getClass());
         QName qName = new QName("info.source4code.jaxb.model", nodeType);
         JAXBElement<U> root = new JAXBElement<>(qName, type, source);
-        JAXBElement<U> cloneRoot = (JAXBElement<U>) targetJAXBContext.createUnmarshaller().unmarshal(new JAXBSource(sourceJAXBContext, root), type);
+        JAXBElement<U> cloneRoot = targetJAXBContext.createUnmarshaller().unmarshal(new JAXBSource(sourceJAXBContext, root), type);
         return cloneRoot.getValue();
+    }
+
+    public static Map<String, Integer> getSelectionDetails(String contentPath) {
+        String[] bufferDetails = contentPath.split("/");
+        Map<String, Integer> details = new HashMap<>();
+        for (int i = 1; i < bufferDetails.length; i += 2) {
+            details.put(
+                    bufferDetails[i], 
+                    (i+1 < bufferDetails.length) ? Integer.parseInt(bufferDetails[i + 1]) : -1);
+        }
+        return details;
     }
 }

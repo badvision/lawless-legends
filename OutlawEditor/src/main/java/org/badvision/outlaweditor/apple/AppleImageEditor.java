@@ -32,6 +32,7 @@ import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.FileUtils;
 import org.badvision.outlaweditor.ImageEditor;
 import org.badvision.outlaweditor.Platform;
+import org.badvision.outlaweditor.TransferHelper;
 import org.badvision.outlaweditor.data.TileMap;
 import org.badvision.outlaweditor.data.xml.Image;
 import org.badvision.outlaweditor.data.xml.PlatformData;
@@ -167,7 +168,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
         if (data == null) {
             data = getPlatformData(getPlatform());
             if (data == null) {
-                createNewPlatformImage(getPlatform().maxImageWidth, getPlatform().maxImageHeight);
+                createNewPlatformData(getPlatform().maxImageWidth, getPlatform().maxImageHeight);
                 data = getPlatformData(getPlatform());
             }
         }
@@ -457,27 +458,20 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     public boolean pasteAppContent(String contentPath) {
         trackState();
         System.out.println("Clipboard >> " + contentPath);
-        if (contentPath.startsWith("selection/map")) {
-            String[] bufferDetails = contentPath.substring(14).split("/");
-            int mapNumber = Integer.parseInt(bufferDetails[0]);
-            Map<String, Integer> details = new HashMap<>();
-            for (int i = 1; i < bufferDetails.length; i += 2) {
-                details.put(bufferDetails[i], Integer.parseInt(bufferDetails[i + 1]));
-            }
-            TileMap map = new TileMap(Application.gameData.getMap().get(mapNumber));
+        Map<String, Integer> selection = TransferHelper.getSelectionDetails(contentPath);
+        if (selection.containsKey("map")) {
+            TileMap map = new TileMap(Application.gameData.getMap().get(selection.get("map")));
             byte[] buf = getPlatform().imageRenderer.renderPreview(
                     map,
-                    details.get("x1"),
-                    details.get("y1"),
+                    selection.get("x1"),
+                    selection.get("y1"),
                     getWidth(),
                     getHeight());
             setData(buf);
             redraw();
             return true;
-        } else if (contentPath.startsWith("selection/image")) {
-            String[] bufferDetails = contentPath.substring(16).split("/");
-            int imageNumber = Integer.parseInt(bufferDetails[0]);
-            Image sourceImage = Application.gameData.getImage().get(imageNumber);
+        } else if (selection.containsKey("image")) {
+            Image sourceImage = Application.gameData.getImage().get(selection.get("image"));
             byte[] sourceData;
             if (sourceImage.equals(getEntity())) {
                 sourceData = copyData;
@@ -489,15 +483,15 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
                 sourceData = platformData.getValue();
             }
 
-            if ("all".equals(bufferDetails[1])) {
+            if (selection.containsKey("all")) {
                 setData(Arrays.copyOf(sourceData, sourceData.length));
                 redraw();
                 return true;
             } else {
-                int xStart = Integer.parseInt(bufferDetails[2]);
-                int yStart = Integer.parseInt(bufferDetails[4]);
-                int xEnd = Integer.parseInt(bufferDetails[6]);
-                int yEnd = Integer.parseInt(bufferDetails[8]);
+                int xStart = selection.get("x1");
+                int yStart = selection.get("y1");
+                int xEnd = selection.get("x2");
+                int yEnd = selection.get("y2");
                 byte[] targetData = getImageData();
                 int pasteX = lastActionX;
                 int pasteY = lastActionY;
@@ -609,7 +603,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
      * @param newHeight
      */
     public void rescale(int newWidth, int newHeight) {
-        createNewPlatformImage(newWidth, newHeight);
+        createNewPlatformData(newWidth, newHeight);
         importImage(currentImage);
     }
 
@@ -623,12 +617,12 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     public void crop(int newWidth, int newHeight) {
     }
 
-    private void createNewPlatformImage(int width, int height) {
-        PlatformData data = new PlatformData();
-        data.setWidth(width);
-        data.setHeight(height);
-        data.setPlatform(getPlatform().name());
-        data.setValue(getPlatform().imageRenderer.createImageBuffer(width, height));
-        getEntity().getDisplayData().add(data);
+    private void createNewPlatformData(int width, int height) {
+        PlatformData platformData = new PlatformData();
+        platformData.setWidth(width);
+        platformData.setHeight(height);
+        platformData.setPlatform(getPlatform().name());
+        platformData.setValue(getPlatform().imageRenderer.createImageBuffer(width, height));
+        getEntity().getDisplayData().add(platformData);
     }
 }

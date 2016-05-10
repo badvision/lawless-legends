@@ -7,9 +7,9 @@
  * ANY KIND, either express or implied. See the License for the specific language 
  * governing permissions and limitations under the License.
  */
- 
 package org.badvision.outlaweditor;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -22,6 +22,7 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
+import javafx.scene.Cursor;
 import javafx.scene.Group;
 import javafx.scene.ImageCursor;
 import javafx.scene.Scene;
@@ -38,7 +39,6 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
-import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
@@ -93,9 +93,17 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     @Override
     public void setDrawMode(DrawMode drawMode) {
         this.drawMode = drawMode;
-        if (drawMode == DrawMode.Eraser) {
-            ImageCursor cursor = new ImageCursor(new Image("images/eraser.png"));
-            drawCanvas.setCursor(cursor);
+        switch (drawMode) {
+            case Eraser:
+                ImageCursor cursor = new ImageCursor(new Image("images/eraser.png"));
+                drawCanvas.setCursor(cursor);
+                break;
+            case Select:
+                drawCanvas.setCursor(Cursor.CROSSHAIR);
+                break;
+            default:
+                setCurrentTile(getCurrentTile());
+                break;
         }
     }
 
@@ -118,13 +126,13 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
             String category = null;
             if (currentTile != null) {
                 category = currentTile.getCategory();
-            }                 
+            }
             if (this.equals(Application.getInstance().getController().getVisibleEditor())) {
-                UIAction.showTileSelectModal((AnchorPane) anchorPane, category, this::setCurrentTile);
+                UIAction.showTileSelectModal(anchorPane, category, this::setCurrentTile);
             }
         }
     }
-    
+
     public void initCanvas() {
         if (drawCanvas != null) {
             anchorPane.getChildren().remove(drawCanvas);
@@ -146,7 +154,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         drawCanvas.setOnMouseDragReleased(this);
         drawCanvas.setOnMouseReleased(this);
         anchorPane.getChildren().add(0, drawCanvas);
-        cursorAssistant = new Rectangle(tileWidth, tileHeight, new Color(0.2,0.2,1.0,0.4));
+        cursorAssistant = new Rectangle(tileWidth, tileHeight, new Color(0.2, 0.2, 1.0, 0.4));
         cursorAssistant.setMouseTransparent(true);
         cursorAssistant.setEffect(new Glow(1.0));
         anchorPane.getChildren().add(cursorAssistant);
@@ -205,7 +213,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     }
 
     private void zoom(double delta) {
-        double oldZoom = zoom;
+//        double oldZoom = zoom;
         zoom += delta;
         zoom = Math.min(Math.max(0.15, zoom), 4.0);
 //                    double left = mapEditorScroll.getHvalue();
@@ -214,7 +222,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
 //                    double pointerX = t.getX();
 //                    double pointerY = t.getY();
 //
-        double ratio = zoom / oldZoom;
+//                    double ratio = zoom / oldZoom;
 //
 //                    double newLeft = (left + pointerX) * ratio - pointerX;
 //                    double newTop = (top + pointerY) * ratio - pointerY;
@@ -277,9 +285,9 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     public void clearCanvas() {
         boolean oddEvenColumn = false;
         boolean oddEven;
-        for (int x=0; x < drawCanvas.getWidth(); x += 10) {
+        for (int x = 0; x < drawCanvas.getWidth(); x += 10) {
             oddEven = oddEvenColumn;
-            for (int y=0; y < drawCanvas.getHeight(); y += 10) {
+            for (int y = 0; y < drawCanvas.getHeight(); y += 10) {
                 drawCanvas.getGraphicsContext2D().setFill(oddEven ? Color.BLACK : Color.NAVY);
                 drawCanvas.getGraphicsContext2D().fillRect(x, y, 10, 10);
                 oddEven = !oddEven;
@@ -293,12 +301,10 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         double yy = y * tileHeight;
         if (tile != null) {
             drawCanvas.getGraphicsContext2D().drawImage(TileUtils.getImage(tile, currentPlatform), xx, yy, tileWidth, tileHeight);
-        } else {
-//            drawCanvas.getGraphicsContext2D().clearRect(xx, yy, tileWidth, tileHeight);
         }
     }
 
-    private static final int dashLength = 3;
+    private static final int DASH_LENGTH = 3;
 
     private final Set<Script> invisibleScripts = new HashSet<>();
 
@@ -334,42 +340,42 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         double xx = x * tileWidth;
         double yy = y * tileHeight;
         gc.setLineWidth(4);
-        for (int i = 0; i < tileWidth - 2; i += dashLength) {
+        for (int i = 0; i < tileWidth - 2; i += DASH_LENGTH) {
             idx = (idx + 1) % visibleScripts.size();
             gc.beginPath();
             gc.moveTo(xx, yy);
             currentMap.getScriptColor(visibleScripts.get(idx)).ifPresent(gc::setStroke);
-            xx += dashLength;
+            xx += DASH_LENGTH;
             gc.lineTo(xx, yy);
             gc.setEffect(new DropShadow(2, Color.BLACK));
             gc.stroke();
         }
-        for (int i = 0; i < tileHeight - 2; i += dashLength) {
+        for (int i = 0; i < tileHeight - 2; i += DASH_LENGTH) {
             idx = (idx + 1) % visibleScripts.size();
             gc.beginPath();
             gc.moveTo(xx, yy);
             currentMap.getScriptColor(visibleScripts.get(idx)).ifPresent(gc::setStroke);
-            yy += dashLength;
+            yy += DASH_LENGTH;
             gc.lineTo(xx, yy);
             gc.setEffect(new DropShadow(2, Color.BLACK));
             gc.stroke();
         }
-        for (int i = 0; i < tileWidth - 2; i += dashLength) {
+        for (int i = 0; i < tileWidth - 2; i += DASH_LENGTH) {
             idx = (idx + 1) % visibleScripts.size();
             gc.beginPath();
             gc.moveTo(xx, yy);
             currentMap.getScriptColor(visibleScripts.get(idx)).ifPresent(gc::setStroke);
-            xx -= dashLength;
+            xx -= DASH_LENGTH;
             gc.lineTo(xx, yy);
             gc.setEffect(new DropShadow(2, Color.BLACK));
             gc.stroke();
         }
-        for (int i = 0; i < tileHeight - 2; i += dashLength) {
+        for (int i = 0; i < tileHeight - 2; i += DASH_LENGTH) {
             idx = (idx + 1) % visibleScripts.size();
             gc.beginPath();
             gc.moveTo(xx, yy);
             currentMap.getScriptColor(visibleScripts.get(idx)).ifPresent(gc::setStroke);
-            yy -= dashLength;
+            yy -= DASH_LENGTH;
             gc.lineTo(xx, yy);
             gc.setEffect(new DropShadow(2, Color.BLACK));
             gc.stroke();
@@ -433,34 +439,59 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         WritableImage img = currentPlatform.imageRenderer.renderImage(null, data, currentPlatform.maxImageWidth, currentPlatform.maxImageHeight);
         java.util.Map<DataFormat, Object> clip = new HashMap<>();
         clip.put(DataFormat.IMAGE, img);
-        clip.put(DataFormat.PLAIN_TEXT, "selection/map/" + Application.gameData.getMap().indexOf(getEntity()) + "/" + getSelectionInfo());
+        if (drawMode != DrawMode.Select || startX >= 0) {
+            clip.put(DataFormat.PLAIN_TEXT, "selection/map/" + Application.gameData.getMap().indexOf(getEntity()) + "/" + getSelectionInfo());
+        }
         Clipboard.getSystemClipboard().setContent(clip);
+        clearSelection();
     }
 
     @Override
     public String getSelectedAllInfo() {
         setSelectionArea(posX, posY, posX + 19, posY + 11);
         String result = getSelectionInfo();
-        setSelectionArea(0, 0, 0, 0);
         return result;
     }
 
     @Override
     public void paste() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        if (Clipboard.getSystemClipboard().hasContent(DataFormat.PLAIN_TEXT)) {
+            String clipboardInfo = (String) Clipboard.getSystemClipboard().getContent(DataFormat.PLAIN_TEXT);
+            java.util.Map<String, Integer> selection = TransferHelper.getSelectionDetails(clipboardInfo);
+            if (selection.containsKey("map")) {
+                trackState();
+                Map sourceMap = Application.gameData.getMap().get(selection.get("map"));
+                TileMap source = getCurrentMap();
+                if (!sourceMap.equals(getCurrentMap().getBackingMap())) {
+                    source = new TileMap(sourceMap);
+                } else {
+                    source.updateBackingMap();
+                }
+                int height = selection.get("y2") - selection.get("y1");
+                int width = selection.get("x2") - selection.get("x1");
+                int x1 = selection.get("x1");
+                int y1 = selection.get("y1");
+                for (int y = 0; y < height; y++) {
+                    for (int x=0; x < width; x++) {
+                        plot(x + lastX, y + lastY, source.get(x + x1, y + y1));
+                    }
+                }
+            }
+        }
     }
 
     @Override
     public void select() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        setDrawMode(DrawMode.Select);
     }
 
     @Override
     public void selectNone() {
-        setSelectionArea(0, 0, 0, 0);
+        clearSelection();
     }
 
     Rectangle cursorAssistant;
+
     private void updateCursorAssistant(MouseEvent t) {
         if (t.getEventType() == MouseEvent.MOUSE_EXITED) {
             cursorAssistant.setVisible(false);
@@ -478,7 +509,21 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
 
     public static enum DrawMode {
 
-        Pencil1px, Pencil3px, Pencil5px, FilledRect, Eraser
+        Pencil1px, Pencil3px, Pencil5px, FilledRect, Eraser(false), Select(false);
+
+        boolean requireTile = false;
+
+        DrawMode() {
+            this(true);
+        }
+
+        DrawMode(boolean require) {
+            requireTile = require;
+        }
+
+        public boolean requiresCurrentTile() {
+            return requireTile;
+        }
     };
 
     public void plot(final int x, final int y, final Tile t) {
@@ -510,55 +555,64 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
             }
         }
     }
-    
+
     StringProperty cursorInfo = new SimpleStringProperty();
+
     public StringProperty cursorInfoProperty() {
         return cursorInfo;
     }
-    
+
     public static Rectangle selectRect = null;
-    public double selectStartX = 0;
-    public double selectStartY = 0;
+    public double selectScreenStartX = 0;
+    public double selectScreenStartY = 0;
 
     private void startSelection(double x, double y) {
         selectRect = new Rectangle(1, 1, Color.NAVY);
         selectRect.setTranslateX(x);
         selectRect.setTranslateY(y);
         selectRect.setOpacity(0.5);
-        selectStartX = x;
-        selectStartY = y;
+        selectScreenStartX = x;
+        selectScreenStartY = y;
         anchorPane.getChildren().add(selectRect);
     }
 
     private void updateSelection(double x, double y) {
-        if (selectRect == null) {
+        if (selectRect == null || selectScreenStartX < 0 || selectScreenStartY < 0) {
+            clearSelection();
             startSelection(x, y);
         }
 
-        double minX = Math.min(selectStartX, x);
-        double minY = Math.min(selectStartY, y);
-        double maxX = Math.max(selectStartX, x);
-        double maxY = Math.max(selectStartY, y);
+        double minX = Math.min(selectScreenStartX, x);
+        double minY = Math.min(selectScreenStartY, y);
+        double maxX = Math.max(selectScreenStartX, x);
+        double maxY = Math.max(selectScreenStartY, y);
         selectRect.setTranslateX(minX);
         selectRect.setTranslateY(minY);
         selectRect.setWidth(maxX - minX);
         selectRect.setHeight(maxY - minY);
+        setSelectionArea(
+                (int) (minX / tileWidth + posX),
+                (int) (minY / tileHeight + posY),
+                (int) (maxX / tileWidth + posX),
+                (int) (maxY / tileHeight + posY)
+        );
     }
 
-    private void fillSelection(double x, double y) {
-        anchorPane.getChildren().remove(selectRect);
-        selectRect = null;
-
-        int startx = (int) (selectStartX / tileWidth);
-        int starty = (int) (selectStartY / tileHeight);
-        int endx = (int) (x / tileWidth);
-        int endy = (int) (y / tileHeight);
-        for (int yy = Math.min(starty, endy); yy <= Math.max(starty, endy); yy++) {
-            for (int xx = Math.min(startx, endx); xx <= Math.max(startx, endx); xx++) {
+    private void fillSelection() {
+        for (int yy = startY; yy <= endY; yy++) {
+            for (int xx = startX; xx <= endX; xx++) {
                 plot(xx, yy, getCurrentTile());
             }
         }
+        clearSelection();
     }
+
+    private void clearSelection() {
+        anchorPane.getChildren().remove(selectRect);
+        selectRect = null;
+        setSelectionArea(-1, -1, -1, -1);
+    }
+
     public static int lastX = -1;
     public static int lastY = -1;
     DrawMode lastDrawMode = null;
@@ -568,16 +622,18 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     protected void trackState() {
         currentMap.updateBackingMap();
         super.trackState();
-    }    
-    
+    }
+
     @Override
     public void handle(MouseEvent t) {
         int x = (int) (t.getX() / tileWidth) + posX;
         int y = (int) (t.getY() / tileHeight) + posY;
         updateCursorAssistant(t);
-        cursorInfo.set("X="+x+" Y="+y);
-        if (!t.isPrimaryButtonDown() && drawMode != DrawMode.FilledRect && t.getEventType() != MouseEvent.MOUSE_RELEASED) return;
-        if (getCurrentTile() == null && drawMode != DrawMode.Eraser) {
+        cursorInfo.set("X=" + x + " Y=" + y);
+        if (!t.isPrimaryButtonDown() && t.getEventType() != MouseEvent.MOUSE_RELEASED && drawMode != DrawMode.FilledRect) {
+            return;
+        }
+        if (getCurrentTile() == null && drawMode.requiresCurrentTile()) {
             return;
         }
         t.consume();
@@ -595,7 +651,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
                     return;
                 }
                 trackState();
-                plot(x,y,null);
+                plot(x, y, null);
                 redraw();
                 break;
             }
@@ -621,12 +677,17 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
                 drawBrush(x, y, 5, getCurrentTile());
                 break;
             case FilledRect:
+                updateSelection(t.getX(), t.getY());
                 if (t.getEventType().equals(MouseEvent.MOUSE_RELEASED)) {
                     trackState();
-                    fillSelection(t.getX(), t.getY());
-                } else if (t.isPrimaryButtonDown()) {
-                    updateSelection(t.getX(), t.getY());
+                    fillSelection();
                 }
+            case Select:
+                updateSelection(t.getX(), t.getY());
+                if (t.getEventType().equals(MouseEvent.MOUSE_RELEASED)) {
+                    selectScreenStartX = selectScreenStartY = -1;
+                }
+
         }
     }
 }

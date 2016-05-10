@@ -22,6 +22,7 @@ mg
 # Don't check in data specific to any particular game
 /Platform/Apple/virtual/data/images/*.bin
 /Platform/Apple/virtual/data/fonts/*.bin
+/Platform/Apple/virtual/data/world/*.bin
 /Platform/Apple/virtual/data/world/*.xml
 /Platform/Apple/virtual/data/world/*.cache
 /Platform/Apple/virtual/data/world/*.tsv

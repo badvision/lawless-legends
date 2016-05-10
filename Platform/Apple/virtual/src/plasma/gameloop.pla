@@ -108,7 +108,7 @@ predef _countList, _countListFiltered, _randomFromListFiltered, _addToList, _bee
 predef _showParty, _mmgr, _setWindow1, _setWindow2, _setWindow3
 predef _reboot, _brk, _encodeDice, _rollDice
 predef _setPlural, _makeEnemy, _getStringResponse, _strcmpi, _addEncounterZone, _fatal
-predef _pause
+predef _pause, _tossStrings
 
 word gameLib_addrs = @_setScriptInfo, @_scriptDisplayStr, @_scriptDisplayStrNL, @_getYN
 word = @_queue_setMap, @_setSky, @_setGround, @_queue_teleport, @_setPortrait, @_clearPortrait
@@ -122,7 +122,7 @@ word = @_countList, @_countListFiltered, @_randomFromListFiltered, @_addToList, 
 word = @_showParty, @_mmgr, @_setWindow1, @_setWindow2, @_setWindow3
 word = @_reboot, @_brk, @_encodeDice, @_rollDice
 word = @_setPlural, @_makeEnemy, @_getStringResponse, @_strcmpi, @_addEncounterZone, @_fatal
-word = @_pause
+word = @_pause, @_tossStrings
 
 word = 0  // end of library functions
 
@@ -156,6 +156,18 @@ magic       = $2227 ; there are 2048 magic values that work; this one caught my 
 ; We cannot use it: this code, including variable space, can be loaded *anywhere*.
 ; So don't JMP to labels, declare any variables as !byte or !word here, etc.
 
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Temporary hack: after scriptDisplayStr is called, generated code calls this to clear the PLASMA
+// string pool. That way, many long strings can be used in a single function.
+asm _tossStrings
+        lda framePtr
+        sta outerFramePtr
+        lda framePtr+1
+        sta outerFramePtr+1
+        dex
+        rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1551,6 +1563,7 @@ def _scriptDisplayStr(str)
   textDrawn = TRUE
   flipToPage1()
   displayStr(str)
+  tossStrings()
 end
 
 def _scriptDisplayStrNL(str)

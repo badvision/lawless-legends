@@ -2336,9 +2336,19 @@ class PackPartitions
                 return
             }
             def text = getSingle(getSingle(getSingle(blk.value, 'VALUE').block, null, 'text').field, 'TEXT').text()
-            outIndented("${blk.@type == 'text_print' ? 'scriptDisplayStr' : 'scriptDisplayStrNL'}(")
-            emitString(text)
-            out << ")\n"
+            
+            // Break up long strings into shorter chunks for PLASMA
+            def chunks = text.findAll(/.{253}|.*/)
+            chunks.eachWithIndex { chunk, idx ->
+                if (chunk.length() > 0) {
+                    outIndented((idx == chunks.size()-1 && blk.@type == 'text_println') ? \
+                        'scriptDisplayStrNL(' : 'scriptDisplayStr(')
+                    emitString(chunk)
+                    out << ")\n"
+                    // Workaround for strings filling up the frame stack
+                    outIndented("tossStrings()\n")
+                }
+            }
         }
 
         def packClearWindow(blk)

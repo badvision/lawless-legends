@@ -1201,6 +1201,14 @@ def initMap(x, y, dir)
   loadFrameImg()
   mmgr(FINISH_LOAD, 1) // 1 = keep open
 
+  // Clear all the windows to the background color (hi-bit set)
+  setWindow1()
+  clearWindow()
+  setWindow2()
+  clearWindow()
+  setWindow3()
+  clearWindow()
+
   // Clear the list of encounter zones from any previous maps
   global=>p_encounterZones = NULL
 

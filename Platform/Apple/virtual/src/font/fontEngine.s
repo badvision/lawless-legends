@@ -381,6 +381,8 @@ NoAdj	LDX MlpIdx	;get indx into 2-byt adrs wrds {0,2,4,etc}
 	LDY #0  	;clear the byte offset index
 	LDA MskBytL	;Load mask bit pattern
 
+; MH Note: The following section (DoAgn up to but not including DoAgnNM) is never used
+; in Lawless Legends, because we never set mask mode.
 DoAgn	PHA
 	AND zTmp3
 	STA zTmp3
@@ -653,6 +655,7 @@ ClrHome	LDA CursXl	;home the cursor
 ClrSlp1	JSR GetBasX	;to get the base address
 	LDY LfMrgn
 	LDA BkgColor
+	ORA #$80	;   (set high bit for the demo)
 ClrSlp2	STA (GBasL),Y
 	INY
 	CPY RtMrgn
@@ -675,6 +678,7 @@ ClrColr	LDA BkgColor
 ClrSlp3	JSR GetBasX	;to get the base address
 	LDY LfMrgn
 	LDA ClrFlip
+	ORA #$80	;   (set high bit for the demo)
 ClrSlp4	STA (GBasL),Y
 	INY
 	CPY RtMrgn

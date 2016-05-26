@@ -235,6 +235,7 @@ PlotFnt	LDX NoPlt_Flg
 	AND #$7F
 	EOR #$7F
 	STA FlgBchr
+	STA MskTx_Flg
 GetWdth	LDA #0
 	STA MskBytH	;clear mask byte
 	STA Flg8xcp	;clear 8 pixel char exception
@@ -381,13 +382,11 @@ NoAdj	LDX MlpIdx	;get indx into 2-byt adrs wrds {0,2,4,etc}
 	LDY #0  	;clear the byte offset index
 	LDA MskBytL	;Load mask bit pattern
 
-; MH Note: The following section (DoAgn up to but not including DoAgnNM) is never used
-; in Lawless Legends, because we never set mask mode.
-DoAgn	PHA
+DoAgn	EOR #$FF	;flip the mask so it works with AND
+	PHA
 	AND zTmp3
 	STA zTmp3
 	PLA
-	EOR #$FF	;flip the mask so it works with AND
 	AND (zTmp1),Y	;Mask off bits where char BMP will go
 	ORA zTmp3	;add the char BMP bits into the pixels
 	ORA #$80	;   (set high bit for the demo)
@@ -1088,9 +1087,12 @@ In_Str	LDA #0
 	STA WaitStat 	;clear wait state
 	STA InBfrX	;clear buffer index
 	JSR In_sCur	;save cursor position
-In_Key	JSR CurFlsh	;flash cursor
+In_Key	JSR CurPlot	;start with cursor initially displaying
+	LDA #$FF	;after first wait,
+	STA ChBflip	;  erase it
+-	JSR CurFlsh	;flash cursor
 	LDA Kbd_Rd	;read the keyboard
-	BPL In_Key	;if not pressed, loop
+	BPL -		;if not pressed, loop
 	STA Kbd_Clr	;else clear the kbd strobe
 	LDX WaitStat	;get wait status
 	BEQ In_cTst	;if none then test ctrl chars
@@ -1162,7 +1164,7 @@ In_Bfr	LDX InBfrX
 	INX
 	STX InBfrX
 	LDX #0
-	STX ChBflip	;reset cursor s=ence
+	STX ChBflip	;reset cursor sequence
 	JMP CurBplt	;erase cursor
 In_SvCh	JSR In_Bfr 
 	LDA NwPChar	;restore new plot char

@@ -74,6 +74,13 @@
             <block type="text_clear_window"></block>
             <block type="text_moveto"></block>
             <block type="text_print"></block>
+            <block type="text_print">
+                <value name="VALUE">
+                    <block type="text">
+                        <field name="TEXT"></field>
+                    </block>
+                </value>                
+            </block>
             <block type="text_println"></block>
             <block type="text_getanykey"></block>
             <block type="text_mode"></block>
@@ -91,6 +98,150 @@
             <block type="graphics_clr_portrait"></block>
         </category>
         <category name="Sound">
+        </category>
+        <category name="Preconnected">
+            <block type="graphics_set_portrait">
+                <field name="NAME">Name</field>
+                <next>
+                    <block type="text_print">
+                        <value name="VALUE">
+                            <block type="text">
+                                <field name="TEXT">Text</field>
+                            </block>                            
+                        </value>
+                        <next>
+                            <block type="text_getanykey">
+                                <next>
+                                    <block type="text_clear_window">
+                                        <next>
+                                            <block type="text_print">
+                                                <value name="VALUE">
+                                                    <block type="text">
+                                                        <field name="TEXT">Text</field>
+                                                    </block>                            
+                                                </value>
+                                            </block>                                            
+                                        </next>
+                                    </block>
+                                </next>
+                            </block>
+                        </next>
+                    </block>
+                </next>
+            </block>
+            <block type="graphics_set_portrait">
+                <field name="NAME">Name</field>
+                <next>
+                    <block type="text_print">
+                        <value name="VALUE">
+                            <block type="text">
+                                <field name="TEXT">Text</field>
+                            </block>                            
+                        </value>
+                        <next>
+                            <block type="text_getanykey">
+                                <next>
+                                    <block type="events_move_backward"></block>
+                                </next>
+                            </block>
+                        </next>
+                    </block>
+                </next>
+            </block>
+            <block inline="false" type="text_print">
+                <value name="VALUE">
+                    <block type="text">
+                        <field name="TEXT">Leave?</field>
+                    </block>
+                </value>
+                <next>
+                    <block inline="false" type="controls_if">
+                        <mutation else="1"></mutation>
+                        <value name="IF0">
+                            <block type="text_getboolean"></block>
+                        </value>
+                        <statement name="DO0">
+                            <block type="events_set_map">
+                                <field name="NAME">Overworld - 2D</field>
+                                <field name="X">42</field>
+                                <field name="Y">42</field>
+                                <field name="FACING">0</field>
+                            </block>
+                        </statement>
+                        <statement name="ELSE">
+                            <block type="events_move_backward"></block>
+                        </statement>
+                    </block>
+                </next>
+            </block>
+            <block type="graphics_set_portrait">
+                <field name="NAME">Name</field>
+                <next>
+                    <block inline="false" type="text_println">
+                        <value name="VALUE">
+                            <block type="text">
+                                <field name="TEXT">Text</field>
+                            </block>
+                        </value>
+                        <next>
+                            <block inline="true" type="variables_set">
+                                <field name="VAR">response</field>
+                                <value name="VALUE">
+                                    <block type="text_getstring"></block>
+                                </value>
+                                <next>
+                                    <block inline="false" type="controls_if">
+                                        <mutation else="1"></mutation>
+                                        <value name="IF0">
+                                            <block inline="true" type="logic_compare">
+                                                <field name="OP">EQ</field>
+                                                <value name="A">
+                                                    <block type="variables_get">
+                                                        <field name="VAR">response</field>
+                                                    </block>
+                                                </value>
+                                                <value name="B">
+                                                    <block type="text">
+                                                        <field name="TEXT">correct response</field>
+                                                    </block>
+                                                </value>
+                                            </block>
+                                        </value>
+                                        <statement name="DO0">
+                                            <block inline="false" type="text_print">
+                                                <value name="VALUE">
+                                                    <block type="text">
+                                                        <field name="TEXT">Affirmative Response</field>
+                                                    </block>
+                                                </value>
+                                                <next>
+                                                    <block type="text_getanykey"></block>
+                                                </next>
+                                            </block>
+                                        </statement>
+                                        <statement name="ELSE">
+                                            <block inline="false" type="text_print">
+                                                <value name="VALUE">
+                                                    <block type="text">
+                                                        <field name="TEXT">Negative Response</field>
+                                                    </block>
+                                                </value>
+                                                <next>
+                                                    <block type="text_getanykey">
+                                                        <next>
+                                                            <block type="events_move_backward"></block>
+                                                        </next>
+                                                    </block>
+                                                </next>
+                                            </block>
+                                        </statement>
+                                    </block>
+                                </next>
+                            </block>
+                        </next>
+                    </block>
+                </next>
+            </block>
         </category>
     </xml>
 

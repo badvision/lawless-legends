@@ -37,7 +37,6 @@ mg
 *.a
 /Platform/Apple/tools/PLASMA/src/plasm
 /Platform/Apple/tools/PLASMA/src/plvm
-/Platform/Apple/tools/PLASMA/src/PLVM02.SYSTEM.sys
 /Platform/Apple/tools/PLASMA/src/*#*
 
 # Ignore other auto-generated files

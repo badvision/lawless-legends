@@ -19,10 +19,10 @@ Building a game disk image for the Apple II Platform
 
 3. Put scenario files in place
 
-  You will need acquire and place three scenario files into the `Platform/Apple/virtual/` directory:
-  - `world.xml`
-  - `enemies.tsv`
-  - `font.bin`
+  You will need acquire and place three scenario files into the appropriate subdirectories of `Platform/Apple/virtual/` as follows:
+  - `Platform/Apple/virtual/data/world/world.xml`
+  - `Platform/Apple/virtual/data/world/enemies.tsv`
+  - `Platform/Apple/virtual/data/fonts/font.bin`
 
 4. Build a game disk
 

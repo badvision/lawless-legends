@@ -166,35 +166,7 @@ class PackPartitions
         def rows = pixelize(data)
         
         // Retain only the upper-left 64 lines x 32 pixels
-        def result = rows[0..63].collect { it[0..31] }
-        
-        // Kludge alert! strip high bits in Building6.
-        if (imgEl.@name == "Forestville building 1 - 3d") {
-            println "hacking high bits in texture 'Forestville building 1 - 3d'"
-            def rowNum = 0
-            result = result.collect { row ->
-                rowNum++
-                row.collect { pix ->
-                    (rowNum <= 48 && pix >= 4) ? pix-4 :
-                    (pix == 4) ? 0 :
-                    (pix == 5) ? 1 :
-                    pix
-                }
-            }
-        }
-        else if (imgEl.@name == "Block Tree - 3D") {
-            println "hacking high bits in texture 'Block Tree - 3D'"
-            def rowNum = 0
-            result = result.collect { row ->
-                rowNum++
-                row.collect { pix ->
-                    (pix >= 4) ? pix-4 :
-                    pix
-                }
-            }
-        }
-        
-        return result
+        return rows[0..63].collect { it[0..31] }
     }
 
     /*

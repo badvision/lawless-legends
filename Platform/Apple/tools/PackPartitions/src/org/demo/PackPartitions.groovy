@@ -479,13 +479,13 @@ class PackPartitions
                 if (vsect == 0 && hsect == 0)
                     buf.put((byte) nHorzSections);
                 else
-                    buf.put((byte) (vsect > 0) ? sectionNums[vsect-1][hsect] : 0xFF)           // north
-                buf.put((byte) (hsect < nHorzSections-1) ? sectionNums[vsect][hsect+1] : 0xFF) // east
-                buf.put((byte) (vsect < nVertSections-1) ? sectionNums[vsect+1][hsect] : 0xFF) // south
+                    buf.put((byte) ((vsect > 0) ? sectionNums[vsect-1][hsect] : 0xFF))           // north
+                buf.put((byte) ((hsect < nHorzSections-1) ? sectionNums[vsect][hsect+1] : 0xFF)) // east
+                buf.put((byte) ((vsect < nVertSections-1) ? sectionNums[vsect+1][hsect] : 0xFF)) // south
                 if (vsect == 0 && hsect == 0)
                     buf.put((byte) nVertSections);
                 else
-                    buf.put((byte) (hsect > 0) ? sectionNums[vsect][hsect-1] : 0xFF)           // west
+                    buf.put((byte) ((hsect > 0) ? sectionNums[vsect][hsect-1] : 0xFF))           // west
                 
                 // Then links to the tile set and script library
                 buf.put((byte) tileSetNum)
@@ -570,7 +570,7 @@ class PackPartitions
             row.eachWithIndex { tile,x ->
                 // Mark scripted locations with a flag
                 def flags = ([x,y] in locationsWithTriggers) ? 0x20 : 0
-                buf.put((byte)texMap[tile?.@id] | flags)
+                buf.put((byte)(texMap[tile?.@id] | flags))
             }
             buf.put((byte)0xFF) // sentinel at end of row
         }
@@ -1056,7 +1056,9 @@ class PackPartitions
     }
     
     def wrapByteList(list) {
-        return wrapByteArray(list.toArray(new byte[list.size]))
+        def arr = new byte[list.size]
+        list.eachWithIndex { n, idx -> arr[idx] = (byte)n }
+        return wrapByteArray(arr)
     }
     
     def readFont(name, path)
@@ -1229,7 +1231,7 @@ class PackPartitions
             def len = chunk.buf.len
             //println "  chunk: type=${chunk.type}, num=${chunk.num}, len=$len"
             hdrBuf.put((byte)(len & 0xFF))
-            hdrBuf.put((byte)(len >> 8) | (chunk.buf.compressed ? 0x80 : 0))
+            hdrBuf.put((byte)((len >> 8) | (chunk.buf.compressed ? 0x80 : 0)))
             if (chunk.buf.compressed) {
                 def clen = chunk.buf.uncompressedLen;
                 hdrBuf.put((byte)(clen & 0xFF))

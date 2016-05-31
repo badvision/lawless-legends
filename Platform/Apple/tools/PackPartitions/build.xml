@@ -19,7 +19,7 @@
             <zipfileset src="../ACME/src/acme.jar"/>
             <zipfileset src="../A2Copy/dist/A2Copy.jar"/>
             <zipfileset src="../A2Copy/lib/ac.jar"/>
-            <zipfileset src="${libs.groovy-all.classpath}"/>
+            <zipfileset src="./lib/groovy-all-2.4.6.jar"/>
             <zipfileset src="dist/${application.title}-thin.jar" />
             <manifest>
                 <attribute name="Main-Class" value="${main.class}"/>

@@ -1,24 +1,36 @@
-Building for the Apple II Platform
-==================================
+Building a game disk image for the Apple II Platform
+====================================================
 
-1. Build the A2Copy tool, which copies directories in/out of image files: `cd tools/A2Copy`
-   and then `ant`, and finally `cd ../..`
+1. Install dependencies
 
-2. Build the PackMap tool, which converts Outlaw XML to a packed map. `cd tools/PackMap`
-   and then `ant`, and finally `cd ../..`. I think you need Groovy support in your
-   NetBeans installation for this to work.
+  The platform build for the Apple II requires only two dependencies. You will need to install these and have them in your path before you try to build.
 
-3. Pack your game data. `java -jar tools/PackMap/dist/PackMap.jar yourXMLFile.xml virtual/data/maps/map.pack/bin`
+  - Java 8 (or higher). You can use either OpenJDK 1.8+ or Sun JDK 1.8+
+  - Apache ant 1.9 (or higher)
 
-4. Copy the frame image (in Apple II format) to virtual/data/images/frame.bin
+  You can check if you already have them this way:
+  - `java -version`  # should show "1.8.xxx"
+  - `ant -version`   # should show "1.9.x"
 
-5. Set the location of the "cc65" tool set. Make a copy of `virtual/src/include/sample.build.props`
-   and call it `build.props` (in that same directory). Edit the `CC65_BIN_DIR` path inside that file 
-   to point at your cc65 installation. There should be "ca65", "cc65", "ld65" etc. in the directory
-   you point to.
+2. Build the tools
 
-6. Now build a complete disk image: `cd virtual` and then `ant`
+  - `cd Platform/Apple`
+  - `ant`
 
-7. Boot up the resulting disk image `game.2mg` on your Apple II or emulator.
+3. Put scenario files in place
 
-8. To run the render demo, type `-RENDER` at the ProDOS Basic prompt.
+  You will need acquire and place three scenario files into the `Platform/Apple/virtual/` directory:
+  - `world.xml`
+  - `enemies.tsv`
+  - `font.bin`
+
+4. Build a game disk
+
+  - `cd Platform/Apple/virtual`
+  - `ant`
+  - The resulting disk image will be `Platform/Apple/Virtual/game.2mg`. Just boot it in an emulator or copy to a real Apple II, and have fun.
+
+5. Rinse and repeat
+
+  - Change any of the code files in virtual/src, or update the world.xml file using Outlaw
+  - Go to step 4. The system uses incremental building for speedy turnaround.

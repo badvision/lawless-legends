@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+
+<project name="tools" default="build">
+  
+  <target name="clean"> 
+    <echo>Cleaning tools.</echo>
+    <ant dir="./tools/" target="clean" useNativeBasedir="true" inheritAll="false"/>
+  </target>
+
+  <target name="build"> 
+    <echo>Building tools.</echo>
+    <ant dir="./tools/" target="build" useNativeBasedir="true" inheritAll="false"/>
+  </target>
+
+</project>

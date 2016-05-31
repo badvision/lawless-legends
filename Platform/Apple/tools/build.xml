@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+
+<project name="tools" default="build">
+  
+  <target name="clean"> 
+    <echo>Cleaning A2Copy.</echo>
+    <ant dir="./A2Copy/" target="clean" useNativeBasedir="true" inheritAll="false"/>
+    <echo>Cleaning PackPartitions.</echo>
+    <ant dir="./PackPartitions/" target="clean" useNativeBasedir="true" inheritAll="false"/>
+  </target>
+
+  <target name="build"> 
+    <echo>Building A2Copy.</echo>
+    <ant dir="./A2Copy/" target="default" useNativeBasedir="true" inheritAll="false"/>
+    <echo>Building PackPartitions.</echo>
+    <ant dir="./PackPartitions/" target="default" useNativeBasedir="true" inheritAll="false"/>
+  </target>
+
+</project>

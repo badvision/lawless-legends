@@ -2,14 +2,9 @@
 
 <project name="game" default="build">
   
-  <property name="projName" value="game"/> <!-- base part of output file name -->
   <property name="src.dir" location="./src"/> 
   <property name="build.dir" value="./build"/>
-  <property name="a2copy.dir" value="../tools/A2Copy/dist"/>
   <property name="pack.dir" value="../tools/PackPartitions/dist"/>
-  <property name="plasma.dir" location="../tools/PLASMA/src"/> 
-  
-  <property name="IMG_FILE" value="${build.dir}/${projName}.bin#${ORG_ADDR}"/>
   
   <target name="all">
     <antcall target="clean"/>

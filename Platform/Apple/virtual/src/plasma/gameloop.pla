@@ -41,6 +41,7 @@ include "gen_enemies.plh"
 include "globalScripts.plh"      // old-style
 include "gen_globalScripts.plh"  // new-style
 include "combat.plh"
+include "party.plh"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Data structures
@@ -108,7 +109,7 @@ predef _countList, _countListFiltered, _randomFromListFiltered, _addToList, _bee
 predef _showParty, _mmgr, _setWindow1, _setWindow2, _setWindow3
 predef _reboot, _brk, _encodeDice, _rollDice
 predef _setPlural, _makeEnemy, _getStringResponse, _strcmpi, _addEncounterZone, _fatal
-predef _pause, _tossStrings
+predef _pause, _tossStrings, _showMapName, _setMapWindow
 
 word gameLib_addrs = @_setScriptInfo, @_scriptDisplayStr, @_scriptDisplayStrNL, @_getYN
 word = @_queue_setMap, @_setSky, @_setGround, @_queue_teleport, @_setPortrait, @_clearPortrait
@@ -122,7 +123,7 @@ word = @_countList, @_countListFiltered, @_randomFromListFiltered, @_addToList, 
 word = @_showParty, @_mmgr, @_setWindow1, @_setWindow2, @_setWindow3
 word = @_reboot, @_brk, @_encodeDice, @_rollDice
 word = @_setPlural, @_makeEnemy, @_getStringResponse, @_strcmpi, @_addEncounterZone, @_fatal
-word = @_pause, @_tossStrings
+word = @_pause, @_tossStrings, @_showMapName, @_setMapWindow
 
 word = 0  // end of library functions
 
@@ -1095,7 +1096,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the map area (used for clearing it)
-def setMapWindow()
+def _setMapWindow()
   if mapIs3D
     setWindow(24, 153, 14, 140) // Top, Bottom, Left, Right
   else
@@ -1523,7 +1524,7 @@ def kbdLoop()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def showMapName(mapName)
+def _showMapName(mapName)
   word newNameHash
 
   newNameHash = hashString(mapName)
@@ -1796,53 +1797,6 @@ def _removeFromList(pList, toRemove)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Show player data
-def showPlayerSheet(num)
-  word pl
-  word x, y
-  byte dir
-
-  pl = global=>p_players
-  while num > 0
-    pl = pl=>p_nextObj
-    num = num - 1
-  loop
-
-  getPos(@x, @y)
-  dir = getDir()
-
-  // First, display the player's name in the title bar
-  showMapName(pl=>s_name)
-
-  // Next, show stats in the main map area
-  setMapWindow()
-  clearWindow()
-  displayStr("Stats")
-
-  // Show inventory in the right hand area
-  setWindow2()
-  clearWindow()
-  displayStr("Inventory")
-
-  // Wait, then back to normal
-  getUpperKey()
-
-  setWindow2()
-  clearWindow()
-  initMap(x, y, dir)
-end
-
-def showPlayer1()
-  showPlayerSheet(0)
-end
-def showPlayer2()
-  showPlayerSheet(1)
-end
-def showPlayer3()
-  showPlayerSheet(2)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 def saveMapPos()
   global->b_mapIs3D = mapIs3D
   global->b_mapNum = mapNum
@@ -1855,6 +1809,42 @@ def restoreMapPos()
   mapIs3D = global->b_mapIs3D
   mapNum = global->b_mapNum
   initMap(global=>w_mapX, global=>w_mapY, global->b_mapDir)  
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Load the Party engine and show data for the given player
+def showPlayerSheet(num)
+  word partyEngine
+  word x, y
+  byte dir
+
+  saveMapPos()
+
+  // Load the party engine
+  flipToPage1()
+  mmgr(RESET_MEMORY, 0)
+  renderLoaded = FALSE
+  partyEngine = mmgr(QUEUE_LOAD, MODULE_PARTY<<8 | RES_TYPE_MODULE)
+  mmgr(FINISH_LOAD, 1) // 1 = keep open
+
+  // Run the party engine
+  partyEngine()=>party_showPlayerSheet(num)
+
+  // Resume where we left off
+  textDrawn = TRUE
+  clearPortrait()
+  setWindow2()
+  restoreMapPos()
+end
+
+def showPlayer1()
+  showPlayerSheet(0)
+end
+def showPlayer2()
+  showPlayerSheet(1)
+end
+def showPlayer3()
+  showPlayerSheet(2)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

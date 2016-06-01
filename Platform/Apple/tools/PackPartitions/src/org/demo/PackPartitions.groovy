@@ -1477,6 +1477,7 @@ class PackPartitions
         compileModule("gen_globalScripts", "src/plasma/")
         compileModule("globalScripts", "src/plasma/")
         compileModule("combat", "src/plasma/")
+        compileModule("party", "src/plasma/")
         compileModule("gen_enemies", "src/plasma/")
     }
     

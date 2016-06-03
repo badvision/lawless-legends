@@ -627,7 +627,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Show or hide the disk activity icon (at the top of hi-res page 1). The icon consists of a 4x4
-// block of orange pixels surrounded by a black border.
+// block of blue pixels surrounded by a black border.
 // Params: show/hide ($FF, or 0)
 asm diskActivity
         +asmPlasm 1
@@ -642,7 +642,7 @@ asm diskActivity
         beq +
         lda (pTmp,x)            ; show mode
         sta (pTmp),y
-        lda #$8A
+        lda #$85
         bcc ++                  ; first 4 lines
         lda #0                  ; last line
         beq ++                  ; always taken

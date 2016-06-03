@@ -626,6 +626,37 @@ asm auxMmgr
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Show or hide the disk activity icon (at the top of hi-res page 1). The icon consists of a 4x4
+// block of orange pixels surrounded by a black border.
+// Params: show/hide ($FF, or 0)
+asm diskActivity
+        +asmPlasm 1
+        sta tmp                 ; save show(FF) / hide(0) flag
+        ldx #0
+        stx pTmp
+        ldy #$F8                ; offset of screen holes
+        lda #$20                ; first line of screen is $2000
+-       sta pTmp+1
+        cmp #$30                ; pre-check for last line
+        bit tmp                 ; check mode
+        beq +
+        lda (pTmp,x)            ; show mode
+        sta (pTmp),y
+        lda #$8A
+        bcc ++                  ; first 4 lines
+        lda #0                  ; last line
+        beq ++                  ; always taken
++       lda (pTmp),y            ; hide mode
+++      sta (pTmp,x)
+        lda pTmp+1
+        clc
+        adc #4
+        cmp #$34                ; Do 5 lines: $2000, $2400, $2800, $2C00, $3000; Stop before $3400.
+        bne -
+        rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Jump straight to the system monitor
 // Params: None
 asm goMon
@@ -1182,6 +1213,9 @@ def initMap(x, y, dir)
   // Reset memory (our module will stay since memory manager locked it upon load)
   mmgr(RESET_MEMORY, 0)
 
+  // Show disk activity icon while we load
+  diskActivity($FF)
+
   // Queue loading of the raycaster or tile engine and the map data
   mmgr(SET_MEM_TARGET, displayEngine)
   if mapIs3D
@@ -1197,6 +1231,7 @@ def initMap(x, y, dir)
 
   // Load everything that we just queued
   mmgr(FINISH_LOAD, 1) // 1 = keep open
+  diskActivity(0)
 
   // Load the frame image (and lock it there)
   loadFrameImg()
@@ -1283,7 +1318,7 @@ def doRender()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Advance one step forward (3D maps only)
+// Advance one step forward (works for either 3D or 2D maps)
 def moveForward()
   byte val
   word x, y
@@ -1301,7 +1336,7 @@ def moveForward()
   // If we're on a new map tile, clear text from script(s) on the old tile.
   if val >= 2 and textDrawn
     clearWindow()
-    if textDrawn and mapIs3D; copyWindow(); fin
+    if mapIs3D; copyWindow(); fin
     textDrawn = FALSE
   fin
 
@@ -1313,7 +1348,7 @@ def moveForward()
         checkEncounter(x, y)
       fin
     fin
-  elsif global=>p_encounterZones
+  elsif val >= 2 and global=>p_encounterZones
     getPos(@x, @y)
     checkEncounter(x, y)
   fin
@@ -1442,7 +1477,8 @@ def kbdTeleport()
   ^$c053
   if ^$25 < 23; ^$25 = 23; fin
   getPos(@x, @y)
-  printf3("\nCurrent: X=%d Y=%d Facing=%d\n", x, y, getDir())
+  dir = getDir()
+  printf3("\nCurrent: X=%d Y=%d Facing=%d\n", x, y, dir)
 
   printf1("3D [%d]: ", mapIs3D)
   d3 = parseDecWithDefault(readStr(), mapIs3D)
@@ -1677,7 +1713,7 @@ def _setPortrait(portraitNum)
 
   clearPortrait()
   flipToPage1()
-  
+
   // We're going to switch windows. Save the cursor pos in the text window.
   saveCursor()
 
@@ -1695,8 +1731,10 @@ def _setPortrait(portraitNum)
   restoreCursor()
 
   // Load the portrait image and display it
+  diskActivity($FF)
   curPortrait = auxMmgr(QUEUE_LOAD, portraitNum<<8 | RES_TYPE_PORTRAIT)
   mmgr(FINISH_LOAD, 0) // 0 = close
+  diskActivity(0)
   animFrame = 0
   animFlags = readAuxByte(curPortrait)
   animNumFrames = animFlags & $F
@@ -1903,10 +1941,12 @@ def doCombat(mapCode)
 
   // Load the combat engine
   flipToPage1()
+  diskActivity($FF)
   mmgr(RESET_MEMORY, 0)
   renderLoaded = FALSE
   combatEngine = mmgr(QUEUE_LOAD, MODULE_COMBAT<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 1) // 1 = keep open
+  diskActivity(0)
 
   // Run the combat engine
   combatEngine()=>combat_zoneEncounter(mapCode)

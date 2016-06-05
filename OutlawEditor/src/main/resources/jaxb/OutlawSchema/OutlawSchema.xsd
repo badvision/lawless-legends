@@ -105,13 +105,24 @@
         <xs:complexContent>
             <xs:extension base="tns:scope">
                 <xs:sequence>
-                    <xs:element name="userTypes" minOccurs="0" maxOccurs="1">
-                        <xs:complexType>
-                            <xs:sequence>
-                                <xs:element name="userType" minOccurs="0" maxOccurs="unbounded" type="tns:userType"/>
-                            </xs:sequence>
-                        </xs:complexType>
-                    </xs:element>
+                    <xs:sequence>
+                        <xs:element name="userTypes" minOccurs="0" maxOccurs="1">
+                            <xs:complexType>
+                                <xs:sequence>
+                                    <xs:element name="userType" minOccurs="0" maxOccurs="unbounded" type="tns:userType"/>
+                                </xs:sequence>
+                            </xs:complexType>
+                        </xs:element>
+                    </xs:sequence>
+                    <xs:sequence>
+                        <xs:element name="sheets" minOccurs="0" maxOccurs="1">
+                            <xs:complexType>
+                                <xs:sequence>
+                                    <xs:element name="sheet" minOccurs="0" maxOccurs="unbounded" type="tns:sheet"/>
+                                </xs:sequence>
+                            </xs:complexType>
+                        </xs:element>
+                    </xs:sequence>
                 </xs:sequence>
             </xs:extension>
         </xs:complexContent>
@@ -182,6 +193,30 @@
             <xs:element minOccurs="0" maxOccurs="unbounded" name="block" type="tns:block"/>
         </xs:sequence>
         <xs:attribute name="name" use="required" type="xs:NCName"/>
+    </xs:complexType>
+    <xs:complexType name="sheet">
+        <xs:complexContent>
+            <xs:extension base="tns:namedEntity">
+                <xs:sequence>
+                    <xs:element name="columns" type="tns:columns"/>
+                    <xs:element name="rows" type="tns:rows"/>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="columns">
+        <xs:sequence>
+            <xs:element name="column" type="tns:userType" minOccurs="1" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="rows">
+        <xs:sequence>
+            <xs:element minOccurs="0" maxOccurs="unbounded" name="row">
+                <xs:complexType>
+                    <xs:anyAttribute/>                    
+                </xs:complexType>
+            </xs:element>
+        </xs:sequence>
     </xs:complexType>
     <xs:element name="gameData">
         <xs:complexType>

@@ -7,7 +7,6 @@
  * ANY KIND, either express or implied. See the License for the specific language 
  * governing permissions and limitations under the License.
  */
- 
 package org.badvision.outlaweditor.ui;
 
 import java.beans.IntrospectionException;
@@ -66,6 +65,7 @@ import org.badvision.outlaweditor.Application;
 import static org.badvision.outlaweditor.Application.currentPlatform;
 import org.badvision.outlaweditor.FileUtils;
 import org.badvision.outlaweditor.MythosEditor;
+import org.badvision.outlaweditor.SheetEditor;
 import org.badvision.outlaweditor.apple.ImageDitherEngine;
 import org.badvision.outlaweditor.data.DataUtilities;
 import org.badvision.outlaweditor.data.TileUtils;
@@ -74,6 +74,7 @@ import org.badvision.outlaweditor.data.xml.GameData;
 import org.badvision.outlaweditor.data.xml.Global;
 import org.badvision.outlaweditor.data.xml.Scope;
 import org.badvision.outlaweditor.data.xml.Script;
+import org.badvision.outlaweditor.data.xml.Sheet;
 import org.badvision.outlaweditor.data.xml.Tile;
 import org.badvision.outlaweditor.data.xml.UserType;
 import org.badvision.outlaweditor.data.xml.Variable;
@@ -329,8 +330,8 @@ public class UIAction {
             @Override
             public String toString(String value) {
                 return value == null ? "String" : value;
-            }            
-        }, "String","Boolean","Number"));
+            }
+        }, "String", "Boolean", "Number"));
         attributeControls.put("comment", TextFieldTableCell.<Variable, String>forTableColumn(new DefaultStringConverter()));
 
         controls.put("name", new ModalEditor.TextControl());
@@ -338,6 +339,26 @@ public class UIAction {
         controls.put("comment", new ModalEditor.TextControl());
 
         return editor.editObject(type, controls, UserType.class, "User Type", "Edit and press OK, or Cancel to abort");
+    }
+
+    public static Sheet createAndEditSheet() throws IntrospectionException {
+        Sheet sheet = new Sheet();
+        sheet.setName("New Sheet");
+        if (Application.gameData.getGlobal().getSheets() == null) {
+            Application.gameData.getGlobal().setSheets(new Global.Sheets());
+        }
+        Application.gameData.getGlobal().getSheets().getSheet().add(sheet);
+        return editSheet(sheet);
+    }
+
+    public static Sheet editSheet(Sheet item) {
+        if (item == null) {
+            System.err.println("Requested to edit a null sheet object, ignoring!");
+            return null;
+        }
+        SheetEditor editor = new SheetEditor(item);
+        editor.show();
+        return item;
     }
 
     public static ImageConversionWizardController openImageConversionModal(Image image, ImageDitherEngine ditherEngine, int targetWidth, int targetHeight, ImageConversionPostAction postAction) {
@@ -458,5 +479,8 @@ public class UIAction {
         ft.setAutoReverse(false);
         ft.setOnFinished(callback);
         ft.play();
+    }
+
+    private UIAction() {
     }
 }

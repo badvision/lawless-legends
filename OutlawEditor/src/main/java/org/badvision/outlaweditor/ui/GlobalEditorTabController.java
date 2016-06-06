@@ -15,6 +15,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.ListView;
 import org.badvision.outlaweditor.GlobalEditor;
 import org.badvision.outlaweditor.data.xml.Script;
+import org.badvision.outlaweditor.data.xml.Sheet;
 import org.badvision.outlaweditor.data.xml.UserType;
 import org.badvision.outlaweditor.data.xml.Variable;
 
@@ -30,6 +31,8 @@ public abstract class GlobalEditorTabController {
     protected ListView<UserType> dataTypeList;
     @FXML
     protected ListView<Variable> variableList;
+    @FXML
+    protected ListView<Sheet> sheetList;
 
     @FXML
     abstract protected void onScriptAddPressed(ActionEvent event);
@@ -44,6 +47,12 @@ public abstract class GlobalEditorTabController {
     @FXML
     abstract protected void onDataTypeClonePressed(ActionEvent event);
     @FXML
+    abstract protected void onSheetAddPressed(ActionEvent event);
+    @FXML
+    abstract protected void onSheetDeletePressed(ActionEvent event);
+    @FXML
+    abstract protected void onSheetClonePressed(ActionEvent event);
+    @FXML
     abstract protected void onVariableAddPressed(ActionEvent event);
     @FXML
     abstract protected void onVariableDeletePressed(ActionEvent event);
@@ -56,10 +65,13 @@ public abstract class GlobalEditorTabController {
 
     abstract public void redrawGlobalDataTypes();
     
+    abstract public void redrawGlobalSheets();
+    
     public void initialize() {
         redrawGlobalScripts();
         redrawGlobalVariables();
         redrawGlobalDataTypes();
+        redrawGlobalSheets();
     }    
 
 }

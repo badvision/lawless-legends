@@ -7,78 +7,107 @@
 
 <AnchorPane id="mapsTab" minHeight="0.0" minWidth="0.0" prefHeight="480.0" prefWidth="677.0" stylesheets="@styles/applicationui.css" xmlns="http://javafx.com/javafx/8.0.40" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.badvision.outlaweditor.ui.impl.GlobalEditorTabControllerImpl">
     <children>
-        <HBox prefHeight="438.0" prefWidth="677.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
-            <children>
-                <VBox HBox.hgrow="ALWAYS">
-                    <children>
-                        <Label text="Scripts" />
-                        <ToolBar prefWidth="200.0">
-                            <items>
-                                <Button mnemonicParsing="false" onAction="#onScriptAddPressed" text="+" />
-                                <Button mnemonicParsing="false" onAction="#onScriptDeletePressed" text="-" />
-                                <Button mnemonicParsing="false" onAction="#onScriptClonePressed" text="Clone" />
-                            </items>
-                        </ToolBar>
-                        <ScrollPane fitToHeight="true" fitToWidth="true" prefHeight="419.0" prefWidth="201.0">
-                            <content>
-                                <AnchorPane id="Content" minHeight="0.0" minWidth="0.0" prefHeight="95.0" prefWidth="198.0">
-                                    <children>
-                                        <ListView fx:id="globalScriptList" editable="true" prefHeight="130.0" prefWidth="199.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
-                                    </children>
-                                </AnchorPane>
-                            </content>
-                        </ScrollPane>
-                    </children>
-                    <padding>
-                        <Insets right="5.0" />
-                    </padding>
-                </VBox>
-                <VBox layoutX="10.0" layoutY="10.0" HBox.hgrow="ALWAYS">
-                    <children>
-                        <Label text="Data Types" />
-                        <ToolBar prefWidth="200.0">
-                            <items>
-                                <Button mnemonicParsing="false" onAction="#onDataTypeAddPressed" text="+" />
-                                <Button mnemonicParsing="false" onAction="#onDataTypeDeletePressed" text="-" />
-                                <Button mnemonicParsing="false" onAction="#onDataTypeClonePressed" text="Clone" />
-                            </items>
-                        </ToolBar>
-                        <ScrollPane fitToHeight="true" fitToWidth="true" prefHeight="419.0" prefWidth="201.0">
-                            <content>
-                                <AnchorPane id="Content" minHeight="0.0" minWidth="0.0" prefHeight="95.0" prefWidth="198.0">
-                                    <children>
-                                        <ListView fx:id="dataTypeList" editable="true" prefHeight="130.0" prefWidth="199.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
-                                    </children>
-                                </AnchorPane>
-                            </content>
-                        </ScrollPane>
-                    </children>
-                    <padding>
-                        <Insets right="5.0" />
-                    </padding>
-                </VBox>
-                <VBox layoutX="211.0" layoutY="10.0" HBox.hgrow="ALWAYS">
-                    <children>
+      <VBox prefHeight="200.0" prefWidth="100.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+         <children>
+              <HBox spacing="5.0" VBox.vgrow="ALWAYS">
+                  <children>
+                      <VBox HBox.hgrow="ALWAYS">
+                          <children>
+                              <Label text="Scripts" />
+                              <ToolBar prefWidth="200.0">
+                                  <items>
+                                      <Button mnemonicParsing="false" onAction="#onScriptAddPressed" text="+" />
+                                      <Button mnemonicParsing="false" onAction="#onScriptDeletePressed" text="-" />
+                                      <Button mnemonicParsing="false" onAction="#onScriptClonePressed" text="Clone" />
+                                  </items>
+                              </ToolBar>
+                              <ScrollPane fitToHeight="true" fitToWidth="true" prefHeight="419.0" prefWidth="201.0">
+                                  <content>
+                                      <AnchorPane id="Content" minHeight="0.0" minWidth="0.0" prefHeight="95.0" prefWidth="198.0">
+                                          <children>
+                                              <ListView fx:id="globalScriptList" editable="true" prefHeight="130.0" prefWidth="199.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                                          </children>
+                                      </AnchorPane>
+                                  </content>
+                              </ScrollPane>
+                          </children>
+                      </VBox>
+                      <VBox layoutX="10.0" layoutY="10.0" HBox.hgrow="ALWAYS">
+                          <children>
+                              <Label text="Data Types" />
+                              <ToolBar prefWidth="200.0">
+                                  <items>
+                                      <Button mnemonicParsing="false" onAction="#onDataTypeAddPressed" text="+" />
+                                      <Button mnemonicParsing="false" onAction="#onDataTypeDeletePressed" text="-" />
+                                      <Button mnemonicParsing="false" onAction="#onDataTypeClonePressed" text="Clone" />
+                                  </items>
+                              </ToolBar>
+                              <ScrollPane fitToHeight="true" fitToWidth="true" prefHeight="419.0" prefWidth="201.0">
+                                  <content>
+                                      <AnchorPane id="Content" minHeight="0.0" minWidth="0.0" prefHeight="95.0" prefWidth="198.0">
+                                          <children>
+                                              <ListView fx:id="dataTypeList" editable="true" prefHeight="130.0" prefWidth="199.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                                          </children>
+                                      </AnchorPane>
+                                  </content>
+                              </ScrollPane>
+                          </children>
+                      </VBox>
+                  </children>
+               <padding>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </padding>
+              </HBox>
+            <HBox spacing="5.0" VBox.vgrow="ALWAYS">
+               <children>
+                      <VBox HBox.hgrow="ALWAYS">
+                          <children>
+                              <Label text="Sheets" />
+                              <ToolBar prefWidth="200.0">
+                                  <items>
+                                      <Button mnemonicParsing="false" onAction="#onSheetAddPressed" text="+" />
+                                      <Button mnemonicParsing="false" onAction="#onSheetDeletePressed" text="-" />
+                                      <Button mnemonicParsing="false" onAction="#onSheetClonePressed" text="Clone" />
+                                  </items>
+                              </ToolBar>
+                              <ScrollPane fitToHeight="true" fitToWidth="true" prefHeight="419.0" prefWidth="201.0">
+                                  <content>
+                                      <AnchorPane id="Content" minHeight="0.0" minWidth="0.0" prefHeight="95.0" prefWidth="198.0">
+                                          <children>
+                                              <ListView fx:id="sheetList" editable="true" prefHeight="130.0" prefWidth="199.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                                          </children>
+                                      </AnchorPane>
+                                  </content>
+                              </ScrollPane>
+                          </children>
+                      </VBox>
+                  <VBox HBox.hgrow="ALWAYS">
+                     <children>
                         <Label text="Global Variables" />
                         <ToolBar prefWidth="200.0">
-                            <items>
-                                <Button mnemonicParsing="false" onAction="#onVariableAddPressed" text="+" />
-                                <Button mnemonicParsing="false" onAction="#onVariableDeletePressed" text="-" />
-                                <Button mnemonicParsing="false" onAction="#onVariableClonePressed" text="Clone" />
-                            </items>
+                           <items>
+                              <Button mnemonicParsing="false" onAction="#onVariableAddPressed" text="+" />
+                              <Button mnemonicParsing="false" onAction="#onVariableDeletePressed" text="-" />
+                              <Button mnemonicParsing="false" onAction="#onVariableClonePressed" text="Clone" />
+                           </items>
                         </ToolBar>
                         <ScrollPane fitToHeight="true" fitToWidth="true" prefHeight="419.0" prefWidth="201.0">
-                            <content>
-                                <AnchorPane id="Content" minHeight="0.0" minWidth="0.0" prefHeight="95.0" prefWidth="198.0">
-                                    <children>
-                                        <ListView fx:id="variableList" editable="true" prefHeight="130.0" prefWidth="199.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
-                                    </children>
-                                </AnchorPane>
-                            </content>
+                           <content>
+                              <AnchorPane id="Content" minHeight="0.0" minWidth="0.0" prefHeight="95.0" prefWidth="198.0">
+                                 <children>
+                                    <ListView fx:id="variableList" editable="true" prefHeight="130.0" prefWidth="199.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                                 </children>
+                              </AnchorPane>
+                           </content>
                         </ScrollPane>
-                    </children>
-                </VBox>
-            </children>
-        </HBox>
+                     </children>
+                  </VBox>
+               </children>
+               <padding>
+                  <Insets bottom="5.0" left="5.0" right="5.0" />
+               </padding>
+            </HBox>
+         </children>
+      </VBox>
     </children>
 </AnchorPane>

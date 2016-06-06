@@ -7,7 +7,6 @@
  * ANY KIND, either express or implied. See the License for the specific language 
  * governing permissions and limitations under the License.
  */
- 
 package org.badvision.outlaweditor.ui.impl;
 
 import java.beans.IntrospectionException;
@@ -24,6 +23,7 @@ import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.TransferHelper;
 import org.badvision.outlaweditor.data.DataUtilities;
 import org.badvision.outlaweditor.data.xml.Script;
+import org.badvision.outlaweditor.data.xml.Sheet;
 import org.badvision.outlaweditor.data.xml.UserType;
 import org.badvision.outlaweditor.data.xml.Variable;
 import org.badvision.outlaweditor.ui.GlobalEditorTabController;
@@ -94,6 +94,28 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
             @Override
             public void startEdit() {
                 UIAction.editUserType(getItem());
+                cancelEdit();
+                updateItem(getItem(), false);
+            }
+        });
+        sheetList.setCellFactory((listView) -> new ListCell<Sheet>() {
+            @Override
+            protected void updateItem(Sheet item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText("");
+                } else {
+                    setText(item.getName());
+                    if (item.getComment() != null && !(item.getComment().isEmpty())) {
+                        setTooltip(new Tooltip(item.getComment()));
+                    }
+                    setFont(Font.font(null, FontWeight.BOLD, 12.0));
+                }
+            }
+
+            @Override
+            public void startEdit() {
+                UIAction.editSheet(getItem());
                 cancelEdit();
                 updateItem(getItem(), false);
             }
@@ -188,6 +210,52 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
     }
 
     @Override
+    protected void onSheetAddPressed(ActionEvent event) {
+        try {
+            UIAction.createAndEditSheet();
+            redrawGlobalSheets();
+        } catch (IntrospectionException ex) {
+            Logger.getLogger(GlobalEditorTabControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
+    }
+
+    @Override
+    protected void onSheetDeletePressed(ActionEvent event) {
+        Sheet sheet = sheetList.getSelectionModel().getSelectedItem();
+        if (sheet != null) {
+            UIAction.confirm(
+                    "Are you sure you want to delete the sheet "
+                    + sheet.getName()
+                    + "?  There is no undo for this!",
+                    () -> {
+                        Application.gameData.getGlobal().getSheets().getSheet().remove(sheet);
+                        redrawGlobalSheets();
+                    }, null);
+        }
+    }
+
+    @Override
+    protected void onSheetClonePressed(ActionEvent event) {
+        Sheet source = sheetList.getSelectionModel().getSelectedItem();
+        if (source == null) {
+            String message = "First select a sheet and then press Clone";
+            UIAction.alert(message);
+        } else {
+            try {
+                Sheet sheet = TransferHelper.cloneObject(source, Sheet.class, "sheet");
+                sheet.setName(source.getName() + " CLONE");
+                Sheet newVar = UIAction.editSheet(sheet);
+                Application.gameData.getGlobal().getSheets().getSheet().add(newVar);
+                redrawGlobalSheets();
+            } catch (JAXBException ex) {
+                Logger.getLogger(GlobalEditorTabControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
+                UIAction.alert("Error occured when attempting clone operation:\n" + ex.getMessage());
+            }
+        }
+    }
+
+    @Override
     protected void onVariableAddPressed(ActionEvent event) {
         try {
             UIAction.createAndEditVariable(Application.gameData.getGlobal());
@@ -266,6 +334,17 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
             dataTypeList.getItems().setAll(Application.gameData.getGlobal().getUserTypes().getUserType());
         } else {
             dataTypeList.getItems().clear();
+        }
+    }
+
+    @Override
+    public void redrawGlobalSheets() {
+        DataUtilities.ensureGlobalExists();
+        if (sheetList.getItems() != null && Application.gameData.getGlobal().getSheets() != null) {
+            DataUtilities.sortNamedEntities(Application.gameData.getGlobal().getSheets().getSheet());
+            sheetList.getItems().setAll(Application.gameData.getGlobal().getSheets().getSheet());
+        } else {
+            sheetList.getItems().clear();
         }
     }
 }

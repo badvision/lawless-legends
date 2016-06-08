@@ -1682,60 +1682,38 @@ class PackPartitions
         return String.format("\$%X", ((nDice << 12) | (dieSize << 8) | add))
     }
     
-    void genEnemy(out, columns, data, portraitNames)
+    def genEnemy(out, row, portraitNames)
     {
-        assert columns[0] == "Name"
-        def name = data[0]
+        def name = row.@name
         withContext(name) 
         {
             out.println("def NE_${humanNameToSymbol(name, false)}()")
 
-            assert columns[1] == "Image1"
-            def image1 = data[1]
+            def image1 = row.@image1
             if (!portraitNames.contains(humanNameToSymbol(image1, false)))
                 throw new Exception("Image '$image1' not found")
 
-            assert columns[2] == "Image2"
-            def image2 = data[2]
+            def image2 = row.@image2
             if (image2.size() > 0 && !portraitNames.contains(humanNameToSymbol(image2, false)))
                 throw new Exception("Image '$image2' not found")
 
-            assert columns[3] == "Hit Points"
-            def hitPoints = data[3]
+            def hitPoints = row.@"hit-points"
 
-            assert columns[4] == "Attack Type"
-            def attackType = data[4]
+            def attackType = row.@"attack-type"
             def attackTypeCode = attackType.toLowerCase() == "melee" ? 1 :
                                  attackType.toLowerCase() == "projectile" ? 2 :
                                  0
             if (!attackTypeCode) throw new Exception("Can't parse attack type '$attackType'")
 
-            assert columns[5] == "Attack Text"
-            def attackText = data[5]
-
-            assert columns[6] == "Range"
-            def range = data[6]
-
-            assert columns[7] == "Chance To Hit"
-            def chanceToHit = data[7]
-
-            assert columns[8] == "Damage"
-            def damage = data[8]
-
-            assert columns[9] == "Experience"
-            def experience = data[9]
-
-            assert columns[10] == "Map Code"
-            def mapCode = data[10]
-
-            assert columns[11] == "Group size"
-            def groupSize = data[11]
-
-            assert columns[12] == "Loot Class Code"
-            def lootClassCode = data[12]
-
-            assert columns[13].toLowerCase() =~ /gold loot/
-            def goldLoot = data[13]
+            def attackText = row.@"attack-text"
+            def range = row.@range
+            def chanceToHit = row.@"chance-to-hit"
+            def damage = row.@damage
+            def experience = row.@experience
+            def mapCode = row.@"map-code"
+            def groupSize = row.@"group-size"
+            def lootClassCode = row.@"loot-class-code"
+            def goldLoot = row.@"gold-loot"
 
             out.println("  return makeEnemy(" +
                         "\"$name\", " +
@@ -1750,6 +1728,90 @@ class PackPartitions
                         "${parseDice(groupSize)})")
             out.println("end")
         }
+    }
+    
+    def genAllEnemies(sheet, portraitNames)
+    {
+        assert sheet : "Missing 'enemies' sheet"
+            
+        withContext("enemies sheet")
+        {
+            new File("build/src/plasma/gen_enemies.plh.new").withWriter { out ->
+                out.println("// Generated code - DO NOT MODIFY BY HAND\n")
+                out.println("const enemy_forZone = 0")
+            }
+            replaceIfDiff("build/src/plasma/gen_enemies.plh")
+            new File("build/src/plasma/gen_enemies.pla.new").withWriter { out ->
+                out.println("// Generated code - DO NOT MODIFY BY HAND")
+                out.println()
+                out.println("include \"gamelib.plh\"")
+                out.println("include \"playtype.plh\"")
+                out.println("include \"gen_images.plh\"")
+                out.println()
+
+                def columns = sheet.columns.column.collect { it.@name }
+                assert "name" in columns
+                assert "map-code" in columns
+                out.println("predef _enemy_forZone")
+                out.println("word[] funcTbl = @_enemy_forZone\n")
+
+                // Pre-define all the enemy creation functions
+                sheet.rows.row.each { row ->
+                    out.println("predef NE_${humanNameToSymbol(row.@name, false)}")
+                }
+
+                // Figure out the mapping between "map code" and "enemy"
+                def codeToFunc = [:]
+                sheet.rows.row.each { row ->
+                    def name = row.@name
+                    def mapCodes = row.@"map-code".replace("\"", "")
+                    mapCodes.split(",").collect{it.trim()}.grep{it!=""}.each { code ->
+                        if (!codeToFunc.containsKey(code))
+                            codeToFunc[code] = []
+                        codeToFunc[code] << "NE_${humanNameToSymbol(name, false)}"
+                    }
+                }
+
+                // Output that.
+                codeToFunc.sort().each { code, funcs ->
+                    out.print("word[] ct_${humanNameToSymbol(code, false)} = ")
+                    funcs.eachWithIndex { func, index ->
+                        if (index > 0)
+                            out.print(", ")
+                        out.print("@$func")
+                    }
+                    out.println()
+                }
+                out.println()
+
+                // Now output a function for each enemy
+                sheet.rows.row.each { row ->
+                    genEnemy(out, row, portraitNames)
+                }
+                out.println()
+
+                // Utility func
+                out.println("def randFrom(arr, siz)")
+                out.println("  return *(((rand16() % siz) << 1) + arr)")
+                out.println("end\n")
+
+                // And finally, a function to select an enemy given a map code.
+                out.println("def _enemy_forZone(mapCode)")
+                codeToFunc.sort().each { code, funcs ->
+                    out.println("  if strcmpi(mapCode, \"$code\") == 0; ")
+                    out.println("    return randFrom(@ct_${humanNameToSymbol(code, false)}, ${funcs.size()})")
+                    out.println("  fin")
+                }
+                out.println("  puts(mapCode)")
+                out.println("  fatal(\"No enemies match\")")
+                out.println("end\n")
+
+                out.println("return @funcTbl")
+                out.println("done")
+            }
+            replaceIfDiff("build/src/plasma/gen_enemies.pla")
+        }
+        
     }
     
     def replaceIfDiff(oldFile)
@@ -1820,88 +1882,8 @@ class PackPartitions
         replaceIfDiff("build/src/plasma/gen_globalScripts.pla")
         
         // Translate enemies to code
-        withContext("enemies.tsv")
-        {
-            def enemyLines = jitCopy(new File("build/data/world/enemies.tsv")).readLines().
-                grep { it.split("\t").length > 0 }
-            new File("build/src/plasma/gen_enemies.plh.new").withWriter { out ->
-                out.println("// Generated code - DO NOT MODIFY BY HAND\n")
-                out.println("const enemy_forZone = 0")
-            }
-            replaceIfDiff("build/src/plasma/gen_enemies.plh")
-            new File("build/src/plasma/gen_enemies.pla.new").withWriter { out ->
-                out.println("// Generated code - DO NOT MODIFY BY HAND")
-                out.println()
-                out.println("include \"gamelib.plh\"")
-                out.println("include \"playtype.plh\"")
-                out.println("include \"gen_images.plh\"")
-                out.println()
+        genAllEnemies(dataIn.global.sheets.sheet.find { it?.@name == "enemies" }, portraitNames)
 
-                def columns = enemyLines[0].split("\t")
-                out.println("predef _enemy_forZone")
-                out.println("word[] funcTbl = @_enemy_forZone\n")
-
-                // Pre-define all the enemy creation functions
-                enemyLines[1..-1].each { line ->
-                    out.println("predef NE_${humanNameToSymbol(line.split("\t")[0], false)}")
-                }
-
-                // Figure out the mapping between "map code" and "enemy"
-                def codeToFunc = [:]
-                enemyLines[1..-1].each { line ->
-                    def data = line.split("\t")
-                    assert columns[0] == "Name"
-                    def name = data[0]
-                    assert columns[10] == "Map Code"
-                    def mapCodes = data[10].replace("\"", "")
-                    mapCodes.split(",").each { code ->
-                        code = code.trim()
-                        if (!codeToFunc.containsKey(code))
-                            codeToFunc[code] = []
-                        codeToFunc[code] << "NE_${humanNameToSymbol(name, false)}"
-                    }
-                }
-
-                // Output that.
-                codeToFunc.sort().each { code, funcs ->
-                    out.print("word[] ct_${humanNameToSymbol(code, false)} = ")
-                    funcs.eachWithIndex { func, index ->
-                        if (index > 0)
-                            out.print(", ")
-                        out.print("@$func")
-                    }
-                    out.println()
-                }
-                out.println()
-
-                // Now output a function for each enemy
-                enemyLines[1..-1].each { line ->
-                    genEnemy(out, columns, line.split("\t"), portraitNames)
-                }
-                out.println()
-
-                // Utility func
-                out.println("def randFrom(arr, siz)")
-                out.println("  return *(((rand16() % siz) << 1) + arr)")
-                out.println("end\n")
-
-                // And finally, a function to select an enemy given a map code.
-                out.println("def _enemy_forZone(mapCode)")
-                codeToFunc.sort().each { code, funcs ->
-                    out.println("  if strcmpi(mapCode, \"$code\") == 0; ")
-                    out.println("    return randFrom(@ct_${humanNameToSymbol(code, false)}, ${funcs.size()})")
-                    out.println("  fin")
-                }
-                out.println("  puts(mapCode)")
-                out.println("  fatal(\"No enemies match\")")
-                out.println("end\n")
-
-                out.println("return @funcTbl")
-                out.println("done")
-            }
-            replaceIfDiff("build/src/plasma/gen_enemies.pla")
-        }
-        
         // Produce a list of assembly and PLASMA code segments
         binaryStubsOnly = true
         readAllCode()

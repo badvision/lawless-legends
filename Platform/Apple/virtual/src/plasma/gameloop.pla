@@ -1110,6 +1110,7 @@ end
 // Window for the map name bar
 def _setWindow1()
   setWindow(8, 18, 35, 119) // Top, Bottom, Left, Right
+  mapNameHash = 0  // on the assumption that it's being set because somebody's going to print there
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1455,7 +1456,6 @@ def setMap(is3D, num, x, y, dir)
     setWindow1();   clearWindow()
     displayChar('Y'-$40) // center mode
     displayStr("Traveling...")
-    mapNameHash = 0 // because we replaced the title text
     displayChar('N'-$40) // normal mode
     setMapWindow(); clearWindow()    
     setWindow2();   clearWindow()

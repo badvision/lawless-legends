@@ -2138,6 +2138,52 @@ def setLibVecs()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def makeModifier(kind, value)
+  word p
+  p = mmgr(HEAP_ALLOC, TYPE_MODIFIER)
+  p->b_modKind = kind
+  p->b_modValue = value
+  return p
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def makeArmor(name, kind, cost, armorValue, modifier)
+  word p
+  p = mmgr(HEAP_ALLOC, TYPE_ARMOR)
+  p=>s_name = mmgr(HEAP_INTERN, name)
+  p->b_itemKind = kind
+  p=>w_cost = cost
+  p->b_armorValue = armorValue
+  p=>p_modifiers = modifier
+  return p
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def makeWeapon(name, kind, cost, ammoKind, clipSize, meleeDmg, projectileDmg)
+  word p
+  p = mmgr(HEAP_ALLOC, TYPE_WEAPON)
+  p=>s_name = mmgr(HEAP_INTERN, name)
+  p->b_itemKind = kind
+  p=>w_cost = cost
+  p->b_ammoKind = ammoKind
+  p->b_clipSize = clipSize
+  p->b_clipCurrent = clipSize
+  p=>r_meleeDmg = meleeDmg
+  p=>r_projectileDmg = projectileDmg
+  return p
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def finishWeapon(p, modifier, attack0, attack1, attack2, weaponRange, combatText)
+  p->ba_attacks[0] = attack0
+  p->ba_attacks[1] = attack1
+  p->ba_attacks[2] = attack2
+  p->b_weaponRange = weaponRange
+  p=>s_combatText = mmgr(HEAP_INTERN, combatText)
+  return p
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Create the party
 def initParty()
   word globalScripts

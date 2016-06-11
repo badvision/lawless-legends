@@ -1181,7 +1181,7 @@ class PackPartitions
         def compressedLen = compressor.compress(uncompressedData, 0, uncompressedLen, 
                                                 compressedData, 0, maxCompressedLen)
         assert compressedLen > 0
-                                            
+        
         // Then recompress to LZ4M (pretty much always smaller)
         def recompressedLen = recompress(compressedData, compressedLen, uncompressedData, uncompressedLen)
         
@@ -1479,6 +1479,7 @@ class PackPartitions
         compileModule("combat", "src/plasma/")
         compileModule("party", "src/plasma/")
         compileModule("gen_enemies", "src/plasma/")
+        compileModule("gen_items", "src/plasma/")
     }
     
     /**
@@ -1814,6 +1815,114 @@ class PackPartitions
         
     }
     
+    def genWeapon(out, row)
+    {
+        out.println "  //weapon name=${row.@name}"
+    }
+    
+    def genArmor(out, row)
+    {
+        out.println "  //armor name=${row.@name}"
+    }
+    
+    def genAmmo(out, row)
+    {
+        out.println "  //ammo name=${row.@name}"
+    }
+    
+    def genItem(out, row)
+    {
+        out.println "  //item name=${row.@name}"
+    }
+    
+    def addCodeToFunc(func, codesString, addTo)
+    {
+        if (codesString == null)
+            return
+            
+        codesString.replace("\"", "").split(",").collect{it.trim()}.grep{it!=""}.each { code ->
+            if (!addTo.containsKey(code))
+                addTo[code] = []
+            addTo[code] << func
+        }
+    }
+
+    def genAllItems(sheets)
+    {
+        // Grab all the raw data
+        def funcs = []
+        sheets.find { it?.@name.equalsIgnoreCase("weapons") }.rows.row.each { row ->
+            funcs << ["weapon", "new_weapon_${humanNameToSymbol(row.@name, false)}", funcs.size, row] }
+        sheets.find { it?.@name.equalsIgnoreCase("armor") }.rows.row.each { row ->
+            funcs << ["armor",  "new_armor_${humanNameToSymbol(row.@name, false)}",  funcs.size, row] }
+        sheets.find { it?.@name.equalsIgnoreCase("ammo") }.rows.row.each { row ->
+            funcs << ["ammo",   "new_ammo_${humanNameToSymbol(row.@name, false)}",   funcs.size, row] }
+        sheets.find { it?.@name.equalsIgnoreCase("items") }.rows.row.each { row ->
+            funcs << ["item",   "new_item_${humanNameToSymbol(row.@name, false)}",   funcs.size, row] }
+        
+        // Build up the mappings from loot codes and store codes to creation functions
+        def lootCodeToFuncs = [:]
+        def storeCodeToFuncs = [:]
+        funcs.each { typeName, func, index, row ->
+            addCodeToFunc(func, row.@"loot-code", lootCodeToFuncs)
+            addCodeToFunc(func, row.@"store-code", storeCodeToFuncs)
+        }
+
+        // Make constants for the function table
+        new File("build/src/plasma/gen_items.plh.new").withWriter { out ->
+            out.println("// Generated code - DO NOT MODIFY BY HAND\n")
+            funcs.each { typeName, func, index, row ->
+                out.println("const ${func} = ${index*2}")
+            }
+        }
+        replaceIfDiff("build/src/plasma/gen_items.plh")
+        
+        // Generate code
+        new File("build/src/plasma/gen_items.pla.new").withWriter { out ->
+            out.println("// Generated code - DO NOT MODIFY BY HAND")
+            out.println()
+            out.println("include \"gamelib.plh\"")
+            out.println("include \"playtype.plh\"")
+            out.println("include \"gen_items.plh\"")
+            out.println()
+
+            // Pre-define all the creation functions
+            funcs.each { typeName, func, index, row ->
+                out.println("predef _$func")
+            }
+            out.println("")
+
+            // Next, output the function table
+            funcs.each { typeName, func, index, row ->
+                out.println("${index==0 ? "word[] funcTbl =" : "word ="} @_$func")
+            }
+            out.println("")
+
+            // Generate all the functions themselves
+            funcs.each { typeName, func, index, row ->
+                withContext(func) 
+                {
+                    out.println("def _$func()")
+                    switch (typeName) {
+                        case "weapon": genWeapon(out, row); break
+                        case "armor":  genArmor(out, row);  break
+                        case "ammo":   genAmmo(out, row);   break
+                        case "item":   genItem(out, row);   break
+                        default: assert false
+                    }
+                    out.println("end\n")
+                }
+                
+            }
+            out.println()
+
+            // Lastly, the outer module-level code
+            out.println("return @funcTbl")
+            out.println("done")
+        }
+        replaceIfDiff("build/src/plasma/gen_items.pla")
+    }
+
     def replaceIfDiff(oldFile)
     {
         def newFile = new File(oldFile + ".new")
@@ -1881,8 +1990,9 @@ class PackPartitions
         gsmod.packGlobalScripts(new File("build/src/plasma/gen_globalScripts.pla.new"), dataIn.global.scripts)
         replaceIfDiff("build/src/plasma/gen_globalScripts.pla")
         
-        // Translate enemies to code
-        genAllEnemies(dataIn.global.sheets.sheet.find { it?.@name == "enemies" }, portraitNames)
+        // Translate enemies, weapons, etc. to code
+        genAllEnemies(dataIn.global.sheets.sheet.find { it?.@name.equalsIgnoreCase("enemies") }, portraitNames)
+        genAllItems(dataIn.global.sheets.sheet)
 
         // Produce a list of assembly and PLASMA code segments
         binaryStubsOnly = true

@@ -21,15 +21,6 @@ word           = @new_Weapon_Handgun, @new_Weapon_SpiritBow, @new_Weapon_SpiritB
 word           = @new_Player_Hue_Hauser, @new_Player_Mokahnu
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def new_Modifier(kind, value)
-  word p
-  p = mmgr(HEAP_ALLOC, TYPE_MODIFIER)
-  p->b_modKind = kind
-  p->b_modValue = value
-  return p
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 def new_Armor_Chaps
   word p
   p = mmgr(HEAP_ALLOC, TYPE_ARMOR)

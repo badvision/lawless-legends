@@ -58,6 +58,7 @@ def playerMelee(pPlayer, pWeapon)
   fin
   // TODO: Add extra melee damage for skills, strength, etc.
   // TODO: consider enemy dodge
+  // TODO: consider enemy armor and bonuses
   pEnemy=>w_health = pEnemy=>w_health - dmg
 
   buildString(@addToString)
@@ -82,6 +83,7 @@ def playerShoot(pPlayer, pWeapon)
   if !pEnemy; return FALSE; fin
 
   // Figure out chance to hit. First come agility and aim.
+  // TODO: check for and add weapon bonuses for agility and aiming
   chance = (pPlayer->b_agility * 4) + pPlayer->b_aiming
 
   // Add in skill modifier, if any
@@ -108,6 +110,7 @@ def playerShoot(pPlayer, pWeapon)
     dmg = rollDice(pWeapon=>r_projectileDmg)
     // TODO: Add extra melee damage for skills, strength, etc.
     // TODO: consider enemy dodge
+    // TODO: consider enemy armor, and armor bonuses
     pEnemy=>w_health = pEnemy=>w_health - dmg
 
     buildString(@addToString)

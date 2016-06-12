@@ -1688,7 +1688,7 @@ class PackPartitions
         def name = row.@name
         withContext(name) 
         {
-            out.println("def NEn_${humanNameToSymbol(name, false)}()")
+            out.println("def _NEn_${humanNameToSymbol(name, false)}()")
 
             def image1 = row.@image1
             if (!portraitNames.contains(humanNameToSymbol(image1, false)))
@@ -1706,15 +1706,14 @@ class PackPartitions
                                  0
             if (!attackTypeCode) throw new Exception("Can't parse attack type '$attackType'")
 
-            def attackText = row.@"attack-text"
-            def range = row.@range
-            def chanceToHit = row.@"chance-to-hit"
-            def damage = row.@damage
-            def experience = row.@experience
-            def mapCode = row.@"map-code"
-            def groupSize = row.@"group-size"
-            def lootClassCode = row.@"loot-class-code"
-            def goldLoot = row.@"gold-loot"
+            def attackText = row.@"attack-text";    assert attackText
+            def range = row.@range;                 assert range
+            def chanceToHit = row.@"chance-to-hit"; assert chanceToHit
+            def damage = row.@damage;               assert damage
+            def experience = row.@experience;       assert experience
+            def mapCode = row.@"map-code";          assert mapCode
+            def groupSize = row.@"group-size";      assert groupSize
+            def goldLoot = row.@"gold-loot";        assert goldLoot
 
             out.println("  return makeEnemy(" +
                         "\"$name\", " +
@@ -1726,7 +1725,8 @@ class PackPartitions
                         "${range.replace("'", "").toInteger()}, " +
                         "${chanceToHit.toInteger()}, " +
                         "${parseDice(damage)}, " +
-                        "${parseDice(groupSize)})")
+                        "${parseDice(groupSize)}, " +
+                        "${parseDice(goldLoot)})")
             out.println("end")
         }
     }
@@ -1758,14 +1758,14 @@ class PackPartitions
 
                 // Pre-define all the enemy creation functions
                 sheet.rows.row.each { row ->
-                    out.println("predef NEn_${humanNameToSymbol(row.@name, false)}")
+                    out.println("predef _NEn_${humanNameToSymbol(row.@name, false)}")
                 }
 
                 // Figure out the mapping between "map code" and "enemy", and output the table for that
                 def codeToFunc = [:]
                 sheet.rows.row.each { row ->
-                    addCodeToFunc("NEn_${humanNameToSymbol(row.@name, false)}", row.@"map-code", codeToFunc) }
-                outCodeToFuncTbl("ct_", codeToFunc, out)
+                    addCodeToFunc("_NEn_${humanNameToSymbol(row.@name, false)}", row.@"map-code", codeToFunc) }
+                outCodeToFuncTbl("mapCode_", codeToFunc, out)
 
                 // Now output a function for each enemy
                 sheet.rows.row.each { row ->
@@ -1774,7 +1774,7 @@ class PackPartitions
                 out.println()
 
                 // And finally, a function to select an enemy given a map code.
-                outCodeToFuncMethod("_enemy_forZone", "ct_", codeToFunc, out)
+                outCodeToFuncMethod("_enemy_forZone", "mapCode_", codeToFunc, out)
 
                 out.println("return @funcTbl")
                 out.println("done")
@@ -1819,13 +1819,11 @@ class PackPartitions
     def outCodeToFuncTbl(prefix, codeToFunc, out)
     {
         codeToFunc.sort().each { code, funcs ->
-            out.print("word[] $prefix${humanNameToSymbol(code, false)} = ")
             funcs.eachWithIndex { func, index ->
-                out.print("${index>0 ? ", " : ""}@$func")
+                out.println("${index==0 ? "word[] $prefix${humanNameToSymbol(code, false)} = " : "word         = "}@$func")
             }
             out.println()
         }
-        out.println()
     }
 
     def outCodeToFuncMethod(funcName, prefix, codeToFunc, out)
@@ -1833,7 +1831,7 @@ class PackPartitions
         out.println("def $funcName(code)")
         codeToFunc.sort().each { code, funcs ->
             out.println("  if strcmpi(code, \"$code\") == 0; ")
-            out.println("    return randomFromArray(@ct_${humanNameToSymbol(code, false)}, ${funcs.size()})")
+            out.println("    return randomFromArray(@$prefix${humanNameToSymbol(code, false)}, ${funcs.size()})")
             out.println("  fin")
         }
         out.println("  puts(code)")
@@ -1858,15 +1856,17 @@ class PackPartitions
         def lootCodeToFuncs = [:]
         def storeCodeToFuncs = [:]
         funcs.each { typeName, func, index, row ->
-            addCodeToFunc(func, row.@"loot-code", lootCodeToFuncs)
-            addCodeToFunc(func, row.@"store-code", storeCodeToFuncs)
+            addCodeToFunc("_$func", row.@"loot-code", lootCodeToFuncs)
+            addCodeToFunc("_$func", row.@"store-code", storeCodeToFuncs)
         }
 
         // Make constants for the function table
         new File("build/src/plasma/gen_items.plh.new").withWriter { out ->
             out.println("// Generated code - DO NOT MODIFY BY HAND\n")
+            out.println("const item_forLootCode = 0")
+            out.println("const item_forStoreCode = 2")
             funcs.each { typeName, func, index, row ->
-                out.println("const ${func} = ${index*2}")
+                out.println("const ${func} = ${(index+2)*2}")
             }
         }
         replaceIfDiff("build/src/plasma/gen_items.plh")
@@ -1881,14 +1881,20 @@ class PackPartitions
             out.println()
 
             // Pre-define all the creation functions
+            out.println("predef _item_forLootCode, _item_forStoreCode")
             funcs.each { typeName, func, index, row ->
                 out.println("predef _$func")
             }
             out.println("")
 
+            // Tables for converting loot codes and store codes to items
+            outCodeToFuncTbl("lootCode_", lootCodeToFuncs, out)
+            outCodeToFuncTbl("storeCode_", storeCodeToFuncs, out)
+            
             // Next, output the function table
+            out.println("word[] funcTbl = @_item_forLootCode, @_item_forStoreCode")
             funcs.each { typeName, func, index, row ->
-                out.println("${index==0 ? "word[] funcTbl =" : "word ="} @_$func")
+                out.println("word         = @_$func")
             }
             out.println("")
 
@@ -1908,7 +1914,10 @@ class PackPartitions
                 }
                 
             }
-            out.println()
+            
+            // Code for loot and store generation
+            outCodeToFuncMethod("_item_forLootCode", "lootCode_", lootCodeToFuncs, out)
+            outCodeToFuncMethod("_item_forStoreCode", "storeCode_", storeCodeToFuncs, out)
 
             // Lastly, the outer module-level code
             out.println("return @funcTbl")

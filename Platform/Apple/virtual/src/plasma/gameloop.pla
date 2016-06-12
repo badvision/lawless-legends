@@ -1888,7 +1888,7 @@ def showPlayer3()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _makeEnemy(name, healthDice, image0, image1, attackType, attackText, attackRange, chanceToHit, dmg, groupSize)
+def _makeEnemy(name, healthDice, image0, image1, attackType, attackText, attackRange, chanceToHit, dmg, groupSize, goldLoot)
   word p; p = mmgr(HEAP_ALLOC, TYPE_ENEMY)
   p=>s_name = mmgr(HEAP_INTERN, name)
   p=>w_health = rollDice(healthDice) // 4d6
@@ -1903,6 +1903,7 @@ def _makeEnemy(name, healthDice, image0, image1, attackType, attackText, attackR
   p->b_chanceToHit = chanceToHit
   p=>r_enemyDmg = dmg
   p=>r_groupSize = groupSize
+  p=>r_goldLoot = goldLoot
   return p
 end
 

@@ -12,11 +12,11 @@ include "gamelib.plh"
 include "playtype.plh"
 include "gen_images.plh"
 
-predef new_Modifier, new_Armor_Chaps, new_Armor_ShamanHeaddress, new_Armor_TahnkuPants, new_Armor_TahnkuVest 
+predef new_Armor_Chaps, new_Armor_ShamanHeaddress, new_Armor_TahnkuPants, new_Armor_TahnkuVest 
 predef new_Weapon_Handgun, new_Weapon_SpiritBow, new_Weapon_SpiritBlade, calcPlayerArmor
 predef new_Player_Hue_Hauser, new_Player_Mokahnu
 
-word[] funcTbl = @new_Modifier, @new_Armor_Chaps, @new_Armor_ShamanHeaddress, @new_Armor_TahnkuPants, @new_Armor_TahnkuVest
+word[] funcTbl = @new_Armor_Chaps, @new_Armor_ShamanHeaddress, @new_Armor_TahnkuPants, @new_Armor_TahnkuVest
 word           = @new_Weapon_Handgun, @new_Weapon_SpiritBow, @new_Weapon_SpiritBlade, @calcPlayerArmor
 word           = @new_Player_Hue_Hauser, @new_Player_Mokahnu
 
@@ -25,7 +25,7 @@ def new_Armor_Chaps
   word p
   p = mmgr(HEAP_ALLOC, TYPE_ARMOR)
   p=>s_name = mmgr(HEAP_INTERN, "Chaps")
-  p->b_itemKind = KIND_PANTS
+  p=>s_itemKind = mmgr(HEAP_INTERN, "pants")
   p=>w_cost = -99 // for now
   // no modifiers, max uses, etc. for now
   p->b_armorValue = 2
@@ -37,7 +37,7 @@ def new_Armor_ShamanHeaddress()
   word p
   p = mmgr(HEAP_ALLOC, TYPE_ARMOR)
   p=>s_name = mmgr(HEAP_INTERN, "Shaman Headdress(es)")
-  p->b_itemKind = KIND_HAT
+  p=>s_itemKind = mmgr(HEAP_INTERN, "hat(s)")
   p=>w_cost = -99 // for now
   // no modifiers, max uses, etc. for now
   p->b_armorValue = 2
@@ -49,7 +49,7 @@ def new_Armor_TahnkuPants()
   word p
   p = mmgr(HEAP_ALLOC, TYPE_ARMOR)
   p=>s_name = mmgr(HEAP_INTERN, "Tahnku Pants")
-  p->b_itemKind = KIND_PANTS
+  p=>s_itemKind = mmgr(HEAP_INTERN, "pants")
   p=>w_cost = -99 // for now
   // no modifiers, max uses, etc. for now
   p->b_armorValue = 2
@@ -61,7 +61,7 @@ def new_Armor_TahnkuVest()
   word p
   p = mmgr(HEAP_ALLOC, TYPE_ARMOR)
   p=>s_name = mmgr(HEAP_INTERN, "Tahnku Vest(s)")
-  p->b_itemKind = KIND_SHIRT
+  p=>s_itemKind = mmgr(HEAP_INTERN, "shirt(s)")
   p=>w_cost = -99 // for now
   // no modifiers, max uses, etc. for now
   p->b_armorValue = 2
@@ -73,10 +73,10 @@ def new_Weapon_Handgun
   word p
   p = mmgr(HEAP_ALLOC, TYPE_WEAPON)
   p=>s_name = mmgr(HEAP_INTERN, "Handgun")
-  p->b_itemKind = KIND_HANDGUN
+  p=>s_itemKind = mmgr(HEAP_INTERN, "handgun(s)")
   p=>w_cost = -99 // for now
   // no modifiers, max uses, etc. for now
-  p->b_ammoKind = KIND_BULLET
+  p=>s_ammoKind = mmgr(HEAP_INTERN, "Bullet(s)")
   p->b_clipSize = 6
   p->b_clipCurrent = p->b_clipSize
   p=>r_meleeDmg = encodeDice(1, 6, 0)  // 1d6
@@ -92,10 +92,10 @@ def new_Weapon_SpiritBow
   word p
   p = mmgr(HEAP_ALLOC, TYPE_WEAPON)
   p=>s_name = mmgr(HEAP_INTERN, "Spirit Bow")
-  p->b_itemKind = KIND_BOW
+  p=>s_itemKind = mmgr(HEAP_INTERN, "bow(s)")
   p=>w_cost = -99 // for now
   // no modifiers, max uses, etc. for now
-  p->b_ammoKind = KIND_ARROW
+  p=>s_ammoKind = mmgr(HEAP_INTERN, "Arrow(s)")
   p->b_clipSize = 12
   p->b_clipCurrent = p->b_clipSize
   p=>r_meleeDmg = encodeDice(3, 6, 0)  // 3d6
@@ -112,10 +112,10 @@ def new_Weapon_SpiritBlade
   word p
   p = mmgr(HEAP_ALLOC, TYPE_WEAPON)
   p=>s_name = mmgr(HEAP_INTERN, "Spirit Blade")
-  p->b_itemKind = KIND_BOW
+  p=>s_itemKind = mmgr(HEAP_INTERN, "blade(s)")
   p=>w_cost = -99 // for now
   // no modifiers, max uses, etc. for now
-  p->b_ammoKind = 0
+  p=>s_ammoKind = NULL
   p->b_clipSize = 0
   p->b_clipCurrent = p->b_clipSize
   p=>r_meleeDmg = encodeDice(7, 6, 0)  // 7d6
@@ -158,13 +158,10 @@ def new_Player_Hue_Hauser
   // Basic skills
   p->b_aiming = 2
   p->b_dodging = 3
-  p->b_wilderness = 5
 
   // Skills
-  addToList(p + p_skills, new_Modifier(KIND_MINING, 0))
-  addToList(p + p_skills, new_Modifier(KIND_NATIVE_BOND, 0))
-  addToList(p + p_skills, new_Modifier(KIND_PYRE_WARE, 0))
-  addToList(p + p_skills, new_Modifier(KIND_HANDGUN, 1))
+  addToList(p + p_skills, makeModifier("wilderness", 5))
+  addToList(p + p_skills, makeModifier("handgun(s)", 1))
 
   // Items
   addToList(p + p_items, new_Armor_Chaps())
@@ -200,16 +197,13 @@ def new_Player_Mokahnu
   // Basic skills
   p->b_aiming = 4
   p->b_dodging = 3
-  p->b_wilderness = 5
 
   // Skills
-  addToList(p + p_skills, new_Modifier(KIND_MINING, 0))
-  addToList(p + p_skills, new_Modifier(KIND_NATIVE_BOND, 10))
-  addToList(p + p_skills, new_Modifier(KIND_PYRE_WARE, 0))
-  addToList(p + p_skills, new_Modifier(KIND_BLADE, 3))
-  addToList(p + p_skills, new_Modifier(KIND_BOW, 3))
-  addToList(p + p_skills, new_Modifier(KIND_RIFLE, 3))
-  addToList(p + p_skills, new_Modifier(KIND_BLADE, 3))
+  addToList(p + p_skills, makeModifier("wilderness", 5))
+  addToList(p + p_skills, makeModifier("native bond", 10))
+  addToList(p + p_skills, makeModifier("blade(s)", 3))
+  addToList(p + p_skills, makeModifier("bow(s)", 3))
+  addToList(p + p_skills, makeModifier("rifle(s)", 3))
 
   // Items
   addToList(p + p_items, new_Armor_ShamanHeaddress())

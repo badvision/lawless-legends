@@ -89,8 +89,8 @@ def playerShoot(pPlayer, pWeapon)
   // Add in skill modifier, if any
   pSkill = pPlayer=>p_skills
   while pSkill
-    if pSkill=>b_modKind == pWeapon=>b_itemKind
-      chance = chance + pSkill=>b_modValue
+    if pSkill=>s_name == pWeapon=>s_itemKind
+      chance = chance + pSkill=>w_modValue
     fin
     pSkill = pSkill=>p_nextObj
   loop
@@ -367,7 +367,7 @@ def determineCombatOrder()
     if canFight(p)
       p->b_combatOrder = rand16() % (p->b_agility * 10)
       combatInsert(p)
-      if (!(p=>b_playerFlags & PLAYER_FLAG_NPC)) // only count real players
+      if (!(p->b_playerFlags & PLAYER_FLAG_NPC)) // only count real players
         nPlayersFighting = nPlayersFighting + 1
       fin
     fin

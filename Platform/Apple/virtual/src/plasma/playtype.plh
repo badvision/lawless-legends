@@ -50,10 +50,9 @@ struc Player
   // Calculated attributes
   byte b_armor
 
-  // Basic skills
+  // Basic skills (much like attributes)
   byte b_aiming
   byte b_dodging
-  byte b_wilderness
 
   // Status
   word w_maxHealth
@@ -63,8 +62,7 @@ struc Player
   // Lists
   word p_skills  // list:Modifier
   word p_items   // list:Item
-  word p_buffs   // list:Effect
-  word p_debuffs // list:Effect
+  word p_effects // list:Effect
 end
 
 // Combat skills, weapon modifiers, etc.
@@ -72,8 +70,8 @@ const TYPE_MODIFIER = $82
 struc Modifier
   byte t_type
   word p_nextObj
-  byte b_modKind
-  byte b_modValue
+  word s_name
+  word w_modValue
 end
 
 // Buffs and debuffs, that last until a specified time
@@ -81,9 +79,8 @@ const TYPE_EFFECT = $83
 struc Effect
   byte t_type
   word p_nextObj
-  byte b_modKind
-  byte b_modValue
-  word s_effectDescrip
+  byte s_name
+  word w_modValue
   word w_endTurn
 end
 
@@ -92,7 +89,7 @@ struc Item
   byte t_type
   word p_nextObj
   word s_name
-  byte b_itemKind
+  word s_itemKind
   word w_cost
   word p_modifiers  // list:modifier
 end
@@ -106,7 +103,7 @@ struc Weapon
   byte t_type
   word p_nextObj
   word s_name
-  byte b_itemKind
+  word s_itemKind
   word w_cost
   word p_modifiers  // list:modifier
   // Usables properties
@@ -114,7 +111,7 @@ struc Weapon
   byte b_curUses
   // Weapon properties
   byte b_weaponFlags    // WEAPON_FLAG_* above
-  byte b_ammoKind
+  word s_ammoKind
   byte b_clipSize
   byte b_clipCurrent
   word r_meleeDmg       // 3 hex digits: num dice, die size, add. E.g. $361 = 3d6+1
@@ -130,7 +127,7 @@ struc Armor
   byte t_type
   word p_nextObj
   word s_name
-  byte b_itemKind
+  word s_itemKind
   word w_cost
   word p_modifiers  // list:modifier
   // Usables properties
@@ -147,7 +144,7 @@ struc Stuff
   byte t_type
   word p_nextObj
   word s_name
-  byte b_itemKind
+  word s_itemKind
   word w_cost
   // Stuff properties
   word w_count
@@ -191,29 +188,3 @@ struc EncounterZone
   word w_encMaxDist
   word w_encChance
 end
-
-// Weapon kinds
-const KIND_BOW          = 1;
-const KIND_BLADE        = 2;
-const KIND_EXPLOSIVE    = 3;
-const KIND_HANDGUN      = 4;
-const KIND_HAND_TO_HAND = 5;
-const KIND_RIFLE        = 6;
-const KIND_THROWING     = 7;
-// Skill kinds
-const KIND_MINING       = 8;
-const KIND_NATIVE_BOND  = 9;
-const KIND_PYRE_WARE    = 10
-// Ammo kinds
-const KIND_BULLET       = 11
-const KIND_ARROW        = 12
-const KIND_BUCK         = 13
-const KIND_QUARREL      = 14
-// Armor kinds
-const KIND_SHOES        = 15
-const KIND_COAT         = 16
-const KIND_HAT          = 17
-const KIND_PANTS        = 18
-const KIND_SHIRT        = 19
-const KIND_GLOVES       = 20
-const KIND_SHIELD       = 21

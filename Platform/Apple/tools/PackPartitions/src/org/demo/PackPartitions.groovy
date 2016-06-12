@@ -1688,7 +1688,7 @@ class PackPartitions
         def name = row.@name
         withContext(name) 
         {
-            out.println("def NE_${humanNameToSymbol(name, false)}()")
+            out.println("def NEn_${humanNameToSymbol(name, false)}()")
 
             def image1 = row.@image1
             if (!portraitNames.contains(humanNameToSymbol(image1, false)))
@@ -1758,32 +1758,14 @@ class PackPartitions
 
                 // Pre-define all the enemy creation functions
                 sheet.rows.row.each { row ->
-                    out.println("predef NE_${humanNameToSymbol(row.@name, false)}")
+                    out.println("predef NEn_${humanNameToSymbol(row.@name, false)}")
                 }
 
-                // Figure out the mapping between "map code" and "enemy"
+                // Figure out the mapping between "map code" and "enemy", and output the table for that
                 def codeToFunc = [:]
                 sheet.rows.row.each { row ->
-                    def name = row.@name
-                    def mapCodes = row.@"map-code".replace("\"", "")
-                    mapCodes.split(",").collect{it.trim()}.grep{it!=""}.each { code ->
-                        if (!codeToFunc.containsKey(code))
-                            codeToFunc[code] = []
-                        codeToFunc[code] << "NE_${humanNameToSymbol(name, false)}"
-                    }
-                }
-
-                // Output that.
-                codeToFunc.sort().each { code, funcs ->
-                    out.print("word[] ct_${humanNameToSymbol(code, false)} = ")
-                    funcs.eachWithIndex { func, index ->
-                        if (index > 0)
-                            out.print(", ")
-                        out.print("@$func")
-                    }
-                    out.println()
-                }
-                out.println()
+                    addCodeToFunc("NEn_${humanNameToSymbol(row.@name, false)}", row.@"map-code", codeToFunc) }
+                outCodeToFuncTbl("ct_", codeToFunc, out)
 
                 // Now output a function for each enemy
                 sheet.rows.row.each { row ->
@@ -1791,21 +1773,8 @@ class PackPartitions
                 }
                 out.println()
 
-                // Utility func
-                out.println("def randFrom(arr, siz)")
-                out.println("  return *(((rand16() % siz) << 1) + arr)")
-                out.println("end\n")
-
                 // And finally, a function to select an enemy given a map code.
-                out.println("def _enemy_forZone(mapCode)")
-                codeToFunc.sort().each { code, funcs ->
-                    out.println("  if strcmpi(mapCode, \"$code\") == 0; ")
-                    out.println("    return randFrom(@ct_${humanNameToSymbol(code, false)}, ${funcs.size()})")
-                    out.println("  fin")
-                }
-                out.println("  puts(mapCode)")
-                out.println("  fatal(\"No enemies match\")")
-                out.println("end\n")
+                outCodeToFuncMethod("_enemy_forZone", "ct_", codeToFunc, out)
 
                 out.println("return @funcTbl")
                 out.println("done")
@@ -1835,30 +1804,55 @@ class PackPartitions
         out.println "  //item name=${row.@name}"
     }
     
-    def addCodeToFunc(func, codesString, addTo)
+    def addCodeToFunc(funcName, codesString, addTo)
     {
-        if (codesString == null)
+        if (codesString == null || codesString.length() == 0)
             return
             
         codesString.replace("\"", "").split(",").collect{it.trim()}.grep{it!=""}.each { code ->
             if (!addTo.containsKey(code))
                 addTo[code] = []
-            addTo[code] << func
+            addTo[code] << funcName
         }
     }
+    
+    def outCodeToFuncTbl(prefix, codeToFunc, out)
+    {
+        codeToFunc.sort().each { code, funcs ->
+            out.print("word[] $prefix${humanNameToSymbol(code, false)} = ")
+            funcs.eachWithIndex { func, index ->
+                out.print("${index>0 ? ", " : ""}@$func")
+            }
+            out.println()
+        }
+        out.println()
+    }
 
+    def outCodeToFuncMethod(funcName, prefix, codeToFunc, out)
+    {
+        out.println("def $funcName(code)")
+        codeToFunc.sort().each { code, funcs ->
+            out.println("  if strcmpi(code, \"$code\") == 0; ")
+            out.println("    return randomFromArray(@ct_${humanNameToSymbol(code, false)}, ${funcs.size()})")
+            out.println("  fin")
+        }
+        out.println("  puts(code)")
+        out.println("  fatal(\"No code match\")")
+        out.println("end\n")
+    }
+    
     def genAllItems(sheets)
     {
         // Grab all the raw data
         def funcs = []
         sheets.find { it?.@name.equalsIgnoreCase("weapons") }.rows.row.each { row ->
-            funcs << ["weapon", "new_weapon_${humanNameToSymbol(row.@name, false)}", funcs.size, row] }
+            funcs << ["weapon", "NWp_${humanNameToSymbol(row.@name, false)}", funcs.size, row] }
         sheets.find { it?.@name.equalsIgnoreCase("armor") }.rows.row.each { row ->
-            funcs << ["armor",  "new_armor_${humanNameToSymbol(row.@name, false)}",  funcs.size, row] }
+            funcs << ["armor",  "NAr_${humanNameToSymbol(row.@name, false)}",  funcs.size, row] }
         sheets.find { it?.@name.equalsIgnoreCase("ammo") }.rows.row.each { row ->
-            funcs << ["ammo",   "new_ammo_${humanNameToSymbol(row.@name, false)}",   funcs.size, row] }
+            funcs << ["ammo",   "NAm_${humanNameToSymbol(row.@name, false)}",   funcs.size, row] }
         sheets.find { it?.@name.equalsIgnoreCase("items") }.rows.row.each { row ->
-            funcs << ["item",   "new_item_${humanNameToSymbol(row.@name, false)}",   funcs.size, row] }
+            funcs << ["item",   "NIt_${humanNameToSymbol(row.@name, false)}",   funcs.size, row] }
         
         // Build up the mappings from loot codes and store codes to creation functions
         def lootCodeToFuncs = [:]

@@ -8,14 +8,15 @@
 // governing permissions and limitations under the License.
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+// Garbage collection pointer offsets within each type
 byte typeTbl_Global[] = Global, p_players, p_enemyGroups, p_combatFirst, p_encounterZones, 0
-byte typeTbl_Player[] = Player, p_nextObj, s_name, p_combatNext, p_skills, p_items, p_buffs, p_debuffs, 0
-byte typeTbl_Modifier[] = Modifier, p_nextObj, 0
-byte typeTbl_Effect[] = Effect, p_nextObj, s_effectDescrip, 0
-byte typeTbl_Item[] = Item, p_nextObj, s_name, p_modifiers, 0
-byte typeTbl_Weapon[] = Weapon, p_nextObj, s_name, p_modifiers, s_combatText, 0
-byte typeTbl_Armor[] = Armor, p_nextObj, s_name, p_modifiers, 0
-byte typeTbl_Stuff[] = Stuff, p_nextObj, s_name, 0
+byte typeTbl_Player[] = Player, p_nextObj, s_name, p_combatNext, p_skills, p_items, p_effects, 0
+byte typeTbl_Modifier[] = Modifier, p_nextObj, s_name, 0
+byte typeTbl_Effect[] = Effect, p_nextObj, s_name, 0
+byte typeTbl_Item[] = Item, p_nextObj, s_name, s_itemKind, p_modifiers, 0
+byte typeTbl_Weapon[] = Weapon, p_nextObj, s_name, s_itemKind, p_modifiers, s_combatText, 0
+byte typeTbl_Armor[] = Armor, p_nextObj, s_name, s_itemKind, p_modifiers, 0
+byte typeTbl_Stuff[] = Stuff, p_nextObj, s_name, s_itemKind, 0
 byte typeTbl_Enemy[] = Enemy, p_nextObj, s_name, p_combatNext, s_attackText, 0
 byte typeTbl_EnemyGroup[] = EnemyGroup, p_nextObj, p_enemies, 0
 byte typeTbl_EncounterZone[] = EncounterZone, p_nextObj, s_name, 0
@@ -24,35 +25,3 @@ word typeTbls = @typeTbl_Global, @typeTbl_Player, @typeTbl_Modifier, @typeTbl_Ef
 word          = @typeTbl_Weapon, @typeTbl_Armor, @typeTbl_Stuff, @typeTbl_Enemy, @typeTbl_EnemyGroup
 word          = @typeTbl_EncounterZone
 word          = 0
-
-byte[] kind_bow_str           = "bow(s)"
-byte[] kind_blade_str         = "blade(s)"
-byte[] kind_explosive_str     = "explosive(s)"
-byte[] kind_handgun_str       = "handgun(s)"
-byte[] kind_hand_to_hand_str  = "hand to hand"
-byte[] kind_rifle_str         = "rifle(s)"
-byte[] kind_throwing_str      = "throwing"
-
-byte[] kind_mining_str        = "mining"
-byte[] kind_native_bond_str   = "native bond"
-byte[] kind_pyre_ware_str     = "pyre ware"
-
-byte[] kind_bullet_str        = "bullet(s)"
-byte[] kind_arrow_str         = "arrow(s)"
-byte[] kind_buck_str          = "buck"
-byte[] kind_quarrel_str       = "quarrel(s)"
-
-byte[] kind_shoes_str         = "shoes"
-byte[] kind_coat_str          = "coat(s)"
-byte[] kind_hat_str           = "hat(s)"
-byte[] kind_pants_str         = "pants"
-byte[] kind_shirt_str         = "shirt(s)"
-byte[] kind_gloves_str        = "gloves"
-byte[] kind_shield_str        = "shield(s)"
-
-// Text table for translating a kind to a string
-word[] kinds = @kind_bow_str, @kind_blade_str, @kind_explosive_str, @kind_handgun_str, @kind_hand_to_hand_str, @kind_rifle_str, @kind_throwing_str
-word         = @kind_mining_str, @kind_native_bond_str, @kind_pyre_ware_str
-word         = @kind_bullet_str, @kind_arrow_str, @kind_buck_str, @kind_quarrel_str
-word         = @kind_shoes_str, @kind_coat_str, @kind_hat_str, @kind_pants_str, @kind_shirt_str, @kind_gloves_str, @kind_shield_str
-word         = NULL

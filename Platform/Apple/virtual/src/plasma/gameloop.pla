@@ -110,6 +110,7 @@ predef _showParty, _mmgr, _setWindow1, _setWindow2, _setWindow3
 predef _reboot, _brk, _encodeDice, _rollDice
 predef _setPlural, _makeEnemy, _getStringResponse, _strcmpi, _addEncounterZone, _fatal
 predef _pause, _tossStrings, _showMapName, _setMapWindow
+predef _makeModifier, _makeArmor, _makeWeapon_pt1, _makeWeapon_pt2, _randomFromArray
 
 word gameLib_addrs = @_setScriptInfo, @_scriptDisplayStr, @_scriptDisplayStrNL, @_getYN
 word = @_queue_setMap, @_setSky, @_setGround, @_queue_teleport, @_setPortrait, @_clearPortrait
@@ -124,6 +125,7 @@ word = @_showParty, @_mmgr, @_setWindow1, @_setWindow2, @_setWindow3
 word = @_reboot, @_brk, @_encodeDice, @_rollDice
 word = @_setPlural, @_makeEnemy, @_getStringResponse, @_strcmpi, @_addEncounterZone, @_fatal
 word = @_pause, @_tossStrings, @_showMapName, @_setMapWindow
+word = @_makeModifier, @_makeArmor, @_makeWeapon_pt1, @_makeWeapon_pt2, @_randomFromArray
 
 word = 0  // end of library functions
 
@@ -2139,23 +2141,23 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Return a random entry from an array, given its size in number of elements.
-def randFrom(arr, siz)
+def _randomFromArray(arr, siz)
   return *(((rand16() % siz) << 1) + arr)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def makeModifier(kind, value)
+def _makeModifier(name, value)
   word p; p = mmgr(HEAP_ALLOC, TYPE_MODIFIER)
-  p->b_modKind = kind
-  p->b_modValue = value
+  p=>s_name = mmgr(HEAP_INTERN, name)
+  p=>w_modValue = value
   return p
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def makeArmor(name, kind, cost, armorValue, modifier)
+def _makeArmor(name, kind, cost, armorValue, modifier)
   word p; p = mmgr(HEAP_ALLOC, TYPE_ARMOR)
   p=>s_name = mmgr(HEAP_INTERN, name)
-  p->b_itemKind = kind
+  p=>s_itemKind = mmgr(HEAP_INTERN, kind)
   p=>w_cost = cost
   p->b_armorValue = armorValue
   p=>p_modifiers = modifier
@@ -2163,12 +2165,12 @@ def makeArmor(name, kind, cost, armorValue, modifier)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def makeWeapon_pt1(name, kind, cost, ammoKind, clipSize, meleeDmg, projectileDmg)
+def _makeWeapon_pt1(name, kind, cost, ammoKind, clipSize, meleeDmg, projectileDmg)
   word p; p = mmgr(HEAP_ALLOC, TYPE_WEAPON)
   p=>s_name = mmgr(HEAP_INTERN, name)
-  p->b_itemKind = kind
+  p=>s_itemKind = mmgr(HEAP_INTERN, kind)
   p=>w_cost = cost
-  p->b_ammoKind = ammoKind
+  p=>s_ammoKind = mmgr(HEAP_INTERN, ammoKind)
   p->b_clipSize = clipSize
   p->b_clipCurrent = clipSize
   p=>r_meleeDmg = meleeDmg
@@ -2177,7 +2179,7 @@ def makeWeapon_pt1(name, kind, cost, ammoKind, clipSize, meleeDmg, projectileDmg
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def makeWeapon_pt2(p, modifier, attack0, attack1, attack2, weaponRange, combatText)
+def _makeWeapon_pt2(p, modifier, attack0, attack1, attack2, weaponRange, combatText)
   p->ba_attacks[0] = attack0
   p->ba_attacks[1] = attack1
   p->ba_attacks[2] = attack2

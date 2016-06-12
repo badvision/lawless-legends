@@ -2138,9 +2138,14 @@ def setLibVecs()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Return a random entry from an array, given its size in number of elements.
+def randFrom(arr, siz)
+  return *(((rand16() % siz) << 1) + arr)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def makeModifier(kind, value)
-  word p
-  p = mmgr(HEAP_ALLOC, TYPE_MODIFIER)
+  word p; p = mmgr(HEAP_ALLOC, TYPE_MODIFIER)
   p->b_modKind = kind
   p->b_modValue = value
   return p
@@ -2148,8 +2153,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def makeArmor(name, kind, cost, armorValue, modifier)
-  word p
-  p = mmgr(HEAP_ALLOC, TYPE_ARMOR)
+  word p; p = mmgr(HEAP_ALLOC, TYPE_ARMOR)
   p=>s_name = mmgr(HEAP_INTERN, name)
   p->b_itemKind = kind
   p=>w_cost = cost
@@ -2159,9 +2163,8 @@ def makeArmor(name, kind, cost, armorValue, modifier)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def makeWeapon(name, kind, cost, ammoKind, clipSize, meleeDmg, projectileDmg)
-  word p
-  p = mmgr(HEAP_ALLOC, TYPE_WEAPON)
+def makeWeapon_pt1(name, kind, cost, ammoKind, clipSize, meleeDmg, projectileDmg)
+  word p; p = mmgr(HEAP_ALLOC, TYPE_WEAPON)
   p=>s_name = mmgr(HEAP_INTERN, name)
   p->b_itemKind = kind
   p=>w_cost = cost
@@ -2174,7 +2177,7 @@ def makeWeapon(name, kind, cost, ammoKind, clipSize, meleeDmg, projectileDmg)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def finishWeapon(p, modifier, attack0, attack1, attack2, weaponRange, combatText)
+def makeWeapon_pt2(p, modifier, attack0, attack1, attack2, weaponRange, combatText)
   p->ba_attacks[0] = attack0
   p->ba_attacks[1] = attack1
   p->ba_attacks[2] = attack2

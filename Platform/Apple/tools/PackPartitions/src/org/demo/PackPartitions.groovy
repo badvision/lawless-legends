@@ -108,6 +108,42 @@ class PackPartitions
         ++nWarnings
     }
     
+    def escapeString(inStr)
+    {
+        def buf = new StringBuilder()
+        buf << '\"'
+        def prev = '\0'
+        def count = 0
+        def stop = false
+        inStr.eachWithIndex { ch, idx ->
+            if (!stop) {
+                if (count >= 255) {
+                    printWarning("String must be 254 characters or less. Everything after the following will be discarded: '${inStr[0..idx]}'")
+                    stop = true
+                }
+                else if (ch == '^') {
+                    if (prev == '^')
+                        buf << ch
+                }
+                else if (ch == '\"') {
+                    buf << "\\\""
+                    ++count  // account for extra backslash
+                }
+                else if (prev == '^') {
+                    def cp = Character.codePointAt(ch.toUpperCase(), 0)
+                    if (cp > 64 && cp < 96)
+                        buf << "\\\$" << String.format("%02X", cp - 64)
+                }
+                else
+                    buf << ch
+                ++count
+                prev = ch
+            }
+        }
+        buf << '\"'
+        return buf.toString()
+    }
+
     def parseMap(map, tiles)
     {
         // Parse each row of the map
@@ -1698,9 +1734,9 @@ class PackPartitions
             if (image2.size() > 0 && !portraitNames.contains(humanNameToSymbol(image2, false)))
                 throw new Exception("Image '$image2' not found")
 
-            def hitPoints = row.@"hit-points"
+            def hitPoints = row.@"hit-points"; assert hitPoints
 
-            def attackType = row.@"attack-type"
+            def attackType = row.@"attack-type"; assert attackType
             def attackTypeCode = attackType.toLowerCase() == "melee" ? 1 :
                                  attackType.toLowerCase() == "projectile" ? 2 :
                                  0
@@ -1781,25 +1817,84 @@ class PackPartitions
             }
             replaceIfDiff("build/src/plasma/gen_enemies.pla")
         }
-        
     }
     
-    def genWeapon(out, row)
+    def parseStringAttr(row, attrName)
     {
-        out.println "  //weapon name=${row.@name}"
+        def val = row."@$attrName"
+        assert val != null : "Missing column '$attrName'"
+        return val.trim()
     }
     
-    def genArmor(out, row)
+    def parseByteAttr(row, attrName)
+    {
+        def val = parseStringAttr(row, attrName)
+        if (!val) return 0
+        val = val.replace("'", "")  // Change 5' to just 5, e.g. for weapon range
+        assert val ==~ /^\d*$/ : "\"$attrName\" should be numeric"
+        val = val.toInteger()
+        assert val >= 0 && val <= 255 : "\"$attrName\" must be 0..255"
+        return val
+    }
+    
+    def parseWordAttr(row, attrName)
+    {
+        def val = parseStringAttr(row, attrName)
+        if (!val) return 0
+        assert val ==~ /^\d*$/ : "\"$attrName\" should be numeric"
+        val = val.toInteger()
+        assert val >= -32768 && val <= 32767 : "\"$attrName\" must be -32768..32767"
+        return val
+    }
+    
+    def parseModifier(row, attr1, attr2)
+    {
+        def bonusValue = parseWordAttr(row, attr1)
+        def bonusName  = parseStringAttr(row, attr2)
+        if (!bonusValue || !bonusName) return "NULL"
+        return "makeModifier(${escapeString(bonusName)}, $bonusValue)"
+    }
+    
+    def parseDiceAttr(row, attrName)
+    {
+        def val = parseStringAttr(row, attrName)
+        if (!val) return 0
+        return parseDice(val)
+    }
+    
+    def genWeapon(func, row, out)
+    {
+        def name = parseStringAttr(row, "name")
+        withContext(name) 
+        {
+            out.println("  return makeWeapon_pt2(makeWeapon_pt1(" +
+                        "${escapeString(name)}, " +
+                        "${escapeString(parseStringAttr(row, "weapon-kind"))}, " +
+                        "${parseWordAttr(row, "price")}, " +
+                        "${parseModifier(row, "bonus-value", "bonus-attribute")}, " +
+                        "${escapeString(parseStringAttr(row, "ammo-kind"))}, " +
+                        "${parseByteAttr(row, "clip-size")}, " +
+                        "${parseDiceAttr(row, "melee-damage")}, " +
+                        "${parseDiceAttr(row, "projectile-damage")}), " +
+                        "${parseByteAttr(row, "single-shot")}, " +
+                        "${parseByteAttr(row, "semi-auto-shots")}, " +
+                        "${parseByteAttr(row, "auto-shots")}, " +
+                        "${parseByteAttr(row, "range")}, " +
+                        "${escapeString(parseStringAttr(row, "combat-text"))})")
+        }
+    }
+    
+    def genArmor(func, row, out)
     {
         out.println "  //armor name=${row.@name}"
     }
     
-    def genAmmo(out, row)
+    def genAmmo(func, row, out)
     {
         out.println "  //ammo name=${row.@name}"
     }
     
-    def genItem(out, row)
+    def genItem(func, row, out)
     {
         out.println "  //item name=${row.@name}"
     }
@@ -1835,7 +1930,7 @@ class PackPartitions
             out.println("  fin")
         }
         out.println("  puts(code)")
-        out.println("  fatal(\"No code match\")")
+        out.println("  fatal(\"$funcName\")")
         out.println("end\n")
     }
     
@@ -1904,10 +1999,10 @@ class PackPartitions
                 {
                     out.println("def _$func()")
                     switch (typeName) {
-                        case "weapon": genWeapon(out, row); break
-                        case "armor":  genArmor(out, row);  break
-                        case "ammo":   genAmmo(out, row);   break
-                        case "item":   genItem(out, row);   break
+                        case "weapon": genWeapon(func, row, out); break
+                        case "armor":  genArmor(func, row, out);  break
+                        case "ammo":   genAmmo(func, row, out);   break
+                        case "item":   genItem(func, row, out);   break
                         default: assert false
                     }
                     out.println("end\n")
@@ -2147,40 +2242,6 @@ class PackPartitions
         def indent = 0
         def variables = [] as Set
 
-        def emitString(inStr)
-        {
-            out << '\"'
-            def prev = '\0'
-            def count = 0
-            def stop = false
-            inStr.eachWithIndex { ch, idx ->
-                if (!stop) {
-                    if (count >= 255) {
-                        printWarning("String must be 254 characters or less. Everything after the following will be discarded: '${inStr[0..idx]}'")
-                        stop = true
-                    }
-                    else if (ch == '^') {
-                        if (prev == '^')
-                            out << ch
-                    }
-                    else if (ch == '\"') {
-                        out << "\\\""
-                        ++count  // account for extra backslash
-                    }
-                    else if (prev == '^') {
-                        def cp = Character.codePointAt(ch.toUpperCase(), 0)
-                        if (cp > 64 && cp < 96)
-                            out << "\\\$" << String.format("%02X", cp - 64)
-                    }
-                    else
-                        out << ch
-                    ++count
-                    prev = ch
-                }
-            }
-            out << '\"'
-        }
-
         def getScriptName(script)
         {
             if (script.block.size() == 0)
@@ -2412,8 +2473,7 @@ class PackPartitions
             chunks.eachWithIndex { chunk, idx ->
                 outIndented((idx == chunks.size()-1 && blk.@type == 'text_println') ? \
                     'scriptDisplayStrNL(' : 'scriptDisplayStr(')
-                emitString(chunk)
-                out << ")\n"
+                out << escapeString(chunk) << ")\n"
                 // Workaround for strings filling up the frame stack
                 outIndented("tossStrings()\n")
             }
@@ -2495,7 +2555,7 @@ class PackPartitions
                     packVarGet(blk)
                     break
                 case 'text':
-                    emitString(getSingle(blk.field, 'TEXT').text())
+                    out << escapeString(getSingle(blk.field, 'TEXT').text())
                     break
                 default:
                     assert false : "Expression type '${blk.@type}' not yet implemented."
@@ -2593,9 +2653,7 @@ class PackPartitions
             def maxDist = blk.field[3].text().toInteger()
             def chance = (int)(blk.field[4].text().toFloat() * 10.0)
             assert chance > 0 && chance <= 1000
-            outIndented("addEncounterZone(")
-            emitString(code)
-            out << ", $x, $y, $maxDist, $chance)\n"
+            outIndented("addEncounterZone(${escapeString(code)}, $x, $y, $maxDist, $chance)\n")
         }
 
         def packTeleport(blk)

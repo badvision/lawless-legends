@@ -90,7 +90,7 @@ struc Item
   word p_nextObj
   word s_name
   word s_itemKind
-  word w_cost
+  word w_price
   word p_modifiers  // list:modifier
 end
 
@@ -104,7 +104,7 @@ struc Weapon
   word p_nextObj
   word s_name
   word s_itemKind
-  word w_cost
+  word w_price
   word p_modifiers  // list:modifier
   // Usables properties
   byte b_maxUses
@@ -128,7 +128,7 @@ struc Armor
   word p_nextObj
   word s_name
   word s_itemKind
-  word w_cost
+  word w_price
   word p_modifiers  // list:modifier
   // Usables properties
   byte b_maxUses
@@ -145,7 +145,7 @@ struc Stuff
   word p_nextObj
   word s_name
   word s_itemKind
-  word w_cost
+  word w_price
   // Stuff properties
   word w_count
   word w_maxCount

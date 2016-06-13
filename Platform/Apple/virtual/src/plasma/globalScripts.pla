@@ -26,7 +26,7 @@ def new_Armor_Chaps
   p = mmgr(HEAP_ALLOC, TYPE_ARMOR)
   p=>s_name = mmgr(HEAP_INTERN, "Chaps")
   p=>s_itemKind = mmgr(HEAP_INTERN, "pants")
-  p=>w_cost = -99 // for now
+  p=>w_price = -99 // for now
   // no modifiers, max uses, etc. for now
   p->b_armorValue = 2
   return p
@@ -38,7 +38,7 @@ def new_Armor_ShamanHeaddress()
   p = mmgr(HEAP_ALLOC, TYPE_ARMOR)
   p=>s_name = mmgr(HEAP_INTERN, "Shaman Headdress(es)")
   p=>s_itemKind = mmgr(HEAP_INTERN, "hat(s)")
-  p=>w_cost = -99 // for now
+  p=>w_price = -99 // for now
   // no modifiers, max uses, etc. for now
   p->b_armorValue = 2
   return p
@@ -50,7 +50,7 @@ def new_Armor_TahnkuPants()
   p = mmgr(HEAP_ALLOC, TYPE_ARMOR)
   p=>s_name = mmgr(HEAP_INTERN, "Tahnku Pants")
   p=>s_itemKind = mmgr(HEAP_INTERN, "pants")
-  p=>w_cost = -99 // for now
+  p=>w_price = -99 // for now
   // no modifiers, max uses, etc. for now
   p->b_armorValue = 2
   return p
@@ -62,7 +62,7 @@ def new_Armor_TahnkuVest()
   p = mmgr(HEAP_ALLOC, TYPE_ARMOR)
   p=>s_name = mmgr(HEAP_INTERN, "Tahnku Vest(s)")
   p=>s_itemKind = mmgr(HEAP_INTERN, "shirt(s)")
-  p=>w_cost = -99 // for now
+  p=>w_price = -99 // for now
   // no modifiers, max uses, etc. for now
   p->b_armorValue = 2
   return p
@@ -74,7 +74,7 @@ def new_Weapon_Handgun
   p = mmgr(HEAP_ALLOC, TYPE_WEAPON)
   p=>s_name = mmgr(HEAP_INTERN, "Handgun")
   p=>s_itemKind = mmgr(HEAP_INTERN, "handgun(s)")
-  p=>w_cost = -99 // for now
+  p=>w_price = -99 // for now
   // no modifiers, max uses, etc. for now
   p=>s_ammoKind = mmgr(HEAP_INTERN, "Bullet(s)")
   p->b_clipSize = 6
@@ -93,7 +93,7 @@ def new_Weapon_SpiritBow
   p = mmgr(HEAP_ALLOC, TYPE_WEAPON)
   p=>s_name = mmgr(HEAP_INTERN, "Spirit Bow")
   p=>s_itemKind = mmgr(HEAP_INTERN, "bow(s)")
-  p=>w_cost = -99 // for now
+  p=>w_price = -99 // for now
   // no modifiers, max uses, etc. for now
   p=>s_ammoKind = mmgr(HEAP_INTERN, "Arrow(s)")
   p->b_clipSize = 12
@@ -113,7 +113,7 @@ def new_Weapon_SpiritBlade
   p = mmgr(HEAP_ALLOC, TYPE_WEAPON)
   p=>s_name = mmgr(HEAP_INTERN, "Spirit Blade")
   p=>s_itemKind = mmgr(HEAP_INTERN, "blade(s)")
-  p=>w_cost = -99 // for now
+  p=>w_price = -99 // for now
   // no modifiers, max uses, etc. for now
   p=>s_ammoKind = NULL
   p->b_clipSize = 0

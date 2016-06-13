@@ -2155,22 +2155,23 @@ def _makeModifier(name, value)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _makeArmor(name, kind, cost, armorValue, modifier)
+def _makeArmor(name, kind, price, armorValue, modifier)
   word p; p = mmgr(HEAP_ALLOC, TYPE_ARMOR)
   p=>s_name = mmgr(HEAP_INTERN, name)
   p=>s_itemKind = mmgr(HEAP_INTERN, kind)
-  p=>w_cost = cost
+  p=>w_price = price
   p->b_armorValue = armorValue
   p=>p_modifiers = modifier
   return p
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _makeWeapon_pt1(name, kind, cost, ammoKind, clipSize, meleeDmg, projectileDmg)
+def _makeWeapon_pt1(name, kind, price, modifier, ammoKind, clipSize, meleeDmg, projectileDmg)
   word p; p = mmgr(HEAP_ALLOC, TYPE_WEAPON)
   p=>s_name = mmgr(HEAP_INTERN, name)
   p=>s_itemKind = mmgr(HEAP_INTERN, kind)
-  p=>w_cost = cost
+  p=>w_price = price
+  p=>p_modifiers = modifier
   p=>s_ammoKind = mmgr(HEAP_INTERN, ammoKind)
   p->b_clipSize = clipSize
   p->b_clipCurrent = clipSize
@@ -2180,7 +2181,7 @@ def _makeWeapon_pt1(name, kind, cost, ammoKind, clipSize, meleeDmg, projectileDm
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _makeWeapon_pt2(p, modifier, attack0, attack1, attack2, weaponRange, combatText)
+def _makeWeapon_pt2(p, attack0, attack1, attack2, weaponRange, combatText)
   p->ba_attacks[0] = attack0
   p->ba_attacks[1] = attack1
   p->ba_attacks[2] = attack2

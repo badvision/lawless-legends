@@ -190,6 +190,8 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
         } else {
             try {
                 Script script = TransferHelper.cloneObject(source, Script.class, "script");
+                script.getLocationTrigger().clear();
+                script.getIntervalTrigger().clear();
                 script.setName(source.getName() + " CLONE");
                 getCurrentEditor().addScript(script);
                 editScript(script, getCurrentMap());

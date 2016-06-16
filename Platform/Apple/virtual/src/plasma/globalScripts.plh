@@ -8,14 +8,13 @@
 // governing permissions and limitations under the License.
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-const script_new_Modifier = 0
-const script_new_Armor_Chaps = 2
-const script_new_Armor_ShamanHeaddress = 4
-const script_new_Armor_TahnkuPants = 6
-const script_new_Armor_TahnkuVest = 8
-const script_new_Weapon_Handgun = 10
-const script_new_Weapon_SpiritBow = 12
-const script_new_Weapon_SpiritBlade = 14
-const script_calcPlayerArmor = 16
-const script_new_Player_Hue_Hauser = 18
-const script_new_Player_Mokahnu = 20
+const script_new_Armor_Chaps = 0
+const script_new_Armor_ShamanHeaddress = 2
+const script_new_Armor_TahnkuPants = 4
+const script_new_Armor_TahnkuVest = 6
+const script_new_Weapon_Handgun = 8
+const script_new_Weapon_SpiritBow = 10
+const script_new_Weapon_SpiritBlade = 12
+const script_calcPlayerArmor = 14
+const script_new_Player_Hue_Hauser = 16
+const script_new_Player_Mokahnu = 18

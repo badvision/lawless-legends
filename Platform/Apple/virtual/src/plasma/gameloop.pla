@@ -2060,7 +2060,7 @@ end
 def loadTitle()
   word pFont
 
-  puts("Loading Lawless Legends.\n")
+  puts("Loading game.\n")
 
   // Load the title screen
   mmgr(UNLOCK_MEMORY,  $2000)

@@ -1864,29 +1864,32 @@ class PackPartitions
     
     def genWeapon(func, row, out)
     {
-        def name = parseStringAttr(row, "name")
-        withContext(name) 
-        {
-            out.println("  return makeWeapon_pt2(makeWeapon_pt1(" +
-                        "${escapeString(name)}, " +
-                        "${escapeString(parseStringAttr(row, "weapon-kind"))}, " +
-                        "${parseWordAttr(row, "price")}, " +
-                        "${parseModifier(row, "bonus-value", "bonus-attribute")}, " +
-                        "${escapeString(parseStringAttr(row, "ammo-kind"))}, " +
-                        "${parseByteAttr(row, "clip-size")}, " +
-                        "${parseDiceAttr(row, "melee-damage")}, " +
-                        "${parseDiceAttr(row, "projectile-damage")}), " +
-                        "${parseByteAttr(row, "single-shot")}, " +
-                        "${parseByteAttr(row, "semi-auto-shots")}, " +
-                        "${parseByteAttr(row, "auto-shots")}, " +
-                        "${parseByteAttr(row, "range")}, " +
-                        "${escapeString(parseStringAttr(row, "combat-text"))})")
-        }
+        out.println(
+            "  return makeWeapon_pt2(makeWeapon_pt1(" +
+            "${escapeString(parseStringAttr(row, "name"))}, " +
+            "${escapeString(parseStringAttr(row, "weapon-kind"))}, " +
+            "${parseWordAttr(row, "price")}, " +
+            "${parseModifier(row, "bonus-value", "bonus-attribute")}, " +
+            "${escapeString(parseStringAttr(row, "ammo-kind"))}, " +
+            "${parseByteAttr(row, "clip-size")}, " +
+            "${parseDiceAttr(row, "melee-damage")}, " +
+            "${parseDiceAttr(row, "projectile-damage")}), " +
+            "${parseByteAttr(row, "single-shot")}, " +
+            "${parseByteAttr(row, "semi-auto-shots")}, " +
+            "${parseByteAttr(row, "auto-shots")}, " +
+            "${parseByteAttr(row, "range")}, " +
+            "${escapeString(parseStringAttr(row, "combat-text"))})")
     }
     
     def genArmor(func, row, out)
     {
-        out.println "  //armor name=${row.@name}"
+        out.println(
+            "  return makeArmor(" +
+            "${escapeString(parseStringAttr(row, "name"))}, " +
+            "${escapeString(parseStringAttr(row, "armor-kind"))}, " +
+            "${parseWordAttr(row, "price")}, " +
+            "${parseByteAttr(row, "armor-value")}, " +
+            "${parseModifier(row, "bonus-value", "bonus-attribute")})")
     }
     
     def genAmmo(func, row, out)

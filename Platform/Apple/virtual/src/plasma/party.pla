@@ -66,10 +66,10 @@ def _party_showPlayerSheet(num)
   displayf1("%d", player->b_intelligence); rawDisplayStr("^T024Intelligence\n")
   displayf1("%d", player->b_strength); rawDisplayStr("^T024Strength\n")
   displayf1("%d", player->b_agility); rawDisplayStr("^T024Agility\n")
-  displayf1("%d", player->b_bravery); rawDisplayStr("^T024Bravery\n")
   displayf1("%d", player->b_stamina); rawDisplayStr("^T024Stamina\n")
   displayf1("%d", player->b_charisma); rawDisplayStr("^T024Charisma\n")
   displayf1("%d", player->b_spirit); rawDisplayStr("^T024Spirit\n")
+  displayf1("%d", player->b_luck); rawDisplayStr("^T024Luck\n")
   displayf1("%d", player->b_armor); rawDisplayStr("^T024Armor\n")
   
   // Show aquired skills in lower right panel
@@ -77,8 +77,8 @@ def _party_showPlayerSheet(num)
   clearWindow()
   rawDisplayStr("^Y^LSkills^L^N\n")
   if player=>b_aiming; displayStr("Aiming\n"); fin
+  if player=>b_handToHand; displayStr("Hand-to-Hand\n"); fin
   if player=>b_dodging; displayStr("Dodging\n"); fin
-  if player=>b_wilderness; displayStr("Wilderness"); fin
 
   // Get a key, do something
   getUpperKey()

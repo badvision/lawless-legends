@@ -1896,7 +1896,12 @@ class PackPartitions
     
     def genAmmo(func, row, out)
     {
-        out.println "  //ammo name=${row.@name}"
+        out.println(
+            "  return makeStuff(" +
+            "${escapeString(parseStringAttr(row, "name"))}, " +
+            "${escapeString(parseStringAttr(row, "type"))}, " +
+            "${parseWordAttr(row, "price")}, " +
+            "${parseWordAttr(row, "max")})")
     }
     
     def genItem(func, row, out)

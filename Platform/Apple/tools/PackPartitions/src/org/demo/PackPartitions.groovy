@@ -1512,10 +1512,9 @@ class PackPartitions
         assembleCode("tileEngine", "src/tile/")
 
         compileModule("gameloop", "src/plasma/")
-        compileModule("gen_globalScripts", "src/plasma/")
-        compileModule("globalScripts", "src/plasma/")
         compileModule("combat", "src/plasma/")
         compileModule("party", "src/plasma/")
+        compileModule("gen_globalScripts", "src/plasma/")
         compileModule("gen_enemies", "src/plasma/")
         compileModule("gen_items", "src/plasma/")
         compileModule("gen_players", "src/plasma/")

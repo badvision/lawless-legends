@@ -13,11 +13,11 @@ include "playtype.plh"
 include "gen_images.plh"
 
 predef new_Armor_Chaps, new_Armor_ShamanHeaddress, new_Armor_TahnkuPants, new_Armor_TahnkuVest 
-predef new_Weapon_Handgun, new_Weapon_SpiritBow, new_Weapon_SpiritBlade, calcPlayerArmor
+predef new_Weapon_Handgun, new_Weapon_SpiritBow, new_Weapon_SpiritBlade
 predef new_Player_Hue_Hauser, new_Player_Mokahnu
 
 word[] funcTbl = @new_Armor_Chaps, @new_Armor_ShamanHeaddress, @new_Armor_TahnkuPants, @new_Armor_TahnkuVest
-word           = @new_Weapon_Handgun, @new_Weapon_SpiritBow, @new_Weapon_SpiritBlade, @calcPlayerArmor
+word           = @new_Weapon_Handgun, @new_Weapon_SpiritBow, @new_Weapon_SpiritBlade
 word           = @new_Player_Hue_Hauser, @new_Player_Mokahnu
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -127,19 +127,6 @@ def new_Weapon_SpiritBlade
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def calcPlayerArmor(player)
-  word pItem
-  player->b_armor = 0
-  pItem = player=>p_items
-  while pItem
-    if pItem->t_type == TYPE_ARMOR
-      player->b_armor = player->b_armor + pItem->b_armorValue
-    fin
-    pItem = pItem=>p_nextObj
-  loop
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 def new_Player_Hue_Hauser
   word p, pItem
   p = mmgr(HEAP_ALLOC, TYPE_PLAYER)
@@ -147,10 +134,10 @@ def new_Player_Hue_Hauser
   p->b_intelligence = 5
   p->b_strength = 6
   p->b_agility = 3
-  p->b_bravery = 6
   p->b_stamina = 4
   p->b_charisma = 7
   p->b_spirit = 5
+  p->b_luck = 5
 
   p=>w_maxHealth = 12
   p=>w_health = 12
@@ -184,10 +171,10 @@ def new_Player_Mokahnu
   p->b_intelligence = 7
   p->b_strength = 4
   p->b_agility = 6
-  p->b_bravery = 7
   p->b_stamina = 6
   p->b_charisma = 7
   p->b_spirit = 10
+  p->b_luck = 5
 
   p=>w_maxHealth = 40
   p=>w_health = 40

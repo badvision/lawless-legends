@@ -38,8 +38,8 @@ include "playtype.plh"
 include "gen_images.plh"
 include "gen_modules.plh"
 include "gen_enemies.plh"
-include "globalScripts.plh"      // old-style
-include "gen_globalScripts.plh"  // new-style
+include "gen_globalScripts.plh"
+include "gen_players.plh"
 include "combat.plh"
 include "party.plh"
 
@@ -111,6 +111,7 @@ predef _reboot, _brk, _encodeDice, _rollDice
 predef _setPlural, _makeEnemy, _getStringResponse, _strcmpi, _addEncounterZone, _fatal
 predef _pause, _tossStrings, _showMapName, _setMapWindow
 predef _makeModifier, _makeArmor, _makeWeapon_pt1, _makeWeapon_pt2, _randomFromArray
+predef _makePlayer_pt1, _makePlayer_pt2, _calcPlayerArmor
 
 word gameLib_addrs = @_setScriptInfo, @_scriptDisplayStr, @_scriptDisplayStrNL, @_getYN
 word = @_queue_setMap, @_setSky, @_setGround, @_queue_teleport, @_setPortrait, @_clearPortrait
@@ -126,6 +127,7 @@ word = @_reboot, @_brk, @_encodeDice, @_rollDice
 word = @_setPlural, @_makeEnemy, @_getStringResponse, @_strcmpi, @_addEncounterZone, @_fatal
 word = @_pause, @_tossStrings, @_showMapName, @_setMapWindow
 word = @_makeModifier, @_makeArmor, @_makeWeapon_pt1, @_makeWeapon_pt2, @_randomFromArray
+word = @_makePlayer_pt1, @_makePlayer_pt2, @_calcPlayerArmor
 
 word = 0  // end of library functions
 
@@ -2191,18 +2193,55 @@ def _makeWeapon_pt2(p, attack0, attack1, attack2, weaponRange, combatText)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def _makePlayer_pt1(name, intelligence, strength, agility, stamina, charisma, spirit, luck)
+  word p
+  p = mmgr(HEAP_ALLOC, TYPE_PLAYER)
+  p=>s_name = mmgr(HEAP_INTERN, name)
+  p->b_intelligence = intelligence
+  p->b_strength = strength
+  p->b_agility = agility
+  p->b_stamina = stamina
+  p->b_charisma = charisma
+  p->b_spirit = spirit
+  p->b_luck = luck
+  return p
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def _makePlayer_pt2(p, health, aiming, handToHand, dodging)
+  p=>w_health = health
+  p=>w_maxHealth = health
+  p->b_aiming = aiming
+  p->b_handToHand = handToHand
+  p->b_dodging = dodging
+  return p
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def _calcPlayerArmor(player)
+  word pItem
+  player->b_armor = 0
+  pItem = player=>p_items
+  while pItem
+    if pItem->t_type == TYPE_ARMOR
+      player->b_armor = player->b_armor + pItem->b_armorValue
+    fin
+    pItem = pItem=>p_nextObj
+  loop
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Create the party
 def initParty()
-  word globalScripts
+  word playerScripts, itemScripts, globalScripts
 
-  // Old-style
-  globalScripts = mmgr(QUEUE_LOAD, MODULE_GLOBAL_SCRIPTS<<8 | RES_TYPE_MODULE)
+  // Create the initial party
+  playerScripts = mmgr(QUEUE_LOAD, MODULE_GEN_PLAYERS<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 1) // 1 = keep open
-  addToList(@global=>p_players, globalScripts()=>script_new_Player_Hue_Hauser())
-  addToList(@global=>p_players, globalScripts()=>script_new_Player_Mokahnu())
-  mmgr(FREE_MEMORY, globalScripts)
+  playerScripts()=>makeInitialParty()
+  mmgr(FREE_MEMORY, playerScripts)
 
-  // New-style
+  // And run the new-game script
   globalScripts = mmgr(QUEUE_LOAD, MODULE_GEN_GLOBAL_SCRIPTS<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 1) // 1 = keep open
   globalScripts()=>sc_newGame()

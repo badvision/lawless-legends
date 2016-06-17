@@ -59,6 +59,8 @@ class PackPartitions
     def bytecodes = [:]  // module name to bytecode.num, bytecode.buf
     def fixups    = [:]  // module name to fixup.num, fixup.buf
     
+    def itemNameToFunc = [:]
+    
     def compressor = LZ4Factory.fastestInstance().highCompressor()
     
     def ADD_COMP_CHECKSUMS = false
@@ -1516,6 +1518,7 @@ class PackPartitions
         compileModule("party", "src/plasma/")
         compileModule("gen_enemies", "src/plasma/")
         compileModule("gen_items", "src/plasma/")
+        compileModule("gen_players", "src/plasma/")
     }
     
     /**
@@ -1902,6 +1905,39 @@ class PackPartitions
         out.println "  //item name=${row.@name}"
     }
     
+    def genPlayer(func, row, out)
+    {
+        out.println("  word p")
+        out.println(\
+            "  p = makePlayer_pt2(makePlayer_pt1(" +
+            "${escapeString(parseStringAttr(row, "name"))}, " +
+            "${parseByteAttr(row, "intelligence")}, " +
+            "${parseByteAttr(row, "strength")}, " +
+            "${parseByteAttr(row, "agility")}, " +
+            "${parseByteAttr(row, "stamina")}, " +
+            "${parseByteAttr(row, "charisma")}, " +
+            "${parseByteAttr(row, "spirit")}, " +
+            "${parseByteAttr(row, "luck")}), " +
+            "${parseWordAttr(row, "health")}, " +
+            "${parseByteAttr(row, "aiming")}, " +
+            "${parseByteAttr(row, "hand-to-hand")}, " +
+            "${parseByteAttr(row, "dodging")})")
+        row.attributes().each { name, val ->
+            if (name =~ /^skill-(.*)/) {
+                out.println("  addToList(@p=>p_skills, " +
+                    "makeModifier(${escapeString(name.replace("skill-", ""))}, " +
+                    "${parseByteAttr(row, name)}))")
+            }
+            else if (name =~ /^item-/) {
+                def itemFunc = itemNameToFunc[val]
+                assert itemFunc : "Can't locate item 'val'"
+                out.println("  addToList(@p=>p_items, itemScripts()=>$itemFunc())")
+            }
+        }
+        out.println("  calcPlayerArmor(p)")
+        out.println "  return p"
+    }
+    
     def addCodeToFunc(funcName, codesString, addTo)
     {
         if (codesString == null || codesString.length() == 0)
@@ -1949,6 +1985,11 @@ class PackPartitions
             funcs << ["ammo",   "NAm_${humanNameToSymbol(row.@name, false)}",   funcs.size, row] }
         sheets.find { it?.@name.equalsIgnoreCase("items") }.rows.row.each { row ->
             funcs << ["item",   "NIt_${humanNameToSymbol(row.@name, false)}",   funcs.size, row] }
+        
+        // Global mapping of item name to function, so that Players can create items.
+        funcs.each { typeName, func, index, row ->
+            itemNameToFunc[row.@name] = func
+        }
         
         // Build up the mappings from loot codes and store codes to creation functions
         def lootCodeToFuncs = [:]
@@ -1998,7 +2039,7 @@ class PackPartitions
 
             // Generate all the functions themselves
             funcs.each { typeName, func, index, row ->
-                withContext(func) 
+                withContext("$typeName '${row.@name}'") 
                 {
                     out.println("def _$func()")
                     switch (typeName) {
@@ -2022,6 +2063,81 @@ class PackPartitions
             out.println("done")
         }
         replaceIfDiff("build/src/plasma/gen_items.pla")
+    }
+
+    def genAllPlayers(sheets)
+    {
+        // Grab all the raw data
+        def funcs = []
+        sheets.find { it?.@name.equalsIgnoreCase("players") }.rows.row.each { row ->
+            funcs << ["NPl_${humanNameToSymbol(row.@name, false)}", funcs.size, row] 
+        }
+        
+        // Make constants for the function table
+        new File("build/src/plasma/gen_players.plh.new").withWriter { out ->
+            out.println("// Generated code - DO NOT MODIFY BY HAND\n")
+            out.println("const makeInitialParty = 0")
+            funcs.each { func, index, row ->
+                out.println("const ${func} = ${(index+1)*2}")
+            }
+        }
+        replaceIfDiff("build/src/plasma/gen_players.plh")
+        
+        // Generate code
+        new File("build/src/plasma/gen_players.pla.new").withWriter { out ->
+            out.println("// Generated code - DO NOT MODIFY BY HAND")
+            out.println()
+            out.println("include \"gamelib.plh\"")
+            out.println("include \"playtype.plh\"")
+            out.println("include \"gen_modules.plh\"")
+            out.println("include \"gen_items.plh\"")
+            out.println("include \"gen_players.plh\"")
+            out.println()
+            out.println("word global, itemScripts")
+            out.println()
+
+            // Pre-define all the creation functions
+            out.println("predef _makeInitialParty")
+            funcs.each { func, index, row ->
+                out.println("predef _$func")
+            }
+            out.println("")
+
+            // Next, output the function table
+            out.println("word[] funcTbl = @_makeInitialParty")
+            funcs.each { func, index, row ->
+                out.println("word         = @_$func")
+            }
+            out.println("")
+
+            // Generate all the functions themselves
+            funcs.each { func, index, row ->
+                withContext("player '${row.@name}'") {
+                    out.println("def _$func()")
+                    genPlayer(func, row, out)
+                    out.println("end\n")
+                }
+                
+            }
+            
+            // Code for initial party creation
+            out.println("def _makeInitialParty()")
+            out.println("  itemScripts = mmgr(QUEUE_LOAD, MODULE_GEN_ITEMS<<8 | RES_TYPE_MODULE)")
+            out.println("  mmgr(FINISH_LOAD, 1) // 1 = keep open")
+            funcs.each { func, index, row ->
+                if (row.@"starting-party" == "yes")
+                    out.println("  addToList(@global=>p_players, _$func())")
+            }
+            out.println("  mmgr(FREE_MEMORY, itemScripts)")
+            out.println("  itemScripts = NULL")
+            out.println("end\n")
+
+            // Lastly, the outer module-level code
+            out.println("global = getGlobals()")
+            out.println("return @funcTbl")
+            out.println("done")
+        }
+        replaceIfDiff("build/src/plasma/gen_players.pla")
     }
 
     def replaceIfDiff(oldFile)
@@ -2094,6 +2210,7 @@ class PackPartitions
         // Translate enemies, weapons, etc. to code
         genAllEnemies(dataIn.global.sheets.sheet.find { it?.@name.equalsIgnoreCase("enemies") }, portraitNames)
         genAllItems(dataIn.global.sheets.sheet)
+        genAllPlayers(dataIn.global.sheets.sheet)
 
         // Produce a list of assembly and PLASMA code segments
         binaryStubsOnly = true

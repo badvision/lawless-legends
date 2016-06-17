@@ -13,7 +13,7 @@ open(ARGV[0], "r").readlines.each_with_index { |line, idx|
   if idx == 0
     sheet.add_child(columnsEl = out.create_element("columns"))
     fields.each { |inField|
-      outField = inField.downcase.gsub("xd6", "").gsub(/:.*/, "").gsub("#", "num").gsub(/[^-a-zA-Z0-9 ]/, "").strip.gsub(/\s+/, "-")
+      outField = inField.downcase.gsub("xd6", "").gsub("#", "num").gsub(/[^-a-zA-Z0-9 ]/, "").strip.gsub(/\s+/, "-")
       colNames << outField
       columnsEl.add_child out.create_element("column", :name => outField)
     }

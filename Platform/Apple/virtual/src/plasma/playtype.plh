@@ -42,16 +42,17 @@ struc Player
   byte b_intelligence
   byte b_strength
   byte b_agility
-  byte b_bravery
   byte b_stamina
   byte b_charisma
   byte b_spirit
+  byte b_luck
 
   // Calculated attributes
   byte b_armor
 
   // Basic skills (much like attributes)
   byte b_aiming
+  byte b_handToHand
   byte b_dodging
 
   // Status

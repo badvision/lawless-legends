@@ -32,47 +32,53 @@ word[] funcTbl = @_party_showPlayerSheet
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Show player data
 def _party_showPlayerSheet(num)
-  word pl
-  word x, y
-  byte dir
+  word player, item
 
   // Count the number of players
-  pl = global=>p_players
+  player = global=>p_players
   while num > 0
-    pl = pl=>p_nextObj
-    if !pl // Not that many players
-      showMapName("") // Force redraw of map name
+    player = player=>p_nextObj
+    if !player // Not that many players
       return
     fin
     num--
   loop
 
   // First, display the player's name in the title bar
-  showMapName(pl=>s_name)
+  showMapName(player=>s_name)
 
-  // Next, show nventory in the main map area
+  // Next, show inventory in the main panel
   setMapWindow()
   clearWindow()
   rawDisplayStr("^Y^LInventory^L^N\n")
-  displayStr("1  Gun\n")
-  displayStr("2  Food\n")
-  displayStr("0  Underwear\n")
+  item = player=>p_items
+  while item
+    displayStr(item=>s_name)
+    displayStr("\n")
+    item = item=>p_nextObj
+  loop
 
-  // Show stats in the right hand area
+  // Show stats in the right panel
   setWindow2()
   clearWindow()
-  rawDisplayStr("^Y^LStats/Skills^L^N\n")
-  displayStr("100% Health\n")
-  displayStr("75%  Strength\n")
-  displayStr("85%  Agility\n")
-  displayStr("85%  Bravery\n")
-  displayStr("85%  Stamina\n")
-  displayStr("200% Charisma\n")
-  displayStr("85%  Spirit\n")
-  displayStr("85%  Armor\n")
-  displayStr("85%  Aiming\n")
-  displayStr("85%  Dodging\n")
-  displayStr("85%  Wilderness")
+  rawDisplayStr("^Y^LStats^L^N\n")
+  displayf1("%d", player=>w_health); rawDisplayStr("^T024Health\n")
+  displayf1("%d", player->b_intelligence); rawDisplayStr("^T024Intelligence\n")
+  displayf1("%d", player->b_strength); rawDisplayStr("^T024Strength\n")
+  displayf1("%d", player->b_agility); rawDisplayStr("^T024Agility\n")
+  displayf1("%d", player->b_bravery); rawDisplayStr("^T024Bravery\n")
+  displayf1("%d", player->b_stamina); rawDisplayStr("^T024Stamina\n")
+  displayf1("%d", player->b_charisma); rawDisplayStr("^T024Charisma\n")
+  displayf1("%d", player->b_spirit); rawDisplayStr("^T024Spirit\n")
+  displayf1("%d", player->b_armor); rawDisplayStr("^T024Armor\n")
+  
+  // Show aquired skills in lower right panel
+  setWindow3()
+  clearWindow()
+  rawDisplayStr("^Y^LSkills^L^N\n")
+  if player=>b_aiming; displayStr("Aiming\n"); fin
+  if player=>b_dodging; displayStr("Dodging\n"); fin
+  if player=>b_wilderness; displayStr("Wilderness"); fin
 
   // Get a key, do something
   getUpperKey()

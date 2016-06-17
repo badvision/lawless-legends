@@ -111,7 +111,7 @@ predef _reboot, _brk, _encodeDice, _rollDice
 predef _setPlural, _makeEnemy, _getStringResponse, _strcmpi, _addEncounterZone, _fatal
 predef _pause, _tossStrings, _showMapName, _setMapWindow
 predef _makeModifier, _makeArmor, _makeWeapon_pt1, _makeWeapon_pt2, _randomFromArray
-predef _makePlayer_pt1, _makePlayer_pt2, _calcPlayerArmor, _makeAmmo
+predef _makePlayer_pt1, _makePlayer_pt2, _calcPlayerArmor, _makeStuff
 
 word gameLib_addrs = @_setScriptInfo, @_scriptDisplayStr, @_scriptDisplayStrNL, @_getYN
 word = @_queue_setMap, @_setSky, @_setGround, @_queue_teleport, @_setPortrait, @_clearPortrait
@@ -127,7 +127,7 @@ word = @_reboot, @_brk, @_encodeDice, @_rollDice
 word = @_setPlural, @_makeEnemy, @_getStringResponse, @_strcmpi, @_addEncounterZone, @_fatal
 word = @_pause, @_tossStrings, @_showMapName, @_setMapWindow
 word = @_makeModifier, @_makeArmor, @_makeWeapon_pt1, @_makeWeapon_pt2, @_randomFromArray
-word = @_makePlayer_pt1, @_makePlayer_pt2, @_calcPlayerArmor, @_makeAmmo
+word = @_makePlayer_pt1, @_makePlayer_pt2, @_calcPlayerArmor, @_makeStuff
 
 word = 0  // end of library functions
 
@@ -2231,7 +2231,7 @@ def _calcPlayerArmor(player)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _makeAmmo(name, kind, price, count)
+def _makeStuff(name, kind, price, count)
   word p; p = mmgr(HEAP_ALLOC, TYPE_ARMOR)
   p=>s_name = mmgr(HEAP_INTERN, name)
   p=>s_itemKind = mmgr(HEAP_INTERN, kind)

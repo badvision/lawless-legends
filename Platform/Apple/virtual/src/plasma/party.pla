@@ -75,10 +75,10 @@ def _party_showPlayerSheet(num)
   // Show aquired skills in lower right panel
   setWindow3()
   clearWindow()
-  rawDisplayStr("^Y^LSkills^L^N\n")
-  if player=>b_aiming; displayStr("Aiming\n"); fin
-  if player=>b_handToHand; displayStr("Hand-to-Hand\n"); fin
-  if player=>b_dodging; displayStr("Dodging\n"); fin
+  rawDisplayStr("^Y^LSkills^L^N")
+  if player->b_aiming; displayStr("\nAiming"); fin
+  if player->b_handToHand; displayStr("\nHand-to-Hand"); fin
+  if player->b_dodging; displayStr("\nDodging"); fin
 
   // Get a key, do something
   getUpperKey()

@@ -24,23 +24,21 @@ word global
 
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the the header.
-predef _party_showPlayerSheet
-word[] funcTbl = @_party_showPlayerSheet
+predef _party_doPlayerSheet
+word[] funcTbl = @_party_doPlayerSheet
 
 // Other global variables here
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Show player data
-def _party_showPlayerSheet(num)
+def showPlayerSheet(num)
   word player, item
 
   // Count the number of players
   player = global=>p_players
   while num > 0
     player = player=>p_nextObj
-    if !player // Not that many players
-      return
-    fin
+    if !player; return; fin // Not that many players
     num--
   loop
 
@@ -50,11 +48,11 @@ def _party_showPlayerSheet(num)
   // Next, show inventory in the main panel
   setMapWindow()
   clearWindow()
-  rawDisplayStr("^Y^LInventory^L^N\n")
+  rawDisplayStr("^Y^LInventory^L^N")
   item = player=>p_items
   while item
-    displayStr(item=>s_name)
     displayStr("\n")
+    displayStr(item=>s_name)
     item = item=>p_nextObj
   loop
 
@@ -62,27 +60,44 @@ def _party_showPlayerSheet(num)
   setWindow2()
   clearWindow()
   rawDisplayStr("^Y^LStats^L^N\n")
-  displayf1("%d", player=>w_health); rawDisplayStr("^T024Health\n")
+  displayf1("%d", player=>w_health);       rawDisplayStr("^T024Health\n")
   displayf1("%d", player->b_intelligence); rawDisplayStr("^T024Intelligence\n")
-  displayf1("%d", player->b_strength); rawDisplayStr("^T024Strength\n")
-  displayf1("%d", player->b_agility); rawDisplayStr("^T024Agility\n")
-  displayf1("%d", player->b_stamina); rawDisplayStr("^T024Stamina\n")
-  displayf1("%d", player->b_charisma); rawDisplayStr("^T024Charisma\n")
-  displayf1("%d", player->b_spirit); rawDisplayStr("^T024Spirit\n")
-  displayf1("%d", player->b_luck); rawDisplayStr("^T024Luck\n")
-  displayf1("%d", player->b_armor); rawDisplayStr("^T024Armor\n")
+  displayf1("%d", player->b_strength);     rawDisplayStr("^T024Strength\n")
+  displayf1("%d", player->b_agility);      rawDisplayStr("^T024Agility\n")
+  displayf1("%d", player->b_stamina);      rawDisplayStr("^T024Stamina\n")
+  displayf1("%d", player->b_charisma);     rawDisplayStr("^T024Charisma\n")
+  displayf1("%d", player->b_spirit);       rawDisplayStr("^T024Spirit\n")
+  displayf1("%d", player->b_luck);         rawDisplayStr("^T024Luck\n")
+  displayf1("%d", player->b_armor);        rawDisplayStr("^T024Armor\n")
   
   // Show aquired skills in lower right panel
   setWindow3()
   clearWindow()
-  rawDisplayStr("^Y^LSkills^L^N\n")
-  if player=>b_aiming; displayStr("Aiming\n"); fin
-  if player=>b_handToHand; displayStr("Hand-to-Hand\n"); fin
-  if player=>b_dodging; displayStr("Dodging\n"); fin
+  rawDisplayStr("^Y^LSkills^L^N")
+  if player->b_aiming;     displayStr("\nAiming");       fin
+  if player->b_handToHand; displayStr("\nHand-to-Hand"); fin
+  if player->b_dodging;    displayStr("\nDodging");      fin
+  return player
+end
 
-  // Get a key, do something
-  getUpperKey()
-  // do something here
+// Show player sheet and accept command
+def _party_doPlayerSheet(num)
+  word player
+  
+  repeat
+    player = showPlayerSheet(num)
+    if !player; return; fin // Invalid player
+    // Get a key, do something
+    when getUpperKey()
+      // Select another player to show
+      is '1'; num = 0; break
+      is '2'; num = 1; break
+      is '3'; num = 2; break
+      // Other operations...
+      // All done
+      otherwise return
+    wend
+  until 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

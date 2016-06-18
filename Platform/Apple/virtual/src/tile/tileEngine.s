@@ -118,7 +118,7 @@ next_zp		= $AB
 ;----------------------------------------------------------------------
 ; >> START LOADING MAP SECTIONS
 START_MAP_LOAD
-	LDX #0
+	LDX #2			; currently 2d maps are in partition 2
 	LDA #START_LOAD
 	JMP mainLoader
 !macro startLoad {

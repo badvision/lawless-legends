@@ -358,8 +358,8 @@ init: !zone
 	ldx #0
 	ldy #$20		; length $2000
 	jsr main_dispatch
-; Load PLASMA module #1
-	ldx #0
+; Load PLASMA module #1 from partition #1
+	ldx #1
 	lda #START_LOAD
 	jsr main_dispatch
 	ldx #RES_TYPE_MODULE
@@ -2016,9 +2016,10 @@ diskLoader: !zone
 
 ;------------------------------------------------------------------------------
 openPartition: !zone
-	!if DEBUG { +prStr : !text "Opening part file.",0 }
+	!if DEBUG { +prStr : !text "Opening part file ",0 : +prByte curPartition : +crout }
 ; complete the partition file name
 	lda curPartition
+	beq sequenceError	; partition number must be >= 1
 	clc
 	adc #'0'		; assume partition numbers range from 0..9 for now
 	sta partNumChar
@@ -2049,6 +2050,10 @@ openPartition: !zone
 	jmp readToMain		; finish by reading the rest of the header
 
 ;------------------------------------------------------------------------------
+sequenceError: !zone
+	jsr inlineFatal : !text "BadSeq", 0
+
+;------------------------------------------------------------------------------
 prodosError: !zone
 	pha
 	lsr
@@ -2074,16 +2079,16 @@ prodosError: !zone
 ;------------------------------------------------------------------------------
 disk_startLoad: !zone
 ; Make sure we don't get start without finish
+	txa
+	beq sequenceError	; partition zero is illegal
+	cpx curPartition	; ok to open same partition twice without close
+	beq .nop
 	lda curPartition
-	bne sequenceError
+	bne sequenceError	; error to open new partition without closing old
 ; Just record the partition number; it's possible we won't actually be asked
 ; to queue anything, so we should put off opening the file.
 	stx curPartition
-	rts
-
-;------------------------------------------------------------------------------
-sequenceError: !zone
-	jsr inlineFatal : !text "BadSeq", 0
+.nop	rts
 
 ;------------------------------------------------------------------------------
 startHeaderScan: !zone
@@ -2155,16 +2160,21 @@ disk_queueLoad: !zone
 	jsr adjYpTmp		; keep it small
 	jmp .scan		; go for more
 .notFound:
+	+prStr : !text "p=",0 : +prByte curPartition
+	+prStr : !text "t=",0 : +prByte resType
+	+prStr : !text "n=",0 : +prByte resNum
 	jsr inlineFatal : !text "ResNotFnd", 0
 .resLen: !byte 0
-
 ;------------------------------------------------------------------------------
 disk_finishLoad: !zone
 	stx .keepOpenChk+1	; store flag telling us whether to keep open (1) or close (0)
 	lda partFileRef		; see if we actually queued anything (and opened the file)
-	bne +			; non-zero means we have work to do
-	rts			; nothing to do - return immediately
-+	sta setMarkFileRef	; copy the file ref number to our MLI param blocks
+	bne .work		; non-zero means we have work to do
+	txa
+	bne +
+	sta curPartition	; if "closing", clear the partition number
++	rts			; nothing to do - return immediately
+.work	sta setMarkFileRef	; copy the file ref number to our MLI param blocks
 	sta readFileRef
 	lda headerBuf		; grab # header bytes
 	sta setMarkPos		; set to start reading at first non-header byte in file
@@ -2185,6 +2195,7 @@ disk_finishLoad: !zone
 	jsr closeFile
 	lda #0			; zero out...
 	sta partFileRef		; ... the file reference so we know it's no longer open
+	sta curPartition	; ... and the partition number
 +	lda .nFixups		; any fixups encountered?
 	beq +
 	jsr doAllFixups		; found fixups - execute and free them

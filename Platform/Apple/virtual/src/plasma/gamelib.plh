@@ -53,6 +53,10 @@ const HEAP_ALLOC     = $22
 const HEAP_INTERN    = $23
 const HEAP_COLLECT   = $24
 
+// Constants for FINISH_LOAD
+const WITH_CLOSE     = 0
+const LEAVE_OPEN     = 1
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Shared library routines
 const gameLibVecs = $1F00

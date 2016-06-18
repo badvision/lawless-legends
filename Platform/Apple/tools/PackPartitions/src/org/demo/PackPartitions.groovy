@@ -61,6 +61,8 @@ class PackPartitions
     
     def itemNameToFunc = [:]
     
+    def lastSysModule
+    
     def compressor = LZ4Factory.fastestInstance().highCompressor()
     
     def ADD_COMP_CHECKSUMS = false
@@ -1238,23 +1240,30 @@ class PackPartitions
         }
     }
     
-    def writePartition(stream)
+    def writePartition(stream, partNum)
     {
         // Make a list of all the chunks that will be in the partition
         def chunks = []
-        code.values().each { chunks.add([type:TYPE_CODE, num:it.num, buf:compress(it.buf)]) }
+        if (partNum == 1)
+            code.values().each { chunks.add([type:TYPE_CODE, num:it.num, buf:compress(it.buf)]) }       
         modules.each { k, v ->
-            chunks.add([type:TYPE_MODULE, num:v.num, buf:compress(v.buf)])
-            chunks.add([type:TYPE_BYTECODE, num:v.num, buf:compress(bytecodes[k].buf)])
-            chunks.add([type:TYPE_FIXUP, num:v.num, buf:compress(fixups[k].buf)])
+            if ((partNum==1 && v.num <= lastSysModule) || (partNum==2 && v.num > lastSysModule)) {
+                chunks.add([type:TYPE_MODULE, num:v.num, buf:compress(v.buf)])
+                chunks.add([type:TYPE_BYTECODE, num:v.num, buf:compress(bytecodes[k].buf)])
+                chunks.add([type:TYPE_FIXUP, num:v.num, buf:compress(fixups[k].buf)])
+            }
         }
-        fonts.values().each { chunks.add([type:TYPE_FONT, num:it.num, buf:compress(it.buf)]) }
-        frames.values().each { chunks.add([type:TYPE_SCREEN, num:it.num, buf:compress(it.buf)]) }
-        portraits.values().each { chunks.add([type:TYPE_PORTRAIT, num:it.num, buf:compress(it.buf)]) }
-        maps2D.values().each { chunks.add([type:TYPE_2D_MAP, num:it.num, buf:compress(it.buf)]) }
-        tileSets.values().each { chunks.add([type:TYPE_TILE_SET, num:it.num, buf:compress(it.buf)]) }
-        maps3D.values().each { chunks.add([type:TYPE_3D_MAP, num:it.num, buf:compress(it.buf)]) }
-        textures.values().each { chunks.add([type:TYPE_TEXTURE_IMG, num:it.num, buf:compress(it.buf)]) }
+        if (partNum == 1) {
+            fonts.values().each { chunks.add([type:TYPE_FONT, num:it.num, buf:compress(it.buf)]) }
+            frames.values().each { chunks.add([type:TYPE_SCREEN, num:it.num, buf:compress(it.buf)]) }
+        }
+        else {
+            maps2D.values().each { chunks.add([type:TYPE_2D_MAP, num:it.num, buf:compress(it.buf)]) }
+            tileSets.values().each { chunks.add([type:TYPE_TILE_SET, num:it.num, buf:compress(it.buf)]) }
+            maps3D.values().each { chunks.add([type:TYPE_3D_MAP, num:it.num, buf:compress(it.buf)]) }
+            textures.values().each { chunks.add([type:TYPE_TEXTURE_IMG, num:it.num, buf:compress(it.buf)]) }
+            portraits.values().each { chunks.add([type:TYPE_PORTRAIT, num:it.num, buf:compress(it.buf)]) }
+        }
         
         // Generate the header chunk. Leave the first 2 bytes for the # of pages in the hdr
         def hdrBuf = ByteBuffer.allocate(50000)
@@ -1518,6 +1527,7 @@ class PackPartitions
         compileModule("gen_enemies", "src/plasma/")
         compileModule("gen_items", "src/plasma/")
         compileModule("gen_players", "src/plasma/")
+        lastSysModule = modules.size()
     }
     
     /**
@@ -1633,13 +1643,17 @@ class PackPartitions
         // Ready to write the output file.
         println "Writing output file."
         new File("build/root").mkdir()
-        def binPath = new File("build/root/game.part.0.bin").path
-        new File(binPath).withOutputStream { stream -> writePartition(stream) }
+        
+        def part1Path = new File("build/root/game.part.1.bin").path
+        new File(part1Path).withOutputStream { stream -> writePartition(stream, 1) }
+
+        def part2Path = new File("build/root/game.part.2.bin").path
+        new File(part2Path).withOutputStream { stream -> writePartition(stream, 2) }
         
         // Print stats
         println "Compression saved $compressionSavings bytes."
         if (compressionSavings > 0) {
-            def endSize = new File(binPath).length()
+            def endSize = new File(part1Path).length() + new File(part2Path).length()
             def origSize = endSize + compressionSavings
             def savPct = String.format("%.1f", compressionSavings * 100.0 / origSize)
             println "Size $origSize -> $endSize ($savPct% savings)"

@@ -1221,26 +1221,32 @@ def initMap(x, y, dir)
   // Show disk activity icon while we load
   diskActivity($FF)
 
-  // Queue loading of the raycaster or tile engine and the map data
+  // Load the raycaster or tile engine, and then the frame image.
+  mmgr(START_LOAD, 1) // partition 1 is where code lives
   mmgr(SET_MEM_TARGET, displayEngine)
   if mapIs3D
     mmgr(QUEUE_LOAD, CODE_RENDER<<8 | RES_TYPE_CODE)
-    pMap = mmgr(QUEUE_LOAD, mapNum<<8 | RES_TYPE_3D_MAP)
     auxMmgr(SET_MEM_TARGET, expandVec)
     auxMmgr(QUEUE_LOAD, CODE_EXPAND<<8 | RES_TYPE_CODE)
   else
     mmgr(QUEUE_LOAD, CODE_TILE_ENGINE<<8 | RES_TYPE_CODE)
+  fin
+  mmgr(FINISH_LOAD, LEAVE_OPEN)
+  renderLoaded = TRUE
+  diskActivity(0)
+  loadFrameImg()
+  mmgr(FINISH_LOAD, WITH_CLOSE)
+
+  // Load the map
+  diskActivity($FF)
+  mmgr(START_LOAD, 2) // partition 2 is where maps live
+  if mapIs3D
+    pMap = mmgr(QUEUE_LOAD, mapNum<<8 | RES_TYPE_3D_MAP)
+  else
     pMap = mmgr(QUEUE_LOAD, mapNum<<8 | RES_TYPE_2D_MAP)
   fin
-  renderLoaded = TRUE
-
-  // Load everything that we just queued
-  mmgr(FINISH_LOAD, 1) // 1 = keep open
+  mmgr(FINISH_LOAD, LEAVE_OPEN)
   diskActivity(0)
-
-  // Load the frame image (and lock it there)
-  loadFrameImg()
-  mmgr(FINISH_LOAD, 1) // 1 = keep open
 
   // Clear all the windows to the background color (hi-bit set)
   setWindow1()
@@ -1736,8 +1742,9 @@ def _setPortrait(portraitNum)
 
   // Load the portrait image and display it
   diskActivity($FF)
+  mmgr(START_LOAD, 2) // portraits are in partition 2
   curPortrait = auxMmgr(QUEUE_LOAD, portraitNum<<8 | RES_TYPE_PORTRAIT)
-  mmgr(FINISH_LOAD, 0) // 0 = close
+  mmgr(FINISH_LOAD, WITH_CLOSE)
   diskActivity(0)
   animFrame = 0
   animFlags = readAuxByte(curPortrait)
@@ -1866,8 +1873,9 @@ def showPlayerSheet(num)
   flipToPage1()
   mmgr(RESET_MEMORY, 0)
   renderLoaded = FALSE
+  mmgr(START_LOAD, 1) // partition 1=code
   partyEngine = mmgr(QUEUE_LOAD, MODULE_PARTY<<8 | RES_TYPE_MODULE)
-  mmgr(FINISH_LOAD, 1) // 1 = keep open
+  mmgr(FINISH_LOAD, LEAVE_OPEN)
 
   // Run the party engine
   partyEngine()=>party_showPlayerSheet(num)
@@ -1949,8 +1957,9 @@ def doCombat(mapCode)
   diskActivity($FF)
   mmgr(RESET_MEMORY, 0)
   renderLoaded = FALSE
+  mmgr(START_LOAD, 1) // code is in partition 1
   combatEngine = mmgr(QUEUE_LOAD, MODULE_COMBAT<<8 | RES_TYPE_MODULE)
-  mmgr(FINISH_LOAD, 1) // 1 = keep open
+  mmgr(FINISH_LOAD, LEAVE_OPEN)
   diskActivity(0)
 
   // Run the combat engine
@@ -2070,7 +2079,7 @@ def loadTitle()
   mmgr(SET_MEM_TARGET, $2000)
   mmgr(QUEUE_LOAD,     1<<8 | RES_TYPE_SCREEN)  // title screen is fixed at #1
   mmgr(LOCK_MEMORY,    $2000)
-  mmgr(FINISH_LOAD, 1) // 1 = keep open
+  mmgr(FINISH_LOAD, LEAVE_OPEN)
   frameLoaded = 1
   ^$C050     // graphics
   ^$C057     // hi-res
@@ -2089,7 +2098,7 @@ def loadTitle()
   mmgr(SET_MEM_TARGET, $9000)
   pFont = mmgr(QUEUE_LOAD, 1<<8 | RES_TYPE_FONT)
   mmgr(LOCK_MEMORY, pFont)
-  mmgr(FINISH_LOAD, 1) // 1 = keep open
+  mmgr(FINISH_LOAD, LEAVE_OPEN)
 
   // Tell the font engine where to find its font
   setFont(pFont)
@@ -2248,13 +2257,13 @@ def initParty()
 
   // Create the initial party
   playerScripts = mmgr(QUEUE_LOAD, MODULE_GEN_PLAYERS<<8 | RES_TYPE_MODULE)
-  mmgr(FINISH_LOAD, 1) // 1 = keep open
+  mmgr(FINISH_LOAD, LEAVE_OPEN)
   playerScripts()=>makeInitialParty()
   mmgr(FREE_MEMORY, playerScripts)
 
   // And run the new-game script
   globalScripts = mmgr(QUEUE_LOAD, MODULE_GEN_GLOBAL_SCRIPTS<<8 | RES_TYPE_MODULE)
-  mmgr(FINISH_LOAD, 1) // 1 = keep open
+  mmgr(FINISH_LOAD, LEAVE_OPEN)
   globalScripts()=>sc_newGame()
   mmgr(FREE_MEMORY, globalScripts)
   mapIs3D = q_mapIs3D

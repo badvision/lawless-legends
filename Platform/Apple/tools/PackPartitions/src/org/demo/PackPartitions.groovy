@@ -1819,6 +1819,28 @@ class PackPartitions
                     addCodeToFunc("_NEn_${humanNameToSymbol(row.@name, false)}", row.@"map-code", codeToFunc) }
                 outCodeToFuncTbl("mapCode_", codeToFunc, out)
 
+                // Helper function to fill in the Enemy data structure
+                out.println("""
+def makeEnemy(name, healthDice, image0, image1, attackType, attackText, attackRange, chanceToHit, dmg, groupSize, goldLoot)
+  word p; p = mmgr(HEAP_ALLOC, TYPE_ENEMY)
+  p=>s_name = mmgr(HEAP_INTERN, name)
+  p=>w_health = rollDice(healthDice) // 4d6
+  if !image1 or (rand16() % 2)
+    p->b_image = image0
+  else
+    p->b_image = image1
+  fin
+  p->b_attackType = attackType
+  p=>s_attackText = mmgr(HEAP_INTERN, attackText)
+  p->b_enemyAttackRange = attackRange
+  p->b_chanceToHit = chanceToHit
+  p=>r_enemyDmg = dmg
+  p=>r_groupSize = groupSize
+  p=>r_goldLoot = goldLoot
+  return p
+end
+""")
+
                 // Now output a function for each enemy
                 sheet.rows.row.each { row ->
                     genEnemy(out, row, portraitNames)
@@ -2054,7 +2076,53 @@ class PackPartitions
                 out.println("word         = @_$func")
             }
             out.println("")
+            
+            // Data structure filling helpers
+            out.print("""\n\
+def makeArmor(name, kind, price, armorValue, modifier)
+  word p; p = mmgr(HEAP_ALLOC, TYPE_ARMOR)
+  p=>s_name = mmgr(HEAP_INTERN, name)
+  p=>s_itemKind = mmgr(HEAP_INTERN, kind)
+  p=>w_price = price
+  p->b_armorValue = armorValue
+  p=>p_modifiers = modifier
+  return p
+end
 
+def makeWeapon_pt1(name, kind, price, modifier, ammoKind, clipSize, meleeDmg, projectileDmg)
+  word p; p = mmgr(HEAP_ALLOC, TYPE_WEAPON)
+  p=>s_name = mmgr(HEAP_INTERN, name)
+  p=>s_itemKind = mmgr(HEAP_INTERN, kind)
+  p=>w_price = price
+  p=>p_modifiers = modifier
+  p=>s_ammoKind = mmgr(HEAP_INTERN, ammoKind)
+  p->b_clipSize = clipSize
+  p->b_clipCurrent = clipSize
+  p=>r_meleeDmg = meleeDmg
+  p=>r_projectileDmg = projectileDmg
+  return p
+end
+
+def makeWeapon_pt2(p, attack0, attack1, attack2, weaponRange, combatText)
+  p->ba_attacks[0] = attack0
+  p->ba_attacks[1] = attack1
+  p->ba_attacks[2] = attack2
+  p->b_weaponRange = weaponRange
+  p=>s_combatText = mmgr(HEAP_INTERN, combatText)
+  return p
+end
+
+def makeStuff(name, kind, price, count)
+  word p; p = mmgr(HEAP_ALLOC, TYPE_ARMOR)
+  p=>s_name = mmgr(HEAP_INTERN, name)
+  p=>s_itemKind = mmgr(HEAP_INTERN, kind)
+  p=>w_price = price
+  p=>w_count = count
+  p=>w_maxCount = count
+  return p
+end
+""")
+            
             // Generate all the functions themselves
             funcs.each { typeName, func, index, row ->
                 withContext("$typeName '${row.@name}'") 
@@ -2128,6 +2196,32 @@ class PackPartitions
             }
             out.println("")
 
+            // Data structure-filling helper
+            out.print("""\n\
+def makePlayer_pt1(name, intelligence, strength, agility, stamina, charisma, spirit, luck)
+  word p
+  p = mmgr(HEAP_ALLOC, TYPE_PLAYER)
+  p=>s_name = mmgr(HEAP_INTERN, name)
+  p->b_intelligence = intelligence
+  p->b_strength = strength
+  p->b_agility = agility
+  p->b_stamina = stamina
+  p->b_charisma = charisma
+  p->b_spirit = spirit
+  p->b_luck = luck
+  return p
+end
+
+def makePlayer_pt2(p, health, aiming, handToHand, dodging)
+  p=>w_health = health
+  p=>w_maxHealth = health
+  p->b_aiming = aiming
+  p->b_handToHand = handToHand
+  p->b_dodging = dodging
+  return p
+end
+""")
+            
             // Generate all the functions themselves
             funcs.each { func, index, row ->
                 withContext("player '${row.@name}'") {

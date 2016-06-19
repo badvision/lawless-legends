@@ -42,6 +42,7 @@ include "gen_globalScripts.plh"
 include "gen_players.plh"
 include "combat.plh"
 include "party.plh"
+include "diskops.plh"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Data structures
@@ -73,7 +74,7 @@ byte portraitNum = 0
 word triggerOriginX, triggerOriginY
 word triggerTbl
 
-word cmdTbl[64]
+word cmdTbl[96]   // ASCII $00..$5F
 byte frameLoaded = 0
 
 // Queue setMap / teleport, since otherwise script might be replaced while executing
@@ -1083,15 +1084,6 @@ def nextGround()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Establish a keystroke -> command association in the command table
-def initCmd(key, func)
-  if key >= $60
-    key = key - $20
-  fin
-  cmdTbl[key-$20] = func
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load the Frame Image, and lock it.
 def loadFrameImg()
   byte img
@@ -1553,8 +1545,7 @@ def kbdLoop()
       brk()
     fin
     key = getUpperKey()
-    key = key - $20
-    if key >= 0 and key < $40
+    if key >= 0 and key < $60
       func = cmdTbl[key]
       if func; func(); fin
     fin
@@ -1961,57 +1952,71 @@ def testCombat
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def saveGame
+  loadEngine(MODULE_DISKOPS)=>diskops_saveGame()
+  restoreMapPos()
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def loadGame
+  loadEngine(MODULE_DISKOPS)=>diskops_loadGame()
+  restoreMapPos()
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set up the command table for 3D mode
 def initCmds()
 
   // Clear the command table
   byte i
-  for i = 0 to 63
+  for i = 0 to 95
     cmdTbl[i] = 0
   next
 
   // Commands common to both 2D and 3D
-  initCmd('T', @kbdTeleport)
-  initCmd('P', @showPos)
-  initCmd('/', @nextPortrait)
-  initCmd('?', @prevPortrait)
-  initCmd('!', @testCombat)
-  initCmd('1', @showPlayer1)
-  initCmd('2', @showPlayer2)
-  initCmd('3', @showPlayer3)
+  cmdTbl['T'] = @kbdTeleport
+  cmdTbl['P'] = @showPos
+  cmdTbl['/'] = @nextPortrait
+  cmdTbl['?'] = @prevPortrait
+  cmdTbl['!'] = @testCombat
+  cmdTbl['1'] = @showPlayer1
+  cmdTbl['2'] = @showPlayer2
+  cmdTbl['3'] = @showPlayer3
+  cmdTbl[$13] = @saveGame // ctrl-S
+  cmdTbl[$0c] = @loadGame // ctrl-L
 
   // Commands handled differently in 3D vs 2D
   if mapIs3D
-    initCmd('W', @moveForward)
-    initCmd('A', @rotateLeft)
-    initCmd('D', @rotateRight)
-    initCmd('S', @moveBackward)
-    initCmd('X', @moveBackward)
-    initCmd('Z', @strafeLeft)
-    initCmd('C', @strafeRight)
+    cmdTbl['W'] = @moveForward
+    cmdTbl['A'] = @rotateLeft
+    cmdTbl['D'] = @rotateRight
+    cmdTbl['S'] = @moveBackward
+    cmdTbl['X'] = @moveBackward
+    cmdTbl['Z'] = @strafeLeft
+    cmdTbl['C'] = @strafeRight
 
-    initCmd('I', @moveForward)
-    initCmd('J', @rotateLeft)
-    initCmd('L', @rotateRight)
-    initCmd('K', @moveBackward)
-    initCmd(',', @moveBackward)
-    initCmd('M', @strafeLeft)
-    initCmd('.', @strafeRight)
+    cmdTbl['I'] = @moveForward
+    cmdTbl['J'] = @rotateLeft
+    cmdTbl['L'] = @rotateRight
+    cmdTbl['K'] = @moveBackward
+    cmdTbl[','] = @moveBackward
+    cmdTbl['M'] = @strafeLeft
+    cmdTbl['.'] = @strafeRight
 
-    initCmd('Y', @nextSky)
-    initCmd('G', @nextGround)
+    cmdTbl['Y'] = @nextSky
+    cmdTbl['G'] = @nextGround
   else
-    initCmd('W', @moveNorth)
-    initCmd('D', @moveEast)
-    initCmd('S', @moveSouth)
-    initCmd('X', @moveSouth)
-    initCmd('A', @moveWest)
+    cmdTbl['W'] = @moveNorth
+    cmdTbl['D'] = @moveEast
+    cmdTbl['S'] = @moveSouth
+    cmdTbl['X'] = @moveSouth
+    cmdTbl['A'] = @moveWest
 
-    initCmd('I', @moveNorth)
-    initCmd('J', @moveWest)
-    initCmd('L', @moveEast)
-    initCmd('K', @moveSouth)
-    initCmd(',', @moveSouth)
+    cmdTbl['I'] = @moveNorth
+    cmdTbl['J'] = @moveWest
+    cmdTbl['L'] = @moveEast
+    cmdTbl['K'] = @moveSouth
+    cmdTbl[','] = @moveSouth
   fin
 end
 

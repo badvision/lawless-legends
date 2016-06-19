@@ -1523,6 +1523,7 @@ class PackPartitions
         compileModule("gameloop", "src/plasma/")
         compileModule("combat", "src/plasma/")
         compileModule("party", "src/plasma/")
+        compileModule("diskops", "src/plasma/")
         compileModule("gen_globalScripts", "src/plasma/")
         compileModule("gen_enemies", "src/plasma/")
         compileModule("gen_items", "src/plasma/")

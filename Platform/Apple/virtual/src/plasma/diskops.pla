@@ -1,0 +1,45 @@
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1
+// (the "License"); you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-1.1>.
+// Unless required by applicable law or agreed to in writing, software distributed under
+// the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+// ANY KIND, either express or implied. See the License for the specific language
+// governing permissions and limitations under the License.
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Functions we import from the main game loop. If you find there are some over there that aren't
+// yet exported, modify this header then add the mechanics at the top of gameloop.pla.
+include "gamelib.plh"
+
+// Definition of constants for functions exported by this module
+include "diskops.plh"
+
+// This pointer is the root of all heap-tracked (and garbage collected) objects.
+// See playtype.plh for definitions of all the datastructures and how they interconnect.
+word global
+
+// Exported functions go here. First a predef for each one, then a table with function pointers
+// in the same order as the constants are defined in the the header.
+predef _saveGame, _loadGame
+word[] funcTbl = @_saveGame, @_loadGame
+
+// Other global variables here
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def _saveGame()
+  displayStr("Save game\n")
+  getUpperKey()
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def _loadGame()
+  displayStr("Load game\n")
+  getUpperKey()
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Boilerplate module initialization code
+global = getGlobals()
+return @funcTbl
+done

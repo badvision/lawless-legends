@@ -1265,6 +1265,7 @@ def initMap(x, y, dir)
   setWindow2()
   initDisplay(mapNum, pMap, x, y, dir)
   needRender = FALSE
+  textDrawn = FALSE
   curPortrait = 0
 
   // Display the party characters
@@ -1861,29 +1862,24 @@ def restoreMapPos()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Load the Party engine and show data for the given player
-def showPlayerSheet(num)
-  word partyEngine
-  word x, y
-  byte dir
-
+def loadEngine(moduleNum)
+  word p_engine
   saveMapPos()
-
-  // Load the party engine
   flipToPage1()
+  diskActivity($FF)
   mmgr(RESET_MEMORY, 0)
   renderLoaded = FALSE
-  mmgr(START_LOAD, 1) // partition 1=code
-  partyEngine = mmgr(QUEUE_LOAD, MODULE_PARTY<<8 | RES_TYPE_MODULE)
+  mmgr(START_LOAD, 1) // code is in partition 1
+  p_engine = mmgr(QUEUE_LOAD, moduleNum<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, LEAVE_OPEN)
+  diskActivity(0)
+  return p_engine()  // return function table
+end
 
-  // Run the party engine
-  partyEngine()=>party_showPlayerSheet(num)
-
-  // Resume where we left off
-  textDrawn = TRUE
-  clearPortrait()
-  setWindow2()
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Load the Party engine and show data for the given player
+def showPlayerSheet(num)
+  loadEngine(MODULE_PARTY)=>party_showPlayerSheet(num)
   restoreMapPos()
 end
 
@@ -1946,33 +1942,10 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def doCombat(mapCode)
-  word combatEngine
-  word x, y
-  byte dir
-
-  saveMapPos()
-
-  // Load the combat engine
-  flipToPage1()
-  diskActivity($FF)
-  mmgr(RESET_MEMORY, 0)
-  renderLoaded = FALSE
-  mmgr(START_LOAD, 1) // code is in partition 1
-  combatEngine = mmgr(QUEUE_LOAD, MODULE_COMBAT<<8 | RES_TYPE_MODULE)
-  mmgr(FINISH_LOAD, LEAVE_OPEN)
-  diskActivity(0)
-
-  // Run the combat engine
-  combatEngine()=>combat_zoneEncounter(mapCode)
-
-  // Clear enemies out of the heap
+  // Handled in a separate module. Clear enemies out of the heap when finished.
+  loadEngine(MODULE_COMBAT)=>combat_zoneEncounter(mapCode)
   global=>p_enemyGroups = NULL
   mmgr(HEAP_COLLECT, 0)
-
-  // Resume where we left off
-  textDrawn = TRUE
-  clearPortrait()
-  setWindow2()
   restoreMapPos()
 end
 

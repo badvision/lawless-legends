@@ -2004,7 +2004,7 @@ end
     {
         out.println("def $funcName(code)")
         codeToFunc.sort().each { code, funcs ->
-            out.println("  if strcmpi(code, \"$code\") == 0; ")
+            out.println("  if streqi(code, \"$code\"); ")
             out.println("    return randomFromArray(@$prefix${humanNameToSymbol(code, false)}, ${funcs.size()})")
             out.println("  fin")
         }
@@ -2747,11 +2747,11 @@ end
             switch (op) {
                 case 'EQ':
                     if (isStringExpr(val1) || isStringExpr(val2)) {
-                        out << "strcmpi("
+                        out << "streqi("
                         packExpr(val1)
                         out << ", "
                         packExpr(val2)
-                        out << ") == 0"
+                        out << ")"
                     }
                     else {
                         packExpr(val1)

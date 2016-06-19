@@ -108,7 +108,7 @@ predef _puts, _min, _max
 predef _countList, _countListFiltered, _randomFromListFiltered, _addToList, _beep
 predef _showParty, _mmgr, _setWindow1, _setWindow2, _setWindow3
 predef _reboot, _brk, _encodeDice, _rollDice
-predef _setPlural, _getStringResponse, _strcmpi, _addEncounterZone, _fatal
+predef _setPlural, _getStringResponse, _streqi, _addEncounterZone, _fatal
 predef _pause, _tossStrings, _showMapName, _setMapWindow
 predef _makeModifier, _randomFromArray, _calcPlayerArmor
 
@@ -123,7 +123,7 @@ word = @_puts, @_min, @_max
 word = @_countList, @_countListFiltered, @_randomFromListFiltered, @_addToList, @_beep
 word = @_showParty, @_mmgr, @_setWindow1, @_setWindow2, @_setWindow3
 word = @_reboot, @_brk, @_encodeDice, @_rollDice
-word = @_setPlural, @_getStringResponse, @_strcmpi, @_addEncounterZone, @_fatal
+word = @_setPlural, @_getStringResponse, @_streqi, @_addEncounterZone, @_fatal
 word = @_pause, @_tossStrings, @_showMapName, @_setMapWindow
 word = @_makeModifier, @_randomFromArray, @_calcPlayerArmor
 
@@ -1826,7 +1826,7 @@ def _addToList(addTo, p)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Call like this: removeFromList(player + items, itemToRemove)
+// Call like this: removeFromList(@player=>items, itemToRemove)
 def _removeFromList(pList, toRemove)
   word p
 
@@ -1903,19 +1903,17 @@ def _addEncounterZone(code, x, y, dist, chance)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _strcmpi(a, b)
-  word limit, lenDiff, diff
-  lenDiff = ^a - ^b
+// Compare two strings for equality, ignoring case.
+def _streqi(a, b)
+  word limit
   limit = a + min(^a, ^b)
   while a < limit
-    a++
-    b++
-    diff = charToUpper(^a) - charToUpper(^b)
-    if diff <> 0
-      return diff
+    a++; b++
+    if charToUpper(^a) <> charToUpper(^b)
+      return FALSE
     fin
   loop
-  return lenDiff
+  return ^a == ^b
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

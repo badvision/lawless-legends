@@ -8,13 +8,34 @@
 // governing permissions and limitations under the License.
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-// Functions we import from the main game loop. If you find there are some over there that aren't
-// yet exported, modify this header then add the mechanics at the top of gameloop.pla.
 include "gamelib.plh"
-
-// Definition of constants for functions exported by this module
+include "playtype.plh"
 include "diskops.plh"
 
+// ProDOS MLI constants
+const MLI_QUIT  = $65
+const MLI_GET_TIME  = $82
+const MLI_CREATE  = $C0
+const MLI_DESTROY = $C1
+const MLI_RENAME  = $C2
+const MLI_SET_FILE_INFO = $C3
+const MLI_GET_FILE_INFO = $C4
+const MLI_ONLINE  = $C5
+const MLI_SET_PREFIX  = $C6
+const MLI_GET_PREFIX  = $C7
+const MLI_OPEN  = $C8
+const MLI_NEWLINE = $C9
+const MLI_READ  = $CA
+const MLI_WRITE = $CB
+const MLI_CLOSE = $CC
+const MLI_FLUSH = $CD
+const MLI_SET_MARK  = $CE
+const MLI_GET_MARK  = $CF
+const MLI_SET_EOF = $D0
+const MLI_GET_EOF = $D1
+const MLI_SET_BUF = $D2
+const MLI_GET_BUF = $D3
+ 
 // This pointer is the root of all heap-tracked (and garbage collected) objects.
 // See playtype.plh for definitions of all the datastructures and how they interconnect.
 word global
@@ -24,18 +45,188 @@ word global
 predef _saveGame, _loadGame
 word[] funcTbl = @_saveGame, @_loadGame
 
-// Other global variables here
+byte[] game1_filename = "GAME.1.SAVE"
+
+// ProDOS command tables
+byte open_params = 3   // parameter count
+word open_filename
+word open_buffer
+byte open_fileref
+
+byte create_params = 7 // parameter count
+word create_filename
+byte create_accessbits
+byte create_filetype
+word create_auxtype
+byte create_storagetype
+word create_date
+word create_time
+
+byte write_params = 4  // parameter count
+byte write_fileref
+word write_addr
+word write_length
+word write_actual
+
+byte read_params = 4  // parameter count
+byte read_fileref
+word read_addr
+word read_length
+word read_actual
+
+byte close_params = 1  // parameter count
+byte close_fileref
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Definitions used by assembly code
+asm __defs
+
+; Use hi-bit ASCII for Apple II
+!convtab "../../include/hiBitAscii.ct"
+
+; Headers
+!source "../../include/global.i"
+!source "../../include/plasma.i"
+!source "../../include/mem.i"
+
+; Optional debug printing support
+DEBUG   = 0
+
+; General use
+tmp         = $2
+pTmp        = $4
+
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Copy entire heap (Aux LC $D000.DFFF) to or from main $4000.4FFF
+asm copyHeap   // params: dir (0=AuxtoMain, 1=MainToAux)
+        +asmPlasm_bank2 1
+        lsr         ; direction bit to carry flag
+        ;sta setAuxZP  ; FIXME: put back when heap moved to aux
+        lda #$40
+        bcs +
+        lda #$F0    ; FIXME, should be $D0 after heap moved to aux
++       sta tmp+1
+        eor #$B0    ; FIXME: should be #$90 after heap moved to aux   ; $40->D0, or $D0->40
+        sta pTmp+1
+        ldy #0
+        sty tmp
+        sty pTmp
+        ldx #$10
+-       lda (tmp),y
+        sta (pTmp),y
+        iny
+        bne -
+        inc tmp+1
+        inc pTmp+1
+        dex
+        bne -
+        ;sta clrAuxZP  ; FIXME: put back when heap moved to aux
+        rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+asm mliStub 
+    ; call MLI directly. Caller is expected to modify the command and param vectors
+    ; before calling.
+    +asmPlasm 0   ; bytes 0-4
+    jsr mli       ; bytes 5-7
+    !byte 0       ; byte  8
+    !word 0       ; bytes 9-10
+    bcs +
+    lda #0
++   bit setLcRW+lcBank2 ; Our crazy aux ProDOS stub doesn't preserve the LC bank; put PLASMA back.
+    rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def callMLI(cmd, p_params)
+  byte err
+  //printf2("callMLI: cmd=$%x p_params=$%x\n", cmd, p_params)
+  mliStub.8 = cmd
+  mliStub:9 = p_params
+  err = mliStub()
+  return err
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def guaranteeMLI(cmd, p_params)
+  byte err
+  err = callMLI(cmd, p_params)
+  if err > 0
+    printf1("\nErr $%x\n", err)
+    fatal("ProDOS error")
+  fin
+end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def _saveGame()
-  displayStr("Save game\n")
-  getUpperKey()
+
+  // Copy data to main memory
+  mmgr(FINISH_LOAD, WITH_CLOSE)
+  showMapName("Saving game...")
+  diskActivity($FF)
+  copyHeap(0)  // aux to main
+
+  // Open the file if it already exists...
+  open_filename = @game1_filename
+  open_buffer = $5000
+  if callMLI(MLI_OPEN, @open_params) > 0
+    create_filename = open_filename
+    create_accessbits = $C3  // full access
+    create_filetype = $F1 // user type 1
+    create_auxtype = 0
+    create_storagetype = 1
+    create_date = 0
+    create_time = 0
+    guaranteeMLI(MLI_CREATE, @create_params)
+    guaranteeMLI(MLI_OPEN, @open_params)
+  fin
+
+  // Write the game data to it
+  write_fileref = open_fileref
+  write_addr = $4000
+  write_length = $800 // FIXME
+  guaranteeMLI(MLI_WRITE, @write_params)
+
+  // All done.
+  close_fileref = open_fileref
+  guaranteeMLI(MLI_CLOSE, @close_params)
+  diskActivity(0)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def _loadGame()
-  displayStr("Load game\n")
-  getUpperKey()
+  diskActivity($FF)
+  mmgr(FINISH_LOAD, WITH_CLOSE)
+  showMapName("Loading game...")
+
+  // Open the file
+  diskActivity($FF)
+  ^$4000 = 0  // so 3D engine knows we overwrite HGR page 2, even if we fail
+  open_filename = @game1_filename
+  open_buffer = $5000
+  if callMLI(MLI_OPEN, @open_params) > 0
+    showMapName("Not found.")
+    getUpperKey()
+  else
+    // Read the game data from it
+    read_fileref = open_fileref
+    read_addr = $4000
+    read_length = $800 // FIXME
+    guaranteeMLI(MLI_READ, @read_params)
+
+    // All done with the file
+    close_fileref = open_fileref
+    guaranteeMLI(MLI_CLOSE, @close_params)
+  fin
+
+  // Now copy the data back up to the heap space, and we're done
+  printf1("y before=%d\n", global=>w_mapY)
+  copyHeap(1)  // main to aux
+  printf1("y after=%d\n", global=>w_mapY)
+  diskActivity(0)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

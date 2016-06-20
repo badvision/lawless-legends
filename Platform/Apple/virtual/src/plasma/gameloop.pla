@@ -111,7 +111,7 @@ predef _showParty, _mmgr, _setWindow1, _setWindow2, _setWindow3
 predef _reboot, _brk, _encodeDice, _rollDice
 predef _setPlural, _getStringResponse, _streqi, _addEncounterZone, _fatal
 predef _pause, _tossStrings, _showMapName, _setMapWindow
-predef _makeModifier, _randomFromArray, _calcPlayerArmor
+predef _makeModifier, _randomFromArray, _calcPlayerArmor, _diskActivity
 
 word gameLib_addrs = @_setScriptInfo, @_scriptDisplayStr, @_scriptDisplayStrNL, @_getYN
 word = @_queue_setMap, @_setSky, @_setGround, @_queue_teleport, @_setPortrait, @_clearPortrait
@@ -126,7 +126,7 @@ word = @_showParty, @_mmgr, @_setWindow1, @_setWindow2, @_setWindow3
 word = @_reboot, @_brk, @_encodeDice, @_rollDice
 word = @_setPlural, @_getStringResponse, @_streqi, @_addEncounterZone, @_fatal
 word = @_pause, @_tossStrings, @_showMapName, @_setMapWindow
-word = @_makeModifier, @_randomFromArray, @_calcPlayerArmor
+word = @_makeModifier, @_randomFromArray, @_calcPlayerArmor, @_diskActivity
 
 word = 0  // end of library functions
 
@@ -632,7 +632,7 @@ end
 // Show or hide the disk activity icon (at the top of hi-res page 1). The icon consists of a 4x4
 // block of blue pixels surrounded by a black border.
 // Params: show/hide ($FF, or 0)
-asm diskActivity
+asm _diskActivity
         +asmPlasm 1
         sta tmp                 ; save show(FF) / hide(0) flag
         ldx #0
@@ -1454,10 +1454,7 @@ def setMap(is3D, num, x, y, dir)
     needRender = TRUE
   else
     flipToPage1()
-    setWindow1();   clearWindow()
-    displayChar('Y'-$40) // center mode
-    displayStr("Traveling...")
-    displayChar('N'-$40) // normal mode
+    showMapName("Traveling...")
     setMapWindow(); clearWindow()    
     setWindow2();   clearWindow()
     mapIs3D = is3D
@@ -1858,6 +1855,7 @@ def loadEngine(moduleNum)
   diskActivity($FF)
   mmgr(RESET_MEMORY, 0)
   renderLoaded = FALSE
+  mapIs3D = FALSE
   mmgr(START_LOAD, 1) // code is in partition 1
   p_engine = mmgr(QUEUE_LOAD, moduleNum<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, LEAVE_OPEN)

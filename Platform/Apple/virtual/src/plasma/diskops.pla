@@ -113,7 +113,7 @@ asm copyHeap   // params: dir (0=AuxtoMain, 1=MainToAux)
         ldy #0
         sty tmp
         sty pTmp
-        ldx #$10
+        ldx #8    ; FIXME to #$10
 -       lda (tmp),y
         sta (pTmp),y
         iny

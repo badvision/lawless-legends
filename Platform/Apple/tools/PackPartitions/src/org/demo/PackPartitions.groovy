@@ -2359,10 +2359,14 @@ end
         // Copy the memory manager to the output directory
         copyIfNewer(new File("build/src/core/build/cmd.sys#2000"), new File("build/root/cmd.sys#2000"))
         
-        // Decompress the base image
+        // If we preserved a previous save game, copy it to the new image.
+        def prevSave = new File("build/prevGame/game.1.save.\$f1")
+        if (prevSave.exists())
+            Files.copy(prevSave.toPath(), new File("build/root/game.1.save.\$f1").toPath())
+        
+        // Decompress the base image.
+        // No need to delete old file; that was done by outer-level code.
         def dst = new File("game.2mg")
-        if (dst.exists())
-            dst.delete()
         Files.copy(new GZIPInputStream(new FileInputStream(jitCopy(new File("build/data/disks/base.2mg.gz")))), dst.toPath())
         
         // Now put the files into the image
@@ -2396,6 +2400,11 @@ end
         }
         def xmlFile = new File(args.size() == 1 ? args[0] : "world.xml")
 
+        // Create the build directory if necessary
+        def buildDir = new File("build").getCanonicalFile()
+        if (!buildDir.exists())
+            buildDir.mkdirs()
+
         // If there's an existing error file, remove it first, so user doesn't
         // get confused by an old file.
         def errorFile = new File("pack_error.txt")
@@ -2408,17 +2417,19 @@ end
             
         // Also remove existing game image if any, for the same reason.
         def gameFile = new File("game.2mg")
-        if (gameFile.exists())
+        if (gameFile.exists()) 
+        {
+            // We want to preserve any existing saved game, so grab files from the old image.
+            String[] args2 = ["-get", "game.2mg", "/", "build/prevGame"]
+            new a2copy.A2Copy().main(args2)
+            
+            // Then delete the old image.
             gameFile.delete()
+        }
             
         // Go for it.
         def inst
         try {
-            // Create the build directory if necessary
-            def buildDir = new File("build").getCanonicalFile()
-            if (!buildDir.exists())
-                buildDir.mkdirs()
-            
             // Create PLASMA headers
             inst = new PackPartitions()
             inst.buildDir = buildDir

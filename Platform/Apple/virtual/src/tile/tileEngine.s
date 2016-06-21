@@ -313,6 +313,9 @@ LOAD_SCRIPTS_NO_CALC:
 	+finishLoad 0   	; all done
 	RTS
 .diff	STA SCRIPTS_ID
+	PHA
+	+startLoad
+	PLA
 	TAY			; resource # in Y
 	LDX #RES_TYPE_MODULE
 	LDA #QUEUE_LOAD

@@ -855,12 +855,19 @@ heapSet: !zone
 	; Good to go. Record the start and end pages
 	lda pTmp+1
 	sta heapStartPg
+	tax
 	sta heapTop+1
 	lda tSegAdrHi,y
 	sta heapEndPg
-	lda #0
+	ldy #0
 	sta heapTop
-	sta nTypes
+	sty nTypes
+	lda targetAddr+1	; see if heap top was specified
+	beq +			; no, default to empty heap
+	tax			; yes, use specified address
+	ldy targetAddr
++	stx heapTop+1		; set heap top
+	sty heapTop
 	; fall through to:
 ; Zero memory heapTop.heapEnd
 heapClr: !zone
@@ -1243,13 +1250,8 @@ heapCollect: !zone
 	jsr gc2_sweep		; sweep them into one place
 	jsr gc3_fix		; adjust all pointers
 	jsr heapClr		; and clear newly freed space
-	lda #0			; heap end lo always 0
-	sec
-	sbc heapTop		; calculate new free space
-	tax
-	lda heapEndPg		; hi byte too
-	sbc heapTop+1
-	tay			; free space to X=lo/Y=hi
+	ldx heapTop		; return new top-of-heap in x=lo/y=hi
+	ldy heapTop+1
 	rts
 .partOpen:
 	jsr inlineFatal : !text "NdClose",0

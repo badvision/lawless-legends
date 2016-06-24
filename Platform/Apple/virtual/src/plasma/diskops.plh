@@ -11,3 +11,4 @@
 // Each module-exported function needs its own constant, 0..n
 const diskops_saveGame = 0
 const diskops_loadGame = 2
+const diskops_newOrLoadGame = 4

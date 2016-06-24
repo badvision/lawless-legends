@@ -2362,7 +2362,7 @@ end
         // If we preserved a previous save game, copy it to the new image.
         def prevSave = new File("build/prevGame/game.1.save.\$f1")
         if (prevSave.exists())
-            Files.copy(prevSave.toPath(), new File("build/root/game.1.save.\$f1").toPath())
+            copyIfNewer(prevSave, new File("build/root/game.1.save.\$f1"))
         
         // Decompress the base image.
         // No need to delete old file; that was done by outer-level code.

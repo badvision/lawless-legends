@@ -11,6 +11,9 @@
 include "gamelib.plh"
 include "playtype.plh"
 include "diskops.plh"
+include "gen_modules.plh"
+include "gen_players.plh"
+include "gen_globalScripts.plh"
 
 // ProDOS MLI constants
 const MLI_QUIT  = $65
@@ -42,8 +45,8 @@ word global
 
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the the header.
-predef _saveGame, _loadGame
-word[] funcTbl = @_saveGame, @_loadGame
+predef _saveGame, _loadGame, _newOrLoadGame
+word[] funcTbl = @_saveGame, @_loadGame, @_newOrLoadGame
 
 byte[] game1_filename = "GAME.1.SAVE"
 
@@ -141,6 +144,14 @@ asm mliStub
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Clear the text-mode screen, and put the cursor there.
+// Params: None
+asm home
+  +asmPlasm 0
+  jmp home
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def callMLI(cmd, p_params)
   byte err
   //printf2("callMLI: cmd=$%x p_params=$%x\n", cmd, p_params)
@@ -162,6 +173,10 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def _saveGame()
+
+  // Perform garbage collection and record the size of the heap so we can restore it correctly
+  global=>w_heapSize = mmgr(HEAP_COLLECT, 0) - HEAP_BOTTOM
+  printf1("heapSize=$%x\n", global=>w_heapSize)
 
   // Copy data to main memory
   mmgr(FINISH_LOAD, WITH_CLOSE)
@@ -196,20 +211,15 @@ def _saveGame()
   diskActivity(0)
 end
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def _loadGame()
-  diskActivity($FF)
+def loadInternal()
+  word p_loaded
   mmgr(FINISH_LOAD, WITH_CLOSE)
-  showMapName("Loading game...")
 
   // Open the file
-  diskActivity($FF)
-  ^$4000 = 0  // so 3D engine knows we overwrite HGR page 2, even if we fail
   open_filename = @game1_filename
   open_buffer = $5000
   if callMLI(MLI_OPEN, @open_params) > 0
-    showMapName("Not found.")
-    getUpperKey()
+    return FALSE
   else
     // Read the game data from it
     read_fileref = open_fileref
@@ -222,11 +232,60 @@ def _loadGame()
     guaranteeMLI(MLI_CLOSE, @close_params)
   fin
 
+  // Init the heap with the correct size
+  p_loaded = $4000
+  printf1("Loaded heap size: $%x\n", p_loaded=>w_heapSize)
+  initHeap(p_loaded=>w_heapSize)
+
   // Now copy the data back up to the heap space, and we're done
-  printf1("y before=%d\n", global=>w_mapY)
   copyHeap(1)  // main to aux
-  printf1("y after=%d\n", global=>w_mapY)
-  diskActivity(0)
+  return TRUE
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def _loadGame()
+  diskActivity($FF)
+  showMapName("Loading game...")
+
+  // Open the file
+  ^$4000 = 0  // so 3D engine knows we overwrite HGR page 2, even if we fail
+  if !loadInternal()
+    diskActivity(0)
+    showMapName("Not found.")
+    getUpperKey()
+  else
+    diskActivity(0)
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def _newOrLoadGame()
+  word playersModule, globalScriptsModule
+  byte key
+
+  home()
+  ^$c053
+  ^$25 = 20
+  puts("\n    N)ew game, or L)oad last game? ")
+  while TRUE
+    key = rdkey() & $7F
+    home()
+    ^$c052
+    if key > $60; key = key - $20; fin
+    if key == 'N'
+      initHeap(0) // initially empty heap
+      global = getGlobals()
+      playersModule = mmgr(QUEUE_LOAD, MODULE_GEN_PLAYERS<<8 | RES_TYPE_MODULE)
+      globalScriptsModule = mmgr(QUEUE_LOAD, MODULE_GEN_GLOBAL_SCRIPTS<<8 | RES_TYPE_MODULE)
+      mmgr(FINISH_LOAD, LEAVE_OPEN)
+      playersModule()=>makeInitialParty()
+      globalScriptsModule()=>sc_newGame()
+      return 1
+    elsif key == 'L' and loadInternal()
+      return 0
+    fin
+    beep()
+  loop
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

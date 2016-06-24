@@ -361,7 +361,8 @@ HEAP_INTERN = $23
 HEAP_COLLECT = $24
     ; Input:  None.
     ;
-    ; Output: X-reg(lo) / Y-reg(hi): free space in heap after collection
+    ; Output: X-reg(lo) / Y-reg(hi): new top of heap after collection. If you
+    ;            need to know free space, subtract this from the end-of-heap.
     ;
     ; Traces objects in the heap to determine which ones are "live", that is,
     ; reachable from the very first object allocated. By convention, that first

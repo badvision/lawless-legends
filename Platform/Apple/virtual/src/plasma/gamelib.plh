@@ -57,6 +57,10 @@ const HEAP_COLLECT   = $24
 const WITH_CLOSE     = 0
 const LEAVE_OPEN     = 1
 
+// Heap location in memory
+const HEAP_BOTTOM    = $F000
+const HEAP_SIZE      = $800
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Shared library routines
 const gameLibVecs = $1F00
@@ -117,8 +121,8 @@ const makeModifier        = gameLibVecs + 3*52
 const randomFromArray     = gameLibVecs + 3*53
 const calcPlayerArmor     = gameLibVecs + 3*54
 const diskActivity        = gameLibVecs + 3*55
-const UNUSED_FN_56        = gameLibVecs + 3*56
-const UNUSED_FN_57        = gameLibVecs + 3*57
+const rdkey               = gameLibVecs + 3*56
+const initHeap            = gameLibVecs + 3*57
 const UNUSED_FN_58        = gameLibVecs + 3*58
 const UNUSED_FN_59        = gameLibVecs + 3*59
 const UNUSED_FN_60        = gameLibVecs + 3*60

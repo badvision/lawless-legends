@@ -16,9 +16,6 @@ const seed          = $4E     // Incremented continuously by keyboard read routi
 const displayEngine = $6000   // main mem (raycaster and tile engine at same location)
 const expandVec     = $2000   // aux mem (only for raycaster)
 const fontEngine    = $E000   // main mem
-const heapStart     = $F000   // main mem
-
-const heapSize      = $800
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Other constants
@@ -38,7 +35,6 @@ include "playtype.plh"
 include "gen_images.plh"
 include "gen_modules.plh"
 include "gen_enemies.plh"
-include "gen_globalScripts.plh"
 include "gen_players.plh"
 include "combat.plh"
 include "party.plh"
@@ -112,6 +108,7 @@ predef _reboot, _brk, _encodeDice, _rollDice
 predef _setPlural, _getStringResponse, _streqi, _addEncounterZone, _fatal
 predef _pause, _tossStrings, _showMapName, _setMapWindow
 predef _makeModifier, _randomFromArray, _calcPlayerArmor, _diskActivity
+predef _rdkey, _initHeap
 
 word gameLib_addrs = @_setScriptInfo, @_scriptDisplayStr, @_scriptDisplayStrNL, @_getYN
 word = @_queue_setMap, @_setSky, @_setGround, @_queue_teleport, @_setPortrait, @_clearPortrait
@@ -127,6 +124,7 @@ word = @_reboot, @_brk, @_encodeDice, @_rollDice
 word = @_setPlural, @_getStringResponse, @_streqi, @_addEncounterZone, @_fatal
 word = @_pause, @_tossStrings, @_showMapName, @_setMapWindow
 word = @_makeModifier, @_randomFromArray, @_calcPlayerArmor, @_diskActivity
+word = @_rdkey, @_initHeap
 
 word = 0  // end of library functions
 
@@ -505,7 +503,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Get a character from the keyboard
-asm rdkey
+asm _rdkey
         +asmPlasm 0
         jmp rdkey
 end
@@ -2060,14 +2058,17 @@ def loadTitle()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Set up the small-object heap
-def initHeap()
+// Set up the small-object heap. Set loadedSize to zero on initial, or non-zero for loaded game.
+def _initHeap(loadedSize)
   byte i
 
-  mmgr(SET_MEM_TARGET, heapStart)
-  mmgr(REQUEST_MEMORY, heapSize)
-  mmgr(LOCK_MEMORY,    heapStart)
-  mmgr(HEAP_SET,       heapStart)
+  mmgr(SET_MEM_TARGET, HEAP_BOTTOM)
+  mmgr(REQUEST_MEMORY, HEAP_SIZE)
+  mmgr(LOCK_MEMORY,    HEAP_BOTTOM)
+  if loadedSize <> 0
+    mmgr(SET_MEM_TARGET, HEAP_BOTTOM + loadedSize)
+  fin
+  mmgr(HEAP_SET,       HEAP_BOTTOM)
   i = 0
   while typeTbls[i]
     mmgr(HEAP_ADD_TYPE, typeTbls[i])
@@ -2133,34 +2134,29 @@ def _calcPlayerArmor(player)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Create the party
-def initParty()
-  word playerScripts, itemScripts, globalScripts
+def startGame()
+  word p_module
 
-  // Create the initial party
-  playerScripts = mmgr(QUEUE_LOAD, MODULE_GEN_PLAYERS<<8 | RES_TYPE_MODULE)
+  // Create a new game or load an existing one
+  mmgr(START_LOAD, 1) // code is in partition 1
+  p_module = mmgr(QUEUE_LOAD, MODULE_DISKOPS<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, LEAVE_OPEN)
-  playerScripts()=>makeInitialParty()
-  mmgr(FREE_MEMORY, playerScripts)
-
-  // And run the new-game script
-  globalScripts = mmgr(QUEUE_LOAD, MODULE_GEN_GLOBAL_SCRIPTS<<8 | RES_TYPE_MODULE)
-  mmgr(FINISH_LOAD, LEAVE_OPEN)
-  globalScripts()=>sc_newGame()
-  mmgr(FREE_MEMORY, globalScripts)
-  mapIs3D = q_mapIs3D
-  mapNum = q_mapNum
-  q_mapNum = 0
-  initMap(q_x, q_y, q_dir)
+  if p_module()=>diskops_newOrLoadGame()
+    mapIs3D = q_mapIs3D
+    mapNum = q_mapNum
+    q_mapNum = 0
+    initMap(q_x, q_y, q_dir)
+  else
+    restoreMapPos()
+  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Main code.
 //
 setLibVecs()
-initHeap()
 loadTitle()
-initParty()
+startGame()
 kbdLoop()
 
 done

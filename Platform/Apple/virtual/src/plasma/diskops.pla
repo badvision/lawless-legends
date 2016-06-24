@@ -175,10 +175,10 @@ end
 def _saveGame()
 
   // Perform garbage collection and record the size of the heap so we can restore it correctly
+  mmgr(FINISH_LOAD, WITH_CLOSE)
   global=>w_heapSize = mmgr(HEAP_COLLECT, 0) - HEAP_BOTTOM
 
   // Copy data to main memory
-  mmgr(FINISH_LOAD, WITH_CLOSE)
   showMapName("Saving game...")
   diskActivity($FF)
   copyHeap(0)  // aux to main

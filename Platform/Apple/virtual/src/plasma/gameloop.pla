@@ -2151,6 +2151,7 @@ def startGame()
     q_mapNum = 0
     initMap(q_x, q_y, q_dir)
   else
+    q_mapNum = 0
     restoreMapPos()
   fin
 end

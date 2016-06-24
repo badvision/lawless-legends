@@ -72,6 +72,7 @@ word triggerTbl
 
 word cmdTbl[96]   // ASCII $00..$5F
 byte frameLoaded = 0
+byte heapLocked = FALSE
 
 // Queue setMap / teleport, since otherwise script might be replaced while executing
 byte q_mapIs3D = 0
@@ -2062,9 +2063,13 @@ end
 def _initHeap(loadedSize)
   byte i
 
-  mmgr(SET_MEM_TARGET, HEAP_BOTTOM)
-  mmgr(REQUEST_MEMORY, HEAP_SIZE)
-  mmgr(LOCK_MEMORY,    HEAP_BOTTOM)
+  if !heapLocked
+    mmgr(SET_MEM_TARGET, HEAP_BOTTOM)
+    mmgr(REQUEST_MEMORY, HEAP_SIZE)
+    mmgr(LOCK_MEMORY,    HEAP_BOTTOM)
+    heapLocked = TRUE
+  fin
+
   if loadedSize <> 0
     mmgr(SET_MEM_TARGET, HEAP_BOTTOM + loadedSize)
   fin

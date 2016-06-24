@@ -258,9 +258,34 @@ def _loadGame()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _newOrLoadGame()
+def newGame()
   word playersModule, globalScriptsModule
+  initHeap(0) // initially empty heap
+  global = getGlobals()
+  playersModule = mmgr(QUEUE_LOAD, MODULE_GEN_PLAYERS<<8 | RES_TYPE_MODULE)
+  globalScriptsModule = mmgr(QUEUE_LOAD, MODULE_GEN_GLOBAL_SCRIPTS<<8 | RES_TYPE_MODULE)
+  mmgr(FINISH_LOAD, LEAVE_OPEN)
+  playersModule()=>makeInitialParty()
+  globalScriptsModule()=>sc_newGame()
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def gameExists()
+  open_filename = @game1_filename
+  open_buffer = $5000
+  if callMLI(MLI_OPEN, @open_params) > 0; return FALSE; fin
+  close_fileref = open_fileref
+  guaranteeMLI(MLI_CLOSE, @close_params)
+  return TRUE
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def _newOrLoadGame()
   byte key
+
+  if !gameExists()
+    newGame(); return 1
+  fin
 
   home()
   ^$c053
@@ -272,14 +297,7 @@ def _newOrLoadGame()
     ^$c052
     if key > $60; key = key - $20; fin
     if key == 'N'
-      initHeap(0) // initially empty heap
-      global = getGlobals()
-      playersModule = mmgr(QUEUE_LOAD, MODULE_GEN_PLAYERS<<8 | RES_TYPE_MODULE)
-      globalScriptsModule = mmgr(QUEUE_LOAD, MODULE_GEN_GLOBAL_SCRIPTS<<8 | RES_TYPE_MODULE)
-      mmgr(FINISH_LOAD, LEAVE_OPEN)
-      playersModule()=>makeInitialParty()
-      globalScriptsModule()=>sc_newGame()
-      return 1
+      newGame(); return 1
     elsif key == 'L' and loadInternal()
       return 0
     fin

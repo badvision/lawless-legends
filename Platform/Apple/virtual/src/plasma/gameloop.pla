@@ -2074,7 +2074,11 @@ def _initHeap(loadedSize)
     mmgr(HEAP_ADD_TYPE, typeTbls[i])
     i = i+1
   loop
-  global = mmgr(HEAP_ALLOC, TYPE_GLOBAL)
+  if loadedSize <> 0
+    global = HEAP_BOTTOM
+  else
+    global = mmgr(HEAP_ALLOC, TYPE_GLOBAL)
+  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -176,7 +176,6 @@ def _saveGame()
 
   // Perform garbage collection and record the size of the heap so we can restore it correctly
   global=>w_heapSize = mmgr(HEAP_COLLECT, 0) - HEAP_BOTTOM
-  printf1("heapSize=$%x\n", global=>w_heapSize)
 
   // Copy data to main memory
   mmgr(FINISH_LOAD, WITH_CLOSE)
@@ -234,8 +233,8 @@ def loadInternal()
 
   // Init the heap with the correct size
   p_loaded = $4000
-  printf1("Loaded heap size: $%x\n", p_loaded=>w_heapSize)
   initHeap(p_loaded=>w_heapSize)
+  global = getGlobals()
 
   // Now copy the data back up to the heap space, and we're done
   copyHeap(1)  // main to aux

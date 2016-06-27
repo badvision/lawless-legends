@@ -19,7 +19,7 @@ import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
-import org.badvision.outlaweditor.Platform;
+import org.badvision.outlaweditor.api.Platform;
 import static org.badvision.outlaweditor.apple.AppleNTSCGraphics.hgrToDhgr;
 import org.badvision.outlaweditor.data.DataObserver;
 import org.badvision.outlaweditor.data.TileUtils;

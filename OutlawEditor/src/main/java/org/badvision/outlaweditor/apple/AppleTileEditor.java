@@ -19,7 +19,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.Shape;
-import org.badvision.outlaweditor.Platform;
+import org.badvision.outlaweditor.api.Platform;
 import org.badvision.outlaweditor.TileEditor;
 import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.xml.Tile;

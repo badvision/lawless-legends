@@ -10,6 +10,7 @@
  
 package org.badvision.outlaweditor;
 
+import org.badvision.outlaweditor.api.Platform;
 import java.util.EnumMap;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;

@@ -49,9 +49,9 @@ public class ImageDitheringTest {
     @Before
     public void setUp() {
         AppleTileRenderer.useSolidPalette = false;
-        hgrDither = new ImageDitherEngine(org.badvision.outlaweditor.Platform.AppleII);
+        hgrDither = new ImageDitherEngine(org.badvision.outlaweditor.api.Platform.AppleII);
         hgrDither.setOutputDimensions(40, 192);
-        dhgrDither = new ImageDitherEngine(org.badvision.outlaweditor.Platform.AppleII_DHGR);
+        dhgrDither = new ImageDitherEngine(org.badvision.outlaweditor.api.Platform.AppleII_DHGR);
         dhgrDither.setOutputDimensions(80, 192);
         
     }

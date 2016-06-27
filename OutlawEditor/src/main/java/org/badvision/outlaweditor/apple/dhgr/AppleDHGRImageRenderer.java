@@ -12,7 +12,7 @@ package org.badvision.outlaweditor.apple.dhgr;
 
 import org.badvision.outlaweditor.apple.*;
 import javafx.scene.image.WritableImage;
-import org.badvision.outlaweditor.Platform;
+import org.badvision.outlaweditor.api.Platform;
 import org.badvision.outlaweditor.data.TileMap;
 import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.xml.Tile;

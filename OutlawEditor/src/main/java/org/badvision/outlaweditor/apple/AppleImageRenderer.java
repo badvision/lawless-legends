@@ -14,7 +14,7 @@ import javafx.scene.image.PixelWriter;
 import static org.badvision.outlaweditor.apple.AppleNTSCGraphics.*;
 import javafx.scene.image.WritableImage;
 import org.badvision.outlaweditor.ImageRenderer;
-import org.badvision.outlaweditor.Platform;
+import org.badvision.outlaweditor.api.Platform;
 import org.badvision.outlaweditor.data.TileMap;
 import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.xml.Tile;

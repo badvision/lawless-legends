@@ -10,6 +10,7 @@
  
 package org.badvision.outlaweditor;
 
+import org.badvision.outlaweditor.api.Platform;
 import javafx.scene.shape.Rectangle;
 import org.badvision.outlaweditor.data.xml.Image;
 

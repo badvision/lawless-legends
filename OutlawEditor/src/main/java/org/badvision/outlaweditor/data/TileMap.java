@@ -22,7 +22,7 @@ import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
 import javax.xml.bind.JAXBElement;
 import org.badvision.outlaweditor.Application;
-import org.badvision.outlaweditor.Platform;
+import org.badvision.outlaweditor.api.Platform;
 import org.badvision.outlaweditor.data.xml.Map;
 import org.badvision.outlaweditor.data.xml.Map.Chunk;
 import org.badvision.outlaweditor.data.xml.ObjectFactory;

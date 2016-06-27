@@ -23,7 +23,7 @@ import javafx.scene.image.PixelReader;
 import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
-import org.badvision.outlaweditor.Platform;
+import org.badvision.outlaweditor.api.Platform;
 import static org.badvision.outlaweditor.apple.AppleNTSCGraphics.hgrToDhgr;
 
 /* Copyright (c) 2013 the authors listed at the following URL, and/or

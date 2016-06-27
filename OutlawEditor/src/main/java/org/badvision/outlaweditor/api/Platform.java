@@ -8,8 +8,12 @@
  * governing permissions and limitations under the License.
  */
  
-package org.badvision.outlaweditor;
+package org.badvision.outlaweditor.api;
 
+import org.badvision.outlaweditor.ImageEditor;
+import org.badvision.outlaweditor.ImageRenderer;
+import org.badvision.outlaweditor.TileEditor;
+import org.badvision.outlaweditor.TileRenderer;
 import org.badvision.outlaweditor.apple.AppleImageEditor;
 import org.badvision.outlaweditor.apple.AppleTileEditor;
 import org.badvision.outlaweditor.apple.AppleTileRenderer;

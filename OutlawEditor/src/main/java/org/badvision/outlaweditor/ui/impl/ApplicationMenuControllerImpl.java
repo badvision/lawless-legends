@@ -16,7 +16,7 @@ import java.util.logging.Logger;
 import javafx.event.ActionEvent;
 import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.Editor;
-import org.badvision.outlaweditor.Platform;
+import org.badvision.outlaweditor.api.Platform;
 import org.badvision.outlaweditor.apple.AppleTileRenderer;
 import org.badvision.outlaweditor.ui.ApplicationMenuController;
 import org.badvision.outlaweditor.ui.ApplicationUIController;

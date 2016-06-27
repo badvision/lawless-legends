@@ -11,6 +11,7 @@ package org.badvision.outlaweditor;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -22,6 +23,9 @@ import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import org.apache.felix.framework.Felix;
 import org.apache.felix.main.AutoProcessor;
+import org.apache.felix.scr.annotations.Component;
+import org.badvision.outlaweditor.api.ApplicationState;
+import org.badvision.outlaweditor.api.Platform;
 import org.badvision.outlaweditor.data.xml.GameData;
 import org.badvision.outlaweditor.ui.ApplicationUIController;
 import org.osgi.framework.BundleException;
@@ -30,7 +34,8 @@ import org.osgi.framework.BundleException;
  *
  * @author brobert
  */
-public class Application extends javafx.application.Application {
+@Component(name = "org.badvision.outlaweditor.api.ApplicationState")
+public class Application extends javafx.application.Application implements ApplicationState {
 
     public static GameData gameData = new GameData();
     public static Platform currentPlatform = Platform.AppleII;
@@ -110,8 +115,30 @@ public class Application extends javafx.application.Application {
         pluginConfiguration.put("felix.cache.locking", "false");
         pluginConfiguration.put("felix.auto.deploy.action", "install,start");
         pluginConfiguration.put("felix.auto.deploy.dir", "install");
+        pluginConfiguration.put("org.osgi.framework.system.packages.extra", 
+                "org.badvision.outlaweditor.api,"
+                        + "org.badvision.outlaweditor.data,"
+                        + "org.badvision.outlaweditor.data.xml,"
+                        + "org.badvision.outlaweditor.ui,"
+                        + "org.osgi.framework");
         pluginContainer = new Felix(pluginConfiguration);
         pluginContainer.start();
+        pluginContainer.getBundleContext().registerService(ApplicationState.class, this, new Hashtable<>());
         AutoProcessor.process(pluginConfiguration, pluginContainer.getBundleContext());
+    }
+
+    @Override
+    public GameData getGameData() {
+        return gameData;
+    }
+
+    @Override
+    public ApplicationUIController getApplicationUI() {
+        return controller;
+    }
+
+    @Override
+    public Platform getCurrentPlatform() {
+        return currentPlatform;
     }
 }

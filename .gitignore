@@ -45,3 +45,4 @@ mg
 
 # Packer sometimes produces an error text file.
 error_stack.txt
+/OutlawEditor/OutlawPluginExample/target/

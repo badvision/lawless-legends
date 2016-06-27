@@ -7,19 +7,24 @@
  * ANY KIND, either express or implied. See the License for the specific language 
  * governing permissions and limitations under the License.
  */
- 
 package org.badvision.outlaweditor;
 
 import java.io.IOException;
-import javafx.event.EventHandler;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.layout.AnchorPane;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import org.apache.felix.framework.Felix;
+import org.apache.felix.main.AutoProcessor;
 import org.badvision.outlaweditor.data.xml.GameData;
 import org.badvision.outlaweditor.ui.ApplicationUIController;
+import org.osgi.framework.BundleException;
 
 /**
  *
@@ -35,7 +40,17 @@ public class Application extends javafx.application.Application {
         return instance;
     }
 
+    public static void shutdown() {
+        try {
+            instance.pluginContainer.stop();
+            instance.pluginContainer.waitForStop(0L);
+        } catch (BundleException | InterruptedException ex) {
+            Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+
     private ApplicationUIController controller;
+    private Felix pluginContainer;
 
     public ApplicationUIController getController() {
         return controller;
@@ -53,6 +68,13 @@ public class Application extends javafx.application.Application {
         this.primaryStage = primaryStage;
         javafx.application.Platform.setImplicitExit(true);
 
+        try {
+            startPluginContainer();
+        } catch (BundleException ex) {
+            Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
+            throw new RuntimeException(ex);
+        }
+        
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/ApplicationUI.fxml"));
         fxmlLoader.setResources(null);
         try {
@@ -81,5 +103,15 @@ public class Application extends javafx.application.Application {
      */
     public static void main(String[] args) {
         launch(args);
+    }
+
+    private void startPluginContainer() throws BundleException {
+        Map<String, String> pluginConfiguration = new HashMap<>();
+        pluginConfiguration.put("felix.cache.locking", "false");
+        pluginConfiguration.put("felix.auto.deploy.action", "install,start");
+        pluginConfiguration.put("felix.auto.deploy.dir", "install");
+        pluginContainer = new Felix(pluginConfiguration);
+        pluginContainer.start();
+        AutoProcessor.process(pluginConfiguration, pluginContainer.getBundleContext());
     }
 }

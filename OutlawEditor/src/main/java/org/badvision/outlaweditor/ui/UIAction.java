@@ -188,6 +188,7 @@ public class UIAction {
     }
 
     public static void quitWithoutConfirming() {
+        Application.shutdown();
         Platform.runLater(Platform::exit);
     }
 

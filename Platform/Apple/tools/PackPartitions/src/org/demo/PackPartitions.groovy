@@ -2674,6 +2674,8 @@ end
                         packSetGround(blk); break
                     case 'events_add_encounter_zone':
                         packAddEncounterZone(blk); break
+                    case 'events_start_encounter':
+                        packStartEncounter(blk); break
                     case 'events_teleport':
                         packTeleport(blk); break
                     case 'events_move_backward':
@@ -2898,6 +2900,13 @@ end
             def chance = (int)(blk.field[4].text().toFloat() * 10.0)
             assert chance > 0 && chance <= 1000
             outIndented("addEncounterZone(${escapeString(code)}, $x, $y, $maxDist, $chance)\n")
+        }
+
+        def packStartEncounter(blk)
+        {
+            assert blk.field.size() == 1
+            def code = getSingle(blk.field, 'CODE')
+            outIndented("doCombat(${escapeString(code)})\n")
         }
 
         def packTeleport(blk)

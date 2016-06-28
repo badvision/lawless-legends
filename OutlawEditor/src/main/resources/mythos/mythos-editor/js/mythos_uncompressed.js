@@ -391,6 +391,19 @@ if (typeof Mythos === "undefined") {
                     this.setTooltip('Add an encounter zone');
                 }
             };
+            Blockly.Blocks['events_start_encounter'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Start encounter with enemy code")
+                            .appendField(new Blockly.FieldTextInput(""), "CODE");
+                    this.setOutput(false);
+                    this.setTooltip('Start an encounter');
+                }
+            };
             Blockly.Blocks['text_window'] = {
                 init: function () {
                     this.setHelpUrl(Mythos.helpUrl);

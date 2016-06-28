@@ -436,6 +436,10 @@ def startCombat(mapCode)
   // Display portrait of first group
   setPortrait(global=>p_enemyGroups=>p_enemies->b_image)
 
+  // Clear keyboard stobe, because while wandering the map, the player may have
+  // queued up movement keys, which are made obsolete by the surprise of combat.
+  ^kbdStrobe
+
   // We're going to do all our text drawing in window 2. Also, might as well
   // set everything up so that the map gets redrawn when combat finishes.
   setWindow2()

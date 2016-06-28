@@ -17,6 +17,11 @@ const INT_MAX = 32767
 const INT_MIN = -32768
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// IO locations
+const kbd       = $C000
+const kbdStrobe = $C010
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Memory manager definitions
 
 // Resource types
@@ -123,7 +128,7 @@ const calcPlayerArmor     = gameLibVecs + 3*54
 const diskActivity        = gameLibVecs + 3*55
 const rdkey               = gameLibVecs + 3*56
 const initHeap            = gameLibVecs + 3*57
-const UNUSED_FN_58        = gameLibVecs + 3*58
+const doCombat            = gameLibVecs + 3*58
 const UNUSED_FN_59        = gameLibVecs + 3*59
 const UNUSED_FN_60        = gameLibVecs + 3*60
 const UNUSED_FN_61        = gameLibVecs + 3*61

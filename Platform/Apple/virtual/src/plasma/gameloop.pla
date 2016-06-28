@@ -19,9 +19,6 @@ const fontEngine    = $E000   // main mem
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Other constants
-const kbd       = $C000
-const kbdStrobe = $C010
-
 const CHAR_WND_LIFE_X = 91
 const CHAR_WND_GUN_X  = 114
 
@@ -109,7 +106,7 @@ predef _reboot, _brk, _encodeDice, _rollDice
 predef _setPlural, _getStringResponse, _streqi, _addEncounterZone, _fatal
 predef _pause, _tossStrings, _showMapName, _setMapWindow
 predef _makeModifier, _randomFromArray, _calcPlayerArmor, _diskActivity
-predef _rdkey, _initHeap
+predef _rdkey, _initHeap, _doCombat
 
 word gameLib_addrs = @_setScriptInfo, @_scriptDisplayStr, @_scriptDisplayStrNL, @_getYN
 word = @_queue_setMap, @_setSky, @_setGround, @_queue_teleport, @_setPortrait, @_clearPortrait
@@ -125,7 +122,7 @@ word = @_reboot, @_brk, @_encodeDice, @_rollDice
 word = @_setPlural, @_getStringResponse, @_streqi, @_addEncounterZone, @_fatal
 word = @_pause, @_tossStrings, @_showMapName, @_setMapWindow
 word = @_makeModifier, @_randomFromArray, @_calcPlayerArmor, @_diskActivity
-word = @_rdkey, @_initHeap
+word = @_rdkey, @_initHeap, @_doCombat
 
 word = 0  // end of library functions
 
@@ -1893,19 +1890,19 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Compare two strings for equality, ignoring case.
 def _streqi(a, b)
-  word limit
+  word limit, leneq
+  leneq = ^a == ^b
   limit = a + min(^a, ^b)
-  while a < limit
+  a++; b++
+  while a <= limit
+    if charToUpper(^a) <> charToUpper(^b); return FALSE; fin
     a++; b++
-    if charToUpper(^a) <> charToUpper(^b)
-      return FALSE
-    fin
   loop
-  return ^a == ^b
+  return leneq
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def doCombat(mapCode)
+def _doCombat(mapCode)
   // Handled in a separate module. Clear enemies out of the heap when finished.
   loadEngine(MODULE_COMBAT)=>combat_zoneEncounter(mapCode)
   global=>p_enemyGroups = NULL

@@ -45,7 +45,7 @@ word global  // the global heap object, from which all live objects must be reac
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Predefined functions, for circular calls or out-of-order calls
-predef setWindow2, initCmds, nextAnimFrame, checkEncounter
+predef setWindow2, initCmds, nextAnimFrame, checkEncounter, doCombat
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Global variables
@@ -71,12 +71,13 @@ word cmdTbl[96]   // ASCII $00..$5F
 byte frameLoaded = 0
 byte heapLocked = FALSE
 
-// Queue setMap / teleport, since otherwise script might be replaced while executing
+// Queue setMap / teleport / start_encounter, since otherwise script might be replaced while executing
 byte q_mapIs3D = 0
 byte q_mapNum = 1
 word q_x = 0
 word q_y = 0
 byte q_dir = 0
+word q_encounter = NULL
 
 // For decimal conversion and display tabbing
 byte decimalBuf[7]
@@ -106,7 +107,7 @@ predef _reboot, _brk, _encodeDice, _rollDice
 predef _setPlural, _getStringResponse, _streqi, _addEncounterZone, _fatal
 predef _pause, _tossStrings, _showMapName, _setMapWindow
 predef _makeModifier, _randomFromArray, _calcPlayerArmor, _diskActivity
-predef _rdkey, _initHeap, _doCombat
+predef _rdkey, _initHeap, _queueCombat
 
 word gameLib_addrs = @_setScriptInfo, @_scriptDisplayStr, @_scriptDisplayStrNL, @_getYN
 word = @_queue_setMap, @_setSky, @_setGround, @_queue_teleport, @_setPortrait, @_clearPortrait
@@ -122,7 +123,7 @@ word = @_reboot, @_brk, @_encodeDice, @_rollDice
 word = @_setPlural, @_getStringResponse, @_streqi, @_addEncounterZone, @_fatal
 word = @_pause, @_tossStrings, @_showMapName, @_setMapWindow
 word = @_makeModifier, @_randomFromArray, @_calcPlayerArmor, @_diskActivity
-word = @_rdkey, @_initHeap, @_doCombat
+word = @_rdkey, @_initHeap, @_queueCombat
 
 word = 0  // end of library functions
 
@@ -1119,7 +1120,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the map area (used for clearing it)
 def _setMapWindow()
-  if mapIs3D
+  if frameLoaded == 3  // don't check mapIs3D, since we might be in an engine
     setWindow(24, 153, 14, 140) // Top, Bottom, Left, Right
   else
     setWindow(24, 169, 14, 140) // Top, Bottom, Left, Right
@@ -1545,6 +1546,9 @@ def kbdLoop()
     if q_mapNum
       setMap(q_mapIs3D, q_mapNum, q_x, q_y, q_dir)
       q_mapNum = 0
+    elsif q_encounter
+      doCombat(q_encounter)
+      q_encounter = NULL
     fin
     if needRender
       doRender()
@@ -1637,7 +1641,7 @@ def showAnimFrame()
   pData = curPortrait + 1 + (animFrame * 2304)   // 18*128 = 2304
 
   // Show it on-screen
-  if mapIs3D
+  if frameLoaded == 3  // 3D-mode frame? Note: don't check mapIs3D, because we might be in an engine
     blitPortrait(pData, $2182)  // start at 3rd text line
   else
     blitPortrait(pData, $2202)  // start at 4th text line
@@ -1852,9 +1856,10 @@ def loadEngine(moduleNum)
   mmgr(RESET_MEMORY, 0)
   renderLoaded = FALSE
   mapIs3D = FALSE
+  curPortrait = NULL
   mmgr(START_LOAD, 1) // code is in partition 1
   p_engine = mmgr(QUEUE_LOAD, moduleNum<<8 | RES_TYPE_MODULE)
-  mmgr(FINISH_LOAD, LEAVE_OPEN)
+  mmgr(FINISH_LOAD, LEAVE_OPEN)  // fairly safe, I think?
   diskActivity(0)
   return p_engine()  // return function table
 end
@@ -1902,7 +1907,14 @@ def _streqi(a, b)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _doCombat(mapCode)
+def _queueCombat(mapCode)
+  // Put it on the heap long enough to make it through the transition to the combat engine.
+  // It'll get collected on the first GC because there's no global pointer to it, which is fine.
+  q_encounter = mmgr(HEAP_INTERN, mapCode)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def doCombat(mapCode)
   // Handled in a separate module. Clear enemies out of the heap when finished.
   loadEngine(MODULE_COMBAT)=>combat_zoneEncounter(mapCode)
   global=>p_enemyGroups = NULL

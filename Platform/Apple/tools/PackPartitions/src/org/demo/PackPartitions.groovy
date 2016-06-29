@@ -1963,7 +1963,7 @@ end
             "${parseByteAttr(row, "aiming")}, " +
             "${parseByteAttr(row, "hand-to-hand")}, " +
             "${parseByteAttr(row, "dodging")})")
-        row.attributes().each { name, val ->
+        row.attributes().sort().each { name, val ->
             if (name =~ /^skill-(.*)/) {
                 out.println("  addToList(@p=>p_skills, " +
                     "makeModifier(${escapeString(name.replace("skill-", ""))}, " +
@@ -2226,11 +2226,10 @@ end
             // Generate all the functions themselves
             funcs.each { func, index, row ->
                 withContext("player '${row.@name}'") {
-                    out.println("def _$func()")
+                    out.println("\ndef _$func()")
                     genPlayer(func, row, out)
                     out.println("end\n")
                 }
-                
             }
             
             // Code for initial party creation
@@ -2906,7 +2905,7 @@ end
         {
             assert blk.field.size() == 1
             def code = getSingle(blk.field, 'CODE')
-            outIndented("doCombat(${escapeString(code)})\n")
+            outIndented("queueCombat(${escapeString(code)}); return\n")
         }
 
         def packTeleport(blk)

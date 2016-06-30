@@ -114,6 +114,7 @@ next_zp		= $AB
 	JMP pl_setColor		; params: slot (0=sky/1=ground), color (0-15); return: nothing
 	JMP pl_render		; params: none
 	JMP pl_texControl	; params: 1=load, 0=unload
+	JMP pl_getScripts	; params: none
 
 ;----------------------------------------------------------------------
 ; >> START LOADING MAP SECTIONS
@@ -1230,6 +1231,14 @@ pl_setDir:
 ; >> pl_texControl
 ; No-op, because in 2D there aren't textures
 pl_texControl:
+	rts
+
+;-------------------------------------------------------------------------------
+; >> pl_getScripts
+; Called by PLASMA code to get the currently loaded scripts module
+pl_getScripts:
+	lda SCRIPTS_LOC
+	ldy SCRIPTS_LOC+1
 	rts
 
 ;----------------------------------------------------------------------

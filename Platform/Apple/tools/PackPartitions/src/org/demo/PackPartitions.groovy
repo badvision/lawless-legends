@@ -2508,7 +2508,8 @@ end
             out << "include \"../plasma/gamelib.plh\"\n"
             out << "include \"../plasma/playtype.plh\"\n"
             out << "include \"../plasma/gen_images.plh\"\n\n"
-            out << "word global\n\n"            
+            out << "word global\n"
+            out << "word tmp\n\n"
         }
         
         /**
@@ -2905,7 +2906,7 @@ end
         {
             assert blk.field.size() == 1
             def code = getSingle(blk.field, 'CODE')
-            outIndented("scriptCombat(${escapeString(code)})\n")
+            outIndented("tmp = scriptCombat(${escapeString(code)})); if (!tmp); return; fin\n")
         }
 
         def packTeleport(blk)

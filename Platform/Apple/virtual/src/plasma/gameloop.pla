@@ -78,7 +78,6 @@ byte q_mapNum = 1
 word q_x = 0
 word q_y = 0
 byte q_dir = 0
-word q_encounter = NULL
 
 // For decimal conversion and display tabbing
 byte decimalBuf[7]
@@ -1370,7 +1369,7 @@ def adjustDir(n)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Move backward one step (3D mode)
+// Move backward one step (3D mode). Also actually works in 2D mode.
 def _moveBackward()
   adjustDir(8)
   moveForward()
@@ -1556,9 +1555,6 @@ def kbdLoop()
     if q_mapNum
       setMap(q_mapIs3D, q_mapNum, q_x, q_y, q_dir)
       q_mapNum = 0
-    elsif q_encounter
-      doCombat(q_encounter)
-      q_encounter = NULL
     fin
     if needRender
       doRender()
@@ -1920,6 +1916,7 @@ end
 // Called by user-defined map scripts to initiate a combat encounter.
 def _scriptCombat(mapCode)
   word pScripts
+  word result
 
   // Lock the currently running script in memory so combat engine doesn't destroy our calling
   // context.
@@ -1935,12 +1932,15 @@ def _scriptCombat(mapCode)
   skipScripts = TRUE
 
   // Now run the combat
-  doCombat(mapCode)
+  result = doCombat(mapCode)
 
   // Unlock the script module so it can get freed a the natural time (when it's done)
   if pScripts
     mmgr(UNLOCK_MEMORY, pScripts)
   fin
+
+  // Let the caller know what happened (1=won, 0=fled)
+  return result
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1951,6 +1951,11 @@ def doCombat(mapCode)
   global=>p_enemyGroups = NULL
   mmgr(HEAP_COLLECT, 0)
   restoreMapPos()
+
+  // If the party fled the combat instead of winning, back up to previous square.
+  if (!result)
+    moveBackward()
+  fin
   return result
 end
 

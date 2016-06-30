@@ -70,6 +70,7 @@ word triggerTbl
 word cmdTbl[96]   // ASCII $00..$5F
 byte frameLoaded = 0
 byte heapLocked = FALSE
+byte skipScripts = FALSE
 
 // Queue setMap / teleport / start_encounter, since otherwise script might be replaced while executing
 byte q_mapIs3D = 0
@@ -107,7 +108,7 @@ predef _reboot, _brk, _encodeDice, _rollDice
 predef _setPlural, _getStringResponse, _streqi, _addEncounterZone, _fatal
 predef _pause, _tossStrings, _showMapName, _setMapWindow
 predef _makeModifier, _randomFromArray, _calcPlayerArmor, _diskActivity
-predef _rdkey, _initHeap, _queueCombat
+predef _rdkey, _initHeap, _scriptCombat
 
 word gameLib_addrs = @_setScriptInfo, @_scriptDisplayStr, @_scriptDisplayStrNL, @_getYN
 word = @_queue_setMap, @_setSky, @_setGround, @_queue_teleport, @_setPortrait, @_clearPortrait
@@ -123,7 +124,7 @@ word = @_reboot, @_brk, @_encodeDice, @_rollDice
 word = @_setPlural, @_getStringResponse, @_streqi, @_addEncounterZone, @_fatal
 word = @_pause, @_tossStrings, @_showMapName, @_setMapWindow
 word = @_makeModifier, @_randomFromArray, @_calcPlayerArmor, @_diskActivity
-word = @_rdkey, @_initHeap, @_queueCombat
+word = @_rdkey, @_initHeap, @_scriptCombat
 
 word = 0  // end of library functions
 
@@ -212,6 +213,10 @@ end
 asm texControl  // params: load (1=load, 0=unload)
         +asmPlasm 1
         jmp $601B
+end
+asm getMapScript  // params: none
+        +asmPlasm 0
+        jmp $601E
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1283,7 +1288,11 @@ def checkScripts(x, y)
         if x == ^p
           script = p=>1
           setWindow2()
+          skipScripts = FALSE
           script()
+          // Some scripts need to suppress running of any further scripts on the square
+          // because they swapped out the render engine.
+          if skipScripts; return TRUE; fin
           anyTriggered = TRUE
         fin
         p = p + 3
@@ -1907,19 +1916,41 @@ def _streqi(a, b)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _queueCombat(mapCode)
-  // Put it on the heap long enough to make it through the transition to the combat engine.
-  // It'll get collected on the first GC because there's no global pointer to it, which is fine.
-  q_encounter = mmgr(HEAP_INTERN, mapCode)
+// Called by user-defined map scripts to initiate a combat encounter.
+def _scriptCombat(mapCode)
+  word pScripts
+
+  // Lock the currently running script in memory so combat engine doesn't destroy our calling
+  // context.
+  if renderLoaded
+    pScripts = getMapScript()
+    mmgr(LOCK_MEMORY, pScripts)
+  else
+    pScripts = NULL
+  fin
+
+  // Also suppress running further scripts on this tile, since we're going to switch out the
+  // rendering engine.
+  skipScripts = TRUE
+
+  // Now run the combat
+  doCombat(mapCode)
+
+  // Unlock the script module so it can get freed a the natural time (when it's done)
+  if pScripts
+    mmgr(UNLOCK_MEMORY, pScripts)
+  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def doCombat(mapCode)
+  word result
   // Handled in a separate module. Clear enemies out of the heap when finished.
-  loadEngine(MODULE_COMBAT)=>combat_zoneEncounter(mapCode)
+  result = loadEngine(MODULE_COMBAT)=>combat_zoneEncounter(mapCode)
   global=>p_enemyGroups = NULL
   mmgr(HEAP_COLLECT, 0)
   restoreMapPos()
+  return result
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

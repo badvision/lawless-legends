@@ -407,6 +407,7 @@ _prX        = _prA+3
 _prY        = _prX+3
 _crout      = _prY+3
 _waitKey    = _crout+3
+_internalErr = _waitKey+3
 
 ; Debug macros
 !macro prStr {
@@ -489,4 +490,9 @@ _waitKey    = _crout+3
 
 !macro waitKey {
     jsr _waitKey
+}
+
+!macro internalErr chr {
+    jsr _internalErr
+    !byte chr
 }

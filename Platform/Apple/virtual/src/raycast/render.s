@@ -30,6 +30,7 @@ start:
 	jmp pl_setColor		; params: slot (0=sky/1=ground), color (0-15); return: nothing
 	jmp pl_render		; params: none
 	jmp pl_texControl	; params: 0=unload textures, 1=load textures
+	jmp pl_getScripts	; params: none
 
 ; Conditional assembly flags
 DOUBLE_BUFFER	= 1		; whether to double-buffer
@@ -74,6 +75,7 @@ nMapSprites:	!byte 0		; number of sprite entries on map to fix up
 nextLink:	!byte 0		; next link to allocate
 plasmaStk:      !byte 0
 nTextures:	!byte 0
+scripts:	!word 0		; pointer to loaded scripts module
 
 skyColorEven:   !byte $20
 skyColorOdd:    !byte $22
@@ -1579,6 +1581,8 @@ loadTextures: !zone
 	jsr mainLoader	; queue script to load
 	stx .scInit+1	; store its location so we call its init...
 	sty .scInit+2	; ...after it loads of course.
+	stx scripts
+	sty scripts+1
 	lda #0		; now comes the list of textures.
 	sta txNum
 .lup:	jsr .get	; get texture resource number
@@ -2032,6 +2036,16 @@ pl_setColor: !zone
 	lda skyGndTbl2,y
 	sta skyColorOdd,x
 	rts
+
+;-------------------------------------------------------------------------------
+; Called by PLASMA code to get the currently loaded scripts module
+; Parameters: None
+; Returns: A pointer to the loaded script module
+pl_getScripts: !zone {
+	lda scripts
+	ldy scripts+1
+	rts
+}
 
 ;-------------------------------------------------------------------------------
 ; The real action

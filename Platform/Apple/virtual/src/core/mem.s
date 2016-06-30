@@ -161,9 +161,7 @@ relocate:
 	lda .st4+2
 	cmp #$E0
 	bcc +
-	lda #"b"
-	jsr cout
-	brk		; mem mgr got too big!
+	+internalErr 'N' ; mem mgr got too big!
 +
 
 ; Patch PLASMA's memory accessors to gain access to writing main LC, and
@@ -451,6 +449,7 @@ loMemBegin: !pseudopc $800 {
 	jmp __prY
 	jmp __crout
 	jmp __waitKey
+	jmp __internalErr
 
 j_init:
 	bit setLcRW+lcBank1	; switch in mem mgr
@@ -782,6 +781,17 @@ __waitKey: !zone {
 	jmp iorest
 }
 
+; Support for very compact abort in the case of internal errors. Prints
+; a single-character code as a fatal error.
+__internalErr: !zone {
+	+prStr : !text $8D,"err=",0
+	tsx
+	jsr _getStackByte
+	jsr cout
+	jsr inlineFatal : !text "Internal",0
+}
+
+
 !macro callMLI cmd, parms {
 	lda #cmd
 	ldx #<parms
@@ -897,8 +907,7 @@ heapAddType: !zone
 	ldy nTypes
 	cpy #MAX_TYPES
 	bmi +
-	+prChr 'T'
-	brk
+	+internalErr 'T'
 +	sta typeTblH,y	; addr hi
 	sta .ld+2
 	txa		; addr lo
@@ -1496,13 +1505,11 @@ saneCheck: !zone {
 	lda $BF00
 	cmp #$4C
 	beq +
-	+prChr 'S'
-	brk
+	+internalErr 'S'
 +	lda $E1
 	cmp #$BE
 	bcc +
-	+prChr 's'
-	brk
+	+internalErr 's'
 +	rts
 }
 
@@ -1817,11 +1824,13 @@ shared_byteCodeAlso:
 	rts
 +	lda #RES_TYPE_BYTECODE
 	sta resType
+	lda tSegRes,x
+	sta resNum
 	lda #1
 	sta isAuxCmd
 	jsr scanForResource
 	bne +
-	brk			; it better be present!
+	+internalErr 'b'	; it better be present!
 +	lda tSegType,x
 	rts
 
@@ -2462,8 +2471,7 @@ lz4Decompress: !zone
 	pla			; toss unused match length
 	!if DO_COMP_CHECKSUMS { jsr .verifyCksum }
 +	rts			; all done!
-.endBad	+prChr 'O'		; diagnostic letter
-	brk			; barf out
+.endBad	+internalErr 'O'	; barf out
 	; Now that we've finished with the literals, decode the match section
 .decodeMatch:
 	+LOAD_YSRC		; grab first byte of match offset
@@ -2550,7 +2558,7 @@ lz4Decompress: !zone
 	}
 	cmp checksum		; get computed checksum
 	beq +			; should be zero, because compressor stores checksum byte as part of stream
-	brk			; checksum doesn't match -- abort!
+	+internalErr 'C'	; checksum doesn't match -- abort!
 +	rts
 	}
 
@@ -2670,7 +2678,7 @@ doAllFixups: !zone
 	sta isAuxCmd
 	jsr scanForResource
 	bne +			; we better find it
-	brk
+.barf	+internalErr 'F'
 +	lda tSegAdrLo,x		; get the segment's address
 	sta .mainBase		; and save it
 	lda tSegAdrHi,x		; hi byte too
@@ -2681,8 +2689,7 @@ doAllFixups: !zone
 	sta resType
 	inc isAuxCmd		; it'll be in aux mem
 	jsr scanForResource
-	bne +			; we better find it
-	brk
+	beq .barf		; we better find it
 +	lda tSegAdrLo,x
 	sta .auxBase
 	lda tSegAdrHi,x

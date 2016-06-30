@@ -2850,7 +2850,7 @@ end
             def facing = blk.field[3].text().toInteger()
             assert facing >= 0 && facing <= 15
             
-            outIndented("queue_setMap(${mapNum[0] == '2D' ? 0 : 1}, ${mapNum[1]}, $x, $y, $facing)\n")
+            outIndented("return queue_setMap(${mapNum[0] == '2D' ? 0 : 1}, ${mapNum[1]}, $x, $y, $facing)\n")
         }
         
         def packSetPortrait(blk)
@@ -2905,7 +2905,7 @@ end
         {
             assert blk.field.size() == 1
             def code = getSingle(blk.field, 'CODE')
-            outIndented("scriptCombat(${escapeString(code)}); return\n")
+            outIndented("scriptCombat(${escapeString(code)})\n")
         }
 
         def packTeleport(blk)

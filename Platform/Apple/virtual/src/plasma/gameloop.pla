@@ -1290,6 +1290,7 @@ def checkScripts(x, y)
           setWindow2()
           skipScripts = FALSE
           script()
+          clearPortrait()
           // Some scripts need to suppress running of any further scripts on the square
           // because they swapped out the render engine.
           if skipScripts; return TRUE; fin

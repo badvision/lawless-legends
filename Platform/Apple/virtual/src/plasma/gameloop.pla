@@ -95,7 +95,7 @@ word animPauseCt
 // Game library functions
 predef _setScriptInfo, _scriptDisplayStr, _scriptDisplayStrNL, _getYN
 predef _queue_setMap, _setSky, _setGround, _queue_teleport, _setPortrait, _clearPortrait
-predef _moveBackward, _getUpperKey, _clearWindow, _setPortrait
+predef _moveWayBackward, _getUpperKey, _clearWindow, _setPortrait
 predef _getGlobals, _rand16
 predef _printf1, _printf2, _printf3
 predef _displayf1, _displayf2, _displayf3
@@ -111,7 +111,7 @@ predef _rdkey, _initHeap, _scriptCombat
 
 word gameLib_addrs = @_setScriptInfo, @_scriptDisplayStr, @_scriptDisplayStrNL, @_getYN
 word = @_queue_setMap, @_setSky, @_setGround, @_queue_teleport, @_setPortrait, @_clearPortrait
-word = @_moveBackward, @_getUpperKey, @_clearWindow
+word = @_moveWayBackward, @_getUpperKey, @_clearWindow
 word = @_getGlobals, @_rand16
 word = @_printf1, @_printf2, @_printf3
 word = @_displayf1, @_displayf2, @_displayf3
@@ -1370,9 +1370,22 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Move backward one step (3D mode). Also actually works in 2D mode.
-def _moveBackward()
+def moveBackward()
   adjustDir(8)
   moveForward()
+  adjustDir(8)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Move backward four steps (3D mode), or one step (2D mode)
+def _moveWayBackward()
+  adjustDir(8)
+  moveForward()
+  if mapIs3D
+    moveForward()
+    moveForward()
+    moveForward()
+  fin
   adjustDir(8)
 end
 
@@ -1749,6 +1762,9 @@ def _setPortrait(portraitNum)
   // And show the first frame
   showAnimFrame()
 
+  // Clear the keyboard strobe in case the player was moving at high speed
+  ^kbdStrobe
+
   // Do not render over the portrait
   needRender = FALSE
 end
@@ -1954,7 +1970,7 @@ def doCombat(mapCode)
 
   // If the party fled the combat instead of winning, back up to previous square.
   if (!result)
-    moveBackward()
+    moveWayBackward()
   fin
   return result
 end

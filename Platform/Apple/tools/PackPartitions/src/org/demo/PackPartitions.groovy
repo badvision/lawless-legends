@@ -2925,7 +2925,7 @@ end
         def packMoveBackward(blk)
         {
             assert blk.field.size() == 0
-            outIndented("moveBackward()\n")
+            outIndented("moveWayBackward()\n")
         }
         
         def makeTriggerTbl(scripts, xRange, yRange)

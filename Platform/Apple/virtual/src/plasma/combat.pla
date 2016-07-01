@@ -236,7 +236,7 @@ def playerCombatChoose(pl)
     fin
     if nWeapons >= 2
       canChange = TRUE
-      displayOption('C', "Change weapon")
+      displayOption('C', "Chg weapon")
     fin
   fin
   displayOption('D', "Dodge")
@@ -492,7 +492,7 @@ def startCombat(mapCode)
       displayStr("\n\nBattle! \n")
       return 1
     elsif n == 'F'
-      displayStr("\n\nCoward. ")
+      displayStr("\n\nFleeing... \n")
       return 0
     // Secret option for testing: just win
     elsif n == '#'
@@ -511,16 +511,17 @@ def _combat_zoneEncounter(s_encZone)
 
   // Show portrait and threat details, find out if player wants to fight (vs. run)
   answer = startCombat(s_encZone)
-  if !answer; return 0; fin
   if answer == 99
     global=>p_enemyGroups = NULL // results in no living enemies, or "win"
+  elsif !answer
+    isFleeing = TRUE
   fin
 
   // Do each round of combat until player wins, loses, or flees
   while TRUE
     p = global=>p_players
     while p
-      if canFight(p) and nEnemiesFighting
+      if canFight(p) and nEnemiesFighting and !isFleeing
         playerCombatChoose(p)
       fin
       p = p=>p_nextObj
@@ -557,15 +558,16 @@ def _combat_zoneEncounter(s_encZone)
         getUpperKey()
         // Note: no need to clear heap -- the caller does that.
         return 1
-      elsif isFleeing
-        displayStr("\nYou have fled.")
-        // Note: no need to clear heap -- the caller does that.
-        return 0
       fin
 
       if canFight(p)
         when p->t_type
           is TYPE_PLAYER
+            if isFleeing
+              displayStr("\nYou have fled.")
+              // Note: no need to clear heap -- the caller does that.
+              return 0
+            fin
             playerCombatTurn(p)
             combatPause()
             break

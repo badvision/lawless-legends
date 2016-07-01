@@ -67,6 +67,14 @@ gcHash_dstHi	= $5500
 prodosMemMap 	= $BF58
 
 ;------------------------------------------------------------------------------
+!macro callMLI cmd, parms {
+	lda #cmd
+	ldx #<parms
+	ldy #>parms
+	jsr _callMLI
+}
+
+;------------------------------------------------------------------------------
 ; Relocate all the pieces to their correct locations and perform patching.
 relocate:
 ; first our lo memory piece goes to $800
@@ -216,7 +224,19 @@ relocate:
 
 ;------------------------------------------------------------------------------
 init: !zone
-	bit setLcRW+lcBank1	; switch in mem mgr
+; grab the prefix of the current drive
+	lda #<prodosPrefix
+	sta getPfxAddr
+	lda #>prodosPrefix
+	sta getPfxAddr+1
+	+callMLI MLI_GET_PREFIX, getPfxParams
+	bcc +
+	jmp prodosError
++	lda prodosPrefix
+	and #$F		; strip off drive/slot, keep string len
+	sta prodosPrefix
+; switch in mem mgr
+	bit setLcRW+lcBank1
 	bit setLcRW+lcBank1
 ; put something interesting on the screen :)
 	jsr home
@@ -230,7 +250,6 @@ init: !zone
 .clr:	sta prodosMemMap-1,x
 	dex
 	bne .clr
-
 ; clear the segment tables
 -	sta tSegLink,x
 	sta tSegAdrLo,x
@@ -792,13 +811,6 @@ __internalErr: !zone {
 }
 
 
-!macro callMLI cmd, parms {
-	lda #cmd
-	ldx #<parms
-	ldy #>parms
-	jsr _callMLI
-}
-
 ; Call MLI from main memory rather than LC, since it lives in aux LC.
 _callMLI:	sta .cmd
 		stx .params
@@ -808,15 +820,17 @@ _callMLI:	sta .cmd
 .params		!word 0
 		rts
 
-; Out ProDOS param blocks can't be in LC ram
+; Our ProDOS param blocks can't be in LC ram
 openParams:	!byte 3		; param count
 		!word filename	; pointer to file name
 		!word fileBuf	; pointer to buffer
 openFileRef:	!byte 0		; returned file number
-filename:	!byte 15	; length
-		!raw "/LL/GAME.PART."	; TODO: Figure out how to avoid specifying full path. "raw" for ProDOS
-		; If I leave it out, ProDOS complains with error $40.
-partNumChar:	!raw "x"	; "x" replaced by partition number
+
+; ProDOS prefix of the boot disk
+prodosPrefix: !fill 16
+
+; Buffer for forming the full filename
+filename: !fill 28	; 16 for prefix plus 11 for "/GAME.PART.1"
 
 readParams:	!byte 4		; param count
 readFileRef:	!byte 0		; file ref to read
@@ -832,6 +846,11 @@ setMarkPos:	!byte 0		; mark position (3 byte integer)
 
 closeParams:	!byte 1		; param count
 closeFileRef:	!byte 0		; file ref to close
+
+getPfxParams:	!byte 1		; param count
+getPfxAddr:	!word 0		; pointer to buffer
+
+multiDiskMode:	!byte 0		; hardcoded to YES for now
 
 ;------------------------------------------------------------------------------
 ; Heap management variables
@@ -2028,17 +2047,55 @@ diskLoader: !zone
 ;------------------------------------------------------------------------------
 openPartition: !zone
 	!if DEBUG { +prStr : !text "Opening part file ",0 : +prByte curPartition : +crout }
-; complete the partition file name
+; complete the partition file name, changing "1" to "2" if we're in multi-disk mode
+; and opening partition 2.
+.mkname	ldx #1
+	ldy #1
+-	lda prodosPrefix,x
+	sta filename,y
+	cmp #$31		; "1"
+	bne +
+	lda multiDiskMode
+	beq +			; don't change if single-disk mode
 	lda curPartition
-	beq sequenceError	; partition number must be >= 1
-	clc
-	adc #'0'		; assume partition numbers range from 0..9 for now
-	sta partNumChar
+	cmp #2
+	bcc +
+	lda #$32		; "2"
+	sta filename,y
++	cpx prodosPrefix	; done with full length of prefix?
+	beq +
+	inx
+	iny
+	bne -			; always taken
++	ldx #0
+-	lda .fileStr,x
+	beq +++
+	cmp #$31		; "1"
+	bne ++
+	lda curPartition
+	bne +
+	jmp sequenceError	; partition number must be >= 1
++	clc
+	adc #$30
+++	sta filename,y
+	inx
+	iny
+	bne -			; always taken
++++	dey
+	sty filename		; total length
 ; open the file
-	+callMLI MLI_OPEN, openParams
-	bcs prodosError
+.open	+callMLI MLI_OPEN, openParams
+	bcc .opened
+	cmp #$46		; file not found?
+	bne +
+	lda #1			; enter into
+	sta multiDiskMode	;   multi-disk mode
+	bne .mkname		; and retry
++	cmp #$45		; volume not found?
+	beq .insert		; ask user to insert the disk
+	jmp prodosError		; no, misc error - print it and die
 ; grab the file number, since we're going to keep it open
-	lda openFileRef
+.opened	lda openFileRef
 	sta partFileRef
 	sta readFileRef
 ; Read the first two bytes, which tells us how long the header is.
@@ -2059,6 +2116,19 @@ openPartition: !zone
 	lda #2			; read just after the 2-byte length
 	sta readAddr
 	jmp readToMain		; finish by reading the rest of the header
+; ask user to insert the disk
+.insert	jsr home
+	+prStr : !text "Insert disk ",0
+	bit $c051
+	lda curPartition
+	clc
+	adc #"0"
+	jsr cout
+	jsr rdkey
+	jsr home
+	bit $c050
+	jmp .open		; try again
+.fileStr !raw "/GAME.PART.1",0	; 'raw' chars to get lo-bit ascii that ProDOS likes.
 
 ;------------------------------------------------------------------------------
 sequenceError: !zone

@@ -1943,7 +1943,12 @@ end
     
     def genItem(func, row, out)
     {
-        out.println "  //item name=${row.@name}"
+        out.println(
+            "  return makeItem(" +
+            "${escapeString(parseStringAttr(row, "name"))}, " +
+            "${parseWordAttr(row, "price")}, " +
+            "${parseModifier(row, "bonus-value", "bonus-attribute")}, " +
+            "${parseByteAttr(row, "numofuses")})")
     }
     
     def genPlayer(func, row, out)
@@ -2120,6 +2125,16 @@ def makeStuff(name, kind, price, count)
   p=>w_price = price
   p=>w_count = count
   p=>w_maxCount = count
+  return p
+end
+
+def makeItem(name, price, modifier, maxUses)
+  word p; p = mmgr(HEAP_ALLOC, TYPE_ARMOR)
+  p=>s_name = mmgr(HEAP_INTERN, name)
+  p=>w_price = price
+  p=>p_modifiers = modifier
+  p->b_maxUses = maxUses
+  p->b_curUses = 0
   return p
 end
 """)

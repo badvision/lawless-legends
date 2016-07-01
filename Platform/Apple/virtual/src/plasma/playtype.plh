@@ -96,6 +96,9 @@ struc Item
   word s_itemKind
   word w_price
   word p_modifiers  // list:modifier
+  // Usables properties
+  byte b_maxUses
+  byte b_curUses
 end
 
 const WEAPON_FLAG_SINGLE_USE  = $01

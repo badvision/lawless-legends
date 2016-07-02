@@ -33,6 +33,7 @@ include "gen_images.plh"
 include "gen_modules.plh"
 include "gen_enemies.plh"
 include "gen_players.plh"
+include "gen_globalScripts.plh"
 include "combat.plh"
 include "party.plh"
 include "diskops.plh"
@@ -2023,6 +2024,21 @@ def loadGame
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def help
+  word globalScriptsModule
+
+  if sc_help >= 0
+    flipToPage1()
+    setMapWindow(); clearWindow()
+    loadEngine(MODULE_GEN_GLOBAL_SCRIPTS)=>sc_help()
+    restoreMapPos()
+  else
+    scriptDisplayStr("Help not available.\n")
+  fin
+end
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set up the command table for 3D mode
 def initCmds()
 
@@ -2043,6 +2059,7 @@ def initCmds()
   cmdTbl['3'] = @showPlayer3
   cmdTbl[$13] = @saveGame // ctrl-S
   cmdTbl[$0c] = @loadGame // ctrl-L
+  cmdTbl['?'] = @help
 
   // Commands handled differently in 3D vs 2D
   if mapIs3D

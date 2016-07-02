@@ -266,7 +266,7 @@ def newGame()
   globalScriptsModule = mmgr(QUEUE_LOAD, MODULE_GEN_GLOBAL_SCRIPTS<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, LEAVE_OPEN)
   playersModule()=>makeInitialParty()
-  globalScriptsModule()=>sc_newGame()
+  if sc_newGame >= 0; globalScriptsModule()=>sc_newGame(); fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

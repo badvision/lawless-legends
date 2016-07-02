@@ -2329,7 +2329,8 @@ end
         
         // Translate global scripts to code
         def gsmod = new ScriptModule()
-        gsmod.genScriptDefs(new File("build/src/plasma/gen_globalScripts.plh.new"), dataIn.global.scripts)
+        gsmod.genScriptDefs(new File("build/src/plasma/gen_globalScripts.plh.new"), dataIn.global.scripts,
+            ["newGame", "help"] as Set)
         replaceIfDiff("build/src/plasma/gen_globalScripts.plh")
         gsmod.packGlobalScripts(new File("build/src/plasma/gen_globalScripts.pla.new"), dataIn.global.scripts)
         replaceIfDiff("build/src/plasma/gen_globalScripts.pla")
@@ -2528,19 +2529,25 @@ end
         }
         
         /**
-         * Generate header for a set of scripts.
+         * Generate header for a set of scripts. If any of the 'required' scripts are not
+         * found, they'll get a special offset of -1.
          */
-        def genScriptDefs(outFile, inScripts)
+        def genScriptDefs(outFile, inScripts, required)
         {
             out = new PrintWriter(new FileWriter(outFile))
             out << "// Generated code - DO NOT MODIFY BY HAND\n\n"
             
             // Generate a name for each script, and a constant in the function table.
+            def found = [] as Set
             inScripts.script.eachWithIndex { script, idx ->
                 def name = getScriptName(script)
                 assert name
                 scriptNames[script] = "sc_${humanNameToSymbol(name, false)}"
                 out << "const ${scriptNames[script]} = ${idx*2}\n"
+                found.add(humanNameToSymbol(name, false))
+            }
+            (required - found).each { name ->
+                out << "const sc_$name = -1 // not found\n"
             }
             out.close()
         }

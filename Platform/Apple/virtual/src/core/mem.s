@@ -384,36 +384,14 @@ init: !zone
 	lda #QUEUE_LOAD
 	jsr main_dispatch
 	stx .gomod+1
-	txa
-	pha			; save addr for scanning later
+	stx glibBase		; save addr for extern fixups
 	sty .gomod+2
-	tya
-	pha
+	sty glibBase+1
 	lda #LOCK_MEMORY	; lock it in forever
 	jsr main_dispatch
 	ldx #1			; keep open for efficiency's sake
 	lda #FINISH_LOAD
 	jsr main_dispatch
-; find the end of the stubs in the first module
-	pla			; hi byte
-	sta pTmp+1
-	pla			; lo byte
-	sta pTmp
-	ldy #0
--	lda (pTmp),y
-	cmp #$20		; look for first non-JSR
-	bne +
-	lda pTmp
-	clc
-	adc #5			; not found, advance by 5 bytes (size of one stub)
-	sta pTmp
-	bcc -
-	inc pTmp+1
-	bne -
-+	lda pTmp		; store the result
-	sta glibBase
-	lda pTmp+1
-	sta glibBase+1
 	ldx #$10		; initial eval stack index
 .gomod:	jmp $1111		; jump to module for further bootstrapping
 

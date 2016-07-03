@@ -9,10 +9,13 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 import gamelib
+  predef testFunc
+  predef fooFunc
   word glib
+  word glib2
   struc t_gamelib
-    word testFunc1
-    word testFunc2
+    word testStructOff1
+    word testStructOff2
   end
 end
 

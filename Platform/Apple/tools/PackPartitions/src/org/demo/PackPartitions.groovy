@@ -1040,14 +1040,63 @@ class PackPartitions
             newAsmCode[dp++] = asmCode[it]
         }
         
+        // Locate the external/entry symbol area, and parse it.
+        def imports = [:]
+        def exports = [:]
+        def ep = sp
+        while (fixup[ep] != 0)
+            ep += 4
+        ep++
+        int esdIndex = 0
+        while (fixup[ep] != 0) {
+            def nameBuf = new StringBuilder()
+            while (true) {
+                def c = fixup[ep++] & 0xFF
+                if (c >= 128)
+                    nameBuf.append((char)(c & 0x7F))
+                else {
+                    nameBuf.append((char)c)
+                    break
+                }
+            }
+            def esdName = nameBuf.toString().toLowerCase()
+            def esdFlag = fixup[ep++] & 0xFF
+            def esdNum = fixup[ep++] & 0xFF
+            esdNum += (fixup[ep++] & 0xFF) << 8
+            if (esdFlag == 0x10) {
+                assert esdNum == esdIndex
+                println "Import '$esdName' at esdIndex $esdNum."
+                imports[esdNum] = esdName
+            }
+            else if (esdFlag == 0x08) {
+                assert name == "gameloop" : "Can only export from gameloop"
+                println "Export 'esdName' at offset $esdNum."
+                def target = invDefs[esdNum]
+                assert target != null : "Can only export functions"
+                exports[esdName] = target
+            }
+            else
+                assert false : "Unknown Entry/Symbol flag: $flag"
+            esdIndex++
+        }
+        
+        // If any exports, we assume they're from the game lib. That's the only
+        // place we support exports.
+        if (exports.size() > 0) {
+            assert name == "gameloop" : "Symbol exports only supported on 'gameloop' module"
+            println "Saving exports, name=$name, exports=${exports}"
+            cache["globalExports"] = exports
+        }
+        
         // Translate offsets in all the fixups
         def newFixup = []
         dp = 0
         while (fixup[sp] != 0) {
-            def fixupType = fixup[sp++] & 0xFF
+            int fixupType = fixup[sp++] & 0xFF
             assert fixupType == 0x81 || fixupType == 0x91 // We can only handle WORD sized INTERN or EXTERN fixups
-            def addr = fixup[sp++] & 0xFF
+            int addr = fixup[sp++] & 0xFF
             addr |= (fixup[sp++] & 0xFF) << 8
+            esdIndex = fixup[sp++]
             
             // Fixups can be in the asm section or in the bytecode section. Figure out which this is.
             addr += 2  // apparently offsets don't include the header length
@@ -1061,16 +1110,26 @@ class PackPartitions
                 addr += stubsSize   // account for the stubs we prepended to the asm code
             //println String.format("...adjusted addr=0x%04x", addr)
             
-            def target = (codeBuf[addr] & 0xFF) | ((codeBuf[addr+1] & 0xFF) << 8)
+            int target = (codeBuf[addr] & 0xFF) | ((codeBuf[addr+1] & 0xFF) << 8)
             //println String.format("...target=0x%04x", target)
             
             if (fixupType == 0x91) {  // external fixup
-                // don't modify target addr
+                println "external fixup: esdIndex=$esdIndex"
+                println "imports=$imports is=${imports.containsKey(esdIndex)}"
+                def esdName = imports[esdIndex]
+                println "esdName='$esdName'"
+                assert esdName != null : "failed to look up esdIndex $esdIndex"
+                
+                def offset = cache["globalExports"][esdName]
+                println "offset=$offset"
+                assert offset != null : "failed to find global export for symbol '$esdName'"
+                target += offset
             }
             else if (invDefs.containsKey(target)) {
                 target = invDefs[target]
                 //println String.format("...translated to def offset 0x%04x", target)
                 assert target >= 5 && target < newAsmCode.length
+                assert esdIndex == 0
             }
             else {
                 target -= 0x1000
@@ -1078,6 +1137,7 @@ class PackPartitions
                 target += stubsSize   // account for the stubs we prepended to the asm code
                 //println String.format("...adjusted to target offset 0x%04x", target)
                 assert target >= 5 && target < newAsmCode.length
+                assert esdIndex == 0
             }
             
             // Put the adjusted target back in the code
@@ -1090,7 +1150,6 @@ class PackPartitions
                                 (inByteCode ? 0x40 : 0) | 
                                 ((fixupType == 0x91) ? 0x80 : 0))
             newFixup.add((byte)(addr & 0xFF))
-            assert fixup[sp++] == 0  // not sure what the zero byte is
         }
         newFixup.add((byte)0xFF)
         

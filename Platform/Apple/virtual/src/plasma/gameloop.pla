@@ -846,6 +846,17 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // General methods
 
+// FOO
+export def testFunc()
+  puts("This is testFunc.\n")
+  brk()
+end
+
+export def fooFunc()
+  puts("This is foo\n")
+  brk()
+end
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Fatal error: print message and stop the system.
 def _fatal(msg)
@@ -2233,6 +2244,8 @@ def startGame()
   mmgr(START_LOAD, 1) // code is in partition 1
   p_module = mmgr(QUEUE_LOAD, MODULE_DISKOPS<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, LEAVE_OPEN)
+  printf1("Outer testFunc=$%x\n", @testFunc)
+  printf1("Outer fooFunc=$%x\n", @fooFunc)
   if p_module()=>diskops_newOrLoadGame()
     mapIs3D = q_mapIs3D
     mapNum = q_mapNum

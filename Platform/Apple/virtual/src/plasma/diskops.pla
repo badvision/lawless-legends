@@ -9,6 +9,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 include "gamelib.plh"
+include "globalDefs.plh"
 include "playtype.plh"
 include "diskops.plh"
 include "gen_modules.plh"
@@ -282,10 +283,6 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def _newOrLoadGame()
   byte key
-
-  printf1("testFunc=$%x\n", @testFunc)
-  printf1("fooFunc=$%x\n", @fooFunc)
-  brk()
 
   if !gameExists()
     newGame(); return 1

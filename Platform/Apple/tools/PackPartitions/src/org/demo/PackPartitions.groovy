@@ -1070,9 +1070,19 @@ class PackPartitions
             }
             else if (esdFlag == 0x08) {
                 assert name == "gameloop" : "Can only export from gameloop"
-                //println "Export 'esdName' at offset $esdNum."
-                def target = invDefs[esdNum]
-                assert target != null : "Can only export functions"
+                //println "Export '$esdName' at offset $esdNum."
+                def target
+                if (invDefs.containsKey(esdNum)) {
+                    //println "  ...in invDefs."
+                    target = invDefs[esdNum]
+                }
+                else {
+                    //println "  ...in asm or data."
+                    target = esdNum - 0x1000
+                    target -= asmCodeStart
+                    target += stubsSize   // account for the stubs we prepended to the asm code
+                }
+                //println "...final target: $target"
                 exports[esdName] = target
             }
             else
@@ -1113,8 +1123,7 @@ class PackPartitions
             //println String.format("...target=0x%04x", target)
             
             if (fixupType == 0x91) {  // external fixup
-                //println "external fixup: esdIndex=$esdIndex"
-                //println "imports=$imports is=${imports.containsKey(esdIndex)}"
+                //println "external fixup: esdIndex=$esdIndex target=$target"
                 def esdName = imports[esdIndex]
                 //println "esdName='$esdName'"
                 assert esdName != null : "failed to look up esdIndex $esdIndex"
@@ -1864,6 +1873,7 @@ class PackPartitions
                 out.println("// Generated code - DO NOT MODIFY BY HAND")
                 out.println()
                 out.println("include \"gamelib.plh\"")
+                out.println("include \"globalDefs.plh\"")
                 out.println("include \"playtype.plh\"")
                 out.println("include \"gen_images.plh\"")
                 out.println()
@@ -2126,6 +2136,7 @@ end
             out.println("// Generated code - DO NOT MODIFY BY HAND")
             out.println()
             out.println("include \"gamelib.plh\"")
+            out.println("include \"globalDefs.plh\"")
             out.println("include \"playtype.plh\"")
             out.println("include \"gen_items.plh\"")
             out.println()
@@ -2255,6 +2266,7 @@ end
             out.println("// Generated code - DO NOT MODIFY BY HAND")
             out.println()
             out.println("include \"gamelib.plh\"")
+            out.println("include \"globalDefs.plh\"")
             out.println("include \"playtype.plh\"")
             out.println("include \"gen_modules.plh\"")
             out.println("include \"gen_items.plh\"")
@@ -2587,6 +2599,7 @@ end
             out = new PrintWriter(new FileWriter(outFile))
             out << "// Generated code - DO NOT MODIFY BY HAND\n\n"
             out << "include \"../plasma/gamelib.plh\"\n"
+            out << "include \"../plasma/globalDefs.plh\"\n"
             out << "include \"../plasma/playtype.plh\"\n"
             out << "include \"../plasma/gen_images.plh\"\n\n"
             out << "word global\n"

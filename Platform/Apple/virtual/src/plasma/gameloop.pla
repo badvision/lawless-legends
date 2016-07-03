@@ -8,8 +8,6 @@
 // governing permissions and limitations under the License.
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-include "gamelib.plh"
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Fixed memory locations
 const seed          = $4E     // Incremented continuously by keyboard read routine
@@ -28,6 +26,7 @@ const ANIM_FLAG_RANDOM   = $80
 
 const ANIM_PAUSE_MAX = 300
 
+include "globalDefs.plh"
 include "playtype.plh"
 include "gen_images.plh"
 include "gen_modules.plh"
@@ -42,13 +41,14 @@ include "diskops.plh"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Data structures
+word fooStart
 include "playtype.pla"
 
 word global  // the global heap object, from which all live objects must be reachable
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Predefined functions, for circular calls or out-of-order calls
-predef setWindow2, initCmds, nextAnimFrame, checkEncounter, doCombat
+predef setWindow2, initCmds, nextAnimFrame, checkEncounter, doCombat, clearPortrait, showMapName
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Global variables
@@ -95,44 +95,9 @@ byte animNumFrames
 byte animFrame
 word animPauseCt
 
-// Game library functions
-predef _setScriptInfo, _scriptDisplayStr, _scriptDisplayStrNL, _getYN
-predef _queue_setMap, _setSky, _setGround, _queue_teleport, _setPortrait, _clearPortrait
-predef _moveWayBackward, _getUpperKey, _clearWindow, _setPortrait
-predef _getGlobals, _rand16
-predef _printf1, _printf2, _printf3
-predef _displayf1, _displayf2, _displayf3
-predef _buildString, _addToString, _finishString, _rawDisplayStr, _displayStr
-predef _puts, _min, _max
-predef _countList, _countListFiltered, _randomFromListFiltered, _addToList, _beep
-predef _showParty, _mmgr, _setWindow1, _setWindow2, _setWindow3
-predef _reboot, _brk, _encodeDice, _rollDice
-predef _setPlural, _getStringResponse, _streqi, _addEncounterZone, _fatal
-predef _pause, _tossStrings, _showMapName, _setMapWindow
-predef _makeModifier, _randomFromArray, _calcPlayerArmor, _diskActivity
-predef _rdkey, _initHeap, _scriptCombat
-
-word gameLib_addrs = @_setScriptInfo, @_scriptDisplayStr, @_scriptDisplayStrNL, @_getYN
-word = @_queue_setMap, @_setSky, @_setGround, @_queue_teleport, @_setPortrait, @_clearPortrait
-word = @_moveWayBackward, @_getUpperKey, @_clearWindow
-word = @_getGlobals, @_rand16
-word = @_printf1, @_printf2, @_printf3
-word = @_displayf1, @_displayf2, @_displayf3
-word = @_buildString, @_addToString, @_finishString, @_rawDisplayStr, @_displayStr
-word = @_puts, @_min, @_max
-word = @_countList, @_countListFiltered, @_randomFromListFiltered, @_addToList, @_beep
-word = @_showParty, @_mmgr, @_setWindow1, @_setWindow2, @_setWindow3
-word = @_reboot, @_brk, @_encodeDice, @_rollDice
-word = @_setPlural, @_getStringResponse, @_streqi, @_addEncounterZone, @_fatal
-word = @_pause, @_tossStrings, @_showMapName, @_setMapWindow
-word = @_makeModifier, @_randomFromArray, @_calcPlayerArmor, @_diskActivity
-word = @_rdkey, @_initHeap, @_scriptCombat
-
-word = 0  // end of library functions
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
-asm __defs
+asm _defs
 
 ; Use hi-bit ASCII for Apple II
 !convtab "../../include/hiBitAscii.ct"
@@ -165,7 +130,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Temporary hack: after scriptDisplayStr is called, generated code calls this to clear the PLASMA
 // string pool. That way, many long strings can be used in a single function.
-asm _tossStrings
+export asm tossStrings
         lda framePtr
         sta outerFramePtr
         lda framePtr+1
@@ -261,7 +226,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // String building for display with the font engine. Includes plurality processing to handily 
 // handle things like "Dirt bag(s)" and "his/their"
-asm _buildString
+export asm buildString
         +asmPlasm 1
         sta cswl
         sty cswh
@@ -270,7 +235,7 @@ asm _buildString
         rts
 end
 
-asm _addToString
+export asm addToString
         sty ysav1
         inc inbuf
         ldy inbuf
@@ -279,7 +244,7 @@ asm _addToString
         rts
 end
 
-asm _finishString
+export asm finishString
 !zone {
         +asmPlasm 1
         sta tmp     ; save isPlural flag
@@ -490,7 +455,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a string to the current character output vector
-asm _puts
+export asm puts
         +asmPlasm 1
         sta pTmp
         sty pTmp+1
@@ -509,7 +474,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Get a character from the keyboard
-asm _rdkey
+export asm rdkey
         +asmPlasm 0
         jmp rdkey
 end
@@ -577,7 +542,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Ring the bell
-asm _beep
+export asm beep
         +asmPlasm 0
         jmp bell
 end
@@ -605,7 +570,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Send a command to the memory manager
 // Params: cmd, wordParam
-asm _mmgr
+export asm mmgr
         +asmPlasm 2
         lda evalStkL+1,x        ; command code
         pha
@@ -636,7 +601,7 @@ end
 // Show or hide the disk activity icon (at the top of hi-res page 1). The icon consists of a 4x4
 // block of blue pixels surrounded by a black border.
 // Params: show/hide ($FF, or 0)
-asm _diskActivity
+export asm diskActivity
         +asmPlasm 1
         sta tmp                 ; save show(FF) / hide(0) flag
         ldx #0
@@ -673,7 +638,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Execute a monitor breakpoint
 // Params: None
-asm _brk
+export asm brk
         bit setText
         bit page1
         brk
@@ -683,7 +648,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Clear the screen and reboot the machine
 // Params: None
-asm _reboot
+export asm reboot
         bit setROM
         jsr home
         bit setText
@@ -734,7 +699,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Use the font engine to clear the current text window
 // Params: None
-asm _clearWindow
+export asm clearWindow
   +asmPlasm_bank2 0
   jmp ClearWindow
 end
@@ -758,7 +723,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display a string using the font engine.
 // Params: pStr
-asm _displayStr
+export asm displayStr
   +asmPlasm_bank2 1
   jmp DisplayStr
 end
@@ -774,7 +739,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display a string using the font engine but not its parser.
 // Params: pStr
-asm _rawDisplayStr
+export asm rawDisplayStr
   +asmPlasm_bank2 1
   sta pTmp
   sty pTmp+1
@@ -802,7 +767,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Random number generator
 // Adapted from http://codebase64.org/doku.php?id=base:small_fast_16-bit_prng
-asm _rand16
+export asm rand16
   +asmPlasm 0
 
   lda seed
@@ -846,26 +811,15 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // General methods
 
-// FOO
-export def testFunc()
-  puts("This is testFunc.\n")
-  brk()
-end
-
-export def fooFunc()
-  puts("This is foo\n")
-  brk()
-end
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Fatal error: print message and stop the system.
-def _fatal(msg)
+export def fatal(msg)
   mmgr(FATAL_ERROR, msg)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Return the max of two signed 16-bit numbers
-def _max(a, b)
+export def max(a, b)
   if a < b
     return b
   else
@@ -875,7 +829,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Return the min of two signed 16-bit numbers
-def _min(a, b)
+export def min(a, b)
   if a < b
     return a
   else
@@ -895,7 +849,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Read a string from the keyboard using the font manager, and intern it to the heap.
-def _getStringResponse()
+export def getStringResponse()
   word p
   rawGetStr()
   rawDisplayStr("\n") // so Outlaw user doesn't have to remember to make a newline
@@ -908,7 +862,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Setter functions for library use
-def _setPlural(flg)
+export def setPlural(flg)
   isPlural = flg
 end
 
@@ -931,7 +885,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a formatted string a'la C printf, with up to three parameters.
-def _printf3(str, arg1, arg2, arg3)
+export def printf3(str, arg1, arg2, arg3)
   word pos
   word curArg
   word p
@@ -962,18 +916,18 @@ def _printf3(str, arg1, arg2, arg3)
   loop
 end
 
-def _printf1(str, arg1); printf3(str, arg1, 0, 0); end
-def _printf2(str, arg1, arg2); printf3(str, arg1, arg2, 0); end
+export def printf1(str, arg1); printf3(str, arg1, 0, 0); end
+export def printf2(str, arg1, arg2); printf3(str, arg1, arg2, 0); end
 
 // Like printf, but displays text using font engine
-def _displayf3(str, arg1, arg2, arg3)
+export def displayf3(str, arg1, arg2, arg3)
   buildString(@addToString)
   printf3(str, arg1, arg2, arg3)
   displayStr(finishString(isPlural))
 end
 
-def _displayf1(str, arg1); displayf3(str, arg1, 0, 0); end
-def _displayf2(str, arg1, arg2); displayf3(str, arg1, arg2, 0); end
+export def displayf1(str, arg1); displayf3(str, arg1, 0, 0); end
+export def displayf2(str, arg1, arg2); displayf3(str, arg1, arg2, 0); end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def parseDec(str)
@@ -1019,7 +973,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Get a keystroke and convert it to upper case
-def _getUpperKey()
+export def getUpperKey()
   byte key
   while ^kbd < 128
     *seed = *seed + 1
@@ -1038,7 +992,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Pause for a specified count period, advancing the animation periodically.
-def _pause(count)
+export def pause(count)
   while count >= 0
     animPauseCt = animPauseCt - 1
     if animPauseCt < 0
@@ -1052,12 +1006,12 @@ def _pause(count)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _encodeDice(nDice, dieSize, add)  // ndice=0..15, dieSize=0..15, add=0..255
+export def encodeDice(nDice, dieSize, add)  // ndice=0..15, dieSize=0..15, add=0..255
   return (nDice << 12) | (dieSize << 8) | add
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _rollDice(encoded)
+export def rollDice(encoded)
   byte i, nDice, dieSize, add, result
   nDice = encoded >> 12
   dieSize = (encoded >> 8) & $F
@@ -1072,7 +1026,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set the sky color (relevant to 3D display only)
-def _setSky(num)
+export def setSky(num)
   skyNum = num
   setColor(0, skyNum)
   needRender = TRUE
@@ -1086,7 +1040,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set the ground color (relevant to 3D display only)
-def _setGround(num)
+export def setGround(num)
   groundNum = num
   setColor(1, groundNum)
   needRender = TRUE
@@ -1117,27 +1071,27 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the map name bar
-def _setWindow1()
+export def setWindow1()
   setWindow(8, 18, 35, 119) // Top, Bottom, Left, Right
   mapNameHash = 0  // on the assumption that it's being set because somebody's going to print there
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the large upper right bar
-def _setWindow2()
+export def setWindow2()
   displayChar('N'-$40) // Set normal mode - clear all special modes (like underline, etc.)
   setWindow(24, 132, 154, 269) // Top, Bottom, Left, Right
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the mid-size lower right bar
-def _setWindow3()
+export def setWindow3()
   setWindow(144, 180, 154, 269) // Top, Bottom, Left, Right
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the map area (used for clearing it)
-def _setMapWindow()
+export def setMapWindow()
   if frameLoaded == 3  // don't check mapIs3D, since we might be in an engine
     setWindow(24, 153, 14, 140) // Top, Bottom, Left, Right
   else
@@ -1186,7 +1140,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display the party data on the screen
-def _showParty()
+export def showParty()
   word p
 
   saveCursor()
@@ -1319,7 +1273,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display a portrait drawing (typically called from scripts)
-def _clearPortrait()
+export def clearPortrait()
   if curPortrait
     auxMmgr(FREE_MEMORY, curPortrait)
     curPortrait = 0
@@ -1392,7 +1346,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Move backward four steps (3D mode), or one step (2D mode)
-def _moveWayBackward()
+export def moveWayBackward()
   adjustDir(8)
   moveForward()
   if mapIs3D
@@ -1548,7 +1502,7 @@ def showPos()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _queue_setMap(is3D, num, x, y, dir)
+export def queue_setMap(is3D, num, x, y, dir)
   q_mapIs3D = is3D
   q_mapNum = num
   q_x = x
@@ -1557,7 +1511,7 @@ def _queue_setMap(is3D, num, x, y, dir)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _queue_teleport(x, y, dir)
+export def queue_teleport(x, y, dir)
   queue_setMap(mapIs3D, mapNum, x, y, dir)
 end
 
@@ -1591,7 +1545,7 @@ def kbdLoop()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _showMapName(mapName)
+export def showMapName(mapName)
   word newNameHash
 
   newNameHash = hashString(mapName)
@@ -1609,7 +1563,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set initial info for the scripts on this map: the name of the map, its trigger table, and the
 // maximum extent (width, height). This is called by the init function for the scripts.
-def _setScriptInfo(mapName, trigTbl, wdt, hgt)
+export def setScriptInfo(mapName, trigTbl, wdt, hgt)
 
   // Grab the trigger table origins (used so the table can be more compact)
   triggerOriginX = trigTbl=>0
@@ -1635,21 +1589,21 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Called by scripts to display a string. We set the flag noting that something has been
 // displayed, then use an assembly routine to do the work.
-def _scriptDisplayStr(str)
+export def scriptDisplayStr(str)
   textDrawn = TRUE
   flipToPage1()
   displayStr(str)
   tossStrings()
 end
 
-def _scriptDisplayStrNL(str)
+export def scriptDisplayStrNL(str)
   scriptDisplayStr(str)
   displayStr("\n")
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Get a key, and don't return until it's Y or N (or lower-case of those). Returns 1 for Y.
-def _getYN()
+export def getYN()
   byte key
   while TRUE
     key = getUpperKey()
@@ -1738,7 +1692,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display a portrait drawing (typically called from scripts)
-def _setPortrait(portraitNum)
+export def setPortrait(portraitNum)
   word srcData
   byte cx, cy
 
@@ -1802,7 +1756,7 @@ def prevPortrait()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _countList(p)
+export def countList(p)
   byte n
   n = 0
   while p
@@ -1813,7 +1767,7 @@ def _countList(p)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _countListFiltered(p, offset, filterFunc)
+export def countListFiltered(p, offset, filterFunc)
   byte n
   n = 0
   while p
@@ -1826,7 +1780,7 @@ def _countListFiltered(p, offset, filterFunc)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _randomFromListFiltered(p, offset, filterFunc)
+export def randomFromListFiltered(p, offset, filterFunc)
   byte n
   n = rand16() % countListFiltered(p, offset, filterFunc)
   while p
@@ -1841,7 +1795,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Call like this: addToList(@player=>p_items, itemToAdd)
-def _addToList(addTo, p)
+export def addToList(addTo, p)
   // Get to the end of the list
   while *addTo
     addTo = (*addTo) + p_nextObj
@@ -1852,7 +1806,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Call like this: removeFromList(@player=>items, itemToRemove)
-def _removeFromList(pList, toRemove)
+export def removeFromList(pList, toRemove)
   word p
 
   p = *pList
@@ -1920,7 +1874,7 @@ def showPlayer3()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _addEncounterZone(code, x, y, dist, chance)
+export def addEncounterZone(code, x, y, dist, chance)
   word p; p = mmgr(HEAP_ALLOC, TYPE_ENCOUNTER_ZONE)
   p=>s_name = mmgr(HEAP_INTERN, code)
   p=>w_encX = x
@@ -1932,7 +1886,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Compare two strings for equality, ignoring case.
-def _streqi(a, b)
+export def streqi(a, b)
   word limit, leneq
   leneq = ^a == ^b
   limit = a + min(^a, ^b)
@@ -1946,7 +1900,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Called by user-defined map scripts to initiate a combat encounter.
-def _scriptCombat(mapCode)
+export def scriptCombat(mapCode)
   word pScripts
   word result
 
@@ -2154,7 +2108,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set up the small-object heap. Set loadedSize to zero on initial, or non-zero for loaded game.
-def _initHeap(loadedSize)
+export def initHeap(loadedSize)
   byte i
 
   if !heapLocked
@@ -2181,41 +2135,19 @@ def _initHeap(loadedSize)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _getGlobals()
+export def getGlobals()
   return global
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Set up the library vectors so we can share the library routines
-def setLibVecs()
-  word sp, dp
-
-  // We're going to put the vectors at a known location, and lock that space
-  _mmgr(SET_MEM_TARGET, gameLibVecs)
-  _mmgr(REQUEST_MEMORY, $100)
-  _mmgr(LOCK_MEMORY,    gameLibVecs)
-
-  // Now set up the jump vectors
-  sp = @gameLib_addrs
-  dp = gameLibVecs
-  while *sp
-    dp->0 = $4c
-    dp=>1 = *sp
-    sp = sp + 2
-    dp = dp + 3
-  loop
-
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Return a random entry from an array, given its size in number of elements.
-def _randomFromArray(arr, siz)
+export def randomFromArray(arr, siz)
   return *(((rand16() % siz) << 1) + arr)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Constructor: create a modifier given its name and value
-def _makeModifier(name, value)
+export def makeModifier(name, value)
   word p; p = mmgr(HEAP_ALLOC, TYPE_MODIFIER)
   p=>s_name = mmgr(HEAP_INTERN, name)
   p=>w_modValue = value
@@ -2224,7 +2156,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Recalculate player's armor score based on their currently equipped armor
-def _calcPlayerArmor(player)
+export def calcPlayerArmor(player)
   word pItem
   player->b_armor = 0
   pItem = player=>p_items
@@ -2244,8 +2176,6 @@ def startGame()
   mmgr(START_LOAD, 1) // code is in partition 1
   p_module = mmgr(QUEUE_LOAD, MODULE_DISKOPS<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, LEAVE_OPEN)
-  printf1("Outer testFunc=$%x\n", @testFunc)
-  printf1("Outer fooFunc=$%x\n", @fooFunc)
   if p_module()=>diskops_newOrLoadGame()
     mapIs3D = q_mapIs3D
     mapNum = q_mapNum
@@ -2260,7 +2190,6 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Main code.
 //
-setLibVecs()
 loadTitle()
 startGame()
 kbdLoop()

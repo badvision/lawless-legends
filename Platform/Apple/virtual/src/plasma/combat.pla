@@ -9,6 +9,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 include "gamelib.plh"
+include "globalDefs.plh"
 include "playtype.plh"
 include "gen_images.plh"
 include "gen_enemies.plh"

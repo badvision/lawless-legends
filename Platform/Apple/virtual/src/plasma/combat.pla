@@ -513,6 +513,7 @@ def _combat_zoneEncounter(s_encZone)
   answer = startCombat(s_encZone)
   if answer == 99
     global=>p_enemyGroups = NULL // results in no living enemies, or "win"
+    nEnemiesFighting = 0
   elsif !answer
     isFleeing = TRUE
   fin

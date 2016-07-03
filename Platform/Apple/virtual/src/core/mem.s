@@ -384,12 +384,36 @@ init: !zone
 	lda #QUEUE_LOAD
 	jsr main_dispatch
 	stx .gomod+1
+	txa
+	pha			; save addr for scanning later
 	sty .gomod+2
+	tya
+	pha
 	lda #LOCK_MEMORY	; lock it in forever
 	jsr main_dispatch
 	ldx #1			; keep open for efficiency's sake
 	lda #FINISH_LOAD
 	jsr main_dispatch
+; find the end of the stubs in the first module
+	pla			; hi byte
+	sta pTmp+1
+	pla			; lo byte
+	sta pTmp
+	ldy #0
+-	lda (pTmp),y
+	cmp #$20		; look for first non-JSR
+	bne +
+	lda pTmp
+	clc
+	adc #5			; not found, advance by 5 bytes (size of one stub)
+	sta pTmp
+	bcc -
+	inc pTmp+1
+	bne -
++	lda pTmp		; store the result
+	sta glibBase
+	lda pTmp+1
+	sta glibBase+1
 	ldx #$10		; initial eval stack index
 .gomod:	jmp $1111		; jump to module for further bootstrapping
 
@@ -2769,49 +2793,58 @@ doAllFixups: !zone
 
 	; Process the fixups
 .proc	jsr .fetchFixup		; get key byte
-	tax			; save it aside, and also check the hi bit
-	bmi .fxAux		; yes, it's aux mem fixup
-.fxMain	jsr .fetchFixup		; get the lo byte of the offset
+	pha			; save it aside
+	ldx #0			; normal mode
+	asl			; get hi bit
+	bcc +			; 0=normal, 1=glib
+	ldx #4			; glib mode - use glib base addr instead of main addr
++	asl			; check second-to-hi bit, which indicates main=0 or aux=1
+	bcs .fxAux		; yes, it's aux mem fixup
+.fxMain	jsr .fetchFixup		; get the lo byte of the offset (and set y to 0)
 	clc
 	adc .mainBase
 	sta pDst
-	txa
+	pla
+	and #$3F		; mask off the flags
 	adc .mainBase+1
 	sta pDst+1
 	!if DEBUG >= 2 { jsr .debug2 }
 	clc
 	jsr .adMain		; recalc and store lo byte
 	iny
+	inx
 	jsr .adMain		; recalc and store hi byte
 	bne .proc		; always taken
 .adMain	lda (pDst),y		; get num to add to offset
-	adc .mainBase,y		; add the offset
+	adc .mainBase,x		; add the offset
 	sta (pDst),y		; *STORE* back the result
 	rts
-.fxAux	cmp #$FF		; end of fixups?
+.fxAux	cmp #$FC		; end of fixups? ($FF shifted up two bits)
 	beq .stubs		; if so, go do the stubs
-	jsr .fetchFixup		; get lo byte of offset
+	jsr .fetchFixup		; get lo byte of offset (and set y to 0)
 	clc
 	adc .auxBase
 	sta pDst
-	txa
-	and #$7F		; mask off the hi bit flag
+	pla
+	and #$3F		; mask off the flags
 	adc .auxBase+1
 	sta pDst+1
 	!if DEBUG >= 2 { jsr .debug3 }
 	sta setAuxWr
 	jsr .adAux		; recalc and store lo byte
 	iny
+	inx
 	jsr .adAux		; recalc and store hi byte
 	sta clrAuxWr
 	bne .proc		; always taken
 .adAux	sta setAuxRd
 	lda (pDst),y		; get num to add to offset
 	sta clrAuxRd
-	adc .mainBase,y		; add the offset
+	adc .mainBase,x		; add the offset
 	sta (pDst),y		; *STORE* back the result
 	rts
 .stubs	; fix up the stubs
+	pla			; discard saved value
 	lda .mainBase
 	sta pDst
 	lda .mainBase+1
@@ -2885,6 +2918,7 @@ doAllFixups: !zone
 }
 .mainBase !word 0
 .auxBase  !word 0
+glibBase  !word $1111
 
 ;------------------------------------------------------------------------------
 ; Segment tables

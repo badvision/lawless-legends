@@ -311,7 +311,7 @@ LOAD_SCRIPTS_NO_CALC:
 	RTS
 .got	CMP SCRIPTS_ID
 	BNE .diff
-	+finishLoad 0   	; all done
+	+finishLoad 1   	; all done
 	RTS
 .diff	STA SCRIPTS_ID
 	PHA
@@ -330,7 +330,7 @@ LOAD_SCRIPTS_NO_CALC:
 }
 	STX SCRIPTS_LOC
 	STY SCRIPTS_LOC+1
-	+finishLoad 0   	; all done
+	+finishLoad 1   	; all done
 !if DEBUG { +prStr : !text "Calling init script.",0 }
 	LDX PLASMA_X
 	JSR .callit		; perform script init

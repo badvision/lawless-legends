@@ -38,6 +38,8 @@ include "combat.plh"
 include "party.plh"
 include "diskops.plh"
 
+// NOTE: GLIB goes here!
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Data structures
 include "playtype.pla"
@@ -1474,6 +1476,7 @@ def setMap(is3D, num, x, y, dir)
     needRender = TRUE
   else
     flipToPage1()
+    mmgr(FINISH_LOAD, WITH_CLOSE)
     showMapName("Traveling...")
     setMapWindow(); clearWindow()    
     setWindow2();   clearWindow()
@@ -1876,6 +1879,7 @@ def loadEngine(moduleNum)
   saveMapPos()
   flipToPage1()
   diskActivity($FF)
+  mmgr(FINISH_LOAD, WITH_CLOSE)
   mmgr(RESET_MEMORY, 0)
   renderLoaded = FALSE
   mapIs3D = FALSE

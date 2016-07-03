@@ -1044,7 +1044,8 @@ class PackPartitions
         def newFixup = []
         dp = 0
         while (fixup[sp] != 0) {
-            assert (fixup[sp++] & 0xFF) == 0x81 // We can only handle WORD sized INTERN fixups
+            def fixupType = fixup[sp++] & 0xFF
+            assert fixupType == 0x81 || fixupType == 0x91 // We can only handle WORD sized INTERN or EXTERN fixups
             def addr = fixup[sp++] & 0xFF
             addr |= (fixup[sp++] & 0xFF) << 8
             
@@ -1063,24 +1064,31 @@ class PackPartitions
             def target = (codeBuf[addr] & 0xFF) | ((codeBuf[addr+1] & 0xFF) << 8)
             //println String.format("...target=0x%04x", target)
             
-            if (invDefs.containsKey(target)) {
+            if (fixupType == 0x91) {  // external fixup
+                // don't modify target addr
+            }
+            else if (invDefs.containsKey(target)) {
                 target = invDefs[target]
                 //println String.format("...translated to def offset 0x%04x", target)
+                assert target >= 5 && target < newAsmCode.length
             }
             else {
                 target -= 0x1000
                 target -= asmCodeStart
                 target += stubsSize   // account for the stubs we prepended to the asm code
                 //println String.format("...adjusted to target offset 0x%04x", target)
+                assert target >= 5 && target < newAsmCode.length
             }
-            assert target >= 5 && target < newAsmCode.length
             
             // Put the adjusted target back in the code
             codeBuf[addr] = (byte)(target & 0xFF)
             codeBuf[addr+1] = (byte)((target >> 8) & 0xFF)
             
             // And record the fixup
-            newFixup.add((byte)((addr>>8) & 0xFF) | (inByteCode ? 0x80 : 0))
+            assert addr >= 0 && addr <= 0x3FFF : "code module too big"
+            newFixup.add((byte)((addr>>8) & 0x3F) | 
+                                (inByteCode ? 0x40 : 0) | 
+                                ((fixupType == 0x91) ? 0x80 : 0))
             newFixup.add((byte)(addr & 0xFF))
             assert fixup[sp++] == 0  // not sure what the zero byte is
         }

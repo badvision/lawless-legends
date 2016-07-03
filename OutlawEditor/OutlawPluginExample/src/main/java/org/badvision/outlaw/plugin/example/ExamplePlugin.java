@@ -1,6 +1,7 @@
 package org.badvision.outlaw.plugin.example;
 
 import javafx.event.ActionEvent;
+import javax.xml.bind.JAXB;
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Deactivate;
@@ -12,7 +13,10 @@ import org.osgi.framework.BundleContext;
 
 
 /**
- * This 
+ * This registers a simple plugin that does nothing more than print a message
+ * to the console when executed.  However, this plugin also demonstrates how
+ * to inject dependencies to more useful features, specifically the ApplicationState
+ * which in turn provides all game data, etc.
  * @author blurry
  */
 @Component(immediate = true)
@@ -47,6 +51,7 @@ public class ExamplePlugin implements MenuAction {
     @Override
     public void handle(ActionEvent event) {
         System.out.println("Clicked!");
+        JAXB.marshal(ApplicationState.getInstance().getGameData(), System.out);
         checkReferences();
     }
 

@@ -1,0 +1,68 @@
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Copyright (C) 2016 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1 
+// (the "License"); you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-1.1>.
+// Unless required by applicable law or agreed to in writing, software distributed under 
+// the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF 
+// ANY KIND, either express or implied. See the License for the specific language 
+// governing permissions and limitations under the License.
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Handy constants.
+const FALSE = 0
+const TRUE  = 1
+const NULL  = 0
+const INT_MAX = 32767
+const INT_MIN = -32768
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// IO locations
+const kbd       = $C000
+const kbdStrobe = $C010
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Memory manager definitions
+
+// Resource types
+const RES_TYPE_CODE     = 1
+const RES_TYPE_2D_MAP   = 2
+const RES_TYPE_3D_MAP   = 3
+const RES_TYPE_TILE     = 4
+const RES_TYPE_TEXTURE  = 5
+const RES_TYPE_SCREEN   = 6
+const RES_TYPE_FONT     = 7
+const RES_TYPE_MODULE   = 8
+const RES_TYPE_BYTECODE = 9
+const RES_TYPE_FIXUP    = 10
+const RES_TYPE_PORTRAIT = 11
+
+// Command codes
+const RESET_MEMORY   = $10
+const REQUEST_MEMORY = $11
+const LOCK_MEMORY    = $12
+const UNLOCK_MEMORY  = $13
+const SET_MEM_TARGET = $14
+const START_LOAD     = $15
+const QUEUE_LOAD     = $16
+const FINISH_LOAD    = $17
+const FREE_MEMORY    = $18
+const CALC_FREE      = $19
+const DEBUG_MEM      = $1A
+const CHECK_MEM      = $1B
+const CHAIN_LOADER   = $1E
+const FATAL_ERROR    = $1F
+const HEAP_SET       = $20
+const HEAP_ADD_TYPE  = $21
+const HEAP_ALLOC     = $22
+const HEAP_INTERN    = $23
+const HEAP_COLLECT   = $24
+
+// Constants for FINISH_LOAD
+const WITH_CLOSE     = 0
+const LEAVE_OPEN     = 1
+
+// Heap location in memory
+const HEAP_BOTTOM    = $F000
+const HEAP_SIZE      = $800
+

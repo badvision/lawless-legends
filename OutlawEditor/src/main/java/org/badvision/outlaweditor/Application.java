@@ -11,71 +11,98 @@ package org.badvision.outlaweditor;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
-import javafx.scene.canvas.Canvas;
 import javafx.scene.layout.AnchorPane;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import org.apache.felix.framework.Felix;
+import org.apache.felix.framework.util.FelixConstants;
 import org.apache.felix.main.AutoProcessor;
 import org.apache.felix.scr.annotations.Component;
+import org.apache.felix.scr.annotations.Service;
+import org.apache.felix.scr.impl.Activator;
 import org.badvision.outlaweditor.api.ApplicationState;
+import org.badvision.outlaweditor.api.MenuAction;
 import org.badvision.outlaweditor.api.Platform;
 import org.badvision.outlaweditor.data.xml.GameData;
 import org.badvision.outlaweditor.ui.ApplicationUIController;
+import org.osgi.framework.BundleActivator;
+import org.osgi.framework.BundleContext;
 import org.osgi.framework.BundleException;
+import org.osgi.framework.ServiceEvent;
+import org.osgi.framework.launch.Framework;
+import org.osgi.util.tracker.ServiceTracker;
 
 /**
  *
  * @author brobert
  */
-@Component(name = "org.badvision.outlaweditor.api.ApplicationState")
-public class Application extends javafx.application.Application implements ApplicationState {
+@Component
+@Service(org.badvision.outlaweditor.api.ApplicationState.class)
+public class Application extends javafx.application.Application implements ApplicationState, BundleActivator {
 
-    public static GameData gameData = new GameData();
-    public static Platform currentPlatform = Platform.AppleII;
-    static Application instance;
-
-    public static Application getInstance() {
-        return instance;
-    }
+    public static Framework felix;
+    private GameData gameData = new GameData();
+    private Platform currentPlatform = Platform.AppleII;
+    private ApplicationUIController controller;
+    private Stage primaryStage;
 
     public static void shutdown() {
         try {
-            instance.pluginContainer.stop();
-            instance.pluginContainer.waitForStop(0L);
+            felix.stop();
+            felix.waitForStop(0L);
         } catch (BundleException | InterruptedException ex) {
             Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 
-    private ApplicationUIController controller;
-    private Felix pluginContainer;
+    @Override
+    public GameData getGameData() {
+        return gameData;
+    }
 
+    @Override
+    public ApplicationUIController getApplicationUI() {
+        return controller;
+    }
+
+    @Override
+    public Platform getCurrentPlatform() {
+        return currentPlatform;
+    }
+
+    @Override
+    public void setGameData(GameData newData) {
+        gameData = newData;
+    }
+
+    @Override
+    public void setCurrentPlatform(Platform newPlatform) {
+        currentPlatform = newPlatform;
+    }
+
+    @Override
     public ApplicationUIController getController() {
         return controller;
     }
 
-    public Stage primaryStage;
-
-    public static Stage getPrimaryStage() {
-        return instance.primaryStage;
+    @Override
+    public Stage getPrimaryStage() {
+        return primaryStage;
     }
 
     @Override
     public void start(Stage primaryStage) {
-        instance = this;
         this.primaryStage = primaryStage;
         javafx.application.Platform.setImplicitExit(true);
 
         try {
             startPluginContainer();
-        } catch (BundleException ex) {
+        } catch (Exception ex) {
             Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
             throw new RuntimeException(ex);
         }
@@ -96,7 +123,6 @@ public class Application extends javafx.application.Application implements Appli
         });
         primaryStage.show();
     }
-    Canvas tilePreview;
 
     /**
      * The main() method is ignored in correctly deployed JavaFX application.
@@ -110,35 +136,36 @@ public class Application extends javafx.application.Application implements Appli
         launch(args);
     }
 
-    private void startPluginContainer() throws BundleException {
-        Map<String, String> pluginConfiguration = new HashMap<>();
-        pluginConfiguration.put("felix.cache.locking", "false");
-        pluginConfiguration.put("felix.auto.deploy.action", "install,start");
-        pluginConfiguration.put("felix.auto.deploy.dir", "install");
-        pluginConfiguration.put("org.osgi.framework.system.packages.extra", 
-                "org.badvision.outlaweditor.api,"
-                        + "org.badvision.outlaweditor.data,"
-                        + "org.badvision.outlaweditor.data.xml,"
-                        + "org.badvision.outlaweditor.ui,"
-                        + "org.osgi.framework");
-        pluginContainer = new Felix(pluginConfiguration);
-        pluginContainer.start();
-        pluginContainer.getBundleContext().registerService(ApplicationState.class, this, new Hashtable<>());
-        AutoProcessor.process(pluginConfiguration, pluginContainer.getBundleContext());
+    ServiceTracker tracker;
+    private void startPluginContainer() throws BundleException, Exception {
+        Map<String, String> config = new HashMap<>();
+        config.put(FelixConstants.ACTIVATION_LAZY, "false");
+        config.put("felix.cache.locking", "false");
+        config.put("felix.auto.deploy.dir", "install");
+        config.put("felix.auto.deploy.action", "install,start");
+        config.put("org.osgi.framework.system.packages.extra",
+                "javafx.event,"
+                + "org.badvision.outlaweditor.api,"
+                + "org.badvision.outlaweditor.data,"
+                + "org.badvision.outlaweditor.data.xml,"
+                + "org.badvision.outlaweditor.ui,"
+                + "org.osgi.framework");
+        felix = new Felix(config);
+        felix.start();
+        felix.getBundleContext().registerService(ApplicationState.class, this, null);
+        tracker = new ServiceTracker(felix.getBundleContext(), MenuAction.class, null);
+        tracker.open();
+        Activator scrActivator = new Activator();
+        scrActivator.start(felix.getBundleContext());
+        AutoProcessor.process(config, felix.getBundleContext());
+    }
+    
+    @Override
+    public void start(BundleContext bc) throws Exception {
+        launch();
     }
 
     @Override
-    public GameData getGameData() {
-        return gameData;
-    }
-
-    @Override
-    public ApplicationUIController getApplicationUI() {
-        return controller;
-    }
-
-    @Override
-    public Platform getCurrentPlatform() {
-        return currentPlatform;
+    public void stop(BundleContext bc) throws Exception {
     }
 }

@@ -22,6 +22,7 @@ import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
 import javax.xml.bind.JAXBElement;
 import org.badvision.outlaweditor.Application;
+import org.badvision.outlaweditor.api.ApplicationState;
 import org.badvision.outlaweditor.api.Platform;
 import org.badvision.outlaweditor.data.xml.Map;
 import org.badvision.outlaweditor.data.xml.Map.Chunk;
@@ -89,7 +90,7 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
             });
         }
         locationScripts.remove(loc);
-        Application.getInstance().getController().redrawScripts();
+        ApplicationState.getInstance().getController().redrawScripts();
     }
 
     private void registerLocationScript(int x, int y, Script s) {
@@ -104,7 +105,7 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
             locationScripts.put(loc, list);
         }
         list.add(s);
-        Application.getInstance().getController().redrawScripts();
+        ApplicationState.getInstance().getController().redrawScripts();
     }
 
     private int getMortonNumber(int x, int y) {
@@ -195,7 +196,7 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
                         if (t == null) {
                             t = new Tile();
                             unknownTiles.add(t);
-                            Platform p = Application.currentPlatform;
+                            Platform p = ApplicationState.getInstance().getCurrentPlatform();
                             WritableImage img = UIAction.getBadImage(p.tileRenderer.getWidth(), p.tileRenderer.getHeight());
                             TileUtils.setImage(t, p, img);
                         }

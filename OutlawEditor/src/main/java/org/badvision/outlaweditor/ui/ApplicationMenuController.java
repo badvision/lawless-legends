@@ -12,6 +12,7 @@ package org.badvision.outlaweditor.ui;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.scene.control.Menu;
 
 /**
  *
@@ -19,6 +20,9 @@ import javafx.fxml.FXML;
  */
 public abstract class ApplicationMenuController {
 
+    @FXML
+    protected Menu extraMenu;
+    
     @FXML
     abstract public void onChangePlatformAppleDHGRSolid(ActionEvent event);
 
@@ -60,5 +64,6 @@ public abstract class ApplicationMenuController {
 
     @FXML
     abstract public void performUndo(ActionEvent event);    
-    
+
+    abstract public void initalize();
 }

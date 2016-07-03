@@ -15,7 +15,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import org.badvision.outlaweditor.Application;
+import org.badvision.outlaweditor.api.ApplicationState;
 import org.badvision.outlaweditor.data.xml.Field;
 import org.badvision.outlaweditor.data.xml.Global;
 import org.badvision.outlaweditor.data.xml.Map;
@@ -28,8 +28,8 @@ public class DataUtilities {
     }
 
     public static void ensureGlobalExists() {
-        if (Application.gameData.getGlobal() == null) {
-            Application.gameData.setGlobal(new Global());
+        if (ApplicationState.getInstance().getGameData().getGlobal() == null) {
+            ApplicationState.getInstance().getGameData().setGlobal(new Global());
         }
     }
 
@@ -101,8 +101,8 @@ public class DataUtilities {
     }
     
     public static void cleanupAllScriptNames() {
-        cleanupScriptNames(Application.gameData.getGlobal());
-        Application.gameData.getMap().forEach(DataUtilities::cleanupScriptNames);
+        cleanupScriptNames(ApplicationState.getInstance().getGameData().getGlobal());
+        ApplicationState.getInstance().getGameData().getMap().forEach(DataUtilities::cleanupScriptNames);
     }
 
     //------------------------------ String comparators

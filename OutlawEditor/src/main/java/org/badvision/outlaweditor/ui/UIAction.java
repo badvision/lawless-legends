@@ -62,10 +62,10 @@ import javafx.util.Duration;
 import javafx.util.converter.DefaultStringConverter;
 import javax.xml.bind.JAXB;
 import org.badvision.outlaweditor.Application;
-import static org.badvision.outlaweditor.Application.currentPlatform;
 import org.badvision.outlaweditor.FileUtils;
 import org.badvision.outlaweditor.MythosEditor;
 import org.badvision.outlaweditor.SheetEditor;
+import org.badvision.outlaweditor.api.ApplicationState;
 import org.badvision.outlaweditor.apple.ImageDitherEngine;
 import org.badvision.outlaweditor.data.DataUtilities;
 import org.badvision.outlaweditor.data.TileUtils;
@@ -131,7 +131,7 @@ public class UIAction {
                 GameData newData = JAXB.unmarshal(currentSaveFile, GameData.class);
                 ApplicationUIController.getController().clearData();
                 TilesetUtils.clear();
-                Application.gameData = newData;
+                ApplicationState.getInstance().setGameData(newData);
                 DataUtilities.ensureGlobalExists();
                 DataUtilities.cleanupAllScriptNames();
                 ApplicationUIController.getController().updateSelectors();
@@ -151,7 +151,7 @@ public class UIAction {
                 }
                 if (currentSaveFile != null) {
                     currentSaveFile.delete();
-                    JAXB.marshal(Application.gameData, currentSaveFile);
+                    JAXB.marshal(ApplicationState.getInstance().getGameData(), currentSaveFile);
                 }
                 break;
         }
@@ -299,10 +299,10 @@ public class UIAction {
     public static void createAndEditUserType() throws IntrospectionException {
         UserType type = new UserType();
         if (editAndGetUserType(type).isPresent()) {
-            if (Application.gameData.getGlobal().getUserTypes() == null) {
-                Application.gameData.getGlobal().setUserTypes(new Global.UserTypes());
+            if (ApplicationState.getInstance().getGameData().getGlobal().getUserTypes() == null) {
+                ApplicationState.getInstance().getGameData().getGlobal().setUserTypes(new Global.UserTypes());
             }
-            Application.gameData.getGlobal().getUserTypes().getUserType().add(type);
+            ApplicationState.getInstance().getGameData().getGlobal().getUserTypes().getUserType().add(type);
         }
     }
 
@@ -345,10 +345,10 @@ public class UIAction {
     public static Sheet createAndEditSheet() throws IntrospectionException {
         Sheet sheet = new Sheet();
         sheet.setName("New Sheet");
-        if (Application.gameData.getGlobal().getSheets() == null) {
-            Application.gameData.getGlobal().setSheets(new Global.Sheets());
+        if (ApplicationState.getInstance().getGameData().getGlobal().getSheets() == null) {
+            ApplicationState.getInstance().getGameData().getGlobal().setSheets(new Global.Sheets());
         }
-        Application.gameData.getGlobal().getSheets().getSheet().add(sheet);
+        ApplicationState.getInstance().getGameData().getGlobal().getSheets().getSheet().add(sheet);
         return editSheet(sheet);
     }
 
@@ -392,10 +392,10 @@ public class UIAction {
         }
         currentTileSelector = new AnchorPane();
 
-        int TILE_WIDTH = Application.currentPlatform.tileRenderer.getWidth();
-        int TILE_HEIGHT = Application.currentPlatform.tileRenderer.getHeight();
+        int TILE_WIDTH = ApplicationState.getInstance().getCurrentPlatform().tileRenderer.getWidth();
+        int TILE_HEIGHT = ApplicationState.getInstance().getCurrentPlatform().tileRenderer.getHeight();
 
-        List<Tile> tiles = Application.gameData.getTile().stream().filter((Tile t) -> {
+        List<Tile> tiles = ApplicationState.getInstance().getGameData().getTile().stream().filter((Tile t) -> {
             return category == null || t.getCategory().equals(category);
         }).collect(Collectors.toList());
 
@@ -406,7 +406,7 @@ public class UIAction {
         currentTileSelector.setPrefHeight(Math.min(numRows * (TILE_HEIGHT + GRID_SPACING) + GRID_SPACING, prefWidth));
         for (int i = 0; i < tiles.size(); i++) {
             final Tile tile = tiles.get(i);
-            ImageView tileIcon = new ImageView(TileUtils.getImage(tile, currentPlatform));
+            ImageView tileIcon = new ImageView(TileUtils.getImage(tile, ApplicationState.getInstance().getCurrentPlatform()));
             currentTileSelector.getChildren().add(tileIcon);
             tileIcon.setOnMouseClicked((e) -> {
                 e.consume();
@@ -442,8 +442,8 @@ public class UIAction {
                                 null)));
         currentTileSelector.setEffect(new DropShadow(5.0, 1.0, 1.0, Color.BLACK));
         anchorPane.getChildren().add(currentTileSelector);
-        Application.getPrimaryStage().getScene().addEventHandler(KeyEvent.KEY_PRESSED, cancelTileSelectKeyHandler);
-        Application.getPrimaryStage().getScene().addEventFilter(MouseEvent.MOUSE_PRESSED, cancelTileSelectMouseHandler);
+        ApplicationState.getInstance().getPrimaryStage().getScene().addEventHandler(KeyEvent.KEY_PRESSED, cancelTileSelectKeyHandler);
+        ApplicationState.getInstance().getPrimaryStage().getScene().addEventFilter(MouseEvent.MOUSE_PRESSED, cancelTileSelectMouseHandler);
     }
 
     private static final EventHandler<MouseEvent> cancelTileSelectMouseHandler = (MouseEvent e) -> {
@@ -460,8 +460,8 @@ public class UIAction {
     };
 
     public static void closeCurrentTileSelector() {
-        Application.getPrimaryStage().getScene().removeEventHandler(KeyEvent.KEY_PRESSED, cancelTileSelectKeyHandler);
-        Application.getPrimaryStage().getScene().removeEventFilter(MouseEvent.MOUSE_PRESSED, cancelTileSelectMouseHandler);
+        ApplicationState.getInstance().getPrimaryStage().getScene().removeEventHandler(KeyEvent.KEY_PRESSED, cancelTileSelectKeyHandler);
+        ApplicationState.getInstance().getPrimaryStage().getScene().removeEventFilter(MouseEvent.MOUSE_PRESSED, cancelTileSelectMouseHandler);
 
         fadeOut(currentTileSelector, (ActionEvent ev) -> {
             if (currentTileSelector != null) {

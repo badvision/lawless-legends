@@ -11,6 +11,8 @@
 package org.badvision.outlaweditor;
 
 import javafx.scene.layout.Pane;
+import org.badvision.outlaweditor.api.ApplicationState;
+import org.badvision.outlaweditor.data.xml.GameData;
 import org.badvision.outlaweditor.data.xml.Global;
 import org.badvision.outlaweditor.data.xml.Script;
 import org.badvision.outlaweditor.data.xml.Scripts;
@@ -19,17 +21,18 @@ public class GlobalEditor extends Editor<Global, Void>{
 
     @Override
     public void addScript(Script script) {
-        Scripts scripts = Application.gameData.getGlobal().getScripts();
+        GameData gameData = getGameData();
+        Scripts scripts = gameData.getGlobal().getScripts();
         if (scripts == null) {
-            Application.gameData.getGlobal().setScripts(new Scripts());
-            scripts = Application.gameData.getGlobal().getScripts();
+            gameData.getGlobal().setScripts(new Scripts());
+            scripts = gameData.getGlobal().getScripts();
         }
         scripts.getScript().add(script);
     }
     
 
     public void removeScript(Script script) {
-        Scripts scripts = Application.gameData.getGlobal().getScripts();
+        Scripts scripts = getGameData().getGlobal().getScripts();
         scripts.getScript().remove(script);
     }    
 
@@ -81,6 +84,10 @@ public class GlobalEditor extends Editor<Global, Void>{
     @Override
     public void observedObjectChanged(Global object) {
         throw new UnsupportedOperationException("Not supported."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    private GameData getGameData() {
+        return ApplicationState.getInstance().getGameData();
     }
     
 }

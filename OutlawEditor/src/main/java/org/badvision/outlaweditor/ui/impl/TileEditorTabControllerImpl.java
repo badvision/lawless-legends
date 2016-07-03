@@ -10,7 +10,6 @@
  
 package org.badvision.outlaweditor.ui.impl;
 
-import org.badvision.outlaweditor.ui.EntitySelectorCell;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
@@ -23,7 +22,7 @@ import javafx.scene.image.ImageView;
 import javafx.util.StringConverter;
 import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.TileEditor;
-import static org.badvision.outlaweditor.ui.UIAction.confirm;
+import org.badvision.outlaweditor.api.ApplicationState;
 import static org.badvision.outlaweditor.data.PropertyHelper.bind;
 import static org.badvision.outlaweditor.data.PropertyHelper.boolProp;
 import static org.badvision.outlaweditor.data.PropertyHelper.stringProp;
@@ -32,7 +31,9 @@ import org.badvision.outlaweditor.data.TilesetUtils;
 import org.badvision.outlaweditor.data.xml.PlatformData;
 import org.badvision.outlaweditor.data.xml.Tile;
 import org.badvision.outlaweditor.ui.ApplicationUIController;
+import org.badvision.outlaweditor.ui.EntitySelectorCell;
 import org.badvision.outlaweditor.ui.TileEditorTabController;
+import static org.badvision.outlaweditor.ui.UIAction.confirm;
 
 /**
  * FXML Controller class for tile editor tab
@@ -95,7 +96,7 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
         confirm("Delete tile '" + getCurrentTile().getName() + "'.  Are you sure?", () -> {
             Tile del = getCurrentTile();
             setCurrentTile(null);
-            Application.gameData.getTile().remove(del);
+            ApplicationState.getInstance().getGameData().getTile().remove(del);
             mainController.rebuildTileSelectors();
         }, null);
     }
@@ -150,7 +151,7 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
             return new EntitySelectorCell<Tile>(tileNameField, tileCategoryField) {
                 @Override
                 public void finishUpdate(Tile item) {
-                    setGraphic(new ImageView(TileUtils.getImage(item, Application.currentPlatform)));
+                    setGraphic(new ImageView(TileUtils.getImage(item, ApplicationState.getInstance().getCurrentPlatform())));
                 }
             };
         });
@@ -223,7 +224,7 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
                 bind(tileSpriteField.selectedProperty(), boolProp(t, "sprite"));
                 bind(tileBlockerField.selectedProperty(), boolProp(t, "blocker"));
                 bind(tileNameField.textProperty(), stringProp(t, "name"));
-                TileEditor editor = Application.currentPlatform.tileEditor.newInstance();
+                TileEditor editor = ApplicationState.getInstance().getCurrentPlatform().tileEditor.newInstance();
                 editor.setEntity(t);
                 setCurrentTileEditor(editor);
                 tileNameField.textProperty().addListener(rebuildListener);
@@ -241,7 +242,7 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
     public void rebuildTileSelectors() {
         Tile t = getCurrentTile();
         tileSelector.getItems().clear();
-        List<Tile> allTiles = Application.gameData.getTile();
+        List<Tile> allTiles = ApplicationState.getInstance().getGameData().getTile();
         allTiles.sort((Tile o1, Tile o2) -> {
             int c1 = String.valueOf(o1.getCategory()).compareTo(String.valueOf(o2.getCategory()));
             if (c1 != 0) {

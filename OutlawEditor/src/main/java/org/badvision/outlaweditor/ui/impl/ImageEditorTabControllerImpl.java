@@ -20,10 +20,10 @@ import javafx.scene.control.ListView;
 import javafx.util.StringConverter;
 import javax.xml.bind.JAXBException;
 import org.badvision.outlaweditor.Application;
-import static org.badvision.outlaweditor.Application.currentPlatform;
 import org.badvision.outlaweditor.Editor;
 import org.badvision.outlaweditor.ImageEditor;
 import org.badvision.outlaweditor.TransferHelper;
+import org.badvision.outlaweditor.api.ApplicationState;
 import static org.badvision.outlaweditor.data.PropertyHelper.bind;
 import static org.badvision.outlaweditor.data.PropertyHelper.stringProp;
 import org.badvision.outlaweditor.data.xml.Image;
@@ -149,7 +149,7 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
             }
             Image clone = TransferHelper.cloneObject(getCurrentImage(), Image.class, "image");
             clone.setName(clone.getName()+" clone");
-            Application.gameData.getImage().add(clone);
+            ApplicationState.getInstance().getGameData().getImage().add(clone);
             setCurrentImage(clone);
             rebuildImageSelector();
         } catch (JAXBException ex) {
@@ -161,7 +161,7 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
     public void onImageCreatePressed(ActionEvent event) {
         Image i = new Image();
         i.setName("Untitled");
-        Application.gameData.getImage().add(i);
+        ApplicationState.getInstance().getGameData().getImage().add(i);
         setCurrentImage(i);
         rebuildImageSelector();
     }
@@ -174,7 +174,7 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
         confirm("Delete image '" + currentImage.getName() + "'.  Are you sure?", () -> {
             Image del = currentImage;
             setCurrentImage(null);
-            Application.gameData.getImage().remove(del);
+            ApplicationState.getInstance().getGameData().getImage().remove(del);
             rebuildImageSelector();
         }, null);
     }
@@ -231,7 +231,7 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
                 Logger.getLogger(ApplicationUIControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
             }
             try {
-                currentImageEditor = currentPlatform.imageEditor.newInstance();
+                currentImageEditor = ApplicationState.getInstance().getCurrentPlatform().imageEditor.newInstance();
             } catch (InstantiationException | IllegalAccessException ex) {
                 Logger.getLogger(ApplicationUIControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
             }
@@ -262,7 +262,7 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
     public void rebuildImageSelector() {
         Image i = getCurrentImage();
         imageSelector.getItems().clear();
-        List<Image> allImages = Application.gameData.getImage();
+        List<Image> allImages = ApplicationState.getInstance().getGameData().getImage();
         allImages.sort((Image o1, Image o2) -> {
             int c1 = String.valueOf(o1.getCategory()).compareTo(String.valueOf(o2.getCategory()));
             if (c1 != 0) {

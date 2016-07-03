@@ -12,8 +12,8 @@ package org.badvision.outlaweditor.ui.impl;
 
 import javafx.event.Event;
 import javafx.scene.input.DataFormat;
-import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.Editor;
+import org.badvision.outlaweditor.api.ApplicationState;
 import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.TilesetUtils;
 import org.badvision.outlaweditor.data.xml.Tile;
@@ -30,18 +30,19 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
     public void initialize() {
         super.initialize();
 
-        TilesetUtils.addObserver((org.badvision.outlaweditor.data.DataObserver) (Object object) -> {
+        TilesetUtils.addObserver((Object object) -> {
             rebuildTileSelectors();
         });
         tileController.initalize();
         mapController.initalize();
         imageController.initalize();
         globalController.initialize();
+        menuController.initalize();
     }
 
     @Override
     public void platformChange() {
-        Application.gameData.getTile().stream().forEach((t) -> {
+        ApplicationState.getInstance().getGameData().getTile().stream().forEach((t) -> {
             TileUtils.redrawTile(t);
         });
         Tile tile = tileController.getCurrentTile();

@@ -9,7 +9,6 @@
  */
 package org.badvision.outlaweditor;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -43,7 +42,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
-import static org.badvision.outlaweditor.Application.currentPlatform;
+import org.badvision.outlaweditor.api.ApplicationState;
 import org.badvision.outlaweditor.data.TileMap;
 import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.xml.Map;
@@ -67,8 +66,8 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     double zoom = 1.0;
     DrawMode drawMode = DrawMode.Pencil1px;
     TileMap currentMap;
-    double tileWidth = currentPlatform.tileRenderer.getWidth() * zoom;
-    double tileHeight = currentPlatform.tileRenderer.getHeight() * zoom;
+    double tileWidth = getCurrentPlatform().tileRenderer.getWidth() * zoom;
+    double tileHeight = getCurrentPlatform().tileRenderer.getHeight() * zoom;
 
     @Override
     protected void onEntityUpdated() {
@@ -115,7 +114,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     @Override
     public void buildEditorUI(Pane tileEditorAnchorPane) {
         anchorPane = tileEditorAnchorPane;
-        Application.getPrimaryStage().getScene().addEventHandler(KeyEvent.KEY_PRESSED, this::keyPressed);
+        ApplicationState.getInstance().getPrimaryStage().getScene().addEventHandler(KeyEvent.KEY_PRESSED, this::keyPressed);
         initCanvas();
         redraw();
     }
@@ -127,7 +126,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
             if (currentTile != null) {
                 category = currentTile.getCategory();
             }
-            if (this.equals(Application.getInstance().getController().getVisibleEditor())) {
+            if (this.equals(ApplicationState.getInstance().getController().getVisibleEditor())) {
                 UIAction.showTileSelectModal(anchorPane, category, this::setCurrentTile);
             }
         }
@@ -138,8 +137,8 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
             anchorPane.getChildren().remove(drawCanvas);
         }
         drawCanvas = new Canvas();
-        drawCanvas.heightProperty().bind(Application.getPrimaryStage().heightProperty().subtract(120));
-        drawCanvas.widthProperty().bind(Application.getPrimaryStage().widthProperty().subtract(200));
+        drawCanvas.heightProperty().bind(ApplicationState.getInstance().getPrimaryStage().heightProperty().subtract(120));
+        drawCanvas.widthProperty().bind(ApplicationState.getInstance().getPrimaryStage().widthProperty().subtract(200));
 //        drawCanvas.widthProperty().bind(anchorPane.widthProperty());
         drawCanvas.widthProperty().addListener((ObservableValue<? extends Number> ov, Number t, Number t1) -> {
             redraw();
@@ -226,8 +225,8 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
 //
 //                    double newLeft = (left + pointerX) * ratio - pointerX;
 //                    double newTop = (top + pointerY) * ratio - pointerY;
-        tileWidth = currentPlatform.tileRenderer.getWidth() * zoom;
-        tileHeight = currentPlatform.tileRenderer.getHeight() * zoom;
+        tileWidth = getCurrentPlatform().tileRenderer.getWidth() * zoom;
+        tileHeight = getCurrentPlatform().tileRenderer.getHeight() * zoom;
         redraw();
     }
 
@@ -300,7 +299,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         double xx = x * tileWidth;
         double yy = y * tileHeight;
         if (tile != null) {
-            drawCanvas.getGraphicsContext2D().drawImage(TileUtils.getImage(tile, currentPlatform), xx, yy, tileWidth, tileHeight);
+            drawCanvas.getGraphicsContext2D().drawImage(TileUtils.getImage(tile, getCurrentPlatform()), xx, yy, tileWidth, tileHeight);
         }
     }
 
@@ -398,7 +397,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         drawCanvas.heightProperty().unbind();
         anchorPane.getChildren().remove(drawCanvas);
         currentMap.updateBackingMap();
-        Application.getPrimaryStage().getScene().removeEventHandler(KeyEvent.KEY_PRESSED, this::keyPressed);
+        ApplicationState.getInstance().getPrimaryStage().getScene().removeEventHandler(KeyEvent.KEY_PRESSED, this::keyPressed);
     }
 
     /**
@@ -417,14 +416,14 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
             drawMode = DrawMode.Pencil1px;
         }
         this.currentTile = currentTile;
-        ImageCursor cursor = new ImageCursor(TileUtils.getImage(currentTile, currentPlatform), 2, 2);
+        ImageCursor cursor = new ImageCursor(TileUtils.getImage(currentTile, getCurrentPlatform()), 2, 2);
         drawCanvas.setCursor(cursor);
         return currentTile;
     }
 
     public void showPreview() {
-        byte[] data = currentPlatform.imageRenderer.renderPreview(currentMap, posX, posY, currentPlatform.maxImageWidth, currentPlatform.maxImageHeight);
-        WritableImage img = currentPlatform.imageRenderer.renderImage(null, data, currentPlatform.maxImageWidth, currentPlatform.maxImageHeight);
+        byte[] data = getCurrentPlatform().imageRenderer.renderPreview(currentMap, posX, posY, getCurrentPlatform().maxImageWidth, getCurrentPlatform().maxImageHeight);
+        WritableImage img = getCurrentPlatform().imageRenderer.renderImage(null, data, getCurrentPlatform().maxImageWidth, getCurrentPlatform().maxImageHeight);
         Stage stage = new Stage();
         stage.setTitle("Preview");
         ImageView imgView = new ImageView(img);
@@ -435,12 +434,12 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
 
     @Override
     public void copy() {
-        byte[] data = currentPlatform.imageRenderer.renderPreview(currentMap, posX, posY, currentPlatform.maxImageWidth, currentPlatform.maxImageHeight);
-        WritableImage img = currentPlatform.imageRenderer.renderImage(null, data, currentPlatform.maxImageWidth, currentPlatform.maxImageHeight);
+        byte[] data = getCurrentPlatform().imageRenderer.renderPreview(currentMap, posX, posY, getCurrentPlatform().maxImageWidth, getCurrentPlatform().maxImageHeight);
+        WritableImage img = getCurrentPlatform().imageRenderer.renderImage(null, data, getCurrentPlatform().maxImageWidth, getCurrentPlatform().maxImageHeight);
         java.util.Map<DataFormat, Object> clip = new HashMap<>();
         clip.put(DataFormat.IMAGE, img);
         if (drawMode != DrawMode.Select || startX >= 0) {
-            clip.put(DataFormat.PLAIN_TEXT, "selection/map/" + Application.gameData.getMap().indexOf(getEntity()) + "/" + getSelectionInfo());
+            clip.put(DataFormat.PLAIN_TEXT, "selection/map/" + ApplicationState.getInstance().getGameData().getMap().indexOf(getEntity()) + "/" + getSelectionInfo());
         }
         Clipboard.getSystemClipboard().setContent(clip);
         clearSelection();
@@ -460,7 +459,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
             java.util.Map<String, Integer> selection = TransferHelper.getSelectionDetails(clipboardInfo);
             if (selection.containsKey("map")) {
                 trackState();
-                Map sourceMap = Application.gameData.getMap().get(selection.get("map"));
+                Map sourceMap = ApplicationState.getInstance().getGameData().getMap().get(selection.get("map"));
                 TileMap source = getCurrentMap();
                 if (!sourceMap.equals(getCurrentMap().getBackingMap())) {
                     source = new TileMap(sourceMap);
@@ -505,6 +504,10 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     public void removeScript(Script script) {
         getCurrentMap().removeScriptFromMap(script);
         redraw();
+    }
+
+    private org.badvision.outlaweditor.api.Platform getCurrentPlatform() {
+        return ApplicationState.getInstance().getCurrentPlatform();
     }
 
     public static enum DrawMode {

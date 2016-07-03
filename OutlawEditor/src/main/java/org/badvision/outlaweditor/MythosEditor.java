@@ -35,6 +35,7 @@ import javax.xml.namespace.QName;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
+import org.badvision.outlaweditor.api.ApplicationState;
 import org.badvision.outlaweditor.data.xml.Block;
 import org.badvision.outlaweditor.data.xml.Global;
 import org.badvision.outlaweditor.data.xml.Mutation;
@@ -192,7 +193,7 @@ public class MythosEditor {
     }
 
     public static Scope getGlobalScope() {
-        return Application.gameData.getGlobal();
+        return ApplicationState.getInstance().getGameData().getGlobal();
     }
 
     private boolean isGlobalScope() {

@@ -28,11 +28,11 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
-import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.FileUtils;
 import org.badvision.outlaweditor.ImageEditor;
-import org.badvision.outlaweditor.api.Platform;
 import org.badvision.outlaweditor.TransferHelper;
+import org.badvision.outlaweditor.api.ApplicationState;
+import org.badvision.outlaweditor.api.Platform;
 import org.badvision.outlaweditor.data.TileMap;
 import org.badvision.outlaweditor.data.xml.Image;
 import org.badvision.outlaweditor.data.xml.PlatformData;
@@ -435,7 +435,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
     public void copy() {
         java.util.Map<DataFormat, Object> clip = new HashMap<>();
         clip.put(DataFormat.IMAGE, currentImage);
-        clip.put(DataFormat.PLAIN_TEXT, "selection/image/" + Application.gameData.getImage().indexOf(getEntity()) + "/" + getSelectionInfo());
+        clip.put(DataFormat.PLAIN_TEXT, "selection/image/" + ApplicationState.getInstance().getGameData().getImage().indexOf(getEntity()) + "/" + getSelectionInfo());
         Clipboard.getSystemClipboard().setContent(clip);
         copyData = Arrays.copyOf(getImageData(), getImageData().length);
     }
@@ -460,7 +460,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
         System.out.println("Clipboard >> " + contentPath);
         Map<String, Integer> selection = TransferHelper.getSelectionDetails(contentPath);
         if (selection.containsKey("map")) {
-            TileMap map = new TileMap(Application.gameData.getMap().get(selection.get("map")));
+            TileMap map = new TileMap(ApplicationState.getInstance().getGameData().getMap().get(selection.get("map")));
             byte[] buf = getPlatform().imageRenderer.renderPreview(
                     map,
                     selection.get("x1"),
@@ -471,7 +471,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
             redraw();
             return true;
         } else if (selection.containsKey("image")) {
-            Image sourceImage = Application.gameData.getImage().get(selection.get("image"));
+            Image sourceImage = ApplicationState.getInstance().getGameData().getImage().get(selection.get("image"));
             byte[] sourceData;
             if (sourceImage.equals(getEntity())) {
                 sourceData = copyData;

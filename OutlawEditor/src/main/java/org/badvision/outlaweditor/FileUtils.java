@@ -24,6 +24,7 @@ import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
 import javafx.stage.FileChooser;
+import org.badvision.outlaweditor.api.ApplicationState;
 
 /**
  *
@@ -67,7 +68,7 @@ public class FileUtils {
             f.getExtensionFilters().add(e.getExtensionFilter());
         }
         if (create) {
-            File file = f.showSaveDialog(Application.getPrimaryStage());
+            File file = f.showSaveDialog(ApplicationState.getInstance().getPrimaryStage());
             if (file == null) {
                 return null;
             }
@@ -77,7 +78,7 @@ public class FileUtils {
                 return file;
             }
         } else {
-            return f.showOpenDialog(Application.getPrimaryStage());
+            return f.showOpenDialog(ApplicationState.getInstance().getPrimaryStage());
         }
     }
 

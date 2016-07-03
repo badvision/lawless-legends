@@ -19,8 +19,8 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javax.xml.bind.JAXBException;
-import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.TransferHelper;
+import org.badvision.outlaweditor.api.ApplicationState;
 import org.badvision.outlaweditor.data.DataUtilities;
 import org.badvision.outlaweditor.data.xml.Script;
 import org.badvision.outlaweditor.data.xml.Sheet;
@@ -52,7 +52,7 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
 
             @Override
             public void startEdit() {
-                UIAction.editVariable(getItem(), Application.gameData.getGlobal());
+                UIAction.editVariable(getItem(), ApplicationState.getInstance().getGameData().getGlobal());
                 cancelEdit();
                 updateItem(getItem(), false);
             }
@@ -71,7 +71,7 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
 
             @Override
             public void startEdit() {
-                UIAction.editScript(getItem(), Application.gameData.getGlobal());
+                UIAction.editScript(getItem(), ApplicationState.getInstance().getGameData().getGlobal());
                 cancelEdit();
                 updateItem(getItem(), false);
             }
@@ -124,7 +124,7 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
 
     @Override
     protected void onScriptAddPressed(ActionEvent event) {
-        UIAction.createAndEditScript(Application.gameData.getGlobal());
+        UIAction.createAndEditScript(ApplicationState.getInstance().getGameData().getGlobal());
     }
 
     @Override
@@ -153,7 +153,7 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
                 Script script = TransferHelper.cloneObject(source, Script.class, "script");
                 script.setName(source.getName() + " CLONE");
                 getCurrentEditor().addScript(script);
-                editScript(script, Application.gameData.getGlobal());
+                editScript(script, ApplicationState.getInstance().getGameData().getGlobal());
             } catch (JAXBException ex) {
                 Logger.getLogger(MapEditorTabControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
                 UIAction.alert("Error occured when attempting clone operation:\n" + ex.getMessage());
@@ -180,7 +180,7 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
                     + type.getName()
                     + "?  There is no undo for this!",
                     () -> {
-                        Application.gameData.getGlobal().getUserTypes().getUserType().remove(type);
+                        ApplicationState.getInstance().getGameData().getGlobal().getUserTypes().getUserType().remove(type);
                         redrawGlobalDataTypes();
                     }, null);
         }
@@ -197,7 +197,7 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
                 UserType newType = TransferHelper.cloneObject(source, UserType.class, "userType");
                 newType.setName(source.getName() + " CLONE");
                 if (UIAction.editAndGetUserType(newType) != null) {
-                    Application.gameData.getGlobal().getUserTypes().getUserType().add(newType);
+                    ApplicationState.getInstance().getGameData().getGlobal().getUserTypes().getUserType().add(newType);
                     redrawGlobalDataTypes();
                 }
             } catch (JAXBException ex) {
@@ -229,7 +229,7 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
                     + sheet.getName()
                     + "?  There is no undo for this!",
                     () -> {
-                        Application.gameData.getGlobal().getSheets().getSheet().remove(sheet);
+                        ApplicationState.getInstance().getGameData().getGlobal().getSheets().getSheet().remove(sheet);
                         redrawGlobalSheets();
                     }, null);
         }
@@ -246,7 +246,7 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
                 Sheet sheet = TransferHelper.cloneObject(source, Sheet.class, "sheet");
                 sheet.setName(source.getName() + " CLONE");
                 Sheet newVar = UIAction.editSheet(sheet);
-                Application.gameData.getGlobal().getSheets().getSheet().add(newVar);
+                ApplicationState.getInstance().getGameData().getGlobal().getSheets().getSheet().add(newVar);
                 redrawGlobalSheets();
             } catch (JAXBException ex) {
                 Logger.getLogger(GlobalEditorTabControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
@@ -258,7 +258,7 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
     @Override
     protected void onVariableAddPressed(ActionEvent event) {
         try {
-            UIAction.createAndEditVariable(Application.gameData.getGlobal());
+            UIAction.createAndEditVariable(ApplicationState.getInstance().getGameData().getGlobal());
             redrawGlobalVariables();
         } catch (IntrospectionException ex) {
             Logger.getLogger(GlobalEditorTabControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
@@ -274,7 +274,7 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
                     + var.getName()
                     + "?  There is no undo for this!",
                     () -> {
-                        Application.gameData.getGlobal().getVariables().getVariable().remove(var);
+                        ApplicationState.getInstance().getGameData().getGlobal().getVariables().getVariable().remove(var);
                         redrawGlobalVariables();
                     }, null);
         }
@@ -292,7 +292,7 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
                 variable.setName(source.getName() + " CLONE");
                 Optional<Variable> newVar = UIAction.editAndGetVariable(variable);
                 if (newVar.isPresent()) {
-                    Application.gameData.getGlobal().getVariables().getVariable().add(newVar.get());
+                    ApplicationState.getInstance().getGameData().getGlobal().getVariables().getVariable().add(newVar.get());
                     redrawGlobalVariables();
                 }
             } catch (JAXBException ex) {
@@ -307,9 +307,9 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
     @Override
     public void redrawGlobalScripts() {
         DataUtilities.ensureGlobalExists();
-        if (globalScriptList.getItems() != null && Application.gameData.getGlobal().getScripts() != null) {
-            DataUtilities.sortNamedEntities(Application.gameData.getGlobal().getScripts().getScript());
-            globalScriptList.getItems().setAll(Application.gameData.getGlobal().getScripts().getScript());
+        if (globalScriptList.getItems() != null && ApplicationState.getInstance().getGameData().getGlobal().getScripts() != null) {
+            DataUtilities.sortNamedEntities(ApplicationState.getInstance().getGameData().getGlobal().getScripts().getScript());
+            globalScriptList.getItems().setAll(ApplicationState.getInstance().getGameData().getGlobal().getScripts().getScript());
         } else {
             globalScriptList.getItems().clear();
         }
@@ -318,9 +318,9 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
     @Override
     public void redrawGlobalVariables() {
         DataUtilities.ensureGlobalExists();
-        if (variableList.getItems() != null && Application.gameData.getGlobal().getVariables() != null) {
-            DataUtilities.sortNamedEntities(Application.gameData.getGlobal().getVariables().getVariable());
-            variableList.getItems().setAll(Application.gameData.getGlobal().getVariables().getVariable());
+        if (variableList.getItems() != null && ApplicationState.getInstance().getGameData().getGlobal().getVariables() != null) {
+            DataUtilities.sortNamedEntities(ApplicationState.getInstance().getGameData().getGlobal().getVariables().getVariable());
+            variableList.getItems().setAll(ApplicationState.getInstance().getGameData().getGlobal().getVariables().getVariable());
         } else {
             variableList.getItems().clear();
         }
@@ -329,9 +329,9 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
     @Override
     public void redrawGlobalDataTypes() {
         DataUtilities.ensureGlobalExists();
-        if (dataTypeList.getItems() != null && Application.gameData.getGlobal().getUserTypes() != null) {
-            DataUtilities.sortNamedEntities(Application.gameData.getGlobal().getUserTypes().getUserType());
-            dataTypeList.getItems().setAll(Application.gameData.getGlobal().getUserTypes().getUserType());
+        if (dataTypeList.getItems() != null && ApplicationState.getInstance().getGameData().getGlobal().getUserTypes() != null) {
+            DataUtilities.sortNamedEntities(ApplicationState.getInstance().getGameData().getGlobal().getUserTypes().getUserType());
+            dataTypeList.getItems().setAll(ApplicationState.getInstance().getGameData().getGlobal().getUserTypes().getUserType());
         } else {
             dataTypeList.getItems().clear();
         }
@@ -340,9 +340,9 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
     @Override
     public void redrawGlobalSheets() {
         DataUtilities.ensureGlobalExists();
-        if (sheetList.getItems() != null && Application.gameData.getGlobal().getSheets() != null) {
-            DataUtilities.sortNamedEntities(Application.gameData.getGlobal().getSheets().getSheet());
-            sheetList.getItems().setAll(Application.gameData.getGlobal().getSheets().getSheet());
+        if (sheetList.getItems() != null && ApplicationState.getInstance().getGameData().getGlobal().getSheets() != null) {
+            DataUtilities.sortNamedEntities(ApplicationState.getInstance().getGameData().getGlobal().getSheets().getSheet());
+            sheetList.getItems().setAll(ApplicationState.getInstance().getGameData().getGlobal().getSheets().getSheet());
         } else {
             sheetList.getItems().clear();
         }

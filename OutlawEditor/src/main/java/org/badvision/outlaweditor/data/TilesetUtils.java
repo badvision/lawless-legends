@@ -13,7 +13,7 @@ package org.badvision.outlaweditor.data;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
-import org.badvision.outlaweditor.Application;
+import org.badvision.outlaweditor.api.ApplicationState;
 import org.badvision.outlaweditor.data.xml.Tile;
 
 /**
@@ -27,18 +27,18 @@ public class TilesetUtils implements Serializable {
     }
 
     public static boolean add(Tile e) {
-        boolean output = Application.gameData.getTile().add(e);
+        boolean output = ApplicationState.getInstance().getGameData().getTile().add(e);
         DataProducer.notifyObservers(TilesetUtils.class);
         return output;
     }
 
     public static void clear() {
-        Application.gameData.getTile().clear();
+        ApplicationState.getInstance().getGameData().getTile().clear();
         DataProducer.notifyObservers(TilesetUtils.class);
     }
 
     public static void remove(Tile t) {
-        Application.gameData.getTile().remove(t);
+        ApplicationState.getInstance().getGameData().getTile().remove(t);
         DataProducer.notifyObservers(TilesetUtils.class);
     }
     // The tileset should have been a map in retrospect but now it has to
@@ -48,7 +48,7 @@ public class TilesetUtils implements Serializable {
     public static Tile getTileById(String tileId) {
         if (lookup == null || (lookup.get(tileId) == null && !lookup.containsKey(tileId))) {
             lookup = new HashMap<>();
-            for (Tile t : Application.gameData.getTile()) {
+            for (Tile t : ApplicationState.getInstance().getGameData().getTile()) {
                 lookup.put(TileUtils.getId(t), t);
             }
             if (lookup.get(tileId) == null) {
@@ -56,5 +56,8 @@ public class TilesetUtils implements Serializable {
             }
         }
         return lookup.get(tileId);
+    }
+
+    private TilesetUtils() {
     }
 }

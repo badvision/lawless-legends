@@ -26,10 +26,9 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javax.xml.bind.JAXBException;
 import org.badvision.outlaweditor.Application;
-import static org.badvision.outlaweditor.Application.currentPlatform;
-import static org.badvision.outlaweditor.Application.gameData;
 import org.badvision.outlaweditor.MapEditor;
 import org.badvision.outlaweditor.TransferHelper;
+import org.badvision.outlaweditor.api.ApplicationState;
 import org.badvision.outlaweditor.data.DataUtilities;
 import static org.badvision.outlaweditor.data.PropertyHelper.bind;
 import static org.badvision.outlaweditor.data.PropertyHelper.stringProp;
@@ -121,7 +120,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
         m.setName("Untitled");
         m.setWidth(512);
         m.setHeight(512);
-        gameData.getMap().add(m);
+        ApplicationState.getInstance().getGameData().getMap().add(m);
         rebuildMapSelectors();
         setCurrentMap(m);
     }
@@ -135,7 +134,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
         confirm("Delete map '" + currentMap.getName() + "'.  Are you sure?", () -> {
             org.badvision.outlaweditor.data.xml.Map del = currentMap;
             setCurrentMap(null);
-            Application.gameData.getMap().remove(del);
+            ApplicationState.getInstance().getGameData().getMap().remove(del);
             rebuildMapSelectors();
         }, null);
     }
@@ -337,8 +336,8 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
     public void rebuildMapSelectors() {
         Map m = mapSelect.getSelectionModel().getSelectedItem();
         mapSelect.getItems().clear();
-        DataUtilities.sortMaps(Application.gameData.getMap());
-        mapSelect.getItems().addAll(Application.gameData.getMap());
+        DataUtilities.sortMaps(ApplicationState.getInstance().getGameData().getMap());
+        mapSelect.getItems().addAll(ApplicationState.getInstance().getGameData().getMap());
         mapSelect.getSelectionModel().select(m);
     }
 
@@ -375,8 +374,8 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
 
         ToggleGroup tileGroup = new ToggleGroup();
         HashMap<String, Menu> submenus = new HashMap<>();
-        Application.gameData.getTile().stream().forEach((Tile t) -> {
-            WritableImage img = TileUtils.getImage(t, currentPlatform);
+        ApplicationState.getInstance().getGameData().getTile().stream().forEach((Tile t) -> {
+            WritableImage img = TileUtils.getImage(t, ApplicationState.getInstance().getCurrentPlatform());
             ImageView iv = new ImageView(img);
             String category = String.valueOf(t.getCategory());
             Menu categoryMenu = submenus.get(category);
@@ -391,7 +390,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
                 tileGroup.selectToggle(tileSelection);
                 theMenu.setStyle("-fx-font-weight:bold; -fx-text-fill:blue");
             }
-            tileSelection.setGraphic(new ImageView(TileUtils.getImage(t, currentPlatform)));
+            tileSelection.setGraphic(new ImageView(TileUtils.getImage(t, ApplicationState.getInstance().getCurrentPlatform())));
             tileSelection.setOnAction((event) -> {
                 if (getCurrentEditor() != null) {
                     getCurrentEditor().setCurrentTile(t);

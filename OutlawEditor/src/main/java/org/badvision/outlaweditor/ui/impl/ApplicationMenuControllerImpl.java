@@ -14,45 +14,54 @@ import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.event.ActionEvent;
+import javafx.scene.control.MenuItem;
 import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.Editor;
+import org.badvision.outlaweditor.api.ApplicationState;
+import org.badvision.outlaweditor.api.MenuAction;
 import org.badvision.outlaweditor.api.Platform;
 import org.badvision.outlaweditor.apple.AppleTileRenderer;
 import org.badvision.outlaweditor.ui.ApplicationMenuController;
 import org.badvision.outlaweditor.ui.ApplicationUIController;
 import org.badvision.outlaweditor.ui.UIAction;
+import org.osgi.framework.BundleContext;
+import org.osgi.framework.InvalidSyntaxException;
 
 /**
  *
  * @author blurry
  */
 public class ApplicationMenuControllerImpl extends ApplicationMenuController {
+    @Override
+    public void initalize() {
+        setupPluginMenu();
+    }
 
     @Override
     public void onChangePlatformAppleSolid(ActionEvent event) {
         AppleTileRenderer.useSolidPalette = true;
-        Application.currentPlatform = Platform.AppleII;
+        ApplicationState.getInstance().setCurrentPlatform(Platform.AppleII);
         ApplicationUIController.getController().platformChange();
     }
 
     @Override
     public void onChangePlatformAppleText(ActionEvent event) {
         AppleTileRenderer.useSolidPalette = false;
-        Application.currentPlatform = Platform.AppleII;
+        ApplicationState.getInstance().setCurrentPlatform(Platform.AppleII);
         ApplicationUIController.getController().platformChange();
     }
 
     @Override
     public void onChangePlatformAppleDHGRSolid(ActionEvent event) {
         AppleTileRenderer.useSolidPalette = true;
-        Application.currentPlatform = Platform.AppleII_DHGR;
+        ApplicationState.getInstance().setCurrentPlatform(Platform.AppleII_DHGR);
         ApplicationUIController.getController().platformChange();
     }
 
     @Override
     public void onChangePlatformAppleDHGRText(ActionEvent event) {
         AppleTileRenderer.useSolidPalette = false;
-        Application.currentPlatform = Platform.AppleII_DHGR;
+        ApplicationState.getInstance().setCurrentPlatform(Platform.AppleII_DHGR);
         ApplicationUIController.getController().platformChange();
     }
 
@@ -136,4 +145,19 @@ public class ApplicationMenuControllerImpl extends ApplicationMenuController {
         }
     }
 
+    private void setupPluginMenu() {
+        System.out.println("Setting up extras menu");
+        
+        BundleContext bc = ApplicationState.getBundleContext();
+        try {
+            bc.getServiceReferences(MenuAction.class, null).stream().map(bc::getService).forEach((MenuAction a) -> {
+                System.out.println("Adding menu item " + a.getName());
+                MenuItem item = new MenuItem(a.getName());
+                item.setOnAction(a);
+                extraMenu.getItems().add(item);
+            });
+        } catch (InvalidSyntaxException ex) {
+            Logger.getLogger(ApplicationUIControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
 }

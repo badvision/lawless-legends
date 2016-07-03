@@ -15,16 +15,43 @@
  */
 package org.badvision.outlaweditor.api;
 
+import javafx.stage.Stage;
+import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.data.xml.GameData;
 import org.badvision.outlaweditor.ui.ApplicationUIController;
+import org.osgi.framework.BundleContext;
+import org.osgi.framework.FrameworkUtil;
 
 /**
- * 
+ *
  * @author blurry
  */
 public interface ApplicationState {
     public GameData getGameData();
+
+    public void setGameData(GameData newData);
+
     public ApplicationUIController getApplicationUI();
+
     public Platform getCurrentPlatform();
+
+    public void setCurrentPlatform(Platform p);
+
+    public ApplicationUIController getController();
+
+    public Stage getPrimaryStage();
+
+    static public BundleContext getBundleContext() {
+        if (Application.felix != null) {
+            return Application.felix.getBundleContext();
+        } else {
+            return FrameworkUtil.getBundle(ApplicationState.class).getBundleContext();
+        }        
+    }
     
+    public static ApplicationState getInstance() {
+        BundleContext bc = getBundleContext();
+        return bc.getService(bc.getServiceReference(ApplicationState.class));
+    }
+
 }

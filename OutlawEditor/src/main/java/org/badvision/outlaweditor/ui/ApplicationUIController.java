@@ -14,13 +14,13 @@ import java.net.URL;
 import java.util.ResourceBundle;
 import javafx.event.Event;
 import javafx.fxml.FXML;
-import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.Editor;
+import org.badvision.outlaweditor.api.ApplicationState;
 
 public abstract class ApplicationUIController {
 
     public static ApplicationUIController getController() {
-        return Application.getInstance().getController();
+        return ApplicationState.getInstance().getController();
     }
 
     abstract public void rebuildTileSelectors();

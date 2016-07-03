@@ -1065,12 +1065,12 @@ class PackPartitions
             esdNum += (fixup[ep++] & 0xFF) << 8
             if (esdFlag == 0x10) {
                 assert esdNum == esdIndex
-                println "Import '$esdName' at esdIndex $esdNum."
+                //println "Import '$esdName' at esdIndex $esdNum."
                 imports[esdNum] = esdName
             }
             else if (esdFlag == 0x08) {
                 assert name == "gameloop" : "Can only export from gameloop"
-                println "Export 'esdName' at offset $esdNum."
+                //println "Export 'esdName' at offset $esdNum."
                 def target = invDefs[esdNum]
                 assert target != null : "Can only export functions"
                 exports[esdName] = target
@@ -1084,7 +1084,6 @@ class PackPartitions
         // place we support exports.
         if (exports.size() > 0) {
             assert name == "gameloop" : "Symbol exports only supported on 'gameloop' module"
-            println "Saving exports, name=$name, exports=${exports}"
             cache["globalExports"] = exports
         }
         
@@ -1114,14 +1113,13 @@ class PackPartitions
             //println String.format("...target=0x%04x", target)
             
             if (fixupType == 0x91) {  // external fixup
-                println "external fixup: esdIndex=$esdIndex"
-                println "imports=$imports is=${imports.containsKey(esdIndex)}"
+                //println "external fixup: esdIndex=$esdIndex"
+                //println "imports=$imports is=${imports.containsKey(esdIndex)}"
                 def esdName = imports[esdIndex]
-                println "esdName='$esdName'"
+                //println "esdName='$esdName'"
                 assert esdName != null : "failed to look up esdIndex $esdIndex"
-                
                 def offset = cache["globalExports"][esdName]
-                println "offset=$offset"
+                //println "offset=$offset"
                 assert offset != null : "failed to find global export for symbol '$esdName'"
                 target += offset
             }

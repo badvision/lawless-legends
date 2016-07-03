@@ -541,8 +541,7 @@ def _combat_zoneEncounter(s_encZone)
           otherwise
             displayStr("\nDidn't see that coming... to see a fine player like you slaughtered like a common rodent... Well, let's reload and try that again, ok?\n")
         wend
-        answer = getYN()  // workaround for PLASMA problem: "if !getYN()" results in CALL 0
-        if !answer
+        if !getYN()
           displayStr("Ah, okay. Well... just hit a key when you're ready then.")
           getUpperKey()
         fin

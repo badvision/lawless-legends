@@ -1301,7 +1301,9 @@ def moveForward()
   val = advance()
 
   // If not blocked, render at the new position.
-  if val > 0
+  if val == 0
+    beep()
+  else
     if !mapIs3D
       doRender()
     else

@@ -7,7 +7,6 @@
  * ANY KIND, either express or implied. See the License for the specific language 
  * governing permissions and limitations under the License.
  */
- 
 package org.badvision.outlaweditor.data;
 
 import java.util.ArrayList;
@@ -15,7 +14,10 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
 import org.badvision.outlaweditor.api.ApplicationState;
+import org.badvision.outlaweditor.data.xml.Block;
 import org.badvision.outlaweditor.data.xml.Field;
 import org.badvision.outlaweditor.data.xml.Global;
 import org.badvision.outlaweditor.data.xml.Map;
@@ -24,6 +26,7 @@ import org.badvision.outlaweditor.data.xml.Scope;
 import org.badvision.outlaweditor.data.xml.Script;
 
 public class DataUtilities {
+
     private DataUtilities() {
     }
 
@@ -49,7 +52,7 @@ public class DataUtilities {
             return nameA.compareTo(nameB);
         });
     }
-    
+
     public static void sortNamedEntities(List<? extends NamedEntity> entities) {
         if (entities == null) {
             return;
@@ -88,21 +91,35 @@ public class DataUtilities {
         if (script.getName() != null) {
             return;
         }
-        script.getBlock().getFieldOrMutationOrStatement().stream()
-                .filter((obj) -> (obj instanceof Field && ((Field) obj).getName().equalsIgnoreCase("NAME")))
-                .forEach((obj) -> {
-                    script.setName(((Field) obj).getValue());
-                });
+        extract(script.getBlock(), Field.class)
+                .filter((f) -> f.getName().equalsIgnoreCase("NAME"))
+                .findFirst().ifPresent(
+                        (f) -> script.setName(f.getValue())
+                );
     }
-    
+
     public static void cleanupScriptNames(Scope s) {
-        if (s.getScripts() == null || s.getScripts().getScript() == null) return;
+        if (s.getScripts() == null || s.getScripts().getScript() == null) {
+            return;
+        }
         s.getScripts().getScript().forEach(DataUtilities::cleanupScriptName);
     }
-    
+
     public static void cleanupAllScriptNames() {
         cleanupScriptNames(ApplicationState.getInstance().getGameData().getGlobal());
         ApplicationState.getInstance().getGameData().getMap().forEach(DataUtilities::cleanupScriptNames);
+    }
+
+    public static <T> Optional<T> extractFirst(Block block, Class<T> desiredType) {
+        return extract(block, desiredType).findFirst();
+    }
+
+    public static <T> Stream<T> extract(Block block, Class<T> desiredType) {
+        if (block != null && block.getMutationOrFieldOrValue() != null) {
+            return (Stream<T>) block.getMutationOrFieldOrValue().stream().filter((o) -> o.getClass().equals(desiredType));
+        } else {
+            return Stream.empty();
+        }
     }
 
     //------------------------------ String comparators
@@ -198,8 +215,8 @@ public class DataUtilities {
 
         @Override
         public int compare(String o1, String o2) {
-            double s1 = levenshteinDistance(match, o1,20);
-            double s2 = levenshteinDistance(match, o2,20);
+            double s1 = levenshteinDistance(match, o1, 20);
+            double s2 = levenshteinDistance(match, o2, 20);
             if (s2 == s1) {
                 s1 = rankMatch(o1, match, 3) + rankMatch(o1, match, 2);
                 s2 = rankMatch(o2, match, 3) + rankMatch(o2, match, 2);

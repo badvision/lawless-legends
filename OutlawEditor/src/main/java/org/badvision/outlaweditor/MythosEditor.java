@@ -17,7 +17,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -36,11 +38,15 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import org.badvision.outlaweditor.api.ApplicationState;
+import org.badvision.outlaweditor.data.DataUtilities;
+import static org.badvision.outlaweditor.data.DataUtilities.extract;
+import static org.badvision.outlaweditor.data.DataUtilities.extractFirst;
 import org.badvision.outlaweditor.data.xml.Block;
 import org.badvision.outlaweditor.data.xml.Global;
 import org.badvision.outlaweditor.data.xml.Mutation;
 import org.badvision.outlaweditor.data.xml.Scope;
 import org.badvision.outlaweditor.data.xml.Script;
+import org.badvision.outlaweditor.data.xml.Statement;
 import org.badvision.outlaweditor.data.xml.UserType;
 import org.badvision.outlaweditor.data.xml.Variable;
 import org.badvision.outlaweditor.spelling.SpellChecker;
@@ -69,6 +75,9 @@ public class MythosEditor {
         script = theScript;
         scope = theScope;
         spellChecker = new SpellChecker();
+        if (script.getBlock() != null) {
+            fixMutators(script.getBlock());
+        }
     }
 
     public void show() {
@@ -226,10 +235,8 @@ public class MythosEditor {
 
     public List<String> getParametersForScript(Script script) {
         List<String> allArgs = new ArrayList();
-        if (script.getBlock() != null && script.getBlock().getFieldOrMutationOrStatement() != null) {
-            script.getBlock().getFieldOrMutationOrStatement()
-                    .stream().filter((o) -> (o instanceof Mutation))
-                    .map((o) -> (Mutation) o).findFirst().ifPresent((m) -> {
+        if (script.getBlock() != null) {
+            extractFirst(script.getBlock(), Mutation.class).ifPresent((m) -> {
                 m.getArg().stream().forEach((a) -> {
                     allArgs.add(a.getName());
                 });
@@ -259,4 +266,44 @@ public class MythosEditor {
         Logger.getLogger(getClass().getName()).warning(message);
         System.out.println(message);
     }
+
+    public static enum MutationType {
+        controls_if(MythosEditor::fixIfStatement);
+        
+        Consumer<Block> rebuildMutation;
+        MutationType(Consumer<Block> rebuilder) {
+            rebuildMutation = rebuilder;
+        }        
+    }
+
+    private void fixMutators(Block block) {
+        extractFirst(block, Mutation.class).ifPresent((mutation)-> {
+            if (mutation.getOtherAttributes().isEmpty()) {
+                try {
+                    MutationType type = MutationType.valueOf(block.getType());
+                    type.rebuildMutation.accept(block);
+                } catch (IllegalArgumentException ex) {
+                    // No big deal, it just doesn't have a mutation we know how to handle
+                }
+            }
+        });
+
+        extract(block, Statement.class).map((s)->s.getBlock()).flatMap((l)->l.stream()).forEach(this::fixMutators);        
+        if (block.getNext() != null && block.getNext().getBlock() != null) {
+            fixMutators(block.getNext().getBlock());
+        }
+    }
+
+    private static void fixIfStatement(Block block) {
+        Mutation mutation = extractFirst(block, Mutation.class).get();
+        long doCount = extract(block, Statement.class).filter((s)->s.getName().startsWith("DO")).collect(Collectors.counting());
+        long elseCount = extract(block, Statement.class).filter((s)->s.getName().startsWith("ELSE")).collect(Collectors.counting());
+        if (doCount > 1) {
+            mutation.getOtherAttributes().put(new QName("elseif"), String.valueOf(doCount - 1));
+        }
+        if (elseCount > 0) {
+            mutation.getOtherAttributes().put(new QName("else"), String.valueOf(elseCount));
+        }
+    }
+
 }

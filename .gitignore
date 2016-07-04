@@ -46,3 +46,4 @@ mg
 # Packer sometimes produces an error text file.
 error_stack.txt
 /OutlawEditor/OutlawPluginExample/target/
+/Platform/Apple/tools/A2Pack/target/

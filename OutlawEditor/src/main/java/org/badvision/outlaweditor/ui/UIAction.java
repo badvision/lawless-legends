@@ -481,6 +481,10 @@ public class UIAction {
         ft.setOnFinished(callback);
         ft.play();
     }
+    
+    public static File getCurrentSaveFile() {
+        return currentSaveFile;
+    }
 
     private UIAction() {
     }

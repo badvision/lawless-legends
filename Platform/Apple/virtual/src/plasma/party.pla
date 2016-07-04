@@ -49,7 +49,7 @@ def showPlayerSheet(num)
   setMapWindow()
   clearWindow()
   rawDisplayStr("^Y^LInventory^L^N")
-  displayf1("\nGold: %d", countGold())
+  displayf1("\nGroup Gold: %d", countGold())
   item = player=>p_items
   while item
     displayStr("\n")
@@ -95,7 +95,7 @@ def _party_doPlayerSheet(num)
       is '2'; num = 1; break
       is '3'; num = 2; break
       // Other operations...
-      is '!'; player=>w_health++; break
+      is '!'; player=>w_health = player=>w_health + 10; break
       // All done
       otherwise return
     wend

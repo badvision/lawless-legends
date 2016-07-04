@@ -1642,7 +1642,10 @@ loadTextures: !zone
 pl_texControl: !zone {
 	tax
 	beq .unload
-	lda #0	; don't re-init scripts
+	lda #START_LOAD
+	ldx #2		; textures are on disk 2
+	jsr mainLoader
+	lda #0		; don't re-init scripts
 	jmp loadTextures
 .unload
 -	txa

@@ -96,6 +96,7 @@ def _party_doPlayerSheet(num)
       is '3'; num = 2; break
       // Other operations...
       is '!'; player=>w_health = player=>w_health + 10; break
+      is '$'; addGold(10); break
       // All done
       otherwise return
     wend

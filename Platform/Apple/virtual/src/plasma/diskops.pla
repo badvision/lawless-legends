@@ -288,14 +288,13 @@ def _newOrLoadGame()
     newGame(); return 1
   fin
 
-  home()
-  ^$c053
-  ^$25 = 20
-  puts("\n    N)ew game, or L)oad last game? ")
   while TRUE
+    home()
+    ^$c053
+    ^$25 = 20
+    puts("\n    N)ew game, or L)oad last game? ")
     key = rdkey() & $7F
     home()
-    ^$c052
     if key > $60; key = key - $20; fin
     if key == 'N'
       newGame(); return 1

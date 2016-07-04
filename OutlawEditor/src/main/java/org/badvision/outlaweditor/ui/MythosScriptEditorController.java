@@ -130,6 +130,7 @@ public class MythosScriptEditorController
         }
 
         //TODO: Verify the path conversion works in Win7 with a jar file
+        // Affected by https://bugs.openjdk.java.net/browse/JDK-8136466
         editorView.getEngine().load(getClass().getResource(MYTHOS_EDITOR).toExternalForm());
     }
 

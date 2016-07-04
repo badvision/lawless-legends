@@ -288,19 +288,25 @@ def _newOrLoadGame()
     newGame(); return 1
   fin
 
+  home()
+  ^$c053
+  ^$25 = 20
+  puts("\n    N)ew game, or L)oad last game? ")
+
   while TRUE
-    home()
-    ^$c053
-    ^$25 = 20
-    puts("\n    N)ew game, or L)oad last game? ")
     key = rdkey() & $7F
-    home()
-    if key > $60; key = key - $20; fin
+    if key > $60; key = key - $20; fin // convert to upper-case
     if key == 'N'
-      newGame(); return 1
-    elsif key == 'L' and loadInternal()
-      return 0
+      ^$c052
+      newGame()
+      return 1
+    elsif key == 'L'
+      ^$c052
+      if loadInternal()
+        return 0
+      fin
     fin
+    ^$c053
     beep()
   loop
 end

@@ -22,5 +22,6 @@ import gamelib
   predef encodeDice, rollDice, setPlural, getStringResponse
   predef streqi, fatal, pause, tossStrings
   predef addEncounterZone, showMapName, setMapWindow, makeModifier
+  predef addGold, countGold, payGold
   predef calcPlayerArmor, diskActivity, rdkey, initHeap, scriptCombat
 end

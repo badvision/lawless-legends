@@ -26,6 +26,9 @@ struc Global
   word w_mapY
   byte b_mapDir
 
+  // Shared player gold amount
+  word w_gold
+
   // Heap size for restoring saved game
   word w_heapSize
 end
@@ -40,7 +43,7 @@ struc Player
   byte b_combatOrder
   word p_combatNext
   word w_health
-
+  
   // Innate attributes
   byte b_intelligence
   byte b_strength

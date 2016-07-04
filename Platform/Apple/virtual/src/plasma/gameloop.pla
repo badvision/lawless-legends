@@ -26,6 +26,9 @@ const ANIM_FLAG_RANDOM   = $80
 
 const ANIM_PAUSE_MAX = 300
 
+// Max gold
+const GOLD_MAX = 20000
+
 include "globalDefs.plh"
 include "playtype.plh"
 include "gen_images.plh"
@@ -2166,6 +2169,31 @@ export def calcPlayerArmor(player)
     fin
     pItem = pItem=>p_nextObj
   loop
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Add gold
+export def addGold(amount)
+  if global=>w_gold + amount > GOLD_MAX
+    amount = GOLD_MAX - global=>w_gold
+  fin
+  if amount
+    global=>w_gold = global=>w_gold + amount
+  fin
+  return amount
+end
+
+// How much gold?
+export def countGold()
+  return global=>w_gold
+end
+
+// Pay out gold
+export def payGold(amount)
+  if amount > global=>w_gold
+    return -1
+  fin
+  global=>w_gold = global=>w_gold - amount
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -66,3 +66,8 @@ const LEAVE_OPEN     = 1
 const HEAP_BOTTOM    = $F000
 const HEAP_SIZE      = $800
 
+// Event code
+const EVENT_ENTER    = 1
+const EVENT_LEAVE    = 2
+const EVENT_USE_ITEM = 3
+

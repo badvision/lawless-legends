@@ -1235,14 +1235,24 @@ def initMap(x, y, dir)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Send an event to the script
+export def scriptEvent(event, param)
+  if global=>w_mapScript
+    return global=>w_mapScript(event, param)
+  fin
+  return -1
+end
+
 // Check for script(s) attached to the given location, and call them if there are any.
 // Returns TRUE if any were triggered.
 def checkScripts(x, y)
   word p
-  word pNext
   word script
+  word pNext
   byte anyTriggered
 
+  scriptEvent(EVENT_LEAVE, 0)
+  global=>w_mapScript = 0
   anyTriggered = FALSE
   x = x - triggerOriginX
   y = y - triggerOriginY
@@ -1256,10 +1266,10 @@ def checkScripts(x, y)
       p = p + 2
       while p < pNext
         if x == ^p
-          script = p=>1
+	  script = p=>1
           setWindow2()
           skipScripts = FALSE
-          script()
+          script() // When should the script be installed as an event handler?
           clearPortrait()
           // Some scripts need to suppress running of any further scripts on the square
           // because they swapped out the render engine.
@@ -1271,6 +1281,7 @@ def checkScripts(x, y)
     fin
     p = pNext
   loop
+  scriptEvent(EVENT_ENTER, 0)
   return anyTriggered
 end
 

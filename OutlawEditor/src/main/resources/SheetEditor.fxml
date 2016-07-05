@@ -1,13 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import java.lang.*?>
-<?import java.net.*?>
-<?import java.util.*?>
-<?import javafx.scene.*?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
+<?import java.net.URL?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Menu?>
+<?import javafx.scene.control.MenuBar?>
+<?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.ToolBar?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.VBox?>
 
-<AnchorPane id="AnchorPane" prefHeight="400.0" prefWidth="600.0" styleClass="sheetEditor" xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/8.0.40" fx:controller="org.badvision.outlaweditor.ui.impl.SheetEditorControllerImpl">
+<AnchorPane id="AnchorPane" prefHeight="400.0" prefWidth="600.0" styleClass="sheetEditor" xmlns="http://javafx.com/javafx/8.0.65" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.badvision.outlaweditor.ui.impl.SheetEditorControllerImpl">
     <stylesheets>
         <URL value="@/styles/styles.css" />
     </stylesheets>
@@ -35,14 +38,11 @@
             </MenuBar>
             <ToolBar prefHeight="40.0" prefWidth="200.0">
               <items>
-                <Button mnemonicParsing="false" text="Button" />
+                <Button mnemonicParsing="false" onAction="#addColumnAction" text="Add Column" />
+                  <Button mnemonicParsing="false" onAction="#addRowAction" text="Add Row" />
               </items>
             </ToolBar>
-            <TableView editable="true" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308">
-               <columns>
-                  <TableColumn fx:id="addColumn" onEditCommit="#addColumnAction" prefWidth="75.0" sortable="false" text="+" />
-               </columns>
-            </TableView>
+            <TableView fx:id="table" prefHeight="200.0" prefWidth="200.0" VBox.vgrow="ALWAYS" />
          </children>
       </VBox>
    </children>

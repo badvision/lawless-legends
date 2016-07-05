@@ -36,6 +36,7 @@ import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.cell.ComboBoxTableCell;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.effect.BlurType;
@@ -88,7 +89,7 @@ import org.badvision.outlaweditor.ui.impl.ImageConversionWizardController;
 public class UIAction {
 
     private static File currentSaveFile;
-
+    
     public static enum MAIN_ACTIONS {
 
         _General,
@@ -244,6 +245,19 @@ public class UIAction {
                 children(new Text(message), options.build()).
                 alignment(Pos.CENTER).padding(new Insets(5)).build()));
         dialogStage.show();
+    }
+
+    static public String getText(String message, String defaultValue) {
+        TextInputDialog dialog = new TextInputDialog(defaultValue);
+        dialog.setTitle("MythosScript Editor");
+        dialog.setHeaderText("Respond and press OK, or Cancel to abort");
+        ImageView graphic = new ImageView(new Image("images/revolver_icon.png"));
+        graphic.setFitHeight(50.0);
+        graphic.setFitWidth(50.0);
+        graphic.setSmooth(true);
+        dialog.setGraphic(graphic);
+        dialog.setContentText(message);
+        return dialog.showAndWait().orElse("");
     }
 
     public static Script createAndEditScript(Scope scope) {

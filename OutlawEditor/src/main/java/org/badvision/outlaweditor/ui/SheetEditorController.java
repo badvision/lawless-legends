@@ -14,12 +14,14 @@
 package org.badvision.outlaweditor.ui;
 
 import java.net.URL;
+import java.util.Map;
 import java.util.ResourceBundle;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.TableColumn;
-import org.badvision.outlaweditor.data.xml.Sheet;
+import javafx.scene.control.TableView;
+import org.badvision.outlaweditor.data.xml.Rows.Row;
 import org.badvision.outlaweditor.data.xml.UserType;
 
 /**
@@ -34,9 +36,15 @@ public abstract class SheetEditorController implements Initializable {
 
     @FXML
     protected TableColumn<UserType, String> addColumn;
+    
+    @FXML
+    protected TableView<Row> table;
 
     @FXML
     abstract public void addColumnAction(ActionEvent event);
+
+    @FXML
+    abstract public void addRowAction(ActionEvent event);
     
     @FXML
     protected void initialize() {

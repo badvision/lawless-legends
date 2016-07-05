@@ -116,16 +116,7 @@ public class MythosScriptEditorController
                     });
             
             editorView.getEngine().setPromptHandler((PromptData prompt) -> {
-                TextInputDialog dialog = new TextInputDialog(prompt.getDefaultValue());
-                dialog.setTitle("MythosScript Editor");
-                dialog.setHeaderText("Respond and press OK, or Cancel to abort");
-                ImageView graphic = new ImageView(new Image("images/revolver_icon.png"));
-                graphic.setFitHeight(50.0);
-                graphic.setFitWidth(50.0);
-                graphic.setSmooth(true);
-                dialog.setGraphic(graphic);
-                dialog.setContentText(prompt.getMessage());
-                return dialog.showAndWait().orElse("");
+                return UIAction.getText(prompt.getMessage(), prompt.getDefaultValue());
             });
         }
 

@@ -21,6 +21,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
 import org.badvision.outlaweditor.data.xml.Rows.Row;
 import org.badvision.outlaweditor.data.xml.UserType;
 
@@ -40,6 +41,9 @@ public abstract class SheetEditorController implements Initializable {
     @FXML
     protected TableView<Row> table;
 
+    @FXML
+    protected TextField sheetNameField;
+    
     @FXML
     abstract public void addColumnAction(ActionEvent event);
 

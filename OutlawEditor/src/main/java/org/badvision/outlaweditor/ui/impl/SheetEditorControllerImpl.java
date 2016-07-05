@@ -16,11 +16,10 @@
 package org.badvision.outlaweditor.ui.impl;
 
 import java.net.URL;
-import java.util.Map;
-import java.util.Optional;
 import java.util.ResourceBundle;
-import java.util.function.Consumer;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
@@ -28,11 +27,15 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.cell.TextFieldTableCell;
-import javax.xml.namespace.QName;
+import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.SheetEditor;
+import static org.badvision.outlaweditor.data.DataUtilities.getValue;
+import static org.badvision.outlaweditor.data.DataUtilities.setValue;
 import org.badvision.outlaweditor.data.xml.Columns;
+import org.badvision.outlaweditor.data.xml.Rows;
 import org.badvision.outlaweditor.data.xml.Rows.Row;
 import org.badvision.outlaweditor.data.xml.UserType;
+import org.badvision.outlaweditor.ui.ApplicationUIController;
 import org.badvision.outlaweditor.ui.SheetEditorController;
 import org.badvision.outlaweditor.ui.UIAction;
 
@@ -59,8 +62,13 @@ public class SheetEditorControllerImpl extends SheetEditorController {
             editor.getSheet().getColumns().getColumn().stream().forEach(this::insertViewColumn);
         }
         if (editor.getSheet().getRows() != null) {
-            editor.getSheet().getRows().getRow().forEach(this::insertViewRow);
+            tableData.setAll(editor.getSheet().getRows().getRow());
         }
+        sheetNameField.textProperty().set(editor.getSheet().getName());
+        sheetNameField.textProperty().addListener((value, oldValue, newValue) -> {
+            editor.getSheet().setName(newValue);
+            ApplicationUIController.getController().updateSelectors();
+        });
     }
 
     @Override
@@ -92,7 +100,7 @@ public class SheetEditorControllerImpl extends SheetEditorController {
         }
         TableColumn<Row, String> tableCol = new TableColumn<>(col.getName());
         tableCol.setCellValueFactory((features) -> {
-            String val = getValue(features.getValue(), col.getName());
+            String val = getValue(features.getValue().getOtherAttributes(), col.getName());
             if (val == null) {
                 val = "";
             }
@@ -100,7 +108,7 @@ public class SheetEditorControllerImpl extends SheetEditorController {
         });
         tableCol.setCellFactory(TextFieldTableCell.forTableColumn());
         tableCol.setOnEditCommit((event)
-                -> setValue(event.getRowValue(), col.getName(), event.getNewValue()));
+                -> setValue(event.getRowValue().getOtherAttributes(), col.getName(), event.getNewValue()));
         tableCol.setEditable(true);
         tableCol.setContextMenu(new ContextMenu(
                 createMenuItem("Rename Column", () -> renameColumn(col)),
@@ -111,24 +119,7 @@ public class SheetEditorControllerImpl extends SheetEditorController {
 
     private void insertViewRow(Row row) {
         tableData.add(row);
-    }
-
-    private String getValue(Row row, String name) {
-        return row.getOtherAttributes().entrySet().stream()
-                .filter((e) -> e.getKey().getLocalPart().equals(name))
-                .map(e -> e.getValue())
-                .findFirst().orElse(null);
-
-    }
-
-    private void setValue(Row row, String name, String newValue) {
-        Optional<Map.Entry<QName, String>> attr = row.getOtherAttributes().entrySet().stream()
-                .filter((e) -> e.getKey().getLocalPart().equals(name)).findFirst();
-        if (attr.isPresent()) {
-            attr.get().setValue(newValue);
-        } else {
-            row.getOtherAttributes().put(new QName(name), newValue);
-        }
+        syncData();
     }
 
     private MenuItem createMenuItem(String text, Runnable action) {
@@ -149,7 +140,7 @@ public class SheetEditorControllerImpl extends SheetEditorController {
             UserType newCol = new UserType();
             newCol.setName(newColName);
             editor.getSheet().getColumns().getColumn().add(newCol);
-            tableData.forEach(row -> setValue(row, newColName, getValue(row, col.getName())));
+            tableData.forEach(row -> setValue(row.getOtherAttributes(), newColName, getValue(row.getOtherAttributes(), col.getName())));
             int oldPos = deleteColumn(col);
             insertViewColumn(newCol, oldPos);
         }
@@ -162,12 +153,31 @@ public class SheetEditorControllerImpl extends SheetEditorController {
                 .forEach(
                         m -> m.keySet().removeIf(n -> n.getLocalPart().equals(col.getName()))
                 );
+        int colNumber = findColumn(col);
+        if (colNumber >=0 ) {
+            table.getColumns().remove(colNumber);
+        }
+        syncData();
+        return colNumber;
+    }
+    
+    private void syncData() {
+        if (editor.getSheet().getRows() == null) {
+            editor.getSheet().setRows(new Rows());
+        }
+        editor.getSheet().getRows().getRow().clear();
+        editor.getSheet().getRows().getRow().addAll(tableData);
+        editor.getSheet().getColumns().getColumn().sort((t1, t2) -> {
+            return Integer.compare(findColumn(t1), findColumn(t2));
+        });
+    }
+
+    private int findColumn(UserType col) {
         for (int i=0; i < table.getColumns().size(); i++) {
             if (table.getColumns().get(i).getText().equals(col.getName())) {
-                table.getColumns().remove(i);
                 return i;
             }
         }
-        return -1;
-    }
+        return -1;        
+    }    
 }

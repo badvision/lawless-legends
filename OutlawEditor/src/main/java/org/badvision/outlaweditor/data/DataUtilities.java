@@ -16,6 +16,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
+import javax.xml.namespace.QName;
 import org.badvision.outlaweditor.api.ApplicationState;
 import org.badvision.outlaweditor.data.xml.Block;
 import org.badvision.outlaweditor.data.xml.Field;
@@ -122,6 +123,24 @@ public class DataUtilities {
         }
     }
 
+    public static String getValue(java.util.Map<QName, String> map, String name) {
+        return map.entrySet().stream()
+                .filter((e) -> e.getKey().getLocalPart().equals(name))
+                .map(e -> e.getValue())
+                .findFirst().orElse(null);
+
+    }
+
+    public static void setValue(java.util.Map<QName, String> map, String name, String newValue) {
+        Optional<java.util.Map.Entry<QName, String>> attr = map.entrySet().stream()
+                .filter((e) -> e.getKey().getLocalPart().equals(name)).findFirst();
+        if (attr.isPresent()) {
+            attr.get().setValue(newValue);
+        } else {
+            map.put(new QName(name), newValue);
+        }
+    }
+    
     //------------------------------ String comparators
     /**
      * Rank two strings similarity in terms of distance The lower the number,

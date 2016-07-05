@@ -53,9 +53,6 @@ public class SheetEditor {
             throw new RuntimeException(exception);
         }
 
-        primaryStage.setOnCloseRequest((final WindowEvent t) -> {
-            t.consume();
-        });
         primaryStage.show();
     }
     

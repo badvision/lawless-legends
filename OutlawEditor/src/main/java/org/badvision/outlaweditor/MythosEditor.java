@@ -7,13 +7,13 @@
  * ANY KIND, either express or implied. See the License for the specific language 
  * governing permissions and limitations under the License.
  */
- 
 package org.badvision.outlaweditor;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,9 +38,9 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import org.badvision.outlaweditor.api.ApplicationState;
-import org.badvision.outlaweditor.data.DataUtilities;
 import static org.badvision.outlaweditor.data.DataUtilities.extract;
 import static org.badvision.outlaweditor.data.DataUtilities.extractFirst;
+import org.badvision.outlaweditor.data.xml.Arg;
 import org.badvision.outlaweditor.data.xml.Block;
 import org.badvision.outlaweditor.data.xml.Global;
 import org.badvision.outlaweditor.data.xml.Mutation;
@@ -75,9 +75,7 @@ public class MythosEditor {
         script = theScript;
         scope = theScope;
         spellChecker = new SpellChecker();
-        if (script.getBlock() != null) {
-            fixMutators(script.getBlock());
-        }
+        fixMutators(script.getBlock());
     }
 
     public void show() {
@@ -190,9 +188,9 @@ public class MythosEditor {
             return new ArrayList<>();
         } else {
             List<Script> scripts = scriptScope.getScripts().getScript();
-            List<Script> filteredList = scripts.stream().filter((Script s) -> {
-                return s.getName() != null;
-            }).collect(Collectors.toList());
+            List<Script> filteredList = scripts.stream()
+                    .filter(s -> s.getName() != null)
+                    .collect(Collectors.toList());
             return filteredList;
         }
     }
@@ -227,20 +225,16 @@ public class MythosEditor {
             allGlobals = getGlobalVariables().stream();
         }
         Stream<Variable> allLocals = getLocalVariables().stream();
-        return Stream.concat(allGlobals, allLocals).filter(
-                (Variable v) -> {
-                    return v.getType().equals(type);
-                }).collect(Collectors.toList());
+        return Stream.concat(allGlobals, allLocals)
+                .filter((v) -> v.getType().equals(type))
+                .collect(Collectors.toList());
     }
 
     public List<String> getParametersForScript(Script script) {
         List<String> allArgs = new ArrayList();
         if (script.getBlock() != null) {
-            extractFirst(script.getBlock(), Mutation.class).ifPresent((m) -> {
-                m.getArg().stream().forEach((a) -> {
-                    allArgs.add(a.getName());
-                });
-            });
+            extractFirst(script.getBlock(), Mutation.class)
+                    .ifPresent((m) -> m.getArg().stream().map(Arg::getName).forEach(allArgs::add));
         }
         return allArgs;
     }
@@ -269,15 +263,16 @@ public class MythosEditor {
 
     public static enum MutationType {
         controls_if(MythosEditor::fixIfStatement);
-        
+
         Consumer<Block> rebuildMutation;
+
         MutationType(Consumer<Block> rebuilder) {
             rebuildMutation = rebuilder;
-        }        
+        }
     }
 
     private void fixMutators(Block block) {
-        extractFirst(block, Mutation.class).ifPresent((mutation)-> {
+        extractFirst(block, Mutation.class).ifPresent((mutation) -> {
             if (mutation.getOtherAttributes().isEmpty()) {
                 try {
                     MutationType type = MutationType.valueOf(block.getType());
@@ -288,16 +283,16 @@ public class MythosEditor {
             }
         });
 
-        extract(block, Statement.class).map((s)->s.getBlock()).flatMap((l)->l.stream()).forEach(this::fixMutators);        
-        if (block.getNext() != null && block.getNext().getBlock() != null) {
+        extract(block, Statement.class).map(Statement::getBlock).flatMap(List::stream).forEach(this::fixMutators);
+        if (block != null && block.getNext() != null && block.getNext().getBlock() != null) {
             fixMutators(block.getNext().getBlock());
         }
     }
 
     private static void fixIfStatement(Block block) {
         Mutation mutation = extractFirst(block, Mutation.class).get();
-        long doCount = extract(block, Statement.class).filter((s)->s.getName().startsWith("DO")).collect(Collectors.counting());
-        long elseCount = extract(block, Statement.class).filter((s)->s.getName().startsWith("ELSE")).collect(Collectors.counting());
+        long doCount = extract(block, Statement.class).filter((s) -> s.getName().startsWith("DO")).collect(Collectors.counting());
+        long elseCount = extract(block, Statement.class).filter((s) -> s.getName().startsWith("ELSE")).collect(Collectors.counting());
         if (doCount > 1) {
             mutation.getOtherAttributes().put(new QName("elseif"), String.valueOf(doCount - 1));
         }

@@ -9,14 +9,30 @@
  */
 package org.badvision.outlaweditor.data;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.xml.namespace.QName;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.badvision.outlaweditor.api.ApplicationState;
 import org.badvision.outlaweditor.data.xml.Block;
 import org.badvision.outlaweditor.data.xml.Field;
@@ -25,6 +41,7 @@ import org.badvision.outlaweditor.data.xml.Map;
 import org.badvision.outlaweditor.data.xml.NamedEntity;
 import org.badvision.outlaweditor.data.xml.Scope;
 import org.badvision.outlaweditor.data.xml.Script;
+import org.badvision.outlaweditor.ui.UIAction;
 
 public class DataUtilities {
 
@@ -140,7 +157,65 @@ public class DataUtilities {
             map.put(new QName(name), newValue);
         }
     }
-    
+
+    public static List<List<String>> readFromFile(File file) {
+        try {
+            if (file.getName().toLowerCase().endsWith("txt") ||
+                    file.getName().toLowerCase().endsWith("tsv")) {
+                return readTextFile(file);
+            } else if (file.getName().toLowerCase().endsWith("xls")) {
+                return readLegacyExcel(file);
+            } else if (file.getName().toLowerCase().endsWith("xlsx")) {
+                return readExcel(file);
+            }
+        } catch (IOException | InvalidFormatException ex) {
+            Logger.getLogger(DataUtilities.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        UIAction.alert("Couldn't figure out how to import file "+file.getName());
+        return Collections.EMPTY_LIST;
+    }
+
+    public static List<List<String>> readTextFile(File file) throws FileNotFoundException {
+        BufferedReader reader = new BufferedReader(new FileReader(file));
+        return reader.lines().map(line -> Arrays.asList(line.split("\\t"))).collect(Collectors.toList());
+    }
+
+    public static List<List<String>> readLegacyExcel(File file) throws FileNotFoundException, IOException {
+        return readSheet(new HSSFWorkbook(new FileInputStream(file)));        
+    }
+
+    public static List<List<String>> readExcel(File file) throws FileNotFoundException, IOException, InvalidFormatException {
+        return readSheet(new XSSFWorkbook(file));
+    }
+
+    public static List<List<String>> readSheet(Workbook workbook) {
+        Sheet sheet = workbook.getSheetAt(0);
+        List<List<String>> data = new ArrayList<>();
+        sheet.forEach(row -> {
+            List<String> rowData = new ArrayList<>();
+            row.forEach(cell -> {
+                String col = getStringValueFromCell(cell);
+                rowData.add(col);
+            });
+            data.add(rowData);
+        });
+        return data;
+    }
+
+    public static String getStringValueFromCell(Cell cell) {
+        switch (cell.getCellType()) {
+            case Cell.CELL_TYPE_BOOLEAN:
+                return Boolean.toString(cell.getBooleanCellValue());
+            case Cell.CELL_TYPE_BLANK:
+                return null;
+            case Cell.CELL_TYPE_NUMERIC:
+                return Double.toString(cell.getNumericCellValue());
+            case Cell.CELL_TYPE_STRING:
+                return cell.getStringCellValue();
+            default:
+                return "???";
+        }
+    }    
     //------------------------------ String comparators
     /**
      * Rank two strings similarity in terms of distance The lower the number,

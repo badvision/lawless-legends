@@ -14,7 +14,6 @@
 package org.badvision.outlaweditor.ui;
 
 import java.net.URL;
-import java.util.Map;
 import java.util.ResourceBundle;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -49,6 +48,9 @@ public abstract class SheetEditorController implements Initializable {
 
     @FXML
     abstract public void addRowAction(ActionEvent event);
+    
+    @FXML
+    abstract public void doImport(ActionEvent event);
     
     @FXML
     protected void initialize() {

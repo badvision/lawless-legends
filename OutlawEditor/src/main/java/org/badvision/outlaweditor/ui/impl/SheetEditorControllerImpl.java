@@ -15,8 +15,11 @@
  */
 package org.badvision.outlaweditor.ui.impl;
 
+import java.io.File;
 import java.net.URL;
+import java.util.List;
 import java.util.ResourceBundle;
+import java.util.stream.Collectors;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -24,13 +27,14 @@ import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
-import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TextField;
 import javafx.scene.control.cell.TextFieldTableCell;
-import javafx.util.Callback;
+import javafx.stage.FileChooser;
 import javafx.util.converter.DefaultStringConverter;
+import javax.xml.namespace.QName;
 import org.badvision.outlaweditor.SheetEditor;
+import org.badvision.outlaweditor.data.DataUtilities;
 import static org.badvision.outlaweditor.data.DataUtilities.getValue;
 import static org.badvision.outlaweditor.data.DataUtilities.setValue;
 import org.badvision.outlaweditor.data.xml.Columns;
@@ -45,6 +49,7 @@ public class SheetEditorControllerImpl extends SheetEditorController {
 
     private SheetEditor editor;
     private ObservableList<Row> tableData;
+    private ListChangeListener columnChangeListener = c -> syncData();
 
     /**
      * Initializes the controller class.
@@ -57,21 +62,45 @@ public class SheetEditorControllerImpl extends SheetEditorController {
         table.setEditable(true);
     }
 
+    @Override
+    public void doImport(ActionEvent event) {
+        FileChooser openFileDialog = new FileChooser();
+        openFileDialog.setTitle("Select either a text or an Excel file");
+        File selected = openFileDialog.showOpenDialog(null);
+        if (selected != null && selected.exists() && selected.isFile()) {
+            List<List<String>> data = DataUtilities.readFromFile(selected);
+            if (data != null && data.size() > 1) {
+                tableData.clear();
+                editor.getSheet().setColumns(new Columns());
+                data.get(0).stream().map(s -> s != null && !s.isEmpty() ? s : "---").map(name -> {
+                    UserType type = new UserType();
+                    type.setName(name);
+                    return type;
+                }).collect(Collectors.toCollection(editor.getSheet().getColumns()::getColumn));
+
+                editor.getSheet().setRows(new Rows());
+                data.stream().skip(1)
+                        .map(cols -> {
+                            Row r = new Row();
+                            for (int i = 0; i < cols.size(); i++) {
+                                if (cols.get(i) != null) {
+                                    setValue(r.getOtherAttributes(), data.get(0).get(i), cols.get(i));
+                                }
+                            }
+                            return r;
+                        })
+                        .filter(r -> !r.getOtherAttributes().isEmpty())
+                        .collect(Collectors.toCollection(editor.getSheet().getRows()::getRow));
+
+                buildTableFromSheet();
+            }
+        }
+    }
+
     public void setEditor(SheetEditor editor) {
         tableData.clear();
         this.editor = editor;
-        if (editor.getSheet().getColumns() != null) {
-            editor.getSheet().getColumns().getColumn().stream().forEach(this::insertViewColumn);
-        }
-        if (editor.getSheet().getRows() != null) {
-            tableData.setAll(editor.getSheet().getRows().getRow());
-        }
-        sheetNameField.textProperty().set(editor.getSheet().getName());
-        sheetNameField.textProperty().addListener((value, oldValue, newValue) -> {
-            editor.getSheet().setName(newValue);
-            ApplicationUIController.getController().updateSelectors();
-        });
-        table.getColumns().addListener((ListChangeListener.Change<? extends TableColumn<Row, ?>> c) -> syncData());
+        buildTableFromSheet();
     }
 
     @Override
@@ -91,6 +120,23 @@ public class SheetEditorControllerImpl extends SheetEditorController {
     @Override
     public void addRowAction(ActionEvent event) {
         insertViewRow(new Row());
+    }
+
+    //--------
+    private void buildTableFromSheet() {
+        table.getColumns().removeListener(columnChangeListener);
+        if (editor.getSheet().getColumns() != null) {
+            editor.getSheet().getColumns().getColumn().stream().forEach(this::insertViewColumn);
+        }
+        if (editor.getSheet().getRows() != null) {
+            tableData.setAll(editor.getSheet().getRows().getRow());
+        }
+        sheetNameField.textProperty().set(editor.getSheet().getName());
+        sheetNameField.textProperty().addListener((value, oldValue, newValue) -> {
+            editor.getSheet().setName(newValue);
+            ApplicationUIController.getController().updateSelectors();
+        });
+        table.getColumns().addListener(columnChangeListener);
     }
 
     private void insertViewColumn(UserType col) {
@@ -114,12 +160,13 @@ public class SheetEditorControllerImpl extends SheetEditorController {
             TextFieldTableCell<Row, String> myCell = new TextFieldTableCell<Row, String>(new DefaultStringConverter()) {
                 @Override
                 /**
-                 * Patch behavior so that any change is immediately persisted, enter is not required.
+                 * Patch behavior so that any change is immediately persisted,
+                 * enter is not required.
                  */
                 public void startEdit() {
                     super.startEdit();
                     TextField textField = (TextField) getGraphic();
-                    textField.textProperty().addListener((p,o,n)->{
+                    textField.textProperty().addListener((p, o, n) -> {
                         setItem(n);
                         int index = this.getTableRow().getIndex();
                         Row row = tableData.get(index);
@@ -129,7 +176,7 @@ public class SheetEditorControllerImpl extends SheetEditorController {
             };
             return myCell;
         });
-        
+
         tableCol.setOnEditCommit((event) -> {
             table.requestFocus();
             table.getSelectionModel().clearSelection();

@@ -21,6 +21,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.scene.control.ContextMenu;
@@ -69,6 +70,7 @@ public class SheetEditorControllerImpl extends SheetEditorController {
             editor.getSheet().setName(newValue);
             ApplicationUIController.getController().updateSelectors();
         });
+        table.getColumns().addListener((ListChangeListener.Change<? extends TableColumn<Row, ?>> c) -> syncData());
     }
 
     @Override
@@ -157,7 +159,6 @@ public class SheetEditorControllerImpl extends SheetEditorController {
         if (colNumber >=0 ) {
             table.getColumns().remove(colNumber);
         }
-        syncData();
         return colNumber;
     }
     

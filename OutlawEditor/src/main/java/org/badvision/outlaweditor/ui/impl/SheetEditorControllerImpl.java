@@ -18,17 +18,18 @@ package org.badvision.outlaweditor.ui.impl;
 import java.net.URL;
 import java.util.ResourceBundle;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TextField;
 import javafx.scene.control.cell.TextFieldTableCell;
-import org.badvision.outlaweditor.Application;
+import javafx.util.Callback;
+import javafx.util.converter.DefaultStringConverter;
 import org.badvision.outlaweditor.SheetEditor;
 import static org.badvision.outlaweditor.data.DataUtilities.getValue;
 import static org.badvision.outlaweditor.data.DataUtilities.setValue;
@@ -95,7 +96,7 @@ public class SheetEditorControllerImpl extends SheetEditorController {
     private void insertViewColumn(UserType col) {
         insertViewColumn(col, -1);
     }
-    
+
     private void insertViewColumn(UserType col, int pos) {
         if (pos < 0) {
             pos = table.getColumns().size();
@@ -108,9 +109,31 @@ public class SheetEditorControllerImpl extends SheetEditorController {
             }
             return new SimpleObjectProperty(val);
         });
-        tableCol.setCellFactory(TextFieldTableCell.forTableColumn());
-        tableCol.setOnEditCommit((event)
-                -> setValue(event.getRowValue().getOtherAttributes(), col.getName(), event.getNewValue()));
+
+        tableCol.setCellFactory((TableColumn<Row, String> param) -> {
+            TextFieldTableCell<Row, String> myCell = new TextFieldTableCell<Row, String>(new DefaultStringConverter()) {
+                @Override
+                /**
+                 * Patch behavior so that any change is immediately persisted, enter is not required.
+                 */
+                public void startEdit() {
+                    super.startEdit();
+                    TextField textField = (TextField) getGraphic();
+                    textField.textProperty().addListener((p,o,n)->{
+                        setItem(n);
+                        int index = this.getTableRow().getIndex();
+                        Row row = tableData.get(index);
+                        setValue(row.getOtherAttributes(), col.getName(), n);
+                    });
+                }
+            };
+            return myCell;
+        });
+        
+        tableCol.setOnEditCommit((event) -> {
+            table.requestFocus();
+            table.getSelectionModel().clearSelection();
+        });
         tableCol.setEditable(true);
         tableCol.setContextMenu(new ContextMenu(
                 createMenuItem("Rename Column", () -> renameColumn(col)),
@@ -156,12 +179,12 @@ public class SheetEditorControllerImpl extends SheetEditorController {
                         m -> m.keySet().removeIf(n -> n.getLocalPart().equals(col.getName()))
                 );
         int colNumber = findColumn(col);
-        if (colNumber >=0 ) {
+        if (colNumber >= 0) {
             table.getColumns().remove(colNumber);
         }
         return colNumber;
     }
-    
+
     private void syncData() {
         if (editor.getSheet().getRows() == null) {
             editor.getSheet().setRows(new Rows());
@@ -174,11 +197,11 @@ public class SheetEditorControllerImpl extends SheetEditorController {
     }
 
     private int findColumn(UserType col) {
-        for (int i=0; i < table.getColumns().size(); i++) {
+        for (int i = 0; i < table.getColumns().size(); i++) {
             if (table.getColumns().get(i).getText().equals(col.getName())) {
                 return i;
             }
         }
-        return -1;        
-    }    
+        return -1;
+    }
 }

@@ -20,7 +20,6 @@ import javafx.event.ActionEvent;
 import javafx.scene.control.ListView;
 import javafx.scene.image.ImageView;
 import javafx.util.StringConverter;
-import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.TileEditor;
 import org.badvision.outlaweditor.api.ApplicationState;
 import static org.badvision.outlaweditor.data.PropertyHelper.bind;
@@ -33,6 +32,7 @@ import org.badvision.outlaweditor.data.xml.Tile;
 import org.badvision.outlaweditor.ui.ApplicationUIController;
 import org.badvision.outlaweditor.ui.EntitySelectorCell;
 import org.badvision.outlaweditor.ui.TileEditorTabController;
+import org.badvision.outlaweditor.ui.UIAction;
 import static org.badvision.outlaweditor.ui.UIAction.confirm;
 
 /**
@@ -131,7 +131,8 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
 
     @Override
     public void onTileExportPressed(ActionEvent event) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        getCurrentTileEditor().copy();
+        UIAction.alert("Tile copied to the clipboard; use Paste Special in your target application to import this tile as an image, data, or a styled table (HTML)");
     }
 
     /**

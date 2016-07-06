@@ -49,6 +49,7 @@ import org.badvision.outlaweditor.data.xml.Map;
 import org.badvision.outlaweditor.data.xml.Script;
 import org.badvision.outlaweditor.data.xml.Scripts;
 import org.badvision.outlaweditor.data.xml.Tile;
+import org.badvision.outlaweditor.ui.TileSelectModal;
 import org.badvision.outlaweditor.ui.ToolType;
 import org.badvision.outlaweditor.ui.UIAction;
 
@@ -127,7 +128,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
                 category = currentTile.getCategory();
             }
             if (this.equals(ApplicationState.getInstance().getController().getVisibleEditor())) {
-                UIAction.showTileSelectModal(anchorPane, category, this::setCurrentTile);
+                TileSelectModal.showTileSelectModal(anchorPane, category, this::setCurrentTile);
             }
         }
     }

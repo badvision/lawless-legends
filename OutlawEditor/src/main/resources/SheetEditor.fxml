@@ -2,10 +2,13 @@
 
 <?import java.net.URL?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
 <?import javafx.scene.control.Menu?>
 <?import javafx.scene.control.MenuBar?>
 <?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.Separator?>
 <?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextField?>
 <?import javafx.scene.control.ToolBar?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.VBox?>
@@ -21,7 +24,7 @@
               <menus>
                 <Menu mnemonicParsing="false" text="File">
                   <items>
-                    <MenuItem mnemonicParsing="false" text="Import sheet" />
+                    <MenuItem mnemonicParsing="false" onAction="#doImport" text="Import sheet" />
                   </items>
                 </Menu>
                 <Menu mnemonicParsing="false" text="Edit">
@@ -38,11 +41,14 @@
             </MenuBar>
             <ToolBar prefHeight="40.0" prefWidth="200.0">
               <items>
+                  <Label text="Sheet Name" />
+                  <TextField fx:id="sheetNameField" />
+                  <Separator orientation="VERTICAL" />
                 <Button mnemonicParsing="false" onAction="#addColumnAction" text="Add Column" />
                   <Button mnemonicParsing="false" onAction="#addRowAction" text="Add Row" />
               </items>
             </ToolBar>
-            <TableView fx:id="table" prefHeight="200.0" prefWidth="200.0" VBox.vgrow="ALWAYS" />
+            <TableView fx:id="table" editable="true" prefHeight="200.0" prefWidth="200.0" VBox.vgrow="ALWAYS" />
          </children>
       </VBox>
    </children>

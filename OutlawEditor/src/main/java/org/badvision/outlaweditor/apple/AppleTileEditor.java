@@ -7,12 +7,15 @@
  * ANY KIND, either express or implied. See the License for the specific language 
  * governing permissions and limitations under the License.
  */
- 
 package org.badvision.outlaweditor.apple;
 
+import java.util.Arrays;
+import java.util.HashMap;
 import javafx.scene.Group;
 import javafx.scene.control.Menu;
 import javafx.scene.image.WritableImage;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.DataFormat;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
@@ -21,6 +24,7 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.Shape;
 import org.badvision.outlaweditor.api.Platform;
 import org.badvision.outlaweditor.TileEditor;
+import org.badvision.outlaweditor.data.DataUtilities;
 import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.xml.Tile;
 
@@ -215,8 +219,8 @@ public class AppleTileEditor extends TileEditor {
                 } else {
                     grid[x][y].setStroke(
                             isHiBit
-                            ? (x % 2 == 1) ? Color.CHOCOLATE : Color.CORNFLOWERBLUE
-                            : (x % 2 == 1) ? Color.GREEN : Color.VIOLET);
+                                    ? (x % 2 == 1) ? Color.CHOCOLATE : Color.CORNFLOWERBLUE
+                                    : (x % 2 == 1) ? Color.GREEN : Color.VIOLET);
                 }
             }
         }
@@ -224,7 +228,11 @@ public class AppleTileEditor extends TileEditor {
 
     @Override
     public void copy() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        java.util.Map<DataFormat, Object> clip = new HashMap<>();
+        clip.put(DataFormat.IMAGE, TileUtils.getImage(getEntity(), Platform.AppleII));
+        clip.put(DataFormat.PLAIN_TEXT, DataUtilities.hexDump(TileUtils.getPlatformData(getEntity(), Platform.AppleII)));
+        clip.put(DataFormat.HTML, buildHtmlExport());
+        Clipboard.getSystemClipboard().setContent(clip);
     }
 
     @Override
@@ -247,5 +255,44 @@ public class AppleTileEditor extends TileEditor {
         if (getEntity() != null) {
             TileUtils.redrawTile(getEntity());
         }
+    }
+
+    private String buildHtmlExport() {
+        StringBuilder export = new StringBuilder("<table>");
+        export.append("<tr><th>H</th><th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th>")
+                .append("<th>H</th><th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th>")
+                .append("<th>B1</th><th>B2</th></tr>");
+        byte[] data = TileUtils.getPlatformData(getEntity(), Platform.AppleII);
+        for (int row = 0; row < 16; row++) {
+            export.append("<tr>");
+            for (int col = 0; col < 2; col++) {
+                int b = data[row * 2 + col] & 0x0ff;
+                export.append("<td>")
+                        .append(b>>7)
+                        .append("</td>");
+                for (int bit = 0; bit < 7; bit++) {
+                    export.append("<td style='background:#")
+                            .append(getHexColor((Color) grid[bit + col * 7][row].getFill()))
+                            .append("'>")
+                            .append(b&1)
+                            .append("</td>");
+                    b >>=1;
+                }
+            }
+            export.append("<td>")
+                    .append(DataUtilities.getHexValueFromByte(data[row*2]))
+                    .append("</td><td>")
+                    .append(DataUtilities.getHexValueFromByte(data[row*2+1]))
+                    .append("</td>");
+            export.append("</tr>");
+        }
+        export.append("</table>");
+        return export.toString();
+    }
+
+    private String getHexColor(Color color) {
+        return DataUtilities.getHexValue((int) (color.getRed() * 255))
+                + DataUtilities.getHexValue((int) (color.getGreen() * 255))
+                + DataUtilities.getHexValue((int) (color.getBlue() * 255));
     }
 }

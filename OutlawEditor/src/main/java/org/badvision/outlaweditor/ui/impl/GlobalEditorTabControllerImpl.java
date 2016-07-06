@@ -13,6 +13,7 @@ import java.beans.IntrospectionException;
 import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.Tooltip;
@@ -115,6 +116,7 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
 
             @Override
             public void startEdit() {
+                Platform.runLater(sheetList.getSelectionModel()::clearSelection);
                 UIAction.editSheet(getItem());
                 cancelEdit();
                 updateItem(getItem(), false);

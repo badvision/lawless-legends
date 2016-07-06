@@ -66,9 +66,10 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
         rebuildImageSelectors();
         rebuildMapSelectors();
         rebuildTileSelectors();
+        redrawScripts();
         globalController.redrawGlobalDataTypes();
         globalController.redrawGlobalVariables();
-        redrawScripts();
+        globalController.redrawGlobalSheets();
     }
 
     @Override

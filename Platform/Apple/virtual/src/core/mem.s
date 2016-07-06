@@ -77,6 +77,34 @@ prodosMemMap 	= $BF58
 ;------------------------------------------------------------------------------
 ; Relocate all the pieces to their correct locations and perform patching.
 relocate:
+; put something interesting on the screen :)
+	jsr home
+	ldy #0
+-	lda .welcomeText,y
+	beq +
+	jsr cout
+	iny
+	bne -
+	jmp +
+.welcomeText: !text "Welcome to Mythos.",$8D,0
++
+; special: clear most of the lower 48k
+	ldx #8
+.clr1	stx .clrst1+2
+	stx .clrst2+2
+	ldy #0
+	tya
+.clrst1	sta $800,y
+.clrst2	sta $880,y
+	iny
+	bpl .clrst1
+	inx
+	cpx #$20
+	bne +
+	ldx #$40
++	cpx #$BF
+	bne .clr1
+
 ; first our lo memory piece goes to $800
 	ldy #0
 	ldx #>(loMemEnd-loMemBegin+$FF)
@@ -238,9 +266,6 @@ init: !zone
 ; switch in mem mgr
 	bit setLcRW+lcBank1
 	bit setLcRW+lcBank1
-; put something interesting on the screen :)
-	jsr home
-	+prStr : !text "Welcome to Mythos.",0
 ; close all files
 	lda #0
 	jsr closeFile
@@ -649,6 +674,18 @@ __asmPlasm_bank2:
 	bit setLcRW+lcBank2
 	bit setLcRW+lcBank2
 __asmPlasm: !zone
+
+	; KLUDGE ALERT! Turning off IIc keyboard buffer as an experiment
+	lda $BF98	; machine ID byte
+	and #$C8	; mask just the machine bits
+	cmp #$88	; Apple IIc?
+	bne +
+	lda #$10	; turn off keyboard buffer
+	sta $c0aa
+	lda #$B
+	sta $c0ab
++	; END OF KLUDGE
+
 	cpx #$11
 	bcs .badx	; X must be in range 0..$10
 	; adjust PLASMA stack pointer to skip over params

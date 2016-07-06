@@ -32,7 +32,6 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.stage.FileChooser;
 import javafx.util.converter.DefaultStringConverter;
-import javax.xml.namespace.QName;
 import org.badvision.outlaweditor.SheetEditor;
 import org.badvision.outlaweditor.data.DataUtilities;
 import static org.badvision.outlaweditor.data.DataUtilities.getValue;
@@ -49,7 +48,7 @@ public class SheetEditorControllerImpl extends SheetEditorController {
 
     private SheetEditor editor;
     private ObservableList<Row> tableData;
-    private ListChangeListener columnChangeListener = c -> syncData();
+    private final ListChangeListener columnChangeListener = c -> syncData();
 
     /**
      * Initializes the controller class.

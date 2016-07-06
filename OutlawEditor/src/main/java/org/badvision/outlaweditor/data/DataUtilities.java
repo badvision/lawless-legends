@@ -216,6 +216,30 @@ public class DataUtilities {
                 return "???";
         }
     }    
+    
+    public static String hexDump(byte[] data) {
+        StringBuilder dump = new StringBuilder();
+        for (int i=0; i < data.length; i++) {
+            if (i > 0) {
+                dump.append(",");
+            }
+            dump.append(getHexValueFromByte(data[i]));
+        }
+        return dump.toString();
+    }
+
+    public static String getHexValueFromByte(byte val) {
+        return getHexValue(val & 0x0ff);
+    }
+    
+    public static String getHexValue(int val) {
+        if (val < 16) {
+            return "0" + Integer.toHexString(val);
+        } else {
+            return Integer.toHexString(val);
+        }
+    }
+    
     //------------------------------ String comparators
     /**
      * Rank two strings similarity in terms of distance The lower the number,

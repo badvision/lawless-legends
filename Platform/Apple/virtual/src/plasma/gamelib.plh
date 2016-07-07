@@ -8,10 +8,9 @@
 // governing permissions and limitations under the License.
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Shared library routines
-
 import gamelib
+
+  // Shared library routines
   predef setScriptInfo, scriptDisplayStr, scriptDisplayStrNL, getYN, queue_setMap
   predef setSky, setGround, queue_teleport, setPortrait, clearPortrait, moveWayBackward
   predef getUpperKey, clearWindow, getGlobals, rand16, printf1, printf2, printf3
@@ -25,4 +24,9 @@ import gamelib
   predef addGold, countGold, payGold
   predef calcPlayerArmor, diskActivity, rdkey, initHeap, scriptCombat
   predef giveItemToPlayer, takeItemFromPlayer, playerHasItem, changePlayerStat
+
+  // Shared string constants
+  byte[] S_INTELLIGENCE, S_STRENGTH, S_AGILITY, S_STAMINA, S_CHARISMA, S_SPIRIT, S_LUCK
+  byte[] S_HEALTH, S_AIMING, S_HAND_TO_HAND, S_DODGING, S_GOLD
+
 end

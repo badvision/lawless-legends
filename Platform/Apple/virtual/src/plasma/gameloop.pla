@@ -98,6 +98,20 @@ byte animNumFrames
 byte animFrame
 word animPauseCt
 
+// Shared string constants
+export byte[] S_INTELLIGENCE = "intelligence"
+export byte[] S_STRENGTH = "strength"
+export byte[] S_AGILITY = "agility"
+export byte[] S_STAMINA = "stamina"
+export byte[] S_CHARISMA = "charisma"
+export byte[] S_SPIRIT = "spirit"
+export byte[] S_LUCK = "luck"
+export byte[] S_HEALTH = "health"
+export byte[] S_AIMING = "aiming"
+export byte[] S_HAND_TO_HAND = "hand-to-hand"
+export byte[] S_DODGING = "dodging"
+export byte[] S_GOLD = "gold"
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
 asm _defs
@@ -134,470 +148,474 @@ end
 // Temporary hack: after scriptDisplayStr is called, generated code calls this to clear the PLASMA
 // string pool. That way, many long strings can be used in a single function.
 export asm tossStrings
-        lda framePtr
-        sta outerFramePtr
-        lda framePtr+1
-        sta outerFramePtr+1
-        dex
-        rts
+  lda framePtr
+  sta outerFramePtr
+  lda framePtr+1
+  sta outerFramePtr+1
+  dex
+  rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // API to call rendering engine (same API for raycaster and tile engine)
 asm initDisplay   // params: mapNum, pMapData, x, y, dir
-        +asmPlasm 5
-        jmp $6000
+  +asmPlasm 5
+  jmp $6000
 end
 asm flipToPage1  // no params
-        +asmPlasm 0
-        jmp $6003
+  +asmPlasm 0
+  jmp $6003
 end
 asm getPos       // params: @x, @y
-        +asmPlasm 2
-        jmp $6006
+  +asmPlasm 2
+  jmp $6006
 end
 asm setPos       // params: x, y
-        +asmPlasm 2
-        jmp $6009
+  +asmPlasm 2
+  jmp $6009
 end
 asm getDir       // no params; returns: dir (0-15)
-        +asmPlasm 0
-        jmp $600C
+  +asmPlasm 0
+  jmp $600C
 end
 asm setDir       // params: dir (0-15)
-        +asmPlasm 1
-        jmp $600F
+  +asmPlasm 1
+  jmp $600F
 end
 asm advance      // no params; return: 0 if same pos, 1 if new pos, 2 if new pos and scripted
-        +asmPlasm 0
-        jmp $6012
+  +asmPlasm 0
+  jmp $6012
 end
 asm setColor     // params: slot (0=sky/1=ground), color (0-17)
-        +asmPlasm 2
-        jmp $6015
+  +asmPlasm 2
+  jmp $6015
 end
 asm render      // no params
-        +asmPlasm 0
-        jmp $6018
+  +asmPlasm 0
+  jmp $6018
 end
 asm texControl  // params: load (1=load, 0=unload)
-        +asmPlasm 1
-        jmp $601B
+  +asmPlasm 1
+  jmp $601B
 end
 asm getMapScript  // params: none
-        +asmPlasm 0
-        jmp $601E
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-asm setAuxCopy
-        rts
+  +asmPlasm 0
+  jmp $601E
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 asm readAuxByte     // params: ptr; ret: char
-        +asmPlasm 1
+  +asmPlasm 1
 
-        ; Create the following subroutine, used to copy one char from aux to main:
-        ;0010-   8D 03 C0    STA   $C003
-        ;0013-   AD XX XX    LDA   $XXXX
-        ;0016-   8D 02 C0    STA   $C002
-        ;0019-   60          RTS
+  ; Create the following subroutine, used to copy one char from aux to main:
+  ;0010-   8D 03 C0    STA   $C003
+  ;0013-   AD XX XX    LDA   $XXXX
+  ;0016-   8D 02 C0    STA   $C002
+  ;0019-   60          RTS
 
-        sta $14
-        sty $15
-        lda #$8D
-        sta $10
-        sta $16
-        ldx #2
-        stx $17
-        inx
-        stx $11
-        lda #$C0
-        sta $12
-        sta $18
-        lda #$AD
-        sta $13
-        lda #$60
-        sta $19
+  sta $14
+  sty $15
+  lda #$8D
+  sta $10
+  sta $16
+  ldx #2
+  stx $17
+  inx
+  stx $11
+  lda #$C0
+  sta $12
+  sta $18
+  lda #$AD
+  sta $13
+  lda #$60
+  sta $19
 
-        ; And call the routine
-        ldy #0
-        jmp $10
+  ; And call the routine
+  ldy #0
+  jmp $10
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // String building for display with the font engine. Includes plurality processing to handily 
 // handle things like "Dirt bag(s)" and "his/their"
 export asm buildString
-        +asmPlasm 1
-        sta cswl
-        sty cswh
-        lda #0
-        sta inbuf
-        rts
+  +asmPlasm 1
+  sta cswl
+  sty cswh
+  lda #0
+  sta inbuf
+  rts
 end
 
 export asm addToString
-        sty ysav1
-        inc inbuf
-        ldy inbuf
-        sta inbuf,y
-        ldy ysav1
-        rts
+  sty ysav1
+  inc inbuf
+  ldy inbuf
+  sta inbuf,y
+  ldy ysav1
+  rts
 end
 
 export asm finishString
 !zone {
-        +asmPlasm 1
-        sta tmp     ; save isPlural flag
-        jsr setvid  ; put the cout vector back to default
-        bit monrts  ; V flag for prev-is-punctuation
-        ldy #1      ; dest offset in Y
-        ldx #1      ; source offset in X
-        cpx inbuf
-        beq +       ; only process if string has at least 1 char
-        bcs .done
-+       sty tmp+1   ; offset of last punctuation
-.fetch  lda inbuf,x
-        cmp #"("
-        bne .notpar
-        bvs .notpar ; skip paren processing right punctuation
-        lda tmp     ; check isPlural flag
-        bne .plurpr
--       lda inbuf,x ; it's singular, so skip everything in parens
-        cmp #")"
-        beq .next
-        inx
-        cpx inbuf
-        bne -
-        beq .done   ; handle missing trailing paren
-.plurpr inx         ; it's plural, so copy everything within the parens
-        lda inbuf,x ; copy characters
-        cpx inbuf   ; handle missing trailing paren
-        beq .store
-        cmp #")"    ; go until we reach ending paren
-        beq .next
-        sta inbuf,y
-        iny
-        bne .plurpr ; always taken
+  +asmPlasm 1
+  sta tmp     ; save isPlural flag
+  jsr setvid  ; put the cout vector back to default
+  bit monrts  ; V flag for prev-is-punctuation
+  ldy #1      ; dest offset in Y
+  ldx #1      ; source offset in X
+  cpx inbuf
+  beq +       ; only process if string has at least 1 char
+  bcs .done
++ sty tmp+1   ; offset of last punctuation
+.fetch
+  lda inbuf,x
+  cmp #"("
+  bne .notpar
+  bvs .notpar ; skip paren processing right punctuation
+  lda tmp     ; check isPlural flag
+  bne .plurpr
+- lda inbuf,x ; it's singular, so skip everything in parens
+  cmp #")"
+  beq .next
+  inx
+  cpx inbuf
+  bne -
+  beq .done   ; handle missing trailing paren
+.plurpr
+  inx         ; it's plural, so copy everything within the parens
+  lda inbuf,x ; copy characters
+  cpx inbuf   ; handle missing trailing paren
+  beq .store
+  cmp #")"    ; go until we reach ending paren
+  beq .next
+  sta inbuf,y
+  iny
+  bne .plurpr ; always taken
 
-.notpar cmp #"/"
-        bne .notsl
-        bvs .notsl  ; skip slash processing right after punctuation
-        lda tmp     ; check isPlural flag
-        bne .plursl
--       inx         ; loop that skips plural form
-        cpx inbuf
-        beq +
-        bcs .done   ; handle end of string
-+       lda inbuf,x
-        cmp #"A"    ; eat letters (and stop when we hit punctuation)
-        bcs -
-        bcc .store  ; copy the ending punctuation and continue normal processing
-.plursl ldy tmp+1   ; erase singular form by backing up to prev punc
-        iny         ;     plus 1 to retain prev punc
-        bne .next   ; resume regular copying of the plural form
+.notpar
+  cmp #"/"
+  bne .notsl
+  bvs .notsl  ; skip slash processing right after punctuation
+  lda tmp     ; check isPlural flag
+  bne .plursl
+- inx         ; loop that skips plural form
+  cpx inbuf
+  beq +
+  bcs .done   ; handle end of string
++ lda inbuf,x
+  cmp #"A"    ; eat letters (and stop when we hit punctuation)
+  bcs -
+  bcc .store  ; copy the ending punctuation and continue normal processing
+.plursl
+  ldy tmp+1   ; erase singular form by backing up to prev punc
+  iny         ;     plus 1 to retain prev punc
+  bne .next   ; resume regular copying of the plural form
 
-.notsl  cmp #"A"    ; if <= ASCII "A", consider it punctuation
-        bcc +
-        clv         ; clear last-is-punc flag
-        bvc .store  ; always taken
-+       bit monrts  ; set prev-is-punc flag
-        sty tmp+1   ; save dest offset of last punctuation
+.notsl
+  cmp #"A"    ; if <= ASCII "A", consider it punctuation
+  bcc +
+  clv         ; clear last-is-punc flag
+  bvc .store  ; always taken
++ bit monrts  ; set prev-is-punc flag
+  sty tmp+1   ; save dest offset of last punctuation
 
-.store  sta inbuf,y ; save to dest
-        iny
+.store
+  sta inbuf,y ; save to dest
+  iny
 
-.next   inx
-        cpx inbuf   ; compare src offset to length
-        bcc .fetch  ; loop while less than
-        beq .fetch  ;       or equal
+.next
+  inx
+  cpx inbuf   ; compare src offset to length
+  bcc .fetch  ; loop while less than
+  beq .fetch  ;       or equal
 
-.done   dey
-        sty inbuf   ; save new length
-        lda #<inbuf
-        ldy #>inbuf
-        rts
+.done
+  dey
+  sty inbuf   ; save new length
+  lda #<inbuf
+  ldy #>inbuf
+  rts
 }
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 asm blitPortrait      // params: srcData, dstScreenPtr
-        +asmPlasm 2
+  +asmPlasm 2
 
-        ; Save the dest pointer
-        sta pTmp
-        sty pTmp+1
+  ; Save the dest pointer
+  sta pTmp
+  sty pTmp+1
 
-        ; Save the source pointer
-        lda evalStkL+1,x
-        sta tmp
-        lda evalStkH+1,x
-        sta tmp+1
+  ; Save the source pointer
+  lda evalStkL+1,x
+  sta tmp
+  lda evalStkH+1,x
+  sta tmp+1
 
-        ; Create the following subroutine, used to copy pixels from aux to main:
-        ; 0010-   8D 03 C0    STA   $C003
-        ; 0013-   B1 02       LDA   ($02),Y
-        ; 0015-   91 04       STA   ($04),Y
-        ; 0017-   88          DEY
-        ; 0018-   10 F9       BPL   $0013
-        ; 001A-   8D 02 C0    STA   $C002
-        ; 001D-   60          RTS
-        lda #$8D
-        sta $10
-        sta $1A
-        ldx #2
-        stx $14
-        stx $1B
-        inx
-        stx $11
-        lda #$C0
-        sta $12
-        sta $1C
-        lda #$B1
-        sta $13
-        lda #$91
-        sta $15
-        inx
-        stx $16
-        lda #$88
-        sta $17
-        lda #$10
-        sta $18
-        lda #$F9
-        sta $19
-        lda #$60
-        sta $1D
+  ; Create the following subroutine, used to copy pixels from aux to main:
+  ; 0010-   8D 03 C0    STA   $C003
+  ; 0013-   B1 02       LDA   ($02),Y
+  ; 0015-   91 04       STA   ($04),Y
+  ; 0017-   88          DEY
+  ; 0018-   10 F9       BPL   $0013
+  ; 001A-   8D 02 C0    STA   $C002
+  ; 001D-   60          RTS
+  lda #$8D
+  sta $10
+  sta $1A
+  ldx #2
+  stx $14
+  stx $1B
+  inx
+  stx $11
+  lda #$C0
+  sta $12
+  sta $1C
+  lda #$B1
+  sta $13
+  lda #$91
+  sta $15
+  inx
+  stx $16
+  lda #$88
+  sta $17
+  lda #$10
+  sta $18
+  lda #$F9
+  sta $19
+  lda #$60
+  sta $1D
 
-        ; Outer copy loop
-        ldx #128  ; line count
-.loop   ldy #17   ; byte count minus 1. There are 18 bytes per line
-        jsr $10   ; copy pixel bytes
+  ; Outer copy loop
+  ldx #128  ; line count
+.loop
+  ldy #17   ; byte count minus 1. There are 18 bytes per line
+  jsr $10   ; copy pixel bytes
 
-        ; Advance to next row of data
-        lda tmp
-        clc
-        adc #18
-        sta tmp
-        bcc +
-        inc tmp+1
-+
-        ; Fun code to advance to the next hi-res line
-        ldy pTmp+1
-        iny
-        iny
-        iny
-        iny
-        cpy #$40
-        bcc .ok2
-        tya
-        sbc #$20  ; carry already set
-        tay
-        lda pTmp
-        eor #$80
-        bmi .ok
-        iny
-        cpy #$24
-        bcc .ok
-        ldy #$20
-        adc #$27  ; carry was set, so actually adding $28
-.ok     sta pTmp
-.ok2    sty pTmp+1
-
-        ; Loop until we've done all rows.
-        dex
-        bne .loop
-
-        rts
+  ; Advance to next row of data
+  lda tmp
+  clc
+  adc #18
+  sta tmp
+  bcc +
+  inc tmp+1
++ ; Fun code to advance to the next hi-res line
+  ldy pTmp+1
+  iny
+  iny
+  iny
+  iny
+  cpy #$40
+  bcc .ok2
+  tya
+  sbc #$20  ; carry already set
+  tay
+  lda pTmp
+  eor #$80
+  bmi .ok
+  iny
+  cpy #$24
+  bcc .ok
+  ldy #$20
+  adc #$27  ; carry was set, so actually adding $28
+.ok
+  sta pTmp
+.ok2
+  sty pTmp+1
+  ; Loop until we've done all rows.
+  dex
+  bne .loop
+  rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Simply retrieve the X register. Used to double-check that we're not leaking PLASMA eval
 // stack entries.
 asm getXReg
-        +asmPlasm 0
-        txa
-        ldy #0
-        rts
+  +asmPlasm 0
+  txa
+  ldy #0
+  rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Calculate 16-bit hash of a string
 asm hashString
-        +asmPlasm 1
-        sta pTmp
-        sty pTmp+1
-        ldy #0
-        sty tmp+1
-        lda (pTmp),y
-        tax
-        iny
--       clc
-        adc (pTmp),y
-        bcc +
-        inc tmp+1
-+       asl
-        rol tmp+1
-        bcc +
-        ora #1
-+       asl
-        rol tmp+1
-        bcc +
-        ora #1
-+       asl
-        rol tmp+1
-        bcc +
-        ora #1
-+       iny
-        dex
-        bne -
-        ldy tmp+1
-        rts
+  +asmPlasm 1
+  sta pTmp
+  sty pTmp+1
+  ldy #0
+  sty tmp+1
+  lda (pTmp),y
+  tax
+  iny
+- clc
+  adc (pTmp),y
+  bcc +
+  inc tmp+1
++ asl
+  rol tmp+1
+  bcc +
+  ora #1
++ asl
+  rol tmp+1
+  bcc +
+  ora #1
++ asl
+  rol tmp+1
+  bcc +
+  ora #1
++ iny
+  dex
+  bne -
+  ldy tmp+1
+  rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a string to the current character output vector
 export asm puts
-        +asmPlasm 1
-        sta pTmp
-        sty pTmp+1
-        ldy #0
-        lda (pTmp),y
-        tax
-        iny
--       lda (pTmp),y
-        ora #$80
-        jsr cout
-        iny
-        dex
-        bne -
-        rts
+  +asmPlasm 1
+  sta pTmp
+  sty pTmp+1
+  ldy #0
+  lda (pTmp),y
+  tax
+  iny
+- lda (pTmp),y
+  ora #$80
+  jsr cout
+  iny
+  dex
+  bne -
+  rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Get a character from the keyboard
 export asm rdkey
-        +asmPlasm 0
-        jmp rdkey
+  +asmPlasm 0
+  jmp rdkey
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print part of a string, until we hit the end or a '%' code. Return how far we got, or -1 for end.
 asm partialPrintf
 !zone {
-        +asmPlasm 2
-        lda evalStkL+1,x    ; get string pointer
-        sta pTmp
-        lda evalStkH+1,x
-        sta pTmp+1
-        ldy #0
-        lda (pTmp),y        ; get length byte
-        sec
-        sbc evalStkL,x      ; minus offset
-        sta tmp             ; to count of characters left to print
-        bcc .eos            ; avoid overrunning
-        beq .eos
-        lda evalStkL,x      ; get desired offset into string
-        tay
-        iny                 ; increment past length byte
--       lda (pTmp),y
-        ora #$80
-        cmp #'%'            ; stop if we hit % code
-        beq +
-        jsr cout
-        iny
-        dec tmp             ; otherwise go until end of string
-        bne -
-.eos    ldy #$FF            ; if we hit end of string, return -1
-        tya
-        rts
-+       dey                 ; adjust back for length byte
-        tya                 ; that's the lo byte of return
-        ldy #0              ; hi byte of return is zero
-        rts
+  +asmPlasm 2
+  lda evalStkL+1,x    ; get string pointer
+  sta pTmp
+  lda evalStkH+1,x
+  sta pTmp+1
+  ldy #0
+  lda (pTmp),y        ; get length byte
+  sec
+  sbc evalStkL,x      ; minus offset
+  sta tmp             ; to count of characters left to print
+  bcc .eos            ; avoid overrunning
+  beq .eos
+  lda evalStkL,x      ; get desired offset into string
+  tay
+  iny                 ; increment past length byte
+- lda (pTmp),y
+  ora #$80
+  cmp #'%'            ; stop if we hit % code
+  beq +
+  jsr cout
+  iny
+  dec tmp             ; otherwise go until end of string
+  bne -
+.eos
+  ldy #$FF            ; if we hit end of string, return -1
+  tya
+  rts
++ dey                 ; adjust back for length byte
+  tya                 ; that's the lo byte of return
+  ldy #0              ; hi byte of return is zero
+  rts
 }
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a 16-bit hex value
 asm printHex
-        +asmPlasm 1
-        tax
-        tya
-        jmp prntax
+  +asmPlasm 1
+  tax
+  tya
+  jmp prntax
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a single character
 asm printChar
-        +asmPlasm 1
-        ora #$80
-        jmp cout
+  +asmPlasm 1
+  ora #$80
+  jmp cout
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a carriage return
 asm crout
-        +asmPlasm 0
-        jmp crout
+  +asmPlasm 0
+  jmp crout
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Ring the bell
 export asm beep
-        +asmPlasm 0
-        jmp bell
+  +asmPlasm 0
+  jmp bell
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Read a string from the keyboard, turn it into a PLASMA string and return a pointer to the string.
 asm readStr
-        +asmPlasm 0
-        jsr getln1
-        txa
-        pha
-        beq +
--       lda inbuf-1,x
-        and #$7F
-        sta inbuf,x
-        dex
-        bne -
-+       pla
-        sta inbuf,x
-        lda #<inbuf
-        ldy #>inbuf
-        rts
+  +asmPlasm 0
+  jsr getln1
+  txa
+  pha
+  beq +
+- lda inbuf-1,x
+  and #$7F
+  sta inbuf,x
+  dex
+  bne -
++ pla
+  sta inbuf,x
+  lda #<inbuf
+  ldy #>inbuf
+  rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Send a command to the memory manager
 // Params: cmd, wordParam
 export asm mmgr
-        +asmPlasm 2
-        lda evalStkL+1,x        ; command code
-        pha
-        ldy evalStkH,x          ; address (or other param)... hi byte in Y
-        lda evalStkL,x
-        tax                     ;     ...lo byte in X
-        pla
-        jsr mainLoader          ; ret value in X=lo/Y=hi
-        txa                     ;    to A=lo/Y=hi for asmPlasm
-        rts
+  +asmPlasm 2
+  lda evalStkL+1,x        ; command code
+  pha
+  ldy evalStkH,x          ; address (or other param)... hi byte in Y
+  lda evalStkL,x
+  tax                     ;     ...lo byte in X
+  pla
+  jsr mainLoader          ; ret value in X=lo/Y=hi
+  txa                     ;    to A=lo/Y=hi for asmPlasm
+  rts
 end
 
 // Aux version of memory manager command
 asm auxMmgr
-        +asmPlasm 2
-        lda evalStkL+1,x        ; command code
-        pha
-        ldy evalStkH,x          ; address (or other param)
-        lda evalStkL,x
-        tax
-        pla
-        jsr auxLoader           ; ret value in X=lo/Y=hi
-        txa                     ;    to A=lo/Y=hi for asmPlasm
-        rts
+  +asmPlasm 2
+  lda evalStkL+1,x        ; command code
+  pha
+  ldy evalStkH,x          ; address (or other param)
+  lda evalStkL,x
+  tax
+  pla
+  jsr auxLoader           ; ret value in X=lo/Y=hi
+  txa                     ;    to A=lo/Y=hi for asmPlasm
+  rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -605,46 +623,47 @@ end
 // block of blue pixels surrounded by a black border.
 // Params: show/hide ($FF, or 0)
 export asm diskActivity
-        +asmPlasm 1
-        sta tmp                 ; save show(FF) / hide(0) flag
-        ldx #0
-        stx pTmp
-        ldy #$F8                ; offset of screen holes
-        lda #$20                ; first line of screen is $2000
--       sta pTmp+1
-        cmp #$30                ; pre-check for last line
-        bit tmp                 ; check mode
-        beq +
-        lda (pTmp,x)            ; show mode
-        sta (pTmp),y
-        lda #$85
-        bcc ++                  ; first 4 lines
-        lda #0                  ; last line
-        beq ++                  ; always taken
-+       lda (pTmp),y            ; hide mode
-++      sta (pTmp,x)
-        lda pTmp+1
-        clc
-        adc #4
-        cmp #$34                ; Do 5 lines: $2000, $2400, $2800, $2C00, $3000; Stop before $3400.
-        bne -
-        rts
+  +asmPlasm 1
+  sta tmp                 ; save show(FF) / hide(0) flag
+  ldx #0
+  stx pTmp
+  ldy #$F8                ; offset of screen holes
+  lda #$20                ; first line of screen is $2000
+- sta pTmp+1
+  cmp #$30                ; pre-check for last line
+  bit tmp                 ; check mode
+  beq +
+  lda (pTmp,x)            ; show mode
+  sta (pTmp),y
+  lda #$85
+  bcc ++                  ; first 4 lines
+  lda #0                  ; last line
+  beq ++                  ; always taken
++ lda (pTmp),y            ; hide mode
+++
+  sta (pTmp,x)
+  lda pTmp+1
+  clc
+  adc #4
+  cmp #$34                ; Do 5 lines: $2000, $2400, $2800, $2C00, $3000; Stop before $3400.
+  bne -
+  rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Jump straight to the system monitor
 // Params: None
 asm goMon
-        jmp $FF69
+  jmp $FF69
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Execute a monitor breakpoint
 // Params: None
 export asm brk
-        bit setText
-        bit page1
-        brk
+  bit setText
+  bit page1
+  brk
 end
 
 
@@ -652,12 +671,12 @@ end
 // Clear the screen and reboot the machine
 // Params: None
 export asm reboot
-        bit setROM
-        jsr home
-        bit setText
-        bit page1
-        inc $3F4    ; invalidate reset vector
-        jmp $FA62   ; and reset
+  bit setROM
+  jsr home
+  bit setText
+  bit page1
+  inc $3F4    ; invalidate reset vector
+  jmp $FA62   ; and reset
 end
 
 
@@ -2256,6 +2275,12 @@ export def playerHasItem(itemName)
 end
 
 export def changePlayerStat(statName, add)
+  when statName
+    is @S_STRENGTH
+      global=>p_players->b_strength = max(0, min(255, global=>p_players->b_strength + add))
+    otherwise
+      puts(statName); fatal("Unknown attr to incr/decr")
+  wend
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

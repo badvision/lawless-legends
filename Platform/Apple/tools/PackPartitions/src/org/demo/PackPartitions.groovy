@@ -59,8 +59,6 @@ class PackPartitions
     def bytecodes = [:]  // module name to bytecode.num, bytecode.buf
     def fixups    = [:]  // module name to fixup.num, fixup.buf
     
-    def itemNameToFunc = [:]
-    
     def lastSysModule
     
     def compressor = LZ4Factory.fastestInstance().highCompressor()
@@ -1629,16 +1627,33 @@ class PackPartitions
                 printWarning "map name '${map?.@name}' should contain '2D' or '3D'. Skipping."
         }
     }
-        
+    
+    def readCache()
+    {
+        File cacheFile = new File("build/world.cache")
+        if (cacheFile.exists()) {
+            ObjectInputStream inStream = new ObjectInputStream(new FileInputStream(cacheFile));
+            cache = inStream.readObject();
+            inStream.close()
+        }
+    }
+    
+    def writeCache()
+    {
+        File cacheFile = new File("build/world.cache")
+        File newCacheFile = new File("build/world.cache.new")
+        ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(newCacheFile));
+        out.writeObject(cache);
+        out.close()
+        cacheFile.delete() // needed on Windows
+        newCacheFile.renameTo(cacheFile)
+    }
+    
     def pack(xmlPath)
     {
         // Save time by using cache of previous run
-        File cacheFile = new File("build/world.cache")
-        if (cacheFile.exists()) {
-            ObjectInputStream out = new ObjectInputStream(new FileInputStream(cacheFile));
-            cache = out.readObject();
-            out.close()
-        }
+        readCache()
+
         
         // Read in code chunks. For now these are hard coded, but I guess they ought to
         // be configured in a config file somewhere...?
@@ -1734,13 +1749,8 @@ class PackPartitions
             println "Size $origSize -> $endSize ($savPct% savings)"
         }
         
-        // Write a new cache file
-        File newCacheFile = new File("build/world.cache.new")
-        ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(newCacheFile));
-        out.writeObject(cache);
-        out.close()
-        cacheFile.delete() // needed on Windows
-        newCacheFile.renameTo(cacheFile)
+        // And save the cache for next time.
+        writeCache()
     }
     
     def isAlnum(ch)
@@ -1936,7 +1946,8 @@ end
     def parseStringAttr(row, attrName)
     {
         def val = row."@$attrName"
-        assert val != null : "Missing column '$attrName'"
+        if (val == null)
+            return ""
         return val.trim()
     }
     
@@ -2050,8 +2061,8 @@ end
                     "${parseByteAttr(row, name)}))")
             }
             else if (name =~ /^item-/) {
-                def itemFunc = itemNameToFunc[val]
-                assert itemFunc : "Can't locate item 'val'"
+                def itemFunc = cache['itemNameToFunc'][val]
+                assert itemFunc : "Can't locate item '$val'"
                 out.println("  addToList(@p=>p_items, itemScripts()=>$itemFunc())")
             }
         }
@@ -2098,18 +2109,19 @@ end
     {
         // Grab all the raw data
         def funcs = []
-        sheets.find { it?.@name.equalsIgnoreCase("weapons") }.rows.row.each { row ->
+        sheets.find { it?.@name.equalsIgnoreCase("weapons") }.rows.row.findAll{it.@name}.each { row ->
             funcs << ["weapon", "NWp_${humanNameToSymbol(row.@name, false)}", funcs.size, row] }
-        sheets.find { it?.@name.equalsIgnoreCase("armor") }.rows.row.each { row ->
-            funcs << ["armor",  "NAr_${humanNameToSymbol(row.@name, false)}",  funcs.size, row] }
-        sheets.find { it?.@name.equalsIgnoreCase("ammo") }.rows.row.each { row ->
-            funcs << ["ammo",   "NAm_${humanNameToSymbol(row.@name, false)}",   funcs.size, row] }
-        sheets.find { it?.@name.equalsIgnoreCase("items") }.rows.row.each { row ->
-            funcs << ["item",   "NIt_${humanNameToSymbol(row.@name, false)}",   funcs.size, row] }
+        sheets.find { it?.@name.equalsIgnoreCase("armor") }.rows.row.findAll{it.@name}.each { row ->
+            funcs << ["armor",  "NAr_${humanNameToSymbol(row.@name, false)}", funcs.size, row] }
+        sheets.find { it?.@name.equalsIgnoreCase("ammo") }.rows.row.findAll{it.@name}.each { row ->
+            funcs << ["ammo",   "NAm_${humanNameToSymbol(row.@name, false)}", funcs.size, row] }
+        sheets.find { it?.@name.equalsIgnoreCase("items") }.rows.row.findAll{it.@name}.each { row ->
+            funcs << ["item",   "NIt_${humanNameToSymbol(row.@name, false)}", funcs.size, row] }
         
         // Global mapping of item name to function, so that Players can create items.
+        cache['itemNameToFunc'] = [:]
         funcs.each { typeName, func, index, row ->
-            itemNameToFunc[row.@name] = func
+            cache['itemNameToFunc'][row.@name.trim()] = func
         }
         
         // Build up the mappings from loot codes and store codes to creation functions
@@ -2229,7 +2241,6 @@ end
                     }
                     out.println("end\n")
                 }
-                
             }
             
             // Code for loot and store generation
@@ -2368,6 +2379,9 @@ end
         // Open the XML data file produced by Outlaw Editor
         def dataIn = new XmlParser().parse(xmlPath)
 
+        // Save time by using the cache
+        readCache()
+
         // When generating code, we need to use Unix linebreaks since that's what
         // the PLASMA compiler expects to see.
         def oldSep = System.getProperty("line.separator")
@@ -2432,7 +2446,10 @@ end
         replaceIfDiff("build/src/plasma/gen_modules.plh")
         
         // Put back the default line separator
-        System.setProperty("line.separator", oldSep)        
+        System.setProperty("line.separator", oldSep)  
+        
+        // Save the cache for future speed-ups
+        writeCache()
     }
 
     def copyIfNewer(fromFile, toFile)
@@ -2602,6 +2619,7 @@ end
             out << "include \"../plasma/globalDefs.plh\"\n"
             out << "include \"../plasma/playtype.plh\"\n"
             out << "include \"../plasma/gen_images.plh\"\n\n"
+            out << "include \"../plasma/gen_items.plh\"\n\n"
             out << "word global\n"
             out << "word tmp\n\n"
         }
@@ -2786,6 +2804,13 @@ end
                         packClrPortrait(blk); break
                     case 'variables_set':
                         packVarSet(blk); break
+                    case 'interaction_give_item':
+                        packGiveItem(blk); break
+                    case 'interaction_take_item':
+                        packTakeItem(blk); break
+                    case 'interaction_increase_stat':
+                    case 'interaction_decrease_stat':
+                        packChangeStat(blk); break
                     default:
                         printWarning "don't know how to pack block of type '${blk.@type}'"
                 }
@@ -2846,6 +2871,22 @@ end
             out << "\n"
         }
         
+        def packGiveItem(blk)
+        {
+            def name = getSingle(blk.field, 'NAME').text().trim()
+            def itemFunc = cache['itemNameToFunc'][name]
+            assert itemFunc : "Can't locate item '$name'"
+            outIndented("giveItemToPlayer($itemFunc)\n")
+        }
+        
+        def packTakeItem(blk)
+        {
+            def name = getSingle(blk.field, 'NAME').text().trim()
+            def itemFunc = cache['itemNameToFunc'][name]
+            assert itemFunc : "Can't locate item '$name'"
+            outIndented("takeItemFromPlayer(${escapeString(name)})\n")
+        }
+        
         def isStringExpr(blk)
         {
             return blk.@type == "text_getstring" || blk.@type == "text"
@@ -2884,6 +2925,12 @@ end
             variables << name
             out << name
         }
+        
+        def packHasItem(blk)
+        {
+            def name = getSingle(blk.field, "NAME").text()
+            out << "playerHasItem(${escapeString(name)})"
+        }
 
         def packExpr(blk)
         {
@@ -2902,6 +2949,9 @@ end
                     break
                 case 'text':
                     out << escapeString(getSingle(blk.field, 'TEXT').text())
+                    break
+                case 'interaction_has_item':
+                    packHasItem(blk)
                     break
                 default:
                     assert false : "Expression type '${blk.@type}' not yet implemented."

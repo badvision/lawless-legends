@@ -24,4 +24,5 @@ import gamelib
   predef addEncounterZone, showMapName, setMapWindow, makeModifier
   predef addGold, countGold, payGold
   predef calcPlayerArmor, diskActivity, rdkey, initHeap, scriptCombat
+  predef giveItemToPlayer, takeItemFromPlayer, playerHasItem, changePlayerStat
 end

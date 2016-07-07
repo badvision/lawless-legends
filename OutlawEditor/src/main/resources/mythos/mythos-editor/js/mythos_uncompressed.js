@@ -587,6 +587,75 @@ if (typeof Mythos === "undefined") {
                     this.setTooltip('');
                 }
             };
+            Blockly.Blocks['interaction_give_item'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Give")
+                            .appendField(new Blockly.FieldTextInput(""), "NAME")
+                            .appendField("to player");
+                    this.setOutput(false);
+                    this.setTooltip('Give an item to the player');
+                }
+            };
+            Blockly.Blocks['interaction_take_item'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Take")
+                            .appendField(new Blockly.FieldTextInput(""), "NAME")
+                            .appendField("from player");
+                    this.setOutput(false);
+                    this.setTooltip('Take an item away from the player (if possible)');
+                }
+            };
+            Blockly.Blocks['interaction_has_item'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.appendDummyInput()
+                            .appendField("player has item")
+                            .appendField(new Blockly.FieldTextInput(""), "NAME");
+                    this.setOutput(true, "Boolean");
+                    this.setTooltip('');
+                }
+            };
+            Blockly.Blocks['interaction_increase_stat'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Increase player stat")
+                            .appendField(new Blockly.FieldTextInput(""), "NAME")
+                            .appendField("by")
+                            .appendField(new Blockly.FieldTextInput("0"), "AMOUNT")
+                    this.setOutput(false);
+                    this.setTooltip('Increase stat of player');
+                }
+            };
+            Blockly.Blocks['interaction_decrease_stat'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Decrease player stat")
+                            .appendField(new Blockly.FieldTextInput(""), "NAME")
+                            .appendField("by")
+                            .appendField(new Blockly.FieldTextInput("0"), "AMOUNT")
+                    this.setOutput(false);
+                    this.setTooltip('Decrease stat of player');
+                }
+            };
             Blockly.Blocks['graphics_set_portrait'] = {
                 init: function () {
                     this.setHelpUrl(Mythos.helpUrl);

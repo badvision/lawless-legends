@@ -580,7 +580,7 @@ if (typeof Mythos === "undefined") {
             Blockly.Blocks['text_getboolean'] = {
                 init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
-                    this.setColour(54);
+                    this.setColour(Blockly.Blocks.logic.HUE);
                     this.appendDummyInput()
                             .appendField("Get Yes or No");
                     this.setOutput(true, "Boolean");
@@ -618,12 +618,24 @@ if (typeof Mythos === "undefined") {
             Blockly.Blocks['interaction_has_item'] = {
                 init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
-                    this.setColour(54);
+                    this.setColour(Blockly.Blocks.logic.HUE);
                     this.appendDummyInput()
                             .appendField("player has item")
                             .appendField(new Blockly.FieldTextInput(""), "NAME");
                     this.setOutput(true, "Boolean");
-                    this.setTooltip('');
+                    this.setTooltip('Check if player has a given item');
+                }
+            };
+            Blockly.Blocks['interaction_get_stat'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(Blockly.Blocks.math.HUE);
+                    this.appendDummyInput()
+                            .appendField("player's")
+                            .appendField(new Blockly.FieldTextInput(""), "NAME")
+                            .appendField("stat");
+                    this.setOutput(true, "Number");
+                    this.setTooltip('Get player stat');
                 }
             };
             Blockly.Blocks['interaction_increase_stat'] = {
@@ -633,10 +645,10 @@ if (typeof Mythos === "undefined") {
                     this.setPreviousStatement(true);
                     this.setNextStatement(true);
                     this.appendDummyInput()
-                            .appendField("Increase player stat")
+                            .appendField("Increase player's")
                             .appendField(new Blockly.FieldTextInput(""), "NAME")
-                            .appendField("by")
-                            .appendField(new Blockly.FieldTextInput("0"), "AMOUNT")
+                            .appendField("stat by")
+                            .appendField(new Blockly.FieldTextInput("0"), "AMOUNT");
                     this.setOutput(false);
                     this.setTooltip('Increase stat of player');
                 }
@@ -648,12 +660,52 @@ if (typeof Mythos === "undefined") {
                     this.setPreviousStatement(true);
                     this.setNextStatement(true);
                     this.appendDummyInput()
-                            .appendField("Decrease player stat")
+                            .appendField("Decrease player's")
                             .appendField(new Blockly.FieldTextInput(""), "NAME")
-                            .appendField("by")
-                            .appendField(new Blockly.FieldTextInput("0"), "AMOUNT")
+                            .appendField("stat by")
+                            .appendField(new Blockly.FieldTextInput("0"), "AMOUNT");
                     this.setOutput(false);
                     this.setTooltip('Decrease stat of player');
+                }
+            };
+            Blockly.Blocks['interaction_get_flag'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(Blockly.Blocks.logic.HUE);
+                    this.appendDummyInput()
+                            .appendField("game's")
+                            .appendField(new Blockly.FieldTextInput(""), "NAME")
+                            .appendField("flag is set");
+                    this.setOutput(true, "Boolean");
+                    this.setTooltip('Get game flag');
+                }
+            };
+            Blockly.Blocks['interaction_set_flag'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Set game's")
+                            .appendField(new Blockly.FieldTextInput(""), "NAME")
+                            .appendField("flag");
+                    this.setOutput(false);
+                    this.setTooltip('Set a game flag');
+                }
+            };
+            Blockly.Blocks['interaction_clr_flag'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Clear game's")
+                            .appendField(new Blockly.FieldTextInput(""), "NAME")
+                            .appendField("flag");
+                    this.setOutput(false);
+                    this.setTooltip('Clear a game flag');
                 }
             };
             Blockly.Blocks['graphics_set_portrait'] = {

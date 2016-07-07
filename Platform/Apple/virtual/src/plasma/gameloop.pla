@@ -107,10 +107,13 @@ export byte[] S_CHARISMA = "charisma"
 export byte[] S_SPIRIT = "spirit"
 export byte[] S_LUCK = "luck"
 export byte[] S_HEALTH = "health"
+export byte[] S_MAX_HEALTH = "max health"
 export byte[] S_AIMING = "aiming"
-export byte[] S_HAND_TO_HAND = "hand-to-hand"
+export byte[] S_HAND_TO_HAND = "hand to hand"
 export byte[] S_DODGING = "dodging"
 export byte[] S_GOLD = "gold"
+export byte[] S_ENTER = "enter"
+export byte[] S_USE = "use"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -2228,6 +2231,15 @@ export def payGold(amount)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def scanForNamedObj(p_obj, name)
+  while p_obj
+    if streqi(p_obj=>s_name, name); return p_obj; fin
+    p_obj = p_obj=>p_nextObj
+  loop
+  return NULL
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 export def giveItemToPlayer(itemFunc)
   word p_module, funcTbl, func, p_item
   
@@ -2241,28 +2253,21 @@ export def giveItemToPlayer(itemFunc)
   func = *(funcTbl + itemFunc)
   p_item = func()
 
-  // Add the item to the player's inventory, and free up the item module
-  addToList(@global=>p_players=>p_items, p_item)
+  // Avoid giving duplicate items.
+  if !scanForNamedObj(global=>p_players=>p_items, p_item=>s_name)
+    addToList(@global=>p_players=>p_items, p_item)
+  fin
+
+  // Finished with the item module now.
   mmgr(FREE_MEMORY, p_module)
 end
 
-def scanForItem(itemName)
-  word p_player
-  word p_item
-  p_player = global=>p_players  // default to first player
-  p_item = p_player=>p_items
-  while p_item
-    if streqi(p_item=>s_name, itemName); return p_item; fin
-    p_item = p_item=>p_nextObj
-  loop
-  return FALSE
-end
-
+///////////////////////////////////////////////////////////////////////////////////////////////////
 export def takeItemFromPlayer(itemName)
   word p_player
   word p_item
   p_player = global=>p_players  // default to first player
-  p_item = scanForItem(itemName)
+  p_item = scanForNamedObj(p_player=>p_items, itemName)
   if p_item
     removeFromList(@p_player=>p_items, p_item)
   else
@@ -2270,17 +2275,62 @@ export def takeItemFromPlayer(itemName)
   fin
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 export def playerHasItem(itemName)
-  return scanForItem(itemName) <> NULL
+  return scanForNamedObj(itemName) <> NULL
 end
 
-export def changePlayerStat(statName, add)
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def getStat(statName)
+  word player
+  player = global=>p_players   // default to first player
   when statName
-    is @S_STRENGTH
-      global=>p_players->b_strength = max(0, min(255, global=>p_players->b_strength + add))
+    is @S_STRENGTH; return player->b_strength
     otherwise
-      puts(statName); fatal("Unknown attr to incr/decr")
+      puts(statName); fatal("Unknown stat")
   wend
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def clampByte(val)
+  return max(0, min(255, val))
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def setStat(statName, val)
+  word player
+  player = global=>p_players   // default to first player
+  when statName
+    is @S_STRENGTH; player->b_strength = clampByte(val)
+    otherwise
+      puts(statName); fatal("Unknown stat")
+  wend
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def setGameFlag(flagName, val)
+  word p_flag
+  p_flag = scanForNamedObj(global=>p_gameFlags, flagName)
+  if p_flag
+    if val == 0 // setting flag to zero removes it
+      removeFromList(@global=>p_gameFlags, p_flag)
+    else
+      p_flag=>w_modValue = val
+    fin
+  elsif val <> 0
+    addToList(@global=>p_gameFlags, makeModifier(flagName, val))
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def getGameFlag(flagName)
+  word p_flag
+  p_flag = scanForNamedObj(global=>p_gameFlags, flagName)
+  if p_flag
+    return p_flag=>w_modValue
+  else
+    return 0
+  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

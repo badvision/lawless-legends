@@ -2811,6 +2811,9 @@ end
                     case 'interaction_increase_stat':
                     case 'interaction_decrease_stat':
                         packChangeStat(blk); break
+                    case 'interaction_set_flag':
+                    case 'interaction_clr_flag':
+                        packChangeFlag(blk); break
                     default:
                         printWarning "don't know how to pack block of type '${blk.@type}'"
                 }
@@ -2886,7 +2889,53 @@ end
             assert itemFunc : "Can't locate item '$name'"
             outIndented("takeItemFromPlayer(${escapeString(name)})\n")
         }
-        
+
+        def nameToStat(name) {
+            switch (name.toLowerCase().trim()) {
+                case "intelligence": return "@S_INTELLIGENCE"; return
+                case "strength":     return "@S_STRENGTH";     return
+                case "agility":      return "@S_AGILITY";      return
+                case "stamina":      return "@S_STAMINA";      return
+                case "spirit":       return "@S_SPIRIT";       return
+                case "luck":         return "@S_LUCK";         return
+                case "health":       return "@S_HEALTH";       return
+                case "max health":   return "@S_MAX_HEALTH";   return
+                case "aiming":       return "@S_AIMING";       return
+                case "hand to hand": return "@S_HAND_TO_HAND"; return
+                case "dodging":      return "@S_DODGING";      return
+                case "gold":         return "@S_GOLD";         return
+                default: assert false : "Unrecognized stat '$name'"
+            }
+        }
+            
+        def packChangeStat(blk)
+        {
+            def name = getSingle(blk.value, 'NAME').text()
+            def amount = getSingle(blk.value, 'AMOUNT').text().toInteger()
+            assert amount > 0 && amount < 32767
+            def stat = nameToStat(name)
+            outIndented("setStat(getStat($stat) ${blk.@type == 'interaction_increase_stat' ? '+' : '-'} $amount)\n")
+        }
+
+        def packGetStat(blk)
+        {
+            def name = getSingle(blk.field, 'NAME').text()
+            def stat = nameToStat(name)
+            out << "getStat($stat)"
+        }
+
+        def packGetFlag(blk)
+        {
+            def name = getSingle(blk.field, 'NAME').text()
+            out << "getGameFlag(${escapeString(name)})"
+        }
+
+        def packChangeFlag(blk)
+        {
+            def name = getSingle(blk.field, 'NAME').text()
+            outIndented("setGameFlag(${escapeString(name)}, ${blk.@type == 'interaction_set_flag' ? 1 : 0})\n")
+        }
+
         def isStringExpr(blk)
         {
             return blk.@type == "text_getstring" || blk.@type == "text"
@@ -2952,6 +3001,12 @@ end
                     break
                 case 'interaction_has_item':
                     packHasItem(blk)
+                    break
+                case 'interaction_get_stat':
+                    packGetStat(blk)
+                    break
+                case 'interaction_get_flag':
+                    packGetFlag(blk)
                     break
                 default:
                     assert false : "Expression type '${blk.@type}' not yet implemented."

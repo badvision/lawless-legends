@@ -9,7 +9,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Garbage collection pointer offsets within each type
-byte typeTbl_Global[] = Global, p_players, p_enemyGroups, p_combatFirst, p_encounterZones, 0
+byte typeTbl_Global[] = Global, p_players, p_enemyGroups, p_combatFirst, p_encounterZones, p_gameFlags, 0
 byte typeTbl_Player[] = Player, p_nextObj, s_name, p_combatNext, p_skills, p_items, p_effects, 0
 byte typeTbl_Modifier[] = Modifier, p_nextObj, s_name, 0
 byte typeTbl_Effect[] = Effect, p_nextObj, s_name, 0

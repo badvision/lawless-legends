@@ -32,6 +32,9 @@ struc Global
 
   // Heap size for restoring saved game
   word w_heapSize
+
+  // General flags maintained by scripts. Linked list of Modifiers.
+  word p_gameFlags
 end
 
 const PLAYER_FLAG_NPC  = $01

@@ -23,10 +23,16 @@ import gamelib
   predef addEncounterZone, showMapName, setMapWindow, makeModifier
   predef addGold, countGold, payGold
   predef calcPlayerArmor, diskActivity, rdkey, initHeap, scriptCombat
-  predef giveItemToPlayer, takeItemFromPlayer, playerHasItem, changePlayerStat
+  predef giveItemToPlayer, takeItemFromPlayer, playerHasItem, getStat, setStat
+  predef setGameFlag, getGameFlag
 
   // Shared string constants
+
+  // First: attributes
   byte[] S_INTELLIGENCE, S_STRENGTH, S_AGILITY, S_STAMINA, S_CHARISMA, S_SPIRIT, S_LUCK
-  byte[] S_HEALTH, S_AIMING, S_HAND_TO_HAND, S_DODGING, S_GOLD
+  byte[] S_HEALTH, S_MAX_HEALTH, S_AIMING, S_HAND_TO_HAND, S_DODGING, S_GOLD
+
+  // Next: common events
+  byte[] S_ENTER, S_USE
 
 end

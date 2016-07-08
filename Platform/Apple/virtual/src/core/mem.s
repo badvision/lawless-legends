@@ -458,9 +458,10 @@ SWXX:	bit monrts		; set V to denote SWX (not SBX)
 .shst	lda evalStkH+1,x	; get hi byte of pointer to store to
 	cmp #$D0		; in $0000.CFFF range,
 	bcc .norm		;	just do normal store
-	sta setLcRW+lcBank2	; PLASMA normally write-protects the LC,
-	sta setLcRW+lcBank2	; 	but let's allow writing there. Don't use BIT as it affects V flg.
 	cmp #$E0		; in $E000.FFFF range do normal store after write-enable
+	; Apple IIc note: turning on LC requires a 6502 read, not write. So putting sta below didn't work.
+	lda setLcRW+lcBank2	; PLASMA normally write-protects the LC,
+	lda setLcRW+lcBank2	; 	but let's allow writing there. Don't use BIT as it affects V flg.
 	bcs .norm
 	sty tmp
 	jsr l_SXXX		; helper function in low memory because it switches us out (we're in main LC)

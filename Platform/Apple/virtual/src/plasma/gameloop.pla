@@ -2285,7 +2285,19 @@ export def getStat(statName)
   word player
   player = global=>p_players   // default to first player
   when statName
+    is @S_INTELLIGENCE; return player->b_intelligence
     is @S_STRENGTH; return player->b_strength
+    is @S_AGILITY; return player->b_agility
+    is @S_STAMINA; return player->b_stamina
+    is @S_CHARISMA; return player->b_charisma
+    is @S_SPIRIT; return player->b_spirit
+    is @S_LUCK; return player->b_luck
+    is @S_HEALTH; return player=>w_health
+    is @S_MAX_HEALTH; return player=>w_maxHealth
+    is @S_AIMING; return player->b_aiming
+    is @S_HAND_TO_HAND; return player->b_handToHand
+    is @S_DODGING; return player->b_dodging
+    is @S_GOLD; return global=>w_gold
     otherwise
       puts(statName); fatal("Unknown stat")
   wend
@@ -2301,7 +2313,19 @@ export def setStat(statName, val)
   word player
   player = global=>p_players   // default to first player
   when statName
-    is @S_STRENGTH; player->b_strength = clampByte(val)
+    is @S_INTELLIGENCE; player->b_intelligence = clampByte(val); break
+    is @S_STRENGTH; player->b_strength = clampByte(val); break
+    is @S_AGILITY; player->b_agility = clampByte(val); break
+    is @S_STAMINA; player->b_stamina = clampByte(val); break
+    is @S_CHARISMA; player->b_charisma = clampByte(val); break
+    is @S_SPIRIT; player->b_spirit = clampByte(val); break
+    is @S_LUCK; player->b_luck = clampByte(val); break
+    is @S_HEALTH; player=>w_health = max(0, min(player=>w_maxHealth, val)); break
+    is @S_MAX_HEALTH; player=>w_maxHealth = max(0, val); break
+    is @S_AIMING; player->b_aiming = clampByte(val); break
+    is @S_HAND_TO_HAND; player->b_handToHand = clampByte(val); break
+    is @S_DODGING; player->b_dodging = clampByte(val); break
+    is @S_GOLD; global=>w_gold = max(0, val); break
     otherwise
       puts(statName); fatal("Unknown stat")
   wend

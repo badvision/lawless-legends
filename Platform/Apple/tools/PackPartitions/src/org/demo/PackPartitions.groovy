@@ -2910,11 +2910,14 @@ end
             
         def packChangeStat(blk)
         {
-            def name = getSingle(blk.value, 'NAME').text()
-            def amount = getSingle(blk.value, 'AMOUNT').text().toInteger()
+            assert blk.field.size() == 2
+            assert blk.field[0].@name == 'NAME'
+            assert blk.field[1].@name == 'AMOUNT'
+            def name = blk.field[0].text()
+            def amount = blk.field[1].text().toInteger()
             assert amount > 0 && amount < 32767
             def stat = nameToStat(name)
-            outIndented("setStat(getStat($stat) ${blk.@type == 'interaction_increase_stat' ? '+' : '-'} $amount)\n")
+            outIndented("setStat($stat, getStat($stat) ${blk.@type == 'interaction_increase_stat' ? '+' : '-'} $amount)\n")
         }
 
         def packGetStat(blk)
@@ -2951,18 +2954,28 @@ end
             switch (op) {
                 case 'EQ':
                     if (isStringExpr(val1) || isStringExpr(val2)) {
-                        out << "streqi("
-                        packExpr(val1)
-                        out << ", "
-                        packExpr(val2)
-                        out << ")"
+                        out << "streqi("; packExpr(val1); out << ", "; packExpr(val2); out << ")"
                     }
                     else {
-                        packExpr(val1)
-                        out << " == "
-                        packExpr(val2)
+                        packExpr(val1); out << " == "; packExpr(val2)
                     }
                     break
+                case 'NEQ':
+                    if (isStringExpr(val1) || isStringExpr(val2)) {
+                        out << "!streqi("; packExpr(val1); out << ", "; packExpr(val2); out << ")"
+                    }
+                    else {
+                        packExpr(val1); out << " <> "; packExpr(val2)
+                    }
+                    break
+                case 'GT':
+                    packExpr(val1); out << " > "; packExpr(val2); break
+                case 'GTE':
+                    packExpr(val1); out << " >= "; packExpr(val2); break
+                case 'LT':
+                    packExpr(val1); out << " < "; packExpr(val2); break
+                case 'LTE':
+                    packExpr(val1); out << " <= "; packExpr(val2); break
                 default:
                     assert false : "Compare op '$op' not yet implemented."
             }
@@ -2984,6 +2997,9 @@ end
         def packExpr(blk)
         {
             switch (blk.@type) {
+                case 'math_number':
+                    out << getSingle(blk.field, "NUM").text().toInteger()
+                    break
                 case 'text_getboolean':
                     out << "getYN()"
                     break

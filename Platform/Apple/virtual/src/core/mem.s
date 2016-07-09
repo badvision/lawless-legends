@@ -122,12 +122,14 @@ relocate:
 ; verify that aux mem exists
 	inx
 	stx $D000
+	sei			; disable interrupts while in aux
 	sta setAuxZP
 	inx
 	stx $D000
 	cpx $D000
 	bne .noaux
 	sta clrAuxZP
+	cli
 	dex
 	cpx $D000
 	beq .gotaux
@@ -135,12 +137,14 @@ relocate:
 .gotaux	ldx #$D0
 .pglup	stx .ld+2
 	stx .st+2
+	sei
 .bylup	sta clrAuxZP		; get byte from main LC
 .ld	lda $D000,y
 	sta setAuxZP		; temporarily turn on aux LC
 .st	sta $D000,y
 	iny
 	bne .bylup
+	cli
 	inx			; all pages until we hit $00
 	bne .pglup
 	sta clrAuxZP		; ...back to main LC
@@ -458,14 +462,14 @@ SWXX:	bit monrts		; set V to denote SWX (not SBX)
 .shst	lda evalStkH+1,x	; get hi byte of pointer to store to
 	cmp #$D0		; in $0000.CFFF range,
 	bcc .norm		;	just do normal store
-	cmp #$E0		; in $E000.FFFF range do normal store after write-enable
 	; Apple IIc note: turning on LC requires a 6502 read, not write. So putting sta below didn't work.
+	pha
 	lda setLcRW+lcBank2	; PLASMA normally write-protects the LC,
 	lda setLcRW+lcBank2	; 	but let's allow writing there. Don't use BIT as it affects V flg.
+	pla
+	cmp #$E0		; in $E000.FFFF range do normal store after write-enable
 	bcs .norm
-	sty tmp
 	jsr l_SXXX		; helper function in low memory because it switches us out (we're in main LC)
-	ldy tmp
 	inx
 	inx
 	jmp plasmaNextOp
@@ -643,6 +647,8 @@ l_LXXX:	!zone {
 
 l_SXXX:	!zone {
 	sta .st+2		; in $D000.DFFF range, we jump through hoops to write to AUX LC
+	tya
+	pha
 	lda evalStkL+1,x	; lo byte of pointer
 	sta .st+1
 	lda evalStkH,x		; hi byte of value to store
@@ -657,6 +663,8 @@ l_SXXX:	!zone {
 	cpy #2
 	bne .st			; loop to write hi byte also
 +	sta clrAuxZP		; back to main LC
+	pla
+	tay
 	rts
 }
 
@@ -2618,6 +2626,7 @@ lz4Decompress: !zone
 	bne +
 	dec ucLen+1		; special case for len being an exact multiple of 256
 +
+	sei			; prevent interrupts while we access aux mem
 .auxWr2	sta setAuxWr		; self-modified earlier, based on isAuxCmd
 .auxRd1	sta setAuxRd  		; self-modified based on isAuxCmd
 .srcLoad:
@@ -2637,6 +2646,7 @@ lz4Decompress: !zone
 	bpl .srcLoad		; loop for more. NOTE: this would fail if we had blocks >= 32K
 	sta clrAuxRd		; back to reading main mem, for mem mgr code
 	sta clrAuxWr		; back to writing main mem
+	cli
 	inc ucLen+1		; to make it zero for the next match decode
 + 	ldy tmp			; restore index to source pointer
 	jmp .getToken		; go on to the next token in the compressed stream
@@ -2760,6 +2770,7 @@ nextSrcPage:
 doAllFixups: !zone
 	!if DEBUG >= 2 { +prStr : !text "Doing all fixups.",0 }
 	; Now scan aux mem for fixup segments
+	cli			; prevent interrupts while we mess around in aux mem
 	ldx #1			; start at first aux mem segment (0=main mem, 1=aux)
 .loop:	lda tSegType,x		; grab flags & type
 	and #$F			; just type now
@@ -2768,6 +2779,7 @@ doAllFixups: !zone
 .next:	lda tSegLink,x		; next in chain
 	tax			; to X reg index
 	bne .loop		; non-zero = not end of chain - loop again
+	sei			; allow interrupts again
 	lda #1
 	sta isAuxCmd
 	jmp coalesce		; really free up the fixup blocks by coalescing them into free mem

@@ -1259,7 +1259,9 @@ drawRay: !zone
 	lda #254		; clamp max height
 +	sta expanderJmp+1	; set vector offset
 	!if DEBUG >= 2 { +prStr : !text "Calling expansion code.",0 }
+	sei			; prevent interrupts while in aux mem
 	jsr callExpander	; was copied from .callIt to $100 at init time
+	cli			; interrupts ok after we get back from aux
 .skip	pla			; retrieve link to next in stack
 	tax			; put in X for indexing
 	bne .lup		; if non-zero, we have more to draw
@@ -1492,6 +1494,7 @@ makeLines: !zone
 	sta pLine
 	lda #>TOP_LINE
 	sta pLine+1
+	sei
 .lup:	lda lineCt
 	asl
 	tax
@@ -1506,6 +1509,7 @@ makeLines: !zone
 	lda lineCt
 	cmp #NLINES
 	bne .lup
+	cli
 	rts
 
 ; Set screen lines to current back buf
@@ -1519,6 +1523,7 @@ setBackBuf: !zone
 	asl
 	clc
 	adc #$20
+	sei
 	sta setAuxZP
 	ldx #0
 .lup:	eor 1,x
@@ -1529,6 +1534,7 @@ setBackBuf: !zone
 	inx
 	bne .lup
 	sta clrAuxZP
+	cli
 	rts
 
 ;-------------------------------------------------------------------------------
@@ -1902,9 +1908,11 @@ renderFrame: !zone
 	ldy byteNum
 	iny			; move to right 2 bytes to preserve frame border
 	iny
+	sei
 	sta setAuxZP
 	jsr blitRoll
 	sta clrAuxZP
+	cli
 	lda #0
 	sta pixNum
 	inc byteNum

@@ -1631,7 +1631,7 @@ export def scriptDisplayStr(str)
   textDrawn = TRUE
   flipToPage1()
   displayStr(str)
-  tossStrings()
+  // No: tossString()  // Doesn't work here, because we need to toss strings in the *parent's* frame
 end
 
 export def scriptDisplayStrNL(str)

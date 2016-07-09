@@ -2621,7 +2621,6 @@ end
             out << "include \"../plasma/gen_images.plh\"\n\n"
             out << "include \"../plasma/gen_items.plh\"\n\n"
             out << "word global\n"
-            out << "word tmp\n\n"
         }
         
         /**
@@ -2842,8 +2841,10 @@ end
             }
             def text = getSingle(getSingle(getSingle(blk.value, 'VALUE').block, null, 'text').field, 'TEXT').text()
             
-            // Break up long strings into shorter chunks for PLASMA
-            def chunks = text.findAll(/.{253}|.*/).grep(~/.+/)
+            // Break up long strings into shorter chunks for PLASMA.
+            // Note: this used to be 253, but still had some random mem overwrites.
+            // Decreasing to chunks of 200 seems to fix it.
+            def chunks = text.findAll(/.{200}|.*/).grep(~/.+/)
             chunks.eachWithIndex { chunk, idx ->
                 outIndented((idx == chunks.size()-1 && blk.@type == 'text_println') ? \
                     'scriptDisplayStrNL(' : 'scriptDisplayStr(')
@@ -3127,7 +3128,7 @@ end
         {
             assert blk.field.size() == 1
             def code = getSingle(blk.field, 'CODE')
-            outIndented("tmp = scriptCombat(${escapeString(code)})); if (!tmp); return; fin\n")
+            outIndented("if !scriptCombat(${escapeString(code)})); return; fin\n")
         }
 
         def packTeleport(blk)

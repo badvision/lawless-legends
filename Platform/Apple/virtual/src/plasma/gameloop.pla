@@ -17,8 +17,8 @@ const fontEngine    = $E000   // main mem
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Other constants
-const CHAR_WND_AMMO_X = 85
-const CHAR_WND_LIFE_X = 114
+const CHAR_WND_AMMO_X = 83
+const CHAR_WND_LIFE_X = 112
 
 const ANIM_FLAG_FWD      = $20
 const ANIM_FLAG_FWD_BKWD = $40
@@ -1109,13 +1109,13 @@ end
 // Window for the large upper right bar
 export def setWindow2()
   displayChar('N'-$40) // Set normal mode - clear all special modes (like underline, etc.)
-  setWindow(24, 132, 154, 269) // Top, Bottom, Left, Right
+  setWindow(24, 132, 154, 267) // Top, Bottom, Left, Right
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the mid-size lower right bar
 export def setWindow3()
-  setWindow(144, 180, 154, 269) // Top, Bottom, Left, Right
+  setWindow(144, 180, 154, 267) // Top, Bottom, Left, Right
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2287,7 +2287,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def playerHasItem(itemName)
-  return scanForNamedObj(itemName) <> NULL
+  return scanForNamedObj(global=>p_players=>p_items, itemName) <> NULL
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -1099,15 +1099,10 @@ In_Key	JSR CurPlot	;start with cursor initially displaying
 	JSR In_eChP	;else, get extended char
 	JMP In_Plt
 In_cTst	CMP #$85 
-	BNE In_cTs2	;Ctrl-E (extended char)
+	BNE In_cTs3	;Ctrl-E (extended char)
 	LDA #3 		;set wait state for extended char
 	STA WaitStat
 	BNE In_Key
-In_cTs2	CMP #$9B	;check for ESC key
-	BNE In_cTs3	;if ESC then exit app
-	PLA
-	PLA
-	RTS
 In_cTs3	CMP #$FF
 	BNE In_cTs4
 	JMP In_DEL	;DELETE key?

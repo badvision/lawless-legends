@@ -801,7 +801,7 @@ class PackPartitions
             def data = tiles[id]
             if (name.toLowerCase().contains("avatar")) {
                 def num = tileMap.size()
-                avatars[name.toLowerCase().replaceAll(/\s*-\s*[23][dD]\s*/, "")] = num
+                avatars[name.toLowerCase().trim().replaceAll(/\s*-\s*[23][dD]\s*/, "")] = num
                 tileIds.add(id)
                 tileMap[id] = num
                 data.flip() // crazy stuff to append one buffer to another
@@ -2705,7 +2705,8 @@ end
                 {
                     scripts << script
                 }
-                scriptNames[script] = (name == null) ? "trig_$idx" : "sc_${humanNameToSymbol(name, false)}"
+                if (name != null)
+                    scriptNames[script] = "sc_${humanNameToSymbol(name, false)}"
             }
               
             // Even if there were no scripts, we still need an init to display
@@ -3101,13 +3102,12 @@ end
         
         def packSetAvatar(blk)
         {
-            def tileName = getSingle(blk.field, 'NAME').text()
-            def tile = avatars[tileName.toLowerCase()]
-            if (!tile) {
-                println(avatars.keySet())
+            def tileName = getSingle(blk.field, 'NAME').text().trim()
+            if (!avatars.containsKey(tileName.toLowerCase())) {
+                println(avatars)
                 throw new Exception("Can't find avatar '$tileName'")
             }
-            outIndented("setAvatar(${tile})\n")
+            outIndented("setAvatar(${avatars[tileName.toLowerCase()]})\n")
         }
         
         def packSetSky(blk)
@@ -3182,20 +3182,22 @@ end
             // Collate all the matching location triggers into a sorted map.
             TreeMap triggers = [:]
             scripts.eachWithIndex { script, idx ->
-                script.locationTrigger.each { trig ->
-                    def x = trig.@x.toInteger()
-                    def y = trig.@y.toInteger()
-                    if ((!xRange || x in xRange) && (!yRange || y in yRange))
-                    {
-                        if (xRange)
-                            x -= xRange[0]
-                        if (yRange)
-                            y -= yRange[0]
-                        if (!triggers[y])
-                            triggers[y] = [:] as TreeMap
-                        if (!triggers[y][x])
-                            triggers[y][x] = []
-                        triggers[y][x].add(scriptNames[script])
+                if (scriptNames[script]) {
+                    script.locationTrigger.each { trig ->
+                        def x = trig.@x.toInteger()
+                        def y = trig.@y.toInteger()
+                        if ((!xRange || x in xRange) && (!yRange || y in yRange))
+                        {
+                            if (xRange)
+                                x -= xRange[0]
+                            if (yRange)
+                                y -= yRange[0]
+                            if (!triggers[y])
+                                triggers[y] = [:] as TreeMap
+                            if (!triggers[y][x])
+                                triggers[y][x] = []
+                            triggers[y][x].add(scriptNames[script])
+                        }
                     }
                 }
             }

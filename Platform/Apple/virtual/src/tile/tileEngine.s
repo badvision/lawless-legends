@@ -100,7 +100,8 @@ ORIGIN_Y	= $A6	; 16-bit origin for Y (add REL_Y to get avatar's global map Y)
 AVATAR_DIR	= $A8	; direction (0-15, though only 0,4,8,12 are valid)
 PLASMA_X	= $A9	; save for PLASMA's X reg
 SCRIPTS_ID      = $AA	; Module number of scripts
-next_zp		= $AB
+PLAYER_TILE	= $AB	; Tile number to show for player avatar
+next_zp		= $AC
 
 ;----------------------------------------------------------------------
 ; Here are the entry points for PLASMA code. Identical API for 2D and 3D.
@@ -115,6 +116,7 @@ next_zp		= $AB
 	JMP pl_render		; params: none
 	JMP pl_texControl	; params: 1=load, 0=unload
 	JMP pl_getScripts	; params: none
+	JMP pl_setAvatarTile    ; params: A=tile number
 
 ;----------------------------------------------------------------------
 ; >> START LOADING MAP SECTIONS
@@ -598,7 +600,12 @@ CROSS_WEST
 	+loadSection SW_MAP_LOC
 	jmp FINISH_MAP_LOAD
 ;----------------------------------------------------------------------
-; >> SET PLAYER TILE (A = tile)
+; >> pl_setAvatarTile
+; SET PLAYER'S AVATAR TILE (A = tile)
+pl_setAvatarTile:
+	STA PLAYER_TILE
+	RTS
+
 ;----------------------------------------------------------------------
 ; >> SET NPC TILE (A = tile, X,Y = coordinates in section)
 ;----------------------------------------------------------------------
@@ -844,8 +851,16 @@ ROW_OFFSET = 3
 	STA AVATAR_SECTION
 	LDA DRAW_SECTION + 1
 	STA AVATAR_SECTION + 1
-	LDY GLOBAL_TILESET_LOC	; first tile in global tileset is avatar
+	LDA PLAYER_TILE		; get tile number
+	ASL			; 32 bytes per tile
+	ASL
+	ASL
+	ASL
+	ASL
+	ADC GLOBAL_TILESET_LOC
+	TAY
 	LDA GLOBAL_TILESET_LOC+1
+	ADC #0
 	BNE .store_src		; always taken
 .notAvatar
 	LDA DRAW_SECTION+1
@@ -965,6 +980,10 @@ pl_initMap: !zone
 	+prByte N_VERT_SECT
 	+crout
 }
+
+	; Start with default avatar until overridden
+	LDA #0
+	STA PLAYER_TILE
 
 	; Record the facing direction for later use
 	JSR pl_setDir

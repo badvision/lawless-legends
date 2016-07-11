@@ -31,6 +31,7 @@ start:
 	jmp pl_render		; params: none
 	jmp pl_texControl	; params: 0=unload textures, 1=load textures
 	jmp pl_getScripts	; params: none
+	jmp pl_setAvatar	; params: A=tile number
 
 ; Conditional assembly flags
 DOUBLE_BUFFER	= 1		; whether to double-buffer
@@ -2055,6 +2056,14 @@ pl_setColor: !zone
 pl_getScripts: !zone {
 	lda scripts
 	ldy scripts+1
+	rts
+}
+
+;-------------------------------------------------------------------------------
+; Called by PLASMA code to set the avatar tile. Ignored by 3D engine.
+; Parameters: A = tile number
+; Returns: Nothing
+pl_setAvatar: !zone {
 	rts
 }
 

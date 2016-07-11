@@ -205,6 +205,10 @@ asm getMapScript  // params: none
   +asmPlasm 0
   jmp $601E
 end
+export asm setAvatar  // params: tile number (in the global tileset)
+  +asmPlasm 1
+  jmp $6021
+end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 asm readAuxByte     // params: ptr; ret: char
@@ -1920,6 +1924,12 @@ export def addEncounterZone(code, x, y, dist, chance)
   p=>w_encMaxDist = dist
   p=>w_encChance = chance
   addToList(@global=>p_encounterZones, p)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def clearEncounterZones()
+  global=>p_encounterZones = NULL
+  mmgr(HEAP_COLLECT, 0)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

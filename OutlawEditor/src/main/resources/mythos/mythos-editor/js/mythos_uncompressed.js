@@ -391,6 +391,28 @@ if (typeof Mythos === "undefined") {
                     this.setTooltip('Add an encounter zone');
                 }
             };
+            Blockly.Blocks['events_add_encounter_zone'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Add encounter zone for enemy code")
+                            .appendField(new Blockly.FieldTextInput(""), "CODE")
+                            .appendField('at X=')
+                            .appendField(new Blockly.FieldTextInput("0"), "X")
+                            .appendField('Y=')
+                            .appendField(new Blockly.FieldTextInput("0"), "Y")
+                            .appendField('with max dist')
+                            .appendField(new Blockly.FieldTextInput("0"), "MAXDIST")
+                            .appendField('(0=inf), and chance')
+                            .appendField(new Blockly.FieldTextInput("0.0"), "CHANCE")
+                            .appendField('%');
+                    this.setOutput(false);
+                    this.setTooltip('Add an encounter zone');
+                }
+            };
             Blockly.Blocks['events_start_encounter'] = {
                 init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
@@ -402,6 +424,18 @@ if (typeof Mythos === "undefined") {
                             .appendField(new Blockly.FieldTextInput(""), "CODE");
                     this.setOutput(false);
                     this.setTooltip('Start an encounter');
+                }
+            };
+            Blockly.Blocks['events_clr_encounter_zones'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Clear encounter zones");
+                    this.setOutput(false);
+                    this.setTooltip('Clear all encounter zones (for no encounters, or to add new zones)');
                 }
             };
             Blockly.Blocks['text_window'] = {
@@ -719,6 +753,19 @@ if (typeof Mythos === "undefined") {
                             .appendField(new Blockly.FieldTextInput(""), "NAME");
                     this.setOutput(false);
                     this.setTooltip('Display the given portait image (by name)');
+                }
+            };
+            Blockly.Blocks['graphics_set_avatar'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Set avatar to tile ")
+                            .appendField(new Blockly.FieldTextInput(""), "NAME");
+                    this.setOutput(false);
+                    this.setTooltip('Use the given tile as the avatar image (by name)');
                 }
             };
             Blockly.Blocks['graphics_clr_portrait'] = {

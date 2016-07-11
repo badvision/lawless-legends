@@ -51,6 +51,7 @@ class PackPartitions
     def maps3D    = [:]  // map name to map.num, map.buf
     def tiles     = [:]  // tile id to tile.buf
     def tileSets  = [:]  // tileset name to tileset.num, tileset.buf
+    def avatars   = [:]  // avatar tile name to tile num (within the special tileset)
     def textures  = [:]  // img name to img.num, img.buf
     def frames    = [:]  // img name to img.num, img.buf
     def portraits = [:]  // img name to img.num, img.buf
@@ -798,8 +799,9 @@ class PackPartitions
             def name = tile.@name
             def id = tile.@id
             def data = tiles[id]
-            if (name.equalsIgnoreCase("Avatars1 - 2D")) {
+            if (name.toLowerCase().contains("avatar")) {
                 def num = tileMap.size()
+                avatars[name.toLowerCase().replaceAll(/\s*-\s*[23][dD]\s*/, "")] = num
                 tileIds.add(id)
                 tileMap[id] = num
                 data.flip() // crazy stuff to append one buffer to another
@@ -807,7 +809,7 @@ class PackPartitions
                 nFound += 1
             }
         }
-        assert nFound == 1
+        assert nFound >= 1 : "Need at least one 'Avatar' tile."
         
         tileSets[setName] = [num:setNum, buf:buf, tileMap:tileMap, tileIds:tileIds]
         return [setNum, tileMap]
@@ -2791,6 +2793,8 @@ end
                         packSetGround(blk); break
                     case 'events_add_encounter_zone':
                         packAddEncounterZone(blk); break
+                    case 'events_clr_encounter_zones':
+                        packClrEncounterZones(blk); break
                     case 'events_start_encounter':
                         packStartEncounter(blk); break
                     case 'events_teleport':
@@ -2801,6 +2805,8 @@ end
                         packSetPortrait(blk); break
                     case 'graphics_clr_portrait':
                         packClrPortrait(blk); break
+                    case 'graphics_set_avatar':
+                        packSetAvatar(blk); break
                     case 'variables_set':
                         packVarSet(blk); break
                     case 'interaction_give_item':
@@ -3093,6 +3099,17 @@ end
             outIndented("clearPortrait()\n")
         }
         
+        def packSetAvatar(blk)
+        {
+            def tileName = getSingle(blk.field, 'NAME').text()
+            def tile = avatars[tileName.toLowerCase()]
+            if (!tile) {
+                println(avatars.keySet())
+                throw new Exception("Can't find avatar '$tileName'")
+            }
+            outIndented("setAvatar(${tile})\n")
+        }
+        
         def packSetSky(blk)
         {
             def color = getSingle(blk.field, 'COLOR').text().toInteger()
@@ -3122,6 +3139,11 @@ end
             def chance = (int)(blk.field[4].text().toFloat() * 10.0)
             assert chance > 0 && chance <= 1000
             outIndented("addEncounterZone(${escapeString(code)}, $x, $y, $maxDist, $chance)\n")
+        }
+
+        def packClrEncounterZones(blk)
+        {
+            outIndented("clearEncounterZones()\n")
         }
 
         def packStartEncounter(blk)

@@ -20,7 +20,7 @@ import gamelib
   predef countList, countListFiltered, addToList, removeFromList
   predef beep, showParty, mmgr, setWindow1, setWindow2, setWindow3, reboot, brk
   predef encodeDice, rollDice, setPlural, getStringResponse
-  predef streqi, fatal, pause, tossStrings
+  predef streqi, strncpy, fatal, pause, tossStrings, charToUpper
   predef addEncounterZone, clearEncounterZones, showMapName, setMapWindow, makeModifier
   predef addGold, countGold, payGold
   predef calcPlayerArmor, diskActivity, rdkey, initHeap, scriptCombat

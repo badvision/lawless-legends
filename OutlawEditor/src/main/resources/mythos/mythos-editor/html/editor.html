@@ -204,51 +204,55 @@
                                     <block type="text_getstring"></block>
                                 </value>
                                 <next>
-                                    <block inline="false" type="controls_if">
-                                        <mutation else="1"></mutation>
-                                        <value name="IF0">
-                                            <block inline="true" type="logic_compare">
-                                                <field name="OP">EQ</field>
-                                                <value name="A">
-                                                    <block type="variables_get">
-                                                        <field name="VAR">response</field>
+                                    <block type="text_clear_window">
+                                        <next>
+                                            <block inline="false" type="controls_if">
+                                                <mutation else="1"></mutation>
+                                                <value name="IF0">
+                                                    <block inline="true" type="logic_compare">
+                                                        <field name="OP">EQ</field>
+                                                        <value name="A">
+                                                            <block type="variables_get">
+                                                                <field name="VAR">response</field>
+                                                            </block>
+                                                        </value>
+                                                        <value name="B">
+                                                            <block type="text">
+                                                                <field name="TEXT">correct response</field>
+                                                            </block>
+                                                        </value>
                                                     </block>
                                                 </value>
-                                                <value name="B">
-                                                    <block type="text">
-                                                        <field name="TEXT">correct response</field>
-                                                    </block>
-                                                </value>
-                                            </block>
-                                        </value>
-                                        <statement name="DO0">
-                                            <block inline="false" type="text_print">
-                                                <value name="VALUE">
-                                                    <block type="text">
-                                                        <field name="TEXT">Affirmative Response</field>
-                                                    </block>
-                                                </value>
-                                                <next>
-                                                    <block type="text_getanykey"></block>
-                                                </next>
-                                            </block>
-                                        </statement>
-                                        <statement name="ELSE">
-                                            <block inline="false" type="text_print">
-                                                <value name="VALUE">
-                                                    <block type="text">
-                                                        <field name="TEXT">Negative Response</field>
-                                                    </block>
-                                                </value>
-                                                <next>
-                                                    <block type="text_getanykey">
+                                                <statement name="DO0">
+                                                    <block inline="false" type="text_print">
+                                                        <value name="VALUE">
+                                                            <block type="text">
+                                                                <field name="TEXT">Affirmative Response</field>
+                                                            </block>
+                                                        </value>
                                                         <next>
-                                                            <block type="events_move_backward"></block>
+                                                            <block type="text_getanykey"></block>
                                                         </next>
                                                     </block>
-                                                </next>
+                                                </statement>
+                                                <statement name="ELSE">
+                                                    <block inline="false" type="text_print">
+                                                        <value name="VALUE">
+                                                            <block type="text">
+                                                                <field name="TEXT">Negative Response</field>
+                                                            </block>
+                                                        </value>
+                                                        <next>
+                                                            <block type="text_getanykey">
+                                                                <next>
+                                                                    <block type="events_move_backward"></block>
+                                                                </next>
+                                                            </block>
+                                                        </next>
+                                                    </block>
+                                                </statement>
                                             </block>
-                                        </statement>
+                                        </next>
                                     </block>
                                 </next>
                             </block>
@@ -424,13 +428,18 @@
                 <next>
                     <block inline="false" type="controls_if">
                         <value name="IF0">
-                            <block type="interaction_has_item">
-                                <field name="NAME"></field>
-                            </block>
+                            <block type="text_getboolean"></block>
                         </value>
                         <statement name="DO0">
                             <block inline="false" type="controls_if">
                                 <mutation else="1"></mutation>
+                                <value name="IF0">
+                                    <block type="interaction_has_item">
+                                        <field name="NAME"></field>
+                                    </block>
+                                </value>
+                                <value name="IF0">
+                                </value>
                                 <statement name="DO0">
                                     <block type="text_clear_window">
                                         <next>

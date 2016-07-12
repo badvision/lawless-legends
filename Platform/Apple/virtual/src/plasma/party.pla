@@ -50,11 +50,14 @@ end
 def unequip(player, type, kind)
   word item
 
+  if not kind; return; fin
   item = player=>p_items
   while item
-    if item->t_type == type and item=>s_itemKind == kind
-      item->b_flags = item->b_flags & ~ITEM_FLAG_EQUIP
-      return
+    if item->t_type == type
+      if streqi(item=>s_itemKind, kind)
+        item->b_flags = item->b_flags & ~ITEM_FLAG_EQUIP
+        return
+      fin
     fin
     item = item=>p_nextObj
   loop
@@ -80,15 +83,18 @@ def showInventory(player, page)
   fin
   while item and n_item < (n_page + INV_PAGE_NUM)
     displayf2("\n%c) %s", 'A' + n_item, item=>s_name)
+    //if item=>s_itemKind
+    //  displayf1(" (%s)", item=>s_itemKind)
+    //fin
     when item->t_type
       is TYPE_WEAPON
         if item->b_flags & ITEM_FLAG_EQUIP
-          displayChar('+')
+          displayStr(" +")
         fin
         break
       is TYPE_ARMOR
         if item->b_flags & ITEM_FLAG_EQUIP
-          displayChar('+')
+          displayStr(" *")
         fin
         break
     wend

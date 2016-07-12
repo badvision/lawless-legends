@@ -2209,7 +2209,7 @@ def makeWeapon_pt2(p, attack0, attack1, attack2, weaponRange, combatText)
 end
 
 def makeStuff(name, kind, price, count)
-  word p; p = mmgr(HEAP_ALLOC, TYPE_ARMOR)
+  word p; p = mmgr(HEAP_ALLOC, TYPE_STUFF)
   p=>s_name = mmgr(HEAP_INTERN, name)
   p=>s_itemKind = mmgr(HEAP_INTERN, kind)
   p=>w_price = price
@@ -2219,7 +2219,7 @@ def makeStuff(name, kind, price, count)
 end
 
 def makeItem(name, price, modifier, maxUses)
-  word p; p = mmgr(HEAP_ALLOC, TYPE_ARMOR)
+  word p; p = mmgr(HEAP_ALLOC, TYPE_ITEM)
   p=>s_name = mmgr(HEAP_INTERN, name)
   p=>w_price = price
   p=>p_modifiers = modifier

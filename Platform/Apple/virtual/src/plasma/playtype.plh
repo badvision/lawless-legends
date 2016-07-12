@@ -1,10 +1,10 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1 
+// Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1
 // (the "License"); you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-1.1>.
-// Unless required by applicable law or agreed to in writing, software distributed under 
-// the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF 
-// ANY KIND, either express or implied. See the License for the specific language 
+// Unless required by applicable law or agreed to in writing, software distributed under
+// the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+// ANY KIND, either express or implied. See the License for the specific language
 // governing permissions and limitations under the License.
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -26,7 +26,7 @@ struc Global
   word w_mapY
   byte b_mapDir
   word w_mapScript
- 
+
   // Shared player gold amount
   word w_gold
 
@@ -47,7 +47,7 @@ struc Player
   byte b_combatOrder
   word p_combatNext
   word w_health
-  
+
   // Innate attributes
   byte b_intelligence
   byte b_strength
@@ -108,6 +108,8 @@ struc Item
   byte b_curUses
 end
 
+const ITEM_FLAG_EQUIP         = $80 // only one weapon/armor equipped (in use) at a time
+
 const WEAPON_FLAG_SINGLE_USE  = $01
 const WEAPON_FLAG_WHOLE_GROUP = $02
 
@@ -124,7 +126,7 @@ struc Weapon
   byte b_maxUses
   byte b_curUses
   // Weapon properties
-  byte b_weaponFlags    // WEAPON_FLAG_* above
+  byte b_flags    // WEAPON_FLAG_* above
   word s_ammoKind
   byte b_clipSize
   byte b_clipCurrent
@@ -148,6 +150,7 @@ struc Armor
   byte b_maxUses
   byte b_curUses
   // Armor properties
+  byte b_flags // ARMOR_FLAG_* above
   byte b_armorValue
 end
 

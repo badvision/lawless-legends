@@ -1,10 +1,10 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1 
+// Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1
 // (the "License"); you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-1.1>.
-// Unless required by applicable law or agreed to in writing, software distributed under 
-// the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF 
-// ANY KIND, either express or implied. See the License for the specific language 
+// Unless required by applicable law or agreed to in writing, software distributed under
+// the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+// ANY KIND, either express or implied. See the License for the specific language
 // governing permissions and limitations under the License.
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -243,7 +243,7 @@ asm readAuxByte     // params: ptr; ret: char
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// String building for display with the font engine. Includes plurality processing to handily 
+// String building for display with the font engine. Includes plurality processing to handily
 // handle things like "Dirt bag(s)" and "his/their"
 export asm buildString
   +asmPlasm 1
@@ -744,7 +744,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display a character using the font engine.
 // Params: ch
-asm displayChar
+export asm displayChar
   +asmPlasm_bank2 1
   jmp DisplayChar
 end
@@ -801,13 +801,13 @@ export asm rand16
 
   lda seed
   beq .lowZero ; $0000 and $8000 are special values to test for
- 
+
   ; Do a normal shift
   asl seed
   lda seed+1
   rol
   bcc .noEor
- 
+
 .doEor:
   ; high byte is in A
   eor #>magic
@@ -817,18 +817,18 @@ export asm rand16
   eor #<magic
   sta seed
   rts
- 
+
 .lowZero:
   lda seed+1
   beq .doEor ; High byte is also zero, so apply the EOR
              ; For speed, you could store 'magic' into 'seed' directly
              ; instead of running the EORs
- 
+
   ; wasn't zero, check for $8000
   asl
   beq .noEor ; if $00 is left after the shift, then it was $80
   bcs .doEor ; else, do the EOR based on the carry bit as usual
- 
+
 .noEor:
   sta seed+1
   tay        ; for asmPlasm, return hi byte in Y, lo byte in A
@@ -1129,7 +1129,7 @@ export def setMapWindow()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def rightJustifyStr(str, rightX)
+export def rightJustifyStr(str, rightX)
   word x
   x = rightX - calcWidth(str)
   tabBuf[0] = 4  // length
@@ -1142,7 +1142,7 @@ def rightJustifyStr(str, rightX)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def rightJustifyNum(num, rightX)
+export def rightJustifyNum(num, rightX)
   rightJustifyStr(convertDec(num), rightX)
 end
 
@@ -1162,7 +1162,7 @@ def displayPlayerData(player)
   fin
 
   rightJustifyNum(player=>w_health, CHAR_WND_LIFE_X)
-  
+
   // All done.
   rawDisplayStr("\n")
 end
@@ -1485,14 +1485,14 @@ def setMap(is3D, num, x, y, dir)
     flipToPage1()
     mmgr(FINISH_LOAD, WITH_CLOSE)
     showMapName("Traveling...")
-    setMapWindow(); clearWindow()    
+    setMapWindow(); clearWindow()
     setWindow2();   clearWindow()
     mapIs3D = is3D
     mapNum = num
     initMap(x, y, dir)
   fin
   // Don't check scripts, because we often land on an "Exit to wilderness?" script
-  //NO:checkScripts()  
+  //NO:checkScripts()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1500,7 +1500,7 @@ def kbdTeleport()
   byte d3, num
   word x, y
   byte dir
-  
+
   flipToPage1()
   ^$c053
   if ^$25 < 23; ^$25 = 23; fin
@@ -1529,7 +1529,7 @@ end
 def showPos()
   word x, y
   byte dir
-  
+
   flipToPage1()
   ^$c053
   if ^$25 < 23; ^$25 = 23; fin
@@ -1877,7 +1877,7 @@ end
 def restoreMapPos()
   mapIs3D = global->b_mapIs3D
   mapNum = global->b_mapNum
-  initMap(global=>w_mapX, global=>w_mapY, global->b_mapDir)  
+  initMap(global=>w_mapX, global=>w_mapY, global->b_mapDir)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2209,7 +2209,7 @@ export def calcPlayerArmor(player)
   player->b_armor = 0
   pItem = player=>p_items
   while pItem
-    if pItem->t_type == TYPE_ARMOR
+    if pItem->t_type == TYPE_ARMOR and pItem->b_flags & ITEM_FLAG_EQUIP
       player->b_armor = player->b_armor + pItem->b_armorValue
     fin
     pItem = pItem=>p_nextObj
@@ -2252,7 +2252,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def giveItemToPlayer(itemFunc)
   word p_module, funcTbl, func, p_item
-  
+
   // Load the module that is capable of creating items
   mmgr(START_LOAD, 1) // code is in partition 1
   p_module = mmgr(QUEUE_LOAD, MODULE_GEN_ITEMS<<8 | RES_TYPE_MODULE)

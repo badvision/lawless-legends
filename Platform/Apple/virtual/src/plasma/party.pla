@@ -18,6 +18,9 @@ include "playtype.plh"
 // Definition of constants for functions exported by this module
 include "party.plh"
 
+// Number of items that fit in inventory pane
+const INV_PAGE_NUM = 13
+
 // This pointer is the root of all heap-tracked (and garbage collected) objects.
 // See playtype.plh for definitions of all the datastructures and how they interconnect.
 word global
@@ -30,9 +33,76 @@ word[] funcTbl = @_party_doPlayerSheet
 // Other global variables here
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Search item num
+def itemNum(player, num)
+  word item
+
+  item = player=>p_items
+  while item and num
+    item = item=>p_nextObj
+    num--
+  loop
+  return item
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Unequip item kind
+def unequip(player, type, kind)
+  word item
+
+  item = player=>p_items
+  while item
+    if item->t_type == type and item=>s_itemKind == kind
+      item->b_flags = item->b_flags & ~ITEM_FLAG_EQUIP
+      return
+    fin
+    item = item=>p_nextObj
+  loop
+end
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Display inventory pane
+def showInventory(player, page)
+  word item
+  byte n_item, n_page
+
+  setMapWindow()
+  clearWindow()
+  rawDisplayStr("^Y^LInventory^L^N")
+  displayf1("\nGroup Gold: %d", countGold())
+  item = player=>p_items
+  n_item = 0
+  n_page = page * INV_PAGE_NUM
+  if page
+    while item and n_item < n_page
+      item = item=>p_nextObj
+      n_item++
+    loop
+  fin
+  while item and n_item < (n_page + INV_PAGE_NUM)
+    displayf2("\n%c) %s", 'A' + n_item, item=>s_name)
+    when item->t_type
+      is TYPE_WEAPON
+        if item->b_flags & ITEM_FLAG_EQUIP
+          displayChar('+')
+        fin
+        break
+      is TYPE_ARMOR
+        if item->b_flags & ITEM_FLAG_EQUIP
+          displayChar('+')
+        fin
+        break
+    wend
+    item = item=>p_nextObj
+    n_item++
+  loop
+  while n_item < (n_page + INV_PAGE_NUM)
+    displayChar('\n')
+    n_item++
+  loop
+end
 // Show player data
 def showPlayerSheet(num)
-  word player, item
+  word player
 
   // Count the number of players
   player = global=>p_players
@@ -44,18 +114,6 @@ def showPlayerSheet(num)
 
   // First, display the player's name in the title bar
   showMapName(player=>s_name)
-
-  // Next, show inventory in the main panel
-  setMapWindow()
-  clearWindow()
-  rawDisplayStr("^Y^LInventory^L^N")
-  displayf1("\nGroup Gold: %d", countGold())
-  item = player=>p_items
-  while item
-    displayStr("\n")
-    displayStr(item=>s_name)
-    item = item=>p_nextObj
-  loop
 
   // Show stats in the right panel
   setWindow2()
@@ -70,7 +128,7 @@ def showPlayerSheet(num)
   displayf1("%d", player->b_spirit);       rawDisplayStr("^T024Spirit\n")
   displayf1("%d", player->b_luck);         rawDisplayStr("^T024Luck\n")
   displayf1("%d", player->b_armor);        rawDisplayStr("^T024Armor\n")
-  
+
   // Show aquired skills in lower right panel
   setWindow3()
   clearWindow()
@@ -78,22 +136,67 @@ def showPlayerSheet(num)
   if player->b_aiming;     displayStr("\nAiming");       fin
   if player->b_handToHand; displayStr("\nHand-to-Hand"); fin
   if player->b_dodging;    displayStr("\nDodging");      fin
+
+  // Next, show inventory in the main panel
+  showInventory(player, 0)
+  rawDisplayStr("\n^YE)quip, U)se, D)rop^Y")
+
   return player
 end
 
 // Show player sheet and accept command
 def _party_doPlayerSheet(num)
-  word player
-  
+  word player, item
+  byte n_item, n_page
+
+  n_page = 0
   repeat
     player = showPlayerSheet(num)
     if !player; return; fin // Invalid player
     // Get a key, do something
     when getUpperKey()
       // Select another player to show
-      is '1'; num = 0; break
-      is '2'; num = 1; break
-      is '3'; num = 2; break
+      is '1'; num = 0; n_page = 0; break
+      is '2'; num = 1; n_page = 0; break
+      is '3'; num = 2; n_page = 0; break
+      // Equip player with weapon/armor
+      is 'E'
+        showInventory(player, n_page)
+        rawDisplayStr("\n^YWhich item?^Y")
+        item = itemNum(player, getUpperKey() - 'A')
+        if item
+          if item->t_type == TYPE_WEAPON or item->t_type == TYPE_ARMOR
+            unequip(player, item->t_type, item=>s_itemKind)
+            item->b_flags = item->b_flags | ITEM_FLAG_EQUIP
+            calcPlayerArmor(player)
+          fin
+        fin
+        break
+      // Use an item
+      is 'U'
+        break
+      // Drop an item
+      is 'D'
+        showInventory(player, n_page)
+        rawDisplayStr("\n^YWhich item?^Y")
+        item = itemNum(player, getUpperKey() - 'A')
+        if item
+          removeFromList(@player=>p_items, item)
+          calcPlayerArmor(player)
+        fin
+        break
+      // Next inventory page
+      is '>'
+        if itemNum(player, n_page * INV_PAGE_NUM + INV_PAGE_NUM)
+          n_page++
+        fin
+        break
+      // Previous inventory page
+      is '<'
+        if n_page
+          n_page--
+        fin
+        break
       // Other operations...
       is '!'; player=>w_health = player=>w_health + 10; break
       is '$'; addGold(10); break

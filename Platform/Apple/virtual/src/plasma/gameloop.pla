@@ -840,6 +840,18 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // General methods
 
+export def strncpy(dst, src, maxlen)
+  byte i, l
+
+  l = ^src
+  if l > maxlen; l = maxlen; fin
+  ^dst = l
+  for i = 1 to l
+    dst->[i] = src->[i]
+  next
+  return l
+end
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Fatal error: print message and stop the system.
 export def fatal(msg)
@@ -993,7 +1005,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Convert a lower-case character to upper-case (or return unchanged if it's not lower-case)
-def charToUpper(c)
+export def charToUpper(c)
   if c >= 'a' and c <= 'z'
     return c - $20
   fin
@@ -1292,7 +1304,7 @@ def checkScripts(x, y)
       p = p + 2
       while p < pNext
         if x == ^p
-	  script = p=>1
+	        script = p=>1
           setWindow2()
           skipScripts = FALSE
           script() // When should the script be installed as an event handler?

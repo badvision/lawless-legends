@@ -29,6 +29,7 @@ word global
 // in the same order as the constants are defined in the the header.
 predef _party_doPlayerSheet
 word[] funcTbl = @_party_doPlayerSheet
+byte[] strWhichItem = "\n^YWhich item?^Y"
 
 // Other global variables here
 
@@ -108,12 +109,16 @@ def showInventory(player, page)
 end
 // Display skill value
 def displaySkill(str, val, col)
+  byte[16] mystr
+
+  strncpy(@mystr, str, 15)
+  mystr[1] = charToUpper(mystr[1])
   if col & 1
     rawDisplayStr("^T060")
   else
     displayChar('\n')
   fin
-  displayf2("%d %s", val, str)
+  displayf2("%d %s", val, @mystr)
 end
 // Show player data
 def showPlayerSheet(num)
@@ -149,9 +154,9 @@ def showPlayerSheet(num)
   setWindow3()
   clearWindow()
   rawDisplayStr("^Y^LSkills^L^N")
-  displaySkill("aim", player->b_aiming, 0)
-  displaySkill("H2H", player->b_handToHand, 1)
-  displaySkill("dodge", player->b_dodging, 0)
+  displaySkill("Aim", player->b_aiming, 0)
+  displaySkill("Fists", player->b_handToHand, 1)
+  displaySkill("Dodge", player->b_dodging, 0)
   col = 1
   skill = player=>p_skills
   while skill
@@ -162,7 +167,6 @@ def showPlayerSheet(num)
   // Next, show inventory in the main panel
   showInventory(player, 0)
   rawDisplayStr("\n^YE)quip, U)se, D)rop^Y")
-
   return player
 end
 
@@ -184,7 +188,7 @@ def _party_doPlayerSheet(num)
       // Equip player with weapon/armor
       is 'E'
         showInventory(player, n_page)
-        rawDisplayStr("\n^YWhich item?^Y")
+        rawDisplayStr(@strWhichItem)
         item = itemNum(player, getUpperKey() - 'A')
         if item
           if item->t_type == TYPE_WEAPON or item->t_type == TYPE_ARMOR
@@ -196,11 +200,27 @@ def _party_doPlayerSheet(num)
         break
       // Use an item
       is 'U'
+        showInventory(player, n_page)
+        rawDisplayStr(@strWhichItem)
+        item = itemNum(player, getUpperKey() - 'A')
+        if item
+          if item->t_type == TYPE_ITEM and item=>p_modifiers
+            if streqi(item=>p_modifiers=>s_name, "health")
+              if player=>w_health < player=>w_maxHealth
+                player=>w_health = min(player=>w_health + item=>p_modifiers=>w_modValue, player=>w_maxHealth)
+                item->b_curUses++
+                if item->b_curUses >= item->b_maxUses // all used up
+                  removeFromList(@player=>p_items, item)
+                fin
+              fin
+            fin
+          fin
+        fin
         break
       // Drop an item
       is 'D'
         showInventory(player, n_page)
-        rawDisplayStr("\n^YWhich item?^Y")
+        rawDisplayStr(@strWhichItem)
         item = itemNum(player, getUpperKey() - 'A')
         if item
           removeFromList(@player=>p_items, item)

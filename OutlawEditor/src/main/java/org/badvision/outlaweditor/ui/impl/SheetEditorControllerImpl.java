@@ -19,7 +19,10 @@ import java.io.File;
 import java.net.URL;
 import java.util.List;
 import java.util.ResourceBundle;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -28,17 +31,23 @@ import javafx.event.ActionEvent;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
+import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.stage.FileChooser;
+import javafx.util.Callback;
 import javafx.util.converter.DefaultStringConverter;
+import javax.xml.bind.JAXBException;
 import org.badvision.outlaweditor.SheetEditor;
+import org.badvision.outlaweditor.TransferHelper;
 import org.badvision.outlaweditor.data.DataUtilities;
 import static org.badvision.outlaweditor.data.DataUtilities.getValue;
 import static org.badvision.outlaweditor.data.DataUtilities.setValue;
 import org.badvision.outlaweditor.data.xml.Columns;
 import org.badvision.outlaweditor.data.xml.Rows;
 import org.badvision.outlaweditor.data.xml.Rows.Row;
+import org.badvision.outlaweditor.data.xml.Script;
 import org.badvision.outlaweditor.data.xml.UserType;
 import org.badvision.outlaweditor.ui.ApplicationUIController;
 import org.badvision.outlaweditor.ui.SheetEditorController;
@@ -59,6 +68,21 @@ public class SheetEditorControllerImpl extends SheetEditorController {
         tableData = FXCollections.observableArrayList();
         table.setItems(tableData);
         table.setEditable(true);
+        table.setRowFactory(tableView -> {
+            final TableRow<Row> row = new TableRow<>();
+
+            final ContextMenu contextMenu = new ContextMenu(
+                    createMenuItem("Insert Row", () -> tableData.add(row.getIndex(), new Row())),
+                    createMenuItem("Clone Row", () -> cloneRow(row.getItem())),
+                    createMenuItem("Delete Row", () -> deleteRowWithConfirmation(row.getItem()))
+            );
+            row.contextMenuProperty().bind(
+                    Bindings.when(row.emptyProperty())
+                    .then((ContextMenu) null)
+                    .otherwise(contextMenu)
+            );
+            return row;
+        });
     }
 
     @Override
@@ -231,6 +255,19 @@ public class SheetEditorControllerImpl extends SheetEditorController {
         return colNumber;
     }
 
+    private void deleteRowWithConfirmation(Row row) {
+        UIAction.confirm("Delete row, are you sure?", ()->tableData.remove(row), ()->{});
+    }
+
+    private void cloneRow(Row row) {
+        try {
+            Row newRow = TransferHelper.cloneObject(row, Row.class, "row");
+            tableData.add(tableData.lastIndexOf(row), newRow);
+        } catch (JAXBException ex) {
+            Logger.getLogger(SheetEditorControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    
     private void syncData() {
         if (editor.getSheet().getRows() == null) {
             editor.getSheet().setRows(new Rows());

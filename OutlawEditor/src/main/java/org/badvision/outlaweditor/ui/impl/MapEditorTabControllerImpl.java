@@ -25,7 +25,6 @@ import javafx.scene.image.WritableImage;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javax.xml.bind.JAXBException;
-import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.MapEditor;
 import org.badvision.outlaweditor.TransferHelper;
 import org.badvision.outlaweditor.api.ApplicationState;

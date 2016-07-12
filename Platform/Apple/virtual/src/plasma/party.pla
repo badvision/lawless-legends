@@ -106,9 +106,19 @@ def showInventory(player, page)
     n_item++
   loop
 end
+// Display skill value
+def displaySkill(str, val, col)
+  if col & 1
+    rawDisplayStr("^T060")
+  else
+    displayChar('\n')
+  fin
+  displayf2("%d %s", val, str)
+end
 // Show player data
 def showPlayerSheet(num)
-  word player
+  word player, skill
+  byte col
 
   // Count the number of players
   player = global=>p_players
@@ -139,10 +149,16 @@ def showPlayerSheet(num)
   setWindow3()
   clearWindow()
   rawDisplayStr("^Y^LSkills^L^N")
-  if player->b_aiming;     displayStr("\nAiming");       fin
-  if player->b_handToHand; displayStr("\nHand-to-Hand"); fin
-  if player->b_dodging;    displayStr("\nDodging");      fin
-
+  displaySkill("aim", player->b_aiming, 0)
+  displaySkill("H2H", player->b_handToHand, 1)
+  displaySkill("dodge", player->b_dodging, 0)
+  col = 1
+  skill = player=>p_skills
+  while skill
+    displaySkill(skill=>s_name, skill->w_modValue, col)
+    skill = skill=>p_nextObj
+    col++
+  loop
   // Next, show inventory in the main panel
   showInventory(player, 0)
   rawDisplayStr("\n^YE)quip, U)se, D)rop^Y")

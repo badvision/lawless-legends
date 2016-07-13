@@ -49,6 +49,12 @@ public class A2PackPlugin implements MenuAction {
         return "Build Apple II disk";
     }
 
+    public void callback(String event)
+    {
+        System.out.println("Hello from callback.");
+        System.out.println("Event is: " + event);
+    }
+    
     // This method is called when the user selects the menu item
     @Override
     public void handle(ActionEvent event) 
@@ -56,9 +62,8 @@ public class A2PackPlugin implements MenuAction {
         System.out.println("Creating A2PackPartitions instance.");
         try {
             Class<?> clazz = Class.forName("org.badvision.A2PackPartitions");
-            Method m = clazz.getMethod("hello", String[].class);
-            String[] params = null; 
-            m.invoke(null, (Object) params); 
+            Method m = clazz.getMethod("hello", Object.class);
+            m.invoke(null, (Object) this); 
         } catch (Exception ex) {
             System.out.println("...failed: " + ex.toString());
             throw new RuntimeException(ex);

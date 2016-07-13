@@ -60,6 +60,8 @@ class A2PackPartitions
     def bytecodes = [:]  // module name to bytecode.num, bytecode.buf
     def fixups    = [:]  // module name to fixup.num, fixup.buf
     
+    def itemNameToFunc = [:]
+    
     def lastSysModule
     
     def compressor = LZ4Factory.fastestInstance().highCompressor()
@@ -1655,7 +1657,6 @@ class A2PackPartitions
     {
         // Save time by using cache of previous run
         readCache()
-
         
         // Read in code chunks. For now these are hard coded, but I guess they ought to
         // be configured in a config file somewhere...?
@@ -1720,6 +1721,9 @@ class A2PackPartitions
         
         // Number all the maps and record them with names
         numberMaps(dataIn)
+        
+        // Form the translation from item name to function name
+        allItemFuncs(dataIn.global.sheets.sheet)
             
         // Pack each map This uses the image and tile maps filled earlier.
         println "Packing maps."
@@ -2063,7 +2067,7 @@ end
                     "${parseByteAttr(row, name)}))")
             }
             else if (name =~ /^item-/) {
-                def itemFunc = cache['itemNameToFunc'][val]
+                def itemFunc = itemNameToFunc[val]
                 assert itemFunc : "Can't locate item '$val'"
                 out.println("  addToList(@p=>p_items, itemScripts()=>$itemFunc())")
             }
@@ -2107,9 +2111,8 @@ end
         out.println("end\n")
     }
     
-    def genAllItems(sheets)
+    def allItemFuncs(sheets)
     {
-        // Grab all the raw data
         def funcs = []
         sheets.find { it?.@name.equalsIgnoreCase("weapons") }.rows.row.findAll{it.@name}.each { row ->
             funcs << ["weapon", "NWp_${humanNameToSymbol(row.@name, false)}", funcs.size, row] }
@@ -2119,12 +2122,20 @@ end
             funcs << ["ammo",   "NAm_${humanNameToSymbol(row.@name, false)}", funcs.size, row] }
         sheets.find { it?.@name.equalsIgnoreCase("items") }.rows.row.findAll{it.@name}.each { row ->
             funcs << ["item",   "NIt_${humanNameToSymbol(row.@name, false)}", funcs.size, row] }
-        
+
         // Global mapping of item name to function, so that Players can create items.
-        cache['itemNameToFunc'] = [:]
         funcs.each { typeName, func, index, row ->
-            cache['itemNameToFunc'][row.@name.trim()] = func
+            itemNameToFunc[row.@name.trim()] = func
         }
+        
+        // And return the funcs.
+        return funcs
+    }
+    
+    def genAllItems(sheets)
+    {
+        // Grab all the raw data
+        def funcs = allItemFuncs(sheets)
         
         // Build up the mappings from loot codes and store codes to creation functions
         def lootCodeToFuncs = [:]
@@ -2381,9 +2392,6 @@ end
         // Open the XML data file produced by Outlaw Editor
         def dataIn = new XmlParser().parse(xmlPath)
 
-        // Save time by using the cache
-        readCache()
-
         // When generating code, we need to use Unix linebreaks since that's what
         // the PLASMA compiler expects to see.
         def oldSep = System.getProperty("line.separator")
@@ -2449,9 +2457,6 @@ end
         
         // Put back the default line separator
         System.setProperty("line.separator", oldSep)  
-        
-        // Save the cache for future speed-ups
-        writeCache()
     }
 
     def copyIfNewer(fromFile, toFile)
@@ -2485,9 +2490,10 @@ end
         new a2copy.A2Copy().main(args)
     }
     
-    static void hello(String[] args)
+    static void hello(Object obj)
     {
         System.out.println("Hello from pack partitions (groovy).")
+        obj.callback("Test event")
     }
     
     static void main(String[] args) 
@@ -2735,7 +2741,7 @@ end
             withContext(scriptNames[script]) 
             {
                 if (script.block.size() == 0) {
-                    printWarning("empty script found; skipping.")
+                    printWarning("empty script '${script?.@name}' found; skipping.")
                     return
                 }
 
@@ -2890,7 +2896,7 @@ end
         def packGiveItem(blk)
         {
             def name = getSingle(blk.field, 'NAME').text().trim()
-            def itemFunc = cache['itemNameToFunc'][name]
+            def itemFunc = itemNameToFunc[name]
             assert itemFunc : "Can't locate item '$name'"
             outIndented("giveItemToPlayer($itemFunc)\n")
         }
@@ -2898,7 +2904,7 @@ end
         def packTakeItem(blk)
         {
             def name = getSingle(blk.field, 'NAME').text().trim()
-            def itemFunc = cache['itemNameToFunc'][name]
+            def itemFunc = itemNameToFunc[name]
             assert itemFunc : "Can't locate item '$name'"
             outIndented("takeItemFromPlayer(${escapeString(name)})\n")
         }

@@ -59,24 +59,22 @@ public class A2PackPlugin implements MenuAction {
     @Override
     public void handle(ActionEvent event) 
     {
-        System.out.println("Creating A2PackPartitions instance.");
-        try {
-            Class<?> clazz = Class.forName("org.badvision.A2PackPartitions");
-            Method m = clazz.getMethod("hello", Object.class);
-            m.invoke(null, (Object) this); 
-        } catch (Exception ex) {
-            System.out.println("...failed: " + ex.toString());
-            throw new RuntimeException(ex);
-        }
-        System.out.println("...created.");
         File currentSaveFile = UIAction.getCurrentSaveFile();
         if (currentSaveFile == null || !currentSaveFile.exists()) {
             UIAction.alert("You must open a world file\nbefore building a disk.");
             return;
         }
-        System.out.println("Clicked X!");
-        JAXB.marshal(ApplicationState.getInstance().getGameData(), System.out);
-        checkReferences();
+
+        try {
+            System.out.println("Creating A2PackPartitions instance.");
+            Class<?> clazz = Class.forName("org.badvision.A2PackPartitions");
+            System.out.println("Calling packer.");
+            Method m = clazz.getMethod("packWorld", String.class, Object.class);
+            m.invoke(null, currentSaveFile.toString(), (Object) this); 
+        } catch (Exception ex) {
+            System.out.println("...failed: " + ex.toString());
+            throw new RuntimeException(ex);
+        }
         UIAction.alert("A2_4evr!");
     }
 

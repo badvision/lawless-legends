@@ -2490,68 +2490,49 @@ end
         new a2copy.A2Copy().main(args)
     }
     
-    static void hello(Object obj)
+    static void packWorld(String xmlPath, Object watcher)
     {
-        System.out.println("Hello from pack partitions (groovy).")
-        obj.callback("Test event")
-    }
-    
-    static void main(String[] args) 
-    {
-        // Set auto-flushing for stdout
-        System.out = new PrintStream(new BufferedOutputStream(System.out), true)
-        
-        // Verify that assertions are enabled
-        def flag = false
-        try {
-            assert false
-        }
-        catch (AssertionError e) {
-            flag = true
-        }
-        if (!flag) {
-            println "Error: assertions must be enabled. Run with '-ea'"
-            System.exit(1);            
-        }
-        
-        // Check the arguments
-        if (args.size() > 1) {
-            println "Usage: java -jar packPartitions.jar [path/to/world.xml]"
-            println "If no path supplied, assumes world.xml in current directory."
-            System.exit(1);
-        }
-        def xmlFile = new File(args.size() == 1 ? args[0] : "world.xml")
-
-        // Create the build directory if necessary
-        def buildDir = new File("build").getCanonicalFile()
-        if (!buildDir.exists())
-            buildDir.mkdirs()
-
         // If there's an existing error file, remove it first, so user doesn't
         // get confused by an old file.
         def errorFile = new File("pack_error.txt")
         if (errorFile.exists())
             errorFile.delete()
-            
+
         def warningFile = new File("pack_warning.txt")
         if (warningFile.exists())
             warningFile.delete()
             
-        // Also remove existing game image if any, for the same reason.
-        def gameFile = new File("game.2mg")
-        if (gameFile.exists()) 
-        {
-            // We want to preserve any existing saved game, so grab files from the old image.
-            String[] args2 = ["-get", "game.2mg", "/", "build/prevGame"]
-            new a2copy.A2Copy().main(args2)
-            
-            // Then delete the old image.
-            gameFile.delete()
-        }
-            
-        // Go for it.
         def inst
         try {
+            File xmlFile = new File(xmlPath)
+
+            def flag = false
+            try {
+                assert false
+            }
+            catch (AssertionError e) {
+                flag = true
+            }
+            if (!flag)
+                throw "Assertions must be enabled"
+
+            // Create the build directory if necessary
+            def buildDir = new File("build").getCanonicalFile()
+            if (!buildDir.exists())
+                buildDir.mkdirs()
+
+            // Also remove existing game image if any, for the same reason.
+            def gameFile = new File("game.2mg")
+            if (gameFile.exists()) 
+            {
+                // We want to preserve any existing saved game, so grab files from the old image.
+                String[] args2 = ["-get", "game.2mg", "/", "build/prevGame"]
+                new a2copy.A2Copy().main(args2)
+
+                // Then delete the old image.
+                gameFile.delete()
+            }
+
             // Create PLASMA headers
             inst = new A2PackPartitions()
             inst.buildDir = buildDir
@@ -2580,24 +2561,54 @@ end
                 }
             }
             errorFile.eachLine { println it }
-            def msg = "Fatal error encountered in ${inst.getContextStr()}.\nDetails written to file 'pack_error.txt'."
-            println msg
-            System.out.flush()
-            javax.swing.JOptionPane.showMessageDialog(null, msg, "Fatal packing error", 
-                javax.swing.JOptionPane.ERROR_MESSAGE)
-            System.exit(1)
+            watcher.error(t.message, inst ? inst.getContextStr() : 'outer')
         }
         
         if (inst.nWarnings > 0) {
             warningFile.withWriter { out ->
                 out.println "Packing warnings:\n"
-                out.write(inst.warningBuf.toString())
+                out.println str
+                out.write()
             }
+            watcher.warnings(inst.nWarnings, inst.warningBuf.toString())
+        }
+    }
+
+    static class CommandLineWatcher
+    {
+        def error(msg, context)
+        {
+            javax.swing.JOptionPane.showMessageDialog(null, \
+                "Fatal error encountered in\n" + \
+                "$context:\n" + \
+                "$msg.\n" + \
+                "Details written to file 'pack_error.txt'.", "Fatal packing error", 
+                javax.swing.JOptionPane.ERROR_MESSAGE)
+            System.exit(1)
+        }
+
+        def warnings(nWarnings, str)
+        {
             javax.swing.JOptionPane.showMessageDialog(null,
-                "${inst.nWarnings} warning(s) noted during packing.\nDetails written to file 'pack_warning.txt'.",
+                "${nWarnings} warning(s) noted during packing.\nDetails written to file 'pack_warning.txt'.",
                 "Pack warnings",
                 javax.swing.JOptionPane.ERROR_MESSAGE)
         }
+    }
+    
+    static void main(String[] args) 
+    {
+        // Set auto-flushing for stdout
+        System.out = new PrintStream(new BufferedOutputStream(System.out), true)
+        
+        // Check the arguments
+        if (args.size() > 1) {
+            println "Usage: java -jar packPartitions.jar [path/to/world.xml]"
+            println "If no path supplied, assumes world.xml in current directory."
+            System.exit(1);
+        }
+        def xmlFile = args.size() == 1 ? args[0] : "world.xml"
+        packWorld(xmlFile, new CommandLineWatcher())
     }
 
     class ScriptModule

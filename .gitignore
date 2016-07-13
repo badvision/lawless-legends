@@ -31,6 +31,7 @@ mg
 /Platform/Apple/virtual/src/include/build.props
 /Platform/Apple/tools/A2Copy/build/
 /Platform/Apple/tools/PackPartitions/build/
+/Platform/Apple/tools/A2PackPlugin/dependency-reduced-pom.xml
 
 # Ignore object and asm files produced by PLASMA
 *.o
@@ -48,3 +49,4 @@ mg
 error_stack.txt
 /OutlawEditor/OutlawPluginExample/target/
 /Platform/Apple/tools/A2Pack/target/
+/Platform/Apple/tools/A2PackPlugin/target/

@@ -13,7 +13,7 @@
  * Apple II version of MythOS.
  */
 
-package org.demo
+package org.badvision
 
 import java.nio.ByteBuffer
 import java.nio.channels.Channels
@@ -28,7 +28,7 @@ import javax.xml.bind.DatatypeConverter
  *
  * @author mhaye
  */
-class PackPartitions 
+class A2PackPartitions 
 {
     def TRANSPARENT_COLOR = 15
     
@@ -2485,6 +2485,11 @@ end
         new a2copy.A2Copy().main(args)
     }
     
+    static void hello(String[] args)
+    {
+        System.out.println("Hello from pack partitions (groovy).")
+    }
+    
     static void main(String[] args) 
     {
         // Set auto-flushing for stdout
@@ -2542,12 +2547,12 @@ end
         def inst
         try {
             // Create PLASMA headers
-            inst = new PackPartitions()
+            inst = new A2PackPartitions()
             inst.buildDir = buildDir
             inst.dataGen(xmlFile)
             
             // Pack everything into a binary file
-            inst = new PackPartitions() // make a new one without stubs
+            inst = new A2PackPartitions() // make a new one without stubs
             inst.buildDir = buildDir
             inst.pack(xmlFile)
 

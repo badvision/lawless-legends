@@ -15,11 +15,16 @@ include "gamelib.plh"
 // Data structure definitions
 include "playtype.plh"
 
+// Global definitions
+include "globalDefs.plh"
+
 // Definition of constants for functions exported by this module
 include "party.plh"
 
 // Number of items that fit in inventory pane
 const INV_PAGE_NUM = 13
+
+const CHAR_WND_STAT_X = 20
 
 // This pointer is the root of all heap-tracked (and garbage collected) objects.
 // See playtype.plh for definitions of all the datastructures and how they interconnect.
@@ -65,7 +70,7 @@ def unequip(player, type, kind)
 end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display inventory pane
-def showInventory(player, page)
+def showInventory(player, page, select)
   word item
   byte n_item, n_page
 
@@ -83,7 +88,11 @@ def showInventory(player, page)
     loop
   fin
   while item and n_item < (n_page + INV_PAGE_NUM)
-    displayf2("\n%c) %s", 'A' + n_item, item=>s_name)
+    if select
+      displayf2("\n%c) %s", 'A' + n_item, item=>s_name)
+    else
+      displayf1("\n%s", item=>s_name)
+    fin
     //if item=>s_itemKind
     //  displayf1(" (%s)", item=>s_itemKind)
     //fin
@@ -140,15 +149,15 @@ def showPlayerSheet(num)
   setWindow2()
   clearWindow()
   rawDisplayStr("^Y^LStats^L^N\n")
-  displayf1("%d", player=>w_health);       rawDisplayStr("^T024Health\n")
-  displayf1("%d", player->b_intelligence); rawDisplayStr("^T024Intelligence\n")
-  displayf1("%d", player->b_strength);     rawDisplayStr("^T024Strength\n")
-  displayf1("%d", player->b_agility);      rawDisplayStr("^T024Agility\n")
-  displayf1("%d", player->b_stamina);      rawDisplayStr("^T024Stamina\n")
-  displayf1("%d", player->b_charisma);     rawDisplayStr("^T024Charisma\n")
-  displayf1("%d", player->b_spirit);       rawDisplayStr("^T024Spirit\n")
-  displayf1("%d", player->b_luck);         rawDisplayStr("^T024Luck\n")
-  displayf1("%d", player->b_armor);        rawDisplayStr("^T024Armor\n")
+  rightJustifyNum(player=>w_health, CHAR_WND_STAT_X);       rawDisplayStr("^T024Health\n")
+  rightJustifyNum(player->b_intelligence, CHAR_WND_STAT_X); rawDisplayStr("^T024Intelligence\n")
+  rightJustifyNum(player->b_strength, CHAR_WND_STAT_X);     rawDisplayStr("^T024Strength\n")
+  rightJustifyNum(player->b_agility, CHAR_WND_STAT_X);      rawDisplayStr("^T024Agility\n")
+  rightJustifyNum(player->b_stamina, CHAR_WND_STAT_X);      rawDisplayStr("^T024Stamina\n")
+  rightJustifyNum(player->b_charisma, CHAR_WND_STAT_X);     rawDisplayStr("^T024Charisma\n")
+  rightJustifyNum(player->b_spirit, CHAR_WND_STAT_X);       rawDisplayStr("^T024Spirit\n")
+  rightJustifyNum(player->b_luck, CHAR_WND_STAT_X);         rawDisplayStr("^T024Luck\n")
+  rightJustifyNum(player->b_armor, CHAR_WND_STAT_X);        rawDisplayStr("^T024Armor\n")
 
   // Show aquired skills in lower right panel
   setWindow3()
@@ -165,7 +174,7 @@ def showPlayerSheet(num)
     col++
   loop
   // Next, show inventory in the main panel
-  showInventory(player, 0)
+  showInventory(player, 0, FALSE)
   rawDisplayStr("\n^YE)quip, U)se, D)rop^Y")
   return player
 end
@@ -187,7 +196,7 @@ def _party_doPlayerSheet(num)
       is '3'; num = 2; n_page = 0; break
       // Equip player with weapon/armor
       is 'E'
-        showInventory(player, n_page)
+        showInventory(player, n_page, TRUE)
         rawDisplayStr(@strWhichItem)
         item = itemNum(player, getUpperKey() - 'A')
         if item
@@ -200,7 +209,7 @@ def _party_doPlayerSheet(num)
         break
       // Use an item
       is 'U'
-        showInventory(player, n_page)
+        showInventory(player, n_page, TRUE)
         rawDisplayStr(@strWhichItem)
         item = itemNum(player, getUpperKey() - 'A')
         if item
@@ -219,7 +228,7 @@ def _party_doPlayerSheet(num)
         break
       // Drop an item
       is 'D'
-        showInventory(player, n_page)
+        showInventory(player, n_page, TRUE)
         rawDisplayStr(@strWhichItem)
         item = itemNum(player, getUpperKey() - 'A')
         if item

@@ -1166,7 +1166,12 @@ def displayPlayerData(player)
   rawDisplayStr(player=>s_name)
   // Locate the first weapon, and display it's clip
   pi = player=>p_items
-  while pi and pi->t_type <> TYPE_WEAPON; pi = pi=>p_nextObj; loop
+  while pi
+    if pi->t_type == TYPE_WEAPON and pi->b_flags & ITEM_FLAG_EQUIP
+      break
+    fin
+    pi = pi=>p_nextObj
+  loop
   if pi
     rightJustifyNum(pi->b_clipCurrent, CHAR_WND_AMMO_X)
   else

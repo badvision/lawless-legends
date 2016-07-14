@@ -22,9 +22,10 @@ include "globalDefs.plh"
 include "party.plh"
 
 // Number of items that fit in inventory pane
-const INV_PAGE_NUM = 13
+const INV_PAGE_NUM = 11
 
 const CHAR_WND_STAT_X = 20
+const CHAR_WND_INV_X = 16
 
 // This pointer is the root of all heap-tracked (and garbage collected) objects.
 // See playtype.plh for definitions of all the datastructures and how they interconnect.
@@ -35,6 +36,7 @@ word global
 predef _party_doPlayerSheet
 word[] funcTbl = @_party_doPlayerSheet
 byte[] strWhichItem = "\n^YWhich item?^Y"
+byte[] strYouSure = "\n^YAre you sure (Y/N)?^Y"
 
 // Other global variables here
 
@@ -70,28 +72,30 @@ def unequip(player, type, kind)
 end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display inventory pane
-def showInventory(player, page, select)
+def showInventory(player, page, height, select)
   word item
   byte n_item, n_page
 
   setMapWindow()
   clearWindow()
   rawDisplayStr("^Y^LInventory^L^N")
-  displayf1("\nGroup Gold: %d", countGold())
+  rawDisplayStr("\n^T018")
+  displayf1("Group Gold: %d", countGold())
   item = player=>p_items
   n_item = 0
-  n_page = page * INV_PAGE_NUM
+  n_page = page * height
   if page
     while item and n_item < n_page
       item = item=>p_nextObj
       n_item++
     loop
   fin
-  while item and n_item < (n_page + INV_PAGE_NUM)
+  while item and n_item < (n_page + height)
     if select
       displayf2("\n%c) %s", 'A' + n_item, item=>s_name)
     else
-      displayf1("\n%s", item=>s_name)
+      rawDisplayStr("\n^T018")
+      displayf1("%s", item=>s_name)
     fin
     //if item=>s_itemKind
     //  displayf1(" (%s)", item=>s_itemKind)
@@ -111,7 +115,7 @@ def showInventory(player, page, select)
     item = item=>p_nextObj
     n_item++
   loop
-  while n_item < (n_page + INV_PAGE_NUM)
+  while n_item < (n_page + height)
     displayChar('\n')
     n_item++
   loop
@@ -130,9 +134,9 @@ def displaySkill(str, val, col)
   displayf2("%d %s", val, @mystr)
 end
 // Show player data
-def showPlayerSheet(num)
+def showPlayerSheet(num, mapHeight)
   word player, skill
-  byte col
+  byte col, n_item
 
   // Count the number of players
   player = global=>p_players
@@ -174,7 +178,7 @@ def showPlayerSheet(num)
     col++
   loop
   // Next, show inventory in the main panel
-  showInventory(player, 0, FALSE)
+  showInventory(player, 0, mapHeight, FALSE)
   rawDisplayStr("\n^YE)quip, U)se, D)rop^Y")
   return player
 end
@@ -182,11 +186,16 @@ end
 // Show player sheet and accept command
 def _party_doPlayerSheet(num)
   word player, item
-  byte n_item, n_page
+  word hInv, vInv
+  byte n_item, n_page, i
 
+
+  // Get size of inventory pane in chars
+  getMapWindow(@hInv, @vInv)
+  vInv = vInv / 11
   n_page = 0
   repeat
-    player = showPlayerSheet(num)
+    player = showPlayerSheet(num, vInv)
     if !player; return; fin // Invalid player
     // Get a key, do something
     when getUpperKey()
@@ -196,7 +205,7 @@ def _party_doPlayerSheet(num)
       is '3'; num = 2; n_page = 0; break
       // Equip player with weapon/armor
       is 'E'
-        showInventory(player, n_page, TRUE)
+        showInventory(player, n_page, vInv, TRUE)
         rawDisplayStr(@strWhichItem)
         item = itemNum(player, getUpperKey() - 'A')
         if item
@@ -209,7 +218,7 @@ def _party_doPlayerSheet(num)
         break
       // Use an item
       is 'U'
-        showInventory(player, n_page, TRUE)
+        showInventory(player, n_page, vInv, TRUE)
         rawDisplayStr(@strWhichItem)
         item = itemNum(player, getUpperKey() - 'A')
         if item
@@ -228,12 +237,26 @@ def _party_doPlayerSheet(num)
         break
       // Drop an item
       is 'D'
-        showInventory(player, n_page, TRUE)
+        showInventory(player, n_page, vInv, TRUE)
         rawDisplayStr(@strWhichItem)
-        item = itemNum(player, getUpperKey() - 'A')
+        n_item = getUpperKey() - 'A'
+        item = itemNum(player, n_item)
         if item
-          removeFromList(@player=>p_items, item)
-          calcPlayerArmor(player)
+          clearWindow()
+          rawDisplayStr("^Y^LDrop^L^Y")
+          for i = 0 to n_item
+            rawDisplayStr("\n")
+          next
+          rawDisplayStr("\n^T018")
+          displayf1("%s", item=>s_name)
+          for i = n_item + 2 to vInv
+            rawDisplayStr("\n")
+          next
+          rawDisplayStr(@strYouSure)
+          if getYN()
+            removeFromList(@player=>p_items, item)
+            calcPlayerArmor(player)
+          fin
         fin
         break
       // Next inventory page

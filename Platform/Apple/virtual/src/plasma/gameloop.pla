@@ -1139,7 +1139,15 @@ export def setMapWindow()
     setWindow(24, 169, 14, 140) // Top, Bottom, Left, Right
   fin
 end
-
+export def getMapWindow(width, height)
+  if frameLoaded == 3  // don't check mapIs3D, since we might be in an engine
+    *width  = 140-14
+    *height = 153-24
+  else
+    *width  = 140-14
+    *height = 169-24
+  fin
+end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def rightJustifyStr(str, rightX)
   word x

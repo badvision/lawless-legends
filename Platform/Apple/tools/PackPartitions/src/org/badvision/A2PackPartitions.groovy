@@ -1634,16 +1634,19 @@ class A2PackPartitions
     
     def readCache()
     {
+        /* This isn't working reliably lately
         File cacheFile = new File("build/world.cache")
         if (cacheFile.exists()) {
             ObjectInputStream inStream = new ObjectInputStream(new FileInputStream(cacheFile));
             cache = inStream.readObject();
             inStream.close()
         }
+        */
     }
     
     def writeCache()
     {
+        /* This isn't working reliably lately
         File cacheFile = new File("build/world.cache")
         File newCacheFile = new File("build/world.cache.new")
         ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(newCacheFile));
@@ -1651,6 +1654,7 @@ class A2PackPartitions
         out.close()
         cacheFile.delete() // needed on Windows
         newCacheFile.renameTo(cacheFile)
+        */
     }
     
     def pack(xmlPath)

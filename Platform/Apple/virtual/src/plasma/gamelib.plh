@@ -21,9 +21,9 @@ import gamelib
   predef beep, showParty, mmgr, setWindow1, setWindow2, setWindow3, reboot, brk
   predef encodeDice, rollDice, setPlural, getStringResponse
   predef streqi, strncpy, fatal, pause, tossStrings, charToUpper
-  predef addEncounterZone, clearEncounterZones, showMapName, setMapWindow, makeModifier
+  predef addEncounterZone, clearEncounterZones, showMapName, setMapWindow, getMapWindow
   predef addGold, countGold, payGold
-  predef calcPlayerArmor, diskActivity, rdkey, initHeap, scriptCombat
+  predef calcPlayerArmor, diskActivity, rdkey, initHeap, scriptCombat, makeModifier
   predef giveItemToPlayer, takeItemFromPlayer, playerHasItem, getStat, setStat
   predef setGameFlag, getGameFlag, scriptSetAvatar
 

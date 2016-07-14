@@ -25,7 +25,7 @@ import gamelib
   predef addGold, countGold, payGold
   predef calcPlayerArmor, diskActivity, rdkey, initHeap, scriptCombat
   predef giveItemToPlayer, takeItemFromPlayer, playerHasItem, getStat, setStat
-  predef setGameFlag, getGameFlag, setAvatar
+  predef setGameFlag, getGameFlag, scriptSetAvatar
 
   // Shared string constants
 

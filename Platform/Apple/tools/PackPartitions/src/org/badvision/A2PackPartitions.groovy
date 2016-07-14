@@ -2567,7 +2567,7 @@ end
         if (inst.nWarnings > 0) {
             warningFile.withWriter { out ->
                 out.println "Packing warnings:\n"
-                out.println str
+                out.println inst.warningBuf.toString()
                 out.write()
             }
             watcher.warnings(inst.nWarnings, inst.warningBuf.toString())
@@ -3129,7 +3129,7 @@ end
                 println(avatars)
                 throw new Exception("Can't find avatar '$tileName'")
             }
-            outIndented("setAvatar(${avatars[tileName.toLowerCase()]})\n")
+            outIndented("scriptSetAvatar(${avatars[tileName.toLowerCase()]})\n")
         }
         
         def packSetSky(blk)

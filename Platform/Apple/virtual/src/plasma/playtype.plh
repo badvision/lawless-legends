@@ -35,6 +35,7 @@ struc Global
 
   // General flags maintained by scripts. Linked list of Modifiers.
   word p_gameFlags
+  byte b_curAvatar
 end
 
 const PLAYER_FLAG_NPC  = $01

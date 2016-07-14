@@ -52,6 +52,7 @@ word global  // the global heap object, from which all live objects must be reac
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Predefined functions, for circular calls or out-of-order calls
 predef setWindow2, initCmds, nextAnimFrame, checkEncounter, doCombat, clearPortrait, showMapName
+predef doRender
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Global variables
@@ -78,7 +79,6 @@ byte frameLoaded = 0
 byte heapLocked = FALSE
 byte skipScripts = FALSE
 byte allowZoneInit = FALSE
-byte curAvatar = 0
 
 // Queue setMap / teleport / start_encounter, since otherwise script might be replaced while executing
 byte q_mapIs3D = 0
@@ -1284,7 +1284,10 @@ def initMap(x, y, dir)
   needRender = FALSE
   textDrawn = FALSE
   curPortrait = 0
-  setAvatar(curAvatar)
+  if global->b_curAvatar <> 0 and !mapIs3D
+    setAvatar(global->b_curAvatar)
+    doRender()
+  fin  
 
   // Display the party characters
   showParty()
@@ -1292,7 +1295,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def scriptSetAvatar(avatarTileNum)
-  curAvatar = avatarTileNum
+  global->b_curAvatar = avatarTileNum
   setAvatar(avatarTileNum)
 end
 
@@ -1526,7 +1529,7 @@ def setMap(is3D, num, x, y, dir)
     mapIs3D = is3D
     mapNum = num
     allowZoneInit = TRUE
-    curAvatar = 0
+    global->b_curAvatar = 0
     initMap(x, y, dir)
     allowZoneInit = FALSE
   fin
@@ -2424,6 +2427,7 @@ def startGame()
     mapIs3D = q_mapIs3D
     mapNum = q_mapNum
     q_mapNum = 0
+    global->b_curAvatar = 0
     allowZoneInit = TRUE
     initMap(q_x, q_y, q_dir)
     allowZoneInit = FALSE

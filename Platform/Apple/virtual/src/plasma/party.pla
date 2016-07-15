@@ -21,9 +21,13 @@ include "globalDefs.plh"
 // Definition of constants for functions exported by this module
 include "party.plh"
 
-// Number of items that fit in inventory pane
-const INV_PAGE_NUM = 11
+// Type groups
+const TYPE_ALL   = $0100
+const TYPE_EQUIP = $0101
+const TYPE_USE   = $0102
+const TYPE_DROP  = $0103
 
+// Tab positions
 const CHAR_WND_STAT_X = 20
 const CHAR_WND_INV_X = 16
 
@@ -35,22 +39,49 @@ word global
 // in the same order as the constants are defined in the the header.
 predef _party_doPlayerSheet
 word[] funcTbl = @_party_doPlayerSheet
-byte[] strWhichItem = "\n^YWhich item?^Y"
-byte[] strYouSure = "\n^YAre you sure (Y/N)?^Y"
+byte[] strWhichItem = "\n^T032Which item?"
+byte[] strYouSure = "\n^T008Are you sure (Y/N)?"
 
 // Other global variables here
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Match item type to group type
+def itemMatch(item, group)
+  byte type
+
+  type = item->t_type
+  when group
+    is TYPE_ALL
+      return TRUE
+      break
+    is TYPE_EQUIP
+      return type == TYPE_ARMOR or type == TYPE_WEAPON
+    is TYPE_USE
+      return type == TYPE_ITEM and item=>p_modifiers
+      break
+    is TYPE_DROP
+    return type == TYPE_WEAPON or type == TYPE_ARMOR
+      break
+    otherwise
+      return group == type
+  wend
+end
 // Search item num
-def itemNum(player, num)
+def itemNum(player, skip, num, select)
   word item
 
   item = player=>p_items
-  while item and num
+  while item and skip
     item = item=>p_nextObj
-    num--
+    skip--
   loop
-  return item
+  while item
+    if itemMatch(item, select)
+      if not num; return item; fin
+      num--
+    fin
+    item = item=>p_nextObj
+  loop
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -62,9 +93,9 @@ def unequip(player, type, kind)
   item = player=>p_items
   while item
     if item->t_type == type
-      if streqi(item=>s_itemKind, kind)
+      if streqi(item=>s_itemKind, kind) and item->b_flags & ITEM_FLAG_EQUIP
         item->b_flags = item->b_flags & ~ITEM_FLAG_EQUIP
-        return
+        return item
       fin
     fin
     item = item=>p_nextObj
@@ -74,14 +105,14 @@ end
 // Display inventory pane
 def showInventory(player, page, height, select)
   word item
-  byte n_item, n_page
+  byte s_item, n_item, n_page
 
   setMapWindow()
   clearWindow()
-  rawDisplayStr("^Y^LInventory^L^N")
-  rawDisplayStr("\n^T018")
+  rawDisplayStr("^T040^LInventory^L\n^T018")
   displayf1("Group Gold: %d", countGold())
   item = player=>p_items
+  s_item = 0
   n_item = 0
   n_page = page * height
   if page
@@ -91,15 +122,13 @@ def showInventory(player, page, height, select)
     loop
   fin
   while item and n_item < (n_page + height)
-    if select
-      displayf2("\n%c) %s", 'A' + n_item, item=>s_name)
-    else
-      rawDisplayStr("\n^T018")
-      displayf1("%s", item=>s_name)
+    displayChar('\n')
+    if itemMatch(item, select)
+      displayf1("%c)", 'A' + s_item)
+      s_item++
     fin
-    //if item=>s_itemKind
-    //  displayf1(" (%s)", item=>s_itemKind)
-    //fin
+    rawDisplayStr("^T018")
+    displayStr(item=>s_name)
     when item->t_type
       is TYPE_WEAPON
         if item->b_flags & ITEM_FLAG_EQUIP
@@ -112,13 +141,14 @@ def showInventory(player, page, height, select)
         fin
         break
     wend
-    item = item=>p_nextObj
     n_item++
+    item = item=>p_nextObj
   loop
   while n_item < (n_page + height)
     displayChar('\n')
     n_item++
   loop
+  return s_item
 end
 // Display skill value
 def displaySkill(str, val, col)
@@ -152,7 +182,7 @@ def showPlayerSheet(num, mapHeight)
   // Show stats in the right panel
   setWindow2()
   clearWindow()
-  rawDisplayStr("^Y^LStats^L^N\n")
+  rawDisplayStr("^T040^LStats^L\n")
   rightJustifyNum(player=>w_health, CHAR_WND_STAT_X);       rawDisplayStr("^T024Health\n")
   rightJustifyNum(player->b_intelligence, CHAR_WND_STAT_X); rawDisplayStr("^T024Intelligence\n")
   rightJustifyNum(player->b_strength, CHAR_WND_STAT_X);     rawDisplayStr("^T024Strength\n")
@@ -166,7 +196,7 @@ def showPlayerSheet(num, mapHeight)
   // Show aquired skills in lower right panel
   setWindow3()
   clearWindow()
-  rawDisplayStr("^Y^LSkills^L^N")
+  rawDisplayStr("^T040^LSkills^L")
   displaySkill("Aim", player->b_aiming, 0)
   displaySkill("Fists", player->b_handToHand, 1)
   displaySkill("Dodge", player->b_dodging, 0)
@@ -178,8 +208,8 @@ def showPlayerSheet(num, mapHeight)
     col++
   loop
   // Next, show inventory in the main panel
-  showInventory(player, 0, mapHeight, FALSE)
-  rawDisplayStr("\n^YE)quip, U)se, D)rop^Y")
+  showInventory(player, 0, mapHeight, 0)
+  rawDisplayStr("\n^T012E)quip, U)se, D)rop")
   return player
 end
 
@@ -205,24 +235,25 @@ def _party_doPlayerSheet(num)
       is '3'; num = 2; n_page = 0; break
       // Equip player with weapon/armor
       is 'E'
-        showInventory(player, n_page, vInv, TRUE)
-        rawDisplayStr(@strWhichItem)
-        item = itemNum(player, getUpperKey() - 'A')
-        if item
-          if item->t_type == TYPE_WEAPON or item->t_type == TYPE_ARMOR
-            unequip(player, item->t_type, item=>s_itemKind)
-            item->b_flags = item->b_flags | ITEM_FLAG_EQUIP
-            calcPlayerArmor(player)
+        if showInventory(player, n_page, vInv, TYPE_EQUIP)
+          rawDisplayStr(@strWhichItem)
+          item = itemNum(player, vInv * n_page, getUpperKey() - 'A', TYPE_EQUIP)
+          if item
+            if unequip(player, item->t_type, item=>s_itemKind) <> item
+              item->b_flags = item->b_flags | ITEM_FLAG_EQUIP
+              calcPlayerArmor(player)
+            fin
           fin
+        else
+          beep
         fin
         break
       // Use an item
       is 'U'
-        showInventory(player, n_page, vInv, TRUE)
-        rawDisplayStr(@strWhichItem)
-        item = itemNum(player, getUpperKey() - 'A')
-        if item
-          if item->t_type == TYPE_ITEM and item=>p_modifiers
+        if showInventory(player, n_page, vInv, TYPE_USE)
+          rawDisplayStr(@strWhichItem)
+          item = itemNum(player, vInv * n_page, getUpperKey() - 'A', TYPE_USE)
+          if item
             if streqi(item=>p_modifiers=>s_name, "health")
               if player=>w_health < player=>w_maxHealth
                 player=>w_health = min(player=>w_health + item=>p_modifiers=>w_modValue, player=>w_maxHealth)
@@ -233,35 +264,40 @@ def _party_doPlayerSheet(num)
               fin
             fin
           fin
+        else
+          beep
         fin
         break
       // Drop an item
       is 'D'
-        showInventory(player, n_page, vInv, TRUE)
-        rawDisplayStr(@strWhichItem)
-        n_item = getUpperKey() - 'A'
-        item = itemNum(player, n_item)
-        if item
-          clearWindow()
-          rawDisplayStr("^Y^LDrop^L^Y")
-          for i = 0 to n_item
-            rawDisplayStr("\n")
-          next
-          rawDisplayStr("\n^T018")
-          displayf1("%s", item=>s_name)
-          for i = n_item + 2 to vInv
-            rawDisplayStr("\n")
-          next
-          rawDisplayStr(@strYouSure)
-          if getYN()
-            removeFromList(@player=>p_items, item)
-            calcPlayerArmor(player)
+        if showInventory(player, n_page, vInv, TYPE_DROP)
+          rawDisplayStr(@strWhichItem)
+          n_item = getUpperKey() - 'A'
+          item = itemNum(player, vInv * n_page, n_item, TYPE_DROP)
+          if item
+            clearWindow()
+            rawDisplayStr("^T050^LDrop^L\n")
+            for i = 0 to n_item
+              displayChar('\n')
+            next
+            rawDisplayStr("\n^T018")
+            displayStr(item=>s_name)
+            for i = n_item + 3 to vInv
+              displayChar('\n')
+            next
+            rawDisplayStr(@strYouSure)
+            if getYN()
+              removeFromList(@player=>p_items, item)
+              calcPlayerArmor(player)
+            fin
           fin
+        else
+          beep
         fin
         break
       // Next inventory page
       is '>'
-        if itemNum(player, n_page * INV_PAGE_NUM + INV_PAGE_NUM)
+        if itemNum(player,  vInv * n_page, vInv * n_page + vInv, TYPE_ALL)
           n_page++
         fin
         break

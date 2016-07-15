@@ -17,7 +17,8 @@ const fontEngine    = $E000   // main mem
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Other constants
-const CHAR_WND_AMMO_X = 83
+const CHAR_WND_GOLD_X = 83
+const CHAR_WND_WEAPON_X = 83
 const CHAR_WND_LIFE_X = 112
 
 const ANIM_FLAG_FWD      = $20
@@ -1174,20 +1175,23 @@ def displayPlayerData(player)
 
   // Display the player's name and health
   rawDisplayStr(player=>s_name)
-  // Locate the first weapon, and display it's clip
-  pi = player=>p_items
-  while pi
-    if pi->t_type == TYPE_WEAPON and pi->b_flags & ITEM_FLAG_EQUIP
-      break
-    fin
-    pi = pi=>p_nextObj
-  loop
-  if pi and pi->b_clipSize
-    rightJustifyNum(pi->b_clipCurrent, CHAR_WND_AMMO_X)
+  if mapIs3D
+    rightJustifyNum(global=>w_gold, CHAR_WND_GOLD_X)
   else
-    rightJustifyStr("---", CHAR_WND_AMMO_X)
+    // Locate the equipped weapon
+    pi = player=>p_items
+    while pi
+      if pi->t_type == TYPE_WEAPON and pi->b_flags & ITEM_FLAG_EQUIP
+        break
+      fin
+      pi = pi=>p_nextObj
+    loop
+    if pi
+      rightJustifyStr(pi->s_name, CHAR_WND_WEAPON_X)
+    else
+      rightJustifyStr("Fists", CHAR_WND_WEAPON_X)
+    fin
   fin
-
   rightJustifyNum(player=>w_health, CHAR_WND_LIFE_X)
 
   // All done.
@@ -1205,7 +1209,11 @@ export def showParty()
 
   // Display header
   rawDisplayStr("^LName")  // begin underline mode
-  rightJustifyStr("Ammo", CHAR_WND_AMMO_X)
+  if mapIs3D
+    rightJustifyStr("Gold", CHAR_WND_GOLD_X)
+  else
+    rightJustifyStr("Weapon", CHAR_WND_WEAPON_X)
+  fin
   rightJustifyStr("Life", CHAR_WND_LIFE_X)
   rawDisplayStr("^L\n")   // end underline mode
 
@@ -1846,7 +1854,7 @@ export def countList(p)
   byte n
   n = 0
   while p
-    n = n+1
+    n++
     p = p=>p_nextObj
   loop
   return n
@@ -1858,7 +1866,7 @@ export def countListFiltered(p, offset, filterFunc)
   n = 0
   while p
     if filterFunc(p)
-      n = n+1
+      n++
     fin
     p = *(p + offset)
   loop
@@ -1872,7 +1880,7 @@ export def randomFromListFiltered(p, offset, filterFunc)
   while p
     if filterFunc(p)
       if n == 0; return p; fin
-      n = n+1
+      n++
     fin
     p = *(p + offset)
   loop

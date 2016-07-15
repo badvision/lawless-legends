@@ -2063,9 +2063,7 @@ def checkEncounter(x, y, force)
   d = rand16() % 1000
   if p_bestZone and (d < p_bestZone=>w_encChance or force)
     // Encounter!
-    printf1("Encounter: %s\n", p_bestZone=>s_name)
     doCombat(p_bestZone=>s_name)
-    puts("Encounter complete.\n")
   fin
 end
 

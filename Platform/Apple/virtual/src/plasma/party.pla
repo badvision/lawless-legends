@@ -287,7 +287,12 @@ def _party_doPlayerSheet(num)
             next
             rawDisplayStr(@strYouSure)
             if getYN()
+              i = countList(player=>p_items)
               removeFromList(@player=>p_items, item)
+              if countList(player=>p_items) <> i - 1
+                displayStr("remove List error!")
+                getUpperKey()
+              fin
               calcPlayerArmor(player)
             fin
           fin
@@ -313,6 +318,7 @@ def _party_doPlayerSheet(num)
       // All done
       otherwise return
     wend
+    tossStrings() // Free up local strings
   until 0
 end
 

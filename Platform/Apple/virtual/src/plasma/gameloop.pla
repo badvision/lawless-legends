@@ -1187,7 +1187,7 @@ def displayPlayerData(player)
       pi = pi=>p_nextObj
     loop
     if pi
-      rightJustifyStr(pi->s_name, CHAR_WND_WEAPON_X)
+      rightJustifyStr(pi=>s_name, CHAR_WND_WEAPON_X)
     else
       rightJustifyStr("Fists", CHAR_WND_WEAPON_X)
     fin

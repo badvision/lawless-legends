@@ -1182,7 +1182,7 @@ def displayPlayerData(player)
     fin
     pi = pi=>p_nextObj
   loop
-  if pi
+  if pi and pi->b_clipSize
     rightJustifyNum(pi->b_clipCurrent, CHAR_WND_AMMO_X)
   else
     rightJustifyStr("---", CHAR_WND_AMMO_X)
@@ -1287,7 +1287,7 @@ def initMap(x, y, dir)
   if global->b_curAvatar <> 0 and !mapIs3D
     setAvatar(global->b_curAvatar)
     doRender()
-  fin  
+  fin
 
   // Display the party characters
   showParty()

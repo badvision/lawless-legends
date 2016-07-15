@@ -192,7 +192,7 @@ def playerCombatChoose(pl)
   pWeapon = NULL
   p = pl=>p_items
   while p
-    if p->t_type == TYPE_WEAPON
+    if p->t_type == TYPE_WEAPON and p->b_flags & ITEM_FLAG_EQUIP
       if !pWeapon; pWeapon = p; fin
       nWeapons = nWeapons + 1
     fin

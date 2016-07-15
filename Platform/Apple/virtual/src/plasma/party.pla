@@ -209,7 +209,9 @@ def _party_doPlayerSheet(num)
         rawDisplayStr(@strWhichItem)
         item = itemNum(player, getUpperKey() - 'A')
         if item
-          if item->t_type == TYPE_WEAPON or item->t_type == TYPE_ARMOR
+	  if item->t_type  == TYPE_WEAPON and item->b_flags & ITEM_FLAG_EQUIP
+            item->b_flags = item->b_flags & ~ITEM_FLAG_EQUIP	    
+          elsif item->t_type == TYPE_WEAPON or item->t_type == TYPE_ARMOR
             unequip(player, item->t_type, item=>s_itemKind)
             item->b_flags = item->b_flags | ITEM_FLAG_EQUIP
             calcPlayerArmor(player)

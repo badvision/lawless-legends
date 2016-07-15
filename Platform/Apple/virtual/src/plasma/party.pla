@@ -39,8 +39,8 @@ word global
 // in the same order as the constants are defined in the the header.
 predef _party_doPlayerSheet
 word[] funcTbl = @_party_doPlayerSheet
-byte[] strWhichItem = "\n^YWhich item?^Y"
-byte[] strYouSure = "\n^YAre you sure (Y/N)?^Y"
+byte[] strWhichItem = "\n^T032Which item?"
+byte[] strYouSure = "\n^T008Are you sure (Y/N)?"
 
 // Other global variables here
 
@@ -67,10 +67,14 @@ def itemMatch(item, group)
   wend
 end
 // Search item num
-def itemNum(player, num, select)
+def itemNum(player, skip, num, select)
   word item
 
   item = player=>p_items
+  while item and skip
+    item = item=>p_nextObj
+    skip--
+  loop
   while item
     if itemMatch(item, select)
       if not num; return item; fin
@@ -105,8 +109,7 @@ def showInventory(player, page, height, select)
 
   setMapWindow()
   clearWindow()
-  rawDisplayStr("^Y^LInventory^L^Y")
-  rawDisplayStr("\n^T018")
+  rawDisplayStr("^T040^LInventory^L\n^T018")
   displayf1("Group Gold: %d", countGold())
   item = player=>p_items
   s_item = 0
@@ -179,7 +182,7 @@ def showPlayerSheet(num, mapHeight)
   // Show stats in the right panel
   setWindow2()
   clearWindow()
-  rawDisplayStr("^Y^LStats^L^N\n")
+  rawDisplayStr("^T040^LStats^L\n")
   rightJustifyNum(player=>w_health, CHAR_WND_STAT_X);       rawDisplayStr("^T024Health\n")
   rightJustifyNum(player->b_intelligence, CHAR_WND_STAT_X); rawDisplayStr("^T024Intelligence\n")
   rightJustifyNum(player->b_strength, CHAR_WND_STAT_X);     rawDisplayStr("^T024Strength\n")
@@ -193,7 +196,7 @@ def showPlayerSheet(num, mapHeight)
   // Show aquired skills in lower right panel
   setWindow3()
   clearWindow()
-  rawDisplayStr("^Y^LSkills^L^N")
+  rawDisplayStr("^T040^LSkills^L")
   displaySkill("Aim", player->b_aiming, 0)
   displaySkill("Fists", player->b_handToHand, 1)
   displaySkill("Dodge", player->b_dodging, 0)
@@ -206,7 +209,7 @@ def showPlayerSheet(num, mapHeight)
   loop
   // Next, show inventory in the main panel
   showInventory(player, 0, mapHeight, 0)
-  rawDisplayStr("\n^YE)quip, U)se, D)rop^Y")
+  rawDisplayStr("\n^T012E)quip, U)se, D)rop")
   return player
 end
 
@@ -234,7 +237,7 @@ def _party_doPlayerSheet(num)
       is 'E'
         if showInventory(player, n_page, vInv, TYPE_EQUIP)
           rawDisplayStr(@strWhichItem)
-          item = itemNum(player, getUpperKey() - 'A', TYPE_EQUIP)
+          item = itemNum(player, vInv * n_page, getUpperKey() - 'A', TYPE_EQUIP)
           if item
             if unequip(player, item->t_type, item=>s_itemKind) <> item
               item->b_flags = item->b_flags | ITEM_FLAG_EQUIP
@@ -249,7 +252,7 @@ def _party_doPlayerSheet(num)
       is 'U'
         if showInventory(player, n_page, vInv, TYPE_USE)
           rawDisplayStr(@strWhichItem)
-          item = itemNum(player, getUpperKey() - 'A', TYPE_USE)
+          item = itemNum(player, vInv * n_page, getUpperKey() - 'A', TYPE_USE)
           if item
             if streqi(item=>p_modifiers=>s_name, "health")
               if player=>w_health < player=>w_maxHealth
@@ -270,16 +273,16 @@ def _party_doPlayerSheet(num)
         if showInventory(player, n_page, vInv, TYPE_DROP)
           rawDisplayStr(@strWhichItem)
           n_item = getUpperKey() - 'A'
-          item = itemNum(player, n_item, TYPE_DROP)
+          item = itemNum(player, vInv * n_page, n_item, TYPE_DROP)
           if item
             clearWindow()
-            rawDisplayStr("^Y^LDrop^L^Y")
+            rawDisplayStr("^T050^LDrop^L\n")
             for i = 0 to n_item
               displayChar('\n')
             next
             rawDisplayStr("\n^T018")
             displayStr(item=>s_name)
-            for i = n_item + 2 to vInv
+            for i = n_item + 3 to vInv
               displayChar('\n')
             next
             rawDisplayStr(@strYouSure)
@@ -294,7 +297,7 @@ def _party_doPlayerSheet(num)
         break
       // Next inventory page
       is '>'
-        if itemNum(player, n_page * vInv + vInv, TYPE_ALL)
+        if itemNum(player,  vInv * n_page, vInv * n_page + vInv, TYPE_ALL)
           n_page++
         fin
         break

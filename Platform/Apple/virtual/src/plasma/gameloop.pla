@@ -2103,17 +2103,20 @@ def testCombat
   getPos(@x, @y)
   checkEncounter(x, y, TRUE)
 end
+def setCheatCmds
+  // install cheat commands
+  cmdTbl['T'] = @kbdTeleport
+  cmdTbl['P'] = @showPos
+  cmdTbl['>'] = @nextPortrait
+  cmdTbl['<'] = @prevPortrait
+  cmdTbl['!'] = @testCombat
+  cmdTbl['Y'] = @nextSky
+  cmdTbl['G'] = @nextGround
+end
 def enableGodMode()
   if ^$C061 >= 128 and ^$C062 >= 128
     global->b_godmode = 1
-    // install cheat commands
-    cmdTbl['T'] = @kbdTeleport
-    cmdTbl['P'] = @showPos
-    cmdTbl['>'] = @nextPortrait
-    cmdTbl['<'] = @prevPortrait
-    cmdTbl['!'] = @testCombat
-    cmdTbl['Y'] = @nextSky
-    cmdTbl['G'] = @nextGround
+    setCheatCmds()
     beep; beep // A little audio feedback
   fin
 end
@@ -2135,7 +2138,11 @@ def initCmds()
   cmdTbl[$13] = @saveGame // ctrl-S
   cmdTbl[$0c] = @loadGame // ctrl-L
   cmdTbl['?'] = @help
-  cmdTbl['!'] = @enableGodMode
+  if global->b_godmode
+    setCheatCmds()
+  else
+    cmdTbl['!'] = @enableGodMode
+  fin
 
   // Commands handled differently in 3D vs 2D
   if mapIs3D

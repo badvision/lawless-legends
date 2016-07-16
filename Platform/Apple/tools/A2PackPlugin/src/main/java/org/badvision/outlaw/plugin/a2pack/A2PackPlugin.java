@@ -15,7 +15,7 @@ import org.badvision.outlaweditor.api.ApplicationState;
 import org.badvision.outlaweditor.api.MenuAction;
 import org.badvision.outlaweditor.ui.UIAction;
 import org.osgi.framework.BundleContext;
-
+import org.w3c.dom.Element;
 
 /**
  * This registers a plugin which creates Apple II disk images.
@@ -33,14 +33,14 @@ public class A2PackPlugin implements MenuAction {
     // This is called when our plugin is starting
     @Activate
     public void activate() throws Exception {
-        System.out.println("Hello, menu 3!");
-        checkReferences();
+        //System.out.println("Hello, menu!");
+        System.out.println(Element.ATTRIBUTE_NODE);
     }
 
     // This is called when our plugin is stopping
     @Deactivate
     public void stop(BundleContext bc) throws Exception {
-        System.out.println("Goodbye, menu!");
+        //System.out.println("Goodbye, menu!");
     }
 
     // This identifies the menu item label
@@ -49,10 +49,14 @@ public class A2PackPlugin implements MenuAction {
         return "Build Apple II disk";
     }
 
-    public void callback(String event)
+    public void error(String msg, String context)
     {
-        System.out.println("Hello from callback.");
-        System.out.println("Event is: " + event);
+        System.out.println("Error: msg=" + msg + ", context=" + context);
+    }
+
+    public void warnings(int nWarnings, String str)
+    {
+        System.out.println("Warnings: nWarnings=" + nWarnings + ", str=" + str);
     }
     
     // This method is called when the user selects the menu item
@@ -76,18 +80,5 @@ public class A2PackPlugin implements MenuAction {
             throw new RuntimeException(ex);
         }
         UIAction.alert("A2_4evr!");
-    }
-
-    private void checkReferences() {
-//        app = ApplicationState.getInstance();
-        if (app == null) {
-            System.out.println("App is null?!?!");
-        } else {
-            if (app.getCurrentPlatform() == null) {
-                System.out.println("Current platform is null?");
-            } else {
-                System.out.println("Current platform is "+app.getCurrentPlatform());            
-            }
-        }        
     }
 }

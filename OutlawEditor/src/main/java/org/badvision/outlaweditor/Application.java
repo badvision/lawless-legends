@@ -150,6 +150,14 @@ public class Application extends javafx.application.Application implements Appli
                 + "org.badvision.outlaweditor.data.xml,"
                 + "org.badvision.outlaweditor.ui,"
                 + "org.osgi.framework");
+        // MH: Had to add these to allow plugin to access basic Java XML classes, 
+        //     and other stuff you'd think would just be default.
+        config.put("org.osgi.framework.bootdelegation", 
+                "sun.*,"
+                + "com.sun.*,"
+                + "org.w3c.*,"
+                + "org.xml.*,"
+                + "javax.xml.*");
         felix = new Felix(config);
         felix.start();
         felix.getBundleContext().registerService(ApplicationState.class, this, null);

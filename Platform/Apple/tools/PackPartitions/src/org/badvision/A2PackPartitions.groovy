@@ -1456,9 +1456,10 @@ class A2PackPartitions
         if (!res)
             res = getClass().getResource("/" + partial.replace("\\", "/"))
         if (res) {
-            def m = res.toString() =~ /^jar:file:(.*)!.*$/
+            def m = res.toString() =~ /^(jar:file:|bundle:\/\/[^\/]*)(.*)!.*$/
+            println res.toString()
             assert m
-            srcFile = new File(java.net.URLDecoder.decode(m.group(1), "UTF-8"))
+            srcFile = new File(java.net.URLDecoder.decode(m.group(2), "UTF-8"))
             if (dstFile.exists()) {
                 if (srcFile.lastModified() <= dstFile.lastModified())
                     return dstFile

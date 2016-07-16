@@ -64,6 +64,7 @@ word totalMapWidth
 word totalMapHeight
 
 byte needRender = FALSE
+byte needShowParty = FALSE
 byte renderLoaded = FALSE
 byte textDrawn = FALSE
 byte isPlural = FALSE
@@ -1228,6 +1229,7 @@ export def showParty()
   if mapIs3D; copyWindow(); fin
   setWindow2()
   restoreCursor()
+  needShowParty = FALSE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1355,6 +1357,9 @@ def checkScripts(x, y)
     p = pNext
   loop
   scriptEvent(EVENT_ENTER, 0)
+  if needShowParty
+    showParty()
+  fin
   return anyTriggered
 end
 
@@ -2384,12 +2389,12 @@ export def setStat(statName, val)
     is @S_CHARISMA; player->b_charisma = clampByte(val); break
     is @S_SPIRIT; player->b_spirit = clampByte(val); break
     is @S_LUCK; player->b_luck = clampByte(val); break
-    is @S_HEALTH; player=>w_health = max(0, min(player=>w_maxHealth, val)); break
+    is @S_HEALTH; player=>w_health = max(0, min(player=>w_maxHealth, val)); needShowParty = TRUE; break
     is @S_MAX_HEALTH; player=>w_maxHealth = max(0, val); break
     is @S_AIMING; player->b_aiming = clampByte(val); break
     is @S_HAND_TO_HAND; player->b_handToHand = clampByte(val); break
     is @S_DODGING; player->b_dodging = clampByte(val); break
-    is @S_GOLD; global=>w_gold = max(0, val); break
+    is @S_GOLD; global=>w_gold = max(0, val); needShowParty = TRUE; break
     otherwise
       puts(statName); fatal("Unknown stat")
   wend

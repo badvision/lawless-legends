@@ -39,8 +39,6 @@ word global
 // in the same order as the constants are defined in the the header.
 predef _party_doPlayerSheet
 word[] funcTbl = @_party_doPlayerSheet
-byte[] strWhichItem = "\n^T032Which item?"
-byte[] strYouSure = "\n^T008Are you sure (Y/N)?"
 
 // Other global variables here
 
@@ -236,7 +234,7 @@ def _party_doPlayerSheet(num)
       // Equip player with weapon/armor
       is 'E'
         if showInventory(player, n_page, vInv, TYPE_EQUIP)
-          rawDisplayStr(@strWhichItem)
+          rawDisplayStr("\n^T032Which item?")
           item = itemNum(player, vInv * n_page, getUpperKey() - 'A', TYPE_EQUIP)
           if item
             if unequip(player, item->t_type, item=>s_itemKind) <> item
@@ -251,7 +249,7 @@ def _party_doPlayerSheet(num)
       // Use an item
       is 'U'
         if showInventory(player, n_page, vInv, TYPE_USE)
-          rawDisplayStr(@strWhichItem)
+          rawDisplayStr("\n^T032Which item?")
           item = itemNum(player, vInv * n_page, getUpperKey() - 'A', TYPE_USE)
           if item
             if streqi(item=>p_modifiers=>s_name, "health")
@@ -271,7 +269,7 @@ def _party_doPlayerSheet(num)
       // Drop an item
       is 'D'
         if showInventory(player, n_page, vInv, TYPE_DROP)
-          rawDisplayStr(@strWhichItem)
+          rawDisplayStr("\n^T032Which item?")
           n_item = getUpperKey() - 'A'
           item = itemNum(player, vInv * n_page, n_item, TYPE_DROP)
           if item
@@ -285,9 +283,14 @@ def _party_doPlayerSheet(num)
             for i = n_item + 3 to vInv
               displayChar('\n')
             next
-            rawDisplayStr(@strYouSure)
+            rawDisplayStr("\n^T008Are you sure (Y/N)?")
             if getYN()
+              i = countList(player=>p_items)
               removeFromList(@player=>p_items, item)
+              if countList(player=>p_items) <> i - 1
+                displayStr("remove List error!")
+                getUpperKey()
+              fin
               calcPlayerArmor(player)
             fin
           fin
@@ -313,6 +316,7 @@ def _party_doPlayerSheet(num)
       // All done
       otherwise return
     wend
+    tossStrings() // Free up local strings
   until 0
 end
 

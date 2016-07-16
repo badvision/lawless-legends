@@ -101,19 +101,25 @@ def unequip(player, type, kind)
 end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display inventory pane
-def showInventory(player, page, height, select)
+def showInventory(player, page, rows, select)
   word item
   byte s_item, n_item, n_page
 
   s_item = 0
   n_item = 0
-  n_page = page * height
+  n_page = page * rows
   item = player=>p_items
   setMapWindow()
   clearWindow()
-  if page; rawDisplayStr("^T008<"); fin
+  if page
+    rawDisplayStr("^T008")
+    displayf1("<%d", page)
+  fin
   rawDisplayStr("^T040^LInventory^L")
-  if countList(item) > n_page + height; rawDisplayStr("^T114>"); fin
+  if countList(item) > n_page + rows
+    rawDisplayStr("^T108")
+    displayf1("%d>", page+2)
+  fin
   rawDisplayStr("\n^T018")
   displayf1("Group Gold: %d", countGold())
   if page
@@ -122,7 +128,7 @@ def showInventory(player, page, height, select)
       n_item++
     loop
   fin
-  while item and n_item < (n_page + height)
+  while item and n_item < (n_page + rows)
     displayChar('\n')
     if itemMatch(item, select)
       displayf1("%c)", 'A' + s_item)
@@ -145,7 +151,7 @@ def showInventory(player, page, height, select)
     n_item++
     item = item=>p_nextObj
   loop
-  while n_item < (n_page + height)
+  while n_item < (n_page + rows)
     displayChar('\n')
     n_item++
   loop
@@ -165,7 +171,7 @@ def displaySkill(str, val, col)
   displayf2("%d %s", val, @mystr)
 end
 // Show player data
-def showPlayerSheet(num, mapHeight)
+def showPlayerSheet(num, i_page, i_rows)
   word player, skill
   byte col, n_item
 
@@ -209,7 +215,7 @@ def showPlayerSheet(num, mapHeight)
     col++
   loop
   // Next, show inventory in the main panel
-  showInventory(player, 0, mapHeight, 0)
+  showInventory(player, i_page, i_rows, 0)
   rawDisplayStr("\n^T012E)quip, U)se, D)rop")
   return player
 end
@@ -217,28 +223,27 @@ end
 // Show player sheet and accept command
 def _party_doPlayerSheet(num)
   word player, item
-  word hInv, vInv
-  byte n_item, n_page, i
-
+  word hMap, vMap, i_rows
+  byte n_item, i_page, i
 
   // Get size of inventory pane in chars
-  getMapWindow(@hInv, @vInv)
-  vInv = vInv / 11
-  n_page = 0
+  getMapWindow(@hMap, @vMap)
+  i_rows = vMap / 11
+  i_page = 0
   repeat
-    player = showPlayerSheet(num, vInv)
+    player = showPlayerSheet(num, i_page, i_rows)
     if !player; return; fin // Invalid player
     // Get a key, do something
     when getUpperKey()
       // Select another player to show
-      is '1'; num = 0; n_page = 0; break
-      is '2'; num = 1; n_page = 0; break
-      is '3'; num = 2; n_page = 0; break
+      is '1'; num = 0; i_page = 0; break
+      is '2'; num = 1; i_page = 0; break
+      is '3'; num = 2; i_page = 0; break
       // Equip player with weapon/armor
       is 'E'
-        if showInventory(player, n_page, vInv, TYPE_EQUIP)
+        if showInventory(player, i_page, i_rows, TYPE_EQUIP)
           rawDisplayStr("\n^T032Which item?")
-          item = itemNum(player, vInv * n_page, getUpperKey() - 'A', TYPE_EQUIP)
+          item = itemNum(player, i_rows * i_page, getUpperKey() - 'A', TYPE_EQUIP)
           if item
             if unequip(player, item->t_type, item=>s_itemKind) <> item
               item->b_flags = item->b_flags | ITEM_FLAG_EQUIP
@@ -251,9 +256,9 @@ def _party_doPlayerSheet(num)
         break
       // Use an item
       is 'U'
-        if showInventory(player, n_page, vInv, TYPE_USE)
+        if showInventory(player, i_page, i_rows, TYPE_USE)
           rawDisplayStr("\n^T032Which item?")
-          item = itemNum(player, vInv * n_page, getUpperKey() - 'A', TYPE_USE)
+          item = itemNum(player, i_rows * i_page, getUpperKey() - 'A', TYPE_USE)
           if item
             if streqi(item=>p_modifiers=>s_name, "health")
               if player=>w_health < player=>w_maxHealth
@@ -271,10 +276,10 @@ def _party_doPlayerSheet(num)
         break
       // Drop an item
       is 'D'
-        if showInventory(player, n_page, vInv, TYPE_DROP)
+        if showInventory(player, i_page, i_rows, TYPE_DROP)
           rawDisplayStr("\n^T032Which item?")
           n_item = getUpperKey() - 'A'
-          item = itemNum(player, vInv * n_page, n_item, TYPE_DROP)
+          item = itemNum(player, i_rows * i_page, n_item, TYPE_DROP)
           if item
             clearWindow()
             rawDisplayStr("^T050^LDrop^L\n")
@@ -283,7 +288,7 @@ def _party_doPlayerSheet(num)
             next
             rawDisplayStr("\n^T018")
             displayStr(item=>s_name)
-            for i = n_item + 3 to vInv
+            for i = n_item + 3 to i_rows
               displayChar('\n')
             next
             rawDisplayStr("\n^T008Are you sure (Y/N)?")
@@ -303,14 +308,14 @@ def _party_doPlayerSheet(num)
         break
       // Next inventory page
       is '>'
-        if itemNum(player,  vInv * n_page, vInv * n_page + vInv, TYPE_ALL)
-          n_page++
+        if countList(player=>p_items) > (i_page + 1) * i_rows
+          i_page++
         fin
         break
       // Previous inventory page
       is '<'
-        if n_page
-          n_page--
+        if i_page
+          i_page--
         fin
         break
       // Other operations...

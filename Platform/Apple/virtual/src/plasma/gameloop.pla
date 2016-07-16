@@ -2103,10 +2103,40 @@ def testCombat
   getPos(@x, @y)
   checkEncounter(x, y, TRUE)
 end
+def addItem()
+  word p_module, funcTbl, func, p_item, n_item
+
+  flipToPage1()
+  ^$c053
+  if ^$25 < 23; ^$25 = 23; fin
+
+  puts("\nAdd item #: ")
+  n_item = parseDecWithDefault(readStr(), 0)
+
+  if n_item >= 2
+    // Load the module that is capable of creating items
+    mmgr(FINISH_LOAD, WITH_CLOSE)
+    mmgr(START_LOAD, 1) // code is in partition 1
+    p_module = mmgr(QUEUE_LOAD, MODULE_GEN_ITEMS<<8 | RES_TYPE_MODULE)
+    mmgr(FINISH_LOAD, WITH_CLOSE)
+
+    // Figure out which item function to call there, and create the item
+    funcTbl = p_module()
+    func = *(funcTbl + n_item * 2)
+    p_item = func()
+    addToList(@global=>p_players=>p_items, p_item)
+
+    // Finished with the item module now.
+    mmgr(FREE_MEMORY, p_module)
+  fin
+
+  ^$c052
+end
 def setCheatCmds
   // install cheat commands
   cmdTbl['T'] = @kbdTeleport
   cmdTbl['P'] = @showPos
+  cmdTbl['%'] = @addItem
   cmdTbl['>'] = @nextPortrait
   cmdTbl['<'] = @prevPortrait
   cmdTbl['!'] = @testCombat

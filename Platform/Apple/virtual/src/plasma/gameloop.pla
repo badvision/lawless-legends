@@ -1312,8 +1312,8 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Send an event to the script
 export def scriptEvent(event, param)
-  if global=>w_mapScript
-    return global=>w_mapScript(event, param)
+  if global=>p_mapScript
+    return global=>p_mapScript(event, param)
   fin
   return -1
 end
@@ -1327,7 +1327,7 @@ def checkScripts(x, y)
   byte anyTriggered
 
   scriptEvent(EVENT_LEAVE, 0)
-  global=>w_mapScript = 0
+  global=>p_mapScript = 0
   anyTriggered = FALSE
   x = x - triggerOriginX
   y = y - triggerOriginY
@@ -1548,54 +1548,6 @@ def setMap(is3D, num, x, y, dir)
   fin
   // Don't check scripts, because we often land on an "Exit to wilderness?" script
   //NO:checkScripts()
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def kbdTeleport()
-  byte d3, num
-  word x, y
-  byte dir
-
-  flipToPage1()
-  ^$c053
-  if ^$25 < 23; ^$25 = 23; fin
-  getPos(@x, @y)
-  dir = getDir()
-  printf3("\nCurrent: X=%d Y=%d Facing=%d\n", x, y, dir)
-
-  printf1("3D [%d]: ", mapIs3D)
-  d3 = parseDecWithDefault(readStr(), mapIs3D)
-  if d3 > 1; d3 = 1; fin
-  printf1("Map [%d]: ", mapNum)
-  num = parseDecWithDefault(readStr(), mapNum)
-  printf1("X [%d]  : ", x)
-  x = parseDecWithDefault(readStr(), x)
-  printf1("Y [%d] : ", y)
-  y = parseDecWithDefault(readStr(), y)
-  printf1("Facing [%d]: ", dir)
-  dir = parseDecWithDefault(readStr(), dir)
-
-  ^$c052
-
-  setMap(d3, num, x, y, dir)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def showPos()
-  word x, y
-  byte dir
-
-  flipToPage1()
-  ^$c053
-  if ^$25 < 23; ^$25 = 23; fin
-  getPos(@x, @y)
-  printf2("\nX=%d Y=%d ", x, y)
-  if mapIs3D
-    printf3("Facing=%d Sky=%d Ground=%d", getDir(), skyNum, groundNum)
-  fin
-  puts("\nHit any key.\n")
-  getUpperKey()
-  ^$c052
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1838,23 +1790,6 @@ export def setPortrait(portraitNum)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Test out portrait drawing
-def nextPortrait()
-  portraitNum = portraitNum + 1
-  printf1("Portrait #%d\n", portraitNum)
-  setPortrait(portraitNum)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Test out portrait drawing
-def prevPortrait()
-  if portraitNum > 1
-    portraitNum = portraitNum - 1
-  fin
-  setPortrait(portraitNum)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 export def countList(p)
   byte n
   n = 0
@@ -2081,13 +2016,6 @@ def checkEncounter(x, y, force)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def testCombat
-  word x, y
-  getPos(@x, @y)
-  checkEncounter(x, y, TRUE)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 def saveGame
   loadEngine(MODULE_DISKOPS)=>diskops_saveGame()
   restoreMapPos()
@@ -2112,7 +2040,83 @@ def help
     scriptDisplayStr("Help not available.\n")
   fin
 end
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Godmode cheats
+def kbdTeleport()
+  byte d3, num
+  word x, y
+  byte dir
+
+  flipToPage1()
+  ^$c053
+  if ^$25 < 23; ^$25 = 23; fin
+  getPos(@x, @y)
+  dir = getDir()
+  printf3("\nCurrent: X=%d Y=%d Facing=%d\n", x, y, dir)
+
+  printf1("3D [%d]: ", mapIs3D)
+  d3 = parseDecWithDefault(readStr(), mapIs3D)
+  if d3 > 1; d3 = 1; fin
+  printf1("Map [%d]: ", mapNum)
+  num = parseDecWithDefault(readStr(), mapNum)
+  printf1("X [%d]  : ", x)
+  x = parseDecWithDefault(readStr(), x)
+  printf1("Y [%d] : ", y)
+  y = parseDecWithDefault(readStr(), y)
+  printf1("Facing [%d]: ", dir)
+  dir = parseDecWithDefault(readStr(), dir)
+
+  ^$c052
+
+  setMap(d3, num, x, y, dir)
+end
+def showPos()
+  word x, y
+  byte dir
+
+  flipToPage1()
+  ^$c053
+  if ^$25 < 23; ^$25 = 23; fin
+  getPos(@x, @y)
+  printf2("\nX=%d Y=%d ", x, y)
+  if mapIs3D
+    printf3("Facing=%d Sky=%d Ground=%d", getDir(), skyNum, groundNum)
+  fin
+  puts("\nHit any key.\n")
+  getUpperKey()
+  ^$c052
+end
+def nextPortrait()
+  portraitNum = portraitNum + 1
+  printf1("Portrait #%d\n", portraitNum)
+  setPortrait(portraitNum)
+end
+def prevPortrait()
+  if portraitNum > 1
+    portraitNum = portraitNum - 1
+  fin
+  setPortrait(portraitNum)
+end
+def testCombat
+  word x, y
+  getPos(@x, @y)
+  checkEncounter(x, y, TRUE)
+end
+def enableGodMode()
+  if ^$C061 >= 128 and ^$C062 >= 128
+    global->b_godmode = 1
+    // install cheat commands
+    cmdTbl['T'] = @kbdTeleport
+    cmdTbl['P'] = @showPos
+    cmdTbl['>'] = @nextPortrait
+    cmdTbl['<'] = @prevPortrait
+    cmdTbl['!'] = @testCombat
+    cmdTbl['Y'] = @nextSky
+    cmdTbl['G'] = @nextGround
+    beep; beep // A little audio feedback
+  fin
+end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set up the command table for 3D mode
@@ -2125,17 +2129,13 @@ def initCmds()
   next
 
   // Commands common to both 2D and 3D
-  cmdTbl['T'] = @kbdTeleport
-  cmdTbl['P'] = @showPos
-  cmdTbl['/'] = @nextPortrait
-  cmdTbl['?'] = @prevPortrait
-  cmdTbl['!'] = @testCombat
   cmdTbl['1'] = @showPlayer1
   cmdTbl['2'] = @showPlayer2
   cmdTbl['3'] = @showPlayer3
   cmdTbl[$13] = @saveGame // ctrl-S
   cmdTbl[$0c] = @loadGame // ctrl-L
   cmdTbl['?'] = @help
+  cmdTbl['!'] = @enableGodMode
 
   // Commands handled differently in 3D vs 2D
   if mapIs3D
@@ -2154,9 +2154,6 @@ def initCmds()
     cmdTbl[','] = @moveBackward
     cmdTbl['M'] = @strafeLeft
     cmdTbl['.'] = @strafeRight
-
-    cmdTbl['Y'] = @nextSky
-    cmdTbl['G'] = @nextGround
   else
     cmdTbl['W'] = @moveNorth
     cmdTbl['D'] = @moveEast

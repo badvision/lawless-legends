@@ -105,14 +105,17 @@ def showInventory(player, page, height, select)
   word item
   byte s_item, n_item, n_page
 
-  setMapWindow()
-  clearWindow()
-  rawDisplayStr("^T040^LInventory^L\n^T018")
-  displayf1("Group Gold: %d", countGold())
-  item = player=>p_items
   s_item = 0
   n_item = 0
   n_page = page * height
+  item = player=>p_items
+  setMapWindow()
+  clearWindow()
+  if page; rawDisplayStr("^T008<"); fin
+  rawDisplayStr("^T040^LInventory^L")
+  if countList(item) > n_page + height; rawDisplayStr("^T114>"); fin
+  rawDisplayStr("\n^T018")
+  displayf1("Group Gold: %d", countGold())
   if page
     while item and n_item < n_page
       item = item=>p_nextObj
@@ -311,8 +314,16 @@ def _party_doPlayerSheet(num)
         fin
         break
       // Other operations...
-      is '!'; player=>w_health = player=>w_health + 10; break
-      is '$'; addGold(10); break
+      is '&' // health cheat
+        if global->b_godmode
+          player=>w_health = player=>w_health + 50
+        fin
+        break
+      is '$' // gold cheat
+        if global->b_godmode
+          addGold(500)
+        fin
+        break
       // All done
       otherwise return
     wend

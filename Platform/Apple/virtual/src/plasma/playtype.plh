@@ -25,7 +25,7 @@ struc Global
   word w_mapX
   word w_mapY
   byte b_mapDir
-  word w_mapScript
+  word p_mapScript
 
   // Shared player gold amount
   word w_gold
@@ -36,6 +36,9 @@ struc Global
   // General flags maintained by scripts. Linked list of Modifiers.
   word p_gameFlags
   byte b_curAvatar
+
+  // god mode flag
+  byte b_godmode
 end
 
 const PLAYER_FLAG_NPC  = $01

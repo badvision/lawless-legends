@@ -275,7 +275,7 @@ def playerCombatTurn(pl)
   // Get weapon
   pWeapon = pl=>p_items
   while pWeapon
-    if pWeapon->t_type == TYPE_WEAPON; break; fin
+    if pWeapon->t_type == TYPE_WEAPON and pWeapon->b_flags & ITEM_FLAG_EQUIP; break; fin
     pWeapon = pWeapon=>p_nextObj
   loop
 

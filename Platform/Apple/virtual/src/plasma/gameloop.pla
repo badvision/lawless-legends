@@ -1171,35 +1171,6 @@ export def rightJustifyNum(num, rightX)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayPlayerData(player)
-  word pi
-
-  // Display the player's name and health
-  rawDisplayStr(player=>s_name)
-  if mapIs3D
-    rightJustifyNum(global=>w_gold, CHAR_WND_GOLD_X)
-  else
-    // Locate the equipped weapon
-    pi = player=>p_items
-    while pi
-      if pi->t_type == TYPE_WEAPON and pi->b_flags & ITEM_FLAG_EQUIP
-        break
-      fin
-      pi = pi=>p_nextObj
-    loop
-    if pi
-      rightJustifyStr(pi=>s_name, CHAR_WND_WEAPON_X)
-    else
-      rightJustifyStr("Fists", CHAR_WND_WEAPON_X)
-    fin
-  fin
-  rightJustifyNum(player=>w_health, CHAR_WND_LIFE_X)
-
-  // All done.
-  rawDisplayStr("\n")
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display the party data on the screen
 export def showParty()
   word p
@@ -1209,19 +1180,19 @@ export def showParty()
   clearWindow()
 
   // Display header
-  rawDisplayStr("^LName")  // begin underline mode
-  if mapIs3D
-    rightJustifyStr("Gold", CHAR_WND_GOLD_X)
-  else
-    rightJustifyStr("Weapon", CHAR_WND_WEAPON_X)
-  fin
-  rightJustifyStr("Life", CHAR_WND_LIFE_X)
-  rawDisplayStr("^L\n")   // end underline mode
+  rawDisplayStr("^LName^T070Health^L\n")  // begin underline mode
+//  rightJustifyStr("Health", CHAR_WND_LIFE_X)
+//  rawDisplayStr("^L\n")   // end underline mode
 
   // Display each character
   p = global=>p_players
   while p
-    displayPlayerData(p)
+    // Display the player's name and health
+    displayStr(p=>s_name)
+    rawDisplayStr("^T070")
+//    rightJustifyNum(p=>w_health, CHAR_WND_LIFE_X)
+//    displayChar('\n')
+    displayf2("%d/%d\n", p=>w_health, p=>w_maxHealth)
     p = p=>p_nextObj
   loop
 

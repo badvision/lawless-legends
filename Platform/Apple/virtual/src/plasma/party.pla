@@ -28,7 +28,7 @@ const TYPE_USE   = $0102
 const TYPE_DROP  = $0103
 
 // Tab positions
-const CHAR_WND_STAT_X = 20
+const CHAR_WND_STAT_X = 30
 const CHAR_WND_INV_X = 16
 
 // This pointer is the root of all heap-tracked (and garbage collected) objects.
@@ -87,11 +87,10 @@ end
 def unequip(player, type, kind)
   word item
 
-  if not kind; return; fin
   item = player=>p_items
   while item
     if item->t_type == type
-      if streqi(item=>s_itemKind, kind) and item->b_flags & ITEM_FLAG_EQUIP
+      if (streqi(item=>s_itemKind, kind) or type == TYPE_WEAPON) and item->b_flags & ITEM_FLAG_EQUIP
         item->b_flags = item->b_flags & ~ITEM_FLAG_EQUIP
         return item
       fin
@@ -172,7 +171,7 @@ def displaySkill(str, val, col)
 end
 // Show player data
 def showPlayerSheet(num, i_page, i_rows)
-  word player, skill
+  word player, skill, weapon, dmg
   byte col, n_item
 
   // Count the number of players
@@ -190,16 +189,38 @@ def showPlayerSheet(num, i_page, i_rows)
   setWindow2()
   clearWindow()
   rawDisplayStr("^T040^LStats^L\n")
-  rightJustifyNum(player=>w_health, CHAR_WND_STAT_X);       rawDisplayStr("^T024Health\n")
-  rightJustifyNum(player->b_intelligence, CHAR_WND_STAT_X); rawDisplayStr("^T024Intelligence\n")
-  rightJustifyNum(player->b_strength, CHAR_WND_STAT_X);     rawDisplayStr("^T024Strength\n")
-  rightJustifyNum(player->b_agility, CHAR_WND_STAT_X);      rawDisplayStr("^T024Agility\n")
-  rightJustifyNum(player->b_stamina, CHAR_WND_STAT_X);      rawDisplayStr("^T024Stamina\n")
-  rightJustifyNum(player->b_charisma, CHAR_WND_STAT_X);     rawDisplayStr("^T024Charisma\n")
-  rightJustifyNum(player->b_spirit, CHAR_WND_STAT_X);       rawDisplayStr("^T024Spirit\n")
-  rightJustifyNum(player->b_luck, CHAR_WND_STAT_X);         rawDisplayStr("^T024Luck\n")
-  rightJustifyNum(player->b_armor, CHAR_WND_STAT_X);        rawDisplayStr("^T024Armor\n")
-
+  rightJustifyNum(player=>w_health, CHAR_WND_STAT_X);       rawDisplayStr("^T032Health\n")
+  rightJustifyNum(player->b_intelligence, CHAR_WND_STAT_X); rawDisplayStr("^T032Intelligence\n")
+  rightJustifyNum(player->b_strength, CHAR_WND_STAT_X);     rawDisplayStr("^T032Strength\n")
+  rightJustifyNum(player->b_agility, CHAR_WND_STAT_X);      rawDisplayStr("^T032Agility\n")
+  rightJustifyNum(player->b_stamina, CHAR_WND_STAT_X);      rawDisplayStr("^T032Stamina\n")
+  rightJustifyNum(player->b_charisma, CHAR_WND_STAT_X);     rawDisplayStr("^T032Charisma\n")
+  rightJustifyNum(player->b_spirit, CHAR_WND_STAT_X);       rawDisplayStr("^T032Spirit\n")
+  rightJustifyNum(player->b_luck, CHAR_WND_STAT_X);         rawDisplayStr("^T032Luck\n")
+  rightJustifyNum(player->b_armor, CHAR_WND_STAT_X);        rawDisplayStr("^T032Armor\n")
+  // Get weapon
+  weapon = player=>p_items
+  while weapon
+    if weapon->t_type == TYPE_WEAPON and weapon->b_flags & ITEM_FLAG_EQUIP; break; fin
+    weapon = weapon=>p_nextObj
+  loop
+  if weapon
+    dmg = weapon=>r_projectileDmg
+  else
+    dmg = 0
+  fin
+  if dmg > 0
+    displayf3("%dd%d+%d", (dmg >> 12) & $0F, (dmg >> 8) & $0F, dmg & $0F)
+    rawDisplayStr("^T032Projectile\n")
+  else
+    if weapon
+      dmg = weapon=>r_meleeDmg
+    else
+      dmg = $01601
+    fin
+    displayf3("%dd%d+%d", (dmg >> 12) & $0F, (dmg >> 8) & $0F, dmg & $0F)
+    rawDisplayStr("^T032Melee\n")
+  fin
   // Show aquired skills in lower right panel
   setWindow3()
   clearWindow()

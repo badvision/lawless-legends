@@ -188,13 +188,16 @@ def playerCombatChoose(pl)
   byte canShoot, canReload, canChange
 
   // Count all weapons and get currently equipped
-  nWeapons = 0
-  pWeapon = NULL
+  canShoot  = FALSE
+  canReload = FALSE
+  canChange = FALSE
+  nWeapons  = 0
+  pWeapon   = NULL
   p = pl=>p_items
   while p
     if p->t_type == TYPE_WEAPON
       if p->b_flags & ITEM_FLAG_EQUIP; pWeapon = p; fin
-      nWeapons = nWeapons + 1
+      //nWeapons++ Comment this back in to allow weapon changing
     fin
     p = p=>p_nextObj
   loop

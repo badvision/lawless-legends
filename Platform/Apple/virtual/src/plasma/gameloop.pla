@@ -1190,9 +1190,10 @@ export def showParty()
     // Display the player's name and health
     displayStr(p=>s_name)
     rawDisplayStr("^T070")
-//    rightJustifyNum(p=>w_health, CHAR_WND_LIFE_X)
-//    displayChar('\n')
-    displayf2("%d/%d\n", p=>w_health, p=>w_maxHealth)
+    displayStr(convertDec(p=>w_health))
+    displayChar('/')
+    displayStr(convertDec(p=>w_maxHealth))
+    displayChar('\n')
     p = p=>p_nextObj
   loop
 

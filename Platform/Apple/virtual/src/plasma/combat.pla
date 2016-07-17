@@ -187,18 +187,17 @@ def playerCombatChoose(pl)
   byte nWeapons, key
   byte canShoot, canReload, canChange
 
-  // Count weapons, and take the first as the current one.
+  // Count all weapons and get currently equipped
   nWeapons = 0
   pWeapon = NULL
   p = pl=>p_items
   while p
-    if p->t_type == TYPE_WEAPON and p->b_flags & ITEM_FLAG_EQUIP
-      if !pWeapon; pWeapon = p; fin
+    if p->t_type == TYPE_WEAPON
+      if p->b_flags & ITEM_FLAG_EQUIP; pWeapon = p; fin
       nWeapons = nWeapons + 1
     fin
     p = p=>p_nextObj
   loop
-
   // NPCs always melee for now
   if pl->b_playerFlags & PLAYER_FLAG_NPC
     pl->b_combatChoice = 'M'
@@ -298,6 +297,13 @@ def playerCombatTurn(pl)
       displayf1("%s has reloaded.\n", pl=>s_name)
       break
     is 'C'
+      // Change to next weapon in inventory
+      pWeapon->b_flags = pWeapon->b_flags & ~ITEM_FLAG_EQUIP
+      repeat
+        pWeapon = pWeapon=>p_nextObj
+        if not pWeapon; pWeapon = pl=>p_items; fin
+      until pWeapon->t_type == TYPE_WEAPON
+      pWeapon->b_flags = pWeapon->b_flags | ITEM_FLAG_EQUIP
       setPlural(FALSE)
       displayf2("%s changed to using %s.\n", pl=>s_name, pWeapon=>s_name)
       break

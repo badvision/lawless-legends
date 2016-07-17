@@ -11,7 +11,7 @@
 <html>
     <head>
         <meta charset="utf-8"></meta>
-        <title>Blockly Demo: Fixed Blockly</title>
+        <title>MythOS Script Editor</title>
         <script type="text/javascript" src="../../blockly_compressed.js"></script>
         <script type="text/javascript" src="../../blocks_compressed.js"></script>
         <script type="text/javascript" src="../../msg/js/en.js"></script>
@@ -25,11 +25,26 @@
                 font-weight: normal;
                 font-size: 140%;
             }
+            html, body {
+                height: 100%;
+                margin: 0;
+            }
+
+            #blocklyArea {
+                min-height: 100%;
+                width: 100%; 
+                height: 100%;
+            }
+            #blocklyDiv {
+                height: 700px; 
+                width: 996px;
+            }
         </style>
     </head>
     <body>
-        <div id="blocklyDiv" style="height: 700px; width: 996px;"></div>
-
+        <div id="blocklyArea">
+            <div id="blocklyDiv"></div>
+        </div>
     <xml id="toolbox" style="display: none">
         <category id="variables" name="Variables">
             <block type="variables_set"></block>
@@ -487,9 +502,29 @@
     </xml>
 
     <script>
+        var blocklyArea = document.getElementById('blocklyArea');
+        var blocklyDiv = document.getElementById('blocklyDiv');
         Mythos.initBlocks();
-        Mythos.workspace = Blockly.inject(document.getElementById('blocklyDiv'),
+        Mythos.workspace = Blockly.inject(blocklyDiv,
                 {path: '../../', toolbox: document.getElementById('toolbox'), sounds: false});
+        var onresize = function (e) {
+            // Compute the absolute coordinates and dimensions of blocklyArea.
+            var element = blocklyArea;
+            var x = 0;
+            var y = 0;
+            do {
+                x += element.offsetLeft;
+                y += element.offsetTop;
+                element = element.offsetParent;
+            } while (element);
+            // Position blocklyDiv over blocklyArea.
+            blocklyDiv.style.left = x + 'px';
+            blocklyDiv.style.top = y + 'px';
+            blocklyDiv.style.width = blocklyArea.offsetWidth + 'px';
+            blocklyDiv.style.height = blocklyArea.offsetHeight + 'px';
+        };
+        window.addEventListener('resize', onresize, false);
+        onresize();
     </script>
 
 </body>

@@ -120,7 +120,7 @@ def showInventory(player, page, rows, select)
     displayf1("%d>", page+2)
   fin
   rawDisplayStr("\n^T018")
-  displayf1("Group Gold: %d", countGold())
+  displayf1("Gold: %d", countGold())
   if page
     while item and n_item < n_page
       item = item=>p_nextObj

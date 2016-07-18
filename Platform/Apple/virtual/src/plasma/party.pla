@@ -189,15 +189,15 @@ def showPlayerSheet(num, i_page, i_rows)
   setWindow2()
   clearWindow()
   rawDisplayStr("^T040^LStats^L\n")
-  rightJustifyNum(player=>w_health, CHAR_WND_STAT_X);       rawDisplayStr("^T032Health\n")
-  rightJustifyNum(player->b_intelligence, CHAR_WND_STAT_X); rawDisplayStr("^T032Intelligence\n")
-  rightJustifyNum(player->b_strength, CHAR_WND_STAT_X);     rawDisplayStr("^T032Strength\n")
-  rightJustifyNum(player->b_agility, CHAR_WND_STAT_X);      rawDisplayStr("^T032Agility\n")
-  rightJustifyNum(player->b_stamina, CHAR_WND_STAT_X);      rawDisplayStr("^T032Stamina\n")
-  rightJustifyNum(player->b_charisma, CHAR_WND_STAT_X);     rawDisplayStr("^T032Charisma\n")
-  rightJustifyNum(player->b_spirit, CHAR_WND_STAT_X);       rawDisplayStr("^T032Spirit\n")
-  rightJustifyNum(player->b_luck, CHAR_WND_STAT_X);         rawDisplayStr("^T032Luck\n")
-  rightJustifyNum(player->b_armor, CHAR_WND_STAT_X);        rawDisplayStr("^T032Armor\n")
+  rightJustifyNum(player=>w_health, CHAR_WND_STAT_X);       rawDisplayStr("^T036Health\n")
+  rightJustifyNum(player->b_intelligence, CHAR_WND_STAT_X); rawDisplayStr("^T036Intelligence\n")
+  rightJustifyNum(player->b_strength, CHAR_WND_STAT_X);     rawDisplayStr("^T036Strength\n")
+  rightJustifyNum(player->b_agility, CHAR_WND_STAT_X);      rawDisplayStr("^T036Agility\n")
+  rightJustifyNum(player->b_stamina, CHAR_WND_STAT_X);      rawDisplayStr("^T036Stamina\n")
+  rightJustifyNum(player->b_charisma, CHAR_WND_STAT_X);     rawDisplayStr("^T036Charisma\n")
+  rightJustifyNum(player->b_spirit, CHAR_WND_STAT_X);       rawDisplayStr("^T036Spirit\n")
+  rightJustifyNum(player->b_luck, CHAR_WND_STAT_X);         rawDisplayStr("^T036Luck\n")
+  rightJustifyNum(player->b_armor, CHAR_WND_STAT_X);        rawDisplayStr("^T036Armor\n")
   // Get weapon
   weapon = player=>p_items
   while weapon
@@ -211,15 +211,15 @@ def showPlayerSheet(num, i_page, i_rows)
   fin
   if dmg > 0
     displayf3("%dd%d+%d", (dmg >> 12) & $0F, (dmg >> 8) & $0F, dmg & $0F)
-    rawDisplayStr("^T032Projectile\n")
+    rawDisplayStr("^T036Projectile")
   else
     if weapon
       dmg = weapon=>r_meleeDmg
     else
-      dmg = $01601
+      dmg = $01400
     fin
     displayf3("%dd%d+%d", (dmg >> 12) & $0F, (dmg >> 8) & $0F, dmg & $0F)
-    rawDisplayStr("^T032Melee\n")
+    rawDisplayStr("^T036Melee")
   fin
   // Show aquired skills in lower right panel
   setWindow3()

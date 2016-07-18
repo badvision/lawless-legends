@@ -55,7 +55,7 @@ def playerMelee(pPlayer, pWeapon)
   if pWeapon
     dmg = rollDice(pWeapon=>r_meleeDmg)
   else
-    dmg = (rand16() % 6) + 1   // default to 1d6 for fists
+    dmg = (rand16() % 4) + pPlayer->b_handToHand   // default to 1d4 for fists
   fin
   // TODO: Add extra melee damage for skills, strength, etc.
   // TODO: consider enemy dodge

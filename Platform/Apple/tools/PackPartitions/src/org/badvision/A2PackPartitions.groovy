@@ -1457,7 +1457,6 @@ class A2PackPartitions
             res = getClass().getResource("/" + partial.replace("\\", "/"))
         if (res) {
             def m = res.toString() =~ /^(jar:file:|bundle:\/\/[^\/]*)(.*)!.*$/
-            println res.toString()
             assert m
             srcFile = new File(java.net.URLDecoder.decode(m.group(2), "UTF-8"))
             if (dstFile.exists()) {
@@ -1967,7 +1966,7 @@ end
         def val = parseStringAttr(row, attrName)
         if (!val) return 0
         val = val.replace("'", "")  // Change 5' to just 5, e.g. for weapon range
-        assert val ==~ /^\d*$/ : "\"$attrName\" should be numeric"
+        assert val ==~ /^-?\d*$/ : "\"$attrName\" should be numeric"
         val = val.toInteger()
         assert val >= 0 && val <= 255 : "\"$attrName\" must be 0..255"
         return val
@@ -1977,7 +1976,7 @@ end
     {
         def val = parseStringAttr(row, attrName)
         if (!val) return 0
-        assert val ==~ /^\d*$/ : "\"$attrName\" should be numeric"
+        assert val ==~ /^-?\d*$/ : "\"$attrName\" should be numeric"
         val = val.toInteger()
         assert val >= -32768 && val <= 32767 : "\"$attrName\" must be -32768..32767"
         return val
@@ -2087,6 +2086,7 @@ end
             return
             
         codesString.replace("\"", "").split(",").collect{it.trim()}.grep{it!=""}.each { code ->
+            code = code.toLowerCase()
             if (!addTo.containsKey(code))
                 addTo[code] = []
             addTo[code] << funcName
@@ -2358,7 +2358,7 @@ end
             out.println("  itemScripts = mmgr(QUEUE_LOAD, MODULE_GEN_ITEMS<<8 | RES_TYPE_MODULE)")
             out.println("  mmgr(FINISH_LOAD, 1) // 1 = keep open")
             funcs.each { func, index, row ->
-                if (row.@"starting-party" == "yes")
+                if (row.@"starting-party".equalsIgnoreCase("yes"))
                     out.println("  addToList(@global=>p_players, _$func())")
             }
             out.println("  mmgr(FREE_MEMORY, itemScripts)")

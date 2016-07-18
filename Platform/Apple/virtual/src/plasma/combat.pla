@@ -560,6 +560,13 @@ def _combat_zoneEncounter(s_encZone)
     p = global=>p_combatFirst
     while p
       if !nPlayersFighting
+        setPortrait(POdeath)
+        when rand16() % 2
+          is 0
+            displayStr("\nYou bought the farm, with your life! Thanks for playing!\n"); break
+          otherwise
+            displayStr("\nDidn't see that coming... to see a fine player like you slaughtered like a common rodent...\n")
+        wend
         return -99  // special code for death
       elsif !nEnemiesFighting
         setPortrait(POcombatwin)

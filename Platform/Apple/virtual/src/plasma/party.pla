@@ -135,18 +135,11 @@ def showInventory(player, page, rows, select)
     fin
     rawDisplayStr("^T018")
     displayStr(item=>s_name)
-    when item->t_type
-      is TYPE_WEAPON
-        if item->b_flags & ITEM_FLAG_EQUIP
-          displayStr(" +")
-        fin
-        break
-      is TYPE_ARMOR
-        if item->b_flags & ITEM_FLAG_EQUIP
-          displayStr(" *")
-        fin
-        break
-    wend
+    if item->t_type == TYPE_WEAPON or item->t_type == TYPE_ARMOR
+      if item->b_flags & ITEM_FLAG_EQUIP
+        displayStr(" *")
+      fin
+    fin
     n_item++
     item = item=>p_nextObj
   loop

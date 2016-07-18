@@ -527,6 +527,9 @@ j_aux_dispatch:
 ; Print fatal error message then halt.
 
 inlineFatal:
+!if DEBUG {
+	jsr printMem
+}
 	pla
 	tax
 	pla

@@ -281,11 +281,16 @@ def gameExists()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _newOrLoadGame()
+def _newOrLoadGame(ask)
   byte key
 
   if !gameExists()
     newGame(); return 1
+  fin
+
+  if !ask
+    loadInternal()
+    return 0
   fin
 
   home()

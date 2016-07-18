@@ -53,7 +53,7 @@ word global  // the global heap object, from which all live objects must be reac
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Predefined functions, for circular calls or out-of-order calls
 predef setWindow2, initCmds, nextAnimFrame, checkEncounter, doCombat, clearPortrait, showMapName
-predef doRender
+predef doRender, playerDeath, startGame
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Global variables
@@ -1328,9 +1328,14 @@ def checkScripts(x, y)
     fin
     p = pNext
   loop
-  scriptEvent(EVENT_ENTER, 0)
-  if needShowParty
-    showParty()
+  if anyTriggered
+    scriptEvent(EVENT_ENTER, 0)
+    if global=>p_players=>w_health == 0
+      playerDeath()
+    fin
+    if needShowParty
+      showParty()
+    fin
   fin
   return anyTriggered
 end
@@ -1944,12 +1949,25 @@ export def scriptCombat(mapCode)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def playerDeath()
+  displayStr("You have died. Press any key to reload.")
+  setPortrait(POdeath)
+  getUpperKey()
+  startGame(FALSE) // don't ask, just load
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def doCombat(mapCode)
   word result
   // Handled in a separate module. Clear enemies out of the heap when finished.
   result = loadEngine(MODULE_COMBAT)=>combat_zoneEncounter(mapCode)
   global=>p_enemyGroups = NULL
   mmgr(HEAP_COLLECT, 0)
+
+  if (result == -99)
+    playerDeath()
+    return
+  fin
   restoreMapPos()
 
   // If the party fled the combat instead of winning, back up to previous square.
@@ -2433,14 +2451,14 @@ export def getGameFlag(flagName)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def startGame()
+def startGame(ask)
   word p_module
 
   // Create a new game or load an existing one
   mmgr(START_LOAD, 1) // code is in partition 1
   p_module = mmgr(QUEUE_LOAD, MODULE_DISKOPS<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, LEAVE_OPEN)
-  if p_module()=>diskops_newOrLoadGame()
+  if p_module()=>diskops_newOrLoadGame(ask)
     mapIs3D = q_mapIs3D
     mapNum = q_mapNum
     q_mapNum = 0
@@ -2459,7 +2477,7 @@ end
 // Main code.
 //
 loadTitle()
-startGame()
+startGame(TRUE) // ask whether new or load
 kbdLoop()
 
 done

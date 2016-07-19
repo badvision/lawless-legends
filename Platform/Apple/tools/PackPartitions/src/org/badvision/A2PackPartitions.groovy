@@ -3140,7 +3140,7 @@ end
         def packSetSky(blk)
         {
             def color = getSingle(blk.field, 'COLOR').text().toInteger()
-            assert color >= 0 && color <= 17
+            assert (color >= 0 && color <= 17) || (color == 99)
             outIndented("setSky($color)\n")
         }
 

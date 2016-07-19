@@ -53,7 +53,7 @@ word global  // the global heap object, from which all live objects must be reac
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Predefined functions, for circular calls or out-of-order calls
 predef setWindow2, initCmds, nextAnimFrame, checkEncounter, doCombat, clearPortrait, showMapName
-predef doRender, playerDeath, startGame
+predef doRender, playerDeath, startGame, loadFrameImg
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Global variables
@@ -1072,6 +1072,14 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set the sky color (relevant to 3D display only)
 export def setSky(num)
+  // hack for end-game screen
+  if num == 99
+    mmgr(START_LOAD, 1)
+    flipToPage1()
+    loadFrameImg(4)
+    mmgr(FINISH_LOAD, WITH_CLOSE)
+    while 1; loop  // 1 infinite loop
+  fin
   skyNum = num
   setColor(0, skyNum)
   needRender = TRUE
@@ -1099,9 +1107,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load the Frame Image, and lock it.
-def loadFrameImg()
-  byte img
-  img = mapIs3D+2
+def loadFrameImg(img)
   if frameLoaded <> img
     if frameLoaded
       mmgr(UNLOCK_MEMORY,$2000)
@@ -1231,7 +1237,7 @@ def initMap(x, y, dir)
   mmgr(FINISH_LOAD, LEAVE_OPEN)
   renderLoaded = TRUE
   diskActivity(0)
-  loadFrameImg()
+  loadFrameImg(mapIs3D+2)
   mmgr(FINISH_LOAD, WITH_CLOSE)
 
   // Load the map

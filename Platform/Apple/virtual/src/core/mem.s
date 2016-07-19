@@ -86,7 +86,7 @@ relocate:
 	iny
 	bne -
 	jmp +
-.welcomeText: !text "Welcome to Mythos.",$8D,0
+.welcomeText: !text "Welcome to LegendOS.",$8D,0
 +
 ; special: clear most of the lower 48k
 	ldx #8

@@ -1826,7 +1826,7 @@ class A2PackPartitions
             throw new Exception("Cannot parse dice string '$str'")
         def nDice = m[0][1].toInteger()
         def dieSize = m[0][2].toInteger()
-        def add = m[0][4] ? m[0][3].toInteger() : 0
+        def add = m[0][3] ? m[0][3].toInteger() : 0
         return String.format("\$%X", ((nDice << 12) | (dieSize << 8) | add))
     }
     

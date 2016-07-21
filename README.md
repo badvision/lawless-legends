@@ -5,6 +5,16 @@ This project contains all open-source (Apache-licensed) code and assets related 
 
 The Apache license covers everything in here, including any sample game content that might filter in from time to time.  The primary goal for this open-source project is to build out game creation tools and hopefully the majority of a usable game engine that can be used in conjunction with the tools to build a playable RPG game.  By being open-source, we are saying you are free to build your own games with these tools and distribute those games as you see fit.  You are not obligated to distribute your games as open-source or freeware, but we do ask that you consider contributing bug fixes back up to this main branch so that the community can benefit, and at the very least uphold the terms of the Apache license that apply to this code.
 
+Ancient Legends
+--------------
+Our first example adventure is freely available under the CC-NC License.
+
+You are Quinn of Thane, the westernmost island in Merkania. Since the last of great wars your family has lived in peaceful seclusion for generations. Raised on ancient legends, you have often dreamed of exploring what lies beyond the island. You surmise that dark times must have befallen the mainland, as dark creatures now sully the sanctuary of your island home as well. 
+
+Now you are the last of your line and have decided to venture to the mainland and seek your fortune! You pack your things, take your family's heirloom amulet for luck and enter the forest for adventure...
+
+Go here for more info: https://github.com/badvision/lawless-legends/tree/master/Example%20Content/Ancient%20Legends
+
 Download Links
 --------------
 

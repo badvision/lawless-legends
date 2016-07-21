@@ -21,18 +21,25 @@
          Manual V1.9 07182016
 ```
 Outlaw Editor Demo Credits:
-Produced & Directed by Seth Sternberger of 8 Bit Weapon
-Coding - Martin Haye, Brendan Robert, and Dave Schmenk 
-Font Code - Andrew Hogan
-Graphics - Seth Sternberger
-Scenario - Seth Sternberger
-Playtesting & Quality Assurance - Andrew Schultz  
+
+      Produced & Directed by Seth Sternberger of 8 Bit Weapon
+      Coding - Martin Haye, Brendan Robert, and Dave Schmenk
+      Font Code - Andrew Hogan
+      Graphics - Seth Sternberger
+      Scenario - Seth Sternberger
+      Playtesting & Quality Assurance - Andrew Schultz  
 
 To make your own games get your free copy of Outlaw Editor here:
 https://github.com/badvision/lawless-legends/tree/master/OutlawEditor
 
 Welcome to Ancient Legends, a Fantasy Role Playing adventure for the Apple II Computer! (Rated PG-13)
 
+Hardware Requirements:
+
+      128K Apple IIe or Apple //c or Apple IIgs
+      2 floppy drives or hard disk
+      Color monitor for best experience
+      
 The Story: 
 
 You are Quinn of Thane, the westernmost island in Merkania. Since the last of great wars your family has lived in peaceful seclusion for generations. Raised on ancient legends, you have often dreamed of exploring what lies beyond the island. You surmise that dark times must have befallen the mainland, as dark creatures now sully the sanctuary of your island home as well. 

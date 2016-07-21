@@ -33,12 +33,6 @@ To make your own games get your free copy of Outlaw Editor here:
 https://github.com/badvision/lawless-legends/tree/master/OutlawEditor
 
 Welcome to Ancient Legends, a Fantasy Role Playing adventure for the Apple II Computer! (Rated PG-13)
-
-Hardware Requirements:
-
-      128K Apple IIe or Apple //c or Apple IIgs
-      2 floppy drives or hard disk
-      Color monitor for best experience
       
 The Story: 
 
@@ -61,7 +55,14 @@ Getting Started:  For new adventurers here are a few tips.
 6) Some weapons & armor will boost your stats.
 7) Exploring is rewarded.
 
-Loading the game on a Real Apple II, IIc, IIe, IIgs:
+
+Hardware Requirements:
+
+      128K Apple IIe or Apple //c or Apple IIgs
+      2 floppy drives or hard disk
+      Color monitor for best experience
+
+Loading the game on a Real Apple IIc, IIe, IIgs:
 Insert disk 1 in drive 1 and disk 2 in drive 2. then turn on your computer. 
 
 Loading the game via emulator:

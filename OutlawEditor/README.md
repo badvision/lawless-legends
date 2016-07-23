@@ -5,7 +5,7 @@ This is a multi-platform RPG game editor.  It is written in (and requires) Java 
 
 Download
 --------
-The most recent copy of Outlaw Editor (aka the Daily build) can be found here: https://www.dropbox.com/s/zrystud66myzlwa/OutlawEditor-jfx.jar
+The most recent copy of Outlaw Editor (aka the Daily build) can be found here: https://www.dropbox.com/s/2tmqxde0ordz7ez/OutlawEditor.jar?dl=0
 
 Running the program
 -------------------

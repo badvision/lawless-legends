@@ -18,7 +18,7 @@ Go here for more info: https://github.com/badvision/lawless-legends/tree/master/
 Download Links
 --------------
 
-- The most recent copy of Outlaw Editor (aka the Daily build) can be found here: https://www.dropbox.com/s/zrystud66myzlwa/OutlawEditor-jfx.jar?dl=0
+- The most recent copy of Outlaw Editor (aka the Daily build) can be found here: https://www.dropbox.com/s/2tmqxde0ordz7ez/OutlawEditor.jar?dl=0
 - Live builds of the Apple platform code (AKA the Apple // series game port) will soon be available
 - Download the 2014 KFest playable demo disk here: https://www.dropbox.com/s/j7pwpgweu65i4md/Lawless%20Legends%20-%20KFest%20playable%20demo%20-%20v0_50.dsk
 

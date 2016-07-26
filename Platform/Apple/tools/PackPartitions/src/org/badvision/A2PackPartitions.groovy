@@ -784,6 +784,18 @@ class A2PackPartitions
         def buf = parseTileData(imgEl)
         tiles[imgEl.@id] = buf
     }
+
+    /** Identify the avatars and number them */
+    def numberAvatars(dataIn)
+    {
+        def nFound = 0
+        dataIn.tile.each { tile ->
+            def name = tile.@name
+            if (name.toLowerCase().contains("avatar"))
+                avatars[name.toLowerCase().trim().replaceAll(/\s*-\s*[23][dD]\s*/, "")] = ++nFound
+        }
+        assert nFound >= 1 : "Need at least one 'Avatar' tile."
+    }
     
     /** Pack the global tiles, like the player avatar, into their own tile set. */
     def packGlobalTileSet(dataIn)
@@ -796,7 +808,6 @@ class A2PackPartitions
         def buf = ByteBuffer.allocate(50000)
         
         // Add each special tile to the set
-        def nFound = 0
         dataIn.tile.each { tile ->
             def name = tile.@name
             def id = tile.@id
@@ -808,10 +819,8 @@ class A2PackPartitions
                 tileMap[id] = num
                 data.flip() // crazy stuff to append one buffer to another
                 buf.put(data)
-                nFound += 1
             }
         }
-        assert nFound >= 1 : "Need at least one 'Avatar' tile."
         
         tileSets[setName] = [num:setNum, buf:buf, tileMap:tileMap, tileIds:tileIds]
         return [setNum, tileMap]
@@ -1440,14 +1449,16 @@ class A2PackPartitions
             srcFile = new File(srcFile.getName()) // try current directory
         if (srcFile.exists()) {
             if (dstFile.exists()) {
-                if (srcFile.lastModified() <= dstFile.lastModified())
+                if (srcFile.lastModified() == dstFile.lastModified())
                     return dstFile
                 dstFile.delete()
             }
             else
                 dstFile.getParentFile().mkdirs()
-            if (!(srcFile.equals(dstFile)))
+            if (!(srcFile.equals(dstFile))) {
                 Files.copy(srcFile.toPath(), dstFile.toPath())
+                dstFile.setLastModified(srcFile.lastModified())
+            }
             return dstFile
         }
         
@@ -1460,13 +1471,14 @@ class A2PackPartitions
             assert m
             srcFile = new File(java.net.URLDecoder.decode(m.group(2), "UTF-8"))
             if (dstFile.exists()) {
-                if (srcFile.lastModified() <= dstFile.lastModified())
+                if (srcFile.lastModified() == dstFile.lastModified())
                     return dstFile
                 dstFile.delete()
             }
             else
                 dstFile.getParentFile().mkdirs()
             Files.copy(res.openStream(), dstFile.toPath())
+            dstFile.setLastModified(srcFile.lastModified())
         }
         return dstFile
     }
@@ -1634,19 +1646,16 @@ class A2PackPartitions
     
     def readCache()
     {
-        /* This isn't working reliably lately
         File cacheFile = new File("build/world.cache")
         if (cacheFile.exists()) {
             ObjectInputStream inStream = new ObjectInputStream(new FileInputStream(cacheFile));
             cache = inStream.readObject();
             inStream.close()
         }
-        */
     }
     
     def writeCache()
     {
-        /* This isn't working reliably lately
         File cacheFile = new File("build/world.cache")
         File newCacheFile = new File("build/world.cache.new")
         ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(newCacheFile));
@@ -1654,7 +1663,6 @@ class A2PackPartitions
         out.close()
         cacheFile.delete() // needed on Windows
         newCacheFile.renameTo(cacheFile)
-        */
     }
     
     def pack(xmlPath)
@@ -1682,6 +1690,7 @@ class A2PackPartitions
         }
 
         // Pack the global tile set before other tile sets (contains the player avatar, etc.)
+        numberAvatars(dataIn)
         packGlobalTileSet(dataIn)
         
         // Divvy up the images by category
@@ -2430,8 +2439,9 @@ end
         replaceIfDiff("build/src/plasma/gen_images.plh")
         
         // Before we can generate global script code, we need to identify and number
-        // all the maps.
+        // all the maps. Same with avatars.
         numberMaps(dataIn)
+        numberAvatars(dataIn)
         
         // Translate global scripts to code
         def gsmod = new ScriptModule()

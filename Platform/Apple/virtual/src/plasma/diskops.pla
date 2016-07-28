@@ -263,6 +263,7 @@ def newGame()
   word playersModule, globalScriptsModule
   initHeap(0) // initially empty heap
   global = getGlobals()
+  global->b_curAvatar = 0
   playersModule = mmgr(QUEUE_LOAD, MODULE_GEN_PLAYERS<<8 | RES_TYPE_MODULE)
   globalScriptsModule = mmgr(QUEUE_LOAD, MODULE_GEN_GLOBAL_SCRIPTS<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, LEAVE_OPEN)

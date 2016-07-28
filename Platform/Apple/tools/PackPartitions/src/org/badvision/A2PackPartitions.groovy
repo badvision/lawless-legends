@@ -789,10 +789,10 @@ class A2PackPartitions
     def numberAvatars(dataIn)
     {
         def nFound = 0
-        dataIn.tile.each { tile ->
+        dataIn.tile.sort{it.@name.toLowerCase()}.each { tile ->
             def name = tile.@name
             if (name.toLowerCase().contains("avatar"))
-                avatars[name.toLowerCase().trim().replaceAll(/\s*-\s*[23][dD]\s*/, "")] = ++nFound
+                avatars[name.toLowerCase().trim().replaceAll(/\s*-\s*[23][dD]\s*/, "")] = nFound++
         }
         assert nFound >= 1 : "Need at least one 'Avatar' tile."
     }
@@ -808,7 +808,7 @@ class A2PackPartitions
         def buf = ByteBuffer.allocate(50000)
         
         // Add each special tile to the set
-        dataIn.tile.each { tile ->
+        dataIn.tile.sort{it.@name.toLowerCase()}.each { tile ->
             def name = tile.@name
             def id = tile.@id
             def data = tiles[id]

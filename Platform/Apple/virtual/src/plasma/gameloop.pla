@@ -45,7 +45,6 @@ include "diskops.plh"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Data structures
-word fooStart
 include "playtype.pla"
 
 word global  // the global heap object, from which all live objects must be reachable
@@ -1284,7 +1283,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def scriptSetAvatar(avatarTileNum)
   global->b_curAvatar = avatarTileNum
-  setAvatar(avatarTileNum)
+  if renderLoaded; setAvatar(avatarTileNum); fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2468,7 +2467,6 @@ def startGame(ask)
     mapIs3D = q_mapIs3D
     mapNum = q_mapNum
     q_mapNum = 0
-    global->b_curAvatar = 0
     allowZoneInit = TRUE
     initMap(q_x, q_y, q_dir)
     allowZoneInit = FALSE

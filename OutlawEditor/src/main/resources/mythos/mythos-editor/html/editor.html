@@ -129,6 +129,19 @@
         <category name="Sound">
         </category>
         <category name="Preconnected">
+            <!-- Press any key -->
+            <block inline="false" type="text_print">
+                <value name="VALUE">
+                    <block type="text">
+                        <field name="TEXT">(press any key)</field>
+                    </block>
+                </value>
+                <next>
+                    <block type="text_getanykey"></block>
+                </next>
+            </block>
+            
+            <!-- Show portrait / Text -->
             <block type="graphics_set_portrait">
                 <field name="NAME">Name</field>
                 <next>
@@ -158,25 +171,38 @@
                     </block>
                 </next>
             </block>
+
+            <!-- Special (show portrait and step back -->
             <block type="graphics_set_portrait">
                 <field name="NAME">Name</field>
                 <next>
-                    <block type="text_print">
+                    <block inline="false" type="text_println">
                         <value name="VALUE">
                             <block type="text">
                                 <field name="TEXT">Text</field>
-                            </block>                            
+                            </block>
                         </value>
                         <next>
-                            <block type="text_getanykey">
+                            <block inline="false" type="text_print">
+                                <value name="VALUE">
+                                    <block type="text">
+                                        <field name="TEXT">(press any key)</field>
+                                    </block>
+                                </value>
                                 <next>
-                                    <block type="events_move_backward"></block>
+                                    <block type="text_getanykey">
+                                        <next>
+                                            <block type="events_move_backward"></block>
+                                        </next>
+                                    </block>
                                 </next>
                             </block>
                         </next>
                     </block>
                 </next>
             </block>
+
+            <!-- Exit -->
             <block inline="false" type="text_print">
                 <value name="VALUE">
                     <block type="text">
@@ -203,6 +229,8 @@
                     </block>
                 </next>
             </block>
+
+            <!--Puzzle-->
             <block type="graphics_set_portrait">
                 <field name="NAME">Name</field>
                 <next>
@@ -239,28 +267,46 @@
                                                     </block>
                                                 </value>
                                                 <statement name="DO0">
-                                                    <block inline="false" type="text_print">
+                                                    <block inline="false" type="text_println">
                                                         <value name="VALUE">
                                                             <block type="text">
                                                                 <field name="TEXT">Affirmative Response</field>
                                                             </block>
                                                         </value>
                                                         <next>
-                                                            <block type="text_getanykey"></block>
+                                                            <block inline="false" type="text_print">
+                                                                <value name="VALUE">
+                                                                    <block type="text">
+                                                                        <field name="TEXT">(press any key)</field>
+                                                                    </block>
+                                                                </value>
+                                                                <next>
+                                                                    <block type="text_getanykey"></block>
+                                                                </next>
+                                                            </block>
                                                         </next>
                                                     </block>
                                                 </statement>
                                                 <statement name="ELSE">
-                                                    <block inline="false" type="text_print">
+                                                    <block inline="false" type="text_println">
                                                         <value name="VALUE">
                                                             <block type="text">
                                                                 <field name="TEXT">Negative Response</field>
                                                             </block>
                                                         </value>
                                                         <next>
-                                                            <block type="text_getanykey">
+                                                            <block inline="false" type="text_print">
+                                                                <value name="VALUE">
+                                                                    <block type="text">
+                                                                        <field name="TEXT">(press any key)</field>
+                                                                    </block>
+                                                                </value>
                                                                 <next>
-                                                                    <block type="events_move_backward"></block>
+                                                                    <block type="text_getanykey">
+                                                                        <next>
+                                                                            <block type="events_move_backward"></block>
+                                                                        </next>
+                                                                    </block>
                                                                 </next>
                                                             </block>
                                                         </next>
@@ -275,6 +321,8 @@
                     </block>
                 </next>
             </block>
+
+            <!-- Boss Battle -->
             <block inline="false" type="controls_if">
                 <mutation else="1"></mutation>
                 <value name="IF0">
@@ -299,34 +347,52 @@
                     <block type="graphics_set_portrait">
                         <field name="NAME">Boss pic</field>
                         <next>
-                            <block inline="false" type="text_print">
+                            <block inline="false" type="text_println">
                                 <value name="VALUE">
-                                    <block type="text" >
+                                    <block type="text">
                                         <field name="TEXT">Pre-boss fight message</field>
                                     </block>
                                 </value>
                                 <next>
-                                    <block type="text_getanykey" >
+                                    <block inline="false" type="text_print">
+                                        <value name="VALUE">
+                                            <block type="text">
+                                                <field name="TEXT">(press any key)</field>
+                                            </block>
+                                        </value>
                                         <next>
-                                            <block type="events_start_encounter">
-                                                <field name="CODE">Boss code</field>
+                                            <block type="text_getanykey">
                                                 <next>
-                                                    <block type="graphics_set_portrait" >
-                                                        <field name="NAME">Combat win</field>
+                                                    <block type="events_start_encounter">
+                                                        <field name="CODE">Boss code</field>
                                                         <next>
-                                                            <block type="text_clear_window" >
+                                                            <block type="graphics_set_portrait">
+                                                                <field name="NAME">Combat win</field>
                                                                 <next>
-                                                                    <block inline="false" type="text_print" >
-                                                                        <value name="VALUE">
-                                                                            <block type="text" >
-                                                                                <field name="TEXT">winning message</field>
-                                                                            </block>
-                                                                        </value>
+                                                                    <block type="text_clear_window">
                                                                         <next>
-                                                                            <block type="interaction_give_item" >
-                                                                                <field name="NAME">Quest item</field>
+                                                                            <block inline="false" type="text_println">
+                                                                                <value name="VALUE">
+                                                                                    <block type="text">
+                                                                                        <field name="TEXT">winning message</field>
+                                                                                    </block>
+                                                                                </value>
                                                                                 <next>
-                                                                                    <block type="text_getanykey"></block>
+                                                                                    <block inline="false" type="text_print">
+                                                                                        <value name="VALUE">
+                                                                                            <block type="text">
+                                                                                                <field name="TEXT">(press any key)</field>
+                                                                                            </block>
+                                                                                        </value>
+                                                                                        <next>
+                                                                                            <block type="interaction_give_item">
+                                                                                                <field name="NAME">Quest item</field>
+                                                                                                <next>
+                                                                                                    <block type="text_getanykey"></block>
+                                                                                                </next>
+                                                                                            </block>
+                                                                                        </next>
+                                                                                    </block>
                                                                                 </next>
                                                                             </block>
                                                                         </next>
@@ -345,58 +411,69 @@
                     </block>
                 </statement>
             </block>
-            <block type="graphics_set_portrait" >
+
+            <!-- Shop -->
+            <block type="graphics_set_portrait">
                 <field name="NAME">picture</field>
                 <next>
-                    <block type="text_clear_window" >
+                    <block type="text_clear_window">
                         <next>
-                            <block inline="false" type="text_print" >
+                            <block inline="false" type="text_println">
                                 <value name="VALUE">
-                                    <block type="text" >
-                                        <field name="TEXT">text</field>
+                                    <block type="text">
+                                        <field name="TEXT">Question Y/N</field>
                                     </block>
                                 </value>
                                 <next>
-                                    <block inline="false" type="controls_if" >
+                                    <block inline="false" type="controls_if">
                                         <value name="IF0">
                                             <block type="text_getboolean"></block>
                                         </value>
                                         <statement name="DO0">
-                                            <block inline="false" type="controls_if" >
+                                            <block inline="false" type="controls_if">
                                                 <mutation else="1"></mutation>
                                                 <value name="IF0">
-                                                    <block inline="true" type="logic_compare" >
+                                                    <block inline="true" type="logic_compare">
                                                         <field name="OP">GTE</field>
                                                         <value name="A">
-                                                            <block type="interaction_get_stat" >
+                                                            <block type="interaction_get_stat">
                                                                 <field name="NAME">Gold</field>
                                                             </block>
                                                         </value>
                                                         <value name="B">
-                                                            <block type="math_number" >
+                                                            <block type="math_number">
                                                                 <field name="NUM">0</field>
                                                             </block>
                                                         </value>
                                                     </block>
                                                 </value>
                                                 <statement name="DO0">
-                                                    <block type="interaction_decrease_stat" >
+                                                    <block type="interaction_decrease_stat">
                                                         <field name="NAME">Gold</field>
                                                         <field name="AMOUNT">0</field>
                                                         <next>
-                                                            <block type="text_clear_window" >
+                                                            <block type="text_clear_window">
                                                                 <next>
-                                                                    <block inline="false" type="text_print" >
+                                                                    <block inline="false" type="text_println">
                                                                         <value name="VALUE">
-                                                                            <block type="text" >
+                                                                            <block type="text">
                                                                                 <field name="TEXT">text for sold</field>
                                                                             </block>
                                                                         </value>
                                                                         <next>
-                                                                            <block type="interaction_give_item" >
-                                                                                <field name="NAME">item</field>
+                                                                            <block inline="false" type="text_print">
+                                                                                <value name="VALUE">
+                                                                                    <block type="text">
+                                                                                        <field name="TEXT">(press any key)</field>
+                                                                                    </block>
+                                                                                </value>
                                                                                 <next>
-                                                                                    <block type="text_getanykey"></block>
+                                                                                    <block type="interaction_give_item">
+                                                                                        <field name="NAME">item</field>
+                                                                                        <next>
+                                                                                            <block type="text_getanykey"></block>
+                                                                                        </next>
+                                                                                    </block>
                                                                                 </next>
                                                                             </block>
                                                                         </next>
@@ -407,16 +484,25 @@
                                                     </block>
                                                 </statement>
                                                 <statement name="ELSE">
-                                                    <block type="text_clear_window" >
+                                                    <block type="text_clear_window">
                                                         <next>
-                                                            <block inline="false" type="text_print" >
+                                                            <block inline="false" type="text_println">
                                                                 <value name="VALUE">
-                                                                    <block type="text" >
+                                                                    <block type="text">
                                                                         <field name="TEXT">Text for no sale</field>
                                                                     </block>
                                                                 </value>
                                                                 <next>
-                                                                    <block type="text_getanykey"></block>
+                                                                    <block inline="false" type="text_print">
+                                                                        <value name="VALUE">
+                                                                            <block type="text">
+                                                                                <field name="TEXT">(press any key)</field>
+                                                                            </block>
+                                                                        </value>
+                                                                        <next>
+                                                                            <block type="text_getanykey"></block>
+                                                                        </next>
+                                                                    </block>
                                                                 </next>
                                                             </block>
                                                         </next>
@@ -425,7 +511,7 @@
                                             </block>
                                         </statement>
                                         <next>
-                                            <block type="events_move_backward"></block>
+                                            <block type="events_move_backward"></block>                                            
                                         </next>
                                     </block>
                                 </next>
@@ -434,10 +520,12 @@
                     </block>
                 </next>
             </block>
-            <block inline="false" type="text_print">
+
+            <!-- Treasure -->
+            <block inline="false" type="text_println">
                 <value name="VALUE">
                     <block type="text">
-                        <field name="TEXT"></field>
+                        <field name="TEXT">Text Y/N</field>
                     </block>
                 </value>
                 <next>
@@ -450,22 +538,29 @@
                                 <mutation else="1"></mutation>
                                 <value name="IF0">
                                     <block type="interaction_has_item">
-                                        <field name="NAME"></field>
+                                        <field name="NAME">Item</field>
                                     </block>
-                                </value>
-                                <value name="IF0">
                                 </value>
                                 <statement name="DO0">
                                     <block type="text_clear_window">
                                         <next>
-                                            <block inline="false" type="text_print">
+                                            <block inline="false" type="text_println">
                                                 <value name="VALUE">
                                                     <block type="text">
-                                                        <field name="TEXT"></field>
+                                                        <field name="TEXT">Text</field>
                                                     </block>
                                                 </value>
                                                 <next>
-                                                    <block type="text_getanykey"></block>
+                                                    <block inline="false" type="text_print">
+                                                        <value name="VALUE">
+                                                            <block type="text">
+                                                                <field name="TEXT">(press any key)</field>
+                                                            </block>
+                                                        </value>
+                                                        <next>
+                                                            <block type="text_getanykey"></block>
+                                                        </next>
+                                                    </block>
                                                 </next>
                                             </block>
                                         </next>
@@ -474,17 +569,26 @@
                                 <statement name="ELSE">
                                     <block type="text_clear_window">
                                         <next>
-                                            <block inline="false" type="text_print">
+                                            <block inline="false" type="text_println">
                                                 <value name="VALUE">
                                                     <block type="text">
-                                                        <field name="TEXT"></field>
+                                                        <field name="TEXT">Text</field>
                                                     </block>
                                                 </value>
                                                 <next>
-                                                    <block type="interaction_give_item">
-                                                        <field name="NAME"></field>
+                                                    <block inline="false" type="text_print">
+                                                        <value name="VALUE">
+                                                            <block type="text">
+                                                                <field name="TEXT">(press any key)</field>
+                                                            </block>
+                                                        </value>
                                                         <next>
-                                                            <block type="text_getanykey"></block>
+                                                            <block type="interaction_give_item">
+                                                                <field name="NAME">item</field>
+                                                                <next>
+                                                                    <block type="text_getanykey"></block>
+                                                                </next>
+                                                            </block>
                                                         </next>
                                                     </block>
                                                 </next>
@@ -497,6 +601,7 @@
                     </block>
                 </next>
             </block>
+
 
         </category>
     </xml>

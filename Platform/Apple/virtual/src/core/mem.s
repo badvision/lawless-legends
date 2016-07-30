@@ -1602,7 +1602,6 @@ saneEnd: !zone {
 }
 
 ;------------------------------------------------------------------------------
-!if DEBUG {
 printMem: !zone
 	lda $24		; check if we're already at start of screen line
 	beq +		; no, no need for CR
@@ -1674,7 +1673,6 @@ aux_printMem:
 	beq +
 	jmp .printSegs
 +	jmp crout
-}
 
 ;------------------------------------------------------------------------------
 reset: !zone
@@ -1703,7 +1701,7 @@ reset: !zone
 
 ;------------------------------------------------------------------------------
 outOfMemErr: !zone
-	!if DEBUG { jsr printMem }
+	jsr printMem
 	jsr inlineFatal : !text "OutOfMem", 0
 
 ;------------------------------------------------------------------------------

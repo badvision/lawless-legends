@@ -77,6 +77,7 @@ nextLink:	!byte 0		; next link to allocate
 plasmaStk:      !byte 0
 nTextures:	!byte 0
 scripts:	!word 0		; pointer to loaded scripts module
+expanderRelocd:	!byte 0		; flag so we only reloc expander once
 
 skyColorEven:   !byte $20
 skyColorOdd:    !byte $22
@@ -1254,14 +1255,17 @@ drawRay: !zone
 	lda texAddrHi,x
 	sta pTex+1
 	; jump to the unrolled expansion code for the selected height
+	!if DEBUG >= 2 { +prStr : !text "Calling expansion code.",0 }
 	lda lineCt
+	sei			; prevent interrupts while in aux mem
+	sta setAuxZP
 	asl
 	bcc +
 	lda #254		; clamp max height
 +	sta expanderJmp+1	; set vector offset
-	!if DEBUG >= 2 { +prStr : !text "Calling expansion code.",0 }
-	sei			; prevent interrupts while in aux mem
+	lda setLcRW+lcBank2	; part of expander split and relocated to LC bank 2
 	jsr callExpander	; was copied from .callIt to $100 at init time
+	sta clrAuxZP
 	cli			; interrupts ok after we get back from aux
 .skip	pla			; retrieve link to next in stack
 	tax			; put in X for indexing
@@ -1542,10 +1546,14 @@ setBackBuf: !zone
 setExpansionCaller:
 	; Copy the expansion caller to low stack.
 	ldx #.callEnd - .callIt - 1
+	sei
+	sta setAuxZP
 -	lda .callIt,x
 	sta callExpander,x
 	dex
 	bpl -
+	sta clrAuxZP
+	cli
 	rts
 .callIt:
 !pseudopc $100 {
@@ -2093,6 +2101,8 @@ pl_initMap: !zone
 	ldx #<(tableEnd-tableStart)
 	ldy #>(tableEnd-tableStart)
 	jsr mainLoader
+	; If expander hasn't been split and relocated yet, do so now
+	jsr splitExpander
 	; Proceed with loading
 	lda #1			; non-zero to init scripts also
 	jsr loadTextures
@@ -2106,6 +2116,42 @@ pl_initMap: !zone
 	jsr setExpansionCaller
 	jsr graphInit
 	jmp renderFrame
+
+splitExpander:
+	lda expanderRelocd
+	bne .done		; only relocate once
+	jsr setExpansionCaller
+	sei			; prevent interrupts while in aux mem
+	sta setAuxZP
+	sta setAuxWr
+	lda setLcRW+lcBank2	; reloc to bank 2 in aux mem (unused by anything else)
+	lda setLcRW+lcBank2	; second access to make it read/write
+	jsr callExpander	; was copied from .callIt to $100 at init time
+	sta clrAuxWr
+	sta clrAuxZP
+	cli			; interrupts ok after we get back from aux
+	pha			; save new seg length
+	txa
+	pha
+	; Now truncate the main segment of the expander, freeing up the
+	; split space for textures and other resources.
+	lda #FREE_MEMORY
+	jsr .memexp
+	lda #SET_MEM_TARGET
+	jsr .memexp
+	pla
+	tay
+	pla
+	tax
+	lda #REQUEST_MEMORY
+	jsr auxLoader
+	lda #LOCK_MEMORY
+	jsr .memexp
+	inc expanderRelocd
+.done	rts
+.memexp	ldx #<expandVec
+	ldy #>expandVec
+	jmp auxLoader
 
 ; Following are log/pow lookup tables. For speed, align them on a page boundary.
 	!align 255,0

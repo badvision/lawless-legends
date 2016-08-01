@@ -8,11 +8,11 @@
 ; governing permissions and limitations under the License.
 ;****************************************************************************************
 
-* = $2000
+* = $3000
 !source "render.i"
 
 expand_vec:
-	!word expand_0
+	!word expand_split	; gets replaced by expand_0
 	!word expand_2
 	!word expand_4
 	!word expand_6
@@ -5776,6 +5776,8 @@ expand_102:
 +
 	rts
 
+!source "expand_split.i"
+!pseudopc $D000 {
 ; Produce 104 rows from 64 rows
 expand_104:
 	jsr selectMip0
@@ -7372,4 +7374,5 @@ e_t64oroo:
 	sta 66*BLIT_STRIDE + blitRoll,x
 	sta 67*BLIT_STRIDE + blitRoll,x
 +	rts
-
+} ; end of pseudopc
+expand_end = *

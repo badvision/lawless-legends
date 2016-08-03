@@ -54,12 +54,12 @@ Getting Started:  For new adventurers here are a few tips.
 6) Some weapons & armor will boost your stats.
 7) Exploring is rewarded.
 
-Loading the game on a Real Apple II, IIc, IIe, IIgs:
+Loadign the game on a Real Apple II, IIc, IIe, IIgs:
 Insert disk 1 in drive 1 and disk 2 in drive 2. then turn on your computer. 
 
 Loading the game via emulator:
 
-WINDOWS - Download AppleWin: AppleWin is usually a IIe emulator, but it can run IIGS hard drive images. Push F8 for settings.  In the "Disk" tab, (Alt-E) enable hard disk controller in slot 7. Then Select HDD 1 as the 800k (2MG) version. The latest version of AppleWin NTSC is available at http://wsxyz.net/applewin.html
+WINDOWS - Download AppleWin: AppleWin is usually a IIe emulator, but it can run IIGS hard drive images. Push F8 for settings.  In the "Disk" tab, (Alt-E) enable hard disk controller in slot 7. Then Select HDD 1 as AL.2MG. Set emulation speed to 2! The latest version of AppleWin NTSC is available at http://wsxyz.net/applewin.html
 
 Mac - TBA
 

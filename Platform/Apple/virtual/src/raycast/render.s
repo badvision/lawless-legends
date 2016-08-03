@@ -34,7 +34,6 @@ start:
 	jmp pl_setAvatar	; params: A=tile number
 
 ; Conditional assembly flags
-DOUBLE_BUFFER	= 1		; whether to double-buffer
 DEBUG		= 0		; 1=some logging, 2=lots of logging
 DEBUG_COLUMN	= -1
 
@@ -78,6 +77,7 @@ plasmaStk:      !byte 0
 nTextures:	!byte 0
 scripts:	!word 0		; pointer to loaded scripts module
 expanderRelocd:	!byte 0		; flag so we only reloc expander once
+shadow_pTex:	!word 0		; backup of pTmp space on aux (because it gets overwritten by expander)
 
 skyColorEven:   !byte $20
 skyColorOdd:    !byte $22
@@ -1256,6 +1256,7 @@ drawRay: !zone
 	sta pTex+1
 	; jump to the unrolled expansion code for the selected height
 	!if DEBUG >= 2 { +prStr : !text "Calling expansion code.",0 }
+	ldx txColumn
 	lda lineCt
 	sei			; prevent interrupts while in aux mem
 	sta setAuxZP
@@ -1263,7 +1264,8 @@ drawRay: !zone
 	bcc +
 	lda #254		; clamp max height
 +	sta expanderJmp+1	; set vector offset
-	lda setLcRW+lcBank2	; part of expander split and relocated to LC bank 2
+	bit setLcRW+lcBank2	; part of expander split and relocated to LC bank 2
+	txa
 	jsr callExpander	; was copied from .callIt to $100 at init time
 	sta clrAuxZP
 	cli			; interrupts ok after we get back from aux
@@ -1394,6 +1396,12 @@ makeClrBlit: !zone
 
 ; Clear the blit
 clearBlit: !zone
+	sta setAuxZP
+	lda pTex		; save screen addr that gets overwritten by expander
+	sta shadow_pTex
+	lda pTex+1
+	sta shadow_pTex+1
+	sta clrAuxZP
 	lda byteNum
 	and #2
 	bne .alt
@@ -1686,7 +1694,7 @@ pl_texControl: !zone {
 graphInit: !zone
 	lda #0
 	sta frontBuf
-	!if DOUBLE_BUFFER { lda #1 }
+	lda #1
 	sta backBuf
 !if DEBUG >= 2 {
 	+prStr : !text "Staying in text mode.",0
@@ -1892,7 +1900,7 @@ castAllRays: !zone
 ;-------------------------------------------------------------------------------
 ; Render one whole frame
 renderFrame: !zone
-	!if DOUBLE_BUFFER { jsr setBackBuf }
+	jsr setBackBuf
 
 	jsr castAllRays
 
@@ -1919,7 +1927,11 @@ renderFrame: !zone
 	iny
 	sei
 	sta setAuxZP
-	jsr blitRoll
+	lda shadow_pTex		; restore screen addr that gets overwritten by expander
+	sta pTex		
+	lda shadow_pTex+1
+	sta pTex+1
+	jsr blitRoll		; go do the blitting
 	sta clrAuxZP
 	cli
 	lda #0
@@ -1944,21 +1956,12 @@ pl_flipToPage1: !zone
 ;-------------------------------------------------------------------------------
 ; Flip back buffer onto the screen
 flip: !zone
-!if DOUBLE_BUFFER {
 	ldy backBuf
 	lda frontBuf
 	sta backBuf
 	sty frontBuf
 	lda page1,y
-}
-	; Hack for real (not emulated) IIc: sometimes displays only lo-bit graphics
-	; unless we do this. *HUGE* thanks to Brendan Robert for the fix!
-	sta $C07E		; disable double-hi-res
-	lda $C05F		; disable double-hi-res
 	rts
-
-;-------------------------------------------------------------------------------
-+	jmp flip
 
 ;-------------------------------------------------------------------------------
 copyScreen: !zone

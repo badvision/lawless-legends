@@ -2130,6 +2130,15 @@ def addItem()
 
   ^$c052
 end
+def printMem
+  flipToPage1
+  ^$c051
+  mmgr(DEBUG_MEM, 0)
+  rdkey
+  auxMmgr(DEBUG_MEM, 0)
+  rdkey
+  ^$c050
+end
 def setCheatCmds
   // install cheat commands
   cmdTbl['T'] = @kbdTeleport
@@ -2140,6 +2149,7 @@ def setCheatCmds
   cmdTbl['!'] = @testCombat
   cmdTbl['Y'] = @nextSky
   cmdTbl['G'] = @nextGround
+  cmdTbl['&'] = @printMem
 end
 def enableGodMode()
   if ^$C061 >= 128 and ^$C062 >= 128

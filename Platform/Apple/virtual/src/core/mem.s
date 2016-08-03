@@ -1508,11 +1508,9 @@ aux_dispatch:
 +	cmp #FREE_MEMORY
 	bne +
 	jmp mem_free
-!if DEBUG {
 +	cmp #DEBUG_MEM
 	bne +
 	jmp printMem
-}
 +	cmp #CALC_FREE
 	bne +
 	jmp mem_calcFree

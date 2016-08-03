@@ -1496,8 +1496,13 @@ class A2PackPartitions
         else {
             codeFile.eachLine { line ->
                 def m = line =~ /^\s*include\s+"([^"]+)"/
-                if (m)
+                if (m) {
                     deps << jitCopy(new File(baseDir, m.group(1)))
+                    if (m.group(1) =~ /.*gamelib.plh/ && !(codeFile =~ /.*gameloop.pla/)) {
+                        println "Dep for $codeFile: ${m.group(1)} -> gameLoop.pla"
+                        deps << jitCopy(new File(baseDir, m.group(1).replace("gamelib.plh", "gameloop.pla")))
+                    }
+                }
                 m = line =~ /^\s*!(source|convtab) "([^"]+)"/
                 if (m) {
                     if (codeFile ==~ /.*\.pla$/) {

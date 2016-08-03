@@ -2148,8 +2148,6 @@ splitExpander:
 	tax
 	lda #REQUEST_MEMORY
 	jsr auxLoader
-	lda #LOCK_MEMORY
-	jsr .memexp
 	inc expanderRelocd
 .done	rts
 .memexp	ldx #<expandVec

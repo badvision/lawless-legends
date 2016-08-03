@@ -1861,6 +1861,9 @@ def loadEngine(moduleNum)
   flipToPage1()
   diskActivity($FF)
   mmgr(FINISH_LOAD, WITH_CLOSE)
+  if renderLoaded and mapIs3D
+    auxMmgr(FREE_MEMORY, expandVec)
+  fin
   mmgr(RESET_MEMORY, 0)
   renderLoaded = FALSE
   mapIs3D = FALSE

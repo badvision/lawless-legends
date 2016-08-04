@@ -76,7 +76,6 @@ nextLink:	!byte 0		; next link to allocate
 plasmaStk:      !byte 0
 nTextures:	!byte 0
 scripts:	!word 0		; pointer to loaded scripts module
-expanderRelocd:	!byte 0		; flag so we only reloc expander once
 shadow_pTex:	!word 0		; backup of pTmp space on aux (because it gets overwritten by expander)
 
 skyColorEven:   !byte $20
@@ -2120,9 +2119,12 @@ pl_initMap: !zone
 	jsr graphInit
 	jmp renderFrame
 
+;-------------------------------------------------------------------------------
+; Split part of the expander off into a hard-to-use area in the aux LC.
+; NOTE: It's safe to do this more than once, and is in fact necessary in case
+; the expander gets reloaded without the main engine being reloaded. It's safe
+; to call expand_0 since it's just an RTS.
 splitExpander:
-	lda expanderRelocd
-	bne .done		; only relocate once
 	jsr setExpansionCaller
 	sei			; prevent interrupts while in aux mem
 	sta setAuxZP
@@ -2147,9 +2149,7 @@ splitExpander:
 	pla
 	tax
 	lda #REQUEST_MEMORY
-	jsr auxLoader
-	inc expanderRelocd
-.done	rts
+	jmp auxLoader
 .memexp	ldx #<expandVec
 	ldy #>expandVec
 	jmp auxLoader

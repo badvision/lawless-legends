@@ -77,6 +77,7 @@ class A2PackPartitions
     def binaryStubsOnly = false
     def cache = [:]
     def buildDir
+    def memUsageFile
     
     /** 
      * Keep track of context within the XML file, so we can spit out more useful
@@ -593,6 +594,19 @@ class A2PackPartitions
         
         // Followed by script module num
         buf.put((byte)scriptModule)
+        
+        // Document memory usage so user can make intelligent choices about what/when to cut
+        def gameloopSize = bytecodes['gameloop'].buf.position()
+        def mapScriptsSize = bytecodes[makeScriptName(mapName)].buf.position()
+        def mapTexturesSize = texList.size() * 0x555
+        def totalAux = gameloopSize + mapScriptsSize + mapTexturesSize
+        def safeLimit = 34 * 1024
+        memUsageFile.println String.format("%-20s: %4.1fK of %4.1fK used: %4.1fK scripts, %4.1fK in %2d textures, %4.1fK overhead%s",
+            mapName, totalAux/1024.0, safeLimit/1024.0, 
+            mapScriptsSize/1024.0, mapTexturesSize/1024.0, texList.size(), gameloopSize/1024.0,
+            totalAux > safeLimit ? " [WARNING]" : "")
+        if (totalAux > safeLimit)
+            printWarning "memory will be dangerously full; see build/3dMemUsage.txt for details."
         
         // Followed by the list of textures
         texList.each { buf.put((byte)it) }
@@ -1743,13 +1757,16 @@ class A2PackPartitions
             
         // Pack each map This uses the image and tile maps filled earlier.
         println "Packing maps."
-        dataIn.map.each { map ->
-            if (map?.@name =~ /2D/)
-                pack2DMap(map, dataIn.tile) 
-            else if (map?.@name =~ /3D/)
-                pack3DMap(map, dataIn.tile) 
-            else
-                printWarning "map name '${map?.@name}' should contain '2D' or '3D'. Skipping."
+        new File("build/3dMemUsage.txt").withWriter { w ->
+            memUsageFile = w
+            dataIn.map.each { map ->
+                if (map?.@name =~ /2D/)
+                    pack2DMap(map, dataIn.tile) 
+                else if (map?.@name =~ /3D/)
+                    pack3DMap(map, dataIn.tile) 
+                else
+                    printWarning "map name '${map?.@name}' should contain '2D' or '3D'. Skipping."
+            }
         }
         
         // Ready to write the output file.

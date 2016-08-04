@@ -204,54 +204,6 @@ relocate:
 	+internalErr 'N' ; mem mgr got too big!
 +
 
-; Patch PLASMA's memory accessors to gain access to writing main LC, and
-; to read/write bank 2 in aux LC.
-
-	; first copy the stub code into PLASMA's bank
-	bit setLcRW+lcBank2	; PLASMA's bank
-	ldx #(plasmaAccessorsEnd-plasmaAccessorsStart-1)
--	lda plasmaAccessorsStart,x
-	sta LBXX,x
-	dex
-	bpl -
-
-	; now record PLASMA's original routines, and patch it to call our stubs
-	lda plasmaXTbl+$60	; LBX
-	sta oLBX+1
-	lda #<LBXX
-	sta plasmaXTbl+$60
-	lda plasmaXTbl+$61
-	sta oLBX+2
-	lda #>LBXX
-	sta plasmaXTbl+$61
-
-	lda plasmaXTbl+$62	; LWX
-	sta oLWX+1
-	lda #<LWXX
-	sta plasmaXTbl+$62
-	lda plasmaXTbl+$63
-	sta oLWX+2
-	lda #>LWXX
-	sta plasmaXTbl+$63
-
-	lda plasmaXTbl+$70	; SBX
-	sta oSBX+1
-	lda #<SBXX
-	sta plasmaXTbl+$70
-	lda plasmaXTbl+$71
-	sta oSBX+2
-	lda #>SBXX
-	sta plasmaXTbl+$71
-
-	lda plasmaXTbl+$72	; SWX
-	sta oSWX+1
-	lda #<SWXX
-	sta plasmaXTbl+$72
-	lda plasmaXTbl+$73
-	sta oSWX+2
-	lda #>SWXX
-	sta plasmaXTbl+$73
-
 	; fall through into init...
 
 ;------------------------------------------------------------------------------
@@ -425,64 +377,6 @@ init: !zone
 .gomod:	jmp $1111		; jump to module for further bootstrapping
 
 ;------------------------------------------------------------------------------
-; Special PLASMA memory accessors
-
-plasmaAccessorsStart:
-!pseudopc $DF00 {
-
-; Plasma load byte/word with special handling for $D000.DFFF in aux language card
-LBXX: !zone {
-	clv			; clear V to denote LBX (as opposed to LWX)
-	bvc .shld		; always taken
-LWXX:	bit monrts		; set V to denote LWX (not LBX)
-.shld	lda evalStkH,x		; hi byte of address to load from
-	cmp #$D0
-	bcc .norm
-	cmp #$E0
-	bcs .norm
-	sty tmp
-	jsr l_LXXX		; helper function in low memory because it switches us out (we're in main LC)
-	ldy tmp
-	jmp plasmaNextOp
-.norm	ora evalStkL,x
-	beq nullPtr
-	bvs oLWX
-oLBX:	jmp $1111		; modified to be addr of original LBX
-oLWX:	jmp $1111		; modified to be addr of original LWX
-nullPtr	sta clrAuxRd
-	jsr inlineFatal : !text "NullPtr",0
-
-} ; zone
-
-; Plasma store byte/word with special handling for $D000.DFFF and $E000.FFFF
-SBXX: !zone {
-	clv			; clear V to denote SBX (as opposed to SWX)
-	bvc .shst		; always taken
-SWXX:	bit monrts		; set V to denote SWX (not SBX)
-.shst	lda evalStkH+1,x	; get hi byte of pointer to store to
-	cmp #$D0		; in $0000.CFFF range,
-	bcc .norm		;	just do normal store
-	; Apple IIc note: turning on LC requires a 6502 read, not write. So putting sta below didn't work.
-	pha
-	lda setLcRW+lcBank2	; PLASMA normally write-protects the LC,
-	lda setLcRW+lcBank2	; 	but let's allow writing there. Don't use BIT as it affects V flg.
-	pla
-	cmp #$E0		; in $E000.FFFF range do normal store after write-enable
-	bcs .norm
-	jsr l_SXXX		; helper function in low memory because it switches us out (we're in main LC)
-	inx
-	inx
-	jmp plasmaNextOp
-.norm	ora evalStkL+1,x
-	beq nullPtr
-	bvs oSWX
-oSBX:	jmp $1111		; modified to be addr of original SBX
-oSWX:	jmp $1111		; modified to be addr of original SWX
-} ; zone
-} ; pseudopc
-plasmaAccessorsEnd:
-
-;------------------------------------------------------------------------------
 ; Vectors and debug support code - these go in low memory at $800
 loMemBegin: !pseudopc $800 {
 	jmp j_main_dispatch
@@ -625,51 +519,6 @@ exitProDOS: !zone
 	; Note! We leave LC bank 1 enabled, since that's where the memory
 	; manager lives, and it's the only code that calls ProDOS.
 	rti			; RTI pops P-reg and *exact* return addr (not adding 1)
-
-;------------------------------------------------------------------------------
-; Replacement memory accessors for PLASMA, so we can utilize language card mem
-; including the hard-to-reach aux-bank $D000.DFFF
-
-l_LXXX:	!zone {
-	sta .ld+2
-	lda evalStkL,x
-	sta .ld+1
-	sta setAuxZP
-	ldy #1
-.ldlup	sta .lhb+1
-.ld	lda $1111,y		; self-modified above
-	dey
-	bne .ldlup
-	sta clrAuxZP
-	sta evalStkL,x
-	bvc +
-.lhb	lda #11			; self-modified above
-	sta evalStkH,x
-+	rts
-}
-
-l_SXXX:	!zone {
-	sta .st+2		; in $D000.DFFF range, we jump through hoops to write to AUX LC
-	tya
-	pha
-	lda evalStkL+1,x	; lo byte of pointer
-	sta .st+1
-	lda evalStkH,x		; hi byte of value to store
-	sta .shb+1
-	lda evalStkL,x		; lo byte of value
-	sta setAuxZP		; switch to aux LC
-+	ldy #0
-.st	sta $1111,y		; self-modified above
-	bvc +			; for SBX, don't write hi byte
-.shb	lda #11			; self-modified above
-	iny
-	cpy #2
-	bne .st			; loop to write hi byte also
-+	sta clrAuxZP		; back to main LC
-	pla
-	tay
-	rts
-}
 
 ;------------------------------------------------------------------------------
 ; Utility routine for convenient assembly routines in PLASMA code. 

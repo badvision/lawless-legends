@@ -29,8 +29,8 @@ MAX_SEGS	= 96
 
 DO_COMP_CHECKSUMS = 0		; during compression debugging
 DEBUG_DECOMP 	= 0
-DEBUG		= 0
-SANITY_CHECK	= 0		; also prints out request data
+DEBUG		= 1
+SANITY_CHECK	= 1		; also prints out request data
 
 ; Zero page temporary variables
 tmp		= $2	; len 2
@@ -208,6 +208,16 @@ relocate:
 
 ;------------------------------------------------------------------------------
 init: !zone
+	; KLUDGE ALERT! Turning off IIc keyboard buffer as an experiment
+	lda $BF98	; machine ID byte
+	and #$C8	; mask just the machine bits
+	cmp #$88	; Apple IIc?
+	bne +
+	lda #$10	; turn off keyboard buffer
+	sta $c0aa
+	lda #$B
+	sta $c0ab
++	; END OF KLUDGE
 ; grab the prefix of the current drive
 	lda #<prodosPrefix
 	sta getPfxAddr
@@ -385,6 +395,8 @@ loMemBegin: !pseudopc $800 {
 	jmp __asmPlasm_bank2
 
 ; Vectors for debug macros
+	jmp __iosaveROM
+	jmp __iorestLC
 	jmp __writeStr
 	jmp __prByte
 	jmp __prSpace
@@ -395,13 +407,6 @@ loMemBegin: !pseudopc $800 {
 	jmp __crout
 	jmp __waitKey
 	jmp __internalErr
-
-j_init:
-	bit setLcRW+lcBank1	; switch in mem mgr
-	bit setLcRW+lcBank1
-	jsr init
-	bit setLcRW+lcBank2	; back to PLASMA
-	rts
 
 j_main_dispatch:
 	bit setLcRW+lcBank1	; switch in mem mgr
@@ -502,6 +507,7 @@ enterProDOS2: !zone
 ; Shared exit point for ProDOS MLI and IRQ handlers. This patches the code
 ; at $BFA0.
 exitProDOS: !zone
+	; pop data from AUX stack
 	pla			; saved A reg
 	sta .ld3+1
 	pla			; P-reg for RTI
@@ -509,6 +515,7 @@ exitProDOS: !zone
 	pla			; hi byte of ret addr
 	sta .ld1+1
 	pla			; lo byte of ret addr
+	; push data to MAIN stack
 	sta clrAuxZP		; back to main stack/ZP/LC
 	pha			; lo byte of ret addr
 .ld1	lda #11			; self-modified earlier
@@ -535,18 +542,6 @@ __asmPlasm_bank2:
 	bit setLcRW+lcBank2
 	bit setLcRW+lcBank2
 __asmPlasm: !zone
-
-	; KLUDGE ALERT! Turning off IIc keyboard buffer as an experiment
-	lda $BF98	; machine ID byte
-	and #$C8	; mask just the machine bits
-	cmp #$88	; Apple IIc?
-	bne +
-	lda #$10	; turn off keyboard buffer
-	sta $c0aa
-	lda #$B
-	sta $c0ab
-+	; END OF KLUDGE
-
 	cpx #$11
 	bcs .badx	; X must be in range 0..$10
 	; adjust PLASMA stack pointer to skip over params
@@ -591,7 +586,43 @@ frameChk:
 ;------------------------------------------------------------------------------
 ; Debug code to support macros
 
+; Save registers and also the state of the language card switches, then switch
+; to ROM.
+__iosaveROM: !zone {
+	php
+	pha
+	lda rdLCBnk2
+	sta savedLCBnk2State
+	bit setROM
+	pla
+	plp
+	jmp iosave
+}
+
+; Restore registers and also the state of the language card switches.
+__iorestLC: !zone {
+	jsr iorest
+	php
+	jsr restLCState
+	plp
+	rts
+}
+
+; Restore the state of the language card bank switch
+restLCState: !zone {
+	bit savedLCBnk2State
+	bmi +
+	bit setLcRW+lcBank1
+	bit setLcRW+lcBank1
+	rts
++	bit setLcRW+lcBank2
+	bit setLcRW+lcBank2
+	rts
+}
+
 ; Fetch a byte pointed to by the first entry on the stack, and advance that entry.
+; Does LC switching to be sure to get the byte from the correct bank (if it happens
+; to be in LC space).
 _getStackByte !zone {
 	inc $101,x
 	bne +
@@ -600,7 +631,10 @@ _getStackByte !zone {
 	sta .ld+1
 	lda $102,x
 	sta .ld+2
+	jsr restLCState
 .ld:   	lda $2000
+	cmp setROM
+	cmp #0		; fix N flag
 	rts
 }
 
@@ -608,7 +642,7 @@ _getStackByte !zone {
 ; terminated by zero. If the string has a period "." it will be followed 
 ; automatically by a carriage return. Preserves all registers.
 __writeStr: !zone {
-	jsr iosave
+	jsr __iosaveROM
 	tsx
 .loop:	jsr _getStackByte
 	beq .done
@@ -617,11 +651,11 @@ __writeStr: !zone {
 	bne .loop
 	jsr crout
 	jmp .loop
-.done:	jmp iorest
+.done:	jmp __iorestLC
 }
 
 __prByte: !zone {
-	jsr iosave
+	jsr __iosaveROM
 	ldy #0
 	; fall through to _prShared...
 }
@@ -637,7 +671,7 @@ _prShared: !zone {
 	dey
 	bpl .ld
 	+prSpace
-	jmp iorest
+	jmp __iorestLC
 }
 
 __prSpace: !zone {
@@ -651,7 +685,7 @@ __prSpace: !zone {
 }
 
 __prWord: !zone {
-	jsr iosave
+	jsr __iosaveROM
 	ldy #1
 	bne _prShared	; always taken
 }
@@ -695,9 +729,9 @@ __crout: !zone {
 }
 
 __waitKey: !zone {
-	jsr iosave
+	jsr __iosaveROM
 	jsr rdkey
-	jmp iorest
+	jmp __iorestLC
 }
 
 ; Support for very compact abort in the case of internal errors. Prints
@@ -710,6 +744,8 @@ __internalErr: !zone {
 	jsr inlineFatal : !text "Internal",0
 }
 
+; Space (in main RAM) for saving the state of the LC bank switch
+savedLCBnk2State !byte 0
 
 ; Call MLI from main memory rather than LC, since it lives in aux LC.
 _callMLI:	sta .cmd

@@ -398,7 +398,9 @@ _asmPlasm = auxLoader+3
 _asmPlasm_bank2 = _asmPlasm+3
 
 ; Debug support routines (defined in core/mem.s)
-_writeStr   = _asmPlasm_bank2+3
+_iosaveROM  = _asmPlasm_bank2+3
+_iorestLC   = _iosaveROM+3
+_writeStr   = _iorestLC+3
 _prByte     = _writeStr+3
 _prSpace    = _prByte+3
 _prWord     = _prSpace+3
@@ -410,6 +412,14 @@ _waitKey    = _crout+3
 _internalErr = _waitKey+3
 
 ; Debug macros
+!macro iosaveROM {
+    jsr _iosaveROM
+}
+
+!macro iorestLC {
+    jsr _iorestLC
+}
+
 !macro prStr {
     jsr _writeStr
 }

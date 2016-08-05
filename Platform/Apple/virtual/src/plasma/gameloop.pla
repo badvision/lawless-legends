@@ -450,33 +450,27 @@ asm getXReg
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Calculate 16-bit hash of a string
-asm hashString
-  +asmPlasm 1
+// Calculate 16-bit hash of a buffer. arg1=pointer, arg2=length
+export asm hashBuffer
+  +asmPlasm 2
+  lda evalStkL+1,x  ; first arg is buffer pointer
   sta pTmp
-  sty pTmp+1
+  lda evalStkH+1,x
+  sta pTmp+1
+  lda evalStkL,x    ; second arg is length
+  tax
   ldy #0
   sty tmp+1
-  lda (pTmp),y
-  tax
+  tya
+  clc
+- adc (pTmp),y
+  ror
+  ror tmp+1
+  ror
+  ror tmp+1
+  ror
+  ror tmp+1
   iny
-- clc
-  adc (pTmp),y
-  bcc +
-  inc tmp+1
-+ asl
-  rol tmp+1
-  bcc +
-  ora #1
-+ asl
-  rol tmp+1
-  bcc +
-  ora #1
-+ asl
-  rol tmp+1
-  bcc +
-  ora #1
-+ iny
   dex
   bne -
   ldy tmp+1
@@ -1576,6 +1570,11 @@ def kbdLoop()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def hashString(str)
+  return hashBuffer(str+1, ^str)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 export def showMapName(mapName)
   word newNameHash
 
@@ -2259,6 +2258,7 @@ end
 // Set up the small-object heap. Set loadedSize to zero on initial, or non-zero for loaded game.
 export def initHeap(loadedSize)
   byte i
+  word typeHash
 
   if !heapLocked
     mmgr(SET_MEM_TARGET, HEAP_BOTTOM)
@@ -2276,10 +2276,15 @@ export def initHeap(loadedSize)
     mmgr(HEAP_ADD_TYPE, typeTbls[i])
     i = i+1
   loop
+  typeHash = hashBuffer(@typeTbl_Global, @typeTbls - @typeTbl_Global)
   if loadedSize <> 0
     global = HEAP_BOTTOM
+    if global=>w_typeHash <> typeHash
+      fatal("Incompatible saved game")
+    fin
   else
     global = mmgr(HEAP_ALLOC, TYPE_GLOBAL)
+    global=>w_typeHash = typeHash
   fin
 end
 

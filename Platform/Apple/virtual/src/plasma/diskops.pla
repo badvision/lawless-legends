@@ -232,13 +232,11 @@ def loadInternal()
     guaranteeMLI(MLI_CLOSE, @close_params)
   fin
 
-  // Init the heap with the correct size
+  // Copy the heap up, and init it with the correct size.
   p_loaded = $4000
+  copyHeap(1)  // main to aux
   initHeap(p_loaded=>w_heapSize)
   global = getGlobals()
-
-  // Now copy the data back up to the heap space, and we're done
-  copyHeap(1)  // main to aux
   return TRUE
 end
 

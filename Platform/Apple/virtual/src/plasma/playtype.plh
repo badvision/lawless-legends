@@ -30,8 +30,9 @@ struc Global
   // Shared player gold amount
   word w_gold
 
-  // Heap size for restoring saved game
+  // Heap size for restoring saved game, and hash of type table to check compatibility of old saves.
   word w_heapSize
+  word w_typeHash
 
   // General flags maintained by scripts. Linked list of Modifiers.
   word p_gameFlags

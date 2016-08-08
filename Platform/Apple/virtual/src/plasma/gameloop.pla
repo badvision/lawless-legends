@@ -503,7 +503,7 @@ end
 // Get a character from the keyboard
 export asm rdkey
   +asmPlasm 0
-  +waitKey
+  +safeRdkey
   ldy #0
   rts
 end
@@ -550,8 +550,7 @@ end
 // Print a 16-bit hex value
 asm printHex
   +asmPlasm 1
-  +prYA
-  rts
+  jmp _safePrhex
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -574,21 +573,18 @@ end
 // Ring the bell
 export asm beep
   +asmPlasm 0
-  +iosaveROM
-  jsr ROM_bell
-  jmp _iorestLC
+  +safeBell
+  rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Read a string from the keyboard, turn it into a PLASMA string and return a pointer to the string.
 asm readStr
   +asmPlasm 0
-  +iosaveROM
+  bit setROM
   jsr ROM_getln1
+  bit setLcRW+lcBank2
   txa
-  pha
-  +iorestLC
-  pla
   pha
   beq +
 - lda inbuf-1,x

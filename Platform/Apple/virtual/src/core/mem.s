@@ -399,11 +399,12 @@ loMemBegin: !pseudopc $800 {
 	jmp __asmPlasm_bank2
 
 ; Vectors for debug macros
-	jmp __iosaveROM
-	jmp __iorestLC
+	jmp __safeBell
 	jmp __safeCout
 	jmp __safePrbyte
 	jmp __safeHome
+	jmp __safePrhex
+	jmp __safeRdkey
 	jmp __writeStr
 	jmp __prByte
 	jmp __prSpace
@@ -706,16 +707,28 @@ _prShared: !zone {
 	jmp __iorestLC
 }
 
+__safeBell: !zone {
+	jsr saveLCState
+	jsr ROM_bell
+	jmp restLCState
+}
+
 __safeCout: !zone {
 	jsr saveLCState
 	jsr ROM_cout
 	jmp restLCState
 }
 
-safePrhex: !zone {
-	jsr __iosaveROM
+__safePrhex: !zone {
+	jsr saveLCState
 	jsr ROM_prhex
-	jmp __iorestLC
+	jmp restLCState
+}
+
+__safeRdkey: !zone {
+	jsr saveLCState
+	jsr ROM_rdkey
+	jmp restLCState
 }
 
 __prSpace: !zone {
@@ -769,10 +782,7 @@ __crout: !zone {
 __waitKey: !zone {
 	jsr __iosaveROM
 	jsr ROM_rdkey
-	pha
-	jsr __iorestLC
-	pla
-	rts
+	jmp __iorestLC
 }
 
 ; Support for very compact abort in the case of internal errors. Prints
@@ -1583,7 +1593,7 @@ aux_printMem:
 	txa
 	and #$F
 	tax
-	jsr safePrhex
+	+safePrhex
 	txa
 	beq +
 	lda #':'
@@ -2342,7 +2352,7 @@ disk_finishLoad: !zone
 .debug1:+prStr : !text "Ld t=",0
 	pha
 	lda resType
-	jsr safePrhex
+	+safePrhex
 	+prSpace
 	pla
 	+prStr : !text "n=",0
@@ -2350,7 +2360,7 @@ disk_finishLoad: !zone
 	+prStr : !text "aux=",0
 	pha
 	lda isAuxCmd
-	jsr safePrhex
+	+safePrhex
 	+prSpace
 	pla
 	rts

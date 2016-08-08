@@ -398,12 +398,13 @@ _asmPlasm = auxLoader+3
 _asmPlasm_bank2 = _asmPlasm+3
 
 ; Debug support routines (defined in core/mem.s)
-_iosaveROM  = _asmPlasm_bank2+3
-_iorestLC   = _iosaveROM+3
-_safeCout   = _iorestLC+3
+_safeBell   = _asmPlasm_bank2+3
+_safeCout   = _safeBell+3
 _safePrbyte = _safeCout+3
 _safeHome   = _safePrbyte+3
-_writeStr   = _safeHome+3
+_safePrhex  = _safeHome+3
+_safeRdkey  = _safePrhex+3
+_writeStr   = _safeRdkey+3
 _prByte     = _writeStr+3
 _prSpace    = _prByte+3
 _prWord     = _prSpace+3
@@ -416,12 +417,8 @@ _internalErr = _waitKey+3
 fixedRTS    = _internalErr+3
 
 ; Debug macros
-!macro iosaveROM {
-    jsr _iosaveROM
-}
-
-!macro iorestLC {
-    jsr _iorestLC
+!macro safeBell {
+    jsr _safeBell
 }
 
 !macro safeCout {
@@ -429,11 +426,19 @@ fixedRTS    = _internalErr+3
 }
 
 !macro safePrbyte {
-    jsr _safeCout
+    jsr _safePrbyte
 }
 
 !macro safeHome {
     jsr _safeHome
+}
+
+!macro safePrhex {
+    jsr _safePrhex
+}
+
+!macro safeRdkey {
+    jsr _safeRdkey
 }
 
 !macro prStr {

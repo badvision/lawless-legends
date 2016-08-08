@@ -266,9 +266,9 @@ init: !zone
 	lda #1
 	sta scanStart+1
 ; make reset go to monitor
-	lda #<goToMonitor
+	lda #<ROM_monitor
 	sta resetVec
-	lda #>goToMonitor
+	lda #>ROM_monitor
 	sta resetVec+1
 	eor #$A5
 	sta resetVec+2
@@ -551,12 +551,6 @@ brkHandler:
 	bit $c051		; also switch to text screen 1
 	bit $c054
 _jbrk	jmp $1111		; self-modified by init
-
-;------------------------------------------------------------------------------
-; On reset, jump to monitor (in ROM)
-goToMonitor:
-	bit setROM
-	jmp ROM_monitor
 
 ;------------------------------------------------------------------------------
 ; Utility routine for convenient assembly routines in PLASMA code. 

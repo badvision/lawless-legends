@@ -400,7 +400,10 @@ _asmPlasm_bank2 = _asmPlasm+3
 ; Debug support routines (defined in core/mem.s)
 _iosaveROM  = _asmPlasm_bank2+3
 _iorestLC   = _iosaveROM+3
-_writeStr   = _iorestLC+3
+_safeCout   = _iorestLC+3
+_safePrbyte = _safeCout+3
+_safeHome   = _safePrbyte+3
+_writeStr   = _safeHome+3
 _prByte     = _writeStr+3
 _prSpace    = _prByte+3
 _prWord     = _prSpace+3
@@ -410,6 +413,7 @@ _prY        = _prX+3
 _crout      = _prY+3
 _waitKey    = _crout+3
 _internalErr = _waitKey+3
+fixedRTS    = _internalErr+3
 
 ; Debug macros
 !macro iosaveROM {
@@ -418,6 +422,18 @@ _internalErr = _waitKey+3
 
 !macro iorestLC {
     jsr _iorestLC
+}
+
+!macro safeCout {
+    jsr _safeCout
+}
+
+!macro safePrbyte {
+    jsr _safeCout
+}
+
+!macro safeHome {
+    jsr _safeHome
 }
 
 !macro prStr {

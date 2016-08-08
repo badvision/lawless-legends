@@ -29,8 +29,8 @@ MAX_SEGS	= 96
 
 DO_COMP_CHECKSUMS = 0		; during compression debugging
 DEBUG_DECOMP 	= 0
-DEBUG		= 1
-SANITY_CHECK	= 1		; also prints out request data
+DEBUG		= 0
+SANITY_CHECK	= 0		; also prints out request data
 
 ; Zero page temporary variables
 tmp		= $2	; len 2
@@ -78,11 +78,11 @@ prodosMemMap 	= $BF58
 ; Relocate all the pieces to their correct locations and perform patching.
 relocate:
 ; put something interesting on the screen :)
-	jsr home
+	jsr ROM_home
 	ldy #0
 -	lda .welcomeText,y
 	beq +
-	jsr cout
+	jsr ROM_cout
 	iny
 	bne -
 	jmp +
@@ -175,18 +175,23 @@ relocate:
 	iny
 	bne .st2
 	inx
-	cpx #$F8
 	bne .clrlup
-; it's very convenient to have the monitor in the LC for debugging
+; Copy the vectors
+	ldx #6
 	bit setLcWr+lcBank1	; read from ROM, write to LC RAM
-.cpmon	stx .ld3+2
-	stx .st3+2
-.ld3	lda $F800,Y
-.st3	sta $F800,Y
-	iny
-	bne .ld3
-	inx
-	bne .cpmon
+-	lda $FFFA,x
+	sta $FFFA,x
+	dex
+	bpl -
+	; set up a BRK/IRQ vector in low mem
+	lda $FFFE
+	sta _jbrk+1
+	lda $FFFF
+	sta _jbrk+2
+	lda #<brkHandler
+	sta $FFFE
+	lda #>brkHandler
+	sta $FFFF
 ; Place the bulk of the memory manager code into the newly cleared LC
 	ldx #>hiMemBegin
 .cpmm	stx .ld4+2
@@ -203,7 +208,6 @@ relocate:
 	bcc +
 	+internalErr 'N' ; mem mgr got too big!
 +
-
 	; fall through into init...
 
 ;------------------------------------------------------------------------------
@@ -262,9 +266,9 @@ init: !zone
 	lda #1
 	sta scanStart+1
 ; make reset go to monitor
-	lda #<monitor
+	lda #<goToMonitor
 	sta resetVec
-	lda #>monitor
+	lda #>goToMonitor
 	sta resetVec+1
 	eor #$A5
 	sta resetVec+2
@@ -397,6 +401,9 @@ loMemBegin: !pseudopc $800 {
 ; Vectors for debug macros
 	jmp __iosaveROM
 	jmp __iorestLC
+	jmp __safeCout
+	jmp __safePrbyte
+	jmp __safeHome
 	jmp __writeStr
 	jmp __prByte
 	jmp __prSpace
@@ -407,6 +414,8 @@ loMemBegin: !pseudopc $800 {
 	jmp __crout
 	jmp __waitKey
 	jmp __internalErr
+_fixedRTS:
+	rts			; fixed place to find RTS, for setting V flag
 
 j_main_dispatch:
 	bit setLcRW+lcBank1	; switch in mem mgr
@@ -439,21 +448,22 @@ inlineFatal:
 fatalError: !zone
 	sty pTmp+1	; save message ptr hi...
 	stx pTmp	; ...and lo
-	jsr setnorm	; set up text mode and vectors
+	jsr saveLCState
+	jsr ROM_setnorm	; set up text mode and vectors
 	bit setText
 	bit page1
-	jsr setvid
-	jsr setkbd
+	jsr ROM_setvid
+	jsr ROM_setkbd
 	lda $24		; check if we're already at start of screen line
 	beq +		; no, no need for CR
-	jsr crout	; carriage return to get to start of screen line
+	jsr ROM_crout	; carriage return to get to start of screen line
 +	ldy #40		; set up to print 40 dashes
 	lda #'-'
-.dash:	jsr cout
+.dash:	jsr ROM_cout
 	dey
 	bne .dash
+	jsr restLCState
 	+prStr : !text "FATAL ERROR: ",0
-
 	ldx #$FF	; for asm str, max length
 	lda (pTmp),y	; first byte (Y ends at 0 in loop above)
 	bmi .msg	; 	if hi bit, it's a zero-terminated asm string
@@ -462,11 +472,12 @@ fatalError: !zone
 .msg	lda (pTmp),y
 	beq .done
 	ora #$80	; set hi bit of PLASMA strings for cout
-	jsr cout
+	+safeCout
 	iny
 	dex
 	bne .msg
-.done:	jsr bell
+.done:	bit setROM
+	jsr ROM_bell
 .hang: 	jmp .hang	; loop forever
 
 ;------------------------------------------------------------------------------
@@ -526,6 +537,25 @@ exitProDOS: !zone
 	; Note! We leave LC bank 1 enabled, since that's where the memory
 	; manager lives, and it's the only code that calls ProDOS.
 	rti			; RTI pops P-reg and *exact* return addr (not adding 1)
+
+;------------------------------------------------------------------------------
+; BRK and IRQ handler: switch to ROM, call default handler, switch back
+brkHandler:
+	sta $45			; preserve A reg
+	pla			; retrieve saved P reg
+	pha
+	and #$10		; check for BRK bit
+	beq _jbrk		; if not brk, handle without bank switch
+	bit setROM		; for BRK, do bank switch
+	bit $c051		; also switch to text screen 1
+	bit $c054
+_jbrk	jmp $1111		; self-modified by init
+
+;------------------------------------------------------------------------------
+; On reset, jump to monitor (in ROM)
+goToMonitor:
+	bit setROM
+	jmp ROM_monitor
 
 ;------------------------------------------------------------------------------
 ; Utility routine for convenient assembly routines in PLASMA code. 
@@ -589,6 +619,11 @@ frameChk:
 ; Save registers and also the state of the language card switches, then switch
 ; to ROM.
 __iosaveROM: !zone {
+	jsr saveLCState
+	jmp ROM_iosave
+}
+
+saveLCState: !zone {
 	php
 	pha
 	lda rdLCBnk2
@@ -596,29 +631,25 @@ __iosaveROM: !zone {
 	bit setROM
 	pla
 	plp
-	jmp iosave
-}
-
-; Restore registers and also the state of the language card switches.
-__iorestLC: !zone {
-	jsr iorest
-	php
-	jsr restLCState
-	plp
 	rts
 }
 
-; Restore the state of the language card bank switch
-restLCState: !zone {
+; Restore registers and also the state of the language card switches.
+__iorestLC:
+	jsr ROM_iorest
+	; fall through to restLCState
+restLCState: ; Restore the state of the language card bank switch
+	php
 	bit savedLCBnk2State
 	bmi +
 	bit setLcRW+lcBank1
 	bit setLcRW+lcBank1
+	plp
 	rts
 +	bit setLcRW+lcBank2
 	bit setLcRW+lcBank2
+	plp
 	rts
-}
 
 ; Fetch a byte pointed to by the first entry on the stack, and advance that entry.
 ; Does LC switching to be sure to get the byte from the correct bank (if it happens
@@ -646,10 +677,10 @@ __writeStr: !zone {
 	tsx
 .loop:	jsr _getStackByte
 	beq .done
-	jsr cout
+	jsr ROM_cout
 	cmp #$AE	; "."
 	bne .loop
-	jsr crout
+	jsr ROM_crout
 	jmp .loop
 .done:	jmp __iorestLC
 }
@@ -667,10 +698,23 @@ _prShared: !zone {
 	jsr _getStackByte
 	sta .ld+2
 .ld:	lda $2000,y
-	jsr prbyte
+	jsr ROM_prbyte	; not safePrbyte, because we already switched to ROM
 	dey
 	bpl .ld
-	+prSpace
+	lda #$A0
+	jsr ROM_cout	; not safeCout, because we already switched to ROM
+	jmp __iorestLC
+}
+
+__safeCout: !zone {
+	jsr saveLCState
+	jsr ROM_cout
+	jmp restLCState
+}
+
+safePrhex: !zone {
+	jsr __iosaveROM
+	jsr ROM_prhex
 	jmp __iorestLC
 }
 
@@ -678,7 +722,7 @@ __prSpace: !zone {
 	php
 	pha
 	lda #$A0
-	jsr cout
+	jsr __safeCout
 	pla
 	plp
 	rts
@@ -690,48 +734,45 @@ __prWord: !zone {
 	bne _prShared	; always taken
 }
 
-__prA: !zone {
-	php
-	pha
-	jsr prbyte
-	pla
-	plp
-	rts
-}
-	
-__prX: !zone {
-	php
-	pha
-	txa
-	jsr prbyte
-	pla
-	plp
-	rts
-}
+__safePrbyte:
+	jsr saveLCState
+	jsr ROM_prbyte
+	jmp restLCState
 
-__prY: !zone {
-	php
-	pha
-	tya
-	jsr prbyte
-	pla
-	plp
-	rts
-}
+__safeHome:
+	jsr saveLCState
+	jsr ROM_home
+	jmp restLCState
+
+__prA:	jsr __iosaveROM
+	lda $45 	; A reg stored here
+pr_AXY_shared:
+	jsr ROM_prbyte
+	jmp __iorestLC
+	
+__prX:
+	jsr __iosaveROM
+	lda $46		; X reg stored here
+	jmp pr_AXY_shared
+
+__prY:
+	jsr __iosaveROM
+	lda $47		; y reg stored here
+	jmp pr_AXY_shared
 
 __crout: !zone {
-	php
-	pha
-	jsr crout
-	pla
-	plp
-	rts
+	jsr __iosaveROM
+	jsr ROM_crout
+	jmp __iorestLC
 }
 
 __waitKey: !zone {
 	jsr __iosaveROM
-	jsr rdkey
-	jmp __iorestLC
+	jsr ROM_rdkey
+	pha
+	jsr __iorestLC
+	pla
+	rts
 }
 
 ; Support for very compact abort in the case of internal errors. Prints
@@ -740,7 +781,7 @@ __internalErr: !zone {
 	+prStr : !text $8D,"err=",0
 	tsx
 	jsr _getStackByte
-	jsr cout
+	jsr __safeCout
 	jsr inlineFatal : !text "Internal",0
 }
 
@@ -906,6 +947,12 @@ retPSrc:
 heapIntern: !zone
 	stx pTmp
 	sty pTmp+1
+
+	; FOO
+	lda #$60
+	sta tmp
+	jsr tmp
+
 	jsr startHeapScan
 	bcs .notfnd	; handle case of empty heap
 .blklup	bvs .nxtblk
@@ -1041,9 +1088,7 @@ heapCheck: !zone
 } ; if DEBUG
 
 heapCorrupt:
-       ldx pTmp
-       lda pTmp+1
-       jsr prntax
+       +prWord pTmp
        jsr inlineFatal : !text "HeapCorrupt",0
 
 ; Begin a heap scan by setting pTmp to start-of-heap, then returns
@@ -1091,7 +1136,7 @@ getHeapBlk:
 	tax
 	cpx nTypes
 	bcs heapCorrupt
-	bit monrts	; set V flag
+	bit fixedRTS	; set V flag
 	lda typeLen,x
 	bvs .gotlen	; always taken
 
@@ -1112,7 +1157,7 @@ gc1_mark: !zone
 	bvc .start
 ; Phase 3 of Garbage Collection: fix all pointers
 gc3_fix:
-	bit monrts		; set V flag to mark phase 3
+	bit fixedRTS		; set V flag to mark phase 3
 .start	lda #0
 	sta resNum		; initialize block counter (note: blk #0 in hash is not used)
 .outer	inc resNum		; advance to next block in hash
@@ -1488,7 +1533,7 @@ saneEnd: !zone {
 printMem: !zone
 	lda $24		; check if we're already at start of screen line
 	beq +		; no, no need for CR
-	jsr crout	; carriage return to get to start of screen line
+	+crout
 +	lda isAuxCmd
 	bne aux_printMem
 main_printMem:
@@ -1504,15 +1549,15 @@ aux_printMem:
 	dex
 	bne -
 	lda #'$'
-	jsr cout
+	+safeCout
 	lda tSegAdrHi,y
-	jsr prbyte
+	+safePrbyte
 	lda tSegAdrLo,y
-	jsr prbyte
+	+safePrbyte
 	lda #','
-	jsr cout
+	+safeCout
 	lda #'L'
-	jsr cout
+	+safeCout
 	lda tSegLink,y
 	tax
 	lda tSegAdrLo,x
@@ -1521,9 +1566,9 @@ aux_printMem:
 	pha
 	lda tSegAdrHi,x
 	sbc tSegAdrHi,y
-	jsr prbyte
+	+safePrbyte
 	pla
-	jsr prbyte
+	+safePrbyte
 	lda tSegType,y
 	tax
 	and #$40
@@ -1534,15 +1579,15 @@ aux_printMem:
 	cpx #0
 	bmi ++
 	lda #'-'
-++	jsr cout
+++	+safeCout
 	txa
 	and #$F
 	tax
-	jsr prhex
+	jsr safePrhex
 	txa
 	beq +
 	lda #':'
-	jsr cout
+	+safeCout
 	lda tSegRes,y
 	+prA
 	jmp .next
@@ -1555,7 +1600,8 @@ aux_printMem:
 	tay
 	beq +
 	jmp .printSegs
-+	jmp crout
++	+crout
+	rts
 
 ;------------------------------------------------------------------------------
 reset: !zone
@@ -2049,15 +2095,15 @@ openPartition: !zone
 	sta readAddr
 	jmp readToMain		; finish by reading the rest of the header
 ; ask user to insert the disk
-.insert	jsr home
+.insert	+safeHome
 	+prStr : !text "Insert disk ",0
 	bit $c051
 	lda curPartition
 	clc
 	adc #"0"
-	jsr cout
-	jsr rdkey
-	jsr home
+	+safeCout
+	+waitKey
+	+safeHome
 	bit $c050
 	jmp .open		; try again
 .fileStr !raw "/GAME.PART.1",0	; 'raw' chars to get lo-bit ascii that ProDOS likes.
@@ -2296,18 +2342,16 @@ disk_finishLoad: !zone
 .debug1:+prStr : !text "Ld t=",0
 	pha
 	lda resType
-	jsr prhex
-	lda #" "
-	jsr cout
+	jsr safePrhex
+	+prSpace
 	pla
 	+prStr : !text "n=",0
 	+prByte resNum
 	+prStr : !text "aux=",0
 	pha
 	lda isAuxCmd
-	jsr prhex
-	lda #" "
-	jsr cout
+	jsr safePrhex
+	+prSpace
 	pla
 	rts
 .debug2:+prStr : !text "rawLen=",0

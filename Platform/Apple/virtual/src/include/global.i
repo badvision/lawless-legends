@@ -96,24 +96,24 @@ setLcRW		= $C083
 lcBank2		= 0
 lcBank1		= 8
 
-; ROM routines
-prntax		= $F941
-textinit	= $FB2F
-home		= $FC58
-rdkey		= $FD0C
-getln1		= $FD6F
-crout		= $FD8E
-prbyte		= $FDDA
-prhex		= $FDE3
-cout		= $FDED
-setnorm		= $FE84
-setkbd		= $FE89
-setvid		= $FE93
-prerr		= $FF2D
-bell		= $FF3A
-iosave		= $FF4A
-iorest		= $FF3F
-monrts		= $FF58
-monitor		= $FF69
-getnum		= $FFA7
+; ROM routines (call with care after switching to ROM bank)
+ROM_prntax	= $F941
+ROM_textinit	= $FB2F
+ROM_home	= $FC58
+ROM_rdkey	= $FD0C
+ROM_getln1	= $FD6F
+ROM_crout	= $FD8E
+ROM_prbyte	= $FDDA
+ROM_prhex	= $FDE3
+ROM_cout	= $FDED
+ROM_setnorm	= $FE84
+ROM_setkbd	= $FE89
+ROM_setvid	= $FE93
+ROM_prerr	= $FF2D
+ROM_bell	= $FF3A
+ROM_iosave	= $FF4A
+ROM_iorest	= $FF3F
+ROM_monrts	= $FF58
+ROM_monitor	= $FF69
+ROM_getnum	= $FFA7
 

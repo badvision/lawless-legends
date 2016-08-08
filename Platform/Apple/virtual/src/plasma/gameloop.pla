@@ -270,8 +270,11 @@ export asm finishString
 !zone {
   +asmPlasm 1
   sta tmp     ; save isPlural flag
-  jsr setvid  ; put the cout vector back to default
-  bit monrts  ; V flag for prev-is-punctuation
+  lda #$F0    ; put the cout vector back to default
+  sta cswl
+  lda #$FD
+  sty cswh
+  bit fixedRTS; V flag for prev-is-punctuation
   ldy #1      ; dest offset in Y
   ldx #1      ; source offset in X
   cpx inbuf
@@ -327,7 +330,7 @@ export asm finishString
   bcc +
   clv         ; clear last-is-punc flag
   bvc .store  ; always taken
-+ bit monrts  ; set prev-is-punc flag
++ bit fixedRTS; set prev-is-punc flag
   sty tmp+1   ; save dest offset of last punctuation
 
 .store
@@ -489,7 +492,7 @@ export asm puts
   iny
 - lda (pTmp),y
   ora #$80
-  jsr cout
+  +safeCout
   iny
   dex
   bne -
@@ -500,7 +503,9 @@ end
 // Get a character from the keyboard
 export asm rdkey
   +asmPlasm 0
-  jmp rdkey
+  +waitKey
+  ldy #0
+  rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -526,7 +531,7 @@ asm partialPrintf
   ora #$80
   cmp #'%'            ; stop if we hit % code
   beq +
-  jsr cout
+  +safeCout
   iny
   dec tmp             ; otherwise go until end of string
   bne -
@@ -545,9 +550,8 @@ end
 // Print a 16-bit hex value
 asm printHex
   +asmPlasm 1
-  tax
-  tya
-  jmp prntax
+  +prYA
+  rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -555,29 +559,36 @@ end
 asm printChar
   +asmPlasm 1
   ora #$80
-  jmp cout
+  jmp _safeCout
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a carriage return
 asm crout
   +asmPlasm 0
-  jmp crout
+  lda #$8D
+  jmp _safeCout
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Ring the bell
 export asm beep
   +asmPlasm 0
-  jmp bell
+  +iosaveROM
+  jsr ROM_bell
+  jmp _iorestLC
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Read a string from the keyboard, turn it into a PLASMA string and return a pointer to the string.
 asm readStr
   +asmPlasm 0
-  jsr getln1
+  +iosaveROM
+  jsr ROM_getln1
   txa
+  pha
+  +iorestLC
+  pla
   pha
   beq +
 - lda inbuf-1,x
@@ -669,20 +680,6 @@ export asm brk
   bit page1
   brk
 end
-
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Clear the screen and reboot the machine
-// Params: None
-export asm reboot
-  bit setROM
-  jsr home
-  bit setText
-  bit page1
-  inc $3F4    ; invalidate reset vector
-  jmp $FA62   ; and reset
-end
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set up the font engine

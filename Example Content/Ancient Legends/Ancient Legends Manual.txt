@@ -18,7 +18,7 @@
    
                BY SETH STERNBERGER
    
-	       Manual V1.9 07182016
+	       Manual V2.0 08112016
 
 Outlaw Editor Demo Credits:
 Produced & Directed by Seth Sternberger of 8 Bit Weapon
@@ -26,7 +26,7 @@ Coding - Martin Haye, Brendan Robert, and Dave Schmenk
 Font Code - Andrew Hogan
 Graphics - Seth Sternberger
 Scenario - Seth Sternberger
-Playtesting & Quality Assurance - Andrew Schultz  
+Playtesting & Quality Assurance - Andrew Schultz & Michelle Sternberger 
 
 To make your own games get your free copy of Outlaw Editor here:
 https://github.com/badvision/lawless-legends/tree/master/OutlawEditor
@@ -54,7 +54,7 @@ Getting Started:  For new adventurers here are a few tips.
 6) Some weapons & armor will boost your stats.
 7) Exploring is rewarded.
 
-Loadign the game on a Real Apple II, IIc, IIe, IIgs:
+Loadign the game on a Real Apple II, IIc, IIe, IIgs: MUST HAVE 128K!
 Insert disk 1 in drive 1 and disk 2 in drive 2. then turn on your computer. 
 
 Loading the game via emulator:

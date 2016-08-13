@@ -951,12 +951,6 @@ retPSrc:
 heapIntern: !zone
 	stx pTmp
 	sty pTmp+1
-
-	; FOO
-	lda #$60
-	sta tmp
-	jsr tmp
-
 	jsr startHeapScan
 	bcs .notfnd	; handle case of empty heap
 .blklup	bvs .nxtblk
@@ -1955,28 +1949,25 @@ mem_queueLoad: !zone
 	lda #QUEUE_LOAD		; set to re-try same operation
 	jmp nextLdVec		; pass to next loader
 ; extra work for modules
-.module	lda #RES_TYPE_BYTECODE
-	sta resType
-	lda #1
-	sta isAuxCmd
-	jsr scanForResource	; do we have the aux mem part?
+.module	jsr .scanForBytecode	; do we have the aux mem part?
 	beq .reload
 	stx .modres+1
-	lda #RES_TYPE_MODULE
-	sta resType
-	lda #0
-	sta isAuxCmd
-	jsr scanForResource	; do we have the main mem part?
+	jsr .scanForModule
 	beq .reload
 .modres	ldy #11			; self-modified above
 	lda tSegType,y
 	ora #$80		; reactivate bytecode if necessary
 	sta tSegType,y
 	bne .found		; (always taken) we have both parts -- no need for fixups
-.reload	lda #RES_TYPE_MODULE
-	sta resType
-	lda #0
-	sta isAuxCmd
+; The following is for the unusual situation where somehow we have the main memory
+; part (the module) without the aux part (the bytecode). If we allowed that to go
+; forward, we'd end up running fixups on both parts, and double-fixing-up the module
+; is a very bad thing (fixups should not be cumulative). So we force both parts out
+; of memory before proceeding.
+.reload	jsr .scanForBytecode
+	jsr .forceFree		; if bytecode without module, forcibly free it
+	jsr .scanForModule
+	jsr .forceFree		; if module without bytecode, forcibly free it
 	jsr .notMod		; queue the main memory part of the module
 	stx .modRet+1		; save address of main load for eventual return
 	sty .modRet+3		; yes, self-modifying
@@ -2009,6 +2000,26 @@ mem_queueLoad: !zone
 .modRet ldx #11			; all done; return address of the main memory block.
 	ldy #22
 	rts
+.scanForModule:
+	ldy #RES_TYPE_MODULE
+	lda #0
+	beq .scanX
+.scanForBytecode:
+	ldy #RES_TYPE_BYTECODE
+	lda #1
+.scanX	sty resType
+	sta isAuxCmd
+	jmp scanForResource
+.forceFree:
+	cpx #0
+	beq ++
+	lda tSegType,x
+	and #$C0		; make sure not active and not locked
+	beq +
+	+internalErr 'L' 	; should have been freed
++	lda #0
+	sta tSegType,x		; force reload so fixup works right
+++	rts
 
 ;------------------------------------------------------------------------------
 diskLoader: !zone

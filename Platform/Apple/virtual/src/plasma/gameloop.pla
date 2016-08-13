@@ -273,7 +273,7 @@ export asm finishString
   lda #$F0    ; put the cout vector back to default
   sta cswl
   lda #$FD
-  sty cswh
+  sta cswh
   bit fixedRTS; V flag for prev-is-punctuation
   ldy #1      ; dest offset in Y
   ldx #1      ; source offset in X

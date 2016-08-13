@@ -2269,7 +2269,7 @@ export def initHeap(loadedSize)
     mmgr(HEAP_ADD_TYPE, typeTbls[i])
     i = i+1
   loop
-  typeHash = hashBuffer(@typeTbl_Global, @typeTbls - @typeTbl_Global)
+  typeHash = hashBuffer(@typeTbl_Global, @typeTbls - @typeTbl_Global) ^ HEAP_BOTTOM
   if loadedSize <> 0
     global = HEAP_BOTTOM
     if global=>w_typeHash <> typeHash

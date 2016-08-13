@@ -107,17 +107,16 @@ end
 asm copyHeap   // params: dir (0=AuxtoMain, 1=MainToAux)
         +asmPlasm_bank2 1
         lsr         ; direction bit to carry flag
-        ;sta setAuxZP  ; FIXME: put back when heap moved to aux
         lda #$40
         bcs +
-        lda #$F0    ; FIXME, should be $D0 after heap moved to aux
+        lda #$EF    ; $EF00 is start of heap (right after font engine)
 +       sta tmp+1
-        eor #$B0    ; FIXME: should be #$90 after heap moved to aux   ; $40->D0, or $D0->40
+        eor #$AF    ; $EF -> $40, $F0 -> $41, etc.
         sta pTmp+1
         ldy #0
         sty tmp
         sty pTmp
-        ldx #8    ; FIXME to #$10
+        ldx #$C
 -       lda (tmp),y
         sta (pTmp),y
         iny
@@ -126,7 +125,6 @@ asm copyHeap   // params: dir (0=AuxtoMain, 1=MainToAux)
         inc pTmp+1
         dex
         bne -
-        ;sta clrAuxZP  ; FIXME: put back when heap moved to aux
         rts
 end
 
@@ -203,7 +201,7 @@ def _saveGame()
   // Write the game data to it
   write_fileref = open_fileref
   write_addr = $4000
-  write_length = $800 // FIXME
+  write_length = HEAP_SIZE
   guaranteeMLI(MLI_WRITE, @write_params)
 
   // All done.
@@ -216,22 +214,20 @@ def loadInternal()
   word p_loaded
   mmgr(FINISH_LOAD, WITH_CLOSE)
 
-  // Open the file
+  // Open the file. If that fails, return FALSE (instead of halting)
   open_filename = @game1_filename
   open_buffer = $5000
-  if callMLI(MLI_OPEN, @open_params) > 0
-    return FALSE
-  else
-    // Read the game data from it
-    read_fileref = open_fileref
-    read_addr = $4000
-    read_length = $800 // FIXME
-    guaranteeMLI(MLI_READ, @read_params)
+  if callMLI(MLI_OPEN, @open_params) > 0; return FALSE; fin
 
-    // All done with the file
-    close_fileref = open_fileref
-    guaranteeMLI(MLI_CLOSE, @close_params)
-  fin
+  // Read the game data from it
+  read_fileref = open_fileref
+  read_addr = $4000
+  read_length = $800 // FIXME
+  guaranteeMLI(MLI_READ, @read_params)
+
+  // All done with the file
+  close_fileref = open_fileref
+  guaranteeMLI(MLI_CLOSE, @close_params)
 
   // Copy the heap up, and init it with the correct size.
   p_loaded = $4000

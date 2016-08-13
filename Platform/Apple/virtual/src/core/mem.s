@@ -282,7 +282,7 @@ init: !zone
 ; 6: main $6000 -> 7, inactive
 ; 7: main $BF00 -> 8, active + locked
 ; 8: main $E000 -> 9, inactive
-; 9: main $F800 -> 0, active + locked
+; 9: main $FFFA -> 0, active + locked
 ; First, the flags
 	lda #$C0		; flags for active + locked (with no resource)
 	sta tSegType+0
@@ -325,7 +325,9 @@ init: !zone
 	sta tSegAdrHi+6
 	lda #$E0
 	sta tSegAdrHi+8
-	lda #$F8
+	lda #$FA
+	sta tSegAdrLo+9
+	lda #$FF
 	sta tSegAdrHi+9
 ; Finally, form a long list of the remaining unused segments.
 	ldx #10
@@ -1633,6 +1635,7 @@ outOfMemErr: !zone
 
 ;------------------------------------------------------------------------------
 reservedErr: !zone
+	jsr printMem
 	jsr inlineFatal : !text "DblAlloc", 0
 
 ;------------------------------------------------------------------------------
@@ -1803,7 +1806,7 @@ shared_scan: !zone
 +	rts
 
 invalParam: !zone
-	!if DEBUG { jsr printMem }
+	jsr printMem
 	jsr inlineFatal : !text "InvalParam", 0
 
 ;------------------------------------------------------------------------------

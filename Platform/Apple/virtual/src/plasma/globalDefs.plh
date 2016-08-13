@@ -63,8 +63,8 @@ const WITH_CLOSE     = 0
 const LEAVE_OPEN     = 1
 
 // Heap location in memory
-const HEAP_BOTTOM    = $F000
-const HEAP_SIZE      = $800
+const HEAP_BOTTOM    = $EF00
+const HEAP_SIZE      = $C00
 
 // Event code
 const EVENT_ENTER    = 1

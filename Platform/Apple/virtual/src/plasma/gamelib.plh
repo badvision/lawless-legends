@@ -16,7 +16,7 @@ import gamelib
   predef getUpperKey, clearWindow, getGlobals, rand16, printf1, printf2, printf3
   predef displayf1, displayf2, displayf3, buildString, addToString, finishString
   predef displayChar, rawDisplayStr, displayStr, rightJustifyStr, rightJustifyNum, puts
-  predef min, max, randomFromListFiltered, randomFromArray
+  predef min, max, randomFromListFiltered, randomFromArray, scanForNamedObj
   predef countList, countListFiltered, addToList, removeFromList
   predef beep, showParty, mmgr, setWindow1, setWindow2, setWindow3, reboot, brk
   predef encodeDice, rollDice, setPlural, getStringResponse
@@ -26,6 +26,7 @@ import gamelib
   predef calcPlayerArmor, diskActivity, rdkey, initHeap, scriptCombat, makeModifier
   predef giveItemToPlayer, takeItemFromPlayer, playerHasItem, getStat, setStat
   predef setGameFlag, getGameFlag, scriptSetAvatar
+  predef addPlayerToParty, removePlayerFromParty, partyHasPlayer
 
   // Shared string constants
 

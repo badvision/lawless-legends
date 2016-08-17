@@ -61,6 +61,7 @@ class A2PackPartitions
     def fixups    = [:]  // module name to fixup.num, fixup.buf
     
     def itemNameToFunc = [:]
+    def playerNameToFunc = [:]
     
     def lastSysModule
     
@@ -1752,8 +1753,10 @@ class A2PackPartitions
         // Number all the maps and record them with names
         numberMaps(dataIn)
         
-        // Form the translation from item name to function name
+        // Form the translation from item name to function name (and ditto
+        // for players)
         allItemFuncs(dataIn.global.sheets.sheet)
+        allPlayerFuncs(dataIn.global.sheets.sheet)
             
         // Pack each map This uses the image and tile maps filled earlier.
         println "Packing maps."
@@ -2100,7 +2103,7 @@ end
                     "${parseByteAttr(row, name)}))")
             }
             else if (name =~ /^item-/) {
-                def itemFunc = itemNameToFunc[val]
+                def itemFunc = itemNameToFunc[val.trim().toLowerCase()]
                 assert itemFunc : "Can't locate item '$val'"
                 out.println("  addToList(@p=>p_items, itemScripts()=>$itemFunc())")
             }
@@ -2157,9 +2160,9 @@ end
         sheets.find { it?.@name.equalsIgnoreCase("items") }.rows.row.findAll{it.@name}.each { row ->
             funcs << ["item",   "NIt_${humanNameToSymbol(row.@name, false)}", funcs.size, row] }
 
-        // Global mapping of item name to function, so that Players can create items.
+        // Global mapping of item name to function, so that give/take functions can create items.
         funcs.each { typeName, func, index, row ->
-            itemNameToFunc[row.@name.trim()] = func
+            itemNameToFunc[row.@name.trim().toLowerCase()] = func
         }
         
         // And return the funcs.
@@ -2301,7 +2304,7 @@ end
         replaceIfDiff("build/src/plasma/gen_items.pla")
     }
 
-    def genAllPlayers(sheets)
+    def allPlayerFuncs(sheets)
     {
         // Grab all the raw data
         def funcs = []
@@ -2309,6 +2312,17 @@ end
             funcs << ["NPl_${humanNameToSymbol(row.@name, false)}", funcs.size, row] 
         }
         
+        // Global mapping of player name to function, so that add/remove functions can work.
+        funcs.each { func, index, row ->
+            playerNameToFunc[row.@name.trim().toLowerCase()] = func
+        }
+    }
+        
+    def genAllPlayers(sheets)
+    {
+        // Grab all the raw data
+        def funcs = allPlayerFuncs(sheets)
+
         // Make constants for the function table
         new File("build/src/plasma/gen_players.plh.new").withWriter { out ->
             out.println("// Generated code - DO NOT MODIFY BY HAND\n")
@@ -2679,6 +2693,7 @@ end
             out << "include \"../plasma/playtype.plh\"\n"
             out << "include \"../plasma/gen_images.plh\"\n\n"
             out << "include \"../plasma/gen_items.plh\"\n\n"
+            out << "include \"../plasma/gen_players.plh\"\n\n"
             out << "word global\n"
         }
         
@@ -2871,6 +2886,10 @@ end
                         packGiveItem(blk); break
                     case 'interaction_take_item':
                         packTakeItem(blk); break
+                    case 'interaction_add_player':
+                        packAddPlayer(blk); break
+                    case 'interaction_remove_player':
+                        packRemovePlayer(blk); break
                     case 'interaction_increase_stat':
                     case 'interaction_decrease_stat':
                         packChangeStat(blk); break
@@ -2942,7 +2961,7 @@ end
         def packGiveItem(blk)
         {
             def name = getSingle(blk.field, 'NAME').text().trim()
-            def itemFunc = itemNameToFunc[name]
+            def itemFunc = itemNameToFunc[name.toLowerCase()]
             assert itemFunc : "Can't locate item '$name'"
             outIndented("giveItemToPlayer($itemFunc)\n")
         }
@@ -2950,9 +2969,23 @@ end
         def packTakeItem(blk)
         {
             def name = getSingle(blk.field, 'NAME').text().trim()
-            def itemFunc = itemNameToFunc[name]
-            assert itemFunc : "Can't locate item '$name'"
+            assert itemNameToFunc.containsKey(name.toLowerCase()) : "Can't locate item '$name'"
             outIndented("takeItemFromPlayer(${escapeString(name)})\n")
+        }
+
+        def packAddPlayer(blk)
+        {
+            def name = getSingle(blk.field, 'NAME').text().trim()
+            def playerFunc = playerNameToFunc[name.toLowerCase()]
+            assert playerFunc : "Can't locate player '$name'"
+            outIndented("addPlayerToParty($playerFunc)\n")
+        }
+        
+        def packRemovePlayer(blk)
+        {
+            def name = getSingle(blk.field, 'NAME').text().trim()
+            assert playerNameToFunc.containsKey(name.toLowerCase()) : "Can't locate player '$name'"
+            outIndented("removePlayerFromParty(${escapeString(name)})\n")
         }
 
         def nameToStat(name) {
@@ -3055,8 +3088,16 @@ end
         
         def packHasItem(blk)
         {
-            def name = getSingle(blk.field, "NAME").text()
+            def name = getSingle(blk.field, "NAME").text().trim()
+            assert itemNameToFunc.containsKey(name.toLowerCase()) : "Can't locate item '$name': $itemNameToFunc"
             out << "playerHasItem(${escapeString(name)})"
+        }
+
+        def packHasPlayer(blk)
+        {
+            def name = getSingle(blk.field, "NAME").text().trim()
+            assert playerNameToFunc.containsKey(name.toLowerCase()) : "Can't locate player '$name'"
+            out << "partyHasPlayer(${escapeString(name)})"
         }
 
         def packExpr(blk)
@@ -3082,6 +3123,9 @@ end
                     break
                 case 'interaction_has_item':
                     packHasItem(blk)
+                    break
+                case 'interaction_has_player':
+                    packHasPlayer(blk)
                     break
                 case 'interaction_get_stat':
                     packGetStat(blk)

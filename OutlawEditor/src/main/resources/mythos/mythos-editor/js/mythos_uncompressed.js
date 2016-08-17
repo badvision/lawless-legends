@@ -660,6 +660,45 @@ if (typeof Mythos === "undefined") {
                     this.setTooltip('Check if player has a given item');
                 }
             };
+            Blockly.Blocks['interaction_add_player'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Add player")
+                            .appendField(new Blockly.FieldTextInput(""), "NAME")
+                            .appendField("to party");
+                    this.setOutput(false);
+                    this.setTooltip('Add a player to the party');
+                }
+            };
+            Blockly.Blocks['interaction_remove_player'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Remove player")
+                            .appendField(new Blockly.FieldTextInput(""), "NAME")
+                            .appendField("from party");
+                    this.setOutput(false);
+                    this.setTooltip('Remove a player from the party (if possible)');
+                }
+            };
+            Blockly.Blocks['interaction_has_player'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(Blockly.Blocks.logic.HUE);
+                    this.appendDummyInput()
+                            .appendField("party has player")
+                            .appendField(new Blockly.FieldTextInput(""), "NAME");
+                    this.setOutput(true, "Boolean");
+                    this.setTooltip('Check if party has a given player');
+                }
+            };
             Blockly.Blocks['interaction_get_stat'] = {
                 init: function () {
                     this.setHelpUrl(Mythos.helpUrl);

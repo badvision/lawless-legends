@@ -2340,7 +2340,7 @@ export def payGold(amount)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def scanForNamedObj(p_obj, name)
+export def scanForNamedObj(p_obj, name)
   while p_obj
     if streqi(p_obj=>s_name, name); return p_obj; fin
     p_obj = p_obj=>p_nextObj
@@ -2349,44 +2349,70 @@ def scanForNamedObj(p_obj, name)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def giveItemToPlayer(itemFunc)
-  word p_module, funcTbl, func, p_item
+export def createAndAddUnique(moduleID, creationFuncNum, pList)
+  word p_module, funcTbl, func, p_thing
 
-  // Load the module that is capable of creating items
+  // Load the module that is capable of creating the thing
+  mmgr(FINISH_LOAD, WITH_CLOSE)
   mmgr(START_LOAD, 1) // code is in partition 1
-  p_module = mmgr(QUEUE_LOAD, MODULE_GEN_ITEMS<<8 | RES_TYPE_MODULE)
+  p_module = mmgr(QUEUE_LOAD, moduleID<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, WITH_CLOSE)
 
-  // Figure out which item function to call there, and create the item
+  // Figure out which creation function to call there, and create the thing
   funcTbl = p_module()
-  func = *(funcTbl + itemFunc)
-  p_item = func()
+  func = *(funcTbl + creationFuncNum)
+  printf1("func=$%x\n", func)
+  p_thing = func()
+  printf1("p_thing=$%x\n", p_thing)
 
-  // Avoid giving duplicate items.
-  if !scanForNamedObj(global=>p_players=>p_items, p_item=>s_name)
-    addToList(@global=>p_players=>p_items, p_item)
+  // Avoid giving duplicate things.
+  if !scanForNamedObj(*pList, p_thing=>s_name)
+    addToList(pList, p_thing)
   fin
 
-  // Finished with the item module now.
+  // Finished with the module now.
   mmgr(FREE_MEMORY, p_module)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def takeItemFromPlayer(itemName)
-  word p_player
-  word p_item
-  p_player = global=>p_players  // default to first player
-  p_item = scanForNamedObj(p_player=>p_items, itemName)
-  if p_item
-    removeFromList(@p_player=>p_items, p_item)
+export def giveItemToPlayer(itemFuncNum)
+  createAndAddUnique(MODULE_GEN_ITEMS, itemFuncNum, @global=>p_players=>p_items) // def: 1st player
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def addPlayerToParty(playerFuncNum)
+  createAndAddUnique(MODULE_GEN_PLAYERS, playerFuncNum, @global=>p_players)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def removeNamed(name, pList)
+  word p_thing
+  p_thing = scanForNamedObj(*pList, name)
+  if p_thing
+    removeFromList(pList, p_thing)
   else
-    printf1("Warning: couldn't find item '%s' to take.\n", itemName)
+    printf1("Warning: couldn't find '%s' to remove.\n", name)
   fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def takeItemFromPlayer(itemName)
+  removeNamed(itemName, @global=>p_players=>p_items) // default to first player
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def removePlayerFromParty(playerName)
+  removeNamed(playerName, @global=>p_players)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def playerHasItem(itemName)
   return scanForNamedObj(global=>p_players=>p_items, itemName) <> NULL
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def partyHasPlayer(playerName)
+  return scanForNamedObj(global=>p_players, playerName) <> NULL
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

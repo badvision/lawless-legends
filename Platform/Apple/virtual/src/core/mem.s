@@ -29,8 +29,8 @@ MAX_SEGS	= 96
 
 DO_COMP_CHECKSUMS = 0		; during compression debugging
 DEBUG_DECOMP 	= 0
-DEBUG		= 0
-SANITY_CHECK	= 0		; also prints out request data
+DEBUG		= 1
+SANITY_CHECK	= 1		; also prints out request data
 
 ; Zero page temporary variables
 tmp		= $2	; len 2
@@ -1512,14 +1512,15 @@ saneCheck: !zone {
 }
 
 saneEnd: !zone {
+	+prStr : !text "->",0
+	+prYX
 	pha
 	tya
 	pha
 	txa
 	pha
 	jsr saneCheck
-	+prChr 'm'
-	+crout
+	+prStr : !text "m.",0
 	pla
 	tax
 	pla

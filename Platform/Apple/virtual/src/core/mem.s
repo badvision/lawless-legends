@@ -29,8 +29,8 @@ MAX_SEGS	= 96
 
 DO_COMP_CHECKSUMS = 0		; during compression debugging
 DEBUG_DECOMP 	= 0
-DEBUG		= 1
-SANITY_CHECK	= 1		; also prints out request data
+DEBUG		= 0
+SANITY_CHECK	= 0		; also prints out request data
 
 ; Zero page temporary variables
 tmp		= $2	; len 2
@@ -1479,6 +1479,7 @@ aux_dispatch:
 ; Sanity check mode
 !if SANITY_CHECK {
 saneStart: !zone {
+	sta saneEnd+2	; save cmd num for end-checking
 	pha
 	tya
 	pha
@@ -1512,10 +1513,21 @@ saneCheck: !zone {
 }
 
 saneEnd: !zone {
-	+prStr : !text "->",0
-	+prYX
 	pha
-	tya
+	lda #$11	; self-modified earlier by saneStart
+	cmp #REQUEST_MEMORY
+	beq .val
+	cmp #QUEUE_LOAD
+	beq .val
+	cmp #HEAP_ALLOC
+	beq .val
+	cmp #HEAP_INTERN
+	beq .val
+	cmp #HEAP_COLLECT
+	bne .noval
+.val	+prStr : !text "->",0
+	+prYX
+.noval	tya
 	pha
 	txa
 	pha

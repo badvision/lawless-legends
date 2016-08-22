@@ -14,7 +14,7 @@ import gamelib
   predef setScriptInfo, scriptDisplayStr, scriptDisplayStrNL, getYN, queue_setMap
   predef setSky, setGround, queue_teleport, setPortrait, clearPortrait, moveWayBackward
   predef getUpperKey, clearWindow, getGlobals, rand16, printf1, printf2, printf3
-  predef displayf1, displayf2, displayf3, buildString, addToString, finishString
+  predef displayf1, displayf2, displayf3, buildString, addToString, finishString, printHex
   predef displayChar, rawDisplayStr, displayStr, rightJustifyStr, rightJustifyNum, puts
   predef min, max, randomFromListFiltered, randomFromArray, scanForNamedObj
   predef countList, countListFiltered, addToList, removeFromList

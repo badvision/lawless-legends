@@ -2081,7 +2081,9 @@ end
     
     def genPlayer(func, row, out)
     {
-        out.println("  word p")
+        out.println("  word p, itemScripts")
+        out.println("  itemScripts = mmgr(QUEUE_LOAD, MODULE_GEN_ITEMS<<8 | RES_TYPE_MODULE)")
+        out.println("  mmgr(FINISH_LOAD, 1) // 1 = keep open")
         out.println(\
             "  p = makePlayer_pt2(makePlayer_pt1(" +
             "${escapeString(parseStringAttr(row, "name"))}, " +
@@ -2096,7 +2098,7 @@ end
             "${parseByteAttr(row, "aiming")}, " +
             "${parseByteAttr(row, "hand-to-hand")}, " +
             "${parseByteAttr(row, "dodging")})")
-        row.attributes().sort().each { name, val ->
+        row.attributes().sort().eachWithIndex { name, val, idx ->
             if (name =~ /^skill-(.*)/) {
                 out.println("  addToList(@p=>p_skills, " +
                     "makeModifier(${escapeString(name.replace("skill-", ""))}, " +
@@ -2109,6 +2111,7 @@ end
             }
         }
         out.println("  calcPlayerArmor(p)")
+        out.println("  mmgr(FREE_MEMORY, itemScripts)")
         out.println "  return p"
     }
     
@@ -2344,7 +2347,7 @@ end
             out.println("include \"gen_items.plh\"")
             out.println("include \"gen_players.plh\"")
             out.println()
-            out.println("word global, itemScripts")
+            out.println("word global")
             out.println()
 
             // Pre-define all the creation functions
@@ -2398,14 +2401,10 @@ end
             
             // Code for initial party creation
             out.println("def _makeInitialParty()")
-            out.println("  itemScripts = mmgr(QUEUE_LOAD, MODULE_GEN_ITEMS<<8 | RES_TYPE_MODULE)")
-            out.println("  mmgr(FINISH_LOAD, 1) // 1 = keep open")
             funcs.each { func, index, row ->
                 if (row.@"starting-party".equalsIgnoreCase("yes"))
                     out.println("  addToList(@global=>p_players, _$func())")
             }
-            out.println("  mmgr(FREE_MEMORY, itemScripts)")
-            out.println("  itemScripts = NULL")
             out.println("end\n")
 
             // Lastly, the outer module-level code

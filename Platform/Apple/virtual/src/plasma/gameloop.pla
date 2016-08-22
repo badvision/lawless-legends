@@ -548,9 +548,13 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a 16-bit hex value
-asm printHex
+export asm printHex
   +asmPlasm 1
-  jmp _safePrhex
+  pha
+  tya
+  +safePrbyte
+  pla
+  jmp _safePrbyte
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1172,7 +1176,7 @@ export def showParty()
   clearWindow()
 
   // Display header
-  rawDisplayStr("^LName^T070Health^L\n")  // begin underline mode
+  rawDisplayStr("^LName^T066Health^L\n")  // begin underline mode
 //  rightJustifyStr("Health", CHAR_WND_LIFE_X)
 //  rawDisplayStr("^L\n")   // end underline mode
 
@@ -1181,7 +1185,7 @@ export def showParty()
   while p
     // Display the player's name and health
     displayStr(p=>s_name)
-    rawDisplayStr("^T070")
+    rawDisplayStr("^T066")
     displayStr(convertDec(p=>w_health))
     displayChar('/')
     displayStr(convertDec(p=>w_maxHealth))
@@ -2356,16 +2360,14 @@ export def createAndAddUnique(moduleID, creationFuncNum, pList)
   mmgr(FINISH_LOAD, WITH_CLOSE)
   mmgr(START_LOAD, 1) // code is in partition 1
   p_module = mmgr(QUEUE_LOAD, moduleID<<8 | RES_TYPE_MODULE)
-  mmgr(FINISH_LOAD, WITH_CLOSE)
+  mmgr(FINISH_LOAD, LEAVE_OPEN)
 
   // Figure out which creation function to call there, and create the thing
   funcTbl = p_module()
   func = *(funcTbl + creationFuncNum)
-  printf1("func=$%x\n", func)
   p_thing = func()
-  printf1("p_thing=$%x\n", p_thing)
 
-  // Avoid giving duplicate things.
+  // Avoid adding duplicate things.
   if !scanForNamedObj(*pList, p_thing=>s_name)
     addToList(pList, p_thing)
   fin
@@ -2382,6 +2384,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def addPlayerToParty(playerFuncNum)
   createAndAddUnique(MODULE_GEN_PLAYERS, playerFuncNum, @global=>p_players)
+  needShowParty = TRUE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2403,6 +2406,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def removePlayerFromParty(playerName)
   removeNamed(playerName, @global=>p_players)
+  needShowParty = TRUE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

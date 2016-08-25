@@ -3088,7 +3088,7 @@ end
         def packHasItem(blk)
         {
             def name = getSingle(blk.field, "NAME").text().trim()
-            assert itemNameToFunc.containsKey(name.toLowerCase()) : "Can't locate item '$name': $itemNameToFunc"
+            assert itemNameToFunc.containsKey(name.toLowerCase()) : "Can't locate item '$name'"
             out << "playerHasItem(${escapeString(name)})"
         }
 

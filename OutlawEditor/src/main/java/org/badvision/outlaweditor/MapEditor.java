@@ -69,6 +69,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     TileMap currentMap;
     double tileWidth = getCurrentPlatform().tileRenderer.getWidth() * zoom;
     double tileHeight = getCurrentPlatform().tileRenderer.getHeight() * zoom;
+    Color cursorAssistColor = new Color(0.2, 0.2, 1.0, 0.4);
 
     @Override
     protected void onEntityUpdated() {
@@ -154,7 +155,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         drawCanvas.setOnMouseDragReleased(this);
         drawCanvas.setOnMouseReleased(this);
         anchorPane.getChildren().add(0, drawCanvas);
-        cursorAssistant = new Rectangle(tileWidth, tileHeight, new Color(0.2, 0.2, 1.0, 0.4));
+        cursorAssistant = new Rectangle(tileWidth, tileHeight, cursorAssistColor);
         cursorAssistant.setMouseTransparent(true);
         cursorAssistant.setEffect(new Glow(1.0));
         anchorPane.getChildren().add(cursorAssistant);
@@ -497,6 +498,8 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
             cursorAssistant.setVisible(false);
         } else {
             cursorAssistant.setVisible(true);
+            cursorAssistant.setWidth(tileWidth);
+            cursorAssistant.setHeight(tileHeight);
             cursorAssistant.setTranslateX(t.getX() - (t.getX() % tileWidth));
             cursorAssistant.setTranslateY(t.getY() - (t.getY() % tileHeight));
         }

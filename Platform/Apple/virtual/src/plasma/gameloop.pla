@@ -2356,6 +2356,9 @@ end
 export def createAndAddUnique(moduleID, creationFuncNum, pList)
   word p_module, funcTbl, func, p_thing
 
+  // Unload textures to make room for the module
+  if renderLoaded; texControl(0); fin
+
   // Load the module that is capable of creating the thing
   mmgr(FINISH_LOAD, WITH_CLOSE)
   mmgr(START_LOAD, 1) // code is in partition 1
@@ -2375,6 +2378,8 @@ export def createAndAddUnique(moduleID, creationFuncNum, pList)
   // Finished with the module now.
   mmgr(FINISH_LOAD, WITH_CLOSE)
   mmgr(FREE_MEMORY, p_module)
+  
+  if renderLoaded; texControl(1); fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

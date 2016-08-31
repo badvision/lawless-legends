@@ -1283,6 +1283,7 @@ nextLdVec:	jmp diskLoader
 curPartition:	!byte 0
 partFileRef: 	!byte 0
 fixupHint:	!word 0
+bufferDigest:	!fill 4
 
 ;------------------------------------------------------------------------------
 grabSegment: !zone
@@ -2052,6 +2053,67 @@ diskLoader: !zone
 	bne +
 	rts			; do nothing
 +	jsr inlineFatal : !text "InvalCmd", 0
+
+;------------------------------------------------------------------------------
+; Calculate a digest of the file and header buffers, and store it in
+; bufferDigest.
+; Returns: Z if digest the same as last time
+calcBufferDigest: !zone
+	lda #>fileBuf
+	sta .ld1+2
+	sta .ld3+2
+	lda #>headerBuf
+	sta .ld2+2
+	sta .ld4+2
+	ldy #0
+	sty tmp
+	sty tmp+1
+	sty tmp+2
+	sty tmp+3
+	ldx #4		; sum 4 pages in each buffer
+	clc
+.sum	lda tmp
+	rol
+.ld1	adc $1000,y	; high byte self-modified earlier
+	sta tmp
+
+	lda tmp+1
+	rol
+.ld2	adc $1000,y	; high byte self-modified earlier
+	sta tmp+1
+
+	lda tmp+2
+	rol
+.ld3	adc $1080,y	; high byte self-modified earlier
+	sta tmp+2
+
+	lda tmp+3
+	rol
+.ld4	adc $1080,y	; high byte self-modified earlier
+	sta tmp+3
+
+	iny
+	bpl .sum	; bpl = 128 times through the loop
+
+	inc .ld1+2	; go to next page
+	inc .ld2+2
+	inc .ld3+2
+	inc .ld4+2
+	dex
+	bne .ld1
+
+	; Now compare with the old digest, and replace the old digest.
+.cmp	ldy #0
+	ldx #3
+-	lda tmp,x
+	cmp bufferDigest,x
+	beq +
+	iny
++	sta bufferDigest,x
+	dex
+	bpl -
+	cpy #0	; Y=0 if new digest equals old digest
+	rts
 
 ;------------------------------------------------------------------------------
 openPartition: !zone

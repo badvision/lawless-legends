@@ -2373,6 +2373,7 @@ export def createAndAddUnique(moduleID, creationFuncNum, pList)
   fin
 
   // Finished with the module now.
+  mmgr(FINISH_LOAD, WITH_CLOSE)
   mmgr(FREE_MEMORY, p_module)
 end
 

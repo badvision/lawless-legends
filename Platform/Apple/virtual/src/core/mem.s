@@ -203,11 +203,6 @@ relocate:
 	inx
 	cpx #>(hiMemEnd+$100)
 	bne .cpmm
-	lda .st4+2
-	cmp #$E0
-	bcc +
-	+internalErr 'N' ; mem mgr got too big!
-+
 	; fall through into init...
 
 ;------------------------------------------------------------------------------
@@ -833,156 +828,8 @@ closeFileRef:	!byte 0		; file ref to close
 getPfxParams:	!byte 1		; param count
 getPfxAddr:	!word 0		; pointer to buffer
 
-multiDiskMode:	!byte 0		; hardcoded to YES for now
-
-;------------------------------------------------------------------------------
-; Heap management variables
-MAX_TYPES 	= 16
-
-nTypes		!byte 0
-typeTblL	!fill MAX_TYPES
-typeTblH	!fill MAX_TYPES
-typeLen		!fill MAX_TYPES		; length does not include type byte
-
-heapStartPg	!byte 0
-heapEndPg	!byte 0
-heapTop		!word 0
-gcHash_top	!byte 0
-
 ;------------------------------------------------------------------------------
 ; Heap management routines
-
-;------------------------------------------------------------------------------
-; Establish a new heap
-heapSet: !zone
-	txa		; addr must be page-aligned
-	beq +
-.inval	jmp invalParam
-+	lda isAuxCmd
-	bne .inval	; must be in main mem
-	sec		; check for valid
-	jsr shared_scan
-	lda tSegAdrLo,y	; end must also be page-aligned
-	bne .inval
-	; Good to go. Record the start and end pages
-	lda pTmp+1
-	sta heapStartPg
-	tax
-	sta heapTop+1
-	lda tSegAdrHi,y
-	sta heapEndPg
-	ldy #0
-	sta heapTop
-	sty nTypes
-	lda targetAddr+1	; see if heap top was specified
-	beq +			; no, default to empty heap
-	tax			; yes, use specified address
-	ldy targetAddr
-+	stx heapTop+1		; set heap top
-	sty heapTop
-	; fall through to:
-; Zero memory heapTop.heapEnd
-heapClr: !zone
-	lda #0
-	ldx heapTop
-	ldy heapTop+1
-.pg	sty .st+2
-.st	sta $1000,x	; self-modified above
-	inx
-	bne .st
-	iny
-	cpy heapEndPg
-	bne .pg
-	rts
-
-;------------------------------------------------------------------------------
-; Set the table for the next type in order. Starts with type $80, then $81, etc.
-; By convention, type $80 is used for the Global object, from which all other
-; live objects are reachable (and invalid garbage if not reachable from there).
-;
-; x=ptr lo, y = ptr hi. 
-; Tbl: type size 01-7F including type byte, 
-;      then (byte) offsets of ptrs 01-7F within type, 
-;      then 0.
-heapAddType: !zone
-	tya		; save addr hi
-	ldy nTypes
-	cpy #MAX_TYPES
-	bmi +
-	+internalErr 'T'
-+	sta typeTblH,y	; addr hi
-	sta .ld+2
-	txa		; addr lo
-	sta typeTblL,y
-.ld	lda $1000,x	; self-modified above: fetch length byte
-	sec
-	sbc #1		; adjust to be like a string, in that it doesn't include type byte itself
-	sta typeLen,y	; save that too
-	inc nTypes	; bump type count
-	rts
-
-; Allocate a block on the heap. X = $00.7F for string block, $80.FF for a typed obj.
-; And yes, type $80 is valid (conventionally used for the Global Object).
-; And yes, string length $00 is valid (it's an empty string).
-heapAlloc: !zone
-	lda heapTop
-	sta pSrc
-	lda heapTop+1
-	sta pSrc+1
-	ldy #0
-	txa
-	sta (pSrc),y	; save obj type or string len on heap
-	bpl .gotlen
-	lda typeLen-$80,x
-.gotlen	ldy pSrc+1
-	sec		; add 1 to include type byte or len byte for strings
-	adc pSrc
-	bcc +
-	iny
-	cpy heapEndPg
-	bcs .needgc
-+	sta heapTop
-	sty heapTop+1
-retPSrc:
-	ldx pSrc	; return ptr in X=lo/Y=hi
-	ldy pSrc+1
-	rts
-.needgc	jsr inlineFatal : !text "NeedCollect",0
-
-; Re-use existing string or allocate new and copy.
-heapIntern: !zone
-	stx pTmp
-	sty pTmp+1
-	jsr startHeapScan
-	bcs .notfnd	; handle case of empty heap
-.blklup	bvs .nxtblk
-	; it's a string
-	inx		; +1 to compare length byte also
-.stlup	lda (pTmp),y	; compare string bytes until non-matching (or all bytes done)
-	cmp (pSrc),y
-	bne .nxtblk
-	iny
-	dex
-	bne .stlup
-	; found a match!
-.found	beq retPSrc
-	; advance to next heap block
-.nxtblk	jsr nextHeapBlk
-	bcc .blklup	; go process next block
-.notfnd	lda (pTmp),y	; get string length
-	pha		; save it
-	tax
-	jsr heapAlloc	; make space for it
-	pla		; string length back
-	tax
-	inx		; add 1 to copy length byte also
-	ldy #0
-.cplup	lda (pTmp),y	; copy the string's characters
-	sta (pSrc),y
-	iny
-	dex
-	bne .cplup
-	beq .found	; always taken
 
 ; Check if blk pSrc is in GC hash; optionally add it if not.
 ; Input : pSrc = blk to check/add
@@ -1284,6 +1131,21 @@ curPartition:	!byte 0
 partFileRef: 	!byte 0
 fixupHint:	!word 0
 bufferDigest:	!fill 4
+multiDiskMode:	!byte 0		; hardcoded to YES for now
+
+;------------------------------------------------------------------------------
+; Heap management variables
+MAX_TYPES 	= 16
+
+nTypes		!byte 0
+typeTblL	!fill MAX_TYPES
+typeTblH	!fill MAX_TYPES
+typeLen		!fill MAX_TYPES		; length does not include type byte
+
+heapStartPg	!byte 0
+heapEndPg	!byte 0
+heapTop		!word 0
+gcHash_top	!byte 0
 
 ;------------------------------------------------------------------------------
 grabSegment: !zone
@@ -2970,9 +2832,142 @@ doAllFixups: !zone
 glibBase  !word $1111
 
 ;------------------------------------------------------------------------------
-; Segment tables
+; More heap management routines
 
-!if DEBUG { !align 255,0 }
+;------------------------------------------------------------------------------
+; Establish a new heap
+heapSet: !zone
+	txa		; addr must be page-aligned
+	beq +
+.inval	jmp invalParam
++	lda isAuxCmd
+	bne .inval	; must be in main mem
+	sec		; check for valid
+	jsr shared_scan
+	lda tSegAdrLo,y	; end must also be page-aligned
+	bne .inval
+	; Good to go. Record the start and end pages
+	lda pTmp+1
+	sta heapStartPg
+	tax
+	sta heapTop+1
+	lda tSegAdrHi,y
+	sta heapEndPg
+	ldy #0
+	sta heapTop
+	sty nTypes
+	lda targetAddr+1	; see if heap top was specified
+	beq +			; no, default to empty heap
+	tax			; yes, use specified address
+	ldy targetAddr
++	stx heapTop+1		; set heap top
+	sty heapTop
+	; fall through to:
+; Zero memory heapTop.heapEnd
+heapClr: !zone
+	lda #0
+	ldx heapTop
+	ldy heapTop+1
+.pg	sty .st+2
+.st	sta $1000,x	; self-modified above
+	inx
+	bne .st
+	iny
+	cpy heapEndPg
+	bne .pg
+	rts
+
+;------------------------------------------------------------------------------
+; Set the table for the next type in order. Starts with type $80, then $81, etc.
+; By convention, type $80 is used for the Global object, from which all other
+; live objects are reachable (and invalid garbage if not reachable from there).
+;
+; x=ptr lo, y = ptr hi. 
+; Tbl: type size 01-7F including type byte, 
+;      then (byte) offsets of ptrs 01-7F within type, 
+;      then 0.
+heapAddType: !zone
+	tya		; save addr hi
+	ldy nTypes
+	cpy #MAX_TYPES
+	bmi +
+	+internalErr 'T'
++	sta typeTblH,y	; addr hi
+	sta .ld+2
+	txa		; addr lo
+	sta typeTblL,y
+.ld	lda $1000,x	; self-modified above: fetch length byte
+	sec
+	sbc #1		; adjust to be like a string, in that it doesn't include type byte itself
+	sta typeLen,y	; save that too
+	inc nTypes	; bump type count
+	rts
+
+; Allocate a block on the heap. X = $00.7F for string block, $80.FF for a typed obj.
+; And yes, type $80 is valid (conventionally used for the Global Object).
+; And yes, string length $00 is valid (it's an empty string).
+heapAlloc: !zone
+	lda heapTop
+	sta pSrc
+	lda heapTop+1
+	sta pSrc+1
+	ldy #0
+	txa
+	sta (pSrc),y	; save obj type or string len on heap
+	bpl .gotlen
+	lda typeLen-$80,x
+.gotlen	ldy pSrc+1
+	sec		; add 1 to include type byte or len byte for strings
+	adc pSrc
+	bcc +
+	iny
+	cpy heapEndPg
+	bcs .needgc
++	sta heapTop
+	sty heapTop+1
+retPSrc:
+	ldx pSrc	; return ptr in X=lo/Y=hi
+	ldy pSrc+1
+	rts
+.needgc	jsr inlineFatal : !text "NeedCollect",0
+
+; Re-use existing string or allocate new and copy.
+heapIntern: !zone
+	stx pTmp
+	sty pTmp+1
+	jsr startHeapScan
+	bcs .notfnd	; handle case of empty heap
+.blklup	bvs .nxtblk
+	; it's a string
+	inx		; +1 to compare length byte also
+.stlup	lda (pTmp),y	; compare string bytes until non-matching (or all bytes done)
+	cmp (pSrc),y
+	bne .nxtblk
+	iny
+	dex
+	bne .stlup
+	; found a match!
+.found	beq retPSrc
+	; advance to next heap block
+.nxtblk	jsr nextHeapBlk
+	bcc .blklup	; go process next block
+.notfnd	lda (pTmp),y	; get string length
+	pha		; save it
+	tax
+	jsr heapAlloc	; make space for it
+	pla		; string length back
+	tax
+	inx		; add 1 to copy length byte also
+	ldy #0
+.cplup	lda (pTmp),y	; copy the string's characters
+	sta (pSrc),y
+	iny
+	dex
+	bne .cplup
+	beq .found	; always taken
+
+;------------------------------------------------------------------------------
+; Segment tables
 
 tSegLink	!fill MAX_SEGS
 tSegType	!fill MAX_SEGS
@@ -2983,6 +2978,11 @@ tSegAdrHi	!fill MAX_SEGS
 ;------------------------------------------------------------------------------
 ; Marker for end of the tables, so we can compute its length
 tableEnd = *
+
+; Be careful not to grow past the size of the LC bank
+!if tableEnd > $DFFF {
+	!error "Memory manager grew too large."
+}
 
 } ; end of !pseudopc $D000
 hiMemEnd = *

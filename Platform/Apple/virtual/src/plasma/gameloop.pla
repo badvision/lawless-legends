@@ -65,6 +65,7 @@ word totalMapHeight
 byte needRender = FALSE
 byte needShowParty = FALSE
 byte renderLoaded = FALSE
+byte texturesLoaded = FALSE
 byte textDrawn = FALSE
 byte isPlural = FALSE
 
@@ -1189,8 +1190,9 @@ export def showParty()
     displayStr(convertDec(p=>w_health))
     displayChar('/')
     displayStr(convertDec(p=>w_maxHealth))
-    displayChar('\n')
     p = p=>p_nextObj
+    // Newline after data, except last character
+    if p; displayChar('\n'); fin
   loop
 
   // Finish up
@@ -1259,6 +1261,7 @@ def initMap(x, y, dir)
   triggerTbl = NULL
   setWindow2()
   initDisplay(mapNum, pMap, x, y, dir)
+  texturesLoaded = TRUE
   needRender = FALSE
   textDrawn = FALSE
   curPortrait = 0
@@ -1337,14 +1340,19 @@ def checkScripts(x, y)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+export def unloadTextures()
+  if renderLoaded and texturesLoaded
+    texControl(0)
+    texturesLoaded = FALSE
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display a portrait drawing (typically called from scripts)
 export def clearPortrait()
   if curPortrait
     auxMmgr(FREE_MEMORY, curPortrait)
     curPortrait = 0
-    if renderLoaded
-      texControl(1) // 1=load
-    fin
     needRender = TRUE
   fin
 end
@@ -1353,6 +1361,15 @@ end
 // Perform rendering, copy if necessary, clear appropriate flags
 def doRender()
   if curPortrait; clearPortrait(); fin
+  if !texturesLoaded
+    if mapIs3D
+      flipToPage1()
+      diskActivity($FF)
+      texControl(1)
+      diskActivity(0)
+    fin
+    texturesLoaded = TRUE
+  fin
   render()
   if textDrawn and mapIs3D; copyWindow(); fin
   needRender = FALSE
@@ -1732,9 +1749,7 @@ export def setPortrait(portraitNum)
   saveCursor()
 
   // Make room by unloading the textures (only if renderer is loaded)
-  if renderLoaded
-    texControl(0)
-  fin
+  unloadTextures()
 
   // Now clear out the map area
   setMapWindow()
@@ -2357,13 +2372,16 @@ export def createAndAddUnique(moduleID, creationFuncNum, pList)
   word p_module, funcTbl, func, p_thing
 
   // Unload textures to make room for the module
-  if renderLoaded; texControl(0); fin
+  unloadTextures()
 
   // Load the module that is capable of creating the thing
+  flipToPage1()
+  diskActivity($FF)
   mmgr(FINISH_LOAD, WITH_CLOSE)
   mmgr(START_LOAD, 1) // code is in partition 1
   p_module = mmgr(QUEUE_LOAD, moduleID<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, LEAVE_OPEN)
+  diskActivity(0)
 
   // Figure out which creation function to call there, and create the thing
   funcTbl = p_module()
@@ -2378,8 +2396,6 @@ export def createAndAddUnique(moduleID, creationFuncNum, pList)
   // Finished with the module now.
   mmgr(FINISH_LOAD, WITH_CLOSE)
   mmgr(FREE_MEMORY, p_module)
-  
-  if renderLoaded; texControl(1); fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

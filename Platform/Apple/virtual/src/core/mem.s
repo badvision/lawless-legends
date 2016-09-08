@@ -29,8 +29,8 @@ MAX_SEGS	= 96
 
 DO_COMP_CHECKSUMS = 0		; during compression debugging
 DEBUG_DECOMP 	= 0
-DEBUG		= 0
-SANITY_CHECK	= 0		; also prints out request data
+DEBUG		= 1
+SANITY_CHECK	= 1		; also prints out request data
 
 ; Zero page temporary variables
 tmp		= $2	; len 2
@@ -1099,9 +1099,20 @@ gc2_sweep: !zone
 	sta heapTop+1
 	rts
 
+closePartFile: !zone
+	lda partFileRef		; close the partition file
+	beq .done
+	!if DEBUG { +prStr : !text "Closing part file.",0 }
+	jsr closeFile
+	lda #0			; zero out...
+	sta partFileRef		; ... the file reference so we know it's no longer open
+.done	rts
+
 heapCollect: !zone
-	lda partFileRef		; check if the buffer space is already in use
-	bne .partOpen
+	; can't collect why anything queued for load
+	lda nSegsQueued
+	bne .unfin
+	jsr closePartFile
 	jsr gc1_mark		; mark reachable blocks
 	jsr gc2_sweep		; sweep them into one place
 	jsr gc3_fix		; adjust all pointers
@@ -1109,8 +1120,7 @@ heapCollect: !zone
 	ldx heapTop		; return new top-of-heap in x=lo/y=hi
 	ldy heapTop+1
 	rts
-.partOpen:
-	jsr inlineFatal : !text "NdClose",0
+.unfin:	jsr inlineFatal : !text "NdFinish",0
 
 lastLoMem = *
 } ; end of !pseodupc $800
@@ -1129,6 +1139,7 @@ segNum:		!byte 0
 nextLdVec:	jmp diskLoader
 curPartition:	!byte 0
 partFileRef: 	!byte 0
+nSegsQueued:	!byte 0
 fixupHint:	!word 0
 bufferDigest:	!fill 4
 multiDiskMode:	!byte 0		; hardcoded to YES for now
@@ -1932,7 +1943,7 @@ calcBufferDigest: !zone
 	sty tmp+1
 	sty tmp+2
 	sty tmp+3
-	ldx #4		; sum 4 pages in each buffer
+	ldx #6		; sum 6 pages in each buffer - covers first part of heap collect zone also
 	clc
 .sum	lda tmp
 	rol
@@ -1955,7 +1966,8 @@ calcBufferDigest: !zone
 	sta tmp+3
 
 	iny
-	bpl .sum	; bpl = 128 times through the loop
+	iny
+	bpl .sum	; every even offset 0..126
 
 	inc .ld1+2	; go to next page
 	inc .ld2+2
@@ -2092,17 +2104,17 @@ prodosError: !zone
 
 ;------------------------------------------------------------------------------
 disk_startLoad: !zone
-; Make sure we don't get start without finish
 	txa
 	beq sequenceError	; partition zero is illegal
-	cpx curPartition	; ok to open same partition twice without close
-	beq .nop
-	lda curPartition
-	bne sequenceError	; error to open new partition without closing old
-; Just record the partition number; it's possible we won't actually be asked
-; to queue anything, so we should put off opening the file.
-	stx curPartition
-.nop	rts
+	cpx curPartition	; switching partition?
+	stx curPartition	;  (and store the new part num in any case)
+	bne .new		; if different, close the old one
+	lda partFileRef
+	beq .done		; if nothing already open, we're okay with that.
+	jsr calcBufferDigest	; same partition - check that buffers are still intact
+	beq .done		; if correct partition file already open, we're done.
+.new	jsr closePartFile
+.done	rts
 
 ;------------------------------------------------------------------------------
 startHeaderScan: !zone
@@ -2117,6 +2129,7 @@ startHeaderScan: !zone
 disk_queueLoad: !zone
 	stx resType		; save resource type
 	sty resNum		; and resource num
+	inc nSegsQueued		; record the fact that we're queuing a seg
 	lda partFileRef		; check if we've opened the file yet
 	bne +			; yes, don't re-open
 	jsr openPartition	; open the partition file
@@ -2181,14 +2194,10 @@ disk_queueLoad: !zone
 .resLen: !byte 0
 ;------------------------------------------------------------------------------
 disk_finishLoad: !zone
-	stx .keepOpenChk+1	; store flag telling us whether to keep open (1) or close (0)
-	lda partFileRef		; see if we actually queued anything (and opened the file)
-	bne .work		; non-zero means we have work to do
-	txa
-	bne +
-	sta curPartition	; if "closing", clear the partition number
-+	rts			; nothing to do - return immediately
-.work	sta setMarkFileRef	; copy the file ref number to our MLI param blocks
+	lda nSegsQueued		; see if we actually queued anything
+	beq .done		; if nothing queued, we're done
+	lda partFileRef
+	sta setMarkFileRef	; copy the file ref number to our MLI param blocks
 	sta readFileRef
 	lda headerBuf		; grab # header bytes
 	sta setMarkPos		; set to start reading at first non-header byte in file
@@ -2199,22 +2208,17 @@ disk_finishLoad: !zone
 	sta .nFixups
 	jsr startHeaderScan	; start scanning the partition header
 .scan:	lda (pTmp),y		; get resource type byte
-	bne .notEnd		; non-zero = not end of header
-	; end of header. Check if we need to close the file.
-.keepOpenChk:
-	lda #11			; self-modified to 0 or 1 at start of routine
-	bne +			; 1 means leave open, 0 means close
-	!if DEBUG { +prStr : !text "Closing partition file.",0 }
-	lda partFileRef		; close the partition file
-	jsr closeFile
-	lda #0			; zero out...
-	sta partFileRef		; ... the file reference so we know it's no longer open
-	sta curPartition	; ... and the partition number
-+	lda .nFixups		; any fixups encountered?
-	beq +
+	bne .notdone		; zero = end of header
+	; At the end, record new buffer digest, and perform all fixups
+	jsr calcBufferDigest
+	lda .nFixups		; any fixups encountered?
+	beq .done
 	jsr doAllFixups		; found fixups - execute and free them
-+	rts
-.notEnd	bmi .load		; hi bit set -> queued for load
+.done	lda #0
+	sta nSegsQueued		; we loaded everything, so record that fact
+	rts
+.notdone:
+	bmi .load		; hi bit set -> queued for load
 	iny			; not set, not queued, so skip over it
 	iny
 	bne .next

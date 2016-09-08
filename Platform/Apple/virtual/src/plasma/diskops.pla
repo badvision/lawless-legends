@@ -103,43 +103,43 @@ pTmp        = $4
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Copy entire heap (Aux LC $D000.DFFF) to or from main $4000.4FFF
-asm copyHeap   // params: dir (0=AuxtoMain, 1=MainToAux)
-        +asmPlasm_bank2 1
-        lsr         ; direction bit to carry flag
-        lda #$40
-        bcs +
-        lda #$EF    ; $EF00 is start of heap (right after font engine)
-+       sta tmp+1
-        eor #$AF    ; $EF -> $40, $F0 -> $41, etc.
-        sta pTmp+1
-        ldy #0
-        sty tmp
-        sty pTmp
-        ldx #$C
--       lda (tmp),y
-        sta (pTmp),y
-        iny
-        bne -
-        inc tmp+1
-        inc pTmp+1
-        dex
-        bne -
-        rts
+// Copy entire heap (main LC $EF00.FAFF) to or from main low mem $5000.5BFF
+asm copyHeap   // params: dir (0=LCtoMain, 1=MainToLC)
+  +asmPlasm 1
+  lsr         ; direction bit to carry flag
+  lda #$50
+  bcs +
+  lda #$EF    ; $EF00 is start of heap (right after font engine)
++ sta tmp+1
+  eor #$BF    ; $EF -> $50, $F0 -> $51, etc.
+  sta pTmp+1
+  ldy #0
+  sty tmp
+  sty pTmp
+  ldx #12     ; Heap is 12 pages
+- lda (tmp),y
+  sta (pTmp),y
+  iny
+  bne -
+  inc tmp+1
+  inc pTmp+1
+  dex
+  bne -
+  rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 asm mliStub 
-    ; call MLI directly. Caller is expected to modify the command and param vectors
-    ; before calling.
-    +asmPlasm 0   ; bytes 0-4
-    jsr mli       ; bytes 5-7
-    !byte 0       ; byte  8
-    !word 0       ; bytes 9-10
-    bcs +
-    lda #0
-+   bit setLcRW+lcBank2 ; Our crazy aux ProDOS stub doesn't preserve the LC bank; put PLASMA back.
-    rts
+  ; call MLI directly. Caller is expected to modify the command and param vectors
+  ; before calling.
+  +asmPlasm 0   ; bytes 0-4
+  jsr mli       ; bytes 5-7
+  !byte 0       ; byte  8
+  !word 0       ; bytes 9-10
+  bcs +
+  lda #0
++ bit setLcRW+lcBank2 ; Our crazy aux ProDOS stub doesn't preserve the LC bank; put PLASMA back.
+  rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -181,11 +181,11 @@ def _saveGame()
   // Copy data to main memory
   showMapName("Saving game...")
   diskActivity($FF)
-  copyHeap(0)  // aux to main
+  copyHeap(0)  // LC to low mem
 
   // Open the file if it already exists...
   open_filename = @game1_filename
-  open_buffer = $5000
+  open_buffer = $5C00
   if callMLI(MLI_OPEN, @open_params) > 0
     create_filename = open_filename
     create_accessbits = $C3  // full access
@@ -200,7 +200,7 @@ def _saveGame()
 
   // Write the game data to it
   write_fileref = open_fileref
-  write_addr = $4000
+  write_addr = $5000
   write_length = HEAP_SIZE
   guaranteeMLI(MLI_WRITE, @write_params)
 
@@ -212,17 +212,16 @@ end
 
 def loadInternal()
   word p_loaded
-  mmgr(FINISH_LOAD, WITH_CLOSE)
 
   // Open the file. If that fails, return FALSE (instead of halting)
   open_filename = @game1_filename
-  open_buffer = $5000
+  open_buffer = $5C00
   if callMLI(MLI_OPEN, @open_params) > 0; return FALSE; fin
 
   // Read the game data from it
   read_fileref = open_fileref
-  read_addr = $4000
-  read_length = $800 // FIXME
+  read_addr = $5000
+  read_length = HEAP_SIZE
   guaranteeMLI(MLI_READ, @read_params)
 
   // All done with the file
@@ -230,8 +229,11 @@ def loadInternal()
   guaranteeMLI(MLI_CLOSE, @close_params)
 
   // Copy the heap up, and init it with the correct size.
-  p_loaded = $4000
-  copyHeap(1)  // main to aux
+  p_loaded = $5000
+  if p_loaded=>w_heapSize < 100 or p_loaded=>w_heapSize > HEAP_SIZE
+    fatal("Corrupt game file.")
+  fin
+  copyHeap(1)  // low mem to LC
   initHeap(p_loaded=>w_heapSize)
   global = getGlobals()
   return TRUE
@@ -239,6 +241,8 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def _loadGame()
+  setMapWindow()
+  clearWindow()
   diskActivity($FF)
   showMapName("Loading game...")
 

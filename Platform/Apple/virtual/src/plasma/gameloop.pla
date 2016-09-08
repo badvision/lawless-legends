@@ -2389,6 +2389,7 @@ export def createAndAddUnique(moduleID, creationFuncNum, pList)
 
   // Finished with the module now.
   mmgr(FREE_MEMORY, p_module)
+  return p_thing
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2398,7 +2399,9 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def addPlayerToParty(playerFuncNum)
-  createAndAddUnique(MODULE_GEN_PLAYERS, playerFuncNum, @global=>p_players)
+  word p
+  p = createAndAddUnique(MODULE_GEN_PLAYERS, playerFuncNum, @global=>p_players)
+  p->b_playerFlags = p->b_playerFlags | PLAYER_FLAG_NPC
   needShowParty = TRUE
 end
 

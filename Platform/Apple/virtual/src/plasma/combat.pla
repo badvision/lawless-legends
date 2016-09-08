@@ -327,6 +327,9 @@ def enemyCombatTurn(pe)
 
   // Roll to hit
   roll = rand16() % 100
+  // TODO: consider player dodge
+  // TODO: consider player agility
+  // TODO: consider player skills
   if roll <= pe->b_chanceToHit
     dam = rollDice(pe=>r_enemyDmg)
     printf1("and hits for %d damage!", dam)

@@ -1065,10 +1065,8 @@ end
 export def setSky(num)
   // hack for end-game screen
   if num == 99
-    mmgr(START_LOAD, 1)
     flipToPage1()
     loadFrameImg(4)
-    mmgr(FINISH_LOAD, WITH_CLOSE)
     while 1; loop  // 1 infinite loop
   fin
   skyNum = num
@@ -1107,6 +1105,7 @@ def loadFrameImg(img)
     mmgr(SET_MEM_TARGET, $2000)
     mmgr(QUEUE_LOAD,     img<<8 | RES_TYPE_SCREEN)
     mmgr(LOCK_MEMORY,    $2000)
+    mmgr(FINISH_LOAD, 0)
     frameLoaded = img
   fin
 end
@@ -1226,11 +1225,10 @@ def initMap(x, y, dir)
   else
     mmgr(QUEUE_LOAD, CODE_TILE_ENGINE<<8 | RES_TYPE_CODE)
   fin
-  mmgr(FINISH_LOAD, LEAVE_OPEN)
+  mmgr(FINISH_LOAD, 0)
   renderLoaded = TRUE
   diskActivity(0)
   loadFrameImg(mapIs3D+2)
-  mmgr(FINISH_LOAD, WITH_CLOSE)
 
   // Load the map
   diskActivity($FF)
@@ -1240,7 +1238,7 @@ def initMap(x, y, dir)
   else
     pMap = mmgr(QUEUE_LOAD, mapNum<<8 | RES_TYPE_2D_MAP)
   fin
-  mmgr(FINISH_LOAD, LEAVE_OPEN)
+  mmgr(FINISH_LOAD, 0)
   diskActivity(0)
 
   // Clear all the windows to the background color (hi-bit set)
@@ -1525,7 +1523,6 @@ def setMap(is3D, num, x, y, dir)
     needRender = TRUE
   else
     flipToPage1()
-    mmgr(FINISH_LOAD, WITH_CLOSE)
     showMapName("Traveling...")
     setMapWindow(); clearWindow()
     setWindow2();   clearWindow()
@@ -1763,7 +1760,7 @@ export def setPortrait(portraitNum)
   diskActivity($FF)
   mmgr(START_LOAD, 2) // portraits are in partition 2
   curPortrait = auxMmgr(QUEUE_LOAD, portraitNum<<8 | RES_TYPE_PORTRAIT)
-  mmgr(FINISH_LOAD, WITH_CLOSE)
+  mmgr(FINISH_LOAD, 0)
   diskActivity(0)
   animFrame = 0
   animFlags = readAuxByte(curPortrait)
@@ -1871,7 +1868,6 @@ def loadEngine(moduleNum)
   saveMapPos()
   flipToPage1()
   diskActivity($FF)
-  mmgr(FINISH_LOAD, WITH_CLOSE)
   if renderLoaded and mapIs3D
     auxMmgr(FREE_MEMORY, expandVec)
   fin
@@ -1881,7 +1877,7 @@ def loadEngine(moduleNum)
   curPortrait = NULL
   mmgr(START_LOAD, 1) // code is in partition 1
   p_engine = mmgr(QUEUE_LOAD, moduleNum<<8 | RES_TYPE_MODULE)
-  mmgr(FINISH_LOAD, LEAVE_OPEN)  // fairly safe, I think?
+  mmgr(FINISH_LOAD, 0)
   diskActivity(0)
   return p_engine()  // return function table
 end
@@ -2124,10 +2120,9 @@ def addItem()
 
   if n_item >= 2
     // Load the module that is capable of creating items
-    mmgr(FINISH_LOAD, WITH_CLOSE)
     mmgr(START_LOAD, 1) // code is in partition 1
     p_module = mmgr(QUEUE_LOAD, MODULE_GEN_ITEMS<<8 | RES_TYPE_MODULE)
-    mmgr(FINISH_LOAD, WITH_CLOSE)
+    mmgr(FINISH_LOAD, 0)
 
     // Figure out which item function to call there, and create the item
     funcTbl = p_module()
@@ -2238,7 +2233,7 @@ def loadTitle()
   mmgr(SET_MEM_TARGET, $2000)
   mmgr(QUEUE_LOAD,     1<<8 | RES_TYPE_SCREEN)  // title screen is fixed at #1
   mmgr(LOCK_MEMORY,    $2000)
-  mmgr(FINISH_LOAD, LEAVE_OPEN)
+  mmgr(FINISH_LOAD,    0)
   frameLoaded = 1
   ^$C050     // graphics
   ^$C057     // hi-res
@@ -2257,7 +2252,7 @@ def loadTitle()
   mmgr(SET_MEM_TARGET, $9000)
   pFont = mmgr(QUEUE_LOAD, 1<<8 | RES_TYPE_FONT)
   mmgr(LOCK_MEMORY, pFont)
-  mmgr(FINISH_LOAD, LEAVE_OPEN)
+  mmgr(FINISH_LOAD, 0)
 
   // Tell the font engine where to find its font
   setFont(pFont)
@@ -2377,10 +2372,9 @@ export def createAndAddUnique(moduleID, creationFuncNum, pList)
   // Load the module that is capable of creating the thing
   flipToPage1()
   diskActivity($FF)
-  mmgr(FINISH_LOAD, WITH_CLOSE)
   mmgr(START_LOAD, 1) // code is in partition 1
   p_module = mmgr(QUEUE_LOAD, moduleID<<8 | RES_TYPE_MODULE)
-  mmgr(FINISH_LOAD, LEAVE_OPEN)
+  mmgr(FINISH_LOAD, 0)
   diskActivity(0)
 
   // Figure out which creation function to call there, and create the thing
@@ -2394,7 +2388,6 @@ export def createAndAddUnique(moduleID, creationFuncNum, pList)
   fin
 
   // Finished with the module now.
-  mmgr(FINISH_LOAD, WITH_CLOSE)
   mmgr(FREE_MEMORY, p_module)
 end
 
@@ -2525,7 +2518,7 @@ def startGame(ask)
   // Create a new game or load an existing one
   mmgr(START_LOAD, 1) // code is in partition 1
   p_module = mmgr(QUEUE_LOAD, MODULE_DISKOPS<<8 | RES_TYPE_MODULE)
-  mmgr(FINISH_LOAD, LEAVE_OPEN)
+  mmgr(FINISH_LOAD, 0)
   if p_module()=>diskops_newOrLoadGame(ask)
     mapIs3D = q_mapIs3D
     mapNum = q_mapNum

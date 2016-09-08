@@ -1643,7 +1643,6 @@ loadTextures: !zone
 	; finalize the load, and close the queue because textures are the last thing
 	; to load.
 	lda #FINISH_LOAD
-	ldx #0
 	jsr mainLoader
 	; finally, init the scripts.
 	pla

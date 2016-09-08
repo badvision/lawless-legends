@@ -426,7 +426,7 @@ def makeRandomGroup(mapCode)
   word enemyFunc
 
   enemiesModule = mmgr(QUEUE_LOAD, MODULE_GEN_ENEMIES<<8 | RES_TYPE_MODULE)
-  mmgr(FINISH_LOAD, WITH_CLOSE)
+  mmgr(FINISH_LOAD, 0)
 
   global=>p_enemyGroups = NULL
   enemyFunc = enemiesModule()=>enemy_forZone(mapCode)

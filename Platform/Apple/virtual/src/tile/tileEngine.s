@@ -285,7 +285,6 @@ LOAD_ALL_TILES
 }
 
 !macro finishLoad keepOpen {
-       LDX #keepOpen   ; 1 to keep open for next load, 0 for close so you can flip to HGR page 2
        LDA #FINISH_LOAD
        JSR mainLoader
 }

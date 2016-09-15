@@ -89,6 +89,11 @@ word q_x = 0
 word q_y = 0
 byte q_dir = 0
 
+// Script tracking
+const MAX_MAP_SCRIPTS = 4
+byte nMapScripts = 0
+word mapScripts[MAX_MAP_SCRIPTS]
+
 // For decimal conversion and display tabbing
 byte decimalBuf[7]
 byte tabBuf[5]
@@ -117,6 +122,7 @@ export byte[] S_HAND_TO_HAND = "hand to hand"
 export byte[] S_DODGING = "dodging"
 export byte[] S_GOLD = "gold"
 export byte[] S_ENTER = "enter"
+export byte[] S_LEAVE = "leave"
 export byte[] S_USE = "use"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1202,6 +1208,82 @@ export def showParty()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def getArgCount(pFunc)
+  word pBytecode
+
+  // skip over JMP to plasma interp, get addr in aux mem
+  pBytecode = pFunc=>3   
+  
+  // Check if the function starts with ENTER op
+  if readAuxByte(pBytecode) == $58
+    return readAuxByte(pBytecode+2)
+  fin
+
+  // Zero-arg functions sometimes omit ENTER altogether.
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Send an event to the scripts on the current map square
+def scriptEvent(event, param)
+  byte i
+  word script
+  if !nMapScripts; return; fin
+
+  setWindow2()
+  skipScripts = FALSE
+
+  for i = 0 to nMapScripts-1
+    script = mapScripts[i]
+    if getArgCount(script) == 2
+      script(event, param)
+    elsif event == @S_ENTER  // zero-param scripts are assumed to be strictly 'enter' handlers
+      script()
+    fin
+
+    // Some scripts need to suppress running of any further scripts on the square
+    // because they swapped out the render engine.
+    if skipScripts; break; fin
+  next
+
+  clearPortrait()
+  if needShowParty; showParty(); fin
+  if global=>p_players=>w_health == 0; playerDeath(); fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Check for script(s) attached to the given location, and establish the array of map scripts.
+// Does not call any of them -- that's the job of scriptEvent().
+def scanScripts(x, y)
+  word p
+  word script
+  word pNext
+
+  nMapScripts = 0
+  x = x - triggerOriginX
+  y = y - triggerOriginY
+  p = triggerTbl
+  while p
+    if ^p == $FF
+      break
+    fin
+    pNext = p + p->1
+    if ^p == y
+      p = p + 2
+      while p < pNext
+        if x == ^p
+          if nMapScripts == MAX_MAP_SCRIPTS; fatal("maxScpts"); fin
+          mapScripts[nMapScripts] = p=>1
+          nMapScripts++
+        fin
+        p = p + 3
+      loop
+    fin
+    p = pNext
+  loop
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load code and data, set up everything to display a 2D or 3D map
 def initMap(x, y, dir)
   word pMap
@@ -1268,6 +1350,9 @@ def initMap(x, y, dir)
     doRender()
   fin
 
+  // Populate script handlers for the current square, so that leave handlers will trigger right.
+  scanScripts(x, y)
+
   // Display the party characters
   showParty()
 end
@@ -1279,67 +1364,9 @@ export def scriptSetAvatar(avatarTileNum)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Send an event to the script
-export def scriptEvent(event, param)
-  if global=>p_mapScript
-    return global=>p_mapScript(event, param)
-  fin
-  return -1
-end
-
-// Check for script(s) attached to the given location, and call them if there are any.
-// Returns TRUE if any were triggered.
-def checkScripts(x, y)
-  word p
-  word script
-  word pNext
-  byte anyTriggered
-
-  scriptEvent(EVENT_LEAVE, 0)
-  global=>p_mapScript = 0
-  anyTriggered = FALSE
-  x = x - triggerOriginX
-  y = y - triggerOriginY
-  p = triggerTbl
-  while p
-    if ^p == $FF
-      break
-    fin
-    pNext = p + p->1
-    if ^p == y
-      p = p + 2
-      while p < pNext
-        if x == ^p
-	        script = p=>1
-          setWindow2()
-          skipScripts = FALSE
-          script() // When should the script be installed as an event handler?
-          clearPortrait()
-          // Some scripts need to suppress running of any further scripts on the square
-          // because they swapped out the render engine.
-          if skipScripts; return TRUE; fin
-          anyTriggered = TRUE
-        fin
-        p = p + 3
-      loop
-    fin
-    p = pNext
-  loop
-  if anyTriggered
-    scriptEvent(EVENT_ENTER, 0)
-    if global=>p_players=>w_health == 0
-      playerDeath()
-    fin
-    if needShowParty
-      showParty()
-    fin
-  fin
-  return anyTriggered
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 export def unloadTextures()
   if renderLoaded and texturesLoaded
+    flipToPage1()
     texControl(0)
     texturesLoaded = FALSE
   fin
@@ -1391,20 +1418,25 @@ def moveForward()
     fin
   fin
 
-  // If we're on a new map tile, clear text from script(s) on the old tile.
-  if val >= 2 and textDrawn
-    clearWindow()
-    if mapIs3D; copyWindow(); fin
-    textDrawn = FALSE
+  // If we're on a new map tile, clear text from script(s) on the old tile, and run leave handlers.
+  if val >= 2
+    if textDrawn
+      clearWindow()
+      if mapIs3D; copyWindow(); fin
+      textDrawn = FALSE
+    fin
+    scriptEvent(@S_LEAVE, NULL)
+    nMapScripts = 0
   fin
 
   // If there are script(s) on the new tile, run them.
   if val == 3
     getPos(@x, @y)
-    if !checkScripts(x, y)
-      if global=>p_encounterZones
-        checkEncounter(x, y, FALSE)
-      fin
+    scanScripts(x, y)
+    if nMapScripts
+      scriptEvent(@S_ENTER, NULL)
+    elsif global=>p_encounterZones
+      checkEncounter(x, y, FALSE)
     fin
   elsif val >= 2 and global=>p_encounterZones
     getPos(@x, @y)
@@ -1533,8 +1565,8 @@ def setMap(is3D, num, x, y, dir)
     initMap(x, y, dir)
     allowZoneInit = FALSE
   fin
-  // Don't check scripts, because we often land on an "Exit to wilderness?" script
-  //NO:checkScripts()
+  // Don't send enter event, because we often land on an "Exit to wilderness?" script
+  //NO:scriptEvent(S_ENTER, NULL)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1740,7 +1772,6 @@ export def setPortrait(portraitNum)
   byte cx, cy
 
   clearPortrait()
-  flipToPage1()
 
   // We're going to switch windows. Save the cursor pos in the text window.
   saveCursor()
@@ -1873,6 +1904,7 @@ def loadEngine(moduleNum)
   fin
   mmgr(RESET_MEMORY, 0)
   renderLoaded = FALSE
+  nMapScripts = 0
   mapIs3D = FALSE
   curPortrait = NULL
   mmgr(START_LOAD, 1) // code is in partition 1
@@ -2366,11 +2398,10 @@ end
 export def createAndAddUnique(moduleID, creationFuncNum, pList)
   word p_module, funcTbl, func, p_thing
 
-  // Unload textures to make room for the module
+  // Unload textures to make room for the module (also flips to page 1 if needed)
   unloadTextures()
 
   // Load the module that is capable of creating the thing
-  flipToPage1()
   diskActivity($FF)
   mmgr(START_LOAD, 1) // code is in partition 1
   p_module = mmgr(QUEUE_LOAD, moduleID<<8 | RES_TYPE_MODULE)

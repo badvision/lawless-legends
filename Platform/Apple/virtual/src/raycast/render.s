@@ -1668,7 +1668,7 @@ pl_texControl: !zone {
 	jsr mainLoader
 	lda #0		; don't re-init scripts
 	jmp loadTextures
-.unload
+.unload	inc $4000	; make diff from $2000, so we know to restore $4000 later.
 -	txa
 	pha
 	ldy texAddrHi,x

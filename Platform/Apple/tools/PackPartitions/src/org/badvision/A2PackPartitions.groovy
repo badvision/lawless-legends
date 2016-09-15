@@ -79,6 +79,27 @@ class A2PackPartitions
     def cache = [:]
     def buildDir
     def memUsageFile
+
+    def stats = [
+        "intelligence": "@S_INTELLIGENCE",
+        "strength":     "@S_STRENGTH",
+        "agility":      "@S_AGILITY",
+        "stamina":      "@S_STAMINA",
+        "spirit":       "@S_SPIRIT",
+        "luck":         "@S_LUCK",
+        "health":       "@S_HEALTH",
+        "max health":   "@S_MAX_HEALTH",
+        "aiming":       "@S_AIMING",
+        "hand to hand": "@S_HAND_TO_HAND",
+        "dodging":      "@S_DODGING",
+        "gold":         "@S_GOLD"
+    ]
+
+    def predefStrings = stats + [
+        "enter": "@S_ENTER",
+        "leave": "@S_LEAVE",
+        "use":   "@S_USE"
+    ]
     
     /** 
      * Keep track of context within the XML file, so we can spit out more useful
@@ -117,6 +138,10 @@ class A2PackPartitions
     
     def escapeString(inStr)
     {
+        // Commonly used strings (e.g. event handler names, attributes)
+        if (inStr in predefStrings)
+            return predefStrings[inStr]
+
         def buf = new StringBuilder()
         buf << '\"'
         def prev = '\0'
@@ -2988,21 +3013,9 @@ end
         }
 
         def nameToStat(name) {
-            switch (name.toLowerCase().trim()) {
-                case "intelligence": return "@S_INTELLIGENCE"; return
-                case "strength":     return "@S_STRENGTH";     return
-                case "agility":      return "@S_AGILITY";      return
-                case "stamina":      return "@S_STAMINA";      return
-                case "spirit":       return "@S_SPIRIT";       return
-                case "luck":         return "@S_LUCK";         return
-                case "health":       return "@S_HEALTH";       return
-                case "max health":   return "@S_MAX_HEALTH";   return
-                case "aiming":       return "@S_AIMING";       return
-                case "hand to hand": return "@S_HAND_TO_HAND"; return
-                case "dodging":      return "@S_DODGING";      return
-                case "gold":         return "@S_GOLD";         return
-                default: assert false : "Unrecognized stat '$name'"
-            }
+            def lcName = name.toLowerCase().trim()
+            assert lcName in stats : "Unrecognized stat '$name'"
+            return stats[lcName]
         }
             
         def packChangeStat(blk)

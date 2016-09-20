@@ -2804,13 +2804,15 @@ end
                 if (name != null)
                     scriptNames[script] = "sc_${humanNameToSymbol(name, false)}"
             }
-              
-            // Even if there were no scripts, we still need an init to display
-            // the map name.
+
+            // Generate the table of triggers, and code for each script.
             makeTriggerTbl(scripts, xRange, yRange)
             scripts.each { script ->
                 packScript(script) 
             }
+
+            // Even if there were no scripts, we still need an init to display
+            // the map name.
             makeInit(mapName, initScript, maxX, maxY)
             
             out.close()
@@ -2826,12 +2828,26 @@ end
             withContext(scriptNames[script]) 
             {
                 if (script.block.size() == 0) {
-                    printWarning("empty script '${script?.@name}' found; skipping.")
+                    printWarning("empty script found; skipping.")
                     return
                 }
+                def proc = script.block[0]
 
                 // Record the function's name and start its definition
-                out << "def ${scriptNames[script]}()\n"
+                out << "def ${scriptNames[script]}("
+
+                // If the script takes arguments, mark those and add them to the definition
+                def args = [] as Set
+                if (proc.mutation) {
+                    proc.mutation.arg.eachWithIndex { arg, idx ->
+                        if (idx > 0)
+                            out << ", "
+                        def name = "v_" + humanNameToSymbol(arg.@name, false)
+                        out << name
+                        args << name
+                    }
+                }
+                out << ")\n"
                 indent = 1
                 
                 // Need to queue up the script, to find out what variables need
@@ -2842,7 +2858,6 @@ end
                 variables = [] as Set
 
                 // Process the code inside it
-                def proc = script.block[0]
                 assert proc.@type == "procedures_defreturn"
                 if (proc.statement.size() > 0) {
                     assert proc.statement.size() == 1
@@ -2853,13 +2868,13 @@ end
                 else
                     printWarning "empty statement found; skipping."
                     
-                // Define all the variables that were mentioned
+                // Define all the variables that were mentioned (except the args)
                 out.close()
                 out = outerOutput
-                variables.each { var ->
+                (variables - args).each { var ->
                     outIndented("word $var\n")
                 }
-                variables.each { var ->
+                (variables - args).each { var ->
                     outIndented("$var = 0\n")
                 }
                 

@@ -1212,8 +1212,8 @@ def getArgCount(pFunc)
   word pBytecode
 
   // skip over JMP to plasma interp, get addr in aux mem
-  pBytecode = pFunc=>3   
-  
+  pBytecode = pFunc=>3
+
   // Check if the function starts with ENTER op
   if readAuxByte(pBytecode) == $58
     return readAuxByte(pBytecode+2)
@@ -1226,7 +1226,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Send an event to the scripts on the current map square
 def scriptEvent(event, param)
-  byte i
+  byte i, argCount
   word script
   if !nMapScripts; return; fin
 
@@ -1235,10 +1235,13 @@ def scriptEvent(event, param)
 
   for i = 0 to nMapScripts-1
     script = mapScripts[i]
-    if getArgCount(script) == 2
-      script(event, param)
-    elsif event == @S_ENTER  // zero-param scripts are assumed to be strictly 'enter' handlers
+    argCount = getArgCount(script)
+    if argCount == 0 and event == @S_ENTER  // zero-param scripts are assumed to be strictly 'enter' handlers
       script()
+    elsif argCount == 1
+      script(event)
+    elsif argCount == 2
+      script(event, param)
     fin
 
     // Some scripts need to suppress running of any further scripts on the square

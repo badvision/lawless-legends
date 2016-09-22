@@ -1672,11 +1672,12 @@ pl_texControl: !zone {
 -	txa
 	pha
 	ldy texAddrHi,x
+	beq +		; allow texControl(0) to work twice in a row
 	lda texAddrLo,x
 	tax
 	lda #FREE_MEMORY
 	jsr auxLoader
-	pla
++	pla
 	tax
 	lda #0
 	sta texAddrLo,x

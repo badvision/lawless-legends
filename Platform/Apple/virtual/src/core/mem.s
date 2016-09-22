@@ -689,10 +689,12 @@ _prShared: !zone {
 	sta .ld+1
 	jsr _getStackByte
 	sta .ld+2
-.ld:	lda $2000,y
+.lup	jsr restLCState
+.ld	lda $2000,y
+	bit setROM
 	jsr ROM_prbyte	; not safePrbyte, because we already switched to ROM
 	dey
-	bpl .ld
+	bpl .lup
 	lda #$A0
 	jsr ROM_cout	; not safeCout, because we already switched to ROM
 	jmp __iorestLC
@@ -1102,7 +1104,7 @@ gc2_sweep: !zone
 closePartFile: !zone
 	lda partFileRef		; close the partition file
 	beq .done
-	!if DEBUG { +prStr : !text "Closing part file.",0 }
+	!if DEBUG { +prStr : !text "ClosePart.",0 }
 	jsr closeFile
 	lda #0			; zero out...
 	sta partFileRef		; ... the file reference so we know it's no longer open
@@ -1517,12 +1519,10 @@ reset: !zone
 
 ;------------------------------------------------------------------------------
 outOfMemErr: !zone
-	jsr printMem
 	jsr inlineFatal : !text "OutOfMem", 0
 
 ;------------------------------------------------------------------------------
 reservedErr: !zone
-	jsr printMem
 	jsr inlineFatal : !text "DblAlloc", 0
 
 ;------------------------------------------------------------------------------
@@ -1693,7 +1693,6 @@ shared_scan: !zone
 +	rts
 
 invalParam: !zone
-	jsr printMem
 	jsr inlineFatal : !text "InvalParam", 0
 
 ;------------------------------------------------------------------------------
@@ -1747,6 +1746,11 @@ mem_unlock: !zone
 mem_free: !zone
 	clc			; do not check for active flg (ok to multiple free)
 	jsr shared_scan		; scan for exact memory block
+	pha
+	and #$40		; check lock flag
+	beq +
+	jmp invalParam		; must unlock block before freeing it (also prevents accidentally freeing $0000)
++	pla
 	and #$3F		; remove the 'active' and 'locked' flags
 	sta tSegType,x		; store flags back
 	and #$F			; get down to just the type, without the flags
@@ -1991,7 +1995,7 @@ calcBufferDigest: !zone
 
 ;------------------------------------------------------------------------------
 openPartition: !zone
-	!if DEBUG { +prStr : !text "Opening part file ",0 : +prByte curPartition : +crout }
+	!if DEBUG { +prStr : !text "OpenPart ",0 : +prByte curPartition : +crout }
 ; complete the partition file name, changing "1" to "2" if we're in multi-disk mode
 ; and opening partition 2.
 .mkname	ldx #1

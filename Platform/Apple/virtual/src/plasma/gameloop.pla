@@ -81,6 +81,7 @@ byte frameLoaded = 0
 byte heapLocked = FALSE
 byte skipScripts = FALSE
 byte allowZoneInit = FALSE
+word curEngine = NULL
 
 // Queue setMap / teleport / start_encounter, since otherwise script might be replaced while executing
 byte q_mapIs3D = 0
@@ -1331,8 +1332,8 @@ def initMap(x, y, dir)
   clearWindow()
   setWindow2()
   clearWindow()
-  setWindow3()
-  clearWindow()
+  //setWindow3()  // not needed, because showParty() does it for us
+  //clearWindow()
 
   // Clear the list of encounter zones from any previous maps
   if allowZoneInit
@@ -1653,6 +1654,7 @@ export def setScriptInfo(mapName, trigTbl, wdt, hgt)
   totalMapHeight = hgt
 
   // Display map name
+  global=>s_mapName = mmgr(HEAP_INTERN, mapName)
   showMapName(mapName)
 
   // Get ready for new encounter zones
@@ -1898,30 +1900,37 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def loadEngine(moduleNum)
-  word p_engine
-  saveMapPos()
+  if curEngine; fatal("dblEng"); fin
+  clearPortrait()
   flipToPage1()
   diskActivity($FF)
-  if renderLoaded and mapIs3D
-    auxMmgr(FREE_MEMORY, expandVec)
-  fin
-  mmgr(RESET_MEMORY, 0)
-  renderLoaded = FALSE
-  nMapScripts = 0
-  mapIs3D = FALSE
-  curPortrait = NULL
+  if renderLoaded; texControl(0); fin
   mmgr(START_LOAD, 1) // code is in partition 1
-  p_engine = mmgr(QUEUE_LOAD, moduleNum<<8 | RES_TYPE_MODULE)
+  curEngine = mmgr(QUEUE_LOAD, moduleNum<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
   diskActivity(0)
-  return p_engine()  // return function table
+  return curEngine()  // return function table
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def returnFromEngine()
+  if curEngine
+    mmgr(FREE_MEMORY, curEngine)
+    curEngine = NULL
+    clearPortrait()
+    if renderLoaded; texControl(1); fin
+    setWindow2(); clearWindow()
+    mapNameHash = 0; showMapName(global=>s_mapName)
+    doRender()
+    showParty()
+  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load the Party engine and show data for the given player
 def showPlayerSheet(num)
   loadEngine(MODULE_PARTY)=>party_showPlayerSheet(num)
-  restoreMapPos()
+  returnFromEngine()
 end
 
 def showPlayer1()
@@ -1970,32 +1979,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Called by user-defined map scripts to initiate a combat encounter.
 export def scriptCombat(mapCode)
-  word pScripts
-  word result
-
-  // Lock the currently running script in memory so combat engine doesn't destroy our calling
-  // context.
-  if renderLoaded
-    pScripts = getMapScript()
-    mmgr(LOCK_MEMORY, pScripts)
-  else
-    pScripts = NULL
-  fin
-
-  // Also suppress running further scripts on this tile, since we're going to switch out the
-  // rendering engine.
-  skipScripts = TRUE
-
-  // Now run the combat
-  result = doCombat(mapCode)
-
-  // Unlock the script module so it can get freed a the natural time (when it's done)
-  if pScripts
-    mmgr(UNLOCK_MEMORY, pScripts)
-  fin
-
-  // Let the caller know what happened (1=won, 0=fled)
-  return result
+  return doCombat(mapCode)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2018,7 +2002,7 @@ def doCombat(mapCode)
     playerDeath()
     return
   fin
-  restoreMapPos()
+  returnFromEngine()
 
   // If the party fled the combat instead of winning, back up to previous square.
   if (!result)
@@ -2058,7 +2042,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def saveGame
   loadEngine(MODULE_DISKOPS)=>diskops_saveGame()
-  restoreMapPos()
+  returnFromEngine()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

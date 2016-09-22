@@ -2068,13 +2068,12 @@ def showPos()
 end
 def nextPortrait()
   portraitNum = portraitNum + 1
-  printf1("Portrait #%d\n", portraitNum)
+  if portraitNum > PO_LAST; portraitNum = 1; fin
   setPortrait(portraitNum)
 end
 def prevPortrait()
-  if portraitNum > 1
-    portraitNum = portraitNum - 1
-  fin
+  portraitNum = portraitNum - 1
+  if portraitNum < 1; portraitNum = PO_LAST; fin
   setPortrait(portraitNum)
 end
 def testCombat
@@ -2083,7 +2082,7 @@ def testCombat
   checkEncounter(x, y, TRUE)
 end
 def addItem()
-  word p_module, funcTbl, func, p_item, n_item
+  word funcTbl, func, p_item, n_item
 
   flipToPage1()
   ^$c053
@@ -2091,24 +2090,15 @@ def addItem()
 
   puts("\nAdd item #: ")
   n_item = parseDecWithDefault(readStr(), 0)
+  ^$c052
 
   if n_item >= 2
-    // Load the module that is capable of creating items
-    mmgr(START_LOAD, 1) // code is in partition 1
-    p_module = mmgr(QUEUE_LOAD, MODULE_GEN_ITEMS<<8 | RES_TYPE_MODULE)
-    mmgr(FINISH_LOAD, 0)
-
-    // Figure out which item function to call there, and create the item
-    funcTbl = p_module()
+    funcTbl = loadEngine(MODULE_GEN_ITEMS)
     func = *(funcTbl + n_item * 2)
     p_item = func()
     addToList(@global=>p_players=>p_items, p_item)
-
-    // Finished with the item module now.
-    mmgr(FREE_MEMORY, p_module)
+    returnFromEngine()
   fin
-
-  ^$c052
 end
 def printMem
   flipToPage1

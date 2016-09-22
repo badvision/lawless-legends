@@ -2493,6 +2493,7 @@ end
                     }
                 }
             }
+            out.println "const PO_LAST = $portraitNum"
         }
         replaceIfDiff("build/src/plasma/gen_images.plh")
         

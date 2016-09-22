@@ -525,12 +525,33 @@ def startCombat(mapCode)
       displayStr("\n\nFleeing... \n")
       return 0
     // Secret option for testing: just win
-    elsif n == '#'
+    elsif n == '#' and global->b_godmode
       return 99
     fin
     beep()
   loop
 
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// For cheating in god mode, kill all enemies. This is better than just setting nEnemiesFighting
+// to zero, because we'll still get loot.
+def killAllEnemies()
+  word pGroup, pEnemy
+  pGroup = global=>p_enemyGroups
+  // For every group...
+  while pGroup
+    pEnemy = pGroup=>p_enemies
+    // For every enemy in the group...
+    while pEnemy
+      pEnemy=>w_health = 0 // kill em
+      pEnemy = pEnemy=>p_nextObj
+    loop
+    pGroup = pGroup=>p_nextObj
+  loop
+
+  // Update nEnemiesFighting
+  determineCombatOrder()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -542,8 +563,7 @@ def _combat_zoneEncounter(s_encZone)
   // Show portrait and threat details, find out if player wants to fight (vs. run)
   answer = startCombat(s_encZone)
   if answer == 99
-    global=>p_enemyGroups = NULL // results in no living enemies, or "win"
-    nEnemiesFighting = 0
+    killAllEnemies()
   elsif !answer
     isFleeing = TRUE
   fin

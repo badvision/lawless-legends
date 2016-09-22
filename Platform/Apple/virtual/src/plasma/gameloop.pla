@@ -1419,14 +1419,13 @@ def moveBackward()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Move backward three steps (3D mode), or one step (2D mode). This is often used when exiting a
+// Move backward two steps (3D mode), or one step (2D mode). This is often used when exiting a
 // building or fleeing combat, so we don't want to generate any random encounters.
 export def moveWayBackward()
   adjustDir(8)
   skipEncounterCheck = TRUE
   moveForward()
   if mapIs3D
-    moveForward()
     moveForward()
   fin
   skipEncounterCheck = FALSE
@@ -1873,10 +1872,11 @@ def returnFromEngine()
     curEngine = NULL
     clearPortrait()
     if renderLoaded; texControl(1); fin
-    setWindow2(); clearWindow()
     mapNameHash = 0; showMapName(global=>s_mapName)
+    setWindow2(); clearWindow()
     doRender()
     showParty()
+    setWindow2()  // in case we're mid-script
   fin
 end
 
@@ -1933,7 +1933,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Called by user-defined map scripts to initiate a combat encounter.
 export def scriptCombat(mapCode)
-  return doCombat(mapCode)
+  return doCombat(mapCode, TRUE)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1945,7 +1945,7 @@ def playerDeath()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def doCombat(mapCode)
+def doCombat(mapCode, backUpOnFlee)
   word result
   // Handled in a separate module. Clear enemies out of the heap when finished.
   result = loadEngine(MODULE_COMBAT)=>combat_zoneEncounter(mapCode)
@@ -1959,7 +1959,7 @@ def doCombat(mapCode)
   returnFromEngine()
 
   // If the party fled the combat instead of winning, back up to previous square.
-  if (!result)
+  if !result and backUpOnFlee
     moveWayBackward()
   fin
   return result
@@ -1989,7 +1989,7 @@ def checkEncounter(x, y, force)
   d = rand16() % 1000
   if p_bestZone and (d < p_bestZone=>w_encChance or force)
     // Encounter!
-    doCombat(p_bestZone=>s_name)
+    doCombat(p_bestZone=>s_name, !force)
   fin
 end
 

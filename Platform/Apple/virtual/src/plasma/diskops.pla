@@ -179,7 +179,6 @@ def _saveGame()
 
   // Copy data to main memory
   showMapName("Saving game...")
-  diskActivity($FF)
   copyHeap(0)  // LC to low mem
 
   // Open the file if it already exists...
@@ -206,7 +205,6 @@ def _saveGame()
   // All done.
   close_fileref = open_fileref
   guaranteeMLI(MLI_CLOSE, @close_params)
-  diskActivity(0)
 end
 
 def loadInternal()
@@ -242,17 +240,13 @@ end
 def _loadGame()
   setMapWindow()
   clearWindow()
-  diskActivity($FF)
   showMapName("Loading game...")
 
   // Open the file
   ^$4000 = 0  // so 3D engine knows we overwrite HGR page 2, even if we fail
   if !loadInternal()
-    diskActivity(0)
     showMapName("Not found.")
     getUpperKey()
-  else
-    diskActivity(0)
   fin
 end
 

@@ -642,38 +642,6 @@ asm auxMmgr
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Show or hide the disk activity icon (at the top of hi-res page 1). The icon consists of a 4x4
-// block of blue pixels surrounded by a black border.
-// Params: show/hide ($FF, or 0)
-export asm diskActivity
-  +asmPlasm 1
-  sta tmp                 ; save show(FF) / hide(0) flag
-  ldx #0
-  stx pTmp
-  ldy #$F8                ; offset of screen holes
-  lda #$20                ; first line of screen is $2000
-- sta pTmp+1
-  cmp #$30                ; pre-check for last line
-  bit tmp                 ; check mode
-  beq +
-  lda (pTmp,x)            ; show mode
-  sta (pTmp),y
-  lda #$85
-  bcc ++                  ; first 4 lines
-  lda #0                  ; last line
-  beq ++                  ; always taken
-+ lda (pTmp),y            ; hide mode
-++
-  sta (pTmp,x)
-  lda pTmp+1
-  clc
-  adc #4
-  cmp #$34                ; Do 5 lines: $2000, $2400, $2800, $2C00, $3000; Stop before $3400.
-  bne -
-  rts
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Jump straight to the system monitor
 // Params: None
 asm goMon
@@ -1298,9 +1266,6 @@ def initMap(x, y, dir)
   // Reset memory (our module will stay since memory manager locked it upon load)
   mmgr(RESET_MEMORY, 0)
 
-  // Show disk activity icon while we load
-  diskActivity($FF)
-
   // Load the raycaster or tile engine, and then the frame image.
   mmgr(START_LOAD, 1) // partition 1 is where code lives
   mmgr(SET_MEM_TARGET, displayEngine)
@@ -1313,11 +1278,9 @@ def initMap(x, y, dir)
   fin
   mmgr(FINISH_LOAD, 0)
   renderLoaded = TRUE
-  diskActivity(0)
   loadFrameImg(mapIs3D+2)
 
   // Load the map
-  diskActivity($FF)
   mmgr(START_LOAD, 2) // partition 2 is where maps live
   if mapIs3D
     pMap = mmgr(QUEUE_LOAD, mapNum<<8 | RES_TYPE_3D_MAP)
@@ -1325,7 +1288,6 @@ def initMap(x, y, dir)
     pMap = mmgr(QUEUE_LOAD, mapNum<<8 | RES_TYPE_2D_MAP)
   fin
   mmgr(FINISH_LOAD, 0)
-  diskActivity(0)
 
   // Clear all the windows to the background color (hi-bit set)
   setWindow1()
@@ -1393,9 +1355,7 @@ def doRender()
   if !texturesLoaded
     if mapIs3D
       flipToPage1()
-      diskActivity($FF)
       texControl(1)
-      diskActivity(0)
     fin
     texturesLoaded = TRUE
   fin
@@ -1793,11 +1753,9 @@ export def setPortrait(portraitNum)
   restoreCursor()
 
   // Load the portrait image and display it
-  diskActivity($FF)
   mmgr(START_LOAD, 2) // portraits are in partition 2
   curPortrait = auxMmgr(QUEUE_LOAD, portraitNum<<8 | RES_TYPE_PORTRAIT)
   mmgr(FINISH_LOAD, 0)
-  diskActivity(0)
   animFrame = 0
   animFlags = readAuxByte(curPortrait)
   animNumFrames = animFlags & $F
@@ -1903,12 +1861,10 @@ def loadEngine(moduleNum)
   if curEngine; fatal("dblEng"); fin
   clearPortrait()
   flipToPage1()
-  diskActivity($FF)
   if renderLoaded; texControl(0); fin
   mmgr(START_LOAD, 1) // code is in partition 1
   curEngine = mmgr(QUEUE_LOAD, moduleNum<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
-  diskActivity(0)
   return curEngine()  // return function table
 end
 
@@ -2389,11 +2345,9 @@ export def createAndAddUnique(moduleID, creationFuncNum, pList)
   unloadTextures()
 
   // Load the module that is capable of creating the thing
-  diskActivity($FF)
   mmgr(START_LOAD, 1) // code is in partition 1
   p_module = mmgr(QUEUE_LOAD, moduleID<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
-  diskActivity(0)
 
   // Figure out which creation function to call there, and create the thing
   funcTbl = p_module()

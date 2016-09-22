@@ -1145,6 +1145,7 @@ nSegsQueued:	!byte 0
 fixupHint:	!word 0
 bufferDigest:	!fill 4
 multiDiskMode:	!byte 0		; hardcoded to YES for now
+diskActState:	!byte 0
 
 ;------------------------------------------------------------------------------
 ; Heap management variables
@@ -2133,6 +2134,8 @@ startHeaderScan: !zone
 disk_queueLoad: !zone
 	stx resType		; save resource type
 	sty resNum		; and resource num
+	lda #$FF
+	jsr showDiskActivity	; graphical marker that disk activity happening
 	inc nSegsQueued		; record the fact that we're queuing a seg
 	lda partFileRef		; check if we've opened the file yet
 	bne +			; yes, don't re-open
@@ -2171,7 +2174,13 @@ disk_queueLoad: !zone
 	sta reqLen+1		; both bytes
 	!if DEBUG { +prStr : !text "uclen=",0 : +prWord reqLen : +crout }
 	jsr shared_alloc	; reserve memory for this resource (main or aux as appropriate)
-	stx tmp			; save lo part of addr temporarily
+	tya			; check for
+	ora isAuxCmd		; 	main memory
+	cmp #$20		;		hi-res page 1
+	bne +
+	lda #0			; when loading hi-res page 1, reset the visible marker
+	sta diskActState
++	stx tmp			; save lo part of addr temporarily
 	ldx segNum		; get the segment number back
 	lda resType		; put resource type in segment descriptor
 	ora #$80		; add 'active' flag
@@ -2220,7 +2229,7 @@ disk_finishLoad: !zone
 	jsr doAllFixups		; found fixups - execute and free them
 .done	lda #0
 	sta nSegsQueued		; we loaded everything, so record that fact
-	rts
+	jmp showDiskActivity	; finally turn off disk activity marker (A is already zero)
 .notdone:
 	bmi .load		; hi bit set -> queued for load
 	iny			; not set, not queued, so skip over it
@@ -2973,6 +2982,37 @@ heapIntern: !zone
 	dex
 	bne .cplup
 	beq .found	; always taken
+
+;------------------------------------------------------------------------------
+; Show or hide the disk activity icon (at the top of hi-res page 1). The icon consists of a 4x4
+; block of blue pixels surrounded by a black border.
+; Params: show/hide ($FF, or 0)
+showDiskActivity: !zone
+	cmp diskActState
+	beq .done
+	sta diskActState
+	ldx #0
+	stx pTmp
+	ldy #$F8                ; offset of screen holes
+	lda #$20                ; first line of screen is $2000
+-	sta pTmp+1
+	cmp #$30                ; pre-check for last line
+	bit diskActState        ; check mode
+	beq +
+	lda (pTmp,x)            ; show mode
+	sta (pTmp),y
+	lda #$85
+	bcc ++                  ; first 4 lines
+	lda #0                  ; last line
+	beq ++                  ; always taken
++ 	lda (pTmp),y            ; hide mode
+++	sta (pTmp,x)
+	lda pTmp+1
+	clc
+	adc #4
+	cmp #$34                ; Do 5 lines: $2000, $2400, $2800, $2C00, $3000; Stop before $3400.
+	bne -
+.done	rts
 
 ;------------------------------------------------------------------------------
 ; Segment tables

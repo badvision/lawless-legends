@@ -23,7 +23,7 @@ import gamelib
   predef streqi, strncpy, fatal, pause, tossStrings, charToUpper
   predef addEncounterZone, clearEncounterZones, showMapName, setMapWindow, getMapWindow
   predef addGold, countGold, payGold
-  predef calcPlayerArmor, diskActivity, rdkey, initHeap, scriptCombat, makeModifier
+  predef calcPlayerArmor, rdkey, initHeap, scriptCombat, makeModifier
   predef giveItemToPlayer, takeItemFromPlayer, playerHasItem, getStat, setStat
   predef setGameFlag, getGameFlag, scriptSetAvatar
   predef addPlayerToParty, removePlayerFromParty, partyHasPlayer

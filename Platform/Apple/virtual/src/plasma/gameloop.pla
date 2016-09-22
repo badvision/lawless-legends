@@ -1310,6 +1310,7 @@ def initMap(x, y, dir)
   texturesLoaded = TRUE
   needRender = FALSE
   textDrawn = FALSE
+  curEngine = NULL
   curPortrait = 0
   if global->b_curAvatar <> 0 and !mapIs3D
     setAvatar(global->b_curAvatar)
@@ -1997,6 +1998,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def saveGame
+  saveMapPos()
   loadEngine(MODULE_DISKOPS)=>diskops_saveGame()
   returnFromEngine()
 end

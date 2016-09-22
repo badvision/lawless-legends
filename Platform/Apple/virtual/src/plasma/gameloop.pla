@@ -68,6 +68,7 @@ byte renderLoaded = FALSE
 byte texturesLoaded = FALSE
 byte textDrawn = FALSE
 byte isPlural = FALSE
+byte skipEncounterCheck = FALSE
 
 word skyNum = 9
 word groundNum = 10
@@ -79,7 +80,6 @@ word triggerTbl
 word cmdTbl[96]   // ASCII $00..$5F
 byte frameLoaded = 0
 byte heapLocked = FALSE
-byte skipScripts = FALSE
 byte allowZoneInit = FALSE
 word curEngine = NULL
 
@@ -1200,7 +1200,6 @@ def scriptEvent(event, param)
   if !nMapScripts; return; fin
 
   setWindow2()
-  skipScripts = FALSE
 
   for i = 0 to nMapScripts-1
     script = mapScripts[i]
@@ -1212,10 +1211,6 @@ def scriptEvent(event, param)
     elsif argCount == 2
       script(event, param)
     fin
-
-    // Some scripts need to suppress running of any further scripts on the square
-    // because they swapped out the render engine.
-    if skipScripts; break; fin
   next
 
   clearPortrait()
@@ -1400,10 +1395,10 @@ def moveForward()
     scanScripts(x, y)
     if nMapScripts
       scriptEvent(@S_ENTER, NULL)
-    elsif global=>p_encounterZones
+    elsif global=>p_encounterZones and !skipEncounterCheck
       checkEncounter(x, y, FALSE)
     fin
-  elsif val >= 2 and global=>p_encounterZones
+  elsif val >= 2 and global=>p_encounterZones and !skipEncounterCheck
     getPos(@x, @y)
     checkEncounter(x, y, FALSE)
   fin
@@ -1424,15 +1419,17 @@ def moveBackward()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Move backward four steps (3D mode), or one step (2D mode)
+// Move backward three steps (3D mode), or one step (2D mode). This is often used when exiting a
+// building or fleeing combat, so we don't want to generate any random encounters.
 export def moveWayBackward()
   adjustDir(8)
+  skipEncounterCheck = TRUE
   moveForward()
   if mapIs3D
     moveForward()
     moveForward()
-    moveForward()
   fin
+  skipEncounterCheck = FALSE
   adjustDir(8)
 end
 

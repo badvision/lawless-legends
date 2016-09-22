@@ -1142,7 +1142,6 @@ nextLdVec:	jmp diskLoader
 curPartition:	!byte 0
 partFileRef: 	!byte 0
 nSegsQueued:	!byte 0
-fixupHint:	!word 0
 bufferDigest:	!fill 4
 multiDiskMode:	!byte 0		; hardcoded to YES for now
 diskActState:	!byte 0
@@ -1512,10 +1511,6 @@ reset: !zone
 .next:	lda tSegLink,x		; get link to next seg
 	tax			; to X reg, and test if end of chain (x=0)
 	bne .inactivate		; no, not end of chain, so loop again
-;;	lda #0			; default to putting fixups at $8000, to avoid fragmentation
-	sta fixupHint
-	lda #$80		
-	sta fixupHint+1
 	rts
 
 ;------------------------------------------------------------------------------
@@ -1541,9 +1536,9 @@ shared_alloc:
 	bne .noSplitStart	; if found, go into normal split checking
 ; failed to find a block. If we haven't tried reclaiming, do so now
 .recl	dec .reclaimFlg		; first time: 1 -> 0, second time 0 -> $FF
-	bmi outOfMemErr		; so if it's second time, give up
-	jsr reclaim		; first time, do a reclaim pass
-	jmp .try		; and try again
+	bmi outOfMemErr         ; so if it's second time, give up
+	jsr reclaim             ; first time, do a reclaim pass
+	jmp .try                ; and try again
 .notFound:
 	jmp invalParam
 ; target addr was specified. See if we can fulfill the request.
@@ -1870,28 +1865,10 @@ mem_queueLoad: !zone
 	ldx #RES_TYPE_BYTECODE
 	ldy resNum
 	jsr aux_dispatch	; load the aux mem part (the bytecode)
-	; try to pick a location for the fixups that we can free without fragmenting everything.
-	ldx fixupHint
-	ldy fixupHint+1
-	jsr scanForAddr		; locate block containing target addr
-	beq .frag		; block gone? um, how. Well, whatever.
-	lda tSegType,x		; check flags
-	bmi .frag		; if already active, we'll just have to suffer the fixup creating fragmentation
-	lda fixupHint		; Okay, found a good place to put it
-	sta targetAddr
-	lda fixupHint+1
-	sta targetAddr+1
-.frag	lda #QUEUE_LOAD
+	lda #QUEUE_LOAD
 	ldx #RES_TYPE_FIXUP	; queue loading of the fixup resource
 	ldy resNum
 	jsr aux_dispatch
-	lda fixupHint		; advance hint for next fixup by the size of this fixup
-	clc
-	adc reqLen
-	sta fixupHint
-	lda fixupHint+1		; hi byte too
-	adc reqLen+1
-	sta fixupHint+1
 .modRet ldx #11			; all done; return address of the main memory block.
 	ldy #22
 	rts
@@ -2200,11 +2177,9 @@ disk_queueLoad: !zone
 	jsr adjYpTmp		; keep it small
 	jmp .scan		; go for more
 .notFound:
-	+prStr : !text "p=",0 : +prByte curPartition
-	+prStr : !text "t=",0 : +prByte resType
-	+prStr : !text "n=",0 : +prByte resNum
 	jsr inlineFatal : !text "ResNotFnd", 0
 .resLen: !byte 0
+
 ;------------------------------------------------------------------------------
 disk_finishLoad: !zone
 	lda nSegsQueued		; see if we actually queued anything

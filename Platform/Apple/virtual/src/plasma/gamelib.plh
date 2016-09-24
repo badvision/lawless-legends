@@ -13,6 +13,7 @@ import gamelib
   //////////// Shared library routines ////////////
   predef setScriptInfo, scriptDisplayStr, scriptDisplayStrNL, getYN, queue_setMap
   predef setSky, setGround, queue_teleport, setPortrait, clearPortrait, moveWayBackward
+  predef flipToPage1, textHome
   predef getUpperKey, clearWindow, getGlobals, rand16, printf1, printf2, printf3
   predef displayf1, displayf2, displayf3, buildString, addToString, finishString, printHex
   predef displayChar, rawDisplayStr, displayStr, rightJustifyStr, rightJustifyNum, puts
@@ -22,10 +23,10 @@ import gamelib
   predef encodeDice, rollDice, setPlural, getStringResponse
   predef streqi, strncpy, fatal, pause, tossStrings, charToUpper
   predef addEncounterZone, clearEncounterZones, showMapName, setMapWindow, getMapWindow
-  predef addGold, countGold, payGold
+  predef addGold, countGold, payGold, scriptEvent
   predef calcPlayerArmor, rdkey, initHeap, scriptCombat, makeModifier
   predef giveItemToPlayer, takeItemFromPlayer, playerHasItem, getStat, setStat
-  predef setGameFlag, getGameFlag, scriptSetAvatar
+  predef setGameFlag, getGameFlag, scriptSetAvatar, parseDecWithDefault, readStr
   predef addPlayerToParty, removePlayerFromParty, partyHasPlayer
 
   /////////// Shared string constants //////////////

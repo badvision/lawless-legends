@@ -37,6 +37,7 @@ include "gen_modules.plh"
 include "gen_enemies.plh"
 include "gen_players.plh"
 include "gen_globalScripts.plh"
+include "gen_items.plh"
 include "combat.plh"
 include "party.plh"
 include "diskops.plh"
@@ -176,7 +177,7 @@ asm initDisplay   // params: mapNum, pMapData, x, y, dir
   +asmPlasm 5
   jmp $6000
 end
-asm flipToPage1  // no params
+export asm flipToPage1  // no params
   +asmPlasm 0
   jmp $6003
 end
@@ -591,7 +592,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Read a string from the keyboard, turn it into a PLASMA string and return a pointer to the string.
-asm readStr
+export asm readStr
   +asmPlasm 0
   bit setROM
   jsr ROM_getln1
@@ -808,6 +809,15 @@ export asm rand16
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Clear the text-mode screen, and put the text cursor at the top of it.
+// Params: None
+export asm textHome
+  +asmPlasm 0
+  +safeHome
+  rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // General methods
 
 export def strncpy(dst, src, maxlen)
@@ -966,7 +976,7 @@ def parseDec(str)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def parseDecWithDefault(str, default)
+export def parseDecWithDefault(str, default)
   if ^str == 0
     return default
   fin
@@ -1194,7 +1204,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Send an event to the scripts on the current map square
-def scriptEvent(event, param)
+export def scriptEvent(event, param)
   byte i, argCount
   word script
   if !nMapScripts; return; fin
@@ -2081,25 +2091,6 @@ def testCombat
   getPos(@x, @y)
   checkEncounter(x, y, TRUE)
 end
-def addItem()
-  word funcTbl, func, p_item, n_item
-
-  flipToPage1()
-  ^$c053
-  if ^$25 < 23; ^$25 = 23; fin
-
-  puts("\nAdd item #: ")
-  n_item = parseDecWithDefault(readStr(), 0)
-  ^$c052
-
-  if n_item >= 2
-    funcTbl = loadEngine(MODULE_GEN_ITEMS)
-    func = *(funcTbl + n_item * 2)
-    p_item = func()
-    addToList(@global=>p_players=>p_items, p_item)
-    returnFromEngine()
-  fin
-end
 def printMem
   flipToPage1
   ^$c051
@@ -2113,7 +2104,6 @@ def setCheatCmds
   // install cheat commands
   cmdTbl['T'] = @kbdTeleport
   cmdTbl['P'] = @showPos
-  cmdTbl['%'] = @addItem
   cmdTbl['>'] = @nextPortrait
   cmdTbl['<'] = @prevPortrait
   cmdTbl['!'] = @testCombat

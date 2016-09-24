@@ -17,6 +17,8 @@ include "playtype.plh"
 
 // Global definitions
 include "globalDefs.plh"
+include "gen_modules.plh"
+include "gen_items.plh"
 
 // Definition of constants for functions exported by this module
 include "party.plh"
@@ -55,7 +57,7 @@ def itemMatch(item, group)
     is TYPE_EQUIP
       return type == TYPE_ARMOR or type == TYPE_WEAPON
     is TYPE_USE
-      return type == TYPE_ITEM and item=>p_modifiers
+      return type == TYPE_ITEM
       break
     is TYPE_DROP
     return type == TYPE_WEAPON or type == TYPE_ARMOR
@@ -234,6 +236,47 @@ def showPlayerSheet(num, i_page, i_rows)
   return player
 end
 
+// Add an item cheat
+def addItem(player)
+  word pModule, funcTbl, func, p_item, n_item, n2, pstr, pstr2
+  pstr = "%d: %s\n"
+  pstr2 = "Add item #: "
+
+  flipToPage1()
+  textHome()
+  ^$c051
+
+  mmgr(START_LOAD, 1) // code is in partition 1
+  pModule = mmgr(QUEUE_LOAD, MODULE_GEN_ITEMS<<8 | RES_TYPE_MODULE)
+  mmgr(FINISH_LOAD, 0)
+  funcTbl = pModule()
+
+  for n_item = 1 to NUM_ITEMS
+    func = *(funcTbl + (n_item+1) * 2)
+    p_item = func()
+    printf2(pstr, n_item, p_item=>s_name)
+    if (n_item % 22) == 0 or n_item == NUM_ITEMS
+      mmgr(HEAP_COLLECT, 0)
+      puts(pstr2)
+      n2 = parseDecWithDefault(readStr(), 0)
+      if n2 >= 1 and n2 <= NUM_ITEMS
+        func = *(funcTbl + (n2+1) * 2)
+        p_item = func()
+        printf1("Adding '%s'\n", p_item=>s_name)
+        addToList(@player=>p_items, p_item)
+        rdkey()
+        break
+      else
+        textHome()
+      fin
+    fin
+  next
+
+  mmgr(FREE_MEMORY, pModule)
+  ^$c050
+  return
+end
+
 // Show player sheet and accept command
 def _party_doPlayerSheet(num)
   word player, item
@@ -274,7 +317,9 @@ def _party_doPlayerSheet(num)
           rawDisplayStr("\n^T032Which item?")
           item = itemNum(player, i_rows * i_page, getUpperKey() - 'A', TYPE_USE)
           if item
-            if streqi(item=>p_modifiers=>s_name, "health")
+            setWindow2()
+            clearWindow()
+            if item=>p_modifiers and streqi(item=>p_modifiers=>s_name, "health")
               if player=>w_health < player=>w_maxHealth
                 player=>w_health = min(player=>w_health + item=>p_modifiers=>w_modValue, player=>w_maxHealth)
                 item->b_curUses++
@@ -283,6 +328,7 @@ def _party_doPlayerSheet(num)
                 fin
               fin
             fin
+            scriptEvent(@S_USE, item=>s_name)
           fin
         else
           beep
@@ -341,6 +387,11 @@ def _party_doPlayerSheet(num)
       is '$' // gold cheat
         if global->b_godmode
           addGold(500)
+        fin
+        break
+      is '%' // item cheat
+        if global->b_godmode
+          addItem(player)
         fin
         break
       // All done

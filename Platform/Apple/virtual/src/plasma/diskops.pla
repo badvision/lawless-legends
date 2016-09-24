@@ -143,15 +143,6 @@ asm mliStub
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Clear the text-mode screen, and put the cursor there.
-// Params: None
-asm home
-  +asmPlasm 0
-  +safeHome
-  rts
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 def callMLI(cmd, p_params)
   byte err
   //printf2("callMLI: cmd=$%x p_params=$%x\n", cmd, p_params)
@@ -286,7 +277,7 @@ def _newOrLoadGame(ask)
     return 0
   fin
 
-  home()
+  textHome()
   ^$c053
   ^$25 = 20
   puts("\n    N)ew game, or L)oad last game? ")

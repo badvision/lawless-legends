@@ -2218,6 +2218,7 @@ end
             funcs.each { typeName, func, index, row ->
                 out.println("const ${func} = ${(index+2)*2}")
             }
+            out.println("const NUM_ITEMS = ${funcs.size()}")
         }
         replaceIfDiff("build/src/plasma/gen_items.plh")
         
@@ -3107,6 +3108,25 @@ end
             }
         }
         
+        def packLogicOperation(blk)
+        {
+            def op = getSingle(blk.field, "OP").text()
+            assert blk.value[0].@name == 'A'
+            assert blk.value[1].@name == 'B'
+            def val1 = getSingle(blk.value[0].block)
+            def val2 = getSingle(blk.value[1].block)
+            switch (op) {
+                case 'AND':
+                    packExpr(val1); out << " and "; packExpr(val2)
+                    break
+                case 'OR':
+                    packExpr(val1); out << " or "; packExpr(val2)
+                    break
+                default:
+                    assert false : "Logic op '$op' not yet implemented."
+            }
+        }
+        
         def packVarGet(blk)
         {
             def name = "v_" + humanNameToSymbol(getSingle(blk.field, "VAR").text(), false)
@@ -3142,6 +3162,9 @@ end
                     break
                 case 'logic_compare':
                     packLogicCompare(blk)
+                    break
+                case 'logic_operation':
+                    packLogicOperation(blk)
                     break
                 case 'variables_get':
                     packVarGet(blk)

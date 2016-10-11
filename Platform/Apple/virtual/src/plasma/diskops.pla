@@ -111,7 +111,7 @@ asm copyHeap   // params: dir (0=LCtoMain, 1=MainToLC)
   bcs +
   lda #$EF    ; $EF00 is start of heap (right after font engine)
 + sta tmp+1
-  eor #$BF    ; $EF -> $50, $F0 -> $51, etc.
+  eor #$BF    ; $EF -> $50
   sta pTmp+1
   ldy #0
   sty tmp
@@ -295,7 +295,6 @@ def _newOrLoadGame(ask)
         return 0
       fin
     fin
-    ^$c053
     beep()
   loop
 end

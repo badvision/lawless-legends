@@ -269,7 +269,7 @@ class A2PackPartitions
 
         // Parse out the hex data on each line and add it to a buffer.
         def hexStr = dataEl.text()
-        def arr = new byte[8192]
+        def arr = new byte[7680]
         def srcPos = 0
         def dstPos = 0
         
@@ -279,23 +279,14 @@ class A2PackPartitions
             // Process all 40 bytes in one line
             (0..<40).each { x ->
                 arr[dstPos+x] = Integer.parseInt(hexStr[srcPos..srcPos+1], 16)
-                srcPos += 2
+                srcPos += 2 // two hex chars = one byte
             }
             
-            // Crazy adjustment to get to next line on Apple II hi-res screen
-            dstPos += 0x400
-            if (dstPos >= 0x2000) {
-                dstPos -= 0x2000
-                dstPos += 0x80
-                if (dstPos >= 0x400) {
-                    dstPos -= 0x400
-                    dstPos += 40
-                }
-            }
+            dstPos += 40
         }
         
         // Put the results into the buffer
-        def outBuf = ByteBuffer.allocate(8192)
+        def outBuf = ByteBuffer.allocate(7680)
         outBuf.put(arr)
         
         // All done. Return the buffer.

@@ -362,17 +362,26 @@ export asm finishString
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-asm blitPortrait      // params: srcData, dstScreenPtr
-  +asmPlasm 2
+asm blit      // params: srcData, dstScreenPtr, nLines, lineSize
+  +asmPlasm 4
+
+  ; Save line size
+  sta ysav
+
+  ; Save nLines
+  lda evalStkL+1,x
+  pha
 
   ; Save the dest pointer
+  lda evalStkL+2,x
   sta pTmp
-  sty pTmp+1
+  lda evalStkH+2,x
+  sta pTmp+1
 
   ; Save the source pointer
-  lda evalStkL+1,x
+  lda evalStkL+3,x
   sta tmp
-  lda evalStkH+1,x
+  lda evalStkH+3,x
   sta tmp+1
 
   ; Create the following subroutine, used to copy pixels from aux to main:
@@ -410,15 +419,17 @@ asm blitPortrait      // params: srcData, dstScreenPtr
   sta $1D
 
   ; Outer copy loop
-  ldx #128  ; line count
+  pla       ; line count
+  tax
 .loop
-  ldy #17   ; byte count minus 1. There are 18 bytes per line
+  ldy ysav  ; byte count minus 1. There are 18 bytes per line
+  dey
   jsr $10   ; copy pixel bytes
 
   ; Advance to next row of data
   lda tmp
   clc
-  adc #18
+  adc ysav
   sta tmp
   bcc +
   inc tmp+1
@@ -1082,17 +1093,22 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load the Frame Image, and lock it.
 def loadFrameImg(img)
-  if frameLoaded <> img
-    if frameLoaded
-      mmgr(UNLOCK_MEMORY,$2000)
-      mmgr(FREE_MEMORY,  $2000)
-    fin
-    mmgr(SET_MEM_TARGET, $2000)
-    mmgr(QUEUE_LOAD,     img<<8 | RES_TYPE_SCREEN)
-    mmgr(LOCK_MEMORY,    $2000)
-    mmgr(FINISH_LOAD, 0)
-    frameLoaded = img
-  fin
+  word tmpBuf
+
+  // Skip redundant reload
+  if frameLoaded == img; return; fin
+
+  // Temporarily load the image in aux mem
+  tmpBuf = auxMmgr(QUEUE_LOAD, img<<8 | RES_TYPE_SCREEN)
+  auxMmgr(FINISH_LOAD, 0)
+
+  // Blit to the graphics screen.
+  // No need to lock hi-res pg 1, mem mgr has done it for us.
+  blit(tmpBuf, $2000, 192, 40)
+
+  // And clean up
+  auxMmgr(UNLOCK_MEMORY, tmpBuf)
+  frameLoaded = img
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1677,9 +1693,9 @@ def showAnimFrame()
 
   // Show it on-screen
   if frameLoaded == 3  // 3D-mode frame? Note: don't check mapIs3D, because we might be in an engine
-    blitPortrait(pData, $2182)  // start at 3rd text line
+    blit(pData, $2182, 128, 18)  // start at 3rd text line
   else
-    blitPortrait(pData, $2202)  // start at 4th text line
+    blit(pData, $2202, 128, 18)  // start at 4th text line
   fin
 
   needRender = FALSE  // suppress display of map for this frame
@@ -2181,14 +2197,8 @@ def loadTitle()
 
   puts("Loading game.\n")
 
-  // Load the title screen
-  mmgr(UNLOCK_MEMORY,  $2000)
-  mmgr(FREE_MEMORY,    $2000)
-  mmgr(SET_MEM_TARGET, $2000)
-  mmgr(QUEUE_LOAD,     1<<8 | RES_TYPE_SCREEN)  // title screen is fixed at #1
-  mmgr(LOCK_MEMORY,    $2000)
-  mmgr(FINISH_LOAD,    0)
-  frameLoaded = 1
+  // Load the title screen and show it.
+  loadFrameImg(1) // title screen is fixed at #1
   ^$C050     // graphics
   ^$C057     // hi-res
   ^$C054     // page 1

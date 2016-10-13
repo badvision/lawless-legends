@@ -2858,6 +2858,7 @@ heapSet: !zone
 ; Zero memory heapTop.heapEnd
 heapClr: !zone
 	lda #0
+	sta targetAddr+1	; clear target addr now that we're done with heap top
 	ldx heapTop
 	ldy heapTop+1
 .pg	sty .st+2

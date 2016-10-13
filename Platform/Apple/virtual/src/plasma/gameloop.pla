@@ -1107,7 +1107,7 @@ def loadFrameImg(img)
   blit(tmpBuf, $2000, 192, 40)
 
   // And clean up
-  auxMmgr(UNLOCK_MEMORY, tmpBuf)
+  auxMmgr(FREE_MEMORY, tmpBuf)
   frameLoaded = img
 end
 
@@ -1287,8 +1287,9 @@ def initMap(x, y, dir)
   // Reset memory (our module will stay since memory manager locked it upon load)
   mmgr(RESET_MEMORY, 0)
 
-  // Load the raycaster or tile engine, and then the frame image.
+  // Load the frame image, then raycaster or tile engine
   mmgr(START_LOAD, 1) // partition 1 is where code lives
+  loadFrameImg(mapIs3D+2)
   mmgr(SET_MEM_TARGET, displayEngine)
   if mapIs3D
     mmgr(QUEUE_LOAD, CODE_RENDER<<8 | RES_TYPE_CODE)
@@ -1299,7 +1300,6 @@ def initMap(x, y, dir)
   fin
   mmgr(FINISH_LOAD, 0)
   renderLoaded = TRUE
-  loadFrameImg(mapIs3D+2)
 
   // Load the map
   mmgr(START_LOAD, 2) // partition 2 is where maps live

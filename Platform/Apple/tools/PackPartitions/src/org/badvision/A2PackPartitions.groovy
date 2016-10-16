@@ -266,6 +266,7 @@ class A2PackPartitions
         // Locate the data for the Apple II (as opposed to C64 etc.)
         def dataEl = imgEl.displayData?.find { it.@platform == "AppleII" }
         assert dataEl : "image '${imgEl.@name}' missing AppleII platform data"
+        //println "Packing frame image '${imgEl.@name}'."
 
         // Parse out the hex data on each line and add it to a buffer.
         def hexStr = dataEl.text()
@@ -284,10 +285,10 @@ class A2PackPartitions
             
             dstPos += 40
         }
-        
+
         // Put the results into the buffer
-        def outBuf = ByteBuffer.allocate(7680)
-        outBuf.put(arr)
+        def outBuf = ByteBuffer.allocate(dstPos)
+        outBuf.put(arr, 0, dstPos)
         
         // All done. Return the buffer.
         return outBuf
@@ -804,6 +805,7 @@ class A2PackPartitions
             out.position(0)
             out.put((byte)(before+1))
             out.position(endPos)
+            //println "$name: ${out.position()} bytes."
         }
         else
             portraits[name] = [num:num, buf:buf]
@@ -1774,7 +1776,7 @@ class A2PackPartitions
         allItemFuncs(dataIn.global.sheets.sheet)
         allPlayerFuncs(dataIn.global.sheets.sheet)
             
-        // Pack each map This uses the image and tile maps filled earlier.
+        // Pack each map. This uses the image and tile maps filled earlier.
         println "Packing maps."
         new File("build/3dMemUsage.txt").withWriter { w ->
             memUsageFile = w
@@ -1878,7 +1880,7 @@ class A2PackPartitions
         return String.format("\$%X", ((nDice << 12) | (dieSize << 8) | add))
     }
     
-    def genEnemy(out, row, portraitNames)
+    def genEnemy(out, row)
     {
         def name = row.@name
         withContext(name) 
@@ -1886,11 +1888,11 @@ class A2PackPartitions
             out.println("def _NEn_${humanNameToSymbol(name, false)}()")
 
             def image1 = row.@image1
-            if (!portraitNames.contains(humanNameToSymbol(image1, false)))
+            if (!portraits.containsKey(image1))
                 throw new Exception("Image '$image1' not found")
 
             def image2 = row.@image2
-            if (image2.size() > 0 && !portraitNames.contains(humanNameToSymbol(image2, false)))
+            if (image2.size() > 0 && !portraits.containsKey(image2))
                 throw new Exception("Image '$image2' not found")
 
             def hitPoints = row.@"hit-points"; assert hitPoints
@@ -1926,7 +1928,7 @@ class A2PackPartitions
         }
     }
     
-    def genAllEnemies(sheet, portraitNames)
+    def genAllEnemies(sheet)
     {
         assert sheet : "Missing 'enemies' sheet"
             
@@ -1987,7 +1989,7 @@ end
 
                 // Now output a function for each enemy
                 sheet.rows.row.each { row ->
-                    genEnemy(out, row, portraitNames)
+                    genEnemy(out, row)
                 }
                 out.println()
 
@@ -2460,10 +2462,9 @@ end
         // the PLASMA compiler expects to see.
         def oldSep = System.getProperty("line.separator")
         System.setProperty("line.separator", "\n")
-        
-        // Translate image names to constants
+
+        // Translate image names to constants and symbol names
         new File("build/src/plasma").mkdirs()
-        def portraitNames = [] as Set
         new File("build/src/plasma/gen_images.plh.new").withWriter { out ->
             def portraitNum = 0
             dataIn.image.sort{it.@name.toLowerCase()}.each { image ->
@@ -2481,7 +2482,7 @@ end
                     if (animFrameNum <= 1) {
                         ++portraitNum
                         out.println "const PO${humanNameToSymbol(name, false)} = $portraitNum"
-                        portraitNames << humanNameToSymbol(name, false)
+                        portraits[name] = []  // placeholder during dataGen phase
                     }
                 }
             }
@@ -2503,7 +2504,7 @@ end
         replaceIfDiff("build/src/plasma/gen_globalScripts.pla")
         
         // Translate enemies, weapons, etc. to code
-        genAllEnemies(dataIn.global.sheets.sheet.find { it?.@name.equalsIgnoreCase("enemies") }, portraitNames)
+        genAllEnemies(dataIn.global.sheets.sheet.find { it?.@name.equalsIgnoreCase("enemies") })
         genAllItems(dataIn.global.sheets.sheet)
         genAllPlayers(dataIn.global.sheets.sheet)
 
@@ -3229,12 +3230,11 @@ end
         def packSetPortrait(blk)
         {
             def portraitName = getSingle(blk.field, 'NAME').text()
-            def portrait = portraits[portraitName]
-            if (!portrait) {
+            if (!portraits.containsKey(portraitName)) {
                 printWarning "portrait '$portraitName' not found; skipping set_portrait."
                 return
             }
-            outIndented("setPortrait(${portrait.num})\n")
+            outIndented("setPortrait(PO${humanNameToSymbol(portraitName, false)})\n")
         }
         
         def packClrPortrait(blk)

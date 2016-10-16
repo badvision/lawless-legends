@@ -127,9 +127,9 @@ relocate:
 	inx
 	stx $D000
 	cpx $D000
-	bne .noaux
 	sta clrAuxZP
 	cli
+	bne .noaux
 	dex
 	cpx $D000
 	beq .gotaux
@@ -144,9 +144,9 @@ relocate:
 .st	sta $D000,y
 	iny
 	bne .bylup
-	cli
 	inx			; all pages until we hit $00
 	bne .pglup
+	cli
 	sta clrAuxZP		; ...back to main LC
 ; patch into the main ProDOS MLI entry point
 	ldx #$4C	; jmp
@@ -381,11 +381,10 @@ init: !zone
 	sty glibBase+1
 	lda #LOCK_MEMORY	; lock it in forever
 	jsr main_dispatch
-	ldx #1			; keep open for efficiency's sake
-	lda #FINISH_LOAD
+	lda #FINISH_LOAD	; and load it
 	jsr main_dispatch
-	ldx #$10		; initial eval stack index
-.gomod:	jmp $1111		; jump to module for further bootstrapping
+	ldx #$10		; set initial PLASMA eval stack index
+.gomod:	jmp $1111		; jump to module to start the game
 
 ;------------------------------------------------------------------------------
 ; Vectors and debug support code - these go in low memory at $800

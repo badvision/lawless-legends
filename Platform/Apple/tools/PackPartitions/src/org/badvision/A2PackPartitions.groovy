@@ -43,6 +43,18 @@ class A2PackPartitions
     def TYPE_BYTECODE    = 9
     def TYPE_FIXUP       = 10
     def TYPE_PORTRAIT    = 11
+    
+    def typeNumToName    = [1:  "Code",
+                            2:  "2D map",
+                            3:  "3D map",
+                            4:  "Tile set",
+                            5:  "Texture image",
+                            6:  "Full screen image",
+                            7:  "Font",
+                            8:  "Code",
+                            9:  "Code",
+                            10: "Code",
+                            11: "Portrait image"]
 
     def mapNames  = [:]  // map name (and short name also) to map.2dor3d, map.num
     def sysCode   = [:]  // memory manager
@@ -78,7 +90,8 @@ class A2PackPartitions
     def binaryStubsOnly = false
     def cache = [:]
     def buildDir
-    def memUsageFile
+    def reportWriter
+    def chunkSizes = [:]
 
     def stats = [
         "intelligence": "@S_INTELLIGENCE",
@@ -619,7 +632,7 @@ class A2PackPartitions
         def mapTexturesSize = texList.size() * 0x555
         def totalAux = gameloopSize + mapScriptsSize + mapTexturesSize
         def safeLimit = 34 * 1024
-        memUsageFile.println String.format("%-20s: %4.1fK of %4.1fK used: %4.1fK scripts, %4.1fK in %2d textures, %4.1fK overhead%s",
+        reportWriter.println String.format("%-20s: %4.1fK of %4.1fK used: %4.1fK scripts, %4.1fK in %2d textures, %4.1fK overhead%s",
             mapName, totalAux/1024.0, safeLimit/1024.0, 
             mapScriptsSize/1024.0, mapTexturesSize/1024.0, texList.size(), gameloopSize/1024.0,
             totalAux > safeLimit ? " [WARNING]" : "")
@@ -1363,24 +1376,24 @@ class A2PackPartitions
         // Make a list of all the chunks that will be in the partition
         def chunks = []
         if (partNum == 1)
-            code.values().each { chunks.add([type:TYPE_CODE, num:it.num, buf:compress(it.buf)]) }       
+            code.each { k,v -> chunks.add([type:TYPE_CODE, num:v.num, name:k, buf:compress(v.buf)]) }       
         modules.each { k, v ->
             if ((partNum==1 && v.num <= lastSysModule) || (partNum==2 && v.num > lastSysModule)) {
-                chunks.add([type:TYPE_MODULE, num:v.num, buf:compress(v.buf)])
-                chunks.add([type:TYPE_BYTECODE, num:v.num, buf:compress(bytecodes[k].buf)])
-                chunks.add([type:TYPE_FIXUP, num:v.num, buf:compress(fixups[k].buf)])
+                chunks.add([type:TYPE_MODULE,   num:v.num, name:k, buf:compress(v.buf)])
+                chunks.add([type:TYPE_BYTECODE, num:v.num, name:k, buf:compress(bytecodes[k].buf)])
+                chunks.add([type:TYPE_FIXUP,    num:v.num, name:k, buf:compress(fixups[k].buf)])
             }
         }
         if (partNum == 1) {
-            fonts.values().each { chunks.add([type:TYPE_FONT, num:it.num, buf:compress(it.buf)]) }
-            frames.values().each { chunks.add([type:TYPE_SCREEN, num:it.num, buf:compress(it.buf)]) }
+            fonts.each     { k,v -> chunks.add([type:TYPE_FONT,        num:v.num, name:k, buf:compress(v.buf)]) }
+            frames.each    { k,v -> chunks.add([type:TYPE_SCREEN,      num:v.num, name:k, buf:compress(v.buf)]) }
         }
         else {
-            maps2D.values().each { chunks.add([type:TYPE_2D_MAP, num:it.num, buf:compress(it.buf)]) }
-            tileSets.values().each { chunks.add([type:TYPE_TILE_SET, num:it.num, buf:compress(it.buf)]) }
-            maps3D.values().each { chunks.add([type:TYPE_3D_MAP, num:it.num, buf:compress(it.buf)]) }
-            textures.values().each { chunks.add([type:TYPE_TEXTURE_IMG, num:it.num, buf:compress(it.buf)]) }
-            portraits.values().each { chunks.add([type:TYPE_PORTRAIT, num:it.num, buf:compress(it.buf)]) }
+            maps2D.each    { k,v -> chunks.add([type:TYPE_2D_MAP,      num:v.num, name:k, buf:compress(v.buf)]) }
+            tileSets.each  { k,v -> chunks.add([type:TYPE_TILE_SET,    num:v.num, name:k, buf:compress(v.buf)]) }
+            maps3D.each    { k,v -> chunks.add([type:TYPE_3D_MAP,      num:v.num, name:k, buf:compress(v.buf)]) }
+            textures.each  { k,v -> chunks.add([type:TYPE_TEXTURE_IMG, num:v.num, name:k, buf:compress(v.buf)]) }
+            portraits.each { k,v -> chunks.add([type:TYPE_PORTRAIT,    num:v.num, name:k, buf:compress(v.buf)]) }
         }
         
         // Generate the header chunk. Leave the first 2 bytes for the # of pages in the hdr
@@ -1398,10 +1411,15 @@ class A2PackPartitions
             hdrBuf.put((byte)(len & 0xFF))
             hdrBuf.put((byte)((len >> 8) | (chunk.buf.compressed ? 0x80 : 0)))
             if (chunk.buf.compressed) {
-                def clen = chunk.buf.uncompressedLen;
-                hdrBuf.put((byte)(clen & 0xFF))
-                hdrBuf.put((byte)(clen >> 8))
+                def uclen = chunk.buf.uncompressedLen;
+                hdrBuf.put((byte)(uclen & 0xFF))
+                hdrBuf.put((byte)(uclen >> 8))
             }
+            
+            // Record sizes for reporting purposes
+            chunkSizes[[type:chunk.type, name:chunk.name, num:chunk.num]] = 
+                [clen: len, 
+                 uclen: chunk.buf.compressed ? chunk.buf.uncompressedLen : len]
         }
         
         // Terminate the header with a zero type
@@ -1701,6 +1719,53 @@ class A2PackPartitions
         newCacheFile.renameTo(cacheFile)
     }
     
+    def reportSizes()
+    {
+        reportWriter.println "\n================================= Resource Sizes ====================================="
+        def data = [:]
+        chunkSizes.each { k,v ->
+            assert typeNumToName.containsKey(k.type)
+            def type = typeNumToName[k.type]
+            if (type == "Code" && k.num > lastSysModule)
+                type = "Script"
+            def name = k.name.replaceAll(/\s*-\s*[23][dD].*/, "")
+            def dataKey = [type:type, name:name]
+            if (!data.containsKey(dataKey))
+                data[dataKey] = v
+            else {
+                data[dataKey].clen += v.clen
+                data[dataKey].uclen += v.uclen
+            }
+        }
+        
+        def prevType
+        def cSub = 0, cTot = 0, ucSub = 0, ucTot = 0
+        data.keySet().sort { a,b -> 
+            a.type < b.type ? -1 :
+            a.type > b.type ? 1 :
+            a.name < b.name ? -1 :
+            a.name > b.name ? 1 :
+            0
+        }.each { k ->
+            def v = data[k]
+            if (prevType != k.type) {
+                if (prevType)
+                    reportWriter.println String.format("%-22s: %6.1fK memory, %6.1fK disk", "Subtotal", ucSub/1024.0, cSub/1024.0)
+                reportWriter.println("\n${k.type} resources:")
+                prevType = k.type
+                cSub = 0
+                ucSub = 0
+            }
+            reportWriter.println String.format("  %-20s: %6.1fK memory, %6.1fK disk", k.name, v.uclen/1024.0, v.clen/1024.0)
+            cSub += v.clen
+            cTot += v.clen
+            ucSub += v.uclen
+            ucTot += v.uclen
+        }
+        reportWriter.println String.format("%-22s: %6.1fK memory, %6.1fK disk", "Subtotal", ucSub/1024.0, cSub/1024.0)
+        reportWriter.println String.format("\n%-22s: %6.1fK memory, %6.1fK disk", "GRAND TOTAL", ucTot/1024.0, cTot/1024.0)
+    }
+    
     def pack(xmlPath)
     {
         // Save time by using cache of previous run
@@ -1777,17 +1842,15 @@ class A2PackPartitions
         allPlayerFuncs(dataIn.global.sheets.sheet)
             
         // Pack each map. This uses the image and tile maps filled earlier.
-        println "Packing maps."
-        new File("build/3dMemUsage.txt").withWriter { w ->
-            memUsageFile = w
-            dataIn.map.each { map ->
-                if (map?.@name =~ /2D/)
-                    pack2DMap(map, dataIn.tile) 
-                else if (map?.@name =~ /3D/)
-                    pack3DMap(map, dataIn.tile) 
-                else
-                    printWarning "map name '${map?.@name}' should contain '2D' or '3D'. Skipping."
-            }
+        println "Packing maps and scripts."
+        reportWriter.println "\n================================= Memory usage of 3D maps =====================================\n"
+        dataIn.map.each { map ->
+            if (map?.@name =~ /2D/)
+                pack2DMap(map, dataIn.tile) 
+            else if (map?.@name =~ /3D/)
+                pack3DMap(map, dataIn.tile) 
+            else
+                printWarning "map name '${map?.@name}' should contain '2D' or '3D'. Skipping."
         }
         
         // Ready to write the output file.
@@ -1801,13 +1864,7 @@ class A2PackPartitions
         new File(part2Path).withOutputStream { stream -> writePartition(stream, 2) }
         
         // Print stats
-        println "Compression saved $compressionSavings bytes."
-        if (compressionSavings > 0) {
-            def endSize = new File(part1Path).length() + new File(part2Path).length()
-            def origSize = endSize + compressionSavings
-            def savPct = String.format("%.1f", compressionSavings * 100.0 / origSize)
-            println "Size $origSize -> $endSize ($savPct% savings)"
-        }
+        reportSizes()
         
         // And save the cache for next time.
         writeCache()
@@ -2561,83 +2618,80 @@ end
     {
         // If there's an existing error file, remove it first, so user doesn't
         // get confused by an old file.
-        def errorFile = new File("pack_error.txt")
-        if (errorFile.exists())
-            errorFile.delete()
+        def reportFile = new File("pack_report.txt")
+        if (reportFile.exists())
+            reportFile.delete()
+        reportFile.withWriter { reportWriter ->
 
-        def warningFile = new File("pack_warning.txt")
-        if (warningFile.exists())
-            warningFile.delete()
-            
-        def inst
-        try {
-            File xmlFile = new File(xmlPath)
-
-            def flag = false
+            def inst
             try {
-                assert false
-            }
-            catch (AssertionError e) {
-                flag = true
-            }
-            if (!flag)
-                throw "Assertions must be enabled"
+                File xmlFile = new File(xmlPath)
 
-            // Create the build directory if necessary
-            def buildDir = new File("build").getCanonicalFile()
-            if (!buildDir.exists())
-                buildDir.mkdirs()
-
-            // Also remove existing game image if any, for the same reason.
-            def gameFile = new File("game.2mg")
-            if (gameFile.exists()) 
-            {
-                // We want to preserve any existing saved game, so grab files from the old image.
-                String[] args2 = ["-get", "game.2mg", "/", "build/prevGame"]
-                new a2copy.A2Copy().main(args2)
-
-                // Then delete the old image.
-                gameFile.delete()
-            }
-
-            // Create PLASMA headers
-            inst = new A2PackPartitions()
-            inst.buildDir = buildDir
-            inst.dataGen(xmlFile)
-            
-            // Pack everything into a binary file
-            inst = new A2PackPartitions() // make a new one without stubs
-            inst.buildDir = buildDir
-            inst.pack(xmlFile)
-
-            // And create the final disk image
-            inst.createImage()
-        }
-        catch (Throwable t) {
-            errorFile.withWriter { out ->
-                out.println "Packing error: ${t.message}"
-                out.println "       detail: $t"
-                if (inst) {
-                    out.println "\nContext:"
-                    out.println "    ${inst.getContextStr()}"
+                def flag = false
+                try {
+                    assert false
                 }
-                out.println "\nGroovy call stack:"
+                catch (AssertionError e) {
+                    flag = true
+                }
+                if (!flag)
+                    throw "Assertions must be enabled"
+
+                // Create the build directory if necessary
+                def buildDir = new File("build").getCanonicalFile()
+                if (!buildDir.exists())
+                    buildDir.mkdirs()
+
+                // Also remove existing game image if any, for the same reason.
+                def gameFile = new File("game.2mg")
+                if (gameFile.exists()) 
+                {
+                    // We want to preserve any existing saved game, so grab files from the old image.
+                    String[] args2 = ["-get", "game.2mg", "/", "build/prevGame"]
+                    new a2copy.A2Copy().main(args2)
+
+                    // Then delete the old image.
+                    gameFile.delete()
+                }
+
+                // Create PLASMA headers
+                inst = new A2PackPartitions()
+                inst.buildDir = buildDir
+                inst.reportWriter = reportWriter
+                inst.dataGen(xmlFile)
+
+                // Pack everything into a binary file
+                inst = new A2PackPartitions() // make a new one without stubs
+                inst.buildDir = buildDir
+                inst.reportWriter = reportWriter
+                inst.pack(xmlFile)
+
+                // And create the final disk image
+                inst.createImage()
+            }
+            catch (Throwable t) {
+                reportWriter.println "Packing error: ${t.message}"
+                reportWriter.println "       detail: $t"
+                if (inst) {
+                    reportWriter.println "\nContext:"
+                    reportWriter.println "    ${inst.getContextStr()}"
+                }
+                reportWriter.println "\nGroovy call stack:"
                 t.getStackTrace().each {
                     if (it.toString().contains(".groovy:"))
-                        out.println "    $it"
+                        reportWriter.println "    $it"
                 }
+                reportWriter.flush()
+                reportFile.eachLine { println it }
+                watcher.error(t.message, inst ? inst.getContextStr() : 'outer')
             }
-            errorFile.eachLine { println it }
-            watcher.error(t.message, inst ? inst.getContextStr() : 'outer')
-        }
-        
-        if (inst.nWarnings > 0) {
-            warningFile.withWriter { out ->
-                out.println "Packing warnings:\n"
-                out.println inst.warningBuf.toString()
-                out.write()
+
+            if (inst.nWarnings > 0) {
+                reportWriter.println "Packing warnings:\n"
+                reportWriter.println inst.warningBuf.toString()
+                reportWriter.write()
+                watcher.warnings(inst.nWarnings, inst.warningBuf.toString())
             }
-            watcher.warnings(inst.nWarnings, inst.warningBuf.toString())
         }
     }
 

@@ -2990,6 +2990,95 @@ showDiskActivity: !zone
 .done	rts
 
 ;------------------------------------------------------------------------------
+; Advance all animated resources by one frame.
+; Params: X = direction change (0=no change, 1=forward, $FF=backward). 
+;             Only applied to resources marked as "forward/backward" order.
+; 	  Y = number of frames to skip.
+;             Only applied to resources marked as "random" order.
+advanceAnims:
+	stx resType	; store direction-change
+	sty resNum	; store frames-to-skip
+	lda #0
+	sta .ret+1	; clear count of animated
+	ldx isAuxCmd	; grab correct starting segment (0=main mem, 1=aux)
+.loop:	lda tSegType,x	; segment flags and type
+	bpl .next	; skip non-active
+	and #$F		; get type
+	cmp #RES_TYPE_PORTRAIT
+	beq .anim	; found an animated resource type
+	bne .next	; not animated; skip
+.anim	lda tSegAdrLo,x	; pointer to start of resource
+	sta pTmp
+	lda tSegAdrHi,x	; ...hi byte too
+	sta pTmp+1
+
+	ldy #1
+	lda (pTmp),y	; check anim header offset
+	ora (pTmp),y
+	beq .next	; if zero, resource is not aniimated
+
+	lda (pTmp),y	; grab offset
+	clc
+	adc pTmp	; add to starting addr
+	sta tmp		; to obtain addr of animation header
+	iny
+	lda (pTmp),y	; hi byte too
+	adc pTmp+1
+	sta tmp+1
+
+	txa		; save link number we're scanning
+	pha
+
+.chkr	ldy #0
+	lda (tmp),y	; get animation type (1=Forward, 2=Forward+Backward, 3=Random)
+	cmp #3		; is it random?
+	bne .chkfb
+	ldx resNum	; number of frames to skip
+	beq .res	; if zero, nothing to do
+-	lda #1		; direction = forward
+	jsr .fwd	; advance one frame
+	dec resNum	; number to advance
+	bne -		; loop for specified number of skips
+	beq .doptch	; and go do the patching (always taken)
+
+.chkfb	iny		; index of current dir
+	cmp #2		; is it a forward+backward anim?
+	bne .setdir
+	lda resType	; get change to dir
+	beq .adv	; not changing? just advance
+.setdir	sta (pTmp),y	; store new dir
+
+.adv	lda (pTmp),y	; get current dir
+	jsr .fwbk	; advance the frame number in that direction
+.doptch	jsr .patch	; apply patch for the new frame
+
+.res	pla		; restore link number we're scanning
+	tax
+.next:	lda tSegLink,x	; next in chain
+	tax		; to X reg index
+	bne .loop	; non-zero = not end of chain - loop again
+.ret	lda #0		; return count of number actually patched (self-modified by .patch below)
+	rts
+
+.fwbk	ldy #3		; index of current frame number
+	clc
+	adc (tmp),y	; advance in direction
+	dey		; index of number of frames
+	bcc +		; carry can only be set if dir=-1 and we wrapped around
+	lda (tmp),y	; get number of frames
+	sbc #1		; minus one (we know carry is already set)
++	cmp (tmp),y	; are we at the limit of number of frames?
+	bne +
+	lda #0		; back to start
++	iny		; index of current frame number
+	sta (tmp),y	; and store it
+	rts
+
+.patch	inc .ret+1	; count number we have actually changed
+	; TODO
+	rts
+
+;------------------------------------------------------------------------------
 ; Segment tables
 
 tSegLink	!fill MAX_SEGS

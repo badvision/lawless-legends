@@ -772,57 +772,12 @@ class A2PackPartitions
     
     def packPortrait(imgEl)
     {
-        def num = portraits.size() + 1
-        def name = imgEl.@name ?: "img$num"
-        def animFrameNum = 0
-        def animFlags
-        def m = (name =~ /^(.*)\*(\d+)(\w*)$/)
-        if (m) {
-            name = m[0][1]
-            animFrameNum = m[0][2].toInteger()
-            animFlags = m[0][3].toLowerCase()
+        def (name, animFrameNum, animFlags) = decodeImageName(imgEl.@name ?: "img$num")
+        if (!portraits.containsKey(name)) {
+            def num = portraits.size() + 1
+            portraits[name] = [num:num, anim:new AnimBuf()]
         }
-        //println "Packing 126 image named '$name'."
-        def buf = parse126Data(imgEl)
-        if (animFrameNum == 1) {
-            def flagByte
-            switch (animFlags) {
-                case ""  : flagByte = 0; break
-                case "f" : flagByte = 0x20; break
-                case "fb": flagByte = 0x40; break
-                case "r" : flagByte = 0x80; break
-                default  : throw new Exception("Unrecognized animation flags '$animFlags'")
-            }
-            def newBuf = ByteBuffer.allocate(50000) // plenty of room
-            buf.flip()  // crazy stuff to append one buffer to another
-            newBuf.put(buf)
-            def endPos = newBuf.position()
-            newBuf.position(0)
-            newBuf.put((byte) (1 + flagByte))
-            newBuf.position(endPos)
-            portraits[name] = [num:num, buf:newBuf]
-        }
-        else if (animFrameNum > 1) {
-            if (!portraits[name])
-                throw new Exception("Can't find first frame for animation '$name'")
-            num = portraits.size()  // in other words, do not increment
-            buf.flip()  // crazy stuff to append one buffer to another
-            buf.get() // skip 1st byte - unused flags
-            def out = portraits[name].buf
-            out.put(buf)
-            
-            // Increment the frame count
-            def endPos = out.position()            
-            out.position(0)
-            def before = out.get()
-            out.position(0)
-            out.put((byte)(before+1))
-            out.position(endPos)
-            //println "$name: ${out.position()} bytes."
-        }
-        else
-            portraits[name] = [num:num, buf:buf]
-        //println "...uncompressed: ${buf.position()} bytes."
+        portraits[name].anim.addImage(animFrameNum, animFlags, parse126Data(imgEl))
     }
     
     def packTile(imgEl)
@@ -1830,6 +1785,11 @@ class A2PackPartitions
         textureImgs.each { image -> packTexture(image) }
         if (!grabEntireFromCache("portraits", portraits, xmlLastMod)) {
             portraitImgs.each { image -> packPortrait(image) }
+            portraits.each { name, portrait ->
+                println "Packing portrait $name."
+                portrait.buf = portrait.anim.pack() 
+                portrait.anim = null
+            }
             addEntireToCache("portraits", portraits, xmlLastMod)
         }
         
@@ -2510,6 +2470,20 @@ end
         }
     }
     
+    def decodeImageName(rawName)
+    {
+        def name = rawName
+        def animFrameNum = 1
+        def animFlags
+        def m = (name =~ /^(.*)\*(\d+)(\w*)$/)
+        if (m) {
+            name = m[0][1]
+            animFrameNum = m[0][2].toInteger()
+            animFlags = m[0][3].toLowerCase()
+        }
+        return [name, animFrameNum, animFlags]
+    }
+    
     def dataGen(xmlPath)
     {
         // Open the XML data file produced by Outlaw Editor
@@ -2526,21 +2500,11 @@ end
             def portraitNum = 0
             dataIn.image.sort{it.@name.toLowerCase()}.each { image ->
                 def category = image.@category?.toLowerCase()
-                def name = image.@name
-                if (category == "portrait") {
-                    def animFrameNum = 0
-                    def animFlags
-                    def m = (name =~ /^(.*)\*(\d+)(\w*)$/)
-                    if (m) {
-                        name = m[0][1]
-                        animFrameNum = m[0][2].toInteger()
-                        animFlags = m[0][3].toLowerCase()
-                    }
-                    if (animFrameNum <= 1) {
-                        ++portraitNum
-                        out.println "const PO${humanNameToSymbol(name, false)} = $portraitNum"
-                        portraits[name] = []  // placeholder during dataGen phase
-                    }
+                def (name, animFrameNum, animFlags) = decodeImageName(image.@name)
+                if (category == "portrait" && animFrameNum == 1) {
+                    ++portraitNum
+                    out.println "const PO${humanNameToSymbol(name, false)} = $portraitNum"
+                    portraits[name] = []  // placeholder during dataGen phase
                 }
             }
             out.println "const PO_LAST = $portraitNum"
@@ -3443,4 +3407,130 @@ end
         }
     }
     
+    class AnimBuf
+    {
+        def animFlags
+        def buffers = []
+        def changeOffsets = [] as Set
+        def patches = []
+        
+        def addImage(animFrameNum, animFlags, imgBuf)
+        {
+            if (animFrameNum == 1)
+                this.animFlags = animFlags
+            buffers << imgBuf
+            assert animFrameNum == buffers.size() : "Missing animation frame"
+        }
+        
+        def pack()
+        {
+            def buf = ByteBuffer.allocate(50000) // plenty of room
+            
+            // If no animation, add a stub to the start of the (only) image and return it
+            assert buffers.size() >= 1
+            if (buffers.size() == 1) {
+                buf.put((byte)0)
+                buf.put((byte)0)
+                buffers[0].flip()  // crazy stuff to append one buffer to another
+                buf.put(buffers[0])
+                return buf
+            }
+            
+            // Locate the change offsets and form a set of patches
+            findChangeOffsets()
+            changeOffsets.sort().each { pos -> addPatch(pos) }
+            println "Change offsets: ${changeOffsets.sort()}"
+            println "Patches: $patches"
+            
+            // At start of buffer, put offset to animation header, then the first frame
+            def offset = buffers[0].position() + 2  // 2 for header
+            buf.put((byte)(offset & 0xFF))
+            buf.put((byte)((offset >> 8) & 0xFF))
+            buffers[0].flip()
+            buf.put(buffers[0])
+            
+            // Now append the full animation header
+            def flagByte
+            switch (animFlags) {
+                case ""  : flagByte = 0; break
+                case "f" : flagByte = 1; break
+                case "fb": flagByte = 2; break
+                case "r" : flagByte = 3; break
+                default  : throw new Exception("Unrecognized animation flags '$animFlags'")
+            }
+            buf.put((byte) flagByte)
+            buf.put((byte)0) // used to store current anim dir
+            buf.put((byte)(buffers.size() - 1))  // index of last frame
+            buf.put((byte)0) // used to store current anim frame
+            
+            // Next comes the length of each patch (they're all the same)
+            int patchLength = 0
+            patches.each { patch ->
+                patchLength += patch.end - patch.start + 1
+            }
+            buf.put((byte)(patchLength & 0xFF))
+            buf.put((byte)((patchLength>>8) & 0xFF))
+            
+            // And then the length of the patch offset table
+            def tblLength = (patches.size() * 2) + 1 // 1 for end of table
+            buf.put((byte)(tblLength & 0xFF))
+            buf.put((byte)((tblLength>>8) & 0xFF))
+            
+            // After the animation header, write out the patch offset table.
+            def prevEnd = 0
+            patches.each { patch ->
+                buf.put((byte)(patch.start - prevEnd))
+                buf.put((byte)(patch.end - patch.start))
+                //println "Patch: ${patch.start - prevEnd} ${patch.end - patch.start}"
+                prevEnd = patch.end
+            }
+            buf.put((byte)0xFF)
+            
+            // Finally write patch data for each image (including the base image, so
+            // one can loop around from last to first.)
+            buffers.each { img ->
+                patches.each { patch ->
+                    (patch.start ..< patch.end) { pos ->
+                        buf.put((byte)img.get(pos))
+                    }
+                }
+            }
+            
+            // All done.
+            return buf
+        }
+
+        // Determine all the buffer positions that any animation frame differs from
+        // the base image.
+        def findChangeOffsets() 
+        {
+            ByteBuffer base = buffers[0]
+            buffers[1..-1].each { ByteBuffer buf ->
+                assert base.position() == buf.position() : "internal: buffers must be equal size"
+                (0..<base.position()).each { pos ->
+                    if (base.get(pos) != buf.get(pos))
+                        changeOffsets << pos
+                }
+            }
+        }
+        
+        def addPatch(int pos)
+        {
+            // See if we can glom on to the previous patch
+            def last = patches.isEmpty() ? [start:0, end:0] : patches[-1]
+            if (last.end > 0 && pos < last.end + 3 && pos - last.start < 254) {
+                last.end = pos+1
+                return
+            }
+            
+            // Skip to the right position
+            while (pos - last.end >= 254) {
+                last = [start:last.end+254, end:last.end+254]
+                patches << last
+            }
+
+            // And add a new patch
+            patches << [start:pos, end:pos+1]
+        }
+    }
 }

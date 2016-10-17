@@ -86,6 +86,23 @@
 ;   The remainder of the file is the data for the resources, in order of their
 ;   table appearance.
 ;
+; ------------------------------------------------------------
+; Animated resource format (frame images, portraits, textures)
+;   bytes 0-1: offset to animation header (or $0000 if not animated)
+;   bytes 2-n: invariant image data
+; Followed by animation header:
+;   byte  0:   animation type (1=Forward, 2=Forward+Backward, 3=Random)
+;   byte  1:   current anim dir
+;   byte  2:   index of last frame (= number of frames *minus 1*)
+;   byte  3:   current anim frame
+;   bytes 4-5: length of any patch data segment (they're all the same length)
+;   bytes 6-7: length of patch offset table
+; Followed by patch offset table. Each entry:
+;   byte 0:    # of invariant bytes to skip (can be zero) ($FF for end of table)
+;   byte 1:    # of patch bytes to copy (can be zero)
+; Followed by patch data segments. Each segment:
+;   bytes 0-n: raw data (intelligible only by using patch offset table)
+
 mainLoader	= $800
 auxLoader	= mainLoader+3
 

@@ -3036,7 +3036,7 @@ advanceAnims:
 	ldx resNum	; number of frames to skip
 	beq .res	; if zero, nothing to do
 -	lda #1		; direction = forward
-	jsr .fwd	; advance one frame
+	jsr .fwbk	; advance one frame
 	dec resNum	; number to advance
 	bne -		; loop for specified number of skips
 	beq .doptch	; and go do the patching (always taken)

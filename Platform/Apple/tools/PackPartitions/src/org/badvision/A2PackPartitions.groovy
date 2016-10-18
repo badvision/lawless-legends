@@ -3439,7 +3439,7 @@ end
             // Locate the change offsets and form a set of patches
             findChangeOffsets()
             changeOffsets.sort().each { pos -> addPatch(pos) }
-            println "Change offsets: ${changeOffsets.sort()}"
+            //println "Change offsets: ${changeOffsets.sort()}"
             println "Patches: $patches"
             
             // At start of buffer, put offset to animation header, then the first frame
@@ -3468,11 +3468,13 @@ end
             patches.each { patch ->
                 patchLength += patch.end - patch.start + 1
             }
+            println "patchLength=$patchLength"
             buf.put((byte)(patchLength & 0xFF))
             buf.put((byte)((patchLength>>8) & 0xFF))
             
             // And then the length of the patch offset table
             def tblLength = (patches.size() * 2) + 1 // 1 for end of table
+            println "tblLength=$tblLength"
             buf.put((byte)(tblLength & 0xFF))
             buf.put((byte)((tblLength>>8) & 0xFF))
             
@@ -3486,11 +3488,11 @@ end
             }
             buf.put((byte)0xFF)
             
-            // Finally write patch data for each image (including the base image, so
-            // one can loop around from last to first.)
-            buffers.each { img ->
+            // Finally write patch data for each image (not including the base image,
+            // since data gets swapped in and out of the patch spaces)
+            buffers[1..-1].each { img ->
                 patches.each { patch ->
-                    (patch.start ..< patch.end) { pos ->
+                    (patch.start ..< patch.end).each { pos ->
                         buf.put((byte)img.get(pos))
                     }
                 }

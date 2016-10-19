@@ -3411,8 +3411,6 @@ end
     {
         def animFlags
         def buffers = []
-        def changeOffsets = [] as Set
-        def patches = []
         
         def addImage(animFrameNum, animFlags, imgBuf)
         {
@@ -3424,32 +3422,26 @@ end
         
         def pack()
         {
-            def buf = ByteBuffer.allocate(50000) // plenty of room
+            def outBuf = ByteBuffer.allocate(50000) // plenty of room
             
             // If no animation, add a stub to the start of the (only) image and return it
             assert buffers.size() >= 1
             if (buffers.size() == 1) {
-                buf.put((byte)0)
-                buf.put((byte)0)
+                outBuf.put((byte)0)
+                outBuf.put((byte)0)
                 buffers[0].flip()  // crazy stuff to append one buffer to another
-                buf.put(buffers[0])
-                return buf
+                outBuf.put(buffers[0])
+                return outBuf
             }
-            
-            // Locate the change offsets and form a set of patches
-            findChangeOffsets()
-            changeOffsets.sort().each { pos -> addPatch(pos) }
-            //println "Change offsets: ${changeOffsets.sort()}"
-            println "Patches: $patches"
             
             // At start of buffer, put offset to animation header, then the first frame
             def offset = buffers[0].position() + 2  // 2 for header
-            buf.put((byte)(offset & 0xFF))
-            buf.put((byte)((offset >> 8) & 0xFF))
+            outBuf.put((byte)(offset & 0xFF))
+            outBuf.put((byte)((offset >> 8) & 0xFF))
             buffers[0].flip()
-            buf.put(buffers[0])
+            outBuf.put(buffers[0])
             
-            // Now append the full animation header
+            // Now comes the full animation header
             def flagByte
             switch (animFlags) {
                 case ""  : flagByte = 0; break
@@ -3458,65 +3450,58 @@ end
                 case "r" : flagByte = 3; break
                 default  : throw new Exception("Unrecognized animation flags '$animFlags'")
             }
-            buf.put((byte) flagByte)
-            buf.put((byte)0) // used to store current anim dir
-            buf.put((byte)(buffers.size() - 1))  // index of last frame
-            buf.put((byte)0) // used to store current anim frame
+            outBuf.put((byte) flagByte)
+            outBuf.put((byte)0) // used to store current anim dir
+            outBuf.put((byte)(buffers.size() - 1))  // index of last frame
+            outBuf.put((byte)0) // used to store current anim frame
             
-            // Next comes the length of each patch (they're all the same)
-            int patchLength = 0
-            patches.each { patch ->
-                patchLength += patch.end - patch.start + 1
-            }
-            println "patchLength=$patchLength"
-            buf.put((byte)(patchLength & 0xFF))
-            buf.put((byte)((patchLength>>8) & 0xFF))
-            
-            // And then the length of the patch offset table
-            def tblLength = (patches.size() * 2) + 1 // 1 for end of table
-            println "tblLength=$tblLength"
-            buf.put((byte)(tblLength & 0xFF))
-            buf.put((byte)((tblLength>>8) & 0xFF))
-            
-            // After the animation header, write out the patch offset table.
-            def prevEnd = 0
-            patches.each { patch ->
-                buf.put((byte)(patch.start - prevEnd))
-                buf.put((byte)(patch.end - patch.start))
-                //println "Patch: ${patch.start - prevEnd} ${patch.end - patch.start}"
-                prevEnd = patch.end
-            }
-            buf.put((byte)0xFF)
-            
-            // Finally write patch data for each image (not including the base image,
-            // since data gets swapped in and out of the patch spaces)
-            buffers[1..-1].each { img ->
-                patches.each { patch ->
-                    (patch.start ..< patch.end).each { pos ->
-                        buf.put((byte)img.get(pos))
-                    }
-                }
+            // Then each patch
+            buffers[1..-1].each { inBuf ->
+                makePatch(inBuf, buffers[0], outBuf)
             }
             
             // All done.
-            return buf
-        }
-
-        // Determine all the buffer positions that any animation frame differs from
-        // the base image.
-        def findChangeOffsets() 
-        {
-            ByteBuffer base = buffers[0]
-            buffers[1..-1].each { ByteBuffer buf ->
-                assert base.position() == buf.position() : "internal: buffers must be equal size"
-                (0..<base.position()).each { pos ->
-                    if (base.get(pos) != buf.get(pos))
-                        changeOffsets << pos
-                }
-            }
+            return outBuf
         }
         
-        def addPatch(int pos)
+        def makePatch(ByteBuffer inBuf, ByteBuffer refBuf, ByteBuffer outBuf)
+        {
+            int len = inBuf.position()
+            assert refBuf.position() == len
+
+            // Build up an array of patch hunks
+            def patches = []
+            (0..<len).each { pos ->
+                if (refBuf.get(pos) != inBuf.get(pos))
+                    addPatch(patches, pos)
+            }
+
+            // Write out size of the entire patch
+            def startPos = outBuf.position()
+            int totalSize = 3  // 2 for len hdr, 1 for end-of-patch
+            patches.each { patch ->
+                totalSize += (patch.end - patch.start) + 2
+            }
+            outBuf.put((byte)(totalSize & 0xFF))
+            outBuf.put((byte)((totalSize>>8) & 0xFF))
+            
+            // And write out each patch hunk.
+            int prev = 0
+            patches.each { patch ->
+                assert patch.start - prev <= 254 && patch.end - patch.start <= 254
+                outBuf.put((byte)(patch.start - prev))
+                outBuf.put((byte)(patch.end - patch.start))
+                (patch.start ..< patch.end).each { pos ->
+                    outBuf.put((byte)(inBuf.get(pos)))
+                }
+                prev = patch.end
+            }
+            outBuf.put((byte)0xFF)
+            assert outBuf.position() - startPos == totalSize
+        }
+        
+
+        def addPatch(patches, int pos)
         {
             // See if we can glom on to the previous patch
             def last = patches.isEmpty() ? [start:0, end:0] : patches[-1]

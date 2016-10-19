@@ -3435,7 +3435,7 @@ end
             }
             
             // At start of buffer, put offset to animation header, then the first frame
-            def offset = buffers[0].position() + 2  // 2 for header
+            def offset = buffers[0].position() + 2  // 2 for the offset itself
             outBuf.put((byte)(offset & 0xFF))
             outBuf.put((byte)((offset >> 8) & 0xFF))
             buffers[0].flip()
@@ -3451,7 +3451,7 @@ end
                 default  : throw new Exception("Unrecognized animation flags '$animFlags'")
             }
             outBuf.put((byte) flagByte)
-            outBuf.put((byte)0) // used to store current anim dir
+            outBuf.put((byte)1) // used to store current anim dir; start with 1=forward
             outBuf.put((byte)(buffers.size() - 1))  // index of last frame
             outBuf.put((byte)0) // used to store current anim frame
             

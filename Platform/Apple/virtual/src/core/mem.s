@@ -2991,11 +2991,12 @@ showDiskActivity: !zone
 
 ;------------------------------------------------------------------------------
 ; Advance all animated resources by one frame.
-; Params: X = direction change (0=no change, 1=forward, $FF=backward). 
+; Params: X = direction change (0=no change, 1=change).
 ;             Only applied to resources marked as "forward/backward" order.
 ; 	  Y = number of frames to skip.
 ;             Only applied to resources marked as "random" order.
-advanceAnims:
+; Returns: non-zero if any animated resources processed
+advanceAnims: !zone {
 	stx resType	; store direction-change
 	sty resNum	; store frames-to-skip
 	lda #0
@@ -3011,12 +3012,27 @@ advanceAnims:
 	sta pTmp
 	lda tSegAdrHi,x	; ...hi byte too
 	sta pTmp+1
-
 	ldy #1
 	lda (pTmp),y	; check anim header offset
 	ora (pTmp),y
-	beq .next	; if zero, resource is not aniimated
+	beq .next	; if zero, resource is not animated
+	txa		; save link number we're scanning
+	pha
+	inc .ret+1	; mark the fact that we do have animated resources
+	jsr .advSingleAnim ; do the work to advance this one resource
+	pla		; restore link number we're scanning
+	tax
+.next	lda tSegLink,x	; next in chain
+	tax		; to X reg index
+	bne .loop	; non-zero = not end of chain - loop again
+.ret	lda #0		; return count of number anim resources found (self-modified by above)
+	rts
+}
 
+; Advance a single animated resource. On entry:
+;   pTmp -> base (2-byte offset followed by main dta)
+advSingleAnim: !zone {
+	ldy #0
 	lda (pTmp),y	; grab offset
 	clc
 	adc pTmp	; add to starting addr
@@ -3026,39 +3042,33 @@ advanceAnims:
 	adc pTmp+1
 	sta tmp+1
 
-	txa		; save link number we're scanning
-	pha
+	jsr applyPatch	; unpatch to get back to base frame data
 
 .chkr	ldy #0
-	lda (tmp),y	; get animation type (1=Forward, 2=Forward+Backward, 3=Random)
+	lda (tmp),y	; get animation type (1=Forward, 2=Forward/Backward, 3=Random)
 	cmp #3		; is it random?
 	bne .chkfb
 	ldx resNum	; number of frames to skip
-	beq .res	; if zero, nothing to do
--	lda #1		; direction = forward
+-	cpx #0
+	beq .doptch	; if zero, done skipping
+	lda #1		; direction = forward
 	jsr .fwbk	; advance one frame
-	dec resNum	; number to advance
-	bne -		; loop for specified number of skips
-	beq .doptch	; and go do the patching (always taken)
+	dex		; loop for...
+	jmp -		; ...specified number of skips
 
 .chkfb	iny		; index of current dir
 	cmp #2		; is it a forward+backward anim?
 	bne .setdir
 	lda resType	; get change to dir
 	beq .adv	; not changing? just advance
-.setdir	sta (pTmp),y	; store new dir
+.setdir	lda #0		; invert current dir (1->FF, or FF->1)
+	sec
+	sbc (pTmp),y
+	sta (pTmp),y	; store new dir
 
 .adv	lda (pTmp),y	; get current dir
 	jsr .fwbk	; advance the frame number in that direction
-.doptch	jsr .patch	; apply patch for the new frame
-
-.res	pla		; restore link number we're scanning
-	tax
-.next:	lda tSegLink,x	; next in chain
-	tax		; to X reg index
-	bne .loop	; non-zero = not end of chain - loop again
-.ret	lda #0		; return count of number actually patched (self-modified by .patch below)
-	rts
+.doptch	jmp applyPatch	; apply patch for the new frame
 
 .fwbk	ldy #3		; index of current frame number
 	clc
@@ -3073,10 +3083,78 @@ advanceAnims:
 +	iny		; index of current frame number
 	sta (tmp),y	; and store it
 	rts
+}
 
-.patch	inc .ret+1	; count number we have actually changed
-	; TODO
-	rts
+; Patch (or un-patch) an entry. On entry:
+;   pTmp -> offset just before main image
+;   tmp  -> anim hdr
+; Those pointers are unmodified by this routine.
+applyPatch: !zone {
+
+	ldy #3		; get current frame number
+	lda (tmp),y
+	bne +
+	rts		; if frame zero, nothing to do
++	sta reqLen	; index of patch number to find
+
+	; self-modifying: copy pointers to load/store code: tmp->ldsrc, dst->stdst
+	ldx #1
+-	lda tmp,x
+	sta .ldsrc+1,x
+	lda pTmp,x
+	sta .stdst+1,x
+	dex
+	bpl -
+
+	ldx #4		; index on src (4 to skip anim hdr)
+	ldy #2		; index on dst (2 to skip initial offset)
+
+	; loop to skip patches until we find the right one
+-	jsr .ldsrc
+	sta ucLen
+	jsr .ldsrc
+	pha
+	txa
+	clc
+	adc ucLen
+	tax
+	pla
+	adc .ldsrc+2
+	sta .ldsrc+2
+	dec reqLen	; count and loop over patches
+	bne -
+
+	; src,x now points at the patch we want (actually at its length hdr)
+	; dst,y now points at the base data
+.hunk	jsr .ldsrc	; get # bytes to skip
+	cmp #$FF	; check for done marker
+	bcc +
+	rts		; all done
++	sta ucLen
+	tya
+	adc ucLen	; carry already cleared by cmp above
+	tay
+	bcc +
+	inc .stdst+2
++	jsr .ldsrc	; get # bytes to copy
+	sta reqLen	; counter for byte copy
+	cmp #0
+.cplup	beq .hunk	; loop to copy bytes; when we run out, go to next hunk
+	jsr .ldsrc
+.stdst	sta $1111,y	; self-modified
+	iny
+	bne +
+	inc .stdst+2
++	dec reqLen	; loop until we've copied the requisite # of bytes
+	jmp .cplup
+
+; get a byte from src,x and advance
+.ldsrc	lda $1111,x	; pointer is self-modified
+	inx
+	bne +
+	inc .ldsrc+2
++	rts
+}
 
 ;------------------------------------------------------------------------------
 ; Segment tables

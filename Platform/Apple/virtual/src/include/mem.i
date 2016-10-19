@@ -95,13 +95,12 @@
 ;   byte  1:   current anim dir
 ;   byte  2:   index of last frame (= number of frames *minus 1*)
 ;   byte  3:   current anim frame
-;   bytes 4-5: length of any patch data segment (they're all the same length)
-;   bytes 6-7: length of patch offset table
-; Followed by patch offset table. Each entry:
-;   byte 0:    # of invariant bytes to skip (can be zero) ($FF for end of table)
-;   byte 1:    # of patch bytes to copy (can be zero)
-; Followed by patch data segments. Each segment:
-;   bytes 0-n: raw data (intelligible only by using patch offset table)
+; Followed by patches. Each patch:
+;   bytes 0-1: length of patch (including this length header, and also anim hdr for 1st patch)
+;   bytes 2-n: hunks, each hunk:
+;              byte 0:    skip len (0-254) or $FF for end-of-patch
+;              byte 1:    copy len (0-254)
+;              bytes 2-n: bytes to copy
 
 mainLoader	= $800
 auxLoader	= mainLoader+3

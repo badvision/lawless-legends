@@ -29,8 +29,8 @@ MAX_SEGS	= 96
 
 DO_COMP_CHECKSUMS = 0		; during compression debugging
 DEBUG_DECOMP 	= 0
-DEBUG		= 0
-SANITY_CHECK	= 0		; also prints out request data
+DEBUG		= 1
+SANITY_CHECK	= 1		; also prints out request data
 
 ; Zero page temporary variables
 tmp		= $2	; len 2
@@ -1122,6 +1122,100 @@ heapCollect: !zone
 	ldy heapTop+1
 	rts
 .unfin:	jsr inlineFatal : !text "NdFinish",0
+
+; Allocate a block on the heap. X = $00.7F for string block, $80.FF for a typed obj.
+; And yes, type $80 is valid (conventionally used for the Global Object).
+; And yes, string length $00 is valid (it's an empty string).
+heapAlloc: !zone
+	lda heapTop
+	sta pSrc
+	lda heapTop+1
+	sta pSrc+1
+	ldy #0
+	txa
+	sta (pSrc),y	; save obj type or string len on heap
+	bpl .gotlen
+	lda typeLen-$80,x
+.gotlen	ldy pSrc+1
+	sec		; add 1 to include type byte or len byte for strings
+	adc pSrc
+	bcc +
+	iny
+	cpy heapEndPg
+	bcs .needgc
++	sta heapTop
+	sty heapTop+1
+retPSrc:
+	ldx pSrc	; return ptr in X=lo/Y=hi
+	ldy pSrc+1
+	rts
+.needgc	jsr inlineFatal : !text "NeedCollect",0
+
+; Re-use existing string or allocate new and copy.
+heapIntern: !zone
+	stx pTmp
+	sty pTmp+1
+	jsr startHeapScan
+	bcs .notfnd	; handle case of empty heap
+.blklup	bvs .nxtblk
+	; it's a string
+	inx		; +1 to compare length byte also
+.stlup	lda (pTmp),y	; compare string bytes until non-matching (or all bytes done)
+	cmp (pSrc),y
+	bne .nxtblk
+	iny
+	dex
+	bne .stlup
+	; found a match!
+.found	beq retPSrc
+	; advance to next heap block
+.nxtblk	jsr nextHeapBlk
+	bcc .blklup	; go process next block
+.notfnd	lda (pTmp),y	; get string length
+	pha		; save it
+	tax
+	jsr heapAlloc	; make space for it
+	pla		; string length back
+	tax
+	inx		; add 1 to copy length byte also
+	ldy #0
+.cplup	lda (pTmp),y	; copy the string's characters
+	sta (pSrc),y
+	iny
+	dex
+	bne .cplup
+	beq .found	; always taken
+
+;------------------------------------------------------------------------------
+; Show or hide the disk activity icon (at the top of hi-res page 1). The icon consists of a 4x4
+; block of blue pixels surrounded by a black border.
+; Params: show/hide ($FF, or 0)
+showDiskActivity: !zone
+	cmp diskActState
+	beq .done
+	sta diskActState
+	ldx #0
+	stx pTmp
+	ldy #$F8                ; offset of screen holes
+	lda #$20                ; first line of screen is $2000
+-	sta pTmp+1
+	cmp #$30                ; pre-check for last line
+	bit diskActState        ; check mode
+	beq +
+	lda (pTmp,x)            ; show mode
+	sta (pTmp),y
+	lda #$85
+	bcc ++                  ; first 4 lines
+	lda #0                  ; last line
+	beq ++                  ; always taken
++ 	lda (pTmp),y            ; hide mode
+++	sta (pTmp,x)
+	lda pTmp+1
+	clc
+	adc #4
+	cmp #$34                ; Do 5 lines: $2000, $2400, $2800, $2C00, $3000; Stop before $3400.
+	bne -
+.done	rts
 
 lastLoMem = *
 } ; end of !pseodupc $800
@@ -2895,100 +2989,6 @@ heapAddType: !zone
 	inc nTypes	; bump type count
 	rts
 
-; Allocate a block on the heap. X = $00.7F for string block, $80.FF for a typed obj.
-; And yes, type $80 is valid (conventionally used for the Global Object).
-; And yes, string length $00 is valid (it's an empty string).
-heapAlloc: !zone
-	lda heapTop
-	sta pSrc
-	lda heapTop+1
-	sta pSrc+1
-	ldy #0
-	txa
-	sta (pSrc),y	; save obj type or string len on heap
-	bpl .gotlen
-	lda typeLen-$80,x
-.gotlen	ldy pSrc+1
-	sec		; add 1 to include type byte or len byte for strings
-	adc pSrc
-	bcc +
-	iny
-	cpy heapEndPg
-	bcs .needgc
-+	sta heapTop
-	sty heapTop+1
-retPSrc:
-	ldx pSrc	; return ptr in X=lo/Y=hi
-	ldy pSrc+1
-	rts
-.needgc	jsr inlineFatal : !text "NeedCollect",0
-
-; Re-use existing string or allocate new and copy.
-heapIntern: !zone
-	stx pTmp
-	sty pTmp+1
-	jsr startHeapScan
-	bcs .notfnd	; handle case of empty heap
-.blklup	bvs .nxtblk
-	; it's a string
-	inx		; +1 to compare length byte also
-.stlup	lda (pTmp),y	; compare string bytes until non-matching (or all bytes done)
-	cmp (pSrc),y
-	bne .nxtblk
-	iny
-	dex
-	bne .stlup
-	; found a match!
-.found	beq retPSrc
-	; advance to next heap block
-.nxtblk	jsr nextHeapBlk
-	bcc .blklup	; go process next block
-.notfnd	lda (pTmp),y	; get string length
-	pha		; save it
-	tax
-	jsr heapAlloc	; make space for it
-	pla		; string length back
-	tax
-	inx		; add 1 to copy length byte also
-	ldy #0
-.cplup	lda (pTmp),y	; copy the string's characters
-	sta (pSrc),y
-	iny
-	dex
-	bne .cplup
-	beq .found	; always taken
-
-;------------------------------------------------------------------------------
-; Show or hide the disk activity icon (at the top of hi-res page 1). The icon consists of a 4x4
-; block of blue pixels surrounded by a black border.
-; Params: show/hide ($FF, or 0)
-showDiskActivity: !zone
-	cmp diskActState
-	beq .done
-	sta diskActState
-	ldx #0
-	stx pTmp
-	ldy #$F8                ; offset of screen holes
-	lda #$20                ; first line of screen is $2000
--	sta pTmp+1
-	cmp #$30                ; pre-check for last line
-	bit diskActState        ; check mode
-	beq +
-	lda (pTmp,x)            ; show mode
-	sta (pTmp),y
-	lda #$85
-	bcc ++                  ; first 4 lines
-	lda #0                  ; last line
-	beq ++                  ; always taken
-+ 	lda (pTmp),y            ; hide mode
-++	sta (pTmp,x)
-	lda pTmp+1
-	clc
-	adc #4
-	cmp #$34                ; Do 5 lines: $2000, $2400, $2800, $2C00, $3000; Stop before $3400.
-	bne -
-.done	rts
-
 ;------------------------------------------------------------------------------
 ; Advance all animated resources by one frame.
 ; Params: X = direction change (0=no change, 1=change).
@@ -3001,7 +3001,10 @@ advanceAnims: !zone {
 	sty resNum	; store frames-to-skip
 	lda #0
 	sta .ret+1	; clear count of animated
-	ldx isAuxCmd	; grab correct starting segment (0=main mem, 1=aux)
+	cli		; no interrupts while we read and write aux mem
+	sta setAuxRd	; read and
+	sta setAuxWr	;	write aux mem
+	ldx #1		; grab starting segment for aux mem
 .loop:	lda tSegType,x	; segment flags and type
 	bpl .next	; skip non-active
 	and #$F		; get type
@@ -3019,18 +3022,22 @@ advanceAnims: !zone {
 	txa		; save link number we're scanning
 	pha
 	inc .ret+1	; mark the fact that we do have animated resources
-	jsr .advSingleAnim ; do the work to advance this one resource
+	jsr advSingleAnim ; do the work to advance this one resource
 	pla		; restore link number we're scanning
 	tax
 .next	lda tSegLink,x	; next in chain
 	tax		; to X reg index
 	bne .loop	; non-zero = not end of chain - loop again
-.ret	lda #0		; return count of number anim resources found (self-modified by above)
+.ret	ldx #0		; return count of number anim resources found (self-modified above)
+	ldy #0		; (hi byte of return - always zero)
+	sta clrAuxRd	; read and
+	sta clrAuxWr	;	write main mem
+	sei		; allow interrupts again now that we're done with aux mem
 	rts
 }
 
 ; Advance a single animated resource. On entry:
-;   pTmp -> base (2-byte offset followed by main dta)
+;   pTmp -> base (2-byte offset followed by main image data)
 advSingleAnim: !zone {
 	ldy #0
 	lda (pTmp),y	; grab offset
@@ -3090,69 +3097,78 @@ advSingleAnim: !zone {
 ;   tmp  -> anim hdr
 ; Those pointers are unmodified by this routine.
 applyPatch: !zone {
-
 	ldy #3		; get current frame number
 	lda (tmp),y
 	bne +
-	rts		; if frame zero, nothing to do
+.done	rts		; if frame zero, nothing to do
 +	sta reqLen	; index of patch number to find
 
-	; self-modifying: copy pointers to load/store code: tmp->ldsrc, dst->stdst
-	ldx #1
--	lda tmp,x
-	sta .ldsrc+1,x
-	lda pTmp,x
-	sta .stdst+1,x
+	ldx #3
+-	lda tmp,x	; copy pointers to load/store data: tmp->pSrc, pTmp->pDst
+	sta pSrc,x
 	dex
 	bpl -
 
-	ldx #4		; index on src (4 to skip anim hdr)
-	ldy #2		; index on dst (2 to skip initial offset)
+	lda #2		; skip initial offset in dest
+	jsr .dstadd
+	lda #4		; skip animation header in source
+	jsr .srcadd
 
 	; loop to skip patches until we find the right one
--	jsr .ldsrc
-	sta ucLen
-	jsr .ldsrc
-	pha
-	txa
-	clc
-	adc ucLen
-	tax
+-	ldy #0
+	lda (pSrc),y	; low byte of patch len
+	pha		; save it
+	iny
+	lda (pSrc),y	; hi byte of patch len
+	inx		; -> pSrc+1
+	jsr .ptradd	; skip by # pages in patch
 	pla
-	adc .ldsrc+2
-	sta .ldsrc+2
-	dec reqLen	; count and loop over patches
+	jsr .srcadd	; skip pSrc past last partial page in patch
+	dec reqLen	; count and loop
 	bne -
 
-	; src,x now points at the patch we want (actually at its length hdr)
-	; dst,y now points at the base data
-.hunk	jsr .ldsrc	; get # bytes to skip
+	; pSrc now points at the patch to apply
+	; pDst now points at the base data to modify
+	lda #2		; skip length hdr of this patch
+.sksrc	jsr .srcadd
+.hunk	jsr .ldsrc	; get # bytes to skip in dst
 	cmp #$FF	; check for done marker
-	bcc +
-	rts		; all done
-+	sta ucLen
-	tya
-	adc ucLen	; carry already cleared by cmp above
-	tay
-	bcc +
-	inc .stdst+2
-+	jsr .ldsrc	; get # bytes to copy
-	sta reqLen	; counter for byte copy
-	cmp #0
-.cplup	beq .hunk	; loop to copy bytes; when we run out, go to next hunk
-	jsr .ldsrc
-.stdst	sta $1111,y	; self-modified
+	beq .done
+	jsr .dstadd	; skip that far in dst
+	jsr .ldsrc	; get # bytes to copy from src to dst
+	tax
+	beq .hunk	; if nothing to copy, go to next hunk
+.cplup	lda (pSrc),y	; swap src <-> dst
+	pha
+	lda (pDst),y
+	sta (pSrc),y
+	pla
+	sta (pDst),y
 	iny
-	bne +
-	inc .stdst+2
-+	dec reqLen	; loop until we've copied the requisite # of bytes
-	jmp .cplup
+	dex		; loop for all bytes to copy
+	bne .cplup
+	tya		; Y has steadily advanced to the total count
+	jsr .dstadd	; advance over copied bytes in dst
+	tya		; get the count back again
+	bne .sksrc	; advance over copied bytes in src, and process next hunk (always taken)
 
-; get a byte from src,x and advance
-.ldsrc	lda $1111,x	; pointer is self-modified
-	inx
+; get a byte from (pSrc) and advance past it. Sets Y to zero.
+.ldsrc	ldy #0
+	lda (pSrc),y	; pointer is self-modified
+	inc pSrc
 	bne +
-	inc .ldsrc+2
+	inc pSrc+1
++	rts
+
+; routine with two entry points; advances either pSrc or pDst
+.srcadd	ldx #pSrc	; advance pSrc by A-reg bytes
+	bne +		; always taken
+.dstadd	ldx #pDst	; advance pDst by A-reg bytes
+.ptradd	clc
+	adc 0,x
+	sta 0,x
+	bcc +
+	inc 1,x
 +	rts
 }
 

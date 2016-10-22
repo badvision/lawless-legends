@@ -91,9 +91,9 @@
 ;   bytes 0-1: offset to animation header (or $0000 if not animated)
 ;   bytes 2-n: invariant image data
 ; Followed by animation header:
-;   byte  0:   animation type (1=Forward, 2=Forward+Backward, 3=Random)
+;   byte  0:   animation type (1=Forward, 2=Forward+Backward, 3=Fwd+Stop, 4=Random)
 ;   byte  1:   current anim dir
-;   byte  2:   index of last frame (= number of frames *minus 1*)
+;   byte  2:   number of frames
 ;   byte  3:   current anim frame
 ; Followed by patches. Each patch:
 ;   bytes 0-1: length of patch (including this length header, and also anim hdr for 1st patch)
@@ -276,6 +276,25 @@ CHECK_MEM = $1B
     ;
     ; Check that memory manager structures (and heap structures, if a heap
     ; has been set) are all intact.
+        
+;------------------------------------------------------------------------------
+ADVANCE_ANIMS = $1C
+    ; Input: X-reg - direction change (0=no change, 1=change).
+    ;           Only applied to resources marked as "forward/backward" order.
+    ;        Y-reg - number of frames to skip.
+    ;           Only applied to resources marked as "random" order.
+    ;
+    ; Output: Number of animated resources found.
+    ;
+    ; Checks for and advances each active animated resource to its next
+    ; frame of animation. They are advanced based on their animation type:
+    ;   1=Forward          - e.g. 0 1 2 0 1 2 0 1 2
+    ;   2=Forward+Backward - e.g. 0 1 2 1 0 1 2 1 0
+    ;   3=Forward+Stop     - e.g. 0 1 2 2 2 2 2 2 2
+    ;   4=Random           - e.g. 0 2 0 1 2 2 0 1 1
+    ;
+    ; Note that only animated resources in the specified memory bank (aux
+    ; or main) are processed.
         
 ;------------------------------------------------------------------------------
 CHAIN_LOADER = $1E

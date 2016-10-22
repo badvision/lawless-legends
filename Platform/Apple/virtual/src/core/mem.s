@@ -29,8 +29,8 @@ MAX_SEGS	= 96
 
 DO_COMP_CHECKSUMS = 0		; during compression debugging
 DEBUG_DECOMP 	= 0
-DEBUG		= 1
-SANITY_CHECK	= 1		; also prints out request data
+DEBUG		= 0
+SANITY_CHECK	= 0		; also prints out request data
 
 ; Zero page temporary variables
 tmp		= $2	; len 2
@@ -1442,6 +1442,9 @@ aux_dispatch:
 +	cmp #FATAL_ERROR
 	bne +
 	jmp fatalError
++	cmp #ADVANCE_ANIMS
+	bne +
+	jmp advanceAnims
 +	jmp nextLdVec	; Pass command to next chained loader
 
 ;------------------------------------------------------------------------------
@@ -3002,9 +3005,9 @@ advanceAnims: !zone {
 	lda #0
 	sta .ret+1	; clear count of animated
 	cli		; no interrupts while we read and write aux mem
-	sta setAuxRd	; read and
-	sta setAuxWr	;	write aux mem
-	ldx #1		; grab starting segment for aux mem
+	ldx isAuxCmd	; grab starting segment for main or aux mem
+	sta clrAuxRd,x	; read and
+	sta clrAuxWr,x	;	write aux or main mem, depending on how called
 .loop:	lda tSegType,x	; segment flags and type
 	bpl .next	; skip non-active
 	and #$F		; get type
@@ -3048,6 +3051,9 @@ advSingleAnim: !zone {
 	lda (pTmp),y	; hi byte too
 	adc pTmp+1
 	sta tmp+1
+
+	sta clrAuxRd
+	brk
 
 	jsr applyPatch	; unpatch to get back to base frame data
 

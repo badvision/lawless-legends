@@ -21,10 +21,6 @@ const CHAR_WND_GOLD_X = 83
 const CHAR_WND_WEAPON_X = 83
 const CHAR_WND_LIFE_X = 112
 
-const ANIM_FLAG_FWD      = $20
-const ANIM_FLAG_FWD_BKWD = $40
-const ANIM_FLAG_RANDOM   = $80
-
 const ANIM_PAUSE_MAX = 300
 
 // Max gold
@@ -102,11 +98,8 @@ byte tabBuf[5]
 
 // Animation tracking
 word curPortrait = 0
-byte animFlags
-byte animDir
 byte animDirCt
-byte animNumFrames
-byte animFrame
+byte anyAnims = TRUE
 word animPauseCt
 
 // Shared string constants
@@ -1011,7 +1004,7 @@ export def getUpperKey()
     *seed = *seed + 1
     animPauseCt = animPauseCt - 1
     if animPauseCt < 0
-      if curPortrait and animNumFrames > 1
+      if curPortrait and anyAnims
         nextAnimFrame()
       fin
       animPauseCt = ANIM_PAUSE_MAX
@@ -1028,7 +1021,7 @@ export def pause(count)
   while count >= 0
     animPauseCt = animPauseCt - 1
     if animPauseCt < 0
-      if curPortrait and animNumFrames > 1
+      if curPortrait and anyAnims
         nextAnimFrame()
       fin
       animPauseCt = ANIM_PAUSE_MAX
@@ -1689,7 +1682,7 @@ def showAnimFrame()
 
   // Determine data pointer based on current animation frame
   if !curPortrait; return; fin
-  pData = curPortrait + 1 + (animFrame * 2304)   // 18*128 = 2304
+  pData = curPortrait + 2 // skip anim-hdr offset
 
   // Show it on-screen
   if frameLoaded == 3  // 3D-mode frame? Note: don't check mapIs3D, because we might be in an engine
@@ -1704,48 +1697,22 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Advance to next frame of current animation, if any
 def nextAnimFrame()
-  word oldAnimFrame
-  if !curPortrait; return; fin
-  oldAnimFrame = animFrame
+  if !curPortrait or !anyAnims; return; fin
 
   // Choose a new direction based on the flags. Do this the first time, and once every 3-7 frames.
   animDirCt = animDirCt - 1
-  if !animDir or animDirCt == 0
-    if animFlags & ANIM_FLAG_FWD
-      animDir = 'F'
-    elsif animFlags & ANIM_FLAG_FWD_BKWD
-      if animDir == 'B'
-        animDir = 'F'
-      else
-        animDir = 'B'
-      fin
-    elsif (animFlags & ANIM_FLAG_RANDOM)
-      animDir = 'R'
-    else
-      animDir = 0
-    fin
+  if animDirCt <= 0
     animDirCt = (rand16() % 5) + 3
   fin
 
-  // Advance in the current direction
-  if animDir == 'F' // forward
-    animFrame = animFrame + 1
-    if animFrame >= animNumFrames
-      animFrame = 0
-    fin
-  elsif animDir == 'B' // backward
-    if animFrame == 0
-      animFrame = animNumFrames - 1
-    else
-      animFrame = animFrame - 1
-    fin
-  elsif animDir == 'R' // random
-    animFrame = rand16() % animNumFrames
-  fin
-
-  // And show it.
-  if animFrame <> oldAnimFrame
+  // Advance animations. 
+  // First part is whether to switch directions on fwd/back anims.
+  // Second part is how many frames to advance random anims.
+  if auxMmgr(ADVANCE_ANIMS, animDirCt==0 | (rand16() % 5))
+    // Animation is present - display the new frame
     showAnimFrame()
+  else
+    anyAnims = FALSE
   fin
 
   // Reset the animation pause
@@ -1779,10 +1746,7 @@ export def setPortrait(portraitNum)
   mmgr(START_LOAD, 2) // portraits are in partition 2
   curPortrait = auxMmgr(QUEUE_LOAD, portraitNum<<8 | RES_TYPE_PORTRAIT)
   mmgr(FINISH_LOAD, 0)
-  animFrame = 0
-  animFlags = readAuxByte(curPortrait)
-  animNumFrames = animFlags & $F
-  animDir = 0
+  anyAnims = TRUE  // for now; might get cleared if we discover otherwise on advance
   animDirCt = 1
   animPauseCt = ANIM_PAUSE_MAX
 

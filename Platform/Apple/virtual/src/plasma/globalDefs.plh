@@ -50,6 +50,7 @@ const FREE_MEMORY    = $18
 const CALC_FREE      = $19
 const DEBUG_MEM      = $1A
 const CHECK_MEM      = $1B
+const ADVANCE_ANIMS  = $1C
 const CHAIN_LOADER   = $1E
 const FATAL_ERROR    = $1F
 const HEAP_SET       = $20

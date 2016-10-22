@@ -72,6 +72,8 @@ class A2PackPartitions
     def bytecodes = [:]  // module name to bytecode.num, bytecode.buf
     def fixups    = [:]  // module name to fixup.num, fixup.buf
     
+    def fooFlg = false
+    
     def itemNameToFunc = [:]
     def playerNameToFunc = [:]
     
@@ -337,8 +339,8 @@ class A2PackPartitions
         }
         
         // Put the results into the buffer
-        def outBuf = ByteBuffer.allocate(128*18 + 1)
-        outBuf.put((byte)1) // to start with: 1 frame, no flags
+        assert dstPos == 128*18
+        def outBuf = ByteBuffer.allocate(dstPos)
         outBuf.put(arr)
         
         // All done. Return the buffer.
@@ -775,6 +777,7 @@ class A2PackPartitions
         def (name, animFrameNum, animFlags) = decodeImageName(imgEl.@name ?: "img$num")
         if (!portraits.containsKey(name)) {
             def num = portraits.size() + 1
+            fooFlg = (num == 1)
             portraits[name] = [num:num, anim:new AnimBuf()]
         }
         portraits[name].anim.addImage(animFrameNum, animFlags, parse126Data(imgEl))
@@ -1786,7 +1789,9 @@ class A2PackPartitions
         if (!grabEntireFromCache("portraits", portraits, xmlLastMod)) {
             portraitImgs.each { image -> packPortrait(image) }
             portraits.each { name, portrait ->
-                println "Packing portrait $name."
+                fooFlg = (portrait.num == 1)
+                if (fooFlg)
+                    println "Packing portrait $name."
                 portrait.buf = portrait.anim.pack() 
                 portrait.anim = null
             }
@@ -3414,10 +3419,17 @@ end
         
         def addImage(animFrameNum, animFlags, imgBuf)
         {
+            dbg("addImage: $animFrameNum=$animFrameNum size=${imgBuf.position()}")
             if (animFrameNum == 1)
                 this.animFlags = animFlags
             buffers << imgBuf
             assert animFrameNum == buffers.size() : "Missing animation frame"
+        }
+        
+        def dbg(str)
+        {
+            if (fooFlg)
+                System.out.println(str)
         }
         
         def pack()
@@ -3426,6 +3438,7 @@ end
             
             // If no animation, add a stub to the start of the (only) image and return it
             assert buffers.size() >= 1
+            dbg("nBuffers=${buffers.size()}")
             if (buffers.size() == 1) {
                 outBuf.put((byte)0)
                 outBuf.put((byte)0)
@@ -3436,6 +3449,8 @@ end
             
             // At start of buffer, put offset to animation header, then the first frame
             def offset = buffers[0].position() + 2  // 2 for the offset itself
+            dbg("Initial offset=$offset")
+            dbg(String.format("First image byte=\$%x", buffers[0].get(0)))
             outBuf.put((byte)(offset & 0xFF))
             outBuf.put((byte)((offset >> 8) & 0xFF))
             buffers[0].flip()
@@ -3447,13 +3462,16 @@ end
                 case ""  : flagByte = 0; break
                 case "f" : flagByte = 1; break
                 case "fb": flagByte = 2; break
-                case "r" : flagByte = 3; break
+                case "s":  flagByte = 3; break
+                case "r" : flagByte = 4; break
                 default  : throw new Exception("Unrecognized animation flags '$animFlags'")
             }
-            outBuf.put((byte) flagByte)
+            dbg("flagByte=$flagByte")
+            dbg("nFrames=${buffers.size()}")
+            outBuf.put((byte)flagByte)
             outBuf.put((byte)1) // used to store current anim dir; start with 1=forward
-            outBuf.put((byte)(buffers.size() - 1))  // index of last frame
             outBuf.put((byte)0) // used to store current anim frame
+            outBuf.put((byte)(buffers.size()))  // number of frames
             
             // Then each patch
             buffers[1..-1].each { inBuf ->

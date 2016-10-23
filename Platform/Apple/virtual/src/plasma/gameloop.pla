@@ -49,7 +49,7 @@ word global  // the global heap object, from which all live objects must be reac
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Predefined functions, for circular calls or out-of-order calls
 predef setWindow2, initCmds, nextAnimFrame, checkEncounter, doCombat, clearPortrait, showMapName
-predef doRender, playerDeath, startGame, loadFrameImg
+predef doRender, playerDeath, startGame, loadFrameImg, showAnimFrame, finalWin
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Global variables
@@ -69,7 +69,7 @@ byte skipEncounterCheck = FALSE
 
 word skyNum = 9
 word groundNum = 10
-byte portraitNum = 1
+byte portraitNum = POgunWoman1-1
 
 word triggerOriginX, triggerOriginY
 word triggerTbl
@@ -97,7 +97,8 @@ byte decimalBuf[7]
 byte tabBuf[5]
 
 // Animation tracking
-word curPortrait = 0
+word curPortrait = NULL
+word curFullscreenImg = NULL
 byte animDirCt
 byte anyAnims = TRUE
 word animPauseCt
@@ -1004,7 +1005,7 @@ export def getUpperKey()
     *seed = *seed + 1
     animPauseCt = animPauseCt - 1
     if animPauseCt < 0
-      if curPortrait and anyAnims
+      if anyAnims
         nextAnimFrame()
       fin
       animPauseCt = ANIM_PAUSE_MAX
@@ -1021,7 +1022,7 @@ export def pause(count)
   while count >= 0
     animPauseCt = animPauseCt - 1
     if animPauseCt < 0
-      if curPortrait and anyAnims
+      if anyAnims
         nextAnimFrame()
       fin
       animPauseCt = ANIM_PAUSE_MAX
@@ -1054,9 +1055,7 @@ end
 export def setSky(num)
   // hack for end-game screen
   if num == 99
-    flipToPage1()
-    loadFrameImg(4)
-    while 1; loop  // 1 infinite loop
+    finalWin()
   fin
   skyNum = num
   setColor(0, skyNum)
@@ -1086,22 +1085,27 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load the Frame Image, and lock it.
 def loadFrameImg(img)
-  word tmpBuf
-
   // Skip redundant reload
   if frameLoaded == img; return; fin
 
-  // Temporarily load the image in aux mem
-  tmpBuf = auxMmgr(QUEUE_LOAD, img<<8 | RES_TYPE_SCREEN)
+  // Free prev img and/or portrait (if any)
+  clearPortrait()
+
+  // Load the image data into aux mem
+  auxMmgr(START_LOAD, 1) // partition 1 is where full screen images live
+  curFullscreenImg = auxMmgr(QUEUE_LOAD, img<<8 | RES_TYPE_SCREEN)
   auxMmgr(FINISH_LOAD, 0)
-
-  // Blit to the graphics screen.
-  // No need to lock hi-res pg 1, mem mgr has done it for us.
-  blit(tmpBuf, $2000, 192, 40)
-
-  // And clean up
-  auxMmgr(FREE_MEMORY, tmpBuf)
   frameLoaded = img
+
+  anyAnims = TRUE  // for now; might get cleared if we discover otherwise on advance
+  animDirCt = 1
+  animPauseCt = ANIM_PAUSE_MAX
+
+  // And show the first frame of the screen image
+  showAnimFrame()
+
+  // Do not render over the image
+  needRender = FALSE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1283,6 +1287,8 @@ def initMap(x, y, dir)
   // Load the frame image, then raycaster or tile engine
   mmgr(START_LOAD, 1) // partition 1 is where code lives
   loadFrameImg(mapIs3D+2)
+  auxMmgr(FREE_MEMORY, curFullscreenImg)
+  curFullscreenImg = NULL
   mmgr(SET_MEM_TARGET, displayEngine)
   if mapIs3D
     mmgr(QUEUE_LOAD, CODE_RENDER<<8 | RES_TYPE_CODE)
@@ -1326,6 +1332,7 @@ def initMap(x, y, dir)
   textDrawn = FALSE
   curEngine = NULL
   curPortrait = 0
+  curFullscreenImg = NULL
   if global->b_curAvatar <> 0 and !mapIs3D
     setAvatar(global->b_curAvatar)
     doRender()
@@ -1358,7 +1365,12 @@ end
 export def clearPortrait()
   if curPortrait
     auxMmgr(FREE_MEMORY, curPortrait)
-    curPortrait = 0
+    curPortrait = NULL
+    needRender = TRUE
+  fin
+  if curFullscreenImg
+    auxMmgr(FREE_MEMORY, curFullscreenImg)
+    curFullscreenImg = NULL
     needRender = TRUE
   fin
 end
@@ -1678,27 +1690,25 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Show the current animation frame
 def showAnimFrame()
-  word pData
-
-  // Determine data pointer based on current animation frame
-  if !curPortrait; return; fin
-  pData = curPortrait + 2 // skip anim-hdr offset
-
-  // Show it on-screen
-  if frameLoaded == 3  // 3D-mode frame? Note: don't check mapIs3D, because we might be in an engine
-    blit(pData, $2182, 128, 18)  // start at 3rd text line
-  else
-    blit(pData, $2202, 128, 18)  // start at 4th text line
+  if curPortrait
+    // Blit portrait to the appropriate area on the screen
+    if frameLoaded == 3  // 3D-mode frame? Note: don't check mapIs3D, because we might be in an engine
+      blit(curPortrait + 2, $2182, 128, 18)  // start at 3rd text line
+    else
+      blit(curPortrait + 2, $2202, 128, 18)  // start at 4th text line
+    fin
+    needRender = FALSE  // suppress display of map for this frame
+  elsif curFullscreenImg
+    blit(curFullscreenImg + 2, $2000, 192, 40) // the +2 is to skip anim hdr offset
+    needRender = FALSE  // suppress display of map for this frame
   fin
-
-  needRender = FALSE  // suppress display of map for this frame
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Advance to next frame of current animation, if any
 def nextAnimFrame()
   word flags
-  if !curPortrait or !anyAnims; return; fin
+  if !anyAnims; return; fin
 
   // Choose a new direction based on the flags. Do this the first time, and once every 3-7 frames.
   animDirCt = animDirCt - 1
@@ -2083,6 +2093,13 @@ def printMem
   rdkey
   ^$c050
 end
+def finalWin()
+    flipToPage1()
+    loadFrameImg(4) // total hack
+    while 1 // 1 infinite loop
+      getUpperKey()
+    loop
+end
 def setCheatCmds
   // install cheat commands
   cmdTbl['T'] = @kbdTeleport
@@ -2093,6 +2110,7 @@ def setCheatCmds
   cmdTbl['Y'] = @nextSky
   cmdTbl['G'] = @nextGround
   cmdTbl['&'] = @printMem
+  cmdTbl['_'] = @finalWin
 end
 def enableGodMode()
   if ^$C061 >= 128 and ^$C062 >= 128

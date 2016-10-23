@@ -72,8 +72,6 @@ class A2PackPartitions
     def bytecodes = [:]  // module name to bytecode.num, bytecode.buf
     def fixups    = [:]  // module name to fixup.num, fixup.buf
     
-    def fooFlg = false
-    
     def itemNameToFunc = [:]
     def playerNameToFunc = [:]
     
@@ -766,10 +764,12 @@ class A2PackPartitions
     
     def packFrameImage(imgEl)
     {
-        def name = imgEl.@name ?: "img$num"
-        def hash = calcImageHash(imgEl)
-        if (!grabFromCache("frame", frames, name, hash))
-            addToCache("frame", frames, name, hash, parseFrameData(imgEl))
+        def (name, animFrameNum, animFlags) = decodeImageName(imgEl.@name ?: "img$num")
+        if (!frames.containsKey(name)) {
+            def num = frames.size() + 1
+            frames[name] = [num:num, anim:new AnimBuf()]
+        }
+        frames[name].anim.addImage(animFrameNum, animFlags, parseFrameData(imgEl))
     }
     
     def packPortrait(imgEl)
@@ -777,7 +777,6 @@ class A2PackPartitions
         def (name, animFrameNum, animFlags) = decodeImageName(imgEl.@name ?: "img$num")
         if (!portraits.containsKey(name)) {
             def num = portraits.size() + 1
-            fooFlg = (num == 1)
             portraits[name] = [num:num, anim:new AnimBuf()]
         }
         portraits[name].anim.addImage(animFrameNum, animFlags, parse126Data(imgEl))
@@ -1761,8 +1760,8 @@ class A2PackPartitions
         
         dataIn.image.sort{it.@name.toLowerCase()}.each { image ->
             def category = image.@category?.toLowerCase()
-            def name = image.@name.toLowerCase()
-            if (category == "fullscreen" && name == "title")
+            def (name, animFrameNum, animFlags) = decodeImageName(image.@name)
+            if (category == "fullscreen" && name.equalsIgnoreCase("title"))
                 titleImgs << image
             else if (category == "uiframe")
                 uiFrameImgs << image
@@ -1778,20 +1777,24 @@ class A2PackPartitions
                 println "Warning: couldn't classify image named '${name}', category '${category}'."            
         }
         
-        assert titleImgs.size() == 1 : "Couldn't find title image. Should be category='FULLSCREEN', name='title'"
+        assert titleImgs.size() >= 1 : "Couldn't find title image. Should be category='FULLSCREEN', name='title'"
         assert uiFrameImgs.size() == 2 : "Need exactly 2 UI frames, found ${uiFramesImgs.size()} instead."
         
         // Pack each image, which has the side-effect of filling in the image name map.
-        titleImgs.each { image -> packFrameImage(image) }
-        uiFrameImgs.each { image -> packFrameImage(image) }
-        fullscreenImgs.each { image -> packFrameImage(image) }
+        if (!grabEntireFromCache("frames", frames, xmlLastMod)) {
+            titleImgs.each { image -> packFrameImage(image) }
+            uiFrameImgs.each { image -> packFrameImage(image) }
+            fullscreenImgs.each { image -> packFrameImage(image) }
+            frames.each { name, frame ->
+                frame.buf = frame.anim.pack() 
+                frame.anim = null
+            }
+            addEntireToCache("frames", frames, xmlLastMod)
+        }
         textureImgs.each { image -> packTexture(image) }
         if (!grabEntireFromCache("portraits", portraits, xmlLastMod)) {
             portraitImgs.each { image -> packPortrait(image) }
             portraits.each { name, portrait ->
-                fooFlg = (portrait.num == 1)
-                if (fooFlg)
-                    println "Packing portrait $name."
                 portrait.buf = portrait.anim.pack() 
                 portrait.anim = null
             }
@@ -2512,7 +2515,19 @@ end
                     portraits[name] = []  // placeholder during dataGen phase
                 }
             }
-            out.println "const PO_LAST = $portraitNum"
+            out.println "const PO_LAST = $portraitNum\n"
+            
+            def frameNum = 3  // 1-3 are title, UI 2d, UI 3d respectively
+            dataIn.image.sort{it.@name.toLowerCase()}.each { image ->
+                def category = image.@category?.toLowerCase()
+                def (name, animFrameNum, animFlags) = decodeImageName(image.@name)
+                if (category == "fullscreen" && animFrameNum == 1 && !name.equalsIgnoreCase("title")) {
+                    ++frameNum
+                    out.println "const PF${humanNameToSymbol(name, false)} = $frameNum"
+                    frames[name] = []  // placeholder during dataGen phase
+                }
+            }
+            out.println "const PF_LAST = $frameNum"
         }
         replaceIfDiff("build/src/plasma/gen_images.plh")
         
@@ -3419,17 +3434,10 @@ end
         
         def addImage(animFrameNum, animFlags, imgBuf)
         {
-            dbg("addImage: $animFrameNum=$animFrameNum size=${imgBuf.position()}")
             if (animFrameNum == 1)
                 this.animFlags = animFlags
             buffers << imgBuf
             assert animFrameNum == buffers.size() : "Missing animation frame"
-        }
-        
-        def dbg(str)
-        {
-            if (fooFlg)
-                System.out.println(str)
         }
         
         def pack()
@@ -3438,7 +3446,6 @@ end
             
             // If no animation, add a stub to the start of the (only) image and return it
             assert buffers.size() >= 1
-            dbg("nBuffers=${buffers.size()}")
             if (buffers.size() == 1) {
                 outBuf.put((byte)0)
                 outBuf.put((byte)0)
@@ -3449,8 +3456,6 @@ end
             
             // At start of buffer, put offset to animation header, then the first frame
             def offset = buffers[0].position() + 2  // 2 for the offset itself
-            dbg("Initial offset=$offset")
-            dbg(String.format("First image byte=\$%x", buffers[0].get(0)))
             outBuf.put((byte)(offset & 0xFF))
             outBuf.put((byte)((offset >> 8) & 0xFF))
             buffers[0].flip()
@@ -3466,8 +3471,6 @@ end
                 case "r" : flagByte = 4; break
                 default  : throw new Exception("Unrecognized animation flags '$animFlags'")
             }
-            dbg("flagByte=$flagByte")
-            dbg("nFrames=${buffers.size()}")
             outBuf.put((byte)flagByte)
             outBuf.put((byte)1) // used to store current anim dir; start with 1=forward
             outBuf.put((byte)(buffers.size()))  // number of frames

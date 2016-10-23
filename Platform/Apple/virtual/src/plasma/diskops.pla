@@ -283,8 +283,7 @@ def _newOrLoadGame(ask)
   puts("\n    N)ew game, or L)oad last game? ")
 
   while TRUE
-    key = rdkey() & $7F
-    if key > $60; key = key - $20; fin // convert to upper-case
+    key = getUpperKey()
     if key == 'N'
       ^$c052
       newGame()

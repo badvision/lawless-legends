@@ -3014,6 +3014,8 @@ advanceAnims: !zone {
 	and #$F		; get type
 	cmp #RES_TYPE_PORTRAIT
 	beq .anim	; found an animated resource type
+	cmp #RES_TYPE_SCREEN
+	beq .anim
 	bne .next	; not animated; skip
 .anim	lda tSegAdrLo,x	; pointer to start of resource
 	sta pTmp
@@ -3177,7 +3179,7 @@ applyPatch:
 	pla
 	jsr .srcadd	; skip pSrc past last partial page in patch
 	jmp -
-+
++	!if DEBUG = 2 { jsr .dbgC2 }
 
 	; pSrc now points at the patch to apply
 	; pDst now points at the base data to modify
@@ -3227,6 +3229,10 @@ applyPatch:
 .dbgC1	jsr .dbgin
 	+prStr : !text "apply ",0
 	+prByte reqLen
+	jmp .dbgout
+.dbgC2	jsr .dbgin
+	+prStr : !text "patch ",0
+	+prWord pSrc
 	jmp .dbgout
 } ; end of debug
 } ; end of zone

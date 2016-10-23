@@ -69,7 +69,7 @@ byte skipEncounterCheck = FALSE
 
 word skyNum = 9
 word groundNum = 10
-byte portraitNum = 0
+byte portraitNum = 1
 
 word triggerOriginX, triggerOriginY
 word triggerTbl
@@ -1697,6 +1697,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Advance to next frame of current animation, if any
 def nextAnimFrame()
+  word flags
   if !curPortrait or !anyAnims; return; fin
 
   // Choose a new direction based on the flags. Do this the first time, and once every 3-7 frames.
@@ -1708,10 +1709,12 @@ def nextAnimFrame()
   // Advance animations. 
   // First part is whether to switch directions on fwd/back anims.
   // Second part is how many frames to advance random anims.
-  if auxMmgr(ADVANCE_ANIMS, animDirCt==0 | (rand16() % 5))
-    // Animation is present - display the new frame
+  flags = auxMmgr(ADVANCE_ANIMS, (animDirCt==0) | (((rand16() % 10)+1)<<8))
+  if (flags >> 8)
+    // An animation was changed -- display it
     showAnimFrame()
-  else
+  elsif (flags & $FF) == 0
+    // No animations in memory; turn off future checking
     anyAnims = FALSE
   fin
 

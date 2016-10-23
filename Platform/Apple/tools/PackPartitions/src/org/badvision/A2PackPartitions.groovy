@@ -3470,8 +3470,8 @@ end
             dbg("nFrames=${buffers.size()}")
             outBuf.put((byte)flagByte)
             outBuf.put((byte)1) // used to store current anim dir; start with 1=forward
-            outBuf.put((byte)0) // used to store current anim frame
             outBuf.put((byte)(buffers.size()))  // number of frames
+            outBuf.put((byte)0) // used to store current anim frame
             
             // Then each patch
             buffers[1..-1].each { inBuf ->

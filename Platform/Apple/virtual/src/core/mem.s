@@ -1746,7 +1746,7 @@ coalesce: !zone
 	ora tSegType,y		; and next seg
 	bne .next		; if either is active or has a type, can't combine
 	; we can combine the next segment into this one.
-	!if DEBUG >= 2 { jsr .debug }
+	!if DEBUG >= 3 { jsr .debug }
 	lda tSegLink,y
 	sta tSegLink,x
 	stx tmp
@@ -1756,7 +1756,7 @@ coalesce: !zone
 	tax			; to X reg index
 	bne .loop		; non-zero = not end of chain - loop again
 .done	rts
-!if DEBUG >= 2 {
+!if DEBUG >= 3 {
 .debug	+prStr : !text "Coalesce ",0
 	pha
 	txa
@@ -2351,9 +2351,9 @@ disk_finishLoad: !zone
 	!if DEBUG { jsr .debug2 }
 	+callMLI MLI_SET_MARK, setMarkParams  ; move the file pointer to the current block
 	bcs .prodosErr
-!if DEBUG >= 2 { +prStr : !text "Deco.",0 }
+!if DEBUG >= 3 { +prStr : !text "Deco.",0 }
 	jsr lz4Decompress	; decompress (or copy if uncompressed)
-!if DEBUG >= 2 { +prStr : !text "Done.",0 }
+!if DEBUG >= 3 { +prStr : !text "Done.",0 }
 .resume	ldy .ysave
 .next	lda (pTmp),y		; lo byte of length
 	clc
@@ -2739,7 +2739,7 @@ nextSrcPage:
 ; Apply fixups to all modules that were loaded this round, and free the fixup
 ; resources from memory.
 doAllFixups: !zone
-	!if DEBUG >= 2 { +prStr : !text "Doing all fixups.",0 }
+	!if DEBUG >= 3 { +prStr : !text "Doing all fixups.",0 }
 	; Now scan aux mem for fixup segments
 	cli			; prevent interrupts while we mess around in aux mem
 	ldx #1			; start at first aux mem segment (0=main mem, 1=aux)
@@ -2788,7 +2788,7 @@ doAllFixups: !zone
 	lda tSegAdrHi,x
 	sta .auxBase+1
 
-	!if DEBUG >= 2 { jsr .debug1 }
+	!if DEBUG >= 3 { jsr .debug1 }
 
 	; Process the fixups
 .proc	jsr .fetchFixup		; get key byte
@@ -2807,7 +2807,7 @@ doAllFixups: !zone
 	and #$3F		; mask off the flags
 	adc .mainBase+1
 	sta pDst+1
-	!if DEBUG >= 2 { jsr .debug2 }
+	!if DEBUG >= 3 { jsr .debug2 }
 	clc
 	jsr .adMain		; recalc and store lo byte
 	iny
@@ -2828,7 +2828,7 @@ doAllFixups: !zone
 	and #$3F		; mask off the flags
 	adc .auxBase+1
 	sta pDst+1
-	!if DEBUG >= 2 { jsr .debug3 }
+	!if DEBUG >= 3 { jsr .debug3 }
 	sta setAuxWr
 	jsr .adAux		; recalc and store lo byte
 	iny
@@ -2861,7 +2861,7 @@ doAllFixups: !zone
 	cmp #$03
 	bne .resume		; not a stub, resume scanning
 	; found a stub, adjust it.
-	!if DEBUG >= 2 { jsr .debug4 }
+	!if DEBUG >= 3 { jsr .debug4 }
 	clc
 	ldx #0
 	jsr .adStub
@@ -2893,7 +2893,7 @@ doAllFixups: !zone
 	bne +
 	inc pSrc+1		; hi byte too, if necessary
 +	rts
-!if DEBUG >= 2 {
+!if DEBUG >= 3 {
 .debug1	+prStr : !text "Found fixup, res=",0
 	+prByte resNum
 	+prStr : !text "mainBase=",0
@@ -3003,7 +3003,8 @@ advanceAnims: !zone {
 	stx resType	; store direction-change
 	sty resNum	; store frames-to-skip
 	lda #0
-	sta .ret+1	; clear count of animated
+	sta .ret1+1	; clear count of animated resources found
+	sta .ret2+1	; clear count of actual changes made
 	cli		; no interrupts while we read and write aux mem
 	ldx isAuxCmd	; grab starting segment for main or aux mem
 	sta clrAuxRd,x	; read and
@@ -3024,24 +3025,23 @@ advanceAnims: !zone {
 	beq .next	; if zero, resource is not animated
 	txa		; save link number we're scanning
 	pha
-	inc .ret+1	; mark the fact that we do have animated resources
+	inc .ret1+1	; mark the fact that we do have animated resources
 	jsr advSingleAnim ; do the work to advance this one resource
 	pla		; restore link number we're scanning
 	tax
 .next	lda tSegLink,x	; next in chain
 	tax		; to X reg index
 	bne .loop	; non-zero = not end of chain - loop again
-.ret	ldx #0		; return count of number anim resources found (self-modified above)
-	ldy #0		; (hi byte of return - always zero)
+.ret1	ldx #0		; return count of number anim resources found (self-modified above)
+.ret2	ldy #0		; return count of number we actually changed
 	sta clrAuxRd	; read and
 	sta clrAuxWr	;	write main mem
 	sei		; allow interrupts again now that we're done with aux mem
 	rts
-}
 
 ; Advance a single animated resource. On entry:
 ;   pTmp -> base (2-byte offset followed by main image data)
-advSingleAnim: !zone {
+advSingleAnim:
 	ldy #0
 	lda (pTmp),y	; grab offset
 	clc
@@ -3052,15 +3052,19 @@ advSingleAnim: !zone {
 	adc pTmp+1
 	sta tmp+1
 
-	sta clrAuxRd
-	brk
-
-	jsr applyPatch	; unpatch to get back to base frame data
+	iny		; now y=2, index number of frames
+	lda (tmp),y
+	adc #$FF	; minus one to get last frame (carry clear from prev add)
+	sta checksum+1	; save it for later reference
+	iny		; now y=3, index current frame number
+	lda (tmp),y
+	sta checksum	; save it for comparison later
+	!if DEBUG = 2 { jsr .dbgB1 }
 
 .chkr	ldy #0
-	lda (tmp),y	; get animation type (1=Forward, 2=Forward/Backward, 3=Random)
-	cmp #3		; is it random?
-	bne .chkfb
+	lda (tmp),y	; get animation type (1=Forward, 2=Forward/Backward, 3=Forward+Stop, 4=Random)
+	cmp #4		; is it random?
+	bne .chkfs
 	ldx resNum	; number of frames to skip
 -	cpx #0
 	beq .doptch	; if zero, done skipping
@@ -3069,45 +3073,85 @@ advSingleAnim: !zone {
 	dex		; loop for...
 	jmp -		; ...specified number of skips
 
-.chkfb	iny		; index of current dir
-	cmp #2		; is it a forward+backward anim?
-	bne .setdir
+.chkfs	iny		; index of current dir
+	cmp #3		; is it a forward+stop anim?
+	bne .chkfb
+	lda checksum	; compare cur frame
+	eor checksum+1	; to (nFrames-1)
+	bne .adv	; if not there yet, advance.
+	rts		; we're at last frame; nothing left to do.
+
+.chkfb	cmp #2		; is it a forward+backward anim?
+	bne .adv
 	lda resType	; get change to dir
 	beq .adv	; not changing? just advance
-.setdir	lda #0		; invert current dir (1->FF, or FF->1)
+.switch	lda #0		; invert current dir (1->FF, or FF->1)
 	sec
-	sbc (pTmp),y
-	sta (pTmp),y	; store new dir
+	sbc (tmp),y
+	sta (tmp),y	; store new dir
 
-.adv	lda (pTmp),y	; get current dir
+.adv	lda (tmp),y	; get current dir
 	jsr .fwbk	; advance the frame number in that direction
-.doptch	jmp applyPatch	; apply patch for the new frame
+.doptch	ldy #3		; index current frame
+	lda (tmp),y
+	cmp checksum	; compare to what it was
+	bne +		; if not equal, we have work to do
+	rts		; no change, all done.
++	inc .ret2+1	; advance count of number of things we actually changed
+	pha
+	lda checksum
+	jsr applyPatch	; un-patch old frame
+	pla
+	jmp applyPatch	; apply patch for the new frame
 
 .fwbk	ldy #3		; index of current frame number
 	clc
 	adc (tmp),y	; advance in direction
 	dey		; index of number of frames
-	bcc +		; carry can only be set if dir=-1 and we wrapped around
-	lda (tmp),y	; get number of frames
-	sbc #1		; minus one (we know carry is already set)
+	cmp #0
+	bpl +		; can only be negative if dir=-1 and we wrapped around
+	lda checksum+1	; go to (previously saved) last frame number
 +	cmp (tmp),y	; are we at the limit of number of frames?
 	bne +
 	lda #0		; back to start
 +	iny		; index of current frame number
 	sta (tmp),y	; and store it
+	!if DEBUG = 2 { jsr .dbgB2 }
 	rts
+
+!if DEBUG = 2 { 
+.dbgin	sta clrAuxRd
+	sta clrAuxWr
+	bit $c051
+	rts
+.dbgout	+crout
+	+waitKey
+	sta setAuxRd
+	sta setAuxWr
+	rts
+.dbgB1	jsr .dbgin
+	+prStr : !text "single ",0
+	+prWord pTmp
+	+prWord tmp
+	+prByte checksum
+	+prByte checksum+1
+	jmp .dbgout
+.dbgB2	jsr .dbgin
+	+prStr : !text "fwbk ",0
+	+prA
+	jmp .dbgout
 }
 
 ; Patch (or un-patch) an entry. On entry:
-;   pTmp -> offset just before main image
-;   tmp  -> anim hdr
+;   A-reg - patch number to apply
+;   pTmp  - offset just before main image
+;   tmp   - anim hdr
 ; Those pointers are unmodified by this routine.
-applyPatch: !zone {
-	ldy #3		; get current frame number
-	lda (tmp),y
-	bne +
-.done	rts		; if frame zero, nothing to do
-+	sta reqLen	; index of patch number to find
+applyPatch:
+	tax		; patch zero?
+	beq .done	; if so, nothing to do
+	sta reqLen	; index of patch number to find
+	!if DEBUG = 2 { jsr .dbgC1 }
 
 	ldx #3
 -	lda tmp,x	; copy pointers to load/store data: tmp->pSrc, pTmp->pDst
@@ -3121,7 +3165,9 @@ applyPatch: !zone {
 	jsr .srcadd
 
 	; loop to skip patches until we find the right one
--	ldy #0
+-	dec reqLen	; it starts at 1, which means first patch.
+	beq +
+	ldy #0
 	lda (pSrc),y	; low byte of patch len
 	pha		; save it
 	iny
@@ -3130,8 +3176,8 @@ applyPatch: !zone {
 	jsr .ptradd	; skip by # pages in patch
 	pla
 	jsr .srcadd	; skip pSrc past last partial page in patch
-	dec reqLen	; count and loop
-	bne -
+	jmp -
++
 
 	; pSrc now points at the patch to apply
 	; pDst now points at the base data to modify
@@ -3162,13 +3208,13 @@ applyPatch: !zone {
 .ldsrc	ldy #0
 	lda (pSrc),y	; pointer is self-modified
 	inc pSrc
-	bne +
+	bne .done
 	inc pSrc+1
-+	rts
+.done	rts
 
 ; routine with two entry points; advances either pSrc or pDst
 .srcadd	ldx #pSrc	; advance pSrc by A-reg bytes
-	bne +		; always taken
+	bne .ptradd	; always taken
 .dstadd	ldx #pDst	; advance pDst by A-reg bytes
 .ptradd	clc
 	adc 0,x
@@ -3176,7 +3222,14 @@ applyPatch: !zone {
 	bcc +
 	inc 1,x
 +	rts
-}
+
+!if DEBUG = 2 { 
+.dbgC1	jsr .dbgin
+	+prStr : !text "apply ",0
+	+prByte reqLen
+	jmp .dbgout
+} ; end of debug
+} ; end of zone
 
 ;------------------------------------------------------------------------------
 ; Segment tables

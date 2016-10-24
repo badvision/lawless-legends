@@ -88,7 +88,8 @@ class A2PackPartitions
     def warningBuf = new StringBuilder()
     
     def binaryStubsOnly = false
-    def cache = [:]
+    final int CACHE_VERSION = 1  // increment to force full rebuild
+    def cache = ["version": CACHE_VERSION]
     def buildDir
     def reportWriter
     def chunkSizes = [:]
@@ -1672,7 +1673,9 @@ class A2PackPartitions
         File cacheFile = new File("build/world.cache")
         if (cacheFile.exists()) {
             ObjectInputStream inStream = new ObjectInputStream(new FileInputStream(cacheFile));
-            cache = inStream.readObject();
+            def inCache = inStream.readObject();
+            if (inCache["version"] == CACHE_VERSION)
+                cache = inCache
             inStream.close()
         }
     }

@@ -3016,6 +3016,8 @@ advanceAnims: !zone {
 	beq .anim	; found an animated resource type
 	cmp #RES_TYPE_SCREEN
 	beq .anim
+	cmp #RES_TYPE_TEXTURE
+	beq .anim
 	bne .next	; not animated; skip
 .anim	lda tSegAdrLo,x	; pointer to start of resource
 	sta pTmp

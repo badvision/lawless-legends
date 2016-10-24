@@ -203,11 +203,15 @@ class A2PackPartitions
         }
     }
     
-    def calcImageHash(imgEl)
+    def calcImagesHash(imgEls)
     {
-        def data = imgEl.displayData?.find { it.@platform == "AppleII" }
-        assert data : "image '${imgEl.@name}' missing AppleII platform data"
-        byte[] bytes = MessageDigest.getInstance("MD5").digest(data.toString().getBytes())
+        def md = MessageDigest.getInstance("MD5")
+        imgEls.each { imgEl ->
+            def data = imgEl.displayData?.find { it.@platform == "AppleII" }
+            assert data : "image '$name' missing AppleII platform data"
+            md.update(data.toString().getBytes())
+        }
+        byte[] bytes = MessageDigest.getInstance("MD5").digest()
         return DatatypeConverter.printHexBinary(bytes)
     }
     
@@ -751,14 +755,18 @@ class A2PackPartitions
     
     def packTexture(imgEl)
     {
-        def name = stripName(imgEl.@name)
-        def hash = calcImageHash(imgEl)
-        if (!grabFromCache("texture", textures, name, hash)) {
+        def (name, animFrameNum, animFlags) = decodeImageName(imgEl.@name ?: "img$num")
+        name = stripName(name)
+        withContext("texture '$name'") {
+            if (!textures.containsKey(name)) {
+                def num = textures.size() + 1
+                textures[name] = [num:num, anim:new AnimBuf()]
+            }
             def pixels = parseTexture(imgEl)
             calcTransparency(pixels)
             def buf = ByteBuffer.allocate(50000)
             writeTexture(buf, pixels)
-            addToCache("texture", textures, name, hash, buf)
+            textures[name].anim.addImage(animFrameNum, animFlags, buf)
         }
     }
     
@@ -1746,7 +1754,6 @@ class A2PackPartitions
         def xmlLastMod = xmlPath.lastModified()
         
         // Pre-pack the data for each tile
-        println "Packing images."
         dataIn.tile.each { 
             packTile(it) 
         }
@@ -1785,7 +1792,9 @@ class A2PackPartitions
         assert uiFrameImgs.size() == 2 : "Need exactly 2 UI frames, found ${uiFramesImgs.size()} instead."
         
         // Pack each image, which has the side-effect of filling in the image name map.
-        if (!grabEntireFromCache("frames", frames, xmlLastMod)) {
+        def hash = calcImagesHash(titleImgs + uiFrameImgs + fullscreenImgs)
+        if (!grabEntireFromCache("frames", frames, hash)) {
+            println "Packing frame images."
             titleImgs.each { image -> packFrameImage(image) }
             uiFrameImgs.each { image -> packFrameImage(image) }
             fullscreenImgs.each { image -> packFrameImage(image) }
@@ -1793,16 +1802,29 @@ class A2PackPartitions
                 frame.buf = frame.anim.pack() 
                 frame.anim = null
             }
-            addEntireToCache("frames", frames, xmlLastMod)
+            addEntireToCache("frames", frames, hash)
         }
-        textureImgs.each { image -> packTexture(image) }
-        if (!grabEntireFromCache("portraits", portraits, xmlLastMod)) {
+        
+        hash = calcImagesHash(textureImgs)
+        if (!grabEntireFromCache("textures", textures, hash)) {
+            println "Packing textures."
+            textureImgs.each { image -> packTexture(image) }
+            textures.each { name, texture ->
+                texture.buf = texture.anim.pack() 
+                texture.anim = null
+            }
+            addEntireToCache("textures", textures, hash)
+        }
+        
+        hash = calcImagesHash(portraitImgs)
+        if (!grabEntireFromCache("portraits", portraits, hash)) {
+            println "Packing portraits."
             portraitImgs.each { image -> packPortrait(image) }
             portraits.each { name, portrait ->
                 portrait.buf = portrait.anim.pack() 
                 portrait.anim = null
             }
-            addEntireToCache("portraits", portraits, xmlLastMod)
+            addEntireToCache("portraits", portraits, hash)
         }
         
         // Number all the maps and record them with names
@@ -2493,7 +2515,7 @@ end
             animFrameNum = m[0][2].toInteger()
             animFlags = m[0][3].toLowerCase()
         }
-        return [name, animFrameNum, animFlags]
+        return [name.trim(), animFrameNum, animFlags]
     }
     
     def dataGen(xmlPath)

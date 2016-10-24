@@ -1250,8 +1250,11 @@ drawRay: !zone
 	ldx txNum
 	dex			; translate tex 1..4 to 0..3
 	lda texAddrLo,x
+	clc
+	adc #2			; skip over offset to animation header
 	sta pTex
 	lda texAddrHi,x
+	adc #0
 	sta pTex+1
 	; jump to the unrolled expansion code for the selected height
 	!if DEBUG >= 2 { +prStr : !text "Calling expansion code.",0 }

@@ -765,21 +765,25 @@ class A2PackPartitions
     def packFrameImage(imgEl)
     {
         def (name, animFrameNum, animFlags) = decodeImageName(imgEl.@name ?: "img$num")
-        if (!frames.containsKey(name)) {
-            def num = frames.size() + 1
-            frames[name] = [num:num, anim:new AnimBuf()]
+        withContext("full screen image '$name'") {
+            if (!frames.containsKey(name)) {
+                def num = frames.size() + 1
+                frames[name] = [num:num, anim:new AnimBuf()]
+            }
+            frames[name].anim.addImage(animFrameNum, animFlags, parseFrameData(imgEl))
         }
-        frames[name].anim.addImage(animFrameNum, animFlags, parseFrameData(imgEl))
     }
     
     def packPortrait(imgEl)
     {
         def (name, animFrameNum, animFlags) = decodeImageName(imgEl.@name ?: "img$num")
-        if (!portraits.containsKey(name)) {
-            def num = portraits.size() + 1
-            portraits[name] = [num:num, anim:new AnimBuf()]
+        withContext("portrait '$name'") {
+            if (!portraits.containsKey(name)) {
+                def num = portraits.size() + 1
+                portraits[name] = [num:num, anim:new AnimBuf()]
+            }
+            portraits[name].anim.addImage(animFrameNum, animFlags, parse126Data(imgEl))
         }
-        portraits[name].anim.addImage(animFrameNum, animFlags, parse126Data(imgEl))
     }
     
     def packTile(imgEl)
@@ -2948,7 +2952,10 @@ end
                     case 'graphics_set_portrait':
                         packSetPortrait(blk); break
                     case 'graphics_clr_portrait':
+                    case 'graphics_clr_fullscreen':
                         packClrPortrait(blk); break
+                    case 'graphics_set_fullscreen':
+                        packSetFullscreen(blk); break
                     case 'graphics_set_avatar':
                         packSetAvatar(blk); break
                     case 'variables_set':
@@ -3273,6 +3280,16 @@ end
                 return
             }
             outIndented("setPortrait(PO${humanNameToSymbol(portraitName, false)})\n")
+        }
+        
+        def packSetFullscreen(blk)
+        {
+            def imgName = getSingle(blk.field, 'NAME').text()
+            if (!frames.containsKey(imgName)) {
+                printWarning "full screen image '$imgName' not found; skipping set_fullscreen."
+                return
+            }
+            outIndented("loadFrameImg(PF${humanNameToSymbol(imgName, false)})\n")
         }
         
         def packClrPortrait(blk)

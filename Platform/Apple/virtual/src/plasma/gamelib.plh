@@ -27,7 +27,7 @@ import gamelib
   predef calcPlayerArmor, rdkey, initHeap, scriptCombat, makeModifier
   predef giveItemToPlayer, takeItemFromPlayer, playerHasItem, getStat, setStat
   predef setGameFlag, getGameFlag, scriptSetAvatar, parseDecWithDefault, readStr
-  predef addPlayerToParty, removePlayerFromParty, partyHasPlayer
+  predef addPlayerToParty, removePlayerFromParty, partyHasPlayer, loadFrameImg
 
   /////////// Shared string constants //////////////
 

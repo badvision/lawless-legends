@@ -819,6 +819,31 @@ if (typeof Mythos === "undefined") {
                     this.setTooltip('Stop displaying a portrait, return to map display');
                 }
             };
+            Blockly.Blocks['graphics_set_fullscreen'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Display full screen image ")
+                            .appendField(new Blockly.FieldTextInput(""), "NAME");
+                    this.setOutput(false);
+                    this.setTooltip('Display the given full screen image (by name)');
+                }
+            };
+            Blockly.Blocks['graphics_clr_fullscreen'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Clear full screen image");
+                    this.setOutput(false);
+                    this.setTooltip('Stop displaying a full screen image, return to map display');
+                }
+            };
         }
     };
 }

@@ -92,6 +92,7 @@ class A2PackPartitions
     def cache = ["version": CACHE_VERSION]
     def buildDir
     def reportWriter
+    def memUsage3D = []
     def chunkSizes = [:]
 
     def stats = [
@@ -632,12 +633,12 @@ class A2PackPartitions
         def mapTexturesSize = texList.size() * 0x555
         def totalAux = gameloopSize + mapScriptsSize + mapTexturesSize
         def safeLimit = 34 * 1024
-        reportWriter.println String.format("%-20s: %4.1fK of %4.1fK used: %4.1fK scripts, %4.1fK in %2d textures, %4.1fK overhead%s",
+        memUsage3D << String.format("%-20s: %4.1fK of %4.1fK used: %4.1fK scripts, %4.1fK in %2d textures, %4.1fK overhead%s",
             mapName, totalAux/1024.0, safeLimit/1024.0, 
             mapScriptsSize/1024.0, mapTexturesSize/1024.0, texList.size(), gameloopSize/1024.0,
             totalAux > safeLimit ? " [WARNING]" : "")
         if (totalAux > safeLimit)
-            printWarning "memory will be dangerously full; see build/3dMemUsage.txt for details."
+            printWarning "memory will be dangerously full; see pack_report.txt for details."
         
         // Followed by the list of textures
         texList.each { buf.put((byte)it) }
@@ -1688,7 +1689,11 @@ class A2PackPartitions
     
     def reportSizes()
     {
-        reportWriter.println "\n================================= Resource Sizes ====================================="
+        reportWriter.println "\n================================= Memory usage of 3D maps =====================================\n"
+        memUsage3D.each { reportWriter.println it }
+        reportWriter.println ""
+        
+        reportWriter.println "================================= Resource Sizes ====================================="
         def data = [:]
         chunkSizes.each { k,v ->
             assert typeNumToName.containsKey(k.type)
@@ -1835,7 +1840,6 @@ class A2PackPartitions
             
         // Pack each map. This uses the image and tile maps filled earlier.
         println "Packing maps and scripts."
-        reportWriter.println "\n================================= Memory usage of 3D maps =====================================\n"
         dataIn.map.each { map ->
             if (map?.@name =~ /2D/)
                 pack2DMap(map, dataIn.tile) 
@@ -1855,8 +1859,9 @@ class A2PackPartitions
         def part2Path = new File("build/root/game.part.2.bin").path
         new File(part2Path).withOutputStream { stream -> writePartition(stream, 2) }
         
-        // Print stats
-        reportSizes()
+        // Print stats (unless there's a warning, in which case focus the user on that)
+        if (nWarnings == 0)
+            reportSizes()
         
         // And save the cache for next time.
         writeCache()
@@ -2711,7 +2716,7 @@ end
                 "Fatal error encountered in\n" + \
                 "$context:\n" + \
                 "$msg.\n" + \
-                "Details written to file 'pack_error.txt'.", "Fatal packing error", 
+                "Details written to file 'pack_report.txt'.", "Fatal packing error", 
                 javax.swing.JOptionPane.ERROR_MESSAGE)
             System.exit(1)
         }
@@ -2719,7 +2724,7 @@ end
         def warnings(nWarnings, str)
         {
             javax.swing.JOptionPane.showMessageDialog(null,
-                "${nWarnings} warning(s) noted during packing.\nDetails written to file 'pack_warning.txt'.",
+                "${nWarnings} warning(s) noted during packing.\nDetails written to 'pack_report.txt'.",
                 "Pack warnings",
                 javax.swing.JOptionPane.ERROR_MESSAGE)
         }

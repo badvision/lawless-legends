@@ -207,13 +207,8 @@ class A2PackPartitions
     def calcImagesHash(imgEls)
     {
         def md = MessageDigest.getInstance("MD5")
-        imgEls.each { imgEl ->
-            def data = imgEl.displayData?.find { it.@platform == "AppleII" }
-            assert data : "image '$name' missing AppleII platform data"
-            md.update(data.toString().getBytes())
-        }
-        byte[] bytes = MessageDigest.getInstance("MD5").digest()
-        return DatatypeConverter.printHexBinary(bytes)
+        imgEls.each { md.update(it.toString().getBytes()) }
+        return DatatypeConverter.printHexBinary(md.digest())
     }
     
     def pixelize(dataEl)

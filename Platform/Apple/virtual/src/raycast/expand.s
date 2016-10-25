@@ -8,7 +8,7 @@
 ; governing permissions and limitations under the License.
 ;****************************************************************************************
 
-* = $3000
+* = $200
 !source "render.i"
 
 expand_vec:

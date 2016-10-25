@@ -12,7 +12,7 @@
 // Fixed memory locations
 const seed          = $4E     // Incremented continuously by keyboard read routine
 const displayEngine = $6000   // main mem (raycaster and tile engine at same location)
-const expandVec     = $3000   // aux mem (only for raycaster)
+const expandVec     = $200    // aux mem (only for raycaster)
 const fontEngine    = $E000   // main mem
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

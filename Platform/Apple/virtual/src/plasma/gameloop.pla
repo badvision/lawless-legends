@@ -69,7 +69,7 @@ byte skipEncounterCheck = FALSE
 
 word skyNum = 9
 word groundNum = 10
-byte portraitNum = POgunWoman1-1
+byte portraitNum = 1
 
 word triggerOriginX, triggerOriginY
 word triggerTbl

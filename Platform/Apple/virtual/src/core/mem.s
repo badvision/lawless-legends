@@ -1954,6 +1954,7 @@ mem_queueLoad: !zone
 	jsr .forceFree		; if bytecode without module, forcibly free it
 	jsr .scanForModule
 	jsr .forceFree		; if module without bytecode, forcibly free it
+; back to normal work
 	jsr .notMod		; queue the main memory part of the module
 	stx .modRet+1		; save address of main load for eventual return
 	sty .modRet+3		; yes, self-modifying
@@ -2246,14 +2247,23 @@ disk_queueLoad: !zone
 +	stx reqLen		; save the uncompressed length
 	sta reqLen+1		; both bytes
 	!if DEBUG { +prStr : !text "uclen=",0 : +prWord reqLen : +crout }
-	jsr shared_alloc	; reserve memory for this resource (main or aux as appropriate)
-	tya			; check for
-	ora isAuxCmd		; 	main memory
-	cmp #$20		;		hi-res page 1
+; Load the bytecode of the main (first) bytecode module at the highest possible point
+; (to reduce fragmentation of the rest of aux mem) 
+	lda resType
+	cmp #RES_TYPE_BYTECODE
 	bne +
-	lda #0			; when loading hi-res page 1, reset the visible marker
-	sta diskActState
-+	stx tmp			; save lo part of addr temporarily
+	lda resNum
+	cmp #1
+	bne +
+	lda #0
+	sec
+	sbc reqLen
+	sta targetAddr
+	lda #$C0
+	sbc reqLen+1
+	sta targetAddr+1
++	jsr shared_alloc	; reserve memory for this resource (main or aux as appropriate)
+	stx tmp			; save lo part of addr temporarily
 	ldx segNum		; get the segment number back
 	lda resType		; put resource type in segment descriptor
 	ora #$80		; add 'active' flag
@@ -2262,6 +2272,8 @@ disk_queueLoad: !zone
 	sta tSegRes,x
 	ldx tmp			; get back lo part of addr
 	rts			; success! all done.
+.notFound:
+	jsr inlineFatal : !text "ResNotFnd", 0
 .bump3:	iny			; skip resource number
 	iny			; skip lo byte of length
 	lda (pTmp),y		; get hi byte of length.
@@ -2269,12 +2281,9 @@ disk_queueLoad: !zone
 	iny			; skip uncompressed size too
 	iny
 +	iny			; advance to next entry
-	bpl .scan		; if Y is small, loop again
+	bpl +			; if Y is small, loop again
 	jsr adjYpTmp		; keep it small
-	jmp .scan		; go for more
-.notFound:
-	jsr inlineFatal : !text "ResNotFnd", 0
-.resLen: !byte 0
++	jmp .scan		; go for more
 
 ;------------------------------------------------------------------------------
 disk_finishLoad: !zone

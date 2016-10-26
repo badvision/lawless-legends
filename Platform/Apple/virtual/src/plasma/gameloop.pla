@@ -1404,8 +1404,8 @@ def doRender()
     fin
     texturesLoaded = TRUE
   fin
-  render()
   if textDrawn and mapIs3D; copyWindow(); fin
+  render()
   needRender = FALSE
 end
 
@@ -1719,6 +1719,7 @@ def showAnimFrame()
     blit(curFullscreenImg + 2, $2000, 192, 40) // the +2 is to skip anim hdr offset
     needRender = FALSE  // suppress display of map for this frame
   elsif mapIs3D
+    if textDrawn and mapIs3D; copyWindow(); fin
     render()
   fin
 end

@@ -1961,7 +1961,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def playerDeath()
-  displayStr("You have died. Press any key to reload.")
+  displayStr("\nYou have died. Press any key to reload.")
   setPortrait(POdeath)
   getUpperKey()
   startGame(FALSE) // don't ask, just load

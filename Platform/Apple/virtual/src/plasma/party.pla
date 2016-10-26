@@ -329,6 +329,7 @@ def _party_doPlayerSheet(num)
               fin
             fin
             scriptEvent(@S_USE, item=>s_name)
+            return  // per Seth's request, once an item is used, exit inventory screen.
           fin
         else
           beep

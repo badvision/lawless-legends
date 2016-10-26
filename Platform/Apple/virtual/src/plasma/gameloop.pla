@@ -1571,7 +1571,6 @@ def setMap(is3D, num, x, y, dir)
     mapIs3D = is3D
     mapNum = num
     allowZoneInit = TRUE
-    global->b_curAvatar = 0
     initMap(x, y, dir)
     allowZoneInit = FALSE
   fin

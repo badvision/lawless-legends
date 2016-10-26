@@ -1739,7 +1739,7 @@ def nextAnimFrame()
   // Advance animations. 
   // First part is whether to switch directions on fwd/back anims.
   // Second part is how many frames to advance random anims.
-  flags = auxMmgr(ADVANCE_ANIMS, (animDirCt==0) | (((rand16() % 10)+1)<<8))
+  flags = auxMmgr(ADVANCE_ANIMS, ((animDirCt==1) & 1) | (((rand16() % 10)+1)<<8))
   if (flags >> 8)
     // An animation was changed -- display it
     showAnimFrame()

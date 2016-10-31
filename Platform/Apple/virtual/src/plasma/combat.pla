@@ -316,7 +316,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def enemyCombatTurn(pe)
   word pl
-  byte roll, dam
+  byte roll, dam, needShow
 
   // Choose a target
   pl = randomFromListFiltered(global=>p_players, p_nextObj, @canFight)
@@ -330,6 +330,7 @@ def enemyCombatTurn(pe)
   // TODO: consider player dodge
   // TODO: consider player agility
   // TODO: consider player skills
+  needShow = FALSE
   if roll <= pe->b_chanceToHit
     dam = rollDice(pe=>r_enemyDmg)
     printf1("and hits for %d damage!", dam)
@@ -337,13 +338,14 @@ def enemyCombatTurn(pe)
     if pl=>w_health == 0
       printf1(" %s is killed!", pl=>s_name)
     fin
-    showParty()
+    needShow = TRUE
   else
     puts("and misses.")
   fin
   puts("\n")
 
   displayStr(finishString(0))
+  if needShow; showParty(); fin
   return TRUE
 end
 

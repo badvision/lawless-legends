@@ -1199,7 +1199,9 @@ export def showParty()
   loop
 
   // Finish up
-  if mapIs3D; copyWindow(); fin
+  if mapIs3D and texturesLoaded
+    copyWindow()
+  fin
   setWindow2()
   restoreCursor()
   needShowParty = FALSE
@@ -1404,7 +1406,7 @@ def doRender()
     fin
     texturesLoaded = TRUE
   fin
-  if textDrawn and mapIs3D; copyWindow(); fin
+  if textDrawn and mapIs3D and texturesLoaded; copyWindow(); fin
   render()
   needRender = FALSE
 end
@@ -1431,7 +1433,7 @@ def moveForward()
   if val >= 2
     if textDrawn
       clearWindow()
-      if mapIs3D; copyWindow(); fin
+      if mapIs3D and texturesLoaded; copyWindow(); fin
       textDrawn = FALSE
     fin
     scriptEvent(@S_LEAVE, NULL)
@@ -1637,7 +1639,7 @@ export def showMapName(mapName)
     displayChar('Y'-$40) // center mode
     displayStr(mapName)
     displayChar('N'-$40) // normal mode
-    if mapIs3D; copyWindow(); fin
+    if mapIs3D and texturesLoaded; copyWindow(); fin
     mapNameHash = newNameHash
   fin
 end
@@ -1719,7 +1721,7 @@ def showAnimFrame()
     blit(curFullscreenImg + 2, $2000, 192, 40) // the +2 is to skip anim hdr offset
     needRender = FALSE  // suppress display of map for this frame
   elsif mapIs3D
-    if textDrawn and mapIs3D; copyWindow(); fin
+    if textDrawn and mapIs3D and texturesLoaded; copyWindow(); fin
     render()
   fin
 end

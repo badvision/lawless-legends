@@ -19,6 +19,11 @@ start:
 ; then routines that call those to build complexity. The main
 ; code is at the very end.
 
+; Documentation of flags used on the map tiles:
+;	$20 = script hint
+;	$40 = sprite already done flag
+;	$80 = sprite flag
+
 ; Here are the entry points for PLASMA code. Identical API for 2D and 3D.
 	jmp pl_initMap 		; params: mapNum, pMapData, x, y, dir
 	jmp pl_flipToPage1	; params: none; return: nothing
@@ -32,6 +37,7 @@ start:
 	jmp pl_texControl	; params: 0=unload textures, 1=load textures
 	jmp pl_getScripts	; params: none
 	jmp pl_setAvatar	; params: A=tile number
+	jmp pl_swapTile		; params: fromX, fromY, toX, toY
 
 ; Conditional assembly flags
 DEBUG		= 0		; 1=some logging, 2=lots of logging
@@ -1709,12 +1715,13 @@ graphInit: !zone
 
 ;-------------------------------------------------------------------------------
 ; Using the current coordinates, calculate pointer on the map to the current row
-; and put it in mapRayOrigin (and also A=lo, Y=hi)
+; and put it in mapRayOrigin and pMap (and also return A=lo, Y=hi)
 calcMapOrigin: !zone
 
+	ldx playerY+1		; integer part of player's Y coord
+calcMapOriginX:
 	lda mapBase		; start at row 0, col 0 of the map
 	ldy mapBase+1
-	ldx playerY+1		; integer part of player's Y coord
 	beq .gotMapRow
 	clc
 .mapLup:			; advance forward one row
@@ -1722,11 +1729,13 @@ calcMapOrigin: !zone
 	bcc +
 	iny
 	clc
-+	dex			; until we reach players Y coord
++	dex			; until we reach player's Y coord
 	bne .mapLup
 .gotMapRow:
 	sta mapRayOrigin
+	sta pMap
 	sty mapRayOrigin+1
+	sty pMap+1
 	rts
 
 ;-------------------------------------------------------------------------------
@@ -1766,8 +1775,6 @@ pl_advance: !zone
 
 	; Check if the new position is blocked
 	jsr calcMapOrigin
-	sta pMap
-	sty pMap+1
 	ldy playerX+1
 	lda (pMap),y
 	and #$1F
@@ -1778,7 +1785,6 @@ pl_advance: !zone
 	and #2			; tile flag 2 is for obstructions
 	beq .ok
 	; Blocked! Restore old position.
-	+prStr : !text "Blocked.", 0
 	pla
 	sta playerY+1
 	pla
@@ -1812,6 +1818,57 @@ pl_advance: !zone
 	iny			; else return 3 = new blk and a script
 .done	tya			; retrieve ret value
 	ldy #0			; hi byte of ret is always 0
+	rts			; all done
+
+;-------------------------------------------------------------------------------
+; Swap tiles at two positions. 
+; Params: fromX, fromY, toX, toY
+;           3      2     1    0
+; Return: none
+pl_swapTile: !zone
+	; Grab stuff from the PLASMA eval stack
+	lda evalStkL+3,x	; fromX
+	sta tmp
+	lda evalStkL+1,x	; toX
+	pha
+	lda evalStkL+2,x	; fromY
+	pha
+	lda evalStkL,x		; toY
+	tax
+	inx			; because we add a phantom row at the top
+	jsr calcMapOriginX	; result in A=lo,Y=hi
+	sta pTmp		; toRow now in pTmp
+	sty pTmp+1
+	pla			; retrieve fromY
+	tax
+	inx			; because we add a phantom row at the top
+	jsr calcMapOriginX	; result in A=lo,Y=hi
+	sec			; sec to add 1, because we add a phantom column at the left
+	adc tmp			; add fromX
+	sta pMap
+	bcc +
+	iny
++	sty pMap+1		; pMap now holds fromRow+fromX
+	pla			; retrieve toX
+	tay			; index in Y. Now (pTmp),y is toRow+toX
+	iny			; +1 because we add a phantom column at the left
+	ldx #0
+	lda (pMap,x)		; grab fromTile
+	sta tmp+1
+	lda (pTmp),y		; grab toTile
+	sta tmp
+
+	eor tmp+1		; grab all bits from fromTile
+	and #$20		;	except script hint
+	eor tmp+1
+	sta (pTmp),y		; save toTile
+
+	lda tmp+1
+	eor tmp			; grab all bits from toTile
+	and #$20		; 	except script hint
+	eor tmp
+	sta (pMap,x)		; save fromTile
+
 	rts			; all done
 
 ;-------------------------------------------------------------------------------
@@ -1869,8 +1926,8 @@ castAllRays: !zone
 	asl			; as screen column * 4
 	asl
 	tay
-	lda mapRayOrigin	; set initial map pointer for the ray
-	sta pMap
+	lda mapRayOrigin	; reset initial map pointer for the ray (have to do for each column
+	sta pMap		;	even though calcMapOrigin did first one)
 	lda mapRayOrigin+1
 	sta pMap+1
 

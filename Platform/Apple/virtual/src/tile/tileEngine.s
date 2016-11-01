@@ -117,6 +117,7 @@ next_zp		= $AC
 	JMP pl_texControl	; params: 1=load, 0=unload
 	JMP pl_getScripts	; params: none
 	JMP pl_setAvatarTile    ; params: A=tile number
+	JMP pl_swapTile		; params: fromX, fromY, toX, toY
 
 ;----------------------------------------------------------------------
 ; >> START LOADING MAP SECTIONS
@@ -1188,6 +1189,14 @@ pl_flipToPage1:
 ; No-op, because in 2D we don't have sky and ground colors
 pl_setColor:
 	rts
+
+;----------------------------------------------------------------------
+; >> pl_swapTile
+; Not yet implemented for 2D mode, because very complex due to map
+; segmenting.
+pl_swapTile:
+	+prChr 'T'
+	brk
 
 ;----------------------------------------------------------------------
 ; >> pl_getPos

@@ -28,6 +28,7 @@ import gamelib
   predef giveItemToPlayer, takeItemFromPlayer, playerHasItem, getStat, setStat
   predef setGameFlag, getGameFlag, scriptSetAvatar, parseDecWithDefault, readStr
   predef addPlayerToParty, removePlayerFromParty, partyHasPlayer, loadFrameImg
+  predef scriptSwapTile
 
   /////////// Shared string constants //////////////
 

@@ -807,6 +807,23 @@ if (typeof Mythos === "undefined") {
                     this.setTooltip('Use the given tile as the avatar image (by name)');
                 }
             };
+            Blockly.Blocks['graphics_swap_tile'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Swap tile from X/Y")
+                            .appendField(new Blockly.FieldTextInput(""), "FROM_X")
+                            .appendField(new Blockly.FieldTextInput(""), "FROM_Y")
+                            .appendField("to X/Y")
+                            .appendField(new Blockly.FieldTextInput(""), "TO_X")
+                            .appendField(new Blockly.FieldTextInput(""), "TO_Y");
+                    this.setOutput(false);
+                    this.setTooltip('Swap the map tile between two locations');
+                }
+            };
             Blockly.Blocks['graphics_clr_portrait'] = {
                 init: function () {
                     this.setHelpUrl(Mythos.helpUrl);

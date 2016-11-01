@@ -2983,6 +2983,8 @@ end
                         packSetFullscreen(blk); break
                     case 'graphics_set_avatar':
                         packSetAvatar(blk); break
+                    case 'graphics_swap_tile':
+                        packSwapTile(blk); break
                     case 'variables_set':
                         packVarSet(blk); break
                     case 'interaction_give_item':
@@ -3333,6 +3335,20 @@ end
             outIndented("scriptSetAvatar(${avatars[tileName.toLowerCase()]})\n")
         }
         
+        def packSwapTile(blk)
+        {
+            assert blk.field.size() == 4
+            assert blk.field[0].@name == 'FROM_X'
+            assert blk.field[1].@name == 'FROM_Y'
+            assert blk.field[2].@name == 'TO_X'
+            assert blk.field[3].@name == 'TO_Y'
+            def fromX = blk.field[0].text().toInteger()
+            def fromY = blk.field[1].text().toInteger()
+            def toX   = blk.field[2].text().toInteger()
+            def toY   = blk.field[3].text().toInteger()
+            outIndented("scriptSwapTile($fromX, $fromY, $toX, $toY)\n")
+        }
+
         def packSetSky(blk)
         {
             def color = getSingle(blk.field, 'COLOR').text().toInteger()

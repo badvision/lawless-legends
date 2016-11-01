@@ -215,6 +215,10 @@ export asm setAvatar  // params: tile number (in the global tileset)
   +asmPlasm 1
   jmp $6021
 end
+asm swapTile    // params: fromX, fromY, toX, toY
+  +asmPlasm 4
+  jmp $6024
+end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 asm readAuxByte     // params: ptr; ret: char
@@ -1686,6 +1690,14 @@ end
 export def scriptDisplayStrNL(str)
   scriptDisplayStr(str)
   displayStr("\n")
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Called by scripts to swap a map tile. We set a flag noting we need to re-render, then use an
+// assembly routine to do the work.
+export def scriptSwapTile(fromX, fromY, toX, toY)
+  needRender = TRUE
+  swapTile(fromX, fromY, toX, toY)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

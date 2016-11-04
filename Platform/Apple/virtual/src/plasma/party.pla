@@ -277,7 +277,8 @@ def addItem(player)
   return
 end
 
-// Show player sheet and accept command
+// Show player sheet and accept command. If using an item (not just for stats gain)
+// the item is returned; else NULL is returned.
 def _party_doPlayerSheet(num)
   word player, item
   word hMap, vMap, i_rows
@@ -327,9 +328,9 @@ def _party_doPlayerSheet(num)
                   removeFromList(@player=>p_items, item)
                 fin
               fin
+            else
+              return item // general 'use' handled by outer engine, because it might involve graphics
             fin
-            scriptEvent(@S_USE, item=>s_name)
-            return  // per Seth's request, once an item is used, exit inventory screen.
           fin
         else
           beep

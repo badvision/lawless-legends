@@ -1920,8 +1920,13 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load the Party engine and show data for the given player
 def showPlayerSheet(num)
-  loadEngine(MODULE_PARTY)=>party_showPlayerSheet(num)
+  word pItemToUse
+  pItemToUse = loadEngine(MODULE_PARTY)=>party_showPlayerSheet(num)
   returnFromEngine()
+  // General 'use' handled here in case it triggers graphical effects
+  if pItemToUse
+    scriptEvent(@S_USE, pItemToUse=>s_name)
+  fin
 end
 
 def showPlayer1()

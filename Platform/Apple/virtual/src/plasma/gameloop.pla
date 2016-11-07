@@ -37,6 +37,7 @@ include "gen_items.plh"
 include "combat.plh"
 include "party.plh"
 include "diskops.plh"
+include "intimate.plh"
 
 // NOTE: GLIB goes here!
 
@@ -79,6 +80,7 @@ byte frameLoaded = 0
 byte heapLocked = FALSE
 byte allowZoneInit = FALSE
 word curEngine = NULL
+word pIntimate = NULL
 
 // Queue setMap / teleport / start_encounter, since otherwise script might be replaced while executing
 byte q_mapIs3D = 0
@@ -678,7 +680,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Use the font engine to clear the current text window.
 // Parameters: top, bottom, left, right
-asm setWindow
+export asm setWindow
   +asmPlasm_bank2 4
   jmp SetWindow
 end
@@ -1102,17 +1104,23 @@ export def loadFrameImg(img)
   fin
 
   // Load the image data into aux mem
-  auxMmgr(START_LOAD, 1) // partition 1 is where full screen images live
-  curFullscreenImg = auxMmgr(QUEUE_LOAD, img<<8 | RES_TYPE_SCREEN)
-  auxMmgr(FINISH_LOAD, 0)
+  if img
+    auxMmgr(START_LOAD, 1) // partition 1 is where full screen images live
+    curFullscreenImg = auxMmgr(QUEUE_LOAD, img<<8 | RES_TYPE_SCREEN)
+    auxMmgr(FINISH_LOAD, 0)
+
+    anyAnims = TRUE  // for now; might get cleared if we discover otherwise on advance
+    animDirCt = 1
+    animPauseCt = ANIM_PAUSE_MAX
+
+    // And show the first frame of the screen image
+    showAnimFrame()
+  else
+    curFullscreenImg = NULL
+    anyAnims = FALSE
+  fin
+
   frameLoaded = img
-
-  anyAnims = TRUE  // for now; might get cleared if we discover otherwise on advance
-  animDirCt = 1
-  animPauseCt = ANIM_PAUSE_MAX
-
-  // And show the first frame of the screen image
-  showAnimFrame()
 
   // Do not render over the image
   needRender = FALSE
@@ -1147,6 +1155,7 @@ export def setMapWindow()
     setWindow(24, 169, 14, 140) // Top, Bottom, Left, Right
   fin
 end
+
 export def getMapWindow(width, height)
   if frameLoaded == 3  // don't check mapIs3D, since we might be in an engine
     *width  = 140-14
@@ -1156,16 +1165,20 @@ export def getMapWindow(width, height)
     *height = 169-24
   fin
 end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def fontCmd(code, coord)
+  tabBuf[0] = 4  // length
+  tabBuf[1] = code
+  tabBuf[2] = (coord / 100) + '0'
+  tabBuf[3] = ((coord / 10) % 10) + '0'
+  tabBuf[4] = (coord % 10) + '0'
+  rawDisplayStr(@tabBuf)
+end
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def rightJustifyStr(str, rightX)
-  word x
-  x = rightX - calcWidth(str)
-  tabBuf[0] = 4  // length
-  tabBuf[1] = 20 // Ctrl-T
-  tabBuf[2] = (x / 100) + '0'
-  tabBuf[3] = ((x / 10) % 10) + '0'
-  tabBuf[4] = (x % 10) + '0'
-  rawDisplayStr(@tabBuf)
+  fontCmd(20, rightX - calcWidth(str)) // 20=Ctrl-T
   rawDisplayStr(str)
 end
 
@@ -1286,7 +1299,7 @@ def scanScripts(x, y)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def loadMainFrameImg()
+export def loadMainFrameImg()
   mmgr(START_LOAD, 1) // partition 1 is where code lives
   loadFrameImg(mapIs3D+2)
   if curFullscreenImg
@@ -1681,9 +1694,13 @@ end
 // Called by scripts to display a string. We set the flag noting that something has been
 // displayed, then use an assembly routine to do the work.
 export def scriptDisplayStr(str)
-  textDrawn = TRUE
-  flipToPage1()
-  displayStr(str)
+  if pIntimate
+    pIntimate=>intimate_displayStr(str)
+  else
+    textDrawn = TRUE
+    flipToPage1()
+    displayStr(str)
+  fin
   // No: tossString()  // Doesn't work here, because we need to toss strings in the *parent's* frame
 end
 
@@ -2496,6 +2513,18 @@ export def getGameFlag(flagName)
     return p_flag=>w_modValue
   else
     return 0
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def setIntimateMode(enable)
+  if enable
+    pIntimate = loadEngine(MODULE_PARTY)
+    pIntimate=>intimate_setMode(enable)
+  else
+    pIntimate=>intimate_setMode(enable)
+    returnFromEngine()
+    pIntimate = NULL
   fin
 end
 

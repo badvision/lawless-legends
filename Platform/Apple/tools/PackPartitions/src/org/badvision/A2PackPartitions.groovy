@@ -2985,6 +2985,8 @@ end
                         packSetAvatar(blk); break
                     case 'graphics_swap_tile':
                         packSwapTile(blk); break
+                    case 'graphics_intimate_mode':
+                        packIntimateMode(blk); break
                     case 'variables_set':
                         packVarSet(blk); break
                     case 'interaction_give_item':
@@ -3001,6 +3003,8 @@ end
                     case 'interaction_set_flag':
                     case 'interaction_clr_flag':
                         packChangeFlag(blk); break
+                    case 'interaction_pause':
+                        packPause(blk); break
                     default:
                         printWarning "don't know how to pack block of type '${blk.@type}'"
                 }
@@ -3109,6 +3113,17 @@ end
             assert amount > 0 && amount < 32767
             def stat = nameToStat(name)
             outIndented("setStat($stat, getStat($stat) ${blk.@type == 'interaction_increase_stat' ? '+' : '-'} $amount)\n")
+        }
+
+        def packPause(blk)
+        {
+            def num = getSingle(blk.field, 'NUM').text()
+            assert num.toFloat() > 0
+            def factor = 500 // approx counts per second
+            def time = (int)(num.toFloat() * factor)
+            if (time > 32767)
+                time = 32767
+            outIndented("pause($time)\n")
         }
 
         def packGetStat(blk)
@@ -3349,6 +3364,13 @@ end
             outIndented("scriptSwapTile($fromX, $fromY, $toX, $toY)\n")
         }
 
+        def packIntimateMode(blk)
+        {
+            def enableFlg = getSingle(blk.field, 'FLAG').text()
+            assert enableFlg == "0" || enableFlg == "1"
+            outIndented("setIntimateMode($enableFlg)\n")
+        }
+        
         def packSetSky(blk)
         {
             def color = getSingle(blk.field, 'COLOR').text().toInteger()

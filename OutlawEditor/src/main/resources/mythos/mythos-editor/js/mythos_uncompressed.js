@@ -781,6 +781,20 @@ if (typeof Mythos === "undefined") {
                     this.setTooltip('Clear a game flag');
                 }
             };
+            Blockly.Blocks['interaction_pause'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Pause for")
+                            .appendField(new Blockly.FieldTextInput("0.5"), "NUM")
+                            .appendField("second(s)");
+                    this.setOutput(false);
+                    this.setTooltip('Pause for a specified time');
+                }
+            };
             Blockly.Blocks['graphics_set_portrait'] = {
                 init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
@@ -859,6 +873,19 @@ if (typeof Mythos === "undefined") {
                             .appendField("Clear full screen image");
                     this.setOutput(false);
                     this.setTooltip('Stop displaying a full screen image, return to map display');
+                }
+            };
+            Blockly.Blocks['graphics_intimate_mode'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Intimate mode")
+                            .appendField(new Blockly.FieldDropdown([["begin", "1"], ["end", "0"]]), "FLAG");
+                    this.setOutput(false);
+                    this.setTooltip('Begin or end intimate mode');
                 }
             };
         }

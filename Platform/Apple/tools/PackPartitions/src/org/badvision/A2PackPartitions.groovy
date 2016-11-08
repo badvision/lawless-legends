@@ -1632,6 +1632,7 @@ class A2PackPartitions
         compileModule("combat", "src/plasma/")
         compileModule("party", "src/plasma/")
         compileModule("diskops", "src/plasma/")
+        compileModule("intimate", "src/plasma/")
         compileModule("gen_globalScripts", "src/plasma/")
         compileModule("gen_enemies", "src/plasma/")
         compileModule("gen_items", "src/plasma/")
@@ -3119,7 +3120,7 @@ end
         {
             def num = getSingle(blk.field, 'NUM').text()
             assert num.toFloat() > 0
-            def factor = 500 // approx counts per second
+            def factor = 1200 // approx counts per second
             def time = (int)(num.toFloat() * factor)
             if (time > 32767)
                 time = 32767

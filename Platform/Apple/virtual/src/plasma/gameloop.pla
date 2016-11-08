@@ -742,7 +742,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Calculate string width using the font engine.
 // Params: pStr
-asm calcWidth
+export asm calcWidth
   +asmPlasm_bank2 1
   jmp CalcWidth
 end
@@ -1025,6 +1025,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Pause for a specified count period, advancing the animation periodically.
 export def pause(count)
+  printf1("pause %d\n", count)
   while count >= 0
     animPauseCt = animPauseCt - 1
     if animPauseCt < 0
@@ -1767,7 +1768,7 @@ def nextAnimFrame()
     animDirCt = (rand16() % 5) + 3
   fin
 
-  // Advance animations. 
+  // Advance animations.
   // First part is whether to switch directions on fwd/back anims.
   // Second part is how many frames to advance random anims.
   flags = auxMmgr(ADVANCE_ANIMS, ((animDirCt==1) & 1) | (((rand16() % 10)+1)<<8))
@@ -2519,7 +2520,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def setIntimateMode(enable)
   if enable
-    pIntimate = loadEngine(MODULE_PARTY)
+    pIntimate = loadEngine(MODULE_INTIMATE)
     pIntimate=>intimate_setMode(enable)
   else
     pIntimate=>intimate_setMode(enable)

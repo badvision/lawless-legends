@@ -21,6 +21,7 @@ word global
 predef _intimate_setMode, _intimate_displayStr, _intimate_swipeImg
 word[] funcTbl = @_intimate_setMode, @_intimate_displayStr, @_intimate_swipeImg
 
+byte spaceWidth
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -89,19 +90,32 @@ def _intimate_setMode(enable)
     displayChar('N'-$40) // Set normal mode - clear all special modes (like underline, etc.)
     setWindow(0, 192, 0, 280) // Top, Bottom, Left, Right
     clearWindow()
+    rawDisplayStr("\$1270")  // Set character rate to somewhat slow
+    spaceWidth = calcWidth(" ") // used to calc # of spaces to erase with
   else
     loadMainFrameImg()
-    fontCmd(18, 0) // 18 = ctrl-R = ticker rate. 0=fastest
+    rawDisplayStr("\$1200")  // Set character rate - 0=fastest
   fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display string on a blank screen, with blanking follow-up
 def _intimate_displayStr(str)
+  word width, i
   fontCmd(20, 0) // 20 = ctrl-T = horizontal position
   fontCmd(22, 50) // 22 = ctrl-V = vertical position
-  fontCmd(18, 20) // 18 = ctrl-R = ticker rate
-  displayStr(str)
+  width = calcWidth(str)
+  rawDisplayStr(str)
+  fontCmd(20, 0) // 20 = ctrl-T = horizontal position
+  fontCmd(22, 50) // 22 = ctrl-V = vertical position
+  rawDisplayStr("\$014") // ctrl-A = foreground color, 4=hi-bit-black
+  for i = (width+spaceWidth-1)/spaceWidth downto 0
+    displayChar(' ')
+  next
+  rawDisplayStr("\$017") // ctrl-A = foreground color, 7=hi-bit-white
+end
+
+def _intimate_swipeImg() // FIXME
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

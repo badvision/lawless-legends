@@ -2386,7 +2386,8 @@ end
         // Grab all the raw data
         def funcs = []
         sheets.find { it?.@name.equalsIgnoreCase("players") }.rows.row.each { row ->
-            funcs << ["NPl_${humanNameToSymbol(row.@name, false)}", funcs.size, row] 
+            if (row.@name && row.@"starting-party")
+                funcs << ["NPl_${humanNameToSymbol(row.@name, false)}", funcs.size, row]
         }
         
         // Global mapping of player name to function, so that add/remove functions can work.

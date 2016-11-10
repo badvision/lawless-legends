@@ -68,3 +68,5 @@ const EVENT_ENTER    = 1
 const EVENT_LEAVE    = 2
 const EVENT_USE_ITEM = 3
 
+// Party size
+const MAX_PARTY = 3

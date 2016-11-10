@@ -8,5 +8,7 @@
 // governing permissions and limitations under the License.
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-// Each module-exported function needs its own constant, 0..n
+// Each module-exported function needs its own constant, 0..n (multiples of 2)
 const party_showPlayerSheet = 0
+const party_benchPlayer = 2
+const party_unbenchPlayer = 4

@@ -2999,6 +2999,10 @@ end
                         packAddPlayer(blk); break
                     case 'interaction_remove_player':
                         packRemovePlayer(blk); break
+                    case 'interaction_bench_player':
+                        packBenchPlayer(blk); break
+                    case 'interaction_unbench_player':
+                        packUnbenchPlayer(blk); break
                     case 'interaction_increase_stat':
                     case 'interaction_decrease_stat':
                         packChangeStat(blk); break
@@ -3099,6 +3103,18 @@ end
             outIndented("removePlayerFromParty(${escapeString(name)})\n")
         }
 
+        def packBenchPlayer(blk)
+        {
+            assert blk.field.size() == 0
+            outIndented("benchPlayer()\n")
+        }
+        
+        def packUnbenchPlayer(blk)
+        {
+            assert blk.field.size() == 0
+            outIndented("unbenchPlayer()\n")
+        }
+        
         def nameToStat(name) {
             def lcName = name.toLowerCase().trim()
             assert lcName in stats : "Unrecognized stat '$name'"

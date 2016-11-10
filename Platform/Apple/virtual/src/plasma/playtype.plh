@@ -15,6 +15,7 @@ const TYPE_GLOBAL = $80
 struc Global
   byte t_type
   word p_players
+  word p_benched
   word p_enemyGroups
   word p_combatFirst
   word p_encounterZones

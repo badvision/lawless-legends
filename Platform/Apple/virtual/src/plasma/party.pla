@@ -39,8 +39,8 @@ word global
 
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the the header.
-predef _party_doPlayerSheet
-word[] funcTbl = @_party_doPlayerSheet
+predef _party_doPlayerSheet, _party_benchPlayer, _party_unbenchPlayer
+word[] funcTbl = @_party_doPlayerSheet, @_party_benchPlayer, @_party_unbenchPlayer
 
 // Other global variables here
 
@@ -401,6 +401,68 @@ def _party_doPlayerSheet(num)
     wend
     tossStrings() // Free up local strings
   until 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Display a list of NPCs and allow user to select one.
+def selectPlayer(players)
+  byte n_item
+  word player
+
+  // First, display the list
+  player = players
+  n_item = 0
+  while player
+    if player->b_playerFlags & PLAYER_FLAG_NPC; continue; fin
+    displayf1("\n%c)", 'A' + n_item)
+    rawDisplayStr("^T018")
+    displayStr(player=>s_name)
+    n_item++
+    player = player=>p_nextObj
+  loop
+
+  if !n_item
+    displayStr("No applicable characters.")
+    return NULL
+  fin
+
+  // Then get a selection
+  rawDisplayStr("\n^T032Which character?")
+  n_item = getUpperKey() - 'A'
+  player = players
+  while n_item > 0 and player
+    player = player=>p_nextObj
+    n_item--
+  loop
+  return player  
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Allow user to select an active player, and put them on the bench
+def _party_benchPlayer()
+  word player
+  player = selectPlayer(global=>p_players)
+  if player
+    removeFromList(@global=>p_players, player)
+    addToList(@global=>p_benched, player)
+    displayStr("\nDone.")
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Allow user to select a benched player, and put them on the bench
+def _party_unbenchPlayer()
+  word player
+  if countList(global=>p_players) == MAX_PARTY
+    displayStr("Party too large.")
+    return
+  fin
+  player = selectPlayer(global=>p_benched)
+  if player
+    removeFromList(@global=>p_benched, player)
+    addToList(@global=>p_players, player)
+    displayStr("\nDone.")
+  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

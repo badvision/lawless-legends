@@ -699,6 +699,30 @@ if (typeof Mythos === "undefined") {
                     this.setTooltip('Check if party has a given player');
                 }
             };
+            Blockly.Blocks['interaction_bench_player'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Send a player to the bench");
+                    this.setOutput(false);
+                    this.setTooltip('Send a player to the bench (selected by user)');
+                }
+            };
+            Blockly.Blocks['interaction_unbench_player'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Retrieve a benched player");
+                    this.setOutput(false);
+                    this.setTooltip('Retrieve a benched player (selected by user)');
+                }
+            };
             Blockly.Blocks['interaction_get_stat'] = {
                 init: function () {
                     this.setHelpUrl(Mythos.helpUrl);

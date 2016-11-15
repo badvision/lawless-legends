@@ -115,7 +115,12 @@ class A2PackPartitions
         "leave": "@S_LEAVE",
         "use":   "@S_USE"
     ]
-    
+
+    // 2D map sectioning constants
+    def TILES_PER_ROW = 22
+    def ROWS_PER_SECTION = 23
+        
+
     /** 
      * Keep track of context within the XML file, so we can spit out more useful
      * error and warning messages.
@@ -191,7 +196,7 @@ class A2PackPartitions
         return buf.toString()
     }
 
-    def parseMap(map, tiles)
+    def parseMap(map, tiles, quick = false)
     {
         // Parse each row of the map
         map.chunk.row.collect
@@ -200,7 +205,7 @@ class A2PackPartitions
             // tiles.
             //
             it.text().split(" ").collect { tileId ->
-                (tileId == "_") ? null : tiles.find{ it.@id == tileId }
+                (tileId == "_") ? null : quick ? tiles[0] : tiles.find{ it.@id == tileId }
             }
         }
     }
@@ -502,19 +507,15 @@ class A2PackPartitions
                 width = x+1
         }
         
-        return [width, height]
+        def nHorzSections = (int) ((width + TILES_PER_ROW - 1) / TILES_PER_ROW)
+        def nVertSections = (int) ((height + ROWS_PER_SECTION - 1) / ROWS_PER_SECTION)
+        
+        return [width, height, nHorzSections, nVertSections]
     }
     
     def write2DMap(mapName, mapEl, rows)
     {
-        def width, height
-        (width, height) = calcMapExtent(rows)
-        
-        def TILES_PER_ROW = 22
-        def ROWS_PER_SECTION = 23
-        
-        def nHorzSections = (int) ((width + TILES_PER_ROW - 1) / TILES_PER_ROW)
-        def nVertSections = (int) ((height + ROWS_PER_SECTION - 1) / ROWS_PER_SECTION)
+        def (width, height, nHorzSections, nVertSections) = calcMapExtent(rows)
         
         def buffers = new ByteBuffer[nVertSections][nHorzSections]
         def sectionNums = new int[nVertSections][nHorzSections]
@@ -915,7 +916,7 @@ class A2PackPartitions
     {
         def name = mapEl.@name ?: "map$num"
         def num = mapNames[name][1]
-        //println "Packing 2D map #$num named '$name'."
+        //println "Packing 2D map #$num named '$name': num=$num."
         withContext("map '$name'") {
             def rows = parseMap(mapEl, tileEls)
             write2DMap(name, mapEl, rows)
@@ -926,7 +927,7 @@ class A2PackPartitions
     {
         def name = mapEl.@name ?: "map$num"
         def num = mapNames[name][1]
-        //println "Packing 3D map #$num named '$name'."
+        //println "Packing 3D map #$num named '$name': num=$num."
         withContext("map '$name'") {
             def rows = parseMap(mapEl, tileEls)
             def (scriptModule, locationsWithTriggers) = packScripts(mapEl, name, rows[0].size(), rows.size())
@@ -1651,14 +1652,16 @@ class A2PackPartitions
             def name = map?.@name
             def shortName = name.replaceAll(/[\s-]*[23]D$/, '')
             if (map?.@name =~ /\s*2D$/) {
-                ++num2D
-                mapNames[name] = ['2D', num2D]
-                mapNames[shortName] = ['2D', num2D]
+                mapNames[name] = ['2D', num2D+1]
+                mapNames[shortName] = ['2D', num2D+1]
+                def rows = parseMap(map, dataIn.tile, true) // quick mode
+                def (width, height, nHorzSections, nVertSections) = calcMapExtent(rows)
+                num2D += (nHorzSections * nVertSections)
             }
             else if (map?.@name =~ /\s*3D$/) {
+                mapNames[name] = ['3D', num3D+1]
+                mapNames[shortName] = ['3D', num3D+1]
                 ++num3D
-                mapNames[name] = ['3D', num3D]
-                mapNames[shortName] = ['3D', num3D]
             }
             else
                 printWarning "map name '${map?.@name}' should contain '2D' or '3D'. Skipping."

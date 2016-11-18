@@ -864,7 +864,7 @@ class A2PackPartitions
                 // See if the set we're considering has room for all our tiles
                 def inCommon = it.tileIds.intersect(tileIds)
                 def together = it.tileIds + tileIds
-                if (together.size() <= 64 && inCommon.size() > bestCommon) {
+                if (together.size() < 64 && inCommon.size() > bestCommon) {
                     tileSet = it
                     bestCommon = inCommon.size()
                 }

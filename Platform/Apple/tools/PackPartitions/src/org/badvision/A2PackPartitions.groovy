@@ -75,6 +75,7 @@ class A2PackPartitions
     def itemNameToFunc = [:]
     def playerNameToFunc = [:]
     
+    def globalScripts = []
     def lastSysModule
     
     def compressor = LZ4Factory.fastestInstance().highCompressor()
@@ -1634,10 +1635,12 @@ class A2PackPartitions
         compileModule("party", "src/plasma/")
         compileModule("diskops", "src/plasma/")
         compileModule("intimate", "src/plasma/")
-        compileModule("gen_globalScripts", "src/plasma/")
         compileModule("gen_enemies", "src/plasma/")
         compileModule("gen_items", "src/plasma/")
         compileModule("gen_players", "src/plasma/")
+        globalScripts.each { name ->
+            compileModule("gen_gs_${name}", "src/plasma/")
+        }
         lastSysModule = modules.size()
     }
     
@@ -1747,6 +1750,13 @@ class A2PackPartitions
         // Save time by using cache of previous run
         readCache()
         
+        // Open the XML data file produced by Outlaw Editor
+        def dataIn = new XmlParser().parse(xmlPath)
+        def xmlLastMod = xmlPath.lastModified()
+        
+        // Record global script names
+        dataIn.global.scripts.script.each { globalScripts << humanNameToSymbol(it.@name, false) }
+        
         // Read in code chunks. For now these are hard coded, but I guess they ought to
         // be configured in a config file somewhere...?
         //
@@ -1755,10 +1765,6 @@ class A2PackPartitions
         // We have only one font, for now at least.
         jitCopy(new File("build/data/fonts/font.bin"))
         readFont("font", "build/data/fonts/font.bin")
-        
-        // Open the XML data file produced by Outlaw Editor
-        def dataIn = new XmlParser().parse(xmlPath)
-        def xmlLastMod = xmlPath.lastModified()
         
         // Pre-pack the data for each tile
         dataIn.tile.each { 
@@ -2493,6 +2499,25 @@ end
         replaceIfDiff("build/src/plasma/gen_players.pla")
     }
 
+    def genAllGlobalScripts(scripts)
+    {
+        def found = [] as Set
+        scripts.each { script ->
+            def gsmod = new ScriptModule()
+            def name = humanNameToSymbol(script.@name, false)
+            found << name
+            gsmod.packGlobalScript(new File("build/src/plasma/gen_gs_${name}.pla.new"), script)
+            replaceIfDiff("build/src/plasma/gen_gs_${name}.pla")
+            globalScripts << name
+        }
+        
+        // There are a couple of required global funcs
+        if (!found.contains("newGame"))
+            throw new Exception("Can't find global new game function")
+        if (!found.contains("help"))
+            throw new Exception("Can't find global help function")
+    }
+    
     def replaceIfDiff(oldFile)
     {
         def newFile = new File(oldFile + ".new")
@@ -2571,12 +2596,7 @@ end
         numberAvatars(dataIn)
         
         // Translate global scripts to code
-        def gsmod = new ScriptModule()
-        gsmod.genScriptDefs(new File("build/src/plasma/gen_globalScripts.plh.new"), dataIn.global.scripts,
-            ["newGame", "help"] as Set)
-        replaceIfDiff("build/src/plasma/gen_globalScripts.plh")
-        gsmod.packGlobalScripts(new File("build/src/plasma/gen_globalScripts.pla.new"), dataIn.global.scripts)
-        replaceIfDiff("build/src/plasma/gen_globalScripts.pla")
+        genAllGlobalScripts(dataIn.global.scripts.script)
         
         // Translate enemies, weapons, etc. to code
         genAllEnemies(dataIn.global.sheets.sheet.find { it?.@name.equalsIgnoreCase("enemies") })
@@ -2591,6 +2611,7 @@ end
             code.each { k, v ->
                 out.println "const CODE_${humanNameToSymbol(k, true)} = ${v.num}"
             }
+            out.println ""
             modules.each { k, v ->
                 out.println "const MODULE_${humanNameToSymbol(k, true)} = ${v.num}"
             }
@@ -2788,59 +2809,20 @@ end
         }
         
         /**
-         * Generate header for a set of scripts. If any of the 'required' scripts are not
-         * found, they'll get a special offset of -1.
+         * Pack a global script (not associated with any particular map).
          */
-        def genScriptDefs(outFile, inScripts, required)
-        {
-            out = new PrintWriter(new FileWriter(outFile))
-            out << "// Generated code - DO NOT MODIFY BY HAND\n\n"
-            
-            // Generate a name for each script, and a constant in the function table.
-            def found = [] as Set
-            inScripts.script.eachWithIndex { script, idx ->
-                def name = getScriptName(script)
-                assert name
-                scriptNames[script] = "sc_${humanNameToSymbol(name, false)}"
-                out << "const ${scriptNames[script]} = ${idx*2}\n"
-                found.add(humanNameToSymbol(name, false))
-            }
-            (required - found).each { name ->
-                out << "const sc_$name = -1 // not found\n"
-            }
-            out.close()
-        }
-
-        /**
-         * Pack a set of scripts that are not associated with any particular map.
-         */
-        def packGlobalScripts(outFile, inScripts)
+        def packGlobalScript(outFile, script)
         {
             startScriptFile(outFile)
             
-            // Pre-define each function
-            inScripts.script.each { script ->
-                out << "predef ${scriptNames[script]}\n"
-            }
-            out << "\n"
-            
-            // Make a table of all the functions
-            inScripts.script.eachWithIndex { script, idx ->
-                if (idx == 0)
-                    out << "word[] funcTbl = @${scriptNames[script]}\n"
-                else
-                    out << "word           = @${scriptNames[script]}\n"
-            }
-            out << "\n"
-                
-            // Generate the actual script code
-            inScripts.script.each { script ->
-                packScript(script) 
-            }
+            def name = getScriptName(script)
+            assert name : "Can't find script name in $script"
+            scriptNames[script] = "sc_${humanNameToSymbol(name, false)}"
+            packScript(script)
             
             // Set up the pointer to global vars and finish up the module.
             out << "global = getGlobals()\n"
-            out << "return @funcTbl\n"
+            out << "return @${scriptNames[script]}\n"
             out << "done\n"
             out.close()
         }
@@ -3040,18 +3022,29 @@ end
                 printWarning "empty text_print block, skipping."
                 return
             }
-            def text = getSingle(getSingle(getSingle(blk.value, 'VALUE').block, null, 'text').field, 'TEXT').text()
-            
-            // Break up long strings into shorter chunks for PLASMA.
-            // Note: this used to be 253, but still had some random mem overwrites.
-            // Decreasing to chunks of 200 seems to fix it.
-            def chunks = text.findAll(/.{200}|.*/).grep(~/.+/)
-            chunks.eachWithIndex { chunk, idx ->
-                outIndented((idx == chunks.size()-1 && blk.@type == 'text_println') ? \
-                    'scriptDisplayStrNL(' : 'scriptDisplayStr(')
-                out << escapeString(chunk) << ")\n"
-                // Workaround for strings filling up the frame stack
-                outIndented("tossStrings()\n")
+            def valBlk = getSingle(blk.value, 'VALUE').block
+            assert valBlk.size() == 1
+            if (valBlk.@type == 'text') 
+            {
+                // Break up long strings into shorter chunks for PLASMA.
+                // Note: this used to be 253, but still had some random mem overwrites.
+                // Decreasing to chunks of 200 seems to fix it.
+                def text = getSingle(getSingle(valBlk, null, 'text').field, 'TEXT').text()
+                def chunks = text.findAll(/.{200}|.*/).grep(~/.+/)
+                chunks.eachWithIndex { chunk, idx ->
+                    outIndented((idx == chunks.size()-1 && blk.@type == 'text_println') ? \
+                        'scriptDisplayStrNL(' : 'scriptDisplayStr(')
+                    out << escapeString(chunk) << ")\n"
+                    // Workaround for strings filling up the frame stack
+                    outIndented("tossStrings()\n")
+                }
+            }
+            else {
+                // For general expressions instead of literal strings, we can't do
+                // any fancy breaking-up business. Just pack.
+                outIndented(blk.@type == 'text_println' ? 'scriptDisplayStrNL(' : 'scriptDisplayStr(')
+                packExpr(valBlk[0])
+                out << ")\n"
             }
         }
 

@@ -14,7 +14,6 @@ include "playtype.plh"
 include "diskops.plh"
 include "gen_modules.plh"
 include "gen_players.plh"
-include "gen_globalScripts.plh"
 
 // ProDOS MLI constants
 const MLI_QUIT  = $65
@@ -243,15 +242,15 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def newGame()
-  word playersModule, globalScriptsModule
+  word playersModule, newGameModule
   initHeap(0) // initially empty heap
   global = getGlobals()
   global->b_curAvatar = 0
   playersModule = mmgr(QUEUE_LOAD, MODULE_GEN_PLAYERS<<8 | RES_TYPE_MODULE)
-  globalScriptsModule = mmgr(QUEUE_LOAD, MODULE_GEN_GLOBAL_SCRIPTS<<8 | RES_TYPE_MODULE)
+  newGameModule = mmgr(QUEUE_LOAD, MODULE_GEN_GS_NEW_GAME<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
   playersModule()=>makeInitialParty()
-  if sc_newGame >= 0; globalScriptsModule()=>sc_newGame(); fin
+  newGameModule()()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -32,7 +32,6 @@ include "gen_images.plh"
 include "gen_modules.plh"
 include "gen_enemies.plh"
 include "gen_players.plh"
-include "gen_globalScripts.plh"
 include "gen_items.plh"
 include "combat.plh"
 include "party.plh"
@@ -2068,16 +2067,10 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def help
-  word globalScriptsModule
-
-  if sc_help >= 0
-    flipToPage1()
-    setMapWindow(); clearWindow()
-    loadEngine(MODULE_GEN_GLOBAL_SCRIPTS)=>sc_help()
-    restoreMapPos()
-  else
-    scriptDisplayStr("Help not available.\n")
-  fin
+  flipToPage1()
+  setMapWindow(); clearWindow()
+  loadEngine(MODULE_GEN_GS_HELP)()
+  returnFromEngine()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -1925,7 +1925,17 @@ class A2PackPartitions
                 }
             }
         }
-        return buf.toString()
+        def result = buf.toString()
+        if (result.length() > 18) 
+        {
+            // PLASMA's compiler has a silent limit on the number of significant
+            // characters in a symbol. To make the symbol short enough but still
+            // significant, calculate a digest and replace the excess characters
+            // with part of it.
+            def bigHash = Integer.toString(result.hashCode(), 36)
+            result = result.substring(0, 13) + "_" + bigHash.substring(bigHash.length() - 4)
+        }
+        return result
     }
     
     def parseDice(str)
@@ -2802,8 +2812,9 @@ end
             out << "include \"../plasma/gamelib.plh\"\n"
             out << "include \"../plasma/globalDefs.plh\"\n"
             out << "include \"../plasma/playtype.plh\"\n"
-            out << "include \"../plasma/gen_images.plh\"\n\n"
-            out << "include \"../plasma/gen_items.plh\"\n\n"
+            out << "include \"../plasma/gen_images.plh\"\n"
+            out << "include \"../plasma/gen_items.plh\"\n"
+            out << "include \"../plasma/gen_modules.plh\"\n"
             out << "include \"../plasma/gen_players.plh\"\n\n"
             out << "word global\n"
         }
@@ -2996,6 +3007,8 @@ end
                         packChangeFlag(blk); break
                     case 'interaction_pause':
                         packPause(blk); break
+                    case ~/^Globalignore_.*$/:
+                        packGlobalCall(blk); break
                     default:
                         printWarning "don't know how to pack block of type '${blk.@type}'"
                 }
@@ -3138,6 +3151,19 @@ end
             if (time > 32767)
                 time = 32767
             outIndented("pause($time)\n")
+        }
+        
+        def packGlobalCall(blk)
+        {
+            def m = blk.@type =~ /^Globalignore_(.*)$/
+            def funcName = m ? m.group(1) : null
+            assert funcName
+            println "Global call: name='$funcName'"
+            def varName = "m_${humanNameToSymbol(funcName, false)}"
+            variables << varName
+            outIndented("$varName = loadGlobalFunc(MODULE_GEN_GS_${humanNameToSymbol(funcName, true)})\n")
+            outIndented("$varName()(\"hello\")\n")
+            outIndented("unloadGlobalFunc($varName)\n")
         }
 
         def packGetStat(blk)

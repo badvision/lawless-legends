@@ -1935,6 +1935,21 @@ def returnFromEngine()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+export def loadGlobalFunc(moduleNum)
+  word ptr
+  flipToPage1()
+  mmgr(START_LOAD, 1) // code is in partition 1
+  ptr = mmgr(QUEUE_LOAD, moduleNum<<8 | RES_TYPE_MODULE)
+  mmgr(FINISH_LOAD, 0)
+  return ptr
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def unloadGlobalFunc(pModule)
+  mmgr(FREE_MEMORY, pModule)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load the Party engine and show data for the given player
 def showPlayerSheet(num)
   word pItemToUse

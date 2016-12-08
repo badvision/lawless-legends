@@ -247,7 +247,7 @@ def addItem(player)
   ^$c051
 
   mmgr(START_LOAD, 1) // code is in partition 1
-  pModule = mmgr(QUEUE_LOAD, MODULE_GEN_ITEMS<<8 | RES_TYPE_MODULE)
+  pModule = mmgr(QUEUE_LOAD, MOD_GEN_ITEMS<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
   funcTbl = pModule()
 

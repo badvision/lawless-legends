@@ -29,7 +29,7 @@ import gamelib
   predef setGameFlag, getGameFlag, scriptSetAvatar, parseDecWithDefault, readStr
   predef addPlayerToParty, removePlayerFromParty, partyHasPlayer, loadFrameImg, loadMainFrameImg
   predef scriptSwapTile, setIntimateMode, fontCmd, setIntimateMode
-  predef loadGlobalFunc, unloadGlobalFunc
+  predef callGlobalFunc
 
   /////////// Shared string constants //////////////
 

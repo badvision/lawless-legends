@@ -75,7 +75,7 @@ class A2PackPartitions
     def itemNameToFunc = [:]
     def playerNameToFunc = [:]
     
-    def globalScripts = []
+    def globalScripts = [:]
     def lastSysModule
     
     def compressor = LZ4Factory.fastestInstance().highCompressor()
@@ -1638,8 +1638,8 @@ class A2PackPartitions
         compileModule("gen_enemies", "src/plasma/")
         compileModule("gen_items", "src/plasma/")
         compileModule("gen_players", "src/plasma/")
-        globalScripts.each { name ->
-            compileModule("gen_gs_${name}", "src/plasma/")
+        globalScripts.each { name, nArgs ->
+            compileModule("gs_${name}", "src/plasma/")
         }
         lastSysModule = modules.size()
     }
@@ -1744,6 +1744,10 @@ class A2PackPartitions
         reportWriter.println String.format("%-22s: %6.1fK memory, %6.1fK disk", "Subtotal", ucSub/1024.0, cSub/1024.0)
         reportWriter.println String.format("\n%-22s: %6.1fK memory, %6.1fK disk", "GRAND TOTAL", ucTot/1024.0, cTot/1024.0)
     }
+
+    def countArgs(script) {
+        return script.block.mutation.arg.size()
+    }
     
     def pack(xmlPath)
     {
@@ -1755,7 +1759,9 @@ class A2PackPartitions
         def xmlLastMod = xmlPath.lastModified()
         
         // Record global script names
-        dataIn.global.scripts.script.each { globalScripts << humanNameToSymbol(it.@name, false) }
+        dataIn.global.scripts.script.each {
+            globalScripts[humanNameToSymbol(it.@name, false)] = countArgs(it)
+        }
         
         // Read in code chunks. For now these are hard coded, but I guess they ought to
         // be configured in a config file somewhere...?
@@ -2174,7 +2180,7 @@ end
     def genPlayer(func, row, out)
     {
         out.println("  word p, itemScripts")
-        out.println("  itemScripts = mmgr(QUEUE_LOAD, MODULE_GEN_ITEMS<<8 | RES_TYPE_MODULE)")
+        out.println("  itemScripts = mmgr(QUEUE_LOAD, MOD_GEN_ITEMS<<8 | RES_TYPE_MODULE)")
         out.println("  mmgr(FINISH_LOAD, 1) // 1 = keep open")
         out.println(\
             "  p = makePlayer_pt2(makePlayer_pt1(" +
@@ -2516,9 +2522,9 @@ end
             def gsmod = new ScriptModule()
             def name = humanNameToSymbol(script.@name, false)
             found << name
-            gsmod.packGlobalScript(new File("build/src/plasma/gen_gs_${name}.pla.new"), script)
-            replaceIfDiff("build/src/plasma/gen_gs_${name}.pla")
-            globalScripts << name
+            gsmod.packGlobalScript(new File("build/src/plasma/gs_${name}.pla.new"), script)
+            replaceIfDiff("build/src/plasma/gs_${name}.pla")
+            globalScripts[name] = countArgs(script)
         }
         
         // There are a couple of required global funcs
@@ -2623,7 +2629,7 @@ end
             }
             out.println ""
             modules.each { k, v ->
-                out.println "const MODULE_${humanNameToSymbol(k, true)} = ${v.num}"
+                out.println "const MOD_${humanNameToSymbol(k, true)} = ${v.num}"
             }
         }
         replaceIfDiff("build/src/plasma/gen_modules.plh")
@@ -2791,8 +2797,11 @@ end
 
         def getScriptName(script)
         {
-            if (script.block.size() == 0)
+            if (script.block.size() == 0) {
+                if (script.@name)
+                    return script.@name
                 return null
+            }
                 
             def blk = script.block[0]
             if (blk.field.size() == 0) {
@@ -2833,7 +2842,10 @@ end
             
             // Set up the pointer to global vars and finish up the module.
             out << "global = getGlobals()\n"
-            out << "return @${scriptNames[script]}\n"
+            if (script.block.size() == 0)
+                out << "return 0\n"
+            else
+                out << "return @${scriptNames[script]}\n"
             out << "done\n"
             out.close()
         }
@@ -3156,14 +3168,30 @@ end
         def packGlobalCall(blk)
         {
             def m = blk.@type =~ /^Globalignore_(.*)$/
-            def funcName = m ? m.group(1) : null
-            assert funcName
-            println "Global call: name='$funcName'"
-            def varName = "m_${humanNameToSymbol(funcName, false)}"
-            variables << varName
-            outIndented("$varName = loadGlobalFunc(MODULE_GEN_GS_${humanNameToSymbol(funcName, true)})\n")
-            outIndented("$varName()(\"hello\")\n")
-            outIndented("unloadGlobalFunc($varName)\n")
+            def humanName = m ? m.group(1) : null
+            assert humanName
+            def funcName = humanNameToSymbol(humanName, false)
+
+            // Check that the function exists, and that we're passing the right number of args to it
+            if (!globalScripts.containsKey(funcName))
+                throw "Call to unknown script '$humanName'"
+            if (blk.value.size() != globalScripts[funcName])
+                throw "Wrong number of args to script '$humanName'"
+            if (blk.value.size() > 3)
+                throw "Current limit is max of 3 args to global scripts."
+
+            // Now generate the code. Pad with zeros to make exactly 3 args
+            outIndented("callGlobalFunc(MOD_GS_${humanNameToSymbol(humanNameToSymbol(humanName, false), true)}")
+            (0..<3).each { idx ->
+                out << ", "
+                if (idx < blk.value.size()) {
+                    assert blk.value[idx].block.size() == 1
+                    packExpr(blk.value[idx].block[0])
+                }
+                else
+                    out << "0"
+            }
+            out << ")\n"
         }
 
         def packGetStat(blk)

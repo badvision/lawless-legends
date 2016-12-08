@@ -1935,25 +1935,35 @@ def returnFromEngine()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def loadGlobalFunc(moduleNum)
-  word ptr
+export def callGlobalFunc(moduleNum, arg1, arg2, arg3)
+  word pModule, pFunc, ret
+
+  // First load the module
   flipToPage1()
   mmgr(START_LOAD, 1) // code is in partition 1
-  ptr = mmgr(QUEUE_LOAD, moduleNum<<8 | RES_TYPE_MODULE)
+  pModule = mmgr(QUEUE_LOAD, moduleNum<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
-  return ptr
-end
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-export def unloadGlobalFunc(pModule)
+  // Call the function, passing it the number of args it expects
+  pFunc = pModule()
+  when getArgCount(pFunc)
+    is 0; ret = pFunc(); break
+    is 1; ret = pFunc(arg1); break
+    is 2; ret = pFunc(arg1, arg2); break
+    is 3; ret = pFunc(arg1, arg2, arg3); break
+    otherwise fatal("maxGlobParams")
+  wend
+
+  // Unload the module and we're done.
   mmgr(FREE_MEMORY, pModule)
+  return ret
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load the Party engine and show data for the given player
 def showPlayerSheet(num)
   word pItemToUse
-  pItemToUse = loadEngine(MODULE_PARTY)=>party_showPlayerSheet(num)
+  pItemToUse = loadEngine(MOD_PARTY)=>party_showPlayerSheet(num)
   returnFromEngine()
   // General 'use' handled here in case it triggers graphical effects
   if pItemToUse
@@ -2022,7 +2032,7 @@ end
 def doCombat(mapCode, backUpOnFlee)
   word result
   // Handled in a separate module. Clear enemies out of the heap when finished.
-  result = loadEngine(MODULE_COMBAT)=>combat_zoneEncounter(mapCode)
+  result = loadEngine(MOD_COMBAT)=>combat_zoneEncounter(mapCode)
   global=>p_enemyGroups = NULL
   mmgr(HEAP_COLLECT, 0)
 
@@ -2070,13 +2080,13 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def saveGame
   saveMapPos()
-  loadEngine(MODULE_DISKOPS)=>diskops_saveGame()
+  loadEngine(MOD_DISKOPS)=>diskops_saveGame()
   returnFromEngine()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def loadGame
-  loadEngine(MODULE_DISKOPS)=>diskops_loadGame()
+  loadEngine(MOD_DISKOPS)=>diskops_loadGame()
   restoreMapPos()
 end
 
@@ -2084,7 +2094,7 @@ end
 def help
   flipToPage1()
   setMapWindow(); clearWindow()
-  loadEngine(MODULE_GEN_GS_HELP)()
+  loadEngine(MOD_GS_HELP)()
   returnFromEngine()
 end
 
@@ -2405,7 +2415,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def giveItemToPlayer(itemFuncNum)
-  createAndAddUnique(MODULE_GEN_ITEMS, itemFuncNum, @global=>p_players=>p_items) // def: 1st player
+  createAndAddUnique(MOD_GEN_ITEMS, itemFuncNum, @global=>p_players=>p_items) // def: 1st player
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2415,7 +2425,7 @@ export def addPlayerToParty(playerFuncNum)
     displayStr("Party too large.")
     return
   fin
-  p = createAndAddUnique(MODULE_GEN_PLAYERS, playerFuncNum, @global=>p_players)
+  p = createAndAddUnique(MOD_GEN_PLAYERS, playerFuncNum, @global=>p_players)
   p->b_playerFlags = p->b_playerFlags | PLAYER_FLAG_NPC
   needShowParty = TRUE
 end
@@ -2532,7 +2542,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def setIntimateMode(enable)
   if enable
-    pIntimate = loadEngine(MODULE_INTIMATE)
+    pIntimate = loadEngine(MOD_INTIMATE)
     pIntimate=>intimate_setMode(enable)
   else
     pIntimate=>intimate_setMode(enable)
@@ -2543,13 +2553,13 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def benchPlayer()
-  loadEngine(MODULE_PARTY)=>party_benchPlayer()
+  loadEngine(MOD_PARTY)=>party_benchPlayer()
   returnFromEngine()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def unbenchPlayer()
-  loadEngine(MODULE_PARTY)=>party_unbenchPlayer()
+  loadEngine(MOD_PARTY)=>party_unbenchPlayer()
   returnFromEngine()
 end
 
@@ -2559,7 +2569,7 @@ def startGame(ask)
 
   // Create a new game or load an existing one
   mmgr(START_LOAD, 1) // code is in partition 1
-  p_module = mmgr(QUEUE_LOAD, MODULE_DISKOPS<<8 | RES_TYPE_MODULE)
+  p_module = mmgr(QUEUE_LOAD, MOD_DISKOPS<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
   if p_module()=>diskops_newOrLoadGame(ask)
     mapIs3D = q_mapIs3D

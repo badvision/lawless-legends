@@ -178,14 +178,17 @@ class A2PackPartitions
                     if (prev == '^')
                         buf << ch
                 }
-                else if (ch == '\"') {
+                else if (ch == '\"')
                     buf << "\\\""
-                    ++count  // account for extra backslash
-                }
                 else if (prev == '^') {
                     def cp = Character.codePointAt(ch.toUpperCase(), 0)
-                    if (cp > 64 && cp < 96)
+                    // ^A = ctrl-A; ^M = ctrl-M (carriage return); ^Z = ctrl-Z; ^` = space
+                    if (cp == 96)
+                        buf << " "
+                    else if (cp > 64 && cp < 96)
                         buf << "\\\$" << String.format("%02X", cp - 64)
+                    else
+                        printWarning("Unrecognized control code '^" + ch + "'")
                 }
                 else
                     buf << ch
@@ -1748,6 +1751,12 @@ class A2PackPartitions
     def countArgs(script) {
         return script.block.mutation.arg.size()
     }
+
+    def recordGlobalScripts(dataIn) {
+        dataIn.global.scripts.script.each {
+            globalScripts[humanNameToSymbol(it.@name, false)] = countArgs(it)
+        }
+    }
     
     def pack(xmlPath)
     {
@@ -1759,9 +1768,7 @@ class A2PackPartitions
         def xmlLastMod = xmlPath.lastModified()
         
         // Record global script names
-        dataIn.global.scripts.script.each {
-            globalScripts[humanNameToSymbol(it.@name, false)] = countArgs(it)
-        }
+        recordGlobalScripts(dataIn)
         
         // Read in code chunks. For now these are hard coded, but I guess they ought to
         // be configured in a config file somewhere...?
@@ -2524,7 +2531,6 @@ end
             found << name
             gsmod.packGlobalScript(new File("build/src/plasma/gs_${name}.pla.new"), script)
             replaceIfDiff("build/src/plasma/gs_${name}.pla")
-            globalScripts[name] = countArgs(script)
         }
         
         // There are a couple of required global funcs
@@ -2612,6 +2618,7 @@ end
         numberAvatars(dataIn)
         
         // Translate global scripts to code
+        recordGlobalScripts(dataIn)
         genAllGlobalScripts(dataIn.global.scripts.script)
         
         // Translate enemies, weapons, etc. to code
@@ -2968,6 +2975,8 @@ end
                         packGetAnyKey(blk); break
                     case  'controls_if':
                         packIfStmt(blk); break
+                    case 'flow_repeat':
+                        packRepeatStmt(blk); break
                     case 'events_set_map':
                         packSetMap(blk); break
                     case 'events_set_sky':
@@ -3049,13 +3058,15 @@ end
             }
             def valBlk = getSingle(blk.value, 'VALUE').block
             assert valBlk.size() == 1
-            if (valBlk.@type == 'text') 
+            if (valBlk[0].@type == 'text') 
             {
                 // Break up long strings into shorter chunks for PLASMA.
                 // Note: this used to be 253, but still had some random mem overwrites.
                 // Decreasing to chunks of 200 seems to fix it.
                 def text = getSingle(getSingle(valBlk, null, 'text').field, 'TEXT').text()
                 def chunks = text.findAll(/.{200}|.*/).grep(~/.+/)
+                if (!text || text == "") // interpret lack of text as a single empty string
+                    chunks = [""]
                 chunks.eachWithIndex { chunk, idx ->
                     outIndented((idx == chunks.size()-1 && blk.@type == 'text_println') ? \
                         'scriptDisplayStrNL(' : 'scriptDisplayStr(')
@@ -3173,12 +3184,19 @@ end
             def funcName = humanNameToSymbol(humanName, false)
 
             // Check that the function exists, and that we're passing the right number of args to it
-            if (!globalScripts.containsKey(funcName))
-                throw "Call to unknown script '$humanName'"
-            if (blk.value.size() != globalScripts[funcName])
-                throw "Wrong number of args to script '$humanName'"
-            if (blk.value.size() > 3)
-                throw "Current limit is max of 3 args to global scripts."
+            if (!globalScripts.containsKey(funcName)) {
+                println globalScripts.keySet()
+                printWarning "Call to unknown script '$humanName'; skipping."
+                return
+            }
+            if (blk.value.size() != globalScripts[funcName]) {
+                printWarning "Wrong number of args to script '$humanName'"
+                return
+            }
+            if (blk.value.size() > 3) {
+                printWarning "Current limit is max of 3 args to global scripts."
+                return
+            }
 
             // Now generate the code. Pad with zeros to make exactly 3 args
             outIndented("callGlobalFunc(MOD_GS_${humanNameToSymbol(humanNameToSymbol(humanName, false), true)}")
@@ -3215,7 +3233,7 @@ end
 
         def isStringExpr(blk)
         {
-            return blk.@type == "text_getstring" || blk.@type == "text"
+            return blk.@type == "text_getstring" || blk.@type == "text_getcharacter" || blk.@type == "text"
         }
         
         def packLogicCompare(blk)
@@ -3307,6 +3325,9 @@ end
                 case 'text_getstring':
                     out << "getStringResponse()"
                     break
+                case 'text_getcharacter':
+                    out << "getCharResponse()"
+                    break
                 case 'logic_compare':
                     packLogicCompare(blk)
                     break
@@ -3358,6 +3379,26 @@ end
                 --indent
             }
             outIndented("fin\n")
+        }
+
+        def packRepeatStmt(blk)
+        {
+            if (blk.statement.size() == 0) {
+                printWarning "missing repeat body; skipping."
+                return
+            }
+            if (blk.value.size() != 1) {
+                printWarning "missing repeat condition; skipping."
+                return
+            }
+            outIndented("while 1\n")
+            ++indent
+            blk.statement.each { packBlock(it.block[0]) }
+            outIndented("if ")
+            packExpr(blk.value.block[0])
+            out << "; break; fin\n"
+            --indent
+            outIndented("loop\n")
         }
 
         def packSetMap(blk)

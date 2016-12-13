@@ -1022,6 +1022,14 @@ export def getUpperKey()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Read a single char from the keyboard, and intern it (as a string) to the heap.
+export def getCharResponse()
+  ^$200 = 1
+  ^$201 = getUpperKey()
+  return mmgr(HEAP_INTERN, $200)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Pause for a specified count period, advancing the animation periodically.
 export def pause(count)
   printf1("pause %d\n", count)

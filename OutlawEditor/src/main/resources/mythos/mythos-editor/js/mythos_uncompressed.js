@@ -272,6 +272,9 @@ if (typeof Mythos === "undefined") {
                     this.setColour(180);
                     this.appendDummyInput()
                             .appendField("Break");
+                    this.setTooltip('Break out of current loop');
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
                 }
             };
             Blockly.Blocks['flow_continue'] = {
@@ -280,6 +283,9 @@ if (typeof Mythos === "undefined") {
                     this.setColour(180);
                     this.appendDummyInput()
                             .appendField("Continue");
+                    this.setTooltip('Restart at top of current loop');
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
                 }
             };
             Blockly.Blocks['logic_cointoss'] = {

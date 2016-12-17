@@ -32,11 +32,9 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
-import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.stage.FileChooser;
-import javafx.util.Callback;
 import javafx.util.converter.DefaultStringConverter;
 import javax.xml.bind.JAXBException;
 import org.badvision.outlaweditor.SheetEditor;
@@ -47,7 +45,6 @@ import static org.badvision.outlaweditor.data.DataUtilities.setValue;
 import org.badvision.outlaweditor.data.xml.Columns;
 import org.badvision.outlaweditor.data.xml.Rows;
 import org.badvision.outlaweditor.data.xml.Rows.Row;
-import org.badvision.outlaweditor.data.xml.Script;
 import org.badvision.outlaweditor.data.xml.UserType;
 import org.badvision.outlaweditor.ui.ApplicationUIController;
 import org.badvision.outlaweditor.ui.SheetEditorController;
@@ -256,13 +253,17 @@ public class SheetEditorControllerImpl extends SheetEditorController {
     }
 
     private void deleteRowWithConfirmation(Row row) {
-        UIAction.confirm("Delete row, are you sure?", ()->tableData.remove(row), ()->{});
+        UIAction.confirm("Delete row, are you sure?", ()->{
+            tableData.remove(row);
+            syncData();
+        }, ()->{});
     }
 
     private void cloneRow(Row row) {
         try {
             Row newRow = TransferHelper.cloneObject(row, Row.class, "row");
             tableData.add(tableData.lastIndexOf(row), newRow);
+            syncData();
         } catch (JAXBException ex) {
             Logger.getLogger(SheetEditorControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
         }

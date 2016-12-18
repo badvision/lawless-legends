@@ -9,7 +9,6 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <mainClass>org.badvision.outlaweditor.Application</mainClass>
-            <!--<mainClass>org.apache.felix.main.Main</mainClass>-->
         <netbeans.hint.license>apache20</netbeans.hint.license>
     </properties>
 
@@ -57,7 +56,7 @@
                 <executions>
                     <execution>
                         <id>unpack-dependencies</id>
-                        <phase>package</phase>
+                        <phase>prepare-package</phase>
                         <goals>
                             <goal>unpack-dependencies</goal>
                         </goals>
@@ -71,33 +70,16 @@
                 </executions>
             </plugin>
             <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>1.4.0</version>
-                <executions>
-                    <execution>
-                        <id>unpack-dependencies</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <executable>${java.home}/../bin/javapackager</executable>
-                            <arguments>
-                                <argument>-createjar</argument>
-                                <argument>-nocss2bin</argument>
-                                <argument>-appclass</argument>
-                                <argument>${mainClass}</argument>
-                                <argument>-srcdir</argument>
-                                <argument>${project.build.directory}/classes</argument>
-                                <argument>-outdir</argument>
-                                <argument>${project.build.directory}</argument>
-                                <argument>-outfile</argument>
-                                <argument>${project.build.finalName}.jar</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-                </executions>  
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>${mainClass}</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+                <version>3.0.2</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -106,7 +88,7 @@
                     <source>1.8</source>
                     <target>1.8</target>
                 </configuration>
-                <version>3.5</version>
+                <version>3.6.0</version>
             </plugin>
             <plugin>
                 <groupId>org.jvnet.jaxb2.maven2</groupId>
@@ -131,8 +113,8 @@
                                 <plugin>                                                                
                                     <groupId>org.jvnet.jaxb2_commons</groupId>
                                     <artifactId>jaxb2-basics</artifactId>
-                                    <version>0.11.0</version>
-                                </plugin>                                
+                                    <version>1.11.1</version>
+                                </plugin>
                             </plugins>
                         </configuration>
                         <id>jaxb-generate-OutlawSchema</id>
@@ -143,13 +125,6 @@
     </build>
 
     <dependencies>
-        <dependency>
-            <groupId>javafx-packager</groupId>
-            <artifactId>javafx-packager</artifactId>
-            <version>1.8</version>
-            <systemPath>${java.home}/../lib/ant-javafx.jar</systemPath>
-            <scope>system</scope>
-        </dependency>
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>

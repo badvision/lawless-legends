@@ -85,6 +85,9 @@ public abstract class MapEditorTabController {
     abstract public void mapDrawFilledRectMode(ActionEvent event);
 
     @FXML
+    abstract public void mapScriptPaint(ActionEvent event);
+
+    @FXML
     abstract public void mapTogglePanZoom(ActionEvent event);
 
     // Handler for Button[Button[id=null, styleClass=button zoomInButton]] onAction

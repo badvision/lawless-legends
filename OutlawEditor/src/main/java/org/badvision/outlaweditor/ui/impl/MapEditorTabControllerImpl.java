@@ -12,7 +12,10 @@ package org.badvision.outlaweditor.ui.impl;
 import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
@@ -22,6 +25,7 @@ import javafx.scene.control.cell.ComboBoxListCell;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javax.xml.bind.JAXBException;
@@ -55,7 +59,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
     @Override
     public void mapEraser(ActionEvent event) {
         if (getCurrentEditor() != null) {
-            getCurrentEditor().setDrawMode(MapEditor.DrawMode.Eraser);
+            getCurrentEditor().setDrawMode(MapEditor.DrawMode.TileEraser);
         }
     }
 
@@ -87,6 +91,13 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
         }
     }
 
+    @Override
+    public void mapScriptPaint(ActionEvent event) {
+        if (getCurrentEditor() != null) {
+            getCurrentEditor().setDrawMode(MapEditor.DrawMode.ScriptPencil);
+        }
+    }
+    
     @Override
     public void mapTogglePanZoom(ActionEvent event) {
         if (getCurrentEditor() != null) {
@@ -365,6 +376,23 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
             }
         });
         toolDragDrop.registerDragSupport(scriptEraseTool, ToolType.ERASER);
+        mapScriptsList.getSelectionModel().selectedItemProperty().addListener((val, oldValue, newValue) -> {
+            if (getCurrentEditor() != null) {
+                if (newValue == null && 
+                        getCurrentEditor().getDrawMode() == MapEditor.DrawMode.ScriptPencil && 
+                        getCurrentEditor().getSelectedScript() != null) {
+                    mapScriptsList.getSelectionModel().select(oldValue);
+                } else {
+                    getCurrentEditor().setSelectedScript(newValue);
+                }
+            }
+        });
+        scriptEraseTool.addEventHandler(MouseEvent.MOUSE_CLICKED, e -> {
+            if (getCurrentEditor() != null) {
+                getCurrentEditor().setSelectedScript(null);
+            }
+            mapScriptsList.getSelectionModel().clearSelection();
+        });
     }
 
     @Override

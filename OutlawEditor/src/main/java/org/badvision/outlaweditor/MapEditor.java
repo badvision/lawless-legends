@@ -53,7 +53,6 @@ import org.badvision.outlaweditor.data.xml.Scripts;
 import org.badvision.outlaweditor.data.xml.Tile;
 import org.badvision.outlaweditor.ui.TileSelectModal;
 import org.badvision.outlaweditor.ui.ToolType;
-import org.badvision.outlaweditor.ui.UIAction;
 
 /**
  *
@@ -93,16 +92,23 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         }
     };
 
+    public DrawMode getDrawMode() {
+        return drawMode;
+    }
+    
     @Override
     public void setDrawMode(DrawMode drawMode) {
         this.drawMode = drawMode;
         switch (drawMode) {
-            case Eraser:
+            case TileEraser:
                 ImageCursor cursor = new ImageCursor(new Image("images/eraser.png"));
                 drawCanvas.setCursor(cursor);
                 break;
             case Select:
                 drawCanvas.setCursor(Cursor.CROSSHAIR);
+                break;
+            case ScriptPencil:
+                drawCanvas.setCursor(Cursor.CLOSED_HAND);
                 break;
             default:
                 setCurrentTile(getCurrentTile());
@@ -171,6 +177,25 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         getCurrentMap().getBackingMap().getScripts().getScript().add(script);
     }
 
+    Script selectedScript = null;
+    
+    public void setSelectedScript(Script script) {
+        selectedScript = script;
+    }    
+    
+    public Script getSelectedScript() {
+        return selectedScript;
+    }
+    
+    private void drawScript(double x, double y, Script script) {
+        if (script != null) {
+            getCurrentMap().putLocationScript((int) x, (int) y, script);
+        } else {
+            getCurrentMap().removeLocationScripts((int) x, (int) y);
+        }
+        redraw();
+    }
+    
     public void assignScript(Script script, double x, double y) {
         int xx = (int) (x / tileWidth) + posX;
         int yy = (int) (y / tileHeight) + posY;
@@ -216,19 +241,8 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     }
 
     private void zoom(double delta) {
-//        double oldZoom = zoom;
         zoom += delta;
         zoom = Math.min(Math.max(0.15, zoom), 4.0);
-//                    double left = mapEditorScroll.getHvalue();
-//                    double top = mapEditorScroll.getVvalue();
-//
-//                    double pointerX = t.getX();
-//                    double pointerY = t.getY();
-//
-//                    double ratio = zoom / oldZoom;
-//
-//                    double newLeft = (left + pointerX) * ratio - pointerX;
-//                    double newTop = (top + pointerY) * ratio - pointerY;
         tileWidth = getCurrentPlatform().tileRenderer.getWidth() * zoom;
         tileHeight = getCurrentPlatform().tileRenderer.getHeight() * zoom;
         fullRedraw.set(true);
@@ -448,7 +462,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
      * @return Same tile (necessary for callback support)
      */
     public Tile setCurrentTile(Tile currentTile) {
-        if (drawMode == DrawMode.Eraser) {
+        if (drawMode == DrawMode.TileEraser) {
             drawMode = DrawMode.Pencil1px;
         }
         this.currentTile = currentTile;
@@ -550,7 +564,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
 
     public static enum DrawMode {
 
-        Pencil1px, Pencil3px, Pencil5px, FilledRect, Eraser(false), Select(false);
+        Pencil1px, Pencil3px, Pencil5px, FilledRect, TileEraser(false), ScriptPencil(false), Select(false);
 
         boolean requireTile = false;
 
@@ -687,7 +701,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         lastDrawMode = drawMode;
         lastTile = getCurrentTile();
         switch (drawMode) {
-            case Eraser: {
+            case TileEraser: {
                 if (canSkip) {
                     return;
                 }
@@ -723,6 +737,13 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
                     trackState();
                     fillSelection();
                 }
+            case ScriptPencil:
+                if (canSkip) {
+                    return;
+                }
+                trackState();
+                drawScript(x, y, getSelectedScript());
+                break;
             case Select:
                 updateSelection(t.getX(), t.getY());
                 if (t.getEventType().equals(MouseEvent.MOUSE_RELEASED)) {

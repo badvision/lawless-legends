@@ -71,9 +71,9 @@
                                 <Button alignment="TOP_CENTER" layoutX="265.0" mnemonicParsing="false" onAction="#scrollMapUp" styleClass="moveButton" text="Up" AnchorPane.topAnchor="5.0" />
                                 <Button layoutY="185.0" mnemonicParsing="false" onAction="#scrollMapLeft" rotate="270.0" styleClass="moveButton" text="Left" AnchorPane.leftAnchor="-10.0" />
                                 <Button layoutX="265.0" mnemonicParsing="false" onAction="#scrollMapDown" rotate="180.0" styleClass="moveButton" text="Down" AnchorPane.bottomAnchor="5.0" />
-                                <Button layoutY="175.0" mnemonicParsing="false" onAction="#scrollMapRight" rotate="90.0" styleClass="moveButton" text="Right" AnchorPane.rightAnchor="-15.0" />
-                                <Button mnemonicParsing="false" onAction="#mapZoomIn" styleClass="zoomInButton" text="+" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="5.0" />
-                                <Button mnemonicParsing="false" onAction="#mapZoomOut" prefHeight="23.999908447265625" styleClass="zoomOutButton" text="-" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="30.0" />
+                                <Button layoutY="175.0" mnemonicParsing="false" onAction="#scrollMapRight" rotate="90.0" styleClass="moveButton" text="Right" AnchorPane.rightAnchor="0" />
+                                <Button mnemonicParsing="false" onAction="#mapZoomIn" styleClass="zoomInButton" text="+" AnchorPane.rightAnchor="7.0" AnchorPane.topAnchor="5.0" />
+                                <Button mnemonicParsing="false" onAction="#mapZoomOut" prefHeight="23.999908447265625" styleClass="zoomOutButton" text="-" AnchorPane.rightAnchor="7.0" AnchorPane.topAnchor="30.0" />
                             </children>
                         </AnchorPane>
                     </children>

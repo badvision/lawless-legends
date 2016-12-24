@@ -305,13 +305,12 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         boolean reset = tiles == null || tiles.length <= cols || tiles[0] == null || tiles[0].length <= rows;
         if (forceReset || reset) {
             tiles = new String[cols + 1][rows + 1];
-
-//            for (int x = 0; x < drawCanvas.getWidth(); x += 10) {
-//                for (int y = 0; y < drawCanvas.getHeight(); y += 10) {
-//                    drawCanvas.getGraphicsContext2D().setFill(getFillPattern(x, y));
-//                    drawCanvas.getGraphicsContext2D().fillRect(x, y, 10, 10);
-//                }
-//            }
+            for (int x = 0; x < drawCanvas.getWidth(); x += 10) {
+                for (int y = 0; y < drawCanvas.getHeight(); y += 10) {
+                    drawCanvas.getGraphicsContext2D().setFill(getFillPattern(x, y));
+                    drawCanvas.getGraphicsContext2D().fillRect(x, y, 10, 10);
+                }
+            }
         }
     }
 

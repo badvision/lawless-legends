@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -40,6 +41,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
+import javafx.scene.paint.Paint;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 import org.badvision.outlaweditor.api.ApplicationState;
@@ -229,6 +231,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
 //                    double newTop = (top + pointerY) * ratio - pointerY;
         tileWidth = getCurrentPlatform().tileRenderer.getWidth() * zoom;
         tileHeight = getCurrentPlatform().tileRenderer.getHeight() * zoom;
+        fullRedraw.set(true);
         redraw();
     }
 
@@ -236,6 +239,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     public void observedObjectChanged(Map object) {
         redraw();
     }
+    private AtomicBoolean fullRedraw = new AtomicBoolean(true);
     private long redrawRequested;
     private Thread redrawThread;
 
@@ -254,7 +258,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
                     }
                 }
                 Platform.runLater(() -> {
-                    doRedraw();
+                    doRedraw(fullRedraw.getAndSet(false));
                 });
                 redrawThread = null;
             });
@@ -262,39 +266,59 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         }
     }
 
-    private synchronized void doRedraw() {
-        clearCanvas();
+    private synchronized void doRedraw(boolean fullRedraw) {
+        prepareCanvas(fullRedraw);
         int cols = (int) (drawCanvas.getWidth() / tileWidth);
         int rows = (int) (drawCanvas.getHeight() / tileHeight);
         for (int x = 0; x <= cols; x++) {
             for (int y = 0; y <= rows; y++) {
                 Tile tile = currentMap.get(posX + x, posY + y);
-                doDraw(x, y, tile);
+                String id = (tile == null) ? null : tile.getId();
+                boolean notSimilar = (id == null) != (tiles[x][y] == null);
+                notSimilar |= (id != null && !id.equals(tiles[x][y]));
+                if (notSimilar) {
+                    tiles[x][y] = id;
+                    doDraw(x, y, tile);
+                }
             }
         }
         for (int x = 0; x <= cols; x++) {
             for (int y = 0; y <= rows; y++) {
-                highlightScripts(x, y, currentMap.getLocationScripts(posX + x, posY + y));
+                if (highlightScripts(x, y, currentMap.getLocationScripts(posX + x, posY + y))) {
+                    tiles[x][y] = "SCRIPT";
+                }
             }
         }
+        // Reposition arrows
         anchorPane.getChildren().get(1).setLayoutX((drawCanvas.getWidth() - 30) / 2);
         anchorPane.getChildren().get(2).setLayoutY((drawCanvas.getHeight() - 30) / 2);
         anchorPane.getChildren().get(3).setLayoutX((drawCanvas.getWidth() - 30) / 2);
         anchorPane.getChildren().get(4).setLayoutY((drawCanvas.getHeight() - 30) / 2);
     }
 
-    public void clearCanvas() {
-        boolean oddEvenColumn = false;
-        boolean oddEven;
-        for (int x = 0; x < drawCanvas.getWidth(); x += 10) {
-            oddEven = oddEvenColumn;
-            for (int y = 0; y < drawCanvas.getHeight(); y += 10) {
-                drawCanvas.getGraphicsContext2D().setFill(oddEven ? Color.BLACK : Color.NAVY);
-                drawCanvas.getGraphicsContext2D().fillRect(x, y, 10, 10);
-                oddEven = !oddEven;
-            }
-            oddEvenColumn = !oddEvenColumn;
+    String[][] tiles = null;
+
+    private void prepareCanvas(boolean forceReset) {
+        int cols = (int) (drawCanvas.getWidth() / tileWidth);
+        int rows = (int) (drawCanvas.getHeight() / tileHeight);
+
+        boolean reset = tiles == null || tiles.length <= cols || tiles[0] == null || tiles[0].length <= rows;
+        if (forceReset || reset) {
+            tiles = new String[cols + 1][rows + 1];
+
+//            for (int x = 0; x < drawCanvas.getWidth(); x += 10) {
+//                for (int y = 0; y < drawCanvas.getHeight(); y += 10) {
+//                    drawCanvas.getGraphicsContext2D().setFill(getFillPattern(x, y));
+//                    drawCanvas.getGraphicsContext2D().fillRect(x, y, 10, 10);
+//                }
+//            }
         }
+    }
+
+    private Paint getFillPattern(double x, double y) {
+        boolean oddEven = (x % 20) < 10;
+        oddEven ^= (y % 20) < 10;
+        return oddEven ? Color.BLACK : Color.NAVY;
     }
 
     private void doDraw(int x, int y, Tile tile) {
@@ -302,6 +326,17 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         double yy = y * tileHeight;
         if (tile != null) {
             drawCanvas.getGraphicsContext2D().drawImage(TileUtils.getImage(tile, getCurrentPlatform()), xx, yy, tileWidth, tileHeight);
+        } else {
+            for (double x1 = -(xx % 10); x1 < tileWidth; x1 += 10) {
+                for (double y1 = (-yy % 10); y1 < tileHeight; y1 += 10) {
+                    double boxX = Math.max(x1, 0);
+                    double boxY = Math.max(y1, 0);
+                    double width = Math.min(10, tileWidth - x1);
+                    double height = Math.min(10, tileHeight - y1);
+                    drawCanvas.getGraphicsContext2D().setFill(getFillPattern(boxX + xx, boxY + yy));
+                    drawCanvas.getGraphicsContext2D().fillRect(boxX + xx, boxY + yy, width, height);
+                }
+            }
         }
     }
 
@@ -328,13 +363,13 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         }
     }
 
-    private void highlightScripts(int x, int y, List<Script> scripts) {
+    private boolean highlightScripts(int x, int y, List<Script> scripts) {
         if (scripts == null || scripts.isEmpty()) {
-            return;
+            return false;
         }
         List<Script> visibleScripts = scripts.stream().filter(this::isScriptVisible).collect(Collectors.toList());
         if (visibleScripts.isEmpty()) {
-            return;
+            return false;
         }
         GraphicsContext gc = drawCanvas.getGraphicsContext2D();
         int idx = 0;
@@ -381,6 +416,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
             gc.setEffect(new DropShadow(2, Color.BLACK));
             gc.stroke();
         }
+        return true;
     }
 
     public void setupDragDrop(TransferHelper<Script> scriptHelper, TransferHelper<ToolType> toolHelper) {
@@ -473,7 +509,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
                 int x1 = selection.get("x1");
                 int y1 = selection.get("y1");
                 for (int y = 0; y < height; y++) {
-                    for (int x=0; x < width; x++) {
+                    for (int x = 0; x < width; x++) {
                         plot(x + lastX, y + lastY, source.get(x + x1, y + y1));
                     }
                 }

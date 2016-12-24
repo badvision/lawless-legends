@@ -305,12 +305,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         boolean reset = tiles == null || tiles.length <= cols || tiles[0] == null || tiles[0].length <= rows;
         if (forceReset || reset) {
             tiles = new String[cols + 1][rows + 1];
-            for (int x = 0; x < drawCanvas.getWidth(); x += 10) {
-                for (int y = 0; y < drawCanvas.getHeight(); y += 10) {
-                    drawCanvas.getGraphicsContext2D().setFill(getFillPattern(x, y));
-                    drawCanvas.getGraphicsContext2D().fillRect(x, y, 10, 10);
-                }
-            }
+            fillEmpty(0, 0, drawCanvas.getWidth(), drawCanvas.getHeight());
         }
     }
 
@@ -326,15 +321,19 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         if (tile != null) {
             drawCanvas.getGraphicsContext2D().drawImage(TileUtils.getImage(tile, getCurrentPlatform()), xx, yy, tileWidth, tileHeight);
         } else {
-            for (double x1 = -(xx % 10); x1 < tileWidth; x1 += 10) {
-                for (double y1 = (-yy % 10); y1 < tileHeight; y1 += 10) {
-                    double boxX = Math.max(x1, 0);
-                    double boxY = Math.max(y1, 0);
-                    double width = Math.min(10, tileWidth - x1);
-                    double height = Math.min(10, tileHeight - y1);
-                    drawCanvas.getGraphicsContext2D().setFill(getFillPattern(boxX + xx, boxY + yy));
-                    drawCanvas.getGraphicsContext2D().fillRect(boxX + xx, boxY + yy, width, height);
-                }
+            fillEmpty(xx, yy, xx + tileWidth, yy + tileHeight);
+        }
+    }
+
+    int patternSize = 10;
+
+    private void fillEmpty(double startX, double startY, double endX, double endY) {
+        for (double x = startX; x < endX; x = x - (x % patternSize) + patternSize) {
+            for (double y = startY; y < endY; y = y - (y % patternSize) + patternSize) {
+                double width = Math.min(patternSize, endX - x);
+                double height = Math.min(patternSize, endY - y);
+                drawCanvas.getGraphicsContext2D().setFill(getFillPattern(x, y));
+                drawCanvas.getGraphicsContext2D().fillRect(x, y, width, height);
             }
         }
     }

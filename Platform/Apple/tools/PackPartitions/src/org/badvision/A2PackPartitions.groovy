@@ -183,8 +183,10 @@ class A2PackPartitions
                 else if (prev == '^') {
                     def cp = Character.codePointAt(ch.toUpperCase(), 0)
                     // ^A = ctrl-A; ^M = ctrl-M (carriage return); ^Z = ctrl-Z; ^` = space
-                    if (cp == 96)
+                    if (cp == 96) // ^`
                         buf << " "
+                    else if (cp == 77) // ^M
+                        buf << "\\n"
                     else if (cp > 64 && cp < 96)
                         buf << "\\\$" << String.format("%02X", cp - 64)
                     else
@@ -1209,6 +1211,87 @@ class A2PackPartitions
         //println "Reading font #$num from '$path'."
         fonts[name] = [num:num, buf:readBinary(path)]
     }
+
+    static int lx47Savings = 0
+
+    // Transform the LZ4 format to something we call "LZ4M", where the small offsets are stored
+    // as one byte instead of two. In our data, that's about 1/3 of the offsets.
+    //
+    def old_testLx47(data, inLen, uncompData, uncompLen)
+    {
+        def lw = new Lx47Algorithm.Lx47Writer(uncompLen)
+        def sp = 0
+        while (true) 
+        {
+            // First comes the token: 4 bits literal len, 4 bits match len
+            def token = (data[sp++] & 0xFF)
+            def matchLen = token & 0xF
+            def literalLen = token >> 4
+            
+            // The literal length might get extended
+            if (literalLen == 15) {
+                while (true) {
+                    token = (data[sp++] & 0xFF)
+                    literalLen += token
+                    if (token != 0xFF)
+                        break
+                }
+            }
+            
+            //println String.format("Literal: ptr=\$%x, len=\$%x.", sp, literalLen)
+
+            // Output literal len, and copy the literal bytes
+            lw.writeLiteralLen(literalLen+1)
+            for ( ; literalLen > 0; --literalLen)
+                lw.writeByte(data[sp++])
+            
+            // The last block has only literals, and no match
+            if (sp == inLen)
+                break
+            
+            // Grab the offset
+            token = data[sp++] & 0xFF
+            def offset = token | ((data[sp++] & 0xFF) << 8)
+
+            // Output the low part of the offset, then any extraneous high bits
+            assert offset >= 1
+            lw.writeOffset(offset)
+            
+            // The match length might get extended
+            if (matchLen == 15) {
+                while (true) {
+                    token = (data[sp++] & 0xFF)
+                    matchLen += token
+                    if (token != 0xFF)
+                        break
+                }
+            }
+            //println String.format("Match: offset=\$%x, len=\$%x.", offset, matchLen)
+
+            // Encode the match len            
+            matchLen += 4   // min match length is 4
+            lw.writeMatchLen(matchLen-3)
+        }
+        
+        def savings = inLen - lw.outPos
+        lx47Savings += savings
+        println String.format("nOffsets=%d nPrev1=%d nPrev2=%d", nOffsets, nPrevOffsets, nPrev2Offsets)
+        println String.format("lz47 savings=%d bigLits=%d bigMatches=%d, total=%d", savings, nBigLits, nBigMatches, lx47Savings)
+    }
+    
+    // Transform the LZ4 format to something we call "LZ4M", where the small offsets are stored
+    // as one byte instead of two. In our data, that's about 1/3 of the offsets.
+    //
+    def testLx47(data, inLen, uncompData, uncompLen)
+    {
+        def lx47 = new Lx47Algorithm()
+        def inputData = new byte[inLen]
+        System.arraycopy(data, 0, inputData, 0, inLen)
+        def outputData = lx47.compress(inputData)
+        def savings = inLen - outputData.length
+        lx47Savings += savings
+        println String.format("lz47 savings=%d total=%d", savings, lx47Savings)
+    }
     
     // Transform the LZ4 format to something we call "LZ4M", where the small offsets are stored
     // as one byte instead of two. In our data, that's about 1/3 of the offsets.
@@ -1325,8 +1408,9 @@ class A2PackPartitions
         assert compressedLen > 0
         
         // Then recompress to LZ4M (pretty much always smaller)
+        testLx47(compressedData, compressedLen, uncompressedData, uncompressedLen)
         def recompressedLen = recompress(compressedData, compressedLen, uncompressedData, uncompressedLen)
-        
+
         // If we saved at least 20 bytes, take the compressed version.
         if ((uncompressedLen - recompressedLen) >= 20) {
             if (debugCompression)
@@ -2740,7 +2824,7 @@ end
                 }
                 reportWriter.println "\nGroovy call stack:"
                 t.getStackTrace().each {
-                    if (it.toString().contains(".groovy:"))
+                    if (!(it.toString() ==~ /.*(groovy|reflect)\..*/))
                         reportWriter.println "    $it"
                 }
                 reportWriter.flush()

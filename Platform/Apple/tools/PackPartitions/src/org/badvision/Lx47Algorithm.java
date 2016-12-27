@@ -282,7 +282,9 @@ public class Lx47Algorithm
             else {
                 offset -= 128;
                 writeByte((offset & 127) | 128);
-                writeEliasExpGamma((offset >> 7) + 1, 1);
+                for (int mask = 1024; mask > 127; mask >>= 1) {
+                    writeBit(offset & mask);
+                }
             }
         }
 
@@ -290,7 +292,7 @@ public class Lx47Algorithm
         int prevOff2 = -1;
 
         void writeOffset(int offset) {
-            write2byte(offset-1);
+            write2byte(offset);
             if (offset >= 126) {
                 ++nOffsets;
                 if (offset == prevOff)
@@ -349,15 +351,7 @@ public class Lx47Algorithm
 
                 /* sequence offset */
                 offset1 = optimal[input_index].offset-1;
-                if (offset1 < 128) {
-                    w.writeByte(offset1);
-                } else {
-                    offset1 -= 128;
-                    w.writeByte((offset1 & 127) | 128);
-                    for (mask = 1024; mask > 127; mask >>= 1) {
-                        w.writeBit(offset1 & mask);
-                    }
-                }
+                w.writeOffset(offset1);
             }
         }
 
@@ -374,6 +368,108 @@ public class Lx47Algorithm
         System.arraycopy(w.buf, 0, output_data, 0, w.outPos);
                 
         return output_data;
+    }
+    
+    public class Lx47Reader
+    {
+        public byte[] buf;
+        public int inPos;
+        private int indexByte;
+        private int mask;
+
+        Lx47Reader(byte[] inBuf) {
+            buf = inBuf;
+            mask = 0;
+            inPos = 0;
+        }
+
+        int readByte() {
+            return buf[inPos++] & 0xFF;
+        }
+
+        int readBit() {
+            if (mask == 0) {
+                mask = 128;
+                indexByte = readByte();
+            }
+            int ret = ((indexByte & mask) != 0) ? 1 : 0;
+            mask >>= 1;
+            return ret;
+        }
+
+        int readEliasGamma() {
+            int nBits = 0;
+            while (readBit() == 0)
+                ++nBits;
+            if (nBits == 16)
+                return -1; // EOF marker
+            int out = 1;
+            while (nBits-- > 0)
+                out = (out << 1) | readBit();
+            return out;
+        }
+
+        int readLiteralLen() {
+            return readEliasGamma();
+        }
+
+        int readMatchLen() {
+            return readEliasGamma();
+        }
+
+        int read2byte() {
+            int val = readByte();
+            if ((val & 128) == 0)
+                return val;
+            val = (val & 127) + 128;
+            for (int mask = 1024; mask > 127; mask >>= 1) {
+                if (readBit() == 1)
+                    val |= mask;
+            }
+            return val;
+        }
+
+        int readOffset() {
+            return read2byte();
+        }
+    }
+
+    public void decompress(byte[] input_data, byte[] output_data)
+    {
+        Lx47Reader r = new Lx47Reader(input_data);
+        int outPos = 0;
+        // First byte is always a literal.
+        output_data[outPos++] = (byte) r.readByte();
+        
+        // Now decompress until done.
+        while (true) 
+        {
+            // Check for literal byte
+            if (r.readBit() == 0) {
+                output_data[outPos++] = (byte) r.readByte();
+                System.out.format("literal $%x\n", output_data[outPos-1]);
+                continue;
+            }
+            
+            // Not a literal, so it's a sequence. First get the length.
+            int len = r.readEliasGamma();
+            if (len < 0) // EOF mark?
+                break;
+            ++len;
+            System.out.format("len %d\n", len);
+            
+            // Then get offset, and copy data
+            int off = r.read2byte();
+            ++off;
+            System.out.format("offset %d\n", off);
+            while (len-- > 0) {
+                output_data[outPos] = output_data[outPos - off];
+                ++outPos;
+            }
+        }
+        
+        assert outPos == output_data.length : 
+               String.format("Len mismatch: expecting %d, got %d", output_data.length, outPos);
     }
     
     public byte[] compress(byte[] input_data) {

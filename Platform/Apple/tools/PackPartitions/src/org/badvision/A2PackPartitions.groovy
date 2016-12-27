@@ -1285,6 +1285,20 @@ class A2PackPartitions
     def testLx47(data, inLen, uncompData, uncompLen)
     {
         def lx47 = new Lx47Algorithm()
+        
+        if (true) {
+            def orig = "Helllllllllllllo"
+            def input = orig.getBytes()
+            println "input=$input"
+            def compressed = lx47.compress(input)
+            println "compressed=$compressed"
+            def output = new byte[input.length]
+            lx47.decompress(compressed, output)
+            println "output=$output"
+            assert input == output
+            System.exit(1)
+        }
+        
         def inputData = new byte[inLen]
         System.arraycopy(data, 0, inputData, 0, inLen)
         def outputData = lx47.compress(inputData)

@@ -36,6 +36,10 @@ public class Lx47Algorithm
         }
         return bits;
     }
+    
+    int elias_exp_gamma_bits(int value, int exp) {
+        return elias_gamma_bits((value >> exp) + 1) + exp;
+    }
 
     int count_bits(int offset, int len) {
         return 1 + (offset > 128 ? 12 : 8) + elias_gamma_bits(len-1);
@@ -108,8 +112,6 @@ public class Lx47Algorithm
         return optimal;
     }
 
-    static int nBigLits = 0;
-    static int nBigMatches = 0;
     static int nOffsets = 0;
     static int nPrevOffsets = 0;
     static int nPrev2Offsets = 0;
@@ -153,25 +155,14 @@ public class Lx47Algorithm
 
         void writeEliasExpGamma(int value, int exp) {
             assert value > 0;
-            writeEliasGamma(((value-1) >> exp) + 1);
-            for (int i=exp-1; i>=0; i--)
+            writeEliasGamma((value >> exp) + 1);
+            for (int i=exp-1; i>=0; i--) {
                 writeBit(value & (1<<i));
-        }
-
-        void writeLiteralLen(int value) {
-            writeEliasExpGamma(value, 1);
-            while (value > 255) {
-                nBigLits++;
-                value -= 255;
             }
         }
 
         void writeMatchLen(int value) {
-            writeEliasExpGamma(value, 1);
-            while (value > 255) {
-                nBigMatches++;
-                value -= 255;
-            }
+            writeEliasGamma(value);
         }
 
         void write2byte(int offset) {
@@ -187,21 +178,8 @@ public class Lx47Algorithm
             }
         }
 
-        int prevOff = -1;
-        int prevOff2 = -1;
-
         void writeOffset(int offset) {
             write2byte(offset);
-            if (offset >= 126) {
-                ++nOffsets;
-                if (offset == prevOff)
-                    ++nPrevOffsets;
-                else if (offset == prevOff2)
-                    ++nPrev2Offsets;
-                prevOff2 = prevOff;
-                prevOff = offset;
-            }
-            //writeEliasExpGamma(offset, 7) // same; other values worse
         }
     }
     
@@ -248,11 +226,10 @@ public class Lx47Algorithm
                 w.writeBit(1);
 
                 /* sequence length */
-                w.writeEliasGamma(optimal[input_index].len-1);
+                w.writeMatchLen(optimal[input_index].len-1);
 
                 /* sequence offset */
-                offset1 = optimal[input_index].offset-1;
-                w.writeOffset(offset1);
+                w.writeOffset(optimal[input_index].offset-1);
             }
         }
 
@@ -309,9 +286,18 @@ public class Lx47Algorithm
                 out = (out << 1) | readBit();
             return out;
         }
-
-        int readLiteralLen() {
-            return readEliasGamma();
+        
+        int readEliasExpGamma(int exp) {
+            int val = readEliasGamma();
+            if (val < 0)
+                return val;
+            val = (val-1) << exp;
+            for (int i=exp-1; i>=0; i--) {
+                int bit = readBit();
+                if (bit > 0)
+                    val |= (1<<i);
+            }
+            return val;
         }
 
         int readMatchLen() {
@@ -362,12 +348,12 @@ public class Lx47Algorithm
             }
             
             // Not a literal, so it's a sequence. First get the length.
-            int len = r.readEliasGamma() + 1;
+            int len = r.readMatchLen() + 1;
             if (len < 0) // EOF mark?
                 break;
             
             // Then get offset, and copy data
-            int off = r.read2byte() + 1;
+            int off = r.readOffset() + 1;
             chkDebug(String.format("seq l=%d o=%d", len, off));
             while (len-- > 0) {
                 output_data[outPos] = output_data[outPos - off];

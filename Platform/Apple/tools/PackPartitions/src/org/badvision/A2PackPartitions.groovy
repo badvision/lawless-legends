@@ -1212,6 +1212,8 @@ class A2PackPartitions
         fonts[name] = [num:num, buf:readBinary(path)]
     }
 
+    static int lx47Uncomp = 0
+    static int lx47Comp = 0
     static int lx47Savings = 0
 
     // Transform the LZ4 format to something we call "LZ4M", where the small offsets are stored
@@ -1292,8 +1294,11 @@ class A2PackPartitions
         lx47.decompress(outputData, uncomp)
         assert uncomp == inputData
         def savings = inLen - outputData.length
+        lx47Uncomp += uncompLen
+        lx47Comp += (uncompLen - outputData.length)
         lx47Savings += savings
-        println String.format("lz47 savings=%d total=%d", savings, lx47Savings)
+        println String.format("lz47 savings=%d total_uncomp=%d total_comp=%d total_savings=%d", 
+            savings, lx47Uncomp, lx47Comp, lx47Savings)
     }
     
     // Transform the LZ4 format to something we call "LZ4M", where the small offsets are stored
@@ -1411,8 +1416,8 @@ class A2PackPartitions
         assert compressedLen > 0
         
         // Then recompress to LZ4M (pretty much always smaller)
-        testLx47(compressedData, compressedLen, uncompressedData, uncompressedLen)
         def recompressedLen = recompress(compressedData, compressedLen, uncompressedData, uncompressedLen)
+        testLx47(compressedData, recompressedLen, uncompressedData, uncompressedLen)
 
         // If we saved at least 20 bytes, take the compressed version.
         if ((uncompressedLen - recompressedLen) >= 20) {

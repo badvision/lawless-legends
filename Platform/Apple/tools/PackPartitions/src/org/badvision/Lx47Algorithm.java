@@ -1,6 +1,8 @@
 
 package org.badvision;
 
+import java.util.LinkedList;
+
 /**
  *
  * @author mhaye
@@ -10,6 +12,8 @@ public class Lx47Algorithm
 {
     static final int MAX_OFFSET = 2176;  /* range 1..2176 */
     static final int MAX_LEN = 65536;  /* range 2..65536 */
+    
+    LinkedList<String> debugs = new LinkedList<String>();
 
     class Match {
         int index;
@@ -154,111 +158,6 @@ public class Lx47Algorithm
                 writeBit(value & (1<<i));
         }
 
-        void writeEliasDelta(int num) {
-            int len = 0;
-            int lengthOfLen = 0;
-            for (int temp = num; temp > 0; temp >>= 1)  // calculate 1+floor(log2(num))
-                len++;
-            for (int temp = len; temp > 1; temp >>= 1)  // calculate floor(log2(len))
-                lengthOfLen++;
-            for (int i = lengthOfLen; i > 0; --i)
-                writeBit(0);
-            for (int i = lengthOfLen; i >= 0; --i)
-                writeBit((len >> i) & 1);
-            for (int i = len-2; i >= 0; i--)
-                writeBit((num >> i) & 1);
-        }
-
-        void writeEliasOmega(int num) {
-            int[] bits = new int[32];
-            int nBits = 0;
-            while (num > 1) {
-                int len = 0;
-                for (int temp = num; temp > 0; temp >>= 1)  // calculate 1+floor(log2(num))
-                    len++;
-                for (int i = 0; i < len; i++)
-                    bits[nBits++] = (num >> i) & 1;
-                num = len - 1;
-            }
-            while (nBits > 0)
-                writeBit(bits[--nBits]);
-            writeBit(0);
-        }
-
-        void write4bit(int num) {
-            if (num < 15) {
-                writeBit(num & 8); writeBit(num & 4); writeBit(num & 2); writeBit(num & 1);
-            }
-            else {
-                writeBit(1); writeBit(1); writeBit(1); writeBit(1);
-                num -= 15;
-                while (num >= 128) {
-                    writeByte((num & 127) | 128);
-                    num -= 128;
-                }
-                writeByte(num);
-            }
-        }
-
-        int[] fib = new int[30];
-
-        // Stores values in fib and returns index of the largest
-        // fibonacci number smaller than n. 
-        int largestFiboLessOrEqual(int n)
-        {
-            fib[0] = 1;  // Fib[0] stores 2nd Fibonacci No.
-            fib[1] = 2;  // Fib[1] stores 3rd Fibonacci No.
-         
-            // Keep Generating remaining numbers while previously
-            // generated number is smaller
-            int i;
-            for (i=2; fib[i-1]<=n; i++)
-                fib[i] = fib[i-1] + fib[i-2];
-         
-            // Return index of the largest fibonacci number
-            // smaller than or equal to n. Note that the above
-            // loop stopped when fib[i-1] became larger.
-            return (i-2);
-        }
- 
-        /* Returns pointer to the char string which corresponds to
-           code for n */
-        void writeFib(int n)
-        {
-            int index = largestFiboLessOrEqual(n);
-         
-            int[] codeword = new int[index+2];
-         
-            // index of the largest Fibonacci f <= n
-            int i = index;
-         
-            while (n != 0)
-            {
-                // Mark usage of Fibonacci f (1 bit)
-                codeword[i] = 1;
-         
-                // Subtract f from n
-                n = n - fib[i];
-         
-                // Move to Fibonacci just smaller than f
-                i = i - 1;
-         
-                // Mark all Fibonacci > n as not used (0 bit), 
-                // progress backwards
-                while (i>=0 && fib[i]>n)
-                {
-                    codeword[i] = 0;
-                    i = i - 1;
-                }
-            }
-         
-            //additional '1' bit
-            codeword[index+1] = 1;
-         
-            for (i=0; i<=index+1; i++)
-                writeBit(codeword[i]);
-        }        
-
         void writeLiteralLen(int value) {
             writeEliasExpGamma(value, 1);
             while (value > 255) {
@@ -336,6 +235,7 @@ public class Lx47Algorithm
             if (optimal[input_index].len == 0) {
 
                 /* literal indicator */
+                debugs.add(String.format("literal $%x", input_data[input_index]));
                 w.writeBit(0);
 
                 /* literal value */
@@ -344,6 +244,7 @@ public class Lx47Algorithm
             } else {
 
                 /* sequence indicator */
+                debugs.add(String.format("seq l=%d o=%d", optimal[input_index].len, optimal[input_index].offset));
                 w.writeBit(1);
 
                 /* sequence length */
@@ -356,6 +257,7 @@ public class Lx47Algorithm
         }
 
         /* sequence indicator */
+        debugs.add("EOF");
         w.writeBit(1);
 
         /* end marker > MAX_LEN */
@@ -364,7 +266,6 @@ public class Lx47Algorithm
         w.writeBit(1);
 
         assert w.outPos == output_size : String.format("size miscalc: got %d, want %d", w.outPos, output_size);
-        System.out.println(String.format("bufLen=%d outlen=%d outSize=%d outPos=%d", w.buf.length, output_data.length, output_size, w.outPos));
         System.arraycopy(w.buf, 0, output_data, 0, w.outPos);
                 
         return output_data;
@@ -401,8 +302,8 @@ public class Lx47Algorithm
             int nBits = 0;
             while (readBit() == 0)
                 ++nBits;
-            if (nBits == 16)
-                return -1; // EOF marker
+            if (nBits >= 16)
+                return -99; // EOF marker
             int out = 1;
             while (nBits-- > 0)
                 out = (out << 1) | readBit();
@@ -421,17 +322,26 @@ public class Lx47Algorithm
             int val = readByte();
             if ((val & 128) == 0)
                 return val;
-            val = (val & 127) + 128;
+            val &= 127;
             for (int mask = 1024; mask > 127; mask >>= 1) {
                 if (readBit() == 1)
                     val |= mask;
             }
+            val += 128;
             return val;
         }
 
         int readOffset() {
             return read2byte();
         }
+    }
+    
+    int debugPos = 0;
+    void chkDebug(String toCheck) {
+        String expect = debugs.removeFirst();
+        assert expect.equals(toCheck) : 
+            String.format("Expecting '%s', got '%s'", expect, toCheck);
+        //System.out.format("[%d]: %s\n", debugs.size(), expect);
     }
 
     public void decompress(byte[] input_data, byte[] output_data)
@@ -447,26 +357,25 @@ public class Lx47Algorithm
             // Check for literal byte
             if (r.readBit() == 0) {
                 output_data[outPos++] = (byte) r.readByte();
-                System.out.format("literal $%x\n", output_data[outPos-1]);
+                chkDebug(String.format("literal $%x", output_data[outPos-1]));
                 continue;
             }
             
             // Not a literal, so it's a sequence. First get the length.
-            int len = r.readEliasGamma();
+            int len = r.readEliasGamma() + 1;
             if (len < 0) // EOF mark?
                 break;
-            ++len;
-            System.out.format("len %d\n", len);
             
             // Then get offset, and copy data
-            int off = r.read2byte();
-            ++off;
-            System.out.format("offset %d\n", off);
+            int off = r.read2byte() + 1;
+            chkDebug(String.format("seq l=%d o=%d", len, off));
             while (len-- > 0) {
                 output_data[outPos] = output_data[outPos - off];
                 ++outPos;
             }
         }
+        
+        chkDebug("EOF");
         
         assert outPos == output_data.length : 
                String.format("Len mismatch: expecting %d, got %d", output_data.length, outPos);

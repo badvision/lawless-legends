@@ -10,8 +10,8 @@ import java.util.LinkedList;
 
 public class Lx47Algorithm
 {
-    static final int MAX_OFFSET = 2176;  /* range 1..2176 */
-    static final int MAX_LEN = 65536;  /* range 2..65536 */
+    static final int MAX_OFFSET = 16384;  /* range 1..2176 */
+    static final int MAX_LEN = 256;  /* range 2..65536 */
     
     LinkedList<String> debugs = new LinkedList<String>();
 
@@ -47,6 +47,10 @@ public class Lx47Algorithm
 
     int count_bits2(int offset, int len) {
         return 1 + (offset > 128 ? (8+elias_gamma_bits((offset-1)>>7)) : 8) + elias_gamma_bits(len-1);
+    }
+    
+    int count_bits3(int offset, int len) {
+        return 1 + elias_exp_gamma_bits(offset, 6) + elias_gamma_bits(len-1);
     }
 
     Optimal[] optimize(byte[] input_data) {
@@ -89,7 +93,7 @@ public class Lx47Algorithm
                 for (len = 2; len <= MAX_LEN; len++) {
                     if (len > best_len) {
                         best_len = len;
-                        bits = optimal[i-len].bits + count_bits(offset, len);
+                        bits = optimal[i-len].bits + count_bits3(offset, len);
                         if (optimal[i].bits > bits) {
                             optimal[i].bits = bits;
                             optimal[i].offset = offset;
@@ -193,7 +197,7 @@ public class Lx47Algorithm
         }
 
         void writeOffset(int offset) {
-            write2byte(offset);
+            writeEliasExpGamma(offset+1, 6);
         }
     }
     
@@ -341,7 +345,7 @@ public class Lx47Algorithm
         }
 
         int readOffset() {
-            return read2byte();
+            return readEliasExpGamma(6)-1;
         }
     }
     

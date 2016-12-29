@@ -42,14 +42,6 @@ public class Lx47Algorithm
     }
 
     int count_bits(int offset, int len) {
-        return 1 + (offset > 128 ? 12 : 8) + elias_gamma_bits(len-1);
-    }
-
-    int count_bits2(int offset, int len) {
-        return 1 + (offset > 128 ? (8+elias_gamma_bits((offset-1)>>7)) : 8) + elias_gamma_bits(len-1);
-    }
-    
-    int count_bits3(int offset, int len) {
         return 1 + elias_exp_gamma_bits(offset, 6) + elias_gamma_bits(len-1);
     }
 
@@ -93,7 +85,7 @@ public class Lx47Algorithm
                 for (len = 2; len <= MAX_LEN; len++) {
                     if (len > best_len) {
                         best_len = len;
-                        bits = optimal[i-len].bits + count_bits3(offset, len);
+                        bits = optimal[i-len].bits + count_bits(offset, len);
                         if (optimal[i].bits > bits) {
                             optimal[i].bits = bits;
                             optimal[i].offset = offset;

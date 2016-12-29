@@ -45,6 +45,10 @@ public class Lx47Algorithm
         return 1 + (offset > 128 ? 12 : 8) + elias_gamma_bits(len-1);
     }
 
+    int count_bits2(int offset, int len) {
+        return 1 + (offset > 128 ? (8+elias_gamma_bits((offset-1)>>7)) : 8) + elias_gamma_bits(len-1);
+    }
+
     Optimal[] optimize(byte[] input_data) {
         int[] min = new int[MAX_OFFSET+1];
         int[] max = new int[MAX_OFFSET+1];
@@ -175,6 +179,16 @@ public class Lx47Algorithm
                 for (int mask = 1024; mask > 127; mask >>= 1) {
                     writeBit(offset & mask);
                 }
+            }
+        }
+
+        void write2Gbyte(int offset) {
+            assert offset >= 0 && offset <= 65535;
+            if (offset < 128)
+                writeByte(offset);
+            else {
+                writeByte((offset & 127) | 128);
+                writeEliasGamma(offset >> 7);
             }
         }
 
@@ -314,6 +328,15 @@ public class Lx47Algorithm
                     val |= mask;
             }
             val += 128;
+            return val;
+        }
+
+        int read2Gbyte() {
+            int val = readByte();
+            if ((val & 128) == 0)
+                return val;
+            val &= 127;
+            val |= (readEliasGamma() << 7);
             return val;
         }
 

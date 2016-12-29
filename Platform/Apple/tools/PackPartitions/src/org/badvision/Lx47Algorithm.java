@@ -2,6 +2,7 @@
 package org.badvision;
 
 import java.util.LinkedList;
+import java.util.Arrays;
 
 /**
  *
@@ -14,6 +15,12 @@ public class Lx47Algorithm
     static final int MAX_LEN = 256;  /* range 2..65536 */
     
     LinkedList<String> debugs = new LinkedList<String>();
+    
+    void addDebug(String format, Object... arguments) {
+        String str = String.format(format, arguments);
+        //System.out.println("Gen: " + str);
+        debugs.add(str);
+    }
 
     class Match {
         int index;
@@ -24,9 +31,11 @@ public class Lx47Algorithm
         int bits;
         int offset;
         int len;
+        int lits;
+        int next;
     }
 
-    int elias_gamma_bits(int value) {
+    int countEliasGammaBits(int value) {
         int bits;
 
         bits = 1;
@@ -37,12 +46,16 @@ public class Lx47Algorithm
         return bits;
     }
     
-    int elias_exp_gamma_bits(int value, int exp) {
-        return elias_gamma_bits((value >> exp) + 1) + exp;
+    int countEliasExpGammaBits(int value, int exp) {
+        return countEliasGammaBits((value >> exp) + 1) + exp;
     }
 
-    int count_bits(int offset, int len) {
-        return 1 + elias_exp_gamma_bits(offset, 6) + elias_gamma_bits(len-1);
+    int countSeqBits(int prevLits, int offset, int len) {
+        return (prevLits>0 ? 0 : 1) + countEliasExpGammaBits(offset, 6) + countEliasGammaBits(len-1);
+    }
+    
+    int countLitBits(int lits) {
+        return (lits==0) ? 0 : (countEliasGammaBits(lits+1) + (lits * 8));
     }
 
     Optimal[] optimize(byte[] input_data) {
@@ -67,12 +80,20 @@ public class Lx47Algorithm
         }
 
         /* first byte is always literal */
-        optimal[0].bits = 8;
+        optimal[0].lits = 1;
+        optimal[0].bits = countLitBits(1);
 
         /* process remaining bytes */
         for (i = 1; i < input_data.length; i++) {
 
-            optimal[i].bits = optimal[i-1].bits + 9;
+            // Start by assuming that we'll extend the previous literal string
+            // (or start a new one if prev was a match sequence).
+            optimal[i].lits = optimal[i-1].lits + 1;
+            optimal[i].bits = optimal[i-1].bits 
+                            - countLitBits(optimal[i-1].lits) 
+                            + countLitBits(optimal[i].lits);
+            
+            // Now search for a match that's better than just using a literal.
             match_index = (input_data[i-1] & 0xFF) << 8 | (input_data[i] & 0xFF);
             best_len = 1;
             for (match = matches[match_index]; match.next != null && best_len < MAX_LEN; match = match.next) {
@@ -85,11 +106,12 @@ public class Lx47Algorithm
                 for (len = 2; len <= MAX_LEN; len++) {
                     if (len > best_len) {
                         best_len = len;
-                        bits = optimal[i-len].bits + count_bits(offset, len);
+                        bits = optimal[i-len].bits + countSeqBits(optimal[i-len].lits, offset, len);
                         if (optimal[i].bits > bits) {
                             optimal[i].bits = bits;
                             optimal[i].offset = offset;
                             optimal[i].len = len;
+                            optimal[i].lits = 0;
                         }
                     } else if (i+1 == max[offset]+len && max[offset] != 0) {
                         len = i-min[offset];
@@ -119,6 +141,7 @@ public class Lx47Algorithm
     public class Lx47Writer
     {
         public byte[] buf;
+        public int bitPos;
         public int outPos;
         private int mask;
         private int bitIndex;
@@ -127,10 +150,12 @@ public class Lx47Algorithm
             buf = new byte[uncompLen*2];
             mask = 0;
             outPos = 0;
+            bitPos = 0;
         }
 
         void writeByte(int value) {
             buf[outPos++] = (byte)(value & 0xFF);
+            bitPos += 8;
         }
 
         void writeBit(int value) {
@@ -138,10 +163,12 @@ public class Lx47Algorithm
                 mask = 128;
                 bitIndex = outPos;
                 writeByte(0);
+                bitPos -= 8;
             }
             if (value > 0)
                 buf[bitIndex] |= mask;
             mask >>= 1;
+            bitPos++;
         }
 
         void writeEliasGamma(int value) {
@@ -160,9 +187,13 @@ public class Lx47Algorithm
                 writeBit(value & (1<<i));
             }
         }
+        
+        void writeLiteralLen(int value) {
+            writeEliasGamma(value+1);
+        }
 
         void writeMatchLen(int value) {
-            writeEliasGamma(value);
+            writeEliasGamma(value-1);
         }
 
         void write2byte(int offset) {
@@ -189,68 +220,82 @@ public class Lx47Algorithm
         }
 
         void writeOffset(int offset) {
-            writeEliasExpGamma(offset+1, 6);
+            writeEliasExpGamma(offset, 6);
         }
     }
-    
+
     byte[] compressOptimal(Optimal[] optimal, byte[] input_data) {
         int input_index;
         int input_prev;
-        int offset1;
-        int mask;
         int i;
+        
+        //for (i=0; i<optimal.length; i++)
+        //    System.out.format("opt[%d]: bits=%d len=%d lits=%d\n", i, optimal[i].bits, optimal[i].len, optimal[i].lits);
 
         /* calculate and allocate output buffer */
         input_index = input_data.length-1;
-        int output_size = (optimal[input_index].bits+18+7)/8;
+        int output_bits = optimal[input_index].bits;
+        if (optimal[input_index].lits == 0)
+            output_bits++; // zero-length lit str
+        output_bits += countEliasGammaBits(MAX_LEN);
+        int output_size = (output_bits+7)/8;
         byte[] output_data = new byte[output_size];
 
         /* un-reverse optimal sequence */
-        optimal[input_index].bits = 0;
-        while (input_index > 0) {
-            input_prev = input_index - (optimal[input_index].len > 0 ? optimal[input_index].len : 1);
-            optimal[input_prev].bits = input_index;
+        int first_index = -1;
+        while (input_index >= 0) {
+            input_prev = input_index - (optimal[input_index].len > 0 ? optimal[input_index].len : optimal[input_index].lits);
+            if (input_prev > 0)
+                optimal[input_prev].next = input_index;
+            else
+                first_index = input_index;
             input_index = input_prev;
         }
 
         Lx47Writer w = new Lx47Writer(input_data.length);
 
-        /* first byte is always literal */
-        w.writeByte(input_data[0]);
-
-        /* process remaining bytes */
-        while ((input_index = optimal[input_index].bits) > 0) {
+        /* process all bytes */
+        boolean prevIsLit = false;
+        addDebug("start");
+        for (input_index = first_index; input_index > 0; input_index = optimal[input_index].next)
+        {
             if (optimal[input_index].len == 0) {
 
-                /* literal indicator */
-                debugs.add(String.format("literal $%x", input_data[input_index]));
-                w.writeBit(0);
-
-                /* literal value */
-                w.writeByte(input_data[input_index]);
+                // Literal string
+                addDebug("lits l=%d", optimal[input_index].lits);
+                w.writeLiteralLen(optimal[input_index].lits);
+                for (i = 1; i <= optimal[input_index].lits; i++) {
+                    addDebug("lit $%x", input_data[input_index - optimal[input_index].lits + i]);
+                    w.writeByte(input_data[input_index - optimal[input_index].lits + i]);
+                }
+                prevIsLit = true;
 
             } else {
 
-                /* sequence indicator */
-                debugs.add(String.format("seq l=%d o=%d", optimal[input_index].len, optimal[input_index].offset));
-                w.writeBit(1);
-
-                /* sequence length */
-                w.writeMatchLen(optimal[input_index].len-1);
-
-                /* sequence offset */
-                w.writeOffset(optimal[input_index].offset-1);
+                // Sequence. If two in a row, insert a zero-length lit str
+                if (!prevIsLit) {
+                    addDebug("lits l=0");
+                    w.writeLiteralLen(0);
+                }
+                
+                // Now write sequence info
+                addDebug("seq l=%d o=%d", optimal[input_index].len, optimal[input_index].offset);
+                w.writeMatchLen(optimal[input_index].len);
+                w.writeOffset(optimal[input_index].offset);
+                prevIsLit = false;
             }
+            
+            assert optimal[input_index].bits == w.bitPos :
+                   String.format("pos miscalc: calc'd %d, got %d", optimal[input_index].bits, w.bitPos);
         }
 
-        /* sequence indicator */
-        debugs.add("EOF");
-        w.writeBit(1);
-
-        /* end marker > MAX_LEN */
-        for (i = 0; i < 16; i++)
-            w.writeBit(0);
-        w.writeBit(1);
+        // EOF marker
+        if (!prevIsLit) {
+            addDebug("lits l=0");
+            w.writeLiteralLen(0);
+        }
+        addDebug("EOF");
+        w.writeMatchLen(MAX_LEN+1);
 
         assert w.outPos == output_size : String.format("size miscalc: got %d, want %d", w.outPos, output_size);
         System.arraycopy(w.buf, 0, output_data, 0, w.outPos);
@@ -309,9 +354,14 @@ public class Lx47Algorithm
             }
             return val;
         }
+        
+        int readLiteralLen() {
+            return readEliasGamma() - 1;
+        }
 
         int readMatchLen() {
-            return readEliasGamma();
+            int len = readEliasGamma() + 1;
+            return (len > MAX_LEN) ? -1 : len;
         }
 
         int read2byte() {
@@ -337,43 +387,45 @@ public class Lx47Algorithm
         }
 
         int readOffset() {
-            return readEliasExpGamma(6)-1;
+            return readEliasExpGamma(6);
         }
     }
     
     int debugPos = 0;
-    void chkDebug(String toCheck) {
+    void chkDebug(String format, Object... arguments) {
+        String toCheck = String.format(format, arguments);
         String expect = debugs.removeFirst();
         assert expect.equals(toCheck) : 
             String.format("Expecting '%s', got '%s'", expect, toCheck);
-        //System.out.format("[%d]: %s\n", debugs.size(), expect);
+        //System.out.format("OK [%d]: %s\n", debugs.size(), expect);
     }
 
     public void decompress(byte[] input_data, byte[] output_data)
     {
+        int len;
         Lx47Reader r = new Lx47Reader(input_data);
         int outPos = 0;
-        // First byte is always a literal.
-        output_data[outPos++] = (byte) r.readByte();
         
         // Now decompress until done.
+        chkDebug("start");
         while (true) 
         {
-            // Check for literal byte
-            if (r.readBit() == 0) {
+            // Check for literal string
+            len = r.readLiteralLen();
+            chkDebug("lits l=%d", len);
+            while (len-- > 0) {
                 output_data[outPos++] = (byte) r.readByte();
-                chkDebug(String.format("literal $%x", output_data[outPos-1]));
-                continue;
+                chkDebug("lit $%x", output_data[outPos-1]);
             }
             
             // Not a literal, so it's a sequence. First get the length.
-            int len = r.readMatchLen() + 1;
+            len = r.readMatchLen();
             if (len < 0) // EOF mark?
                 break;
             
             // Then get offset, and copy data
-            int off = r.readOffset() + 1;
-            chkDebug(String.format("seq l=%d o=%d", len, off));
+            int off = r.readOffset();
+            chkDebug("seq l=%d o=%d", len, off);
             while (len-- > 0) {
                 output_data[outPos] = output_data[outPos - off];
                 ++outPos;
@@ -387,6 +439,15 @@ public class Lx47Algorithm
     }
     
     public byte[] compress(byte[] input_data) {
+        if (false) {
+            input_data = "helloabchellodefhelloabcx".getBytes();
+            byte[] testComp = compressOptimal(optimize(input_data), input_data);
+            byte[] testDecomp = new byte[input_data.length];
+            decompress(testComp, testDecomp);
+            assert Arrays.equals(input_data, testDecomp);
+            System.out.println("Good!");
+            System.exit(1);
+        }
         return compressOptimal(optimize(input_data), input_data);
     }
 }

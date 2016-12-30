@@ -13,6 +13,7 @@ public class Lx47Algorithm
 {
     static final int MAX_OFFSET = 65536;  /* range 1..2176 */
     static final int MAX_LEN = 65536;  /* range 2..65536 */
+    static final int OFFSET_EXP_BITS = 6;
     
     LinkedList<String> debugs = new LinkedList<String>();
     
@@ -47,11 +48,13 @@ public class Lx47Algorithm
     }
     
     int countEliasExpGammaBits(int value, int exp) {
-        return countEliasGammaBits((value >> exp) + 1) + exp;
+        return (exp==0) ? countEliasGammaBits(value) : (countEliasGammaBits((value >> exp) + 1) + exp);
     }
 
     int countSeqBits(int prevLits, int offset, int len) {
-        return (prevLits>0 ? 0 : 1) + countEliasExpGammaBits(offset, 6) + countEliasGammaBits(len-1);
+        return (prevLits>0 ? 0 : 1) 
+               + countEliasExpGammaBits(offset, OFFSET_EXP_BITS) 
+               + countEliasGammaBits(len-1);
     }
     
     int countLitBits(int lits) {
@@ -182,9 +185,13 @@ public class Lx47Algorithm
 
         void writeEliasExpGamma(int value, int exp) {
             assert value > 0;
-            writeEliasGamma((value >> exp) + 1);
-            for (int i=exp-1; i>=0; i--) {
-                writeBit(value & (1<<i));
+            if (exp == 0)
+                writeEliasGamma(value);
+            else {
+                writeEliasGamma((value >> exp) + 1);
+                for (int i=exp-1; i>=0; i--) {
+                    writeBit(value & (1<<i));
+                }
             }
         }
         
@@ -196,31 +203,8 @@ public class Lx47Algorithm
             writeEliasGamma(value-1);
         }
 
-        void write2byte(int offset) {
-            assert offset >= 0 && offset <= 65535;
-            if (offset < 128)
-                writeByte(offset);
-            else {
-                offset -= 128;
-                writeByte((offset & 127) | 128);
-                for (int mask = 1024; mask > 127; mask >>= 1) {
-                    writeBit(offset & mask);
-                }
-            }
-        }
-
-        void write2Gbyte(int offset) {
-            assert offset >= 0 && offset <= 65535;
-            if (offset < 128)
-                writeByte(offset);
-            else {
-                writeByte((offset & 127) | 128);
-                writeEliasGamma(offset >> 7);
-            }
-        }
-
         void writeOffset(int offset) {
-            writeEliasExpGamma(offset, 6);
+            writeEliasExpGamma(offset, OFFSET_EXP_BITS);
         }
     }
 
@@ -345,6 +329,8 @@ public class Lx47Algorithm
         
         int readEliasExpGamma(int exp) {
             int val = readEliasGamma();
+            if (exp == 0)
+                return val;
             if (val < 0)
                 return val;
             val = (val-1) << exp;
@@ -388,7 +374,7 @@ public class Lx47Algorithm
         }
 
         int readOffset() {
-            return readEliasExpGamma(6);
+            return readEliasExpGamma(OFFSET_EXP_BITS);
         }
     }
     

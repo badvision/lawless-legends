@@ -1211,94 +1211,31 @@ class A2PackPartitions
         //println "Reading font #$num from '$path'."
         fonts[name] = [num:num, buf:readBinary(path)]
     }
-
-    static int lx47Uncomp = 0
-    static int lx47Comp = 0
+    
+    static int uncompTotal = 0
+    static int lz4Total = 0
+    static int lx47Total = 0
     static int lx47Savings = 0
 
     // Transform the LZ4 format to something we call "LZ4M", where the small offsets are stored
     // as one byte instead of two. In our data, that's about 1/3 of the offsets.
     //
-    def old_testLx47(data, inLen, uncompData, uncompLen)
-    {
-        def lw = new Lx47Algorithm.Lx47Writer(uncompLen)
-        def sp = 0
-        while (true) 
-        {
-            // First comes the token: 4 bits literal len, 4 bits match len
-            def token = (data[sp++] & 0xFF)
-            def matchLen = token & 0xF
-            def literalLen = token >> 4
-            
-            // The literal length might get extended
-            if (literalLen == 15) {
-                while (true) {
-                    token = (data[sp++] & 0xFF)
-                    literalLen += token
-                    if (token != 0xFF)
-                        break
-                }
-            }
-            
-            //println String.format("Literal: ptr=\$%x, len=\$%x.", sp, literalLen)
-
-            // Output literal len, and copy the literal bytes
-            lw.writeLiteralLen(literalLen+1)
-            for ( ; literalLen > 0; --literalLen)
-                lw.writeByte(data[sp++])
-            
-            // The last block has only literals, and no match
-            if (sp == inLen)
-                break
-            
-            // Grab the offset
-            token = data[sp++] & 0xFF
-            def offset = token | ((data[sp++] & 0xFF) << 8)
-
-            // Output the low part of the offset, then any extraneous high bits
-            assert offset >= 1
-            lw.writeOffset(offset)
-            
-            // The match length might get extended
-            if (matchLen == 15) {
-                while (true) {
-                    token = (data[sp++] & 0xFF)
-                    matchLen += token
-                    if (token != 0xFF)
-                        break
-                }
-            }
-            //println String.format("Match: offset=\$%x, len=\$%x.", offset, matchLen)
-
-            // Encode the match len            
-            matchLen += 4   // min match length is 4
-            lw.writeMatchLen(matchLen-3)
-        }
-        
-        def savings = inLen - lw.outPos
-        lx47Savings += savings
-        println String.format("nOffsets=%d nPrev1=%d nPrev2=%d", nOffsets, nPrevOffsets, nPrev2Offsets)
-        println String.format("lz47 savings=%d bigLits=%d bigMatches=%d, total=%d", savings, nBigLits, nBigMatches, lx47Savings)
-    }
-    
-    // Transform the LZ4 format to something we call "LZ4M", where the small offsets are stored
-    // as one byte instead of two. In our data, that's about 1/3 of the offsets.
-    //
-    def testLx47(data, inLen, uncompData, uncompLen)
+    def testLx47(inData, inLen, lz4Len)
     {
         def lx47 = new Lx47Algorithm()
         def inputData = new byte[inLen]
-        System.arraycopy(data, 0, inputData, 0, inLen)
+        System.arraycopy(inData, 0, inputData, 0, inLen)
         def outputData = lx47.compress(inputData)
         def uncomp = new byte[inLen]
         lx47.decompress(outputData, uncomp)
         assert uncomp == inputData
-        def savings = inLen - outputData.length
-        lx47Uncomp += uncompLen
-        lx47Comp += (uncompLen - outputData.length)
+        def savings = lz4Len - outputData.length
+        uncompTotal += inLen
         lx47Savings += savings
-        println String.format("lz47 savings=%d total_uncomp=%d total_comp=%d total_savings=%d", 
-            savings, lx47Uncomp, lx47Comp, lx47Savings)
+        lz4Total += lz4Len
+        lx47Total += outputData.length
+        println String.format("lz47 usize=%d savings=%d utot=%d lz4tot=%d lx47tot=%d total_savings=%d", 
+            inLen, savings, uncompTotal, lz4Total, lx47Total, lx47Savings)
     }
     
     // Transform the LZ4 format to something we call "LZ4M", where the small offsets are stored
@@ -1417,7 +1354,7 @@ class A2PackPartitions
         
         // Then recompress to LZ4M (pretty much always smaller)
         def recompressedLen = recompress(compressedData, compressedLen, uncompressedData, uncompressedLen)
-        testLx47(compressedData, recompressedLen, uncompressedData, uncompressedLen)
+        testLx47(uncompressedData, uncompressedLen, recompressedLen)
 
         // If we saved at least 20 bytes, take the compressed version.
         if ((uncompressedLen - recompressedLen) >= 20) {

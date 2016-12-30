@@ -11,7 +11,7 @@ import java.util.Arrays;
 
 public class Lx47Algorithm
 {
-    static final int MAX_OFFSET = 16383;  /* range 1..2176 */
+    static final int MAX_OFFSET = 16384;  /* range 1..65536 */
     static final int MAX_LEN = 256;  /* range 2..65536 */
     static final int OFFSET_EXP_BITS = 6;
     

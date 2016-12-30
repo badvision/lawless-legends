@@ -309,10 +309,10 @@ public class Lx47Algorithm
         private int indexByte;
         private int mask;
 
-        Lx47Reader(byte[] inBuf) {
+        Lx47Reader(byte[] inBuf, int inStart) {
             buf = inBuf;
             mask = 0;
-            inPos = 0;
+            inPos = inStart;
         }
 
         int readByte() {
@@ -401,11 +401,11 @@ public class Lx47Algorithm
         //System.out.format("OK [%d]: %s\n", debugs.size(), expect);
     }
 
-    public void decompress(byte[] input_data, byte[] output_data)
+    public void decompress(byte[] input_data, int inStart, byte[] output_data, int outStart, int outLen)
     {
         int len;
-        Lx47Reader r = new Lx47Reader(input_data);
-        int outPos = 0;
+        Lx47Reader r = new Lx47Reader(input_data, inStart);
+        int outPos = outStart;
         
         // Now decompress until done.
         chkDebug("start");
@@ -422,7 +422,9 @@ public class Lx47Algorithm
                 if (len != 254)
                     break;
             }
-            if (outPos == output_data.length)
+            
+            // Check for EOF at the end of each literal string
+            if (outPos == outStart+outLen)
                 break;
             
             // Not a literal, so it's a sequence. Get len, offset, and copy.
@@ -436,9 +438,6 @@ public class Lx47Algorithm
         }
         
         chkDebug("EOF");
-        
-        assert outPos == output_data.length : 
-               String.format("Len mismatch: expecting %d, got %d", output_data.length, outPos);
     }
     
     public byte[] compress(byte[] input_data) {
@@ -446,7 +445,7 @@ public class Lx47Algorithm
             input_data = "aaaaaaaaa".getBytes();
             byte[] testComp = compressOptimal(optimize(input_data), input_data);
             byte[] testDecomp = new byte[input_data.length];
-            decompress(testComp, testDecomp);
+            decompress(testComp, 0, testDecomp, 0, input_data.length);
             assert Arrays.equals(input_data, testDecomp);
             System.out.println("Good!");
             System.exit(1);

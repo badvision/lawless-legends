@@ -1226,16 +1226,31 @@ class A2PackPartitions
         def inputData = new byte[inLen]
         System.arraycopy(inData, 0, inputData, 0, inLen)
         def outputData = lx47.compress(inputData)
-        def uncomp = new byte[inLen]
-        lx47.decompress(outputData, uncomp)
-        assert uncomp == inputData
         def savings = lz4Len - outputData.length
-        uncompTotal += inLen
-        lx47Savings += savings
-        lz4Total += lz4Len
-        lx47Total += outputData.length
-        println String.format("lz47 usize=%d savings=%d utot=%d lz4tot=%d lx47tot=%d total_savings=%d", 
-            inLen, savings, uncompTotal, lz4Total, lx47Total, lx47Savings)
+        if (savings >= 8) {
+            //def uncomp = new byte[inLen]
+            //lx47.decompress(outputData, 0, uncomp, 0, inLen)
+            //assert uncomp == inputData
+            
+            // Test overlapped decompression
+            def underlap = 2
+            def buf = new byte[inLen+underlap]
+            def initialOffset = inLen - outputData.length + underlap;
+            System.arraycopy(outputData, 0, buf, initialOffset, outputData.length)
+            lx47.decompress(buf, initialOffset, buf, 0, inLen)
+            def uncomp = Arrays.copyOfRange(buf, 0, inLen)
+            assert uncomp == inputData
+            
+            uncompTotal += inLen
+            lx47Savings += savings
+            lz4Total += lz4Len
+            lx47Total += outputData.length
+            println String.format("lz47 usize=%d savings=%d utot=%d lz4tot=%d lx47tot=%d total_savings=%d", 
+                inLen, savings, uncompTotal, lz4Total, lx47Total, lx47Savings)
+        }
+        else {
+            println String.format("lz47 usize=%d savings=%d SKIP", inLen, savings)
+        }
     }
     
     // Transform the LZ4 format to something we call "LZ4M", where the small offsets are stored

@@ -11,7 +11,7 @@ import java.util.Arrays;
 
 public class Lx47Algorithm
 {
-    static final int MAX_OFFSET = 65536;  /* range 1..2176 */
+    static final int MAX_OFFSET = 16383;  /* range 1..2176 */
     static final int MAX_LEN = 256;  /* range 2..65536 */
     static final int OFFSET_EXP_BITS = 6;
     
@@ -38,6 +38,7 @@ public class Lx47Algorithm
 
     int countEliasGammaBits(int value) {
         int bits;
+        assert value >= 1 && value <= 255;
 
         bits = 1;
         while (value > 1) {
@@ -58,7 +59,15 @@ public class Lx47Algorithm
     }
     
     int countLitBits(int lits) {
-        return (lits==0) ? 0 : (countEliasGammaBits(lits+1) + (lits * 8));
+        if (lits == 0)
+            return 0;
+        int bits = lits * 8;
+        while (lits > 0) {
+            int n = Math.min(254, lits);
+            bits += countEliasGammaBits(n+1);
+            lits -= n;
+        }
+        return bits;
     }
 
     Optimal[] optimize(byte[] input_data) {
@@ -248,11 +257,16 @@ public class Lx47Algorithm
             if (optimal[input_index].len == 0) {
 
                 // Literal string
-                addDebug("lits l=%d", optimal[input_index].lits);
-                w.writeLiteralLen(optimal[input_index].lits);
-                for (i = 1; i <= optimal[input_index].lits; i++) {
-                    addDebug("lit $%x", input_data[input_index - optimal[input_index].lits + i]);
-                    w.writeByte(input_data[input_index - optimal[input_index].lits + i]);
+                int pos = input_index - optimal[input_index].lits + 1;
+                while (optimal[input_index].lits > 0) {
+                    int n = Math.min(254, optimal[input_index].lits);
+                    addDebug("lits l=%d", n);
+                    w.writeLiteralLen(n);
+                    for (i = 0; i < n; i++, pos++) {
+                        addDebug("lit $%x", input_data[pos]);
+                        w.writeByte(input_data[pos]);
+                    }
+                    optimal[input_index].lits -= n;
                 }
                 prevIsLit = true;
 
@@ -398,11 +412,15 @@ public class Lx47Algorithm
         while (true) 
         {
             // Check for literal string
-            len = r.readLiteralLen();
-            chkDebug("lits l=%d", len);
-            while (len-- > 0) {
-                output_data[outPos++] = (byte) r.readByte();
-                chkDebug("lit $%x", output_data[outPos-1]);
+            while (true) {
+                len = r.readLiteralLen();
+                chkDebug("lits l=%d", len);
+                for (int i=0; i<len; i++) {
+                    output_data[outPos++] = (byte) r.readByte();
+                    chkDebug("lit $%x", output_data[outPos-1]);
+                }
+                if (len != 254)
+                    break;
             }
             if (outPos == output_data.length)
                 break;

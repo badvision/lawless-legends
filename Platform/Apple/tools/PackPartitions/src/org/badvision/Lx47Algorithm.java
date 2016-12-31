@@ -19,7 +19,7 @@ public class Lx47Algorithm
     
     void addDebug(String format, Object... arguments) {
         String str = String.format(format, arguments);
-        System.out.println("Gen: " + str);
+        //System.out.println("Gen: " + str);
         debugs.add(str);
     }
 
@@ -184,9 +184,9 @@ public class Lx47Algorithm
             mask >>= 1;
             bitPos++;
         }
-
+        
         void writeEliasGamma(int value) {
-            assert value > 0 && value <= 65535;
+            assert value >= 1 && value <= 255;
             int i;
             for (i = 2; i <= value; i <<= 1)
                 writeBit(0);
@@ -340,21 +340,6 @@ public class Lx47Algorithm
             return out;
         }
         
-        int readEliasExpGamma(int exp) {
-            int val = readEliasGamma();
-            if (exp == 0)
-                return val;
-            if (val < 0)
-                return val;
-            val = (val-1) << exp;
-            for (int i=exp-1; i>=0; i--) {
-                int bit = readBit();
-                if (bit > 0)
-                    val |= (1<<i);
-            }
-            return val;
-        }
-        
         int readLiteralLen() {
             return readEliasGamma() - 1;
         }
@@ -378,7 +363,7 @@ public class Lx47Algorithm
         String expect = debugs.removeFirst();
         assert expect.equals(toCheck) : 
             String.format("Expecting '%s', got '%s'", expect, toCheck);
-        System.out.format("OK [%d]: %s\n", debugs.size(), expect);
+        //System.out.format("OK [%d]: %s\n", debugs.size(), expect);
     }
 
     public void decompress(byte[] input_data, int inStart, byte[] output_data, int outStart, int outLen)
@@ -422,8 +407,8 @@ public class Lx47Algorithm
     }
     
     public byte[] compress(byte[] input_data) {
-        if (true) {
-            input_data = "aaaaaaaaa".getBytes();
+        if (false) {
+            input_data = "hellohelloabchello".getBytes();
             byte[] testComp = compressOptimal(optimize(input_data), input_data);
             byte[] testDecomp = new byte[input_data.length];
             decompress(testComp, 0, testDecomp, 0, input_data.length);

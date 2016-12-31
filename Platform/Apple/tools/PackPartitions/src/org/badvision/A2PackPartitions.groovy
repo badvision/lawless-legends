@@ -1232,7 +1232,7 @@ class A2PackPartitions
             //lx47.decompress(outputData, 0, uncomp, 0, inLen)
             //assert uncomp == inputData
             
-            // Test overlapped decompression
+            // Verify the stream comes out right with overlapped decompression
             def underlap = 2
             def buf = new byte[inLen+underlap]
             def initialOffset = inLen - outputData.length + underlap;

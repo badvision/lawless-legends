@@ -51,7 +51,7 @@ public class Lx47Algorithm
     int countEliasExpGammaBits(int value, int exp) {
         return (exp==0) ? countEliasGammaBits(value) : (countEliasGammaBits((value >> exp) + 1) + exp);
     }
-
+    
     int countSeqBits(int prevLits, int offset, int len) {
         return (prevLits>0 ? 0 : 1) 
                + countEliasExpGammaBits(offset, OFFSET_EXP_BITS) 

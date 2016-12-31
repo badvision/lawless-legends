@@ -69,7 +69,7 @@ public class Lx47Algorithm
         }
         return bits;
     }
-
+    
     Optimal[] optimize(byte[] input_data) {
         int[] min = new int[MAX_OFFSET+1];
         int[] max = new int[MAX_OFFSET+1];
@@ -208,11 +208,8 @@ public class Lx47Algorithm
             writeEliasGamma(value+1);
         }
 
-        void writeMatchLen(int value) {
-            writeEliasGamma(value-1);
-        }
-
-        void writeOffset(int offset) {
+        void writeCodePair(int matchLen, int offset) {
+            writeEliasGamma(matchLen-1);
             writeEliasExpGamma(offset, OFFSET_EXP_BITS);
         }
     }
@@ -280,8 +277,7 @@ public class Lx47Algorithm
                 
                 // Now write sequence info
                 addDebug("seq l=%d o=%d", optimal[input_index].len, optimal[input_index].offset);
-                w.writeMatchLen(optimal[input_index].len);
-                w.writeOffset(optimal[input_index].offset);
+                w.writeCodePair(optimal[input_index].len, optimal[input_index].offset);
                 prevIsLit = false;
             }
             
@@ -360,35 +356,11 @@ public class Lx47Algorithm
             return readEliasGamma() - 1;
         }
 
-        int readMatchLen() {
-            int len = readEliasGamma() + 1;
-            return (len > MAX_LEN) ? -1 : len;
-        }
-
-        int read2byte() {
-            int val = readByte();
-            if ((val & 128) == 0)
-                return val;
-            val &= 127;
-            for (int mask = 1024; mask > 127; mask >>= 1) {
-                if (readBit() == 1)
-                    val |= mask;
-            }
-            val += 128;
-            return val;
-        }
-
-        int read2Gbyte() {
-            int val = readByte();
-            if ((val & 128) == 0)
-                return val;
-            val &= 127;
-            val |= (readEliasGamma() << 7);
-            return val;
-        }
-
-        int readOffset() {
-            return readEliasExpGamma(OFFSET_EXP_BITS);
+        int readCodePair()
+        {
+            int matchLen = readEliasGamma() + 1;
+            int offset = readEliasExpGamma(OFFSET_EXP_BITS);
+            return matchLen | (offset<<16);
         }
     }
     
@@ -428,8 +400,9 @@ public class Lx47Algorithm
                 break;
             
             // Not a literal, so it's a sequence. Get len, offset, and copy.
-            len = r.readMatchLen();
-            int off = r.readOffset();
+            int codePair = r.readCodePair();
+            len = codePair & 0xFFFF;
+            int off = codePair >> 16;
             chkDebug("seq l=%d o=%d", len, off);
             while (len-- > 0) {
                 output_data[outPos] = output_data[outPos - off];

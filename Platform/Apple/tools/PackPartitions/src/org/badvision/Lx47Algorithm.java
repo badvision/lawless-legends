@@ -19,7 +19,7 @@ public class Lx47Algorithm
     
     void addDebug(String format, Object... arguments) {
         String str = String.format(format, arguments);
-        //System.out.println("Gen: " + str);
+        System.out.println("Gen: " + str);
         debugs.add(str);
     }
 
@@ -52,10 +52,12 @@ public class Lx47Algorithm
         return (exp==0) ? countEliasGammaBits(value) : (countEliasGammaBits((value >> exp) + 1) + exp);
     }
     
-    int countSeqBits(int prevLits, int offset, int len) {
-        return (prevLits>0 ? 0 : 1) 
-               + countEliasExpGammaBits(offset, OFFSET_EXP_BITS) 
-               + countEliasGammaBits(len-1);
+    int countCodePair(int prevLits, int matchLen, int offset) {
+        int nBits = (prevLits>0 ? 0 : 1) 
+                    + 8 // 8 for the byte that's always emitted
+                    + (offset>=64 ? countEliasGammaBits(offset>>6) : 0)
+                    + (matchLen>2 ? countEliasGammaBits(matchLen-2) : 0);
+        return nBits;
     }
     
     int countLitBits(int lits) {
@@ -118,7 +120,7 @@ public class Lx47Algorithm
                 for (len = 2; len <= MAX_LEN; len++) {
                     if (len > best_len) {
                         best_len = len;
-                        bits = optimal[i-len].bits + countSeqBits(optimal[i-len].lits, offset, len);
+                        bits = optimal[i-len].bits + countCodePair(optimal[i-len].lits, len, offset);
                         if (optimal[i].bits > bits) {
                             optimal[i].bits = bits;
                             optimal[i].offset = offset;
@@ -192,25 +194,26 @@ public class Lx47Algorithm
                 writeBit(value & i);
         }
 
-        void writeEliasExpGamma(int value, int exp) {
-            assert value > 0;
-            if (exp == 0)
-                writeEliasGamma(value);
-            else {
-                writeEliasGamma((value >> exp) + 1);
-                for (int i=exp-1; i>=0; i--) {
-                    writeBit(value & (1<<i));
-                }
-            }
-        }
-        
         void writeLiteralLen(int value) {
             writeEliasGamma(value+1);
         }
 
-        void writeCodePair(int matchLen, int offset) {
-            writeEliasGamma(matchLen-1);
-            writeEliasExpGamma(offset, OFFSET_EXP_BITS);
+        void writeCodePair(int matchLen, int offset) 
+        {
+            int data = offset & 63; // 6 bits
+
+            if (offset >= 64)
+                data |= 64;
+            assert matchLen >= 2;
+            if (matchLen > 2)
+                data |= 128;
+
+            writeByte(data);
+            
+            if (offset >= 64)
+                writeEliasGamma(offset>>6);
+            if (matchLen > 2)
+                writeEliasGamma(matchLen-2);
         }
     }
 
@@ -358,8 +361,13 @@ public class Lx47Algorithm
 
         int readCodePair()
         {
-            int matchLen = readEliasGamma() + 1;
-            int offset = readEliasExpGamma(OFFSET_EXP_BITS);
+            int data = readByte();
+            int offset = data & 63; // 6 bits
+            int matchLen = 2;
+            if ((data & 64) == 64)
+                offset |= readEliasGamma() << 6;
+            if ((data & 128) == 128)
+                matchLen += readEliasGamma();
             return matchLen | (offset<<16);
         }
     }
@@ -370,7 +378,7 @@ public class Lx47Algorithm
         String expect = debugs.removeFirst();
         assert expect.equals(toCheck) : 
             String.format("Expecting '%s', got '%s'", expect, toCheck);
-        //System.out.format("OK [%d]: %s\n", debugs.size(), expect);
+        System.out.format("OK [%d]: %s\n", debugs.size(), expect);
     }
 
     public void decompress(byte[] input_data, int inStart, byte[] output_data, int outStart, int outLen)
@@ -414,7 +422,7 @@ public class Lx47Algorithm
     }
     
     public byte[] compress(byte[] input_data) {
-        if (false) {
+        if (true) {
             input_data = "aaaaaaaaa".getBytes();
             byte[] testComp = compressOptimal(optimize(input_data), input_data);
             byte[] testDecomp = new byte[input_data.length];

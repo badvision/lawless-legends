@@ -36,7 +36,8 @@ public class Lx47Algorithm
         int next;
     }
 
-    int countEliasGammaBits(int value) {
+    // It's Elias Gamma, bit the value bits interspersed with the mark bits
+    int countGammaBits(int value) {
         int bits;
         assert value >= 1 && value <= 255;
 
@@ -48,15 +49,11 @@ public class Lx47Algorithm
         return bits;
     }
     
-    int countEliasExpGammaBits(int value, int exp) {
-        return (exp==0) ? countEliasGammaBits(value) : (countEliasGammaBits((value >> exp) + 1) + exp);
-    }
-    
     int countCodePair(int prevLits, int matchLen, int offset) {
         int nBits = (prevLits>0 ? 0 : 1) 
                     + 8 // 8 for the byte that's always emitted
-                    + (offset>=64 ? countEliasGammaBits(offset>>6) : 0)
-                    + (matchLen>2 ? countEliasGammaBits(matchLen-2) : 0);
+                    + (offset>=64 ? countGammaBits(offset>>6) : 0)
+                    + (matchLen>2 ? countGammaBits(matchLen-2) : 0);
         return nBits;
     }
     
@@ -66,7 +63,7 @@ public class Lx47Algorithm
         int bits = lits * 8;
         while (lits > 0) {
             int n = Math.min(254, lits);
-            bits += countEliasGammaBits(n+1);
+            bits += countGammaBits(n+1);
             lits -= n;
         }
         return bits;
@@ -185,17 +182,36 @@ public class Lx47Algorithm
             bitPos++;
         }
         
-        void writeEliasGamma(int value) {
+        void writeGamma(int value) {
             assert value >= 1 && value <= 255;
+            
             int i;
-            for (i = 2; i <= value; i <<= 1)
+            
+            // Find highest set bit
+            for (i = 128; (i&value) == 0; i >>= 1)
+                ;
+            
+            // Write out extra bits with markers
+            while (i > 1) {
+                i >>= 1;
                 writeBit(0);
-            while ((i >>= 1) > 0)
                 writeBit(value & i);
+            }
+            
+            // And finish
+            writeBit(1);
         }
+        
+        // 1: 1
+        // 2: 010       -> 001
+        // 3: 011       -> 011
+        // 4: 00100     -> 00001
+        // 5: 00101     -> 00011
+        // 6: 00110     -> 01001
+        // 7: 00111     -> 01011
 
         void writeLiteralLen(int value) {
-            writeEliasGamma(value+1);
+            writeGamma(value+1);
         }
 
         void writeCodePair(int matchLen, int offset) 
@@ -211,9 +227,9 @@ public class Lx47Algorithm
             writeByte(data);
             
             if (offset >= 64)
-                writeEliasGamma(offset>>6);
+                writeGamma(offset>>6);
             if (matchLen > 2)
-                writeEliasGamma(matchLen-2);
+                writeGamma(matchLen-2);
         }
     }
 
@@ -328,20 +344,15 @@ public class Lx47Algorithm
             return ret;
         }
 
-        int readEliasGamma() {
-            int nBits = 0;
-            while (readBit() == 0)
-                ++nBits;
-            if (nBits >= 16)
-                return -99; // EOF marker
+        int readGamma() {
             int out = 1;
-            while (nBits-- > 0)
+            while (readBit() == 0)
                 out = (out << 1) | readBit();
             return out;
         }
         
         int readLiteralLen() {
-            return readEliasGamma() - 1;
+            return readGamma() - 1;
         }
 
         int readCodePair()
@@ -350,9 +361,9 @@ public class Lx47Algorithm
             int offset = data & 63; // 6 bits
             int matchLen = 2;
             if ((data & 64) == 64)
-                offset |= readEliasGamma() << 6;
+                offset |= readGamma() << 6;
             if ((data & 128) == 128)
-                matchLen += readEliasGamma();
+                matchLen += readGamma();
             return matchLen | (offset<<16);
         }
     }

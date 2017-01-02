@@ -22,9 +22,13 @@
 ; Global definitions
 !source "../include/global.i"
 
-bits	= $B		; len 1
+tmp	= $2		; len 2
+pTmp	= $4		; len 2
+bits	= $6		; len 1
+
 pSrc	= $C		; len 2
 pDst	= $E		; len 2
+pEnd	= $10		; len 2
 
 ; Decompress from pSrc to pDst. They can overlap, as long as the source block
 ; ends (at least) 2 bytes beyond the end of the dest block, e.g.
@@ -33,28 +37,31 @@ pDst	= $E		; len 2
 ; This guarantees that the decompression won't overwrite any source material
 ; before it gets used.
 decomp	ldy #0		; invariant: Y=0 unless we're mid-copy
-	sty bits
+	beq .lits2	; always taken
 
 .lits	lsr bits
 	bne +
-	jsr getBits
+.lits2	jsr getBits
 +	bcc .seq
-.lits2	jsr rdGamma
+	jsr rdGamma
 	tax
+	cpx #255	; special case: long literal marked by len=255; chk and save to carry
 -	lda (pSrc),y
 	sta (pDst),y
-	iny
-	dex
+	inc pSrc
+	bne +
+	inc pSrc+1
++	inc pDst
+	bne +
+	inc pDst+1
++	dex
 	bne -
-	jsr advSrc
-	jsr advDst
-	iny		; special case: long literal string marked by len=255
-	beq .lits2
-	ldy #0		; back to invariant
-.endchk	cmp pEnd	; check for done at end of each literal string
+	bcs .lits	; (see special case above)
+.endchk	lda pDst+1
+	cmp pEnd+1	; check for done at end of each literal string
 	bcc .seq
-	lda pDst+1
-	cmp pEnd+1
+	lda pDst
+	cmp pEnd
 	bcc .seq
 	rts
 
@@ -96,10 +103,16 @@ decomp	ldy #0		; invariant: Y=0 unless we're mid-copy
 	iny
 	dex
 	bne -
-	jsr advDst
-	ldy #0
-	beq .lits	; always taken
+	tya
+	clc
+	adc pDst
+	sta pDst
+	ldy #0		; back to 0 as expected by lits section
+	bcc .lits
+	inc pDst+1
+	bcs .lits	; always taken
 
+; Read an Elias Gamma value into A. Destroys X. Sets carry.
 rdGamma	lda #1
 -	asl bits
 	bne +
@@ -109,10 +122,11 @@ rdGamma	lda #1
 	bne +
 	jsr getBits
 +	rol
-	bcc -		; always taken except if overflow error
+	bcc -		; always taken except if overflow error, in which case WTF.
 .ret	rts
 
-getBits	pha
+; Get another 8 bits into our bit buffer. Destroys X. Preserves A. Requires Y=0.
+getBits	tax
 	lda (pSrc),y
 	inc pSrc
 	bne +
@@ -120,15 +134,5 @@ getBits	pha
 +	sec
 	rol
 	sta bits
-	pla
+	txa
 	rts
-
-advDst	inx
-	inx
-advSrc	tya
-	clc
-	adc pSrc,x
-	sta pSrc,x
-	bcc +
-	inc pSrc+1,x
-+	rts

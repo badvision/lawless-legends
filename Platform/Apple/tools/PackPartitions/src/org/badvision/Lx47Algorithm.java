@@ -61,10 +61,10 @@ public class Lx47Algorithm
     int countLitBits(int lits) {
         if (lits == 0)
             return 0;
-        int bits = (lits * 8) + 1;
+        int bits = lits * 8;
         while (lits > 0) {
             int n = Math.min(255, lits);
-            bits += countGammaBits(n);
+            bits += 1 + countGammaBits(n);
             lits -= n;
         }
         return bits;
@@ -204,7 +204,12 @@ public class Lx47Algorithm
         }
         
         void writeLiteralLen(int value) {
-            writeGamma(value);
+            if (value == 0)
+                writeBit(0);
+            else {
+                writeBit(1);
+                writeGamma(value);
+            }
         }
 
         void writeCodePair(int matchLen, int offset) 
@@ -268,7 +273,6 @@ public class Lx47Algorithm
 
                 // Literal string
                 int pos = input_index - optimal[input_index].lits + 1;
-                w.writeBit((optimal[input_index].lits > 0) ? 1 : 0);
                 while (optimal[input_index].lits > 0) {
                     int n = Math.min(255, optimal[input_index].lits);
                     addDebug("lits l=%d", n);
@@ -347,7 +351,10 @@ public class Lx47Algorithm
         }
         
         int readLiteralLen() {
-            return readGamma();
+            if (readBit() == 0)
+                return 0;
+            else
+                return readGamma();
         }
 
         int readCodePair()
@@ -357,7 +364,7 @@ public class Lx47Algorithm
             int matchLen = 2;
             if ((data & 64) == 64)
                 offset |= readGamma() << 6;
-            offset++;
+            offset++; // important
             if ((data & 128) == 128)
                 matchLen += readGamma();
             return matchLen | (offset<<16); // pack both vals into a single int
@@ -384,20 +391,16 @@ public class Lx47Algorithm
         while (true) 
         {
             // Check for literal string
-            if (r.readBit() != 0) {
-                while (true) {
-                    len = r.readLiteralLen();
-                    chkDebug("lits l=%d", len);
-                    for (int i=0; i<len; i++) {
-                        output_data[outPos++] = (byte) r.readByte();
-                        chkDebug("lit $%x", output_data[outPos-1]);
-                    }
-                    if (len != 255)
-                        break;
+            while (true) {
+                len = r.readLiteralLen();
+                chkDebug("lits l=%d", len);
+                for (int i=0; i<len; i++) {
+                    output_data[outPos++] = (byte) r.readByte();
+                    chkDebug("lit $%x", output_data[outPos-1]);
                 }
+                if (len != 255)
+                    break;
             }
-            else
-                chkDebug("lits l=0");
             
             // Check for EOF at the end of each literal string
             if (outPos == outStart+outLen)

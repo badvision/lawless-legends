@@ -2,6 +2,7 @@
 *.swp
 .DS_Store
 *.old
+**/old/
 *.bak
 *.orig
 

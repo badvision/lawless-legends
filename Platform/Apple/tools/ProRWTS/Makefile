@@ -1,0 +1,10 @@
+.SUFFIXES	=
+PRORWTS = PRORWTS2\#800
+
+all: $(PRORWTS)
+
+clean:
+	-rm $(PRORWTS)
+
+$(PRORWTS): PRORWTS2.S
+	acme -o $(PRORWTS) PRORWTS2.S

@@ -62,8 +62,8 @@ public class Lx47Algorithm
             return 0;
         int bits = lits * 8;
         while (lits > 0) {
-            int n = Math.min(254, lits);
-            bits += countGammaBits(n+1);
+            int n = Math.min(255, lits);
+            bits += 1 + countGammaBits(n);
             lits -= n;
         }
         return bits;
@@ -202,16 +202,13 @@ public class Lx47Algorithm
             writeBit(1);
         }
         
-        // 1: 1
-        // 2: 010       -> 001
-        // 3: 011       -> 011
-        // 4: 00100     -> 00001
-        // 5: 00101     -> 00011
-        // 6: 00110     -> 01001
-        // 7: 00111     -> 01011
-
         void writeLiteralLen(int value) {
-            writeGamma(value+1);
+            if (value == 0)
+                writeBit(0);
+            else {
+                writeBit(1);
+                writeGamma(value);
+            }
         }
 
         void writeCodePair(int matchLen, int offset) 
@@ -275,7 +272,7 @@ public class Lx47Algorithm
                 // Literal string
                 int pos = input_index - optimal[input_index].lits + 1;
                 while (optimal[input_index].lits > 0) {
-                    int n = Math.min(254, optimal[input_index].lits);
+                    int n = Math.min(255, optimal[input_index].lits);
                     addDebug("lits l=%d", n);
                     w.writeLiteralLen(n);
                     for (i = 0; i < n; i++, pos++) {
@@ -352,7 +349,8 @@ public class Lx47Algorithm
         }
         
         int readLiteralLen() {
-            return readGamma() - 1;
+            int b = readBit();
+            return (b==0) ? 0 : readGamma();
         }
 
         int readCodePair()
@@ -395,7 +393,7 @@ public class Lx47Algorithm
                     output_data[outPos++] = (byte) r.readByte();
                     chkDebug("lit $%x", output_data[outPos-1]);
                 }
-                if (len != 254)
+                if (len != 255)
                     break;
             }
             

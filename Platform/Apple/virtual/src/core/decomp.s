@@ -34,12 +34,13 @@ pDst	= $E		; len 2
 ; before it gets used.
 decomp	ldy #0		; invariant: Y=0 unless we're mid-copy
 	sty bits
-	beq .lits
 
-.lits	jsr rdGamma
+.lits	lsr bits
+	bne +
+	jsr getBits
++	bcc .seq
+.lits2	jsr rdGamma
 	tax
-	dex
-	beq +
 -	lda (pSrc),y
 	sta (pDst),y
 	iny
@@ -47,49 +48,49 @@ decomp	ldy #0		; invariant: Y=0 unless we're mid-copy
 	bne -
 	jsr advSrc
 	jsr advDst
-	cpy #254	; special case: long literal string
-	beq .lits
+	iny		; special case: long literal string marked by len=255
+	beq .lits2
 	ldy #0		; back to invariant
-.endchk	cmp pEnd
+.endchk	cmp pEnd	; check for done at end of each literal string
+	bcc .seq
 	lda pDst+1
-	sbc pEnd+1
+	cmp pEnd+1
 	bcc .seq
 	rts
 
 .seq	lda (pSrc),y
-	iny
-	asl
+	inc pSrc
+	bne +
+	inc pSrc+1
++	asl
 	php		; save high bit for later len check
-	asl
-	bcs .bigoff
-	lsr
+	bmi .bigoff
 	lsr
 	sta tmp
-	ldx #0
-	beq .gotoff	; always taken
-.bigoff	sta tmp
+	sty tmp+1	; zero
+	bcc .gotoff	; always taken
+.bigoff	asl
+	sta tmp
 	jsr rdGamma
 	lsr
 	rol tmp
 	lsr
 	rol tmp
-	tax
+	sta tmp+1
 .gotoff	lda pDst
-	sec
+	clc		; effectively add 1 to offset.
 	sbc tmp
 	sta pTmp
-	txa
-	eor #$FF
-	adc pDst+1
-	sta pDst+1
+	lda pDst+1
+	sbc tmp+1
+	sta pTmp+1
 .len	ldx #2
 	plp
 	bcc .gotlen
-	jsr rdGamma	; A>=1 + sec + 1 => final len 3 or more
-	adc #1
+	jsr rdGamma
+	adc #1		; A>=1 + sec + 1 => final len 3 or more
 	tax
-.gotlen	jsr advSrc
-	ldy #0
+.gotlen
 -	lda (pTmp),y
 	sta (pDst),y
 	iny
@@ -113,25 +114,21 @@ rdGamma	lda #1
 
 getBits	pha
 	lda (pSrc),y
-	iny
-	sec
+	inc pSrc
+	bne +
+	inc pSrc+1
++	sec
 	rol
 	sta bits
 	pla
 	rts
 
+advDst	inx
+	inx
 advSrc	tya
 	clc
-	adc pSrc
-	sta pSrc
+	adc pSrc,x
+	sta pSrc,x
 	bcc +
-	inc pSrc+1
-+	rts
-
-advDst	tya
-	clc
-	adc pDst
-	sta pDst
-	bcc +
-	inc pDst+1
+	inc pSrc+1,x
 +	rts

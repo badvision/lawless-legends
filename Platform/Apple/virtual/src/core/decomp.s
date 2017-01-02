@@ -30,20 +30,21 @@ pSrc	= $C		; len 2
 pDst	= $E		; len 2
 pEnd	= $10		; len 2
 
-; Decompress from pSrc to pDst. They can overlap, as long as the source block
-; ends (at least) 2 bytes beyond the end of the dest block, e.g.
+; Decompress from pSrc to pDst, stop at pEnd. The source and dest can overlap, as long as the 
+; source block ends (at least) 2 bytes beyond the end of the dest block, e.g.
 ;    DDDDDDDDDDDDDDD
-;        SSSSSSSSSSSss  <-- 2 bytes beyond dest
+;            SSSSSSSss  <-- 2 bytes beyond dest
 ; This guarantees that the decompression won't overwrite any source material
 ; before it gets used.
-decomp	ldy #0		; invariant: Y=0 unless we're mid-copy
+decomp	!zone {
+	ldy #0		; In lit loop Y must be zero
 	beq .lits2	; always taken
 
-.lits	lsr bits
-	bne +
-.lits2	jsr getBits
-+	bcc .seq
-	jsr rdGamma
+.lits	asl bits	; get bit that tells us whether there's a literal string
+	bne +		; ran out of bits in bit buffer?
+.lits2	jsr .getbts	; get more bits
++	bcc .seq	; if bit was zero, no literals: go straight to sequence
+	jsr .gamma	; Yes we have literals. Get the count.
 	tax
 	cpx #255	; special case: long literal marked by len=255; chk and save to carry
 -	lda (pSrc),y
@@ -57,13 +58,11 @@ decomp	ldy #0		; invariant: Y=0 unless we're mid-copy
 +	dex
 	bne -
 	bcs .lits	; (see special case above)
-.endchk	lda pDst+1
-	cmp pEnd+1	; check for done at end of each literal string
-	bcc .seq
-	lda pDst
+.endchk	lda pDst	; check for done at end of each literal string
 	cmp pEnd
-	bcc .seq
-	rts
+	lda pDst+1
+	sbc pEnd+1
+	bcs .ret
 
 .seq	lda (pSrc),y
 	inc pSrc
@@ -78,7 +77,7 @@ decomp	ldy #0		; invariant: Y=0 unless we're mid-copy
 	bcc .gotoff	; always taken
 .bigoff	asl
 	sta tmp
-	jsr rdGamma
+	jsr .gamma
 	lsr
 	rol tmp
 	lsr
@@ -94,7 +93,7 @@ decomp	ldy #0		; invariant: Y=0 unless we're mid-copy
 .len	ldx #2
 	plp
 	bcc .gotlen
-	jsr rdGamma
+	jsr .gamma
 	adc #1		; A>=1 + sec + 1 => final len 3 or more
 	tax
 .gotlen
@@ -113,20 +112,19 @@ decomp	ldy #0		; invariant: Y=0 unless we're mid-copy
 	bcs .lits	; always taken
 
 ; Read an Elias Gamma value into A. Destroys X. Sets carry.
-rdGamma	lda #1
+.gamma	lda #1
 -	asl bits
 	bne +
-	jsr getBits
+	jsr .getbts
 +	bcs .ret
 	asl bits
 	bne +
-	jsr getBits
+	jsr .getbts
 +	rol
-	bcc -		; always taken except if overflow error, in which case WTF.
-.ret	rts
+	bcc -		; always taken except if overflow error, in which case whatevs.
 
 ; Get another 8 bits into our bit buffer. Destroys X. Preserves A. Requires Y=0.
-getBits	tax
+.getbts	tax
 	lda (pSrc),y
 	inc pSrc
 	bne +
@@ -135,4 +133,5 @@ getBits	tax
 	rol
 	sta bits
 	txa
-	rts
+.ret	rts
+} ; end of zone

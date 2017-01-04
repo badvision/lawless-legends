@@ -1709,8 +1709,8 @@ hddsetaux       sta CLRAUXRD, x
                 sta blokhi
                 pla
                 sta sizehi
-                dec adrhi
-                dec adrhi
+;                dec adrhi      ; MH: this causes the F800 buffer (containing the key block contents)
+;                dec adrhi      ;     to be read instead of FA00 (containing the file's data)
 hddcopycache
     !if enable_seek = 1 {
                 ldy reqcmd

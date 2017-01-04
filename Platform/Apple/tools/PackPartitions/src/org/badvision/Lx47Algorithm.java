@@ -12,7 +12,7 @@ import java.util.Arrays;
 public class Lx47Algorithm
 {
     static final int MAX_OFFSET = 16384;  /* range 1..65536 */
-    static final int MAX_LEN = 256;  /* range 2..65536 */
+    static final int MAX_LEN = 255;  /* range 2..65536 */
     static final int OFFSET_EXP_BITS = 6;
     
     LinkedList<String> debugs = new LinkedList<String>();
@@ -421,15 +421,6 @@ public class Lx47Algorithm
     }
 
     public byte[] compress(byte[] input_data) {
-        if (false) {
-            input_data = "hellohelloabchello".getBytes();
-            byte[] testComp = compressOptimal(optimize(input_data), input_data);
-            byte[] testDecomp = new byte[input_data.length];
-            decompress(testComp, 0, testDecomp, 0, input_data.length);
-            assert Arrays.equals(input_data, testDecomp);
-            System.out.println("Good!");
-            System.exit(1);
-        }
         return compressOptimal(optimize(input_data), input_data);
     }
 }

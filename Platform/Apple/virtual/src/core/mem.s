@@ -62,8 +62,8 @@ reseek_0	= $18		; to reset seek ptr, zero out these 3 locs
 reseek_1	= $1B
 reseek_2	= $1C
 proRWTS		= $F600
-opendir		= proRWTS
-rdwrpart	= opendir+3
+rdwrpart	= proRWTS
+opendir		= rdwrpart+3
 
 ; Memory buffers
 fileBuf		= $4000	; len $400
@@ -83,27 +83,18 @@ gcHash_dstHi	= $5500
 ;------------------------------------------------------------------------------
 ; Relocate all the pieces to their correct locations and perform patching.
 relocate:
-	; Put something interesting on the screen :)
-	jsr ROM_home
-	ldy #0
--	lda .welcomeText,y
-	beq +
-	jsr ROM_cout
-	iny
-	bne -
-.welcomeText: !text "Welcome to LegendOS.",$8D,0
 ; special: clear most of the lower 48k and the ProDOS bank of the LC
-+	bit setLcRW+lcBank1
 	bit setLcRW+lcBank1
-	ldy #0
+	bit setLcRW+lcBank1
 	tya
 	ldx #8
 .clr1	stx .clrst1+2
 	stx .clrst2+2
+	ldy #0
 .clrst1	sta $800,y
 .clrst2	sta $880,y
 	iny
-	bpl .clrst1
+	bpl .clrst1	; yes, bpl not bne, because we're doing 128 bytes per loop
 	inx
 	cpx #$40	; skip our own unrelocated code $4000.4FFF
 	bne +
@@ -172,6 +163,7 @@ relocate:
 ;------------------------------------------------------------------------------
 init: !zone
 	; KLUDGE ALERT! Turning off IIc keyboard buffer as an experiment
+	; FIXME: This depends on ProDOS machine ID byte. ProRWTS doesn't have such a byte. Hmm...
 	lda $BF98	; machine ID byte
 	and #$C8	; mask just the machine bits
 	cmp #$88	; Apple IIc?
@@ -1324,11 +1316,7 @@ saneStart: !zone {
 }
 
 saneCheck: !zone {
-	lda $BF00
-	cmp #$4C
-	beq +
-	+internalErr 'S'
-+	lda $E1
+	lda $E1
 	cmp #$BE
 	bcc +
 	+internalErr 's'
@@ -1953,13 +1941,14 @@ openPartition: !zone
 	sta reqLen
 	lda #0
 	sta reqLen+1
-	lda #0			; cmdread, for drive 1
+	lda #cmdread		; no hi bit => go to drive 1
 	sta tmp
 	jsr opendir
 	lda tmp+1		; get status
 	bne .insert		; zero=ok, 1=err
-	jsr disk_reseek		; by opening, we did an implicit seek
-	lda #2			; and we read 2 bytes
+	sta curMarkPos+1	; by opening we did an implicit seek to zero
+	sta curMarkPos+2
+	lda #2			; and then we read 2 bytes
 	sta curMarkPos
 ; read the full header
 .opened	lda headerBuf		; grab header size
@@ -1969,11 +1958,13 @@ openPartition: !zone
 	lda headerBuf+1		; hi byte too
 	sbc #0
 	sta reqLen+1
-	lda #<headerBuf
+	lda #<(headerBuf+2)
 	sta pDst
-	lda #>headerBuf
+	lda #>(headerBuf+2)
 	sta pDst+1
-	jmp disk_read
+	jsr disk_read
+	inc partFileOpen	; remember we've opened it now
+	rts
 ; ask user to insert the disk
 ; TODO: handle dual drive configuration
 .insert	+safeHome

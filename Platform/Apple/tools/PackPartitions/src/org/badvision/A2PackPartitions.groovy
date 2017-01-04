@@ -1240,7 +1240,6 @@ class A2PackPartitions
         assert compressedLen > 0
         
         // If we saved at least 10 bytes, take the compressed version.
-        println "TODO: Put back compression"
         if (false && (uncompressedLen - compressedLen) >= 10) {
             if (debugCompression)
                 println String.format("  Compress. rawLen=\$%x compLen=\$%x", uncompressedLen, compressedLen)

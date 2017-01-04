@@ -35,16 +35,38 @@ pRun	= $82		; len 2
 
 decomp	= $DF00
 
-init	; Init pointer to blocks we're going to move/decompress
-	lda #<dataStart
+init	; Put something interesting on the screen :)
+	sta clr80Vid
+	jsr ROM_setnorm
+	jsr ROM_setkbd
+	jsr ROM_setvid
+	jsr ROM_home
+	ldy #0
+-	lda .welcomeText,y
+	beq +
+	jsr ROM_cout
+	iny
+	bne -
+.welcomeText: !text "Welcome to LegendOS.",$8D,0
+; Init pointer to blocks we're going to move/decompress
++	lda #<dataStart
 	sta pData
 	lda #>dataStart
 	sta pData+1
-	; temporary: copy ROM so we can debug decompressor
-	ldy #0
-	; First is the decompressor itself (special: just copy one page)
 	bit setLcWr+lcBank1	; read from ROM, write to LC ram
 	bit setLcWr+lcBank1
+	; temporary: copy monitor ROM so we can debug decompressor
+	ldy #0
+	sty pSrc
+	ldx #$f8
+--	stx pSrc+1
+-	lda (pSrc),y
+	sta (pSrc),y
+	iny
+	bne -
+	inx
+	bne --
+	; First is the decompressor itself (special: just copy one page)
 	jsr getBlk
 -	lda (pSrc),y
 .st	sta decomp,y

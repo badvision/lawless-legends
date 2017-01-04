@@ -40,7 +40,7 @@
                 reloc     = $fb00       ;page-aligned, as high as possible, the ideal value will be shown on mismatch
     } ;PASS2
   } else { ;load_high
-                reloc     = $ef00       ;page-aligned, but otherwise wherever you want
+                reloc     = $f600       ;page-aligned, but otherwise wherever you want
   } ;load_high
 } else { ;load_banked
   !if load_high = 1 {
@@ -57,25 +57,25 @@
                 ;feel free to move them around
 
 !if (might_exist + poll_drive) > 0 {
-                status    = $50         ;returns non-zero on error
+                status    = $3          ;returns non-zero on error
 } ;might_exist or poll_drive
 !if allow_aux = 1 {
-                auxreq    = $51         ;set to 1 to read/write aux memory, else main memory is used
+                auxreq    = $a          ;set to 1 to read/write aux memory, else main memory is used
 } ;allow_aux
-                sizelo    = $52         ;set if enable_write=1 and writing, or reading, or if enable_seek=1 and seeking
-                sizehi    = $53         ;set if enable_write=1 and writing, or reading, or if enable_seek=1 and seeking
-                reqcmd    = $54         ;set (read/write/seek) if enable_write=1 or enable_seek=1
+                sizelo    = $6          ;set if enable_write=1 and writing, or reading, or if enable_seek=1 and seeking
+                sizehi    = $7          ;set if enable_write=1 and writing, or reading, or if enable_seek=1 and seeking
+                reqcmd    = $2          ;set (read/write/seek) if enable_write=1 or enable_seek=1
                                         ;if allow_multi=1, bit 7 selects floppy drive in current slot (clear=drive 1, set=drive 2) during open call
                                         ;bit 7 must be clear for read/write/seek on opened file
-                ldrlo     = $55         ;set to load address if override_adr=1
-                ldrhi     = $56         ;set to load address if override_adr=1
-                namlo     = $57         ;name of file to access
-                namhi     = $58         ;name of file to access
+                ldrlo     = $E          ;set to load address if override_adr=1
+                ldrhi     = $F          ;set to load address if override_adr=1
+                namlo     = $C          ;name of file to access
+                namhi     = $D          ;name of file to access
 
 !if enable_floppy = 1 {
-                tmpsec    = $3c         ;(internal) sector number read from disk
-                reqsec    = $3d         ;(internal) requested sector number
-                curtrk    = $40         ;(internal) track number read from disk
+                tmpsec    = $10         ;(internal) sector number read from disk
+                reqsec    = $11         ;(internal) requested sector number
+                curtrk    = $12         ;(internal) track number read from disk
 } ;enable_floppy
 
                 command   = $42         ;ProDOS constant
@@ -85,17 +85,17 @@
                 bloklo    = $46         ;ProDOS constant
                 blokhi    = $47         ;ProDOS constant
 
-                entries   = $f8         ;(internal) total number of entries in directory
+                entries   = $18         ;(internal) total number of entries in directory
 !if bounds_check = 1 {
-                bleftlo   = $f9         ;(internal) bytes left in file
-                blefthi   = $fa         ;(internal) bytes left in file
+                bleftlo   = $19         ;(internal) bytes left in file
+                blefthi   = $1a         ;(internal) bytes left in file
 } ;bounds_check
-                blkofflo  = $fb         ;(internal) offset within cache block
-                blkoffhi  = $fc         ;(internal) offset within cache block
+                blkofflo  = $1b         ;(internal) offset within cache block
+                blkoffhi  = $1c         ;(internal) offset within cache block
 !if enable_floppy = 1 {
-                step      = $fd         ;(internal) state for stepper motor
-                tmptrk    = $fe         ;(internal) temporary copy of current track
-                phase     = $ff         ;(internal) current phase for seek
+                step      = $1d         ;(internal) state for stepper motor
+                tmptrk    = $1e         ;(internal) temporary copy of current track
+                phase     = $1f         ;(internal) current phase for seek
 } ;enable_floppy
 
                 ;constants

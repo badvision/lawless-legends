@@ -19,7 +19,7 @@ public class Lx47Algorithm
     
     void addDebug(String format, Object... arguments) {
         String str = String.format(format, arguments);
-        System.out.println("Gen: " + str);
+        //System.out.println("Gen: " + str);
         debugs.add(str);
     }
 
@@ -419,7 +419,7 @@ public class Lx47Algorithm
         
         chkDebug("EOF");
     }
-    
+
     public byte[] compress(byte[] input_data) {
         if (false) {
             input_data = "hellohelloabchello".getBytes();

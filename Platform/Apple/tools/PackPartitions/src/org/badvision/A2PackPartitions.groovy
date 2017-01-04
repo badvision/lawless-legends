@@ -17,7 +17,6 @@ package org.badvision
 
 import java.nio.ByteBuffer
 import java.nio.channels.Channels
-import net.jpountz.lz4.LZ4Factory
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.util.zip.GZIPInputStream
@@ -78,7 +77,7 @@ class A2PackPartitions
     def globalScripts = [:]
     def lastSysModule
     
-    def compressor = LZ4Factory.fastestInstance().highCompressor()
+    def compressor = new Lx47Algorithm()
     
     def ADD_COMP_CHECKSUMS = false
     
@@ -1225,137 +1224,6 @@ class A2PackPartitions
     static int lx47Total = 0
     static int lx47Savings = 0
 
-    // Transform the LZ4 format to something we call "LZ4M", where the small offsets are stored
-    // as one byte instead of two. In our data, that's about 1/3 of the offsets.
-    //
-    def testLx47(inData, inLen, lz4Len)
-    {
-        def lx47 = new Lx47Algorithm()
-        def inputData = new byte[inLen]
-        System.arraycopy(inData, 0, inputData, 0, inLen)
-        def outputData = lx47.compress(inputData)
-        def savings = lz4Len - outputData.length
-        if (savings >= 8) {
-            //def uncomp = new byte[inLen]
-            //lx47.decompress(outputData, 0, uncomp, 0, inLen)
-            //assert uncomp == inputData
-
-            // Verify the stream comes out right with overlapped decompression
-            def underlap = 2
-            def buf = new byte[inLen+underlap]
-            def initialOffset = inLen - outputData.length + underlap;
-            System.arraycopy(outputData, 0, buf, initialOffset, outputData.length)
-            lx47.decompress(buf, initialOffset, buf, 0, inLen)
-            def uncomp = Arrays.copyOfRange(buf, 0, inLen)
-            assert uncomp == inputData
-
-            uncompTotal += inLen
-            lx47Savings += savings
-            lz4Total += lz4Len
-            lx47Total += outputData.length
-            println String.format("lz47 usize=%d savings=%d utot=%d lz4tot=%d lx47tot=%d total_savings=%d", 
-                inLen, savings, uncompTotal, lz4Total, lx47Total, lx47Savings)
-        }
-        else {
-            println String.format("lz47 usize=%d savings=%d SKIP", inLen, savings)
-        }
-    }
-
-    // Transform the LZ4 format to something we call "LZ4M", where the small offsets are stored
-    // as one byte instead of two. In our data, that's about 1/3 of the offsets.
-    //
-    def recompress(data, inLen, uncompData, uncompLen)
-    {
-        def outLen = 0
-        def sp = 0
-        def dp = 0
-        def cksum = 0
-        while (true) 
-        {
-            assert dp <= sp
-            
-            // First comes the token: 4 bits literal len, 4 bits match len
-            def token = data[dp++] = (data[sp++] & 0xFF)
-            def matchLen = token & 0xF
-            def literalLen = token >> 4
-            
-            // The literal length might get extended
-            if (literalLen == 15) {
-                while (true) {
-                    token = data[dp++] = (data[sp++] & 0xFF)
-                    literalLen += token
-                    if (token != 0xFF)
-                        break
-                }
-            }
-            
-            if (debugCompression)
-                println String.format("Literal: ptr=\$%x, len=\$%x.", sp, literalLen)
-            
-            // Copy the literal bytes
-            outLen += literalLen
-            for ( ; literalLen > 0; --literalLen) {
-                cksum ^= data[sp]
-                data[dp++] = data[sp++]
-            }
-            
-            // The last block has only literals, and no match
-            if (sp == inLen)
-                break
-            
-            // Grab the offset
-            token = data[sp++] & 0xFF
-            def offset = token | ((data[sp++] & 0xFF) << 8)
-            
-            // Re-encode the offset using 1 byte if possible
-            assert offset < 32768
-            if (offset < 128)
-                data[dp++] = offset
-            else {
-                data[dp++] = (offset & 0x7F) | 0x80
-                data[dp++] = (offset >> 7) & 0xFF
-            }
-            
-            // If checksums are enabled, output the checksum so far
-            if (offset < 128 && ADD_COMP_CHECKSUMS) {
-                if (debugCompression)
-                    println String.format("    [chksum=\$%x]", cksum & 0xFF)
-                data[dp++] = (byte) cksum
-            }
-            
-            // The match length might get extended
-            if (matchLen == 15) {
-                while (true) {
-                    token = data[dp++] = (data[sp++] & 0xFF)
-                    matchLen += token
-                    if (token != 0xFF)
-                        break
-                }
-            }
-            
-            matchLen += 4   // min match length is 4
-            
-            if (debugCompression)
-                println String.format("Match: offset=\$%x, len=\$%x.", offset, matchLen)
-            
-            // We do nothing with the match bytes except add them to the checksum
-            (0..<matchLen).each {
-                cksum ^= uncompData[outLen]
-                ++outLen
-            }
-        }
-        
-        // If checksums are enabled, output the final checksum
-        if (ADD_COMP_CHECKSUMS) {
-            if (debugCompression)
-                println String.format("Final cksum: \$%x", cksum & 0xFF)
-            data[dp++] = (byte) cksum
-        }
-
-        assert outLen == uncompLen
-        return dp
-    }
-    
     def compressionSavings = 0
     
     def compress(buf)
@@ -1364,30 +1232,25 @@ class A2PackPartitions
         def uncompressedLen = buf.position()
         def uncompressedData = unwrapByteBuffer(buf)
         
-        // Now compress it with LZ4
+        // Now compress it with LX47
         assert uncompressedLen < 327678 : "data block too big"
         assert uncompressedLen > 0
-        def maxCompressedLen = compressor.maxCompressedLength(uncompressedLen)
-        def compressedData = new byte[maxCompressedLen]
-        def compressedLen = compressor.compress(uncompressedData, 0, uncompressedLen, 
-                                                compressedData, 0, maxCompressedLen)
+        def compressedData = compressor.compress(uncompressedData)
+        def compressedLen = compressedData.length
         assert compressedLen > 0
         
-        // Then recompress to LZ4M (pretty much always smaller)
-        def recompressedLen = recompress(compressedData, compressedLen, uncompressedData, uncompressedLen)
-        //testLx47(uncompressedData, uncompressedLen, recompressedLen)
-
-        // If we saved at least 20 bytes, take the compressed version.
-        if ((uncompressedLen - recompressedLen) >= 20) {
+        // If we saved at least 10 bytes, take the compressed version.
+        println "TODO: Put back compression"
+        if (false && (uncompressedLen - compressedLen) >= 10) {
             if (debugCompression)
-                println String.format("  Compress. rawLen=\$%x compLen=\$%x", uncompressedLen, recompressedLen)
-            compressionSavings += (uncompressedLen - recompressedLen) - 2 - (ADD_COMP_CHECKSUMS ? 1 : 0)
-            return [data:compressedData, len:recompressedLen, 
+                println String.format("  Compress. rawLen=\$%x compLen=\$%x", uncompressedLen, compressedLen)
+            compressionSavings += (uncompressedLen - compressedLen) - 2 - (ADD_COMP_CHECKSUMS ? 1 : 0)
+            return [data:compressedData, len:compressedLen, 
                     compressed:true, uncompressedLen:uncompressedLen]
         }
         else {
             if (debugCompression)
-                println String.format("  No compress. rawLen=\$%x compLen=\$%x", uncompressedLen, recompressedLen)
+                println String.format("  No compress. rawLen=\$%x compLen=\$%x", uncompressedLen, compressedLen)
             return [data:uncompressedData, len:uncompressedLen, compressed:false]
         }
     }
@@ -1470,8 +1333,7 @@ class A2PackPartitions
         def prevUserDir = System.getProperty("user.dir")
         def result
         def errBuf = new ByteArrayOutputStream()
-        println "Nested: prog=$programName inDir=$inDir inDir=$inDir inFile=$inFile outFile=$outFile"
-        try 
+        try
         {
             System.setProperty("user.dir", new File(inDir).getAbsolutePath())
             if (inFile) {
@@ -1625,14 +1487,13 @@ class A2PackPartitions
     {
         if (binaryStubsOnly)
             return addToCache("sysCode", sysCode, "core", 1, ByteBuffer.allocate(1))
-        
+
         // Read in all the parts of the LegendOS core system and combine them together
         // with block headers.
         inDir = "build/" + inDir
         new File(inDir + "build").mkdirs()
         println "Created dir ${new File(inDir + "build")}"
         def outBuf = ByteBuffer.allocate(50000)
-        def compressor = new Lx47Algorithm()
         ["loader", "decomp", "PRORWTS", "PLVM02", "mem"].each { name ->
             def code
             if (name == "PRORWTS")
@@ -1649,7 +1510,6 @@ class A2PackPartitions
                 }
                 code = sysCode[name].buf
             }
-            println "Processing $name."
             def compressed = (name ==~ /loader|decomp/) ? 
                 code : wrapByteArray(compressor.compress(unwrapByteBuffer(code)))
             if (name != "loader") {
@@ -1663,7 +1523,7 @@ class A2PackPartitions
             compressed.flip()
             outBuf.put(compressed)
         }
-        
+
         // Write out the result
         new File("build/src/core/build/LEGENDOS.SYSTEM.sys#2000").withOutputStream { stream ->
             stream.write(unwrapByteBuffer(outBuf))

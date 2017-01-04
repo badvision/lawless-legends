@@ -15,30 +15,6 @@ include "diskops.plh"
 include "gen_modules.plh"
 include "gen_players.plh"
 
-// ProDOS MLI constants
-const MLI_QUIT  = $65
-const MLI_GET_TIME  = $82
-const MLI_CREATE  = $C0
-const MLI_DESTROY = $C1
-const MLI_RENAME  = $C2
-const MLI_SET_FILE_INFO = $C3
-const MLI_GET_FILE_INFO = $C4
-const MLI_ONLINE  = $C5
-const MLI_SET_PREFIX  = $C6
-const MLI_GET_PREFIX  = $C7
-const MLI_OPEN  = $C8
-const MLI_NEWLINE = $C9
-const MLI_READ  = $CA
-const MLI_WRITE = $CB
-const MLI_CLOSE = $CC
-const MLI_FLUSH = $CD
-const MLI_SET_MARK  = $CE
-const MLI_GET_MARK  = $CF
-const MLI_SET_EOF = $D0
-const MLI_GET_EOF = $D1
-const MLI_SET_BUF = $D2
-const MLI_GET_BUF = $D3
- 
 // This pointer is the root of all heap-tracked (and garbage collected) objects.
 // See playtype.plh for definitions of all the datastructures and how they interconnect.
 word global
@@ -49,36 +25,6 @@ predef _saveGame, _loadGame, _newOrLoadGame
 word[] funcTbl = @_saveGame, @_loadGame, @_newOrLoadGame
 
 byte[] game1_filename = "GAME.1.SAVE"
-
-// ProDOS command tables
-byte open_params = 3   // parameter count
-word open_filename
-word open_buffer
-byte open_fileref
-
-byte create_params = 7 // parameter count
-word create_filename
-byte create_accessbits
-byte create_filetype
-word create_auxtype
-byte create_storagetype
-word create_date
-word create_time
-
-byte write_params = 4  // parameter count
-byte write_fileref
-word write_addr
-word write_length
-word write_actual
-
-byte read_params = 4  // parameter count
-byte read_fileref
-word read_addr
-word read_length
-word read_actual
-
-byte close_params = 1  // parameter count
-byte close_fileref
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -128,40 +74,6 @@ asm copyHeap   // params: dir (0=LCtoMain, 1=MainToLC)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-asm mliStub 
-  ; call MLI directly. Caller is expected to modify the command and param vectors
-  ; before calling.
-  +asmPlasm 0   ; bytes 0-4
-  jsr mli       ; bytes 5-7
-  !byte 0       ; byte  8
-  !word 0       ; bytes 9-10
-  bcs +
-  lda #0
-+ bit setLcRW+lcBank2 ; Our crazy aux ProDOS stub doesn't preserve the LC bank; put PLASMA back.
-  rts
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def callMLI(cmd, p_params)
-  byte err
-  //printf2("callMLI: cmd=$%x p_params=$%x\n", cmd, p_params)
-  mliStub.8 = cmd
-  mliStub:9 = p_params
-  err = mliStub()
-  return err
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def guaranteeMLI(cmd, p_params)
-  byte err
-  err = callMLI(cmd, p_params)
-  if err > 0
-    printf1("\nErr $%x\n", err)
-    fatal("ProDOS error")
-  fin
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 def _saveGame()
 
   // Perform garbage collection and record the size of the heap so we can restore it correctly
@@ -172,48 +84,48 @@ def _saveGame()
   copyHeap(0)  // LC to low mem
 
   // Open the file if it already exists...
-  open_filename = @game1_filename
-  open_buffer = $5C00
-  if callMLI(MLI_OPEN, @open_params) > 0
-    create_filename = open_filename
-    create_accessbits = $C3  // full access
-    create_filetype = $F1 // user type 1
-    create_auxtype = 0
-    create_storagetype = 1
-    create_date = 0
-    create_time = 0
-    guaranteeMLI(MLI_CREATE, @create_params)
-    guaranteeMLI(MLI_OPEN, @open_params)
-  fin
+  //open_filename = @game1_filename
+  //open_buffer = $5C00
+  //if callMLI(MLI_OPEN, @open_params) > 0
+    //create_filename = open_filename
+    //create_accessbits = $C3  // full access
+    //create_filetype = $F1 // user type 1
+    //create_auxtype = 0
+    //create_storagetype = 1
+    //create_date = 0
+    //create_time = 0
+    //guaranteeMLI(MLI_CREATE, @create_params)
+    //guaranteeMLI(MLI_OPEN, @open_params)
+  //fin
 
   // Write the game data to it
-  write_fileref = open_fileref
-  write_addr = $5000
-  write_length = HEAP_SIZE
-  guaranteeMLI(MLI_WRITE, @write_params)
+  //write_fileref = open_fileref
+  //write_addr = $5000
+  //write_length = HEAP_SIZE
+  //guaranteeMLI(MLI_WRITE, @write_params)
 
   // All done.
-  close_fileref = open_fileref
-  guaranteeMLI(MLI_CLOSE, @close_params)
+  //close_fileref = open_fileref
+  //guaranteeMLI(MLI_CLOSE, @close_params)
 end
 
 def loadInternal()
   word p_loaded
 
   // Open the file. If that fails, return FALSE (instead of halting)
-  open_filename = @game1_filename
-  open_buffer = $5C00
-  if callMLI(MLI_OPEN, @open_params) > 0; return FALSE; fin
+  //open_filename = @game1_filename
+  //open_buffer = $5C00
+  //if callMLI(MLI_OPEN, @open_params) > 0; return FALSE; fin
 
   // Read the game data from it
-  read_fileref = open_fileref
-  read_addr = $5000
-  read_length = HEAP_SIZE
-  guaranteeMLI(MLI_READ, @read_params)
+  //read_fileref = open_fileref
+  //read_addr = $5000
+  //read_length = HEAP_SIZE
+  //guaranteeMLI(MLI_READ, @read_params)
 
   // All done with the file
-  close_fileref = open_fileref
-  guaranteeMLI(MLI_CLOSE, @close_params)
+  //close_fileref = open_fileref
+  //guaranteeMLI(MLI_CLOSE, @close_params)
 
   // Copy the heap up, and init it with the correct size.
   p_loaded = $5000
@@ -255,12 +167,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def gameExists()
-  open_filename = @game1_filename
-  open_buffer = $5000
-  if callMLI(MLI_OPEN, @open_params) > 0; return FALSE; fin
-  close_fileref = open_fileref
-  guaranteeMLI(MLI_CLOSE, @close_params)
-  return TRUE
+  return FALSE // FIXME
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

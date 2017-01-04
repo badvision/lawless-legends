@@ -41,22 +41,11 @@ init	; Init pointer to blocks we're going to move/decompress
 	lda #>dataStart
 	sta pData+1
 	; temporary: copy ROM so we can debug decompressor
-	bit setLcWr	; read from ROM, write to LC ram
-	bit setLcWr
 	ldy #0
-	sty pSrc
-	ldx #$f8
---	stx pSrc+1
--	lda (pSrc),y
-	sta (pSrc),y
-	iny
-	bne -
-	inx
-	bne --
 	; First is the decompressor itself (special: just copy one page)
+	bit setLcWr+lcBank1	; read from ROM, write to LC ram
+	bit setLcWr+lcBank1
 	jsr getBlk
-	bit setLcRW+lcBank1	; switch in target bank
-	bit setLcRW+lcBank1
 -	lda (pSrc),y
 .st	sta decomp,y
 	iny
@@ -74,6 +63,7 @@ runBlk	jsr getBlk	; get block size and calc pointers
 }
 	bit setLcRW+lcBank1
 	jsr decomp	; decompress the code
+	bit setLcWr+lcBank1
 !if DEBUG {
 	lda #"R"
 	jsr ROM_cout

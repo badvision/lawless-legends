@@ -28,7 +28,8 @@
                 <include name="virtual/src/**/*.i"/>
                 <include name="virtual/src/**/*.ct"/>
                 <include name="virtual/data/disks/*.gz"/>
-                <include name="tools/PLASMA/src/PLVM02.SYSTEM.sys"/>
+                <include name="tools/PLASMA/src/PLVM02#4000"/>
+                <include name="tools/ProRWTS/PRORWTS2#4000"/>
             </fileset>
         </jar>
     </target>

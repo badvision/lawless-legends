@@ -3,7 +3,7 @@
 ;license:BSD-3-Clause
 
 !cpu 6502
-*=$800
+*=$4000
 
 ;place no code before init label below.
 
@@ -28,7 +28,7 @@
                                         ;i.e. running from main if accessing main, running from aux if accessing aux
                 bounds_check = 0        ;set to 1 to prevent access beyond the end of the file
                                         ;but limits file size to 64k-2 bytes.
-                load_high    = 1        ;set to 1 to load to top of RAM (either main or banked, enables a himem check)
+                load_high    = 0        ;set to 1 to load to top of RAM (either main or banked, enables a himem check)
                 load_banked  = 1        ;set to 1 to load into banked RAM instead of main RAM
                 lc_bank      = 1        ;load into specified bank (1 or 2) if load_banked=1
 
@@ -40,7 +40,7 @@
                 reloc     = $fb00       ;page-aligned, as high as possible, the ideal value will be shown on mismatch
     } ;PASS2
   } else { ;load_high
-                reloc     = $d000       ;page-aligned, but otherwise wherever you want
+                reloc     = $ef00       ;page-aligned, but otherwise wherever you want
   } ;load_high
 } else { ;load_banked
   !if load_high = 1 {

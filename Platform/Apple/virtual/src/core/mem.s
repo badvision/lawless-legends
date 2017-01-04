@@ -14,7 +14,7 @@
 ;
 ; See detailed description in mem.i
 
-* = $2000			; PLASMA loader loads us initially at $2000
+* = $4000			; PLASMA loader loads us initially at $2000
 
 ; Use hi-bit ASCII for Apple II
 !convtab "../include/hiBitAscii.ct"

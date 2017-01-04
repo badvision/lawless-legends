@@ -9,18 +9,10 @@
 ;****************************************************************************************
 
 ;@com.wudsn.ide.asm.hardware=APPLE2
-; Memory manager
+; Lx47 Decompressor
 ; ------------------
-;
-; See detailed description in mem.i
 
-* = $2000			; PLASMA loader loads us initially at $2000
-
-; Use hi-bit ASCII for Apple II
-!convtab "../include/hiBitAscii.ct"
-
-; Global definitions
-!source "../include/global.i"
+* = $DF00
 
 tmp	= $2		; len 2
 pTmp	= $4		; len 2
@@ -29,6 +21,13 @@ bits	= $6		; len 1
 pSrc	= $C		; len 2
 pDst	= $E		; len 2
 pEnd	= $10		; len 2
+
+cout	= $FDED
+prbyte	= $FDDA
+crout	= $FD8E
+rdkey	= $FD0C
+
+DEBUG	= 0
 
 ; Decompress from pSrc to pDst, stop at pEnd. The source and dest can overlap, as long as the 
 ; source block ends (at least) 2 bytes beyond the end of the dest block, e.g.
@@ -43,8 +42,9 @@ decomp	!zone {
 .lits	asl bits	; get bit that tells us whether there's a literal string
 	bne +		; ran out of bits in bit buffer?
 .lits2	jsr .getbts	; get more bits
-+	bcc .seq	; if bit was zero, no literals: go straight to sequence
++	bcc .endchk	; if bit was zero, no literals: go straight to sequence (after end check)
 	jsr .gamma	; Yes we have literals. Get the count.
+	!if DEBUG { jsr .dbg1 }
 	tax
 	cpx #255	; special case: long literal marked by len=255; chk and save to carry
 -	lda (pSrc),y
@@ -62,7 +62,8 @@ decomp	!zone {
 	cmp pEnd
 	lda pDst+1
 	sbc pEnd+1
-	bcs .ret
+	;bcs .ret
+	bcs .chk
 
 .seq	lda (pSrc),y
 	inc pSrc
@@ -79,9 +80,9 @@ decomp	!zone {
 	sta tmp
 	jsr .gamma
 	lsr
-	rol tmp
+	ror tmp
 	lsr
-	rol tmp
+	ror tmp
 	sta tmp+1
 .gotoff	lda pDst
 	clc		; effectively add 1 to offset.
@@ -97,6 +98,7 @@ decomp	!zone {
 	adc #1		; A>=1 + sec + 1 => final len 3 or more
 	tax
 .gotlen
+	!if DEBUG { jsr .dbg2 }
 -	lda (pTmp),y
 	sta (pDst),y
 	iny
@@ -109,7 +111,7 @@ decomp	!zone {
 	ldy #0		; back to 0 as expected by lits section
 	bcc .lits
 	inc pDst+1
-	bcs .lits	; always taken
+	jmp .lits
 
 ; Read an Elias Gamma value into A. Destroys X. Sets carry.
 .gamma	lda #1
@@ -134,4 +136,42 @@ decomp	!zone {
 	sta bits
 	txa
 .ret	rts
+
+.chk	ora pDst
+	eor pEnd
+	beq .ret
+	brk
+
+!if DEBUG {
+.dbg1	pha
+	lda #'L'|$80
+	jsr cout
+	pla
+	pha
+.dbgEnd	jsr prbyte
+	jsr crout
+;-	bit $C000
+;	bpl -
+;	bit $C010
+	pla
+	rts
+
+.dbg2	pha
+	lda #'S'|$80
+	jsr cout
+	txa
+	jsr prbyte
+	lda #' '|$80
+	jsr cout
+	lda tmp
+	clc
+	adc #1
+	pha
+	lda tmp+1
+	adc #0
+	jsr prbyte
+	pla
+	jmp .dbgEnd
+}
+
 } ; end of zone

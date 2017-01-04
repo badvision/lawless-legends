@@ -1205,6 +1205,14 @@ class A2PackPartitions
         return wrapByteArray(arr)
     }
     
+    def unwrapByteBuffer(buf) {
+        def len = buf.position()
+        def out = new byte[len]
+        buf.position(0)
+        buf.get(out)
+        return out
+    }
+    
     def readFont(name, path)
     {
         def num = fonts.size() + 1
@@ -1231,7 +1239,7 @@ class A2PackPartitions
             //def uncomp = new byte[inLen]
             //lx47.decompress(outputData, 0, uncomp, 0, inLen)
             //assert uncomp == inputData
-            
+
             // Verify the stream comes out right with overlapped decompression
             def underlap = 2
             def buf = new byte[inLen+underlap]
@@ -1240,7 +1248,7 @@ class A2PackPartitions
             lx47.decompress(buf, initialOffset, buf, 0, inLen)
             def uncomp = Arrays.copyOfRange(buf, 0, inLen)
             assert uncomp == inputData
-            
+
             uncompTotal += inLen
             lx47Savings += savings
             lz4Total += lz4Len
@@ -1252,7 +1260,7 @@ class A2PackPartitions
             println String.format("lz47 usize=%d savings=%d SKIP", inLen, savings)
         }
     }
-    
+
     // Transform the LZ4 format to something we call "LZ4M", where the small offsets are stored
     // as one byte instead of two. In our data, that's about 1/3 of the offsets.
     //
@@ -1354,9 +1362,7 @@ class A2PackPartitions
     {
         // First, grab the uncompressed data into a byte array
         def uncompressedLen = buf.position()
-        def uncompressedData = new byte[uncompressedLen]
-        buf.position(0)
-        buf.get(uncompressedData)
+        def uncompressedData = unwrapByteBuffer(buf)
         
         // Now compress it with LZ4
         assert uncompressedLen < 327678 : "data block too big"
@@ -1369,7 +1375,7 @@ class A2PackPartitions
         
         // Then recompress to LZ4M (pretty much always smaller)
         def recompressedLen = recompress(compressedData, compressedLen, uncompressedData, uncompressedLen)
-        testLx47(uncompressedData, uncompressedLen, recompressedLen)
+        //testLx47(uncompressedData, uncompressedLen, recompressedLen)
 
         // If we saved at least 20 bytes, take the compressed version.
         if ((uncompressedLen - recompressedLen) >= 20) {
@@ -1448,12 +1454,9 @@ class A2PackPartitions
         hdrBuf.put((byte)(hdrEnd & 0xFF))
         hdrBuf.put((byte)(hdrEnd >> 8))
         hdrBuf.position(hdrEnd)
-        def hdrData = new byte[hdrEnd]
-        hdrBuf.position(0)
-        hdrBuf.get(hdrData)
         
         // Finally, write out each chunk's data, including the header.
-        stream.write(hdrData)
+        stream.write(unwrapByteBuffer(hdrBuf))
         chunks.each { 
             stream.write(it.buf.data, 0, it.buf.len)
         }
@@ -1467,6 +1470,7 @@ class A2PackPartitions
         def prevUserDir = System.getProperty("user.dir")
         def result
         def errBuf = new ByteArrayOutputStream()
+        println "Nested: prog=$programName inDir=$inDir inDir=$inDir inFile=$inFile outFile=$outFile"
         try 
         {
             System.setProperty("user.dir", new File(inDir).getAbsolutePath())
@@ -1620,18 +1624,50 @@ class A2PackPartitions
     def assembleCore(inDir)
     {
         if (binaryStubsOnly)
-            return addToCache("sysCode", sysCode, "mem", 1, ByteBuffer.allocate(1))
+            return addToCache("sysCode", sysCode, "core", 1, ByteBuffer.allocate(1))
         
+        // Read in all the parts of the LegendOS core system and combine them together
+        // with block headers.
         inDir = "build/" + inDir
-        def hash = getLastDep(new File(inDir, "mem.s"))
-        if (grabFromCache("sysCode", sysCode, "mem", hash))
-            return
-            
-        println "Assembling mem.s"
-        new File(inDir + "build").mkdir()
-        String[] args = ["acme", "-o", "build/cmd.sys#2000", "mem.s"]
-        runNestedvm(acme.Acme.class,  "ACME assembler", args, inDir, null, null)
-        addToCache("sysCode", sysCode, "mem", hash, readBinary(inDir + "build/cmd.sys#2000"))
+        new File(inDir + "build").mkdirs()
+        println "Created dir ${new File(inDir + "build")}"
+        def outBuf = ByteBuffer.allocate(50000)
+        def compressor = new Lx47Algorithm()
+        ["loader", "decomp", "PRORWTS", "PLVM02", "mem"].each { name ->
+            def code
+            if (name == "PRORWTS")
+                code = readBinary(jitCopy(new File("build/tools/ProRWTS/PRORWTS2#4000")).toString())
+            else if (name == "PLVM02")
+                code = readBinary(jitCopy(new File("build/tools/PLASMA/src/PLVM02#4000")).toString())
+            else {
+                def hash = getLastDep(new File(inDir, "${name}.s"))
+                if (!grabFromCache("sysCode", sysCode, name, hash)) {
+                    println "Assembling ${name}.s"
+                    String[] args = ["acme", "-o", "build/$name", "${name}.s"]
+                    runNestedvm(acme.Acme.class,  "ACME assembler", args, inDir, null, null)
+                    addToCache("sysCode", sysCode, name, hash, readBinary(inDir + "build/$name"))
+                }
+                code = sysCode[name].buf
+            }
+            println "Processing $name."
+            def compressed = (name ==~ /loader|decomp/) ? 
+                code : wrapByteArray(compressor.compress(unwrapByteBuffer(code)))
+            if (name != "loader") {
+                // Uncompressed size first
+                outBuf.put((byte) (code.position() & 0xFF))
+                outBuf.put((byte) (code.position() >> 8))
+                // Then compressed size
+                outBuf.put((byte) (compressed.position() & 0xFF))
+                outBuf.put((byte) (compressed.position() >> 8))
+            }
+            compressed.flip()
+            outBuf.put(compressed)
+        }
+        
+        // Write out the result
+        new File("build/src/core/build/LEGENDOS.SYSTEM.sys#2000").withOutputStream { stream ->
+            stream.write(unwrapByteBuffer(outBuf))
+        }
     }
     
     def compileModule(moduleName, codeDir, verbose = true)
@@ -2699,11 +2735,9 @@ end
     
     def createImage()
     {
-        // Copy the PLASMA VM file to the output directory
-        copyIfNewer(jitCopy(new File("build/tools/PLASMA/src/PLVM02.SYSTEM.sys")), new File("build/root/PLVM02.SYSTEM.sys"))
-        
-        // Copy the memory manager to the output directory
-        copyIfNewer(new File("build/src/core/build/cmd.sys#2000"), new File("build/root/cmd.sys#2000"))
+        // Copy the combined core executable to the output directory
+        copyIfNewer(new File("build/src/core/build/LEGENDOS.SYSTEM.sys#2000"), 
+                    new File("build/root/LEGENDOS.SYSTEM.sys#2000"))
         
         // If we preserved a previous save game, copy it to the new image.
         def prevSave = new File("build/prevGame/game.1.save.\$f1")

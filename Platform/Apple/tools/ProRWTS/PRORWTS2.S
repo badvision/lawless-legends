@@ -8,7 +8,7 @@
 ;place no code before init label below.
 
                 ;user-defined options
-                verbose_info = 1        ;set to 1 to enable display of memory usage
+                verbose_info = 0        ;set to 1 to enable display of memory usage
                 enable_floppy = 1       ;set to 1 to enable floppy drive support
                 poll_drive   = 1        ;set to 1 to check if disk is in drive
                 override_adr = 1        ;set to 1 to require an explicit load address
@@ -711,7 +711,6 @@ copyblock
                 adc blkoffhi
                 sta adrhi
 
-    !if bounds_check = 1 {
                 ;determine bytes left in block
 
       !if (enable_write + enable_seek) > 0 {
@@ -734,8 +733,6 @@ copyblock
                 sty sizelo
                 stx sizehi
 +
-    } ;bounds_check
-
                 lda sizehi
                 jsr copycache
                 lda ldrlo
@@ -1571,7 +1568,6 @@ hddcopyblock
                 adc blkoffhi
                 sta adrhi
 
-;    !if bounds_check = 1 {     ; MH: This code actually is needed for seeking, even if no bounds checking
                 ;determine bytes left in block
 
       !if (enable_write + enable_seek) > 0 {
@@ -1594,8 +1590,6 @@ hddcopyblock
                 sty sizelo
                 stx sizehi
 +
-;    } ;bounds_check
-
                 lda sizehi
                 jsr hddcopycache
                 lda ldrlo
@@ -1709,8 +1703,6 @@ hddsetaux       sta CLRAUXRD, x
                 sta blokhi
                 pla
                 sta sizehi
-;                dec adrhi      ; MH: this causes the F800 buffer (containing the key block contents)
-;                dec adrhi      ;     to be read instead of FA00 (containing the file's data)
 hddcopycache
     !if enable_seek = 1 {
                 ldy reqcmd

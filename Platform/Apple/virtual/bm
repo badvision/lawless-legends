@@ -1,4 +1,3 @@
 #!/usr/bin/env bash
 
-cd /Users/mhaye/plat/PackPartitions && rm -f dist/PackPartitions.jar && ant jar
-cd /Users/mhaye/virtual && ./m
+./b && ./m

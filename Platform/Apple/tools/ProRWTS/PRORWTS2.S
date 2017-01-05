@@ -73,9 +73,9 @@
                 namhi     = $D          ;name of file to access
 
 !if enable_floppy = 1 {
-                tmpsec    = $10         ;(internal) sector number read from disk
-                reqsec    = $11         ;(internal) requested sector number
-                curtrk    = $12         ;(internal) track number read from disk
+                tmpsec    = $15         ;(internal) sector number read from disk
+                reqsec    = $16         ;(internal) requested sector number
+                curtrk    = $17         ;(internal) track number read from disk
 } ;enable_floppy
 
                 command   = $42         ;ProDOS constant
@@ -1571,7 +1571,7 @@ hddcopyblock
                 adc blkoffhi
                 sta adrhi
 
-    !if bounds_check = 1 {
+;    !if bounds_check = 1 {     ; MH: This code actually is needed for seeking, even if no bounds checking
                 ;determine bytes left in block
 
       !if (enable_write + enable_seek) > 0 {
@@ -1594,7 +1594,7 @@ hddcopyblock
                 sty sizelo
                 stx sizehi
 +
-    } ;bounds_check
+;    } ;bounds_check
 
                 lda sizehi
                 jsr hddcopycache

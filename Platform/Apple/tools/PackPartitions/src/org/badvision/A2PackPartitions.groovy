@@ -1491,7 +1491,6 @@ class A2PackPartitions
         // with block headers.
         inDir = "build/" + inDir
         new File(inDir + "build").mkdirs()
-        println "Created dir ${new File(inDir + "build")}"
         def outBuf = ByteBuffer.allocate(50000)
         ["loader", "decomp", "PRORWTS", "PLVM02", "mem"].each { name ->
             def code

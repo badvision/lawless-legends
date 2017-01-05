@@ -98,7 +98,7 @@ relocate:
 	inx
 	cpx #$40	; skip our own unrelocated code $4000.4FFF
 	bne +
-	ldx #$50
+	ldx #$60
 +	cpx #$C0	; skip IO space $C000.CFFF
 	bne +
 	ldx #$D0
@@ -1985,10 +1985,6 @@ sequenceError: !zone
 	jsr inlineFatal : !text "BadSeq", 0
 
 ;------------------------------------------------------------------------------
-diskError: !zone
-	jsr inlineFatal : !text "DskErr", 0
-
-;------------------------------------------------------------------------------
 disk_startLoad: !zone
 	txa
 	beq sequenceError	; partition zero is illegal
@@ -2093,14 +2089,7 @@ disk_queueLoad: !zone
 +	jmp .scan		; go for more
 
 ;------------------------------------------------------------------------------
-disk_reseek: !zone
-	lda #0
-	sta reseek_0		; rewind the ProRWTS seek pointer
-	sta reseek_1
-	sta reseek_2
-	sta curMarkPos
-	sta curMarkPos+1
-	sta curMarkPos+2
+disk_rewind: !zone
 	rts
 
 ;------------------------------------------------------------------------------
@@ -2116,12 +2105,24 @@ disk_seek: !zone
 	sta reqLen+1
 	lda setMarkPos+2
 	sbc curMarkPos+2
-	bmi .back
+	bcc .back
 	bne .far
-	jmp rdwrpart
-.back	jsr disk_reseek
-	jmp disk_seek
-.far	lda #$FF
+	ldx #2			; record the new position
+-	lda setMarkPos,x
+	sta curMarkPos,x
+	dex
+	bpl -
+	jmp rdwrpart		; and seek on the underlying file
+.back	lda #0
+	sta reseek_0		; rewind the ProRWTS seek pointer
+	sta reseek_1
+	sta reseek_2
+	sta curMarkPos
+	sta curMarkPos+1
+	sta curMarkPos+2
+	beq disk_seek		; always taken
+.far	+internalErr '+' ; for now
+	lda #$FF		; seek forward $FFFF bytes
 	sta reqLen
 	sta reqLen+1
 	jsr rdwrpart
@@ -2154,11 +2155,7 @@ disk_read: !zone
 	pla
 	tax
 	pla
-	jsr adjMark
-+	lda tmp+1
-	bne .err
-	rts
-.err	jmp diskError
+	jmp adjMark
 
 ;------------------------------------------------------------------------------
 disk_finishLoad: !zone
@@ -2207,6 +2204,8 @@ disk_finishLoad: !zone
 	inc isAuxCmd		; set aux flag
 +	sty .ysave		; Save Y so we can resume scanning later.
 	!if DEBUG { jsr .debug1 }
+	jsr disk_seek		; move the file pointer to the current block
+	ldy .ysave
 	lda (pTmp),y		; grab resource length on disk
 	sta reqLen		; save for reading
 	sta ucLen
@@ -2225,15 +2224,13 @@ disk_finishLoad: !zone
 +	sta ucLen+1		; save uncomp len hi byte
 	jsr scanForResource	; find the segment number allocated to this resource
 	beq .addrErr		; it better have been allocated
-	jsr disk_seek		; move the file pointer to the current block
 	lda tSegAdrLo,x		; grab the address
 	sta pDst		; and save it to the dest point for copy or decompress
 	lda tSegAdrHi,x		; hi byte too
 	sta pDst+1
 	!if DEBUG { jsr .debug2 }
-!if DEBUG >= 3 { +prStr : !text "Deco.",0 }
-	jsr lz4Decompress	; decompress (or copy if uncompressed)
-!if DEBUG >= 3 { +prStr : !text "Done.",0 }
+	jsr disk_read
+	;jsr lz4Decompress	; decompress (or copy if uncompressed)
 .resume	ldy .ysave
 .next	lda (pTmp),y		; lo byte of length
 	clc

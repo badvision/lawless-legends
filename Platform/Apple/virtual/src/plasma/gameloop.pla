@@ -13,7 +13,10 @@
 const seed          = $4E     // Incremented continuously by keyboard read routine
 const displayEngine = $6000   // main mem (raycaster and tile engine at same location)
 const expandVec     = $200    // aux mem (only for raycaster)
-const fontEngine    = $E000   // main mem
+const fontEngine    = $EC00   // main mem LC
+const fontEngineLen = $F00    // really a bit less, but this leaves space for debug code
+const fontData      = $FB00   // main mem LC
+const fontDataLen   = $4FA    // really only $474, but we need to fill all gaps
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Other constants
@@ -219,6 +222,47 @@ end
 asm swapTile    // params: fromX, fromY, toX, toY
   +asmPlasm 4
   jmp $6024
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export asm memcpy         // params: pSrc, pDst, len. Non-overlapping only!
+  +asmPlasm 3
+  lda evalStkL+2,x    ; source ptr
+  sta tmp
+  lda evalStkH+2,x
+  sta tmp+1
+  lda evalStkL+1,x    ; dest ptr
+  sta pTmp
+  lda evalStkH+1,x
+  sta pTmp+1
+  lda evalStkH,x      ; len hi
+  pha
+  lda evalStkL,x      ; len lo
+  tax
+  ldy #0
+.pglup:
+  pla
+  sec
+  sbc #1
+  bcc .part
+  pha
+- lda (tmp),y
+  sta (pTmp),y
+  iny
+  bne -
+  inc tmp+1
+  inc pTmp+1
+  bne .pglup          ; always taken
+.part:
+  cpx #0
+  beq .done
+- lda (tmp),y
+  sta (pTmp),y
+  iny
+  dex
+  bne -
+.done
+  rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2261,7 +2305,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load and display the title screen.
 def loadTitle()
-  word pFont
+  word pEngine, pFont
 
   puts("Loading game.\n")
 
@@ -2276,21 +2320,30 @@ def loadTitle()
   ^$C07E=0   // disable double-hi-res
   ^$C05F     // disable double-hi-res
 
-  // Load the font engine and its font, and lock them in place forever.
+  // Allocate and permanently lock mem for the font engine and its font
   mmgr(SET_MEM_TARGET, fontEngine)
-  mmgr(QUEUE_LOAD,     CODE_FONT_ENGINE<<8 | RES_TYPE_CODE)
+  mmgr(REQUEST_MEMORY, fontEngineLen)
   mmgr(LOCK_MEMORY,    fontEngine)
 
-  mmgr(SET_MEM_TARGET, $9000)
+  mmgr(SET_MEM_TARGET, fontData)
+  mmgr(REQUEST_MEMORY, fontDataLen)
+  mmgr(LOCK_MEMORY,    fontData)
+
+  // Load them into lo mem
+  pEngine = mmgr(QUEUE_LOAD,     CODE_FONT_ENGINE<<8 | RES_TYPE_CODE)
   pFont = mmgr(QUEUE_LOAD, 1<<8 | RES_TYPE_FONT)
-  mmgr(LOCK_MEMORY, pFont)
   mmgr(FINISH_LOAD, 0)
 
-  // Tell the font engine where to find its font
-  setFont(pFont)
+  // Relocate them to their final spots
+  memcpy(pEngine, fontEngine, fontEngineLen)
+  memcpy(pFont, fontData, fontDataLen)
 
-  // Wait for a key.
-  //getUpperKey()
+  // And free up the low mem
+  mmgr(FREE_MEMORY, pEngine)
+  mmgr(FREE_MEMORY, pFont)
+
+  // Tell the font engine where to find its font
+  setFont(fontData)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

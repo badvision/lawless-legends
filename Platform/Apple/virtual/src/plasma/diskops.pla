@@ -47,30 +47,8 @@ pTmp        = $4
 
 end
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Copy entire heap (main LC $EF00.FAFF) to or from main low mem $5000.5BFF
-asm copyHeap   // params: dir (0=LCtoMain, 1=MainToLC)
-  +asmPlasm 1
-  lsr         ; direction bit to carry flag
-  lda #$50
-  bcs +
-  lda #$EF    ; $EF00 is start of heap (right after font engine)
-+ sta tmp+1
-  eor #$BF    ; $EF -> $50
-  sta pTmp+1
-  ldy #0
-  sty tmp
-  sty pTmp
-  ldx #12     ; Heap is 12 pages
-- lda (tmp),y
-  sta (pTmp),y
-  iny
-  bne -
-  inc tmp+1
-  inc pTmp+1
-  dex
-  bne -
-  rts
+def copyHeap(dir)
+  fatal("TODO: reimpl with copyMem")
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

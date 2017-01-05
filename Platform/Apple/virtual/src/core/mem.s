@@ -58,12 +58,10 @@ cmdread		= 1
 cmdwrite	= 2
 
 ; ProRWTS locations
-reseek_0	= $18		; to reset seek ptr, zero out these 3 locs
-reseek_1	= $1B
-reseek_2	= $1C
-proRWTS		= $F600
-rdwrpart	= proRWTS
-opendir		= rdwrpart+3
+rwts_mark0	= $18		; to reset seek ptr, zero out these 3 locs
+rwts_mark1	= $1B
+rwts_mark2	= $1C
+proRWTS		= $D000
 
 ; Memory buffers
 fileBuf		= $4000	; len $400
@@ -118,17 +116,17 @@ relocate:
 	bne .lold
 ; verify that aux mem exists
 	inx
-	stx $D000
+	stx $E000
 	sei			; disable interrupts while in aux
 	sta setAuxZP
 	inx
-	stx $D000
-	cpx $D000
+	stx $E000
+	cpx $E000
 	sta clrAuxZP
 	cli
 	bne .noaux
 	dex
-	cpx $D000
+	cpx $E000
 	beq .gotaux
 .noaux	jsr inlineFatal : !text "AuxMemReq",0
 ; Copy the 6502 ROM vectors
@@ -427,6 +425,41 @@ brkHandler:
 	bit $c051		; also switch to text screen 1
 	bit $c054
 _jbrk	jmp $1111		; self-modified by init
+
+;------------------------------------------------------------------------------
+; Call to ProRWTS in the aux LC
+; Parameters in zero page locs $2-$F.
+; Clear carry to call opendir, set carry to call rdwrpart
+; On return, A contains status (for opendir only)
+callProRWTS:
+	; Copy the parameters to aux zero page
+	ldx #$F
+-	sta clrAuxZP
+	lda 0,x
+	sta setAuxZP
+	sta 0,x
+	dex
+	bpl -
+	bcc +
+	jsr proRWTS	; rdwrpart
+	jmp ++
++	jsr proRWTS+3	; opendir
+++	; grab the status code and we're done
+	lda tmp+1
+	sta clrAuxZP
+	rts
+
+;------------------------------------------------------------------------------
+disk_rewind: !zone
+	lda #0
+	ldx #2			; clear all 24 bits
+-	sta setAuxZP
+	sta rwts_mark0,x	; rewind the ProRWTS seek pointer
+	sta clrAuxZP
+	sta curMarkPos,x	; reset our record of the current mark
+	dex
+	bpl -
+	rts
 
 ;------------------------------------------------------------------------------
 ; Utility routine for convenient assembly routines in PLASMA code. 
@@ -1943,9 +1976,9 @@ openPartition: !zone
 	sta reqLen+1
 	lda #cmdread		; no hi bit => go to drive 1
 	sta tmp
-	jsr opendir
-	lda tmp+1		; get status
-	bne .insert		; zero=ok, 1=err
+	clc
+	jsr callProRWTS		; opendir
+	bne .insert		; status: zero=ok, 1=err
 	sta curMarkPos+1	; by opening we did an implicit seek to zero
 	sta curMarkPos+2
 	lda #2			; and then we read 2 bytes
@@ -1962,7 +1995,8 @@ openPartition: !zone
 	sta pDst
 	lda #>(headerBuf+2)
 	sta pDst+1
-	jsr disk_read
+	lda #cmdread
+	jsr readAndAdj
 	inc partFileOpen	; remember we've opened it now
 	rts
 ; ask user to insert the disk
@@ -2089,17 +2123,30 @@ disk_queueLoad: !zone
 +	jmp .scan		; go for more
 
 ;------------------------------------------------------------------------------
-disk_rewind: !zone
-	rts
+readAndAdj:
+	sta tmp			; store cmd num
+	sec			; calling rdwrpart (not opendir)
+	jsr callProRWTS		; and seek or read on the underlying file
+	; Advance our record of the mark position by the specified # of bytes.
+	; reqLen is still intact, because ProRWTS changes its copy in aux zp only
+	lda curMarkPos
+	clc
+	adc reqLen
+	sta curMarkPos
+	lda curMarkPos+1
+	adc reqLen+1
+	sta curMarkPos+1
+	bcc +
+	inc curMarkPos+2
++	rts
 
 ;------------------------------------------------------------------------------
 disk_seek: !zone
-	lda #cmdseek
-	sta tmp
 	lda setMarkPos
 	sec
 	sbc curMarkPos
 	sta reqLen
+	tax
 	lda setMarkPos+1
 	sbc curMarkPos+1
 	sta reqLen+1
@@ -2107,65 +2154,31 @@ disk_seek: !zone
 	sbc curMarkPos+2
 	bcc .back
 	bne .far
-	ldx #2			; record the new position
--	lda setMarkPos,x
-	sta curMarkPos,x
-	dex
-	bpl -
-	jmp rdwrpart		; and seek on the underlying file
-.back	lda #0
-	sta reseek_0		; rewind the ProRWTS seek pointer
-	sta reseek_1
-	sta reseek_2
-	sta curMarkPos
-	sta curMarkPos+1
-	sta curMarkPos+2
+	txa			; check for already there
+	ora reqLen+1
+	bne .go
+	rts
+.go	lda #cmdseek
+	jmp readAndAdj
+.back	jsr disk_rewind
 	beq disk_seek		; always taken
-.far	+internalErr '+' ; for now
-	lda #$FF		; seek forward $FFFF bytes
+.far	lda #$FF		; seek forward $FFFF bytes
 	sta reqLen
 	sta reqLen+1
-	jsr rdwrpart
-	lda #$FF
-	tax
-	jsr adjMark
-	jmp disk_seek
-
-;------------------------------------------------------------------------------
-adjMark: !zone
-	clc
-	adc curMarkPos
-	sta curMarkPos
-	txa
-	adc curMarkPos+1
-	sta curMarkPos+1
-	bcc +
-	inc curMarkPos+2
-+	rts
-
-;------------------------------------------------------------------------------
-disk_read: !zone
-	lda #cmdread
-	sta tmp
-	lda reqLen
-	pha
-	lda reqLen+1
-	pha
-	jsr rdwrpart
-	pla
-	tax
-	pla
-	jmp adjMark
+	jsr .go
+	jmp disk_seek		; and try again
+.done	rts
 
 ;------------------------------------------------------------------------------
 disk_finishLoad: !zone
 	lda nSegsQueued		; see if we actually queued anything
 	beq .done		; if nothing queued, we're done
+	jsr disk_rewind		; ProRWTS' file position may have been overwritten; reset it.
 	lda headerBuf           ; grab # header bytes
 	sta setMarkPos          ; set to start reading at first non-header byte in file
 	lda headerBuf+1         ; hi byte too
 	sta setMarkPos+1
-	lda #0
+	lda #0			; hi-hi byte (it's a 24 bit quantity altogether)
 	sta setMarkPos+2
 	sta .nFixups		; might as well clear fixup count while we're at it
 	jsr startHeaderScan	; start scanning the partition header
@@ -2229,7 +2242,8 @@ disk_finishLoad: !zone
 	lda tSegAdrHi,x		; hi byte too
 	sta pDst+1
 	!if DEBUG { jsr .debug2 }
-	jsr disk_read
+	lda #cmdread
+	jsr readAndAdj
 	;jsr lz4Decompress	; decompress (or copy if uncompressed)
 .resume	ldy .ysave
 .next	lda (pTmp),y		; lo byte of length

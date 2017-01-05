@@ -30,6 +30,7 @@
                                         ;but limits file size to 64k-2 bytes.
                 load_high    = 0        ;set to 1 to load to top of RAM (either main or banked, enables a himem check)
                 load_banked  = 1        ;set to 1 to load into banked RAM instead of main RAM
+                load_auxbnk  = 1        ;set to 1 to load into AUX banked RAM
                 lc_bank      = 1        ;load into specified bank (1 or 2) if load_banked=1
 
                 ;user-defined driver load address
@@ -40,7 +41,7 @@
                 reloc     = $fb00       ;page-aligned, as high as possible, the ideal value will be shown on mismatch
     } ;PASS2
   } else { ;load_high
-                reloc     = $f600       ;page-aligned, but otherwise wherever you want
+                reloc     = $d000       ;page-aligned, but otherwise wherever you want
   } ;load_high
 } else { ;load_banked
   !if load_high = 1 {
@@ -87,11 +88,11 @@
 
                 entries   = $18         ;(internal) total number of entries in directory
 !if bounds_check = 1 {
-                bleftlo   = $19         ;(internal) bytes left in file
-                blefthi   = $1a         ;(internal) bytes left in file
+                bleftlo   = $1b         ;(internal) bytes left in file
+                blefthi   = $1c         ;(internal) bytes left in file
 } ;bounds_check
-                blkofflo  = $1b         ;(internal) offset within cache block
-                blkoffhi  = $1c         ;(internal) offset within cache block
+                blkofflo  = $19         ;(internal) offset within cache block
+                blkoffhi  = $1a         ;(internal) offset within cache block
 !if enable_floppy = 1 {
                 step      = $1d         ;(internal) state for stepper motor
                 tmptrk    = $1e         ;(internal) temporary copy of current track
@@ -132,6 +133,7 @@
                 LCBANK2   = $c089
                 CLRAUXRD  = $c002
                 CLRAUXWR  = $c004
+                CLRAUXZP  = $c008
 
 init            jsr SETVID
                 jsr SETKBD
@@ -299,6 +301,9 @@ ifoundname      iny
                 tya
 set_slot        sta slot + 2
                 sta unrentry + 2
+!if load_auxbnk = 1 {
+                sta CLRAUXZP+1
+}
 !if enable_floppy = 1 {
                 ldx #>unrelocdsk
                 ldy #<unrelocdsk
@@ -359,7 +364,7 @@ reladr          sta reloc, y
                 iny
 +               inx
                 bpl --
-++              rts
+++
 } else { ;enable_floppy
 slot            lda $cfff
                 sta unrentry + 1
@@ -389,8 +394,11 @@ slot            lda $cfff
                 sta reloc + hack, y
                 iny
                 bne -
-                rts
 } ;enable_floppy
+!if load_auxbnk = 1 {
+                sta CLRAUXZP
+}
+                rts
 
 c7_parms        !byte 1
                 !word $200

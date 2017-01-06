@@ -1238,9 +1238,20 @@ class A2PackPartitions
         def compressedData = compressor.compress(uncompressedData)
         def compressedLen = compressedData.length
         assert compressedLen > 0
-        
+
+        // As a check, verify that decompression works with only a 2-byte overlap
+        if ((uncompressedLen - compressedLen) > 0) {
+            def underlap = 2
+            def checkData = new byte[uncompressedLen+underlap]
+            def initialOffset = uncompressedLen - compressedLen + underlap
+            System.arraycopy(compressedData, 0, checkData, initialOffset, compressedLen)
+            compressor.decompress(checkData, initialOffset, checkData, 0, uncompressedLen)
+            def outBlk = Arrays.copyOfRange(checkData, 0, uncompressedLen)
+            assert Arrays.equals(uncompressedData, outBlk)
+        }
+
         // If we saved at least 10 bytes, take the compressed version.
-        if (false && (uncompressedLen - compressedLen) >= 10) {
+        if ((uncompressedLen - compressedLen) >= 10) {
             if (debugCompression)
                 println String.format("  Compress. rawLen=\$%x compLen=\$%x", uncompressedLen, compressedLen)
             compressionSavings += (uncompressedLen - compressedLen) - 2 - (ADD_COMP_CHECKSUMS ? 1 : 0)
@@ -1271,11 +1282,13 @@ class A2PackPartitions
             fonts.each     { k,v -> chunks.add([type:TYPE_FONT,        num:v.num, name:k, buf:compress(v.buf)]) }
             frames.each    { k,v -> chunks.add([type:TYPE_SCREEN,      num:v.num, name:k, buf:compress(v.buf)]) }
         }
-        else {
+        else if (partNum == 2) {
             maps2D.each    { k,v -> chunks.add([type:TYPE_2D_MAP,      num:v.num, name:k, buf:compress(v.buf)]) }
             tileSets.each  { k,v -> chunks.add([type:TYPE_TILE_SET,    num:v.num, name:k, buf:compress(v.buf)]) }
             maps3D.each    { k,v -> chunks.add([type:TYPE_3D_MAP,      num:v.num, name:k, buf:compress(v.buf)]) }
             textures.each  { k,v -> chunks.add([type:TYPE_TEXTURE_IMG, num:v.num, name:k, buf:compress(v.buf)]) }
+        }
+        else {
             portraits.each { k,v -> chunks.add([type:TYPE_PORTRAIT,    num:v.num, name:k, buf:compress(v.buf)]) }
         }
         
@@ -1819,6 +1832,9 @@ class A2PackPartitions
 
         def part2Path = new File("build/root/game.part.2.bin").path
         new File(part2Path).withOutputStream { stream -> writePartition(stream, 2) }
+        
+        def part3Path = new File("build/root/game.part.3.bin").path
+        new File(part3Path).withOutputStream { stream -> writePartition(stream, 3) }
         
         // Print stats (unless there's a warning, in which case focus the user on that)
         if (nWarnings == 0)

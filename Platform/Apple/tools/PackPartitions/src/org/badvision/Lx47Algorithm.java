@@ -15,8 +15,8 @@ public class Lx47Algorithm
     static final int MAX_LEN = 255;  /* range 2..65536 */
     static final int OFFSET_EXP_BITS = 6;
     
-    LinkedList<String> debugs = new LinkedList<String>();
-    
+    LinkedList<String> debugs;
+
     void addDebug(String format, Object... arguments) {
         String str = String.format(format, arguments);
         //System.out.println("Gen: " + str);
@@ -241,6 +241,9 @@ public class Lx47Algorithm
         //for (i=0; i<optimal.length; i++)
         //    System.out.format("opt[%d]: bits=%d off=%d len=%d lits=%d\n", i, 
         //            optimal[i].bits, optimal[i].offset, optimal[i].len, optimal[i].lits);
+
+        // Initialize list of debug check strings
+        debugs = new LinkedList<String>();
 
         /* calculate and allocate output buffer */
         input_index = input_data.length-1;

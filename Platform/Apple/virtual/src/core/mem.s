@@ -444,9 +444,8 @@ callProRWTS:
 	jsr proRWTS	; rdwrpart
 	jmp ++
 +	jsr proRWTS+3	; opendir
-++	; grab the status code and we're done
-	lda tmp+1
-	sta clrAuxZP
+	lda tmp+1	; grab the status code (only applicable for opendir)
+++	sta clrAuxZP
 	rts
 
 ;------------------------------------------------------------------------------
@@ -703,8 +702,10 @@ __internalErr: !zone {
 ; Space (in main RAM) for saving the state of the LC bank switch
 savedLCBnk2State !byte 0
 
-; Buffer for forming the full filename
-filename: !fill 12	; 1 for len plus 11 for "GAME.PART.1"
+; Filename of the partition to open. The number gets fiddled by code.
+partFilename:
+ !byte 11 ; string len
+ !raw "GAME.PART.1"	; 'raw' chars to get lo-bit ascii that ProDOS likes.
 
 ;------------------------------------------------------------------------------
 ; Heap management routines
@@ -1944,27 +1945,16 @@ calcBufferDigest: !zone
 openPartition: !zone
 	!if DEBUG { +prStr : !text "OpenPart ",0 : +prByte curPartition : +crout }
 ; complete the partition file name, changing "1" to "2" if opening partition 2.
-.mkname	ldx #0
-	ldy #1
--	lda .fileStr,x
-	beq +++
-	cmp #$31		; "1"
-	bne ++
-	lda curPartition
+.mkname	lda curPartition
 	bne +
-	jmp sequenceError	; partition number must be >= 1
+	jmp sequenceError
 +	clc
-	adc #$30
-++	sta filename,y
-	inx
-	iny
-	bne -			; always taken
-+++	dey
-	sty filename		; total length
+	adc #$30		; "0" in lo-bit ProDOS compatible ASCII
+	sta partFilename+11
 ; open the file
-.open	lda #<filename
+.open	lda #<partFilename
 	sta pSrc
-	lda #>filename
+	lda #>partFilename
 	sta pSrc+1
 	lda #<headerBuf
 	sta pDst
@@ -2012,7 +2002,6 @@ openPartition: !zone
 	+safeHome
 	bit $c050
 	jmp .open		; try again
-.fileStr !raw "GAME.PART.1",0	; 'raw' chars to get lo-bit ascii that ProDOS likes.
 
 ;------------------------------------------------------------------------------
 sequenceError: !zone

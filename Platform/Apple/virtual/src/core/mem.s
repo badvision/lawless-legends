@@ -27,8 +27,8 @@
 ; Constants
 MAX_SEGS	= 96
 
-DEBUG		= 1
-SANITY_CHECK	= 1		; also prints out request data
+DEBUG		= 0
+SANITY_CHECK	= 0		; also prints out request data
 
 ; Zero page temporary variables
 tmp		= $2	; len 2
@@ -37,10 +37,10 @@ reqLen		= $6	; len 2
 resType		= $8	; len 1
 resNum		= $9	; len 1
 isAuxCmd	= $A	; len 1
-isCompressed	= $B	; len 1
+unused____0B	= $B	; len 1
 pSrc		= $C	; len 2
 pDst		= $E	; len 2
-ucLen		= $10	; len 2
+pEnd		= $10	; len 2
 
 ; Mapping of ProRWTS register names to mem mgr registers:
 ; "status"	-> tmp+1
@@ -97,9 +97,9 @@ relocate:
 	cpx #$40	; skip our own unrelocated code $4000.4FFF
 	bne +
 	ldx #$60
-+	cpx #$C0	; skip IO space $C000.CFFF
++	cpx #$C0	; skip IO space $C000.CFFF, our future home $D000.DEFF, and decomp $DF00.DFFF
 	bne +
-	ldx #$D0
+	ldx #$E0
 +	cpx #$F6	; skip ProRWTS $F600.FEFF, and ROM vecs $FF00.FFFF
 	bne .clr1
 
@@ -207,11 +207,11 @@ init: !zone
 ; 0: main $0000 -> 4, active + locked
 ; 1: aux  $0000 -> 2, active + locked
 ; 2: aux  $0200 -> 3, inactive
-; 3: aux  $C000 -> 0, active + locked
+; 3: aux  $BFFD -> 0, active + locked
 ; 4: main $0xxx -> 5, inactive (xxx = end of mem mgr low mem portion)
 ; 5: main $4000 -> 6, active + locked
 ; 6: main $6000 -> 7, inactive
-; 7: main $BF00 -> 8, active + locked
+; 7: main $BFFD -> 8, active + locked
 ; 8: main $E000 -> 9, inactive
 ; 9: main $FFFA -> 0, active + locked
 ; First, the flags
@@ -242,10 +242,9 @@ init: !zone
 ; Then the addresses
 	lda #2
 	sta tSegAdrHi+2
-	ldy #$C0
-	sty tSegAdrHi+3
-	dey
-	sty tSegAdrHi+7
+	lda #$BF
+	sta tSegAdrHi+3
+	sta tSegAdrHi+7
 	lda #<lastLoMem
 	sta tSegAdrLo+4
 	lda #>lastLoMem
@@ -258,6 +257,9 @@ init: !zone
 	sta tSegAdrHi+8
 	lda #$FA
 	sta tSegAdrLo+9
+	lda #$FD
+	sta tSegAdrLo+3
+	sta tSegAdrLo+7
 	lda #$FF
 	sta tSegAdrHi+9
 ; Finally, form a long list of the remaining unused segments.
@@ -2072,8 +2074,8 @@ disk_queueLoad: !zone
 	lda (pTmp),y		; and hi byte
 +	stx reqLen		; save the uncompressed length
 	sta reqLen+1		; both bytes
-	!if DEBUG { +prStr : !text "uclen=",0 : +prWord reqLen : +crout }
-; Load the bytecode of the main (first) bytecode module at the highest possible point
+	!if DEBUG { +prStr : !text "ucLen=",0 : +prWord reqLen : +crout }
+; Load the bytecode of the gamelib (first) bytecode module at the highest possible point
 ; (to reduce fragmentation of the rest of aux mem) 
 	lda resType
 	cmp #RES_TYPE_BYTECODE
@@ -2081,11 +2083,12 @@ disk_queueLoad: !zone
 	lda resNum
 	cmp #1
 	bne +
-	lda #0
+	; Take $BFFD - size. Why $BFFD and not $C000? Because decomp temporarily overwrites 3-byte "unnderlap" after.
+	lda #$FD
 	sec
 	sbc reqLen
 	sta targetAddr
-	lda #$C0
+	lda #$BF
 	sbc reqLen+1
 	sta targetAddr+1
 +	jsr shared_alloc	; reserve memory for this resource (main or aux as appropriate)
@@ -2210,30 +2213,29 @@ disk_finishLoad: !zone
 	ldy .ysave
 	lda (pTmp),y		; grab resource length on disk
 	sta reqLen		; save for reading
-	sta ucLen
+	sta pEnd
 	iny
 	lda (pTmp),y		; hi byte too
-	sta isCompressed	; save flag
+	php			; save hi bit (isCompressed) for later check
 	and #$7F		; mask off the flag to get the real (on-disk) length
 	sta reqLen+1
-	bit isCompressed	; retrieve flag
-	bpl +			; if uncompressed, we also have the ucLen now
-	iny			; is compressed
+	iny			; if compressed, we also have the uncomp len avail next
 	lda (pTmp),y		; fetch uncomp length
-	sta ucLen		; and save it
+	sta pEnd		; and save it
 	iny
 	lda (pTmp),y		; hi byte of uncomp len
-+	sta ucLen+1		; save uncomp len hi byte
+	sta pEnd+1		; save uncomp len hi byte
 	jsr scanForResource	; find the segment number allocated to this resource
 	beq .addrErr		; it better have been allocated
 	lda tSegAdrLo,x		; grab the address
-	sta pDst		; and save it to the dest point for copy or decompress
-	lda tSegAdrHi,x		; hi byte too
-	sta pDst+1
+	ldy tSegAdrHi,x		; hi byte too
+	sta pDst		; and save it for later
+	sty pDst+1
 	!if DEBUG { jsr .debug2 }
-	lda #cmdread
+	plp			; retrieve isCompressed flag
+	bmi .readAndDecomp	; if so, go do read/decompress thing
+	lda #cmdread		; else, just read.
 	jsr readAndAdj
-	;jsr lz4Decompress	; decompress (or copy if uncompressed)
 .resume	ldy .ysave
 .next	lda (pTmp),y		; lo byte of length
 	clc
@@ -2255,6 +2257,60 @@ disk_finishLoad: !zone
 +	jmp .scan		; back for more
 .addrErr:
 	jmp invalParam
+.readAndDecomp:
+	; Calculate end of uncompressed data, and start of compressed data.
+	; We overlap the compressed and uncompressed as much as possible, e.g.:
+	;   DDDDDDDDDDDDDD
+	;        SSSSSSSSSsss  ; sss is the 3-byte 'underlap'
+	sta pSrc
+	sty pSrc+1
+	clc
+	adc pEnd
+	sta pEnd		; reuse pEnd for end ptr
+	tax
+	tya
+	adc pEnd+1
+	sta pEnd+1
+	tay
+	txa
+	adc #3			; this is the max "underlap" required for decompressing overlapped buffers
+	bcc +
+	iny
++	sec
+	sbc reqLen		; then back up by the compressed size
+	sta pDst		; and load the compressed data there
+	tya
+	sbc reqLen+1
+	sta pDst+1
+	; save the 3 byte underlap bytes because we're going to read over them
+	ldy #2
+	ldx isAuxCmd
+	sta clrAuxRd,x		; from aux mem if appropriate
+-	lda (pEnd),y
+	pha
+	dey
+	bpl -
+	sta clrAuxRd
+	; Now read the raw (compressed) data
+	lda #cmdread
+	jsr readAndAdj
+	!if DEBUG { jsr .debug3 }
+	; Stuff was read to into pDst. Now that becomes the source. Decompressor is set up
+	; to decompress *from* our pDst to our pSrc. Its labels are swapped.
+	ldx isAuxCmd
+	sta clrAuxRd,x		; switch to r/w aux mem if appropriate
+	sta clrAuxWr,x
+	jsr lx47Decomp		; remaining work is for the dedicated decompressor
+	; restore the underlap bytes
+	ldy #0
+-	pla
+	sta (pEnd),y
+	iny
+	cpy #3
+	bne -
+	sta clrAuxRd
+	sta clrAuxWr
+	jmp .resume		; always taken
 
 .ysave:		!byte 0
 .nFixups:	!byte 0
@@ -2279,6 +2335,15 @@ disk_finishLoad: !zone
 	+prWord reqLen
 	+prStr : !text "dst=",0
 	+prWord pDst
+	+crout
+	rts
+.debug3:+prStr : !text "decomp ",0
+	+prStr : !text "src=",0
+	+prWord pDst
+	+prStr : !text "dst=",0
+	+prWord pSrc
+	+prStr : !text "end=",0
+	+prWord pEnd
 	+crout
 	rts
 } ; end DEBUG
@@ -2821,8 +2886,13 @@ tSegAdrHi	!fill MAX_SEGS
 tableEnd = *
 
 ; Be careful not to grow past the size of the LC bank
-!if tableEnd > $DFFF {
-	!error "Memory manager grew too large."
+!ifdef PASS2 {
+	!warn "mmgr spare: ", lx47Decomp - tableEnd
+	!if tableEnd >= lx47Decomp {
+		!error "Memory manager grew too large."
+	}
+} else { ;PASS2
+  !set PASS2=1
 }
 
 } ; end of !pseudopc $D000

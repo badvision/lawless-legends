@@ -1249,10 +1249,10 @@ class A2PackPartitions
         }
 
         // If we saved at least 10 bytes, take the compressed version.
-        if (false && (uncompressedLen - compressedLen) >= 10) {
+        if ((uncompressedLen - compressedLen) >= 10) {
             if (debugCompression)
                 println String.format("  Compress. rawLen=\$%x compLen=\$%x", uncompressedLen, compressedLen)
-            compressionSavings += (uncompressedLen - compressedLen) - 2
+            compressionSavings += (uncompressedLen - compressedLen) - 2 // -2 for storing compressed len
             return [data:compressedData, len:compressedLen, 
                     compressed:true, uncompressedLen:uncompressedLen]
         }

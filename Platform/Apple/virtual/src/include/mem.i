@@ -71,7 +71,7 @@
 ; 0000.01FF 6502 zero page and stack
 ; 0200.2xxx expander (if 3D map is running)
 ; 3000.9xxx (free)
-; Axxx.BFFF gameloop PLASMA code
+; Axxx.BFFF gameloop PLASMA code (loaded as high as possible)
 ; C000.CFFF I/O
 ; D000.DFFF bank 1: ProRWTS runtime (Note: D900.DFFF free)
 ;           bank 2: part of expander

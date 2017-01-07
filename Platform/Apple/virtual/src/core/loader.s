@@ -22,12 +22,8 @@ DEBUG	= 0
 
 * = $2000
 
-tmp	= $2		; len 2
-pTmp	= $4		; len 2
-bits	= $6		; len 1
-
-pSrc	= $C		; len 2
-pDst	= $E		; len 2
+pDst	= $C		; len 2		; opposite order from memmgr,
+pSrc	= $E		; len 2		;	so it can avoid swapping
 pEnd	= $10		; len 2
 
 pData	= $80		; len 2

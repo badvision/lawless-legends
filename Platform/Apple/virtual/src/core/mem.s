@@ -206,7 +206,7 @@ init: !zone
 ; We'll set up 8 initial segments:
 ; 0: main $0000 -> 4, active + locked
 ; 1: aux  $0000 -> 2, active + locked
-; 2: aux  $0200 -> 3, inactive
+; 2: aux  $0800 -> 3, inactive			; TEMPORARY: until we figure out prob w aux screen holes
 ; 3: aux  $BFFD -> 0, active + locked
 ; 4: main $0xxx -> 5, inactive (xxx = end of mem mgr low mem portion)
 ; 5: main $4000 -> 6, active + locked
@@ -240,7 +240,7 @@ init: !zone
 	inx
 	stx tSegLink+8
 ; Then the addresses
-	lda #2
+	lda #8  ; Temporarily avoid aux screen holes; normally this would be 2.
 	sta tSegAdrHi+2
 	lda #$BF
 	sta tSegAdrHi+3
@@ -2887,10 +2887,12 @@ tableEnd = *
 
 ; Be careful not to grow past the size of the LC bank
 !ifdef PASS2 {
+!if DEBUG {
 	!warn "mmgr spare: ", lx47Decomp - tableEnd
 	!if tableEnd >= lx47Decomp {
 		!error "Memory manager grew too large."
 	}
+} ; DEBUG
 } else { ;PASS2
   !set PASS2=1
 }

@@ -1285,6 +1285,9 @@ class A2PackPartitions
             tileSets.each  { k,v -> chunks.add([type:TYPE_TILE_SET,    num:v.num, name:k, buf:compress(v.buf)]) }
             maps3D.each    { k,v -> chunks.add([type:TYPE_3D_MAP,      num:v.num, name:k, buf:compress(v.buf)]) }
             textures.each  { k,v -> chunks.add([type:TYPE_TEXTURE_IMG, num:v.num, name:k, buf:compress(v.buf)]) }
+            //portraits.each { k,v -> chunks.add([type:TYPE_PORTRAIT,    num:v.num, name:k, buf:compress(v.buf)]) }
+        }
+        else if (partNum == 3) {
             portraits.each { k,v -> chunks.add([type:TYPE_PORTRAIT,    num:v.num, name:k, buf:compress(v.buf)]) }
         }
         
@@ -1822,12 +1825,16 @@ class A2PackPartitions
         // Ready to write the output file.
         println "Writing output file."
         new File("build/root").mkdir()
+
         
         def part1Path = new File("build/root/game.part.1.bin").path
         new File(part1Path).withOutputStream { stream -> writePartition(stream, 1) }
 
         def part2Path = new File("build/root/game.part.2.bin").path
         new File(part2Path).withOutputStream { stream -> writePartition(stream, 2) }
+        
+        def part3Path = new File("build/root/game.part.3.bin").path
+        new File(part3Path).withOutputStream { stream -> writePartition(stream, 3) }
         
         // Print stats (unless there's a warning, in which case focus the user on that)
         if (nWarnings == 0)

@@ -1946,6 +1946,11 @@ calcBufferDigest: !zone
 ;------------------------------------------------------------------------------
 openPartition: !zone
 	!if DEBUG { +prStr : !text "OpenPart ",0 : +prByte curPartition : +crout }
+	; Make sure to read header into main mem, even if outer cmd is aux
+	lda isAuxCmd
+	pha
+	lda #0
+	sta isAuxCmd		; header buf always in main mem
 ; complete the partition file name, changing "1" to "2" if opening partition 2.
 .mkname	lda curPartition
 	bne +
@@ -1990,6 +1995,8 @@ openPartition: !zone
 	lda #cmdread
 	jsr readAndAdj
 	inc partFileOpen	; remember we've opened it now
+	pla
+	sta isAuxCmd		; back to aux if that's what outer was using
 	rts
 ; ask user to insert the disk
 ; TODO: handle dual drive configuration

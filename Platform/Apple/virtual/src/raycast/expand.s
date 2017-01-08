@@ -8,8 +8,8 @@
 ; governing permissions and limitations under the License.
 ;****************************************************************************************
 
-* = $200
 !source "render.i"
+* = expandVec
 
 expand_vec:
 	!word expand_split	; gets replaced by expand_0

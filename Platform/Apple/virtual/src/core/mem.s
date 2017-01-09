@@ -14,7 +14,7 @@
 ;
 ; See detailed description in mem.i
 
-* = $2000			; PLASMA loader loads us initially at $2000
+* = $4000			; PLASMA loader loads us initially at $2000
 
 ; Use hi-bit ASCII for Apple II
 !convtab "../include/hiBitAscii.ct"
@@ -27,8 +27,6 @@
 ; Constants
 MAX_SEGS	= 96
 
-DO_COMP_CHECKSUMS = 0		; during compression debugging
-DEBUG_DECOMP 	= 0
 DEBUG		= 0
 SANITY_CHECK	= 0		; also prints out request data
 
@@ -39,14 +37,29 @@ reqLen		= $6	; len 2
 resType		= $8	; len 1
 resNum		= $9	; len 1
 isAuxCmd	= $A	; len 1
-isCompressed	= $B	; len 1
+unused____0B	= $B	; len 1
 pSrc		= $C	; len 2
 pDst		= $E	; len 2
-ucLen		= $10	; len 2
-checksum	= $12	; len 1
+pEnd		= $10	; len 2
 
-plasmaNextOp	= $F0	; PLASMA's dispatch loop
-plasmaXTbl	= $D300	; op table for auXiliary code execution
+; Mapping of ProRWTS register names to mem mgr registers:
+; "status"	-> tmp+1
+; "auxreq"	-> isAuxCmd
+; "reqcmd"	-> tmp
+; "sizelo"+hi	-> reqLen
+; "ldrlo"+hi	-> pDst
+; "namlo"+hi	-> pSrc
+
+lx47Decomp	= $DF00
+
+; ProRWTS constants
+cmdseek		= 0
+cmdread		= 1
+cmdwrite	= 2
+
+; ProRWTS locations
+rwts_mark	= $18		; to reset seek ptr, zero out 4 bytes here
+proRWTS		= $D000
 
 ; Memory buffers
 fileBuf		= $4000	; len $400
@@ -63,46 +76,29 @@ gcHash_link	= $5300
 gcHash_dstLo	= $5400
 gcHash_dstHi	= $5500
 
-; Other equates
-prodosMemMap 	= $BF58
-
-;------------------------------------------------------------------------------
-!macro callMLI cmd, parms {
-	lda #cmd
-	ldx #<parms
-	ldy #>parms
-	jsr _callMLI
-}
-
 ;------------------------------------------------------------------------------
 ; Relocate all the pieces to their correct locations and perform patching.
 relocate:
-; put something interesting on the screen :)
-	jsr ROM_home
-	ldy #0
--	lda .welcomeText,y
-	beq +
-	jsr ROM_cout
-	iny
-	bne -
-	jmp +
-.welcomeText: !text "Welcome to LegendOS.",$8D,0
-+
-; special: clear most of the lower 48k
+; special: clear most of the lower 48k and the ProDOS bank of the LC
+	bit setLcRW+lcBank1
+	bit setLcRW+lcBank1
+	tya
 	ldx #8
 .clr1	stx .clrst1+2
 	stx .clrst2+2
 	ldy #0
-	tya
 .clrst1	sta $800,y
 .clrst2	sta $880,y
 	iny
-	bpl .clrst1
+	bpl .clrst1	; yes, bpl not bne, because we're doing 128 bytes per loop
 	inx
-	cpx #$20
+	cpx #$40	; skip our own unrelocated code $4000.4FFF
 	bne +
-	ldx #$40
-+	cpx #$BF
+	ldx #$60
++	cpx #$C0	; skip IO space $C000.CFFF, our future home $D000.DEFF, and decomp $DF00.DFFF
+	bne +
+	ldx #$E0
++	cpx #$F6	; skip ProRWTS $F600.FEFF, and ROM vecs $FF00.FFFF
 	bne .clr1
 
 ; first our lo memory piece goes to $800
@@ -116,68 +112,23 @@ relocate:
 	inc .lost+2
 	dex
 	bne .lold
-; set up to copy the ProDOS code from main memory to aux
-	bit setLcRW+lcBank1	; only copy bank 1, because bank 2 is PLASMA runtime
-	bit setLcRW+lcBank1	; 	write to it
 ; verify that aux mem exists
 	inx
-	stx $D000
+	stx $E000
 	sei			; disable interrupts while in aux
 	sta setAuxZP
 	inx
-	stx $D000
-	cpx $D000
+	stx $E000
+	cpx $E000
 	sta clrAuxZP
 	cli
 	bne .noaux
 	dex
-	cpx $D000
+	cpx $E000
 	beq .gotaux
 .noaux	jsr inlineFatal : !text "AuxMemReq",0
-.gotaux	ldx #$D0
-.pglup	stx .ld+2
-	stx .st+2
-	sei
-.bylup	sta clrAuxZP		; get byte from main LC
-.ld	lda $D000,y
-	sta setAuxZP		; temporarily turn on aux LC
-.st	sta $D000,y
-	iny
-	bne .bylup
-	inx			; all pages until we hit $00
-	bne .pglup
-	cli
-	sta clrAuxZP		; ...back to main LC
-; patch into the main ProDOS MLI entry point
-	ldx #$4C	; jmp
-	stx $BFBB
-	lda #<enterProDOS1
-	sta $BFBC
-	lda #>enterProDOS1
-	sta $BFBD
-; patch into the interrupt handler
-	stx $BFEB
-	lda #<enterProDOS2
-	sta $BFEC
-	lda #>enterProDOS2
-	sta $BFED
-; patch into the shared MLI/IRQ exit routine
-	stx $BFA0
-	lda #<exitProDOS
-	sta $BFA1
-	lda #>exitProDOS
-	sta $BFA2
-; now blow away the main RAM LC area as a check
-	ldx #$D0
-	tya
-.clrlup	stx .st2+2
-.st2	sta $D000,Y
-	iny
-	bne .st2
-	inx
-	bne .clrlup
-; Copy the vectors
-	ldx #6
+; Copy the 6502 ROM vectors
+.gotaux	ldx #5
 	bit setLcWr+lcBank1	; read from ROM, write to LC RAM
 -	lda $FFFA,x
 	sta $FFFA,x
@@ -192,7 +143,7 @@ relocate:
 	sta $FFFE
 	lda #>brkHandler
 	sta $FFFF
-; Place the bulk of the memory manager code into the newly cleared LC
+; Place the bulk of the memory manager code into the LC
 	ldx #>hiMemBegin
 .cpmm	stx .ld4+2
 .ld4	lda hiMemBegin,y
@@ -208,6 +159,7 @@ relocate:
 ;------------------------------------------------------------------------------
 init: !zone
 	; KLUDGE ALERT! Turning off IIc keyboard buffer as an experiment
+	; FIXME: This depends on ProDOS machine ID byte. ProRWTS doesn't have such a byte. Hmm...
 	lda $BF98	; machine ID byte
 	and #$C8	; mask just the machine bits
 	cmp #$88	; Apple IIc?
@@ -217,30 +169,12 @@ init: !zone
 	lda #$B
 	sta $c0ab
 +	; END OF KLUDGE
-; grab the prefix of the current drive
-	lda #<prodosPrefix
-	sta getPfxAddr
-	lda #>prodosPrefix
-	sta getPfxAddr+1
-	+callMLI MLI_GET_PREFIX, getPfxParams
-	bcc +
-	jmp prodosError
-+	lda prodosPrefix
-	and #$F		; strip off drive/slot, keep string len
-	sta prodosPrefix
 ; switch in mem mgr
 	bit setLcRW+lcBank1
 	bit setLcRW+lcBank1
-; close all files
-	lda #0
-	jsr closeFile
-; clear ProDOS mem map so it lets us load stuff anywhere we want
-	ldx #$18
-	lda #0
-.clr:	sta prodosMemMap-1,x
-	dex
-	bne .clr
 ; clear the segment tables
+	lda #0
+	tax
 -	sta tSegLink,x
 	sta tSegAdrLo,x
 	sta tSegAdrHi,x
@@ -252,7 +186,7 @@ init: !zone
 ; clear other pointers
 	sta targetAddr+1
 	sta scanStart
-	sta partFileRef
+	sta partFileOpen
 	sta curPartition
 	lda #<diskLoader
 	sta nextLdVec+1
@@ -270,12 +204,12 @@ init: !zone
 ; We'll set up 8 initial segments:
 ; 0: main $0000 -> 4, active + locked
 ; 1: aux  $0000 -> 2, active + locked
-; 2: aux  $0200 -> 3, inactive
-; 3: aux  $C000 -> 0, active + locked
+; 2: aux  $0800 -> 3, inactive			; TEMPORARY: until we figure out prob w aux screen holes
+; 3: aux  $BFFD -> 0, active + locked
 ; 4: main $0xxx -> 5, inactive (xxx = end of mem mgr low mem portion)
 ; 5: main $4000 -> 6, active + locked
 ; 6: main $6000 -> 7, inactive
-; 7: main $BF00 -> 8, active + locked
+; 7: main $BFFD -> 8, active + locked
 ; 8: main $E000 -> 9, inactive
 ; 9: main $FFFA -> 0, active + locked
 ; First, the flags
@@ -304,12 +238,11 @@ init: !zone
 	inx
 	stx tSegLink+8
 ; Then the addresses
-	lda #2
+	lda #8  ; Temporarily avoid aux screen holes; normally this would be 2.
 	sta tSegAdrHi+2
-	ldy #$C0
-	sty tSegAdrHi+3
-	dey
-	sty tSegAdrHi+7
+	lda #$BF
+	sta tSegAdrHi+3
+	sta tSegAdrHi+7
 	lda #<lastLoMem
 	sta tSegAdrLo+4
 	lda #>lastLoMem
@@ -322,6 +255,9 @@ init: !zone
 	sta tSegAdrHi+8
 	lda #$FA
 	sta tSegAdrLo+9
+	lda #$FD
+	sta tSegAdrLo+3
+	sta tSegAdrLo+7
 	lda #$FF
 	sta tSegAdrHi+9
 ; Finally, form a long list of the remaining unused segments.
@@ -478,64 +414,6 @@ fatalError: !zone
 .hang: 	jmp .hang	; loop forever
 
 ;------------------------------------------------------------------------------
-; Normal entry point for ProDOS MLI calls. This patches the code at $BFBB.
-enterProDOS1: !zone
-	pla		; saved A reg
-	sta .ld2+1
-	pla		; lo byte of ret addr
-	sta .ld1+1
-	pla		; hi byte of ret addr
-	sta setAuxZP	; switch to aux stack/ZP/LC
-	pha		; hi byte of ret addr
-.ld1	lda #11		; self-modified earlier
-	pha		; lo byte of ret addr
-.ld2	lda #11		; saved A reg
-	pha
-	lda $E000	; this is what the original code at $BFBB did
-	jmp $BFBE	; jump back in where ProDOS enter left off
-
-;------------------------------------------------------------------------------
-; Entry point for ProDOS interrupt handler. This patches the code at $BFEB.
-enterProDOS2: !zone
-	pla		; saved P reg
-	sta .ld2+1
-	pla		; ret addr lo
-	sta .ld1+1
-	pla		; ret addr hi
-	sta setAuxZP	; switch to aux stack/ZP/LC
-	pha
-.ld1	lda #11		; self-modified earlier
-	pha
-.ld2	lda #11		; 	ditto
-	pha
-	bit $C08B	; this is what the original code at $BFEB did
-	jmp $BFEE	; back to where ProDOS left off
-
-;------------------------------------------------------------------------------
-; Shared exit point for ProDOS MLI and IRQ handlers. This patches the code
-; at $BFA0.
-exitProDOS: !zone
-	; pop data from AUX stack
-	pla			; saved A reg
-	sta .ld3+1
-	pla			; P-reg for RTI
-	sta .ld2+1
-	pla			; hi byte of ret addr
-	sta .ld1+1
-	pla			; lo byte of ret addr
-	; push data to MAIN stack
-	sta clrAuxZP		; back to main stack/ZP/LC
-	pha			; lo byte of ret addr
-.ld1	lda #11			; self-modified earlier
-	pha			; hi byte of ret addr
-.ld2	lda #11			;	ditto
-	pha			; P-reg for RTI
-.ld3	lda #11			; self-modified earlier (the saved A reg)
-	; Note! We leave LC bank 1 enabled, since that's where the memory
-	; manager lives, and it's the only code that calls ProDOS.
-	rti			; RTI pops P-reg and *exact* return addr (not adding 1)
-
-;------------------------------------------------------------------------------
 ; BRK and IRQ handler: switch to ROM, call default handler, switch back
 brkHandler:
 	sta $45			; preserve A reg
@@ -547,6 +425,40 @@ brkHandler:
 	bit $c051		; also switch to text screen 1
 	bit $c054
 _jbrk	jmp $1111		; self-modified by init
+
+;------------------------------------------------------------------------------
+; Call to ProRWTS in the aux LC
+; Parameters in zero page locs $2-$F.
+; Clear carry to call opendir, set carry to call rdwrpart
+; On return, A contains status (for opendir only)
+callProRWTS:
+	; Copy the parameters to aux zero page
+	ldx #$F
+-	sta clrAuxZP
+	lda 0,x
+	sta setAuxZP
+	sta 0,x
+	dex
+	bpl -
+	bcc +
+	jsr proRWTS	; rdwrpart
+	jmp ++
++	jsr proRWTS+3	; opendir
+	lda tmp+1	; grab the status code (only applicable for opendir)
+++	sta clrAuxZP
+	rts
+
+;------------------------------------------------------------------------------
+disk_rewind: !zone
+	lda #0
+	ldx #3			; clear all 32 bits
+-	sta setAuxZP
+	sta rwts_mark,x		; rewind the ProRWTS seek pointer
+	sta clrAuxZP
+	sta curMarkPos,x	; reset our record of the current mark
+	dex
+	bpl -
+	rts
 
 ;------------------------------------------------------------------------------
 ; Utility routine for convenient assembly routines in PLASMA code. 
@@ -790,44 +702,10 @@ __internalErr: !zone {
 ; Space (in main RAM) for saving the state of the LC bank switch
 savedLCBnk2State !byte 0
 
-; Call MLI from main memory rather than LC, since it lives in aux LC.
-_callMLI:	sta .cmd
-		stx .params
-		sty .params+1
-		jsr mli
-.cmd		!byte 0
-.params		!word 0
-		rts
-
-; Our ProDOS param blocks can't be in LC ram
-openParams:	!byte 3		; param count
-		!word filename	; pointer to file name
-		!word fileBuf	; pointer to buffer
-openFileRef:	!byte 0		; returned file number
-
-; ProDOS prefix of the boot disk
-prodosPrefix: !fill 16
-
-; Buffer for forming the full filename
-filename: !fill 28	; 16 for prefix plus 11 for "/GAME.PART.1"
-
-readParams:	!byte 4		; param count
-readFileRef:	!byte 0		; file ref to read
-readAddr:	!word 0
-readLen:	!word 0
-readGot:	!word 0
-
-setMarkParams:	!byte 2		; param count
-setMarkFileRef:	!byte 0		; file reference to set mark in
-setMarkPos:	!byte 0		; mark position (3 byte integer)
-		!byte 0
-		!byte 0
-
-closeParams:	!byte 1		; param count
-closeFileRef:	!byte 0		; file ref to close
-
-getPfxParams:	!byte 1		; param count
-getPfxAddr:	!word 0		; pointer to buffer
+; Filename of the partition to open. The number gets fiddled by code.
+partFilename:
+ !byte 11 ; string len
+ !raw "GAME.PART.1"	; 'raw' chars to get lo-bit ascii that ProDOS likes.
 
 ;------------------------------------------------------------------------------
 ; Heap management routines
@@ -1101,12 +979,10 @@ gc2_sweep: !zone
 	rts
 
 closePartFile: !zone
-	lda partFileRef		; close the partition file
+	lda partFileOpen	; check if open
 	beq .done
 	!if DEBUG { +prStr : !text "ClosePart.",0 }
-	jsr closeFile
-	lda #0			; zero out...
-	sta partFileRef		; ... the file reference so we know it's no longer open
+	dec partFileOpen
 .done	rts
 
 heapCollect: !zone
@@ -1233,10 +1109,11 @@ scanStart:	!byte 0, 1	; main, aux
 segNum:		!byte 0
 nextLdVec:	jmp diskLoader
 curPartition:	!byte 0
-partFileRef: 	!byte 0
+partFileOpen:	!byte 0
+curMarkPos:	!fill 4		; really 3, but 1 extra to match ProRWTS needs
+setMarkPos:	!fill 3
 nSegsQueued:	!byte 0
 bufferDigest:	!fill 4
-multiDiskMode:	!byte 0		; hardcoded to YES for now
 diskActState:	!byte 0
 
 ;------------------------------------------------------------------------------
@@ -1473,11 +1350,7 @@ saneStart: !zone {
 }
 
 saneCheck: !zone {
-	lda $BF00
-	cmp #$4C
-	beq +
-	+internalErr 'S'
-+	lda $E1
+	lda $E1
 	cmp #$BE
 	bcc +
 	+internalErr 's'
@@ -2071,76 +1944,60 @@ calcBufferDigest: !zone
 ;------------------------------------------------------------------------------
 openPartition: !zone
 	!if DEBUG { +prStr : !text "OpenPart ",0 : +prByte curPartition : +crout }
-; complete the partition file name, changing "1" to "2" if we're in multi-disk mode
-; and opening partition 2.
-.mkname	ldx #1
-	ldy #1
--	lda prodosPrefix,x
-	sta filename,y
-	cmp #$31		; "1"
-	bne +
-	lda multiDiskMode
-	beq +			; don't change if single-disk mode
-	lda curPartition
-	cmp #2
-	bcc +
-	lda #$32		; "2"
-	sta filename,y
-+	cpx prodosPrefix	; done with full length of prefix?
-	beq +
-	inx
-	iny
-	bne -			; always taken
-+	ldx #0
--	lda .fileStr,x
-	beq +++
-	cmp #$31		; "1"
-	bne ++
-	lda curPartition
-	bne +
-	jmp sequenceError	; partition number must be >= 1
-+	clc
-	adc #$30
-++	sta filename,y
-	inx
-	iny
-	bne -			; always taken
-+++	dey
-	sty filename		; total length
-; open the file
-.open	+callMLI MLI_OPEN, openParams
-	bcc .opened
-	cmp #$46		; file not found?
-	bne +
-	lda #1			; enter into
-	sta multiDiskMode	;   multi-disk mode
-	bne .mkname		; and retry
-+	cmp #$45		; volume not found?
-	beq .insert		; ask user to insert the disk
-	jmp prodosError		; no, misc error - print it and die
-; grab the file number, since we're going to keep it open
-.opened	lda openFileRef
-	sta partFileRef
-	sta readFileRef
-; Read the first two bytes, which tells us how long the header is.
-	lda #<headerBuf
-	sta readAddr
-	lda #>headerBuf
-	sta readAddr+1
-	lda #2
-	sta readLen
+	; Make sure to read header into main mem, even if outer cmd is aux
+	lda isAuxCmd
+	pha
 	lda #0
-	sta readLen+1
-	jsr readToMain
-	lda headerBuf		; grab header size
-	sta readLen		; set to read that much. Will actually get 2 extra bytes,
-				; but that's no biggie.
+	sta isAuxCmd		; header buf always in main mem
+; complete the partition file name, changing "1" to "2" if opening partition 2.
+.mkname	lda curPartition
+	bne +
+	jmp sequenceError
++	clc
+	adc #$30		; "0" in lo-bit ProDOS compatible ASCII
+	sta partFilename+11
+; open the file
+.open	lda #<partFilename
+	sta pSrc
+	lda #>partFilename
+	sta pSrc+1
+	lda #<headerBuf
+	sta pDst
+	lda #>headerBuf
+	sta pDst+1
+	lda #2			; read 2 bytes (which will tell us how long the header is)
+	sta reqLen
+	lda #0
+	sta reqLen+1
+	lda #cmdread		; no hi bit => go to drive 1
+	sta tmp
+	clc
+	jsr callProRWTS		; opendir
+	bne .insert		; status: zero=ok, 1=err
+	sta curMarkPos+1	; by opening we did an implicit seek to zero
+	sta curMarkPos+2
+	lda #2			; and then we read 2 bytes
+	sta curMarkPos
+; read the full header
+.opened	lda headerBuf		; grab header size
+	sec
+	sbc #2			; minus size of the size
+	sta reqLen		; set to read that much.
 	lda headerBuf+1		; hi byte too
-	sta readLen+1
-	lda #2			; read just after the 2-byte length
-	sta readAddr
-	jmp readToMain		; finish by reading the rest of the header
+	sbc #0
+	sta reqLen+1
+	lda #<(headerBuf+2)
+	sta pDst
+	lda #>(headerBuf+2)
+	sta pDst+1
+	lda #cmdread
+	jsr readAndAdj
+	inc partFileOpen	; remember we've opened it now
+	pla
+	sta isAuxCmd		; back to aux if that's what outer was using
+	rts
 ; ask user to insert the disk
+; TODO: handle dual drive configuration
 .insert	+safeHome
 	+prStr : !text "Insert disk ",0
 	bit $c051
@@ -2152,34 +2009,10 @@ openPartition: !zone
 	+safeHome
 	bit $c050
 	jmp .open		; try again
-.fileStr !raw "/GAME.PART.1",0	; 'raw' chars to get lo-bit ascii that ProDOS likes.
 
 ;------------------------------------------------------------------------------
 sequenceError: !zone
 	jsr inlineFatal : !text "BadSeq", 0
-
-;------------------------------------------------------------------------------
-prodosError: !zone
-	pha
-	lsr
-	lsr
-	lsr
-	lsr
-	jsr .digit
-	sta .num
-	pla
-	jsr .digit
-	sta .num+1
-	jsr inlineFatal
-.msg:	!text "ProDOSErr $"
-.num:	!text "xx"
-	!byte 0
-.digit:	and #$F
-	ora #$B0
-	cmp #$BA
-	bcc +
-	adc #6
-+	rts
 
 ;------------------------------------------------------------------------------
 disk_startLoad: !zone
@@ -2188,7 +2021,7 @@ disk_startLoad: !zone
 	cpx curPartition	; switching partition?
 	stx curPartition	;  (and store the new part num in any case)
 	bne .new		; if different, close the old one
-	lda partFileRef
+	lda partFileOpen
 	beq .done		; if nothing already open, we're okay with that.
 	jsr calcBufferDigest	; same partition - check that buffers are still intact
 	beq .done		; if correct partition file already open, we're done.
@@ -2211,7 +2044,7 @@ disk_queueLoad: !zone
 	lda #$FF
 	jsr showDiskActivity	; graphical marker that disk activity happening
 	inc nSegsQueued		; record the fact that we're queuing a seg
-	lda partFileRef		; check if we've opened the file yet
+	lda partFileOpen	; check if we've opened the file yet
 	bne +			; yes, don't re-open
 	jsr openPartition	; open the partition file
 +	jsr startHeaderScan	; start scanning the partition header
@@ -2246,8 +2079,8 @@ disk_queueLoad: !zone
 	lda (pTmp),y		; and hi byte
 +	stx reqLen		; save the uncompressed length
 	sta reqLen+1		; both bytes
-	!if DEBUG { +prStr : !text "uclen=",0 : +prWord reqLen : +crout }
-; Load the bytecode of the main (first) bytecode module at the highest possible point
+	!if DEBUG { +prStr : !text "ucLen=",0 : +prWord reqLen : +crout }
+; Load the bytecode of the gamelib (first) bytecode module at the highest possible point
 ; (to reduce fragmentation of the rest of aux mem) 
 	lda resType
 	cmp #RES_TYPE_BYTECODE
@@ -2255,11 +2088,12 @@ disk_queueLoad: !zone
 	lda resNum
 	cmp #1
 	bne +
-	lda #0
+	; Take $BFFD - size. Why $BFFD and not $C000? Because decomp temporarily overwrites 3-byte "unnderlap" after.
+	lda #$FD
 	sec
 	sbc reqLen
 	sta targetAddr
-	lda #$C0
+	lda #$BF
 	sbc reqLen+1
 	sta targetAddr+1
 +	jsr shared_alloc	; reserve memory for this resource (main or aux as appropriate)
@@ -2286,19 +2120,64 @@ disk_queueLoad: !zone
 +	jmp .scan		; go for more
 
 ;------------------------------------------------------------------------------
+readAndAdj:
+	sta tmp			; store cmd num
+	sec			; calling rdwrpart (not opendir)
+	jsr callProRWTS		; and seek or read on the underlying file
+	; Advance our record of the mark position by the specified # of bytes.
+	; reqLen is still intact, because ProRWTS changes its copy in aux zp only
+	lda curMarkPos
+	clc
+	adc reqLen
+	sta curMarkPos
+	lda curMarkPos+1
+	adc reqLen+1
+	sta curMarkPos+1
+	bcc +
+	inc curMarkPos+2
++	rts
+
+;------------------------------------------------------------------------------
+disk_seek: !zone
+	lda setMarkPos
+	sec
+	sbc curMarkPos
+	sta reqLen
+	tax
+	lda setMarkPos+1
+	sbc curMarkPos+1
+	sta reqLen+1
+	lda setMarkPos+2
+	sbc curMarkPos+2
+	bcc .back
+	bne .far
+	txa			; check for already there
+	ora reqLen+1
+	bne .go
+	rts
+.go	lda #cmdseek
+	jmp readAndAdj
+.back	jsr disk_rewind
+	beq disk_seek		; always taken
+.far	lda #$FF		; seek forward $FFFF bytes
+	sta reqLen
+	sta reqLen+1
+	jsr .go
+	jmp disk_seek		; and try again
+.done	rts
+
+;------------------------------------------------------------------------------
 disk_finishLoad: !zone
 	lda nSegsQueued		; see if we actually queued anything
 	beq .done		; if nothing queued, we're done
-	lda partFileRef
-	sta setMarkFileRef	; copy the file ref number to our MLI param blocks
-	sta readFileRef
-	lda headerBuf		; grab # header bytes
-	sta setMarkPos		; set to start reading at first non-header byte in file
-	lda headerBuf+1		; hi byte too
+	jsr disk_rewind		; ProRWTS' file position may have been overwritten; reset it.
+	lda headerBuf           ; grab # header bytes
+	sta setMarkPos          ; set to start reading at first non-header byte in file
+	lda headerBuf+1         ; hi byte too
 	sta setMarkPos+1
-	lda #0
+	lda #0			; hi-hi byte (it's a 24 bit quantity altogether)
 	sta setMarkPos+2
-	sta .nFixups
+	sta .nFixups		; might as well clear fixup count while we're at it
 	jsr startHeaderScan	; start scanning the partition header
 .scan:	lda (pTmp),y		; get resource type byte
 	bne .notdone		; zero = end of header
@@ -2335,34 +2214,33 @@ disk_finishLoad: !zone
 	inc isAuxCmd		; set aux flag
 +	sty .ysave		; Save Y so we can resume scanning later.
 	!if DEBUG { jsr .debug1 }
+	jsr disk_seek		; move the file pointer to the current block
+	ldy .ysave
 	lda (pTmp),y		; grab resource length on disk
 	sta reqLen		; save for reading
-	sta ucLen
+	sta pEnd
 	iny
 	lda (pTmp),y		; hi byte too
-	sta isCompressed	; save flag
+	php			; save hi bit (isCompressed) for later check
 	and #$7F		; mask off the flag to get the real (on-disk) length
 	sta reqLen+1
-	bit isCompressed	; retrieve flag
-	bpl +			; if uncompressed, we also have the ucLen now
-	iny			; is compressed
+	iny			; if compressed, we also have the uncomp len avail next
 	lda (pTmp),y		; fetch uncomp length
-	sta ucLen		; and save it
+	sta pEnd		; and save it
 	iny
 	lda (pTmp),y		; hi byte of uncomp len
-+	sta ucLen+1		; save uncomp len hi byte
+	sta pEnd+1		; save uncomp len hi byte
 	jsr scanForResource	; find the segment number allocated to this resource
 	beq .addrErr		; it better have been allocated
 	lda tSegAdrLo,x		; grab the address
-	sta pDst		; and save it to the dest point for copy or decompress
-	lda tSegAdrHi,x		; hi byte too
-	sta pDst+1
+	ldy tSegAdrHi,x		; hi byte too
+	sta pDst		; and save it for later
+	sty pDst+1
 	!if DEBUG { jsr .debug2 }
-	+callMLI MLI_SET_MARK, setMarkParams  ; move the file pointer to the current block
-	bcs .prodosErr
-!if DEBUG >= 3 { +prStr : !text "Deco.",0 }
-	jsr lz4Decompress	; decompress (or copy if uncompressed)
-!if DEBUG >= 3 { +prStr : !text "Done.",0 }
+	plp			; retrieve isCompressed flag
+	bmi .readAndDecomp	; if so, go do read/decompress thing
+	lda #cmdread		; else, just read.
+	jsr readAndAdj
 .resume	ldy .ysave
 .next	lda (pTmp),y		; lo byte of length
 	clc
@@ -2382,10 +2260,62 @@ disk_finishLoad: !zone
 	bpl +			; if Y index is is small, no need to adjust
 	jsr adjYpTmp		; adjust pTmp and Y to make it small again
 +	jmp .scan		; back for more
-.prodosErr:
-	jmp prodosError
 .addrErr:
 	jmp invalParam
+.readAndDecomp:
+	; Calculate end of uncompressed data, and start of compressed data.
+	; We overlap the compressed and uncompressed as much as possible, e.g.:
+	;   DDDDDDDDDDDDDD
+	;        SSSSSSSSSsss  ; sss is the 3-byte 'underlap'
+	sta pSrc
+	sty pSrc+1
+	clc
+	adc pEnd
+	sta pEnd		; reuse pEnd for end ptr
+	tax
+	tya
+	adc pEnd+1
+	sta pEnd+1
+	tay
+	txa
+	adc #3			; this is the max "underlap" required for decompressing overlapped buffers
+	bcc +
+	iny
++	sec
+	sbc reqLen		; then back up by the compressed size
+	sta pDst		; and load the compressed data there
+	tya
+	sbc reqLen+1
+	sta pDst+1
+	; save the 3 byte underlap bytes because we're going to read over them
+	ldy #2
+	ldx isAuxCmd
+	sta clrAuxRd,x		; from aux mem if appropriate
+-	lda (pEnd),y
+	pha
+	dey
+	bpl -
+	sta clrAuxRd
+	; Now read the raw (compressed) data
+	lda #cmdread
+	jsr readAndAdj
+	!if DEBUG { jsr .debug3 }
+	; Stuff was read to into pDst. Now that becomes the source. Decompressor is set up
+	; to decompress *from* our pDst to our pSrc. Its labels are swapped.
+	ldx isAuxCmd
+	sta clrAuxRd,x		; switch to r/w aux mem if appropriate
+	sta clrAuxWr,x
+	jsr lx47Decomp		; remaining work is for the dedicated decompressor
+	; restore the underlap bytes
+	ldy #0
+-	pla
+	sta (pEnd),y
+	iny
+	cpy #3
+	bne -
+	sta clrAuxRd
+	sta clrAuxWr
+	jmp .resume		; always taken
 
 .ysave:		!byte 0
 .nFixups:	!byte 0
@@ -2412,6 +2342,15 @@ disk_finishLoad: !zone
 	+prWord pDst
 	+crout
 	rts
+.debug3:+prStr : !text "decomp ",0
+	+prStr : !text "src=",0
+	+prWord pDst
+	+prStr : !text "dst=",0
+	+prWord pSrc
+	+prStr : !text "end=",0
+	+prWord pEnd
+	+crout
+	rts
 } ; end DEBUG
 
 ;------------------------------------------------------------------------------
@@ -2427,322 +2366,9 @@ adjYpTmp: !zone
 +	rts
 
 ;------------------------------------------------------------------------------
-closeFile: !zone
-	sta closeFileRef
-	+callMLI MLI_CLOSE, closeParams
-	bcs .prodosErr
-	rts
-.prodosErr:
-	jmp prodosError
-
-;------------------------------------------------------------------------------
-readToMain: !zone
-	+callMLI MLI_READ, readParams
-	bcs .err
-	rts
-.err:	jmp prodosError
-
-;------------------------------------------------------------------------------
-readToBuf: !zone
-; Read as much data as we can, up to min(compLen, bufferSize) into the diskBuf.
-	lda #0
-	sta readAddr		; buffer addr always on even page boundary
-	sta pSrc
-	lda #>diskBuf		; we're reading into a buffer in main mem
-	sta readAddr+1
-	sta pSrc+1		; restart src pointer at start of buffer
-.nextGroup:
-	ldx reqLen
-	lda reqLen+1		; see how many pages we want
-	cmp #>DISK_BUF_SIZE	; less than our max?
-	bcc +			; yes, read exact amount
-	lda #>DISK_BUF_SIZE	; no, limit to size of buffer
-	ldx #0
-+	stx readLen
-	sta readLen+1		; save number of pages
-	jsr readToMain		; now read
-	lda reqLen		; decrement reqLen by the amount we read
-	sec
-	sbc readLen
-	sta reqLen
-	lda reqLen+1		; all 16 bits of reqLen
-	sbc readLen+1
-	sta reqLen+1
-	ldy #0			; index for reading first byte
-	rts			; all done
-
-;------------------------------------------------------------------------------
 lz4Decompress: !zone
-; Input: pSrc - pointer to source data
-;        pDst - pointer to destination buffer
-;        ucLen  - length of *destination* data (16-bit)
-;	 isCompressed - if hi bit set, decompress; if not, just copy.
-; All inputs are destroyed by the process.
-
-!macro LOAD_YSRC {
-	lda (pSrc),y		; load byte
-	iny			; inc low byte of ptr
-	bne +			; non-zero, done
-	jsr nextSrcPage		; zero, need to go to next page
-+
-}
-
-	!if DEBUG_DECOMP { jsr .debug1 }
-	jsr readToBuf		; read first pages into buffer
-	ldx #<clrAuxWr		; start by assuming write to main mem
-	ldy #<clrAuxRd		; and read from main mem
-	lda isAuxCmd		; if we're decompressing to aux...
-	beq +			; no? keep those values
-	inx			; yes, write to aux mem
-	iny			; and read from aux mem
-+ 	stx .auxWr1+1		; set all the write switches for aux/main
-	stx .auxWr3+1
-	stx .auxWr2+1
-	sty .auxRd1+1		; and the read switches too
-+	ldx pDst		; calculate the end of the dest buffer
-	txa			; also put low byte of ptr in X (where we'll use it constantly)
-	clc
-	adc ucLen		; add in the uncompressed length
-	sta .endChk1+1		; that's what we'll need to check to see if we're done
-	lda ucLen+1		; grab, but don't add, hi byte of dest length
-	adc #0			; no, we don't add pDst+1 - see endChk2
-	sta .endChk2+1		; this is essentially a count of dest page bumps
-	lda pDst+1		; grab the hi byte of dest pointer
-	sta .dstStore1+2	; self-modify our storage routines
-	sta .dstStore2+2
-	ldy pSrc		; Y will always track the hi byte of the source ptr
-	lda #0			; so zero out the low byte of the ptr itself
-	sta pSrc
-	!if DO_COMP_CHECKSUMS {
-	sta checksum
-	}
-	bit isCompressed	; check compression flag
-	bpl .goLit		; not compressed? Treat as a single literal sequence.
-	sta ucLen+1		; ucLen+1 always needs to be zero
-	; Grab the next token in the compressed data
-.getToken:
-	+LOAD_YSRC		; load next source byte
-	pha			; save the token byte. We use half now, and half later
-	lsr			; shift to get the hi 4 bits...
-	lsr
-	lsr			; ...into the lo 4 bits
-	lsr
-	beq .endChk1		; if ucLen=0, there is no literal data.
-	cmp #$F			; ucLen=15 is a special marker
-	bcc +			; not special, go copy the literals
-	jsr .longLen		; special marker: extend the length
-+	sta ucLen		; record resulting length (lo byte)
-.goLit:
-	!if DEBUG_DECOMP { jsr .debug2 }
-+
-.auxWr1	sta setAuxWr		; this gets self-modified depending on if target is in main or aux mem
-.litCopy:			; loop to copy the literals
-	+LOAD_YSRC		; grab a literal source byte
-.dstStore1:
-	sta $1100,x		; hi-byte gets self-modified to point to dest page
-	!if DO_COMP_CHECKSUMS {
-	eor checksum
-	sta checksum
-	}
-	inx			; inc low byte of ptr
-	bne +			; non-zero, done
-	jsr .nextDstPage	; zero, need to go to next page
-+	dec ucLen		; count bytes
-	bne +			; low count = 0?
-	lda ucLen+1		; hi count = 0?
-	beq .endChk		; both zero - end of loop
-+	lda ucLen		; did low byte wrap around?
-	cmp #$FF
-	bne .litCopy		; no, go again
-	dec ucLen+1		; yes, decrement hi byte
-	jmp .litCopy		; and go again
-.endChk	sta clrAuxWr		; back to writing main mem	  
-.endChk1:
-	cpx #11			; end check - self-modified earlier
-	bcc .decodeMatch	; if less, keep going
-.endChk2:
-	lda #0              	; have we finished all pages? - self modified and decremented
-	bmi .endBad		; negative? that's very bad (because we never have blocks >= 32Kbytes)
-	bne .decodeMatch	; non-zero? keep going.
-	bit isCompressed
-	bpl +			; if not compressed, no extra work at end
-	pla			; toss unused match length
-	!if DO_COMP_CHECKSUMS { jsr .verifyCksum }
-+	rts			; all done!
-.endBad	+internalErr 'O'	; barf out
-	; Now that we've finished with the literals, decode the match section
-.decodeMatch:
-	+LOAD_YSRC		; grab first byte of match offset
-	sta tmp			; save for later
-	cmp #0
-	bmi .far		; if hi bit is set, there will be a second byte
-	!if DO_COMP_CHECKSUMS { jsr .verifyCksum }
-	lda #0			; otherwise, second byte is assumed to be zero
-	beq .doInv		; always taken
-.far:	+LOAD_YSRC		; grab second byte of offset
-	asl tmp			; toss the unused hi bit of the lo byte
- 	lsr			; shift out lo bit of the hi byte
-	ror tmp			; to fill in the hi bit of the lo byte
-.doInv:	sta tmp+1		; got the hi byte of the offset now
-	lda #0			; calculate zero minus the offset, to obtain ptr diff
-	sec
-	sbc tmp
-	sta .srcLoad+1		; that's how much less to read from
-	lda .dstStore2+2	; same with hi byte of offset
-	sbc tmp+1
-	sta .srcLoad+2		; to hi byte of offsetted pointer
-	!if DEBUG_DECOMP { jsr .debug3 }
-.getMatchLen:
-	pla			; recover the token byte
-	and #$F			; mask to get just the match length
-	clc
-	adc #4			; adjust: min match is 4 bytes
-	cmp #$13		; was it the special value $0F? ($F + 4 = $13)
-	bne +			; if not, no need to extend length
-	jsr .longLen		; need to extend the length
-+	sty tmp			; save index to source pointer, so we can use Y...
-	!if DEBUG_DECOMP { sta ucLen : jsr .debug4 }
-	tay			; ...to count bytes
-	bne +
-	dec ucLen+1		; special case for len being an exact multiple of 256
-+
-	sei			; prevent interrupts while we access aux mem
-.auxWr2	sta setAuxWr		; self-modified earlier, based on isAuxCmd
-.auxRd1	sta setAuxRd  		; self-modified based on isAuxCmd
-.srcLoad:
-	lda $1100,x		; self-modified earlier for offsetted source
-.dstStore2:
-	sta $1100,x		; self-modified earlier for dest buffer
-	!if DO_COMP_CHECKSUMS {
-	eor checksum
-	sta checksum
-	}
-	inx			; inc to next src/dst byte
-	bne +			; non-zero, skip page bump
-	jsr .nextDstPage	; do the bump
-+	dey			; count bytes -- first page yet?
-	bne .srcLoad		; loop for more
-	dec ucLen+1		; count pages
-	bpl .srcLoad		; loop for more. NOTE: this would fail if we had blocks >= 32K
-	sta clrAuxRd		; back to reading main mem, for mem mgr code
-	sta clrAuxWr		; back to writing main mem
-	cli
-	inc ucLen+1		; to make it zero for the next match decode
-+ 	ldy tmp			; restore index to source pointer
-	jmp .getToken		; go on to the next token in the compressed stream
-	; Subroutine called when length token = $F, to extend the length by additional bytes
-.longLen:
--	sta ucLen		; save what we got so far
-	+LOAD_YSRC		; get another byte
-	cmp #$FF		; check for special there-is-more marker byte
-	php			; save result of that
-	clc
-	adc ucLen		; add $FF to ucLen
-	bcc +			; no carry, only lo byte has changed
-	inc ucLen+1		; increment hi byte of ucLen
-+	plp			; retrieve comparison status from earlier
-	beq -			; if it was $FF, go back for more len bytes
-	rts
-
-	!if DO_COMP_CHECKSUMS {
-.verifyCksum:
-	+LOAD_YSRC
-	!if DEBUG_DECOMP {
-	+prStr : !text "cksum exp=",0
-	pha
-	jsr prbyte
-	+prStr : !text " got=",0
-	+prByte checksum
-	+crout
-	pla
-	}
-	cmp checksum		; get computed checksum
-	beq +			; should be zero, because compressor stores checksum byte as part of stream
-	+internalErr 'C'	; checksum doesn't match -- abort!
-+	rts
-	}
-
-nextSrcPage:
-	pha			; save byte that was loaded
-	inc pSrc+1		; go to next page
-	lda pSrc+1		; check the resulting page num
-	cmp #>diskBufEnd	; did we reach end of buffer?
-	bne +			; if not, we're done
-	sta clrAuxWr		; buffer is in main mem
-	txa
-	pha
-	jsr readToBuf		; read more pages
-	pla
-	tax
-.auxWr3	sta setAuxWr		; go back to writing aux mem (self-modified for aux or main)
-+	pla			; restore loaded byte
-	rts
-
-.nextDstPage:
-	inc .srcLoad+2		; inc offset pointer for match copies
-	inc .dstStore1+2	; inc pointers for dest stores
-	inc .dstStore2+2
-	dec .endChk2+1		; decrement total page counter
-	rts
-  
-!if DEBUG_DECOMP {
-.debug1	+prStr : !text "Decompressing: isComp=",0
-	+prByte isCompressed
-	+prStr : !text "isAux=",0
-	+prByte isAuxCmd
-	+prStr : !text "compLen=",0
-	+prWord reqLen
-	+prStr : !text "uncompLen=",0
-	+prWord ucLen
-	+crout
-	rts
-.debug2	+prStr : !text "Lit ptr=",0
-	tya
-	clc
-	adc pSrc
-	sta .dbgTmp
-	lda pSrc+1
-	adc #0
-	sta .dbgTmp+1
-	+prWord .dbgTmp
-	+prStr : !text "len=",0
-	+prWord ucLen
-	+crout
-	rts
-.debug3	+prStr : !text "Match src=",0
-	txa			; calculate src address with X (not Y!) as offset
-	clc
-	adc .srcLoad+1
-	sta .dbgTmp
-	lda .srcLoad+2
-	adc #0
-	sta .dbgTmp+1
-	+prWord .dbgTmp
-	+prStr : !text "dst=",0
-	txa			; calculate dest address with X as offset
-	clc
-	adc .dstStore2+1
-	sta tmp
-	lda .dstStore2+2
-	adc #0
-	sta tmp+1
-	+prWord tmp
-	+prStr : !text "offset=",0
-	lda tmp			; now calculate the difference
-	sec
-	sbc .dbgTmp
-	sta .dbgTmp
-	lda tmp+1
-	sbc .dbgTmp+1
-	sta .dbgTmp+1
-	+prWord .dbgTmp		; and print it
-	rts
-.debug4	+prStr : !text "len=",0
-	+prWord ucLen
-	+crout
-	rts
-.dbgTmp	!word 0
-}
+; TODO: replace with LX47
+	brk
 
 ;------------------------------------------------------------------------------
 ; Apply fixups to all modules that were loaded this round, and free the fixup
@@ -3068,10 +2694,10 @@ advSingleAnim:
 	iny		; now y=2, index number of frames
 	lda (tmp),y
 	adc #$FF	; minus one to get last frame (carry clear from prev add)
-	sta checksum+1	; save it for later reference
+	sta .maxFrame	; save it for later reference
 	iny		; now y=3, index current frame number
 	lda (tmp),y
-	sta checksum	; save it for comparison later
+	sta .curFrame	; save it for comparison later
 	!if DEBUG = 2 { jsr .dbgB1 }
 
 .chkr	ldy #0
@@ -3089,8 +2715,8 @@ advSingleAnim:
 .chkfs	iny		; index of current dir
 	cmp #3		; is it a forward+stop anim?
 	bne .chkfb
-	lda checksum	; compare cur frame
-	eor checksum+1	; to (nFrames-1)
+	lda .curFrame	; compare cur frame
+	eor .maxFrame	; to (nFrames-1)
 	bne .adv	; if not there yet, advance.
 	rts		; we're at last frame; nothing left to do.
 
@@ -3107,12 +2733,12 @@ advSingleAnim:
 	jsr .fwbk	; advance the frame number in that direction
 .doptch	ldy #3		; index current frame
 	lda (tmp),y
-	cmp checksum	; compare to what it was
+	cmp .curFrame	; compare to what it was
 	bne +		; if not equal, we have work to do
 	rts		; no change, all done.
 +	inc .ret2+1	; advance count of number of things we actually changed
 	pha
-	lda checksum
+	lda .curFrame
 	jsr applyPatch	; un-patch old frame
 	pla
 	jmp applyPatch	; apply patch for the new frame
@@ -3123,7 +2749,7 @@ advSingleAnim:
 	dey		; index of number of frames
 	cmp #0
 	bpl +		; can only be negative if dir=-1 and we wrapped around
-	lda checksum+1	; go to (previously saved) last frame number
+	lda .maxFrame	; go to (previously saved) last frame number
 +	cmp (tmp),y	; are we at the limit of number of frames?
 	bne +
 	lda #0		; back to start
@@ -3131,6 +2757,9 @@ advSingleAnim:
 	sta (tmp),y	; and store it
 	!if DEBUG = 2 { jsr .dbgB2 }
 	rts
+
+.curFrame !byte 0
+.maxFrame !byte 0
 
 !if DEBUG = 2 { 
 .dbgin	sta clrAuxRd
@@ -3146,8 +2775,8 @@ advSingleAnim:
 	+prStr : !text "single ",0
 	+prWord pTmp
 	+prWord tmp
-	+prByte checksum
-	+prByte checksum+1
+	+prByte .curFrame
+	+prByte .maxFrame
 	jmp .dbgout
 .dbgB2	jsr .dbgin
 	+prStr : !text "fwbk ",0
@@ -3262,8 +2891,15 @@ tSegAdrHi	!fill MAX_SEGS
 tableEnd = *
 
 ; Be careful not to grow past the size of the LC bank
-!if tableEnd > $DFFF {
-	!error "Memory manager grew too large."
+!ifdef PASS2 {
+!if DEBUG {
+	!warn "mmgr spare: ", lx47Decomp - tableEnd
+	!if tableEnd >= lx47Decomp {
+		!error "Memory manager grew too large."
+	}
+} ; DEBUG
+} else { ;PASS2
+  !set PASS2=1
 }
 
 } ; end of !pseudopc $D000

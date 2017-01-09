@@ -38,8 +38,6 @@
 ;10/14 v.24 input a single char
 ;10/27 v.25 comments updated
 
-* = $E000
-
 ; Use hi-bit ASCII for Apple II
 !convtab "../include/hiBitAscii.ct"
 
@@ -47,6 +45,9 @@
 !source "../include/global.i"
 !source "../include/mem.i"
 !source "../include/plasma.i"
+!source "../include/fontEngine.i"
+
+* = fontEngine
 
 DEBUG		= 0		; 1=some logging, 2=lots of logging
 

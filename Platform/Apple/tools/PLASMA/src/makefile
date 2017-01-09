@@ -2,7 +2,7 @@
 AFLAGS	= -o $@
 LFLAGS	= -C default.cfg
 PLVM    = plvm
-PLVM02	= PLVM02.SYSTEM.sys#2000
+PLVM02	= PLVM02\#4000
 CMD     = CMD\#FF2000
 PLASM   = plasm
 JAR     = $(PLASM).jar
@@ -24,6 +24,8 @@ TXTTYPE	= .TXT
 #TXTTYPE	= \#040000
 
 all: $(PLASM) $(JAR) $(PLVM) $(PLVM02) $(CMD)
+
+vm: $(PLVM) $(PLVM02)
 
 clean:
 	-rm *.o *~ *.a *FE1000 $(PLVM02) $(CMD) $(PLASM) $(PLVM)

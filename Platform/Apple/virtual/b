@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+cd /Users/mhaye/plat/ProRWTS && make && \
+cd /Users/mhaye/plat/PLASMA/src && make vm && \
+cd /Users/mhaye/plat/PackPartitions && rm -f dist/PackPartitions.jar && ant jar

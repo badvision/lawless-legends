@@ -1,13 +1,13 @@
 /*
- * Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1 
+ * Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1
  * (the "License"); you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-1.1>.
- * Unless required by applicable law or agreed to in writing, software distributed under 
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF 
- * ANY KIND, either express or implied. See the License for the specific language 
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+ * ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
- 
+
 /*
  * Read an XML file from Outlaw and produce the packed partition files for use in the
  * Apple II version of MythOS.
@@ -17,7 +17,6 @@ package org.badvision
 
 import java.nio.ByteBuffer
 import java.nio.channels.Channels
-import net.jpountz.lz4.LZ4Factory
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.util.zip.GZIPInputStream
@@ -28,10 +27,10 @@ import javax.xml.bind.DatatypeConverter
  *
  * @author mhaye
  */
-class A2PackPartitions 
+class A2PackPartitions
 {
     def TRANSPARENT_COLOR = 15
-    
+
     def TYPE_CODE        = 1
     def TYPE_2D_MAP      = 2
     def TYPE_3D_MAP      = 3
@@ -43,7 +42,7 @@ class A2PackPartitions
     def TYPE_BYTECODE    = 9
     def TYPE_FIXUP       = 10
     def TYPE_PORTRAIT    = 11
-    
+
     def typeNumToName    = [1:  "Code",
                             2:  "2D map",
                             3:  "3D map",
@@ -58,7 +57,7 @@ class A2PackPartitions
 
     def mapNames  = [:]  // map name (and short name also) to map.2dor3d, map.num
     def sysCode   = [:]  // memory manager
-    def code      = [:]  // code name to code.num, code.buf    
+    def code      = [:]  // code name to code.num, code.buf
     def maps2D    = [:]  // map name to map.num, map.buf
     def maps3D    = [:]  // map name to map.num, map.buf
     def tiles     = [:]  // tile id to tile.buf
@@ -71,23 +70,21 @@ class A2PackPartitions
     def modules   = [:]  // module name to module.num, module.buf
     def bytecodes = [:]  // module name to bytecode.num, bytecode.buf
     def fixups    = [:]  // module name to fixup.num, fixup.buf
-    
+
     def itemNameToFunc = [:]
     def playerNameToFunc = [:]
-    
+
     def globalScripts = [:]
     def lastSysModule
-    
-    def compressor = LZ4Factory.fastestInstance().highCompressor()
-    
-    def ADD_COMP_CHECKSUMS = false
-    
+
+    def compressor = new Lx47Algorithm()
+
     def debugCompression = false
-    
-    def currentContext = []    
+
+    def currentContext = []
     def nWarnings = 0
     def warningBuf = new StringBuilder()
-    
+
     def binaryStubsOnly = false
     final int CACHE_VERSION = 1  // increment to force full rebuild
     def cache = ["version": CACHE_VERSION]
@@ -120,9 +117,9 @@ class A2PackPartitions
     // 2D map sectioning constants
     def TILES_PER_ROW = 22
     def ROWS_PER_SECTION = 23
-        
 
-    /** 
+
+    /**
      * Keep track of context within the XML file, so we can spit out more useful
      * error and warning messages.
      */
@@ -143,12 +140,12 @@ class A2PackPartitions
                 currentContext.pop()
         }
     }
-    
+
     def getContextStr()
     {
         return currentContext.join(" -> ")
     }
-    
+
     def printWarning(str)
     {
         def msg = String.format("Warning in ${getContextStr()}: %s\n", str)
@@ -156,7 +153,7 @@ class A2PackPartitions
         warningBuf.append(msg)
         ++nWarnings
     }
-    
+
     def escapeString(inStr)
     {
         // Commonly used strings (e.g. event handler names, attributes)
@@ -183,8 +180,10 @@ class A2PackPartitions
                 else if (prev == '^') {
                     def cp = Character.codePointAt(ch.toUpperCase(), 0)
                     // ^A = ctrl-A; ^M = ctrl-M (carriage return); ^Z = ctrl-Z; ^` = space
-                    if (cp == 96)
+                    if (cp == 96) // ^`
                         buf << " "
+                    else if (cp == 77) // ^M
+                        buf << "\\n"
                     else if (cp > 64 && cp < 96)
                         buf << "\\\$" << String.format("%02X", cp - 64)
                     else
@@ -213,14 +212,14 @@ class A2PackPartitions
             }
         }
     }
-    
+
     def calcImagesHash(imgEls)
     {
         def md = MessageDigest.getInstance("MD5")
         imgEls.each { md.update(it.toString().getBytes()) }
         return DatatypeConverter.printHexBinary(md.digest())
     }
-    
+
     def pixelize(dataEl)
     {
         def nBytes = dataEl.@width as int
@@ -248,14 +247,14 @@ class A2PackPartitions
             return outRow
         }
     }
-    
+
     def parseTexture(imgEl)
     {
         // Locate the data for the Apple II (as opposed to C64 etc.)
         def data = imgEl.displayData?.find { it.@platform == "AppleII" }
         assert data : "image '${imgEl.@name}' missing AppleII platform data"
         def rows = pixelize(data)
-        
+
         // Retain only the upper-left 64 lines x 32 pixels
         return rows[0..63].collect { it[0..31] }
     }
@@ -276,7 +275,7 @@ class A2PackPartitions
             def val = Integer.parseInt(hexStr[pos..pos+1], 16)
             outBuf.put((byte)val)
         }
-        
+
         // All done. Return the buffer.
         return outBuf
     }
@@ -296,23 +295,23 @@ class A2PackPartitions
         def arr = new byte[7680]
         def srcPos = 0
         def dstPos = 0
-        
+
         // Process each line
         (0..<192).each { y ->
-            
+
             // Process all 40 bytes in one line
             (0..<40).each { x ->
                 arr[dstPos+x] = Integer.parseInt(hexStr[srcPos..srcPos+1], 16)
                 srcPos += 2 // two hex chars = one byte
             }
-            
+
             dstPos += 40
         }
 
         // Put the results into the buffer
         def outBuf = ByteBuffer.allocate(dstPos)
         outBuf.put(arr, 0, dstPos)
-        
+
         // All done. Return the buffer.
         return outBuf
     }
@@ -331,26 +330,26 @@ class A2PackPartitions
         def arr = new byte[128*18]
         def srcPos = 0
         def dstPos = 0
-        
+
         // Process each line
         (0..<128).each { y ->
-            
+
             // Process all 18 bytes in one line
             (0..<18).each { x ->
                 arr[dstPos+x] = Integer.parseInt(hexStr[srcPos..srcPos+1], 16)
                 srcPos += 2
             }
             dstPos += 18
-            
+
             // Skip unused source data
             srcPos += (40 - 18)*2
         }
-        
+
         // Put the results into the buffer
         assert dstPos == 128*18
         def outBuf = ByteBuffer.allocate(dstPos)
         outBuf.put(arr)
-        
+
         // All done. Return the buffer.
         return outBuf
     }
@@ -363,7 +362,7 @@ class A2PackPartitions
     {
         def height = img.size
         def width  = img[0].size
-        
+
         // Keep track of which pixels we have traversed
         def marks = img.collect { new boolean[it.size] }
 
@@ -371,26 +370,26 @@ class A2PackPartitions
         def queue = [] as Queue
         queue.add([0, 0, img[0][0]])
         queue.add([width-1, 0, img[0][width-1]])
-        
+
         // While we have anything left to check...
-        while (!queue.isEmpty()) 
+        while (!queue.isEmpty())
         {
             // Get a coordinate and color to compare to
             def (x, y, c) = queue.poll()
-            
+
             // If outside the image, skip it
             if (x < 0 || x >= width || y < 0 || y >= height)
                 continue
-                
+
             // Process each pixel only once
             if (marks[y][x])
                 continue
             marks[y][x] = true
-                
+
             // Stop at color changes
             if (img[y][x] != c)
                 continue
-                
+
             // Found a pixel to change to transparent. Mark it, and check in every
             // direction for more of the same color.
             //
@@ -401,20 +400,20 @@ class A2PackPartitions
             queue.add([x+1, y,   c])
         }
     }
-    
+
     class MultiPix
     {
         def colorValues = [:]
-        
+
         def add(color, value) {
             colorValues[color] = colorValues.get(color,0) + value
         }
-        
+
         def getHighColor() {
             def kv = colorValues.grep().sort { a, b -> b.value <=> a.value }[0]
             return [kv.key, kv.value]
         }
-        
+
         def addError(pix, skipColor, frac) {
             pix.colorValues.each { color, value ->
                 if (color != skipColor)
@@ -422,7 +421,7 @@ class A2PackPartitions
             }
         }
     }
-    
+
     /**
      * Produce a new mip-map level by halving the image's resolution.
      */
@@ -430,12 +429,12 @@ class A2PackPartitions
     {
         def inWidth = imgIn[0].size()
         def inHeight = imgIn.size()
-        
+
         def outWidth = inWidth >> 1
         def outHeight = inHeight >> 1
-        
+
         def pixBuf = new MultiPix[outHeight][outWidth]
-        
+
         // Distribute the input pixels to the output pixels
         imgIn.eachWithIndex { row, sy ->
             def dy = sy >> 1
@@ -446,7 +445,7 @@ class A2PackPartitions
                 pixBuf[dy][dx].add(color, 1)
             }
         }
-        
+
         // Apply error diffusion to form the final result
         def outRows = []
         pixBuf.eachWithIndex { row, dy ->
@@ -468,7 +467,7 @@ class A2PackPartitions
         }
         return outRows
     }
-    
+
     def printTexture(rows)
     {
         rows.each { row ->
@@ -476,8 +475,8 @@ class A2PackPartitions
             row.each { pix -> print pix }
             println ""
         }
-    }  
-    
+    }
+
     def writeString(buf, str)
     {
         str.each { buf.put((byte)it) }
@@ -498,7 +497,7 @@ class A2PackPartitions
             if (filled > row.size() / 2)
                 height = y+1
         }
-        
+
         // Determine the last column that has a majority of tiles filled
         def width = 1
         (0..<rows[0].size()).each { x ->
@@ -510,20 +509,20 @@ class A2PackPartitions
             if (filled > rows[0].size() / 2)
                 width = x+1
         }
-        
+
         def nHorzSections = (int) ((width + TILES_PER_ROW - 1) / TILES_PER_ROW)
         def nVertSections = (int) ((height + ROWS_PER_SECTION - 1) / ROWS_PER_SECTION)
-        
+
         return [width, height, nHorzSections, nVertSections]
     }
-    
+
     def write2DMap(mapName, mapEl, rows)
     {
         def (width, height, nHorzSections, nVertSections) = calcMapExtent(rows)
-        
+
         def buffers = new ByteBuffer[nVertSections][nHorzSections]
         def sectionNums = new int[nVertSections][nHorzSections]
-                
+
         // Allocate a buffer and assign a map number to each section.
         (0..<nVertSections).each { vsect ->
             (0..<nHorzSections).each { hsect ->
@@ -535,22 +534,22 @@ class A2PackPartitions
                 maps2D[sectName] = [num:num, buf:buf]
             }
         }
-        
+
         // Now create each map section
         (0..<nVertSections).each { vsect ->
             (0..<nHorzSections).each { hsect ->
 
                 def hOff = hsect * TILES_PER_ROW
                 def vOff = vsect * ROWS_PER_SECTION
-                
+
                 def (tileSetNum, tileMap) = packTileSet(rows, hOff, TILES_PER_ROW, vOff, ROWS_PER_SECTION)
 
                 def xRange = hOff ..< hOff+TILES_PER_ROW
                 def yRange = vOff ..< vOff+ROWS_PER_SECTION
                 def sectName = "$mapName-$hsect-$vsect"
-                def (scriptModule, locationsWithTriggers) = 
+                def (scriptModule, locationsWithTriggers) =
                     packScripts(mapEl, sectName, width, height, xRange, yRange)
-                
+
                 // Header: first come links to other map sections.
                 // The first section is always 0xFF for north and west. So instead, use that
                 // space to record the total number of horizontal and vertical sections.
@@ -565,11 +564,11 @@ class A2PackPartitions
                     buf.put((byte) nVertSections);
                 else
                     buf.put((byte) ((hsect > 0) ? sectionNums[vsect][hsect-1] : 0xFF))           // west
-                
+
                 // Then links to the tile set and script library
                 buf.put((byte) tileSetNum)
                 buf.put((byte) scriptModule)
-                
+
                 // After the header comes the raw data
                 (0..<ROWS_PER_SECTION).each { rowNum ->
                     def y = vOff + rowNum
@@ -588,12 +587,12 @@ class A2PackPartitions
             }
         }
     }
-   
+
     def write3DMap(buf, mapName, rows, scriptModule, locationsWithTriggers) // [ref BigBlue1_50]
     {
         def width = rows[0].size() + 2  // Sentinel $FF at start and end of each row
         def height = rows.size() + 2    // Sentinel rows of $FF's at start and end
-        
+
         // Determine the set of all referenced textures, and assign numbers to them.
         def texMap = [:]
         def texList = []
@@ -624,14 +623,14 @@ class A2PackPartitions
                 }
             }
         }
-        
+
         // Header: width and height
         buf.put((byte)width)
         buf.put((byte)height)
-        
+
         // Followed by script module num
         buf.put((byte)scriptModule)
-        
+
         // Document memory usage so user can make intelligent choices about what/when to cut
         def gameloopSize = bytecodes['gameloop'].buf.position()
         def mapScriptsSize = bytecodes[makeScriptName(mapName)].buf.position()
@@ -639,23 +638,23 @@ class A2PackPartitions
         def totalAux = gameloopSize + mapScriptsSize + mapTexturesSize
         def safeLimit = 34 * 1024
         memUsage3D << String.format("%-20s: %4.1fK of %4.1fK used: %4.1fK scripts, %4.1fK in %2d textures, %4.1fK overhead%s",
-            mapName, totalAux/1024.0, safeLimit/1024.0, 
+            mapName, totalAux/1024.0, safeLimit/1024.0,
             mapScriptsSize/1024.0, mapTexturesSize/1024.0, texList.size(), gameloopSize/1024.0,
             totalAux > safeLimit ? " [WARNING]" : "")
         if (totalAux > safeLimit)
             printWarning "memory will be dangerously full; see pack_report.txt for details."
-        
+
         // Followed by the list of textures
         texList.each { buf.put((byte)it) }
         buf.put((byte)0)
-        
+
         // Followed by the corresponding list of texture flags
         texFlags.each { buf.put((byte)it) }
         buf.put((byte)0)
-        
+
         // Sentinel row of $FF at start of map
         (0..<width).each { buf.put((byte)0xFF) }
-        
+
         // After the header comes the raw data
         rows.eachWithIndex { row,y ->
             buf.put((byte)0xFF) // sentinel at start of row
@@ -670,7 +669,7 @@ class A2PackPartitions
         // Sentinel row of $FF at end of map
         (0..<width).each { buf.put((byte)0xFF) }
     }
-    
+
     // The renderer wants bits of the two pixels interleaved in a special way.
     // Given input pix1=0000QRST and pix2=0000wxyz, the output will be QwRxSyTz.
     // So the renderer uses mask 10101010 to extract pix1, then shifts left one
@@ -682,11 +681,11 @@ class A2PackPartitions
                ((pix2 & 4) << 2) | ((pix1 & 4) << 3) |
                ((pix2 & 8) << 3) | ((pix1 & 8) << 4);
     }
-    
+
     def writeTexture(buf, image)
     {
         // Write pixel data for all 5 mip levels plus the orig image
-        for (def mipLevel in 0..5) 
+        for (def mipLevel in 0..5)
         {
             // Process double rows
             for (x in 0..<image[0].size()) {
@@ -698,7 +697,7 @@ class A2PackPartitions
                 image = reduceTexture(image)
         }
     }
-    
+
     def stripName(name)
     {
         return name.toLowerCase().replaceAll(" ", "")
@@ -714,12 +713,12 @@ class A2PackPartitions
         }
         return false
     }
-    
+
     def addToCache(kind, addTo, name, hash, buf)
     {
         def num = addTo.size() + 1
         addTo[name] = [num:num, buf:buf]
-        
+
         def uncompressedLen = buf.position()
         def uncompressedData = new byte[uncompressedLen]
         buf.position(0)
@@ -728,7 +727,7 @@ class A2PackPartitions
         def key = kind + ":" + name
         cache[key] = [hash:hash, data:uncompressedData]
     }
-    
+
     def grabEntireFromCache(kind, addTo, hash)
     {
         if (cache.containsKey(kind) && cache[kind].hash == hash) {
@@ -740,7 +739,7 @@ class A2PackPartitions
         }
         return false
     }
-    
+
     def addEntireToCache(kind, addTo, hash)
     {
         def ents = []
@@ -754,7 +753,7 @@ class A2PackPartitions
         }
         cache[kind] = [hash:hash, ents:ents]
     }
-    
+
     def packTexture(imgEl)
     {
         def (name, animFrameNum, animFlags) = decodeImageName(imgEl.@name ?: "img$num")
@@ -771,7 +770,7 @@ class A2PackPartitions
             textures[name].anim.addImage(animFrameNum, animFlags, buf)
         }
     }
-    
+
     def packFrameImage(imgEl)
     {
         def (name, animFrameNum, animFlags) = decodeImageName(imgEl.@name ?: "img$num")
@@ -783,7 +782,7 @@ class A2PackPartitions
             frames[name].anim.addImage(animFrameNum, animFlags, parseFrameData(imgEl))
         }
     }
-    
+
     def packPortrait(imgEl)
     {
         def (name, animFrameNum, animFlags) = decodeImageName(imgEl.@name ?: "img$num")
@@ -795,7 +794,7 @@ class A2PackPartitions
             portraits[name].anim.addImage(animFrameNum, animFlags, parse126Data(imgEl))
         }
     }
-    
+
     def packTile(imgEl)
     {
         def buf = parseTileData(imgEl)
@@ -813,7 +812,7 @@ class A2PackPartitions
         }
         assert nFound >= 1 : "Need at least one 'Avatar' tile."
     }
-    
+
     /** Pack the global tiles, like the player avatar, into their own tile set. */
     def packGlobalTileSet(dataIn)
     {
@@ -823,7 +822,7 @@ class A2PackPartitions
         def tileIds = [] as Set
         def tileMap = [:]
         def buf = ByteBuffer.allocate(50000)
-        
+
         // Add each special tile to the set
         dataIn.tile.sort{it.@name.toLowerCase()}.each { tile ->
             def name = tile.@name
@@ -838,7 +837,7 @@ class A2PackPartitions
                 buf.put(data)
             }
         }
-        
+
         tileSets[setName] = [num:setNum, buf:buf, tileMap:tileMap, tileIds:tileIds]
         return [setNum, tileMap]
     }
@@ -857,13 +856,13 @@ class A2PackPartitions
         }
 
         assert tileIds.size() > 0
-        
+
         // See if there's a good existing tile set we can use/add to.
         def tileSet = null
         def bestCommon = 0
         tileSets.values().each {
             // Can't combine with the special tileset
-            if (it.num > 1) 
+            if (it.num > 1)
             {
                 // See if the set we're considering has room for all our tiles
                 def inCommon = it.tileIds.intersect(tileIds)
@@ -874,7 +873,7 @@ class A2PackPartitions
                 }
             }
         }
-        
+
         // If adding to an existing set, update it.
         def setNum
         if (tileSet) {
@@ -890,11 +889,11 @@ class A2PackPartitions
             tileSet = [num:setNum, buf:ByteBuffer.allocate(50000), tileMap:[:], tileIds:tileIds]
             tileSets["tileSet${setNum}"] = tileSet
         }
-        
+
         // Start by assuming we'll create a new tileset
         def tileMap = tileSet.tileMap
         def buf = tileSet.buf
-        
+
         // Then add each non-null tile to the set
         (yOff ..< yOff+height).each { y ->
             def row = (y < rows.size) ? rows[y] : null
@@ -912,10 +911,10 @@ class A2PackPartitions
         }
         assert tileMap.size() > 0
         assert buf.position() > 0
-        
+
         return [setNum, tileMap]
     }
-    
+
     def pack2DMap(mapEl, tileEls)
     {
         def name = mapEl.@name ?: "map$num"
@@ -926,7 +925,7 @@ class A2PackPartitions
             write2DMap(name, mapEl, rows)
         }
     }
-    
+
     def pack3DMap(mapEl, tileEls)
     {
         def name = mapEl.@name ?: "map$num"
@@ -940,31 +939,31 @@ class A2PackPartitions
             maps3D[name] = [num:num, buf:buf]
         }
     }
-    
+
     def makeScriptName(mapName)
     {
         // Strip "- 2D" etc from the map name
         return humanNameToSymbol(mapName.replaceAll(/\s*-\s*[23][dD]\s*/, ""), false)
     }
-    
+
     def packScripts(mapEl, mapName, totalWidth, totalHeight, xRange = null, yRange = null)
     {
         def num = modules.size() + 1
         def name = makeScriptName(mapName)
         //println "Packing scripts for map $mapName, to module $num."
-        
+
         def scriptDir = "build/src/mapScripts/"
         if (!new File(scriptDir).exists())
             new File(scriptDir).mkdirs()
         ScriptModule module = new ScriptModule()
-        module.packMapScripts(mapName, new File(new File(scriptDir), name+".pla.new"), 
-            mapEl.scripts ? mapEl.scripts[0] : [], 
+        module.packMapScripts(mapName, new File(new File(scriptDir), name+".pla.new"),
+            mapEl.scripts ? mapEl.scripts[0] : [],
             totalWidth, totalHeight, xRange, yRange)
         replaceIfDiff(scriptDir + name + ".pla")
         compileModule(name, "src/mapScripts/", false) // false=not verbose
         return [num, module.locationsWithTriggers]
     }
-    
+
     def readBinary(path)
     {
         def inBuf = new byte[256]
@@ -980,14 +979,14 @@ class A2PackPartitions
         }
         return outBuf
     }
-    
+
     def readCode(name, path)
     {
         def num = code.size() + 1
         //println "Reading code #$num from '$path'."
         code[name] = [num:num, buf:readBinary(path)]
     }
-    
+
     def readModule(name, path)
     {
         def num = modules.size() + 1
@@ -997,16 +996,16 @@ class A2PackPartitions
             modules[name] = [num:num, buf:bufObj]
             return
         }
-        
+
         def bufLen = bufObj.position()
         def buf = new byte[bufLen]
         bufObj.position(0)
         bufObj.get(buf)
-        
+
         // Look for the magic header 0xDA7E =~ "DAVE"
         assert (buf[3] & 0xFF) == 0xDA
         assert (buf[2] & 0xFF) == 0x7E
-        
+
         // Determine offsets
         def asmCodeStart = 12
         while (buf[asmCodeStart++] != 0)
@@ -1014,27 +1013,27 @@ class A2PackPartitions
         def byteCodeStart = ((buf[6] & 0xFF) | ((buf[7] & 0xFF) << 8)) - 0x1000
         def initStart = ((buf[10] & 0xFF) | ((buf[11] & 0xFF) << 8)) - 2 - 0x1000
         def fixupStart = ((buf[0] & 0xFF) | ((buf[1] & 0xFF) << 8)) + 2
-        
+
         // Other header stuff
         def defCount = ((buf[8] & 0xFF) | ((buf[9] & 0xFF) << 8))
-        
+
         //println String.format("asmCodeStart =%04x", asmCodeStart)
         //println String.format("byteCodeStart=%04x", byteCodeStart)
         //println String.format("initStart    =%04x", initStart)
         //println String.format("fixupStart   =%04x", fixupStart)
         //println               "defCount     =$defCount"
-        
+
         // Sanity checking on the offsets
         assert asmCodeStart >= 0 && asmCodeStart <= byteCodeStart
         assert byteCodeStart >= asmCodeStart && byteCodeStart <= fixupStart
         assert initStart == 0 || (initStart+2 >= byteCodeStart && initStart+2 <= fixupStart)
         assert fixupStart <= buf.length
-        
+
         // Split up the parts now that we know their offsets
         def asmCode = buf[asmCodeStart..<byteCodeStart]
         def byteCode = buf[byteCodeStart..<fixupStart]
         def fixup = buf[fixupStart..<buf.length]
-        
+
         // Extract offsets of the bytecode functions from the fixup table
         def sp = 0
         def defs = [initStart+2 - byteCodeStart]
@@ -1050,7 +1049,7 @@ class A2PackPartitions
             defs.add(addr)
             assert fixup[sp++] == 0  // not sure what the zero byte is
         }
-        
+
         // Construct asm stubs for all the bytecode functions that'll be in aux mem
         def dp = 0
         def stubsSize = defCount * 5
@@ -1062,12 +1061,12 @@ class A2PackPartitions
             newAsmCode[dp++] = defs[it] & 0xFF
             newAsmCode[dp++] = (defs[it] >> 8) & 0xFF
         }
-        
+
         // Stick the asm code onto the end of the stubs
         (0..<asmCode.size).each {
             newAsmCode[dp++] = asmCode[it]
         }
-        
+
         // Locate the external/entry symbol area, and parse it.
         def imports = [:]
         def exports = [:]
@@ -1117,14 +1116,14 @@ class A2PackPartitions
                 assert false : "Unknown Entry/Symbol flag: $flag"
             esdIndex++
         }
-        
+
         // If any exports, we assume they're from the game lib. That's the only
         // place we support exports.
         if (exports.size() > 0) {
             assert name == "gameloop" : "Symbol exports only supported on 'gameloop' module"
             cache["globalExports"] = exports
         }
-        
+
         // Translate offsets in all the fixups
         def newFixup = []
         dp = 0
@@ -1134,22 +1133,22 @@ class A2PackPartitions
             int addr = fixup[sp++] & 0xFF
             addr |= (fixup[sp++] & 0xFF) << 8
             esdIndex = fixup[sp++]
-            
+
             // Fixups can be in the asm section or in the bytecode section. Figure out which this is.
             addr += 2  // apparently offsets don't include the header length
             def inByteCode = (addr >= byteCodeStart)
             //println String.format("Fixup addr=0x%04x, inByteCode=%b", addr, inByteCode)
-            
+
             // Figure out which buffer to modify, and the offset within it
             def codeBuf = inByteCode ? byteCode : newAsmCode
             addr -= inByteCode ? byteCodeStart : asmCodeStart
             if (!inByteCode)
                 addr += stubsSize   // account for the stubs we prepended to the asm code
             //println String.format("...adjusted addr=0x%04x", addr)
-            
+
             int target = (codeBuf[addr] & 0xFF) | ((codeBuf[addr+1] & 0xFF) << 8)
             //println String.format("...target=0x%04x", target)
-            
+
             if (fixupType == 0x91) {  // external fixup
                 //println "external fixup: esdIndex=$esdIndex target=$target"
                 def esdName = imports[esdIndex]
@@ -1174,180 +1173,102 @@ class A2PackPartitions
                 assert target >= 5 && target < newAsmCode.length
                 assert esdIndex == 0
             }
-            
+
             // Put the adjusted target back in the code
             codeBuf[addr] = (byte)(target & 0xFF)
             codeBuf[addr+1] = (byte)((target >> 8) & 0xFF)
-            
+
             // And record the fixup
             assert addr >= 0 && addr <= 0x3FFF : "code module too big"
-            newFixup.add((byte)((addr>>8) & 0x3F) | 
-                                (inByteCode ? 0x40 : 0) | 
+            newFixup.add((byte)((addr>>8) & 0x3F) |
+                                (inByteCode ? 0x40 : 0) |
                                 ((fixupType == 0x91) ? 0x80 : 0))
             newFixup.add((byte)(addr & 0xFF))
         }
         newFixup.add((byte)0xFF)
-        
+
         return [wrapByteArray(newAsmCode), wrapByteList(byteCode), wrapByteList(newFixup)]
     }
-    
+
     def wrapByteArray(array) {
         def buf = ByteBuffer.wrap(array)
         buf.position(array.length)
         return buf
     }
-    
+
     def wrapByteList(list) {
         def arr = new byte[list.size]
         list.eachWithIndex { n, idx -> arr[idx] = (byte)n }
         return wrapByteArray(arr)
     }
-    
+
+    def unwrapByteBuffer(buf) {
+        def len = buf.position()
+        def out = new byte[len]
+        buf.position(0)
+        buf.get(out)
+        return out
+    }
+
     def readFont(name, path)
     {
         def num = fonts.size() + 1
         //println "Reading font #$num from '$path'."
         fonts[name] = [num:num, buf:readBinary(path)]
     }
-    
-    // Transform the LZ4 format to something we call "LZ4M", where the small offsets are stored
-    // as one byte instead of two. In our data, that's about 1/3 of the offsets.
-    //
-    def recompress(data, inLen, uncompData, uncompLen)
-    {
-        def outLen = 0
-        def sp = 0
-        def dp = 0
-        def cksum = 0
-        while (true) 
-        {
-            assert dp <= sp
-            
-            // First comes the token: 4 bits literal len, 4 bits match len
-            def token = data[dp++] = (data[sp++] & 0xFF)
-            def matchLen = token & 0xF
-            def literalLen = token >> 4
-            
-            // The literal length might get extended
-            if (literalLen == 15) {
-                while (true) {
-                    token = data[dp++] = (data[sp++] & 0xFF)
-                    literalLen += token
-                    if (token != 0xFF)
-                        break
-                }
-            }
-            
-            if (debugCompression)
-                println String.format("Literal: ptr=\$%x, len=\$%x.", sp, literalLen)
-            
-            // Copy the literal bytes
-            outLen += literalLen
-            for ( ; literalLen > 0; --literalLen) {
-                cksum ^= data[sp]
-                data[dp++] = data[sp++]
-            }
-            
-            // The last block has only literals, and no match
-            if (sp == inLen)
-                break
-            
-            // Grab the offset
-            token = data[sp++] & 0xFF
-            def offset = token | ((data[sp++] & 0xFF) << 8)
-            
-            // Re-encode the offset using 1 byte if possible
-            assert offset < 32768
-            if (offset < 128)
-                data[dp++] = offset
-            else {
-                data[dp++] = (offset & 0x7F) | 0x80
-                data[dp++] = (offset >> 7) & 0xFF
-            }
-            
-            // If checksums are enabled, output the checksum so far
-            if (offset < 128 && ADD_COMP_CHECKSUMS) {
-                if (debugCompression)
-                    println String.format("    [chksum=\$%x]", cksum & 0xFF)
-                data[dp++] = (byte) cksum
-            }
-            
-            // The match length might get extended
-            if (matchLen == 15) {
-                while (true) {
-                    token = data[dp++] = (data[sp++] & 0xFF)
-                    matchLen += token
-                    if (token != 0xFF)
-                        break
-                }
-            }
-            
-            matchLen += 4   // min match length is 4
-            
-            if (debugCompression)
-                println String.format("Match: offset=\$%x, len=\$%x.", offset, matchLen)
-            
-            // We do nothing with the match bytes except add them to the checksum
-            (0..<matchLen).each {
-                cksum ^= uncompData[outLen]
-                ++outLen
-            }
-        }
-        
-        // If checksums are enabled, output the final checksum
-        if (ADD_COMP_CHECKSUMS) {
-            if (debugCompression)
-                println String.format("Final cksum: \$%x", cksum & 0xFF)
-            data[dp++] = (byte) cksum
-        }
 
-        assert outLen == uncompLen
-        return dp
-    }
-    
+    static int uncompTotal = 0
+    static int lz4Total = 0
+    static int lx47Total = 0
+    static int lx47Savings = 0
+
     def compressionSavings = 0
-    
+
     def compress(buf)
     {
         // First, grab the uncompressed data into a byte array
         def uncompressedLen = buf.position()
-        def uncompressedData = new byte[uncompressedLen]
-        buf.position(0)
-        buf.get(uncompressedData)
-        
-        // Now compress it with LZ4
+        def uncompressedData = unwrapByteBuffer(buf)
+
+        // Now compress it with LX47
         assert uncompressedLen < 327678 : "data block too big"
         assert uncompressedLen > 0
-        def maxCompressedLen = compressor.maxCompressedLength(uncompressedLen)
-        def compressedData = new byte[maxCompressedLen]
-        def compressedLen = compressor.compress(uncompressedData, 0, uncompressedLen, 
-                                                compressedData, 0, maxCompressedLen)
+        def compressedData = compressor.compress(uncompressedData)
+        def compressedLen = compressedData.length
         assert compressedLen > 0
-        
-        // Then recompress to LZ4M (pretty much always smaller)
-        def recompressedLen = recompress(compressedData, compressedLen, uncompressedData, uncompressedLen)
-        
-        // If we saved at least 20 bytes, take the compressed version.
-        if ((uncompressedLen - recompressedLen) >= 20) {
+
+        // As a check, verify that decompression works with only a 3-byte underlap
+        if (debugCompression && (uncompressedLen - compressedLen) > 0) {
+            def underlap = 3
+            def checkData = new byte[uncompressedLen+underlap]
+            def initialOffset = uncompressedLen - compressedLen + underlap
+            System.arraycopy(compressedData, 0, checkData, initialOffset, compressedLen)
+            compressor.decompress(checkData, initialOffset, checkData, 0, uncompressedLen)
+            def outBlk = Arrays.copyOfRange(checkData, 0, uncompressedLen)
+            assert Arrays.equals(uncompressedData, outBlk)
+        }
+
+        // If we saved at least 10 bytes, take the compressed version.
+        if ((uncompressedLen - compressedLen) >= 10) {
             if (debugCompression)
-                println String.format("  Compress. rawLen=\$%x compLen=\$%x", uncompressedLen, recompressedLen)
-            compressionSavings += (uncompressedLen - recompressedLen) - 2 - (ADD_COMP_CHECKSUMS ? 1 : 0)
-            return [data:compressedData, len:recompressedLen, 
+                println String.format("  Compress. rawLen=\$%x compLen=\$%x", uncompressedLen, compressedLen)
+            compressionSavings += (uncompressedLen - compressedLen) - 2 // -2 for storing compressed len
+            return [data:compressedData, len:compressedLen,
                     compressed:true, uncompressedLen:uncompressedLen]
         }
         else {
             if (debugCompression)
-                println String.format("  No compress. rawLen=\$%x compLen=\$%x", uncompressedLen, recompressedLen)
+                println String.format("  No compress. rawLen=\$%x compLen=\$%x", uncompressedLen, compressedLen)
             return [data:uncompressedData, len:uncompressedLen, compressed:false]
         }
     }
-    
+
     def writePartition(stream, partNum)
     {
         // Make a list of all the chunks that will be in the partition
         def chunks = []
         if (partNum == 1)
-            code.each { k,v -> chunks.add([type:TYPE_CODE, num:v.num, name:k, buf:compress(v.buf)]) }       
+            code.each { k,v -> chunks.add([type:TYPE_CODE, num:v.num, name:k, buf:compress(v.buf)]) }
         modules.each { k, v ->
             if ((partNum==1 && v.num <= lastSysModule) || (partNum==2 && v.num > lastSysModule)) {
                 chunks.add([type:TYPE_MODULE,   num:v.num, name:k, buf:compress(v.buf)])
@@ -1359,19 +1280,19 @@ class A2PackPartitions
             fonts.each     { k,v -> chunks.add([type:TYPE_FONT,        num:v.num, name:k, buf:compress(v.buf)]) }
             frames.each    { k,v -> chunks.add([type:TYPE_SCREEN,      num:v.num, name:k, buf:compress(v.buf)]) }
         }
-        else {
+        else if (partNum == 2) {
             maps2D.each    { k,v -> chunks.add([type:TYPE_2D_MAP,      num:v.num, name:k, buf:compress(v.buf)]) }
             tileSets.each  { k,v -> chunks.add([type:TYPE_TILE_SET,    num:v.num, name:k, buf:compress(v.buf)]) }
             maps3D.each    { k,v -> chunks.add([type:TYPE_3D_MAP,      num:v.num, name:k, buf:compress(v.buf)]) }
             textures.each  { k,v -> chunks.add([type:TYPE_TEXTURE_IMG, num:v.num, name:k, buf:compress(v.buf)]) }
             portraits.each { k,v -> chunks.add([type:TYPE_PORTRAIT,    num:v.num, name:k, buf:compress(v.buf)]) }
         }
-        
+
         // Generate the header chunk. Leave the first 2 bytes for the # of pages in the hdr
         def hdrBuf = ByteBuffer.allocate(50000)
         hdrBuf.put((byte)0)
         hdrBuf.put((byte)0)
-        
+
         // Write the four bytes for each resource (6 for compressed resources)
         chunks.each { chunk ->
             hdrBuf.put((byte)chunk.type)
@@ -1386,16 +1307,16 @@ class A2PackPartitions
                 hdrBuf.put((byte)(uclen & 0xFF))
                 hdrBuf.put((byte)(uclen >> 8))
             }
-            
+
             // Record sizes for reporting purposes
-            chunkSizes[[type:chunk.type, name:chunk.name, num:chunk.num]] = 
-                [clen: len, 
+            chunkSizes[[type:chunk.type, name:chunk.name, num:chunk.num]] =
+                [clen: len,
                  uclen: chunk.buf.compressed ? chunk.buf.uncompressedLen : len]
         }
-        
+
         // Terminate the header with a zero type
         hdrBuf.put((byte)0);
-        
+
         // Fix up the first bytes to contain the length of the header (including the length
         // itself)
         //
@@ -1404,17 +1325,14 @@ class A2PackPartitions
         hdrBuf.put((byte)(hdrEnd & 0xFF))
         hdrBuf.put((byte)(hdrEnd >> 8))
         hdrBuf.position(hdrEnd)
-        def hdrData = new byte[hdrEnd]
-        hdrBuf.position(0)
-        hdrBuf.get(hdrData)
-        
+
         // Finally, write out each chunk's data, including the header.
-        stream.write(hdrData)
-        chunks.each { 
+        stream.write(unwrapByteBuffer(hdrBuf))
+        chunks.each {
             stream.write(it.buf.data, 0, it.buf.len)
         }
     }
-    
+
     def runNestedvm(programClass, programName, args, inDir, inFile, outFile)
     {
         def prevStdin = System.in
@@ -1423,7 +1341,7 @@ class A2PackPartitions
         def prevUserDir = System.getProperty("user.dir")
         def result
         def errBuf = new ByteArrayOutputStream()
-        try 
+        try
         {
             System.setProperty("user.dir", new File(inDir).getAbsolutePath())
             if (inFile) {
@@ -1452,7 +1370,7 @@ class A2PackPartitions
             throw new Exception("$programName (cd $inDir && ${args.join(' ')}) < $inFile > $outFile failed with code $result." + errStr)
         }
     }
-    
+
     /**
      * Copy a file, either from the local area (during development) or failing that,
      * from the jar file resources (for end-users).
@@ -1462,9 +1380,9 @@ class A2PackPartitions
         dstFile = dstFile.getCanonicalFile()
         if (!dstFile.path.startsWith(buildDir.path))
             return dstFile
-         
+
         def partial = dstFile.path.substring(buildDir.path.size()+1)
-        
+
         // See if it's in the local directory
         def srcFile = new File(partial).getCanonicalFile()
         if (!srcFile.exists())
@@ -1483,7 +1401,7 @@ class A2PackPartitions
             }
             return dstFile
         }
-        
+
         // See if it's in the resources of the jar file
         def res = getClass().getResource("/virtual/" + partial.replace("\\", "/"))
         if (!res)
@@ -1508,7 +1426,7 @@ class A2PackPartitions
     def getCodeDeps(codeFile)
     {
         def baseDir = codeFile.getParentFile()
-        
+
         // If we've cached deps for this file, just return that.
         def key = "codeDeps:" + codeFile.toString()
         def hash = codeFile.lastModified()
@@ -1536,14 +1454,14 @@ class A2PackPartitions
             }
             cache[key] = [hash:hash, deps:deps]
         }
-        
+
         // Recursively calc deps of the deps
         deps.each { dep -> getCodeDeps(dep) }
-        
+
         // And return everything we found.
         return deps
     }
-    
+
     def getLastDep(codeFile)
     {
         codeFile = jitCopy(codeFile)
@@ -1553,48 +1471,77 @@ class A2PackPartitions
         }
         return time
     }
-    
+
     def assembleCode(codeName, inDir)
     {
         if (binaryStubsOnly)
             return addToCache("code", code, codeName, 1, ByteBuffer.allocate(1))
-            
+
         inDir = "build/" + inDir
         def hash = getLastDep(new File(inDir, codeName + ".s"))
         if (grabFromCache("code", code, codeName, hash))
             return
-            
+
         println "Assembling ${codeName}.s"
         new File(inDir + "build").mkdir()
         String[] args = ["acme", "-f", "plain",
-                         "-o", "build/" + codeName + ".b", 
+                         "-o", "build/" + codeName + ".b",
                          codeName + ".s"]
         runNestedvm(acme.Acme.class,  "ACME assembler", args, inDir, null, null)
         addToCache("code", code, codeName, hash, readBinary(inDir + "build/" + codeName + ".b"))
     }
-    
+
     def assembleCore(inDir)
     {
         if (binaryStubsOnly)
-            return addToCache("sysCode", sysCode, "mem", 1, ByteBuffer.allocate(1))
-        
+            return addToCache("sysCode", sysCode, "core", 1, ByteBuffer.allocate(1))
+
+        // Read in all the parts of the LegendOS core system and combine them together
+        // with block headers.
         inDir = "build/" + inDir
-        def hash = getLastDep(new File(inDir, "mem.s"))
-        if (grabFromCache("sysCode", sysCode, "mem", hash))
-            return
-            
-        println "Assembling mem.s"
-        new File(inDir + "build").mkdir()
-        String[] args = ["acme", "-o", "build/cmd.sys#2000", "mem.s"]
-        runNestedvm(acme.Acme.class,  "ACME assembler", args, inDir, null, null)
-        addToCache("sysCode", sysCode, "mem", hash, readBinary(inDir + "build/cmd.sys#2000"))
+        new File(inDir + "build").mkdirs()
+        def outBuf = ByteBuffer.allocate(50000)
+        ["loader", "decomp", "PRORWTS", "PLVM02", "mem"].each { name ->
+            def code
+            if (name == "PRORWTS")
+                code = readBinary(jitCopy(new File("build/tools/ProRWTS/PRORWTS2#4000")).toString())
+            else if (name == "PLVM02")
+                code = readBinary(jitCopy(new File("build/tools/PLASMA/src/PLVM02#4000")).toString())
+            else {
+                def hash = getLastDep(new File(inDir, "${name}.s"))
+                if (!grabFromCache("sysCode", sysCode, name, hash)) {
+                    println "Assembling ${name}.s"
+                    String[] args = ["acme", "-o", "build/$name", "${name}.s"]
+                    runNestedvm(acme.Acme.class,  "ACME assembler", args, inDir, null, null)
+                    addToCache("sysCode", sysCode, name, hash, readBinary(inDir + "build/$name"))
+                }
+                code = sysCode[name].buf
+            }
+            def compressed = (name ==~ /loader|decomp/) ?
+                code : wrapByteArray(compressor.compress(unwrapByteBuffer(code)))
+            if (name != "loader") {
+                // Uncompressed size first
+                outBuf.put((byte) (code.position() & 0xFF))
+                outBuf.put((byte) (code.position() >> 8))
+                // Then compressed size
+                outBuf.put((byte) (compressed.position() & 0xFF))
+                outBuf.put((byte) (compressed.position() >> 8))
+            }
+            compressed.flip()
+            outBuf.put(compressed)
+        }
+
+        // Write out the result
+        new File("build/src/core/build/LEGENDOS.SYSTEM.sys#2000").withOutputStream { stream ->
+            stream.write(unwrapByteBuffer(outBuf))
+        }
     }
-    
+
     def compileModule(moduleName, codeDir, verbose = true)
     {
         if (binaryStubsOnly)
             return addToCache("modules", modules, moduleName, 1, ByteBuffer.allocate(1))
-        
+
         codeDir = "build/" + codeDir
         def hash = getLastDep(new File(codeDir + moduleName + ".pla"))
         if (grabFromCache("modules", modules, moduleName, hash) &&
@@ -1609,12 +1556,12 @@ class A2PackPartitions
         System.out.flush()
         String[] args = ["plasm", "-AM"]
         new File(codeDir + "build").mkdir()
-        runNestedvm(plasma.Plasma.class,  "PLASMA compiler", args, codeDir, 
-            new File(codeDir + moduleName + ".pla"), 
+        runNestedvm(plasma.Plasma.class,  "PLASMA compiler", args, codeDir,
+            new File(codeDir + moduleName + ".pla"),
             new File(codeDir + "build/" + moduleName + ".a"))
 
         args = ["acme", "--setpc", "4096",
-                "-o", moduleName + ".b", 
+                "-o", moduleName + ".b",
                 moduleName + ".a"]
         runNestedvm(acme.Acme.class,  "ACME assembler", args, codeDir + "build/", null, null)
         def module, bytecode, fixup
@@ -1627,7 +1574,7 @@ class A2PackPartitions
     def readAllCode()
     {
         assembleCore("src/core/")
-        
+
         assembleCode("render", "src/raycast/")
         assembleCode("expand", "src/raycast/")
         assembleCode("fontEngine", "src/font/")
@@ -1646,7 +1593,7 @@ class A2PackPartitions
         }
         lastSysModule = modules.size()
     }
-    
+
     /**
      * Number all the maps and record them with names
      */
@@ -1673,7 +1620,7 @@ class A2PackPartitions
                 printWarning "map name '${map?.@name}' should contain '2D' or '3D'. Skipping."
         }
     }
-    
+
     def readCache()
     {
         File cacheFile = new File("build/world.cache")
@@ -1685,7 +1632,7 @@ class A2PackPartitions
             inStream.close()
         }
     }
-    
+
     def writeCache()
     {
         File cacheFile = new File("build/world.cache")
@@ -1696,13 +1643,13 @@ class A2PackPartitions
         cacheFile.delete() // needed on Windows
         newCacheFile.renameTo(cacheFile)
     }
-    
+
     def reportSizes()
     {
         reportWriter.println "\n================================= Memory usage of 3D maps =====================================\n"
         memUsage3D.each { reportWriter.println it }
         reportWriter.println ""
-        
+
         reportWriter.println "================================= Resource Sizes ====================================="
         def data = [:]
         chunkSizes.each { k,v ->
@@ -1719,10 +1666,10 @@ class A2PackPartitions
                 data[dataKey].uclen += v.uclen
             }
         }
-        
+
         def prevType
         def cSub = 0, cTot = 0, ucSub = 0, ucTot = 0
-        data.keySet().sort { a,b -> 
+        data.keySet().sort { a,b ->
             a.type < b.type ? -1 :
             a.type > b.type ? 1 :
             a.name < b.name ? -1 :
@@ -1757,44 +1704,44 @@ class A2PackPartitions
             globalScripts[humanNameToSymbol(it.@name, false)] = countArgs(it)
         }
     }
-    
+
     def pack(xmlPath)
     {
         // Save time by using cache of previous run
         readCache()
-        
+
         // Open the XML data file produced by Outlaw Editor
         def dataIn = new XmlParser().parse(xmlPath)
         def xmlLastMod = xmlPath.lastModified()
-        
+
         // Record global script names
         recordGlobalScripts(dataIn)
-        
+
         // Read in code chunks. For now these are hard coded, but I guess they ought to
         // be configured in a config file somewhere...?
         //
         readAllCode()
-        
+
         // We have only one font, for now at least.
         jitCopy(new File("build/data/fonts/font.bin"))
         readFont("font", "build/data/fonts/font.bin")
-        
+
         // Pre-pack the data for each tile
-        dataIn.tile.each { 
-            packTile(it) 
+        dataIn.tile.each {
+            packTile(it)
         }
 
         // Pack the global tile set before other tile sets (contains the player avatar, etc.)
         numberAvatars(dataIn)
         packGlobalTileSet(dataIn)
-        
+
         // Divvy up the images by category
         def titleImgs      = []
         def uiFrameImgs    = []
         def fullscreenImgs = []
         def textureImgs    = []
         def portraitImgs   = []
-        
+
         dataIn.image.sort{it.@name.toLowerCase()}.each { image ->
             def category = image.@category?.toLowerCase()
             def (name, animFrameNum, animFlags) = decodeImageName(image.@name)
@@ -1811,12 +1758,12 @@ class A2PackPartitions
             else if (category == "background")
                 null; // pass for now
             else
-                println "Warning: couldn't classify image named '${name}', category '${category}'."            
+                println "Warning: couldn't classify image named '${name}', category '${category}'."
         }
-        
+
         assert titleImgs.size() >= 1 : "Couldn't find title image. Should be category='FULLSCREEN', name='title'"
         assert uiFrameImgs.size() == 2 : "Need exactly 2 UI frames, found ${uiFramesImgs.size()} instead."
-        
+
         // Pack each image, which has the side-effect of filling in the image name map.
         def hash = calcImagesHash(titleImgs + uiFrameImgs + fullscreenImgs)
         if (!grabEntireFromCache("frames", frames, hash)) {
@@ -1825,71 +1772,72 @@ class A2PackPartitions
             uiFrameImgs.each { image -> packFrameImage(image) }
             fullscreenImgs.each { image -> packFrameImage(image) }
             frames.each { name, frame ->
-                frame.buf = frame.anim.pack() 
+                frame.buf = frame.anim.pack()
                 frame.anim = null
             }
             addEntireToCache("frames", frames, hash)
         }
-        
+
         hash = calcImagesHash(textureImgs)
         if (!grabEntireFromCache("textures", textures, hash)) {
             println "Packing textures."
             textureImgs.each { image -> packTexture(image) }
             textures.each { name, texture ->
-                texture.buf = texture.anim.pack() 
+                texture.buf = texture.anim.pack()
                 texture.anim = null
             }
             addEntireToCache("textures", textures, hash)
         }
-        
+
         hash = calcImagesHash(portraitImgs)
         if (!grabEntireFromCache("portraits", portraits, hash)) {
             println "Packing portraits."
             portraitImgs.each { image -> packPortrait(image) }
             portraits.each { name, portrait ->
-                portrait.buf = portrait.anim.pack() 
+                portrait.buf = portrait.anim.pack()
                 portrait.anim = null
             }
             addEntireToCache("portraits", portraits, hash)
         }
-        
+
         // Number all the maps and record them with names
         numberMaps(dataIn)
-        
+
         // Form the translation from item name to function name (and ditto
         // for players)
         allItemFuncs(dataIn.global.sheets.sheet)
         allPlayerFuncs(dataIn.global.sheets.sheet)
-            
+
         // Pack each map. This uses the image and tile maps filled earlier.
         println "Packing maps and scripts."
         dataIn.map.each { map ->
             if (map?.@name =~ /2D/)
-                pack2DMap(map, dataIn.tile) 
+                pack2DMap(map, dataIn.tile)
             else if (map?.@name =~ /3D/)
-                pack3DMap(map, dataIn.tile) 
+                pack3DMap(map, dataIn.tile)
             else
                 printWarning "map name '${map?.@name}' should contain '2D' or '3D'. Skipping."
         }
-        
+
         // Ready to write the output file.
         println "Writing output file."
         new File("build/root").mkdir()
-        
+
+
         def part1Path = new File("build/root/game.part.1.bin").path
         new File(part1Path).withOutputStream { stream -> writePartition(stream, 1) }
 
         def part2Path = new File("build/root/game.part.2.bin").path
         new File(part2Path).withOutputStream { stream -> writePartition(stream, 2) }
-        
+
         // Print stats (unless there's a warning, in which case focus the user on that)
         if (nWarnings == 0)
             reportSizes()
-        
+
         // And save the cache for next time.
         writeCache()
     }
-    
+
     def isAlnum(ch)
     {
         if (Character.isAlphabetic(ch.charAt(0) as int))
@@ -1898,7 +1846,7 @@ class A2PackPartitions
             return true
         return false
     }
-    
+
     def humanNameToSymbol(str, allUpper)
     {
         def buf = new StringBuilder()
@@ -1920,7 +1868,7 @@ class A2PackPartitions
             }
             else if (!isAlnum(ch))
                 inSlash = false
-            
+
             if (ch && !inParen && !inSlash) {
                 if ((ch >= 'A' && ch <= 'Z') || ch == ' ' || ch == '_')
                     needSeparator = (idx > 0)
@@ -1939,7 +1887,7 @@ class A2PackPartitions
             }
         }
         def result = buf.toString()
-        if (result.length() > 18) 
+        if (result.length() > 18)
         {
             // PLASMA's compiler has a silent limit on the number of significant
             // characters in a symbol. To make the symbol short enough but still
@@ -1950,13 +1898,13 @@ class A2PackPartitions
         }
         return result
     }
-    
+
     def parseDice(str)
     {
         // Handle single value
         if (str =~ /^\d+$/)
             return str
-            
+
         // Otherwise parse things like "2d6+1"
         def m = (str =~ /^(\d+)[dD](\d+)([-+]\d+)?$/)
         if (!m)
@@ -1966,11 +1914,11 @@ class A2PackPartitions
         def add = m[0][3] ? m[0][3].toInteger() : 0
         return String.format("\$%X", ((nDice << 12) | (dieSize << 8) | add))
     }
-    
+
     def genEnemy(out, row)
     {
         def name = row.@name
-        withContext(name) 
+        withContext(name)
         {
             out.println("def _NEn_${humanNameToSymbol(name, false)}()")
 
@@ -2014,11 +1962,11 @@ class A2PackPartitions
             out.println("end")
         }
     }
-    
+
     def genAllEnemies(sheet)
     {
         assert sheet : "Missing 'enemies' sheet"
-            
+
         withContext("enemies sheet")
         {
             new File("build/src/plasma/gen_enemies.plh.new").withWriter { out ->
@@ -2089,7 +2037,7 @@ end
             replaceIfDiff("build/src/plasma/gen_enemies.pla")
         }
     }
-    
+
     def parseStringAttr(row, attrName)
     {
         def val = row."@$attrName"
@@ -2097,7 +2045,7 @@ end
             return ""
         return val.trim()
     }
-    
+
     def parseByteAttr(row, attrName)
     {
         def val = parseStringAttr(row, attrName)
@@ -2108,7 +2056,7 @@ end
         assert val >= 0 && val <= 255 : "\"$attrName\" must be 0..255"
         return val
     }
-    
+
     def parseWordAttr(row, attrName)
     {
         def val = parseStringAttr(row, attrName)
@@ -2118,7 +2066,7 @@ end
         assert val >= -32768 && val <= 32767 : "\"$attrName\" must be -32768..32767"
         return val
     }
-    
+
     def parseModifier(row, attr1, attr2)
     {
         def bonusValue = parseWordAttr(row, attr1)
@@ -2126,14 +2074,14 @@ end
         if (!bonusValue || !bonusName) return "NULL"
         return "makeModifier(${escapeString(bonusName)}, $bonusValue)"
     }
-    
+
     def parseDiceAttr(row, attrName)
     {
         def val = parseStringAttr(row, attrName)
         if (!val) return 0
         return parseDice(val)
     }
-    
+
     def genWeapon(func, row, out)
     {
         out.println(
@@ -2152,7 +2100,7 @@ end
             "${parseByteAttr(row, "range")}, " +
             "${escapeString(parseStringAttr(row, "combat-text"))})")
     }
-    
+
     def genArmor(func, row, out)
     {
         out.println(
@@ -2163,7 +2111,7 @@ end
             "${parseByteAttr(row, "armor-value")}, " +
             "${parseModifier(row, "bonus-value", "bonus-attribute")})")
     }
-    
+
     def genAmmo(func, row, out)
     {
         out.println(
@@ -2173,7 +2121,7 @@ end
             "${parseWordAttr(row, "price")}, " +
             "${parseWordAttr(row, "max")})")
     }
-    
+
     def genItem(func, row, out)
     {
         out.println(
@@ -2183,7 +2131,7 @@ end
             "${parseModifier(row, "bonus-value", "bonus-attribute")}, " +
             "${parseByteAttr(row, "numofuses")})")
     }
-    
+
     def genPlayer(func, row, out)
     {
         out.println("  word p, itemScripts")
@@ -2219,12 +2167,12 @@ end
         out.println("  mmgr(FREE_MEMORY, itemScripts)")
         out.println "  return p"
     }
-    
+
     def addCodeToFunc(funcName, codesString, addTo)
     {
         if (codesString == null || codesString.length() == 0)
             return
-            
+
         codesString.replace("\"", "").split(",").collect{it.trim()}.grep{it!=""}.each { code ->
             code = code.toLowerCase()
             if (!addTo.containsKey(code))
@@ -2232,7 +2180,7 @@ end
             addTo[code] << funcName
         }
     }
-    
+
     def outCodeToFuncTbl(prefix, codeToFunc, out)
     {
         codeToFunc.sort().each { code, funcs ->
@@ -2255,7 +2203,7 @@ end
         out.println("  fatal(\"$funcName\")")
         out.println("end\n")
     }
-    
+
     def allItemFuncs(sheets)
     {
         def funcs = []
@@ -2272,16 +2220,16 @@ end
         funcs.each { typeName, func, index, row ->
             itemNameToFunc[row.@name.trim().toLowerCase()] = func
         }
-        
+
         // And return the funcs.
         return funcs
     }
-    
+
     def genAllItems(sheets)
     {
         // Grab all the raw data
         def funcs = allItemFuncs(sheets)
-        
+
         // Build up the mappings from loot codes and store codes to creation functions
         def lootCodeToFuncs = [:]
         def storeCodeToFuncs = [:]
@@ -2301,7 +2249,7 @@ end
             out.println("const NUM_ITEMS = ${funcs.size()}")
         }
         replaceIfDiff("build/src/plasma/gen_items.plh")
-        
+
         // Generate code
         new File("build/src/plasma/gen_items.pla.new").withWriter { out ->
             out.println("// Generated code - DO NOT MODIFY BY HAND")
@@ -2322,14 +2270,14 @@ end
             // Tables for converting loot codes and store codes to items
             outCodeToFuncTbl("lootCode_", lootCodeToFuncs, out)
             outCodeToFuncTbl("storeCode_", storeCodeToFuncs, out)
-            
+
             // Next, output the function table
             out.println("word[] funcTbl = @_item_forLootCode, @_item_forStoreCode")
             funcs.each { typeName, func, index, row ->
                 out.println("word         = @_$func")
             }
             out.println("")
-            
+
             // Data structure filling helpers
             out.print("""\n\
 def makeArmor(name, kind, price, armorValue, modifier)
@@ -2385,10 +2333,10 @@ def makeItem(name, price, modifier, maxUses)
   return p
 end
 """)
-            
+
             // Generate all the functions themselves
             funcs.each { typeName, func, index, row ->
-                withContext("$typeName '${row.@name}'") 
+                withContext("$typeName '${row.@name}'")
                 {
                     out.println("def _$func()")
                     switch (typeName) {
@@ -2401,7 +2349,7 @@ end
                     out.println("end\n")
                 }
             }
-            
+
             // Code for loot and store generation
             outCodeToFuncMethod("_item_forLootCode", "lootCode_", lootCodeToFuncs, out)
             outCodeToFuncMethod("_item_forStoreCode", "storeCode_", storeCodeToFuncs, out)
@@ -2421,13 +2369,13 @@ end
             if (row.@name && row.@"starting-party")
                 funcs << ["NPl_${humanNameToSymbol(row.@name, false)}", funcs.size, row]
         }
-        
+
         // Global mapping of player name to function, so that add/remove functions can work.
         funcs.each { func, index, row ->
             playerNameToFunc[row.@name.trim().toLowerCase()] = func
         }
     }
-        
+
     def genAllPlayers(sheets)
     {
         // Grab all the raw data
@@ -2442,7 +2390,7 @@ end
             }
         }
         replaceIfDiff("build/src/plasma/gen_players.plh")
-        
+
         // Generate code
         new File("build/src/plasma/gen_players.pla.new").withWriter { out ->
             out.println("// Generated code - DO NOT MODIFY BY HAND")
@@ -2496,7 +2444,7 @@ def makePlayer_pt2(p, health, aiming, handToHand, dodging)
   return p
 end
 """)
-            
+
             // Generate all the functions themselves
             funcs.each { func, index, row ->
                 withContext("player '${row.@name}'") {
@@ -2505,7 +2453,7 @@ end
                     out.println("end\n")
                 }
             }
-            
+
             // Code for initial party creation
             out.println("def _makeInitialParty()")
             funcs.each { func, index, row ->
@@ -2532,22 +2480,22 @@ end
             gsmod.packGlobalScript(new File("build/src/plasma/gs_${name}.pla.new"), script)
             replaceIfDiff("build/src/plasma/gs_${name}.pla")
         }
-        
+
         // There are a couple of required global funcs
         if (!found.contains("newGame"))
             throw new Exception("Can't find global new game function")
         if (!found.contains("help"))
             throw new Exception("Can't find global help function")
     }
-    
+
     def replaceIfDiff(oldFile)
     {
         def newFile = new File(oldFile + ".new")
         oldFile = new File(oldFile)
-        
+
         def newText = newFile.text
         def oldText = oldFile.exists() ? oldFile.text : ""
-        
+
         if (newText == oldText) {
             //println "Same text, deleting $newFile"
             newFile.delete()
@@ -2558,7 +2506,7 @@ end
             newFile.renameTo(oldFile)
         }
     }
-    
+
     def decodeImageName(rawName)
     {
         def name = rawName
@@ -2572,7 +2520,7 @@ end
         }
         return [name.trim(), animFrameNum, animFlags]
     }
-    
+
     def dataGen(xmlPath)
     {
         // Open the XML data file produced by Outlaw Editor
@@ -2597,7 +2545,7 @@ end
                 }
             }
             out.println "const PO_LAST = $portraitNum\n"
-            
+
             def frameNum = 3  // 1-3 are title, UI 2d, UI 3d respectively
             dataIn.image.sort{it.@name.toLowerCase()}.each { image ->
                 def category = image.@category?.toLowerCase()
@@ -2611,16 +2559,16 @@ end
             out.println "const PF_LAST = $frameNum"
         }
         replaceIfDiff("build/src/plasma/gen_images.plh")
-        
+
         // Before we can generate global script code, we need to identify and number
         // all the maps. Same with avatars.
         numberMaps(dataIn)
         numberAvatars(dataIn)
-        
+
         // Translate global scripts to code
         recordGlobalScripts(dataIn)
         genAllGlobalScripts(dataIn.global.scripts.script)
-        
+
         // Translate enemies, weapons, etc. to code
         genAllEnemies(dataIn.global.sheets.sheet.find { it?.@name.equalsIgnoreCase("enemies") })
         genAllItems(dataIn.global.sheets.sheet)
@@ -2640,9 +2588,9 @@ end
             }
         }
         replaceIfDiff("build/src/plasma/gen_modules.plh")
-        
+
         // Put back the default line separator
-        System.setProperty("line.separator", oldSep)  
+        System.setProperty("line.separator", oldSep)
     }
 
     def copyIfNewer(fromFile, toFile)
@@ -2652,30 +2600,28 @@ end
             Files.copy(fromFile.toPath(), toFile.toPath())
         }
     }
-    
+
     def createImage()
     {
-        // Copy the PLASMA VM file to the output directory
-        copyIfNewer(jitCopy(new File("build/tools/PLASMA/src/PLVM02.SYSTEM.sys")), new File("build/root/PLVM02.SYSTEM.sys"))
-        
-        // Copy the memory manager to the output directory
-        copyIfNewer(new File("build/src/core/build/cmd.sys#2000"), new File("build/root/cmd.sys#2000"))
-        
+        // Copy the combined core executable to the output directory
+        copyIfNewer(new File("build/src/core/build/LEGENDOS.SYSTEM.sys#2000"),
+                    new File("build/root/LEGENDOS.SYSTEM.sys#2000"))
+
         // If we preserved a previous save game, copy it to the new image.
         def prevSave = new File("build/prevGame/game.1.save.\$f1")
         if (prevSave.exists())
             copyIfNewer(prevSave, new File("build/root/game.1.save.\$f1"))
-        
+
         // Decompress the base image.
         // No need to delete old file; that was done by outer-level code.
         def dst = new File("game.2mg")
         Files.copy(new GZIPInputStream(new FileInputStream(jitCopy(new File("build/data/disks/base.2mg.gz")))), dst.toPath())
-        
+
         // Now put the files into the image
         String[] args = ["-put", "game.2mg", "/", "build/root"]
         new a2copy.A2Copy().main(args)
     }
-    
+
     static void packWorld(String xmlPath, Object watcher)
     {
         // If there's an existing error file, remove it first, so user doesn't
@@ -2706,7 +2652,7 @@ end
 
                 // Also remove existing game image if any, for the same reason.
                 def gameFile = new File("game.2mg")
-                if (gameFile.exists()) 
+                if (gameFile.exists())
                 {
                     // We want to preserve any existing saved game, so grab files from the old image.
                     String[] args2 = ["-get", "game.2mg", "/", "build/prevGame"]
@@ -2740,7 +2686,7 @@ end
                 }
                 reportWriter.println "\nGroovy call stack:"
                 t.getStackTrace().each {
-                    if (it.toString().contains(".groovy:"))
+                    if (!(it.toString() ==~ /.*(groovy|reflect)\..*/))
                         reportWriter.println "    $it"
                 }
                 reportWriter.flush()
@@ -2765,7 +2711,7 @@ end
                 "Fatal error encountered in\n" + \
                 "$context:\n" + \
                 "$msg.\n" + \
-                "Details written to file 'pack_report.txt'.", "Fatal packing error", 
+                "Details written to file 'pack_report.txt'.", "Fatal packing error",
                 javax.swing.JOptionPane.ERROR_MESSAGE)
             System.exit(1)
         }
@@ -2778,12 +2724,12 @@ end
                 javax.swing.JOptionPane.ERROR_MESSAGE)
         }
     }
-    
-    static void main(String[] args) 
+
+    static void main(String[] args)
     {
         // Set auto-flushing for stdout
         System.out = new PrintStream(new BufferedOutputStream(System.out), true)
-        
+
         // Check the arguments
         if (args.size() > 1) {
             println "Usage: java -jar packPartitions.jar [path/to/world.xml]"
@@ -2809,14 +2755,14 @@ end
                     return script.@name
                 return null
             }
-                
+
             def blk = script.block[0]
             if (blk.field.size() == 0) {
                 if (scriptNames.containsKey(script))
                     return scriptNames[script]
                 return null
             }
-                
+
             assert blk.field[0].@name == "NAME"
             return blk.field[0].text()
         }
@@ -2834,19 +2780,19 @@ end
             out << "include \"../plasma/gen_players.plh\"\n\n"
             out << "word global\n"
         }
-        
+
         /**
          * Pack a global script (not associated with any particular map).
          */
         def packGlobalScript(outFile, script)
         {
             startScriptFile(outFile)
-            
+
             def name = getScriptName(script)
             assert name : "Can't find script name in $script"
             scriptNames[script] = "sc_${humanNameToSymbol(name, false)}"
             packScript(script)
-            
+
             // Set up the pointer to global vars and finish up the module.
             out << "global = getGlobals()\n"
             if (script.block.size() == 0)
@@ -2864,7 +2810,7 @@ end
         def packMapScripts(mapName, outFile, inScripts, maxX, maxY, xRange = null, yRange = null)
         {
             startScriptFile(outFile)
-            
+
             // Determine which scripts are referenced in the specified section of the map.
             def initScript
             def scripts = []
@@ -2886,13 +2832,13 @@ end
             // Generate the table of triggers, and code for each script.
             makeTriggerTbl(scripts, xRange, yRange)
             scripts.each { script ->
-                packScript(script) 
+                packScript(script)
             }
 
             // Even if there were no scripts, we still need an init to display
             // the map name.
             makeInit(mapName, initScript, maxX, maxY)
-            
+
             out.close()
         }
 
@@ -2903,7 +2849,7 @@ end
         def packScript(script)
         {
             //println "   Script '$name'"
-            withContext(scriptNames[script]) 
+            withContext(scriptNames[script])
             {
                 if (script.block.size() == 0) {
                     printWarning("empty script found; skipping.")
@@ -2927,7 +2873,7 @@ end
                 }
                 out << ")\n"
                 indent = 1
-                
+
                 // Need to queue up the script, to find out what variables need
                 // to be declared.
                 def outerOutput = out
@@ -2945,7 +2891,7 @@ end
                 }
                 else
                     printWarning "empty statement found; skipping."
-                    
+
                 // Define all the variables that were mentioned (except the args)
                 out.close()
                 out = outerOutput
@@ -2955,7 +2901,7 @@ end
                 (variables - args).each { var ->
                     outIndented("$var = 0\n")
                 }
-                
+
                 // And complete the function
                 out << buf.toString() + "end\n\n"
             }
@@ -2964,7 +2910,7 @@ end
         def packBlock(blk)
         {
             withContext("${blk.@type}") {
-                switch (blk.@type) 
+                switch (blk.@type)
                 {
                     case 'text_print':
                     case 'text_println':
@@ -3038,7 +2984,7 @@ end
             // Strangely, blocks seem to be chained together, but hierarchically. Whatever.
             blk.next.each { it.block.each { packBlock(it) } }
         }
-        
+
         def getSingle(els, name = null, type = null)
         {
             assert els.size() == 1
@@ -3058,7 +3004,7 @@ end
             }
             def valBlk = getSingle(blk.value, 'VALUE').block
             assert valBlk.size() == 1
-            if (valBlk[0].@type == 'text') 
+            if (valBlk[0].@type == 'text')
             {
                 // Break up long strings into shorter chunks for PLASMA.
                 // Note: this used to be 253, but still had some random mem overwrites.
@@ -3095,7 +3041,7 @@ end
             assert blk.value.size() == 0
             outIndented("getUpperKey()\n")
         }
-        
+
         def packVarSet(blk)
         {
             def name = "v_" + humanNameToSymbol(getSingle(blk.field, 'VAR'), false)
@@ -3104,7 +3050,7 @@ end
             packExpr(getSingle(getSingle(blk.value).block))
             out << "\n"
         }
-        
+
         def packGiveItem(blk)
         {
             def name = getSingle(blk.field, 'NAME').text().trim()
@@ -3112,7 +3058,7 @@ end
             assert itemFunc : "Can't locate item '$name'"
             outIndented("giveItemToPlayer($itemFunc)\n")
         }
-        
+
         def packTakeItem(blk)
         {
             def name = getSingle(blk.field, 'NAME').text().trim()
@@ -3127,7 +3073,7 @@ end
             assert playerFunc : "Can't locate player '$name'"
             outIndented("addPlayerToParty($playerFunc)\n")
         }
-        
+
         def packRemovePlayer(blk)
         {
             def name = getSingle(blk.field, 'NAME').text().trim()
@@ -3140,19 +3086,19 @@ end
             assert blk.field.size() == 0
             outIndented("benchPlayer()\n")
         }
-        
+
         def packUnbenchPlayer(blk)
         {
             assert blk.field.size() == 0
             outIndented("unbenchPlayer()\n")
         }
-        
+
         def nameToStat(name) {
             def lcName = name.toLowerCase().trim()
             assert lcName in stats : "Unrecognized stat '$name'"
             return stats[lcName]
         }
-            
+
         def packChangeStat(blk)
         {
             assert blk.field.size() == 2
@@ -3175,7 +3121,7 @@ end
                 time = 32767
             outIndented("pause($time)\n")
         }
-        
+
         def packGlobalCall(blk)
         {
             def m = blk.@type =~ /^Globalignore_(.*)$/
@@ -3235,7 +3181,7 @@ end
         {
             return blk.@type == "text_getstring" || blk.@type == "text_getcharacter" || blk.@type == "text"
         }
-        
+
         def packLogicCompare(blk)
         {
             def op = getSingle(blk.field, "OP").text()
@@ -3272,7 +3218,7 @@ end
                     assert false : "Compare op '$op' not yet implemented."
             }
         }
-        
+
         def packLogicOperation(blk)
         {
             def op = getSingle(blk.field, "OP").text()
@@ -3291,14 +3237,14 @@ end
                     assert false : "Logic op '$op' not yet implemented."
             }
         }
-        
+
         def packVarGet(blk)
         {
             def name = "v_" + humanNameToSymbol(getSingle(blk.field, "VAR").text(), false)
             variables << name
             out << name
         }
-        
+
         def packHasItem(blk)
         {
             def name = getSingle(blk.field, "NAME").text().trim()
@@ -3356,7 +3302,7 @@ end
                     assert false : "Expression type '${blk.@type}' not yet implemented."
             }
         }
-        
+
         def packIfStmt(blk)
         {
             if (blk.value.size() == 0) {
@@ -3419,10 +3365,10 @@ end
             def y = blk.field[2].text().toInteger()
             def facing = blk.field[3].text().toInteger()
             assert facing >= 0 && facing <= 15
-            
+
             outIndented("return queue_setMap(${mapNum[0] == '2D' ? 0 : 1}, ${mapNum[1]}, $x, $y, $facing)\n")
         }
-        
+
         def packSetPortrait(blk)
         {
             def portraitName = getSingle(blk.field, 'NAME').text()
@@ -3432,7 +3378,7 @@ end
             }
             outIndented("setPortrait(PO${humanNameToSymbol(portraitName, false)})\n")
         }
-        
+
         def packSetFullscreen(blk)
         {
             def imgName = getSingle(blk.field, 'NAME').text()
@@ -3442,13 +3388,13 @@ end
             }
             outIndented("loadFrameImg(PF${humanNameToSymbol(imgName, false)})\n")
         }
-        
+
         def packClrPortrait(blk)
         {
             assert blk.field.size() == 0
             outIndented("clearPortrait()\n")
         }
-        
+
         def packSetAvatar(blk)
         {
             def tileName = getSingle(blk.field, 'NAME').text().trim()
@@ -3458,7 +3404,7 @@ end
             }
             outIndented("scriptSetAvatar(${avatars[tileName.toLowerCase()]})\n")
         }
-        
+
         def packSwapTile(blk)
         {
             assert blk.field.size() == 4
@@ -3479,7 +3425,7 @@ end
             assert enableFlg == "0" || enableFlg == "1"
             outIndented("setIntimateMode($enableFlg)\n")
         }
-        
+
         def packSetSky(blk)
         {
             def color = getSingle(blk.field, 'COLOR').text().toInteger()
@@ -3541,7 +3487,7 @@ end
             assert blk.field.size() == 0
             outIndented("moveWayBackward()\n")
         }
-        
+
         def makeTriggerTbl(scripts, xRange, yRange)
         {
             // Emit a predefinition for each function
@@ -3571,11 +3517,11 @@ end
                     }
                 }
             }
-            
+
             // Now output code for the table. First comes the X
             // and Y origins.
             out << "word[] triggerTbl = ${xRange ? xRange[0] : 0}, ${yRange ? yRange[0] : 0} // origin X,Y\n"
-            
+
             // Then the Y tables
             triggers.each { y, xs ->
                 def size = 2  // 2 bytes for y+off
@@ -3599,10 +3545,10 @@ end
             // Emit the code the user has stored for the init script (if any)
             if (script)
                 packScript(script)
-            
+
             // Set up the pointer to global vars
             out << "global = getGlobals()\n"
-            
+
             // Code to register the  map name, trigger table, and map extent.
             def shortName = mapName.replaceAll(/[\s-]*[23][dD][-0-9]*$/, '').take(16)
             out << "setScriptInfo(\"$shortName\", @triggerTbl, $maxX, $maxY)\n"
@@ -3610,17 +3556,17 @@ end
             // Call init script if one was defined
             if (script)
                 out << "sc_${humanNameToSymbol(getScriptName(script), false)}()\n"
-            
+
             // All done with the init function.
             out << "done\n"
         }
     }
-    
+
     class AnimBuf
     {
         def animFlags
         def buffers = []
-        
+
         def addImage(animFrameNum, animFlags, imgBuf)
         {
             if (animFrameNum == 1)
@@ -3628,11 +3574,11 @@ end
             buffers << imgBuf
             assert animFrameNum == buffers.size() : "Missing animation frame"
         }
-        
+
         def pack()
         {
             def outBuf = ByteBuffer.allocate(50000) // plenty of room
-            
+
             // If no animation, add a stub to the start of the (only) image and return it
             assert buffers.size() >= 1
             if (buffers.size() == 1) {
@@ -3642,14 +3588,14 @@ end
                 outBuf.put(buffers[0])
                 return outBuf
             }
-            
+
             // At start of buffer, put offset to animation header, then the first frame
             def offset = buffers[0].position() + 2  // 2 for the offset itself
             outBuf.put((byte)(offset & 0xFF))
             outBuf.put((byte)((offset >> 8) & 0xFF))
             buffers[0].flip()
             outBuf.put(buffers[0])
-            
+
             // Now comes the full animation header
             def flagByte
             switch (animFlags) {
@@ -3664,16 +3610,16 @@ end
             outBuf.put((byte)1) // used to store current anim dir; start with 1=forward
             outBuf.put((byte)(buffers.size()))  // number of frames
             outBuf.put((byte)0) // used to store current anim frame
-            
+
             // Then each patch
             buffers[1..-1].each { inBuf ->
                 makePatch(inBuf, buffers[0], outBuf)
             }
-            
+
             // All done.
             return outBuf
         }
-        
+
         def makePatch(ByteBuffer inBuf, ByteBuffer refBuf, ByteBuffer outBuf)
         {
             int len = inBuf.position()
@@ -3694,7 +3640,7 @@ end
             }
             outBuf.put((byte)(totalSize & 0xFF))
             outBuf.put((byte)((totalSize>>8) & 0xFF))
-            
+
             // And write out each patch hunk.
             int prev = 0
             patches.each { patch ->
@@ -3709,7 +3655,7 @@ end
             outBuf.put((byte)0xFF)
             assert outBuf.position() - startPos == totalSize
         }
-        
+
 
         def addPatch(patches, int pos)
         {
@@ -3719,7 +3665,7 @@ end
                 last.end = pos+1
                 return
             }
-            
+
             // Skip to the right position
             while (pos - last.end >= 254) {
                 last = [start:last.end+254, end:last.end+254]

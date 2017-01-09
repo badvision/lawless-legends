@@ -41,6 +41,44 @@
 ; going to be faster than spinning up a disk.
 ;
 ; ----------------------------
+;
+; Memory map (we try to keep this kinda up to date)
+;
+; MAIN 64K MEMORY
+; :::::::::::::::
+; 0000.01FF 6502 zero page and stack
+; 0200.03FF input buffer, misc vecs
+; 0400.07FF text screen (used for debugging)
+; 0800.0Dxx memory manager
+; 0Exx.0Fxx PLASMA locals storage
+; 10xx.18xx gameloop asm, data and stubs
+; 19xx.1FFF (free)
+; 2000.3FFF hi-res page 1
+; 4000.4FFF hi-res page 2 /
+;           memory manager work space
+; 6000.6xxx 2D or 3D renderer
+; 7xxx.BFFF (free)
+; C000.CFFF I/O
+; D000.DFFF bank 1: memory manager and decompressor
+;           bank 2: PLASMA runtime
+; E000.EBFF small-object heap
+; EC00.FAFF font engine
+; FB00.FFF9 font data
+; FFFA.FFFF 6502 vectors
+;
+; AUX 64K MEMORY
+; ::::::::::::::
+; 0000.01FF 6502 zero page and stack
+; 0200.2xxx expander (if 3D map is running)
+; 3000.9xxx (free)
+; Axxx.BFFF gameloop PLASMA code (loaded as high as possible)
+; C000.CFFF I/O
+; D000.DFFF bank 1: ProRWTS runtime (Note: D900.DFFF free)
+;           bank 2: part of expander
+; E000.FFF9 (free)
+; FFFA.FFFF 6502 vectors
+;
+; ----------------------------
 ; Segment table format in memory:
 ; Linked list of segments. Segments are generally indexed by the X register. There is
 ; one list of main memory, another list for aux mem. They are intermixed in the segment

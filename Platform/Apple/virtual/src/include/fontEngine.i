@@ -13,7 +13,7 @@
 ; by Andrew Hogan
 ;
 
-fontEngine 	= $E000
+fontEngine 	= $EC00
 SetFont		= fontEngine
 SetWindow	= SetFont+3
 ClearWindow	= SetWindow+3

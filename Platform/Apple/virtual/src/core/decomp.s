@@ -38,7 +38,6 @@ DEBUG	= 0
 decomp	!zone {
 	ldy #0		; In lit loop Y must be zero
 	beq .lits2	; always taken
-
 .lits	asl bits	; get bit that tells us whether there's a literal string
 	bne +		; ran out of bits in bit buffer?
 .lits2	jsr .getbts	; get more bits
@@ -46,18 +45,26 @@ decomp	!zone {
 	jsr .gamma	; Yes we have literals. Get the count.
 	!if DEBUG { jsr .dbg1 }
 	tax
-	cpx #255	; special case: long literal marked by len=255; chk and save to carry
 -	lda (pSrc),y
 	sta (pDst),y
-	inc pSrc
-	bne +
-	inc pSrc+1
-+	inc pDst
-	bne +
-	inc pDst+1
-+	dex
+	iny
+	dex
 	bne -
-	bcs .lits	; (see special case above)
+	tya
+	clc
+	adc pSrc
+	sta pSrc
+	bcc +
+	inc pSrc+1
++	tya
+	clc
+	adc pDst
+	sta pDst
+	bcc +
+	inc pDst+1
++	iny		; special case: long literal marked by len=255
+	beq .lits
+	ldy #0
 .endchk	lda pDst	; check for done at end of each literal string
 	cmp pEnd
 	lda pDst+1
@@ -109,9 +116,9 @@ decomp	!zone {
 	adc pDst
 	sta pDst
 	ldy #0		; back to 0 as expected by lits section
-	bcc .lits
+	bcc +
 	inc pDst+1
-	jmp .lits
++	jmp .lits
 
 ; Read an Elias Gamma value into A. Destroys X. Sets carry.
 .gamma	lda #1

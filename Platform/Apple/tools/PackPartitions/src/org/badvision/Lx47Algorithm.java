@@ -14,7 +14,7 @@ public class Lx47Algorithm
     static final int MAX_OFFSET = 16384;  /* range 1..65536 */
     static final int MAX_LEN = 255;  /* range 2..65536 */
     static final int OFFSET_EXP_BITS = 6;
-    
+
     LinkedList<String> debugs;
 
     void addDebug(String format, Object... arguments) {
@@ -48,7 +48,7 @@ public class Lx47Algorithm
         }
         return bits;
     }
-    
+
     int countCodePair(int prevLits, int matchLen, int offset) {
         assert offset >= 1;
         int nBits = (prevLits>0 ? 0 : 1) 
@@ -57,7 +57,7 @@ public class Lx47Algorithm
                     + (matchLen>2 ? countGammaBits(matchLen-2) : 0);
         return nBits;
     }
-    
+
     int countLitBits(int lits) {
         if (lits == 0)
             return 0;
@@ -69,7 +69,7 @@ public class Lx47Algorithm
         }
         return bits;
     }
-    
+
     Optimal[] optimize(byte[] input_data) {
         int[] min = new int[MAX_OFFSET+1];
         int[] max = new int[MAX_OFFSET+1];
@@ -83,7 +83,7 @@ public class Lx47Algorithm
         int best_len;
         int bits;
         int i;
-        
+
         for (i=0; i<256*256; i++)
             matches[i] = new Match();
         for (i=0; i<input_data.length; i++) {
@@ -104,7 +104,7 @@ public class Lx47Algorithm
             optimal[i].bits = optimal[i-1].bits 
                             - countLitBits(optimal[i-1].lits) 
                             + countLitBits(optimal[i].lits);
-            
+
             // Now search for a match that's better than just using a literal.
             match_index = (input_data[i-1] & 0xFF) << 8 | (input_data[i] & 0xFF);
             best_len = 1;
@@ -182,27 +182,27 @@ public class Lx47Algorithm
             mask >>= 1;
             bitPos++;
         }
-        
+
         void writeGamma(int value) {
             assert value >= 1 && value <= 255;
-            
+
             int i;
-            
+
             // Find highest set bit
             for (i = 128; (i&value) == 0; i >>= 1)
                 ;
-            
+
             // Write out extra bits with markers
             while (i > 1) {
                 i >>= 1;
                 writeBit(0);
                 writeBit(value & i);
             }
-            
+
             // And finish
             writeBit(1);
         }
-        
+
         void writeLiteralLen(int value) {
             if (value == 0)
                 writeBit(0);
@@ -224,7 +224,7 @@ public class Lx47Algorithm
                 data |= 128;
 
             writeByte(data);
-            
+
             if (offset >= 64)
                 writeGamma(offset>>6);
             if (matchLen > 2)
@@ -237,7 +237,7 @@ public class Lx47Algorithm
         int input_index;
         int input_prev;
         int i;
-        
+
         //for (i=0; i<optimal.length; i++)
         //    System.out.format("opt[%d]: bits=%d off=%d len=%d lits=%d\n", i, 
         //            optimal[i].bits, optimal[i].offset, optimal[i].len, optimal[i].lits);
@@ -293,15 +293,15 @@ public class Lx47Algorithm
                 // Sequence. If two in a row, insert a zero-length lit str
                 if (!prevIsLit) {
                     addDebug("lits l=$00");
-                    w.writeBit(0);
+                    w.writeLiteralLen(0);
                 }
-                
+
                 // Now write sequence info
                 addDebug("seq l=$%02x o=$%04x", optimal[input_index].len, optimal[input_index].offset);
                 w.writeCodePair(optimal[input_index].len, optimal[input_index].offset);
                 prevIsLit = false;
             }
-            
+
             assert optimal[input_index].bits == w.bitPos :
                    String.format("pos miscalc: calc'd %d, got %d", optimal[input_index].bits, w.bitPos);
         }
@@ -309,16 +309,16 @@ public class Lx47Algorithm
         // EOF marker
         if (!prevIsLit) {
             addDebug("lits l=$00");
-            w.writeBit(0);
+            w.writeLiteralLen(0);
         }
         addDebug("EOF");
 
         assert w.outPos == output_size : String.format("size miscalc: got %d, want %d", w.outPos, output_size);
         System.arraycopy(w.buf, 0, output_data, 0, w.outPos);
-                
+
         return output_data;
     }
-    
+
     public class Lx47Reader
     {
         public byte[] buf;
@@ -352,7 +352,7 @@ public class Lx47Algorithm
                 out = (out << 1) | readBit();
             return out;
         }
-        
+
         int readLiteralLen() {
             if (readBit() == 0)
                 return 0;
@@ -373,7 +373,7 @@ public class Lx47Algorithm
             return matchLen | (offset<<16); // pack both vals into a single int
         }
     }
-    
+
     int debugPos = 0;
     void chkDebug(String format, Object... arguments) {
         String toCheck = String.format(format, arguments);
@@ -388,7 +388,7 @@ public class Lx47Algorithm
         int len;
         Lx47Reader r = new Lx47Reader(input_data, inStart);
         int outPos = outStart;
-        
+
         // Now decompress until done.
         chkDebug("start");
         while (true) 
@@ -404,11 +404,11 @@ public class Lx47Algorithm
                 if (len != 255)
                     break;
             }
-            
+
             // Check for EOF at the end of each literal string
             if (outPos == outStart+outLen)
                 break;
-            
+
             // Not a literal, so it's a sequence. Get len, offset, and copy.
             int codePair = r.readCodePair();
             len = codePair & 0xFFFF;
@@ -419,7 +419,7 @@ public class Lx47Algorithm
                 ++outPos;
             }
         }
-        
+
         chkDebug("EOF");
     }
 

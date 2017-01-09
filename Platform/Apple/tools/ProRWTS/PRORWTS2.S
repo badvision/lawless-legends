@@ -26,11 +26,13 @@
                                         ;requires load_high to be set for arbitrary memory access
                                         ;else driver must be running from same memory target
                                         ;i.e. running from main if accessing main, running from aux if accessing aux
+                allow_trees  = 1        ;enable support for tree files, as opposed to only seedlings and saplings
+                                        ;requires an additional 512 bytes of RAM
                 bounds_check = 0        ;set to 1 to prevent access beyond the end of the file
                                         ;but limits file size to 64k-2 bytes.
                 load_high    = 0        ;set to 1 to load to top of RAM (either main or banked, enables a himem check)
-                load_banked  = 1        ;set to 1 to load into banked RAM instead of main RAM
-                load_auxbnk  = 1        ;set to 1 to load into AUX banked RAM
+                load_aux     = 1        ;load to aux memory
+                load_banked  = 1        ;set to 1 to load into banked RAM instead of main RAM (can be combined with load_aux for aux banked)
                 lc_bank      = 1        ;load into specified bank (1 or 2) if load_banked=1
 
                 ;user-defined driver load address
@@ -54,6 +56,11 @@
   } ;load_high
 } ;load_banked
 
+                ;there are also buffers that can be moved if necessary:
+                ;dirbuf, encbuf, treebuf (and corresponding hdd* versions that load to the same place)
+                ;they are independent of each other so they can be placed separately
+                ;see near EOF for those
+
                 ;zpage usage, arbitrary selection except for the "ProDOS constant" ones
                 ;feel free to move them around
 
@@ -65,9 +72,11 @@
 } ;allow_aux
                 sizelo    = $6          ;set if enable_write=1 and writing, or reading, or if enable_seek=1 and seeking
                 sizehi    = $7          ;set if enable_write=1 and writing, or reading, or if enable_seek=1 and seeking
+!if (enable_write + enable_seek + allow_multi) > 0 {
                 reqcmd    = $2          ;set (read/write/seek) if enable_write=1 or enable_seek=1
                                         ;if allow_multi=1, bit 7 selects floppy drive in current slot (clear=drive 1, set=drive 2) during open call
                                         ;bit 7 must be clear for read/write/seek on opened file
+} ;enable_write or enable_seek or allow_multi
                 ldrlo     = $E          ;set to load address if override_adr=1
                 ldrhi     = $F          ;set to load address if override_adr=1
                 namlo     = $C          ;name of file to access
@@ -86,10 +95,14 @@
                 bloklo    = $46         ;ProDOS constant
                 blokhi    = $47         ;ProDOS constant
 
+!if allow_trees = 1 {
+                treeidx   = $1b         ;(internal) index into tree block
+                istree    = $1c         ;(internal) flag to indicate tree file
+} ;allow_trees
                 entries   = $18         ;(internal) total number of entries in directory
 !if bounds_check = 1 {
-                bleftlo   = $1b         ;(internal) bytes left in file
-                blefthi   = $1c         ;(internal) bytes left in file
+                bleftlo   = $13         ;(internal) bytes left in file
+                blefthi   = $14         ;(internal) bytes left in file
 } ;bounds_check
                 blkofflo  = $19         ;(internal) offset within cache block
                 blkoffhi  = $1a         ;(internal) offset within cache block
@@ -116,8 +129,6 @@
                 Q7H       = $c08f
                 MLI       = $bf00
                 NAME_LENGTH = $4        ;ProDOS constant
-                MASK_SAPLING = $20      ;ProDOS constant
-                MASK_TREE = $30         ;ProDOS constant
                 MASK_SUBDIR = $d0       ;ProDOS constant
                 MASK_ALL    = $f0       ;ProDOS constant
                 KEY_POINTER = $11       ;ProDOS constant
@@ -133,7 +144,9 @@
                 LCBANK2   = $c089
                 CLRAUXRD  = $c002
                 CLRAUXWR  = $c004
+                SETAUXWR  = $c005
                 CLRAUXZP  = $c008
+                SETAUXZP  = $c009
 
 init            jsr SETVID
                 jsr SETKBD
@@ -301,9 +314,13 @@ ifoundname      iny
                 tya
 set_slot        sta slot + 2
                 sta unrentry + 2
-!if load_auxbnk = 1 {
-                sta CLRAUXZP+1
-}
+  !if load_banked = 1 {
+                lda LCBANK2 - ((lc_bank - 1) * 8)
+                lda LCBANK2 - ((lc_bank - 1) * 8)
+  } ;load_banked
+  !if load_aux = 1 {
+                sta SETAUXWR + (load_banked * 4) ;SETAUXWR or SETAUXZP
+  } ;load_aux
 !if enable_floppy = 1 {
                 ldx #>unrelocdsk
                 ldy #<unrelocdsk
@@ -316,15 +333,6 @@ slot            lda $cfff
 
 copydrv         stx blokhi
                 sty bloklo
-  !if load_banked = 1 {
-    !if lc_bank = 1 {
-                lda LCBANK2
-                lda LCBANK2
-    } else { ;lc_bank
-                lda ROMIN
-                lda ROMIN
-    } ;lc_bank
-  } ;load_banked
                 ldx #>((codeend - rdwrpart) + $ff)
                 ldy #0
 -               lda (bloklo), y
@@ -368,21 +376,13 @@ reladr          sta reloc, y
 } else { ;enable_floppy
 slot            lda $cfff
                 sta unrentry + 1
-  !if load_banked = 1 {
-    !if lc_bank = 1 {
-                lda LCBANK2
-                lda LCBANK2
-    } else { ;lc_bank
-                lda ROMIN
-                lda ROMIN
-    } ;lc_bank
-  } ;load_banked
                 ldy #0
 -               lda unrelochdd, y
                 sta reloc, y
 
                 ;hack to avoid address overflow when load_high and load_banked
                 ;and code is less than two pages long (e.g. aligned_read, no write)
+                ;can't insert code during pass two because it breaks existing offsets
 
   !ifdef PASS2 {
     !if >(hddcodeend - reloc) > 1 {
@@ -391,13 +391,14 @@ slot            lda $cfff
   } else { ;PASS2
     !set hack=0
   } ;PASS2
+                lda unrelochdd + hack, y
                 sta reloc + hack, y
                 iny
                 bne -
 } ;enable_floppy
-!if load_auxbnk = 1 {
-                sta CLRAUXZP
-}
+  !if load_aux = 1 {
+                sta CLRAUXWR + (load_banked * 4) ;CLRAUXWR or CLRAUXZP
+  } ;load_aux
                 rts
 
 c7_parms        !byte 1
@@ -443,38 +444,28 @@ nextent         ldy #0
                 sty status
   } ;might_exist
                 lda (bloklo), y
-  !if (might_exist + allow_subdir) > 0 {
-                and #MASK_ALL
-
-    !if might_exist = 1 {
+  !if might_exist = 1 {
                 ;skip deleted entries without counting
 
+                and #MASK_ALL
                 beq ++
-    } ;might_exist
-
-    !if allow_subdir = 1 {
-                ;subdirectory entries are seedlings
-                ;but we need to distinguish between them later
-
-                cmp #MASK_SUBDIR
-                beq savetype
-    } ;allow_subdir
-  } ;might_exist or allow_subdir
-
-                ;watch for seedling and saplings only
-
-                cmp #MASK_TREE
-                bcs +
+  } ;might_exist
 
                 ;remember type
 
+                ;now bits 5-4 are represented by carry (subdirectory), sign (sapling)
+
 savetype
-  !if allow_subdir = 1 {
                 asl
                 asl
-  } else { ;allow_subdir
-                cmp #MASK_SAPLING
-  } ;allow_subdir
+
+                ;now bits 5-3 are represented by carry (subdirectory), sign (sapling),
+                ;overflow (seedling), and sign+overflow (tree)
+
+    !if allow_trees = 1 {
+                sta treeidx
+                bit treeidx
+    } ;allow_trees
                 php
 
                 ;match name lengths before attempting to match names
@@ -530,6 +521,10 @@ unrdrvoff1=unrelocdsk+(*-reloc)
 foundname       iny
                 dex
                 bne -
+  !if allow_trees = 1 {
+                stx treeidx
+                stx istree
+  } ;allow_trees
                 stx entries
                 stx blkofflo
                 stx blkoffhi
@@ -599,22 +594,16 @@ foundname       iny
                 ;cache AUX_TYPE (load offset for binary files)
 
   !if override_adr = 0 {
-    !if allow_subdir = 1 {
                 pla
                 tax
-    } else { ;allow_subdir
-                plp
-    } ;allow_subdir
                 ldy #AUX_TYPE
                 lda (bloklo), y
                 pha
                 iny
                 lda (bloklo), y
                 pha
-    !if allow_subdir = 1 {
                 txa
                 pha
-    } ;allow_subdir
   } ;override_adr
 
                 ;cache KEY_POINTER
@@ -629,18 +618,23 @@ foundname       iny
 
                 ;read index block in case of sapling
 
-  !if allow_subdir = 1 {
                 plp
+  !if (allow_subdir + allow_trees) > 0 {
                 bpl rdwrfile
+    !if allow_subdir = 1 {
                 php
-                jsr readdirsec
-                plp
-  } else { ;allow_subdir
-    !if override_adr = 1 {
-                plp
-    } ;override_adr
-                bcc rdwrfile
-                jsr readdirsec
+    } ;allow_subdir
+    !if allow_trees = 1 {
+                ldy #>hdddirbuf
+                bvc +
+                ldy #>hddtreebuf
+                sty istree
++
+    } ;allow_trees
+                jsr readdirsect
+    !if allow_subdir = 1 {
+               plp
+    } ;allow_subdir
   } ;allow_subdir
 
                 ;restore load offset
@@ -804,10 +798,52 @@ rdwrloop
 +
   } ;aligned_read
 
+  !if allow_trees = 1 {
+                ;read tree data block only if tree and not read already
+                ;the indication of having read already is that at least one sapling/seed block entry has been read, too
+
+                ldy entries
+                bne +
+                lda istree
+                beq +
+                lda adrhi
+                pha
+                lda adrlo
+                pha
+                lda #>hdddirbuf
+                sta adrhi
+                lda #0
+                sta adrlo
+                txa
+                pha
+                lda #cmdread
+                sta command
+
+                ;fetch tree data block and read it
+
+                ldy treeidx
+                inc treeidx
+                ldx hddtreebuf, y
+                lda hddtreebuf + 256, y
+    !if aligned_read = 0 {
+                php
+    } ;aligned_read
+                jsr hddseekrdwr
+    !if aligned_read = 0 {
+                plp
+    } ;aligned_read
+                pla
+                tax
+                pla
+                sta adrlo
+                pla
+                sta adrhi
+  } ;allow_trees
+
                 ;fetch data block and read/write it
 
                 ldy entries
-                inc entries
++               inc entries
   !if enable_seek = 1 {
                 txa ;cpx #cmdseek, but that would require php at top
                 beq +
@@ -857,6 +893,7 @@ setaux          sta CLRAUXRD, x
                 sta sizehi
                 dec adrhi
                 dec adrhi
+
 copycache
     !if enable_seek = 1 {
                 ldy reqcmd
@@ -1020,10 +1057,17 @@ unrread3 = unrelocdsk + (* - reloc)
                 jmp nodisk
   } ;poll_drive
 
-readdirsec      ldy #cmdread
-                sty command
+readdirsec
+!if allow_trees = 0 {
+readdirsec0
+} ;allow_trees
                 ldy #>dirbuf
+!if allow_trees = 1 {
+readdirsect
+} ;allow_trees
                 sty adrhi
+                ldy #cmdread
+                sty command
 
                 ;convert block number to track/sector
 
@@ -1305,38 +1349,28 @@ hddnextent      ldy #0
                 sty status
   } ;might_exist
                 lda (bloklo), y
-  !if (might_exist + allow_subdir) > 0 {
-                and #MASK_ALL
-
-    !if might_exist = 1 {
+  !if might_exist = 1 {
                 ;skip deleted entries without counting
 
+                and #MASK_ALL
                 beq ++
-    } ;might_exist
-
-    !if allow_subdir = 1 {
-                ;subdirectory entries are seedlings
-                ;but we need to distinguish between them later
-
-                cmp #MASK_SUBDIR
-                beq hddsavetype
-    } ;allow_subdir
-  } ;might_exist or allow_subdir
-
-                ;watch for seedling and saplings only
-
-                cmp #MASK_TREE
-                bcs +
+  } ;might_exist
 
                 ;remember type
 
+                ;now bits 5-4 are represented by carry (subdirectory), sign (sapling)
+
 hddsavetype
-  !if allow_subdir = 1 {
                 asl
                 asl
-  } else { ;allow_subdir
-                cmp #MASK_SAPLING
-  } ;allow_subdir
+
+                ;now bits 5-3 are represented by carry (subdirectory), sign (sapling),
+                ;overflow (seedling), and sign+overflow (tree)
+
+    !if allow_trees = 1 {
+                sta treeidx
+                bit treeidx
+    } ;allow_trees
                 php
 
                 ;match name lengths before attempting to match names
@@ -1387,6 +1421,10 @@ hddsavetype
 hddfoundname    iny
                 dex
                 bne -
+  !if allow_trees = 1 {
+                stx treeidx
+                stx istree
+  } ;allow_trees
                 stx entries
                 stx blkofflo
                 stx blkoffhi
@@ -1456,22 +1494,16 @@ hddfoundname    iny
                 ;cache AUX_TYPE (load offset for binary files)
 
   !if override_adr = 0 {
-    !if allow_subdir = 1 {
                 pla
                 tax
-    } else { ;allow_subdir
-                plp
-    } ;allow_subdir
                 ldy #AUX_TYPE
                 lda (bloklo), y
                 pha
                 iny
                 lda (bloklo), y
                 pha
-    !if allow_subdir = 1 {
                 txa
                 pha
-    } ;allow_subdir
   } ;override_adr
 
                 ;cache KEY_POINTER
@@ -1486,18 +1518,23 @@ hddfoundname    iny
 
                 ;read index block in case of sapling
 
-  !if allow_subdir = 1 {
                 plp
+  !if (allow_subdir + allow_trees) > 0 {
                 bpl hddrdwrfile
+    !if allow_subdir = 1 {
                 php
-                jsr hddreaddirsec
+    } ;allow_subdir
+    !if allow_trees = 1 {
+                ldy #>hdddirbuf
+                bvc +
+                ldy #>hddtreebuf
+                sty istree
++
+    } ;allow_trees
+                jsr hddreaddirsect
+    !if allow_subdir = 1 {
                 plp
-  } else { ;allow_subdir
-    !if override_adr = 1 {
-                plp
-    } ;override_adr
-                bcc hddrdwrfile
-                jsr hddreaddirsec
+    } ;allow_subdir
   } ;allow_subdir
 
                 ;restore load offset
@@ -1661,10 +1698,52 @@ hddrdwrloop
 +
   } ;aligned_read
 
+  !if allow_trees = 1 {
+                ;read tree data block only if tree and not read already
+                ;the indication of having read already is that at least one sapling/seed block entry has been read, too
+
+                ldy entries
+                bne +
+                lda istree
+                beq +
+                lda adrhi
+                pha
+                lda adrlo
+                pha
+                lda #>hdddirbuf
+                sta adrhi
+                lda #0
+                sta adrlo
+                txa
+                pha
+                lda #cmdread
+                sta command
+
+                ;fetch tree data block and read it
+
+                ldy treeidx
+                inc treeidx
+                ldx hddtreebuf, y
+                lda hddtreebuf + 256, y
+    !if aligned_read = 0 {
+                php
+    } ;aligned_read
+                jsr hddseekrdwr
+    !if aligned_read = 0 {
+                plp
+    } ;aligned_read
+                pla
+                tax
+                pla
+                sta adrlo
+                pla
+                sta adrhi
+  } ;allow_trees
+
                 ;fetch data block and read/write it
 
                 ldy entries
-                inc entries
++               inc entries
   !if enable_seek = 1 {
                 txa ;cpx #cmdseek, but that would require php at top
                 beq +
@@ -1711,6 +1790,7 @@ hddsetaux       sta CLRAUXRD, x
                 sta blokhi
                 pla
                 sta sizehi
+
 hddcopycache
     !if enable_seek = 1 {
                 ldy reqcmd
@@ -1773,10 +1853,17 @@ hddreaddirsel   ldy #0
                 lsr reqcmd
   } ;allow_multi
 
-hddreaddirsec   ldy #cmdread
-                sty command
+hddreaddirsec
+!if allow_trees = 0 {
+hddreaddirsect
+} ;allow_trees
                 ldy #>hdddirbuf
+!if allow_trees = 1 {
+hddreaddirsect
+} ;allow_trees
                 sty adrhi
+                ldy #cmdread
+                sty command
 
 hddseekrdwr     stx bloklo
                 sta blokhi
@@ -1807,11 +1894,17 @@ hdddataend
         } ;dataend
         dirbuf=reloc - $200
         encbuf=dirbuf - $200
+        !if allow_trees = 1 {
+          treebuf = encbuf - $200
+        } ;allow_trees
       } else { ;load_high
         !pseudopc ((dataend + $ff) & -256) {
           dirbuf = *
         }
         encbuf=dirbuf + $200
+        !if allow_trees = 1 {
+          treebuf = encbuf + $200
+        } ;allow_trees
       } ;load_high
     } else { ;reloc
       !if ((dataend + $ff) & -256) < reloc {
@@ -1823,11 +1916,17 @@ hdddataend
         } ;dataend
         dirbuf=reloc - $200
         encbuf=dirbuf - $200
+        !if allow_trees = 1 {
+          treebuf = encbuf - $200
+        } ;allow_trees
       } else { ;load_high
         !pseudopc ((dataend + $ff) & -256) {
           dirbuf = *
         }
         encbuf=dirbuf + $200
+        !if allow_trees = 1 {
+          treebuf = encbuf + $200
+        } ;allow_trees
       } ;load_high
     } ;reloc
     !if verbose_info = 1 {
@@ -1835,6 +1934,9 @@ hdddataend
       !warn "floppy data: ", bit2tbl, "-", dataend - 1
       !warn "floppy dirbuf: ", dirbuf, "-", dirbuf + $1ff
       !warn "floppy encbuf: ", encbuf, "-", encbuf + $1ff
+      !if allow_trees = 1 {
+        !warn "floppy treebuf: ", treebuf, "-", treebuf + $1ff
+      } ;allow_trees
       !warn "floppy driver start: ", unrelocdsk - init
     } ;verbose_info
   } ;enable_floppy
@@ -1850,6 +1952,13 @@ hdddataend
       !if aligned_read = 0 {
         hddencbuf = hdddirbuf - $200
       } ;aligned_read
+      !if allow_trees = 1 {
+        !if aligned_read = 0 {
+          hddtreebuf = hddencbuf - $200
+        } else { ;aligned_read
+          hddtreebuf = hdddirbuf - $200
+        } ;aligned_read
+      } ;allow_trees
     } else { ;load_high
       !pseudopc ((hdddataend + $ff) & -256) {
         hdddirbuf = *
@@ -1857,6 +1966,13 @@ hdddataend
       !if aligned_read = 0 {
         hddencbuf = hdddirbuf + $200
       } ;aligned_read
+      !if allow_trees = 1 {
+        !if aligned_read = 0 {
+          hddtreebuf = hddencbuf + $200
+        } else { ;aligned_read
+          hddtreebuf = hdddirbuf + $200
+        } ;aligned_read
+      } ;allow_trees
     } ;load_high
   } else { ;reloc
     !if ((hdddataend + $ff) & -256) < reloc {
@@ -1872,6 +1988,13 @@ hdddataend
       !if aligned_read = 0 {
         hddencbuf = hdddirbuf - $200
       } ;aligned_read
+      !if allow_trees = 1 {
+        !if aligned_read = 0 {
+          hddtreebuf = hddencbuf - $200
+        } else { ;aligned_read
+          hddtreebuf = hdddirbuf - $200
+        } ;aligned_read
+      } ;allow_trees
     } else { ;load_high
       !pseudopc ((hdddataend + $ff) & -256) {
         hdddirbuf = *
@@ -1879,6 +2002,13 @@ hdddataend
       !if aligned_read = 0 {
         hddencbuf = hdddirbuf + $200
       } ;aligned_read
+      !if allow_trees = 1 {
+        !if aligned_read = 0 {
+          hddtreebuf = hddencbuf + $200
+        } else { ;aligned_read
+          hddtreebuf = hdddirbuf + $200
+        } ;aligned_read
+      } ;allow_trees
     } ;load_high
   } ;reloc
   !if verbose_info = 1 {
@@ -1887,6 +2017,9 @@ hdddataend
     !if aligned_read = 0 {
       !warn "hdd encbuf: ", hddencbuf, "-", hddencbuf + $1ff
     } ;aligned_read
+    !if allow_trees = 1 {
+      !warn "hdd treebuf: ", hddtreebuf, "-", hddtreebuf + $1ff
+    } ;allow_trees
     !warn "hdd driver start: ", unrelochdd - init
   } ;verbose_info
 } ;PASS2

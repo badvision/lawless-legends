@@ -58,9 +58,7 @@ cmdread		= 1
 cmdwrite	= 2
 
 ; ProRWTS locations
-rwts_mark0	= $18		; to reset seek ptr, zero out these 3 locs
-rwts_mark1	= $1B
-rwts_mark2	= $1C
+rwts_mark	= $18		; to reset seek ptr, zero out 4 bytes here
 proRWTS		= $D000
 
 ; Memory buffers
@@ -453,9 +451,9 @@ callProRWTS:
 ;------------------------------------------------------------------------------
 disk_rewind: !zone
 	lda #0
-	ldx #2			; clear all 24 bits
+	ldx #3			; clear all 32 bits
 -	sta setAuxZP
-	sta rwts_mark0,x	; rewind the ProRWTS seek pointer
+	sta rwts_mark,x		; rewind the ProRWTS seek pointer
 	sta clrAuxZP
 	sta curMarkPos,x	; reset our record of the current mark
 	dex
@@ -1112,7 +1110,7 @@ segNum:		!byte 0
 nextLdVec:	jmp diskLoader
 curPartition:	!byte 0
 partFileOpen:	!byte 0
-curMarkPos:	!fill 3
+curMarkPos:	!fill 4		; really 3, but 1 extra to match ProRWTS needs
 setMarkPos:	!fill 3
 nSegsQueued:	!byte 0
 bufferDigest:	!fill 4

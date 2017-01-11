@@ -2610,6 +2610,9 @@ end
         copyIfNewer(new File("build/src/core/build/LEGENDOS.SYSTEM.sys#2000"),
                     new File("build/root/LEGENDOS.SYSTEM.sys#2000"))
 
+        copyIfNewer(jitCopy(new File("build/tools/ProRWTS/PROBOOT#800")),
+                    new File("build/root/PROBOOT.sys#800"))
+
         // If we preserved a previous save game, copy it to the new image.
         def prevSave = new File("build/prevGame/game.1.save.\$f1")
         if (prevSave.exists())

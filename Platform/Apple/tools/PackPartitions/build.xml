@@ -30,6 +30,7 @@
                 <include name="virtual/data/disks/*.gz"/>
                 <include name="tools/PLASMA/src/PLVM02#4000"/>
                 <include name="tools/ProRWTS/PRORWTS2#4000"/>
+                <include name="tools/ProRWTS/PROBOOT#800"/>
             </fileset>
         </jar>
     </target>

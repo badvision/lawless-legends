@@ -2633,6 +2633,7 @@ end
 
         // Now put the files into the image
         new File("build/root/game.part.2.bin").delete()
+        new File("build/root/PROBOOT.sys#800").delete()
         args = ["-put", "game1.dsk", "/", "build/root"]
         new a2copy.A2Copy().main(args)
     }

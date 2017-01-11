@@ -2618,7 +2618,7 @@ end
         // Decompress the base image.
         // No need to delete old file; that was done by outer-level code.
         def dst = new File("game.2mg")
-        Files.copy(new GZIPInputStream(new FileInputStream(jitCopy(new File("build/data/disks/base.2mg.gz")))), dst.toPath())
+        Files.copy(new GZIPInputStream(new FileInputStream(jitCopy(new File("build/data/disks/base_800k.2mg.gz")))), dst.toPath())
 
         // Now put the files into the image
         String[] args = ["-put", "game.2mg", "/", "build/root"]

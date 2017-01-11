@@ -28,6 +28,7 @@ mg
 /Platform/Apple/virtual/data/world/*.xml
 /Platform/Apple/virtual/data/world/*.cache
 /Platform/Apple/virtual/data/world/*.tsv
+/Platform/Apple/virtual/*.2mg
 
 # Only check in sample.build.props; each person's build.props will be different.
 /Platform/Apple/virtual/src/include/build.props

@@ -2626,6 +2626,15 @@ end
         // Now put the files into the image
         String[] args = ["-put", "game.2mg", "/", "build/root"]
         new a2copy.A2Copy().main(args)
+
+        // Floppy work.
+        dst = new File("game1.dsk")
+        Files.copy(new GZIPInputStream(new FileInputStream(jitCopy(new File("build/data/disks/base_140k.dsk.gz")))), dst.toPath())
+
+        // Now put the files into the image
+        new File("build/root/game.part.2.bin").delete()
+        args = ["-put", "game1.dsk", "/", "build/root"]
+        new a2copy.A2Copy().main(args)
     }
 
     static void packWorld(String xmlPath, Object watcher)
@@ -2666,6 +2675,13 @@ end
 
                     // Then delete the old image.
                     gameFile.delete()
+                }
+
+                // Also remove existing floppy disks for this game.
+                for (int i=1; i<=9; i++) {
+                    def diskFile = new File(String.format("game%d.dsk", i))
+                    if (diskFile.exists())
+                        diskFile.delete()
                 }
 
                 // Create PLASMA headers

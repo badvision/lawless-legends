@@ -1834,6 +1834,9 @@ class A2PackPartitions
         if (nWarnings == 0)
             reportSizes()
 
+        if (debugCompression)
+            println "Compression savings: $compressionSavings"
+
         // And save the cache for next time.
         writeCache()
     }

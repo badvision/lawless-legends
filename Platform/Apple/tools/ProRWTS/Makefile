@@ -1,10 +1,14 @@
 .SUFFIXES	=
 PRORWTS = PRORWTS2\#4000
+PROBOOT = PROBOOT\#800
 
-all: $(PRORWTS)
+all: $(PRORWTS) $(PROBOOT)
 
 clean:
-	-rm $(PRORWTS)
+	-rm $(PRORWTS) $(PROBOOT)
 
-$(PRORWTS): PRORWTS2.S
-	acme -o $(PRORWTS) PRORWTS2.S
+$(PRORWTS): prorwts2.s
+	acme -o $(PRORWTS) prorwts2.s
+
+$(PROBOOT): proboot.s
+	acme -o $(PROBOOT) proboot.s

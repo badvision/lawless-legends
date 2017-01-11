@@ -3,6 +3,7 @@
 .DS_Store
 *.old
 **/old/
+**/tmp/
 *.bak
 *.orig
 

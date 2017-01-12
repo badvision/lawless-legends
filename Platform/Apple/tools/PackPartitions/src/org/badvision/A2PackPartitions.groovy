@@ -2623,6 +2623,9 @@ end
         def dst = new File("game.2mg")
         Files.copy(new GZIPInputStream(new FileInputStream(jitCopy(new File("build/data/disks/base_800k.2mg.gz")))), dst.toPath())
 
+        // Now put the files into the image
+        String[] args = ["-put", "game.2mg", "/", "build/root"]
+        new a2copy.A2Copy().main(args)
     }
 
     def createFloppyImages()
@@ -2650,7 +2653,6 @@ end
 
             // Now put the files into the image
             String[] args = ["-put", "game${i}.dsk", "/", "build/root${i}"]
-            println args.join(" ")
             new a2copy.A2Copy().main(args)
         }
     }

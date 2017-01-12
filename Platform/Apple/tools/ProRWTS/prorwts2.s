@@ -8,7 +8,7 @@
 ;place no code before init label below.
 
                 ;user-defined options
-                verbose_info = 1        ;set to 1 to enable display of memory usage
+                verbose_info = 0        ;set to 1 to enable display of memory usage
                 enable_floppy = 1       ;set to 1 to enable floppy drive support
                 poll_drive   = 1        ;set to 1 to check if disk is in drive
                 override_adr = 1        ;set to 1 to require an explicit load address
@@ -111,6 +111,11 @@
                 tmptrk    = $1e         ;(internal) temporary copy of current track
                 phase     = $1f         ;(internal) current phase for seek
 } ;enable_floppy
+!if poll_drive = 1 {
+                retstk    = $48
+                failctlo  = $49
+                failcthi  = $4A
+} ;poll_drive
 
                 ;constants
                 cmdseek   = 0           ;requires enable_seek=1
@@ -171,9 +176,6 @@ init            jsr SETVID
                 sta unrdrvoff2 + 1
                 tax
                 inx ;MOTORON
-  !if poll_drive = 1 {
-                stx unrdrvon1 + 1
-  } ;poll_drive
                 stx unrdrvon2 + 1
                 inx ;DRV0EN
   !if allow_multi = 1 {
@@ -181,11 +183,10 @@ init            jsr SETVID
   } ;allow_multi
                 inx
                 inx ;Q6L
-                stx unrread1 + 1
   !if poll_drive = 1 {
-                stx unrread2 + 1
-                stx unrread3 + 1
+                stx unrread0 + 1
   } ;poll_drive
+                stx unrread1 + 1
                 stx unrread4 + 1
                 stx unrread5 + 1
   !if check_chksum = 1 {
@@ -419,6 +420,10 @@ rdwrpart        jmp rdwrfile
                 ;self-modified by init code
 
 opendir
+!if poll_drive = 1 {
+                tsx
+                stx retstk
+} ;poll_drive
 unrblocklo = unrelocdsk + (* - reloc)
                 ldx #2
 unrblockhi = unrelocdsk + (* - reloc)
@@ -489,6 +494,10 @@ savetype
   } ;might_exist
   !if (might_exist + poll_drive) > 0 {
 nodisk
+    !if poll_drive = 1 {
+                ldx retstk
+                txs
+    } ;poll_drive
 unrdrvoff1=unrelocdsk+(*-reloc)
                 lda MOTOROFF
                 inc status
@@ -1000,6 +1009,10 @@ step1           !byte 1, $30, $28, $24, $20, $1e, $1d, $1c
 step2           !byte $70, $2c, $26, $22, $1f, $1e, $1d, $1c
 
 readadr
+  !if poll_drive {
+                lda #0
+                sta failcthi
+  } ;poll_drive
 -               jsr readd5aa
                 cmp #$96
                 bne -
@@ -1015,7 +1028,19 @@ readadr
 seekret         rts
 
 readd5aa
+  !if poll_drive {
+unrread0 = unrelocdsk + (* - reloc)
+--              lda Q6L
+                bmi +
+                inc failctlo
+                bne --
+                inc failcthi
+                bne --
+                jmp nodisk
++
+  } else {
 --              jsr readnib
+  }
 -               cmp #$d5
                 bne --
                 jsr readnib
@@ -1042,19 +1067,8 @@ unrdrvsel = unrelocdsk + (* - reloc)
   } ;allow_multi
   !if poll_drive = 1 {
                 sty status
-unrdrvon1 = unrelocdsk + (* - reloc)
-                ldy MOTORON
-unrread2 = unrelocdsk + (* - reloc)
--               ldy Q6L
-                bpl -
-unrread3 = unrelocdsk + (* - reloc)
--               cpy Q6L
-                bne readdirsec
-                inc status
-                bne -
-                pla
-                pla
-                jmp nodisk
+                sty failctlo
+                sty failcthi
   } ;poll_drive
 
 readdirsec

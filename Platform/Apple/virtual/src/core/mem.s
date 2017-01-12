@@ -27,8 +27,8 @@
 ; Constants
 MAX_SEGS	= 96
 
-DEBUG		= 1
-SANITY_CHECK	= 1		; also prints out request data
+DEBUG		= 0
+SANITY_CHECK	= 0		; also prints out request data
 
 ; Zero page temporary variables
 tmp		= $2	; len 2
@@ -144,16 +144,15 @@ relocate:
 	lda #>brkHandler
 	sta $FFFF
 ; Place the bulk of the memory manager code into the LC
-	ldx #>hiMemBegin
-.cpmm	stx .ld4+2
+	ldx #>(hiMemEnd-hiMemBegin+$FF)
 .ld4	lda hiMemBegin,y
 .st4	sta $D000,y
 	iny
 	bne .ld4
+	inc .ld4+2
 	inc .st4+2
-	inx
-	cpx #>(hiMemEnd+$100)
-	bne .cpmm
+	dex
+	bne .ld4
 	; fall through into init...
 
 ;------------------------------------------------------------------------------
@@ -1115,6 +1114,7 @@ setMarkPos:	!fill 3
 nSegsQueued:	!byte 0
 bufferDigest:	!fill 4
 diskActState:	!byte 0
+floppyDrive:	!byte 0
 
 ;------------------------------------------------------------------------------
 ; Heap management variables
@@ -1947,8 +1947,10 @@ openPartition: !zone
 	; Make sure to read header into main mem, even if outer cmd is aux
 	lda isAuxCmd
 	pha
-	lda #0
+.retry	lda #0
 	sta isAuxCmd		; header buf always in main mem
+	lda floppyDrive
+	sta .origFloppy
 ; complete the partition file name, changing "1" to "2" if opening partition 2.
 .mkname	lda curPartition
 	bne +
@@ -1969,11 +1971,12 @@ openPartition: !zone
 	sta reqLen
 	lda #0
 	sta reqLen+1
-	lda #cmdread		; no hi bit => go to drive 1
+	lda #cmdread
+	ora floppyDrive		; $80 for drive 2
 	sta tmp
 	clc
 	jsr callProRWTS		; opendir
-	bne .insert		; status: zero=ok, 1=err
+	bne .flip		; status: zero=ok, 1=err
 	sta curMarkPos+1	; by opening we did an implicit seek to zero
 	sta curMarkPos+2
 	lda #2			; and then we read 2 bytes
@@ -1996,6 +1999,11 @@ openPartition: !zone
 	pla
 	sta isAuxCmd		; back to aux if that's what outer was using
 	rts
+.flip	lda floppyDrive
+	eor #$80
+	sta floppyDrive
+	cmp .origFloppy
+	bne .open
 ; ask user to insert the disk
 ; TODO: handle dual drive configuration
 .insert	+safeHome
@@ -2008,7 +2016,8 @@ openPartition: !zone
 	+waitKey
 	+safeHome
 	bit $c050
-	jmp .open		; try again
+	jmp .retry		; try again
+.origFloppy: !byte 0
 
 ;------------------------------------------------------------------------------
 sequenceError: !zone

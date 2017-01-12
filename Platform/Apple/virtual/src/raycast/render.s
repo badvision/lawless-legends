@@ -2163,8 +2163,6 @@ pl_initMap: !zone
 	ldx #<(tableEnd-tableStart)
 	ldy #>(tableEnd-tableStart)
 	jsr mainLoader
-	; If expander hasn't been split and relocated yet, do so now
-	jsr splitExpander
 	; Proceed with loading
 	lda #1			; non-zero to init scripts also
 	jsr loadTextures
@@ -2178,41 +2176,6 @@ pl_initMap: !zone
 	jsr setExpansionCaller
 	jsr graphInit
 	jmp renderFrame
-
-;-------------------------------------------------------------------------------
-; Split part of the expander off into a hard-to-use area in the aux LC.
-; NOTE: It's safe to do this more than once, and is in fact necessary in case
-; the expander gets reloaded without the main engine being reloaded. It's safe
-; to call expand_0 since it's just an RTS.
-splitExpander:
-	jsr setExpansionCaller
-	sei			; prevent interrupts while in aux mem
-	sta setAuxZP
-	sta setAuxWr
-	lda setLcRW+lcBank2	; reloc to bank 2 in aux mem (unused by anything else)
-	lda setLcRW+lcBank2	; second access to make it read/write
-	jsr callExpander	; was copied from .callIt to $100 at init time
-	sta clrAuxWr
-	sta clrAuxZP
-	cli			; interrupts ok after we get back from aux
-	pha			; save new seg length
-	txa
-	pha
-	; Now truncate the main segment of the expander, freeing up the
-	; split space for textures and other resources.
-	lda #FREE_MEMORY
-	jsr .memexp
-	lda #SET_MEM_TARGET
-	jsr .memexp
-	pla
-	tay
-	pla
-	tax
-	lda #REQUEST_MEMORY
-	jmp auxLoader
-.memexp	ldx #<expandVec
-	ldy #>expandVec
-	jmp auxLoader
 
 ; Following are log/pow lookup tables. For speed, align them on a page boundary.
 	!align 255,0

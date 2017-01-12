@@ -46,13 +46,13 @@
 ;
 ; MAIN 64K MEMORY
 ; :::::::::::::::
-;          0000.01FF 6502 zero page and stack
+;          0000.01FF 6502 zero page and stack (main)
 ;          0200.03FF input buffer, misc vecs
 ;          0400.07FF text screen (used for debugging)
-;          0800.0Dxx memory manager part 1
-;          0Exx.0Fxx PLASMA locals storage
-;          10xx.18xx gameloop asm, data and stubs
-;          19xx.1FFF (free)
+;          0800.0Cxx memory manager part 1
+;          0Cxx.0Exx PLASMA locals storage (length $200)
+;          0Exx.17xx gameloop asm, data and stubs
+;          17xx.1FFF (free)
 ;          2000.3FFF hi-res page 1
 ;          4000.5FFF hi-res page 2 /
 ;                    memory manager work space
@@ -70,18 +70,18 @@
 ;
 ; AUX 64K MEMORY
 ; ::::::::::::::
-;          0000.01FF 6502 zero page and stack
+;          0000.01FF 6502 zero page and stack (aux)
 ;          0200.03FF (currently unused)
-;          0400.07FF (unused, but screen holes overwritten by hard-disk C7xx ROM)
-;          0800.2xxx expander part 1 (if 3D map is running)
-;          3000.9xxx (free)
-;          Axxx.BFFF gameloop PLASMA code (loaded as high as possible)
+;          0400.07FF (unused, but screen holes overwritten by hard drive C7xx ROM)
+;          0800.0D7A texture expander part 1 (used by 3D renderer)
+;          0D7B.9xxx (free)
+;          A0xx.BFFF gameloop PLASMA code (loaded as high as possible)
 ;          C000.CFFF I/O
 ; (bank 1) D000.DAFF ProRWTS runtime
 ; (bank 1) DB00.DFFF (unused)
-; (bank 2) D000.DFFF expander part 2
-;          E000.FFF9 (free)
-; FFFA.FFFF 6502 vectors
+; (bank 2) D000.DFFF texture expander part 2
+;          E000.FFF9 texture expander part 3
+;          FFFA.FFFF 6502 vectors
 ;
 ; ----------------------------
 ; Segment table format in memory:

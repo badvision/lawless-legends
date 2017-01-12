@@ -851,6 +851,9 @@ e_t96rooto:
 	sta 97*BLIT_STRIDE + blitRoll,x
 +	bvc e_98to
 
+!source "expand_split.i"
+!pseudopc $D000 {
+reloc_dst = *
 e_32tooro:
 	bmi +
 	sta 32*BLIT_STRIDE + blitRoll,x
@@ -5776,8 +5779,6 @@ expand_102:
 +
 	rts
 
-!source "expand_split.i"
-!pseudopc $D000 {
 ; Produce 104 rows from 64 rows
 expand_104:
 	jsr selectMip0
@@ -7374,5 +7375,6 @@ e_t64oroo:
 	sta 66*BLIT_STRIDE + blitRoll,x
 	sta 67*BLIT_STRIDE + blitRoll,x
 +	rts
+lc_end = *
 } ; end of pseudopc
 expand_end = *

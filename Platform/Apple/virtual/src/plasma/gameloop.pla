@@ -298,6 +298,29 @@ asm readAuxByte     // params: ptr; ret: char
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+asm splitExpander   // param: expandVec; returns: remaining lo-aux size
+  +asmPlasm 1
+
+  ; assumes readAuxByte has just been called, which puts a little routine at $10.
+  ; Adjust that routine to call expander instead of reading a byte.
+  sta $1B
+  sty $1C
+  lda #$6C
+  sta $1A
+  lda #$20
+  sta $13
+
+  lda #$60
+  sta 2
+  jsr 2
+
+  sei     ; prevent interrupts while in aux mem
+  jsr $10
+  cli
+  rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // String building for display with the font engine. Includes plurality processing to handily
 // handle things like "Dirt bag(s)" and "his/their"
 export asm buildString
@@ -1158,6 +1181,9 @@ export def loadFrameImg(img)
   // Load the image data into aux mem
   if img
     auxMmgr(START_LOAD, 1) // partition 1 is where full screen images live
+    if img == 1
+      auxMmgr(SET_MEM_TARGET, $4000) // well above where expander loads at startup
+    fin
     curFullscreenImg = auxMmgr(QUEUE_LOAD, img<<8 | RES_TYPE_SCREEN)
     auxMmgr(FINISH_LOAD, 0)
 
@@ -1376,8 +1402,6 @@ def initMap(x, y, dir)
   mmgr(SET_MEM_TARGET, displayEngine)
   if mapIs3D
     mmgr(QUEUE_LOAD, CODE_RENDER<<8 | RES_TYPE_CODE)
-    auxMmgr(SET_MEM_TARGET, expandVec)
-    auxMmgr(QUEUE_LOAD, CODE_EXPAND<<8 | RES_TYPE_CODE)
   else
     mmgr(QUEUE_LOAD, CODE_TILE_ENGINE<<8 | RES_TYPE_CODE)
   fin
@@ -2305,7 +2329,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load and display the title screen.
 def loadTitle()
-  word pEngine, pFont
+  word pEngine, pFont, expanderSize
 
   puts("Loading game.\n")
 
@@ -2320,7 +2344,7 @@ def loadTitle()
   ^$C07E=0   // disable double-hi-res
   ^$C05F     // disable double-hi-res
 
-  // Allocate and permanently lock mem for the font engine and its font
+  // Allocate and permanently lock mem for the font engine and its font (up in LC ram)
   mmgr(SET_MEM_TARGET, fontEngine)
   mmgr(REQUEST_MEMORY, fontEngineLen)
   mmgr(LOCK_MEMORY,    fontEngine)
@@ -2332,18 +2356,33 @@ def loadTitle()
   // Load them into lo mem
   pEngine = mmgr(QUEUE_LOAD,     CODE_FONT_ENGINE<<8 | RES_TYPE_CODE)
   pFont = mmgr(QUEUE_LOAD, 1<<8 | RES_TYPE_FONT)
+
+  // While we're loading, let's get the expander into aux RAM.
+  auxMmgr(SET_MEM_TARGET, expandVec)
+  auxMmgr(QUEUE_LOAD, CODE_EXPAND<<8 | RES_TYPE_CODE)
+
   mmgr(FINISH_LOAD, 0)
 
-  // Relocate them to their final spots
+  // Relocate font engine and font data to their final spots up in the language card
   memcpy(pEngine, fontEngine, fontEngineLen)
   memcpy(pFont, fontData, fontDataLen)
 
-  // And free up the low mem
+  // Tell the font engine where to find its font
+  setFont(fontData)
+
+  // And free up the font low mem
   mmgr(FREE_MEMORY, pEngine)
   mmgr(FREE_MEMORY, pFont)
 
-  // Tell the font engine where to find its font
-  setFont(fontData)
+  // Split the expander (relocating most of it to aux LC ram)
+  readAuxByte($1A)  // sets up aux routine
+  expanderSize = splitExpander(expandVec)
+
+  // Lock in the part of the expander that remains in low aux mem.
+  auxMmgr(FREE_MEMORY, expandVec)
+  auxMmgr(SET_MEM_TARGET, expandVec)
+  auxMmgr(REQUEST_MEMORY, expanderSize)
+  auxMmgr(LOCK_MEMORY, expandVec)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

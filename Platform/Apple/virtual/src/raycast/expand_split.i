@@ -9,18 +9,20 @@
 ;****************************************************************************************
 	
 expand_split:
-	; relocate the last $1000 bytes of the expander to the hard-to-get area of
+	; relocate the last $2FFA bytes of the expander to the hard-to-get area of
 	; aux langauge card.
-	lda #<to_reloc
+	sta setAuxZP
+	sta setAuxWr
+	lda #<reloc_src
 	sta tmp
-	lda #>to_reloc
+	lda #>reloc_src
 	sta tmp+1
-	lda #<expand_104
+	lda #<reloc_dst
 	sta pTmp
-	lda #>expand_104
+	lda #>reloc_dst
 	sta pTmp+1
 	ldy #0
-	ldx #$10
+	ldx #$2F
 -	lda (tmp),y
 	sta (pTmp),y
 	iny
@@ -29,6 +31,11 @@ expand_split:
 	inc pTmp+1
 	dex
 	bne -
+-	lda (tmp),y	; last pg only partial
+	sta (pTmp),y
+	iny
+	cpy #$FA
+	bne -
 	; restore vector to first expander now that we've split and relocated
 	lda #<expand_0
 	sta expand_vec
@@ -36,7 +43,9 @@ expand_split:
 	sta expand_vec+1
 	; and length to which the main segment has been truncated
 	lda #<(expand_split-expand_vec)
-	ldx #>(expand_split-expand_vec)
+	ldy #>(expand_split-expand_vec)
+	sta clrAuxZP
+	sta clrAuxWr
 	rts
 
-to_reloc = *
+reloc_src = *

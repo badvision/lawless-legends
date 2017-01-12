@@ -8,7 +8,7 @@
 ;place no code before init label below.
 
                 ;user-defined options
-                verbose_info = 0        ;set to 1 to enable display of memory usage
+                verbose_info = 1        ;set to 1 to enable display of memory usage
                 enable_floppy = 1       ;set to 1 to enable floppy drive support
                 poll_drive   = 1        ;set to 1 to check if disk is in drive
                 override_adr = 1        ;set to 1 to require an explicit load address
@@ -625,9 +625,9 @@ foundname       iny
                 php
     } ;allow_subdir
     !if allow_trees = 1 {
-                ldy #>hdddirbuf
+                ldy #>dirbuf
                 bvc +
-                ldy #>hddtreebuf
+                ldy #>treebuf
                 sty istree
 +
     } ;allow_trees
@@ -810,7 +810,7 @@ rdwrloop
                 pha
                 lda adrlo
                 pha
-                lda #>hdddirbuf
+                lda #>dirbuf
                 sta adrhi
                 lda #0
                 sta adrlo
@@ -823,12 +823,12 @@ rdwrloop
 
                 ldy treeidx
                 inc treeidx
-                ldx hddtreebuf, y
-                lda hddtreebuf + 256, y
+                ldx treebuf, y
+                lda treebuf + 256, y
     !if aligned_read = 0 {
                 php
     } ;aligned_read
-                jsr hddseekrdwr
+                jsr seekrdwr
     !if aligned_read = 0 {
                 plp
     } ;aligned_read

@@ -46,36 +46,41 @@
 ;
 ; MAIN 64K MEMORY
 ; :::::::::::::::
-; 0000.01FF 6502 zero page and stack
-; 0200.03FF input buffer, misc vecs
-; 0400.07FF text screen (used for debugging)
-; 0800.0Dxx memory manager
-; 0Exx.0Fxx PLASMA locals storage
-; 10xx.18xx gameloop asm, data and stubs
-; 19xx.1FFF (free)
-; 2000.3FFF hi-res page 1
-; 4000.4FFF hi-res page 2 /
-;           memory manager work space
-; 6000.6xxx 2D or 3D renderer
-; 7xxx.BFFF (free)
-; C000.CFFF I/O
-; D000.DFFF bank 1: memory manager and decompressor
-;           bank 2: PLASMA runtime
-; E000.EBFF small-object heap
-; EC00.FAFF font engine
-; FB00.FFF9 font data
-; FFFA.FFFF 6502 vectors
+;          0000.01FF 6502 zero page and stack
+;          0200.03FF input buffer, misc vecs
+;          0400.07FF text screen (used for debugging)
+;          0800.0Dxx memory manager part 1
+;          0Exx.0Fxx PLASMA locals storage
+;          10xx.18xx gameloop asm, data and stubs
+;          19xx.1FFF (free)
+;          2000.3FFF hi-res page 1
+;          4000.5FFF hi-res page 2 /
+;                    memory manager work space
+;          6000.6xxx 2D or 3D renderer
+;          7xxx.BFFF (free)
+;          C000.CFFF I/O
+; (bank 1) D000.DEFF memory manager part 2
+; (bank 1) DF00.DFFF decompressor
+; (bank 2) D000.D9FF PLASMA runtime
+; (bank 2) DA00.DFFF (unused)
+;          E000.EBFF small-object heap
+;          EC00.FAFF font engine
+;          FB00.FFF9 font data
+;          FFFA.FFFF 6502 vectors
 ;
 ; AUX 64K MEMORY
 ; ::::::::::::::
-; 0000.01FF 6502 zero page and stack
-; 0200.2xxx expander (if 3D map is running)
-; 3000.9xxx (free)
-; Axxx.BFFF gameloop PLASMA code (loaded as high as possible)
-; C000.CFFF I/O
-; D000.DFFF bank 1: ProRWTS runtime (Note: D900.DFFF free)
-;           bank 2: part of expander
-; E000.FFF9 (free)
+;          0000.01FF 6502 zero page and stack
+;          0200.03FF (currently unused)
+;          0400.07FF (unused, but screen holes overwritten by hard-disk C7xx ROM)
+;          0800.2xxx expander part 1 (if 3D map is running)
+;          3000.9xxx (free)
+;          Axxx.BFFF gameloop PLASMA code (loaded as high as possible)
+;          C000.CFFF I/O
+; (bank 1) D000.DAFF ProRWTS runtime
+; (bank 1) DB00.DFFF (unused)
+; (bank 2) D000.DFFF expander part 2
+;          E000.FFF9 (free)
 ; FFFA.FFFF 6502 vectors
 ;
 ; ----------------------------

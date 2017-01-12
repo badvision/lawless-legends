@@ -1820,9 +1820,8 @@ class A2PackPartitions
         }
 
         // Ready to write the output file.
-        println "Writing output file."
+        println "Writing output files."
         new File("build/root").mkdir()
-
 
         def part1Path = new File("build/root/game.part.1.bin").path
         new File(part1Path).withOutputStream { stream -> writePartition(stream, 1) }
@@ -2604,8 +2603,27 @@ end
         }
     }
 
+    def copyOrCreateSave(dstDir)
+    {
+        def prevSave = new File("build/prevGame/game.1.save.\$f1")
+        def newSave  = new File("${dstDir}/game.1.save.\$f1")
+        if (prevSave.exists()) {
+            copyIfNewer(prevSave, newSave)
+        }
+        else {
+            // Create empty save file
+            newSave.withOutputStream { outStream ->
+                (0..3071).each {
+                    outStream.write( (byte) 0)
+                }
+            }
+        }
+    }
+
     def createHddImage()
     {
+        println "Creating hdd image."
+
         // Copy the combined core executable to the output directory
         copyIfNewer(new File("build/src/core/build/LEGENDOS.SYSTEM.sys#2000"),
                     new File("build/root/LEGENDOS.SYSTEM.sys#2000"))
@@ -2614,9 +2632,7 @@ end
                     new File("build/root/PROBOOT.sys#800"))
 
         // If we preserved a previous save game, copy it to the new image.
-        def prevSave = new File("build/prevGame/game.1.save.\$f1")
-        if (prevSave.exists())
-            copyIfNewer(prevSave, new File("build/root/game.1.save.\$f1"))
+        copyOrCreateSave("build/root")
 
         // Decompress the base image.
         // No need to delete old file; that was done by outer-level code.
@@ -2630,6 +2646,9 @@ end
 
     def createFloppyImages()
     {
+        println "Creating floppy images."
+
+        // We'll be copying stuff from the hdd directory
         def hddDir = new File("build/root")
 
         // Build a DSK image for each floppy
@@ -2643,8 +2662,11 @@ end
             // Copy files.
             def rootDir = new File("build/root$i")
             rootDir.mkdir()
-            if (i == 1)
+            if (i == 1) {
                 copyIfNewer(new File(hddDir, "LEGENDOS.SYSTEM.sys#2000"), new File(rootDir, "LEGENDOS.SYSTEM.sys#2000"))
+                copyOrCreateSave("build/root$i")
+            }
+
             copyIfNewer(new File(hddDir, "game.part.${i}.bin"), new File(rootDir, "game.part.${i}.bin"))
 
             // Unzip a fresh empty disk image

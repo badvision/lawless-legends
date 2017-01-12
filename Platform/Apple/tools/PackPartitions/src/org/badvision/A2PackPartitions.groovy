@@ -2604,7 +2604,7 @@ end
         }
     }
 
-    def createImage()
+    def createHddImage()
     {
         // Copy the combined core executable to the output directory
         copyIfNewer(new File("build/src/core/build/LEGENDOS.SYSTEM.sys#2000"),
@@ -2623,19 +2623,36 @@ end
         def dst = new File("game.2mg")
         Files.copy(new GZIPInputStream(new FileInputStream(jitCopy(new File("build/data/disks/base_800k.2mg.gz")))), dst.toPath())
 
-        // Now put the files into the image
-        String[] args = ["-put", "game.2mg", "/", "build/root"]
-        new a2copy.A2Copy().main(args)
+    }
 
-        // Floppy work.
-        dst = new File("game1.dsk")
-        Files.copy(new GZIPInputStream(new FileInputStream(jitCopy(new File("build/data/disks/base_140k.dsk.gz")))), dst.toPath())
+    def createFloppyImages()
+    {
+        def hddDir = new File("build/root")
 
-        // Now put the files into the image
-        new File("build/root/game.part.2.bin").delete()
-        new File("build/root/PROBOOT.sys#800").delete()
-        args = ["-put", "game1.dsk", "/", "build/root"]
-        new a2copy.A2Copy().main(args)
+        // Build a DSK image for each floppy
+        for (int i=1; i<=9; i++) 
+        {
+            // Skip later partitions if they don't exist
+            def partFile = new File("build/root/game.part.${i}.bin")
+            if (!partFile.exists())
+                continue
+
+            // Copy files.
+            def rootDir = new File("build/root$i")
+            rootDir.mkdir()
+            if (i == 1)
+                copyIfNewer(new File(hddDir, "LEGENDOS.SYSTEM.sys#2000"), new File(rootDir, "LEGENDOS.SYSTEM.sys#2000"))
+            copyIfNewer(new File(hddDir, "game.part.${i}.bin"), new File(rootDir, "game.part.${i}.bin"))
+
+            // Unzip a fresh empty disk image
+            def dst = new File("game${i}.dsk")
+            Files.copy(new GZIPInputStream(new FileInputStream(jitCopy(new File("build/data/disks/base_140k.dsk.gz")))), dst.toPath())
+
+            // Now put the files into the image
+            String[] args = ["-put", "game${i}.dsk", "/", "build/root${i}"]
+            println args.join(" ")
+            new a2copy.A2Copy().main(args)
+        }
     }
 
     static void packWorld(String xmlPath, Object watcher)
@@ -2697,8 +2714,9 @@ end
                 inst.reportWriter = reportWriter
                 inst.pack(xmlFile)
 
-                // And create the final disk image
-                inst.createImage()
+                // And create the final disk images
+                inst.createHddImage()
+                inst.createFloppyImages()
             }
             catch (Throwable t) {
                 reportWriter.println "Packing error: ${t.message}"

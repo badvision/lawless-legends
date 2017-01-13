@@ -419,10 +419,11 @@ brkHandler:
 	pla			; retrieve saved P reg
 	pha
 	and #$10		; check for BRK bit
-	beq _jbrk		; if not brk, handle without bank switch
+	beq +			; if not brk, handle without bank switch
 	bit setROM		; for BRK, do bank switch
 	bit $c051		; also switch to text screen 1
 	bit $c054
++	lda $45
 _jbrk	jmp $1111		; self-modified by init
 
 ;------------------------------------------------------------------------------

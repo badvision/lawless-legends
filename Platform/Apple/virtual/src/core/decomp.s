@@ -96,9 +96,8 @@ decomp	!zone {
 	sta tmp
 	ldx #$FF	; two's complement of zero
 	bcc .gotoff	; always taken
-.bigoff	asl
+.bigoff	asl		; sets carry
 	sta tmp
-	sec
 	jsr .gamma
 	lsr
 	ror tmp

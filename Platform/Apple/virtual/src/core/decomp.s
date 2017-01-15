@@ -137,17 +137,25 @@ decomp	!zone {
 	bcc -		; always taken
 
 ; Read an Elias Gamma value into A. Destroys X. Sets carry.
-.gamma	tya		; Y=0, so now A=0
-.glup	rol
+.gamma	lda #1
 	asl bits
-	beq .gmor1
-.gles1	bcs .ret
+	bcc .gbit0
+	beq .gamma2
+	rts
+
+; intended split here (macro above, code below)
+.gamma2	;bcc .gbit0
+.gfill1	jsr .getbts
+.glup	bcc .gbit0
+	rts
+.gbit0	asl bits
+	beq .gfill2
+.gshift	rol
 	asl bits
 	bne .glup
-	jsr .getbts
-	bne .glup	; always taken
-.gmor1	jsr .getbts
-	bne .gles1	; always taken
+	beq .gfill1
+.gfill2	jsr .getbts
+	bne .gshift	; always taken
 
 ; Get another 8 bits into our bit buffer. Destroys X. Preserves A. Requires Y=0.
 .getbts	tax
@@ -159,16 +167,15 @@ decomp	!zone {
 	rol
 	sta bits
 	txa
-.ret	rts
+	rts
 
 } ; end of zone
 
 !ifdef PASS2 {
 	!warn "decomp spare: ", $E000 - *
-	!if * > $DFFF {
-		!error "Decomp grew too large."
+	!if * > $E000 {
+		!warn "Decomp grew too large."
 	}
 } else { ;PASS2
   !set PASS2=1
 }
-

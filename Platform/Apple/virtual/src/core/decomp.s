@@ -32,17 +32,13 @@ DEBUG	= 0
 ; before it gets used.
 decomp	!zone {
 	lda #$B0	; bcs
-	ldx pDst+1
-	cpx pEnd+1
-	bne +
-	lda #$90	; bcc
-+	sta .ifend
-
+	sta .ifend
+	jsr .chkdst
 	ldy #0		; In lit loop Y must be zero
 	beq .lits2	; always taken
 
 .incdst	inc pDst+1
-	ldx pDst+1
+.chkdst	ldx pDst+1
 	cpx pEnd+1
 	bne +
 	ldx #$90	; bcc

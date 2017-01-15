@@ -78,7 +78,7 @@ decomp	!zone {
 	inc pSrc+1
 +	asl
 	php		; save high bit for later len check
-	bmi .bigoff
+	bmi .bigoff	; second-to-hi bit signals large offset
 	lsr
 	sta tmp
 	sty tmp+1	; zero
@@ -98,27 +98,30 @@ decomp	!zone {
 	lda pDst+1
 	sbc tmp+1
 	sta pTmp+1
-.len	ldx #2
-	plp
-	bcc .gotlen
-	jsr .gamma
-	adc #1		; A>=1 + sec + 1 => final len 3 or more
+.len	plp		; retrieve marker for match-len > 2
+	bcc .short
+.long	jsr .gamma	; longer matches handled here
 	tax
-.gotlen
-	!if DEBUG { jsr .dbg2 }
 -	lda (pTmp),y
 	sta (pDst),y
 	iny
 	dex
 	bne -
-	tya
-	clc
+	; Match is always at least two bytes, so unroll that part.
+.short	lda (pTmp),y
+	sta (pDst),y
+	iny
+	lda (pTmp),y
+	sta (pDst),y
+	sec		; rather than increment Y an extra time
+	tya		; advance dst ptr
+	ldy #0		; as expected by lits loop
 	adc pDst
 	sta pDst
-	ldy #0		; back to 0 as expected by lits section
-	bcc +
-	inc pDst+1
-+	jmp .lits
+	bcs +
+-	jmp .lits
++	inc pDst+1
+	bne -		; always taken
 
 ; Read an Elias Gamma value into A. Destroys X. Sets carry.
 .gamma	lda #1
@@ -149,36 +152,8 @@ decomp	!zone {
 	txa
 .ret	rts
 
-!if DEBUG {
-.dbg1	pha
-	lda #'L'|$80
-	jsr cout
-	pla
-	pha
-.dbgEnd	jsr prbyte
-	jsr crout
-;-	bit $C000
-;	bpl -
-;	bit $C010
-	pla
-	rts
-
-.dbg2	pha
-	lda #'S'|$80
-	jsr cout
-	txa
-	jsr prbyte
-	lda #' '|$80
-	jsr cout
-	lda tmp
-	clc
-	adc #1
-	pha
-	lda tmp+1
-	adc #0
-	jsr prbyte
-	pla
-	jmp .dbgEnd
-}
-
 } ; end of zone
+
+!if * > $DFFF {
+	!error "Decomp grew too large."
+}

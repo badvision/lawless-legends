@@ -55,6 +55,13 @@ decomp	!zone {
 	rts
 .bad	brk
 
+.src1A	inc pSrc+1
+	clc
+	bcc .src1B	; always taken
+
+.src2A	inc pSrc+1
+	bne .src2B	; always taken
+
 .lits	asl bits	; get bit that tells us whether there's a literal string
 	bne +		; ran out of bits in bit buffer?
 .lits2	jsr .getbts	; get more bits
@@ -70,10 +77,8 @@ decomp	!zone {
 	clc
 	adc pSrc
 	sta pSrc
-	bcc +
-	inc pSrc+1
-+	tya
-	clc
+	bcs .src1A
+.src1B	tya
 	adc pDst
 	sta pDst
 	bcs .dst1A
@@ -83,14 +88,13 @@ decomp	!zone {
 .ifend	bcs .endchk	; normally skipped; self-modified to take when pDst+1 == pEnd+1
 .seq	lda (pSrc),y
 	inc pSrc
-	bne +
-	inc pSrc+1
-+	asl
+	beq .src2A
+.src2B	asl
 	php		; save high bit for later len check
 	bmi .bigoff	; second-to-hi bit signals large offset
 	lsr
 	sta tmp
-	sty tmp+1	; zero
+	ldx #$FF	; two's complement of zero
 	bcc .gotoff	; always taken
 .bigoff	asl
 	sta tmp
@@ -100,13 +104,14 @@ decomp	!zone {
 	ror tmp
 	lsr
 	ror tmp
-	sta tmp+1
+	eor #$FF	; make two's complement of offset hi-byte
+	tax
 .gotoff	lda pDst
 	clc		; effectively add 1 to offset.
 	sbc tmp
 	sta pTmp
-	lda pDst+1
-	sbc tmp+1
+	txa
+	adc pDst+1
 	sta pTmp+1
 .len	plp		; retrieve marker for match-len > 2
 	bcc .short
@@ -128,10 +133,9 @@ decomp	!zone {
 	ldy #0		; as expected by lits loop
 	adc pDst
 	sta pDst
-	bcs +
--	jmp .lits
-+	jsr .incdst
-	bne -		; always taken
+-	bcc .lits
+	jsr .incdst
+	bcc -		; always taken
 
 ; Read an Elias Gamma value into A. Destroys X. Sets carry.
 .gamma	tya		; Y=0, so now A=0

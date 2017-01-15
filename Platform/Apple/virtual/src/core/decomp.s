@@ -36,14 +36,39 @@ DEBUG	= 0
 ; This guarantees that the decompression won't overwrite any source material
 ; before it gets used.
 decomp	!zone {
+	lda #$B0	; bcs
+	ldx pDst+1
+	cpx pEnd+1
+	bne +
+	lda #$90	; bcc
++	sta .ifend
+
 	ldy #0		; In lit loop Y must be zero
 	beq .lits2	; always taken
+
+.incdst	inc pDst+1
+	ldx pDst+1
+	cpx pEnd+1
+	bne +
+	ldx #$90	; bcc
+	stx .ifend
++	clc
+	rts
+
+.dst1A	jsr .incdst
+	bcc .dst1B	; always taken
+
+.endchk	cmp pEnd	; check for done at end of each literal string
+	bcc .seq
+	bne .bad
+	rts
+.bad	brk
+
 .lits	asl bits	; get bit that tells us whether there's a literal string
 	bne +		; ran out of bits in bit buffer?
 .lits2	jsr .getbts	; get more bits
-+	bcc .endchk	; if bit was zero, no literals: go straight to sequence (after end check)
++	bcc .ifend	; if bit was zero, no literals: go straight to sequence (after end check)
 	jsr .gamma	; Yes we have literals. Get the count.
-	!if DEBUG { jsr .dbg1 }
 	tax
 -	lda (pSrc),y
 	sta (pDst),y
@@ -60,18 +85,11 @@ decomp	!zone {
 	clc
 	adc pDst
 	sta pDst
-	bcc +
-	inc pDst+1
-+	iny		; special case: long literal marked by len=255
+	bcs .dst1A
+.dst1B	iny		; special case: long literal marked by len=255
 	beq .lits
 	ldy #0
-.endchk	lda pDst	; check for done at end of each literal string
-	cmp pEnd
-	lda pDst+1
-	sbc pEnd+1
-	;bcs .ret
-	bcs .chk
-
+.ifend	bcs .endchk	; normally skipped; self-modified to take when pDst+1 == pEnd+1
 .seq	lda (pSrc),y
 	inc pSrc
 	bne +
@@ -121,7 +139,7 @@ decomp	!zone {
 	sta pDst
 	bcs +
 -	jmp .lits
-+	inc pDst+1
++	jsr .incdst
 	bne -		; always taken
 
 ; Read an Elias Gamma value into A. Destroys X. Sets carry.
@@ -136,11 +154,6 @@ decomp	!zone {
 	jmp .glup
 .gmor1	jsr .getbts
 	jmp .gles1
-
-.chk	ora pDst
-	eor pEnd
-	beq .ret
-	brk
 
 ; Get another 8 bits into our bit buffer. Destroys X. Preserves A. Requires Y=0.
 .getbts	tax

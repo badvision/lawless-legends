@@ -140,11 +140,8 @@ decomp	!zone {
 .gamma	lda #1
 	asl bits
 	bcc .gbit0
-	beq .gamma2
+	beq .gfill1
 	rts
-
-; intended split here (macro above, code below)
-.gamma2	;bcc .gbit0
 .gfill1	jsr .getbts
 .glup	bcc .gbit0
 	rts

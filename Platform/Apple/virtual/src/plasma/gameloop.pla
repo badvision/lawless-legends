@@ -158,6 +158,71 @@ magic       = $2227 ; there are 2048 magic values that work; this one caught my 
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+asm readNoSlotClock  // param: dstBuf (will receive 8 BCD bytes)
+!zone {
+  +asmPlasm 1
+  ; record dst ptr
+  sta tmp
+  sty tmp+1
+  ; obtain a pointer to our little table of magic values
+  lda #$60
+  sta pTmp
+.base = *+2
+  jsr pTmp
+  tsx
+  dex
+  dex
+  txs
+  pla
+  sta pTmp
+  pla
+  sta pTmp+1
+  ldy #<(.tbl - .base)
+  ; record state of slot ROM, then turn on C3 ROM
+  sei
+  lda $CFFF
+  pha
+  sta $C300
+  lda $C304
+  ldx #8
+.wr1:
+  lda (pTmp),y
+  sec
+  ror
+.wr2:
+  bcs +
+  bit $C300
+  bcc ++
++ bit $C301
+++ lsr
+  bne .wr2
+  iny
+  dex
+  bne .wr1
+  ldy #7
+.rd1:
+  ldx #8
+.rd2:
+  lda $C304
+  lsr
+  ror pTmp
+  dex
+  bne .rd2
+  lda pTmp
+  sta (tmp),y
+  dey
+  bpl .rd1
+  ; restore slot ROM state
+  pla
+  bmi +
+  sta $CFFF
++ cli
+  rts
+.tbl !byte $C5,$3A,$A3,$5C,$C5,$3A,$A3,$5C
+} ; end zone
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Temporary hack: after scriptDisplayStr is called, generated code calls this to clear the PLASMA
 // string pool. That way, many long strings can be used in a single function.
 export asm tossStrings
@@ -965,7 +1030,7 @@ export def setPlural(flg)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Convert signed decimal to string in decimalBuf
+// Convert signed decimal to string in decimalBuf (@decimalBuf returned)
 def convertDec(n)
   word n0
   word p
@@ -1691,15 +1756,15 @@ end
 // Get a key and dispatch it to a command. Then do it again, forever.
 def kbdLoop()
   word key, func
-  word errMsg
   byte xreg, tmp
-  errMsg = "Error: x reg changed from %x to %x\n"
   xreg = getXReg()
   while TRUE
+    // If the asm routines all work correctly, by the time we get to the top of this loop
+    // the X register should always have the same value.
     tmp = getXReg()
     if tmp <> xreg
-      printf2(errMsg, xreg, tmp)
-      brk()
+      printHex(xreg<<8 | tmp)
+      fatal("xRegChg")
     fin
     key = getUpperKey()
     if key >= 0 and key < $60
@@ -2685,11 +2750,44 @@ def startGame(ask)
   crout()
 end
 
+def getTick()
+  byte timeBuf[8]
+  word tick
+  readNoSlotClock(@timeBuf)
+  tick = (timeBuf[7] & $F) + ((timeBuf[7] >> 4) * 10)
+  tick = tick + ((timeBuf[6] & $F) * 100) + ((timeBuf[6] >> 4) * 1000)
+  return tick + (((timeBuf[5] & $F) % 5) * 6000)
+end
+
+def tickDiff(tStart, tEnd)
+  word diff
+  diff = tEnd - tStart
+  if diff >= 0; return diff; fin
+  return diff + 30000
+end
+
+def speedTest()
+  word start, diff
+  while TRUE
+    start = getTick()
+    mapNum = 5
+    mapIs3D = 1
+    initMap(7, 13, 12)
+    mapNum = 1
+    mapIs3D = 0
+    initMap(7, 120, 0)
+    diff = tickDiff(start, getTick())
+    ^$c051
+    printf1("diff=%d\n", diff)
+  loop
+end
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Main code.
 //
 loadTitle()
 startGame(TRUE) // ask whether new or load
+speedTest()
 kbdLoop()
 
 done

@@ -15,6 +15,16 @@ include "diskops.plh"
 include "gen_modules.plh"
 include "gen_players.plh"
 
+const RWTS_SEEK  = 0
+const RWTS_READ  = 1
+const RWTS_WRITE = 2
+
+const RWTS_DRV1  = 0
+const RWTS_DRV2  = $80
+
+const RWTS_RDWRPART = (0<<8)
+const RWTS_OPENDIR  = (1<<8)
+
 // This pointer is the root of all heap-tracked (and garbage collected) objects.
 // See playtype.plh for definitions of all the datastructures and how they interconnect.
 word global
@@ -45,10 +55,90 @@ DEBUG   = 0
 tmp         = $2
 pTmp        = $4
 
+; ProRWTS equates
+proRWTS     = $D000       ;over in aux LC (in bank 1 just like mem mgr)
+
+status      = $3          ;returns non-zero on error
+auxreq      = $a          ;set to 1 to read/write aux memory, else main memory is used
+sizelo      = $6          ;set if enable_write=1 and writing, or reading, or if enable_seek=1 and seeking
+sizehi      = $7          ;set if enable_write=1 and writing, or reading, or if enable_seek=1 and seeking
+reqcmd      = $2          ;set (read/write/seek) if enable_write=1 or enable_seek=1
+                          ;if allow_multi=1, bit 7 selects floppy drive in current slot
+                          ;  (clear=drive 1, set=drive 2) during open call
+                          ;bit 7 must be clear for read/write/seek on opened file
+ldrlo       = $E          ;set to load address if override_adr=1
+ldrhi       = $F          ;set to load address if override_adr=1
+namlo       = $C          ;name of file to access
+namhi       = $D          ;name of file to access
+
+cmdseek     = 0           ;requires enable_seek=1
+cmdread     = 1           ;requires enable_write=1
+cmdwrite    = 2           ;requires enable_write=1
+
 end
 
-def copyHeap(dir)
-  fatal("TODO: reimpl with copyMem")
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Params: cmd | open<<8, filename, addr, size. Returns: status (for open only)
+//   cmd: 
+asm callProRWTS
+    +asmPlasm 1
+    ; Params come to us from PLASMA in reverse order
+    sta setAuxZP
+    sta sizelo
+    sty sizehi
+
+    sta clrAuxZP
+    lda evalStkL+1,x
+    ldy evalStkH+1,x
+    sta setAuxZP
+    sta ldrlo
+    sty ldrhi
+
+    sta clrAuxZP
+    lda evalStkL+2,x
+    ldy evalStkH+2,x
+    sta setAuxZP
+    sta namlo
+    sty namhi
+
+    sta clrAuxZP
+    lda evalStkL+3,x
+    ldy evalStkH+3,x
+    sta setAuxZP
+    sta reqcmd
+
+    lda #$60
+    sta 0
+    jsr 0
+
+    bit setLcRW+lcBank1
+    bit setLcRW+lcBank1
+    tya
+    bne +
+    jsr proRWTS
+    clc
+    bcc ++
++   jsr proRWTS+3
+++  lda status
+    ldy #0
+    bit setLcRW+lcBank2
+    bit setLcRW+lcBank2
+    sta clrAuxZP
+    rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def _rwGame(cmd)
+  while TRUE
+    if callProRWTS(cmd | RWTS_OPENDIR, "GAME.1.SAVE", $5000, HEAP_SIZE) == 0
+      break
+    fin
+    textHome()
+    ^$c051
+    puts("Insert disk 1")
+    rdkey()
+    ^$c050
+  loop
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -57,60 +147,24 @@ def _saveGame()
   // Perform garbage collection and record the size of the heap so we can restore it correctly
   global=>w_heapSize = mmgr(HEAP_COLLECT, 0) - HEAP_BOTTOM
 
-  // Copy data to main memory
+  // Copy data to main memory, and write it out.
   showMapName("Saving game...")
-  copyHeap(0)  // LC to low mem
-
-  // Open the file if it already exists...
-  //open_filename = @game1_filename
-  //open_buffer = $5C00
-  //if callMLI(MLI_OPEN, @open_params) > 0
-    //create_filename = open_filename
-    //create_accessbits = $C3  // full access
-    //create_filetype = $F1 // user type 1
-    //create_auxtype = 0
-    //create_storagetype = 1
-    //create_date = 0
-    //create_time = 0
-    //guaranteeMLI(MLI_CREATE, @create_params)
-    //guaranteeMLI(MLI_OPEN, @open_params)
-  //fin
-
-  // Write the game data to it
-  //write_fileref = open_fileref
-  //write_addr = $5000
-  //write_length = HEAP_SIZE
-  //guaranteeMLI(MLI_WRITE, @write_params)
-
-  // All done.
-  //close_fileref = open_fileref
-  //guaranteeMLI(MLI_CLOSE, @close_params)
+  memcpy(HEAP_BOTTOM, $5000, HEAP_SIZE)  // LC to low mem
+  _rwGame(RWTS_WRITE)
 end
 
 def loadInternal()
   word p_loaded
 
-  // Open the file. If that fails, return FALSE (instead of halting)
-  //open_filename = @game1_filename
-  //open_buffer = $5C00
-  //if callMLI(MLI_OPEN, @open_params) > 0; return FALSE; fin
-
-  // Read the game data from it
-  //read_fileref = open_fileref
-  //read_addr = $5000
-  //read_length = HEAP_SIZE
-  //guaranteeMLI(MLI_READ, @read_params)
-
-  // All done with the file
-  //close_fileref = open_fileref
-  //guaranteeMLI(MLI_CLOSE, @close_params)
+  // Load data to main memory
+  _rwGame(RWTS_READ)
 
   // Copy the heap up, and init it with the correct size.
   p_loaded = $5000
   if p_loaded=>w_heapSize < 100 or p_loaded=>w_heapSize > HEAP_SIZE
     fatal("Corrupt game file.")
   fin
-  copyHeap(1)  // low mem to LC
+  memcpy($5000, HEAP_BOTTOM, HEAP_SIZE)  // low mem to LC
   initHeap(p_loaded=>w_heapSize)
   global = getGlobals()
   return TRUE

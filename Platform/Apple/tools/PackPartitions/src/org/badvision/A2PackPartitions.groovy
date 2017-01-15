@@ -1285,8 +1285,9 @@ class A2PackPartitions
             tileSets.each  { k,v -> chunks.add([type:TYPE_TILE_SET,    num:v.num, name:k, buf:compress(v.buf)]) }
             maps3D.each    { k,v -> chunks.add([type:TYPE_3D_MAP,      num:v.num, name:k, buf:compress(v.buf)]) }
             textures.each  { k,v -> chunks.add([type:TYPE_TEXTURE_IMG, num:v.num, name:k, buf:compress(v.buf)]) }
-            portraits.each { k,v -> chunks.add([type:TYPE_PORTRAIT,    num:v.num, name:k, buf:compress(v.buf)]) }
         }
+        else if (partNum == 3)
+            portraits.each { k,v -> chunks.add([type:TYPE_PORTRAIT,    num:v.num, name:k, buf:compress(v.buf)]) }
 
         // Generate the header chunk. Leave the first 2 bytes for the # of pages in the hdr
         def hdrBuf = ByteBuffer.allocate(50000)
@@ -1828,6 +1829,9 @@ class A2PackPartitions
 
         def part2Path = new File("build/root/game.part.2.bin").path
         new File(part2Path).withOutputStream { stream -> writePartition(stream, 2) }
+
+        def part3Path = new File("build/root/game.part.3.bin").path
+        new File(part3Path).withOutputStream { stream -> writePartition(stream, 3) }
 
         // Print stats (unless there's a warning, in which case focus the user on that)
         if (nWarnings == 0)
@@ -2605,8 +2609,8 @@ end
 
     def copyOrCreateSave(dstDir)
     {
-        def prevSave = new File("build/prevGame/game.1.save.\$f1")
-        def newSave  = new File("${dstDir}/game.1.save.\$f1")
+        def prevSave = new File("build/prevGame/game.1.save.bin")
+        def newSave  = new File("${dstDir}/game.1.save.bin")
         if (prevSave.exists()) {
             copyIfNewer(prevSave, newSave)
         }

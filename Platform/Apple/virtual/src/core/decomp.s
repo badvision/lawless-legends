@@ -132,6 +132,11 @@ decomp	!zone {
 +	rol
 	bcc -		; always taken except if overflow error, in which case whatevs.
 
+.chk	ora pDst
+	eor pEnd
+	beq .ret
+	brk
+
 ; Get another 8 bits into our bit buffer. Destroys X. Preserves A. Requires Y=0.
 .getbts	tax
 	lda (pSrc),y
@@ -143,11 +148,6 @@ decomp	!zone {
 	sta bits
 	txa
 .ret	rts
-
-.chk	ora pDst
-	eor pEnd
-	beq .ret
-	brk
 
 !if DEBUG {
 .dbg1	pha

@@ -85,6 +85,7 @@ decomp	!zone {
 	bcc .gotoff	; always taken
 .bigoff	asl
 	sta tmp
+	sec
 	jsr .gamma
 	lsr
 	ror tmp
@@ -124,16 +125,17 @@ decomp	!zone {
 	bne -		; always taken
 
 ; Read an Elias Gamma value into A. Destroys X. Sets carry.
-.gamma	lda #1
--	asl bits
-	bne +
-	jsr .getbts
-+	bcs .ret
+.gamma	tya		; Y=0, so now A=0
+.glup	rol
 	asl bits
-	bne +
+	beq .gmor1
+.gles1	bcs .ret
+	asl bits
+	bne .glup
 	jsr .getbts
-+	rol
-	bcc -		; always taken except if overflow error, in which case whatevs.
+	jmp .glup
+.gmor1	jsr .getbts
+	jmp .gles1
 
 .chk	ora pDst
 	eor pEnd
@@ -154,6 +156,12 @@ decomp	!zone {
 
 } ; end of zone
 
-!if * > $DFFF {
-	!error "Decomp grew too large."
+!ifdef PASS2 {
+	!warn "decomp spare: ", $E000 - *
+	!if * > $DFFF {
+		!error "Decomp grew too large."
+	}
+} else { ;PASS2
+  !set PASS2=1
 }
+

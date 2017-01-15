@@ -22,11 +22,6 @@ pDst	= $C		; len 2		; opposite order from memmgr,
 pSrc	= $E		; len 2		;	so it can avoid swapping
 pEnd	= $10		; len 2
 
-cout	= $FDED
-prbyte	= $FDDA
-crout	= $FD8E
-rdkey	= $FD0C
-
 DEBUG	= 0
 
 ; Decompress from pSrc to pDst, stop at pEnd. The source and dest can overlap, as long as the 
@@ -151,9 +146,9 @@ decomp	!zone {
 	asl bits
 	bne .glup
 	jsr .getbts
-	jmp .glup
+	bne .glup	; always taken
 .gmor1	jsr .getbts
-	jmp .gles1
+	bne .gles1	; always taken
 
 ; Get another 8 bits into our bit buffer. Destroys X. Preserves A. Requires Y=0.
 .getbts	tax

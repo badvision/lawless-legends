@@ -35,7 +35,8 @@ decomp	!zone {
 	sta .ifend
 	jsr .chkdst
 	ldy #0		; In lit loop Y must be zero
-	beq .lits2	; always taken
+.fill1A	jsr .getbt2
+	jmp .fill1B
 
 .incdst	inc pDst+1
 .chkdst	ldx pDst+1
@@ -46,27 +47,40 @@ decomp	!zone {
 +	clc
 	rts
 
-.dst1A	jsr .incdst
-	bcc .dst1B	; always taken
-
-.endchk	cmp pEnd	; check for done at end of each literal string
+.endchk	lda pDst
+	cmp pEnd	; check for done at end of each literal string
 	bcc .seq
 	bne .bad
 	rts
 .bad	brk
 
 .src1A	inc pSrc+1
-	clc
-	bcc .src1B	; always taken
+	bne .src1B	; always taken
 
 .src2A	inc pSrc+1
-	bne .src2B	; always taken
+	bne .src2B
 
 .lits	asl bits	; get bit that tells us whether there's a literal string
-	bne +		; ran out of bits in bit buffer?
-.lits2	jsr .getbts	; get more bits
-+	bcc .ifend	; if bit was zero, no literals: go straight to sequence (after end check)
-	jsr .gamma	; Yes we have literals. Get the count.
+	beq .fill1A	; if we ran out of bits, get more
+.fill1B	bcc .ifend	; if bit was zero, no literals: go straight to sequence (after end check)
+	; Yes we have literals. Is the count exactly 1?
+	asl bits
+	bcc .not1
+	bne .yes1	; if we didn't run out of bits, we can conclude len=1
+	jsr .getbt2	; get more bits
+	bcc .not1
+	; Count is exactly 1 (most common case other than zero)
+.yes1	lda (pSrc),y
+	sta (pDst),y
+	inc pSrc
+	beq .src2A
+.src2B	inc pDst
+	clc
+	bne .ifend
+	beq .ldst	; always taken
+.not1	; count is not 1, so parse out a full gamma count
+	lda #1
+	jsr .gamma2
 	tax
 -	lda (pSrc),y
 	sta (pDst),y
@@ -77,19 +91,22 @@ decomp	!zone {
 	clc
 	adc pSrc
 	sta pSrc
-	bcs .src1A
-.src1B	tya
+	bcc +
+	inc pSrc+1
+	clc
++	tya
 	adc pDst
 	sta pDst
-	bcs .dst1A
-.dst1B	iny		; special case: long literal marked by len=255
+	bcc +
+.ldst	jsr .incdst
++	iny		; special case: long literal marked by len=255
 	beq .lits
 	ldy #0
 .ifend	bcs .endchk	; normally skipped; self-modified to take when pDst+1 == pEnd+1
 .seq	lda (pSrc),y
 	inc pSrc
-	beq .src2A
-.src2B	asl
+	beq .src1A
+.src1B	asl
 	php		; save high bit for later len check
 	bmi .bigoff	; second-to-hi bit signals large offset
 	lsr
@@ -105,8 +122,8 @@ decomp	!zone {
 	ror tmp
 	eor #$FF	; make two's complement of offset hi-byte
 	tax
-.gotoff	lda pDst
 	clc		; effectively add 1 to offset.
+.gotoff	lda pDst
 	sbc tmp
 	sta pTmp
 	txa
@@ -132,9 +149,9 @@ decomp	!zone {
 	ldy #0		; as expected by lits loop
 	adc pDst
 	sta pDst
--	bcc .lits
+	bcc +
 	jsr .incdst
-	bcc -		; always taken
++	jmp .lits
 
 ; Read an Elias Gamma value into A. Destroys X. Sets carry.
 .gamma	lda #1
@@ -145,6 +162,7 @@ decomp	!zone {
 .gfill1	jsr .getbts
 .glup	bcc .gbit0
 	rts
+.gamma2
 .gbit0	asl bits
 	beq .gfill2
 .gshift	rol
@@ -155,16 +173,19 @@ decomp	!zone {
 	bne .gshift	; always taken
 
 ; Get another 8 bits into our bit buffer. Destroys X. Preserves A. Requires Y=0.
+; Alternately, use .getbt2 to preserve X and destroy A
 .getbts	tax
-	lda (pSrc),y
+.getbt2	lda (pSrc),y
 	inc pSrc
-	bne +
-	inc pSrc+1
-+	sec
+	beq .src3A
+.src3B	sec
 	rol
 	sta bits
 	txa
 	rts
+
+.src3A	inc pSrc+1
+	bne .src3B	; always taken
 
 } ; end of zone
 

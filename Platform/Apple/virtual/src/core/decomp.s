@@ -57,8 +57,10 @@ decomp	!zone {
 .src1A	inc pSrc+1
 	bne .src1B	; always taken
 
+.src2Ay	iny		; now Y=1
 .src2A	inc pSrc+1
-	bne .src2B
+	clc
+	bcc .src2B	; always taken
 
 .lits	asl bits	; get bit that tells us whether there's a literal string
 	beq .fill1A	; if we ran out of bits, get more
@@ -73,11 +75,11 @@ decomp	!zone {
 .yes1	lda (pSrc),y
 	sta (pDst),y
 	inc pSrc
-	beq .src2A
-.src2B	inc pDst
+	beq .src2Ay
+	inc pDst
 	clc
-	bne .ifend
-	beq .ldst	; always taken
+	bne .ifend	; common case
+	beq .ldst	; otherwise, this is always taken
 .not1	; count is not 1, so parse out a full gamma count
 	lda #1
 	jsr .gamma2
@@ -91,10 +93,8 @@ decomp	!zone {
 	clc
 	adc pSrc
 	sta pSrc
-	bcc +
-	inc pSrc+1
-	clc
-+	tya
+	bcs .src2A
+.src2B	tya
 	adc pDst
 	sta pDst
 	bcc +

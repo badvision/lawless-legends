@@ -149,9 +149,10 @@ decomp	!zone {
 	ldy #0		; as expected by lits loop
 	adc pDst
 	sta pDst
-	bcc +
-	jsr .incdst
-+	jmp .lits
+	bcs .dst1A
+-	jmp .lits
+.dst1A	jsr .incdst
+	bcc -		; always taken
 
 ; Read an Elias Gamma value into A. Destroys X. Sets carry.
 .gamma	lda #1

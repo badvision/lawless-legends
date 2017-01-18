@@ -1,6 +1,6 @@
-;extended open/read/write binary file in ProDOS filesystem, with random access
-;copyright (c) Peter Ferrie 2013-16
 ;license:BSD-3-Clause
+;extended open/read/write binary file in ProDOS filesystem, with random access
+;copyright (c) Peter Ferrie 2013-17
 
 !cpu 6502
 *=$4000
@@ -96,13 +96,13 @@
                 blokhi    = $47         ;ProDOS constant
 
 !if allow_trees = 1 {
-                treeidx   = $1b         ;(internal) index into tree block
-                istree    = $1c         ;(internal) flag to indicate tree file
+                treeidx   = $13         ;(internal) index into tree block
+                istree    = $14         ;(internal) flag to indicate tree file
 } ;allow_trees
                 entries   = $18         ;(internal) total number of entries in directory
 !if bounds_check = 1 {
-                bleftlo   = $13         ;(internal) bytes left in file
-                blefthi   = $14         ;(internal) bytes left in file
+                bleftlo   = $1b         ;(internal) bytes left in file
+                blefthi   = $1c         ;(internal) bytes left in file
 } ;bounds_check
                 blkofflo  = $19         ;(internal) offset within cache block
                 blkoffhi  = $1a         ;(internal) offset within cache block
@@ -111,11 +111,6 @@
                 tmptrk    = $1e         ;(internal) temporary copy of current track
                 phase     = $1f         ;(internal) current phase for seek
 } ;enable_floppy
-!if poll_drive = 1 {
-                retstk    = $48
-                failctlo  = $49
-                failcthi  = $4A
-} ;poll_drive
 
                 ;constants
                 cmdseek   = 0           ;requires enable_seek=1
@@ -176,6 +171,9 @@ init            jsr SETVID
                 sta unrdrvoff2 + 1
                 tax
                 inx ;MOTORON
+  !if poll_drive = 1 {
+                stx unrdrvon1 + 1
+  } ;poll_drive
                 stx unrdrvon2 + 1
                 inx ;DRV0EN
   !if allow_multi = 1 {
@@ -183,10 +181,10 @@ init            jsr SETVID
   } ;allow_multi
                 inx
                 inx ;Q6L
-  !if poll_drive = 1 {
-                stx unrread0 + 1
-  } ;poll_drive
                 stx unrread1 + 1
+  !if poll_drive = 1 {
+                stx unrread2 + 1
+  } ;poll_drive
                 stx unrread4 + 1
                 stx unrread5 + 1
   !if check_chksum = 1 {
@@ -386,7 +384,7 @@ slot            lda $cfff
                 ;can't insert code during pass two because it breaks existing offsets
 
   !ifdef PASS2 {
-    !if >(hddcodeend - reloc) > 1 {
+    !if >(hddcodeend - reloc) > 0 {
       !set hack=$100
     } ;hddcodeend
   } else { ;PASS2
@@ -420,10 +418,6 @@ rdwrpart        jmp rdwrfile
                 ;self-modified by init code
 
 opendir
-!if poll_drive = 1 {
-                tsx
-                stx retstk
-} ;poll_drive
 unrblocklo = unrelocdsk + (* - reloc)
                 ldx #2
 unrblockhi = unrelocdsk + (* - reloc)
@@ -494,10 +488,6 @@ savetype
   } ;might_exist
   !if (might_exist + poll_drive) > 0 {
 nodisk
-    !if poll_drive = 1 {
-                ldx retstk
-                txs
-    } ;poll_drive
 unrdrvoff1=unrelocdsk+(*-reloc)
                 lda MOTOROFF
                 inc status
@@ -642,7 +632,7 @@ foundname       iny
     } ;allow_trees
                 jsr readdirsect
     !if allow_subdir = 1 {
-               plp
+                plp
     } ;allow_subdir
   } ;allow_subdir
 
@@ -1009,10 +999,6 @@ step1           !byte 1, $30, $28, $24, $20, $1e, $1d, $1c
 step2           !byte $70, $2c, $26, $22, $1f, $1e, $1d, $1c
 
 readadr
-  !if poll_drive {
-                lda #0
-                sta failcthi
-  } ;poll_drive
 -               jsr readd5aa
                 cmp #$96
                 bne -
@@ -1028,19 +1014,7 @@ readadr
 seekret         rts
 
 readd5aa
-  !if poll_drive {
-unrread0 = unrelocdsk + (* - reloc)
---              lda Q6L
-                bmi +
-                inc failctlo
-                bne --
-                inc failcthi
-                bne --
-                jmp nodisk
-+
-  } else {
 --              jsr readnib
-  }
 -               cmp #$d5
                 bne --
                 jsr readnib
@@ -1053,6 +1027,14 @@ unrread1 = unrelocdsk + (* - reloc)
 -               lda Q6L
                 bpl -
                 rts
+
+  !if poll_drive = 1 {
+checkpoll       bcc pollinv            ;it's enough to cover an entire sector
+failpoll        pla
+                pla
+                pla
+                jmp nodisk
+  } ;poll_drive
 
 readdirsel      ldy #0
                 sty adrlo
@@ -1067,13 +1049,32 @@ unrdrvsel = unrelocdsk + (* - reloc)
   } ;allow_multi
   !if poll_drive = 1 {
                 sty status
-                sty failctlo
-                sty failcthi
+                pha
+unrdrvon1 = unrelocdsk + (* - reloc)
+                ldy MOTORON
+                clc                     ;mark pass 1
+                !byte $24               ;mask sec
+pollinv         sec                     ;mark pass 2
+
+                ;watch for sequence of 3 prolog bytes in a row
+
+--              inc status
+                beq checkpoll           ;loop max 510 times as worst-case
+                ldy #2
+
+unrread2 = unrelocdsk + (* - reloc)
+-               lda Q6L
+                bpl -
+                eor prolog,y
+                bne --
+                dey
+                bpl -
+                pla
   } ;poll_drive
 
 readdirsec
 !if allow_trees = 0 {
-readdirsec0
+readdirsect
 } ;allow_trees
                 ldy #>dirbuf
 !if allow_trees = 1 {
@@ -1348,7 +1349,7 @@ unrhddblockhi = unrelochdd + (* - reloc)
 
 hddreaddir
   !if might_exist = 1 {
-                ldx hdddirbuf + FILE_COUNT
+                ldx hdddirbuf + FILE_COUNT ;assuming only 256 files per subdirectory
                 inx
                 stx entries
   } ;might_exist

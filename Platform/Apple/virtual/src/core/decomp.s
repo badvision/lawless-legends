@@ -191,7 +191,7 @@ decomp	!zone {
 } ; end of zone
 
 !ifdef PASS2 {
-	!warn "decomp spare: ", $E000 - *
+	;!warn "decomp spare: ", $E000 - *
 	!if * > $E000 {
 		!warn "Decomp grew too large."
 	}

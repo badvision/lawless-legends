@@ -1056,11 +1056,11 @@ unrdrvon1 = unrelocdsk + (* - reloc)
                 !byte $24               ;mask sec
 pollinv         sec                     ;mark pass 2
 
-                ;watch for sequence of 3 prolog bytes in a row
+                ;watch for a real data prolog
 
 --              inc status
                 beq checkpoll           ;loop max 510 times as worst-case
-                ldy #2
+                ldy #(prolog_e - prolog - 1)
 
 unrread2 = unrelocdsk + (* - reloc)
 -               lda Q6L

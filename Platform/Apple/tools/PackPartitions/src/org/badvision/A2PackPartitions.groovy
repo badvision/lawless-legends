@@ -2609,7 +2609,7 @@ end
 
     def copyOrCreateSave(dstDir)
     {
-        def prevSave = new File("build/prevGame/game.1.save.bin")
+        def prevSave = new File("build/prevGame/game.1.save.bin#0")
         def newSave  = new File("${dstDir}/game.1.save.bin")
         if (prevSave.exists()) {
             copyIfNewer(prevSave, newSave)

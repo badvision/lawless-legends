@@ -212,7 +212,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def _rwGame(cmd)
   while TRUE
-    if callProRWTS(cmd | RWTS_OPENDIR, "GAME.1.SAVE", LOAD_SAVE_BUF, HEAP_SIZE) == 0
+    if callProRWTS(cmd | RWTS_OPENDIR, @game1_filename, LOAD_SAVE_BUF, HEAP_SIZE) == 0
       break
     fin
     textHome()
@@ -272,6 +272,7 @@ def newGame()
   initHeap(0) // initially empty heap
   global = getGlobals()
   global->b_curAvatar = 0
+  mmgr(START_LOAD, 1) // players module and new game module both in partition 1
   playersModule = mmgr(QUEUE_LOAD, MOD_GEN_PLAYERS<<8 | RES_TYPE_MODULE)
   newGameModule = mmgr(QUEUE_LOAD, MOD_GS_NEW_GAME<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
@@ -281,7 +282,18 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def gameExists()
-  return FALSE // FIXME
+  word p_loaded
+
+  // Load first part of save game into mem... 1 block should be plenty to verify it's real.
+  if callProRWTS(RWTS_READ | RWTS_OPENDIR, @game1_filename, LOAD_SAVE_BUF, 512) == 0
+    // If heap size is reasonable, assume it's a real save game. (Hash will be checked if the
+    // user chooses to actually load the game)
+    p_loaded = LOAD_SAVE_BUF
+    if p_loaded=>w_heapSize >= 100 and p_loaded=>w_heapSize <= HEAP_SIZE
+      return TRUE
+    fin
+  fin
+  return FALSE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

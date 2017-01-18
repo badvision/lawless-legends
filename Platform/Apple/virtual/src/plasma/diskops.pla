@@ -25,6 +25,8 @@ const RWTS_DRV2  = $80
 const RWTS_RDWRPART = (0<<8)
 const RWTS_OPENDIR  = (1<<8)
 
+const LOAD_SAVE_BUF = $5000
+
 // This pointer is the root of all heap-tracked (and garbage collected) objects.
 // See playtype.plh for definitions of all the datastructures and how they interconnect.
 word global
@@ -81,7 +83,7 @@ end
 // Params: cmd | open<<8, filename, addr, size. Returns: status (for open only)
 //   cmd: 
 asm callProRWTS
-    +asmPlasm 1
+    +asmPlasm 4
     ; Params come to us from PLASMA in reverse order
     sta setAuxZP
     sta sizelo
@@ -106,10 +108,8 @@ asm callProRWTS
     ldy evalStkH+3,x
     sta setAuxZP
     sta reqcmd
-
-    lda #$60
-    sta 0
-    jsr 0
+    lda #0
+    sta auxreq
 
     bit setLcRW+lcBank1
     bit setLcRW+lcBank1
@@ -212,7 +212,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def _rwGame(cmd)
   while TRUE
-    if callProRWTS(cmd | RWTS_OPENDIR, "GAME.1.SAVE", $5000, HEAP_SIZE) == 0
+    if callProRWTS(cmd | RWTS_OPENDIR, "GAME.1.SAVE", LOAD_SAVE_BUF, HEAP_SIZE) == 0
       break
     fin
     textHome()
@@ -231,7 +231,7 @@ def _saveGame()
 
   // Copy data to main memory, and write it out.
   showMapName("Saving game...")
-  memcpy(HEAP_BOTTOM, $5000, HEAP_SIZE)  // LC to low mem
+  memcpy(HEAP_BOTTOM, LOAD_SAVE_BUF, HEAP_SIZE)  // LC to low mem
   _rwGame(RWTS_WRITE)
 end
 
@@ -242,11 +242,11 @@ def loadInternal()
   _rwGame(RWTS_READ)
 
   // Copy the heap up, and init it with the correct size.
-  p_loaded = $5000
+  p_loaded = LOAD_SAVE_BUF
   if p_loaded=>w_heapSize < 100 or p_loaded=>w_heapSize > HEAP_SIZE
     fatal("Corrupt game file.")
   fin
-  memcpy($5000, HEAP_BOTTOM, HEAP_SIZE)  // low mem to LC
+  memcpy(LOAD_SAVE_BUF, HEAP_BOTTOM, HEAP_SIZE)  // low mem to LC
   initHeap(p_loaded=>w_heapSize)
   global = getGlobals()
   return TRUE

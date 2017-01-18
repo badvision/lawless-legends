@@ -2773,12 +2773,12 @@ def speedTest()
     mapNum = 5
     mapIs3D = 1
     initMap(7, 13, 12)
-    mapNum = 1
-    mapIs3D = 0
-    initMap(7, 120, 0)
     diff = tickDiff(start, getTick())
     ^$c051
     printf1("diff=%d\n", diff)
+    mapNum = 1
+    mapIs3D = 0
+    initMap(7, 120, 0)
   loop
 end
 

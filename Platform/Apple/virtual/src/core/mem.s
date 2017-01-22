@@ -62,10 +62,7 @@ rwts_mark	= $18		; to reset seek ptr, zero out 4 bytes here
 proRWTS		= $D000
 
 ; Memory buffers
-fileBuf		= $4000	; len $400
-diskBuf 	= $4400	; len $800
-DISK_BUF_SIZE	= $800
-diskBufEnd	= $4C00
+unusedBuf	= $4000	; used to be for ProDOS file buf and a copy space, but no longer
 headerBuf 	= $4C00	; len $1400
 
 ; Memory used only during garbage collection
@@ -1885,10 +1882,10 @@ diskLoader: !zone
 ; bufferDigest.
 ; Returns: Z if digest the same as last time
 calcBufferDigest: !zone
-	lda #>fileBuf
+	lda #>headerBuf
 	sta .ld1+2
 	sta .ld3+2
-	lda #>headerBuf
+	lda #>headerBuf+$A00
 	sta .ld2+2
 	sta .ld4+2
 	ldy #0
@@ -1896,7 +1893,7 @@ calcBufferDigest: !zone
 	sty tmp+1
 	sty tmp+2
 	sty tmp+3
-	ldx #6		; sum 6 pages in each buffer - covers first part of heap collect zone also
+	ldx #6		; sum 6 pages in each area - covers first part of heap collect zone also
 	clc
 .sum	lda tmp
 	rol

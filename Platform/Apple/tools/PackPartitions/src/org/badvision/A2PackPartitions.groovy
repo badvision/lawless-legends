@@ -1706,14 +1706,10 @@ class A2PackPartitions
         }
     }
 
-    def pack(xmlPath)
+    def pack(xmlPath, dataIn)
     {
         // Save time by using cache of previous run
         readCache()
-
-        // Open the XML data file produced by Outlaw Editor
-        def dataIn = new XmlParser().parse(xmlPath)
-        def xmlLastMod = xmlPath.lastModified()
 
         // Record global script names
         recordGlobalScripts(dataIn)
@@ -2524,11 +2520,8 @@ end
         return [name.trim(), animFrameNum, animFlags]
     }
 
-    def dataGen(xmlPath)
+    def dataGen(xmlPath, dataIn)
     {
-        // Open the XML data file produced by Outlaw Editor
-        def dataIn = new XmlParser().parse(xmlPath)
-
         // When generating code, we need to use Unix linebreaks since that's what
         // the PLASMA compiler expects to see.
         def oldSep = System.getProperty("line.separator")
@@ -2727,17 +2720,20 @@ end
                         diskFile.delete()
                 }
 
+                // Open the XML data file produced by Outlaw Editor
+                def dataIn = new XmlParser().parse(xmlPath)
+
                 // Create PLASMA headers
                 inst = new A2PackPartitions()
                 inst.buildDir = buildDir
                 inst.reportWriter = reportWriter
-                inst.dataGen(xmlFile)
+                inst.dataGen(xmlFile, dataIn)
 
                 // Pack everything into a binary file
                 inst = new A2PackPartitions() // make a new one without stubs
                 inst.buildDir = buildDir
                 inst.reportWriter = reportWriter
-                inst.pack(xmlFile)
+                inst.pack(xmlFile, dataIn)
 
                 // And create the final disk images
                 inst.createHddImage()

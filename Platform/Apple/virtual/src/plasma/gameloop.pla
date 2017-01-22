@@ -1769,6 +1769,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Called by scripts to display a string. We set the flag noting that something has been
 // displayed, then use an assembly routine to do the work.
+// Also, clear the keyboard strobe, so the player has time to read the text.
 export def scriptDisplayStr(str)
   if pIntimate
     pIntimate=>intimate_displayStr(str)
@@ -1777,6 +1778,7 @@ export def scriptDisplayStr(str)
     flipToPage1()
     displayStr(str)
   fin
+  ^kbdStrobe
   // No: tossString()  // Doesn't work here, because we need to toss strings in the *parent's* frame
 end
 

@@ -719,16 +719,24 @@ CpWnd2	LDA (GBasL),Y
 ;Routine: parser w/auto line break
 DoParse	STA PrsAdrL
 	STY PrsAdrH
-	LDA CursXrl	;right coord
-	SEC
-	SBC CursXl	;minus left coord
-	STA LinWdth	;equals line width (max of 255 for now)
 	LDY #0  	;parse starting at beginning
 	STY TtlWdth
 	LDA (PrsAdrL),Y ;Get the length
 	STA Pa_Len
 	INY
 Pa_Lp0	STY Pa_iBgn
+	LDA CursXrl	;right coord
+	SEC
+	; MH: Added code to recalculate based on current coordinate, so that
+	; multiple consecutive parse calls will still wrap correctly.
+	LDX CtrJs_Flg
+	BNE +
+	SBC CursColL	;minus *current* cursor coord
+	CLC
+	ADC TtlWdth	;plus amount we've already accumulated
+	JMP ++
++	SBC CursXl	;minus left-hand coord (centering mode only)
+++	STA LinWdth	;equals line width (max of 255 for now)
 Pa_Lp1	STY Pa_iSv
 	LDA (PrsAdrL),Y ;Get the character
 	STA AscChar
@@ -770,7 +778,7 @@ Pa_ToFr	!if DEBUG { +prChr '+' }
 	LDY Pa_iBgn
 	LDA #0
 	STA TtlWdth
-	BEQ Pa_Lp1
+	BEQ Pa_Lp0
 ;
 Pa_Spc	LDY Pa_iSv
 	STY Pa_iEnd

@@ -2408,8 +2408,6 @@ end
             out.println("include \"gen_items.plh\"")
             out.println("include \"gen_players.plh\"")
             out.println()
-            out.println("word global")
-            out.println()
 
             // Pre-define all the creation functions
             out.println("predef _makeInitialParty")
@@ -2469,7 +2467,6 @@ end
             out.println("end\n")
 
             // Lastly, the outer module-level code
-            out.println("global = getGlobals()")
             out.println("return @funcTbl")
             out.println("done")
         }
@@ -2847,7 +2844,6 @@ end
             out << "include \"../plasma/gen_items.plh\"\n"
             out << "include \"../plasma/gen_modules.plh\"\n"
             out << "include \"../plasma/gen_players.plh\"\n\n"
-            out << "word global\n"
         }
 
         /**
@@ -2863,7 +2859,6 @@ end
             packScript(script)
 
             // Set up the pointer to global vars and finish up the module.
-            out << "global = getGlobals()\n"
             if (script.block.size() == 0)
                 out << "return 0\n"
             else
@@ -3614,9 +3609,6 @@ end
             // Emit the code the user has stored for the init script (if any)
             if (script)
                 packScript(script)
-
-            // Set up the pointer to global vars
-            out << "global = getGlobals()\n"
 
             // Code to register the  map name, trigger table, and map extent.
             def shortName = mapName.replaceAll(/[\s-]*[23][dD][-0-9]*$/, '').take(16)

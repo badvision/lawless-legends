@@ -27,10 +27,6 @@ const RWTS_OPENDIR  = (1<<8)
 
 const LOAD_SAVE_BUF = $5000
 
-// This pointer is the root of all heap-tracked (and garbage collected) objects.
-// See playtype.plh for definitions of all the datastructures and how they interconnect.
-word global
-
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the the header.
 predef _saveGame, _loadGame, _newOrLoadGame
@@ -248,7 +244,6 @@ def loadInternal()
   fin
   memcpy(LOAD_SAVE_BUF, HEAP_BOTTOM, HEAP_SIZE)  // low mem to LC
   initHeap(p_loaded=>w_heapSize)
-  global = getGlobals()
   return TRUE
 end
 
@@ -270,7 +265,6 @@ end
 def newGame()
   word playersModule, newGameModule
   initHeap(0) // initially empty heap
-  global = getGlobals()
   global->b_curAvatar = 0
   mmgr(START_LOAD, 1) // players module and new game module both in partition 1
   playersModule = mmgr(QUEUE_LOAD, MOD_GEN_PLAYERS<<8 | RES_TYPE_MODULE)
@@ -332,6 +326,5 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Boilerplate module initialization code
-global = getGlobals()
 return @funcTbl
 done

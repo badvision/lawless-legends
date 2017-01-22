@@ -14,6 +14,7 @@
 ;
 
 fontEngine 	= $EC00
+fontEngineLen	= $F00		; maximum (allows for some debug code)
 SetFont		= fontEngine
 SetWindow	= SetFont+3
 ClearWindow	= SetWindow+3

@@ -14,7 +14,7 @@ import gamelib
   predef setScriptInfo, scriptDisplayStr, scriptDisplayStrNL, getYN, queue_setMap
   predef setSky, setGround, queue_teleport, setPortrait, clearPortrait, moveWayBackward
   predef flipToPage1, textHome, calcWidth
-  predef getUpperKey, clearWindow, getGlobals, rand16, printf1, printf2, printf3
+  predef getUpperKey, clearWindow, rand16, printf1, printf2, printf3
   predef displayf1, displayf2, displayf3, buildString, addToString, finishString, printHex
   predef displayChar, rawDisplayStr, displayStr, rightJustifyStr, rightJustifyNum, puts
   predef min, max, randomFromListFiltered, randomFromArray, scanForNamedObj
@@ -31,6 +31,10 @@ import gamelib
   predef scriptSwapTile, setIntimateMode, fontCmd, setIntimateMode
   predef callGlobalFunc, getCharResponse, memcpy
 
+  // This pointer is the root of all heap-tracked (and garbage collected) objects.
+  // See playtype.plh for definitions of all the datastructures and how they interconnect.
+  word global
+
   /////////// Shared string constants //////////////
 
   // First: attributes
@@ -39,5 +43,4 @@ import gamelib
 
   // Next: common events
   byte[] S_ENTER, S_LEAVE, S_USE
-
 end

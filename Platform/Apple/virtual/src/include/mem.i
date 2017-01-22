@@ -52,17 +52,19 @@
 ;          0800.0Cxx memory manager part 1
 ;          0Cxx.0Exx PLASMA locals storage (length $200)
 ;          0Exx.17xx gameloop asm, data and stubs
-;          17xx.1FFF (free)
+;          17xx.1FFF (free, managed)
 ;          2000.3FFF hi-res page 1
 ;          4000.5FFF hi-res page 2 /
 ;                    memory manager work space
 ;          6000.6xxx 2D or 3D renderer
-;          7xxx.BFFF (free)
+;          7xxx.BFFF (free, managed)
 ;          C000.CFFF I/O
 ; (bank 1) D000.DEFF memory manager part 2
 ; (bank 1) DF00.DFFF decompressor
 ; (bank 2) D000.D9FF PLASMA runtime
 ; (bank 2) DA00.DFFF (unused)
+;                    Note: Memory manager can't load any resources directly into LC space,
+;                    because ProRWTS is in aux LC and thus can't write to the main LC.
 ;          E000.EBFF small-object heap
 ;          EC00.FAFF font engine
 ;          FB00.FFF9 font data
@@ -74,7 +76,7 @@
 ;          0200.03FF (currently unused)
 ;          0400.07FF (unused, but screen holes overwritten by hard drive C7xx ROM)
 ;          0800.0D7A texture expander part 1 (used by 3D renderer)
-;          0D7B.9xxx (free)
+;          0D7B.9xxx (free, managed)
 ;          A0xx.BFFF gameloop PLASMA code (loaded as high as possible)
 ;          C000.CFFF I/O
 ; (bank 1) D000.DAFF ProRWTS runtime

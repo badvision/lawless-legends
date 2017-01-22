@@ -12,10 +12,6 @@ include "gamelib.plh"
 include "globalDefs.plh"
 include "playtype.plh"
 
-// This pointer is the root of all heap-tracked (and garbage collected) objects.
-// See playtype.plh for definitions of all the datastructures and how they interconnect.
-word global
-
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the the header.
 predef _intimate_setMode, _intimate_displayStr, _intimate_swipeImg
@@ -120,6 +116,5 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Boilerplate module initialization code
-global = getGlobals()
 return @funcTbl
 done

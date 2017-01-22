@@ -16,7 +16,6 @@ include "gen_enemies.plh"
 include "gen_modules.plh"
 include "combat.plh"
 
-word global
 predef _combat_zoneEncounter
 word[] funcTbl = @_combat_zoneEncounter
 
@@ -636,6 +635,5 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // initialization code
 
-global = getGlobals()
 return @funcTbl
 done

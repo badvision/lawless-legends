@@ -47,7 +47,7 @@ include "intimate.plh"
 // Data structures
 include "playtype.pla"
 
-word global  // the global heap object, from which all live objects must be reachable
+export word global  // the global heap object, from which all live objects must be reachable
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Predefined functions, for circular calls or out-of-order calls
@@ -2417,11 +2417,6 @@ export def initHeap(loadedSize)
     global = mmgr(HEAP_ALLOC, TYPE_GLOBAL)
     global=>w_typeHash = typeHash
   fin
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-export def getGlobals()
-  return global
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

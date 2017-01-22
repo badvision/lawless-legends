@@ -33,10 +33,6 @@ const TYPE_DROP  = $0103
 const CHAR_WND_STAT_X = 30
 const CHAR_WND_INV_X = 16
 
-// This pointer is the root of all heap-tracked (and garbage collected) objects.
-// See playtype.plh for definitions of all the datastructures and how they interconnect.
-word global
-
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the the header.
 predef _party_doPlayerSheet, _party_benchPlayer, _party_unbenchPlayer
@@ -467,6 +463,5 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Boilerplate module initialization code
-global = getGlobals()
 return @funcTbl
 done

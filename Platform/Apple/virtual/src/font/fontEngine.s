@@ -1757,3 +1757,8 @@ HgrTbLo !byte $00,$00,$00,$00,$00,$00,$00,$00
 	!byte $D0,$D0,$D0,$D0,$D0,$D0,$D0,$D0
 	!byte $50,$50,$50,$50,$50,$50,$50,$50
 	!byte $D0,$D0,$D0,$D0,$D0,$D0,$D0,$D0
+
+; Be careful not to grow past the size of our designated area in the LC
+!if (* - fontEngine) > fontEngineLen {
+	!error "Font engine grew too large."
+}

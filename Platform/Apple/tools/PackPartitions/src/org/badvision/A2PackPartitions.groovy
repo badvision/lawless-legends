@@ -586,6 +586,14 @@ class A2PackPartitions
                 }
             }
         }
+
+        // Compress them all
+        (0..<nVertSections).each { vsect ->
+            (0..<nHorzSections).each { hsect ->
+                def sectName = "$mapName-$hsect-$vsect"
+                maps2D[sectName].buf = compress(unwrapByteBuffer(maps2D[sectName].buf))
+            }
+        }
     }
 
     def write3DMap(buf, mapName, rows, scriptModule, locationsWithTriggers) // [ref BigBlue1_50]
@@ -632,8 +640,8 @@ class A2PackPartitions
         buf.put((byte)scriptModule)
 
         // Document memory usage so user can make intelligent choices about what/when to cut
-        def gameloopSize = bytecodes['gameloop'].buf.position()
-        def mapScriptsSize = bytecodes[makeScriptName(mapName)].buf.position()
+        def gameloopSize = bytecodes['gameloop'].buf.uncompressedLen
+        def mapScriptsSize = bytecodes[makeScriptName(mapName)].buf.uncompressedLen
         def mapTexturesSize = texList.size() * 0x555
         def totalAux = gameloopSize + mapScriptsSize + mapTexturesSize
         def safeLimit = 34 * 1024
@@ -708,7 +716,7 @@ class A2PackPartitions
         def key = kind + ":" + name
         if (cache.containsKey(key) && cache[key].hash == hash) {
             def num = addTo.size() + 1
-            addTo[name] = [num:num, buf:wrapByteArray(cache[key].data)]
+            addTo[name] = [num:num, buf:cache[key].data]
             return true
         }
         return false
@@ -719,13 +727,8 @@ class A2PackPartitions
         def num = addTo.size() + 1
         addTo[name] = [num:num, buf:buf]
 
-        def uncompressedLen = buf.position()
-        def uncompressedData = new byte[uncompressedLen]
-        buf.position(0)
-        buf.get(uncompressedData)
-
         def key = kind + ":" + name
-        cache[key] = [hash:hash, data:uncompressedData]
+        cache[key] = [hash:hash, data:buf]
     }
 
     def grabEntireFromCache(kind, addTo, hash)
@@ -733,7 +736,7 @@ class A2PackPartitions
         if (cache.containsKey(kind) && cache[kind].hash == hash) {
             cache[kind].ents.each { ent ->
                 def num = addTo.size() + 1
-                addTo[ent.name] = [num: ent.num, buf: wrapByteArray(ent.data)]
+                addTo[ent.name] = [num: ent.num, buf: ent.data]
             }
             return true
         }
@@ -744,12 +747,7 @@ class A2PackPartitions
     {
         def ents = []
         addTo.each { name, ent ->
-            def buf = ent.buf
-            def uncompressedLen = buf.position()
-            def uncompressedData = new byte[uncompressedLen]
-            buf.position(0)
-            buf.get(uncompressedData)
-            ents << [name:name, num:ent.num, data:uncompressedData]
+            ents << [name:name, num:ent.num, data:ent.buf]
         }
         cache[kind] = [hash:hash, ents:ents]
     }
@@ -936,7 +934,7 @@ class A2PackPartitions
             def (scriptModule, locationsWithTriggers) = packScripts(mapEl, name, rows[0].size(), rows.size())
             def buf = ByteBuffer.allocate(50000)
             write3DMap(buf, name, rows, scriptModule, locationsWithTriggers)
-            maps3D[name] = [num:num, buf:buf]
+            maps3D[name] = [num:num, buf:compress(unwrapByteBuffer(buf))]
         }
     }
 
@@ -966,41 +964,27 @@ class A2PackPartitions
 
     def readBinary(path)
     {
-        def inBuf = new byte[256]
-        def outBuf = ByteBuffer.allocate(50000)
+        def f = new File(path)
+        def len = f.length()
         if (binaryStubsOnly)
-            return outBuf
+            return new byte[1]
+        def outBuf = new byte[len]
         new File(path).withInputStream { stream ->
-            while (true) {
-                def got = stream.read(inBuf)
-                if (got < 0) break
-                outBuf.put(inBuf, 0, got)
-            }
+            def got = stream.read(outBuf)
+            assert got == len
         }
         return outBuf
-    }
-
-    def readCode(name, path)
-    {
-        def num = code.size() + 1
-        //println "Reading code #$num from '$path'."
-        code[name] = [num:num, buf:readBinary(path)]
     }
 
     def readModule(name, path)
     {
         def num = modules.size() + 1
         //println "Reading module #$num from '$path'."
-        def bufObj = readBinary(path)
+        def buf = readBinary(path)
         if (binaryStubsOnly) {
             modules[name] = [num:num, buf:bufObj]
             return
         }
-
-        def bufLen = bufObj.position()
-        def buf = new byte[bufLen]
-        bufObj.position(0)
-        bufObj.get(buf)
 
         // Look for the magic header 0xDA7E =~ "DAVE"
         assert (buf[3] & 0xFF) == 0xDA
@@ -1187,24 +1171,18 @@ class A2PackPartitions
         }
         newFixup.add((byte)0xFF)
 
-        return [wrapByteArray(newAsmCode), wrapByteList(byteCode), wrapByteList(newFixup)]
-    }
-
-    def wrapByteArray(array) {
-        def buf = ByteBuffer.wrap(array)
-        buf.position(array.length)
-        return buf
+        return [compress(newAsmCode), compress(wrapByteList(byteCode)), compress(wrapByteList(newFixup))]
     }
 
     def wrapByteList(list) {
-        def arr = new byte[list.size]
+        byte[] arr = new byte[list.size]
         list.eachWithIndex { n, idx -> arr[idx] = (byte)n }
-        return wrapByteArray(arr)
+        return arr
     }
 
     def unwrapByteBuffer(buf) {
-        def len = buf.position()
-        def out = new byte[len]
+        int len = buf.position()
+        byte[] out = new byte[len]
         buf.position(0)
         buf.get(out)
         return out
@@ -1214,7 +1192,7 @@ class A2PackPartitions
     {
         def num = fonts.size() + 1
         //println "Reading font #$num from '$path'."
-        fonts[name] = [num:num, buf:readBinary(path)]
+        fonts[name] = [num:num, buf:compress(readBinary(path))]
     }
 
     static int uncompTotal = 0
@@ -1224,11 +1202,9 @@ class A2PackPartitions
 
     def compressionSavings = 0
 
-    def compress(buf)
+    def compress(uncompressedData)
     {
-        // First, grab the uncompressed data into a byte array
-        def uncompressedLen = buf.position()
-        def uncompressedData = unwrapByteBuffer(buf)
+        def uncompressedLen = uncompressedData.length
 
         // Now compress it with LX47
         assert uncompressedLen < 327678 : "data block too big"
@@ -1249,6 +1225,7 @@ class A2PackPartitions
         }
 
         // If we saved at least 10 bytes, take the compressed version.
+        // If we saved at least 10 bytes, take the compressed version.
         if ((uncompressedLen - compressedLen) >= 10) {
             if (debugCompression)
                 println String.format("  Compress. rawLen=\$%x compLen=\$%x", uncompressedLen, compressedLen)
@@ -1267,27 +1244,30 @@ class A2PackPartitions
     {
         // Make a list of all the chunks that will be in the partition
         def chunks = []
-        if (partNum == 1)
-            code.each { k,v -> chunks.add([type:TYPE_CODE, num:v.num, name:k, buf:compress(v.buf)]) }
+        if (partNum == 1) {
+            code.each { k,v ->
+                chunks.add([type:TYPE_CODE, num:v.num, name:k, buf:v.buf]) 
+            }
+        }
         modules.each { k, v ->
             if ((partNum==1 && v.num <= lastSysModule) || (partNum==2 && v.num > lastSysModule)) {
-                chunks.add([type:TYPE_MODULE,   num:v.num, name:k, buf:compress(v.buf)])
-                chunks.add([type:TYPE_BYTECODE, num:v.num, name:k, buf:compress(bytecodes[k].buf)])
-                chunks.add([type:TYPE_FIXUP,    num:v.num, name:k, buf:compress(fixups[k].buf)])
+                chunks.add([type:TYPE_MODULE,   num:v.num, name:k, buf:v.buf])
+                chunks.add([type:TYPE_BYTECODE, num:v.num, name:k, buf:bytecodes[k].buf])
+                chunks.add([type:TYPE_FIXUP,    num:v.num, name:k, buf:fixups[k].buf])
             }
         }
         if (partNum == 1) {
-            fonts.each     { k,v -> chunks.add([type:TYPE_FONT,        num:v.num, name:k, buf:compress(v.buf)]) }
-            frames.each    { k,v -> chunks.add([type:TYPE_SCREEN,      num:v.num, name:k, buf:compress(v.buf)]) }
+            fonts.each     { k,v -> chunks.add([type:TYPE_FONT,        num:v.num, name:k, buf:v.buf]) }
+            frames.each    { k,v -> chunks.add([type:TYPE_SCREEN,      num:v.num, name:k, buf:v.buf]) }
         }
         else if (partNum == 2) {
-            maps2D.each    { k,v -> chunks.add([type:TYPE_2D_MAP,      num:v.num, name:k, buf:compress(v.buf)]) }
-            tileSets.each  { k,v -> chunks.add([type:TYPE_TILE_SET,    num:v.num, name:k, buf:compress(v.buf)]) }
-            maps3D.each    { k,v -> chunks.add([type:TYPE_3D_MAP,      num:v.num, name:k, buf:compress(v.buf)]) }
-            textures.each  { k,v -> chunks.add([type:TYPE_TEXTURE_IMG, num:v.num, name:k, buf:compress(v.buf)]) }
+            maps2D.each    { k,v -> chunks.add([type:TYPE_2D_MAP,      num:v.num, name:k, buf:v.buf]) }
+            tileSets.each  { k,v -> chunks.add([type:TYPE_TILE_SET,    num:v.num, name:k, buf:v.buf]) }
+            maps3D.each    { k,v -> chunks.add([type:TYPE_3D_MAP,      num:v.num, name:k, buf:v.buf]) }
+            textures.each  { k,v -> chunks.add([type:TYPE_TEXTURE_IMG, num:v.num, name:k, buf:v.buf]) }
         }
         else if (partNum == 3)
-            portraits.each { k,v -> chunks.add([type:TYPE_PORTRAIT,    num:v.num, name:k, buf:compress(v.buf)]) }
+            portraits.each { k,v -> chunks.add([type:TYPE_PORTRAIT,    num:v.num, name:k, buf:v.buf]) }
 
         // Generate the header chunk. Leave the first 2 bytes for the # of pages in the hdr
         def hdrBuf = ByteBuffer.allocate(50000)
@@ -1476,7 +1456,7 @@ class A2PackPartitions
     def assembleCode(codeName, inDir)
     {
         if (binaryStubsOnly)
-            return addToCache("code", code, codeName, 1, ByteBuffer.allocate(1))
+            return addToCache("code", code, codeName, 1, new byte[1])
 
         inDir = "build/" + inDir
         def hash = getLastDep(new File(inDir, codeName + ".s"))
@@ -1489,13 +1469,18 @@ class A2PackPartitions
                          "-o", "build/" + codeName + ".b",
                          codeName + ".s"]
         runNestedvm(acme.Acme.class,  "ACME assembler", args, inDir, null, null)
-        addToCache("code", code, codeName, hash, readBinary(inDir + "build/" + codeName + ".b"))
+        def uncompData = readBinary(inDir + "build/" + codeName + ".b")
+
+        // Don't compress the loader and the decompressor; compress everything else.
+        addToCache("code", code, codeName, hash, 
+            (codeName ==~ /loader|decomp/) ? [data:uncompData, len:uncompData.length, compressed:false] :
+            compress(uncompData))
     }
 
     def assembleCore(inDir)
     {
         if (binaryStubsOnly)
-            return addToCache("sysCode", sysCode, "core", 1, ByteBuffer.allocate(1))
+            return addToCache("sysCode", sysCode, "core", 1, new byte[1])
 
         // Read in all the parts of the LegendOS core system and combine them together
         // with block headers.
@@ -1503,33 +1488,36 @@ class A2PackPartitions
         new File(inDir + "build").mkdirs()
         def outBuf = ByteBuffer.allocate(50000)
         ["loader", "decomp", "PRORWTS", "PLVM02", "mem"].each { name ->
-            def code
-            if (name == "PRORWTS")
-                code = readBinary(jitCopy(new File("build/tools/ProRWTS/PRORWTS2#4000")).toString())
-            else if (name == "PLVM02")
-                code = readBinary(jitCopy(new File("build/tools/PLASMA/src/PLVM02#4000")).toString())
+            def hash
+            if (name ==~ /PRORWTS|PLVM02/) {
+                // Pre-assembled (externally); just read the result.
+                def file = jitCopy(new File("build/tools/${name=="PRORWTS" ? "ProRWTS/PRORWTS2" : "PLASMA/src/PLVM02"}#4000"))
+                hash = file.lastModified()
+                if (!grabFromCache("sysCode", sysCode, name, hash))
+                  addToCache("sysCode", sysCode, name, hash, compress(readBinary(file.toString())))
+            }
             else {
-                def hash = getLastDep(new File(inDir, "${name}.s"))
+                hash = getLastDep(new File(inDir, "${name}.s"))
                 if (!grabFromCache("sysCode", sysCode, name, hash)) {
                     println "Assembling ${name}.s"
                     String[] args = ["acme", "-o", "build/$name", "${name}.s"]
                     runNestedvm(acme.Acme.class,  "ACME assembler", args, inDir, null, null)
-                    addToCache("sysCode", sysCode, name, hash, readBinary(inDir + "build/$name"))
+                    addToCache("sysCode", sysCode, name, hash, compress(readBinary(inDir + "build/$name")))
                 }
-                code = sysCode[name].buf
             }
-            def compressed = (name ==~ /loader|decomp/) ?
-                code : wrapByteArray(compressor.compress(unwrapByteBuffer(code)))
+
+            def code = sysCode[name].buf
             if (name != "loader") {
                 // Uncompressed size first
-                outBuf.put((byte) (code.position() & 0xFF))
-                outBuf.put((byte) (code.position() >> 8))
+                def uclen = code.isCompressed ? code.uncompressedLen : code.len
+                outBuf.put((byte) (uclen & 0xFF))
+                outBuf.put((byte) (uclen >> 8))
                 // Then compressed size
-                outBuf.put((byte) (compressed.position() & 0xFF))
-                outBuf.put((byte) (compressed.position() >> 8))
+                def clen = code.isCompressed ? code.compressedLen : code.len
+                outBuf.put((byte) (clen & 0xFF))
+                outBuf.put((byte) (clen >> 8))
             }
-            compressed.flip()
-            outBuf.put(compressed)
+            outBuf.put(code.data)
         }
 
         // Write out the result
@@ -1541,7 +1529,7 @@ class A2PackPartitions
     def compileModule(moduleName, codeDir, verbose = true)
     {
         if (binaryStubsOnly)
-            return addToCache("modules", modules, moduleName, 1, ByteBuffer.allocate(1))
+            return addToCache("modules", modules, moduleName, 1, new byte[1])
 
         codeDir = "build/" + codeDir
         def hash = getLastDep(new File(codeDir + moduleName + ".pla"))
@@ -1769,8 +1757,8 @@ class A2PackPartitions
             uiFrameImgs.each { image -> packFrameImage(image) }
             fullscreenImgs.each { image -> packFrameImage(image) }
             frames.each { name, frame ->
-                frame.buf = frame.anim.pack()
-                frame.anim = null
+                frame.buf = compress(frame.anim.pack())
+                frame.remove('anim')
             }
             addEntireToCache("frames", frames, hash)
         }
@@ -1780,7 +1768,7 @@ class A2PackPartitions
             println "Packing textures."
             textureImgs.each { image -> packTexture(image) }
             textures.each { name, texture ->
-                texture.buf = texture.anim.pack()
+                texture.buf = compress(texture.anim.pack())
                 texture.anim = null
             }
             addEntireToCache("textures", textures, hash)
@@ -1791,7 +1779,7 @@ class A2PackPartitions
             println "Packing portraits."
             portraitImgs.each { image -> packPortrait(image) }
             portraits.each { name, portrait ->
-                portrait.buf = portrait.anim.pack()
+                portrait.buf = compress(portrait.anim.pack())
                 portrait.anim = null
             }
             addEntireToCache("portraits", portraits, hash)
@@ -1814,6 +1802,11 @@ class A2PackPartitions
                 pack3DMap(map, dataIn.tile)
             else
                 printWarning "map name '${map?.@name}' should contain '2D' or '3D'. Skipping."
+        }
+
+        // Now that the tileSets are complete, compress them.
+        tileSets.each { name, tileSet ->
+            tileSet.buf = compress(unwrapByteBuffer(tileSet.buf))
         }
 
         // Ready to write the output file.
@@ -3643,7 +3636,7 @@ end
                 outBuf.put((byte)0)
                 buffers[0].flip()  // crazy stuff to append one buffer to another
                 outBuf.put(buffers[0])
-                return outBuf
+                return unwrapByteBuffer(outBuf)
             }
 
             // At start of buffer, put offset to animation header, then the first frame
@@ -3674,7 +3667,7 @@ end
             }
 
             // All done.
-            return outBuf
+            return unwrapByteBuffer(outBuf)
         }
 
         def makePatch(ByteBuffer inBuf, ByteBuffer refBuf, ByteBuffer outBuf)

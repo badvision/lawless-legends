@@ -4,7 +4,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<AnchorPane id="mapsTab" minHeight="0.0" minWidth="0.0" prefHeight="480.0" prefWidth="677.0" stylesheets="@styles/applicationui.css" xmlns="http://javafx.com/javafx/8.0.40" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.badvision.outlaweditor.ui.impl.MapEditorTabControllerImpl">
+<AnchorPane id="mapsTab" minHeight="0.0" minWidth="0.0" prefHeight="480.0" prefWidth="677.0" stylesheets="@styles/applicationui.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.badvision.outlaweditor.ui.impl.MapEditorTabControllerImpl">
     <children>
         <VBox prefHeight="200.0" prefWidth="100.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
             <children>
@@ -42,14 +42,9 @@
                             <children>
                                 <Label text="Name" AnchorPane.leftAnchor="4.0" AnchorPane.topAnchor="14.0" />
                                 <TextField id="mapNameFiled" fx:id="mapNameField" layoutX="53.0" layoutY="11.0" prefWidth="147.0" />
-                                <TextField fx:id="mapWidthField" layoutX="53.0" layoutY="45.0" prefWidth="147.0" />
-                                <Label layoutX="4.0" layoutY="50.0" prefHeight="16.0" prefWidth="42.0" text="Width" />
-                                <TextField fx:id="mapHeightField" layoutX="53.0" layoutY="79.0" prefWidth="147.0" />
-                                <Label layoutX="4.0" layoutY="84.0" prefHeight="16.0" prefWidth="42.0" text="Height" />
-                                <CheckBox fx:id="mapWrapAround" contentDisplay="RIGHT" layoutX="25.0" layoutY="111.0" mnemonicParsing="false" text="Wrap at edges" />
                                 <Separator layoutX="6.0" layoutY="140.0" prefWidth="189.0" />
                                 <Label layoutX="4.0" layoutY="141.0" text="Scripts" />
-                                <ScrollPane fitToHeight="true" fitToWidth="true" layoutY="171.0" prefHeight="133.0" prefWidth="201.0" AnchorPane.bottomAnchor="114.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="195.0">
+                                <ScrollPane fitToHeight="true" fitToWidth="true" layoutY="171.0" prefHeight="133.0" prefWidth="201.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="195.0">
                                     <content>
                                         <AnchorPane id="Content" minHeight="0.0" minWidth="0.0" prefHeight="95.0" prefWidth="198.0">
                                             <children>
@@ -64,7 +59,11 @@
                                         <Button mnemonicParsing="false" onAction="#onMapScriptDeletePressed" text="-" />
                                         <Button mnemonicParsing="false" onAction="#onMapScriptClonePressed" text="Clone" /><Button fx:id="scriptEraseTool" mnemonicParsing="false" prefHeight="34.0" prefWidth="29.0" styleClass="eraseButton" text="E" />
                                     </items>
-                                </ToolBar><TextArea fx:id="scriptInfo" editable="false" layoutY="340.0" prefHeight="100.0" prefWidth="200.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" />
+                                </ToolBar>
+                        <Label layoutX="4.0" layoutY="49.0" text="Order" />
+                        <TextField fx:id="mapOrderField" layoutX="53.0" layoutY="44.0" prefHeight="27.0" prefWidth="45.0" />
+                        <Label layoutX="4.0" layoutY="83.0" text="Display" />
+                        <CheckBox fx:id="mapDisplay3dField" layoutX="54.0" layoutY="83.0" mnemonicParsing="false" text="3D" />
                             </children>
                         </AnchorPane>
                         <AnchorPane fx:id="mapEditorAnchorPane" prefHeight="389.0" prefWidth="477.0000999999975" HBox.hgrow="SOMETIMES">

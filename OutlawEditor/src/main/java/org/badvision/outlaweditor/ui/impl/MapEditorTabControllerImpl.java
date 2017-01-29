@@ -12,6 +12,8 @@ package org.badvision.outlaweditor.ui.impl;
 import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
@@ -35,6 +37,7 @@ import org.badvision.outlaweditor.api.ApplicationState;
 import org.badvision.outlaweditor.data.DataUtilities;
 import static org.badvision.outlaweditor.data.PropertyHelper.bind;
 import static org.badvision.outlaweditor.data.PropertyHelper.stringProp;
+import static org.badvision.outlaweditor.data.PropertyHelper.boolProp;
 import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.xml.Map;
 import org.badvision.outlaweditor.data.xml.Script;
@@ -288,14 +291,12 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
             getCurrentEditor().unregister();
         }
         if (m == null) {
-            bind(mapHeightField.textProperty(), null);
             bind(mapNameField.textProperty(), null);
-            bind(mapWidthField.textProperty(), null);
-            bind(mapWrapAround.selectedProperty(), null);
-            mapHeightField.setDisable(true);
+            bind(mapOrderField.textProperty(), null);
+            bind(mapDisplay3dField.selectedProperty(), null);
             mapNameField.setDisable(true);
-            mapWidthField.setDisable(true);
-            mapWrapAround.setDisable(true);
+            mapOrderField.setDisable(true);
+            mapDisplay3dField.setDisable(true);
             setCurrentEditor(null);
         } else {
             if (m.getScripts() != null) {
@@ -311,15 +312,13 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
                 m.setName("Untitled");
             }
             try {
-                mapHeightField.setDisable(false);
                 mapNameField.setDisable(false);
-                mapWidthField.setDisable(false);
-                mapWrapAround.setDisable(false);
-//                bind(mapHeightField.textProperty(), intProp(m, "height"));
+                mapOrderField.setDisable(false);
+                mapDisplay3dField.setDisable(false);
                 bind(mapNameField.textProperty(), stringProp(m, "name"));
-//                bind(mapWidthField.textProperty(), intProp(m, "width"));
-//                bind(mapWrapAround.selectedProperty(),boolProp(m, "wrap"));
-
+                bind(mapOrderField.textProperty(), stringProp(m, "order"));
+                // Currently broken due to code generation bug in jaxb:
+                //bind(mapDisplay3dField.selectedProperty(), boolProp(m, "display3d"));
             } catch (NoSuchMethodException ex) {
                 Logger.getLogger(ApplicationUIControllerImpl.class
                         .getName()).log(Level.SEVERE, null, ex);

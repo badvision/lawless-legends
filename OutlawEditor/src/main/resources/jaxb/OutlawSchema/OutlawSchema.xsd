@@ -94,8 +94,10 @@
                 <xs:attribute name="name" type="xs:string"/>
                 <xs:attribute name="width" type="xs:int"/>
                 <xs:attribute name="height" type="xs:int"/>
+                <xs:attribute name="order" type="xs:string" default="1"/>
                 <xs:attribute name="category" type="xs:string"/>
                 <xs:attribute name="wrap" type="xs:boolean" default="false"/>
+                <xs:attribute name="display3d" type="xs:boolean"/>
                 <xs:attribute name="startX" type="xs:int" default="0"/>
                 <xs:attribute name="startY" type="xs:int" default="0"/>
             </xs:extension>

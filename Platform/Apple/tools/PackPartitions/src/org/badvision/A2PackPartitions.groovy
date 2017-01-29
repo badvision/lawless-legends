@@ -1471,10 +1471,7 @@ class A2PackPartitions
         runNestedvm(acme.Acme.class,  "ACME assembler", args, inDir, null, null)
         def uncompData = readBinary(inDir + "build/" + codeName + ".b")
 
-        // Don't compress the loader and the decompressor; compress everything else.
-        addToCache("code", code, codeName, hash, 
-            (codeName ==~ /loader|decomp/) ? [data:uncompData, len:uncompData.length, compressed:false] :
-            compress(uncompData))
+        addToCache("code", code, codeName, hash, compress(uncompData))
     }
 
     def assembleCore(inDir)
@@ -1502,18 +1499,23 @@ class A2PackPartitions
                     println "Assembling ${name}.s"
                     String[] args = ["acme", "-o", "build/$name", "${name}.s"]
                     runNestedvm(acme.Acme.class,  "ACME assembler", args, inDir, null, null)
-                    addToCache("sysCode", sysCode, name, hash, compress(readBinary(inDir + "build/$name")))
+                    def uncompData = readBinary(inDir + "build/$name")
+                    // Don't compress the loader and the decompressor; compress mem mgr.
+                    addToCache("sysCode", sysCode, name, hash,
+                        (name ==~ /loader|decomp/) ? [data:uncompData, len:uncompData.length, compressed:false]
+                                                   : compress(uncompData))
                 }
             }
 
             def code = sysCode[name].buf
             if (name != "loader") {
+                assert code.compressed || name == "decomp"
                 // Uncompressed size first
-                def uclen = code.isCompressed ? code.uncompressedLen : code.len
+                def uclen = code.compressed ? code.uncompressedLen : code.len
                 outBuf.put((byte) (uclen & 0xFF))
                 outBuf.put((byte) (uclen >> 8))
                 // Then compressed size
-                def clen = code.isCompressed ? code.compressedLen : code.len
+                def clen = code.len
                 outBuf.put((byte) (clen & 0xFF))
                 outBuf.put((byte) (clen >> 8))
             }
@@ -2733,8 +2735,8 @@ end
                 inst.createFloppyImages()
             }
             catch (Throwable t) {
-                reportWriter.println "Packing error: ${t.message}"
-                reportWriter.println "       detail: $t"
+                reportWriter.println "Packing error:\n${t.message}"
+                reportWriter.println "       detail:\n$t"
                 if (inst) {
                     reportWriter.println "\nContext:"
                     reportWriter.println "    ${inst.getContextStr()}"

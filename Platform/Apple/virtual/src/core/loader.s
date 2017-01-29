@@ -43,6 +43,7 @@ init	; Put something interesting on the screen :)
 	jsr ROM_cout
 	iny
 	bne -
+	beq +
 .welcomeText: !text "Welcome to LegendOS.",$8D,0
 ; Init pointer to blocks we're going to move/decompress
 +	lda #<dataStart

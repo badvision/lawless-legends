@@ -50,8 +50,6 @@ public abstract class MapEditorTabController {
 
     @FXML // fx:id="mapEditorAnchorPane"
     protected AnchorPane mapEditorAnchorPane; // Value injected by FXMLLoader
-    @FXML // fx:id="mapHeightField"
-    protected TextField mapHeightField; // Value injected by FXMLLoader
     @FXML // fx:id="mapNameField"
     protected TextField mapNameField; // Value injected by FXMLLoader
     @FXML // fx:id="mapScriptsList"
@@ -60,10 +58,10 @@ public abstract class MapEditorTabController {
     protected ComboBox<Map> mapSelect; // Value injected by FXMLLoader
     @FXML
     protected Menu mapSelectTile;
-    @FXML // fx:id="mapWidthField"
-    protected TextField mapWidthField; // Value injected by FXMLLoader
-    @FXML // fx:id="mapWrapAround"
-    protected CheckBox mapWrapAround; // Value injected by FXMLLoader
+    @FXML // fx:id="mapOrderField"
+    protected TextField mapOrderField; // Value injected by FXMLLoader
+    @FXML // fx:id="mapDisplay3dField"
+    protected CheckBox mapDisplay3dField; // Value injected by FXMLLoader
     @FXML
     protected Button scriptEraseTool;
     @FXML
@@ -151,14 +149,13 @@ public abstract class MapEditorTabController {
 
     public void initalize() {
         assert mapEditorAnchorPane != null : "fx:id=\"mapEditorAnchorPane\" was not injected: check your FXML file 'mapEditorTab.fxml'.";
-        assert mapHeightField != null : "fx:id=\"mapHeightField\" was not injected: check your FXML file 'mapEditorTab.fxml'.";
         assert mapNameField != null : "fx:id=\"mapNameField\" was not injected: check your FXML file 'mapEditorTab.fxml'.";
         assert mapScriptsList != null : "fx:id=\"mapScriptsList\" was not injected: check your FXML file 'mapEditorTab.fxml'.";
         assert mapSelect != null : "fx:id=\"mapSelect\" was not injected: check your FXML file 'mapEditorTab.fxml'.";
         assert mapSelectTile != null : "fx:id=\"mapSelectTile\" was not injected: check your FXML file 'mapEditorTab.fxml'.";
-        assert mapWidthField != null : "fx:id=\"mapWidthField\" was not injected: check your FXML file 'mapEditorTab.fxml'.";
-        assert mapWrapAround != null : "fx:id=\"mapWrapAround\" was not injected: check your FXML file 'mapEditorTab.fxml'.";
+        assert mapOrderField != null : "fx:id=\"mapOrderField\" was not injected: check your FXML file 'mapEditorTab.fxml'.";
         assert cursorInfo != null : "fx:id=\"cursorInfo\" was not injected: check your FXML file 'imageEditorTab.fxml'.";
+        assert mapDisplay3dField != null : "fx:id=\"mapDisplay3dField\" was not injected: check your FXML file 'mapEditorTab.fxml'.";
     }
 
     abstract public void rebuildTileSelectors();

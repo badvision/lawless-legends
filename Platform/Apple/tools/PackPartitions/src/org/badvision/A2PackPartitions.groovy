@@ -22,6 +22,7 @@ import java.nio.file.Files
 import java.util.zip.GZIPInputStream
 import java.security.MessageDigest
 import javax.xml.bind.DatatypeConverter
+import groovy.json.JsonOutput
 
 /**
  *
@@ -93,6 +94,7 @@ class A2PackPartitions
     def memUsage3D = []
     def chunkSizes = [:]
 
+    def curMapName = null
     def resourceDeps = [:]
 
     def stats = [
@@ -608,24 +610,28 @@ class A2PackPartitions
         def texMap = [:]
         def texList = []
         def texFlags = []
+        def texNames = [] as Set
         rows.each { row ->
             row.each { tile ->
                 def id = tile?.@id
                 def name = tile?.@name
+                if (name != null)
+                    name = stripName(name)
                 if (!texMap.containsKey(id)) {
-                    if (name == null || name.toLowerCase() =~ /street|blank|null/)
+                    if (name == null || name =~ /street|blank|null/)
                         texMap[id] = 0
-                    else if (stripName(name) in textures) {
+                    else if (name in textures) {
                         def flags = 1
                         if (tile?.@obstruction == 'true')
                             flags |= 2
                         if (tile?.@blocker == 'true')
                             flags |= 4
-                        texList.add(textures[stripName(name)].num)
+                        texList.add(textures[name].num)
                         texFlags.add(flags)
                         texMap[id] = texList.size()
                         if (tile?.@sprite == 'true')
                             texMap[id] |= 0x80; // hi-bit flag to mark sprite cells
+                        texNames << name
                     }
                     else if (id) {
                         printWarning("can't match tile name '$name' to any image; treating as blank.")
@@ -641,19 +647,6 @@ class A2PackPartitions
 
         // Followed by script module num
         buf.put((byte)scriptModule)
-
-        // Document memory usage so user can make intelligent choices about what/when to cut
-        def gameloopSize = bytecodes['gameloop'].buf.uncompressedLen
-        def mapScriptsSize = bytecodes[makeScriptName(mapName)].buf.uncompressedLen
-        def mapTexturesSize = texList.size() * 0x555
-        def totalAux = gameloopSize + mapScriptsSize + mapTexturesSize
-        def safeLimit = 34 * 1024
-        memUsage3D << String.format("%-20s: %4.1fK of %4.1fK used: %4.1fK scripts, %4.1fK in %2d textures, %4.1fK overhead%s",
-            mapName, totalAux/1024.0, safeLimit/1024.0,
-            mapScriptsSize/1024.0, mapTexturesSize/1024.0, texList.size(), gameloopSize/1024.0,
-            totalAux > safeLimit ? " [WARNING]" : "")
-        if (totalAux > safeLimit)
-            printWarning "memory will be dangerously full; see pack_report.txt for details."
 
         // Followed by the list of textures
         texList.each { buf.put((byte)it) }
@@ -679,6 +672,22 @@ class A2PackPartitions
 
         // Sentinel row of $FF at end of map
         (0..<width).each { buf.put((byte)0xFF) }
+
+        // Document memory usage so user can make intelligent choices about what/when to cut
+        def gameloopSize = bytecodes['gameloop'].buf.uncompressedLen
+        def mapScriptsSize = bytecodes[makeScriptName(mapName)].buf.uncompressedLen
+        def mapTexturesSize = texList.size() * 0x555
+        def totalAux = gameloopSize + mapScriptsSize + mapTexturesSize
+        def safeLimit = 34 * 1024
+        memUsage3D << String.format("%-20s: %4.1fK of %4.1fK used: %4.1fK scripts, %4.1fK in %2d textures, %4.1fK overhead%s",
+            mapName, totalAux/1024.0, safeLimit/1024.0,
+            mapScriptsSize/1024.0, mapTexturesSize/1024.0, texList.size(), gameloopSize/1024.0,
+            totalAux > safeLimit ? " [WARNING]" : "")
+        if (totalAux > safeLimit)
+            printWarning "memory will be dangerously full; see pack_report.txt for details."
+
+        // Record texture dependencies
+        texNames.each { addMapDep("texture", it) }
     }
 
     // The renderer wants bits of the two pixels interleaved in a special way.
@@ -891,6 +900,9 @@ class A2PackPartitions
             tileSets["tileSet${setNum}"] = tileSet
         }
 
+        addMapDep("tileSet", "tileSet${setNum}")
+        addMapDep("tileSet", "tileSet_special")  // each map requires the global tileset as well
+
         // Start by assuming we'll create a new tileset
         def tileMap = tileSet.tileMap
         def buf = tileSet.buf
@@ -952,6 +964,7 @@ class A2PackPartitions
         def num = modules.size() + 1
         def name = makeScriptName(mapName)
         //println "Packing scripts for map $mapName, to module $num."
+        addMapDep("script", name)
 
         def scriptDir = "build/src/mapScripts/"
         if (!new File(scriptDir).exists())
@@ -1708,6 +1721,20 @@ class A2PackPartitions
         }
     }
 
+    def addResourceDep(fromType, fromName, toType, toName)
+    {
+        def fromKey = [fromType, fromName]
+        if (!resourceDeps.containsKey(fromKey))
+            resourceDeps[fromKey] = [] as Set
+        resourceDeps[fromKey] << [toType, toName]
+    }
+
+    def addMapDep(toType, toName)
+    {
+        assert curMapName != null
+        addResourceDep("map", curMapName, toType, toName)
+    }
+
     def pack(xmlPath, dataIn)
     {
         // Save time by using cache of previous run
@@ -1810,12 +1837,14 @@ class A2PackPartitions
         // Pack each map. This uses the image and tile maps filled earlier.
         println "Packing maps and scripts."
         dataIn.map.each { map ->
+            curMapName = map.@name
             if (map?.@name =~ /2D/)
                 pack2DMap(map, dataIn.tile)
             else if (map?.@name =~ /3D/)
                 pack3DMap(map, dataIn.tile)
             else
                 printWarning "map name '${map?.@name}' should contain '2D' or '3D'. Skipping."
+            curMapName = null
         }
 
         // Now that the tileSets are complete, compress them.
@@ -1842,6 +1871,8 @@ class A2PackPartitions
 
         if (debugCompression)
             println "Compression savings: $compressionSavings"
+
+        println("rdeps - phase 2:" + JsonOutput.prettyPrint(JsonOutput.toJson(resourceDeps)))
 
         // And save the cache for next time.
         writeCache()
@@ -1969,6 +2000,18 @@ class A2PackPartitions
                         "${parseDice(groupSize)}, " +
                         "${parseDice(goldLoot)})")
             out.println("end")
+
+            // Add portrait dependencies based on encounter zone(s)
+            def codesString = row.@"map-code"
+            if (codesString != null && codesString.length() > 0)
+            {
+                codesString.replace("\"", "").split(",").collect{it.trim()}.grep{it!=""}.each { code ->
+                    code = code.toLowerCase()
+                    addResourceDep("encounterZone", code, "portrait", image1)
+                    if (image2.size() > 0)
+                        addResourceDep("encounterZone", code, "portrait", image2)
+                }
+            }
         }
     }
 
@@ -2006,7 +2049,8 @@ class A2PackPartitions
                 // Figure out the mapping between "map code" and "enemy", and output the table for that
                 def codeToFunc = [:]
                 sheet.rows.row.each { row ->
-                    addCodeToFunc("_NEn_${humanNameToSymbol(row.@name, false)}", row.@"map-code", codeToFunc) }
+                    addCodeToFunc("_NEn_${humanNameToSymbol(row.@name, false)}", row.@"map-code", codeToFunc) 
+                }
                 outCodeToFuncTbl("mapCode_", codeToFunc, out)
 
                 // Helper function to fill in the Enemy data structure
@@ -2486,6 +2530,7 @@ end
             found << name
             gsmod.packGlobalScript(new File("build/src/plasma/gs_${name}.pla.new"), script)
             replaceIfDiff("build/src/plasma/gs_${name}.pla")
+            addMapDep("globalFunc", name)
         }
 
         // There are a couple of required global funcs
@@ -2569,9 +2614,11 @@ end
         numberMaps(dataIn)
         numberAvatars(dataIn)
 
-        // Translate global scripts to code
+        // Translate global scripts to code. Record their deps as system-level.
+        curMapName = "<root>"
         recordGlobalScripts(dataIn)
         genAllGlobalScripts(dataIn.global.scripts.script)
+        curMapName = null
 
         // Translate enemies, weapons, etc. to code
         genAllEnemies(dataIn.global.sheets.sheet.find { it?.@name.equalsIgnoreCase("enemies") })
@@ -2739,8 +2786,12 @@ end
                 inst.reportWriter = reportWriter
                 inst.dataGen(xmlFile, dataIn)
 
+                // Save the partial resource deps
+                def resourceDeps = inst.resourceDeps
+
                 // Pack everything into a binary file
                 inst = new A2PackPartitions() // make a new one without stubs
+                inst.resourceDeps = resourceDeps // inject partial deps
                 inst.buildDir = buildDir
                 inst.reportWriter = reportWriter
                 inst.pack(xmlFile, dataIn)
@@ -3227,6 +3278,8 @@ end
                     out << "0"
             }
             out << ")\n"
+
+            addMapDep("globalFunc", humanName)
         }
 
         def packGetStat(blk)
@@ -3448,6 +3501,7 @@ end
                 return
             }
             outIndented("setPortrait(PO${humanNameToSymbol(portraitName, false)})\n")
+            addMapDep("portrait", portraitName)
         }
 
         def packSetFullscreen(blk)
@@ -3458,6 +3512,7 @@ end
                 return
             }
             outIndented("loadFrameImg(PF${humanNameToSymbol(imgName, false)})\n")
+            addMapDep("fullscreen", imgName)
         }
 
         def packClrPortrait(blk)
@@ -3526,6 +3581,7 @@ end
             def chance = (int)(blk.field[4].text().toFloat() * 10.0)
             assert chance > 0 && chance <= 1000
             outIndented("addEncounterZone(${escapeString(code)}, $x, $y, $maxDist, $chance)\n")
+            addMapDep("encounterZone", code.toLowerCase())
         }
 
         def packClrEncounterZones(blk)

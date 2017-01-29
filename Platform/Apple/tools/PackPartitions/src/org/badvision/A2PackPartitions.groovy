@@ -2014,7 +2014,7 @@ class A2PackPartitions
 def makeEnemy(name, hDice, img0, img1, attType, attText, attRange, chanceToHit, dmg, groupSize, goldLoot)
   word p; p = mmgr(HEAP_ALLOC, TYPE_ENEMY)
   p=>s_name = mmgr(HEAP_INTERN, name)
-  p=>w_health = rollDice(hDice) // 4d6
+  p=>w_health = rollDice(hDice) // e.g. 4d6
   if !img1 or (rand16() % 2)
     p->b_image = img0
   else
@@ -2155,7 +2155,7 @@ end
             "${parseByteAttr(row, "stamina")}, " +
             "${parseByteAttr(row, "charisma")}, " +
             "${parseByteAttr(row, "spirit")}, " +
-            "${parseByteAttr(row, "luck")}), " +
+            "${parseByteAttr(row, "luck")}), " + // ")" ==> this is the split between pt1 and pt2
             "${parseWordAttr(row, "health")}, " +
             "${parseByteAttr(row, "aiming")}, " +
             "${parseByteAttr(row, "hand-to-hand")}, " +

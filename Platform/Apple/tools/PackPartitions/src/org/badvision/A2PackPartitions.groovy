@@ -93,6 +93,8 @@ class A2PackPartitions
     def memUsage3D = []
     def chunkSizes = [:]
 
+    def resourceDeps = [:]
+
     def stats = [
         "intelligence": "@S_INTELLIGENCE",
         "strength":     "@S_STRENGTH",
@@ -168,7 +170,8 @@ class A2PackPartitions
         inStr.eachWithIndex { ch, idx ->
             if (!stop) {
                 if (count >= 255) {
-                    printWarning("String must be 254 characters or less. Everything after the following will be discarded: '${inStr[0..idx]}'")
+                    printWarning("String must be 254 characters or less. " +
+                        "Everything after the following will be discarded: '${inStr[0..idx]}'")
                     stop = true
                 }
                 else if (ch == '^') {
@@ -1348,7 +1351,8 @@ class A2PackPartitions
             def errStr = errBuf.toString("UTF-8")
             if (errStr.length() > 0)
                 errStr = "\nError output:\n" + errStr + "-----\n"
-            throw new Exception("$programName (cd $inDir && ${args.join(' ')}) < $inFile > $outFile failed with code $result." + errStr)
+            throw new Exception(
+                "$programName (cd $inDir && ${args.join(' ')}) < $inFile > $outFile failed with code $result." + errStr)
         }
     }
 
@@ -1488,7 +1492,8 @@ class A2PackPartitions
             def hash
             if (name ==~ /PRORWTS|PLVM02/) {
                 // Pre-assembled (externally); just read the result.
-                def file = jitCopy(new File("build/tools/${name=="PRORWTS" ? "ProRWTS/PRORWTS2" : "PLASMA/src/PLVM02"}#4000"))
+                def file = jitCopy(
+                    new File("build/tools/${name=="PRORWTS" ? "ProRWTS/PRORWTS2" : "PLASMA/src/PLVM02"}#4000"))
                 hash = file.lastModified()
                 if (!grabFromCache("sysCode", sysCode, name, hash))
                   addToCache("sysCode", sysCode, name, hash, compress(readBinary(file.toString())))
@@ -1637,11 +1642,13 @@ class A2PackPartitions
 
     def reportSizes()
     {
-        reportWriter.println "\n================================= Memory usage of 3D maps =====================================\n"
+        reportWriter.println(
+            "\n================================= Memory usage of 3D maps =====================================\n")
         memUsage3D.each { reportWriter.println it }
         reportWriter.println ""
 
-        reportWriter.println "================================= Resource Sizes ====================================="
+        reportWriter.println(
+            "================================= Resource Sizes =====================================")
         def data = [:]
         chunkSizes.each { k,v ->
             assert typeNumToName.containsKey(k.type)
@@ -1669,21 +1676,26 @@ class A2PackPartitions
         }.each { k ->
             def v = data[k]
             if (prevType != k.type) {
-                if (prevType)
-                    reportWriter.println String.format("%-22s: %6.1fK memory, %6.1fK disk", "Subtotal", ucSub/1024.0, cSub/1024.0)
+                if (prevType) {
+                    reportWriter.println String.format("%-22s: %6.1fK memory, %6.1fK disk", 
+                        "Subtotal", ucSub/1024.0, cSub/1024.0)
+                }
                 reportWriter.println("\n${k.type} resources:")
                 prevType = k.type
                 cSub = 0
                 ucSub = 0
             }
-            reportWriter.println String.format("  %-20s: %6.1fK memory, %6.1fK disk", k.name, v.uclen/1024.0, v.clen/1024.0)
+            reportWriter.println String.format("  %-20s: %6.1fK memory, %6.1fK disk", 
+                k.name, v.uclen/1024.0, v.clen/1024.0)
             cSub += v.clen
             cTot += v.clen
             ucSub += v.uclen
             ucTot += v.uclen
         }
-        reportWriter.println String.format("%-22s: %6.1fK memory, %6.1fK disk", "Subtotal", ucSub/1024.0, cSub/1024.0)
-        reportWriter.println String.format("\n%-22s: %6.1fK memory, %6.1fK disk", "GRAND TOTAL", ucTot/1024.0, cTot/1024.0)
+        reportWriter.println String.format("%-22s: %6.1fK memory, %6.1fK disk", 
+            "Subtotal", ucSub/1024.0, cSub/1024.0)
+        reportWriter.println String.format("\n%-22s: %6.1fK memory, %6.1fK disk", 
+            "GRAND TOTAL", ucTot/1024.0, cTot/1024.0)
     }
 
     def countArgs(script) {
@@ -1999,18 +2011,18 @@ class A2PackPartitions
 
                 // Helper function to fill in the Enemy data structure
                 out.println("""
-def makeEnemy(name, healthDice, image0, image1, attackType, attackText, attackRange, chanceToHit, dmg, groupSize, goldLoot)
+def makeEnemy(name, hDice, img0, img1, attType, attText, attRange, chanceToHit, dmg, groupSize, goldLoot)
   word p; p = mmgr(HEAP_ALLOC, TYPE_ENEMY)
   p=>s_name = mmgr(HEAP_INTERN, name)
-  p=>w_health = rollDice(healthDice) // 4d6
-  if !image1 or (rand16() % 2)
-    p->b_image = image0
+  p=>w_health = rollDice(hDice) // 4d6
+  if !img1 or (rand16() % 2)
+    p->b_image = img0
   else
-    p->b_image = image1
+    p->b_image = img1
   fin
-  p->b_attackType = attackType
-  p=>s_attackText = mmgr(HEAP_INTERN, attackText)
-  p->b_enemyAttackRange = attackRange
+  p->b_attackType = attType
+  p=>s_attackText = mmgr(HEAP_INTERN, attText)
+  p->b_enemyAttackRange = attRange
   p->b_chanceToHit = chanceToHit
   p=>r_enemyDmg = dmg
   p=>r_groupSize = groupSize
@@ -2182,7 +2194,8 @@ end
     {
         codeToFunc.sort().each { code, funcs ->
             funcs.eachWithIndex { func, index ->
-                out.println("${index==0 ? "word[] $prefix${humanNameToSymbol(code, false)} = " : "word         = "}@$func")
+                out.println(
+                    "${index==0 ? "word[] $prefix${humanNameToSymbol(code, false)} = " : "word         = "}@$func")
             }
             out.println()
         }
@@ -2626,7 +2639,8 @@ end
         // Decompress the base image.
         // No need to delete old file; that was done by outer-level code.
         def dst = new File("game.2mg")
-        Files.copy(new GZIPInputStream(new FileInputStream(jitCopy(new File("build/data/disks/base_800k.2mg.gz")))), dst.toPath())
+        Files.copy(new GZIPInputStream(new FileInputStream(
+            jitCopy(new File("build/data/disks/base_800k.2mg.gz")))), dst.toPath())
 
         // Now put the files into the image
         String[] args = ["-put", "game.2mg", "/", "build/root"]
@@ -2660,7 +2674,8 @@ end
 
             // Unzip a fresh empty disk image
             def dst = new File("game${i}.dsk")
-            Files.copy(new GZIPInputStream(new FileInputStream(jitCopy(new File("build/data/disks/base_140k.dsk.gz")))), dst.toPath())
+            Files.copy(new GZIPInputStream(new FileInputStream(
+                jitCopy(new File("build/data/disks/base_140k.dsk.gz")))), dst.toPath())
 
             // Now put the files into the image
             String[] args = ["-put", "game${i}.dsk", "/", "build/root${i}"]
@@ -3163,7 +3178,8 @@ end
             def amount = blk.field[1].text().toInteger()
             assert amount > 0 && amount < 32767
             def stat = nameToStat(name)
-            outIndented("setStat($stat, getStat($stat) ${blk.@type == 'interaction_increase_stat' ? '+' : '-'} $amount)\n")
+            outIndented(
+                "setStat($stat, getStat($stat) ${blk.@type == 'interaction_increase_stat' ? '+' : '-'} $amount)\n")
         }
 
         def packPause(blk)

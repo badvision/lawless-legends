@@ -20,6 +20,7 @@ import java.nio.channels.Channels
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.util.zip.GZIPInputStream
+import java.util.LinkedHashMap
 import java.security.MessageDigest
 import javax.xml.bind.DatatypeConverter
 import groovy.json.JsonOutput
@@ -43,6 +44,9 @@ class A2PackPartitions
     def TYPE_BYTECODE    = 9
     def TYPE_FIXUP       = 10
     def TYPE_PORTRAIT    = 11
+
+    static final int DISK_SIZE = (280 - 3)*512 // only 3 blks overhead: ProRWTS is so fracking amazing.
+    static final int MAX_DISKS = 20 // for now this should be way more than enough
 
     def typeNumToName    = [1:  "Code",
                             2:  "2D map",
@@ -95,7 +99,11 @@ class A2PackPartitions
     def chunkSizes = [:]
 
     def curMapName = null
+    def coreSize
     def resourceDeps = [:]
+    def allMaps = []
+    def allChunks = [:] as LinkedHashMap
+    def part1Chunks = [:] as LinkedHashMap
 
     def stats = [
         "intelligence": "@S_INTELLIGENCE",
@@ -529,6 +537,7 @@ class A2PackPartitions
         def sectionNums = new int[nVertSections][nHorzSections]
 
         // Allocate a buffer and assign a map number to each section.
+        allMaps << [name:mapName, order:mapEl.@order]
         (0..<nVertSections).each { vsect ->
             (0..<nHorzSections).each { hsect ->
                 def buf = ByteBuffer.allocate(512)
@@ -536,7 +545,8 @@ class A2PackPartitions
                 def num = maps2D.size() + 1
                 sectionNums[vsect][hsect] = num
                 def sectName = "$mapName-$hsect-$vsect"
-                maps2D[sectName] = [num:num, buf:buf]
+                addResourceDep("map", mapName, "map2D", sectName)
+                maps2D[sectName] = [num:num, order:mapEl.@order, buf:buf]
             }
         }
 
@@ -949,7 +959,9 @@ class A2PackPartitions
             def (scriptModule, locationsWithTriggers) = packScripts(mapEl, name, rows[0].size(), rows.size())
             def buf = ByteBuffer.allocate(50000)
             write3DMap(buf, name, rows, scriptModule, locationsWithTriggers)
-            maps3D[name] = [num:num, buf:compress(unwrapByteBuffer(buf))]
+            maps3D[name] = [num:num, order:mapEl.@order, buf:compress(unwrapByteBuffer(buf))]
+            addResourceDep("map", name, "map3D", name)
+            allMaps << [name:name, order:mapEl.@order]
         }
     }
 
@@ -1256,8 +1268,166 @@ class A2PackPartitions
         }
     }
 
-    def writePartition(stream, partNum)
+    /** Determine the amount of space that'll be consumed on disk by the given chunk */
+    def calcChunkLen(chunk) {
+        return chunk.buf.len + (chunk.buf.compressed ? 6 : 4)
+    }
+
+    def findResourceChunk(key)
     {
+        if (!allChunks.containsKey(key))
+        {
+            // It's ok for an abstract map to not have a chunk... as long as
+            // there are deps for it, we know it's real.
+            if (key[0] == "map" && resourceDeps.containsKey(key))
+                return null
+            println "all keys: ${allChunks.keySet()}"
+            def key4 = allChunks.keySet().toArray()[4]
+            println "ourKey=$key key4=$key4 equal=${key == key4}"
+            assert false : "resource link fail: key=$key"
+        }
+        data = allChunks[key]
+
+        def typeName = key[0]
+        def resourceName = key[1]
+
+        def typeNum = typeName=="code" ? TYPE_CODE :
+                      typeName=="map2D" ? TYPE_2D_MAP :
+                      typeName=="map3D" ? TYPE_3D_MAP :
+                      typeName=="tileSet" ? TYPE_TILE_SET :
+                      typeName=="texture" ? TYPE_TEXTURE_IMG :
+                      typeName=="frame" ? TYPE_SCREEN :
+                      typeName=="font" ? TYPE_FONT :
+                      typeName=="module" ? TYPE_MODULE :
+                      typeName=="bytecode" ? TYPE_BYTECODE :
+                      typeName=="fixup" ? TYPE_FIXUP :
+                      typeName=="portrait" ? TYPE_PORTRAIT :
+                      null
+        assert typeNum : "Can't map typeName $typeName"
+        return [type:typeNum, num:data.num, name:resourceName, buf:data.buf]
+    }
+
+    /**
+     * Recursively add all dependent resources for the given one, except any that
+     * are in part1Chunks.
+     *
+     * Returns the amount of space added.
+     */
+    def traceResources(key, LinkedHashMap chunks)
+    {
+        println "traceResources: key=$key"
+
+        // If already in the set, don't add twice.
+        if (chunks.containsKey(key))
+            return 0
+
+        // If already on disk 1, don't duplicate.
+        if (part1Chunks.containsKey(key))
+            return 0
+
+        // Okay, we need to add it.
+        def spaceAdded = 0
+        def chunk = findResourceChunk(key)
+        if (chunk) {
+            chunks[key] = chunk
+            spaceAdded += calcChunkLen(chunk)
+        }
+
+        // And add all its dependencies.
+        if (resourceDeps.containsKey(key))
+            resourceDeps[key].each { spaceAdded += traceResources(it, chunks) }
+
+        return spaceAdded
+    }
+
+    /** Iterate an array of maps, adding them one at a time until we get to one
+     *  that won't fit. The maps list is modified to remove all that were accepted.
+     *  Returns [chunks, spaceRemaining]
+     */
+    def fillDisk(int partNum, int spaceRemaining, ArrayList<String> maps)
+    {
+        println "Filling disk $partNum, avail=$spaceRemaining"
+        def outChunks = []
+        while (!maps.isEmpty()) {
+            def mapName = maps[0]
+            def mapChunks = (partNum==1) ? part1Chunks : ([] as LinkedHashMap)
+            println "Trying map $mapName"
+            def mapSpace = traceResources(["map", mapName], mapChunks)
+            println "map $mapName would add $mapSpace space, have $spaceRemaining"
+            if (mapSpace < spaceRemaining)
+                break
+
+            spaceRemaining -= mapSpace
+            outChunks.addAll(mapChunks)
+            maps.remove(0)
+        }
+        return [outChunks, spaceRemaining]
+    }
+
+    def recordChunks(typeName, nameToData) {
+        nameToData.each { resourceName, data ->
+            def key = [typeName, resourceName]
+            allChunks[key] = data
+        }
+    }
+
+    int parseOrder(mapData) {
+        try {
+            return Integer.parseInt(mapData.order);
+        } catch (NumberFormatException e) {
+            return 1;
+        }
+    }
+
+    def fillAllDisks()
+    {
+        // Place all resource buffers in into one easy-to-find place
+        recordChunks("code",     code)
+        recordChunks("map2D",    maps2D)
+        recordChunks("map3D",    maps3D)
+        recordChunks("tileSet",  tileSets)
+        recordChunks("texture",  textures)
+        recordChunks("frame",    frames)
+        recordChunks("portrait", portraits)
+        recordChunks("font",     fonts)
+        recordChunks("module",   modules)
+        recordChunks("bytecode", bytecodes)
+        recordChunks("fixup",    fixups)
+
+        // Sort the maps in proper disk order
+        println "allMaps=$allMaps"
+        Collections.sort(allMaps) { a,b ->
+            parseOrder(a) < parseOrder(b) ? -1 :
+            parseOrder(a) > parseOrder(b) ?  1 :
+            a.name < b.name ? -1 :
+            a.name > b.name ?  1 :
+            0
+        }
+
+        // Now fill up disk partitions until we run out of maps.
+        def mapsTodo = allMaps.collect { it.name }
+        for (int partNum=1; partNum<=MAX_DISKS && !mapsTodo.isEmpty(); partNum++) {
+            int availSpace = DISK_SIZE
+            if (partNum == 1) {
+                // Disk 1 adds LEGENDOS.SYSTEM. Figure out its size:
+                // round up to nearest whole block, plus index blk
+                availSpace -= (coreSize | 511) + 1 + 512
+            }
+
+            def chunks, spaceAtEnd = fillDisk(partNum, availSpace, mapsTodo)
+            println "Part $partNum chunks: $chunks"
+            println "space at end: $spaceAtEnd"
+            def partPath = new File("build/root/game.part.$partNum.bin").path
+            new File(partPath).withOutputStream { stream -> writePartition(stream, partNum, chunks) }
+        }
+
+        // Can't fit on 9 disks? Whaa.
+        assert allMaps.isEmpty : "All data must fit on 9 or fewer disks."
+    }
+
+    def writePartition(stream, partNum, chunks)
+    {
+        /* OLD:
         // Make a list of all the chunks that will be in the partition
         def chunks = []
         if (partNum == 1) {
@@ -1284,6 +1454,7 @@ class A2PackPartitions
         }
         else if (partNum == 3)
             portraits.each { k,v -> chunks.add([type:TYPE_PORTRAIT,    num:v.num, name:k, buf:v.buf]) }
+        */
 
         // Generate the header chunk. Leave the first 2 bytes for the # of pages in the hdr
         def hdrBuf = ByteBuffer.allocate(50000)
@@ -1541,6 +1712,7 @@ class A2PackPartitions
         }
 
         // Write out the result
+        coreSize = outBuf.position()
         new File("build/src/core/build/LEGENDOS.SYSTEM.sys#2000").withOutputStream { stream ->
             stream.write(unwrapByteBuffer(outBuf))
         }
@@ -1577,7 +1749,9 @@ class A2PackPartitions
         (module, bytecode, fixup) = readModule(moduleName, codeDir + "build/" + moduleName + ".b")
         addToCache("modules", modules, moduleName, hash, module)
         addToCache("bytecodes", bytecodes, moduleName, hash, bytecode)
+        addResourceDep("module", moduleName, "bytecode", moduleName)
         addToCache("fixups", fixups, moduleName, hash, fixup)
+        addResourceDep("module", moduleName, "fixup", moduleName)
     }
 
     def readAllCode()
@@ -1723,6 +1897,8 @@ class A2PackPartitions
 
     def addResourceDep(fromType, fromName, toType, toName)
     {
+        assert fromType != null && fromName != null
+        assert toType != null && toName != null
         def fromKey = [fromType, fromName]
         if (!resourceDeps.containsKey(fromKey))
             resourceDeps[fromKey] = [] as Set
@@ -1852,18 +2028,13 @@ class A2PackPartitions
             tileSet.buf = compress(unwrapByteBuffer(tileSet.buf))
         }
 
+        println("rdeps - phase 2:" + JsonOutput.prettyPrint(JsonOutput.toJson(resourceDeps)))
+
         // Ready to write the output file.
         println "Writing output files."
         new File("build/root").mkdir()
 
-        def part1Path = new File("build/root/game.part.1.bin").path
-        new File(part1Path).withOutputStream { stream -> writePartition(stream, 1) }
-
-        def part2Path = new File("build/root/game.part.2.bin").path
-        new File(part2Path).withOutputStream { stream -> writePartition(stream, 2) }
-
-        def part3Path = new File("build/root/game.part.3.bin").path
-        new File(part3Path).withOutputStream { stream -> writePartition(stream, 3) }
+        fillAllDisks()
 
         // Print stats (unless there's a warning, in which case focus the user on that)
         if (nWarnings == 0)
@@ -1871,8 +2042,6 @@ class A2PackPartitions
 
         if (debugCompression)
             println "Compression savings: $compressionSavings"
-
-        println("rdeps - phase 2:" + JsonOutput.prettyPrint(JsonOutput.toJson(resourceDeps)))
 
         // And save the cache for next time.
         writeCache()
@@ -2616,6 +2785,7 @@ end
 
         // Translate global scripts to code. Record their deps as system-level.
         curMapName = "<root>"
+        allMaps << [name:curMapName, is3d:false, num:-1, order:Integer.MIN_VALUE]
         recordGlobalScripts(dataIn)
         genAllGlobalScripts(dataIn.global.scripts.script)
         curMapName = null
@@ -2702,7 +2872,7 @@ end
         def hddDir = new File("build/root")
 
         // Build a DSK image for each floppy
-        for (int i=1; i<=9; i++) 
+        for (int i=1; i<=MAX_DISKS; i++) 
         {
             // Skip later partitions if they don't exist
             def partFile = new File("build/root/game.part.${i}.bin")
@@ -2771,7 +2941,7 @@ end
                 }
 
                 // Also remove existing floppy disks for this game.
-                for (int i=1; i<=9; i++) {
+                for (int i=1; i<=MAX_DISKS; i++) {
                     def diskFile = new File(String.format("game%d.dsk", i))
                     if (diskFile.exists())
                         diskFile.delete()

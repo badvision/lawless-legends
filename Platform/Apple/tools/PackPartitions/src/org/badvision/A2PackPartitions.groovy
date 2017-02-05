@@ -45,9 +45,9 @@ class A2PackPartitions
     def TYPE_FIXUP       = 10
     def TYPE_PORTRAIT    = 11
 
-    static final int FLOPPY_SIZE = 35*16*256  // good old 140k floppy
-    static final int DOS_OVERHEAD = 3*512 // only 3 blks overhead! ProRWTS is so freaking amazing.
-    static final int SAVE_GAME_SIZE = 7*512 // 6 blocks data, 1 block index
+    static final int FLOPPY_SIZE = 35*8  // good old 140k floppy = 280 blks
+    static final int DOS_OVERHEAD = 3 // only 3 blks overhead! ProRWTS is so freaking amazing.
+    static final int SAVE_GAME_SIZE = 7 // 6 blocks data, 1 block index
     static final int MAX_DISKS = 20 // for now this should be way more than enough
 
     def typeNumToName    = [1:  "Code",
@@ -1380,7 +1380,7 @@ class A2PackPartitions
      * Determine the most-often-used portraits and stuff as many as we can
      * onto disk 1.
      */
-    def stuffMostUsedPortraits(maps, mapChunks, spaceRemaining)
+    def stuffMostUsedPortraits(maps, mapChunks, availBlks, spaceUsed)
     {
         def counts = [:]
         maps.each { mapName ->
@@ -1394,56 +1394,68 @@ class A2PackPartitions
             }
         }
         def pairs = counts.collect { k,v -> [name:k, count:v] }
-        def spaceUsed = 0
+        def portraitSpace = 0
         pairs.sort{-it.count}.each { pair ->
             if (pair.count > 1) {
                 def key = ["portrait", pair.name]
                 def chunk = findResourceChunk(key)
                 def len = calcChunkLen(chunk)
-                if (len < spaceRemaining) {
+                def blks = calcFileBlks(spaceUsed + portraitSpace + len)
+                if (blks <= availBlks) {
                     mapChunks[key] = chunk
-                    spaceUsed += len
-                    spaceRemaining -= len
+                    portraitSpace += len
                 }
-                else
-                    println "no fit: $key"
             }
         }
-        return spaceUsed
+        return portraitSpace
+    }
+
+    int calcFileBlks(int spaceUsed)
+    {
+        int blks = (spaceUsed + 511) / 512
+        if (blks > 256)
+            blks += 3   // tree file
+        else if (blks > 1)
+            blks += 1   // sapling file
+        return blks
     }
 
     /** Iterate an array of maps, adding them one at a time until we get to one
      *  that won't fit. The maps list is modified to remove all that were accepted.
      *  Returns [chunks, spaceRemaining]
      */
-    def fillDisk(int partNum, int spaceRemaining, ArrayList<String> maps)
+    def fillDisk(int partNum, int availBlks, ArrayList<String> maps)
     {
-        println "Filling disk $partNum, avail=$spaceRemaining"
-        def origSpace = spaceRemaining
+        println "Filling disk $partNum, availBlks=$availBlks"
+        def spaceUsed = 3 // chunk-list header and trailer
         def outChunks = (partNum==1) ? part1Chunks : ([:] as LinkedHashMap)
         while (!maps.isEmpty()) {
             def mapName = maps[0]
             def mapChunks = outChunks.clone()
             println "Trying map $mapName"
             def mapSpace = traceResources(["map", mapName], mapChunks)
-            if (mapSpace > spaceRemaining) {
-                println "map $mapName would add $mapSpace bytes, too big."
+
+            int blks = calcFileBlks(spaceUsed + mapSpace)
+            if (blks > availBlks) {
+                println "stopping: map $mapName would add $mapSpace bytes, totaling $blks blks, too big."
                 break
             }
 
-            spaceRemaining -= mapSpace
-            println "map $mapName adds $mapSpace bytes, leaving $spaceRemaining"
+            spaceUsed += mapSpace
+            println "ok: map $mapName adds $mapSpace bytes, totaling $blks blks."
             mapChunks.each { k,v -> outChunks[k] = v }
             maps.remove(0)
 
             // After adding the root map, stuff in the most-used portraits onto disk 1
             if (mapName == "<root>") {
-                def portraitsSpace = stuffMostUsedPortraits(maps, outChunks, spaceRemaining)
-                spaceRemaining -= portraitsSpace
-                println "stuffed most-used portraits for $portraitsSpace bytes, leaving $spaceRemaining"
+                def portraitsSpace = stuffMostUsedPortraits(maps, outChunks, availBlks, spaceUsed)
+                spaceUsed += portraitsSpace
+                blks = calcFileBlks(spaceUsed)
+                println "stuffed most-used portraits for $portraitsSpace bytes, totaling $blks blks."
             }
         }
-        return [outChunks, spaceRemaining]
+        println "Unused blks=${availBlks - calcFileBlks(spaceUsed)}"
+        return [outChunks, spaceUsed]
     }
 
     def recordChunks(typeName, nameToData) {
@@ -1489,26 +1501,23 @@ class A2PackPartitions
         // Now fill up disk partitions until we run out of maps.
         def mapsTodo = allMaps.collect { it.name }
         for (int partNum=1; partNum<=MAX_DISKS && !mapsTodo.isEmpty(); partNum++) {
-            int availSpace = FLOPPY_SIZE - DOS_OVERHEAD
+            int availBlks = FLOPPY_SIZE - DOS_OVERHEAD
             if (partNum == 1) {
                 // Disk 1 adds LEGENDOS.SYSTEM. Figure out its size:
                 // round up to nearest whole block, plus index blk
-                availSpace -= (coreSize | 511) + 1 + 512
-                println "LEGENDOS size=${(coreSize | 511) + 1 + 512}"
+                def coreBlks = calcFileBlks(coreSize)
+                println "LEGENDOS blks=$coreBlks"
+                availBlks -= coreBlks
                 // Disk 1 also holds the save game file
-                availSpace -= SAVE_GAME_SIZE
-                availSpace -= 1024       // disk 1 part file is a sapling, not a tree, just 1 idx blk
+                availBlks -= SAVE_GAME_SIZE
             }
-            else
-                availSpace -= (3*512)  // disk 2-n part files are tree, so tree blk + 2 idx blks
 
-            availSpace -= 4        // chunk list header and trailer
-
-            def (chunks, spaceAtEnd) = fillDisk(partNum, availSpace, mapsTodo)
+            def (chunks, spaceUsed) = fillDisk(partNum, availBlks, mapsTodo)
             println "Part $partNum chunks: ${chunks.keySet()}"
-            println "space at end: $spaceAtEnd"
-            def partPath = new File("build/root/game.part.${partNum}.bin").path
-            new File(partPath).withOutputStream { stream -> writePartition(stream, partNum, chunks.values()) }
+            println "space used: $spaceUsed"
+            def partFile = new File("build/root/game.part.${partNum}.bin")
+            partFile.withOutputStream { stream -> writePartition(stream, partNum, chunks.values()) }
+            assert spaceUsed == partFile.length()
         }
 
         // Can't fit on MAX_DISKS disks? Whaa.

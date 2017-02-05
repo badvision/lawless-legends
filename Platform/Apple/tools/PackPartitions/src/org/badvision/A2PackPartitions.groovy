@@ -1494,11 +1494,14 @@ class A2PackPartitions
                 // Disk 1 adds LEGENDOS.SYSTEM. Figure out its size:
                 // round up to nearest whole block, plus index blk
                 availSpace -= (coreSize | 511) + 1 + 512
+                println "LEGENDOS size=${(coreSize | 511) + 1 + 512}"
                 // Disk 1 also holds the save game file
                 availSpace -= SAVE_GAME_SIZE
+                availSpace -= 1024       // disk 1 part file is a sapling, not a tree, just 1 idx blk
             }
+            else
+                availSpace -= (3*512)  // disk 2-n part files are tree, so tree blk + 2 idx blks
 
-            availSpace -= (3*512)  // tree index plus two index blocks
             availSpace -= 4        // chunk list header and trailer
 
             def (chunks, spaceAtEnd) = fillDisk(partNum, availSpace, mapsTodo)

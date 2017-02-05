@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1
+ * Copyright (C) 2015-17 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1
  * (the "License"); you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-1.1>.
  * Unless required by applicable law or agreed to in writing, software distributed under
@@ -45,7 +45,9 @@ class A2PackPartitions
     def TYPE_FIXUP       = 10
     def TYPE_PORTRAIT    = 11
 
-    static final int DISK_SIZE = (280 - 3)*512 // only 3 blks overhead: ProRWTS is so fracking amazing.
+    static final int FLOPPY_SIZE = 35*16*256  // good old 140k floppy
+    static final int DOS_OVERHEAD = 3*512 // only 3 blks overhead! ProRWTS is so freaking amazing.
+    static final int SAVE_GAME_SIZE = 7*512 // 6 blocks data, 1 block index
     static final int MAX_DISKS = 20 // for now this should be way more than enough
 
     def typeNumToName    = [1:  "Code",
@@ -976,7 +978,7 @@ class A2PackPartitions
         def num = modules.size() + 1
         def name = makeScriptName(mapName)
         //println "Packing scripts for map $mapName, to module $num."
-        addMapDep("script", name)
+        addMapDep("module", name)
 
         def scriptDir = "build/src/mapScripts/"
         if (!new File(scriptDir).exists())
@@ -1218,9 +1220,15 @@ class A2PackPartitions
 
     def readFont(name, path)
     {
-        def num = fonts.size() + 1
-        //println "Reading font #$num from '$path'."
-        fonts[name] = [num:num, buf:compress(readBinary(path))]
+        def hash = new File(path).lastModified()
+        if (!grabEntireFromCache("fonts", fonts, hash)) {
+            def num = fonts.size() + 1
+            println "Reading font #$num from '$path'."
+            fonts[name] = [num:num, buf:compress(readBinary(path))]
+        }
+        fonts.each { k,v ->
+            addResourceDep("map", "<root>", "font", k)
+        }
     }
 
     static int uncompTotal = 0
@@ -1273,23 +1281,25 @@ class A2PackPartitions
         return chunk.buf.len + (chunk.buf.compressed ? 6 : 4)
     }
 
-    def findResourceChunk(key)
+    def findResourceChunk(inKey)
     {
+        def typeName = inKey[0]
+        def resourceName = inKey[1]
+
+        def key = typeName + ":" + resourceName
         if (!allChunks.containsKey(key))
         {
             // It's ok for an abstract map to not have a chunk... as long as
             // there are deps for it, we know it's real.
-            if (key[0] == "map" && resourceDeps.containsKey(key))
+            if (typeName == "map" && resourceDeps.containsKey(inKey))
                 return null
+            // Encounter zones only have sub-resources
+            if (typeName == "encounterZone" && resourceDeps.containsKey(inKey))
+                return null;
             println "all keys: ${allChunks.keySet()}"
-            def key4 = allChunks.keySet().toArray()[4]
-            println "ourKey=$key key4=$key4 equal=${key == key4}"
             assert false : "resource link fail: key=$key"
         }
-        data = allChunks[key]
-
-        def typeName = key[0]
-        def resourceName = key[1]
+        def data = allChunks[key]
 
         def typeNum = typeName=="code" ? TYPE_CODE :
                       typeName=="map2D" ? TYPE_2D_MAP :
@@ -1313,17 +1323,25 @@ class A2PackPartitions
      *
      * Returns the amount of space added.
      */
+    int rtraceLevel = 0
+    static final boolean DEBUG_TRACE_RESOURCES = false
     def traceResources(key, LinkedHashMap chunks)
     {
-        println "traceResources: key=$key"
+        //println "${("  " * rtraceLevel)}traceResources: key=$key"
 
         // If already in the set, don't add twice.
-        if (chunks.containsKey(key))
+        if (chunks.containsKey(key)) {
+            if (DEBUG_TRACE_RESOURCES)
+                println "${("  " * rtraceLevel)} already have."
             return 0
+        }
 
         // If already on disk 1, don't duplicate.
-        if (part1Chunks.containsKey(key))
+        if (part1Chunks.containsKey(key)) {
+            if (DEBUG_TRACE_RESOURCES)
+                println "${("  " * rtraceLevel)} in part 1 already."
             return 0
+        }
 
         // Okay, we need to add it.
         def spaceAdded = 0
@@ -1331,13 +1349,64 @@ class A2PackPartitions
         if (chunk) {
             chunks[key] = chunk
             spaceAdded += calcChunkLen(chunk)
+            if (DEBUG_TRACE_RESOURCES)
+                println "${("  " * rtraceLevel)} adding, id=${chunks[key].num} len=${chunks[key].buf.len}"
         }
 
         // And add all its dependencies.
-        if (resourceDeps.containsKey(key))
+        if (resourceDeps.containsKey(key)) {
+            ++rtraceLevel
             resourceDeps[key].each { spaceAdded += traceResources(it, chunks) }
+            --rtraceLevel
+        }
 
         return spaceAdded
+    }
+
+    /**
+     * Find all portraits used by the given resource
+     */
+    def tracePortraits(key, portraits)
+    {
+        if (key[0] == "portrait")
+            portraits << key[1]
+        if (resourceDeps.containsKey(key))
+            resourceDeps[key].each { tracePortraits(it, portraits) }
+    }
+
+    /**
+     * Determine the most-often-used portraits and stuff as many as we can
+     * onto disk 1.
+     */
+    def stuffMostUsedPortraits(maps, mapChunks, spaceRemaining)
+    {
+        def counts = [:]
+        maps.each { mapName ->
+            def mapPortraits = [] as Set
+            tracePortraits(["map", mapName], mapPortraits)
+            mapPortraits.each { portraitName ->
+                if (!counts.containsKey(portraitName))
+                    counts[portraitName] = 1
+                else
+                    counts[portraitName]++
+            }
+        }
+        def pairs = counts.collect { k,v -> [name:k, count:v] }
+        def spaceUsed = 0
+        pairs.sort{-it.count}.each { pair ->
+            def key = ["portrait", pair.name]
+            def chunk = findResourceChunk(key)
+            def len = calcChunkLen(chunk)
+            if (len < spaceRemaining) {
+                println "fit: $key"
+                mapChunks[key] = chunk
+                spaceUsed += len
+                spaceRemaining -= len
+            }
+            else
+                println "no fit: $key"
+        }
+        return spaceUsed
     }
 
     /** Iterate an array of maps, adding them one at a time until we get to one
@@ -1347,26 +1416,32 @@ class A2PackPartitions
     def fillDisk(int partNum, int spaceRemaining, ArrayList<String> maps)
     {
         println "Filling disk $partNum, avail=$spaceRemaining"
-        def outChunks = []
+        def outChunks = (partNum==1) ? part1Chunks : ([:] as LinkedHashMap)
         while (!maps.isEmpty()) {
             def mapName = maps[0]
-            def mapChunks = (partNum==1) ? part1Chunks : ([] as LinkedHashMap)
+            def mapChunks = [:] as LinkedHashMap
             println "Trying map $mapName"
             def mapSpace = traceResources(["map", mapName], mapChunks)
-            println "map $mapName would add $mapSpace space, have $spaceRemaining"
-            if (mapSpace < spaceRemaining)
+            if (mapSpace > spaceRemaining) {
+                println "map $mapName would add $mapSpace, too big."
                 break
+            }
 
             spaceRemaining -= mapSpace
-            outChunks.addAll(mapChunks)
+            println "map $mapName adds $mapSpace, leaving $spaceRemaining"
+            mapChunks.each { k,v -> outChunks[k] = v }
             maps.remove(0)
+
+            // After adding the root map, stuff in the most-used portraits onto disk 1
+            if (mapName == "<root>")
+                spaceRemaining -= stuffMostUsedPortraits(maps, outChunks, spaceRemaining)
         }
         return [outChunks, spaceRemaining]
     }
 
     def recordChunks(typeName, nameToData) {
         nameToData.each { resourceName, data ->
-            def key = [typeName, resourceName]
+            def key = "$typeName:$resourceName"
             allChunks[key] = data
         }
     }
@@ -1395,7 +1470,7 @@ class A2PackPartitions
         recordChunks("fixup",    fixups)
 
         // Sort the maps in proper disk order
-        println "allMaps=$allMaps"
+        allMaps << [name:"<root>", order:"-999999"]
         Collections.sort(allMaps) { a,b ->
             parseOrder(a) < parseOrder(b) ? -1 :
             parseOrder(a) > parseOrder(b) ?  1 :
@@ -1407,22 +1482,25 @@ class A2PackPartitions
         // Now fill up disk partitions until we run out of maps.
         def mapsTodo = allMaps.collect { it.name }
         for (int partNum=1; partNum<=MAX_DISKS && !mapsTodo.isEmpty(); partNum++) {
-            int availSpace = DISK_SIZE
+            int availSpace = FLOPPY_SIZE - DOS_OVERHEAD - SAVE_GAME_SIZE
             if (partNum == 1) {
                 // Disk 1 adds LEGENDOS.SYSTEM. Figure out its size:
                 // round up to nearest whole block, plus index blk
                 availSpace -= (coreSize | 511) + 1 + 512
             }
 
-            def chunks, spaceAtEnd = fillDisk(partNum, availSpace, mapsTodo)
-            println "Part $partNum chunks: $chunks"
+            availSpace -= (3*512)  // tree index plus two index blocks
+            availSpace -= 4        // chunk list header and trailer
+
+            def (chunks, spaceAtEnd) = fillDisk(partNum, availSpace, mapsTodo)
+            println "Part $partNum chunks: ${chunks.keySet()}"
             println "space at end: $spaceAtEnd"
-            def partPath = new File("build/root/game.part.$partNum.bin").path
-            new File(partPath).withOutputStream { stream -> writePartition(stream, partNum, chunks) }
+            def partPath = new File("build/root/game.part.${partNum}.bin").path
+            new File(partPath).withOutputStream { stream -> writePartition(stream, partNum, chunks.values()) }
         }
 
-        // Can't fit on 9 disks? Whaa.
-        assert allMaps.isEmpty : "All data must fit on 9 or fewer disks."
+        // Can't fit on MAX_DISKS disks? Whaa.
+        assert allMaps.isEmpty : "All data must fit within $MAX_DISKS disks."
     }
 
     def writePartition(stream, partNum, chunks)
@@ -1720,6 +1798,9 @@ class A2PackPartitions
 
     def compileModule(moduleName, codeDir, verbose = true)
     {
+        addResourceDep("module", moduleName, "bytecode", moduleName)
+        addResourceDep("module", moduleName, "fixup", moduleName)
+
         if (binaryStubsOnly)
             return addToCache("modules", modules, moduleName, 1, new byte[1])
 
@@ -1749,9 +1830,7 @@ class A2PackPartitions
         (module, bytecode, fixup) = readModule(moduleName, codeDir + "build/" + moduleName + ".b")
         addToCache("modules", modules, moduleName, hash, module)
         addToCache("bytecodes", bytecodes, moduleName, hash, bytecode)
-        addResourceDep("module", moduleName, "bytecode", moduleName)
         addToCache("fixups", fixups, moduleName, hash, fixup)
-        addResourceDep("module", moduleName, "fixup", moduleName)
     }
 
     def readAllCode()
@@ -1772,9 +1851,12 @@ class A2PackPartitions
         compileModule("gen_items", "src/plasma/")
         compileModule("gen_players", "src/plasma/")
         globalScripts.each { name, nArgs ->
-            compileModule("gs_${name}", "src/plasma/")
+            compileModule("gs_"+name, "src/plasma/")
         }
         lastSysModule = modules.size()
+
+        code.each { k,v -> addResourceDep("map", "<root>", "code", k) }
+        modules.each { k,v -> addResourceDep("map", "<root>", "module", k) }
     }
 
     /**
@@ -1979,6 +2061,9 @@ class A2PackPartitions
             }
             addEntireToCache("frames", frames, hash)
         }
+        frames.each { k,v ->
+            addResourceDep("map", "<root>", "frame", k)
+        }
 
         hash = calcImagesHash(textureImgs)
         if (!grabEntireFromCache("textures", textures, hash)) {
@@ -2028,7 +2113,7 @@ class A2PackPartitions
             tileSet.buf = compress(unwrapByteBuffer(tileSet.buf))
         }
 
-        println("rdeps - phase 2:" + JsonOutput.prettyPrint(JsonOutput.toJson(resourceDeps)))
+        //println("rdeps - phase 2:" + JsonOutput.prettyPrint(JsonOutput.toJson(resourceDeps)))
 
         // Ready to write the output file.
         println "Writing output files."
@@ -2699,7 +2784,6 @@ end
             found << name
             gsmod.packGlobalScript(new File("build/src/plasma/gs_${name}.pla.new"), script)
             replaceIfDiff("build/src/plasma/gs_${name}.pla")
-            addMapDep("globalFunc", name)
         }
 
         // There are a couple of required global funcs
@@ -2785,7 +2869,6 @@ end
 
         // Translate global scripts to code. Record their deps as system-level.
         curMapName = "<root>"
-        allMaps << [name:curMapName, is3d:false, num:-1, order:Integer.MIN_VALUE]
         recordGlobalScripts(dataIn)
         genAllGlobalScripts(dataIn.global.scripts.script)
         curMapName = null
@@ -3682,7 +3765,7 @@ end
                 return
             }
             outIndented("loadFrameImg(PF${humanNameToSymbol(imgName, false)})\n")
-            addMapDep("fullscreen", imgName)
+            addMapDep("frame", imgName)
         }
 
         def packClrPortrait(blk)

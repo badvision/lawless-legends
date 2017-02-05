@@ -27,8 +27,8 @@
 ; Constants
 MAX_SEGS	= 96
 
-DEBUG		= 0
-SANITY_CHECK	= 0		; also prints out request data
+DEBUG		= 1
+SANITY_CHECK	= 1		; also prints out request data
 
 ; Zero page temporary variables
 tmp		= $2	; len 2

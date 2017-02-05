@@ -237,7 +237,7 @@ SET_MEM_TARGET = $14
     ;
     ; This is a one-shot command, i.e. as soon as an allocation is performed,
     ; subsequent allocations will revert to their normal behavior.
-		
+
 ;------------------------------------------------------------------------------
 START_LOAD = $15
     ; Input:  X-reg - disk partition number (0 for boot disk, 1-15 for others)

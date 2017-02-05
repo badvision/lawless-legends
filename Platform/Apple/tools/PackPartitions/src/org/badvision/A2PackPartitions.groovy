@@ -957,12 +957,12 @@ class A2PackPartitions
         def num = mapNames[name][1]
         //println "Packing 3D map #$num named '$name': num=$num."
         withContext("map '$name'") {
+            addResourceDep("map", name, "map3D", name)
             def rows = parseMap(mapEl, tileEls)
             def (scriptModule, locationsWithTriggers) = packScripts(mapEl, name, rows[0].size(), rows.size())
             def buf = ByteBuffer.allocate(50000)
             write3DMap(buf, name, rows, scriptModule, locationsWithTriggers)
             maps3D[name] = [num:num, order:mapEl.@order, buf:compress(unwrapByteBuffer(buf))]
-            addResourceDep("map", name, "map3D", name)
             allMaps << [name:name, order:mapEl.@order]
         }
     }
@@ -1223,8 +1223,9 @@ class A2PackPartitions
         def hash = new File(path).lastModified()
         if (!grabEntireFromCache("fonts", fonts, hash)) {
             def num = fonts.size() + 1
-            println "Reading font #$num from '$path'."
+            //println "Reading font #$num from '$path'."
             fonts[name] = [num:num, buf:compress(readBinary(path))]
+            addEntireToCache("fonts", fonts, hash)
         }
         fonts.each { k,v ->
             addResourceDep("map", "<root>", "font", k)
@@ -1327,7 +1328,8 @@ class A2PackPartitions
     static final boolean DEBUG_TRACE_RESOURCES = false
     def traceResources(key, LinkedHashMap chunks)
     {
-        //println "${("  " * rtraceLevel)}traceResources: key=$key"
+        if (DEBUG_TRACE_RESOURCES)
+            println "${("  " * rtraceLevel)}traceResources: key=$key"
 
         // If already in the set, don't add twice.
         if (chunks.containsKey(key)) {
@@ -1394,17 +1396,18 @@ class A2PackPartitions
         def pairs = counts.collect { k,v -> [name:k, count:v] }
         def spaceUsed = 0
         pairs.sort{-it.count}.each { pair ->
-            def key = ["portrait", pair.name]
-            def chunk = findResourceChunk(key)
-            def len = calcChunkLen(chunk)
-            if (len < spaceRemaining) {
-                println "fit: $key"
-                mapChunks[key] = chunk
-                spaceUsed += len
-                spaceRemaining -= len
+            if (pair.count > 1) {
+                def key = ["portrait", pair.name]
+                def chunk = findResourceChunk(key)
+                def len = calcChunkLen(chunk)
+                if (len < spaceRemaining) {
+                    mapChunks[key] = chunk
+                    spaceUsed += len
+                    spaceRemaining -= len
+                }
+                else
+                    println "no fit: $key"
             }
-            else
-                println "no fit: $key"
         }
         return spaceUsed
     }
@@ -1416,25 +1419,29 @@ class A2PackPartitions
     def fillDisk(int partNum, int spaceRemaining, ArrayList<String> maps)
     {
         println "Filling disk $partNum, avail=$spaceRemaining"
+        def origSpace = spaceRemaining
         def outChunks = (partNum==1) ? part1Chunks : ([:] as LinkedHashMap)
         while (!maps.isEmpty()) {
             def mapName = maps[0]
-            def mapChunks = [:] as LinkedHashMap
+            def mapChunks = outChunks.clone()
             println "Trying map $mapName"
             def mapSpace = traceResources(["map", mapName], mapChunks)
             if (mapSpace > spaceRemaining) {
-                println "map $mapName would add $mapSpace, too big."
+                println "map $mapName would add $mapSpace bytes, too big."
                 break
             }
 
             spaceRemaining -= mapSpace
-            println "map $mapName adds $mapSpace, leaving $spaceRemaining"
+            println "map $mapName adds $mapSpace bytes, leaving $spaceRemaining"
             mapChunks.each { k,v -> outChunks[k] = v }
             maps.remove(0)
 
             // After adding the root map, stuff in the most-used portraits onto disk 1
-            if (mapName == "<root>")
-                spaceRemaining -= stuffMostUsedPortraits(maps, outChunks, spaceRemaining)
+            if (mapName == "<root>") {
+                def portraitsSpace = stuffMostUsedPortraits(maps, outChunks, spaceRemaining)
+                spaceRemaining -= portraitsSpace
+                println "stuffed most-used portraits for $portraitsSpace bytes, leaving $spaceRemaining"
+            }
         }
         return [outChunks, spaceRemaining]
     }
@@ -1482,11 +1489,13 @@ class A2PackPartitions
         // Now fill up disk partitions until we run out of maps.
         def mapsTodo = allMaps.collect { it.name }
         for (int partNum=1; partNum<=MAX_DISKS && !mapsTodo.isEmpty(); partNum++) {
-            int availSpace = FLOPPY_SIZE - DOS_OVERHEAD - SAVE_GAME_SIZE
+            int availSpace = FLOPPY_SIZE - DOS_OVERHEAD
             if (partNum == 1) {
                 // Disk 1 adds LEGENDOS.SYSTEM. Figure out its size:
                 // round up to nearest whole block, plus index blk
                 availSpace -= (coreSize | 511) + 1 + 512
+                // Disk 1 also holds the save game file
+                availSpace -= SAVE_GAME_SIZE
             }
 
             availSpace -= (3*512)  // tree index plus two index blocks
@@ -1505,35 +1514,6 @@ class A2PackPartitions
 
     def writePartition(stream, partNum, chunks)
     {
-        /* OLD:
-        // Make a list of all the chunks that will be in the partition
-        def chunks = []
-        if (partNum == 1) {
-            code.each { k,v ->
-                chunks.add([type:TYPE_CODE, num:v.num, name:k, buf:v.buf]) 
-            }
-        }
-        modules.each { k, v ->
-            if ((partNum==1 && v.num <= lastSysModule) || (partNum==2 && v.num > lastSysModule)) {
-                chunks.add([type:TYPE_MODULE,   num:v.num, name:k, buf:v.buf])
-                chunks.add([type:TYPE_BYTECODE, num:v.num, name:k, buf:bytecodes[k].buf])
-                chunks.add([type:TYPE_FIXUP,    num:v.num, name:k, buf:fixups[k].buf])
-            }
-        }
-        if (partNum == 1) {
-            fonts.each     { k,v -> chunks.add([type:TYPE_FONT,        num:v.num, name:k, buf:v.buf]) }
-            frames.each    { k,v -> chunks.add([type:TYPE_SCREEN,      num:v.num, name:k, buf:v.buf]) }
-        }
-        else if (partNum == 2) {
-            maps2D.each    { k,v -> chunks.add([type:TYPE_2D_MAP,      num:v.num, name:k, buf:v.buf]) }
-            tileSets.each  { k,v -> chunks.add([type:TYPE_TILE_SET,    num:v.num, name:k, buf:v.buf]) }
-            maps3D.each    { k,v -> chunks.add([type:TYPE_3D_MAP,      num:v.num, name:k, buf:v.buf]) }
-            textures.each  { k,v -> chunks.add([type:TYPE_TEXTURE_IMG, num:v.num, name:k, buf:v.buf]) }
-        }
-        else if (partNum == 3)
-            portraits.each { k,v -> chunks.add([type:TYPE_PORTRAIT,    num:v.num, name:k, buf:v.buf]) }
-        */
-
         // Generate the header chunk. Leave the first 2 bytes for the # of pages in the hdr
         def hdrBuf = ByteBuffer.allocate(50000)
         hdrBuf.put((byte)0)
@@ -1758,7 +1738,7 @@ class A2PackPartitions
                     new File("build/tools/${name=="PRORWTS" ? "ProRWTS/PRORWTS2" : "PLASMA/src/PLVM02"}#4000"))
                 hash = file.lastModified()
                 if (!grabFromCache("sysCode", sysCode, name, hash))
-                  addToCache("sysCode", sysCode, name, hash, compress(readBinary(file.toString())))
+                    addToCache("sysCode", sysCode, name, hash, compress(readBinary(file.toString())))
             }
             else {
                 hash = getLastDep(new File(inDir, "${name}.s"))
@@ -3025,9 +3005,12 @@ end
 
                 // Also remove existing floppy disks for this game.
                 for (int i=1; i<=MAX_DISKS; i++) {
-                    def diskFile = new File(String.format("game%d.dsk", i))
+                    def diskFile = new File("game${i}.dsk")
                     if (diskFile.exists())
                         diskFile.delete()
+                    def partFile = new File("build/root/game.part.${i}.bin")
+                    if (partFile.exists())
+                        partFile.delete()
                 }
 
                 // Open the XML data file produced by Outlaw Editor

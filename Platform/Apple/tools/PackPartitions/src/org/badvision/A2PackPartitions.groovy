@@ -46,6 +46,7 @@ class A2PackPartitions
     def TYPE_PORTRAIT    = 11
 
     static final int FLOPPY_SIZE = 35*8  // good old 140k floppy = 280 blks
+    static final int AC_KLUDGE = 1      // minus 1 to work around last-block bug in AppleCommander
     static final int DOS_OVERHEAD = 3 // only 3 blks overhead! ProRWTS is so freaking amazing.
     static final int SAVE_GAME_SIZE = 7 // 6 blocks data, 1 block index
     static final int MAX_DISKS = 20 // for now this should be way more than enough
@@ -1428,6 +1429,16 @@ class A2PackPartitions
     {
         println "Filling disk $partNum, availBlks=$availBlks"
         def spaceUsed = 3 // chunk-list header and trailer
+
+        // On disk 1, reserve enough space for the map and portrait index
+        int overhead = 0
+        if (partNum == 1) {
+            overhead = 6                     // chunk header (6 if compressed)
+                     + 1 + maps2D.size()     // number of maps, then 1 byte per
+                     + 1 + maps3D.size()     // number of maps, then 1 byte per
+                     + 1 + portraits.size()  // number of portraits, then 1 byte per
+        }
+
         def outChunks = (partNum==1) ? part1Chunks : ([:] as LinkedHashMap)
         while (!maps.isEmpty()) {
             def mapName = maps[0]
@@ -1435,7 +1446,7 @@ class A2PackPartitions
             println "Trying map $mapName"
             def mapSpace = traceResources(["map", mapName], mapChunks)
 
-            int blks = calcFileBlks(spaceUsed + mapSpace)
+            int blks = calcFileBlks(spaceUsed + overhead + mapSpace)
             if (blks > availBlks) {
                 println "stopping: map $mapName would add $mapSpace bytes, totaling $blks blks, too big."
                 break
@@ -1443,11 +1454,15 @@ class A2PackPartitions
 
             spaceUsed += mapSpace
             println "ok: map $mapName adds $mapSpace bytes, totaling $blks blks."
-            mapChunks.each { k,v -> outChunks[k] = v }
-            maps.remove(0)
+            mapChunks.each { k,v ->
+                v.buf.partNum = partNum
+                outChunks[k] = v
+            }
+            maps.remove(0) // pop finished map
 
             // After adding the root map, stuff in the most-used portraits onto disk 1
             if (mapName == "<root>") {
+                assert partNum == 1
                 def portraitsSpace = stuffMostUsedPortraits(maps, outChunks, availBlks, spaceUsed)
                 spaceUsed += portraitsSpace
                 blks = calcFileBlks(spaceUsed)
@@ -1471,6 +1486,29 @@ class A2PackPartitions
         } catch (NumberFormatException e) {
             return 1;
         }
+    }
+
+    /**
+     * Make an index listing the partition number wherein each map and portrait can be found.
+     */
+    def addResourceIndex(part)
+    {
+        def tmp = ByteBuffer.allocate(5000)
+
+        tmp.put((byte) maps2D.size())
+        maps2D.each { k, v -> tmp.put((byte) v.buf.partNum) }
+
+        tmp.put((byte) maps3D.size())
+        maps3D.each { k, v -> tmp.put((byte) v.buf.partNum) }
+
+        tmp.put((byte) portraits.size())
+        portraits.each { k, v -> tmp.put((byte) (v.buf.partNum ? v.buf.partNum : 0)) }
+
+        code["resourceIndex"].buf = compress(unwrapByteBuffer(tmp))
+        def chunk = [type:TYPE_CODE, num:code["resourceIndex"].num, 
+                     name:"resourceIndex", buf:code["resourceIndex"].buf]
+        part.chunks[["code", "resourceIndex"]] = chunk
+        part.spaceUsed += calcChunkLen(chunk)
     }
 
     def fillAllDisks()
@@ -1500,8 +1538,10 @@ class A2PackPartitions
 
         // Now fill up disk partitions until we run out of maps.
         def mapsTodo = allMaps.collect { it.name }
+        def partChunks = []
         for (int partNum=1; partNum<=MAX_DISKS && !mapsTodo.isEmpty(); partNum++) {
             int availBlks = FLOPPY_SIZE - DOS_OVERHEAD
+            availBlks -= AC_KLUDGE  // AppleCommander currently unable to allocate last block
             if (partNum == 1) {
                 // Disk 1 adds LEGENDOS.SYSTEM. Figure out its size:
                 // round up to nearest whole block, plus index blk
@@ -1515,13 +1555,21 @@ class A2PackPartitions
             def (chunks, spaceUsed) = fillDisk(partNum, availBlks, mapsTodo)
             println "Part $partNum chunks: ${chunks.keySet()}"
             println "space used: $spaceUsed"
-            def partFile = new File("build/root/game.part.${partNum}.bin")
-            partFile.withOutputStream { stream -> writePartition(stream, partNum, chunks.values()) }
-            assert spaceUsed == partFile.length()
+            partChunks << [partNum:partNum, chunks:chunks, spaceUsed:spaceUsed]
         }
-
-        // Can't fit on MAX_DISKS disks? Whaa.
         assert allMaps.isEmpty : "All data must fit within $MAX_DISKS disks."
+
+        // Add the special resource index to disk 1
+        addResourceIndex(partChunks[0])
+
+        // And write out each disk
+        partChunks.each { part ->
+            def partFile = new File("build/root/game.part.${part.partNum}.bin")
+            partFile.withOutputStream { stream ->
+                writePartition(stream, part.partNum, part.chunks.values())
+            }
+            assert part.spaceUsed == partFile.length()
+        }
     }
 
     def writePartition(stream, partNum, chunks)
@@ -1827,12 +1875,19 @@ class A2PackPartitions
 
     def readAllCode()
     {
+        // Loader, ProRWTS, PLASMA VM, and memory manager
         assembleCore("src/core/")
 
+        // All other assembly-language code
         assembleCode("render", "src/raycast/")
         assembleCode("expand", "src/raycast/")
         assembleCode("fontEngine", "src/font/")
         assembleCode("tileEngine", "src/tile/")
+
+        code.each { k,v -> addResourceDep("map", "<root>", "code", k) }
+
+        // Special module added after the fact
+        code["resourceIndex"] = [num:1, buf:null] // filled in later
 
         compileModule("gameloop", "src/plasma/")
         compileModule("combat", "src/plasma/")
@@ -1847,7 +1902,6 @@ class A2PackPartitions
         }
         lastSysModule = modules.size()
 
-        code.each { k,v -> addResourceDep("map", "<root>", "code", k) }
         modules.each { k,v -> addResourceDep("map", "<root>", "module", k) }
     }
 

@@ -154,17 +154,18 @@ relocate:
 
 ;------------------------------------------------------------------------------
 init: !zone
-	; KLUDGE ALERT! Turning off IIc keyboard buffer as an experiment
-	; FIXME: This depends on ProDOS machine ID byte. ProRWTS doesn't have such a byte. Hmm...
-	lda $BF98	; machine ID byte
-	and #$C8	; mask just the machine bits
-	cmp #$88	; Apple IIc?
-	bne +
-	lda #$10	; turn off keyboard buffer
-	sta $c0aa
+	; Turning off IIc keyboard buffer prevents interrupts from destabilizing
+	; the system. IIc detection code below is thanks to qkumba :)
+	lda $FBB3
+        cmp #$06
+        bne +		; II or II+
+        lda $FBC0
+        bne +		; IIe or IIGS
+	lda #$10	; turn off keyboard buffer on IIc
+	sta $C0AA
 	lda #$B
-	sta $c0ab
-+	; END OF KLUDGE
+	sta $C0AB
++
 ; switch in mem mgr
 	bit setLcRW+lcBank1
 	bit setLcRW+lcBank1

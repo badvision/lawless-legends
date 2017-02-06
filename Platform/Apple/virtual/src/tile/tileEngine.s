@@ -49,7 +49,8 @@ MAX_MAP_ID=254  ; This means that the total map area can be as big as 5588x5842 
 
 REL_X=$50   ; Will always be in the range 0-43
 REL_Y=$51   ; Will always be in the range 0-45
-; Map quadrant data pointers (Maybe move these to screen holes in 2078-207f?  There might be no advantage to using ZP for these)
+; Map quadrant data pointers
+; (Maybe move these to screen holes in 2078-207f? There might be no advantage to using ZP for these)
 NW_MAP_LOC=$52
 NE_MAP_LOC=$54
 SW_MAP_LOC=$56
@@ -62,7 +63,7 @@ GLOBAL_TILESET_LOC=$98
 ; Map section IDs (255 = not loaded)
 NOT_LOADED=$FF
 NW_MAP_ID=$5A
-NE_MAP_ID=$5B   
+NE_MAP_ID=$5B
 SW_MAP_ID=$5C
 SE_MAP_ID=$5D
 
@@ -101,7 +102,8 @@ AVATAR_DIR	= $A8	; direction (0-15, though only 0,4,8,12 are valid)
 PLASMA_X	= $A9	; save for PLASMA's X reg
 SCRIPTS_ID      = $AA	; Module number of scripts
 PLAYER_TILE	= $AB	; Tile number to show for player avatar
-next_zp		= $AC
+MAP_PARTITION	= $AC	; Mem-mgr partition number for this map and its resources
+next_zp		= $AD
 
 ;----------------------------------------------------------------------
 ; Here are the entry points for PLASMA code. Identical API for 2D and 3D.
@@ -122,7 +124,7 @@ next_zp		= $AC
 ;----------------------------------------------------------------------
 ; >> START LOADING MAP SECTIONS
 START_MAP_LOAD
-	LDX #2			; currently 2d maps are in partition 2
+	LDX MAP_PARTITION
 	LDA #START_LOAD
 	JMP mainLoader
 !macro startLoad {
@@ -945,12 +947,16 @@ FinishCalc
 
 ;----------------------------------------------------------------------
 ; >> pl_initMap
-; params: mapNum, pMapData, x, y, dir
+; params: partNum, mapNum, pMapData, x, y, dir
 pl_initMap: !zone
 	TXA
 	CLC
-	ADC #5
+	ADC #6
 	STA PLASMA_X	; save PLASMA's eval stack pos, without our params on it
+
+	; Store partition number for later use
+	LDA evalStkL+5,X
+	STA MAP_PARTITION
 
         ; PLASMA code has already loaded the Northwest-most map section. Record its ID and address.
         LDA evalStkL+4,X

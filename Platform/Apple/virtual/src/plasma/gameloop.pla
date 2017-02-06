@@ -83,6 +83,8 @@ byte heapLocked = FALSE
 byte allowZoneInit = FALSE
 word curEngine = NULL
 word pIntimate = NULL
+word pResourceIndex = NULL
+byte curMapPartition = 0
 
 // Queue setMap / teleport / start_encounter, since otherwise script might be replaced while executing
 byte q_mapIs3D = 0
@@ -172,7 +174,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // API to call rendering engine (same API for raycaster and tile engine)
 asm initDisplay   // params: mapNum, pMapData, x, y, dir
-  +asmPlasm 5
+  +asmPlasm 6
   jmp $6000
 end
 export asm flipToPage1  // no params
@@ -1132,6 +1134,29 @@ export def rollDice(encoded)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Look up the partition for a resource.
+// sectioNum: 1=map2d, 2=map3d, 3=portrait
+def lookupResourcePart(sectionNum, resourceNum)
+  word ptr
+  byte n
+
+  // Skip to the requested section
+  printf3("sect=%d rsrc=%d idx=$%x\n", sectionNum, resourceNum, pResourceIndex)
+  ptr = pResourceIndex
+  while sectionNum > 1
+    ptr = ptr + readAuxByte(ptr) + 1
+    sectionNum--
+  loop
+
+  // And grab the number from that section's table
+  n = readAuxByte(ptr)
+  if resourceNum > n; fatal("lkupFail1"); fin
+  n = readAuxByte(ptr + resourceNum)
+  if n > 20; fatal("lkupFail2"); fin
+  return n
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set the sky color (relevant to 3D display only)
 export def setSky(num)
   // hack for end-game screen
@@ -1409,12 +1434,9 @@ def initMap(x, y, dir)
   renderLoaded = TRUE
 
   // Load the map
-  mmgr(START_LOAD, 2) // partition 2 is where maps live
-  if mapIs3D
-    pMap = mmgr(QUEUE_LOAD, mapNum<<8 | RES_TYPE_3D_MAP)
-  else
-    pMap = mmgr(QUEUE_LOAD, mapNum<<8 | RES_TYPE_2D_MAP)
-  fin
+  curMapPartition = lookupResourcePart(mapIs3D+1, mapNum)
+  mmgr(START_LOAD, curMapPartition)
+  pMap = mmgr(QUEUE_LOAD, mapNum<<8 | (RES_TYPE_2D_MAP+mapIs3D))
   mmgr(FINISH_LOAD, 0)
 
   // Clear all the windows to the background color (hi-bit set)
@@ -1434,7 +1456,7 @@ def initMap(x, y, dir)
   // init the script module, if any, which will end up calling us back at the setScriptInfo
   triggerTbl = NULL
   setWindow2()
-  initDisplay(mapNum, pMap, x, y, dir)
+  initDisplay(curMapPartition, mapNum, pMap, x, y, dir)
   texturesLoaded = TRUE
   needRender = FALSE
   textDrawn = FALSE
@@ -1885,7 +1907,7 @@ export def setPortrait(portraitNum)
   restoreCursor()
 
   // Load the portrait image and display it
-  mmgr(START_LOAD, 2) // portraits are in partition 2
+  mmgr(START_LOAD, lookupResourcePart(3, portraitNum))
   curPortrait = auxMmgr(QUEUE_LOAD, portraitNum<<8 | RES_TYPE_PORTRAIT)
   mmgr(FINISH_LOAD, 0)
   anyAnims = TRUE  // for now; might get cleared if we discover otherwise on advance
@@ -2362,6 +2384,9 @@ def loadTitle()
   // While we're loading, let's get the expander into aux RAM.
   auxMmgr(SET_MEM_TARGET, expandVec)
   auxMmgr(QUEUE_LOAD, CODE_EXPAND<<8 | RES_TYPE_CODE)
+
+  // Also grab the resource index (put it in aux)
+  pResourceIndex = auxMmgr(QUEUE_LOAD, CODE_RESOURCE_INDEX<<8 | RES_TYPE_CODE)
 
   mmgr(FINISH_LOAD, 0)
 

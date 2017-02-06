@@ -1404,6 +1404,7 @@ class A2PackPartitions
                 def blks = calcFileBlks(spaceUsed + portraitSpace + len)
                 if (blks <= availBlks) {
                     mapChunks[key] = chunk
+                    chunk.buf.partNum = 1
                     portraitSpace += len
                 }
             }
@@ -1503,6 +1504,8 @@ class A2PackPartitions
 
         tmp.put((byte) portraits.size())
         portraits.each { k, v -> tmp.put((byte) (v.buf.partNum ? v.buf.partNum : 0)) }
+
+        println "resource indx: ${unwrapByteBuffer(tmp)}"
 
         code["resourceIndex"].buf = compress(unwrapByteBuffer(tmp))
         def chunk = [type:TYPE_CODE, num:code["resourceIndex"].num, 
@@ -1887,7 +1890,7 @@ class A2PackPartitions
         code.each { k,v -> addResourceDep("map", "<root>", "code", k) }
 
         // Special module added after the fact
-        code["resourceIndex"] = [num:1, buf:null] // filled in later
+        code["resourceIndex"] = [num:code.size()+1, buf:null] // filled in later
 
         compileModule("gameloop", "src/plasma/")
         compileModule("combat", "src/plasma/")

@@ -83,6 +83,7 @@ plasmaStk:      !byte 0
 nTextures:	!byte 0
 scripts:	!word 0		; pointer to loaded scripts module
 shadow_pTex:	!word 0		; backup of pTmp space on aux (because it gets overwritten by expander)
+mapPartition:	!byte 0		; mem mgr partition of map and resources
 
 skyColorEven:   !byte $20
 skyColorOdd:    !byte $22
@@ -1673,7 +1674,7 @@ pl_texControl: !zone {
 	tax
 	beq .unload
 	lda #START_LOAD
-	ldx #2		; textures are on disk 2
+	ldx mapPartition
 	jsr mainLoader
 	lda #0		; don't re-init scripts
 	jmp loadTextures
@@ -2143,8 +2144,11 @@ pl_initMap: !zone
 	; Figure out PLASMA stack for calling script init
 	txa
 	clc
-	adc #5			; 5 params
+	adc #6			; 6 params
 	sta plasmaStk		; save PLASMA's eval stack pos, without our params
+	; Record partition number of the map and textures
+	lda evalStkL+5,x
+	sta mapPartition
 	; Record the address of the map
 	lda evalStkL+3,x
 	sta mapHeader

@@ -1428,7 +1428,7 @@ class A2PackPartitions
      */
     def fillDisk(int partNum, int availBlks, ArrayList<String> maps)
     {
-        println "Filling disk $partNum, availBlks=$availBlks"
+        //println "Filling disk $partNum, availBlks=$availBlks"
         def spaceUsed = 3 // chunk-list header and trailer
 
         // On disk 1, reserve enough space for the map and portrait index
@@ -1444,17 +1444,17 @@ class A2PackPartitions
         while (!maps.isEmpty()) {
             def mapName = maps[0]
             def mapChunks = outChunks.clone()
-            println "Trying map $mapName"
+            //println "Trying map $mapName"
             def mapSpace = traceResources(["map", mapName], mapChunks)
 
             int blks = calcFileBlks(spaceUsed + overhead + mapSpace)
             if (blks > availBlks) {
-                println "stopping: map $mapName would add $mapSpace bytes, totaling $blks blks, too big."
+                //println "stopping: map $mapName would add $mapSpace bytes, totaling $blks blks, too big."
                 break
             }
 
             spaceUsed += mapSpace
-            println "ok: map $mapName adds $mapSpace bytes, totaling $blks blks."
+            //println "ok: map $mapName adds $mapSpace bytes, totaling $blks blks."
             mapChunks.each { k,v ->
                 v.buf.partNum = partNum
                 outChunks[k] = v
@@ -1467,10 +1467,10 @@ class A2PackPartitions
                 def portraitsSpace = stuffMostUsedPortraits(maps, outChunks, availBlks, spaceUsed)
                 spaceUsed += portraitsSpace
                 blks = calcFileBlks(spaceUsed)
-                println "stuffed most-used portraits for $portraitsSpace bytes, totaling $blks blks."
+                //println "stuffed most-used portraits for $portraitsSpace bytes, totaling $blks blks."
             }
         }
-        println "Unused blks=${availBlks - calcFileBlks(spaceUsed)}"
+        //println "Unused blks=${availBlks - calcFileBlks(spaceUsed)}"
         return [outChunks, spaceUsed]
     }
 
@@ -1547,14 +1547,13 @@ class A2PackPartitions
                 // Disk 1 adds LEGENDOS.SYSTEM. Figure out its size:
                 // round up to nearest whole block, plus index blk
                 def coreBlks = calcFileBlks(coreSize)
-                println "LEGENDOS blks=$coreBlks"
+                //println "LEGENDOS blks=$coreBlks"
                 availBlks -= coreBlks
                 // Disk 1 also holds the save game file
                 availBlks -= SAVE_GAME_SIZE
             }
 
             def (chunks, spaceUsed) = fillDisk(partNum, availBlks, mapsTodo)
-            println "space used: $spaceUsed"
             partChunks << [partNum:partNum, chunks:chunks, spaceUsed:spaceUsed]
         }
         assert allMaps.isEmpty : "All data must fit within $MAX_DISKS disks."
@@ -2132,6 +2131,24 @@ class A2PackPartitions
             }
             addEntireToCache("portraits", portraits, hash)
         }
+
+        // Ensure we can find the system-required portraits, and make them root dependencies
+        def combatWinFound = false
+        def deathFound = false
+        portraits.each { name, portrait ->
+            if (name.toLowerCase() == "combatwin") {
+                addResourceDep("map", "<root>", "portrait", name)
+                combatWinFound = true
+            }
+            if (name.toLowerCase() == "death") {
+                addResourceDep("map", "<root>", "portrait", name)
+                deathFound = true
+            }
+        }
+        if (!combatWinFound)
+            throw new Exception("Error: combatWin portrait not found")
+        if (!deathFound)
+            throw new Exception("Error: death portrait not found")
 
         // Number all the maps and record them with names
         numberMaps(dataIn)

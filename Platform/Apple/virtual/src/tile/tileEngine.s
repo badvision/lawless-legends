@@ -22,7 +22,7 @@
 !source "../include/mem.i"
 !source "../include/plasma.i"
 
-DEBUG       = 1     ; 1=some logging, 2=lots of logging
+DEBUG       = 0     ; 1=some logging, 2=lots of logging
 
 HEADER_LENGTH=6
 SECTION_WIDTH=22

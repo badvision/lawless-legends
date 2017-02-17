@@ -240,7 +240,7 @@ SET_MEM_TARGET = $14
 
 ;------------------------------------------------------------------------------
 START_LOAD = $15
-    ; Input:  X-reg - disk partition number (0 for boot disk, 1-15 for others)
+    ; Input:  X-reg - disk partition number (1 for boot disk, 2-15 for others)
     ;
     ; Output: None
     ;

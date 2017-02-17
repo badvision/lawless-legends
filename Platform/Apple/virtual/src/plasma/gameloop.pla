@@ -1101,7 +1101,6 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Pause for a specified count period, advancing the animation periodically.
 export def pause(count)
-  printf1("pause %d\n", count)
   while count >= 0
     animPauseCt = animPauseCt - 1
     if animPauseCt < 0
@@ -1141,7 +1140,6 @@ def lookupResourcePart(sectionNum, resourceNum)
   byte n
 
   // Skip to the requested section
-  printf3("sect=%d rsrc=%d idx=$%x\n", sectionNum, resourceNum, pResourceIndex)
   ptr = pResourceIndex
   while sectionNum > 1
     ptr = ptr + readAuxByte(ptr) + 1
@@ -2387,6 +2385,7 @@ def loadTitle()
 
   // Also grab the resource index (put it in aux)
   pResourceIndex = auxMmgr(QUEUE_LOAD, CODE_RESOURCE_INDEX<<8 | RES_TYPE_CODE)
+  auxMmgr(LOCK_MEMORY, pResourceIndex)
 
   mmgr(FINISH_LOAD, 0)
 

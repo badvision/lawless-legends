@@ -17,9 +17,21 @@ public class Lx47Algorithm
 
     LinkedList<String> debugs;
 
+    boolean trackDebugs = false;
+    boolean checkDebugs = false;
+    boolean printDebugs = false;
+
+    public void setDebugging(boolean track, boolean check, boolean print)
+    {
+        trackDebugs = track;
+        checkDebugs = check;
+        printDebugs = print;
+    }
+
     void addDebug(String format, Object... arguments) {
         String str = String.format(format, arguments);
-        //System.out.println("Gen: " + str);
+        if (printDebugs)
+            System.out.println("Gen: " + str);
         debugs.add(str);
     }
 
@@ -243,7 +255,8 @@ public class Lx47Algorithm
         //            optimal[i].bits, optimal[i].offset, optimal[i].len, optimal[i].lits);
 
         // Initialize list of debug check strings
-        debugs = new LinkedList<String>();
+        if (trackDebugs)
+            debugs = new LinkedList<String>();
 
         /* calculate and allocate output buffer */
         input_index = input_data.length-1;
@@ -269,7 +282,8 @@ public class Lx47Algorithm
 
         /* process all bytes */
         boolean prevIsLit = false;
-        addDebug("start");
+        if (trackDebugs)
+            addDebug("start");
         for (input_index = first_index; input_index >= 0; input_index = optimal[input_index].next)
         {
             if (optimal[input_index].len == 0) {
@@ -278,10 +292,12 @@ public class Lx47Algorithm
                 int pos = input_index - optimal[input_index].lits + 1;
                 while (optimal[input_index].lits > 0) {
                     int n = Math.min(255, optimal[input_index].lits);
-                    addDebug("lits l=$%02x", n);
+                    if (trackDebugs)
+                        addDebug("lits l=$%02x", n);
                     w.writeLiteralLen(n);
                     for (i = 0; i < n; i++, pos++) {
-                        addDebug("lit $%02x", input_data[pos]);
+                        if (trackDebugs)
+                            addDebug("lit $%02x", input_data[pos]);
                         w.writeByte(input_data[pos]);
                     }
                     optimal[input_index].lits -= n;
@@ -292,12 +308,14 @@ public class Lx47Algorithm
 
                 // Sequence. If two in a row, insert a zero-length lit str
                 if (!prevIsLit) {
-                    addDebug("lits l=$00");
+                    if (trackDebugs)
+                        addDebug("lits l=$00");
                     w.writeLiteralLen(0);
                 }
 
                 // Now write sequence info
-                addDebug("seq l=$%02x o=$%04x", optimal[input_index].len, optimal[input_index].offset);
+                if (trackDebugs)
+                    addDebug("seq l=$%02x o=$%04x", optimal[input_index].len, optimal[input_index].offset);
                 w.writeCodePair(optimal[input_index].len, optimal[input_index].offset);
                 prevIsLit = false;
             }
@@ -308,10 +326,12 @@ public class Lx47Algorithm
 
         // EOF marker
         if (!prevIsLit) {
-            addDebug("lits l=$00");
+            if (trackDebugs)
+                addDebug("lits l=$00");
             w.writeLiteralLen(0);
         }
-        addDebug("EOF");
+        if (trackDebugs)
+            addDebug("EOF");
 
         assert w.outPos == output_size : String.format("size miscalc: got %d, want %d", w.outPos, output_size);
         System.arraycopy(w.buf, 0, output_data, 0, w.outPos);
@@ -390,16 +410,19 @@ public class Lx47Algorithm
         int outPos = outStart;
 
         // Now decompress until done.
-        chkDebug("start");
+        if (checkDebugs)
+            chkDebug("start");
         while (true) 
         {
             // Check for literal string
             while (true) {
                 len = r.readLiteralLen();
-                chkDebug("lits l=$%02x", len);
+                if (checkDebugs)
+                    chkDebug("lits l=$%02x", len);
                 for (int i=0; i<len; i++) {
                     output_data[outPos++] = (byte) r.readByte();
-                    chkDebug("lit $%02x", output_data[outPos-1]);
+                    if (checkDebugs)
+                        chkDebug("lit $%02x", output_data[outPos-1]);
                 }
                 if (len != 255)
                     break;
@@ -413,14 +436,16 @@ public class Lx47Algorithm
             int codePair = r.readCodePair();
             len = codePair & 0xFFFF;
             int off = codePair >> 16;
-            chkDebug("seq l=$%02x o=$%04x", len, off);
+            if (checkDebugs)
+                chkDebug("seq l=$%02x o=$%04x", len, off);
             while (len-- > 0) {
                 output_data[outPos] = output_data[outPos - off];
                 ++outPos;
             }
         }
 
-        chkDebug("EOF");
+        if (checkDebugs)
+            chkDebug("EOF");
     }
 
     public byte[] compress(byte[] input_data) {

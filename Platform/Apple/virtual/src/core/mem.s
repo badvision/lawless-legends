@@ -27,8 +27,8 @@
 ; Constants
 MAX_SEGS	= 96
 
-DEBUG		= 1
-SANITY_CHECK	= 1		; also prints out request data
+DEBUG		= 0
+SANITY_CHECK	= 0		; also prints out request data
 
 ; Zero page temporary variables
 tmp		= $2	; len 2
@@ -1343,8 +1343,17 @@ saneStart: !zone {
 	beq +
 	+prChr 'a'
 +	pla : pha : +prA
-	+prX : +prY
-	pla
+	cmp #RESET_MEMORY
+	beq +
+	cmp #HEAP_COLLECT
+	beq +
+	+prX
+	cmp #START_LOAD
+	beq +
+	cmp #FINISH_LOAD
+	beq +
+	+prY
++	pla
 	rts
 }
 
@@ -2033,7 +2042,9 @@ disk_startLoad: !zone
 	beq .done		; if nothing already open, we're okay with that.
 	jsr calcBufferDigest	; same partition - check that buffers are still intact
 	beq .done		; if correct partition file already open, we're done.
-.new	jsr closePartFile
+.new	lda nSegsQueued		; make sure nothing queued before switching
+	bne sequenceError
+	jsr closePartFile
 .done	rts
 
 ;------------------------------------------------------------------------------

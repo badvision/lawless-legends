@@ -96,13 +96,14 @@
                 blokhi    = $47         ;ProDOS constant
 
 !if allow_trees = 1 {
-                treeidx   = $13         ;(internal) index into tree block
-                istree    = $14         ;(internal) flag to indicate tree file
+                treeidx   = $1b         ;(internal) index into tree block
+                                        ;MH: must be just after blkoffhi for proper seek reset in LegendOS
+                istree    = $1c         ;(internal) flag to indicate tree file
 } ;allow_trees
                 entries   = $18         ;(internal) total number of entries in directory
 !if bounds_check = 1 {
-                bleftlo   = $1b         ;(internal) bytes left in file
-                blefthi   = $1c         ;(internal) bytes left in file
+                bleftlo   = $13         ;(internal) bytes left in file
+                blefthi   = $14         ;(internal) bytes left in file
 } ;bounds_check
                 blkofflo  = $19         ;(internal) offset within cache block
                 blkoffhi  = $1a         ;(internal) offset within cache block

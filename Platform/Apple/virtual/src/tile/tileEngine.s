@@ -22,7 +22,7 @@
 !source "../include/mem.i"
 !source "../include/plasma.i"
 
-DEBUG       = 0     ; 1=some logging, 2=lots of logging
+DEBUG       = 1     ; 1=some logging, 2=lots of logging
 
 HEADER_LENGTH=6
 SECTION_WIDTH=22
@@ -289,6 +289,7 @@ LOAD_ALL_TILES
 
 !macro finishLoad keepOpen {
        LDA #FINISH_LOAD
+       LDX #keepOpen
        JSR mainLoader
 }
 
@@ -335,10 +336,8 @@ LOAD_SCRIPTS_NO_CALC:
 	STX SCRIPTS_LOC
 	STY SCRIPTS_LOC+1
 	+finishLoad 1   	; all done
-!if DEBUG { +prStr : !text "Calling init script.",0 }
 	LDX PLASMA_X
 	JSR .callit		; perform script init
-!if DEBUG { +prStr : !text "Back from init script.",0 }
 	RTS
 .callit	JMP (SCRIPTS_LOC)	; the init function is always first in the script module
 
@@ -349,6 +348,7 @@ LOAD_SCRIPTS_NO_CALC:
 FINISH_MAP_LOAD
 	+finishLoad 1   	; keep open for further loading
 	+loadAllTiles
+	+finishLoad 1		; because loadScripts does a new START_LOAD
 	+loadScripts
 	RTS
 

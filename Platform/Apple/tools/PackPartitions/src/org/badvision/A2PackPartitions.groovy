@@ -46,7 +46,7 @@ class A2PackPartitions
     def TYPE_PORTRAIT    = 11
 
     static final int FLOPPY_SIZE = 35*8  // good old 140k floppy = 280 blks
-    static final int AC_KLUDGE = 1      // minus 1 to work around last-block bug in AppleCommander
+    static final int AC_KLUDGE = 2      // minus 1 to work around last-block bug in AppleCommander
     static final int DOS_OVERHEAD = 3 // only 3 blks overhead! ProRWTS is so freaking amazing.
     static final int SAVE_GAME_SIZE = 7 // 6 blocks data, 1 block index
     static final int MAX_DISKS = 20 // for now this should be way more than enough
@@ -1505,8 +1505,6 @@ class A2PackPartitions
         tmp.put((byte) portraits.size())
         portraits.each { k, v -> tmp.put((byte) (v.buf.partNum ? v.buf.partNum : 0)) }
 
-        println "resource indx: ${unwrapByteBuffer(tmp)}"
-
         code["resourceIndex"].buf = compress(unwrapByteBuffer(tmp))
         def chunk = [type:TYPE_CODE, num:code["resourceIndex"].num, 
                      name:"resourceIndex", buf:code["resourceIndex"].buf]
@@ -1556,7 +1554,6 @@ class A2PackPartitions
             }
 
             def (chunks, spaceUsed) = fillDisk(partNum, availBlks, mapsTodo)
-            println "Part $partNum chunks: ${chunks.keySet()}"
             println "space used: $spaceUsed"
             partChunks << [partNum:partNum, chunks:chunks, spaceUsed:spaceUsed]
         }
@@ -2230,14 +2227,14 @@ class A2PackPartitions
             }
         }
         def result = buf.toString()
-        if (result.length() > 18)
+        if (result.length() > 15)
         {
             // PLASMA's compiler has a silent limit on the number of significant
             // characters in a symbol. To make the symbol short enough but still
             // significant, calculate a digest and replace the excess characters
             // with part of it.
             def bigHash = Integer.toString(result.hashCode(), 36)
-            result = result.substring(0, 13) + "_" + bigHash.substring(bigHash.length() - 4)
+            result = result.substring(0, 10) + "_" + bigHash.substring(bigHash.length() - 4)
         }
         return result
     }

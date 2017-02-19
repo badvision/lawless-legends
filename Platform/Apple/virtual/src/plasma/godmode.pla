@@ -1,0 +1,133 @@
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1
+// (the "License"); you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-1.1>.
+// Unless required by applicable law or agreed to in writing, software distributed under
+// the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+// ANY KIND, either express or implied. See the License for the specific language
+// governing permissions and limitations under the License.
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+include "gamelib.plh"
+include "globalDefs.plh"
+include "godmode.plh"
+include "playtype.plh"
+include "gen_images.plh"
+
+// Exported functions go here. First a predef for each one, then a table with function pointers
+// in the same order as the constants are defined in the the header.
+predef setCheatCmds
+word[] funcTbl = @setCheatCmds
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Godmode cheats
+def kbdTeleport()
+  byte d3, num
+  word x, y
+  byte dir
+
+  flipToPage1()
+  ^$c053
+  if ^$25 < 23; ^$25 = 23; fin
+  getPos(@x, @y)
+  dir = getDir()
+  printf3("\nCurrent: X=%d Y=%d Facing=%d\n", x, y, dir)
+
+  printf1("3D [%d]: ", mapIs3D)
+  d3 = parseDecWithDefault(readStr(), mapIs3D)
+  if d3 > 1; d3 = 1; fin
+  printf1("Map [%d]: ", mapNum)
+  num = parseDecWithDefault(readStr(), mapNum)
+  printf1("X [%d]  : ", x)
+  x = parseDecWithDefault(readStr(), x)
+  printf1("Y [%d] : ", y)
+  y = parseDecWithDefault(readStr(), y)
+  printf1("Facing [%d]: ", dir)
+  dir = parseDecWithDefault(readStr(), dir)
+
+  ^$c052
+
+  setMap(d3, num, x, y, dir)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def showPos()
+  word x, y
+  byte dir
+
+  flipToPage1()
+  ^$c053
+  if ^$25 < 23; ^$25 = 23; fin
+  getPos(@x, @y)
+  printf2("\nX=%d Y=%d ", x, y)
+  if mapIs3D
+    printf3("Facing=%d Sky=%d Ground=%d", getDir(), skyNum, groundNum)
+  fin
+  puts("\nHit any key.\n")
+  getUpperKey()
+  ^$c052
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def nextPortrait()
+  portraitNum = portraitNum + 1
+  if portraitNum > PO_LAST; portraitNum = 1; fin
+  setPortrait(portraitNum)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def prevPortrait()
+  portraitNum = portraitNum - 1
+  if portraitNum < 1; portraitNum = PO_LAST; fin
+  setPortrait(portraitNum)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def testCombat
+  word x, y
+  getPos(@x, @y)
+  checkEncounter(x, y, TRUE)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def printMem
+  flipToPage1
+  ^$c051
+  mmgr(DEBUG_MEM, 0)
+  rdkey
+  auxMmgr(DEBUG_MEM, 0)
+  rdkey
+  ^$c050
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Switch to the next sky color (3D only)
+def nextSky()
+  setSky((skyNum + 1) % 18)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Switch to the next ground color (3D only)
+def nextGround()
+  setGround((groundNum + 1) % 18)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def setCheatCmds()
+  // install cheat commands
+  setCmd('T', @kbdTeleport)
+  setCmd('P', @showPos)
+  setCmd('>', @nextPortrait)
+  setCmd('<', @prevPortrait)
+  setCmd('!', @testCombat)
+  setCmd('Y', @nextSky)
+  setCmd('G', @nextGround)
+  setCmd('&', @printMem)
+  setCmd('_', @finalWin)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Boilerplate module initialization code
+return @funcTbl
+done

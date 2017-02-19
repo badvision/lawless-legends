@@ -13,13 +13,13 @@ import gamelib
   //////////// Shared library routines ////////////
   predef setScriptInfo, scriptDisplayStr, scriptDisplayStrNL, getYN, queue_setMap
   predef setSky, setGround, queue_teleport, setPortrait, clearPortrait, moveWayBackward
-  predef flipToPage1, textHome, calcWidth
+  predef flipToPage1, textHome, calcWidth, getPos, getDir, setMap, setCmd
   predef getUpperKey, clearWindow, rand16, printf1, printf2, printf3
   predef displayf1, displayf2, displayf3, buildString, addToString, finishString, printHex
   predef displayChar, rawDisplayStr, displayStr, rightJustifyStr, rightJustifyNum, puts
   predef min, max, randomFromListFiltered, randomFromArray, scanForNamedObj
   predef countList, countListFiltered, addToList, removeFromList
-  predef beep, showParty, mmgr, setWindow, setWindow1, setWindow2, setWindow3, reboot, brk
+  predef beep, showParty, mmgr, auxMmgr, setWindow, setWindow1, setWindow2, setWindow3, reboot, brk
   predef encodeDice, rollDice, setPlural, getStringResponse
   predef streqi, strncpy, fatal, pause, tossStrings, charToUpper
   predef addEncounterZone, clearEncounterZones, showMapName, setMapWindow, getMapWindow
@@ -29,11 +29,18 @@ import gamelib
   predef setGameFlag, getGameFlag, scriptSetAvatar, parseDecWithDefault, readStr
   predef addPlayerToParty, removePlayerFromParty, partyHasPlayer, loadFrameImg, loadMainFrameImg
   predef scriptSwapTile, setIntimateMode, fontCmd, setIntimateMode
-  predef callGlobalFunc, getCharResponse, memcpy
+  predef callGlobalFunc, getCharResponse, memcpy, checkEncounter, finalWin
 
   // This pointer is the root of all heap-tracked (and garbage collected) objects.
   // See playtype.plh for definitions of all the datastructures and how they interconnect.
   word global
+
+  // Other global variables
+  byte mapNum
+  byte mapIs3D
+  word skyNum
+  word groundNum
+  byte portraitNum
 
   /////////// Shared string constants //////////////
 

@@ -1892,6 +1892,7 @@ class A2PackPartitions
         compileModule("combat", "src/plasma/")
         compileModule("party", "src/plasma/")
         compileModule("diskops", "src/plasma/")
+        compileModule("godmode", "src/plasma/")
         compileModule("intimate", "src/plasma/")
         compileModule("gen_enemies", "src/plasma/")
         compileModule("gen_items", "src/plasma/")

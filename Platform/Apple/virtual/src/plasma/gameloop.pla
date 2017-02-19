@@ -40,8 +40,7 @@ include "combat.plh"
 include "party.plh"
 include "diskops.plh"
 include "intimate.plh"
-
-// NOTE: GLIB goes here!
+include "godmode.plh"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Data structures
@@ -56,8 +55,8 @@ predef doRender, playerDeath, startGame, showAnimFrame, finalWin
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Global variables
-byte mapNum = -1
-byte mapIs3D = -1
+export byte mapNum = -1
+export byte mapIs3D = -1
 word mapNameHash = 0
 word totalMapWidth
 word totalMapHeight
@@ -70,9 +69,9 @@ byte textDrawn = FALSE
 byte isPlural = FALSE
 byte skipEncounterCheck = FALSE
 
-word skyNum = 9
-word groundNum = 10
-byte portraitNum = 1
+export word skyNum = 9
+export word groundNum = 10
+export byte portraitNum = 1
 
 word triggerOriginX, triggerOriginY
 word triggerTbl
@@ -85,6 +84,7 @@ word curEngine = NULL
 word pIntimate = NULL
 word pResourceIndex = NULL
 byte curMapPartition = 0
+word pGodModule = NULL
 
 // Queue setMap / teleport / start_encounter, since otherwise script might be replaced while executing
 byte q_mapIs3D = 0
@@ -181,7 +181,7 @@ export asm flipToPage1  // no params
   +asmPlasm 0
   jmp $6003
 end
-asm getPos       // params: @x, @y
+export asm getPos       // params: @x, @y
   +asmPlasm 2
   jmp $6006
 end
@@ -189,7 +189,7 @@ asm setPos       // params: x, y
   +asmPlasm 2
   jmp $6009
 end
-asm getDir       // no params; returns: dir (0-15)
+export asm getDir       // no params; returns: dir (0-15)
   +asmPlasm 0
   jmp $600C
 end
@@ -708,7 +708,7 @@ export asm mmgr
 end
 
 // Aux version of memory manager command
-asm auxMmgr
+export asm auxMmgr
   +asmPlasm 2
   lda evalStkL+1,x        ; command code
   pha
@@ -1167,23 +1167,11 @@ export def setSky(num)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Switch to the next sky color (3D only)
-def nextSky()
-  setSky((skyNum + 1) % 18)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set the ground color (relevant to 3D display only)
 export def setGround(num)
   groundNum = num
   setColor(1, groundNum)
   needRender = TRUE
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Switch to the next ground color (3D only)
-def nextGround()
-  setGround((groundNum + 1) % 18)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1414,9 +1402,6 @@ end
 def initMap(x, y, dir)
   word pMap
 
-  // Set up the command table
-  initCmds()
-
   // Reset memory (our module will stay since memory manager locked it upon load)
   mmgr(RESET_MEMORY, 0)
 
@@ -1428,8 +1413,17 @@ def initMap(x, y, dir)
   else
     mmgr(QUEUE_LOAD, CODE_TILE_ENGINE<<8 | RES_TYPE_CODE)
   fin
+  if global->b_godmode
+    pGodModule = mmgr(QUEUE_LOAD, MOD_GODMODE<<8 | RES_TYPE_MODULE)
+  fin
   mmgr(FINISH_LOAD, 0)
   renderLoaded = TRUE
+
+  // Grab the function table for the godMode module (if enabled)
+  if global->b_godmode; pGodModule = pGodModule(); fin
+
+  // Set up the command table
+  initCmds()
 
   // Load the map
   curMapPartition = lookupResourcePart(mapIs3D+1, mapNum)
@@ -1673,7 +1667,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Switch to a new map (2D or 3D) and establish position on it
-def setMap(is3D, num, x, y, dir)
+export def setMap(is3D, num, x, y, dir)
   if is3D == mapIs3D and num == mapNum
     setPos(x, y)
     setDir(dir)
@@ -2149,7 +2143,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Check for a random encounter at this position
-def checkEncounter(x, y, force)
+export def checkEncounter(x, y, force)
   word p
   word p_bestZone, bestDist
   word d
@@ -2197,100 +2191,32 @@ def help
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Godmode cheats
-def kbdTeleport()
-  byte d3, num
-  word x, y
-  byte dir
-
-  flipToPage1()
-  ^$c053
-  if ^$25 < 23; ^$25 = 23; fin
-  getPos(@x, @y)
-  dir = getDir()
-  printf3("\nCurrent: X=%d Y=%d Facing=%d\n", x, y, dir)
-
-  printf1("3D [%d]: ", mapIs3D)
-  d3 = parseDecWithDefault(readStr(), mapIs3D)
-  if d3 > 1; d3 = 1; fin
-  printf1("Map [%d]: ", mapNum)
-  num = parseDecWithDefault(readStr(), mapNum)
-  printf1("X [%d]  : ", x)
-  x = parseDecWithDefault(readStr(), x)
-  printf1("Y [%d] : ", y)
-  y = parseDecWithDefault(readStr(), y)
-  printf1("Facing [%d]: ", dir)
-  dir = parseDecWithDefault(readStr(), dir)
-
-  ^$c052
-
-  setMap(d3, num, x, y, dir)
-end
-def showPos()
-  word x, y
-  byte dir
-
-  flipToPage1()
-  ^$c053
-  if ^$25 < 23; ^$25 = 23; fin
-  getPos(@x, @y)
-  printf2("\nX=%d Y=%d ", x, y)
-  if mapIs3D
-    printf3("Facing=%d Sky=%d Ground=%d", getDir(), skyNum, groundNum)
-  fin
-  puts("\nHit any key.\n")
-  getUpperKey()
-  ^$c052
-end
-def nextPortrait()
-  portraitNum = portraitNum + 1
-  if portraitNum > PO_LAST; portraitNum = 1; fin
-  setPortrait(portraitNum)
-end
-def prevPortrait()
-  portraitNum = portraitNum - 1
-  if portraitNum < 1; portraitNum = PO_LAST; fin
-  setPortrait(portraitNum)
-end
-def testCombat
-  word x, y
-  getPos(@x, @y)
-  checkEncounter(x, y, TRUE)
-end
-def printMem
-  flipToPage1
-  ^$c051
-  mmgr(DEBUG_MEM, 0)
-  rdkey
-  auxMmgr(DEBUG_MEM, 0)
-  rdkey
-  ^$c050
-end
-def finalWin()
-    flipToPage1()
-    loadFrameImg(4) // total hack
-    while 1 // 1 infinite loop
-      getUpperKey()
-    loop
-end
-def setCheatCmds
-  // install cheat commands
-  cmdTbl['T'] = @kbdTeleport
-  cmdTbl['P'] = @showPos
-  cmdTbl['>'] = @nextPortrait
-  cmdTbl['<'] = @prevPortrait
-  cmdTbl['!'] = @testCombat
-  cmdTbl['Y'] = @nextSky
-  cmdTbl['G'] = @nextGround
-  cmdTbl['&'] = @printMem
-  cmdTbl['_'] = @finalWin
-end
 def enableGodMode()
-  if ^$C061 >= 128 and ^$C062 >= 128
-    global->b_godmode = 1
-    setCheatCmds()
-    beep; beep // A little audio feedback
+  while ^kbd < 128; loop
+  if ^kbd == $8F  // ctrl-O
+    ^kbdStrobe
+    while ^kbd < 128; loop
+    if ^kbd == $84  // ctrl-D
+      ^kbdStrobe
+      global->b_godmode = 1
+      beep; beep // A little audio feedback
+      saveMapPos(); restoreMapPos()  // reload everything, including god module
+    fin
   fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def finalWin()
+  flipToPage1()
+  loadFrameImg(4) // total hack
+  while 1 // 1 infinite loop
+    getUpperKey()
+  loop
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def setCmd(key, func)
+  cmdTbl[key] = func
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2311,9 +2237,9 @@ def initCmds()
   cmdTbl[$0c] = @loadGame // ctrl-L
   cmdTbl['?'] = @help
   if global->b_godmode
-    setCheatCmds()
+    pGodModule=>godmode_setCheatCmds()
   else
-    cmdTbl['!'] = @enableGodMode
+    cmdTbl[$07] = @enableGodMode // ctrl-G
   fin
 
   // Commands handled differently in 3D vs 2D

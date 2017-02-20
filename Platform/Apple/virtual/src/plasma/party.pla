@@ -374,11 +374,12 @@ def selectPlayer(players)
   player = players
   n_item = 0
   while player
-    if player->b_playerFlags & PLAYER_FLAG_NPC; continue; fin
-    displayf1("\n%c)", 'A' + n_item)
-    rawDisplayStr("^T018")
-    displayStr(player=>s_name)
-    n_item++
+    if player->b_playerFlags & PLAYER_FLAG_NPC
+      displayf1("\n%c)", 'A' + n_item)
+      rawDisplayStr("^T018")
+      displayStr(player=>s_name)
+      n_item++
+    fin
     player = player=>p_nextObj
   loop
 
@@ -388,14 +389,19 @@ def selectPlayer(players)
   fin
 
   // Then get a selection
-  rawDisplayStr("\n^T032Which character?")
+  rawDisplayStr("\nWhich character?")
   n_item = getUpperKey() - 'A'
   player = players
-  while n_item > 0 and player
+  while player
+    if player->b_playerFlags & PLAYER_FLAG_NPC
+      if n_item == 0
+        break
+      fin
+      n_item--
+    fin
     player = player=>p_nextObj
-    n_item--
   loop
-  return player  
+  return player
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

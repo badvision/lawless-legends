@@ -1880,7 +1880,7 @@ end
 // Display a portrait drawing (typically called from scripts)
 export def setPortrait(portraitNum)
   word srcData
-  byte cx, cy
+  byte part, cx, cy
 
   clearPortrait()
 
@@ -1899,7 +1899,9 @@ export def setPortrait(portraitNum)
   restoreCursor()
 
   // Load the portrait image and display it
-  mmgr(START_LOAD, lookupResourcePart(3, portraitNum))
+  part = lookupResourcePart(3, portraitNum)
+  if part > 1; part = curMapPartition; fin  // Look on disk 1 or current disk only
+  mmgr(START_LOAD, part)
   curPortrait = auxMmgr(QUEUE_LOAD, portraitNum<<8 | RES_TYPE_PORTRAIT)
   mmgr(FINISH_LOAD, 0)
   anyAnims = TRUE  // for now; might get cleared if we discover otherwise on advance

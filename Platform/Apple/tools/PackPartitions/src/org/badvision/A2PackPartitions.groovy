@@ -1292,12 +1292,11 @@ class A2PackPartitions
         if (!allChunks.containsKey(key))
         {
             // It's ok for an abstract map to not have a chunk... as long as
-            // there are deps for it, we know it's real.
-            if (typeName == "map" && resourceDeps.containsKey(inKey))
+            // there are deps for it, we know it's real. Likewise, encounter
+            // zones and global funcs only have subs.
+            if (typeName =~ /^(map|encounterZone|globalFunc)$/ && resourceDeps.containsKey(inKey))
                 return null
-            // Encounter zones only have sub-resources
-            if (typeName == "encounterZone" && resourceDeps.containsKey(inKey))
-                return null;
+
             println "all keys: ${allChunks.keySet()}"
             assert false : "resource link fail: key=$key"
         }
@@ -1399,13 +1398,15 @@ class A2PackPartitions
         pairs.sort{-it.count}.each { pair ->
             if (pair.count > 1) {
                 def key = ["portrait", pair.name]
-                def chunk = findResourceChunk(key)
-                def len = calcChunkLen(chunk)
-                def blks = calcFileBlks(spaceUsed + portraitSpace + len)
-                if (blks <= availBlks) {
-                    mapChunks[key] = chunk
-                    chunk.buf.partNum = 1
-                    portraitSpace += len
+                if (!mapChunks.containsKey(key)) {
+                    def chunk = findResourceChunk(key)
+                    def len = calcChunkLen(chunk)
+                    def blks = calcFileBlks(spaceUsed + portraitSpace + len)
+                    if (blks <= availBlks) {
+                        mapChunks[key] = chunk
+                        chunk.buf.partNum = 1
+                        portraitSpace += len
+                    }
                 }
             }
         }
@@ -1429,7 +1430,8 @@ class A2PackPartitions
     def fillDisk(int partNum, int availBlks, ArrayList<String> maps)
     {
         //println "Filling disk $partNum, availBlks=$availBlks"
-        def spaceUsed = 3 // chunk-list header and trailer
+        def CHUNK_HEADER_SIZE = 3
+        def spaceUsed = CHUNK_HEADER_SIZE
 
         // On disk 1, reserve enough space for the map and portrait index
         int overhead = 0
@@ -1563,11 +1565,13 @@ class A2PackPartitions
 
         // And write out each disk
         partChunks.each { part ->
+            //println "Writing disk ${part.partNum}."
             def partFile = new File("build/root/game.part.${part.partNum}.bin")
             partFile.withOutputStream { stream ->
                 writePartition(stream, part.partNum, part.chunks.values())
             }
-            assert part.spaceUsed == partFile.length()
+            def spaceUsed = part.spaceUsed  // use var to avoid gigantic assert fail msg
+            assert spaceUsed == partFile.length()
         }
     }
 
@@ -2848,6 +2852,7 @@ end
             def name = humanNameToSymbol(script.@name, false)
             found << name
             gsmod.packGlobalScript(new File("build/src/plasma/gs_${name}.pla.new"), script)
+            addResourceDep("globalFunc", name, "module", "gs_" + name)
             replaceIfDiff("build/src/plasma/gs_${name}.pla")
         }
 
@@ -3588,7 +3593,7 @@ end
             }
 
             // Now generate the code. Pad with zeros to make exactly 3 args
-            outIndented("callGlobalFunc(MOD_GS_${humanNameToSymbol(humanNameToSymbol(humanName, false), true)}")
+            outIndented("callGlobalFunc(MOD_GS_${humanNameToSymbol(funcName, true)}")
             (0..<3).each { idx ->
                 out << ", "
                 if (idx < blk.value.size()) {
@@ -3600,7 +3605,7 @@ end
             }
             out << ")\n"
 
-            addMapDep("globalFunc", humanName)
+            addMapDep("globalFunc", funcName)
         }
 
         def packGetStat(blk)

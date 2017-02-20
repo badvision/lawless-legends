@@ -13,11 +13,14 @@ include "globalDefs.plh"
 include "godmode.plh"
 include "playtype.plh"
 include "gen_images.plh"
+include "gen_modules.plh"
+include "gen_items.plh"
+include "gen_players.plh"
 
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the the header.
-predef setCheatCmds
-word[] funcTbl = @setCheatCmds
+predef setCheatCmds, addItem, addPlayer
+word[] funcTbl = @setCheatCmds, @addItem, @addPlayer
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -125,6 +128,69 @@ def setCheatCmds()
   setCmd('G', @nextGround)
   setCmd('&', @printMem)
   setCmd('_', @finalWin)
+end
+
+// Abstract code for adding from a list of things (players, items, etc.)
+def selectThing(moduleNum, nThings, nSkip, prompt)
+  word pModule, funcTbl, nFunc, pFunc, p_thing, n_thing, n2, pstr
+  nFunc = -1
+  pstr = "%d: %s\n"
+
+  flipToPage1()
+  textHome()
+  ^$c051
+
+  mmgr(START_LOAD, 1) // code is in partition 1
+  pModule = mmgr(QUEUE_LOAD, moduleNum<<8 | RES_TYPE_MODULE)
+  mmgr(FINISH_LOAD, 0)
+  funcTbl = pModule()
+
+  for n_thing = 1 to nThings
+    nFunc = (n_thing-1+nSkip) << 1
+    pFunc = *(funcTbl + nFunc)
+    p_thing = pFunc()
+    printf2(pstr, n_thing, p_thing=>s_name)
+    if (n_thing % 22) == 0 or n_thing == nThings
+      mmgr(HEAP_COLLECT, 0)
+      puts(prompt)
+      n2 = parseDecWithDefault(readStr(), 0)
+      if n2 >= 1 and n2 <= nThings
+        nFunc = (n2-1+nSkip) << 1
+        pFunc = *(funcTbl + nFunc)
+        p_thing = pFunc()
+        printf1("Adding '%s'\n", p_thing=>s_name)
+        break
+      else
+        nFunc = -1
+        textHome()
+      fin
+    fin
+  next
+
+  mmgr(FREE_MEMORY, pModule)
+  return nFunc
+end
+
+// Add an item cheat
+def addItem(player)
+  word funcNum
+  funcNum = selectThing(MOD_GEN_ITEMS, NUM_ITEMS, 2, "Add item #: ")
+  if funcNum >= 0
+    giveItemToPlayer(player, funcNum)
+    rdkey()
+  fin
+  ^$c050
+end
+
+// Add a player cheat
+def addPlayer()
+  word funcNum
+  funcNum = selectThing(MOD_GEN_PLAYERS, NUM_PLAYERS, 1, "Add player #: ")
+  if funcNum >= 0
+    addPlayerToParty(funcNum)
+    rdkey()
+  fin
+  ^$c050
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -29,7 +29,7 @@ import gamelib
   predef setGameFlag, getGameFlag, scriptSetAvatar, parseDecWithDefault, readStr
   predef addPlayerToParty, removePlayerFromParty, partyHasPlayer, loadFrameImg, loadMainFrameImg
   predef scriptSwapTile, setIntimateMode, fontCmd, setIntimateMode
-  predef callGlobalFunc, getCharResponse, memcpy, checkEncounter, finalWin
+  predef callGlobalFunc, getCharResponse, memcpy, checkEncounter, finalWin, addUnique
 
   // This pointer is the root of all heap-tracked (and garbage collected) objects.
   // See playtype.plh for definitions of all the datastructures and how they interconnect.
@@ -41,6 +41,7 @@ import gamelib
   word skyNum
   word groundNum
   byte portraitNum
+  word pGodModule
 
   /////////// Shared string constants //////////////
 

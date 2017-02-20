@@ -19,6 +19,7 @@ include "playtype.plh"
 include "globalDefs.plh"
 include "gen_modules.plh"
 include "gen_items.plh"
+include "godmode.plh"
 
 // Definition of constants for functions exported by this module
 include "party.plh"
@@ -232,47 +233,6 @@ def showPlayerSheet(num, i_page, i_rows)
   return player
 end
 
-// Add an item cheat
-def addItem(player)
-  word pModule, funcTbl, func, p_item, n_item, n2, pstr, pstr2
-  pstr = "%d: %s\n"
-  pstr2 = "Add item #: "
-
-  flipToPage1()
-  textHome()
-  ^$c051
-
-  mmgr(START_LOAD, 1) // code is in partition 1
-  pModule = mmgr(QUEUE_LOAD, MOD_GEN_ITEMS<<8 | RES_TYPE_MODULE)
-  mmgr(FINISH_LOAD, 0)
-  funcTbl = pModule()
-
-  for n_item = 1 to NUM_ITEMS
-    func = *(funcTbl + (n_item+1) * 2)
-    p_item = func()
-    printf2(pstr, n_item, p_item=>s_name)
-    if (n_item % 22) == 0 or n_item == NUM_ITEMS
-      mmgr(HEAP_COLLECT, 0)
-      puts(pstr2)
-      n2 = parseDecWithDefault(readStr(), 0)
-      if n2 >= 1 and n2 <= NUM_ITEMS
-        func = *(funcTbl + (n2+1) * 2)
-        p_item = func()
-        printf1("Adding '%s'\n", p_item=>s_name)
-        addToList(@player=>p_items, p_item)
-        rdkey()
-        break
-      else
-        textHome()
-      fin
-    fin
-  next
-
-  mmgr(FREE_MEMORY, pModule)
-  ^$c050
-  return
-end
-
 // Show player sheet and accept command. If using an item (not just for stats gain)
 // the item is returned; else NULL is returned.
 def _party_doPlayerSheet(num)
@@ -377,19 +337,24 @@ def _party_doPlayerSheet(num)
         fin
         break
       // Other operations...
-      is '&' // health cheat
+      is '&' // add health cheat
         if global->b_godmode
           player=>w_health = player=>w_health + 50
         fin
         break
-      is '$' // gold cheat
+      is '$' // add gold cheat
         if global->b_godmode
           addGold(500)
         fin
         break
-      is '%' // item cheat
+      is '%' // add item cheat
         if global->b_godmode
-          addItem(player)
+          pGodModule=>godmode_addItem(player)
+        fin
+        break
+      is '9' // add player cheat
+        if global->b_godmode
+          pGodModule=>godmode_addPlayer()
         fin
         break
       // All done

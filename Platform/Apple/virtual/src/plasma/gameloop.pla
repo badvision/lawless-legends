@@ -84,7 +84,7 @@ word curEngine = NULL
 word pIntimate = NULL
 word pResourceIndex = NULL
 byte curMapPartition = 0
-word pGodModule = NULL
+export word pGodModule = NULL
 
 // Queue setMap / teleport / start_encounter, since otherwise script might be replaced while executing
 byte q_mapIs3D = 0
@@ -2434,6 +2434,13 @@ export def scanForNamedObj(p_obj, name)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+export def addUnique(pList, p_thing)
+  if !scanForNamedObj(*pList, p_thing=>s_name)
+    addToList(pList, p_thing)
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 export def createAndAddUnique(moduleID, creationFuncNum, pList)
   word p_module, funcTbl, func, p_thing
 
@@ -2448,12 +2455,10 @@ export def createAndAddUnique(moduleID, creationFuncNum, pList)
   // Figure out which creation function to call there, and create the thing
   funcTbl = p_module()
   func = *(funcTbl + creationFuncNum)
-  p_thing = func()
+  p_thing = func() // full
 
   // Avoid adding duplicate things.
-  if !scanForNamedObj(*pList, p_thing=>s_name)
-    addToList(pList, p_thing)
-  fin
+  addUnique(pList, p_thing)
 
   // Finished with the module now.
   mmgr(FREE_MEMORY, p_module)
@@ -2461,8 +2466,8 @@ export def createAndAddUnique(moduleID, creationFuncNum, pList)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def giveItemToPlayer(itemFuncNum)
-  createAndAddUnique(MOD_GEN_ITEMS, itemFuncNum, @global=>p_players=>p_items) // def: 1st player
+export def giveItemToPlayer(p_player, itemFuncNum)
+  createAndAddUnique(MOD_GEN_ITEMS, itemFuncNum, @p_player=>p_items)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2489,8 +2494,8 @@ export def removeNamed(name, pList)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def takeItemFromPlayer(itemName)
-  removeNamed(itemName, @global=>p_players=>p_items) // default to first player
+export def takeItemFromPlayer(p_player, itemName)
+  removeNamed(itemName, @p_player=>p_items) // default to first player
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

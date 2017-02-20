@@ -2760,6 +2760,7 @@ end
             funcs.each { func, index, row ->
                 out.println("const ${func} = ${(index+1)*2}")
             }
+            out.println("const NUM_PLAYERS = ${funcs.size()}")
         }
         replaceIfDiff("build/src/plasma/gen_players.plh")
 
@@ -3497,14 +3498,14 @@ end
             def name = getSingle(blk.field, 'NAME').text().trim()
             def itemFunc = itemNameToFunc[name.toLowerCase()]
             assert itemFunc : "Can't locate item '$name'"
-            outIndented("giveItemToPlayer($itemFunc)\n")
+            outIndented("giveItemToPlayer(@global=>p_players, $itemFunc)\n")
         }
 
         def packTakeItem(blk)
         {
             def name = getSingle(blk.field, 'NAME').text().trim()
             assert itemNameToFunc.containsKey(name.toLowerCase()) : "Can't locate item '$name'"
-            outIndented("takeItemFromPlayer(${escapeString(name)})\n")
+            outIndented("takeItemFromPlayer(@global=>p_players, ${escapeString(name)})\n")
         }
 
         def packAddPlayer(blk)

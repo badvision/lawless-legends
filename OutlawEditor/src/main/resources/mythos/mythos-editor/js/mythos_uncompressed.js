@@ -771,6 +771,36 @@ if (typeof Mythos === "undefined") {
                     this.setTooltip('Decrease stat of player');
                 }
             };
+            Blockly.Blocks['interaction_increase_party_stats'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Increase entire party's")
+                            .appendField(new Blockly.FieldTextInput(""), "NAME")
+                            .appendField("stats by")
+                            .appendField(new Blockly.FieldTextInput("0"), "AMOUNT");
+                    this.setOutput(false);
+                    this.setTooltip('Increase stat of every party member');
+                }
+            };
+            Blockly.Blocks['interaction_decrease_party_stats'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Decrease entire party's")
+                            .appendField(new Blockly.FieldTextInput(""), "NAME")
+                            .appendField("stats by")
+                            .appendField(new Blockly.FieldTextInput("0"), "AMOUNT");
+                    this.setOutput(false);
+                    this.setTooltip('Decrease stat of every party member');
+                }
+            };
             Blockly.Blocks['interaction_get_flag'] = {
                 init: function () {
                     this.setHelpUrl(Mythos.helpUrl);

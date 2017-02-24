@@ -51,7 +51,7 @@ export word global  // the global heap object, from which all live objects must 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Predefined functions, for circular calls or out-of-order calls
 predef setWindow2, initCmds, nextAnimFrame, checkEncounter, doCombat, clearPortrait, showMapName
-predef doRender, playerDeath, startGame, showAnimFrame, finalWin
+predef doRender, playerDeath, startGame, showAnimFrame, finalWin, showParty
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Global variables
@@ -1093,6 +1093,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Read a single char from the keyboard, and intern it (as a string) to the heap.
 export def getCharResponse()
+  if needShowParty; showParty(); fin
   ^$200 = 1
   ^$201 = getUpperKey()
   return mmgr(HEAP_INTERN, $200)
@@ -2517,9 +2518,7 @@ export def partyHasPlayer(playerName)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def getStat(statName)
-  word player
-  player = global=>p_players   // default to first player
+export def getStat(player, statName)
   when statName
     is @S_INTELLIGENCE; return player->b_intelligence
     is @S_STRENGTH; return player->b_strength
@@ -2545,9 +2544,7 @@ def clampByte(val)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def setStat(statName, val)
-  word player
-  player = global=>p_players   // default to first player
+export def setStat(player, statName, val)
   when statName
     is @S_INTELLIGENCE; player->b_intelligence = clampByte(val); break
     is @S_STRENGTH; player->b_strength = clampByte(val); break

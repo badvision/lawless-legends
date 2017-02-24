@@ -3416,6 +3416,9 @@ end
                     case 'interaction_increase_stat':
                     case 'interaction_decrease_stat':
                         packChangeStat(blk); break
+                    case 'interaction_increase_party_stats':
+                    case 'interaction_decrease_party_stats':
+                        packChangePartyStats(blk); break
                     case 'interaction_set_flag':
                     case 'interaction_clr_flag':
                         packChangeFlag(blk); break
@@ -3556,7 +3559,27 @@ end
             assert amount > 0 && amount < 32767
             def stat = nameToStat(name)
             outIndented(
-                "setStat($stat, getStat($stat) ${blk.@type == 'interaction_increase_stat' ? '+' : '-'} $amount)\n")
+                "setStat(global=>p_players, $stat, getStat(global=>p_players, $stat) ${blk.@type == 'interaction_increase_stat' ? '+' : '-'} $amount)\n")
+        }
+
+        def packChangePartyStats(blk)
+        {
+            assert blk.field.size() == 2
+            assert blk.field[0].@name == 'NAME'
+            assert blk.field[1].@name == 'AMOUNT'
+            def name = blk.field[0].text()
+            def amount = blk.field[1].text().toInteger()
+            assert amount > 0 && amount < 32767
+            def stat = nameToStat(name)
+            variables << "p_player"
+            outIndented("p_player = global=>p_players\n")
+            outIndented("while p_player\n")
+            ++indent
+            outIndented(
+                "setStat(p_player, $stat, getStat(p_player, $stat) ${blk.@type == 'interaction_increase_party_stats' ? '+' : '-'} $amount)\n")
+            outIndented("p_player = p_player=>p_nextObj\n")
+            --indent
+            outIndented("loop\n")
         }
 
         def packPause(blk)
@@ -3612,7 +3635,7 @@ end
         {
             def name = getSingle(blk.field, 'NAME').text()
             def stat = nameToStat(name)
-            out << "getStat($stat)"
+            out << "getStat(global=>p_players, $stat)"
         }
 
         def packGetFlag(blk)

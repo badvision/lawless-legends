@@ -1147,7 +1147,7 @@ class A2PackPartitions
             assert fixupType == 0x81 || fixupType == 0x91 // We can only handle WORD sized INTERN or EXTERN fixups
             int addr = fixup[sp++] & 0xFF
             addr |= (fixup[sp++] & 0xFF) << 8
-            esdIndex = fixup[sp++]
+            esdIndex = fixup[sp++] & 0xFF
 
             // Fixups can be in the asm section or in the bytecode section. Figure out which this is.
             addr += 2  // apparently offsets don't include the header length

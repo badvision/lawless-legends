@@ -666,6 +666,38 @@ if (typeof Mythos === "undefined") {
                     this.setTooltip('Check if player has a given item');
                 }
             };
+            Blockly.Blocks['interaction_buy_from_store'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Buy from store, code(s)")
+                            .appendField(new Blockly.FieldTextInput(""), "CODES")
+                            .appendField("at")
+                            .appendField(new Blockly.FieldTextInput(""), "MARKUP")
+                            .appendField("% mark up");
+                    this.setOutput(false);
+                    this.setTooltip('Buy items from a store (separate codes by commas)');
+                }
+            };
+            Blockly.Blocks['interaction_sell_to_store'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Sell to store, code(s)")
+                            .appendField(new Blockly.FieldTextInput(""), "CODES")
+                            .appendField("at")
+                            .appendField(new Blockly.FieldTextInput(""), "MARKDOWN")
+                            .appendField("% mark down");
+                    this.setOutput(false);
+                    this.setTooltip('Sell items to a store (separate codes by commas)');
+                }
+            };
             Blockly.Blocks['interaction_add_player'] = {
                 init: function () {
                     this.setHelpUrl(Mythos.helpUrl);

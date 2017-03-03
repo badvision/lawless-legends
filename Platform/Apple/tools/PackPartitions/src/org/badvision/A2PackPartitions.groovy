@@ -3516,6 +3516,28 @@ end
             outIndented("takeItemFromPlayer(@global=>p_players, ${escapeString(name)})\n")
         }
 
+        def packBuyFromStore(blk)
+        {
+            assert blk.field.size() == 2
+            assert blk.field[0].@name == 'CODES'
+            assert blk.field[1].@name == 'MARKUP'
+            def codes = blk.field[0].text()
+            def markup = blk.field[1].text().toInteger()
+            assert markup >= 0 && markup <= 100
+            outIndented("buyFromStore(${escapeString(codes)}, $markup)\n")
+        }
+
+        def packSellToStore(blk)
+        {
+            assert blk.field.size() == 2
+            assert blk.field[0].@name == 'CODES'
+            assert blk.field[1].@name == 'MARKDOWN'
+            def codes = blk.field[0].text()
+            def markdown = blk.field[1].text().toInteger()
+            assert markdown >= 0 && markdown <= 100
+            outIndented("sellToStore(${escapeString(codes)}, $markdown)\n")
+        }
+
         def packAddPlayer(blk)
         {
             def name = getSingle(blk.field, 'NAME').text().trim()
@@ -3761,6 +3783,12 @@ end
                     break
                 case 'interaction_has_item':
                     packHasItem(blk)
+                    break
+                case 'interaction_buy_from_store':
+                    packBuyFromStore(blk)
+                    break
+                case 'interaction_sell_to_store':
+                    packSellToStore(blk)
                     break
                 case 'interaction_has_player':
                     packHasPlayer(blk)

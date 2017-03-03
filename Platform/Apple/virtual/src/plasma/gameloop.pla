@@ -227,6 +227,49 @@ asm swapTile    // params: fromX, fromY, toX, toY
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Multiply 16 bit number by 8-bit ratio, and drop lower 8 bits of result. In effect this scales
+// num by the approximate ratio 0=0% .. 128=50% .. 255=99%
+export asm mulRatio    // params: num, ratio
+  +asmPlasm 2
+.ratio = evalStkL
+.numL  = evalStkL+1
+.numH  = evalStkH+1
+.numHH = tmp
+.accLL = tmp+1
+.accL  = pTmp
+.accH  = pTmp+1
+  lda .ratio,x        ; save ratio
+  ldy #0
+  sty .numHH          ; zero what will become upper 8 bits of num
+  sty .accLL          ; clear accumulation area
+  sty .accL
+  sty .accH
+  ldy #8              ; loop over 8 bits of ratio
+- lsr                 ; get next bit
+  bcc +               ; skip add if clear
+  pha
+  clc
+  lda .numL,x         ; 24-bit add
+  adc .accLL
+  sta .accLL
+  lda .numH,x
+  adc .accL
+  sta .accL
+  lda .numHH
+  adc .accH
+  sta .accH
+  pla
++ asl .numL,x         ; shift number up
+  rol .numH,x
+  rol .numHH
+  dey                 ; and loop again
+  bne -
+  ldy .accH           ; final result in Y/A
+  lda .accL
+  rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 export asm memcpy         // params: pSrc, pDst, len. Non-overlapping only!
   +asmPlasm 3
   lda evalStkL+2,x    ; source ptr
@@ -2612,6 +2655,23 @@ end
 export def unbenchPlayer()
   loadEngine(MOD_PARTY)=>party_unbenchPlayer()
   returnFromEngine()
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Calculate markup on a price, where ratio is an 8.8 fixed-point number. Some approx ratios:
+// $0000 = 0%
+// $0026 = 15%
+// $0080 = 50%
+// $0100 = 100%
+// $0180 = 150%
+def calcMarkup(price, ratio)
+  word markup
+  markup = 0
+  while ratio > 255
+    markup = markup + price
+    ratio = ratio - 256
+  loop
+  return markup + mulRatio(price, ratio)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

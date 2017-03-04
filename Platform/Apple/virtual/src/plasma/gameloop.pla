@@ -38,6 +38,7 @@ include "gen_players.plh"
 include "gen_items.plh"
 include "combat.plh"
 include "party.plh"
+include "store.plh"
 include "diskops.plh"
 include "intimate.plh"
 include "godmode.plh"
@@ -2418,8 +2419,13 @@ export def initHeap(loadedSize)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Return a random entry from an array, given its size in number of elements.
-export def randomFromArray(arr, siz)
+// Return a random entry from an array which is terminated by a zero entry
+export def randomFromArray(arr)
+  byte siz
+  siz = 0
+  while *((siz << 1) + arr)
+    siz++
+  loop
   return *(((rand16() % siz) << 1) + arr)
 end
 
@@ -2672,6 +2678,18 @@ def calcMarkup(price, ratio)
     ratio = ratio - 256
   loop
   return markup + mulRatio(price, ratio)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def buyFromStore(storeCode, markupRatio)
+  loadEngine(MOD_STORE)=>store_buyFromStore(storeCode, markupRatio)
+  returnFromEngine()
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def sellToStore(storeCode, markdownRatio)
+  loadEngine(MOD_STORE)=>store_sellToStore(storeCode, markdownRatio)
+  returnFromEngine()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

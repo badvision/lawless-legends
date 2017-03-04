@@ -433,7 +433,7 @@ def makeRandomGroup(mapCode)
   mmgr(FINISH_LOAD, 0)
 
   global=>p_enemyGroups = NULL
-  enemyFunc = enemiesModule()=>enemy_forZone(mapCode)
+  enemyFunc = randomFromArray(enemiesModule()=>enemies_forZone(mapCode))
   addToList(@global=>p_enemyGroups, makeEnemyGroup(enemyFunc))
 
   mmgr(FREE_MEMORY, enemiesModule)

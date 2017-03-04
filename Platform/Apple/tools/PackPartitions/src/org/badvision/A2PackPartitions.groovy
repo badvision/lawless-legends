@@ -1895,6 +1895,7 @@ class A2PackPartitions
         compileModule("gameloop", "src/plasma/")
         compileModule("combat", "src/plasma/")
         compileModule("party", "src/plasma/")
+        compileModule("store", "src/plasma/")
         compileModule("diskops", "src/plasma/")
         compileModule("godmode", "src/plasma/")
         compileModule("intimate", "src/plasma/")
@@ -2345,7 +2346,7 @@ class A2PackPartitions
         {
             new File("build/src/plasma/gen_enemies.plh.new").withWriter { out ->
                 out.println("// Generated code - DO NOT MODIFY BY HAND\n")
-                out.println("const enemy_forZone = 0")
+                out.println("const enemies_forZone = 0")
             }
             replaceIfDiff("build/src/plasma/gen_enemies.plh")
             new File("build/src/plasma/gen_enemies.pla.new").withWriter { out ->
@@ -2360,8 +2361,8 @@ class A2PackPartitions
                 def columns = sheet.columns.column.collect { it.@name }
                 assert "name" in columns
                 assert "map-code" in columns
-                out.println("predef _enemy_forZone")
-                out.println("word[] funcTbl = @_enemy_forZone\n")
+                out.println("predef _enemies_forZone")
+                out.println("word[] funcTbl = @_enemies_forZone\n")
 
                 // Pre-define all the enemy creation functions
                 sheet.rows.row.each { row ->
@@ -2404,7 +2405,7 @@ end
                 out.println()
 
                 // And finally, a function to select an enemy given a map code.
-                outCodeToFuncMethod("_enemy_forZone", "mapCode_", codeToFunc, out)
+                outCodeToFuncMethods("_enemies_forZone", "mapCode_", codeToFunc, out)
 
                 out.println("return @funcTbl")
                 out.println("done")
@@ -2545,11 +2546,10 @@ end
 
     def addCodeToFunc(funcName, codesString, addTo)
     {
-        if (codesString == null || codesString.length() == 0)
+        if (codesString == null || codesString.trim().length() == 0)
             return
 
-        codesString.replace("\"", "").split(",").collect{it.trim()}.grep{it!=""}.each { code ->
-            code = code.toLowerCase()
+        codesString.replace("\"", "").split(/[,.;]/).collect{it.trim().toLowerCase()}.grep{it!=""}.each { code ->
             if (!addTo.containsKey(code))
                 addTo[code] = []
             addTo[code] << funcName
@@ -2563,17 +2563,16 @@ end
                 out.println(
                     "${index==0 ? "word[] $prefix${humanNameToSymbol(code, false)} = " : "word         = "}@$func")
             }
+            out.println("word         = 0")
             out.println()
         }
     }
 
-    def outCodeToFuncMethod(funcName, prefix, codeToFunc, out)
+    def outCodeToFuncMethods(funcName, prefix, codeToFunc, out)
     {
         out.println("def $funcName(code)")
         codeToFunc.sort().each { code, funcs ->
-            out.println("  if streqi(code, \"$code\"); ")
-            out.println("    return randomFromArray(@$prefix${humanNameToSymbol(code, false)}, ${funcs.size()})")
-            out.println("  fin")
+            out.println("  if streqi(code, \"$code\"); return @$prefix${humanNameToSymbol(code, false)}; fin")
         }
         out.println("  puts(code)")
         out.println("  fatal(\"$funcName\")")
@@ -2617,8 +2616,8 @@ end
         // Make constants for the function table
         new File("build/src/plasma/gen_items.plh.new").withWriter { out ->
             out.println("// Generated code - DO NOT MODIFY BY HAND\n")
-            out.println("const item_forLootCode = 0")
-            out.println("const item_forStoreCode = 2")
+            out.println("const items_forLootCode = 0")
+            out.println("const items_forStoreCode = 2")
             funcs.each { typeName, func, index, row ->
                 out.println("const ${func} = ${(index+2)*2}")
             }
@@ -2637,7 +2636,7 @@ end
             out.println()
 
             // Pre-define all the creation functions
-            out.println("predef _item_forLootCode, _item_forStoreCode")
+            out.println("predef _items_forLootCode, _items_forStoreCode")
             funcs.each { typeName, func, index, row ->
                 out.println("predef _$func")
             }
@@ -2648,7 +2647,7 @@ end
             outCodeToFuncTbl("storeCode_", storeCodeToFuncs, out)
 
             // Next, output the function table
-            out.println("word[] funcTbl = @_item_forLootCode, @_item_forStoreCode")
+            out.println("word[] funcTbl = @_items_forLootCode, @_items_forStoreCode")
             funcs.each { typeName, func, index, row ->
                 out.println("word         = @_$func")
             }
@@ -2708,6 +2707,7 @@ def makeItem(name, price, modifier, maxUses)
   p->b_curUses = 0
   return p
 end
+
 """)
 
             // Generate all the functions themselves
@@ -2727,8 +2727,8 @@ end
             }
 
             // Code for loot and store generation
-            outCodeToFuncMethod("_item_forLootCode", "lootCode_", lootCodeToFuncs, out)
-            outCodeToFuncMethod("_item_forStoreCode", "storeCode_", storeCodeToFuncs, out)
+            outCodeToFuncMethods("_items_forLootCode", "lootCode_", lootCodeToFuncs, out)
+            outCodeToFuncMethods("_items_forStoreCode", "storeCode_", storeCodeToFuncs, out)
 
             // Lastly, the outer module-level code
             out.println("return @funcTbl")
@@ -3524,7 +3524,7 @@ end
             def codes = blk.field[0].text()
             def markup = blk.field[1].text().toInteger()
             assert markup >= 0 && markup <= 100
-            outIndented("buyFromStore(${escapeString(codes)}, $markup)\n")
+            outIndented("buyFromStore(${escapeString(codes)}, ${(int)(markup * 256 / 100)})\n")
         }
 
         def packSellToStore(blk)
@@ -3535,7 +3535,7 @@ end
             def codes = blk.field[0].text()
             def markdown = blk.field[1].text().toInteger()
             assert markdown >= 0 && markdown <= 100
-            outIndented("sellToStore(${escapeString(codes)}, $markdown)\n")
+            outIndented("sellToStore(${escapeString(codes)}, ${(int)(markdown * 256 / 100)}\n")
         }
 
         def packAddPlayer(blk)

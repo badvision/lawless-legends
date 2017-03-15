@@ -691,7 +691,7 @@ class A2PackPartitions
         def mapScriptsSize = bytecodes[makeScriptName(mapName)].buf.uncompressedLen
         def mapTexturesSize = texList.size() * 0x555
         def totalAux = gameloopSize + mapScriptsSize + mapTexturesSize
-        def safeLimit = 34 * 1024
+        def safeLimit = 38 * 1024  // observed by doing a DEBUG_MEM at very start of gameloop.pla
         memUsage3D << String.format("%-20s: %4.1fK of %4.1fK used: %4.1fK scripts, %4.1fK in %2d textures, %4.1fK overhead%s",
             mapName, totalAux/1024.0, safeLimit/1024.0,
             mapScriptsSize/1024.0, mapTexturesSize/1024.0, texList.size(), gameloopSize/1024.0,
@@ -1442,7 +1442,14 @@ class A2PackPartitions
                      + 1 + portraits.size()  // number of portraits, then 1 byte per
         }
 
+        reportWriter.println "\nDisk $partNum:"
+        reportWriter.println String.format("  %-22s: %6.1fK",
+                                partNum == 1 ? "LegendOS+overhead" : "overhead",
+                                ((FLOPPY_SIZE-availBlks)*512 + overhead) / 1024.0)
+
         def outChunks = (partNum==1) ? part1Chunks : ([:] as LinkedHashMap)
+        def addedMapNames = []
+        def mapsSpaceUsed = 0
         while (!maps.isEmpty()) {
             def mapName = maps[0]
             def mapChunks = outChunks.clone()
@@ -1466,13 +1473,24 @@ class A2PackPartitions
             // After adding the root map, stuff in the most-used portraits onto disk 1
             if (mapName == "<root>") {
                 assert partNum == 1
+                reportWriter.println String.format("  %-22s: %6.1fK", "base resources", mapSpace / 1024.0)
                 def portraitsSpace = stuffMostUsedPortraits(maps, outChunks, availBlks, spaceUsed)
                 spaceUsed += portraitsSpace
                 blks = calcFileBlks(spaceUsed)
+                reportWriter.println String.format("  %-22s: %6.1fK", "shared portraits", portraitsSpace / 1024.0)
                 //println "stuffed most-used portraits for $portraitsSpace bytes, totaling $blks blks."
             }
+            else {
+                addedMapNames << mapName
+                mapsSpaceUsed += mapSpace
+            }
         }
-        //println "Unused blks=${availBlks - calcFileBlks(spaceUsed)}"
+        if (mapsSpaceUsed > 0) {
+            reportWriter.println String.format("  %-22s: %6.1fK", "maps & resources", mapsSpaceUsed / 1024.0)
+            addedMapNames.each { reportWriter.println "    $it" }
+        }
+        reportWriter.println String.format("  %-22s: %6.1fK", "unused", (availBlks*512 - spaceUsed) / 1024.0)
+        reportWriter.println "Total: 140K"
         return [outChunks, spaceUsed]
     }
 
@@ -1538,6 +1556,8 @@ class A2PackPartitions
             a.name > b.name ?  1 :
             0
         }
+
+        reportWriter.println "======================== Floppy disk usage ==========================="
 
         // Now fill up disk partitions until we run out of maps.
         def mapsTodo = allMaps.collect { it.name }

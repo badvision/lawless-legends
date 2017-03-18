@@ -242,7 +242,7 @@ def _party_doPlayerSheet(num)
 
   // Get size of inventory pane in chars
   getMapWindow(@hMap, @vMap)
-  i_rows = vMap / 11
+  i_rows = vMap / 9  // our fancy font engine does 9 scanlines per char, for nice descenders
   i_page = 0
   repeat
     player = showPlayerSheet(num, i_page, i_rows)

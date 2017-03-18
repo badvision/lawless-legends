@@ -6,7 +6,7 @@
 // the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 // ANY KIND, either express or implied. See the License for the specific language
 // governing permissions and limitations under the License.
-///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////f/////////////////////////////////////////////////////////////////////////////////
 
 include "gamelib.plh"
 include "playtype.plh"
@@ -14,17 +14,168 @@ include "globalDefs.plh"
 include "gen_modules.plh"
 include "gen_items.plh"
 
+const NUM_COLUMN = 14
+const PRICE_COLUMN = 125
+
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the header.
-predef _store_buyFromStore, _store_sellToStore
-word[] funcTbl = @_store_buyFromStore, @_store_sellToStore
+predef _buyFromStore, _sellToStore
+word[] funcTbl = @_buyFromStore, @_sellToStore
+
+word pItemsModule
+const MAX_PAGE_ITEMS = 20 // should be plenty
+word pageItems[MAX_PAGE_ITEMS]
+word pagePrices[MAX_PAGE_ITEMS]
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _store_buyFromStore(storeCode, markupRatio)
+// Definitions used by assembly code
+asm _defs
+!convtab "../../include/hiBitAscii.ct"
+!source "../../include/global.i"
+!source "../../include/plasma.i"
+!source "../../include/mem.i"
+tmp         = $2
+pTmp        = $4
+ysav        = $34
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _store_sellToStore(storeCode, markdownRatio)
+// Multiply 16 bit number by 8-bit ratio, and drop lower 8 bits of result. In effect this scales
+// num by the approximate ratio 0=0% .. 128=50% .. 255=99%
+asm mulRatio    // params: num, ratio
+  +asmPlasm 2
+.ratio = evalStkL
+.numL  = evalStkL+1
+.numH  = evalStkH+1
+.numHH = tmp
+.accLL = tmp+1
+.accL  = pTmp
+.accH  = pTmp+1
+  lda .ratio,x        ; save ratio
+  ldy #0
+  sty .numHH          ; zero what will become upper 8 bits of num
+  sty .accLL          ; clear accumulation area
+  sty .accL
+  sty .accH
+  ldy #8              ; loop over 8 bits of ratio
+- lsr                 ; get next bit
+  bcc +               ; skip add if clear
+  pha
+  clc
+  lda .numL,x         ; 24-bit add
+  adc .accLL
+  sta .accLL
+  lda .numH,x
+  adc .accL
+  sta .accL
+  lda .numHH
+  adc .accH
+  sta .accH
+  pla
++ asl .numL,x         ; shift number up
+  rol .numH,x
+  rol .numHH
+  dey                 ; and loop again
+  bne -
+  ldy .accH           ; final result in Y/A
+  lda .accL
+  rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Calculate markup on a price, where ratio is an 8.8 fixed-point number. Some approx ratios:
+// $0000 = 0%
+// $0026 = 15%
+// $0080 = 50%
+// $0100 = 100%
+// $0180 = 150%
+def calcMarkup(price, ratio)
+  word markup
+  markup = 0
+  while ratio > 255
+    markup = markup + price
+    ratio = ratio - 256
+  loop
+  return markup + mulRatio(price, ratio)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def loadItems()
+  mmgr(START_LOAD, 1) // code is in partition 1
+  pItemsModule = mmgr(QUEUE_LOAD, MOD_GEN_ITEMS<<8 | RES_TYPE_MODULE)
+  mmgr(FINISH_LOAD, 0)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def unloadItems()
+  mmgr(FREE_MEMORY, pItemsModule)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def calcPageSize()
+  word hMap, vMap
+  getMapWindow(@hMap, @vMap)
+  printf1("vMap=%d\n", vMap)
+  return vMap / 9  // nine scanlines per character line
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def displayBuyTitle()
+  rawDisplayStr("^L")
+  rightJustifyStr("#", NUM_COLUMN)
+  rawDisplayStr(".^L ^LItem")
+  rightJustifyStr("Price", PRICE_COLUMN)
+  rawDisplayStr("^L")
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def displayBuyLine(num, name, price)
+  rawDisplayStr("\n")
+  rightJustifyNum(num, NUM_COLUMN)
+  rawDisplayStr(". ")
+  rawDisplayStr(name)
+  rightJustifyNum(price, PRICE_COLUMN)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def _buyFromStore(storeCode, markupRatio)
+  word pItemTbl, pItemFunc, pageNum, itemNum, pageSize
+
+  clearWindow()
+  showMapName("Buy items")
+
+  setMapWindow()
+  clearWindow()
+
+  loadItems()
+  pItemTbl = pItemsModule()=>items_forStoreCode(storeCode)
+  pageSize = calcPageSize()
+
+  pItemFunc = pItemTbl
+
+  itemNum = 0
+  displayBuyTitle()
+  while itemNum < pageSize-1  // 1 for the title line
+    pageItems[itemNum] = (*pItemFunc)()
+    pagePrices[itemNum] = max(1, pageItems[itemNum]=>w_price + calcMarkup(pageItems[itemNum]=>w_price, markupRatio))
+    if pageItems[itemNum]->t_type == TYPE_STUFF // show plural for countable stuff like ammo, pelts
+      setPlural(TRUE)
+    else
+      setPlural(FALSE)
+    fin
+    displayBuyLine(itemNum+1, pageItems[itemNum]=>s_name, pagePrices[itemNum])
+    itemNum++
+    pItemFunc = pItemFunc + 2
+    if !*pItemFunc; break; fin
+  loop
+
+  setWindow2()
+  rawDisplayStr("Select item to buy.\n")
+  getUpperKey()
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def _sellToStore(storeCode, markdownRatio)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

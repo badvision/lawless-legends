@@ -2566,7 +2566,7 @@ end
 
     def addCodeToFunc(funcName, codesString, addTo)
     {
-        if (codesString == null || codesString.trim().length() == 0)
+        if (codesString == null || codesString.trim().length() == 0 || codesString.trim() == "0")
             return
 
         codesString.replace("\"", "").split(/[,.;]/).collect{it.trim().toLowerCase()}.grep{it!=""}.each { code ->
@@ -3444,6 +3444,10 @@ end
                         packChangeFlag(blk); break
                     case 'interaction_pause':
                         packPause(blk); break
+                    case 'interaction_buy_from_store':
+                        packBuyFromStore(blk); break
+                    case 'interaction_sell_to_store':
+                        packSellToStore(blk); break
                     case ~/^Globalignore_.*$/:
                         packGlobalCall(blk); break
                     default:
@@ -3555,7 +3559,7 @@ end
             def codes = blk.field[0].text()
             def markdown = blk.field[1].text().toInteger()
             assert markdown >= 0 && markdown <= 100
-            outIndented("sellToStore(${escapeString(codes)}, ${(int)(markdown * 256 / 100)}\n")
+            outIndented("sellToStore(${escapeString(codes)}, ${(int)(markdown * 256 / 100)})\n")
         }
 
         def packAddPlayer(blk)
@@ -3803,12 +3807,6 @@ end
                     break
                 case 'interaction_has_item':
                     packHasItem(blk)
-                    break
-                case 'interaction_buy_from_store':
-                    packBuyFromStore(blk)
-                    break
-                case 'interaction_sell_to_store':
-                    packSellToStore(blk)
                     break
                 case 'interaction_has_player':
                     packHasPlayer(blk)

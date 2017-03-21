@@ -10,9 +10,12 @@
  
 package org.badvision.outlaweditor.apple.dhgr;
 
+import java.util.HashMap;
 import org.badvision.outlaweditor.apple.*;
 import javafx.event.EventHandler;
 import javafx.scene.control.Menu;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.DataFormat;
 import javafx.scene.input.MouseEvent;
 import org.badvision.outlaweditor.api.Platform;
 import org.badvision.outlaweditor.data.DataObserver;
@@ -77,5 +80,12 @@ public class AppleDHGRImageEditor extends AppleImageEditor implements EventHandl
      */
     @Override
     public void crop(int newWidth, int newHeight) {
-    }    
+    }
+
+    @Override
+    public void copyData() {
+        java.util.Map<DataFormat, Object> clip = new HashMap<>();
+        clip.put(DataFormat.PLAIN_TEXT, AppleNTSCGraphics.generateDhgrMonitorListing(getPlatformData()));
+        Clipboard.getSystemClipboard().setContent(clip);
+    }
 }

@@ -7,8 +7,9 @@
  * ANY KIND, either express or implied. See the License for the specific language 
  * governing permissions and limitations under the License.
  */
- 
 package org.badvision.outlaweditor.apple;
+
+import org.badvision.outlaweditor.data.xml.PlatformData;
 
 /**
  *
@@ -18,7 +19,7 @@ public class AppleNTSCGraphics {
 
     // i Range [-0.5957, 0.5957]
     public static final double MAX_I = 0.5957;
-    
+
     // q Range [-0.5226, 0.5226]
     public static final double MAX_Q = 0.5226;
     public static final double MAX_Y = 1;
@@ -122,7 +123,63 @@ public class AppleNTSCGraphics {
         }
     }
 
+    static public int calculateHiresOffset(int y) {
+        return calculateTextOffset(y >> 3) + ((y & 7) << 10);
+    }
+
+    static public int calculateTextOffset(int y) {
+        return ((y & 7) << 7) + 40 * (y >> 3);
+    }
+
     static {
         initPalettes();
+    }
+
+    public static String generateHgrMonitorListing(PlatformData data) {
+        StringBuilder listing = new StringBuilder();
+        for (int y = 0; y < data.getHeight(); y++) {
+            int pos = calculateHiresOffset(y) + 0x02000;
+            listing.append("\n").append(Integer.toHexString(pos)).append(":");
+            for (int x = 0; x < data.getWidth(); x++) {
+                int val = data.getValue()[data.getWidth() * y + x] & 0x0ff;
+                listing.append(Integer.toHexString(val)).append(" ");
+            }
+        }
+        listing.append("\n");
+        return listing.toString();
+    }
+
+    static byte[] getAppleHGRBinary(PlatformData platformData) {
+        byte[] output = new byte[0x02000];
+        int counter = 0;
+        for (int y = 0; y < platformData.getHeight(); y++) {
+            int offset = calculateHiresOffset(y);
+            for (int x = 0; x < platformData.getWidth(); x++) {
+                output[offset + x] = platformData.getValue()[counter++];
+            }
+        }
+        return output;
+    }
+
+    public static Object generateDhgrMonitorListing(PlatformData data) {
+        StringBuilder listing = new StringBuilder();
+        for (int y = 0; y < data.getHeight(); y++) {
+            int pos = calculateHiresOffset(y) + 0x02000;
+            listing.append("\n").append(Integer.toHexString(pos)).append(":");
+            for (int x = 1; x < data.getWidth(); x+=2) {
+                int val = data.getValue()[data.getWidth() * y + x] & 0x0ff;
+                listing.append(Integer.toHexString(val)).append(" ");
+            }
+        }
+        for (int y = 0; y < data.getHeight(); y++) {
+            int pos = calculateHiresOffset(y) + 0x04000;
+            listing.append("\n").append(Integer.toHexString(pos)).append(":");
+            for (int x = 0; x < data.getWidth(); x+=2) {
+                int val = data.getValue()[data.getWidth() * y + x] & 0x0ff;
+                listing.append(Integer.toHexString(val)).append(" ");
+            }
+        }
+        listing.append("\n");
+        return listing.toString();
     }
 }

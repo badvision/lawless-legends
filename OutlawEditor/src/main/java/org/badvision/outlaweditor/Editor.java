@@ -52,6 +52,8 @@ public abstract class Editor<T, D> implements DataObserver<T> {
 
     abstract public void copy();
 
+    abstract public void copyData();
+        
     abstract public void paste();
 
     abstract public void select();

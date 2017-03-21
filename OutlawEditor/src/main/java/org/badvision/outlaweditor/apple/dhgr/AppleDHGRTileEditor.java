@@ -250,4 +250,9 @@ public class AppleDHGRTileEditor extends TileEditor {
             TileUtils.redrawTile(getEntity());
         }
     }
+
+    @Override
+    public void copyData() {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
 }

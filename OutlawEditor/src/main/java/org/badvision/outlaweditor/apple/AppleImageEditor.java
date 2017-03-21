@@ -429,7 +429,14 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
         return getPlatformData(getPlatform()).getHeight();
     }
 
-    byte[] copyData = null;
+    @Override
+    public void copyData() {
+        java.util.Map<DataFormat, Object> clip = new HashMap<>();
+        clip.put(DataFormat.PLAIN_TEXT, AppleNTSCGraphics.generateHgrMonitorListing(getPlatformData()));
+        Clipboard.getSystemClipboard().setContent(clip);
+    }
+    
+    byte[] copyBuffer = null;
 
     @Override
     public void copy() {
@@ -437,7 +444,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
         clip.put(DataFormat.IMAGE, currentImage);
         clip.put(DataFormat.PLAIN_TEXT, "selection/image/" + ApplicationState.getInstance().getGameData().getImage().indexOf(getEntity()) + "/" + getSelectionInfo());
         Clipboard.getSystemClipboard().setContent(clip);
-        copyData = Arrays.copyOf(getImageData(), getImageData().length);
+        copyBuffer = Arrays.copyOf(getImageData(), getImageData().length);
     }
 
     @Override
@@ -474,7 +481,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
             Image sourceImage = ApplicationState.getInstance().getGameData().getImage().get(selection.get("image"));
             byte[] sourceData;
             if (sourceImage.equals(getEntity())) {
-                sourceData = copyData;
+                sourceData = copyBuffer;
             } else {
                 PlatformData platformData = sourceImage.getDisplayData().stream().filter(d -> d.getPlatform().equals(getPlatform().name())).findFirst().orElse(null);
                 if (platformData == null) {
@@ -555,30 +562,14 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
         UIAction.openImageConversionModal(image, ditherEngine, getWidth(), getHeight(), this::setDataAndRedraw);
     }
 
-    private int calculateHiresOffset(int y) {
-        return calculateTextOffset(y >> 3) + ((y & 7) << 10);
-    }
-
-    private int calculateTextOffset(int y) {
-        return ((y & 7) << 7) + 40 * (y >> 3);
-    }
-
     @Override
     public void exportImage() {
-        byte[] output = new byte[0x02000];
-        int counter = 0;
-        for (int y = 0; y < getHeight(); y++) {
-            int offset = calculateHiresOffset(y);
-            for (int x = 0; x < getWidth(); x++) {
-                output[offset + x] = getImageData()[counter++];
-            }
-        }
         File out = FileUtils.getFile(null, "Export image", true, FileUtils.Extension.BINARY, FileUtils.Extension.ALL);
         if (out == null) {
             return;
         }
         try (FileOutputStream outStream = new FileOutputStream(out)) {
-            outStream.write(output);
+            outStream.write(AppleNTSCGraphics.getAppleHGRBinary(getPlatformData()));
             outStream.flush();
         } catch (IOException ex) {
             Logger.getLogger(AppleImageEditor.class.getName()).log(Level.SEVERE, null, ex);

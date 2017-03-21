@@ -19,6 +19,7 @@
             <items>
                 <MenuItem mnemonicParsing="false" onAction="#onEditSelect" text="Select" />
                 <MenuItem mnemonicParsing="false" onAction="#onEditCopy" text="Copy" />
+                <MenuItem mnemonicParsing="false" onAction="#onEditCopyData" text="Copy Data" />
                 <MenuItem mnemonicParsing="false" onAction="#onEditPaste" text="Paste" />
             <MenuItem mnemonicParsing="false" onAction="#performUndo" text="Undo">
                <accelerator>

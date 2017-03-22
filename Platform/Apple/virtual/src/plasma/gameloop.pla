@@ -269,6 +269,39 @@ export asm memcpy         // params: pSrc, pDst, len. Non-overlapping only!
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+export asm memset         // params: pDst, val, len.
+  +asmPlasm 3
+  ldy #0
+  lda evalStkL+2,x    ; dest ptr
+  sta pTmp
+  lda evalStkH+2,x
+  sta pTmp+1
+  lda evalStkL+1,x    ; value
+  sta tmp
+  lda evalStkL,x      ; len lo
+  pha
+  lda evalStkH,x      ; len hi
+  tax
+  beq +
+  lda tmp
+- sta (pTmp),y
+  iny
+  bne -
+  inc pTmp+1
+  dex
+  bne -
++ pla
+  beq +
+  tax
+  lda tmp
+- sta (pTmp),y
+  iny
+  dex
+  bne -
++ rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 asm readAuxByte     // params: ptr; ret: char
   +asmPlasm 1
 
@@ -487,47 +520,48 @@ asm blit      // params: srcData, dstScreenPtr, nLines, lineSize
   lda #$60
   sta $1D
 
-  ; Outer copy loop
   pla       ; line count
   tax
-.loop
-  ldy ysav  ; byte count minus 1. There are 18 bytes per line
+- ldy ysav  ; byte count minus 1. There are 18 bytes per line
   dey
   jsr $10   ; copy pixel bytes
-
-  ; Advance to next row of data
-  lda tmp
+  lda tmp   ; advance to next row of data
   clc
   adc ysav
   sta tmp
   bcc +
   inc tmp+1
-+ ; Fun code to advance to the next hi-res line
-  ldy pTmp+1
-  iny
-  iny
-  iny
-  iny
-  cpy #$40
-  bcc .ok2
-  tya
-  sbc #$20  ; carry already set
-  tay
-  lda pTmp
-  eor #$80
-  bmi .ok
-  iny
-  cpy #$24
-  bcc .ok
-  ldy #$20
-  adc #$27  ; carry was set, so actually adding $28
-.ok
-  sta pTmp
-.ok2
-  sty pTmp+1
-  ; Loop until we've done all rows.
++ jsr NextScreenLine  ; and next screen line
   dex
-  bne .loop
+  bne -     ; Loop until we've done all rows.
+  rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+asm vline      // params: dstScreenPtr, val, nLines
+  +asmPlasm 3
+
+  ; Save number of lines
+  pha
+
+  ; Save value
+  lda evalStkL+1,x
+  sta tmp
+
+  ; Save the dest pointer
+  lda evalStkL+2,x
+  sta pTmp
+  lda evalStkH+2,x
+  sta pTmp+1
+
+  pla       ; line count
+  tax
+- ldy #0
+  lda tmp
+  sta (pTmp),y
+  jsr NextScreenLine
+  dex
+  bne -
   rts
 end
 
@@ -817,6 +851,13 @@ export asm calcWidth
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Get the address of the given hi-res screen line
+export asm getScreenLine
+  +asmPlasm_bank2 1
+  jmp GetScreenLine
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display a string using the font engine but not its parser.
 // Params: pStr
 export asm rawDisplayStr
@@ -969,7 +1010,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Convert signed decimal to string in decimalBuf (@decimalBuf returned)
-def convertDec(n)
+export def convertDec(n)
   word n0
   word p
   p = @decimalBuf + 1
@@ -1258,6 +1299,32 @@ export def getMapWindow(width, height)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def hline(addr, startByte, midByte, midSize, endByte)
+  ^addr = startByte
+  memset(addr+1, midByte, midSize)
+  ^(addr+midSize+1) = endByte
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Window that covers the entire inner area (destroys frame image, so be sure to loadMainFrame
+// afterwards)
+export def setOversizeWindow()
+  hline(getScreenLine(5)+1, 0, 0, 36, 0)
+  hline(getScreenLine(6)+1, $F8, $FF, 36, $8F)
+  hline(getScreenLine(7)+1, $FC, $FF, 36, $9F)
+  hline(getScreenLine(8)+1, $8C, 0, 36, $98)
+  vline(getScreenLine(9)+1, $8C, 174)
+  vline(getScreenLine(9)+38, $98, 174)
+  hline(getScreenLine(182)+1, $8C, 0, 36, $98)
+  hline(getScreenLine(183)+1, $FC, $FF, 36, $9F)
+  hline(getScreenLine(184)+1, $F8, $FF, 36, $8F)
+  hline(getScreenLine(185)+1, 0, 0, 36, 0)
+  setWindow(10, 183, 14, 267) // Top, Bottom, Left, Right
+  clearWindow()
+  frameLoaded = 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 export def fontCmd(code, coord)
   tabBuf[0] = 4  // length
   tabBuf[1] = code
@@ -1391,7 +1458,6 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def loadMainFrameImg()
-  mmgr(START_LOAD, 1) // partition 1 is where code lives
   loadFrameImg(mapIs3D+2)
   if curFullscreenImg
     auxMmgr(FREE_MEMORY, curFullscreenImg)
@@ -1835,13 +1901,13 @@ def showAnimFrame()
   if curPortrait
     // Blit portrait to the appropriate area on the screen
     if frameLoaded == 3  // 3D-mode frame? Note: don't check mapIs3D, because we might be in an engine
-      blit(curPortrait + 2, $2182, 128, 18)  // start at 3rd text line
+      blit(curPortrait + 2, getScreenLine(24)+2, 128, 18)  // start at 3rd text line
     else
-      blit(curPortrait + 2, $2202, 128, 18)  // start at 4th text line
+      blit(curPortrait + 2, getScreenLine(32)+2, 128, 18)  // start at 4th text line
     fin
     needRender = FALSE  // suppress display of map for this frame
   elsif curFullscreenImg
-    blit(curFullscreenImg + 2, $2000, 192, 40) // the +2 is to skip anim hdr offset
+    blit(curFullscreenImg + 2, getScreenLine(0), 192, 40) // the +2 is to skip anim hdr offset
     needRender = FALSE  // suppress display of map for this frame
   elsif mapIs3D
     if textDrawn and mapIs3D and texturesLoaded; copyWindow(); fin
@@ -2020,6 +2086,7 @@ def returnFromEngine()
   if curEngine
     mmgr(FREE_MEMORY, curEngine)
     curEngine = NULL
+    loadMainFrameImg()
     clearPortrait()
     if renderLoaded; texControl(1); fin
     mapNameHash = 0; showMapName(global=>s_mapName)
@@ -2285,6 +2352,25 @@ def loadTitle()
 
   puts("Loading game.\n")
 
+  // Allocate and permanently lock mem for the font engine and its font (up in LC ram)
+  mmgr(START_LOAD, 1) // partition 1 is where code lives
+  mmgr(SET_MEM_TARGET, fontEngine)
+  mmgr(REQUEST_MEMORY, fontEngineLen)
+  mmgr(LOCK_MEMORY,    fontEngine)
+
+  mmgr(SET_MEM_TARGET, fontData)
+  mmgr(REQUEST_MEMORY, fontDataLen)
+  mmgr(LOCK_MEMORY,    fontData)
+
+  // Load them into lo mem
+  pEngine = mmgr(QUEUE_LOAD, CODE_FONT_ENGINE<<8 | RES_TYPE_CODE)
+  pFont   = mmgr(QUEUE_LOAD, 1<<8 | RES_TYPE_FONT)
+  mmgr(FINISH_LOAD, 0)
+
+  // Relocate font engine and font data to their final spots up in the language card
+  memcpy(pEngine, fontEngine, fontEngineLen)
+  memcpy(pFont, fontData, fontDataLen)
+
   // Load the title screen and show it.
   loadFrameImg(1) // title screen is fixed at #1
   ^$C050     // graphics
@@ -2296,19 +2382,6 @@ def loadTitle()
   ^$C07E=0   // disable double-hi-res
   ^$C05F     // disable double-hi-res
 
-  // Allocate and permanently lock mem for the font engine and its font (up in LC ram)
-  mmgr(SET_MEM_TARGET, fontEngine)
-  mmgr(REQUEST_MEMORY, fontEngineLen)
-  mmgr(LOCK_MEMORY,    fontEngine)
-
-  mmgr(SET_MEM_TARGET, fontData)
-  mmgr(REQUEST_MEMORY, fontDataLen)
-  mmgr(LOCK_MEMORY,    fontData)
-
-  // Load them into lo mem
-  pEngine = mmgr(QUEUE_LOAD,     CODE_FONT_ENGINE<<8 | RES_TYPE_CODE)
-  pFont = mmgr(QUEUE_LOAD, 1<<8 | RES_TYPE_FONT)
-
   // While we're loading, let's get the expander into aux RAM.
   auxMmgr(SET_MEM_TARGET, expandVec)
   auxMmgr(QUEUE_LOAD, CODE_EXPAND<<8 | RES_TYPE_CODE)
@@ -2318,10 +2391,6 @@ def loadTitle()
   auxMmgr(LOCK_MEMORY, pResourceIndex)
 
   mmgr(FINISH_LOAD, 0)
-
-  // Relocate font engine and font data to their final spots up in the language card
-  memcpy(pEngine, fontEngine, fontEngineLen)
-  memcpy(pFont, fontData, fontDataLen)
 
   // Tell the font engine where to find its font
   setFont(fontData)

@@ -51,7 +51,8 @@
 
 DEBUG		= 0		; 1=some logging, 2=lots of logging
 
-T1_Val		= $D	 	;zero page Temporary variables
+pTmp		= $4		;zero page Temporary variables
+T1_Val		= $D
 T1_vLo		= $E
 T1_vHi		= $F
 zTmp1		= $10
@@ -107,6 +108,12 @@ RestCursor	JMP RsCurs
 ;flashing cursor use GetStr. It allows use of either
 ;left arrow or delete key to backspace.
 GetStr		JMP In_Str
+
+;Get the address of a line on the screen
+GetScreenLine	JMP GetScLn
+
+;Advance to next line on the screen
+NextScreenLine	JMP NxtScLn
 
 ;If you know which of the {0..110} bitmapped characters
 ;you want plotted, you can bypass testing for control
@@ -1715,6 +1722,38 @@ Wp_rCmb	STX Wp_Dig2	;save digit
 	ORA Wp_Dig2	;combine the digits
 	STA CharRate	;store the rate parameter
 	JMP Wpr_Clr
+
+; Get pointer to screen line A into A=lo/Y=hi (and to pTmp)
+GetScLn	TAX
+	LDA HgrTbHi,X
+	STA pTmp+1
+	TAY
+	LDA HgrTbLo,X
+	STA pTmp
+	RTS
+
+; Fun code to advance pTmp to the next hi-res line. Destroys A and Y
+NxtScLn	LDY pTmp+1
+	INY
+	INY
+	INY
+	INY
+	CPY #$40
+	BCC .ok2
+	TYA
+	SBC #$20  ; carry already set
+	TAY
+	LDA pTmp
+	EOR #$80
+	BMI .ok
+	INY
+	CPY #$24
+	BCC .ok
+	LDY #$20
+	ADC #$27  ; carry was set, so actually adding $28
+.ok	STA pTmp
+.ok2	STY pTmp+1
+	RTS
 
 HgrTbHi !byte $20,$24,$28,$2C,$30,$34,$38,$3C
 	!byte $20,$24,$28,$2C,$30,$34,$38,$3C

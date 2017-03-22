@@ -25,3 +25,5 @@ CalcWidth	= DisplayStr+3
 SaveCursor	= CalcWidth+3
 RestCursor	= SaveCursor+3
 GetStr          = RestCursor+3
+GetScreenLine	= GetStr+3
+NextScreenLine	= GetScreenLine+3

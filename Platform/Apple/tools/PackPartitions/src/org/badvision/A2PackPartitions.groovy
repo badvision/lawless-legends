@@ -2578,7 +2578,7 @@ end
 
     def outCodeToFuncTbl(prefix, codeToFunc, out)
     {
-        codeToFunc.sort().each { code, funcs ->
+        codeToFunc.sort { ent -> ent.key.toLowerCase() }.each { code, funcs ->
             funcs.eachWithIndex { func, index ->
                 out.println(
                     "${index==0 ? "word[] $prefix${humanNameToSymbol(code, false)} = " : "word         = "}@$func")

@@ -14,8 +14,7 @@ include "globalDefs.plh"
 include "gen_modules.plh"
 include "gen_items.plh"
 
-const NUM_COLUMN = 14
-const PRICE_COLUMN = 125
+const PAGE_SIZE = 19
 
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the header.
@@ -26,6 +25,8 @@ word pItemsModule
 const MAX_PAGE_ITEMS = 20 // should be plenty
 word pageItems[MAX_PAGE_ITEMS]
 word pagePrices[MAX_PAGE_ITEMS]
+
+byte selStrBuf[2]
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -112,50 +113,31 @@ def unloadItems()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def calcPageSize()
-  word hMap, vMap
-  getMapWindow(@hMap, @vMap)
-  printf1("vMap=%d\n", vMap)
-  return vMap / 9  // nine scanlines per character line
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayBuyTitle()
-  rawDisplayStr("^L")
-  rightJustifyStr("#", NUM_COLUMN)
-  rawDisplayStr(".^L ^LItem")
-  rightJustifyStr("Price", PRICE_COLUMN)
-  rawDisplayStr("^L")
+  rawDisplayStr("^T108Buying\n\n")
+  rawDisplayStr("^LSel^T025Price^T060Item^L")
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayBuyLine(num, name, price)
+  word buf
   rawDisplayStr("\n")
-  rightJustifyNum(num, NUM_COLUMN)
-  rawDisplayStr(". ")
+  ^(@buf) = 1
+  ^(@buf + 1) = num + 'A'
+  rawDisplayStr(@buf)
+  rawDisplayStr(".^T025")
+  rawDisplayStr(convertDec(price))
+  rawDisplayStr("^T060")
   rawDisplayStr(name)
-  rightJustifyNum(price, PRICE_COLUMN)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _buyFromStore(storeCode, markupRatio)
-  word pItemTbl, pItemFunc, pageNum, itemNum, pageSize
-
-  clearWindow()
-  showMapName("Buy items")
-
-  setMapWindow()
-  clearWindow()
-
-  loadItems()
-  pItemTbl = pItemsModule()=>items_forStoreCode(storeCode)
-  pageSize = calcPageSize()
-
-  pItemFunc = pItemTbl
-
+def displayBuyPage(pItemFunc, markupRatio)
+  byte itemNum
   itemNum = 0
   displayBuyTitle()
-  while itemNum < pageSize-1  // 1 for the title line
+  mmgr(HEAP_COLLECT, 0)
+  while itemNum < PAGE_SIZE-5
     pageItems[itemNum] = (*pItemFunc)()
     pagePrices[itemNum] = max(1, pageItems[itemNum]=>w_price + calcMarkup(pageItems[itemNum]=>w_price, markupRatio))
     if pageItems[itemNum]->t_type == TYPE_STUFF // show plural for countable stuff like ammo, pelts
@@ -163,15 +145,31 @@ def _buyFromStore(storeCode, markupRatio)
     else
       setPlural(FALSE)
     fin
-    displayBuyLine(itemNum+1, pageItems[itemNum]=>s_name, pagePrices[itemNum])
+    displayBuyLine(itemNum, pageItems[itemNum]=>s_name, pagePrices[itemNum])
     itemNum++
     pItemFunc = pItemFunc + 2
     if !*pItemFunc; break; fin
   loop
+  return itemNum
+end
 
-  setWindow2()
-  rawDisplayStr("Select item to buy.\n")
-  getUpperKey()
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def _buyFromStore(storeCode, markupRatio)
+  word pItemTbl, topItem, choice
+
+  setOversizeWindow()
+  clearWindow()
+
+  loadItems()
+  pItemTbl = pItemsModule()=>items_forStoreCode(storeCode)
+  topItem = pItemTbl
+
+  while TRUE
+    displayBuyPage(topItem, markupRatio)
+    rawDisplayStr("\n\nSelect item, Return for next pg, Esc to leave")
+    choice = readStr()
+    break
+  loop
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

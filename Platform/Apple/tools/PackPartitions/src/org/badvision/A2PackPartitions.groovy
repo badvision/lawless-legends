@@ -1442,10 +1442,13 @@ class A2PackPartitions
                      + 1 + portraits.size()  // number of portraits, then 1 byte per
         }
 
-        reportWriter.println "\nDisk $partNum:"
-        reportWriter.println String.format("  %-22s: %6.1fK",
-                                partNum == 1 ? "LegendOS+overhead" : "overhead",
-                                ((FLOPPY_SIZE-availBlks)*512 + overhead) / 1024.0)
+        if (nWarnings == 0)
+        {
+            reportWriter.println "\nDisk $partNum:"
+            reportWriter.println String.format("  %-22s: %6.1fK",
+                                    partNum == 1 ? "LegendOS+overhead" : "overhead",
+                                    ((FLOPPY_SIZE-availBlks)*512 + overhead) / 1024.0)
+        }
 
         def outChunks = (partNum==1) ? part1Chunks : ([:] as LinkedHashMap)
         def addedMapNames = []
@@ -1473,11 +1476,13 @@ class A2PackPartitions
             // After adding the root map, stuff in the most-used portraits onto disk 1
             if (mapName == "<root>") {
                 assert partNum == 1
-                reportWriter.println String.format("  %-22s: %6.1fK", "base resources", mapSpace / 1024.0)
+                if (nWarnings == 0)
+                    reportWriter.println String.format("  %-22s: %6.1fK", "base resources", mapSpace / 1024.0)
                 def portraitsSpace = stuffMostUsedPortraits(maps, outChunks, availBlks, spaceUsed)
                 spaceUsed += portraitsSpace
                 blks = calcFileBlks(spaceUsed)
-                reportWriter.println String.format("  %-22s: %6.1fK", "shared portraits", portraitsSpace / 1024.0)
+                if (nWarnings == 0)
+                    reportWriter.println String.format("  %-22s: %6.1fK", "shared portraits", portraitsSpace / 1024.0)
                 //println "stuffed most-used portraits for $portraitsSpace bytes, totaling $blks blks."
             }
             else {
@@ -1485,12 +1490,14 @@ class A2PackPartitions
                 mapsSpaceUsed += mapSpace
             }
         }
-        if (mapsSpaceUsed > 0) {
-            reportWriter.println String.format("  %-22s: %6.1fK", "maps & resources", mapsSpaceUsed / 1024.0)
-            addedMapNames.each { reportWriter.println "    $it" }
+        if (nWarnings == 0) {
+            if (mapsSpaceUsed > 0) {
+                reportWriter.println String.format("  %-22s: %6.1fK", "maps & resources", mapsSpaceUsed / 1024.0)
+                addedMapNames.each { reportWriter.println "    $it" }
+            }
+            reportWriter.println String.format("  %-22s: %6.1fK", "unused", (availBlks*512 - spaceUsed) / 1024.0)
+            reportWriter.println "Total: 140K"
         }
-        reportWriter.println String.format("  %-22s: %6.1fK", "unused", (availBlks*512 - spaceUsed) / 1024.0)
-        reportWriter.println "Total: 140K"
         return [outChunks, spaceUsed]
     }
 
@@ -1557,7 +1564,8 @@ class A2PackPartitions
             0
         }
 
-        reportWriter.println "======================== Floppy disk usage ==========================="
+        if (nWarnings == 0)
+            reportWriter.println "======================== Floppy disk usage ==========================="
 
         // Now fill up disk partitions until we run out of maps.
         def mapsTodo = allMaps.collect { it.name }
@@ -3082,7 +3090,7 @@ end
             reportFile.delete()
         reportFile.withWriter { reportWriter ->
 
-            def inst
+            def inst1, inst2
             try {
                 File xmlFile = new File(xmlPath)
 
@@ -3127,31 +3135,37 @@ end
                 def dataIn = new XmlParser().parse(xmlPath)
 
                 // Create PLASMA headers
-                inst = new A2PackPartitions()
-                inst.buildDir = buildDir
-                inst.reportWriter = reportWriter
-                inst.dataGen(xmlFile, dataIn)
+                inst1 = new A2PackPartitions()
+                inst1.buildDir = buildDir
+                inst1.reportWriter = reportWriter
+                inst1.dataGen(xmlFile, dataIn)
 
                 // Save the partial resource deps
-                def resourceDeps = inst.resourceDeps
+                def resourceDeps = inst1.resourceDeps
 
                 // Pack everything into a binary file
-                inst = new A2PackPartitions() // make a new one without stubs
-                inst.resourceDeps = resourceDeps // inject partial deps
-                inst.buildDir = buildDir
-                inst.reportWriter = reportWriter
-                inst.pack(xmlFile, dataIn)
+                inst2 = new A2PackPartitions() // make a new one without stubs
+                inst2.warningBuf = inst1.warningBuf
+                inst2.nWarnings = inst1.nWarnings
+                inst2.resourceDeps = resourceDeps // inject partial deps
+                inst2.buildDir = buildDir
+                inst2.reportWriter = reportWriter
+                inst2.pack(xmlFile, dataIn)
 
                 // And create the final disk images
-                inst.createHddImage()
-                inst.createFloppyImages()
+                inst2.createHddImage()
+                inst2.createFloppyImages()
             }
             catch (Throwable t) {
                 reportWriter.println "Packing error:\n${t.message}"
                 reportWriter.println "       detail:\n$t"
-                if (inst) {
+                if (inst2) {
                     reportWriter.println "\nContext:"
-                    reportWriter.println "    ${inst.getContextStr()}"
+                    reportWriter.println "    ${inst2.getContextStr()}"
+                }
+                else if (inst1) {
+                    reportWriter.println "\nContext:"
+                    reportWriter.println "    ${inst1.getContextStr()}"
                 }
                 reportWriter.println "\nGroovy call stack:"
                 t.getStackTrace().each {
@@ -3160,14 +3174,14 @@ end
                 }
                 reportWriter.flush()
                 reportFile.eachLine { println it }
-                watcher.error(t.message, inst ? inst.getContextStr() : 'outer')
+                watcher.error(t.message, inst2 ? inst2.getContextStr() : inst1 ? inst1.getContextStr() : 'outer')
             }
 
-            if (inst.nWarnings > 0) {
+            if (inst2.nWarnings > 0) {
                 reportWriter.println "Packing warnings:\n"
-                reportWriter.println inst.warningBuf.toString()
+                reportWriter.println inst2.warningBuf.toString()
                 reportWriter.write()
-                watcher.warnings(inst.nWarnings, inst.warningBuf.toString())
+                watcher.warnings(inst2.nWarnings, inst2.warningBuf.toString())
             }
         }
     }

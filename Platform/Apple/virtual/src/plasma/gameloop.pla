@@ -410,8 +410,9 @@ export asm finishString
   inx         ; it's plural, so copy everything within the parens
   lda inbuf,x ; copy characters
   cpx inbuf   ; handle missing trailing paren
-  beq .store
-  cmp #")"    ; go until we reach ending paren
+  beq +
+  bcs .store
++ cmp #")"    ; go until we reach ending paren
   beq .next
   sta inbuf,y
   iny
@@ -1330,8 +1331,7 @@ export def setOversizeWindow()
   hline(getScreenLine(184)+1, $F8, $FF, 36, $8F)
   hline(getScreenLine(185)+1, 0, 0, 36, 0)
   setWindow(10, 183, 14, 267) // Top, Bottom, Left, Right
-  clearWindow()
-  frameLoaded = 0
+  frameLoaded = 0 // since we destroyed it
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

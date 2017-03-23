@@ -49,6 +49,29 @@
 
 * = fontEngine
 
+;The following control-codes are used.
+;CODE__STATE__DESCRIPTION___
+;Ctrl-A (1) foreground/character color
+;Ctrl-B (2) background color
+;Ctrl-E (3) extended character {A..I}
+;Ctrl-F (4) font {0,1,2} (not implemented)
+;Ctrl-T (5) horizonTal position {000..279} base-10
+;Ctrl-V (6) vertical position {000..191}
+;Ctrl-R (7) character/ticker rate {00..FF}
+;Ctrl-L n/a toggle underLine mode
+;Ctrl-M n/a Carriage return w/line feed
+;Ctrl-N n/a Normal mode (un-toggle special modes)
+;Ctrl-Q n/a Home cursor & clear screen
+;Ctrl-\ n/a Ticker Tape scroll Mode 0=off
+;Ctrl-] n/a Ticker Tape scroll Mode 1=on
+;Ctrl-P n/a toggle between ticker/scroll mode
+;Ctrl-U n/a (right arrow) move +1 column
+;Ctrl-H n/a (left  arrow) move -1 column
+;Ctrl-J n/a (down  arrow) move +1 row
+;Ctrl-K n/a (up    arrow) move -1 row
+;Ctrl-I n/a Inverse (swap foregnd/bkgnd colors)
+;Ctrl-Y n/a center justify
+
 DEBUG		= 0		; 1=some logging, 2=lots of logging
 
 pTmp		= $4		;zero page Temporary variables
@@ -1275,29 +1298,7 @@ TestChr	LDX #0
 WaitPrm	JMP GetParm
 
 ;This section tests for control characters.
-;The following control-codes are used. Those that
-;require a paramter to follow will set a wait state
-;CODE__STATE__DESCRIPTION___
-;Ctrl-A (1) foreground/character color
-;Ctrl-B (2) background color
-;Ctrl-E (3) extended character {A..I}
-;Ctrl-F (4) font {0,1,2} (not implemented)
-;Ctrl-T (5) horizonTal position {000..279} base-10
-;Ctrl-V (6) vertical position {000..191}
-;Ctrl-R (7) character/ticker rate {00..FF}
-;Ctrl-L n/a toggle underLine mode
-;Ctrl-M n/a Carriage return w/line feed
-;Ctrl-N n/a Normal mode (un-toggle special modes)
-;Ctrl-Q n/a Home cursor & clear screen
-;Ctrl-\ n/a Ticker Tape scroll Mode 0=off
-;Ctrl-] n/a Ticker Tape scroll Mode 1=on
-;Ctrl-P n/a toggle between ticker/scroll mode
-;Ctrl-U n/a (right arrow) move +1 column
-;Ctrl-H n/a (left  arrow) move -1 column
-;Ctrl-J n/a (down  arrow) move +1 row
-;Ctrl-K n/a (up    arrow) move -1 row
-;Ctrl-I n/a Inverse (swap foregnd/bkgnd colors)
-;Ctrl-Y n/a center justify
+;Control-codes that require a paramter to follow will set a wait state
 TestCtl	TXA 		;restore character
 	CMP #$0D	;Ctrl-M?
 	BNE TCl_01	;no - keep testing

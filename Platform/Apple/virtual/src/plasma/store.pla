@@ -14,7 +14,7 @@ include "globalDefs.plh"
 include "gen_modules.plh"
 include "gen_items.plh"
 
-const PAGE_SIZE = 13
+const PAGE_SIZE = 14 // (183-10)/9 - 5
 
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the header.
@@ -147,7 +147,7 @@ def displayBuyPage(pItemTbl, markupRatio, pageNum, nPages)
     pFunc = pFunc + 2
   next
 
-  rawDisplayf1("\n\nBrowse item [A-%c], ", itemNum-1+'A')
+  rawDisplayf1("^V164^T000Browse item [A-%c], ", itemNum-1+'A')
   if nPages > 0
     rawDisplayf1("page [1-%d], ", nPages)
   fin
@@ -180,7 +180,7 @@ def _buyFromStore(storeCode, markupRatio)
   redisplay = TRUE
   while TRUE
     if redisplay
-      nItemsOnPage = displayBuyPage(pItemTbl + ((pageNum*PAGE_SIZE)<<1), markupRatio, pageNum, nPages)
+      nItemsOnPage = displayBuyPage(pItemTbl, markupRatio, pageNum, nPages)
     fin
     choice = getUpperKey()
     redisplay = TRUE

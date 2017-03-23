@@ -14,7 +14,7 @@ include "globalDefs.plh"
 include "gen_modules.plh"
 include "gen_items.plh"
 
-const PAGE_SIZE = 19
+const PAGE_SIZE = 13
 
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the header.
@@ -25,8 +25,6 @@ word pItemsModule
 const MAX_PAGE_ITEMS = 20 // should be plenty
 word pageItems[MAX_PAGE_ITEMS]
 word pagePrices[MAX_PAGE_ITEMS]
-
-byte selStrBuf[2]
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -113,63 +111,94 @@ def unloadItems()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayBuyTitle()
-  rawDisplayStr("^T108Buying\n\n")
-  rawDisplayStr("^LSel^T025Price^T060Item^L")
+def displayBuyTitle(pageNum, nPages)
+  clearWindow()
+  // Can't use centering mode on oversize window - font engine can't handle width > 255
+  if (nPages > 0)
+    rawDisplayf2("^T073Buying (page %d of %d)", pageNum+1, nPages)
+  else
+    rawDisplayStr("^T108Buying")
+  fin
+  rawDisplayStr("\n\n^LSel^T025Price^T060Item^L")
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayBuyLine(num, name, price)
-  word buf
-  rawDisplayStr("\n")
-  ^(@buf) = 1
-  ^(@buf + 1) = num + 'A'
-  rawDisplayStr(@buf)
-  rawDisplayStr(".^T025")
-  rawDisplayStr(convertDec(price))
-  rawDisplayStr("^T060")
-  rawDisplayStr(name)
+def displayBuyLine(num, price, name)
+  rawDisplayf3("\n%c.^T025%d^T060%s", num + 'A', price, name)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayBuyPage(pItemFunc, markupRatio)
+def displayBuyPage(pItemTbl, markupRatio, pageNum, nPages)
   byte itemNum
-  itemNum = 0
-  displayBuyTitle()
+  word pFunc, pItem
+
+  displayBuyTitle(pageNum, nPages)
   mmgr(HEAP_COLLECT, 0)
-  while itemNum < PAGE_SIZE-5
-    pageItems[itemNum] = (*pItemFunc)()
-    pagePrices[itemNum] = max(1, pageItems[itemNum]=>w_price + calcMarkup(pageItems[itemNum]=>w_price, markupRatio))
-    if pageItems[itemNum]->t_type == TYPE_STUFF // show plural for countable stuff like ammo, pelts
-      setPlural(TRUE)
-    else
-      setPlural(FALSE)
-    fin
-    displayBuyLine(itemNum, pageItems[itemNum]=>s_name, pagePrices[itemNum])
-    itemNum++
-    pItemFunc = pItemFunc + 2
-    if !*pItemFunc; break; fin
-  loop
+
+  pFunc = pItemTbl + ((pageNum*PAGE_SIZE) << 1)
+  for itemNum = 0 to PAGE_SIZE-1
+    if !(*pFunc); break; fin
+    pItem = (*pFunc)()
+    pageItems[itemNum] = pItem
+    pagePrices[itemNum] = max(1, pItem=>w_price + calcMarkup(pItem=>w_price, markupRatio))
+    setPlural(FALSE)
+    if pItem->t_type == TYPE_STUFF; setPlural(TRUE); fin
+    displayBuyLine(itemNum, pagePrices[itemNum], pItem=>s_name)
+    pFunc = pFunc + 2
+  next
+
+  rawDisplayf1("\n\nBrowse item [A-%c], ", itemNum-1+'A')
+  if nPages > 0
+    rawDisplayf1("page [1-%d], ", nPages)
+  fin
+  rawDisplayStr("or [Esc].")
   return itemNum
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def countArray(arr)
+  byte count
+  for count = 0 to 127
+    if !*arr; return count; fin
+    arr = arr + 2
+  next
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def _buyFromStore(storeCode, markupRatio)
-  word pItemTbl, topItem, choice
+  word pItemTbl, choice
+  byte nItemsOnPage, pageNum, nPages, redisplay
 
   setOversizeWindow()
-  clearWindow()
 
   loadItems()
   pItemTbl = pItemsModule()=>items_forStoreCode(storeCode)
-  topItem = pItemTbl
 
+  nPages = (countArray(pItemTbl) + PAGE_SIZE) / PAGE_SIZE
+  pageNum = 0
+
+  redisplay = TRUE
   while TRUE
-    displayBuyPage(topItem, markupRatio)
-    rawDisplayStr("\n\nSelect item, Return for next pg, Esc to leave")
-    choice = readStr()
-    break
+    if redisplay
+      nItemsOnPage = displayBuyPage(pItemTbl + ((pageNum*PAGE_SIZE)<<1), markupRatio, pageNum, nPages)
+    fin
+    choice = getUpperKey()
+    redisplay = TRUE
+    if choice >= '1' and (choice-'1') < nPages
+      pageNum = choice - '1'
+    elsif choice >= 'A' and (choice-'A' < nItemsOnPage)
+      rawDisplayf1("\nTODO: browse it, maybe buy\n")
+      getUpperKey()
+    elsif choice == $1B // Esc
+      break
+    else
+      beep()
+      redisplay = FALSE
+    fin
   loop
+
+  unloadItems()
+  mmgr(HEAP_COLLECT, 0)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

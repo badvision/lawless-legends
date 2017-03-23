@@ -1010,7 +1010,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Convert signed decimal to string in decimalBuf (@decimalBuf returned)
-export def convertDec(n)
+def convertDec(n)
   word n0
   word p
   p = @decimalBuf + 1
@@ -1070,6 +1070,16 @@ end
 
 export def displayf1(str, arg1); displayf3(str, arg1, 0, 0); end
 export def displayf2(str, arg1, arg2); displayf3(str, arg1, arg2, 0); end
+
+// Like printf, but displays text using font engine
+export def rawDisplayf3(str, arg1, arg2, arg3)
+  buildString(@addToString)
+  printf3(str, arg1, arg2, arg3)
+  rawDisplayStr(finishString(isPlural))
+end
+
+export def rawDisplayf1(str, arg1); rawDisplayf3(str, arg1, 0, 0); end
+export def rawDisplayf2(str, arg1, arg2); rawDisplayf3(str, arg1, arg2, 0); end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def parseDec(str)

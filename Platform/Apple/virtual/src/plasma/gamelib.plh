@@ -30,7 +30,8 @@ import gamelib
   predef addPlayerToParty, removePlayerFromParty, partyHasPlayer, loadFrameImg, loadMainFrameImg
   predef scriptSwapTile, setIntimateMode, fontCmd, setIntimateMode
   predef callGlobalFunc, getCharResponse, memcpy, checkEncounter, finalWin, addUnique
-  predef benchPlayer, unbenchPlayer, buyFromStore, sellToStore, setOversizeWindow, convertDec
+  predef benchPlayer, unbenchPlayer, buyFromStore, sellToStore, setOversizeWindow
+  predef rawDisplayf1, rawDisplayf2, rawDisplayf3
 
   // This pointer is the root of all heap-tracked (and garbage collected) objects.
   // See playtype.plh for definitions of all the datastructures and how they interconnect.

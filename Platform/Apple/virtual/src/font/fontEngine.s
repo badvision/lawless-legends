@@ -970,6 +970,17 @@ Sc1_LpS	LDA GBasL
 	STA Sc1_St1+2
 Sc1_Lp0	LDY #0
 	LDX MrgnVl
+-	LDA (GBasL),Y	;skip the empty first part of line
+	AND #$7F
+	BNE +
+	INY
+	DEX
+	BNE -
+	BEQ Sc1_Nxt
++	TYA
+	BEQ Sc1_Ld1
+	INX
+	DEY
 Sc1_Ld1	LDA $1101,Y	;self-modified above
 	LSR		;save low pixel of next byte
 Sc1_Ld2	LDA $1100,Y	;work on current byte (self-modified above)

@@ -116,7 +116,7 @@ def displayBuyTitle(pageNum, nPages)
   // Can't use centering mode on oversize window - font engine can't handle width > 255
   rawDisplayStr("^YBuying")
   if (nPages > 0)
-    rawDisplayf2(" - pg %d/%d", pageNum+1, nPages)
+    rawDisplayf2(" - p. %d/%d", pageNum+1, nPages)
   fin
   rawDisplayStr("^N\n\n^LSel^T025Price^T060Item^L")
 end
@@ -152,7 +152,7 @@ def displayBuyPage(pItemTbl, markupRatio, pageNum, nPages)
     pFunc = pFunc + 2
   next
 
-  rawDisplayf1("^V164^T000Browse item [A-%c], ", itemNum-1+'A')
+  rawDisplayf1("\n^V164Browse item [A-%c], ", itemNum-1+'A')
   if nPages > 0
     rawDisplayf1("page [1-%d], ", nPages)
   fin

@@ -14,7 +14,7 @@ include "globalDefs.plh"
 include "gen_modules.plh"
 include "gen_items.plh"
 
-const PAGE_SIZE = 14 // (183-10)/9 - 5
+const PAGE_SIZE = 14 // (183-10)/9 lines, minus 5 lines for header/footer
 
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the header.
@@ -114,17 +114,24 @@ end
 def displayBuyTitle(pageNum, nPages)
   clearWindow()
   // Can't use centering mode on oversize window - font engine can't handle width > 255
+  rawDisplayStr("^YBuying")
   if (nPages > 0)
-    rawDisplayf2("^T073Buying (page %d of %d)", pageNum+1, nPages)
-  else
-    rawDisplayStr("^T108Buying")
+    rawDisplayf2(" - pg %d/%d", pageNum+1, nPages)
   fin
-  rawDisplayStr("\n\n^LSel^T025Price^T060Item^L")
+  rawDisplayStr("^N\n\n^LSel^T025Price^T060Item^L")
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayBuyLine(num, price, name)
-  rawDisplayf3("\n%c.^T025%d^T060%s", num + 'A', price, name)
+def displayItemName(pItem)
+  setPlural(FALSE)
+  if pItem->t_type == TYPE_STUFF; setPlural(TRUE); fin
+  rawDisplayf1("%s", pItem=>s_name) // use displayf to get proper plural processing
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def displayBuyLine(num)
+  rawDisplayf2("\n%c.^T025%d^T060", num + 'A', pagePrices[num])
+  displayItemName(pageItems[num])
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -141,9 +148,7 @@ def displayBuyPage(pItemTbl, markupRatio, pageNum, nPages)
     pItem = (*pFunc)()
     pageItems[itemNum] = pItem
     pagePrices[itemNum] = max(1, pItem=>w_price + calcMarkup(pItem=>w_price, markupRatio))
-    setPlural(FALSE)
-    if pItem->t_type == TYPE_STUFF; setPlural(TRUE); fin
-    displayBuyLine(itemNum, pagePrices[itemNum], pItem=>s_name)
+    displayBuyLine(itemNum)
     pFunc = pFunc + 2
   next
 
@@ -156,12 +161,16 @@ def displayBuyPage(pItemTbl, markupRatio, pageNum, nPages)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def countArray(arr)
-  byte count
-  for count = 0 to 127
-    if !*arr; return count; fin
-    arr = arr + 2
-  next
+def browseItem(num)
+  word pItem, price
+  pItem = pageItems[num]
+  price = pagePrices[num]
+
+  clearWindow()
+  rawDisplayStr("^T108Browse\n\nItem:^T040")
+  displayItemName(pItem)
+  rawDisplayf1("\nPrice:^T040%d", price)
+  getUpperKey()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -187,8 +196,7 @@ def _buyFromStore(storeCode, markupRatio)
     if choice >= '1' and (choice-'1') < nPages
       pageNum = choice - '1'
     elsif choice >= 'A' and (choice-'A' < nItemsOnPage)
-      rawDisplayf1("\nTODO: browse it, maybe buy\n")
-      getUpperKey()
+      browseItem(choice-'A')
     elsif choice == $1B // Esc
       break
     else

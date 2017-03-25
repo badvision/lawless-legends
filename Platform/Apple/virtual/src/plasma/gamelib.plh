@@ -11,27 +11,121 @@
 import gamelib
 
   //////////// Shared library routines ////////////
-  predef setScriptInfo, scriptDisplayStr, scriptDisplayStrNL, getYN, queue_setMap
-  predef setSky, setGround, queue_teleport, setPortrait, clearPortrait, moveWayBackward
-  predef flipToPage1, textHome, calcWidth, getPos, getDir, setMap, setCmd
-  predef getUpperKey, clearWindow, rand16, printf1, printf2, printf3
-  predef displayf1, displayf2, displayf3, buildString, addToString, finishString, printHex
-  predef displayChar, rawDisplayStr, displayStr, rightJustifyStr, rightJustifyNum, puts
-  predef min, max, randomFromListFiltered, randomFromArray, scanForNamedObj
-  predef countList, countListFiltered, addToList, removeFromList
-  predef beep, showParty, mmgr, auxMmgr, setWindow, setWindow1, setWindow2, setWindow3, reboot, brk
-  predef encodeDice, rollDice, setPlural, getStringResponse
-  predef streqi, strncpy, fatal, pause, tossStrings, charToUpper
-  predef addEncounterZone, clearEncounterZones, showMapName, setMapWindow, getMapWindow
-  predef addGold, countGold, payGold, scriptEvent
-  predef calcPlayerArmor, rdkey, initHeap, scriptCombat, makeModifier
-  predef giveItemToPlayer, takeItemFromPlayer, playerHasItem, getStat, setStat
-  predef setGameFlag, getGameFlag, scriptSetAvatar, parseDecWithDefault, readStr
-  predef addPlayerToParty, removePlayerFromParty, partyHasPlayer, loadFrameImg, loadMainFrameImg
-  predef scriptSwapTile, setIntimateMode, fontCmd, setIntimateMode
-  predef callGlobalFunc, getCharResponse, memcpy, checkEncounter, finalWin, addUnique
-  predef benchPlayer, unbenchPlayer, buyFromStore, sellToStore, setOversizeWindow
-  predef rawDisplayf1, rawDisplayf2, rawDisplayf3
+  // Let's try to keep these predef's in lexical order
+  predef addEncounterZone
+  predef addGold
+  predef addPlayerToParty
+  predef addToList
+  predef addToString
+  predef addUnique
+  predef auxMmgr
+  predef beep
+  predef benchPlayer
+  predef brk
+  predef buildString
+  predef buyFromStore
+  predef calcPlayerArmor
+  predef calcWidth
+  predef callGlobalFunc
+  predef charToUpper
+  predef checkEncounter
+  predef clearEncounterZones
+  predef clearPortrait
+  predef clearWindow
+  predef countArray
+  predef countGold
+  predef countList
+  predef countListFiltered
+  predef displayChar
+  predef displayf1
+  predef displayf2
+  predef displayf3
+  predef displayStr
+  predef encodeDice
+  predef fatal
+  predef finalWin
+  predef finishString
+  predef flipToPage1
+  predef fontCmd
+  predef getCharResponse
+  predef getDir
+  predef getGameFlag
+  predef getMapWindow
+  predef getPos
+  predef getStat
+  predef getStringResponse
+  predef getUpperKey
+  predef getYN
+  predef giveItemToPlayer
+  predef initHeap
+  predef loadFrameImg
+  predef loadMainFrameImg
+  predef makeModifier
+  predef max
+  predef memcpy
+  predef min
+  predef mmgr
+  predef moveWayBackward
+  predef parseDecWithDefault
+  predef partyHasPlayer
+  predef pause
+  predef payGold
+  predef playerHasItem
+  predef printf1
+  predef printf2
+  predef printf3
+  predef printHex
+  predef puts
+  predef queue_setMap
+  predef queue_teleport
+  predef rand16
+  predef randomFromArray
+  predef randomFromListFiltered
+  predef rawDisplayf1
+  predef rawDisplayf2
+  predef rawDisplayf3
+  predef rawDisplayStr
+  predef rdkey
+  predef readStr
+  predef reboot
+  predef removeFromList
+  predef removePlayerFromParty
+  predef rightJustifyNum
+  predef rightJustifyStr
+  predef rollDice
+  predef scanForNamedObj
+  predef scriptCombat
+  predef scriptDisplayStr
+  predef scriptDisplayStrNL
+  predef scriptEvent
+  predef scriptSetAvatar
+  predef scriptSwapTile
+  predef sellToStore
+  predef setCmd
+  predef setGameFlag
+  predef setGround
+  predef setIntimateMode
+  predef setIntimateMode
+  predef setMap
+  predef setMapWindow
+  predef setOversizeWindow
+  predef setPlural
+  predef setPortrait
+  predef setScriptInfo
+  predef setSky
+  predef setStat
+  predef setWindow
+  predef setWindow1
+  predef setWindow2
+  predef setWindow3
+  predef showMapName
+  predef showParty
+  predef streqi
+  predef strncpy
+  predef takeItemFromPlayer
+  predef textHome
+  predef tossStrings
+  predef unbenchPlayer
 
   // This pointer is the root of all heap-tracked (and garbage collected) objects.
   // See playtype.plh for definitions of all the datastructures and how they interconnect.

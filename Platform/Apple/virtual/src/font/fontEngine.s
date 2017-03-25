@@ -19,7 +19,7 @@
 ;developed 5/2014. These routines have been tailored
 ;for the Lawless Legends project.
 
-;RevCursColHsion list:
+;Revision list:
 
 ;8/08 v.01 original concept w/self contained demo
 ;9/29 v.05 8-bit BMP code for M, m, W, w
@@ -72,7 +72,7 @@
 ;Ctrl-I n/a Inverse (swap foregnd/bkgnd colors)
 ;Ctrl-Y n/a center justify
 
-DEBUG		= 0		; 1=some logging, 2=lots of logging
+DEBUG		= 0		;1=some logging, 2=lots of logging
 
 pTmp		= $4		;zero page Temporary variables
 T1_Val		= $D
@@ -918,18 +918,11 @@ CtrJstfy CLC
 	TAX  		;Delta = WrdScrl - TtlScrl
 	CLC
 	ADC TtlScrl
-	LDY Flg2px	;2-pixel shifting?
-	BEQ CtrSTs	;if not, Save TtlScrl
-	LSR  		;else divide by 2
-	ASL  		;then x 2 (to make even #)
-CtrSTs	STA TtlScrl	;Save TtlScrl
+	STA TtlScrl	;Save TtlScrl
 	TXA  		;Get Delta
 	CLC
 	ADC LtrScrl
-	LDY Flg2px	;2-pixel shifting?
-	BEQ CtrSLps	;if not, Save LpNScrl
-	LSR
-CtrSLps	STA LpNScrl	;Save # of scroll loops
+	STA LpNScrl	;Save # of scroll loops
 	LDA CursColL	;get current column LoByte
 	SEC  		;(CLC is intentional, here)
 	SBC LpNScrl	;bump it back
@@ -948,9 +941,8 @@ Tikr_Flg !byte 0 	;ticker flag
 NoBf_Flg !byte 0 	;no-buffer-use flag
 Sc1_Tkr	RTS
 
-;Routine: shift one line of text left by 2 pixels
-;Using a buffer of unshifted and preshifted pixel
-;bytes, this routine uses ASLs and ROLs to shift
+;Routine: shift one line of text left by 1 pixel.
+;This routine uses ASLs and ROLs to shift
 ;8 consecutive lines
 Sc1_Bgn	LDX #0
 	STX Sc1LpC
@@ -967,59 +959,28 @@ Sc1_LpM	JSR GetBase
 	ADC LfMrgn
 	STA GBasL
 
+Sc1_LpS	LDA GBasL
+	STA Sc1_Ld2+1
+	STA Sc1_St1+1
+	ADC #1
+	STA Sc1_Ld1+1
+	LDA GBasH
+	STA Sc1_Ld1+2
+	STA Sc1_Ld2+2
+	STA Sc1_St1+2
 Sc1_Lp0	LDY #0
-Sc1_Lp1	LDA (GBasL),Y	;get pixel byte
-	STA Ary1,Y	;save unaltered pixels
-	TAX
-	AND #$80
-	STA AryHB,Y	;save High (color) bit
-	TXA
-	ASL  		;shift pixels right
-	STA Ary2,Y	;save shifted pixels
+	LDX MrgnVl
+Sc1_Ld1	LDA $1101,Y	;self-modified above
+	LSR		;save low pixel of next byte
+Sc1_Ld2	LDA $1100,Y	;work on current byte (self-modified above)
+	BCS +		;if next pix is set, just shift our hi bit (always set)
+	AND #$7F	;else clr hi bit so it shifts down to hi pix
+	SEC		;set new hi bit
++	ROR		;shift in new pixel and hi bit
+Sc1_St1	STA $1100,Y	;save our work (self-modified above)
 	INY
-	CPY MrgnVl
-	BNE Sc1_Lp1
-	LDA #0
-	STA Ary1,Y	;Clear buffer byte
-
-	LDX Flg2px
-	BNE Sc1_2px
-
-	TAX
-	TAY
-Sc1_LpS	INX
-	LDA Ary1,X	;Get unaltered pixels
 	DEX
-	LSR  		;shift them left
-	LDA Ary2,X	;get shifted pixels
-	ROR  		;roll them left
-	LSR  		;1-more left to get past high bit
-	ORA AryHB,X	;put high bit back into byte
-	STA (GBasL),Y	;plot on screen
-	INY
-	INX
-	CPX MrgnVl
-	BNE Sc1_LpS
-	BEQ Sc1_Nxt
-
-Sc1_2px	TAX
-	TAY
-Sc1_Lp2	INX
-	LDA Ary1,X	;Get unaltered pixels
-	DEX
-	LSR  		;shift them left
-	ROR Ary2,X	;ROL them into right shifted pixels
-	LSR  		;shift them left again
-	LDA Ary2,X	;get shifted pixels
-	ROR  		;roll them left
-	LSR  		;1-more left to get past high bit
-	ORA AryHB,X	;put high bit back into byte
-	STA (GBasL),Y	;plot on screen
-	INY
-	INX
-	CPX MrgnVl
-	BNE Sc1_Lp2
-
+	BNE Sc1_Ld1
 Sc1_Nxt	INC Sc1LpC
 	LDA Sc1LpC
 	CMP #9
@@ -1032,20 +993,13 @@ Sc1_Nxt	INC Sc1LpC
 ;;	CLC  		;(line position is ABCDEFGH bit pattern)
 	ADC #$04	;increment the FGH bit pattern
 	STA GBasH	;and save the result. This is faster
-	JMP Sc1_Lp0	;than using the GetBase routine every time.
+	JMP Sc1_LpS	;than using the GetBase routine every time.
 Sc1_Dn	PLA  		;restore vertical position
 	STA CursRow
 	RTS
 
 MrgnVl	!byte 0  	;Margin Value
 Sc1LpC	!byte 0  	;Loop count
-Flg2px	!byte 0  	;Flag: shift two pixels (vs. one)
-Ary1	!fill 21,0 	;unshifted pixel bytes
-Ary2	!fill 21,0 	;shifted pixel bytes
-AryHB	!fill 21,0 	;high bits
-
-LdSvFlg	!byte $00
-BmpBkp	!fill 16,$0	;Define Storage: 16 bytes preset to 0
 
 ;Routine: Get Char
 ;Input a single character using flashing cursor.

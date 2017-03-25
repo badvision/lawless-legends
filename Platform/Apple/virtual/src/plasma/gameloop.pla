@@ -20,9 +20,7 @@ const fontDataLen   = $4FA    // really only $474, but we need to fill all gaps
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Other constants
-const CHAR_WND_GOLD_X = 83
-const CHAR_WND_WEAPON_X = 83
-const CHAR_WND_LIFE_X = 112
+const CHAR_WND_HEALTH_X = 66
 
 const ANIM_PAUSE_MAX = 300
 
@@ -1027,6 +1025,17 @@ def convertDec(n)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Convert byte to 3-char string in decimalBuf, suitable for font engine, e.g. ^T065
+// (@decimalBuf returned)
+def convert3Dec(n)
+  decimalBuf[0] = 3
+  decimalBuf[1] = '0' + (n / 100); n = n%100
+  decimalBuf[2] = '0' + (n / 10);  n = n%10
+  decimalBuf[3] = '0' + n
+  return @decimalBuf
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a formatted string a'la C printf, with up to three parameters.
 export def printf3(str, arg1, arg2, arg3)
   word pos
@@ -1041,15 +1050,17 @@ export def printf3(str, arg1, arg2, arg3)
     fin
     p = str + pos + 2
     when ^p
-      is 'c'
-        printChar(*curArg); break
-      is 'd'
+      is 'd'  // %d = decimal
         puts(convertDec(*curArg)); break
-      is 's'
+      is 's' // %s = string
         puts(*curArg); break
-      is 'x'
+      is 'D' // %D = 3-char decimal suitable for font engine ctrl codes
+        puts(convert3Dec(*curArg)); break
+      is 'c'  // %c = character
+        printChar(*curArg); break
+      is 'x' // %x = hex with '$'
         printHex(*curArg); break
-      is '%'
+      is '%' // %% = perfect
         printChar('%'); break
       otherwise
         printHex(^p); fatal("Unknown % code")
@@ -1365,22 +1376,15 @@ export def showParty()
   clearWindow()
 
   // Display header
-  rawDisplayStr("^LName^T066Health^L\n")  // begin underline mode
-//  rightJustifyStr("Health", CHAR_WND_LIFE_X)
-//  rawDisplayStr("^L\n")   // end underline mode
+  rawDisplayf1("^LName^T%DHealth^L\n", CHAR_WND_HEALTH_X)  // begin underline mode
 
-  // Display each character
+  // Display each character's name and health
   p = global=>p_players
   while p
-    // Display the player's name and health
+    if p <> global=>p_players; displayChar('\n'); fin
     displayStr(p=>s_name)
-    rawDisplayStr("^T066")
-    displayStr(convertDec(p=>w_health))
-    displayChar('/')
-    displayStr(convertDec(p=>w_maxHealth))
+    rawDisplayf3("^T%D%d/%d", CHAR_WND_HEALTH_X, p=>w_health, p=>w_maxHealth)
     p = p=>p_nextObj
-    // Newline after data, except last character
-    if p; displayChar('\n'); fin
   loop
 
   // Finish up
@@ -2018,6 +2022,16 @@ export def countListFiltered(p, offset, filterFunc)
     p = *(p + offset)
   loop
   return n
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Find the end of a null-terminated array
+export def countArray(arr)
+  byte count
+  for count = 0 to 127
+    if !*arr; return count; fin
+    arr = arr + 2
+  next
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

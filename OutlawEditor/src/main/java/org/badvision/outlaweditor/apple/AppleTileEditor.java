@@ -295,4 +295,9 @@ public class AppleTileEditor extends TileEditor {
                 + DataUtilities.getHexValue((int) (color.getGreen() * 255))
                 + DataUtilities.getHexValue((int) (color.getBlue() * 255));
     }
+
+    @Override
+    public void copyData() {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
 }

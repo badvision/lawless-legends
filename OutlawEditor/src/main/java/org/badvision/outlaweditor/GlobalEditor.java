@@ -89,5 +89,10 @@ public class GlobalEditor extends Editor<Global, Void>{
     private GameData getGameData() {
         return ApplicationState.getInstance().getGameData();
     }
+
+    @Override
+    public void copyData() {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
     
 }

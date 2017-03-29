@@ -42,6 +42,9 @@ public abstract class ApplicationMenuController {
     abstract public void onEditCopy(ActionEvent event);
 
     @FXML
+    abstract public void onEditCopyData(ActionEvent event);
+
+    @FXML
     abstract public void onEditPaste(ActionEvent event);
 
     @FXML

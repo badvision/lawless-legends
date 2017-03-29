@@ -562,6 +562,11 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         return ApplicationState.getInstance().getCurrentPlatform();
     }
 
+    @Override
+    public void copyData() {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
     public static enum DrawMode {
 
         Pencil1px, Pencil3px, Pencil5px, FilledRect, TileEraser(false), ScriptPencil(false), Select(false);

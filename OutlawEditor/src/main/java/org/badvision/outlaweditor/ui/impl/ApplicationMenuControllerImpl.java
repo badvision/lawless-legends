@@ -79,6 +79,14 @@ public class ApplicationMenuControllerImpl extends ApplicationMenuController {
     }
 
     @Override
+    public void onEditCopyData(ActionEvent event) {
+        ApplicationUIController mainController = ApplicationUIController.getController();
+        if (mainController.getVisibleEditor() != null) {
+            mainController.getVisibleEditor().copyData();
+        }
+    }
+
+    @Override
     public void onEditPaste(ActionEvent event) {
         ApplicationUIController mainController = ApplicationUIController.getController();
         if (mainController.getVisibleEditor() != null) {

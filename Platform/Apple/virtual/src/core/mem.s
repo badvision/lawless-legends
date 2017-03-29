@@ -210,13 +210,13 @@ init: !zone
 ; 8: main $E000 -> 9, inactive
 ; 9: main $FFFA -> 0, active + locked
 ; First, the flags
-	lda #$C0		; flags for active + locked (with no resource)
-	sta tSegType+0
-	sta tSegType+1
-	sta tSegType+3
-	sta tSegType+5
-	sta tSegType+7
-	sta tSegType+9
+	ldy #$C0		; flags for active + locked (with no resource)
+	sty tSegType+0
+	sty tSegType+1
+	sty tSegType+3
+	sty tSegType+5
+	sty tSegType+7
+	sty tSegType+9
 ; Next the links
 	ldx #2
 	stx tSegLink+1
@@ -237,9 +237,9 @@ init: !zone
 ; Then the addresses
 	lda #8  ; Temporarily avoid aux screen holes; normally this would be 2.
 	sta tSegAdrHi+2
-	lda #$BF
-	sta tSegAdrHi+3
-	sta tSegAdrHi+7
+	dey
+	sty tSegAdrHi+3
+	sty tSegAdrHi+7
 	lda #<lastLoMem
 	sta tSegAdrLo+4
 	lda #>lastLoMem
@@ -942,7 +942,7 @@ gc3_fix:
 gc2_sweep: !zone
 	jsr startHeapScan	; init pSrc and pDst, set reqLen to length of first block
 	bcs .done		; stop if heap is empty
-.outer	clc			; clc = do not add to hash
+.outer	;;clc			; clc = do not add to hash
 	jsr gcHash_chk		; is this block in hash?
 	bcc .advSrc		; if not in hash, skip this block
 	lda pDst
@@ -1179,15 +1179,14 @@ scanForAddr: !zone
 	tax		; to X reg index
 	bne .loop	; non-zero = not end of chain - loop again
 	rts		; fail with X=0
-.found:	sec		; start out assuming addr != seg start
-	lda pTmp	; compare scan address lo...
+.found:	lda pTmp	; compare scan address lo...
 	eor tSegAdrLo,x	; ... to seg start lo
-	bne +		; if not equal, leave carry set
+	bne +		; if not equal, set carry
 	lda pTmp+1	; hi byte
 	eor tSegAdrHi,x	; to hi byte
-	bne +		; again, if not equal, leave carry set
-	clc		; addr is equal, clear carry
-+	txa
+	beq ++		; if equal, leave carry clear
++	sec		; addr is not equal, set carry
+++	txa
 	rts		; all done
 
 ;------------------------------------------------------------------------------
@@ -1437,13 +1436,12 @@ aux_printMem:
 	+safePrbyte
 	lda tSegType,y
 	tax
-	and #$40
-	beq +
+	asl		; check bits 6 (#$40) and 7 (#$80)
+	bpl +		; was not #$40
 	lda #'*'
 	bne ++
 +	lda #'+'
-	cpx #0
-	bmi ++
+	bcs ++		; was #$80
 	lda #'-'
 ++	+safeCout
 	txa
@@ -1464,9 +1462,8 @@ aux_printMem:
 .next:	ldx #3		; 2 spaces before next entry
 	lda tSegLink,y
 	tay
-	beq +
-	jmp .printSegs
-+	+crout
+	bne .printSegs
+	+crout
 	rts
 
 ;------------------------------------------------------------------------------
@@ -1479,11 +1476,9 @@ reset: !zone
 	lda #RESET_MEMORY	; get command code back
 	jmp nextLdVec		; and allow chained loaders to reset also
 .inactivate:	lda tSegType,x	; get flag byte for this segment
-	tay
-	and #$40		; segment locked?
-	bne .next		; yes, skip it
-	tya			; no, get back flags
-	and #$7F		; mask off the 'active' bit
+	asl			; segment locked?
+	bmi .next		; yes, skip it
+	lsr			; mask off the 'active' bit
 	sta tSegType,x		; save it back
 .next:	lda tSegLink,x		; get link to next seg
 	tax			; to X reg, and test if end of chain (x=0)
@@ -2679,6 +2674,7 @@ advanceAnims: !zone {
 	sta pTmp+1
 	ldy #1
 	lda (pTmp),y	; check anim header offset
+;;pf: dey missing here?
 	ora (pTmp),y
 	beq .next	; if zero, resource is not animated
 	txa		; save link number we're scanning
@@ -2724,8 +2720,7 @@ advSingleAnim:
 	cmp #4		; is it random?
 	bne .chkfs
 	ldx resNum	; number of frames to skip
--	cpx #0
-	beq .doptch	; if zero, done skipping
+-	beq .doptch	; if zero, done skipping
 	lda #1		; direction = forward
 	jsr .fwbk	; advance one frame
 	dex		; loop for...
@@ -2765,11 +2760,10 @@ advSingleAnim:
 .fwbk	ldy #3		; index of current frame number
 	clc
 	adc (tmp),y	; advance in direction
-	dey		; index of number of frames
-	cmp #0
 	bpl +		; can only be negative if dir=-1 and we wrapped around
 	lda .maxFrame	; go to (previously saved) last frame number
-+	cmp (tmp),y	; are we at the limit of number of frames?
++	dey		; index of number of frames
+	cmp (tmp),y	; are we at the limit of number of frames?
 	bne +
 	lda #0		; back to start
 +	iny		; index of current frame number
@@ -2828,14 +2822,12 @@ applyPatch:
 	; loop to skip patches until we find the right one
 -	dec reqLen	; it starts at 1, which means first patch.
 	beq +
-	ldy #0
-	lda (pSrc),y	; low byte of patch len
-	pha		; save it
-	iny
+	ldy #1
 	lda (pSrc),y	; hi byte of patch len
 	inx		; -> pSrc+1
 	jsr .ptradd	; skip by # pages in patch
-	pla
+	dey
+	lda (pSrc),y	; low byte of patch len
 	jsr .srcadd	; skip pSrc past last partial page in patch
 	jmp -
 +	!if DEBUG = 2 { jsr .dbgC2 }

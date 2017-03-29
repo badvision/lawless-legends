@@ -1029,7 +1029,11 @@ retPSrc:
 heapIntern: !zone
 	stx pTmp
 	sty pTmp+1
-	jsr startHeapScan
+	tya
+	ora pTmp	; check for null input ptr
+	bne +
+	rts		; input null -> output null
++	jsr startHeapScan
 	bcs .notfnd	; handle case of empty heap
 .blklup	bvs .nxtblk
 	; it's a string

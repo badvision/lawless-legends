@@ -1489,6 +1489,7 @@ def initMap(x, y, dir)
 
   // Load the frame image, then raycaster or tile engine
   loadMainFrameImg()
+  mmgr(START_LOAD, 1)
   mmgr(SET_MEM_TARGET, displayEngine)
   if mapIs3D
     mmgr(QUEUE_LOAD, CODE_RENDER<<8 | RES_TYPE_CODE)
@@ -2539,7 +2540,9 @@ end
 export def addUnique(pList, p_thing)
   if !scanForNamedObj(*pList, p_thing=>s_name)
     addToList(pList, p_thing)
+    return TRUE
   fin
+  return FALSE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -16,8 +16,8 @@ include "gen_items.plh"
 
 const PAGE_SIZE = 14 // (183-10)/9 lines, minus 5 lines for header/footer
 
-const STATS_COL_1 = 60
-const STATS_COL_2 = 120
+const STATS_COL_1 = 45
+const STATS_COL_2 = 140
 
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the header.
@@ -28,6 +28,7 @@ word pItemsModule
 const MAX_PAGE_ITEMS = 20 // should be plenty
 word pageItems[MAX_PAGE_ITEMS]
 word pagePrices[MAX_PAGE_ITEMS]
+word pMatchPlayer
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -185,7 +186,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def formatStr(str)
-  rawDisplayf1("%s", str)
+  rawDisplayStr(str)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -232,15 +233,15 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayWeaponStats(pItem1, pItem2)
-  displayTwoCol("Uses",  pItem1, pItem2, b_maxUses,       @byteField, @formatNum)
-  displayTwoCol("Ammo",  pItem1, pItem2, s_ammoKind,      @wordField, @formatStr)
-  displayTwoCol("Clip",  pItem1, pItem2, b_clipSize,      @byteField, @formatNum)
-  displayTwoCol("Melee", pItem1, pItem2, r_meleeDmg,      @wordField, @formatDice)
-  displayTwoCol("Proj",  pItem1, pItem2, r_projectileDmg, @wordField, @formatDice)
-  displayTwoCol("Attck", pItem1, pItem2, ba_attacks+0,    @byteField, @formatAttack)
-  displayTwoCol("Att 2", pItem1, pItem2, ba_attacks+1,    @byteField, @formatAttack)
-  displayTwoCol("Att 3", pItem1, pItem2, ba_attacks+2,    @byteField, @formatAttack)
-  displayTwoCol("Range", pItem1, pItem2, b_weaponRange,   @byteField, @formatNum)
+  displayTwoCol("Uses",   pItem1, pItem2, b_maxUses,       @byteField, @formatNum)
+  displayTwoCol("Ammo",   pItem1, pItem2, s_ammoKind,      @wordField, @formatStr)
+  displayTwoCol("Clip",   pItem1, pItem2, b_clipSize,      @byteField, @formatNum)
+  displayTwoCol("Melee",  pItem1, pItem2, r_meleeDmg,      @wordField, @formatDice)
+  displayTwoCol("Proj",   pItem1, pItem2, r_projectileDmg, @wordField, @formatDice)
+  displayTwoCol("Attack", pItem1, pItem2, ba_attacks+0,    @byteField, @formatAttack)
+  displayTwoCol("Att 2",  pItem1, pItem2, ba_attacks+1,    @byteField, @formatAttack)
+  displayTwoCol("Att 3",  pItem1, pItem2, ba_attacks+2,    @byteField, @formatAttack)
+  displayTwoCol("Range",  pItem1, pItem2, b_weaponRange,   @byteField, @formatNum)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -257,6 +258,12 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayItemStats(pItem1, price, pItem2)
   word pMod1, pMod2
+
+  clearWindow()
+  rawDisplayf1("^T108Browse\n\n^T%D^LMerchandise^L", STATS_COL_1)
+  if pItem2
+    rawDisplayf2("^T%D^L%s^L", STATS_COL_2, pMatchPlayer=>s_name)
+  fin
 
   // First, show the item type and name
   when pItem1->t_type
@@ -297,21 +304,27 @@ def displayItemStats(pItem1, price, pItem2)
     loop
   fin
 
-  rawDisplayf2("\n\nPrice^T%D%d", STATS_COL_1, price)
+  rawDisplayf2("\n\nGold^T%D%d", STATS_COL_1, price)
+  rawDisplayf2("^T%D%d", STATS_COL_2, global=>w_gold)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def matchEquipped(pMatch, nSkip)
-  word pPlayer, pItem, k1, k2
+  word pPlayer, pItem
   pPlayer = global=>p_players
+  pMatchPlayer = NULL
   while pPlayer
     pItem = pPlayer=>p_items
     while pItem
-      printf2("  pl=$%x it=$%x\n", pPlayer, pItem)
       if (pItem->t_type == pMatch->t_type) and (pItem->t_type == TYPE_WEAPON or pItem->t_type == TYPE_ARMOR)
-        if (pItem->b_flags & ITEM_FLAG_EQUIP) and (pItem=>s_itemKind == pMatch=>s_itemKind)
-          if nSkip == 0; return pItem; fin
-          nSkip = nSkip - 1
+        if (pItem->b_flags & ITEM_FLAG_EQUIP)
+          if pItem->t_type <> TYPE_ARMOR or (pItem=>s_itemKind == pMatch=>s_itemKind)
+            if nSkip == 0
+              pMatchPlayer = pPlayer
+              return pItem
+            fin
+            nSkip = nSkip - 1
+          fin
         fin
       fin
       pItem = pItem=>p_nextObj
@@ -322,26 +335,49 @@ def matchEquipped(pMatch, nSkip)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def displayItemMenu(price, hasNextComp)
+  rawDisplayf1("\n\n[Esc]^T%D", STATS_COL_1)
+  if price <= global=>w_gold
+    rawDisplayStr("B)uy it")
+  else
+    rawDisplayStr("(too much)")
+  fin
+  if hasNextComp
+    rawDisplayf1("^T%DN)ext compare", STATS_COL_2)
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def browseItem(num)
   word pItem, price, compSkip, pComp
+  byte sel
   pItem = pageItems[num]
   price = pagePrices[num]
   compSkip = 0
-
   while TRUE
-    clearWindow()
-    rawDisplayStr("^T108Browse\n")
-    puts("match\n")
-    pComp = matchEquipped(compSkip)
-    if compSkip > 0 and !pComp
-      compSkip = 0; pComp = matchEquipped(compSkip)
-    fin
-    puts("disp\n")
-    displayItemStats(pItem, price, pComp)
-    if getUpperKey() == $1B // Esc
+    displayItemStats(pItem, price, matchEquipped(pItem, compSkip))
+    displayItemMenu(price, compSkip or matchEquipped(pItem, 1+compSkip))
+    sel = getUpperKey()
+    if sel == 'B' and global=>w_gold >= price
+      matchEquipped(pItem, compSkip) // to set pMatchPlayer
+      if !addUnique(@pMatchPlayer=>p_items, pItem)
+        rawDisplayStr("\n\nDuplicate item.")
+        beep()
+        pause(800)
+      else
+        global=>w_gold = global=>w_gold - price
+        rawDisplayStr("\n\nSold!")
+        pause(500)
+        break
+      fin
+    elsif sel == 'N' and (compSkip or matchEquipped(pItem, 1+compSkip))
+      compSkip++
+      if !matchEquipped(pItem, compSkip); compSkip = 0; fin
+    elsif sel == $1B // Esc
       break
+    else
+      beep()
     fin
-    compSkip++
   loop
 end
 
@@ -350,10 +386,10 @@ def _buyFromStore(storeCode, markupRatio)
   word pItemTbl, choice
   byte nItemsOnPage, pageNum, nPages, redisplay
 
-  setOversizeWindow()
-
   loadItems()
   pItemTbl = pItemsModule()=>items_forStoreCode(storeCode)
+
+  setOversizeWindow()
 
   nPages = (countArray(pItemTbl) + PAGE_SIZE) / PAGE_SIZE
   pageNum = 0

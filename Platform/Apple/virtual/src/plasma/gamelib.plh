@@ -66,6 +66,7 @@ import gamelib
   predef min
   predef mmgr
   predef moveWayBackward
+  predef parseDec
   predef parseDecWithDefault
   predef partyHasPlayer
   predef pause

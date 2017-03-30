@@ -1094,7 +1094,7 @@ export def rawDisplayf1(str, arg1); rawDisplayf3(str, arg1, 0, 0); end
 export def rawDisplayf2(str, arg1, arg2); rawDisplayf3(str, arg1, arg2, 0); end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def parseDec(str)
+export def parseDec(str)
   word n
   word pend
   word p
@@ -1341,7 +1341,7 @@ export def setOversizeWindow()
   hline(getScreenLine(183)+1, $FC, $FF, 36, $9F)
   hline(getScreenLine(184)+1, $F8, $FF, 36, $8F)
   hline(getScreenLine(185)+1, 0, 0, 36, 0)
-  setWindow(10, 183, 14, 267) // Top, Bottom, Left, Right
+  setWindow(9, 183, 14, 267) // Top, Bottom, Left, Right
   frameLoaded = 0 // since we destroyed it
 end
 

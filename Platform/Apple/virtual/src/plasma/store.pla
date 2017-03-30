@@ -14,7 +14,7 @@ include "globalDefs.plh"
 include "gen_modules.plh"
 include "gen_items.plh"
 
-const PAGE_SIZE = 14 // (183-10)/9 lines, minus 5 lines for header/footer
+const PAGE_SIZE = 15 // (183-10)/9 lines, minus 4 lines for header/footer
 
 const STATS_COL_1 = 45
 const STATS_COL_2 = 140
@@ -118,11 +118,11 @@ end
 def displayBuyTitle(pageNum, nPages)
   clearWindow()
   // Can't use centering mode on oversize window - font engine can't handle width > 255
-  rawDisplayStr("^YBuying")
+  rawDisplayStr("^Y^I Buying")
   if (nPages > 0)
     rawDisplayf2(" - p. %d/%d", pageNum+1, nPages)
   fin
-  rawDisplayStr("^N\n\n^LSel^T025Price^T060Item^L")
+  rawDisplayStr(" ^N\n^V014^LBrowse^T046Price^T085Item^L")
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -134,7 +134,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayBuyLine(num)
-  rawDisplayf2("\n%c.^T025%d^T060", num + 'A', pagePrices[num])
+  rawDisplayf2("\n  %c.^T046%d^T085", num + 'A', pagePrices[num])
   displayItemName(pageItems[num])
 end
 
@@ -156,9 +156,9 @@ def displayBuyPage(pItemTbl, markupRatio, pageNum, nPages)
     pFunc = pFunc + 2
   next
 
-  rawDisplayf1("\n^V164Browse item [A-%c], ", itemNum-1+'A')
+  rawDisplayf2("\n^V166Gold: %d. Browse [A-%c], ", global=>w_gold, itemNum-1+'A')
   if nPages > 0
-    rawDisplayf1("page [1-%d], ", nPages)
+    rawDisplayf1("p. [1-%d], ", nPages)
   fin
   rawDisplayStr("or [Esc].")
   return itemNum
@@ -260,7 +260,7 @@ def displayItemStats(pItem1, price, pItem2)
   word pMod1, pMod2
 
   clearWindow()
-  rawDisplayf1("^T108Browse\n\n^T%D^LMerchandise^L", STATS_COL_1)
+  rawDisplayf1("^T108^I Browse ^N\n\n^T%D^LMerchandise^L", STATS_COL_1)
   if pItem2
     rawDisplayf2("^T%D^L%s^L", STATS_COL_2, pMatchPlayer=>s_name)
   fin
@@ -304,8 +304,8 @@ def displayItemStats(pItem1, price, pItem2)
     loop
   fin
 
-  rawDisplayf2("\n\nGold^T%D%d", STATS_COL_1, price)
-  rawDisplayf2("^T%D%d", STATS_COL_2, global=>w_gold)
+  rawDisplayf2("\n\nPrice^T%D%d", STATS_COL_1, price)
+  rawDisplayf2("\nAvail^T%D%d", STATS_COL_1, global=>w_gold)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -348,8 +348,23 @@ def displayItemMenu(price, hasNextComp)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def askQuantity(pItem, price)
+  word num
+  word nMax
+  nMax = global=>w_gold / price
+  if pItem=>w_maxCount
+    nMax = min(nMax, pItem=>w_maxCount)
+  fin
+  if nMax == 1; return 1; fin
+  rawDisplayf1("How many (1-%d)? ", nMax)
+  num = parseDec(getStringResponse())
+  if num < 0 or num > nMax; return 0; fin
+  return num
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def browseItem(num)
-  word pItem, price, compSkip, pComp
+  word pItem, price, compSkip, pComp, quantity
   byte sel
   pItem = pageItems[num]
   price = pagePrices[num]
@@ -358,16 +373,24 @@ def browseItem(num)
     displayItemStats(pItem, price, matchEquipped(pItem, compSkip))
     displayItemMenu(price, compSkip or matchEquipped(pItem, 1+compSkip))
     sel = getUpperKey()
-    if sel == 'B' and global=>w_gold >= price
+    rawDisplayf1(" %c\n", sel)
+    quantity = 1
+    if sel == 'B' and pItem->t_type == TYPE_STUFF and price <= global=>w_gold
+      quantity = askQuantity(pItem, price)
+    fin
+    if sel == 'B' and quantity >= 1 and (price*quantity) <= global=>w_gold
       matchEquipped(pItem, compSkip) // to set pMatchPlayer
       if !addUnique(@pMatchPlayer=>p_items, pItem)
-        rawDisplayStr("\n\nDuplicate item.")
+        rawDisplayStr("\nDuplicate item.")
         beep()
-        pause(800)
+        pause(1000)
       else
-        global=>w_gold = global=>w_gold - price
-        rawDisplayStr("\n\nSold!")
-        pause(500)
+        global=>w_gold = global=>w_gold - (price * quantity)
+        if pItem->t_type == TYPE_STUFF
+          pItem=>w_count = quantity
+        fin
+        rawDisplayStr("\nPurchase complete.")
+        pause(800)
         break
       fin
     elsif sel == 'N' and (compSkip or matchEquipped(pItem, 1+compSkip))

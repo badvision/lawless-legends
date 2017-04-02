@@ -3556,24 +3556,26 @@ end
 
         def packBuyFromStore(blk)
         {
-            assert blk.field.size() == 2
-            assert blk.field[0].@name == 'CODES'
-            assert blk.field[1].@name == 'MARKUP'
-            def codes = blk.field[0].text()
-            def markup = blk.field[1].text().toInteger()
-            assert markup >= 0 && markup <= 100
-            outIndented("buyFromStore(${escapeString(codes)}, ${(int)(markup * 256 / 100)})\n")
+            assert blk.value.size() == 2
+            assert blk.value[0].@name == 'CODE'
+            assert blk.value[1].@name == 'PROFIT'
+            outIndented("buyFromStore(")
+            assert blk.value[0].block.size() == 1
+            packExpr(blk.value[0].block[0])
+            out << (", ")
+            assert blk.value[1].block.size() == 1
+            packExpr(blk.value[1].block[0])
+            out << ")\n"
         }
 
         def packSellToStore(blk)
         {
-            assert blk.field.size() == 2
-            assert blk.field[0].@name == 'CODES'
-            assert blk.field[1].@name == 'MARKDOWN'
-            def codes = blk.field[0].text()
-            def markdown = blk.field[1].text().toInteger()
-            assert markdown >= 0 && markdown <= 100
-            outIndented("sellToStore(${escapeString(codes)}, ${(int)(markdown * 256 / 100)})\n")
+            assert blk.value.size() == 1
+            assert blk.value[0].@name == 'PROFIT'
+            outIndented("sellToStore(")
+            assert blk.value[0].block.size() == 1
+            packExpr(blk.value[0].block[0])
+            out << ")\n"
         }
 
         def packAddPlayer(blk)

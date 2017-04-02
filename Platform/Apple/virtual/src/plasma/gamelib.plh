@@ -46,7 +46,6 @@ import gamelib
   predef finalWin
   predef finishString
   predef flipToPage1
-  predef fontCmd
   predef getCharResponse
   predef getDir
   predef getGameFlag

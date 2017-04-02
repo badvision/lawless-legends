@@ -99,6 +99,7 @@ word mapScripts[MAX_MAP_SCRIPTS]
 
 // For decimal conversion and display tabbing
 byte decimalBuf[7]
+byte fontPosBuf[4]
 byte tabBuf[5]
 
 // Animation tracking
@@ -1026,13 +1027,13 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Convert byte to 3-char string in decimalBuf, suitable for font engine, e.g. ^T065
-// (@decimalBuf returned)
+// (@fontPosBuf returned so as to not disturb decimalBuf)
 def convert3Dec(n)
-  decimalBuf[0] = 3
-  decimalBuf[1] = '0' + (n / 100); n = n%100
-  decimalBuf[2] = '0' + (n / 10);  n = n%10
-  decimalBuf[3] = '0' + n
-  return @decimalBuf
+  fontPosBuf[0] = 3
+  fontPosBuf[1] = '0' + (n / 100); n = n%100
+  fontPosBuf[2] = '0' + (n / 10);  n = n%10
+  fontPosBuf[3] = '0' + n
+  return @fontPosBuf
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1346,19 +1347,8 @@ export def setOversizeWindow()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def fontCmd(code, coord)
-  tabBuf[0] = 4  // length
-  tabBuf[1] = code
-  tabBuf[2] = (coord / 100) + '0'
-  tabBuf[3] = ((coord / 10) % 10) + '0'
-  tabBuf[4] = (coord % 10) + '0'
-  rawDisplayStr(@tabBuf)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 export def rightJustifyStr(str, rightX)
-  fontCmd(20, rightX - calcWidth(str)) // 20=Ctrl-T
-  rawDisplayStr(str)
+  rawDisplayf2("^T%D%s", rightX - calcWidth(str), str)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2717,14 +2707,14 @@ export def unbenchPlayer()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def buyFromStore(storeCode, markupRatio)
-  loadEngine(MOD_STORE)=>store_buyFromStore(storeCode, markupRatio)
+export def buyFromStore(storeCode, profitRatio)
+  loadEngine(MOD_STORE)=>store_buyFromStore(storeCode, profitRatio)
   returnFromEngine()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def sellToStore(storeCode, markdownRatio)
-  loadEngine(MOD_STORE)=>store_sellToStore(storeCode, markdownRatio)
+export def sellToStore(profitRatio)
+  loadEngine(MOD_STORE)=>store_sellToStore(profitRatio)
   returnFromEngine()
 end
 

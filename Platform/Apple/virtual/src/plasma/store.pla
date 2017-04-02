@@ -143,6 +143,8 @@ def displayBuyPage(pItemTbl, markupRatio, pageNum, nPages)
   byte itemNum
   word pFunc, pItem
 
+  printf1("markupRatio=%d\n", markupRatio) // FIXME FOO
+
   displayBuyTitle(pageNum, nPages)
   mmgr(HEAP_COLLECT, 0)
 
@@ -405,7 +407,12 @@ def browseItem(num)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _buyFromStore(storeCode, markupRatio)
+def percentToRatio(pct)
+  return calcMarkup(pct, 656) // Scale 0..100 to 0..255
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def _buyFromStore(storeCode, profitPercent)
   word pItemTbl, choice
   byte nItemsOnPage, pageNum, nPages, redisplay
 
@@ -420,7 +427,7 @@ def _buyFromStore(storeCode, markupRatio)
   redisplay = TRUE
   while TRUE
     if redisplay
-      nItemsOnPage = displayBuyPage(pItemTbl, markupRatio, pageNum, nPages)
+      nItemsOnPage = displayBuyPage(pItemTbl, percentToRatio(profitPercent), pageNum, nPages)
     fin
     choice = getUpperKey()
     redisplay = TRUE
@@ -441,7 +448,9 @@ def _buyFromStore(storeCode, markupRatio)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _sellToStore(storeCode, markdownRatio)
+def _sellToStore(profitPercent)
+  word markupRatio
+  markupRatio = percentToRatio(profitPercent)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

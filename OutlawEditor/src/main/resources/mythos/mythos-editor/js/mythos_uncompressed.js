@@ -673,13 +673,17 @@ if (typeof Mythos === "undefined") {
                     this.setPreviousStatement(true);
                     this.setNextStatement(true);
                     this.appendDummyInput()
-                            .appendField("Buy from store, code(s)")
-                            .appendField(new Blockly.FieldTextInput(""), "CODES")
-                            .appendField("at")
-                            .appendField(new Blockly.FieldTextInput(""), "MARKUP")
-                            .appendField("% mark up");
+                            .appendField("Buy items from store")
+                    this.appendValueInput('CODE')
+                        .appendField('code')
+                        .setAlign(Blockly.ALIGN_RIGHT)
+                        .setCheck('String');
+                    this.appendValueInput('PROFIT')
+                        .appendField('store profit %')
+                        .setAlign(Blockly.ALIGN_RIGHT)
+                        .setCheck('Number');
                     this.setOutput(false);
-                    this.setTooltip('Buy items from a store (separate codes by commas)');
+                    this.setTooltip('Offer item(s) with the specified store code for sale to player');
                 }
             };
             Blockly.Blocks['interaction_sell_to_store'] = {
@@ -689,13 +693,13 @@ if (typeof Mythos === "undefined") {
                     this.setPreviousStatement(true);
                     this.setNextStatement(true);
                     this.appendDummyInput()
-                            .appendField("Sell to store, code(s)")
-                            .appendField(new Blockly.FieldTextInput(""), "CODES")
-                            .appendField("at")
-                            .appendField(new Blockly.FieldTextInput(""), "MARKDOWN")
-                            .appendField("% mark down");
+                        .appendField("Sell items to store");
+                    this.appendValueInput('PROFIT')
+                        .appendField('store profit %')
+                        .setAlign(Blockly.ALIGN_RIGHT)
+                        .setCheck('Number');
                     this.setOutput(false);
-                    this.setTooltip('Sell items to a store (separate codes by commas)');
+                    this.setTooltip('Have player select item(s) to sell (except items that are equipped or have no store code)');
                 }
             };
             Blockly.Blocks['interaction_add_player'] = {

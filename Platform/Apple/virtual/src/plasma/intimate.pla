@@ -98,14 +98,10 @@ end
 // Display string on a blank screen, with blanking follow-up
 def _intimate_displayStr(str)
   word width, i
-  fontCmd(20, 0) // 20 = ctrl-T = horizontal position
-  fontCmd(22, 50) // 22 = ctrl-V = vertical position
   width = calcWidth(str)
-  rawDisplayStr(str)
-  fontCmd(20, 0) // 20 = ctrl-T = horizontal position
-  fontCmd(22, 50) // 22 = ctrl-V = vertical position
-  rawDisplayStr("\$014") // ctrl-A = foreground color, 4=hi-bit-black
-  for i = (width+spaceWidth-1)/spaceWidth downto 0
+  rawDisplayf1("^T020^V050%s", str) // ctrl-T = horizontal position, ctrl-V = vertical position
+  rawDisplayStr("^T020^V050\$014") // ctrl-A = foreground color, 4=hi-bit-black
+  for i = (width/spaceWidth)+1 downto 0
     displayChar(' ')
   next
   rawDisplayStr("\$017") // ctrl-A = foreground color, 7=hi-bit-white

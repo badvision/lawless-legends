@@ -23,7 +23,7 @@ import gamelib
   predef benchPlayer
   predef brk
   predef buildString
-  predef buyFromStore
+  predef buySell
   predef calcPlayerArmor
   predef calcWidth
   predef callGlobalFunc
@@ -100,7 +100,6 @@ import gamelib
   predef scriptEvent
   predef scriptSetAvatar
   predef scriptSwapTile
-  predef sellToStore
   predef setCmd
   predef setGameFlag
   predef setGround

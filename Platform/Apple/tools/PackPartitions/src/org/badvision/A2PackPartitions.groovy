@@ -3559,7 +3559,7 @@ end
             assert blk.value.size() == 2
             assert blk.value[0].@name == 'CODE'
             assert blk.value[1].@name == 'PROFIT'
-            outIndented("buyFromStore(")
+            outIndented("buySell(")
             assert blk.value[0].block.size() == 1
             packExpr(blk.value[0].block[0])
             out << (", ")
@@ -3572,7 +3572,7 @@ end
         {
             assert blk.value.size() == 1
             assert blk.value[0].@name == 'PROFIT'
-            outIndented("sellToStore(")
+            outIndented("buySell(NULL, ")
             assert blk.value[0].block.size() == 1
             packExpr(blk.value[0].block[0])
             out << ")\n"

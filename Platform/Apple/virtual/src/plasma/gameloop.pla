@@ -104,6 +104,7 @@ byte tabBuf[5]
 
 // Animation tracking
 word curPortrait = NULL
+byte curPortraitNum = 0
 word curFullscreenImg = NULL
 byte animDirCt
 byte anyAnims = TRUE
@@ -1526,7 +1527,8 @@ def initMap(x, y, dir)
   needRender = FALSE
   textDrawn = FALSE
   curEngine = NULL
-  curPortrait = 0
+  curPortrait = NULL
+  curPortraitNum = 0
   curFullscreenImg = NULL
   if global->b_curAvatar <> 0 and !mapIs3D
     setAvatar(global->b_curAvatar)
@@ -1566,6 +1568,7 @@ export def clearPortrait()
   if curPortrait
     auxMmgr(FREE_MEMORY, curPortrait)
     curPortrait = NULL
+    curPortraitNum = 0
   fin
   if curFullscreenImg
     auxMmgr(FREE_MEMORY, curFullscreenImg)
@@ -1976,6 +1979,7 @@ export def setPortrait(portraitNum)
   if part > 1; part = curMapPartition; fin  // Look on disk 1 or current disk only
   mmgr(START_LOAD, part)
   curPortrait = auxMmgr(QUEUE_LOAD, portraitNum<<8 | RES_TYPE_PORTRAIT)
+  curPortraitNum = portraitNum
   mmgr(FINISH_LOAD, 0)
   anyAnims = TRUE  // for now; might get cleared if we discover otherwise on advance
   animDirCt = 1
@@ -2707,15 +2711,28 @@ export def unbenchPlayer()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def buyFromStore(storeCode, profitRatio)
-  loadEngine(MOD_STORE)=>store_buyFromStore(storeCode, profitRatio)
-  returnFromEngine()
-end
+export def buySell(storeCode, profitRatio)
+  word pModule, portrait
+  portrait = curPortraitNum
+  unloadTextures()
+  clearPortrait()
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-export def sellToStore(profitRatio)
-  loadEngine(MOD_STORE)=>store_sellToStore(profitRatio)
-  returnFromEngine()
+  mmgr(START_LOAD, 1) // code is in partition 1
+  pModule = mmgr(QUEUE_LOAD, MOD_STORE<<8 | RES_TYPE_MODULE)
+  mmgr(FINISH_LOAD, 0)
+
+  if storeCode
+    pModule()=>store_buyFromStore(storeCode, profitRatio)
+  else
+    pModule()=>store_sellToStore(profitRatio)
+  fin
+
+  mmgr(FREE_MEMORY, pModule)
+  loadMainFrameImg()
+  if portrait; setPortrait(portrait); fin
+  mapNameHash = 0; showMapName(global=>s_mapName)
+  showParty()
+  setWindow2(); clearWindow() // in case we're mid-script
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

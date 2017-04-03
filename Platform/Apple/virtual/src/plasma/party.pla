@@ -133,7 +133,12 @@ def showInventory(player, page, rows, select)
       s_item++
     fin
     rawDisplayStr("^T018")
-    displayStr(item=>s_name)
+    setPlural(FALSE)
+    if item->t_type == TYPE_STUFF
+      displayf1("%d ", item=>w_count)
+      if item=>w_count > 1; setPlural(TRUE); fin
+    fin
+    displayf1("%s", item=>s_name) // use displayf to get proper plural processing
     if item->t_type == TYPE_WEAPON or item->t_type == TYPE_ARMOR
       if item->b_flags & ITEM_FLAG_EQUIP
         displayStr(" *")

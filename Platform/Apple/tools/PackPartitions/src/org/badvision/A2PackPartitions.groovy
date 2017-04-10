@@ -540,7 +540,7 @@ class A2PackPartitions
         def sectionNums = new int[nVertSections][nHorzSections]
 
         // Allocate a buffer and assign a map number to each section.
-        allMaps << [name:mapName, order:mapEl.@order]
+        allMaps << [name:mapName, order:parseOrder(mapEl.@order)]
         (0..<nVertSections).each { vsect ->
             (0..<nHorzSections).each { hsect ->
                 def buf = ByteBuffer.allocate(512)
@@ -964,7 +964,7 @@ class A2PackPartitions
             def buf = ByteBuffer.allocate(50000)
             write3DMap(buf, name, rows, scriptModule, locationsWithTriggers)
             maps3D[name] = [num:num, order:mapEl.@order, buf:compress(unwrapByteBuffer(buf))]
-            allMaps << [name:name, order:mapEl.@order]
+            allMaps << [name:name, order:parseOrder(mapEl.@order)]
         }
     }
 
@@ -1427,7 +1427,7 @@ class A2PackPartitions
      *  that won't fit. The maps list is modified to remove all that were accepted.
      *  Returns [chunks, spaceRemaining]
      */
-    def fillDisk(int partNum, int availBlks, ArrayList<String> maps)
+    def fillDisk(int partNum, int availBlks, ArrayList<String> maps, Set<String> toDupe)
     {
         //println "Filling disk $partNum, availBlks=$availBlks"
         def CHUNK_HEADER_SIZE = 3
@@ -1453,6 +1453,7 @@ class A2PackPartitions
         def outChunks = (partNum==1) ? part1Chunks : ([:] as LinkedHashMap)
         def addedMapNames = []
         def mapsSpaceUsed = 0
+        def readd = []
         while (!maps.isEmpty()) {
             def mapName = maps[0]
             def mapChunks = outChunks.clone()
@@ -1471,6 +1472,9 @@ class A2PackPartitions
                 v.buf.partNum = partNum
                 outChunks[k] = v
             }
+            // Handle maps that get dupe'd on each data disk
+            if (toDupe.contains(mapName))
+                readd << mapName
             maps.remove(0) // pop finished map
 
             // After adding the root map, stuff in the most-used portraits onto disk 1
@@ -1490,6 +1494,8 @@ class A2PackPartitions
                 mapsSpaceUsed += mapSpace
             }
         }
+        if (!maps.isEmpty())
+            maps.addAll(0, readd) // handle maps that need dupe on each data disk
         if (nWarnings == 0) {
             if (mapsSpaceUsed > 0) {
                 reportWriter.println String.format("  %-22s: %6.1fK", "maps & resources", mapsSpaceUsed / 1024.0)
@@ -1508,9 +1514,9 @@ class A2PackPartitions
         }
     }
 
-    int parseOrder(mapData) {
+    int parseOrder(orderStr) {
         try {
-            return Integer.parseInt(mapData.order);
+            return Integer.parseInt(orderStr);
         } catch (NumberFormatException e) {
             return 1;
         }
@@ -1524,10 +1530,14 @@ class A2PackPartitions
         def tmp = ByteBuffer.allocate(5000)
 
         tmp.put((byte) maps2D.size())
-        maps2D.each { k, v -> tmp.put((byte) v.buf.partNum) }
+        maps2D.each { k, v ->
+            tmp.put((byte) ((parseOrder(v.order) < 0) ? 255 : v.buf.partNum))
+        }
 
         tmp.put((byte) maps3D.size())
-        maps3D.each { k, v -> tmp.put((byte) v.buf.partNum) }
+        maps3D.each { k, v ->
+            tmp.put((byte) ((parseOrder(v.order) < 0) ? 255 : v.buf.partNum))
+        }
 
         tmp.put((byte) portraits.size())
         portraits.each { k, v -> tmp.put((byte) (v.buf.partNum ? v.buf.partNum : 0)) }
@@ -1555,10 +1565,10 @@ class A2PackPartitions
         recordChunks("fixup",    fixups)
 
         // Sort the maps in proper disk order
-        allMaps << [name:"<root>", order:"-999999"]
+        allMaps << [name:"<root>", order:-999999]
         Collections.sort(allMaps) { a,b ->
-            parseOrder(a) < parseOrder(b) ? -1 :
-            parseOrder(a) > parseOrder(b) ?  1 :
+            a.order < b.order ? -1 :
+            a.order > b.order ?  1 :
             a.name < b.name ? -1 :
             a.name > b.name ?  1 :
             0
@@ -1568,6 +1578,7 @@ class A2PackPartitions
             reportWriter.println "======================== Floppy disk usage ==========================="
 
         // Now fill up disk partitions until we run out of maps.
+        def mapsToDupe = allMaps.grep{ it.name != "<root>" && it.order < 0 }.collect{ it.name }.toSet()
         def mapsTodo = allMaps.collect { it.name }
         def partChunks = []
         for (int partNum=1; partNum<=MAX_DISKS && !mapsTodo.isEmpty(); partNum++) {
@@ -1583,7 +1594,7 @@ class A2PackPartitions
                 availBlks -= SAVE_GAME_SIZE
             }
 
-            def (chunks, spaceUsed) = fillDisk(partNum, availBlks, mapsTodo)
+            def (chunks, spaceUsed) = fillDisk(partNum, availBlks, mapsTodo, mapsToDupe)
             partChunks << [partNum:partNum, chunks:chunks, spaceUsed:spaceUsed]
         }
         assert allMaps.isEmpty : "All data must fit within $MAX_DISKS disks."

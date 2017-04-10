@@ -1217,6 +1217,11 @@ def lookupResourcePart(sectionNum, resourceNum)
   n = readAuxByte(ptr)
   if resourceNum > n; fatal("lkupFail1"); fin
   n = readAuxByte(ptr + resourceNum)
+  // 255 is special code for map that is replicated on every data disk
+  if n == 255
+    if curMapPartition > 0; return curMapPartition; fin
+    return 2
+  fin
   if n < 1 or n > 20; fatal("lkupFail2"); fin
   return n
 end

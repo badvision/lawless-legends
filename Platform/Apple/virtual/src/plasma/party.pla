@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1
+// Copyright (C) 2015-17 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1
 // (the "License"); you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-1.1>.
 // Unless required by applicable law or agreed to in writing, software distributed under
@@ -110,16 +110,13 @@ def showInventory(player, page, rows, select)
   setMapWindow()
   clearWindow()
   if page
-    rawDisplayStr("^T008")
-    displayf1("<%d", page)
+    rawDisplayf1("^T008<%d", page)
   fin
   rawDisplayStr("^T040^LInventory^L")
   if countList(item) > n_page + rows
-    rawDisplayStr("^T108")
-    displayf1("%d>", page+2)
+    rawDisplayf1("^T108%d>", page+2)
   fin
-  rawDisplayStr("\n^T018")
-  displayf1("Gold: %d", countGold())
+  rawDisplayf1("\n^T018Gold: %d", countGold())
   if page
     while item and n_item < n_page
       item = item=>p_nextObj

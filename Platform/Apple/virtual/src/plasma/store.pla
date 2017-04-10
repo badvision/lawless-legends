@@ -429,7 +429,7 @@ def _buyFromStore(storeCode, profitPercent)
 
   setOversizeWindow()
 
-  nPages = (countArray(pItemTbl) + PAGE_SIZE) / PAGE_SIZE
+  nPages = (countArray(pItemTbl) + PAGE_SIZE - 1) / PAGE_SIZE
   pageNum = 0
 
   redisplay = TRUE

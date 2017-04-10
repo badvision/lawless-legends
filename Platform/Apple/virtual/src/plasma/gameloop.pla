@@ -2092,8 +2092,8 @@ end
 def loadEngine(moduleNum)
   if curEngine; fatal("dblEng"); fin
   clearPortrait()
+  unloadTextures()
   flipToPage1()
-  texControl(0)
   mmgr(START_LOAD, 1) // code is in partition 1
   curEngine = mmgr(QUEUE_LOAD, moduleNum<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
@@ -2101,7 +2101,7 @@ def loadEngine(moduleNum)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def returnFromEngine()
+def returnFromEngine(render)
   if curEngine
     mmgr(FREE_MEMORY, curEngine)
     curEngine = NULL
@@ -2110,7 +2110,7 @@ def returnFromEngine()
     if renderLoaded; texControl(1); fin
     mapNameHash = 0; showMapName(global=>s_mapName)
     setWindow2(); clearWindow()
-    doRender()
+    if render; doRender(); fin
     showParty()
     setWindow2()  // in case we're mid-script
   fin
@@ -2146,7 +2146,7 @@ end
 def showPlayerSheet(num)
   word pItemToUse
   pItemToUse = loadEngine(MOD_PARTY)=>party_showPlayerSheet(num)
-  returnFromEngine()
+  returnFromEngine(TRUE)
   // General 'use' handled here in case it triggers graphical effects
   if pItemToUse
     scriptEvent(@S_USE, pItemToUse=>s_name)
@@ -2222,7 +2222,7 @@ def doCombat(mapCode, backUpOnFlee)
     playerDeath()
     return
   fin
-  returnFromEngine()
+  returnFromEngine(TRUE)
 
   // If the party fled the combat instead of winning, back up to previous square.
   if !result and backUpOnFlee
@@ -2263,7 +2263,7 @@ end
 def saveGame
   saveMapPos()
   loadEngine(MOD_DISKOPS)=>diskops_saveGame()
-  returnFromEngine()
+  returnFromEngine(TRUE)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2277,7 +2277,7 @@ def help
   flipToPage1()
   setMapWindow(); clearWindow()
   loadEngine(MOD_GS_HELP)()
-  returnFromEngine()
+  returnFromEngine(TRUE)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2693,7 +2693,7 @@ export def setIntimateMode(enable)
     pIntimate=>intimate_setMode(enable)
   else
     pIntimate=>intimate_setMode(enable)
-    returnFromEngine()
+    returnFromEngine(TRUE)
     pIntimate = NULL
   fin
 end
@@ -2701,38 +2701,26 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def benchPlayer()
   loadEngine(MOD_PARTY)=>party_benchPlayer()
-  returnFromEngine()
+  returnFromEngine(TRUE)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def unbenchPlayer()
   loadEngine(MOD_PARTY)=>party_unbenchPlayer()
-  returnFromEngine()
+  returnFromEngine(TRUE)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def buySell(storeCode, profitRatio)
-  word pModule, portrait
+  word portrait
   portrait = curPortraitNum
-  unloadTextures()
-  clearPortrait()
-
-  mmgr(START_LOAD, 1) // code is in partition 1
-  pModule = mmgr(QUEUE_LOAD, MOD_STORE<<8 | RES_TYPE_MODULE)
-  mmgr(FINISH_LOAD, 0)
-
   if storeCode
-    pModule()=>store_buyFromStore(storeCode, profitRatio)
+    loadEngine(MOD_STORE)=>store_buyFromStore(storeCode, profitRatio)
   else
-    pModule()=>store_sellToStore(profitRatio)
+    loadEngine(MOD_STORE)=>store_sellToStore(profitRatio)
   fin
-
-  mmgr(FREE_MEMORY, pModule)
-  loadMainFrameImg()
+  returnFromEngine(FALSE) // no render, we're mid-script
   if portrait; setPortrait(portrait); fin
-  mapNameHash = 0; showMapName(global=>s_mapName)
-  showParty()
-  setWindow2(); clearWindow() // in case we're mid-script
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

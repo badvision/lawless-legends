@@ -51,26 +51,28 @@
 
 ;The following control-codes are used.
 ;CODE__STATE__DESCRIPTION___
-;Ctrl-A (1) foreground/character color
-;Ctrl-B (2) background color
-;Ctrl-E (3) extended character {A..I}
-;Ctrl-F (4) font {0,1,2} (not implemented)
-;Ctrl-T (5) horizonTal position {000..279} base-10
-;Ctrl-V (6) vertical position {000..191}
-;Ctrl-R (7) character/ticker rate {00..FF}
-;Ctrl-L n/a toggle underLine mode
-;Ctrl-M n/a Carriage return w/line feed
-;Ctrl-N n/a Normal mode (un-toggle special modes)
-;Ctrl-Q n/a Home cursor & clear screen
-;Ctrl-\ n/a Ticker Tape scroll Mode 0=off
-;Ctrl-] n/a Ticker Tape scroll Mode 1=on
-;Ctrl-P n/a toggle between ticker/scroll mode
-;Ctrl-U n/a (right arrow) move +1 column
-;Ctrl-H n/a (left  arrow) move -1 column
-;Ctrl-J n/a (down  arrow) move +1 row
-;Ctrl-K n/a (up    arrow) move -1 row
-;Ctrl-I n/a Inverse (swap foregnd/bkgnd colors)
-;Ctrl-Y n/a center justify
+;Ctrl-A foreground/character color
+;Ctrl-B background color
+;Ctrl-C clear to end of line
+;Ctrl-D clear to end of page
+;Ctrl-E extended character {A..I}
+;Ctrl-F font {0,1,2} (not implemented)
+;Ctrl-T horizonTal position {000..279} base-10
+;Ctrl-V vertical position {000..191}
+;Ctrl-R character/ticker rate {00..FF}
+;Ctrl-L toggle underLine mode
+;Ctrl-M Carriage return w/line feed
+;Ctrl-N Normal mode (un-toggle special modes)
+;Ctrl-Q Home cursor & clear screen
+;Ctrl-\ Ticker Tape scroll Mode 0=off
+;Ctrl-] Ticker Tape scroll Mode 1=on
+;Ctrl-P toggle between ticker/scroll mode
+;Ctrl-U (right arrow) move +1 column
+;Ctrl-H (left  arrow) move -1 column
+;Ctrl-J (down  arrow) move +1 row
+;Ctrl-K (up    arrow) move -1 row
+;Ctrl-I Inverse (swap foregnd/bkgnd colors)
+;Ctrl-Y center justify
 
 DEBUG		= 0		;1=some logging, 2=lots of logging
 
@@ -667,21 +669,61 @@ ScrLp3	INX  		;so a new text line can be plotted
 	JMP ClrSlp3
 ScrClbw	JMP ClrSlp1
 
+;Routine: clear to end of line
+ClrEOL	JSR GetOfst	;calculate X byte and bit
+	LDX CursRow
+	LDA #9		;9 lines to clear
+ClrEOL2	PHA
+	JSR GetBasX
+	LDY HgrHrz
+	LDA ClrFlip
+	ORA #$80	;   (set high bit for the demo)
+-	STA (GBasL),Y
+	INY
+	CPY RtMrgn
+	BNE -
+	INX
+	PLA
+	SEC
+	SBC #1
+	BNE ClrEOL2
+	RTS
+
 ;Routine: clear screen
 ;Home cursor within the window boudaries set by margin params
 ;and clear the window.
-ClrFlip	!byte 0
-ClrFlpF	!byte 0
 ClrHome	LDA CursXl	;home the cursor
 	STA CursColL	;{0..279} lo byte
 	LDA CursXh
 	STA CursColH	;{0..279} hi byte
 	LDA CursY
 	STA CursRow	;{0..191}
-	JSR ClrChkF	;check if B/W or Color
-	LDX TpMrgn	;get top margin & use it
-	LDA ClrFlpF
-	BNE ClrColr
+	; fall through to ClrEOP...
+;Routine: clear to end of page
+ClrEOP	LDA CursRow	;save existing cursor pos
+	PHA
+	JSR ClrEOL	;clear first line
+	LDA LfMrgn
+	STA HgrHrz
+	LDA CursRow
+	CLC
+	ADC #9		;advance to next line
+	TAX		;save line num
+	EOR #$FF	;1's complement
+	SEC		;2's complement
+	ADC CursYb	;calc number of remaining lines
+	BEQ +		;none left - done
+	BCC +		;negative left - done
+	JSR ClrEOL2	;clear remaining lines
++	PLA		;all done, restore original cursor pos
+	STA CursRow
+	RTS
+
+;Routine: clear screen
+;Home cursor within the window boudaries set by margin params
+;and clear the window.
+ClrFlip	!byte 0
+ClrFlpF	!byte 0
 ClrSlp1	JSR GetBasX	;to get the base address
 	LDY LfMrgn
 	LDA BkgColor
@@ -803,7 +845,6 @@ Pa_ToFr	!if DEBUG { +prChr '+' }
 	;BEQ Pa_Spc	;		then split the word
 	LDA #$8D
 	STA AscChar
-	!if DEBUG { +prChr '!' : ora #$80 : +safeCout }
 	JSR TestChr
 	LDY Pa_iBgn
 	LDA #0
@@ -1272,7 +1313,7 @@ TCl_01	CMP #$11	;Ctrl-Q?
 	BNE TCl_02	;no - keep testing
 	LDA NoPlt_Flg
 	BEQ TCl_01a
-	RTS
+TCl_ret	RTS
 TCl_01a	JMP ClrHome	;yes - do HOME command
 TCl_02	CMP #$01	;Ctrl-A? foreground color
 	BNE TCl_03	;no - keep testing
@@ -1282,7 +1323,17 @@ TCl_03	CMP #$02	;Ctrl-B? background color
 	BNE TCl_04	;no - keep testing
 	STA WaitStat	;yes - set wait state
 	RTS
-TCl_04	CMP #$05	;Ctrl-E? extended character
+TCl_04	CMP #$03	;Ctrl-C? clear to end of line
+	BNE TCl_04a	;no - keep testing
+	LDA NoPlt_Flg	;yes, clear unless suppressed
+	BNE TCl_ret
+	JMP ClrEOL
+TCl_04a	CMP #$04	;Ctrl-D? clear to end of page
+	BNE TCl_04b	;no - keep testing
+	LDA NoPlt_Flg	;yes, clear unless suppressed
+	BNE TCl_ret
+	JMP ClrEOP
+TCl_04b	CMP #$05	;Ctrl-E? extended character
 	BNE TCl_05	;no - keep testing
 	LDA #3 		;yes - set wait state
 	STA WaitStat

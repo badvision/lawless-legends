@@ -12,3 +12,5 @@
 const party_showPlayerSheet = 0
 const party_benchPlayer = 2
 const party_unbenchPlayer = 4
+const party_displayItemStats = 6
+const party_displayItemName = 8

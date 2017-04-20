@@ -35,10 +35,15 @@ const CHAR_WND_STAT_X = 30
 const CHAR_WND_STATLBL_X = 38
 const CHAR_WND_INV_X = 18
 
+const STATS_COL_1 = 45
+const STATS_COL_2 = 140
+
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the header.
 predef _party_doPlayerSheet, _party_benchPlayer, _party_unbenchPlayer
+predef _party_displayItemStats, _party_displayItemName
 word[] funcTbl = @_party_doPlayerSheet, @_party_benchPlayer, @_party_unbenchPlayer
+word           = @_party_displayItemStats, @_party_displayItemName
 
 // Other global variables here
 
@@ -487,6 +492,151 @@ def _party_unbenchPlayer()
     addToList(@global=>p_players, player)
     displayStr("\nDone.")
   fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def tabTo(cursorX)
+  rawDisplayf1("^T%D", cursorX)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def formatDice(encoded)
+  byte nDice, dieSize, add
+  nDice = encoded >> 12
+  dieSize = (encoded >> 8) & $F
+  add = encoded & $F
+  rawDisplayf2("%dd%d", nDice, dieSize)
+  if add; rawDisplayf1("+%d", add); fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def formatNum(num)
+  rawDisplayf1("%d", num)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def formatStr(str)
+  rawDisplayStr(str)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def formatAttack(code)
+  if !code; return; fin
+  if code == 1
+    rawDisplayStr("single")
+  elsif code == 2
+    rawDisplayStr("double")
+  else
+    rawDisplayf1("%d-shot", code)
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def byteField(pItem, field)
+  if pItem
+    return ^(pItem + field)
+  else
+    return 0
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def wordField(pItem, field)
+  if pItem
+    return *(pItem + field)
+  else
+    return 0
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def displayTwoCol(fieldName, pItem1, pItem2, field, fieldFunc, formatFunc)
+  word val1, val2
+  val1 = fieldFunc(pItem1, field)
+  val2 = fieldFunc(pItem2, field)
+  if val1 or val2
+    rawDisplayf1("\n%s", fieldName)
+    if val1; tabTo(STATS_COL_1); formatFunc(val1); fin
+    if val2; tabTo(STATS_COL_2); formatFunc(val2); fin
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def displayWeaponStats(pItem1, pItem2)
+  displayTwoCol("Uses",   pItem1, pItem2, b_maxUses,       @byteField, @formatNum)
+  displayTwoCol("Ammo",   pItem1, pItem2, s_ammoKind,      @wordField, @formatStr)
+  displayTwoCol("Clip",   pItem1, pItem2, b_clipSize,      @byteField, @formatNum)
+  displayTwoCol("Melee",  pItem1, pItem2, r_meleeDmg,      @wordField, @formatDice)
+  displayTwoCol("Proj",   pItem1, pItem2, r_projectileDmg, @wordField, @formatDice)
+  displayTwoCol("Attack", pItem1, pItem2, ba_attacks+0,    @byteField, @formatAttack)
+  displayTwoCol("Att 2",  pItem1, pItem2, ba_attacks+1,    @byteField, @formatAttack)
+  displayTwoCol("Att 3",  pItem1, pItem2, ba_attacks+2,    @byteField, @formatAttack)
+  displayTwoCol("Range",  pItem1, pItem2, b_weaponRange,   @byteField, @formatNum)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def displayArmorStats(pItem1, pItem2)
+  displayTwoCol("Uses",   pItem1, pItem2, b_maxUses,    @byteField, @formatNum)
+  displayTwoCol("Protec", pItem1, pItem2, b_armorValue, @byteField, @formatNum)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def displayStuffStats(pItem1, pItem2)
+  // Nothing special
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def _party_displayItemStats(pItem1, pItem2)
+  word pMod1, pMod2
+
+  // First, show the item type and name
+  when pItem1->t_type
+    is TYPE_ITEM;   rawDisplayStr("\nItem");   break
+    is TYPE_WEAPON; rawDisplayStr("\nWeapon"); break
+    is TYPE_ARMOR;  rawDisplayStr("\nArmor");  break
+    is TYPE_STUFF;  rawDisplayStr("\nSupply"); break
+    otherwise fatal("tItem")
+  wend
+  tabTo(STATS_COL_1); _party_displayItemName(pItem1)
+  if pItem2
+    if pItem1->t_type <> pItem2->t_type; fatal("tMatch"); fin
+    tabTo(STATS_COL_2); _party_displayItemName(pItem2)
+  fin
+
+  // Type-specific attributes
+  when pItem1->t_type
+    is TYPE_WEAPON; displayWeaponStats(pItem1, pItem2); break
+    is TYPE_ARMOR;  displayArmorStats(pItem1, pItem2);  break
+    is TYPE_STUFF;  displayStuffStats(pItem1, pItem2);  break
+  wend
+
+  // If either item has modifiers, show them
+  pMod1 = pItem1=>p_modifiers
+  pMod2 = NULL
+  if pItem2; pMod2 = pItem2=>p_modifiers; fin
+  if pMod1 or pMod2
+    rawDisplayStr("\nSpecial:")
+    while pMod1 or pMod2
+      if pMod1
+        rawDisplayf3("^T%D%d %s", STATS_COL_1, pMod1=>w_modValue, pMod1=>s_name)
+        pMod1 = pMod1=>p_nextObj
+      fin
+      if pMod2
+        rawDisplayf3("^T%D%d %s", STATS_COL_2, pMod2=>w_modValue, pMod2=>s_name)
+        pMod2 = pMod2=>p_nextObj
+      fin
+    loop
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def _party_displayItemName(pItem)
+  setPlural(FALSE)
+  if pItem->t_type == TYPE_STUFF; setPlural(pItem=>w_count <> 1); fin
+  if pItem=>w_count >= 1
+    rawDisplayf1("%d ", pItem=>w_count)
+  fin
+  rawDisplayf1("%s", pItem=>s_name) // use displayf to get proper plural processing
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -33,7 +33,6 @@ import gamelib
   predef clearPortrait
   predef clearWindow
   predef countArray
-  predef countGold
   predef countList
   predef countListFiltered
   predef displayChar

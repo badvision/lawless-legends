@@ -32,7 +32,8 @@ const TYPE_DROP  = $0103
 
 // Tab positions
 const CHAR_WND_STAT_X = 30
-const CHAR_WND_INV_X = 16
+const CHAR_WND_STATLBL_X = 38
+const CHAR_WND_INV_X = 18
 
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the header.
@@ -97,11 +98,12 @@ def unequip(player, type, kind)
     item = item=>p_nextObj
   loop
 end
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display inventory pane
 def showInventory(player, page, rows, select)
   word item
-  byte s_item, n_item, n_page
+  byte s_item, n_item, n_page, first
 
   s_item = 0
   n_item = 0
@@ -109,27 +111,31 @@ def showInventory(player, page, rows, select)
   item = player=>p_items
   setMapWindow()
   clearWindow()
-  if page
-    rawDisplayf1("^T008<%d", page)
+  rawDisplayStr("^Y^LInventory^N")
+  if !select
+    if page
+      rawDisplayf1("^T008<%d", page)
+    fin
+    if countList(item) > n_page + rows
+      rawDisplayf1("^T108%d>", page+2)
+    fin
   fin
-  rawDisplayStr("^T040^LInventory^L")
-  if countList(item) > n_page + rows
-    rawDisplayf1("^T108%d>", page+2)
-  fin
-  rawDisplayf1("\n^T018Gold: %d", countGold())
+  rawDisplayStr("^V012") // leave half-a-line of space
   if page
     while item and n_item < n_page
       item = item=>p_nextObj
       n_item++
     loop
   fin
+  first = TRUE
   while item and n_item < (n_page + rows)
-    displayChar('\n')
+    if !first; displayChar('\n'); fin
+    first = FALSE
     if itemMatch(item, select)
       displayf1("%c)", 'A' + s_item)
       s_item++
     fin
-    rawDisplayStr("^T018")
+    rawDisplayf1("^T%D", CHAR_WND_INV_X)
     setPlural(FALSE)
     if item->t_type == TYPE_STUFF
       displayf1("%d ", item=>w_count)
@@ -150,6 +156,7 @@ def showInventory(player, page, rows, select)
   loop
   return s_item
 end
+
 // Display skill value
 def displaySkill(str, val, col)
   byte[16] mystr
@@ -163,35 +170,42 @@ def displaySkill(str, val, col)
   fin
   displayf2("%d %s", val, @mystr)
 end
-// Show player data
-def showPlayerSheet(num, i_page, i_rows)
-  word player, skill, weapon, dmg
-  byte col, n_item
 
-  // Count the number of players
+def numToPlayer(num)
+  word player
   player = global=>p_players
   while num > 0
     player = player=>p_nextObj
     if !player; return; fin // Not that many players
     num--
   loop
+  return player
+end
 
-  // First, display the player's name in the title bar
-  showMapName(player=>s_name)
+def displayDice(dice)
+  if (dice & $0F)
+    rawDisplayf3("%dd%d+%d", (dice >> 12) & $0F, (dice >> 8) & $0F, dice & $0F)
+  else
+    rawDisplayf2("^T010%dd%d", (dice >> 12) & $0F, (dice >> 8) & $0F)
+  fin
+end
 
-  // Show stats in the right panel
+// Show stats in the right panel
+def showStats(player)
+  word weapon, dmg
+
   setWindow2()
   clearWindow()
-  rawDisplayStr("^T040^LStats^L\n")
-  rightJustifyNum(player=>w_health, CHAR_WND_STAT_X);       rawDisplayStr("^T036Health\n")
-  rightJustifyNum(player->b_intelligence, CHAR_WND_STAT_X); rawDisplayStr("^T036Intelligence\n")
-  rightJustifyNum(player->b_strength, CHAR_WND_STAT_X);     rawDisplayStr("^T036Strength\n")
-  rightJustifyNum(player->b_agility, CHAR_WND_STAT_X);      rawDisplayStr("^T036Agility\n")
-  rightJustifyNum(player->b_stamina, CHAR_WND_STAT_X);      rawDisplayStr("^T036Stamina\n")
-  rightJustifyNum(player->b_charisma, CHAR_WND_STAT_X);     rawDisplayStr("^T036Charisma\n")
-  rightJustifyNum(player->b_spirit, CHAR_WND_STAT_X);       rawDisplayStr("^T036Spirit\n")
-  rightJustifyNum(player->b_luck, CHAR_WND_STAT_X);         rawDisplayStr("^T036Luck\n")
-  rightJustifyNum(player->b_armor, CHAR_WND_STAT_X);        rawDisplayStr("^T036Armor\n")
+  rawDisplayStr("^Y^LStats^N^V012")
+  rightJustifyNum(player=>w_health, CHAR_WND_STAT_X);       rawDisplayf1("^T%DHealth\n", CHAR_WND_STATLBL_X)
+  rightJustifyNum(player->b_intelligence, CHAR_WND_STAT_X); rawDisplayf1("^T%DIntelligence\n", CHAR_WND_STATLBL_X)
+  rightJustifyNum(player->b_strength, CHAR_WND_STAT_X);     rawDisplayf1("^T%DStrength\n", CHAR_WND_STATLBL_X)
+  rightJustifyNum(player->b_agility, CHAR_WND_STAT_X);      rawDisplayf1("^T%DAgility\n", CHAR_WND_STATLBL_X)
+  rightJustifyNum(player->b_stamina, CHAR_WND_STAT_X);      rawDisplayf1("^T%DStamina\n", CHAR_WND_STATLBL_X)
+  rightJustifyNum(player->b_charisma, CHAR_WND_STAT_X);     rawDisplayf1("^T%DCharisma\n", CHAR_WND_STATLBL_X)
+  rightJustifyNum(player->b_spirit, CHAR_WND_STAT_X);       rawDisplayf1("^T%DSpirit\n", CHAR_WND_STATLBL_X)
+  rightJustifyNum(player->b_luck, CHAR_WND_STAT_X);         rawDisplayf1("^T%DLuck\n", CHAR_WND_STATLBL_X)
+  rightJustifyNum(player->b_armor, CHAR_WND_STAT_X);        rawDisplayf1("^T%DArmor\n", CHAR_WND_STATLBL_X)
   // Get weapon
   weapon = player=>p_items
   while weapon
@@ -204,18 +218,25 @@ def showPlayerSheet(num, i_page, i_rows)
     dmg = 0
   fin
   if dmg > 0
-    displayf3("%dd%d+%d", (dmg >> 12) & $0F, (dmg >> 8) & $0F, dmg & $0F)
-    rawDisplayStr("^T036Projectile")
+    displayDice(dmg)
+    rawDisplayf1("^T%DProjectile\n", CHAR_WND_STATLBL_X)
   else
     if weapon
       dmg = weapon=>r_meleeDmg
     else
       dmg = $01400
     fin
-    displayf3("%dd%d+%d", (dmg >> 12) & $0F, (dmg >> 8) & $0F, dmg & $0F)
-    rawDisplayStr("^T036Melee")
+    displayDice(dmg)
+    rawDisplayf1("^T%DMelee\n", CHAR_WND_STATLBL_X)
   fin
-  // Show aquired skills in lower right panel
+  //rightJustifyNum(global=>w_gold, CHAR_WND_STAT_X);         rawDisplayf1("^T%DGold (party)", CHAR_WND_STATLBL_X)
+end
+
+// Show aquired skills in lower right panel
+def showSkills(player)
+  word skill
+  byte col
+
   setWindow3()
   clearWindow()
   rawDisplayStr("^T040^LSkills^L")
@@ -225,14 +246,97 @@ def showPlayerSheet(num, i_page, i_rows)
   col = 1
   skill = player=>p_skills
   while skill
-    displaySkill(skill=>s_name, skill->w_modValue, col)
+    displaySkill(skill=>s_name, skill=>w_modValue, col)
     skill = skill=>p_nextObj
     col++
   loop
-  // Next, show inventory in the main panel
-  showInventory(player, i_page, i_rows, 0)
-  rawDisplayStr("\n^T012E)quip, U)se, D)rop")
-  return player
+end
+
+// Show player data
+def showMenu(vMap)
+  rawDisplayf1("^V%D^T012E)quip, U)se, D)rop", vMap - 9)
+end
+
+// Select an item and equip/unequip it. Returns TRUE if anything changed.
+def doEquip(player, i_page, i_rows)
+  word item
+  if showInventory(player, i_page, i_rows, TYPE_EQUIP)
+    rawDisplayStr("\n^T032Which item?")
+    item = itemNum(player, i_rows * i_page, getUpperKey() - 'A', TYPE_EQUIP)
+    if item
+      if unequip(player, item->t_type, item=>s_itemKind) <> item
+        item->b_flags = item->b_flags | ITEM_FLAG_EQUIP
+      fin
+      calcPlayerArmor(player)
+      return TRUE
+    fin
+  else
+    beep
+  fin
+  return FALSE
+end
+
+// Select an item and use it. Returns item if it needs to be processed by outer loop, else NULL
+def doUse(player, i_page, i_rows)
+  word item
+  if showInventory(player, i_page, i_rows, TYPE_USE)
+    rawDisplayStr("\n^T032Which item?")
+    item = itemNum(player, i_rows * i_page, getUpperKey() - 'A', TYPE_USE)
+    if item
+      setWindow2()
+      clearWindow()
+      if item=>p_modifiers and streqi(item=>p_modifiers=>s_name, "health")
+        if player=>w_health < player=>w_maxHealth
+          player=>w_health = min(player=>w_health + item=>p_modifiers=>w_modValue, player=>w_maxHealth)
+          item->b_curUses++
+          if item->b_curUses >= item->b_maxUses // all used up
+            removeFromList(@player=>p_items, item)
+          fin
+        fin
+      else
+        return item // general 'use' handled by outer engine, because it might involve graphics
+      fin
+    fin
+  else
+    beep
+  fin
+end
+
+// Select an item and drop it. Returns TRUE if anything changed
+def doDrop(player, i_page, i_rows)
+  word item
+  byte n_item, i
+  if showInventory(player, i_page, i_rows, TYPE_DROP)
+    rawDisplayStr("\n^T032Which item?")
+    n_item = getUpperKey() - 'A'
+    item = itemNum(player, i_rows * i_page, n_item, TYPE_DROP)
+    if item
+      clearWindow()
+      rawDisplayStr("^T050^LDrop^L\n")
+      for i = 0 to n_item
+        displayChar('\n')
+      next
+      rawDisplayStr("\n^T018")
+      displayStr(item=>s_name)
+      for i = n_item + 3 to i_rows
+        displayChar('\n')
+      next
+      rawDisplayStr("\n^T008Are you sure (Y/N)?")
+      if getYN()
+        i = countList(player=>p_items)
+        removeFromList(@player=>p_items, item)
+        if countList(player=>p_items) <> i - 1
+          displayStr("remove List error!")
+          getUpperKey()
+        fin
+        calcPlayerArmor(player)
+        return TRUE
+      fin
+    fin
+  else
+    beep
+  fin
+  return FALSE
 end
 
 // Show player sheet and accept command. If using an item (not just for stats gain)
@@ -240,91 +344,43 @@ end
 def _party_doPlayerSheet(num)
   word player, item
   word hMap, vMap, i_rows
-  byte n_item, i_page, i
+  byte i_page, redisplay
 
   // Get size of inventory pane in chars
   getMapWindow(@hMap, @vMap)
   i_rows = (vMap / 9) - 3  // 9 rows per line; minus 3 lines for header/footer
   i_page = 0
+  redisplay = TRUE
   repeat
-    player = showPlayerSheet(num, i_page, i_rows)
+    player = numToPlayer(num)
     if !player; return; fin // Invalid player
+    if redisplay
+      // First, display the player's name in the title bar
+      showMapName(player=>s_name)
+      showStats(player)
+      redisplay = FALSE
+    fin
+    showInventory(player, i_page, i_rows, 0)
+    showMenu(vMap)
     // Get a key, do something
     when getUpperKey()
       // Select another player to show
-      is '1'; num = 0; i_page = 0; break
-      is '2'; num = 1; i_page = 0; break
-      is '3'; num = 2; i_page = 0; break
+      is '1'; num = 0; i_page = 0; redisplay = TRUE; break
+      is '2'; num = 1; i_page = 0; redisplay = TRUE; break
+      is '3'; num = 2; i_page = 0; redisplay = TRUE; break
       // Equip player with weapon/armor
       is 'E'
-        if showInventory(player, i_page, i_rows, TYPE_EQUIP)
-          rawDisplayStr("\n^T032Which item?")
-          item = itemNum(player, i_rows * i_page, getUpperKey() - 'A', TYPE_EQUIP)
-          if item
-            if unequip(player, item->t_type, item=>s_itemKind) <> item
-              item->b_flags = item->b_flags | ITEM_FLAG_EQUIP
-              calcPlayerArmor(player)
-            fin
-          fin
-        else
-          beep
-        fin
+        if doEquip(player, i_page, i_rows); redisplay = TRUE; fin
         break
       // Use an item
       is 'U'
-        if showInventory(player, i_page, i_rows, TYPE_USE)
-          rawDisplayStr("\n^T032Which item?")
-          item = itemNum(player, i_rows * i_page, getUpperKey() - 'A', TYPE_USE)
-          if item
-            setWindow2()
-            clearWindow()
-            if item=>p_modifiers and streqi(item=>p_modifiers=>s_name, "health")
-              if player=>w_health < player=>w_maxHealth
-                player=>w_health = min(player=>w_health + item=>p_modifiers=>w_modValue, player=>w_maxHealth)
-                item->b_curUses++
-                if item->b_curUses >= item->b_maxUses // all used up
-                  removeFromList(@player=>p_items, item)
-                fin
-              fin
-            else
-              return item // general 'use' handled by outer engine, because it might involve graphics
-            fin
-          fin
-        else
-          beep
-        fin
+        item = doUse(player, i_page, i_rows)
+        if item; return item; fin  // general 'use' handled by outer engine, because it might involve graphics
+        redisplay = TRUE
         break
       // Drop an item
       is 'D'
-        if showInventory(player, i_page, i_rows, TYPE_DROP)
-          rawDisplayStr("\n^T032Which item?")
-          n_item = getUpperKey() - 'A'
-          item = itemNum(player, i_rows * i_page, n_item, TYPE_DROP)
-          if item
-            clearWindow()
-            rawDisplayStr("^T050^LDrop^L\n")
-            for i = 0 to n_item
-              displayChar('\n')
-            next
-            rawDisplayStr("\n^T018")
-            displayStr(item=>s_name)
-            for i = n_item + 3 to i_rows
-              displayChar('\n')
-            next
-            rawDisplayStr("\n^T008Are you sure (Y/N)?")
-            if getYN()
-              i = countList(player=>p_items)
-              removeFromList(@player=>p_items, item)
-              if countList(player=>p_items) <> i - 1
-                displayStr("remove List error!")
-                getUpperKey()
-              fin
-              calcPlayerArmor(player)
-            fin
-          fin
-        else
-          beep
-        fin
+        if doDrop(player, i_page, i_rows); redisplay = TRUE; fin
         break
       // Next inventory page
       is '>'
@@ -362,7 +418,6 @@ def _party_doPlayerSheet(num)
       // All done
       otherwise return
     wend
-    tossStrings() // Free up local strings
   until 0
 end
 

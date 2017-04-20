@@ -2512,11 +2512,6 @@ export def addGold(amount)
   return amount
 end
 
-// How much gold?
-export def countGold()
-  return global=>w_gold
-end
-
 // Pay out gold
 export def payGold(amount)
   if amount > global=>w_gold

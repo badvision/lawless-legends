@@ -204,7 +204,7 @@ init: !zone
 ; 2: aux  $0800 -> 3, inactive			; TEMPORARY: until we figure out prob w aux screen holes
 ; 3: aux  $BFFD -> 0, active + locked
 ; 4: main $0xxx -> 5, inactive (xxx = end of mem mgr low mem portion)
-; 5: main $4000 -> 6, active + locked
+; 5: main $2000 -> 6, active + locked
 ; 6: main $6000 -> 7, inactive
 ; 7: main $BFFD -> 8, active + locked
 ; 8: main $E000 -> 9, inactive
@@ -244,7 +244,7 @@ init: !zone
 	sta tSegAdrLo+4
 	lda #>lastLoMem
 	sta tSegAdrHi+4
-	lda #$40
+	lda #$20
 	sta tSegAdrHi+5
 	lda #$60
 	sta tSegAdrHi+6
@@ -290,15 +290,6 @@ init: !zone
 	dey
 	dey
 	lda #LOCK_MEMORY	; lock it in place forever
-	jsr main_dispatch
-; Reserve hi-res page 1
-	lda #SET_MEM_TARGET
-	ldx #0
-	ldy #$20		; at $2000
-	jsr main_dispatch
-	lda #REQUEST_MEMORY
-	ldx #0
-	ldy #$20		; length $2000
 	jsr main_dispatch
 ; Load PLASMA module #1 from partition #1
 	ldx #1

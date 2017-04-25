@@ -40,10 +40,10 @@ const STATS_COL_2 = 140
 
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the header.
-predef _party_doPlayerSheet, _party_benchPlayer, _party_unbenchPlayer
-predef _party_displayItemStats, _party_displayItemName
-word[] funcTbl = @_party_doPlayerSheet, @_party_benchPlayer, @_party_unbenchPlayer
-word           = @_party_displayItemStats, @_party_displayItemName
+predef _doPlayerSheet, _benchPlayer, _unbenchPlayer
+predef _displayItemStats, _displayItemName
+word[] funcTbl = @_doPlayerSheet, @_benchPlayer, @_unbenchPlayer
+word           = @_displayItemStats, @_displayItemName
 
 // Other global variables here
 
@@ -141,12 +141,7 @@ def showInventory(player, page, rows, select)
       s_item++
     fin
     rawDisplayf1("^T%D", CHAR_WND_INV_X)
-    setPlural(FALSE)
-    if item->t_type == TYPE_STUFF
-      displayf1("%d ", item=>w_count)
-      if item=>w_count > 1; setPlural(TRUE); fin
-    fin
-    displayf1("%s", item=>s_name) // use displayf to get proper plural processing
+    _displayItemName(item)
     if item->t_type == TYPE_WEAPON or item->t_type == TYPE_ARMOR
       if item->b_flags & ITEM_FLAG_EQUIP
         displayStr(" *")
@@ -346,10 +341,13 @@ end
 
 // Show player sheet and accept command. If using an item (not just for stats gain)
 // the item is returned; else NULL is returned.
-def _party_doPlayerSheet(num)
+def _doPlayerSheet(num)
   word player, item
   word hMap, vMap, i_rows
   byte i_page, redisplay
+
+  setOversizeWindow()
+  clearWindow()
 
   // Get size of inventory pane in chars
   getMapWindow(@hMap, @vMap)
@@ -468,7 +466,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Allow user to select an active player, and put them on the bench
-def _party_benchPlayer()
+def _benchPlayer()
   word player
   player = selectPlayer(global=>p_players)
   if player
@@ -480,7 +478,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Allow user to select a benched player, and put them on the bench
-def _party_unbenchPlayer()
+def _unbenchPlayer()
   word player
   if countList(global=>p_players) == MAX_PARTY
     displayStr("Party too large.")
@@ -586,7 +584,7 @@ def displayStuffStats(pItem1, pItem2)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _party_displayItemStats(pItem1, pItem2)
+def _displayItemStats(pItem1, pItem2)
   word pMod1, pMod2
 
   // First, show the item type and name
@@ -597,10 +595,10 @@ def _party_displayItemStats(pItem1, pItem2)
     is TYPE_STUFF;  rawDisplayStr("\nSupply"); break
     otherwise fatal("tItem")
   wend
-  tabTo(STATS_COL_1); _party_displayItemName(pItem1)
+  tabTo(STATS_COL_1); _displayItemName(pItem1)
   if pItem2
     if pItem1->t_type <> pItem2->t_type; fatal("tMatch"); fin
-    tabTo(STATS_COL_2); _party_displayItemName(pItem2)
+    tabTo(STATS_COL_2); _displayItemName(pItem2)
   fin
 
   // Type-specific attributes
@@ -630,11 +628,14 @@ def _party_displayItemStats(pItem1, pItem2)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _party_displayItemName(pItem)
-  setPlural(FALSE)
-  if pItem->t_type == TYPE_STUFF; setPlural(pItem=>w_count <> 1); fin
-  if pItem=>w_count >= 1
+// For non-countable items, display singular name.
+// For countable "stuff" (e.g. ammo), display the count and appropriate singular or plural name.
+def _displayItemName(pItem)
+  if pItem->t_type == TYPE_STUFF
+    setPlural(pItem=>w_count <> 1)
     rawDisplayf1("%d ", pItem=>w_count)
+  else
+    setPlural(FALSE)
   fin
   rawDisplayf1("%s", pItem=>s_name) // use displayf to get proper plural processing
 end

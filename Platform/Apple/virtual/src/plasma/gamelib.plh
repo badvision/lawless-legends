@@ -10,6 +10,9 @@
 
 import gamelib
 
+  /////////// Shared numeric constants //////////////
+  const OVERSIZE_WINDOW_HEIGHT = 174
+
   //////////// Shared library routines ////////////
   // Let's try to keep these predef's in lexical order
   predef addEncounterZone
@@ -118,6 +121,9 @@ import gamelib
   predef setWindow3
   predef showMapName
   predef showParty
+  predef sprintf1
+  predef sprintf2
+  predef sprintf3
   predef streqi
   predef strncpy
   predef takeItemFromPlayer

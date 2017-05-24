@@ -31,9 +31,10 @@ const TYPE_USE   = $0102
 const TYPE_DROP  = $0103
 
 // Tab positions
-const CHAR_WND_STAT_X = 30
-const CHAR_WND_STATLBL_X = 38
-const CHAR_WND_INV_X = 18
+const CHAR_WND_INVLBL_X = 10
+const CHAR_WND_INV_X = 25
+const CHAR_WND_STAT_X = 174
+const CHAR_WND_STATLBL_X = 182
 
 const STATS_COL_1 = 45
 const STATS_COL_2 = 140
@@ -105,27 +106,28 @@ def unequip(player, type, kind)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Display title of a column at top but below character name. Optionally append a second string,
+// then leave a little vertical space below before beginning the content of the column.
+def showColumnTitle(x, title, page, nPages)
+  rawDisplayf2("^V000\n^J^J^L^J^T%D%s", x, title)
+  if nPages > 1
+    rawDisplayf2(" - p.%d/%d", page, nPages)
+  fin
+  rawDisplayStr("^N\n^J^J")
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display inventory pane
 def showInventory(player, page, rows, select)
   word item
-  byte s_item, n_item, n_page, first
+  byte s_item, n_item, n_page, totalPages, first
 
   s_item = 0
   n_item = 0
   n_page = page * rows
   item = player=>p_items
-  setMapWindow()
-  clearWindow()
-  rawDisplayStr("^Y^LInventory^N")
-  if !select
-    if page
-      rawDisplayf1("^T008<%d", page)
-    fin
-    if countList(item) > n_page + rows
-      rawDisplayf1("^T108%d>", page+2)
-    fin
-  fin
-  rawDisplayStr("^V012") // leave half-a-line of space
+  totalPages = (countList(item)+rows-1) / rows
+  showColumnTitle(CHAR_WND_INV_X-10, "Inventory", page+1, totalPages)
   if page
     while item and n_item < n_page
       item = item=>p_nextObj
@@ -136,23 +138,20 @@ def showInventory(player, page, rows, select)
   while item and n_item < (n_page + rows)
     if !first; displayChar('\n'); fin
     first = FALSE
-    if itemMatch(item, select)
-      displayf1("%c)", 'A' + s_item)
-      s_item++
-    fin
-    rawDisplayf1("^T%D", CHAR_WND_INV_X)
-    _displayItemName(item)
+
     if item->t_type == TYPE_WEAPON or item->t_type == TYPE_ARMOR
       if item->b_flags & ITEM_FLAG_EQUIP
-        displayStr(" *")
+        rawDisplayStr("*")
       fin
     fin
+
+    rawDisplayf2("^T%D%c.", CHAR_WND_INVLBL_X, 'A' + s_item)
+    s_item++
+
+    rawDisplayf1("^T%D", CHAR_WND_INV_X)
+    _displayItemName(item)
     n_item++
     item = item=>p_nextObj
-  loop
-  while n_item < (n_page + rows)
-    displayChar('\n')
-    n_item++
   loop
   return s_item
 end
@@ -183,21 +182,29 @@ def numToPlayer(num)
 end
 
 def displayDice(dice)
-  if (dice & $0F)
-    rawDisplayf3("%dd%d+%d", (dice >> 12) & $0F, (dice >> 8) & $0F, dice & $0F)
+  byte n, d, p
+  n = (dice >> 12) & $0F
+  d = (dice >> 8) & $0F
+  p = dice & $FF
+  if (p)
+    rightJustifyStr(sprintf3("%dd%d+%d", n, d, p), CHAR_WND_STAT_X)
   else
-    rawDisplayf2("^T010%dd%d", (dice >> 12) & $0F, (dice >> 8) & $0F)
+    rightJustifyStr(sprintf2("%dd%d", n, d), CHAR_WND_STAT_X)
   fin
+end
+
+def vspace()
+  rawDisplayStr("^J^J^J^J")
 end
 
 // Show stats in the right panel
 def showStats(player)
   word weapon, dmg
 
-  setWindow2()
-  clearWindow()
-  rawDisplayStr("^Y^LStats^N^V012")
+  showColumnTitle(CHAR_WND_STAT_X, "Stats", 0, 0)
   rightJustifyNum(player=>w_health, CHAR_WND_STAT_X);       rawDisplayf1("^T%DHealth\n", CHAR_WND_STATLBL_X)
+  rightJustifyNum(player=>w_maxHealth, CHAR_WND_STAT_X);    rawDisplayf1("^T%DMax health\n", CHAR_WND_STATLBL_X)
+  vspace()
   rightJustifyNum(player->b_intelligence, CHAR_WND_STAT_X); rawDisplayf1("^T%DIntelligence\n", CHAR_WND_STATLBL_X)
   rightJustifyNum(player->b_strength, CHAR_WND_STAT_X);     rawDisplayf1("^T%DStrength\n", CHAR_WND_STATLBL_X)
   rightJustifyNum(player->b_agility, CHAR_WND_STAT_X);      rawDisplayf1("^T%DAgility\n", CHAR_WND_STATLBL_X)
@@ -205,6 +212,7 @@ def showStats(player)
   rightJustifyNum(player->b_charisma, CHAR_WND_STAT_X);     rawDisplayf1("^T%DCharisma\n", CHAR_WND_STATLBL_X)
   rightJustifyNum(player->b_spirit, CHAR_WND_STAT_X);       rawDisplayf1("^T%DSpirit\n", CHAR_WND_STATLBL_X)
   rightJustifyNum(player->b_luck, CHAR_WND_STAT_X);         rawDisplayf1("^T%DLuck\n", CHAR_WND_STATLBL_X)
+  vspace()
   rightJustifyNum(player->b_armor, CHAR_WND_STAT_X);        rawDisplayf1("^T%DArmor\n", CHAR_WND_STATLBL_X)
   // Get weapon
   weapon = player=>p_items
@@ -212,24 +220,22 @@ def showStats(player)
     if weapon->t_type == TYPE_WEAPON and weapon->b_flags & ITEM_FLAG_EQUIP; break; fin
     weapon = weapon=>p_nextObj
   loop
-  if weapon
-    dmg = weapon=>r_projectileDmg
-  else
-    dmg = 0
-  fin
-  if dmg > 0
-    displayDice(dmg)
+
+  if weapon and weapon=>r_projectileDmg
+    displayDice(weapon=>r_projectileDmg)
     rawDisplayf1("^T%DProjectile\n", CHAR_WND_STATLBL_X)
-  else
-    if weapon
-      dmg = weapon=>r_meleeDmg
-    else
-      dmg = $01400
-    fin
-    displayDice(dmg)
-    rawDisplayf1("^T%DMelee\n", CHAR_WND_STATLBL_X)
   fin
-  //rightJustifyNum(global=>w_gold, CHAR_WND_STAT_X);         rawDisplayf1("^T%DGold (party)", CHAR_WND_STATLBL_X)
+
+  if weapon
+    dmg = weapon=>r_meleeDmg
+  else
+    dmg = $01400
+  fin
+  displayDice(dmg)
+  rawDisplayf1("^T%DMelee\n", CHAR_WND_STATLBL_X)
+
+  vspace()
+  rightJustifyNum(global=>w_gold, CHAR_WND_STAT_X);         rawDisplayf1("^T%DGold (party)", CHAR_WND_STATLBL_X)
 end
 
 // Show aquired skills in lower right panel
@@ -237,8 +243,6 @@ def showSkills(player)
   word skill
   byte col
 
-  setWindow3()
-  clearWindow()
   rawDisplayStr("^T040^LSkills^L")
   displaySkill("Aim", player->b_aiming, 0)
   displaySkill("Fists", player->b_handToHand, 1)
@@ -253,8 +257,8 @@ def showSkills(player)
 end
 
 // Show player data
-def showMenu(vMap)
-  rawDisplayf1("^V%D^T012E)quip, U)se, D)rop", vMap - 9)
+def showMenu()
+  rawDisplayf1("^V%D^T012E)quip, U)se, D)rop", OVERSIZE_WINDOW_HEIGHT - 9 - 1)
 end
 
 // Select an item and equip/unequip it. Returns TRUE if anything changed.
@@ -283,8 +287,6 @@ def doUse(player, i_page, i_rows)
     rawDisplayStr("\n^T032Which item?")
     item = itemNum(player, i_rows * i_page, getUpperKey() - 'A', TYPE_USE)
     if item
-      setWindow2()
-      clearWindow()
       if item=>p_modifiers and streqi(item=>p_modifiers=>s_name, "health")
         if player=>w_health < player=>w_maxHealth
           player=>w_health = min(player=>w_health + item=>p_modifiers=>w_modValue, player=>w_maxHealth)
@@ -343,28 +345,28 @@ end
 // the item is returned; else NULL is returned.
 def _doPlayerSheet(num)
   word player, item
-  word hMap, vMap, i_rows
+  word i_rows
   byte i_page, redisplay
 
   setOversizeWindow()
   clearWindow()
 
   // Get size of inventory pane in chars
-  getMapWindow(@hMap, @vMap)
-  i_rows = (vMap / 9) - 3  // 9 rows per line; minus 3 lines for header/footer
+  i_rows = (OVERSIZE_WINDOW_HEIGHT / 9) - 4  // 9 rows per line; minus 4 lines for header/footer
   i_page = 0
   redisplay = TRUE
   repeat
     player = numToPlayer(num)
     if !player; return; fin // Invalid player
     if redisplay
-      // First, display the player's name in the title bar
-      showMapName(player=>s_name)
+      // First, display the player's name at the top
+      clearWindow()
+      rawDisplayf1("^Y^I %s ^N\n", player=>s_name)
       showStats(player)
       redisplay = FALSE
     fin
     showInventory(player, i_page, i_rows, 0)
-    showMenu(vMap)
+    showMenu()
     // Get a key, do something
     when getUpperKey()
       // Select another player to show

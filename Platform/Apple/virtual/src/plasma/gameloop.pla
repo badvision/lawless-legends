@@ -377,6 +377,8 @@ export asm addToString
   rts
 end
 
+// Complete string building (including plural processing), and return pointer
+// to the string (in the input buffer)
 export asm finishString
 !zone {
   +asmPlasm 1
@@ -458,7 +460,7 @@ export asm finishString
 .done
   dey
   sty inbuf   ; save new length
-  lda #<inbuf
+  lda #<inbuf ; return pointer to string
   ldy #>inbuf
   rts
 }
@@ -942,18 +944,6 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // General methods
 
-export def strncpy(dst, src, maxlen)
-  byte i, l
-
-  l = ^src
-  if l > maxlen; l = maxlen; fin
-  ^dst = l
-  for i = 1 to l
-    dst->[i] = src->[i]
-  next
-  return l
-end
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Fatal error: print message and stop the system.
 export def fatal(msg)
@@ -988,6 +978,43 @@ def abs(n)
   else
     return n
   fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Convert a lower-case character to upper-case (or return unchanged if it's not lower-case)
+export def charToUpper(c)
+  if c >= 'a' and c <= 'z'
+    return c - $20
+  fin
+  return c
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Compare two strings for equality, ignoring case.
+export def streqi(a, b)
+  word limit, leneq
+  leneq = ^a == ^b
+  limit = a + min(^a, ^b)
+  a++; b++
+  while a <= limit
+    if charToUpper(^a) <> charToUpper(^b); return FALSE; fin
+    a++; b++
+  loop
+  return leneq
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Copy part of a string
+export def strncpy(dst, src, maxlen)
+  byte i, l
+
+  l = ^src
+  if l > maxlen; l = maxlen; fin
+  ^dst = l
+  for i = 1 to l
+    dst->[i] = src->[i]
+  next
+  return l
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1085,15 +1112,20 @@ end
 export def displayf1(str, arg1); displayf3(str, arg1, 0, 0); end
 export def displayf2(str, arg1, arg2); displayf3(str, arg1, arg2, 0); end
 
-// Like printf, but displays text using font engine
-export def rawDisplayf3(str, arg1, arg2, arg3)
+// Like printf, but buffers string in $200
+export def sprintf3(str, arg1, arg2, arg3)
   buildString(@addToString)
   printf3(str, arg1, arg2, arg3)
-  rawDisplayStr(finishString(isPlural))
+  return finishString(isPlural)
 end
 
-export def rawDisplayf1(str, arg1); rawDisplayf3(str, arg1, 0, 0); end
-export def rawDisplayf2(str, arg1, arg2); rawDisplayf3(str, arg1, arg2, 0); end
+export def sprintf1(str, arg1); return sprintf3(str, arg1, 0, 0); end
+export def sprintf2(str, arg1, arg2); return sprintf3(str, arg1, arg2, 0); end
+
+// Like printf, but displays text using font engine
+export def rawDisplayf1(str, arg1); rawDisplayStr(sprintf3(str, arg1, 0, 0)); end
+export def rawDisplayf2(str, arg1, arg2); rawDisplayStr(sprintf3(str, arg1, arg2, 0)); end
+export def rawDisplayf3(str, arg1, arg2, arg3); rawDisplayStr(sprintf3(str, arg1, arg2, arg3)); end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def parseDec(str)
@@ -1126,15 +1158,6 @@ export def parseDecWithDefault(str, default)
     return default
   fin
   return parseDec(str)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Convert a lower-case character to upper-case (or return unchanged if it's not lower-case)
-export def charToUpper(c)
-  if c >= 'a' and c <= 'z'
-    return c - $20
-  fin
-  return c
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1338,23 +1361,32 @@ end
 // Window that covers the entire inner area (destroys frame image, so be sure to loadMainFrame
 // afterwards)
 export def setOversizeWindow()
-  hline(getScreenLine(5)+1, 0, 0, 36, 0)
-  hline(getScreenLine(6)+1, $F8, $FF, 36, $8F)
-  hline(getScreenLine(7)+1, $FC, $FF, 36, $9F)
-  hline(getScreenLine(8)+1, $8C, 0, 36, $98)
-  vline(getScreenLine(9)+1, $8C, 174)
-  vline(getScreenLine(9)+38, $98, 174)
-  hline(getScreenLine(182)+1, $8C, 0, 36, $98)
-  hline(getScreenLine(183)+1, $FC, $FF, 36, $9F)
-  hline(getScreenLine(184)+1, $F8, $FF, 36, $8F)
-  hline(getScreenLine(185)+1, 0, 0, 36, 0)
+  // Draw border (if not already drawn)
+  if frameLoaded
+    hline(getScreenLine(5)+1, 0, 0, 36, 0)
+    hline(getScreenLine(6)+1, $F8, $FF, 36, $8F)
+    hline(getScreenLine(7)+1, $FC, $FF, 36, $9F)
+    hline(getScreenLine(8)+1, $8C, 0, 36, $98)
+    vline(getScreenLine(9)+1, $8C, 174)
+    vline(getScreenLine(9)+38, $98, 174)
+    hline(getScreenLine(182)+1, $8C, 0, 36, $98)
+    hline(getScreenLine(183)+1, $FC, $FF, 36, $9F)
+    hline(getScreenLine(184)+1, $F8, $FF, 36, $8F)
+    hline(getScreenLine(185)+1, 0, 0, 36, 0)
+    frameLoaded = 0 // since we just destroyed it
+  fin
   setWindow(9, 183, 14, 267) // Top, Bottom, Left, Right
-  frameLoaded = 0 // since we destroyed it
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def rightJustifyStr(str, rightX)
-  rawDisplayf2("^T%D%s", rightX - calcWidth(str), str)
+  word space
+  space = rightX - calcWidth(str)
+  if (space > 0)
+    rawDisplayStr("^T")  // do not use printf variants, since it might overwrite str
+    rawDisplayStr(convert3Dec(space))
+  fin
+  rawDisplayStr(str)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2185,20 +2217,6 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def clearEncounterZones()
   global=>p_encounterZones = NULL
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Compare two strings for equality, ignoring case.
-export def streqi(a, b)
-  word limit, leneq
-  leneq = ^a == ^b
-  limit = a + min(^a, ^b)
-  a++; b++
-  while a <= limit
-    if charToUpper(^a) <> charToUpper(^b); return FALSE; fin
-    a++; b++
-  loop
-  return leneq
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

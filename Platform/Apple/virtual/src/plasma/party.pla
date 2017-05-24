@@ -33,6 +33,7 @@ const TYPE_DROP  = $0103
 // Tab positions
 const CHAR_WND_INVLBL_X = 10
 const CHAR_WND_INV_X = 25
+const CHAR_WND_INV_RT = 140
 const CHAR_WND_STAT_X = 174
 const CHAR_WND_STATLBL_X = 182
 
@@ -341,6 +342,12 @@ def doDrop(player, i_page, i_rows)
   return FALSE
 end
 
+def clearInvRect
+  setWindow(19, 183, 14, CHAR_WND_INV_RT) // Top, Bottom, Left, Right
+  clearWindow()
+  setOversizeWindow()
+end
+
 // Show player sheet and accept command. If using an item (not just for stats gain)
 // the item is returned; else NULL is returned.
 def _doPlayerSheet(num)
@@ -349,7 +356,6 @@ def _doPlayerSheet(num)
   byte i_page, redisplay
 
   setOversizeWindow()
-  clearWindow()
 
   // Get size of inventory pane in chars
   i_rows = (OVERSIZE_WINDOW_HEIGHT / 9) - 4  // 9 rows per line; minus 4 lines for header/footer
@@ -359,14 +365,16 @@ def _doPlayerSheet(num)
     player = numToPlayer(num)
     if !player; return; fin // Invalid player
     if redisplay
-      // First, display the player's name at the top
       clearWindow()
       rawDisplayf1("^Y^I %s ^N\n", player=>s_name)
       showStats(player)
       redisplay = FALSE
+    else
+      clearInvRect()
     fin
     showInventory(player, i_page, i_rows, 0)
     showMenu()
+
     // Get a key, do something
     when getUpperKey()
       // Select another player to show
@@ -389,12 +397,14 @@ def _doPlayerSheet(num)
         break
       // Next inventory page
       is '>'
+      is 21  // right-arrow
         if countList(player=>p_items) > (i_page + 1) * i_rows
           i_page++
         fin
         break
       // Previous inventory page
       is '<'
+      is 8  // left-arrow
         if i_page
           i_page--
         fin

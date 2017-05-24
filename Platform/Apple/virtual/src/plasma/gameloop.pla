@@ -2372,6 +2372,11 @@ def initCmds()
     cmdTbl[','] = @moveBackward
     cmdTbl['M'] = @strafeLeft
     cmdTbl['.'] = @strafeRight
+
+    cmdTbl[11] = @moveForward  // up-arrow
+    cmdTbl[8]  = @rotateLeft   // left-arrow
+    cmdTbl[21] = @rotateRight  // right-arrow
+    cmdTbl[10] = @moveBackward // down-arrow
   else
     cmdTbl['W'] = @moveNorth
     cmdTbl['D'] = @moveEast
@@ -2384,6 +2389,11 @@ def initCmds()
     cmdTbl['L'] = @moveEast
     cmdTbl['K'] = @moveSouth
     cmdTbl[','] = @moveSouth
+
+    cmdTbl[11] = @moveNorth  // up-arrow
+    cmdTbl[8]  = @moveWest   // left-arrow
+    cmdTbl[21] = @moveEast   // right-arrow
+    cmdTbl[10] = @moveSouth  // down-arrow
   fin
 end
 

@@ -24,12 +24,6 @@ include "godmode.plh"
 // Definition of constants for functions exported by this module
 include "party.plh"
 
-// Type groups
-const TYPE_ALL   = $0100
-const TYPE_EQUIP = $0101
-const TYPE_USE   = $0102
-const TYPE_DROP  = $0103
-
 // Tab positions
 const INVLBL_X = 10
 const INV_X = 25
@@ -262,11 +256,7 @@ def showItemMenu(item)
   clearMenuRect()
   type = item->t_type
   if type == TYPE_ARMOR or type == TYPE_WEAPON
-    if item->b_flags & ITEM_FLAG_EQUIP
-      rawDisplayStr("U)nequip, ")
-    else
-      rawDisplayStr("E)quip, ")
-    fin
+    rawDisplayStr("E)quip/unequip, ")
   fin
   if type == TYPE_ITEM
     rawDisplayStr("U)se, ")
@@ -302,7 +292,7 @@ def doDestroy(player, item)
   clearMenuRect()
   rawDisplayStr("Destroy ")
   _displayItemName(item)
-  rawDisplayStr(": Are you sure (Y/N)?")
+  rawDisplayStr(" (Y/N)?")
   if getYN()
     removeFromList(@player=>p_items, item)
     calcPlayerArmor(player)
@@ -331,7 +321,7 @@ def matchEquipped(player, match)
   item = player=>p_items
   while item
     if (item->t_type == match->t_type) and (item->t_type == TYPE_WEAPON or item->t_type == TYPE_ARMOR)
-      if (item->b_flags & ITEM_FLAG_EQUIP)
+      if item <> match and (item->b_flags & ITEM_FLAG_EQUIP)
         if item->t_type <> TYPE_ARMOR or (item=>s_itemKind == match=>s_itemKind)
           return item
         fin
@@ -345,10 +335,11 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayItems(pItem1, pItem2)
   clearMainRect()
-  showColumnTitle(STATS_COL_1, "Inventory", 0, 0)
+  rawDisplayf1("^V000\n^J^J^L^J^T%DInventory", STATS_COL_1)
   if pItem2
-    rawDisplayf2("^T%D^LEquipped^L", STATS_COL_2)
+    rawDisplayf1("^T%DEquipped", STATS_COL_2)
   fin
+  rawDisplayStr("^N^J^J")
   _displayItemStats(pItem1, pItem2)
 end
 
@@ -364,13 +355,20 @@ def interactWithItem(player, item)
     when sel
       // Equip/unequip player with weapon/armor
       is 'E'
-      is 'U'
-        doEquip(player, item)
+        if item->t_type == TYPE_ARMOR or item->t_type == TYPE_WEAPON
+          doEquip(player, item)
+        else
+          beep
+        fin
         break
       // Use an item
       is 'U'
-        item = doUse(player, item)
-        if item; return item; fin  // general 'use' handled by outer engine, because it might involve graphics
+        if item->t_type == TYPE_ITEM
+          item = doUse(player, item)
+          if item; return item; fin  // general 'use' handled by outer engine, because it might involve graphics
+        else
+          beep
+        fin
         break
       // Destroy an item
       is 'D'
@@ -393,20 +391,22 @@ def _doPlayerSheet(player_num)
 
   // Get size of inventory pane in chars: 9 rows per line; minus 4 lines for header/footer
   i_page = 0
-  redisplay = TRUE
+  redisplay = 2
   repeat
     player = numToPlayer(player_num)
     if !player; return; fin // Invalid player
-    if redisplay
+    if redisplay >= 2
       clearWindow()
       rawDisplayf1("^Y^I %s ^N\n", player=>s_name)
       showStats(player)
-      redisplay = FALSE
+      redisplay = 1
       totalItems = countList(player=>p_items)
-    else
-      clearInvRect()
     fin
-    itemsOnPage = showInventory(player, i_page, 0)
+    if redisplay > 0
+      clearInvRect()
+      itemsOnPage = showInventory(player, i_page, 0)
+      redisplay = 0
+    fin
     showInvMenu(totalItems, i_page, itemsOnPage)
 
     // Get a key, do something
@@ -414,13 +414,14 @@ def _doPlayerSheet(player_num)
     rawDisplayf1(" %c\n", sel)
     when sel
       // Select another player to show
-      is '1'; player_num = 0; i_page = 0; redisplay = TRUE; break
-      is '2'; player_num = 1; i_page = 0; redisplay = TRUE; break
-      is '3'; player_num = 2; i_page = 0; redisplay = TRUE; break
+      is '1'; player_num = 0; i_page = 0; redisplay = 2; break
+      is '2'; player_num = 1; i_page = 0; redisplay = 2; break
+      is '3'; player_num = 2; i_page = 0; redisplay = 2; break
       is '>'
       is 21  // right-arrow
         if totalItems > (i_page + 1) * INV_ROWS
           i_page++
+          redisplay = 1
         fin
         break
       // Previous inventory page
@@ -428,6 +429,7 @@ def _doPlayerSheet(player_num)
       is 8  // left-arrow
         if i_page
           i_page--
+          redisplay = 1
         fin
         break
       // Other operations...
@@ -444,6 +446,7 @@ def _doPlayerSheet(player_num)
       is '%' // add item cheat
         if global->b_godmode
           pGodModule=>godmode_addItem(player)
+          redisplay = 1
         fin
         break
       is '9' // add player cheat
@@ -456,7 +459,8 @@ def _doPlayerSheet(player_num)
       otherwise
         sel = sel - 'A'
         if sel >= 0 and sel < itemsOnPage
-          interactWithItem(itemByNum(player, sel))
+          interactWithItem(player, itemByNum(player, sel))
+          redisplay = 2
         else
           beep
         fin
@@ -558,6 +562,15 @@ def formatStr(str)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def formatEquipped(num)
+  if num == 1
+    rawDisplayStr("Y")
+  else
+    rawDisplayStr("N")
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def formatAttack(code)
   if !code; return; fin
   if code == 1
@@ -573,6 +586,19 @@ end
 def byteField(pItem, field)
   if pItem
     return ^(pItem + field)
+  else
+    return 0
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def equippedField(pItem, field)
+  if pItem
+    if ^(pItem + field) & ITEM_FLAG_EQUIP
+      return 1
+    else
+      return 2
+    fin
   else
     return 0
   fin
@@ -601,21 +627,23 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayWeaponStats(pItem1, pItem2)
-  displayTwoCol("Uses",   pItem1, pItem2, b_maxUses,       @byteField, @formatNum)
-  displayTwoCol("Ammo",   pItem1, pItem2, s_ammoKind,      @wordField, @formatStr)
-  displayTwoCol("Clip",   pItem1, pItem2, b_clipSize,      @byteField, @formatNum)
-  displayTwoCol("Melee",  pItem1, pItem2, r_meleeDmg,      @wordField, @formatDice)
-  displayTwoCol("Proj",   pItem1, pItem2, r_projectileDmg, @wordField, @formatDice)
-  displayTwoCol("Attack", pItem1, pItem2, ba_attacks+0,    @byteField, @formatAttack)
-  displayTwoCol("Att 2",  pItem1, pItem2, ba_attacks+1,    @byteField, @formatAttack)
-  displayTwoCol("Att 3",  pItem1, pItem2, ba_attacks+2,    @byteField, @formatAttack)
-  displayTwoCol("Range",  pItem1, pItem2, b_weaponRange,   @byteField, @formatNum)
+  displayTwoCol("Equip'd", pItem1, pItem2, b_flags,         @equippedField, @formatEquipped)
+  displayTwoCol("Uses",    pItem1, pItem2, b_maxUses,       @byteField, @formatNum)
+  displayTwoCol("Ammo",    pItem1, pItem2, s_ammoKind,      @wordField, @formatStr)
+  displayTwoCol("Clip",    pItem1, pItem2, b_clipSize,      @byteField, @formatNum)
+  displayTwoCol("Melee",   pItem1, pItem2, r_meleeDmg,      @wordField, @formatDice)
+  displayTwoCol("Proj",    pItem1, pItem2, r_projectileDmg, @wordField, @formatDice)
+  displayTwoCol("Attack",  pItem1, pItem2, ba_attacks+0,    @byteField, @formatAttack)
+  displayTwoCol("Att 2",   pItem1, pItem2, ba_attacks+1,    @byteField, @formatAttack)
+  displayTwoCol("Att 3",   pItem1, pItem2, ba_attacks+2,    @byteField, @formatAttack)
+  displayTwoCol("Range",   pItem1, pItem2, b_weaponRange,   @byteField, @formatNum)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayArmorStats(pItem1, pItem2)
-  displayTwoCol("Uses",   pItem1, pItem2, b_maxUses,    @byteField, @formatNum)
-  displayTwoCol("Protec", pItem1, pItem2, b_armorValue, @byteField, @formatNum)
+  displayTwoCol("Equip'd", pItem1, pItem2, b_flags,      @equippedField, @formatEquipped)
+  displayTwoCol("Uses",    pItem1, pItem2, b_maxUses,    @byteField, @formatNum)
+  displayTwoCol("Protec",  pItem1, pItem2, b_armorValue, @byteField, @formatNum)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -637,7 +665,6 @@ def _displayItemStats(pItem1, pItem2)
   wend
   tabTo(STATS_COL_1); _displayItemName(pItem1)
   if pItem2
-    if pItem1->t_type <> pItem2->t_type; fatal("tMatch"); fin
     tabTo(STATS_COL_2); _displayItemName(pItem2)
   fin
 
@@ -653,7 +680,7 @@ def _displayItemStats(pItem1, pItem2)
   pMod2 = NULL
   if pItem2; pMod2 = pItem2=>p_modifiers; fin
   if pMod1 or pMod2
-    rawDisplayStr("\nSpecial:")
+    rawDisplayStr("\nSpecial")
     while pMod1 or pMod2
       if pMod1
         rawDisplayf3("^T%D%d %s", STATS_COL_1, pMod1=>w_modValue, pMod1=>s_name)

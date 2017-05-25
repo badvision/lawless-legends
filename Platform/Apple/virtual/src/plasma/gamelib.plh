@@ -10,9 +10,6 @@
 
 import gamelib
 
-  /////////// Shared numeric constants //////////////
-  const OVERSIZE_WINDOW_HEIGHT = 174
-
   //////////// Shared library routines ////////////
   // Let's try to keep these predef's in lexical order
   predef addEncounterZone
@@ -51,7 +48,6 @@ import gamelib
   predef getCharResponse
   predef getDir
   predef getGameFlag
-  predef getMapWindow
   predef getPos
   predef getStat
   predef getStringResponse
@@ -109,7 +105,7 @@ import gamelib
   predef setIntimateMode
   predef setMap
   predef setMapWindow
-  predef setOversizeWindow
+  predef setBigWindow
   predef setPlural
   predef setPortrait
   predef setScriptInfo

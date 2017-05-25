@@ -15,7 +15,8 @@ include "party.plh"
 include "gen_modules.plh"
 include "gen_items.plh"
 
-const PAGE_SIZE = 15 // (183-10)/9 lines, minus 4 lines for header/footer
+// 9 rows per text line, minus 4 lines for header/footer
+const PAGE_SIZE = (BIGWIN_HEIGHT / 9) - 4
 
 const STATS_COL_1 = 45
 const STATS_COL_2 = 140
@@ -288,7 +289,7 @@ def _buyFromStore(storeCode, profitPercent)
   loadExtraModules()
   pItemTbl = pItemsModule()=>items_forStoreCode(storeCode)
 
-  setOversizeWindow()
+  setBigWindow()
 
   nPages = (countArray(pItemTbl) + PAGE_SIZE - 1) / PAGE_SIZE
   pageNum = 0
@@ -418,7 +419,7 @@ def _sellToStore(profitPercent)
     return
   fin
 
-  setOversizeWindow()
+  setBigWindow()
 
   pageNum = 0
 

@@ -1340,16 +1340,6 @@ export def setMapWindow()
   fin
 end
 
-export def getMapWindow(width, height)
-  if frameLoaded == 3  // don't check mapIs3D, since we might be in an engine
-    *width  = 140-14
-    *height = 153-24
-  else
-    *width  = 140-14
-    *height = 169-24
-  fin
-end
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def hline(addr, startByte, midByte, midSize, endByte)
   ^addr = startByte
@@ -1360,22 +1350,22 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window that covers the entire inner area (destroys frame image, so be sure to loadMainFrame
 // afterwards)
-export def setOversizeWindow()
+export def setBigWindow()
   // Draw border (if not already drawn)
   if frameLoaded
-    hline(getScreenLine(5)+1, 0, 0, 36, 0)
-    hline(getScreenLine(6)+1, $F8, $FF, 36, $8F)
-    hline(getScreenLine(7)+1, $FC, $FF, 36, $9F)
-    hline(getScreenLine(8)+1, $8C, 0, 36, $98)
-    vline(getScreenLine(9)+1, $8C, 174)
-    vline(getScreenLine(9)+38, $98, 174)
-    hline(getScreenLine(182)+1, $8C, 0, 36, $98)
-    hline(getScreenLine(183)+1, $FC, $FF, 36, $9F)
-    hline(getScreenLine(184)+1, $F8, $FF, 36, $8F)
-    hline(getScreenLine(185)+1, 0, 0, 36, 0)
+    hline(getScreenLine(BIGWIN_TOP-4)+1, 0, 0, 36, 0)
+    hline(getScreenLine(BIGWIN_TOP-3)+1, $F8, $FF, 36, $8F)
+    hline(getScreenLine(BIGWIN_TOP-2)+1, $FC, $FF, 36, $9F)
+    hline(getScreenLine(BIGWIN_TOP-1)+1, $8C, 0, 36, $98)
+    vline(getScreenLine(BIGWIN_TOP)+1, $8C, 174)
+    vline(getScreenLine(BIGWIN_TOP)+38, $98, 174)
+    hline(getScreenLine(BIGWIN_BOTTOM-1)+1, $8C, 0, 36, $98)
+    hline(getScreenLine(BIGWIN_BOTTOM)+1, $FC, $FF, 36, $9F)
+    hline(getScreenLine(BIGWIN_BOTTOM+1)+1, $F8, $FF, 36, $8F)
+    hline(getScreenLine(BIGWIN_BOTTOM+2)+1, 0, 0, 36, 0)
     frameLoaded = 0 // since we just destroyed it
   fin
-  setWindow(9, 183, 14, 267) // Top, Bottom, Left, Right
+  setWindow(BIGWIN_TOP, BIGWIN_BOTTOM, BIGWIN_LEFT, BIGWIN_RIGHT)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

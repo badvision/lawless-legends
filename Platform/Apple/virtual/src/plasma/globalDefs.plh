@@ -22,6 +22,15 @@ const kbd       = $C000
 const kbdStrobe = $C010
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Window dimensions
+const BIGWIN_TOP    = 9
+const BIGWIN_BOTTOM = 183
+const BIGWIN_LEFT   = 14
+const BIGWIN_RIGHT  = 267
+const BIGWIN_WIDTH  = BIGWIN_RIGHT - BIGWIN_LEFT
+const BIGWIN_HEIGHT = BIGWIN_BOTTOM - BIGWIN_TOP
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Memory manager definitions
 
 // Resource types

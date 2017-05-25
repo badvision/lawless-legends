@@ -37,8 +37,6 @@ const INV_RT = 140
 const STAT_X = 174
 const STATLBL_X = 182
 
-const MENU_Y = BIGWIN_HEIGHT - 9 - 1 // just above bottom of window
-
 const STATS_COL_1 = 45
 const STATS_COL_2 = 140
 
@@ -54,43 +52,14 @@ word           = @_displayItemStats, @_displayItemName
 // Other global variables here
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Match item type to group type
-def itemMatch(item, group)
-  byte type
-
-  type = item->t_type
-  when group
-    is TYPE_ALL
-      return TRUE
-      break
-    is TYPE_EQUIP
-      return type == TYPE_ARMOR or type == TYPE_WEAPON
-    is TYPE_USE
-      return type == TYPE_ITEM
-      break
-    is TYPE_DROP
-    return type == TYPE_WEAPON or type == TYPE_ARMOR
-      break
-    otherwise
-      return group == type
-  wend
-end
-// Search item num
-def itemNum(player, skip, num, select)
+def itemByNum(player, num)
   word item
-
   item = player=>p_items
-  while item and skip
+  while num
     item = item=>p_nextObj
-    skip--
+    num--
   loop
-  while item
-    if itemMatch(item, select)
-      if not num; return item; fin
-      num--
-    fin
-    item = item=>p_nextObj
-  loop
+  return item
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -261,9 +230,16 @@ def showSkills(player)
   loop
 end
 
-// Display menu of options
+def clearMenuRect()
+  setWindow(BIGWIN_BOTTOM-10, BIGWIN_BOTTOM, BIGWIN_LEFT, BIGWIN_RIGHT)
+  clearWindow()
+  setBigWindow()
+  rawDisplayf1("^V%D^T012", BIGWIN_HEIGHT-10)
+end
+
+// Display menu for selecting inventory items
 def showInvMenu(totalItems, itemPage, itemsOnPage)
-  rawDisplayf1("^V%D^T012", MENU_Y)
+  clearMenuRect()
   if totalItems > 0
     rawDisplayf1("Item [A-%c], ", itemsOnPage+'A'+1)
     if totalItems > INV_ROWS
@@ -280,99 +256,138 @@ def showInvMenu(totalItems, itemPage, itemsOnPage)
   rawDisplayStr("S)kills, or [Esc]")
 end
 
-// Select an item and equip/unequip it. Returns TRUE if anything changed.
-def doEquip(player, i_page)
-  word item
-  if showInventory(player, i_page, TYPE_EQUIP)
-    rawDisplayStr("\n^T032Which item?")
-    item = itemNum(player, INV_ROWS * i_page, getUpperKey() - 'A', TYPE_EQUIP)
-    if item
-      if unequip(player, item->t_type, item=>s_itemKind) <> item
-        item->b_flags = item->b_flags | ITEM_FLAG_EQUIP
-      fin
-      calcPlayerArmor(player)
-      return TRUE
+// Display menu for selecting inventory items
+def showItemMenu(item)
+  byte type
+  clearMenuRect()
+  type = item->t_type
+  if type == TYPE_ARMOR or type == TYPE_WEAPON
+    if item->b_flags & ITEM_FLAG_EQUIP
+      rawDisplayStr("U)nequip, ")
+    else
+      rawDisplayStr("E)quip, ")
     fin
-  else
-    beep
   fin
-  return FALSE
+  if type == TYPE_ITEM
+    rawDisplayStr("U)se, ")
+  fin
+  rawDisplayStr("D)estroy, or [Esc]")
+end
+
+// Equip/unequip an item.
+def doEquip(player, item)
+  if unequip(player, item->t_type, item=>s_itemKind) <> item
+    item->b_flags = item->b_flags | ITEM_FLAG_EQUIP
+  fin
+  calcPlayerArmor(player)
 end
 
 // Select an item and use it. Returns item if it needs to be processed by outer loop, else NULL
-def doUse(player, i_page)
-  word item
-  if showInventory(player, i_page, TYPE_USE)
-    rawDisplayStr("\n^T032Which item?")
-    item = itemNum(player * i_page, getUpperKey() - 'A', TYPE_USE)
-    if item
-      if item=>p_modifiers and streqi(item=>p_modifiers=>s_name, "health")
-        if player=>w_health < player=>w_maxHealth
-          player=>w_health = min(player=>w_health + item=>p_modifiers=>w_modValue, player=>w_maxHealth)
-          item->b_curUses++
-          if item->b_curUses >= item->b_maxUses // all used up
-            removeFromList(@player=>p_items, item)
-          fin
-        fin
-      else
-        return item // general 'use' handled by outer engine, because it might involve graphics
+def doUse(player, item)
+  if item=>p_modifiers and streqi(item=>p_modifiers=>s_name, "health")
+    if player=>w_health < player=>w_maxHealth
+      player=>w_health = min(player=>w_health + item=>p_modifiers=>w_modValue, player=>w_maxHealth)
+      item->b_curUses++
+      if item->b_curUses >= item->b_maxUses // all used up
+        removeFromList(@player=>p_items, item)
       fin
     fin
   else
-    beep
+    return item // general 'use' handled by outer engine, because it might involve graphics
   fin
 end
 
 // Select an item and drop it. Returns TRUE if anything changed
-def doDrop(player, i_page)
-  word item
-  byte n_item, i
-  if showInventory(player, i_page, TYPE_DROP)
-    rawDisplayStr("\n^T032Which item?")
-    n_item = getUpperKey() - 'A'
-    item = itemNum(player, INV_ROWS * i_page, n_item, TYPE_DROP)
-    if item
-      clearWindow()
-      rawDisplayStr("^T050^LDrop^L\n")
-      for i = 0 to n_item
-        displayChar('\n')
-      next
-      rawDisplayStr("\n^T018")
-      displayStr(item=>s_name)
-      for i = n_item + 3 to INV_ROWS
-        displayChar('\n')
-      next
-      rawDisplayStr("\n^T008Are you sure (Y/N)?")
-      if getYN()
-        i = countList(player=>p_items)
-        removeFromList(@player=>p_items, item)
-        if countList(player=>p_items) <> i - 1
-          displayStr("remove List error!")
-          getUpperKey()
-        fin
-        calcPlayerArmor(player)
-        return TRUE
-      fin
-    fin
-  else
-    beep
+def doDestroy(player, item)
+  clearMenuRect()
+  rawDisplayStr("Destroy ")
+  _displayItemName(item)
+  rawDisplayStr(": Are you sure (Y/N)?")
+  if getYN()
+    removeFromList(@player=>p_items, item)
+    calcPlayerArmor(player)
+    return TRUE
   fin
   return FALSE
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def clearInvRect
   setWindow(BIGWIN_TOP+9, BIGWIN_BOTTOM-10, BIGWIN_LEFT, INV_RT)
-  clearWindow()
-  setWindow(BIGWIN_BOTTOM-10, BIGWIN_BOTTOM, BIGWIN_LEFT, BIGWIN_RIGHT)
   clearWindow()
   setBigWindow()
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def clearMainRect
+  setWindow(BIGWIN_TOP+9, BIGWIN_BOTTOM-10, BIGWIN_LEFT, BIGWIN_RIGHT)
+  clearWindow()
+  setBigWindow()
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def matchEquipped(player, match)
+  word item
+  item = player=>p_items
+  while item
+    if (item->t_type == match->t_type) and (item->t_type == TYPE_WEAPON or item->t_type == TYPE_ARMOR)
+      if (item->b_flags & ITEM_FLAG_EQUIP)
+        if item->t_type <> TYPE_ARMOR or (item=>s_itemKind == match=>s_itemKind)
+          return item
+        fin
+      fin
+    fin
+    item = item=>p_nextObj
+  loop
+  return NULL
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def displayItems(pItem1, pItem2)
+  clearMainRect()
+  showColumnTitle(STATS_COL_1, "Inventory", 0, 0)
+  if pItem2
+    rawDisplayf2("^T%D^LEquipped^L", STATS_COL_2)
+  fin
+  _displayItemStats(pItem1, pItem2)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def interactWithItem(player, item)
+  word comp, quantity
+  byte sel
+  while TRUE
+    displayItems(item, matchEquipped(player, item))
+    showItemMenu(item)
+    sel = getUpperKey()
+    rawDisplayf1(" %c\n", sel)
+    when sel
+      // Equip/unequip player with weapon/armor
+      is 'E'
+      is 'U'
+        doEquip(player, item)
+        break
+      // Use an item
+      is 'U'
+        item = doUse(player, item)
+        if item; return item; fin  // general 'use' handled by outer engine, because it might involve graphics
+        break
+      // Destroy an item
+      is 'D'
+        if doDestroy(player, item); return; fin
+        break
+      is $1B // Esc
+        return NULL
+      otherwise beep
+    wend
+  loop
+end
+
 // Show player sheet and accept command. If using an item (not just for stats gain)
 // the item is returned; else NULL is returned.
-def _doPlayerSheet(num)
+def _doPlayerSheet(player_num)
   word player, item
-  byte i_page, total_items, items_on_pg, redisplay
+  byte i_page, totalItems, itemsOnPage, redisplay, sel
 
   setBigWindow()
 
@@ -380,44 +395,31 @@ def _doPlayerSheet(num)
   i_page = 0
   redisplay = TRUE
   repeat
-    player = numToPlayer(num)
+    player = numToPlayer(player_num)
     if !player; return; fin // Invalid player
     if redisplay
       clearWindow()
       rawDisplayf1("^Y^I %s ^N\n", player=>s_name)
       showStats(player)
       redisplay = FALSE
-      total_items = countList(player=>p_items)
+      totalItems = countList(player=>p_items)
     else
       clearInvRect()
     fin
-    items_on_pg = showInventory(player, i_page, 0)
-    showInvMenu(total_items, i_page, items_on_pg)
+    itemsOnPage = showInventory(player, i_page, 0)
+    showInvMenu(totalItems, i_page, itemsOnPage)
 
     // Get a key, do something
-    when getUpperKey()
+    sel = getUpperKey()
+    rawDisplayf1(" %c\n", sel)
+    when sel
       // Select another player to show
-      is '1'; num = 0; i_page = 0; redisplay = TRUE; break
-      is '2'; num = 1; i_page = 0; redisplay = TRUE; break
-      is '3'; num = 2; i_page = 0; redisplay = TRUE; break
-      //// Equip player with weapon/armor
-      //is 'Q'
-      //  if doEquip(player, i_page); redisplay = TRUE; fin
-      //  break
-      //// Use an item
-      //is 'U'
-      //  item = doUse(player, i_page)
-      //  if item; return item; fin  // general 'use' handled by outer engine, because it might involve graphics
-      //  redisplay = TRUE
-      //  break
-      //// Drop an item
-      //is 'T'
-      //  if doDrop(player, i_page); redisplay = TRUE; fin
-      //  break
-      // Next inventory page
+      is '1'; player_num = 0; i_page = 0; redisplay = TRUE; break
+      is '2'; player_num = 1; i_page = 0; redisplay = TRUE; break
+      is '3'; player_num = 2; i_page = 0; redisplay = TRUE; break
       is '>'
       is 21  // right-arrow
-        if total_items > (i_page + 1) * INV_ROWS
+        if totalItems > (i_page + 1) * INV_ROWS
           i_page++
         fin
         break
@@ -451,7 +453,13 @@ def _doPlayerSheet(num)
         break
       is $1B // Esc
         return
-      otherwise beep
+      otherwise
+        sel = sel - 'A'
+        if sel >= 0 and sel < itemsOnPage
+          interactWithItem(itemByNum(player, sel))
+        else
+          beep
+        fin
     wend
   until 0
 end

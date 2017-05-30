@@ -82,6 +82,7 @@ class A2PackPartitions
     def itemNameToFunc = [:]
     def playerNameToFunc = [:]
 
+    def requiredGlobalScripts = ["New Game", "Help", "Combat win", "Combat intro", "Enemy intro", "Death"]
     def globalScripts = [:]
     def lastSysModule
 
@@ -2065,6 +2066,11 @@ class A2PackPartitions
         dataIn.global.scripts.script.each {
             globalScripts[humanNameToSymbol(it.@name, false)] = countArgs(it)
         }
+        requiredGlobalScripts.each { humanName ->
+            def name = humanNameToSymbol(humanName, false)
+            if (!globalScripts.containsKey(name))
+                globalScripts[name] = 0
+        }
     }
 
     def addResourceDep(fromType, fromName, toType, toName)
@@ -2895,11 +2901,19 @@ end
             replaceIfDiff("build/src/plasma/gs_${name}.pla")
         }
 
-        // There are a couple of required global funcs
-        if (!found.contains("newGame"))
-            throw new Exception("Can't find global new game function")
-        if (!found.contains("help"))
-            throw new Exception("Can't find global help function")
+        // For missing global funcs, generate a warning and a stub
+        requiredGlobalScripts.each { humanName ->
+            def name = humanNameToSymbol(humanName, false)
+            if (!found.contains(name)) {
+                printWarning("missing global function '$humanName'")
+                def gsmod = new ScriptModule()
+                gsmod.packStubGlobal(new File("build/src/plasma/gs_${name}.pla.new"), name)
+                addResourceDep("globalFunc", name, "module", "gs_" + name)
+                replaceIfDiff("build/src/plasma/gs_${name}.pla")
+                globalScripts[name] = 0
+                scripts << [ name: humanName ]
+            }
+        }
     }
 
     def replaceIfDiff(oldFile)
@@ -3296,6 +3310,22 @@ end
         }
 
         /**
+         * Generate a stub for a missing global function.
+         */
+        def packStubGlobal(outFile, humanName)
+        {
+            startScriptFile(outFile)
+
+            def name = humanNameToSymbol(humanName, false)
+            out << "def ${name}()\n"
+            out << "  displayStr(\"Missing script '" << humanName << "'\\n\")\n"
+            out << "end\n\n"
+            out << "return @${name}\n"
+            out << "done\n"
+            out.close()
+        }
+
+        /**
          * Pack scripts from a map. Either the whole map, or optionally just an X and Y
          * bounded section of it.
          */
@@ -3383,6 +3413,15 @@ end
                 }
                 else
                     printWarning "empty statement found; skipping."
+
+                // If the script has a return value, process that.
+                if (proc.value.size() > 0) {
+                    assert proc.value[0].@name == "RETURN"
+                    assert proc.value[0].block.size() == 1
+                    outIndented("return ")
+                    packExpr(proc.value[0].block[0])
+                    out << "\n"
+                }
 
                 // Define all the variables that were mentioned (except the args)
                 out.close()
@@ -3728,6 +3767,15 @@ end
             return blk.@type == "text_getstring" || blk.@type == "text_getcharacter" || blk.@type == "text"
         }
 
+        def packRandomInt(blk)
+        {
+            assert blk.value[0].@name == 'FROM'
+            assert blk.value[1].@name == 'TO'
+            def low = getSingle(blk.value[0].block)
+            def high = getSingle(blk.value[1].block)
+            out << "((rand16() % ("; packExpr(high); out << "-"; packExpr(low); out << "+1))+"; packExpr(low); out << ")"
+        }
+
         def packLogicCompare(blk)
         {
             def op = getSingle(blk.field, "OP").text()
@@ -3810,6 +3858,9 @@ end
             switch (blk.@type) {
                 case 'math_number':
                     out << getSingle(blk.field, "NUM").text().toInteger()
+                    break
+                case 'math_random_int':
+                    packRandomInt(blk)
                     break
                 case 'text_getboolean':
                     out << "getYN()"

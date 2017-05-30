@@ -476,41 +476,20 @@ def startCombat(mapCode)
   setWindow2()
   clearWindow()
 
+  // General intro to the combat situation
+  callGlobalFunc(MOD_GS_COMBAT_INTRO, 0, 0, 0)
+
   // Say who we're fighting
-  when rand16() % 5
-    is 0
-      s = "Uh oh, it's gunna' be one of THOSE days.\n"; break
-    is 1
-      s = "Smells like trouble!\n"; break
-    is 2
-      s = "The hairs on the back of your neck reach for the sky!\n"; break
-    is 3
-      s = "You've got a bad feeling about this...\n"; break
-    otherwise
-      s = "Momma said there'd be days like this!\n"; break
-  wend
+
   displayStr(s)
   p = global=>p_enemyGroups
   while p
     n = countList(p=>p_enemies)
     setPlural(n <> 1)
-    if p=>p_enemies=>r_groupSize == 0
-      displayf1("%s is in a fightin' mood!\n", p=>p_enemies=>s_name)
-    else
-      when rand16() % 5
-        is 0
-          s = "From out of nowhere comes/come %d %s to have their way with you!\n"; break
-        is 1
-          s = "%d nasty %s comes/come to stake their claim on you!\n"; break
-        is 2
-          s = "It's gone from bad to worse, %d %s is/are looking for trouble!\n"; break
-        is 3
-          s = "%d %s is/are sniffing you out, shoulda' bathed last week!\n"; break
-        otherwise
-          s = "You mutter a curse under your breath as you see %d %s approach you with malice!\n"; break
-      wend
-      displayf2(s, n, p=>p_enemies=>s_name)
-    fin
+    puts("Calling enemy intro\n")
+    s = callGlobalFunc(MOD_GS_ENEMY_INTRO, 0, 0, 0)
+    printf1("Intro: %s\n", s)
+    displayf2(s, n, p=>p_enemies=>s_name)
     p = p=>p_nextObj
   loop
 
@@ -584,26 +563,12 @@ def _combat_zoneEncounter(s_encZone)
     p = global=>p_combatFirst
     while p
       if !nPlayersFighting
-        setPortrait(POdeath)
-        when rand16() % 2
-          is 0
-            displayStr("\nYou bought the farm, with your life! Thanks for playing!\n"); break
-          otherwise
-            displayStr("\nDidn't see that coming... to see a fine player like you slaughtered like a common rodent...\n")
-        wend
+        callGlobalFunc(MOD_GS_DEATH, 0, 0, 0)
         return -99  // special code for death
       elsif !nEnemiesFighting
-        setPortrait(POcombatwin)
-        when rand16() % 3
-          is 0
-            displayStr("\nYou survive the ordeal and rifle through the carnage.\n"); break
-          is 1
-            displayStr("\nThat was a close call! You search the ground.\n"); break
-          otherwise
-            displayStr("\nLooks like you live to fight another day!\n"); break
-        wend
+        callGlobalFunc(MOD_GS_COMBAT_WIN, 0, 0, 0)
 	      // Grab the loot
-	      displayf1("And find %d gold pieces!", addGold(collectLoot()))
+	      displayf1("You find %d gold pieces!", addGold(collectLoot()))
         getUpperKey()
         // Note: no need to clear heap -- the caller does that.
         return 1

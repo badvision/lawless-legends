@@ -611,13 +611,16 @@ end
 export asm puts
   +asmPlasm 1
   sta pTmp
+  lda #'!'
+  ldx #1
   sty pTmp+1
+  beq +       ; safety: print '!' instead of null string
   ldy #0
   lda (pTmp),y
   tax
   iny
 - lda (pTmp),y
-  ora #$80
++ ora #$80
   +safeCout
   iny
   dex
@@ -1070,6 +1073,10 @@ export def printf3(str, arg1, arg2, arg3)
   word pos
   word curArg
   word p
+  if !str
+    printChar('!')  // Safety valve for NULL string pointer
+    return
+  fin
   pos = 0
   curArg = @arg1
   while TRUE
@@ -2123,6 +2130,12 @@ def loadEngine(moduleNum)
   flipToPage1()
   mmgr(START_LOAD, 1) // code is in partition 1
   curEngine = mmgr(QUEUE_LOAD, moduleNum<<8 | RES_TYPE_MODULE)
+  // For combat module, pre-load some global funcs
+  if moduleNum == MOD_COMBAT
+    mmgr(QUEUE_LOAD, GS_COMBAT_INTRO<<8 | RES_TYPE_MODULE)
+    mmgr(QUEUE_LOAD, GS_COMBAT_PROMPT<<8 | RES_TYPE_MODULE)
+    mmgr(QUEUE_LOAD, GS_ENEMY_INTRO<<8 | RES_TYPE_MODULE)
+  fin
   mmgr(FINISH_LOAD, 0)
   return curEngine()  // return function table
 end
@@ -2289,7 +2302,7 @@ end
 def help
   flipToPage1()
   setMapWindow(); clearWindow()
-  loadEngine(MOD_GS_HELP)()
+  loadEngine(GS_HELP)()
   returnFromEngine(TRUE)
 end
 

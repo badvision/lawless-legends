@@ -82,7 +82,7 @@ class A2PackPartitions
     def itemNameToFunc = [:]
     def playerNameToFunc = [:]
 
-    def requiredGlobalScripts = ["New Game", "Help", "Combat win", "Combat intro", "Enemy intro", "Death"]
+    def requiredGlobalScripts = ["New Game", "Help", "Combat win", "Combat intro", "Combat prompt", "Enemy intro", "Death"]
     def globalScripts = [:]
     def lastSysModule
 
@@ -2295,7 +2295,7 @@ class A2PackPartitions
             }
         }
         def result = buf.toString()
-        if (result.length() > 15)
+        if (result.length() > 16)
         {
             // PLASMA's compiler has a silent limit on the number of significant
             // characters in a symbol. To make the symbol short enough but still
@@ -3011,7 +3011,10 @@ end
             }
             out.println ""
             modules.each { k, v ->
-                out.println "const MOD_${humanNameToSymbol(k, true)} = ${v.num}"
+                if (humanNameToSymbol(k, true).startsWith("GS_"))
+                    out.println "const ${humanNameToSymbol(k, true)} = ${v.num}"
+                else
+                    out.println "const MOD_${humanNameToSymbol(k, true)} = ${v.num}"
             }
         }
         replaceIfDiff("build/src/plasma/gen_modules.plh")
@@ -3419,7 +3422,7 @@ end
                     assert proc.value[0].@name == "RETURN"
                     assert proc.value[0].block.size() == 1
                     outIndented("return ")
-                    packExpr(proc.value[0].block[0])
+                    packExpr(proc.value[0].block[0], true)
                     out << "\n"
                 }
 
@@ -3585,7 +3588,7 @@ end
             def name = "v_" + humanNameToSymbol(getSingle(blk.field, 'VAR'), false)
             variables << name
             outIndented("$name = ")
-            packExpr(getSingle(getSingle(blk.value).block))
+            packExpr(getSingle(getSingle(blk.value).block), true) // true to intern any strings
             out << "\n"
         }
 
@@ -3728,7 +3731,7 @@ end
             }
 
             // Now generate the code. Pad with zeros to make exactly 3 args
-            outIndented("callGlobalFunc(MOD_GS_${humanNameToSymbol(funcName, true)}")
+            outIndented("callGlobalFunc(GS_${humanNameToSymbol(funcName, true)}")
             (0..<3).each { idx ->
                 out << ", "
                 if (idx < blk.value.size()) {
@@ -3853,7 +3856,7 @@ end
             out << "partyHasPlayer(${escapeString(name)})"
         }
 
-        def packExpr(blk)
+        def packExpr(blk, internString = false)
         {
             switch (blk.@type) {
                 case 'math_number':
@@ -3881,7 +3884,11 @@ end
                     packVarGet(blk)
                     break
                 case 'text':
+                    if (internString)
+                        out << "mmgr(HEAP_INTERN, "
                     out << escapeString(getSingle(blk.field, 'TEXT').text())
+                    if (internString)
+                        out << ")"
                     break
                 case 'interaction_has_item':
                     packHasItem(blk)

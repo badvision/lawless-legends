@@ -212,19 +212,7 @@ def playerCombatChoose(pl)
 
   // Let them know their options
   displayStr("\n")
-  when rand16() % 5
-    is 0
-      displayStr("Think fast!"); break
-    is 1
-      displayStr("Do you:"); break
-    is 2
-      displayStr("Suck it up:"); break
-    is 3
-      displayStr("Options:"); break
-    otherwise
-      displayStr("Decisions, decisions..."); break
-  wend
-
+  callGlobalFunc(GS_COMBAT_PROMPT, 0, 0, 0)
   displayOption('M', "Melee")
   if pWeapon
     if pWeapon->b_clipCurrent
@@ -477,23 +465,19 @@ def startCombat(mapCode)
   clearWindow()
 
   // General intro to the combat situation
-  callGlobalFunc(MOD_GS_COMBAT_INTRO, 0, 0, 0)
+  callGlobalFunc(GS_COMBAT_INTRO, 0, 0, 0)
 
   // Say who we're fighting
-
-  displayStr(s)
   p = global=>p_enemyGroups
   while p
     n = countList(p=>p_enemies)
     setPlural(n <> 1)
-    puts("Calling enemy intro\n")
-    s = callGlobalFunc(MOD_GS_ENEMY_INTRO, 0, 0, 0)
-    printf1("Intro: %s\n", s)
+    s = callGlobalFunc(GS_ENEMY_INTRO, 0, 0, 0)
     displayf2(s, n, p=>p_enemies=>s_name)
     p = p=>p_nextObj
   loop
 
-  rawDisplayStr("\nDo you:\n")
+  rawDisplayStr("\n\nDo you:\n")
   displayOption('B', "Battle")
   displayOption('F', "Flee")
   while TRUE
@@ -563,10 +547,10 @@ def _combat_zoneEncounter(s_encZone)
     p = global=>p_combatFirst
     while p
       if !nPlayersFighting
-        callGlobalFunc(MOD_GS_DEATH, 0, 0, 0)
+        callGlobalFunc(GS_DEATH, 0, 0, 0)
         return -99  // special code for death
       elsif !nEnemiesFighting
-        callGlobalFunc(MOD_GS_COMBAT_WIN, 0, 0, 0)
+        callGlobalFunc(GS_COMBAT_WIN, 0, 0, 0)
 	      // Grab the loot
 	      displayf1("You find %d gold pieces!", addGold(collectLoot()))
         getUpperKey()

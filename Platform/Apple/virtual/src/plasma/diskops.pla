@@ -268,7 +268,7 @@ def newGame()
   global->b_curAvatar = 0
   mmgr(START_LOAD, 1) // players module and new game module both in partition 1
   playersModule = mmgr(QUEUE_LOAD, MOD_GEN_PLAYERS<<8 | RES_TYPE_MODULE)
-  newGameModule = mmgr(QUEUE_LOAD, MOD_GS_NEW_GAME<<8 | RES_TYPE_MODULE)
+  newGameModule = mmgr(QUEUE_LOAD, GS_NEW_GAME<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
   playersModule()=>makeInitialParty()
   newGameModule()()

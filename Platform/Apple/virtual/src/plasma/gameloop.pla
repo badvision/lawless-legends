@@ -2230,9 +2230,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def playerDeath()
-  displayStr("\nYou have died. Press any key to reload.")
-  setPortrait(POdeath)
-  getUpperKey()
+  callGlobalFunc(GS_DEATH, 0, 0, 0)
   startGame(FALSE) // don't ask, just load
 end
 

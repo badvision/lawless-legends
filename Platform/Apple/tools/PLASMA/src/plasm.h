@@ -7,14 +7,19 @@
  * ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-extern char *statement, *scanpos, *tokenstr;
-extern t_token scantoken, prevtoken;
-extern int tokenlen;
-extern long constval;
-extern char inputline[];
-void parse_error(const char *errormsg);
-void parse_warn(const char *warnmsg);
-int next_line(void);
-void scan_rewind(char *backptr);
-int scan_lookahead(void);
-t_token scan(void);
+/*
+ * Global flags.
+ */
+#define ACME            (1<<0)
+#define MODULE          (1<<1)
+#define OPTIMIZE        (1<<2)
+#define BYTECODE_SEG    (1<<3)
+#define INIT            (1<<4)
+#define SYSFLAGS        (1<<5)
+#define WARNINGS        (1<<6)
+extern int outflags;
+#include "tokens.h"
+#include "lex.h"
+#include "symbols.h"
+#include "parse.h"
+#include "codegen.h"

@@ -1,14 +1,4 @@
 /*
- * Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1 
- * (the "License"); you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-1.1>.
- * Unless required by applicable law or agreed to in writing, software distributed under 
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF 
- * ANY KIND, either express or implied. See the License for the specific language 
- * governing permissions and limitations under the License.
- */
-
-/*
  * Symbol table types.
  */
 #define GLOBAL_TYPE     (0)
@@ -20,7 +10,7 @@
 #define DEF_TYPE        (1 << 4)
 #define BRANCH_TYPE     (1 << 5)
 #define LOCAL_TYPE      (1 << 6)
-#define EXTERN_TYPE		(1 << 7)
+#define EXTERN_TYPE     (1 << 7)
 #define ADDR_TYPE       (VAR_TYPE | FUNC_TYPE | EXTERN_TYPE)
 #define WPTR_TYPE       (1 << 8)
 #define BPTR_TYPE       (1 << 9)
@@ -28,8 +18,16 @@
 #define STRING_TYPE     (1 << 10)
 #define TAG_TYPE        (1 << 11)
 #define EXPORT_TYPE     (1 << 12)
-#define PREDEF_TYPE		(1 << 13)
+#define PREDEF_TYPE     (1 << 13)
 #define FUNC_TYPE       (ASM_TYPE | DEF_TYPE | PREDEF_TYPE)
+#define FUNC_PARMS      (0x0F << 16)
+#define FUNC_VALS       (0x0F << 20)
+#define FUNC_PARMVALS   (FUNC_PARMS|FUNC_VALS)
+#define funcparms_type(p) (((p)&0x0F)<<16)
+#define funcparms_cnt(t) (((t)>>16)&0x0F)
+#define funcvals_type(v) (((v)&0x0F)<<20)
+#define funcvals_cnt(t) (((t)>>20)&0x0F)
+
 int id_match(char *name, int len, char *id);
 int idlocal_lookup(char *name, int len);
 int idglobal_lookup(char *name, int len);
@@ -37,6 +35,7 @@ int idconst_lookup(char *name, int len);
 int idlocal_add(char *name, int len, int type, int size);
 int idglobal_add(char *name, int len, int type, int size);
 int id_add(char *name, int len, int type, int size);
+void idlocal_reset(void);
 int idfunc_set(char *name, int len, int type, int tag);
 int idfunc_add(char *name, int len, int type, int tag);
 int idconst_add(char *name, int len, int value);

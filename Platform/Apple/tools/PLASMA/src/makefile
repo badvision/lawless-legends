@@ -6,7 +6,7 @@ PLVM02	= PLVM02\#4000
 CMD     = CMD\#FF2000
 PLASM   = plasm
 JAR     = $(PLASM).jar
-INCS    = tokens.h symbols.h lex.h parse.h codegen.h
+INCS    = plasm.h tokens.h symbols.h lex.h parse.h codegen.h
 SRCS	= plasm.c parse.c lex.c codegen.c
 #
 # Image filetypes for Virtual ][

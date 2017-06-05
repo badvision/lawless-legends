@@ -35,7 +35,7 @@
            relative="true" parallel="false" failonerror="true" verbose="true"
            addsourcefile="false">
       <fileset dir="${src.dir}" includes="*.pla" excludes="heaptest*,playtype*"/>
-      <arg value="-AM"/>
+      <arg value="-AMW"/>
       <redirector logError="yes">
         <!-- redirect STDIN; fileset collects relative to its dir, but we need -->
         <!-- relative to basedir -->

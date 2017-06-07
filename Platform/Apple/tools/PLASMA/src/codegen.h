@@ -74,7 +74,7 @@ typedef struct _opseq {
 #define gen_uop(seq,op)     gen_seq(seq,UNARY_CODE(op),0,0,0,0)
 #define gen_op(seq,op)      gen_seq(seq,BINARY_CODE(op),0,0,0,0)
 #define gen_const(seq,val)  gen_seq(seq,CONST_CODE,val,0,0,0)
-#define gen_str(seq,str,len) gen_seq(seq,STR_CODE,str,0,len,0)
+#define gen_str(seq,str)    gen_seq(seq,STR_CODE,str,0,0,0)
 #define gen_lcladr(seq,idx) gen_seq(seq,LADDR_CODE,0,0,idx,0)
 #define gen_gbladr(seq,tag,typ) gen_seq(seq,GADDR_CODE,0,tag,0,typ)
 #define gen_idxb(seq)       gen_seq(seq,ADD_CODE,0,0,0,0)
@@ -103,7 +103,7 @@ void emit_idconst(char *name, int value);
 int emit_data(int vartype, int consttype, long constval, int constsize);
 void emit_codetag(int tag);
 void emit_const(int cval);
-void emit_conststr(long conststr, int strsize);
+void emit_conststr(long conststr);
 void emit_lb(void);
 void emit_lw(void);
 void emit_llb(int index);

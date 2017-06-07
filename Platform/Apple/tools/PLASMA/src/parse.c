@@ -229,7 +229,7 @@ int parse_constval(void)
         case CLOSE_PAREN_TOKEN:
             break;
         case STRING_TOKEN:
-            size  = tokenlen - 1;
+            size  = 1;
             value = constval;
             type  = STRING_TYPE;
             if (mod)
@@ -421,7 +421,7 @@ t_opseq *parse_value(t_opseq *codeseq, int rvalue, int *stackdepth)
         /*
          * This is a special case. Just emit the string and return
          */
-        codeseq = gen_str(codeseq, constval, tokenlen - 1);
+        codeseq = gen_str(codeseq, constval);
         scan();
         return (codeseq);
     }

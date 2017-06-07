@@ -482,7 +482,7 @@ void emit_idconst(char *name, int value)
 int emit_data(int vartype, int consttype, long constval, int constsize)
 {
     int datasize, i;
-    char *str;
+    unsigned char *str;
     if (consttype == 0)
     {
         datasize = constsize;
@@ -490,9 +490,10 @@ int emit_data(int vartype, int consttype, long constval, int constsize)
     }
     else if (consttype & STRING_TYPE)
     {
-        datasize = constsize;
-        str = (char *)constval;
-        printf("\t%s\t$%02X\n", DB, --constsize);
+        str = (unsigned char *)constval;
+        constsize = *str++;
+        datasize = constsize + 1;
+        printf("\t%s\t$%02X\n", DB, constsize);
         while (constsize-- > 0)
         {
             printf("\t%s\t$%02X", DB, *str++);
@@ -555,10 +556,10 @@ void emit_const(int cval)
     else
         printf("\t%s\t$2C,$%02X,$%02X\t\t; CW\t%d\n", DB, cval&0xFF,(cval>>8)&0xFF, cval);
 }
-void emit_conststr(long conststr, int strsize)
+void emit_conststr(long conststr)
 {
     printf("\t%s\t$2E\t\t\t; CS\n", DB);
-    emit_data(0, STRING_TYPE, conststr, strsize);
+    emit_data(0, STRING_TYPE, conststr, 0);
 }
 void emit_lb(void)
 {
@@ -1264,7 +1265,7 @@ int emit_seq(t_opseq *seq)
                 emit_const(op->val);
                 break;
             case STR_CODE:
-                emit_conststr(op->val, op->offsz);
+                emit_conststr(op->val);
                 break;
             case LB_CODE:
                 emit_lb();

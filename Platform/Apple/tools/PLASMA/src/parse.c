@@ -496,7 +496,7 @@ t_opseq *parse_value(t_opseq *codeseq, int rvalue, int *stackdepth)
             }
             else
                 scan_rewind(tokenstr);
-            if (cfnparms && (cfnparms != value))
+            if ((type & FUNC_TYPE) && (cfnparms != value))
                 parse_warn("Parameter count mismatch");
             if (stackdepth)
                 *stackdepth = cfnvals + cfnparms - value;

@@ -1018,9 +1018,9 @@ class A2PackPartitions
             return
         }
 
-        // Look for the magic header 0xDA7E =~ "DAVE"
+        // Look for the magic header 0xDA7F =~ "DAVE"+1
         assert (buf[3] & 0xFF) == 0xDA
-        assert (buf[2] & 0xFF) == 0x7E
+        assert (buf[2] & 0xFF) == 0x7F
 
         // Determine offsets
         def asmCodeStart = 12

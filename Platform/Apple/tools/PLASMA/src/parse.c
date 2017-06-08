@@ -1362,6 +1362,7 @@ int parse_vars(int type)
                         parse_error("Invalid def return value count");
                         return (0);
                     }
+                    scan();
                 }
                 type |= funcparms_type(cfnparms) | funcvals_type(cfnvals);
                 idfunc_add(idstr, idlen, type, tag_new(type));
@@ -1371,6 +1372,7 @@ int parse_vars(int type)
                     {
                         idstr = tokenstr;
                         idlen = tokenlen;
+                        type &= ~FUNC_PARMVALS;
                         cfnparms = 0;
                         cfnvals  = 1; // Default to one return value for compatibility
                         if (scan() == OPEN_PAREN_TOKEN)
@@ -1397,6 +1399,7 @@ int parse_vars(int type)
                                 parse_error("Invalid def return value count");
                                 return (0);
                             }
+                            scan();
                         }
                         type |= funcparms_type(cfnparms) | funcvals_type(cfnvals);
                         idfunc_add(idstr, idlen, type, tag_new(type));
@@ -1606,6 +1609,7 @@ int parse_defs(void)
                 parse_error("Invalid def return value count");
                 return (0);
             }
+            scan();
         }
         type |= funcparms_type(cfnparms) | funcvals_type(infuncvals);
         if (idglobal_lookup(idstr, idlen) >= 0)
@@ -1627,8 +1631,8 @@ int parse_defs(void)
             func_tag = tag_new(type);
             idfunc_add(idstr, idlen, type, func_tag);
         }
-        c = tokenstr[idlen];
-        tokenstr[idlen] = '\0';
+        c = idstr[idlen];
+        idstr[idlen] = '\0';
         emit_idfunc(func_tag, type, idstr, 0);
         idstr[idlen] = c;
         do

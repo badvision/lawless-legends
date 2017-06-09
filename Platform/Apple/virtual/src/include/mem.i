@@ -471,15 +471,10 @@ HEAP_COLLECT = $24
     ldy #nArgs
     jsr _asmPlasm
 }
-!macro asmPlasm_bank2 nArgs {
-    ldy #nArgs
-    jsr _asmPlasm_bank2
-}
 _asmPlasm = auxLoader+3
-_asmPlasm_bank2 = _asmPlasm+3
 
 ; Debug support routines (defined in core/mem.s)
-_safeBell   = _asmPlasm_bank2+3
+_safeBell   = _asmPlasm+3
 _safeCout   = _safeBell+3
 _safePrbyte = _safeCout+3
 _safeHome   = _safePrbyte+3

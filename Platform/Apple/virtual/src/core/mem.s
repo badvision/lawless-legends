@@ -316,7 +316,6 @@ loMemBegin: !pseudopc $800 {
 	jmp j_main_dispatch
 	jmp j_aux_dispatch
 	jmp __asmPlasm
-	jmp __asmPlasm_bank2
 
 ; Vectors for debug macros
 	jmp __safeBell
@@ -460,10 +459,9 @@ disk_rewind: !zone
 ; 5. Restore PLASMA's X register, and advance it over the parameter(s)
 ; 6. Store A=lo/Y=hi into PLASMA return value
 ; 7. Return to PLASMA
-__asmPlasm_bank2:
+__asmPlasm:
 	bit setLcRW+lcBank2
 	bit setLcRW+lcBank2
-__asmPlasm: !zone
 	cpx #$11
 	bcs .badx	; X must be in range 0..$10
 	; adjust PLASMA stack pointer to skip over params

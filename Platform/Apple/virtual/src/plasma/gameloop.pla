@@ -782,7 +782,7 @@ end
 // Set up the font engine
 // Params: pFont
 asm setFont
-  +asmPlasm_bank2 1
+  +asmPlasm 1
   jmp SetFont
 end
 
@@ -790,21 +790,21 @@ end
 // Use the font engine to clear the current text window.
 // Parameters: top, bottom, left, right
 export asm setWindow
-  +asmPlasm_bank2 4
+  +asmPlasm 4
   jmp SetWindow
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Save the cursor position (1 save slot)
 asm saveCursor
-  +asmPlasm_bank2 0
+  +asmPlasm 0
   jmp SaveCursor
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Restore the cursor position (1 save slot)
 asm restoreCursor
-  +asmPlasm_bank2 0
+  +asmPlasm 0
   jmp RestCursor
 end
 
@@ -812,7 +812,7 @@ end
 // Read a keyboard string up to 40 chars using the Font Engine. Returns a zero-terminated string
 // in the input buffer at $200, with the length stored in $2FF.
 asm rawGetStr
-  +asmPlasm_bank2 0
+  +asmPlasm 0
   jmp GetStr
 end
 
@@ -820,7 +820,7 @@ end
 // Use the font engine to clear the current text window
 // Params: None
 export asm clearWindow
-  +asmPlasm_bank2 0
+  +asmPlasm 0
   jmp ClearWindow
 end
 
@@ -828,7 +828,7 @@ end
 // Use the font engine to copy the current text window to hi-res page 2
 // Params: None
 asm copyWindow
-  +asmPlasm_bank2 0
+  +asmPlasm 0
   jmp CopyWindow
 end
 
@@ -836,7 +836,7 @@ end
 // Display a character using the font engine.
 // Params: ch
 export asm displayChar
-  +asmPlasm_bank2 1
+  +asmPlasm 1
   jmp DisplayChar
 end
 
@@ -844,7 +844,7 @@ end
 // Display a string using the font engine.
 // Params: pStr
 export asm displayStr
-  +asmPlasm_bank2 1
+  +asmPlasm 1
   jmp DisplayStr
 end
 
@@ -852,14 +852,14 @@ end
 // Calculate string width using the font engine.
 // Params: pStr
 export asm calcWidth
-  +asmPlasm_bank2 1
+  +asmPlasm 1
   jmp CalcWidth
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Get the address of the given hi-res screen line
 export asm getScreenLine
-  +asmPlasm_bank2 1
+  +asmPlasm 1
   jmp GetScreenLine
 end
 
@@ -867,7 +867,7 @@ end
 // Display a string using the font engine but not its parser.
 // Params: pStr
 export asm rawDisplayStr
-  +asmPlasm_bank2 1
+  +asmPlasm 1
   sta pTmp
   sty pTmp+1
   ldy #0

@@ -12,17 +12,17 @@ import gamelib
 
   //////////// Shared library routines ////////////
   // Let's try to keep these predef's in lexical order
-  predef addEncounterZone
-  predef addGold
-  predef addPlayerToParty
-  predef addToList
-  predef addToString
-  predef addUnique
-  predef auxMmgr
-  predef beep
-  predef benchPlayer
-  predef brk
-  predef buildString
+  predef addEncounterZone(code, x, y, dist, chance)#0
+  predef addGold(amount)
+  predef addPlayerToParty(playerFuncNum)#0
+  predef addToList(addTo, p)#0
+  predef addToString(str)
+  predef addUnique(pList, p_thing)
+  predef auxMmgr(cmd, param)
+  predef beep()
+  predef benchPlayer()
+  predef brk()
+  predef buildString(pFunc)
   predef buySell
   predef calcPlayerArmor
   predef calcWidth
@@ -36,9 +36,9 @@ import gamelib
   predef countList
   predef countListFiltered
   predef displayChar
-  predef displayf1
-  predef displayf2
-  predef displayf3
+  predef displayf1(fmt, arg1)#0
+  predef displayf2(fmt, arg1, arg2)#0
+  predef displayf3(fmt, arg1, arg2, arg3)#0
   predef displayStr
   predef encodeDice
   predef fatal
@@ -69,20 +69,20 @@ import gamelib
   predef pause
   predef payGold
   predef playerHasItem
-  predef printf1
-  predef printf2
-  predef printf3
-  predef printHex
-  predef puts
+  predef printf1(fmt, arg1)#0
+  predef printf2(fmt, arg1, arg2)#0
+  predef printf3(fmt, arg1, arg2, arg3)#0
+  predef printHex(num)
+  predef puts(str)
   predef queue_setMap
   predef queue_teleport
   predef rand16
   predef randomFromArray
   predef randomFromListFiltered
-  predef rawDisplayf1
-  predef rawDisplayf2
-  predef rawDisplayf3
-  predef rawDisplayStr
+  predef rawDisplayf1(fmt, arg1)#0
+  predef rawDisplayf2(fmt, arg1, arg2)#0
+  predef rawDisplayf3(fmt, arg1, arg2, arg3)#0
+  predef rawDisplayStr(str)
   predef rdkey
   predef readStr
   predef reboot
@@ -117,9 +117,9 @@ import gamelib
   predef setWindow3
   predef showMapName
   predef showParty
-  predef sprintf1
-  predef sprintf2
-  predef sprintf3
+  predef sprintf1(fmt, arg1)
+  predef sprintf2(fmt, arg1, arg2)
+  predef sprintf3(fmt, arg1, arg2, arg3)
   predef streqi
   predef strncpy
   predef takeItemFromPlayer

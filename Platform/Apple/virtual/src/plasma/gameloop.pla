@@ -1069,7 +1069,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a formatted string a'la C printf, with up to three parameters.
-export def printf3(str, arg1, arg2, arg3)
+export def printf3(str, arg1, arg2, arg3)#0
   word pos
   word curArg
   word p
@@ -1106,18 +1106,18 @@ export def printf3(str, arg1, arg2, arg3)
   loop
 end
 
-export def printf1(str, arg1); printf3(str, arg1, 0, 0); end
-export def printf2(str, arg1, arg2); printf3(str, arg1, arg2, 0); end
+export def printf1(str, arg1)#0; printf3(str, arg1, 0, 0); end
+export def printf2(str, arg1, arg2)#0; printf3(str, arg1, arg2, 0); end
 
 // Like printf, but displays text using font engine
-export def displayf3(str, arg1, arg2, arg3)
+export def displayf3(str, arg1, arg2, arg3)#0
   buildString(@addToString)
   printf3(str, arg1, arg2, arg3)
   displayStr(finishString(isPlural))
 end
 
-export def displayf1(str, arg1); displayf3(str, arg1, 0, 0); end
-export def displayf2(str, arg1, arg2); displayf3(str, arg1, arg2, 0); end
+export def displayf1(str, arg1)#0; displayf3(str, arg1, 0, 0); end
+export def displayf2(str, arg1, arg2)#0; displayf3(str, arg1, arg2, 0); end
 
 // Like printf, but buffers string in $200
 export def sprintf3(str, arg1, arg2, arg3)
@@ -1130,9 +1130,9 @@ export def sprintf1(str, arg1); return sprintf3(str, arg1, 0, 0); end
 export def sprintf2(str, arg1, arg2); return sprintf3(str, arg1, arg2, 0); end
 
 // Like printf, but displays text using font engine
-export def rawDisplayf1(str, arg1); rawDisplayStr(sprintf3(str, arg1, 0, 0)); end
-export def rawDisplayf2(str, arg1, arg2); rawDisplayStr(sprintf3(str, arg1, arg2, 0)); end
-export def rawDisplayf3(str, arg1, arg2, arg3); rawDisplayStr(sprintf3(str, arg1, arg2, arg3)); end
+export def rawDisplayf1(str, arg1)#0; rawDisplayStr(sprintf3(str, arg1, 0, 0)); end
+export def rawDisplayf2(str, arg1, arg2)#0; rawDisplayStr(sprintf3(str, arg1, arg2, 0)); end
+export def rawDisplayf3(str, arg1, arg2, arg3)#0; rawDisplayStr(sprintf3(str, arg1, arg2, arg3)); end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def parseDec(str)
@@ -2079,7 +2079,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Call like this: addToList(@player=>p_items, itemToAdd)
-export def addToList(addTo, p)
+export def addToList(addTo, p)#0
   // Get to the end of the list
   while *addTo
     addTo = (*addTo) + p_nextObj
@@ -2204,7 +2204,7 @@ def showPlayer3()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def addEncounterZone(code, x, y, dist, chance)
+export def addEncounterZone(code, x, y, dist, chance)#0
   word p
   if allowZoneInit
     p = mmgr(HEAP_ALLOC, TYPE_ENCOUNTER_ZONE)
@@ -2599,7 +2599,7 @@ export def giveItemToPlayer(p_player, itemFuncNum)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def addPlayerToParty(playerFuncNum)
+export def addPlayerToParty(playerFuncNum)#0
   word p
   if countList(global=>p_players) == MAX_PARTY
     displayStr("Party too large.")

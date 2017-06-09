@@ -28,7 +28,7 @@ all: $(PLASM) $(JAR) $(PLVM) $(PLVM02) $(CMD)
 vm: $(PLVM) $(PLVM02)
 
 clean:
-	-rm *.o *~ *.a *FE1000 $(PLVM02) $(CMD) $(PLASM) $(PLVM)
+	-rm -f *.o *.jar *~ *.a *FE1000 $(PLVM02) $(CMD) $(PLASM) $(PLVM)
 
 jar: $(JAR)
 

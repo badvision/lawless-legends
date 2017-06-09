@@ -1692,13 +1692,15 @@ class A2PackPartitions
             System.err = prevStderr
             System.setProperty("user.dir", prevUserDir)
         }
+        def errStr = errBuf.toString("UTF-8")
         if (result != 0) {
-            def errStr = errBuf.toString("UTF-8")
             if (errStr.length() > 0)
                 errStr = "\nError output:\n" + errStr + "-----\n"
             throw new Exception(
                 "$programName (cd $inDir && ${args.join(' ')}) < $inFile > $outFile failed with code $result." + errStr)
         }
+        else if (errStr.length() > 0)
+            println("$programName (cd $inDir && ${args.join(' ')}) < $inFile > $outFile generated warning(s):" + errStr)
     }
 
     /**

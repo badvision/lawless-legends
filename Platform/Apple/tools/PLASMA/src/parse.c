@@ -229,7 +229,7 @@ int parse_constval(void)
         case CLOSE_PAREN_TOKEN:
             break;
         case STRING_TOKEN:
-            size  = tokenlen - 1;
+            size  = 1;
             value = constval;
             type  = STRING_TYPE;
             if (mod)
@@ -421,7 +421,7 @@ t_opseq *parse_value(t_opseq *codeseq, int rvalue, int *stackdepth)
         /*
          * This is a special case. Just emit the string and return
          */
-        codeseq = gen_str(codeseq, constval, tokenlen - 1);
+        codeseq = gen_str(codeseq, constval);
         scan();
         return (codeseq);
     }
@@ -496,7 +496,7 @@ t_opseq *parse_value(t_opseq *codeseq, int rvalue, int *stackdepth)
             }
             else
                 scan_rewind(tokenstr);
-            if (cfnparms && (cfnparms != value))
+            if ((type & FUNC_TYPE) && (cfnparms != value))
                 parse_warn("Parameter count mismatch");
             if (stackdepth)
                 *stackdepth = cfnvals + cfnparms - value;
@@ -775,6 +775,7 @@ int parse_stmnt(void)
     int tag_prevbrk, tag_prevcnt, tag_else, tag_endif, tag_while, tag_wend, tag_repeat, tag_for, tag_choice, tag_of;
     int type, addr, step, cfnvals;
     char *idptr;
+    t_opseq *seq;
 
     /*
      * Optimization for last function LEAVE and OF clause.
@@ -784,14 +785,15 @@ int parse_stmnt(void)
     switch (scantoken)
     {
         case IF_TOKEN:
-            if (!emit_seq(parse_expr(NULL, NULL)))
+            if (!(seq = parse_expr(NULL, NULL)))
             {
                 parse_error("Bad expression");
                 return (0);
             }
             tag_else  = tag_new(BRANCH_TYPE);
             tag_endif = tag_new(BRANCH_TYPE);
-            emit_brfls(tag_else);
+            seq = gen_brfls(seq, tag_else);
+            emit_seq(seq);
             scan();
             do
             {
@@ -800,13 +802,14 @@ int parse_stmnt(void)
                     break;
                 emit_brnch(tag_endif);
                 emit_codetag(tag_else);
-                if (!emit_seq(parse_expr(NULL, NULL)))
+                if (!(seq = parse_expr(NULL, NULL)))
                 {
                     parse_error("Bad expression");
                     return (0);
                 }
                 tag_else = tag_new(BRANCH_TYPE);
-                emit_brfls(tag_else);
+                seq = gen_brfls(seq, tag_else);
+                emit_seq(seq);
             } while (1);
             if (scantoken == ELSE_TOKEN)
             {
@@ -835,13 +838,14 @@ int parse_stmnt(void)
             tag_prevbrk = break_tag;
             break_tag   = tag_wend;
             emit_codetag(tag_while);
-            if (!emit_seq(parse_expr(NULL, NULL)))
+            if (!(seq = parse_expr(NULL, NULL)))
             {
                 parse_error("Bad expression");
                 return (0);
             }
-            emit_brfls(tag_wend);
-            while (parse_stmnt()) next_line();
+            seq = gen_brfls(seq, tag_wend);
+            emit_seq(seq);
+                while (parse_stmnt()) next_line();
             if (scantoken != LOOP_TOKEN)
             {
                 parse_error("Missing WHILE/END");
@@ -868,12 +872,13 @@ int parse_stmnt(void)
             }
             emit_codetag(cont_tag);
             cont_tag = tag_prevcnt;
-            if (!emit_seq(parse_expr(NULL, NULL)))
+            if (!(seq = parse_expr(NULL, NULL)))
             {
                 parse_error("Bad expression");
                 return (0);
             }
-            emit_brfls(tag_repeat);
+            seq = gen_brfls(seq, tag_repeat);
+            emit_seq(seq);
             emit_codetag(break_tag);
             break_tag = tag_prevbrk;
             break;
@@ -1357,6 +1362,7 @@ int parse_vars(int type)
                         parse_error("Invalid def return value count");
                         return (0);
                     }
+                    scan();
                 }
                 type |= funcparms_type(cfnparms) | funcvals_type(cfnvals);
                 idfunc_add(idstr, idlen, type, tag_new(type));
@@ -1366,6 +1372,7 @@ int parse_vars(int type)
                     {
                         idstr = tokenstr;
                         idlen = tokenlen;
+                        type &= ~FUNC_PARMVALS;
                         cfnparms = 0;
                         cfnvals  = 1; // Default to one return value for compatibility
                         if (scan() == OPEN_PAREN_TOKEN)
@@ -1392,6 +1399,7 @@ int parse_vars(int type)
                                 parse_error("Invalid def return value count");
                                 return (0);
                             }
+                            scan();
                         }
                         type |= funcparms_type(cfnparms) | funcvals_type(cfnvals);
                         idfunc_add(idstr, idlen, type, tag_new(type));
@@ -1601,6 +1609,7 @@ int parse_defs(void)
                 parse_error("Invalid def return value count");
                 return (0);
             }
+            scan();
         }
         type |= funcparms_type(cfnparms) | funcvals_type(infuncvals);
         if (idglobal_lookup(idstr, idlen) >= 0)
@@ -1622,8 +1631,8 @@ int parse_defs(void)
             func_tag = tag_new(type);
             idfunc_add(idstr, idlen, type, func_tag);
         }
-        c = tokenstr[idlen];
-        tokenstr[idlen] = '\0';
+        c = idstr[idlen];
+        idstr[idlen] = '\0';
         emit_idfunc(func_tag, type, idstr, 0);
         idstr[idlen] = c;
         do

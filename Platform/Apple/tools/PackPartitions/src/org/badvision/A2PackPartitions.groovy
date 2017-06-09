@@ -1899,7 +1899,7 @@ class A2PackPartitions
         if (verbose)
             println "Compiling ${moduleName}.pla"
         System.out.flush()
-        String[] args = ["plasm", "-AM"]
+        String[] args = ["plasm", "-AMOW"]
         new File(codeDir + "build").mkdir()
         runNestedvm(plasma.Plasma.class,  "PLASMA compiler", args, codeDir,
             new File(codeDir + moduleName + ".pla"),

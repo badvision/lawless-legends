@@ -3974,7 +3974,8 @@ end
             def facing = blk.field[3].text().toInteger()
             assert facing >= 0 && facing <= 15
 
-            outIndented("return queue_setMap(${mapNum[0] == '2D' ? 0 : 1}, ${mapNum[1]}, $x, $y, $facing)\n")
+            outIndented("queue_setMap(${mapNum[0] == '2D' ? 0 : 1}, ${mapNum[1]}, $x, $y, $facing)\n")
+            outIndented("return 0\n")
         }
 
         def packSetPortrait(blk)

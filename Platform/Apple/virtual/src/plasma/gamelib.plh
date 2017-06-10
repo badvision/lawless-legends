@@ -49,7 +49,7 @@ import gamelib
   predef getDir()
   predef getGameFlag
   predef getPos(px, py)#0
-  predef getStat
+  predef getStat(player, statName)
   predef getStringResponse
   predef getUpperKey
   predef getYN
@@ -110,11 +110,11 @@ import gamelib
   predef setPortrait
   predef setScriptInfo(mapName, trigTbl, wdt, hgt)#0
   predef setSky(num)#0
-  predef setStat
+  predef setStat(player, statName, val)#0
   predef setWindow
-  predef setWindow1
-  predef setWindow2
-  predef setWindow3
+  predef setWindow1()#0
+  predef setWindow2()#0
+  predef setWindow3()#0
   predef showMapName
   predef showParty
   predef sprintf1(fmt, arg1)
@@ -124,7 +124,7 @@ import gamelib
   predef strncpy
   predef takeItemFromPlayer
   predef textHome
-  predef tossStrings
+  predef tossStrings()#0
   predef unbenchPlayer
 
   // This pointer is the root of all heap-tracked (and garbage collected) objects.

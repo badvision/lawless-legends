@@ -49,8 +49,19 @@ export word global  // the global heap object, from which all live objects must 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Predefined functions, for circular calls or out-of-order calls
-predef setWindow2, initCmds, nextAnimFrame, checkEncounter, doCombat, clearPortrait, showMapName
-predef doRender, playerDeath, startGame, showAnimFrame, finalWin, showParty
+predef setWindow2()#0
+predef initCmds()#0
+predef nextAnimFrame()#0
+predef checkEncounter(x, y, force)#0
+predef doCombat(mapCode, backUpOnFlee)
+predef clearPortrait()#0
+predef showMapName(mapName)#0
+predef doRender()#0
+predef playerDeath()#0
+predef startGame(ask)#0
+predef showAnimFrame()#0
+predef finalWin()#0
+predef showParty()#0
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Global variables
@@ -163,18 +174,17 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Temporary hack: after scriptDisplayStr is called, generated code calls this to clear the PLASMA
 // string pool. That way, many long strings can be used in a single function.
-export asm tossStrings
+export asm tossStrings#0
   lda framePtr
   sta outerFramePtr
   lda framePtr+1
   sta outerFramePtr+1
-  dex
   rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // API to call rendering engine (same API for raycaster and tile engine)
-asm initDisplay#0   // params: mapNum, pMapData, x, y, dir
+asm initDisplay(mapNum, pMapData, x, y, dir)#0
   +asmPlasmNoRet 6
   jmp $6000
 end
@@ -194,8 +204,8 @@ export asm getDir       // no params; returns: dir (0-15)
   +asmPlasmRet 0
   jmp $600C
 end
-asm setDir       // params: dir (0-15)
-  +asmPlasmRet 1
+asm setDir#0       // params: dir (0-15)
+  +asmPlasmNoRet 1
   jmp $600F
 end
 asm advance      // no params; return: 0 if same pos, 1 if new pos, 2 if new pos and scripted
@@ -1319,21 +1329,21 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the map name bar
-export def setWindow1()
+export def setWindow1()#0
   setWindow(8, 17, 35, 119) // Top, Bottom, Left, Right
   mapNameHash = 0  // on the assumption that it's being set because somebody's going to print there
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the large upper right bar
-export def setWindow2()
+export def setWindow2()#0
   displayChar('N'-$40) // Set normal mode - clear all special modes (like underline, etc.)
   setWindow(24, 132, 154, 267) // Top, Bottom, Left, Right
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the mid-size lower right bar
-export def setWindow3()
+export def setWindow3()#0
   setWindow(144, 180, 154, 267) // Top, Bottom, Left, Right
 end
 
@@ -1393,7 +1403,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display the party data on the screen
-export def showParty()
+export def showParty()#0
   word p
 
   saveCursor()
@@ -1598,7 +1608,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display a portrait drawing (typically called from scripts)
-export def clearPortrait()
+export def clearPortrait()#0
   if curPortrait
     auxMmgr(FREE_MEMORY, curPortrait)
     curPortrait = NULL
@@ -1614,7 +1624,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Perform rendering, copy if necessary, clear appropriate flags
-def doRender()
+def doRender()#0
   if curPortrait; clearPortrait(); fin
   if !texturesLoaded
     if mapIs3D
@@ -1846,7 +1856,7 @@ def hashString(str)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def showMapName(mapName)
+export def showMapName(mapName)#0
   word newNameHash
 
   newNameHash = hashString(mapName)
@@ -1939,7 +1949,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Show the current animation frame
-def showAnimFrame()
+def showAnimFrame()#0
   if curPortrait
     // Blit portrait to the appropriate area on the screen
     if frameLoaded == 3  // 3D-mode frame? Note: don't check mapIs3D, because we might be in an engine
@@ -1959,7 +1969,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Advance to next frame of current animation, if any
-def nextAnimFrame()
+def nextAnimFrame()#0
   word flags
   if !anyAnims; return; fin
 
@@ -2229,7 +2239,7 @@ export def scriptCombat(mapCode)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def playerDeath()
+def playerDeath()#0
   callGlobalFunc(GS_DEATH, 0, 0, 0)
   startGame(FALSE) // don't ask, just load
 end
@@ -2244,7 +2254,7 @@ def doCombat(mapCode, backUpOnFlee)
 
   if (result == -99)
     playerDeath()
-    return
+    return 0
   fin
   returnFromEngine(TRUE)
 
@@ -2257,7 +2267,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Check for a random encounter at this position
-export def checkEncounter(x, y, force)
+export def checkEncounter(x, y, force)#0
   word p
   word p_bestZone, bestDist
   word d
@@ -2320,7 +2330,7 @@ def enableGodMode()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def finalWin()
+export def finalWin()#0
   flipToPage1()
   loadFrameImg(4) // total hack
   while 1 // 1 infinite loop
@@ -2335,7 +2345,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set up the command table for 3D mode
-def initCmds()
+def initCmds()#0
 
   // Clear the command table
   byte i
@@ -2669,7 +2679,7 @@ def clampByte(val)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def setStat(player, statName, val)
+export def setStat(player, statName, val)#0
   when statName
     is @S_INTELLIGENCE; player->b_intelligence = clampByte(val); break
     is @S_STRENGTH; player->b_strength = clampByte(val); break
@@ -2753,7 +2763,7 @@ export def buySell(storeCode, profitRatio)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def startGame(ask)
+def startGame(ask)#0
   word p_module
 
   // Create a new game or load an existing one

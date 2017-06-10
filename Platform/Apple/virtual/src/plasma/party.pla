@@ -38,15 +38,18 @@ const INV_ROWS = (BIGWIN_HEIGHT / 9) - 4
 
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the header.
-predef _doPlayerSheet, _benchPlayer, _unbenchPlayer
-predef _displayItemStats, _displayItemName
+predef _doPlayerSheet(player_num)#1
+predef _benchPlayer()#1
+predef _unbenchPlayer()#1
+predef _displayItemStats(pItem1, pItem2)#1
+predef _displayItemName(pItem)#1
 word[] funcTbl = @_doPlayerSheet, @_benchPlayer, @_unbenchPlayer
 word           = @_displayItemStats, @_displayItemName
 
 // Other global variables here
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def itemByNum(player, num)
+def itemByNum(player, num)#1
   word item
   item = player=>p_items
   while num
@@ -58,7 +61,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Unequip item kind
-def unequip(player, type, kind)
+def unequip(player, type, kind)#1
   word item
 
   item = player=>p_items
@@ -66,17 +69,18 @@ def unequip(player, type, kind)
     if item->t_type == type
       if (streqi(item=>s_itemKind, kind) or type == TYPE_WEAPON) and item->b_flags & ITEM_FLAG_EQUIP
         item->b_flags = item->b_flags & ~ITEM_FLAG_EQUIP
-        return item
+        break
       fin
     fin
     item = item=>p_nextObj
   loop
+  return item
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display title of a column at top but below character name. Optionally append a second string,
 // then leave a little vertical space below before beginning the content of the column.
-def showColumnTitle(x, title, page, nPages)
+def showColumnTitle(x, title, page, nPages)#0
   rawDisplayf2("^V000\n^J^J^L^J^T%D%s", x, title)
   if nPages > 1
     rawDisplayf2(" - p.%d/%d", page, nPages)
@@ -86,7 +90,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display inventory list page. Return number of items on page.
-def showInventory(player, page, select)
+def showInventory(player, page, select)#1
   word item
   byte s_item, n_item, n_page, totalPages, first
 
@@ -125,7 +129,7 @@ def showInventory(player, page, select)
 end
 
 // Display skill value
-def displaySkill(str, val, col)
+def displaySkill(str, val, col)#0
   byte[16] mystr
 
   strncpy(@mystr, str, 15)
@@ -138,18 +142,18 @@ def displaySkill(str, val, col)
   displayf2("%d %s", val, @mystr)
 end
 
-def numToPlayer(num)
+def numToPlayer(num)#1
   word player
   player = global=>p_players
   while num > 0
     player = player=>p_nextObj
-    if !player; return; fin // Not that many players
+    if !player; break; fin // Not that many players
     num--
   loop
   return player
 end
 
-def displayDice(dice)
+def displayDice(dice)#0
   byte n, d, p
   n = (dice >> 12) & $0F
   d = (dice >> 8) & $0F
@@ -161,12 +165,12 @@ def displayDice(dice)
   fin
 end
 
-def vspace()
+def vspace()#0
   rawDisplayStr("^J^J^J^J")
 end
 
 // Show stats in the right panel
-def showStats(player)
+def showStats(player)#0
   word weapon, dmg
 
   showColumnTitle(STAT_X, "Stats", 0, 0)
@@ -207,7 +211,7 @@ def showStats(player)
 end
 
 // Show aquired skills in lower right panel
-def showSkills(player)
+def showSkills(player)#0
   word skill
   byte col
 
@@ -224,7 +228,7 @@ def showSkills(player)
   loop
 end
 
-def clearMenuRect()
+def clearMenuRect()#0
   setWindow(BIGWIN_BOTTOM-10, BIGWIN_BOTTOM, BIGWIN_LEFT, BIGWIN_RIGHT)
   clearWindow()
   setBigWindow()
@@ -232,7 +236,7 @@ def clearMenuRect()
 end
 
 // Display menu for selecting inventory items
-def showInvMenu(totalItems, itemPage, itemsOnPage)
+def showInvMenu(totalItems, itemPage, itemsOnPage)#0
   clearMenuRect()
   if totalItems > 0
     rawDisplayf1("Item [A-%c], ", itemsOnPage+'A'+1)
@@ -251,7 +255,7 @@ def showInvMenu(totalItems, itemPage, itemsOnPage)
 end
 
 // Display menu for selecting inventory items
-def showItemMenu(item)
+def showItemMenu(item)#0
   byte type
   clearMenuRect()
   type = item->t_type
@@ -265,7 +269,7 @@ def showItemMenu(item)
 end
 
 // Equip/unequip an item.
-def doEquip(player, item)
+def doEquip(player, item)#0
   if unequip(player, item->t_type, item=>s_itemKind) <> item
     item->b_flags = item->b_flags | ITEM_FLAG_EQUIP
   fin
@@ -273,7 +277,7 @@ def doEquip(player, item)
 end
 
 // Select an item and use it. Returns item if it needs to be processed by outer loop, else NULL
-def doUse(player, item)
+def doUse(player, item)#1
   if item=>p_modifiers and streqi(item=>p_modifiers=>s_name, "health")
     if player=>w_health < player=>w_maxHealth
       player=>w_health = min(player=>w_health + item=>p_modifiers=>w_modValue, player=>w_maxHealth)
@@ -282,13 +286,13 @@ def doUse(player, item)
         removeFromList(@player=>p_items, item)
       fin
     fin
-  else
-    return item // general 'use' handled by outer engine, because it might involve graphics
+    return NULL
   fin
+  return item // general 'use' handled by outer engine, because it might involve graphics
 end
 
 // Select an item and drop it. Returns TRUE if anything changed
-def doDestroy(player, item)
+def doDestroy(player, item)#1
   clearMenuRect()
   rawDisplayStr("Destroy ")
   _displayItemName(item)
@@ -302,21 +306,21 @@ def doDestroy(player, item)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def clearInvRect
+def clearInvRect()#0
   setWindow(BIGWIN_TOP+9, BIGWIN_BOTTOM-10, BIGWIN_LEFT, INV_RT)
   clearWindow()
   setBigWindow()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def clearMainRect
+def clearMainRect()#0
   setWindow(BIGWIN_TOP+9, BIGWIN_BOTTOM-10, BIGWIN_LEFT, BIGWIN_RIGHT)
   clearWindow()
   setBigWindow()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def matchEquipped(player, match)
+def matchEquipped(player, match)#1
   word item
   item = player=>p_items
   while item
@@ -333,7 +337,7 @@ def matchEquipped(player, match)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayItems(pItem1, pItem2)
+def displayItems(pItem1, pItem2)#0
   clearMainRect()
   rawDisplayf1("^V000\n^J^J^L^J^T%DInventory", STATS_COL_1)
   if pItem2
@@ -344,7 +348,7 @@ def displayItems(pItem1, pItem2)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def interactWithItem(player, item)
+def interactWithItem(player, item)#1
   word comp, quantity
   byte sel
   while TRUE
@@ -372,18 +376,19 @@ def interactWithItem(player, item)
         break
       // Destroy an item
       is 'D'
-        if doDestroy(player, item); return; fin
+        if doDestroy(player, item); return NULL; fin
         break
       is $1B // Esc
         return NULL
       otherwise beep
     wend
   loop
+  return NULL
 end
 
 // Show player sheet and accept command. If using an item (not just for stats gain)
 // the item is returned; else NULL is returned.
-def _doPlayerSheet(player_num)
+def _doPlayerSheet(player_num)#1  // funcTbl functions always have to return a value
   word player, item
   byte i_page, totalItems, itemsOnPage, redisplay, sel
 
@@ -394,7 +399,7 @@ def _doPlayerSheet(player_num)
   redisplay = 2
   repeat
     player = numToPlayer(player_num)
-    if !player; return; fin // Invalid player
+    if !player; return 0; fin // Invalid player
     if redisplay >= 2
       clearWindow()
       rawDisplayf1("^Y^I %s ^N\n", player=>s_name)
@@ -455,7 +460,7 @@ def _doPlayerSheet(player_num)
         fin
         break
       is $1B // Esc
-        return
+        return 0
       otherwise
         sel = sel - 'A'
         if sel >= 0 and sel < itemsOnPage
@@ -466,11 +471,12 @@ def _doPlayerSheet(player_num)
         fin
     wend
   until 0
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display a list of NPCs and allow user to select one.
-def selectPlayer(players)
+def selectPlayer(players)#1
   byte n_item
   word player
 
@@ -510,7 +516,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Allow user to select an active player, and put them on the bench
-def _benchPlayer()
+def _benchPlayer()#1
   word player
   player = selectPlayer(global=>p_players)
   if player
@@ -518,15 +524,16 @@ def _benchPlayer()
     addToList(@global=>p_benched, player)
     displayStr("\nDone.")
   fin
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Allow user to select a benched player, and put them on the bench
-def _unbenchPlayer()
+def _unbenchPlayer()#1
   word player
   if countList(global=>p_players) == MAX_PARTY
     displayStr("Party too large.")
-    return
+    return 0
   fin
   player = selectPlayer(global=>p_benched)
   if player
@@ -534,15 +541,16 @@ def _unbenchPlayer()
     addToList(@global=>p_players, player)
     displayStr("\nDone.")
   fin
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def tabTo(cursorX)
+def tabTo(cursorX)#0
   rawDisplayf1("^T%D", cursorX)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def formatDice(encoded)
+def formatDice(encoded)#0
   byte nDice, dieSize, add
   nDice = encoded >> 12
   dieSize = (encoded >> 8) & $F
@@ -552,17 +560,17 @@ def formatDice(encoded)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def formatNum(num)
+def formatNum(num)#0
   rawDisplayf1("%d", num)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def formatStr(str)
+def formatStr(str)#0
   rawDisplayStr(str)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def formatEquipped(num)
+def formatEquipped(num)#0
   if num == 1
     rawDisplayStr("Y")
   else
@@ -571,7 +579,7 @@ def formatEquipped(num)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def formatAttack(code)
+def formatAttack(code)#0
   if !code; return; fin
   if code == 1
     rawDisplayStr("single")
@@ -583,38 +591,35 @@ def formatAttack(code)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def byteField(pItem, field)
+def byteField(pItem, field)#1
   if pItem
     return ^(pItem + field)
-  else
-    return 0
   fin
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def equippedField(pItem, field)
+def equippedField(pItem, field)#1
   if pItem
     if ^(pItem + field) & ITEM_FLAG_EQUIP
       return 1
     else
       return 2
     fin
-  else
-    return 0
   fin
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def wordField(pItem, field)
+def wordField(pItem, field)#1
   if pItem
     return *(pItem + field)
-  else
-    return 0
   fin
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayTwoCol(fieldName, pItem1, pItem2, field, fieldFunc, formatFunc)
+def displayTwoCol(fieldName, pItem1, pItem2, field, fieldFunc, formatFunc)#0
   word val1, val2
   val1 = fieldFunc(pItem1, field)
   val2 = fieldFunc(pItem2, field)
@@ -626,7 +631,7 @@ def displayTwoCol(fieldName, pItem1, pItem2, field, fieldFunc, formatFunc)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayWeaponStats(pItem1, pItem2)
+def displayWeaponStats(pItem1, pItem2)#0
   displayTwoCol("Equip'd", pItem1, pItem2, b_flags,         @equippedField, @formatEquipped)
   displayTwoCol("Uses",    pItem1, pItem2, b_maxUses,       @byteField, @formatNum)
   displayTwoCol("Ammo",    pItem1, pItem2, s_ammoKind,      @wordField, @formatStr)
@@ -640,19 +645,19 @@ def displayWeaponStats(pItem1, pItem2)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayArmorStats(pItem1, pItem2)
+def displayArmorStats(pItem1, pItem2)#0
   displayTwoCol("Equip'd", pItem1, pItem2, b_flags,      @equippedField, @formatEquipped)
   displayTwoCol("Uses",    pItem1, pItem2, b_maxUses,    @byteField, @formatNum)
   displayTwoCol("Protec",  pItem1, pItem2, b_armorValue, @byteField, @formatNum)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayStuffStats(pItem1, pItem2)
+def displayStuffStats(pItem1, pItem2)#0
   // Nothing special
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _displayItemStats(pItem1, pItem2)
+def _displayItemStats(pItem1, pItem2)#1
   word pMod1, pMod2
 
   // First, show the item type and name
@@ -692,12 +697,13 @@ def _displayItemStats(pItem1, pItem2)
       fin
     loop
   fin
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // For non-countable items, display singular name.
 // For countable "stuff" (e.g. ammo), display the count and appropriate singular or plural name.
-def _displayItemName(pItem)
+def _displayItemName(pItem)#1
   if pItem->t_type == TYPE_STUFF
     setPlural(pItem=>w_count <> 1)
     rawDisplayf1("%d ", pItem=>w_count)
@@ -705,6 +711,7 @@ def _displayItemName(pItem)
     setPlural(FALSE)
   fin
   rawDisplayf1("%s", pItem=>s_name) // use displayf to get proper plural processing
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

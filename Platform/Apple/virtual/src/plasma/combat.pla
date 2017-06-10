@@ -16,7 +16,7 @@ include "gen_enemies.plh"
 include "gen_modules.plh"
 include "combat.plh"
 
-predef _combat_zoneEncounter
+predef _combat_zoneEncounter(s_encZone)#1
 word[] funcTbl = @_combat_zoneEncounter
 
 // Combat variables that don't need to be saved in game state
@@ -25,12 +25,12 @@ byte nEnemiesFighting
 byte isFleeing
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def canFight(p)
+def canFight(p)#1
   return p=>w_health > 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def chooseEnemy(maxDist)
+def chooseEnemy(maxDist)#1
   word p
   byte n
 
@@ -44,10 +44,11 @@ def chooseEnemy(maxDist)
     fin
     p = p=>p_combatNext
   loop
+  return NULL
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def playerMelee(pPlayer, pWeapon)
+def playerMelee(pPlayer, pWeapon)#1
   word pEnemy, dmg
   pEnemy = chooseEnemy(5)  // max distance 5 feet for melee
   if !pEnemy; return FALSE; fin
@@ -74,7 +75,7 @@ def playerMelee(pPlayer, pWeapon)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def playerShoot(pPlayer, pWeapon)
+def playerShoot(pPlayer, pWeapon)#1
   word pEnemy, pSkill, dmg
   word chance
   byte roll
@@ -103,46 +104,45 @@ def playerShoot(pPlayer, pWeapon)
 
     // Miss!
     displayf2("\n%s shoots at %s but misses.\n", pPlayer=>s_name, pEnemy=>s_name)
-
-  else
-
-    // TODO: consider multi-shot weapons
-    dmg = rollDice(pWeapon=>r_projectileDmg)
-    // TODO: Add extra melee damage for skills, strength, etc.
-    // TODO: consider enemy dodge
-    // TODO: consider enemy armor, and armor bonuses
-    pEnemy=>w_health = pEnemy=>w_health - dmg
-
-    buildString(@addToString)
-    printf3("\n%s shoots %s for %d damage.", pPlayer=>s_name, pEnemy=>s_name, dmg)
-    if pEnemy=>w_health <= 0
-      printf1(" %s is killed!", pEnemy=>s_name)
-      nEnemiesFighting = nEnemiesFighting - 1
-    fin
-    puts("\n")
-    displayStr(finishString(0))
-
-    return TRUE
+    return FALSE
   fin
+
+  // TODO: consider multi-shot weapons
+  dmg = rollDice(pWeapon=>r_projectileDmg)
+  // TODO: Add extra melee damage for skills, strength, etc.
+  // TODO: consider enemy dodge
+  // TODO: consider enemy armor, and armor bonuses
+  pEnemy=>w_health = pEnemy=>w_health - dmg
+
+  buildString(@addToString)
+  printf3("\n%s shoots %s for %d damage.", pPlayer=>s_name, pEnemy=>s_name, dmg)
+  if pEnemy=>w_health <= 0
+    printf1(" %s is killed!", pEnemy=>s_name)
+    nEnemiesFighting = nEnemiesFighting - 1
+  fin
+  puts("\n")
+  displayStr(finishString(0))
+
+  return TRUE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def playerDodge(pPlayer)
+def playerDodge(pPlayer)#0
   displayf1("\n%s dodges.\n", pPlayer=>s_name)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def chooseWeapon(player)
+def chooseWeapon(player)#0
   displayStr("\nTODO: choose weapon\n")
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def combatPause()
+def combatPause()#0
   pause(800)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayOpponents()
+def displayOpponents()#0
   word p
   byte count, first
   byte isPlural
@@ -174,14 +174,14 @@ def displayOpponents()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayOption(key, str)
+def displayOption(key, str)#0
   buildString(@addToString)
   printf2("\n  (%c)^T033%s ", key, str)
   rawDisplayStr(finishString(0))
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def playerCombatChoose(pl)
+def playerCombatChoose(pl)#0
   word p, pWeapon
   byte nWeapons, key
   byte canShoot, canReload, canChange
@@ -258,7 +258,7 @@ def playerCombatChoose(pl)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def playerCombatTurn(pl)
+def playerCombatTurn(pl)#0
   word pWeapon
 
   // Get weapon
@@ -301,7 +301,7 @@ def playerCombatTurn(pl)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def enemyCombatTurn(pe)
+def enemyCombatTurn(pe)#1
   word pl
   byte roll, dam, needShow
 
@@ -337,7 +337,7 @@ def enemyCombatTurn(pe)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def combatInsert(toAdd)
+def combatInsert(toAdd)#0
   word p, pPrev
 
   // Find the proper position based on combat order number (keep largest first in the list)
@@ -356,7 +356,7 @@ def combatInsert(toAdd)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def determineCombatOrder()
+def determineCombatOrder()#0
   word p, p2
 
   nPlayersFighting = 0
@@ -393,7 +393,7 @@ def determineCombatOrder()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def makeEnemyGroup(enemyFunc)
+def makeEnemyGroup(enemyFunc)#1
   word p, enem, groupSize
   p = mmgr(HEAP_ALLOC, TYPE_ENEMY_GROUP)
   enem = enemyFunc()
@@ -413,7 +413,7 @@ def makeEnemyGroup(enemyFunc)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def makeRandomGroup(mapCode)
+def makeRandomGroup(mapCode)#0
   word enemiesModule
   word enemyFunc
 
@@ -428,7 +428,7 @@ def makeRandomGroup(mapCode)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def collectLoot()
+def collectLoot()#1
   word group, enemies, gold
 
   gold = 0
@@ -445,7 +445,7 @@ def collectLoot()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def startCombat(mapCode)
+def startCombat(mapCode)#1
   word p, p2, n, s
 
   // Setup
@@ -499,12 +499,13 @@ def startCombat(mapCode)
     beep()
   loop
 
+  return 0 // just to keep compiler happy
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // For cheating in god mode, kill all enemies. This is better than just setting nEnemiesFighting
 // to zero, because we'll still get loot.
-def killAllEnemies()
+def killAllEnemies()#0
   word pGroup, pEnemy
   pGroup = global=>p_enemyGroups
   // For every group...
@@ -524,7 +525,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Returns: zero if fled, non-zero if won
-def _combat_zoneEncounter(s_encZone)
+def _combat_zoneEncounter(s_encZone)#1
   word p, l, answer
 
   // Show portrait and threat details, find out if player wants to fight (vs. run)
@@ -583,6 +584,7 @@ def _combat_zoneEncounter(s_encZone)
       p = p=>p_combatNext
     loop
   loop
+  return 0 // keep compiler happy
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

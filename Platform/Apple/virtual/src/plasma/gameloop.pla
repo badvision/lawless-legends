@@ -53,7 +53,7 @@ predef setWindow2()#0
 predef initCmds()#0
 predef nextAnimFrame()#0
 predef checkEncounter(x, y, force)#0
-predef doCombat(mapCode, backUpOnFlee)
+predef doCombat(mapCode, backUpOnFlee)#1
 predef clearPortrait()#0
 predef showMapName(mapName)#0
 predef doRender()#0
@@ -184,62 +184,63 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // API to call rendering engine (same API for raycaster and tile engine)
-asm initDisplay(mapNum, pMapData, x, y, dir)#0
+asm initDisplay(mapPartition, mapNum, pMapData, x, y, dir)#0
   +asmPlasmNoRet 6
   jmp $6000
 end
-export asm flipToPage1#0  // no params
+export asm flipToPage1()#0
   +asmPlasmNoRet 0
   jmp $6003
 end
-export asm getPos#0       // params: @x, @y
+export asm getPos(px, py)#0
   +asmPlasmNoRet 2
   jmp $6006
 end
-asm setPos#0       // params: x, y
+asm setPos(x, y)#0
   +asmPlasmNoRet 2
   jmp $6009
 end
-export asm getDir       // no params; returns: dir (0-15)
+export asm getDir()#1   // returns: dir (0-15)
   +asmPlasmRet 0
   jmp $600C
 end
-asm setDir#0       // params: dir (0-15)
+asm setDir(dir)#0
   +asmPlasmNoRet 1
   jmp $600F
 end
-asm advance      // no params; return: 0 if same pos, 1 if new pos, 2 if new pos and scripted
+asm advance()#1         // returns: 0 if same pos, 1 if new pos, 2 if new pos and scripted
   +asmPlasmRet 0
   jmp $6012
 end
-asm setColor     // params: slot (0=sky/1=ground), color (0-17)
-  +asmPlasmRet 2
+asm setColor(slot, color)#0  // params: slot (0=sky/1=ground), color (0-17)
+  +asmPlasmNoRet 2
   jmp $6015
 end
-asm render      // no params
-  +asmPlasmRet 0
+asm render()#0
+  +asmPlasmNoRet 0
   jmp $6018
 end
-asm texControl  // params: load (1=load, 0=unload)
-  +asmPlasmRet 1
+asm texControl(doLoad)#0
+  +asmPlasmNoRet 1
   jmp $601B
 end
-asm getMapScript  // params: none
+asm getMapScript()#1
   +asmPlasmRet 0
   jmp $601E
 end
-export asm setAvatar  // params: tile number (in the global tileset)
-  +asmPlasmRet 1
+asm setAvatar(tileNum)#0 // tile number (in the global tileset)
+  +asmPlasmNoRet 1
   jmp $6021
 end
-asm swapTile    // params: fromX, fromY, toX, toY
-  +asmPlasmRet 4
+asm swapTile(fromX, fromY, toX, toY)#0
+  +asmPlasmNoRet 4
   jmp $6024
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export asm memcpy         // params: pSrc, pDst, len. Non-overlapping only!
-  +asmPlasmRet 3
+// Memory copy - Non-overlapping regions only!
+export asm memcpy(pSrc, pDst, len)#0
+  +asmPlasmNoRet 3
   lda evalStkL+2,x    ; source ptr
   sta tmp
   lda evalStkH+2,x
@@ -279,8 +280,8 @@ export asm memcpy         // params: pSrc, pDst, len. Non-overlapping only!
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export asm memset         // params: pDst, val, len.
-  +asmPlasmRet 3
+export asm memset(pDst, val, len)#0
+  +asmPlasmNoRet 3
   ldy #0
   lda evalStkL+2,x    ; dest ptr
   sta pTmp
@@ -312,7 +313,7 @@ export asm memset         // params: pDst, val, len.
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-asm readAuxByte     // params: ptr; ret: char
+asm readAuxByte(ptr)#1
   +asmPlasmRet 1
 
   ; Create the following subroutine, used to copy one char from aux to main:
@@ -344,7 +345,7 @@ asm readAuxByte     // params: ptr; ret: char
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-asm splitExpander   // param: expandVec; returns: remaining lo-aux size
+asm splitExpander(expandVec)#1   // param: expandVec; returns: remaining lo-aux size
   +asmPlasmRet 1
 
   ; assumes readAuxByte has just been called, which puts a little routine at $10.
@@ -369,8 +370,8 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // String building for display with the font engine. Includes plurality processing to handily
 // handle things like "Dirt bag(s)" and "his/their"
-export asm buildString
-  +asmPlasmRet 1
+export asm buildString(pFunc)#0
+  +asmPlasmNoRet 1
   sta cswl
   sty cswh
   lda #0
@@ -378,7 +379,7 @@ export asm buildString
   rts
 end
 
-export asm addToString
+export asm addToString()#0
   sty ysav1
   inc inbuf
   ldy inbuf
@@ -389,7 +390,7 @@ end
 
 // Complete string building (including plural processing), and return pointer
 // to the string (in the input buffer)
-export asm finishString
+export asm finishString(isPlural)#1
 !zone {
   +asmPlasmRet 1
   sta tmp     ; save isPlural flag
@@ -477,8 +478,8 @@ export asm finishString
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-asm blit      // params: srcData, dstScreenPtr, nLines, lineSize
-  +asmPlasmRet 4
+asm blit(srcData, dstScreenPtr, nLines, lineSize)#0
+  +asmPlasmNoRet 4
 
   ; Save line size
   sta ysav
@@ -551,8 +552,8 @@ asm blit      // params: srcData, dstScreenPtr, nLines, lineSize
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-asm vline      // params: dstScreenPtr, val, nLines
-  +asmPlasmRet 3
+asm vline(dstScreenPtr, val, nLines)#0
+  +asmPlasmNoRet 3
 
   ; Save number of lines
   pha
@@ -581,7 +582,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Simply retrieve the X register. Used to double-check that we're not leaking PLASMA eval
 // stack entries.
-asm getXReg
+asm getXReg()#1
   +asmPlasmRet 0
   txa
   ldy #0
@@ -589,8 +590,8 @@ asm getXReg
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Calculate 16-bit hash of a buffer. arg1=pointer, arg2=length
-export asm hashBuffer
+// Calculate 16-bit hash of a buffer.
+export asm hashBuffer(ptr, len)#1
   +asmPlasmRet 2
   lda evalStkL+1,x  ; first arg is buffer pointer
   sta pTmp
@@ -618,7 +619,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a string to the current character output vector
-export asm puts()#0
+export asm puts(str)#0
   +asmPlasmNoRet 1
   sta pTmp
   lda #'!'
@@ -640,7 +641,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Get a character from the keyboard
-export asm rdkey
+export asm rdkey()#1
   +asmPlasmRet 0
   +safeRdkey
   ldy #0
@@ -649,7 +650,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print part of a string, until we hit the end or a '%' code. Return how far we got, or -1 for end.
-asm partialPrintf
+asm partialPrintf(str, pos)#1
 !zone {
   +asmPlasmRet 2
   lda evalStkL+1,x    ; get string pointer
@@ -687,8 +688,8 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a 16-bit hex value
-export asm printHex
-  +asmPlasmRet 1
+export asm printHex(num)#0
+  +asmPlasmNoRet 1
   pha
   tya
   +safePrbyte
@@ -698,31 +699,31 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a single character
-asm printChar
-  +asmPlasmRet 1
+asm printChar(ch)#0
+  +asmPlasmNoRet 1
   ora #$80
   jmp _safeCout
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a carriage return
-asm crout
-  +asmPlasmRet 0
+asm crout()#0
+  +asmPlasmNoRet 0
   lda #$8D
   jmp _safeCout
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Ring the bell
-export asm beep
-  +asmPlasmRet 0
+export asm beep()#0
+  +asmPlasmNoRet 0
   +safeBell
   rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Read a string from the keyboard, turn it into a PLASMA string and return a pointer to the string.
-export asm readStr
+export asm readStr()#1
   +asmPlasmRet 0
   bit setROM
   jsr ROM_getln1
@@ -744,8 +745,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Send a command to the memory manager
-// Params: cmd, wordParam
-export asm mmgr
+export asm mmgr(cmd, wordParam)#1
   +asmPlasmRet 2
   lda evalStkL+1,x        ; command code
   pha
@@ -759,7 +759,7 @@ export asm mmgr
 end
 
 // Aux version of memory manager command
-export asm auxMmgr
+export asm auxMmgr(cmd, wordParam)#1
   +asmPlasmRet 2
   lda evalStkL+1,x        ; command code
   pha
@@ -774,15 +774,13 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Jump straight to the system monitor
-// Params: None
-asm goMon
+asm goMon()#0
   jmp $FF69
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Execute a monitor breakpoint
-// Params: None
-export asm brk
+export asm brk()#0
   bit setText
   bit page1
   brk
@@ -790,94 +788,87 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set up the font engine
-// Params: pFont
-asm setFont
-  +asmPlasmRet 1
+asm setFont(pFont)#0
+  +asmPlasmNoRet 1
   jmp SetFont
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Use the font engine to clear the current text window.
 // Parameters: top, bottom, left, right
-export asm setWindow
-  +asmPlasmRet 4
+export asm setWindow(top, bottom, left, right)#0
+  +asmPlasmNoRet 4
   jmp SetWindow
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Save the cursor position (1 save slot)
-asm saveCursor
-  +asmPlasmRet 0
+asm saveCursor()#0
+  +asmPlasmNoRet 0
   jmp SaveCursor
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Restore the cursor position (1 save slot)
-asm restoreCursor
-  +asmPlasmRet 0
+asm restoreCursor()#0
+  +asmPlasmNoRet 0
   jmp RestCursor
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Read a keyboard string up to 40 chars using the Font Engine. Returns a zero-terminated string
 // in the input buffer at $200, with the length stored in $2FF.
-asm rawGetStr
+asm rawGetStr()#1
   +asmPlasmRet 0
   jmp GetStr
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Use the font engine to clear the current text window
-// Params: None
-export asm clearWindow
-  +asmPlasmRet 0
+export asm clearWindow()#0
+  +asmPlasmNoRet 0
   jmp ClearWindow
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Use the font engine to copy the current text window to hi-res page 2
-// Params: None
-asm copyWindow
-  +asmPlasmRet 0
+asm copyWindow()#0
+  +asmPlasmNoRet 0
   jmp CopyWindow
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display a character using the font engine.
-// Params: ch
-export asm displayChar
-  +asmPlasmRet 1
+export asm displayChar(ch)#0
+  +asmPlasmNoRet 1
   jmp DisplayChar
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display a string using the font engine.
-// Params: pStr
-export asm displayStr
-  +asmPlasmRet 1
+export asm displayStr(str)#0
+  +asmPlasmNoRet 1
   jmp DisplayStr
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Calculate string width using the font engine.
-// Params: pStr
-export asm calcWidth
+export asm calcWidth(pStr)#1
   +asmPlasmRet 1
   jmp CalcWidth
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Get the address of the given hi-res screen line
-export asm getScreenLine
+export asm getScreenLine(n)#1
   +asmPlasmRet 1
   jmp GetScreenLine
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display a string using the font engine but not its parser.
-// Params: pStr
-export asm rawDisplayStr
-  +asmPlasmRet 1
+export asm rawDisplayStr(pStr)#0
+  +asmPlasmNoRet 1
   sta pTmp
   sty pTmp+1
   ldy #0
@@ -904,7 +895,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Random number generator
 // Adapted from http://codebase64.org/doku.php?id=base:small_fast_16-bit_prng
-export asm rand16
+export asm rand16()#1
   +asmPlasmRet 0
 
   lda seed
@@ -947,9 +938,8 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Clear the text-mode screen, and put the text cursor at the top of it.
-// Params: None
-export asm textHome
-  +asmPlasmRet 0
+export asm textHome()#0
+  +asmPlasmNoRet 0
   +safeHome
   rts
 end
@@ -959,43 +949,35 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Fatal error: print message and stop the system.
-export def fatal(msg)
-  mmgr(FATAL_ERROR, msg)
+// Doesn't really return a value, but can be handy for chaining.
+export def fatal(msg)#1
+  return mmgr(FATAL_ERROR, msg)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Return the max of two signed 16-bit numbers
-export def max(a, b)
-  if a < b
-    return b
-  else
-    return a
-  fin
+export def max(a, b)#1
+  if a < b; return b; fin
+  return a
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Return the min of two signed 16-bit numbers
-export def min(a, b)
-  if a < b
-    return a
-  else
-    return b
-  fin
+export def min(a, b)#1
+  if a < b; return a; fin
+  return b
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Return the absolute value of a number
-def abs(n)
-  if n < 0
-    return -n
-  else
-    return n
-  fin
+def abs(n)#1
+  if n < 0; return -n; fin
+  return n
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Convert a lower-case character to upper-case (or return unchanged if it's not lower-case)
-export def charToUpper(c)
+export def charToUpper(c)#1
   if c >= 'a' and c <= 'z'
     return c - $20
   fin
@@ -1004,7 +986,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Compare two strings for equality, ignoring case.
-export def streqi(a, b)
+export def streqi(a, b)#1
   word limit, leneq
   leneq = ^a == ^b
   limit = a + min(^a, ^b)
@@ -1017,8 +999,8 @@ export def streqi(a, b)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Copy part of a string
-export def strncpy(dst, src, maxlen)
+// Copy part of a string; returns the length
+export def strncpy(dst, src, maxlen)#1
   byte i, l
 
   l = ^src
@@ -1032,7 +1014,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Read a string from the keyboard using the font manager, and intern it to the heap.
-export def getStringResponse()
+export def getStringResponse()#1
   word p
   rawGetStr()
   rawDisplayStr("\n") // so Outlaw user doesn't have to remember to make a newline
@@ -1045,13 +1027,13 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Setter functions for library use
-export def setPlural(flg)
+export def setPlural(flg)#0
   isPlural = flg
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Convert signed decimal to string in decimalBuf (@decimalBuf returned)
-def convertDec(n)
+def convertDec(n)#1
   word n0
   word p
   p = @decimalBuf + 1
@@ -1069,7 +1051,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Convert byte to 3-char string in decimalBuf, suitable for font engine, e.g. ^T065
 // (@fontPosBuf returned so as to not disturb decimalBuf)
-def convert3Dec(n)
+def convert3Dec(n)#1
   fontPosBuf[0] = 3
   fontPosBuf[1] = '0' + (n / 100); n = n%100
   fontPosBuf[2] = '0' + (n / 10);  n = n%10
@@ -1130,7 +1112,7 @@ export def displayf1(str, arg1)#0; displayf3(str, arg1, 0, 0); end
 export def displayf2(str, arg1, arg2)#0; displayf3(str, arg1, arg2, 0); end
 
 // Like printf, but buffers string in $200
-export def sprintf3(str, arg1, arg2, arg3)
+export def sprintf3(str, arg1, arg2, arg3)#1
   buildString(@addToString)
   printf3(str, arg1, arg2, arg3)
   return finishString(isPlural)
@@ -1145,7 +1127,7 @@ export def rawDisplayf2(str, arg1, arg2)#0; rawDisplayStr(sprintf3(str, arg1, ar
 export def rawDisplayf3(str, arg1, arg2, arg3)#0; rawDisplayStr(sprintf3(str, arg1, arg2, arg3)); end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def parseDec(str)
+export def parseDec(str)#1
   word n
   word pend
   word p
@@ -1170,7 +1152,7 @@ export def parseDec(str)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def parseDecWithDefault(str, default)
+export def parseDecWithDefault(str, default)#1
   if ^str == 0
     return default
   fin
@@ -1179,7 +1161,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Get a keystroke and convert it to upper case
-export def getUpperKey()
+export def getUpperKey()#1
   byte key
   while ^kbd < 128
     *seed = *seed + 1
@@ -1198,7 +1180,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Read a single char from the keyboard, and intern it (as a string) to the heap.
-export def getCharResponse()
+export def getCharResponse()#1
   if needShowParty; showParty(); fin
   ^$200 = 1
   ^$201 = getUpperKey()
@@ -1207,7 +1189,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Pause for a specified count period, advancing the animation periodically.
-export def pause(count)
+export def pause(count)#0
   while count >= 0
     animPauseCt = animPauseCt - 1
     if animPauseCt < 0
@@ -1221,12 +1203,12 @@ export def pause(count)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def encodeDice(nDice, dieSize, add)  // ndice=0..15, dieSize=0..15, add=0..255
+export def encodeDice(nDice, dieSize, add)#1  // ndice=0..15, dieSize=0..15, add=0..255
   return (nDice << 12) | (dieSize << 8) | add
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def rollDice(encoded)
+export def rollDice(encoded)#1
   byte i, nDice, dieSize, add, result
   nDice = encoded >> 12
   dieSize = (encoded >> 8) & $F
@@ -1242,7 +1224,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Look up the partition for a resource.
 // sectioNum: 1=map2d, 2=map3d, 3=portrait
-def lookupResourcePart(sectionNum, resourceNum)
+def lookupResourcePart(sectionNum, resourceNum)#1
   word ptr
   byte n
 
@@ -1288,7 +1270,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load the Frame Image, and lock it.
-export def loadFrameImg(img)
+export def loadFrameImg(img)#0
   // Skip redundant reload
   if frameLoaded == img; return; fin
 
@@ -1349,7 +1331,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the map area (used for clearing it)
-export def setMapWindow()
+export def setMapWindow()#0
   if frameLoaded == 3  // don't check mapIs3D, since we might be in an engine
     setWindow(24, 153, 14, 140) // Top, Bottom, Left, Right
   else
@@ -1358,7 +1340,7 @@ export def setMapWindow()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def hline(addr, startByte, midByte, midSize, endByte)
+def hline(addr, startByte, midByte, midSize, endByte)#0
   ^addr = startByte
   memset(addr+1, midByte, midSize)
   ^(addr+midSize+1) = endByte
@@ -1367,7 +1349,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window that covers the entire inner area (destroys frame image, so be sure to loadMainFrame
 // afterwards)
-export def setBigWindow()
+export def setBigWindow()#0
   // Draw border (if not already drawn)
   if frameLoaded
     hline(getScreenLine(BIGWIN_TOP-4)+1, 0, 0, 36, 0)
@@ -1386,7 +1368,7 @@ export def setBigWindow()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def rightJustifyStr(str, rightX)
+export def rightJustifyStr(str, rightX)#0
   word space
   space = rightX - calcWidth(str)
   if (space > 0)
@@ -1397,7 +1379,7 @@ export def rightJustifyStr(str, rightX)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def rightJustifyNum(num, rightX)
+export def rightJustifyNum(num, rightX)#0
   rightJustifyStr(convertDec(num), rightX)
 end
 
@@ -1432,7 +1414,7 @@ export def showParty()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def getArgCount(pFunc)
+def getArgCount(pFunc)#1
   word pBytecode
 
   // skip over JMP to plasma interp, get addr in aux mem
@@ -1449,7 +1431,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Send an event to the scripts on the current map square
-export def scriptEvent(event, param)
+export def scriptEvent(event, param)#0
   byte i, argCount
   word script
   if !nMapScripts; return; fin
@@ -1476,7 +1458,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Check for script(s) attached to the given location, and establish the array of map scripts.
 // Does not call any of them -- that's the job of scriptEvent().
-def scanScripts(x, y)
+def scanScripts(x, y)#0
   word p
   word script
   word pNext
@@ -1506,7 +1488,7 @@ def scanScripts(x, y)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def loadMainFrameImg()
+export def loadMainFrameImg()#0
   loadFrameImg(mapIs3D+2)
   if curFullscreenImg
     auxMmgr(FREE_MEMORY, curFullscreenImg)
@@ -1516,7 +1498,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load code and data, set up everything to display a 2D or 3D map
-def initMap(x, y, dir)
+def initMap(x, y, dir)#0
   word pMap
 
   // Reset memory (our module will stay since memory manager locked it upon load)
@@ -1592,13 +1574,13 @@ def initMap(x, y, dir)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def scriptSetAvatar(avatarTileNum)
+export def scriptSetAvatar(avatarTileNum)#0
   global->b_curAvatar = avatarTileNum
   if renderLoaded; setAvatar(avatarTileNum); fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def unloadTextures()
+export def unloadTextures()#0
   if renderLoaded and texturesLoaded
     flipToPage1()
     texControl(0)
@@ -1640,7 +1622,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Advance one step forward (works for either 3D or 2D maps)
-def moveForward()
+def moveForward()#0
   byte val
   word x, y
   val = advance()
@@ -1684,13 +1666,13 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Adjust player's direction plus or minus n increments
-def adjustDir(n)
+def adjustDir(n)#0
   setDir((getDir() + n) & 15)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Move backward one step (3D mode). Also actually works in 2D mode.
-def moveBackward()
+def moveBackward()#0
   adjustDir(8)
   moveForward()
   adjustDir(8)
@@ -1699,7 +1681,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Move backward two steps (3D mode), or one step (2D mode). This is often used when exiting a
 // building or fleeing combat, so we don't want to generate any random encounters.
-export def moveWayBackward()
+export def moveWayBackward()#0
   adjustDir(8)
   skipEncounterCheck = TRUE
   moveForward()
@@ -1712,21 +1694,21 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Turn left (3D mode)
-def rotateLeft()
+def rotateLeft()#0
   adjustDir(-1)
   needRender = TRUE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Rotate to the right (3D mode)
-def rotateRight()
+def rotateRight()#0
   adjustDir(1)
   needRender = TRUE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Sidestep to the right (3D mode)
-def strafeRight()
+def strafeRight()#0
   adjustDir(4)
   moveForward()
   adjustDir(-4)
@@ -1734,14 +1716,14 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Sidestep to the left (3D mode)
-def strafeLeft()
+def strafeLeft()#0
   adjustDir(-4)
   moveForward()
   adjustDir(4)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def moveNorth()
+def moveNorth()#0
   word x, y
   getPos(@x, @y)
   if y > 4
@@ -1752,7 +1734,7 @@ def moveNorth()
   fin
 end
 
-def moveEast()
+def moveEast()#0
   word x, y
   getPos(@x, @y)
   if x < totalMapWidth-5
@@ -1763,7 +1745,7 @@ def moveEast()
   fin
 end
 
-def moveSouth()
+def moveSouth()#0
   word x, y
   getPos(@x, @y)
   if y < totalMapHeight-5
@@ -1774,7 +1756,7 @@ def moveSouth()
   fin
 end
 
-def moveWest()
+def moveWest()#0
   word x, y
   getPos(@x, @y)
   if x > 4
@@ -1787,7 +1769,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Switch to a new map (2D or 3D) and establish position on it
-export def setMap(is3D, num, x, y, dir)
+export def setMap(is3D, num, x, y, dir)#0
   if is3D == mapIs3D and num == mapNum
     setPos(x, y)
     setDir(dir)
@@ -1823,7 +1805,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Get a key and dispatch it to a command. Then do it again, forever.
-def kbdLoop()
+def kbdLoop()#0
   word key, func
   byte xreg, tmp
   xreg = getXReg()
@@ -1851,7 +1833,7 @@ def kbdLoop()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def hashString(str)
+def hashString(str)#1
   return hashBuffer(str+1, ^str)
 end
 
@@ -1924,14 +1906,14 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Called by scripts to swap a map tile. We set a flag noting we need to re-render, then use an
 // assembly routine to do the work.
-export def scriptSwapTile(fromX, fromY, toX, toY)
+export def scriptSwapTile(fromX, fromY, toX, toY)#0
   needRender = TRUE
   swapTile(fromX, fromY, toX, toY)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Get a key, and don't return until it's Y or N (or lower-case of those). Returns 1 for Y.
-export def getYN()
+export def getYN()#1
   byte key
   while TRUE
     key = getUpperKey()
@@ -1941,10 +1923,11 @@ export def getYN()
       clearWindow()
       if textDrawn and mapIs3D; clearWindow(); fin
       textDrawn = FALSE
-      return 0
+      break
     fin
     beep()
   loop
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1998,7 +1981,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display a portrait drawing (typically called from scripts)
-export def setPortrait(portraitNum)
+export def setPortrait(portraitNum)#0
   word srcData
   byte part, cx, cy
 
@@ -2040,7 +2023,7 @@ export def setPortrait(portraitNum)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def countList(p)
+export def countList(p)#1
   byte n
   n = 0
   while p
@@ -2051,7 +2034,7 @@ export def countList(p)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def countListFiltered(p, offset, filterFunc)
+export def countListFiltered(p, offset, filterFunc)#1
   byte n
   n = 0
   while p
@@ -2065,16 +2048,17 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Find the end of a null-terminated array
-export def countArray(arr)
+export def countArray(arr)#1
   byte count
   for count = 0 to 127
-    if !*arr; return count; fin
+    if !*arr; break; fin
     arr = arr + 2
   next
+  return count
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def randomFromListFiltered(p, offset, filterFunc)
+export def randomFromListFiltered(p, offset, filterFunc)#1
   byte n
   n = rand16() % countListFiltered(p, offset, filterFunc)
   while p
@@ -2100,7 +2084,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Call like this: removeFromList(@player=>items, itemToRemove)
-export def removeFromList(pList, toRemove)
+export def removeFromList(pList, toRemove)#0
   word p
 
   p = *pList
@@ -2118,7 +2102,7 @@ export def removeFromList(pList, toRemove)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def saveMapPos()
+def saveMapPos()#0
   global->b_mapIs3D = mapIs3D
   global->b_mapNum = mapNum
   getPos(@global=>w_mapX, @global=>w_mapY)
@@ -2126,14 +2110,14 @@ def saveMapPos()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def restoreMapPos()
+def restoreMapPos()#0
   mapIs3D = global->b_mapIs3D
   mapNum = global->b_mapNum
   initMap(global=>w_mapX, global=>w_mapY, global->b_mapDir)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def loadEngine(moduleNum)
+def loadEngine(moduleNum)#1
   if curEngine; fatal("dblEng"); fin
   clearPortrait()
   unloadTextures()
@@ -2151,7 +2135,7 @@ def loadEngine(moduleNum)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def returnFromEngine(render)
+def returnFromEngine(render)#0
   if curEngine
     mmgr(FREE_MEMORY, curEngine)
     curEngine = NULL
@@ -2167,7 +2151,7 @@ def returnFromEngine(render)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def callGlobalFunc(moduleNum, arg1, arg2, arg3)
+export def callGlobalFunc(moduleNum, arg1, arg2, arg3)#1
   word pModule, pFunc, ret
 
   // First load the module
@@ -2193,7 +2177,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load the Party engine and show data for the given player
-def showPlayerSheet(num)
+def showPlayerSheet(num)#0
   word pItemToUse
   pItemToUse = loadEngine(MOD_PARTY)=>party_showPlayerSheet(num)
   returnFromEngine(TRUE)
@@ -2203,13 +2187,13 @@ def showPlayerSheet(num)
   fin
 end
 
-def showPlayer1()
+def showPlayer1()#0
   showPlayerSheet(0)
 end
-def showPlayer2()
+def showPlayer2()#0
   showPlayerSheet(1)
 end
-def showPlayer3()
+def showPlayer3()#0
   showPlayerSheet(2)
 end
 
@@ -2228,13 +2212,13 @@ export def addEncounterZone(code, x, y, dist, chance)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def clearEncounterZones()
+export def clearEncounterZones()#0
   global=>p_encounterZones = NULL
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Called by user-defined map scripts to initiate a combat encounter.
-export def scriptCombat(mapCode)
+export def scriptCombat(mapCode)#1
   return doCombat(mapCode, TRUE)
 end
 
@@ -2245,7 +2229,7 @@ def playerDeath()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def doCombat(mapCode, backUpOnFlee)
+def doCombat(mapCode, backUpOnFlee)#1
   word result
   // Handled in a separate module. Clear enemies out of the heap when finished.
   result = loadEngine(MOD_COMBAT)=>combat_zoneEncounter(mapCode)
@@ -2294,20 +2278,20 @@ export def checkEncounter(x, y, force)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def saveGame
+def saveGame()#0
   saveMapPos()
   loadEngine(MOD_DISKOPS)=>diskops_saveGame()
   returnFromEngine(TRUE)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def loadGame
+def loadGame()#0
   loadEngine(MOD_DISKOPS)=>diskops_loadGame()
   restoreMapPos()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def help
+def help()#0
   flipToPage1()
   setMapWindow(); clearWindow()
   loadEngine(GS_HELP)()
@@ -2315,7 +2299,7 @@ def help
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def enableGodMode()
+def enableGodMode()#0
   while ^kbd < 128; loop
   if ^kbd == $8F  // ctrl-O
     ^kbdStrobe
@@ -2339,7 +2323,7 @@ export def finalWin()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def setCmd(key, func)
+export def setCmd(key, func)#0
   cmdTbl[key] = func
 end
 
@@ -2410,7 +2394,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load and display the title screen.
-def loadTitle()
+def loadTitle()#0
   word pEngine, pFont, expanderSize
 
   puts("Loading game.\n")
@@ -2475,7 +2459,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set up the small-object heap. Set loadedSize to zero on initial, or non-zero for loaded game.
-export def initHeap(loadedSize)
+export def initHeap(loadedSize)#0
   byte i
   word typeHash
 
@@ -2509,7 +2493,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Return a random entry from an array which is terminated by a zero entry
-export def randomFromArray(arr)
+export def randomFromArray(arr)#1
   byte siz
   siz = 0
   while *((siz << 1) + arr)
@@ -2520,7 +2504,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Constructor: create a modifier given its name and value
-export def makeModifier(name, value)
+export def makeModifier(name, value)#1
   word p; p = mmgr(HEAP_ALLOC, TYPE_MODIFIER)
   p=>s_name = mmgr(HEAP_INTERN, name)
   p=>w_modValue = value
@@ -2529,7 +2513,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Recalculate player's armor score based on their currently equipped armor
-export def calcPlayerArmor(player)
+export def calcPlayerArmor(player)#0
   word pItem
   player->b_armor = 0
   pItem = player=>p_items
@@ -2542,8 +2526,8 @@ export def calcPlayerArmor(player)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Add gold
-export def addGold(amount)
+// Add gold, return the amount
+export def addGold(amount)#1
   if global=>w_gold + amount > GOLD_MAX
     amount = GOLD_MAX - global=>w_gold
   fin
@@ -2551,8 +2535,8 @@ export def addGold(amount)
   return amount
 end
 
-// Pay out gold
-export def payGold(amount)
+// Pay out gold, return the amount
+export def payGold(amount)#1
   if amount > global=>w_gold
     return 0
   fin
@@ -2561,7 +2545,7 @@ export def payGold(amount)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def scanForNamedObj(p_obj, name)
+export def scanForNamedObj(p_obj, name)#1
   while p_obj
     if streqi(p_obj=>s_name, name); return p_obj; fin
     p_obj = p_obj=>p_nextObj
@@ -2570,7 +2554,8 @@ export def scanForNamedObj(p_obj, name)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def addUnique(pList, p_thing)
+// Add to a list if named obj not already in it; returns TRUE if really added.
+export def addUnique(pList, p_thing)#1
   if !scanForNamedObj(*pList, p_thing=>s_name)
     addToList(pList, p_thing)
     return TRUE
@@ -2579,7 +2564,7 @@ export def addUnique(pList, p_thing)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def createAndAddUnique(moduleID, creationFuncNum, pList)
+export def createAndAddUnique(moduleID, creationFuncNum, pList)#1
   word p_module, funcTbl, func, p_thing
 
   // Unload textures to make room for the module (also flips to page 1 if needed)
@@ -2604,7 +2589,7 @@ export def createAndAddUnique(moduleID, creationFuncNum, pList)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def giveItemToPlayer(p_player, itemFuncNum)
+export def giveItemToPlayer(p_player, itemFuncNum)#0
   createAndAddUnique(MOD_GEN_ITEMS, itemFuncNum, @p_player=>p_items)
 end
 
@@ -2621,7 +2606,7 @@ export def addPlayerToParty(playerFuncNum)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def removeNamed(name, pList)
+export def removeNamed(name, pList)#0
   word p_thing
   p_thing = scanForNamedObj(*pList, name)
   if p_thing
@@ -2632,28 +2617,28 @@ export def removeNamed(name, pList)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def takeItemFromPlayer(p_player, itemName)
+export def takeItemFromPlayer(p_player, itemName)#0
   removeNamed(itemName, @p_player=>p_items) // default to first player
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def removePlayerFromParty(playerName)
+export def removePlayerFromParty(playerName)#0
   removeNamed(playerName, @global=>p_players)
   needShowParty = TRUE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def playerHasItem(itemName)
+export def playerHasItem(itemName)#1
   return scanForNamedObj(global=>p_players=>p_items, itemName) <> NULL
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def partyHasPlayer(playerName)
+export def partyHasPlayer(playerName)#1
   return scanForNamedObj(global=>p_players, playerName) <> NULL
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def getStat(player, statName)
+export def getStat(player, statName)#1
   when statName
     is @S_INTELLIGENCE; return player->b_intelligence
     is @S_STRENGTH; return player->b_strength
@@ -2668,13 +2653,12 @@ export def getStat(player, statName)
     is @S_HAND_TO_HAND; return player->b_handToHand
     is @S_DODGING; return player->b_dodging
     is @S_GOLD; return global=>w_gold
-    otherwise
-      puts(statName); fatal("Unknown stat")
   wend
+  puts(statName); return fatal("Unknown stat")
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def clampByte(val)
+def clampByte(val)#1
   return max(0, min(255, val))
 end
 
@@ -2700,7 +2684,7 @@ export def setStat(player, statName, val)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def setGameFlag(flagName, val)
+export def setGameFlag(flagName, val)#0
   word p_flag
   p_flag = scanForNamedObj(global=>p_gameFlags, flagName)
   if p_flag
@@ -2715,18 +2699,17 @@ export def setGameFlag(flagName, val)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def getGameFlag(flagName)
+export def getGameFlag(flagName)#1
   word p_flag
   p_flag = scanForNamedObj(global=>p_gameFlags, flagName)
   if p_flag
     return p_flag=>w_modValue
-  else
-    return 0
   fin
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def setIntimateMode(enable)
+export def setIntimateMode(enable)#0
   if enable
     pIntimate = loadEngine(MOD_INTIMATE)
     pIntimate=>intimate_setMode(enable)
@@ -2738,19 +2721,19 @@ export def setIntimateMode(enable)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def benchPlayer()
+export def benchPlayer()#0
   loadEngine(MOD_PARTY)=>party_benchPlayer()
   returnFromEngine(TRUE)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def unbenchPlayer()
+export def unbenchPlayer()#0
   loadEngine(MOD_PARTY)=>party_unbenchPlayer()
   returnFromEngine(TRUE)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def buySell(storeCode, profitRatio)
+export def buySell(storeCode, profitRatio)#0
   word portrait
   portrait = curPortraitNum
   if storeCode

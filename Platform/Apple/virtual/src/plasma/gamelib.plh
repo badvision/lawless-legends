@@ -13,119 +13,117 @@ import gamelib
   //////////// Shared library routines ////////////
   // Let's try to keep these predef's in lexical order
   predef addEncounterZone(code, x, y, dist, chance)#0
-  predef addGold(amount)
+  predef addGold(amount)#1
   predef addPlayerToParty(playerFuncNum)#0
   predef addToList(addTo, p)#0
-  predef addToString(str)
-  predef addUnique(pList, p_thing)
-  predef auxMmgr(cmd, param)
-  predef beep()
-  predef benchPlayer()
-  predef brk()
-  predef buildString(pFunc)
-  predef buySell
-  predef calcPlayerArmor
-  predef calcWidth
-  predef callGlobalFunc
-  predef charToUpper
-  predef checkEncounter
-  predef clearEncounterZones
-  predef clearPortrait
-  predef clearWindow
-  predef countArray
-  predef countList
-  predef countListFiltered
-  predef displayChar
+  predef addToString(str)#1
+  predef addUnique(pList, p_thing)#1
+  predef auxMmgr(cmd, param)#1
+  predef beep()#0
+  predef benchPlayer()#0
+  predef brk()#0
+  predef buildString(pFunc)#0
+  predef buySell(storeCode, profitRatio)#0
+  predef calcPlayerArmor(player)#0
+  predef calcWidth(pStr)#1
+  predef callGlobalFunc(moduleNum, arg1, arg2, arg3)#1
+  predef charToUpper(c)#1
+  predef checkEncounter(x, y, force)#0
+  predef clearEncounterZones()#0
+  predef clearPortrait()#0
+  predef clearWindow()#0
+  predef countArray(arr)#1
+  predef countList(p)#1
+  predef countListFiltered(p, offset, filterFunc)#1
+  predef displayChar(chr)#0
   predef displayf1(fmt, arg1)#0
   predef displayf2(fmt, arg1, arg2)#0
   predef displayf3(fmt, arg1, arg2, arg3)#0
-  predef displayStr
-  predef encodeDice
-  predef fatal
-  predef finalWin
-  predef finishString
+  predef displayStr(str)#0
+  predef encodeDice(nDice, dieSize, add)#1
+  predef fatal(msg)#0
+  predef finalWin()#0
+  predef finishString(isPlural)#1
   predef flipToPage1()#0
-  predef getCharResponse
-  predef getDir()
-  predef getGameFlag
+  predef getCharResponse()#1
+  predef getDir()#1
+  predef getGameFlag(flagName)#1
   predef getPos(px, py)#0
-  predef getStat(player, statName)
-  predef getStringResponse
-  predef getUpperKey
-  predef getYN
-  predef giveItemToPlayer
-  predef initHeap
-  predef loadFrameImg
-  predef loadMainFrameImg
-  predef makeModifier
-  predef max
-  predef memcpy
-  predef min
-  predef mmgr
-  predef moveWayBackward
-  predef parseDec
-  predef parseDecWithDefault
-  predef partyHasPlayer
-  predef pause
-  predef payGold
-  predef playerHasItem
+  predef getStat(player, statName)#1
+  predef getStringResponse()#1
+  predef getUpperKey()#1
+  predef getYN()#1
+  predef giveItemToPlayer(p_player, itemFuncNum)#0
+  predef initHeap(loadedSize)#0
+  predef loadFrameImg(img)#0
+  predef loadMainFrameImg()#0
+  predef makeModifier(name, value)#1
+  predef max(a, b)#1
+  predef memcpy(pSrc, pDst, len)#0
+  predef min(a, b)#1
+  predef mmgr(cmd, param)#1
+  predef moveWayBackward()#0
+  predef parseDec(str)#1
+  predef parseDecWithDefault(str, default)#1
+  predef partyHasPlayer(playerName)#1
+  predef pause(count)#0
+  predef payGold(amount)#1
+  predef playerHasItem(itemName)#1
   predef printf1(fmt, arg1)#0
   predef printf2(fmt, arg1, arg2)#0
   predef printf3(fmt, arg1, arg2, arg3)#0
-  predef printHex(num)
+  predef printHex(num)#0
   predef puts(str)#0
   predef queue_setMap(is3D, num, x, y, dir)#0
   predef queue_teleport(x, y, dir)#0
-  predef rand16
-  predef randomFromArray
-  predef randomFromListFiltered
+  predef rand16()#1
+  predef randomFromArray(arr)#1
+  predef randomFromListFiltered(p, offset, filterFunc)#1
   predef rawDisplayf1(fmt, arg1)#0
   predef rawDisplayf2(fmt, arg1, arg2)#0
   predef rawDisplayf3(fmt, arg1, arg2, arg3)#0
-  predef rawDisplayStr(str)
-  predef rdkey
-  predef readStr
-  predef reboot
-  predef removeFromList
-  predef removePlayerFromParty
-  predef rightJustifyNum
-  predef rightJustifyStr
-  predef rollDice
-  predef scanForNamedObj
-  predef scriptCombat
+  predef rawDisplayStr(str)#0
+  predef rdkey()#1
+  predef readStr()#1
+  predef removeFromList(pList, toRemove)#0
+  predef removePlayerFromParty(playerName)#0
+  predef rightJustifyNum(num, rightX)#0
+  predef rightJustifyStr(str, rightX)#0
+  predef rollDice(encoded)#1
+  predef scanForNamedObj(p_obj, name)#1
+  predef scriptCombat(mapCode)#1
   predef scriptDisplayStr(str)#0
   predef scriptDisplayStrNL(str)#0
-  predef scriptEvent
-  predef scriptSetAvatar
-  predef scriptSwapTile
-  predef setCmd
-  predef setGameFlag
+  predef scriptEvent(event, param)#0
+  predef scriptSetAvatar(avatarTileNum)#0
+  predef scriptSwapTile(fromX, fromY, toX, toY)#0
+  predef setCmd(key, func)#0
+  predef setGameFlag(flagName, val)#0
   predef setGround(num)#0
-  predef setIntimateMode
-  predef setIntimateMode
-  predef setMap
-  predef setMapWindow
-  predef setBigWindow
-  predef setPlural
-  predef setPortrait
+  predef setIntimateMode(enable)#0
+  predef setMap(is3D, num, x, y, dir)#0
+  predef setMapWindow()#0
+  predef setBigWindow()#0
+  predef setPlural(flg)#0
+  predef setPortrait(portraitNum)#0
   predef setScriptInfo(mapName, trigTbl, wdt, hgt)#0
   predef setSky(num)#0
   predef setStat(player, statName, val)#0
-  predef setWindow
+  predef setWindow(top, bottom, left, right)#0
   predef setWindow1()#0
   predef setWindow2()#0
   predef setWindow3()#0
-  predef showMapName
-  predef showParty
+  predef showMapName(mapName)#0
+  predef showParty()#0
   predef sprintf1(fmt, arg1)
   predef sprintf2(fmt, arg1, arg2)
   predef sprintf3(fmt, arg1, arg2, arg3)
-  predef streqi
-  predef strncpy
-  predef takeItemFromPlayer
-  predef textHome
+  predef streqi(a, b)#1
+  predef strncpy(dst, src, maxlen)#1
+  predef takeItemFromPlayer(p_player, itemName)#0
+  predef textHome()#0
   predef tossStrings()#0
-  predef unbenchPlayer
+  predef unbenchPlayer()#0
 
   // This pointer is the root of all heap-tracked (and garbage collected) objects.
   // See playtype.plh for definitions of all the datastructures and how they interconnect.

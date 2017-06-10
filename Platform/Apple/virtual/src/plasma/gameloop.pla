@@ -174,62 +174,62 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // API to call rendering engine (same API for raycaster and tile engine)
-asm initDisplay   // params: mapNum, pMapData, x, y, dir
-  +asmPlasm 6
+asm initDisplay#0   // params: mapNum, pMapData, x, y, dir
+  +asmPlasmNoRet 6
   jmp $6000
 end
-export asm flipToPage1  // no params
-  +asmPlasm 0
+export asm flipToPage1#0  // no params
+  +asmPlasmNoRet 0
   jmp $6003
 end
-export asm getPos       // params: @x, @y
-  +asmPlasm 2
+export asm getPos#0       // params: @x, @y
+  +asmPlasmNoRet 2
   jmp $6006
 end
-asm setPos       // params: x, y
-  +asmPlasm 2
+asm setPos#0       // params: x, y
+  +asmPlasmNoRet 2
   jmp $6009
 end
 export asm getDir       // no params; returns: dir (0-15)
-  +asmPlasm 0
+  +asmPlasmRet 0
   jmp $600C
 end
 asm setDir       // params: dir (0-15)
-  +asmPlasm 1
+  +asmPlasmRet 1
   jmp $600F
 end
 asm advance      // no params; return: 0 if same pos, 1 if new pos, 2 if new pos and scripted
-  +asmPlasm 0
+  +asmPlasmRet 0
   jmp $6012
 end
 asm setColor     // params: slot (0=sky/1=ground), color (0-17)
-  +asmPlasm 2
+  +asmPlasmRet 2
   jmp $6015
 end
 asm render      // no params
-  +asmPlasm 0
+  +asmPlasmRet 0
   jmp $6018
 end
 asm texControl  // params: load (1=load, 0=unload)
-  +asmPlasm 1
+  +asmPlasmRet 1
   jmp $601B
 end
 asm getMapScript  // params: none
-  +asmPlasm 0
+  +asmPlasmRet 0
   jmp $601E
 end
 export asm setAvatar  // params: tile number (in the global tileset)
-  +asmPlasm 1
+  +asmPlasmRet 1
   jmp $6021
 end
 asm swapTile    // params: fromX, fromY, toX, toY
-  +asmPlasm 4
+  +asmPlasmRet 4
   jmp $6024
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export asm memcpy         // params: pSrc, pDst, len. Non-overlapping only!
-  +asmPlasm 3
+  +asmPlasmRet 3
   lda evalStkL+2,x    ; source ptr
   sta tmp
   lda evalStkH+2,x
@@ -270,7 +270,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export asm memset         // params: pDst, val, len.
-  +asmPlasm 3
+  +asmPlasmRet 3
   ldy #0
   lda evalStkL+2,x    ; dest ptr
   sta pTmp
@@ -303,7 +303,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 asm readAuxByte     // params: ptr; ret: char
-  +asmPlasm 1
+  +asmPlasmRet 1
 
   ; Create the following subroutine, used to copy one char from aux to main:
   ;0010-   8D 03 C0    STA   $C003
@@ -335,7 +335,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 asm splitExpander   // param: expandVec; returns: remaining lo-aux size
-  +asmPlasm 1
+  +asmPlasmRet 1
 
   ; assumes readAuxByte has just been called, which puts a little routine at $10.
   ; Adjust that routine to call expander instead of reading a byte.
@@ -360,7 +360,7 @@ end
 // String building for display with the font engine. Includes plurality processing to handily
 // handle things like "Dirt bag(s)" and "his/their"
 export asm buildString
-  +asmPlasm 1
+  +asmPlasmRet 1
   sta cswl
   sty cswh
   lda #0
@@ -381,7 +381,7 @@ end
 // to the string (in the input buffer)
 export asm finishString
 !zone {
-  +asmPlasm 1
+  +asmPlasmRet 1
   sta tmp     ; save isPlural flag
   lda #$F0    ; put the cout vector back to default
   sta cswl
@@ -468,7 +468,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 asm blit      // params: srcData, dstScreenPtr, nLines, lineSize
-  +asmPlasm 4
+  +asmPlasmRet 4
 
   ; Save line size
   sta ysav
@@ -542,7 +542,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 asm vline      // params: dstScreenPtr, val, nLines
-  +asmPlasm 3
+  +asmPlasmRet 3
 
   ; Save number of lines
   pha
@@ -572,7 +572,7 @@ end
 // Simply retrieve the X register. Used to double-check that we're not leaking PLASMA eval
 // stack entries.
 asm getXReg
-  +asmPlasm 0
+  +asmPlasmRet 0
   txa
   ldy #0
   rts
@@ -581,7 +581,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Calculate 16-bit hash of a buffer. arg1=pointer, arg2=length
 export asm hashBuffer
-  +asmPlasm 2
+  +asmPlasmRet 2
   lda evalStkL+1,x  ; first arg is buffer pointer
   sta pTmp
   lda evalStkH+1,x
@@ -608,8 +608,8 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a string to the current character output vector
-export asm puts
-  +asmPlasm 1
+export asm puts()#0
+  +asmPlasmNoRet 1
   sta pTmp
   lda #'!'
   ldx #1
@@ -631,7 +631,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Get a character from the keyboard
 export asm rdkey
-  +asmPlasm 0
+  +asmPlasmRet 0
   +safeRdkey
   ldy #0
   rts
@@ -641,7 +641,7 @@ end
 // Print part of a string, until we hit the end or a '%' code. Return how far we got, or -1 for end.
 asm partialPrintf
 !zone {
-  +asmPlasm 2
+  +asmPlasmRet 2
   lda evalStkL+1,x    ; get string pointer
   sta pTmp
   lda evalStkH+1,x
@@ -678,7 +678,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a 16-bit hex value
 export asm printHex
-  +asmPlasm 1
+  +asmPlasmRet 1
   pha
   tya
   +safePrbyte
@@ -689,7 +689,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a single character
 asm printChar
-  +asmPlasm 1
+  +asmPlasmRet 1
   ora #$80
   jmp _safeCout
 end
@@ -697,7 +697,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a carriage return
 asm crout
-  +asmPlasm 0
+  +asmPlasmRet 0
   lda #$8D
   jmp _safeCout
 end
@@ -705,7 +705,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Ring the bell
 export asm beep
-  +asmPlasm 0
+  +asmPlasmRet 0
   +safeBell
   rts
 end
@@ -713,7 +713,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Read a string from the keyboard, turn it into a PLASMA string and return a pointer to the string.
 export asm readStr
-  +asmPlasm 0
+  +asmPlasmRet 0
   bit setROM
   jsr ROM_getln1
   bit setLcRW+lcBank2
@@ -736,7 +736,7 @@ end
 // Send a command to the memory manager
 // Params: cmd, wordParam
 export asm mmgr
-  +asmPlasm 2
+  +asmPlasmRet 2
   lda evalStkL+1,x        ; command code
   pha
   ldy evalStkH,x          ; address (or other param)... hi byte in Y
@@ -750,7 +750,7 @@ end
 
 // Aux version of memory manager command
 export asm auxMmgr
-  +asmPlasm 2
+  +asmPlasmRet 2
   lda evalStkL+1,x        ; command code
   pha
   ldy evalStkH,x          ; address (or other param)
@@ -782,7 +782,7 @@ end
 // Set up the font engine
 // Params: pFont
 asm setFont
-  +asmPlasm 1
+  +asmPlasmRet 1
   jmp SetFont
 end
 
@@ -790,21 +790,21 @@ end
 // Use the font engine to clear the current text window.
 // Parameters: top, bottom, left, right
 export asm setWindow
-  +asmPlasm 4
+  +asmPlasmRet 4
   jmp SetWindow
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Save the cursor position (1 save slot)
 asm saveCursor
-  +asmPlasm 0
+  +asmPlasmRet 0
   jmp SaveCursor
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Restore the cursor position (1 save slot)
 asm restoreCursor
-  +asmPlasm 0
+  +asmPlasmRet 0
   jmp RestCursor
 end
 
@@ -812,7 +812,7 @@ end
 // Read a keyboard string up to 40 chars using the Font Engine. Returns a zero-terminated string
 // in the input buffer at $200, with the length stored in $2FF.
 asm rawGetStr
-  +asmPlasm 0
+  +asmPlasmRet 0
   jmp GetStr
 end
 
@@ -820,7 +820,7 @@ end
 // Use the font engine to clear the current text window
 // Params: None
 export asm clearWindow
-  +asmPlasm 0
+  +asmPlasmRet 0
   jmp ClearWindow
 end
 
@@ -828,7 +828,7 @@ end
 // Use the font engine to copy the current text window to hi-res page 2
 // Params: None
 asm copyWindow
-  +asmPlasm 0
+  +asmPlasmRet 0
   jmp CopyWindow
 end
 
@@ -836,7 +836,7 @@ end
 // Display a character using the font engine.
 // Params: ch
 export asm displayChar
-  +asmPlasm 1
+  +asmPlasmRet 1
   jmp DisplayChar
 end
 
@@ -844,7 +844,7 @@ end
 // Display a string using the font engine.
 // Params: pStr
 export asm displayStr
-  +asmPlasm 1
+  +asmPlasmRet 1
   jmp DisplayStr
 end
 
@@ -852,14 +852,14 @@ end
 // Calculate string width using the font engine.
 // Params: pStr
 export asm calcWidth
-  +asmPlasm 1
+  +asmPlasmRet 1
   jmp CalcWidth
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Get the address of the given hi-res screen line
 export asm getScreenLine
-  +asmPlasm 1
+  +asmPlasmRet 1
   jmp GetScreenLine
 end
 
@@ -867,7 +867,7 @@ end
 // Display a string using the font engine but not its parser.
 // Params: pStr
 export asm rawDisplayStr
-  +asmPlasm 1
+  +asmPlasmRet 1
   sta pTmp
   sty pTmp+1
   ldy #0
@@ -895,7 +895,7 @@ end
 // Random number generator
 // Adapted from http://codebase64.org/doku.php?id=base:small_fast_16-bit_prng
 export asm rand16
-  +asmPlasm 0
+  +asmPlasmRet 0
 
   lda seed
   beq .lowZero ; $0000 and $8000 are special values to test for
@@ -939,7 +939,7 @@ end
 // Clear the text-mode screen, and put the text cursor at the top of it.
 // Params: None
 export asm textHome
-  +asmPlasm 0
+  +asmPlasmRet 0
   +safeHome
   rts
 end
@@ -1258,7 +1258,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set the sky color (relevant to 3D display only)
-export def setSky(num)
+export def setSky(num)#0
   // hack for end-game screen
   if num == 99
     finalWin()
@@ -1270,7 +1270,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set the ground color (relevant to 3D display only)
-export def setGround(num)
+export def setGround(num)#0
   groundNum = num
   setColor(1, groundNum)
   needRender = TRUE
@@ -1798,7 +1798,7 @@ export def setMap(is3D, num, x, y, dir)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def queue_setMap(is3D, num, x, y, dir)
+export def queue_setMap(is3D, num, x, y, dir)#0
   q_mapIs3D = is3D
   q_mapNum = num
   q_x = x
@@ -1807,7 +1807,7 @@ export def queue_setMap(is3D, num, x, y, dir)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def queue_teleport(x, y, dir)
+export def queue_teleport(x, y, dir)#0
   queue_setMap(mapIs3D, mapNum, x, y, dir)
 end
 
@@ -1864,7 +1864,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set initial info for the scripts on this map: the name of the map, its trigger table, and the
 // maximum extent (width, height). This is called by the init function for the scripts.
-export def setScriptInfo(mapName, trigTbl, wdt, hgt)
+export def setScriptInfo(mapName, trigTbl, wdt, hgt)#0
 
   // Grab the trigger table origins (used so the table can be more compact)
   triggerOriginX = trigTbl=>0
@@ -1894,7 +1894,7 @@ end
 // Called by scripts to display a string. We set the flag noting that something has been
 // displayed, then use an assembly routine to do the work.
 // Also, clear the keyboard strobe, so the player has time to read the text.
-export def scriptDisplayStr(str)
+export def scriptDisplayStr(str)#0
   if pIntimate
     pIntimate=>intimate_displayStr(str)
   else
@@ -1906,7 +1906,7 @@ export def scriptDisplayStr(str)
   // No: tossString()  // Doesn't work here, because we need to toss strings in the *parent's* frame
 end
 
-export def scriptDisplayStrNL(str)
+export def scriptDisplayStrNL(str)#0
   scriptDisplayStr(str)
   displayStr("\n")
 end

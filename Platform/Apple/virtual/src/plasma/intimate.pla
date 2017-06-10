@@ -40,7 +40,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // swipe(onLines, offLines, iterations)
 asm swipe
-  +asmPlasm 3
+  +asmPlasmRet 3
   sta pTmp          ; iterations
   lda evalStkL+1,x
   sta tmp+1         ; offLines

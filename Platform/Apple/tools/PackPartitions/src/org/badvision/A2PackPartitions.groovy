@@ -3419,14 +3419,16 @@ end
                 else
                     printWarning "empty statement found; skipping."
 
-                // If the script has a return value, process that.
+                // Process the script return value
+                outIndented("return ")
                 if (proc.value.size() > 0) {
                     assert proc.value[0].@name == "RETURN"
                     assert proc.value[0].block.size() == 1
-                    outIndented("return ")
                     packExpr(proc.value[0].block[0], true)
-                    out << "\n"
                 }
+                else
+                    out << "0"
+                out << "\n"
 
                 // Define all the variables that were mentioned (except the args)
                 out.close()

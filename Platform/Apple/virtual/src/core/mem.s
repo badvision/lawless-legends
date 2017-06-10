@@ -315,7 +315,8 @@ init: !zone
 loMemBegin: !pseudopc $800 {
 	jmp j_main_dispatch
 	jmp j_aux_dispatch
-	jmp __asmPlasm
+	jmp __asmPlasmNoRet
+	jmp __asmPlasmRet
 
 ; Vectors for debug macros
 	jmp __safeBell
@@ -451,57 +452,64 @@ disk_rewind: !zone
 ;------------------------------------------------------------------------------
 ; Utility routine for convenient assembly routines in PLASMA code. 
 ; Params: Y=number of parameters passed from PLASMA routine
-; 0. (optional) switch to Language Card bank 2
 ; 1. Save PLASMA's X register index to evalStk
 ; 2. Verify X register is in the range 0-$10
 ; 3. Load the *last* parameter into A=lo, Y=hi
-; 4. Run the calling routine (X still points into evalStk for add'l params if needed)
-; 5. Restore PLASMA's X register, and advance it over the parameter(s)
-; 6. Store A=lo/Y=hi into PLASMA return value
-; 7. Return to PLASMA
-__asmPlasm:
-	bit setLcRW+lcBank2
-	bit setLcRW+lcBank2
-	cpx #$11
-	bcs .badx	; X must be in range 0..$10
-	; adjust PLASMA stack pointer to skip over params
+; 4. Write-enable Language Card bank 2
+; 5. Run the calling routine (X still points into evalStk for add'l params if needed)
+; 6. Restore PLASMA's X register, and advance it over the parameter(s)
+; 7. (optional) store A=lo/Y=hi as PLASMA return value
+; 8. Return to PLASMA
+__asmPlasmRet: !zone {
+	sec
 	dey		; leave 1 slot for ret value
+	!byte $a9	; skips over following clc
+__asmPlasmNoRet:
+	clc
+	; adjust PLASMA stack pointer to skip over params
 	sty tmp
 	pla		; save address of calling routine, so we can call it
 	tay
 	pla
+	sta .jsr+2
 	iny
 	sty .jsr+1
-	bne .noadd
-	adc #1
-.noadd
-	sta .jsr+2
-	txa
-.add	adc tmp		; carry cleared by cpx above
+	bne +
+	inc .jsr+2
++	php		; save carry flag marker for return or not
+	cpx #$11
+	bcs .badx	; X must be in range 0..$10
+	txa		; current arg stack top
+	adc tmp		; carry cleared by cpx (and/or adc) above
 	pha		; and save that
 	cmp #$11	; again, X must be in range 0..$10
 	bcs .badx
 frameChk:
 	lda $1111	; self-modified by init code
 	cmp #$AA	; check for sentinel value
-	bne .badFrame
+	bne .badfrm
+	bit setLcRW+lcBank2
+	bit setLcRW+lcBank2
 	lda evalStkL,x	; get last param to A=lo
 	ldy evalStkH,x	; ...Y=hi
 .jsr	jsr $1111	; call the routine to do work
 	sta tmp		; stash return value lo
 	pla
 	tax		; restore adjusted PLASMA stack pointer
+	plp
+	bcc +
 	lda tmp
 	sta evalStkL,x	; store return value
 	tya
 	sta evalStkH,x
-	rts		; and return to PLASMA interpreter
-.badx	; X reg ran outside valid range. Print and abort.
-	+prStr : !text $8D,"X=",0
++	rts		; and return to PLASMA interpreter
+; X reg ran outside valid range. Print and abort.
+.badx	+prStr : !text $8D,"X=",0
 	+prX
 	jsr inlineFatal : !text "PlasmXRng",0
-.badFrame:
-	jsr inlineFatal : !text "PlasmFrm",0
+; Frame sentinel overwritten (likely too many strings)
+.badfrm	jsr inlineFatal : !text "PlasmFrm",0
+}
 
 ;------------------------------------------------------------------------------
 ; Debug code to support macros

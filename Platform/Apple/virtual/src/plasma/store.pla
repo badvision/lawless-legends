@@ -49,7 +49,7 @@ end
 // Multiply 16 bit number by 8-bit ratio, and drop lower 8 bits of result. In effect this scales
 // num by the approximate ratio 0=0% .. 128=50% .. 255=99%
 asm mulRatio    // params: num, ratio
-  +asmPlasm 2
+  +asmPlasmRet 2
 .ratio = evalStkL
 .numL  = evalStkL+1
 .numH  = evalStkH+1

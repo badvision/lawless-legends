@@ -465,16 +465,21 @@ HEAP_COLLECT = $24
 ; 3. Load the *last* parameter into A=lo, Y=hi
 ; 4. Run the calling routine (X still points into evalStk for add'l params if needed)
 ; 5. Restore PLASMA's X register, and advance it over the parameter(s)
-; 6. Store A=lo/Y=hi into PLASMA return value
+; 6. (optional) Store A=lo/Y=hi into PLASMA return value
 ; 7. Return to PLASMA
-!macro asmPlasm nArgs {
+!macro asmPlasmNoRet nArgs {
     ldy #nArgs
     jsr _asmPlasm
 }
+!macro asmPlasmRet nArgs {
+    ldy #nArgs
+    jsr _asmPlasmRet
+}
 _asmPlasm = auxLoader+3
+_asmPlasmRet = _asmPlasm+3
 
 ; Debug support routines (defined in core/mem.s)
-_safeBell   = _asmPlasm+3
+_safeBell   = _asmPlasmRet+3
 _safeCout   = _safeBell+3
 _safePrbyte = _safeCout+3
 _safeHome   = _safePrbyte+3

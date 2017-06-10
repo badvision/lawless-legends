@@ -79,7 +79,7 @@ end
 // Params: cmd | open<<8, filename, addr, size. Returns: status (for open only)
 //   cmd: 
 asm callProRWTS
-    +asmPlasm 4
+    +asmPlasmRet 4
     ; Params come to us from PLASMA in reverse order
     sta setAuxZP
     sta sizelo
@@ -127,7 +127,7 @@ end
 // The following only used for speed testing
 //asm readNoSlotClock  // param: dstBuf (will receive 8 BCD bytes)
 //!zone {
-//  +asmPlasm 1
+//  +asmPlasmRet 1
 //  ; record dst ptr
 //  sta tmp
 //  sty tmp+1

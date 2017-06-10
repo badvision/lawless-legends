@@ -44,11 +44,11 @@ import gamelib
   predef fatal
   predef finalWin
   predef finishString
-  predef flipToPage1
+  predef flipToPage1()#0
   predef getCharResponse
-  predef getDir
+  predef getDir()
   predef getGameFlag
-  predef getPos
+  predef getPos(px, py)#0
   predef getStat
   predef getStringResponse
   predef getUpperKey
@@ -73,9 +73,9 @@ import gamelib
   predef printf2(fmt, arg1, arg2)#0
   predef printf3(fmt, arg1, arg2, arg3)#0
   predef printHex(num)
-  predef puts(str)
-  predef queue_setMap
-  predef queue_teleport
+  predef puts(str)#0
+  predef queue_setMap(is3D, num, x, y, dir)#0
+  predef queue_teleport(x, y, dir)#0
   predef rand16
   predef randomFromArray
   predef randomFromListFiltered
@@ -93,14 +93,14 @@ import gamelib
   predef rollDice
   predef scanForNamedObj
   predef scriptCombat
-  predef scriptDisplayStr
-  predef scriptDisplayStrNL
+  predef scriptDisplayStr(str)#0
+  predef scriptDisplayStrNL(str)#0
   predef scriptEvent
   predef scriptSetAvatar
   predef scriptSwapTile
   predef setCmd
   predef setGameFlag
-  predef setGround
+  predef setGround(num)#0
   predef setIntimateMode
   predef setIntimateMode
   predef setMap
@@ -108,8 +108,8 @@ import gamelib
   predef setBigWindow
   predef setPlural
   predef setPortrait
-  predef setScriptInfo
-  predef setSky
+  predef setScriptInfo(mapName, trigTbl, wdt, hgt)#0
+  predef setSky(num)#0
   predef setStat
   predef setWindow
   predef setWindow1

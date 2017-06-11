@@ -14,7 +14,7 @@ include "playtype.plh"
 
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the the header.
-predef _intimate_setMode, _intimate_displayStr, _intimate_swipeImg
+predef _intimate_setMode(enable)#1, _intimate_displayStr(str)#1, _intimate_swipeImg()#1
 word[] funcTbl = @_intimate_setMode, @_intimate_displayStr, @_intimate_swipeImg
 
 byte spaceWidth
@@ -38,8 +38,8 @@ pTmp        = $4
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// swipe(onLines, offLines, iterations)
-asm swipe
+// Special effect: "swipe"
+asm swipe(onLines, offLines, iterations)#0
   +asmPlasmRet 3
   sta pTmp          ; iterations
   lda evalStkL+1,x
@@ -80,7 +80,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set up (or clear) intimate mode
-def _intimate_setMode(enable)
+def _intimate_setMode(enable)#1
   if enable
     loadFrameImg(NULL)  // flip to page 1, unload textures, etc.
     displayChar('N'-$40) // Set normal mode - clear all special modes (like underline, etc.)
@@ -92,11 +92,12 @@ def _intimate_setMode(enable)
     loadMainFrameImg()
     rawDisplayStr("\$1200")  // Set character rate - 0=fastest
   fin
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display string on a blank screen, with blanking follow-up
-def _intimate_displayStr(str)
+def _intimate_displayStr(str)#1
   word width, i
   width = calcWidth(str)
   rawDisplayf1("^T020^V050%s", str) // ctrl-T = horizontal position, ctrl-V = vertical position
@@ -105,9 +106,11 @@ def _intimate_displayStr(str)
     displayChar(' ')
   next
   rawDisplayStr("\$017") // ctrl-A = foreground color, 7=hi-bit-white
+  return 0
 end
 
-def _intimate_swipeImg() // FIXME
+def _intimate_swipeImg()#1 // FIXME
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

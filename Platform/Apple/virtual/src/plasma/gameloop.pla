@@ -1622,7 +1622,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Advance one step forward (works for either 3D or 2D maps)
-def moveForward()#0
+def moveForward()#1
   byte val
   word x, y
   val = advance()
@@ -1662,26 +1662,28 @@ def moveForward()#0
     getPos(@x, @y)
     checkEncounter(x, y, FALSE)
   fin
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Adjust player's direction plus or minus n increments
-def adjustDir(n)#0
+def adjustDir(n)#1
   setDir((getDir() + n) & 15)
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Move backward one step (3D mode). Also actually works in 2D mode.
-def moveBackward()#0
+def moveBackward()#1
   adjustDir(8)
   moveForward()
-  adjustDir(8)
+  return adjustDir(8)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Move backward two steps (3D mode), or one step (2D mode). This is often used when exiting a
 // building or fleeing combat, so we don't want to generate any random encounters.
-export def moveWayBackward()#0
+export def moveWayBackward()#1
   adjustDir(8)
   skipEncounterCheck = TRUE
   moveForward()
@@ -1689,41 +1691,41 @@ export def moveWayBackward()#0
     moveForward()
   fin
   skipEncounterCheck = FALSE
-  adjustDir(8)
+  return adjustDir(8)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Turn left (3D mode)
-def rotateLeft()#0
-  adjustDir(-1)
+def rotateLeft()#1
   needRender = TRUE
+  return adjustDir(-1)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Rotate to the right (3D mode)
-def rotateRight()#0
-  adjustDir(1)
+def rotateRight()#1
   needRender = TRUE
+  return adjustDir(1)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Sidestep to the right (3D mode)
-def strafeRight()#0
+def strafeRight()#1
   adjustDir(4)
   moveForward()
-  adjustDir(-4)
+  return adjustDir(-4)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Sidestep to the left (3D mode)
-def strafeLeft()#0
+def strafeLeft()#1
   adjustDir(-4)
   moveForward()
-  adjustDir(4)
+  return adjustDir(4)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def moveNorth()#0
+def moveNorth()#1
   word x, y
   getPos(@x, @y)
   if y > 4
@@ -1732,9 +1734,10 @@ def moveNorth()#0
   else
     beep()
   fin
+  return 0
 end
 
-def moveEast()#0
+def moveEast()#1
   word x, y
   getPos(@x, @y)
   if x < totalMapWidth-5
@@ -1743,9 +1746,10 @@ def moveEast()#0
   else
     beep()
   fin
+  return 0
 end
 
-def moveSouth()#0
+def moveSouth()#1
   word x, y
   getPos(@x, @y)
   if y < totalMapHeight-5
@@ -1754,9 +1758,10 @@ def moveSouth()#0
   else
     beep()
   fin
+  return 0
 end
 
-def moveWest()#0
+def moveWest()#1
   word x, y
   getPos(@x, @y)
   if x > 4
@@ -1765,6 +1770,7 @@ def moveWest()#0
   else
     beep()
   fin
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2177,7 +2183,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load the Party engine and show data for the given player
-def showPlayerSheet(num)#0
+def showPlayerSheet(num)#1
   word pItemToUse
   pItemToUse = loadEngine(MOD_PARTY)=>party_showPlayerSheet(num)
   returnFromEngine(TRUE)
@@ -2185,16 +2191,17 @@ def showPlayerSheet(num)#0
   if pItemToUse
     scriptEvent(@S_USE, pItemToUse=>s_name)
   fin
+  return 0
 end
 
-def showPlayer1()#0
-  showPlayerSheet(0)
+def showPlayer1()#1
+  return showPlayerSheet(0)
 end
-def showPlayer2()#0
-  showPlayerSheet(1)
+def showPlayer2()#1
+  return showPlayerSheet(1)
 end
-def showPlayer3()#0
-  showPlayerSheet(2)
+def showPlayer3()#1
+  return showPlayerSheet(2)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2278,24 +2285,27 @@ export def checkEncounter(x, y, force)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def saveGame()#0
+def saveGame()#1
   saveMapPos()
   loadEngine(MOD_DISKOPS)=>diskops_saveGame()
   returnFromEngine(TRUE)
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def loadGame()#0
+def loadGame()#1
   loadEngine(MOD_DISKOPS)=>diskops_loadGame()
   restoreMapPos()
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def help()#0
+def help()#1
   flipToPage1()
   setMapWindow(); clearWindow()
   loadEngine(GS_HELP)()
   returnFromEngine(TRUE)
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

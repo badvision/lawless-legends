@@ -29,7 +29,9 @@ const LOAD_SAVE_BUF = $5000
 
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the the header.
-predef _saveGame, _loadGame, _newOrLoadGame
+predef _saveGame()#1
+predef _loadGame()#1
+predef _newOrLoadGame(ask)#1
 word[] funcTbl = @_saveGame, @_loadGame, @_newOrLoadGame
 
 byte[] game1_filename = "GAME.1.SAVE"
@@ -77,8 +79,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Params: cmd | open<<8, filename, addr, size. Returns: status (for open only)
-//   cmd: 
-asm callProRWTS
+asm callProRWTS(cmdPlusOpenFlg, filename, addr, size)#1
     +asmPlasmRet 4
     ; Params come to us from PLASMA in reverse order
     sta setAuxZP
@@ -206,7 +207,7 @@ end
 //end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _rwGame(cmd)
+def _rwGame(cmd)#0
   while TRUE
     if callProRWTS(cmd | RWTS_OPENDIR, @game1_filename, LOAD_SAVE_BUF, HEAP_SIZE) == 0
       break
@@ -220,7 +221,7 @@ def _rwGame(cmd)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _saveGame()
+def _saveGame()#1
 
   // Perform garbage collection and record the size of the heap so we can restore it correctly
   global=>w_heapSize = mmgr(HEAP_COLLECT, 0) - HEAP_BOTTOM
@@ -229,9 +230,11 @@ def _saveGame()
   showMapName("Saving game...")
   memcpy(HEAP_BOTTOM, LOAD_SAVE_BUF, HEAP_SIZE)  // LC to low mem
   _rwGame(RWTS_WRITE)
+  return 0
 end
 
-def loadInternal()
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def loadInternal()#1
   word p_loaded
 
   // Load data to main memory
@@ -239,6 +242,9 @@ def loadInternal()
 
   // Copy the heap up, and init it with the correct size.
   p_loaded = LOAD_SAVE_BUF
+  if p_loaded=>w_heapSize == 0
+    return FALSE  // no game saved yet
+  fin
   if p_loaded=>w_heapSize < 100 or p_loaded=>w_heapSize > HEAP_SIZE
     fatal("Corrupt game file.")
   fin
@@ -248,7 +254,7 @@ def loadInternal()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _loadGame()
+def _loadGame()#1
   setMapWindow()
   clearWindow()
   showMapName("Loading game...")
@@ -259,10 +265,11 @@ def _loadGame()
     showMapName("Not found.")
     getUpperKey()
   fin
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def newGame()
+def newGame()#0
   word playersModule, newGameModule
   initHeap(0) // initially empty heap
   global->b_curAvatar = 0
@@ -275,7 +282,7 @@ def newGame()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def gameExists()
+def gameExists()#1
   word p_loaded
 
   // Load first part of save game into mem... 1 block should be plenty to verify it's real.
@@ -291,7 +298,7 @@ def gameExists()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _newOrLoadGame(ask)
+def _newOrLoadGame(ask)#1
   byte key
 
   if !gameExists()
@@ -322,6 +329,7 @@ def _newOrLoadGame(ask)
     fin
     beep()
   loop
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

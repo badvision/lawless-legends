@@ -19,13 +19,15 @@ include "gen_players.plh"
 
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the the header.
-predef setCheatCmds, addItem, addPlayer
-word[] funcTbl = @setCheatCmds, @addItem, @addPlayer
+predef _setCheatCmds()#1
+predef _addItem(player)#1
+predef _addPlayer()#1
+word[] funcTbl = @_setCheatCmds, @_addItem, @_addPlayer
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Godmode cheats
-def kbdTeleport()
+def kbdTeleport()#1
   byte d3, num
   word x, y
   byte dir
@@ -52,10 +54,11 @@ def kbdTeleport()
   ^$c052
 
   setMap(d3, num, x, y, dir)
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def showPos()
+def showPos()#1
   word x, y
   byte dir
 
@@ -70,20 +73,23 @@ def showPos()
   puts("\nHit any key.\n")
   getUpperKey()
   ^$c052
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def nextPortrait()
+def nextPortrait()#1
   portraitNum = portraitNum + 1
   if portraitNum > PO_LAST; portraitNum = 1; fin
   setPortrait(portraitNum)
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def prevPortrait()
+def prevPortrait()#1
   portraitNum = portraitNum - 1
   if portraitNum < 1; portraitNum = PO_LAST; fin
   setPortrait(portraitNum)
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -91,10 +97,11 @@ def testCombat
   word x, y
   getPos(@x, @y)
   checkEncounter(x, y, TRUE)
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def printMem
+def printMem()#1
   flipToPage1
   ^$c051
   mmgr(DEBUG_MEM, 0)
@@ -102,22 +109,25 @@ def printMem
   auxMmgr(DEBUG_MEM, 0)
   rdkey
   ^$c050
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Switch to the next sky color (3D only)
-def nextSky()
+def nextSky()#1
   setSky((skyNum + 1) % 18)
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Switch to the next ground color (3D only)
-def nextGround()
+def nextGround()#1
   setGround((groundNum + 1) % 18)
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def setCheatCmds()
+def _setCheatCmds()#1
   // install cheat commands
   setCmd('T', @kbdTeleport)
   setCmd('P', @showPos)
@@ -128,10 +138,12 @@ def setCheatCmds()
   setCmd('G', @nextGround)
   setCmd('&', @printMem)
   setCmd('_', @finalWin)
+  return 0
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Abstract code for adding from a list of things (players, items, etc.)
-def selectThing(moduleNum, nThings, nSkip, prompt)
+def selectThing(moduleNum, nThings, nSkip, prompt)#1
   word pModule, funcTbl, nFunc, pFunc, p_thing, n_thing, n2, pstr
   nFunc = -1
   pstr = "%d: %s\n"
@@ -171,8 +183,9 @@ def selectThing(moduleNum, nThings, nSkip, prompt)
   return nFunc
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Add an item cheat
-def addItem(player)
+def _addItem(player)#1
   word funcNum
   funcNum = selectThing(MOD_GEN_ITEMS, NUM_ITEMS, 2, "Add item #: ")
   if funcNum >= 0
@@ -180,10 +193,12 @@ def addItem(player)
     rdkey()
   fin
   ^$c050
+  return 0
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Add a player cheat
-def addPlayer()
+def _addPlayer()#1
   word funcNum
   funcNum = selectThing(MOD_GEN_PLAYERS, NUM_PLAYERS, 1, "Add player #: ")
   if funcNum >= 0
@@ -191,6 +206,7 @@ def addPlayer()
     rdkey()
   fin
   ^$c050
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

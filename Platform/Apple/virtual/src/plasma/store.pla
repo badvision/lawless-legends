@@ -23,7 +23,8 @@ const STATS_COL_2 = 140
 
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the header.
-predef _buyFromStore, _sellToStore
+predef _buyFromStore(storeCode, profitPercent)#1
+predef _sellToStore(profitPercent)#1
 word[] funcTbl = @_buyFromStore, @_sellToStore
 
 word pItemsModule, pPartyModule
@@ -48,7 +49,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Multiply 16 bit number by 8-bit ratio, and drop lower 8 bits of result. In effect this scales
 // num by the approximate ratio 0=0% .. 128=50% .. 255=99%
-asm mulRatio    // params: num, ratio
+asm mulRatio(num, ratio)#1
   +asmPlasmRet 2
 .ratio = evalStkL
 .numL  = evalStkL+1
@@ -95,7 +96,7 @@ end
 // $0080 = 50%
 // $0100 = 100%
 // $0180 = 150%
-def calcMarkup(price, ratio)
+def calcMarkup(price, ratio)#1
   word markup
   markup = 0
   while ratio > 255
@@ -106,7 +107,7 @@ def calcMarkup(price, ratio)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def loadExtraModules()
+def loadExtraModules()#0
   mmgr(START_LOAD, 1) // code is in partition 1
   pItemsModule = mmgr(QUEUE_LOAD, MOD_GEN_ITEMS<<8 | RES_TYPE_MODULE)
   pPartyModule = mmgr(QUEUE_LOAD, MOD_PARTY<<8 | RES_TYPE_MODULE)
@@ -114,13 +115,13 @@ def loadExtraModules()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def unloadExtraModules()
+def unloadExtraModules()#0
   mmgr(FREE_MEMORY, pItemsModule)
   mmgr(FREE_MEMORY, pPartyModule)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayBuyTitle(pageNum, nPages)
+def displayBuyTitle(pageNum, nPages)#0
   clearWindow()
   // Can't use centering mode on oversize window - font engine can't handle width > 255
   rawDisplayStr("^Y^I Buying")
@@ -131,13 +132,13 @@ def displayBuyTitle(pageNum, nPages)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayItemLine(num)
+def displayItemLine(num)#0
   rawDisplayf2("\n  %c.^T046%d^T085", num + 'A', pagePrices[num])
   pPartyModule()=>party_displayItemName(pageItems[num])
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayBuyPage(pItemTbl, markupRatio, pageNum, nPages)
+def displayBuyPage(pItemTbl, markupRatio, pageNum, nPages)#1
   byte itemNum
   word pFunc, pItem
 
@@ -163,7 +164,7 @@ def displayBuyPage(pItemTbl, markupRatio, pageNum, nPages)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayItemBrowse(pItem1, price, pItem2)
+def displayItemBrowse(pItem1, price, pItem2)#0
   clearWindow()
   rawDisplayf1("^T108^I Browse ^N\n\n^T%D^LMerchandise^L", STATS_COL_1)
   if pItem2
@@ -175,7 +176,7 @@ def displayItemBrowse(pItem1, price, pItem2)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def matchEquipped(pMatch, nSkip)
+def matchEquipped(pMatch, nSkip)#1
   word pPlayer, pItem
   pPlayer = global=>p_players
   pMatchPlayer = pPlayer
@@ -201,7 +202,7 @@ def matchEquipped(pMatch, nSkip)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayItemMenu(price, hasNextComp)
+def displayItemMenu(price, hasNextComp)#0
   rawDisplayf1("\n\n[Esc]^T%D", STATS_COL_1)
   if price <= global=>w_gold
     rawDisplayStr("B)uy it")
@@ -214,7 +215,7 @@ def displayItemMenu(price, hasNextComp)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def askQuantity(nMax)
+def askQuantity(nMax)#1
   word num
   if nMax == 1; return 1; fin
   rawDisplayf1("How many (1-%d)? ", nMax)
@@ -224,7 +225,7 @@ def askQuantity(nMax)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def browseItem(num)
+def browseItem(num)#0
   word pItem, price, compSkip, pComp, quantity
   byte sel
   pItem = pageItems[num]
@@ -277,12 +278,12 @@ def browseItem(num)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def percentToRatio(pct)
+def percentToRatio(pct)#1
   return calcMarkup(pct, 656) // Scale 0..100 to 0..255
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _buyFromStore(storeCode, profitPercent)
+def _buyFromStore(storeCode, profitPercent)#1
   word pItemTbl, choice
   byte nItemsOnPage, pageNum, nPages, redisplay
 
@@ -314,11 +315,11 @@ def _buyFromStore(storeCode, profitPercent)
   loop
 
   unloadExtraModules()
-  mmgr(HEAP_COLLECT, 0)
+  return mmgr(HEAP_COLLECT, 0)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displaySellTitle(pageNum, nPages)
+def displaySellTitle(pageNum, nPages)#0
   clearWindow()
   // Can't use centering mode on oversize window - font engine can't handle width > 255
   rawDisplayStr("^Y^I Selling")
@@ -329,7 +330,7 @@ def displaySellTitle(pageNum, nPages)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def iterateSellables(skipItems, markdownRatio)
+def iterateSellables(skipItems, markdownRatio)#1
   word pPlayer, pItem, itemsOnPage, totalItems
   byte ok
   itemsOnPage = 0
@@ -361,7 +362,7 @@ def iterateSellables(skipItems, markdownRatio)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displaySellPage(markdownRatio, pageNum, nPages)
+def displaySellPage(markdownRatio, pageNum, nPages)#1
   word nItems
   displaySellTitle(pageNum, nPages)
   nItems = iterateSellables(pageNum * PAGE_SIZE, markdownRatio)
@@ -374,7 +375,7 @@ def displaySellPage(markdownRatio, pageNum, nPages)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def sellItem(num)
+def sellItem(num)#0
   word pItem, price, quantity
 
   pItem = pageItems[num]
@@ -408,7 +409,7 @@ def sellItem(num)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _sellToStore(profitPercent)
+def _sellToStore(profitPercent)#1
   word pItemTbl, choice
   byte nItemsOnPage, pageNum, totalItems, nPages, redisplay
 
@@ -416,7 +417,7 @@ def _sellToStore(profitPercent)
   if totalItems == 0
     scriptDisplayStr("\nNothing to sell.\n")
     pause(800)
-    return
+    return 0
   fin
 
   setBigWindow()
@@ -445,7 +446,7 @@ def _sellToStore(profitPercent)
     fin
   loop
 
-  mmgr(HEAP_COLLECT, 0)
+  return mmgr(HEAP_COLLECT, 0)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -2408,7 +2408,7 @@ class A2PackPartitions
                 def columns = sheet.columns.column.collect { it.@name }
                 assert "name" in columns
                 assert "map-code" in columns
-                out.println("predef _enemies_forZone")
+                out.println("predef _enemies_forZone(zone)#1")
                 out.println("word[] funcTbl = @_enemies_forZone\n")
 
                 // Pre-define all the enemy creation functions
@@ -2617,12 +2617,12 @@ end
 
     def outCodeToFuncMethods(funcName, prefix, codeToFunc, out)
     {
-        out.println("def $funcName(code)")
+        out.println("def $funcName(code)#1")
         codeToFunc.sort().each { code, funcs ->
             out.println("  if streqi(code, \"$code\"); return @$prefix${humanNameToSymbol(code, false)}; fin")
         }
         out.println("  puts(code)")
-        out.println("  fatal(\"$funcName\")")
+        out.println("  return fatal(\"$funcName\")")
         out.println("end\n")
     }
 
@@ -2683,7 +2683,7 @@ end
             out.println()
 
             // Pre-define all the creation functions
-            out.println("predef _items_forLootCode, _items_forStoreCode")
+            out.println("predef _items_forLootCode(code)#1, _items_forStoreCode(code)#1")
             funcs.each { typeName, func, index, row ->
                 out.println("predef _$func")
             }
@@ -2828,9 +2828,9 @@ end
             out.println()
 
             // Pre-define all the creation functions
-            out.println("predef _makeInitialParty")
+            out.println("predef _makeInitialParty()#1")
             funcs.each { func, index, row ->
-                out.println("predef _$func")
+                out.println("predef _$func()#1")
             }
             out.println("")
 
@@ -2843,7 +2843,7 @@ end
 
             // Data structure-filling helper
             out.print("""\n\
-def makePlayer_pt1(name, intelligence, strength, agility, stamina, charisma, spirit, luck)
+def makePlayer_pt1(name, intelligence, strength, agility, stamina, charisma, spirit, luck)#1
   word p
   p = mmgr(HEAP_ALLOC, TYPE_PLAYER)
   p=>s_name = mmgr(HEAP_INTERN, name)
@@ -2857,7 +2857,7 @@ def makePlayer_pt1(name, intelligence, strength, agility, stamina, charisma, spi
   return p
 end
 
-def makePlayer_pt2(p, health, aiming, handToHand, dodging)
+def makePlayer_pt2(p, health, aiming, handToHand, dodging)#1
   p=>w_health = health
   p=>w_maxHealth = health
   p->b_aiming = aiming
@@ -2870,18 +2870,19 @@ end
             // Generate all the functions themselves
             funcs.each { func, index, row ->
                 withContext("player '${row.@name}'") {
-                    out.println("\ndef _$func()")
+                    out.println("\ndef _$func()#1")
                     genPlayer(func, row, out)
                     out.println("end\n")
                 }
             }
 
             // Code for initial party creation
-            out.println("def _makeInitialParty()")
+            out.println("def _makeInitialParty()#1")
             funcs.each { func, index, row ->
                 if (row.@"starting-party".equalsIgnoreCase("yes"))
                     out.println("  addToList(@global=>p_players, _$func())")
             }
+            out.println("  return 0")
             out.println("end\n")
 
             // Lastly, the outer module-level code
@@ -3258,6 +3259,7 @@ end
         PrintWriter out
         def locationsWithTriggers = [] as Set
         def scriptNames = [:]
+        def scriptArgs = [:]
         def indent = 0
         def variables = [] as Set
 
@@ -3373,6 +3375,19 @@ end
             out << ("  " * indent) << str
         }
 
+        def getScriptArgs(script)
+        {
+            scriptArgs[script] = [] as Set
+            if (script.block.size() != 0) {
+                def proc = script.block[0]
+                if (proc.mutation) {
+                    proc.mutation.arg.eachWithIndex { arg, idx ->
+                        scriptArgs[script] << "v_" + humanNameToSymbol(arg.@name, false)
+                    }
+                }
+            }
+        }
+
         def packScript(script)
         {
             //println "   Script '$name'"
@@ -3388,15 +3403,10 @@ end
                 out << "def ${scriptNames[script]}("
 
                 // If the script takes arguments, mark those and add them to the definition
-                def args = [] as Set
-                if (proc.mutation) {
-                    proc.mutation.arg.eachWithIndex { arg, idx ->
-                        if (idx > 0)
-                            out << ", "
-                        def name = "v_" + humanNameToSymbol(arg.@name, false)
-                        out << name
-                        args << name
-                    }
+                scriptArgs[script].eachWithIndex { arg, idx ->
+                    if (idx > 0)
+                        out << ", "
+                    out << arg
                 }
                 out << ")\n"
                 indent = 1
@@ -3433,10 +3443,10 @@ end
                 // Define all the variables that were mentioned (except the args)
                 out.close()
                 out = outerOutput
-                (variables - args).each { var ->
+                (variables - scriptArgs[script]).each { var ->
                     outIndented("word $var\n")
                 }
-                (variables - args).each { var ->
+                (variables - scriptArgs[script]).each { var ->
                     outIndented("$var = 0\n")
                 }
 
@@ -4078,7 +4088,7 @@ end
         {
             assert blk.field.size() == 1
             def code = getSingle(blk.field, 'CODE')
-            outIndented("if !scriptCombat(${escapeString(code)})); return; fin\n")
+            outIndented("if !scriptCombat(${escapeString(code)})); return 0; fin\n")
         }
 
         def packTeleport(blk)
@@ -4104,7 +4114,14 @@ end
         {
             // Emit a predefinition for each function
             scripts.eachWithIndex { script, idx ->
-                out << "predef ${scriptNames[script]}\n"
+                getScriptArgs(script)
+                out << "predef ${scriptNames[script]}("
+                scriptArgs[script].eachWithIndex { name, num ->
+                    if (num > 0)
+                        out << ", "
+                    out << name
+                }
+                out << ")#1\n"
             }
 
             // Collate all the matching location triggers into a sorted map.

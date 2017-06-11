@@ -174,7 +174,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Temporary hack: after scriptDisplayStr is called, generated code calls this to clear the PLASMA
 // string pool. That way, many long strings can be used in a single function.
-export asm tossStrings#0
+export asm tossStrings()#0
   lda framePtr
   sta outerFramePtr
   lda framePtr+1

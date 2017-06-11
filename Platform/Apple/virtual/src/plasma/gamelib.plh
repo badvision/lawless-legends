@@ -16,9 +16,9 @@ import gamelib
   predef addGold(amount)#1
   predef addPlayerToParty(playerFuncNum)#0
   predef addToList(addTo, p)#0
-  predef addToString(str)#1
+  predef addToString()#0
   predef addUnique(pList, p_thing)#1
-  predef auxMmgr(cmd, param)#1
+  predef auxMmgr(cmd, wordParam)#1
   predef beep()#0
   predef benchPlayer()#0
   predef brk()#0
@@ -61,8 +61,8 @@ import gamelib
   predef max(a, b)#1
   predef memcpy(pSrc, pDst, len)#0
   predef min(a, b)#1
-  predef mmgr(cmd, param)#1
-  predef moveWayBackward()#0
+  predef mmgr(cmd, wordParam)#1
+  predef moveWayBackward()#1
   predef parseDec(str)#1
   predef parseDecWithDefault(str, default)#1
   predef partyHasPlayer(playerName)#1
@@ -115,9 +115,9 @@ import gamelib
   predef setWindow3()#0
   predef showMapName(mapName)#0
   predef showParty()#0
-  predef sprintf1(fmt, arg1)
-  predef sprintf2(fmt, arg1, arg2)
-  predef sprintf3(fmt, arg1, arg2, arg3)
+  predef sprintf1(fmt, arg1)#1
+  predef sprintf2(fmt, arg1, arg2)#1
+  predef sprintf3(fmt, arg1, arg2, arg3)#1
   predef streqi(a, b)#1
   predef strncpy(dst, src, maxlen)#1
   predef takeItemFromPlayer(p_player, itemName)#0

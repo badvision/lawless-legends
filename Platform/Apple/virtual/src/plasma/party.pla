@@ -550,37 +550,41 @@ def tabTo(cursorX)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def formatDice(encoded)#0
+def formatDice(encoded)#1
   byte nDice, dieSize, add
   nDice = encoded >> 12
   dieSize = (encoded >> 8) & $F
   add = encoded & $F
   rawDisplayf2("%dd%d", nDice, dieSize)
   if add; rawDisplayf1("+%d", add); fin
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def formatNum(num)#0
+def formatNum(num)#1
   rawDisplayf1("%d", num)
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def formatStr(str)#0
+def formatStr(str)#1
   rawDisplayStr(str)
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def formatEquipped(num)#0
+def formatEquipped(num)#1
   if num == 1
     rawDisplayStr("Y")
   else
     rawDisplayStr("N")
   fin
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def formatAttack(code)#0
-  if !code; return; fin
+def formatAttack(code)#1
+  if !code; return 0; fin
   if code == 1
     rawDisplayStr("single")
   elsif code == 2
@@ -588,6 +592,7 @@ def formatAttack(code)#0
   else
     rawDisplayf1("%d-shot", code)
   fin
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

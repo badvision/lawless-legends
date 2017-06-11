@@ -413,6 +413,7 @@ def _sellToStore(profitPercent)#1
   word pItemTbl, choice
   byte nItemsOnPage, pageNum, totalItems, nPages, redisplay
 
+  loadExtraModules()
   totalItems = iterateSellables(9999, 0)
   if totalItems == 0
     scriptDisplayStr("\nNothing to sell.\n")

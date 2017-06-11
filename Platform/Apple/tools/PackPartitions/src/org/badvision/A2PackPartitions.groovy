@@ -3304,6 +3304,7 @@ end
 
             def name = getScriptName(script)
             assert name : "Can't find script name in $script"
+            getScriptArgs(script)
             scriptNames[script] = "sc_${humanNameToSymbol(name, false)}"
             packScript(script)
 

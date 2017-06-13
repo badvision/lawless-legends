@@ -75,6 +75,9 @@ struc Player
   word w_maxHealth
   byte b_combatChoice
   byte b_playerFlags
+  byte b_level
+  word w_curXP
+  word w_nextXP
 
   // Lists
   word p_skills  // list:Modifier

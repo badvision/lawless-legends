@@ -82,7 +82,9 @@ class A2PackPartitions
     def itemNameToFunc = [:]
     def playerNameToFunc = [:]
 
-    def requiredGlobalScripts = ["New Game", "Help", "Combat win", "Combat intro", "Combat prompt", "Enemy intro", "Death"]
+    def requiredGlobalScripts = ["New Game", "Help",
+                                 "Combat win", "Combat intro", "Combat prompt", "Enemy intro", "Death",
+                                 "Level XP", "Level SP"]
     def globalScripts = [:]
     def lastSysModule
 
@@ -164,7 +166,7 @@ class A2PackPartitions
 
     def printWarning(str)
     {
-        def msg = String.format("Warning in ${getContextStr()}: %s\n", str)
+        def msg = "Warning ${currentContext ? "in "+getContextStr() : ""}: $str\n"
         System.out.print(msg)
         warningBuf.append(msg)
         ++nWarnings
@@ -2571,6 +2573,7 @@ end
             "${parseByteAttr(row, "spirit")}, " +
             "${parseByteAttr(row, "luck")}), " + // ")" ==> this is the split between pt1 and pt2
             "${parseWordAttr(row, "health")}, " +
+            "${parseByteAttr(row, "level")}, " +
             "${parseByteAttr(row, "aiming")}, " +
             "${parseByteAttr(row, "hand-to-hand")}, " +
             "${parseByteAttr(row, "dodging")})")
@@ -2857,8 +2860,9 @@ def makePlayer_pt1(name, intelligence, strength, agility, stamina, charisma, spi
   return p
 end
 
-def makePlayer_pt2(p, health, aiming, handToHand, dodging)#1
+def makePlayer_pt2(p, health, level, aiming, handToHand, dodging)#1
   p=>w_health = health
+  p->b_level = level
   p=>w_maxHealth = health
   p->b_aiming = aiming
   p->b_handToHand = handToHand
@@ -3327,6 +3331,7 @@ end
             def name = humanNameToSymbol(humanName, false)
             out << "def ${name}()\n"
             out << "  displayStr(\"Missing script '" << humanName << "'\\n\")\n"
+            out << "  return 0\n"
             out << "end\n\n"
             out << "return @${name}\n"
             out << "done\n"

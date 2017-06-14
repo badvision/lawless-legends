@@ -123,7 +123,9 @@ class A2PackPartitions
         "aiming":       "@S_AIMING",
         "hand to hand": "@S_HAND_TO_HAND",
         "dodging":      "@S_DODGING",
-        "gold":         "@S_GOLD"
+        "gold":         "@S_GOLD",
+        "xp":           "@S_XP",
+        "sp":           "@S_SP"
     ]
 
     def predefStrings = stats + [
@@ -3855,6 +3857,27 @@ end
             }
         }
 
+        def packMathArithmetic(blk)
+        {
+            def op = getSingle(blk.field, "OP").text()
+            assert blk.value[0].@name == 'A'
+            assert blk.value[1].@name == 'B'
+            packExpr(getSingle(blk.value[0].block))
+            switch (op) {
+                case 'ADD':
+                    out << " + "; break
+                case 'MINUS':
+                    out << " - "; break
+                case 'MULTIPLY':
+                    out << " * "; break
+                case 'DIVIDE':
+                    out << " / "; break
+                default:
+                    assert false : "Arithmetic op '$op' not yet implemented."
+            }
+            packExpr(getSingle(blk.value[1].block))
+        }
+
         def packVarGet(blk)
         {
             def name = "v_" + humanNameToSymbol(getSingle(blk.field, "VAR").text(), false)
@@ -3896,6 +3919,9 @@ end
                     break
                 case 'logic_compare':
                     packLogicCompare(blk)
+                    break
+                case 'math_arithmetic':
+                    packMathArithmetic(blk)
                     break
                 case 'logic_operation':
                     packLogicOperation(blk)

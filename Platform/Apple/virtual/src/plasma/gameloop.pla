@@ -135,6 +135,8 @@ export byte[] S_AIMING = "aiming"
 export byte[] S_HAND_TO_HAND = "hand to hand"
 export byte[] S_DODGING = "dodging"
 export byte[] S_GOLD = "gold"
+export byte[] S_XP = "xp"
+export byte[] S_SP = "sp"
 export byte[] S_ENTER = "enter"
 export byte[] S_LEAVE = "leave"
 export byte[] S_USE = "use"
@@ -1392,15 +1394,25 @@ export def showParty()#0
   setWindow3()
   clearWindow()
 
-  // Display header
-  rawDisplayf1("^LName^T%DHealth^L\n", CHAR_WND_HEALTH_X)  // begin underline mode
+  // Display header (or LEVEL UP message)
+  p = global=>p_players
+  while p
+    if p=>w_curXP >= p=>w_nextXP; break; fin
+    p = p=>p_nextObj
+  loop
+  if p
+    rawDisplayStr("^Y^I LEVEL UP ^N\n")
+  else
+    rawDisplayf1("^LName^T%DHealth^L\n", CHAR_WND_HEALTH_X)  // begin underline mode
+  fin
 
   // Display each character's name and health
   p = global=>p_players
   while p
     if p <> global=>p_players; displayChar('\n'); fin
-    displayStr(p=>s_name)
-    rawDisplayf3("^T%D%d/%d", CHAR_WND_HEALTH_X, p=>w_health, p=>w_maxHealth)
+    if p=>w_curXP >= p=>w_nextXP; rawDisplayStr("^I"); fin
+    rawDisplayStr(p=>s_name)
+    rawDisplayf3("^N^T%D%d/%d", CHAR_WND_HEALTH_X, p=>w_health, p=>w_maxHealth)
     p = p=>p_nextObj
   loop
 
@@ -2663,6 +2675,8 @@ export def getStat(player, statName)#1
     is @S_HAND_TO_HAND; return player->b_handToHand
     is @S_DODGING; return player->b_dodging
     is @S_GOLD; return global=>w_gold
+    is @S_XP; return player=>w_curXP
+    is @S_SP; return player->b_skillPoints
   wend
   puts(statName); return fatal("Unknown stat")
 end
@@ -2688,9 +2702,36 @@ export def setStat(player, statName, val)#0
     is @S_HAND_TO_HAND; player->b_handToHand = clampByte(val); break
     is @S_DODGING; player->b_dodging = clampByte(val); break
     is @S_GOLD; global=>w_gold = max(0, val); needShowParty = TRUE; break
+    is @S_SP; global->b_skillPoints = max(0, val); needShowParty = TRUE; break
     otherwise
       puts(statName); fatal("Unknown stat")
   wend
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Add XP to every player in the party, leveling them up as appropriate
+export def gainXP(val)#0
+  word player, n
+  player = global=>p_players
+  while player
+    player=>w_curXP = player=>w_curXP + val
+    while player=>w_curXP >= player=>w_nextXP
+      // Level up!
+      player->b_level++
+      player->b_skillPoints = player->b_skillPoints + callGlobalFunc(GS_LEVEL_S_P, player->b_level, 0, 0)
+      player=>w_maxHealth = player=>w_maxHealth + player->b_stamina + rollDice($2600) // stam + 2d6
+      player=>w_health = player=>w_maxHealth // let's make leveling up an extra nice thing
+      needShowParty = TRUE
+
+      // Check XP for next level, and enforce level cap if any
+      n = callGlobalFunc(GS_LEVEL_X_P, player->b_level + 1, 0, 0)
+      if n <= w_nextXP
+        n = 32767 // level cap reached
+      fin
+      player=>w_nextXP = n
+    loop
+    player = player=>p_nextObj
+  loop
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

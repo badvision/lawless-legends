@@ -17,6 +17,7 @@ import gamelib
   predef addPlayerToParty(playerFuncNum)#0
   predef addToList(addTo, p)#0
   predef addToString()#0
+  predef addXP(xp)#1
   predef addUnique(pList, p_thing)#1
   predef auxMmgr(cmd, wordParam)#1
   predef beep()#0

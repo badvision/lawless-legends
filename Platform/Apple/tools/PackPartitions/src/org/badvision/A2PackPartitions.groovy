@@ -2371,6 +2371,7 @@ class A2PackPartitions
                         "${range.replace("'", "").toInteger()}, " +
                         "${chanceToHit.toInteger()}, " +
                         "${parseDice(damage)}, " +
+                        "${parseDice(experience)}, " +
                         "${parseDice(groupSize)}, " +
                         "${parseDice(goldLoot)})")
             out.println("end")
@@ -2429,7 +2430,7 @@ class A2PackPartitions
 
                 // Helper function to fill in the Enemy data structure
                 out.println("""
-def makeEnemy(name, hDice, img0, img1, attType, attText, attRange, chanceToHit, dmg, groupSize, goldLoot)
+def makeEnemy(name, hDice, img0, img1, attType, attText, attRange, chanceToHit, dmg, xp, groupSize, goldLoot)
   word p; p = mmgr(HEAP_ALLOC, TYPE_ENEMY)
   p=>s_name = mmgr(HEAP_INTERN, name)
   p=>w_health = rollDice(hDice) // e.g. 4d6
@@ -2443,6 +2444,7 @@ def makeEnemy(name, hDice, img0, img1, attType, attText, attRange, chanceToHit, 
   p->b_enemyAttackRange = attRange
   p->b_chanceToHit = chanceToHit
   p=>r_enemyDmg = dmg
+  p=>r_enemyXP = xp
   p=>r_groupSize = groupSize
   p=>r_goldLoot = goldLoot
   return p

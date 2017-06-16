@@ -428,8 +428,8 @@ def makeRandomGroup(mapCode)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def collectLoot()#1
-  word group, enemies, gold
+def collectLootAndXP()#2
+  word group, enemies, gold, xp
 
   gold = 0
   group = global=>p_enemyGroups
@@ -437,11 +437,12 @@ def collectLoot()#1
     enemies = group=>p_enemies
     while enemies
       gold = gold + rollDice(enemies=>r_goldLoot)
+      xp = xp + rollDice(enemies=>r_enemyXP)
       enemies = enemies=>p_nextObj
     loop
     group = group=>p_nextObj
   loop
-  return gold
+  return gold, xp
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -524,6 +525,22 @@ def killAllEnemies()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def processWin()#0
+  word gold, xp
+  callGlobalFunc(GS_COMBAT_WIN, 0, 0, 0)
+  // Grab the loot
+  gold, xp = collectLootAndXP()
+  if gold > 0
+    displayf1("You find %d gold pieces! ", addGold(gold))
+  fin
+  if xp > 0
+    displayf1("You earn %d experience! ", addXP(xp))
+  fin
+  displayStr("\n(press any key)\n")
+  getUpperKey()
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Returns: zero if fled, non-zero if won
 def _combat_zoneEncounter(s_encZone)#1
   word p, l, answer
@@ -555,10 +572,7 @@ def _combat_zoneEncounter(s_encZone)#1
       if !nPlayersFighting
         return -99  // special code for death
       elsif !nEnemiesFighting
-        callGlobalFunc(GS_COMBAT_WIN, 0, 0, 0)
-	      // Grab the loot
-	      displayf1("You find %d gold pieces!", addGold(collectLoot()))
-        getUpperKey()
+        processWin()
         // Note: no need to clear heap -- the caller does that.
         return 1
       fin

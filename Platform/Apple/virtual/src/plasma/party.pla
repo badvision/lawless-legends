@@ -394,7 +394,6 @@ def _doPlayerSheet(player_num)#1  // funcTbl functions always have to return a v
 
   setBigWindow()
 
-  // Get size of inventory pane in chars: 9 rows per line; minus 4 lines for header/footer
   i_page = 0
   redisplay = 2
   repeat

@@ -2321,14 +2321,14 @@ def help()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def enableGodMode()#0
+def toggleGodMode()#1
   while ^kbd < 128; loop
   if ^kbd == $8F  // ctrl-O
     ^kbdStrobe
     while ^kbd < 128; loop
     if ^kbd == $84  // ctrl-D
       ^kbdStrobe
-      global->b_godmode = 1
+      global->b_godmode = !global->b_godmode
       beep; beep // A little audio feedback
       saveMapPos(); restoreMapPos()  // reload everything, including god module
     fin
@@ -2369,7 +2369,7 @@ def initCmds()#0
   if global->b_godmode
     pGodModule=>godmode_setCheatCmds()
   else
-    cmdTbl[$07] = @enableGodMode // ctrl-G
+    cmdTbl[$07] = @toggleGodMode // ctrl-G
   fin
 
   // Commands handled differently in 3D vs 2D
@@ -2710,11 +2710,16 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Add XP to every player in the party, leveling them up as appropriate
-export def gainXP(val)#0
+export def addXP(val)#1
   word player, n
+  if val < 0; return 0; fin
   player = global=>p_players
   while player
     player=>w_curXP = player=>w_curXP + val
+    // Enforce cap on number of points to stay well within limit of 15 bits
+    if player=>w_curXP < 0 or player=>w_curXP > 29999
+      player=>w_curXP = 29999
+    fin
     while player=>w_curXP >= player=>w_nextXP
       // Level up!
       player->b_level++
@@ -2725,13 +2730,14 @@ export def gainXP(val)#0
 
       // Check XP for next level, and enforce level cap if any
       n = callGlobalFunc(GS_LEVEL_X_P, player->b_level + 1, 0, 0)
-      if n <= w_nextXP
-        n = 32767 // level cap reached
+      if n <= w_nextXP or n > 30000
+        n = 30000 // level cap reached
       fin
       player=>w_nextXP = n
     loop
     player = player=>p_nextObj
   loop
+  return val
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

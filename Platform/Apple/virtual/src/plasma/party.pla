@@ -155,16 +155,6 @@ def vspace()#0
   rawDisplayStr("^J^J^J^J")
 end
 
-// Show stats in the right panel
-def showStat(pSkillNum, str, num)#0
-  if pSkillNum and ^pSkillNum
-    rawDisplayf2("^T%D%c.", STAT_X-30, 'A' - 1 + ^pSkillNum)
-    ^pSkillNum = 1 + ^pSkillNum
-  fin
-  rightJustifyNum(num+10, STAT_X);
-  rawDisplayf2("^T%D%s\n", STATLBL_X, str)
-end
-
 // Derived stats like armor, damage, etc.
 def showDerived(player)#0
   word weapon, dmg
@@ -172,11 +162,13 @@ def showDerived(player)#0
   //rawDisplayStr("^V023")
   showColumnTitle(STAT_X, "Stats", 0, 0)
 
-  showStat(NULL, @S_HEALTH, player=>w_health)
-  showStat(NULL, @S_MAX_HEALTH, player=>w_maxHealth)
+  rightJustifyNum(player=>w_health, STAT_X)
+  rawDisplayf2("^T%D%s\n", STATLBL_X, @S_HEALTH)
+  rightJustifyNum(player=>w_maxHealth, STAT_X)
+  rawDisplayf2("^T%D%s\n", STATLBL_X, @S_MAX_HEALTH)
   vspace()
 
-  rightJustifyNum(player->b_armor, STAT_X);
+  rightJustifyNum(player->b_armor, STAT_X)
   rawDisplayf1("^T%DArmor\n", STATLBL_X)
 
   // Get weapon
@@ -200,45 +192,62 @@ def showDerived(player)#0
   rawDisplayf1("^T%DMelee\n", STATLBL_X)
 
   vspace()
-  rightJustifyNum(global=>w_gold, STAT_X);
+  rightJustifyNum(global=>w_gold, STAT_X)
   rawDisplayf1("^T%DParty gold", STATLBL_X)
 end
 
 // Display skill value
-def displaySkill(pSkillNum, str, val)#0
+def displaySkill(pSkillNum, py, x, numToBump, str, pVal)#0
+  ^py = ^py + 9
   if ^pSkillNum
-    rawDisplayf1("%c.", 'A' - 1 + ^pSkillNum)
     ^pSkillNum = 1 + ^pSkillNum
+    if numToBump
+      if numToBump+1 <> ^pSkillNum; return; fin
+      ^pVal = ^pVal + 1
+      setWindow(BIGWIN_TOP+^py, BIGWIN_TOP+9+^py, BIGWIN_LEFT+x+15, BIGWIN_LEFT+x+30)
+      clearWindow()
+      setBigWindow()
+    fin
+    rawDisplayf3("^V%D^T%D%c.", ^py, x, 'A' - 2 + ^pSkillNum)
+  else
+    rawDisplayf1("^V%D", ^py)
   fin
-  rightJustifyNum(val, 26);
-  rawDisplayf2("^T%D%s\n", 32, str)
+  rightJustifyStr("   ", x+26)
+  rightJustifyNum(^pVal, x+26)
+  rawDisplayf2("^T%D%s", x+32, str)
 end
 
 // Show aquired skills in lower right panel
-def showSkills(player)#0
+def showSkills(player, numToBump)#1
   word skill, skillNum
+  byte y, x1, x2
+  x1 = 10
+  x2 = STAT_X-20
 
   // First column: skills
-  showColumnTitle(INV_X-10, "Skills", 0, 0)
+  showColumnTitle(x1+15, "Skills", 0, 0)
+  y = 15
   skillNum = 1
-  displaySkill(@skillNum, @S_AIMING, player->b_aiming)
-  displaySkill(@skillNum, @S_HAND_TO_HAND, player->b_handToHand)
-  displaySkill(@skillNum, @S_DODGING, player->b_dodging)
+  displaySkill(@skillNum, @y, x1, numToBump, @S_AIMING, player+b_aiming)
+  displaySkill(@skillNum, @y, x1, numToBump, @S_HAND_TO_HAND, player+b_handToHand)
+  displaySkill(@skillNum, @y, x1, numToBump, @S_DODGING, player+b_dodging)
   skill = player=>p_skills
   while skill
-    displaySkill(@skillNum, skill=>s_name, skill=>w_modValue)
+    displaySkill(@skillNum, @y, x1, numToBump, skill=>s_name, skill+w_modValue)
     skill = skill=>p_nextObj
   loop
 
   // Second column: attributes
-  showColumnTitle(STAT_X-10, "Attributes", 0, 0)
-  showStat(@skillNum, @S_INTELLIGENCE, player->b_intelligence)
-  showStat(@skillNum, @S_STRENGTH, player->b_strength)
-  showStat(@skillNum, @S_AGILITY, player->b_agility)
-  showStat(@skillNum, @S_STAMINA, player->b_stamina)
-  showStat(@skillNum, @S_CHARISMA, player->b_charisma)
-  showStat(@skillNum, @S_SPIRIT, player->b_spirit)
-  showStat(@skillNum, @S_LUCK, player->b_luck)
+  showColumnTitle(x2+15, "Attributes", 0, 0)
+  y = 15
+  displaySkill(@skillNum, @y, x2, numToBump, @S_INTELLIGENCE, player+b_intelligence)
+  displaySkill(@skillNum, @y, x2, numToBump, @S_STRENGTH, player+b_strength)
+  displaySkill(@skillNum, @y, x2, numToBump, @S_AGILITY, player+b_agility)
+  displaySkill(@skillNum, @y, x2, numToBump, @S_STAMINA, player+b_stamina)
+  displaySkill(@skillNum, @y, x2, numToBump, @S_CHARISMA, player+b_charisma)
+  displaySkill(@skillNum, @y, x2, numToBump, @S_SPIRIT, player+b_spirit)
+  displaySkill(@skillNum, @y, x2, numToBump, @S_LUCK, player+b_luck)
+  return skillNum
 end
 
 def clearMenuRect()#0
@@ -450,7 +459,7 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
         itemsOnPage = showInventory(player, i_page, 0)
         showDerived(player)
       else // 'S'
-        showSkills(player)
+        itemsOnPage = showSkills(player, 0)
       fin
       redisplay = 0
     fin
@@ -528,6 +537,13 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
           if sel >= 0 and sel < itemsOnPage
             interactWithItem(player, itemByNum(player, sel))
             redisplay = 2
+          else
+            beep
+          fin
+        elsif mode == 'S'
+          sel = sel - 'A'
+          if sel >= 0 and sel < itemsOnPage and player->b_skillPoints
+            showSkills(player, sel+1)
           else
             beep
           fin

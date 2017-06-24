@@ -174,6 +174,11 @@ class A2PackPartitions
         ++nWarnings
     }
 
+    def titleCase(inStr)
+    {
+        return inStr[0].toUpperCase() + inStr.substring(1)
+    }
+
     def escapeString(inStr)
     {
         // Commonly used strings (e.g. event handler names, attributes)
@@ -2584,7 +2589,7 @@ end
         row.attributes().sort().eachWithIndex { name, val, idx ->
             if (name =~ /^skill-(.*)/) {
                 out.println("  addToList(@p=>p_skills, " +
-                    "makeModifier(${escapeString(name.replace("skill-", ""))}, " +
+                    "makeModifier(${escapeString(titleCase(name.replace("skill-", "")))}, " +
                     "${parseByteAttr(row, name)}))")
             }
             else if (name =~ /^item-/) {

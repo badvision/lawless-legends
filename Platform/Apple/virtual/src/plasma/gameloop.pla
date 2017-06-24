@@ -122,24 +122,24 @@ byte anyAnims = TRUE
 word animPauseCt
 
 // Shared string constants
-export byte[] S_INTELLIGENCE = "intelligence"
-export byte[] S_STRENGTH = "strength"
-export byte[] S_AGILITY = "agility"
-export byte[] S_STAMINA = "stamina"
-export byte[] S_CHARISMA = "charisma"
-export byte[] S_SPIRIT = "spirit"
-export byte[] S_LUCK = "luck"
-export byte[] S_HEALTH = "health"
-export byte[] S_MAX_HEALTH = "max health"
-export byte[] S_AIMING = "aiming"
-export byte[] S_HAND_TO_HAND = "hand to hand"
-export byte[] S_DODGING = "dodging"
-export byte[] S_GOLD = "gold"
-export byte[] S_XP = "xp"
-export byte[] S_SP = "sp"
-export byte[] S_ENTER = "enter"
-export byte[] S_LEAVE = "leave"
-export byte[] S_USE = "use"
+export byte[] S_INTELLIGENCE = "Intelligence"
+export byte[] S_STRENGTH = "Strength"
+export byte[] S_AGILITY = "Agility"
+export byte[] S_STAMINA = "Stamina"
+export byte[] S_CHARISMA = "Charisma"
+export byte[] S_SPIRIT = "Spirit"
+export byte[] S_LUCK = "Luck"
+export byte[] S_HEALTH = "Health"
+export byte[] S_MAX_HEALTH = "Max health"
+export byte[] S_AIMING = "Aiming"
+export byte[] S_HAND_TO_HAND = "Hand to hand"
+export byte[] S_DODGING = "Dodging"
+export byte[] S_GOLD = "Gold"
+export byte[] S_XP = "XP"
+export byte[] S_SP = "SP"
+export byte[] S_ENTER = "Enter"
+export byte[] S_LEAVE = "Leave"
+export byte[] S_USE = "Use"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -947,6 +947,47 @@ export asm textHome()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Compare two strings for equality, ignoring case.
+export asm streqi(a, b)#1
+  +asmPlasmRet 2
+  sta tmp
+  sty tmp+1
+  lda evalStkL+1,x
+  sta pTmp
+  lda evalStkH+1,x
+  sta pTmp+1
+  ldy #0
+  lda (tmp),y
+  cmp (pTmp),y
+  beq +           ; if lengths not equal, strings can't be equal
+--
+  lda #0
+  tay
+  rts
++ tax             ; count up to (verified same) length of the strings
+- iny
+  lda (tmp),y
+  cmp #('z'&$7F)+1      ; convert to upper case
+  bcs +
+  cmp #'a'&$7F
+  bcc +
+  sbc #$20
++ sta ysav
+  lda (pTmp),y
+  cmp #('z'&$7F)+1      ; convert to upper case
+  bcs +
+  cmp #'a'&$7F
+  bcc +
+  sbc #$20
++ cmp ysav
+  bne --          ; abort on inequality
+  dex
+  bne -
+  ldy #0          ; okay, they're equal. Return non-zero (A is guaranteed to be a character already)
+  rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // General methods
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -984,34 +1025,6 @@ export def charToUpper(c)#1
     return c - $20
   fin
   return c
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Compare two strings for equality, ignoring case.
-export def streqi(a, b)#1
-  word limit, leneq
-  leneq = ^a == ^b
-  limit = a + min(^a, ^b)
-  a++; b++
-  while a <= limit
-    if charToUpper(^a) <> charToUpper(^b); return FALSE; fin
-    a++; b++
-  loop
-  return leneq
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Copy part of a string; returns the length
-export def strncpy(dst, src, maxlen)#1
-  byte i, l
-
-  l = ^src
-  if l > maxlen; l = maxlen; fin
-  ^dst = l
-  for i = 1 to l
-    dst->[i] = src->[i]
-  next
-  return l
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2197,6 +2210,7 @@ end
 // Load the Party engine and show data for the given player
 def showPlayerSheet(num)#1
   word pItemToUse
+  if num+1 > countList(global=>p_players); beep; return 0; fin
   pItemToUse = loadEngine(MOD_PARTY)=>party_showPlayerSheet(num)
   returnFromEngine(TRUE)
   // General 'use' handled here in case it triggers graphical effects
@@ -2333,6 +2347,7 @@ def toggleGodMode()#1
       saveMapPos(); restoreMapPos()  // reload everything, including god module
     fin
   fin
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -120,7 +120,6 @@ import gamelib
   predef sprintf2(fmt, arg1, arg2)#1
   predef sprintf3(fmt, arg1, arg2, arg3)#1
   predef streqi(a, b)#1
-  predef strncpy(dst, src, maxlen)#1
   predef takeItemFromPlayer(p_player, itemName)#0
   predef textHome()#0
   predef tossStrings()#0

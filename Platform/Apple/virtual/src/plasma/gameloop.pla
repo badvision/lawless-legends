@@ -1409,8 +1409,7 @@ export def showParty()#0
 
   // Display header (or LEVEL UP message)
   p = global=>p_players
-  while p
-    if p=>w_curXP >= p=>w_nextXP; break; fin
+  while !p->b_skillPoints
     p = p=>p_nextObj
   loop
   if p
@@ -1423,7 +1422,7 @@ export def showParty()#0
   p = global=>p_players
   while p
     if p <> global=>p_players; displayChar('\n'); fin
-    if p=>w_curXP >= p=>w_nextXP; rawDisplayStr("^I"); fin
+    if p->b_skillPoints; rawDisplayStr("^I"); fin // inverse for chars needing lvl-up
     rawDisplayStr(p=>s_name)
     rawDisplayf3("^N^T%D%d/%d", CHAR_WND_HEALTH_X, p=>w_health, p=>w_maxHealth)
     p = p=>p_nextObj
@@ -2631,6 +2630,38 @@ export def giveItemToPlayer(p_player, itemFuncNum)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Add XP to every player in the party, leveling them up as appropriate
+export def addXP(val)#1
+  word player, n
+  if val < 0; return 0; fin
+  player = global=>p_players
+  while player
+    player=>w_curXP = player=>w_curXP + val
+    // Enforce cap on number of points to stay well within limit of 15 bits
+    if player=>w_curXP < 0 or player=>w_curXP > 29999
+      player=>w_curXP = 29999
+    fin
+    while player=>w_curXP >= player=>w_nextXP
+      // Level up!
+      player->b_level++
+      player->b_skillPoints = player->b_skillPoints + callGlobalFunc(GS_LEVEL_S_P, player->b_level, 0, 0)
+      player=>w_maxHealth = player=>w_maxHealth + player->b_stamina + rollDice($2600) // stam + 2d6
+      player=>w_health = player=>w_maxHealth // let's make leveling up an extra nice thing
+      needShowParty = TRUE
+
+      // Check XP for next level, and enforce level cap if any
+      n = callGlobalFunc(GS_LEVEL_X_P, player->b_level + 1, 0, 0)
+      if n <= w_nextXP or n > 30000
+        n = 30000 // level cap reached
+      fin
+      player=>w_nextXP = n
+    loop
+    player = player=>p_nextObj
+  loop
+  return val
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 export def addPlayerToParty(playerFuncNum)#0
   word p
   if countList(global=>p_players) == MAX_PARTY
@@ -2639,6 +2670,7 @@ export def addPlayerToParty(playerFuncNum)#0
   fin
   p = createAndAddUnique(MOD_GEN_PLAYERS, playerFuncNum, @global=>p_players)
   p->b_playerFlags = p->b_playerFlags | PLAYER_FLAG_NPC
+  addXP(0) // to set initial skill pts
   needShowParty = TRUE
 end
 
@@ -2721,38 +2753,6 @@ export def setStat(player, statName, val)#0
     otherwise
       puts(statName); fatal("Unknown stat")
   wend
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Add XP to every player in the party, leveling them up as appropriate
-export def addXP(val)#1
-  word player, n
-  if val < 0; return 0; fin
-  player = global=>p_players
-  while player
-    player=>w_curXP = player=>w_curXP + val
-    // Enforce cap on number of points to stay well within limit of 15 bits
-    if player=>w_curXP < 0 or player=>w_curXP > 29999
-      player=>w_curXP = 29999
-    fin
-    while player=>w_curXP >= player=>w_nextXP
-      // Level up!
-      player->b_level++
-      player->b_skillPoints = player->b_skillPoints + callGlobalFunc(GS_LEVEL_S_P, player->b_level, 0, 0)
-      player=>w_maxHealth = player=>w_maxHealth + player->b_stamina + rollDice($2600) // stam + 2d6
-      player=>w_health = player=>w_maxHealth // let's make leveling up an extra nice thing
-      needShowParty = TRUE
-
-      // Check XP for next level, and enforce level cap if any
-      n = callGlobalFunc(GS_LEVEL_X_P, player->b_level + 1, 0, 0)
-      if n <= w_nextXP or n > 30000
-        n = 30000 // level cap reached
-      fin
-      player=>w_nextXP = n
-    loop
-    player = player=>p_nextObj
-  loop
-  return val
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

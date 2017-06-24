@@ -156,31 +156,29 @@ def vspace()#0
 end
 
 // Show stats in the right panel
-def showStat(str, num)#0
-  rightJustifyNum(num, STAT_X);
+def showStat(pSkillNum, str, num)#0
+  if pSkillNum and ^pSkillNum
+    rawDisplayf2("^T%D%c.", STAT_X-30, 'A' - 1 + ^pSkillNum)
+    ^pSkillNum = 1 + ^pSkillNum
+  fin
+  rightJustifyNum(num+10, STAT_X);
   rawDisplayf2("^T%D%s\n", STATLBL_X, str)
-end
-def showStats(player)#0
-  showColumnTitle(STAT_X, "Stats", 0, 0)
-  showStat(@S_HEALTH, player=>w_health)
-  showStat(@S_MAX_HEALTH, player=>w_maxHealth)
-  vspace()
-  showStat(@S_INTELLIGENCE, player->b_intelligence)
-  showStat(@S_STRENGTH, player->b_strength)
-  showStat(@S_AGILITY, player->b_agility)
-  showStat(@S_STAMINA, player->b_stamina)
-  showStat(@S_CHARISMA, player->b_charisma)
-  showStat(@S_SPIRIT, player->b_spirit)
-  showStat(@S_LUCK, player->b_luck)
 end
 
 // Derived stats like armor, damage, etc.
 def showDerived(player)#0
   word weapon, dmg
 
-  rawDisplayStr("^V023")
+  //rawDisplayStr("^V023")
+  showColumnTitle(STAT_X, "Stats", 0, 0)
 
-  rightJustifyNum(player->b_armor, STAT_X);        rawDisplayf1("^T%DArmor\n", STATLBL_X)
+  showStat(NULL, @S_HEALTH, player=>w_health)
+  showStat(NULL, @S_MAX_HEALTH, player=>w_maxHealth)
+  vspace()
+
+  rightJustifyNum(player->b_armor, STAT_X);
+  rawDisplayf1("^T%DArmor\n", STATLBL_X)
+
   // Get weapon
   weapon = player=>p_items
   while weapon
@@ -202,35 +200,52 @@ def showDerived(player)#0
   rawDisplayf1("^T%DMelee\n", STATLBL_X)
 
   vspace()
-  rightJustifyNum(global=>w_gold, STAT_X);         rawDisplayf1("^T%DGold (party)", STATLBL_X)
+  rightJustifyNum(global=>w_gold, STAT_X);
+  rawDisplayf1("^T%DParty gold", STATLBL_X)
 end
 
 // Display skill value
-def displaySkill(str, val)#0
-  rawDisplayf2("%d %s\n", val, str)
+def displaySkill(pSkillNum, str, val)#0
+  if ^pSkillNum
+    rawDisplayf1("%c.", 'A' - 1 + ^pSkillNum)
+    ^pSkillNum = 1 + ^pSkillNum
+  fin
+  rightJustifyNum(val, 26);
+  rawDisplayf2("^T%D%s\n", 32, str)
 end
 
 // Show aquired skills in lower right panel
 def showSkills(player)#0
-  word skill
+  word skill, skillNum
 
+  // First column: skills
   showColumnTitle(INV_X-10, "Skills", 0, 0)
-
-  displaySkill(@S_AIMING, player->b_aiming)
-  displaySkill(@S_HAND_TO_HAND, player->b_handToHand)
-  displaySkill(@S_DODGING, player->b_dodging)
+  skillNum = 1
+  displaySkill(@skillNum, @S_AIMING, player->b_aiming)
+  displaySkill(@skillNum, @S_HAND_TO_HAND, player->b_handToHand)
+  displaySkill(@skillNum, @S_DODGING, player->b_dodging)
   skill = player=>p_skills
   while skill
-    displaySkill(skill=>s_name, skill=>w_modValue)
+    displaySkill(@skillNum, skill=>s_name, skill=>w_modValue)
     skill = skill=>p_nextObj
   loop
+
+  // Second column: attributes
+  showColumnTitle(STAT_X-10, "Attributes", 0, 0)
+  showStat(@skillNum, @S_INTELLIGENCE, player->b_intelligence)
+  showStat(@skillNum, @S_STRENGTH, player->b_strength)
+  showStat(@skillNum, @S_AGILITY, player->b_agility)
+  showStat(@skillNum, @S_STAMINA, player->b_stamina)
+  showStat(@skillNum, @S_CHARISMA, player->b_charisma)
+  showStat(@skillNum, @S_SPIRIT, player->b_spirit)
+  showStat(@skillNum, @S_LUCK, player->b_luck)
 end
 
 def clearMenuRect()#0
   setWindow(BIGWIN_BOTTOM-10, BIGWIN_BOTTOM, BIGWIN_LEFT, BIGWIN_RIGHT)
   clearWindow()
   setBigWindow()
-  rawDisplayf1("^V%D^T012", BIGWIN_HEIGHT-10)
+  rawDisplayf1("^V%D", BIGWIN_HEIGHT-10)
 end
 
 // Display menu for selecting inventory items
@@ -256,7 +271,7 @@ def showInvMenu(player, totalItems, itemPage, itemsOnPage)#0
   if playerCount > 1; rawDisplayf1("Player [1-%d], ", playerCount+1); fin
 
   if player->b_skillPoints > 0
-    rawDisplayStr("S:LEVEL UP! ")
+    rawDisplayStr("^I Level U)p ^N ")
   else
     rawDisplayStr("S)kills, ")
   fin
@@ -273,7 +288,7 @@ def showSkillsMenu(player)#0
 
   if playerCount > 1; rawDisplayf1("Player [1-%d], ", playerCount+1); fin
 
-  rawDisplayStr("T:Inventory, or [Esc] ")
+  rawDisplayStr("X:Inventory, or [Esc] ")
 end
 
 // Display menu for selecting inventory items
@@ -436,7 +451,6 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
         showDerived(player)
       else // 'S'
         showSkills(player)
-        showStats(player)
       fin
       redisplay = 0
     fin
@@ -503,10 +517,10 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
       is $1B // Esc
         return 0
       otherwise
-        if sel == 'T' and mode <> 'I'
+        if sel == 'X' and mode <> 'I'
           mode = 'I'
           redisplay = 2
-        elsif sel == 'S' and mode <> 'S'
+        elsif (sel == 'S' or sel == 'U') and mode <> 'S'
           mode = 'S'
           redisplay = 2
         elsif mode == 'I'

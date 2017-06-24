@@ -278,6 +278,7 @@ def newGame()#0
   newGameModule = mmgr(QUEUE_LOAD, GS_NEW_GAME<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
   playersModule()=>makeInitialParty()
+  addXP(0) // to set initial skill pts
   newGameModule()()
 end
 

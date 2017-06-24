@@ -196,23 +196,32 @@ def showDerived(player)#0
   rawDisplayf1("^T%DParty gold", STATLBL_X)
 end
 
+def clearLittleArea(x, y)#0
+  setWindow(BIGWIN_TOP+y, BIGWIN_TOP+9+y, BIGWIN_LEFT+x+15, BIGWIN_LEFT+x+30)
+  clearWindow()
+  setBigWindow()
+end
+
 // Display skill value
-def displaySkill(pSkillNum, py, x, numToBump, str, pVal)#0
+def displaySkill(player, pSkillNum, py, x, numToBump, str, pVal)#0
   ^py = ^py + 9
   if ^pSkillNum
     ^pSkillNum = 1 + ^pSkillNum
     if numToBump
       if numToBump+1 <> ^pSkillNum; return; fin
-      ^pVal = ^pVal + 1
-      setWindow(BIGWIN_TOP+^py, BIGWIN_TOP+9+^py, BIGWIN_LEFT+x+15, BIGWIN_LEFT+x+30)
-      clearWindow()
-      setBigWindow()
+      if player->b_skillPoints and ^pVal < 10
+        player->b_skillPoints = player->b_skillPoints - 1
+        ^pVal = ^pVal + 1
+        clearLittleArea(x, ^py)
+      else
+        beep
+        return
+      fin
     fin
     rawDisplayf3("^V%D^T%D%c.", ^py, x, 'A' - 2 + ^pSkillNum)
   else
     rawDisplayf1("^V%D", ^py)
   fin
-  rightJustifyStr("   ", x+26)
   rightJustifyNum(^pVal, x+26)
   rawDisplayf2("^T%D%s", x+32, str)
 end
@@ -228,25 +237,31 @@ def showSkills(player, numToBump)#1
   showColumnTitle(x1+15, "Skills", 0, 0)
   y = 15
   skillNum = 1
-  displaySkill(@skillNum, @y, x1, numToBump, @S_AIMING, player+b_aiming)
-  displaySkill(@skillNum, @y, x1, numToBump, @S_HAND_TO_HAND, player+b_handToHand)
-  displaySkill(@skillNum, @y, x1, numToBump, @S_DODGING, player+b_dodging)
+  displaySkill(player, @skillNum, @y, x1, numToBump, @S_AIMING, player+b_aiming)
+  displaySkill(player, @skillNum, @y, x1, numToBump, @S_HAND_TO_HAND, player+b_handToHand)
+  displaySkill(player, @skillNum, @y, x1, numToBump, @S_DODGING, player+b_dodging)
   skill = player=>p_skills
   while skill
-    displaySkill(@skillNum, @y, x1, numToBump, skill=>s_name, skill+w_modValue)
+    displaySkill(player, @skillNum, @y, x1, numToBump, skill=>s_name, skill+w_modValue)
     skill = skill=>p_nextObj
   loop
 
   // Second column: attributes
   showColumnTitle(x2+15, "Attributes", 0, 0)
   y = 15
-  displaySkill(@skillNum, @y, x2, numToBump, @S_INTELLIGENCE, player+b_intelligence)
-  displaySkill(@skillNum, @y, x2, numToBump, @S_STRENGTH, player+b_strength)
-  displaySkill(@skillNum, @y, x2, numToBump, @S_AGILITY, player+b_agility)
-  displaySkill(@skillNum, @y, x2, numToBump, @S_STAMINA, player+b_stamina)
-  displaySkill(@skillNum, @y, x2, numToBump, @S_CHARISMA, player+b_charisma)
-  displaySkill(@skillNum, @y, x2, numToBump, @S_SPIRIT, player+b_spirit)
-  displaySkill(@skillNum, @y, x2, numToBump, @S_LUCK, player+b_luck)
+  displaySkill(player, @skillNum, @y, x2, numToBump, @S_INTELLIGENCE, player+b_intelligence)
+  displaySkill(player, @skillNum, @y, x2, numToBump, @S_STRENGTH, player+b_strength)
+  displaySkill(player, @skillNum, @y, x2, numToBump, @S_AGILITY, player+b_agility)
+  displaySkill(player, @skillNum, @y, x2, numToBump, @S_STAMINA, player+b_stamina)
+  displaySkill(player, @skillNum, @y, x2, numToBump, @S_CHARISMA, player+b_charisma)
+  displaySkill(player, @skillNum, @y, x2, numToBump, @S_SPIRIT, player+b_spirit)
+  displaySkill(player, @skillNum, @y, x2, numToBump, @S_LUCK, player+b_luck)
+  y = y + 15
+  if numToBump
+    clearLittleArea(x2, y+9)
+  fin
+  displaySkill(player, NULL, @y, x2, 0, "Skill points", player+b_skillPoints)
+
   return skillNum
 end
 
@@ -277,27 +292,27 @@ def showInvMenu(player, totalItems, itemPage, itemsOnPage)#0
     fin
   fin
 
-  if playerCount > 1; rawDisplayf1("Player [1-%d], ", playerCount+1); fin
+  if playerCount > 1; rawDisplayf1("Player [1-%d], ", playerCount); fin
 
   if player->b_skillPoints > 0
-    rawDisplayStr("^I Level U)p ^N ")
+    rawDisplayStr("^I Lvl U)p ^N ")
   else
-    rawDisplayStr("S)kills, ")
+    rawDisplayStr("S)kills ")
   fin
 
   rawDisplayStr("or [Esc]")
 end
 
 // Display menu for selecting inventory items
-def showSkillsMenu(player)#0
+def showSkillsMenu(player, nSkills)#0
   byte playerCount
   playerCount = countList(global=>p_players)
-
   clearMenuRect()
-
-  if playerCount > 1; rawDisplayf1("Player [1-%d], ", playerCount+1); fin
-
-  rawDisplayStr("X:Inventory, or [Esc] ")
+  if playerCount > 1; rawDisplayf1("Player [1-%d], ", playerCount); fin
+  if player->b_skillPoints
+    rawDisplayf1("Spend pt [A-%c], ", nSkills+'A')
+  fin
+  rawDisplayStr("X:Inv or [Esc]")
 end
 
 // Display menu for selecting inventory items
@@ -311,7 +326,7 @@ def showItemMenu(item)#0
   if type == TYPE_ITEM
     rawDisplayStr("U)se, ")
   fin
-  rawDisplayStr("D)estroy, or [Esc]")
+  rawDisplayStr("D)estroy or [Esc]")
 end
 
 // Equip/unequip an item.
@@ -467,7 +482,7 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
     if mode == 'I'
       showInvMenu(player, totalItems, i_page, itemsOnPage)
     else // 'S'
-      showSkillsMenu(player)
+      showSkillsMenu(player, itemsOnPage)
     fin
 
     // Get a key, do something

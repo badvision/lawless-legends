@@ -162,6 +162,12 @@ def showDerived(player)#0
   //rawDisplayStr("^V023")
   showColumnTitle(STAT_X, "Stats", 0, 0)
 
+  rawDisplayf2("^T%DLevel %d\n", STAT_X-5, player->b_level)
+  if player->b_skillPoints
+    rawDisplayf2("^T%D%s\n", STAT_X-5, "LEVEL UP!")
+  fin
+  vspace()
+
   rightJustifyNum(player=>w_health, STAT_X)
   rawDisplayf2("^T%D%s\n", STATLBL_X, @S_HEALTH)
   rightJustifyNum(player=>w_maxHealth, STAT_X)
@@ -256,11 +262,19 @@ def showSkills(player, numToBump)#1
   displaySkill(player, @skillNum, @y, x2, numToBump, @S_CHARISMA, player+b_charisma)
   displaySkill(player, @skillNum, @y, x2, numToBump, @S_SPIRIT, player+b_spirit)
   displaySkill(player, @skillNum, @y, x2, numToBump, @S_LUCK, player+b_luck)
-  y = y + 15
+  y = y + 6
   if numToBump
     clearLittleArea(x2, y+9)
   fin
   displaySkill(player, NULL, @y, x2, 0, "Skill points", player+b_skillPoints)
+  if !numToBump
+    rawDisplayStr("\n")
+    vspace()
+    rightJustifyNum(player=>w_curXP, x2+26)
+    rawDisplayf2("^T%D%s\n", x2+32, "Current XP")
+    rightJustifyNum(player=>w_nextXP, x2+26)
+    rawDisplayf2("^T%D%s\n", x2+32, "Next lvl XP")
+  fin
 
   return skillNum
 end
@@ -536,6 +550,12 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
       is '9' // add player cheat
         if global->b_godmode
           pGodModule=>godmode_addPlayer()
+        fin
+        break
+      is '+' // level up cheat
+        if global->b_godmode
+          addXP(player=>w_nextXP - player=>w_curXP)
+          redisplay = 2
         fin
         break
       is $1B // Esc

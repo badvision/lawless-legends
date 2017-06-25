@@ -2651,10 +2651,12 @@ export def addXP(val)#1
 
       // Check XP for next level, and enforce level cap if any
       n = callGlobalFunc(GS_LEVEL_X_P, player->b_level + 1, 0, 0)
-      if n <= w_nextXP or n > 30000
-        n = 30000 // level cap reached
+      if n > w_nextXP and n <= 30000
+        player=>w_nextXP = n
+      else
+        player=>w_nextXP = 30000 // level cap reached
+        break
       fin
-      player=>w_nextXP = n
     loop
     player = player=>p_nextObj
   loop

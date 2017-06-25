@@ -2642,12 +2642,14 @@ export def addXP(val)#1
       player=>w_curXP = 29999
     fin
     while player=>w_curXP >= player=>w_nextXP
-      // Level up!
-      player->b_level++
-      player->b_skillPoints = player->b_skillPoints + callGlobalFunc(GS_LEVEL_S_P, player->b_level, 0, 0)
-      player=>w_maxHealth = player=>w_maxHealth + player->b_stamina + rollDice($2600) // stam + 2d6
-      player=>w_health = player=>w_maxHealth // let's make leveling up an extra nice thing
-      needShowParty = TRUE
+      if player=>w_curXP > 0
+        // Level up!
+        player->b_level++
+        player->b_skillPoints = player->b_skillPoints + callGlobalFunc(GS_LEVEL_S_P, player->b_level, 0, 0)
+        player=>w_maxHealth = player=>w_maxHealth + player->b_stamina + rollDice($2600) // stam + 2d6
+        player=>w_health = player=>w_maxHealth // let's make leveling up an extra nice thing
+        needShowParty = TRUE
+      fin
 
       // Check XP for next level, and enforce level cap if any
       n = callGlobalFunc(GS_LEVEL_X_P, player->b_level + 1, 0, 0)

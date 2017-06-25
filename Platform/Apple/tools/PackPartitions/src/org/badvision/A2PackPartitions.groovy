@@ -2582,7 +2582,7 @@ end
             "${parseByteAttr(row, "spirit")}, " +
             "${parseByteAttr(row, "luck")}), " + // ")" ==> this is the split between pt1 and pt2
             "${parseWordAttr(row, "health")}, " +
-            "${parseByteAttr(row, "level")}, " +
+            "${Math.max(1, parseByteAttr(row, "level"))}, " +
             "${parseByteAttr(row, "aiming")}, " +
             "${parseByteAttr(row, "hand-to-hand")}, " +
             "${parseByteAttr(row, "dodging")})")

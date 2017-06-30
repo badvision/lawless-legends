@@ -279,7 +279,7 @@ def showSkills(player, numToBump)#1
     clearLittleArea(x2, y+9)
   fin
   displaySkill(player, NULL, @y, x2, 0, "Skill points", player+b_skillPoints)
-  return skillNum
+  return skillNum-1
 end
 
 def clearMenuRect()#0
@@ -296,7 +296,7 @@ def showInvMenu(player, totalItems, itemPage, itemsOnPage)#0
 
   clearMenuRect()
   if totalItems > 0
-    rawDisplayf1("Item [A-%c], ", itemsOnPage+'A'+1)
+    rawDisplayf1("Item [A-%c], ", itemsOnPage-1+'A')
     if totalItems > INV_ROWS
       rawDisplayStr("Pg [")
       if totalItems > (itemPage + 1) * INV_ROWS
@@ -327,7 +327,7 @@ def showSkillsMenu(player, nSkills)#0
   clearMenuRect()
   if playerCount > 1; rawDisplayf1("Player [1-%d], ", playerCount); fin
   if player->b_skillPoints
-    rawDisplayf1("Spend pt [A-%c], ", nSkills+'A')
+    rawDisplayf1("Spend pt [A-%c], ", nSkills-1+'A')
   fin
   rawDisplayStr("X:Inv or [Esc]")
 end

@@ -184,18 +184,23 @@ def showDerived(player)#0
     weapon = weapon=>p_nextObj
   loop
 
-  if weapon and weapon=>r_projectileDmg
-    displayDice(weapon=>r_projectileDmg)
-    rawDisplayf1("^T%DProjectile\n", STATLBL_X)
-  fin
-
   if weapon
+    if weapon=>r_projectileDmg
+      displayDice(weapon=>r_projectileDmg)
+      rawDisplayf1("^T%DProjectile\n", STATLBL_X)
+    fin
     dmg = weapon=>r_meleeDmg
   else
     dmg = $01400
   fin
   displayDice(dmg)
   rawDisplayf1("^T%DMelee\n", STATLBL_X)
+
+  vspace()
+  rightJustifyNum(player=>w_curXP, STAT_X)
+  rawDisplayf2("^T%D%s\n", STATLBL_X, "Current XP")
+  rightJustifyNum(player=>w_nextXP, STAT_X)
+  rawDisplayf2("^T%D%s\n", STATLBL_X, "Next lvl XP")
 
   vspace()
   rightJustifyNum(global=>w_gold, STAT_X)
@@ -211,7 +216,7 @@ end
 // Display skill value
 def displaySkill(player, pSkillNum, py, x, numToBump, str, pVal)#0
   ^py = ^py + 9
-  if ^pSkillNum
+  if pSkillNum
     ^pSkillNum = 1 + ^pSkillNum
     if numToBump
       if numToBump+1 <> ^pSkillNum; return; fin
@@ -234,48 +239,46 @@ end
 
 // Show aquired skills in lower right panel
 def showSkills(player, numToBump)#1
-  word skill, skillNum
+  word skill, skillNum, pSkillNum
   byte y, x1, x2
-  x1 = 10
-  x2 = STAT_X-20
 
   // First column: skills
-  showColumnTitle(x1+15, "Skills", 0, 0)
   y = 15
   skillNum = 1
-  displaySkill(player, @skillNum, @y, x1, numToBump, @S_AIMING, player+b_aiming)
-  displaySkill(player, @skillNum, @y, x1, numToBump, @S_HAND_TO_HAND, player+b_handToHand)
-  displaySkill(player, @skillNum, @y, x1, numToBump, @S_DODGING, player+b_dodging)
+  if player->b_skillPoints
+    pSkillNum = @skillNum
+    x1 = 10
+    x2 = STAT_X - 20
+  else
+    pSkillNum = NULL
+    x1 = 0
+    x2 = STAT_X - 30
+  fin
+  showColumnTitle(25, "Skills", 0, 0)
+  displaySkill(player, pSkillNum, @y, x1, numToBump, @S_AIMING, player+b_aiming)
+  displaySkill(player, pSkillNum, @y, x1, numToBump, @S_HAND_TO_HAND, player+b_handToHand)
+  displaySkill(player, pSkillNum, @y, x1, numToBump, @S_DODGING, player+b_dodging)
   skill = player=>p_skills
   while skill
-    displaySkill(player, @skillNum, @y, x1, numToBump, skill=>s_name, skill+w_modValue)
+    displaySkill(player, pSkillNum, @y, x1, numToBump, skill=>s_name, skill+w_modValue)
     skill = skill=>p_nextObj
   loop
 
   // Second column: attributes
-  showColumnTitle(x2+15, "Attributes", 0, 0)
+  showColumnTitle(STAT_X-5, "Attributes", 0, 0)
   y = 15
-  displaySkill(player, @skillNum, @y, x2, numToBump, @S_INTELLIGENCE, player+b_intelligence)
-  displaySkill(player, @skillNum, @y, x2, numToBump, @S_STRENGTH, player+b_strength)
-  displaySkill(player, @skillNum, @y, x2, numToBump, @S_AGILITY, player+b_agility)
-  displaySkill(player, @skillNum, @y, x2, numToBump, @S_STAMINA, player+b_stamina)
-  displaySkill(player, @skillNum, @y, x2, numToBump, @S_CHARISMA, player+b_charisma)
-  displaySkill(player, @skillNum, @y, x2, numToBump, @S_SPIRIT, player+b_spirit)
-  displaySkill(player, @skillNum, @y, x2, numToBump, @S_LUCK, player+b_luck)
+  displaySkill(player, pSkillNum, @y, x2, numToBump, @S_INTELLIGENCE, player+b_intelligence)
+  displaySkill(player, pSkillNum, @y, x2, numToBump, @S_STRENGTH, player+b_strength)
+  displaySkill(player, pSkillNum, @y, x2, numToBump, @S_AGILITY, player+b_agility)
+  displaySkill(player, pSkillNum, @y, x2, numToBump, @S_STAMINA, player+b_stamina)
+  displaySkill(player, pSkillNum, @y, x2, numToBump, @S_CHARISMA, player+b_charisma)
+  displaySkill(player, pSkillNum, @y, x2, numToBump, @S_SPIRIT, player+b_spirit)
+  displaySkill(player, pSkillNum, @y, x2, numToBump, @S_LUCK, player+b_luck)
   y = y + 6
   if numToBump
     clearLittleArea(x2, y+9)
   fin
   displaySkill(player, NULL, @y, x2, 0, "Skill points", player+b_skillPoints)
-  if !numToBump
-    rawDisplayStr("\n")
-    vspace()
-    rightJustifyNum(player=>w_curXP, x2+26)
-    rawDisplayf2("^T%D%s\n", x2+32, "Current XP")
-    rightJustifyNum(player=>w_nextXP, x2+26)
-    rawDisplayf2("^T%D%s\n", x2+32, "Next lvl XP")
-  fin
-
   return skillNum
 end
 
@@ -295,7 +298,7 @@ def showInvMenu(player, totalItems, itemPage, itemsOnPage)#0
   if totalItems > 0
     rawDisplayf1("Item [A-%c], ", itemsOnPage+'A'+1)
     if totalItems > INV_ROWS
-      rawDisplayStr("Page [")
+      rawDisplayStr("Pg [")
       if totalItems > (itemPage + 1) * INV_ROWS
         rawDisplayStr(">")
       fin
@@ -306,15 +309,15 @@ def showInvMenu(player, totalItems, itemPage, itemsOnPage)#0
     fin
   fin
 
-  if playerCount > 1; rawDisplayf1("Player [1-%d], ", playerCount); fin
+  if playerCount > 1; rawDisplayf1("Plyr [1-%d], ", playerCount); fin
 
   if player->b_skillPoints > 0
-    rawDisplayStr("^I Lvl U)p ^N ")
+    rawDisplayStr("^ILvl U)p^N, ")
   else
-    rawDisplayStr("S)kills ")
+    rawDisplayStr("S)kills, ")
   fin
 
-  rawDisplayStr("or [Esc]")
+  rawDisplayStr("[Esc]")
 end
 
 // Display menu for selecting inventory items
@@ -501,7 +504,6 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
 
     // Get a key, do something
     sel = getUpperKey()
-    rawDisplayf1(" %c", sel)
     when sel
       is '1'
       is '2'
@@ -517,7 +519,7 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
       // Next inventory page
       is '>'
       is 21  // right-arrow
-        if mode=='i' and totalItems > (i_page + 1) * INV_ROWS
+        if mode=='I' and totalItems > (i_page + 1) * INV_ROWS
           i_page++
           redisplay = 1
         fin
@@ -525,7 +527,7 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
       // Previous inventory page
       is '<'
       is 8  // left-arrow
-        if mode=='i' and i_page
+        if mode=='I' and i_page
           i_page--
           redisplay = 1
         fin

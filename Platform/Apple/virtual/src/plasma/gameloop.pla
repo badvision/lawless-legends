@@ -1479,7 +1479,7 @@ export def showParty()#0
 
   // Display header (or LEVEL UP message)
   p = global=>p_players
-  while !p->b_skillPoints
+  while p and !p->b_skillPoints
     p = p=>p_nextObj
   loop
   if p

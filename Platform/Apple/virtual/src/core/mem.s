@@ -79,11 +79,16 @@ relocate:
 ; special: clear most of the lower 48k and the ProDOS bank of the LC
 	bit setLcRW+lcBank1
 	bit setLcRW+lcBank1
-	tya
 	ldx #8
 .clr1	stx .clrst1+2
 	stx .clrst2+2
 	ldy #0
+	tya
+-	sta 0,y		; help catch null ptr problems
+	iny
+	cpy #$20
+	bne -
+	tay
 .clrst1	sta $800,y
 .clrst2	sta $880,y
 	iny

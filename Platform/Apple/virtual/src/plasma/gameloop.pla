@@ -20,7 +20,7 @@ const fontDataLen   = $4FA    // really only $474, but we need to fill all gaps
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Other constants
-const CHAR_WND_HEALTH_X = 66
+const CHAR_WND_HEALTH_X = 112
 
 const ANIM_PAUSE_MAX = 300
 
@@ -805,14 +805,14 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Save the cursor position (1 save slot)
-asm saveCursor()#0
+export asm saveCursor()#0
   +asmPlasmNoRet 0
   jmp SaveCursor
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Restore the cursor position (1 save slot)
-asm restoreCursor()#0
+export asm restoreCursor()#0
   +asmPlasmNoRet 0
   jmp RestCursor
 end
@@ -984,6 +984,49 @@ export asm streqi(a, b)#1
   dex
   bne -
   ldy #0          ; okay, they're equal. Return non-zero (A is guaranteed to be a character already)
+  rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Multiply 16 bit number by 8-bit ratio, and drop lower 8 bits of result. In effect this scales
+// num by the approximate ratio 0=0% .. 128=50% .. 255=99%
+asm mulRatio(num, ratio)#1
+  +asmPlasmRet 2
+.ratio = evalStkL
+.numL  = evalStkL+1
+.numH  = evalStkH+1
+.numHH = tmp
+.accLL = tmp+1
+.accL  = pTmp
+.accH  = pTmp+1
+  lda .ratio,x        ; save ratio
+  ldy #0
+  sty .numHH          ; zero what will become upper 8 bits of num
+  sty .accLL          ; clear accumulation area
+  sty .accL
+  sty .accH
+  ldy #8              ; loop over 8 bits of ratio
+- lsr                 ; get next bit
+  bcc +               ; skip add if clear
+  pha
+  clc
+  lda .numL,x         ; 24-bit add
+  adc .accLL
+  sta .accLL
+  lda .numH,x
+  adc .accL
+  sta .accL
+  lda .numHH
+  adc .accH
+  sta .accH
+  pla
++ asl .numL,x         ; shift number up
+  rol .numH,x
+  rol .numHH
+  dey                 ; and loop again
+  bne -
+  ldy .accH           ; final result in Y/A
+  lda .accL
   rts
 end
 
@@ -1218,6 +1261,33 @@ export def pause(count)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Calculate markup on a price, where ratio is an 8.8 fixed-point number. Some approx ratios:
+// $0000 = 0%
+// $0026 = 15%
+// $0080 = 50%
+// $0100 = 100%
+// $0180 = 150%
+export def addRatio(start, ratio)#1
+  word markup
+  markup = 0
+  while ratio > 255
+    markup = markup + start
+    ratio = ratio - 256
+  loop
+  return markup + mulRatio(start, ratio)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def percentToRatio(pct)#1
+  return addRatio(pct, 656) // Scale 0..100 to 0..255
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def addPercent(start, pct)#1
+  return addRatio(start, percentToRatio(pct))
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 export def encodeDice(nDice, dieSize, add)#1  // ndice=0..15, dieSize=0..15, add=0..255
   return (nDice << 12) | (dieSize << 8) | add
 end
@@ -1415,7 +1485,9 @@ export def showParty()#0
   if p
     rawDisplayStr("^Y^I LEVEL UP ^N\n")
   else
-    rawDisplayf1("^LName^T%DHealth^L\n", CHAR_WND_HEALTH_X)  // begin underline mode
+    rawDisplayStr("^LName")
+    rightJustifyStr(@S_HEALTH, CHAR_WND_HEALTH_X)  // begin underline mode
+    rawDisplayStr("^N\n")
   fin
 
   // Display each character's name and health
@@ -1423,8 +1495,8 @@ export def showParty()#0
   while p
     if p <> global=>p_players; displayChar('\n'); fin
     if p->b_skillPoints; rawDisplayStr("^I"); fin // inverse for chars needing lvl-up
-    rawDisplayStr(p=>s_name)
-    rawDisplayf3("^N^T%D%d/%d", CHAR_WND_HEALTH_X, p=>w_health, p=>w_maxHealth)
+    rawDisplayf1("%s^N", p=>s_name)
+    rightJustifyStr(sprintf2("%d/%d", p=>w_health, p=>w_maxHealth), CHAR_WND_HEALTH_X)
     p = p=>p_nextObj
   loop
 
@@ -2094,7 +2166,7 @@ export def randomFromListFiltered(p, offset, filterFunc)#1
   while p
     if filterFunc(p)
       if n == 0; return p; fin
-      n++
+      n--
     fin
     p = *(p + offset)
   loop

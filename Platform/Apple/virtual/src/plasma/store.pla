@@ -47,66 +47,6 @@ ysav        = $34
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Multiply 16 bit number by 8-bit ratio, and drop lower 8 bits of result. In effect this scales
-// num by the approximate ratio 0=0% .. 128=50% .. 255=99%
-asm mulRatio(num, ratio)#1
-  +asmPlasmRet 2
-.ratio = evalStkL
-.numL  = evalStkL+1
-.numH  = evalStkH+1
-.numHH = tmp
-.accLL = tmp+1
-.accL  = pTmp
-.accH  = pTmp+1
-  lda .ratio,x        ; save ratio
-  ldy #0
-  sty .numHH          ; zero what will become upper 8 bits of num
-  sty .accLL          ; clear accumulation area
-  sty .accL
-  sty .accH
-  ldy #8              ; loop over 8 bits of ratio
-- lsr                 ; get next bit
-  bcc +               ; skip add if clear
-  pha
-  clc
-  lda .numL,x         ; 24-bit add
-  adc .accLL
-  sta .accLL
-  lda .numH,x
-  adc .accL
-  sta .accL
-  lda .numHH
-  adc .accH
-  sta .accH
-  pla
-+ asl .numL,x         ; shift number up
-  rol .numH,x
-  rol .numHH
-  dey                 ; and loop again
-  bne -
-  ldy .accH           ; final result in Y/A
-  lda .accL
-  rts
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Calculate markup on a price, where ratio is an 8.8 fixed-point number. Some approx ratios:
-// $0000 = 0%
-// $0026 = 15%
-// $0080 = 50%
-// $0100 = 100%
-// $0180 = 150%
-def calcMarkup(price, ratio)#1
-  word markup
-  markup = 0
-  while ratio > 255
-    markup = markup + price
-    ratio = ratio - 256
-  loop
-  return markup + mulRatio(price, ratio)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 def loadExtraModules()#0
   mmgr(START_LOAD, 1) // code is in partition 1
   pItemsModule = mmgr(QUEUE_LOAD, MOD_GEN_ITEMS<<8 | RES_TYPE_MODULE)
@@ -150,7 +90,7 @@ def displayBuyPage(pItemTbl, markupRatio, pageNum, nPages)#1
     if !(*pFunc); break; fin
     pItem = (*pFunc)()
     pageItems[itemNum] = pItem
-    pagePrices[itemNum] = max(1, pItem=>w_price + calcMarkup(pItem=>w_price, markupRatio))
+    pagePrices[itemNum] = max(1, pItem=>w_price + addRatio(pItem=>w_price, markupRatio))
     displayItemLine(itemNum)
     pFunc = pFunc + 2
   next
@@ -278,11 +218,6 @@ def browseItem(num)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def percentToRatio(pct)#1
-  return calcMarkup(pct, 656) // Scale 0..100 to 0..255
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 def _buyFromStore(storeCode, profitPercent)#1
   word pItemTbl, choice
   byte nItemsOnPage, pageNum, nPages, redisplay
@@ -346,7 +281,7 @@ def iterateSellables(skipItems, markdownRatio)#1
       if ok
         if totalItems >= skipItems and itemsOnPage < PAGE_SIZE
           pageItems[itemsOnPage] = pItem
-          pagePrices[itemsOnPage] = max(0, pItem=>w_price - calcMarkup(pItem=>w_price, markdownRatio))
+          pagePrices[itemsOnPage] = max(0, pItem=>w_price - addRatio(pItem=>w_price, markdownRatio))
           pagePlayers[itemsOnPage] = pPlayer
           displayItemLine(itemsOnPage)
           itemsOnPage++

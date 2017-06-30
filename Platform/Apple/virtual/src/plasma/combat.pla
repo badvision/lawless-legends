@@ -32,15 +32,28 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def chooseEnemy(maxDist)#1
   word p
-  byte n
+  byte n, n2
 
-  // TODO: Consider distance of enemies
-  n = rand16() % nEnemiesFighting
+  // First, determine how many enemies are within striking distance
+  n = 0
   p = global=>p_combatFirst
-  while TRUE
-    if p->t_type == TYPE_ENEMY and canFight(p)
-      if n == 0; return p; fin
-      n = n - 1
+  while p
+    if p->t_type == TYPE_ENEMY and canFight(p) and p->b_enemyAttackRange <= maxDist
+      n++
+    fin
+    p = p=>p_combatNext
+  loop
+
+  // If nobody in range, ack!
+  if !n; return NULL; fin
+
+  // Pick one of the in-range enemies to attack.
+  n2 = rand16() % n
+  p = global=>p_combatFirst
+  while p
+    if p->t_type == TYPE_ENEMY and canFight(p) and p->b_enemyAttackRange <= maxDist
+      if n2 == 0; return p; fin
+      n2--
     fin
     p = p=>p_combatNext
   loop
@@ -48,18 +61,37 @@ def chooseEnemy(maxDist)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def playerMelee(pPlayer, pWeapon)#1
-  word pEnemy, dmg
-  pEnemy = chooseEnemy(5)  // max distance 5 feet for melee
-  if !pEnemy; return FALSE; fin
+def playerMelee(pPlayer, pWeapon)#0
+  word pEnemy, dmg, range
+  if pWeapon
+    range = pWeapon->b_weaponRange
+  else
+    range = 5
+  fin
+  pEnemy = chooseEnemy(range)  // max distance 5 feet for melee
+  if !pEnemy
+    displayf1("\n%s foolishly swings and misses by a mile.\n", pPlayer=>s_name)
+    return
+  fin
+
+  // TODO: Melee chance to hit is same as projectile, except:
+  //   don't consider range when reducing percent to hit
+  //
   if pWeapon
     dmg = rollDice(pWeapon=>r_meleeDmg)
   else
+    // TODO: Change this to nd4, where n is the hand-to-hand skill + 1
     dmg = (rand16() % 4) + pPlayer->b_handToHand   // default to 1d4 for fists
   fin
-  // TODO: Add extra melee damage for skills, strength, etc.
-  // TODO: consider enemy dodge
-  // TODO: consider enemy armor and bonuses
+  // TODO: increase damage by 2% per skill level in the weapon type
+
+  // TODO: increase damage by 5% per point of strength, but only if at least 1 pt in hand-to-hand skill
+
+  // TODO: Agil adds 1% per point
+
+  // Note: Enemies don't have armor
+
+  // TODO: Enemy chance to dodge is taken from their chance to hit divided by 2
   pEnemy=>w_health = pEnemy=>w_health - dmg
 
   buildString(@addToString)
@@ -71,47 +103,69 @@ def playerMelee(pPlayer, pWeapon)#1
   puts("\n")
   displayStr(finishString(0))
 
-  return TRUE
+  return
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def playerShoot(pPlayer, pWeapon)#1
+def scanModifiers(pMod, s_match)
+  word sum
+  sum = 0
+  while pMod
+    if streqi(pMod=>s_name, s_match)
+      sum = sum + pMod=>w_modValue
+    fin
+    pMod = pMod=>p_nextObj
+  loop
+  return sum
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def playerShoot(pPlayer, pWeapon)#0
   word pEnemy, pSkill, dmg
   word chance
-  byte roll
+  byte agil, roll
 
   pEnemy = chooseEnemy(pWeapon->b_weaponRange)
-  if !pEnemy; return FALSE; fin
+  if !pEnemy
+    displayf1("\n%s shoots but falls short.\n", pPlayer=>s_name)
+    return
+  fin
 
-  // Figure out chance to hit. First come agility and aim.
-  // TODO: check for and add weapon bonuses for agility and aiming
-  chance = (pPlayer->b_agility * 4) + pPlayer->b_aiming
+  // Figure out combined player and weapon agility
+  agil = pPlayer->b_agility + scanModifiers(pWeapon=>p_modifiers, @S_AGILITY)
+
+  // Chance to hit is agil *4, plus aiming attrib (add in any aiming bonus from the weapon)
+  chance = (agil * 4) + pPlayer->b_aiming + scanModifiers(pWeapon=>p_modifiers, @S_AIMING)
 
   // Add in skill modifier, if any
-  pSkill = pPlayer=>p_skills
-  while pSkill
-    if pSkill=>s_name == pWeapon=>s_itemKind
-      chance = chance + pSkill=>w_modValue
-    fin
-    pSkill = pSkill=>p_nextObj
-  loop
+  chance = chance + scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind)
 
   // Nobody can have 100% chance to hit. Let's cap it at 90%.
-  chance = min(90, chance)
+  chance = max(0, min(90, chance))
+
+  // TODO: Modify for distance *after* applying the 90% cap. Reduce chance by 1% per 5 feet range.
+
 
   roll = rand16() % 100
   if roll >= chance
 
     // Miss!
     displayf2("\n%s shoots at %s but misses.\n", pPlayer=>s_name, pEnemy=>s_name)
-    return FALSE
+    return
   fin
 
   // TODO: consider multi-shot weapons
   dmg = rollDice(pWeapon=>r_projectileDmg)
-  // TODO: Add extra melee damage for skills, strength, etc.
-  // TODO: consider enemy dodge
-  // TODO: consider enemy armor, and armor bonuses
+  // TODO: increase damage by 2% per skill level in the weapon type
+
+  // Note: Strength doesn't contribute to damange (Seth say, and I make it so)
+
+  // TODO: Agil adds 1% per point
+
+  // Note: Enemies don't have armor
+
+  // TODO: Enemy chance to dodge is taken from their chance to hit divided by 2
+
   pEnemy=>w_health = pEnemy=>w_health - dmg
 
   buildString(@addToString)
@@ -122,8 +176,6 @@ def playerShoot(pPlayer, pWeapon)#1
   fin
   puts("\n")
   displayStr(finishString(0))
-
-  return TRUE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -133,11 +185,14 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def chooseWeapon(player)#0
+  // TOOO: Actually we've decided the player had better have already equipped a weapon; they don't
+  // get to switch during combat.
   displayStr("\nTODO: choose weapon\n")
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def combatPause()#0
+  // TODO: make this pause configurable. Up arrow = increase speed; down = decrease speed
   pause(800)
 end
 
@@ -148,7 +203,7 @@ def displayOpponents()#0
   byte isPlural
 
   buildString(@addToString)
-  puts("\nYou face ")
+  puts("You face ")
   first = TRUE
   p = global=>p_enemyGroups
   while p
@@ -181,10 +236,36 @@ def displayOption(key, str)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def minEnemyDist()#1
+  word p, p2, anybodyAlive, minDist
+  minDist = 9999
+
+  // Process each group
+  p = global=>p_enemyGroups
+  while p
+    p2 = p=>p_enemies
+    anybodyAlive = FALSE
+    while p2
+      if canFight(p2); anybodyAlive = TRUE; fin
+      p2 = p2=>p_nextObj
+    loop
+    if anybodyAlive
+      minDist = min(minDist, p->b_enemyGroupRange)
+    fin
+    p = p=>p_nextObj
+  loop
+  return minDist
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def playerCombatChoose(pl)#0
   word p, pWeapon
   byte nWeapons, key
-  byte canShoot, canReload, canChange
+  byte canShoot, canReload, canChange, canAdvance
+
+  // Before we start, save the cursor location so we can
+  // later restore it for the next player's choice.
+  saveCursor()
 
   // Count all weapons and get currently equipped
   canShoot  = FALSE
@@ -200,19 +281,9 @@ def playerCombatChoose(pl)#0
     fin
     p = p=>p_nextObj
   loop
-  // NPCs always melee for now
-  if pl->b_playerFlags & PLAYER_FLAG_NPC
-    pl->b_combatChoice = 'M'
-    return
-  fin
-
-  // Tell what the player currently faces
-  displayOpponents()
-  combatPause()
 
   // Let them know their options
-  displayStr("\n")
-  callGlobalFunc(GS_COMBAT_PROMPT, 0, 0, 0)
+  rawDisplayf1("^D%s", pl=>s_name)
   displayOption('M', "Melee")
   if pWeapon
     if pWeapon->b_clipCurrent
@@ -231,10 +302,12 @@ def playerCombatChoose(pl)#0
   fin
   displayOption('D', "Dodge")
   displayOption('F', "Flee")
+  canAdvance = minEnemyDist() > 5
+  if canAdvance; displayOption('A', "Advance"); fin
 
+  restoreCursor()
   while TRUE
     pl->b_combatChoice = getUpperKey()
-    displayStr("\n")
     when pl->b_combatChoice
       is 'M'
         return
@@ -252,6 +325,9 @@ def playerCombatChoose(pl)#0
       is 'C'
         if canChange; return; fin
         break
+      is 'A'
+        if canAdvance; return; fin
+        break
     wend
     beep()
   loop
@@ -259,7 +335,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def playerCombatTurn(pl)#0
-  word pWeapon
+  word pWeapon, pGroup, pEnemy
 
   // Get weapon
   pWeapon = pl=>p_items
@@ -297,6 +373,24 @@ def playerCombatTurn(pl)#0
       setPlural(FALSE)
       displayf2("%s changed to using %s.\n", pl=>s_name, pWeapon=>s_name)
       break
+    is 'A'
+      // Advance 5 feet
+      if minEnemyDist() > 5
+        pGroup = global=>p_enemyGroups
+        while pGroup
+          pGroup->b_enemyGroupRange = pGroup->b_enemyGroupRange - 5
+          pEnemy = pGroup=>p_enemies
+          while pEnemy
+            pEnemy->b_enemyAttackRange = pGroup->b_enemyGroupRange
+            pEnemy = pEnemy=>p_nextObj
+          loop
+          pGroup = pGroup=>p_nextObj
+        loop
+        displayStr("\nYou move forward 5'.\n")
+      else
+        displayStr("\nEnemies in your way. You can't move forward.\n")
+      fin
+      break
   wend
 end
 
@@ -314,12 +408,15 @@ def enemyCombatTurn(pe)#1
 
   // Roll to hit
   roll = rand16() % 100
-  // TODO: consider player dodge
-  // TODO: consider player agility
-  // TODO: consider player skills
+  // Dodge skill grants 5% per point chance to dodge any attack
+  // Agility grants 5% per point chance to dogge
+  // Include armor agility bonus
+  // TODO: Cap max dodge % at 90%
+  // Dodge checked after hit is rolled
   needShow = FALSE
   if roll <= pe->b_chanceToHit
     dam = rollDice(pe=>r_enemyDmg)
+    // TODO: Each point of AC reduces damage 5%
     printf1("and hits for %d damage!", dam)
     pl=>w_health = max(0, pl=>w_health - dam)
     if pl=>w_health == 0
@@ -383,6 +480,7 @@ def determineCombatOrder()#0
     while p2
       if canFight(p2)
         p2->b_combatOrder = rand16() % p2->b_chanceToHit
+        p2->b_enemyAttackRange = p->b_enemyGroupRange
         combatInsert(p2)
         nEnemiesFighting = nEnemiesFighting + 1
       fin
@@ -397,7 +495,7 @@ def makeEnemyGroup(enemyFunc)#1
   word p, enem, groupSize
   p = mmgr(HEAP_ALLOC, TYPE_ENEMY_GROUP)
   enem = enemyFunc()
-  p->b_enemyGroupRange = max(1, rand16() % (enem->b_enemyAttackRange))
+  p->b_enemyGroupRange = enem->b_enemyAttackRange + 30 // FIXME FOO - added 30 for testing only
   if enem=>r_groupSize == 0  // handle unique enemies
     groupSize = 1
   else
@@ -406,7 +504,7 @@ def makeEnemyGroup(enemyFunc)#1
   addToList(p + p_enemies, enem)
   while groupSize > 1
     addToList(p + p_enemies, enemyFunc())
-    groupSize = groupSize - 1
+    groupSize--
   loop
 
   return p
@@ -484,10 +582,11 @@ def startCombat(mapCode)#1
   while TRUE
     n = getUpperKey()
     if n == 'B'
-      displayStr("\n\nBattle! \n")
+      displayStr("\n\nBattle!")
+      combatPause()
       return 1
     elsif n == 'F'
-      displayStr("\n\nFleeing... \n")
+      displayStr("\n\nFleeing...\n")
       return 0
     // Secret option for testing: just die
     elsif n == '#' and global->b_godmode
@@ -527,6 +626,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def processWin()#0
   word gold, xp
+  rawDisplayStr("\n")
   callGlobalFunc(GS_COMBAT_WIN, 0, 0, 0)
   // Grab the loot
   gold, xp = collectLootAndXP()
@@ -555,8 +655,21 @@ def _combat_zoneEncounter(s_encZone)#1
     isFleeing = TRUE
   fin
 
+  // We don't need to actually determine combat order yet, but we do need it to calculate the
+  // number of enemies.
+  determineCombatOrder()
+
   // Do each round of combat until player wins, loses, or flees
   while TRUE
+
+    // Tell what the party currently faces
+    clearWindow()
+    displayOpponents()
+    rawDisplayStr("\n")
+    callGlobalFunc(GS_COMBAT_PROMPT, 0, 0, 0)
+    rawDisplayStr("\n")
+
+    // Get the choice of each player or NPC
     p = global=>p_players
     while p
       if canFight(p) and nEnemiesFighting and !isFleeing
@@ -564,6 +677,7 @@ def _combat_zoneEncounter(s_encZone)#1
       fin
       p = p=>p_nextObj
     loop
+    clearWindow()
 
     determineCombatOrder()
 

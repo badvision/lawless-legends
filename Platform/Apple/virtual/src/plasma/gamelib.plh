@@ -15,6 +15,8 @@ import gamelib
   predef addEncounterZone(code, x, y, dist, chance)#0
   predef addGold(amount)#1
   predef addPlayerToParty(playerFuncNum)#0
+  predef addPercent(start, pct)#1
+  predef addRatio(start, ratio)#1
   predef addToList(addTo, p)#0
   predef addToString()#0
   predef addXP(xp)#1
@@ -69,6 +71,7 @@ import gamelib
   predef partyHasPlayer(playerName)#1
   predef pause(count)#0
   predef payGold(amount)#1
+  predef percentToRatio(pct)#1
   predef playerHasItem(itemName)#1
   predef printf1(fmt, arg1)#0
   predef printf2(fmt, arg1, arg2)#0
@@ -88,9 +91,11 @@ import gamelib
   predef readStr()#1
   predef removeFromList(pList, toRemove)#0
   predef removePlayerFromParty(playerName)#0
+  predef restoreCursor()#0
   predef rightJustifyNum(num, rightX)#0
   predef rightJustifyStr(str, rightX)#0
   predef rollDice(encoded)#1
+  predef saveCursor()#0
   predef scanForNamedObj(p_obj, name)#1
   predef scriptCombat(mapCode)#1
   predef scriptDisplayStr(str)#0

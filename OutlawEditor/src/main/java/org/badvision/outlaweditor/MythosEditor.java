@@ -13,15 +13,14 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javafx.fxml.FXMLLoader;
@@ -109,7 +108,8 @@ public class MythosEditor {
 
     public void applyChanges() {
         try {
-            String xml = controller.getScriptXml();
+            String xml = controller.getScriptXml()
+                    .replaceFirst(Pattern.quote("<block"), "<block xmlns=\"outlaw\"");
             JAXBContext context = JAXBContext.newInstance("org.badvision.outlaweditor.data.xml");
             Unmarshaller unmarshaller = context.createUnmarshaller();
             DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();

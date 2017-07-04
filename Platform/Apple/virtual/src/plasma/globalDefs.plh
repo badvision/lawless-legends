@@ -79,3 +79,6 @@ const EVENT_USE_ITEM = 3
 
 // Party size
 const MAX_PARTY = 3
+
+// Combat speed
+const DEFAULT_COMBAT_PAUSE_CT = 800

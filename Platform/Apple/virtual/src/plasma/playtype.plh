@@ -19,6 +19,7 @@ struc Global
   word p_enemyGroups
   word p_combatFirst
   word p_encounterZones
+  word w_combatPauseCt
 
   // Map position
   byte b_mapIs3D

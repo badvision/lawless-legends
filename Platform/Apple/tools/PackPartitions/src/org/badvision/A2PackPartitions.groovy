@@ -112,26 +112,26 @@ class A2PackPartitions
     def part1Chunks = [:] as LinkedHashMap
 
     def stats = [
-        "intelligence": "@S_INTELLIGENCE",
-        "strength":     "@S_STRENGTH",
-        "agility":      "@S_AGILITY",
-        "stamina":      "@S_STAMINA",
-        "spirit":       "@S_SPIRIT",
-        "luck":         "@S_LUCK",
-        "health":       "@S_HEALTH",
-        "max health":   "@S_MAX_HEALTH",
-        "aiming":       "@S_AIMING",
-        "hand to hand": "@S_HAND_TO_HAND",
-        "dodging":      "@S_DODGING",
-        "gold":         "@S_GOLD",
-        "xp":           "@S_XP",
-        "sp":           "@S_SP"
+        "Intelligence": "@S_INTELLIGENCE",
+        "Strength":     "@S_STRENGTH",
+        "Agility":      "@S_AGILITY",
+        "Stamina":      "@S_STAMINA",
+        "Spirit":       "@S_SPIRIT",
+        "Luck":         "@S_LUCK",
+        "Health":       "@S_HEALTH",
+        "Max health":   "@S_MAX_HEALTH",
+        "Aiming":       "@S_AIMING",
+        "Hand to hand": "@S_HAND_TO_HAND",
+        "Dodging":      "@S_DODGING",
+        "Gold":         "@S_GOLD",
+        "XP":           "@S_XP",
+        "SP":           "@S_SP"
     ]
 
     def predefStrings = stats + [
-        "enter": "@S_ENTER",
-        "leave": "@S_LEAVE",
-        "use":   "@S_USE"
+        "Enter": "@S_ENTER",
+        "Leave": "@S_LEAVE",
+        "Use":   "@S_USE"
     ]
 
     // 2D map sectioning constants
@@ -2329,8 +2329,20 @@ class A2PackPartitions
         if (!m)
             throw new Exception("Cannot parse dice string '$str'")
         def nDice = m[0][1].toInteger()
+        if (nDice < 1 || nDice > 15) {
+            printWarning("Number of dice $nDice forced to valid range 1..15")
+            nDice = Math.min(15, Math.max(1, nDice))
+        }
         def dieSize = m[0][2].toInteger()
+        if (dieSize < 1 || dieSize > 15) {
+            printWarning("Die size $dieSize forced to valid range 1..15")
+            dieSize = Math.min(15, Math.max(1, dieSize))
+        }
         def add = m[0][3] ? m[0][3].toInteger() : 0
+        if (add < 0 || add > 255) {
+            printWarning("Add-to-dice $add forced to valid range 0..255")
+            add = Math.min(255, Math.max(0, add))
+        }
         return String.format("\$%X", ((nDice << 12) | (dieSize << 8) | add))
     }
 
@@ -2475,6 +2487,10 @@ end
     def parseStringAttr(row, attrName)
     {
         def val = row."@$attrName"
+        if (val == null)
+            val = row."@${titleCase(attrName)}"
+        if (val == null)
+            val = row."@${attrName.toLowerCase()}"
         if (val == null)
             return ""
         return val.trim()
@@ -3005,6 +3021,11 @@ end
         // all the maps. Same with avatars.
         numberMaps(dataIn)
         numberAvatars(dataIn)
+
+        // Form the translation from item name to function name (and ditto
+        // for players)
+        allItemFuncs(dataIn.global.sheets.sheet)
+        allPlayerFuncs(dataIn.global.sheets.sheet)
 
         // Translate global scripts to code. Record their deps as system-level.
         curMapName = "<root>"
@@ -3689,8 +3710,13 @@ end
 
         def nameToStat(name) {
             def lcName = name.toLowerCase().trim()
-            assert lcName in stats : "Unrecognized stat '$name'"
-            return stats[lcName]
+            def match = null
+            stats.each { stat, symbol ->
+                if (stat.equalsIgnoreCase(name))
+                    match = symbol
+            }
+            assert match : "Unrecognized stat '$name'"
+            return match
         }
 
         def packChangeStat(blk)

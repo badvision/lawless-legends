@@ -25,6 +25,23 @@ byte nEnemiesFighting
 byte isFleeing
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def combatPause()#0
+  byte key
+
+  pause(global=>w_combatPauseCt)
+
+  // Check for speed-up / slow-down
+  key = ^kbd
+  if key == (11 + 128) or key == ('-'+128) // up-arrow or minus
+    ^kbdStrobe
+    global=>w_combatPauseCt = max(100, global=>w_combatPauseCt - addPercent(global=>w_combatPauseCt, 20))
+  elsif key == (10 + 128) or key == ('+'+128) // down-arrow or plus
+    ^kbdStrobe
+    global=>w_combatPauseCt = min(9999, global=>w_combatPauseCt + addPercent(global=>w_combatPauseCt, 20))
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def canFight(p)#1
   return p=>w_health > 0
 end
@@ -61,52 +78,6 @@ def chooseEnemy(maxDist)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def playerMelee(pPlayer, pWeapon)#0
-  word pEnemy, dmg, range
-  if pWeapon
-    range = pWeapon->b_weaponRange
-  else
-    range = 5
-  fin
-  pEnemy = chooseEnemy(range)  // max distance 5 feet for melee
-  if !pEnemy
-    displayf1("\n%s foolishly swings and misses by a mile.\n", pPlayer=>s_name)
-    return
-  fin
-
-  // TODO: Melee chance to hit is same as projectile, except:
-  //   don't consider range when reducing percent to hit
-  //
-  if pWeapon
-    dmg = rollDice(pWeapon=>r_meleeDmg)
-  else
-    // TODO: Change this to nd4, where n is the hand-to-hand skill + 1
-    dmg = (rand16() % 4) + pPlayer->b_handToHand   // default to 1d4 for fists
-  fin
-  // TODO: increase damage by 2% per skill level in the weapon type
-
-  // TODO: increase damage by 5% per point of strength, but only if at least 1 pt in hand-to-hand skill
-
-  // TODO: Agil adds 1% per point
-
-  // Note: Enemies don't have armor
-
-  // TODO: Enemy chance to dodge is taken from their chance to hit divided by 2
-  pEnemy=>w_health = pEnemy=>w_health - dmg
-
-  buildString(@addToString)
-  printf3("\n%s pummels %s for %d damage.", pPlayer=>s_name, pEnemy=>s_name, dmg)
-  if pEnemy=>w_health <= 0
-    printf1(" %s is killed!", pEnemy=>s_name)
-    nEnemiesFighting = nEnemiesFighting - 1
-  fin
-  puts("\n")
-  displayStr(finishString(0))
-
-  return
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 def scanModifiers(pMod, s_match)
   word sum
   sum = 0
@@ -120,56 +91,59 @@ def scanModifiers(pMod, s_match)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def playerShoot(pPlayer, pWeapon)#0
-  word pEnemy, pSkill, dmg
+def rollPlayerHit(pPlayer, pWeapon, pEnemy, sAction)
   word chance
-  byte agil, roll
+  byte agil
 
-  pEnemy = chooseEnemy(pWeapon->b_weaponRange)
-  if !pEnemy
-    displayf1("\n%s shoots but falls short.\n", pPlayer=>s_name)
-    return
+  // Chance to hit:
+  // * agil *4
+  // * plus aiming attrib
+  // * add in any aiming bonus from the weapon
+  // * plus skill modifier for the kind of weapon
+  // * clamped to range 5% - 90%
+  // * then reduced 1% per 5 feet range beyond 5'
+  // * clamped to range 0% - 90%
+  agil = pPlayer->b_agility
+  if pWeapon
+    agil = agil + scanModifiers(pWeapon=>p_modifiers, @S_AGILITY)
   fin
-
-  // Figure out combined player and weapon agility
-  agil = pPlayer->b_agility + scanModifiers(pWeapon=>p_modifiers, @S_AGILITY)
-
-  // Chance to hit is agil *4, plus aiming attrib (add in any aiming bonus from the weapon)
-  chance = (agil * 4) + pPlayer->b_aiming + scanModifiers(pWeapon=>p_modifiers, @S_AIMING)
-
-  // Add in skill modifier, if any
-  chance = chance + scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind)
-
-  // Nobody can have 100% chance to hit. Let's cap it at 90%.
-  chance = max(0, min(90, chance))
-
-  // TODO: Modify for distance *after* applying the 90% cap. Reduce chance by 1% per 5 feet range.
-
-
-  roll = rand16() % 100
-  if roll >= chance
-
-    // Miss!
-    displayf2("\n%s shoots at %s but misses.\n", pPlayer=>s_name, pEnemy=>s_name)
-    return
+  chance = (agil * 4) + pPlayer->b_aiming
+  if pWeapon
+    chance = chance + scanModifiers(pWeapon=>p_modifiers, @S_AIMING)
+    chance = chance + scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind)
   fin
+  chance = max(5, min(90, chance))
+  chance = max(0, chance - (max(0, pEnemy->b_enemyAttackRange - 5)) / 5))
 
-  // TODO: consider multi-shot weapons
-  dmg = rollDice(pWeapon=>r_projectileDmg)
-  // TODO: increase damage by 2% per skill level in the weapon type
+  // See if it's a hit
+  if (rand16() % 100) >= chance
+    setPlural(0)
+    displayf3("\n%s %s at %s but misses.\n", pPlayer=>s_name, sAction, pEnemy=>s_name)
+    return FALSE
+  fin
+  return TRUE
+end
 
-  // Note: Strength doesn't contribute to damange (Seth say, and I make it so)
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def rollEnemyDodge(pPlayer, pEnemy, sAction)
+  // Enemy chance to dodge is taken from their chance to hit divided by 2
+  if (rand16() % 100) < (pEnemy->b_chanceToHit / 2)
+    setPlural(0)
+    displayf3("\n%s %s at %s, ", pPlayer=>s_name, sAction, pEnemy=>s_name)
+    displayf1("but %s dodges.\n", pEnemy=>s_name)
+    return TRUE
+  fin
+  return FALSE
+end
 
-  // TODO: Agil adds 1% per point
-
-  // Note: Enemies don't have armor
-
-  // TODO: Enemy chance to dodge is taken from their chance to hit divided by 2
-
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def damageEnemy(pPlayer, pEnemy, dmg, sAction)#0
   pEnemy=>w_health = pEnemy=>w_health - dmg
 
   buildString(@addToString)
-  printf3("\n%s shoots %s for %d damage.", pPlayer=>s_name, pEnemy=>s_name, dmg)
+    setPlural(0)
+  printf3("\n%s %s %s ", pPlayer=>s_name, sAction, pEnemy=>s_name)
+  printf1("for %d damage.", dmg)
   if pEnemy=>w_health <= 0
     printf1(" %s is killed!", pEnemy=>s_name)
     nEnemiesFighting = nEnemiesFighting - 1
@@ -179,21 +153,100 @@ def playerShoot(pPlayer, pWeapon)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def playerMelee(pPlayer, pWeapon)#0
+  word pEnemy, dmg, sAction, bonus
+  byte agil
+
+  // Maybe in the future we'll put this under control of a global script
+  sAction = "swings"
+
+  if pWeapon
+    pEnemy = chooseEnemy(pWeapon->b_weaponRange)
+  else
+    pEnemy = chooseEnemy(5) // max distance 5 feet for melee
+  fin
+  if !pEnemy
+    displayf2("\n%s foolishly %s, misses by a mile.\n", pPlayer=>s_name, sAction)
+    return
+  fin
+
+  if !rollPlayerHit(pPlayer, pWeapon, pEnemy, sAction)
+    return
+  fin
+  if rollEnemyDodge(pPlayer, pEnemy, sAction)
+    return
+  fin
+
+  if pWeapon
+    dmg = rollDice(pWeapon=>r_meleeDmg)
+  else
+    // If using just fists, damage is nd4+h, where n is hand-to-hand skill + 1
+    dmg = rollDice(encodeDice(scanModifiers(pPlayer=>p_skills, @S_HAND_TO_HAND)+1, 4, 0))
+  fin
+
+  // Damage bonus is:
+  // 1% per point of combined player and weapon agility
+  // 2% per skill level in the weapon type
+  // 5% per point of strength, but only if at least 1 pt in hand-to-hand skill
+  // (no contribution of strength)
+  // (enemies don't have armor)
+  bonus = pPlayer->b_agility
+  if pWeapon
+    bonus = bonus + scanModifiers(pWeapon=>p_modifiers, @S_AGILITY)
+    bonus = bonus + (scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind)*2)
+  fin
+  if scanModifiers(pPlayer=>p_skills, @S_HAND_TO_HAND)
+    bonus = bonus + (pPlayer->b_strength * 5)
+  fin
+  dmg = dmg + addPercent(dmg, bonus)
+  damageEnemy(pPlayer, pEnemy, dmg, sAction)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def playerShoot(pPlayer, pWeapon)#0
+  word pEnemy, pSkill, dmg
+  word chance
+  word sAction
+  byte agil, roll
+
+  sAction = pWeapon=>s_combatText
+
+  pEnemy = chooseEnemy(pWeapon->b_weaponRange)
+  if !pEnemy
+    displayf2("\n%s %s but falls short.\n", pPlayer=>s_name, sAction)
+    return
+  fin
+
+  // Figure out combined player and weapon agility
+  agil = pPlayer->b_agility + scanModifiers(pWeapon=>p_modifiers, @S_AGILITY)
+
+  // Roll for hitting and dodging
+  if !rollPlayerHit(pPlayer, pWeapon, pEnemy, sAction)
+    return
+  fin
+  if rollEnemyDodge(pPlayer, pEnemy, sAction)
+    return
+  fin
+
+  // TODO: consider multi-shot weapons
+
+  // Calculate damage
+  dmg = rollDice(pWeapon=>r_projectileDmg)
+
+  // Damage bonus is:
+  // * 1% per point of combined player and weapon agility
+  // * 2% per skill level in the weapon type
+  // (no contribution of strength)
+  // (enemies don't have armor)
+  dmg = dmg + addPercent(dmg, agil + scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind))
+
+  // Okay, do that damage.
+  damageEnemy(pPlayer, pEnemy, dmg, sAction)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def playerDodge(pPlayer)#0
   displayf1("\n%s dodges.\n", pPlayer=>s_name)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def chooseWeapon(player)#0
-  // TOOO: Actually we've decided the player had better have already equipped a weapon; they don't
-  // get to switch during combat.
-  displayStr("\nTODO: choose weapon\n")
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def combatPause()#0
-  // TODO: make this pause configurable. Up arrow = increase speed; down = decrease speed
-  pause(800)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -441,9 +494,8 @@ def combatInsert(toAdd)#0
   pPrev = @global=>p_combatFirst
   while TRUE
     p = *pPrev
-    if !p or p->b_combatOrder < toAdd->b_combatOrder
-      break
-    fin
+    if !p; break; fin
+    if p->b_combatOrder < toAdd->b_combatOrder; break; fin
     pPrev = p + p_combatNext
   loop
 

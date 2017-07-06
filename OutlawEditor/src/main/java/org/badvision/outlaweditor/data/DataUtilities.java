@@ -10,18 +10,25 @@
 package org.badvision.outlaweditor.data;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Queue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -36,15 +43,108 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.badvision.outlaweditor.api.ApplicationState;
 import org.badvision.outlaweditor.data.xml.Block;
 import org.badvision.outlaweditor.data.xml.Field;
+import org.badvision.outlaweditor.data.xml.GameData;
 import org.badvision.outlaweditor.data.xml.Global;
+import org.badvision.outlaweditor.data.xml.Image;
 import org.badvision.outlaweditor.data.xml.Map;
 import org.badvision.outlaweditor.data.xml.NamedEntity;
 import org.badvision.outlaweditor.data.xml.Scope;
 import org.badvision.outlaweditor.data.xml.Script;
+import org.badvision.outlaweditor.data.xml.Scripts;
+import org.badvision.outlaweditor.data.xml.Statement;
+import org.badvision.outlaweditor.data.xml.Tile;
+import org.badvision.outlaweditor.data.xml.Value;
 import org.badvision.outlaweditor.ui.UIAction;
 
 public class DataUtilities {
 
+    public static void logDataStructure(GameData gameData) {
+        try {
+            ByteArrayOutputStream os = new ByteArrayOutputStream();
+            PrintWriter logger = new PrintWriter(os);
+            if (gameData != null) {
+                logger.println("Game data detected");
+                logMapStructure(gameData.getMap(), logger);
+                logGlobalStrcture(gameData.getGlobal(), logger);
+                logImageStructure(gameData.getImage(), logger);
+                logTileStructure(gameData.getTile(), logger);
+            } else {
+                logger.println("Game data was not detected");
+            }
+            logger.flush();
+            System.out.print(os.toString());
+            MessageDigest digest = MessageDigest.getInstance("MD5");
+            byte[] md5sum = digest.digest(os.toByteArray());
+            System.out.println();
+            System.out.print("checksum: ");
+            for (int i = 0; i < md5sum.length; i++) {
+                System.out.printf("%02X", md5sum[i]);
+            }
+            System.out.println();
+        } catch (NoSuchAlgorithmException ex) {
+            Logger.getLogger(DataUtilities.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+
+    private static void logGlobalStrcture(Global global, PrintWriter logger) {
+        if (global != null) {
+            logScripts(global.getScripts(), logger);
+            
+        } else {
+            logger.println("No global data was detected");
+        }
+    }
+    
+    private static void logScripts(Scripts scripts, PrintWriter logger) {
+        if (scripts != null && scripts.getScript() != null || !scripts.getScript().isEmpty()) {
+            scripts.getScript().forEach((script) -> {
+                Queue<Block> evaluateStack = new ArrayDeque<>();
+                evaluateStack.add(script.getBlock());
+                int blockCount = 0;
+                while (!evaluateStack.isEmpty()) {
+                    Block current = evaluateStack.poll();
+                    blockCount++;
+                    if (current.getNext() != null && current.getNext().getBlock() != null) {
+                        evaluateStack.add(current.getNext().getBlock());
+                    }
+                    extract(current, Value.class).map(Value::getBlock).filter(Objects::nonNull).forEach(evaluateStack::addAll);
+                    extract(current, Statement.class).map(Statement::getBlock).filter(Objects::nonNull).forEach(evaluateStack::addAll);
+                }
+                logger.println("Script " + script.getName() + "; " + blockCount + " blocks");
+            });
+        } else {
+            logger.println("No scripts were detected");            
+        }
+    }
+
+    private static void logImageStructure(List<Image> images, PrintWriter logger) {
+        if (images != null && images.size() > 0) {
+            logger.println(images.size() + " images were detected");            
+        } else {
+            logger.println("No images were detected");
+        }
+    }
+
+    private static void logMapStructure(List<Map> maps, PrintWriter logger) {
+        if (maps != null && maps.size() > 0) {
+            for (Map m : maps) {
+                logger.println(">> Map "+m.getName());
+                logScripts(m.getScripts(), logger);
+            }
+        } else {
+            logger.println("No maps were detected");
+        }
+        
+    }    
+    
+    private static void logTileStructure(List<Tile> tiles, PrintWriter logger) {
+        if (tiles != null && tiles.size() > 0) {
+            logger.println(tiles.size() + " tiles were detected");            
+        } else {
+            logger.println("No tiles were detected");
+        }
+    }    
+    
     private DataUtilities() {
     }
 
@@ -160,8 +260,8 @@ public class DataUtilities {
 
     public static List<List<String>> readFromFile(File file) {
         try {
-            if (file.getName().toLowerCase().endsWith("txt") ||
-                    file.getName().toLowerCase().endsWith("tsv")) {
+            if (file.getName().toLowerCase().endsWith("txt")
+                    || file.getName().toLowerCase().endsWith("tsv")) {
                 return readTextFile(file);
             } else if (file.getName().toLowerCase().endsWith("xls")) {
                 return readLegacyExcel(file);
@@ -171,7 +271,7 @@ public class DataUtilities {
         } catch (IOException | InvalidFormatException ex) {
             Logger.getLogger(DataUtilities.class.getName()).log(Level.SEVERE, null, ex);
         }
-        UIAction.alert("Couldn't figure out how to import file "+file.getName());
+        UIAction.alert("Couldn't figure out how to import file " + file.getName());
         return Collections.EMPTY_LIST;
     }
 
@@ -181,7 +281,7 @@ public class DataUtilities {
     }
 
     public static List<List<String>> readLegacyExcel(File file) throws FileNotFoundException, IOException {
-        return readSheet(new HSSFWorkbook(new FileInputStream(file)));        
+        return readSheet(new HSSFWorkbook(new FileInputStream(file)));
     }
 
     public static List<List<String>> readExcel(File file) throws FileNotFoundException, IOException, InvalidFormatException {
@@ -215,11 +315,11 @@ public class DataUtilities {
             default:
                 return "???";
         }
-    }    
-    
+    }
+
     public static String hexDump(byte[] data) {
         StringBuilder dump = new StringBuilder();
-        for (int i=0; i < data.length; i++) {
+        for (int i = 0; i < data.length; i++) {
             if (i > 0) {
                 dump.append(",");
             }
@@ -231,7 +331,7 @@ public class DataUtilities {
     public static String getHexValueFromByte(byte val) {
         return getHexValue(val & 0x0ff);
     }
-    
+
     public static String getHexValue(int val) {
         if (val < 16) {
             return "0" + Integer.toHexString(val);
@@ -239,7 +339,7 @@ public class DataUtilities {
             return Integer.toHexString(val);
         }
     }
-    
+
     //------------------------------ String comparators
     /**
      * Rank two strings similarity in terms of distance The lower the number,

@@ -1,59 +1,45 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.image.*?>
-<?import javafx.scene.shape.*?>
-<?import javafx.geometry.*?>
-<?import java.lang.*?>
-<?import java.net.*?>
-<?import java.util.*?>
-<?import javafx.scene.*?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
+<?import java.net.URL?>
+<?import javafx.geometry.Insets?>
+<?import javafx.geometry.Rectangle2D?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.Slider?>
+<?import javafx.scene.control.SplitMenuButton?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.control.TabPane?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.layout.VBox?>
 
-<AnchorPane id="AnchorPane" maxHeight="482.0" maxWidth="600.0" prefHeight="482.0" prefWidth="600.0" styleClass="mainFxmlClass" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.badvision.outlaweditor.ui.impl.ImageConversionWizardController">
+<AnchorPane id="AnchorPane" maxHeight="482.0" maxWidth="600.0" prefHeight="482.0" prefWidth="600.0" styleClass="mainFxmlClass" xmlns="http://javafx.com/javafx/8.0.60" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.badvision.outlaweditor.ui.impl.ImageConversionWizardController">
     <stylesheets>
         <URL value="@/styles/imageconversionwizard.css" />
     </stylesheets>
     <children>
         <HBox layoutX="14.0" layoutY="14.0" styleClass="imageViews" AnchorPane.bottomAnchor="276.0" AnchorPane.leftAnchor="14.0" AnchorPane.rightAnchor="14.0" AnchorPane.topAnchor="14.0">
             <children>
-                <StackPane HBox.hgrow="ALWAYS">
+                <VBox prefHeight="200.0" prefWidth="100.0" HBox.hgrow="ALWAYS">
                     <children>
-                        <ScrollPane fitToWidth="true" minHeight="192.0" pannable="true" styleClass="imageViewScroll">
-                            <content>
-                                <AnchorPane minHeight="188.0" styleClass="imageView">
-                                    <children>
-                                        <ImageView fx:id="sourceImageView" fitHeight="185.0" fitWidth="271.0" pickOnBounds="true" preserveRatio="true" />
-                                    </children>
-                                </AnchorPane>
-                            </content>
-                        </ScrollPane>
-                        <Label alignment="BOTTOM_CENTER" text="Source Image" textAlignment="CENTER" StackPane.alignment="BOTTOM_CENTER">
-                            <StackPane.margin>
-                                <Insets bottom="-20.0" />
-                            </StackPane.margin>
-                        </Label>
+                        <ImageView fx:id="sourceImageView" fitHeight="185.0" fitWidth="271.0" pickOnBounds="true" preserveRatio="true"/>
+                        <Label alignment="BOTTOM_CENTER" text="Source Image" textAlignment="CENTER" />
                     </children>
-                </StackPane>
-                <Region prefHeight="1" prefWidth="14.0" />
-                <StackPane HBox.hgrow="ALWAYS">
+                </VBox>
+                <VBox prefHeight="200.0" prefWidth="100.0" HBox.hgrow="ALWAYS">
                     <children>
-                        <ScrollPane fitToWidth="true" minHeight="192.0" pannable="true" styleClass="imageViewScroll">
-                            <content>
-                                <AnchorPane minHeight="188.0" styleClass="imageView">
-                                    <children>
-                                        <ImageView fx:id="convertedImageView" fitHeight="185.0" fitWidth="271.0" pickOnBounds="true" preserveRatio="true" />
-                                    </children>
-                                </AnchorPane>
-                            </content>
-                        </ScrollPane>
-                        <Label alignment="BOTTOM_CENTER" text="Converted" textAlignment="CENTER" StackPane.alignment="BOTTOM_CENTER">
-                            <StackPane.margin>
-                                <Insets bottom="-20.0" />
-                            </StackPane.margin>
-                        </Label>
+                        <ImageView fx:id="convertedImageView" fitHeight="185.0" fitWidth="100.0" pickOnBounds="true" preserveRatio="true" />
+                        <Label alignment="BOTTOM_CENTER" text="Converted" textAlignment="CENTER" />
                     </children>
-                </StackPane>
+                </VBox>
             </children>
         </HBox>
         <Separator layoutX="14.0" layoutY="227.0" prefHeight="9.0" prefWidth="442.0" AnchorPane.bottomAnchor="246.0" AnchorPane.leftAnchor="14.0" AnchorPane.rightAnchor="14.0" />

@@ -122,6 +122,7 @@ public class UIAction {
                 DataUtilities.ensureGlobalExists();
                 DataUtilities.cleanupAllScriptNames();
                 ApplicationUIController.getController().updateSelectors();
+                DataUtilities.logDataStructure(newData);
                 break;
             case Quit:
                 quit();

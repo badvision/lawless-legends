@@ -18,11 +18,14 @@ import java.util.ResourceBundle;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import javafx.beans.binding.DoubleBinding;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.geometry.Rectangle2D;
+import javafx.scene.SnapshotParameters;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.effect.ColorAdjust;
@@ -30,6 +33,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelReader;
 import javafx.scene.image.WritableImage;
+import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
 import org.badvision.outlaweditor.apple.ImageDitherEngine;
 import org.badvision.outlaweditor.ui.ImageConversionPostAction;
@@ -124,6 +128,15 @@ public class ImageConversionWizardController implements Initializable {
         hueValue.textProperty().bindBidirectional(hueSlider.valueProperty(), NumberFormat.getNumberInstance());
         saturationValue.textProperty().bindBidirectional(saturationSlider.valueProperty(), NumberFormat.getNumberInstance());
 
+        HBox panel = (HBox) convertedImageView.getParent().getParent();
+        DoubleBinding height = panel.heightProperty().subtract(30);
+        DoubleBinding width = panel.widthProperty().divide(2.0).subtract(10);
+        sourceImageView.setPreserveRatio(false);
+        sourceImageView.fitHeightProperty().bind(height);
+        sourceImageView.fitWidthProperty().bind(width);
+        convertedImageView.fitHeightProperty().bind(height);
+        convertedImageView.fitWidthProperty().bind(width);
+        
         brightnessValue.textProperty().addListener((ObservableValue<? extends String> observable, String oldValue, String newValue)
                 -> javafx.application.Platform.runLater(this::updateImageAdjustments));
         contrastValue.textProperty().addListener((ObservableValue<? extends String> observable, String oldValue, String newValue)
@@ -197,8 +210,6 @@ public class ImageConversionWizardController implements Initializable {
 
     private void updateSourceView(Image image) {
         sourceImageView.setImage(image);
-        sourceImageView.setFitWidth(0);
-        sourceImageView.setFitHeight(0);
         int width = (int) image.getWidth();
         int height = (int) image.getHeight();
         defaultTextFieldValues.put(cropRightValue, String.valueOf(width));
@@ -224,6 +235,8 @@ public class ImageConversionWizardController implements Initializable {
     private void prepareForConversion() {
         ditherEngine.setCoefficients(getCoefficients());
         ditherEngine.setDivisor(getDivisor());
+//        SnapshotParameters params = new SnapshotParameters();
+//        params.setViewport(new Rectangle2D(0, 0, sourceImage.getWidth(), sourceImage.getHeight()));
         ditherEngine.setSourceImage(sourceImageView.snapshot(null, null));
     }    
     
@@ -316,8 +329,7 @@ public class ImageConversionWizardController implements Initializable {
                 0, 3, 5, 1, 0,
                 0, 0, 0, 0, 0
         );
-//        setDivisor(16);
-        setDivisor(18);
+        setDivisor(19);
     }
 
     @FXML
@@ -327,8 +339,7 @@ public class ImageConversionWizardController implements Initializable {
                 0, 0, 3, 2, 0,
                 0, 0, 0, 0, 0
         );
-//        setDivisor(8);
-        setDivisor(10);
+        setDivisor(11);
     }
 
     @FXML
@@ -338,7 +349,6 @@ public class ImageConversionWizardController implements Initializable {
                 3, 5, 7, 5, 3,
                 1, 3, 5, 3, 1
         );
-//        setDivisor(48);
         setDivisor(57);
     }
 
@@ -349,8 +359,7 @@ public class ImageConversionWizardController implements Initializable {
                 2, 4, 8, 4, 2,
                 1, 2, 4, 2, 1
         );
-//        setDivisor(42);
-        setDivisor(52);
+        setDivisor(50);
     }
 
     @FXML
@@ -360,7 +369,7 @@ public class ImageConversionWizardController implements Initializable {
                 0, 1, 1, 1, 0,
                 0, 0, 1, 0, 0
         );
-        setDivisor(8);
+        setDivisor(9);
     }
 
     @FXML
@@ -370,8 +379,7 @@ public class ImageConversionWizardController implements Initializable {
                 2, 4, 8, 4, 2,
                 0, 0, 0, 0, 0
         );
-        setDivisor(37);
-//        setDivisor(32);
+        setDivisor(40);
     }
 
     @FXML
@@ -381,8 +389,7 @@ public class ImageConversionWizardController implements Initializable {
                 2, 4, 5, 4, 2,
                 0, 2, 3, 2, 0
         );
-//        setDivisor(32);
-        setDivisor(41);
+        setDivisor(37);
     }
 
     @FXML
@@ -392,8 +399,7 @@ public class ImageConversionWizardController implements Initializable {
                 1, 2, 3, 2, 1,
                 0, 0, 0, 0, 0
         );
-//        setDivisor(16);
-        setDivisor(18);
+        setDivisor(19);
     }
 
     @FXML
@@ -403,8 +409,6 @@ public class ImageConversionWizardController implements Initializable {
                 0, 1, 1, 0, 0,
                 0, 0, 0, 0, 0
         );
-//        setDivisor(4);
         setDivisor(5);
     }
-
 }

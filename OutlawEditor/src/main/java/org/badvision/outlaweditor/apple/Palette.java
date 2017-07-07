@@ -77,14 +77,14 @@ public abstract class Palette {
     }
 
     public static double distance(int c1[], int c2[]) {
-        double rmean = ( c1[0] + c2[1] ) / 2.0;
+        double rmean = ( c1[0] + c2[0] ) / 512.0;
         double r = c1[0] - c2[0];
         double g = c1[1] - c2[1];
         double b = c1[2] - c2[2];
-        double weightR = 2.0 + rmean/256.0;
-        double weightG = 4.0;
-        double weightB = 2.0 + (255.0-rmean)/256.0;
-        return Math.sqrt(weightR*(r*r) + weightG*(g*g) + weightB*(b*b)) / 1.73167;
+        double weightR = 2.0 + rmean;
+        double weightG = 2.0;
+        double weightB = 3.0 - rmean;
+        return Math.sqrt(weightR*(r*r) + weightG*(g*g) + weightB*(b*b)) / 1.5275;
     }
     
     public static double distance_linear(int color[], int test[]) {

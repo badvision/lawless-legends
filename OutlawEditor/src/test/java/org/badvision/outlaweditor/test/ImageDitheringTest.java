@@ -202,11 +202,11 @@ public class ImageDitheringTest {
         };
     }
 
-    private void configureBrendanDither(ImageDitherEngine ditherEngine) {
+    private void configureSierraLite(ImageDitherEngine ditherEngine) {
         int[][] coefficients = new int[][]{
-            {0, 8, 0}, {0, 16, 4}, {0, 32, 8}, {32, 16, 4}, {24, 8, 0}};
+            {0, 0, 0}, {0, 1, 0}, {0, 1, 0}, {2, 0, 0}, {0, 0, 0}};
         ditherEngine.setCoefficients(coefficients);
-        ditherEngine.setDivisor(240);
+        ditherEngine.setDivisor(5);
     }
 
     private void fillColor(WritableImage img, Color color) {
@@ -219,7 +219,7 @@ public class ImageDitheringTest {
 
     private WritableImage getTestConversion(ImageDitherEngine dither, WritableImage source) {
         dither.setSourceImage(source);
-        configureBrendanDither(dither);
+        configureSierraLite(dither);
         dither.dither(true);
         return dither.getPreviewImage();
     }

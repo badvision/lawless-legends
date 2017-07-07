@@ -23,6 +23,7 @@ word[] funcTbl = @_combat_zoneEncounter
 byte nPlayersFighting
 byte nEnemiesFighting
 byte isFleeing
+byte combatDebug
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def combatPause()#0
@@ -93,7 +94,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def rollPlayerHit(pPlayer, pWeapon, pEnemy, sAction)
   word chance
-  byte agil
+  byte agil, roll
 
   // Chance to hit:
   // * agil *4
@@ -107,16 +108,24 @@ def rollPlayerHit(pPlayer, pWeapon, pEnemy, sAction)
   if pWeapon
     agil = agil + scanModifiers(pWeapon=>p_modifiers, @S_AGILITY)
   fin
+  if combatDebug; displayf3("Agil = %d+%d = %d\n", pPlayer->b_agility, agil - pPlayer->b_agility, agil); fin
   chance = (agil * 4) + pPlayer->b_aiming
+  if combatDebug; displayf3("Base chnc = %d*4+%d = %d%%\n", agil, pPlayer->b_aiming, chance); fin
   if pWeapon
     chance = chance + scanModifiers(pWeapon=>p_modifiers, @S_AIMING)
+    if combatDebug; displayf1(" weap aim=%d\n", scanModifiers(pWeapon=>p_modifiers, @S_AIMING)); fin
     chance = chance + scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind)
+    if combatDebug; displayf1(" plyr skill=%d\n", scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind)); fin
   fin
   chance = max(5, min(90, chance))
+  if combatDebug; displayf1(" rng mod=%d\n", max(0, pEnemy->b_enemyAttackRange - 5) / 5); fin
   chance = max(0, chance - (max(0, pEnemy->b_enemyAttackRange - 5)) / 5))
+  if combatDebug; displayf1("Final chnc = %d%%\n", chance); fin
 
   // See if it's a hit
-  if (rand16() % 100) >= chance
+  roll = rand16() % 100
+  if combatDebug; displayf2("Roll=%d Hit=%d\n", roll, abs(roll < chance)); getUpperKey(); fin
+  if roll >= chance
     setPlural(0)
     displayf3("\n%s %s at %s but misses.\n", pPlayer=>s_name, sAction, pEnemy=>s_name)
     return FALSE
@@ -178,11 +187,14 @@ def playerMelee(pPlayer, pWeapon)#0
   fin
 
   if pWeapon
-    dmg = rollDice(pWeapon=>r_meleeDmg)
+    dmg = pWeapon=>r_meleeDmg
   else
     // If using just fists, damage is nd4+h, where n is hand-to-hand skill + 1
-    dmg = rollDice(encodeDice(scanModifiers(pPlayer=>p_skills, @S_HAND_TO_HAND)+1, 4, 0))
+    dmg = encodeDice(scanModifiers(pPlayer=>p_skills, @S_HAND_TO_HAND)+1, 4, 0)
   fin
+  if combatDebug; displayf3("Base dmg: %dd%d+%d = ", (dmg>>12) & $F, (dmg >> 8) & $F, dmg & $FF); fin
+  dmg = rollDice(dmg)
+  if combatDebug; displayf1("%d\n", dmg); fin
 
   // Damage bonus is:
   // 1% per point of combined player and weapon agility
@@ -191,14 +203,20 @@ def playerMelee(pPlayer, pWeapon)#0
   // (no contribution of strength)
   // (enemies don't have armor)
   bonus = pPlayer->b_agility
+  if combatDebug; displayf1("Dmg bonus:\n agil=%d\n", pPlayer->b_agility); fin
   if pWeapon
     bonus = bonus + scanModifiers(pWeapon=>p_modifiers, @S_AGILITY)
+    if combatDebug; displayf1(" weap agil=%d\n", scanModifiers(pWeapon=>p_modifiers, @S_AGILITY)); fin
     bonus = bonus + (scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind)*2)
+    if combatDebug; displayf1(" plyr skill*2=%d\n", scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind)*2); fin
   fin
   if scanModifiers(pPlayer=>p_skills, @S_HAND_TO_HAND)
     bonus = bonus + (pPlayer->b_strength * 5)
+    if combatDebug; displayf1("  strngth*5=%d\n", pPlayer->b_strength * 5); fin
   fin
+  if combatDebug; displayf1("Final bonus=%d%%\n", bonus); fin
   dmg = dmg + addPercent(dmg, bonus)
+  if combatDebug; displayf1("Final dmg=%d\n", dmg); getUpperKey(); fin
   damageEnemy(pPlayer, pEnemy, dmg, sAction)
 end
 
@@ -231,7 +249,11 @@ def playerShoot(pPlayer, pWeapon)#0
   // TODO: consider multi-shot weapons
 
   // Calculate damage
+  if combatDebug
+    displayf3("Base dmg: %dd%d+%d = ", (pWeapon=>r_projectileDmg>>12) & $F, (pWeapon=>r_projectileDmg >> 8) & $F, pWeapon=>r_projectileDmg & $FF)
+  fin
   dmg = rollDice(pWeapon=>r_projectileDmg)
+  if combatDebug; displayf1("%d\n", dmg); fin
 
   // Damage bonus is:
   // * 1% per point of combined player and weapon agility
@@ -239,6 +261,13 @@ def playerShoot(pPlayer, pWeapon)#0
   // (no contribution of strength)
   // (enemies don't have armor)
   dmg = dmg + addPercent(dmg, agil + scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind))
+  if combatDebug
+    displayf1("dmg bonus:\n agil=%d\n", agil)
+    displayf1("  plyr skill=%d\n", scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind))
+    displayf1("final bonus=%d%%\n", agil + scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind))
+    displayf1("final dmg=%d\n", dmg)
+    getUpperKey()
+  fin
 
   // Okay, do that damage.
   damageEnemy(pPlayer, pEnemy, dmg, sAction)
@@ -336,6 +365,7 @@ def playerCombatChoose(pl)#0
   loop
 
   // Let them know their options
+  restoreCursor()
   rawDisplayf1("^D%s", pl=>s_name)
   displayOption('M', "Melee")
   if pWeapon
@@ -358,7 +388,6 @@ def playerCombatChoose(pl)#0
   canAdvance = minEnemyDist() > 5
   if canAdvance; displayOption('A', "Advance"); fin
 
-  restoreCursor()
   while TRUE
     pl->b_combatChoice = getUpperKey()
     when pl->b_combatChoice
@@ -380,6 +409,14 @@ def playerCombatChoose(pl)#0
         break
       is 'A'
         if canAdvance; return; fin
+        break
+      is '%'
+        if global->b_godmode
+          clearWindow()
+          combatDebug = 1-combatDebug
+          rawDisplayf1("Combat debug: %d\n\n", combatDebug)
+          return playerCombatChoose(pl)
+        fin
         break
     wend
     beep()
@@ -601,6 +638,7 @@ def startCombat(mapCode)#1
 
   // Setup
   isFleeing = FALSE
+  combatDebug = FALSE
   makeRandomGroup(mapCode)
 
   // Display portrait of first group
@@ -640,10 +678,11 @@ def startCombat(mapCode)#1
     elsif n == 'F'
       displayStr("\n\nFleeing...\n")
       return 0
-    // Secret option for testing: just die
+    // Secret option for testing: instant victory
     elsif n == '#' and global->b_godmode
       displayStr("\n\n")
       return 99
+    // Secret option for testing: just die
     elsif n == '*' and global->b_godmode
       displayStr("\n\n")
       return -99

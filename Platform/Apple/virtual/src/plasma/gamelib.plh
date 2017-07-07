@@ -12,6 +12,7 @@ import gamelib
 
   //////////// Shared library routines ////////////
   // Let's try to keep these predef's in lexical order
+  predef abs(n)#1
   predef addEncounterZone(code, x, y, dist, chance)#0
   predef addGold(amount)#1
   predef addPlayerToParty(playerFuncNum)#0

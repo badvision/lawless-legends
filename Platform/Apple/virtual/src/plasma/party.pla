@@ -439,6 +439,7 @@ def interactWithItem(player, item)#1
       is 'E'
         if item->t_type == TYPE_ARMOR or item->t_type == TYPE_WEAPON
           doEquip(player, item)
+          return NULL
         else
           beep
         fin

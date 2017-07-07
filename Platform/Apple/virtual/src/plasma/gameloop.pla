@@ -1056,7 +1056,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Return the absolute value of a number
-def abs(n)#1
+export def abs(n)#1
   if n < 0; return -n; fin
   return n
 end

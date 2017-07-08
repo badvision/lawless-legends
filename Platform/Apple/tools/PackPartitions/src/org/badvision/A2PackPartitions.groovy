@@ -2889,9 +2889,12 @@ def makePlayer_pt2(p, health, level, aiming, handToHand, dodging)#1
   p=>w_health = health
   p->b_level = level
   p=>w_maxHealth = health
+  // Non-first players are NPCs
+  if global=>p_players; p->b_playerFlags = PLAYER_FLAG_NPC; fin
   p->b_aiming = aiming
   p->b_handToHand = handToHand
   p->b_dodging = dodging
+  initPlayerXP(p)
   return p
 end
 """)

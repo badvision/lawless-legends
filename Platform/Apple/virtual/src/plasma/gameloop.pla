@@ -66,7 +66,7 @@ predef showParty()#0
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Global variables
 export byte mapNum = -1
-export byte mapIs3D = -1
+export byte mapIs3D = 0
 word mapNameHash = 0
 word totalMapWidth
 word totalMapHeight
@@ -804,17 +804,10 @@ export asm setWindow(top, bottom, left, right)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Save the cursor position (1 save slot)
-export asm saveCursor()#0
-  +asmPlasmNoRet 0
-  jmp SaveCursor
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Restore the cursor position (1 save slot)
-export asm restoreCursor()#0
-  +asmPlasmNoRet 0
-  jmp RestCursor
+// Get the cursor position - returns X, Y
+export asm getCursor()#2
+  bit setLcRW+lcBank2
+  jmp GetCursor
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1185,6 +1178,12 @@ export def rawDisplayf2(str, arg1, arg2)#0; rawDisplayStr(sprintf3(str, arg1, ar
 export def rawDisplayf3(str, arg1, arg2, arg3)#0; rawDisplayStr(sprintf3(str, arg1, arg2, arg3)); end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Set the cursor position in the font engine
+export def setCursor(x, y)#0
+  rawDisplayf2("^V%D^T%D", y, x)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 export def parseDec(str)#1
   word n
   word pend
@@ -1404,8 +1403,8 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the large upper right bar
 export def setWindow2()#0
-  displayChar('N'-$40) // Set normal mode - clear all special modes (like underline, etc.)
   setWindow(24, 132, 154, 267) // Top, Bottom, Left, Right
+  displayChar('N'-$40) // Set normal mode - clear all special modes (like underline, etc.)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1471,9 +1470,9 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display the party data on the screen
 export def showParty()#0
-  word p
+  word p, cursX, cursY
 
-  saveCursor()
+  cursX, cursY = getCursor()
   setWindow3()
   clearWindow()
 
@@ -1484,7 +1483,7 @@ export def showParty()#0
     p = p=>p_nextObj
   loop
   if p
-    rawDisplayStr("^Y^I LEVEL UP ^N\n")
+    rawDisplayStr("^Y^I LEVEL U)P ^N\n")
   else
     rawDisplayStr("^LName")
     rightJustifyStr(@S_HEALTH, CHAR_WND_HEALTH_X)  // begin underline mode
@@ -1506,7 +1505,7 @@ export def showParty()#0
     copyWindow()
   fin
   setWindow2()
-  restoreCursor()
+  setCursor(cursX, cursY)
   needShowParty = FALSE
 end
 
@@ -1994,7 +1993,7 @@ export def scriptDisplayStr(str)#0
     pIntimate=>intimate_displayStr(str)
   else
     textDrawn = TRUE
-    flipToPage1()
+    if renderLoaded; flipToPage1(); fin
     displayStr(str)
   fin
   ^kbdStrobe
@@ -2086,12 +2085,12 @@ end
 // Display a portrait drawing (typically called from scripts)
 export def setPortrait(portraitNum)#0
   word srcData
-  byte part, cx, cy
+  byte part, cx, cy, cursX, cursY
 
   clearPortrait()
 
   // We're going to switch windows. Save the cursor pos in the text window.
-  saveCursor()
+  cursX, cursY = getCursor()
 
   // Make room by unloading the textures (only if renderer is loaded)
   unloadTextures()
@@ -2102,7 +2101,7 @@ export def setPortrait(portraitNum)#0
 
   // Restore the cursor position
   setWindow2()
-  restoreCursor()
+  setCursor(cursX, cursY)
 
   // Load the portrait image and display it
   part = lookupResourcePart(3, portraitNum)
@@ -2303,6 +2302,24 @@ def showPlayer3()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Level up the first character that's applicable
+def levelUp()#1
+  word player
+  byte n
+  player = global=>p_players
+  n = 0
+  while player
+    if player->b_skillPoints
+      showPlayerSheet(n)
+      return 0
+    fin
+    player = player=>p_nextObj
+  loop
+  beep
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 export def addEncounterZone(code, x, y, dist, chance)#0
   word p
   if allowZoneInit
@@ -2450,6 +2467,7 @@ def initCmds()#0
   cmdTbl['1'] = @showPlayer1
   cmdTbl['2'] = @showPlayer2
   cmdTbl['3'] = @showPlayer3
+  cmdTbl['U'] = @levelUp
   cmdTbl[$13] = @saveGame // ctrl-S
   cmdTbl[$0c] = @loadGame // ctrl-L
   cmdTbl['?'] = @help
@@ -2715,14 +2733,12 @@ export def addXP(val)#1
       player=>w_curXP = 29999
     fin
     while player=>w_curXP >= player=>w_nextXP
-      if player=>w_curXP > 0
-        // Level up!
-        player->b_level++
-        player->b_skillPoints = player->b_skillPoints + callGlobalFunc(GS_LEVEL_S_P, player->b_level, 0, 0)
-        player=>w_maxHealth = player=>w_maxHealth + player->b_stamina + rollDice($2600) // stam + 2d6
-        player=>w_health = player=>w_maxHealth // let's make leveling up an extra nice thing
-        needShowParty = TRUE
-      fin
+      // Level up!
+      player->b_level++
+      player->b_skillPoints = player->b_skillPoints + callGlobalFunc(GS_LEVEL_S_P, player->b_level, 0, 0)
+      player=>w_maxHealth = player=>w_maxHealth + player->b_stamina + rollDice($2600) // stam + 2d6
+      player=>w_health = player=>w_maxHealth // let's make leveling up an extra nice thing
+      needShowParty = TRUE
 
       // Check XP for next level, and enforce level cap if any
       n = callGlobalFunc(GS_LEVEL_X_P, player->b_level + 1, 0, 0)
@@ -2736,6 +2752,14 @@ export def addXP(val)#1
     player = player=>p_nextObj
   loop
   return val
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Initialize XP (and skill pts) for newly created character
+export def initPlayerXP(player)#0
+  player->b_skillPoints = callGlobalFunc(GS_LEVEL_S_P, player->b_level, 0, 0)
+  player=>w_curXP = callGlobalFunc(GS_LEVEL_X_P, player->b_level, 0, 0)
+  player=>w_nextXP = callGlobalFunc(GS_LEVEL_X_P, player->b_level + 1, 0, 0)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

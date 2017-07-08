@@ -12,6 +12,7 @@ include "gamelib.plh"
 include "globalDefs.plh"
 include "playtype.plh"
 include "diskops.plh"
+include "party.plh"
 include "gen_modules.plh"
 include "gen_players.plh"
 
@@ -268,19 +269,45 @@ def _loadGame()#1
   return 0
 end
 
+def getCharacterName()#0
+  word cursX, cursY
+  displayStr("\nCharacter name?\n")
+  cursX, cursY = getCursor()
+  printf2("cursX=%d cursY=%d\n", cursX, cursY)
+  setWindow(cursY+24, cursY+24+18, cursX+154, cursX+154+62)
+  clearWindow()
+  global=>p_players=>s_name = getStringResponse()
+  setWindow2()
+  setCursor(cursX, cursY)
+end
+
+def getCharacterGender()#0
+  displayStr("\n\nGender? (M/F/N/...) \n")
+  global=>p_players->c_gender = getUpperKey()
+  displayChar(global=>p_players->c_gender)
+end
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def newGame()#0
-  word playersModule, newGameModule
+  word playersModule, newGameModule, partyModule
   initHeap(0) // initially empty heap
   global->b_curAvatar = 0
   global=>w_combatPauseCt = DEFAULT_COMBAT_PAUSE_CT
   mmgr(START_LOAD, 1) // players module and new game module both in partition 1
   playersModule = mmgr(QUEUE_LOAD, MOD_GEN_PLAYERS<<8 | RES_TYPE_MODULE)
   newGameModule = mmgr(QUEUE_LOAD, GS_NEW_GAME<<8 | RES_TYPE_MODULE)
+  partyModule = mmgr(QUEUE_LOAD, MOD_PARTY<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
   playersModule()=>makeInitialParty()
-  addXP(0) // to set initial skill pts
+  loadMainFrameImg()
+  showMapName("New game")
+  setWindow2()
   newGameModule()()
+  getCharacterName()
+  getCharacterGender()
+  if global=>p_players->b_skillPoints
+    partyModule()=>party_showPlayerSheet(0)
+  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

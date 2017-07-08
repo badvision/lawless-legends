@@ -279,6 +279,13 @@ def showSkills(player, numToBump)#1
     clearLittleArea(x2, y+9)
   fin
   displaySkill(player, NULL, @y, x2, 0, "Skill points", player+b_skillPoints)
+
+  if player->c_gender > ' '
+    vspace()
+    rawDisplayf2("\n^T%D%s", x2+32, "Gender")
+    rightJustifyStr(sprintf1("%c", player->c_gender), x2+26)
+  fin
+
   return skillNum-1
 end
 
@@ -471,13 +478,19 @@ end
 // the item is returned; else NULL is returned.
 def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a value
   word player, item
-  byte i_page, totalItems, itemsOnPage, redisplay, sel, mode
+  byte i_page, totalItems, itemsOnPage, redisplay, sel, mode, noRepeatMenu
 
   setBigWindow()
 
   i_page = 0
   redisplay = 2
-  mode = 'I' // 'I' for inventory, 'S' for skills
+  noRepeatMenu = FALSE
+  player = numToPlayer(player_num)
+  if player->b_skillPoints
+    mode = 'S'  // go straight to level up if applicable
+  else
+    mode = 'I'  // otherwise default to inventory mode
+  fin
   repeat
     player = numToPlayer(player_num)
     if !player; beep; return NULL; fin
@@ -499,11 +512,14 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
       redisplay = 0
     fin
 
-    if mode == 'I'
-      showInvMenu(player, totalItems, i_page, itemsOnPage)
-    else // 'S'
-      showSkillsMenu(player, itemsOnPage)
+    if !noRepeatMenu
+      if mode == 'I'
+        showInvMenu(player, totalItems, i_page, itemsOnPage)
+      else // 'S'
+        showSkillsMenu(player, itemsOnPage)
+      fin
     fin
+    noRepeatMenu = FALSE
 
     // Get a key, do something
     sel = getUpperKey()
@@ -585,6 +601,13 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
           sel = sel - 'A'
           if sel >= 0 and sel < itemsOnPage and player->b_skillPoints
             showSkills(player, sel+1)
+            // Redisplay when last pt allocated
+            if !player->b_skillPoints
+              clearWindow()
+              redisplay = 1
+            else
+              noRepeatMenu = TRUE
+            fin
           else
             beep
           fin

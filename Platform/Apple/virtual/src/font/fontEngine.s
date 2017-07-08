@@ -123,11 +123,8 @@ DisplayStr	JMP DoParse	; API call address
 ;Does not do line breaking
 CalcWidth	JMP DoCWdth
 
-;Save the cursor position
-SaveCursor	JMP SvCurs
-
-;Restore the cursor position
-RestCursor	JMP RsCurs
+;Get the cursor position
+GetCursor	JMP GtCurs
 
 ;To get a string of text up to 40 chars long using a
 ;flashing cursor use GetStr. It allows use of either
@@ -549,25 +546,22 @@ WtL_Prs	LDA #0 	;	if wait interrupted then do
 	STA ChBflip
 	RTS
 
-;Routine: Save the cursor position. There is exactly one save slot.
-BCursColL	!byte 0		;Saved Lo-byte of 16-bit horz X-pos value
-BCursColH	!byte 0		;Saved Hi-byte X-position {0..279}
-BCursRow	!byte 0		;Saved vertical Y-position {0..191}
-SvCurs	LDA CursColL
-	STA BCursColL
+;Routine: Get the cursor position (relative to the current window)
+GtCurs	DEX
+	LDA CursColL
+	SEC
+	SBC CursXl
+	STA evalStkL,X
 	LDA CursColH
-	STA BCursColH
+	SBC CursXh
+	STA evalStkH,X
+	DEX
 	LDA CursRow
-	STA BCursRow
-	RTS
-
-;Routine: Restore the cursor position. There is exactly one save slot.
-RsCurs	LDA BCursColL
-	STA CursColL
-	LDA BCursColH
-	STA CursColH
-	LDA BCursRow
-	STA CursRow
+	SEC
+	SBC CursY
+	STA evalStkL,X
+	LDA #0
+	STA evalStkH,X
 	RTS
 
 ;Routine: Set window boundaries. Paramaters are pushed on the PLASMA

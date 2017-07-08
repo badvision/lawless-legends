@@ -344,10 +344,11 @@ def playerCombatChoose(pl)#0
   word p, pWeapon
   byte nWeapons, key
   byte canShoot, canReload, canChange, canAdvance
+  word cursX, cursY
 
   // Before we start, save the cursor location so we can
   // later restore it for the next player's choice.
-  saveCursor()
+  cursX, cursY = getCursor()
 
   // Count all weapons and get currently equipped
   canShoot  = FALSE
@@ -365,7 +366,7 @@ def playerCombatChoose(pl)#0
   loop
 
   // Let them know their options
-  restoreCursor()
+  setCursor(cursX, cursY)
   rawDisplayf1("^D%s", pl=>s_name)
   displayOption('M', "Melee")
   if pWeapon

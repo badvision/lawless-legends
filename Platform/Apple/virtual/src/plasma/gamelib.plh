@@ -50,6 +50,7 @@ import gamelib
   predef finishString(isPlural)#1
   predef flipToPage1()#0
   predef getCharResponse()#1
+  predef getCursor()#2
   predef getDir()#1
   predef getGameFlag(flagName)#1
   predef getPos(px, py)#0
@@ -59,6 +60,7 @@ import gamelib
   predef getYN()#1
   predef giveItemToPlayer(p_player, itemFuncNum)#0
   predef initHeap(loadedSize)#0
+  predef initPlayerXP(player)#0
   predef loadFrameImg(img)#0
   predef loadMainFrameImg()#0
   predef makeModifier(name, value)#1
@@ -92,11 +94,9 @@ import gamelib
   predef readStr()#1
   predef removeFromList(pList, toRemove)#0
   predef removePlayerFromParty(playerName)#0
-  predef restoreCursor()#0
   predef rightJustifyNum(num, rightX)#0
   predef rightJustifyStr(str, rightX)#0
   predef rollDice(encoded)#1
-  predef saveCursor()#0
   predef scanForNamedObj(p_obj, name)#1
   predef scriptCombat(mapCode)#1
   predef scriptDisplayStr(str)#0
@@ -105,6 +105,7 @@ import gamelib
   predef scriptSetAvatar(avatarTileNum)#0
   predef scriptSwapTile(fromX, fromY, toX, toY)#0
   predef setCmd(key, func)#0
+  predef setCursor(x, y)#0
   predef setGameFlag(flagName, val)#0
   predef setGround(num)#0
   predef setIntimateMode(enable)#0

@@ -273,7 +273,6 @@ def getCharacterName()#0
   word cursX, cursY
   displayStr("\nCharacter name?\n")
   cursX, cursY = getCursor()
-  printf2("cursX=%d cursY=%d\n", cursX, cursY)
   setWindow(cursY+24, cursY+24+18, cursX+154, cursX+154+62)
   clearWindow()
   global=>p_players=>s_name = getStringResponse()

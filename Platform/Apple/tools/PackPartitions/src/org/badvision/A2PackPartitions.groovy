@@ -2614,7 +2614,7 @@ end
                 out.println("  addToList(@p=>p_items, itemScripts()=>$itemFunc())")
             }
         }
-        out.println("  calcPlayerArmor(p)")
+        out.println("  girdPlayer(p)")
         out.println("  mmgr(FREE_MEMORY, itemScripts)")
         out.println "  return p"
     }

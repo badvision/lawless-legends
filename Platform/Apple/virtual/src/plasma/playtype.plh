@@ -51,12 +51,12 @@ struc Player
   byte t_type
   word p_nextObj
   word s_name
-  byte c_gender
   byte b_combatOrder
   word p_combatNext
   word w_health
 
   // Innate attributes
+  byte c_gender
   byte b_intelligence
   byte b_strength
   byte b_agility

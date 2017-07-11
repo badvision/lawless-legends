@@ -208,7 +208,7 @@ def showDerived(player)#0
 end
 
 def clearLittleArea(x, y)#0
-  setWindow(BIGWIN_TOP+y, BIGWIN_TOP+9+y, BIGWIN_LEFT+x+15, BIGWIN_LEFT+x+30)
+  setWindow(BIGWIN_TOP+y, BIGWIN_TOP+9+y, BIGWIN_LEFT+x+13, BIGWIN_LEFT+x+30)
   clearWindow()
   setBigWindow()
 end
@@ -220,7 +220,8 @@ def displaySkill(player, pSkillNum, py, x, numToBump, str, pVal)#0
     ^pSkillNum = 1 + ^pSkillNum
     if numToBump
       if numToBump+1 <> ^pSkillNum; return; fin
-      if player->b_skillPoints and ^pVal < 10
+      // Enforce cap of 7 until level 2 is reached
+      if player->b_skillPoints and ((player->b_level <= 1 and ^pVal < 7) or (player->b_level > 1 and ^pVal < 10))
         player->b_skillPoints = player->b_skillPoints - 1
         ^pVal = ^pVal + 1
         clearLittleArea(x, ^py)

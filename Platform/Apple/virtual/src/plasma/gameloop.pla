@@ -2393,9 +2393,11 @@ export def checkEncounter(x, y, force)#0
 
   // Roll for an encounter in the zone.
   d = rand16() % 1000
-  if p_bestZone and (d < p_bestZone=>w_encChance or force)
-    // Encounter!
-    doCombat(p_bestZone=>s_name, !force)
+  if p_bestZone
+    if (d < p_bestZone=>w_encChance or force)
+      // Encounter!
+      doCombat(p_bestZone=>s_name, !force)
+    fin
   fin
 end
 
@@ -2432,7 +2434,10 @@ def toggleGodMode()#1
     if ^kbd == $84  // ctrl-D
       ^kbdStrobe
       global->b_godmode = !global->b_godmode
-      beep; beep // A little audio feedback
+      flipToPage1()
+      displayf1("gm:%d\n", global->b_godmode & 1)
+      textDrawn = TRUE
+      beep; beep
       saveMapPos(); restoreMapPos()  // reload everything, including god module
     fin
   fin
@@ -2471,10 +2476,9 @@ def initCmds()#0
   cmdTbl[$13] = @saveGame // ctrl-S
   cmdTbl[$0c] = @loadGame // ctrl-L
   cmdTbl['?'] = @help
+  cmdTbl[$07] = @toggleGodMode // ctrl-G
   if global->b_godmode
     pGodModule=>godmode_setCheatCmds()
-  else
-    cmdTbl[$07] = @toggleGodMode // ctrl-G
   fin
 
   // Commands handled differently in 3D vs 2D
@@ -2760,6 +2764,27 @@ export def initPlayerXP(player)#0
   player->b_skillPoints = callGlobalFunc(GS_LEVEL_S_P, player->b_level, 0, 0)
   player=>w_curXP = callGlobalFunc(GS_LEVEL_X_P, player->b_level, 0, 0)
   player=>w_nextXP = callGlobalFunc(GS_LEVEL_X_P, player->b_level + 1, 0, 0)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Arm newly created player (or NPC) with first weapon and all armor.
+export def girdPlayer(player)#0
+  word pItem
+  byte weaponFound
+  weaponFound = FALSE
+  pItem = player=>p_items
+  while pItem
+    if pItem->t_type == TYPE_WEAPON
+      if !weaponFound
+        pItem->b_flags = pItem->b_flags | ITEM_FLAG_EQUIP
+        weaponFound = TRUE
+      fin
+    elsif pItem->t_type == TYPE_ARMOR
+      pItem->b_flags = pItem->b_flags | ITEM_FLAG_EQUIP
+    fin
+    pItem = pItem=>p_nextObj
+  loop
+  calcPlayerArmor(player)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

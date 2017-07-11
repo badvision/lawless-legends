@@ -58,6 +58,7 @@ import gamelib
   predef getStringResponse()#1
   predef getUpperKey()#1
   predef getYN()#1
+  predef girdPlayer(player)#0
   predef giveItemToPlayer(p_player, itemFuncNum)#0
   predef initHeap(loadedSize)#0
   predef initPlayerXP(player)#0

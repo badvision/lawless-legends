@@ -147,15 +147,20 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def damageEnemy(pPlayer, pEnemy, dmg, sAction)#0
-  pEnemy=>w_health = pEnemy=>w_health - dmg
-
+  if combatDebug
+    displayf3("\nenemy health: %d-%d=%d\n", pEnemy=>w_health, dmg, pEnemy=>w_health-dmg)
+    getUpperKey
+  fin
+  setPlural(0)
   buildString(@addToString)
-    setPlural(0)
   printf3("\n%s %s %s ", pPlayer=>s_name, sAction, pEnemy=>s_name)
   printf1("for %d damage.", dmg)
-  if pEnemy=>w_health <= 0
+  if pEnemy=>w_health <= dmg
+    pEnemy=>w_health = 0
     printf1(" %s is killed!", pEnemy=>s_name)
     nEnemiesFighting = nEnemiesFighting - 1
+  else
+    pEnemy=>w_health = pEnemy=>w_health - dmg
   fin
   puts("\n")
   displayStr(finishString(0))

@@ -109,17 +109,17 @@ def rollPlayerHit(pPlayer, pWeapon, pEnemy, sAction)
     agil = agil + scanModifiers(pWeapon=>p_modifiers, @S_AGILITY)
   fin
   if combatDebug; displayf3("Agil = %d+%d = %d\n", pPlayer->b_agility, agil - pPlayer->b_agility, agil); fin
-  chance = (agil * 4) + pPlayer->b_aiming
-  if combatDebug; displayf3("Base chnc = %d*4+%d = %d%%\n", agil, pPlayer->b_aiming, chance); fin
+  chance = (agil * 10) + (pPlayer->b_aiming * 5)
+  if combatDebug; displayf3("Base chnc = %d*10 + %d*5 = %d%%\n", agil, pPlayer->b_aiming, chance); fin
   if pWeapon
-    chance = chance + scanModifiers(pWeapon=>p_modifiers, @S_AIMING)
-    if combatDebug; displayf1(" weap aim=%d\n", scanModifiers(pWeapon=>p_modifiers, @S_AIMING)); fin
-    chance = chance + scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind)
-    if combatDebug; displayf1(" plyr skill=%d\n", scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind)); fin
+    chance = chance + (scanModifiers(pWeapon=>p_modifiers, @S_AIMING)*5)
+    if combatDebug; displayf1(" weap aim=%d*5\n", scanModifiers(pWeapon=>p_modifiers, @S_AIMING)); fin
+    chance = chance + (scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind)*5)
+    if combatDebug; displayf1(" plyr skill=%d*5\n", scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind)); fin
   fin
-  chance = max(5, min(90, chance))
+  chance = chance - (max(0, pEnemy->b_enemyAttackRange - 5)) / 5)
   if combatDebug; displayf1(" rng mod=%d\n", max(0, pEnemy->b_enemyAttackRange - 5) / 5); fin
-  chance = max(0, chance - (max(0, pEnemy->b_enemyAttackRange - 5)) / 5))
+  chance = max(5, min(90, chance))
   if combatDebug; displayf1("Final chnc = %d%%\n", chance); fin
 
   // See if it's a hit
@@ -180,7 +180,9 @@ def playerMelee(pPlayer, pWeapon)#0
     pEnemy = chooseEnemy(5) // max distance 5 feet for melee
   fin
   if !pEnemy
-    displayf2("\n%s foolishly %s, misses by a mile.\n", pPlayer=>s_name, sAction)
+    if nEnemiesFighting
+      displayf2("\n%s foolishly %s, misses by a mile.\n", pPlayer=>s_name, sAction)
+    fin
     return
   fin
 
@@ -251,8 +253,6 @@ def playerShoot(pPlayer, pWeapon)#0
     return
   fin
 
-  // TODO: consider multi-shot weapons
-
   // Calculate damage
   if combatDebug
     displayf3("Base dmg: %dd%d+%d = ", (pWeapon=>r_projectileDmg>>12) & $F, (pWeapon=>r_projectileDmg >> 8) & $F, pWeapon=>r_projectileDmg & $FF)
@@ -280,7 +280,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def playerDodge(pPlayer)#0
-  displayf1("\n%s dodges.\n", pPlayer=>s_name)
+  // no need to display anything. Actual dodging mechanics handled in enemy attack function.
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -289,37 +289,33 @@ def displayOpponents()#0
   byte count, first
   byte isPlural
 
-  buildString(@addToString)
-  puts("You face ")
+  displayStr("You face ")
   first = TRUE
   p = global=>p_enemyGroups
   while p
     if !first
       if p=>p_nextObj
-        puts(", ")
+        displayStr(", ")
       else
-        puts(" and ")
+        displayStr(" and ")
       fin
     fin
     first = FALSE
     count = countListFiltered(p=>p_enemies, p_nextObj, @canFight)
-    isPlural = (count <> 1)
+    setPlural(count <> 1)
     if (p=>p_enemies=>r_groupSize == 0)
-      printf2("%s at %d'", p=>p_enemies=>s_name, p->b_enemyGroupRange)
+      displayf2("%s at %d'", p=>p_enemies=>s_name, p->b_enemyGroupRange)
     else
-      printf3("%d %s at %d'", count, p=>p_enemies=>s_name, p->b_enemyGroupRange)
+      displayf3("%d %s at %d'", count, p=>p_enemies=>s_name, p->b_enemyGroupRange)
     fin
     p = p=>p_nextObj
   loop
-  puts(".\n")
-  displayStr(finishString(isPlural))
+  displayStr(".\n")
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayOption(key, str)#0
-  buildString(@addToString)
-  printf2("\n  (%c)^T033%s ", key, str)
-  rawDisplayStr(finishString(0))
+  rawDisplayf2("\n  (%c)^T033%s ", key, str)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -345,9 +341,101 @@ def minEnemyDist()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def chooseShotNumber(pl, pWeapon)#0
+  byte i, nChoices, k
+
+  // Determine number of shot choices this weapon has
+  nChoices = 0
+  pl->b_shotChoice = 0
+  for i = 0 to 2
+    if pWeapon->ba_attacks[i]
+      nChoices++
+      pl->b_shotChoice = pWeapon->ba_attacks[i]  // in case only one choice
+    fin
+  next
+
+  // If only one choice, we're done.
+  if nChoices <= 1; return; fin
+
+  // Let player choose
+  rawDisplayf1("^D%s shoot:", pl=>s_name) // ctrl-D = clear to end of page
+  if pWeapon->ba_attacks[0]; displayOption('O', "One shot"); fin
+  if pWeapon->ba_attacks[1] == 2
+    displayOption('D', "Double-shot")
+  elsif pWeapon->ba_attacks[1] > 2
+    displayOption('S', "Semi-auto")
+  fin
+  if pWeapon->ba_attacks[2]; displayOption('A', "Automatic"); fin
+
+  while TRUE
+    when getUpperKey()
+      is 'O'; i = 0; break
+      is 'D'
+      is 'S'; i = 1; break
+      is 'A'; i = 2; break
+      otherwise i = 99; break
+    wend
+    if i <= 2 and pWeapon->ba_attacks[i]
+      pl->b_shotChoice = pWeapon->ba_attacks[i]
+      break
+    fin
+    beep
+  loop
+  return
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def chooseWeapon(pl, pWeapon)#0
+  byte nChoices, i, k
+  word pi, sel
+  pi = pl=>p_items
+  sel = NULL
+  while pi
+    if pi->t_type == TYPE_WEAPON
+      pi->b_flags = pi->b_flags & !ITEM_FLAG_EQUIP // de-equip all weapons before selecting one
+      if pi <> pWeapon
+        nChoices++
+        sel = pi // in case only one choice
+      fin
+    fin
+    pi = pi=>p_nextObj
+  loop
+
+  if nChoices > 1
+    rawDisplayf1("^D%s weapon:", pl=>s_name) // ctrl-D = clear to end of page
+    i = 'A'
+    pi = pl=>p_items
+    while pi
+      if pi->t_type == TYPE_WEAPON and pi <> pWeapon
+        displayOption(i, pi=>s_name)
+        i++
+      fin
+      pi = pi=>p_nextObj
+    loop
+    while TRUE
+      k = getUpperKey
+      sel = NULL
+      pi = pl=>p_items
+      while pi
+        if pi->t_type == TYPE_WEAPON and pi <> pWeapon
+          if k == 'A'; sel = pi; break; fin
+          k--
+        fin
+        pi = pi=>p_nextObj
+      loop
+      if sel; break; fin
+      beep
+    loop
+  fin
+
+  // Apply the final selection
+  sel->b_flags = sel->b_flags | ITEM_FLAG_EQUIP
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def playerCombatChoose(pl)#0
   word p, pWeapon
-  byte nWeapons, key
+  byte nOtherWeapons, key
   byte canShoot, canReload, canChange, canAdvance
   word cursX, cursY
 
@@ -359,20 +447,22 @@ def playerCombatChoose(pl)#0
   canShoot  = FALSE
   canReload = FALSE
   canChange = FALSE
-  nWeapons  = 0
+  nOtherWeapons  = 0
   pWeapon   = NULL
   p = pl=>p_items
   while p
     if p->t_type == TYPE_WEAPON
-      if p->b_flags & ITEM_FLAG_EQUIP; pWeapon = p; fin
-      //nWeapons++ Comment this back in to allow weapon changing
+      if p->b_flags & ITEM_FLAG_EQUIP
+        pWeapon = p
+      fin
+      nOtherWeapons++
     fin
     p = p=>p_nextObj
   loop
 
   // Let them know their options
   setCursor(cursX, cursY)
-  rawDisplayf1("^D%s", pl=>s_name)
+  rawDisplayf1("^D%s choice:", pl=>s_name)
   displayOption('M', "Melee")
   if pWeapon
     if pWeapon->b_clipCurrent
@@ -381,10 +471,12 @@ def playerCombatChoose(pl)#0
     fin
     if pWeapon->b_clipCurrent < pWeapon->b_clipSize
       // TODO: Need to check for enough ammo, and use it up.
+      // TODO: If clip size is zero, weapon reloads automatically (e.g. bow with arrows)
+      // TODO: Ammo kind is NULL, weapon doesn't use ammo at all
       canReload = TRUE
       displayOption('R', "Reload")
     fin
-    if nWeapons >= 2
+    if nOtherWeapons
       canChange = TRUE
       displayOption('C', "Chg weapon")
     fin
@@ -405,13 +497,21 @@ def playerCombatChoose(pl)#0
       is 'D'
         return
       is 'S'
-        if canShoot; return; fin
+        if canShoot
+          setCursor(cursX, cursY)
+          chooseShotNumber(pl, pWeapon)
+          return
+        fin
         break
       is 'R'
         if canReload; return; fin
         break
       is 'C'
-        if canChange; return; fin
+        if canChange
+          setCursor(cursX, cursY)
+          chooseWeapon(pl, pWeapon)
+          return
+        fin
         break
       is 'A'
         if canAdvance; return; fin
@@ -421,7 +521,6 @@ def playerCombatChoose(pl)#0
           clearWindow()
           combatDebug = 1-combatDebug
           rawDisplayf1("Combat debug: %d\n\n", combatDebug)
-          return playerCombatChoose(pl)
         fin
         break
     wend
@@ -432,6 +531,9 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def playerCombatTurn(pl)#0
   word pWeapon, pGroup, pEnemy
+  byte i
+
+  if !nEnemiesFighting; return; fin
 
   // Get weapon
   pWeapon = pl=>p_items
@@ -444,6 +546,7 @@ def playerCombatTurn(pl)#0
   when pl->b_combatChoice
     is 'M'
       playerMelee(pl, pWeapon)
+      // TODO: check for single-use weapon, consume it after use (even if it didn't hit)
       break
     is 'F'
       break
@@ -451,23 +554,23 @@ def playerCombatTurn(pl)#0
       playerDodge(pl)
       break
     is 'S'
-      playerShoot(pl, pWeapon)
+      for i = 0 to pl->b_shotChoice
+        if nEnemiesFighting
+          playerShoot(pl, pWeapon)
+          if i+1 < pl->b_shotChoice; combatPause; fin
+        fin
+      next
+      // TODO: check for single-use weapon, consume it after use (even if it didn't hit)
       break
     is 'R'
       pWeapon->b_clipCurrent = pWeapon->b_clipSize
+      // TODO: Consume ammo here
       setPlural(FALSE)
-      displayf1("%s has reloaded.\n", pl=>s_name)
+      displayf1("\n%s reloads.\n", pl=>s_name)
       break
     is 'C'
-      // Change to next weapon in inventory
-      pWeapon->b_flags = pWeapon->b_flags & ~ITEM_FLAG_EQUIP
-      repeat
-        pWeapon = pWeapon=>p_nextObj
-        if not pWeapon; pWeapon = pl=>p_items; fin
-      until pWeapon->t_type == TYPE_WEAPON
-      pWeapon->b_flags = pWeapon->b_flags | ITEM_FLAG_EQUIP
-      setPlural(FALSE)
-      displayf2("%s changed to using %s.\n", pl=>s_name, pWeapon=>s_name)
+      // Choose a different weapon
+      displayf2("\n%s switches to %s.\n", pl=>s_name, pWeapon=>s_name)
       break
     is 'A'
       // Advance 5 feet
@@ -492,39 +595,68 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def enemyCombatTurn(pe)#1
-  word pl
+  word pl, dodgeChance, pItem, damReduce
   byte roll, dam, needShow
 
   // Choose a target
   pl = randomFromListFiltered(global=>p_players, p_nextObj, @canFight)
   if !pl; return FALSE; fin
 
-  buildString(@addToString)
-  printf3("\n%s %s %s ", pe=>s_name, pe=>s_attackText, pl=>s_name)
+  displayf3("\n%s %s %s ", pe=>s_name, pe=>s_attackText, pl=>s_name)
 
   // Roll to hit
   roll = rand16() % 100
-  // Dodge skill grants 5% per point chance to dodge any attack
-  // Agility grants 5% per point chance to dogge
-  // Include armor agility bonus
-  // TODO: Cap max dodge % at 90%
-  // Dodge checked after hit is rolled
+  if combatDebug; displayf2("\nenemy hit roll=%d, need < %d\n", roll, pe->b_chanceToHit); fin
   needShow = FALSE
-  if roll <= pe->b_chanceToHit
-    dam = rollDice(pe=>r_enemyDmg)
-    // TODO: Each point of AC reduces damage 5%
-    printf1("and hits for %d damage!", dam)
-    pl=>w_health = max(0, pl=>w_health - dam)
-    if pl=>w_health == 0
-      printf1(" %s is killed!", pl=>s_name)
-    fin
-    needShow = TRUE
-  else
-    puts("and misses.")
-  fin
-  puts("\n")
+  if roll < pe->b_chanceToHit
 
-  displayStr(finishString(0))
+    // Check for dodge
+    dodgeChance = pl->b_agility * 5
+    if combatDebug; displayf2("player dodge: base = agil %dx5 = %d%%\n", pl->b_agility, dodgeChance); fin
+    if pl->b_combatChoice == 'D'
+      dodgeChance = dodgeChance + (pl->b_dodging * 5)
+      if combatDebug; displayf1(" +dodg-abil %dx5\n", pl->b_dodging); fin
+    fin
+    pItem = pl=>p_items
+    while pItem
+      if pItem->t_type == TYPE_ARMOR
+        dodgeChance = dodgeChance + (scanModifiers(pItem=>p_modifiers, S_AGILITY) * 5)
+        if combatDebug
+          if scanModifiers(pItem=>p_modifiers, S_AGILITY)
+            displayf1(" +armor agil %dx5\n", scanModifiers(pItem=>p_modifiers, S_AGILITY))
+          fin
+        fin
+      fin
+      pItem = pItem=>p_nextObj
+    loop
+
+    // Max dodge chance is 90%, min is 0.
+    dodgeChance = max(0, min(90, dodgeChance))
+
+    roll = rand16() % 100
+    if combatDebug; displayf2("dodge roll %d, need < %d\n", roll, dodgeChance); fin
+    if roll < dodgeChance
+      displayf1("but %s dodges!", pl=>s_name)
+    else
+      dam = rollDice(pe=>r_enemyDmg)
+      if combatDebug; displayf1("base dmg %d\n", dam); fin
+      // Each point of armor-value reduces damage 2%, up to max of 90%
+      damReduce = max(0, min(90, pl->b_armor * 2))
+      if combatDebug; displayf1(" - armor %dx2%%\n", pl->b_armor); fin
+      dam = dam - addPercent(dam, damReduce)
+      displayf1("and hits for %d damage!", dam)
+      pl=>w_health = max(0, pl=>w_health - dam)
+      if pl=>w_health == 0
+        displayf1(" %s is killed!", pl=>s_name)
+      fin
+      needShow = TRUE
+    fin
+  else
+    displayStr("and misses.")
+  fin
+  displayStr("\n")
+  if combatDebug; getUpperKey; fin
+
   if needShow; showParty(); fin
   return TRUE
 end
@@ -672,7 +804,7 @@ def startCombat(mapCode)#1
     p = p=>p_nextObj
   loop
 
-  rawDisplayStr("\n\nDo you:\n")
+  rawDisplayStr("\n\nDo you:")
   displayOption('B', "Battle")
   displayOption('F', "Flee")
   while TRUE
@@ -762,7 +894,6 @@ def _combat_zoneEncounter(s_encZone)#1
     // Tell what the party currently faces
     clearWindow()
     displayOpponents()
-    rawDisplayStr("\n")
     callGlobalFunc(GS_COMBAT_PROMPT, 0, 0, 0)
     rawDisplayStr("\n")
 

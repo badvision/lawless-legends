@@ -12,6 +12,8 @@
 ;CODE__STATE__DESCRIPTION___
 ;Ctrl-A (1) foreground/character color
 ;Ctrl-B (2) background color
+;Ctrl-C clear to end of line
+;Ctrl-D clear to end of page
 ;Ctrl-E (3) extended character {A..I}
 ;Ctrl-F (4) font {0,1,2} (not implemented)
 ;Ctrl-T (5) horizonTal position {000..279} base-10

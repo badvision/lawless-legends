@@ -34,6 +34,9 @@ const STATLBL_X = 182
 const STATS_COL_1 = 45
 const STATS_COL_2 = 140
 
+const SKILL_JUST_OFF = 34
+const SKILL_LABEL_OFF = 40
+
 const INV_ROWS = (BIGWIN_HEIGHT / 9) - 4
 
 const MAX_SKILLS = 26 // should be plenty
@@ -151,11 +154,7 @@ def displayDice(dice)#0
   n = (dice >> 12) & $0F
   d = (dice >> 8) & $0F
   p = dice & $FF
-  if (p)
-    rightJustifyStr(sprintf3("%dd%d+%d", n, d, p), STAT_X)
-  else
-    rightJustifyStr(sprintf2("%dd%d", n, d), STAT_X)
-  fin
+  rightJustifyStr(sprintf2("%d-%d", n+p, (n*d)+p), STAT_X)
 end
 
 def vspace()#0
@@ -215,7 +214,7 @@ def showDerived(player)#0
 end
 
 def clearLittleArea(x, y)#0
-  setWindow(BIGWIN_TOP+y, BIGWIN_TOP+9+y, BIGWIN_LEFT+x+12, BIGWIN_LEFT+x+36)
+  setWindow(BIGWIN_TOP+y, BIGWIN_TOP+9+y, BIGWIN_LEFT+x+14, BIGWIN_LEFT+x+40)
   clearWindow()
   setBigWindow()
 end
@@ -232,8 +231,8 @@ def displaySkill(x, str, pVal, allowChg)#0
   if canBumpSkills and allowChg
     rawDisplayf2("^T%D%c.", x, 'A' + nSkills)
   fin
-  rightJustifyStr(sprintf1(" %d ", val), x+32)
-  rawDisplayf2("^T%D%s^N\n", x+36, str)
+  rightJustifyStr(sprintf1(" %d ", val), x+SKILL_JUST_OFF)
+  rawDisplayf2("^T%D%s^N\n", x+SKILL_LABEL_OFF, str)
   if allowChg
     nSkills++
   fin
@@ -252,10 +251,10 @@ def showSkills(player)#0
   canBumpSkills = player->b_skillPoints > 0
   if canBumpSkills
     x1 = 10
-    x2 = STAT_X - 20
+    x2 = STAT_X - 30
   else
     x1 = 0
-    x2 = STAT_X - 30
+    x2 = STAT_X - 40
   fin
   showColumnTitle(25, "Skills", 0, 0)
   displaySkill(x1, @S_AIMING, player+b_aiming, TRUE)
@@ -284,8 +283,8 @@ def showSkills(player)#0
 
   if player->c_gender > ' '
     vspace()
-    rawDisplayf2("^T%D%s", x2+36, "Gender")
-    rightJustifyStr(sprintf1(" %c ", player->c_gender), x2+32)
+    rawDisplayf2("^T%D%s", x2+SKILL_LABEL_OFF, "Gender")
+    rightJustifyStr(sprintf1(" %c ", player->c_gender), x2+SKILL_JUST_OFF)
   fin
 end
 
@@ -306,14 +305,14 @@ def adjustSkill(player, skillNum, dir)#0
   clearLittleArea(skillX[skillNum], skillY[skillNum])
   rawDisplayf1("^V%D", skillY[skillNum])
   if ^p > skillMin[skillNum]; rawDisplayStr("^I"); fin
-  rightJustifyStr(sprintf1(" %d ", ^p), skillX[skillNum]+32)
+  rightJustifyStr(sprintf1(" %d ", ^p), skillX[skillNum]+SKILL_JUST_OFF)
   rawDisplayStr("^N")
 
   player->b_skillPoints = player->b_skillPoints - dir
   clearLittleArea(skillX[nSkills], skillY[nSkills])
   rawDisplayf1("^V%D", skillY[nSkills])
   if player->b_skillPoints < skillMin[nSkills]; rawDisplayStr("^I"); fin
-  rightJustifyStr(sprintf1(" %d ", player->b_skillPoints), skillX[nSkills]+32)
+  rightJustifyStr(sprintf1(" %d ", player->b_skillPoints), skillX[nSkills]+SKILL_JUST_OFF)
   rawDisplayStr("^N")
 end
 

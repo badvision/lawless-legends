@@ -36,6 +36,13 @@ const STATS_COL_2 = 140
 
 const INV_ROWS = (BIGWIN_HEIGHT / 9) - 4
 
+const MAX_SKILLS = 26 // should be plenty
+byte nSkills, canBumpSkills
+word skillPtr[MAX_SKILLS]
+byte skillMin[MAX_SKILLS]
+word skillX[MAX_SKILLS]
+byte skillY[MAX_SKILLS]
+
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the header.
 predef _showPlayerSheet(player_num)#1
@@ -208,86 +215,107 @@ def showDerived(player)#0
 end
 
 def clearLittleArea(x, y)#0
-  setWindow(BIGWIN_TOP+y, BIGWIN_TOP+9+y, BIGWIN_LEFT+x+13, BIGWIN_LEFT+x+30)
+  setWindow(BIGWIN_TOP+y, BIGWIN_TOP+9+y, BIGWIN_LEFT+x+12, BIGWIN_LEFT+x+36)
   clearWindow()
   setBigWindow()
 end
 
 // Display skill value
-def displaySkill(player, pSkillNum, py, x, numToBump, str, pVal)#0
-  ^py = ^py + 9
-  if pSkillNum
-    ^pSkillNum = 1 + ^pSkillNum
-    if numToBump
-      if numToBump+1 <> ^pSkillNum; return; fin
-      // Enforce cap of 7 until level 2 is reached
-      if player->b_skillPoints and ((player->b_level <= 1 and ^pVal < 7) or (player->b_level > 1 and ^pVal < 10))
-        player->b_skillPoints = player->b_skillPoints - 1
-        ^pVal = ^pVal + 1
-        clearLittleArea(x, ^py)
-      else
-        beep
-        return
-      fin
-    fin
-    rawDisplayf3("^V%D^T%D%c.", ^py, x, 'A' - 2 + ^pSkillNum)
-  else
-    rawDisplayf1("^V%D", ^py)
+def displaySkill(x, str, pVal, allowChg)#0
+  word val, cursX, cursY
+  cursX, cursY = getCursor()
+  val = ^pVal
+  skillX[nSkills] = x
+  skillY[nSkills] = cursY
+  skillPtr[nSkills] = pVal
+  skillMin[nSkills] = val
+  if canBumpSkills and allowChg
+    rawDisplayf2("^T%D%c.", x, 'A' + nSkills)
   fin
-  rightJustifyNum(^pVal, x+26)
-  rawDisplayf2("^T%D%s", x+32, str)
+  rightJustifyStr(sprintf1(" %d ", val), x+32)
+  rawDisplayf2("^T%D%s^N\n", x+36, str)
+  if allowChg
+    nSkills++
+  fin
 end
 
 // Show aquired skills in lower right panel
-def showSkills(player, numToBump)#1
-  word skill, skillNum, pSkillNum
+def showSkills(player)#0
+  word skill
   byte y, x1, x2
 
+  nSkills = 0
+
   // First column: skills
-  y = 15
-  skillNum = 1
-  if player->b_skillPoints
-    pSkillNum = @skillNum
+  rawDisplayStr("^V024") // starting Y
+  nSkills = 0
+  canBumpSkills = player->b_skillPoints > 0
+  if canBumpSkills
     x1 = 10
     x2 = STAT_X - 20
   else
-    pSkillNum = NULL
     x1 = 0
     x2 = STAT_X - 30
   fin
   showColumnTitle(25, "Skills", 0, 0)
-  displaySkill(player, pSkillNum, @y, x1, numToBump, @S_AIMING, player+b_aiming)
-  displaySkill(player, pSkillNum, @y, x1, numToBump, @S_HAND_TO_HAND, player+b_handToHand)
-  displaySkill(player, pSkillNum, @y, x1, numToBump, @S_DODGING, player+b_dodging)
+  displaySkill(x1, @S_AIMING, player+b_aiming, TRUE)
+  displaySkill(x1, @S_HAND_TO_HAND, player+b_handToHand, TRUE)
+  displaySkill(x1, @S_DODGING, player+b_dodging, TRUE)
   skill = player=>p_skills
   while skill
-    displaySkill(player, pSkillNum, @y, x1, numToBump, skill=>s_name, skill+w_modValue)
+    displaySkill(x1, skill=>s_name, skill+w_modValue, TRUE)
     skill = skill=>p_nextObj
   loop
 
   // Second column: attributes
   showColumnTitle(STAT_X-5, "Attributes", 0, 0)
-  y = 15
-  displaySkill(player, pSkillNum, @y, x2, numToBump, @S_INTELLIGENCE, player+b_intelligence)
-  displaySkill(player, pSkillNum, @y, x2, numToBump, @S_STRENGTH, player+b_strength)
-  displaySkill(player, pSkillNum, @y, x2, numToBump, @S_AGILITY, player+b_agility)
-  displaySkill(player, pSkillNum, @y, x2, numToBump, @S_STAMINA, player+b_stamina)
-  displaySkill(player, pSkillNum, @y, x2, numToBump, @S_CHARISMA, player+b_charisma)
-  displaySkill(player, pSkillNum, @y, x2, numToBump, @S_SPIRIT, player+b_spirit)
-  displaySkill(player, pSkillNum, @y, x2, numToBump, @S_LUCK, player+b_luck)
-  y = y + 6
-  if numToBump
-    clearLittleArea(x2, y+9)
-  fin
-  displaySkill(player, NULL, @y, x2, 0, "Skill points", player+b_skillPoints)
+  rawDisplayStr("^V024") // starting Y
+  displaySkill(x2, @S_INTELLIGENCE, player+b_intelligence, TRUE)
+  displaySkill(x2, @S_STRENGTH, player+b_strength, TRUE)
+  displaySkill(x2, @S_AGILITY, player+b_agility, TRUE)
+  displaySkill(x2, @S_STAMINA, player+b_stamina, TRUE)
+  displaySkill(x2, @S_CHARISMA, player+b_charisma, TRUE)
+  displaySkill(x2, @S_SPIRIT, player+b_spirit, TRUE)
+  displaySkill(x2, @S_LUCK, player+b_luck, TRUE)
+
+  // Special: skill points (bumped differently from skills)
+  vspace()
+  displaySkill(x2, "Skill points", player+b_skillPoints, FALSE)
 
   if player->c_gender > ' '
     vspace()
-    rawDisplayf2("\n^T%D%s", x2+32, "Gender")
+    rawDisplayf2("^T%D%s", x2+32, "Gender")
     rightJustifyStr(sprintf1("%c", player->c_gender), x2+26)
   fin
+end
 
-  return skillNum-1
+// Returns 1 to redisplay everything, 0 if only minor change
+def adjustSkill(player, skillNum, dir)#0
+  word p
+  p = skillPtr[skillNum]
+  printf3("sn=%d val=%d dir=%d\n", skillNum, ^p, dir)
+  if dir < 0 and skillMin[skillNum] == ^p
+    beep; return
+  elsif dir > 0 and !player->b_skillPoints
+    beep; return
+  elsif dir > 0 and player->b_level == 1 and ^p == 7
+    beep; return
+  elsif dir > 0 and ^p == 10
+    beep; return
+  fin
+  ^p = ^p + dir
+  clearLittleArea(skillX[skillNum], skillY[skillNum])
+  rawDisplayf1("^V%D", skillY[skillNum])
+  if ^p > skillMin[skillNum]; rawDisplayStr("^I"); fin
+  rightJustifyStr(sprintf1(" %d ", ^p), skillX[skillNum]+32)
+  rawDisplayStr("^N")
+
+  player->b_skillPoints = player->b_skillPoints - dir
+  clearLittleArea(skillX[nSkills], skillY[nSkills])
+  rawDisplayf1("^V%D", skillY[nSkills])
+  if player->b_skillPoints < skillMin[nSkills]; rawDisplayStr("^I"); fin
+  rightJustifyStr(sprintf1(" %d ", player->b_skillPoints), skillX[nSkills]+32)
+  rawDisplayStr("^N")
 end
 
 def clearMenuRect()#0
@@ -329,13 +357,13 @@ def showInvMenu(player, totalItems, itemPage, itemsOnPage)#0
 end
 
 // Display menu for selecting inventory items
-def showSkillsMenu(player, nSkills)#0
+def showSkillsMenu()#0
   byte playerCount
   playerCount = countList(global=>p_players)
   clearMenuRect()
-  if playerCount > 1; rawDisplayf1("Player [1-%d], ", playerCount); fin
-  if player->b_skillPoints
-    rawDisplayf1("Spend pt [A-%c], ", nSkills-1+'A')
+  if playerCount > 1; rawDisplayf1("Plyr [1-%d], ", playerCount); fin
+  if canBumpSkills
+    rawDisplayf2("+ [A-%c], - [^^A-^^%c], ", nSkills-1+'A', nSkills-1+'A')
   fin
   rawDisplayStr("X:Inv or [Esc]")
 end
@@ -508,7 +536,7 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
         itemsOnPage = showInventory(player, i_page, 0)
         showDerived(player)
       else // 'S'
-        itemsOnPage = showSkills(player, 0)
+        showSkills(player)
       fin
       redisplay = 0
     fin
@@ -517,7 +545,7 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
       if mode == 'I'
         showInvMenu(player, totalItems, i_page, itemsOnPage)
       else // 'S'
-        showSkillsMenu(player, itemsOnPage)
+        showSkillsMenu()
       fin
     fin
     noRepeatMenu = FALSE
@@ -538,7 +566,6 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
         fin
       // Next inventory page
       is '>'
-      is 21  // right-arrow
         if mode=='I' and totalItems > (i_page + 1) * INV_ROWS
           i_page++
           redisplay = 1
@@ -546,7 +573,7 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
         break
       // Previous inventory page
       is '<'
-      is 8  // left-arrow
+      //is 8  // left-arrow // NO! overlaps with Ctrl-H on skills screen
         if mode=='I' and i_page
           i_page--
           redisplay = 1
@@ -599,18 +626,14 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
             beep
           fin
         elsif mode == 'S'
-          sel = sel - 'A'
-          if sel >= 0 and sel < itemsOnPage and player->b_skillPoints
-            showSkills(player, sel+1)
-            // Redisplay when last pt allocated
-            if !player->b_skillPoints
-              clearWindow()
-              redisplay = 1
-            else
-              noRepeatMenu = TRUE
-            fin
+          noRepeatMenu = TRUE
+          if sel >= 'A' and (sel-'A' < nSkills)
+            adjustSkill(player, sel - 'A', 1)
+          elsif sel >= 1 and (sel-1 < nSkills)
+            adjustSkill(player, sel - 1, -1)
           else
             beep
+            noRepeatMenu = FALSE
           fin
         else
           beep

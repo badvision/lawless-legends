@@ -198,8 +198,10 @@ class A2PackPartitions
                     stop = true
                 }
                 else if (ch == '^') {
-                    if (prev == '^')
+                    if (prev == '^') {
                         buf << ch
+                        ch = 'x' // so next char not treated as special
+                    }
                 }
                 else if (ch == '\"')
                     buf << "\\\""

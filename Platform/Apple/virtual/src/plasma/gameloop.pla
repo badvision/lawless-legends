@@ -861,7 +861,7 @@ export asm getScreenLine(n)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Display a string using the font engine but not its parser.
+// Display a string using the font engine but not its parser. Also, interpret "^A" as ctrl chars.
 export asm rawDisplayStr(pStr)#0
   +asmPlasmNoRet 1
   sta pTmp
@@ -879,6 +879,8 @@ export asm rawDisplayStr(pStr)#0
   bne +
   iny
   lda (pTmp),y
+  cmp #"^"
+  beq +
   and #$1F
   ora #$80
 + sty tmp+1

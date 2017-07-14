@@ -722,8 +722,7 @@ def formatDice(encoded)#1
   nDice = encoded >> 12
   dieSize = (encoded >> 8) & $F
   add = encoded & $F
-  rawDisplayf2("%dd%d", nDice, dieSize)
-  if add; rawDisplayf1("+%d", add); fin
+  rawDisplayf2("%d-%d", nDice+add, (nDice*dieSize)+add)
   return 0
 end
 

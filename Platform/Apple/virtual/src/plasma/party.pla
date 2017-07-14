@@ -171,10 +171,16 @@ def showDerived(player)#0
 
   rawDisplayf2("^T%DLevel %d\n", STAT_X-5, player->b_level)
   if player->b_skillPoints
+    vspace()
     rawDisplayf2("^T%D%s\n", STAT_X-5, "LEVEL UP!")
+    vspace()
   fin
-  vspace()
+  rightJustifyNum(player=>w_curXP, STAT_X)
+  rawDisplayf2("^T%D%s\n", STATLBL_X, "Current XP")
+  rightJustifyNum(player=>w_nextXP, STAT_X)
+  rawDisplayf2("^T%D%s\n", STATLBL_X, "Next lvl XP")
 
+  vspace()
   rightJustifyNum(player=>w_health, STAT_X)
   rawDisplayf2("^T%D%s\n", STATLBL_X, @S_HEALTH)
   rightJustifyNum(player=>w_maxHealth, STAT_X)
@@ -202,12 +208,6 @@ def showDerived(player)#0
   fin
   displayDice(dmg)
   rawDisplayf1("^T%DMelee\n", STATLBL_X)
-
-  vspace()
-  rightJustifyNum(player=>w_curXP, STAT_X)
-  rawDisplayf2("^T%D%s\n", STATLBL_X, "Current XP")
-  rightJustifyNum(player=>w_nextXP, STAT_X)
-  rawDisplayf2("^T%D%s\n", STATLBL_X, "Next lvl XP")
 
   vspace()
   rightJustifyNum(global=>w_gold, STAT_X)
@@ -284,8 +284,8 @@ def showSkills(player)#0
 
   if player->c_gender > ' '
     vspace()
-    rawDisplayf2("^T%D%s", x2+32, "Gender")
-    rightJustifyStr(sprintf1("%c", player->c_gender), x2+26)
+    rawDisplayf2("^T%D%s", x2+36, "Gender")
+    rightJustifyStr(sprintf1(" %c ", player->c_gender), x2+32)
   fin
 end
 

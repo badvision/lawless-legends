@@ -293,7 +293,6 @@ end
 def adjustSkill(player, skillNum, dir)#0
   word p
   p = skillPtr[skillNum]
-  printf3("sn=%d val=%d dir=%d\n", skillNum, ^p, dir)
   if dir < 0 and skillMin[skillNum] == ^p
     beep; return
   elsif dir > 0 and !player->b_skillPoints

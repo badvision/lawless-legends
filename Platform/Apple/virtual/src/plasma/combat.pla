@@ -123,6 +123,7 @@ def rollPlayerHit(pPlayer, pWeapon, pEnemy, sAction)
   if combatDebug; displayf1("Final chnc = %d%%\n", chance); fin
 
   // See if it's a hit
+  // TODO: factor in luck
   roll = rand16() % 100
   if combatDebug; displayf2("Roll=%d Hit=%d\n", roll, abs(roll < chance)); getUpperKey(); fin
   if roll >= chance
@@ -200,6 +201,7 @@ def playerMelee(pPlayer, pWeapon)#0
     dmg = encodeDice(scanModifiers(pPlayer=>p_skills, @S_HAND_TO_HAND)+1, 4, 0)
   fin
   if combatDebug; displayf3("Base dmg: %dd%d+%d = ", (dmg>>12) & $F, (dmg >> 8) & $F, dmg & $FF); fin
+  // TODO: factor in luck
   dmg = rollDice(dmg)
   if combatDebug; displayf1("%d\n", dmg); fin
 
@@ -257,6 +259,7 @@ def playerShoot(pPlayer, pWeapon)#0
   if combatDebug
     displayf3("Base dmg: %dd%d+%d = ", (pWeapon=>r_projectileDmg>>12) & $F, (pWeapon=>r_projectileDmg >> 8) & $F, pWeapon=>r_projectileDmg & $FF)
   fin
+  // TODO: factor in luck
   dmg = rollDice(pWeapon=>r_projectileDmg)
   if combatDebug; displayf1("%d\n", dmg); fin
 
@@ -435,7 +438,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def playerCombatChoose(pl)#0
   word p, pWeapon
-  byte nOtherWeapons, key
+  byte key
   byte canShoot, canReload, canChange, canAdvance
   word cursX, cursY
 
@@ -447,15 +450,15 @@ def playerCombatChoose(pl)#0
   canShoot  = FALSE
   canReload = FALSE
   canChange = FALSE
-  nOtherWeapons  = 0
   pWeapon   = NULL
   p = pl=>p_items
   while p
     if p->t_type == TYPE_WEAPON
       if p->b_flags & ITEM_FLAG_EQUIP
         pWeapon = p
+      else
+        canChange = TRUE
       fin
-      nOtherWeapons++
     fin
     p = p=>p_nextObj
   loop
@@ -476,10 +479,9 @@ def playerCombatChoose(pl)#0
       canReload = TRUE
       displayOption('R', "Reload")
     fin
-    if nOtherWeapons
-      canChange = TRUE
-      displayOption('C', "Chg weapon")
-    fin
+  fin
+  if canChange
+    displayOption('C', "Chg weapon")
   fin
   displayOption('D', "Dodge")
   displayOption('F', "Flee")
@@ -554,7 +556,7 @@ def playerCombatTurn(pl)#0
       playerDodge(pl)
       break
     is 'S'
-      for i = 0 to pl->b_shotChoice
+      for i = 1 to pl->b_shotChoice
         if nEnemiesFighting
           playerShoot(pl, pWeapon)
           if i+1 < pl->b_shotChoice; combatPause; fin
@@ -633,11 +635,13 @@ def enemyCombatTurn(pe)#1
     // Max dodge chance is 90%, min is 0.
     dodgeChance = max(0, min(90, dodgeChance))
 
+    // TODO: factor in luck
     roll = rand16() % 100
     if combatDebug; displayf2("dodge roll %d, need < %d\n", roll, dodgeChance); fin
     if roll < dodgeChance
       displayf1("but %s dodges!", pl=>s_name)
     else
+      // TODO: factor in luck
       dam = rollDice(pe=>r_enemyDmg)
       if combatDebug; displayf1("base dmg %d\n", dam); fin
       // Each point of armor-value reduces damage 2%, up to max of 90%
@@ -761,6 +765,7 @@ def collectLootAndXP()#2
   while group
     enemies = group=>p_enemies
     while enemies
+      // TODO: factor in luck
       gold = gold + rollDice(enemies=>r_goldLoot)
       xp = xp + rollDice(enemies=>r_enemyXP)
       enemies = enemies=>p_nextObj

@@ -2519,6 +2519,19 @@ end
         return val
     }
 
+    def parseBooleanAttr(row, attrName)
+    {
+        def val = parseStringAttr(row, attrName)
+        return (val.toLowerCase() ==~ /yes|true|1/) ? "TRUE" : "FALSE"
+    }
+
+    def parseGenderAttr(row, attrName)
+    {
+        def val = parseStringAttr(row, attrName)
+        if (!val) return 0
+        return val.charAt(0).toUpperCase()
+    }
+
     def parseModifier(row, attr1, attr2)
     {
         def bonusValue = parseWordAttr(row, attr1)
@@ -2550,7 +2563,8 @@ end
             "${parseByteAttr(row, "semi-auto-shots")}, " +
             "${parseByteAttr(row, "auto-shots")}, " +
             "${parseByteAttr(row, "range")}, " +
-            "${escapeString(parseStringAttr(row, "combat-text"))})")
+            "${escapeString(parseStringAttr(row, "combat-text"))}, " +
+            "${parseBooleanAttr(row, 'single-use')})")
     }
 
     def genArmor(func, row, out)
@@ -2603,7 +2617,8 @@ end
             "${Math.max(1, parseByteAttr(row, "level"))}, " +
             "${parseByteAttr(row, "aiming")}, " +
             "${parseByteAttr(row, "hand-to-hand")}, " +
-            "${parseByteAttr(row, "dodging")})")
+            "${parseByteAttr(row, "dodging")}, " +
+            "${parseGenderAttr(row, "gender")})")
         row.attributes().sort().eachWithIndex { name, val, idx ->
             if (name =~ /^skill-(.*)/) {
                 out.println("  addToList(@p=>p_skills, " +
@@ -2750,18 +2765,24 @@ def makeWeapon_pt1(name, kind, price, modifier, ammoKind, clipSize, meleeDmg, pr
   p=>p_modifiers = modifier
   p=>s_ammoKind = mmgr(HEAP_INTERN, ammoKind)
   p->b_clipSize = clipSize
-  p->b_clipCurrent = clipSize
+  p->b_clipCurrent = 0
+  if !p->b_clipSize and projectileDmg
+    p->b_clipCurrent = 1 // auto-reloading, e.g. bows
+  fin
   p=>r_meleeDmg = meleeDmg
   p=>r_projectileDmg = projectileDmg
   return p
 end
 
-def makeWeapon_pt2(p, attack0, attack1, attack2, weaponRange, combatText)
+def makeWeapon_pt2(p, attack0, attack1, attack2, weaponRange, combatText, singleUse)
   p->ba_attacks[0] = attack0
   p->ba_attacks[1] = attack1
   p->ba_attacks[2] = attack2
   p->b_weaponRange = weaponRange
   p=>s_combatText = mmgr(HEAP_INTERN, combatText)
+  if singleUse
+    p->b_flags = WEAPON_FLAG_SINGLE_USE
+  fin
   return p
 end
 
@@ -2887,7 +2908,7 @@ def makePlayer_pt1(name, intelligence, strength, agility, stamina, charisma, spi
   return p
 end
 
-def makePlayer_pt2(p, health, level, aiming, handToHand, dodging)#1
+def makePlayer_pt2(p, health, level, aiming, handToHand, dodging, gender)#1
   p=>w_health = health
   p->b_level = level
   p=>w_maxHealth = health
@@ -2896,6 +2917,7 @@ def makePlayer_pt2(p, health, level, aiming, handToHand, dodging)#1
   p->b_aiming = aiming
   p->b_handToHand = handToHand
   p->b_dodging = dodging
+  p->c_gender = gender
   initPlayerXP(p)
   return p
 end

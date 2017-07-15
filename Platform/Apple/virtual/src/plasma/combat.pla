@@ -123,9 +123,8 @@ def rollPlayerHit(pPlayer, pWeapon, pEnemy, sAction)
   if combatDebug; displayf1("Final chnc = %d%%\n", chance); fin
 
   // See if it's a hit
-  // TODO: factor in luck
-  roll = rand16() % 100
-  if combatDebug; displayf2("Roll=%d Hit=%d\n", roll, abs(roll < chance)); getUpperKey(); fin
+  roll = rollPercentileWithLuck(-(pPlayer->b_luck)) // luck can reduce roll = increase chance to hit
+  if combatDebug; displayf2("Roll=%d, need <%d\n", roll, abs(roll < chance)); getUpperKey(); fin
   if roll >= chance
     setPlural(0)
     displayf3("\n%s %s at %s but misses.\n", pPlayer=>s_name, sAction, pEnemy=>s_name)
@@ -201,8 +200,7 @@ def playerMelee(pPlayer, pWeapon)#0
     dmg = encodeDice(scanModifiers(pPlayer=>p_skills, @S_HAND_TO_HAND)+1, 4, 0)
   fin
   if combatDebug; displayf3("Base dmg: %dd%d+%d = ", (dmg>>12) & $F, (dmg >> 8) & $F, dmg & $FF); fin
-  // TODO: factor in luck
-  dmg = rollDice(dmg)
+  dmg = rollDiceWithLuck(dmg, pPlayer->b_luck)
   if combatDebug; displayf1("%d\n", dmg); fin
 
   // Damage bonus is:
@@ -259,8 +257,7 @@ def playerShoot(pPlayer, pWeapon)#0
   if combatDebug
     displayf3("Base dmg: %dd%d+%d = ", (pWeapon=>r_projectileDmg>>12) & $F, (pWeapon=>r_projectileDmg >> 8) & $F, pWeapon=>r_projectileDmg & $FF)
   fin
-  // TODO: factor in luck
-  dmg = rollDice(pWeapon=>r_projectileDmg)
+  dmg = rollDiceWithLuck(pWeapon=>r_projectileDmg, pPlayer->b_luck)
   if combatDebug; displayf1("%d\n", dmg); fin
 
   // Damage bonus is:
@@ -279,6 +276,56 @@ def playerShoot(pPlayer, pWeapon)#0
 
   // Okay, do that damage.
   damageEnemy(pPlayer, pEnemy, dmg, sAction)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Reloads the given weapon, as full as it can be given the player's ammo supply.
+def reload(pl, pWeapon, echo)#0
+  word item
+  byte orig, n
+
+  setPlural(FALSE)
+
+  // If ammo type is null, it means weapon doesn't use ammo in traditional sense.
+  if !pWeapon=>s_ammoKind
+    pWeapon->b_clipCurrent = 1
+    return
+  fin
+
+  // Find matching ammo
+  item = pl=>p_items
+  while item
+    if item->t_type == TYPE_STUFF
+      if streqi(item=>s_itemKind, pWeapon=>s_ammoKind); break; fin
+    fin
+    item = item=>p_nextObj
+  loop
+  if !item
+    displayf3("\n%s has no ammo for %s %s!\n", pl=>s_name, hisHerTheir(pl->c_gender), pWeapon=>s_name))
+    return
+  fin
+
+  // Transfer ammo to weapon
+  n = max(item=>w_count, pWeapon->b_clipSize - pWeapon->b_clipCurrent)
+  pWeapon->b_clipCurrent = pWeapon->b_clipCurrent + n
+  item=>w_count = item=>w_count - n
+  if item=>w_count == 0
+    removeFromList(@pl=>p_items, item)
+  fin
+  if echo
+    displayf3("\n%s reloads %s %s.\n", pl=>s_name, hisHerTheir(pl->c_gender), pWeapon=>s_name)
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def consumeAmmo(pl, pWeapon)#0
+  if !pWeapon->b_clipCurrent; fatal("clip zero"); fin // sanity check
+  pWeapon->b_clipCurrent = pWeapon->b_clipCurrent - 1
+
+  // Special (for e.g. bows): clipSize zero means weapon reloads automatically
+  if !pWeapon->b_clipCurrent and !pWeapon->b_clipSize
+    reload(pl, pWeapon, FALSE) // silently reload
+  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -468,14 +515,15 @@ def playerCombatChoose(pl)#0
   rawDisplayf1("^D%s choice:", pl=>s_name)
   displayOption('M', "Melee")
   if pWeapon
+    // Special (for e.g. bows): clipSize zero means weapon reloads automatically
+    if pWeapon=>r_projectileDmg and !pWeapon->b_clipCurrent and !pWeapon->b_clipSize
+      reload(pl, pWeapon, FALSE) // silently reload
+    fin
     if pWeapon->b_clipCurrent
       canShoot = TRUE
       displayOption('S', "Shoot")
     fin
     if pWeapon->b_clipCurrent < pWeapon->b_clipSize
-      // TODO: Need to check for enough ammo, and use it up.
-      // TODO: If clip size is zero, weapon reloads automatically (e.g. bow with arrows)
-      // TODO: Ammo kind is NULL, weapon doesn't use ammo at all
       canReload = TRUE
       displayOption('R', "Reload")
     fin
@@ -487,6 +535,7 @@ def playerCombatChoose(pl)#0
   displayOption('F', "Flee")
   canAdvance = minEnemyDist() > 5
   if canAdvance; displayOption('A', "Advance"); fin
+  setCursor(cursX, cursY)
 
   while TRUE
     pl->b_combatChoice = getUpperKey()
@@ -500,8 +549,8 @@ def playerCombatChoose(pl)#0
         return
       is 'S'
         if canShoot
-          setCursor(cursX, cursY)
           chooseShotNumber(pl, pWeapon)
+          setCursor(cursX, cursY)
           return
         fin
         break
@@ -510,8 +559,8 @@ def playerCombatChoose(pl)#0
         break
       is 'C'
         if canChange
-          setCursor(cursX, cursY)
           chooseWeapon(pl, pWeapon)
+          setCursor(cursX, cursY)
           return
         fin
         break
@@ -528,6 +577,14 @@ def playerCombatChoose(pl)#0
     wend
     beep()
   loop
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Called after a single-use weapon is used (regardless of whether it hit or not)
+def checkSingleUse(pl, pWeapon)#0
+  if !pWeapon; return; fin
+  if !(pWeapon->b_flags & WEAPON_FLAG_SINGLE_USE); return; fin
+  removeFromList(@pl=>p_items, pWeapon)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -548,7 +605,7 @@ def playerCombatTurn(pl)#0
   when pl->b_combatChoice
     is 'M'
       playerMelee(pl, pWeapon)
-      // TODO: check for single-use weapon, consume it after use (even if it didn't hit)
+      checkSingleUse(pl, pWeapon)
       break
     is 'F'
       break
@@ -557,22 +614,20 @@ def playerCombatTurn(pl)#0
       break
     is 'S'
       for i = 1 to pl->b_shotChoice
-        if nEnemiesFighting
+        if nEnemiesFighting and pWeapon->b_clipCurrent
           playerShoot(pl, pWeapon)
+          consumeAmmo(pl, pWeapon)
           if i+1 < pl->b_shotChoice; combatPause; fin
         fin
       next
-      // TODO: check for single-use weapon, consume it after use (even if it didn't hit)
+      checkSingleUse(pl, pWeapon)
       break
     is 'R'
-      pWeapon->b_clipCurrent = pWeapon->b_clipSize
-      // TODO: Consume ammo here
-      setPlural(FALSE)
-      displayf1("\n%s reloads.\n", pl=>s_name)
+      reload(pl, pWeapon, TRUE) // TRUE = echo
       break
     is 'C'
       // Choose a different weapon
-      displayf2("\n%s switches to %s.\n", pl=>s_name, pWeapon=>s_name)
+      displayf3("\n%s switches to %s %s.\n", pl=>s_name, hisHerTheir(pl->c_gender), pWeapon=>s_name)
       break
     is 'A'
       // Advance 5 feet
@@ -607,7 +662,7 @@ def enemyCombatTurn(pe)#1
   displayf3("\n%s %s %s ", pe=>s_name, pe=>s_attackText, pl=>s_name)
 
   // Roll to hit
-  roll = rand16() % 100
+  roll = rollPercentileWithLuck(pl->b_luck) // player luck can raise roll, reducing enemy chance to hit
   if combatDebug; displayf2("\nenemy hit roll=%d, need < %d\n", roll, pe->b_chanceToHit); fin
   needShow = FALSE
   if roll < pe->b_chanceToHit
@@ -634,15 +689,12 @@ def enemyCombatTurn(pe)#1
 
     // Max dodge chance is 90%, min is 0.
     dodgeChance = max(0, min(90, dodgeChance))
-
-    // TODO: factor in luck
-    roll = rand16() % 100
+    roll = rollPercentileWithLuck(-(pl->b_luck))  // negate so luck has chance of reducing roll = better
     if combatDebug; displayf2("dodge roll %d, need < %d\n", roll, dodgeChance); fin
     if roll < dodgeChance
       displayf1("but %s dodges!", pl=>s_name)
     else
-      // TODO: factor in luck
-      dam = rollDice(pe=>r_enemyDmg)
+      dam = rollDiceWithLuck(pe=>r_enemyDmg, -(pl->b_luck)) // player luck can reduce damage inflicted by enemy
       if combatDebug; displayf1("base dmg %d\n", dam); fin
       // Each point of armor-value reduces damage 2%, up to max of 90%
       damReduce = max(0, min(90, pl->b_armor * 2))
@@ -765,9 +817,8 @@ def collectLootAndXP()#2
   while group
     enemies = group=>p_enemies
     while enemies
-      // TODO: factor in luck
-      gold = gold + rollDice(enemies=>r_goldLoot)
-      xp = xp + rollDice(enemies=>r_enemyXP)
+      gold = gold + rollDiceWithLuck(enemies=>r_goldLoot, global=>p_players->b_luck)
+      xp = xp + rollDiceWithLuck(enemies=>r_enemyXP, global=>p_players->b_luck)
       enemies = enemies=>p_nextObj
     loop
     group = group=>p_nextObj

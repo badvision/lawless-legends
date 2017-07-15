@@ -124,7 +124,6 @@ end
 const ITEM_FLAG_EQUIP         = $80 // only one weapon/armor equipped (in use) at a time
 
 const WEAPON_FLAG_SINGLE_USE  = $01
-const WEAPON_FLAG_WHOLE_GROUP = $02
 
 const TYPE_WEAPON = $85
 struc Weapon

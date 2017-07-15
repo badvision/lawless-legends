@@ -140,6 +140,9 @@ export byte[] S_SP = "SP"
 export byte[] S_ENTER = "Enter"
 export byte[] S_LEAVE = "Leave"
 export byte[] S_USE = "Use"
+export byte[] S_HIS = "his"
+export byte[] S_HER = "her"
+export byte[] S_THEIR = "their"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -1294,16 +1297,47 @@ export def encodeDice(nDice, dieSize, add)#1  // ndice=0..15, dieSize=0..15, add
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def rollDice(encoded)#1
-  byte i, nDice, dieSize, add, result
+export def rollDiceWithLuck(encoded, luck)#1
+  byte i, nDice, dieSize, add, droll, result
   nDice = encoded >> 12
   dieSize = (encoded >> 8) & $F
   add = encoded & $F
   result = add
   for i = 1 to nDice
+    droll = (rand16() % dieSize) + 1
+    if luck > 0
+      if (rand16() % 100) < (luck * 2)
+        droll = max(droll, (rand16() % dieSize) + 1)
+      fin
+    elsif luck < 0
+      if (rand16() % 100) < (luck * -2)
+        droll = min(droll, (rand16() % dieSize) + 1)
+      fin
+    fin
     add = (rand16() % dieSize) + 1
     result = result + add
   next
+  return result
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def rollDice(encoded)#1
+  return rollDiceWithLuck(encoded, 0)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def rollPercentileWithLuck(luck)#1
+  byte result
+  result = rand16() % 100
+  if luck > 0
+    if (rand16() % 100) < (luck * 2)
+      result = max(result, rand16() % 100)
+    fin
+  elsif luck < 0
+    if (rand16() % 100) < (luck * -2)
+      result = min(result, rand16() % 100)
+    fin
+  fin
   return result
 end
 
@@ -2854,6 +2888,14 @@ export def getStat(player, statName)#1
     is @S_SP; return player->b_skillPoints
   wend
   puts(statName); return fatal("Unknown stat")
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Return an appropriate pronoun for the given gender (M/F/N...)
+export def hisHerTheir(gender)#1
+  if gender == 'M'; return @S_HIS; fin
+  if gender == 'F'; return @S_HER; fin
+  return @S_THEIR
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

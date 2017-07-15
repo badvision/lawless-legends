@@ -60,6 +60,7 @@ import gamelib
   predef getYN()#1
   predef girdPlayer(player)#0
   predef giveItemToPlayer(p_player, itemFuncNum)#0
+  predef hisHerTheir(c_gender)#1
   predef initHeap(loadedSize)#0
   predef initPlayerXP(player)#0
   predef loadFrameImg(img)#0
@@ -98,6 +99,8 @@ import gamelib
   predef rightJustifyNum(num, rightX)#0
   predef rightJustifyStr(str, rightX)#0
   predef rollDice(encoded)#1
+  predef rollDiceWithLuck(encoded, luck)#1
+  predef rollPercentileWithLuck(luck)#1
   predef scanForNamedObj(p_obj, name)#1
   predef scriptCombat(mapCode)#1
   predef scriptDisplayStr(str)#0
@@ -153,4 +156,7 @@ import gamelib
 
   // Next: common events
   byte[] S_ENTER, S_LEAVE, S_USE
+
+  // Next: other useful strings
+  byte[] S_HIS, S_HER, S_THEIR
 end

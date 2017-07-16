@@ -176,20 +176,15 @@ def browseItem(num)#0
     displayItemMenu(price, compSkip or matchEquipped(pItem, 1+compSkip))
     sel = getUpperKey()
     rawDisplayf1(" %c\n", sel)
-    quantity = 1
-    if sel == 'B' and pItem->t_type == TYPE_STUFF and price <= global=>w_gold
-      quantity = global=>w_gold / price
-      if pItem=>w_maxCount
-        quantity = min(quantity, pItem=>w_maxCount)
+    if sel == 'B' and price <= global=>w_gold
+      if pItem->t_type == TYPE_STUFF
+        pItem=>w_count = rollDice(pItem=>r_storeAmount)
       fin
-      quantity = askQuantity(quantity)
-    fin
-    if sel == 'B' and quantity >= 1 and (price*quantity) <= global=>w_gold
       matchEquipped(pItem, compSkip) // to set pMatchPlayer
       pComp = scanForNamedObj(pMatchPlayer=>p_items, pItem=>s_name)
       if pComp
         if pItem->t_type == TYPE_STUFF
-          pComp=>w_count = pComp=>w_count + quantity
+          pComp=>w_count = min(30000, pComp=>w_count + pItem=>w_count)
         else
           rawDisplayStr("\nDuplicate item.")
           beep()
@@ -199,10 +194,7 @@ def browseItem(num)#0
       else
         addToList(@pMatchPlayer=>p_items, pItem)
       fin
-      global=>w_gold = global=>w_gold - (price * quantity)
-      if pItem->t_type == TYPE_STUFF
-        pItem=>w_count = quantity
-      fin
+      global=>w_gold = global=>w_gold - price
       rawDisplayStr("\nPurchase complete.")
       pause(800)
       break
@@ -275,7 +267,9 @@ def iterateSellables(skipItems, markdownRatio)#1
     pItem = pPlayer=>p_items
     while pItem
       ok = pItem=>w_price > 0
-      if pItem->t_type == TYPE_WEAPON or pItem->t_type == TYPE_ARMOR
+      if pItem->t_type == TYPE_STUFF
+        ok = FALSE // too much trouble to figure out stuff prices
+      elsif pItem->t_type == TYPE_WEAPON or pItem->t_type == TYPE_ARMOR
         if pItem->b_flags & ITEM_FLAG_EQUIP; ok = FALSE; fin
       fin
       if ok
@@ -311,33 +305,15 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def sellItem(num)#0
-  word pItem, price, quantity
+  word pItem, price
 
   pItem = pageItems[num]
   price = pagePrices[num]
 
   clearWindow()
 
-  quantity = 1
-  if pItem->t_type == TYPE_STUFF and pItem=>w_count >= 2
-    rawDisplayStr("^T108^I Sell ^N\n\nSelling ")
-    pPartyModule()=>party_displayItemName(pItem)
-    rawDisplayStr("\n\n")
-    quantity = askQuantity(pItem=>w_count)
-    if quantity == 0; return; fin
-  fin
-
-  global=>w_gold = global=>w_gold + (price * quantity)
-  if pItem->t_type == TYPE_STUFF
-    pItem=>w_count = pItem=>w_count - quantity
-    if pItem=>w_count > 0
-      quantity = 0
-    fin
-  fin
-
-  if quantity > 0
-    removeFromList(@pagePlayers=>p_items, pItem)
-  fin
+  global=>w_gold = global=>w_gold + price
+  removeFromList(@pagePlayers=>p_items, pItem)
 
   rawDisplayStr("\nSale complete.")
   pause(800)

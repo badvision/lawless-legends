@@ -177,7 +177,8 @@ struc Stuff
   word w_price
   // Stuff properties
   word w_count
-  word w_maxCount
+  word r_storeAmount
+  word r_lootAmount
 end
 
 const TYPE_ENEMY = $88
@@ -198,6 +199,8 @@ struc Enemy
   word r_enemyDmg     // 3 hex digits: num dice, die size, add. E.g. $361 = 3d6+1
   word r_enemyXP      // 3 hex digits: num dice, die size, add. E.g. $361 = 3d6+1
   word r_groupSize    // number encountered, as 3 hex digits for dice
+  byte b_lootChance   // % chance for loot item
+  word s_lootCode     // code in loot table
   word r_goldLoot     // monetary loot when killed, as 3 hex digits for dice
 end
 

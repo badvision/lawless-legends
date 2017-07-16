@@ -12,6 +12,7 @@ include "gamelib.plh"
 include "globalDefs.plh"
 include "playtype.plh"
 include "gen_images.plh"
+include "gen_items.plh"
 include "gen_enemies.plh"
 include "gen_modules.plh"
 include "combat.plh"
@@ -24,6 +25,9 @@ byte nPlayersFighting
 byte nEnemiesFighting
 byte isFleeing
 byte combatDebug
+
+byte[] S_AN = "an"
+byte[] S_A = "a"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def combatPause()#0
@@ -813,17 +817,49 @@ def makeRandomGroup(mapCode)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def anOrA(str)
+  byte ch
+  ch = charToUpper(^str)
+  if ch == 'A' or ch == 'E' or ch == 'I' or ch == 'O' or ch == 'U'
+    return @S_AN
+  fin
+  return @S_A
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def collectLootAndXP()#2
-  word group, enemies, gold, xp
+  word group, enemy, gold, xp, pItemsModule, itemFunc, pItem
+  byte lootedItem
 
   gold = 0
   group = global=>p_enemyGroups
+  lootedItem = FALSE
   while group
-    enemies = group=>p_enemies
-    while enemies
-      gold = gold + rollDiceWithLuck(enemies=>r_goldLoot, global=>p_players->b_luck)
-      xp = xp + rollDiceWithLuck(enemies=>r_enemyXP, global=>p_players->b_luck)
-      enemies = enemies=>p_nextObj
+    enemy = group=>p_enemies
+    while enemy
+      gold = gold + rollDiceWithLuck(enemy=>r_goldLoot, global=>p_players->b_luck)
+      xp = xp + rollDiceWithLuck(enemy=>r_enemyXP, global=>p_players->b_luck)
+      if !lootedItem and enemy=>s_lootCode and enemy->b_lootChance
+        if rollPercentileWithLuck(-(global=>p_players->b_luck)) < enemy->b_lootChance
+          mmgr(START_LOAD, 1) // code is in partition 1
+          pItemsModule = mmgr(QUEUE_LOAD, MOD_GEN_ITEMS<<8 | RES_TYPE_MODULE)
+          mmgr(FINISH_LOAD, 0)
+          itemFunc = randomFromArray(pItemsModule()=>items_forLootCode(enemy=>s_lootCode))
+          pItem = itemFunc()
+          if pItem->t_type == TYPE_STUFF
+            pItem=>w_count = rollDiceWithLuck(pItem=>r_lootAmount, global=>p_players->b_luck)
+          fin
+          if pItem->t_type == TYPE_STUFF and pItem=>w_count > 1
+            setPlural(TRUE)
+            displayf2("You find %d %s! ", pItem=>w_count, pItem=>s_name)
+          else
+            setPlural(FALSE)
+            displayf2("You find %s %s! ", anOrA(pItem=>s_name), pItem=>s_name)
+          fin
+          lootedItem = TRUE
+        fin
+      fin
+      enemy = enemy=>p_nextObj
     loop
     group = group=>p_nextObj
   loop

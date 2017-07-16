@@ -82,6 +82,8 @@ class A2PackPartitions
     def itemNameToFunc = [:]
     def playerNameToFunc = [:]
 
+    def allLootCodes
+
     def requiredGlobalScripts = ["New Game", "Help",
                                  "Combat win", "Combat intro", "Combat prompt", "Enemy intro", "Death",
                                  "Level XP", "Level SP"]
@@ -2323,8 +2325,14 @@ class A2PackPartitions
     def parseDice(str)
     {
         // Handle single value
-        if (str =~ /^\d+$/)
+        if (str =~ /^\d+$/) {
+            def n = str.toInteger()
+            if (n < 0 || n > 255) {
+                printWarning("Number $n forced to valid range 0..255")
+                return "0"
+            }
             return str
+        }
 
         // Otherwise parse things like "2d6+1"
         def m = (str =~ /^(\d+)[dD](\d+)([-+]\d+)?$/)
@@ -2346,6 +2354,17 @@ class A2PackPartitions
             add = Math.min(255, Math.max(0, add))
         }
         return String.format("\$%X", ((nDice << 12) | (dieSize << 8) | add))
+    }
+
+    def validateLootCode(code)
+    {
+        if (!code || code == "0")
+            return "NULL"
+        if (!allLootCodes.contains(code.toLowerCase())) {
+            printWarning("Unknown loot-code '$code'")
+            return "NULL"
+        }
+        return escapeString(code)
     }
 
     def genEnemy(out, row)
@@ -2378,9 +2397,11 @@ class A2PackPartitions
             def experience = row.@experience;       assert experience
             def mapCode = row.@"map-code";          assert mapCode
             def groupSize = row.@"group-size";      assert groupSize
+            def lootChance = row.@"loot-chance";    // optional, defaults to 10%
+            def lootCode = row.@"loot-code"         // optional
             def goldLoot = row.@"gold-loot";        assert goldLoot
 
-            out.println("  return makeEnemy(" +
+            out.println("  return makeEnemy_pt2(makeEnemy_pt1(" +
                         "\"$name\", " +
                         "${parseDice(hitPoints)}, " +
                         "PO${humanNameToSymbol(image1, false)}, " +
@@ -2390,8 +2411,10 @@ class A2PackPartitions
                         "${range.replace("'", "").toInteger()}, " +
                         "${chanceToHit.toInteger()}, " +
                         "${parseDice(damage)}, " +
-                        "${parseDice(experience)}, " +
+                        "${parseDice(experience)}), " + // end of pt1
                         "${parseDice(groupSize)}, " +
+                        "${lootChance ? lootChance.toInteger() : 10}, " +
+                        "${validateLootCode(lootCode)}, " +
                         "${parseDice(goldLoot)})")
             out.println("end")
 
@@ -2449,7 +2472,7 @@ class A2PackPartitions
 
                 // Helper function to fill in the Enemy data structure
                 out.println("""
-def makeEnemy(name, hDice, img0, img1, attType, attText, attRange, chanceToHit, dmg, xp, groupSize, goldLoot)
+def makeEnemy_pt1(name, hDice, img0, img1, attType, attText, attRange, chanceToHit, dmg, xp)
   word p; p = mmgr(HEAP_ALLOC, TYPE_ENEMY)
   p=>s_name = mmgr(HEAP_INTERN, name)
   p=>w_health = rollDice(hDice) // e.g. 4d6
@@ -2464,7 +2487,12 @@ def makeEnemy(name, hDice, img0, img1, attType, attText, attRange, chanceToHit, 
   p->b_chanceToHit = chanceToHit
   p=>r_enemyDmg = dmg
   p=>r_enemyXP = xp
+  return p
+end
+def makeEnemy_pt2(p, groupSize, lootChance, lootCode, goldLoot)
   p=>r_groupSize = groupSize
+  p->b_lootChance = lootChance
+  if lootCode; p=>s_lootCode = mmgr(HEAP_INTERN, lootCode); fin
   p=>r_goldLoot = goldLoot
   return p
 end
@@ -2529,7 +2557,7 @@ end
     {
         def val = parseStringAttr(row, attrName)
         if (!val) return 0
-        return val.charAt(0).toUpperCase()
+        return "'${val.charAt(0).toUpperCase()}'"
     }
 
     def parseModifier(row, attr1, attr2)
@@ -2585,7 +2613,9 @@ end
             "${escapeString(parseStringAttr(row, "name"))}, " +
             "${escapeString(parseStringAttr(row, "ammo-kind"))}, " +
             "${parseWordAttr(row, "price")}, " +
-            "${parseWordAttr(row, "max")})")
+            "${parseWordAttr(row, "max")}, " +
+            "${parseDiceAttr(row, "loot-amount")}, " +
+            "${parseDiceAttr(row, "store-amount")})")
     }
 
     def genItem(func, row, out)
@@ -2713,6 +2743,7 @@ end
             addCodeToFunc("_$func", row.@"loot-code", lootCodeToFuncs)
             addCodeToFunc("_$func", row.@"store-code", storeCodeToFuncs)
         }
+        allLootCodes = (lootCodeToFuncs.keySet().collect{ it.toLowerCase() }) as Set
 
         // Make constants for the function table
         new File("build/src/plasma/gen_items.plh.new").withWriter { out ->
@@ -2795,13 +2826,14 @@ def makeWeapon_pt2(p, attack0, attack1, attack2, weaponRange, combatText, single
   return p
 end
 
-def makeStuff(name, kind, price, count)
+def makeStuff(name, kind, price, count, lootAmount, storeAmount)
   word p; p = mmgr(HEAP_ALLOC, TYPE_STUFF)
   p=>s_name = mmgr(HEAP_INTERN, name)
   p=>s_itemKind = mmgr(HEAP_INTERN, kind)
   p=>w_price = price
   p=>w_count = count
-  p=>w_maxCount = count
+  p=>r_lootAmount = lootAmount
+  p=>r_storeAmount = storeAmount
   return p
 end
 
@@ -3079,8 +3111,8 @@ end
         curMapName = null
 
         // Translate enemies, weapons, etc. to code
-        genAllEnemies(dataIn.global.sheets.sheet.find { it?.@name.equalsIgnoreCase("enemies") })
         genAllItems(dataIn.global.sheets.sheet)
+        genAllEnemies(dataIn.global.sheets.sheet.find { it?.@name.equalsIgnoreCase("enemies") })
         genAllPlayers(dataIn.global.sheets.sheet)
 
         // Produce a list of assembly and PLASMA code segments

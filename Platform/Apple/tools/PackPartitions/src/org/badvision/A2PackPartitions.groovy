@@ -2583,7 +2583,7 @@ end
         out.println(
             "  return makeStuff(" +
             "${escapeString(parseStringAttr(row, "name"))}, " +
-            "${escapeString(parseStringAttr(row, "type"))}, " +
+            "${escapeString(parseStringAttr(row, "ammo-kind"))}, " +
             "${parseWordAttr(row, "price")}, " +
             "${parseWordAttr(row, "max")})")
     }
@@ -2626,9 +2626,18 @@ end
                     "${parseByteAttr(row, name)}))")
             }
             else if (name =~ /^item-/) {
-                def itemFunc = itemNameToFunc[val.trim().toLowerCase()]
-                assert itemFunc : "Can't locate item '$val'"
-                out.println("  addToList(@p=>p_items, itemScripts()=>$itemFunc())")
+                name = val.trim().toLowerCase()
+                def num = 1
+                name.find(/^(.*?)#(\d+)$/) { str, p1, p2 ->
+                    name = p1
+                    num = p2.toInteger()
+                }
+                def itemFunc = itemNameToFunc[name]
+                assert itemFunc : "Can't locate item '$name'"
+                if (num > 1)
+                    out.println("  addToList(@p=>p_items, setStuffCount(itemScripts()=>$itemFunc(), $num))")
+                else
+                    out.println("  addToList(@p=>p_items, itemScripts()=>$itemFunc())")
             }
         }
         out.println("  girdPlayer(p)")
@@ -2765,7 +2774,7 @@ def makeWeapon_pt1(name, kind, price, modifier, ammoKind, clipSize, meleeDmg, pr
   p=>p_modifiers = modifier
   p=>s_ammoKind = mmgr(HEAP_INTERN, ammoKind)
   p->b_clipSize = clipSize
-  p->b_clipCurrent = 0
+  p->b_clipCurrent = clipSize
   if !p->b_clipSize and projectileDmg
     p->b_clipCurrent = 1 // auto-reloading, e.g. bows
   fin
@@ -2892,7 +2901,7 @@ end
             }
             out.println("")
 
-            // Data structure-filling helper
+            // Data structure-filling helpers
             out.print("""\n\
 def makePlayer_pt1(name, intelligence, strength, agility, stamina, charisma, spirit, luck)#1
   word p
@@ -2920,6 +2929,15 @@ def makePlayer_pt2(p, health, level, aiming, handToHand, dodging, gender)#1
   p->c_gender = gender
   initPlayerXP(p)
   return p
+end
+
+def setStuffCount(p, ct)#1
+  if p->t_type == TYPE_STUFF
+    p->w_count = ct
+  else
+    fatal(\"stuffct\")
+  fin
+  return p // for chaining
 end
 """)
 

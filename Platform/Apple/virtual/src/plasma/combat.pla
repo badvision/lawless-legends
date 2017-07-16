@@ -104,6 +104,7 @@ def rollPlayerHit(pPlayer, pWeapon, pEnemy, sAction)
   // * clamped to range 5% - 90%
   // * then reduced 1% per 5 feet range beyond 5'
   // * clamped to range 0% - 90%
+  if combatDebug; displayStr("Player hit calcs:\n"); fin
   agil = pPlayer->b_agility
   if pWeapon
     agil = agil + scanModifiers(pWeapon=>p_modifiers, @S_AGILITY)
@@ -118,7 +119,7 @@ def rollPlayerHit(pPlayer, pWeapon, pEnemy, sAction)
     if combatDebug; displayf1(" plyr skill=%d*5\n", scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind)); fin
   fin
   chance = chance - (max(0, pEnemy->b_enemyAttackRange - 5)) / 5)
-  if combatDebug; displayf1(" rng mod=%d\n", max(0, pEnemy->b_enemyAttackRange - 5) / 5); fin
+  if combatDebug; displayf1(" rng mod=%d\n", -max(0, pEnemy->b_enemyAttackRange - 5) / 5); fin
   chance = max(5, min(90, chance))
   if combatDebug; displayf1("Final chnc = %d%%\n", chance); fin
 
@@ -306,7 +307,7 @@ def reload(pl, pWeapon, echo)#0
   fin
 
   // Transfer ammo to weapon
-  n = max(item=>w_count, pWeapon->b_clipSize - pWeapon->b_clipCurrent)
+  n = min(item=>w_count, pWeapon->b_clipSize - pWeapon->b_clipCurrent)
   pWeapon->b_clipCurrent = pWeapon->b_clipCurrent + n
   item=>w_count = item=>w_count - n
   if item=>w_count == 0
@@ -315,12 +316,14 @@ def reload(pl, pWeapon, echo)#0
   if echo
     displayf3("\n%s reloads %s %s.\n", pl=>s_name, hisHerTheir(pl->c_gender), pWeapon=>s_name)
   fin
+  if combatDebug; displayf2("Moved %d ammo, %d left\n", n, item=>w_count); getUpperKey; fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def consumeAmmo(pl, pWeapon)#0
   if !pWeapon->b_clipCurrent; fatal("clip zero"); fin // sanity check
   pWeapon->b_clipCurrent = pWeapon->b_clipCurrent - 1
+  if combatDebug; displayf1("Clip has %d\n", pWeapon->b_clipCurrent); fin
 
   // Special (for e.g. bows): clipSize zero means weapon reloads automatically
   if !pWeapon->b_clipCurrent and !pWeapon->b_clipSize
@@ -572,6 +575,7 @@ def playerCombatChoose(pl)#0
           clearWindow()
           combatDebug = 1-combatDebug
           rawDisplayf1("Combat debug: %d\n\n", combatDebug)
+          return playerCombatChoose(pl) // to redisplay menu
         fin
         break
     wend
@@ -663,13 +667,13 @@ def enemyCombatTurn(pe)#1
 
   // Roll to hit
   roll = rollPercentileWithLuck(pl->b_luck) // player luck can raise roll, reducing enemy chance to hit
-  if combatDebug; displayf2("\nenemy hit roll=%d, need < %d\n", roll, pe->b_chanceToHit); fin
+  if combatDebug; displayf2("\nenemy roll=%d, need <%d\n", roll, pe->b_chanceToHit); fin
   needShow = FALSE
   if roll < pe->b_chanceToHit
 
     // Check for dodge
     dodgeChance = pl->b_agility * 5
-    if combatDebug; displayf2("player dodge: base = agil %dx5 = %d%%\n", pl->b_agility, dodgeChance); fin
+    if combatDebug; displayf2("plyr dodge: agil %dx5 = %d%%\n", pl->b_agility, dodgeChance); fin
     if pl->b_combatChoice == 'D'
       dodgeChance = dodgeChance + (pl->b_dodging * 5)
       if combatDebug; displayf1(" +dodg-abil %dx5\n", pl->b_dodging); fin
@@ -690,7 +694,7 @@ def enemyCombatTurn(pe)#1
     // Max dodge chance is 90%, min is 0.
     dodgeChance = max(0, min(90, dodgeChance))
     roll = rollPercentileWithLuck(-(pl->b_luck))  // negate so luck has chance of reducing roll = better
-    if combatDebug; displayf2("dodge roll %d, need < %d\n", roll, dodgeChance); fin
+    if combatDebug; displayf2("dodg roll %d, need <%d\n", roll, dodgeChance); fin
     if roll < dodgeChance
       displayf1("but %s dodges!", pl=>s_name)
     else

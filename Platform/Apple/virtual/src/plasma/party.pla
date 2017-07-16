@@ -592,6 +592,7 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
       is '$' // add gold cheat
         if global->b_godmode
           addGold(500)
+          redisplay = 2
         fin
         break
       is '%' // add item cheat
@@ -858,9 +859,12 @@ def _displayItemStats(pItem1, pItem2)#1
   wend
 
   // If either item has modifiers, show them
-  pMod1 = pItem1=>p_modifiers
+  pMod1 = NULL
+  if pItem1->t_type <> TYPE_STUFF; pMod1 = pItem1=>p_modifiers; fin
   pMod2 = NULL
-  if pItem2; pMod2 = pItem2=>p_modifiers; fin
+  if pItem2
+    if pItem2->t_type <> TYPE_STUFF; pMod2 = pItem2=>p_modifiers; fin
+  fin
   if pMod1 or pMod2
     rawDisplayStr("\nSpecial")
     while pMod1 or pMod2

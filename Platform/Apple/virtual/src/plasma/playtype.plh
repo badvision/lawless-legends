@@ -177,7 +177,7 @@ struc Stuff
   word w_price
   // Stuff properties
   word w_count
-  word r_storeAmount
+  word w_storeAmount
   word r_lootAmount
 end
 

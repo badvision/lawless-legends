@@ -89,13 +89,18 @@ def displayBuyPage(pItemTbl, markupRatio, pageNum, nPages)#1
   for itemNum = 0 to PAGE_SIZE-1
     if !(*pFunc); break; fin
     pItem = (*pFunc)()
+    if pItem->t_type == TYPE_STUFF
+      pItem=>w_count = pItem=>w_storeAmount
+    fin
     pageItems[itemNum] = pItem
     pagePrices[itemNum] = max(1, pItem=>w_price + addRatio(pItem=>w_price, markupRatio))
     displayItemLine(itemNum)
     pFunc = pFunc + 2
   next
 
-  rawDisplayf2("\n^V166Gold: %d. Browse [A-%c], ", global=>w_gold, itemNum-1+'A')
+  rawDisplayf1("\n^V166Gold: %d. Browse [A", global=>w_gold)
+  if itemNum > 1; rawDisplayf1("-%c", itemNum-1+'A'); fin
+  rawDisplayStr("], ")
   if nPages > 1
     rawDisplayf1("p. [1-%d], ", nPages)
   fin
@@ -177,9 +182,6 @@ def browseItem(num)#0
     sel = getUpperKey()
     rawDisplayf1(" %c\n", sel)
     if sel == 'B' and price <= global=>w_gold
-      if pItem->t_type == TYPE_STUFF
-        pItem=>w_count = rollDice(pItem=>r_storeAmount)
-      fin
       matchEquipped(pItem, compSkip) // to set pMatchPlayer
       pComp = scanForNamedObj(pMatchPlayer=>p_items, pItem=>s_name)
       if pComp
@@ -211,7 +213,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def _buyFromStore(storeCode, profitPercent)#1
-  word pItemTbl, choice
+  word pItemTbl, choice, ratio
   byte nItemsOnPage, pageNum, nPages, redisplay
 
   loadExtraModules()
@@ -222,10 +224,12 @@ def _buyFromStore(storeCode, profitPercent)#1
   nPages = (countArray(pItemTbl) + PAGE_SIZE - 1) / PAGE_SIZE
   pageNum = 0
 
+  ratio = percentToRatio(profitPercent) / 2  // half of profit on buying, half on selling
+
   redisplay = TRUE
   while TRUE
     if redisplay
-      nItemsOnPage = displayBuyPage(pItemTbl, percentToRatio(profitPercent), pageNum, nPages)
+      nItemsOnPage = displayBuyPage(pItemTbl, ratio, pageNum, nPages)
     fin
     choice = getUpperKey()
     redisplay = TRUE
@@ -258,7 +262,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def iterateSellables(skipItems, markdownRatio)#1
-  word pPlayer, pItem, itemsOnPage, totalItems
+  word pPlayer, pItem, itemsOnPage, totalItems, price
   byte ok
   itemsOnPage = 0
   totalItems = 0
@@ -273,9 +277,13 @@ def iterateSellables(skipItems, markdownRatio)#1
         if pItem->b_flags & ITEM_FLAG_EQUIP; ok = FALSE; fin
       fin
       if ok
+        price = max(0, pItem=>w_price - addRatio(pItem=>w_price, markdownRatio))
+        if !price; ok = FALSE; fin
+      fin
+      if ok
         if totalItems >= skipItems and itemsOnPage < PAGE_SIZE
           pageItems[itemsOnPage] = pItem
-          pagePrices[itemsOnPage] = max(0, pItem=>w_price - addRatio(pItem=>w_price, markdownRatio))
+          pagePrices[itemsOnPage] = price
           pagePlayers[itemsOnPage] = pPlayer
           displayItemLine(itemsOnPage)
           itemsOnPage++
@@ -295,7 +303,12 @@ def displaySellPage(markdownRatio, pageNum, nPages)#1
   word nItems
   displaySellTitle(pageNum, nPages)
   nItems = iterateSellables(pageNum * PAGE_SIZE, markdownRatio)
-  rawDisplayf2("\n^V166Gold: %d. Sell [A-%c], ", global=>w_gold, nItems-1+'A')
+  if !nItems
+    rawDisplayStr("\n\nNothing to sell here.")
+  fin
+  rawDisplayf1("\n^V166Gold: %d. Sell [A", global=>w_gold)
+  if nItems > 1; rawDisplayf1("-%c", nItems-1+'A'); fin
+  rawDisplayStr("], ")
   if nPages > 1
     rawDisplayf1("p. [1-%d], ", nPages)
   fin
@@ -321,27 +334,22 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def _sellToStore(profitPercent)#1
-  word pItemTbl, choice
+  word pItemTbl, choice, ratio
   byte nItemsOnPage, pageNum, totalItems, nPages, redisplay
 
   loadExtraModules()
-  totalItems = iterateSellables(9999, 0)
-  if totalItems == 0
-    scriptDisplayStr("\nNothing to sell.\n")
-    pause(800)
-    return 0
-  fin
-
   setBigWindow()
 
   pageNum = 0
+
+  ratio = percentToRatio(profitPercent) / 2 // half profit on buying, half on selling
 
   redisplay = TRUE
   while totalItems > 0
     nPages = (totalItems + PAGE_SIZE - 1) / PAGE_SIZE // recalc each time since totalItems changes
     pageNum = min(nPages-1, pageNum)
     if redisplay
-      nItemsOnPage = displaySellPage(percentToRatio(profitPercent), pageNum, nPages)
+      nItemsOnPage = displaySellPage(ratio, pageNum, nPages)
     fin
     choice = getUpperKey()
     redisplay = TRUE
@@ -358,6 +366,7 @@ def _sellToStore(profitPercent)#1
     fin
   loop
 
+  unloadExtraModules()
   return mmgr(HEAP_COLLECT, 0)
 end
 

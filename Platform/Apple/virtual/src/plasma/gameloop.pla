@@ -634,6 +634,7 @@ export asm puts(str)#0
   ldy #0
   lda (pTmp),y
   tax
+  beq ++      ; handle empty string
   iny
 - lda (pTmp),y
 + ora #$80
@@ -641,7 +642,7 @@ export asm puts(str)#0
   iny
   dex
   bne -
-  rts
+++ rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2279,7 +2280,7 @@ def returnFromEngine(render)#0
     curEngine = NULL
     loadMainFrameImg()
     clearPortrait()
-    if renderLoaded; texControl(1); fin
+    if renderLoaded; texControl(1); texturesLoaded = TRUE; fin
     mapNameHash = 0; showMapName(global=>s_mapName)
     setWindow2(); clearWindow()
     if render; doRender(); fin

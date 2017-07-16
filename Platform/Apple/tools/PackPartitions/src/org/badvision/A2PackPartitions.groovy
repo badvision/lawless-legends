@@ -2614,8 +2614,8 @@ end
             "${escapeString(parseStringAttr(row, "ammo-kind"))}, " +
             "${parseWordAttr(row, "price")}, " +
             "${parseWordAttr(row, "max")}, " +
-            "${parseDiceAttr(row, "loot-amount")}, " +
-            "${parseDiceAttr(row, "store-amount")})")
+            "${parseWordAttr(row, "store-amount")}, " +
+            "${parseDiceAttr(row, "loot-amount")})")
     }
 
     def genItem(func, row, out)
@@ -2826,14 +2826,14 @@ def makeWeapon_pt2(p, attack0, attack1, attack2, weaponRange, combatText, single
   return p
 end
 
-def makeStuff(name, kind, price, count, lootAmount, storeAmount)
+def makeStuff(name, kind, price, count, storeAmount, lootAmount)
   word p; p = mmgr(HEAP_ALLOC, TYPE_STUFF)
   p=>s_name = mmgr(HEAP_INTERN, name)
   p=>s_itemKind = mmgr(HEAP_INTERN, kind)
   p=>w_price = price
   p=>w_count = count
+  p=>w_storeAmount = storeAmount
   p=>r_lootAmount = lootAmount
-  p=>r_storeAmount = storeAmount
   return p
 end
 

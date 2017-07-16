@@ -2595,7 +2595,7 @@ end
             "${escapeString(parseStringAttr(row, "name"))}, " +
             "${parseWordAttr(row, "price")}, " +
             "${parseModifier(row, "bonus-value", "bonus-attribute")}, " +
-            "${parseByteAttr(row, "numofuses")})")
+            "${parseByteAttr(row, "number-of-uses")})")
     }
 
     def genPlayer(func, row, out)

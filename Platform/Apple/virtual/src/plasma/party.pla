@@ -380,6 +380,20 @@ def showItemMenu(item)#0
   rawDisplayStr("D)estroy or [Esc]")
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def clearInvRect()#0
+  setWindow(BIGWIN_TOP+9, BIGWIN_BOTTOM-10, BIGWIN_LEFT, INV_RT)
+  clearWindow()
+  setBigWindow()
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def clearMainRect()#0
+  setWindow(BIGWIN_TOP+9, BIGWIN_BOTTOM-10, BIGWIN_LEFT, BIGWIN_RIGHT)
+  clearWindow()
+  setBigWindow()
+end
+
 // Equip/unequip an item.
 def doEquip(player, item)#0
   if unequip(player, item->t_type, item=>s_itemKind) <> item
@@ -391,14 +405,21 @@ end
 // Select an item and use it. Returns item if it needs to be processed by outer loop, else NULL
 def doUse(player, item)#1
   if item=>p_modifiers
-    if streqi(item=>p_modifiers=>s_name, "health")
+    if streqi(item=>p_modifiers=>s_name, @S_HEALTH)
+      clearMenuRect()
+      clearMainRect()
+      rawDisplayStr("^V000\n^J^J^J")
       if player=>w_health < player=>w_maxHealth
         player=>w_health = min(player=>w_health + item=>p_modifiers=>w_modValue, player=>w_maxHealth)
         item->b_curUses++
         if item->b_curUses >= item->b_maxUses // all used up
           removeFromList(@player=>p_items, item)
         fin
+        rawDisplayf2("Healed to %d/%d", player=>w_health, player=>w_maxHealth)
+      else
+        rawDisplayStr("No healing needed.")
       fin
+      pause(800)
       return NULL
     fin
   fin
@@ -417,20 +438,6 @@ def doDestroy(player, item)#1
     return TRUE
   fin
   return FALSE
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def clearInvRect()#0
-  setWindow(BIGWIN_TOP+9, BIGWIN_BOTTOM-10, BIGWIN_LEFT, INV_RT)
-  clearWindow()
-  setBigWindow()
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def clearMainRect()#0
-  setWindow(BIGWIN_TOP+9, BIGWIN_BOTTOM-10, BIGWIN_LEFT, BIGWIN_RIGHT)
-  clearWindow()
-  setBigWindow()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -483,8 +490,7 @@ def interactWithItem(player, item)#1
       // Use an item
       is 'U'
         if item->t_type == TYPE_ITEM
-          item = doUse(player, item)
-          if item; return item; fin  // general 'use' handled by outer engine, because it might involve graphics
+          return doUse(player, item) // general 'use' handled by outer engine, because it might involve graphics
         else
           beep
         fin

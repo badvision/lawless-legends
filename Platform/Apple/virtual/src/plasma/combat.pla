@@ -988,7 +988,9 @@ def _combat_zoneEncounter(s_encZone)#1
               return 0
             fin
             playerCombatTurn(p)
-            combatPause()
+            if p->b_combatChoice <> 'D'
+              combatPause()
+            fin
             break
           is TYPE_ENEMY
             if enemyCombatTurn(p); combatPause(); fin

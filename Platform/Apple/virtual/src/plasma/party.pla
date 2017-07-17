@@ -586,7 +586,8 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
       // Other operations...
       is '&' // add health cheat
         if global->b_godmode
-          player=>w_health = player=>w_health + 50
+          player=>w_health = player=>w_maxHealth
+          redisplay = 2
         fin
         break
       is '$' // add gold cheat

@@ -307,12 +307,18 @@ def reload(pl, pWeapon, echo)#0
     item = item=>p_nextObj
   loop
   if !item
-    displayf3("\n%s has no ammo for %s %s!\n", pl=>s_name, hisHerTheir(pl->c_gender), pWeapon=>s_name))
+    if echo
+      displayf3("\n%s has no ammo for %s %s!\n", pl=>s_name, hisHerTheir(pl->c_gender), pWeapon=>s_name))
+    fin
     return
   fin
 
   // Transfer ammo to weapon
-  n = min(item=>w_count, pWeapon->b_clipSize - pWeapon->b_clipCurrent)
+  if pWeapon->b_clipSize
+    n = min(item=>w_count, pWeapon->b_clipSize - pWeapon->b_clipCurrent)
+  else
+    n = min(item=>w_count, 1) // clipSize=0 implies auto-reloading weapon
+  fin
   pWeapon->b_clipCurrent = pWeapon->b_clipCurrent + n
   item=>w_count = item=>w_count - n
   if item=>w_count == 0
@@ -373,7 +379,10 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayOption(key, str)#0
-  rawDisplayf2("\n  (%c)^T033%s ", key, str)
+  rawDisplayStr("\n (")
+  displayChar(key)
+  rawDisplayStr(")^T028")
+  rawDisplayStr(str)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -520,7 +529,7 @@ def playerCombatChoose(pl)#0
 
   // Let them know their options
   setCursor(cursX, cursY)
-  rawDisplayf1("^D%s choice:", pl=>s_name)
+  rawDisplayf1("^D%s:", pl=>s_name)
   displayOption('M', "Melee")
   if pWeapon
     // Special (for e.g. bows): clipSize zero means weapon reloads automatically
@@ -529,7 +538,11 @@ def playerCombatChoose(pl)#0
     fin
     if pWeapon->b_clipCurrent
       canShoot = TRUE
-      displayOption('S', "Shoot")
+      if pWeapon->b_clipSize
+        displayOption('S', sprintf2("Shoot %d:%d", pWeapon->b_clipCurrent, pWeapon->b_clipSize))
+      else
+        displayOption('S', "Shoot")
+      fin
     fin
     if pWeapon->b_clipCurrent < pWeapon->b_clipSize
       canReload = TRUE
@@ -618,9 +631,6 @@ def playerCombatTurn(pl)#0
       break
     is 'F'
       break
-    is 'D'
-      playerDodge(pl)
-      break
     is 'S'
       for i = 1 to pl->b_shotChoice
         if nEnemiesFighting and pWeapon->b_clipCurrent
@@ -668,6 +678,7 @@ def enemyCombatTurn(pe)#1
   pl = randomFromListFiltered(global=>p_players, p_nextObj, @canFight)
   if !pl; return FALSE; fin
 
+  setPlural(FALSE)
   displayf3("\n%s %s %s ", pe=>s_name, pe=>s_attackText, pl=>s_name)
 
   // Roll to hit
@@ -1033,13 +1044,15 @@ def _combat_zoneEncounter(s_encZone)#1
     determineCombatOrder()
 
     p = global=>p_combatFirst
-    while p
+    while TRUE // not just "while p", so that we always check nPlayersFighting etc.
       if !nPlayersFighting
         return -99  // special code for death
       elsif !nEnemiesFighting
         processWin()
         // Note: no need to clear heap -- the caller does that.
         return 1
+      elsif !p
+        break
       fin
 
       if canFight(p)
@@ -1050,8 +1063,8 @@ def _combat_zoneEncounter(s_encZone)#1
               // Note: no need to clear heap -- the caller does that.
               return 0
             fin
-            playerCombatTurn(p)
             if p->b_combatChoice <> 'D'
+              playerCombatTurn(p)
               combatPause()
             fin
             break

@@ -84,7 +84,10 @@ public abstract class MapEditorTabController {
 
     @FXML
     abstract public void mapScriptPaint(ActionEvent event);
-
+    
+    @FXML
+    abstract public void mapScriptErasor(ActionEvent event);
+    
     @FXML
     abstract public void mapTogglePanZoom(ActionEvent event);
 

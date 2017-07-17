@@ -110,6 +110,9 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
             case ScriptPencil:
                 drawCanvas.setCursor(Cursor.CLOSED_HAND);
                 break;
+            case ScriptEraser:
+                drawCanvas.setCursor(Cursor.OPEN_HAND);
+                break;
             default:
                 setCurrentTile(getCurrentTile());
                 break;
@@ -567,9 +570,14 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
+    private boolean hasScriptsAt(int x, int y) {
+        List<Script> scripts = currentMap.getLocationScripts(x, y);
+        return scripts != null && !scripts.isEmpty();
+    }
+
     public static enum DrawMode {
 
-        Pencil1px, Pencil3px, Pencil5px, FilledRect, TileEraser(false), ScriptPencil(false), Select(false);
+        Pencil1px, Pencil3px, Pencil5px, FilledRect, TileEraser(false), ScriptPencil(false), Select(false), ScriptEraser(false);
 
         boolean requireTile = false;
 
@@ -748,6 +756,13 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
                 }
                 trackState();
                 drawScript(x, y, getSelectedScript());
+                break;
+            case ScriptEraser:
+                if (canSkip || !hasScriptsAt(x, y)) {
+                    return;
+                }
+                trackState();
+                drawScript(x, y, null);
                 break;
             case Select:
                 updateSelection(t.getX(), t.getY());

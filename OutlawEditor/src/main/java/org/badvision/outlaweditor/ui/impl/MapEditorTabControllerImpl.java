@@ -12,12 +12,7 @@ package org.badvision.outlaweditor.ui.impl;
 import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
@@ -37,7 +32,6 @@ import org.badvision.outlaweditor.api.ApplicationState;
 import org.badvision.outlaweditor.data.DataUtilities;
 import static org.badvision.outlaweditor.data.PropertyHelper.bind;
 import static org.badvision.outlaweditor.data.PropertyHelper.stringProp;
-import static org.badvision.outlaweditor.data.PropertyHelper.boolProp;
 import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.xml.Map;
 import org.badvision.outlaweditor.data.xml.Script;
@@ -98,6 +92,13 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
     public void mapScriptPaint(ActionEvent event) {
         if (getCurrentEditor() != null) {
             getCurrentEditor().setDrawMode(MapEditor.DrawMode.ScriptPencil);
+        }
+    }
+    
+    @Override
+    public void mapScriptErasor(ActionEvent event) {
+        if (getCurrentEditor() != null) {
+            getCurrentEditor().setDrawMode(MapEditor.DrawMode.ScriptEraser);
         }
     }
     

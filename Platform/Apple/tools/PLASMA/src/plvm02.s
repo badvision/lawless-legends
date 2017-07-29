@@ -1,10 +1,10 @@
 ;**************************************************************************************
-; Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1 
+; Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1
 ; (the "License"); you may not use this file except in compliance with the License.
 ; You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-1.1>.
-; Unless required by applicable law or agreed to in writing, software distributed under 
-; the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF 
-; ANY KIND, either express or implied. See the License for the specific language 
+; Unless required by applicable law or agreed to in writing, software distributed under
+; the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+; ANY KIND, either express or implied. See the License for the specific language
 ; governing permissions and limitations under the License.
 ;**************************************************************************************
 
@@ -25,10 +25,10 @@ PROMPT 	=	$33
 ;* PRODOS
 ;*
 PRODOS	=	$BF00
-DEVCNT	=	$BF31		; GLOBAL PAGE DEVICE COUNT 
+DEVCNT	=	$BF31		; GLOBAL PAGE DEVICE COUNT
 DEVLST	=	$BF32		; GLOBAL PAGE DEVICE LIST
-MACHID	=	$BF98		; GLOBAL PAGE MACHINE ID BYTE 
-RAMSLOT	=	$BF26		; SLOT 3, DRIVE 2 IS /RAM'S DRIVER VECTOR 
+MACHID	=	$BF98		; GLOBAL PAGE MACHINE ID BYTE
+RAMSLOT	=	$BF26		; SLOT 3, DRIVE 2 IS /RAM'S DRIVER VECTOR
 NODEV	=	$BF10
 ;*
 ;* HARDWARE ADDRESSES
@@ -162,7 +162,7 @@ OPTBL 	!WORD	ZERO,ADD,SUB,MUL,DIV,MOD,INCR,DECR		; 00 02 04 06 08 0A 0C 0E
 	!WORD	LNOT,LOR,LAND,LA,LLA,CB,CW,CS			; 20 22 24 26 28 2A 2C 2E
 	!WORD	DROP,DUP,PUSHEP,PULLEP,BRGT,BRLT,BREQ,BRNE     	; 30 32 34 36 38 3A 3C 3E
 	!WORD	ISEQ,ISNE,ISGT,ISLT,ISGE,ISLE,BRFLS,BRTRU	; 40 42 44 46 48 4A 4C 4E
-	!WORD	BRNCH,IBRNCH,CALL,ICAL,ENTER,LEAVE,RET,NEXTOP 	; 50 52 54 56 58 5A 5C 5E
+	!WORD	BRNCH,IBRNCH,CALL,ICAL,ENTER,LEAVE,RET,CFFB 	; 50 52 54 56 58 5A 5C 5E
 	!WORD	LB,LW,LLB,LLW,LAB,LAW,DLB,DLW			; 60 62 64 66 68 6A 6C 6E
 	!WORD	SB,SW,SLB,SLW,SAB,SAW,DAB,DAW			; 70 72 74 76 78 7A 7C 7E
 ;*****************
@@ -176,7 +176,7 @@ OPXTBL  !WORD	ZERO,ADD,SUB,MUL,DIV,MOD,INCR,DECR     		; 00 02 04 06 08 0A 0C 0E
 	!WORD	LNOT,LOR,LAND,LA,LLA,CB,CW,CSX			; 20 22 24 26 28 2A 2C 2E
 	!WORD	DROP,DUP,PUSHEP,PULLEP,BRGT,BRLT,BREQ,BRNE     	; 30 32 34 36 38 3A 3C 3E
 	!WORD	ISEQ,ISNE,ISGT,ISLT,ISGE,ISLE,BRFLS,BRTRU	; 40 42 44 46 48 4A 4C 4E
-	!WORD	BRNCH,IBRNCH,CALLX,ICALX,ENTER,LEAVEX,RETX,NEXTOP; 50 52 54 56 58 5A 5C 5E
+	!WORD	BRNCH,IBRNCH,CALLX,ICALX,ENTER,LEAVEX,RETX,CFFB; 50 52 54 56 58 5A 5C 5E
 	!WORD	LBX,LWX,LLBX,LLWX,LABX,LAWX,DLB,DLW		; 60 62 64 66 68 6A 6C 6E
 	!WORD	SB,SW,SLB,SLW,SAB,SAW,DAB,DAW			; 70 72 74 76 78 7A 7C 7E
 ;*
@@ -583,6 +583,8 @@ ZERO 	DEX
 	STA	ESTKL,X
 	STA	ESTKH,X
 	JMP	NEXTOP
+CFFB	LDA	#$FF
+    !BYTE $2C	; BIT $00A9 - effectively skips LDA #$00, no harm in reading this address
 CB 	DEX
 	+INC_IP
 	LDA	(IP),Y

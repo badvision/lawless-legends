@@ -1030,7 +1030,9 @@ unrread1 = unrelocdsk + (* - reloc)
                 rts
 
   !if poll_drive = 1 {
-checkpoll       bcc pollinv            ;it's enough to cover an entire sector
+checkpoll       pla
+                sbc #1
+                bcs pollinv
 failpoll        pla
                 pla
                 pla
@@ -1049,27 +1051,28 @@ unrdrvsel = unrelocdsk + (* - reloc)
                 cmp DRV0EN, y
   } ;allow_multi
   !if poll_drive = 1 {
-                sty status
                 pha
+                lda #$FF
+                sec
 unrdrvon1 = unrelocdsk + (* - reloc)
                 ldy MOTORON
-                clc                     ;mark pass 1
-                !byte $24               ;mask sec
-pollinv         sec                     ;mark pass 2
+pollinv         pha
 
                 ;watch for a real data prolog
 
+---             ldy #(prolog_e - prolog - 1)
+
 --              inc status
-                beq checkpoll           ;loop max 510 times as worst-case
-                ldy #(prolog_e - prolog - 1)
+                beq checkpoll           ;loop max 65281+ times as worst-case
 
 unrread2 = unrelocdsk + (* - reloc)
 -               lda Q6L
-                bpl -
+                bpl --
                 eor prolog,y
-                bne --
+                bne ---
                 dey
                 bpl -
+                pla
                 pla
   } ;poll_drive
 

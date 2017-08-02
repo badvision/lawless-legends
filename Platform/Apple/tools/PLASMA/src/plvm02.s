@@ -585,11 +585,11 @@ ZERO 	DEX
 	JMP	NEXTOP
 CFFB	LDA	#$FF
     !BYTE $2C	; BIT $00A9 - effectively skips LDA #$00, no harm in reading this address
-CB 	DEX
+CB	LDA	#$00
+ 	DEX
 	+INC_IP
 	LDA	(IP),Y
 	STA	ESTKL,X
-	LDA	#$00
 	STA	ESTKH,X
 	JMP	NEXTOP
 ;*

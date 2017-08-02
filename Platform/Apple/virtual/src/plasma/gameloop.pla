@@ -76,6 +76,7 @@ byte needShowParty = FALSE
 byte renderLoaded = FALSE
 byte texturesLoaded = FALSE
 byte textDrawn = FALSE
+byte textClearCountdown = 0
 byte isPlural = FALSE
 byte skipEncounterCheck = FALSE
 
@@ -1461,6 +1462,14 @@ export def setMapWindow()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def clearTextWindow()#0
+  setWindow2(); clearWindow()
+  if mapIs3D and texturesLoaded; copyWindow(); fin
+  textDrawn = FALSE
+  textClearCountdown = 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def hline(addr, startByte, midByte, midSize, endByte)#0
   ^addr = startByte
   memset(addr+1, midByte, midSize)
@@ -1538,9 +1547,7 @@ export def showParty()#0
   loop
 
   // Finish up
-  if mapIs3D and texturesLoaded
-    copyWindow()
-  fin
+  if mapIs3D and texturesLoaded; copyWindow(); fin
   setWindow2()
   setCursor(cursX, cursY)
   needShowParty = FALSE
@@ -1571,6 +1578,7 @@ export def scriptEvent(event, param)#0
 
   setWindow2()
 
+  textDrawn = FALSE
   for i = 0 to nMapScripts-1
     script = mapScripts[i]
     argCount = getArgCount(script)
@@ -1583,9 +1591,14 @@ export def scriptEvent(event, param)#0
     fin
   next
 
+  if textDrawn
+    textClearCountdown = 3
+    if mapIs3D and texturesLoaded; copyWindow(); fin
+  fin
   clearPortrait()
   if needShowParty; showParty(); fin
   if global=>p_players=>w_health == 0; playerDeath(); fin
+
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1665,12 +1678,9 @@ def initMap(x, y, dir)#0
   mmgr(FINISH_LOAD, 0)
 
   // Clear all the windows to the background color (hi-bit set)
-  setWindow1()
-  clearWindow()
-  setWindow2()
-  clearWindow()
-  //setWindow3()  // not needed, because showParty() does it for us
-  //clearWindow()
+  // except window3 because showParty does it for us
+  setWindow1(); clearWindow()
+  setWindow2(); clearWindow()
 
   // Clear the list of encounter zones from any previous maps
   if allowZoneInit
@@ -1685,6 +1695,7 @@ def initMap(x, y, dir)#0
   texturesLoaded = TRUE
   needRender = FALSE
   textDrawn = FALSE
+  textClearCountdown = 0
   curEngine = NULL
   curPortrait = NULL
   curPortraitNum = 0
@@ -1748,7 +1759,6 @@ def doRender()#0
     fin
     texturesLoaded = TRUE
   fin
-  if textDrawn and mapIs3D and texturesLoaded; copyWindow(); fin
   render()
   needRender = FALSE
 end
@@ -1771,13 +1781,8 @@ def moveForward()#1
     fin
   fin
 
-  // If we're on a new map tile, clear text from script(s) on the old tile, and run leave handlers.
+  // If we're on a new map tile, run leave handlers.
   if val >= 2
-    if textDrawn
-      clearWindow()
-      if mapIs3D and texturesLoaded; copyWindow(); fin
-      textDrawn = FALSE
-    fin
     scriptEvent(@S_LEAVE, NULL)
     nMapScripts = 0
   fin
@@ -1917,7 +1922,6 @@ export def setMap(is3D, num, x, y, dir)#0
     flipToPage1()
     showMapName("Traveling...")
     setMapWindow(); clearWindow()
-    setWindow2();   clearWindow()
     mapIs3D = is3D
     mapNum = num
     allowZoneInit = TRUE
@@ -1959,7 +1963,13 @@ def kbdLoop()#0
     key = getUpperKey()
     if key >= 0 and key < $60
       func = cmdTbl[key]
-      if func; func(); fin
+      if func
+        if textClearCountdown
+          textClearCountdown--
+          if !textClearCountdown; clearTextWindow(); fin
+        fin
+        func()
+      fin
     fin
     if q_mapNum
       setMap(q_mapIs3D, q_mapNum, q_x, q_y, q_dir)
@@ -2029,11 +2039,12 @@ export def scriptDisplayStr(str)#0
   if pIntimate
     pIntimate=>intimate_displayStr(str)
   else
-    textDrawn = TRUE
+    if textClearCountdown; clearTextWindow(); fin
     if renderLoaded; flipToPage1(); fin
     displayStr(str)
+    textDrawn = TRUE
   fin
-  ^kbdStrobe
+  pause(800)
   // No: tossString()  // Doesn't work here, because we need to toss strings in the *parent's* frame
 end
 
@@ -2059,9 +2070,7 @@ export def getYN()#1
     if key == 'Y'
       return 1
     elsif key == 'N'
-      clearWindow()
-      if textDrawn and mapIs3D; clearWindow(); fin
-      textDrawn = FALSE
+      clearTextWindow()
       break
     fin
     beep()
@@ -2084,7 +2093,6 @@ def showAnimFrame()#0
     blit(curFullscreenImg + 2, getScreenLine(0), 192, 40) // the +2 is to skip anim hdr offset
     needRender = FALSE  // suppress display of map for this frame
   elsif mapIs3D
-    if textDrawn and mapIs3D and texturesLoaded; copyWindow(); fin
     render()
   fin
 end
@@ -2153,9 +2161,6 @@ export def setPortrait(portraitNum)#0
 
   // And show the first frame
   showAnimFrame()
-
-  // Clear the keyboard strobe in case the player was moving at high speed
-  ^kbdStrobe
 
   // Do not render over the portrait
   needRender = FALSE
@@ -2282,7 +2287,7 @@ def returnFromEngine(render)#0
     clearPortrait()
     if renderLoaded; texControl(1); texturesLoaded = TRUE; fin
     mapNameHash = 0; showMapName(global=>s_mapName)
-    setWindow2(); clearWindow()
+    clearTextWindow()
     if render; doRender(); fin
     showParty()
     setWindow2()  // in case we're mid-script
@@ -2471,10 +2476,10 @@ def toggleGodMode()#1
     if ^kbd == $84  // ctrl-D
       ^kbdStrobe
       global->b_godmode = !global->b_godmode
-      flipToPage1()
+      clearTextWindow()
       displayf1("gm:%d\n", global->b_godmode & 1)
-      textDrawn = TRUE
       beep; beep
+      clearTextWindow()
       saveMapPos(); restoreMapPos()  // reload everything, including god module
     fin
   fin

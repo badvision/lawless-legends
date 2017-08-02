@@ -586,11 +586,11 @@ ZERO 	DEX
 CFFB	LDA	#$FF
     !BYTE $2C	; BIT $00A9 - effectively skips LDA #$00, no harm in reading this address
 CB	LDA	#$00
- 	DEX
+	DEX
+	STA	ESTKH,X
 	+INC_IP
 	LDA	(IP),Y
 	STA	ESTKL,X
-	STA	ESTKH,X
 	JMP	NEXTOP
 ;*
 ;* LOAD ADDRESS & LOAD CONSTANT WORD (SAME THING, WITH OR WITHOUT FIXUP)

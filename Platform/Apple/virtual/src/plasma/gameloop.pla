@@ -2044,7 +2044,6 @@ export def scriptDisplayStr(str)#0
     displayStr(str)
     textDrawn = TRUE
   fin
-  pause(800)
   // No: tossString()  // Doesn't work here, because we need to toss strings in the *parent's* frame
 end
 

@@ -332,8 +332,7 @@ NoIUlin	EOR #$FF
 	AND MskByte	;these 8 lines of code added 9/29/2014 to
 	JMP NoTUlin	;mask off non-plotted XORed bits
 
-InvSkp1	STA Byt2nd
-	LDX UndTx_Flg	;underline flag
+InvSkp1	LDX UndTx_Flg	;underline flag
 	BEQ NoTUlin
 	CPY #8
 	BNE NoTUlin
@@ -1490,7 +1489,8 @@ GetParm	TXA		;restore alpha char
 	STY Flg_FBc	;clear Fore/Bkgnd clr flag
 	BCC Wp_StClr	;set color
 ;and carry is set from here down
-Wpr_02	DEY 		;3=Special Character
+Wpr_02	DEY
+	DEY 		;3=Special Character
 	BEQ Wp_eChar
 Wpr_03	DEY 		;4=Change Font
 	BEQ Wp_CFnt
@@ -1501,7 +1501,6 @@ Wpr_05	DEY 		;6=VTAB
 Wpr_06	DEY 		;7=Change Char/Ticker Rate
 	BNE Wpr_Clr
 	JMP Wp_cRate
-	RTS
 Wpr_Clr	LDX #0 		;clear the wait parameter flags
 	STX Flg_Prm2
 	STX Wp_Dig1
@@ -1544,14 +1543,7 @@ Wp_eChr1 CLC
 	JMP PlotFnt	;plot the character
 
 ;Change Font
-Wp_CFnt	SBC #$30	;change Chr"#" to Val#
-	AND #$03	;mask off digit
-;;pf: this CMP is broken
-	CMP #4
-	BEQ Wp_CfDn
-; STA Slct_Fnt	;store the font selection
-; JSR SetFTBA	;update table parameters
-Wp_CfDn	RTS 		;JMP Wpr_Clr
+Wp_CFnt	BRK		; not currently supported
 
 ;** Do Tabs ** revised 6/30/2015 by AJH
 ;hTab - sets plot cursor column {0..279} 2-byte

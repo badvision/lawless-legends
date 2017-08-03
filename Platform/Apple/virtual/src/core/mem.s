@@ -2680,7 +2680,7 @@ advanceAnims: !zone {
 	sta pTmp+1
 	ldy #1
 	lda (pTmp),y	; check anim header offset
-;;pf: dey missing here?
+	dey		; (pf was right - dey was missing here)
 	ora (pTmp),y
 	beq .next	; if zero, resource is not animated
 	txa		; save link number we're scanning

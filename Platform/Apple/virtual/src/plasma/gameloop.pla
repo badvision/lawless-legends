@@ -1661,11 +1661,11 @@ end
 def showCompassDir(dir)#0
   word tile
   word screenAdr
-  if dir < 2; tile = COMPASS_NORTH
-  elsif dir < 6; tile = COMPASS_EAST
-  elsif dir < 10; tile = COMPASS_SOUTH
-  elsif dir < 14; tile = COMPASS_WEST
-  else tile = COMPASS_NORTH; fin
+  if dir < 2; tile = COMPASS_EAST
+  elsif dir < 6; tile = COMPASS_SOUTH
+  elsif dir < 10; tile = COMPASS_WEST
+  elsif dir < 14; tile = COMPASS_NORTH
+  else tile = COMPASS_EAST; fin
   tile = pGlobalTileset + (tile<<5)
   screenAdr = getScreenLine(168)+4
   blit(0, tile, screenAdr, 16, 2)

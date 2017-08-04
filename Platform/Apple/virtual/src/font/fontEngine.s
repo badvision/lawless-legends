@@ -1703,21 +1703,30 @@ NxtScLn	LDY pTmp+1
 	INY
 	INY
 	INY
-	CPY #$40
-	BCC .ok2
 	TYA
+	EOR pTmp+1 ; compare to old value
+	AND #$20  ; still on same hi-res page?
+	BEQ .ok   ; yes, done
+	TYA       ; no, move back to next block on pg
+	SEC
 	SBC #$20  ; carry already set
 	TAY
 	LDA pTmp
 	EOR #$80
+	STA pTmp
 	BMI .ok
 	INY
-	CPY #$24
-	BCC .ok
-	LDY #$20
+	TYA
+	AND #4
+	BEQ .ok
+	DEY
+	DEY
+	DEY
+	DEY
+	LDA pTmp
 	ADC #$27  ; carry was set, so actually adding $28
-.ok	STA pTmp
-.ok2	STY pTmp+1
+	STA pTmp
+.ok	STY pTmp+1
 	RTS
 
 HgrTbHi !byte $20,$24,$28,$2C,$30,$34,$38,$3C

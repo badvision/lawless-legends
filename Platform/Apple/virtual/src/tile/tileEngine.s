@@ -853,16 +853,19 @@ ROW_OFFSET = 3
 	STA AVATAR_SECTION
 	LDA DRAW_SECTION + 1
 	STA AVATAR_SECTION + 1
+	LDA #0
+	STA .tsadd+1
+	LDY #5			; 32 bytes per tile
 	LDA PLAYER_TILE		; get tile number
-	ASL			; 32 bytes per tile
-	ASL
-	ASL
-	ASL
-	ASL
+-	ASL
+	ROL .tsadd+1
+	DEY
+	BNE -
+	CLC
 	ADC GLOBAL_TILESET_LOC
 	TAY
 	LDA GLOBAL_TILESET_LOC+1
-	ADC #0
+.tsadd	ADC #0			; self-modified above
 	BNE .store_src		; always taken
 .notAvatar
 	LDA DRAW_SECTION+1

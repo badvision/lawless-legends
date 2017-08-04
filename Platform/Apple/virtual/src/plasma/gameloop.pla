@@ -94,6 +94,7 @@ byte allowZoneInit = FALSE
 word curEngine = NULL
 word pIntimate = NULL
 word pResourceIndex = NULL
+word pGlobalTileset = NULL
 byte curMapPartition = 0
 export word pGodModule = NULL
 
@@ -484,8 +485,8 @@ export asm finishString(isPlural)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-asm blit(srcData, dstScreenPtr, nLines, lineSize)#0
-  +asmPlasmNoRet 4
+asm blit(isAux, srcData, dstScreenPtr, nLines, lineSize)#0
+  +asmPlasmNoRet 5
 
   ; Save line size
   sta ysav
@@ -506,7 +507,11 @@ asm blit(srcData, dstScreenPtr, nLines, lineSize)#0
   lda evalStkH+3,x
   sta tmp+1
 
-  ; Create the following subroutine, used to copy pixels from aux to main:
+  ; Save aux/main flag
+  lda evalStkL+4,x
+  lsr                 ; to carry bit
+  bcc +
+  ; If reading from aux, create the following subroutine:
   ; 0010-   8D 03 C0    STA   $C003
   ; 0013-   B1 02       LDA   ($02),Y
   ; 0015-   91 04       STA   ($04),Y
@@ -539,12 +544,21 @@ asm blit(srcData, dstScreenPtr, nLines, lineSize)#0
   sta $19
   lda #$60
   sta $1D
-
-  pla       ; line count
++ pla       ; get line count
   tax
-- ldy ysav  ; byte count minus 1. There are 18 bytes per line
+--
+  ldy ysav  ; get byte count
   dey
-  jsr $10   ; copy pixel bytes
+  bcc +
+  jsr $10   ; copy pixel bytes (aux version)
+  bcs ++
++
+- lda (tmp),y
+  sta (pTmp),y
+  dey
+  bpl -
+++
+  php
   lda tmp   ; advance to next row of data
   clc
   adc ysav
@@ -552,8 +566,9 @@ asm blit(srcData, dstScreenPtr, nLines, lineSize)#0
   bcc +
   inc tmp+1
 + jsr NextScreenLine  ; and next screen line
+  plp
   dex
-  bne -     ; Loop until we've done all rows.
+  bne --     ; Loop until we've done all rows.
   rts
 end
 
@@ -1643,6 +1658,21 @@ export def loadMainFrameImg()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def showCompassDir(dir)#0
+  word tile
+  word screenAdr
+  if dir < 2; tile = COMPASS_EAST
+  elsif dir < 6; tile = COMPASS_SOUTH
+  elsif dir < 10; tile = COMPASS_WEST
+  elsif dir < 14; tile = COMPASS_NORTH
+  else tile = COMPASS_EAST; fin
+  tile = pGlobalTileset + (tile<<5)
+  screenAdr = getScreenLine(168)+4
+  blit(0, tile, screenAdr, 16, 2)
+  blit(0, tile, screenAdr+$2000, 16, 2)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load code and data, set up everything to display a 2D or 3D map
 def initMap(x, y, dir)#0
   word pMap
@@ -1675,6 +1705,7 @@ def initMap(x, y, dir)#0
   curMapPartition = lookupResourcePart(mapIs3D+1, mapNum)
   mmgr(START_LOAD, curMapPartition)
   pMap = mmgr(QUEUE_LOAD, mapNum<<8 | (RES_TYPE_2D_MAP+mapIs3D))
+  pGlobalTileset = mmgr(QUEUE_LOAD, 1<<8 | RES_TYPE_TILESET)  // even in 3d, need tiles for compass/clock/etc.
   mmgr(FINISH_LOAD, 0)
 
   // Clear all the windows to the background color (hi-bit set)
@@ -1704,6 +1735,7 @@ def initMap(x, y, dir)#0
     setAvatar(global->b_curAvatar)
     doRender()
   fin
+  if mapIs3D; showCompassDir(dir); fin
 
   // Assume there might be animations until we learn otherwise
   anyAnims = TRUE  // for now; might get cleared if we discover otherwise on advance
@@ -1804,10 +1836,12 @@ def moveForward()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Adjust player's direction plus or minus n increments
+// Adjust player's direction plus or minus n increments; returns new dir
 def adjustDir(n)#1
-  setDir((getDir() + n) & 15)
-  return 0
+  byte dir
+  dir = (getDir() + n) & 15
+  setDir(dir)
+  return dir
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1836,14 +1870,16 @@ end
 // Turn left (3D mode)
 def rotateLeft()#1
   needRender = TRUE
-  return adjustDir(-1)
+  showCompassDir(adjustDir(-1))
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Rotate to the right (3D mode)
 def rotateRight()#1
   needRender = TRUE
-  return adjustDir(1)
+  showCompassDir(adjustDir(1))
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2083,13 +2119,13 @@ def showAnimFrame()#0
   if curPortrait
     // Blit portrait to the appropriate area on the screen
     if frameLoaded == 3  // 3D-mode frame? Note: don't check mapIs3D, because we might be in an engine
-      blit(curPortrait + 2, getScreenLine(24)+2, 128, 18)  // start at 3rd text line
+      blit(1, curPortrait + 2, getScreenLine(24)+2, 128, 18)  // start at 3rd text line
     else
-      blit(curPortrait + 2, getScreenLine(32)+2, 128, 18)  // start at 4th text line
+      blit(1, curPortrait + 2, getScreenLine(32)+2, 128, 18)  // start at 4th text line
     fin
     needRender = FALSE  // suppress display of map for this frame
   elsif curFullscreenImg
-    blit(curFullscreenImg + 2, getScreenLine(0), 192, 40) // the +2 is to skip anim hdr offset
+    blit(1, curFullscreenImg + 2, getScreenLine(0), 192, 40) // the +2 is to skip anim hdr offset
     needRender = FALSE  // suppress display of map for this frame
   elsif mapIs3D
     render()

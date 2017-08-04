@@ -71,6 +71,9 @@ class A2PackPartitions
     def tiles     = [:]  // tile id to tile.buf
     def tileSets  = [:]  // tileset name to tileset.num, tileset.buf
     def avatars   = [:]  // avatar tile name to tile num (within the special tileset)
+    def compassTiles = [:] // compass direction (north, east, south, west) to tile num (within global tileset)
+    def clockTiles = [:] // clock time (e.g. 12:00, 1:30) to tile num (within global tileset)
+    def lampTiles = []   // animated series of lamp tiles
     def textures  = [:]  // img name to img.num, img.buf
     def frames    = [:]  // img name to img.num, img.buf
     def portraits = [:]  // img name to img.num, img.buf
@@ -838,16 +841,36 @@ class A2PackPartitions
         tiles[imgEl.@id] = buf
     }
 
-    /** Identify the avatars and number them */
-    def numberAvatars(dataIn)
+    /** Identify the avatars and other global tiles, and number them */
+    def numberGlobalTiles(dataIn)
     {
-        def nFound = 0
-        dataIn.tile.sort{it.@name.toLowerCase()}.each { tile ->
-            def name = tile.@name
-            if (name.toLowerCase().contains("avatar"))
-                avatars[name.toLowerCase().trim().replaceAll(/\s*-\s*[23][dD]\s*/, "")] = nFound++
+        def tileNum = 0
+        dataIn.tile.sort{(it.@category + it.@name).toLowerCase()}.each { tile ->
+            def lname = tile.@name.toLowerCase().trim().replaceAll(/\s*-\s*[23][dD]\s*/, "")
+            def cat = tile.@category.toLowerCase().trim()
+            if (cat == "avatar")
+                avatars[lname] = tileNum++
+            else if (cat == "compass") {
+                for (def dir : ['north', 'east', 'south', 'west']) {
+                    if (lname.contains(dir)) {
+                        compassTiles[dir] = tileNum++
+                        break
+                    }
+                }
+            }
+            else if (cat == "clock") {
+                for (def time : ['12:00', '1:30', '3:00', '4:30', '6:00', '7:30', '9:00', '10:30']) {
+                    if (lname.contains(time)) {
+                        clockTiles[time] = tileNum++
+                        break
+                    }
+                }
+            }
+            else if (cat == "lamp") {
+                lampTiles << tileNum++
+            }
         }
-        assert nFound >= 1 : "Need at least one 'Avatar' tile."
+        assert avatars.size() >= 1 : "Need at least one tile in 'Avatar' category."
     }
 
     /** Pack the global tiles, like the player avatar, into their own tile set. */
@@ -861,13 +884,13 @@ class A2PackPartitions
         def buf = ByteBuffer.allocate(50000)
 
         // Add each special tile to the set
-        dataIn.tile.sort{it.@name.toLowerCase()}.each { tile ->
+        dataIn.tile.sort{(it.@category + it.@name).toLowerCase()}.each { tile ->
             def name = tile.@name
             def id = tile.@id
             def data = tiles[id]
-            if (name.toLowerCase().contains("avatar")) {
+            def cat = tile.@category.toLowerCase().trim()
+            if (cat == "avatar" || cat == "compass" || cat == "clock" || cat == "lamp") {
                 def num = tileMap.size()
-                avatars[name.toLowerCase().trim().replaceAll(/\s*-\s*[23][dD]\s*/, "")] = num
                 tileIds.add(id)
                 tileMap[id] = num
                 data.flip() // crazy stuff to append one buffer to another
@@ -2127,7 +2150,7 @@ class A2PackPartitions
         }
 
         // Pack the global tile set before other tile sets (contains the player avatar, etc.)
-        numberAvatars(dataIn)
+        numberGlobalTiles(dataIn)
         packGlobalTileSet(dataIn)
 
         // Divvy up the images by category
@@ -3065,6 +3088,9 @@ end
         def oldSep = System.getProperty("line.separator")
         System.setProperty("line.separator", "\n")
 
+        // We have to identify and number the global tiles before generating the image header.
+        numberGlobalTiles(dataIn)
+
         // Translate image names to constants and symbol names
         new File("build/src/plasma").mkdirs()
         new File("build/src/plasma/gen_images.plh.new").withWriter { out ->
@@ -3091,13 +3117,22 @@ end
                 }
             }
             out.println "const PF_LAST = $frameNum"
+
+            out.println ""
+            for (def dir : ["north", "east", "south", "west"])
+                out.println "const COMPASS_${dir.toUpperCase()} = ${compassTiles.containsKey(dir) ? compassTiles[dir] : -1}"
+
+            out.println ""
+            for (def time : ['12:00', '1:30', '3:00', '4:30', '6:00', '7:30', '9:00', '10:30'])
+                out.println "const CLOCK_${time.replace(':', '_')} = ${clockTiles.containsKey(time) ? clockTiles[time] : -1}"
+
+            out.println ""
+            out.println "const BASE_AVATAR = ${avatars.values()[0]}"
         }
         replaceIfDiff("build/src/plasma/gen_images.plh")
 
-        // Before we can generate global script code, we need to identify and number
-        // all the maps. Same with avatars.
+        // Before we can generate global script code, we need to identify and number all the maps.
         numberMaps(dataIn)
-        numberAvatars(dataIn)
 
         // Form the translation from item name to function name (and ditto
         // for players)

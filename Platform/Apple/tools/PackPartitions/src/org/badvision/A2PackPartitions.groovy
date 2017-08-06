@@ -2906,6 +2906,13 @@ end
         sheets.find { it?.@name.equalsIgnoreCase("players") }.rows.row.each { row ->
             if (row.@name && row.@"starting-party")
                 funcs << ["NPl_${humanNameToSymbol(row.@name, false)}", funcs.size, row]
+            // While we're at it, add each skill to the set of stats that can be set/gotten
+            row.attributes().sort().each { name, val ->
+                if (name =~ /^skill-(.*)/) {
+                    name = titleCase(name.replace("skill-", ""))
+                    stats[name] = escapeString(name)
+                }
+            }
         }
 
         // Global mapping of player name to function, so that add/remove functions can work.

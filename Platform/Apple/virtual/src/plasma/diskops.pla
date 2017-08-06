@@ -270,21 +270,62 @@ def _loadGame()#1
   return 0
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def isNameChar(ch)
+  when ch
+    is '.'
+    is ','
+    is '-'
+    is '\''
+    is ' '
+      return TRUE
+  wend
+  if ch >= 'A' and ch <= 'Z'; return TRUE; fin
+  if ch >= '0' and ch <= '9'; return TRUE; fin
+  return FALSE
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def isValidName(name)
+  byte len, c
+  len = ^name
+  if !len; return FALSE; fin
+  if ^(name+1) == ' '; return FALSE; fin // don't allow space at start
+  while len > 0
+    len--
+    name++
+    c = charToUpper(^name)
+    if c == ' ' and len == 0; return FALSE; fin // don't allow space at end
+    if !isNameChar(c); return FALSE; fin
+  loop
+  return TRUE
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def getCharacterName()#0
   word cursX, cursY
-  displayStr("\nCharacter name?\n")
-  cursX, cursY = getCursor()
-  setWindow(cursY+24, cursY+24+18, cursX+154, cursX+154+62)
-  clearWindow()
-  global=>p_players=>s_name = getStringResponse()
-  setWindow2()
-  setCursor(cursX, cursY)
+  while TRUE
+    displayStr("Character name?\n")
+    cursX, cursY = getCursor()
+    setWindow(cursY+24, cursY+24+18, cursX+154, cursX+154+62)
+    clearWindow()
+    global=>p_players=>s_name = getStringResponse()
+    setWindow2()
+    setCursor(cursX, cursY)
+    if isValidName(global=>p_players=>s_name); break; fin
+    displayStr("\nInvalid name.\n\n")
+    beep()
+  loop
 end
 
 def getCharacterGender()#0
-  displayStr("\n\nGender? (M/F/N/...) \n")
-  global=>p_players->c_gender = getUpperKey()
-  displayChar(global=>p_players->c_gender)
+  byte gender
+  repeat
+    displayStr("\n\nGender? (M/F/N/...) \n")
+    gender = getUpperKey()
+    displayChar(gender)
+  until gender >= 'A' and gender <= 'Z'
+  global=>p_players->c_gender = gender
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -303,6 +344,7 @@ def newGame()#0
   showMapName("New game")
   setWindow2()
   newGameModule()()
+  clearWindow()
   getCharacterName()
   getCharacterGender()
   if global=>p_players->b_skillPoints

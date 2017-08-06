@@ -2911,6 +2911,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def getStat(player, statName)#1
+  word pSkill
   when statName
     is @S_INTELLIGENCE; return player->b_intelligence
     is @S_STRENGTH; return player->b_strength
@@ -2928,6 +2929,11 @@ export def getStat(player, statName)#1
     is @S_XP; return player=>w_curXP
     is @S_SP; return player->b_skillPoints
   wend
+  pSkill = player=>p_skills
+  while pSkill
+    if streqi(statName, pSkill=>s_name); return pSkill=>w_modValue; fin
+    pSkill = pSkill=>p_nextObj
+  loop
   puts(statName); return fatal("Unknown stat")
 end
 
@@ -2946,6 +2952,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def setStat(player, statName, val)#0
+  word pSkill
   when statName
     is @S_INTELLIGENCE; player->b_intelligence = clampByte(val); break
     is @S_STRENGTH; player->b_strength = clampByte(val); break
@@ -2960,8 +2967,17 @@ export def setStat(player, statName, val)#0
     is @S_HAND_TO_HAND; player->b_handToHand = clampByte(val); break
     is @S_DODGING; player->b_dodging = clampByte(val); break
     is @S_GOLD; global=>w_gold = max(0, val); needShowParty = TRUE; break
-    is @S_SP; global->b_skillPoints = max(0, val); needShowParty = TRUE; break
+    is @S_XP; player=>w_curXP = max(player=>w_curXP, val); needShowParty = TRUE; break
+    is @S_SP; player->b_skillPoints = max(0, val); needShowParty = TRUE; break
     otherwise
+      pSkill = player=>p_skills
+      while pSkill
+        if streqi(statName, pSkill=>s_name)
+          pSkill=>w_modValue = max(0, val)
+          return
+        fin
+        pSkill = pSkill=>p_nextObj
+      loop
       puts(statName); fatal("Unknown stat")
   wend
 end

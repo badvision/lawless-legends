@@ -257,12 +257,14 @@ def showSkills(player)#0
     x2 = STAT_X - 40
   fin
   showColumnTitle(25, "Skills", 0, 0)
-  displaySkill(x1, @S_AIMING, player+b_aiming, TRUE)
-  displaySkill(x1, @S_HAND_TO_HAND, player+b_handToHand, TRUE)
-  displaySkill(x1, @S_DODGING, player+b_dodging, TRUE)
+  if player->b_aiming; displaySkill(x1, @S_AIMING, @player->b_aiming, TRUE); fin
+  if player->b_handToHand; displaySkill(x1, @S_HAND_TO_HAND, @player->b_handToHand, TRUE); fin
+  if player->b_dodging; displaySkill(x1, @S_DODGING, @player->b_dodging, TRUE); fin
   skill = player=>p_skills
   while skill
-    displaySkill(x1, skill=>s_name, skill+w_modValue, TRUE)
+    if skill=>w_modValue > 0
+      displaySkill(x1, skill=>s_name, skill+w_modValue, TRUE)
+    fin
     skill = skill=>p_nextObj
   loop
 

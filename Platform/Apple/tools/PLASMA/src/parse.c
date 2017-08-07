@@ -1478,7 +1478,7 @@ int parse_mods(void)
     emit_moddep(0, 0);
     return (0);
 }
-int parse_lambda(void)
+iint parse_lambda(void)
 {
     int func_tag;
     int cfnparms;
@@ -1494,7 +1494,6 @@ int parse_lambda(void)
      * Parse parameters and return value count
      */
     cfnparms = 0;
-    func_tag = tag_new(DEF_TYPE);
     if (scan() == OPEN_PAREN_TOKEN)
     {
         do
@@ -1536,18 +1535,24 @@ int parse_lambda(void)
         lambda_seq[lambda_cnt] = parse_expr(NULL, NULL);
         scan_rewind(tokenstr);
     }
-    lambda_cparams[lambda_cnt] = cfnparms;
-    lambda_tag[lambda_cnt]     = func_tag;
     sprintf(lambda_id[lambda_cnt], "_LAMBDA%04d", lambda_num++);
     if (idglobal_lookup(lambda_id[lambda_cnt], strlen(lambda_id[lambda_cnt])) >= 0)
+    {
+        func_tag = lambda_tag[lambda_cnt];
         idfunc_set(lambda_id[lambda_cnt], strlen(lambda_id[lambda_cnt]), DEF_TYPE | funcparms_type(cfnparms), func_tag); // Override any predef type & tag
+    }
     else
+    {
+        func_tag = tag_new(DEF_TYPE);
+        lambda_tag[lambda_cnt]     = func_tag;
+        lambda_cparams[lambda_cnt] = cfnparms;
         idfunc_add(lambda_id[lambda_cnt], strlen(lambda_id[lambda_cnt]), DEF_TYPE | funcparms_type(cfnparms), func_tag);
+    }
     lambda_cnt++;
     idlocal_restore();
     return (func_tag);
 }
-int parse_defs(void)
+nt parse_defs(void)
 {
     char c, *idstr;
     int idlen, func_tag, cfnparms, cfnvals, type = GLOBAL_TYPE, pretype;

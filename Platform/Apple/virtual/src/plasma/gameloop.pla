@@ -1804,7 +1804,7 @@ def moveForward()#1
 
   // If not blocked, render at the new position.
   if val == 0
-    beep()
+    if !skipEncounterCheck; beep(); fin
   else
     if !mapIs3D
       doRender()
@@ -1813,24 +1813,27 @@ def moveForward()#1
     fin
   fin
 
-  // If we're on a new map tile, run leave handlers.
-  if val >= 2
-    scriptEvent(@S_LEAVE, NULL)
-    nMapScripts = 0
-  fin
+  if !skipEncounterCheck
 
-  // If there are script(s) on the new tile, run them.
-  if val == 3
-    getPos(@x, @y)
-    scanScripts(x, y)
-    if nMapScripts
-      scriptEvent(@S_ENTER, NULL)
-    elsif global=>p_encounterZones and !skipEncounterCheck
+    // If we're on a new map tile, run leave handlers from old tile.
+    if val >= 2
+      scriptEvent(@S_LEAVE, NULL)
+      nMapScripts = 0
+    fin
+
+    // If there are script(s) on the new tile, run them.
+    if val == 3
+      getPos(@x, @y)
+      scanScripts(x, y)
+      if nMapScripts
+        scriptEvent(@S_ENTER, NULL)
+      elsif global=>p_encounterZones
+        checkEncounter(x, y, FALSE)
+      fin
+    elsif val >= 2 and global=>p_encounterZones
+      getPos(@x, @y)
       checkEncounter(x, y, FALSE)
     fin
-  elsif val >= 2 and global=>p_encounterZones and !skipEncounterCheck
-    getPos(@x, @y)
-    checkEncounter(x, y, FALSE)
   fin
   return 0
 end
@@ -3069,6 +3072,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Main code.
 //
+^$25 = 23
 loadTitle()
 startGame(TRUE) // ask whether new or load
 kbdLoop()

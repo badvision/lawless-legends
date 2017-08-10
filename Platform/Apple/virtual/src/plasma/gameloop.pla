@@ -78,7 +78,7 @@ byte texturesLoaded = FALSE
 byte textDrawn = FALSE
 byte textClearCountdown = 0
 byte isPlural = FALSE
-byte skipEncounterCheck = FALSE
+byte inScript = FALSE
 
 export word skyNum = 9
 export word groundNum = 10
@@ -1591,6 +1591,9 @@ export def scriptEvent(event, param)#0
   word script
   if !nMapScripts; return; fin
 
+  if inScript; return; fin // avoid doing scripted events inside other scripts
+  inScript = TRUE 
+
   setWindow2()
 
   textDrawn = FALSE
@@ -1605,6 +1608,8 @@ export def scriptEvent(event, param)#0
       script(event, param)
     fin
   next
+  
+  inScript = FALSE
 
   if textDrawn
     textClearCountdown = 3
@@ -1796,15 +1801,17 @@ def doRender()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Advance one step forward (works for either 3D or 2D maps)
-def moveForward()#1
+def moveInternal(facingDir, moveDir, beepOK)#1
   byte val
   word x, y
+
+  setDir(moveDir)
   val = advance()
+  setDir(facingDir)
 
   // If not blocked, render at the new position.
   if val == 0
-    if !skipEncounterCheck; beep(); fin
+    if beepOK and !inScript; beep(); fin // don't beep for scripted moves
   else
     if !mapIs3D
       doRender()
@@ -1813,29 +1820,34 @@ def moveForward()#1
     fin
   fin
 
-  if !skipEncounterCheck
+  // If we're on a new map tile, run leave handlers from old tile.
+  if val >= 2
+    scriptEvent(@S_LEAVE, NULL)
+    nMapScripts = 0
+  fin
 
-    // If we're on a new map tile, run leave handlers from old tile.
-    if val >= 2
-      scriptEvent(@S_LEAVE, NULL)
-      nMapScripts = 0
-    fin
-
-    // If there are script(s) on the new tile, run them.
-    if val == 3
-      getPos(@x, @y)
-      scanScripts(x, y)
-      if nMapScripts
-        scriptEvent(@S_ENTER, NULL)
-      elsif global=>p_encounterZones
-        checkEncounter(x, y, FALSE)
-      fin
-    elsif val >= 2 and global=>p_encounterZones
-      getPos(@x, @y)
+  // If there are script(s) on the new tile, run them.
+  if val == 3
+    getPos(@x, @y)
+    scanScripts(x, y)
+    if nMapScripts
+      scriptEvent(@S_ENTER, NULL)
+    elsif global=>p_encounterZones
       checkEncounter(x, y, FALSE)
     fin
+  elsif val >= 2 and global=>p_encounterZones
+    getPos(@x, @y)
+    checkEncounter(x, y, FALSE)
   fin
-  return 0
+  return val
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Advance one step forward (works for either 3D or 2D maps)
+def moveForward()#1
+  byte dir
+  dir = getDir()
+  moveInternal(dir, dir, TRUE)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1850,23 +1862,25 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Move backward one step (3D mode). Also actually works in 2D mode.
 def moveBackward()#1
-  adjustDir(8)
-  moveForward()
-  return adjustDir(8)
+  byte facingDir, moveDir
+  facingDir = getDir()
+  moveDir = (facingDir + 8) & 15
+  moveInternal(facingDir, moveDir, TRUE)
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Move backward two steps (3D mode), or one step (2D mode). This is often used when exiting a
 // building or fleeing combat, so we don't want to generate any random encounters.
 export def moveWayBackward()#1
-  adjustDir(8)
-  skipEncounterCheck = TRUE
-  moveForward()
+  byte facingDir, moveDir
+  facingDir = getDir()
+  moveDir = (facingDir + 8) & 15
+  moveInternal(facingDir, moveDir, FALSE)
   if mapIs3D
-    moveForward()
+    moveInternal(facingDir, moveDir, FALSE)
   fin
-  skipEncounterCheck = FALSE
-  return adjustDir(8)
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1888,17 +1902,19 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Sidestep to the right (3D mode)
 def strafeRight()#1
-  adjustDir(4)
-  moveForward()
-  return adjustDir(-4)
+  byte facingDir, moveDir
+  facingDir = getDir()
+  moveDir = (facingDir + 4) & 15
+  return moveInternal(facingDir, moveDir, FALSE)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Sidestep to the left (3D mode)
 def strafeLeft()#1
-  adjustDir(-4)
-  moveForward()
-  return adjustDir(4)
+  byte facingDir, moveDir
+  facingDir = getDir()
+  moveDir = (facingDir - 4) & 15
+  return moveInternal(facingDir, moveDir, FALSE)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2457,6 +2473,9 @@ export def checkEncounter(x, y, force)#0
   word p
   word p_bestZone, bestDist
   word d
+
+  // Don't check for encounter during scripted move
+  if inScript; return; fin
 
   // Find the zone that's closest, but not too far.
   bestDist = INT_MAX

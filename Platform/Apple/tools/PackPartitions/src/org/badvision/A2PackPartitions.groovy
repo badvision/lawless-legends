@@ -4009,6 +4009,10 @@ end
             }
         }
 
+        def packLogicNegate(blk) {
+            out << "!("; packExpr(getSingle(blk.value, "BOOL").block[0]); out << ")"
+        }
+
         def packMathArithmetic(blk)
         {
             def op = getSingle(blk.field, "OP").text()
@@ -4077,6 +4081,9 @@ end
                     break
                 case 'logic_operation':
                     packLogicOperation(blk)
+                    break
+                case 'logic_negate':
+                    packLogicNegate(blk)
                     break
                 case 'variables_get':
                     packVarGet(blk)

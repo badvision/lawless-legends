@@ -58,15 +58,19 @@ word           = @_displayItemStats, @_displayItemName
 
 // Other global variables here
 
+def travFind2(pObj, val,  func)
+  word ret
+  while pObj
+    val, ret = func(val, pObj)#2
+    if ret; return pObj; fin
+    pObj = pObj=>p_nextObj
+  loop
+  return NULL
+end
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def itemByNum(player, num)#1
-  word item
-  item = player=>p_items
-  while num
-    item = item=>p_nextObj
-    num--
-  loop
-  return item
+  return travFind2(player=>p_items, num, &(n,p)(n-1, n==0))
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

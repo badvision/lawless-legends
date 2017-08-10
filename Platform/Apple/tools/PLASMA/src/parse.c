@@ -1478,7 +1478,7 @@ int parse_mods(void)
     emit_moddep(0, 0);
     return (0);
 }
-iint parse_lambda(void)
+int parse_lambda(void)
 {
     int func_tag;
     int cfnparms;
@@ -1552,7 +1552,7 @@ iint parse_lambda(void)
     idlocal_restore();
     return (func_tag);
 }
-nt parse_defs(void)
+int parse_defs(void)
 {
     char c, *idstr;
     int idlen, func_tag, cfnparms, cfnvals, type = GLOBAL_TYPE, pretype;

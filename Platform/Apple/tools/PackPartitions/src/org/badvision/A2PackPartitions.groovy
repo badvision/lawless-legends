@@ -19,6 +19,7 @@ import java.nio.ByteBuffer
 import java.nio.channels.Channels
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
+import java.util.Calendar
 import java.util.zip.GZIPInputStream
 import java.util.LinkedHashMap
 import java.security.MessageDigest
@@ -771,6 +772,12 @@ class A2PackPartitions
 
         def key = kind + ":" + name
         cache[key] = [hash:hash, data:buf]
+    }
+
+    def updateEngineStamp(name, hash)
+    {
+        if (!cache.containsKey("engineStamp") || cache["engineStamp"].hash < hash)
+            cache["engineStamp"] = [hash:hash]
     }
 
     def grabEntireFromCache(kind, addTo, hash)
@@ -1560,12 +1567,42 @@ class A2PackPartitions
     }
 
     /**
+     * Make a compact representation of a timestamp, useful as a version number
+     */
+    def timestampToVersionNum(engineStamp, scenarioStamp)
+    {
+        Calendar cal = Calendar.getInstance()
+        cal.setTimeInMillis(engineStamp)
+        def year = cal.get(Calendar.YEAR)
+        def month = cal.get(Calendar.MONTH)
+        def day = cal.get(Calendar.DAY_OF_MONTH)
+        def hour = cal.get(Calendar.HOUR_OF_DAY)
+
+        def yearCode = year % 10
+        def monthCode = (month < 9) ? (char) (48+month+1) :
+                        month == 9 ? 'o' :
+                        month == 10 ? 'n' :
+                        'd'
+        def hourCode = (char) (65 + hour)
+        def engineCode = String.format("%d%c%02d%c", yearCode, monthCode, day, hourCode)
+
+        def offset = (int) ((scenarioStamp - engineStamp) / (1000 * 60 * 60))
+        return String.format("%s%s%d", engineCode, offset < 0 ? "-" : ".", Math.abs(offset))
+    }
+
+    /**
      * Make an index listing the partition number wherein each map and portrait can be found.
      */
     def addResourceIndex(part)
     {
         def tmp = ByteBuffer.allocate(5000)
 
+        // Start with the version number
+        def combinedVersion = timestampToVersionNum(cache["engineStamp"].hash, cache["scenarioStamp"].hash)
+        tmp.put((byte)(combinedVersion.length()))
+        combinedVersion.getBytes().each { b -> tmp.put((byte)b) }
+
+        // Then output 2D maps, 3d maps, and portraits
         tmp.put((byte) maps2D.size())
         maps2D.each { k, v ->
             tmp.put((byte) ((parseOrder(v.order) < 0) ? 255 : v.buf.partNum))
@@ -1859,6 +1896,7 @@ class A2PackPartitions
         def uncompData = readBinary(inDir + "build/" + codeName + ".b")
 
         addToCache("code", code, codeName, hash, compress(uncompData))
+        updateEngineStamp(codeName, hash)
     }
 
     def assembleCore(inDir)
@@ -1878,8 +1916,10 @@ class A2PackPartitions
                 def file = jitCopy(
                     new File("build/tools/${name=="PRORWTS" ? "ProRWTS/PRORWTS2" : "PLASMA/src/PLVM02"}#4000"))
                 hash = file.lastModified()
-                if (!grabFromCache("sysCode", sysCode, name, hash))
+                if (!grabFromCache("sysCode", sysCode, name, hash)) {
                     addToCache("sysCode", sysCode, name, hash, compress(readBinary(file.toString())))
+                    updateEngineStamp(name, hash)
+                }
             }
             else {
                 hash = getLastDep(new File(inDir, "${name}.s"))
@@ -1892,6 +1932,7 @@ class A2PackPartitions
                     addToCache("sysCode", sysCode, name, hash,
                         (name ==~ /loader|decomp/) ? [data:uncompData, len:uncompData.length, compressed:false]
                                                    : compress(uncompData))
+                    updateEngineStamp(name, hash)
                 }
             }
 
@@ -1952,6 +1993,8 @@ class A2PackPartitions
         addToCache("modules", modules, moduleName, hash, module)
         addToCache("bytecodes", bytecodes, moduleName, hash, bytecode)
         addToCache("fixups", fixups, moduleName, hash, fixup)
+        if (!(moduleName ==~ /.*(gs|gen)_.*/ || codeDir ==~ /.*mapScript.*/))
+            updateEngineStamp(moduleName, hash)
     }
 
     def readAllCode()
@@ -2127,10 +2170,13 @@ class A2PackPartitions
         addResourceDep("map", curMapName, toType, toName)
     }
 
-    def pack(xmlPath, dataIn)
+    def pack(xmlFile, dataIn)
     {
         // Save time by using cache of previous run
         readCache()
+
+        // Record scenario timestamp
+        cache["scenarioStamp"] = [hash: xmlFile.lastModified()]
 
         // Record global script names
         recordGlobalScripts(dataIn)
@@ -3088,7 +3134,7 @@ end
         return [name.trim(), animFrameNum, animFlags]
     }
 
-    def dataGen(xmlPath, dataIn)
+    def dataGen(xmlFile, dataIn)
     {
         // When generating code, we need to use Unix linebreaks since that's what
         // the PLASMA compiler expects to see.

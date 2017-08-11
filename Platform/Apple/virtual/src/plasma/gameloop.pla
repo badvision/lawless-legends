@@ -1365,9 +1365,9 @@ def lookupResourcePart(sectionNum, resourceNum)#1
   word ptr
   byte n
 
-  // Skip to the requested section
+  // Skip to the requested section (starting just after version num)
   ptr = pResourceIndex
-  while sectionNum > 1
+  while sectionNum > 0
     ptr = ptr + readAuxByte(ptr) + 1
     sectionNum--
   loop
@@ -1406,6 +1406,36 @@ export def setGround(num)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def printVersion()#0
+  word p, len, cv, ch
+  if !pResourceIndex; return; fin
+  cv = ^$25
+  ^$23 = 24 // full height window
+  ^$25 = 22
+  crout()
+  ^$24 = 25
+  puts("V ")
+  setWindow(183, 192, 168, 254)
+  clearWindow()
+  setWindow(183, 192, 175, 245)
+  rawDisplayStr("^YV ")
+  p = pResourceIndex
+  len = readAuxByte(p)
+  while len
+    p++
+    ch = readAuxByte(p)
+    printChar(ch)
+    displayChar(ch)
+    len--
+  loop
+  rawDisplayStr("^N")
+  ^$23 = 23 // shrink window to protect version num
+  ^$25 = cv-1
+  crout()
+  setWindow2()
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load the Frame Image, and lock it.
 export def loadFrameImg(img)#0
   // Skip redundant reload
@@ -1435,6 +1465,9 @@ export def loadFrameImg(img)#0
 
     // And show the first frame of the screen image
     showAnimFrame()
+
+    // Brand the image with the version number
+    printVersion()
   else
     curFullscreenImg = NULL
     anyAnims = FALSE
@@ -1847,7 +1880,7 @@ end
 def moveForward()#1
   byte dir
   dir = getDir()
-  moveInternal(dir, dir, TRUE)
+  return moveInternal(dir, dir, TRUE)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3091,7 +3124,6 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Main code.
 //
-^$25 = 23
 loadTitle()
 startGame(TRUE) // ask whether new or load
 kbdLoop()

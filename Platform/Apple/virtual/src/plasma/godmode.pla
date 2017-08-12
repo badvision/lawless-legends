@@ -78,16 +78,24 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def nextPortrait()#1
-  portraitNum = portraitNum + 1
-  if portraitNum > PO_LAST; portraitNum = 1; fin
+  while TRUE
+    portraitNum = portraitNum + 1
+    if portraitNum > PO_LAST; portraitNum = 1; fin
+    printf1("portrait %d\n", portraitNum)
+    if lookupResourcePart(3, portraitNum); break; fin
+  loop
   setPortrait(portraitNum)
   return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def prevPortrait()#1
-  portraitNum = portraitNum - 1
-  if portraitNum < 1; portraitNum = PO_LAST; fin
+  while TRUE
+    portraitNum = portraitNum - 1
+    if portraitNum < 1; portraitNum = PO_LAST; fin
+    printf1("portrait %d\n", portraitNum)
+    if lookupResourcePart(3, portraitNum); break; fin
+  loop
   setPortrait(portraitNum)
   return 0
 end

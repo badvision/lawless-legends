@@ -65,6 +65,7 @@ import gamelib
   predef initPlayerXP(player)#0
   predef loadFrameImg(img)#0
   predef loadMainFrameImg()#0
+  predef lookupResourcePart(sectionNum, resourceNum)#1
   predef makeModifier(name, value)#1
   predef max(a, b)#1
   predef memcpy(pSrc, pDst, len)#0

@@ -2787,6 +2787,7 @@ advSingleAnim:
 	rts
 .dbgout	+crout
 	+waitKey
+	bit $c050
 	sta setAuxRd
 	sta setAuxWr
 	rts
@@ -2828,12 +2829,14 @@ applyPatch:
 	; loop to skip patches until we find the right one
 -	dec reqLen	; it starts at 1, which means first patch.
 	beq +
-	ldy #1
+	ldy #0
+	lda (pSrc),y	; low byte of patch len
+	pha
+	iny
 	lda (pSrc),y	; hi byte of patch len
 	inx		; -> pSrc+1
 	jsr .ptradd	; skip by # pages in patch
-	dey
-	lda (pSrc),y	; low byte of patch len
+	pla		; get lo byte of len back
 	jsr .srcadd	; skip pSrc past last partial page in patch
 	jmp -
 +	!if DEBUG = 2 { jsr .dbgC2 }

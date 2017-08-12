@@ -82,7 +82,7 @@ byte inScript = FALSE
 
 export word skyNum = 9
 export word groundNum = 10
-export byte portraitNum = 1
+export byte portraitNum = 46
 
 word triggerOriginX, triggerOriginY
 word triggerTbl
@@ -1361,7 +1361,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Look up the partition for a resource.
 // sectioNum: 1=map2d, 2=map3d, 3=portrait
-def lookupResourcePart(sectionNum, resourceNum)#1
+export def lookupResourcePart(sectionNum, resourceNum)#1
   word ptr
   byte n
 
@@ -1381,7 +1381,8 @@ def lookupResourcePart(sectionNum, resourceNum)#1
     if curMapPartition > 0; return curMapPartition; fin
     return 2
   fin
-  if n < 1 or n > 20; fatal("lkupFail2"); fin
+  printf1("n=%d\n", n)
+  if n < 0 or n > 20; fatal("lkupFail2"); fin
   return n
 end
 
@@ -1415,9 +1416,9 @@ def printVersion()#0
   crout()
   ^$24 = 25
   puts("V ")
-  setWindow(183, 192, 168, 254)
+  setWindow(183, 192, 161, 261)
   clearWindow()
-  setWindow(183, 192, 175, 245)
+  setWindow(183, 192, 168, 252)
   rawDisplayStr("^YV ")
   p = pResourceIndex
   len = readAuxByte(p)
@@ -2237,7 +2238,8 @@ export def setPortrait(portraitNum)#0
 
   // Load the portrait image and display it
   part = lookupResourcePart(3, portraitNum)
-  if part > 1; part = curMapPartition; fin  // Look on disk 1 or current disk only
+  // Commented out below, because it prevents cycling thru all portraits (in god mode)
+  // NO: if part > 1; part = curMapPartition; fin  // Look on disk 1 or current disk only
   mmgr(START_LOAD, part)
   curPortrait = auxMmgr(QUEUE_LOAD, portraitNum<<8 | RES_TYPE_PORTRAIT)
   curPortraitNum = portraitNum

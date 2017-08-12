@@ -77,11 +77,14 @@ def showPos()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def nextPortrait()#1
+def advPortrait(dir)#1
   while TRUE
-    portraitNum = portraitNum + 1
-    if portraitNum > PO_LAST; portraitNum = 1; fin
-    printf1("portrait %d\n", portraitNum)
+    portraitNum = portraitNum + dir
+    if portraitNum > PO_LAST
+      portraitNum = 1
+    elsif portraitNum < 1
+      portraitNum = PO_LAST
+    fin
     if lookupResourcePart(3, portraitNum); break; fin
   loop
   setPortrait(portraitNum)
@@ -89,15 +92,13 @@ def nextPortrait()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def nextPortrait()#1
+  return advPortrait(1)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def prevPortrait()#1
-  while TRUE
-    portraitNum = portraitNum - 1
-    if portraitNum < 1; portraitNum = PO_LAST; fin
-    printf1("portrait %d\n", portraitNum)
-    if lookupResourcePart(3, portraitNum); break; fin
-  loop
-  setPortrait(portraitNum)
-  return 0
+  return advPortrait(-1)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

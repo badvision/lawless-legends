@@ -82,7 +82,7 @@ byte inScript = FALSE
 
 export word skyNum = 9
 export word groundNum = 10
-export byte portraitNum = 46
+export byte portraitNum = 0
 
 word triggerOriginX, triggerOriginY
 word triggerTbl
@@ -1381,8 +1381,7 @@ export def lookupResourcePart(sectionNum, resourceNum)#1
     if curMapPartition > 0; return curMapPartition; fin
     return 2
   fin
-  printf1("n=%d\n", n)
-  if n < 0 or n > 20; fatal("lkupFail2"); fin
+  if n < 0 or n > 20; fatal("lkupFail2"); fin // allow zero (e.g. portrait not used so not packed)
   return n
 end
 

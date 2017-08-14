@@ -97,6 +97,7 @@ word pResourceIndex = NULL
 word pGlobalTileset = NULL
 byte curMapPartition = 0
 export word pGodModule = NULL
+export word typeHash = 0
 
 // Queue setMap / teleport / start_encounter, since otherwise script might be replaced while executing
 byte q_mapIs3D = 0
@@ -1688,11 +1689,11 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def loadMainFrameImg()#0
-  loadFrameImg(mapIs3D+2)
   if curFullscreenImg
     auxMmgr(FREE_MEMORY, curFullscreenImg)
     curFullscreenImg = NULL
   fin
+  loadFrameImg(mapIs3D+2)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2725,7 +2726,6 @@ end
 // Set up the small-object heap. Set loadedSize to zero on initial, or non-zero for loaded game.
 export def initHeap(loadedSize)#0
   byte i
-  word typeHash
 
   if !heapLocked
     mmgr(SET_MEM_TARGET, HEAP_BOTTOM)
@@ -2743,12 +2743,8 @@ export def initHeap(loadedSize)#0
     mmgr(HEAP_ADD_TYPE, typeTbls[i])
     i = i+1
   loop
-  typeHash = hashBuffer(@typeTbl_Global, @typeTbls - @typeTbl_Global) ^ HEAP_BOTTOM
   if loadedSize <> 0
     global = HEAP_BOTTOM
-    if global=>w_typeHash <> typeHash
-      fatal("Incompatible saved game")
-    fin
   else
     global = mmgr(HEAP_ALLOC, TYPE_GLOBAL)
     global=>w_typeHash = typeHash
@@ -3103,6 +3099,8 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def startGame(ask)#0
   word p_module
+
+  typeHash = hashBuffer(@typeTbl_Global, @typeTbls - @typeTbl_Global) ^ HEAP_BOTTOM
 
   // Create a new game or load an existing one
   mmgr(START_LOAD, 1) // code is in partition 1

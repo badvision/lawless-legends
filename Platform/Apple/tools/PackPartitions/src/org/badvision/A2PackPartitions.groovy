@@ -1621,6 +1621,8 @@ class A2PackPartitions
                      name:"resourceIndex", buf:code["resourceIndex"].buf]
         part.chunks[["code", "resourceIndex"]] = chunk
         part.spaceUsed += calcChunkLen(chunk)
+
+        return combinedVersion
     }
 
     def fillAllDisks()
@@ -1674,7 +1676,7 @@ class A2PackPartitions
         assert allMaps.isEmpty : "All data must fit within $MAX_DISKS disks."
 
         // Add the special resource index to disk 1
-        addResourceIndex(partChunks[0])
+        def gameVersion = addResourceIndex(partChunks[0])
 
         // And write out each disk
         partChunks.each { part ->
@@ -1686,6 +1688,8 @@ class A2PackPartitions
             def spaceUsed = part.spaceUsed  // use var to avoid gigantic assert fail msg
             assert spaceUsed == partFile.length()
         }
+
+        println "Game version: V $gameVersion"
     }
 
     def writePartition(stream, partNum, chunks)
@@ -3252,7 +3256,7 @@ end
 
     def createHddImage()
     {
-        println "Creating hdd image."
+        //println "Creating hdd image."
 
         // Copy the combined core executable to the output directory
         copyIfNewer(new File("build/src/core/build/LEGENDOS.SYSTEM.sys#2000"),
@@ -3277,7 +3281,7 @@ end
 
     def createFloppyImages()
     {
-        println "Creating floppy images."
+        //println "Creating floppy images."
 
         // We'll be copying stuff from the hdd directory
         def hddDir = new File("build/root")

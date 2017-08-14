@@ -148,6 +148,7 @@ import gamelib
   word groundNum
   byte portraitNum
   word pGodModule
+  word typeHash
 
   /////////// Shared string constants //////////////
 

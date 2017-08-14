@@ -1333,16 +1333,10 @@ aux_dispatch:
 !if SANITY_CHECK {
 saneStart: !zone {
 	sta saneEnd+2	; save cmd num for end-checking
-	pha
-	tya
-	pha
-	txa
+	cmp #ADVANCE_ANIMS
+	beq .skip
 	pha
 	jsr saneCheck
-	pla
-	tax
-	pla
-	tay
 	+prChr 'M'
 	lda isAuxCmd
 	beq +
@@ -1359,7 +1353,7 @@ saneStart: !zone {
 	beq +
 	+prY
 +	pla
-	rts
+.skip	rts
 }
 
 saneCheck: !zone {
@@ -1373,6 +1367,8 @@ saneCheck: !zone {
 saneEnd: !zone {
 	pha
 	lda #$11	; self-modified earlier by saneStart
+	cmp #ADVANCE_ANIMS
+	beq .skip
 	cmp #REQUEST_MEMORY
 	beq .val
 	cmp #QUEUE_LOAD
@@ -1385,17 +1381,9 @@ saneEnd: !zone {
 	bne .noval
 .val	+prStr : !text "->",0
 	+prYX
-.noval	tya
-	pha
-	txa
-	pha
-	jsr saneCheck
+.noval	jsr saneCheck
 	+prStr : !text "m.",0
-	pla
-	tax
-	pla
-	tay
-	pla
+.skip	pla
 	rts
 }
 }

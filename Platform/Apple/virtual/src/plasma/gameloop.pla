@@ -1694,6 +1694,10 @@ export def loadMainFrameImg()#0
     curFullscreenImg = NULL
   fin
   loadFrameImg(mapIs3D+2)
+  if curFullscreenImg
+    auxMmgr(FREE_MEMORY, curFullscreenImg) // we don't allow animated main frames, so save memory
+    curFullscreenImg = NULL
+  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2357,12 +2361,6 @@ def loadEngine(moduleNum)#1
   flipToPage1()
   mmgr(START_LOAD, 1) // code is in partition 1
   curEngine = mmgr(QUEUE_LOAD, moduleNum<<8 | RES_TYPE_MODULE)
-  // For combat module, pre-load some global funcs
-  if moduleNum == MOD_COMBAT
-    mmgr(QUEUE_LOAD, GS_COMBAT_INTRO<<8 | RES_TYPE_MODULE)
-    mmgr(QUEUE_LOAD, GS_COMBAT_PROMPT<<8 | RES_TYPE_MODULE)
-    mmgr(QUEUE_LOAD, GS_ENEMY_INTRO<<8 | RES_TYPE_MODULE)
-  fin
   mmgr(FINISH_LOAD, 0)
   return curEngine()  // return function table
 end
@@ -2699,10 +2697,6 @@ def loadTitle()#0
   auxMmgr(SET_MEM_TARGET, expandVec)
   auxMmgr(QUEUE_LOAD, CODE_EXPAND<<8 | RES_TYPE_CODE)
 
-  // Also grab the resource index (put it in aux)
-  pResourceIndex = auxMmgr(QUEUE_LOAD, CODE_RESOURCE_INDEX<<8 | RES_TYPE_CODE)
-  auxMmgr(LOCK_MEMORY, pResourceIndex)
-
   mmgr(FINISH_LOAD, 0)
 
   // Tell the font engine where to find its font
@@ -2721,6 +2715,14 @@ def loadTitle()#0
   auxMmgr(SET_MEM_TARGET, expandVec)
   auxMmgr(REQUEST_MEMORY, expanderSize)
   auxMmgr(LOCK_MEMORY, expandVec)
+
+  // To reduce fragmentation, load the resource index directly after the
+  // remaining part of the expander
+  pResourceIndex = expandVec + expanderSize
+  auxMmgr(SET_MEM_TARGET, pResourceIndex)
+  auxMmgr(QUEUE_LOAD, CODE_RESOURCE_INDEX<<8 | RES_TYPE_CODE)
+  auxMmgr(LOCK_MEMORY, pResourceIndex)
+  mmgr(FINISH_LOAD, 0)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

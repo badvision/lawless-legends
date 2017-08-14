@@ -908,6 +908,11 @@ end
 def startCombat(mapCode)#1
   word p, p2, n, s
 
+  // Pre-load some global funcs
+  mmgr(QUEUE_LOAD, GS_COMBAT_INTRO<<8 | RES_TYPE_MODULE)
+  mmgr(QUEUE_LOAD, GS_COMBAT_PROMPT<<8 | RES_TYPE_MODULE)
+  mmgr(QUEUE_LOAD, GS_ENEMY_INTRO<<8 | RES_TYPE_MODULE)
+
   // Setup
   isFleeing = FALSE
   combatDebug = FALSE
@@ -915,6 +920,7 @@ def startCombat(mapCode)#1
 
   // Display portrait of first group
   setPortrait(global=>p_enemyGroups=>p_enemies->b_image)
+  mmgr(FINISH_LOAD, 0)
 
   // Clear keyboard stobe, because while wandering the map, the player may have
   // queued up movement keys, which are made obsolete by the surprise of combat.

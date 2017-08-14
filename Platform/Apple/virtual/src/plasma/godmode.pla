@@ -24,6 +24,14 @@ predef _addItem(player)#1
 predef _addPlayer()#1
 word[] funcTbl = @_setCheatCmds, @_addItem, @_addPlayer
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def splitScreenMode()#0
+  flipToPage1()
+  textHome()
+  ^$c053
+  ^$25 = 19
+  crout()
+end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Godmode cheats
@@ -32,12 +40,10 @@ def kbdTeleport()#1
   word x, y
   byte dir
 
-  flipToPage1()
-  ^$c053
-  if ^$25 < 23; ^$25 = 23; fin
+  splitScreenMode()
   getPos(@x, @y)
   dir = getDir()
-  printf3("\nCurrent: X=%d Y=%d Facing=%d\n", x, y, dir)
+  printf3("Current: X=%d Y=%d Facing=%d\n", x, y, dir)
 
   printf1("3D [%d]: ", mapIs3D)
   d3 = parseDecWithDefault(readStr(), mapIs3D)
@@ -62,11 +68,9 @@ def showPos()#1
   word x, y
   byte dir
 
-  flipToPage1()
-  ^$c053
-  if ^$25 < 23; ^$25 = 23; fin
+  splitScreenMode()
   getPos(@x, @y)
-  printf2("\nX=%d Y=%d ", x, y)
+  printf2("X=%d Y=%d ", x, y)
   if mapIs3D
     printf3("Facing=%d Sky=%d Ground=%d", getDir(), skyNum, groundNum)
   fin

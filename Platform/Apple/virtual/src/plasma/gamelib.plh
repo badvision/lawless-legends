@@ -39,6 +39,7 @@ import gamelib
   predef countArray(arr)#1
   predef countList(p)#1
   predef countListFiltered(p, offset, filterFunc)#1
+  predef crout()#0
   predef displayChar(chr)#0
   predef displayf1(fmt, arg1)#0
   predef displayf2(fmt, arg1, arg2)#0

@@ -730,7 +730,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a carriage return
-asm crout()#0
+export asm crout()#0
   +asmPlasmNoRet 0
   lda #$8D
   jmp _safeCout
@@ -2568,6 +2568,7 @@ def toggleGodMode()#1
     if ^kbd == $84  // ctrl-D
       ^kbdStrobe
       global->b_godmode = !global->b_godmode
+      flipToPage1()
       clearTextWindow()
       displayf1("gm:%d\n", global->b_godmode & 1)
       beep; beep

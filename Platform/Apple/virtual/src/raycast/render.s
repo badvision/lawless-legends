@@ -1763,6 +1763,8 @@ pl_advance: !zone
 	pha
 	adc walkDirs+1,x
 	sta playerX+1
+	jsr .chk
+	sta .ora+1
 
 	lda playerY
 	pha
@@ -1773,27 +1775,15 @@ pl_advance: !zone
 	pha
 	adc walkDirs+3,x
 	sta playerY+1
-
-	; Check if the new position is blocked
-	jsr calcMapOrigin
-	ldy playerX+1
-	lda (pMap),y
-	and #$1F
-	beq .ok			; empty tiles are never blocked
-	tax
-	jsr getTileFlags
-	sta tmp+1
-	and #2			; tile flag 2 is for obstructions
+	jsr .chk
+.ora	ora #11			; self-modified above
 	beq .ok
 	; Blocked! Restore old position.
-	pla
-	sta playerY+1
-	pla
-	sta playerY
-	pla
-	sta playerX+1
-	pla
-	sta playerX
+	ldx #3
+-	pla
+	sta playerX,x
+	dex
+	bpl -
 	ldy #0
 	beq .done
 .ok	; Not blocked. See if we're in a new map tile.
@@ -1820,6 +1810,20 @@ pl_advance: !zone
 .done	tya			; retrieve ret value
 	ldy #0			; hi byte of ret is always 0
 	rts			; all done
+	; Check if the new position is blocked
+.chk	stx .rstx+1
+	jsr calcMapOrigin
+	ldy playerX+1
+	lda (pMap),y
+	and #$1F
+	beq .rstx		; empty tiles are never blocked
+	tax
+	jsr getTileFlags
+	sta tmp+1
+	and #2			; tile flag 2 is for obstructions
+.rstx	ldx #11			; self-modified above
+	cmp #0
+	rts
 
 ;-------------------------------------------------------------------------------
 ; Swap tiles at two positions. 

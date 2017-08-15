@@ -24,6 +24,48 @@ predef _addItem(player)#1
 predef _addPlayer()#1
 word[] funcTbl = @_setCheatCmds, @_addItem, @_addPlayer
 
+asm _defs
+
+; Use hi-bit ASCII for Apple II
+!convtab "../../include/hiBitAscii.ct"
+
+; Headers
+!source "../../include/global.i"
+!source "../../include/plasma.i"
+!source "../../include/mem.i"
+
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Read a string from the keyboard, turn it into a PLASMA string and return a pointer to the string.
+asm readStr()#1
+  +asmPlasmRet 0
+  bit setROM
+  jsr ROM_getln1
+  bit setLcRW+lcBank2
+  txa
+  pha
+  beq +
+- lda inbuf-1,x
+  and #$7F
+  sta inbuf,x
+  dex
+  bne -
++ pla
+  sta inbuf,x
+  lda #<inbuf
+  ldy #>inbuf
+  rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def parseDecWithDefault(str, default)#1
+  if ^str == 0
+    return default
+  fin
+  return parseDec(str)
+end
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def splitScreenMode()#0
   flipToPage1()
@@ -150,7 +192,6 @@ def _setCheatCmds()#1
   setCmd('Y', @nextSky)
   setCmd('G', @nextGround)
   setCmd('&', @printMem)
-  setCmd('_', @finalWin)
   return 0
 end
 

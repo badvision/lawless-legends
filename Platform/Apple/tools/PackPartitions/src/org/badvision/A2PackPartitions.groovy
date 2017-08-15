@@ -1583,7 +1583,7 @@ class A2PackPartitions
                         month == 9 ? 'o' :
                         month == 10 ? 'n' :
                         'd'
-        def hourCode = (char) (65 + hour)
+        def hourCode = (char) (97 + hour) // 'a'=0, 'b'=1, etc.
         def engineCode = String.format("%d%c%02d%c", yearCode, monthCode, day, hourCode)
 
         def offset = (int) ((scenarioStamp - engineStamp) / (1000 * 60 * 60))

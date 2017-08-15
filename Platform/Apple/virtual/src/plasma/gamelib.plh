@@ -47,7 +47,6 @@ import gamelib
   predef displayStr(str)#0
   predef encodeDice(nDice, dieSize, add)#1
   predef fatal(msg)#1
-  predef finalWin()#0
   predef finishString(isPlural)#1
   predef flipToPage1()#0
   predef getCharResponse()#1
@@ -74,7 +73,6 @@ import gamelib
   predef mmgr(cmd, wordParam)#1
   predef moveWayBackward()#1
   predef parseDec(str)#1
-  predef parseDecWithDefault(str, default)#1
   predef partyHasPlayer(playerName)#1
   predef pause(count)#0
   predef payGold(amount)#1
@@ -95,7 +93,6 @@ import gamelib
   predef rawDisplayf3(fmt, arg1, arg2, arg3)#0
   predef rawDisplayStr(str)#0
   predef rdkey()#1
-  predef readStr()#1
   predef removeFromList(pList, toRemove)#0
   predef removePlayerFromParty(playerName)#0
   predef rightJustifyNum(num, rightX)#0

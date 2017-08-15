@@ -60,7 +60,6 @@ predef doRender()#0
 predef playerDeath()#0
 predef startGame(ask)#0
 predef showAnimFrame()#0
-predef finalWin()#0
 predef showParty()#0
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -77,7 +76,7 @@ byte renderLoaded = FALSE
 byte texturesLoaded = FALSE
 byte textDrawn = FALSE
 byte textClearCountdown = 0
-byte isPlural = FALSE
+byte isPlural = 0 // valid values: 0 or $40
 byte inScript = FALSE
 
 export word skyNum = 9
@@ -406,78 +405,73 @@ export asm finishString(isPlural)#1
   sta cswl
   lda #$FD
   sta cswh
-  bit fixedRTS; V flag for prev-is-punctuation
-  ldy #1      ; dest offset in Y
-  ldx #1      ; source offset in X
+  clv         ; V flag for prev-is-alpha
+  ldy #0      ; dest offset in Y (will be incremented before store)
+  ldx #0      ; source offset in X (will be incremented before load)
   cpx inbuf
-  beq +       ; only process if string has at least 1 char
-  bcs .done
-+ sty tmp+1   ; offset of last punctuation
+  beq .done   ; failsafe: handle zero-length string
 .fetch
-  lda inbuf,x
-  cmp #"("
+  inx
+  lda inbuf,x ; get next input char
+  iny
+  sta inbuf,y ; by default copy the char to output
+  cmp #"("    ; plural processing triggered by parentheses
   bne .notpar
-  bvs .notpar ; skip paren processing right punctuation
-  lda tmp     ; check isPlural flag
-  bne .plurpr
-- lda inbuf,x ; it's singular, so skip everything in parens
-  cmp #")"
-  beq .next
+  bvc .notpar ; but only parens directly after alpha char, e.g. preserving "Happy (and safe)."
+
+  dey         ; undo copy of the paren
+  stx tmp+1   ; save position in input
+  bit tmp     ; set copy flag (V) initially to same as isPlural flag
+  dex         ; needed for failsafe operation
+.findsl       ; see if there's a slash within the parens
   inx
   cpx inbuf
-  bne -
-  beq .done   ; handle missing trailing paren
-.plurpr
-  inx         ; it's plural, so copy everything within the parens
-  lda inbuf,x ; copy characters
-  cpx inbuf   ; handle missing trailing paren
+  lda inbuf,x
+  cmp #"/"
+  bne +
+  php
+  pla
+  eor #$40    ; flip V flag, meaning singular text is before slash, plural after.
+  pha
+  plp
++ cmp #")"    ; scan until ending paren
   beq +
-  bcs .store
-+ cmp #")"    ; go until we reach ending paren
-  beq .next
-  sta inbuf,y
+  cpx inbuf   
+  bcc .findsl ; loop to scan next char
+  bcs .done   ; failsafe: handle missing end-paren (always taken)
++ ldx tmp+1   ; get back to start of parens
+  ; copy mode flag is now in V: if slash present, single=copy,   plural=nocopy
+  ;                             if no slash:      single=nocopy, plural=copy
+.plup
+  inx
+  lda inbuf,x
+  cmp #"/"
+  bne +
+  php
+  pla
+  eor #$40    ; flip from copying to not-copying, or vice-versa
+  pha
+  plp
+  bcs .plup   ; always taken
++ cmp #")"
+  beq +       ; stop at closing paren
+  bvc .plup   ; if not in copy mode, skip copy
   iny
-  bne .plurpr ; always taken
+  sta inbuf,y ; else do copy
+  bne .plup   ; always taken
++ dey         ; to offset upcoming iny, since we already copied
 
 .notpar
-  cmp #"/"
-  bne .notsl
-  bvs .notsl  ; skip slash processing right after punctuation
-  lda tmp     ; check isPlural flag
-  bne .plursl
-- inx         ; loop that skips plural form
-  cpx inbuf
-  beq +
-  bcs .done   ; handle end of string
-+ lda inbuf,x
-  cmp #"A"    ; eat letters (and stop when we hit punctuation)
-  bcs -
-  bcc .store  ; copy the ending punctuation and continue normal processing
-.plursl
-  ldy tmp+1   ; erase singular form by backing up to prev punc
-  iny         ;     plus 1 to retain prev punc
-  bne .next   ; resume regular copying of the plural form
-
-.notsl
-  cmp #"A"    ; if <= ASCII "A", consider it punctuation
-  bcc +
-  clv         ; clear last-is-punc flag
-  bvc .store  ; always taken
-+ bit fixedRTS; set prev-is-punc flag
-  sty tmp+1   ; save dest offset of last punctuation
-
-.store
-  sta inbuf,y ; save to dest
-  iny
+  bit fixedRTS; set prev-is-alpha flag
+  cmp #"A"    ; if >= ASCII "A", consider it alpha
+  bcc .next
+  clv         ; clear prev-is-alpha flag
 
 .next
-  inx
   cpx inbuf   ; compare src offset to length
   bcc .fetch  ; loop while less than
-  beq .fetch  ;       or equal
 
 .done
-  dey
   sty inbuf   ; save new length
   lda #<inbuf ; return pointer to string
   ldy #>inbuf
@@ -741,28 +735,6 @@ end
 export asm beep()#0
   +asmPlasmNoRet 0
   +safeBell
-  rts
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Read a string from the keyboard, turn it into a PLASMA string and return a pointer to the string.
-export asm readStr()#1
-  +asmPlasmRet 0
-  bit setROM
-  jsr ROM_getln1
-  bit setLcRW+lcBank2
-  txa
-  pha
-  beq +
-- lda inbuf-1,x
-  and #$7F
-  sta inbuf,x
-  dex
-  bne -
-+ pla
-  sta inbuf,x
-  lda #<inbuf
-  ldy #>inbuf
   rts
 end
 
@@ -1102,7 +1074,11 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Setter functions for library use
 export def setPlural(flg)#0
-  isPlural = flg
+  if flg
+    isPlural = $40
+  else
+    isPlural = 0
+  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1229,14 +1205,6 @@ export def parseDec(str)#1
 
   if neg; return -n; fin
   return n
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-export def parseDecWithDefault(str, default)#1
-  if ^str == 0
-    return default
-  fin
-  return parseDec(str)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1389,10 +1357,6 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set the sky color (relevant to 3D display only)
 export def setSky(num)#0
-  // hack for end-game screen
-  if num == 99
-    finalWin()
-  fin
   skyNum = num
   setColor(0, skyNum)
   needRender = TRUE
@@ -2575,15 +2539,6 @@ def toggleGodMode()#1
     fin
   fin
   return 0
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-export def finalWin()#0
-  flipToPage1()
-  loadFrameImg(4) // total hack
-  while 1 // 1 infinite loop
-    getUpperKey()
-  loop
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

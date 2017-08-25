@@ -132,7 +132,7 @@ def rollPlayerHit(pPlayer, pWeapon, pEnemy, sAction)
   roll = rollPercentileWithLuck(-(pPlayer->b_luck)) // luck can reduce roll = increase chance to hit
   if combatDebug; displayf2("Roll=%d, need <%d\n", roll, abs(roll < chance)); getUpperKey(); fin
   if roll >= chance
-    setPlural(0)
+    isPlural = FALSE
     displayf3("\n%s %s at %s but misses.\n", pPlayer=>s_name, sAction, pEnemy=>s_name)
     return FALSE
   fin
@@ -143,7 +143,7 @@ end
 def rollEnemyDodge(pPlayer, pEnemy, sAction)
   // Enemy chance to dodge is taken from their chance to hit divided by 2
   if (rand16() % 100) < (pEnemy->b_chanceToHit / 2)
-    setPlural(0)
+    isPlural = FALSE
     displayf3("\n%s %s at %s, ", pPlayer=>s_name, sAction, pEnemy=>s_name)
     displayf1("but %s dodges.\n", pEnemy=>s_name)
     return TRUE
@@ -157,7 +157,7 @@ def damageEnemy(pPlayer, pEnemy, dmg, sAction)#0
     displayf3("\nenemy health: %d-%d=%d\n", pEnemy=>w_health, dmg, pEnemy=>w_health-dmg)
     getUpperKey
   fin
-  setPlural(0)
+  isPlural = FALSE
   buildString(@addToString)
   printf3("\n%s %s %s ", pPlayer=>s_name, sAction, pEnemy=>s_name)
   printf1("for %d damage.", dmg)
@@ -290,7 +290,7 @@ def reload(pl, pWeapon, echo)#0
   word item
   byte orig, n
 
-  setPlural(FALSE)
+  isPlural = FALSE
 
   // If ammo type is null, it means weapon doesn't use ammo in traditional sense.
   if !pWeapon=>s_ammoKind
@@ -366,7 +366,7 @@ def displayOpponents()#0
     fin
     first = FALSE
     count = countListFiltered(p=>p_enemies, p_nextObj, @canFight)
-    setPlural(count <> 1)
+    isPlural = count <> 1
     if (p=>p_enemies=>r_groupSize == 0)
       displayf2("%s at %d'", p=>p_enemies=>s_name, p->b_enemyGroupRange)
     else
@@ -678,7 +678,7 @@ def enemyCombatTurn(pe)#1
   pl = randomFromListFiltered(global=>p_players, p_nextObj, @canFight)
   if !pl; return FALSE; fin
 
-  setPlural(FALSE)
+  isPlural = FALSE
   displayf3("\n%s %s %s ", pe=>s_name, pe=>s_attackText, pl=>s_name)
 
   // Roll to hit
@@ -887,10 +887,10 @@ def collectLootAndXP()#2
           fin
           if addItem(global=>p_players, pItem)
             if pItem->t_type == TYPE_STUFF and pItem=>w_count > 1
-              setPlural(TRUE)
+              isPlural = TRUE
               displayf2("You find %d %s! ", pItem=>w_count, pItem=>s_name)
             else
-              setPlural(FALSE)
+              isPlural = FALSE
               displayf2("You find %s%s! ", anOrA(pItem=>s_name), pItem=>s_name)
             fin
           fin
@@ -938,7 +938,7 @@ def startCombat(mapCode)#1
   p = global=>p_enemyGroups
   while p
     n = countList(p=>p_enemies)
-    setPlural(n <> 1)
+    isPlural = n <> 1
     s = callGlobalFunc(GS_ENEMY_INTRO, 0, 0, 0)
     displayf2(s, n, p=>p_enemies=>s_name)
     p = p=>p_nextObj

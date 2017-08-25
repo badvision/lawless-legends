@@ -115,7 +115,6 @@ import gamelib
   predef setMap(is3D, num, x, y, dir)#0
   predef setMapWindow()#0
   predef setBigWindow()#0
-  predef setPlural(flg)#0
   predef setPortrait(portraitNum)#0
   predef setScriptInfo(mapName, trigTbl, wdt, hgt)#0
   predef setSky(num)#0
@@ -147,6 +146,7 @@ import gamelib
   byte portraitNum
   word pGodModule
   word typeHash
+  byte isPlural
 
   /////////// Shared string constants //////////////
 

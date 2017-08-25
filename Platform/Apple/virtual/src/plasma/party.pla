@@ -888,13 +888,14 @@ end
 // For non-countable items, display singular name.
 // For countable "stuff" (e.g. ammo), display the count and appropriate singular or plural name.
 def _displayItemName(pItem)#1
+  isPlural = FALSE
   if pItem->t_type == TYPE_STUFF
-    setPlural(pItem=>w_count <> 1)
+    isPlural = pItem=>w_count <> 1
     rawDisplayf1("%d ", pItem=>w_count)
-  else
-    setPlural(FALSE)
   fin
-  rawDisplayf1("%s", pItem=>s_name) // use displayf to get proper plural processing
+  buildString(@addToString)
+  printf1("%s", pItem=>s_name) // need proper plural processing
+  rawDisplayStr(finishString(isPlural))
   return 0
 end
 

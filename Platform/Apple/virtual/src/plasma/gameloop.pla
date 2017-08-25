@@ -76,7 +76,7 @@ byte renderLoaded = FALSE
 byte texturesLoaded = FALSE
 byte textDrawn = FALSE
 byte textClearCountdown = 0
-byte isPlural = 0 // valid values: 0 or $40
+export byte isPlural = 0 // valid values: 0 or $40
 byte inScript = FALSE
 
 export word skyNum = 9
@@ -421,8 +421,10 @@ export asm finishString(isPlural)#1
 
   dey         ; undo copy of the paren
   stx tmp+1   ; save position in input
-  bit tmp     ; set copy flag (V) initially to same as isPlural flag
   dex         ; needed for failsafe operation
+  lda tmp     ; set copy flag (V) initially
+  bne .findsl ;     to same as isPlural flag
+  clv
 .findsl       ; see if there's a slash within the parens
   inx
   cpx inbuf
@@ -436,7 +438,7 @@ export asm finishString(isPlural)#1
   plp
 + cmp #")"    ; scan until ending paren
   beq +
-  cpx inbuf   
+  cpx inbuf
   bcc .findsl ; loop to scan next char
   bcs .done   ; failsafe: handle missing end-paren (always taken)
 + ldx tmp+1   ; get back to start of parens
@@ -454,17 +456,15 @@ export asm finishString(isPlural)#1
   plp
   bcs .plup   ; always taken
 + cmp #")"
-  beq +       ; stop at closing paren
+  beq .notpar ; stop at closing paren
   bvc .plup   ; if not in copy mode, skip copy
   iny
   sta inbuf,y ; else do copy
   bne .plup   ; always taken
-+ dey         ; to offset upcoming iny, since we already copied
-
 .notpar
   bit fixedRTS; set prev-is-alpha flag
   cmp #"A"    ; if >= ASCII "A", consider it alpha
-  bcc .next
+  bcs .next
   clv         ; clear prev-is-alpha flag
 
 .next
@@ -1069,16 +1069,6 @@ export def getStringResponse()#1
   next
   ^$200 = ^$2FF
   return mmgr(HEAP_INTERN, $200)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Setter functions for library use
-export def setPlural(flg)#0
-  if flg
-    isPlural = $40
-  else
-    isPlural = 0
-  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

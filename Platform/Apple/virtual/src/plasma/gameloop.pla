@@ -2329,7 +2329,11 @@ def returnFromEngine(render)#0
     if renderLoaded; texControl(1); texturesLoaded = TRUE; fin
     mapNameHash = 0; showMapName(global=>s_mapName)
     clearTextWindow()
-    if render; doRender(); fin
+    if render
+      doRender()
+    else
+      needRender = TRUE
+    fin
     showParty()
     setWindow2()  // in case we're mid-script
   fin
@@ -2445,7 +2449,7 @@ def doCombat(mapCode, backUpOnFlee)#1
     playerDeath()
     return 0
   fin
-  returnFromEngine(TRUE)
+  returnFromEngine(!inScript) // only re-render if outside script
 
   // If the party fled the combat instead of winning, back up to previous square.
   if !result and backUpOnFlee
@@ -2983,28 +2987,23 @@ export def setStat(player, statName, val)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def setGameFlag(flagName, val)#0
-  word p_flag
-  p_flag = scanForNamedObj(global=>p_gameFlags, flagName)
-  if p_flag
-    if val == 0 // setting flag to zero removes it
-      removeFromList(@global=>p_gameFlags, p_flag)
-    else
-      p_flag=>w_modValue = val
-    fin
-  elsif val <> 0
-    addToList(@global=>p_gameFlags, makeModifier(flagName, val))
+export def setGameFlag(flagNum, val)#0
+  byte byteNum, mask
+  byteNum = flagNum >> 3
+  mask = 1<<(flagNum & 7)
+  if val
+    global->ba_gameFlags[byteNum] = global->ba_gameFlags[byteNum] | mask
+  else
+    global->ba_gameFlags[byteNum] = global->ba_gameFlags[byteNum] & ~mask
   fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def getGameFlag(flagName)#1
-  word p_flag
-  p_flag = scanForNamedObj(global=>p_gameFlags, flagName)
-  if p_flag
-    return p_flag=>w_modValue
-  fin
-  return 0
+export def getGameFlag(flagNum)#1
+  byte byteNum, mask
+  byteNum = flagNum >> 3
+  mask = 1<<(flagNum & 7)
+  return global->ba_gameFlags[byteNum] & mask
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

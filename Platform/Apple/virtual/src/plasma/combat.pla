@@ -301,7 +301,7 @@ def reload(pl, pWeapon, echo)#0
   // Find matching ammo
   item = pl=>p_items
   while item
-    if item->t_type == TYPE_STUFF
+    if item->t_type == TYPE_FANCY_ITEM
       if streqi(item=>s_itemKind, pWeapon=>s_ammoKind); break; fin
     fin
     item = item=>p_nextObj
@@ -851,7 +851,7 @@ def addItem(pl, pItem)#1
   word pComp
   pComp = scanForNamedObj(pl=>p_items, pItem=>s_name)
   if pComp
-    if pItem->t_type == TYPE_STUFF
+    if pItem->t_type == TYPE_FANCY_ITEM
       pComp=>w_count = min(30000, pComp=>w_count + pItem=>w_count)
       return TRUE
     else
@@ -882,11 +882,11 @@ def collectLootAndXP()#2
           mmgr(FINISH_LOAD, 0)
           itemFunc = randomFromArray(pItemsModule()=>items_forLootCode(enemy=>s_lootCode))
           pItem = itemFunc()
-          if pItem->t_type == TYPE_STUFF
+          if pItem->t_type == TYPE_FANCY_ITEM
             pItem=>w_count = rollDiceWithLuck(pItem=>r_lootAmount, global=>p_players->b_luck)
           fin
           if addItem(global=>p_players, pItem)
-            if pItem->t_type == TYPE_STUFF and pItem=>w_count > 1
+            if pItem->t_type == TYPE_FANCY_ITEM and pItem=>w_count > 1
               isPlural = TRUE
               displayf2("You find %d %s! ", pItem=>w_count, pItem=>s_name)
             else

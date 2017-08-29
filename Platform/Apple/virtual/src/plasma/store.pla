@@ -89,7 +89,7 @@ def displayBuyPage(pItemTbl, markupRatio, pageNum, nPages)#1
   for itemNum = 0 to PAGE_SIZE-1
     if !(*pFunc); break; fin
     pItem = (*pFunc)()
-    if pItem->t_type == TYPE_STUFF
+    if pItem->t_type == TYPE_FANCY_ITEM
       pItem=>w_count = pItem=>w_storeAmount
     fin
     pageItems[itemNum] = pItem
@@ -185,7 +185,7 @@ def browseItem(num)#0
       matchEquipped(pItem, compSkip) // to set pMatchPlayer
       pComp = scanForNamedObj(pMatchPlayer=>p_items, pItem=>s_name)
       if pComp
-        if pItem->t_type == TYPE_STUFF
+        if pItem->t_type == TYPE_FANCY_ITEM
           pComp=>w_count = min(30000, pComp=>w_count + pItem=>w_count)
         else
           rawDisplayStr("\nDuplicate item.")
@@ -271,8 +271,8 @@ def iterateSellables(skipItems, markdownRatio)#1
     pItem = pPlayer=>p_items
     while pItem
       ok = pItem=>w_price > 0
-      if pItem->t_type == TYPE_STUFF
-        ok = FALSE // too much trouble to figure out stuff prices
+      if pItem->t_type == TYPE_FANCY_ITEM
+        ok = pItem=>w_count > 0 // too much trouble to figure out prices of stackables
       elsif pItem->t_type == TYPE_WEAPON or pItem->t_type == TYPE_ARMOR
         if pItem->b_flags & ITEM_FLAG_EQUIP; ok = FALSE; fin
       fin

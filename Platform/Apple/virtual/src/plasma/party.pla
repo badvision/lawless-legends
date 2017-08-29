@@ -376,10 +376,10 @@ def showItemMenu(item)#0
   if type == TYPE_ARMOR or type == TYPE_WEAPON
     rawDisplayStr("E)quip/unequip, ")
   fin
-  if type == TYPE_ITEM
+  if type == TYPE_PLAIN_ITEM or type == TYPE_FANCY_ITEM
     rawDisplayStr("U)se, ")
   fin
-  rawDisplayStr("D)estroy or [Esc]")
+  rawDisplayStr("D)rop or [Esc]")
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -413,10 +413,7 @@ def doUse(player, item)#1
       rawDisplayStr("^V000\n^J^J^J")
       if player=>w_health < player=>w_maxHealth
         player=>w_health = min(player=>w_health + item=>p_modifiers=>w_modValue, player=>w_maxHealth)
-        item->b_curUses++
-        if item->b_curUses >= item->b_maxUses // all used up
-          removeFromList(@player=>p_items, item)
-        fin
+        removeFromList(@player=>p_items, item)
         rawDisplayf2("Healed to %d/%d", player=>w_health, player=>w_maxHealth)
       else
         rawDisplayStr("No healing needed.")
@@ -431,7 +428,7 @@ end
 // Select an item and drop it. Returns TRUE if anything changed
 def doDestroy(player, item)#1
   clearMenuRect()
-  rawDisplayStr("Destroy ")
+  rawDisplayStr("Drop ")
   _displayItemName(item)
   rawDisplayStr(" (Y/N)?")
   if getYN()
@@ -491,7 +488,7 @@ def interactWithItem(player, item)#1
         break
       // Use an item
       is 'U'
-        if item->t_type == TYPE_ITEM
+        if item->t_type == TYPE_PLAIN_ITEM or item->t_type == TYPE_FANCY_ITEM
           return doUse(player, item) // general 'use' handled by outer engine, because it might involve graphics
         else
           beep
@@ -814,7 +811,6 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayWeaponStats(pItem1, pItem2)#0
   displayTwoCol("Equip'd", pItem1, pItem2, b_flags,         @equippedField, @formatEquipped)
-  displayTwoCol("Uses",    pItem1, pItem2, b_maxUses,       @byteField, @formatNum)
   displayTwoCol("Ammo",    pItem1, pItem2, s_ammoKind,      @wordField, @formatStr)
   displayTwoCol("Clip",    pItem1, pItem2, b_clipSize,      @byteField, @formatNum)
   displayTwoCol("Melee",   pItem1, pItem2, r_meleeDmg,      @wordField, @formatDice)
@@ -828,13 +824,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayArmorStats(pItem1, pItem2)#0
   displayTwoCol("Equip'd", pItem1, pItem2, b_flags,      @equippedField, @formatEquipped)
-  displayTwoCol("Uses",    pItem1, pItem2, b_maxUses,    @byteField, @formatNum)
   displayTwoCol("Protec",  pItem1, pItem2, b_armorValue, @byteField, @formatNum)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayStuffStats(pItem1, pItem2)#0
-  // Nothing special
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -843,10 +833,10 @@ def _displayItemStats(pItem1, pItem2)#1
 
   // First, show the item type and name
   when pItem1->t_type
-    is TYPE_ITEM;   rawDisplayStr("\nItem");   break
-    is TYPE_WEAPON; rawDisplayStr("\nWeapon"); break
-    is TYPE_ARMOR;  rawDisplayStr("\nArmor");  break
-    is TYPE_STUFF;  rawDisplayStr("\nSupply"); break
+    is TYPE_PLAIN_ITEM
+    is TYPE_FANCY_ITEM;   rawDisplayStr("\nItem");   break
+    is TYPE_WEAPON;       rawDisplayStr("\nWeapon"); break
+    is TYPE_ARMOR;        rawDisplayStr("\nArmor");  break
     otherwise fatal("tItem")
   wend
   tabTo(STATS_COL_1); _displayItemName(pItem1)
@@ -858,15 +848,14 @@ def _displayItemStats(pItem1, pItem2)#1
   when pItem1->t_type
     is TYPE_WEAPON; displayWeaponStats(pItem1, pItem2); break
     is TYPE_ARMOR;  displayArmorStats(pItem1, pItem2);  break
-    is TYPE_STUFF;  displayStuffStats(pItem1, pItem2);  break
   wend
 
   // If either item has modifiers, show them
   pMod1 = NULL
-  if pItem1->t_type <> TYPE_STUFF; pMod1 = pItem1=>p_modifiers; fin
+  if pItem1->t_type <> TYPE_PLAIN_ITEM; pMod1 = pItem1=>p_modifiers; fin
   pMod2 = NULL
   if pItem2
-    if pItem2->t_type <> TYPE_STUFF; pMod2 = pItem2=>p_modifiers; fin
+    if pItem2->t_type <> TYPE_PLAIN_ITEM; pMod2 = pItem2=>p_modifiers; fin
   fin
   if pMod1 or pMod2
     rawDisplayStr("\nSpecial")
@@ -889,9 +878,11 @@ end
 // For countable "stuff" (e.g. ammo), display the count and appropriate singular or plural name.
 def _displayItemName(pItem)#1
   isPlural = FALSE
-  if pItem->t_type == TYPE_STUFF
-    isPlural = pItem=>w_count <> 1
-    rawDisplayf1("%d ", pItem=>w_count)
+  if pItem->t_type == TYPE_FANCY_ITEM
+    if pItem=>w_count > 0
+      isPlural = pItem=>w_count > 1
+      rawDisplayf1("%d ", pItem=>w_count)
+    fin
   fin
   buildString(@addToString)
   printf1("%s", pItem=>s_name) // need proper plural processing

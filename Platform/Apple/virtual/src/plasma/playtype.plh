@@ -36,8 +36,7 @@ struc Global
   word w_heapSize
   word w_typeHash
 
-  // General flags maintained by scripts. Linked list of Modifiers.
-  word p_gameFlags
+  byte[32] ba_gameFlags // General flags maintained by scripts (array of 256 bits = 32 bytes)
   byte b_curAvatar
 
   // god mode flag
@@ -86,7 +85,6 @@ struc Player
   // Lists
   word p_skills  // list:Modifier
   word p_items   // list:Item
-  word p_effects // list:Effect
 end
 
 // Combat skills, weapon modifiers, etc.
@@ -98,27 +96,29 @@ struc Modifier
   word w_modValue
 end
 
-// Buffs and debuffs, that last until a specified time
-const TYPE_EFFECT = $83
-struc Effect
-  byte t_type
-  word p_nextObj
-  byte s_name
-  word w_modValue
-  word w_endTurn
-end
-
-const TYPE_ITEM = $84
-struc Item
+// Plain items are for things that don't stack or have stat effects,
+// but may have meaning to scenario logic (e.g. keys, tokens, etc.)
+const TYPE_PLAIN_ITEM = $83
+struc PlainItem
   byte t_type
   word p_nextObj
   word s_name
-  word s_itemKind
   word w_price
-  word p_modifiers  // list:modifier
-  // Usables properties
-  byte b_maxUses
-  byte b_curUses
+end
+
+const TYPE_FANCY_ITEM = $84
+struc FancyItem
+  // Plain item properties
+  byte t_type
+  word p_nextObj
+  word s_name
+  word w_price
+  // Fancy properties
+  word s_itemKind   // for ammo
+  word p_modifiers  // list:modifier, e.g. boost health, etc.
+  word w_count      // zero for singular items, 1+ for countables
+  word w_storeAmount
+  word r_lootAmount
 end
 
 const ITEM_FLAG_EQUIP         = $80 // only one weapon/armor equipped (in use) at a time
@@ -127,19 +127,16 @@ const WEAPON_FLAG_SINGLE_USE  = $01
 
 const TYPE_WEAPON = $85
 struc Weapon
-  // Item properties
+  // Plain item properties
   byte t_type
   word p_nextObj
   word s_name
-  word s_itemKind
   word w_price
-  word p_modifiers  // list:modifier
-  // Usables properties
-  byte b_maxUses
-  byte b_curUses
   // Weapon properties
-  byte b_flags    // WEAPON_FLAG_* above
-  word s_ammoKind
+  word s_itemKind       // for skill matching
+  word p_modifiers      // list:modifier
+  byte b_flags          // WEAPON_FLAG_* above
+  word s_ammoKind       // for matching to Stackable ammo
   byte b_clipSize
   byte b_clipCurrent
   word r_meleeDmg       // 3 hex digits: num dice, die size, add. E.g. $361 = 3d6+1
@@ -151,37 +148,19 @@ end
 
 const TYPE_ARMOR = $86
 struc Armor
-  // General item properties
+  // Plain item properties
   byte t_type
   word p_nextObj
   word s_name
-  word s_itemKind
   word w_price
-  word p_modifiers  // list:modifier
-  // Usables properties
-  byte b_maxUses
-  byte b_curUses
   // Armor properties
+  word s_itemKind
+  word p_modifiers  // list:modifier
   byte b_flags // ARMOR_FLAG_* above
   byte b_armorValue
 end
 
-// Countable things, e.g. ammo and pelts
-const TYPE_STUFF = $87
-struc Stuff
-  // General item properties
-  byte t_type
-  word p_nextObj
-  word s_name
-  word s_itemKind
-  word w_price
-  // Stuff properties
-  word w_count
-  word w_storeAmount
-  word r_lootAmount
-end
-
-const TYPE_ENEMY = $88
+const TYPE_ENEMY = $87
 struc Enemy
   byte t_type
   word p_nextObj
@@ -204,7 +183,7 @@ struc Enemy
   word r_goldLoot     // monetary loot when killed, as 3 hex digits for dice
 end
 
-const TYPE_ENEMY_GROUP = $89
+const TYPE_ENEMY_GROUP = $88
 struc EnemyGroup
   byte t_type
   word p_nextObj
@@ -212,7 +191,7 @@ struc EnemyGroup
   byte b_enemyGroupRange
 end
 
-const TYPE_ENCOUNTER_ZONE = $8A
+const TYPE_ENCOUNTER_ZONE = $89
 struc EncounterZone
   byte t_type
   word p_nextObj

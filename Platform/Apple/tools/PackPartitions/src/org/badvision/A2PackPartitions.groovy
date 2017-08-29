@@ -25,6 +25,7 @@ import java.util.LinkedHashMap
 import java.security.MessageDigest
 import javax.xml.bind.DatatypeConverter
 import groovy.json.JsonOutput
+import groovy.util.Node
 
 /**
  *
@@ -82,6 +83,7 @@ class A2PackPartitions
     def modules   = [:]  // module name to module.num, module.buf
     def bytecodes = [:]  // module name to bytecode.num, bytecode.buf
     def fixups    = [:]  // module name to fixup.num, fixup.buf
+    def gameFlags = [:]  // flag name to number
 
     def itemNameToFunc = [:]
     def playerNameToFunc = [:]
@@ -2027,6 +2029,7 @@ class A2PackPartitions
         compileModule("gen_enemies", "src/plasma/")
         compileModule("gen_items", "src/plasma/")
         compileModule("gen_players", "src/plasma/")
+        compileModule("gen_flags", "src/plasma/")
         globalScripts.each { name, nArgs ->
             compileModule("gs_"+name, "src/plasma/")
         }
@@ -2059,6 +2062,40 @@ class A2PackPartitions
             }
             else
                 printWarning "map name '${map?.@name}' should contain '2D' or '3D'. Skipping."
+        }
+    }
+
+    /*
+    *  Scan all the scripts looking for flags, and make a mapping of flag name to number.
+    */
+    def numberGameFlags(data)
+    {
+        String name = data.name().toString()
+        if (name == "{outlaw}gameData") {
+            gameFlags = [] as Set  // temporary, until we have them all
+            data.global.scripts.script.each { numberGameFlags(it) }
+            data.map.scripts.script.each { numberGameFlags(it) }
+
+            // Now that we have them all, sort and assign numbers
+            def flagSet = gameFlags
+            gameFlags = [:]
+            flagSet.sort().each { flg -> gameFlags[flg] = gameFlags.size() }
+        }
+        else if (name == "{outlaw}block" &&
+                 (data.@type == "interaction_get_flag" || data.@type == "interaction_set_flag"))
+        {
+            def els = data.field
+            assert els.size() == 1
+            def first = els[0]
+            assert first.@name == "NAME"
+            def flg = first.text().toLowerCase()
+            gameFlags << flg
+        }
+        else {
+            data.iterator().each {
+                if (it instanceof Node)
+                    numberGameFlags(it)
+            }
         }
     }
 
@@ -2291,6 +2328,9 @@ class A2PackPartitions
 
         // Number all the maps and record them with names
         numberMaps(dataIn)
+
+        // Assign a number to each game flag
+        numberGameFlags(dataIn)
 
         // Form the translation from item name to function name (and ditto
         // for players)
@@ -2648,6 +2688,47 @@ end
         return parseDice(val)
     }
 
+    def genAllFlags()
+    {
+        // Make constants
+        new File("build/src/plasma/gen_flags.plh.new").withWriter { out ->
+            out.println("// Generated code - DO NOT MODIFY BY HAND\n")
+            out.println("const flags_nameForNumber = 0\n")
+            gameFlags.each { name, num ->
+                out.println("const GF_${humanNameToSymbol(name, true)} = $num")
+            }
+            out.println("const NUM_GAME_FLAGS = ${gameFlags.size()}")
+        }
+        replaceIfDiff("build/src/plasma/gen_flags.plh")
+
+        // Generate code
+        new File("build/src/plasma/gen_flags.pla.new").withWriter { out ->
+            out.println("// Generated code - DO NOT MODIFY BY HAND")
+            out.println()
+            out.println("include \"gamelib.plh\"")
+            out.println("include \"globalDefs.plh\"")
+            out.println("include \"gen_flags.plh\"")
+            out.println()
+
+            out.println("predef _flags_nameForNumber(num)#1")
+            out.println("word[] funcTbl = @_flags_nameForNumber\n")
+            out.println("def _flags_nameForNumber(num)#1")
+            out.println("  when num")
+            gameFlags.each { name, num ->
+                out.println("    is ${"GF_"+humanNameToSymbol(name, true)}; return(${escapeString(name.toUpperCase())})")
+            }
+            out.println("  wend")
+            out.println("  puts(num); fatal(\"flags_nameForNumber\")")
+            out.println("  return(0)")
+            out.println("end\n")
+
+            // Lastly, the outer module-level code
+            out.println("return @funcTbl")
+            out.println("done")
+        }
+        replaceIfDiff("build/src/plasma/gen_flags.pla")
+    }
+
     def genWeapon(func, row, out)
     {
         out.println(
@@ -2679,26 +2760,21 @@ end
             "${parseModifier(row, "bonus-value", "bonus-attribute")})")
     }
 
-    def genAmmo(func, row, out)
-    {
-        out.println(
-            "  return makeStuff(" +
-            "${escapeString(parseStringAttr(row, "name"))}, " +
-            "${escapeString(parseStringAttr(row, "ammo-kind"))}, " +
-            "${parseWordAttr(row, "price")}, " +
-            "${parseWordAttr(row, "max")}, " +
-            "${parseWordAttr(row, "store-amount")}, " +
-            "${parseDiceAttr(row, "loot-amount")})")
-    }
-
     def genItem(func, row, out)
     {
-        out.println(
-            "  return makeItem(" +
-            "${escapeString(parseStringAttr(row, "name"))}, " +
-            "${parseWordAttr(row, "price")}, " +
-            "${parseModifier(row, "bonus-value", "bonus-attribute")}, " +
-            "${parseByteAttr(row, "number-of-uses")})")
+        def name = parseStringAttr(row, "name")
+        def price = parseWordAttr(row, "price")
+        def modifier = parseModifier(row, "bonus-value", "bonus-attribute")
+        def kind = parseStringAttr(row, "ammo-kind")
+        def count = parseWordAttr(row, "count")
+        def storeAmount = parseWordAttr(row, "store-amount")
+        def lootAmount = parseDiceAttr(row, "loot-amount")
+
+        if ("$kind, $modifier, $count, $storeAmount, $lootAmount" != ", NULL, 0, 0, 0")
+            out.println("  return makeFancyItem(${escapeString(name)}, $price, " +
+                "${escapeString(kind)}, $modifier, $count, $storeAmount, $lootAmount)")
+        else
+            out.println("  return makePlainItem(${escapeString(name)}, $price)")
     }
 
     def genPlayer(func, row, out)
@@ -2738,7 +2814,7 @@ end
                 def itemFunc = itemNameToFunc[name]
                 assert itemFunc : "Can't locate item '$name'"
                 if (num > 1)
-                    out.println("  addToList(@p=>p_items, setStuffCount(itemScripts()=>$itemFunc(), $num))")
+                    out.println("  addToList(@p=>p_items, setItemCount(itemScripts()=>$itemFunc(), $num))")
                 else
                     out.println("  addToList(@p=>p_items, itemScripts()=>$itemFunc())")
             }
@@ -2899,24 +2975,22 @@ def makeWeapon_pt2(p, attack0, attack1, attack2, weaponRange, combatText, single
   return p
 end
 
-def makeStuff(name, kind, price, count, storeAmount, lootAmount)
-  word p; p = mmgr(HEAP_ALLOC, TYPE_STUFF)
+def makePlainItem(name, price)
+  word p; p = mmgr(HEAP_ALLOC, TYPE_PLAIN_ITEM)
   p=>s_name = mmgr(HEAP_INTERN, name)
-  p=>s_itemKind = mmgr(HEAP_INTERN, kind)
   p=>w_price = price
-  p=>w_count = count
-  p=>w_storeAmount = storeAmount
-  p=>r_lootAmount = lootAmount
   return p
 end
 
-def makeItem(name, price, modifier, maxUses)
-  word p; p = mmgr(HEAP_ALLOC, TYPE_ITEM)
+def makeFancyItem(name, price, kind, modifiers, count, storeAmount, lootAmount)
+  word p; p = mmgr(HEAP_ALLOC, TYPE_FANCY_ITEM)
   p=>s_name = mmgr(HEAP_INTERN, name)
   p=>w_price = price
-  p=>p_modifiers = modifier
-  p->b_maxUses = maxUses
-  p->b_curUses = 0
+  p=>s_itemKind = mmgr(HEAP_INTERN, kind)
+  p=>p_modifiers = modifiers
+  p=>w_count = count
+  p=>w_storeAmount = storeAmount
+  p=>r_lootAmount = lootAmount
   return p
 end
 
@@ -2930,7 +3004,7 @@ end
                     switch (typeName) {
                         case "weapon": genWeapon(func, row, out); break
                         case "armor":  genArmor(func, row, out);  break
-                        case "ammo":   genAmmo(func, row, out);   break
+                        case "ammo":   genItem(func, row, out);   break
                         case "item":   genItem(func, row, out);   break
                         default: assert false
                     }
@@ -3043,11 +3117,11 @@ def makePlayer_pt2(p, health, level, aiming, handToHand, dodging, gender)#1
   return p
 end
 
-def setStuffCount(p, ct)#1
-  if p->t_type == TYPE_STUFF
+def setItemCount(p, ct)#1
+  if p->t_type == TYPE_FANCY_ITEM
     p->w_count = ct
   else
-    fatal(\"stuffct\")
+    fatal(\"itemct\")
   fin
   return p // for chaining
 end
@@ -3191,6 +3265,9 @@ end
         // Before we can generate global script code, we need to identify and number all the maps.
         numberMaps(dataIn)
 
+        // Assign a number to each game flag
+        numberGameFlags(dataIn)
+
         // Form the translation from item name to function name (and ditto
         // for players)
         allItemFuncs(dataIn.global.sheets.sheet)
@@ -3201,6 +3278,9 @@ end
         recordGlobalScripts(dataIn)
         genAllGlobalScripts(dataIn.global.scripts.script)
         curMapName = null
+
+        // Generate a mapping of flags, for debugging purposes.
+        genAllFlags()
 
         // Translate enemies, weapons, etc. to code
         genAllItems(dataIn.global.sheets.sheet)
@@ -3492,6 +3572,7 @@ end
             out << "include \"../plasma/gamelib.plh\"\n"
             out << "include \"../plasma/globalDefs.plh\"\n"
             out << "include \"../plasma/playtype.plh\"\n"
+            out << "include \"../plasma/gen_flags.plh\"\n"
             out << "include \"../plasma/gen_images.plh\"\n"
             out << "include \"../plasma/gen_items.plh\"\n"
             out << "include \"../plasma/gen_modules.plh\"\n"
@@ -3979,14 +4060,16 @@ end
 
         def packGetFlag(blk)
         {
-            def name = getSingle(blk.field, 'NAME').text()
-            out << "getGameFlag(${escapeString(name)})"
+            def name = getSingle(blk.field, 'NAME').text().trim().toLowerCase()
+            assert gameFlags.containsKey(name)
+            out << "getGameFlag(GF_${humanNameToSymbol(name, true)})"
         }
 
         def packChangeFlag(blk)
         {
-            def name = getSingle(blk.field, 'NAME').text()
-            outIndented("setGameFlag(${escapeString(name)}, ${blk.@type == 'interaction_set_flag' ? 1 : 0})\n")
+            def name = getSingle(blk.field, 'NAME').text().trim().toLowerCase()
+            assert gameFlags.containsKey(name)
+            outIndented("setGameFlag(GF_${humanNameToSymbol(name, true)}, ${blk.@type == 'interaction_set_flag' ? 1 : 0})\n")
         }
 
         def isStringExpr(blk)

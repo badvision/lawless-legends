@@ -872,11 +872,15 @@ def _displayItemStats(pItem1, pItem2)#1
     rawDisplayStr("\nSpecial")
     while pMod1 or pMod2
       if pMod1
-        rawDisplayf3("^T%D%d %s", STATS_COL_1, pMod1=>w_modValue, pMod1=>s_name)
+        rawDisplayf1("^T%D", STATS_COL_1)
+        if pMod1=>w_modValue >= 999; rawDisplayStr("Full "); else rawDisplayf1("%d ", pMod1=>w_modValue); fin
+        rawDisplayStr(pMod1=>s_name)
         pMod1 = pMod1=>p_nextObj
       fin
       if pMod2
-        rawDisplayf3("^T%D%d %s", STATS_COL_2, pMod2=>w_modValue, pMod2=>s_name)
+        rawDisplayf1("^T%D", STATS_COL_2)
+        if pMod2=>w_modValue >= 999; rawDisplayStr("Full "); else rawDisplayf1("%d ", pMod2=>w_modValue); fin
+        rawDisplayStr(pMod2=>s_name)
         pMod2 = pMod2=>p_nextObj
       fin
     loop
@@ -889,8 +893,8 @@ end
 // For countable "stuff" (e.g. ammo), display the count and appropriate singular or plural name.
 def _displayItemName(pItem)#1
   isPlural = FALSE
-  if pItem->t_type == TYPE_FANCY_ITEM and pItem=>w_count > 0
-    isPlural = pItem=>w_count > 1
+  if pItem->t_type == TYPE_FANCY_ITEM and pItem=>w_count > 1
+    isPlural = TRUE
     rawDisplayf1("%d ", pItem=>w_count)
   fin
   buildString(@addToString)

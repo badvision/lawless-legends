@@ -971,7 +971,8 @@ export asm streqi(a, b)#1
   bne --          ; abort on inequality
   dex
   bne -
-  ldy #0          ; okay, they're equal. Return non-zero (A is guaranteed to be a character already)
+  lda #1
+  ldy #0          ; okay, they're equal. Return 1 (not just any char; so that PLASMA when...is can work)
   rts
 end
 
@@ -2367,13 +2368,21 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load the Party engine and show data for the given player
 def showPlayerSheet(num)#1
-  word pItemToUse
+  word pItemToUse, oldFlg
   if num+1 > countList(global=>p_players); beep; return 0; fin
   pItemToUse = loadEngine(MOD_PARTY)=>party_showPlayerSheet(num)
   returnFromEngine(TRUE)
   // General 'use' handled here in case it triggers graphical effects
   if pItemToUse
+    oldFlg = textDrawn
+    textDrawn = FALSE
     scriptEvent(@S_USE, pItemToUse=>s_name)
+    if !textDrawn
+      displayStr("\nNothing happened.")
+      textDrawn = TRUE
+    else
+      textDrawn = oldFlg
+    fin
   fin
   return 0
 end
@@ -2932,29 +2941,29 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def getStat(player, statName)#1
   word pSkill
-  when statName
-    is @S_INTELLIGENCE; return player->b_intelligence
-    is @S_STRENGTH; return player->b_strength
-    is @S_AGILITY; return player->b_agility
-    is @S_STAMINA; return player->b_stamina
-    is @S_CHARISMA; return player->b_charisma
-    is @S_SPIRIT; return player->b_spirit
-    is @S_LUCK; return player->b_luck
-    is @S_HEALTH; return player=>w_health
-    is @S_MAX_HEALTH; return player=>w_maxHealth
-    is @S_AIMING; return player->b_aiming
-    is @S_HAND_TO_HAND; return player->b_handToHand
-    is @S_DODGING; return player->b_dodging
-    is @S_GOLD; return global=>w_gold
-    is @S_XP; return player=>w_curXP
-    is @S_SP; return player->b_skillPoints
+  when 1
+    is streqi(statName, @S_INTELLIGENCE); return player->b_intelligence
+    is streqi(statName, @S_STRENGTH);     return player->b_strength
+    is streqi(statName, @S_AGILITY);      return player->b_agility
+    is streqi(statName, @S_STAMINA);      return player->b_stamina
+    is streqi(statName, @S_CHARISMA);     return player->b_charisma
+    is streqi(statName, @S_SPIRIT);       return player->b_spirit
+    is streqi(statName, @S_LUCK);         return player->b_luck
+    is streqi(statName, @S_HEALTH);       return player=>w_health
+    is streqi(statName, @S_MAX_HEALTH);   return player=>w_maxHealth
+    is streqi(statName, @S_AIMING);       return player->b_aiming
+    is streqi(statName, @S_HAND_TO_HAND); return player->b_handToHand
+    is streqi(statName, @S_DODGING);      return player->b_dodging
+    is streqi(statName, @S_GOLD);         return global=>w_gold
+    is streqi(statName, @S_XP);           return player=>w_curXP
+    is streqi(statName, @S_SP);           return player->b_skillPoints
   wend
   pSkill = player=>p_skills
   while pSkill
     if streqi(statName, pSkill=>s_name); return pSkill=>w_modValue; fin
     pSkill = pSkill=>p_nextObj
   loop
-  puts(statName); return fatal("Unknown stat")
+  puts(statName); return fatal("getStat")
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2973,22 +2982,22 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def setStat(player, statName, val)#0
   word pSkill
-  when statName
-    is @S_INTELLIGENCE; player->b_intelligence = clampByte(val); break
-    is @S_STRENGTH; player->b_strength = clampByte(val); break
-    is @S_AGILITY; player->b_agility = clampByte(val); break
-    is @S_STAMINA; player->b_stamina = clampByte(val); break
-    is @S_CHARISMA; player->b_charisma = clampByte(val); break
-    is @S_SPIRIT; player->b_spirit = clampByte(val); break
-    is @S_LUCK; player->b_luck = clampByte(val); break
-    is @S_HEALTH; player=>w_health = max(0, min(player=>w_maxHealth, val)); needShowParty = TRUE; break
-    is @S_MAX_HEALTH; player=>w_maxHealth = max(0, val); break
-    is @S_AIMING; player->b_aiming = clampByte(val); break
-    is @S_HAND_TO_HAND; player->b_handToHand = clampByte(val); break
-    is @S_DODGING; player->b_dodging = clampByte(val); break
-    is @S_GOLD; global=>w_gold = max(0, val); needShowParty = TRUE; break
-    is @S_XP; player=>w_curXP = max(player=>w_curXP, val); needShowParty = TRUE; break
-    is @S_SP; player->b_skillPoints = max(0, val); needShowParty = TRUE; break
+  when 1
+    is streqi(statName, @S_INTELLIGENCE); player->b_intelligence = clampByte(val); break
+    is streqi(statName, @S_STRENGTH);     player->b_strength = clampByte(val); break
+    is streqi(statName, @S_AGILITY);      player->b_agility = clampByte(val); break
+    is streqi(statName, @S_STAMINA);      player->b_stamina = clampByte(val); break
+    is streqi(statName, @S_CHARISMA);     player->b_charisma = clampByte(val); break
+    is streqi(statName, @S_SPIRIT);       player->b_spirit = clampByte(val); break
+    is streqi(statName, @S_LUCK);         player->b_luck = clampByte(val); break
+    is streqi(statName, @S_HEALTH);       player=>w_health = max(0, min(player=>w_maxHealth, val)); needShowParty = TRUE; break
+    is streqi(statName, @S_MAX_HEALTH);   player=>w_maxHealth = max(0, val); break
+    is streqi(statName, @S_AIMING);       player->b_aiming = clampByte(val); break
+    is streqi(statName, @S_HAND_TO_HAND); player->b_handToHand = clampByte(val); break
+    is streqi(statName, @S_DODGING);      player->b_dodging = clampByte(val); break
+    is streqi(statName, @S_GOLD);         global=>w_gold = max(0, val); needShowParty = TRUE; break
+    is streqi(statName, @S_XP);           player=>w_curXP = max(player=>w_curXP, val); needShowParty = TRUE; break
+    is streqi(statName, @S_SP);           player->b_skillPoints = max(0, val); needShowParty = TRUE; break
     otherwise
       pSkill = player=>p_skills
       while pSkill
@@ -2998,7 +3007,7 @@ export def setStat(player, statName, val)#0
         fin
         pSkill = pSkill=>p_nextObj
       loop
-      puts(statName); fatal("Unknown stat")
+      puts(statName); fatal("setStat")
   wend
 end
 

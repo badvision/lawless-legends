@@ -2767,12 +2767,23 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Add to a list if named obj not already in it; returns TRUE if really added.
+// Also handles incrementing stackable items.
 export def addUnique(pList, p_thing)#1
-  if !scanForNamedObj(*pList, p_thing=>s_name)
-    addToList(pList, p_thing)
-    return TRUE
+  word p_existing
+
+  // If it's stackable and player already has some, just increase the stack
+  p_existing = scanForNamedObj(*pList, p_thing=>s_name)
+  if p_existing
+    if p_existing->t_type == TYPE_FANCY_ITEM and p_existing=>w_count > 0
+      p_existing=>w_count++
+      return TRUE
+    fin
+    return FALSE  // already have one, and it's not stackable
   fin
-  return FALSE
+
+  // Otherwise, add a new item
+  addToList(pList, p_thing)
+  return TRUE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2886,7 +2897,12 @@ export def removeNamed(name, pList)#0
   word p_thing
   p_thing = scanForNamedObj(*pList, name)
   if p_thing
-    removeFromList(pList, p_thing)
+    // If it's stackable and there's more than one, just reduce the count. Otherwise take it all.
+    if p_thing->t_type == TYPE_FANCY_ITEM and p_thing=>w_count > 1
+      p_thing=>w_count--
+    else
+      removeFromList(pList, p_thing)
+    fin
   else
     printf1("Warning: couldn't find '%s' to remove.\n", name)
   fin

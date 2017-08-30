@@ -185,7 +185,7 @@ def browseItem(num)#0
       matchEquipped(pItem, compSkip) // to set pMatchPlayer
       pComp = scanForNamedObj(pMatchPlayer=>p_items, pItem=>s_name)
       if pComp
-        if pItem->t_type == TYPE_FANCY_ITEM
+        if pItem->t_type == TYPE_FANCY_ITEM and pItem=>w_count > 0
           pComp=>w_count = min(30000, pComp=>w_count + pItem=>w_count)
         else
           rawDisplayStr("\nDuplicate item.")

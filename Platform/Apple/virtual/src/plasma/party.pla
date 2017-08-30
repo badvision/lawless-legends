@@ -406,21 +406,32 @@ end
 
 // Select an item and use it. Returns item if it needs to be processed by outer loop, else NULL
 def doUse(player, item)#1
-  if item=>p_modifiers
-    if streqi(item=>p_modifiers=>s_name, @S_HEALTH)
-      clearMenuRect()
-      clearMainRect()
-      rawDisplayStr("^V000\n^J^J^J")
-      if player=>w_health < player=>w_maxHealth
-        player=>w_health = min(player=>w_health + item=>p_modifiers=>w_modValue, player=>w_maxHealth)
-        removeFromList(@player=>p_items, item)
-        rawDisplayf2("Healed to %d/%d", player=>w_health, player=>w_maxHealth)
+  word pMod, oldVal, newVal
+  if item->t_type == TYPE_FANCY_ITEM and item=>p_modifiers
+    clearMenuRect()
+    clearMainRect()
+    rawDisplayStr("^V000\n^J^J^J")
+    pMod = item=>p_modifiers
+    while pMod
+      oldVal = getStat(player, pMod=>s_name)
+      setStat(player, pMod=>s_name, oldVal + pMod=>w_modValue)
+      newVal = getStat(player, pMod=>s_name)
+      rawDisplayStr(pMod=>s_name)
+      if newVal <> oldVal
+        takeItemFromPlayer(player, item=>s_name)  // also handles reducing count of stackables
+        if newVal > oldVal
+          rawDisplayStr(" increased")
+        else
+          rawDisplayStr(" decreased")
+        fin
+        rawDisplayf2(" from %d to %d.", oldVal, newVal)
       else
-        rawDisplayStr("No healing needed.")
+        rawDisplayStr(" already at the limit.")
       fin
       pause(800)
-      return NULL
-    fin
+      pMod = pMod=>p_nextObj
+    loop
+    return NULL
   fin
   return item // general 'use' handled by outer engine, because it might involve graphics
 end
@@ -878,11 +889,9 @@ end
 // For countable "stuff" (e.g. ammo), display the count and appropriate singular or plural name.
 def _displayItemName(pItem)#1
   isPlural = FALSE
-  if pItem->t_type == TYPE_FANCY_ITEM
-    if pItem=>w_count > 0
-      isPlural = pItem=>w_count > 1
-      rawDisplayf1("%d ", pItem=>w_count)
-    fin
+  if pItem->t_type == TYPE_FANCY_ITEM and pItem=>w_count > 0
+    isPlural = pItem=>w_count > 1
+    rawDisplayf1("%d ", pItem=>w_count)
   fin
   buildString(@addToString)
   printf1("%s", pItem=>s_name) // need proper plural processing

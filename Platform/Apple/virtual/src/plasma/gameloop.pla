@@ -1276,7 +1276,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def rollDiceWithLuck(encoded, luck)#1
   byte i, nDice, dieSize, add, droll, result
-  nDice = encoded >> 12
+  nDice = (encoded >> 12) & $F  // must mask off replicated hi-bits
   dieSize = (encoded >> 8) & $F
   add = encoded & $F
   result = add
@@ -1291,8 +1291,7 @@ export def rollDiceWithLuck(encoded, luck)#1
         droll = min(droll, (rand16() % dieSize) + 1)
       fin
     fin
-    add = (rand16() % dieSize) + 1
-    result = result + add
+    result = result + droll
   next
   return result
 end
@@ -2452,6 +2451,7 @@ def doCombat(mapCode, backUpOnFlee)#1
   // Handled in a separate module. Clear enemies out of the heap when finished.
   result = loadEngine(MOD_COMBAT)=>combat_zoneEncounter(mapCode)
   global=>p_enemyGroups = NULL
+  mmgr(CHECK_MEM, 0)
   mmgr(HEAP_COLLECT, 0)
 
   if (result == -99)

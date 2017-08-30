@@ -374,10 +374,21 @@ def showItemMenu(item)#0
   clearMenuRect()
   type = item->t_type
   if type == TYPE_ARMOR or type == TYPE_WEAPON
-    rawDisplayStr("E)quip/unequip, ")
-  fin
-  if type == TYPE_PLAIN_ITEM or type == TYPE_FANCY_ITEM
+    if !(item->b_flags & ITEM_FLAG_EQUIP)
+      rawDisplayStr("un-")
+    fin
+    rawDisplayStr("E)quip")
+  elsif type == TYPE_PLAIN_ITEM or type == TYPE_FANCY_ITEM
     rawDisplayStr("U)se, ")
+    if type == TYPE_FANCY_ITEM and item=>w_count > 1
+      rawDisplayStr("S)plit, ")
+    fin
+    if type == TYPE_FANCY_ITEM and item=>w_count > 0
+      rawDisplayStr("J)oin, ")
+    fin
+  fin
+  if global=>p_players=>p_nextObj
+    rawDisplayStr("T)rade, ")
   fin
   rawDisplayStr("D)rop or [Esc]")
 end
@@ -402,6 +413,24 @@ def doEquip(player, item)#0
     item->b_flags = item->b_flags | ITEM_FLAG_EQUIP
   fin
   calcPlayerArmor(player)
+end
+
+// Trade an item to another player/npc
+def doTrade(player, item)#1
+  fatal("not yet: trade")
+  return 0
+end
+
+// Split a stack of stackables
+def doSplit(player, item)#1
+  fatal("not yet: split")
+  return 0
+end
+
+// Join a stack of stackables
+def doJoin(player, item)#1
+  fatal("not yet: join")
+  return 0
 end
 
 // Select an item and use it. Returns item if it needs to be processed by outer loop, else NULL
@@ -503,6 +532,24 @@ def interactWithItem(player, item)#1
           return doUse(player, item) // general 'use' handled by outer engine, because it might involve graphics
         else
           beep
+        fin
+        break
+      // Trade an item
+      is 'T'
+        if global=>p_players=>p_nextObj
+          return doTrade(player, item)
+        fin
+        break
+      // Split a stack
+      is 'S'
+        if item->t_type == TYPE_FANCY_ITEM and item=>w_count > 1
+          return doSplit(player, item)
+        fin
+        break
+      // Join stacks
+      is 'J'
+        if item->t_type == TYPE_FANCY_ITEM and item=>w_count > 0
+          return doJoin(player, item)
         fin
         break
       // Destroy an item
@@ -624,6 +671,8 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
         fin
         break
       is $1B // Esc
+        mmgr(CHECK_MEM, 0)
+        mmgr(HEAP_COLLECT, 0)
         return NULL
       otherwise
         if sel == 'X' and mode <> 'I'
@@ -656,7 +705,7 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
         fin
     wend
   until 0
-  return NULL
+  return NULL // never reached
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

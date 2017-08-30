@@ -886,12 +886,13 @@ def collectLootAndXP()#2
             pItem=>w_count = rollDiceWithLuck(pItem=>r_lootAmount, global=>p_players->b_luck)
           fin
           if addItem(global=>p_players, pItem)
+            displayStr("You find ")
             if pItem->t_type == TYPE_FANCY_ITEM and pItem=>w_count > 1
               isPlural = TRUE
-              displayf2("You find %d %s! ", pItem=>w_count, pItem=>s_name)
+              displayf2("%d %s! ", pItem=>w_count, pItem=>s_name)
             else
               isPlural = FALSE
-              displayf2("You find %s%s! ", anOrA(pItem=>s_name), pItem=>s_name)
+              displayf2("%s%s! ", anOrA(pItem=>s_name), pItem=>s_name)
             fin
           fin
           lootedItem = TRUE

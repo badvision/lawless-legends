@@ -226,6 +226,9 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def saveInternal()#0
 
+  // Never save corrupted heap
+  mmgr(CHECK_MEM, 0)
+
   // Perform garbage collection and record the size of the heap so we can restore it correctly
   global=>w_heapSize = mmgr(HEAP_COLLECT, 0) - HEAP_BOTTOM
 
@@ -257,6 +260,7 @@ def loadInternal()#1
   fin
   memcpy(LOAD_SAVE_BUF, HEAP_BOTTOM, HEAP_SIZE)  // low mem to LC
   initHeap(p_loaded=>w_heapSize)
+  mmgr(CHECK_MEM, 0) // make sure heap is valid
   return TRUE
 end
 

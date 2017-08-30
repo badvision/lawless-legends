@@ -747,15 +747,8 @@ gcHash_chk: !zone
 	rts
 .corrup	jmp heapCorrupt
 
-!if DEBUG = 0 {
-debugOnly:
-	jsr inlineFatal : !text "DebugOnly",0	
-}
-
 ; Verify integrity of memory manager structures
 memCheck: !zone
-!if DEBUG = 0 { jmp debugOnly }
-!if DEBUG {
 	jsr heapCheck	; heap check (if there is one)
 	ldx #0		; check main bank
 	jsr .chk
@@ -811,7 +804,6 @@ heapCheck: !zone
 	cmp heapEndPg	; or >= than end of heap
 	bcc .tscan
 	; fall through to heapCorrupt...
-} ; if DEBUG
 
 heapCorrupt:
        +prWord pTmp

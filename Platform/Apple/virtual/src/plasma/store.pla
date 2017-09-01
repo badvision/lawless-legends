@@ -78,6 +78,25 @@ def displayItemLine(num)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def displayPaging(action, nItems, pageNum, nPages)#0
+  rawDisplayStr("\n^V166")
+  if nItems
+    rawDisplayf2("Gold: %d. %s [A", global=>w_gold, action)
+    if nItems > 1; rawDisplayf1("-%c", nItems-1+'A'); fin
+    rawDisplayStr("] ")
+    if nPages > 1
+      rawDisplayStr(", Pg [")
+      if pageNum+1 < nPages; rawDisplayStr(">"); fin
+      if pageNum; rawDisplayStr("<"); fin
+      rawDisplayStr("] ")
+    fin
+    rawDisplayStr("or [Esc].")
+  else
+    rawDisplayStr("Press [Esc].")
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayBuyPage(pItemTbl, markupRatio, pageNum, nPages)#1
   byte itemNum
   word pFunc, pItem
@@ -98,14 +117,7 @@ def displayBuyPage(pItemTbl, markupRatio, pageNum, nPages)#1
     displayItemLine(itemNum)
     pFunc = pFunc + 2
   next
-
-  rawDisplayf1("\n^V166Gold: %d. Browse [A", global=>w_gold)
-  if itemNum > 1; rawDisplayf1("-%c", itemNum-1+'A'); fin
-  rawDisplayStr("], ")
-  if nPages > 1
-    rawDisplayf1("p. [1-%d], ", nPages)
-  fin
-  rawDisplayStr("or [Esc].")
+  displayPaging("Browse", itemNum, pageNum, nPages)
   return itemNum
 end
 
@@ -181,7 +193,6 @@ def browseItem(num)#0
     displayItemBrowse(pItem, price, matchEquipped(pItem, compSkip))
     displayItemMenu(price, compSkip or matchEquipped(pItem, 1+compSkip))
     sel = getUpperKey()
-    rawDisplayf1(" %c\n", sel)
     if sel == 'B' and price <= global=>w_gold
       matchEquipped(pItem, compSkip) // to set pMatchPlayer
       pComp = scanForNamedObj(pMatchPlayer=>p_items, pItem=>s_name)
@@ -234,8 +245,10 @@ def _buyFromStore(storeCode, profitPercent)#1
     fin
     choice = getUpperKey()
     redisplay = TRUE
-    if choice >= '1' and (choice-'1') < nPages
-      pageNum = choice - '1'
+    if choice == '<' and pageNum
+      pageNum--
+    elsif choice == '>' and pageNum+1 < nPages
+      pageNum++
     elsif choice >= 'A' and (choice-'A' < nItemsOnPage)
       browseItem(choice-'A')
     elsif choice == $1B // Esc
@@ -276,7 +289,7 @@ def iterateSellables(skipItems, markdownRatio)#1
       if pItem->t_type == TYPE_FANCY_ITEM
         ok = pItem=>w_count > 0 // too much trouble to figure out prices of stackables
       elsif pItem->t_type == TYPE_WEAPON or pItem->t_type == TYPE_ARMOR
-        if pItem->b_flags & ITEM_FLAG_EQUIP; ok = FALSE; fin
+        if pItem->b_flags & ITEM_FLAG_EQUIP; ok = FALSE; fin // don't sell equipped things
       fin
       if ok
         price = max(0, pItem=>w_price - addRatio(pItem=>w_price, markdownRatio))
@@ -303,18 +316,14 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displaySellPage(markdownRatio, pageNum, nPages)#1
   word nItems
+  printf2("pageNum=%d nPages=%d\n", pageNum, nPages)
   displaySellTitle(pageNum, nPages)
+  printf3("pageNum=%d PAGE_SIZE=%d mul=%d\n", pageNum, PAGE_SIZE, pageNum * PAGE_SIZE)
   nItems = iterateSellables(pageNum * PAGE_SIZE, markdownRatio)
   if !nItems
     rawDisplayStr("\n\nNothing to sell here.")
   fin
-  rawDisplayf1("\n^V166Gold: %d. Sell [A", global=>w_gold)
-  if nItems > 1; rawDisplayf1("-%c", nItems-1+'A'); fin
-  rawDisplayStr("], ")
-  if nPages > 1
-    rawDisplayf1("p. [1-%d], ", nPages)
-  fin
-  rawDisplayStr("or [Esc].")
+  displayPaging("Sell", nItems, pageNum, nPages)
   return nItems
 end
 
@@ -345,9 +354,10 @@ def _sellToStore(profitPercent)#1
   pageNum = 0
 
   ratio = percentToRatio(profitPercent) / 2 // half profit on buying, half on selling
+  totalItems = iterateSellables(9999, 0)    // initialize count for paging calcs
 
   redisplay = TRUE
-  while totalItems > 0
+  while TRUE
     nPages = (totalItems + PAGE_SIZE - 1) / PAGE_SIZE // recalc each time since totalItems changes
     pageNum = min(nPages-1, pageNum)
     if redisplay
@@ -355,8 +365,10 @@ def _sellToStore(profitPercent)#1
     fin
     choice = getUpperKey()
     redisplay = TRUE
-    if choice >= '1' and (choice-'1') < nPages
-      pageNum = choice - '1'
+    if choice == '<' and pageNum
+      pageNum--
+    elsif choice == '>' and pageNum+1 < nPages
+      pageNum++
     elsif choice >= 'A' and (choice-'A' < nItemsOnPage)
       sellItem(choice-'A')
       totalItems = iterateSellables(9999, 0)

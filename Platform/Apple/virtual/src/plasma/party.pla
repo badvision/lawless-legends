@@ -335,12 +335,8 @@ def showInvMenu(player, totalItems, itemPage, itemsOnPage)#0
     rawDisplayf1("Item [A-%c], ", itemsOnPage-1+'A')
     if totalItems > INV_ROWS
       rawDisplayStr("Pg [")
-      if totalItems > (itemPage + 1) * INV_ROWS
-        rawDisplayStr(">")
-      fin
-      if itemPage
-        rawDisplayStr("<")
-      fin
+      if totalItems > (itemPage + 1) * INV_ROWS; rawDisplayStr(">"); fin
+      if itemPage; rawDisplayStr("<"); fin
       rawDisplayStr("], ")
     fin
   fin
@@ -656,12 +652,13 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
       is '%' // add item cheat
         if global->b_godmode
           pGodModule=>godmode_addItem(player)
-          redisplay = 1
+          redisplay = 2
         fin
         break
       is '9' // add player cheat
         if global->b_godmode
           pGodModule=>godmode_addPlayer()
+          redisplay = 2
         fin
         break
       is '+' // level up cheat

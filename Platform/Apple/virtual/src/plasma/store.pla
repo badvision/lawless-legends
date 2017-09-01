@@ -31,8 +31,8 @@ word pItemsModule, pPartyModule
 const MAX_PAGE_ITEMS = 20 // should be plenty
 word pageItems[MAX_PAGE_ITEMS]
 word pagePrices[MAX_PAGE_ITEMS]
-word pagePlayers[MAX_PAGE_ITEMS]
-word pMatchPlayer
+byte playerNum, playerCount
+word pPlayer
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -61,14 +61,14 @@ def unloadExtraModules()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayBuyTitle(pageNum, nPages)#0
+def displayTitle(titleAction, columnAction, pageNum, nPages)#0
   clearWindow()
-  // Can't use centering mode on oversize window - font engine can't handle width > 255
-  rawDisplayStr("^Y^I Buying")
+  rawDisplayf2("^I %s %s ", pPlayer=>s_name, titleAction)
   if (nPages > 1)
-    rawDisplayf2(" - p. %d/%d", pageNum+1, nPages)
+    rawDisplayf2("p.%d/%d ", pageNum+1, nPages)
   fin
-  rawDisplayStr(" ^N\n^V014^LBrowse^T046Price^T085Item^L")
+  rightJustifyStr(sprintf1(" %d party gold ", global=>w_gold), BIGWIN_RIGHT - 15)
+  rawDisplayf1("^N\n^V014^L%s^T046Price^T085Item^L", columnAction)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -80,15 +80,20 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayPaging(action, nItems, pageNum, nPages)#0
   rawDisplayStr("\n^V166")
-  if nItems
-    rawDisplayf2("Gold: %d. %s [A", global=>w_gold, action)
-    if nItems > 1; rawDisplayf1("-%c", nItems-1+'A'); fin
-    rawDisplayStr("] ")
+  if nItems or playerCount > 1
+    if nItems
+      rawDisplayf1("%s [A", action)
+      if nItems > 1; rawDisplayf1("-%c", nItems-1+'A'); fin
+      rawDisplayStr("], ")
+    fin
     if nPages > 1
-      rawDisplayStr(", Pg [")
+      rawDisplayStr("Pg [")
       if pageNum+1 < nPages; rawDisplayStr(">"); fin
       if pageNum; rawDisplayStr("<"); fin
-      rawDisplayStr("] ")
+      rawDisplayStr("], ")
+    fin
+    if playerCount > 1
+      rawDisplayf1("Plyr [1-%d], ", playerCount)
     fin
     rawDisplayStr("or [Esc].")
   else
@@ -101,10 +106,11 @@ def displayBuyPage(pItemTbl, markupRatio, pageNum, nPages)#1
   byte itemNum
   word pFunc, pItem
 
-  displayBuyTitle(pageNum, nPages)
+  // Clear stuff from previous page
   mmgr(CHECK_MEM, 0)
   mmgr(HEAP_COLLECT, 0)
 
+  displayTitle("buying", "Browse", pageNum, nPages)
   pFunc = pItemTbl + ((pageNum*PAGE_SIZE) << 1)
   for itemNum = 0 to PAGE_SIZE-1
     if !(*pFunc); break; fin
@@ -126,7 +132,7 @@ def displayItemBrowse(pItem1, price, pItem2)#0
   clearWindow()
   rawDisplayf1("^T108^I Browse ^N\n\n^T%D^LMerchandise^L", STATS_COL_1)
   if pItem2
-    rawDisplayf2("^T%D^L%s^L", STATS_COL_2, pMatchPlayer=>s_name)
+    rawDisplayf2("^T%D^L%s^L", STATS_COL_2, pPlayer=>s_name)
   fin
   pPartyModule()=>party_displayItemStats(pItem1, pItem2)
   rawDisplayf2("\n\nPrice^T%D%d", STATS_COL_1, price)
@@ -135,26 +141,20 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def matchEquipped(pMatch, nSkip)#1
-  word pPlayer, pItem
-  pPlayer = global=>p_players
-  pMatchPlayer = pPlayer
-  while pPlayer
-    pItem = pPlayer=>p_items
-    while pItem
-      if (pItem->t_type == pMatch->t_type) and (pItem->t_type == TYPE_WEAPON or pItem->t_type == TYPE_ARMOR)
-        if (pItem->b_flags & ITEM_FLAG_EQUIP)
-          if pItem->t_type <> TYPE_ARMOR or (pItem=>s_itemKind == pMatch=>s_itemKind)
-            if nSkip == 0
-              pMatchPlayer = pPlayer
-              return pItem
-            fin
-            nSkip = nSkip - 1
+  word pItem
+  pItem = pPlayer=>p_items
+  while pItem
+    if (pItem->t_type == pMatch->t_type) and (pItem->t_type == TYPE_WEAPON or pItem->t_type == TYPE_ARMOR)
+      if (pItem->b_flags & ITEM_FLAG_EQUIP)
+        if pItem->t_type <> TYPE_ARMOR or (pItem=>s_itemKind == pMatch=>s_itemKind)
+          if nSkip == 0
+            return pItem
           fin
+          nSkip = nSkip - 1
         fin
       fin
-      pItem = pItem=>p_nextObj
-    loop
-    pPlayer = pPlayer=>p_nextObj
+    fin
+    pItem = pItem=>p_nextObj
   loop
   return NULL
 end
@@ -194,8 +194,7 @@ def browseItem(num)#0
     displayItemMenu(price, compSkip or matchEquipped(pItem, 1+compSkip))
     sel = getUpperKey()
     if sel == 'B' and price <= global=>w_gold
-      matchEquipped(pItem, compSkip) // to set pMatchPlayer
-      pComp = scanForNamedObj(pMatchPlayer=>p_items, pItem=>s_name)
+      pComp = scanForNamedObj(pPlayer=>p_items, pItem=>s_name)
       if pComp
         if pItem->t_type == TYPE_FANCY_ITEM and pItem=>w_count > 0
           pComp=>w_count = min(30000, pComp=>w_count + pItem=>w_count)
@@ -206,7 +205,7 @@ def browseItem(num)#0
           continue
         fin
       else
-        addToList(@pMatchPlayer=>p_items, pItem)
+        addToList(@pPlayer=>p_items, pItem)
       fin
       global=>w_gold = global=>w_gold - price
       rawDisplayStr("\nPurchase complete.")
@@ -224,14 +223,22 @@ def browseItem(num)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def storeSetup()#0
+  loadExtraModules()
+  setBigWindow()
+
+  playerCount = countList(global=>p_players)
+  playerNum = 0
+  pPlayer = numToPlayer(playerNum)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def _buyFromStore(storeCode, profitPercent)#1
   word pItemTbl, choice, ratio
   byte nItemsOnPage, pageNum, nPages, redisplay
 
-  loadExtraModules()
+  storeSetup()
   pItemTbl = pItemsModule()=>items_forStoreCode(storeCode)
-
-  setBigWindow()
 
   nPages = (countArray(pItemTbl) + PAGE_SIZE - 1) / PAGE_SIZE
   pageNum = 0
@@ -249,6 +256,9 @@ def _buyFromStore(storeCode, profitPercent)#1
       pageNum--
     elsif choice == '>' and pageNum+1 < nPages
       pageNum++
+    elsif choice >= '1' and (choice-'1') <= playerCount
+      playerNum = choice - '1'
+      pPlayer = numToPlayer(playerNum)
     elsif choice >= 'A' and (choice-'A' < nItemsOnPage)
       browseItem(choice-'A')
     elsif choice == $1B // Esc
@@ -265,49 +275,33 @@ def _buyFromStore(storeCode, profitPercent)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displaySellTitle(pageNum, nPages)#0
-  clearWindow()
-  // Can't use centering mode on oversize window - font engine can't handle width > 255
-  rawDisplayStr("^Y^I Selling")
-  if (nPages > 1)
-    rawDisplayf2(" - p. %d/%d", pageNum+1, nPages)
-  fin
-  rawDisplayStr(" ^N\n^V014^LSell^T046Amt.^T085Item^L")
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 def iterateSellables(skipItems, markdownRatio)#1
-  word pPlayer, pItem, itemsOnPage, totalItems, price
+  word pItem, itemsOnPage, totalItems, price
   byte ok
   itemsOnPage = 0
   totalItems = 0
-  pPlayer = global=>p_players
-  while pPlayer
-    pItem = pPlayer=>p_items
-    while pItem
-      ok = pItem=>w_price > 0
-      if pItem->t_type == TYPE_FANCY_ITEM
-        ok = pItem=>w_count > 0 // too much trouble to figure out prices of stackables
-      elsif pItem->t_type == TYPE_WEAPON or pItem->t_type == TYPE_ARMOR
-        if pItem->b_flags & ITEM_FLAG_EQUIP; ok = FALSE; fin // don't sell equipped things
+  pItem = pPlayer=>p_items
+  while pItem
+    ok = pItem=>w_price > 0
+    if pItem->t_type == TYPE_FANCY_ITEM
+      ok = pItem=>w_count > 0 // too much trouble to figure out prices of stackables
+    elsif pItem->t_type == TYPE_WEAPON or pItem->t_type == TYPE_ARMOR
+      if pItem->b_flags & ITEM_FLAG_EQUIP; ok = FALSE; fin // don't sell equipped things
+    fin
+    if ok
+      price = max(0, pItem=>w_price - addRatio(pItem=>w_price, markdownRatio))
+      if !price; ok = FALSE; fin
+    fin
+    if ok
+      if totalItems >= skipItems and itemsOnPage < PAGE_SIZE
+        pageItems[itemsOnPage] = pItem
+        pagePrices[itemsOnPage] = price
+        displayItemLine(itemsOnPage)
+        itemsOnPage++
       fin
-      if ok
-        price = max(0, pItem=>w_price - addRatio(pItem=>w_price, markdownRatio))
-        if !price; ok = FALSE; fin
-      fin
-      if ok
-        if totalItems >= skipItems and itemsOnPage < PAGE_SIZE
-          pageItems[itemsOnPage] = pItem
-          pagePrices[itemsOnPage] = price
-          pagePlayers[itemsOnPage] = pPlayer
-          displayItemLine(itemsOnPage)
-          itemsOnPage++
-        fin
-        totalItems++
-      fin
-      pItem = pItem=>p_nextObj
-    loop
-    pPlayer = pPlayer=>p_nextObj
+      totalItems++
+    fin
+    pItem = pItem=>p_nextObj
   loop
   if skipItems == 9999; return totalItems; fin
   return itemsOnPage
@@ -316,9 +310,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displaySellPage(markdownRatio, pageNum, nPages)#1
   word nItems
-  printf2("pageNum=%d nPages=%d\n", pageNum, nPages)
-  displaySellTitle(pageNum, nPages)
-  printf3("pageNum=%d PAGE_SIZE=%d mul=%d\n", pageNum, PAGE_SIZE, pageNum * PAGE_SIZE)
+  displayTitle("selling", "Sell", pageNum, nPages)
   nItems = iterateSellables(pageNum * PAGE_SIZE, markdownRatio)
   if !nItems
     rawDisplayStr("\n\nNothing to sell here.")
@@ -337,7 +329,7 @@ def sellItem(num)#0
   clearWindow()
 
   global=>w_gold = global=>w_gold + price
-  removeFromList(@pagePlayers=>p_items, pItem)
+  removeFromList(@pPlayer=>p_items, pItem)
 
   rawDisplayStr("\nSale complete.")
   pause(800)
@@ -348,10 +340,8 @@ def _sellToStore(profitPercent)#1
   word pItemTbl, choice, ratio
   byte nItemsOnPage, pageNum, totalItems, nPages, redisplay
 
-  loadExtraModules()
-  setBigWindow()
-
   pageNum = 0
+  storeSetup()
 
   ratio = percentToRatio(profitPercent) / 2 // half profit on buying, half on selling
   totalItems = iterateSellables(9999, 0)    // initialize count for paging calcs
@@ -359,7 +349,6 @@ def _sellToStore(profitPercent)#1
   redisplay = TRUE
   while TRUE
     nPages = (totalItems + PAGE_SIZE - 1) / PAGE_SIZE // recalc each time since totalItems changes
-    pageNum = min(nPages-1, pageNum)
     if redisplay
       nItemsOnPage = displaySellPage(ratio, pageNum, nPages)
     fin
@@ -369,6 +358,10 @@ def _sellToStore(profitPercent)#1
       pageNum--
     elsif choice == '>' and pageNum+1 < nPages
       pageNum++
+    elsif choice >= '1' and (choice-'1') <= playerCount
+      playerNum = choice - '1'
+      pPlayer = numToPlayer(playerNum)
+      totalItems = iterateSellables(9999, 0)
     elsif choice >= 'A' and (choice-'A' < nItemsOnPage)
       sellItem(choice-'A')
       totalItems = iterateSellables(9999, 0)

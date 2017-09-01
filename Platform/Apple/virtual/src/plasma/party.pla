@@ -93,7 +93,7 @@ end
 def showColumnTitle(x, title, page, nPages)#0
   rawDisplayf2("^V000\n^J^J^L^J^T%D%s", x, title)
   if nPages > 1
-    rawDisplayf2(" - p.%d/%d", page, nPages)
+    rawDisplayf2(" p.%d/%d", page, nPages)
   fin
   rawDisplayStr("^N\n^J^J")
 end
@@ -136,17 +136,6 @@ def showInventory(player, page, select)#1
     item = item=>p_nextObj
   loop
   return s_item
-end
-
-def numToPlayer(num)#1
-  word player
-  player = global=>p_players
-  while num > 0
-    player = player=>p_nextObj
-    if !player; break; fin // Not that many players
-    num--
-  loop
-  return player
 end
 
 def displayDice(dice)#0

@@ -2334,6 +2334,7 @@ def returnFromEngine(render)#0
     else
       needRender = TRUE
     fin
+    if mapIs3D; showCompassDir(getDir()); fin
     showParty()
     setWindow2()  // in case we're mid-script
   fin
@@ -3066,6 +3067,17 @@ export def buySell(storeCode, profitRatio)#0
   fin
   returnFromEngine(FALSE) // no render, we're mid-script
   if portrait; setPortrait(portrait); fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def numToPlayer(num)#1
+  word player
+  player = global=>p_players
+  while player and num > 0
+    player = player=>p_nextObj
+    num--
+  loop
+  return player
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

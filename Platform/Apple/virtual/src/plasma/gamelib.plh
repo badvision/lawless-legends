@@ -72,6 +72,7 @@ import gamelib
   predef min(a, b)#1
   predef mmgr(cmd, wordParam)#1
   predef moveWayBackward()#1
+  predef numToPlayer(num)#1
   predef parseDec(str)#1
   predef partyHasPlayer(playerName)#1
   predef pause(count)#0

@@ -2116,7 +2116,9 @@ export def getYN()#1
     if key == 'Y'
       return 1
     elsif key == 'N'
-      clearTextWindow()
+      if frameLoaded
+        clearTextWindow()
+      fin
       break
     fin
     beep()

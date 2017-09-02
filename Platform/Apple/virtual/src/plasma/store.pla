@@ -256,7 +256,7 @@ def _buyFromStore(storeCode, profitPercent)#1
       pageNum--
     elsif choice == '>' and pageNum+1 < nPages
       pageNum++
-    elsif choice >= '1' and (choice-'1') <= playerCount
+    elsif choice >= '1' and (choice-'1') <= playerCount and (choice-'1') <> playerNum
       playerNum = choice - '1'
       pPlayer = numToPlayer(playerNum)
     elsif choice >= 'A' and (choice-'A' < nItemsOnPage)

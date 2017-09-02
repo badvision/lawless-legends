@@ -2786,8 +2786,8 @@ export def addUnique(pList, p_thing)#1
   // If it's stackable and player already has some, just increase the stack
   p_existing = scanForNamedObj(*pList, p_thing=>s_name)
   if p_existing
-    if p_existing->t_type == TYPE_FANCY_ITEM and p_existing=>w_count > 0
-      p_existing=>w_count++
+    if p_existing->t_type == TYPE_FANCY_ITEM and p_existing=>w_count > 0 and !p_existing=>p_modifiers
+      p_existing=>w_count = p_existing=>w_count + p_thing=>w_count
       return TRUE
     fin
     return FALSE  // already have one, and it's not stackable

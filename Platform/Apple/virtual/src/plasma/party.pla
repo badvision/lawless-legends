@@ -359,6 +359,16 @@ def showSkillsMenu()#0
   rawDisplayStr("X:Inv or [Esc]")
 end
 
+def isSplittable(item)#1
+  // Disallow splitting items with modifiers, because too edge-casey
+  return item->t_type == TYPE_FANCY_ITEM and item=>w_count > 1 and !item=>p_modifiers
+end
+
+def isJoinable(item)#1
+  // Disallow joining items with modifiers, because too edge-casey
+  return item->t_type == TYPE_FANCY_ITEM and item=>w_count > 0 and !item=>p_modifiers
+end
+
 // Display menu for selecting inventory items
 def showItemMenu(item)#0
   byte type
@@ -372,17 +382,11 @@ def showItemMenu(item)#0
     fin
   elsif type == TYPE_PLAIN_ITEM or type == TYPE_FANCY_ITEM
     rawDisplayStr("U)se, ")
-    if type == TYPE_FANCY_ITEM and item=>w_count > 1
-      rawDisplayStr("S)plit, ")
-    fin
-    if type == TYPE_FANCY_ITEM and item=>w_count > 0
-      rawDisplayStr("J)oin, ")
-    fin
+    if isSplittable(item); rawDisplayStr("S)plit, "); fin
+    if isJoinable(item); rawDisplayStr("J)oin, "); fin
   fin
   if !isEquipped(item)
-    if global=>p_players=>p_nextObj
-      rawDisplayStr("T)rade, ")
-    fin
+    if global=>p_players=>p_nextObj; rawDisplayStr("T)rade, "); fin
     rawDisplayStr("D)rop ")
   fin
   rawDisplayStr("or [Esc]")
@@ -443,17 +447,29 @@ end
 // Trade an item to another player/npc
 def doTrade(player, item)#1
   word destPlayer
-  byte nChoices, sel
+  byte first, sel
 
   clearMenuRect()
   rawDisplayStr("To: ")
-  nChoices = choosePlayer(TRUE, 0, player)
+  destPlayer = global=>p_players
+  sel = 0
+  first = TRUE
+  while destPlayer
+    if player <> destPlayer
+      if !first; rawDisplayStr(", "); fin
+      first = FALSE
+      rawDisplayf2("%d. %s", sel+1, destPlayer=>s_name)
+    fin
+    sel++
+    destPlayer = destPlayer=>p_nextObj
+  loop
   rawDisplayStr(" or [Esc]")
+
   while TRUE
     sel = getUpperKey()
     if sel == $1B; return 0; fin
-    if sel >= 'A' and (sel-'A') < nChoices
-      destPlayer = choosePlayer(FALSE, sel-'A', player)
+    destPlayer = numToPlayer(sel-'1')
+    if destPlayer and destPlayer <> player
       removeFromList(@player=>p_items, item)
       addUnique(@destPlayer=>p_items, item)
       return displayDone
@@ -465,13 +481,55 @@ end
 
 // Split a stack of stackables
 def doSplit(player, item)#1
-  fatal("not yet: split")
+  word nToSplit, newItem
+  if item=>w_count == 2
+    nToSplit = 1
+  else
+    clearMenuRect
+    rawDisplayf1("Split off 1-%d: ", item=>w_count - 1)
+    nToSplit = parseDec(getStringResponse())
+  fin
+  if nToSplit
+    item=>w_count = item=>w_count - nToSplit
+    newItem = mmgr(HEAP_ALLOC, TYPE_FANCY_ITEM)
+    memcpy(item, newItem, FancyItem)
+    newItem=>w_count = nToSplit
+    newItem=>p_nextObj = item=>p_nextObj
+    item=>p_nextObj = newItem
+    return 1
+  fin
+  beep
   return 0
 end
 
 // Join a stack of stackables
 def doJoin(player, item)#1
-  fatal("not yet: join")
+  word match, pPrev
+  byte anyJoined
+  pPrev = @player=>p_items
+  match = player=>p_items
+  anyJoined = FALSE
+  while match
+    if match <> item and match->t_type == TYPE_FANCY_ITEM
+      if streqi(match=>s_name, item=>s_name)
+        item=>w_count = item=>w_count + match=>w_count
+        *pPrev = match=>p_nextObj
+        match = match=>p_nextObj
+        anyJoined = TRUE
+        continue
+      fin
+    fin
+    pPrev = @match=>p_nextObj
+    match = *pPrev
+  loop
+  if anyJoined
+    displayDone()
+    return 1
+  fin
+  clearMenuRect()
+  rawDisplayStr("No joinable stack found.")
+  beep
+  pause(800)
   return 0
 end
 
@@ -586,14 +644,18 @@ def interactWithItem(player, item)#1
         break
       // Split a stack
       is 'S'
-        if item->t_type == TYPE_FANCY_ITEM and item=>w_count > 1
-          return doSplit(player, item)
+        if isSplittable(item)
+          if doSplit(player, item)
+            return NULL
+          fin
         fin
         break
       // Join stacks
       is 'J'
-        if item->t_type == TYPE_FANCY_ITEM and item=>w_count > 0
-          return doJoin(player, item)
+        if isJoinable(item)
+          if doJoin(player, item)
+            return NULL
+          fin
         fin
         break
       // Destroy an item

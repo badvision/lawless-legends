@@ -2895,7 +2895,8 @@ end
 export def addPlayerToParty(playerFuncNum)#0
   word p
   if countList(global=>p_players) == MAX_PARTY
-    displayStr("Party too large.")
+    rawDisplayStr("Party too large.")
+    beep
     return
   fin
   p = createAndAddUnique(MOD_GEN_PLAYERS, playerFuncNum, @global=>p_players)

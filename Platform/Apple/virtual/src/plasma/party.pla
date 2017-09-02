@@ -411,9 +411,55 @@ def doEquip(player, item)#0
   calcPlayerArmor(player)
 end
 
+def choosePlayer(disp, chooseNum, avoid)
+  word player
+  byte num
+  player = global=>p_players
+  num = 0
+  while player
+    if player <> avoid
+      if num; rawDisplayStr(", "); fin
+      if disp
+        rawDisplayf2("%c) %s", num+'A', player=>s_name)
+      elsif num == chooseNum
+        return player
+      fin
+      num++
+    fin
+    player = player=>p_nextObj
+  loop
+  return num
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def displayDone()#1
+  clearMenuRect()
+  clearMainRect()
+  rawDisplayStr("Done.")
+  pause(800)
+  return NULL
+end
+
 // Trade an item to another player/npc
 def doTrade(player, item)#1
-  fatal("not yet: trade")
+  word destPlayer
+  byte nChoices, sel
+
+  clearMenuRect()
+  rawDisplayStr("To: ")
+  nChoices = choosePlayer(TRUE, 0, player)
+  rawDisplayStr(" or [Esc]")
+  while TRUE
+    sel = getUpperKey()
+    if sel == $1B; return 0; fin
+    if sel >= 'A' and (sel-'A') < nChoices
+      destPlayer = choosePlayer(FALSE, sel-'A', player)
+      removeFromList(@player=>p_items, item)
+      addUnique(@destPlayer=>p_items, item)
+      return displayDone
+    fin
+    beep
+  loop
   return 0
 end
 
@@ -498,15 +544,6 @@ def displayItems(pItem1, pItem2)#0
   fin
   rawDisplayStr("^N^J^J")
   _displayItemStats(pItem1, pItem2)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayDone()#1
-  clearMenuRect()
-  clearMainRect()
-  rawDisplayStr("Done.")
-  pause(800)
-  return NULL
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -628,7 +665,7 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
     when sel
       is '1'; is '2'; is '3'
         sel = sel - '1'
-        if player_num <> sel and countList(global=>p_players) > sel
+        if countList(global=>p_players) > sel
           player_num = sel
           i_page = 0
           redisplay = 2
@@ -672,12 +709,14 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
         break
       is '%' // add item cheat
         if global->b_godmode
+          clearMainRect()
           pGodModule=>godmode_addItem(player)
           redisplay = 2
         fin
         break
       is '9' // add player cheat
         if global->b_godmode
+          clearMainRect()
           pGodModule=>godmode_addPlayer()
           redisplay = 2
         fin

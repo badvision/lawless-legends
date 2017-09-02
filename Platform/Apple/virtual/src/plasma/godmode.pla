@@ -230,10 +230,14 @@ def selectThing(moduleNum, nThings, nSkip, prompt)#1
         nFunc = -1
         textHome()
       fin
+    elsif moduleNum == MOD_GEN_PLAYERS
+      // Players are big, so need collect each time
+      mmgr(HEAP_COLLECT, 0)
     fin
   next
 
   mmgr(FREE_MEMORY, pModule)
+  ^$c050
   return nFunc
 end
 
@@ -242,11 +246,7 @@ end
 def _addItem(player)#1
   word funcNum
   funcNum = selectThing(MOD_GEN_ITEMS, NUM_ITEMS, 2, "Add item #: ")
-  if funcNum >= 0
-    giveItemToPlayer(player, funcNum)
-    rdkey()
-  fin
-  ^$c050
+  if funcNum >= 0; giveItemToPlayer(player, funcNum); fin
   return 0
 end
 
@@ -255,11 +255,7 @@ end
 def _addPlayer()#1
   word funcNum
   funcNum = selectThing(MOD_GEN_PLAYERS, NUM_PLAYERS, 1, "Add player #: ")
-  if funcNum >= 0
-    addPlayerToParty(funcNum)
-    rdkey()
-  fin
-  ^$c050
+  if funcNum >= 0; addPlayerToParty(funcNum); fin
   return 0
 end
 

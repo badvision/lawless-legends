@@ -2693,7 +2693,9 @@ end
         // Make constants
         new File("build/src/plasma/gen_flags.plh.new").withWriter { out ->
             out.println("// Generated code - DO NOT MODIFY BY HAND\n")
-            out.println("const flags_nameForNumber = 0\n")
+            out.println("const flags_nameForNumber = 0")
+            out.println("const flags_numberForName = 2")
+            out.println()
             gameFlags.each { name, num ->
                 out.println("const GF_${humanNameToSymbol(name, true)} = $num")
             }
@@ -2709,18 +2711,36 @@ end
             out.println("include \"globalDefs.plh\"")
             out.println("include \"gen_flags.plh\"")
             out.println()
-
             out.println("predef _flags_nameForNumber(num)#1")
-            out.println("word[] funcTbl = @_flags_nameForNumber\n")
-            out.println("def _flags_nameForNumber(num)#1")
-            out.println("  when num")
+            out.println("predef _flags_numberForName(name)#1")
+            out.println()
+            out.println("word[] funcTbl = @_flags_nameForNumber, @_flags_numberForName")
+            out.println()
             gameFlags.each { name, num ->
-                out.println("    is ${"GF_"+humanNameToSymbol(name, true)}; return(${escapeString(name.toUpperCase())})")
+                out.println("byte[] SF_${humanNameToSymbol(name, true)} = ${escapeString(name.toUpperCase())}")
             }
-            out.println("  wend")
-            out.println("  puts(num); fatal(\"flags_nameForNumber\")")
-            out.println("  return(0)")
-            out.println("end\n")
+            out.println()
+            gameFlags.each { name, num ->
+                if (num == 0)
+                    out.print("word[] flagNames = ")
+                else
+                    out.print("word             = ")
+                out.println("@SF_${humanNameToSymbol(name, true)}")
+            }
+            out.println()
+            out.println("def _flags_nameForNumber(num)#1")
+            out.println("  if num >= 0 and num < NUM_GAME_FLAGS; return flagNames[num]; fin")
+            out.println("  return NULL")
+            out.println("end")
+            out.println()
+            out.println("def _flags_numberForName(name)#1")
+            out.println("  word num")
+            out.println("  for num = 0 to NUM_GAME_FLAGS-1")
+            out.println("    if streqi(flagNames[num], name); return num; fin")
+            out.println("  next")
+            out.println("  return -1")
+            out.println("end")
+            out.println()
 
             // Lastly, the outer module-level code
             out.println("return @funcTbl")

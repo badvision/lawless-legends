@@ -16,6 +16,7 @@ include "gen_images.plh"
 include "gen_modules.plh"
 include "gen_items.plh"
 include "gen_players.plh"
+include "gen_flags.plh"
 
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the the header.
@@ -182,6 +183,45 @@ def nextGround()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Edit flags cheat
+def editFlags()#1
+  word pModule, funcTbl, flagName, flagNum
+  flipToPage1
+  ^$c051
+  textHome()
+  *$4000 = 0 // so renderer knows we messed up the page
+  puts("Flags:")
+  mmgr(START_LOAD, 1) // code is in partition 1
+  pModule = mmgr(QUEUE_LOAD, MOD_GEN_FLAGS<<8 | RES_TYPE_MODULE)
+  mmgr(FINISH_LOAD, 0)
+  funcTbl = pModule()
+  while TRUE
+    ^$25 = 0
+    crout()
+    for flagNum = 0 to NUM_GAME_FLAGS-1
+      if flagNum > 0; puts(", "); fin
+      flagName = funcTbl=>flags_nameForNumber(flagNum)
+      // make sure flag name will fit on line
+      if ^$24 + ^flagName > 37; crout(); fin
+      ^$32 = $FF // normal mode
+      if getGameFlag(flagNum); ^$32 = $3F; fin // inverse mode
+      puts(flagName)
+      ^$32 = $FF
+    next
+    puts("\nToggle:          ")
+    ^$24 = 8
+    flagName = readStr()
+    if !^flagName; break; fin
+    flagNum = funcTbl=>flags_numberForName(flagName)
+    if flagNum < 0; beep; continue; fin
+    setGameFlag(flagNum, !getGameFlag(flagNum))
+  loop
+  ^$c050
+  mmgr(FREE_MEMORY, pModule)
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def _setCheatCmds()#1
   // install cheat commands
   setCmd('T', @kbdTeleport)
@@ -192,6 +232,7 @@ def _setCheatCmds()#1
   setCmd('Y', @nextSky)
   setCmd('G', @nextGround)
   setCmd('&', @printMem)
+  setCmd('^', @editFlags)
   return 0
 end
 

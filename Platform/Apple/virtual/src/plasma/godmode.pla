@@ -190,7 +190,7 @@ def editFlags()#1
   ^$c051
   textHome()
   *$4000 = 0 // so renderer knows we messed up the page
-  puts("Flags:")
+  puts("Game flags:")
   mmgr(START_LOAD, 1) // code is in partition 1
   pModule = mmgr(QUEUE_LOAD, MOD_GEN_FLAGS<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)

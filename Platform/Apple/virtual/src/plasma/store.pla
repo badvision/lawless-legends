@@ -79,7 +79,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayPaging(action, nItems, pageNum, nPages)#0
-  rawDisplayStr("\n^V166")
+  rawDisplayStr("\n^V164")
   if nItems or playerCount > 1
     if nItems
       rawDisplayf1("%s [A", action)
@@ -183,6 +183,12 @@ def askQuantity(nMax)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def displayMsg(msg, beep)#0
+  rawDisplayf1("^T000^C%s", msg)
+  pause(800)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def browseItem(num)#0
   word pItem, price, compSkip, pComp, quantity
   byte sel
@@ -199,16 +205,16 @@ def browseItem(num)#0
         if pItem->t_type == TYPE_FANCY_ITEM and pItem=>w_count > 0
           pComp=>w_count = min(30000, pComp=>w_count + pItem=>w_count)
         else
-          rawDisplayStr("\nDuplicate item.")
+          rawDisplayStr("^T000^CDuplicate item.")
           beep()
-          pause(1000)
+          pause(400)
           continue
         fin
       else
         addToList(@pPlayer=>p_items, pItem)
       fin
       global=>w_gold = global=>w_gold - price
-      rawDisplayStr("\nPurchase complete.")
+      rawDisplayStr("^T000^CDone.")
       pause(800)
       break
     elsif sel == 'N' and (compSkip or matchEquipped(pItem, 1+compSkip))
@@ -326,12 +332,10 @@ def sellItem(num)#0
   pItem = pageItems[num]
   price = pagePrices[num]
 
-  clearWindow()
-
   global=>w_gold = global=>w_gold + price
   removeFromList(@pPlayer=>p_items, pItem)
 
-  rawDisplayStr("\nSale complete.")
+  rawDisplayStr("^T000^CDone.")
   pause(800)
 end
 
@@ -365,6 +369,9 @@ def _sellToStore(profitPercent)#1
     elsif choice >= 'A' and (choice-'A' < nItemsOnPage)
       sellItem(choice-'A')
       totalItems = iterateSellables(9999, 0)
+      if totalItems <= pageNum * PAGE_SIZE // sold last item on pg 2
+        pageNum--
+      fin
     elsif choice == $1B // Esc
       break
     else

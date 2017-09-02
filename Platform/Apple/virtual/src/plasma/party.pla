@@ -806,7 +806,7 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
             item = interactWithItem(player, itemByNum(player, i_page * INV_ROWS + sel))
             if item; return item; fin // Use an item
             if countList(player=>p_items) <= i_page * INV_ROWS // destroyed last item on pg 2
-              i_page = 0
+              i_page--
             fin
             redisplay = 2
           else

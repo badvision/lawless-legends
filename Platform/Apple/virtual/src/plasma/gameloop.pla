@@ -2412,6 +2412,7 @@ def levelUp()#1
       return 0
     fin
     player = player=>p_nextObj
+    n++
   loop
   beep
   return 0

@@ -69,6 +69,14 @@ def travFind2(pObj, val,  func)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def isEquipped(pItem)#1
+  if pItem->t_type == TYPE_ARMOR or pItem->t_type == TYPE_WEAPON
+    return pItem->b_flags & ITEM_FLAG_EQUIP
+  fin
+  return FALSE
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def itemByNum(player, num)#1
   return travFind2(player=>p_items, num, &(n,p)(n-1, n==0))
 end
@@ -81,7 +89,7 @@ def unequip(player, type, kind)#1
   item = player=>p_items
   while item
     if item->t_type == type
-      if (streqi(item=>s_itemKind, kind) or type == TYPE_WEAPON) and item->b_flags & ITEM_FLAG_EQUIP
+      if (streqi(item=>s_itemKind, kind) or type == TYPE_WEAPON) and isEquipped(item)
         item->b_flags = item->b_flags & ~ITEM_FLAG_EQUIP
         break
       fin
@@ -97,7 +105,7 @@ end
 def showColumnTitle(x, title, page, nPages)#0
   rawDisplayf2("^V000\n^J^J^L^J^T%D%s", x, title)
   if nPages > 1
-    rawDisplayf2(" - p.%d/%d", page, nPages)
+    rawDisplayf2(" p.%d/%d", page, nPages)
   fin
   rawDisplayStr("^N\n^J^J")
 end
@@ -125,10 +133,8 @@ def showInventory(player, page, select)#1
     if !first; displayChar('\n'); fin
     first = FALSE
 
-    if item->t_type == TYPE_WEAPON or item->t_type == TYPE_ARMOR
-      if item->b_flags & ITEM_FLAG_EQUIP
-        rawDisplayStr("*")
-      fin
+    if isEquipped(item)
+      rawDisplayStr("*")
     fin
 
     rawDisplayf2("^T%D%c.", INVLBL_X, 'A' + s_item)
@@ -140,17 +146,6 @@ def showInventory(player, page, select)#1
     item = item=>p_nextObj
   loop
   return s_item
-end
-
-def numToPlayer(num)#1
-  word player
-  player = global=>p_players
-  while num > 0
-    player = player=>p_nextObj
-    if !player; break; fin // Not that many players
-    num--
-  loop
-  return player
 end
 
 def displayDice(dice)#0
@@ -196,7 +191,7 @@ def showDerived(player)#0
   // Get weapon
   weapon = player=>p_items
   while weapon
-    if weapon->t_type == TYPE_WEAPON and weapon->b_flags & ITEM_FLAG_EQUIP; break; fin
+    if weapon->t_type == TYPE_WEAPON and isEquipped(weapon); break; fin
     weapon = weapon=>p_nextObj
   loop
 
@@ -339,12 +334,8 @@ def showInvMenu(player, totalItems, itemPage, itemsOnPage)#0
     rawDisplayf1("Item [A-%c], ", itemsOnPage-1+'A')
     if totalItems > INV_ROWS
       rawDisplayStr("Pg [")
-      if totalItems > (itemPage + 1) * INV_ROWS
-        rawDisplayStr(">")
-      fin
-      if itemPage
-        rawDisplayStr("<")
-      fin
+      if totalItems > (itemPage + 1) * INV_ROWS; rawDisplayStr(">"); fin
+      if itemPage; rawDisplayStr("<"); fin
       rawDisplayStr("], ")
     fin
   fin
@@ -372,18 +363,37 @@ def showSkillsMenu()#0
   rawDisplayStr("X:Inv or [Esc]")
 end
 
+def isSplittable(item)#1
+  // Disallow splitting items with modifiers, because too edge-casey
+  return item->t_type == TYPE_FANCY_ITEM and item=>w_count > 1 and !item=>p_modifiers
+end
+
+def isJoinable(item)#1
+  // Disallow joining items with modifiers, because too edge-casey
+  return item->t_type == TYPE_FANCY_ITEM and item=>w_count > 0 and !item=>p_modifiers
+end
+
 // Display menu for selecting inventory items
 def showItemMenu(item)#0
   byte type
   clearMenuRect()
   type = item->t_type
   if type == TYPE_ARMOR or type == TYPE_WEAPON
-    rawDisplayStr("E)quip/unequip, ")
-  fin
-  if type == TYPE_ITEM
+    if isEquipped(item)
+      rawDisplayStr("U)nequip, ")
+    else
+      rawDisplayStr("E)quip, ")
+    fin
+  elsif type == TYPE_PLAIN_ITEM or type == TYPE_FANCY_ITEM
     rawDisplayStr("U)se, ")
+    if isSplittable(item); rawDisplayStr("S)plit, "); fin
+    if isJoinable(item); rawDisplayStr("J)oin, "); fin
   fin
-  rawDisplayStr("D)estroy or [Esc]")
+  if !isEquipped(item)
+    if global=>p_players=>p_nextObj; rawDisplayStr("T)rade, "); fin
+    rawDisplayStr("D)rop ")
+  fin
+  rawDisplayStr("or [Esc]")
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -398,6 +408,7 @@ def clearMainRect()#0
   setWindow(BIGWIN_TOP+9, BIGWIN_BOTTOM-10, BIGWIN_LEFT, BIGWIN_RIGHT)
   clearWindow()
   setBigWindow()
+  rawDisplayStr("^V000\n^J^J^J")
 end
 
 // Equip/unequip an item.
@@ -408,26 +419,151 @@ def doEquip(player, item)#0
   calcPlayerArmor(player)
 end
 
+def choosePlayer(disp, chooseNum, avoid)
+  word player
+  byte num
+  player = global=>p_players
+  num = 0
+  while player
+    if player <> avoid
+      if num; rawDisplayStr(", "); fin
+      if disp
+        rawDisplayf2("%c) %s", num+'A', player=>s_name)
+      elsif num == chooseNum
+        return player
+      fin
+      num++
+    fin
+    player = player=>p_nextObj
+  loop
+  return num
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def displayDone()#1
+  clearMenuRect()
+  clearMainRect()
+  rawDisplayStr("Done.")
+  pause(800)
+  return NULL
+end
+
+// Trade an item to another player/npc
+def doTrade(player, item)#1
+  word destPlayer
+  byte first, sel
+
+  clearMenuRect()
+  rawDisplayStr("To: ")
+  destPlayer = global=>p_players
+  sel = 0
+  first = TRUE
+  while destPlayer
+    if player <> destPlayer
+      if !first; rawDisplayStr(", "); fin
+      first = FALSE
+      rawDisplayf2("%d. %s", sel+1, destPlayer=>s_name)
+    fin
+    sel++
+    destPlayer = destPlayer=>p_nextObj
+  loop
+  rawDisplayStr(" or [Esc]")
+
+  while TRUE
+    sel = getUpperKey()
+    if sel == $1B; return 0; fin
+    destPlayer = numToPlayer(sel-'1')
+    if destPlayer and destPlayer <> player
+      removeFromList(@player=>p_items, item)
+      addUnique(@destPlayer=>p_items, item)
+      return displayDone
+    fin
+    beep
+  loop
+  return 0
+end
+
+// Split a stack of stackables
+def doSplit(player, item)#1
+  word nToSplit, newItem
+  if item=>w_count == 2
+    nToSplit = 1
+  else
+    clearMenuRect
+    rawDisplayf1("Split off 1-%d: ", item=>w_count - 1)
+    nToSplit = parseDec(getStringResponse())
+  fin
+  if nToSplit
+    item=>w_count = item=>w_count - nToSplit
+    newItem = mmgr(HEAP_ALLOC, TYPE_FANCY_ITEM)
+    memcpy(item, newItem, FancyItem)
+    newItem=>w_count = nToSplit
+    newItem=>p_nextObj = item=>p_nextObj
+    item=>p_nextObj = newItem
+    return 1
+  fin
+  beep
+  return 0
+end
+
+// Join a stack of stackables
+def doJoin(player, item)#1
+  word match, pPrev
+  byte anyJoined
+  pPrev = @player=>p_items
+  match = player=>p_items
+  anyJoined = FALSE
+  while match
+    if match <> item and match->t_type == TYPE_FANCY_ITEM
+      if streqi(match=>s_name, item=>s_name)
+        item=>w_count = item=>w_count + match=>w_count
+        *pPrev = match=>p_nextObj
+        match = match=>p_nextObj
+        anyJoined = TRUE
+        continue
+      fin
+    fin
+    pPrev = @match=>p_nextObj
+    match = *pPrev
+  loop
+  if anyJoined
+    displayDone()
+    return 1
+  fin
+  clearMenuRect()
+  rawDisplayStr("No joinable stack found.")
+  beep
+  pause(800)
+  return 0
+end
+
 // Select an item and use it. Returns item if it needs to be processed by outer loop, else NULL
 def doUse(player, item)#1
-  if item=>p_modifiers
-    if streqi(item=>p_modifiers=>s_name, @S_HEALTH)
-      clearMenuRect()
-      clearMainRect()
-      rawDisplayStr("^V000\n^J^J^J")
-      if player=>w_health < player=>w_maxHealth
-        player=>w_health = min(player=>w_health + item=>p_modifiers=>w_modValue, player=>w_maxHealth)
-        item->b_curUses++
-        if item->b_curUses >= item->b_maxUses // all used up
-          removeFromList(@player=>p_items, item)
+  word pMod, oldVal, newVal
+  if item->t_type == TYPE_FANCY_ITEM and item=>p_modifiers
+    clearMenuRect()
+    clearMainRect()
+    pMod = item=>p_modifiers
+    while pMod
+      oldVal = getStat(player, pMod=>s_name)
+      setStat(player, pMod=>s_name, oldVal + pMod=>w_modValue)
+      newVal = getStat(player, pMod=>s_name)
+      rawDisplayStr(pMod=>s_name)
+      if newVal <> oldVal
+        takeItemFromPlayer(player, item=>s_name)  // also handles reducing count of stackables
+        if newVal > oldVal
+          rawDisplayStr(" increased")
+        else
+          rawDisplayStr(" decreased")
         fin
-        rawDisplayf2("Healed to %d/%d", player=>w_health, player=>w_maxHealth)
+        rawDisplayf2(" from %d to %d.", oldVal, newVal)
       else
-        rawDisplayStr("No healing needed.")
+        rawDisplayStr(" already at the limit.")
       fin
       pause(800)
-      return NULL
-    fin
+      pMod = pMod=>p_nextObj
+    loop
+    return NULL
   fin
   return item // general 'use' handled by outer engine, because it might involve graphics
 end
@@ -435,7 +571,7 @@ end
 // Select an item and drop it. Returns TRUE if anything changed
 def doDestroy(player, item)#1
   clearMenuRect()
-  rawDisplayStr("Destroy ")
+  rawDisplayStr("Drop ")
   _displayItemName(item)
   rawDisplayStr(" (Y/N)?")
   if getYN()
@@ -451,11 +587,9 @@ def matchEquipped(player, match)#1
   word item
   item = player=>p_items
   while item
-    if (item->t_type == match->t_type) and (item->t_type == TYPE_WEAPON or item->t_type == TYPE_ARMOR)
-      if item <> match and (item->b_flags & ITEM_FLAG_EQUIP)
-        if item->t_type <> TYPE_ARMOR or (item=>s_itemKind == match=>s_itemKind)
-          return item
-        fin
+    if item->t_type == match->t_type and item <> match and isEquipped(item)
+      if item->t_type <> TYPE_ARMOR or (item=>s_itemKind == match=>s_itemKind)
+        return item
       fin
     fin
     item = item=>p_nextObj
@@ -466,7 +600,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayItems(pItem1, pItem2)#0
   clearMainRect()
-  rawDisplayf1("^V000\n^J^J^L^J^T%DInventory", STATS_COL_1)
+  rawDisplayf1("^T%DInventory", STATS_COL_1)
   if pItem2
     rawDisplayf1("^T%DEquipped", STATS_COL_2)
   fin
@@ -477,37 +611,69 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def interactWithItem(player, item)#1
   word comp, quantity
-  byte sel
+  byte sel, ok
+  ok = TRUE
+  displayItems(item, matchEquipped(player, item))
   while TRUE
-    displayItems(item, matchEquipped(player, item))
-    showItemMenu(item)
+    if ok
+      showItemMenu(item)
+    else
+      beep
+    fin
+    ok = FALSE
     sel = getUpperKey()
-    rawDisplayf1(" %c\n", sel)
     when sel
-      // Equip/unequip player with weapon/armor
+      // Equip player with weapon/armor
       is 'E'
-        if item->t_type == TYPE_ARMOR or item->t_type == TYPE_WEAPON
+        if (item->t_type == TYPE_ARMOR or item->t_type == TYPE_WEAPON) and !isEquipped(item)
           doEquip(player, item)
-          return NULL
-        else
-          beep
+          return displayDone()
         fin
         break
-      // Use an item
+      // Use or Unequip an item
       is 'U'
-        if item->t_type == TYPE_ITEM
+        if item->t_type == TYPE_PLAIN_ITEM or item->t_type == TYPE_FANCY_ITEM
           return doUse(player, item) // general 'use' handled by outer engine, because it might involve graphics
-        else
-          beep
+        elsif (item->t_type == TYPE_ARMOR or item->t_type == TYPE_WEAPON) and isEquipped(item)
+          doEquip(player, item)
+          displayItems(item, matchEquipped(player, item))
+          ok = TRUE
+        fin
+        break
+      // Trade an item
+      is 'T'
+        if global=>p_players=>p_nextObj and !isEquipped(item)
+          return doTrade(player, item)
+        fin
+        break
+      // Split a stack
+      is 'S'
+        if isSplittable(item)
+          if doSplit(player, item)
+            return NULL
+          fin
+        fin
+        break
+      // Join stacks
+      is 'J'
+        if isJoinable(item)
+          if doJoin(player, item)
+            return NULL
+          fin
         fin
         break
       // Destroy an item
       is 'D'
-        if doDestroy(player, item); return NULL; fin
+        if !isEquipped(item)
+          if doDestroy(player, item)
+            displayDone()
+            return NULL
+          fin
+          ok = TRUE
+        fin
         break
       is $1B // Esc
         return NULL
-      otherwise beep
     wend
   loop
   return NULL
@@ -538,18 +704,18 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
       rawDisplayf1("^Y^I %s ^N\n", player=>s_name)
       redisplay = 1
       totalItems = countList(player=>p_items)
-    elsif redisplay > 0
-      clearInvRect()
-    fin
-    if redisplay > 0
       if mode == 'I'
-        itemsOnPage = showInventory(player, i_page, 0)
         showDerived(player)
       else // 'S'
         showSkills(player)
       fin
-      redisplay = 0
+    elsif redisplay > 0
+      clearInvRect()
     fin
+    if redisplay > 0 and mode == 'I'
+      itemsOnPage = showInventory(player, i_page, 0)
+    fin
+    redisplay = 0
 
     if !noRepeatMenu
       if mode == 'I'
@@ -563,22 +729,24 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
     // Get a key, do something
     sel = getUpperKey()
     when sel
-      is '1'
-      is '2'
-      is '3'
+      is '1'; is '2'; is '3'
         sel = sel - '1'
-        if player_num <> sel and countList(global=>p_players) > sel
+        if countList(global=>p_players) > sel
           player_num = sel
           i_page = 0
           redisplay = 2
         else
           beep
         fin
+        break
       // Next inventory page
       is '>'
         if mode=='I' and totalItems > (i_page + 1) * INV_ROWS
           i_page++
           redisplay = 1
+        else
+          beep
+          noRepeatMenu = TRUE
         fin
         break
       // Previous inventory page
@@ -587,6 +755,9 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
         if mode=='I' and i_page
           i_page--
           redisplay = 1
+        else
+          beep
+          noRepeatMenu = TRUE
         fin
         break
       // Other operations...
@@ -604,13 +775,16 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
         break
       is '%' // add item cheat
         if global->b_godmode
+          clearMainRect()
           pGodModule=>godmode_addItem(player)
-          redisplay = 1
+          redisplay = 2
         fin
         break
       is '9' // add player cheat
         if global->b_godmode
+          clearMainRect()
           pGodModule=>godmode_addPlayer()
+          redisplay = 2
         fin
         break
       is '+' // level up cheat
@@ -620,24 +794,30 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
         fin
         break
       is $1B // Esc
+        mmgr(CHECK_MEM, 0)
+        mmgr(HEAP_COLLECT, 0)
         return NULL
       otherwise
-        if sel == 'X' and mode <> 'I'
+        if sel == 'X' and mode <> 'I' // switch from stats to inv
           mode = 'I'
           redisplay = 2
-        elsif (sel == 'S' or sel == 'U') and mode <> 'S'
+        elsif (sel == 'S' or sel == 'U') and mode <> 'S' // switch from inv to stats
           mode = 'S'
           redisplay = 2
         elsif mode == 'I'
           sel = sel - 'A'
           if sel >= 0 and sel < itemsOnPage
-            item = interactWithItem(player, itemByNum(player, sel))
+            item = interactWithItem(player, itemByNum(player, i_page * INV_ROWS + sel))
             if item; return item; fin // Use an item
+            if countList(player=>p_items) <= i_page * INV_ROWS // destroyed last item on pg 2
+              i_page--
+            fin
             redisplay = 2
           else
             beep
+            noRepeatMenu = TRUE
           fin
-        elsif mode == 'S'
+        else // mode == 'S'
           noRepeatMenu = TRUE
           if sel >= 'A' and (sel-'A' < nSkills)
             adjustSkill(player, sel - 'A', 1)
@@ -647,12 +827,10 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
             beep
             noRepeatMenu = FALSE
           fin
-        else
-          beep
         fin
     wend
   until 0
-  return NULL
+  return NULL // never reached
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -755,9 +933,9 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def formatEquipped(num)#1
   if num == 1
-    rawDisplayStr("Y")
+    rawDisplayStr("yes")
   else
-    rawDisplayStr("N")
+    rawDisplayStr("no")
   fin
   return 0
 end
@@ -818,7 +996,6 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayWeaponStats(pItem1, pItem2)#0
   displayTwoCol("Equip'd", pItem1, pItem2, b_flags,         @equippedField, @formatEquipped)
-  displayTwoCol("Uses",    pItem1, pItem2, b_maxUses,       @byteField, @formatNum)
   displayTwoCol("Ammo",    pItem1, pItem2, s_ammoKind,      @wordField, @formatStr)
   displayTwoCol("Clip",    pItem1, pItem2, b_clipSize,      @byteField, @formatNum)
   displayTwoCol("Melee",   pItem1, pItem2, r_meleeDmg,      @wordField, @formatDice)
@@ -832,13 +1009,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayArmorStats(pItem1, pItem2)#0
   displayTwoCol("Equip'd", pItem1, pItem2, b_flags,      @equippedField, @formatEquipped)
-  displayTwoCol("Uses",    pItem1, pItem2, b_maxUses,    @byteField, @formatNum)
   displayTwoCol("Protec",  pItem1, pItem2, b_armorValue, @byteField, @formatNum)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayStuffStats(pItem1, pItem2)#0
-  // Nothing special
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -847,10 +1018,10 @@ def _displayItemStats(pItem1, pItem2)#1
 
   // First, show the item type and name
   when pItem1->t_type
-    is TYPE_ITEM;   rawDisplayStr("\nItem");   break
-    is TYPE_WEAPON; rawDisplayStr("\nWeapon"); break
-    is TYPE_ARMOR;  rawDisplayStr("\nArmor");  break
-    is TYPE_STUFF;  rawDisplayStr("\nSupply"); break
+    is TYPE_PLAIN_ITEM
+    is TYPE_FANCY_ITEM;   rawDisplayStr("\nItem");   break
+    is TYPE_WEAPON;       rawDisplayStr("\nWeapon"); break
+    is TYPE_ARMOR;        rawDisplayStr("\nArmor");  break
     otherwise fatal("tItem")
   wend
   tabTo(STATS_COL_1); _displayItemName(pItem1)
@@ -862,25 +1033,28 @@ def _displayItemStats(pItem1, pItem2)#1
   when pItem1->t_type
     is TYPE_WEAPON; displayWeaponStats(pItem1, pItem2); break
     is TYPE_ARMOR;  displayArmorStats(pItem1, pItem2);  break
-    is TYPE_STUFF;  displayStuffStats(pItem1, pItem2);  break
   wend
 
   // If either item has modifiers, show them
   pMod1 = NULL
-  if pItem1->t_type <> TYPE_STUFF; pMod1 = pItem1=>p_modifiers; fin
+  if pItem1->t_type <> TYPE_PLAIN_ITEM; pMod1 = pItem1=>p_modifiers; fin
   pMod2 = NULL
   if pItem2
-    if pItem2->t_type <> TYPE_STUFF; pMod2 = pItem2=>p_modifiers; fin
+    if pItem2->t_type <> TYPE_PLAIN_ITEM; pMod2 = pItem2=>p_modifiers; fin
   fin
   if pMod1 or pMod2
     rawDisplayStr("\nSpecial")
     while pMod1 or pMod2
       if pMod1
-        rawDisplayf3("^T%D%d %s", STATS_COL_1, pMod1=>w_modValue, pMod1=>s_name)
+        rawDisplayf1("^T%D", STATS_COL_1)
+        if pMod1=>w_modValue >= 999; rawDisplayStr("Full "); else rawDisplayf1("%d ", pMod1=>w_modValue); fin
+        rawDisplayStr(pMod1=>s_name)
         pMod1 = pMod1=>p_nextObj
       fin
       if pMod2
-        rawDisplayf3("^T%D%d %s", STATS_COL_2, pMod2=>w_modValue, pMod2=>s_name)
+        rawDisplayf1("^T%D", STATS_COL_2)
+        if pMod2=>w_modValue >= 999; rawDisplayStr("Full "); else rawDisplayf1("%d ", pMod2=>w_modValue); fin
+        rawDisplayStr(pMod2=>s_name)
         pMod2 = pMod2=>p_nextObj
       fin
     loop
@@ -892,13 +1066,14 @@ end
 // For non-countable items, display singular name.
 // For countable "stuff" (e.g. ammo), display the count and appropriate singular or plural name.
 def _displayItemName(pItem)#1
-  if pItem->t_type == TYPE_STUFF
-    setPlural(pItem=>w_count <> 1)
+  isPlural = FALSE
+  if pItem->t_type == TYPE_FANCY_ITEM and pItem=>w_count > 1
+    isPlural = TRUE
     rawDisplayf1("%d ", pItem=>w_count)
-  else
-    setPlural(FALSE)
   fin
-  rawDisplayf1("%s", pItem=>s_name) // use displayf to get proper plural processing
+  buildString(@addToString)
+  printf1("%s", pItem=>s_name) // need proper plural processing
+  rawDisplayStr(finishString(isPlural))
   return 0
 end
 

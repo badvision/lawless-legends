@@ -37,6 +37,7 @@ predef _newOrLoadGame(ask)#1
 word[] funcTbl = @_saveGame, @_loadGame, @_newOrLoadGame
 
 byte[] game1_filename = "GAME.1.SAVE"
+byte[] legendos_filename = "LEGENDOS.SYSTEM"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -223,15 +224,23 @@ def _rwGame(cmd)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _saveGame()#1
+def saveInternal()#0
+
+  // Never save corrupted heap
+  mmgr(CHECK_MEM, 0)
 
   // Perform garbage collection and record the size of the heap so we can restore it correctly
   global=>w_heapSize = mmgr(HEAP_COLLECT, 0) - HEAP_BOTTOM
 
   // Copy data to main memory, and write it out.
-  showMapName("Saving game...")
   memcpy(HEAP_BOTTOM, LOAD_SAVE_BUF, HEAP_SIZE)  // LC to low mem
   _rwGame(RWTS_WRITE)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def _saveGame()#1
+  showMapName("Saving game...")
+  saveInternal()
   return 0
 end
 
@@ -246,12 +255,12 @@ def loadInternal()#1
   p_loaded = LOAD_SAVE_BUF
   if p_loaded=>w_heapSize == 0
     return FALSE  // no game saved yet
-  fin
-  if p_loaded=>w_heapSize < 100 or p_loaded=>w_heapSize > HEAP_SIZE
-    fatal("Corrupt game file.")
+  elsif p_loaded=>w_heapSize < 100 or p_loaded=>w_heapSize > HEAP_SIZE or p_loaded=>w_typeHash <> typeHash
+    fatal("Incompatible game file.")
   fin
   memcpy(LOAD_SAVE_BUF, HEAP_BOTTOM, HEAP_SIZE)  // low mem to LC
   initHeap(p_loaded=>w_heapSize)
+  mmgr(CHECK_MEM, 0) // make sure heap is valid
   return TRUE
 end
 
@@ -270,21 +279,123 @@ def _loadGame()#1
   return 0
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def gameExists()#1
+  word p_loaded
+
+  // Load first part of save game into mem... 1 block should be plenty to verify it's real.
+  if callProRWTS(RWTS_READ | RWTS_OPENDIR, @game1_filename, LOAD_SAVE_BUF, 512) == 0
+    // If heap size is reasonable and type hash matches, chances are high that it's a real save game.
+    p_loaded = LOAD_SAVE_BUF
+    if p_loaded=>w_heapSize >= 100 and p_loaded=>w_heapSize <= HEAP_SIZE and p_loaded=>w_typeHash == typeHash
+      return TRUE
+    fin
+  fin
+  return FALSE
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def getTextKey()#1
+  byte key
+  ^$c053
+  key = getUpperKey()
+  ^$c052
+  textHome()
+  ^$25 = 20
+  return key
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def pressAnyKey()#0
+  puts("\n    and press any key to continue.")
+  getTextKey()
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def reinsert()#0
+  while TRUE
+    puts(" Re-insert disk 1")
+    pressAnyKey()
+    if callProRWTS(RWTS_READ | RWTS_OPENDIR, @legendos_filename, LOAD_SAVE_BUF, 512) == 0
+      break
+    fin
+    puts("\n   ")
+    beep()
+  loop
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def importGame()#1
+  puts("\n    Insert disk for import")
+  pressAnyKey()
+  if gameExists()
+    loadInternal()
+    puts("\n    Game imported.")
+    reinsert()
+    saveInternal()
+    return TRUE
+  fin
+  puts("\n    Not found.")
+  reinsert()
+  return FALSE
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def isNameChar(ch)
+  when ch
+    is '.'
+    is ','
+    is '-'
+    is '\''
+    is ' '
+      return TRUE
+  wend
+  if ch >= 'A' and ch <= 'Z'; return TRUE; fin
+  if ch >= '0' and ch <= '9'; return TRUE; fin
+  return FALSE
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def isValidName(name)
+  byte len, c
+  len = ^name
+  if !len; return FALSE; fin
+  if ^(name+1) == ' '; return FALSE; fin // don't allow space at start
+  while len > 0
+    len--
+    name++
+    c = charToUpper(^name)
+    if c == ' ' and len == 0; return FALSE; fin // don't allow space at end
+    if !isNameChar(c); return FALSE; fin
+  loop
+  return TRUE
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def getCharacterName()#0
   word cursX, cursY
-  displayStr("\nCharacter name?\n")
-  cursX, cursY = getCursor()
-  setWindow(cursY+24, cursY+24+18, cursX+154, cursX+154+62)
-  clearWindow()
-  global=>p_players=>s_name = getStringResponse()
-  setWindow2()
-  setCursor(cursX, cursY)
+  while TRUE
+    displayStr("Character name?\n")
+    cursX, cursY = getCursor()
+    setWindow(cursY+24, cursY+24+18, cursX+154, cursX+154+62)
+    clearWindow()
+    global=>p_players=>s_name = getStringResponse()
+    setWindow2()
+    setCursor(cursX, cursY)
+    if isValidName(global=>p_players=>s_name); break; fin
+    displayStr("\nInvalid name.\n\n")
+    beep()
+  loop
 end
 
 def getCharacterGender()#0
-  displayStr("\n\nGender? (M/F/N/...) \n")
-  global=>p_players->c_gender = getUpperKey()
-  displayChar(global=>p_players->c_gender)
+  byte gender
+  repeat
+    displayStr("\n\nGender? (M/F/N/...) \n")
+    gender = getUpperKey()
+    displayChar(gender)
+  until gender >= 'A' and gender <= 'Z'
+  global=>p_players->c_gender = gender
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -303,6 +414,7 @@ def newGame()#0
   showMapName("New game")
   setWindow2()
   newGameModule()()
+  clearWindow()
   getCharacterName()
   getCharacterGender()
   if global=>p_players->b_skillPoints
@@ -311,51 +423,29 @@ def newGame()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def gameExists()#1
-  word p_loaded
-
-  // Load first part of save game into mem... 1 block should be plenty to verify it's real.
-  if callProRWTS(RWTS_READ | RWTS_OPENDIR, @game1_filename, LOAD_SAVE_BUF, 512) == 0
-    // If heap size is reasonable, assume it's a real save game. (Hash will be checked if the
-    // user chooses to actually load the game)
-    p_loaded = LOAD_SAVE_BUF
-    if p_loaded=>w_heapSize >= 100 and p_loaded=>w_heapSize <= HEAP_SIZE
-      return TRUE
-    fin
-  fin
-  return FALSE
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 def _newOrLoadGame(ask)#1
   byte key
 
   if !gameExists()
     newGame(); return 1
+  elsif !ask
+    loadInternal(); return 0
   fin
-
-  if !ask
-    loadInternal()
-    return 0
-  fin
-
-  textHome()
-  ^$c053
-  ^$25 = 20
-  puts("\n    N)ew game, or L)oad last game? ")
 
   while TRUE
-    key = getUpperKey()
-    if key == 'N'
-      ^$c052
-      newGame()
-      return 1
-    elsif key == 'L'
-      ^$c052
-      if loadInternal()
-        return 0
-      fin
-    fin
+    textHome()
+    ^$25 = 20
+    puts("\n    Game: N)ew, L)oad, I)mport?")
+    key = getTextKey()
+    when key
+      is 'N'
+        newGame(); return 1
+      is 'L'
+        if loadInternal(); return 0; fin
+        break
+      is 'I'
+        if importGame(); return 0; fin
+    wend
     beep()
   loop
   return 0

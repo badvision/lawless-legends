@@ -19,11 +19,13 @@ import java.nio.ByteBuffer
 import java.nio.channels.Channels
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
+import java.util.Calendar
 import java.util.zip.GZIPInputStream
 import java.util.LinkedHashMap
 import java.security.MessageDigest
 import javax.xml.bind.DatatypeConverter
 import groovy.json.JsonOutput
+import groovy.util.Node
 
 /**
  *
@@ -81,6 +83,7 @@ class A2PackPartitions
     def modules   = [:]  // module name to module.num, module.buf
     def bytecodes = [:]  // module name to bytecode.num, bytecode.buf
     def fixups    = [:]  // module name to fixup.num, fixup.buf
+    def gameFlags = [:]  // flag name to number
 
     def itemNameToFunc = [:]
     def playerNameToFunc = [:]
@@ -771,6 +774,12 @@ class A2PackPartitions
 
         def key = kind + ":" + name
         cache[key] = [hash:hash, data:buf]
+    }
+
+    def updateEngineStamp(name, hash)
+    {
+        if (!cache.containsKey("engineStamp") || cache["engineStamp"].hash < hash)
+            cache["engineStamp"] = [hash:hash]
     }
 
     def grabEntireFromCache(kind, addTo, hash)
@@ -1560,12 +1569,42 @@ class A2PackPartitions
     }
 
     /**
+     * Make a compact representation of a timestamp, useful as a version number
+     */
+    def timestampToVersionNum(engineStamp, scenarioStamp)
+    {
+        Calendar cal = Calendar.getInstance()
+        cal.setTimeInMillis(engineStamp)
+        def year = cal.get(Calendar.YEAR)
+        def month = cal.get(Calendar.MONTH)
+        def day = cal.get(Calendar.DAY_OF_MONTH)
+        def hour = cal.get(Calendar.HOUR_OF_DAY)
+
+        def yearCode = year % 10
+        def monthCode = (month < 9) ? (char) (48+month+1) :
+                        month == 9 ? 'o' :
+                        month == 10 ? 'n' :
+                        'd'
+        def hourCode = (char) (97 + hour) // 'a'=0, 'b'=1, etc.
+        def engineCode = String.format("%d%c%02d%c", yearCode, monthCode, day, hourCode)
+
+        def offset = (int) ((scenarioStamp - engineStamp) / (1000 * 60 * 60))
+        return String.format("%s%s%d", engineCode, offset < 0 ? "-" : ".", Math.abs(offset))
+    }
+
+    /**
      * Make an index listing the partition number wherein each map and portrait can be found.
      */
     def addResourceIndex(part)
     {
         def tmp = ByteBuffer.allocate(5000)
 
+        // Start with the version number
+        def combinedVersion = timestampToVersionNum(cache["engineStamp"].hash, cache["scenarioStamp"].hash)
+        tmp.put((byte)(combinedVersion.length()))
+        combinedVersion.getBytes().each { b -> tmp.put((byte)b) }
+
+        // Then output 2D maps, 3d maps, and portraits
         tmp.put((byte) maps2D.size())
         maps2D.each { k, v ->
             tmp.put((byte) ((parseOrder(v.order) < 0) ? 255 : v.buf.partNum))
@@ -1584,6 +1623,8 @@ class A2PackPartitions
                      name:"resourceIndex", buf:code["resourceIndex"].buf]
         part.chunks[["code", "resourceIndex"]] = chunk
         part.spaceUsed += calcChunkLen(chunk)
+
+        return combinedVersion
     }
 
     def fillAllDisks()
@@ -1637,7 +1678,7 @@ class A2PackPartitions
         assert allMaps.isEmpty : "All data must fit within $MAX_DISKS disks."
 
         // Add the special resource index to disk 1
-        addResourceIndex(partChunks[0])
+        def gameVersion = addResourceIndex(partChunks[0])
 
         // And write out each disk
         partChunks.each { part ->
@@ -1649,6 +1690,8 @@ class A2PackPartitions
             def spaceUsed = part.spaceUsed  // use var to avoid gigantic assert fail msg
             assert spaceUsed == partFile.length()
         }
+
+        println "Game version: V $gameVersion"
     }
 
     def writePartition(stream, partNum, chunks)
@@ -1859,6 +1902,7 @@ class A2PackPartitions
         def uncompData = readBinary(inDir + "build/" + codeName + ".b")
 
         addToCache("code", code, codeName, hash, compress(uncompData))
+        updateEngineStamp(codeName, hash)
     }
 
     def assembleCore(inDir)
@@ -1878,8 +1922,10 @@ class A2PackPartitions
                 def file = jitCopy(
                     new File("build/tools/${name=="PRORWTS" ? "ProRWTS/PRORWTS2" : "PLASMA/src/PLVM02"}#4000"))
                 hash = file.lastModified()
-                if (!grabFromCache("sysCode", sysCode, name, hash))
+                if (!grabFromCache("sysCode", sysCode, name, hash)) {
                     addToCache("sysCode", sysCode, name, hash, compress(readBinary(file.toString())))
+                    updateEngineStamp(name, hash)
+                }
             }
             else {
                 hash = getLastDep(new File(inDir, "${name}.s"))
@@ -1892,6 +1938,7 @@ class A2PackPartitions
                     addToCache("sysCode", sysCode, name, hash,
                         (name ==~ /loader|decomp/) ? [data:uncompData, len:uncompData.length, compressed:false]
                                                    : compress(uncompData))
+                    updateEngineStamp(name, hash)
                 }
             }
 
@@ -1952,6 +1999,8 @@ class A2PackPartitions
         addToCache("modules", modules, moduleName, hash, module)
         addToCache("bytecodes", bytecodes, moduleName, hash, bytecode)
         addToCache("fixups", fixups, moduleName, hash, fixup)
+        if (!(moduleName ==~ /.*(gs|gen)_.*/ || codeDir ==~ /.*mapScript.*/))
+            updateEngineStamp(moduleName, hash)
     }
 
     def readAllCode()
@@ -1980,6 +2029,7 @@ class A2PackPartitions
         compileModule("gen_enemies", "src/plasma/")
         compileModule("gen_items", "src/plasma/")
         compileModule("gen_players", "src/plasma/")
+        compileModule("gen_flags", "src/plasma/")
         globalScripts.each { name, nArgs ->
             compileModule("gs_"+name, "src/plasma/")
         }
@@ -2012,6 +2062,40 @@ class A2PackPartitions
             }
             else
                 printWarning "map name '${map?.@name}' should contain '2D' or '3D'. Skipping."
+        }
+    }
+
+    /*
+    *  Scan all the scripts looking for flags, and make a mapping of flag name to number.
+    */
+    def numberGameFlags(data)
+    {
+        String name = data.name().toString()
+        if (name == "{outlaw}gameData") {
+            gameFlags = [] as Set  // temporary, until we have them all
+            data.global.scripts.script.each { numberGameFlags(it) }
+            data.map.scripts.script.each { numberGameFlags(it) }
+
+            // Now that we have them all, sort and assign numbers
+            def flagSet = gameFlags
+            gameFlags = [:]
+            flagSet.sort().each { flg -> gameFlags[flg] = gameFlags.size() }
+        }
+        else if (name == "{outlaw}block" &&
+                 (data.@type == "interaction_get_flag" || data.@type == "interaction_set_flag"))
+        {
+            def els = data.field
+            assert els.size() == 1
+            def first = els[0]
+            assert first.@name == "NAME"
+            def flg = first.text().toLowerCase()
+            gameFlags << flg
+        }
+        else {
+            data.iterator().each {
+                if (it instanceof Node)
+                    numberGameFlags(it)
+            }
         }
     }
 
@@ -2127,10 +2211,13 @@ class A2PackPartitions
         addResourceDep("map", curMapName, toType, toName)
     }
 
-    def pack(xmlPath, dataIn)
+    def pack(xmlFile, dataIn)
     {
         // Save time by using cache of previous run
         readCache()
+
+        // Record scenario timestamp
+        cache["scenarioStamp"] = [hash: xmlFile.lastModified()]
 
         // Record global script names
         recordGlobalScripts(dataIn)
@@ -2241,6 +2328,9 @@ class A2PackPartitions
 
         // Number all the maps and record them with names
         numberMaps(dataIn)
+
+        // Assign a number to each game flag
+        numberGameFlags(dataIn)
 
         // Form the translation from item name to function name (and ditto
         // for players)
@@ -2598,6 +2688,67 @@ end
         return parseDice(val)
     }
 
+    def genAllFlags()
+    {
+        // Make constants
+        new File("build/src/plasma/gen_flags.plh.new").withWriter { out ->
+            out.println("// Generated code - DO NOT MODIFY BY HAND\n")
+            out.println("const flags_nameForNumber = 0")
+            out.println("const flags_numberForName = 2")
+            out.println()
+            gameFlags.each { name, num ->
+                out.println("const GF_${humanNameToSymbol(name, true)} = $num")
+            }
+            out.println("const NUM_GAME_FLAGS = ${gameFlags.size()}")
+        }
+        replaceIfDiff("build/src/plasma/gen_flags.plh")
+
+        // Generate code
+        new File("build/src/plasma/gen_flags.pla.new").withWriter { out ->
+            out.println("// Generated code - DO NOT MODIFY BY HAND")
+            out.println()
+            out.println("include \"gamelib.plh\"")
+            out.println("include \"globalDefs.plh\"")
+            out.println("include \"gen_flags.plh\"")
+            out.println()
+            out.println("predef _flags_nameForNumber(num)#1")
+            out.println("predef _flags_numberForName(name)#1")
+            out.println()
+            out.println("word[] funcTbl = @_flags_nameForNumber, @_flags_numberForName")
+            out.println()
+            gameFlags.each { name, num ->
+                out.println("byte[] SF_${humanNameToSymbol(name, true)} = ${escapeString(name.toUpperCase())}")
+            }
+            out.println()
+            gameFlags.each { name, num ->
+                if (num == 0)
+                    out.print("word[] flagNames = ")
+                else
+                    out.print("word             = ")
+                out.println("@SF_${humanNameToSymbol(name, true)}")
+            }
+            out.println()
+            out.println("def _flags_nameForNumber(num)#1")
+            out.println("  if num >= 0 and num < NUM_GAME_FLAGS; return flagNames[num]; fin")
+            out.println("  return NULL")
+            out.println("end")
+            out.println()
+            out.println("def _flags_numberForName(name)#1")
+            out.println("  word num")
+            out.println("  for num = 0 to NUM_GAME_FLAGS-1")
+            out.println("    if streqi(flagNames[num], name); return num; fin")
+            out.println("  next")
+            out.println("  return -1")
+            out.println("end")
+            out.println()
+
+            // Lastly, the outer module-level code
+            out.println("return @funcTbl")
+            out.println("done")
+        }
+        replaceIfDiff("build/src/plasma/gen_flags.pla")
+    }
+
     def genWeapon(func, row, out)
     {
         out.println(
@@ -2629,26 +2780,21 @@ end
             "${parseModifier(row, "bonus-value", "bonus-attribute")})")
     }
 
-    def genAmmo(func, row, out)
-    {
-        out.println(
-            "  return makeStuff(" +
-            "${escapeString(parseStringAttr(row, "name"))}, " +
-            "${escapeString(parseStringAttr(row, "ammo-kind"))}, " +
-            "${parseWordAttr(row, "price")}, " +
-            "${parseWordAttr(row, "max")}, " +
-            "${parseWordAttr(row, "store-amount")}, " +
-            "${parseDiceAttr(row, "loot-amount")})")
-    }
-
     def genItem(func, row, out)
     {
-        out.println(
-            "  return makeItem(" +
-            "${escapeString(parseStringAttr(row, "name"))}, " +
-            "${parseWordAttr(row, "price")}, " +
-            "${parseModifier(row, "bonus-value", "bonus-attribute")}, " +
-            "${parseByteAttr(row, "number-of-uses")})")
+        def name = parseStringAttr(row, "name")
+        def price = parseWordAttr(row, "price")
+        def modifier = parseModifier(row, "bonus-value", "bonus-attribute")
+        def kind = parseStringAttr(row, "ammo-kind")
+        def count = parseWordAttr(row, "count")
+        def storeAmount = parseWordAttr(row, "store-amount")
+        def lootAmount = parseDiceAttr(row, "loot-amount")
+
+        if ("$kind, $modifier, $count, $storeAmount, $lootAmount" != ", NULL, 0, 0, 0")
+            out.println("  return makeFancyItem(${escapeString(name)}, $price, " +
+                "${escapeString(kind)}, $modifier, $count, $storeAmount, $lootAmount)")
+        else
+            out.println("  return makePlainItem(${escapeString(name)}, $price)")
     }
 
     def genPlayer(func, row, out)
@@ -2688,7 +2834,7 @@ end
                 def itemFunc = itemNameToFunc[name]
                 assert itemFunc : "Can't locate item '$name'"
                 if (num > 1)
-                    out.println("  addToList(@p=>p_items, setStuffCount(itemScripts()=>$itemFunc(), $num))")
+                    out.println("  addToList(@p=>p_items, setItemCount(itemScripts()=>$itemFunc(), $num))")
                 else
                     out.println("  addToList(@p=>p_items, itemScripts()=>$itemFunc())")
             }
@@ -2849,24 +2995,22 @@ def makeWeapon_pt2(p, attack0, attack1, attack2, weaponRange, combatText, single
   return p
 end
 
-def makeStuff(name, kind, price, count, storeAmount, lootAmount)
-  word p; p = mmgr(HEAP_ALLOC, TYPE_STUFF)
+def makePlainItem(name, price)
+  word p; p = mmgr(HEAP_ALLOC, TYPE_PLAIN_ITEM)
   p=>s_name = mmgr(HEAP_INTERN, name)
-  p=>s_itemKind = mmgr(HEAP_INTERN, kind)
   p=>w_price = price
-  p=>w_count = count
-  p=>w_storeAmount = storeAmount
-  p=>r_lootAmount = lootAmount
   return p
 end
 
-def makeItem(name, price, modifier, maxUses)
-  word p; p = mmgr(HEAP_ALLOC, TYPE_ITEM)
+def makeFancyItem(name, price, kind, modifiers, count, storeAmount, lootAmount)
+  word p; p = mmgr(HEAP_ALLOC, TYPE_FANCY_ITEM)
   p=>s_name = mmgr(HEAP_INTERN, name)
   p=>w_price = price
-  p=>p_modifiers = modifier
-  p->b_maxUses = maxUses
-  p->b_curUses = 0
+  p=>s_itemKind = mmgr(HEAP_INTERN, kind)
+  p=>p_modifiers = modifiers
+  p=>w_count = count
+  p=>w_storeAmount = storeAmount
+  p=>r_lootAmount = lootAmount
   return p
 end
 
@@ -2880,7 +3024,7 @@ end
                     switch (typeName) {
                         case "weapon": genWeapon(func, row, out); break
                         case "armor":  genArmor(func, row, out);  break
-                        case "ammo":   genAmmo(func, row, out);   break
+                        case "ammo":   genItem(func, row, out);   break
                         case "item":   genItem(func, row, out);   break
                         default: assert false
                     }
@@ -2993,11 +3137,11 @@ def makePlayer_pt2(p, health, level, aiming, handToHand, dodging, gender)#1
   return p
 end
 
-def setStuffCount(p, ct)#1
-  if p->t_type == TYPE_STUFF
+def setItemCount(p, ct)#1
+  if p->t_type == TYPE_FANCY_ITEM
     p->w_count = ct
   else
-    fatal(\"stuffct\")
+    fatal(\"itemct\")
   fin
   return p // for chaining
 end
@@ -3088,7 +3232,7 @@ end
         return [name.trim(), animFrameNum, animFlags]
     }
 
-    def dataGen(xmlPath, dataIn)
+    def dataGen(xmlFile, dataIn)
     {
         // When generating code, we need to use Unix linebreaks since that's what
         // the PLASMA compiler expects to see.
@@ -3141,6 +3285,9 @@ end
         // Before we can generate global script code, we need to identify and number all the maps.
         numberMaps(dataIn)
 
+        // Assign a number to each game flag
+        numberGameFlags(dataIn)
+
         // Form the translation from item name to function name (and ditto
         // for players)
         allItemFuncs(dataIn.global.sheets.sheet)
@@ -3151,6 +3298,9 @@ end
         recordGlobalScripts(dataIn)
         genAllGlobalScripts(dataIn.global.scripts.script)
         curMapName = null
+
+        // Generate a mapping of flags, for debugging purposes.
+        genAllFlags()
 
         // Translate enemies, weapons, etc. to code
         genAllItems(dataIn.global.sheets.sheet)
@@ -3206,7 +3356,7 @@ end
 
     def createHddImage()
     {
-        println "Creating hdd image."
+        //println "Creating hdd image."
 
         // Copy the combined core executable to the output directory
         copyIfNewer(new File("build/src/core/build/LEGENDOS.SYSTEM.sys#2000"),
@@ -3231,7 +3381,7 @@ end
 
     def createFloppyImages()
     {
-        println "Creating floppy images."
+        //println "Creating floppy images."
 
         // We'll be copying stuff from the hdd directory
         def hddDir = new File("build/root")
@@ -3442,6 +3592,7 @@ end
             out << "include \"../plasma/gamelib.plh\"\n"
             out << "include \"../plasma/globalDefs.plh\"\n"
             out << "include \"../plasma/playtype.plh\"\n"
+            out << "include \"../plasma/gen_flags.plh\"\n"
             out << "include \"../plasma/gen_images.plh\"\n"
             out << "include \"../plasma/gen_items.plh\"\n"
             out << "include \"../plasma/gen_modules.plh\"\n"
@@ -3929,14 +4080,16 @@ end
 
         def packGetFlag(blk)
         {
-            def name = getSingle(blk.field, 'NAME').text()
-            out << "getGameFlag(${escapeString(name)})"
+            def name = getSingle(blk.field, 'NAME').text().trim().toLowerCase()
+            assert gameFlags.containsKey(name)
+            out << "getGameFlag(GF_${humanNameToSymbol(name, true)})"
         }
 
         def packChangeFlag(blk)
         {
-            def name = getSingle(blk.field, 'NAME').text()
-            outIndented("setGameFlag(${escapeString(name)}, ${blk.@type == 'interaction_set_flag' ? 1 : 0})\n")
+            def name = getSingle(blk.field, 'NAME').text().trim().toLowerCase()
+            assert gameFlags.containsKey(name)
+            outIndented("setGameFlag(GF_${humanNameToSymbol(name, true)}, ${blk.@type == 'interaction_set_flag' ? 1 : 0})\n")
         }
 
         def isStringExpr(blk)
@@ -4009,6 +4162,10 @@ end
             }
         }
 
+        def packLogicNegate(blk) {
+            out << "!("; packExpr(getSingle(blk.value, "BOOL").block[0]); out << ")"
+        }
+
         def packMathArithmetic(blk)
         {
             def op = getSingle(blk.field, "OP").text()
@@ -4077,6 +4234,9 @@ end
                     break
                 case 'logic_operation':
                     packLogicOperation(blk)
+                    break
+                case 'logic_negate':
+                    packLogicNegate(blk)
                     break
                 case 'variables_get':
                     packVarGet(blk)

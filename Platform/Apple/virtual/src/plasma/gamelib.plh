@@ -39,6 +39,7 @@ import gamelib
   predef countArray(arr)#1
   predef countList(p)#1
   predef countListFiltered(p, offset, filterFunc)#1
+  predef crout()#0
   predef displayChar(chr)#0
   predef displayf1(fmt, arg1)#0
   predef displayf2(fmt, arg1, arg2)#0
@@ -46,7 +47,6 @@ import gamelib
   predef displayStr(str)#0
   predef encodeDice(nDice, dieSize, add)#1
   predef fatal(msg)#1
-  predef finalWin()#0
   predef finishString(isPlural)#1
   predef flipToPage1()#0
   predef getCharResponse()#1
@@ -65,14 +65,15 @@ import gamelib
   predef initPlayerXP(player)#0
   predef loadFrameImg(img)#0
   predef loadMainFrameImg()#0
+  predef lookupResourcePart(sectionNum, resourceNum)#1
   predef makeModifier(name, value)#1
   predef max(a, b)#1
   predef memcpy(pSrc, pDst, len)#0
   predef min(a, b)#1
   predef mmgr(cmd, wordParam)#1
   predef moveWayBackward()#1
+  predef numToPlayer(num)#1
   predef parseDec(str)#1
-  predef parseDecWithDefault(str, default)#1
   predef partyHasPlayer(playerName)#1
   predef pause(count)#0
   predef payGold(amount)#1
@@ -93,7 +94,6 @@ import gamelib
   predef rawDisplayf3(fmt, arg1, arg2, arg3)#0
   predef rawDisplayStr(str)#0
   predef rdkey()#1
-  predef readStr()#1
   predef removeFromList(pList, toRemove)#0
   predef removePlayerFromParty(playerName)#0
   predef rightJustifyNum(num, rightX)#0
@@ -116,7 +116,6 @@ import gamelib
   predef setMap(is3D, num, x, y, dir)#0
   predef setMapWindow()#0
   predef setBigWindow()#0
-  predef setPlural(flg)#0
   predef setPortrait(portraitNum)#0
   predef setScriptInfo(mapName, trigTbl, wdt, hgt)#0
   predef setSky(num)#0
@@ -147,6 +146,8 @@ import gamelib
   word groundNum
   byte portraitNum
   word pGodModule
+  word typeHash
+  byte isPlural
 
   /////////// Shared string constants //////////////
 

@@ -747,15 +747,8 @@ gcHash_chk: !zone
 	rts
 .corrup	jmp heapCorrupt
 
-!if DEBUG = 0 {
-debugOnly:
-	jsr inlineFatal : !text "DebugOnly",0	
-}
-
 ; Verify integrity of memory manager structures
 memCheck: !zone
-!if DEBUG = 0 { jmp debugOnly }
-!if DEBUG {
 	jsr heapCheck	; heap check (if there is one)
 	ldx #0		; check main bank
 	jsr .chk
@@ -811,7 +804,6 @@ heapCheck: !zone
 	cmp heapEndPg	; or >= than end of heap
 	bcc .tscan
 	; fall through to heapCorrupt...
-} ; if DEBUG
 
 heapCorrupt:
        +prWord pTmp
@@ -1333,16 +1325,10 @@ aux_dispatch:
 !if SANITY_CHECK {
 saneStart: !zone {
 	sta saneEnd+2	; save cmd num for end-checking
-	pha
-	tya
-	pha
-	txa
+	cmp #ADVANCE_ANIMS
+	beq .skip
 	pha
 	jsr saneCheck
-	pla
-	tax
-	pla
-	tay
 	+prChr 'M'
 	lda isAuxCmd
 	beq +
@@ -1359,7 +1345,7 @@ saneStart: !zone {
 	beq +
 	+prY
 +	pla
-	rts
+.skip	rts
 }
 
 saneCheck: !zone {
@@ -1373,6 +1359,8 @@ saneCheck: !zone {
 saneEnd: !zone {
 	pha
 	lda #$11	; self-modified earlier by saneStart
+	cmp #ADVANCE_ANIMS
+	beq .skip
 	cmp #REQUEST_MEMORY
 	beq .val
 	cmp #QUEUE_LOAD
@@ -1385,17 +1373,9 @@ saneEnd: !zone {
 	bne .noval
 .val	+prStr : !text "->",0
 	+prYX
-.noval	tya
-	pha
-	txa
-	pha
-	jsr saneCheck
+.noval	jsr saneCheck
 	+prStr : !text "m.",0
-	pla
-	tax
-	pla
-	tay
-	pla
+.skip	pla
 	rts
 }
 }
@@ -2787,6 +2767,7 @@ advSingleAnim:
 	rts
 .dbgout	+crout
 	+waitKey
+	bit $c050
 	sta setAuxRd
 	sta setAuxWr
 	rts
@@ -2828,12 +2809,14 @@ applyPatch:
 	; loop to skip patches until we find the right one
 -	dec reqLen	; it starts at 1, which means first patch.
 	beq +
-	ldy #1
+	ldy #0
+	lda (pSrc),y	; low byte of patch len
+	pha
+	iny
 	lda (pSrc),y	; hi byte of patch len
 	inx		; -> pSrc+1
 	jsr .ptradd	; skip by # pages in patch
-	dey
-	lda (pSrc),y	; low byte of patch len
+	pla		; get lo byte of len back
 	jsr .srcadd	; skip pSrc past last partial page in patch
 	jmp -
 +	!if DEBUG = 2 { jsr .dbgC2 }

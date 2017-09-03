@@ -132,7 +132,7 @@ def rollPlayerHit(pPlayer, pWeapon, pEnemy, sAction)
   roll = rollPercentileWithLuck(-(pPlayer->b_luck)) // luck can reduce roll = increase chance to hit
   if combatDebug; displayf2("Roll=%d, need <%d\n", roll, abs(roll < chance)); getUpperKey(); fin
   if roll >= chance
-    setPlural(0)
+    isPlural = FALSE
     displayf3("\n%s %s at %s but misses.\n", pPlayer=>s_name, sAction, pEnemy=>s_name)
     return FALSE
   fin
@@ -143,7 +143,7 @@ end
 def rollEnemyDodge(pPlayer, pEnemy, sAction)
   // Enemy chance to dodge is taken from their chance to hit divided by 2
   if (rand16() % 100) < (pEnemy->b_chanceToHit / 2)
-    setPlural(0)
+    isPlural = FALSE
     displayf3("\n%s %s at %s, ", pPlayer=>s_name, sAction, pEnemy=>s_name)
     displayf1("but %s dodges.\n", pEnemy=>s_name)
     return TRUE
@@ -157,7 +157,7 @@ def damageEnemy(pPlayer, pEnemy, dmg, sAction)#0
     displayf3("\nenemy health: %d-%d=%d\n", pEnemy=>w_health, dmg, pEnemy=>w_health-dmg)
     getUpperKey
   fin
-  setPlural(0)
+  isPlural = FALSE
   buildString(@addToString)
   printf3("\n%s %s %s ", pPlayer=>s_name, sAction, pEnemy=>s_name)
   printf1("for %d damage.", dmg)
@@ -290,7 +290,7 @@ def reload(pl, pWeapon, echo)#0
   word item
   byte orig, n
 
-  setPlural(FALSE)
+  isPlural = FALSE
 
   // If ammo type is null, it means weapon doesn't use ammo in traditional sense.
   if !pWeapon=>s_ammoKind
@@ -301,7 +301,7 @@ def reload(pl, pWeapon, echo)#0
   // Find matching ammo
   item = pl=>p_items
   while item
-    if item->t_type == TYPE_STUFF
+    if item->t_type == TYPE_FANCY_ITEM
       if streqi(item=>s_itemKind, pWeapon=>s_ammoKind); break; fin
     fin
     item = item=>p_nextObj
@@ -366,7 +366,7 @@ def displayOpponents()#0
     fin
     first = FALSE
     count = countListFiltered(p=>p_enemies, p_nextObj, @canFight)
-    setPlural(count <> 1)
+    isPlural = count <> 1
     if (p=>p_enemies=>r_groupSize == 0)
       displayf2("%s at %d'", p=>p_enemies=>s_name, p->b_enemyGroupRange)
     else
@@ -678,7 +678,7 @@ def enemyCombatTurn(pe)#1
   pl = randomFromListFiltered(global=>p_players, p_nextObj, @canFight)
   if !pl; return FALSE; fin
 
-  setPlural(FALSE)
+  isPlural = FALSE
   displayf3("\n%s %s %s ", pe=>s_name, pe=>s_attackText, pl=>s_name)
 
   // Roll to hit
@@ -851,7 +851,7 @@ def addItem(pl, pItem)#1
   word pComp
   pComp = scanForNamedObj(pl=>p_items, pItem=>s_name)
   if pComp
-    if pItem->t_type == TYPE_STUFF
+    if pItem->t_type == TYPE_FANCY_ITEM
       pComp=>w_count = min(30000, pComp=>w_count + pItem=>w_count)
       return TRUE
     else
@@ -882,16 +882,17 @@ def collectLootAndXP()#2
           mmgr(FINISH_LOAD, 0)
           itemFunc = randomFromArray(pItemsModule()=>items_forLootCode(enemy=>s_lootCode))
           pItem = itemFunc()
-          if pItem->t_type == TYPE_STUFF
+          if pItem->t_type == TYPE_FANCY_ITEM
             pItem=>w_count = rollDiceWithLuck(pItem=>r_lootAmount, global=>p_players->b_luck)
           fin
           if addItem(global=>p_players, pItem)
-            if pItem->t_type == TYPE_STUFF and pItem=>w_count > 1
-              setPlural(TRUE)
-              displayf2("You find %d %s! ", pItem=>w_count, pItem=>s_name)
+            displayStr("You find ")
+            if pItem->t_type == TYPE_FANCY_ITEM and pItem=>w_count > 1
+              isPlural = TRUE
+              displayf2("%d %s! ", pItem=>w_count, pItem=>s_name)
             else
-              setPlural(FALSE)
-              displayf2("You find %s%s! ", anOrA(pItem=>s_name), pItem=>s_name)
+              isPlural = FALSE
+              displayf2("%s%s! ", anOrA(pItem=>s_name), pItem=>s_name)
             fin
           fin
           lootedItem = TRUE
@@ -908,6 +909,11 @@ end
 def startCombat(mapCode)#1
   word p, p2, n, s
 
+  // Pre-load some global funcs
+  mmgr(QUEUE_LOAD, GS_COMBAT_INTRO<<8 | RES_TYPE_MODULE)
+  mmgr(QUEUE_LOAD, GS_COMBAT_PROMPT<<8 | RES_TYPE_MODULE)
+  mmgr(QUEUE_LOAD, GS_ENEMY_INTRO<<8 | RES_TYPE_MODULE)
+
   // Setup
   isFleeing = FALSE
   combatDebug = FALSE
@@ -915,6 +921,7 @@ def startCombat(mapCode)#1
 
   // Display portrait of first group
   setPortrait(global=>p_enemyGroups=>p_enemies->b_image)
+  mmgr(FINISH_LOAD, 0)
 
   // Clear keyboard stobe, because while wandering the map, the player may have
   // queued up movement keys, which are made obsolete by the surprise of combat.
@@ -932,7 +939,7 @@ def startCombat(mapCode)#1
   p = global=>p_enemyGroups
   while p
     n = countList(p=>p_enemies)
-    setPlural(n <> 1)
+    isPlural = n <> 1
     s = callGlobalFunc(GS_ENEMY_INTRO, 0, 0, 0)
     displayf2(s, n, p=>p_enemies=>s_name)
     p = p=>p_nextObj

@@ -60,7 +60,6 @@ predef doRender()#0
 predef playerDeath()#0
 predef startGame(ask)#0
 predef showAnimFrame()#0
-predef finalWin()#0
 predef showParty()#0
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -77,12 +76,12 @@ byte renderLoaded = FALSE
 byte texturesLoaded = FALSE
 byte textDrawn = FALSE
 byte textClearCountdown = 0
-byte isPlural = FALSE
-byte skipEncounterCheck = FALSE
+export byte isPlural = 0 // valid values: 0 or $40
+byte inScript = FALSE
 
 export word skyNum = 9
 export word groundNum = 10
-export byte portraitNum = 1
+export byte portraitNum = 0
 
 word triggerOriginX, triggerOriginY
 word triggerTbl
@@ -97,6 +96,7 @@ word pResourceIndex = NULL
 word pGlobalTileset = NULL
 byte curMapPartition = 0
 export word pGodModule = NULL
+export word typeHash = 0
 
 // Queue setMap / teleport / start_encounter, since otherwise script might be replaced while executing
 byte q_mapIs3D = 0
@@ -405,78 +405,73 @@ export asm finishString(isPlural)#1
   sta cswl
   lda #$FD
   sta cswh
-  bit fixedRTS; V flag for prev-is-punctuation
-  ldy #1      ; dest offset in Y
-  ldx #1      ; source offset in X
+  clv         ; V flag for prev-is-alpha
+  ldy #0      ; dest offset in Y (will be incremented before store)
+  ldx #0      ; source offset in X (will be incremented before load)
   cpx inbuf
-  beq +       ; only process if string has at least 1 char
-  bcs .done
-+ sty tmp+1   ; offset of last punctuation
+  beq .done   ; failsafe: handle zero-length string
 .fetch
-  lda inbuf,x
-  cmp #"("
+  inx
+  lda inbuf,x ; get next input char
+  iny
+  sta inbuf,y ; by default copy the char to output
+  cmp #"("    ; plural processing triggered by parentheses
   bne .notpar
-  bvs .notpar ; skip paren processing right punctuation
-  lda tmp     ; check isPlural flag
-  bne .plurpr
-- lda inbuf,x ; it's singular, so skip everything in parens
-  cmp #")"
-  beq .next
+  bvc .notpar ; but only parens directly after alpha char, e.g. preserving "Happy (and safe)."
+
+  dey         ; undo copy of the paren
+  stx tmp+1   ; save position in input
+  dex         ; needed for failsafe operation
+  lda tmp     ; set copy flag (V) initially
+  bne .findsl ;     to same as isPlural flag
+  clv
+.findsl       ; see if there's a slash within the parens
   inx
   cpx inbuf
-  bne -
-  beq .done   ; handle missing trailing paren
-.plurpr
-  inx         ; it's plural, so copy everything within the parens
-  lda inbuf,x ; copy characters
-  cpx inbuf   ; handle missing trailing paren
-  beq +
-  bcs .store
-+ cmp #")"    ; go until we reach ending paren
-  beq .next
-  sta inbuf,y
-  iny
-  bne .plurpr ; always taken
-
-.notpar
+  lda inbuf,x
   cmp #"/"
-  bne .notsl
-  bvs .notsl  ; skip slash processing right after punctuation
-  lda tmp     ; check isPlural flag
-  bne .plursl
-- inx         ; loop that skips plural form
-  cpx inbuf
+  bne +
+  php
+  pla
+  eor #$40    ; flip V flag, meaning singular text is before slash, plural after.
+  pha
+  plp
++ cmp #")"    ; scan until ending paren
   beq +
-  bcs .done   ; handle end of string
-+ lda inbuf,x
-  cmp #"A"    ; eat letters (and stop when we hit punctuation)
-  bcs -
-  bcc .store  ; copy the ending punctuation and continue normal processing
-.plursl
-  ldy tmp+1   ; erase singular form by backing up to prev punc
-  iny         ;     plus 1 to retain prev punc
-  bne .next   ; resume regular copying of the plural form
-
-.notsl
-  cmp #"A"    ; if <= ASCII "A", consider it punctuation
-  bcc +
-  clv         ; clear last-is-punc flag
-  bvc .store  ; always taken
-+ bit fixedRTS; set prev-is-punc flag
-  sty tmp+1   ; save dest offset of last punctuation
-
-.store
-  sta inbuf,y ; save to dest
+  cpx inbuf
+  bcc .findsl ; loop to scan next char
+  bcs .done   ; failsafe: handle missing end-paren (always taken)
++ ldx tmp+1   ; get back to start of parens
+  ; copy mode flag is now in V: if slash present, single=copy,   plural=nocopy
+  ;                             if no slash:      single=nocopy, plural=copy
+.plup
+  inx
+  lda inbuf,x
+  cmp #"/"
+  bne +
+  php
+  pla
+  eor #$40    ; flip from copying to not-copying, or vice-versa
+  pha
+  plp
+  bcs .plup   ; always taken
++ cmp #")"
+  beq .notpar ; stop at closing paren
+  bvc .plup   ; if not in copy mode, skip copy
   iny
+  sta inbuf,y ; else do copy
+  bne .plup   ; always taken
+.notpar
+  bit fixedRTS; set prev-is-alpha flag
+  cmp #"A"    ; if >= ASCII "A", consider it alpha
+  bcs .next
+  clv         ; clear prev-is-alpha flag
 
 .next
-  inx
   cpx inbuf   ; compare src offset to length
   bcc .fetch  ; loop while less than
-  beq .fetch  ;       or equal
 
 .done
-  dey
   sty inbuf   ; save new length
   lda #<inbuf ; return pointer to string
   ldy #>inbuf
@@ -729,7 +724,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a carriage return
-asm crout()#0
+export asm crout()#0
   +asmPlasmNoRet 0
   lda #$8D
   jmp _safeCout
@@ -740,28 +735,6 @@ end
 export asm beep()#0
   +asmPlasmNoRet 0
   +safeBell
-  rts
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Read a string from the keyboard, turn it into a PLASMA string and return a pointer to the string.
-export asm readStr()#1
-  +asmPlasmRet 0
-  bit setROM
-  jsr ROM_getln1
-  bit setLcRW+lcBank2
-  txa
-  pha
-  beq +
-- lda inbuf-1,x
-  and #$7F
-  sta inbuf,x
-  dex
-  bne -
-+ pla
-  sta inbuf,x
-  lda #<inbuf
-  ldy #>inbuf
   rts
 end
 
@@ -998,7 +971,8 @@ export asm streqi(a, b)#1
   bne --          ; abort on inequality
   dex
   bne -
-  ldy #0          ; okay, they're equal. Return non-zero (A is guaranteed to be a character already)
+  lda #1
+  ldy #0          ; okay, they're equal. Return 1 (not just any char; so that PLASMA when...is can work)
   rts
 end
 
@@ -1096,12 +1070,6 @@ export def getStringResponse()#1
   next
   ^$200 = ^$2FF
   return mmgr(HEAP_INTERN, $200)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Setter functions for library use
-export def setPlural(flg)#0
-  isPlural = flg
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1231,14 +1199,6 @@ export def parseDec(str)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def parseDecWithDefault(str, default)#1
-  if ^str == 0
-    return default
-  fin
-  return parseDec(str)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Get a keystroke and convert it to upper case
 export def getUpperKey()#1
   byte key
@@ -1316,7 +1276,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def rollDiceWithLuck(encoded, luck)#1
   byte i, nDice, dieSize, add, droll, result
-  nDice = encoded >> 12
+  nDice = (encoded >> 12) & $F  // must mask off replicated hi-bits
   dieSize = (encoded >> 8) & $F
   add = encoded & $F
   result = add
@@ -1331,8 +1291,7 @@ export def rollDiceWithLuck(encoded, luck)#1
         droll = min(droll, (rand16() % dieSize) + 1)
       fin
     fin
-    add = (rand16() % dieSize) + 1
-    result = result + add
+    result = result + droll
   next
   return result
 end
@@ -1361,13 +1320,13 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Look up the partition for a resource.
 // sectioNum: 1=map2d, 2=map3d, 3=portrait
-def lookupResourcePart(sectionNum, resourceNum)#1
+export def lookupResourcePart(sectionNum, resourceNum)#1
   word ptr
   byte n
 
-  // Skip to the requested section
+  // Skip to the requested section (starting just after version num)
   ptr = pResourceIndex
-  while sectionNum > 1
+  while sectionNum > 0
     ptr = ptr + readAuxByte(ptr) + 1
     sectionNum--
   loop
@@ -1381,17 +1340,13 @@ def lookupResourcePart(sectionNum, resourceNum)#1
     if curMapPartition > 0; return curMapPartition; fin
     return 2
   fin
-  if n < 1 or n > 20; fatal("lkupFail2"); fin
+  if n < 0 or n > 20; fatal("lkupFail2"); fin // allow zero (e.g. portrait not used so not packed)
   return n
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set the sky color (relevant to 3D display only)
 export def setSky(num)#0
-  // hack for end-game screen
-  if num == 99
-    finalWin()
-  fin
   skyNum = num
   setColor(0, skyNum)
   needRender = TRUE
@@ -1403,6 +1358,36 @@ export def setGround(num)#0
   groundNum = num
   setColor(1, groundNum)
   needRender = TRUE
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def printVersion()#0
+  word p, len, cv, ch
+  if !pResourceIndex; return; fin
+  cv = ^$25
+  ^$23 = 24 // full height window
+  ^$25 = 22
+  crout()
+  ^$24 = 25
+  puts("V ")
+  setWindow(183, 192, 161, 261)
+  clearWindow()
+  setWindow(183, 192, 168, 252)
+  rawDisplayStr("^YV ")
+  p = pResourceIndex
+  len = readAuxByte(p)
+  while len
+    p++
+    ch = readAuxByte(p)
+    printChar(ch)
+    displayChar(ch)
+    len--
+  loop
+  rawDisplayStr("^N")
+  ^$23 = 23 // shrink window to protect version num
+  ^$25 = cv-1
+  crout()
+  setWindow2()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1435,6 +1420,9 @@ export def loadFrameImg(img)#0
 
     // And show the first frame of the screen image
     showAnimFrame()
+
+    // Brand the image with the version number
+    printVersion()
   else
     curFullscreenImg = NULL
     anyAnims = FALSE
@@ -1591,6 +1579,9 @@ export def scriptEvent(event, param)#0
   word script
   if !nMapScripts; return; fin
 
+  if inScript; return; fin // avoid doing scripted events inside other scripts
+  inScript = TRUE 
+
   setWindow2()
 
   textDrawn = FALSE
@@ -1605,6 +1596,8 @@ export def scriptEvent(event, param)#0
       script(event, param)
     fin
   next
+  
+  inScript = FALSE
 
   if textDrawn
     textClearCountdown = 3
@@ -1650,9 +1643,13 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def loadMainFrameImg()#0
-  loadFrameImg(mapIs3D+2)
   if curFullscreenImg
     auxMmgr(FREE_MEMORY, curFullscreenImg)
+    curFullscreenImg = NULL
+  fin
+  loadFrameImg(mapIs3D+2)
+  if curFullscreenImg
+    auxMmgr(FREE_MEMORY, curFullscreenImg) // we don't allow animated main frames, so save memory
     curFullscreenImg = NULL
   fin
 end
@@ -1796,15 +1793,17 @@ def doRender()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Advance one step forward (works for either 3D or 2D maps)
-def moveForward()#1
+def moveInternal(facingDir, moveDir, beepOK)#1
   byte val
   word x, y
+
+  setDir(moveDir)
   val = advance()
+  setDir(facingDir)
 
   // If not blocked, render at the new position.
   if val == 0
-    beep()
+    if beepOK and !inScript; beep(); fin // don't beep for scripted moves
   else
     if !mapIs3D
       doRender()
@@ -1813,7 +1812,7 @@ def moveForward()#1
     fin
   fin
 
-  // If we're on a new map tile, run leave handlers.
+  // If we're on a new map tile, run leave handlers from old tile.
   if val >= 2
     scriptEvent(@S_LEAVE, NULL)
     nMapScripts = 0
@@ -1825,14 +1824,22 @@ def moveForward()#1
     scanScripts(x, y)
     if nMapScripts
       scriptEvent(@S_ENTER, NULL)
-    elsif global=>p_encounterZones and !skipEncounterCheck
+    elsif global=>p_encounterZones
       checkEncounter(x, y, FALSE)
     fin
-  elsif val >= 2 and global=>p_encounterZones and !skipEncounterCheck
+  elsif val >= 2 and global=>p_encounterZones
     getPos(@x, @y)
     checkEncounter(x, y, FALSE)
   fin
-  return 0
+  return val
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Advance one step forward (works for either 3D or 2D maps)
+def moveForward()#1
+  byte dir
+  dir = getDir()
+  return moveInternal(dir, dir, TRUE)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1847,23 +1854,25 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Move backward one step (3D mode). Also actually works in 2D mode.
 def moveBackward()#1
-  adjustDir(8)
-  moveForward()
-  return adjustDir(8)
+  byte facingDir, moveDir
+  facingDir = getDir()
+  moveDir = (facingDir + 8) & 15
+  moveInternal(facingDir, moveDir, TRUE)
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Move backward two steps (3D mode), or one step (2D mode). This is often used when exiting a
 // building or fleeing combat, so we don't want to generate any random encounters.
 export def moveWayBackward()#1
-  adjustDir(8)
-  skipEncounterCheck = TRUE
-  moveForward()
+  byte facingDir, moveDir
+  facingDir = getDir()
+  moveDir = (facingDir + 8) & 15
+  moveInternal(facingDir, moveDir, FALSE)
   if mapIs3D
-    moveForward()
+    moveInternal(facingDir, moveDir, FALSE)
   fin
-  skipEncounterCheck = FALSE
-  return adjustDir(8)
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1885,17 +1894,19 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Sidestep to the right (3D mode)
 def strafeRight()#1
-  adjustDir(4)
-  moveForward()
-  return adjustDir(-4)
+  byte facingDir, moveDir
+  facingDir = getDir()
+  moveDir = (facingDir + 4) & 15
+  return moveInternal(facingDir, moveDir, FALSE)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Sidestep to the left (3D mode)
 def strafeLeft()#1
-  adjustDir(-4)
-  moveForward()
-  return adjustDir(4)
+  byte facingDir, moveDir
+  facingDir = getDir()
+  moveDir = (facingDir - 4) & 15
+  return moveInternal(facingDir, moveDir, FALSE)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2105,7 +2116,9 @@ export def getYN()#1
     if key == 'Y'
       return 1
     elsif key == 'N'
-      clearTextWindow()
+      if frameLoaded
+        clearTextWindow()
+      fin
       break
     fin
     beep()
@@ -2185,7 +2198,8 @@ export def setPortrait(portraitNum)#0
 
   // Load the portrait image and display it
   part = lookupResourcePart(3, portraitNum)
-  if part > 1; part = curMapPartition; fin  // Look on disk 1 or current disk only
+  // Commented out below, because it prevents cycling thru all portraits (in god mode)
+  // NO: if part > 1; part = curMapPartition; fin  // Look on disk 1 or current disk only
   mmgr(START_LOAD, part)
   curPortrait = auxMmgr(QUEUE_LOAD, portraitNum<<8 | RES_TYPE_PORTRAIT)
   curPortraitNum = portraitNum
@@ -2303,12 +2317,6 @@ def loadEngine(moduleNum)#1
   flipToPage1()
   mmgr(START_LOAD, 1) // code is in partition 1
   curEngine = mmgr(QUEUE_LOAD, moduleNum<<8 | RES_TYPE_MODULE)
-  // For combat module, pre-load some global funcs
-  if moduleNum == MOD_COMBAT
-    mmgr(QUEUE_LOAD, GS_COMBAT_INTRO<<8 | RES_TYPE_MODULE)
-    mmgr(QUEUE_LOAD, GS_COMBAT_PROMPT<<8 | RES_TYPE_MODULE)
-    mmgr(QUEUE_LOAD, GS_ENEMY_INTRO<<8 | RES_TYPE_MODULE)
-  fin
   mmgr(FINISH_LOAD, 0)
   return curEngine()  // return function table
 end
@@ -2323,7 +2331,12 @@ def returnFromEngine(render)#0
     if renderLoaded; texControl(1); texturesLoaded = TRUE; fin
     mapNameHash = 0; showMapName(global=>s_mapName)
     clearTextWindow()
-    if render; doRender(); fin
+    if render
+      doRender()
+    else
+      needRender = TRUE
+    fin
+    if mapIs3D; showCompassDir(getDir()); fin
     showParty()
     setWindow2()  // in case we're mid-script
   fin
@@ -2357,13 +2370,21 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load the Party engine and show data for the given player
 def showPlayerSheet(num)#1
-  word pItemToUse
+  word pItemToUse, oldFlg
   if num+1 > countList(global=>p_players); beep; return 0; fin
   pItemToUse = loadEngine(MOD_PARTY)=>party_showPlayerSheet(num)
   returnFromEngine(TRUE)
   // General 'use' handled here in case it triggers graphical effects
   if pItemToUse
+    oldFlg = textDrawn
+    textDrawn = FALSE
     scriptEvent(@S_USE, pItemToUse=>s_name)
+    if !textDrawn
+      displayStr("\nNothing happened.")
+      textDrawn = TRUE
+    else
+      textDrawn = oldFlg
+    fin
   fin
   return 0
 end
@@ -2391,6 +2412,7 @@ def levelUp()#1
       return 0
     fin
     player = player=>p_nextObj
+    n++
   loop
   beep
   return 0
@@ -2433,13 +2455,14 @@ def doCombat(mapCode, backUpOnFlee)#1
   // Handled in a separate module. Clear enemies out of the heap when finished.
   result = loadEngine(MOD_COMBAT)=>combat_zoneEncounter(mapCode)
   global=>p_enemyGroups = NULL
+  mmgr(CHECK_MEM, 0)
   mmgr(HEAP_COLLECT, 0)
 
   if (result == -99)
     playerDeath()
     return 0
   fin
-  returnFromEngine(TRUE)
+  returnFromEngine(!inScript) // only re-render if outside script
 
   // If the party fled the combat instead of winning, back up to previous square.
   if !result and backUpOnFlee
@@ -2454,6 +2477,9 @@ export def checkEncounter(x, y, force)#0
   word p
   word p_bestZone, bestDist
   word d
+
+  // Don't check for encounter during scripted move
+  if inScript; return; fin
 
   // Find the zone that's closest, but not too far.
   bestDist = INT_MAX
@@ -2511,6 +2537,7 @@ def toggleGodMode()#1
     if ^kbd == $84  // ctrl-D
       ^kbdStrobe
       global->b_godmode = !global->b_godmode
+      flipToPage1()
       clearTextWindow()
       displayf1("gm:%d\n", global->b_godmode & 1)
       beep; beep
@@ -2519,15 +2546,6 @@ def toggleGodMode()#1
     fin
   fin
   return 0
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-export def finalWin()#0
-  flipToPage1()
-  loadFrameImg(4) // total hack
-  while 1 // 1 infinite loop
-    getUpperKey()
-  loop
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2641,10 +2659,6 @@ def loadTitle()#0
   auxMmgr(SET_MEM_TARGET, expandVec)
   auxMmgr(QUEUE_LOAD, CODE_EXPAND<<8 | RES_TYPE_CODE)
 
-  // Also grab the resource index (put it in aux)
-  pResourceIndex = auxMmgr(QUEUE_LOAD, CODE_RESOURCE_INDEX<<8 | RES_TYPE_CODE)
-  auxMmgr(LOCK_MEMORY, pResourceIndex)
-
   mmgr(FINISH_LOAD, 0)
 
   // Tell the font engine where to find its font
@@ -2663,13 +2677,20 @@ def loadTitle()#0
   auxMmgr(SET_MEM_TARGET, expandVec)
   auxMmgr(REQUEST_MEMORY, expanderSize)
   auxMmgr(LOCK_MEMORY, expandVec)
+
+  // To reduce fragmentation, load the resource index directly after the
+  // remaining part of the expander
+  pResourceIndex = expandVec + expanderSize
+  auxMmgr(SET_MEM_TARGET, pResourceIndex)
+  auxMmgr(QUEUE_LOAD, CODE_RESOURCE_INDEX<<8 | RES_TYPE_CODE)
+  auxMmgr(LOCK_MEMORY, pResourceIndex)
+  mmgr(FINISH_LOAD, 0)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set up the small-object heap. Set loadedSize to zero on initial, or non-zero for loaded game.
 export def initHeap(loadedSize)#0
   byte i
-  word typeHash
 
   if !heapLocked
     mmgr(SET_MEM_TARGET, HEAP_BOTTOM)
@@ -2687,12 +2708,8 @@ export def initHeap(loadedSize)#0
     mmgr(HEAP_ADD_TYPE, typeTbls[i])
     i = i+1
   loop
-  typeHash = hashBuffer(@typeTbl_Global, @typeTbls - @typeTbl_Global) ^ HEAP_BOTTOM
   if loadedSize <> 0
     global = HEAP_BOTTOM
-    if global=>w_typeHash <> typeHash
-      fatal("Incompatible saved game")
-    fin
   else
     global = mmgr(HEAP_ALLOC, TYPE_GLOBAL)
     global=>w_typeHash = typeHash
@@ -2763,12 +2780,23 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Add to a list if named obj not already in it; returns TRUE if really added.
+// Also handles incrementing stackable items.
 export def addUnique(pList, p_thing)#1
-  if !scanForNamedObj(*pList, p_thing=>s_name)
-    addToList(pList, p_thing)
-    return TRUE
+  word p_existing
+
+  // If it's stackable and player already has some, just increase the stack
+  p_existing = scanForNamedObj(*pList, p_thing=>s_name)
+  if p_existing
+    if p_existing->t_type == TYPE_FANCY_ITEM and p_existing=>w_count > 0 and !p_existing=>p_modifiers
+      p_existing=>w_count = p_existing=>w_count + p_thing=>w_count
+      return TRUE
+    fin
+    return FALSE  // already have one, and it's not stackable
   fin
-  return FALSE
+
+  // Otherwise, add a new item
+  addToList(pList, p_thing)
+  return TRUE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2868,7 +2896,8 @@ end
 export def addPlayerToParty(playerFuncNum)#0
   word p
   if countList(global=>p_players) == MAX_PARTY
-    displayStr("Party too large.")
+    rawDisplayStr("Party too large.")
+    beep
     return
   fin
   p = createAndAddUnique(MOD_GEN_PLAYERS, playerFuncNum, @global=>p_players)
@@ -2882,7 +2911,12 @@ export def removeNamed(name, pList)#0
   word p_thing
   p_thing = scanForNamedObj(*pList, name)
   if p_thing
-    removeFromList(pList, p_thing)
+    // If it's stackable and there's more than one, just reduce the count. Otherwise take it all.
+    if p_thing->t_type == TYPE_FANCY_ITEM and p_thing=>w_count > 1
+      p_thing=>w_count--
+    else
+      removeFromList(pList, p_thing)
+    fin
   else
     printf1("Warning: couldn't find '%s' to remove.\n", name)
   fin
@@ -2912,29 +2946,29 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def getStat(player, statName)#1
   word pSkill
-  when statName
-    is @S_INTELLIGENCE; return player->b_intelligence
-    is @S_STRENGTH; return player->b_strength
-    is @S_AGILITY; return player->b_agility
-    is @S_STAMINA; return player->b_stamina
-    is @S_CHARISMA; return player->b_charisma
-    is @S_SPIRIT; return player->b_spirit
-    is @S_LUCK; return player->b_luck
-    is @S_HEALTH; return player=>w_health
-    is @S_MAX_HEALTH; return player=>w_maxHealth
-    is @S_AIMING; return player->b_aiming
-    is @S_HAND_TO_HAND; return player->b_handToHand
-    is @S_DODGING; return player->b_dodging
-    is @S_GOLD; return global=>w_gold
-    is @S_XP; return player=>w_curXP
-    is @S_SP; return player->b_skillPoints
+  when 1
+    is streqi(statName, @S_INTELLIGENCE); return player->b_intelligence
+    is streqi(statName, @S_STRENGTH);     return player->b_strength
+    is streqi(statName, @S_AGILITY);      return player->b_agility
+    is streqi(statName, @S_STAMINA);      return player->b_stamina
+    is streqi(statName, @S_CHARISMA);     return player->b_charisma
+    is streqi(statName, @S_SPIRIT);       return player->b_spirit
+    is streqi(statName, @S_LUCK);         return player->b_luck
+    is streqi(statName, @S_HEALTH);       return player=>w_health
+    is streqi(statName, @S_MAX_HEALTH);   return player=>w_maxHealth
+    is streqi(statName, @S_AIMING);       return player->b_aiming
+    is streqi(statName, @S_HAND_TO_HAND); return player->b_handToHand
+    is streqi(statName, @S_DODGING);      return player->b_dodging
+    is streqi(statName, @S_GOLD);         return global=>w_gold
+    is streqi(statName, @S_XP);           return player=>w_curXP
+    is streqi(statName, @S_SP);           return player->b_skillPoints
   wend
   pSkill = player=>p_skills
   while pSkill
     if streqi(statName, pSkill=>s_name); return pSkill=>w_modValue; fin
     pSkill = pSkill=>p_nextObj
   loop
-  puts(statName); return fatal("Unknown stat")
+  puts(statName); return fatal("getStat")
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2953,22 +2987,22 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def setStat(player, statName, val)#0
   word pSkill
-  when statName
-    is @S_INTELLIGENCE; player->b_intelligence = clampByte(val); break
-    is @S_STRENGTH; player->b_strength = clampByte(val); break
-    is @S_AGILITY; player->b_agility = clampByte(val); break
-    is @S_STAMINA; player->b_stamina = clampByte(val); break
-    is @S_CHARISMA; player->b_charisma = clampByte(val); break
-    is @S_SPIRIT; player->b_spirit = clampByte(val); break
-    is @S_LUCK; player->b_luck = clampByte(val); break
-    is @S_HEALTH; player=>w_health = max(0, min(player=>w_maxHealth, val)); needShowParty = TRUE; break
-    is @S_MAX_HEALTH; player=>w_maxHealth = max(0, val); break
-    is @S_AIMING; player->b_aiming = clampByte(val); break
-    is @S_HAND_TO_HAND; player->b_handToHand = clampByte(val); break
-    is @S_DODGING; player->b_dodging = clampByte(val); break
-    is @S_GOLD; global=>w_gold = max(0, val); needShowParty = TRUE; break
-    is @S_XP; player=>w_curXP = max(player=>w_curXP, val); needShowParty = TRUE; break
-    is @S_SP; player->b_skillPoints = max(0, val); needShowParty = TRUE; break
+  when 1
+    is streqi(statName, @S_INTELLIGENCE); player->b_intelligence = clampByte(val); break
+    is streqi(statName, @S_STRENGTH);     player->b_strength = clampByte(val); break
+    is streqi(statName, @S_AGILITY);      player->b_agility = clampByte(val); break
+    is streqi(statName, @S_STAMINA);      player->b_stamina = clampByte(val); break
+    is streqi(statName, @S_CHARISMA);     player->b_charisma = clampByte(val); break
+    is streqi(statName, @S_SPIRIT);       player->b_spirit = clampByte(val); break
+    is streqi(statName, @S_LUCK);         player->b_luck = clampByte(val); break
+    is streqi(statName, @S_HEALTH);       player=>w_health = max(0, min(player=>w_maxHealth, val)); needShowParty = TRUE; break
+    is streqi(statName, @S_MAX_HEALTH);   player=>w_maxHealth = max(0, val); break
+    is streqi(statName, @S_AIMING);       player->b_aiming = clampByte(val); break
+    is streqi(statName, @S_HAND_TO_HAND); player->b_handToHand = clampByte(val); break
+    is streqi(statName, @S_DODGING);      player->b_dodging = clampByte(val); break
+    is streqi(statName, @S_GOLD);         global=>w_gold = max(0, val); needShowParty = TRUE; break
+    is streqi(statName, @S_XP);           player=>w_curXP = max(player=>w_curXP, val); needShowParty = TRUE; break
+    is streqi(statName, @S_SP);           player->b_skillPoints = max(0, val); needShowParty = TRUE; break
     otherwise
       pSkill = player=>p_skills
       while pSkill
@@ -2978,33 +3012,28 @@ export def setStat(player, statName, val)#0
         fin
         pSkill = pSkill=>p_nextObj
       loop
-      puts(statName); fatal("Unknown stat")
+      puts(statName); fatal("setStat")
   wend
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def setGameFlag(flagName, val)#0
-  word p_flag
-  p_flag = scanForNamedObj(global=>p_gameFlags, flagName)
-  if p_flag
-    if val == 0 // setting flag to zero removes it
-      removeFromList(@global=>p_gameFlags, p_flag)
-    else
-      p_flag=>w_modValue = val
-    fin
-  elsif val <> 0
-    addToList(@global=>p_gameFlags, makeModifier(flagName, val))
+export def setGameFlag(flagNum, val)#0
+  byte byteNum, mask
+  byteNum = flagNum >> 3
+  mask = 1<<(flagNum & 7)
+  if val
+    global->ba_gameFlags[byteNum] = global->ba_gameFlags[byteNum] | mask
+  else
+    global->ba_gameFlags[byteNum] = global->ba_gameFlags[byteNum] & ~mask
   fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def getGameFlag(flagName)#1
-  word p_flag
-  p_flag = scanForNamedObj(global=>p_gameFlags, flagName)
-  if p_flag
-    return p_flag=>w_modValue
-  fin
-  return 0
+export def getGameFlag(flagNum)#1
+  byte byteNum, mask
+  byteNum = flagNum >> 3
+  mask = 1<<(flagNum & 7)
+  return global->ba_gameFlags[byteNum] & mask
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3045,8 +3074,21 @@ export def buySell(storeCode, profitRatio)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+export def numToPlayer(num)#1
+  word player
+  player = global=>p_players
+  while player and num > 0
+    player = player=>p_nextObj
+    num--
+  loop
+  return player
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def startGame(ask)#0
   word p_module
+
+  typeHash = hashBuffer(@typeTbl_Global, @typeTbls - @typeTbl_Global) ^ HEAP_BOTTOM
 
   // Create a new game or load an existing one
   mmgr(START_LOAD, 1) // code is in partition 1

@@ -16,6 +16,7 @@ include "gen_images.plh"
 include "gen_modules.plh"
 include "gen_items.plh"
 include "gen_players.plh"
+include "gen_flags.plh"
 
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the the header.
@@ -24,6 +25,56 @@ predef _addItem(player)#1
 predef _addPlayer()#1
 word[] funcTbl = @_setCheatCmds, @_addItem, @_addPlayer
 
+asm _defs
+
+; Use hi-bit ASCII for Apple II
+!convtab "../../include/hiBitAscii.ct"
+
+; Headers
+!source "../../include/global.i"
+!source "../../include/plasma.i"
+!source "../../include/mem.i"
+
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Read a string from the keyboard, turn it into a PLASMA string and return a pointer to the string.
+asm readStr()#1
+  +asmPlasmRet 0
+  bit setROM
+  jsr ROM_getln1
+  bit setLcRW+lcBank2
+  txa
+  pha
+  beq +
+- lda inbuf-1,x
+  and #$7F
+  sta inbuf,x
+  dex
+  bne -
++ pla
+  sta inbuf,x
+  lda #<inbuf
+  ldy #>inbuf
+  rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def parseDecWithDefault(str, default)#1
+  if ^str == 0
+    return default
+  fin
+  return parseDec(str)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def splitScreenMode()#0
+  flipToPage1()
+  textHome()
+  ^$c053
+  ^$25 = 19
+  crout()
+end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Godmode cheats
@@ -32,12 +83,10 @@ def kbdTeleport()#1
   word x, y
   byte dir
 
-  flipToPage1()
-  ^$c053
-  if ^$25 < 23; ^$25 = 23; fin
+  splitScreenMode()
   getPos(@x, @y)
   dir = getDir()
-  printf3("\nCurrent: X=%d Y=%d Facing=%d\n", x, y, dir)
+  printf3("Current: X=%d Y=%d Facing=%d\n", x, y, dir)
 
   printf1("3D [%d]: ", mapIs3D)
   d3 = parseDecWithDefault(readStr(), mapIs3D)
@@ -62,11 +111,9 @@ def showPos()#1
   word x, y
   byte dir
 
-  flipToPage1()
-  ^$c053
-  if ^$25 < 23; ^$25 = 23; fin
+  splitScreenMode()
   getPos(@x, @y)
-  printf2("\nX=%d Y=%d ", x, y)
+  printf2("X=%d Y=%d ", x, y)
   if mapIs3D
     printf3("Facing=%d Sky=%d Ground=%d", getDir(), skyNum, groundNum)
   fin
@@ -77,19 +124,28 @@ def showPos()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def nextPortrait()#1
-  portraitNum = portraitNum + 1
-  if portraitNum > PO_LAST; portraitNum = 1; fin
+def advPortrait(dir)#1
+  while TRUE
+    portraitNum = portraitNum + dir
+    if portraitNum > PO_LAST
+      portraitNum = 1
+    elsif portraitNum < 1
+      portraitNum = PO_LAST
+    fin
+    if lookupResourcePart(3, portraitNum); break; fin
+  loop
   setPortrait(portraitNum)
   return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def nextPortrait()#1
+  return advPortrait(1)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def prevPortrait()#1
-  portraitNum = portraitNum - 1
-  if portraitNum < 1; portraitNum = PO_LAST; fin
-  setPortrait(portraitNum)
-  return 0
+  return advPortrait(-1)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -127,6 +183,45 @@ def nextGround()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Edit flags cheat
+def editFlags()#1
+  word pModule, funcTbl, flagName, flagNum
+  flipToPage1
+  ^$c051
+  textHome()
+  *$4000 = 0 // so renderer knows we messed up the page
+  puts("Game flags:")
+  mmgr(START_LOAD, 1) // code is in partition 1
+  pModule = mmgr(QUEUE_LOAD, MOD_GEN_FLAGS<<8 | RES_TYPE_MODULE)
+  mmgr(FINISH_LOAD, 0)
+  funcTbl = pModule()
+  while TRUE
+    ^$25 = 0
+    crout()
+    for flagNum = 0 to NUM_GAME_FLAGS-1
+      if flagNum > 0; puts(", "); fin
+      flagName = funcTbl=>flags_nameForNumber(flagNum)
+      // make sure flag name will fit on line
+      if ^$24 + ^flagName > 37; crout(); fin
+      ^$32 = $FF // normal mode
+      if getGameFlag(flagNum); ^$32 = $3F; fin // inverse mode
+      puts(flagName)
+      ^$32 = $FF
+    next
+    puts("\nToggle:          ")
+    ^$24 = 8
+    flagName = readStr()
+    if !^flagName; break; fin
+    flagNum = funcTbl=>flags_numberForName(flagName)
+    if flagNum < 0; beep; continue; fin
+    setGameFlag(flagNum, !getGameFlag(flagNum))
+  loop
+  ^$c050
+  mmgr(FREE_MEMORY, pModule)
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def _setCheatCmds()#1
   // install cheat commands
   setCmd('T', @kbdTeleport)
@@ -137,7 +232,7 @@ def _setCheatCmds()#1
   setCmd('Y', @nextSky)
   setCmd('G', @nextGround)
   setCmd('&', @printMem)
-  setCmd('_', @finalWin)
+  setCmd('^', @editFlags)
   return 0
 end
 
@@ -176,10 +271,14 @@ def selectThing(moduleNum, nThings, nSkip, prompt)#1
         nFunc = -1
         textHome()
       fin
+    elsif moduleNum == MOD_GEN_PLAYERS
+      // Players are big, so need collect each time
+      mmgr(HEAP_COLLECT, 0)
     fin
   next
 
   mmgr(FREE_MEMORY, pModule)
+  ^$c050
   return nFunc
 end
 
@@ -188,11 +287,7 @@ end
 def _addItem(player)#1
   word funcNum
   funcNum = selectThing(MOD_GEN_ITEMS, NUM_ITEMS, 2, "Add item #: ")
-  if funcNum >= 0
-    giveItemToPlayer(player, funcNum)
-    rdkey()
-  fin
-  ^$c050
+  if funcNum >= 0; giveItemToPlayer(player, funcNum); fin
   return 0
 end
 
@@ -201,11 +296,7 @@ end
 def _addPlayer()#1
   word funcNum
   funcNum = selectThing(MOD_GEN_PLAYERS, NUM_PLAYERS, 1, "Add player #: ")
-  if funcNum >= 0
-    addPlayerToParty(funcNum)
-    rdkey()
-  fin
-  ^$c050
+  if funcNum >= 0; addPlayerToParty(funcNum); fin
   return 0
 end
 

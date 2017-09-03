@@ -69,6 +69,7 @@ export byte mapIs3D = 0
 word mapNameHash = 0
 word totalMapWidth
 word totalMapHeight
+word pCurMap
 
 byte needRender = FALSE
 byte needShowParty = FALSE
@@ -1369,11 +1370,11 @@ def printVersion()#0
   ^$25 = 22
   crout()
   ^$24 = 25
-  puts("V ")
+  puts("V")
   setWindow(183, 192, 161, 261)
   clearWindow()
   setWindow(183, 192, 168, 252)
-  rawDisplayStr("^YV ")
+  rawDisplayStr("^YV")
   p = pResourceIndex
   len = readAuxByte(p)
   while len
@@ -1451,7 +1452,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Window for the mid-size lower right bar
 export def setWindow3()#0
-  setWindow(144, 180, 154, 267) // Top, Bottom, Left, Right
+  setWindow(144, 181, 154, 267) // Top, Bottom, Left, Right
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1672,8 +1673,6 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load code and data, set up everything to display a 2D or 3D map
 def initMap(x, y, dir)#0
-  word pMap
-
   // Reset memory (our module will stay since memory manager locked it upon load)
   mmgr(RESET_MEMORY, 0)
 
@@ -1701,7 +1700,7 @@ def initMap(x, y, dir)#0
   // Load the map
   curMapPartition = lookupResourcePart(mapIs3D+1, mapNum)
   mmgr(START_LOAD, curMapPartition)
-  pMap = mmgr(QUEUE_LOAD, mapNum<<8 | (RES_TYPE_2D_MAP+mapIs3D))
+  pCurMap = mmgr(QUEUE_LOAD, mapNum<<8 | (RES_TYPE_2D_MAP+mapIs3D))
   pGlobalTileset = mmgr(QUEUE_LOAD, 1<<8 | RES_TYPE_TILESET)  // even in 3d, need tiles for compass/clock/etc.
   mmgr(FINISH_LOAD, 0)
 
@@ -1719,7 +1718,7 @@ def initMap(x, y, dir)#0
   // init the script module, if any, which will end up calling us back at the setScriptInfo
   triggerTbl = NULL
   setWindow2()
-  initDisplay(curMapPartition, mapNum, pMap, x, y, dir)
+  initDisplay(curMapPartition, mapNum, pCurMap, x, y, dir)
   texturesLoaded = TRUE
   needRender = FALSE
   textDrawn = FALSE
@@ -2380,11 +2379,11 @@ def showPlayerSheet(num)#1
     textDrawn = FALSE
     scriptEvent(@S_USE, pItemToUse=>s_name)
     if !textDrawn
-      displayStr("\nNothing happened.")
-      textDrawn = TRUE
-    else
-      textDrawn = oldFlg
+      scriptDisplayStr("Nothing happened.")
+      textClearCountdown = 3
+      if mapIs3D and texturesLoaded; copyWindow(); fin
     fin
+    textDrawn = oldFlg
   fin
   return 0
 end
@@ -2514,6 +2513,14 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def loadGame()#1
+  // Since old map may have been modified by scripts, force it to really be gone.
+  if pCurMap
+    mmgr(FREE_MEMORY, pCurMap)
+    mmgr(SET_MEM_TARGET, pCurMap)
+    mmgr(REQUEST_MEMORY, 5)
+    mmgr(FREE_MEMORY, pCurMap)
+    pCurMap = NULL
+  fin
   loadEngine(MOD_DISKOPS)=>diskops_loadGame()
   restoreMapPos()
   return 0
@@ -2907,7 +2914,7 @@ export def addPlayerToParty(playerFuncNum)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def removeNamed(name, pList)#0
+def removeNamed(name, pList)#1
   word p_thing
   p_thing = scanForNamedObj(*pList, name)
   if p_thing
@@ -2917,14 +2924,22 @@ export def removeNamed(name, pList)#0
     else
       removeFromList(pList, p_thing)
     fin
-  else
-    printf1("Warning: couldn't find '%s' to remove.\n", name)
+    return TRUE
   fin
+  return FALSE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def takeItemFromPlayer(p_player, itemName)#0
-  removeNamed(itemName, @p_player=>p_items) // default to first player
+  // First, try the script-specified player
+  if removeNamed(itemName, @p_player=>p_items); return; fin
+
+  // Fall back to all players, e.g. Prosp. Paul using his TNT.
+  p_player = global=>p_players
+  while p_player
+    if removeNamed(itemName, @p_player=>p_items); return; fin
+    p_player = p_player=>p_nextObj
+  loop
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

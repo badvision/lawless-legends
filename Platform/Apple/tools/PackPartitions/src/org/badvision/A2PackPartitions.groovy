@@ -1691,7 +1691,7 @@ class A2PackPartitions
             assert spaceUsed == partFile.length()
         }
 
-        println "Game version: V $gameVersion"
+        println "Game version: V$gameVersion"
     }
 
     def writePartition(stream, partNum, chunks)

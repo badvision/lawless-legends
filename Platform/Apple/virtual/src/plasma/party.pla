@@ -169,9 +169,8 @@ def showDerived(player)#0
 
   rawDisplayf2("^T%DLevel %d\n", STAT_X-5, player->b_level)
   if player->b_skillPoints
-    vspace()
-    rawDisplayf2("^T%D%s\n", STAT_X-5, "LEVEL UP!")
-    vspace()
+    rawDisplayf2("\n^T%D%s\n", STAT_X-5, "^I LEVEL UP ^N")
+    rawDisplayf2("^T%D%s\n", STAT_X-5+8, "in S)kills\n")
   fin
   rightJustifyNum(player=>w_curXP, STAT_X)
   rawDisplayf2("^T%D%s\n", STATLBL_X, "Current XP")
@@ -342,13 +341,7 @@ def showInvMenu(player, totalItems, itemPage, itemsOnPage)#0
 
   if playerCount > 1; rawDisplayf1("Plyr [1-%d], ", playerCount); fin
 
-  if player->b_skillPoints > 0
-    rawDisplayStr("^ILvl U)p^N, ")
-  else
-    rawDisplayStr("S)kills, ")
-  fin
-
-  rawDisplayStr("[Esc]")
+  rawDisplayStr("S)kills, [Esc]")
 end
 
 // Display menu for selecting inventory items
@@ -379,11 +372,8 @@ def showItemMenu(item)#0
   clearMenuRect()
   type = item->t_type
   if type == TYPE_ARMOR or type == TYPE_WEAPON
-    if isEquipped(item)
-      rawDisplayStr("U)nequip, ")
-    else
-      rawDisplayStr("E)quip, ")
-    fin
+    if isEquipped(item); rawDisplayStr("un-"); fin
+    rawDisplayStr("E)quip, ")
   elsif type == TYPE_PLAIN_ITEM or type == TYPE_FANCY_ITEM
     rawDisplayStr("U)se, ")
     if isSplittable(item); rawDisplayStr("S)plit, "); fin
@@ -493,7 +483,7 @@ def doSplit(player, item)#1
     rawDisplayf1("Split off 1-%d: ", item=>w_count - 1)
     nToSplit = parseDec(getStringResponse())
   fin
-  if nToSplit
+  if nToSplit >= 1 and nToSplit <= item=>w_count-1
     item=>w_count = item=>w_count - nToSplit
     newItem = mmgr(HEAP_ALLOC, TYPE_FANCY_ITEM)
     memcpy(item, newItem, FancyItem)
@@ -502,7 +492,6 @@ def doSplit(player, item)#1
     item=>p_nextObj = newItem
     return 1
   fin
-  beep
   return 0
 end
 
@@ -526,13 +515,9 @@ def doJoin(player, item)#1
     pPrev = @match=>p_nextObj
     match = *pPrev
   loop
-  if anyJoined
-    displayDone()
-    return 1
-  fin
+  if anyJoined; return 1; fin
   clearMenuRect()
   rawDisplayStr("No joinable stack found.")
-  beep
   pause(800)
   return 0
 end
@@ -615,17 +600,14 @@ def interactWithItem(player, item)#1
   ok = TRUE
   displayItems(item, matchEquipped(player, item))
   while TRUE
-    if ok
-      showItemMenu(item)
-    else
-      beep
-    fin
+    showItemMenu(item)
+    if !ok; beep; fin
     ok = FALSE
     sel = getUpperKey()
     when sel
       // Equip player with weapon/armor
       is 'E'
-        if (item->t_type == TYPE_ARMOR or item->t_type == TYPE_WEAPON) and !isEquipped(item)
+        if (item->t_type == TYPE_ARMOR or item->t_type == TYPE_WEAPON)
           doEquip(player, item)
           return displayDone()
         fin
@@ -634,10 +616,6 @@ def interactWithItem(player, item)#1
       is 'U'
         if item->t_type == TYPE_PLAIN_ITEM or item->t_type == TYPE_FANCY_ITEM
           return doUse(player, item) // general 'use' handled by outer engine, because it might involve graphics
-        elsif (item->t_type == TYPE_ARMOR or item->t_type == TYPE_WEAPON) and isEquipped(item)
-          doEquip(player, item)
-          displayItems(item, matchEquipped(player, item))
-          ok = TRUE
         fin
         break
       // Trade an item
@@ -649,17 +627,15 @@ def interactWithItem(player, item)#1
       // Split a stack
       is 'S'
         if isSplittable(item)
-          if doSplit(player, item)
-            return NULL
-          fin
+          ok = doSplit(player, item)
+          if ok; displayItems(item, matchEquipped(player, item)); fin
         fin
         break
       // Join stacks
       is 'J'
         if isJoinable(item)
-          if doJoin(player, item)
-            return NULL
-          fin
+          ok = doJoin(player, item)
+          if ok; displayItems(item, matchEquipped(player, item)); fin
         fin
         break
       // Destroy an item
@@ -801,7 +777,7 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
         if sel == 'X' and mode <> 'I' // switch from stats to inv
           mode = 'I'
           redisplay = 2
-        elsif (sel == 'S' or sel == 'U') and mode <> 'S' // switch from inv to stats
+        elsif sel == 'S' and mode <> 'S' // switch from inv to stats
           mode = 'S'
           redisplay = 2
         elsif mode == 'I'

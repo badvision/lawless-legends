@@ -30,6 +30,29 @@ byte[] S_AN = "an "
 byte[] S_A = "a "
 byte[] S_EMPTY = ""
 
+// To save time, we preload global funcs
+const NUM_PRELOADS = 4
+byte[] toPreload = GS_COMBAT_INTRO, GS_COMBAT_PROMPT, GS_ENEMY_INTRO, GS_COMBAT_WIN
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def preload()#0
+  byte i
+  for i = 0 to NUM_PRELOADS-1
+    mmgr(QUEUE_LOAD, toPreload[i]<<8 | RES_TYPE_MODULE)
+  next
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def freePreloaded()#0
+  byte i
+  word p
+  for i = 0 to NUM_PRELOADS-1
+    p = mmgr(QUEUE_LOAD, toPreload[i]<<8 | RES_TYPE_MODULE) // only way to get ptr back
+    mmgr(FREE_MEMORY, p)
+  next
+  mmgr(FINISH_LOAD, 0)
+end
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def combatPause()#0
   byte key
@@ -895,6 +918,7 @@ def collectLootAndXP()#2
               displayf2("%s%s! ", anOrA(pItem=>s_name), pItem=>s_name)
             fin
           fin
+          mmgr(FREE_MEMORY, pItemsModule)
           lootedItem = TRUE
         fin
       fin
@@ -910,9 +934,7 @@ def startCombat(mapCode)#1
   word p, p2, n, s
 
   // Pre-load some global funcs
-  mmgr(QUEUE_LOAD, GS_COMBAT_INTRO<<8 | RES_TYPE_MODULE)
-  mmgr(QUEUE_LOAD, GS_COMBAT_PROMPT<<8 | RES_TYPE_MODULE)
-  mmgr(QUEUE_LOAD, GS_ENEMY_INTRO<<8 | RES_TYPE_MODULE)
+  preload()
 
   // Setup
   isFleeing = FALSE
@@ -1053,10 +1075,12 @@ def _combat_zoneEncounter(s_encZone)#1
     p = global=>p_combatFirst
     while TRUE // not just "while p", so that we always check nPlayersFighting etc.
       if !nPlayersFighting
+        freePreloaded()
         return -99  // special code for death
       elsif !nEnemiesFighting
         processWin()
         // Note: no need to clear heap -- the caller does that.
+        freePreloaded()
         return 1
       elsif !p
         break
@@ -1068,6 +1092,7 @@ def _combat_zoneEncounter(s_encZone)#1
             if isFleeing
               displayStr("\nYou have fled.")
               // Note: no need to clear heap -- the caller does that.
+              freePreloaded()
               return 0
             fin
             if p->b_combatChoice <> 'D'

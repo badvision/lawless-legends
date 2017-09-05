@@ -1473,10 +1473,12 @@ reset: !zone
 
 ;------------------------------------------------------------------------------
 outOfMemErr: !zone
+	!if DEBUG = 0 { jsr printMem }  ; always print, even in non-debug mode
 	jsr inlineFatal : !text "OutOfMem", 0
 
 ;------------------------------------------------------------------------------
 reservedErr: !zone
+	!if DEBUG = 0 { jsr printMem }  ; always print, even in non-debug mode
 	jsr inlineFatal : !text "DblAlloc", 0
 
 ;------------------------------------------------------------------------------

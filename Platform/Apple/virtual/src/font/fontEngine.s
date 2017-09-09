@@ -780,6 +780,7 @@ DoParse	STA PrsAdrL
 	STY PrsAdrH
 	LDY #0  	;parse starting at beginning
 	STY TtlWdth
+	STY Pa_WdCt
 	LDA (PrsAdrL),Y ;Get the length
 	STA Pa_Len
 	INY
@@ -826,24 +827,26 @@ Pa_Tskp	LDA AscChar
 	INY
 	BNE Pa_Lp1
 Pa_ToFr	!if DEBUG { +prChr '+' }
-	;MH: I added this, but it doesn't actually work. Skips first char on line sometimes.
-	;LDY Pa_iSv	;if word too big
-	;CPY Pa_iBgn	;	for one line
-	;BEQ Pa_Spc	;		then split the word
-	LDA #$8D
+	LDA Pa_WdCt	;if we didn't print any words yet, then it's
+	BEQ Pa_BgWd	;	a word too big for line: split it
+Pa_ToF2	LDA #$8D
 	STA AscChar
 	JSR TestChr
 	LDY Pa_iBgn
 	LDA #0
 	STA TtlWdth
-	BEQ Pa_Lp0
+	STA Pa_WdCt
+	JMP Pa_Lp0
 ;
+Pa_BgWd	LDA #$80
+	STA Pa_WdCt
 Pa_Spc	LDY Pa_iSv
 	STY Pa_iEnd
 	LDY Pa_iBgn
 	CPY Pa_iEnd
 	BEQ Pa_Dn2
 Pa_Lp2	STY Pa_iSv
+	INC Pa_WdCt
 	LDA (PrsAdrL),Y ;Get the character
 	STA AscChar 	;**add code
 	!if DEBUG { ora #$80 : +safeCout }
@@ -867,14 +870,17 @@ Pa_Dn2b	LDA TtlWdth
 	JSR TestChr
 	JMP Pa_Dn4
 Pa_Dn3	LDY Pa_iSv
+	LDA Pa_WdCt	;if we split a big word, then the splitting
+	BMI Pa_Dn3b	;	char needs to be printed too
 	INY
-	STY Pa_iBgn
-	JMP Pa_ToFr
+Pa_Dn3b	STY Pa_iBgn
+	JMP Pa_ToF2
 Pa_Dn4	LDY Pa_iSv
 	INY
 	JMP Pa_Lp0
 ParsDn	!if DEBUG { +prChr '<' : +crout : BIT $C053 }
 	RTS
+
 ;
 ;Routine: Calculate width of string without plotting it
 DoCWdth	STA PrsAdrL
@@ -915,6 +921,7 @@ Pa_iBgn	!byte $00 	;parser indx begin
 Pa_iEnd	!byte $00 	;parser indx end
 Pa_iSv	!byte $00	;Save Msg Y index
 Pa_Len	!byte $00	;length of string
+Pa_WdCt	!byte $00	;number of words printed
 
 ;Center Justify
 ;Start with the cursor in the center column,

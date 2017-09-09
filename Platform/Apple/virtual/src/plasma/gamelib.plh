@@ -114,7 +114,7 @@ import gamelib
   predef setGround(num)#0
   predef setIntimateMode(enable)#0
   predef setMap(is3D, num, x, y, dir)#0
-  predef setMapWindow()#0
+  predef useMapWindow()#0
   predef setBigWindow()#0
   predef setPortrait(portraitNum)#0
   predef setScriptInfo(mapName, trigTbl, wdt, hgt)#0

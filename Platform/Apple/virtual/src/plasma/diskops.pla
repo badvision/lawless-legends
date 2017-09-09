@@ -266,8 +266,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def _loadGame()#1
-  setMapWindow()
-  clearWindow()
+  useMapWindow()
   showMapName("Loading game...")
 
   // Open the file

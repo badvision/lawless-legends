@@ -1456,12 +1456,16 @@ export def setWindow3()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Window for the map area (used for clearing it)
-export def setMapWindow()#0
+// Clear map window, then set a text area within it.
+export def useMapWindow()#0
   if frameLoaded == 3  // don't check mapIs3D, since we might be in an engine
-    setWindow(24, 153, 14, 140) // Top, Bottom, Left, Right
+    setWindow(24, 154, 14, 140) // Top, Bottom, Left, Right
+    clearWindow()
+    setWindow(24, 150, 14, 140) // Top, Bottom, Left, Right
   else
     setWindow(24, 169, 14, 140) // Top, Bottom, Left, Right
+    clearWindow()
+    setWindow(24, 168, 14, 140) // Top, Bottom, Left, Right
   fin
 end
 
@@ -1967,7 +1971,7 @@ export def setMap(is3D, num, x, y, dir)#0
   else
     flipToPage1()
     showMapName("Traveling...")
-    setMapWindow(); clearWindow()
+    useMapWindow()
     mapIs3D = is3D
     mapNum = num
     allowZoneInit = TRUE
@@ -2188,8 +2192,7 @@ export def setPortrait(portraitNum)#0
   unloadTextures()
 
   // Now clear out the map area
-  setMapWindow()
-  clearWindow()
+  useMapWindow()
 
   // Restore the cursor position
   setWindow2()
@@ -2529,7 +2532,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def help()#1
   flipToPage1()
-  setMapWindow(); clearWindow()
+  useMapWindow()
   loadEngine(GS_HELP)()
   returnFromEngine(TRUE)
   return 0

@@ -1066,10 +1066,6 @@ export def getStringResponse()#1
   word p
   rawGetStr()
   rawDisplayStr("\n") // so Outlaw user doesn't have to remember to make a newline
-  for p = ($1FF + ^$2FF) downto $200
-    p->1 = (^p & $7F)
-  next
-  ^$200 = ^$2FF
   return mmgr(HEAP_INTERN, $200)
 end
 

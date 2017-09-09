@@ -95,8 +95,8 @@ PrsAdrH		= $1B		;	(hi)
 GBasL		= $26		;LoByte HGR mem pg base adr EABABxxx
 GBasH		= $27		;HiByte PPPFGHCD for Y=ABCDEFGH P=page
 
-InBufr		= $200		;Input Buffer
-InBufrX		= $2FF		;Input Buffer index (length)
+InBufr		= $201		;Input Buffer
+InBufrX		= $200		;Input Buffer index (length)
 
 Kbd_Rd		= $C000		;read keyboard
 Kbd_Clr		= $C010		;clear keyboard strobe
@@ -1066,8 +1066,8 @@ Get_Ext	CMP #$85
 	STA WaitStat	;if pressed, wait for val
 	BNE Get_Lp1
 Get_Ch3	LDX InBfrX	;else normal char pressed
-	STA InBufr,X	;store ASCII char w/hi-bit
 	AND #$7F	;strip off hi-bit
+	STA InBufr,X	;store ASCII char w/hi-bit
 	STA AscChar	;save it
 	SEC
 	SBC #32 	;adjust to {0..95}
@@ -1155,9 +1155,27 @@ In_Exit	LDA #0
 	RTS
 In_cTs6	CMP #' '
 	BMI In_Key	;ignore all other Ctl keys
-	LDX InBfrX
+	; first convert to upper case
+	CMP #'a'
+	BCC In_cTs7
+	CMP #'z'+1
+	BCS In_cTs7
+	SBC #$1F	;carry set above
+	; then convert to title case
+In_cTs7	LDX InBfrX
+	BEQ In_cTs8
+	CMP #'A'
+	BCC In_cTs8
+	CMP #'Z'+1
+	BCS In_cTs8
+	PHA
+	LDA InBufr-1,X
+	CMP #$41	;check for prev-is-punc
+	PLA
+	BCC In_cTs8
+	ADC #$1F	;because carry set above
+In_cTs8	AND #$7F	;strip off hi-bit
 	STA InBufr,X	;store ASCII char w/hi-bit
-	AND #$7F	;strip off hi-bit
 	SEC
 	SBC #32 	;adjust to {0..95}
 	STA PltChar	;store character to be plotted
@@ -1226,6 +1244,7 @@ In_eChP	AND #$0F	;clamp the value
 	STA AscChar
 	ADC #160
 	LDX InBfrX
+	AND #$7F
 	STA InBufr,X	;store char in buffer
 	LDX #0
 	STX WaitStat	;clear wait state

@@ -36,6 +36,7 @@ import gamelib
   predef clearEncounterZones()#0
   predef clearPortrait()#0
   predef clearWindow()#0
+  predef centerStr(str, windowWidth)#0
   predef countArray(arr)#1
   predef countList(p)#1
   predef countListFiltered(p, offset, filterFunc)#1

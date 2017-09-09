@@ -1518,6 +1518,17 @@ export def rightJustifyNum(num, rightX)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+export def centerStr(str, windowWidth)#0
+  word x
+  x = (windowWidth - calcWidth(str)) >> 1
+  if (x >= 0)
+    rawDisplayStr("^T")  // do not use printf variants, since it might overwrite str
+    rawDisplayStr(convert3Dec(x))
+  fin
+  rawDisplayStr(str)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display the party data on the screen
 export def showParty()#0
   word p, cursX, cursY

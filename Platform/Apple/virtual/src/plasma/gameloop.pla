@@ -2091,7 +2091,6 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Called by scripts to display a string. We set the flag noting that something has been
 // displayed, then use an assembly routine to do the work.
-// Also, clear the keyboard strobe, so the player has time to read the text.
 export def scriptDisplayStr(str)#0
   if pIntimate
     pIntimate=>intimate_displayStr(str)
@@ -2304,7 +2303,7 @@ export def removeFromList(pList, toRemove)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def saveMapPos()#0
+export def saveMapPos()#0
   global->b_mapIs3D = mapIs3D
   global->b_mapNum = mapNum
   getPos(@global=>w_mapX, @global=>w_mapY)
@@ -2516,6 +2515,8 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def saveGame()#1
   saveMapPos()
+  flipToPage1()
+  showMapName("Saving game...")
   loadEngine(MOD_DISKOPS)=>diskops_saveGame()
   returnFromEngine(TRUE)
   return 0
@@ -3126,6 +3127,7 @@ def startGame(ask)#0
     allowZoneInit = TRUE
     initMap(q_x, q_y, q_dir)
     allowZoneInit = FALSE
+    saveGame()
   else
     q_mapNum = 0
     restoreMapPos()

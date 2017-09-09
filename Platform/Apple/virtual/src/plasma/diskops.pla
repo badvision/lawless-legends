@@ -224,8 +224,7 @@ def _rwGame(cmd)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def saveInternal()#0
-
+def _saveGame()#1
   // Never save corrupted heap
   mmgr(CHECK_MEM, 0)
 
@@ -235,12 +234,6 @@ def saveInternal()#0
   // Copy data to main memory, and write it out.
   memcpy(HEAP_BOTTOM, LOAD_SAVE_BUF, HEAP_SIZE)  // LC to low mem
   _rwGame(RWTS_WRITE)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def _saveGame()#1
-  showMapName("Saving game...")
-  saveInternal()
   return 0
 end
 
@@ -331,7 +324,7 @@ def importGame()#1
     loadInternal()
     puts("\n    Game imported.")
     reinsert()
-    saveInternal()
+    _saveGame()
     return TRUE
   fin
   puts("\n    Not found.")

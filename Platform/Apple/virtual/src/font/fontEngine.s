@@ -768,8 +768,11 @@ CpWnd1	LDA HgrTbHi,X	;(ie. the mem address of the left edge
 CpWnd2	LDA (GBasL),Y
 	STA (L_Adr),Y
 	INY
+	LDA (GBasL),Y
+	STA (L_Adr),Y
+	INY
 	CPY RtMrgn
-	BNE CpWnd2
+	BCC CpWnd2
 	INX
 	CPX BtMrgn
 	BNE CpWnd1

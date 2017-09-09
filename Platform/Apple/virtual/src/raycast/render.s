@@ -2015,7 +2015,31 @@ pl_flipToPage1: !zone
 	lda frontBuf
 	bne +
 	rts
-+	jmp renderFrame		; so that page 1 has updated graphics on it.
++	lda #NLINES
+	sta lineCt
+	lda #<TOP_LINE	; Begin with the first screen line
+	sta pLine
+	lda #>TOP_LINE
+	sta pLine+1
+--	lda pLine
+	sta pTmp
+	lda pLine+1
+	clc
+	adc #$20
+	sta pTmp+1
+	ldy #2
+-	lda (pTmp),y
+	sta (pLine),y
+	iny
+	lda (pTmp),y
+	sta (pLine),y
+	iny
+	cpy #20
+	bne -
+	jsr nextLine
+	dec lineCt
+	bne --
+	jmp flip
 
 ;-------------------------------------------------------------------------------
 ; Flip back buffer onto the screen

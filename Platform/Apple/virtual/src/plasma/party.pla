@@ -778,8 +778,7 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
         fin
         break
       is $1B // Esc
-        mmgr(CHECK_MEM, 0)
-        mmgr(HEAP_COLLECT, 0)
+        heapCollect()
         return NULL
       otherwise
         if sel == 'X' and mode <> 'I' // switch from stats to inv

@@ -61,6 +61,7 @@ import gamelib
   predef getYN()#1
   predef girdPlayer(player)#0
   predef giveItemToPlayer(p_player, itemFuncNum)#0
+  predef heapCollect()#0
   predef hisHerTheir(c_gender)#1
   predef initHeap(loadedSize)#0
   predef initPlayerXP(player)#0

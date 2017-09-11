@@ -1588,7 +1588,7 @@ class A2PackPartitions
         def hourCode = (char) (97 + hour) // 'a'=0, 'b'=1, etc.
         def engineCode = String.format("%d%c%02d%c", yearCode, monthCode, day, hourCode)
 
-        def offset = (int) ((scenarioStamp - engineStamp) / (1000 * 60 * 60))
+        def offset = Math.max(-99, Math.min(99, (int) ((scenarioStamp - engineStamp) / (1000 * 60 * 60))))
         return String.format("%s%s%d", engineCode, offset < 0 ? "-" : ".", Math.abs(offset))
     }
 

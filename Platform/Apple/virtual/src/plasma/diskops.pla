@@ -225,11 +225,9 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def _saveGame()#1
-  // Never save corrupted heap
-  mmgr(CHECK_MEM, 0)
-
   // Perform garbage collection and record the size of the heap so we can restore it correctly
-  global=>w_heapSize = mmgr(HEAP_COLLECT, 0) - HEAP_BOTTOM
+  // (also does a CHECK_MEM to be sure we never save corrupted heap)
+  heapCollect()
 
   // Copy data to main memory, and write it out.
   memcpy(HEAP_BOTTOM, LOAD_SAVE_BUF, HEAP_SIZE)  // LC to low mem
@@ -253,7 +251,7 @@ def loadInternal()#1
   fin
   memcpy(LOAD_SAVE_BUF, HEAP_BOTTOM, HEAP_SIZE)  // low mem to LC
   initHeap(p_loaded=>w_heapSize)
-  mmgr(CHECK_MEM, 0) // make sure heap is valid
+  heapCollect() // make sure heap is valid, and record final size
   return TRUE
 end
 
@@ -412,6 +410,7 @@ def newGame()#0
   if global=>p_players->b_skillPoints
     partyModule()=>party_showPlayerSheet(0)
   fin
+  heapCollect()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

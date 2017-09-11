@@ -107,6 +107,9 @@ SetFont		JMP DoSetFont	;API call address
 ;Set the window boundaries (byte-oriented bounds)
 SetWindow	JMP SetWnd	;API call address
 
+;Set the window boundaries (byte-oriented bounds)
+GetWindow	JMP GetWnd	;API call address
+
 ;Clear the window
 ClearWindow	JMP ClrHome	;API call address
 
@@ -611,6 +614,29 @@ SetWnd	LDA evalStkL+SW_TOP,X	;get top coord
 	LDA #0
 	STA TtlScrl		;clear centering variables
 	STA WrdWdth
+	RTS
+
+;Routine: Get the cursor position (relative to the current window)
+GetWnd	DEX
+	LDY #0
+	LDA CursY		; top
+	STA evalStkL,X
+	TYA
+	STA evalStkH,X
+	DEX			; bottom
+	STA evalStkH,X
+	LDA CursYb		; bottom
+	STA evalStkL,X
+	DEX
+	LDA CursXl		; left
+	STA evalStkL,X
+	LDA CursXh
+	STA evalStkH,X
+	DEX
+	LDA CursXrl		; right
+	STA evalStkL,X
+	LDA CursXrh
+	STA evalStkH,X
 	RTS
 
 ;Routine: Scroll screen up 1 character line

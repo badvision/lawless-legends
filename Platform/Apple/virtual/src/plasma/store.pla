@@ -107,8 +107,7 @@ def displayBuyPage(pItemTbl, markupRatio, pageNum, nPages)#1
   word pFunc, pItem
 
   // Clear stuff from previous page
-  mmgr(CHECK_MEM, 0)
-  mmgr(HEAP_COLLECT, 0)
+  heapCollect()
 
   displayTitle("buying", "Browse", pageNum, nPages)
   pFunc = pItemTbl + ((pageNum*PAGE_SIZE) << 1)
@@ -255,6 +254,13 @@ def _buyFromStore(storeCode, profitPercent)#1
   while TRUE
     if redisplay
       nItemsOnPage = displayBuyPage(pItemTbl, ratio, pageNum, nPages)
+      flipToPage1 // FOO
+      ^$c051
+      mmgr(DEBUG_MEM, 0)
+      rdkey
+      auxMmgr(DEBUG_MEM, 0)
+      rdkey
+      ^$c050
     fin
     choice = getUpperKey()
     redisplay = TRUE
@@ -276,8 +282,8 @@ def _buyFromStore(storeCode, profitPercent)#1
   loop
 
   unloadExtraModules()
-  mmgr(CHECK_MEM, 0)
-  return mmgr(HEAP_COLLECT, 0)
+  heapCollect()
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -381,8 +387,8 @@ def _sellToStore(profitPercent)#1
   loop
 
   unloadExtraModules()
-  mmgr(CHECK_MEM, 0)
-  return mmgr(HEAP_COLLECT, 0)
+  heapCollect()
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

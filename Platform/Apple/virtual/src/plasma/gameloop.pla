@@ -98,6 +98,7 @@ word pGlobalTileset = NULL
 byte curMapPartition = 0
 export word pGodModule = NULL
 export word typeHash = 0
+word curHeapPct = 0
 
 // Queue setMap / teleport / start_encounter, since otherwise script might be replaced while executing
 byte q_mapIs3D = 0
@@ -798,6 +799,14 @@ export asm setWindow(top, bottom, left, right)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Get the font engine's current text window
+// Returns: top, bottom, left, right
+export asm getWindow()#4
+  bit setLcRW+lcBank2
+  jmp GetWindow
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Get the cursor position - returns X, Y
 export asm getCursor()#2
   bit setLcRW+lcBank2
@@ -1358,33 +1367,75 @@ export def setGround(num)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def printVersion()#0
-  word p, len, cv, ch
-  if !pResourceIndex; return; fin
+def printAtBottom(str, textX, botLeft, botRight, strX)#0
+  byte cv
+  word origX, origY, origTop, origBottom, origLeft, origRight
+
+  // Save text cursor, and print at bottom of text window
   cv = ^$25
   ^$23 = 24 // full height window
   ^$25 = 22
   crout()
-  ^$24 = 25
-  puts("V")
-  setWindow(183, 192, 161, 261)
-  clearWindow()
-  setWindow(183, 192, 168, 252)
-  rawDisplayStr("^YV")
-  p = pResourceIndex
-  len = readAuxByte(p)
-  while len
-    p++
-    ch = readAuxByte(p)
-    printChar(ch)
-    displayChar(ch)
-    len--
-  loop
-  rawDisplayStr("^N")
+  ^$24 = textX
+  puts(str)
   ^$23 = 23 // shrink window to protect version num
   ^$25 = cv-1
   crout()
-  setWindow2()
+
+  // Save graphics cursor and window
+  origX, origY = getCursor()
+  origTop, origBottom, origLeft, origRight = getWindow()
+
+  // Establish new graphics window, clear it, and display the string
+  setWindow(183, 192, botLeft, botRight)
+  clearWindow()
+  rawDisplayStr("^T")  // do not use printf variants, since it might overwrite str
+  rawDisplayStr(convert3Dec(strX))
+  rawDisplayStr(str)
+  if mapIs3D and texturesLoaded; copyWindow(); fin
+
+  // Restore original graphics cursor and window
+  setWindow(origTop, origBottom, origLeft, origRight)
+  setCursor(origX, origY)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def printHeapPct()#0
+  word str, len
+  str = sprintf1("%d%%", curHeapPct)
+  len = calcWidth(str)
+  printAtBottom(str, 36, 240, 268, (28-len) >> 1) // center
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def printVersion()#0
+  word p
+  byte len
+  if !pResourceIndex; return; fin
+
+  buildString(@addToString)
+  printChar('V')
+  p = pResourceIndex
+  len = readAuxByte(p)
+  while len
+    p++; printChar(readAuxByte(p)); len--
+  loop
+  p = finishString(FALSE)
+  len = calcWidth(p)
+  printAtBottom(p, 25, 154, 154 + len + 8, 3)
+  printHeapPct()
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def heapCollect()#0
+  word pct
+  mmgr(CHECK_MEM, 0)
+  global=>w_heapSize = mmgr(HEAP_COLLECT, 0) - HEAP_BOTTOM
+  pct = min(99, max(0, ((global=>w_heapSize / 10) * 100) / 307))
+  if pct <> curHeapPct
+    curHeapPct = pct
+    printHeapPct()
+  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2463,8 +2514,7 @@ def doCombat(mapCode, backUpOnFlee)#1
   // Handled in a separate module. Clear enemies out of the heap when finished.
   result = loadEngine(MOD_COMBAT)=>combat_zoneEncounter(mapCode)
   global=>p_enemyGroups = NULL
-  mmgr(CHECK_MEM, 0)
-  mmgr(HEAP_COLLECT, 0)
+  heapCollect()
 
   if (result == -99)
     playerDeath()

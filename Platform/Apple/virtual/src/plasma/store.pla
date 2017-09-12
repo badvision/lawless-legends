@@ -254,13 +254,6 @@ def _buyFromStore(storeCode, profitPercent)#1
   while TRUE
     if redisplay
       nItemsOnPage = displayBuyPage(pItemTbl, ratio, pageNum, nPages)
-      flipToPage1 // FOO
-      ^$c051
-      mmgr(DEBUG_MEM, 0)
-      rdkey
-      auxMmgr(DEBUG_MEM, 0)
-      rdkey
-      ^$c050
     fin
     choice = getUpperKey()
     redisplay = TRUE

@@ -80,7 +80,8 @@ struc Player
   byte b_level
   word w_curXP
   word w_nextXP
-  word b_skillPoints
+  byte b_skillPoints
+  byte b_packSize
 
   // Lists
   word p_skills  // list:Modifier

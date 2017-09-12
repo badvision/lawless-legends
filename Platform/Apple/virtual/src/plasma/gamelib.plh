@@ -77,10 +77,10 @@ import gamelib
   predef numToPlayer(num)#1
   predef parseDec(str)#1
   predef partyHasPlayer(playerName)#1
+  predef partyHasItem(itemName)#1
   predef pause(count)#0
   predef payGold(amount)#1
   predef percentToRatio(pct)#1
-  predef playerHasItem(itemName)#1
   predef printf1(fmt, arg1)#0
   predef printf2(fmt, arg1, arg2)#0
   predef printf3(fmt, arg1, arg2, arg3)#0
@@ -103,6 +103,7 @@ import gamelib
   predef rollDice(encoded)#1
   predef rollDiceWithLuck(encoded, luck)#1
   predef rollPercentileWithLuck(luck)#1
+  predef roomInPack(p_player)#1
   predef scanForNamedObj(p_obj, name)#1
   predef scriptCombat(mapCode)#1
   predef scriptDisplayStr(str)#0

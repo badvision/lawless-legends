@@ -168,6 +168,7 @@ def showDerived(player)#0
     rawDisplayf2("\n^T%D%s\n", STAT_X-5, "^I LEVEL UP ^N")
     rawDisplayf2("^T%D%s\n", STAT_X-5+8, "in S)kills\n")
   fin
+  vspace()
   rightJustifyNum(player=>w_curXP, STAT_X)
   rawDisplayf2("^T%D%s\n", STATLBL_X, "Current XP")
   rightJustifyNum(player=>w_nextXP, STAT_X)
@@ -203,8 +204,13 @@ def showDerived(player)#0
   rawDisplayf1("^T%DMelee\n", STATLBL_X)
 
   vspace()
+  rightJustifyStr(sprintf2("%d/%d", countList(player=>p_items), player->b_packSize), STAT_X)
+  rawDisplayf1("^T%DPack size\n", STATLBL_X)
+
+  vspace()
   rightJustifyNum(global=>w_gold, STAT_X)
-  rawDisplayf1("^T%DParty gold", STATLBL_X)
+  rawDisplayf1("^T%DParty gold\n", STATLBL_X)
+
 end
 
 def clearLittleArea(x, y)#0

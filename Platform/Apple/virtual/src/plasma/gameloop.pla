@@ -141,6 +141,7 @@ export byte[] S_DODGING = "Dodging"
 export byte[] S_GOLD = "Gold"
 export byte[] S_XP = "XP"
 export byte[] S_SP = "SP"
+export byte[] S_PACK_SIZE = "Pack size"
 export byte[] S_ENTER = "Enter"
 export byte[] S_LEAVE = "Leave"
 export byte[] S_USE = "Use"
@@ -1431,7 +1432,7 @@ export def heapCollect()#0
   word pct
   mmgr(CHECK_MEM, 0)
   global=>w_heapSize = mmgr(HEAP_COLLECT, 0) - HEAP_BOTTOM
-  pct = min(99, max(0, ((global=>w_heapSize / 10) * 100) / 307))
+  pct = min(99, max(0, ((global=>w_heapSize / 10) * 100) / (HEAP_SIZE / 10)))
   if pct <> curHeapPct
     curHeapPct = pct
     printHeapPct()
@@ -1518,10 +1519,12 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def clearTextWindow()#0
-  setWindow2(); clearWindow()
-  if mapIs3D and texturesLoaded; copyWindow(); fin
-  textDrawn = FALSE
-  textClearCountdown = 0
+  if textDrawn or textClearCountdown
+    setWindow2(); clearWindow()
+    if mapIs3D and texturesLoaded; copyWindow(); fin
+    textDrawn = FALSE
+    textClearCountdown = 0
+  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2073,8 +2076,8 @@ def kbdLoop()#0
       func = cmdTbl[key]
       if func
         if textClearCountdown
+          if textClearCountdown == 1; clearTextWindow(); fin
           textClearCountdown--
-          if !textClearCountdown; clearTextWindow(); fin
         fin
         func()
       fin
@@ -2608,6 +2611,7 @@ def toggleGodMode()#1
       flipToPage1()
       clearTextWindow()
       displayf1("gm:%d\n", global->b_godmode & 1)
+      textDrawn = TRUE
       beep; beep
       clearTextWindow()
       saveMapPos(); restoreMapPos()  // reload everything, including god module
@@ -2893,6 +2897,11 @@ export def createAndAddUnique(moduleID, creationFuncNum, pList)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+export def roomInPack(p_player)#1
+  return countList(p_player=>p_items) < p_player->b_packSize
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 export def giveItemToPlayer(p_player, itemFuncNum)#0
   createAndAddUnique(MOD_GEN_ITEMS, itemFuncNum, @p_player=>p_items)
 end
@@ -2968,8 +2977,8 @@ export def addPlayerToParty(playerFuncNum)#0
     beep
     return
   fin
+  // Create the player (NPC flag will be established inside the creation func)
   p = createAndAddUnique(MOD_GEN_PLAYERS, playerFuncNum, @global=>p_players)
-  p->b_playerFlags = p->b_playerFlags | PLAYER_FLAG_NPC
   addXP(0) // to set initial skill pts
   needShowParty = TRUE
 end
@@ -3010,8 +3019,14 @@ export def removePlayerFromParty(playerName)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def playerHasItem(itemName)#1
-  return scanForNamedObj(global=>p_players=>p_items, itemName) <> NULL
+export def partyHasItem(itemName)#1
+  word p_player
+  p_player = global=>p_players
+  while p_player
+    if scanForNamedObj(global=>p_players=>p_items, itemName) <> NULL; return TRUE; fin
+    p_player = p_player=>p_nextObj
+  loop
+  return FALSE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3038,6 +3053,7 @@ export def getStat(player, statName)#1
     is streqi(statName, @S_GOLD);         return global=>w_gold
     is streqi(statName, @S_XP);           return player=>w_curXP
     is streqi(statName, @S_SP);           return player->b_skillPoints
+    is streqi(statName, @S_PACK_SIZE);    return player->b_packSize
   wend
   pSkill = player=>p_skills
   while pSkill
@@ -3078,7 +3094,8 @@ export def setStat(player, statName, val)#0
     is streqi(statName, @S_DODGING);      player->b_dodging = clampByte(val); break
     is streqi(statName, @S_GOLD);         global=>w_gold = max(0, val); needShowParty = TRUE; break
     is streqi(statName, @S_XP);           player=>w_curXP = max(player=>w_curXP, val); needShowParty = TRUE; break
-    is streqi(statName, @S_SP);           player->b_skillPoints = max(0, val); needShowParty = TRUE; break
+    is streqi(statName, @S_SP);           player->b_skillPoints = clampByte(max(0, val)); needShowParty = TRUE; break
+    is streqi(statName, @S_PACK_SIZE);    player->b_packSize = clampByte(max(player->b_packSize, val)); break
     otherwise
       pSkill = player=>p_skills
       while pSkill

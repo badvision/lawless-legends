@@ -27,7 +27,7 @@ const RWTS_DRV2  = $80
 const RWTS_RDWRPART = (0<<8)
 const RWTS_OPENDIR  = (1<<8)
 
-const LOAD_SAVE_BUF = $5000
+const LOAD_SAVE_BUF = $4E00
 
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the the header.

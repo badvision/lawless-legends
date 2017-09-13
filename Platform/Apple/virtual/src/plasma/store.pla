@@ -372,7 +372,7 @@ def _sellToStore(profitPercent)#1
       pageNum--
     elsif choice == '>' and pageNum+1 < nPages
       pageNum++
-    elsif choice >= '1' and (choice-'1') <= playerCount
+    elsif choice >= '1' and (choice-'1') < playerCount and (choice-'1') <> playerNum
       playerNum = choice - '1'
       pPlayer = index(global=>p_players, playerNum)
       totalItems = iterateSellables(9999, 0)

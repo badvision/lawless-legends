@@ -27,7 +27,7 @@ const RWTS_DRV2  = $80
 const RWTS_RDWRPART = (0<<8)
 const RWTS_OPENDIR  = (1<<8)
 
-const LOAD_SAVE_BUF = $5000
+const LOAD_SAVE_BUF = $4E00
 
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the the header.
@@ -224,23 +224,14 @@ def _rwGame(cmd)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def saveInternal()#0
-
-  // Never save corrupted heap
-  mmgr(CHECK_MEM, 0)
-
+def _saveGame()#1
   // Perform garbage collection and record the size of the heap so we can restore it correctly
-  global=>w_heapSize = mmgr(HEAP_COLLECT, 0) - HEAP_BOTTOM
+  // (also does a CHECK_MEM to be sure we never save corrupted heap)
+  heapCollect()
 
   // Copy data to main memory, and write it out.
   memcpy(HEAP_BOTTOM, LOAD_SAVE_BUF, HEAP_SIZE)  // LC to low mem
   _rwGame(RWTS_WRITE)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def _saveGame()#1
-  showMapName("Saving game...")
-  saveInternal()
   return 0
 end
 
@@ -260,14 +251,13 @@ def loadInternal()#1
   fin
   memcpy(LOAD_SAVE_BUF, HEAP_BOTTOM, HEAP_SIZE)  // low mem to LC
   initHeap(p_loaded=>w_heapSize)
-  mmgr(CHECK_MEM, 0) // make sure heap is valid
+  heapCollect() // make sure heap is valid, and record final size
   return TRUE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def _loadGame()#1
-  setMapWindow()
-  clearWindow()
+  useMapWindow()
   showMapName("Loading game...")
 
   // Open the file
@@ -332,7 +322,7 @@ def importGame()#1
     loadInternal()
     puts("\n    Game imported.")
     reinsert()
-    saveInternal()
+    _saveGame()
     return TRUE
   fin
   puts("\n    Not found.")
@@ -420,6 +410,7 @@ def newGame()#0
   if global=>p_players->b_skillPoints
     partyModule()=>party_showPlayerSheet(0)
   fin
+  heapCollect()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -95,8 +95,8 @@ PrsAdrH		= $1B		;	(hi)
 GBasL		= $26		;LoByte HGR mem pg base adr EABABxxx
 GBasH		= $27		;HiByte PPPFGHCD for Y=ABCDEFGH P=page
 
-InBufr		= $200		;Input Buffer
-InBufrX		= $2FF		;Input Buffer index (length)
+InBufr		= $201		;Input Buffer
+InBufrX		= $200		;Input Buffer index (length)
 
 Kbd_Rd		= $C000		;read keyboard
 Kbd_Clr		= $C010		;clear keyboard strobe
@@ -106,6 +106,9 @@ SetFont		JMP DoSetFont	;API call address
 
 ;Set the window boundaries (byte-oriented bounds)
 SetWindow	JMP SetWnd	;API call address
+
+;Set the window boundaries (byte-oriented bounds)
+GetWindow	JMP GetWnd	;API call address
 
 ;Clear the window
 ClearWindow	JMP ClrHome	;API call address
@@ -613,6 +616,29 @@ SetWnd	LDA evalStkL+SW_TOP,X	;get top coord
 	STA WrdWdth
 	RTS
 
+;Routine: Get the cursor position (relative to the current window)
+GetWnd	DEX
+	LDY #0
+	LDA CursY		; top
+	STA evalStkL,X
+	TYA
+	STA evalStkH,X
+	DEX			; bottom
+	STA evalStkH,X
+	LDA CursYb		; bottom
+	STA evalStkL,X
+	DEX
+	LDA CursXl		; left
+	STA evalStkL,X
+	LDA CursXh
+	STA evalStkH,X
+	DEX
+	LDA CursXrl		; right
+	STA evalStkL,X
+	LDA CursXrh
+	STA evalStkH,X
+	RTS
+
 ;Routine: Scroll screen up 1 character line
 ;This routine scrolls a window defined by
 ;Left, Right, Top, Bottom - Margin parameters.
@@ -768,8 +794,11 @@ CpWnd1	LDA HgrTbHi,X	;(ie. the mem address of the left edge
 CpWnd2	LDA (GBasL),Y
 	STA (L_Adr),Y
 	INY
+	LDA (GBasL),Y
+	STA (L_Adr),Y
+	INY
 	CPY RtMrgn
-	BNE CpWnd2
+	BCC CpWnd2
 	INX
 	CPX BtMrgn
 	BNE CpWnd1
@@ -780,6 +809,7 @@ DoParse	STA PrsAdrL
 	STY PrsAdrH
 	LDY #0  	;parse starting at beginning
 	STY TtlWdth
+	STY Pa_WdCt
 	LDA (PrsAdrL),Y ;Get the length
 	STA Pa_Len
 	INY
@@ -826,24 +856,26 @@ Pa_Tskp	LDA AscChar
 	INY
 	BNE Pa_Lp1
 Pa_ToFr	!if DEBUG { +prChr '+' }
-	;MH: I added this, but it doesn't actually work. Skips first char on line sometimes.
-	;LDY Pa_iSv	;if word too big
-	;CPY Pa_iBgn	;	for one line
-	;BEQ Pa_Spc	;		then split the word
-	LDA #$8D
+	LDA Pa_WdCt	;if we didn't print any words yet, then it's
+	BEQ Pa_BgWd	;	a word too big for line: split it
+Pa_ToF2	LDA #$8D
 	STA AscChar
 	JSR TestChr
 	LDY Pa_iBgn
 	LDA #0
 	STA TtlWdth
-	BEQ Pa_Lp0
+	STA Pa_WdCt
+	JMP Pa_Lp0
 ;
+Pa_BgWd	LDA #$80
+	STA Pa_WdCt
 Pa_Spc	LDY Pa_iSv
 	STY Pa_iEnd
 	LDY Pa_iBgn
 	CPY Pa_iEnd
 	BEQ Pa_Dn2
 Pa_Lp2	STY Pa_iSv
+	INC Pa_WdCt
 	LDA (PrsAdrL),Y ;Get the character
 	STA AscChar 	;**add code
 	!if DEBUG { ora #$80 : +safeCout }
@@ -867,14 +899,17 @@ Pa_Dn2b	LDA TtlWdth
 	JSR TestChr
 	JMP Pa_Dn4
 Pa_Dn3	LDY Pa_iSv
+	LDA Pa_WdCt	;if we split a big word, then the splitting
+	BMI Pa_Dn3b	;	char needs to be printed too
 	INY
-	STY Pa_iBgn
-	JMP Pa_ToFr
+Pa_Dn3b	STY Pa_iBgn
+	JMP Pa_ToF2
 Pa_Dn4	LDY Pa_iSv
 	INY
 	JMP Pa_Lp0
 ParsDn	!if DEBUG { +prChr '<' : +crout : BIT $C053 }
 	RTS
+
 ;
 ;Routine: Calculate width of string without plotting it
 DoCWdth	STA PrsAdrL
@@ -915,6 +950,7 @@ Pa_iBgn	!byte $00 	;parser indx begin
 Pa_iEnd	!byte $00 	;parser indx end
 Pa_iSv	!byte $00	;Save Msg Y index
 Pa_Len	!byte $00	;length of string
+Pa_WdCt	!byte $00	;number of words printed
 
 ;Center Justify
 ;Start with the cursor in the center column,
@@ -1059,8 +1095,8 @@ Get_Ext	CMP #$85
 	STA WaitStat	;if pressed, wait for val
 	BNE Get_Lp1
 Get_Ch3	LDX InBfrX	;else normal char pressed
-	STA InBufr,X	;store ASCII char w/hi-bit
 	AND #$7F	;strip off hi-bit
+	STA InBufr,X	;store ASCII char w/hi-bit
 	STA AscChar	;save it
 	SEC
 	SBC #32 	;adjust to {0..95}
@@ -1148,9 +1184,27 @@ In_Exit	LDA #0
 	RTS
 In_cTs6	CMP #' '
 	BMI In_Key	;ignore all other Ctl keys
-	LDX InBfrX
+	; first convert to upper case
+	CMP #'a'
+	BCC In_cTs7
+	CMP #'z'+1
+	BCS In_cTs7
+	SBC #$1F	;carry set above
+	; then convert to title case
+In_cTs7	LDX InBfrX
+	BEQ In_cTs8
+	CMP #'A'
+	BCC In_cTs8
+	CMP #'Z'+1
+	BCS In_cTs8
+	PHA
+	LDA InBufr-1,X
+	CMP #$41	;check for prev-is-punc
+	PLA
+	BCC In_cTs8
+	ADC #$1F	;because carry set above
+In_cTs8	AND #$7F	;strip off hi-bit
 	STA InBufr,X	;store ASCII char w/hi-bit
-	AND #$7F	;strip off hi-bit
 	SEC
 	SBC #32 	;adjust to {0..95}
 	STA PltChar	;store character to be plotted
@@ -1219,6 +1273,7 @@ In_eChP	AND #$0F	;clamp the value
 	STA AscChar
 	ADC #160
 	LDX InBfrX
+	AND #$7F
 	STA InBufr,X	;store char in buffer
 	LDX #0
 	STX WaitStat	;clear wait state

@@ -86,7 +86,7 @@ def showInventory(player, page, select)#1
   s_item = 0
   n_page = page * INV_ROWS
   totalPages = (countList(player=>p_items)+INV_ROWS-1) / INV_ROWS
-  showColumnTitle(INV_X-10, "Inventory", page+1, totalPages)
+  showColumnTitle(INV_X-10, "INVENTORY", page+1, totalPages)
   item = index(player=>p_items, n_page)
   n_item = n_page
   firstTime = TRUE
@@ -126,13 +126,14 @@ def showDerived(player)#0
   word weapon, dmg
 
   //rawDisplayStr("^V023")
-  showColumnTitle(STAT_X, "Stats", 0, 0)
+  showColumnTitle(STAT_X-5, "STATS", 0, 0)
 
   rawDisplayf2("^T%DLevel %d\n", STAT_X-5, player->b_level)
   if player->b_skillPoints
     rawDisplayf2("\n^T%D%s\n", STAT_X-5, "^I LEVEL UP ^N")
     rawDisplayf2("^T%D%s\n", STAT_X-5+8, "in S)kills\n")
   fin
+  vspace()
   rightJustifyNum(player=>w_curXP, STAT_X)
   rawDisplayf2("^T%D%s\n", STATLBL_X, "Current XP")
   rightJustifyNum(player=>w_nextXP, STAT_X)
@@ -163,8 +164,13 @@ def showDerived(player)#0
   rawDisplayf1("^T%DMelee\n", STATLBL_X)
 
   vspace()
+  rightJustifyStr(sprintf2("%d/%d", countList(player=>p_items), player->b_packSize), STAT_X)
+  rawDisplayf1("^T%DPack size\n", STATLBL_X)
+
+  vspace()
   rightJustifyNum(global=>w_gold, STAT_X)
-  rawDisplayf1("^T%DParty gold", STATLBL_X)
+  rawDisplayf1("^T%DParty gold\n", STATLBL_X)
+
 end
 
 def clearLittleArea(x, y)#0
@@ -195,7 +201,7 @@ end
 // Show aquired skills in lower right panel
 def showSkills(player)#0
   word skill
-  byte y, x1, x2
+  byte x1, x2, cursX, cursY
 
   nSkills = 0
 
@@ -210,15 +216,16 @@ def showSkills(player)#0
     x1 = 0
     x2 = STAT_X - 40
   fin
-  showColumnTitle(25, "Skills", 0, 0)
+  showColumnTitle(25, "SKILLS", 0, 0)
   if player->b_aiming; displaySkill(x1, @S_AIMING, @player->b_aiming, TRUE); fin
   if player->b_handToHand; displaySkill(x1, @S_HAND_TO_HAND, @player->b_handToHand, TRUE); fin
   if player->b_dodging; displaySkill(x1, @S_DODGING, @player->b_dodging, TRUE); fin
   ctx = x1
   forSome(player=>p_skills, &(p) p=>w_modValue, &(p) displaySkill(ctx, p=>s_name, p+w_modValue, TRUE))
+  cursX, cursY = getCursor()
 
   // Second column: attributes
-  showColumnTitle(STAT_X-5, "Attributes", 0, 0)
+  showColumnTitle(STAT_X-20, "ATTRIBUTES", 0, 0)
   rawDisplayStr("^V024") // starting Y
   displaySkill(x2, @S_INTELLIGENCE, player+b_intelligence, TRUE)
   displaySkill(x2, @S_STRENGTH, player+b_strength, TRUE)
@@ -236,6 +243,15 @@ def showSkills(player)#0
     vspace()
     rawDisplayf2("^T%D%s", x2+SKILL_LABEL_OFF, "Gender")
     rightJustifyStr(sprintf1(" %c ", player->c_gender), x2+SKILL_JUST_OFF)
+  fin
+
+  if player->b_level == 1 and player->b_skillPoints and cursY < BIGWIN_HEIGHT - 46
+    setCursor(0, BIGWIN_HEIGHT - 42)
+    centerStr(sprintf1("Use keys A-%c to distribute your skill points.", nSkills - 1 + 'A'), BIGWIN_WIDTH)
+    rawDisplayStr("\n")
+    centerStr("To undo a choice use Ctrl-A, Ctrl-B, etc.", BIGWIN_WIDTH)
+    rawDisplayStr("\n")
+    centerStr("When done, press X to see starting items.", BIGWIN_WIDTH)
   fin
 end
 
@@ -630,7 +646,9 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
     if !player; beep; return NULL; fin
     if redisplay >= 2
       clearWindow()
-      rawDisplayf1("^Y^I %s ^N\n", player=>s_name)
+      rawDisplayStr("^I")
+      centerStr(sprintf1(" %s ", player=>s_name), BIGWIN_WIDTH)
+      rawDisplayStr("^N")
       redisplay = 1
       totalItems = countList(player=>p_items)
       if mode == 'I'
@@ -723,8 +741,7 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
         fin
         break
       is $1B // Esc
-        mmgr(CHECK_MEM, 0)
-        mmgr(HEAP_COLLECT, 0)
+        heapCollect()
         return NULL
       otherwise
         if sel == 'X' and mode <> 'I' // switch from stats to inv

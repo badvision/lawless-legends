@@ -50,7 +50,7 @@ class A2PackPartitions
     static final int FLOPPY_SIZE = 35*8  // good old 140k floppy = 280 blks
     static final int AC_KLUDGE = 2      // minus 1 to work around last-block bug in AppleCommander
     static final int DOS_OVERHEAD = 3 // only 3 blks overhead! ProRWTS is so freaking amazing.
-    static final int SAVE_GAME_SIZE = 7 // 6 blocks data, 1 block index
+    static final int SAVE_GAME_SIZE = 10 // 9 blocks data, 1 block index
     static final int MAX_DISKS = 20 // for now this should be way more than enough
 
     def typeNumToName    = [1:  "Code",
@@ -1588,7 +1588,7 @@ class A2PackPartitions
         def hourCode = (char) (97 + hour) // 'a'=0, 'b'=1, etc.
         def engineCode = String.format("%d%c%02d%c", yearCode, monthCode, day, hourCode)
 
-        def offset = (int) ((scenarioStamp - engineStamp) / (1000 * 60 * 60))
+        def offset = Math.max(-99, Math.min(99, (int) ((scenarioStamp - engineStamp) / (1000 * 60 * 60))))
         return String.format("%s%s%d", engineCode, offset < 0 ? "-" : ".", Math.abs(offset))
     }
 
@@ -2817,7 +2817,8 @@ end
             "${parseByteAttr(row, "aiming")}, " +
             "${parseByteAttr(row, "hand-to-hand")}, " +
             "${parseByteAttr(row, "dodging")}, " +
-            "${parseGenderAttr(row, "gender")})")
+            "${parseGenderAttr(row, "gender")}, " +
+            "${parseByteAttr(row, "pack size")})")
         row.attributes().sort().eachWithIndex { name, val, idx ->
             if (name =~ /^skill-(.*)/) {
                 out.println("  addToList(@p=>p_skills, " +
@@ -3123,7 +3124,7 @@ def makePlayer_pt1(name, intelligence, strength, agility, stamina, charisma, spi
   return p
 end
 
-def makePlayer_pt2(p, health, level, aiming, handToHand, dodging, gender)#1
+def makePlayer_pt2(p, health, level, aiming, handToHand, dodging, gender, packSize)#1
   p=>w_health = health
   p->b_level = level
   p=>w_maxHealth = health
@@ -3133,6 +3134,13 @@ def makePlayer_pt2(p, health, level, aiming, handToHand, dodging, gender)#1
   p->b_handToHand = handToHand
   p->b_dodging = dodging
   p->c_gender = gender
+  if packSize
+    p->b_packSize = packSize
+  elsif global=>p_players
+    p->b_packSize = 15
+  else
+    p->b_packSize = 30
+  fin
   initPlayerXP(p)
   return p
 end
@@ -3347,7 +3355,7 @@ end
         else {
             // Create empty save file
             newSave.withOutputStream { outStream ->
-                (0..3071).each {
+                (0..(18*256 - 1)).each {
                     outStream.write( (byte) 0)
                 }
             }
@@ -4198,7 +4206,7 @@ end
         {
             def name = getSingle(blk.field, "NAME").text().trim()
             assert itemNameToFunc.containsKey(name.toLowerCase()) : "Can't locate item '$name'"
-            out << "playerHasItem(${escapeString(name)})"
+            out << "partyHasItem(${escapeString(name)})"
         }
 
         def packHasPlayer(blk)

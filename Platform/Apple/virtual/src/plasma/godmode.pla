@@ -279,6 +279,7 @@ def selectThing(moduleNum, nThings, nSkip, prompt)#1
 
   mmgr(FREE_MEMORY, pModule)
   ^$c050
+  heapCollect()
   return nFunc
 end
 

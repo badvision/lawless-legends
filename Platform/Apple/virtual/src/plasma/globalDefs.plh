@@ -69,8 +69,8 @@ const HEAP_INTERN    = $23
 const HEAP_COLLECT   = $24
 
 // Heap location in memory
-const HEAP_BOTTOM    = $E000
-const HEAP_SIZE      = $C00
+const HEAP_BOTTOM    = $DA00
+const HEAP_SIZE      = $1200
 
 // Event code
 const EVENT_ENTER    = 1

@@ -212,7 +212,7 @@ init: !zone
 ; 5: main $2000 -> 6, active + locked
 ; 6: main $6000 -> 7, inactive
 ; 7: main $BFFD -> 8, active + locked
-; 8: main $E000 -> 9, inactive
+; 8: main $DA00 -> 9, inactive
 ; 9: main $FFFA -> 0, active + locked
 ; First, the flags
 	ldy #$C0		; flags for active + locked (with no resource)
@@ -253,7 +253,7 @@ init: !zone
 	sta tSegAdrHi+5
 	lda #$60
 	sta tSegAdrHi+6
-	lda #$E0
+	lda #$DA
 	sta tSegAdrHi+8
 	lda #$FA
 	sta tSegAdrLo+9
@@ -710,6 +710,25 @@ partFilename:
 ;------------------------------------------------------------------------------
 ; Heap management routines
 
+;------------------------------------------------------------------------------
+; Zero memory heapTop up to but not including $xx00 where XX is in A reg
+heapClr: !zone
+	bit setLcRW+lcBank2	; heap begins in bank 2
+	sta .cmp+1
+	lda #0
+	sta targetAddr+1	; clear target addr now that we're done with heap top
+	ldx heapTop
+	ldy heapTop+1
+.pg	sty .st+2
+.st	sta $1000,x		; self-modified above
+	inx
+	bne .st
+	iny
+.cmp	cpy #11			; self-modified above
+	bcc .pg
+	bit setLcRW+lcBank1	; back to mmgr's bank
+	rts
+
 ; Check if blk pSrc is in GC hash; optionally add it if not.
 ; Input : pSrc = blk to check/add
 ;	  Carry set = add if not found, clear = check only, don't add
@@ -770,6 +789,7 @@ memCheck: !zone
 heapCheck: !zone
 	jsr startHeapScan
 .blklup	bcc +		; if top-of-heap, we're done
+	bit setLcRW+lcBank1	; back to mmgr's bank
 	rts
 +	bvs .isobj	; handle objects separately
 	; it's a string; check its characters
@@ -812,6 +832,7 @@ heapCorrupt:
 ; Begin a heap scan by setting pTmp to start-of-heap, then returns
 ; everything as per nextHeapBlk below
 startHeapScan: !zone
+	bit setLcRW+lcBank2	; heap is in bank 2 (bulk of mmgr is in bnk 1)
 	lda #0
 	ldx heapStartPg
 	sta pDst		; used in gc2 sweep init
@@ -982,10 +1003,16 @@ heapCollect: !zone
 	lda nSegsQueued
 	bne .unfin
 	jsr closePartFile
+	bit setLcRW+lcBank2	; heap starts in bank 2
+	lda heapTop+1		; save old heap top for end of later clear
+	pha
 	jsr gc1_mark		; mark reachable blocks
 	jsr gc2_sweep		; sweep them into one place
 	jsr gc3_fix		; adjust all pointers
-	jsr heapClr		; and clear newly freed space
+	pla			; old heap top
+	clc
+	adc #1
+	jsr heapClr		; and clear newly freed space (switches back to bnk1 when done)
 	ldx heapTop		; return new top-of-heap in x=lo/y=hi
 	ldy heapTop+1
 	rts
@@ -995,6 +1022,7 @@ heapCollect: !zone
 ; And yes, type $80 is valid (conventionally used for the Global Object).
 ; And yes, string length $00 is valid (it's an empty string).
 heapAlloc: !zone
+	bit setLcRW+lcBank2 ; heap starts in bank 2
 	lda heapTop
 	sta pSrc
 	lda heapTop+1
@@ -1014,6 +1042,7 @@ heapAlloc: !zone
 +	sta heapTop
 	sty heapTop+1
 retPSrc:
+	bit setLcRW+lcBank1 ; back to mmgr's bank
 	ldx pSrc	; return ptr in X=lo/Y=hi
 	ldy pSrc+1
 	rts
@@ -1046,7 +1075,8 @@ heapIntern: !zone
 .notfnd	lda (pTmp),y	; get string length
 	pha		; save it
 	tax
-	jsr heapAlloc	; make space for it
+	jsr heapAlloc	; make space for it (switches to mmgr bank at end)
+	bit setLcRW+lcBank2 ; back to heap bank
 	pla		; string length back
 	tax
 	inx		; add 1 to copy length byte also
@@ -1057,6 +1087,44 @@ heapIntern: !zone
 	dex
 	bne .cplup
 	beq .found	; always taken
+
+;------------------------------------------------------------------------------
+; Variables
+targetAddr:	!word 0
+unusedSeg:	!byte 0
+scanStart:	!byte 0, 1	; main, aux
+segNum:		!byte 0
+nextLdVec:	jmp diskLoader
+curPartition:	!byte 0
+partFileOpen:	!byte 0
+curMarkPos:	!fill 4		; really 3, but 1 extra to match ProRWTS needs
+setMarkPos:	!fill 3
+nSegsQueued:	!byte 0
+bufferDigest:	!fill 4
+diskActState:	!byte 0
+floppyDrive:	!byte 0
+
+;------------------------------------------------------------------------------
+; Heap management variables
+MAX_TYPES 	= 12
+
+nTypes		!byte 0
+typeTblL	!fill MAX_TYPES
+typeTblH	!fill MAX_TYPES
+typeLen		!fill MAX_TYPES		; length does not include type byte
+
+heapStartPg	!byte 0
+heapEndPg	!byte 0
+heapTop		!word 0
+gcHash_top	!byte 0
+
+lastLoMem = *
+} ; end of !pseodupc $800
+loMemEnd = *
+
+;------------------------------------------------------------------------------
+; The remainder of the code gets relocated up into the Language Card, bank 1.
+hiMemBegin: !pseudopc $D000 {
 
 ;------------------------------------------------------------------------------
 ; Show or hide the disk activity icon (at the top of hi-res page 1). The icon consists of a 4x4
@@ -1088,44 +1156,6 @@ showDiskActivity: !zone
 	cmp #$34                ; Do 5 lines: $2000, $2400, $2800, $2C00, $3000; Stop before $3400.
 	bne -
 .done	rts
-
-lastLoMem = *
-} ; end of !pseodupc $800
-loMemEnd = *
-
-;------------------------------------------------------------------------------
-; The remainder of the code gets relocated up into the Language Card, bank 1.
-hiMemBegin: !pseudopc $D000 {
-
-;------------------------------------------------------------------------------
-; Variables
-targetAddr:	!word 0
-unusedSeg:	!byte 0
-scanStart:	!byte 0, 1	; main, aux
-segNum:		!byte 0
-nextLdVec:	jmp diskLoader
-curPartition:	!byte 0
-partFileOpen:	!byte 0
-curMarkPos:	!fill 4		; really 3, but 1 extra to match ProRWTS needs
-setMarkPos:	!fill 3
-nSegsQueued:	!byte 0
-bufferDigest:	!fill 4
-diskActState:	!byte 0
-floppyDrive:	!byte 0
-
-;------------------------------------------------------------------------------
-; Heap management variables
-MAX_TYPES 	= 16
-
-nTypes		!byte 0
-typeTblL	!fill MAX_TYPES
-typeTblH	!fill MAX_TYPES
-typeLen		!fill MAX_TYPES		; length does not include type byte
-
-heapStartPg	!byte 0
-heapEndPg	!byte 0
-heapTop		!word 0
-gcHash_top	!byte 0
 
 ;------------------------------------------------------------------------------
 grabSegment: !zone
@@ -2557,7 +2587,7 @@ doAllFixups: !zone
 glibBase  !word $1111
 
 ;------------------------------------------------------------------------------
-; More heap management routines
+; More heap management routines (that don't need to actually access LC bank 2)
 
 ;------------------------------------------------------------------------------
 ; Establish a new heap
@@ -2587,21 +2617,8 @@ heapSet: !zone
 	ldy targetAddr
 +	stx heapTop+1		; set heap top
 	sty heapTop
-	; fall through to:
-; Zero memory heapTop.heapEnd
-heapClr: !zone
-	lda #0
-	sta targetAddr+1	; clear target addr now that we're done with heap top
-	ldx heapTop
-	ldy heapTop+1
-.pg	sty .st+2
-.st	sta $1000,x	; self-modified above
-	inx
-	bne .st
-	iny
-	cpy heapEndPg
-	bne .pg
-	rts
+	lda heapEndPg
+	jmp heapClr		; clear out the new heap space
 
 ;------------------------------------------------------------------------------
 ; Set the table for the next type in order. Starts with type $80, then $81, etc.

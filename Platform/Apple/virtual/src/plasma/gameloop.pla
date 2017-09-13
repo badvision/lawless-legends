@@ -98,6 +98,7 @@ word pGlobalTileset = NULL
 byte curMapPartition = 0
 export word pGodModule = NULL
 export word typeHash = 0
+word curHeapPct = 0
 
 // Queue setMap / teleport / start_encounter, since otherwise script might be replaced while executing
 byte q_mapIs3D = 0
@@ -143,6 +144,7 @@ export byte[] S_DODGING = "Dodging"
 export byte[] S_GOLD = "Gold"
 export byte[] S_XP = "XP"
 export byte[] S_SP = "SP"
+export byte[] S_PACK_SIZE = "Pack size"
 export byte[] S_ENTER = "Enter"
 export byte[] S_LEAVE = "Leave"
 export byte[] S_USE = "Use"
@@ -801,6 +803,14 @@ export asm setWindow(top, bottom, left, right)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Get the font engine's current text window
+// Returns: top, bottom, left, right
+export asm getWindow()#4
+  bit setLcRW+lcBank2
+  jmp GetWindow
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Get the cursor position - returns X, Y
 export asm getCursor()#2
   bit setLcRW+lcBank2
@@ -1071,10 +1081,6 @@ export def getStringResponse()#1
   word p
   rawGetStr()
   rawDisplayStr("\n") // so Outlaw user doesn't have to remember to make a newline
-  for p = ($1FF + ^$2FF) downto $200
-    p->1 = (^p & $7F)
-  next
-  ^$200 = ^$2FF
   return mmgr(HEAP_INTERN, $200)
 end
 
@@ -1418,33 +1424,75 @@ export def setGround(num)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def printVersion()#0
-  word p, len, cv, ch
-  if !pResourceIndex; return; fin
+def printAtBottom(str, textX, botLeft, botRight, strX)#0
+  byte cv
+  word origX, origY, origTop, origBottom, origLeft, origRight
+
+  // Save text cursor, and print at bottom of text window
   cv = ^$25
   ^$23 = 24 // full height window
   ^$25 = 22
   crout()
-  ^$24 = 25
-  puts("V")
-  setWindow(183, 192, 161, 261)
-  clearWindow()
-  setWindow(183, 192, 168, 252)
-  rawDisplayStr("^YV")
-  p = pResourceIndex
-  len = readAuxByte(p)
-  while len
-    p++
-    ch = readAuxByte(p)
-    printChar(ch)
-    displayChar(ch)
-    len--
-  loop
-  rawDisplayStr("^N")
+  ^$24 = textX
+  puts(str)
   ^$23 = 23 // shrink window to protect version num
   ^$25 = cv-1
   crout()
-  setWindow2()
+
+  // Save graphics cursor and window
+  origX, origY = getCursor()
+  origTop, origBottom, origLeft, origRight = getWindow()
+
+  // Establish new graphics window, clear it, and display the string
+  setWindow(183, 192, botLeft, botRight)
+  clearWindow()
+  rawDisplayStr("^T")  // do not use printf variants, since it might overwrite str
+  rawDisplayStr(convert3Dec(strX))
+  rawDisplayStr(str)
+  if mapIs3D and texturesLoaded; copyWindow(); fin
+
+  // Restore original graphics cursor and window
+  setWindow(origTop, origBottom, origLeft, origRight)
+  setCursor(origX, origY)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def printHeapPct()#0
+  word str, len
+  str = sprintf1("%d%%", curHeapPct)
+  len = calcWidth(str)
+  printAtBottom(str, 36, 240, 268, (28-len) >> 1) // center
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def printVersion()#0
+  word p
+  byte len
+  if !pResourceIndex; return; fin
+
+  buildString(@addToString)
+  printChar('V')
+  p = pResourceIndex
+  len = readAuxByte(p)
+  while len
+    p++; printChar(readAuxByte(p)); len--
+  loop
+  p = finishString(FALSE)
+  len = calcWidth(p)
+  printAtBottom(p, 25, 154, 154 + len + 8, 3)
+  printHeapPct()
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def heapCollect()#0
+  word pct
+  mmgr(CHECK_MEM, 0)
+  global=>w_heapSize = mmgr(HEAP_COLLECT, 0) - HEAP_BOTTOM
+  pct = min(99, max(0, ((global=>w_heapSize / 10) * 100) / (HEAP_SIZE / 10)))
+  if pct <> curHeapPct
+    curHeapPct = pct
+    printHeapPct()
+  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1512,21 +1560,27 @@ export def setWindow3()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Window for the map area (used for clearing it)
-export def setMapWindow()#0
+// Clear map window, then set a text area within it.
+export def useMapWindow()#0
   if frameLoaded == 3  // don't check mapIs3D, since we might be in an engine
-    setWindow(24, 153, 14, 140) // Top, Bottom, Left, Right
+    setWindow(24, 154, 14, 140) // Top, Bottom, Left, Right
+    clearWindow()
+    setWindow(24, 150, 14, 140) // Top, Bottom, Left, Right
   else
     setWindow(24, 169, 14, 140) // Top, Bottom, Left, Right
+    clearWindow()
+    setWindow(24, 168, 14, 140) // Top, Bottom, Left, Right
   fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def clearTextWindow()#0
-  setWindow2(); clearWindow()
-  if mapIs3D and texturesLoaded; copyWindow(); fin
-  textDrawn = FALSE
-  textClearCountdown = 0
+  if textDrawn or textClearCountdown
+    setWindow2(); clearWindow()
+    if mapIs3D and texturesLoaded; copyWindow(); fin
+    textDrawn = FALSE
+    textClearCountdown = 0
+  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1571,6 +1625,17 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def rightJustifyNum(num, rightX)#0
   rightJustifyStr(convertDec(num), rightX)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def centerStr(str, windowWidth)#0
+  word x
+  x = (windowWidth - calcWidth(str)) >> 1
+  if (x >= 0)
+    rawDisplayStr("^T")  // do not use printf variants, since it might overwrite str
+    rawDisplayStr(convert3Dec(x))
+  fin
+  rawDisplayStr(str)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2017,7 +2082,7 @@ export def setMap(is3D, num, x, y, dir)#0
   else
     flipToPage1()
     showMapName("Traveling...")
-    setMapWindow(); clearWindow()
+    useMapWindow()
     mapIs3D = is3D
     mapNum = num
     allowZoneInit = TRUE
@@ -2061,8 +2126,8 @@ def kbdLoop()#0
       func = cmdTbl[key]
       if func
         if textClearCountdown
+          if textClearCountdown == 1; clearTextWindow(); fin
           textClearCountdown--
-          if !textClearCountdown; clearTextWindow(); fin
         fin
         func()
       fin
@@ -2130,7 +2195,6 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Called by scripts to display a string. We set the flag noting that something has been
 // displayed, then use an assembly routine to do the work.
-// Also, clear the keyboard strobe, so the player has time to read the text.
 export def scriptDisplayStr(str)#0
   if pIntimate
     pIntimate=>intimate_displayStr(str)
@@ -2238,8 +2302,7 @@ export def setPortrait(portraitNum)#0
   unloadTextures()
 
   // Now clear out the map area
-  setMapWindow()
-  clearWindow()
+  useMapWindow()
 
   // Restore the cursor position
   setWindow2()
@@ -2300,7 +2363,7 @@ export def removeFromList(pList, toRemove)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def saveMapPos()#0
+export def saveMapPos()#0
   global->b_mapIs3D = mapIs3D
   global->b_mapNum = mapNum
   getPos(@global=>w_mapX, @global=>w_mapY)
@@ -2460,8 +2523,7 @@ def doCombat(mapCode, backUpOnFlee)#1
   // Handled in a separate module. Clear enemies out of the heap when finished.
   result = loadEngine(MOD_COMBAT)=>combat_zoneEncounter(mapCode)
   global=>p_enemyGroups = NULL
-  mmgr(CHECK_MEM, 0)
-  mmgr(HEAP_COLLECT, 0)
+  heapCollect()
 
   if (result == -99)
     playerDeath()
@@ -2512,6 +2574,8 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def saveGame()#1
   saveMapPos()
+  flipToPage1()
+  showMapName("Saving game...")
   loadEngine(MOD_DISKOPS)=>diskops_saveGame()
   returnFromEngine(TRUE)
   return 0
@@ -2535,7 +2599,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def help()#1
   flipToPage1()
-  setMapWindow(); clearWindow()
+  useMapWindow()
   loadEngine(GS_HELP)()
   returnFromEngine(TRUE)
   return 0
@@ -2553,6 +2617,7 @@ def toggleGodMode()#1
       flipToPage1()
       clearTextWindow()
       displayf1("gm:%d\n", global->b_godmode & 1)
+      textDrawn = TRUE
       beep; beep
       clearTextWindow()
       saveMapPos(); restoreMapPos()  // reload everything, including god module
@@ -2815,6 +2880,11 @@ export def createAndAddUnique(moduleID, creationFuncNum, pList)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+export def roomInPack(p_player)#1
+  return countList(p_player=>p_items) < p_player->b_packSize
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 export def giveItemToPlayer(p_player, itemFuncNum)#0
   createAndAddUnique(MOD_GEN_ITEMS, itemFuncNum, @p_player=>p_items)
 end
@@ -2882,8 +2952,8 @@ export def addPlayerToParty(playerFuncNum)#0
     beep
     return
   fin
+  // Create the player (NPC flag will be established inside the creation func)
   p = createAndAddUnique(MOD_GEN_PLAYERS, playerFuncNum, @global=>p_players)
-  p->b_playerFlags = p->b_playerFlags | PLAYER_FLAG_NPC
   addXP(0) // to set initial skill pts
   needShowParty = TRUE
 end
@@ -2920,7 +2990,7 @@ export def removePlayerFromParty(playerName)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def playerHasItem(itemName)#1
+export def partyHasItem(itemName)#1
   ctx = itemName; return first(global=>p_players, &(p) scanForNamedObj(p=>p_items, ctx))
 end
 
@@ -2948,6 +3018,7 @@ export def getStat(player, statName)#1
     is streqi(statName, @S_GOLD);         return global=>w_gold
     is streqi(statName, @S_XP);           return player=>w_curXP
     is streqi(statName, @S_SP);           return player->b_skillPoints
+    is streqi(statName, @S_PACK_SIZE);    return player->b_packSize
   wend
   pSkill = scanForNamedObj(player=>p_skills, statName)
   if pSkill; return pSkill=>w_modValue; fin
@@ -2985,7 +3056,8 @@ export def setStat(player, statName, val)#0
     is streqi(statName, @S_DODGING);      player->b_dodging = clampByte(val); break
     is streqi(statName, @S_GOLD);         global=>w_gold = max(0, val); needShowParty = TRUE; break
     is streqi(statName, @S_XP);           player=>w_curXP = max(player=>w_curXP, val); needShowParty = TRUE; break
-    is streqi(statName, @S_SP);           player->b_skillPoints = max(0, val); needShowParty = TRUE; break
+    is streqi(statName, @S_SP);           player->b_skillPoints = clampByte(max(0, val)); needShowParty = TRUE; break
+    is streqi(statName, @S_PACK_SIZE);    player->b_packSize = clampByte(max(player->b_packSize, val)); break
     otherwise
       pSkill = scanForNamedObj(player=>p_skills, statName)
       if pSkill
@@ -3070,6 +3142,7 @@ def startGame(ask)#0
     allowZoneInit = TRUE
     initMap(q_x, q_y, q_dir)
     allowZoneInit = FALSE
+    saveGame()
   else
     q_mapNum = 0
     restoreMapPos()

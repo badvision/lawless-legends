@@ -36,9 +36,7 @@ import gamelib
   predef clearEncounterZones()#0
   predef clearPortrait()#0
   predef clearWindow()#0
-  predef countArray(arr)#1
   predef countList(p)#1
-  predef countListFiltered(p, offset, filterFunc)#1
   predef crout()#0
   predef displayChar(chr)#0
   predef displayf1(fmt, arg1)#0
@@ -46,9 +44,13 @@ import gamelib
   predef displayf3(fmt, arg1, arg2, arg3)#0
   predef displayStr(str)#0
   predef encodeDice(nDice, dieSize, add)#1
+  predef equipItem(item)#0
   predef fatal(msg)#1
   predef finishString(isPlural)#1
   predef flipToPage1()#0
+  predef first(p, sel)#1
+  predef forEach(p, do)#0
+  predef forSome(p, sel, do)#0
   predef getCharResponse()#1
   predef getCursor()#2
   predef getDir()#1
@@ -61,6 +63,7 @@ import gamelib
   predef girdPlayer(player)#0
   predef giveItemToPlayer(p_player, itemFuncNum)#0
   predef hisHerTheir(c_gender)#1
+  predef index(p, num)#1
   predef initHeap(loadedSize)#0
   predef initPlayerXP(player)#0
   predef loadFrameImg(img)#0
@@ -72,7 +75,6 @@ import gamelib
   predef min(a, b)#1
   predef mmgr(cmd, wordParam)#1
   predef moveWayBackward()#1
-  predef numToPlayer(num)#1
   predef parseDec(str)#1
   predef partyHasPlayer(playerName)#1
   predef pause(count)#0
@@ -87,8 +89,6 @@ import gamelib
   predef queue_setMap(is3D, num, x, y, dir)#0
   predef queue_teleport(x, y, dir)#0
   predef rand16()#1
-  predef randomFromArray(arr)#1
-  predef randomFromListFiltered(p, offset, filterFunc)#1
   predef rawDisplayf1(fmt, arg1)#0
   predef rawDisplayf2(fmt, arg1, arg2)#0
   predef rawDisplayf3(fmt, arg1, arg2, arg3)#0
@@ -108,6 +108,7 @@ import gamelib
   predef scriptEvent(event, param)#0
   predef scriptSetAvatar(avatarTileNum)#0
   predef scriptSwapTile(fromX, fromY, toX, toY)#0
+  predef select(p, sel, num)#1
   predef setCmd(key, func)#0
   predef setCursor(x, y)#0
   predef setGameFlag(flagName, val)#0
@@ -130,9 +131,11 @@ import gamelib
   predef sprintf2(fmt, arg1, arg2)#1
   predef sprintf3(fmt, arg1, arg2, arg3)#1
   predef streqi(a, b)#1
+  predef sum(p, sel, func)#1
   predef takeItemFromPlayer(p_player, itemName)#0
   predef textHome()#0
   predef tossStrings()#0
+  predef trueFunc()#1
   predef unbenchPlayer()#0
 
   // This pointer is the root of all heap-tracked (and garbage collected) objects.
@@ -148,6 +151,7 @@ import gamelib
   word pGodModule
   word typeHash
   byte isPlural
+  word ctx
 
   /////////// Shared string constants //////////////
 

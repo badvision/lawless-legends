@@ -47,6 +47,17 @@ ysav        = $34
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Find the end of a null-terminated array
+def countArray(arr)#1
+  byte count
+  for count = 0 to 127
+    if !*arr; break; fin
+    arr = arr + 2
+  next
+  return count
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def loadExtraModules()#0
   mmgr(START_LOAD, 1) // code is in partition 1
   pItemsModule = mmgr(QUEUE_LOAD, MOD_GEN_ITEMS<<8 | RES_TYPE_MODULE)
@@ -235,7 +246,7 @@ def storeSetup()#0
 
   playerCount = countList(global=>p_players)
   playerNum = 0
-  pPlayer = numToPlayer(playerNum)
+  pPlayer = index(global=>p_players, playerNum)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -264,7 +275,7 @@ def _buyFromStore(storeCode, profitPercent)#1
       pageNum++
     elsif choice >= '1' and (choice-'1') <= playerCount and (choice-'1') <> playerNum
       playerNum = choice - '1'
-      pPlayer = numToPlayer(playerNum)
+      pPlayer = index(global=>p_players, playerNum)
     elsif choice >= 'A' and (choice-'A' < nItemsOnPage)
       browseItem(choice-'A')
     elsif choice == $1B // Esc
@@ -364,7 +375,7 @@ def _sellToStore(profitPercent)#1
       pageNum++
     elsif choice >= '1' and (choice-'1') <= playerCount
       playerNum = choice - '1'
-      pPlayer = numToPlayer(playerNum)
+      pPlayer = index(global=>p_players, playerNum)
       totalItems = iterateSellables(9999, 0)
     elsif choice >= 'A' and (choice-'A' < nItemsOnPage)
       sellItem(choice-'A')

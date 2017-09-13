@@ -58,45 +58,12 @@ word           = @_displayItemStats, @_displayItemName
 
 // Other global variables here
 
-def travFind2(pObj, val,  func)
-  word ret
-  while pObj
-    val, ret = func(val, pObj)#2
-    if ret; return pObj; fin
-    pObj = pObj=>p_nextObj
-  loop
-  return NULL
-end
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def isEquipped(pItem)#1
   if pItem->t_type == TYPE_ARMOR or pItem->t_type == TYPE_WEAPON
     return pItem->b_flags & ITEM_FLAG_EQUIP
   fin
   return FALSE
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def itemByNum(player, num)#1
-  return travFind2(player=>p_items, num, &(n,p)(n-1, n==0))
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Unequip item kind
-def unequip(player, type, kind)#1
-  word item
-
-  item = player=>p_items
-  while item
-    if item->t_type == type
-      if (streqi(item=>s_itemKind, kind) or type == TYPE_WEAPON) and isEquipped(item)
-        item->b_flags = item->b_flags & ~ITEM_FLAG_EQUIP
-        break
-      fin
-    fin
-    item = item=>p_nextObj
-  loop
-  return item
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -114,24 +81,18 @@ end
 // Display inventory list page. Return number of items on page.
 def showInventory(player, page, select)#1
   word item
-  byte s_item, n_item, n_page, totalPages, first
+  byte s_item, n_item, n_page, totalPages, firstTime
 
   s_item = 0
-  n_item = 0
   n_page = page * INV_ROWS
-  item = player=>p_items
-  totalPages = (countList(item)+INV_ROWS-1) / INV_ROWS
+  totalPages = (countList(player=>p_items)+INV_ROWS-1) / INV_ROWS
   showColumnTitle(INV_X-10, "Inventory", page+1, totalPages)
-  if page
-    while item and n_item < n_page
-      item = item=>p_nextObj
-      n_item++
-    loop
-  fin
-  first = TRUE
+  item = index(player=>p_items, n_page)
+  n_item = n_page
+  firstTime = TRUE
   while item and n_item < (n_page + INV_ROWS)
-    if !first; displayChar('\n'); fin
-    first = FALSE
+    if !firstTime; displayChar('\n'); fin
+    firstTime = FALSE
 
     if isEquipped(item)
       rawDisplayStr("*")
@@ -188,12 +149,7 @@ def showDerived(player)#0
   rawDisplayf1("^T%DArmor\n", STATLBL_X)
 
   // Get weapon
-  weapon = player=>p_items
-  while weapon
-    if weapon->t_type == TYPE_WEAPON and isEquipped(weapon); break; fin
-    weapon = weapon=>p_nextObj
-  loop
-
+  weapon = first(player=>p_items, &(w) w->t_type == TYPE_WEAPON and isEquipped(w))
   if weapon
     if weapon=>r_projectileDmg
       displayDice(weapon=>r_projectileDmg)
@@ -258,13 +214,8 @@ def showSkills(player)#0
   if player->b_aiming; displaySkill(x1, @S_AIMING, @player->b_aiming, TRUE); fin
   if player->b_handToHand; displaySkill(x1, @S_HAND_TO_HAND, @player->b_handToHand, TRUE); fin
   if player->b_dodging; displaySkill(x1, @S_DODGING, @player->b_dodging, TRUE); fin
-  skill = player=>p_skills
-  while skill
-    if skill=>w_modValue > 0
-      displaySkill(x1, skill=>s_name, skill+w_modValue, TRUE)
-    fin
-    skill = skill=>p_nextObj
-  loop
+  ctx = x1
+  forSome(player=>p_skills, &(p) p=>w_modValue, &(p) displaySkill(ctx, p=>s_name, p+w_modValue, TRUE))
 
   // Second column: attributes
   showColumnTitle(STAT_X-5, "Attributes", 0, 0)
@@ -401,10 +352,30 @@ def clearMainRect()#0
   rawDisplayStr("^V000\n^J^J^J")
 end
 
-// Equip/unequip an item.
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def armsMatch(i1, i2)
+  if i1 == i2 or i1->t_type <> i2->t_type or !isEquipped(i2); return FALSE; fin
+  if i1->t_type == TYPE_WEAPON; return TRUE; fin  // can only equip 1 weapon at a time
+  return streqi(i1=>s_itemKind, i2=>s_itemKind) // type must be armor, since isEquipped is true
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def findMatchingEquip(player, item)
+  ctx = item; return first(player=>p_items, &(p) armsMatch(ctx, p)))
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Equip/unequip a weapon or armor piece
 def doEquip(player, item)#0
-  if unequip(player, item->t_type, item=>s_itemKind) <> item
-    item->b_flags = item->b_flags | ITEM_FLAG_EQUIP
+  word match
+  if item->b_flags & ITEM_FLAG_EQUIP
+    // Unequipping a piece
+    item->b_flags = item->b_flags & ~ITEM_FLAG_EQUIP
+  else
+    // Equipping a piece: be sure to unequip other matching piece (if any)
+    match = findMatchingEquip(player, item)
+    if match; match->b_flags = item->b_flags & ~ITEM_FLAG_EQUIP; fin
+    equipItem(item)
   fin
   calcPlayerArmor(player)
 end
@@ -441,17 +412,17 @@ end
 // Trade an item to another player/npc
 def doTrade(player, item)#1
   word destPlayer
-  byte first, sel
+  byte firstTime, sel
 
   clearMenuRect()
   rawDisplayStr("To: ")
   destPlayer = global=>p_players
   sel = 0
-  first = TRUE
+  firstTime = TRUE
   while destPlayer
     if player <> destPlayer
-      if !first; rawDisplayStr(", "); fin
-      first = FALSE
+      if !firstTime; rawDisplayStr(", "); fin
+      firstTime = FALSE
       rawDisplayf2("%d. %s", sel+1, destPlayer=>s_name)
     fin
     sel++
@@ -462,7 +433,7 @@ def doTrade(player, item)#1
   while TRUE
     sel = getUpperKey()
     if sel == $1B; return 0; fin
-    destPlayer = numToPlayer(sel-'1')
+    destPlayer = index(global=>p_players, sel-'1')
     if destPlayer and destPlayer <> player
       removeFromList(@player=>p_items, item)
       addUnique(@destPlayer=>p_items, item)
@@ -528,26 +499,23 @@ def doUse(player, item)#1
   if item->t_type == TYPE_FANCY_ITEM and item=>p_modifiers
     clearMenuRect()
     clearMainRect()
-    pMod = item=>p_modifiers
-    while pMod
-      oldVal = getStat(player, pMod=>s_name)
-      setStat(player, pMod=>s_name, oldVal + pMod=>w_modValue)
-      newVal = getStat(player, pMod=>s_name)
-      rawDisplayStr(pMod=>s_name)
-      if newVal <> oldVal
-        takeItemFromPlayer(player, item=>s_name)  // also handles reducing count of stackables
-        if newVal > oldVal
-          rawDisplayStr(" increased")
-        else
-          rawDisplayStr(" decreased")
-        fin
-        rawDisplayf2(" from %d to %d.", oldVal, newVal)
+    pMod = item=>p_modifiers // we only support one per item at present
+    oldVal = getStat(player, pMod=>s_name)
+    setStat(player, pMod=>s_name, oldVal + pMod=>w_modValue)
+    newVal = getStat(player, pMod=>s_name)
+    rawDisplayStr(pMod=>s_name)
+    if newVal <> oldVal
+      takeItemFromPlayer(player, item=>s_name)  // also handles reducing count of stackables
+      if newVal > oldVal
+        rawDisplayStr(" increased")
       else
-        rawDisplayStr(" already at the limit.")
+        rawDisplayStr(" decreased")
       fin
-      pause(800)
-      pMod = pMod=>p_nextObj
-    loop
+      rawDisplayf2(" from %d to %d.", oldVal, newVal)
+    else
+      rawDisplayStr(" already at the limit.")
+    fin
+    pause(800)
     return NULL
   fin
   return item // general 'use' handled by outer engine, because it might involve graphics
@@ -568,21 +536,6 @@ def doDestroy(player, item)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def matchEquipped(player, match)#1
-  word item
-  item = player=>p_items
-  while item
-    if item->t_type == match->t_type and item <> match and isEquipped(item)
-      if item->t_type <> TYPE_ARMOR or (item=>s_itemKind == match=>s_itemKind)
-        return item
-      fin
-    fin
-    item = item=>p_nextObj
-  loop
-  return NULL
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayItems(pItem1, pItem2)#0
   clearMainRect()
   rawDisplayf1("^T%DInventory", STATS_COL_1)
@@ -598,21 +551,21 @@ def interactWithItem(player, item)#1
   word comp, quantity
   byte sel, ok
   ok = TRUE
-  displayItems(item, matchEquipped(player, item))
+  displayItems(item, findMatchingEquip(player, item))
   while TRUE
     showItemMenu(item)
     if !ok; beep; fin
     ok = FALSE
     sel = getUpperKey()
     when sel
-      // Equip player with weapon/armor
+      // Equip/unequip player with weapon/armor
       is 'E'
         if (item->t_type == TYPE_ARMOR or item->t_type == TYPE_WEAPON)
           doEquip(player, item)
           return displayDone()
         fin
         break
-      // Use or Unequip an item
+      // Use an item
       is 'U'
         if item->t_type == TYPE_PLAIN_ITEM or item->t_type == TYPE_FANCY_ITEM
           return doUse(player, item) // general 'use' handled by outer engine, because it might involve graphics
@@ -628,14 +581,14 @@ def interactWithItem(player, item)#1
       is 'S'
         if isSplittable(item)
           ok = doSplit(player, item)
-          if ok; displayItems(item, matchEquipped(player, item)); fin
+          if ok; displayItems(item, NULL); fin
         fin
         break
       // Join stacks
       is 'J'
         if isJoinable(item)
           ok = doJoin(player, item)
-          if ok; displayItems(item, matchEquipped(player, item)); fin
+          if ok; displayItems(item, NULL); fin
         fin
         break
       // Destroy an item
@@ -666,14 +619,14 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
   i_page = 0
   redisplay = 2
   noRepeatMenu = FALSE
-  player = numToPlayer(player_num)
+  player = index(global=>p_players, player_num)
   if player->b_skillPoints
     mode = 'S'  // go straight to level up if applicable
   else
     mode = 'I'  // otherwise default to inventory mode
   fin
   repeat
-    player = numToPlayer(player_num)
+    player = index(global=>p_players, player_num)
     if !player; beep; return NULL; fin
     if redisplay >= 2
       clearWindow()
@@ -783,7 +736,7 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
         elsif mode == 'I'
           sel = sel - 'A'
           if sel >= 0 and sel < itemsOnPage
-            item = interactWithItem(player, itemByNum(player, i_page * INV_ROWS + sel))
+            item = interactWithItem(player, index(player=>p_items, i_page * INV_ROWS + sel))
             if item; return item; fin // Use an item
             if countList(player=>p_items) <= i_page * INV_ROWS // destroyed last item on pg 2
               i_page--
@@ -836,17 +789,7 @@ def selectPlayer(players)#1
   // Then get a selection
   rawDisplayStr("\nWhich character?")
   n_item = getUpperKey() - 'A'
-  player = players
-  while player
-    if player->b_playerFlags & PLAYER_FLAG_NPC
-      if n_item == 0
-        break
-      fin
-      n_item--
-    fin
-    player = player=>p_nextObj
-  loop
-  return player
+  return select(players, &(p) p->b_playerFlags & PLAYER_FLAG_NPC, n_item)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

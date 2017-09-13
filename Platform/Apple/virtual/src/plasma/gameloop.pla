@@ -124,6 +124,9 @@ byte animDirCt
 byte anyAnims = TRUE
 word animPauseCt
 
+// Context for lambda functions (in lieu of closures, for now at least)
+export word ctx
+
 // Shared string constants
 export byte[] S_INTELLIGENCE = "Intelligence"
 export byte[] S_STRENGTH = "Strength"
@@ -941,39 +944,41 @@ export asm streqi(a, b)#1
   +asmPlasmRet 2
   sta tmp
   sty tmp+1
+  beq .noteqi      ; NULL is never equal
   lda evalStkL+1,x
   sta pTmp
   lda evalStkH+1,x
   sta pTmp+1
+  beq .noteqi      ; NULL is never equal
   ldy #0
   lda (tmp),y
   cmp (pTmp),y
-  beq +           ; if lengths not equal, strings can't be equal
---
+  beq +            ; if lengths not equal, strings can't be equal
+.noteqi
   lda #0
   tay
   rts
-+ tax             ; count up to (verified same) length of the strings
++ tax              ; count up to (verified same) length of the strings
 - iny
   lda (tmp),y
-  cmp #('z'&$7F)+1      ; convert to upper case
+  cmp #('z'&$7F)+1 ; convert to upper case
   bcs +
   cmp #'a'&$7F
   bcc +
   sbc #$20
 + sta ysav
   lda (pTmp),y
-  cmp #('z'&$7F)+1      ; convert to upper case
+  cmp #('z'&$7F)+1 ; convert to upper case
   bcs +
   cmp #'a'&$7F
   bcc +
   sbc #$20
 + cmp ysav
-  bne --          ; abort on inequality
+  bne .noteqi      ; abort on inequality
   dex
   bne -
   lda #1
-  ldy #0          ; okay, they're equal. Return 1 (not just any char; so that PLASMA when...is can work)
+  ldy #0           ; okay, they're equal. Return 1 (not just any char; so that PLASMA when...is can work)
   rts
 end
 
@@ -1225,6 +1230,57 @@ export def getCharResponse()#1
   ^$200 = 1
   ^$201 = getUpperKey()
   return mmgr(HEAP_INTERN, $200)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def trueFunc(x)#1
+  return 1
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def select(p, sel, num)#1
+  while p
+    if sel(p)
+      if !num; break; fin
+      num--
+    fin
+    p = p=>p_nextObj
+  loop
+  return p
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def first(p, sel)#1
+  return select(p, sel, 0)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def index(p, num)#1
+  return select(p, @trueFunc, num)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def sum(p, sel, func)#1
+  word sum
+  sum = 0
+  while p
+    if sel(p); sum = sum + func(p); fin
+    p = p=>p_nextObj
+  loop
+  return sum
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def forSome(p, sel, do)#0
+  while p
+    if sel(p); do(p)#0; fin
+    p = p=>p_nextObj
+  loop
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def forEach(p, do)#0
+  forSome(p, @trueFunc, do)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1519,6 +1575,12 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display the party data on the screen
+def showPartyLine(p)#0
+  if p <> global=>p_players; displayChar('\n'); fin
+  if p->b_skillPoints; rawDisplayStr("^I"); fin // inverse for chars needing lvl-up
+  rawDisplayf1("%s^N", p=>s_name)
+  rightJustifyStr(sprintf2("%d/%d", p=>w_health, p=>w_maxHealth), CHAR_WND_HEALTH_X)
+end
 export def showParty()#0
   word p, cursX, cursY
 
@@ -1526,13 +1588,8 @@ export def showParty()#0
   setWindow3()
   clearWindow()
 
-  // Display header (or LEVEL UP message)
-  p = global=>p_players
-  while p
-    if p->b_skillPoints; break; fin
-    p = p=>p_nextObj
-  loop
-  if p
+  // Display header (or LEVEL UP message if any player has un-applied skill pts)
+  if first(global=>p_players, &(p) p->b_skillPoints)
     rawDisplayStr("^Y^I LEVEL U)P ^N\n")
   else
     rawDisplayStr("^LName")
@@ -1541,14 +1598,7 @@ export def showParty()#0
   fin
 
   // Display each character's name and health
-  p = global=>p_players
-  while p
-    if p <> global=>p_players; displayChar('\n'); fin
-    if p->b_skillPoints; rawDisplayStr("^I"); fin // inverse for chars needing lvl-up
-    rawDisplayf1("%s^N", p=>s_name)
-    rightJustifyStr(sprintf2("%d/%d", p=>w_health, p=>w_maxHealth), CHAR_WND_HEALTH_X)
-    p = p=>p_nextObj
-  loop
+  forEach(global=>p_players, @showPartyLine)
 
   // Finish up
   if mapIs3D and texturesLoaded; copyWindow(); fin
@@ -2216,51 +2266,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def countList(p)#1
-  byte n
-  n = 0
-  while p
-    n++
-    p = p=>p_nextObj
-  loop
-  return n
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-export def countListFiltered(p, offset, filterFunc)#1
-  byte n
-  n = 0
-  while p
-    if filterFunc(p)
-      n++
-    fin
-    p = *(p + offset)
-  loop
-  return n
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Find the end of a null-terminated array
-export def countArray(arr)#1
-  byte count
-  for count = 0 to 127
-    if !*arr; break; fin
-    arr = arr + 2
-  next
-  return count
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-export def randomFromListFiltered(p, offset, filterFunc)#1
-  byte n
-  n = rand16() % countListFiltered(p, offset, filterFunc)
-  while p
-    if filterFunc(p)
-      if n == 0; return p; fin
-      n--
-    fin
-    p = *(p + offset)
-  loop
-  return NULL
+  return sum(p, @trueFunc, @trueFunc)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2724,17 +2730,6 @@ export def initHeap(loadedSize)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Return a random entry from an array which is terminated by a zero entry
-export def randomFromArray(arr)#1
-  byte siz
-  siz = 0
-  while *((siz << 1) + arr)
-    siz++
-  loop
-  return *(((rand16() % siz) << 1) + arr)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Constructor: create a modifier given its name and value
 export def makeModifier(name, value)#1
   word p; p = mmgr(HEAP_ALLOC, TYPE_MODIFIER)
@@ -2745,16 +2740,8 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Recalculate player's armor score based on their currently equipped armor
-export def calcPlayerArmor(player)#0
-  word pItem
-  player->b_armor = 0
-  pItem = player=>p_items
-  while pItem
-    if pItem->t_type == TYPE_ARMOR and pItem->b_flags & ITEM_FLAG_EQUIP
-      player->b_armor = player->b_armor + pItem->b_armorValue
-    fin
-    pItem = pItem=>p_nextObj
-  loop
+export def calcPlayerArmor(pl)#0
+  pl->b_armor = sum(pl=>p_items, &(p) p->t_type == TYPE_ARMOR and p->b_flags & ITEM_FLAG_EQUIP, &(p) p->b_armorValue)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2777,12 +2764,8 @@ export def payGold(amount)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def scanForNamedObj(p_obj, name)#1
-  while p_obj
-    if streqi(p_obj=>s_name, name); return p_obj; fin
-    p_obj = p_obj=>p_nextObj
-  loop
-  return NULL
+export def scanForNamedObj(list, name)#1
+  ctx = name; return first(list, &(p) streqi(p=>s_name, ctx))
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2879,23 +2862,15 @@ export def initPlayerXP(player)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+export def equipItem(item)#0
+  item->b_flags = item->b_flags | ITEM_FLAG_EQUIP
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Arm newly created player (or NPC) with first weapon and all armor.
 export def girdPlayer(player)#0
-  word pItem
-  byte weaponFound
-  weaponFound = FALSE
-  pItem = player=>p_items
-  while pItem
-    if pItem->t_type == TYPE_WEAPON
-      if !weaponFound
-        pItem->b_flags = pItem->b_flags | ITEM_FLAG_EQUIP
-        weaponFound = TRUE
-      fin
-    elsif pItem->t_type == TYPE_ARMOR
-      pItem->b_flags = pItem->b_flags | ITEM_FLAG_EQUIP
-    fin
-    pItem = pItem=>p_nextObj
-  loop
+  equipItem(first(player=>p_items, &(p) p->t_type == TYPE_WEAPON))
+  forSome(player=>p_items, &(p) p->t_type == TYPE_ARMOR, @equipItem)
   calcPlayerArmor(player)
 end
 
@@ -2935,11 +2910,7 @@ export def takeItemFromPlayer(p_player, itemName)#0
   if removeNamed(itemName, @p_player=>p_items); return; fin
 
   // Fall back to all players, e.g. Prosp. Paul using his TNT.
-  p_player = global=>p_players
-  while p_player
-    if removeNamed(itemName, @p_player=>p_items); return; fin
-    p_player = p_player=>p_nextObj
-  loop
+  ctx = itemName; first(global=>p_players, &(p) removeNamed(ctx, @p=>p_items))
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2950,12 +2921,12 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def playerHasItem(itemName)#1
-  return scanForNamedObj(global=>p_players=>p_items, itemName) <> NULL
+  ctx = itemName; return first(global=>p_players, &(p) scanForNamedObj(p=>p_items, ctx))
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def partyHasPlayer(playerName)#1
-  return scanForNamedObj(global=>p_players, playerName) <> NULL
+  return scanForNamedObj(global=>p_players, playerName)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2978,11 +2949,8 @@ export def getStat(player, statName)#1
     is streqi(statName, @S_XP);           return player=>w_curXP
     is streqi(statName, @S_SP);           return player->b_skillPoints
   wend
-  pSkill = player=>p_skills
-  while pSkill
-    if streqi(statName, pSkill=>s_name); return pSkill=>w_modValue; fin
-    pSkill = pSkill=>p_nextObj
-  loop
+  pSkill = scanForNamedObj(player=>p_skills, statName)
+  if pSkill; return pSkill=>w_modValue; fin
   puts(statName); return fatal("getStat")
 end
 
@@ -3019,15 +2987,12 @@ export def setStat(player, statName, val)#0
     is streqi(statName, @S_XP);           player=>w_curXP = max(player=>w_curXP, val); needShowParty = TRUE; break
     is streqi(statName, @S_SP);           player->b_skillPoints = max(0, val); needShowParty = TRUE; break
     otherwise
-      pSkill = player=>p_skills
-      while pSkill
-        if streqi(statName, pSkill=>s_name)
-          pSkill=>w_modValue = max(0, val)
-          return
-        fin
-        pSkill = pSkill=>p_nextObj
-      loop
-      puts(statName); fatal("setStat")
+      pSkill = scanForNamedObj(player=>p_skills, statName)
+      if pSkill
+        pSkill=>w_modValue = max(0, val)
+      else
+        puts(statName); fatal("setStat")
+      fin
   wend
 end
 
@@ -3086,17 +3051,6 @@ export def buySell(storeCode, profitRatio)#0
   fin
   returnFromEngine(FALSE) // no render, we're mid-script
   if portrait; setPortrait(portrait); fin
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-export def numToPlayer(num)#1
-  word player
-  player = global=>p_players
-  while player and num > 0
-    player = player=>p_nextObj
-    num--
-  loop
-  return player
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

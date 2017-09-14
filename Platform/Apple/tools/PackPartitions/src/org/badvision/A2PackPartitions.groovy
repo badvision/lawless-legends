@@ -3925,14 +3925,14 @@ end
             def name = getSingle(blk.field, 'NAME').text().trim()
             def itemFunc = itemNameToFunc[name.toLowerCase()]
             assert itemFunc : "Can't locate item '$name'"
-            outIndented("giveItemToPlayer(global=>p_players, $itemFunc)\n")
+            outIndented("giveItemToParty($itemFunc)\n")
         }
 
         def packTakeItem(blk)
         {
             def name = getSingle(blk.field, 'NAME').text().trim()
             assert itemNameToFunc.containsKey(name.toLowerCase()) : "Can't locate item '$name'"
-            outIndented("takeItemFromPlayer(global=>p_players, ${escapeString(name)})\n")
+            outIndented("takeItemFromParty(${escapeString(name)})\n")
         }
 
         def packBuyFromStore(blk)

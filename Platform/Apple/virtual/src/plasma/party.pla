@@ -123,53 +123,55 @@ end
 
 // Derived stats like armor, damage, etc.
 def showDerived(player)#0
-  word weapon, dmg
+  word weapon, dmg, fmt
 
   //rawDisplayStr("^V023")
   showColumnTitle(STAT_X-5, "STATS", 0, 0)
 
-  rawDisplayf2("^T%DLevel %d\n", STAT_X-5, player->b_level)
-  if player->b_skillPoints
-    rawDisplayf2("\n^T%D%s\n", STAT_X-5, "^I LEVEL UP ^N")
-    rawDisplayf2("^T%D%s\n", STAT_X-5+8, "in S)kills\n")
-  fin
+  fmt = "^T%D%s\n"
+  rawDisplayf2("^T%DLevel %d\n", STAT_X-2, player->b_level)
   vspace()
+  if player->b_skillPoints
+    rawDisplayf2(fmt, STAT_X-14, "^I LEVEL UP ^N")
+    rawDisplayf2(fmt, STAT_X-6, "in S)kills")
+    vspace()
+  fin
   rightJustifyNum(player=>w_curXP, STAT_X)
-  rawDisplayf2("^T%D%s\n", STATLBL_X, "Current XP")
+  rawDisplayf2(fmt, STATLBL_X, "Current XP")
   rightJustifyNum(player=>w_nextXP, STAT_X)
-  rawDisplayf2("^T%D%s\n", STATLBL_X, "Next lvl XP")
+  rawDisplayf2(fmt, STATLBL_X, "Next lvl XP")
 
   vspace()
   rightJustifyNum(player=>w_health, STAT_X)
-  rawDisplayf2("^T%D%s\n", STATLBL_X, @S_HEALTH)
+  rawDisplayf2(fmt, STATLBL_X, @S_HEALTH)
   rightJustifyNum(player=>w_maxHealth, STAT_X)
-  rawDisplayf2("^T%D%s\n", STATLBL_X, @S_MAX_HEALTH)
+  rawDisplayf2(fmt, STATLBL_X, @S_MAX_HEALTH)
   vspace()
 
   rightJustifyNum(player->b_armor, STAT_X)
-  rawDisplayf1("^T%DArmor\n", STATLBL_X)
+  rawDisplayf2(fmt, STATLBL_X, "Armor")
 
   // Get weapon
   weapon = first(player=>p_items, &(w) w->t_type == TYPE_WEAPON and isEquipped(w))
   if weapon
     if weapon=>r_projectileDmg
       displayDice(weapon=>r_projectileDmg)
-      rawDisplayf1("^T%DProjectile\n", STATLBL_X)
+      rawDisplayf2(fmt, STATLBL_X, "Projectile")
     fin
     dmg = weapon=>r_meleeDmg
   else
     dmg = $01400
   fin
   displayDice(dmg)
-  rawDisplayf1("^T%DMelee\n", STATLBL_X)
+  rawDisplayf2(fmt, STATLBL_X, "Melee")
 
   vspace()
   rightJustifyStr(sprintf2("%d/%d", countList(player=>p_items), player->b_packSize), STAT_X)
-  rawDisplayf1("^T%DPack size\n", STATLBL_X)
+  rawDisplayf2(fmt, STATLBL_X, "Pack size")
 
   vspace()
   rightJustifyNum(global=>w_gold, STAT_X)
-  rawDisplayf1("^T%DParty gold\n", STATLBL_X)
+  rawDisplayf2(fmt, STATLBL_X, "Party gold")
 
 end
 
@@ -427,7 +429,7 @@ end
 
 // Trade an item to another player/npc
 def doTrade(player, item)#1
-  word destPlayer
+  word destPlayer, destItem
   byte firstTime, sel
 
   clearMenuRect()
@@ -452,7 +454,14 @@ def doTrade(player, item)#1
     destPlayer = index(global=>p_players, sel-'1')
     if destPlayer and destPlayer <> player
       removeFromList(@player=>p_items, item)
-      addUnique(@destPlayer=>p_items, item)
+      destItem = scanForNamedObj(destPlayer=>p_items, item=>s_name)
+      if destItem
+        if destItem->t_type == TYPE_FANCY_ITEM and destItem=>w_count > 0
+          destItem=>w_count = destItem=>w_count + item=>w_count
+          return displayDone
+        fin
+      fin
+      addToList(@destPlayer=>p_items, item)
       return displayDone
     fin
     beep
@@ -521,7 +530,7 @@ def doUse(player, item)#1
     newVal = getStat(player, pMod=>s_name)
     rawDisplayStr(pMod=>s_name)
     if newVal <> oldVal
-      takeItemFromPlayer(player, item=>s_name)  // also handles reducing count of stackables
+      removeNamed(item=>s_name, @player=>p_items)  // also handles reducing count of stackables
       if newVal > oldVal
         rawDisplayStr(" increased")
       else

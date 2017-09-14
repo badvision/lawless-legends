@@ -634,11 +634,11 @@ if (typeof Mythos === "undefined") {
                     this.setPreviousStatement(true);
                     this.setNextStatement(true);
                     this.appendDummyInput()
-                            .appendField("Give")
+                            .appendField("Give item")
                             .appendField(new Blockly.FieldTextInput(""), "NAME")
-                            .appendField("to player");
+                            .appendField("to party");
                     this.setOutput(false);
-                    this.setTooltip('Give an item to the player');
+                    this.setTooltip('Give an item to the party');
                 }
             };
             Blockly.Blocks['interaction_take_item'] = {
@@ -648,11 +648,11 @@ if (typeof Mythos === "undefined") {
                     this.setPreviousStatement(true);
                     this.setNextStatement(true);
                     this.appendDummyInput()
-                            .appendField("Take")
+                            .appendField("Take item")
                             .appendField(new Blockly.FieldTextInput(""), "NAME")
-                            .appendField("from player");
+                            .appendField("from party");
                     this.setOutput(false);
-                    this.setTooltip('Take an item away from the player (if possible)');
+                    this.setTooltip('Take an item away from the party (if possible)');
                 }
             };
             Blockly.Blocks['interaction_has_item'] = {
@@ -660,10 +660,10 @@ if (typeof Mythos === "undefined") {
                     this.setHelpUrl(Mythos.helpUrl);
                     this.setColour(Blockly.Blocks.logic.HUE);
                     this.appendDummyInput()
-                            .appendField("player has item")
+                            .appendField("party has item")
                             .appendField(new Blockly.FieldTextInput(""), "NAME");
                     this.setOutput(true, "Boolean");
-                    this.setTooltip('Check if player has a given item');
+                    this.setTooltip('Check if party has a given item');
                 }
             };
             Blockly.Blocks['interaction_buy_from_store'] = {

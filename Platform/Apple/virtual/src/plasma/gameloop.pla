@@ -2358,7 +2358,7 @@ export def removeFromList(pList, toRemove)#0
     *pList = p=>p_nextObj
     p=>p_nextObj = NULL
   else
-    fatal("InvalUnlink")
+    fatal("unlink")
   fin
 end
 
@@ -2834,28 +2834,7 @@ export def scanForNamedObj(list, name)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Add to a list if named obj not already in it; returns TRUE if really added.
-// Also handles incrementing stackable items.
-export def addUnique(pList, p_thing)#1
-  word p_existing
-
-  // If it's stackable and player already has some, just increase the stack
-  p_existing = scanForNamedObj(*pList, p_thing=>s_name)
-  if p_existing
-    if p_existing->t_type == TYPE_FANCY_ITEM and p_existing=>w_count > 0 and !p_existing=>p_modifiers
-      p_existing=>w_count = p_existing=>w_count + p_thing=>w_count
-      return TRUE
-    fin
-    return FALSE  // already have one, and it's not stackable
-  fin
-
-  // Otherwise, add a new item
-  addToList(pList, p_thing)
-  return TRUE
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-export def createAndAddUnique(moduleID, creationFuncNum, pList)#1
+export def createThing(moduleID, creationFuncNum)#1
   word p_module, funcTbl, func, p_thing
 
   // Unload textures to make room for the module (also flips to page 1 if needed)
@@ -2871,9 +2850,6 @@ export def createAndAddUnique(moduleID, creationFuncNum, pList)#1
   func = *(funcTbl + creationFuncNum)
   p_thing = func() // full
 
-  // Avoid adding duplicate things.
-  addUnique(pList, p_thing)
-
   // Finished with the module now.
   mmgr(FREE_MEMORY, p_module)
   return p_thing
@@ -2885,8 +2861,39 @@ export def roomInPack(p_player)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def giveItemToPlayer(p_player, itemFuncNum)#0
-  createAndAddUnique(MOD_GEN_ITEMS, itemFuncNum, @p_player=>p_items)
+export def partyHasItem(itemName)#1
+  ctx = itemName; return first(global=>p_players, &(p) scanForNamedObj(p=>p_items, ctx))
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def giveItemToParty(itemFuncNum)#0
+  word p_item, p_existing, p_player
+  p_item = createThing(MOD_GEN_ITEMS, itemFuncNum)
+
+  // Check for an existing item (or stack we can add to)
+  p_existing = partyHasItem(p_item=>s_name)
+  if p_existing
+    if p_existing->t_type == TYPE_FANCY_ITEM and p_existing=>w_count > 0
+      p_existing=>w_count = p_existing=>w_count + p_item=>w_count
+      return
+    else
+      scriptDisplayStr("Duplicate item.\n")
+      beep
+      return
+    fin
+  fin
+
+  // Find a party member with room in their pack
+  p_player = first(global=>p_players, @roomInPack)
+  isPlural = FALSE
+  if p_player
+    addToList(@p_player=>p_items, p_item)
+    if p_player <> global=>p_players
+      scriptDisplayStr(sprintf3("%s had no room, so %s has the %s now.\n", global=>p_players=>s_name, p_player=>s_name, p_item=>s_name))
+    fin
+  else
+    scriptDisplayStr(sprintf1("You have no room. %s dropped.\n", p_item=>s_name))
+  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2948,20 +2955,27 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def addPlayerToParty(playerFuncNum)#0
-  word p
+  word p_player
+
   if countList(global=>p_players) == MAX_PARTY
-    rawDisplayStr("Party too large.")
+    scriptDisplayStr("Party too large.\n")
     beep
     return
   fin
+
   // Create the player (NPC flag will be established inside the creation func)
-  p = createAndAddUnique(MOD_GEN_PLAYERS, playerFuncNum, @global=>p_players)
-  addXP(0) // to set initial skill pts
-  needShowParty = TRUE
+  p_player = createThing(MOD_GEN_PLAYERS, playerFuncNum)
+
+  // Add if not dupe
+  if !scanForNamedObj(global=>p_players, p_player=>s_name)
+    addToList(@global=>p_players, p_player)
+    addXP(0) // to set initial skill pts
+    needShowParty = TRUE
+  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def removeNamed(name, pList)#1
+export def removeNamed(name, pList)#1
   word p_thing
   p_thing = scanForNamedObj(*pList, name)
   if p_thing
@@ -2977,11 +2991,7 @@ def removeNamed(name, pList)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def takeItemFromPlayer(p_player, itemName)#0
-  // First, try the script-specified player
-  if removeNamed(itemName, @p_player=>p_items); return; fin
-
-  // Fall back to all players, e.g. Prosp. Paul using his TNT.
+export def takeItemFromParty(itemName)#0
   ctx = itemName; first(global=>p_players, &(p) removeNamed(ctx, @p=>p_items))
 end
 
@@ -2989,11 +2999,6 @@ end
 export def removePlayerFromParty(playerName)#0
   removeNamed(playerName, @global=>p_players)
   needShowParty = TRUE
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-export def partyHasItem(itemName)#1
-  ctx = itemName; return first(global=>p_players, &(p) scanForNamedObj(p=>p_items, ctx))
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

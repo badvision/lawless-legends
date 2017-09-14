@@ -15,7 +15,7 @@ import gamelib
   predef abs(n)#1
   predef addEncounterZone(code, x, y, dist, chance)#0
   predef addGold(amount)#1
-  predef addPlayerToParty(playerFuncNum)#0
+  predef addPlayerToParty(playerFuncNum, displayFunc)#0
   predef addPercent(start, pct)#1
   predef addRatio(start, ratio)#1
   predef addToList(addTo, p)#0
@@ -61,7 +61,7 @@ import gamelib
   predef getUpperKey()#1
   predef getYN()#1
   predef girdPlayer(player)#0
-  predef giveItemToParty(itemFuncNum)#0
+  predef giveItemToParty(itemFuncNum, displayFunc)#0
   predef heapCollect()#0
   predef hisHerTheir(c_gender)#1
   predef index(p, num)#1

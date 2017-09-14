@@ -218,10 +218,15 @@ def browseItem(num)#0
           rawDisplayStr("^T000^CDuplicate item.")
           beep()
           pause(400)
-          continue
+          return
         fin
-      else
+      elsif roomInPack(pPlayer)
         addToList(@pPlayer=>p_items, pItem)
+      else
+        rawDisplayStr("^T000^CNo room.")
+        beep()
+        pause(400)
+        return
       fin
       global=>w_gold = global=>w_gold - price
       rawDisplayStr("^T000^CDone.")

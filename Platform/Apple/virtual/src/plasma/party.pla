@@ -419,12 +419,22 @@ def choosePlayer(disp, chooseNum, avoid)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayDone()#1
+def displayResult(s_result, doBeep)#1
   clearMenuRect()
   clearMainRect()
-  rawDisplayStr("Done.")
-  pause(800)
+  rawDisplayStr(s_result)
+  if doBeep
+    beep
+    pause(400)
+  else
+    pause(800)
+  fin
   return NULL
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def displayDone()#1
+  return displayResult("Done.", FALSE)
 end
 
 // Trade an item to another player/npc
@@ -461,8 +471,12 @@ def doTrade(player, item)#1
           return displayDone
         fin
       fin
-      addToList(@destPlayer=>p_items, item)
-      return displayDone
+      if roomInPack(destPlayer)
+        addToList(@destPlayer=>p_items, item)
+        return displayDone
+      else
+        displayResult("No room.", TRUE)
+      fin
     fin
     beep
   loop
@@ -472,7 +486,9 @@ end
 // Split a stack of stackables
 def doSplit(player, item)#1
   word nToSplit, newItem
-  if item=>w_count == 2
+  if !roomInPack(player)
+    return displayResult("No room.", TRUE)
+  elsif item=>w_count == 2
     nToSplit = 1
   else
     clearMenuRect
@@ -512,10 +528,7 @@ def doJoin(player, item)#1
     match = *pPrev
   loop
   if anyJoined; return 1; fin
-  clearMenuRect()
-  rawDisplayStr("No joinable stack found.")
-  pause(800)
-  return 0
+  return displayResult("No joinable stack found.", TRUE)
 end
 
 // Select an item and use it. Returns item if it needs to be processed by outer loop, else NULL
@@ -606,14 +619,14 @@ def interactWithItem(player, item)#1
       is 'S'
         if isSplittable(item)
           ok = doSplit(player, item)
-          if ok; displayItems(item, NULL); fin
+          displayItems(item, NULL)
         fin
         break
       // Join stacks
       is 'J'
         if isJoinable(item)
           ok = doJoin(player, item)
-          if ok; displayItems(item, NULL); fin
+          displayItems(item, NULL)
         fin
         break
       // Destroy an item

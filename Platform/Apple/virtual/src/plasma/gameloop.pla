@@ -1607,6 +1607,8 @@ export def setBigWindow()#0
     hline(getScreenLine(BIGWIN_BOTTOM+1)+1, $F8, $FF, 36, $8F)
     hline(getScreenLine(BIGWIN_BOTTOM+2)+1, 0, 0, 36, 0)
     frameLoaded = 0 // since we just destroyed it
+    textDrawn = FALSE
+    textClearCountdown = 0
   fin
   setWindow(BIGWIN_TOP, BIGWIN_BOTTOM, BIGWIN_LEFT, BIGWIN_RIGHT)
 end
@@ -2830,7 +2832,12 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def scanForNamedObj(list, name)#1
-  ctx = name; return first(list, &(p) streqi(p=>s_name, ctx))
+  // We don't use lambda here, to preserve context of outer lambdas
+  while list
+    if streqi(list=>s_name, name); break; fin
+    list = list=>p_nextObj
+  loop
+  return list
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2866,7 +2873,7 @@ export def partyHasItem(itemName)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def giveItemToParty(itemFuncNum)#0
+export def giveItemToParty(itemFuncNum, displayFunc)#0
   word p_item, p_existing, p_player
   p_item = createThing(MOD_GEN_ITEMS, itemFuncNum)
 
@@ -2877,7 +2884,7 @@ export def giveItemToParty(itemFuncNum)#0
       p_existing=>w_count = p_existing=>w_count + p_item=>w_count
       return
     else
-      scriptDisplayStr("Duplicate item.\n")
+      displayFunc("Duplicate item.\n")#0
       beep
       return
     fin
@@ -2885,14 +2892,15 @@ export def giveItemToParty(itemFuncNum)#0
 
   // Find a party member with room in their pack
   p_player = first(global=>p_players, @roomInPack)
-  isPlural = FALSE
+  isPlural = p_item->t_type == TYPE_FANCY_ITEM and p_item=>w_count > 1
   if p_player
     addToList(@p_player=>p_items, p_item)
     if p_player <> global=>p_players
-      scriptDisplayStr(sprintf3("%s had no room, so %s has the %s now.\n", global=>p_players=>s_name, p_player=>s_name, p_item=>s_name))
+      displayFunc(sprintf3("%s had no room, so %s has the %s now.\n", global=>p_players=>s_name, p_player=>s_name, p_item=>s_name))#0
     fin
+    heapCollect
   else
-    scriptDisplayStr(sprintf1("You have no room. %s dropped.\n", p_item=>s_name))
+    displayFunc(sprintf1("\nYou have no room. %s dropped.\n", p_item=>s_name))#0
   fin
 end
 
@@ -2954,11 +2962,11 @@ export def girdPlayer(player)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def addPlayerToParty(playerFuncNum)#0
+export def addPlayerToParty(playerFuncNum, displayFunc)#0
   word p_player
 
   if countList(global=>p_players) == MAX_PARTY
-    scriptDisplayStr("Party too large.\n")
+    displayFunc("Party too large.\n")#0
     beep
     return
   fin
@@ -2970,6 +2978,7 @@ export def addPlayerToParty(playerFuncNum)#0
   if !scanForNamedObj(global=>p_players, p_player=>s_name)
     addToList(@global=>p_players, p_player)
     addXP(0) // to set initial skill pts
+    heapCollect
     needShowParty = TRUE
   fin
 end

@@ -3925,7 +3925,7 @@ end
             def name = getSingle(blk.field, 'NAME').text().trim()
             def itemFunc = itemNameToFunc[name.toLowerCase()]
             assert itemFunc : "Can't locate item '$name'"
-            outIndented("giveItemToParty($itemFunc)\n")
+            outIndented("giveItemToParty($itemFunc, @scriptDisplayStr)\n")
         }
 
         def packTakeItem(blk)
@@ -3964,7 +3964,7 @@ end
             def name = getSingle(blk.field, 'NAME').text().trim()
             def playerFunc = playerNameToFunc[name.toLowerCase()]
             assert playerFunc : "Can't locate player '$name'"
-            outIndented("addPlayerToParty($playerFunc)\n")
+            outIndented("addPlayerToParty($playerFunc, @scriptDisplayStr)\n")
         }
 
         def packRemovePlayer(blk)

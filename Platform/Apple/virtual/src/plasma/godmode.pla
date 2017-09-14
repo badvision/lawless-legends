@@ -288,7 +288,10 @@ end
 def _addItem(player)#1
   word funcNum
   funcNum = selectThing(MOD_GEN_ITEMS, NUM_ITEMS, 2, "Add item #: ")
-  if funcNum >= 0; giveItemToParty(funcNum); fin
+  if funcNum >= 0
+    giveItemToParty(funcNum, @rawDisplayStr)
+    pause(400)
+  fin
   return 0
 end
 
@@ -297,7 +300,10 @@ end
 def _addPlayer()#1
   word funcNum
   funcNum = selectThing(MOD_GEN_PLAYERS, NUM_PLAYERS, 1, "Add player #: ")
-  if funcNum >= 0; addPlayerToParty(funcNum); fin
+  if funcNum >= 0
+    addPlayerToParty(funcNum, @rawDisplayStr)
+    pause(400)
+  fin
   return 0
 end
 

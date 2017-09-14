@@ -868,19 +868,46 @@ def anOrA(str)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def addItem(pl, pItem)#1
+def youFind(pItem, suffix)
+  displayStr("You find ")
+  if pItem->t_type == TYPE_FANCY_ITEM and pItem=>w_count > 1
+    isPlural = TRUE
+    displayf3("%d %s%s!\n", pItem=>w_count, pItem=>s_name, suffix)
+  else
+    isPlural = FALSE
+    displayf3("%s%s%s!\n", anOrA(pItem=>s_name), pItem=>s_name, suffix)
+  fin
+  return TRUE
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def addIfPossible(pl, pItem)#1
   word pComp
   pComp = scanForNamedObj(pl=>p_items, pItem=>s_name)
   if pComp
     if pItem->t_type == TYPE_FANCY_ITEM
       pComp=>w_count = min(30000, pComp=>w_count + pItem=>w_count)
-      return TRUE
+      return youFind(pItem, "")
     else
       return FALSE // duplicate item
     fin
   fin
-  addToList(@pl=>p_items, pItem)
-  return TRUE
+  if roomInPack(pl)
+    addToList(@pl=>p_items, pItem)
+    return youFind(pItem, "")
+  fin
+  return FALSE // no room
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def addItem(pItem)#0
+  byte ok
+  ctx = pItem; ok = first(global=>p_players, &(pl) addIfPossible(pl, ctx))
+  if ok; return; fin
+  if first(global=>p_players, &(pl) scanForNamedObj(pl=>p_items, ctx=>s_name))
+    return // duplicate item, silently pretend it didn't happen
+  fin
+  youFind(pItem, " but have no room")
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -906,16 +933,7 @@ def collectLootAndXP()#2
           if pItem->t_type == TYPE_FANCY_ITEM
             pItem=>w_count = rollDiceWithLuck(pItem=>r_lootAmount, global=>p_players->b_luck)
           fin
-          if addItem(global=>p_players, pItem)
-            displayStr("You find ")
-            if pItem->t_type == TYPE_FANCY_ITEM and pItem=>w_count > 1
-              isPlural = TRUE
-              displayf2("%d %s! ", pItem=>w_count, pItem=>s_name)
-            else
-              isPlural = FALSE
-              displayf2("%s%s! ", anOrA(pItem=>s_name), pItem=>s_name)
-            fin
-          fin
+          addItem(pItem)
           mmgr(FREE_MEMORY, pItemsModule)
           lootedItem = TRUE
         fin
@@ -995,12 +1013,12 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def processWin()#0
   word gold, xp
-  rawDisplayStr("\n")
+  rawDisplayStr("^T000")
   callGlobalFunc(GS_COMBAT_WIN, 0, 0, 0)
   // Grab the loot
   gold, xp = collectLootAndXP()
   if gold > 0
-    displayf1("You find %d gold pieces! ", addGold(gold))
+    displayf1("You find %d gold! ", addGold(gold))
   fin
   if xp > 0
     displayf1("You earn %d experience! ", addXP(xp))

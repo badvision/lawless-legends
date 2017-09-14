@@ -2896,11 +2896,11 @@ export def giveItemToParty(itemFuncNum, displayFunc)#0
   if p_player
     addToList(@p_player=>p_items, p_item)
     if p_player <> global=>p_players
-      displayFunc(sprintf3("%s had no room, so %s has the %s now.\n", global=>p_players=>s_name, p_player=>s_name, p_item=>s_name))#0
+      displayFunc(sprintf3("%s has no room, so %s has the %s now.\n", global=>p_players=>s_name, p_player=>s_name, p_item=>s_name))#0
     fin
     heapCollect
   else
-    displayFunc(sprintf1("\nYou have no room. %s dropped.\n", p_item=>s_name))#0
+    displayFunc(sprintf1("\nYou have no room; %s dropped.\n", p_item=>s_name))#0
   fin
 end
 

@@ -179,8 +179,12 @@ seed        = $4E
 magic       = $2227 ; there are 2048 magic values that work; this one caught my eye. - MH
 
 ; NOTE ABOUT ABSOLUTE CODE ADDRESSING (e.g. STA .var, JMP .label, etc.)
-; We cannot use it: this code, including variable space, can be loaded *anywhere*.
-; So don't JMP to labels, declare any variables as !byte or !word here, etc.
+; We cannot use it: this code will be preceded by stubs for the PLASMA routines, hence
+; absolute addressing must be done carefully, adding ABS_OFFSET below.
+;
+; So don't JMP to labels, declare any variables as !byte or !word here, etc. without
+; accounting for that.
+ABS_OFFSET = (_DEFCNT*5) - 11
 
 end
 
@@ -2207,11 +2211,6 @@ export def scriptDisplayStr(str)#0
     textDrawn = TRUE
   fin
   // No: tossString()  // Doesn't work here, because we need to toss strings in the *parent's* frame
-end
-
-export def scriptDisplayStrNL(str)#0
-  scriptDisplayStr(str)
-  displayStr("\n")
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

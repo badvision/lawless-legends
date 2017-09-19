@@ -107,7 +107,6 @@ import gamelib
   predef scanForNamedObj(p_obj, name)#1
   predef scriptCombat(mapCode)#1
   predef scriptDisplayStr(str)#0
-  predef scriptDisplayStrNL(str)#0
   predef scriptEvent(event, param)#0
   predef scriptSetAvatar(avatarTileNum)#0
   predef scriptSwapTile(fromX, fromY, toX, toY)#0

@@ -1216,9 +1216,10 @@ class A2PackPartitions
                 //println "esdName='$esdName'"
                 assert esdName != null : "failed to look up esdIndex $esdIndex"
                 def offset = cache["globalExports"][esdName]
-                //println "offset=$offset"
+                //println "external fixup: esdIndex=$esdIndex esdName='$esdName' target=$target offset=$offset"
                 assert offset != null : "failed to find global export for symbol '$esdName'"
-                target += offset
+                // External fixups can only refer to gamelib, which is always set at $1000 in memory.
+                target += offset + 0x1000
             }
             else if (invDefs.containsKey(target)) {
                 target = invDefs[target]
@@ -1239,12 +1240,14 @@ class A2PackPartitions
             codeBuf[addr] = (byte)(target & 0xFF)
             codeBuf[addr+1] = (byte)((target >> 8) & 0xFF)
 
-            // And record the fixup
-            assert addr >= 0 && addr <= 0x3FFF : "code module too big"
-            newFixup.add((byte)((addr>>8) & 0x3F) |
-                                (inByteCode ? 0x40 : 0) |
-                                ((fixupType == 0x91) ? 0x80 : 0))
-            newFixup.add((byte)(addr & 0xFF))
+            // And record the fixup (no need to record ext fixups - they're absolute starting at $1000)
+            if (fixupType != 0x91) {
+                assert addr >= 0 && addr <= 0x3FFF : "code module too big"
+                newFixup.add((byte)((addr>>8) & 0x3F) |
+                                    (inByteCode ? 0x40 : 0) |
+                                    ((fixupType == 0x91) ? 0x80 : 0))
+                newFixup.add((byte)(addr & 0xFF))
+            }
         }
         newFixup.add((byte)0xFF)
 
@@ -3883,9 +3886,8 @@ end
                 if (!text || text == "") // interpret lack of text as a single empty string
                     chunks = [""]
                 chunks.eachWithIndex { chunk, idx ->
-                    outIndented((idx == chunks.size()-1 && blk.@type == 'text_println') ? \
-                        'scriptDisplayStrNL(' : 'scriptDisplayStr(')
-                    out << escapeString(chunk) << ")\n"
+                    String str = (idx == chunks.size()-1 && blk.@type == 'text_println') ? chunk+"\\n" : chunk
+                    outIndented("scriptDisplayStr(" + escapeString(str) + ")\n")
                     // Workaround for strings filling up the frame stack
                     outIndented("tossStrings()\n")
                 }

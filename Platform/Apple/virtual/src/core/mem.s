@@ -14,7 +14,7 @@
 ;
 ; See detailed description in mem.i
 
-* = $4000			; PLASMA loader loads us initially at $2000
+* = $4000			; PLASMA loader loads us initially at $4000
 
 ; Use hi-bit ASCII for Apple II
 !convtab "../include/hiBitAscii.ct"
@@ -27,8 +27,8 @@
 ; Constants
 MAX_SEGS	= 96
 
-DEBUG		= 0
-SANITY_CHECK	= 0		; also prints out request data
+DEBUG		= 1
+SANITY_CHECK	= 1		; also prints out request data
 
 ; Zero page temporary variables
 tmp		= $2	; len 2
@@ -318,8 +318,8 @@ init: !zone
 ;------------------------------------------------------------------------------
 ; Vectors and debug support code - these go in low memory at $800
 loMemBegin: !pseudopc $800 {
-	jmp j_main_dispatch
-	jmp j_aux_dispatch
+	jmp __main_dispatch
+	jmp __aux_dispatch
 	jmp __asmPlasmNoRet
 	jmp __asmPlasmRet
 
@@ -343,17 +343,14 @@ loMemBegin: !pseudopc $800 {
 _fixedRTS:
 	rts			; fixed place to find RTS, for setting V flag
 
-j_main_dispatch:
+__aux_dispatch:
+	sec
+	!byte $24		; skip over next byte
+__main_dispatch:
+	clc
 	bit setLcRW+lcBank1	; switch in mem mgr
 	bit setLcRW+lcBank1
-	jsr main_dispatch
-	bit setLcRW+lcBank2	; back to PLASMA
-	rts
-
-j_aux_dispatch:
-	bit setLcRW+lcBank1	; switch in mem mgr
-	bit setLcRW+lcBank1
-	jsr aux_dispatch
+	jsr dispatch
 	bit setLcRW+lcBank2	; back to PLASMA
 	rts
 
@@ -1286,13 +1283,12 @@ scanForAvail: !zone
 
 ;------------------------------------------------------------------------------
 main_dispatch: !zone
-+	pha
-	lda #0
-	beq .go
-aux_dispatch:
+	clc
+dispatch:
 	pha
-	lda #1
-.go	sta isAuxCmd
+	lda #0
+	rol		; transfer carry bit
+	sta isAuxCmd	; to isAuxCmd
 	pla
 !if SANITY_CHECK { jsr saneStart : jsr + : jmp saneEnd }
 +	cmp #REQUEST_MEMORY
@@ -1855,11 +1851,13 @@ mem_queueLoad: !zone
 	lda #QUEUE_LOAD
 	ldx #RES_TYPE_BYTECODE
 	ldy resNum
-	jsr aux_dispatch	; load the aux mem part (the bytecode)
+	sec
+	jsr dispatch		; load the aux mem part (the bytecode)
 	lda #QUEUE_LOAD
 	ldx #RES_TYPE_FIXUP	; queue loading of the fixup resource
 	ldy resNum
-	jsr aux_dispatch
+	sec
+	jsr dispatch
 .modRet ldx #11			; all done; return address of the main memory block.
 	ldy #22
 	rts

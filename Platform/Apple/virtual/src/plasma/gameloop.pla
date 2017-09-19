@@ -184,18 +184,29 @@ magic       = $2227 ; there are 2048 magic values that work; this one caught my 
 ;
 ; So don't JMP to labels, declare any variables as !byte or !word here, etc. without
 ; accounting for that.
-ABS_OFFSET = (_DEFCNT*5) - 11
+ABS_OFFSET = (_DEFCNT*5) - 13
 
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Temporary hack: after scriptDisplayStr is called, generated code calls this to clear the PLASMA
-// string pool. That way, many long strings can be used in a single function.
-export asm tossStrings()#0
+// After scriptDisplayStr is called, we clear the PLASMA string pool. That way, many long strings
+// can be used in a single function.
+export asm scriptDisplayStr(str)#0
+  lda .callScriptDisplay + ABS_OFFSET + 2    ; first time init?
+  beq +
+.callScriptDisplay
+  jsr 0     ; self-modified below
   lda framePtr
   sta outerFramePtr
   lda framePtr+1
   sta outerFramePtr+1
+  rts
++ ; first-time init
+  lda evalStkL,x
+  sta .callScriptDisplay + ABS_OFFSET + 1
+  lda evalStkH,x
+  sta .callScriptDisplay + ABS_OFFSET + 2
+  inx
   rts
 end
 
@@ -2201,7 +2212,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Called by scripts to display a string. We set the flag noting that something has been
 // displayed, then use an assembly routine to do the work.
-export def scriptDisplayStr(str)#0
+export def _scriptDisplayStr(str)#0
   if pIntimate
     pIntimate=>intimate_displayStr(str)
   else
@@ -3168,6 +3179,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Main code.
 //
+scriptDisplayStr(@_scriptDisplayStr) // 1-time init
 loadTitle()
 startGame(TRUE) // ask whether new or load
 kbdLoop()

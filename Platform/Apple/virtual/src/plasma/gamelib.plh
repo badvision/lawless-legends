@@ -136,7 +136,6 @@ import gamelib
   predef sum(p, sel, func)#1
   predef takeItemFromParty(itemName)#0
   predef textHome()#0
-  predef tossStrings()#0
   predef trueFunc()#1
   predef unbenchPlayer()#0
 

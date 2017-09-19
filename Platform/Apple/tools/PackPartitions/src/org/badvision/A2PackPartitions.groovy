@@ -3888,8 +3888,6 @@ end
                 chunks.eachWithIndex { chunk, idx ->
                     String str = (idx == chunks.size()-1 && blk.@type == 'text_println') ? chunk+"\\n" : chunk
                     outIndented("scriptDisplayStr(" + escapeString(str) + ")\n")
-                    // Workaround for strings filling up the frame stack
-                    outIndented("tossStrings()\n")
                 }
             }
             else {

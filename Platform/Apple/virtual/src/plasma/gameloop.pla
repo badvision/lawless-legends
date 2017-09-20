@@ -178,13 +178,16 @@ ysav1       = $35
 seed        = $4E
 magic       = $2227 ; there are 2048 magic values that work; this one caught my eye. - MH
 
+; Yes, needs to be adjusted 3 places.
+expandVec   = $800
+
 ; NOTE ABOUT ABSOLUTE CODE ADDRESSING (e.g. STA .var, JMP .label, etc.)
 ; We cannot use it: this code will be preceded by stubs for the PLASMA routines, hence
 ; absolute addressing must be done carefully, adding ABS_OFFSET below.
 ;
 ; So don't JMP to labels, declare any variables as !byte or !word here, etc. without
 ; accounting for that.
-ABS_OFFSET = (_DEFCNT*5) - 13
+ABS_OFFSET = (_DEFCNT*5) - 13 ; 13 for plasma's module header (stripped by packer)
 
 end
 
@@ -343,56 +346,42 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 asm readAuxByte(ptr)#1
   +asmPlasmRet 1
-
-  ; Create the following subroutine, used to copy one char from aux to main:
-  ;0010-   8D 03 C0    STA   $C003
-  ;0013-   AD XX XX    LDA   $XXXX
-  ;0016-   8D 02 C0    STA   $C002
-  ;0019-   60          RTS
-
-  sta $14
-  sty $15
-  lda #$8D
-  sta $10
-  sta $16
-  ldx #2
-  stx $17
-  inx
-  stx $11
-  lda #$C0
-  sta $12
-  sta $18
-  lda #$AD
-  sta $13
-  lda #$60
-  sta $19
-
-  ; And call the routine
-  ldy #0
+  sta pTmp
+  sty pTmp+1
+  ldy #12
+- lda .rdauxb-1+ABS_OFFSET, y
+  sta $10-1,y
+  dey
+  bne -
   jmp $10
+.rdauxb
+  sei     ; prevent interrupts while in aux mem
+  sta setAuxRd
+  lda (pTmp),y
+  sta clrAuxRd
+  cli
+  rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-asm splitExpander(expandVec)#1   // param: expandVec; returns: remaining lo-aux size
-  +asmPlasmRet 1
-
-  ; assumes readAuxByte has just been called, which puts a little routine at $10.
-  ; Adjust that routine to call expander instead of reading a byte.
-  sta $1B
-  sty $1C
-  lda #$6C
-  sta $1A
-  lda #$20
-  sta $13
-
-  lda #$60
-  sta 2
-  jsr 2
-
+asm splitExpander()#1   // param: expandVec; returns: remaining lo-aux size
+  +asmPlasmRet 0
+  ldy #14
+- lda .splitexp+ABS_OFFSET,y
+  sta $10,y
+  dey
+  bpl -
+  jmp $10
+.splitexp
+!pseudopc $10 {
   sei     ; prevent interrupts while in aux mem
-  jsr $10
+  sta setAuxRd
+  jsr +
+  sta clrAuxRd
   cli
   rts
++ jmp (expandVec)
+}
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -527,39 +516,11 @@ asm blit(isAux, srcData, dstScreenPtr, nLines, lineSize)#0
   lda evalStkL+4,x
   lsr                 ; to carry bit
   bcc +
-  ; If reading from aux, create the following subroutine:
-  ; 0010-   8D 03 C0    STA   $C003
-  ; 0013-   B1 02       LDA   ($02),Y
-  ; 0015-   91 04       STA   ($04),Y
-  ; 0017-   88          DEY
-  ; 0018-   10 F9       BPL   $0013
-  ; 001A-   8D 02 C0    STA   $C002
-  ; 001D-   60          RTS
-  lda #$8D
-  sta $10
-  sta $1A
-  ldx #2
-  stx $14
-  stx $1B
-  inx
-  stx $11
-  lda #$C0
-  sta $12
-  sta $1C
-  lda #$B1
-  sta $13
-  lda #$91
-  sta $15
-  inx
-  stx $16
-  lda #$88
-  sta $17
-  lda #$10
-  sta $18
-  lda #$F9
-  sta $19
-  lda #$60
-  sta $1D
+  ldy #15       ; put aux copy routine in zero page
+- lda .cpaux + ABS_OFFSET,y
+  sta $10,y
+  dey
+  bpl -
 + pla       ; get line count
   tax
 --
@@ -585,6 +546,16 @@ asm blit(isAux, srcData, dstScreenPtr, nLines, lineSize)#0
   plp
   dex
   bne --     ; Loop until we've done all rows.
+  rts
+.cpaux
+  sei        ; avoid interrupts while reading aux
+  sta setAuxRd
+- lda (tmp),y
+  sta (pTmp),y
+  dey
+  bpl -
+  sta clrAuxRd
+  cli
   rts
 end
 
@@ -763,26 +734,24 @@ end
 // Send a command to the memory manager
 export asm mmgr(cmd, wordParam)#1
   +asmPlasmRet 2
+  jsr .setmmgr+ABS_OFFSET
+  jsr mainLoader          ; ret value in X=lo/Y=hi
+  txa                     ;    to A=lo/Y=hi for asmPlasm
+  rts
+.setmmgr
   lda evalStkL+1,x        ; command code
   pha
   ldy evalStkH,x          ; address (or other param)... hi byte in Y
   lda evalStkL,x
   tax                     ;     ...lo byte in X
   pla
-  jsr mainLoader          ; ret value in X=lo/Y=hi
-  txa                     ;    to A=lo/Y=hi for asmPlasm
   rts
 end
 
 // Aux version of memory manager command
 export asm auxMmgr(cmd, wordParam)#1
   +asmPlasmRet 2
-  lda evalStkL+1,x        ; command code
-  pha
-  ldy evalStkH,x          ; address (or other param)
-  lda evalStkL,x
-  tax
-  pla
+  jsr .setmmgr+ABS_OFFSET
   jsr auxLoader           ; ret value in X=lo/Y=hi
   txa                     ;    to A=lo/Y=hi for asmPlasm
   rts
@@ -1352,46 +1321,16 @@ export def encodeDice(nDice, dieSize, add)#1  // ndice=0..15, dieSize=0..15, add
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def rollDiceWithLuck(encoded, luck)#1
-  byte i, nDice, dieSize, add, droll, result
+export def rollDice(encoded)#1
+  byte nDice, dieSize
+  word result
   nDice = (encoded >> 12) & $F  // must mask off replicated hi-bits
   dieSize = (encoded >> 8) & $F
-  add = encoded & $F
-  result = add
-  for i = 1 to nDice
-    droll = (rand16() % dieSize) + 1
-    if luck > 0
-      if (rand16() % 100) < (luck * 2)
-        droll = max(droll, (rand16() % dieSize) + 1)
-      fin
-    elsif luck < 0
-      if (rand16() % 100) < (luck * -2)
-        droll = min(droll, (rand16() % dieSize) + 1)
-      fin
-    fin
-    result = result + droll
-  next
-  return result
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-export def rollDice(encoded)#1
-  return rollDiceWithLuck(encoded, 0)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-export def rollPercentileWithLuck(luck)#1
-  byte result
-  result = rand16() % 100
-  if luck > 0
-    if (rand16() % 100) < (luck * 2)
-      result = max(result, rand16() % 100)
-    fin
-  elsif luck < 0
-    if (rand16() % 100) < (luck * -2)
-      result = min(result, rand16() % 100)
-    fin
-  fin
+  result = encoded & $F // initial add
+  while nDice
+    result = result + (rand16() % dieSize) + 1
+    nDice--
+  loop
   return result
 end
 
@@ -1577,15 +1516,15 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Clear map window, then set a text area within it.
 export def useMapWindow()#0
+  byte bottom1, bottom2
   if frameLoaded == 3  // don't check mapIs3D, since we might be in an engine
-    setWindow(24, 154, 14, 140) // Top, Bottom, Left, Right
-    clearWindow()
-    setWindow(24, 150, 14, 140) // Top, Bottom, Left, Right
+    bottom1 = 154; bottom2 = 150
   else
-    setWindow(24, 169, 14, 140) // Top, Bottom, Left, Right
-    clearWindow()
-    setWindow(24, 168, 14, 140) // Top, Bottom, Left, Right
+    bottom1 = 169; bottom2 = 168
   fin
+  setWindow(24, bottom1, 14, 140) // Top, Bottom, Left, Right
+  clearWindow()
+  setWindow(24, bottom2, 14, 140) // Top, Bottom, Left, Right
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2172,9 +2111,7 @@ export def showMapName(mapName)#0
   if newNameHash <> mapNameHash
     setWindow1()
     clearWindow()
-    displayChar('Y'-$40) // center mode
-    displayStr(mapName)
-    displayChar('N'-$40) // normal mode
+    rawDisplayf1("^Y%s^N", mapName)
     if mapIs3D and texturesLoaded; copyWindow(); fin
     mapNameHash = newNameHash
   fin
@@ -2201,9 +2138,7 @@ export def setScriptInfo(mapName, trigTbl, wdt, hgt)#0
   showMapName(mapName)
 
   // Get ready for new encounter zones
-  if allowZoneInit
-    global=>p_encounterZones = NULL
-  fin
+  if allowZoneInit; global=>p_encounterZones = NULL; fin
 
   // Back to the main text window.
   setWindow2()
@@ -2221,7 +2156,6 @@ export def _scriptDisplayStr(str)#0
     displayStr(str)
     textDrawn = TRUE
   fin
-  // No: tossString()  // Doesn't work here, because we need to toss strings in the *parent's* frame
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2254,13 +2188,14 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Show the current animation frame
 def showAnimFrame()#0
+  byte top
   if curPortrait
     // Blit portrait to the appropriate area on the screen
+    top = 32   // start at 4th text line in 2D
     if frameLoaded == 3  // 3D-mode frame? Note: don't check mapIs3D, because we might be in an engine
-      blit(1, curPortrait + 2, getScreenLine(24)+2, 128, 18)  // start at 3rd text line
-    else
-      blit(1, curPortrait + 2, getScreenLine(32)+2, 128, 18)  // start at 4th text line
+      top = 24 // start at 4th text line in 3D
     fin
+    blit(1, curPortrait + 2, getScreenLine(top)+2, 128, 18)
     needRender = FALSE  // suppress display of map for this frame
   elsif curFullscreenImg
     blit(1, curFullscreenImg + 2, getScreenLine(0), 192, 40) // the +2 is to skip anim hdr offset
@@ -2759,8 +2694,7 @@ def loadTitle()#0
   mmgr(FREE_MEMORY, pFont)
 
   // Split the expander (relocating most of it to aux LC ram)
-  readAuxByte($1A)  // sets up aux routine
-  expanderSize = splitExpander(expandVec)
+  expanderSize = splitExpander()
 
   // Lock in the part of the expander that remains in low aux mem.
   auxMmgr(FREE_MEMORY, expandVec)
@@ -2789,7 +2723,7 @@ export def initHeap(loadedSize)#0
     heapLocked = TRUE
   fin
 
-  if loadedSize <> 0
+  if loadedSize
     mmgr(SET_MEM_TARGET, HEAP_BOTTOM + loadedSize)
   fin
   mmgr(HEAP_SET,       HEAP_BOTTOM)
@@ -2798,7 +2732,7 @@ export def initHeap(loadedSize)#0
     mmgr(HEAP_ADD_TYPE, typeTbls[i])
     i = i+1
   loop
-  if loadedSize <> 0
+  if loadedSize
     global = HEAP_BOTTOM
   else
     global = mmgr(HEAP_ALLOC, TYPE_GLOBAL)

@@ -54,6 +54,46 @@ def freePreloaded()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def rollDiceWithLuck(encoded, luck)#1
+  byte nDice, dieSize, droll
+  word result
+  nDice = (encoded >> 12) & $F  // must mask off replicated hi-bits
+  dieSize = (encoded >> 8) & $F
+  result = encoded & $F
+  while nDice
+    droll = (rand16() % dieSize) + 1
+    if luck > 0
+      if (rand16() % 100) < (luck * 2)
+        droll = max(droll, (rand16() % dieSize) + 1)
+      fin
+    elsif luck < 0
+      if (rand16() % 100) < (luck * -2)
+        droll = min(droll, (rand16() % dieSize) + 1)
+      fin
+    fin
+    result = result + droll
+    nDice--
+  loop
+  return result
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def rollPercentileWithLuck(luck)#1
+  byte result
+  result = rand16() % 100
+  if luck > 0
+    if (rand16() % 100) < (luck * 2)
+      result = max(result, rand16() % 100)
+    fin
+  elsif luck < 0
+    if (rand16() % 100) < (luck * -2)
+      result = min(result, rand16() % 100)
+    fin
+  fin
+  return result
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def combatPause()#0
   byte key
 

@@ -101,8 +101,6 @@ import gamelib
   predef rightJustifyNum(num, rightX)#0
   predef rightJustifyStr(str, rightX)#0
   predef rollDice(encoded)#1
-  predef rollDiceWithLuck(encoded, luck)#1
-  predef rollPercentileWithLuck(luck)#1
   predef roomInPack(p_player)#1
   predef scanForNamedObj(p_obj, name)#1
   predef scriptCombat(mapCode)#1

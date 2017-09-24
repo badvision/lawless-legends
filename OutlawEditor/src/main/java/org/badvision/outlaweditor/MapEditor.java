@@ -1,10 +1,10 @@
 /*
- * Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1 
+ * Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1
  * (the "License"); you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-1.1>.
- * Unless required by applicable law or agreed to in writing, software distributed under 
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF 
- * ANY KIND, either express or implied. See the License for the specific language 
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+ * ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
 package org.badvision.outlaweditor;
@@ -44,6 +44,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.paint.Paint;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
+import javax.xml.bind.JAXBException;
 import org.badvision.outlaweditor.api.ApplicationState;
 import org.badvision.outlaweditor.data.TileMap;
 import org.badvision.outlaweditor.data.TileUtils;
@@ -95,7 +96,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     public DrawMode getDrawMode() {
         return drawMode;
     }
-    
+
     @Override
     public void setDrawMode(DrawMode drawMode) {
         this.drawMode = drawMode;
@@ -181,15 +182,15 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     }
 
     Script selectedScript = null;
-    
+
     public void setSelectedScript(Script script) {
         selectedScript = script;
-    }    
-    
+    }
+
     public Script getSelectedScript() {
         return selectedScript;
     }
-    
+
     private void drawScript(double x, double y, Script script) {
         if (script != null) {
             getCurrentMap().putLocationScript((int) x, (int) y, script);
@@ -198,7 +199,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         }
         redraw();
     }
-    
+
     public void assignScript(Script script, double x, double y) {
         int xx = (int) (x / tileWidth) + posX;
         int yy = (int) (y / tileHeight) + posY;
@@ -210,6 +211,11 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         int xx = (int) (x / tileWidth) + posX;
         int yy = (int) (y / tileHeight) + posY;
         getCurrentMap().removeLocationScripts(xx, yy);
+        redraw();
+    }
+
+    public void clearScriptTriggers(Script s) {
+        getCurrentMap().clearScriptTriggersFromMap(s);
         redraw();
     }
 
@@ -485,6 +491,14 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         stage.show();
     }
 
+    public void copyScript(Script s) {
+        java.util.Map<DataFormat, Object> clip = new HashMap<>();
+        clip.put(DataFormat.PLAIN_TEXT, "selection/map/" + 
+            ApplicationState.getInstance().getGameData().getMap().indexOf(getEntity()) + 
+            "/script/" + getEntity().getScripts().getScript().indexOf(s));
+        Clipboard.getSystemClipboard().setContent(clip);
+    }
+
     @Override
     public void copy() {
         byte[] data = getCurrentPlatform().imageRenderer.renderPreview(currentMap, posX, posY, getCurrentPlatform().maxImageWidth, getCurrentPlatform().maxImageHeight);
@@ -510,22 +524,37 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         if (Clipboard.getSystemClipboard().hasContent(DataFormat.PLAIN_TEXT)) {
             String clipboardInfo = (String) Clipboard.getSystemClipboard().getContent(DataFormat.PLAIN_TEXT);
             java.util.Map<String, Integer> selection = TransferHelper.getSelectionDetails(clipboardInfo);
-            if (selection.containsKey("map")) {
-                trackState();
+            if (selection.containsKey("script")) {
                 Map sourceMap = ApplicationState.getInstance().getGameData().getMap().get(selection.get("map"));
-                TileMap source = getCurrentMap();
-                if (!sourceMap.equals(getCurrentMap().getBackingMap())) {
-                    source = new TileMap(sourceMap);
-                } else {
-                    source.updateBackingMap();
+                Script sourceScript = sourceMap.getScripts().getScript().get(selection.get("script"));
+                try {
+                    Script cloneScript = TransferHelper.cloneObject(sourceScript, Script.class, "script");
+                    if (sourceMap.equals(getEntity())) {
+                        cloneScript.setName(cloneScript.getName() + " CLONE");
+                    }
+                    addScript(cloneScript);
+                    ApplicationState.getInstance().getApplicationUI().redrawScripts();
+                } catch (JAXBException ex) {
+                    Logger.getLogger(MapEditor.class.getName()).log(Level.SEVERE, null, ex);
                 }
-                int height = selection.get("y2") - selection.get("y1");
-                int width = selection.get("x2") - selection.get("x1");
-                int x1 = selection.get("x1");
-                int y1 = selection.get("y1");
-                for (int y = 0; y < height; y++) {
-                    for (int x = 0; x < width; x++) {
-                        plot(x + lastX, y + lastY, source.get(x + x1, y + y1));
+            } else {
+                if (selection.containsKey("map")) {
+                    trackState();
+                    Map sourceMap = ApplicationState.getInstance().getGameData().getMap().get(selection.get("map"));
+                    TileMap source = getCurrentMap();
+                    if (!sourceMap.equals(getCurrentMap().getBackingMap())) {
+                        source = new TileMap(sourceMap);
+                    } else {
+                        source.updateBackingMap();
+                    }
+                    int height = selection.get("y2") - selection.get("y1");
+                    int width = selection.get("x2") - selection.get("x1");
+                    int x1 = selection.get("x1");
+                    int y1 = selection.get("y1");
+                    for (int y = 0; y < height; y++) {
+                        for (int x = 0; x < width; x++) {
+                            plot(x + lastX, y + lastY, source.get(x + x1, y + y1));
+                        }
                     }
                 }
             }
@@ -659,10 +688,10 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         selectRect.setWidth(maxX - minX);
         selectRect.setHeight(maxY - minY);
         setSelectionArea(
-                (int) (minX / tileWidth + posX),
-                (int) (minY / tileHeight + posY),
-                (int) (maxX / tileWidth + posX),
-                (int) (maxY / tileHeight + posY)
+            (int) (minX / tileWidth + posX),
+            (int) (minY / tileHeight + posY),
+            (int) (maxX / tileWidth + posX),
+            (int) (maxY / tileHeight + posY)
         );
     }
 

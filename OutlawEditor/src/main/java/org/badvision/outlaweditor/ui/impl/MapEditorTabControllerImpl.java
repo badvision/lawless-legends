@@ -1,23 +1,22 @@
 /*
- * Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1 
+ * Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1
  * (the "License"); you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-1.1>.
- * Unless required by applicable law or agreed to in writing, software distributed under 
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF 
- * ANY KIND, either express or implied. See the License for the specific language 
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+ * ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
 package org.badvision.outlaweditor.ui.impl;
 
 import java.util.HashMap;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.event.ActionEvent;
-import javafx.scene.control.ListCell;
-import javafx.scene.control.ListView;
-import javafx.scene.control.Menu;
-import javafx.scene.control.RadioMenuItem;
-import javafx.scene.control.ToggleGroup;
+import javafx.scene.control.*;
 import javafx.scene.control.cell.ComboBoxListCell;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -94,14 +93,14 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
             getCurrentEditor().setDrawMode(MapEditor.DrawMode.ScriptPencil);
         }
     }
-    
+
     @Override
     public void mapScriptErasor(ActionEvent event) {
         if (getCurrentEditor() != null) {
             getCurrentEditor().setDrawMode(MapEditor.DrawMode.ScriptEraser);
         }
     }
-    
+
     @Override
     public void mapTogglePanZoom(ActionEvent event) {
         if (getCurrentEditor() != null) {
@@ -218,17 +217,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
     @Override
     public void onMapScriptDeletePressed(ActionEvent event) {
         Script script = mapScriptsList.getSelectionModel().getSelectedItem();
-        if (script != null) {
-            UIAction.confirm(
-                    "Are you sure you want to delete the script "
-                    + script.getName()
-                    + "?  There is no undo for this!",
-                    () -> {
-                        getCurrentEditor().removeScript(script);
-                        redrawMapScripts();
-                    },
-                    null);
-        }
+        deleteScript(script);
     }
 
     @Override
@@ -322,7 +311,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
                 //bind(mapDisplay3dField.selectedProperty(), boolProp(m, "display3d"));
             } catch (NoSuchMethodException ex) {
                 Logger.getLogger(ApplicationUIControllerImpl.class
-                        .getName()).log(Level.SEVERE, null, ex);
+                    .getName()).log(Level.SEVERE, null, ex);
             }
             MapEditor e = new MapEditor();
             e.setEntity(m);
@@ -334,8 +323,8 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
             }
         }
         if (getCurrentEditor() != null) {
-            cursorInfo.textProperty().bind(getCurrentEditor().cursorInfoProperty());            
-        } else {            
+            cursorInfo.textProperty().bind(getCurrentEditor().cursorInfoProperty());
+        } else {
             cursorInfo.textProperty().unbind();
             cursorInfo.setText("");
         }
@@ -378,9 +367,9 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
         toolDragDrop.registerDragSupport(scriptEraseTool, ToolType.ERASER);
         mapScriptsList.getSelectionModel().selectedItemProperty().addListener((val, oldValue, newValue) -> {
             if (getCurrentEditor() != null) {
-                if (newValue == null && 
-                        getCurrentEditor().getDrawMode() == MapEditor.DrawMode.ScriptPencil && 
-                        getCurrentEditor().getSelectedScript() != null) {
+                if (newValue == null
+                    && getCurrentEditor().getDrawMode() == MapEditor.DrawMode.ScriptPencil
+                    && getCurrentEditor().getSelectedScript() != null) {
                     mapScriptsList.getSelectionModel().select(oldValue);
                 } else {
                     getCurrentEditor().setSelectedScript(newValue);
@@ -446,6 +435,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText("");
+                    setContextMenu(null);
                 } else {
                     ImageView visibleIcon = getVisibleIcon(item);
                     visibleIcon.setOnMouseClicked((e) -> {
@@ -458,6 +448,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
                     setFont(Font.font(null, FontWeight.BOLD, 12.0));
                     scriptDragDrop.registerDragSupport(this, item);
                     visibleIcon.setMouseTransparent(false);
+                    setContextMenu(generateContextMenu(item));
                 }
             }
         });
@@ -468,6 +459,53 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
             mapScriptsList.getItems().setAll(getCurrentMap().getScripts().getScript());
         } else {
             mapScriptsList.getItems().clear();
+        }
+    }
+
+    private ContextMenu generateContextMenu(Script script) {
+        ContextMenu menu = new ContextMenu(
+            createMenuItem("Copy", script, s -> copyScript(s)),
+            createMenuItem("Clear from map", script, s -> clearScriptTriggersFromMap(s)),
+            createMenuItem("Delete", script, s -> deleteScript(s))
+        );
+        return menu;
+    }
+
+    private <T> MenuItem createMenuItem(String title, T selection, Consumer<T> action) {
+        MenuItem item = new MenuItem(title);
+        item.setOnAction(e -> action.accept(selection));
+        return item;
+    }
+
+    private void clearScriptTriggersFromMap(Script s) {
+        if (s != null) {
+            UIAction.confirm(
+                "This will remove all tile assignments for "
+                + s.getName()
+                + ".  There is no undo for this!  Are you sure?",
+                () -> {
+                    getCurrentEditor().clearScriptTriggers(s);
+                    redrawMapScripts();
+                },
+                null);
+        }
+    }
+
+    private void copyScript(Script s) {
+        getCurrentEditor().copyScript(s);
+    }
+
+    private void deleteScript(Script s) {
+        if (s != null) {
+            UIAction.confirm(
+                "Are you sure you want to delete the script "
+                + s.getName()
+                + "?  There is no undo for this!",
+                () -> {
+                    getCurrentEditor().removeScript(s);
+                    redrawMapScripts();
+                },
+                null);
         }
     }
 

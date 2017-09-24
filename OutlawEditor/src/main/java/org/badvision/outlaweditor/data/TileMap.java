@@ -225,11 +225,15 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
         return tileId.equalsIgnoreCase(NULL_TILE_ID);
     }
 
-    public void removeScriptFromMap(Script script) {
+    public void clearScriptTriggersFromMap(Script script) {
         script.getLocationTrigger().clear();
         locationScripts.values().stream().filter((scripts) -> !(scripts == null)).forEach((scripts) -> {
             scripts.remove(script);
         });
+    }
+
+    public void removeScriptFromMap(Script script) {
+        clearScriptTriggersFromMap(script);
         backingMap.getScripts().getScript().remove(script);
     }
 }

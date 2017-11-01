@@ -707,21 +707,19 @@ end
 // No sequence, just waste time and yield
 //
 def noSequence(yield, func)#0
-    word yieldTime
-
     //
-    // Start sequencing
+    // Start wasting time
     //
-    if yield and func
-        yieldTime = seqTime + yield
-    else
-        yieldTime = $7FFF
+    if !yield or !func
+        yield = 0
     fin
+    seqTime = 0
     repeat
         seqTime++
+        if seqTime < 0; seqTime = 1; fin // Capture wrap-around
         spkrTone(0, DUR16TH) // Waste 16th of a second playing silence
         if ^$C000 > 127; return; fin
-        if yieldTime <= seqTime; func()#0; yieldTime = seqTime + yield; fin
+        if yield == seqTime; func()#0; seqTime = 0; fin
     until FALSE
 end
 //

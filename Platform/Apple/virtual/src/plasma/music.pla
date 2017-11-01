@@ -717,6 +717,7 @@ def noSequence(yield, func)#0
     repeat
         seqTime++
         if seqTime < 0; seqTime = 1; fin // Capture wrap-around
+        *rndseed++
         spkrTone(0, DUR16TH) // Waste 16th of a second playing silence
         if ^$C000 > 127; return; fin
         if yield == seqTime; func()#0; seqTime = 0; fin

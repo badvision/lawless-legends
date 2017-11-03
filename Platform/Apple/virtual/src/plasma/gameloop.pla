@@ -262,26 +262,25 @@ export asm memcpy(pSrc, pDst, len)#0
   sta pTmp
   lda evalStkH+1,x
   sta pTmp+1
-  lda evalStkH,x      ; len hi
-  pha
   lda evalStkL,x      ; len lo
+  ldy evalStkH,x      ; len hi
+  beq .part
+  pha
+  tya
   tax
   ldy #0
 .pglup:
-  pla
-  sec
-  sbc #1
-  bcc .part
-  pha
 - lda (tmp),y
   sta (pTmp),y
   iny
   bne -
   inc tmp+1
   inc pTmp+1
-  bne .pglup          ; always taken
+  dex
+  bne .pglup
+  pla
 .part:
-  cpx #0
+  tax
   beq .done
 - lda (tmp),y
   sta (pTmp),y
@@ -295,7 +294,6 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export asm memset(pDst, val, len)#0
   +asmPlasmNoRet 3
-  ldy #0
   lda evalStkL+2,x    ; dest ptr
   sta pTmp
   lda evalStkH+2,x
@@ -303,10 +301,12 @@ export asm memset(pDst, val, len)#0
   lda evalStkL+1,x    ; value
   sta tmp
   lda evalStkL,x      ; len lo
-  pha
-  lda evalStkH,x      ; len hi
-  tax
+  ldy evalStkH,x      ; len hi
   beq +
+  pha
+  tya
+  tax
+  ldy #0
   lda tmp
 - sta (pTmp),y
   iny
@@ -314,9 +314,9 @@ export asm memset(pDst, val, len)#0
   inc pTmp+1
   dex
   bne -
-+ pla
+  pla
++ tax
   beq +
-  tax
   lda tmp
 - sta (pTmp),y
   iny
@@ -347,9 +347,9 @@ asm readAuxByte(ptr)#1
   lda #$C0
   sta $12
   sta $18
-  lda #$AD
-  sta $13
-  lda #$60
+  ldx #$AD
+  stx $13
+  lsr
   sta $19
 
   ; And call the routine
@@ -531,19 +531,19 @@ asm blit(isAux, srcData, dstScreenPtr, nLines, lineSize)#0
   lda #$C0
   sta $12
   sta $1C
-  lda #$B1
-  sta $13
-  lda #$91
-  sta $15
+  ldy #$B1
+  sty $13
+  ldy #$91
+  sty $15
   inx
   stx $16
-  lda #$88
-  sta $17
-  lda #$10
-  sta $18
-  lda #$F9
-  sta $19
-  lda #$60
+  ldy #$88
+  sty $17
+  ldy #$10
+  sty $18
+  ldy #$F9
+  sty $19
+  lsr
   sta $1D
 + pla       ; get line count
   tax
@@ -644,19 +644,19 @@ end
 export asm puts(str)#0
   +asmPlasmNoRet 1
   sta pTmp
+  sty pTmp+1
   lda #'!'
   ldx #1
-  sty pTmp+1
-  beq +       ; safety: print '!' instead of null string
   ldy #0
+  cpy pTmp+1
+  beq +       ; safety: print '!' instead of null string
   lda (pTmp),y
   tax
   beq ++      ; handle empty string
-  iny
-- lda (pTmp),y
+- iny
+  lda (pTmp),y
 + ora #$80
   +safeCout
-  iny
   dex
   bne -
 ++ rts
@@ -689,13 +689,12 @@ asm partialPrintf(str, pos)#1
   beq .eos
   lda evalStkL,x      ; get desired offset into string
   tay
-  iny                 ; increment past length byte
-- lda (pTmp),y
+- iny                 ; increment past length byte
+  lda (pTmp),y
   ora #$80
   cmp #'%'            ; stop if we hit % code
   beq +
   +safeCout
-  iny
   dec tmp             ; otherwise go until end of string
   bne -
 .eos

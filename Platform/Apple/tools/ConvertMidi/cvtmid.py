@@ -6,9 +6,12 @@ import mido
 
 mid = mido.MidiFile(sys.argv[1])
 totaltime = 0
+perctime  = 0
 for msg in mid:
     if msg.type == 'note_on' or msg.type == 'note_off':
-        deltatime = int(msg.time * 16 + 0.5)
+        if msg.time > 0.0 and msg.time < 1.0/16.0:
+            msg.time = 1.0/16.0
+        deltatime = int(msg.time * 16)
         octave    = int(msg.note / 12 - 1)
         onote     = int(msg.note % 12)
         lrchan    = int(msg.channel & 1)
@@ -24,11 +27,12 @@ for msg in mid:
             #
             # Percussion
             #
-            if vol > 0 and deltatime > 0:
-                print '\t!BYTE\t${0:02X}, ${1:02X}, ${2:02X}'.format(deltatime, msg.note >> 3, 2)
+            if vol > 0 and (totaltime - perctime) > 4:
+                print '\t!BYTE\t${0:02X}, ${1:02X}, ${2:02X}\t; Percussion'.format(deltatime, msg.note >> 3, 2)
+                perctime = totaltime
         else:
             #
             # Note
             #
-            print '\t!BYTE\t${0:02X}, ${1:02X}, ${2:02X}'.format(deltatime, 0x80 | (octave << 4) | onote, (lrchan << 7) | vol)
+            print '\t!BYTE\t${0:02X}, ${1:02X}, ${2:02X}\t; Note {3:d} Chan {4:d} Vol {5:d}'.format(deltatime, 0x80 | (octave << 4) | onote, (lrchan << 7) | vol, msg.note, msg.channel, vol)
 print '\t!BYTE\t$00, $00, $00'

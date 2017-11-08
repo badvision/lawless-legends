@@ -89,7 +89,7 @@ word[5] arpeggioDuration = DUR16TH, DUR16TH, DUR16TH/2, DUR16TH/3, DUR16TH/4
 // These are utility sequences/routines needed to test the music sequencer code.
 //
 asm toneTrack
-include "ultima3.seq"
+include "test.seq"
 end
 asm putc(ch)#0
         LDA     ESTKL,X
@@ -477,17 +477,18 @@ def mbSequence(yield, func)#0
                 //
                 period = seqEvent->perchanvol
                 if period
-                    psgWrite(mbVIA1, MIXER,       $1C)   // NG on C, Tone on B, A
-                    psgWrite(mbVIA1, CENVAMP,     $10)
-                    psgWrite(mbVIA1, NGFREQ,      note)
-                    psgWrite(mbVIA1, ENVPERIOD+1, period)
-                    psgWrite(mbVIA1, ENVSHAPE,    $00)   // Single decay
-                    if mbVIA2
+                    if (period & $80)
+                        psgWrite(mbVIA1, MIXER,       $1C)   // NG on C, Tone on B, A
+                        psgWrite(mbVIA1, CENVAMP,     $10)
+                        psgWrite(mbVIA1, ENVSHAPE,   (note >> 4) & $04)
+                        psgWrite(mbVIA1, NGFREQ,     (note >> 1) & $1F)
+                        psgWrite(mbVIA1, ENVPERIOD+1, period & $7F)
+                    elsif mbVIA2
                         psgWrite(mbVIA2, MIXER,       $1C)   // NG on C, Tone on B, A
                         psgWrite(mbVIA2, CENVAMP,     $10)
-                        psgWrite(mbVIA2, NGFREQ,      note)
+                        psgWrite(mbVIA2, ENVSHAPE,   (note >> 4) & $04)
+                        psgWrite(mbVIA2, NGFREQ,     (note >> 1) & $1F)
                         psgWrite(mbVIA2, ENVPERIOD+1, period)
-                        psgWrite(mbVIA2, ENVSHAPE,    $00)   // Single decay
                     fin
                 else
                     if seqRepeat
@@ -662,7 +663,7 @@ def spkrSequence(yield, func)#0
                 // Percussion event
                 //
                 if seqEvent->perchanvol
-                    spkrPWM($D000, 0, 64) // Play some random sample as percussion
+                    //spkrPWM($D000, 0, 64) // Play some random sample as percussion
                 else
                     if seqRepeat
                         musicPlay(seqTrack, TRUE)

@@ -104,6 +104,7 @@ class A2PackPartitions
     def nWarnings = 0
     def warningBuf = new StringBuilder()
 
+    def worldFileDir
     def binaryStubsOnly = false
     final int CACHE_VERSION = 1  // increment to force full rebuild
     def cache = ["version": CACHE_VERSION]
@@ -1589,7 +1590,7 @@ class A2PackPartitions
                         month == 10 ? 'n' :
                         'd'
         def hourCode = (char) (97 + hour) // 'a'=0, 'b'=1, etc.
-        def engineCode = String.format("%d%c%02d%c", yearCode, monthCode, day, hourCode)
+        def engineCode = String.format("%d%s%02d%c", yearCode, monthCode, day, hourCode)
 
         def offset = Math.max(-99, Math.min(99, (int) ((scenarioStamp - engineStamp) / (1000 * 60 * 60))))
         return String.format("%s%s%d", engineCode, offset < 0 ? "-" : ".", Math.abs(offset))
@@ -1801,6 +1802,8 @@ class A2PackPartitions
         def srcFile = new File(partial).getCanonicalFile()
         if (!srcFile.exists())
             srcFile = new File(srcFile.getName()) // try current directory
+        if (!srcFile.exists())
+            srcFile = new File(worldFileDir, srcFile.getName()) // try dir containing world.xml
         if (srcFile.exists()) {
             if (dstFile.exists()) {
                 if (srcFile.lastModified() == dstFile.lastModified())
@@ -3482,6 +3485,7 @@ end
                 // Create PLASMA headers
                 inst1 = new A2PackPartitions()
                 inst1.buildDir = buildDir
+                inst1.worldFileDir = xmlFile.getParentFile()
                 inst1.reportWriter = reportWriter
                 inst1.dataGen(xmlFile, dataIn)
 
@@ -3494,6 +3498,7 @@ end
                 inst2.nWarnings = inst1.nWarnings
                 inst2.resourceDeps = resourceDeps // inject partial deps
                 inst2.buildDir = buildDir
+                inst2.worldFileDir = xmlFile.getParentFile()
                 inst2.reportWriter = reportWriter
                 inst2.pack(xmlFile, dataIn)
 

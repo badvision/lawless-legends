@@ -1006,6 +1006,7 @@ class A2PackPartitions
         //println "Packing 3D map #$num named '$name': num=$num."
         withContext("map '$name'") {
             addResourceDep("map", name, "map3D", name)
+            addResourceDep("map", name, "tileSet", "tileSet_special")  // global tiles for clock, compass, etc.
             def rows = parseMap(mapEl, tileEls)
             def (scriptModule, locationsWithTriggers) = packScripts(mapEl, name, rows[0].size(), rows.size())
             def buf = ByteBuffer.allocate(50000)
@@ -1390,9 +1391,15 @@ class A2PackPartitions
 
         // If already on disk 1, don't duplicate.
         if (part1Chunks.containsKey(key)) {
-            if (DEBUG_TRACE_RESOURCES)
-                println "${("  " * rtraceLevel)} in part 1 already."
-            return 0
+            if (key[0] == "tileSet" || key[0] == "texture") {
+                if (DEBUG_TRACE_RESOURCES)
+                    println "${("  " * rtraceLevel)} must dupe ${key[0]}s."
+            }
+            else {
+                if (DEBUG_TRACE_RESOURCES)
+                    println "${("  " * rtraceLevel)} in part 1 already."
+                return 0
+            }
         }
 
         // Okay, we need to add it.
@@ -2144,7 +2151,7 @@ class A2PackPartitions
             if (type == "Code" && k.num > lastSysModule)
                 type = "Script"
             def name = k.name.replaceAll(/\s*-\s*[23][dD].*/, "")
-            def dataKey = [type:type, name:name]
+            def dataKey = [type:type, name:name, num:k.num]
             if (!data.containsKey(dataKey))
                 data[dataKey] = v
             else {
@@ -2173,8 +2180,8 @@ class A2PackPartitions
                 cSub = 0
                 ucSub = 0
             }
-            reportWriter.println String.format("  %-20s: %6.1fK memory, %6.1fK disk", 
-                k.name, v.uclen/1024.0, v.clen/1024.0)
+            reportWriter.println String.format("  %-20s: %6.1fK memory, %6.1fK disk (id %d)",
+                k.name, v.uclen/1024.0, v.clen/1024.0, k.num)
             cSub += v.clen
             cTot += v.clen
             ucSub += v.uclen

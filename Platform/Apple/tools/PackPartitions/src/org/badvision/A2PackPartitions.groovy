@@ -3492,7 +3492,7 @@ end
                 // Create PLASMA headers
                 inst1 = new A2PackPartitions()
                 inst1.buildDir = buildDir
-                inst1.worldFileDir = xmlFile.getParentFile()
+                inst1.worldFileDir = xmlFile.getAbsoluteFile().getParentFile()
                 inst1.reportWriter = reportWriter
                 inst1.dataGen(xmlFile, dataIn)
 
@@ -3505,7 +3505,7 @@ end
                 inst2.nWarnings = inst1.nWarnings
                 inst2.resourceDeps = resourceDeps // inject partial deps
                 inst2.buildDir = buildDir
-                inst2.worldFileDir = xmlFile.getParentFile()
+                inst2.worldFileDir = xmlFile.getAbsoluteFile().getParentFile()
                 inst2.reportWriter = reportWriter
                 inst2.pack(xmlFile, dataIn)
 

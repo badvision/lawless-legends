@@ -101,13 +101,10 @@ import gamelib
   predef rightJustifyNum(num, rightX)#0
   predef rightJustifyStr(str, rightX)#0
   predef rollDice(encoded)#1
-  predef rollDiceWithLuck(encoded, luck)#1
-  predef rollPercentileWithLuck(luck)#1
   predef roomInPack(p_player)#1
   predef scanForNamedObj(p_obj, name)#1
   predef scriptCombat(mapCode)#1
   predef scriptDisplayStr(str)#0
-  predef scriptDisplayStrNL(str)#0
   predef scriptEvent(event, param)#0
   predef scriptSetAvatar(avatarTileNum)#0
   predef scriptSwapTile(fromX, fromY, toX, toY)#0
@@ -137,7 +134,6 @@ import gamelib
   predef sum(p, sel, func)#1
   predef takeItemFromParty(itemName)#0
   predef textHome()#0
-  predef tossStrings()#0
   predef trueFunc()#1
   predef unbenchPlayer()#0
 

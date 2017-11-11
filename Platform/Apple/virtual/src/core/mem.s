@@ -14,7 +14,7 @@
 ;
 ; See detailed description in mem.i
 
-* = $4000			; PLASMA loader loads us initially at $2000
+* = $4000			; PLASMA loader loads us initially at $4000
 
 ; Use hi-bit ASCII for Apple II
 !convtab "../include/hiBitAscii.ct"
@@ -62,6 +62,8 @@ rwts_mark	= $18		; to reset seek ptr, zero out 4 bytes here
 proRWTS		= $D000
 
 ; Memory buffers
+plasmaFrames	= $E00	; 2 pages
+gameLoop	= $1000	; just after plasma frames
 unusedBuf	= $4000	; used to be for ProDOS file buf and a copy space, but no longer
 headerBuf 	= $4C00	; len $1400
 
@@ -208,7 +210,7 @@ init: !zone
 ; 1: aux  $0000 -> 2, active + locked
 ; 2: aux  $0800 -> 3, inactive			; TEMPORARY: until we figure out prob w aux screen holes
 ; 3: aux  $BFFD -> 0, active + locked
-; 4: main $0xxx -> 5, inactive (xxx = end of mem mgr low mem portion)
+; 4: main $1000 -> 5, inactive
 ; 5: main $2000 -> 6, active + locked
 ; 6: main $6000 -> 7, inactive
 ; 7: main $BFFD -> 8, active + locked
@@ -245,9 +247,7 @@ init: !zone
 	dey
 	sty tSegAdrHi+3
 	sty tSegAdrHi+7
-	lda #<lastLoMem
-	sta tSegAdrLo+4
-	lda #>lastLoMem
+	lda #$10
 	sta tSegAdrHi+4
 	lda #$20
 	sta tSegAdrHi+5
@@ -275,51 +275,38 @@ init: !zone
 	lda #$20
 	sta framePtr+1		; because sanity check verifies it's not $BE or $BF
 }	
-	ldx #0
-	ldy #2			; 2 pages
-	lda #REQUEST_MEMORY
-	jsr main_dispatch
-	stx framePtr
-	stx outerFramePtr
-	stx .frameSet+1
-	stx frameChk+1
-	sty .frameSet+2
-	sty frameChk+2
+	lda #<(plasmaFrames+$200)
+	sta framePtr
+	sta outerFramePtr
+	lda #>(plasmaFrames+$200)
+	sta framePtr+1
+	sta outerFramePtr+1
 	lda #$AA		; store sentinel byte at bottom of frame
-.frameSet:
-	sta $1111		; self-modified above
-	iny			; twice for 2 pages: initial pointer at top of new space
-	iny
-	sty framePtr+1
-	sty outerFramePtr+1
-	dey
-	dey
-	lda #LOCK_MEMORY	; lock it in place forever
-	jsr main_dispatch
+	sta plasmaFrames	; self-modified above
 ; Load PLASMA module #1 from partition #1
 	ldx #1
 	lda #START_LOAD
+	jsr main_dispatch
+	ldx #<gameLoop
+	ldy #>gameLoop
+	lda #SET_MEM_TARGET
 	jsr main_dispatch
 	ldx #RES_TYPE_MODULE
 	ldy #1
 	lda #QUEUE_LOAD
 	jsr main_dispatch
-	stx .gomod+1
-	stx glibBase		; save addr for extern fixups
-	sty .gomod+2
-	sty glibBase+1
 	lda #LOCK_MEMORY	; lock it in forever
 	jsr main_dispatch
 	lda #FINISH_LOAD	; and load it
 	jsr main_dispatch
 	ldx #$10		; set initial PLASMA eval stack index
-.gomod:	jmp $1111		; jump to module to start the game
+.gomod:	jmp gameLoop		; jump to module to start the game
 
 ;------------------------------------------------------------------------------
 ; Vectors and debug support code - these go in low memory at $800
 loMemBegin: !pseudopc $800 {
-	jmp j_main_dispatch
-	jmp j_aux_dispatch
+	jmp __main_dispatch
+	jmp __aux_dispatch
 	jmp __asmPlasmNoRet
 	jmp __asmPlasmRet
 
@@ -343,17 +330,14 @@ loMemBegin: !pseudopc $800 {
 _fixedRTS:
 	rts			; fixed place to find RTS, for setting V flag
 
-j_main_dispatch:
+__aux_dispatch:
+	sec
+	!byte $24		; skip over next byte
+__main_dispatch:
+	clc
 	bit setLcRW+lcBank1	; switch in mem mgr
 	bit setLcRW+lcBank1
-	jsr main_dispatch
-	bit setLcRW+lcBank2	; back to PLASMA
-	rts
-
-j_aux_dispatch:
-	bit setLcRW+lcBank1	; switch in mem mgr
-	bit setLcRW+lcBank1
-	jsr aux_dispatch
+	jsr dispatch
 	bit setLcRW+lcBank2	; back to PLASMA
 	rts
 
@@ -489,8 +473,7 @@ __asmPlasmNoRet:
 	pha		; and save that
 	cmp #$11	; again, X must be in range 0..$10
 	bcs .badx
-frameChk:
-	lda $1111	; self-modified by init code
+	lda plasmaFrames
 	cmp #$AA	; check for sentinel value
 	bne .badfrm
 	bit setLcRW+lcBank2
@@ -1119,6 +1102,19 @@ heapTop		!word 0
 gcHash_top	!byte 0
 
 lastLoMem = *
+
+; Be careful not to grow past the size of the LC bank
+!ifdef PASS2a {
+ !if DEBUG {
+	!warn "mmgr lomem spare: ", plasmaFrames - lastLoMem
+	!if lastLoMem >= plasmaFrames {
+		!error "mmgr lomem part grew too large."
+	}
+ } ; DEBUG
+} else { ;PASS2a
+  !set PASS2a=1
+}
+
 } ; end of !pseodupc $800
 loMemEnd = *
 
@@ -1286,13 +1282,12 @@ scanForAvail: !zone
 
 ;------------------------------------------------------------------------------
 main_dispatch: !zone
-+	pha
-	lda #0
-	beq .go
-aux_dispatch:
+	clc
+dispatch:
 	pha
-	lda #1
-.go	sta isAuxCmd
+	lda #0
+	rol		; transfer carry bit
+	sta isAuxCmd	; to isAuxCmd
 	pla
 !if SANITY_CHECK { jsr saneStart : jsr + : jmp saneEnd }
 +	cmp #REQUEST_MEMORY
@@ -1855,11 +1850,13 @@ mem_queueLoad: !zone
 	lda #QUEUE_LOAD
 	ldx #RES_TYPE_BYTECODE
 	ldy resNum
-	jsr aux_dispatch	; load the aux mem part (the bytecode)
+	sec
+	jsr dispatch		; load the aux mem part (the bytecode)
 	lda #QUEUE_LOAD
 	ldx #RES_TYPE_FIXUP	; queue loading of the fixup resource
 	ldy resNum
-	jsr aux_dispatch
+	sec
+	jsr dispatch
 .modRet ldx #11			; all done; return address of the main memory block.
 	ldy #22
 	rts
@@ -2584,7 +2581,7 @@ doAllFixups: !zone
 }
 .mainBase !word 0
 .auxBase  !word 0
-glibBase  !word $1111
+glibBase  !word gameLoop
 
 ;------------------------------------------------------------------------------
 ; More heap management routines (that don't need to actually access LC bank 2)
@@ -2910,15 +2907,15 @@ tSegAdrHi	!fill MAX_SEGS
 tableEnd = *
 
 ; Be careful not to grow past the size of the LC bank
-!ifdef PASS2 {
+!ifdef PASS2b {
 !if DEBUG {
-	!warn "mmgr spare: ", lx47Decomp - tableEnd
+	!warn "mmgr himem spare: ", lx47Decomp - tableEnd
 	!if tableEnd >= lx47Decomp {
-		!error "Memory manager grew too large."
+		!error "mmgr himem part grew too large."
 	}
 } ; DEBUG
-} else { ;PASS2
-  !set PASS2=1
+} else { ;PASS2b
+  !set PASS2b=1
 }
 
 } ; end of !pseudopc $D000

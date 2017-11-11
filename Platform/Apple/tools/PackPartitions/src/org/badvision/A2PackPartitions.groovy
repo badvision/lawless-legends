@@ -104,6 +104,7 @@ class A2PackPartitions
     def nWarnings = 0
     def warningBuf = new StringBuilder()
 
+    def worldFileDir
     def binaryStubsOnly = false
     final int CACHE_VERSION = 1  // increment to force full rebuild
     def cache = ["version": CACHE_VERSION]
@@ -1005,6 +1006,7 @@ class A2PackPartitions
         //println "Packing 3D map #$num named '$name': num=$num."
         withContext("map '$name'") {
             addResourceDep("map", name, "map3D", name)
+            addResourceDep("map", name, "tileSet", "tileSet_special")  // global tiles for clock, compass, etc.
             def rows = parseMap(mapEl, tileEls)
             def (scriptModule, locationsWithTriggers) = packScripts(mapEl, name, rows[0].size(), rows.size())
             def buf = ByteBuffer.allocate(50000)
@@ -1216,9 +1218,10 @@ class A2PackPartitions
                 //println "esdName='$esdName'"
                 assert esdName != null : "failed to look up esdIndex $esdIndex"
                 def offset = cache["globalExports"][esdName]
-                //println "offset=$offset"
+                //println "external fixup: esdIndex=$esdIndex esdName='$esdName' target=$target offset=$offset"
                 assert offset != null : "failed to find global export for symbol '$esdName'"
-                target += offset
+                // External fixups can only refer to gamelib, which is always set at $1000 in memory.
+                target += offset + 0x1000
             }
             else if (invDefs.containsKey(target)) {
                 target = invDefs[target]
@@ -1239,12 +1242,14 @@ class A2PackPartitions
             codeBuf[addr] = (byte)(target & 0xFF)
             codeBuf[addr+1] = (byte)((target >> 8) & 0xFF)
 
-            // And record the fixup
-            assert addr >= 0 && addr <= 0x3FFF : "code module too big"
-            newFixup.add((byte)((addr>>8) & 0x3F) |
-                                (inByteCode ? 0x40 : 0) |
-                                ((fixupType == 0x91) ? 0x80 : 0))
-            newFixup.add((byte)(addr & 0xFF))
+            // And record the fixup (no need to record ext fixups - they're absolute starting at $1000)
+            if (fixupType != 0x91) {
+                assert addr >= 0 && addr <= 0x3FFF : "code module too big"
+                newFixup.add((byte)((addr>>8) & 0x3F) |
+                                    (inByteCode ? 0x40 : 0) |
+                                    ((fixupType == 0x91) ? 0x80 : 0))
+                newFixup.add((byte)(addr & 0xFF))
+            }
         }
         newFixup.add((byte)0xFF)
 
@@ -1386,9 +1391,15 @@ class A2PackPartitions
 
         // If already on disk 1, don't duplicate.
         if (part1Chunks.containsKey(key)) {
-            if (DEBUG_TRACE_RESOURCES)
-                println "${("  " * rtraceLevel)} in part 1 already."
-            return 0
+            if (key[0] == "tileSet" || key[0] == "texture") {
+                if (DEBUG_TRACE_RESOURCES)
+                    println "${("  " * rtraceLevel)} must dupe ${key[0]}s."
+            }
+            else {
+                if (DEBUG_TRACE_RESOURCES)
+                    println "${("  " * rtraceLevel)} in part 1 already."
+                return 0
+            }
         }
 
         // Okay, we need to add it.
@@ -1586,7 +1597,7 @@ class A2PackPartitions
                         month == 10 ? 'n' :
                         'd'
         def hourCode = (char) (97 + hour) // 'a'=0, 'b'=1, etc.
-        def engineCode = String.format("%d%c%02d%c", yearCode, monthCode, day, hourCode)
+        def engineCode = String.format("%d%s%02d%c", yearCode, monthCode, day, hourCode)
 
         def offset = Math.max(-99, Math.min(99, (int) ((scenarioStamp - engineStamp) / (1000 * 60 * 60))))
         return String.format("%s%s%d", engineCode, offset < 0 ? "-" : ".", Math.abs(offset))
@@ -1798,6 +1809,8 @@ class A2PackPartitions
         def srcFile = new File(partial).getCanonicalFile()
         if (!srcFile.exists())
             srcFile = new File(srcFile.getName()) // try current directory
+        if (!srcFile.exists())
+            srcFile = new File(worldFileDir, srcFile.getName()) // try dir containing world.xml
         if (srcFile.exists()) {
             if (dstFile.exists()) {
                 if (srcFile.lastModified() == dstFile.lastModified())
@@ -2138,7 +2151,7 @@ class A2PackPartitions
             if (type == "Code" && k.num > lastSysModule)
                 type = "Script"
             def name = k.name.replaceAll(/\s*-\s*[23][dD].*/, "")
-            def dataKey = [type:type, name:name]
+            def dataKey = [type:type, name:name, num:k.num]
             if (!data.containsKey(dataKey))
                 data[dataKey] = v
             else {
@@ -2167,8 +2180,8 @@ class A2PackPartitions
                 cSub = 0
                 ucSub = 0
             }
-            reportWriter.println String.format("  %-20s: %6.1fK memory, %6.1fK disk", 
-                k.name, v.uclen/1024.0, v.clen/1024.0)
+            reportWriter.println String.format("  %-20s: %6.1fK memory, %6.1fK disk (id %d)",
+                k.name, v.uclen/1024.0, v.clen/1024.0, k.num)
             cSub += v.clen
             cTot += v.clen
             ucSub += v.uclen
@@ -3479,6 +3492,7 @@ end
                 // Create PLASMA headers
                 inst1 = new A2PackPartitions()
                 inst1.buildDir = buildDir
+                inst1.worldFileDir = xmlFile.getAbsoluteFile().getParentFile()
                 inst1.reportWriter = reportWriter
                 inst1.dataGen(xmlFile, dataIn)
 
@@ -3491,6 +3505,7 @@ end
                 inst2.nWarnings = inst1.nWarnings
                 inst2.resourceDeps = resourceDeps // inject partial deps
                 inst2.buildDir = buildDir
+                inst2.worldFileDir = xmlFile.getAbsoluteFile().getParentFile()
                 inst2.reportWriter = reportWriter
                 inst2.pack(xmlFile, dataIn)
 
@@ -3883,11 +3898,8 @@ end
                 if (!text || text == "") // interpret lack of text as a single empty string
                     chunks = [""]
                 chunks.eachWithIndex { chunk, idx ->
-                    outIndented((idx == chunks.size()-1 && blk.@type == 'text_println') ? \
-                        'scriptDisplayStrNL(' : 'scriptDisplayStr(')
-                    out << escapeString(chunk) << ")\n"
-                    // Workaround for strings filling up the frame stack
-                    outIndented("tossStrings()\n")
+                    String str = (idx == chunks.size()-1 && blk.@type == 'text_println') ? chunk+"\\n" : chunk
+                    outIndented("scriptDisplayStr(" + escapeString(str) + ")\n")
                 }
             }
             else {

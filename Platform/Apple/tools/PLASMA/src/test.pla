@@ -160,4 +160,6 @@ putln
 puts(@constr); puti(constval); putln
 puts("Signed byte constant:"); puti(-3); putln
 puts("Hello from in-line string!\$7F\n")
+puts(1 ?? "This is TRUE\n" :: "This is FALSE\n")
+puts(0 ?? "This is TRUE\n" :: "This is FALSE\n")
 done

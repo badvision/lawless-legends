@@ -7,7 +7,6 @@
  * ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-
 #define TOKEN(c)            (0x80|(c))
 #define IS_TOKEN(c)         (0x80&(c))
 /*
@@ -54,6 +53,11 @@
 #define STRUC_TOKEN         TOKEN(31)
 #define CONTINUE_TOKEN      TOKEN(32)
 //#define EVAL_TOKEN          TOKEN(32)
+/*
+ * Ternary operand operators.
+ */
+#define TERNARY_TOKEN       TOKEN('?')
+#define TRIELSE_TOKEN       TOKEN('_')
 /*
  * Double operand operators.
  */

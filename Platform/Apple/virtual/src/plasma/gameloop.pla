@@ -1433,7 +1433,7 @@ def printVersion()#0
   loop
   p = finishString(FALSE)
   len = calcWidth(p)
-  printAtBottom(p, 25, 154, 154 + len + 8, 3)
+  printAtBottom(p, 25, 154, 154 + len + 9, 3)
   printHeapPct()
 end
 

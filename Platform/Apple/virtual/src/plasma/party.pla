@@ -658,11 +658,8 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
   redisplay = 2
   noRepeatMenu = FALSE
   player = index(global=>p_players, player_num)
-  if player->b_skillPoints
-    mode = 'S'  // go straight to level up if applicable
-  else
-    mode = 'I'  // otherwise default to inventory mode
-  fin
+  // go straight to level up if applicable, else default to inventory mode
+  mode = player->b_skillPoints ?? 'S' :: 'I'
   repeat
     player = index(global=>p_players, player_num)
     if !player; beep; return NULL; fin

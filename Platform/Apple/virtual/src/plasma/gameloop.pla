@@ -2501,7 +2501,7 @@ export def checkEncounter(x, y, force)#0
   p = global=>p_encounterZones
   while p
     d = min(abs(x - p=>w_encX), abs(y - p=>w_encY))
-    if d < bestDist and (p=>w_encMaxDist == 0 or d < p=>w_encMaxDist))
+    if d < bestDist and (p=>w_encMaxDist == 0 or d < p=>w_encMaxDist)
       p_bestZone = p
       bestDist = d
     fin

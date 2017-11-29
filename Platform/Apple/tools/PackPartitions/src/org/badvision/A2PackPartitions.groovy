@@ -4452,7 +4452,7 @@ end
         {
             assert blk.field.size() == 1
             def code = getSingle(blk.field, 'CODE')
-            outIndented("if !scriptCombat(${escapeString(code)})); return 0; fin\n")
+            outIndented("if !scriptCombat(${escapeString(code)}); return 0; fin\n")
         }
 
         def packTeleport(blk)

@@ -15,7 +15,7 @@
 #include "plasm.h"
 
 char *statement, *tokenstr, *scanpos = "", *strpos = "";
-t_token scantoken, prevtoken;
+t_token scantoken = EOL_TOKEN, prevtoken;
 int tokenlen;
 long constval;
 FILE* inputfile;
@@ -397,6 +397,30 @@ t_token scan(void)
                     scanpos++;
                 }
                 break;
+            case ':':
+                if (scanpos[1] == ':')
+                {
+                    scantoken = TRIELSE_TOKEN;
+                    scanpos += 2;
+                }
+                else
+                {
+                    scantoken = COLON_TOKEN;
+                    scanpos++;
+                }
+                break;
+            case '?':
+                if (scanpos[1] == '?')
+                {
+                    scantoken = TERNARY_TOKEN;
+                    scanpos += 2;
+                }
+                else
+                {
+                    scantoken = TERNARY_TOKEN;
+                    scanpos++;
+                }
+                break;
             default:
                 /*
                  * Simple single character tokens.
@@ -449,6 +473,12 @@ int next_line(void)
     }
     else
     {
+        if (!(scantoken == EOL_TOKEN || scantoken == EOF_TOKEN))
+        {
+            fprintf(stderr, "scantoken = %d (%c)\n", scantoken & 0x7F, scantoken & 0x7F);
+            parse_error("Extraneous characters");
+            return EOF_TOKEN;
+        }
         statement = inputline;
         scanpos   = inputline;
         /*
@@ -500,6 +530,10 @@ int next_line(void)
             parse_error("Only one level of includes allowed");
             scantoken = EOF_TOKEN;
             return EOF_TOKEN;
+        }
+        if (scan() != EOL_TOKEN)
+        {
+            parse_error("Extraneous characters");
         }
         outer_inputfile = inputfile;
         outer_filename = filename;

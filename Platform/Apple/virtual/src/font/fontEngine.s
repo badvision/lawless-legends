@@ -801,7 +801,8 @@ CpWnd2	LDA (GBasL),Y
 	BCC CpWnd2
 	INX
 	CPX BtMrgn
-	BNE CpWnd1
+	BCC CpWnd1
+	BEQ CpWnd1
 	RTS
 
 ;Routine: parser w/auto line break

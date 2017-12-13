@@ -457,12 +457,10 @@ void call(uword pc)
             if (c == 0x0D)
                 c = '\n';
             putchar(c);
-            PUSH(0);
             break;
         case 4: // LIBRARY STDLIB::PUTS
             s = POP;
             i = mem_data[s++];
-            PUSH(i);
             while (i--)
             {
                 c = mem_data[s++];
@@ -479,7 +477,6 @@ void call(uword pc)
                     c = '\n';
                 putchar(c);
             }
-            PUSH(0);
             break;
         case 6: // LIBRARY STDLIB::GETC
             PUSH(getchar());
@@ -495,7 +492,13 @@ void call(uword pc)
         case 8: // LIBRARY STDLIB::PUTNL
             putchar('\n');
             fflush(stdout);
-            PUSH(0);
+            break;
+        case 9: // LIBRARY STDLIB::MACHID
+            PUSH(0x0000);
+            break;
+        case 10: // LIBRARY STDLIB::PUTI
+            i = POP;
+            printf("%d", i);
             break;
         default:
             printf("\nBad call code:$%02X\n", mem_data[pc - 1]);
@@ -511,7 +514,7 @@ OPTBL:  DW  ZERO,ADD,SUB,MUL,DIV,MOD,INCR,DECR      ; 00 02 04 06 08 0A 0C 0E
         DW  NOT,LOR,LAND,LA,LLA,CB,CW,CS            ; 20 22 24 26 28 2A 2C 2E
         DW  DROP,DUP,PUSH,PULL,BRGT,BRLT,BREQ,BRNE      ; 30 32 34 36 38 3A 3C 3E
         DW  ISEQ,ISNE,ISGT,ISLT,ISGE,ISLE,BRFLS,BRTRU   ; 40 42 44 46 48 4A 4C 4E
-        DW  BRNCH,IBRNCH,CALL,ICAL,ENTER,LEAVE,RET,???  ; 50 52 54 56 58 5A 5C 5E
+        DW  BRNCH,IBRNCH,CALL,ICAL,ENTER,LEAVE,RET,CFFB  ; 50 52 54 56 58 5A 5C 5E
         DW  LB,LW,LLB,LLW,LAB,LAW,DLB,DLW           ; 60 62 64 66 68 6A 6C 6E
         DW  SB,SW,SLB,SLW,SAB,SAW,DAB,DAW           ; 70 72 74 76 78 7A 7C 7E
 */
@@ -882,6 +885,7 @@ char *syslib_exp[] = {
     "GETS",
     "PUTLN",
     "MACHID",
+    "PUTI",
     0
 };
 
@@ -922,6 +926,10 @@ int main(int argc, char **argv)
         {
             stodci(*argv, dci);
             call(lookup_sym(dci));
+        }
+        if (esp != &eval_stack[EVAL_STACKSZ])
+        {
+            printf("Eval stack pointer mismatch at end of execution = %d.\n", EVAL_STACKSZ - (esp - eval_stack));
         }
     }
     return 0;

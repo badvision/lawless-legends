@@ -344,6 +344,105 @@ export asm memset(pDst, val, len)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+asm drawLine(color, y, xbyte, xbit, xdir, ydir, xinc, yinc, len)#0
+!zone {
+.param_len    = evalStkL+0
+.param_yinc   = evalStkL+1
+.param_xinc   = evalStkL+2
+.param_ydir   = evalStkL+3
+.param_xdir   = evalStkL+4
+.param_xbit   = evalStkL+5
+.param_xbyte  = evalStkL+6
+.param_y      = evalStkL+7
+.param_color  = evalStkL+8
+.xfrac        = tmp
+.yfrac        = tmp+1
+  +asmPlasmNoRet 9
+  lda #0
+  sta .xfrac
+  sta .yfrac
+.getline
+  txa
+  pha
+  lda .param_y,x
+  jsr GetScreenLine
+  pla
+  tax
+  clc                 ; signal to take X path first
+.pix
+  dec .param_len,x    ; decrement count of pixels todo
+  bmi .done           ; get out if it goes negative
+
+  ldy .param_xbyte,x  ; byte number on line
+  lda .param_color,x  ; get color mask
+  eor (pTmp),y        ; funny logic to plot in color - part 1
+  and .param_xbit,x   ; bit mask within byte
+  eor (pTmp),y        ; funny logic - part 2
+  sta (pTmp),y        ; store the result
+
+  lda .param_xbit,x   ; check bit mask:
+  and #$60            ; was it the rightmost pixel?
+  eor #$40
+  bne +               ; if not, done w/ plotting
+  lda .param_color,x  ; it was, so we need to plot
+  iny                 ; ...next byte's...
+  eor (pTmp),y
+  and #1              ; ...first pixel
+  eor (pTmp),y
+  sta (pTmp),y
+  dey                 ; back to where we were
+
++ bcs .movey          ; skip X processing if we just did it
+.movex                ; check and move on X axis
+  lda .xfrac
+  clc
+  adc .param_xinc,x   ; bump the X fraction
+  sta .xfrac
+  bcc .movey          ; if not a whole number bump, don't move on X
+  lda .param_xbit,x
+  ldy .param_xdir,x   ; check X direction (0=left, 1=right)
+  bne .right
+.left
+  lsr                 ; 1 bit to the left
+  cmp #$20
+  bne +
+  ora #$40
++ cmp #1
+  bne .ltrt
+  dec .param_xbyte,x  ; finished with byte, move 1 byte left
+  lda #$40            ; high bit of next-to-left byte
+  bne .ltrt           ; always taken
+.right
+  asl                 ; 1 bit to right
+  bpl .ltrt
+  and #$7F
+  bne .ltrt
+  inc .param_xbyte,x  ; finished with byte, move 1 byte right
+  lda #3              ; low bit of next-to-right byte
+.ltrt
+  sta .param_xbit,x
+  sec                 ; signal to take the Y path next time
+  bcs .pix            ; plot at the new position
+.movey
+  lda .yfrac
+  clc
+  adc .param_yinc,x   ; bump the Y fraction
+  sta .yfrac
+  bcc .movex          ; if not a whole number bump, don't move on Y, go bump X
+  lda .param_ydir,x   ; check Y direction (0=up, 1=down)
+  bne .down
+.up
+  dec .param_y,x      ; prev line (up)
+  bcs .getline        ; always taken
+.down
+  inc .param_y,x      ; next line (down)
+  bcs .getline        ; always taken
+.done
+  rts
+}
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 asm readAuxByte(ptr)#1
   +asmPlasmRet 1
   sta pTmp
@@ -1728,17 +1827,24 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def showCompassDir(dir)#0
-  word tile
-  word screenAdr
-  if dir < 2; tile = COMPASS_EAST
-  elsif dir < 6; tile = COMPASS_SOUTH
-  elsif dir < 10; tile = COMPASS_WEST
-  elsif dir < 14; tile = COMPASS_NORTH
-  else tile = COMPASS_EAST; fin
-  tile = pGlobalTileset + (tile<<5)
-  screenAdr = getScreenLine(168)+4
-  blit(0, tile, screenAdr, 16, 2)
-  blit(0, tile, screenAdr+$2000, 16, 2)
+  word cursX, cursY, str
+  cursX, cursY = getCursor()
+  setWindow(173, 182, 28, 49) // Top, Bottom, Left, Right
+  clearWindow()
+  when dir
+    is 15; is 0; is 1;   str = "E";  break
+    is 2;                str = "SE"; break
+    is 3; is 4; is 5;    str = "S";  break;
+    is 6;                str = "SW"; break;
+    is 7; is 8; is 9;    str = "W";  break;
+    is 10;               str = "NW"; break;
+    is 11; is 12; is 13; str = "N"; break;
+    is 14;               str = "NE"; break;
+  wend
+  centerStr(str, 21)
+  if mapIs3D and texturesLoaded; copyWindow(); fin
+  setWindow2()
+  setCursor(cursX, cursY)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3110,11 +3216,24 @@ def startGame(ask)#0
   crout()
 end
 
+def foo#0
+  word xinc
+  setWindow(0, 192, 0, 280) // Top, Bottom, Left, Right
+  clearWindow()
+  for xinc = 1 to 255
+    //      (color, y,   xbyte, xbit, xdir, ydir, xinc,  yinc, len)#0
+    drawLine($FF,  100,   20,    $3,    0,    0,  xinc,  $FF,  100)
+    rdkey()
+    drawLine($00,  100,   20,    $3,    0,    0,  xinc,  $FF,  100)
+  next
+end
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Main code.
 //
 scriptDisplayStr(@_scriptDisplayStr) // 1-time init
 loadTitle()
+foo()
 startGame(TRUE) // ask whether new or load
 kbdLoop()
 

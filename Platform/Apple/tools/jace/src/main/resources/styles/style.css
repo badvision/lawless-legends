@@ -1,0 +1,21 @@
+.button {
+    -fx-font-weight: bold;
+}
+
+.setting-row {
+    -fx-padding: 5 0 0 4;        
+}
+
+.setting-label, .setting-keyboard-shortcut {
+    -fx-allignment: center-left;
+}
+
+.setting-keyboard-shortcut {
+    -fx-graphic: "/jace/data/icon_keyboard.gif";
+    -fx-graphic-text-gap: 2;
+}
+
+.codeInspector .list-cell {
+    -fx-font-size: 9pt;
+    -fx-font-family: "Courier New";
+}

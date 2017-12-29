@@ -1,11 +1,9 @@
 package jace.lawless;
 
-import jace.Emulator;
 import jace.apple2e.Apple2e;
 import jace.apple2e.RAM128k;
 import jace.apple2e.SoftSwitches;
 import jace.apple2e.VideoNTSC;
-import jace.config.ConfigurableField;
 import jace.core.Card;
 import jace.core.Video;
 import jace.library.MediaConsumer;
@@ -30,6 +28,10 @@ public class LawlessComputer extends Apple2e {
     
     public LawlessComputer() {
         super();
+        blankTextPage1();
+    }
+    
+    private void blankTextPage1() {
         // Fill text page 1 with spaces
         for (int i = 0x0400; i < 0x07FF; i++) {
             getMemory().write(i, (byte) (0x080 | ' '), false, false);
@@ -40,6 +42,10 @@ public class LawlessComputer extends Apple2e {
     public void coldStart() {
         pause();
         reinitMotherboard();
+        RAM128k ram = (RAM128k) getMemory();
+        ram.initMemoryPattern(ram.mainMemory);
+        ram.initMemoryPattern(ram.getAuxMemory());
+        blankTextPage1();
         for (SoftSwitches s : SoftSwitches.values()) {
             s.getSwitch().reset();
         }

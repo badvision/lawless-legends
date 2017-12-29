@@ -83,23 +83,23 @@ public class LawlessComputer extends Apple2e {
             if (i < 0x02000) {
                 next = (framebuffer[i] & 1) << 6;
             }
-            Byte b1 = (byte) ((framebuffer[i + 0x02000] & 0x07f) >> 1 | next);
-            ram.getAuxMemory().writeByte(0x02000 + i, (byte) (b1 & i1));
+            Byte b1 = (byte) ((framebuffer[i + 0x02000] & 0x07f) >> 1 | next );
+            ram.getAuxMemory().writeByte(0x02000 + i, (byte) (b1 & i1 | 0x080));
             if (i < 0x01FFF) {
                 next = (framebuffer[i + 0x02001] & 1) << 6;
             }
             Byte b2 = (byte) ((framebuffer[i] & 0x07f) >> 1 | next);
-            ram.getMainMemory().writeByte(0x02000 + i, (byte) (b2 & i2));
+            ram.getMainMemory().writeByte(0x02000 + i, (byte) (b2 & i2 | 0x080));
             if (i < 0x01FFF) {
                 next = (framebuffer[i + 1] & 1) << 6;
             }
             Byte b3 = (byte) ((framebuffer[i + 0x02001] & 0x07f) >> 1 | next);
-            ram.getAuxMemory().writeByte(0x02001 + i, (byte) (b3 & i3));
+            ram.getAuxMemory().writeByte(0x02001 + i, (byte) (b3 & i3 | 0x080));
             if (i < 0x01FFE) {
                 next = (framebuffer[i + 0x02002] & 1) << 6;
             }
             Byte b4 = (byte) ((framebuffer[i + 1] & 0x07f) >> 1 | next);
-            ram.getMainMemory().writeByte(0x02001 + i, (byte) (b4 & i4));
+            ram.getMainMemory().writeByte(0x02001 + i, (byte) (b4 & i4 | 0x080));
         }
     }
     

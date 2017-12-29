@@ -57,14 +57,14 @@ public class VideoNTSC extends VideoDHGR {
     public boolean enableVideo7 = true;
     // Scanline represents 560 bits, divided up into 28-bit words
     int[] scanline = new int[20];
-    static int[] divBy28 = new int[560];
+    static public int[] divBy28 = new int[560];
 
     static {
         for (int i = 0; i < 560; i++) {
             divBy28[i] = i / 28;
         }
     }
-    boolean[] colorActive = new boolean[80];
+    protected boolean[] colorActive = new boolean[80];
     int rowStart = 0;
 
     public VideoNTSC(Computer computer) {

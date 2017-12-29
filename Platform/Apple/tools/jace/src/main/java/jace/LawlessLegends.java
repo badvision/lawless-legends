@@ -5,7 +5,7 @@
  */
 package jace;
 
-import com.google.common.io.Files;
+import jace.config.Configuration;
 import jace.core.RAM;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
@@ -14,9 +14,10 @@ import jace.hardware.CardDiskII;
 import jace.hardware.CardMockingboard;
 import jace.hardware.CardRamFactor;
 import jace.hardware.CardRamworks;
-import jace.hardware.CardThunderclock;
 import jace.hardware.PassportMidiInterface;
 import jace.hardware.massStorage.CardMassStorage;
+import jace.lawless.LawlessHacks;
+import jace.lawless.LawlessVideo;
 import jace.library.DiskType;
 import jace.library.MediaEntry;
 import jace.library.MediaEntry.MediaFile;
@@ -24,7 +25,6 @@ import jace.ui.MetacheatUI;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.StandardCopyOption;
@@ -66,7 +66,7 @@ public class LawlessLegends extends Application {
             primaryStage.setScene(s);
             primaryStage.setTitle("Lawless Legends");
             EmulatorUILogic.scaleIntegerRatio();
-            Utility.loadIcon("revolver_icon.png").ifPresent(primaryStage.getIcons()::add);
+            Utility.loadIcon("game_icon.png").ifPresent(primaryStage.getIcons()::add);
         } catch (IOException exception) {
             throw new RuntimeException(exception);
         }
@@ -153,11 +153,14 @@ public class LawlessLegends extends Application {
         Emulator.computer.joy2enabled = false;
         Emulator.computer.enableStateManager = false;
         Emulator.computer.ramCard.setValue(CardRamworks.class);
+        Emulator.computer.videoRenderer.setValue(LawlessVideo.class);
         Emulator.computer.card7.setValue(CardMassStorage.class);
         Emulator.computer.card6.setValue(CardDiskII.class);
         Emulator.computer.card5.setValue(CardRamFactor.class);
         Emulator.computer.card4.setValue(CardMockingboard.class);
         Emulator.computer.card2.setValue(PassportMidiInterface.class);
+        Emulator.computer.cheatEngine.setValue(LawlessHacks.class);
+        Configuration.buildTree();
         Emulator.computer.reconfigure();
         RAM memory = Emulator.computer.memory;
 

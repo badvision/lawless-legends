@@ -97,7 +97,7 @@ public abstract class Cheats extends Device {
         super.detach();
     }
 
-    abstract void registerListeners();
+    public abstract void registerListeners();
 
     protected void unregisterListeners() {
         listeners.stream().forEach((l) -> {

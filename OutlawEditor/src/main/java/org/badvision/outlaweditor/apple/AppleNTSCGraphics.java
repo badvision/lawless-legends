@@ -150,12 +150,20 @@ public class AppleNTSCGraphics {
     }
 
     static byte[] getAppleHGRBinary(PlatformData platformData) {
-        byte[] output = new byte[0x02000];
+        boolean dhgr = platformData.getWidth() > 40;
+        byte[] output = new byte[dhgr ? 0x04000 : 0x02000];
         int counter = 0;
         for (int y = 0; y < platformData.getHeight(); y++) {
             int offset = calculateHiresOffset(y);
-            for (int x = 0; x < platformData.getWidth(); x++) {
-                output[offset + x] = platformData.getValue()[counter++];
+            if (dhgr) {
+                for (int x = 0; x < 40; x++) {
+                    output[0x02000 + offset + x] = platformData.getValue()[counter++];
+                    output[offset + x] = platformData.getValue()[counter++];
+                }                
+            } else {
+                for (int x = 0; x < platformData.getWidth(); x++) {
+                    output[offset + x] = platformData.getValue()[counter++];
+                }
             }
         }
         return output;
@@ -166,7 +174,7 @@ public class AppleNTSCGraphics {
         for (int y = 0; y < data.getHeight(); y++) {
             int pos = calculateHiresOffset(y) + 0x02000;
             listing.append("\n").append(Integer.toHexString(pos)).append(":");
-            for (int x = 1; x < data.getWidth(); x+=2) {
+            for (int x = 0; x < data.getWidth(); x+=2) {
                 int val = data.getValue()[data.getWidth() * y + x] & 0x0ff;
                 listing.append(Integer.toHexString(val)).append(" ");
             }
@@ -174,7 +182,7 @@ public class AppleNTSCGraphics {
         for (int y = 0; y < data.getHeight(); y++) {
             int pos = calculateHiresOffset(y) + 0x04000;
             listing.append("\n").append(Integer.toHexString(pos)).append(":");
-            for (int x = 0; x < data.getWidth(); x+=2) {
+            for (int x = 1; x < data.getWidth(); x+=2) {
                 int val = data.getValue()[data.getWidth() * y + x] & 0x0ff;
                 listing.append(Integer.toHexString(val)).append(" ");
             }

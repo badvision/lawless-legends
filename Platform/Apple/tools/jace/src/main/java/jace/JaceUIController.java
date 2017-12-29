@@ -6,10 +6,8 @@
 package jace;
 
 import com.sun.glass.ui.Application;
-import jace.cheat.MetaCheat;
 import jace.core.Card;
 import jace.core.Computer;
-import jace.core.Keyboard;
 import jace.library.MediaCache;
 import jace.library.MediaConsumer;
 import jace.library.MediaConsumerParent;
@@ -81,8 +79,10 @@ public class JaceUIController {
         assert appleScreen != null : "fx:id=\"appleScreen\" was not injected: check your FXML file 'JaceUI.fxml'.";
         appleScreen.fitWidthProperty().bind(rootPane.widthProperty());
         appleScreen.fitHeightProperty().bind(rootPane.heightProperty());
+        appleScreen.setVisible(false);
         rootPane.setOnDragEntered(this::processDragEnteredEvent);
         rootPane.setOnDragExited(this::processDragExitedEvent);
+        rootPane.setBackground(new Background(new BackgroundFill(Color.BLACK, null, null)));
     }
 
     public void connectComputer(Computer computer, Stage primaryStage) {
@@ -99,6 +99,7 @@ public class JaceUIController {
                 rootPane.setFocusTraversable(true);
             }
             appleScreen.setImage(computer.getVideo().getFrameBuffer());
+            appleScreen.setVisible(true);
             rootPane.requestFocus();
         });
     }

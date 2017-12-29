@@ -297,7 +297,9 @@ public class Apple2e extends Computer {
                     getVideo().configureVideoMode();
                     getVideo().reconfigure();
                     Emulator.resizeVideo();
-                    LawlessLegends.getApplication().reconnectUIHooks();
+                    if (LawlessLegends.getApplication() != null) {
+                        LawlessLegends.getApplication().reconnectUIHooks();
+                    }
                     getVideo().resume();
                 } catch (InstantiationException | IllegalAccessException ex) {
                     Logger.getLogger(Apple2e.class.getName()).log(Level.SEVERE, null, ex);

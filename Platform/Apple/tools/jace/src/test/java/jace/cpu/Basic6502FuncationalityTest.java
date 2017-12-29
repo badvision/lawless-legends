@@ -46,7 +46,7 @@ public class Basic6502FuncationalityTest {
     public static void setupClass() {
         Utility.setHeadlessMode(true);
         SoundMixer.MUTE = true;
-        computer = new Apple2e();
+        computer = new LawlessComputer();
         cpu = (MOS65C02) computer.getCpu();
         ram = computer.getMemory();
         Emulator.computer = (LawlessComputer) computer;

@@ -36,6 +36,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
@@ -63,6 +64,7 @@ public class LawlessLegends extends Application {
             controller = fxmlLoader.getController();
             controller.initialize();
             Scene s = new Scene(node);
+            s.setFill(Color.BLACK);
             primaryStage.setScene(s);
             primaryStage.setTitle("Lawless Legends");
             Utility.loadIcon("game_icon.png").ifPresent(primaryStage.getIcons()::add);
@@ -71,8 +73,8 @@ public class LawlessLegends extends Application {
         }
 
         primaryStage.show();
-        new Emulator(getParameters().getRaw());
         new Thread(() -> {
+            new Emulator(getParameters().getRaw());
             reconnectUIHooks();
             EmulatorUILogic.scaleIntegerRatio();
             while (Emulator.computer.getVideo() == null || Emulator.computer.getVideo().getFrameBuffer() == null) {

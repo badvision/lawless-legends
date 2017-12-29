@@ -102,9 +102,11 @@ public class LawlessVideo extends VideoNTSC {
     @Override
     public void hblankStart(WritableImage screen, int y, boolean isDirty) {
         int rowStart = getCurrentWriter().getYOffset(y);
-        if (rowStart >= 0x02000 && !titleScreen) {
+        if (rowStart >= 0x02000) {
             boolean[] color = activeEngine.colorMask[y];
-            if (invActive) {
+            if (titleScreen) {
+                color = RenderEngine.UNKNOWN.colorMask[y];
+            } else if (invActive) {
                 color = RenderEngine.INVENTORY.colorMask[y];
             } else if (activeEngine == RenderEngine.PORTRAIT) {
                 color = RenderEngine._2D.colorMask[y];

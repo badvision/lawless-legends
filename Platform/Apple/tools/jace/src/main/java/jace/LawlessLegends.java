@@ -48,7 +48,7 @@ public class LawlessLegends extends Application {
     static LawlessLegends singleton;
 
     public Stage primaryStage;
-    JaceUIController controller;
+    public JaceUIController controller;
 
     static boolean romStarted = false;
 
@@ -65,7 +65,6 @@ public class LawlessLegends extends Application {
             Scene s = new Scene(node);
             primaryStage.setScene(s);
             primaryStage.setTitle("Lawless Legends");
-            EmulatorUILogic.scaleIntegerRatio();
             Utility.loadIcon("game_icon.png").ifPresent(primaryStage.getIcons()::add);
         } catch (IOException exception) {
             throw new RuntimeException(exception);
@@ -73,19 +72,24 @@ public class LawlessLegends extends Application {
 
         primaryStage.show();
         new Emulator(getParameters().getRaw());
-        configureEmulatorForGame();
-        javafx.application.Platform.runLater(() -> {
+        new Thread(() -> {
+            reconnectUIHooks();
+            EmulatorUILogic.scaleIntegerRatio();
             while (Emulator.computer.getVideo() == null || Emulator.computer.getVideo().getFrameBuffer() == null) {
                 Thread.yield();
             }
-            controller.connectComputer(Emulator.computer, primaryStage);
+            configureEmulatorForGame();
             bootWatchdog();
-        });
+        }).start();
         primaryStage.setOnCloseRequest(event -> {
             Emulator.computer.deactivate();
             Platform.exit();
             System.exit(0);
         });
+    }
+    
+    public void reconnectUIHooks() {
+        controller.connectComputer(Emulator.computer, primaryStage);        
     }
 
     public static LawlessLegends getApplication() {
@@ -130,12 +134,12 @@ public class LawlessLegends extends Application {
     private void bootWatchdog() {
         romStarted = false;
         RAMListener startListener = Emulator.computer.getMemory().
-                observe(RAMEvent.TYPE.EXECUTE, 0x0FA62, (e) -> {
+                observe(RAMEvent.TYPE.EXECUTE, 0x0c700, (e) -> {
                     romStarted = true;
                 });
         Emulator.computer.coldStart();
         try {
-            Thread.sleep(250);
+            Thread.sleep(10000);
             if (!romStarted) {
                 Logger.getLogger(getClass().getName()).log(Level.WARNING, "Boot not detected, performing a cold start");
                 Emulator.computer.coldStart();
@@ -172,7 +176,7 @@ public class LawlessLegends extends Application {
         MediaFile f1 = new MediaEntry.MediaFile();
         f1.path = getGamePath("game.2mg");
 
-        if (f1.path != null) {
+        if (f1.path != null && f1.path.exists()) {
             memory.getCard(7).ifPresent(card -> {
                 try {
                     ((CardMassStorage) card).currentDrive.insertMedia(e1, f1);
@@ -189,7 +193,7 @@ public class LawlessLegends extends Application {
         e2.type = DiskType.FLOPPY140_DO;
         MediaFile f2 = new MediaEntry.MediaFile();
         f2.path = getGamePath("utilities.dsk");
-        if (f2.path != null) {
+        if (f2.path != null && f2.path.exists()) {
             memory.getCard(6).ifPresent(card -> {
                 try {
                     ((CardDiskII) card).getConsumers()[0].insertMedia(e2, f2);

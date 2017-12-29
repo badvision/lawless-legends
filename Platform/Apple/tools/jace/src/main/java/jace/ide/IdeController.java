@@ -5,7 +5,7 @@
  */
 package jace.ide;
 
-import jace.JaceApplication;
+import jace.LawlessLegends;
 import jace.ide.Program.DocumentType;
 import jace.ide.Program.Option;
 import java.io.File;
@@ -163,7 +163,7 @@ public class IdeController {
         chooser.getExtensionFilters().addAll(
                 new FileChooser.ExtensionFilter("All Files", "*.*")
         );
-        File file = chooser.showOpenDialog(JaceApplication.getApplication().primaryStage);
+        File file = chooser.showOpenDialog(LawlessLegends.getApplication().primaryStage);
         if (file != null && file.isFile() && file.exists()) {
             DocumentType type = DocumentType.fromFile(file);
             createTab(type, file, true);
@@ -210,7 +210,7 @@ public class IdeController {
                 new FileChooser.ExtensionFilter(type.name(), type.extensions),
                 new FileChooser.ExtensionFilter("All Files", "*.*")
         );
-        return chooser.showSaveDialog(JaceApplication.getApplication().primaryStage);
+        return chooser.showSaveDialog(LawlessLegends.getApplication().primaryStage);
     }
 
     @FXML

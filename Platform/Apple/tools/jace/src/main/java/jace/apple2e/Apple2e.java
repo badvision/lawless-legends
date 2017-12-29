@@ -19,6 +19,8 @@
 package jace.apple2e;
 
 import jace.Emulator;
+import jace.LawlessLegends;
+import jace.apple2e.softswitch.VideoSoftSwitch;
 import jace.cheat.Cheats;
 import jace.config.ClassSelection;
 import jace.config.ConfigurableField;
@@ -37,6 +39,7 @@ import jace.hardware.ConsoleProbe;
 import jace.hardware.Joystick;
 import jace.hardware.NoSlotClock;
 import jace.hardware.massStorage.CardMassStorage;
+import jace.lawless.LawlessComputer;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -121,7 +124,7 @@ public class Apple2e extends Computer {
         return "Computer (Apple //e)";
     }
 
-    private void reinitMotherboard() {
+    protected void reinitMotherboard() {
         if (motherboard != null && motherboard.isRunning()) {
             motherboard.suspend();
         }
@@ -158,7 +161,9 @@ public class Apple2e extends Computer {
     public void warmStart() {
         boolean restart = pause();
         for (SoftSwitches s : SoftSwitches.values()) {
-            s.getSwitch().reset();
+            if (! (s.getSwitch() instanceof VideoSoftSwitch)) {
+                s.getSwitch().reset();
+            }
         }
         getMemory().configureActiveMemory();
         getVideo().configureVideoMode();
@@ -216,9 +221,7 @@ public class Apple2e extends Computer {
         if (getMemory() == null) {
             try {
                 currentMemory = (RAM128k) ramCard.getValue().getConstructor(Computer.class).newInstance(this);
-            } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | SecurityException ex) {
-                Logger.getLogger(Apple2e.class.getName()).log(Level.SEVERE, null, ex);
-            } catch (IllegalArgumentException | InvocationTargetException ex) {
+            } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | SecurityException | IllegalArgumentException | InvocationTargetException ex) {
                 Logger.getLogger(Apple2e.class.getName()).log(Level.SEVERE, null, ex);
             }
             try {
@@ -281,6 +284,9 @@ public class Apple2e extends Computer {
             } else {
                 loadRom("jace/data/apple2e.rom");
             }
+            RAM128k ram = (RAM128k) getMemory();
+            ram.activeRead.writeByte(0x0fffc, (byte) 0x000);
+            ram.activeRead.writeByte(0x0fffd, (byte) 0x0c7);
 
             if (getVideo() == null || getVideo().getClass() != videoRenderer.getValue()) {
                 if (getVideo() != null) {
@@ -291,6 +297,7 @@ public class Apple2e extends Computer {
                     getVideo().configureVideoMode();
                     getVideo().reconfigure();
                     Emulator.resizeVideo();
+                    LawlessLegends.getApplication().reconnectUIHooks();
                     getVideo().resume();
                 } catch (InstantiationException | IllegalAccessException ex) {
                     Logger.getLogger(Apple2e.class.getName()).log(Level.SEVERE, null, ex);

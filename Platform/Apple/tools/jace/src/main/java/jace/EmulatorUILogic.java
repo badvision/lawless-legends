@@ -201,7 +201,7 @@ public class EmulatorUILogic implements Reconfigurable {
     public static void runFile() {
         Emulator.computer.pause();
         FileChooser select = new FileChooser();
-        File binary = select.showOpenDialog(JaceApplication.getApplication().primaryStage);
+        File binary = select.showOpenDialog(LawlessLegends.getApplication().primaryStage);
         if (binary == null) {
             Emulator.computer.resume();
             return;
@@ -266,7 +266,7 @@ public class EmulatorUILogic implements Reconfigurable {
             defaultKeyMapping = "ctrl+shift+f")
     public static void toggleFullscreen() {
         Platform.runLater(() -> {
-            Stage stage = JaceApplication.getApplication().primaryStage;
+            Stage stage = LawlessLegends.getApplication().primaryStage;
             stage.setFullScreenExitKeyCombination(KeyCombination.NO_MATCH);
             stage.setFullScreen(!stage.isFullScreen());
         });
@@ -324,7 +324,7 @@ public class EmulatorUILogic implements Reconfigurable {
         Emulator.computer.pause();
         Image i = Emulator.computer.getVideo().getFrameBuffer();
 //        BufferedImage bufImageARGB = SwingFXUtils.fromFXImage(i, null);
-        File targetFile = select.showSaveDialog(JaceApplication.getApplication().primaryStage);
+        File targetFile = select.showSaveDialog(LawlessLegends.getApplication().primaryStage);
         if (targetFile == null) {
             return;
         }
@@ -396,7 +396,10 @@ public class EmulatorUILogic implements Reconfigurable {
             defaultKeyMapping = {"ctrl+shift+a"})
     public static void scaleIntegerRatio() {
         Platform.runLater(() -> {
-            JaceApplication.getApplication().primaryStage.setFullScreen(false);
+            if (LawlessLegends.getApplication() == null
+                    || LawlessLegends.getApplication().primaryStage == null) {
+                return;
+            }
             size++;
             if (size > 3) {
                 size = 0;
@@ -404,29 +407,29 @@ public class EmulatorUILogic implements Reconfigurable {
             int width = 0, height = 0;
             switch (size) {
                 case 0: // 1x
-                    width  = 560;
+                    width = 560;
                     height = 384;
                     break;
                 case 1: // 1.5x
-                    width  = 840;
+                    width = 840;
                     height = 576;
                     break;
                 case 2: // 2x
-                    width  = 560*2;
-                    height = 384*2;
+                    width = 560 * 2;
+                    height = 384 * 2;
                     break;
                 case 3: // 3x (retina) 2880x1800
-                    width  = 560*3;
-                    height = 384*3;
+                    width = 560 * 3;
+                    height = 384 * 3;
                     break;
                 default: // 2x
-                    width  = 560*2;
-                    height = 384*2;
+                    width = 560 * 2;
+                    height = 384 * 2;
             }
-            Stage stage = JaceApplication.getApplication().primaryStage;
+            Stage stage = LawlessLegends.getApplication().primaryStage;
             double vgap = stage.getScene().getY();
             double hgap = stage.getScene().getX();
-            stage.setWidth(hgap*2 + width);
+            stage.setWidth(hgap * 2 + width);
             stage.setHeight(vgap + height);
         });
     }
@@ -443,7 +446,7 @@ public class EmulatorUILogic implements Reconfigurable {
     }
 
     static public void addIndicator(Object owner, Label icon, long TTL) {
-        if (JaceApplication.getApplication() == null) {
+        if (LawlessLegends.getApplication() == null) {
             return;
         }
         synchronized (INDICATORS) {
@@ -453,12 +456,12 @@ public class EmulatorUILogic implements Reconfigurable {
                 INDICATORS.put(owner, ind);
             }
             ind.add(icon);
-            JaceApplication.getApplication().controller.addIndicator(icon);
+            LawlessLegends.getApplication().controller.addIndicator(icon);
         }
     }
 
     static public void removeIndicator(Object owner, Label icon) {
-        if (JaceApplication.singleton == null) {
+        if (LawlessLegends.singleton == null) {
             return;
         }
         synchronized (INDICATORS) {
@@ -466,12 +469,12 @@ public class EmulatorUILogic implements Reconfigurable {
             if (ind != null) {
                 ind.remove(icon);
             }
-            JaceApplication.singleton.controller.removeIndicator(icon);
+            LawlessLegends.singleton.controller.removeIndicator(icon);
         }
     }
 
     static public void removeIndicators(Object owner) {
-        if (JaceApplication.singleton == null) {
+        if (LawlessLegends.singleton == null) {
             return;
         }
         synchronized (INDICATORS) {
@@ -480,26 +483,26 @@ public class EmulatorUILogic implements Reconfigurable {
                 return;
             }
             ind.stream().forEach((icon) -> {
-                JaceApplication.singleton.controller.removeIndicator(icon);
+                LawlessLegends.singleton.controller.removeIndicator(icon);
             });
             INDICATORS.remove(owner);
         }
     }
 
     static public void addMouseListener(EventHandler<MouseEvent> handler) {
-        if (JaceApplication.singleton != null) {
-            JaceApplication.singleton.controller.addMouseListener(handler);
+        if (LawlessLegends.singleton != null) {
+            LawlessLegends.singleton.controller.addMouseListener(handler);
         }
     }
 
     static public void removeMouseListener(EventHandler<MouseEvent> handler) {
-        if (JaceApplication.singleton != null) {
-            JaceApplication.singleton.controller.removeMouseListener(handler);
+        if (LawlessLegends.singleton != null) {
+            LawlessLegends.singleton.controller.removeMouseListener(handler);
         }
     }
 
     public static void simulateCtrlAppleReset() {
-        Computer computer = JaceApplication.singleton.controller.computer;
+        Computer computer = LawlessLegends.singleton.controller.computer;
         computer.keyboard.openApple(true);
         computer.warmStart();
         Platform.runLater(() -> {
@@ -513,8 +516,8 @@ public class EmulatorUILogic implements Reconfigurable {
     }
 
     public static void notify(String message) {
-        if (JaceApplication.singleton != null) {
-            JaceApplication.singleton.controller.displayNotification(message);
+        if (LawlessLegends.singleton != null) {
+            LawlessLegends.singleton.controller.displayNotification(message);
         }
     }
 

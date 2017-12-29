@@ -18,7 +18,7 @@
  */
 package jace.apple2e;
 
-import jace.JaceApplication;
+import jace.LawlessLegends;
 import jace.config.ConfigurableField;
 import jace.core.Computer;
 import jace.core.Device;
@@ -60,7 +60,7 @@ public class Speaker extends Device {
             fileOutputActive = false;
         } else {
             FileChooser fileChooser = new FileChooser();
-            File f = fileChooser.showSaveDialog(JaceApplication.getApplication().primaryStage);
+            File f = fileChooser.showSaveDialog(LawlessLegends.getApplication().primaryStage);
             if (f == null) {
                 return;
             }

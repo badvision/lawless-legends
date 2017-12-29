@@ -128,10 +128,18 @@ public abstract class Computer implements Reconfigurable {
     }
 
     public void deactivate() {
-        cpu.suspend();
-        motherboard.suspend();
-        video.suspend();
-        mixer.detach();
+        if (cpu != null) {
+            cpu.suspend();
+        }
+        if (motherboard != null) {
+            motherboard.suspend();
+        }
+        if (video != null) {
+            video.suspend();            
+        }
+        if (mixer != null) {
+            mixer.detach();
+        }
     }
 
     @InvokableAction(

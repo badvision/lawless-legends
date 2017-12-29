@@ -18,8 +18,8 @@
  */
 package jace;
 
-import jace.apple2e.Apple2e;
 import jace.config.Configuration;
+import jace.lawless.LawlessComputer;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,7 +39,7 @@ public class Emulator {
 //        instance = new Emulator(args);
 //    }
 
-    public static Apple2e computer;
+    public static LawlessComputer computer;
 
     /**
      * Creates a new instance of Emulator
@@ -47,7 +47,7 @@ public class Emulator {
      */
     public Emulator(List<String> args) {
         instance = this;
-        computer = new Apple2e();
+        computer = new LawlessComputer();
         Configuration.buildTree();
         Configuration.loadSettings();
         mainThread = Thread.currentThread();

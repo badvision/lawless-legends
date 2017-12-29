@@ -1,7 +1,7 @@
 package jace.cheat;
 
 import jace.Emulator;
-import jace.JaceApplication;
+import jace.LawlessLegends;
 import jace.core.CPU;
 import jace.core.Computer;
 import jace.core.RAM;
@@ -172,7 +172,7 @@ public class MetaCheat extends Cheats {
 
     @Override
     public void attach() {
-        ui = JaceApplication.getApplication().showMetacheat();
+        ui = LawlessLegends.getApplication().showMetacheat();
         ui.registerMetacheatEngine(this);
         super.attach();
     }

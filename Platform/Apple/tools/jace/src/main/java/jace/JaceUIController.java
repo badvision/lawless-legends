@@ -30,6 +30,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javafx.application.Platform;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
@@ -85,14 +86,21 @@ public class JaceUIController {
     }
 
     public void connectComputer(Computer computer, Stage primaryStage) {
+        if (computer == null) {
+            return;
+        }
         this.computer = computer;
-        appleScreen.setImage(computer.getVideo().getFrameBuffer());
-        EventHandler<KeyEvent> keyboardHandler = computer.getKeyboard().getListener();
-        primaryStage.setOnShowing(evt -> computer.getKeyboard().resetState());
-        rootPane.setFocusTraversable(true);
-        rootPane.setOnKeyPressed(keyboardHandler);
-        rootPane.setOnKeyReleased(keyboardHandler);
-        rootPane.requestFocus();
+        Platform.runLater(() -> {
+            if (computer.getKeyboard() != null) {
+                EventHandler<KeyEvent> keyboardHandler = computer.getKeyboard().getListener();
+                primaryStage.setOnShowing(evt -> computer.getKeyboard().resetState());
+                rootPane.setOnKeyPressed(keyboardHandler);
+                rootPane.setOnKeyReleased(keyboardHandler);
+                rootPane.setFocusTraversable(true);
+            }
+            appleScreen.setImage(computer.getVideo().getFrameBuffer());
+            rootPane.requestFocus();
+        });
     }
 
     private void processDragEnteredEvent(DragEvent evt) {

@@ -2,7 +2,7 @@ package jace.ui;
 
 import com.sun.glass.ui.Application;
 import jace.Emulator;
-import jace.JaceApplication;
+import jace.LawlessLegends;
 import jace.cheat.DynamicCheat;
 import jace.cheat.MemoryCell;
 import jace.cheat.MetaCheat;
@@ -171,7 +171,7 @@ public class MetacheatUI {
         FileChooser chooser = new FileChooser();
         chooser.setTitle("Load cheats");
         chooser.setInitialFileName("cheat.txt");
-        File saveFile = chooser.showOpenDialog(JaceApplication.getApplication().primaryStage);
+        File saveFile = chooser.showOpenDialog(LawlessLegends.getApplication().primaryStage);
         if (saveFile != null) {
             cheatEngine.loadCheats(saveFile);
         }
@@ -186,7 +186,7 @@ public class MetacheatUI {
         FileChooser chooser = new FileChooser();
         chooser.setTitle("Save current cheats");
         chooser.setInitialFileName("cheat.txt");
-        File saveFile = chooser.showSaveDialog(JaceApplication.getApplication().primaryStage);
+        File saveFile = chooser.showSaveDialog(LawlessLegends.getApplication().primaryStage);
         if (saveFile != null) {
             cheatEngine.saveCheats(saveFile);
         }

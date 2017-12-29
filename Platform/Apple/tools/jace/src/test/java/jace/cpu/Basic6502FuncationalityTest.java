@@ -24,6 +24,7 @@ import jace.core.SoundMixer;
 import jace.core.Utility;
 import jace.ide.HeadlessProgram;
 import jace.ide.Program;
+import jace.lawless.LawlessComputer;
 import org.junit.AfterClass;
 import static org.junit.Assert.*;
 import org.junit.Before;
@@ -48,7 +49,7 @@ public class Basic6502FuncationalityTest {
         computer = new Apple2e();
         cpu = (MOS65C02) computer.getCpu();
         ram = computer.getMemory();
-        Emulator.computer = (Apple2e) computer;
+        Emulator.computer = (LawlessComputer) computer;
         computer.pause();
     }
 

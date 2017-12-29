@@ -46,7 +46,7 @@ public class LawlessComputer extends Apple2e {
         getVideo().configureVideoMode();
         
         try {
-            waitForVBL(1);
+            waitForVBL();
             renderWithMask(0x8, 0x11, 0x22, 0x44);
             Video.forceRefresh();
             waitForVBL(10);
@@ -106,7 +106,7 @@ public class LawlessComputer extends Apple2e {
     List<Runnable> vblCallbacks = Collections.synchronizedList(new ArrayList<Runnable>());
     
     public void waitForVBL() throws InterruptedException {
-        waitForVBL(1);
+        waitForVBL(0);
     }
     
     public void waitForVBL(int count) throws InterruptedException {
@@ -134,13 +134,16 @@ public class LawlessComputer extends Apple2e {
     }
     
     public void finishColdStart() {
-        for (Optional<Card> c : getMemory().getAllCards()) {
-            c.ifPresent(Card::reset);
+        try {
+            for (Optional<Card> c : getMemory().getAllCards()) {
+                c.ifPresent(Card::reset);
+                waitForVBL();
+            }
+            getCpu().resume();
+            reboot();
+        } catch (InterruptedException ex) {
+            Logger.getLogger(LawlessComputer.class.getName()).log(Level.SEVERE, null, ex);
         }
-        reboot();
-        cpu.resume();
-        resume();
-        warmStart();
     }
     
     private byte[] getBootScreen() {

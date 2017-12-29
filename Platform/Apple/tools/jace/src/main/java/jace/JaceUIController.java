@@ -191,10 +191,13 @@ public class JaceUIController {
 
     private List<MediaConsumer> getMediaConsumers() {
         List<MediaConsumer> consumers = new ArrayList<>();
-        for (Optional<Card> card : computer.memory.getAllCards()) {
-            card.filter(c -> c instanceof MediaConsumerParent).ifPresent(parent -> {
-                consumers.addAll(Arrays.asList(((MediaConsumerParent) parent).getConsumers()));
-            });
+        consumers.add(Emulator.computer.getUpgradeHandler());
+        if (Emulator.logic.showDrives) {
+            for (Optional<Card> card : computer.memory.getAllCards()) {
+                card.filter(c -> c instanceof MediaConsumerParent).ifPresent(parent -> {
+                    consumers.addAll(Arrays.asList(((MediaConsumerParent) parent).getConsumers()));
+                });
+            }
         }
         return consumers;
     }
@@ -254,24 +257,25 @@ public class JaceUIController {
     public void removeMouseListener(EventHandler<MouseEvent> handler) {
         appleScreen.removeEventHandler(MouseEvent.ANY, handler);
     }
-    
+
     Label currentNotification = null;
+
     public void displayNotification(String message) {
         Label oldNotification = currentNotification;
         Label notification = new Label(message);
         currentNotification = notification;
         notification.setEffect(new DropShadow(2.0, Color.BLACK));
         notification.setTextFill(Color.WHITE);
-        notification.setBackground(new Background(new BackgroundFill(Color.rgb(0,0,80, 0.7), new CornerRadii(5.0), new Insets(-5.0))));
-        Application.invokeLater(() -> {  
+        notification.setBackground(new Background(new BackgroundFill(Color.rgb(0, 0, 80, 0.7), new CornerRadii(5.0), new Insets(-5.0))));
+        Application.invokeLater(() -> {
             stackPane.getChildren().remove(oldNotification);
             stackPane.getChildren().add(notification);
         });
-        
-        notificationExecutor.schedule(()->{
-            Application.invokeLater(() -> {            
+
+        notificationExecutor.schedule(() -> {
+            Application.invokeLater(() -> {
                 stackPane.getChildren().remove(notification);
-            });                    
+            });
         }, 4, TimeUnit.SECONDS);
     }
 }

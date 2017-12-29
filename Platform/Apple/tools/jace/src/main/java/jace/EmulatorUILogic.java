@@ -18,10 +18,10 @@
  */
 package jace;
 
-import com.sun.javafx.tk.quantum.OverlayWarning;
 import jace.apple2e.MOS65C02;
 import jace.apple2e.RAM128k;
 import jace.apple2e.SoftSwitches;
+import jace.config.ConfigurableField;
 import jace.config.ConfigurationUIController;
 import jace.config.InvokableAction;
 import jace.config.Reconfigurable;
@@ -81,6 +81,12 @@ public class EmulatorUILogic implements Reconfigurable {
             }
         };
     }
+
+    @ConfigurableField(
+            category = "General",
+            name = "Show Drives"
+    )
+    public boolean showDrives = false;
 
     public static void updateCPURegisters(MOS65C02 cpu) {
 //        DebuggerPanel debuggerPanel = Emulator.getFrame().getDebuggerPanel();

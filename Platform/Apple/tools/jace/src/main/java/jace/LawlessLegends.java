@@ -6,7 +6,6 @@
 package jace;
 
 import jace.config.Configuration;
-import jace.core.RAM;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
 import jace.core.Utility;
@@ -17,17 +16,10 @@ import jace.hardware.CardRamworks;
 import jace.hardware.PassportMidiInterface;
 import jace.hardware.massStorage.CardMassStorage;
 import jace.lawless.LawlessHacks;
+import jace.lawless.LawlessImageTool;
 import jace.lawless.LawlessVideo;
-import jace.library.DiskType;
-import jace.library.MediaEntry;
-import jace.library.MediaEntry.MediaFile;
 import jace.ui.MetacheatUI;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.StandardCopyOption;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.application.Application;
@@ -168,87 +160,6 @@ public class LawlessLegends extends Application {
         Emulator.computer.cheatEngine.setValue(LawlessHacks.class);
         Configuration.buildTree();
         Emulator.computer.reconfigure();
-        RAM memory = Emulator.computer.memory;
-
-        // Insert game disk image
-        MediaEntry e1 = new MediaEntry();
-        e1.author = "8 Bit Bunch";
-        e1.name = "Lawless Legends";
-        e1.type = DiskType.LARGE;
-        MediaFile f1 = new MediaEntry.MediaFile();
-        f1.path = getGamePath("game.2mg");
-
-        if (f1.path != null && f1.path.exists()) {
-            memory.getCard(7).ifPresent(card -> {
-                try {
-                    ((CardMassStorage) card).currentDrive.insertMedia(e1, f1);
-                } catch (IOException ex) {
-                    Logger.getLogger(LawlessLegends.class.getName()).log(Level.SEVERE, null, ex);
-                }
-            });
-        }
-
-        // Insert utility disk image
-        MediaEntry e2 = new MediaEntry();
-        e2.author = "8 Bit Bunch";
-        e2.name = "Lawless Legends Utilities";
-        e2.type = DiskType.FLOPPY140_DO;
-        MediaFile f2 = new MediaEntry.MediaFile();
-        f2.path = getGamePath("utilities.dsk");
-        if (f2.path != null && f2.path.exists()) {
-            memory.getCard(6).ifPresent(card -> {
-                try {
-                    ((CardDiskII) card).getConsumers()[0].insertMedia(e2, f2);
-                } catch (IOException ex) {
-                    Logger.getLogger(LawlessLegends.class.getName()).log(Level.SEVERE, null, ex);
-                }
-            });
-        }
-    }
-
-    private File getGamePath(String filename) {
-        File base = getApplicationStoragePath();
-        File target = new File(base, filename);
-        if (!target.exists()) {
-            copyResource(filename, target);
-        }
-        return target;
-    }
-
-    private File getApplicationStoragePath() {
-        String path = System.getenv("APPDATA");
-        if (path == null) {
-            path = System.getProperty("user.home");
-        }
-        if (path == null) {
-            path = ".";
-        }
-        File base = new File(path);
-        File appPath = new File(base, "lawless-legends");
-        appPath.mkdirs();
-        return appPath;
-    }
-
-    private void copyResource(String filename, File target) {
-        File localResource = new File(".", filename);
-        InputStream in = null;
-        if (localResource.exists()) {
-            try {
-                in = new FileInputStream(localResource);
-            } catch (FileNotFoundException ex) {
-                Logger.getLogger(LawlessLegends.class.getName()).log(Level.SEVERE, null, ex);
-            }
-        } else {
-            in = getClass().getClassLoader().getResourceAsStream("jace/data/" + filename);
-        }
-        if (in != null) {
-            try {
-                java.nio.file.Files.copy(in, target.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            } catch (IOException ex) {
-                Logger.getLogger(LawlessLegends.class.getName()).log(Level.SEVERE, null, ex);
-            }
-        } else {
-            Logger.getLogger(LawlessLegends.class.getName()).log(Level.SEVERE, "Unable to find resource {0}", filename);
-        }
+        ((LawlessImageTool) Emulator.computer.getUpgradeHandler()).loadGame();
     }
 }

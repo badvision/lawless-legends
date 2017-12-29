@@ -1,11 +1,14 @@
 package jace.lawless;
 
+import jace.Emulator;
 import jace.apple2e.Apple2e;
 import jace.apple2e.RAM128k;
 import jace.apple2e.SoftSwitches;
 import jace.apple2e.VideoNTSC;
+import jace.config.ConfigurableField;
 import jace.core.Card;
 import jace.core.Video;
+import jace.library.MediaConsumer;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -23,7 +26,8 @@ public class LawlessComputer extends Apple2e {
 
     byte[] bootScreen = null;
     boolean performedBootAnimation = false;
-
+    LawlessImageTool gameDiskHandler = new LawlessImageTool();
+    
     public LawlessComputer() {
         super();
         // Fill text page 1 with spaces
@@ -118,7 +122,7 @@ public class LawlessComputer extends Apple2e {
         }
     }
 
-    List<Runnable> vblCallbacks = Collections.synchronizedList(new ArrayList<Runnable>());
+    List<Runnable> vblCallbacks = Collections.synchronizedList(new ArrayList<>());
 
     public void waitForVBL() throws InterruptedException {
         waitForVBL(0);
@@ -141,8 +145,7 @@ public class LawlessComputer extends Apple2e {
     public void notifyVBLStateChanged(boolean state) {
         super.notifyVBLStateChanged(state);
         if (state) {
-            Runnable r;
-            while (!vblCallbacks.isEmpty()) {
+            while (vblCallbacks != null && !vblCallbacks.isEmpty()) {
                 vblCallbacks.remove(0).run();
             }
         }
@@ -178,4 +181,7 @@ public class LawlessComputer extends Apple2e {
         return bootScreen;
     }
 
+    public MediaConsumer getUpgradeHandler() {
+        return gameDiskHandler;
+    }
 }

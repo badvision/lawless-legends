@@ -33,18 +33,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.paint.Color;
+
 /**
  * This is a set of helper functions which do not belong anywhere else.
  * Functions vary from introspection, discovery, and string/pattern matching.
@@ -52,7 +58,9 @@ import javafx.scene.paint.Color;
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com
  */
 public class Utility {
+
     static Reflections reflections = new Reflections("jace");
+
     public static Set<Class> findAllSubclasses(Class clazz) {
         return reflections.getSubTypesOf(clazz);
     }
@@ -135,6 +143,7 @@ public class Utility {
     }
 
     private static boolean isHeadless = false;
+
     public static void setHeadlessMode(boolean headless) {
         isHeadless = headless;
     }
@@ -142,7 +151,7 @@ public class Utility {
     public static boolean isHeadlessMode() {
         return isHeadless;
     }
-    
+
     public static Optional<Image> loadIcon(String filename) {
         if (isHeadless) {
             return Optional.empty();
@@ -181,6 +190,20 @@ public class Utility {
         return Optional.of(label);
     }
 
+    public static void confirm(String title, String message, Runnable accept) {
+        Platform.runLater(() -> {
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+            confirm.setContentText(message);
+            confirm.setTitle(title);
+            Optional<ButtonType> response = confirm.showAndWait();
+            response.ifPresent(b -> {
+                if (b.getButtonData().isDefaultButton()) {
+                    (new Thread(accept)).start();
+                }
+            });
+        });
+    }
+
 //    public static void runModalProcess(String title, final Runnable runnable) {
 ////        final JDialog frame = new JDialog(Emulator.getFrame());
 //        final JProgressBar progressBar = new JProgressBar();
@@ -201,7 +224,6 @@ public class Utility {
 //            frame.dispose();
 //        }).start();
 //    }
-
     public static class RankingComparator implements Comparator<String> {
 
         String match;

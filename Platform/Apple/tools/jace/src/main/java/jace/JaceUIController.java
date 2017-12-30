@@ -29,6 +29,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.application.Platform;
+import javafx.beans.binding.DoubleBinding;
+import javafx.beans.binding.NumberBinding;
+import javafx.beans.binding.When;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
@@ -71,18 +76,32 @@ public class JaceUIController {
 
     Computer computer;
 
+    private BooleanProperty aspectRatioCorrectionEnabled = new SimpleBooleanProperty(false);
+
     @FXML
     void initialize() {
         assert rootPane != null : "fx:id=\"rootPane\" was not injected: check your FXML file 'JaceUI.fxml'.";
         assert stackPane != null : "fx:id=\"stackPane\" was not injected: check your FXML file 'JaceUI.fxml'.";
         assert notificationBox != null : "fx:id=\"notificationBox\" was not injected: check your FXML file 'JaceUI.fxml'.";
         assert appleScreen != null : "fx:id=\"appleScreen\" was not injected: check your FXML file 'JaceUI.fxml'.";
-        appleScreen.fitWidthProperty().bind(rootPane.widthProperty());
+        NumberBinding aspectCorrectedWidth = rootPane.heightProperty().multiply(3.0).divide(2.0);
+        NumberBinding width = new When(
+                aspectRatioCorrectionEnabled.and(aspectCorrectedWidth.lessThan(rootPane.widthProperty()))
+        ).then(aspectCorrectedWidth).otherwise(rootPane.widthProperty());
+        appleScreen.fitWidthProperty().bind(width);
         appleScreen.fitHeightProperty().bind(rootPane.heightProperty());
         appleScreen.setVisible(false);
         rootPane.setOnDragEntered(this::processDragEnteredEvent);
         rootPane.setOnDragExited(this::processDragExitedEvent);
         rootPane.setBackground(new Background(new BackgroundFill(Color.BLACK, null, null)));
+    }
+
+    public void toggleAspectRatio() {
+        setAspectRatioEnabled(aspectRatioCorrectionEnabled.not().get());
+    }
+
+    public void setAspectRatioEnabled(boolean enabled) {
+        aspectRatioCorrectionEnabled.set(enabled);
     }
 
     public void connectComputer(Computer computer, Stage primaryStage) {

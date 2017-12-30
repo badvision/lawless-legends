@@ -275,6 +275,7 @@ public class EmulatorUILogic implements Reconfigurable {
             Stage stage = LawlessLegends.getApplication().primaryStage;
             stage.setFullScreenExitKeyCombination(KeyCombination.NO_MATCH);
             stage.setFullScreen(!stage.isFullScreen());
+            LawlessLegends.getApplication().controller.setAspectRatioEnabled(stage.isFullScreen());
         });
     }
 
@@ -406,37 +407,41 @@ public class EmulatorUILogic implements Reconfigurable {
                     || LawlessLegends.getApplication().primaryStage == null) {
                 return;
             }
+            Stage stage = LawlessLegends.getApplication().primaryStage;
             size++;
             if (size > 3) {
                 size = 0;
             }
-            int width = 0, height = 0;
-            switch (size) {
-                case 0: // 1x
-                    width = 560;
-                    height = 384;
-                    break;
-                case 1: // 1.5x
-                    width = 840;
-                    height = 576;
-                    break;
-                case 2: // 2x
-                    width = 560 * 2;
-                    height = 384 * 2;
-                    break;
-                case 3: // 3x (retina) 2880x1800
-                    width = 560 * 3;
-                    height = 384 * 3;
-                    break;
-                default: // 2x
-                    width = 560 * 2;
-                    height = 384 * 2;
+            if (stage.isFullScreen()) {
+                LawlessLegends.getApplication().controller.toggleAspectRatio();
+            } else {
+                int width = 0, height = 0;
+                switch (size) {
+                    case 0: // 1x
+                        width = 560;
+                        height = 384;
+                        break;
+                    case 1: // 1.5x
+                        width = 840;
+                        height = 576;
+                        break;
+                    case 2: // 2x
+                        width = 560 * 2;
+                        height = 384 * 2;
+                        break;
+                    case 3: // 3x (retina) 2880x1800
+                        width = 560 * 3;
+                        height = 384 * 3;
+                        break;
+                    default: // 2x
+                        width = 560 * 2;
+                        height = 384 * 2;
+                }
+                double vgap = stage.getScene().getY();
+                double hgap = stage.getScene().getX();
+                stage.setWidth(hgap * 2 + width);
+                stage.setHeight(vgap + height);
             }
-            Stage stage = LawlessLegends.getApplication().primaryStage;
-            double vgap = stage.getScene().getY();
-            double hgap = stage.getScene().getX();
-            stage.setWidth(hgap * 2 + width);
-            stage.setHeight(vgap + height);
         });
     }
 

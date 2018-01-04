@@ -344,17 +344,17 @@ export asm memset(pDst, val, len)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-asm drawLine(color, y, xbyte, xbit, xdir, ydir, xinc, yinc, len)#0
+asm _drawLine(color, len, xbyte, xbit, xinc, xdir, y, yinc, ydir)#0
 !zone {
-.param_len    = evalStkL+0
-.param_yinc   = evalStkL+1
-.param_xinc   = evalStkL+2
-.param_ydir   = evalStkL+3
-.param_xdir   = evalStkL+4
-.param_xbit   = evalStkL+5
-.param_xbyte  = evalStkL+6
-.param_y      = evalStkL+7
 .param_color  = evalStkL+8
+.param_len    = evalStkL+7
+.param_xbyte  = evalStkL+6
+.param_xbit   = evalStkL+5
+.param_xinc   = evalStkL+4
+.param_xdir   = evalStkL+3
+.param_y      = evalStkL+2
+.param_yinc   = evalStkL+1
+.param_ydir   = evalStkL+0
 .xfrac        = tmp
 .yfrac        = tmp+1
   +asmPlasmNoRet 9
@@ -389,6 +389,7 @@ asm drawLine(color, y, xbyte, xbit, xdir, ydir, xinc, yinc, len)#0
   eor (pTmp),y
   and #1              ; ...first pixel
   eor (pTmp),y
+  and #$7F            ; force low-bit colors for entire clock face (no mixing)
   sta (pTmp),y
   dey                 ; back to where we were
 
@@ -1826,6 +1827,62 @@ export def loadMainFrameImg()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def horzSegment(color, len, x, y)#0
+  _drawLine(color, len, x/7, (3<<(x%7)) & $7F, $FF, 1, y, 0, 0)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def putSegment(color, len, isOuter, x, y)#0
+  if isOuter
+    horzSegment(color ^ $7F, len, x, y)
+  else
+    horzSegment(color ^ $7F, 1,     x,     y)
+    horzSegment(color,       len-3, x+2,   y)
+    horzSegment(color ^ $7F, 1,     x+len, y)
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def drawCircle(color, radius, x0, y0)#0
+  word x, y, dx, dy, err, r2, p
+
+  // Clear extents buffer
+  r2 = radius << 1
+  memset($280, 0, r2)
+
+  x = radius-1
+  y = 0
+  dx = 1
+  dy = 1
+  err = dx - r2
+
+  while (x >= y)
+    p = $280 + y
+    ^p = max(^p, x)
+
+    p = $280 + x
+    ^p = max(^p, y)
+
+    if err <= 0
+      y++
+      err = err + dy
+      dy = dy + 2
+    elsif err > 0
+      x--
+      dx = dx + 2
+      err = err + dx - r2
+    fin
+
+  loop
+
+  for y = 0 to radius-1
+    x = ^($280+y)
+    putSegment(color, x<<1, y>=radius-2, x0-x, y0-y)
+    putSegment(color, x<<1, y>=radius-2, x0-x, y0+y)
+  next
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def showCompassDir(dir)#0
   word cursX, cursY, str
   cursX, cursY = getCursor()
@@ -1843,6 +1900,14 @@ def showCompassDir(dir)#0
   wend
   centerStr(str, 21)
   if mapIs3D and texturesLoaded; copyWindow(); fin
+
+  // foo
+  setWindow(160, 192, 100, 140) // Top, Bottom, Left, Right
+  //clearWindow()
+  drawCircle(0, 12, 112, 177)
+  if mapIs3D and texturesLoaded; copyWindow(); fin
+
+  // normal
   setWindow2()
   setCursor(cursX, cursY)
 end
@@ -3217,23 +3282,18 @@ def startGame(ask)#0
 end
 
 def foo#0
-  word xinc
   setWindow(0, 192, 0, 280) // Top, Bottom, Left, Right
   clearWindow()
-  for xinc = 1 to 255
-    //      (color, y,   xbyte, xbit, xdir, ydir, xinc,  yinc, len)#0
-    drawLine($FF,  100,   20,    $3,    0,    0,  xinc,  $FF,  100)
-    rdkey()
-    drawLine($00,  100,   20,    $3,    0,    0,  xinc,  $FF,  100)
-  next
+  drawCircle(100, 100, 50, $FF)
+  rdkey()
 end
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Main code.
 //
 scriptDisplayStr(@_scriptDisplayStr) // 1-time init
 loadTitle()
-foo()
 startGame(TRUE) // ask whether new or load
 kbdLoop()
 

@@ -781,9 +781,12 @@ ClrChkF	LDA BkgColor
 ClrChk1	STA ClrFlpF
 	RTS
 
-;Routine: copy hi-res page 1 to page 2, the window area only
+;Routine: copy the window area from one hi-res page to the other.
+;         If Y-reg is 0, copy pg 1 to 2. If $60, copy is reversed.
 CpWnd	LDX TpMrgn
+	STY pTmp
 CpWnd1	LDA HgrTbHi,X	;(ie. the mem address of the left edge
+	EOR pTmp	;reverse page if requested
 	STA GBasH	;of the HGR screen)
 	EOR #$60	;turn off $20 bit, turn on $40 bit to get page 2
 	STA H_Adr

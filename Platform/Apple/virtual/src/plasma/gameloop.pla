@@ -348,6 +348,7 @@ export asm memset(pDst, val, len)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Specialized line routine for drawing the clock. Plots in black or white only, on hi-res pg 2.
 asm _drawLine(color, len, xbyte, xbit, xinc, xdir, y, yinc, ydir)#0
 !zone {
 .param_color  = evalStkL+8
@@ -372,6 +373,9 @@ asm _drawLine(color, len, xbyte, xbit, xinc, xdir, y, yinc, ydir)#0
   jsr GetScreenLine
   pla
   tax
+  lda pTmp+1
+  eor #$60            ; always draw on hi-res pg 2
+  sta pTmp+1
   clc                 ; signal to take X path first
 .pix
   dec .param_len,x    ; decrement count of pixels todo
@@ -922,9 +926,12 @@ export asm clearWindow()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Use the font engine to copy the current text window to hi-res page 2
-asm copyWindow()#0
-  +asmPlasmNoRet 0
+// Use the font engine to copy the current text window to hi-res page 2.
+// If flip=0, copies page 1 to page 2
+// If flip=$60, copies page 2 to page 1
+asm copyWindow(flip)#0
+  +asmPlasmNoRet 1
+  tay
   jmp CopyWindow
 end
 
@@ -1508,7 +1515,7 @@ def printAtBottom(str, textX, botLeft, botRight, strX)#0
   rawDisplayStr("^T")  // do not use printf variants, since it might overwrite str
   rawDisplayStr(convert3Dec(strX))
   rawDisplayStr(str)
-  if mapIs3D and texturesLoaded; copyWindow(); fin
+  if mapIs3D and texturesLoaded; copyWindow(0); fin
 
   // Restore original graphics cursor and window
   setWindow(origTop, origBottom, origLeft, origRight)
@@ -1636,7 +1643,7 @@ end
 def clearTextWindow()#0
   if textDrawn or textClearCountdown
     setWindow2(); clearWindow()
-    if mapIs3D and texturesLoaded; copyWindow(); fin
+    if mapIs3D and texturesLoaded; copyWindow(0); fin
     textDrawn = FALSE
     textClearCountdown = 0
   fin
@@ -1727,7 +1734,7 @@ export def showParty()#0
   forEach(global=>p_players, @showPartyLine)
 
   // Finish up
-  if mapIs3D and texturesLoaded; copyWindow(); fin
+  if mapIs3D and texturesLoaded; copyWindow(0); fin
   setWindow2()
   setCursor(cursX, cursY)
   needShowParty = FALSE
@@ -1778,7 +1785,7 @@ export def scriptEvent(event, param)#0
 
   if textDrawn
     textClearCountdown = 3
-    if mapIs3D and texturesLoaded; copyWindow(); fin
+    if mapIs3D and texturesLoaded; copyWindow(0); fin
   fin
   clearPortrait()
   if needShowParty; showParty(); fin
@@ -1919,9 +1926,7 @@ end
 def showClock()#0
   word cursX, cursY, color, hour, min, n, prevColor
 
-  // Top, Bottom, Left, Right
-  cursX, cursY = getCursor()
-  setWindow(CLOCK_Y-CLOCK_RADIUS, CLOCK_Y+CLOCK_RADIUS, (CLOCK_X-CLOCK_RADIUS)/7*7, (CLOCK_X+CLOCK_RADIUS+6)/7*7)
+  flipToPage1  // to hide our work in progress on page 2
   prevColor = 99
   hour = 0
   min = 0
@@ -1945,13 +1950,15 @@ def showClock()#0
 
     drawHands(color ^ $7F, hour, min)
 
-    ^$c054
+    // Copy the image from pg 2 to pg 1
+    cursX, cursY = getCursor()
+    setWindow(CLOCK_Y-CLOCK_RADIUS, CLOCK_Y+CLOCK_RADIUS, (CLOCK_X-CLOCK_RADIUS)/7*7, (CLOCK_X+CLOCK_RADIUS+6)/7*7)
+    copyWindow($60) // page 2 to page 1
+    setWindow2()
+    setCursor(cursX, cursY)
+
     rdkey()
   loop
-
-  if mapIs3D and texturesLoaded; copyWindow(); fin
-  setWindow2()
-  setCursor(cursX, cursY)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1971,7 +1978,7 @@ def showCompassDir(dir)#0
     is 14;               str = "NE"; break;
   wend
   centerStr(str, 21)
-  if mapIs3D and texturesLoaded; copyWindow(); fin
+  if mapIs3D and texturesLoaded; copyWindow(0); fin
   setWindow2()
   setCursor(cursX, cursY)
 end
@@ -2349,7 +2356,7 @@ export def showMapName(mapName)#0
     setWindow1()
     clearWindow()
     rawDisplayf1("^Y%s^N", mapName)
-    if mapIs3D and texturesLoaded; copyWindow(); fin
+    if mapIs3D and texturesLoaded; copyWindow(0); fin
     mapNameHash = newNameHash
   fin
 end
@@ -2634,7 +2641,7 @@ def showPlayerSheet(num)#1
     if !textDrawn
       scriptDisplayStr("Nothing happened.")
       textClearCountdown = 3
-      if mapIs3D and texturesLoaded; copyWindow(); fin
+      if mapIs3D and texturesLoaded; copyWindow(0); fin
     fin
     textDrawn = oldFlg
   fin

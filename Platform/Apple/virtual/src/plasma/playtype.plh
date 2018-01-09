@@ -41,6 +41,11 @@ struc Global
 
   // god mode flag
   byte b_godmode
+
+  // current time of day
+  byte b_hour
+  byte b_minute
+  byte b_second
 end
 
 const PLAYER_FLAG_NPC  = $01

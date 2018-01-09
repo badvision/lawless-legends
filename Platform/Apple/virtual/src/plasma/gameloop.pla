@@ -28,6 +28,14 @@ const CLOCK_X = 112
 const CLOCK_Y = 176
 const CLOCK_RADIUS = 14
 
+const CLOCK_ADV_2D_HOURS = 1
+const CLOCK_ADV_2D_MINS  = 0
+const CLOCK_ADV_2D_SECS  = 0
+
+const CLOCK_ADV_3D_HOURS = 0
+const CLOCK_ADV_3D_MINS  = 0
+const CLOCK_ADV_3D_SECS  = 30
+
 // Max gold
 const GOLD_MAX = 20000
 
@@ -128,6 +136,10 @@ word curFullscreenImg = NULL
 byte animDirCt
 byte anyAnims = TRUE
 word animPauseCt
+
+// Tracking previous clock hands for quick erase/redraw
+byte prevClockColor, prevClockHour, prevClockMinute
+byte nextSignificantMinute
 
 // Context for lambda functions (in lieu of closures, for now at least)
 export word ctx
@@ -717,20 +729,24 @@ export asm hashBuffer(ptr, len)#1
   lda evalStkL,x    ; second arg is length
   tax
   ldy #0
-  sty tmp+1
+  sty tmp
   tya
-  clc
-- adc (pTmp),y
-  ror
-  ror tmp+1
-  ror
-  ror tmp+1
-  ror
-  ror tmp+1
-  iny
+- clc
+  adc (pTmp),y
+  bcc +
+  inc tmp
++ lsr
+  ror tmp
+  bcc +
+  ora #$80
++ lsr
+  ror tmp
+  bcc +
+  ora #$80
++ iny
   dex
   bne -
-  ldy tmp+1
+  ldy tmp
   rts
 end
 
@@ -1924,41 +1940,41 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def showClock()#0
-  word cursX, cursY, color, hour, min, n, prevColor
+  word cursX, cursY, color
 
-  flipToPage1  // to hide our work in progress on page 2
-  prevColor = 99
-  hour = 0
-  min = 0
-  while TRUE
-    drawHands(color, hour, min) // erase
+  // Show page 1 while we do work on page 2
+  flipToPage1
 
-    min = min + 5
-    if min > 59
-      min = min - 60
-      hour = hour + 1
-      if hour > 23
-        hour = 0
-      fin
-    fin
+  // Erase old clock hands if applicable
+  if prevClockColor <> 99
+    drawHands(prevClockColor, prevClockHour, prevClockMinute)
+  fin
 
-    color = hour < 6 or hour >= 18 ?? 0 :: $7F
-    if color <> prevColor
-      drawCircle(color, CLOCK_RADIUS, CLOCK_X, CLOCK_Y)
-      prevColor = color
-    fin
+  // New color
+  color = global->b_hour < 6 or global->b_hour >= 18 ?? 0 :: $7F
+  if color <> prevClockColor
+    // Draw entire circle in new color
+    drawCircle(color, CLOCK_RADIUS, CLOCK_X, CLOCK_Y)
+  else
+    // Erase old clock hands
+    drawHands(prevClockColor, prevClockHour, prevClockMinute)
+  fin
 
-    drawHands(color ^ $7F, hour, min)
+  // Draw new clock hands
+  drawHands(color ^ $7F, global->b_hour, global->b_minute)
 
-    // Copy the image from pg 2 to pg 1
-    cursX, cursY = getCursor()
-    setWindow(CLOCK_Y-CLOCK_RADIUS, CLOCK_Y+CLOCK_RADIUS, (CLOCK_X-CLOCK_RADIUS)/7*7, (CLOCK_X+CLOCK_RADIUS+6)/7*7)
-    copyWindow($60) // page 2 to page 1
-    setWindow2()
-    setCursor(cursX, cursY)
+  // Copy the image from pg 2 to pg 1
+  cursX, cursY = getCursor()
+  setWindow(CLOCK_Y-CLOCK_RADIUS, CLOCK_Y+CLOCK_RADIUS, (CLOCK_X-CLOCK_RADIUS)/7*7, (CLOCK_X+CLOCK_RADIUS+6)/7*7)
+  copyWindow($60) // page 2 to page 1
+  setWindow2()
+  setCursor(cursX, cursY)
 
-    rdkey()
-  loop
+  // And record parameters for erasing the clock hands next time
+  prevClockColor  = color
+  prevClockHour   = global->b_hour
+  prevClockMinute = global->b_minute
+  nextSignificantMinute = global->b_minute - (global->b_minute % 5) + 5
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2040,6 +2056,7 @@ def initMap(x, y, dir)#0
   curPortrait = NULL
   curPortraitNum = 0
   curFullscreenImg = NULL
+  prevClockColor = 99
   if mapIs3D
     showCompassDir(dir)
     showClock()
@@ -2107,7 +2124,74 @@ def doRender()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def moveInternal(facingDir, moveDir, beepOK)#1
+def advTime(hours, mins, secs)#0
+  byte redrawClock, runScript
+
+  if secs
+    global->b_second = global->b_second + secs
+    while global->b_second >= 60
+      global->b_second = global->b_second - 60
+      mins++
+    loop
+  fin
+
+  if mins or hours
+    redrawClock = FALSE
+    global->b_minute = global->b_minute + mins
+    if global->b_minute >= nextSignificantMinute; redrawClock = TRUE; fin
+    while global->b_minute >= 60
+      global->b_minute = global->b_minute - 60
+      hours++
+    loop
+
+    if hours
+      redrawClock = TRUE
+      global->b_hour = global->b_hour + hours
+      while global->b_hour >= 24
+        global->b_hour = global->b_hour - 24
+      loop
+      runScript = TRUE
+    fin
+
+    if mapIs3D and redrawClock
+      showClock()
+    fin
+  fin
+
+  if runScript
+    // TODO: Run time script here
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Called by scripts to display a string. We set the flag noting that something has been
+// displayed, then use an assembly routine to do the work.
+export def _scriptDisplayStr(str)#0
+  if pIntimate
+    pIntimate=>intimate_displayStr(str)
+  else
+    if textClearCountdown; clearTextWindow(); fin
+    if renderLoaded; flipToPage1(); fin
+    displayStr(str)
+    textDrawn = TRUE
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def snooze()#1
+  advTime(0, 59 - global->b_minute, 60 - global->b_second)  // start of next hour
+
+  _scriptDisplayStr("Time passes. ")
+  displayf1("It is now %d:", global->b_hour == 0 ?? 12 :: global->b_hour == 12 ?? 12 :: global->b_hour % 12)
+  displayf2("%s%d ", global->b_minute < 10 ?? "0" :: "", global->b_minute)
+  displayf1("%s.\n", global->b_hour < 12 ?? "am" :: "pm")
+  copyWindow(0)
+
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def moveInternal(facingDir, moveDir, beepOK, shouldAdvTime)#1
   byte val
   word x, y
 
@@ -2123,6 +2207,15 @@ def moveInternal(facingDir, moveDir, beepOK)#1
       doRender()
     else
       needRender = TRUE
+    fin
+  fin
+
+  // Advance time if requested
+  if shouldAdvTime
+    if mapIs3D
+      advTime(CLOCK_ADV_3D_HOURS, CLOCK_ADV_3D_MINS, CLOCK_ADV_3D_SECS)
+    else
+      advTime(CLOCK_ADV_2D_HOURS, CLOCK_ADV_2D_MINS, CLOCK_ADV_2D_SECS)
     fin
   fin
 
@@ -2153,7 +2246,7 @@ end
 def moveForward()#1
   byte dir
   dir = getDir()
-  return moveInternal(dir, dir, TRUE)
+  return moveInternal(dir, dir, TRUE, TRUE)  // beep ok, adv time
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2171,7 +2264,7 @@ def moveBackward()#1
   byte facingDir, moveDir
   facingDir = getDir()
   moveDir = (facingDir + 8) & 15
-  moveInternal(facingDir, moveDir, TRUE)
+  moveInternal(facingDir, moveDir, TRUE, TRUE) // beep ok, adv time
   return 0
 end
 
@@ -2182,9 +2275,9 @@ export def moveWayBackward()#1
   byte facingDir, moveDir
   facingDir = getDir()
   moveDir = (facingDir + 8) & 15
-  moveInternal(facingDir, moveDir, FALSE)
+  moveInternal(facingDir, moveDir, FALSE, TRUE) // no beep, but do adv time
   if mapIs3D
-    moveInternal(facingDir, moveDir, FALSE)
+    moveInternal(facingDir, moveDir, FALSE, FALSE) // no beep, don't adv time
   fin
   return 0
 end
@@ -2211,7 +2304,7 @@ def strafeRight()#1
   byte facingDir, moveDir
   facingDir = getDir()
   moveDir = (facingDir + 4) & 15
-  return moveInternal(facingDir, moveDir, FALSE)
+  return moveInternal(facingDir, moveDir, TRUE, TRUE) // beep ok, adv time
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2220,7 +2313,7 @@ def strafeLeft()#1
   byte facingDir, moveDir
   facingDir = getDir()
   moveDir = (facingDir - 4) & 15
-  return moveInternal(facingDir, moveDir, FALSE)
+  return moveInternal(facingDir, moveDir, TRUE, TRUE) // beep ok, adv time
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2386,20 +2479,6 @@ export def setScriptInfo(mapName, trigTbl, wdt, hgt)#0
 
   // Back to the main text window.
   setWindow2()
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Called by scripts to display a string. We set the flag noting that something has been
-// displayed, then use an assembly routine to do the work.
-export def _scriptDisplayStr(str)#0
-  if pIntimate
-    pIntimate=>intimate_displayStr(str)
-  else
-    if textClearCountdown; clearTextWindow(); fin
-    if renderLoaded; flipToPage1(); fin
-    displayStr(str)
-    textDrawn = TRUE
-  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2867,6 +2946,8 @@ def initCmds()#0
     cmdTbl[8]  = @rotateLeft   // left-arrow
     cmdTbl[21] = @rotateRight  // right-arrow
     cmdTbl[10] = @moveBackward // down-arrow
+
+    cmdTbl[' '] = @snooze  // space out
   else
     cmdTbl['W'] = @moveNorth
     cmdTbl['D'] = @moveEast

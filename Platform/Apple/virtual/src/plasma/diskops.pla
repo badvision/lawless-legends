@@ -394,6 +394,7 @@ def newGame()#0
   initHeap(0) // initially empty heap
   global->b_curAvatar = BASE_AVATAR
   global=>w_combatPauseCt = DEFAULT_COMBAT_PAUSE_CT
+  global->b_hour = 12  // start at high noon
   mmgr(START_LOAD, 1) // players module and new game module both in partition 1
   playersModule = mmgr(QUEUE_LOAD, MOD_GEN_PLAYERS<<8 | RES_TYPE_MODULE)
   newGameModule = mmgr(QUEUE_LOAD, GS_NEW_GAME<<8 | RES_TYPE_MODULE)
@@ -415,24 +416,29 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def _newOrLoadGame(ask)#1
-  byte key
+  byte key, existing
 
-  if !gameExists()
-    newGame(); return 1
-  elsif !ask
+  existing = gameExists()
+  if existing and !ask
     loadInternal(); return 0
   fin
 
   while TRUE
     textHome()
     ^$25 = 20
-    puts("\n    Game: N)ew, L)oad, I)mport?")
+    puts("\n    Game: N)ew, ")
+    if existing; puts("L)oad, "); fin
+    puts("I)mport?")
     key = getTextKey()
     when key
       is 'N'
         newGame(); return 1
       is 'L'
-        if loadInternal(); return 0; fin
+        if gameExists
+          if loadInternal(); return 0; fin
+        else
+          beep
+        fin
         break
       is 'I'
         if importGame(); return 0; fin

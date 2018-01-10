@@ -571,6 +571,7 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
         try (FileOutputStream outStream = new FileOutputStream(out)) {
             outStream.write(AppleNTSCGraphics.getAppleHGRBinary(getPlatformData()));
             outStream.flush();
+            outStream.close();
         } catch (IOException ex) {
             Logger.getLogger(AppleImageEditor.class.getName()).log(Level.SEVERE, null, ex);
         }

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
+
+<AnchorPane id="AnchorPane" fx:id="rootPane" prefHeight="384.0" prefWidth="560.0" style="-fx-background-color: BLACK;" xmlns="http://javafx.com/javafx/8.0.111" xmlns:fx="http://javafx.com/fxml/1" fx:controller="jace.JaceUIController">
+    <children>
+      <StackPane fx:id="stackPane" prefHeight="384.0" prefWidth="560.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+         <children>
+            <ImageView fx:id="appleScreen" fitHeight="384.0" fitWidth="560.0" pickOnBounds="true" style="-fx-background-color: BLACK;" />
+            <HBox fx:id="notificationBox" alignment="BOTTOM_RIGHT" blendMode="SCREEN" fillHeight="false" maxHeight="45.0" mouseTransparent="true" prefHeight="45.0" prefWidth="560.0" StackPane.alignment="BOTTOM_CENTER" />
+         </children>
+      </StackPane>
+    </children>
+</AnchorPane>

@@ -140,6 +140,7 @@ word animPauseCt
 // Tracking previous clock hands for quick erase/redraw
 byte prevClockColor, prevClockHour, prevClockMinute
 byte nextSignificantMinute
+byte snoozeX0, snoozeX1
 
 // Context for lambda functions (in lieu of closures, for now at least)
 export word ctx
@@ -1662,6 +1663,7 @@ def clearTextWindow()#0
     if mapIs3D and texturesLoaded; copyWindow(0); fin
     textDrawn = FALSE
     textClearCountdown = 0
+    snoozeX1 = -1
   fin
 end
 
@@ -1965,7 +1967,7 @@ def showClock()#0
 
   // Copy the image from pg 2 to pg 1
   cursX, cursY = getCursor()
-  setWindow(CLOCK_Y-CLOCK_RADIUS, CLOCK_Y+CLOCK_RADIUS, (CLOCK_X-CLOCK_RADIUS)/7*7, (CLOCK_X+CLOCK_RADIUS+6)/7*7)
+  setWindow(CLOCK_Y-CLOCK_RADIUS, CLOCK_Y+CLOCK_RADIUS, (CLOCK_X-CLOCK_RADIUS)/7*7, (CLOCK_X+CLOCK_RADIUS+13)/7*7)
   copyWindow($60) // page 2 to page 1
   setWindow2()
   setCursor(cursX, cursY)
@@ -2057,6 +2059,7 @@ def initMap(x, y, dir)#0
   curPortraitNum = 0
   curFullscreenImg = NULL
   prevClockColor = 99
+  snoozeX1 = -1
   if mapIs3D
     showCompassDir(dir)
     showClock()
@@ -2179,14 +2182,28 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def snooze()#1
-  advTime(0, 59 - global->b_minute, 60 - global->b_second)  // start of next hour
-
-  _scriptDisplayStr("Time passes. ")
-  displayf1("It is now %d:", global->b_hour == 0 ?? 12 :: global->b_hour == 12 ?? 12 :: global->b_hour % 12)
-  displayf2("%s%d ", global->b_minute < 10 ?? "0" :: "", global->b_minute)
-  displayf1("%s.\n", global->b_hour < 12 ?? "am" :: "pm")
-  copyWindow(0)
-
+  word cursX, cursY
+  cursX, cursY = getCursor()
+  if cursX == snoozeX1 and cursY == 0
+    if mapIs3D
+      advTime(0, 14 - (global->b_minute % 15), 60 - global->b_second)  // next 15 min mark
+    else
+      advTime(0, 59 - global->b_minute, 60 - global->b_second)  // start of next hour
+    fin
+    rawDisplayf1("^T%D", snoozeX0)
+  else
+    clearTextWindow
+    rawDisplayStr("The time:   ")
+    snoozeX0, cursY = getCursor()
+  fin
+  rawDisplayf1("^C%d:", global->b_hour == 0 ?? 12 :: global->b_hour == 12 ?? 12 :: global->b_hour % 12)
+  rawDisplayf2("%s%d ", global->b_minute < 10 ?? "0" :: "", global->b_minute)
+  rawDisplayf1("%s.", global->b_hour < 12 ?? "am" :: "pm")
+  snoozeX1, cursY = getCursor()
+  textClearCountdown = 3
+  if mapIs3D
+    copyWindow(0)
+  fin
   return 0
 end
 
@@ -2920,6 +2937,7 @@ def initCmds()#0
   cmdTbl[$0c] = @loadGame // ctrl-L
   cmdTbl['?'] = @help
   cmdTbl[$07] = @toggleGodMode // ctrl-G
+  cmdTbl[' '] = @snooze  // "space out" (snooze)
   if global->b_godmode
     pGodModule=>godmode_setCheatCmds()
   fin
@@ -2946,8 +2964,6 @@ def initCmds()#0
     cmdTbl[8]  = @rotateLeft   // left-arrow
     cmdTbl[21] = @rotateRight  // right-arrow
     cmdTbl[10] = @moveBackward // down-arrow
-
-    cmdTbl[' '] = @snooze  // space out
   else
     cmdTbl['W'] = @moveNorth
     cmdTbl['D'] = @moveEast

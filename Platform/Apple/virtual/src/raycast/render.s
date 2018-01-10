@@ -2195,6 +2195,7 @@ pl_initMap: !zone
 	ldx #<(tableEnd-tableStart)
 	ldy #>(tableEnd-tableStart)
 	jsr mainLoader
+	jsr graphInit
 	; Proceed with loading
 	lda #1			; non-zero to init scripts also
 	jsr loadTextures
@@ -2206,7 +2207,6 @@ pl_initMap: !zone
 	jsr makeDecodeTbls
 	jsr makeLines
 	jsr setExpansionCaller
-	jsr graphInit
 	jmp renderFrame
 
 ; Following are log/pow lookup tables. For speed, align them on a page boundary.

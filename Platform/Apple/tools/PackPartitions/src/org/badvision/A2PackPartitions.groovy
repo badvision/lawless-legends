@@ -3670,12 +3670,15 @@ end
             startScriptFile(outFile)
 
             // Determine which scripts are referenced in the specified section of the map.
-            def initScript
+            def initScript, timeScript
             def scripts = []
             inScripts.script.eachWithIndex { script, idx ->
                 def name = getScriptName(script)
-                if (name != null && name.toLowerCase() == "init") {
+                if (name != null && name.toLowerCase() == "init")
                     initScript = script
+                else if (name != null && name.toLowerCase() == "time") {
+                    timeScript = script
+                    scripts << script
                 }
                 else if (script.locationTrigger.any { trig ->
                             (!xRange || trig.@x.toInteger() in xRange) &&
@@ -3687,15 +3690,19 @@ end
                     scriptNames[script] = "sc_${humanNameToSymbol(name, false)}"
             }
 
+            // Pack init script last
+            if (initScript)
+                scripts << initScript
+
             // Generate the table of triggers, and code for each script.
             makeTriggerTbl(scripts, xRange, yRange)
             scripts.each { script ->
                 packScript(script)
             }
 
-            // Even if there were no scripts, we still need an init to display
-            // the map name.
-            makeInit(mapName, initScript, maxX, maxY)
+            // Always generate outer initialization code, because even if there were no scripts,
+            // we still need an init to display the map name.
+            makeInit(mapName, initScript, timeScript, maxX, maxY)
 
             out.close()
         }
@@ -3739,6 +3746,10 @@ end
                 }
                 out << ")\n"
                 indent = 1
+
+                // The 'Time' function requires exactly one arg
+                if (scriptNames[script] == "sc_time" && scriptArgs[script].size() != 1)
+                    throw new Exception("Error: Time scripts must take exactly one parameter.")
 
                 // Need to queue up the script, to find out what variables need
                 // to be declared.
@@ -4533,19 +4544,16 @@ end
             out << "byte = \$FF\n\n"
         }
 
-        def makeInit(mapName, script, maxX, maxY)
+        def makeInit(mapName, initScript, timeScript, maxX, maxY)
         {
-            // Emit the code the user has stored for the init script (if any)
-            if (script)
-                packScript(script)
-
             // Code to register the  map name, trigger table, and map extent.
             def shortName = mapName.replaceAll(/[\s-]*[23][dD][-0-9]*$/, '').take(16)
-            out << "setScriptInfo(\"$shortName\", @triggerTbl, $maxX, $maxY)\n"
+            def timeFunc = timeScript ? "@${scriptNames[timeScript]}" : "NULL"
+            out << "setScriptInfo(\"$shortName\", $timeFunc, @triggerTbl, $maxX, $maxY)\n"
 
             // Call init script if one was defined
-            if (script)
-                out << "sc_${humanNameToSymbol(getScriptName(script), false)}()\n"
+            if (initScript)
+                out << "${scriptNames[initScript]}()\n"
 
             // All done with the init function.
             out << "done\n"

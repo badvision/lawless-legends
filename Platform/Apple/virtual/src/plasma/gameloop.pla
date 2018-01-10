@@ -137,10 +137,11 @@ byte animDirCt
 byte anyAnims = TRUE
 word animPauseCt
 
-// Tracking previous clock hands for quick erase/redraw
+// Time and clock
 byte prevClockColor, prevClockHour, prevClockMinute
 byte nextSignificantMinute
-byte snoozeX0, snoozeX1
+byte snoozeX0, snoozeX1, snoozeY
+word timeEventFunc
 
 // Context for lambda functions (in lieu of closures, for now at least)
 export word ctx
@@ -1493,17 +1494,21 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set the sky color (relevant to 3D display only)
 export def setSky(num)#0
-  skyNum = num
-  setColor(0, skyNum)
-  needRender = TRUE
+  if num <> skyNum
+    skyNum = num
+    setColor(0, skyNum)
+    needRender = TRUE
+  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set the ground color (relevant to 3D display only)
 export def setGround(num)#0
-  groundNum = num
-  setColor(1, groundNum)
-  needRender = TRUE
+  if num <> groundNum
+    groundNum = num
+    setColor(1, groundNum)
+    needRender = TRUE
+  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2049,6 +2054,8 @@ def initMap(x, y, dir)#0
   // init the script module, if any, which will end up calling us back at the setScriptInfo
   triggerTbl = NULL
   setWindow2()
+  skyNum = 9 // default
+  groundNum = 10 // default
   initDisplay(curMapPartition, mapNum, pCurMap, x, y, dir)
   texturesLoaded = TRUE
   needRender = FALSE
@@ -2140,6 +2147,7 @@ def advTime(hours, mins, secs)#0
 
   if mins or hours
     redrawClock = FALSE
+    runScript = FALSE
     global->b_minute = global->b_minute + mins
     if global->b_minute >= nextSignificantMinute; redrawClock = TRUE; fin
     while global->b_minute >= 60
@@ -2159,10 +2167,10 @@ def advTime(hours, mins, secs)#0
     if mapIs3D and redrawClock
       showClock()
     fin
-  fin
 
-  if runScript
-    // TODO: Run time script here
+    if runScript and timeEventFunc
+      timeEventFunc(global->b_hour)
+    fin
   fin
 end
 
@@ -2184,22 +2192,27 @@ end
 def snooze()#1
   word cursX, cursY
   cursX, cursY = getCursor()
-  if cursX == snoozeX1 and cursY == 0
+  if cursX == snoozeX1 and cursY == snoozeY
     if mapIs3D
       advTime(0, 14 - (global->b_minute % 15), 60 - global->b_second)  // next 15 min mark
     else
       advTime(0, 59 - global->b_minute, 60 - global->b_second)  // start of next hour
     fin
+  fin
+
+  cursX, cursY = getCursor()
+  if cursX == snoozeX1 and cursY == snoozeY
     rawDisplayf1("^T%D", snoozeX0)
   else
-    clearTextWindow
+    if cursY; rawDisplayStr("\n"); fin
+    if cursX; rawDisplayStr("\n"); fin
     rawDisplayStr("The time:   ")
-    snoozeX0, cursY = getCursor()
+    snoozeX0, snoozeY = getCursor()
   fin
   rawDisplayf1("^C%d:", global->b_hour == 0 ?? 12 :: global->b_hour == 12 ?? 12 :: global->b_hour % 12)
   rawDisplayf2("%s%d ", global->b_minute < 10 ?? "0" :: "", global->b_minute)
   rawDisplayf1("%s.", global->b_hour < 12 ?? "am" :: "pm")
-  snoozeX1, cursY = getCursor()
+  snoozeX1, snoozeY = getCursor()
   textClearCountdown = 3
   if mapIs3D
     copyWindow(0)
@@ -2432,6 +2445,7 @@ def kbdLoop()#0
       fatal("xRegChg")
     fin
     key = getUpperKey()
+    printf1("key=%d\n", key) // foo
     if key >= 0 and key < $60
       func = cmdTbl[key]
       if func
@@ -2474,7 +2488,10 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set initial info for the scripts on this map: the name of the map, its trigger table, and the
 // maximum extent (width, height). This is called by the init function for the scripts.
-export def setScriptInfo(mapName, trigTbl, wdt, hgt)#0
+export def setScriptInfo(mapName, timeFn, trigTbl, wdt, hgt)#0
+
+  // Record the time event function, if any
+  timeEventFunc = timeFn
 
   // Grab the trigger table origins (used so the table can be more compact)
   triggerOriginX = trigTbl=>0
@@ -2496,6 +2513,9 @@ export def setScriptInfo(mapName, trigTbl, wdt, hgt)#0
 
   // Back to the main text window.
   setWindow2()
+
+  // If there's a time script, run it so it can set sky color, etc.
+  if timeFn; timeFn(global->b_hour); fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

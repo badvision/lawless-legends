@@ -118,7 +118,7 @@ import gamelib
   predef useMapWindow()#0
   predef setBigWindow()#0
   predef setPortrait(portraitNum)#0
-  predef setScriptInfo(mapName, trigTbl, wdt, hgt)#0
+  predef setScriptInfo(mapName, timeFunc, trigTbl, wdt, hgt)#0
   predef setSky(num)#0
   predef setStat(player, statName, val)#0
   predef setWindow(top, bottom, left, right)#0

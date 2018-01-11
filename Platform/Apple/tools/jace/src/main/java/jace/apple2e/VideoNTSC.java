@@ -89,7 +89,7 @@ public class VideoNTSC extends VideoDHGR {
     static int currentMode = -1;
     @InvokableAction(name = "Toggle video mode",
             category = "video",
-            alternatives = "mode,color,b&w,monochrome",
+            alternatives = "Gfx mode;color;b&w;monochrome",
             defaultKeyMapping = {"ctrl+shift+g"})
     public static void changeVideoMode() {
         VideoNTSC thiss = (VideoNTSC) Emulator.computer.video;

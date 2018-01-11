@@ -8,6 +8,7 @@ package jace;
 import com.sun.glass.ui.Application;
 import jace.core.Card;
 import jace.core.Computer;
+import jace.core.Utility;
 import jace.library.MediaCache;
 import jace.library.MediaConsumer;
 import jace.library.MediaConsumerParent;
@@ -29,7 +30,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.application.Platform;
-import javafx.beans.binding.DoubleBinding;
 import javafx.beans.binding.NumberBinding;
 import javafx.beans.binding.When;
 import javafx.beans.property.BooleanProperty;
@@ -37,7 +37,11 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
+import javafx.scene.Node;
+import javafx.scene.Parent;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.Slider;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.DragEvent;
@@ -47,6 +51,7 @@ import javafx.scene.input.TransferMode;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
@@ -74,6 +79,12 @@ public class JaceUIController {
     @FXML
     private ImageView appleScreen;
 
+    @FXML
+    private BorderPane controlOverlay;
+
+    @FXML
+    private Slider speedSlider;    
+    
     Computer computer;
 
     private BooleanProperty aspectRatioCorrectionEnabled = new SimpleBooleanProperty(false);
@@ -84,6 +95,7 @@ public class JaceUIController {
         assert stackPane != null : "fx:id=\"stackPane\" was not injected: check your FXML file 'JaceUI.fxml'.";
         assert notificationBox != null : "fx:id=\"notificationBox\" was not injected: check your FXML file 'JaceUI.fxml'.";
         assert appleScreen != null : "fx:id=\"appleScreen\" was not injected: check your FXML file 'JaceUI.fxml'.";
+        controlOverlay.setVisible(false);
         NumberBinding aspectCorrectedWidth = rootPane.heightProperty().multiply(3.0).divide(2.0);
         NumberBinding width = new When(
                 aspectRatioCorrectionEnabled.and(aspectCorrectedWidth.lessThan(rootPane.widthProperty()))
@@ -94,6 +106,42 @@ public class JaceUIController {
         rootPane.setOnDragEntered(this::processDragEnteredEvent);
         rootPane.setOnDragExited(this::processDragExitedEvent);
         rootPane.setBackground(new Background(new BackgroundFill(Color.BLACK, null, null)));
+        rootPane.setOnMouseEntered(this::showControlOverlay);
+        rootPane.setOnMouseExited(this::hideControlOverlay);
+    }
+    
+    private void showControlOverlay(MouseEvent evt) {
+        if (!evt.isPrimaryButtonDown() && !evt.isSecondaryButtonDown()) {
+            controlOverlay.setVisible(true);
+        }
+    }
+    
+    private void hideControlOverlay(MouseEvent evt) {
+        controlOverlay.setVisible(false);
+    }
+    
+    private void connectControls(Stage primaryStage) {
+        connectButtons(controlOverlay);
+            if (computer.getKeyboard() != null) {
+                EventHandler<KeyEvent> keyboardHandler = computer.getKeyboard().getListener();
+                primaryStage.setOnShowing(evt -> computer.getKeyboard().resetState());
+                rootPane.setOnKeyPressed(keyboardHandler);
+                rootPane.setOnKeyReleased(keyboardHandler);
+                rootPane.setFocusTraversable(true);
+            }
+        // TODO: Configure the slider display: https://stackoverflow.com/questions/18447963/javafx-slider-text-as-tick-label
+    }
+    
+    private void connectButtons(Node n) {
+        if (n instanceof Button) {
+            Button button = (Button) n;
+            Runnable action = Utility.getNamedInvokableAction(button.getText());
+            button.setOnMouseClicked(evt -> action.run());
+        } else if (n instanceof Parent) {
+            for (Node child : ((Parent) n).getChildrenUnmodifiable()) {
+                connectButtons(child);
+            }
+        }
     }
 
     public void toggleAspectRatio() {
@@ -110,13 +158,7 @@ public class JaceUIController {
         }
         this.computer = computer;
         Platform.runLater(() -> {
-            if (computer.getKeyboard() != null) {
-                EventHandler<KeyEvent> keyboardHandler = computer.getKeyboard().getListener();
-                primaryStage.setOnShowing(evt -> computer.getKeyboard().resetState());
-                rootPane.setOnKeyPressed(keyboardHandler);
-                rootPane.setOnKeyReleased(keyboardHandler);
-                rootPane.setFocusTraversable(true);
-            }
+            connectControls(primaryStage);
             appleScreen.setImage(computer.getVideo().getFrameBuffer());
             appleScreen.setVisible(true);
             rootPane.requestFocus();

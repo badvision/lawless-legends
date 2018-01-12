@@ -30,13 +30,14 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javafx.animation.FadeTransition;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.beans.binding.NumberBinding;
 import javafx.beans.binding.When;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
@@ -60,6 +61,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 import javafx.util.StringConverter;
 
 /**
@@ -89,6 +91,12 @@ public class JaceUIController {
     @FXML
     private Slider speedSlider;
 
+    @FXML
+    private AnchorPane menuButtonPane;
+
+    @FXML
+    private Button menuButton;
+
     Computer computer;
 
     private final BooleanProperty aspectRatioCorrectionEnabled = new SimpleBooleanProperty(false);
@@ -100,6 +108,7 @@ public class JaceUIController {
         assert notificationBox != null : "fx:id=\"notificationBox\" was not injected: check your FXML file 'JaceUI.fxml'.";
         assert appleScreen != null : "fx:id=\"appleScreen\" was not injected: check your FXML file 'JaceUI.fxml'.";
         controlOverlay.setVisible(false);
+        menuButtonPane.setVisible(false);
         NumberBinding aspectCorrectedWidth = rootPane.heightProperty().multiply(3.0).divide(2.0);
         NumberBinding width = new When(
                 aspectRatioCorrectionEnabled.and(aspectCorrectedWidth.lessThan(rootPane.widthProperty()))
@@ -110,18 +119,60 @@ public class JaceUIController {
         rootPane.setOnDragEntered(this::processDragEnteredEvent);
         rootPane.setOnDragExited(this::processDragExitedEvent);
         rootPane.setBackground(new Background(new BackgroundFill(Color.BLACK, null, null)));
-        rootPane.setOnMouseEntered(this::showControlOverlay);
+        rootPane.setOnMouseMoved(this::showMenuButton);
         rootPane.setOnMouseExited(this::hideControlOverlay);
+        menuButton.setOnMouseClicked(this::showControlOverlay);
+        controlOverlay.setOnMouseClicked(this::hideControlOverlay);
+        delayTimer.getKeyFrames().add(new KeyFrame(Duration.millis(3000), evt -> {
+            hideControlOverlay(null);
+        }));
+    }
+
+    private void showMenuButton(MouseEvent evt) {
+        if (!evt.isPrimaryButtonDown() && !evt.isSecondaryButtonDown() && !controlOverlay.isVisible()) {
+            resetMenuButtonTimer();
+            if (!menuButtonPane.isVisible()) {
+                menuButtonPane.setVisible(true);
+                FadeTransition ft = new FadeTransition(Duration.millis(500), menuButtonPane);
+                ft.setFromValue(0.0);
+                ft.setToValue(1.0);
+                ft.play();
+            }
+        }
+    }
+
+    Timeline delayTimer = new Timeline();
+    private void resetMenuButtonTimer() {
+        delayTimer.playFromStart();
     }
 
     private void showControlOverlay(MouseEvent evt) {
         if (!evt.isPrimaryButtonDown() && !evt.isSecondaryButtonDown()) {
+            delayTimer.stop();
+            menuButtonPane.setVisible(false);
             controlOverlay.setVisible(true);
+            FadeTransition ft = new FadeTransition(Duration.millis(500), controlOverlay);
+            ft.setFromValue(0.0);
+            ft.setToValue(1.0);
+            ft.play();
         }
     }
 
     private void hideControlOverlay(MouseEvent evt) {
-        controlOverlay.setVisible(false);
+        if (menuButtonPane.isVisible()) {
+            FadeTransition ft1 = new FadeTransition(Duration.millis(500), menuButtonPane);
+            ft1.setFromValue(1.0);
+            ft1.setToValue(0.0);
+            ft1.setOnFinished(evt1 -> menuButtonPane.setVisible(false));
+            ft1.play();
+        }
+        if (controlOverlay.isVisible()) {
+            FadeTransition ft2 = new FadeTransition(Duration.millis(500), controlOverlay);
+            ft2.setFromValue(1.0);
+            ft2.setToValue(0.0);
+            ft2.setOnFinished(evt1 -> controlOverlay.setVisible(false));
+            ft2.play();
+        }
     }
 
     private double convertSpeedToRatio(Double setting) {

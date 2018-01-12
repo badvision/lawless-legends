@@ -18,7 +18,12 @@
          <children>
             <ImageView fx:id="appleScreen" fitHeight="384.0" fitWidth="560.0" pickOnBounds="true" style="-fx-background-color: BLACK;" />
             <HBox fx:id="notificationBox" alignment="BOTTOM_RIGHT" blendMode="SCREEN" fillHeight="false" maxHeight="45.0" mouseTransparent="true" prefHeight="45.0" prefWidth="560.0" StackPane.alignment="BOTTOM_CENTER" />
-            <BorderPane fx:id="controlOverlay">
+            <AnchorPane fx:id="menuButtonPane" prefHeight="200.0" prefWidth="200.0">
+               <children>
+                  <Button fx:id="menuButton" layoutX="494.0" layoutY="14.0" mnemonicParsing="false" styleClass="menuButton" text="☰" AnchorPane.rightAnchor="14.0" AnchorPane.topAnchor="14.0" />
+               </children>
+            </AnchorPane>
+            <BorderPane fx:id="controlOverlay" visible="false">
                <center>
                   <HBox maxHeight="64.0" prefHeight="64.0" styleClass="uiSpeedSlider" BorderPane.alignment="CENTER">
                      <children>

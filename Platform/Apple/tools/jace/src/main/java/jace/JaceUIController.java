@@ -8,6 +8,7 @@ package jace;
 import com.sun.glass.ui.Application;
 import jace.core.Card;
 import jace.core.Computer;
+import jace.core.Motherboard;
 import jace.core.Utility;
 import jace.library.MediaCache;
 import jace.library.MediaConsumer;
@@ -122,7 +123,7 @@ public class JaceUIController {
     private void hideControlOverlay(MouseEvent evt) {
         controlOverlay.setVisible(false);
     }
-    
+
     private double convertSpeedToRatio(Double setting) {
         if (setting < 1.0) {
             return 0.5;
@@ -131,7 +132,7 @@ public class JaceUIController {
         } else if (setting >= 10) {
             return Double.MAX_VALUE;
         } else {
-            double val = Math.pow(2.0, (setting - 1.0)/1.5);
+            double val = Math.pow(2.0, (setting - 1.0) / 1.5);
             val = Math.floor(val * 2.0) / 2.0;
             if (val > 2.0) {
                 val = Math.floor(val);
@@ -164,7 +165,7 @@ public class JaceUIController {
                 if (v != Math.floor(v)) {
                     return String.valueOf(v) + "x";
                 } else {
-                    return String.valueOf((int) v) + "x";                    
+                    return String.valueOf((int) v) + "x";
                 }
             }
 
@@ -173,9 +174,9 @@ public class JaceUIController {
                 return 1.0;
             }
         });
-        speedSlider.valueProperty().addListener((val,oldValue,newValue) -> setSpeed(newValue.doubleValue()));
+        speedSlider.valueProperty().addListener((val, oldValue, newValue) -> setSpeed(newValue.doubleValue()));
     }
-    
+
     private void connectButtons(Node n) {
         if (n instanceof Button) {
             Button button = (Button) n;
@@ -187,12 +188,18 @@ public class JaceUIController {
             }
         }
     }
-    
+
     private void setSpeed(double speed) {
         double speedRatio = convertSpeedToRatio(speed);
         if (speedRatio > 100.0) {
             Emulator.computer.getMotherboard().maxspeed = true;
+            Motherboard.cpuPerClock = 3;
         } else {
+            if (speedRatio > 25) {
+                Motherboard.cpuPerClock = 2;
+            } else {
+                Motherboard.cpuPerClock = 1;
+            }
             Emulator.computer.getMotherboard().maxspeed = false;
             Emulator.computer.getMotherboard().speedRatio = (int) (speedRatio * 100);
         }

@@ -34,6 +34,8 @@ import javafx.beans.binding.NumberBinding;
 import javafx.beans.binding.When;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
@@ -57,6 +59,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
+import javafx.util.StringConverter;
 
 /**
  *
@@ -83,11 +86,11 @@ public class JaceUIController {
     private BorderPane controlOverlay;
 
     @FXML
-    private Slider speedSlider;    
-    
+    private Slider speedSlider;
+
     Computer computer;
 
-    private BooleanProperty aspectRatioCorrectionEnabled = new SimpleBooleanProperty(false);
+    private final BooleanProperty aspectRatioCorrectionEnabled = new SimpleBooleanProperty(false);
 
     @FXML
     void initialize() {
@@ -109,27 +112,68 @@ public class JaceUIController {
         rootPane.setOnMouseEntered(this::showControlOverlay);
         rootPane.setOnMouseExited(this::hideControlOverlay);
     }
-    
+
     private void showControlOverlay(MouseEvent evt) {
         if (!evt.isPrimaryButtonDown() && !evt.isSecondaryButtonDown()) {
             controlOverlay.setVisible(true);
         }
     }
-    
+
     private void hideControlOverlay(MouseEvent evt) {
         controlOverlay.setVisible(false);
     }
     
+    private double convertSpeedToRatio(Double setting) {
+        if (setting < 1.0) {
+            return 0.5;
+        } else if (setting == 1.0) {
+            return 1.0;
+        } else if (setting >= 10) {
+            return Double.MAX_VALUE;
+        } else {
+            double val = Math.pow(2.0, (setting - 1.0)/1.5);
+            val = Math.floor(val * 2.0) / 2.0;
+            if (val > 2.0) {
+                val = Math.floor(val);
+            }
+            return val;
+        }
+    }
+
     private void connectControls(Stage primaryStage) {
         connectButtons(controlOverlay);
-            if (computer.getKeyboard() != null) {
-                EventHandler<KeyEvent> keyboardHandler = computer.getKeyboard().getListener();
-                primaryStage.setOnShowing(evt -> computer.getKeyboard().resetState());
-                rootPane.setOnKeyPressed(keyboardHandler);
-                rootPane.setOnKeyReleased(keyboardHandler);
-                rootPane.setFocusTraversable(true);
+        if (computer.getKeyboard() != null) {
+            EventHandler<KeyEvent> keyboardHandler = computer.getKeyboard().getListener();
+            primaryStage.setOnShowing(evt -> computer.getKeyboard().resetState());
+            rootPane.setOnKeyPressed(keyboardHandler);
+            rootPane.setOnKeyReleased(keyboardHandler);
+            rootPane.setFocusTraversable(true);
+        }
+        speedSlider.setValue(1.0);
+        speedSlider.setMinorTickCount(0);
+        speedSlider.setMajorTickUnit(1);
+        speedSlider.setLabelFormatter(new StringConverter<Double>() {
+            @Override
+            public String toString(Double val) {
+                if (val < 1.0) {
+                    return "Half";
+                } else if (val >= 10.0) {
+                    return "∞";
+                }
+                double v = convertSpeedToRatio(val);
+                if (v != Math.floor(v)) {
+                    return String.valueOf(v) + "x";
+                } else {
+                    return String.valueOf((int) v) + "x";                    
+                }
             }
-        // TODO: Configure the slider display: https://stackoverflow.com/questions/18447963/javafx-slider-text-as-tick-label
+
+            @Override
+            public Double fromString(String string) {
+                return 1.0;
+            }
+        });
+        speedSlider.valueProperty().addListener((val,oldValue,newValue) -> setSpeed(newValue.doubleValue()));
     }
     
     private void connectButtons(Node n) {
@@ -142,6 +186,17 @@ public class JaceUIController {
                 connectButtons(child);
             }
         }
+    }
+    
+    private void setSpeed(double speed) {
+        double speedRatio = convertSpeedToRatio(speed);
+        if (speedRatio > 100.0) {
+            Emulator.computer.getMotherboard().maxspeed = true;
+        } else {
+            Emulator.computer.getMotherboard().maxspeed = false;
+            Emulator.computer.getMotherboard().speedRatio = (int) (speedRatio * 100);
+        }
+        Emulator.computer.getMotherboard().reconfigure();
     }
 
     public void toggleAspectRatio() {

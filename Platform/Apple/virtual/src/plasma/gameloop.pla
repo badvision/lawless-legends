@@ -160,6 +160,7 @@ export byte[] S_AIMING = "Aiming"
 export byte[] S_HAND_TO_HAND = "Hand to hand"
 export byte[] S_DODGING = "Dodging"
 export byte[] S_GOLD = "Gold"
+export byte[] S_TIME = "Time"
 export byte[] S_XP = "XP"
 export byte[] S_SP = "SP"
 export byte[] S_PACK_SIZE = "Pack size"
@@ -400,7 +401,7 @@ asm _drawLine(color, len, xbyte, xbit, xinc, xdir, y, yinc, ydir)#0
   eor (pTmp),y        ; funny logic to plot in color - part 1
   and .param_xbit,x   ; bit mask within byte
   eor (pTmp),y        ; funny logic - part 2
-  and #$7F            ; force low-bit colors for entire clock face (no mixing)
+  ora #$80            ; force hi-bit colors for entire clock face (no mixing)
   sta (pTmp),y        ; store the result
 
   lda .param_xbit,x   ; check bit mask:
@@ -412,7 +413,7 @@ asm _drawLine(color, len, xbyte, xbit, xinc, xdir, y, yinc, ydir)#0
   eor (pTmp),y
   and #1              ; ...first pixel
   eor (pTmp),y
-  and #$7F            ; force low-bit colors for entire clock face (no mixing)
+  ora #$80            ; force hi-bit colors for entire clock face (no mixing)
   sta (pTmp),y
   dey                 ; back to where we were
 
@@ -3337,6 +3338,7 @@ export def getStat(player, statName)#1
     is streqi(statName, @S_HAND_TO_HAND); return player->b_handToHand
     is streqi(statName, @S_DODGING);      return player->b_dodging
     is streqi(statName, @S_GOLD);         return global=>w_gold
+    is streqi(statName, @S_TIME);         return global->b_hour
     is streqi(statName, @S_XP);           return player=>w_curXP
     is streqi(statName, @S_SP);           return player->b_skillPoints
     is streqi(statName, @S_PACK_SIZE);    return player->b_packSize
@@ -3360,6 +3362,15 @@ def clampByte(val)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def setHour(val) #0
+  val = val % 24 // clamp to range 0..23
+  if val <> global->b_hour or global->b_minute
+    if global->b_hour >= val; val = val + 24; fin // to ensure positive difference
+    advTime(val - global->b_hour - 1, 59 - global->b_minute, 60 - global->b_second)
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 export def setStat(player, statName, val)#0
   word pSkill
   when 1
@@ -3376,6 +3387,7 @@ export def setStat(player, statName, val)#0
     is streqi(statName, @S_HAND_TO_HAND); player->b_handToHand = clampByte(val); break
     is streqi(statName, @S_DODGING);      player->b_dodging = clampByte(val); break
     is streqi(statName, @S_GOLD);         global=>w_gold = max(0, val); needShowParty = TRUE; break
+    is streqi(statName, @S_TIME);         setHour(val); break;
     is streqi(statName, @S_XP);           player=>w_curXP = max(player=>w_curXP, val); needShowParty = TRUE; break
     is streqi(statName, @S_SP);           player->b_skillPoints = clampByte(max(0, val)); needShowParty = TRUE; break
     is streqi(statName, @S_PACK_SIZE);    player->b_packSize = clampByte(max(player->b_packSize, val)); break

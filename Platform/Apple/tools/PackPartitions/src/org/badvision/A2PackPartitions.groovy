@@ -133,6 +133,7 @@ class A2PackPartitions
         "Hand to hand": "@S_HAND_TO_HAND",
         "Dodging":      "@S_DODGING",
         "Gold":         "@S_GOLD",
+        "Time":         "@S_TIME",
         "XP":           "@S_XP",
         "SP":           "@S_SP"
     ]
@@ -3856,6 +3857,7 @@ end
                         packUnbenchPlayer(blk); break
                     case 'interaction_increase_stat':
                     case 'interaction_decrease_stat':
+                    case 'interaction_set_stat':
                         packChangeStat(blk); break
                     case 'interaction_increase_party_stats':
                     case 'interaction_decrease_party_stats':
@@ -4024,13 +4026,18 @@ end
         {
             assert blk.field.size() == 2
             assert blk.field[0].@name == 'NAME'
-            assert blk.field[1].@name == 'AMOUNT'
+            assert blk.field[1].@name == 'AMOUNT' || blk.field[1].@name == 'NUMBER'
             def name = blk.field[0].text()
             def amount = blk.field[1].text().toInteger()
             assert amount > 0 && amount < 32767
             def stat = nameToStat(name)
-            outIndented(
-                "setStat(global=>p_players, $stat, getStat(global=>p_players, $stat) ${blk.@type == 'interaction_increase_stat' ? '+' : '-'} $amount)\n")
+            if (blk.@type == 'interaction_set_stat')
+                outIndented("setStat(global=>p_players, $stat, $amount)\n")
+            else {
+                def operator = blk.@type == 'interaction_increase_stat' ? '+' : '-'
+                outIndented(
+                    "setStat(global=>p_players, $stat, getStat(global=>p_players, $stat) $operator $amount)\n")
+            }
         }
 
         def packChangePartyStats(blk)

@@ -777,6 +777,21 @@ if (typeof Mythos === "undefined") {
                     this.setTooltip('Get player stat');
                 }
             };
+            Blockly.Blocks['interaction_set_stat'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Set player's")
+                            .appendField(new Blockly.FieldTextInput(""), "NAME")
+                            .appendField("stat to")
+                            .appendField(new Blockly.FieldTextInput("0"), "NUMBER");
+                    this.setOutput(false);
+                    this.setTooltip('Set a player stat');
+                }
+            };
             Blockly.Blocks['interaction_increase_stat'] = {
                 init: function () {
                     this.setHelpUrl(Mythos.helpUrl);

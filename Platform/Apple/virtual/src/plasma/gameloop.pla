@@ -2057,6 +2057,7 @@ def initMap(x, y, dir)#0
   setWindow2()
   skyNum = 9 // default
   groundNum = 10 // default
+  timeEventFunc = NULL
   initDisplay(curMapPartition, mapNum, pCurMap, x, y, dir)
   texturesLoaded = TRUE
   needRender = FALSE
@@ -2068,6 +2069,7 @@ def initMap(x, y, dir)#0
   curFullscreenImg = NULL
   prevClockColor = 99
   snoozeX1 = -1
+  if timeEventFunc; timeEventFunc(global->b_hour); fin
   if mapIs3D
     showCompassDir(dir)
     showClock()

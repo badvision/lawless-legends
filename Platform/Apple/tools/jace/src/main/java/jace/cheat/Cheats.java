@@ -41,7 +41,7 @@ public abstract class Cheats extends Device {
         super(computer);
     }
     
-    @InvokableAction(name = "Toggle Cheats", alternatives = "cheat", defaultKeyMapping = "ctrl+shift+m")
+    @InvokableAction(name = "Toggle Cheats", alternatives = "cheat;Plug-in", defaultKeyMapping = "ctrl+shift+m")
     public void toggleCheats() {
         cheatsActive = !cheatsActive;
         if (cheatsActive) {

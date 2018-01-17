@@ -1329,6 +1329,13 @@ end
 // Get a keystroke and convert it to upper case
 export def getUpperKey()#1
   byte key
+
+  // Make sure same text displays on both hi-res while animating
+  if anyAnims and textDrawn and mapIs3D and texturesLoaded
+    copyWindow(0)
+  fin
+
+  // Now wait for a key, and animate while doing so.
   while ^kbd < 128
     *seed = *seed + 1
     animPauseCt = animPauseCt - 1

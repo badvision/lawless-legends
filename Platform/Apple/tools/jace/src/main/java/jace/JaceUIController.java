@@ -6,10 +6,12 @@
 package jace;
 
 import com.sun.glass.ui.Application;
+import jace.config.ConfigurableField;
 import jace.core.Card;
 import jace.core.Computer;
 import jace.core.Motherboard;
 import jace.core.Utility;
+import jace.lawless.LawlessComputer;
 import jace.library.MediaCache;
 import jace.library.MediaConsumer;
 import jace.library.MediaConsumerParent;
@@ -109,6 +111,8 @@ public class JaceUIController {
         assert appleScreen != null : "fx:id=\"appleScreen\" was not injected: check your FXML file 'JaceUI.fxml'.";
         controlOverlay.setVisible(false);
         menuButtonPane.setVisible(false);
+        controlOverlay.setFocusTraversable(false);
+        menuButtonPane.setFocusTraversable(false);
         NumberBinding aspectCorrectedWidth = rootPane.heightProperty().multiply(3.0).divide(2.0);
         NumberBinding width = new When(
                 aspectRatioCorrectionEnabled.and(aspectCorrectedWidth.lessThan(rootPane.widthProperty()))
@@ -125,6 +129,7 @@ public class JaceUIController {
         controlOverlay.setOnMouseClicked(this::hideControlOverlay);
         delayTimer.getKeyFrames().add(new KeyFrame(Duration.millis(3000), evt -> {
             hideControlOverlay(null);
+            rootPane.requestFocus();
         }));
     }
 
@@ -139,9 +144,11 @@ public class JaceUIController {
                 ft.play();
             }
         }
+        rootPane.requestFocus();
     }
 
     Timeline delayTimer = new Timeline();
+
     private void resetMenuButtonTimer() {
         delayTimer.playFromStart();
     }
@@ -155,6 +162,7 @@ public class JaceUIController {
             ft.setFromValue(0.0);
             ft.setToValue(1.0);
             ft.play();
+            rootPane.requestFocus();
         }
     }
 
@@ -226,6 +234,7 @@ public class JaceUIController {
             }
         });
         speedSlider.valueProperty().addListener((val, oldValue, newValue) -> setSpeed(newValue.doubleValue()));
+        Platform.runLater(() -> speedSlider.setValue(Emulator.logic.speedSetting));
     }
 
     private void connectButtons(Node n) {
@@ -241,6 +250,7 @@ public class JaceUIController {
     }
 
     private void setSpeed(double speed) {
+        Emulator.logic.speedSetting = (int) speed;
         double speedRatio = convertSpeedToRatio(speed);
         if (speedRatio > 100.0) {
             Emulator.computer.getMotherboard().maxspeed = true;

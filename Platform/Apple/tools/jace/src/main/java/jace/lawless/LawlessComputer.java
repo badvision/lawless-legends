@@ -4,6 +4,7 @@ import jace.apple2e.Apple2e;
 import jace.apple2e.RAM128k;
 import jace.apple2e.SoftSwitches;
 import jace.apple2e.VideoNTSC;
+import jace.config.ConfigurableField;
 import jace.core.Card;
 import jace.core.Video;
 import jace.library.MediaConsumer;
@@ -25,6 +26,8 @@ public class LawlessComputer extends Apple2e {
     byte[] bootScreen = null;
     boolean performedBootAnimation = false;
     LawlessImageTool gameDiskHandler = new LawlessImageTool();
+    @ConfigurableField(name = "Boot Animation")
+    public boolean showBootAnimation = true;
     
     public LawlessComputer() {
         super();
@@ -49,7 +52,12 @@ public class LawlessComputer extends Apple2e {
         for (SoftSwitches s : SoftSwitches.values()) {
             s.getSwitch().reset();
         }
-        (new Thread(this::startAnimation)).start();
+        if (showBootAnimation) {
+            (new Thread(this::startAnimation)).start();
+        } else {
+            finishColdStart();
+            getMotherboard().requestSpeed(this);
+        }
     }
 
     public void startAnimation() {

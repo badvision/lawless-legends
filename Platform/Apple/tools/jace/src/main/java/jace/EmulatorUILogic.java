@@ -81,6 +81,12 @@ public class EmulatorUILogic implements Reconfigurable {
             }
         };
     }
+    
+    @ConfigurableField(
+            category = "General",
+            name = "Speed Setting"
+    )
+    public int speedSetting = 1;
 
     @ConfigurableField(
             category = "General",

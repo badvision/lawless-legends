@@ -88,7 +88,7 @@ public class ConfigurationUIController {
         assert settingsScroll != null : "fx:id=\"settingsScroll\" was not injected: check your FXML file 'Configuration.fxml'.";
         assert deviceTree != null : "fx:id=\"deviceTree\" was not injected: check your FXML file 'Configuration.fxml'.";
         assert treeScroll != null : "fx:id=\"treeScroll\" was not injected: check your FXML file 'Configuration.fxml'.";
-        resetDeviceTree();
+        cancelConfig(null);
         deviceTree.getSelectionModel().selectedItemProperty().addListener(this::selectionChanged);
         deviceTree.maxWidthProperty().bind(treeScroll.widthProperty());
     }

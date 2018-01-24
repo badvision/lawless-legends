@@ -44,7 +44,7 @@
                                     </items>
                                 </Menu>
                                 <MenuItem mnemonicParsing="false" onAction="#mapTogglePanZoom" text="Toggle pan/zoom controls" />
-                        <MenuItem mnemonicParsing="false" onAction="#showShiftUI" text="Shft Map" />
+                        <MenuItem mnemonicParsing="false" onAction="#showShiftUI" text="Shift Map" />
                             </items>
                         </MenuButton>
                   <Label fx:id="cursorInfo" text="CursorInfo" />

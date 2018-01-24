@@ -234,7 +234,11 @@ public class JaceUIController {
             }
         });
         speedSlider.valueProperty().addListener((val, oldValue, newValue) -> setSpeed(newValue.doubleValue()));
-        Platform.runLater(() -> speedSlider.setValue(Emulator.logic.speedSetting));
+        Platform.runLater(() -> {
+            speedSlider.setValue(Emulator.logic.speedSetting);
+            // Kind of redundant but make sure speed is properly set as if the user did it
+            setSpeed(Emulator.logic.speedSetting);
+        });
     }
 
     private void connectButtons(Node n) {

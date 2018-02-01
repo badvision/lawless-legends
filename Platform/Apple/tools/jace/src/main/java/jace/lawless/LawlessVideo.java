@@ -1,5 +1,7 @@
 package jace.lawless;
 
+import jace.Emulator;
+import jace.LawlessLegends;
 import jace.apple2e.RAM128k;
 import jace.apple2e.VideoNTSC;
 import jace.core.Computer;
@@ -63,6 +65,7 @@ public class LawlessVideo extends VideoNTSC {
 
     public static void setEngine(RenderEngine e) {
         activeEngine = e;
+        Emulator.computer.onNextVBL(()->Emulator.computer.getVideo().forceRefresh());
 //        System.out.println("Detected engine: " + e.name());
     }
 

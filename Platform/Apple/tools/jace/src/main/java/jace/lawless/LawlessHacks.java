@@ -4,7 +4,6 @@ import jace.apple2e.MOS65C02;
 import jace.cheat.Cheats;
 import jace.core.Computer;
 import jace.core.RAMEvent;
-import jace.core.Utility;
 import jace.lawless.LawlessVideo.RenderEngine;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -13,7 +12,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class LawlessHacks extends Cheats {
 
-    Computer computer;
     // Location of font routines
     int FONT_ROUTINES = 0x0EC00;
     int FONT_SPEEDUP_CYCLES = 10000;
@@ -26,7 +24,6 @@ public class LawlessHacks extends Cheats {
 
     public LawlessHacks(Computer computer) {
         super(computer);
-        this.computer = computer;
     }
 
     @Override

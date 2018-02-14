@@ -73,8 +73,6 @@ class A2PackPartitions
     def tiles     = [:]  // tile id to tile.buf
     def tileSets  = [:]  // tileset name to tileset.num, tileset.buf
     def avatars   = [:]  // avatar tile name to tile num (within the special tileset)
-    def compassTiles = [:] // compass direction (north, east, south, west) to tile num (within global tileset)
-    def clockTiles = [:] // clock time (e.g. 12:00, 1:30) to tile num (within global tileset)
     def lampTiles = []   // animated series of lamp tiles
     def textures  = [:]  // img name to img.num, img.buf
     def frames    = [:]  // img name to img.num, img.buf
@@ -857,22 +855,6 @@ class A2PackPartitions
             def cat = tile.@category.toLowerCase().trim()
             if (cat == "avatar")
                 avatars[lname] = tileNum++
-            else if (cat == "compass") {
-                for (def dir : ['north', 'east', 'south', 'west']) {
-                    if (lname.contains(dir)) {
-                        compassTiles[dir] = tileNum++
-                        break
-                    }
-                }
-            }
-            else if (cat == "clock") {
-                for (def time : ['12:00', '1:30', '3:00', '4:30', '6:00', '7:30', '9:00', '10:30']) {
-                    if (lname.contains(time)) {
-                        clockTiles[time] = tileNum++
-                        break
-                    }
-                }
-            }
             else if (cat == "lamp") {
                 lampTiles << tileNum++
             }
@@ -896,7 +878,7 @@ class A2PackPartitions
             def id = tile.@id
             def data = tiles[id]
             def cat = tile.@category.toLowerCase().trim()
-            if (cat == "avatar" || cat == "compass" || cat == "clock" || cat == "lamp") {
+            if (cat == "avatar" || cat == "lamp") {
                 def num = tileMap.size()
                 tileIds.add(id)
                 tileMap[id] = num
@@ -1004,7 +986,7 @@ class A2PackPartitions
         //println "Packing 3D map #$num named '$name': num=$num."
         withContext("map '$name'") {
             addResourceDep("map", name, "map3D", name)
-            addResourceDep("map", name, "tileSet", "tileSet_special")  // global tiles for clock, compass, etc.
+            addResourceDep("map", name, "tileSet", "tileSet_special")  // global tiles for avatar, lamp, etc.
             def rows = parseMap(mapEl, tileEls)
             //println "3d map ${name}: ${rows[0].size()} x ${rows.size()} = ${rows[0].size() * rows.size()}"
             def (scriptModule, locationsWithTriggers) = packScripts(mapEl, name, rows[0].size(), rows.size())
@@ -3290,12 +3272,10 @@ end
             out.println "const PF_LAST = $frameNum"
 
             out.println ""
-            for (def dir : ["north", "east", "south", "west"])
-                out.println "const COMPASS_${dir.toUpperCase()} = ${compassTiles.containsKey(dir) ? compassTiles[dir] : -1}"
-
-            out.println ""
-            for (def time : ['12:00', '1:30', '3:00', '4:30', '6:00', '7:30', '9:00', '10:30'])
-                out.println "const CLOCK_${time.replace(':', '_')} = ${clockTiles.containsKey(time) ? clockTiles[time] : -1}"
+            out.println "const LAMP_COUNT = ${lampTiles.size()}"
+            lampTiles.eachWithIndex { num, idx ->
+                out.println "const LAMP_$idx = $num"
+            }
 
             out.println ""
             out.println "const BASE_AVATAR = ${avatars.values()[0]}"

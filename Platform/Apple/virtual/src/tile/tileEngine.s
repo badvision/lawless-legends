@@ -113,7 +113,7 @@ next_zp		= $AD
 	JMP pl_setPos		; params: x (0-255), y (0-255); return: nothing
 	JMP pl_getDir		; params: none; return: dir (0-15)
 	JMP pl_setDir		; params: dir (0-15); return: nothing
-	JMP pl_advance		; params: none; return: 0 if same, 1 if new map tile, 2 if new and scripted
+	JMP pl_advance		; params: none; return: 0 if blocked, 1 if same, 2 if new map tile
 	JMP pl_setColor		; params: slot (0=sky/1=ground), color (0-15); return: nothing
 	JMP pl_render		; params: none
 	JMP pl_texControl	; params: 1=load, 0=unload
@@ -1352,24 +1352,16 @@ pl_advance: !zone {
 	PLA
 	STA AVATAR_DIR
 
-+	LDY #0			; default return: didn't move
-	PLA
++	PLA
 	EOR REL_Y
 	STA .or+1
 	PLA
 	EOR REL_X
 .or	ORA #11			; self-modified above
-	BEQ .ret
-	LDY #2			; moved, so return at least 2.
-	LDA AVATAR_TILE
-	AND #$40		; check script flag
-	BEQ .ret
-	INY			; moved and also new place is scripted, return 3.
-.ret	TYA
-	PHA
-	JSR LOAD_SCRIPTS_NO_CALC ; we might have moved to a new place; load new scripts.
-	PLA
-	LDY #0			; hi byte of return always zero
+	BEQ .ret		; didn't move, return 0
+	JSR LOAD_SCRIPTS_NO_CALC ; we have moved to a new place; load new scripts.
+	LDA #2			; moved, so return 2.
+.ret	LDY #0			; hi byte of return always zero
 	RTS
 }
 

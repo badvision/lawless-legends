@@ -171,6 +171,10 @@ export byte[] S_HIS = "his"
 export byte[] S_HER = "her"
 export byte[] S_THEIR = "their"
 
+byte[] macro = "lddddwwwwwwwwwwwwwwaaaaawwwwwdwwwwwwwwddwwwwwwwwaw",0
+word pMacro = NULL //@macro
+word startTick = NULL
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
 asm _defs
@@ -1151,6 +1155,171 @@ asm mulRatio(num, ratio)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Check for script(s) attached to the given location, and establish the array of map scripts.
+// Does not call any of them -- that's the job of scriptEvent().
+// Structure of trigger table:
+//   Y (1 byte)
+//   entry length (1 byte, includes Y and this length)
+//     X (1 byte)
+//     script ptr (2 bytes)
+//     X
+//     script ptr...
+//   Y (or $FF for end of table)
+//     ...
+asm scanScripts(x, y, triggerTbl, mapScripts)#1
+!zone {
+.pMapScripts = tmp
+.pTriggerTbl = pTmp
+.outOffset = ysav
+.limit = ysav1
+.xCoord = evalStkL+3
+.yCoord = evalStkL+2
+  +asmPlasmRet 4
+  sta .pMapScripts      ; pointer to output mapScripts
+  sty .pMapScripts+1
+  lda evalStkL+1,x      ; pointer to trigger tbl
+  sta .pTriggerTbl
+  lda evalStkH+1,x
+  sta .pTriggerTbl+1
+  lda #0                ; zero initial output offset
+  sta .outOffset
+.ylup
+  ldy #0
+  lda (.pTriggerTbl),y
+  cmp #$FF              ; Y=$FF marks end of trigger table
+  bne +
+.done
+  lda .outOffset
+  lsr                   ; divide offset by 2 to get # of output scripts
+  ldy #0
+  rts                   ; all done
++ iny
+  cmp .yCoord,x         ; check for Y coordinate we want
+  beq .goty
+  lda (.pTriggerTbl),y  ; not found, add offset to find next Y section
+  clc
+  adc .pTriggerTbl
+  sta .pTriggerTbl
+  bcc .ylup
+  inc .pTriggerTbl+1
+  bne .ylup             ; always taken
+.goty
+  lda (.pTriggerTbl),y  ; get # of bytes in X table
+  sta .limit
+  iny
+.xlup
+  lda (.pTriggerTbl),y
+  iny
+  cmp .xCoord,x
+  bne .nextx
+  tya
+  pha                   ; save trigger table pointer
+  iny
+  lda (.pTriggerTbl),y  ; hi byte of script
+  pha
+  dey
+  lda (.pTriggerTbl),y  ; lo byte of script
+  ldy .outOffset
+  sta (.pMapScripts),y
+  iny
+  pla
+  sta (.pMapScripts),y
+  iny
+  sty .outOffset
+  pla                   ; back to scanning trigger tbl
+  tay
+.nextx
+  iny
+  iny
+  cpy .limit            ; stop at end of X/ptr list
+  bcs .done
+  bcc .xlup             ; always taken
+}
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// The following only used for speed testing
+asm readNoSlotClock(dstBuf)#0  // param: dstBuf (will receive 8 BCD bytes)
+!zone {
+  +asmPlasmNoRet 1
+  ; record dst ptr
+  sta tmp
+  sty tmp+1
+  ; obtain a pointer to our little table of magic values
+  lda #$60
+  sta pTmp
+.base = *+2
+  jsr pTmp
+  tsx
+  dex
+  dex
+  txs
+  pla
+  sta pTmp
+  pla
+  sta pTmp+1
+  ldy #<(.tbl - .base)
+  ; record state of slot ROM, then turn on C3 ROM
+  sei
+  lda $CFFF
+  pha
+  sta $C300
+  lda $C304
+  ldx #8
+.wr1:
+  lda (pTmp),y
+  sec
+  ror
+.wr2:
+  bcs +
+  bit $C300
+  bcc ++
++ bit $C301
+++ lsr
+  bne .wr2
+  iny
+  dex
+  bne .wr1
+  ldy #7
+.rd1:
+  ldx #8
+.rd2:
+  lda $C304
+  lsr
+  ror pTmp
+  dex
+  bne .rd2
+  lda pTmp
+  sta (tmp),y
+  dey
+  bpl .rd1
+  ; restore slot ROM state
+  pla
+  bmi +
+  sta $CFFF
++ cli
+  rts
+.tbl !byte $C5,$3A,$A3,$5C,$C5,$3A,$A3,$5C
+} ; end zone
+end
+
+def getTick()
+  byte timeBuf[8]
+  word tick
+  readNoSlotClock(@timeBuf)
+  tick = (timeBuf[7] & $F) + ((timeBuf[7] >> 4) * 10)
+  tick = tick + ((timeBuf[6] & $F) * 100) + ((timeBuf[6] >> 4) * 1000)
+  return tick + (((timeBuf[5] & $F) % 5) * 6000)
+end
+
+def tickDiff(tStart, tEnd)
+  word diff
+  diff = tEnd - tStart
+  if diff >= 0; return diff; fin
+  return diff + 30000
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // General methods
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1333,6 +1502,22 @@ export def getUpperKey()#1
   // Make sure same text displays on both hi-res while animating
   if anyAnims and textDrawn and mapIs3D and texturesLoaded
     copyWindow(0)
+  fin
+
+  if pMacro
+    pMacro++
+    if ^pMacro
+      if ^pMacro <> 'l'
+        if !startTick; startTick = getTick(); fin
+      fin
+      return charToUpper(^pMacro)
+    else
+      pMacro = NULL
+      printf3("start=%d end=%d elapsed=%d\n", startTick, getTick(), tickDiff(startTick, getTick()))
+      ^$C054
+      ^$C051
+      rdkey()
+    fin
   fin
 
   // Now wait for a key, and animate while doing so.
@@ -1825,38 +2010,6 @@ export def scriptEvent(event, param)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Check for script(s) attached to the given location, and establish the array of map scripts.
-// Does not call any of them -- that's the job of scriptEvent().
-def scanScripts(x, y)#0
-  word p
-  word script
-  word pNext
-
-  nMapScripts = 0
-  x = x - triggerOriginX
-  y = y - triggerOriginY
-  p = triggerTbl
-  while p
-    if ^p == $FF
-      break
-    fin
-    pNext = p + p->1
-    if ^p == y
-      p = p + 2
-      while p < pNext
-        if x == ^p
-          if nMapScripts == MAX_MAP_SCRIPTS; fatal("maxScpts"); fin
-          mapScripts[nMapScripts] = p=>1
-          nMapScripts++
-        fin
-        p = p + 3
-      loop
-    fin
-    p = pNext
-  loop
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 export def loadMainFrameImg()#0
   if curFullscreenImg
     auxMmgr(FREE_MEMORY, curFullscreenImg)
@@ -2091,7 +2244,7 @@ def initMap(x, y, dir)#0
   animPauseCt = ANIM_PAUSE_MAX
 
   // Populate script handlers for the current square, so that leave handlers will trigger right.
-  scanScripts(x, y)
+  nMapScripts = scanScripts(x-triggerOriginX, y-triggerOriginY, triggerTbl, @mapScripts)
 
   // Display the party characters
   showParty()
@@ -2263,20 +2416,15 @@ def moveInternal(facingDir, moveDir, beepOK, shouldAdvTime)#1
   if val >= 2
     scriptEvent(@S_LEAVE, NULL)
     nMapScripts = 0
-  fin
 
-  // If there are script(s) on the new tile, run them.
-  if val == 3
+    // If there are script(s) on the new tile, run them.
     getPos(@x, @y)
-    scanScripts(x, y)
+    nMapScripts = scanScripts(x-triggerOriginX, y-triggerOriginY, triggerTbl, @mapScripts)
     if nMapScripts
       scriptEvent(@S_ENTER, NULL)
     elsif global=>p_encounterZones
       checkEncounter(x, y, FALSE)
     fin
-  elsif val >= 2 and global=>p_encounterZones
-    getPos(@x, @y)
-    checkEncounter(x, y, FALSE)
   fin
   return val
 end
@@ -2455,7 +2603,6 @@ def kbdLoop()#0
       fatal("xRegChg")
     fin
     key = getUpperKey()
-    printf1("key=%d\n", key) // foo
     if key >= 0 and key < $60
       func = cmdTbl[key]
       if func
@@ -3189,11 +3336,12 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def giveItemToParty(itemFuncNum, displayFunc)#0
-  word p_item, p_existing, p_player
+  word p_item, p_existing, p_player, iname
   p_item = createThing(MOD_GEN_ITEMS, itemFuncNum)
+  iname = p_item=>s_name
 
   // Check for an existing item (or stack we can add to)
-  p_existing = partyHasItem(p_item=>s_name)
+  p_existing = partyHasItem(iname)
   if p_existing
     if p_existing->t_type == TYPE_FANCY_ITEM and p_existing=>w_count > 0
       p_existing=>w_count = p_existing=>w_count + p_item=>w_count
@@ -3211,11 +3359,11 @@ export def giveItemToParty(itemFuncNum, displayFunc)#0
   if p_player
     addToList(@p_player=>p_items, p_item)
     if p_player <> global=>p_players
-      displayFunc(sprintf3("%s has no room, so %s has the %s now.\n", global=>p_players=>s_name, p_player=>s_name, p_item=>s_name))#0
+      displayFunc(sprintf3("%s has no room, so %s has the %s now.\n", global=>p_players=>s_name, p_player=>s_name, iname))#0
     fin
     heapCollect
   else
-    displayFunc(sprintf1("\nYou have no room; %s dropped.\n", p_item=>s_name))#0
+    displayFunc(sprintf1("\nYou have no room; %s dropped.\n", iname))#0
   fin
 end
 

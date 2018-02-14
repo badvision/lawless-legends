@@ -20,8 +20,8 @@ start:
 ; code is at the very end.
 
 ; Documentation of flags used on the map tiles:
-;	$20 = script hint
-;	$40 = sprite already done flag
+;	$20 = sprite already done flag
+;	$40 = automap mark
 ;	$80 = sprite flag
 
 ; Here are the entry points for PLASMA code. Identical API for 2D and 3D.
@@ -310,7 +310,7 @@ castRay: !zone
 	bmi .negX
 	inc mapX
 	iny			; also the Y reg which indexes the map
-	jmp .checkX
+	bne .checkX		; always taken
 .negX:	dec mapX
 	dey
 .checkX:
@@ -322,7 +322,7 @@ castRay: !zone
 	lda deltaDistX		; re-init X distance
 	sta sideDistX
 	lda (pMap),y		; check map at current X/Y position
-	and #$DF		; mask off script flag
+	and #$BF		; mask off automap mark
 	beq .DDA_step		; nothing there? do another step.
 	bpl .hitX
 	jmp .hitSprite
@@ -379,7 +379,7 @@ castRay: !zone
 	lda deltaDistY		; re-init Y distance
 	sta sideDistY
 	lda (pMap),y		; check map at current X/Y position
-	and #$DF		; mask off script flag
+	and #$BF		; mask off automap mark
 	bmi .hitSprite
 	bne .hitY		; nothing there? do another step.
 	jmp .DDA_step
@@ -412,12 +412,12 @@ castRay: !zone
 	!if DEBUG >= 2 { jsr .debugFinal }
 	rts
 .hitSprite:
-	cmp #$DF		; check for special mark at edges of map (was $FF but the $20 bit was masked off)
+	cmp #$BF		; check for special mark at edges of map (was $FF but the $40 bit was masked off)
 	beq .hitEdge
 	; We found a sprite cell on the map. We only want to process this sprite once,
 	; so check if we've already done it.
 	tax
-	and #$40
+	and #$20
 	beq .notDone		; already done, don't do again
 	txa
 	and #$1F
@@ -430,7 +430,7 @@ castRay: !zone
 	; Haven't seen this one yet. Mark it, and also record the address of the flag
 	; so we can clear it later after tracing all rays.
 	lda (pMap),y		; get back the original byte
-	ora #$40		; add special flag
+	ora #$20		; add special flag
 	sta (pMap),y		; and store it back
 	and #$1F		; get just the texture number
 	sta txNum		; and save it
@@ -438,7 +438,7 @@ castRay: !zone
 	cpx #MAX_SPRITES	; check for table overflow
 	bne +
 	lda #'S'
-	sta $7F7		; quickly note it on the text screen
+	sta $7F7		; quickly note sprite overflow on the text screen
 	bne .spriteDone		; and skip this sprite (always taken)
 +	tya			; Y reg indexes the map
 	clc
@@ -1744,8 +1744,7 @@ calcMapOriginX:
 ; Params: none
 ; Return: 0 if blocked;
 ;	  1 if advanced but still within same map tile;
-;         2 if pos is on a new map tile;
-;         3 if that new tile is also scripted
+;         2 if pos is on a new map tile
 pl_advance: !zone
 	lda playerDir
 	asl
@@ -1800,13 +1799,7 @@ pl_advance: !zone
 	bne +
 	iny			; not a new map tile, return 1
 	bne .done		; always taken
-+	; It is a new map tile. Is script hint set?
-	ldy playerX+1
-	lda (pMap),y
-	ldy #2			; ret val 2 = new blk but no script
-	and #$20		; map flag $20 is the script hint
-	beq .done		; if not scripted, return one
-	iny			; else return 3 = new blk and a script
++	ldy #2			; ret val 2 = new blk
 .done	tya			; retrieve ret value
 	ldy #0			; hi byte of ret is always 0
 	rts			; all done
@@ -1864,13 +1857,13 @@ pl_swapTile: !zone
 	sta tmp
 
 	eor tmp+1		; grab all bits from fromTile
-	and #$20		;	except script hint
+	and #$40		;	except automap mark
 	eor tmp+1
 	sta (pTmp),y		; save toTile
 
 	lda tmp+1
 	eor tmp			; grab all bits from toTile
-	and #$20		; 	except script hint
+	and #$40		; 	except automap mark
 	eor tmp
 	sta (pMap,x)		; save fromTile
 
@@ -1952,7 +1945,7 @@ castAllRays: !zone
 	lda mapSpriteH,x	; grab hi byte of ptr
 	sta pMap+1
 	lda (pMap),y		; get the sprite byte
-	and #$BF		; mask off the already-done bit
+	and #$DF		; mask off the already-done bit
 	sta (pMap),y		; and save it back
 	inx			; next table entry
 	bne .rstLup		; always taken

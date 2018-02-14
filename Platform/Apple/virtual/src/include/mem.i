@@ -62,10 +62,9 @@
 ; (bank 1) D000.DEFF memory manager part 2
 ; (bank 1) DF00.DFFF decompressor
 ; (bank 2) D000.D9FF PLASMA runtime
-; (bank 2) DA00.DFFF (unused)
+; (bank 2) DA00.EBFF small-object heap
 ;                    Note: Memory manager can't load any resources directly into LC space,
 ;                    because ProRWTS is in aux LC and thus can't write to the main LC.
-;          E000.EBFF small-object heap
 ;          EC00.FAFF font engine
 ;          FB00.FFF9 font data
 ;          FFFA.FFFF 6502 vectors

@@ -617,8 +617,6 @@ class A2PackPartitions
                         def x = hOff + colNum
                         def tile = (row && x < width) ? row[x] : null
                         def flags = 0
-                        if ([colNum, rowNum] in locationsWithTriggers)
-                            flags |= 0x40
                         if (tile?.@obstruction == 'true')
                             flags |= 0x80
                         buf.put((byte)((tile ? tileMap[tile.@id] : 0) | flags))
@@ -698,9 +696,7 @@ class A2PackPartitions
         rows.eachWithIndex { row,y ->
             buf.put((byte)0xFF) // sentinel at start of row
             row.eachWithIndex { tile,x ->
-                // Mark scripted locations with a flag
-                def flags = ([x,y] in locationsWithTriggers) ? 0x20 : 0
-                buf.put((byte)(texMap[tile?.@id] | flags))
+                buf.put((byte) texMap[tile?.@id])
             }
             buf.put((byte)0xFF) // sentinel at end of row
         }
@@ -996,6 +992,7 @@ class A2PackPartitions
         //println "Packing 2D map #$num named '$name': num=$num."
         withContext("map '$name'") {
             def rows = parseMap(mapEl, tileEls)
+            //println "2d map ${name}: ${rows[0].size()} x ${rows.size()} = ${rows[0].size() * rows.size()}"
             write2DMap(name, mapEl, rows)
         }
     }
@@ -1009,6 +1006,7 @@ class A2PackPartitions
             addResourceDep("map", name, "map3D", name)
             addResourceDep("map", name, "tileSet", "tileSet_special")  // global tiles for clock, compass, etc.
             def rows = parseMap(mapEl, tileEls)
+            //println "3d map ${name}: ${rows[0].size()} x ${rows.size()} = ${rows[0].size() * rows.size()}"
             def (scriptModule, locationsWithTriggers) = packScripts(mapEl, name, rows[0].size(), rows.size())
             def buf = ByteBuffer.allocate(50000)
             write3DMap(buf, name, rows, scriptModule, locationsWithTriggers)

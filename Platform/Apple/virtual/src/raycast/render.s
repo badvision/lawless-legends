@@ -19,10 +19,13 @@ start:
 ; then routines that call those to build complexity. The main
 ; code is at the very end.
 
-; Documentation of flags used on the map tiles:
-;	$20 = sprite already done flag
-;	$40 = automap mark
-;	$80 = sprite flag
+; Flags used on the map tiles:
+FLG_SPDONE     = $20
+FLG_AUTOMAP    = $40
+FLG_SPRITE     = $80
+NOTFLG_SPDONE  = $FF-$20
+NOTFLG_AUTOMAP = $FF-$40
+NOTFLG_SPRITE  = $FF-$80
 
 ; Here are the entry points for PLASMA code. Identical API for 2D and 3D.
 	jmp pl_initMap 		; params: mapNum, pMapData, x, y, dir
@@ -322,7 +325,7 @@ castRay: !zone
 	lda deltaDistX		; re-init X distance
 	sta sideDistX
 	lda (pMap),y		; check map at current X/Y position
-	and #$BF		; mask off automap mark
+	and #NOTFLG_AUTOMAP	; mask off automap mark
 	beq .DDA_step		; nothing there? do another step.
 	bpl .hitX
 	jmp .hitSprite
@@ -379,7 +382,7 @@ castRay: !zone
 	lda deltaDistY		; re-init Y distance
 	sta sideDistY
 	lda (pMap),y		; check map at current X/Y position
-	and #$BF		; mask off automap mark
+	and #NOTFLG_AUTOMAP	; mask off automap mark
 	bmi .hitSprite
 	bne .hitY		; nothing there? do another step.
 	jmp .DDA_step
@@ -412,12 +415,12 @@ castRay: !zone
 	!if DEBUG >= 2 { jsr .debugFinal }
 	rts
 .hitSprite:
-	cmp #$BF		; check for special mark at edges of map (was $FF but the $40 bit was masked off)
+	cmp #NOTFLG_AUTOMAP	; check for special mark at edges of map (was $FF but the automap bit was masked off)
 	beq .hitEdge
 	; We found a sprite cell on the map. We only want to process this sprite once,
 	; so check if we've already done it.
 	tax
-	and #$20
+	and #FLG_SPDONE
 	beq .notDone		; already done, don't do again
 	txa
 	and #$1F
@@ -430,7 +433,7 @@ castRay: !zone
 	; Haven't seen this one yet. Mark it, and also record the address of the flag
 	; so we can clear it later after tracing all rays.
 	lda (pMap),y		; get back the original byte
-	ora #$20		; add special flag
+	ora #FLG_SPDONE		; add special flag
 	sta (pMap),y		; and store it back
 	and #$1F		; get just the texture number
 	sta txNum		; and save it
@@ -1857,13 +1860,13 @@ pl_swapTile: !zone
 	sta tmp
 
 	eor tmp+1		; grab all bits from fromTile
-	and #$40		;	except automap mark
+	and #FLG_AUTOMAP	;	except automap mark
 	eor tmp+1
 	sta (pTmp),y		; save toTile
 
 	lda tmp+1
 	eor tmp			; grab all bits from toTile
-	and #$40		; 	except automap mark
+	and #FLG_AUTOMAP	; 	except automap mark
 	eor tmp
 	sta (pMap,x)		; save fromTile
 
@@ -1945,7 +1948,7 @@ castAllRays: !zone
 	lda mapSpriteH,x	; grab hi byte of ptr
 	sta pMap+1
 	lda (pMap),y		; get the sprite byte
-	and #$DF		; mask off the already-done bit
+	and #NOTFLG_SPDONE	; mask off the sprite-already-done bit
 	sta (pMap),y		; and save it back
 	inx			; next table entry
 	bne .rstLup		; always taken

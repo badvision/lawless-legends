@@ -325,12 +325,14 @@ castRay: !zone
 	lda deltaDistX		; re-init X distance
 	sta sideDistX
 	lda (pMap),y		; check map at current X/Y position
-	and #NOTFLG_AUTOMAP	; mask off automap mark
 	beq .DDA_step		; nothing there? do another step.
 	bpl .hitX
 	jmp .hitSprite
 	; We hit something!
 .hitX:	!if DEBUG >= 2 { +prStr : !text "  Hit.",0 }
+	ora #FLG_AUTOMAP	; remember that this square...
+	sta (pMap),y		;   ...has been seen
+	and #NOTFLG_AUTOMAP
 	sta txNum		; store the texture number we hit
 	lda #0
 	sec
@@ -382,12 +384,14 @@ castRay: !zone
 	lda deltaDistY		; re-init Y distance
 	sta sideDistY
 	lda (pMap),y		; check map at current X/Y position
-	and #NOTFLG_AUTOMAP	; mask off automap mark
 	bmi .hitSprite
 	bne .hitY		; nothing there? do another step.
 	jmp .DDA_step
 .hitY:	; We hit something!
 	!if DEBUG >= 2 { +prStr : !text "  Hit.",0 }
+	ora #FLG_AUTOMAP	; remember that this square...
+	sta (pMap),y		;   ...has been seen
+	and #NOTFLG_AUTOMAP
 	sta txNum		; store the texture number we hit
 	lda #0
 	sec
@@ -415,11 +419,13 @@ castRay: !zone
 	!if DEBUG >= 2 { jsr .debugFinal }
 	rts
 .hitSprite:
-	cmp #NOTFLG_AUTOMAP	; check for special mark at edges of map (was $FF but the automap bit was masked off)
+	cmp #$FF		; check for special mark at edges of map
 	beq .hitEdge
+	tax
+	ora #FLG_AUTOMAP	; remember that this square...
+	sta (pMap),y		;   ...has been seen
 	; We found a sprite cell on the map. We only want to process this sprite once,
 	; so check if we've already done it.
-	tax
 	and #FLG_SPDONE
 	beq .notDone		; already done, don't do again
 	txa

@@ -28,7 +28,7 @@ NOTFLG_AUTOMAP = $FF-$40
 NOTFLG_SPRITE  = $FF-$80
 
 ; Here are the entry points for PLASMA code. Identical API for 2D and 3D.
-	jmp pl_initMap 		; params: mapNum, pMapData, x, y, dir
+	jmp pl_initMap 		; params: mapPartition, mapNum, pMapData, x, y, dir
 	jmp pl_flipToPage1	; params: none; return: nothing
 	jmp pl_getPos		; params: @x, @y; return: nothing
 	jmp pl_setPos		; params: x (0-255), y (0-255); return: nothing
@@ -2210,6 +2210,52 @@ pl_initMap: !zone
 	jsr makeLines
 	jsr setExpansionCaller
 	jmp renderFrame
+
+; Save automap bits
+saveAutomap: !zone
+	lda mapNum
+	ora #$80
+	ldx mapWidth
+	ldy mapHeight
+	sta setAuxZP
+;	jsr getAutomapBuf ; TODO
+	sta clrAuxZP
+	sta pDst
+	sty pDst+1
+	lda mapBase
+	sta pMap
+	lda mapBase+1
+	sta pMap+1
+	lda #$80
+	sta tmp
+	lda mapHeight
+	sta lineCt
+	ldy #0		; Y stays zero for the entire process below
+.row	ldx mapWidth
+.col	lda (pMap),y
+	asl
+	asl		; shift $40 bit (automap) into carry
+	ror tmp		; save the bit
+	bcc +
+	lda tmp
+	sta (pDst),y
+	lda #$80	; restore sentinel
+	sta tmp
+	inc pDst
+	bne +
+	inc pDst+1
++	inc pMap
+	bne +
+	inc pMap+1
++	dex
+	bne .col
+	dec lineCt
+	bne .row
+	lda tmp
+-	lsr		; low-align last set of bits
+	bcc -
+	sta (pDst),y
+	rts
 
 ; Following are log/pow lookup tables. For speed, align them on a page boundary.
 	!align 255,0

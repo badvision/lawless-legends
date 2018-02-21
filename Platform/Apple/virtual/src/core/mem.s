@@ -982,7 +982,7 @@ closePartFile: !zone
 .done	rts
 
 heapCollect: !zone
-	; can't collect why anything queued for load
+	; can't collect while anything queued for load
 	lda nSegsQueued
 	bne .unfin
 	jsr closePartFile

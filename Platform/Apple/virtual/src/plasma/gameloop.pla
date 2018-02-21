@@ -22,11 +22,15 @@ const fontDataLen   = $4FA    // really only $474, but we need to fill all gaps
 // Other constants
 const CHAR_WND_HEALTH_X = 112
 
-const ANIM_PAUSE_MAX = 300
+const ANIM_PAUSE_MAX = 150
+const LAMP_PAUSE_MAX = 43
 
 const CLOCK_X = 112
 const CLOCK_Y = 176
 const CLOCK_RADIUS = 14
+
+const LAMP_Y = 168
+const LAMP_XBYTE = 10
 
 const CLOCK_ADV_2D_HOURS = 1
 const CLOCK_ADV_2D_MINS  = 0
@@ -69,6 +73,7 @@ predef doCombat(mapCode, backUpOnFlee)#1
 predef clearPortrait()#0
 predef showMapName(mapName)#0
 predef doRender()#0
+predef pause(count)#1
 predef playerDeath()#0
 predef startGame(ask)#0
 predef showAnimFrame()#0
@@ -129,13 +134,17 @@ byte decimalBuf[7]
 byte fontPosBuf[4]
 byte tabBuf[5]
 
-// Animation tracking
+// Animation and lamp tracking
 word curPortrait = NULL
 byte curPortraitNum = 0
 word curFullscreenImg = NULL
 byte animDirCt
 byte anyAnims = TRUE
 word animPauseCt
+byte showingLamp = TRUE
+word lampPauseCt
+byte lampFrame = 0
+byte lampDir = 1
 
 // Time and clock
 byte prevClockColor, prevClockHour, prevClockMinute
@@ -171,9 +180,9 @@ export byte[] S_HIS = "his"
 export byte[] S_HER = "her"
 export byte[] S_THEIR = "their"
 
-byte[] macro = "lddddwwwwwwwwwwwwwwaaaaawwwwwdwwwwwwwwddwwwwwwwwaw",0
-word pMacro = NULL //@macro
-word startTick = NULL
+//byte[] macro = "lddddwwwwwwwwwwwwwwaaaaawwwwwdwwwwwwwwddwwwwwwwwaw",0
+//word pMacro = NULL //@macro
+//word startTick = NULL
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -1504,32 +1513,26 @@ export def getUpperKey()#1
     copyWindow(0)
   fin
 
-  if pMacro
-    pMacro++
-    if ^pMacro
-      if ^pMacro <> 'l'
-        if !startTick; startTick = getTick(); fin
-      fin
-      return charToUpper(^pMacro)
-    else
-      pMacro = NULL
-      printf3("start=%d end=%d elapsed=%d\n", startTick, getTick(), tickDiff(startTick, getTick()))
-      ^$C054
-      ^$C051
-      rdkey()
-    fin
-  fin
+  //if pMacro
+  //  pMacro++
+  //  if ^pMacro
+  //    if ^pMacro <> 'l'
+  //      if !startTick; startTick = getTick(); fin
+  //    fin
+  //    return charToUpper(^pMacro)
+  //  else
+  //    pMacro = NULL
+  //    printf3("start=%d end=%d elapsed=%d\n", startTick, getTick(), tickDiff(startTick, getTick()))
+  //    ^$C054
+  //    ^$C051
+  //    rdkey()
+  //  fin
+  //fin
 
   // Now wait for a key, and animate while doing so.
   while ^kbd < 128
-    *seed = *seed + 1
-    animPauseCt = animPauseCt - 1
-    if animPauseCt < 0
-      if anyAnims
-        nextAnimFrame()
-      fin
-      animPauseCt = ANIM_PAUSE_MAX
-    fin
+    // pause() will terminate on keypress, returning the count it did
+    *seed = *seed + pause(30000)
   loop
   key = ^kbd
   ^kbdStrobe
@@ -1597,18 +1600,41 @@ export def forEach(p, do)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Pause for a specified count period, advancing the animation periodically.
-export def pause(count)#0
-  while count >= 0
-    animPauseCt = animPauseCt - 1
+def nextLampFrame()#0
+  word n, pTile
+  if showingLamp
+    n = ((lampFrame + lampDir) % (LAMP_COUNT-1)) + LAMP_1
+    if !n
+      lampDir = ((rand16() % 2) * 2) - 1  // -1 or 1, randomly
+    fin
+  else
+    n = LAMP_0
+  fin
+  pTile = pGlobalTileset + (n << 5)
+  blit(FALSE, pTile, getScreenLine(LAMP_Y)+LAMP_XBYTE,       16, 2)
+  blit(FALSE, pTile, getScreenLine(LAMP_Y)+LAMP_XBYTE+$2000, 16, 2)
+  lampFrame = n
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Pause for a specified count period, advancing the animation periodically. Terminates early
+// if a key is pressed. In either case, returns the number of counts waited.
+export def pause(count)#1
+  word i
+  for i = 0 to count
+    if ^kbd >= 128; break; fin
+    animPauseCt--
     if animPauseCt < 0
-      if anyAnims
-        nextAnimFrame()
-      fin
+      if anyAnims; nextAnimFrame(); fin
       animPauseCt = ANIM_PAUSE_MAX
     fin
-    count--
-  loop
+    lampPauseCt--
+    if lampPauseCt < 0
+      if mapIs3D; nextLampFrame(); fin  // handles show/hide as well
+      lampPauseCt = LAMP_PAUSE_MAX
+    fin
+  next
+  return i
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1691,6 +1717,7 @@ export def setSky(num)#0
     skyNum = num
     setColor(0, skyNum)
     needRender = TRUE
+    showingLamp = mapIs3D and skyNum == 0
   fin
 end
 
@@ -1777,6 +1804,15 @@ export def heapCollect()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def resetAnimPause()#0
+  animPauseCt = ANIM_PAUSE_MAX
+  lampPauseCt = LAMP_PAUSE_MAX
+  showingLamp = mapIs3D and skyNum == 0
+  lampFrame = 0
+  lampDir = 1
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load the Frame Image, and lock it.
 export def loadFrameImg(img)#0
   // Skip redundant reload
@@ -1802,7 +1838,7 @@ export def loadFrameImg(img)#0
 
     anyAnims = TRUE  // for now; might get cleared if we discover otherwise on advance
     animDirCt = 1
-    animPauseCt = ANIM_PAUSE_MAX
+    resetAnimPause()
 
     // And show the first frame of the screen image
     showAnimFrame()
@@ -2198,7 +2234,7 @@ def initMap(x, y, dir)#0
   curMapPartition = lookupResourcePart(mapIs3D+1, mapNum)
   mmgr(START_LOAD, curMapPartition)
   pCurMap = mmgr(QUEUE_LOAD, mapNum<<8 | (RES_TYPE_2D_MAP+mapIs3D))
-  pGlobalTileset = mmgr(QUEUE_LOAD, 1<<8 | RES_TYPE_TILESET)  // even in 3d, need tiles for compass/clock/etc.
+  pGlobalTileset = mmgr(QUEUE_LOAD, 1<<8 | RES_TYPE_TILESET)  // even in 3d, need tiles for lamp/etc.
   mmgr(FINISH_LOAD, 0)
 
   // Clear all the windows to the background color (hi-bit set)
@@ -2241,7 +2277,7 @@ def initMap(x, y, dir)#0
   // Assume there might be animations until we learn otherwise
   anyAnims = TRUE  // for now; might get cleared if we discover otherwise on advance
   animDirCt = 1
-  animPauseCt = ANIM_PAUSE_MAX
+  resetAnimPause
 
   // Populate script handlers for the current square, so that leave handlers will trigger right.
   nMapScripts = scanScripts(x-triggerOriginX, y-triggerOriginY, triggerTbl, @mapScripts)
@@ -2289,6 +2325,8 @@ def doRender()#0
     if mapIs3D
       flipToPage1()
       texControl(1)
+      nextLampFrame  // handles hide and/or show
+      lampPauseCt = LAMP_PAUSE_MAX
     fin
     texturesLoaded = TRUE
   fin
@@ -2745,10 +2783,6 @@ def nextAnimFrame()#0
     // No animations in memory; turn off future checking
     anyAnims = FALSE
   fin
-
-  // Reset the animation pause
-  animPauseCt = ANIM_PAUSE_MAX
-
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2782,7 +2816,7 @@ export def setPortrait(portraitNum)#0
   mmgr(FINISH_LOAD, 0)
   anyAnims = TRUE  // for now; might get cleared if we discover otherwise on advance
   animDirCt = 1
-  animPauseCt = ANIM_PAUSE_MAX
+  resetAnimPause
 
   // And show the first frame
   showAnimFrame()

@@ -79,7 +79,7 @@ import gamelib
   predef parseDec(str)#1
   predef partyHasPlayer(playerName)#1
   predef partyHasItem(itemName)#1
-  predef pause(count)#0
+  predef pause(count)#1
   predef payGold(amount)#1
   predef percentToRatio(pct)#1
   predef printf1(fmt, arg1)#0

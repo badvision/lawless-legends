@@ -234,7 +234,11 @@ public class JaceUIController {
             }
         });
         speedSlider.valueProperty().addListener((val, oldValue, newValue) -> setSpeed(newValue.doubleValue()));
-        Platform.runLater(() -> speedSlider.setValue(Emulator.logic.speedSetting));
+        Platform.runLater(() -> {
+            speedSlider.setValue(Emulator.logic.speedSetting);
+            // Kind of redundant but make sure speed is properly set as if the user did it
+            setSpeed(Emulator.logic.speedSetting);
+        });
     }
 
     private void connectButtons(Node n) {
@@ -253,7 +257,7 @@ public class JaceUIController {
         Emulator.logic.speedSetting = (int) speed;
         double speedRatio = convertSpeedToRatio(speed);
         if (speedRatio > 100.0) {
-            Emulator.computer.getMotherboard().maxspeed = true;
+            Emulator.computer.getMotherboard().setMaxSpeed(true);
             Motherboard.cpuPerClock = 3;
         } else {
             if (speedRatio > 25) {
@@ -261,8 +265,8 @@ public class JaceUIController {
             } else {
                 Motherboard.cpuPerClock = 1;
             }
-            Emulator.computer.getMotherboard().maxspeed = false;
-            Emulator.computer.getMotherboard().speedRatio = (int) (speedRatio * 100);
+            Emulator.computer.getMotherboard().setMaxSpeed(false);
+            Emulator.computer.getMotherboard().setSpeedInPercentage((int) (speedRatio * 100));
         }
         Emulator.computer.getMotherboard().reconfigure();
     }

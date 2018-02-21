@@ -65,6 +65,9 @@ public class Motherboard extends TimedDevice {
         if (oldMotherboard != null) {
             miscDevices.addAll(oldMotherboard.miscDevices);
             speaker = oldMotherboard.speaker;
+            accelorationRequestors.addAll(oldMotherboard.accelorationRequestors);
+            setSpeedInHz(oldMotherboard.getSpeedInHz());
+            setMaxSpeed(oldMotherboard.isMaxSpeed());
         }
     }
 
@@ -147,7 +150,7 @@ public class Motherboard extends TimedDevice {
             resume();
         }
     }
-    static HashSet<Object> accelorationRequestors = new HashSet<>();
+    HashSet<Object> accelorationRequestors = new HashSet<>();
 
     public void requestSpeed(Object requester) {
         accelorationRequestors.add(requester);

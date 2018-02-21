@@ -38,30 +38,30 @@ import org.badvision.outlaweditor.ui.UIAction;
  * @author brobert
  */
 public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable {
-
+    
     public static final long serialVersionUID = 6486309334559843742L;
     Map backingMap;
     boolean backingMapStale;
     int width;
     int height;
-
+    
     public TileMap(Map m) {
         backingMapStale = false;
         width = 0;
         height = 0;
         loadFromMap(m);
     }
-
+    
     public static final double SATURATION = 0.70;
     public static final double VALUE = 1.0;
     public static double HUE = 180;
     private final java.util.Map<Integer, List<Script>> locationScripts = new HashMap<>();
     private final java.util.Map<Script, Color> scriptColors = new HashMap<>();
-
+    
     public Optional<Color> getScriptColor(Script s) {
         return Optional.ofNullable(scriptColors.get(s));
     }
-
+    
     public List<Script> getLocationScripts(int x, int y) {
         List<Script> list = locationScripts.get(getMortonNumber(x, y));
         if (list != null) {
@@ -70,15 +70,18 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
             return Collections.EMPTY_LIST;
         }
     }
-
+    
     public void putLocationScript(int x, int y, Script s) {
+        if (x < 0 || y < 0) {
+            return;
+        }
         LocationTrigger trigger = new Script.LocationTrigger();
         trigger.setX(x);
         trigger.setY(y);
         s.getLocationTrigger().add(trigger);
         registerLocationScript(x, y, s);
     }
-
+    
     public void removeLocationScripts(int x, int y) {
         int loc = getMortonNumber(x, y);
         List<Script> scripts = locationScripts.get(loc);
@@ -92,7 +95,7 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
         locationScripts.remove(loc);
         ApplicationState.getInstance().getController().redrawScripts();
     }
-
+    
     private void registerLocationScript(int x, int y, Script s) {
         if (!scriptColors.containsKey(s)) {
             scriptColors.put(s, Color.hsb(HUE, SATURATION, 0.75 + Math.cos(HUE / Math.PI / 2.0) / 8.0));
@@ -107,7 +110,7 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
         list.add(s);
         ApplicationState.getInstance().getController().redrawScripts();
     }
-
+    
     private int getMortonNumber(int x, int y) {
         int morton = 0;
         for (int i = 0; i < 16; i++) {
@@ -117,7 +120,7 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
         }
         return morton;
     }
-
+    
     public Tile get(int x, int y) {
         if (size() <= y || get(y) == null) {
             return null;
@@ -127,8 +130,11 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
         }
         return get(y).get(x);
     }
-
+    
     public void put(int x, int y, Tile t) {
+        if (x < 0 || y < 0) {
+            return;
+        }
         width = Math.max(x + 1, width);
         height = Math.max(y + 1, height);
         for (int i = size(); i <= y; i++) {
@@ -144,11 +150,11 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
         row.set(x, t);
         backingMapStale = true;
     }
-
+    
     public Map getBackingMap() {
         return backingMap;
     }
-
+    
     public void updateBackingMap() {
         ObjectFactory f = new ObjectFactory();
         backingMap.getChunk().clear();
@@ -170,9 +176,10 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
         backingMap.getChunk().add(c);
         backingMapStale = false;
     }
-
+    
     private void loadFromMap(Map m) {
         clear();
+        locationScripts.clear();
         width = 0;
         height = 0;
         Set<Tile> unknownTiles = new HashSet<>();
@@ -220,20 +227,40 @@ public class TileMap extends ArrayList<ArrayList<Tile>> implements Serializable 
         backingMapStale = false;
     }
     public static String NULL_TILE_ID = "_";
-
+    
     public static boolean isNullTile(String tileId) {
         return tileId.equalsIgnoreCase(NULL_TILE_ID);
     }
-
+    
     public void clearScriptTriggersFromMap(Script script) {
         script.getLocationTrigger().clear();
         locationScripts.values().stream().filter((scripts) -> !(scripts == null)).forEach((scripts) -> {
             scripts.remove(script);
         });
     }
-
+    
     public void removeScriptFromMap(Script script) {
         clearScriptTriggersFromMap(script);
         backingMap.getScripts().getScript().remove(script);
+    }
+    
+    public void shift(int xAmt, int yAmt) {
+        Scripts scripts = backingMap.getScripts();
+        if (scripts != null) {
+            List<Script> allScripts = new ArrayList<>(scripts.getScript());
+            allScripts.forEach(
+                    s -> s.getLocationTrigger().forEach(
+                            l -> {
+                                l.setX(l.getX() + xAmt);
+                                l.setY(l.getY() + yAmt);
+                            }
+                    )
+            );
+        }
+        backingMap.getChunk().forEach(c -> {
+            c.setX(c.getX() + xAmt);
+            c.setY(c.getY() + yAmt);
+        });
+        loadFromMap(backingMap);
     }
 }

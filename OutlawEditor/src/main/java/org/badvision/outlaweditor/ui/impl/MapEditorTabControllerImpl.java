@@ -13,8 +13,6 @@ import java.util.HashMap;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javafx.application.Platform;
-import javafx.beans.binding.Bindings;
 import javafx.event.ActionEvent;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.ComboBoxListCell;
@@ -22,6 +20,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.GridPane;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javax.xml.bind.JAXBException;
@@ -330,7 +329,30 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
         }
         redrawMapScripts();
     }
-
+    
+    @Override
+    public void showShiftUI(ActionEvent evt) {
+        Dialog dialog = new Dialog();
+        dialog.setTitle("Shift map");
+        dialog.setOnCloseRequest(v->dialog.close());
+        dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+        GridPane pane = new GridPane();
+        Button moveUp = new Button("↑");
+        moveUp.setOnMouseClicked(v->getCurrentEditor().moveMapByY(-1));
+        pane.add(moveUp, 1, 0);
+        Button moveDown = new Button("↓");
+        moveDown.setOnMouseClicked(v->getCurrentEditor().moveMapByY(1));
+        pane.add(moveDown, 1, 2);
+        Button moveLeft = new Button("←");
+        moveLeft.setOnMouseClicked(v->getCurrentEditor().moveMapByX(-1));
+        pane.add(moveLeft, 0, 1);
+        Button moveRight = new Button("→");
+        moveRight.setOnMouseClicked(v->getCurrentEditor().moveMapByX(1));
+        pane.add(moveRight, 2, 1);        
+        dialog.getDialogPane().setContent(pane);
+         dialog.show();
+    }    
+    
     @Override
     public void rebuildMapSelectors() {
         Map m = mapSelect.getSelectionModel().getSelectedItem();

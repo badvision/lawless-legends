@@ -125,6 +125,16 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
+    public void moveMapByY(int amt) {
+        getCurrentMap().shift(0, amt);
+        redraw();
+    }
+
+    public void moveMapByX(int amt) {
+        getCurrentMap().shift(amt, 0);
+        redraw();
+    }
+    
     @Override
     public void buildEditorUI(Pane tileEditorAnchorPane) {
         anchorPane = tileEditorAnchorPane;

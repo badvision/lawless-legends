@@ -149,6 +149,9 @@ public abstract class MapEditorTabController {
     // Handler for Button[Button[id=null, styleClass=button moveButton]] onAction
     @FXML
     abstract public void scrollMapUp(ActionEvent event);
+    
+    @FXML
+    abstract public void showShiftUI(ActionEvent event);
 
     public void initalize() {
         assert mapEditorAnchorPane != null : "fx:id=\"mapEditorAnchorPane\" was not injected: check your FXML file 'mapEditorTab.fxml'.";

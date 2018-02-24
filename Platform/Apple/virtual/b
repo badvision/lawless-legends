@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+printf '\33c\e[3J'  # cls
 cd /Users/mhaye/plat/tools/ProRWTS && make && \
 cd /Users/mhaye/plat/tools/PLASMA/src && make vm && \
 cd /Users/mhaye/plat/tools/PackPartitions && rm -f dist/PackPartitions.jar && ant jar

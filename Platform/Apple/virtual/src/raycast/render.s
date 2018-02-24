@@ -1624,11 +1624,14 @@ loadTextures: !zone
 	sty .scInit+2	; ...after it loads of course.
 	stx scripts
 	sty scripts+1
+	jsr .get        ; skip tileset number (only used by automap display logic)
 	lda #0		; now comes the list of textures.
 	sta txNum
-.lup:	jsr .get	; get texture resource number
-	tay		; to Y for mem manager
+.lup:	jsr .get	; skip tile number (only used by automap display logic)
+	tay
 	beq .done	; zero = end of texture list
+	jsr .get	; get texture resource number
+	tay		; to Y for mem manager
 	lda #QUEUE_LOAD
 	ldx #RES_TYPE_TEXTURE
 	jsr auxLoader	; we want textures in aux mem

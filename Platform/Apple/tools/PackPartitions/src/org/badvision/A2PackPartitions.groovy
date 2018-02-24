@@ -637,13 +637,16 @@ class A2PackPartitions
         def width = rows[0].size() + 2  // Sentinel $FF at start and end of each row
         def height = rows.size() + 2    // Sentinel rows of $FF's at start and end
 
+        // For automap display, we need 2D tiles as well
+        def (tileSetNum, tileMap) = packTileSet(rows, 0, width-2, 0, height-2) // exclude sentinels
+
         // Determine the set of all referenced textures, and assign numbers to them.
         def texMap = [:]
         def texList = []
         def texFlags = []
         def texNames = [] as Set
-        rows.each { row ->
-            row.each { tile ->
+        rows.eachWithIndex { row,y ->
+            row.eachWithIndex { tile,x ->
                 def id = tile?.@id
                 def name = tile?.@name
                 if (name != null)
@@ -657,7 +660,7 @@ class A2PackPartitions
                             flags |= 2
                         if (tile?.@blocker == 'true')
                             flags |= 4
-                        texList.add(textures[name].num)
+                        texList.add([tileMap[id], textures[name].num])
                         texFlags.add(flags)
                         texMap[id] = texList.size()
                         if (tile?.@sprite == 'true')
@@ -676,11 +679,15 @@ class A2PackPartitions
         buf.put((byte)width)
         buf.put((byte)height)
 
-        // Followed by script module num
+        // Followed by script module num and tileset num
         buf.put((byte)scriptModule)
+        buf.put((byte)tileSetNum)
 
-        // Followed by the list of textures
-        texList.each { buf.put((byte)it) }
+        // Followed by the list of textures; each one has 2D tile num and 3D texture num
+        texList.each { tileNum, texNum ->
+            buf.put((byte)(tileNum == null ? 0xFF : tileNum+1))
+            buf.put((byte)texNum)
+        }
         buf.put((byte)0)
 
         // Followed by the corresponding list of texture flags
@@ -898,12 +905,11 @@ class A2PackPartitions
         def tileIds = [] as Set
         (yOff ..< yOff+height).each { y ->
             def row = (y < rows.size) ? rows[y] : null
-            (xOff ..< xOff+height).each { x ->
+            (xOff ..< xOff+width).each { x ->
                 def tile = (row && x < row.size) ? row[x] : null
                 tileIds.add(tile?.@id)
             }
         }
-
         assert tileIds.size() > 0
 
         // See if there's a good existing tile set we can use/add to.
@@ -983,6 +989,7 @@ class A2PackPartitions
     {
         def name = mapEl.@name ?: "map$num"
         def num = mapNames[name][1]
+
         //println "Packing 3D map #$num named '$name': num=$num."
         withContext("map '$name'") {
             addResourceDep("map", name, "map3D", name)
@@ -2020,6 +2027,7 @@ class A2PackPartitions
         compileModule("diskops", "src/plasma/")
         compileModule("godmode", "src/plasma/")
         compileModule("intimate", "src/plasma/")
+        compileModule("automap", "src/plasma/")
         compileModule("gen_enemies", "src/plasma/")
         compileModule("gen_items", "src/plasma/")
         compileModule("gen_players", "src/plasma/")
@@ -2042,20 +2050,18 @@ class A2PackPartitions
         dataIn.map.each { map ->
             def name = map?.@name
             def shortName = name.replaceAll(/[\s-]*[23]D$/, '')
-            if (map?.@name =~ /\s*2D$/) {
-                mapNames[name] = ['2D', num2D+1]
-                mapNames[shortName] = ['2D', num2D+1]
-                def rows = parseMap(map, dataIn.tile, true) // quick mode
-                def (width, height, nHorzSections, nVertSections) = calcMapExtent(rows)
-                num2D += (nHorzSections * nVertSections)
-            }
-            else if (map?.@name =~ /\s*3D$/) {
+
+            mapNames[name] = ['2D', num2D+1]
+            mapNames[shortName] = ['2D', num2D+1]
+            def rows = parseMap(map, dataIn.tile, true) // quick mode
+            def (width, height, nHorzSections, nVertSections) = calcMapExtent(rows)
+            num2D += (nHorzSections * nVertSections)
+
+            if (map?.@name =~ /\s*3D$/) {
                 mapNames[name] = ['3D', num3D+1]
                 mapNames[shortName] = ['3D', num3D+1]
                 ++num3D
             }
-            else
-                printWarning "map name '${map?.@name}' should contain '2D' or '3D'. Skipping."
         }
     }
 

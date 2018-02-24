@@ -23,9 +23,10 @@ const fontDataLen   = $4FA    // really only $474, but we need to fill all gaps
 const CHAR_WND_HEALTH_X = 112
 
 const ANIM_PAUSE_MAX = 150
-const LAMP_PAUSE_MAX = 43
+const LAMP_PAUSE_MIN = 30
+const LAMP_PAUSE_MAX = 100
 
-const CLOCK_X = 112
+const CLOCK_X = 119
 const CLOCK_Y = 176
 const CLOCK_RADIUS = 14
 
@@ -56,6 +57,7 @@ include "store.plh"
 include "diskops.plh"
 include "intimate.plh"
 include "godmode.plh"
+include "automap.plh"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Data structures
@@ -1602,11 +1604,11 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def nextLampFrame()#0
   word n, pTile
+  if !mapIs3D or !frameLoaded; return; fin
+
   if showingLamp
     n = ((lampFrame + lampDir) % (LAMP_COUNT-1)) + LAMP_1
-    if !n
-      lampDir = ((rand16() % 2) * 2) - 1  // -1 or 1, randomly
-    fin
+    if (rand16() % 100) < 10; lampDir = -lampDir; fin
   else
     n = LAMP_0
   fin
@@ -1631,7 +1633,7 @@ export def pause(count)#1
     lampPauseCt--
     if lampPauseCt < 0
       if mapIs3D; nextLampFrame(); fin  // handles show/hide as well
-      lampPauseCt = LAMP_PAUSE_MAX
+      lampPauseCt = (rand16() % (LAMP_PAUSE_MAX-LAMP_PAUSE_MIN)) + LAMP_PAUSE_MIN
     fin
   next
   return i
@@ -1717,7 +1719,7 @@ export def setSky(num)#0
     skyNum = num
     setColor(0, skyNum)
     needRender = TRUE
-    showingLamp = mapIs3D and skyNum == 0
+    showingLamp = mapIs3D and (skyNum == 0 or skyNum == 8)
   fin
 end
 
@@ -1806,8 +1808,8 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def resetAnimPause()#0
   animPauseCt = ANIM_PAUSE_MAX
-  lampPauseCt = LAMP_PAUSE_MAX
-  showingLamp = mapIs3D and skyNum == 0
+  lampPauseCt = (rand16() % (LAMP_PAUSE_MAX-LAMP_PAUSE_MIN)) + LAMP_PAUSE_MIN
+  showingLamp = mapIs3D and (skyNum == 0 or skyNum == 8)
   lampFrame = 0
   lampDir = 1
 end
@@ -2325,12 +2327,17 @@ def doRender()#0
     if mapIs3D
       flipToPage1()
       texControl(1)
-      nextLampFrame  // handles hide and/or show
-      lampPauseCt = LAMP_PAUSE_MAX
+      if lampPauseCt < 50
+        nextLampFrame
+      fin
     fin
     texturesLoaded = TRUE
   fin
   render()
+  if mapIs3D
+    nextLampFrame  // handles hide and/or show
+    lampPauseCt = (rand16() % (LAMP_PAUSE_MAX-LAMP_PAUSE_MIN)) + LAMP_PAUSE_MIN
+  fin
   needRender = FALSE
 end
 
@@ -2934,6 +2941,14 @@ export def callGlobalFunc(moduleNum, arg1, arg2, arg3)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Load the automap engine and display the map
+def showAutomap()#1
+  loadEngine(MOD_AUTOMAP)=>automap_show()
+  returnFromEngine(TRUE)
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load the Party engine and show data for the given player
 def showPlayerSheet(num)#1
   word pItemToUse, oldFlg
@@ -3149,6 +3164,7 @@ def initCmds()#0
   cmdTbl['?'] = @help
   cmdTbl[$07] = @toggleGodMode // ctrl-G
   cmdTbl[' '] = @snooze  // "space out" (snooze)
+  cmdTbl[$0d] = @showAutomap // ctrl-M = Enter/Return
   if global->b_godmode
     pGodModule=>godmode_setCheatCmds()
   fin

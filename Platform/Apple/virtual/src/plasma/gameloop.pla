@@ -23,8 +23,6 @@ const fontDataLen   = $4FA    // really only $474, but we need to fill all gaps
 const CHAR_WND_HEALTH_X = 112
 
 const ANIM_PAUSE_MAX = 150
-const LAMP_PAUSE_MIN = 30
-const LAMP_PAUSE_MAX = 100
 
 const CLOCK_X = 119
 const CLOCK_Y = 176
@@ -76,6 +74,7 @@ predef clearPortrait()#0
 predef showMapName(mapName)#0
 predef doRender()#0
 predef pause(count)#1
+predef printf2(str, arg1, arg2)#0
 predef playerDeath()#0
 predef startGame(ask)#0
 predef showAnimFrame()#0
@@ -144,9 +143,8 @@ byte animDirCt
 byte anyAnims = TRUE
 word animPauseCt
 byte showingLamp = TRUE
-word lampPauseCt
 byte lampFrame = 0
-byte lampDir = 1
+word lampDir = 1
 
 // Time and clock
 byte prevClockColor, prevClockHour, prevClockMinute
@@ -184,7 +182,8 @@ export byte[] S_THEIR = "their"
 
 //byte[] macro = "lddddwwwwwwwwwwwwwwaaaaawwwwwdwwwwwwwwddwwwwwwwwaw",0
 //word pMacro = NULL //@macro
-//word startTick = NULL
+//word startTick = 0
+word lastTick = 0
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -1330,6 +1329,13 @@ def tickDiff(tStart, tEnd)
   return diff + 30000
 end
 
+def prtick(str)#0
+  if lastTick
+    printf2("%s:%d ", str, tickDiff(lastTick, getTick()))
+  fin
+  lastTick = getTick()
+end
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // General methods
 
@@ -1608,7 +1614,10 @@ def nextLampFrame()#0
 
   if showingLamp
     n = ((lampFrame + lampDir) % (LAMP_COUNT-1)) + LAMP_1
-    if (rand16() % 100) < 10; lampDir = -lampDir; fin
+    if (rand16() % 100) < 10
+      n = ((lampFrame + lampDir) % (LAMP_COUNT-1)) + LAMP_1
+      lampDir = -lampDir
+    fin
   else
     n = LAMP_0
   fin
@@ -1629,11 +1638,6 @@ export def pause(count)#1
     if animPauseCt < 0
       if anyAnims; nextAnimFrame(); fin
       animPauseCt = ANIM_PAUSE_MAX
-    fin
-    lampPauseCt--
-    if lampPauseCt < 0
-      if mapIs3D; nextLampFrame(); fin  // handles show/hide as well
-      lampPauseCt = (rand16() % (LAMP_PAUSE_MAX-LAMP_PAUSE_MIN)) + LAMP_PAUSE_MIN
     fin
   next
   return i
@@ -1808,7 +1812,6 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def resetAnimPause()#0
   animPauseCt = ANIM_PAUSE_MAX
-  lampPauseCt = (rand16() % (LAMP_PAUSE_MAX-LAMP_PAUSE_MIN)) + LAMP_PAUSE_MIN
   showingLamp = mapIs3D and (skyNum == 0 or skyNum == 8)
   lampFrame = 0
   lampDir = 1
@@ -2327,17 +2330,11 @@ def doRender()#0
     if mapIs3D
       flipToPage1()
       texControl(1)
-      if lampPauseCt < 50
-        nextLampFrame
-      fin
     fin
     texturesLoaded = TRUE
   fin
+  if showingLamp; nextLampFrame; fin
   render()
-  if mapIs3D
-    nextLampFrame  // handles hide and/or show
-    lampPauseCt = (rand16() % (LAMP_PAUSE_MAX-LAMP_PAUSE_MIN)) + LAMP_PAUSE_MIN
-  fin
   needRender = FALSE
 end
 
@@ -2759,11 +2756,14 @@ def showAnimFrame()#0
     fin
     blit(1, curPortrait + 2, getScreenLine(top)+2, 128, 18)
     needRender = FALSE  // suppress display of map for this frame
+    if showingLamp; nextLampFrame(); fin
   elsif curFullscreenImg
     blit(1, curFullscreenImg + 2, getScreenLine(0), 192, 40) // the +2 is to skip anim hdr offset
     needRender = FALSE  // suppress display of map for this frame
   elsif mapIs3D
+    if showingLamp; nextLampFrame(); fin
     render()
+    if showingLamp; nextLampFrame(); fin
   fin
 end
 
@@ -3588,7 +3588,8 @@ export def setStat(player, statName, val)#0
     is streqi(statName, @S_CHARISMA);     player->b_charisma = clampByte(val); break
     is streqi(statName, @S_SPIRIT);       player->b_spirit = clampByte(val); break
     is streqi(statName, @S_LUCK);         player->b_luck = clampByte(val); break
-    is streqi(statName, @S_HEALTH);       player=>w_health = max(0, min(player=>w_maxHealth, val)); needShowParty = TRUE; break
+    is streqi(statName, @S_HEALTH);       player=>w_health = max(0, min(player=>w_maxHealth, val))
+                                          needShowParty = TRUE; break
     is streqi(statName, @S_MAX_HEALTH);   player=>w_maxHealth = max(0, val); break
     is streqi(statName, @S_AIMING);       player->b_aiming = clampByte(val); break
     is streqi(statName, @S_HAND_TO_HAND); player->b_handToHand = clampByte(val); break

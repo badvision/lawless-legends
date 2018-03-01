@@ -1613,9 +1613,9 @@ def nextLampFrame()#0
   if !mapIs3D or !frameLoaded; return; fin
 
   if showingLamp
-    n = ((lampFrame + lampDir) % (LAMP_COUNT-1)) + LAMP_1
+    n = ((lampFrame - LAMP_1 + lampDir) % (LAMP_COUNT-1)) + LAMP_1
     if (rand16() % 100) < 10
-      n = ((lampFrame + lampDir) % (LAMP_COUNT-1)) + LAMP_1
+      n = ((lampFrame - LAMP_1 + lampDir) % (LAMP_COUNT-1)) + LAMP_1
       lampDir = -lampDir
     fin
   else
@@ -1724,6 +1724,7 @@ export def setSky(num)#0
     setColor(0, skyNum)
     needRender = TRUE
     showingLamp = mapIs3D and (skyNum == 0 or skyNum == 8)
+    nextLampFrame // to update image
   fin
 end
 

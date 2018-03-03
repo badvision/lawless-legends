@@ -87,6 +87,8 @@ nTextures:	!byte 0
 scripts:	!word 0		; pointer to loaded scripts module
 shadow_pTex:	!word 0		; backup of pTmp space on aux (because it gets overwritten by expander)
 mapPartition:	!byte 0		; mem mgr partition of map and resources
+maxDist:        !byte 255	; max rendering distance (changes in darkness)
+fadeHeight:     !byte 30	; height below which fade kicks in (changes in darkness)
 
 skyColorEven:   !byte $20
 skyColorOdd:    !byte $22
@@ -324,6 +326,26 @@ castRay: !zone
 	sta sideDistY
 	lda deltaDistX		; re-init X distance
 	sta sideDistX
+
+	lda #0
+	sec
+	sbc playerX		; inverse of low byte of player coord
+	lda mapX		; map X is the integer byte
+	sbc playerX+1
+	tax
+	bit stepX
+	bpl +
+	inx			; if stepping backward, add one to dist
++	txa
+	bcs +			; carry set if positive
+	eor #$FF		; invert to get...
+	adc #1			;	...abs value
++	cmp maxDist
+	bcc +
+	lda #0
+	beq .farX
++
+
 	lda (pMap),y		; check map at current X/Y position
 	beq .DDA_step		; nothing there? do another step.
 	bpl .hitX
@@ -333,7 +355,7 @@ castRay: !zone
 	ora #FLG_AUTOMAP	; remember that this square...
 	sta (pMap),y		;   ...has been seen
 	and #NOTFLG_AUTOMAP
-	sta txNum		; store the texture number we hit
+.farX	sta txNum		; store the texture number we hit
 	lda #0
 	sec
 	sbc playerX		; inverse of low byte of player coord
@@ -383,6 +405,26 @@ castRay: !zone
 	sta sideDistX
 	lda deltaDistY		; re-init Y distance
 	sta sideDistY
+
+	lda #0
+	sec
+	sbc playerY		; inverse of low byte of player coord
+	lda mapY		; map X is the integer byte
+	sbc playerY+1
+	tax
+	bit stepY
+	bpl +
+	inx			; if stepping backward, add one to dist
++	txa
+	bcs +			; carry set if positive
+	eor #$FF		; invert to get...
+	adc #1			;	...abs value
++	cmp maxDist
+	bcc +
+	lda #0
+	beq .farY
++
+
 	lda (pMap),y		; check map at current X/Y position
 	bmi .hitSprite
 	bne .hitY		; nothing there? do another step.
@@ -392,7 +434,7 @@ castRay: !zone
 	ora #FLG_AUTOMAP	; remember that this square...
 	sta (pMap),y		;   ...has been seen
 	and #NOTFLG_AUTOMAP
-	sta txNum		; store the texture number we hit
+.farY	sta txNum		; store the texture number we hit
 	lda #0
 	sec
 	sbc playerY		; inverse of low byte of player coord
@@ -1258,12 +1300,13 @@ drawRay: !zone
 	lda heightBuf,x
 	beq .skip
 	sta lineCt
-	lda txNumBuf,x
-	sta txNum
 	lda txColBuf,x
 	sta txColumn
+	lda txNumBuf,x
+	sta txNum
+	beq .blank
 	; Make a pointer to the selected texture
-	ldx txNum
+	tax
 	dex			; translate tex 1..4 to 0..3
 	lda texAddrLo,x
 	clc
@@ -1271,7 +1314,7 @@ drawRay: !zone
 	sta pTex
 	lda texAddrHi,x
 	adc #0
-	sta pTex+1
+.cont	sta pTex+1
 	; jump to the unrolled expansion code for the selected height
 	!if DEBUG >= 2 { +prStr : !text "Calling expansion code.",0 }
 	ldx txColumn
@@ -1287,10 +1330,38 @@ drawRay: !zone
 	jsr callExpander	; was copied from .callIt to $100 at init time
 	sta clrAuxZP
 	cli			; interrupts ok after we get back from aux
-.skip	pla			; retrieve link to next in stack
+.skip	lda lineCt		; at the end, check for fade dist
+	cmp fadeHeight
+	bcs +
+	jsr .fade
++	pla			; retrieve link to next in stack
 	tax			; put in X for indexing
 	bne .lup		; if non-zero, we have more to draw
-	rts			; next link was zero - we're done with this ray
+	rts
+.blank	lda #0
+	sta pTex
+	lda #2			; blank texture space at $200 (aux)
+	bne .cont		; always taken
+.fade	; Fade this column in the distance
+	ldy pixNum		; get offset into the blit roll for this column
+	ldx .blitOffsets,y
+	tya			; find out if pixnum is even or odd
+	and #1
+	sta tmp
+	lda byteNum		; combine with oddness of byte-pair
+	lsr
+	and #1
+	eor tmp
+	lsr			; final result in carry
+	lda gndColorEven
+	and #$20		; just hi-bit of ground color
+	tay
+	lda skyColorEven
+	and #$20		; just hi-bit of sky color
+	bcs +
+	jmp clrBlitRollO
++	jmp clrBlitRollE
+.blitOffsets: !byte BLIT_OFF0,BLIT_OFF1,BLIT_OFF2,BLIT_OFF3,BLIT_OFF4,BLIT_OFF5,BLIT_OFF6
 
 ; Template for blitting code [ref BigBlue3_70]
 blitTemplate: !zone	; comments show byte offset
@@ -1978,6 +2049,18 @@ renderFrame: !zone
 	sta byteNum
 	sta screenCol
 
+	; clear blank buffer (used to display the 'blank' texture in the far distance)
+	lda skyColorEven
+	and #$20	; hi bit
+	beq +
+	lda #$30
++	sta setAuxWr
+	ldy #31
+-	sta $200,y
+	dey
+	bpl -
+	sta clrAuxWr
+
 .oneCol:
 	lda pixNum
 	bne +
@@ -2212,6 +2295,10 @@ pl_initMap: !zone
 	jsr makeDecodeTbls
 	jsr makeLines
 	jsr setExpansionCaller
+
+	lda #5
+	sta maxDist
+
 	jmp renderFrame
 
 ; Save automap bits

@@ -27,7 +27,11 @@ selectMip0:
 	ldy tmp
 mipReady:
 	sta clrAuxZP
-	clc			; adjust pTex by that much
+	ldx txNum
+	bne +			; check for the special 'blank' texture
+	lda #0
+	ldy #0
++	clc			; adjust pTex by that much
 	adc pTex
 	tax
 	tya

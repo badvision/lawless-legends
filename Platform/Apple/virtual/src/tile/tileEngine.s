@@ -115,7 +115,7 @@ next_zp		= $AD
 	JMP pl_setDir		; params: dir (0-15); return: nothing
 	JMP pl_advance		; params: none; return: 0 if blocked, 1 if same, 2 if new map tile
 	JMP pl_setColor		; params: slot (0=sky/1=ground), color (0-15); return: nothing
-	JMP pl_render		; params: none
+	JMP pl_render		; params: intrOnKbd
 	JMP pl_texControl	; params: 1=load, 0=unload
 	JMP pl_getScripts	; params: none
 	JMP pl_setAvatarTile    ; params: A=tile number
@@ -623,9 +623,10 @@ pl_setAvatarTile:
 
 ;----------------------------------------------------------------------
 ; >> pl_render
-; Params: none; return: none
+; Params: intrOnKbd; return: none
 ; Draw at the current position.
 pl_render:
+	; ignore intrOnKbd flag because tile draw is super fast.
 DRAW:	LDA #0
 	BEQ +
 CALC:	LDA #1

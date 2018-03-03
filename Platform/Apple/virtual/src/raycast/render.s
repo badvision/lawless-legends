@@ -36,7 +36,7 @@ NOTFLG_SPRITE  = $FF-$80
 	jmp pl_setDir		; params: dir (0-15); return: nothing
 	jmp pl_advance		; params: none; return: 0 if same, 1 if new map tile, 2 if new and scripted
 	jmp pl_setColor		; params: slot (0=sky/1=ground), color (0-15); return: nothing
-	jmp pl_render		; params: none
+	jmp pl_render		; params: intrOnKbd
 	jmp pl_texControl	; params: 0=unload textures, 1=load textures
 	jmp pl_getScripts	; params: none
 	jmp pl_setAvatar	; params: A=tile number
@@ -89,6 +89,7 @@ shadow_pTex:	!word 0		; backup of pTmp space on aux (because it gets overwritten
 mapPartition:	!byte 0		; mem mgr partition of map and resources
 darkHeight:     !byte 0		; height below which darkness kicks in (changes in darkness)
 fadeHeight:     !byte 0		; height below which fade kicks in (changes in darkness)
+intrOnKbd:      !byte 0		; whether we should stop render if key is pressed (e.g. while doing anim)
 
 skyColorEven:   !byte $20
 skyColorOdd:    !byte $22
@@ -1922,9 +1923,10 @@ pl_swapTile: !zone
 
 ;-------------------------------------------------------------------------------
 ; Render at the current position and direction.
-; Params: none
+; Params: intrOnKbd
 ; Return: none
 pl_render: !zone
+	sta intrOnKbd
 	jsr setExpansionCaller	; $100 area is often overwritten
 	lda $2000		; check if hgr2 was overwritten by mem mgr
 	cmp $4000
@@ -1979,10 +1981,11 @@ castAllRays: !zone
 	sta pMap		;	even though calcMapOrigin did first one)
 	lda mapRayOrigin+1
 	sta pMap+1
-
+	lda intrOnKbd		; if interrupt-on-kbd mode...
+	and kbd			; ...and a key is pending
+	bmi +			; ...then skip the bulk of the work
 	jsr castRay		; cast the ray across the map
-
-	inc screenCol		; advance to next column
++	inc screenCol		; advance to next column
 	lda screenCol
 	cmp #NUM_COLS		; stop after we do 63 columns = 126 bw pix
 	bne .oneCol
@@ -2032,6 +2035,9 @@ renderFrame: !zone
 .oneCol:
 	lda pixNum
 	bne +
+	lda intrOnKbd		; if interrupt-on-kbd mode...
+	and kbd			; ...and a key is pending
+	bmi +			; ...then skip the clear
 	jsr clearBlit		; clear blit on the first pixel
 +	jsr drawRay		; and draw the ray
 	!if DEBUG >= 2 { +prStr : !text "Done drawing ray ",0 : +prByte screenCol : +crout }
@@ -2051,10 +2057,13 @@ renderFrame: !zone
 	sta pTex		
 	lda shadow_pTex+1
 	sta pTex+1
+	lda intrOnKbd		; if interrupt-on-kbd mode...
+	and kbd			; ...and a key is pending
+	bmi +			; ...then skip the bulk of the work
 	jsr blitRoll		; go do the blitting
-	sta clrAuxZP
++	sta clrAuxZP
 	cli
-	lda #0
+.skip	lda #0
 	sta pixNum
 	inc byteNum
 	inc byteNum
@@ -2062,7 +2071,11 @@ renderFrame: !zone
 	lda byteNum
 	cmp #18
 	bne .oneCol		; go back for another ray
+	lda intrOnKbd		; if interrupt-on-kbd mode...
+	and kbd			; ...and a key is pending
+	bmi +			; ...then skip the bulk of the work
 	jmp flip		; flip it onto the screen
++	rts
 
 ;-------------------------------------------------------------------------------
 ; Called by PLASMA code to ensure that hi res page 1 is showing. Usually in

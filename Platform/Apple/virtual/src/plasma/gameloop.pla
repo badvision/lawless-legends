@@ -280,8 +280,8 @@ asm setColor(slot, color)#0  // params: slot (0=sky/1=ground), color (0-17)
   +asmPlasmNoRet 2
   jmp $6015
 end
-asm render()#0
-  +asmPlasmNoRet 0
+asm render(intrOnKbd)#0
+  +asmPlasmNoRet 1
   jmp $6018
 end
 asm texControl(doLoad)#0
@@ -2335,7 +2335,7 @@ def doRender()#0
     texturesLoaded = TRUE
   fin
   if showingLamp; nextLampFrame; fin
-  render()
+  render(0) // Don't interrupt on kbd - must finish the render
   needRender = FALSE
 end
 
@@ -2763,7 +2763,7 @@ def showAnimFrame()#0
     needRender = FALSE  // suppress display of map for this frame
   elsif mapIs3D
     if showingLamp; nextLampFrame(); fin
-    render()
+    render($FF) // it's only animation, so do interrupt if a key is pressed
     if showingLamp; nextLampFrame(); fin
   fin
 end

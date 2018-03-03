@@ -87,8 +87,8 @@ nTextures:	!byte 0
 scripts:	!word 0		; pointer to loaded scripts module
 shadow_pTex:	!word 0		; backup of pTmp space on aux (because it gets overwritten by expander)
 mapPartition:	!byte 0		; mem mgr partition of map and resources
-maxDist:        !byte 255	; max rendering distance (changes in darkness)
-fadeHeight:     !byte 30	; height below which fade kicks in (changes in darkness)
+darkHeight:     !byte 0		; height below which darkness kicks in (changes in darkness)
+fadeHeight:     !byte 0		; height below which fade kicks in (changes in darkness)
 
 skyColorEven:   !byte $20
 skyColorOdd:    !byte $22
@@ -303,7 +303,6 @@ castRay: !zone
 	sty mapX
 	ldx playerY+1
 	stx mapY
-
 	; the DDA algorithm
 .DDA_step:
 	lda sideDistX
@@ -326,26 +325,6 @@ castRay: !zone
 	sta sideDistY
 	lda deltaDistX		; re-init X distance
 	sta sideDistX
-
-	lda #0
-	sec
-	sbc playerX		; inverse of low byte of player coord
-	lda mapX		; map X is the integer byte
-	sbc playerX+1
-	tax
-	bit stepX
-	bpl +
-	inx			; if stepping backward, add one to dist
-+	txa
-	bcs +			; carry set if positive
-	eor #$FF		; invert to get...
-	adc #1			;	...abs value
-+	cmp maxDist
-	bcc +
-	lda #0
-	beq .farX
-+
-
 	lda (pMap),y		; check map at current X/Y position
 	beq .DDA_step		; nothing there? do another step.
 	bpl .hitX
@@ -355,7 +334,7 @@ castRay: !zone
 	ora #FLG_AUTOMAP	; remember that this square...
 	sta (pMap),y		;   ...has been seen
 	and #NOTFLG_AUTOMAP
-.farX	sta txNum		; store the texture number we hit
+	sta txNum		; store the texture number we hit
 	lda #0
 	sec
 	sbc playerX		; inverse of low byte of player coord
@@ -405,26 +384,6 @@ castRay: !zone
 	sta sideDistX
 	lda deltaDistY		; re-init Y distance
 	sta sideDistY
-
-	lda #0
-	sec
-	sbc playerY		; inverse of low byte of player coord
-	lda mapY		; map X is the integer byte
-	sbc playerY+1
-	tax
-	bit stepY
-	bpl +
-	inx			; if stepping backward, add one to dist
-+	txa
-	bcs +			; carry set if positive
-	eor #$FF		; invert to get...
-	adc #1			;	...abs value
-+	cmp maxDist
-	bcc +
-	lda #0
-	beq .farY
-+
-
 	lda (pMap),y		; check map at current X/Y position
 	bmi .hitSprite
 	bne .hitY		; nothing there? do another step.
@@ -434,12 +393,12 @@ castRay: !zone
 	ora #FLG_AUTOMAP	; remember that this square...
 	sta (pMap),y		;   ...has been seen
 	and #NOTFLG_AUTOMAP
-.farY	sta txNum		; store the texture number we hit
+	sta txNum		; store the texture number we hit
 	lda #0
 	sec
 	sbc playerY		; inverse of low byte of player coord
 	sta dist		; is fractional byte of dist.
-	lda mapY		; map X is the integer byte
+	lda mapY		; map Y is the integer byte
 	sbc playerY+1
 	tax
 	bit stepY
@@ -606,7 +565,12 @@ castRay: !zone
 	beq +
 	ldy #$FF	; clamp large line heights to 255
 +	pla		; get the depth back
-	jmp saveLink	; save final column data to link buffer
+	cpy darkHeight	; check for darkness in the distance
+	bcs +
+	ldy #0		; switch to special 'dark' texture
+	sty txNum
+	ldy darkHeight	; visually hide the distance (depth is probably ok unchanged)
++	jmp saveLink	; save final column data to link buffer
 
 !if DEBUG >= 2 {
 .debugSideData:
@@ -910,6 +874,10 @@ spriteCalc: !zone
 	txa			; work on hi byte
 	beq +
 	ldy #$FF
++	cpy darkHeight
+	bcs +
+	!if DEBUG >= 2 { +prStr : !text "Sprite is beyond dark limit.",0 }
+	rts
 +	sty lineCt
 
 	; Calculate wSpriteTop = 32 - (wSize >> 1);
@@ -2234,6 +2202,17 @@ pl_setColor: !zone
 	sta skyColorEven,x
 	lda skyGndTbl2,y
 	sta skyColorOdd,x
+
+	ldx #0			; for daytime: 0 dark height
+	ldy #0			; ... 0 fade height
+	lda skyColorEven
+	ora skyColorOdd
+	and #$1F
+	bne .fin
+.dark	ldx #15			; for nighttime: 15 dark height
+	ldy #30			; ... 30 fade height
+.fin	stx darkHeight
+	sty fadeHeight
 	rts
 
 ;-------------------------------------------------------------------------------
@@ -2295,10 +2274,6 @@ pl_initMap: !zone
 	jsr makeDecodeTbls
 	jsr makeLines
 	jsr setExpansionCaller
-
-	lda #5
-	sta maxDist
-
 	jmp renderFrame
 
 ; Save automap bits

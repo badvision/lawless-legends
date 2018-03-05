@@ -2044,11 +2044,11 @@ export def scriptEvent(event, param)#0
   if textDrawn
     textClearCountdown = 3
     if mapIs3D and texturesLoaded; copyWindow(0); fin
+    textDrawn = FALSE
   fin
   clearPortrait()
   if needShowParty; showParty(); fin
   if global=>p_players=>w_health == 0; playerDeath(); fin
-
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2314,13 +2314,14 @@ export def clearPortrait()#0
     auxMmgr(FREE_MEMORY, curPortrait)
     curPortrait = NULL
     curPortraitNum = 0
+    needRender = TRUE
   fin
   if curFullscreenImg
     auxMmgr(FREE_MEMORY, curFullscreenImg)
     curFullscreenImg = NULL
     loadMainFrameImg()
+    needRender = TRUE
   fin
-  needRender = TRUE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2390,6 +2391,7 @@ export def _scriptDisplayStr(str)#0
     if renderLoaded and !curPortrait and !curFullscreenImg
       doRender()
       flipToPage1()
+      needRender = FALSE
     fin
     if textClearCountdown; clearTextWindow(); fin
     displayStr(str)

@@ -2387,8 +2387,11 @@ export def _scriptDisplayStr(str)#0
   if pIntimate
     pIntimate=>intimate_displayStr(str)
   else
+    if renderLoaded and !curPortrait and !curFullscreenImg
+      doRender()
+      flipToPage1()
+    fin
     if textClearCountdown; clearTextWindow(); fin
-    if renderLoaded; flipToPage1(); fin
     displayStr(str)
     textDrawn = TRUE
   fin

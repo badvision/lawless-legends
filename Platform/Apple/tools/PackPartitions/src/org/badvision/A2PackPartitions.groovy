@@ -2050,18 +2050,20 @@ class A2PackPartitions
         dataIn.map.each { map ->
             def name = map?.@name
             def shortName = name.replaceAll(/[\s-]*[23]D$/, '')
-
-            mapNames[name] = ['2D', num2D+1]
-            mapNames[shortName] = ['2D', num2D+1]
-            def rows = parseMap(map, dataIn.tile, true) // quick mode
-            def (width, height, nHorzSections, nVertSections) = calcMapExtent(rows)
-            num2D += (nHorzSections * nVertSections)
-
-            if (map?.@name =~ /\s*3D$/) {
+            if (map?.@name =~ /\s*2D$/) {
+                mapNames[name] = ['2D', num2D+1]
+                mapNames[shortName] = ['2D', num2D+1]
+                def rows = parseMap(map, dataIn.tile, true) // quick mode
+                def (width, height, nHorzSections, nVertSections) = calcMapExtent(rows)
+                num2D += (nHorzSections * nVertSections)
+            }
+            else if (map?.@name =~ /\s*3D$/) {
                 mapNames[name] = ['3D', num3D+1]
                 mapNames[shortName] = ['3D', num3D+1]
                 ++num3D
             }
+            else
+                printWarning "map name '${map?.@name}' should contain '2D' or '3D'. Skipping."
         }
     }
 

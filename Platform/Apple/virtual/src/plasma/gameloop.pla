@@ -94,6 +94,7 @@ byte needShowParty = FALSE
 byte renderLoaded = FALSE
 byte texturesLoaded = FALSE
 byte textDrawn = FALSE
+byte anyInteraction = FALSE
 byte textClearCountdown = 0
 export byte isPlural = 0 // valid values: 0 or $40
 byte inScript = FALSE
@@ -2214,6 +2215,7 @@ end
 def initMap(x, y, dir)#0
   // Reset memory (our module will stay since memory manager locked it upon load)
   mmgr(RESET_MEMORY, 0)
+  renderLoaded = FALSE // leave it this way until all scripts done, else scriptDisplayStr renders
 
   // Load the frame image, then raycaster or tile engine
   loadMainFrameImg()
@@ -2228,7 +2230,6 @@ def initMap(x, y, dir)#0
     pGodModule = mmgr(QUEUE_LOAD, MOD_GODMODE<<8 | RES_TYPE_MODULE)
   fin
   mmgr(FINISH_LOAD, 0)
-  renderLoaded = TRUE
 
   // Grab the function table for the godMode module (if enabled)
   if global->b_godmode; pGodModule = pGodModule(); fin
@@ -2290,6 +2291,9 @@ def initMap(x, y, dir)#0
 
   // Display the party characters
   showParty()
+
+  // All done.
+  renderLoaded = TRUE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2397,6 +2401,7 @@ export def _scriptDisplayStr(str)#0
     displayStr(str)
     textDrawn = TRUE
   fin
+  anyInteraction = TRUE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2963,15 +2968,13 @@ def showPlayerSheet(num)#1
   returnFromEngine(TRUE)
   // General 'use' handled here in case it triggers graphical effects
   if pItemToUse
-    oldFlg = textDrawn
-    textDrawn = FALSE
+    anyInteraction = FALSE
     scriptEvent(@S_USE, pItemToUse=>s_name)
-    if !textDrawn
+    if !anyInteraction
       scriptDisplayStr("Nothing happened.")
       textClearCountdown = 3
       if mapIs3D and texturesLoaded; copyWindow(0); fin
     fin
-    textDrawn = oldFlg
   fin
   return 0
 end
@@ -3425,36 +3428,38 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Add XP to every player in the party, leveling them up as appropriate
-export def addXP(val)#1
-  word player, n
-  if val < 0; return 0; fin
-  player = global=>p_players
-  while player
-    player=>w_curXP = player=>w_curXP + val
-    // Enforce cap on number of points to stay well within limit of 15 bits
-    if player=>w_curXP < 0 or player=>w_curXP > 29999
-      player=>w_curXP = 29999
-    fin
-    while player=>w_curXP >= player=>w_nextXP
-      // Level up!
-      player->b_level++
-      player->b_skillPoints = player->b_skillPoints + callGlobalFunc(GS_LEVEL_S_P, player->b_level, 0, 0)
-      player=>w_maxHealth = player=>w_maxHealth + player->b_stamina + rollDice($2600) // stam + 2d6
-      player=>w_health = player=>w_maxHealth // let's make leveling up an extra nice thing
-      needShowParty = TRUE
+export def addXP(player, val)#0
+  word n
+  if val < 0; return; fin
+  player=>w_curXP = player=>w_curXP + val
+  // Enforce cap on number of points to stay well within limit of 15 bits
+  if player=>w_curXP < 0 or player=>w_curXP > 29999
+    player=>w_curXP = 29999
+  fin
+  while player=>w_curXP >= player=>w_nextXP
+    // Level up!
+    player->b_level++
+    player->b_skillPoints = player->b_skillPoints + callGlobalFunc(GS_LEVEL_S_P, player->b_level, 0, 0)
+    player=>w_maxHealth = player=>w_maxHealth + player->b_stamina + rollDice($2600) // stam + 2d6
+    player=>w_health = player=>w_maxHealth // let's make leveling up an extra nice thing
+    needShowParty = TRUE
 
-      // Check XP for next level, and enforce level cap if any
-      n = callGlobalFunc(GS_LEVEL_X_P, player->b_level + 1, 0, 0)
-      if n > w_nextXP and n <= 30000
-        player=>w_nextXP = n
-      else
-        player=>w_nextXP = 30000 // level cap reached
-        break
-      fin
-    loop
-    player = player=>p_nextObj
+    // Check XP for next level, and enforce level cap if any
+    n = callGlobalFunc(GS_LEVEL_X_P, player->b_level + 1, 0, 0)
+    if n > w_nextXP and n <= 30000
+      player=>w_nextXP = n
+    else
+      player=>w_nextXP = 30000 // level cap reached
+      break
+    fin
   loop
-  return val
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Add XP to every player in the party, leveling them up as appropriate
+export def addXP_all(val)#0
+  ctx = val
+  forEach(global=>p_players, &(p) addXP(p, ctx))
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3496,7 +3501,7 @@ export def addPlayerToParty(playerFuncNum, displayFunc)#0
   // Add if not dupe
   if !scanForNamedObj(global=>p_players, p_player=>s_name)
     addToList(@global=>p_players, p_player)
-    addXP(0) // to set initial skill pts
+    addXP_all(0) // to set initial skill pts
     heapCollect
     needShowParty = TRUE
   fin
@@ -3602,7 +3607,7 @@ export def setStat(player, statName, val)#0
     is streqi(statName, @S_DODGING);      player->b_dodging = clampByte(val); break
     is streqi(statName, @S_GOLD);         global=>w_gold = max(0, val); needShowParty = TRUE; break
     is streqi(statName, @S_TIME);         setHour(val); break;
-    is streqi(statName, @S_XP);           player=>w_curXP = max(player=>w_curXP, val); needShowParty = TRUE; break
+    is streqi(statName, @S_XP);           addXP(player, val - player=>w_curXP); needShowParty = TRUE; break
     is streqi(statName, @S_SP);           player->b_skillPoints = clampByte(max(0, val)); needShowParty = TRUE; break
     is streqi(statName, @S_PACK_SIZE);    player->b_packSize = clampByte(max(player->b_packSize, val)); break
     otherwise

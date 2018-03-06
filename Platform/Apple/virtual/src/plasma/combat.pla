@@ -1061,7 +1061,8 @@ def processWin()#0
     displayf1("You find %d gold! ", addGold(gold))
   fin
   if xp > 0
-    displayf1("You earn %d experience! ", addXP(xp))
+    addXP_all(xp)
+    displayf1("You earn %d experience! ", xp)
   fin
   displayStr("\n(press any key)\n")
   getUpperKey()

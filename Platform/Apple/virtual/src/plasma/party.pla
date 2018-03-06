@@ -755,7 +755,7 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
         break
       is '+' // level up cheat
         if global->b_godmode
-          addXP(player=>w_nextXP - player=>w_curXP)
+          addXP_all(player=>w_nextXP - player=>w_curXP)
           redisplay = 2
         fin
         break

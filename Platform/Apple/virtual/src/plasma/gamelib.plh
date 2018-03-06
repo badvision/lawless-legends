@@ -20,7 +20,7 @@ import gamelib
   predef addRatio(start, ratio)#1
   predef addToList(addTo, p)#0
   predef addToString()#0
-  predef addXP(xp)#1
+  predef addXP_all(xp)#0
   predef auxMmgr(cmd, wordParam)#1
   predef beep()#0
   predef benchPlayer()#0

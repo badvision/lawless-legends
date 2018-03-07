@@ -40,7 +40,7 @@ NOTFLG_SPRITE  = $FF-$80
 	jmp pl_texControl	; params: 0=unload textures, 1=load textures
 	jmp pl_getScripts	; params: none
 	jmp pl_setAvatar	; params: A=tile number
-	jmp pl_swapTile		; params: fromX, fromY, toX, toY
+	jmp pl_copyTile		; params: fromX, fromY, toX, toY
 
 ; Conditional assembly flags
 DEBUG		= 0		; 1=some logging, 2=lots of logging
@@ -1872,11 +1872,11 @@ pl_advance: !zone
 	rts
 
 ;-------------------------------------------------------------------------------
-; Swap tiles at two positions. 
+; Copy a tile (destructively) from one position to another
 ; Params: fromX, fromY, toX, toY
 ;           3      2     1    0
 ; Return: none
-pl_swapTile: !zone
+pl_copyTile: !zone
 	; Grab stuff from the PLASMA eval stack
 	lda evalStkL+3,x	; fromX
 	sta tmp
@@ -1907,18 +1907,11 @@ pl_swapTile: !zone
 	lda (pMap,x)		; grab fromTile
 	sta tmp+1
 	lda (pTmp),y		; grab toTile
-	sta tmp
 
 	eor tmp+1		; grab all bits from fromTile
 	and #FLG_AUTOMAP	;	except automap mark
 	eor tmp+1
 	sta (pTmp),y		; save toTile
-
-	lda tmp+1
-	eor tmp			; grab all bits from toTile
-	and #FLG_AUTOMAP	; 	except automap mark
-	eor tmp
-	sta (pMap,x)		; save fromTile
 
 	rts			; all done
 

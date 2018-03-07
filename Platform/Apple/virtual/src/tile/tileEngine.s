@@ -119,7 +119,7 @@ next_zp		= $AD
 	JMP pl_texControl	; params: 1=load, 0=unload
 	JMP pl_getScripts	; params: none
 	JMP pl_setAvatarTile    ; params: A=tile number
-	JMP pl_swapTile		; params: fromX, fromY, toX, toY
+	JMP pl_copyTile		; params: fromX, fromY, toX, toY
 
 ;----------------------------------------------------------------------
 ; >> START LOADING MAP SECTIONS
@@ -1201,10 +1201,10 @@ pl_setColor:
 	rts
 
 ;----------------------------------------------------------------------
-; >> pl_swapTile
+; >> pl_copyTile
 ; Not yet implemented for 2D mode, because very complex due to map
 ; segmenting.
-pl_swapTile:
+pl_copyTile:
 	+prChr 'T'
 	brk
 

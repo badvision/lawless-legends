@@ -3824,7 +3824,7 @@ end
                     case 'graphics_set_avatar':
                         packSetAvatar(blk); break
                     case 'graphics_swap_tile':
-                        packSwapTile(blk); break
+                        packCopyTile(blk); break
                     case 'graphics_intimate_mode':
                         packIntimateMode(blk); break
                     case 'variables_set':
@@ -4394,7 +4394,7 @@ end
             outIndented("scriptSetAvatar(${avatars[tileName.toLowerCase()]})\n")
         }
 
-        def packSwapTile(blk)
+        def packCopyTile(blk)
         {
             assert blk.field.size() == 4
             assert blk.field[0].@name == 'FROM_X'
@@ -4405,7 +4405,7 @@ end
             def fromY = blk.field[1].text().toInteger()
             def toX   = blk.field[2].text().toInteger()
             def toY   = blk.field[3].text().toInteger()
-            outIndented("scriptSwapTile($fromX, $fromY, $toX, $toY)\n")
+            outIndented("scriptCopyTile($fromX, $fromY, $toX, $toY)\n")
         }
 
         def packIntimateMode(blk)

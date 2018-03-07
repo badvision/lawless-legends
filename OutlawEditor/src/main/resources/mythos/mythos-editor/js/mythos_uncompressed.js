@@ -939,14 +939,14 @@ if (typeof Mythos === "undefined") {
                     this.setPreviousStatement(true);
                     this.setNextStatement(true);
                     this.appendDummyInput()
-                            .appendField("Swap tile from X/Y")
+                            .appendField("Copy tile from X/Y")
                             .appendField(new Blockly.FieldTextInput(""), "FROM_X")
                             .appendField(new Blockly.FieldTextInput(""), "FROM_Y")
                             .appendField("to X/Y")
                             .appendField(new Blockly.FieldTextInput(""), "TO_X")
                             .appendField(new Blockly.FieldTextInput(""), "TO_Y");
                     this.setOutput(false);
-                    this.setTooltip('Swap the map tile between two locations');
+                    this.setTooltip('Copy a map tile from one spot to another (overwriting the latter)');
                 }
             };
             Blockly.Blocks['graphics_clr_portrait'] = {

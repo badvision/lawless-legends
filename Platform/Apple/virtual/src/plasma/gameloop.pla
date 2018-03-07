@@ -297,7 +297,7 @@ asm setAvatar(tileNum)#0 // tile number (in the global tileset)
   +asmPlasmNoRet 1
   jmp $6021
 end
-asm swapTile(fromX, fromY, toX, toY)#0
+asm copyTile(fromX, fromY, toX, toY)#0
   +asmPlasmNoRet 4
   jmp $6024
 end
@@ -2731,9 +2731,9 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Called by scripts to swap a map tile. We set a flag noting we need to re-render, then use an
 // assembly routine to do the work.
-export def scriptSwapTile(fromX, fromY, toX, toY)#0
+export def scriptCopyTile(fromX, fromY, toX, toY)#0
   needRender = TRUE
-  swapTile(fromX, fromY, toX, toY)
+  copyTile(fromX, fromY, toX, toY)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

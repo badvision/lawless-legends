@@ -104,10 +104,10 @@ import gamelib
   predef roomInPack(p_player)#1
   predef scanForNamedObj(p_obj, name)#1
   predef scriptCombat(mapCode)#1
+  predef scriptCopyTile(fromX, fromY, toX, toY)#0
   predef scriptDisplayStr(str)#0
   predef scriptEvent(event, param)#0
   predef scriptSetAvatar(avatarTileNum)#0
-  predef scriptSwapTile(fromX, fromY, toX, toY)#0
   predef select(p, sel, num)#1
   predef setCmd(key, func)#0
   predef setCursor(x, y)#0

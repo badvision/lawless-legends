@@ -343,11 +343,10 @@ def showItemMenu(item)#0
   if type == TYPE_ARMOR or type == TYPE_WEAPON
     if isEquipped(item); rawDisplayStr("un-"); fin
     rawDisplayStr("E)quip, ")
-  elsif type == TYPE_PLAIN_ITEM or type == TYPE_FANCY_ITEM
-    rawDisplayStr("U)se, ")
-    if isSplittable(item); rawDisplayStr("S)plit, "); fin
-    if isJoinable(item); rawDisplayStr("J)oin, "); fin
   fin
+  rawDisplayStr("U)se, ")
+  if isSplittable(item); rawDisplayStr("S)plit, "); fin
+  if isJoinable(item); rawDisplayStr("J)oin, "); fin
   if !isEquipped(item)
     if global=>p_players=>p_nextObj; rawDisplayStr("T)rade, "); fin
     rawDisplayStr("D)rop ")
@@ -605,9 +604,7 @@ def interactWithItem(player, item)#1
         break
       // Use an item
       is 'U'
-        if item->t_type == TYPE_PLAIN_ITEM or item->t_type == TYPE_FANCY_ITEM
-          return doUse(player, item) // general 'use' handled by outer engine, because it might involve graphics
-        fin
+        return doUse(player, item) // general 'use' handled by outer engine, because it might involve graphics
         break
       // Trade an item
       is 'T'

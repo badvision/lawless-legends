@@ -483,9 +483,10 @@ castRay: !zone
 
 	; special case: hit edge of map
 .hitEdge:
-	ldy #0			; height
+	ldy darkHeight		; height
 	lda #1			; depth
-	sty txNum		; texture number
+	ldx #0			; dark texture
+	stx txNum		; texture number
 	jsr saveLink		; allocate a link and save those
 	lda #0			; column number
 	sta txColBuf,x		; save that too

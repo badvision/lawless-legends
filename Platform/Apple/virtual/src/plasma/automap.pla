@@ -19,7 +19,7 @@ predef _automap_show()#1
 word[] funcTbl = @_automap_show
 
 word tilePtrs[40]
-byte blankTile[32]
+byte blankTile[9]
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -28,150 +28,121 @@ asm _defs
 !source "../../include/global.i"
 !source "../../include/plasma.i"
 !source "../../include/mem.i"
+!source "../../include/fontEngine.i"
 tmp         = $2   ; length 2
 pTmp        = $4   ; length 2
-pix0        = $6   ; length 1
-pix1        = $7   ; length 1
-tilePtrs    = $8   ; length 2
-tileOff     = $A   ; length 1
-nTiles      = $B   ; length 1
-pScreen     = $C   ; length 2
-pTile       = $E   ; length 2
-ysav        = $34
+tilePtrs    = $6   ; length 2
+pTile       = $8   ; length 2
+pBlank      = $A   ; length 2
+hibits      = $C   ; length 1
+nTiles      = $D   ; length 1
+prevBits    = $E   ; length 1
+unused0F    = $F   ; length 1
+linePtrs    = $10  ; length 2*8 = 16
+ysav        = $34  ; length 1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-asm drawSlice(tilePtrs, nTiles, pScreen)#0
-  +asmPlasmNoRet 3
-
-  lda #$60
-  sta 0
-  jsr 0    ; FOO
-
-  lda #0        ; start at zero tile offset
-.row
-  sta tileOff
-  sty pScreen+1
-  lda evalStkL+0,x  ; re-init low byte of screen ptr each row
-  sta pScreen
+asm drawSlice(pBlank, pScreen, nTiles, tilePtrs)#0
+  +asmPlasmNoRet 4
+  sta tilePtrs
+  sty tilePtrs+1
   lda evalStkL+1,x
   sta nTiles
   lda evalStkL+2,x
-  sta tilePtrs
+  sta pTmp
   lda evalStkH+2,x
-  sta tilePtrs+1
-  clc           ; start with even-tile logic
-.tileLoop
+  sta pTmp+1
+  lda evalStkL+3,x
+  sta pBlank
+  lda evalStkH+3,x
+  sta pBlank+1
+  ; Grab the line pointers for all 8 lines
+  ldx #0
+- lda pTmp
+  sta linePtrs,x
+  inx
+  lda pTmp+1
+  sta linePtrs,x
+  inx
+  jsr NextScreenLine
+  cpx #16
+  bne -
+  ; Process one tile
+.tile
   ldy #0
   lda (tilePtrs),y
   sta pTile
-  inc tilePtrs
-  bne +
-  inc tilePtrs+1
-+ lda (tilePtrs),y
+  iny
+  lda (tilePtrs),y
   sta pTile+1
-  inc tilePtrs
-  bne +
-  inc tilePtrs+1
-+ ldy tileOff     ; start at correct vertical offset within each tile
-  lda (pTile),y
-  bcs .oddTile    ; first time even, second time odd, third time even, etc.
-.evenTile
-  lsr             ; in bit A-0
-  ror pix0        ;                    out bit 0
-  lsr             ; in bit A-1
-  ror pix0        ;                    out bit 1
-  lsr             ; in bit A-2 (skip)
-  lsr             ; in bit A-3 (skip)
-  lsr             ; in bit A-4
-  ror pix0        ;                    out bit 2
-  lsr             ; in bit A-5
-  ror pix0        ;                    out bit 3
-                  ; in bit A-6 (skip)
-                  ; in bit A-7 (hi skip)
-  iny
-  lda (pTile),y
-  lsr             ; in bit A-8 (skip)
-  lsr             ; in bit A-9
-  ror pix0        ;                    out bit 4
-  lsr             ; in bit A-10
-  ror pix0        ;                    out bit 5
-  lsr             ; in bit A-11 (skip)
-  lsr             ; in bit A-12 (skip)
-  lsr             ; in bit A-13
-  ror pix0        ;                    out bit 6
-  lsr             ; in bit A-14
-  ror pix1        ;                    out bit 8 (!)
-  lsr             ; in bit A-15 (hibit)
-  ror pix0        ;                    out bit 7 (!)
-  lda pix0
-  sec             ; next iteration, use odd-tile logic
-
-.store
-  ldy #0
-  sta (pScreen),y
-  inc pScreen
-  dec nTiles      ; count down tiles done
-  bne .tileLoop   ; go until we've done all tiles for the row
-  lda pScreen+1
+  lda tilePtrs
   clc
-  adc #4          ; advance to next screen line
-  tay
-  lda tileOff     ; carry already clear from above
-  adc #4          ; advance 2 rows within the tiles (1 we did, 1 skipping for downsize)
-  cmp #32         ; until done with all 32 bytes of tiles
-  bcc .row
-  rts             ; finished
-
-.oddTile
-  lsr             ; in bit B-0 (skip)
-  lsr             ; in bit B-1 (skip)
-  lsr             ; in bit B-2
-  ror pix1        ;                    out bit 9
-  lsr             ; in bit B-3
-  ror pix1        ;                    out bit 10
-  lsr             ; in bit B-4 (skip)
-  lsr             ; in bit B-5 (skip)
-  lsr             ; in bit B-6
-  ror pix1        ;                    out bit 11
-                  ; in bit B-7 (hi skip)
-  iny
+  adc #2
+  sta tilePtrs
+  bcc +
+  inc tilePtrs+1
++ dey
   lda (pTile),y
-  lsr             ; in bit B-8
-  ror pix1        ;                    out bit 12
-  lsr             ; in bit B-9 (skip)
-  lsr             ; in bit B-10 (skip)
-  lsr             ; in bit B-11
-  ror pix1        ;                    out bit 13
-  lsr             ; in bit B-12
-  ror pix1        ;                    out bit 14
-  lsr             ; in bit B-13 (skip)
-  lsr             ; in bit B-14 (skip)
-  lsr             ; in bit B-15 (hibit)
-  ror pix1        ;                    out bit 15 (hibit)
-  lda pix1
-  clc             ; next iteration, use even-tile logic
-  bcc .store      ; always taken
+  sta hibits
+  sta (pBlank),y   ; if next tile is blank, match hi bits of this tile
+  iny
+  ldx #0
+  lda linePtrs
+  lsr
+  bcs .odd
+.even
+  lda (pTile),y
+  iny
+  asl
+  ror prevBits
+  lsr hibits
+  ror
+  sta (linePtrs,x)
+  inc linePtrs,x
+  inx
+  inx
+  cpx #16
+  bne .even
+  beq .next   ; always taken
+.odd
+  lda (pTile),y
+  iny
+  lsr prevBits
+  rol
+  asl
+  lsr hibits
+  ror
+  sta (linePtrs,x)
+  inc linePtrs,x
+  inx
+  inx
+  cpx #16
+  bne .odd
+.next
+  dec nTiles
+  bne .tile
+  rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayRow(rowNum, mapRowData, tileTrans, pTileset, width)#0
+def displayRow(rowNum, mapRowData, tileTrans, pSmallTiles, width)#0
   byte x, mapRaw, tileNum
   for x = 0 to width-1
     mapRaw = ^(mapRowData + x) & $1F
     if mapRaw
       tileNum = ^(tileTrans + ((mapRaw - 1) << 1))
-      tilePtrs[x] = pTileset + ((tileNum-1) << 5)  // 32 bytes per tile in the tileset
+      tilePtrs[x] = pSmallTiles + ((tileNum-1) * 9)  // 9 bytes per reduced tile in the tileset
     else
       tilePtrs[x] = @blankTile
     fin
   next
-  drawSlice(@tilePtrs, width, getScreenLine((rowNum+2)<<3) + 2)
+  drawSlice(@blankTile, getScreenLine((rowNum+2)<<3) + 2, width, @tilePtrs)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def _automap_show()#1
-  word pTileset, tileTrans, mapData
+  word pTileset, pSmallTiles, tileTrans, mapData
   byte nTextures, y, rowSize, numRows
 
   setBigWindow
@@ -186,6 +157,9 @@ def _automap_show()#1
   pTileset = mmgr(QUEUE_LOAD, (^(pCurMap+3))<<8 | RES_TYPE_TILESET)
   mmgr(FINISH_LOAD, 0)
 
+  // Figure out where the small tiles reside (at the end of the full size tiles)
+  pSmallTiles = pTileset + 1 + ((^pTileset) << 5)
+
   // Extract significant pointers from the map blob
   rowSize = ^pCurMap
   numRows = ^(pCurMap+1)
@@ -198,12 +172,12 @@ def _automap_show()#1
   //printf2("mapData=$%x, rowSize=%d\n", mapData, rowSize) // FOO
 
   // Clear out the blank tile buffer
-  memset(@blankTile, 0, 32)
+  memset(@blankTile, 0, 9)
 
   // Display each row
   for y = 0 to numRows-3  // two sentinel rows, and an extra because zero-indexed.
     // The +1's below are to skip over the sentinel row and column that 3D maps have
-    displayRow(y, mapData + ((y+1)*rowSize) + 1, tileTrans, pTileset, rowSize-2)
+    displayRow(y, mapData + ((y+1)*rowSize) + 1, tileTrans, pSmallTiles, rowSize-2)
   next
 
   getUpperKey

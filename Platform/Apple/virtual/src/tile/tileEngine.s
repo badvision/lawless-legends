@@ -862,7 +862,7 @@ ROW_OFFSET = 3
 	ROL .tsadd+1
 	DEY
 	BNE -
-	CLC
+	SEC			; skip over initial count
 	ADC GLOBAL_TILESET_LOC
 	TAY
 	LDA GLOBAL_TILESET_LOC+1
@@ -892,7 +892,7 @@ ROW_OFFSET = 3
 	ROL TILE_SOURCE+1
 	ASL
 	ROL TILE_SOURCE+1
-	CLC
+	SEC			; skip over initial tile count
 	ADC TILE_BASE
 	TAY
 	LDA TILE_SOURCE+1

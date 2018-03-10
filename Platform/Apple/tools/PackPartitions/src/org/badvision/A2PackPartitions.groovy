@@ -95,6 +95,7 @@ class A2PackPartitions
     def maps2D    = [:]  // map name to map.num, map.buf
     def maps3D    = [:]  // map name to map.num, map.buf
     def tiles     = [:]  // tile id to tile.buf
+    def smTiles   = [:]  // tile id to small-size tile.buf
     def tileSets  = [:]  // tileset name to tileset.num, tileset.buf
     def avatars   = [:]  // avatar tile name to tile num (within the special tileset)
     def lampTiles = []   // animated series of lamp tiles
@@ -281,10 +282,8 @@ class A2PackPartitions
         return DatatypeConverter.printHexBinary(md.digest())
     }
 
-    def pixelize(dataEl)
+    def pixelize(dataEl, stride, nBytes, nLines)
     {
-        def nBytes = dataEl.@width as int
-        def nLines = dataEl.@height as int
         def hexStr = dataEl.text()
         return (0..<nLines).collect { lineNum ->
             def outRow = []
@@ -314,14 +313,47 @@ class A2PackPartitions
         // Locate the data for the Apple II (as opposed to C64 etc.)
         def data = imgEl.displayData?.find { it.@platform == "AppleII" }
         assert data : "image '${imgEl.@name}' missing AppleII platform data"
-        def rows = pixelize(data)
+        def rows = pixelize(data, data.@width as int, 10, 64)
 
         // Retain only the upper-left 64 lines x 32 pixels
-        return rows[0..63].collect { it[0..31] }
+        return rows.collect { it[0..31] }
+    }
+
+    /*
+     * Add a pixel to a reduction pixel buffer
+     */
+    def addPix(pixBuf, hibitBuf, int pix)
+    {
+        if (pixBuf.containsKey(pix))
+            pixBuf[pix] += 1
+        else
+            pixBuf[pix] = 1
+
+        int hibit = pix >> 2
+        if (hibitBuf.containsKey(hibit))
+            hibitBuf[hibit] += 1
+        else
+            hibitBuf[hibit] = 1
     }
 
     /*
      * Parse raw tile image data and return it as a buffer.
+     */
+    def choosePix(pixBuf, x, y)
+    {
+        def inv = ((((x>>1)+(y>>1)) & 1) * 2) - 1 // 1 or -1, in a dither pattern
+        inv = 1 // FOO: no dither for now
+        def accum = []
+        pixBuf.each { pix, count ->
+            accum << [count, pix*inv]
+        }
+        def choice = accum.sort().reverse()[0]
+        return Math.abs(choice[1])
+    }
+
+    /*
+     * Parse raw tile image data and return it as a two buffers: fullsize mainBuf,
+     * and reduced size smBuf
      */
     def parseTileData(imgEl)
     {
@@ -331,14 +363,44 @@ class A2PackPartitions
 
         // Parse out the hex data on each line and add it to a buffer.
         def hexStr = dataEl.text()
-        def outBuf = ByteBuffer.allocate(50000)
+        def mainBuf = ByteBuffer.allocate(32)
         for (def pos = 0; pos < hexStr.size(); pos += 2) {
             def val = Integer.parseInt(hexStr[pos..pos+1], 16)
-            outBuf.put((byte)val)
+            mainBuf.put((byte)val)
         }
 
-        // All done. Return the buffer.
-        return outBuf
+        // Make a reduced-size version
+        def rows = pixelize(dataEl, 2, 2, 16)
+        def smBuf = ByteBuffer.allocate(9)
+        smBuf.put((byte)0) // placeholder for hi bits
+        def hibits = 0
+        def pixBuf
+        for (int y = 0; y < 16; y += 2)
+        {
+            def hibitBuf = [:]
+            def outByte = 0
+            for (int x = 0; x < 7; x += 2)
+            {
+                pixBuf = [:]
+                addPix(pixBuf, hibitBuf, rows[y]  [x])
+                addPix(pixBuf, hibitBuf, rows[y+1][x])
+                if (x < 6) {
+                    addPix(pixBuf, hibitBuf, rows[y]  [x+1])
+                    addPix(pixBuf, hibitBuf, rows[y+1][x+1])
+                }
+                def outPix = choosePix(pixBuf, x, y)
+                outByte = (outByte >> 2) | ((outPix & 3) << 6)
+            }
+            // No: (outByte >> 7) | ((outByte << 1) & 0xFF) // rotate one bit for efficient Apple II code
+            smBuf.put((byte)outByte)
+            hibits = (hibits >> 1) | (choosePix(hibitBuf, 0, y) << 7)
+        }
+        smBuf.position(0)
+        smBuf.put((byte)hibits)
+        smBuf.position(9)
+
+        // All done. Return the buffers.
+        return [mainBuf, smBuf]
     }
 
     /*
@@ -875,8 +937,9 @@ class A2PackPartitions
 
     def packTile(imgEl)
     {
-        def buf = parseTileData(imgEl)
-        tiles[imgEl.@id] = buf
+        def (mainBuf, smBuf) = parseTileData(imgEl)
+        tiles[imgEl.@id] = mainBuf
+        smTiles[imgEl.@id] = smBuf
     }
 
     /** Identify the avatars and other global tiles, and number them */
@@ -920,7 +983,7 @@ class A2PackPartitions
             }
         }
 
-        tileSets[setName] = [num:setNum, buf:buf, tileMap:tileMap, tileIds:tileIds]
+        tileSets[setName] = [num:setNum, mainBuf:buf, smBuf:ByteBuffer.allocate(1), tileMap:tileMap, tileIds:tileIds]
         return [setNum, tileMap]
     }
 
@@ -968,7 +1031,11 @@ class A2PackPartitions
         else {
             setNum = tileSets.size() + 1
             //println "Creating new tileSet $setNum."
-            tileSet = [num:setNum, buf:ByteBuffer.allocate(50000), tileMap:[:], tileIds:tileIds]
+            tileSet = [num:setNum,
+                       mainBuf:ByteBuffer.allocate(50000),
+                       smBuf:ByteBuffer.allocate(20000),
+                       tileMap:[:],
+                       tileIds:tileIds]
             tileSets["tileSet${setNum}"] = tileSet
         }
 
@@ -977,7 +1044,8 @@ class A2PackPartitions
 
         // Start by assuming we'll create a new tileset
         def tileMap = tileSet.tileMap
-        def buf = tileSet.buf
+        def mainBuf = tileSet.mainBuf
+        def smBuf   = tileSet.smBuf
 
         // Then add each non-null tile to the set
         (yOff ..< yOff+height).each { y ->
@@ -990,12 +1058,15 @@ class A2PackPartitions
                     assert num < 64 : "Error: Only 63 kinds of tiles are allowed on any given map."
                     tileMap[id] = num
                     tiles[id].flip() // crazy stuff to append one buffer to another
-                    buf.put(tiles[id])
+                    mainBuf.put(tiles[id])
+                    smTiles[id].flip()
+                    smBuf.put(smTiles[id])
                 }
             }
         }
         assert tileMap.size() > 0
-        assert buf.position() > 0
+        assert mainBuf.position() > 0
+        assert smBuf.position() > 0
 
         return [setNum, tileMap]
     }
@@ -2377,7 +2448,13 @@ class A2PackPartitions
 
         // Now that the tileSets are complete, compress them.
         tileSets.each { name, tileSet ->
-            tileSet.buf = compress(unwrapByteBuffer(tileSet.buf))
+            def buf = ByteBuffer.allocate(50000)
+            buf.put((byte)(tileSet.tileIds.size()))
+            tileSet.mainBuf.flip() // crazy stuff to append one buffer to another
+            buf.put(tileSet.mainBuf)
+            tileSet.smBuf.flip() // crazy stuff to append one buffer to another
+            buf.put(tileSet.smBuf)
+            tileSet.buf = compress(unwrapByteBuffer(buf))
         }
 
         //println("rdeps - phase 2:" + JsonOutput.prettyPrint(JsonOutput.toJson(resourceDeps)))
@@ -4062,8 +4139,8 @@ end
             outIndented("p_player = global=>p_players\n")
             outIndented("while p_player\n")
             ++indent
-            outIndented(
-                "setStat(p_player, $stat, getStat(p_player, $stat) ${blk.@type == 'interaction_increase_party_stats' ? '+' : '-'} $amount)\n")
+            outIndented("setStat(p_player, $stat, getStat(p_player, $stat) " +
+                        "${blk.@type == 'interaction_increase_party_stats' ? '+' : '-'} $amount)\n")
             outIndented("p_player = p_player=>p_nextObj\n")
             --indent
             outIndented("loop\n")

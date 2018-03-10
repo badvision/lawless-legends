@@ -18,6 +18,9 @@ include "gen_modules.plh"
 predef _automap_show()#1
 word[] funcTbl = @_automap_show
 
+word tilePtrs[40]
+byte blankTile[32]
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
 asm _defs
@@ -38,21 +41,26 @@ ysav        = $34
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-asm _drawSlice(tilePtrs, nTiles, tileOff, pScreen)#0
-  +asmPlasmRet 4
-  sta pScreen
-  sty pScreen+1
-  lda evalStkL+1,x
+asm drawSlice(tilePtrs, nTiles, pScreen)#0
+  +asmPlasmNoRet 3
+
+  lda #$60
+  sta 0
+  jsr 0    ; FOO
+
+  lda #0        ; start at zero tile offset
+.row
   sta tileOff
-  lda evalStkL+2,x
+  sty pScreen+1
+  lda evalStkL+0,x  ; re-init low byte of screen ptr each row
+  sta pScreen
+  lda evalStkL+1,x
   sta nTiles
-  lda evalStkL+3,x
+  lda evalStkL+2,x
   sta tilePtrs
-  lda evalStkH+3,x
+  lda evalStkH+2,x
   sta tilePtrs+1
-
   clc           ; start with even-tile logic
-
 .tileLoop
   ldy #0
   lda (tilePtrs),y
@@ -104,7 +112,15 @@ asm _drawSlice(tilePtrs, nTiles, tileOff, pScreen)#0
   sta (pScreen),y
   inc pScreen
   dec nTiles      ; count down tiles done
-  bne .tileLoop   ; go until they're all done
+  bne .tileLoop   ; go until we've done all tiles for the row
+  lda pScreen+1
+  clc
+  adc #4          ; advance to next screen line
+  tay
+  lda tileOff     ; carry already clear from above
+  adc #4          ; advance 2 rows within the tiles (1 we did, 1 skipping for downsize)
+  cmp #32         ; until done with all 32 bytes of tiles
+  bcc .row
   rts             ; finished
 
 .oddTile
@@ -139,11 +155,61 @@ asm _drawSlice(tilePtrs, nTiles, tileOff, pScreen)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def displayRow(rowNum, mapRowData, tileTrans, pTileset, width)#0
+  byte x, mapRaw, tileNum
+  for x = 0 to width-1
+    mapRaw = ^(mapRowData + x) & $1F
+    if mapRaw
+      tileNum = ^(tileTrans + ((mapRaw - 1) << 1))
+      tilePtrs[x] = pTileset + ((tileNum-1) << 5)  // 32 bytes per tile in the tileset
+    else
+      tilePtrs[x] = @blankTile
+    fin
+  next
+  drawSlice(@tilePtrs, width, getScreenLine((rowNum+2)<<3) + 2)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def _automap_show()#1
+  word pTileset, tileTrans, mapData
+  byte nTextures, y, rowSize, numRows
+
   setBigWindow
   clearWindow
-  rawDisplayStr("Hello automap")
+
+  if !mapIs3D; fatal("TODO: 2D automap"); fin // 2d is more complicated with all its segmenting
+
+  //printf2("pCurMap=$%x tileset=%d\n", pCurMap, ^(pCurMap+3)) // FOO
+
+  // Load the tile set
+  mmgr(START_LOAD, curMapPartition)
+  pTileset = mmgr(QUEUE_LOAD, (^(pCurMap+3))<<8 | RES_TYPE_TILESET)
+  mmgr(FINISH_LOAD, 0)
+
+  // Extract significant pointers from the map blob
+  rowSize = ^pCurMap
+  numRows = ^(pCurMap+1)
+  tileTrans = pCurMap + 4
+  nTextures = 0
+  while ^(tileTrans + (nTextures<<1))
+    nTextures++
+  loop
+  mapData = tileTrans + (nTextures*3) + 2  // *2 for tilenum+texnum, *1 for texture flags, 2 for zero-terms
+  //printf2("mapData=$%x, rowSize=%d\n", mapData, rowSize) // FOO
+
+  // Clear out the blank tile buffer
+  memset(@blankTile, 0, 32)
+
+  // Display each row
+  for y = 0 to numRows-3  // two sentinel rows, and an extra because zero-indexed.
+    // The +1's below are to skip over the sentinel row and column that 3D maps have
+    displayRow(y, mapData + ((y+1)*rowSize) + 1, tileTrans, pTileset, rowSize-2)
+  next
+
   getUpperKey
+
+  // And unload the tile set
+  mmgr(FREE_MEMORY, pTileset)
   return 0
 end
 

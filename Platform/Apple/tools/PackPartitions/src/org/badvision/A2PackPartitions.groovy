@@ -53,17 +53,41 @@ class A2PackPartitions
     static final int SAVE_GAME_SIZE = 10 // 9 blocks data, 1 block index
     static final int MAX_DISKS = 20 // for now this should be way more than enough
 
-    def typeNumToName    = [1:  "Code",
-                            2:  "2D map",
-                            3:  "3D map",
-                            4:  "Tile set",
-                            5:  "Texture image",
-                            6:  "Full screen image",
-                            7:  "Font",
-                            8:  "Code",
-                            9:  "Code",
-                            10: "Code",
-                            11: "Portrait image"]
+    def typeNumToDisplayName = [1:  "Code",
+                                2:  "2D map",
+                                3:  "3D map",
+                                4:  "Tile set",
+                                5:  "Texture image",
+                                6:  "Full screen image",
+                                7:  "Font",
+                                8:  "Code",
+                                9:  "Code",
+                                10: "Code",
+                                11: "Portrait image"]
+
+    def typeNameToNum = ["code":     TYPE_CODE,
+                         "map2D":    TYPE_2D_MAP,
+                         "map3D":    TYPE_3D_MAP,
+                         "tileSet":  TYPE_TILE_SET,
+                         "texture":  TYPE_TEXTURE_IMG,
+                         "frame":    TYPE_SCREEN,
+                         "font":     TYPE_FONT,
+                         "module":   TYPE_MODULE,
+                         "bytecode": TYPE_BYTECODE,
+                         "fixup":    TYPE_FIXUP,
+                         "portrait": TYPE_PORTRAIT]
+
+    def typeNumToName = [1: "code",
+                         2: "map2D",
+                         3: "map3D",
+                         4: "tileSet",
+                         5: "texture",
+                         6: "frame",
+                         7: "font",
+                         8: "module",
+                         9: "bytecode",
+                         10: "fixup",
+                         11: "portrait"]
 
     def mapNames  = [:]  // map name (and short name also) to map.2dor3d, map.num
     def sysCode   = [:]  // memory manager
@@ -82,6 +106,7 @@ class A2PackPartitions
     def bytecodes = [:]  // module name to bytecode.num, bytecode.buf
     def fixups    = [:]  // module name to fixup.num, fixup.buf
     def gameFlags = [:]  // flag name to number
+    def chunkDisks = [:] // chunk name/type to set of disk partition numbers
 
     def itemNameToFunc = [:]
     def playerNameToFunc = [:]
@@ -638,7 +663,7 @@ class A2PackPartitions
         def height = rows.size() + 2    // Sentinel rows of $FF's at start and end
 
         // For automap display, we need 2D tiles as well
-        def (tileSetNum, tileMap) = packTileSet(rows, 0, width-2, 0, height-2) // exclude sentinels
+        def (tileSetNum, tileMap) = packTileSet(rows, 0, rows[0].size(), 0, rows.size())
 
         // Determine the set of all referenced textures, and assign numbers to them.
         def texMap = [:]
@@ -660,6 +685,7 @@ class A2PackPartitions
                             flags |= 2
                         if (tile?.@blocker == 'true')
                             flags |= 4
+                        assert tileMap[id] > 0 : "missing tileMap entry"
                         texList.add([tileMap[id], textures[name].num])
                         texFlags.add(flags)
                         texMap[id] = texList.size()
@@ -685,7 +711,7 @@ class A2PackPartitions
 
         // Followed by the list of textures; each one has 2D tile num and 3D texture num
         texList.each { tileNum, texNum ->
-            buf.put((byte)(tileNum == null ? 0xFF : tileNum+1))
+            buf.put((byte)tileNum)
             buf.put((byte)texNum)
         }
         buf.put((byte)0)
@@ -907,7 +933,8 @@ class A2PackPartitions
             def row = (y < rows.size) ? rows[y] : null
             (xOff ..< xOff+width).each { x ->
                 def tile = (row && x < row.size) ? row[x] : null
-                tileIds.add(tile?.@id)
+                if (tile?.@id)
+                    tileIds.add(tile?.@id)
             }
         }
         assert tileIds.size() > 0
@@ -955,7 +982,7 @@ class A2PackPartitions
         // Then add each non-null tile to the set
         (yOff ..< yOff+height).each { y ->
             def row = (y < rows.size) ? rows[y] : null
-            (xOff ..< xOff+height).each { x ->
+            (xOff ..< xOff+width).each { x ->
                 def tile = (row && x < row.size) ? row[x] : null
                 def id = tile?.@id
                 if (tile && !tileMap.containsKey(id)) {
@@ -993,7 +1020,6 @@ class A2PackPartitions
         //println "Packing 3D map #$num named '$name': num=$num."
         withContext("map '$name'") {
             addResourceDep("map", name, "map3D", name)
-            addResourceDep("map", name, "tileSet", "tileSet_special")  // global tiles for avatar, lamp, etc.
             def rows = parseMap(mapEl, tileEls)
             //println "3d map ${name}: ${rows[0].size()} x ${rows.size()} = ${rows[0].size() * rows.size()}"
             def (scriptModule, locationsWithTriggers) = packScripts(mapEl, name, rows[0].size(), rows.size())
@@ -1341,18 +1367,7 @@ class A2PackPartitions
         }
         def data = allChunks[key]
 
-        def typeNum = typeName=="code" ? TYPE_CODE :
-                      typeName=="map2D" ? TYPE_2D_MAP :
-                      typeName=="map3D" ? TYPE_3D_MAP :
-                      typeName=="tileSet" ? TYPE_TILE_SET :
-                      typeName=="texture" ? TYPE_TEXTURE_IMG :
-                      typeName=="frame" ? TYPE_SCREEN :
-                      typeName=="font" ? TYPE_FONT :
-                      typeName=="module" ? TYPE_MODULE :
-                      typeName=="bytecode" ? TYPE_BYTECODE :
-                      typeName=="fixup" ? TYPE_FIXUP :
-                      typeName=="portrait" ? TYPE_PORTRAIT :
-                      null
+        def typeNum = typeNameToNum[typeName]
         assert typeNum : "Can't map typeName $typeName"
         return [type:typeNum, num:data.num, name:resourceName, buf:data.buf]
     }
@@ -1516,6 +1531,9 @@ class A2PackPartitions
             mapChunks.each { k,v ->
                 v.buf.partNum = partNum
                 outChunks[k] = v
+                if (!chunkDisks.containsKey(k))
+                    chunkDisks[k] = [] as Set
+                chunkDisks[k].add(partNum)
             }
             // Handle maps that get dupe'd on each data disk
             if (toDupe.contains(mapName))
@@ -1579,13 +1597,14 @@ class A2PackPartitions
         def day = cal.get(Calendar.DAY_OF_MONTH)
         def hour = cal.get(Calendar.HOUR_OF_DAY)
 
-        def yearCode = year % 10
-        def monthCode = (month < 9) ? (char) (48+month+1) :
-                        month == 9 ? 'o' :
-                        month == 10 ? 'n' :
-                        'd'
+        def yearCode = (year-2010 < 10) ? (char) (48+year-2010) : // 0=2010, 1=2011, etc.
+                       (char) (65+year-2020)                      // A=2020, B=2021, etc.
+        def monthCode = (month < 9) ? (char) (48+month+1) :       // 1=Jan, 2=Feb...
+                        month == 9 ? 'o' :                        // o=Oct
+                        month == 10 ? 'n' :                       // n=Nov
+                        'd'                                       // d=Dec
         def hourCode = (char) (97 + hour) // 'a'=0, 'b'=1, etc.
-        def engineCode = String.format("%d%s%02d%c", yearCode, monthCode, day, hourCode)
+        def engineCode = String.format("%c%s%02d%c", yearCode, monthCode, day, hourCode)
 
         def offset = Math.max(-99, Math.min(99, (int) ((scenarioStamp - engineStamp) / (1000 * 60 * 60))))
         return String.format("%s%s%d", engineCode, offset < 0 ? "-" : ".", Math.abs(offset))
@@ -2135,12 +2154,12 @@ class A2PackPartitions
             "================================= Resource Sizes =====================================")
         def data = [:]
         chunkSizes.each { k,v ->
-            assert typeNumToName.containsKey(k.type)
-            def type = typeNumToName[k.type]
+            assert typeNumToDisplayName.containsKey(k.type)
+            def type = typeNumToDisplayName[k.type]
             if (type == "Code" && k.num > lastSysModule)
                 type = "Script"
             def name = k.name.replaceAll(/\s*-\s*[23][dD].*/, "")
-            def dataKey = [type:type, name:name, num:k.num]
+            def dataKey = [type:type, name:name, internalType: k.type, internalName: k.name, num:k.num]
             if (!data.containsKey(dataKey))
                 data[dataKey] = v
             else {
@@ -2169,8 +2188,12 @@ class A2PackPartitions
                 cSub = 0
                 ucSub = 0
             }
-            reportWriter.println String.format("  %-20s: %6.1fK memory, %6.1fK disk (id %d)",
-                k.name, v.uclen/1024.0, v.clen/1024.0, k.num)
+            def disks = chunkDisks[[typeNumToName[k.internalType], k.internalName]]
+            def disksStr = !disks ? "omitted/unused" :
+                           disks.size() == 1 ? "disk ${disks[0]}" :
+                           "disks ${disks.toList().sort().join(",")}"
+            reportWriter.println String.format("  %-20s: %6.1fK memory, %6.1fK disk (id %d; %s)",
+                k.name, v.uclen/1024.0, v.clen/1024.0, k.num, disksStr)
             cSub += v.clen
             cTot += v.clen
             ucSub += v.uclen

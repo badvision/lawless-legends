@@ -84,10 +84,10 @@ predef showParty()#0
 // Global variables
 export byte mapNum = -1
 export byte mapIs3D = 0
+export word totalMapWidth
+export word totalMapHeight
+export word pCurMap
 word mapNameHash = 0
-word totalMapWidth
-word totalMapHeight
-word pCurMap
 
 byte needRender = FALSE
 byte needShowParty = FALSE
@@ -114,10 +114,11 @@ word curEngine = NULL
 word pIntimate = NULL
 word pResourceIndex = NULL
 word pGlobalTileset = NULL
-byte curMapPartition = 0
+export byte curMapPartition = 0
 export word pGodModule = NULL
 export word typeHash = 0
 word curHeapPct = 0
+byte lastMoveDir
 
 // Queue setMap / teleport / start_encounter, since otherwise script might be replaced while executing
 byte q_mapIs3D = 0
@@ -139,6 +140,7 @@ byte tabBuf[5]
 // Animation and lamp tracking
 word curPortrait = NULL
 byte curPortraitNum = 0
+byte preEnginePortraitNum = 0
 word curFullscreenImg = NULL
 byte animDirCt
 byte anyAnims = TRUE
@@ -2443,6 +2445,7 @@ def moveInternal(facingDir, moveDir, beepOK, shouldAdvTime)#1
 
   setDir(moveDir)
   val = advance()
+  lastMoveDir = moveDir
   setDir(facingDir)
 
   // If not blocked, render at the new position.
@@ -2515,7 +2518,7 @@ end
 export def moveWayBackward()#1
   byte facingDir, moveDir
   facingDir = getDir()
-  moveDir = (facingDir + 8) & 15
+  moveDir = (lastMoveDir + 8) & 15  // reverse of last move
   moveInternal(facingDir, moveDir, FALSE, TRUE) // no beep, but do adv time
   if mapIs3D
     moveInternal(facingDir, moveDir, FALSE, FALSE) // no beep, don't adv time
@@ -2558,6 +2561,7 @@ def strafeLeft()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Move to the north/east/south/west (2D mode)
 def moveNorth()#1
   word x, y
   getPos(@x, @y)
@@ -2896,6 +2900,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def loadEngine(moduleNum)#1
   if curEngine; fatal("dblEng"); fin
+  preEnginePortraitNum = curPortraitNum
   clearPortrait()
   unloadTextures()
   flipToPage1()
@@ -2911,7 +2916,11 @@ def returnFromEngine(render)#0
     mmgr(FREE_MEMORY, curEngine)
     curEngine = NULL
     loadMainFrameImg()
-    clearPortrait()
+    if preEnginePortraitNum
+      setPortrait(preEnginePortraitNum)
+    else
+      clearPortrait()
+    fin
     if renderLoaded; texControl(1); texturesLoaded = TRUE; fin
     mapNameHash = 0; showMapName(global=>s_mapName)
     clearTextWindow()
@@ -3173,7 +3182,7 @@ def initCmds()#0
   cmdTbl['?'] = @help
   cmdTbl[$07] = @toggleGodMode // ctrl-G
   cmdTbl[' '] = @snooze  // "space out" (snooze)
-  cmdTbl[$0d] = @showAutomap // ctrl-M = Enter/Return
+  cmdTbl['-'] = @showAutomap
   if global->b_godmode
     pGodModule=>godmode_setCheatCmds()
   fin

@@ -56,6 +56,7 @@ import gamelib
   predef getDir()#1
   predef getGameFlag(flagName)#1
   predef getPos(px, py)#0
+  predef getScreenLine(n)#1
   predef getStat(player, statName)#1
   predef getStringResponse()#1
   predef getUpperKey()#1
@@ -73,6 +74,7 @@ import gamelib
   predef makeModifier(name, value)#1
   predef max(a, b)#1
   predef memcpy(pSrc, pDst, len)#0
+  predef memset(pDst, val, len)#0
   predef min(a, b)#1
   predef mmgr(cmd, wordParam)#1
   predef moveWayBackward()#1
@@ -151,6 +153,10 @@ import gamelib
   word typeHash
   byte isPlural
   word ctx
+  word totalMapWidth
+  word totalMapHeight
+  word pCurMap
+  byte curMapPartition
 
   /////////// Shared string constants //////////////
 

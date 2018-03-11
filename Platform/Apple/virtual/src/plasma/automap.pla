@@ -9,9 +9,29 @@
 //////////////////f/////////////////////////////////////////////////////////////////////////////////
 
 include "gamelib.plh"
-include "playtype.plh"
 include "globalDefs.plh"
-include "gen_modules.plh"
+
+const MAP_TOP  = 8  // lines
+const MAP_LEFT = 2  // bytes
+
+const SCREEN_ROWS = 22
+const SCREEN_COLS = 38
+
+struc MapSection
+  byte b_mapNum
+  word p_map
+  byte b_tilesetNum
+  word p_tileset
+  byte b_visible
+  word w_x0, w_y0   // upper-left coord of map in global space
+  word w_x1, w_y1   // bottom-right coord of map (exclusive) in global space
+  byte b_sx, b_sy   // clipped screen coordinate
+  byte b_ox, b_oy   // clipped offset within map to display
+  byte b_cw, b_ch   // clipped size within map to display
+end
+
+const MAX_SECT = 40
+const SECT_BUF_SIZE = MAX_SECT * MapSection
 
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the header.
@@ -20,6 +40,11 @@ word[] funcTbl = @_automap_show
 
 word tilePtrs[40]
 byte blankTile[9]
+
+word screenX0, screenY0, screenX1, screenY1
+
+byte nSections
+byte sectionBuf[MAX_SECT_BUF]
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -141,49 +166,150 @@ def displayRow(rowNum, mapRowData, tileTrans, pSmallTiles, width)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _automap_show()#1
-  word pTileset, pSmallTiles, tileTrans, mapData
-  byte nTextures, y, rowSize, numRows
+def make3DSection(pSection)#0
+  // Record the map data (it's already loaded for 3D display)
+  pSection->b_mapNum = curMapNum
+  pSection=>p_map = pCurMap
 
-  setBigWindow
-  clearWindow
+  // Record the tile set number
+  pSection->b_tilesetNum = ^(pSection=>p_map + 3)
+  pSection=>p_tileset = NULL
 
-  if !mapIs3D; fatal("TODO: 2D automap"); fin // 2d is more complicated with all its segmenting
+  // Record the coordinates
+  pSection=>w_x0 = 0
+  pSection=>w_y0 = 0
+  pSection=>w_x1 = totalMapWidth
+  pSection=>w_y1 = totalMapHeight
+end
 
-  //printf2("pCurMap=$%x tileset=%d\n", pCurMap, ^(pCurMap+3)) // FOO
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def prepSections#0
+  byte i
+  word pSection
+  word x0, y0, x1, y1
 
-  // Load the tile set
   mmgr(START_LOAD, curMapPartition)
-  pTileset = mmgr(QUEUE_LOAD, (^(pCurMap+3))<<8 | RES_TYPE_TILESET)
+  pSection = @sectionBuf
+  for i = 0 to nSections-1
+    x0 = max(screenX0, pSection=>w_x0)
+    y0 = max(screenY0, pSection=>w_y0)
+    x1 = min(screenX1, pSection=>w_x1)
+    y1 = min(screenY1, pSection=>w_y1)
+    if x0 < x1 and y0 < y1
+      pSection->b_visible = TRUE
+      pSection->b_sx = x0 - screenX0
+      pSection->b_sy = y0 - screenY0
+      pSection->b_ox = x0 - pSection=>w_x0
+      pSection->b_oy = y0 - pSection=>w_y0
+      pSection->b_cw = x1 - x0
+      pSection->b_ch = y1 - y0
+      if !pSection=>p_map
+        // Note, this only happens in 2D mode (3D has only one map, which always stays loaded)
+        pSection=>p_map = mmgr(QUEUE_LOAD, (pSection->b_mapNum)<<8 | RES_TYPE_2D_MAP)
+      fin
+      if !pSection=>p_tileset
+        pSection=>p_tileset = mmgr(QUEUE_LOAD, (pSection->b_tilesetNum)<<8 | RES_TYPE_TILESET)
+      fin
+    else
+      pSection->b_visible = FALSE
+    fin
+    pSection = pSection + MapSection
+  next
   mmgr(FINISH_LOAD, 0)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def freeSections#0
+  byte i
+  word pSection
+
+  pSection = @sectionBuf
+  for i = 0 to nSections-1
+    if pSection=>p_map and pSection=>p_map <> pCurMap
+      mmgr(FREE_MEMORY, pSection=>p_map)
+      pSection=>p_map = NULL
+    fin
+    if pSection=>p_tileset
+      mmgr(FREE_MEMORY, pSection=>p_tileset)
+      pSection=>p_tileset = NULL
+    fin
+    pSection = pSection + MapSection
+  end
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def displaySection3D(pSection)#0
+  word pSmallTiles, tileTrans, mapData
+  byte nTextures, y, rowSize, rowData, pScreen
 
   // Figure out where the small tiles reside (at the end of the full size tiles)
-  pSmallTiles = pTileset + 1 + ((^pTileset) << 5)
+  pSmallTiles = pSection=>p_tileset + 1 + ((^(pSection=>pTileset)) << 5)
 
   // Extract significant pointers from the map blob
-  rowSize = ^pCurMap
-  numRows = ^(pCurMap+1)
-  tileTrans = pCurMap + 4
+  rowSize = ^(pSection=>p_map)
+  tileTrans = pSection=>p_map + 4
   nTextures = 0
   while ^(tileTrans + (nTextures<<1))
     nTextures++
   loop
   mapData = tileTrans + (nTextures*3) + 2  // *2 for tilenum+texnum, *1 for texture flags, 2 for zero-terms
-  //printf2("mapData=$%x, rowSize=%d\n", mapData, rowSize) // FOO
+  printf2("mapData=$%x, rowSize=%d\n", mapData, rowSize) // FOO
+
+  // Display each visible row
+  for y = 0 to pSection->b_ch - 1
+    // The +1's below are to skip over the sentinel row and column that 3D maps have
+    rowData = ((y + pSection->b_oy + 1) * rowSize) + pSection->b_ox + 1
+    // The << 3 below is because each row is 8 screen lines
+    pScreen = getScreenLine(((y + pSection->b_sy) << 3) + MAP_TOP) + MAP_LEFT + pSection->b_sx
+    displayRow(pScreen, rowData, tileTrans, pSmallTiles, pSection->b_cw)
+  next
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def displaySections#0
+  byte i
+  word pSection
+
+  pSection = @sectionBuf
+  for i = 0 to nSections-1
+    if pSection->b_visible
+      if mapIs3D
+        displaySection3D(pSection)
+      else
+        fatal("Not yet: disp2d")
+      fin
+    fin
+    pSection = pSection + MapSection
+  end
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def _automap_show()#1
+  setBigWindow
+  clearWindow
 
   // Clear out the blank tile buffer
   memset(@blankTile, 0, 9)
 
-  // Display each row
-  for y = 0 to numRows-3  // two sentinel rows, and an extra because zero-indexed.
-    // The +1's below are to skip over the sentinel row and column that 3D maps have
-    displayRow(y, mapData + ((y+1)*rowSize) + 1, tileTrans, pSmallTiles, rowSize-2)
-  next
+  nSections = 1
+  make3DSection(@sectionBuf)
 
+  screenX0 = 0
+  screenY0 = 0
+  screenX1 = SCREEN_COLS
+  screenY1 = SCREEN_ROWS
+
+  // Calculate visiblity and load maps+tilesets
+  prepSections
+
+  // Display everything visible
+  displaySections
+
+  // Free memory
+  freeSections
+
+  // All done.
   getUpperKey
-
-  // And unload the tile set
-  mmgr(FREE_MEMORY, pTileset)
   return 0
 end
 

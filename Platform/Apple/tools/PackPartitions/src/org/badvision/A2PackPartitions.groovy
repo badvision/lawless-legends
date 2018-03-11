@@ -322,7 +322,7 @@ class A2PackPartitions
     /*
      * Add a pixel to a reduction pixel buffer
      */
-    def addPix(pixBuf, hibitBuf, int pix)
+    def addTilePix(pixBuf, hibitBuf, int pix)
     {
         if (pixBuf.containsKey(pix))
             pixBuf[pix] += 1
@@ -339,7 +339,7 @@ class A2PackPartitions
     /*
      * Parse raw tile image data and return it as a buffer.
      */
-    def choosePix(pixBuf, x, y)
+    def chooseTilePix(pixBuf, x, y)
     {
         def inv = ((((x>>1)+(y>>1)) & 1) * 2) - 1 // 1 or -1, in a dither pattern
         inv = 1 // FOO: no dither for now
@@ -382,18 +382,18 @@ class A2PackPartitions
             for (int x = 0; x < 7; x += 2)
             {
                 pixBuf = [:]
-                addPix(pixBuf, hibitBuf, rows[y]  [x])
-                addPix(pixBuf, hibitBuf, rows[y+1][x])
+                addTilePix(pixBuf, hibitBuf, rows[y]  [x])
+                addTilePix(pixBuf, hibitBuf, rows[y+1][x])
                 if (x < 6) {
-                    addPix(pixBuf, hibitBuf, rows[y]  [x+1])
-                    addPix(pixBuf, hibitBuf, rows[y+1][x+1])
+                    addTilePix(pixBuf, hibitBuf, rows[y]  [x+1])
+                    addTilePix(pixBuf, hibitBuf, rows[y+1][x+1])
                 }
-                def outPix = choosePix(pixBuf, x, y)
+                def outPix = chooseTilePix(pixBuf, x, y)
                 outByte = (outByte >> 2) | ((outPix & 3) << 6)
             }
             // No: (outByte >> 7) | ((outByte << 1) & 0xFF) // rotate one bit for efficient Apple II code
             smBuf.put((byte)outByte)
-            hibits = (hibits >> 1) | (choosePix(hibitBuf, 0, y) << 7)
+            hibits = (hibits >> 1) | (chooseTilePix(hibitBuf, 0, y) << 7)
         }
         smBuf.position(0)
         smBuf.put((byte)hibits)

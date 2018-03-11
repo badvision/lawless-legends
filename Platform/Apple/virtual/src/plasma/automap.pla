@@ -11,11 +11,11 @@
 include "gamelib.plh"
 include "globalDefs.plh"
 
-const MAP_TOP  = 8  // lines
-const MAP_LEFT = 2  // bytes
+const MAP_TOP     = 11 // lines
+const MAP_LEFT    = 2  // bytes
 
-const SCREEN_ROWS = 22
-const SCREEN_COLS = 38
+const SCREEN_ROWS = 21
+const SCREEN_COLS = 36
 
 struc MapSection
   byte b_mapNum
@@ -268,11 +268,11 @@ def displaySection3D(pSection)#0
   mapData = tileTrans + (nTextures*3) + 2  // *2 for tilenum+texnum, *1 for texture flags, 2 for zero-terms
 
   // Display each visible row
-  for y = 0 to pSection->b_ch - 1
+  for y = 1 to pSection->b_ch  // offset is 1 to skip over sentinel row
     // The +1's below are to skip over the sentinel row and column that 3D maps have
-    rowData = mapData + ((y + pSection->b_oy + 1) * rowSize) + pSection->b_ox + 1
+    rowData = mapData + ((y + pSection->b_oy) * rowSize) + pSection->b_ox + 1
     // The << 3 below is because each row is 8 screen lines
-    pScreen = getScreenLine(((y + pSection->b_sy) << 3) + MAP_TOP) + MAP_LEFT + pSection->b_sx
+    pScreen = getScreenLine(((y + pSection->b_sy) << 3) + (MAP_TOP-8)) + MAP_LEFT + pSection->b_sx
     displayRow(pScreen, rowData, tileTrans, pSmallTiles, pSection->b_cw)
   next
 end
@@ -294,8 +294,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def _automap_show()#1
-  setBigWindow
-  clearWindow
+  byte key
 
   // Clear out the blank tile buffer
   memset(@blankTile, 0, 9)
@@ -309,17 +308,43 @@ def _automap_show()#1
   screenX1 = SCREEN_COLS
   screenY1 = SCREEN_ROWS
 
-  // Calculate visiblity and load maps+tilesets
-  prepSections
+  repeat
+    setBigWindow
+    clearWindow
 
-  // Display everything visible
-  displaySections
+    // Calculate visiblity and load maps+tilesets
+    printf2("Screen: %d/%d - ", screenX0, screenY0)
+    printf2("%d/%d\n", screenX1, screenY1)
+    prepSections
 
-  // Free memory
-  freeSections
+    // Display everything visible
+    displaySections
 
-  // All done.
-  getUpperKey
+    // Free memory
+    freeSections
+
+    // All done.
+    key = getUpperKey
+    when key
+      // Equip/unequip player with weapon/armor
+      is 'I'
+        screenY0++
+        screenY1++
+        break
+      is 'J'
+        screenX0++
+        screenX1++
+        break
+      is 'K'
+        screenX0--
+        screenX1--
+        break
+      is 'M'
+        screenY0--
+        screenY1--
+        break
+    wend
+  until key == 27 // esc
   return 0
 end
 

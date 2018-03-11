@@ -50,6 +50,7 @@ word screenX0, screenY0, screenX1, screenY1
 
 byte nSections
 byte sectionBuf[SECT_BUF_SIZE]
+word pLastSection
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -203,13 +204,11 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def prepSections#0
-  byte i
   word pSection
   word x0, y0, x1, y1
 
   mmgr(START_LOAD, curMapPartition)
-  pSection = @sectionBuf
-  for i = 0 to nSections-1
+  for pSection = @sectionBuf to pLastSection step MapSection
     x0 = max(screenX0, pSection=>w_x0)
     y0 = max(screenY0, pSection=>w_y0)
     x1 = min(screenX1, pSection=>w_x1)
@@ -232,18 +231,14 @@ def prepSections#0
     else
       pSection->b_visible = FALSE
     fin
-    pSection = pSection + MapSection
   next
   mmgr(FINISH_LOAD, 0)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def freeSections#0
-  byte i
   word pSection
-
-  pSection = @sectionBuf
-  for i = 0 to nSections-1
+  for pSection = @sectionBuf to pLastSection step MapSection
     if pSection=>p_map and pSection=>p_map <> pCurMap
       mmgr(FREE_MEMORY, pSection=>p_map)
       pSection=>p_map = NULL
@@ -252,7 +247,6 @@ def freeSections#0
       mmgr(FREE_MEMORY, pSection=>p_tileset)
       pSection=>p_tileset = NULL
     fin
-    pSection = pSection + MapSection
   next
 end
 
@@ -285,11 +279,8 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displaySections#0
-  byte i
   word pSection
-
-  pSection = @sectionBuf
-  for i = 0 to nSections-1
+  for pSection = @sectionBuf to pLastSection step MapSection
     printSection(pSection)
     if pSection->b_visible
       if mapIs3D
@@ -298,7 +289,6 @@ def displaySections#0
         fatal("Not yet: disp2d")
       fin
     fin
-    pSection = pSection + MapSection
   next
 end
 
@@ -312,6 +302,7 @@ def _automap_show()#1
 
   nSections = 1
   make3DSection(@sectionBuf)
+  pLastSection = @sectionBuf
 
   screenX0 = 0
   screenY0 = 0

@@ -23,11 +23,16 @@ struc MapSection
   byte b_tilesetNum
   word p_tileset
   byte b_visible
-  word w_x0, w_y0   // upper-left coord of map in global space
-  word w_x1, w_y1   // bottom-right coord of map (exclusive) in global space
-  byte b_sx, b_sy   // clipped screen coordinate
-  byte b_ox, b_oy   // clipped offset within map to display
-  byte b_cw, b_ch   // clipped size within map to display
+  word w_x0   // upper-left coord of map in global space
+  word w_y0
+  word w_x1   // bottom-right coord of map (exclusive) in global space
+  word w_y1
+  byte b_sx   // clipped screen coordinate
+  byte b_sy
+  byte b_ox   // clipped offset within map to display
+  byte b_oy
+  byte b_cw   // clipped size within map to display
+  byte b_ch
 end
 
 const MAX_SECT = 40
@@ -44,7 +49,7 @@ byte blankTile[9]
 word screenX0, screenY0, screenX1, screenY1
 
 byte nSections
-byte sectionBuf[MAX_SECT_BUF]
+byte sectionBuf[SECT_BUF_SIZE]
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -151,7 +156,7 @@ asm drawSlice(pBlank, pScreen, nTiles, tilePtrs)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayRow(rowNum, mapRowData, tileTrans, pSmallTiles, width)#0
+def displayRow(pScreen, mapRowData, tileTrans, pSmallTiles, width)#0
   byte x, mapRaw, tileNum
   for x = 0 to width-1
     mapRaw = ^(mapRowData + x) & $1F
@@ -162,13 +167,13 @@ def displayRow(rowNum, mapRowData, tileTrans, pSmallTiles, width)#0
       tilePtrs[x] = @blankTile
     fin
   next
-  drawSlice(@blankTile, getScreenLine((rowNum+2)<<3) + 2, width, @tilePtrs)
+  drawSlice(@blankTile, pScreen, width, @tilePtrs)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def make3DSection(pSection)#0
   // Record the map data (it's already loaded for 3D display)
-  pSection->b_mapNum = curMapNum
+  pSection->b_mapNum = mapNum
   pSection=>p_map = pCurMap
 
   // Record the tile set number
@@ -180,6 +185,20 @@ def make3DSection(pSection)#0
   pSection=>w_y0 = 0
   pSection=>w_x1 = totalMapWidth
   pSection=>w_y1 = totalMapHeight
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def printSection(pSection)#0
+  printf1("Sect %d: ", (pSection - @sectionBuf) / MapSection)
+  printf2("%d/%d - ", pSection=>w_x0, pSection=>w_y0)
+  printf2("%d/%d; ", pSection=>w_x1, pSection=>w_y1)
+  printf1("vis=%d ", pSection->b_visible)
+  if pSection->b_visible
+    printf2("scrn=%d/%d ", pSection->b_sx, pSection->b_sy)
+    printf2("off=%d/%d ", pSection->b_ox, pSection->b_oy)
+    printf2("clip=%dw/%dh", pSection->b_cw, pSection->b_ch)
+  fin
+  puts(".\n")
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -234,16 +253,16 @@ def freeSections#0
       pSection=>p_tileset = NULL
     fin
     pSection = pSection + MapSection
-  end
+  next
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displaySection3D(pSection)#0
-  word pSmallTiles, tileTrans, mapData
-  byte nTextures, y, rowSize, rowData, pScreen
+  word pSmallTiles, tileTrans, mapData, rowData, pScreen
+  byte nTextures, y, rowSize
 
   // Figure out where the small tiles reside (at the end of the full size tiles)
-  pSmallTiles = pSection=>p_tileset + 1 + ((^(pSection=>pTileset)) << 5)
+  pSmallTiles = pSection=>p_tileset + 1 + ((^(pSection=>p_tileset)) << 5)
 
   // Extract significant pointers from the map blob
   rowSize = ^(pSection=>p_map)
@@ -253,12 +272,11 @@ def displaySection3D(pSection)#0
     nTextures++
   loop
   mapData = tileTrans + (nTextures*3) + 2  // *2 for tilenum+texnum, *1 for texture flags, 2 for zero-terms
-  printf2("mapData=$%x, rowSize=%d\n", mapData, rowSize) // FOO
 
   // Display each visible row
   for y = 0 to pSection->b_ch - 1
     // The +1's below are to skip over the sentinel row and column that 3D maps have
-    rowData = ((y + pSection->b_oy + 1) * rowSize) + pSection->b_ox + 1
+    rowData = mapData + ((y + pSection->b_oy + 1) * rowSize) + pSection->b_ox + 1
     // The << 3 below is because each row is 8 screen lines
     pScreen = getScreenLine(((y + pSection->b_sy) << 3) + MAP_TOP) + MAP_LEFT + pSection->b_sx
     displayRow(pScreen, rowData, tileTrans, pSmallTiles, pSection->b_cw)
@@ -272,6 +290,7 @@ def displaySections#0
 
   pSection = @sectionBuf
   for i = 0 to nSections-1
+    printSection(pSection)
     if pSection->b_visible
       if mapIs3D
         displaySection3D(pSection)
@@ -280,7 +299,7 @@ def displaySections#0
       fin
     fin
     pSection = pSection + MapSection
-  end
+  next
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -1616,15 +1616,21 @@ def nextLampFrame()#0
   if !mapIs3D or !frameLoaded; return; fin
 
   if showingLamp
-    n = ((lampFrame - LAMP_1 + lampDir) % (LAMP_COUNT-1)) + LAMP_1
+    n = lampFrame - LAMP_1
+    n = n + lampDir
+    if n < 0
+      n = n + (LAMP_COUNT-1)
+    elsif n >= (LAMP_COUNT-1)
+      n = n - (LAMP_COUNT-1)
+    fin
+    n = n + LAMP_1
     if (rand16() % 100) < 10
-      n = ((lampFrame - LAMP_1 + lampDir) % (LAMP_COUNT-1)) + LAMP_1
       lampDir = -lampDir
     fin
   else
     n = LAMP_0
   fin
-  pTile = pGlobalTileset + (n << 5)
+  pTile = pGlobalTileset + (n << 5) + 1 // +1 to skip to the header (# of tiles)
   blit(FALSE, pTile, getScreenLine(LAMP_Y)+LAMP_XBYTE,       16, 2)
   blit(FALSE, pTile, getScreenLine(LAMP_Y)+LAMP_XBYTE+$2000, 16, 2)
   lampFrame = n

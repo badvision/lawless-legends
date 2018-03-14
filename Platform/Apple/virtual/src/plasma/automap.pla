@@ -10,12 +10,16 @@
 
 include "gamelib.plh"
 include "globalDefs.plh"
+include "gen_modules.plh"
 
 const MAP_TOP     = 11 // lines
 const MAP_LEFT    = 2  // bytes
 
 const SCREEN_ROWS = 21
 const SCREEN_COLS = 36
+
+const SECTION_WIDTH_2D  = 22
+const SECTION_HEIGHT_2D = 23
 
 struc MapSection
   byte b_mapNum
@@ -35,8 +39,7 @@ struc MapSection
   byte b_ch
 end
 
-const MAX_SECT = 40
-const SECT_BUF_SIZE = MAX_SECT * MapSection
+const SECT_BUF_SIZE = MAX_MAP_SECT * MapSection
 
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the header.
@@ -48,7 +51,7 @@ byte blankTile[9]
 
 word screenX0, screenY0, screenX1, screenY1
 
-byte nSections
+byte nHorzSects
 byte sectionBuf[SECT_BUF_SIZE]
 word pLastSection
 
@@ -157,12 +160,26 @@ asm drawSlice(pBlank, pScreen, nTiles, tilePtrs)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayRow(pScreen, mapRowData, tileTrans, pSmallTiles, width)#0
+def displayRow3D(pScreen, mapRowData, tileTrans, pSmallTiles, width)#0
   byte x, mapRaw, tileNum
   for x = 0 to width-1
     mapRaw = ^(mapRowData + x) & $1F
     if mapRaw
       tileNum = ^(tileTrans + ((mapRaw - 1) << 1))
+      tilePtrs[x] = pSmallTiles + ((tileNum-1) * 9)  // 9 bytes per reduced tile in the tileset
+    else
+      tilePtrs[x] = @blankTile
+    fin
+  next
+  drawSlice(@blankTile, pScreen, width, @tilePtrs)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def displayRow2D(pScreen, mapRowData, pSmallTiles, width)#0
+  byte x, mapRaw, tileNum
+  for x = 0 to width-1
+    tileNum = ^(mapRowData + x) & $3F
+    if tileNum
       tilePtrs[x] = pSmallTiles + ((tileNum-1) * 9)  // 9 bytes per reduced tile in the tileset
     else
       tilePtrs[x] = @blankTile
@@ -189,6 +206,23 @@ def make3DSection(pSection)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def make2DSection(pSection, sh, sv)#0
+  // Record the map data (the top-left segment is already loaded)
+  pSection->b_mapNum = mapNum + (sv*nHorzSects) + sh
+  pSection=>p_map = (pSection->b_mapNum == mapNum) ?? pCurMap :: NULL
+
+  // Tileset will be calculated later
+  pSection->b_tilesetNum = 0
+  pSection=>p_tileset = NULL
+
+  // Record the coordinates
+  pSection=>w_x0 = sh * SECTION_WIDTH_2D
+  pSection=>w_y0 = sv * SECTION_HEIGHT_2D
+  pSection=>w_x1 = pSection=>w_x0 + SECTION_WIDTH_2D
+  pSection=>w_y1 = pSection=>w_y0 + SECTION_HEIGHT_2D
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def printSection(pSection)#0
   printf1("Sect %d: ", (pSection - @sectionBuf) / MapSection)
   printf2("%d/%d - ", pSection=>w_x0, pSection=>w_y0)
@@ -206,7 +240,9 @@ end
 def prepSections#0
   word pSection
   word x0, y0, x1, y1
+  byte anyQueued
 
+  anyQueued = FALSE
   mmgr(START_LOAD, curMapPartition)
   for pSection = @sectionBuf to pLastSection step MapSection
     x0 = max(screenX0, pSection=>w_x0)
@@ -224,14 +260,30 @@ def prepSections#0
       if !pSection=>p_map
         // Note, this only happens in 2D mode (3D has only one map, which always stays loaded)
         pSection=>p_map = mmgr(QUEUE_LOAD, (pSection->b_mapNum)<<8 | RES_TYPE_2D_MAP)
-      fin
-      if !pSection=>p_tileset
-        pSection=>p_tileset = mmgr(QUEUE_LOAD, (pSection->b_tilesetNum)<<8 | RES_TYPE_TILESET)
+        anyQueued = TRUE
       fin
     else
       pSection->b_visible = FALSE
     fin
   next
+
+  // Make sure all maps are loaded before we attempt to figure out their tilesets
+  if anyQueued
+    mmgr(FINISH_LOAD, 0)
+    mmgr(START_LOAD, curMapPartition)
+  fin
+
+  // Load all the tilesets
+  for pSection = @sectionBuf to pLastSection step MapSection
+    if pSection->b_visible and !pSection=>p_tileset
+      if !pSection->b_tilesetNum
+        // This part only happens in 2D mode (a 3D section have tileset filled in at construction)
+        pSection->b_tilesetNum = ^(pSection=>p_map + 4)
+      fin
+      pSection=>p_tileset = mmgr(QUEUE_LOAD, (pSection->b_tilesetNum)<<8 | RES_TYPE_TILESET)
+    fin
+  next
+
   mmgr(FINISH_LOAD, 0)
 end
 
@@ -273,7 +325,25 @@ def displaySection3D(pSection)#0
     rowData = mapData + ((y + pSection->b_oy) * rowSize) + pSection->b_ox + 1
     // The << 3 below is because each row is 8 screen lines
     pScreen = getScreenLine(((y + pSection->b_sy) << 3) + (MAP_TOP-8)) + MAP_LEFT + pSection->b_sx
-    displayRow(pScreen, rowData, tileTrans, pSmallTiles, pSection->b_cw)
+    displayRow3D(pScreen, rowData, tileTrans, pSmallTiles, pSection->b_cw)
+  next
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def displaySection2D(pSection)#0
+  word pSmallTiles, rowData, pScreen
+  byte y, rowSize
+
+  // Figure out where the small tiles reside (at the end of the full size tiles)
+  pSmallTiles = pSection=>p_tileset + 1 + ((^(pSection=>p_tileset)) << 5)
+
+  // Display each visible row
+  for y = 0 to pSection->b_ch-1
+    // The +6 below is to skip over the 2D map's header
+    rowData = pSection=>p_map + 6 + ((y + pSection->b_oy) * SECTION_WIDTH_2D) + pSection->b_ox
+    // The << 3 below is because each row is 8 screen lines
+    pScreen = getScreenLine(((y + pSection->b_sy) << 3) + MAP_TOP) + MAP_LEFT + pSection->b_sx
+    displayRow2D(pScreen, rowData, pSmallTiles, pSection->b_cw)
   next
 end
 
@@ -286,8 +356,33 @@ def displaySections#0
       if mapIs3D
         displaySection3D(pSection)
       else
-        fatal("Not yet: disp2d")
+        displaySection2D(pSection)
       fin
+    fin
+  next
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def setup3D#0
+  make3DSection(@sectionBuf)
+  pLastSection = @sectionBuf
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def setup2D#0
+  word pSection
+  byte nVertSects, sh, sv
+  nHorzSects = (totalMapWidth + SECTION_WIDTH_2D - 1) / SECTION_WIDTH_2D
+  nVertSects = (totalMapHeight + SECTION_HEIGHT_2D - 1) / SECTION_HEIGHT_2D
+  pLastSection = @sectionBuf + (((nVertSects * nHorzSects) - 1) * MapSection)
+  sh = 0
+  sv = 0
+  for pSection = @sectionBuf to pLastSection step MapSection
+    make2DSection(pSection, sh, sv)
+    sh++
+    if sh == nHorzSects
+      sh = 0
+      sv++
     fin
   next
 end
@@ -299,9 +394,8 @@ def _automap_show()#1
   // Clear out the blank tile buffer
   memset(@blankTile, 0, 9)
 
-  nSections = 1
-  make3DSection(@sectionBuf)
-  pLastSection = @sectionBuf
+  // Setup phase
+  if mapIs3D; setup3D; else setup2D; fin
 
   screenX0 = 0
   screenY0 = 0
@@ -323,28 +417,27 @@ def _automap_show()#1
     // Free memory
     freeSections
 
-    // All done.
+    // Now allow the player to scroll the map
     key = getUpperKey
     when key
-      // Equip/unequip player with weapon/armor
-      is 'I'
-        screenY0++
-        screenY1++
+      is 'W'; is 'I'; is 11
+        screenY0 = screenY0 - 8   // north
+        screenY1 = screenY1 - 8
         break
-      is 'J'
-        screenX0++
-        screenX1++
+      is 'D'; is 'L'; is 21
+        screenX0 = screenX0 + 8   // east
+        screenX1 = screenX1 + 8
         break
-      is 'K'
-        screenX0--
-        screenX1--
+      is 'S'; is 'X'; is 'K'; is ','; is 10
+        screenY0 = screenY0 + 8   // south
+        screenY1 = screenY1 + 8
         break
-      is 'M'
-        screenY0--
-        screenY1--
+      is 'A'; is 'J'; is 8
+        screenX0 = screenX0 - 8   // west
+        screenX1 = screenX1 - 8
         break
     wend
-  until key == 27 // esc
+  until key == 27 or key == 'Q' or key == '-' // esc or Q or - to exit
   return 0
 end
 

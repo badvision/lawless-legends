@@ -109,6 +109,8 @@ class A2PackPartitions
     def gameFlags = [:]  // flag name to number
     def chunkDisks = [:] // chunk name/type to set of disk partition numbers
 
+    def maxMapSections = 0
+
     def itemNameToFunc = [:]
     def playerNameToFunc = [:]
 
@@ -322,33 +324,53 @@ class A2PackPartitions
     /*
      * Add a pixel to a reduction pixel buffer
      */
-    def addTilePix(pixBuf, hibitBuf, int pix)
-    {
-        if (pixBuf.containsKey(pix))
-            pixBuf[pix] += 1
-        else
-            pixBuf[pix] = 1
-
-        int hibit = pix >> 2
-        if (hibitBuf.containsKey(hibit))
-            hibitBuf[hibit] += 1
-        else
-            hibitBuf[hibit] = 1
+    def addTilePix(pixBuf, hibitBuf, int pix) {
+        pixBuf[pix] = pixBuf.get(pix, 0) + 1
+        hibitBuf[pix] = hibitBuf.get(pix, 0) + 1
     }
 
-    /*
-     * Parse raw tile image data and return it as a buffer.
-     */
-    def chooseTilePix(pixBuf, x, y)
+    def chooseTilePix(pixBuf, inv)
     {
-        def inv = ((((x>>1)+(y>>1)) & 1) * 2) - 1 // 1 or -1, in a dither pattern
-        inv = 1 // FOO: no dither for now
         def accum = []
         pixBuf.each { pix, count ->
             accum << [count, pix*inv]
         }
         def choice = accum.sort().reverse()[0]
         return Math.abs(choice[1])
+    }
+
+    int getPix(rows, x, y) {
+        return (x >= 0 && x < 7 && y >= 0 && y < 16) ? rows[y][x] : -1
+    }
+
+    boolean isHDither(rows, x, y) {
+        int a = getPix(rows, x, y), b = getPix(rows, x+1, y)
+        return (a!=b &&
+                a==getPix(rows, x,   y  ) && b==getPix(rows, x+1, y  ) && a==getPix(rows, x+2, y  ) &&
+                b==getPix(rows, x,   y+1) && a==getPix(rows, x+1, y+1) && b==getPix(rows, x+2, y+1))
+    }
+
+    boolean isVDither(rows, x, y) {
+        int a = getPix(rows, x, y), b = getPix(rows, x+1, y)
+        return (a!=b &&
+                a==getPix(rows, x,   y  ) && b==getPix(rows, x+1, y  ) &&
+                b==getPix(rows, x,   y+1) && a==getPix(rows, x+1, y+1) &&
+                a==getPix(rows, x,   y+2) && b==getPix(rows, x+1, y+2))
+    }
+
+    boolean isVColumns(rows, x, y) {
+        int a = getPix(rows, x, y), b = getPix(rows, x+1, y)
+        return (a!=b &&
+                a==getPix(rows, x,   y  ) && b==getPix(rows, x+1, y  ) && a==getPix(rows, x+2, y  ) &&
+                b==getPix(rows, x,   y+1) && a==getPix(rows, x+1, y+1) && b==getPix(rows, x+2, y+1))
+    }
+
+    boolean isHBars(rows, x, y) {
+        int a = getPix(rows, x, y), b = getPix(rows, x, y+1)
+        return (a!=b &&
+                a==getPix(rows, x,   y  ) && a==getPix(rows, x+1, y  ) &&
+                b==getPix(rows, x,   y+1) && b==getPix(rows, x+1, y+1) &&
+                a==getPix(rows, x,   y+2) && a==getPix(rows, x+1, y+2))
     }
 
     /*
@@ -360,6 +382,7 @@ class A2PackPartitions
         // Locate the data for the Apple II (as opposed to C64 etc.)
         def dataEl = imgEl.displayData?.find { it.@platform == "AppleII" }
         assert dataEl : "image '${imgEl.@name}' missing AppleII platform data"
+        //println "parseTileData: name=${imgEl.@name}"
 
         // Parse out the hex data on each line and add it to a buffer.
         def hexStr = dataEl.text()
@@ -374,7 +397,7 @@ class A2PackPartitions
         def smBuf = ByteBuffer.allocate(9)
         smBuf.put((byte)0) // placeholder for hi bits
         def hibits = 0
-        def pixBuf
+        def pixBuf, inv
         for (int y = 0; y < 16; y += 2)
         {
             def hibitBuf = [:]
@@ -382,18 +405,40 @@ class A2PackPartitions
             for (int x = 0; x < 7; x += 2)
             {
                 pixBuf = [:]
+                inv = 1
                 addTilePix(pixBuf, hibitBuf, rows[y]  [x])
                 addTilePix(pixBuf, hibitBuf, rows[y+1][x])
                 if (x < 6) {
                     addTilePix(pixBuf, hibitBuf, rows[y]  [x+1])
                     addTilePix(pixBuf, hibitBuf, rows[y+1][x+1])
                 }
-                def outPix = chooseTilePix(pixBuf, x, y)
-                outByte = (outByte >> 2) | ((outPix & 3) << 6)
+
+                if (isHDither(rows, x, y  ) || isHDither(rows, x-1, y  ) ||
+                    isHDither(rows, x, y-1) || isHDither(rows, x-1, y-1))
+                {
+                    //println "  hdither $x $y"
+                    inv = ((((x>>1)+(y>>1)) & 1) * 2) - 1  // 2x2 dither
+                }
+                else if (isVDither(rows, x, y  ) || isVDither(rows, x-1, y  ) ||
+                         isVDither(rows, x, y-1) || isVDither(rows, x-1, y-1))
+                {
+                    //println "  vdither $x $y"
+                    inv = ((((x>>1)+(y>>1)) & 1) * 2) - 1  // 2x2 dither
+                }
+                else if (isVColumns(rows, x, y) || isVColumns(rows, x, y-1)) {
+                    //println "  vcols $x $y"
+                    inv = (((x>>1) & 1) * 2) - 1           // vertical columns
+                }
+                else if (isHBars(rows, x, y) || isHBars(rows, x-1, y)) {
+                    //println "  hbars $x $y"
+                    inv = (((y>>1) & 1) * 2) - 1           // horizontal bars
+                }
+                else
+                    inv = 1
+                outByte = (outByte >> 2) | ((chooseTilePix(pixBuf, inv) & 3) << 6)
             }
-            // No: (outByte >> 7) | ((outByte << 1) & 0xFF) // rotate one bit for efficient Apple II code
             smBuf.put((byte)outByte)
-            hibits = (hibits >> 1) | (chooseTilePix(hibitBuf, 0, y) << 7)
+            hibits = (hibits >> 1) | ((chooseTilePix(hibitBuf, 1) >> 2) << 7)
         }
         smBuf.position(0)
         smBuf.put((byte)hibits)
@@ -2146,6 +2191,7 @@ class A2PackPartitions
                 def rows = parseMap(map, dataIn.tile, true) // quick mode
                 def (width, height, nHorzSections, nVertSections) = calcMapExtent(rows)
                 num2D += (nHorzSections * nVertSections)
+                maxMapSections = Math.max(maxMapSections, nHorzSections * nVertSections)
             }
             else if (map?.@name =~ /\s*3D$/) {
                 mapNames[name] = ['3D', num3D+1]
@@ -3430,6 +3476,8 @@ end
                 else
                     out.println "const MOD_${humanNameToSymbol(k, true)} = ${v.num}"
             }
+            out.println ""
+            out.println "const MAX_MAP_SECT = $maxMapSections"
         }
         replaceIfDiff("build/src/plasma/gen_modules.plh")
 

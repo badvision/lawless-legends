@@ -1,3 +1,12 @@
+/**************************************************************************************
+ Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1
+ (the "License"); you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-1.1>.
+ Unless required by applicable law or agreed to in writing, software distributed under
+ the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+ ANY KIND, either express or implied. See the License for the specific language
+ governing permissions and limitations under the License.
+**************************************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -40,17 +49,47 @@ word *esp = eval_stack + EVAL_STACKSZ;
 
 #define SYMTBLSZ    1024
 #define SYMSZ       16
-#define MODTBLSZ    128
-#define MODSZ       16
-#define MODLSTSZ    32
 byte symtbl[SYMTBLSZ];
 byte *lastsym = symtbl;
-byte modtbl[MODTBLSZ];
-byte *lastmod = modtbl;
 /*
  * Predef.
  */
 void interp(code *ip);
+/*
+ * CMDSYS exports
+ */
+char *syslib_exp[] = {
+    "CMDSYS",
+    "MACHID",
+    "PUTC",
+    "PUTLN",
+    "PUTS",
+    "PUTI",
+    "GETC",
+    "GETS",
+    "PUTB",
+    "PUTH",
+    "TOUPPER",
+    "CALL",
+    "SYSCALL",
+    "HEAPMARK",
+    "HEAPALLOCALLIGN",
+    "HEAPALLOC",
+    "HEAPRELEASE",
+    "HEAPAVAIL",
+    "MEMSET",
+    "MEMCPY",
+    "STRCPY",
+    "STRCAT",
+    "SEXT",
+    "DIVMOD",
+    "ISUGT",
+    "ISUGE",
+    "ISULT",
+    "ISULE",
+    0
+};
+
 /*
  * Utility routines.
  *
@@ -181,19 +220,6 @@ uword add_sym(byte *sym, int addr)
 /*
  * Module routines.
  */
-void dump_mod(void)
-{
-    printf("\nSystem Module Table:\n");
-    dump_tbl(modtbl);
-}
-uword lookup_mod(byte *mod)
-{
-    return lookup_tbl(mod, modtbl);
-}
-uword add_mod(byte *mod, int addr)
-{
-    return add_tbl(mod, addr, &lastmod);
-}
 uword defcall_add(int bank, int addr)
 {
     mem_data[lastdef]     = bank ? 2 : 1;
@@ -204,7 +230,7 @@ uword defcall_add(int bank, int addr)
 uword def_lookup(byte *cdd, int defaddr)
 {
     int i, calldef = 0;
-    for (i = 0; cdd[i * 4] == 0x02; i++)
+    for (i = 0; cdd[i * 4] == 0x00; i++)
     {
         if ((cdd[i * 4 + 1] | (cdd[i * 4 + 2] << 8)) == defaddr)
         {
@@ -248,7 +274,7 @@ int load_mod(byte *mod)
         moddep  = header + 1;
         modsize = header[0] | (header[1] << 8);
         magic   = header[2] | (header[3] << 8);
-        if (magic == 0xDA7F)
+        if (magic == 0x6502)
         {
             /*
              * This is a relocatable bytecode module.
@@ -263,7 +289,7 @@ int load_mod(byte *mod)
              */
             while (*moddep)
             {
-                if (lookup_mod(moddep) == 0)
+                if (lookup_sym(moddep) == 0)
                 {
                     if (fd)
                     {
@@ -324,7 +350,7 @@ int load_mod(byte *mod)
         /*
          * Add module to symbol table.
          */
-        add_mod(mod, modaddr);
+        add_sym(mod, modaddr);
         /*
          * Print out the Re-Location Dictionary.
          */
@@ -337,6 +363,7 @@ int load_mod(byte *mod)
                 if (show_state) printf("\tDEF               CODE");
                 addr = rld[1] | (rld[2] << 8);
                 addr += modfix - MOD_ADDR;
+                rld[0] = 0; // Set call code to 0
                 rld[1] = addr;
                 rld[2] = addr >> 8;
                 end = rld - mem_data + 4;
@@ -437,20 +464,21 @@ void interp(code *ip);
 void call(uword pc)
 {
     unsigned int i, s;
+    int a, b;
     char c, sz[64];
 
     if (show_state)
-        printf("\nCall code:$%02X\n", mem_data[pc]);
+        printf("\nCall: %s\n", mem_data[pc] ? syslib_exp[mem_data[pc] - 1] : "BYTECODE");
     switch (mem_data[pc++])
     {
-        case 0: // NULL call
-            printf("NULL call code\n");
-            break;
-        case 1: // BYTECODE in mem_code
-            //interp(mem_code + (mem_data[pc] + (mem_data[pc + 1] << 8)));
-            break;
-        case 2: // BYTECODE in mem_data
+        case 0: // BYTECODE in mem_data
             interp(mem_data + (mem_data[pc] + (mem_data[pc + 1] << 8)));
+            break;
+        case 1: // CMDSYS call
+            printf("CMD call code!\n");
+            break;
+        case 2: // MACHID
+            printf("MACHID call code!\n");
             break;
         case 3: // LIBRARY STDLIB::PUTC
             c = POP;
@@ -458,7 +486,11 @@ void call(uword pc)
                 c = '\n';
             putchar(c);
             break;
-        case 4: // LIBRARY STDLIB::PUTS
+        case 4: // LIBRARY STDLIB::PUTNL
+            putchar('\n');
+            fflush(stdout);
+            break;
+        case 5: // LIBRARY STDLIB::PUTS
             s = POP;
             i = mem_data[s++];
             while (i--)
@@ -469,39 +501,31 @@ void call(uword pc)
                 putchar(c);
             }
             break;
-        case 5: // LIBRARY STDLIB::PUTSZ
-            s = POP;
-            while ((c = mem_data[s++]))
-            {
-                if (c == 0x0D)
-                    c = '\n';
-                putchar(c);
-            }
+        case 6: // LIBRARY STDLIB::PUTI
+            i = POP;
+            printf("%d", i);
             break;
-        case 6: // LIBRARY STDLIB::GETC
+        case 7: // LIBRARY STDLIB::GETC
             PUSH(getchar());
             break;
-        case 7: // LIBRARY STDLIB::GETS
+        case 8: // LIBRARY STDLIB::GETS
+            c = POP;
+            putchar(c);
             gets(sz);
             for (i = 0; sz[i]; i++)
                 mem_data[0x200 + i] = sz[i];
             mem_data[0x200 + i] = 0;
             mem_data[0x1FF] = i;
-            PUSH(i);
+            PUSH(0x1FF);
             break;
-        case 8: // LIBRARY STDLIB::PUTNL
-            putchar('\n');
-            fflush(stdout);
-            break;
-        case 9: // LIBRARY STDLIB::MACHID
-            PUSH(0x0000);
-            break;
-        case 10: // LIBRARY STDLIB::PUTI
-            i = POP;
-            printf("%d", i);
+        case 24: // LIBRARY CMDSYS::DIVMOD
+            a = POP;
+            b = POP;
+            PUSH(b / a);
+            PUSH(b % a);
             break;
         default:
-            printf("\nBad call code:$%02X\n", mem_data[pc - 1]);
+            printf("\nUnimplemented call code:$%02X\n", mem_data[pc - 1]);
             exit(1);
     }
 }
@@ -658,12 +682,9 @@ void interp(code *ip)
                 val = TOS;
                 PUSH(val);
                 break;
-            case 0x34: // PUSH : TOSP = TOS
-                val = esp - eval_stack;
-                PHA(val);
+            case 0x34: // NOP
                 break;
-            case 0x36: // PULL : TOS = TOSP
-                esp = eval_stack + PLA;
+            case 0x36: // NOP
                 break;
             case 0x38: // BRGT : TOS-1 > TOS ? IP += (IP)
                 val = POP;
@@ -873,21 +894,10 @@ void interp(code *ip)
                  */
             default:
                 fprintf(stderr, "Illegal opcode 0x%02X @ 0x%04X\n", ip[-1], ip - mem_data);
+                exit(-1);
         }
     }
 }
-
-char *syslib_exp[] = {
-    "PUTC",
-    "PUTS",
-    "PUTSZ",
-    "GETC",
-    "GETS",
-    "PUTLN",
-    "MACHID",
-    "PUTI",
-    0
-};
 
 int main(int argc, char **argv)
 {
@@ -906,17 +916,16 @@ int main(int argc, char **argv)
         /*
          * Add default library.
          */
-        stodci("CMDSYS", dci);
-        add_mod(dci, 0xFFFF);
         for (i = 0; syslib_exp[i]; i++)
         {
-            mem_data[i] = i + 3;
+            mem_data[i] = i;
             stodci(syslib_exp[i], dci);
-            add_sym(dci, i);
+            add_sym(dci, i+1);
         }
         if (argc)
         {
             stodci(*argv, dci);
+            if (show_state) dump_sym();
             load_mod(dci);
             if (show_state) dump_sym();
             argc--;

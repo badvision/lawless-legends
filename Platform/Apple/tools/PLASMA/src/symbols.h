@@ -1,13 +1,4 @@
 /*
- * Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1
- * (the "License"); you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-1.1>.
- * Unless required by applicable law or agreed to in writing, software distributed under
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
- * ANY KIND, either express or implied. See the License for the specific language
- * governing permissions and limitations under the License.
- */
-/*
  * Symbol table types.
  */
 #define GLOBAL_TYPE     (0)
@@ -29,6 +20,7 @@
 #define EXPORT_TYPE     (1 << 12)
 #define PREDEF_TYPE     (1 << 13)
 #define FUNC_TYPE       (ASM_TYPE | DEF_TYPE | PREDEF_TYPE)
+#define ACCESSED_TYPE   (1 << 15)
 #define FUNC_PARMS      (0x0F << 16)
 #define FUNC_VALS       (0x0F << 20)
 #define FUNC_PARMVALS   (FUNC_PARMS|FUNC_VALS)
@@ -54,4 +46,6 @@ int id_tag(char *name, int len);
 int id_const(char *name, int len);
 int id_type(char *name, int len);
 void idglobal_size(int type, int size, int constsize);
+void idlocal_size(int size);
+void idlocal_size(int size);
 int tag_new(int type);

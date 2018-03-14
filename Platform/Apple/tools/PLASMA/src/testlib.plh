@@ -1,9 +1,8 @@
 import testlib
-  predef puti
   word print
   const dec = 0
   const hex = 2
   const newln = 4
   const str = 6
-  const char = 8
+  const chr = 8
 end

@@ -9,7 +9,7 @@
 ;****************************************************************************************
 
 ; Zero-page
-evalStkL	= $C0
-evalStkH	= $D0
+evalStkH	= $C0	; these switched between...
+evalStkL	= $D0	; ...PLASMA 1.0 and 1.1
 framePtr	= $E0
 outerFramePtr	= $E2

@@ -12,7 +12,7 @@
 // Structures for the heap
 
 const TYPE_GLOBAL = $80
-struc Global
+struc TGlobal
   byte t_type
   word p_players
   word p_benched
@@ -51,7 +51,7 @@ end
 const PLAYER_FLAG_NPC  = $01
 
 const TYPE_PLAYER = $81
-struc Player
+struc TPlayer
   byte t_type
   word p_nextObj
   word s_name
@@ -95,7 +95,7 @@ end
 
 // Combat skills, weapon modifiers, etc.
 const TYPE_MODIFIER = $82
-struc Modifier
+struc TModifier
   byte t_type
   word p_nextObj
   word s_name
@@ -105,7 +105,7 @@ end
 // Plain items are for things that don't stack or have stat effects,
 // but may have meaning to scenario logic (e.g. keys, tokens, etc.)
 const TYPE_PLAIN_ITEM = $83
-struc PlainItem
+struc TPlainItem
   byte t_type
   word p_nextObj
   word s_name
@@ -113,7 +113,7 @@ struc PlainItem
 end
 
 const TYPE_FANCY_ITEM = $84
-struc FancyItem
+struc TFancyItem
   // Plain item properties
   byte t_type
   word p_nextObj
@@ -132,7 +132,7 @@ const ITEM_FLAG_EQUIP         = $80 // only one weapon/armor equipped (in use) a
 const WEAPON_FLAG_SINGLE_USE  = $01
 
 const TYPE_WEAPON = $85
-struc Weapon
+struc TWeapon
   // Plain item properties
   byte t_type
   word p_nextObj
@@ -153,7 +153,7 @@ struc Weapon
 end
 
 const TYPE_ARMOR = $86
-struc Armor
+struc TArmor
   // Plain item properties
   byte t_type
   word p_nextObj
@@ -167,7 +167,7 @@ struc Armor
 end
 
 const TYPE_ENEMY = $87
-struc Enemy
+struc TEnemy
   byte t_type
   word p_nextObj
   word s_name
@@ -190,7 +190,7 @@ struc Enemy
 end
 
 const TYPE_ENEMY_GROUP = $88
-struc EnemyGroup
+struc TEnemyGroup
   byte t_type
   word p_nextObj
   word p_enemies
@@ -198,7 +198,7 @@ struc EnemyGroup
 end
 
 const TYPE_ENCOUNTER_ZONE = $89
-struc EncounterZone
+struc TEncounterZone
   byte t_type
   word p_nextObj
   word s_name   // enemy code

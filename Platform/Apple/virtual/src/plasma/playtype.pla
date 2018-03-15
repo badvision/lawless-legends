@@ -9,17 +9,17 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Garbage collection pointer offsets within each type
-byte typeTbl_Global[]        = Global,        p_players, p_benched, p_enemyGroups, p_combatFirst, p_encounterZones, s_mapName, 0
-byte typeTbl_Player[]        = Player,        p_nextObj, s_name, p_combatNext, p_skills, p_items, 0
-byte typeTbl_Modifier[]      = Modifier,      p_nextObj, s_name, 0
-byte typeTbl_PlainItem[]     = PlainItem,     p_nextObj, s_name, 0
-byte typeTbl_FancyItem[]     = FancyItem,     p_nextObj, s_name, s_itemKind, p_modifiers, 0
-byte typeTbl_Weapon[]        = Weapon,        p_nextObj, s_name, s_itemKind, p_modifiers, s_ammoKind, s_combatText, 0
-byte typeTbl_Armor[]         = Armor,         p_nextObj, s_name, s_itemKind, p_modifiers, 0
-byte typeTbl_Enemy[]         = Enemy,         p_nextObj, s_name, p_combatNext, s_attackText, 0
-byte typeTbl_EnemyGroup[]    = EnemyGroup,    p_nextObj, p_enemies, 0
-byte typeTbl_EncounterZone[] = EncounterZone, p_nextObj, s_name, 0
+byte typeTbl_TGlobal[]        = TGlobal,        p_players, p_benched, p_enemyGroups, p_combatFirst, p_encounterZones, s_mapName, 0
+byte typeTbl_TPlayer[]        = TPlayer,        p_nextObj, s_name, p_combatNext, p_skills, p_items, 0
+byte typeTbl_TModifier[]      = TModifier,      p_nextObj, s_name, 0
+byte typeTbl_TPlainItem[]     = TPlainItem,     p_nextObj, s_name, 0
+byte typeTbl_TFancyItem[]     = TFancyItem,     p_nextObj, s_name, s_itemKind, p_modifiers, 0
+byte typeTbl_TWeapon[]        = TWeapon,        p_nextObj, s_name, s_itemKind, p_modifiers, s_ammoKind, s_combatText, 0
+byte typeTbl_TArmor[]         = TArmor,         p_nextObj, s_name, s_itemKind, p_modifiers, 0
+byte typeTbl_TEnemy[]         = TEnemy,         p_nextObj, s_name, p_combatNext, s_attackText, 0
+byte typeTbl_TEnemyGroup[]    = TEnemyGroup,    p_nextObj, p_enemies, 0
+byte typeTbl_TEncounterZone[] = TEncounterZone, p_nextObj, s_name, 0
 
-word typeTbls = @typeTbl_Global, @typeTbl_Player, @typeTbl_Modifier, @typeTbl_PlainItem, @typeTbl_FancyItem
-word          = @typeTbl_Weapon, @typeTbl_Armor, @typeTbl_Enemy, @typeTbl_EnemyGroup, @typeTbl_EncounterZone
+word typeTbls = @typeTbl_TGlobal, @typeTbl_TPlayer, @typeTbl_TModifier, @typeTbl_TPlainItem, @typeTbl_TFancyItem
+word          = @typeTbl_TWeapon, @typeTbl_TArmor, @typeTbl_TEnemy, @typeTbl_TEnemyGroup, @typeTbl_TEncounterZone
 word          = 0

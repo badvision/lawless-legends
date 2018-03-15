@@ -1195,9 +1195,9 @@ class A2PackPartitions
             return
         }
 
-        // Look for the magic header 0xDA7F =~ "DAVE"+1
-        assert (buf[3] & 0xFF) == 0xDA
-        assert (buf[2] & 0xFF) == 0x7F
+        // Look for the magic header 0x6502 :)
+        assert (buf[3] & 0xFF) == 0x65
+        assert (buf[2] & 0xFF) == 0x02
 
         // Determine offsets
         def asmCodeStart = 12
@@ -1267,7 +1267,6 @@ class A2PackPartitions
         while (fixup[ep] != 0)
             ep += 4
         ep++
-        int esdIndex = 0
         while (fixup[ep] != 0) {
             def nameBuf = new StringBuilder()
             while (true) {
@@ -1284,8 +1283,7 @@ class A2PackPartitions
             def esdNum = fixup[ep++] & 0xFF
             esdNum += (fixup[ep++] & 0xFF) << 8
             if (esdFlag == 0x10) {
-                assert esdNum == esdIndex
-                //println "Import '$esdName' at esdIndex $esdNum."
+                //println "Import '$esdName' at esdNum=$esdNum."
                 imports[esdNum] = esdName
             }
             else if (esdFlag == 0x08) {
@@ -1307,7 +1305,6 @@ class A2PackPartitions
             }
             else
                 assert false : "Unknown Entry/Symbol flag: $flag"
-            esdIndex++
         }
 
         // If any exports, we assume they're from the game lib. That's the only
@@ -1325,7 +1322,7 @@ class A2PackPartitions
             assert fixupType == 0x81 || fixupType == 0x91 // We can only handle WORD sized INTERN or EXTERN fixups
             int addr = fixup[sp++] & 0xFF
             addr |= (fixup[sp++] & 0xFF) << 8
-            esdIndex = fixup[sp++] & 0xFF
+            def esdIndex = fixup[sp++] & 0xFF
 
             // Fixups can be in the asm section or in the bytecode section. Figure out which this is.
             addr += 2  // apparently offsets don't include the header length

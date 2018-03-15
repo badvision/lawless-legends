@@ -1047,6 +1047,7 @@ export asm rand16()#1
   ; high byte is in A
   eor #>magic
   sta seed+1
+  and #$7F   ; keep it positive, because PLASMA does the icky C thing with negative modulo
   tay        ; for asmPlasm, return hi byte in Y, lo byte in A
   lda seed
   eor #<magic
@@ -1066,6 +1067,7 @@ export asm rand16()#1
 
 .noEor:
   sta seed+1
+  and #$7F   ; keep it positive, because PLASMA does the icky C thing with negative modulo
   tay        ; for asmPlasm, return hi byte in Y, lo byte in A
   lda seed
   rts
@@ -3697,7 +3699,7 @@ end
 def startGame(ask)#0
   word p_module
 
-  typeHash = hashBuffer(@typeTbl_Global, @typeTbls - @typeTbl_Global) ^ HEAP_BOTTOM
+  typeHash = hashBuffer(@typeTbl_TGlobal, @typeTbls - @typeTbl_TGlobal) ^ HEAP_BOTTOM
 
   // Create a new game or load an existing one
   mmgr(START_LOAD, 1) // code is in partition 1

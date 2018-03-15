@@ -1,12 +1,3 @@
-/*
- * Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1
- * (the "License"); you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-1.1>.
- * Unless required by applicable law or agreed to in writing, software distributed under
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
- * ANY KIND, either express or implied. See the License for the specific language
- * governing permissions and limitations under the License.
- */
 #define TOKEN(c)            (0x80|(c))
 #define IS_TOKEN(c)         (0x80&(c))
 /*
@@ -44,8 +35,8 @@
 #define PREDEF_TOKEN        TOKEN(22)
 #define DEF_TOKEN           TOKEN(23)
 #define ASM_TOKEN           TOKEN(24)
-#define IMPORT_TOKEN	    TOKEN(25)
-#define EXPORT_TOKEN	    TOKEN(26)
+#define IMPORT_TOKEN        TOKEN(25)
+#define EXPORT_TOKEN        TOKEN(26)
 #define DONE_TOKEN          TOKEN(27)
 #define RETURN_TOKEN        TOKEN(28)
 #define BREAK_TOKEN         TOKEN(29)
@@ -116,7 +107,8 @@
 #define COLON_TOKEN         TOKEN(':')
 #define POUND_TOKEN         TOKEN('#')
 #define COMMA_TOKEN         TOKEN(',')
-#define COMMENT_TOKEN       TOKEN(';')
+//#define COMMENT_TOKEN       TOKEN(';')
+#define DROP_TOKEN          TOKEN(';')
 #define EOL_TOKEN           TOKEN(0)
 #define INCLUDE_TOKEN       TOKEN(0x7E)
 #define EOF_TOKEN           TOKEN(0x7F)

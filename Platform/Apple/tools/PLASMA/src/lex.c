@@ -1,12 +1,12 @@
-/*
- * Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1
- * (the "License"); you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-1.1>.
- * Unless required by applicable law or agreed to in writing, software distributed under
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
- * ANY KIND, either express or implied. See the License for the specific language
- * governing permissions and limitations under the License.
- */
+/**************************************************************************************
+ Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1
+ (the "License"); you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-1.1>.
+ Unless required by applicable law or agreed to in writing, software distributed under
+ the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+ ANY KIND, either express or implied. See the License for the specific language
+ governing permissions and limitations under the License.
+**************************************************************************************/
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,13 +50,18 @@ t_token keywords[] = {
     IMPORT_TOKEN,           'I', 'M', 'P', 'O', 'R', 'T',
     INCLUDE_TOKEN,          'I', 'N', 'C', 'L', 'U', 'D', 'E',
     RETURN_TOKEN,           'R', 'E', 'T', 'U', 'R', 'N',
+    DROP_TOKEN,             'D', 'R', 'O', 'P',
     END_TOKEN,              'E', 'N', 'D',
     DONE_TOKEN,             'D', 'O', 'N', 'E',
     LOGIC_NOT_TOKEN,        'N', 'O', 'T',
     LOGIC_AND_TOKEN,        'A', 'N', 'D',
     LOGIC_OR_TOKEN,         'O', 'R',
+    BYTE_TOKEN,             'R', 'E', 'S',
     BYTE_TOKEN,             'B', 'Y', 'T', 'E',
+    BYTE_TOKEN,             'C', 'H', 'A', 'R',
+    BYTE_TOKEN,             'R', 'E', 'S',
     WORD_TOKEN,             'W', 'O', 'R', 'D',
+    WORD_TOKEN,             'V', 'A', 'R',
     CONST_TOKEN,            'C', 'O', 'N', 'S', 'T',
     STRUC_TOKEN,            'S', 'T', 'R', 'U', 'C',
     PREDEF_TOKEN,           'P', 'R', 'E', 'D', 'E', 'F',
@@ -415,11 +420,6 @@ t_token scan(void)
                     scantoken = TERNARY_TOKEN;
                     scanpos += 2;
                 }
-                else
-                {
-                    scantoken = TERNARY_TOKEN;
-                    scanpos++;
-                }
                 break;
             default:
                 /*
@@ -433,7 +433,7 @@ t_token scan(void)
 }
 void scan_rewind(char *backptr)
 {
-    scanpos = backptr;
+    scanpos = tokenstr = backptr;
 }
 int scan_lookahead(void)
 {

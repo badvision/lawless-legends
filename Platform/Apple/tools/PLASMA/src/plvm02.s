@@ -193,6 +193,8 @@ DINTRP  PLA
         LDY     #$00
         LDA     #>OPTBL
         STA     OPPAGE
+        BIT     LCRWEN+LCBNK2
+        BIT     LCRWEN+LCBNK2
         JMP     FETCHOP
 IINTRP  PLA
         STA     TMPL
@@ -207,6 +209,8 @@ IINTRP  PLA
         DEY
 +       LDA     #>OPTBL
         STA     OPPAGE
+        BIT     LCRWEN+LCBNK2
+        BIT     LCRWEN+LCBNK2
         JMP     FETCHOP
 IINTRPX PHP
         PLA
@@ -225,6 +229,8 @@ IINTRPX PHP
         DEY
         LDA     #>OPXTBL
         STA     OPPAGE
+        BIT     LCRWEN+LCBNK2
+        BIT     LCRWEN+LCBNK2
         STA     ALTRDON
         JMP     FETCHOP
 ;*
@@ -1188,6 +1194,8 @@ CALL    INY                     ;+INC_IP
         LDA     #>OPTBL         ; MAKE SURE WE'RE INDEXING THE RIGHT TABLE
         STA     OPPAGE
         LDY     #$01
+        BIT     LCRWEN+LCBNK2
+        BIT     LCRWEN+LCBNK2
         JMP     FETCHOP
 ;
 CALLX   INY                     ;+INC_IP
@@ -1220,6 +1228,8 @@ CALLX   INY                     ;+INC_IP
         LDA     #>OPXTBL        ; MAKE SURE WE'RE INDEXING THE RIGHT TABLE
         STA     OPPAGE
         LDY     #$01
+        BIT     LCRWEN+LCBNK2
+        BIT     LCRWEN+LCBNK2
         JMP     FETCHOP
 ;*
 ;* INDIRECT CALL TO ADDRESS (NATIVE CODE)
@@ -1244,7 +1254,8 @@ ICAL    LDA     ESTKL,X
         LDA     #>OPTBL         ; MAKE SURE WE'RE INDEXING THE RIGHT TABLE
         STA     OPPAGE
         LDY     #$01
-        JMP     FETCHOP
+        BIT     LCRWEN+LCBNK2
+        BIT     LCRWEN+LCBNK2
 ;
 ICALX   LDA     ESTKL,X
         STA     TMPL
@@ -1274,6 +1285,8 @@ ICALX   LDA     ESTKL,X
         LDA     #>OPXTBL        ; MAKE SURE WE'RE INDEXING THE RIGHT TABLE
         STA     OPPAGE
         LDY     #$01
+        BIT     LCRWEN+LCBNK2
+        BIT     LCRWEN+LCBNK2
         JMP     FETCHOP
 ;*
 ;* JUMP INDIRECT TRHOUGH TMP

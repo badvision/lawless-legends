@@ -10,6 +10,7 @@
 
 include "gamelib.plh"
 include "globalDefs.plh"
+include "playtype.plh"
 include "gen_modules.plh"
 
 const MAP_TOP     = 11 // lines
@@ -156,6 +157,23 @@ asm drawSlice(pBlank, pScreen, nTiles, tilePtrs)#0
 .next
   dec nTiles
   bne .tile
+  rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+asm showCursor(color, pScreen)#0
+  +asmPlasmNoRet 2
+  sta pTmp
+  sty pTmp+1
+  lda evalStkL+1,x
+  ldx #8
+- ldy #0
+  sta (pTmp),y
+  pha
+  jsr NextScreenLine
+  pla
+  dex
+  bne -
   rts
 end
 
@@ -351,7 +369,7 @@ end
 def displaySections#0
   word pSection
   for pSection = @sectionBuf to pLastSection step MapSection
-    printSection(pSection)
+    //printSection(pSection)
     if pSection->b_visible
       if mapIs3D
         displaySection3D(pSection)
@@ -388,6 +406,53 @@ def setup2D#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def centerScreen#0
+  word x, y
+  getPos(@x, @y)
+  screenX0 = x - (SCREEN_COLS>>1)
+  screenY0 = y - (SCREEN_ROWS>>1)
+  screenX1 = screenX0 + SCREEN_COLS
+  screenY1 = screenY0 + SCREEN_ROWS
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def cursorWait#1
+  word x, y, i
+  byte phase, color
+  getPos(@x, @y)
+  phase = 0
+  while ^kbd < 128
+    when phase
+      is 0; color = $AA; break
+      is 1; color = $D5; break
+      is 2; color = $AA; break
+      is 3; color = $D5; break
+      is 4; color = $FF; break
+    wend
+    if x >= screenX0 and x < screenX1 and y >= screenY0 and y < screenY1
+      showCursor(color, getScreenLine(((y-screenY0)<<3)+MAP_TOP) + (x-screenX0+MAP_LEFT))
+    fin
+    i = 0
+    while i < 200 and ^kbd < 128
+      i++
+    loop
+    phase = (phase+1) % 5
+  loop
+  i = ^kbd
+  ^kbdStrobe
+  return charToUpper(i & $7F)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def showTitle#0
+  setWindow(2, 12, 98, 182) // Top, Bottom, Left, Right
+  clearWindow
+  rawDisplayStr("^V001")
+  centerStr(global=>s_mapName, 84)
+  setBigWindow
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def _automap_show()#1
   byte key
 
@@ -396,19 +461,18 @@ def _automap_show()#1
 
   // Setup phase
   if mapIs3D; setup3D; else setup2D; fin
-
-  screenX0 = 0
-  screenY0 = 0
-  screenX1 = SCREEN_COLS
-  screenY1 = SCREEN_ROWS
+  centerScreen
+  setBigWindow
+  clearWindow
+  showTitle
 
   repeat
-    setBigWindow
+    setWindow(BIGWIN_TOP+2, BIGWIN_BOTTOM, BIGWIN_LEFT, BIGWIN_RIGHT)
     clearWindow
 
     // Calculate visiblity and load maps+tilesets
-    printf2("Screen: %d/%d - ", screenX0, screenY0)
-    printf2("%d/%d\n", screenX1, screenY1)
+    //printf2("Screen: %d/%d - ", screenX0, screenY0)
+    //printf2("%d/%d\n", screenX1, screenY1)
     prepSections
 
     // Display everything visible
@@ -418,7 +482,7 @@ def _automap_show()#1
     freeSections
 
     // Now allow the player to scroll the map
-    key = getUpperKey
+    key = cursorWait
     when key
       is 'W'; is 'I'; is 11
         screenY0 = screenY0 - 8   // north

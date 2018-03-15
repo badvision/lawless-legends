@@ -1618,10 +1618,11 @@ def nextLampFrame()#0
   if showingLamp
     n = lampFrame - LAMP_1
     n = n + lampDir
-    if n < 0
-      n = n + (LAMP_COUNT-1)
-    elsif n >= (LAMP_COUNT-1)
-      n = n - (LAMP_COUNT-1)
+    while n < 0
+      n = n + (LAMP_COUNT-1)  // because PLASMA's modulo operator adopts C's (IMO useless) behavior
+    loop
+    if n >= (LAMP_COUNT-1)
+      n = n % (LAMP_COUNT-1)
     fin
     n = n + LAMP_1
     if (rand16() % 100) < 10

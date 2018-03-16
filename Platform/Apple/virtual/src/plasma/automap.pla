@@ -22,25 +22,25 @@ const SCREEN_COLS = 36
 const SECTION_WIDTH_2D  = 22
 const SECTION_HEIGHT_2D = 23
 
-struc MapSection
-  byte b_mapNum
-  word p_map
-  byte b_tilesetNum
-  word p_tileset
-  byte b_visible
-  word w_x0   // upper-left coord of map in global space
-  word w_y0
-  word w_x1   // bottom-right coord of map (exclusive) in global space
-  word w_y1
-  byte b_sx   // clipped screen coordinate
-  byte b_sy
-  byte b_ox   // clipped offset within map to display
-  byte b_oy
-  byte b_cw   // clipped size within map to display
-  byte b_ch
+struc TMapSection
+  byte bm_mapNum
+  word pm_map
+  byte bm_tilesetNum
+  word pm_tileset
+  byte bm_visible
+  word wm_x0   // upper-left coord of map in global space
+  word wm_y0
+  word wm_x1   // bottom-right coord of map (exclusive) in global space
+  word wm_y1
+  byte bm_sx   // clipped screen coordinate
+  byte bm_sy
+  byte bm_ox   // clipped offset within map to display
+  byte bm_oy
+  byte bm_cw   // clipped size within map to display
+  byte bm_ch
 end
 
-const SECT_BUF_SIZE = MAX_MAP_SECT * MapSection
+const SECT_BUF_SIZE = MAX_MAP_SECT * TMapSection
 
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the header.
@@ -209,47 +209,47 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def make3DSection(pSection)#0
   // Record the map data (it's already loaded for 3D display)
-  pSection->b_mapNum = mapNum
-  pSection=>p_map = pCurMap
+  pSection->bm_mapNum = mapNum
+  pSection=>pm_map = pCurMap
 
   // Record the tile set number
-  pSection->b_tilesetNum = ^(pSection=>p_map + 3)
-  pSection=>p_tileset = NULL
+  pSection->bm_tilesetNum = ^(pSection=>pm_map + 3)
+  pSection=>pm_tileset = NULL
 
   // Record the coordinates
-  pSection=>w_x0 = 0
-  pSection=>w_y0 = 0
-  pSection=>w_x1 = totalMapWidth
-  pSection=>w_y1 = totalMapHeight
+  pSection=>wm_x0 = 0
+  pSection=>wm_y0 = 0
+  pSection=>wm_x1 = totalMapWidth
+  pSection=>wm_y1 = totalMapHeight
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def make2DSection(pSection, sh, sv)#0
   // Record the map data (the top-left segment is already loaded)
-  pSection->b_mapNum = mapNum + (sv*nHorzSects) + sh
-  pSection=>p_map = (pSection->b_mapNum == mapNum) ?? pCurMap :: NULL
+  pSection->bm_mapNum = mapNum + (sv*nHorzSects) + sh
+  pSection=>pm_map = (pSection->bm_mapNum == mapNum) ?? pCurMap :: NULL
 
   // Tileset will be calculated later
-  pSection->b_tilesetNum = 0
-  pSection=>p_tileset = NULL
+  pSection->bm_tilesetNum = 0
+  pSection=>pm_tileset = NULL
 
   // Record the coordinates
-  pSection=>w_x0 = sh * SECTION_WIDTH_2D
-  pSection=>w_y0 = sv * SECTION_HEIGHT_2D
-  pSection=>w_x1 = pSection=>w_x0 + SECTION_WIDTH_2D
-  pSection=>w_y1 = pSection=>w_y0 + SECTION_HEIGHT_2D
+  pSection=>wm_x0 = sh * SECTION_WIDTH_2D
+  pSection=>wm_y0 = sv * SECTION_HEIGHT_2D
+  pSection=>wm_x1 = pSection=>wm_x0 + SECTION_WIDTH_2D
+  pSection=>wm_y1 = pSection=>wm_y0 + SECTION_HEIGHT_2D
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def printSection(pSection)#0
-  printf1("Sect %d: ", (pSection - @sectionBuf) / MapSection)
-  printf2("%d/%d - ", pSection=>w_x0, pSection=>w_y0)
-  printf2("%d/%d; ", pSection=>w_x1, pSection=>w_y1)
-  printf1("vis=%d ", pSection->b_visible)
-  if pSection->b_visible
-    printf2("scrn=%d/%d ", pSection->b_sx, pSection->b_sy)
-    printf2("off=%d/%d ", pSection->b_ox, pSection->b_oy)
-    printf2("clip=%dw/%dh", pSection->b_cw, pSection->b_ch)
+  printf1("Sect %d: ", (pSection - @sectionBuf) / TMapSection)
+  printf2("%d/%d - ", pSection=>wm_x0, pSection=>wm_y0)
+  printf2("%d/%d; ", pSection=>wm_x1, pSection=>wm_y1)
+  printf1("vis=%d ", pSection->bm_visible)
+  if pSection->bm_visible
+    printf2("scrn=%d/%d ", pSection->bm_sx, pSection->bm_sy)
+    printf2("off=%d/%d ", pSection->bm_ox, pSection->bm_oy)
+    printf2("clip=%dw/%dh", pSection->bm_cw, pSection->bm_ch)
   fin
   puts(".\n")
 end
@@ -262,28 +262,30 @@ def prepSections#0
 
   anyQueued = FALSE
   mmgr(START_LOAD, curMapPartition)
-  for pSection = @sectionBuf to pLastSection step MapSection
-    x0 = max(screenX0, pSection=>w_x0)
-    y0 = max(screenY0, pSection=>w_y0)
-    x1 = min(screenX1, pSection=>w_x1)
-    y1 = min(screenY1, pSection=>w_y1)
+  pSection = @sectionBuf
+  while pSection <> pLastSection
+    x0 = max(screenX0, pSection=>wm_x0)
+    y0 = max(screenY0, pSection=>wm_y0)
+    x1 = min(screenX1, pSection=>wm_x1)
+    y1 = min(screenY1, pSection=>wm_y1)
     if x0 < x1 and y0 < y1
-      pSection->b_visible = TRUE
-      pSection->b_sx = x0 - screenX0
-      pSection->b_sy = y0 - screenY0
-      pSection->b_ox = x0 - pSection=>w_x0
-      pSection->b_oy = y0 - pSection=>w_y0
-      pSection->b_cw = x1 - x0
-      pSection->b_ch = y1 - y0
-      if !pSection=>p_map
+      pSection->bm_visible = TRUE
+      pSection->bm_sx = x0 - screenX0
+      pSection->bm_sy = y0 - screenY0
+      pSection->bm_ox = x0 - pSection=>wm_x0
+      pSection->bm_oy = y0 - pSection=>wm_y0
+      pSection->bm_cw = x1 - x0
+      pSection->bm_ch = y1 - y0
+      if !pSection=>pm_map
         // Note, this only happens in 2D mode (3D has only one map, which always stays loaded)
-        pSection=>p_map = mmgr(QUEUE_LOAD, (pSection->b_mapNum)<<8 | RES_TYPE_2D_MAP)
+        pSection=>pm_map = mmgr(QUEUE_LOAD, (pSection->bm_mapNum)<<8 | RES_TYPE_2D_MAP)
         anyQueued = TRUE
       fin
     else
-      pSection->b_visible = FALSE
+      pSection->bm_visible = FALSE
     fin
-  next
+    pSection = pSection + TMapSection
+  loop
 
   // Make sure all maps are loaded before we attempt to figure out their tilesets
   if anyQueued
@@ -292,15 +294,17 @@ def prepSections#0
   fin
 
   // Load all the tilesets
-  for pSection = @sectionBuf to pLastSection step MapSection
-    if pSection->b_visible and !pSection=>p_tileset
-      if !pSection->b_tilesetNum
+  pSection = @sectionBuf
+  while pSection <> pLastSection
+    if pSection->bm_visible and !pSection=>pm_tileset
+      if !pSection->bm_tilesetNum
         // This part only happens in 2D mode (a 3D section have tileset filled in at construction)
-        pSection->b_tilesetNum = ^(pSection=>p_map + 4)
+        pSection->bm_tilesetNum = ^(pSection=>pm_map + 4)
       fin
-      pSection=>p_tileset = mmgr(QUEUE_LOAD, (pSection->b_tilesetNum)<<8 | RES_TYPE_TILESET)
+      pSection=>pm_tileset = mmgr(QUEUE_LOAD, (pSection->bm_tilesetNum)<<8 | RES_TYPE_TILESET)
     fin
-  next
+    pSection = pSection + TMapSection
+  loop
 
   mmgr(FINISH_LOAD, 0)
 end
@@ -308,16 +312,18 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def freeSections#0
   word pSection
-  for pSection = @sectionBuf to pLastSection step MapSection
-    if pSection=>p_map and pSection=>p_map <> pCurMap
-      mmgr(FREE_MEMORY, pSection=>p_map)
-      pSection=>p_map = NULL
+  pSection = @sectionBuf
+  while pSection <> pLastSection
+    if pSection=>pm_map and pSection=>pm_map <> pCurMap
+      mmgr(FREE_MEMORY, pSection=>pm_map)
+      pSection=>pm_map = NULL
     fin
-    if pSection=>p_tileset
-      mmgr(FREE_MEMORY, pSection=>p_tileset)
-      pSection=>p_tileset = NULL
+    if pSection=>pm_tileset
+      mmgr(FREE_MEMORY, pSection=>pm_tileset)
+      pSection=>pm_tileset = NULL
     fin
-  next
+    pSection = pSection + TMapSection
+  loop
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -326,11 +332,11 @@ def displaySection3D(pSection)#0
   byte nTextures, y, rowSize
 
   // Figure out where the small tiles reside (at the end of the full size tiles)
-  pSmallTiles = pSection=>p_tileset + 1 + ((^(pSection=>p_tileset)) << 5)
+  pSmallTiles = pSection=>pm_tileset + 1 + ((^(pSection=>pm_tileset)) << 5)
 
   // Extract significant pointers from the map blob
-  rowSize = ^(pSection=>p_map)
-  tileTrans = pSection=>p_map + 4
+  rowSize = ^(pSection=>pm_map)
+  tileTrans = pSection=>pm_map + 4
   nTextures = 0
   while ^(tileTrans + (nTextures<<1))
     nTextures++
@@ -338,12 +344,12 @@ def displaySection3D(pSection)#0
   mapData = tileTrans + (nTextures*3) + 2  // *2 for tilenum+texnum, *1 for texture flags, 2 for zero-terms
 
   // Display each visible row
-  for y = 1 to pSection->b_ch  // offset is 1 to skip over sentinel row
+  for y = 1 to pSection->bm_ch  // offset is 1 to skip over sentinel row
     // The +1's below are to skip over the sentinel row and column that 3D maps have
-    rowData = mapData + ((y + pSection->b_oy) * rowSize) + pSection->b_ox + 1
+    rowData = mapData + ((y + pSection->bm_oy) * rowSize) + pSection->bm_ox + 1
     // The << 3 below is because each row is 8 screen lines
-    pScreen = getScreenLine(((y + pSection->b_sy) << 3) + (MAP_TOP-8)) + MAP_LEFT + pSection->b_sx
-    displayRow3D(pScreen, rowData, tileTrans, pSmallTiles, pSection->b_cw)
+    pScreen = getScreenLine(((y + pSection->bm_sy) << 3) + (MAP_TOP-8)) + MAP_LEFT + pSection->bm_sx
+    displayRow3D(pScreen, rowData, tileTrans, pSmallTiles, pSection->bm_cw)
   next
 end
 
@@ -353,37 +359,39 @@ def displaySection2D(pSection)#0
   byte y, rowSize
 
   // Figure out where the small tiles reside (at the end of the full size tiles)
-  pSmallTiles = pSection=>p_tileset + 1 + ((^(pSection=>p_tileset)) << 5)
+  pSmallTiles = pSection=>pm_tileset + 1 + ((^(pSection=>pm_tileset)) << 5)
 
   // Display each visible row
-  for y = 0 to pSection->b_ch-1
+  for y = 0 to pSection->bm_ch-1
     // The +6 below is to skip over the 2D map's header
-    rowData = pSection=>p_map + 6 + ((y + pSection->b_oy) * SECTION_WIDTH_2D) + pSection->b_ox
+    rowData = pSection=>pm_map + 6 + ((y + pSection->bm_oy) * SECTION_WIDTH_2D) + pSection->bm_ox
     // The << 3 below is because each row is 8 screen lines
-    pScreen = getScreenLine(((y + pSection->b_sy) << 3) + MAP_TOP) + MAP_LEFT + pSection->b_sx
-    displayRow2D(pScreen, rowData, pSmallTiles, pSection->b_cw)
+    pScreen = getScreenLine(((y + pSection->bm_sy) << 3) + MAP_TOP) + MAP_LEFT + pSection->bm_sx
+    displayRow2D(pScreen, rowData, pSmallTiles, pSection->bm_cw)
   next
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displaySections#0
   word pSection
-  for pSection = @sectionBuf to pLastSection step MapSection
+  pSection = @sectionBuf
+  while pSection <> pLastSection
     //printSection(pSection)
-    if pSection->b_visible
+    if pSection->bm_visible
       if mapIs3D
         displaySection3D(pSection)
       else
         displaySection2D(pSection)
       fin
     fin
-  next
+    pSection = pSection + TMapSection
+  loop
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def setup3D#0
   make3DSection(@sectionBuf)
-  pLastSection = @sectionBuf
+  pLastSection = @sectionBuf + TMapSection
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -392,24 +400,26 @@ def setup2D#0
   byte nVertSects, sh, sv
   nHorzSects = (totalMapWidth + SECTION_WIDTH_2D - 1) / SECTION_WIDTH_2D
   nVertSects = (totalMapHeight + SECTION_HEIGHT_2D - 1) / SECTION_HEIGHT_2D
-  pLastSection = @sectionBuf + (((nVertSects * nHorzSects) - 1) * MapSection)
+  pLastSection = @sectionBuf + ((nVertSects * nHorzSects) * TMapSection)
   sh = 0
   sv = 0
-  for pSection = @sectionBuf to pLastSection step MapSection
+  pSection = @sectionBuf
+  while pSection <> pLastSection
     make2DSection(pSection, sh, sv)
     sh++
     if sh == nHorzSects
       sh = 0
       sv++
     fin
-  next
+    pSection = pSection + TMapSection
+  loop
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def centerScreen#0
   word x, y
   getPos(@x, @y)
-  screenX0 = x - (SCREEN_COLS>>1)
+  screenX0 = (x - (SCREEN_COLS>>1)) & ~1 // force to be even
   screenY0 = y - (SCREEN_ROWS>>1)
   screenX1 = screenX0 + SCREEN_COLS
   screenY1 = screenY0 + SCREEN_ROWS
@@ -471,8 +481,6 @@ def _automap_show()#1
     clearWindow
 
     // Calculate visiblity and load maps+tilesets
-    //printf2("Screen: %d/%d - ", screenX0, screenY0)
-    //printf2("%d/%d\n", screenX1, screenY1)
     prepSections
 
     // Display everything visible
@@ -485,20 +493,28 @@ def _automap_show()#1
     key = cursorWait
     when key
       is 'W'; is 'I'; is 11
-        screenY0 = screenY0 - 8   // north
-        screenY1 = screenY1 - 8
+        if screenY1-8 > 0
+          screenY0 = screenY0 - 8   // north
+          screenY1 = screenY1 - 8
+        fin
         break
       is 'D'; is 'L'; is 21
-        screenX0 = screenX0 + 8   // east
-        screenX1 = screenX1 + 8
+        if screenX0+8 < totalMapWidth-1
+          screenX0 = screenX0 + 8   // east
+          screenX1 = screenX1 + 8
+        fin
         break
       is 'S'; is 'X'; is 'K'; is ','; is 10
-        screenY0 = screenY0 + 8   // south
-        screenY1 = screenY1 + 8
+        if screenY0+8 < totalMapHeight-1
+          screenY0 = screenY0 + 8   // south
+          screenY1 = screenY1 + 8
+        fin
         break
       is 'A'; is 'J'; is 8
-        screenX0 = screenX0 - 8   // west
-        screenX1 = screenX1 - 8
+        if screenX1-8 > 0
+          screenX0 = screenX0 - 8   // west
+          screenX1 = screenX1 - 8
+        fin
         break
     wend
   until key == 27 or key == 'Q' or key == '-' // esc or Q or - to exit

@@ -292,7 +292,7 @@ class A2PackPartitions
             def pix = 0
             def pixBits = 0
             for (def byteNum in 0..<nBytes) {
-                def pos = (lineNum*nBytes + byteNum) * 2 // two hex chars per byte
+                def pos = (lineNum*stride + byteNum) * 2 // two hex chars per byte
                 def val = Integer.parseInt(hexStr[pos..pos+1], 16)
                 for (def bitNum in 0..6) {
                     if (pixBits == 0) // [ref BigBlue1_40]
@@ -393,7 +393,7 @@ class A2PackPartitions
         }
 
         // Make a reduced-size version
-        def rows = pixelize(dataEl, 2, 2, 16)
+        def rows = pixelize(dataEl, 2, 2, 16) // stride, nBytes, nLines
         def smBuf = ByteBuffer.allocate(9)
         smBuf.put((byte)0) // placeholder for hi bits
         def hibits = 0

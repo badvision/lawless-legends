@@ -470,6 +470,7 @@ def _automap_show()#1
   memset(@blankTile, 0, 9)
 
   // Setup phase
+  ^EMUSIG_AUTOMAP
   if mapIs3D; setup3D; else setup2D; fin
   centerScreen
   setBigWindow

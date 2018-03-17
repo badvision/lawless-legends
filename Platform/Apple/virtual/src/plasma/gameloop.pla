@@ -1859,6 +1859,7 @@ export def loadFrameImg(img)#0
     resetAnimPause()
 
     // And show the first frame of the screen image
+    ^EMUSIG_FULL_COLOR
     showAnimFrame()
 
     // Brand the image with the version number
@@ -1945,6 +1946,7 @@ export def setBigWindow()#0
     frameLoaded = 0 // since we just destroyed it
     textDrawn = FALSE
     textClearCountdown = 0
+    ^EMUSIG_FULL_TEXT
   fin
   setWindow(BIGWIN_TOP, BIGWIN_BOTTOM, BIGWIN_LEFT, BIGWIN_RIGHT)
 end
@@ -2070,6 +2072,7 @@ export def loadMainFrameImg()#0
     curFullscreenImg = NULL
   fin
   loadFrameImg(mapIs3D+2)
+  if mapIs3D; ^EMUSIG_3D_MAP; else ^EMUSIG_2D_MAP; fin
   if curFullscreenImg
     auxMmgr(FREE_MEMORY, curFullscreenImg) // we don't allow animated main frames, so save memory
     curFullscreenImg = NULL
@@ -2938,7 +2941,11 @@ def returnFromEngine(render)#0
     else
       needRender = TRUE
     fin
-    if mapIs3D; showCompassDir(getDir()); fin
+    if mapIs3D
+      showCompassDir(getDir())
+      prevClockColor = 99
+      showClock()
+    fin
     showParty()
     setWindow2()  // in case we're mid-script
   fin
@@ -3274,6 +3281,7 @@ def loadTitle()#0
   // unless we do this. *HUGE* thanks to Brendan Robert for the fix!
   ^$C07E=0   // disable double-hi-res
   ^$C05F     // disable double-hi-res
+  ^EMUSIG_FULL_COLOR
 
   // While we're loading, let's get the expander into aux RAM.
   auxMmgr(SET_MEM_TARGET, expandVec)

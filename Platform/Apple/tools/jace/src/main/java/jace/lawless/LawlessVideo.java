@@ -1,7 +1,6 @@
 package jace.lawless;
 
 import jace.Emulator;
-import jace.LawlessLegends;
 import jace.apple2e.RAM128k;
 import jace.apple2e.VideoNTSC;
 import jace.core.Computer;
@@ -15,12 +14,15 @@ import javafx.scene.image.WritableImage;
 public class LawlessVideo extends VideoNTSC {
 
     private static RenderEngine activeEngine = RenderEngine.UNKNOWN;
-    private boolean invActive = false;
-    private boolean titleScreen = false;
+    private boolean titleScreen = true;
     private boolean[][] activeMask = new boolean[192][80];
     
     
     public static enum RenderEngine {
+        FULL_COLOR,
+        FULL_TEXT(new int[]{
+            2, 6, 78, 186            
+        }),
         _2D(new int[]{
             9, 8, 34, 17,
             44, 24, 76, 136,
@@ -31,10 +33,14 @@ public class LawlessVideo extends VideoNTSC {
             44, 24, 76, 136,
             44, 143, 76, 184,
             8, 172, 14, 182,}),
-        INVENTORY(new int[]{
-            2, 6, 78, 186
-        }),
-        PORTRAIT, UNKNOWN;
+        MAP(new int[]{
+            2, 6, 78, 11,
+            2, 11, 4, 186,
+            76, 11, 78, 186,            
+            2, 182, 78, 186,
+            28, 3, 52, 6
+        }), 
+        UNKNOWN;
         boolean[][] colorMask;
 
         RenderEngine(int[] mask) {
@@ -66,12 +72,17 @@ public class LawlessVideo extends VideoNTSC {
     }
 
     public void setEngine(RenderEngine e) {
-        activeEngine = e;
-        for (int y=0; y < 192; y++) {
-            System.arraycopy(e.colorMask[y], 0, activeMask[y], 0, 80);
+        if (activeEngine != e) {
+            titleScreen = false;
+            activeEngine = e;
+            for (int y=0; y < 192; y++) {
+                System.arraycopy(activeEngine.colorMask[y], 0, activeMask[y], 0, 80);
+            }
+            Emulator.computer.onNextVBL(() -> Emulator.computer.getVideo().forceRefresh());
+            System.out.println("Detected engine: " + e.name());
+        } else {
+            System.out.println("Detected engine same as before: " + e.name());            
         }
-        Emulator.computer.onNextVBL(() -> Emulator.computer.getVideo().forceRefresh());
-        System.out.println("Detected engine: " + e.name());
     }
     
     public void setBWFlag(int addr, boolean b) {
@@ -81,6 +92,7 @@ public class LawlessVideo extends VideoNTSC {
             return;
         }
         int col = addr - VideoNTSC.calculateHiresOffset(row);
+        /*
         if (row > 20 && row < 136 && col < 20) {
             boolean prev = activeMask[row][col*2];
             activeMask[row][col*2] = b;
@@ -89,6 +101,7 @@ public class LawlessVideo extends VideoNTSC {
                 redraw();
             }
         }
+        */
     }
 
     static public int[] divBy56 = new int[560];
@@ -97,21 +110,6 @@ public class LawlessVideo extends VideoNTSC {
         for (int i = 0; i < 560; i++) {
             divBy56[i] = i / 56;
         }
-    }
-
-    @Override
-    public void vblankStart() {
-        super.vblankStart();
-        // Row 5 = Black
-        int row4 = getSummary(4);
-        int row5 = getSummary(5);
-        int row6 = getSummary(6);
-        int row7 = getSummary(7);
-        // Rows 6,7 = White
-        invActive = row5 == 0
-                && row6 == 1270
-                && row7 == 1270;
-        titleScreen = row4 == 828 && row5 == 513 && row6 == 382;
     }
 
     public int getSummary(int row) {
@@ -130,14 +128,10 @@ public class LawlessVideo extends VideoNTSC {
         if (rowStart >= 0x02000) {
             boolean[] color = activeMask[y];
             if (titleScreen) {
-                color = RenderEngine.UNKNOWN.colorMask[y];
-            } else if (invActive) {
-                color = RenderEngine.INVENTORY.colorMask[y];
-            } else if (activeEngine == RenderEngine.PORTRAIT) {
-                color = RenderEngine._2D.colorMask[y];
+                color = RenderEngine.FULL_COLOR.colorMask[y];
             }
             System.arraycopy(color, 0, colorActive, 0, 80);
         }
-        super.hblankStart(screen, y, isDirty); //To change body of generated methods, choose Tools | Templates.
+        super.hblankStart(screen, y, isDirty);
     }
 }

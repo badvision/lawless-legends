@@ -51,8 +51,8 @@ import javafx.scene.paint.Color;
 public class VideoNTSC extends VideoDHGR {
 
     @ConfigurableField(name = "Text palette", shortName = "textPalette", defaultValue = "false", description = "Use text-friendly color palette")
-    public boolean useTextPalette = true;
-    int activePalette[][] = TEXT_PALETTE;
+    public boolean useTextPalette = false;
+    int activePalette[][] = SOLID_PALETTE;
     @ConfigurableField(name = "Video 7", shortName = "video7", defaultValue = "true", description = "Enable Video 7 RGB rendering support")
     public boolean enableVideo7 = true;
     // Scanline represents 560 bits, divided up into 28-bit words
@@ -73,10 +73,10 @@ public class VideoNTSC extends VideoDHGR {
     }
 
     public static enum VideoMode {
-        Color("Color"),
         TextFriendly("Text-friendly color"),
-        Mode7("Mode7 Mixed RGB"),
+        Color("Color"),
         Mode7TextFriendly("Mode7 with Text-friendly palette"),
+        Mode7("Mode7 Mixed RGB"),
         Monochrome("Mono"),
         Greenscreen("Green"),
         Amber("Amber");

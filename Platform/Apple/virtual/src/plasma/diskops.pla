@@ -320,6 +320,7 @@ def newGame()#0
   mmgr(FINISH_LOAD, 0)
   playersModule()=>makeInitialParty()
   loadMainFrameImg()
+  ^EMUSIG_2D_MAP
   showMapName("New game")
   setWindow2()
   newGameModule()()

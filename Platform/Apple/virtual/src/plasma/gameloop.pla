@@ -2072,7 +2072,11 @@ export def loadMainFrameImg()#0
     curFullscreenImg = NULL
   fin
   loadFrameImg(mapIs3D+2)
-  if mapIs3D; ^EMUSIG_3D_MAP; else ^EMUSIG_2D_MAP; fin
+  if mapIs3D
+    ^EMUSIG_3D_MAP
+  else
+    ^EMUSIG_2D_MAP
+  fin
   if curFullscreenImg
     auxMmgr(FREE_MEMORY, curFullscreenImg) // we don't allow animated main frames, so save memory
     curFullscreenImg = NULL

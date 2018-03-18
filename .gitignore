@@ -53,3 +53,7 @@ error_stack.txt
 /OutlawEditor/OutlawPluginExample/target/
 /Platform/Apple/tools/A2Pack/target/
 /Platform/Apple/tools/A2PackPlugin/target/
+
+# Ignore special links Martin uses
+/Platform/Apple/virtual/mapBuild
+/Platform/Apple/virtual/plasBuild

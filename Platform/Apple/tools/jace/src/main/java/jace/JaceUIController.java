@@ -6,12 +6,10 @@
 package jace;
 
 import com.sun.glass.ui.Application;
-import jace.config.ConfigurableField;
 import jace.core.Card;
 import jace.core.Computer;
 import jace.core.Motherboard;
 import jace.core.Utility;
-import jace.lawless.LawlessComputer;
 import jace.library.MediaCache;
 import jace.library.MediaConsumer;
 import jace.library.MediaConsumerParent;
@@ -109,6 +107,7 @@ public class JaceUIController {
         assert stackPane != null : "fx:id=\"stackPane\" was not injected: check your FXML file 'JaceUI.fxml'.";
         assert notificationBox != null : "fx:id=\"notificationBox\" was not injected: check your FXML file 'JaceUI.fxml'.";
         assert appleScreen != null : "fx:id=\"appleScreen\" was not injected: check your FXML file 'JaceUI.fxml'.";
+        speedSlider.setValue(1.0);
         controlOverlay.setVisible(false);
         menuButtonPane.setVisible(false);
         controlOverlay.setFocusTraversable(false);
@@ -183,7 +182,7 @@ public class JaceUIController {
         }
     }
 
-    private double convertSpeedToRatio(Double setting) {
+    protected double convertSpeedToRatio(Double setting) {
         if (setting < 1.0) {
             return 0.5;
         } else if (setting == 1.0) {
@@ -209,7 +208,6 @@ public class JaceUIController {
             rootPane.setOnKeyReleased(keyboardHandler);
             rootPane.setFocusTraversable(true);
         }
-        speedSlider.setValue(1.0);
         speedSlider.setMinorTickCount(0);
         speedSlider.setMajorTickUnit(1);
         speedSlider.setLabelFormatter(new StringConverter<Double>() {
@@ -253,9 +251,12 @@ public class JaceUIController {
         }
     }
 
-    private void setSpeed(double speed) {
+    protected void setSpeed(double speed) {
         Emulator.logic.speedSetting = (int) speed;
         double speedRatio = convertSpeedToRatio(speed);
+        if (speedSlider.getValue() != speed) {
+            Platform.runLater(()->speedSlider.setValue(speed));
+        }
         if (speedRatio > 100.0) {
             Emulator.computer.getMotherboard().setMaxSpeed(true);
             Motherboard.cpuPerClock = 3;

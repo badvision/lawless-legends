@@ -86,7 +86,7 @@ public class EmulatorUILogic implements Reconfigurable {
             category = "General",
             name = "Speed Setting"
     )
-    public int speedSetting = 2;
+    public int speedSetting = 3;
 
     @ConfigurableField(
             category = "General",
@@ -560,5 +560,6 @@ public class EmulatorUILogic implements Reconfigurable {
 
     @Override
     public void reconfigure() {
+        LawlessLegends.getApplication().controller.setSpeed(speedSetting);
     }
 }

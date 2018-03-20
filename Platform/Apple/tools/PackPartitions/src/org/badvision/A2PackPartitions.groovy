@@ -23,6 +23,12 @@ import java.util.Calendar
 import java.util.zip.GZIPInputStream
 import java.util.LinkedHashMap
 import java.security.MessageDigest
+import javax.sound.midi.MidiEvent;
+import javax.sound.midi.MidiMessage;
+import javax.sound.midi.MidiSystem;
+import javax.sound.midi.Sequence;
+import javax.sound.midi.ShortMessage;
+import javax.sound.midi.Track;
 import javax.xml.bind.DatatypeConverter
 import groovy.json.JsonOutput
 import groovy.util.Node
@@ -46,6 +52,7 @@ class A2PackPartitions
     def TYPE_BYTECODE    = 9
     def TYPE_FIXUP       = 10
     def TYPE_PORTRAIT    = 11
+    def TYPE_SONG        = 12
 
     static final int FLOPPY_SIZE = 35*8  // good old 140k floppy = 280 blks
     static final int AC_KLUDGE = 2      // minus 1 to work around last-block bug in AppleCommander
@@ -63,7 +70,8 @@ class A2PackPartitions
                                 8:  "Code",
                                 9:  "Code",
                                 10: "Code",
-                                11: "Portrait image"]
+                                11: "Portrait image",
+                                12: "Song"]
 
     def typeNameToNum = ["code":     TYPE_CODE,
                          "map2D":    TYPE_2D_MAP,
@@ -75,7 +83,8 @@ class A2PackPartitions
                          "module":   TYPE_MODULE,
                          "bytecode": TYPE_BYTECODE,
                          "fixup":    TYPE_FIXUP,
-                         "portrait": TYPE_PORTRAIT]
+                         "portrait": TYPE_PORTRAIT,
+                         "song":     TYPE_SONG]
 
     def typeNumToName = [1: "code",
                          2: "map2D",
@@ -87,7 +96,8 @@ class A2PackPartitions
                          8: "module",
                          9: "bytecode",
                          10: "fixup",
-                         11: "portrait"]
+                         11: "portrait",
+                         12: "song"]
 
     def mapNames  = [:]  // map name (and short name also) to map.2dor3d, map.num
     def sysCode   = [:]  // memory manager
@@ -103,6 +113,7 @@ class A2PackPartitions
     def frames    = [:]  // img name to img.num, img.buf
     def portraits = [:]  // img name to img.num, img.buf
     def fonts     = [:]  // font name to font.num, font.buf
+    def songs     = [:]  // song name to song.num, song.buf
     def modules   = [:]  // module name to module.num, module.buf
     def bytecodes = [:]  // module name to bytecode.num, bytecode.buf
     def fixups    = [:]  // module name to fixup.num, fixup.buf
@@ -1171,6 +1182,87 @@ class A2PackPartitions
         return [num, module.locationsWithTriggers]
     }
 
+    def packSong(File midiFile)
+    {
+        final int NOTE_ON = 0x90;
+        final int NOTE_OFF = 0x80;
+
+        Sequence sequence = MidiSystem.getSequence(midiFile)
+        def outBuf = ByteBuffer.allocate(50000)
+
+        int extperchan = 9 // this basically means no extra percussion channel, since perc is 9 anyway
+
+        int trackNumber = 0
+        for (Track track :  sequence.getTracks()) {
+            trackNumber++
+            System.out.println("Track " + trackNumber + ": size = " + track.size())
+            System.out.println()
+            int totaltime = 0
+            for (int i=0; i < track.size(); i++) {
+                MidiEvent event = track.get(i)
+                System.out.print("@" + event.getTick() + " ")
+                MidiMessage message = event.getMessage()
+                if (message instanceof ShortMessage) {
+                    ShortMessage sm = (ShortMessage) message
+                    System.out.print("Channel: " + sm.getChannel() + " ")
+                    if (sm.getCommand() == NOTE_ON || sm.getCommand() == NOTE_OFF) {
+                        int deltatime = event.getTick() - totaltime
+                        int key = sm.getData1()
+                        int octave = (key / 12)-1
+                        int onote = key % 12
+                        int lrchan = sm.getChannel() & 1
+                        int velocity = sm.getData2()
+                        int vol = velocity >> 3
+                        System.out.println(((sm.getCommand() == NOTE_ON) ? "on" : "off") +
+                                           "onote/oct=" + onote + "/" + octave +
+                                           " channel=" + sm.getChannel() + " lrchan=" + lrchan +
+                                           " key=" + key + " velocity=" + velocity + " vol=" + vol)
+                        if (velocity > 0 && vol == 0)
+                            vol = 1
+                        if (sm.getCommand() == NOTE_OFF)
+                            vol = 0
+                        if (octave < 0)
+                            octave = 0
+                        totaltime = event.getTick()
+                        if (sm.getChannel() == 9 || sm.getChannel() == extperchan)
+                        {
+                            //  Percussion
+                            if (vol > 0) {
+                                outBuf.put((byte)deltatime)
+                                outBuf.put((byte)(note ^ 0x40))
+                                outBuf.put((byte)((lrchan << 7) | vol))
+                                outBuf.put((byte)(msg.channel + 1))
+                                outBuf.put((byte)vol)
+                                if (extperchan == 9) { // Play percussion on both channels if no extended percussion
+                                    outBuf.put((byte)0)
+                                    outBuf.put((byte)(note ^ 0x40))
+                                    outBuf.put((byte)vol) // omits channel
+                                }
+                            }
+                        }
+                        else {
+                            // Note
+                            outBuf.put((byte)deltatime)
+                            outBuf.put((byte)(0x80 | (octave << 4) | onote))
+                            outBuf.put((byte)((lrchan << 7) | vol))
+                        }
+
+                    } else {
+                        System.out.println("Command:" + sm.getCommand())
+                    }
+                } else {
+                    System.out.println("Other message: " + message.getClass())
+                }
+            }
+
+            System.out.println()
+        }
+
+        def num = songs.size() + 1
+        songs[midiFile.name] = [num:num, buf:compress(unwrapByteBuffer(outBuf))]
+        addResourceDep("map", "<root>", "song", midiFile.name)
+    }
+
     def readBinary(path)
     {
         def f = new File(path)
@@ -1769,6 +1861,7 @@ class A2PackPartitions
         recordChunks("frame",    frames)
         recordChunks("portrait", portraits)
         recordChunks("font",     fonts)
+        recordChunks("song",     songs)
         recordChunks("module",   modules)
         recordChunks("bytecode", bytecodes)
         recordChunks("fixup",    fixups)
@@ -2378,6 +2471,11 @@ class A2PackPartitions
         // Pack the global tile set before other tile sets (contains the player avatar, etc.)
         numberGlobalTiles(dataIn)
         packGlobalTileSet(dataIn)
+
+        // Play around with music
+        def midiFile = new File(xmlFile.getParentFile(), "song.mid")
+        if (midiFile.exists())
+            packSong(midiFile)
 
         // Divvy up the images by category
         def titleImgs      = []

@@ -163,6 +163,7 @@ RES_TYPE_MODULE   = 8
 RES_TYPE_BYTECODE = 9
 RES_TYPE_FIXUP    = 10
 RES_TYPE_PORTRAIT = 11
+RES_TYPE_SONG     = 12
 
 ;------------------------------------------------------------------------------
 ; Command codes

@@ -45,6 +45,7 @@ const RES_TYPE_MODULE   = 8
 const RES_TYPE_BYTECODE = 9
 const RES_TYPE_FIXUP    = 10
 const RES_TYPE_PORTRAIT = 11
+const RES_TYPE_SONG     = 12
 
 // Command codes
 const RESET_MEMORY   = $10

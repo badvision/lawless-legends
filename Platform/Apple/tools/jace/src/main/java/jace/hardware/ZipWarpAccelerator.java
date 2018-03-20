@@ -80,7 +80,7 @@ public class ZipWarpAccelerator extends Device {
                     if (debugMessagesEnabled) {
                         System.out.println("Warp disabled.");
                     }
-                    setSpeed(SPEED._1);
+                    turnOffAcceleration();
                 }
             }
         } else if (!zipLocked && isWrite) {
@@ -119,7 +119,7 @@ public class ZipWarpAccelerator extends Device {
                     System.out.println("MAXIMUM WARP!");
                 }
             } else {
-                setSpeed(SPEED._1);
+                turnOffAcceleration();
                 if (debugMessagesEnabled) {
                     System.out.println("Warp disabled.");
                 }
@@ -188,6 +188,11 @@ public class ZipWarpAccelerator extends Device {
         Emulator.computer.getMotherboard().reconfigure();
     }
 
+    private void turnOffAcceleration() {
+        // The UI Logic retains the user's desired normal speed, reset to that
+        Emulator.logic.reconfigure();
+    }
+    
     @Override
     public void tick() {
         if (zipUnlockCount > 0) {

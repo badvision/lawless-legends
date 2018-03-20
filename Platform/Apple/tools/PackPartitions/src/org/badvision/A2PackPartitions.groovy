@@ -2253,6 +2253,7 @@ class A2PackPartitions
         compileModule("godmode", "src/plasma/")
         compileModule("intimate", "src/plasma/")
         compileModule("automap", "src/plasma/")
+        compileModule("sndseq", "src/plasma/")
         compileModule("gen_enemies", "src/plasma/")
         compileModule("gen_items", "src/plasma/")
         compileModule("gen_players", "src/plasma/")

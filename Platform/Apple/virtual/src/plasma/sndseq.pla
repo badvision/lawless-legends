@@ -1,6 +1,14 @@
-include "inc/cmdsys.plh"
-include "inc/fileio.plh"
-include "inc/args.plh"
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Copyright (C) 2018 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1
+// (the "License"); you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-1.1>.
+// Unless required by applicable law or agreed to in writing, software distributed under
+// the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+// ANY KIND, either express or implied. See the License for the specific language
+// governing permissions and limitations under the License.
+///////////////////////////////////////////////////////////////////////////////////////////////////
+include "gamelib.plh"
+include "globalDefs.plh"
 //
 // Usage is documented following the source in this file...
 //
@@ -69,12 +77,18 @@ predef a2spkrTone(pitch, duration)#0
 predef a2spkrPWM(sample, speed, len)#0
 predef a2keypressed
 //
+// Exported functions go here. First a predef for each one, then a table with function pointers
+// in the same order as the constants are defined in the header.
+//
+predef _sndseq_play(songNum)#1
+word[] funcTbl = @_sndseq_play
+//
 // Static sequencer values
 //
-export word musicSequence = @spkrSequence
-export word spkrTone      = @a2spkrTone
-export word spkrPWM       = @a2spkrPWM
-word        keypressed    = @a2keypressed
+word musicSequence = @spkrSequence
+word spkrTone      = @a2spkrTone
+word spkrPWM       = @a2spkrPWM
+word keypressed    = @a2keypressed
 
 word instr[] // Overlay with other variables
 word seqTrack, seqEvent, seqTime, eventTime, updateTime
@@ -107,7 +121,31 @@ word[5] arpeggioDuration = DUR16TH, DUR16TH, DUR16TH/2, DUR16TH/3, DUR16TH/4
 // is restored between playing sequences.
 //
 asm vmincs
-        !SOURCE "vmsrc/plvmzp.inc"
+        ;!SOURCE "vmsrc/plvmzp.inc"
+SRC     =   $06
+SRCL    =   SRC
+SRCH    =   SRC+1
+DST     =   SRC+2
+DSTL    =   DST
+DSTH    =   DST+1
+ESGUARD =   $BE
+ESTKSZ  =   $20
+ESTK    =   $C0
+ESTKH   =   ESTK
+ESTKL   =   ESTK+ESTKSZ/2
+VMZP    =   ESTK+ESTKSZ
+IFP     =   VMZP
+IFPL    =   IFP
+IFPH    =   IFP+1
+PP      =   IFP+2
+PPL     =   PP
+PPH     =   PP+1
+IPY     =   PP+2
+ESP     =   IPY+1
+JMPTMP  =   ESP+1
+TMP     =   JMPTMP+1
+TMPL    =   TMP
+TMPH    =   TMP+1
 end
 asm getStatusReg#1
         PHP
@@ -373,10 +411,10 @@ def a3keypressed
     byte params[5]
 
     params.0 = 3
-    params.1 = cmdsys.devcons
+    //params.1 = cmdsys.devcons
     params.2 = 5
     params:3 = @count
-    syscall($82, @params)
+    //syscall($82, @params)
     return count
 end
 def a3spkrTone(pitch, duration)#0
@@ -795,7 +833,7 @@ end
 //
 // Start sequencing music track
 //
-export def musicPlay(track, rept)#0
+def musicPlay(track, rept)#0
     byte i
 
     //
@@ -824,50 +862,45 @@ end
 //
 // Stop sequencing music track
 //
-export def musicStop#0
+def musicStop#0
     musicSequence = @noSequence
 end
 //
 // Play until keystroke
 //
-export def musicGetKey(yield, backgroundProc)#1
+def musicGetKey(yield, backgroundProc)#1
     while not keypressed()
         musicSequence(yield, backgroundProc)#0 // Call background proc every half second
     loop
-    return getc
+    return getUpperKey // MH was: getc
+end
+//
+// Load the given song resource, then play it while waiting for a key
+//
+def _sndseq_play(songNum)#1
+    word pSong
+    byte key
+    mbSlot = mbSearch(0)
+    if mbSlot < 0
+        //
+        // No MockingBoard - scale octave0 for speaker
+        //
+        for instr = 0 to 11
+            spkrOctave0[instr] = mbOctave0[instr]/NOTEDIV
+        next
+    fin
+    mmgr(START_LOAD, 1) // temporarily, song always on partition 1
+    pSong = mmgr(QUEUE_LOAD, songNum<<8 | RES_TYPE_SONG)
+    mmgr(FINISH_LOAD, 0)
+    musicPlay(pSong, TRUE)
+    key = musicGetKey(0, 0)
+    musicStop
+    return key
 end
 
-when MACHID & MACHID_MODEL
-    is MACHID_III
-        spkrTone   = @a3spkrTone
-        spkrPWM    = @a3spkrPWM
-        keypressed = @a3keypressed
-        break
-    is MACHID_I
-        puts("Sound unsupported.\n")
-        return -1
-        break
-    otherwise
-        //puts("MockingBoard Slot:\n")
-        //puts("ENTER = None\n")
-        //puts("0     = Scan\n")
-        //puts("1-7   = Slot #\n")
-        //instr = gets('>'|$80)
-        //if ^instr
-        //    mbSlot = mbSearch(^(instr + 1) - '0')
-        //fin
-        mbSlot = mbSearch(0)
-        break
-wend
-if mbSlot < 0
-    //
-    // No MockingBoard - scale octave0 for speaker
-    //
-    for instr = 0 to 11
-        spkrOctave0[instr] = mbOctave0[instr]/NOTEDIV
-    next
-fin
-
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Boilerplate module initialization code
+return @funcTbl
 done
 
 ////////////////////////////////////////////////////////////////////////////////

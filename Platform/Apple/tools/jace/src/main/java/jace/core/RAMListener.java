@@ -119,15 +119,13 @@ public abstract class RAMListener implements RAMEvent.RAMEventHandler {
 
     public boolean isRelevant(RAMEvent e) {
         // Skip event if it's not the right type
-        if (type != TYPE.ANY && e.getType() != TYPE.ANY) {
-            if ((type != e.getType())) {
-                if (type == TYPE.READ) {
-                    if (!e.getType().isRead()) {
-                        return false;
-                    }
-                } else {
+        if (type != TYPE.ANY && type != e.getType()) {
+            if (e.getType() != TYPE.ANY && type == TYPE.READ) {
+                if (!e.getType().isRead()) {
                     return false;
                 }
+            } else {
+                return false;
             }
         }
         // Skip event if it's not in the scope we care about

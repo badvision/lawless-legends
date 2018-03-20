@@ -38,8 +38,8 @@ import jace.hardware.CardExt80Col;
 import jace.hardware.ConsoleProbe;
 import jace.hardware.Joystick;
 import jace.hardware.NoSlotClock;
+import jace.hardware.ZipWarpAccelerator;
 import jace.hardware.massStorage.CardMassStorage;
-import jace.lawless.LawlessComputer;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -96,6 +96,8 @@ public class Apple2e extends Computer {
     public boolean joy2enabled = false;
     @ConfigurableField(name = "No-Slot Clock Enabled", shortName = "clock", description = "If checked, no-slot clock will be enabled", enablesDevice = true)
     public boolean clockEnabled = true;
+    @ConfigurableField(name = "Accelerator Enabled", shortName = "zip", description = "If checked, add support for Zip/Transwarp", enablesDevice = true)
+    public boolean acceleratorEnabled = true;
 
     public Joystick joystick1;
     public Joystick joystick2;
@@ -103,6 +105,7 @@ public class Apple2e extends Computer {
     public ClassSelection cheatEngine = new ClassSelection(Cheats.class, null);
     public Cheats activeCheatEngine = null;
     public NoSlotClock clock;
+    public ZipWarpAccelerator accelerator;
 
     /**
      * Creates a new instance of Apple2e
@@ -235,6 +238,17 @@ public class Apple2e extends Computer {
         currentMemory.reconfigure();
 
         if (motherboard != null) {
+            if (accelerator == null) {
+                accelerator = new ZipWarpAccelerator(this);
+            }
+            if (acceleratorEnabled) {
+                accelerator.attach();
+                motherboard.miscDevices.add(accelerator);
+            } else {
+                accelerator.detach();
+                motherboard.miscDevices.remove(accelerator);
+            }
+            
             if (joy1enabled) {
                 if (joystick1 == null) {
                     joystick1 = new Joystick(0, this);

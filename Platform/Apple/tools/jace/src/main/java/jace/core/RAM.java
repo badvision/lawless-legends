@@ -21,9 +21,9 @@ package jace.core;
 import jace.apple2e.SoftSwitches;
 import jace.config.Reconfigurable;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * RAM is a 64K address space of paged memory. It also manages sets of memory
@@ -37,9 +37,9 @@ public abstract class RAM implements Reconfigurable {
 
     public PagedMemory activeRead;
     public PagedMemory activeWrite;
-    public List<RAMListener> listeners;
-    public List<RAMListener>[] listenerMap;
-    public List<RAMListener>[] ioListenerMap;
+    public Set<RAMListener> listeners;
+    public Set<RAMListener>[] listenerMap;
+    public Set<RAMListener>[] ioListenerMap;
     public Optional<Card>[] cards;
     // card 0 = 80 column card firmware / system rom
     public int activeSlot = 0;
@@ -52,7 +52,7 @@ public abstract class RAM implements Reconfigurable {
      */
     public RAM(Computer computer) {
         this.computer = computer;
-        listeners = new ArrayList<>();
+        listeners = new HashSet<>();
         cards = new Optional[8];
         for (int i = 0; i < 8; i++) {
             cards[i] = Optional.empty();
@@ -79,7 +79,7 @@ public abstract class RAM implements Reconfigurable {
 
     public Optional<Card> getCard(int slot) {
         if (slot >= 1 && slot <= 7) {
-            return cards[slot];
+            return cards[slot].flatMap(card->card == null ? Optional.empty() : Optional.of(card));
         }
         return Optional.empty();
     }
@@ -158,24 +158,20 @@ public abstract class RAM implements Reconfigurable {
     private void mapListener(RAMListener l, int address) {
         if ((address & 0x0FF00) == 0x0C000) {
             int index = address & 0x0FF;
-            List<RAMListener> ioListeners = ioListenerMap[index];
+            Set<RAMListener> ioListeners = ioListenerMap[index];
             if (ioListeners == null) {
-                ioListeners = new ArrayList<>();
+                ioListeners = new HashSet<>();
                 ioListenerMap[index] = ioListeners;
             }
-            if (!ioListeners.contains(l)) {
-                ioListeners.add(l);
-            }
+            ioListeners.add(l);
         } else {
             int index = address >> 8;
-            List<RAMListener> otherListeners = listenerMap[index];
+            Set<RAMListener> otherListeners = listenerMap[index];
             if (otherListeners == null) {
-                otherListeners = new ArrayList<>();
+                otherListeners = new HashSet<>();
                 listenerMap[index] = otherListeners;
             }
-            if (!otherListeners.contains(l)) {
-                otherListeners.add(l);
-            }
+            otherListeners.add(l);
         }
     }
 
@@ -196,8 +192,8 @@ public abstract class RAM implements Reconfigurable {
     }
 
     private void refreshListenerMap() {
-        listenerMap = new ArrayList[256];
-        ioListenerMap = new ArrayList[256];
+        listenerMap = new Set[256];
+        ioListenerMap = new Set[256];
         listeners.stream().forEach((l) -> {
             addListenerRange(l);
         });
@@ -299,7 +295,7 @@ public abstract class RAM implements Reconfigurable {
     }
 
     public byte callListener(RAMEvent.TYPE t, int address, int oldValue, int newValue, boolean requireSyncronization) {
-        List<RAMListener> activeListeners;
+        Set<RAMListener> activeListeners;
         if (requireSyncronization) {
             computer.getCpu().suspend();
         }

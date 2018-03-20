@@ -64,8 +64,8 @@ const ENV_REG      = $FFDF
 //
 struc t_event
     byte deltatime  // Event delta time in 4.4 seconds
-    byte percnote   // Percussion:7==0 ? Pitch:4-0 : Octave:6-4,Note:3-0
-    byte perchanvol // Percussion      ? EnvDur:7-0           : Channel:7,Volume:3-0
+    byte percnote   // Percussion:7==0 ? Pitch:4-0   : Octave:6-4,Note:3-0
+    byte perchanvol // Percussion      ? EnvDur:7-0  : Channel:7,Volume:3-0
 end
 //
 // Predef routines

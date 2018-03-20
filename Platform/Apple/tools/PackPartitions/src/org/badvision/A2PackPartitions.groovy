@@ -1195,35 +1195,35 @@ class A2PackPartitions
         int trackNumber = 0
         for (Track track :  sequence.getTracks()) {
             trackNumber++
-            System.out.println("Track " + trackNumber + ": size = " + track.size())
-            System.out.println()
+            //System.out.println("Track " + trackNumber + ": size = " + track.size())
             int totaltime = 0
             for (int i=0; i < track.size(); i++) {
                 MidiEvent event = track.get(i)
-                System.out.print("@" + event.getTick() + " ")
+                //System.out.print("@" + event.getTick() + " ")
                 MidiMessage message = event.getMessage()
                 if (message instanceof ShortMessage) {
                     ShortMessage sm = (ShortMessage) message
-                    System.out.print("Channel: " + sm.getChannel() + " ")
+                    //System.out.print("Channel: " + sm.getChannel() + " ")
                     if (sm.getCommand() == NOTE_ON || sm.getCommand() == NOTE_OFF) {
-                        int deltatime = event.getTick() - totaltime
+                        int time = event.getTick() * 16 / 200
+                        int deltatime = time - totaltime
                         int key = sm.getData1()
                         int octave = (key / 12)-1
                         int onote = key % 12
                         int lrchan = sm.getChannel() & 1
                         int velocity = sm.getData2()
                         int vol = velocity >> 3
-                        System.out.println(((sm.getCommand() == NOTE_ON) ? "on" : "off") +
-                                           "onote/oct=" + onote + "/" + octave +
-                                           " channel=" + sm.getChannel() + " lrchan=" + lrchan +
-                                           " key=" + key + " velocity=" + velocity + " vol=" + vol)
+                        totaltime = time
+                        //System.out.println(((sm.getCommand() == NOTE_ON) ? "on" : "off") +
+                        //                   "onote/oct=" + onote + "/" + octave +
+                        //                   " channel=" + sm.getChannel() + " lrchan=" + lrchan +
+                        //                   " key=" + key + " velocity=" + velocity + " vol=" + vol)
                         if (velocity > 0 && vol == 0)
                             vol = 1
                         if (sm.getCommand() == NOTE_OFF)
                             vol = 0
                         if (octave < 0)
                             octave = 0
-                        totaltime = event.getTick()
                         if (sm.getChannel() == 9 || sm.getChannel() == extperchan)
                         {
                             //  Percussion
@@ -1248,14 +1248,12 @@ class A2PackPartitions
                         }
 
                     } else {
-                        System.out.println("Command:" + sm.getCommand())
+                        //System.out.println("Command:" + sm.getCommand())
                     }
                 } else {
-                    System.out.println("Other message: " + message.getClass())
+                    //System.out.println("Other message: " + message.getClass())
                 }
             }
-
-            System.out.println()
         }
 
         def num = songs.size() + 1

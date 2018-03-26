@@ -75,10 +75,13 @@ prevBits    = $E   ; length 1
 unused0F    = $F   ; length 1
 linePtrs    = $10  ; length 2*8 = 16
 ysav        = $34  ; length 1
+pSrc        = $50  ; length 2
+pDst        = $52  ; length 2
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 asm drawSlice(pBlank, pScreen, nTiles, tilePtrs)#0
+!zone
   +asmPlasmNoRet 4
   sta tilePtrs
   sty tilePtrs+1
@@ -162,6 +165,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 asm showCursor(color, pScreen)#0
+!zone
   +asmPlasmNoRet 2
   sta pTmp
   sty pTmp+1
@@ -175,6 +179,115 @@ asm showCursor(color, pScreen)#0
   dex
   bne -
   rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+asm scroll(srcLine, srcOff, dstLine, dstOff, width, dir, nLines)#0
+!zone
+  +asmPlasmNoRet           7
+.param_srcLine  = evalStkL+6
+.param_srcOff   = evalStkL+5
+.param_dstLine  = evalStkL+4
+.param_dstOff   = evalStkL+3
+.param_width    = evalStkL+2
+.param_dir      = evalStkL+1
+.param_nLines   = evalStkL+0
+.xsav           = tmp
+.width          = tmp+1
+
+  lda #$60
+  sta 0
+  jsr 0 ; FOO
+
+  stx .xsav
+  lda .param_width,x
+  sta .width
+.lineloop
+  lda .param_srcLine,x
+  jsr GetScreenLine
+  ldx .xsav
+  clc
+  adc .param_srcOff,x
+  sta pSrc
+  sty pSrc+1
+  lda .param_dstLine,x
+  jsr GetScreenLine
+  ldx .xsav
+  clc
+  adc .param_dstOff,x
+  sta pDst
+  sty pDst+1
+  lda .param_dir,x
+  bmi .reverse
+.forward
+  ldy #0
+- lda (pSrc),y
+  sta (pDst),y
+  iny
+  cpy .width
+  bne -
+  inc .param_srcLine,x
+  inc .param_dstLine,x
+.next
+  dec .param_nLines,x
+  bne .lineloop
+  rts
+.reverse
+  ldy .width
+  dey
+- lda (pSrc),y
+  sta (pDst),y
+  dey
+  bpl -
+  dec .param_srcLine,x
+  dec .param_dstLine,x
+  bne .next               ; always taken
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def scrollUp(dist)#0
+  //     srcLine       srcOff    dstLine  dstOff    width        dir  nLines
+  scroll(MAP_TOP+dist, MAP_LEFT, MAP_TOP, MAP_LEFT, SCREEN_COLS, 1,   (SCREEN_ROWS*8)-dist)
+
+  //        top,                        bottom,                left,       right
+  setWindow(MAP_TOP+SCREEN_ROWS*8-dist, MAP_TOP+SCREEN_ROWS*8, MAP_LEFT*7, (MAP_LEFT+SCREEN_COLS)*7)
+  clearWindow
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def scrollDown(dist)#0
+  word bottom
+  bottom = MAP_TOP + (SCREEN_ROWS*8) - 1
+
+  //     srcLine      srcOff    dstLine  dstOff    width        dir  nLines
+  scroll(bottom-dist, MAP_LEFT, bottom,  MAP_LEFT, SCREEN_COLS, -1,  (SCREEN_ROWS*8)-dist)
+
+  //        top,     bottom,       left,       right
+  setWindow(MAP_TOP, MAP_TOP+dist, MAP_LEFT*7, (MAP_LEFT+SCREEN_COLS)*7)
+  clearWindow
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def scrollLeft(dist)#0
+  //     srcLine  srcOff         dstLine  dstOff    width             dir   nLines
+  scroll(MAP_TOP, MAP_LEFT+dist, MAP_TOP, MAP_LEFT, SCREEN_COLS-dist, 1,    SCREEN_ROWS*8)
+
+  //        top,     bottom,                left,                          right
+  setWindow(MAP_TOP, MAP_TOP+SCREEN_ROWS*8, (MAP_LEFT+SCREEN_COLS-dist)*7, (MAP_LEFT+SCREEN_COLS)*7)
+  clearWindow
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def scrollRight(dist)#0
+  word bottom
+  bottom = MAP_TOP + (SCREEN_ROWS*8) - 1
+
+  //     srcLine  srcOff    dstLine dstOff         width             dir   nLines
+  scroll(bottom,  MAP_LEFT, bottom, MAP_LEFT+dist, SCREEN_COLS-dist, -1,   SCREEN_ROWS*8)
+
+  //        top,     bottom,                left,       right
+  setWindow(MAP_TOP, MAP_TOP+SCREEN_ROWS*8, MAP_LEFT*7, (MAP_LEFT+dist)*7)
+  clearWindow
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -478,8 +591,8 @@ def _automap_show()#1
   showTitle
 
   repeat
-    setWindow(BIGWIN_TOP+2, BIGWIN_BOTTOM, BIGWIN_LEFT, BIGWIN_RIGHT)
-    clearWindow
+    //setWindow(BIGWIN_TOP+2, BIGWIN_BOTTOM, BIGWIN_LEFT, BIGWIN_RIGHT)
+    //clearWindow
 
     // Calculate visiblity and load maps+tilesets
     prepSections
@@ -497,24 +610,28 @@ def _automap_show()#1
         if screenY1-8 > 0
           screenY0 = screenY0 - 8   // north
           screenY1 = screenY1 - 8
+          scrollDown(8*8)
         fin
         break
       is 'D'; is 'L'; is 21
         if screenX0+8 < totalMapWidth-1
           screenX0 = screenX0 + 8   // east
           screenX1 = screenX1 + 8
+          scrollLeft(8)
         fin
         break
       is 'S'; is 'X'; is 'K'; is ','; is 10
         if screenY0+8 < totalMapHeight-1
           screenY0 = screenY0 + 8   // south
           screenY1 = screenY1 + 8
+          scrollUp(8*8)
         fin
         break
       is 'A'; is 'J'; is 8
         if screenX1-8 > 0
           screenX0 = screenX0 - 8   // west
           screenX1 = screenX1 - 8
+          scrollRight(8)
         fin
         break
     wend

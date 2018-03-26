@@ -16,7 +16,7 @@ const rndseed        = $004E
 const LSB            = 0
 const MSB            = 1
 const MB_ARPEGGIO    = 4 // In 16ths of a second
-const MAX_MBCH_NOTES = 9
+const MAX_MBCH_NOTES = 3
 const SPKR_ARPEGGIO  = 2 // In 16ths of a second
 const DUR16TH        = 8
 const MAX_SPKR_NOTES = 4
@@ -95,6 +95,7 @@ word seqTrack, seqEvent, seqTime, eventTime, updateTime
 byte numNotes, seqRepeat
 byte indexA[2], indexB[2], indexC[2]
 byte noteA[2], noteB[2], noteC[2]
+byte volA[2], volB[2], volC[2]
 word notes1[MAX_MBCH_NOTES], notes2[MAX_MBCH_NOTES]
 word notes[2] = @notes1, @notes2
 word periods1[MAX_MBCH_NOTES], periods2[MAX_MBCH_NOTES]
@@ -513,6 +514,9 @@ def mbSequence(yield, func)#0
     noteA[0]  = 0; noteA[1]  = 0
     noteB[0]  = 0; noteB[1]  = 0
     noteC[0]  = 0; noteC[1]  = 0
+    volA[0]   = 0; volA[1]   = 0
+    volB[0]   = 0; volB[1]   = 0
+    volC[0]   = 0; volC[1]   = 0
     //
     // Get the PSGs ready
     //
@@ -639,6 +643,7 @@ def mbSequence(yield, func)#0
                 if n.LSB <> noteA[channel]
                     psgWriteTone(mbVIAs[channel], AFREQ, periods[channel, i], n.MSB)
                     noteA[channel]  = n.LSB
+                    volA[channel] = n.MSB | $80
                     indexA[channel] = i
                 fin
                 //
@@ -655,6 +660,7 @@ def mbSequence(yield, func)#0
                 if n.LSB <> noteB[channel]
                     psgWriteTone(mbVIAs[channel], BFREQ, periods[channel, i], n.MSB)
                     noteB[channel]  = n.LSB
+                    volB[channel] = n.MSB | $80
                     indexB[channel] = i
                 fin
                 //
@@ -672,6 +678,7 @@ def mbSequence(yield, func)#0
                     psgWrite(mbVIAs[channel],     MIXER,   $38)   // Tone on C, B, A
                     psgWriteTone(mbVIAs[channel], CFREQ,   periods[channel, i], n.MSB)
                     noteC[channel]  = n.LSB
+                    volC[channel] = n.MSB | $80
                     indexC[channel] = i
                 fin
             next
@@ -681,9 +688,45 @@ def mbSequence(yield, func)#0
         // Increment time tick
         //
         seqTime++
-        while !(mbVIA1->IFR & $40) // Wait for T1 interrupt
+        period = 0
+        repeat
             if a2keypressed(); quit = TRUE; break; fin
-        loop
+            period++
+            if (period & 63) == 1
+                for channel = 0 to 1
+                    if volA[channel] & $80
+                        volA[channel] = volA[channel] & $7F
+                    elsif volA[channel]
+                        volA[channel]--
+                        psgWrite(mbVIAs[channel], AENVAMP, volA[channel])
+                        if volA[channel] == 0
+                            noteA[channel] = 0
+                            numNotes--
+                        fin
+                    fin
+                    if volB[channel] & $80
+                        volB[channel] = volB[channel] & $7F
+                    elsif volB[channel]
+                        volB[channel]--
+                        psgWrite(mbVIAs[channel], BENVAMP, volB[channel])
+                        if volB[channel] == 0
+                            noteB[channel] = 0
+                            numNotes--
+                        fin
+                    fin
+                    if volC[channel] & $80
+                        volC[channel] = volC[channel] & $7F
+                    elsif volC[channel]
+                        volC[channel]--
+                        psgWrite(mbVIAs[channel], CENVAMP, volC[channel])
+                        if volC[channel] == 0
+                            noteC[channel] = 0
+                            numNotes--
+                        fin
+                    fin
+                next
+            fin
+        until mbVIA1->IFR & $40 // Wait for T1 interrupt
         mbVIA1->IFR = $40 // Clear interrupt
         if yieldTime <= seqTime; func()#0; yieldTime = seqTime + yield; fin
     until quit

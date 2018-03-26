@@ -23,6 +23,7 @@ import java.util.Calendar
 import java.util.zip.GZIPInputStream
 import java.util.LinkedHashMap
 import java.security.MessageDigest
+import javax.sound.midi.MetaMessage;
 import javax.sound.midi.MidiEvent;
 import javax.sound.midi.MidiMessage;
 import javax.sound.midi.MidiSystem;
@@ -1188,67 +1189,37 @@ class A2PackPartitions
         final int NOTE_OFF = 0x80;
 
         Sequence sequence = MidiSystem.getSequence(midiFile)
+        //System.out.format("Sequence: div=%.2f PPQ=%.2f res=%d\n", sequence.divisionType,
+        //    sequence.PPQ, sequence.resolution)
         def outBuf = ByteBuffer.allocate(50000)
 
         int extperchan = 9 // this basically means no extra percussion channel, since perc is 9 anyway
 
         int trackNumber = 0
+        def notesByTime = [:]
         for (Track track :  sequence.getTracks()) {
             trackNumber++
             //System.out.println("Track " + trackNumber + ": size = " + track.size())
-            int totaltime = 0
             for (int i=0; i < track.size(); i++) {
                 MidiEvent event = track.get(i)
-                //System.out.print("@" + event.getTick() + " ")
                 MidiMessage message = event.getMessage()
                 if (message instanceof ShortMessage) {
-                    ShortMessage sm = (ShortMessage) message
-                    //System.out.print("Channel: " + sm.getChannel() + " ")
-                    if (sm.getCommand() == NOTE_ON || sm.getCommand() == NOTE_OFF) {
-                        int time = event.getTick() * 16 / 200
-                        int deltatime = time - totaltime
-                        int key = sm.getData1()
-                        int octave = (key / 12)-1
-                        int onote = key % 12
-                        int lrchan = sm.getChannel() & 1
-                        int velocity = sm.getData2()
-                        int vol = velocity >> 3
-                        totaltime = time
-                        //System.out.println(((sm.getCommand() == NOTE_ON) ? "on" : "off") +
-                        //                   "onote/oct=" + onote + "/" + octave +
-                        //                   " channel=" + sm.getChannel() + " lrchan=" + lrchan +
-                        //                   " key=" + key + " velocity=" + velocity + " vol=" + vol)
-                        if (velocity > 0 && vol == 0)
-                            vol = 1
-                        if (sm.getCommand() == NOTE_OFF)
-                            vol = 0
-                        if (octave < 0)
-                            octave = 0
-                        if (sm.getChannel() == 9 || sm.getChannel() == extperchan)
-                        {
-                            //  Percussion
-                            if (vol > 0) {
-                                outBuf.put((byte)deltatime)
-                                outBuf.put((byte)(note ^ 0x40))
-                                outBuf.put((byte)((lrchan << 7) | vol))
-                                outBuf.put((byte)(msg.channel + 1))
-                                outBuf.put((byte)vol)
-                                if (extperchan == 9) { // Play percussion on both channels if no extended percussion
-                                    outBuf.put((byte)0)
-                                    outBuf.put((byte)(note ^ 0x40))
-                                    outBuf.put((byte)vol) // omits channel
-                                }
-                            }
-                        }
-                        else {
-                            // Note
-                            outBuf.put((byte)deltatime)
-                            outBuf.put((byte)(0x80 | (octave << 4) | onote))
-                            outBuf.put((byte)((lrchan << 7) | vol))
-                        }
-
-                    } else {
-                        //System.out.println("Command:" + sm.getCommand())
+                    int tickTrack = (event.tick << 8) | (trackNumber)
+                    if (!notesByTime.containsKey(tickTrack))
+                        notesByTime[tickTrack] = []
+                    notesByTime[tickTrack] << message
+                } else if (message instanceof MetaMessage) {
+                    if (message.getType() == 0x51) {
+                        int usecPerBeat = ((message.getData()[0] & 0xFF) << 16) |
+                                          ((message.getData()[1] & 0xFF) << 8) |
+                                          (message.getData()[2] & 0xFF)
+                        //System.out.println("Tempo message: " + usecPerBeat)
+                    }
+                    else if (message.getType() == 127) {
+                        //System.out.println("Meta message: type=127 data=...")
+                    }
+                    else {
+                        //System.out.println("Meta message: type=" + message.getType() + " data=" + message.getData())
                     }
                 } else {
                     //System.out.println("Other message: " + message.getClass())
@@ -1256,6 +1227,64 @@ class A2PackPartitions
             }
         }
 
+        int totaltime = 0
+        notesByTime.keySet().sort().each { int tickTrack ->
+            int tick = tickTrack >> 8
+            trackNumber = tickTrack & 0xFF
+            notesByTime[tickTrack].each { ShortMessage sm ->
+                //System.out.print("tick=" + tick + " track=" + trackNumber + " channel=" + sm.getChannel() + " ")
+                if (sm.getCommand() == NOTE_ON || sm.getCommand() == NOTE_OFF) {
+                    int time = tick * 120.0 / sequence.resolution * 16 / 203
+                    int deltatime = time - totaltime
+                    int key = sm.getData1()
+                    int octave = (key / 12)-1
+                    int onote = key % 12
+                    int lrchan = sm.getChannel() & 1
+                    int velocity = sm.getData2()
+                    int vol = velocity >> 3
+                    totaltime = time
+                    //System.out.println(((sm.getCommand() == NOTE_ON) ? "on" : "off") +
+                    //                   " time=" + time +
+                    //                   " onote/oct=" + onote + "/" + octave +
+                    //                   " channel=" + sm.getChannel() + " lrchan=" + lrchan +
+                    //                   " key=" + key + " velocity=" + velocity + " vol=" + vol)
+                    if (velocity > 0 && vol == 0)
+                        vol = 1
+                    if (sm.getCommand() == NOTE_OFF)
+                        vol = 0
+                    if (octave < 0)
+                        octave = 0
+                    if (vol > 0)
+                        vol = (vol >> 2) + 12
+                    if (sm.getChannel() == 9 || sm.getChannel() == extperchan)
+                    {
+                        //  Percussion
+                        if (vol > 0) {
+                            outBuf.put((byte)deltatime)
+                            outBuf.put((byte)(note ^ 0x40))
+                            outBuf.put((byte)((lrchan << 7) | vol))
+                            outBuf.put((byte)(msg.channel + 1))
+                            outBuf.put((byte)vol)
+                            if (extperchan == 9) { // Play percussion on both channels if no extended percussion
+                                outBuf.put((byte)0)
+                                outBuf.put((byte)(note ^ 0x40))
+                                outBuf.put((byte)vol) // omits channel
+                            }
+                        }
+                    }
+                    else {
+                        // Note
+                        outBuf.put((byte)deltatime)
+                        outBuf.put((byte)(0x80 | (octave << 4) | onote))
+                        outBuf.put((byte)((lrchan << 7) | vol))
+                    }
+                } else {
+                    //System.out.println("Command:" + sm.getCommand())
+                }
+            }
+        }
+
+        // Compress and store the resulting buffer
         def num = songs.size() + 1
         songs[midiFile.name] = [num:num, buf:compress(unwrapByteBuffer(outBuf))]
         addResourceDep("map", "<root>", "song", midiFile.name)
@@ -2472,7 +2501,7 @@ class A2PackPartitions
         packGlobalTileSet(dataIn)
 
         // Play around with music
-        def midiFile = new File(xmlFile.getParentFile(), "song.mid")
+        def midiFile = new File(xmlFile.getAbsoluteFile().getParentFile(), "song.mid")
         if (midiFile.exists())
             packSong(midiFile)
 

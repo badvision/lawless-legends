@@ -33,14 +33,15 @@ for msg in mid:
         onote     = int(msg.note % 12)
         lrchan    = int(msg.channel & 1)
         vol       = int(msg.velocity >> 3)
-        print('type=%s onote=%d lrchan=%d vol=%d' % (msg.type, onote, lrchan, vol))
+        print('time=%.4f type=%s octave=%d onote=%d lrchan=%d vol=%d' % (msg.time, msg.type, octave, onote, lrchan, vol))
         if msg.velocity > 0 and vol == 0:
             vol = 1
         if msg.type == 'note_off':
             vol = 0
         if octave < 0:
             octave = 0
-        totaltime += deltatime
+        totaltime += eventtime
+        print('totaltime=%.4f scaled=%.4f' % (totaltime, totaltime*16/16.24))
         if msg.channel == 9 or msg.channel == extperchan:
             #
             # Percussion

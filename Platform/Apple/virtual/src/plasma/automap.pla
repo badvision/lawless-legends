@@ -342,52 +342,6 @@ asm fillRow(mapRowData, mask, tileTrans, pSmallTiles, blankTile, width, tilePtrs
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def scrollUp(dist)#0
-  //     srcLine       srcOff    dstLine  dstOff    width        dir  nLines
-  scroll(MAP_TOP+dist, MAP_LEFT, MAP_TOP, MAP_LEFT, SCREEN_COLS, 1,   (SCREEN_ROWS<<3)-dist)
-
-  //        top,                           bottom,                   left,       right
-  setWindow(MAP_TOP+(SCREEN_ROWS<<3)-dist, MAP_TOP+(SCREEN_ROWS<<3), MAP_LEFT*7, (MAP_LEFT+SCREEN_COLS)*7)
-  clearWindow
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def scrollDown(dist)#0
-  word bottom
-  bottom = MAP_TOP + (SCREEN_ROWS<<3) - 1
-
-  //     srcLine      srcOff    dstLine  dstOff    width        dir  nLines
-  scroll(bottom-dist, MAP_LEFT, bottom,  MAP_LEFT, SCREEN_COLS, -1,  (SCREEN_ROWS<<3)-dist)
-
-  //        top,     bottom,       left,       right
-  setWindow(MAP_TOP, MAP_TOP+dist, MAP_LEFT*7, (MAP_LEFT+SCREEN_COLS)*7)
-  clearWindow
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def scrollLeft(dist)#0
-  //     srcLine  srcOff         dstLine  dstOff    width             dir   nLines
-  scroll(MAP_TOP, MAP_LEFT+dist, MAP_TOP, MAP_LEFT, SCREEN_COLS-dist, 1,    SCREEN_ROWS<<3)
-
-  //        top,     bottom,                   left,                          right
-  setWindow(MAP_TOP, MAP_TOP+(SCREEN_ROWS<<3), (MAP_LEFT+SCREEN_COLS-dist)*7, (MAP_LEFT+SCREEN_COLS)*7)
-  clearWindow
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def scrollRight(dist)#0
-  word bottom
-  bottom = MAP_TOP + (SCREEN_ROWS<<3) - 1
-
-  //     srcLine  srcOff    dstLine dstOff         width             dir   nLines
-  scroll(bottom,  MAP_LEFT, bottom, MAP_LEFT+dist, SCREEN_COLS-dist, -1,   SCREEN_ROWS<<3)
-
-  //        top,     bottom,                   left,       right
-  setWindow(MAP_TOP, MAP_TOP+(SCREEN_ROWS<<3), MAP_LEFT*7, (MAP_LEFT+dist)*7)
-  clearWindow
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayRow3D(pScreen, mapRowData, tileTrans, pSmallTiles, width)#0
   fillRow(mapRowData, $1F, tileTrans, pSmallTiles, @blankTile, width, @tilePtrs)
   drawSlice(@blankTile, pScreen, width, @tilePtrs)
@@ -448,7 +402,7 @@ def printSection(pSection)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def prepSections#0
+def prepSections(extraLeft, extraTop)#0
   word pSection
   word x0, y0, x1, y1
   byte anyQueued
@@ -463,8 +417,8 @@ def prepSections#0
     y1 = min(screenY1, pSection=>wm_y1)
     if x0 < x1 and y0 < y1
       pSection->bm_visible = TRUE
-      pSection->bm_sx = x0 - screenX0
-      pSection->bm_sy = y0 - screenY0
+      pSection->bm_sx = x0 - screenX0 + extraLeft
+      pSection->bm_sy = y0 - screenY0 + extraTop
       pSection->bm_ox = x0 - pSection=>wm_x0
       pSection->bm_oy = y0 - pSection=>wm_y0
       pSection->bm_cw = x1 - x0
@@ -552,19 +506,23 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displaySection2D(pSection)#0
-  word pSmallTiles, rowData, pScreen
-  byte y, rowSize
+  word pSmallTiles, rowData
+  byte y, rowSize, line, lx
 
   // Figure out where the small tiles reside (at the end of the full size tiles)
   pSmallTiles = pSection=>pm_tileset + 1 + ((^(pSection=>pm_tileset)) << 5)
 
-  // Display each visible row
-  for y = 0 to pSection->bm_ch-1
-    // The +6 below is to skip over the 2D map's header
-    rowData = pSection=>pm_map + 6 + ((y + pSection->bm_oy) * SECTION_WIDTH_2D) + pSection->bm_ox
+  // The +6 below is to skip over the 2D map's header
+  rowData = pSection=>pm_map + 6 + (pSection->bm_oy * SECTION_WIDTH_2D) + pSection->bm_ox
     // The << 3 below is because each row is 8 screen lines
-    pScreen = getScreenLine(((y + pSection->bm_sy) << 3) + MAP_TOP) + MAP_LEFT + pSection->bm_sx
-    displayRow2D(pScreen, rowData, pSmallTiles, pSection->bm_cw)
+  line = (pSection->bm_sy << 3) + MAP_TOP
+  lx = MAP_LEFT + pSection->bm_sx
+
+  // Display each visible row
+  for y = 1 to pSection->bm_ch
+    displayRow2D(getScreenLine(line) + lx, rowData, pSmallTiles, pSection->bm_cw)
+    rowData = rowData + SECTION_WIDTH_2D
+    line = line + 8
   next
 end
 
@@ -583,6 +541,83 @@ def displaySections#0
     fin
     pSection = pSection + TMapSection
   loop
+
+  // Free memory when done
+  freeSections
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def scrollUp(dist)#0
+  byte nLines
+  nLines = dist << 3
+
+  screenY0 = screenY0 + (SCREEN_ROWS-dist)
+  prepSections(0, SCREEN_ROWS-dist)
+
+  //     srcLine         srcOff    dstLine  dstOff    width        dir  nLines
+  scroll(MAP_TOP+nLines, MAP_LEFT, MAP_TOP, MAP_LEFT, SCREEN_COLS, 1,   (SCREEN_ROWS<<3)-nLines)
+
+  //        top,                             bottom,                   left,       right
+  setWindow(MAP_TOP+(SCREEN_ROWS<<3)-nLines, MAP_TOP+(SCREEN_ROWS<<3), MAP_LEFT*7, (MAP_LEFT+SCREEN_COLS)*7)
+  clearWindow
+
+  displaySections
+  screenY0 = screenY0 - (SCREEN_ROWS-dist)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def scrollDown(dist)#0
+  byte bottom, nLines
+  bottom = MAP_TOP + (SCREEN_ROWS<<3) - 1
+  nLines = dist << 3
+
+  screenY1 = screenY1 - (SCREEN_ROWS-dist)
+  prepSections(0, 0)
+
+  //     srcLine        srcOff    dstLine  dstOff    width        dir  nLines
+  scroll(bottom-nLines, MAP_LEFT, bottom,  MAP_LEFT, SCREEN_COLS, -1,  (SCREEN_ROWS<<3)-nLines)
+
+  //        top,     bottom,         left,       right
+  setWindow(MAP_TOP, MAP_TOP+nLines, MAP_LEFT*7, (MAP_LEFT+SCREEN_COLS)*7)
+  clearWindow
+
+  displaySections
+  screenY1 = screenY1 + (SCREEN_ROWS-dist)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def scrollLeft(dist)#0
+  screenX0 = screenX0 + (SCREEN_COLS-dist)
+  prepSections(SCREEN_COLS-dist, 0)
+
+  //     srcLine  srcOff         dstLine  dstOff    width             dir   nLines
+  scroll(MAP_TOP, MAP_LEFT+dist, MAP_TOP, MAP_LEFT, SCREEN_COLS-dist, 1,    SCREEN_ROWS<<3)
+
+  //        top,     bottom,                   left,                          right
+  setWindow(MAP_TOP, MAP_TOP+(SCREEN_ROWS<<3), (MAP_LEFT+SCREEN_COLS-dist)*7, (MAP_LEFT+SCREEN_COLS)*7)
+  clearWindow
+
+  displaySections
+  screenX0 = screenX0 - (SCREEN_COLS-dist)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def scrollRight(dist)#0
+  word bottom
+  bottom = MAP_TOP + (SCREEN_ROWS<<3) - 1
+
+  screenX1 = screenX1 - (SCREEN_COLS-dist)
+  prepSections(0, 0)
+
+  //     srcLine  srcOff    dstLine dstOff         width             dir   nLines
+  scroll(bottom,  MAP_LEFT, bottom, MAP_LEFT+dist, SCREEN_COLS-dist, -1,   SCREEN_ROWS<<3)
+
+  //        top,     bottom,                   left,       right
+  setWindow(MAP_TOP, MAP_TOP+(SCREEN_ROWS<<3), MAP_LEFT*7, (MAP_LEFT+dist)*7)
+  clearWindow
+
+  displaySections
+  screenX1 = screenX1 + (SCREEN_COLS-dist)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -668,33 +703,24 @@ def _automap_show()#1
 
   // Setup phase
   if mapIs3D; setup3D; else setup2D; fin
-  centerScreen
   setBigWindow
   ^EMUSIG_AUTOMAP
   clearWindow
   showTitle
 
+  centerScreen
+  prepSections(0,0)
+  displaySections
+
+  // Now allow the player to scroll the map
   repeat
-    //setWindow(BIGWIN_TOP+2, BIGWIN_BOTTOM, BIGWIN_LEFT, BIGWIN_RIGHT)
-    //clearWindow
-
-    // Calculate visiblity and load maps+tilesets
-    prepSections
-
-    // Display everything visible
-    displaySections
-
-    // Free memory
-    freeSections
-
-    // Now allow the player to scroll the map
     key = cursorWait
     when key
       is 'W'; is 'I'; is 11
         if screenY1-8 > 0
           screenY0 = screenY0 - 8   // north
           screenY1 = screenY1 - 8
-          scrollDown(64)
+          scrollDown(8)
         fin
         break
       is 'D'; is 'L'; is 21
@@ -708,7 +734,7 @@ def _automap_show()#1
         if screenY0+8 < totalMapHeight-1
           screenY0 = screenY0 + 8   // south
           screenY1 = screenY1 + 8
-          scrollUp(64)
+          scrollUp(8)
         fin
         break
       is 'A'; is 'J'; is 8

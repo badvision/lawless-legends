@@ -247,20 +247,20 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def scrollUp(dist)#0
   //     srcLine       srcOff    dstLine  dstOff    width        dir  nLines
-  scroll(MAP_TOP+dist, MAP_LEFT, MAP_TOP, MAP_LEFT, SCREEN_COLS, 1,   (SCREEN_ROWS*8)-dist)
+  scroll(MAP_TOP+dist, MAP_LEFT, MAP_TOP, MAP_LEFT, SCREEN_COLS, 1,   (SCREEN_ROWS<<3)-dist)
 
-  //        top,                        bottom,                left,       right
-  setWindow(MAP_TOP+SCREEN_ROWS*8-dist, MAP_TOP+SCREEN_ROWS*8, MAP_LEFT*7, (MAP_LEFT+SCREEN_COLS)*7)
+  //        top,                           bottom,                   left,       right
+  setWindow(MAP_TOP+(SCREEN_ROWS<<3)-dist, MAP_TOP+(SCREEN_ROWS<<3), MAP_LEFT*7, (MAP_LEFT+SCREEN_COLS)*7)
   clearWindow
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def scrollDown(dist)#0
   word bottom
-  bottom = MAP_TOP + (SCREEN_ROWS*8) - 1
+  bottom = MAP_TOP + (SCREEN_ROWS<<3) - 1
 
   //     srcLine      srcOff    dstLine  dstOff    width        dir  nLines
-  scroll(bottom-dist, MAP_LEFT, bottom,  MAP_LEFT, SCREEN_COLS, -1,  (SCREEN_ROWS*8)-dist)
+  scroll(bottom-dist, MAP_LEFT, bottom,  MAP_LEFT, SCREEN_COLS, -1,  (SCREEN_ROWS<<3)-dist)
 
   //        top,     bottom,       left,       right
   setWindow(MAP_TOP, MAP_TOP+dist, MAP_LEFT*7, (MAP_LEFT+SCREEN_COLS)*7)
@@ -270,23 +270,23 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def scrollLeft(dist)#0
   //     srcLine  srcOff         dstLine  dstOff    width             dir   nLines
-  scroll(MAP_TOP, MAP_LEFT+dist, MAP_TOP, MAP_LEFT, SCREEN_COLS-dist, 1,    SCREEN_ROWS*8)
+  scroll(MAP_TOP, MAP_LEFT+dist, MAP_TOP, MAP_LEFT, SCREEN_COLS-dist, 1,    SCREEN_ROWS<<3)
 
-  //        top,     bottom,                left,                          right
-  setWindow(MAP_TOP, MAP_TOP+SCREEN_ROWS*8, (MAP_LEFT+SCREEN_COLS-dist)*7, (MAP_LEFT+SCREEN_COLS)*7)
+  //        top,     bottom,                   left,                          right
+  setWindow(MAP_TOP, MAP_TOP+(SCREEN_ROWS<<3), (MAP_LEFT+SCREEN_COLS-dist)*7, (MAP_LEFT+SCREEN_COLS)*7)
   clearWindow
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def scrollRight(dist)#0
   word bottom
-  bottom = MAP_TOP + (SCREEN_ROWS*8) - 1
+  bottom = MAP_TOP + (SCREEN_ROWS<<3) - 1
 
   //     srcLine  srcOff    dstLine dstOff         width             dir   nLines
-  scroll(bottom,  MAP_LEFT, bottom, MAP_LEFT+dist, SCREEN_COLS-dist, -1,   SCREEN_ROWS*8)
+  scroll(bottom,  MAP_LEFT, bottom, MAP_LEFT+dist, SCREEN_COLS-dist, -1,   SCREEN_ROWS<<3)
 
-  //        top,     bottom,                left,       right
-  setWindow(MAP_TOP, MAP_TOP+SCREEN_ROWS*8, MAP_LEFT*7, (MAP_LEFT+dist)*7)
+  //        top,     bottom,                   left,       right
+  setWindow(MAP_TOP, MAP_TOP+(SCREEN_ROWS<<3), MAP_LEFT*7, (MAP_LEFT+dist)*7)
   clearWindow
 end
 
@@ -441,8 +441,8 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displaySection3D(pSection)#0
-  word pSmallTiles, tileTrans, mapData, rowData, pScreen
-  byte nTextures, y, rowSize
+  word pSmallTiles, tileTrans, mapData, rowData
+  byte nTextures, y, rowSize, line, lx
 
   // Figure out where the small tiles reside (at the end of the full size tiles)
   pSmallTiles = pSection=>pm_tileset + 1 + ((^(pSection=>pm_tileset)) << 5)
@@ -456,13 +456,17 @@ def displaySection3D(pSection)#0
   loop
   mapData = tileTrans + (nTextures*3) + 2  // *2 for tilenum+texnum, *1 for texture flags, 2 for zero-terms
 
+  // The +1's below are to skip over the sentinel row and column that 3D maps have
+  rowData = mapData + ((pSection->bm_oy + 1) * rowSize) + pSection->bm_ox + 1
+  // The << 3 below is because each row is 8 screen lines
+  line = (pSection->bm_sy << 3) + MAP_TOP
+  lx = MAP_LEFT + pSection->bm_sx
+
   // Display each visible row
   for y = 1 to pSection->bm_ch  // offset is 1 to skip over sentinel row
-    // The +1's below are to skip over the sentinel row and column that 3D maps have
-    rowData = mapData + ((y + pSection->bm_oy) * rowSize) + pSection->bm_ox + 1
-    // The << 3 below is because each row is 8 screen lines
-    pScreen = getScreenLine(((y + pSection->bm_sy) << 3) + (MAP_TOP-8)) + MAP_LEFT + pSection->bm_sx
-    displayRow3D(pScreen, rowData, tileTrans, pSmallTiles, pSection->bm_cw)
+    displayRow3D(getScreenLine(line) + lx, rowData, tileTrans, pSmallTiles, pSection->bm_cw)
+    rowData = rowData + rowSize
+    line = line + 8
   next
 end
 
@@ -610,7 +614,7 @@ def _automap_show()#1
         if screenY1-8 > 0
           screenY0 = screenY0 - 8   // north
           screenY1 = screenY1 - 8
-          scrollDown(8*8)
+          scrollDown(64)
         fin
         break
       is 'D'; is 'L'; is 21
@@ -624,7 +628,7 @@ def _automap_show()#1
         if screenY0+8 < totalMapHeight-1
           screenY0 = screenY0 + 8   // south
           screenY1 = screenY1 + 8
-          scrollUp(8*8)
+          scrollUp(64)
         fin
         break
       is 'A'; is 'J'; is 8

@@ -7,6 +7,9 @@
 *.bak
 *.orig
 
+# Don't check in song files
+*.mid
+
 # Ignore utility shortcuts that build and run
 g
 m

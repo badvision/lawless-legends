@@ -77,6 +77,9 @@ linePtrs    = $10  ; length 2*8 = 16
 ysav        = $34  ; length 1
 pSrc        = $50  ; length 2
 pDst        = $52  ; length 2
+
+HB          = evalStkH-evalStkL   ; offset to get from lo byte to hi byte on eval stack
+
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -194,11 +197,6 @@ asm scroll(srcLine, srcOff, dstLine, dstOff, width, dir, nLines)#0
 .param_nLines   = evalStkL+0
 .xsav           = tmp
 .width          = tmp+1
-
-  lda #$60
-  sta 0
-  jsr 0 ; FOO
-
   stx .xsav
   lda .param_width,x
   sta .width
@@ -242,6 +240,105 @@ asm scroll(srcLine, srcOff, dstLine, dstOff, width, dir, nLines)#0
   dec .param_srcLine,x
   dec .param_dstLine,x
   bne .next               ; always taken
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+asm fillRow(mapRowData, mask, tileTrans, pSmallTiles, blankTile, width, tilePtrs)#0
+!zone
+  +asmPlasmNoRet              7
+.param_mapRowData  = evalStkL+6
+.param_mask        = evalStkL+5
+.param_tileTrans   = evalStkL+4
+.param_pSmallTiles = evalStkL+3
+.param_blankTile   = evalStkL+2
+.param_width       = evalStkL+1
+.param_tilePtrs    = evalStkL+0
+.srcOff = pTile
+.dstOff = pTile+1
+; psudocode:
+;  byte x, mapRaw, tileNum
+;  for x = 0 to width-1
+;    mapRaw = ^(mapRowData + x) & $1F
+;    if mapRaw
+;      if tileTrans
+;        tileNum = ^(tileTrans + ((mapRaw - 1) << 1))
+;      else
+;        tileNum = mapRaw
+;      fin
+;      tilePtrs[x] = pSmallTiles + ((tileNum-1) * 9)  // 9 bytes per reduced tile in the tileset
+;    else
+;      tilePtrs[x] = @blankTile
+;    fin
+;  next
+  lda .param_mapRowData,x
+  sta pSrc
+  lda .param_mapRowData+HB,x
+  sta pSrc+1
+  lda .param_tilePtrs,x
+  sta pDst
+  lda .param_tilePtrs+HB,x
+  sta pDst+1
+  lda .param_tileTrans,x
+  sta pTmp
+  lda .param_tileTrans+HB,x
+  sta pTmp+1
+  lda #0
+  sta .srcOff
+  sta .dstOff
+.loop
+  ldy .srcOff
+  lda (pSrc),y      ; get raw data
+  iny
+  sty .srcOff
+  and .param_mask,x ; mask to get just tile number
+  beq .blank
+  tay
+  lda pTmp+1
+  beq .notrans
+  dey
+  tya
+  asl
+  tay
+  lda (pTmp),y
+  tay
+.notrans
+  dey         ; tileNum - 1
+  lda #0
+  sta tmp+1
+  sty tmp
+  tya         ; multiply by 9 bytes per reduced tile in the tileset
+  asl
+  rol tmp+1
+  asl
+  rol tmp+1
+  asl
+  rol tmp+1
+  adc tmp
+  bcc +
+  inc tmp+1
++ clc
+  adc .param_pSmallTiles,x
+  pha
+  lda tmp+1
+  adc .param_pSmallTiles+HB,x
+  bcc .store      ; always taken
+.blank
+  lda .param_blankTile,x
+  pha
+  lda .param_blankTile+HB,x
+.store
+  ldy .dstOff
+  iny
+  sta (pDst),y
+  dey
+  pla
+  sta (pDst),y
+  iny
+  iny
+  sty .dstOff
+  dec .param_width,x
+  bne .loop
+  rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -292,30 +389,13 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayRow3D(pScreen, mapRowData, tileTrans, pSmallTiles, width)#0
-  byte x, mapRaw, tileNum
-  for x = 0 to width-1
-    mapRaw = ^(mapRowData + x) & $1F
-    if mapRaw
-      tileNum = ^(tileTrans + ((mapRaw - 1) << 1))
-      tilePtrs[x] = pSmallTiles + ((tileNum-1) * 9)  // 9 bytes per reduced tile in the tileset
-    else
-      tilePtrs[x] = @blankTile
-    fin
-  next
+  fillRow(mapRowData, $1F, tileTrans, pSmallTiles, @blankTile, width, @tilePtrs)
   drawSlice(@blankTile, pScreen, width, @tilePtrs)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayRow2D(pScreen, mapRowData, pSmallTiles, width)#0
-  byte x, mapRaw, tileNum
-  for x = 0 to width-1
-    tileNum = ^(mapRowData + x) & $3F
-    if tileNum
-      tilePtrs[x] = pSmallTiles + ((tileNum-1) * 9)  // 9 bytes per reduced tile in the tileset
-    else
-      tilePtrs[x] = @blankTile
-    fin
-  next
+  fillRow(mapRowData, $3F, NULL, pSmallTiles, @blankTile, width, @tilePtrs)
   drawSlice(@blankTile, pScreen, width, @tilePtrs)
 end
 

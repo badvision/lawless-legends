@@ -3430,8 +3430,9 @@ export def giveItemToParty(itemFuncNum, displayFunc)#0
   iname = p_item=>s_name
 
   // Check for an existing item (or stack we can add to)
-  p_existing = partyHasItem(iname)
-  if p_existing
+  p_player = partyHasItem(iname)
+  if p_player
+    p_existing = scanForNamedObj(p_player=>p_items, iname)
     if p_existing->t_type == TYPE_FANCY_ITEM and p_existing=>w_count > 0
       p_existing=>w_count = p_existing=>w_count + p_item=>w_count
       return

@@ -84,25 +84,6 @@ public class LawlessVideo extends VideoNTSC {
             System.out.println("Detected engine same as before: " + e.name());            
         }
     }
-    
-    public void setBWFlag(int addr, boolean b) {
-        addr &= 0x01FFF;
-        int row = VideoNTSC.identifyHiresRow(addr);
-        if (row < 0 || row > 192) {
-            return;
-        }
-        int col = addr - VideoNTSC.calculateHiresOffset(row);
-        /*
-        if (row > 20 && row < 136 && col < 20) {
-            boolean prev = activeMask[row][col*2];
-            activeMask[row][col*2] = b;
-            activeMask[row][col*2+1] = b;
-            if (prev ^ b) {
-                redraw();
-            }
-        }
-        */
-    }
 
     static public int[] divBy56 = new int[560];
 

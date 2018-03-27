@@ -21,6 +21,7 @@ package jace.core;
 import jace.apple2e.SoftSwitches;
 import jace.config.Reconfigurable;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -160,7 +161,7 @@ public abstract class RAM implements Reconfigurable {
             int index = address & 0x0FF;
             Set<RAMListener> ioListeners = ioListenerMap[index];
             if (ioListeners == null) {
-                ioListeners = new HashSet<>();
+                ioListeners = Collections.synchronizedSet(new HashSet<>());
                 ioListenerMap[index] = ioListeners;
             }
             ioListeners.add(l);
@@ -168,7 +169,7 @@ public abstract class RAM implements Reconfigurable {
             int index = address >> 8;
             Set<RAMListener> otherListeners = listenerMap[index];
             if (otherListeners == null) {
-                otherListeners = new HashSet<>();
+                otherListeners = Collections.synchronizedSet(new HashSet<>());
                 listenerMap[index] = otherListeners;
             }
             otherListeners.add(l);

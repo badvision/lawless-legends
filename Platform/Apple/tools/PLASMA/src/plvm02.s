@@ -1340,16 +1340,7 @@ LEAVEX  INY                     ;+INC_IP
         STA     IFPL
         PLA
         STA     IFPH
-        STA     ALTRDOFF
-        LDA     PSR
-        PHA
-        PLP
-        RTS
-RETX    LDA     IFPL
-        STA     PPL
-        LDA     IFPH
-        STA     PPH
-        STA     ALTRDOFF
+RETX    STA     ALTRDOFF
         LDA     PSR
         PHA
         PLP

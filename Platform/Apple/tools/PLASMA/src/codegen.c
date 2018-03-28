@@ -824,10 +824,10 @@ void emit_ical(void)
 void emit_leave(void)
 {
     emit_pending_seq();
-    if (localsize)
+    //if (localsize)
         printf("\t%s\t$5A,$%02X\t\t\t; LEAVE\t%d\n", DB, localsize, localsize);
-    else
-        printf("\t%s\t$5C\t\t\t; RET\n", DB);
+    //else
+    //    printf("\t%s\t$5C\t\t\t; RET\n", DB);
 }
 void emit_ret(void)
 {
@@ -836,7 +836,7 @@ void emit_ret(void)
 }
 void emit_enter(int cparams)
 {
-    if (localsize)
+    //if (localsize)
         printf("\t%s\t$58,$%02X,$%02X\t\t; ENTER\t%d,%d\n", DB, localsize, cparams, localsize, cparams);
 }
 void emit_start(void)

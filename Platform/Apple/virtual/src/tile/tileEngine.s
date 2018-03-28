@@ -1169,8 +1169,7 @@ SETPOS:
 	+loadSection SE_MAP_LOC
 	JSR FINISH_MAP_LOAD
 
-	; And finally, render the first frame.
-	JSR DRAW
+	; Let the client choose when to render the first frame.
 !if DEBUG { JSR .dbg }
 	RTS
 

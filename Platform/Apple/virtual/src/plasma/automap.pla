@@ -75,8 +75,9 @@ prevBits    = $E   ; length 1
 unused0F    = $F   ; length 1
 linePtrs    = $10  ; length 2*8 = 16
 ysav        = $34  ; length 1
-pSrc        = $50  ; length 2
-pDst        = $52  ; length 2
+; do not use $50..B5, as the current render (tile engine or raycaster) use these
+pSrc        = $B8  ; length 2
+pDst        = $BA  ; length 2
 
 HB          = evalStkH-evalStkL   ; offset to get from lo byte to hi byte on eval stack
 

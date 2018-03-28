@@ -2351,10 +2351,8 @@ end
 def doRender()#0
   if curPortrait; clearPortrait(); fin
   if !texturesLoaded
-    if mapIs3D
-      flipToPage1()
-      texControl(1)
-    fin
+    flipToPage1()
+    texControl(1)
     texturesLoaded = TRUE
   fin
   if showingLamp; nextLampFrame; fin
@@ -2983,12 +2981,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load the automap engine and display the map
 def showAutomap()#1
-  word x, y
-  getPos(@x, @y)
   loadEngine(MOD_AUTOMAP)=>automap_show()
-  if !mapIs3D
-    setPos(x, y) // Force tile engine to reload its maps and textures
-  fin
   returnFromEngine(TRUE)
   return 0
 end

@@ -239,9 +239,8 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Abstract code for adding from a list of things (players, items, etc.)
 def selectThing(moduleNum, nThings, nSkip, prompt)#1
-  word pModule, funcTbl, nFunc, pFunc, p_thing, n_thing, n2, pstr
+  word pModule, funcTbl, nFunc, pFunc, p_thing, n_thing, n2
   nFunc = -1
-  pstr = "%d: %s\n"
 
   flipToPage1()
   textHome()
@@ -256,7 +255,7 @@ def selectThing(moduleNum, nThings, nSkip, prompt)#1
     nFunc = (n_thing-1+nSkip) << 1
     pFunc = *(funcTbl + nFunc)
     p_thing = pFunc()
-    printf2(pstr, n_thing, p_thing=>s_name)
+    printf2("%d: %s\n", n_thing, p_thing=>s_name)
     if (n_thing % 22) == 0 or n_thing == nThings
       mmgr(HEAP_COLLECT, 0)
       puts(prompt)

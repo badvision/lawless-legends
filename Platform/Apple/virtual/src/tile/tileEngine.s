@@ -1158,6 +1158,7 @@ SETPOS:
 	; At this point, all sections are correct, 
 	; and REL_X, REL_Y, ORIGIN_X and ORIGIN_Y are set.
 	; Time to load the map segments.
+loadAllSections:
 	+startLoad
 	LDA NW_MAP_ID
 	+loadSection NW_MAP_LOC
@@ -1265,9 +1266,19 @@ pl_setDir:
 
 ;----------------------------------------------------------------------
 ; >> pl_texControl
-; No-op, because in 2D there aren't textures
-pl_texControl:
+; param: 0=unload, 1=load
+pl_texControl: !zone {
+	tax
+	beq .unload
+.load	jmp loadAllSections
+.unload	+freeAllTiles
+	+freeScripts
+	+freeResource NW_MAP_LOC
+	+freeResource NE_MAP_LOC
+	+freeResource SW_MAP_LOC
+	+freeResource SE_MAP_LOC
 	rts
+}
 
 ;-------------------------------------------------------------------------------
 ; >> pl_getScripts

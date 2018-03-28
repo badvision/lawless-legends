@@ -237,9 +237,18 @@ def _setCheatCmds()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Workaround for plasma string space filling up: allocate a real frame, so that child strings
+// will get freed up.
+def makeThing(funcTbl, n)
+  word pFunc
+  pFunc = *(funcTbl + n)
+  return pFunc()
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Abstract code for adding from a list of things (players, items, etc.)
 def selectThing(moduleNum, nThings, nSkip, prompt)#1
-  word pModule, funcTbl, nFunc, pFunc, p_thing, n_thing, n2
+  word pModule, funcTbl, nFunc, p_thing, n_thing, n2
   nFunc = -1
 
   flipToPage1()
@@ -252,9 +261,8 @@ def selectThing(moduleNum, nThings, nSkip, prompt)#1
   funcTbl = pModule()
 
   for n_thing = 1 to nThings
-    nFunc = (n_thing-1+nSkip) << 1
-    pFunc = *(funcTbl + nFunc)
-    p_thing = pFunc()
+    nFunc = (n_thing-1+nSkip)<<1
+    p_thing = makeThing(funcTbl, nFunc)
     printf2("%d: %s\n", n_thing, p_thing=>s_name)
     if (n_thing % 22) == 0 or n_thing == nThings
       mmgr(HEAP_COLLECT, 0)
@@ -262,8 +270,7 @@ def selectThing(moduleNum, nThings, nSkip, prompt)#1
       n2 = parseDecWithDefault(readStr(), 0)
       if n2 >= 1 and n2 <= nThings
         nFunc = (n2-1+nSkip) << 1
-        pFunc = *(funcTbl + nFunc)
-        p_thing = pFunc()
+        p_thing = makeThing(funcTbl, nFunc)
         printf1("Adding '%s'\n", p_thing=>s_name)
         break
       else

@@ -179,6 +179,9 @@ LOAD_SECTION
 	LDX ptr
 	LDY ptr+1
 	BEQ +		; skip if null ptr
+	LDA #0
+	STA ptr
+	STA ptr+1
 	LDA #FREE_MEMORY
 	JSR mainLoader
 +

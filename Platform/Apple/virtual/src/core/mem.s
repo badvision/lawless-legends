@@ -1727,13 +1727,9 @@ mem_unlock: !zone
 mem_free: !zone
 	clc			; do not check for active flg (ok to multiple free)
 	jsr shared_scan		; scan for exact memory block
-	pha
 	and #$40		; check lock flag
-	beq +
-	jmp invalParam		; must unlock block before freeing it (also prevents accidentally freeing $0000)
-+	pla
-	and #$3F		; remove the 'active' and 'locked' flags
-	sta tSegType,x		; store flags back
+	bne invalParam		; must unlock block before freeing it (also prevents accidentally freeing $0000)
+	jsr .unmark
 	and #$F			; get down to just the type, without the flags
 	cmp #RES_TYPE_BYTECODE	; explicitly freeing bytecode obj?
 	beq .fatal		; that is not allowed
@@ -1741,17 +1737,16 @@ mem_free: !zone
 	bne .done		; no, all done
 	lda #RES_TYPE_BYTECODE	; we need to look for the corresponding 
 	sta resType		; byte code object
-	lda #1
-	sta isAuxCmd		; it should be over in aux mem
+	inc isAuxCmd		; it should be over in aux mem
 	lda tSegRes,x		; with the matching segment number
 	sta resNum
 	jsr scanForResource	; go look for the block
 	beq .done		; it really ought to be there, but if not, avoid trashing
-	lda tSegType,x		; get current flags
+.unmark	lda tSegType,x		; get current flags
 	and #$3F		; remove the 'active' and 'locked' flags
 	sta tSegType,x		; store flags back
 .done	rts			; all done
-.fatal	jsr inlineFatal : !text "NoFreeBcode", 0
+.fatal	jsr inlineFatal : !text "NfBcode", 0 ; no free of bytecode allowed
 
 ;------------------------------------------------------------------------------
 mem_calcFree: !zone

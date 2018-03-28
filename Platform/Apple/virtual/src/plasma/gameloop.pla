@@ -2231,6 +2231,9 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load code and data, set up everything to display a 2D or 3D map
 def initMap(x, y, dir)#0
+  // If we have a renderer loaded, let it know to flush automap marks
+  if renderLoaded; texControl(0); fin
+
   // Reset memory (our module will stay since memory manager locked it upon load)
   mmgr(RESET_MEMORY, 0)
   renderLoaded = FALSE // leave it this way until all scripts done, else scriptDisplayStr renders

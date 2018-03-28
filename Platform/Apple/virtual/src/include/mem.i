@@ -273,16 +273,12 @@ QUEUE_LOAD = $16
 
 ;------------------------------------------------------------------------------
 FINISH_LOAD = $17
-    ; Input: X-reg = 0 to close out and release $4000.5fff,
-    ;        X-reg = 1 to keep open (for anticipated immediate queueing)
+    ; Input: None
     ;
     ; Output: None
     ;
     ; Completes all prior QUEUE_LOAD requests, clearing the queue. It's the
-    ; last part of a START_LOAD / QUEUE_LOAD / FINISH_LOAD sequence. If more
-    ; loads are anticipated right away, set X-reg to 1 to keep the loader
-    ; open which will make them faster. If no more loads right away, set
-    ; X-reg to 0.
+    ; last part of a START_LOAD / QUEUE_LOAD / FINISH_LOAD sequence.
     ;
     ; This command is acted upon by this loader and passed to chained loaders.
 

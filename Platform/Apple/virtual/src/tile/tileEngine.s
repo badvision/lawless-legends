@@ -287,9 +287,8 @@ LOAD_ALL_TILES
 	JSR LOAD_ALL_TILES
 }
 
-!macro finishLoad keepOpen {
+!macro finishLoad {
        LDA #FINISH_LOAD
-       LDX #keepOpen
        JSR mainLoader
 }
 
@@ -316,7 +315,7 @@ LOAD_SCRIPTS_NO_CALC:
 	RTS
 .got	CMP SCRIPTS_ID
 	BNE .diff
-	+finishLoad 1   	; all done
+	+finishLoad
 	RTS
 .diff	STA SCRIPTS_ID
 	PHA
@@ -335,7 +334,7 @@ LOAD_SCRIPTS_NO_CALC:
 }
 	STX SCRIPTS_LOC
 	STY SCRIPTS_LOC+1
-	+finishLoad 1   	; all done
+	+finishLoad
 	LDX PLASMA_X
 	JSR .callit		; perform script init
 	RTS
@@ -346,9 +345,9 @@ LOAD_SCRIPTS_NO_CALC:
 }
 
 FINISH_MAP_LOAD
-	+finishLoad 1   	; keep open for further loading
+	+finishLoad
 	+loadAllTiles
-	+finishLoad 1		; because loadScripts does a new START_LOAD
+	+finishLoad
 	+loadScripts
 	RTS
 
@@ -1003,6 +1002,22 @@ pl_initMap: !zone
 	JMP SETPOS
 
 ;----------------------------------------------------------------------
+LOAD_ALL_SECTIONS:
+	+startLoad
+	LDA NW_MAP_ID
+	+loadSection NW_MAP_LOC
+	LDA NE_MAP_ID
+	+loadSection NE_MAP_LOC
+	LDA SW_MAP_ID
+	+loadSection SW_MAP_LOC
+	LDA SE_MAP_ID
+	+loadSection SE_MAP_LOC
+	RTS
+!macro loadAllSections {
+	JSR LOAD_ALL_SECTIONS
+}
+
+;----------------------------------------------------------------------
 ; >> pl_setPos
 ; Params: X, Y
 pl_setPos:
@@ -1158,16 +1173,7 @@ SETPOS:
 	; At this point, all sections are correct, 
 	; and REL_X, REL_Y, ORIGIN_X and ORIGIN_Y are set.
 	; Time to load the map segments.
-loadAllSections:
-	+startLoad
-	LDA NW_MAP_ID
-	+loadSection NW_MAP_LOC
-	LDA NE_MAP_ID
-	+loadSection NE_MAP_LOC
-	LDA SW_MAP_ID
-	+loadSection SW_MAP_LOC
-	LDA SE_MAP_ID
-	+loadSection SE_MAP_LOC
+	+loadAllSections
 	JSR FINISH_MAP_LOAD
 
 	; Let the client choose when to render the first frame.
@@ -1270,9 +1276,13 @@ pl_setDir:
 pl_texControl: !zone {
 	tax
 	beq .unload
-.load	jmp loadAllSections
+.load	+loadAllSections
+	+finishLoad
+	+loadAllTiles
+	+finishLoad
+	RTS
 .unload	+freeAllTiles
-	+freeScripts
+	;NO: +freeScripts ; Note: leave scripts resident, in case they're running!
 	+freeResource NW_MAP_LOC
 	+freeResource NE_MAP_LOC
 	+freeResource SW_MAP_LOC

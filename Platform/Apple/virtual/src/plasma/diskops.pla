@@ -30,12 +30,20 @@ const RWTS_OPENDIR  = (1<<8)
 
 const LOAD_SAVE_BUF = $4E00
 
+const fontEngine    = $EC00   // main mem LC
+const fontEngineLen = $F00    // really a bit less, but this leaves space for debug code
+const fontData      = $FB00   // main mem LC
+const fontDataLen   = $4FA    // really only $474, but we need to fill all gaps
+
+const expandVec     = $800    // aux mem (only for raycaster)
+
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the the header.
+predef _startup()#1
 predef _saveGame()#1
 predef _loadGame()#1
 predef _newOrLoadGame(ask)#1
-word[] funcTbl = @_saveGame, @_loadGame, @_newOrLoadGame
+word[] funcTbl = @_startup, @_saveGame, @_loadGame, @_newOrLoadGame
 
 byte[] game1_filename = "GAME.1.SAVE"
 byte[] legendos_filename = "LEGENDOS.SYSTEM"
@@ -51,6 +59,7 @@ asm __defs
 !source "../../include/global.i"
 !source "../../include/plasma.i"
 !source "../../include/mem.i"
+!source "../../include/fontEngine.i"
 
 ; Optional debug printing support
 DEBUG   = 0
@@ -79,6 +88,50 @@ cmdseek     = 0           ;requires enable_seek=1
 cmdread     = 1           ;requires enable_write=1
 cmdwrite    = 2           ;requires enable_write=1
 
+; Yes, needs to be adjusted 3 places.
+expandVec   = $800
+
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Set up the font engine
+asm setFont(pFont)#0
+  +asmPlasmNoRet 1
+  jmp SetFont
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+asm splitExpander()#1   // param: expandVec; returns: remaining lo-aux size
+!zone {
+  +asmPlasmRet 0
+.jsr
+  jsr fixedRTS
+  tsx
+  dex
+  lda $100,x
+  clc
+  adc #.splitexp-.jsr-2
+  sta pTmp
+  lda $101,x
+  adc #0
+  sta pTmp+1
+  ldy #14
+- lda (pTmp),y
+  sta $10,y
+  dey
+  bpl -
+  jmp $10
+.splitexp
+!pseudopc $10 {
+  sei     ; prevent interrupts while in aux mem
+  sta setAuxRd
+  jsr +
+  sta clrAuxRd
+  cli
+  rts
++ jmp (expandVec)
+} ; end of pseudopc
+} ; end of zone
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -126,6 +179,80 @@ asm callProRWTS(cmdPlusOpenFlg, filename, addr, size)#1
     bit setLcRW+lcBank2
     sta clrAuxZP
     rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Load and display the title screen, set up everything in memory
+def _startup()#1
+  word pEngine, pFont, expanderSize
+
+  puts("Loading game.\n")
+
+  auxMmgr(FREE_MEMORY, $800)  // was temporarily reserved by gameloop to keep diskops bytecode out
+
+  // Allocate and permanently lock mem for the font engine and its font (up in LC ram)
+  mmgr(START_LOAD, 1) // partition 1 is where code lives
+  mmgr(SET_MEM_TARGET, fontEngine)
+  mmgr(REQUEST_MEMORY, fontEngineLen)
+  mmgr(LOCK_MEMORY,    fontEngine)
+
+  mmgr(SET_MEM_TARGET, fontData)
+  mmgr(REQUEST_MEMORY, fontDataLen)
+  mmgr(LOCK_MEMORY,    fontData)
+
+  // Load them into lo mem
+  pEngine = mmgr(QUEUE_LOAD, CODE_FONT_ENGINE<<8 | RES_TYPE_CODE)
+  pFont   = mmgr(QUEUE_LOAD, 1<<8 | RES_TYPE_FONT)
+  mmgr(FINISH_LOAD, 0)
+
+  // Relocate font engine and font data to their final spots up in the language card
+  memcpy(pEngine, fontEngine, fontEngineLen)
+  memcpy(pFont, fontData, fontDataLen)
+
+  // Load the title screen and show it.
+  loadFrameImg(1) // title screen is fixed at #1
+  ^$C050     // graphics
+  ^$C057     // hi-res
+  ^$C054     // page 1
+  ^$C052     // full screen
+  // Hack for real (not emulated) IIc: sometimes displays only lo-bit graphics
+  // unless we do this. *HUGE* thanks to Brendan Robert for the fix!
+  ^$C07E=0   // disable double-hi-res
+  ^$C05F     // disable double-hi-res
+  ^EMUSIG_FULL_COLOR
+
+  // While we're loading, let's get the expander into aux RAM.
+  auxMmgr(SET_MEM_TARGET, expandVec)
+  auxMmgr(QUEUE_LOAD, CODE_EXPAND<<8 | RES_TYPE_CODE)
+
+  mmgr(FINISH_LOAD, 0)
+
+  // Tell the font engine where to find its font
+  setFont(fontData)
+
+  // And free up the font low mem
+  mmgr(FREE_MEMORY, pEngine)
+  mmgr(FREE_MEMORY, pFont)
+
+  // Split the expander (relocating most of it to aux LC ram)
+  expanderSize = splitExpander()
+
+  // Lock in the part of the expander that remains in low aux mem.
+  auxMmgr(FREE_MEMORY, expandVec)
+  auxMmgr(SET_MEM_TARGET, expandVec)
+  auxMmgr(REQUEST_MEMORY, expanderSize)
+  auxMmgr(LOCK_MEMORY, expandVec)
+
+  // To reduce fragmentation, load the resource index directly after the
+  // remaining part of the expander
+  pResourceIndex = expandVec + expanderSize
+  auxMmgr(SET_MEM_TARGET, pResourceIndex)
+  auxMmgr(QUEUE_LOAD, CODE_RESOURCE_INDEX<<8 | RES_TYPE_CODE)
+  auxMmgr(LOCK_MEMORY, pResourceIndex)
+  mmgr(FINISH_LOAD, 0)
+
+  // All done.
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

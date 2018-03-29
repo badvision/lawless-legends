@@ -157,6 +157,7 @@ import gamelib
   word totalMapHeight
   word pCurMap
   byte curMapPartition
+  word pResourceIndex
 
   /////////// Shared string constants //////////////
 

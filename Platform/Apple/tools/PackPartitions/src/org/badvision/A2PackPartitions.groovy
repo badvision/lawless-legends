@@ -2266,6 +2266,7 @@ class A2PackPartitions
         assembleCode("expand", "src/raycast/")
         assembleCode("fontEngine", "src/font/")
         assembleCode("tileEngine", "src/tile/")
+        assembleCode("marks", "src/marks/")
 
         code.each { k,v -> addResourceDep("map", "<root>", "code", k) }
 

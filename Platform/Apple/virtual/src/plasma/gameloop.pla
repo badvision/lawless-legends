@@ -12,11 +12,6 @@
 // Fixed memory locations
 const seed          = $4E     // Incremented continuously by keyboard read routine
 const displayEngine = $6000   // main mem (raycaster and tile engine at same location)
-const expandVec     = $800    // aux mem (only for raycaster)
-const fontEngine    = $EC00   // main mem LC
-const fontEngineLen = $F00    // really a bit less, but this leaves space for debug code
-const fontData      = $FB00   // main mem LC
-const fontDataLen   = $4FA    // really only $474, but we need to fill all gaps
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Other constants
@@ -76,7 +71,7 @@ predef doRender()#0
 predef pause(count)#1
 predef printf2(str, arg1, arg2)#0
 predef playerDeath()#0
-predef startGame(ask)#0
+predef startGame(firstTime, ask)#0
 predef showAnimFrame()#0
 predef showParty()#0
 
@@ -112,7 +107,7 @@ byte heapLocked = FALSE
 byte allowZoneInit = FALSE
 word curEngine = NULL
 word pIntimate = NULL
-word pResourceIndex = NULL
+export word pResourceIndex = NULL
 word pGlobalTileset = NULL
 export byte curMapPartition = 0
 export word pGodModule = NULL
@@ -213,9 +208,6 @@ ysav1       = $35
 ; 16-bit random number seed - incremented by ROM kbd routine
 seed        = $4E
 magic       = $2227 ; there are 2048 magic values that work; this one caught my eye. - MH
-
-; Yes, needs to be adjusted 3 places.
-expandVec   = $800
 
 ; NOTE ABOUT ABSOLUTE CODE ADDRESSING (e.g. STA .var, JMP .label, etc.)
 ; We cannot use it: this code will be preceded by stubs for the PLASMA routines, hence
@@ -502,27 +494,6 @@ asm readAuxByte(ptr)#1
   sta clrAuxRd
   cli
   rts
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-asm splitExpander()#1   // param: expandVec; returns: remaining lo-aux size
-  +asmPlasmRet 0
-  ldy #14
-- lda .splitexp+ABS_OFFSET,y
-  sta $10,y
-  dey
-  bpl -
-  jmp $10
-.splitexp
-!pseudopc $10 {
-  sei     ; prevent interrupts while in aux mem
-  sta setAuxRd
-  jsr +
-  sta clrAuxRd
-  cli
-  rts
-+ jmp (expandVec)
-}
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -914,13 +885,6 @@ export asm brk()#0
   bit setText
   bit page1
   brk
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Set up the font engine
-asm setFont(pFont)#0
-  +asmPlasmNoRet 1
-  jmp SetFont
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3066,7 +3030,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def playerDeath()#0
   callGlobalFunc(GS_DEATH, 0, 0, 0)
-  startGame(FALSE) // don't ask, just load
+  startGame(FALSE, FALSE) // don't ask, just load
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3248,75 +3212,6 @@ def initCmds()#0
     cmdTbl[21] = @moveEast   // right-arrow
     cmdTbl[10] = @moveSouth  // down-arrow
   fin
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Load and display the title screen.
-def loadTitle()#0
-  word pEngine, pFont, expanderSize
-
-  puts("Loading game.\n")
-
-  // Allocate and permanently lock mem for the font engine and its font (up in LC ram)
-  mmgr(START_LOAD, 1) // partition 1 is where code lives
-  mmgr(SET_MEM_TARGET, fontEngine)
-  mmgr(REQUEST_MEMORY, fontEngineLen)
-  mmgr(LOCK_MEMORY,    fontEngine)
-
-  mmgr(SET_MEM_TARGET, fontData)
-  mmgr(REQUEST_MEMORY, fontDataLen)
-  mmgr(LOCK_MEMORY,    fontData)
-
-  // Load them into lo mem
-  pEngine = mmgr(QUEUE_LOAD, CODE_FONT_ENGINE<<8 | RES_TYPE_CODE)
-  pFont   = mmgr(QUEUE_LOAD, 1<<8 | RES_TYPE_FONT)
-  mmgr(FINISH_LOAD, 0)
-
-  // Relocate font engine and font data to their final spots up in the language card
-  memcpy(pEngine, fontEngine, fontEngineLen)
-  memcpy(pFont, fontData, fontDataLen)
-
-  // Load the title screen and show it.
-  loadFrameImg(1) // title screen is fixed at #1
-  ^$C050     // graphics
-  ^$C057     // hi-res
-  ^$C054     // page 1
-  ^$C052     // full screen
-  // Hack for real (not emulated) IIc: sometimes displays only lo-bit graphics
-  // unless we do this. *HUGE* thanks to Brendan Robert for the fix!
-  ^$C07E=0   // disable double-hi-res
-  ^$C05F     // disable double-hi-res
-  ^EMUSIG_FULL_COLOR
-
-  // While we're loading, let's get the expander into aux RAM.
-  auxMmgr(SET_MEM_TARGET, expandVec)
-  auxMmgr(QUEUE_LOAD, CODE_EXPAND<<8 | RES_TYPE_CODE)
-
-  mmgr(FINISH_LOAD, 0)
-
-  // Tell the font engine where to find its font
-  setFont(fontData)
-
-  // And free up the font low mem
-  mmgr(FREE_MEMORY, pEngine)
-  mmgr(FREE_MEMORY, pFont)
-
-  // Split the expander (relocating most of it to aux LC ram)
-  expanderSize = splitExpander()
-
-  // Lock in the part of the expander that remains in low aux mem.
-  auxMmgr(FREE_MEMORY, expandVec)
-  auxMmgr(SET_MEM_TARGET, expandVec)
-  auxMmgr(REQUEST_MEMORY, expanderSize)
-  auxMmgr(LOCK_MEMORY, expandVec)
-
-  // To reduce fragmentation, load the resource index directly after the
-  // remaining part of the expander
-  pResourceIndex = expandVec + expanderSize
-  auxMmgr(SET_MEM_TARGET, pResourceIndex)
-  auxMmgr(QUEUE_LOAD, CODE_RESOURCE_INDEX<<8 | RES_TYPE_CODE)
-  auxMmgr(LOCK_MEMORY, pResourceIndex)
-  mmgr(FINISH_LOAD, 0)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3710,15 +3605,20 @@ export def buySell(storeCode, profitRatio)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def startGame(ask)#0
+def startGame(firstTime, ask)#0
   word p_module
 
   typeHash = hashBuffer(@typeTbl_TGlobal, @typeTbls - @typeTbl_TGlobal) ^ HEAP_BOTTOM
 
   // Create a new game or load an existing one
   mmgr(START_LOAD, 1) // code is in partition 1
+  if firstTime
+    auxMmgr(SET_MEM_TARGET, $800) // well above where expander loads at startup
+    auxMmgr(REQUEST_MEMORY, $6000) // plenty of room for expander
+  fin
   p_module = mmgr(QUEUE_LOAD, MOD_DISKOPS<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
+  if firstTime; p_module()=>diskops_startup(); fin
   if p_module()=>diskops_newOrLoadGame(ask)
     mapIs3D = q_mapIs3D
     mapNum = q_mapNum
@@ -3738,8 +3638,7 @@ end
 // Main code.
 //
 scriptDisplayStr(@_scriptDisplayStr) // 1-time init
-loadTitle()
-startGame(TRUE) // ask whether new or load
+startGame(TRUE, TRUE) // first time init; ask whether new or load
 kbdLoop()
 
 done

@@ -398,6 +398,11 @@ brkHandler:
 	pha
 	and #$10		; check for BRK bit
 	beq +			; if not brk, handle without bank switch
+	lda $45
+	sta clrAuxZP
+	sta $45
+	sta clrAuxRd
+	sta clrAuxWr
 	bit setROM		; for BRK, do bank switch
 	bit $c051		; also switch to text screen 1
 	bit $c054

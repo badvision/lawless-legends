@@ -2285,48 +2285,29 @@ pl_initMap: !zone
 
 ; Save automap bits
 saveAutomap: !zone
+	lda mapBase
+	sec		; skip sentinel at start of row
+	adc mapWidth	; plus skip row of sentinels
+	pha
+	lda mapBase+1
+	adc #0
+	pha
+
 	lda mapNum
-	ora #$80
+	ora #$80	; map number: hi bit to mark 3D maps
+	pha
+
 	ldx mapWidth
 	ldy mapHeight
+	dey		; height: adjust for two sentinel rows
+	dey
+	txa
+	dex		; width: adjust for two sentinel columns
+	dex
+
 	sta setAuxZP
-;	jsr getAutomapBuf ; TODO
+	;jsr saveMarks
 	sta clrAuxZP
-	sta pDst
-	sty pDst+1
-	lda mapBase
-	sta pMap
-	lda mapBase+1
-	sta pMap+1
-	lda #$80
-	sta tmp
-	lda mapHeight
-	sta lineCt
-	ldy #0		; Y stays zero for the entire process below
-.row	ldx mapWidth
-.col	lda (pMap),y
-	asl
-	asl		; shift $40 bit (automap) into carry
-	ror tmp		; save the bit
-	bcc +
-	lda tmp
-	sta (pDst),y
-	lda #$80	; restore sentinel
-	sta tmp
-	inc pDst
-	bne +
-	inc pDst+1
-+	inc pMap
-	bne +
-	inc pMap+1
-+	dex
-	bne .col
-	dec lineCt
-	bne .row
-	lda tmp
--	lsr		; low-align last set of bits
-	bcc -
-	sta (pDst),y
 	rts
 
 ; Following are log/pow lookup tables. For speed, align them on a page boundary.

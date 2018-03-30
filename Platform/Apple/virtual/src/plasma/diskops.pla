@@ -135,6 +135,30 @@ asm splitExpander()#1   // param: expandVec; returns: remaining lo-aux size
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Relocate the automap mark queue/flush code to aux LC
+asm moveMarks(pMarks)#0
+  +asmPlasmNoRet 1
+  sta setAuxZP
+  bit setLcRW+lcBank1
+  bit setLcRW+lcBank1
+  sta pTmp
+  sty pTmp+1
+  ldy #0
+- lda (pTmp),y
+  sta $DB00,y
+  iny
+  bne -
+  inc pTmp+1
+- lda (pTmp),y
+  sta $DC00,y     ; two pages of code should be plenty
+  iny
+  bne -
+  bit setLcRW+lcBank2
+  sta clrAuxZP
+  rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Params: cmd | open<<8, filename, addr, size. Returns: status (for open only)
 asm callProRWTS(cmdPlusOpenFlg, filename, addr, size)#1
     +asmPlasmRet 4
@@ -184,7 +208,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load and display the title screen, set up everything in memory
 def _startup()#1
-  word pEngine, pFont, expanderSize
+  word pEngine, pFont, pMarks, expanderSize
 
   puts("Loading game.\n")
 
@@ -209,6 +233,9 @@ def _startup()#1
   memcpy(pEngine, fontEngine, fontEngineLen)
   memcpy(pFont, fontData, fontDataLen)
 
+  // Tell the font engine where to find its font
+  setFont(fontData)
+
   // Load the title screen and show it.
   loadFrameImg(1) // title screen is fixed at #1
   ^$C050     // graphics
@@ -225,14 +252,17 @@ def _startup()#1
   auxMmgr(SET_MEM_TARGET, expandVec)
   auxMmgr(QUEUE_LOAD, CODE_EXPAND<<8 | RES_TYPE_CODE)
 
+  // Also the automap marking queue/flush code.
+  pMarks = mmgr(QUEUE_LOAD, CODE_MARKS<<8 | RES_TYPE_CODE)
   mmgr(FINISH_LOAD, 0)
 
-  // Tell the font engine where to find its font
-  setFont(fontData)
+  // Move the marks code up to its out-of-the-way corner of RAM
+  moveMarks(pMarks)
 
-  // And free up the font low mem
+  // And free up the font low mem and marks
   mmgr(FREE_MEMORY, pEngine)
   mmgr(FREE_MEMORY, pFont)
+  mmgr(FREE_MEMORY, pMarks)
 
   // Split the expander (relocating most of it to aux LC ram)
   expanderSize = splitExpander()

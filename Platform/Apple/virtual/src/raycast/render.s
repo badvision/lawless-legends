@@ -54,6 +54,8 @@ DEBUG_COLUMN	= -1
 !source "../include/fontEngine.i"
 ; PLASMA
 !source "../include/plasma.i"
+; Automap marks
+!source "../include/marks.i"
 
 ; Local constants
 MAX_SPRITES	= 64		; max # sprites visible at once
@@ -1748,6 +1750,29 @@ pl_texControl: !zone {
 	inx
 	cpx nTextures
 	bne -
+	; This is also our signal to save the automap bits
+	ldx mapWidth
+	ldy mapHeight
+	lda mapBase
+	sec		; skip sentinel at start of row
+	adc mapWidth	; plus skip row of sentinels
+	sta setAuxZP
+	pha
+	lda mapBase+1
+	adc #0
+	pha
+	lda mapNum
+	ora #$80	; map number: hi bit to mark 3D maps
+	pha
+	dey		; height: adjust for two sentinel rows
+	dey
+	txa		; stride is unadjusted width
+	dex		; width: adjust for two sentinel columns
+	dex
+	bit setLcRW+lcBank1
+	jsr saveMarks
+	bit setLcRW+lcBank2
+	sta clrAuxZP
 	rts
 }
 
@@ -2242,6 +2267,7 @@ pl_setAvatar: !zone {
 
 ;-------------------------------------------------------------------------------
 ; The real action
+; Parameters: mapPartition, mapNum, pMapData, x, y, dir
 pl_initMap: !zone
 	; Figure out PLASMA stack for calling script init
 	txa
@@ -2251,6 +2277,9 @@ pl_initMap: !zone
 	; Record partition number of the map and textures
 	lda evalStkL+5,x
 	sta mapPartition
+	; Record the map number
+	lda evalStkL+4,x
+	sta mapNum
 	; Record the address of the map
 	lda evalStkL+3,x
 	sta mapHeader
@@ -2282,33 +2311,6 @@ pl_initMap: !zone
 	jsr makeLines
 	jsr setExpansionCaller
 	jmp renderFrame
-
-; Save automap bits
-saveAutomap: !zone
-	lda mapBase
-	sec		; skip sentinel at start of row
-	adc mapWidth	; plus skip row of sentinels
-	pha
-	lda mapBase+1
-	adc #0
-	pha
-
-	lda mapNum
-	ora #$80	; map number: hi bit to mark 3D maps
-	pha
-
-	ldx mapWidth
-	ldy mapHeight
-	dey		; height: adjust for two sentinel rows
-	dey
-	txa
-	dex		; width: adjust for two sentinel columns
-	dex
-
-	sta setAuxZP
-	;jsr saveMarks
-	sta clrAuxZP
-	rts
 
 ; Following are log/pow lookup tables. For speed, align them on a page boundary.
 	!align 255,0

@@ -30,7 +30,8 @@ MAX_SEGS	= 96
 DEBUG		= 0
 SANITY_CHECK	= 0		; also prints out request data
 
-; Zero page temporary variables
+; Zero page temporary variables.
+; Don't move these - they overlap in clever ways with ProRWTS shadows (see below)
 tmp		= $2	; len 2
 pTmp		= $4	; len 2
 reqLen		= $6	; len 2

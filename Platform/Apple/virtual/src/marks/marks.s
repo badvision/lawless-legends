@@ -13,8 +13,16 @@
 ; Use hi-bit ASCII for Apple II
 !convtab "../include/hiBitAscii.ct"
 
+; Other equates
+!source "../include/prorwts.i"
+
+target  = $3	; len 1
 tmp	= $4	; len 2
-pTmp	= $6	; len 2
+pTmp    = $6    ; len 2
+pBuf	= $8	; len 2
+; free: $9-$F (but used by prorwts)
+retAddr = $10    ; len 2
+width   = $12	 ; len 1
 
 	jmp saveMarks
 
@@ -25,69 +33,54 @@ pTmp	= $6	; len 2
 ;       TOS-1 = ...and hi byte
 ;       TOS   = map number (with hi bit set if 3D)
 saveMarks: !zone
+.lineCt = tmp+1
 	sta .adStrd+1
-	stx .cmpWd+1
-	sty lineCt
+	stx width
+	sty .lineCt
 	pla
+	sta retAddr
+	pla
+	sta retAddr+1
+.rescan	lda width	; need to reload (not just txa) in case rescanning after write
 	clc
-	adc #1
-	sta .ret+1
-	pla
-	adc #0
-	sta .ret+2
-	txa
-	adc #7	; carry already clear from above
+	adc #7
 	lsr
 	lsr
 	lsr
-	sta .addBSz+1
+	sta tmp		; number of bytes per row
 	lda #0
--	clc
-.addBSz	adc #11		; self-modified above
-	dey		; multiply height * size-of-encoded-row
-	bne .addBSz	; Y=0 at end of loop (used below)
-	tax		; X is now the total # of encoded bytes
-	inx
-	inx		; plus header size
-
-	lda #<bufStart
-	sta pTmp
-	lda #>bufStart
-	sta pTmp+1
-
-.scan	pla
-	pha
-	cmp (pTmp),y
-	beq .found
-	lda (pTmp),y
-	beq .notfnd
-	iny
-	lda (pTmp),y
-	dey
 	clc
-	adc pTmp
-	sta pTmp
-	bcc .scan
-	inc pTmp+1
-	bne .scan	; always taken
+-	adc tmp
+	dey		; multiply height * bytes-per-row
+	bne -		; Y=0 at end of loop (used below)
+	tax		; X is # of encoded bytes...
+	inx
+	inx		; ...plus header size (2 bytes)
+	pla		; map number to look for
+	pha		; but keep on stack in case of rescanning or not found
+	jsr scan
+	bcs .found
 
-.notfnd	pla
-	sta (pTmp),y
+.notfnd	pla		; map number
+	sta (pBuf),y
 	iny
-	txa
-	sta (pTmp),y
+	txa		; get back record length
+	sta (pBuf),y
 	tay		; save offset for end-of-buffer marking
 	clc
-	adc pTmp
+	adc pBuf
 	bcc +
-	lda pTmp+1
+	lda pBuf+1
 	cmp #>(bufEnd-256)
 	bcs .full
 +	lda #0		; end-of-buffer mark, and also mask
-	sta (pTmp),y	; mark new end of buffer
-	beq .go
+	sta (pBuf),y	; mark new end of buffer
+	beq .go		; always taken
 
-.found	pla
+.full	jsr writeMarks	; write out existing marks and reset buffer
+	jmp .rescan
+
+.found	pla		; done with map number - discard it
 	lda #$FF
 .go	sta .mask1+1
 	sta .mask2+1
@@ -106,24 +99,24 @@ saveMarks: !zone
 	asl		; shift $40 bit (automap) into carry
 	ror tmp		; save the bit
 	bcc +
-	lda (pTmp),y
+	lda (pBuf),y
 .mask1	and #11		; self-modified above
 	ora tmp
-	sta (pTmp),y
+	sta (pBuf),y
 	iny
 	lda #$80	; restore sentinel
 	sta tmp
 +	inx
-.cmpWd	cpx #11		; check width (self-modified above)
+	cpx width
 	bne .get	; loop until row width is complete
 	lda tmp
 	bmi +		; skip final store if no bits
 -	lsr tmp		; low-align last set of bits in row
 	bcc -
-	lda (pTmp),y
+	lda (pBuf),y
 .mask2	and #11		; self-modified above
 	ora tmp
-	sta (pTmp),y
+	sta (pBuf),y
 	iny
 +	lda .get+1
 	clc
@@ -131,12 +124,131 @@ saveMarks: !zone
 	sta .get+1
 	bcc +
 	inc .get+2
-+	dec lineCt
++	dec .lineCt
 	bne .nxtrow
-.ret	jmp $1111	; self-modified above
-.full	brk		; TODO
+	jsr writeMarks	; for testing only
+.ret	lda retAddr+1
+	pha
+	lda retAddr
+	pha
+	rts
 
-lineCt	!byte 0
+; Scan the buffer for A-reg as target map
+; Advances pBuf through the buffer
+; If a match is found, SEC, and pBuf points to the matching record
+; Else, CLC and pBuf points to the buffer terminator
+; In any case, Y=0 on exit
+scan: !zone
+	sta target
+	lda #<bufStart
+	sta pBuf
+	lda #>bufStart
+	sta pBuf+1
+-	ldy #0
+	lda (pBuf),y
+	clc
+	beq +		; if end of buffer, Z=1 and C=0
+	cmp target
+	beq +		; if match, Z=1 and C=1
+	iny
+	lda (pBuf),y
+	adc pBuf
+	sta pBuf
+	bcc -
+	inc pBuf+1
+	bcs -		; always taken
++	rts
+
+writeMarks: !zone
+	; First, open the file and seek to offset $1200
+	lda #<filename
+	sta namlo
+	lda #>filename
+	sta namhi
+	ldx #0
+	stx auxreq
+	ldy #$12
+	txa		; 0=cmdseek
+	clc		; opendir
+	jsr callProRWTS
+	; Read the length of the marks data
+	ldx #$40	; read to $4000
+	stx ldrhi
+	ldy #0
+	sty ldrlo
+	ldx #2		; length 2
+	sty ldrlo
+	lda #cmdread
+	sec		; rdwrpart
+	jsr callProRWTS
+	; Read the existing marks data
+	lda #cmdread
+	jsr .rw
+	; Begin scan
+	lda #2
+	sta pTmp
+	lda #$40
+	sta pTmp+1
+.outer	ldy #0
+	lda (pTmp),y
+	beq .end
+	jsr scan
+	iny
+	lda (pTmp),y	; need length in any case
+	bcc .next	; if no match, skip this record
+	pha		; save record length
+	cmp (pBuf),y	; sanity check
+	beq +
+	brk		; bad: length mismatch
++	tax
+-	iny
+	lda (pTmp),y
+	ora (pBuf),y	; merge the mark bits
+	sta (pTmp),y
+	dex
+	bne -
+	pla		; retrieve record length
+	clc
+.next	adc pTmp
+	sta pTmp
+	bcc .outer
+	inc pTmp+1
+	bne .outer	; always taken
+.end	lda #0
+	sta bufStart	; clear buffer of marks
+	ldx #3		; reseek
+-	sta rwts_mark,x
+	dex
+	bpl -
+	ldx #2		; seek to start of marks on disk: offset $1202
+	ldy #$12
+	lda #cmdseek
+	sec		; rdwrpart
+	jsr callProRWTS
+	lda #cmdwrite	; write new marks
+.rw	ldx #2		; marks at $4002
+	stx ldrlo
+	ldx #$40
+	stx ldrhi
+	ldx $4000	; length of marks
+	ldy $4001
+	sec
+	; fall through to final ProRWTS command
+callProRWTS:
+	stx sizelo
+	sty sizehi
+	sta reqcmd
+	bcc +
+	jmp proRWTS	; rdwrpart; note: prorwts does not set status, so don't check it.
++	jsr proRWTS+3	; opendir; status is updated
+	lda status
+	bne .err
+	rts
+.err	brk
+
+filename
+ !byte 11 ; string len
+ !raw "GAME.1.SAVE"	; 'raw' chars to get lo-bit ascii that ProDOS likes.
 
 bufStart = *
 	!byte 0

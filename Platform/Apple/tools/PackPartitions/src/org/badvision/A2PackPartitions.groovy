@@ -58,7 +58,7 @@ class A2PackPartitions
     static final int FLOPPY_SIZE = 35*8  // good old 140k floppy = 280 blks
     static final int AC_KLUDGE = 2      // minus 1 to work around last-block bug in AppleCommander
     static final int DOS_OVERHEAD = 3 // only 3 blks overhead! ProRWTS is so freaking amazing.
-    static final int SAVE_GAME_SIZE = 10 // 9 blocks data, 1 block index
+    static final int SAVE_GAME_BYTES = 0x1200
     static final int MAX_DISKS = 20 // for now this should be way more than enough
 
     def typeNumToDisplayName = [1:  "Code",
@@ -103,8 +103,8 @@ class A2PackPartitions
     def mapNames  = [:]  // map name (and short name also) to map.2dor3d, map.num
     def sysCode   = [:]  // memory manager
     def code      = [:]  // code name to code.num, code.buf
-    def maps2D    = [:]  // map name to map.num, map.buf
-    def maps3D    = [:]  // map name to map.num, map.buf
+    def maps2D    = [:]  // map name to map.num, map.buf, map.order, map.width, map.height
+    def maps3D    = [:]  // map name to map.num, map.buf, map.order, map.width, map.height
     def tiles     = [:]  // tile id to tile.buf
     def smTiles   = [:]  // tile id to small-size tile.buf
     def tileSets  = [:]  // tileset name to tileset.num, tileset.buf
@@ -713,7 +713,7 @@ class A2PackPartitions
                 sectionNums[vsect][hsect] = num
                 def sectName = "$mapName-$hsect-$vsect"
                 addResourceDep("map", mapName, "map2D", sectName)
-                maps2D[sectName] = [num:num, order:mapEl.@order, buf:buf]
+                maps2D[sectName] = [num:num, order:mapEl.@order, buf:buf, width: TILES_PER_ROW, height: ROWS_PER_SECTION]
             }
         }
 
@@ -1153,7 +1153,8 @@ class A2PackPartitions
             def (scriptModule, locationsWithTriggers) = packScripts(mapEl, name, rows[0].size(), rows.size())
             def buf = ByteBuffer.allocate(50000)
             write3DMap(buf, name, rows, scriptModule, locationsWithTriggers)
-            maps3D[name] = [num:num, order:mapEl.@order, buf:compress(unwrapByteBuffer(buf))]
+            maps3D[name] = [num:num, order:mapEl.@order, buf:compress(unwrapByteBuffer(buf)),
+                            width:rows[0].size(), height:rows.size()]
             allMaps << [name:name, order:parseOrder(mapEl.@order)]
         }
     }
@@ -1920,7 +1921,7 @@ class A2PackPartitions
                 //println "LEGENDOS blks=$coreBlks"
                 availBlks -= coreBlks
                 // Disk 1 also holds the save game file
-                availBlks -= SAVE_GAME_SIZE
+                availBlks -= calcSaveGameBlks()
             }
 
             def (chunks, spaceUsed) = fillDisk(partNum, availBlks, mapsTodo, mapsToDupe)
@@ -3617,6 +3618,31 @@ end
         }
     }
 
+    def calcAutomapMarksSize() {
+        int size = 0
+        maps2D.each { k,v -> size += 2 + ((v.width+7)>>3)*(v.height) } // 2 = mapNum+len header
+        maps3D.each { k,v -> size += 2 + ((v.width+7)>>3)*(v.height) } // 2 = mapNum+len header
+        size += 1 // end of marks
+        return size
+    }
+
+    def calcSaveGameBlks() {
+        def size = SAVE_GAME_BYTES
+        size += 2 // header for size-of-marks
+        size += calcAutomapMarksSize()
+        return ((size+511)>>9) + 1
+    }
+
+    def writeEmptyMarks(outStream, maps, flag) {
+        maps.each { k, v ->
+            outStream.write((byte)(v.num | flag))
+            def size = ((v.width + 7) >> 3) * v.height
+            assert size > 0 && size < 255
+            outStream.write((byte)(size+2)) // +2 so it includes the header
+            (1..size).each { outStream.write( (byte) 0) }
+        }
+    }
+
     def copyOrCreateSave(dstDir)
     {
         def prevSave = new File("build/prevGame/game.1.save.bin#0")
@@ -3627,9 +3653,19 @@ end
         else {
             // Create empty save file
             newSave.withOutputStream { outStream ->
-                (0..(18*256 - 1)).each {
-                    outStream.write( (byte) 0)
-                }
+                // First, a big block for copying the small-object heap
+                (1..SAVE_GAME_BYTES).each { outStream.write( (byte) 0) }
+
+                // Followed by empty automap marks
+                // Header: size of remaining marks data
+                int marksSize = calcAutomapMarksSize()
+                outStream.write((byte)(marksSize & 0xFF))
+                outStream.write((byte)((marksSize >> 8) & 0xFF))
+                // Then empty marks for each map
+                writeEmptyMarks(outStream, maps2D, 0)
+                writeEmptyMarks(outStream, maps3D, 0x80)
+                // And a terminator
+                outStream.write((byte)0)
             }
         }
     }

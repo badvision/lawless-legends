@@ -78,8 +78,8 @@
 ;          0D7B.9xxx (free, managed)
 ;          A0xx.BFFF gameloop PLASMA code (loaded as high as possible)
 ;          C000.CFFF I/O
-; (bank 1) D000.DAFF ProRWTS runtime
-; (bank 1) DB00.DFFF (unused)
+; (bank 1) D000.DAFF ProRWTS runtime and buffers
+; (bank 1) DB00.DFFF automap mark queueing code and buffer
 ; (bank 2) D000.DFFF texture expander part 2
 ;          E000.FFF9 texture expander part 3
 ;          FFFA.FFFF 6502 vectors

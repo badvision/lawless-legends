@@ -88,6 +88,8 @@ def kbdTeleport()#1
   dir = getDir()
   printf3("Current: X=%d Y=%d Facing=%d\n", x, y, dir)
 
+  d3 = mapIs3D
+  num = mapNum
   printf1("3D [%d]: ", mapIs3D)
   d3 = parseDecWithDefault(readStr(), mapIs3D)
   if d3 > 1; d3 = 1; fin

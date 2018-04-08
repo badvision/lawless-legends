@@ -1164,12 +1164,23 @@ grabSegment: !zone
 ; Input: None
 ; Output: Y-reg = segment grabbed
 ; Note: Does not disturb X reg
-	ldy unusedSeg	; first unused segment
-	beq .fail	; ran out?
+	lda #1		; if we run out, we will try one reclaim
+	sta .reclaimFlg
+.try	ldy unusedSeg	; first unused segment
+	beq .many	; ran out?
 	lda tSegLink,y	; no, grab next segment in list
 	sta unusedSeg	; that is now first unused
 	rts		; return with Y = the segment grabbed
+.many	dec .reclaimFlg
+	bmi .fail
+	txa
+	pha
+	jsr reclaim
+	pla
+	tax
+	jmp .try
 .fail:	jsr inlineFatal : !text "MaxSegs", 0
+.reclaimFlg !byte 0
 
 ;------------------------------------------------------------------------------
 releaseSegment: !zone
@@ -1302,6 +1313,9 @@ dispatch:
 +	cmp #QUEUE_LOAD
 	bne +
 	jmp mem_queueLoad
++	cmp #FIND_IN_MEM
+	bne +
+	jmp mem_find
 +	cmp #LOCK_MEMORY
 	bne +
 	jmp mem_lock
@@ -1791,6 +1805,11 @@ mem_calcFree: !zone
 
 ;------------------------------------------------------------------------------
 mem_queueLoad: !zone
+	clc
+	!byte $A5		; to skip next instructon
+mem_find:
+	sec
+	ror .findonly
 	stx resType		; save resource type
 	sty resNum		; save resource number
 	cpx #RES_TYPE_MODULE	; loading a module?
@@ -1822,6 +1841,8 @@ mem_queueLoad: !zone
 	sta tSegRes,x
 ; fall through to re-load the resource
 .notFound:
+	bit .findonly
+	bmi .nullret
 	ldx resType		; restore res type
 	ldy resNum		; and number
 	lda #QUEUE_LOAD		; set to re-try same operation
@@ -1837,12 +1858,18 @@ mem_queueLoad: !zone
 	ora #$80		; reactivate bytecode if necessary
 	sta tSegType,y
 	bne .found		; (always taken) we have both parts -- no need for fixups
+.nullret
+	ldy #0			; find-only mode, not found: return null
+	ldx #0
+	rts
 ; The following is for the unusual situation where somehow we have the main memory
 ; part (the module) without the aux part (the bytecode). If we allowed that to go
 ; forward, we'd end up running fixups on both parts, and double-fixing-up the module
 ; is a very bad thing (fixups should not be cumulative). So we force both parts out
 ; of memory before proceeding.
-.reload	jsr .scanForBytecode
+.reload	bit .findonly
+	bmi .nullret
+	jsr .scanForBytecode
 	jsr .forceFree		; if bytecode without module, forcibly free it
 	jsr .scanForModule
 	jsr .forceFree		; if module without bytecode, forcibly free it
@@ -1883,6 +1910,7 @@ mem_queueLoad: !zone
 +	lda #0
 	sta tSegType,x		; force reload so fixup works right
 ++	rts
+.findonly !byte 0
 
 ;------------------------------------------------------------------------------
 diskLoader: !zone

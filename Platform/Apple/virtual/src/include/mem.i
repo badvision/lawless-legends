@@ -339,20 +339,15 @@ ADVANCE_ANIMS = $1C
     ; or main) are processed.
         
 ;------------------------------------------------------------------------------
-CHAIN_LOADER = $1E
-    ; Input: X-reg / Y-reg - pointer to loader (X=lo, Y=hi) to add to chain
+FIND_IN_MEM = $1D
+    ; Input: X-reg - resource type
+    ;        Y-reg - resource number
     ;
-    ; Output: None
+    ; Output: X-reg(lo) / Y-reg (hi) - address of resource, or NULL
     ;
-    ; Add a loader to the chain just after this loader. The current next
-    ; loader (if there is one) will be passed to the new loader with another
-    ; CHAIN_LOADER command.
-    ;
-    ; The purpose of a loader chain is to insert faster devices between the
-    ; main/aux loader (fastest) and the disk loader (slowest). Note that the 
-    ; main mem and aux mem loaders are conceptually one; a chained loader will
-    ; always be inserted after them, not between them.
-        
+    ; If the given resource is present in memory, mark it as active and return
+    ; its address. Otherwise returns 0000.
+
 ;------------------------------------------------------------------------------
 FATAL_ERROR = $1F
     ; Input:  X-reg(lo) / Y-reg(hi): message pointer. Message can be:

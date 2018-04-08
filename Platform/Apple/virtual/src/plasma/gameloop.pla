@@ -95,6 +95,9 @@ byte textClearCountdown = 0
 export byte isPlural = 0 // valid values: 0 or $40
 byte inScript = FALSE
 
+byte scriptModule = 0
+byte prevScriptModule = 0
+
 export word skyNum = 9
 export word groundNum = 10
 export byte portraitNum = 0
@@ -2627,17 +2630,14 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Get a key and dispatch it to a command. Then do it again, forever.
 def kbdLoop()#0
-  word key, func
-  byte xreg, tmp
+  word key, func, tmp
+  byte xreg
   xreg = getXReg()
   while TRUE
     // If the asm routines all work correctly, by the time we get to the top of this loop
     // the X register should always have the same value.
     tmp = getXReg()
-    if tmp <> xreg
-      printHex(xreg<<8 | tmp)
-      fatal("xRegChg")
-    fin
+    if tmp <> xreg; printHex(xreg<<8 | tmp); fatal("xRegChg"); fin
     key = getUpperKey()
     if key >= 0 and key < $60
       func = cmdTbl[key]
@@ -2649,12 +2649,14 @@ def kbdLoop()#0
         func()
       fin
     fin
-    if q_mapNum
-      setMap(q_mapIs3D, q_mapNum, q_x, q_y, q_dir)
-      q_mapNum = 0
-    fin
-    if needRender
-      doRender()
+    if q_mapNum; setMap(q_mapIs3D, q_mapNum, q_x, q_y, q_dir); q_mapNum = 0; fin
+    if needRender; doRender(); fin
+    if prevScriptModule
+      if prevScriptModule <> scriptModule
+        tmp = mmgr(FIND_IN_MEM, prevScriptModule<<8 | RES_TYPE_MODULE)
+        if tmp; mmgr(FREE_MEMORY, tmp); fin
+      fin
+      prevScriptModule = 0
     fin
   loop
 end
@@ -2681,10 +2683,19 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set initial info for the scripts on this map: the name of the map, its trigger table, and the
 // maximum extent (width, height). This is called by the init function for the scripts.
-export def setScriptInfo(mapName, timeFn, trigTbl, wdt, hgt)#0
+export def setScriptInfo(mapName, moduleNum, timeFn, trigTbl, wdt, hgt)#0
+  word tmp
 
   // Record the time event function, if any
   timeEventFunc = timeFn
+
+  // Record new script, and prepare to free old one. While theoretically there could be a
+  // circumstance where the old prev is still un-freed, it's rare enough that it'd be hard to
+  // get freeing it here correct. So we leave freeing to the main keyboard loop.
+  if scriptModule <> moduleNum
+    prevScriptModule = scriptModule
+    scriptModule = moduleNum
+  fin
 
   // Grab the trigger table origins (used so the table can be more compact)
   triggerOriginX = trigTbl=>0

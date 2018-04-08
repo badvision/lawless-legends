@@ -1176,7 +1176,7 @@ class A2PackPartitions
         if (!new File(scriptDir).exists())
             new File(scriptDir).mkdirs()
         ScriptModule module = new ScriptModule()
-        module.packMapScripts(mapName, new File(new File(scriptDir), name+".pla.new"),
+        module.packMapScripts(mapName, num, new File(new File(scriptDir), name+".pla.new"),
             mapEl.scripts ? mapEl.scripts[0] : [],
             totalWidth, totalHeight, xRange, yRange)
         replaceIfDiff(scriptDir + name + ".pla")
@@ -3960,7 +3960,7 @@ end
          * Pack scripts from a map. Either the whole map, or optionally just an X and Y
          * bounded section of it.
          */
-        def packMapScripts(mapName, outFile, inScripts, maxX, maxY, xRange = null, yRange = null)
+        def packMapScripts(mapName, moduleNum, outFile, inScripts, maxX, maxY, xRange = null, yRange = null)
         {
             startScriptFile(outFile)
 
@@ -3997,7 +3997,7 @@ end
 
             // Always generate outer initialization code, because even if there were no scripts,
             // we still need an init to display the map name.
-            makeInit(mapName, initScript, timeScript, maxX, maxY)
+            makeInit(mapName, moduleNum, initScript, timeScript, maxX, maxY)
 
             out.close()
         }
@@ -4845,12 +4845,12 @@ end
             out << "byte = \$FF\n\n"
         }
 
-        def makeInit(mapName, initScript, timeScript, maxX, maxY)
+        def makeInit(mapName, moduleNum, initScript, timeScript, maxX, maxY)
         {
             // Code to register the  map name, trigger table, and map extent.
             def shortName = mapName.replaceAll(/[\s-]*[23][dD][-0-9]*$/, '').take(16)
             def timeFunc = timeScript ? "@${scriptNames[timeScript]}" : "NULL"
-            out << "setScriptInfo(\"$shortName\", $timeFunc, @triggerTbl, $maxX, $maxY)\n"
+            out << "setScriptInfo(\"$shortName\", $moduleNum, $timeFunc, @triggerTbl, $maxX, $maxY)\n"
 
             // Call init script if one was defined
             if (initScript)

@@ -21,6 +21,7 @@
 !source "../include/global.i"
 !source "../include/mem.i"
 !source "../include/plasma.i"
+!source "../include/marks.i"
 
 DEBUG       = 0     ; 1=some logging, 2=lots of logging
 
@@ -188,6 +189,47 @@ LOAD_SECTION
 }
 
 ;----------------------------------------------------------------------
+SAVE_MARKS
+	STA setAuxZP
+	STA X_COUNTER	; temporarily save map num
+	TXA		; map pointer lo
+	CLC
+	ADC #6		; size of header
+	PHA
+	TYA		; map pointer hi
+	ADC #0
+	PHA
+	LDX #SECTION_WIDTH
+	LDY #SECTION_HEIGHT
+	LDA X_COUNTER	; map number
+	PHA
+	TXA		; stride is the same as width
+	BIT setLcRW+lcBank1
+	JSR saveMarks
+	BIT setLcRW+lcBank2
+	STA clrAuxZP
+	RTS
+
+;----------------------------------------------------------------------
+; >> RELEASE MAP SECTION (FLUSHING AUTOMAP BITS)
+!macro freeMap mapId, mapPtr {
+	LDA mapId
+	CMP #NOT_LOADED	; skip if not allocated
+	BEQ +
+	LDX mapPtr
+	LDY mapPtr+1
+	JSR SAVE_MARKS
+	LDX mapPtr
+	LDY mapPtr+1
+	LDA #0
+	STA mapPtr
+	STA mapPtr+1
+	LDA #FREE_MEMORY
+	JSR mainLoader
++
+}
+
+;----------------------------------------------------------------------
 ; >> LOAD TILES
 ;   Load tile resource (A = Resource ID)
 LOAD_TILESET
@@ -318,7 +360,6 @@ LOAD_SCRIPTS_NO_CALC:
 	RTS
 .got	CMP SCRIPTS_ID
 	BNE .diff
-	+finishLoad
 	RTS
 .diff	STA SCRIPTS_ID
 	PHA
@@ -348,10 +389,11 @@ LOAD_SCRIPTS_NO_CALC:
 }
 
 FINISH_MAP_LOAD
-	+finishLoad
+	+finishLoad		; yes we need...
 	+loadAllTiles
-	+finishLoad
+	+finishLoad		; ...all these (for certain sequences including teleport)
 	+loadScripts
+	+finishLoad
 	RTS
 
 ; >> CHECK CROSSINGS
@@ -408,8 +450,8 @@ CROSS_NORTH
 	PHA
 	+freeAllTiles
 	+freeScripts
-	+freeResource SW_MAP_LOC
-	+freeResource SE_MAP_LOC
+	+freeMap SW_MAP_ID, SW_MAP_LOC
+	+freeMap SE_MAP_ID, SE_MAP_LOC
 	LDA ORIGIN_Y
 	SEC
 	SBC #SECTION_HEIGHT
@@ -462,8 +504,8 @@ CROSS_EAST
 	PHA
 	+freeAllTiles
 	+freeScripts
-	+freeResource NW_MAP_LOC
-	+freeResource SW_MAP_LOC
+	+freeMap NW_MAP_ID, NW_MAP_LOC
+	+freeMap SW_MAP_ID, SW_MAP_LOC
 	; Adjust origin and relative pos
 	LDA ORIGIN_X
 	CLC
@@ -516,8 +558,8 @@ CROSS_SOUTH
 	PHA
 	+freeAllTiles
 	+freeScripts
-	+freeResource NW_MAP_LOC
-	+freeResource NE_MAP_LOC
+	+freeMap NW_MAP_ID, NW_MAP_LOC
+	+freeMap NE_MAP_ID, NE_MAP_LOC
 	LDA ORIGIN_Y
 	CLC
 	ADC #SECTION_HEIGHT
@@ -576,8 +618,8 @@ CROSS_WEST
 	PHA
 	+freeAllTiles
 	+freeScripts
-	+freeResource NE_MAP_LOC
-	+freeResource SE_MAP_LOC
+	+freeMap NE_MAP_ID, NE_MAP_LOC
+	+freeMap SE_MAP_ID, SE_MAP_LOC
 	; Adjust origin and relative pos
 	LDA ORIGIN_X
 	SEC
@@ -880,6 +922,9 @@ ROW_OFFSET = 3
 	LDA #>emptyTile+1
 	BNE .store_src		; always taken
 .not_empty
+	; Mark tile as seen for automap
+	ORA #$40
+	STA (ROW_LOCATION), Y
 	; Calculate location of tile data == tile_base + (((tile & 63) - 1) * 32)
 	LDY #0
 	STY TILE_SOURCE+1
@@ -1024,6 +1069,11 @@ LOAD_ALL_SECTIONS:
 ; >> pl_setPos
 ; Params: X, Y
 pl_setPos:
+	TXA
+	PHA
+	JSR UNLOAD_ALL_SECTIONS	; free up previous map sections (and flush automap bits)
+	PLA
+	TAX
 SETPOS:
 	; Figure out which map sections we need to load.
 	; We can temporarily use the DRAW_* variables for our work here, since
@@ -1278,18 +1328,19 @@ pl_setDir:
 ; param: 0=unload, 1=load
 pl_texControl: !zone {
 	tax
-	beq .unload
+	beq UNLOAD_ALL_SECTIONS
 .load	+loadAllSections
 	+finishLoad
 	+loadAllTiles
 	+finishLoad
 	RTS
-.unload	+freeAllTiles
+UNLOAD_ALL_SECTIONS:
+	+freeAllTiles
 	;NO: +freeScripts ; Note: leave scripts resident, in case they're running!
-	+freeResource NW_MAP_LOC
-	+freeResource NE_MAP_LOC
-	+freeResource SW_MAP_LOC
-	+freeResource SE_MAP_LOC
+	+freeMap NW_MAP_ID, NW_MAP_LOC
+	+freeMap NE_MAP_ID, NE_MAP_LOC
+	+freeMap SW_MAP_ID, SW_MAP_LOC
+	+freeMap SE_MAP_ID, SE_MAP_LOC
 	rts
 }
 

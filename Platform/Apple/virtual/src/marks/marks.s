@@ -23,8 +23,11 @@ pBuf	= $8	; len 2
 ; free: $9-$F (but used by prorwts)
 retAddr = $10    ; len 2
 width   = $12	 ; len 1
+stride  = $13	 ; len 1
+mask    = $14	 ; len 1
 
-	jmp saveMarks
+
+	jmp _writeMarks
 
 ;Input:	A-reg = row stride
 ;       X-reg = width
@@ -33,8 +36,7 @@ width   = $12	 ; len 1
 ;       TOS-1 = ...and hi byte
 ;       TOS   = map number (with hi bit set if 3D)
 saveMarks: !zone
-.lineCt = tmp+1
-	sta .adStrd+1
+	sta stride
 	stx width
 	sty .lineCt
 	pla
@@ -50,6 +52,7 @@ saveMarks: !zone
 	sta tmp		; number of bytes per row
 	lda #0
 	clc
+	ldy .lineCt	; must reload in case of rescan
 -	adc tmp
 	dey		; multiply height * bytes-per-row
 	bne -		; Y=0 at end of loop (used below)
@@ -61,29 +64,29 @@ saveMarks: !zone
 	jsr scan
 	bcs .found
 
-.notfnd	pla		; map number
+.notfnd	txa
+	adc pBuf	; carry already clear because scan failed
+	bcc +
+	lda pBuf+1
+	cmp #>(bufEnd-256)
+	bcc +
+	jsr _writeMarks	; write out existing marks and reset buffer
+	jmp .rescan
++	pla		; map number
 	sta (pBuf),y
 	iny
 	txa		; get back record length
 	sta (pBuf),y
-	tay		; save offset for end-of-buffer marking
-	clc
-	adc pBuf
-	bcc +
-	lda pBuf+1
-	cmp #>(bufEnd-256)
-	bcs .full
-+	lda #0		; end-of-buffer mark, and also mask
+	txa		; end of buffer offset
+	tay
+	lda #0		; end-of-buffer mark, and also mask
 	sta (pBuf),y	; mark new end of buffer
 	beq .go		; always taken
 
-.full	jsr writeMarks	; write out existing marks and reset buffer
-	jmp .rescan
-
 .found	pla		; done with map number - discard it
 	lda #$FF
-.go	sta .mask1+1
-	sta .mask2+1
+.go	sta mask
+
 	ldy #2
 
 	pla		; source data addr hi...
@@ -91,16 +94,16 @@ saveMarks: !zone
 	pla		; ...and lo
 	sta .get+1
 
-	lda #$80
+.nxtrow	lda #$80
 	sta tmp
-.nxtrow	ldx #0
+	ldx #0
 .get	lda $1111,x	; self-modified above
 	asl
 	asl		; shift $40 bit (automap) into carry
 	ror tmp		; save the bit
 	bcc +
 	lda (pBuf),y
-.mask1	and #11		; self-modified above
+	and mask
 	ora tmp
 	sta (pBuf),y
 	iny
@@ -110,28 +113,29 @@ saveMarks: !zone
 	cpx width
 	bne .get	; loop until row width is complete
 	lda tmp
-	bmi +		; skip final store if no bits
+	cmp #$80
+	beq +		; skip final store if no bits
 -	lsr tmp		; low-align last set of bits in row
 	bcc -
 	lda (pBuf),y
-.mask2	and #11		; self-modified above
+	and mask
 	ora tmp
 	sta (pBuf),y
 	iny
 +	lda .get+1
 	clc
-.adStrd	adc #11		; add stride (self-modified above)
+	adc stride	; add stride (self-modified above)
 	sta .get+1
 	bcc +
 	inc .get+2
 +	dec .lineCt
 	bne .nxtrow
-	jsr writeMarks	; for testing only
 .ret	lda retAddr+1
 	pha
 	lda retAddr
 	pha
 	rts
+.lineCt !byte 0
 
 ; Scan the buffer for A-reg as target map
 ; Advances pBuf through the buffer
@@ -147,19 +151,23 @@ scan: !zone
 -	ldy #0
 	lda (pBuf),y
 	clc
-	beq +		; if end of buffer, Z=1 and C=0
+	beq .ret	; if end of buffer, Z=1 and C=0
 	cmp target
-	beq +		; if match, Z=1 and C=1
+	beq .ret	; if match, Z=1 and C=1
 	iny
 	lda (pBuf),y
+	clc
 	adc pBuf
 	sta pBuf
 	bcc -
 	inc pBuf+1
-	bcs -		; always taken
-+	rts
+	lda pBuf+1
+	cmp #>bufEnd
+	bcc -		; if sane, continue
+	brk
+.ret	rts
 
-writeMarks: !zone
+_writeMarks: !zone
 	; First, open the file and seek to offset $1200
 	lda #<filename
 	sta namlo

@@ -8,4 +8,6 @@
 ; governing permissions and limitations under the License.
 ;****************************************************************************************
 
-saveMarks = $DB00	; in aux LC, bank 1
+; in aux LC, bank 1
+writeMarks	= $DB00
+saveMarks	= $DB03

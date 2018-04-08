@@ -1369,6 +1369,8 @@ saneStart: !zone {
 	beq +
 	cmp #HEAP_COLLECT
 	beq +
+	cmp #FINISH_LOAD
+	beq +
 	+prX
 	cmp #START_LOAD
 	beq +

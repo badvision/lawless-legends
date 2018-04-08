@@ -74,6 +74,7 @@ predef playerDeath()#0
 predef startGame(firstTime, ask)#0
 predef showAnimFrame()#0
 predef showParty()#0
+predef unloadTextures()#0
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Global variables
@@ -1804,10 +1805,7 @@ export def loadFrameImg(img)#0
   clearPortrait()
 
   // Make room in aux mem by throwing out textures
-  if renderLoaded
-    flipToPage1()
-    texControl(0)
-  fin
+  unloadTextures()
 
   // Load the image data into aux mem
   if img
@@ -2196,7 +2194,7 @@ end
 // Load code and data, set up everything to display a 2D or 3D map
 def initMap(x, y, dir)#0
   // If we have a renderer loaded, let it know to flush automap marks
-  if renderLoaded; texControl(0); fin
+  unloadTextures()
 
   // Reset memory (our module will stay since memory manager locked it upon load)
   mmgr(RESET_MEMORY, 0)

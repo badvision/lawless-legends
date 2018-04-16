@@ -190,6 +190,7 @@ LOAD_SECTION
 
 ;----------------------------------------------------------------------
 SAVE_MARKS
+	SEI		; prevent interrupts while in aux
 	STA setAuxZP
 	STA X_COUNTER	; temporarily save map num
 	TXA		; map pointer lo
@@ -208,6 +209,7 @@ SAVE_MARKS
 	JSR saveMarks
 	BIT setLcRW+lcBank2
 	STA clrAuxZP
+	CLI		; interrupts ok now that we're back to main
 	RTS
 
 ;----------------------------------------------------------------------

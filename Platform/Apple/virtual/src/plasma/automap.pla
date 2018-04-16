@@ -28,6 +28,7 @@ struc TMapSection
   byte bm_tilesetNum
   word pm_tileset
   byte bm_visible
+  byte bm_needMarks
   word wm_x0   // upper-left coord of map in global space
   word wm_y0
   word wm_x1   // bottom-right coord of map (exclusive) in global space
@@ -55,6 +56,7 @@ word screenX0, screenY0, screenX1, screenY1
 byte nHorzSects
 byte sectionBuf[SECT_BUF_SIZE]
 word pLastSection
+word pAllMarks
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -64,6 +66,7 @@ asm _defs
 !source "../../include/plasma.i"
 !source "../../include/mem.i"
 !source "../../include/fontEngine.i"
+!source "../../include/marks.i"
 tmp         = $2   ; length 2
 pTmp        = $4   ; length 2
 tilePtrs    = $6   ; length 2
@@ -291,6 +294,9 @@ asm fillRow(mapRowData, mask, tileTrans, pSmallTiles, blankTile, width, tilePtrs
   lda (pSrc),y      ; get raw data
   iny
   sty .srcOff
+  asl
+  bpl .blank        ; skip unless $40 bit is set denoting this space has been seen
+  lsr
   and .param_mask,x ; mask to get just tile number
   beq .blank
   tay
@@ -343,6 +349,149 @@ asm fillRow(mapRowData, mask, tileTrans, pSmallTiles, blankTile, width, tilePtrs
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+asm writeMarks()#0
+!zone
+  +asmPlasmNoRet 0
+  sei
+  sta setAuxZP
+  bit setLcRW+lcBank1
+  jsr writeMarks
+  bit setLcRW+lcBank2
+  sta clrAuxZP
+  cli
+  rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+asm mergeMarks(allMarks, mapNum, mapData, width, stride, height)#0
+!zone {
+  +asmPlasmNoRet           6
+.param_allMarks = evalStkL+5
+.param_mapNum   = evalStkL+4
+.param_mapData  = evalStkL+3
+.param_width    = evalStkL+2
+.param_stride   = evalStkL+1
+.param_height   = evalStkL+0
+.byteCt = pTmp
+.bitCt  = pTmp+1
+
+  ; First, set up a routine in zero page to read a byte from aux mem
+.jsr
+  jsr fixedRTS
+  stx ysav
+  tsx
+  dex
+  lda $100,x
+  clc
+  adc #.rdaux-.jsr-2
+  sta pTmp
+  lda $101,x
+  adc #0
+  sta pTmp+1
+  ldy #12
+- lda (pTmp),y
+  sta $10,y
+  dey
+  bpl -
+  bmi .go   ; always taken - skip over the routine we just copied
+
+.rdaux
+  sei     ; prevent interrupts while in aux mem
+  sta setAuxRd
+  lda (pSrc),y
+  iny
+  sta clrAuxRd
+  cli
+  rts
+
+.go
+  ldx ysav
+  lda .param_allMarks,x
+  sta pSrc
+  lda .param_allMarks+evalStkH-evalStkL,x
+  sta pSrc+1
+.scan
+  ldy #0
+  jsr $10             ; read map num
+  +prA
+  +prWord pSrc
+  cmp .param_mapNum,x
+  beq .found
+  cmp #0
+  bne +
+  +prChr 'M'
+  brk                 ; not found!!?
++ jsr $10             ; read size
+  clc
+  adc pSrc
+  sta pSrc
+  bcc .scan
+  inc pSrc+1
+  bne .scan           ; always taken
+
+.found
+  lda .param_mapData,x
+  sta pDst
+  lda .param_mapData+evalStkH-evalStkL,x
+  sta pDst+1
+  iny                 ; skip over size byte
+  ; Process a row of data
+.row
+  lda .param_width,x
+  sta .byteCt
+  lda #0
+  sta .bitCt
+  ; Process one byte (column) in the row
+.column
+  dec .bitCt
+  bpl +
+  jsr $10
+  sta tmp
+  lda #7
+  sta .bitCt
++ lsr tmp
+  bcc .nextcol
+  ldx #0
+  lda (pDst,x)
+  ora #$40
+  sta (pDst,x)
+.nextcol
+  inc pDst
+  bne +
+  inc pDst+1
++ dec .byteCt
+  bne .column
+.nextrow
+  ldx ysav
+  lda .param_stride,x
+  sec
+  sbc .param_width,x
+  clc
+  adc pDst
+  sta pDst
+  bcc +
+  inc pDst+1
++ dec .param_height,x
+  bne .row
+  rts
+} ; end of zone
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def loadMarks()#0
+  word len
+
+  // First, call the automark write routine. This has not only the effect of flushing the marks
+  // to disk, but also leaving them loaded for us at $4000 (main).
+  writeMarks
+
+  // Copy the marks to aux, where they'll be safe from memory manager operations
+  len = *$4000
+  pAllMarks = auxMmgr(REQUEST_MEMORY, len)
+  memcpy($4002, pAllMarks, len, 1)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayRow3D(pScreen, mapRowData, tileTrans, pSmallTiles, width)#0
   fillRow(mapRowData, $1F, tileTrans, pSmallTiles, @blankTile, width, @tilePtrs)
   drawSlice(@blankTile, pScreen, width, @tilePtrs)
@@ -359,6 +508,7 @@ def make3DSection(pSection)#0
   // Record the map data (it's already loaded for 3D display)
   pSection->bm_mapNum = mapNum
   pSection=>pm_map = pCurMap
+  pSection->bm_needMarks = TRUE
 
   // Record the tile set number
   pSection->bm_tilesetNum = ^(pSection=>pm_map + 3)
@@ -376,6 +526,7 @@ def make2DSection(pSection, sh, sv)#0
   // Record the map data (the top-left segment is already loaded)
   pSection->bm_mapNum = mapNum + (sv*nHorzSects) + sh
   pSection=>pm_map = (pSection->bm_mapNum == mapNum) ?? pCurMap :: NULL
+  pSection->bm_needMarks = TRUE
 
   // Tileset will be calculated later
   pSection->bm_tilesetNum = 0
@@ -465,6 +616,7 @@ def freeSections#0
     if pSection=>pm_map and pSection=>pm_map <> pCurMap
       mmgr(FREE_MEMORY, pSection=>pm_map)
       pSection=>pm_map = NULL
+      pSection->bm_needMarks = TRUE
     fin
     if pSection=>pm_tileset
       mmgr(FREE_MEMORY, pSection=>pm_tileset)
@@ -491,8 +643,15 @@ def displaySection3D(pSection)#0
   loop
   mapData = tileTrans + (nTextures*3) + 2  // *2 for tilenum+texnum, *1 for texture flags, 2 for zero-terms
 
-  // The +1's below are to skip over the sentinel row and column that 3D maps have
-  rowData = mapData + ((pSection->bm_oy + 1) * rowSize) + pSection->bm_ox + 1
+  // Merge automap marks into the data if not done yet
+  rowData = mapData + rowSize + 1  // skip sentinel row and column that 3D maps have
+  if pSection->bm_needMarks
+    //         allMarks   mapNum                     mapData  width      stride   height
+    mergeMarks(pAllMarks, pSection->bm_mapNum | $80, rowData, rowSize-2, rowSize, ^(pSection=>pm_map+1)-2)
+    pSection->bm_needMarks = FALSE
+  fin
+
+  rowData = rowData + (pSection->bm_oy * rowSize) + pSection->bm_ox
   // The << 3 below is because each row is 8 screen lines
   line = (pSection->bm_sy << 3) + MAP_TOP
   lx = MAP_LEFT + pSection->bm_sx
@@ -508,14 +667,21 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displaySection2D(pSection)#0
   word pSmallTiles, rowData
-  byte y, rowSize, line, lx
+  byte y, line, lx
 
   // Figure out where the small tiles reside (at the end of the full size tiles)
   pSmallTiles = pSection=>pm_tileset + 1 + ((^(pSection=>pm_tileset)) << 5)
 
-  // The +6 below is to skip over the 2D map's header
-  rowData = pSection=>pm_map + 6 + (pSection->bm_oy * SECTION_WIDTH_2D) + pSection->bm_ox
-    // The << 3 below is because each row is 8 screen lines
+  // Merge automap marks into the data if not done yet
+  rowData = pSection=>pm_map + 6  // header = 6 bytes
+  if pSection->bm_needMarks
+    //         allMarks   mapNum               mapData  width             stride            height
+    mergeMarks(pAllMarks, pSection->bm_mapNum, rowData, SECTION_WIDTH_2D, SECTION_WIDTH_2D, SECTION_HEIGHT_2D)
+    pSection->bm_needMarks = FALSE
+  fin
+
+  rowData = rowData + (pSection->bm_oy * SECTION_WIDTH_2D) + pSection->bm_ox
+  // The << 3 below is because each row is 8 screen lines
   line = (pSection->bm_sy << 3) + MAP_TOP
   lx = MAP_LEFT + pSection->bm_sx
 
@@ -710,6 +876,7 @@ def _automap_show()#1
   showTitle
 
   centerScreen
+  loadMarks
   prepSections(0,0)
   displaySections
 
@@ -747,6 +914,8 @@ def _automap_show()#1
         break
     wend
   until key == 27 or key == 'Q' or key == '-' // esc or Q or - to exit
+
+  auxMmgr(FREE_MEMORY, pAllMarks)
   return 0
 end
 

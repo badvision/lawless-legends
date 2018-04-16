@@ -3641,6 +3641,7 @@ end
             outStream.write((byte)(size+2)) // +2 so it includes the header
             (1..size).each { outStream.write( (byte) 0) }
         }
+        // no end-of-marks yet, to avoid terminator between 2d and 3d
     }
 
     def copyOrCreateSave(dstDir)

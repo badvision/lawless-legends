@@ -497,7 +497,7 @@ def doSplit(player, item)#1
   if nToSplit >= 1 and nToSplit <= item=>w_count-1
     item=>w_count = item=>w_count - nToSplit
     newItem = mmgr(HEAP_ALLOC, TYPE_FANCY_ITEM)
-    memcpy(item, newItem, TFancyItem)
+    memcpy(item, newItem, TFancyItem, 0)
     newItem=>w_count = nToSplit
     newItem=>p_nextObj = item=>p_nextObj
     item=>p_nextObj = newItem

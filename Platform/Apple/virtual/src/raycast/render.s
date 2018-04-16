@@ -1751,6 +1751,7 @@ pl_texControl: !zone {
 	cpx nTextures
 	bne -
 	; This is also our signal to save the automap bits
+	sei
 	ldx mapWidth
 	ldy mapHeight
 	lda mapBase
@@ -1773,6 +1774,7 @@ pl_texControl: !zone {
 	jsr saveMarks
 	bit setLcRW+lcBank2
 	sta clrAuxZP
+	cli
 	rts
 }
 

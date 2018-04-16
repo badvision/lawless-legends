@@ -73,7 +73,7 @@ import gamelib
   predef lookupResourcePart(sectionNum, resourceNum)#1
   predef makeModifier(name, value)#1
   predef max(a, b)#1
-  predef memcpy(pSrc, pDst, len)#0
+  predef memcpy(pSrc, pDst, len, auxWr)#0
   predef memset(pDst, val, len)#0
   predef min(a, b)#1
   predef mmgr(cmd, wordParam)#1

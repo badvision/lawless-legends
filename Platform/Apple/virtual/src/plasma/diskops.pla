@@ -211,8 +211,8 @@ def _startup()#1
   mmgr(FINISH_LOAD, 0)
 
   // Relocate font engine and font data to their final spots up in the language card
-  memcpy(pEngine, fontEngine, fontEngineLen)
-  memcpy(pFont, fontData, fontDataLen)
+  memcpy(pEngine, fontEngine, fontEngineLen, 0)
+  memcpy(pFont, fontData, fontDataLen, 0)
 
   // Tell the font engine where to find its font
   setFont(fontData)
@@ -287,7 +287,7 @@ def _saveGame()#1
   heapCollect()
 
   // Copy data to main memory, and write it out.
-  memcpy(HEAP_BOTTOM, LOAD_SAVE_BUF, HEAP_SIZE)  // LC to low mem
+  memcpy(HEAP_BOTTOM, LOAD_SAVE_BUF, HEAP_SIZE, 0)  // LC to low mem
   _rwGame(RWTS_WRITE)
   return 0
 end
@@ -306,7 +306,7 @@ def loadInternal()#1
   elsif p_loaded=>w_heapSize < 100 or p_loaded=>w_heapSize > HEAP_SIZE or p_loaded=>w_typeHash <> typeHash
     fatal("Incompatible game file.")
   fin
-  memcpy(LOAD_SAVE_BUF, HEAP_BOTTOM, HEAP_SIZE)  // low mem to LC
+  memcpy(LOAD_SAVE_BUF, HEAP_BOTTOM, HEAP_SIZE, 0)  // low mem to LC
   initHeap(p_loaded=>w_heapSize)
   heapCollect() // make sure heap is valid, and record final size
   return TRUE

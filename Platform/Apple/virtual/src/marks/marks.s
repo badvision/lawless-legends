@@ -185,13 +185,19 @@ _writeMarks: !zone
 	ldy #0
 	sty ldrlo
 	ldx #2		; length 2
-	sty ldrlo
 	lda #cmdread
 	sec		; rdwrpart
 	jsr callProRWTS
 	; Read the existing marks data
+	lda #2
+	sta ldrlo
+	lda #$40
+	sta ldrhi
+	ldx $4000
+	ldy $4001
 	lda #cmdread
-	jsr .rw
+	sec
+	jsr callProRWTS
 	; Begin scan
 	lda #2
 	sta pTmp
@@ -228,18 +234,23 @@ _writeMarks: !zone
 -	sta rwts_mark,x
 	dex
 	bpl -
-	ldx #2		; seek to start of marks on disk: offset $1202
+	ldx #0		; seek to start of marks on disk: offset $1200
 	ldy #$12
 	lda #cmdseek
 	sec		; rdwrpart
 	jsr callProRWTS
-	lda #cmdwrite	; write new marks
-.rw	ldx #2		; marks at $4002
+	ldx #0		; starting from $4000
 	stx ldrlo
-	ldx #$40
-	stx ldrhi
-	ldx $4000	; length of marks
+	lda #$40
+	sta ldrhi
 	ldy $4001
+	lda $4000
+	clc
+	adc #2		; length of marks plus header
+	bcc +
+	iny
++	tax
+	lda #cmdwrite	; write new marks
 	sec
 	; fall through to final ProRWTS command
 callProRWTS:

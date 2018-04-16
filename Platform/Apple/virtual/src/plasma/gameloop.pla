@@ -302,19 +302,22 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Memory copy - Non-overlapping regions only!
-export asm memcpy(pSrc, pDst, len)#0
-  +asmPlasmNoRet 3
-  lda evalStkL+2,x    ; source ptr
+export asm memcpy(pSrc, pDst, len, auxWr)#0
+  +asmPlasmNoRet 4
+  lda evalStkL+3,x    ; source ptr
   sta tmp
-  lda evalStkH+2,x
+  lda evalStkH+3,x
   sta tmp+1
-  lda evalStkL+1,x    ; dest ptr
+  lda evalStkL+2,x    ; dest ptr
   sta pTmp
-  lda evalStkH+1,x
+  lda evalStkH+2,x
   sta pTmp+1
-  lda evalStkH,x      ; len hi
+  ldy evalStkL,x      ; auxWr
+  sei                 ; prevent interrupts while possibly in aux
+  sta clrAuxWr,y
+  lda evalStkH+1,x    ; len hi
   pha
-  lda evalStkL,x      ; len lo
+  lda evalStkL+1,x    ; len lo
   tax
   ldy #0
 .pglup:
@@ -339,6 +342,8 @@ export asm memcpy(pSrc, pDst, len)#0
   dex
   bne -
 .done
+  sta clrAuxWr
+  cli                 ; inerrupts ok now that we're back in main
   rts
 end
 
@@ -548,7 +553,7 @@ export asm finishString(isPlural)#1
   dey         ; undo copy of the paren
   stx tmp+1   ; save position in input
   dex         ; needed for failsafe operation
-  lda tmp     ; set copy flag (V) initially
+  bit tmp     ; set copy flag (V) initially
   bne .findsl ;     to same as isPlural flag
   clv
 .findsl       ; see if there's a slash within the parens
@@ -2691,7 +2696,7 @@ export def setScriptInfo(mapName, moduleNum, timeFn, trigTbl, wdt, hgt)#0
 
   // Record new script, and prepare to free old one. While theoretically there could be a
   // circumstance where the old prev is still un-freed, it's rare enough that it'd be hard to
-  // get freeing it here correct. So we leave freeing to the main keyboard loop.
+  // test freeing it here correctly. So we leave freeing to the main keyboard loop.
   if scriptModule <> moduleNum
     prevScriptModule = scriptModule
     scriptModule = moduleNum

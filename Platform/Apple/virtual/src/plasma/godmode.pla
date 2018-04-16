@@ -120,7 +120,7 @@ def showPos()#1
     printf3("Facing=%d Sky=%d Ground=%d", getDir(), skyNum, groundNum)
   fin
   puts("\nHit any key.\n")
-  getUpperKey()
+  rdkey()
   ^$c052
   return 0
 end

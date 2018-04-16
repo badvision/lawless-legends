@@ -411,7 +411,6 @@ end
 def displayOpponents()#0
   word p
   byte count, firstTime
-  byte isPlural
 
   displayStr("You face ")
   firstTime = TRUE
@@ -882,7 +881,6 @@ def makeRandomGroup(mapCode)#0
   enemiesModule = mmgr(QUEUE_LOAD, MOD_GEN_ENEMIES<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
 
-  global=>p_enemyGroups = NULL
   enemyFunc = randomFromArray(enemiesModule()=>enemies_forZone(mapCode))
   addToList(@global=>p_enemyGroups, makeEnemyGroup(enemyFunc))
 
@@ -995,6 +993,7 @@ def startCombat(mapCode)#1
   // Setup
   isFleeing = FALSE
   combatDebug = FALSE
+  global=>p_enemyGroups = NULL
   makeRandomGroup(mapCode)
 
   // Display portrait of first group

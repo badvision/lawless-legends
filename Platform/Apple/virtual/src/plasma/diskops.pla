@@ -48,6 +48,9 @@ word[] funcTbl = @_startup, @_saveGame, @_loadGame, @_newOrLoadGame
 byte[] game1_filename = "GAME.1.SAVE"
 byte[] legendos_filename = "LEGENDOS.SYSTEM"
 
+// For checking automap mark sizes
+include "gen_mapsizes.pla"
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
 asm __defs

@@ -101,6 +101,7 @@ class A2PackPartitions
                          12: "song"]
 
     def mapNames  = [:]  // map name (and short name also) to map.2dor3d, map.num
+    def mapSizes  = []   // array of [2dOr3D, mapNum, marksSize]
     def sysCode   = [:]  // memory manager
     def code      = [:]  // code name to code.num, code.buf
     def maps2D    = [:]  // map name to map.num, map.buf, map.order, map.width, map.height
@@ -2310,12 +2311,19 @@ class A2PackPartitions
                 mapNames[shortName] = ['2D', num2D+1]
                 def rows = parseMap(map, dataIn.tile, true) // quick mode
                 def (width, height, nHorzSections, nVertSections) = calcMapExtent(rows)
+                (1..(nHorzSections * nVertSections)).each {
+                    int rowBytes = (TILES_PER_ROW+7)/8
+                    mapSizes << ['2D', it+num2D, 2 + (rowBytes * ROWS_PER_SECTION)]
+                }
                 num2D += (nHorzSections * nVertSections)
                 maxMapSections = Math.max(maxMapSections, nHorzSections * nVertSections)
             }
             else if (map?.@name =~ /\s*3D$/) {
                 mapNames[name] = ['3D', num3D+1]
                 mapNames[shortName] = ['3D', num3D+1]
+                def rows = parseMap(map, dataIn.tile, true) // quick mode
+                int rowBytes = (rows[0].size()+7)/8
+                mapSizes << ['3D', num3D+1, 2 + (rowBytes * rows.size())]
                 ++num3D
             }
             else
@@ -3480,6 +3488,24 @@ end
         }
     }
 
+    def genAllMapSizes()
+    {
+        // Make a buffer containing the map sizes, so that diskops code can validate
+        // the automap marks in a save file.
+        new File("build/src/plasma/gen_mapsizes.pla.new").withWriter { out ->
+            out.println("// Generated code - DO NOT MODIFY BY HAND\n")
+            def totalSize = mapSizes.size() * 2
+            assert totalSize < 256 : "too many maps"
+            out.println("byte[] mapSizes = $totalSize // overall buffer size")
+            boolean first = true
+            mapSizes.sort().each { triple ->
+                out.println(String.format("byte            = \$%02X, \$%02X",
+                                          (triple[0] == '3D' ? 0x80 : 0) | triple[1], triple[2]))
+            }
+        }
+        replaceIfDiff("build/src/plasma/gen_mapsizes.pla")
+    }
+
     def replaceIfDiff(oldFile)
     {
         def newFile = new File(oldFile + ".new")
@@ -3585,6 +3611,7 @@ end
         genAllItems(dataIn.global.sheets.sheet)
         genAllEnemies(dataIn.global.sheets.sheet.find { it?.@name.equalsIgnoreCase("enemies") })
         genAllPlayers(dataIn.global.sheets.sheet)
+        genAllMapSizes()
 
         // Produce a list of assembly and PLASMA code segments
         binaryStubsOnly = true

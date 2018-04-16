@@ -719,7 +719,7 @@ asm getXReg()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Calculate 16-bit hash of a buffer.
+// Calculate 16-bit hash of a buffer. Note: ignores anything beyond 256 bytes.
 export asm hashBuffer(ptr, len)#1
   +asmPlasmRet 2
   lda evalStkL+1,x  ; first arg is buffer pointer

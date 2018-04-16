@@ -143,6 +143,51 @@ asm moveMarks(pMarks)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Scan (and optionally clear) the automap marks, recording map numbers and sizes as a string-style
+// buffer at $200.
+asm scanMarks(bClear, pMarks)#0
+  +asmPlasmNoRet 2
+  sta pTmp
+  sty pTmp+1
+  lda evalStkL,x
+  sta tmp
+  ldx #0        ; start at beginning of output buffer
+.outer
+  lda (pTmp),y  ; get map number
+  beq .done     ; if zero, end of maps has been reached
+  inx
+  sta $200,x    ; record map number
+  iny
+  lda (pTmp),y
+  inx
+  sta $200,x    ; record marks size for this map
+  bit tmp       ; check if we're clearing
+  bpl .next     ; if not, go to next
+  stx tmp+1     ; save output buffer offset
+  tax
+  dex
+  dex           ; don't clear header
+  iny
+  lda #0
+- sta (pTmp),y
+  iny
+  dex
+  bne -
+  ldx tmp+1     ; restore output buffer offset
+  tya           ; cute way to know total length
+.next
+  clc
+  adc pTmp
+  sta pTmp
+  bcc .outer
+  inc pTmp+1
+  bne .outer    ; always taken
+.done
+  stx $200      ; record length of output buffer
+  rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Params: cmd | open<<8, filename, addr, size. Returns: status (for open only)
 asm callProRWTS(cmdPlusOpenFlg, filename, addr, size)#1
     +asmPlasmRet 4

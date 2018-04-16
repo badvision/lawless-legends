@@ -117,7 +117,7 @@ export byte curMapPartition = 0
 export word pGodModule = NULL
 export word typeHash = 0
 word curHeapPct = 0
-byte lastMoveDir
+byte lastMoveDir = $FF
 
 // Queue setMap / teleport / start_encounter, since otherwise script might be replaced while executing
 byte q_mapIs3D = 0
@@ -2505,11 +2505,14 @@ end
 export def moveWayBackward()#1
   byte facingDir, moveDir
   facingDir = getDir()
-  moveDir = (lastMoveDir + 8) & 15  // reverse of last move
-  moveInternal(facingDir, moveDir, FALSE, TRUE) // no beep, but do adv time
-  if mapIs3D
-    moveInternal(facingDir, moveDir, FALSE, FALSE) // no beep, don't adv time
+  if lastMoveDir <> $FF
+    moveDir = (lastMoveDir + 8) & 15  // reverse of last move
+    moveInternal(facingDir, moveDir, FALSE, TRUE) // no beep, but do adv time
+    if mapIs3D
+      moveInternal(facingDir, moveDir, FALSE, FALSE) // no beep, don't adv time
+    fin
   fin
+  lastMoveDir = $FF // avoid problems if moveWayBackward called repeatedly
   return 0
 end
 

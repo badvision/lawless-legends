@@ -87,7 +87,7 @@ saveMarks: !zone
 	lda #$FF
 .go	sta mask
 
-	ldy #2
+	ldy #2		; start just after header
 
 	pla		; source data addr hi...
 	sta .get+2
@@ -215,6 +215,8 @@ _writeMarks: !zone
 	beq +
 	brk		; bad: length mismatch
 +	tax
+	dex		; we're not merging header bits
+	dex
 -	iny
 	lda (pTmp),y
 	ora (pBuf),y	; merge the mark bits

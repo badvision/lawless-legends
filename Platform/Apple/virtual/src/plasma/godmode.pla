@@ -20,10 +20,10 @@ include "gen_flags.plh"
 
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the the header.
-predef _setCheatCmds()#1
-predef _addItem(player)#1
+predef _cheatCmd(key)#1
+predef _addItem()#1
 predef _addPlayer()#1
-word[] funcTbl = @_setCheatCmds, @_addItem, @_addPlayer
+word[] funcTbl = @_cheatCmd, @_addItem, @_addPlayer
 
 asm _defs
 
@@ -104,7 +104,7 @@ def kbdTeleport()#1
 
   ^$c052
 
-  setMap(d3, num, x, y, dir)
+  queue_setMap(d3, num, x, y, dir)
   return 0
 end
 
@@ -224,17 +224,19 @@ def editFlags()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _setCheatCmds()#1
-  // install cheat commands
-  setCmd('T', @kbdTeleport)
-  setCmd('P', @showPos)
-  setCmd('>', @nextPortrait)
-  setCmd('<', @prevPortrait)
-  setCmd('!', @testCombat)
-  setCmd('Y', @nextSky)
-  setCmd('G', @nextGround)
-  setCmd('&', @printMem)
-  setCmd('^', @editFlags)
+def _cheatCmd(key)#1
+  when key
+    is 'T'; kbdTeleport(); break
+    is 'P'; showPos(); break
+    is '>'; nextPortrait(); break
+    is '<'; prevPortrait(); break
+    is '!'; testCombat(); break
+    is 'Y'; nextSky(); break
+    is 'G'; nextGround(); break
+    is '&'; printMem(); break
+    is '^'; editFlags(); break
+    otherwise fatal("gmcmd")
+  wend
   return 0
 end
 
@@ -286,7 +288,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Add an item cheat
-def _addItem(player)#1
+def _addItem()#1
   word funcNum
   funcNum = selectThing(MOD_GEN_ITEMS, NUM_ITEMS, 2, "Add item #: ")
   if funcNum >= 0

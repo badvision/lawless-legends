@@ -643,6 +643,18 @@ def interactWithItem(player, item)#1
   return NULL
 end
 
+// Do a cheat command, loading and unloading the godmode module
+def callGodModule(funcNum)#0
+  word pModule, func
+  clearMainRect()
+  mmgr(START_LOAD, 1) // code is in partition 1
+  pModule = mmgr(QUEUE_LOAD, MOD_GODMODE<<8 | RES_TYPE_MODULE)
+  mmgr(FINISH_LOAD, 0)
+  func = *(pModule() + funcNum)
+  func()
+  mmgr(FREE_MEMORY, pModule)
+end
+
 // Show player sheet and accept command. If using an item (not just for stats gain)
 // the item is returned; else NULL is returned.
 def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a value
@@ -738,15 +750,13 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
         break
       is '%' // add item cheat
         if global->b_godmode
-          clearMainRect()
-          pGodModule=>godmode_addItem(player)
+          callGodModule(godmode_addItem)
           redisplay = 2
         fin
         break
       is '9' // add player cheat
         if global->b_godmode
-          clearMainRect()
-          pGodModule=>godmode_addPlayer()
+          callGodModule(godmode_addPlayer)
           redisplay = 2
         fin
         break

@@ -9,6 +9,6 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Each module-exported function needs its own constant, 0..n
-const godmode_setCheatCmds = 0
+const godmode_cheatCmd = 0
 const godmode_addItem = 2
 const godmode_addPlayer = 4

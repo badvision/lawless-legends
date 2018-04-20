@@ -74,8 +74,8 @@
 ;          0000.01FF 6502 zero page and stack (aux)
 ;          0200.03FF (currently unused)
 ;          0400.07FF (unused, but screen holes overwritten by hard drive C7xx ROM)
-;          0800.0D7A texture expander part 1 (used by 3D renderer)
-;          0D7B.9xxx (free, managed)
+;          0800.0D82 texture expander part 1 (used by 3D renderer)
+;          0D83.9xxx (free, managed)
 ;          A0xx.BFFF gameloop PLASMA code (loaded as high as possible)
 ;          C000.CFFF I/O
 ; (bank 1) D000.DAFF ProRWTS runtime and buffers

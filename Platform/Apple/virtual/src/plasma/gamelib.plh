@@ -111,7 +111,6 @@ import gamelib
   predef scriptEvent(event, param)#0
   predef scriptSetAvatar(avatarTileNum)#0
   predef select(p, sel, num)#1
-  predef setCmd(key, func)#0
   predef setCursor(x, y)#0
   predef setGameFlag(flagName, val)#0
   predef setGround(num)#0
@@ -149,7 +148,6 @@ import gamelib
   word skyNum
   word groundNum
   byte portraitNum
-  word pGodModule
   word typeHash
   byte isPlural
   word ctx

@@ -2217,13 +2217,7 @@ def initMap(x, y, dir)#0
   else
     mmgr(QUEUE_LOAD, CODE_TILE_ENGINE<<8 | RES_TYPE_CODE)
   fin
-  if global->b_godmode
-    pGodModule = mmgr(QUEUE_LOAD, MOD_GODMODE<<8 | RES_TYPE_MODULE)
-  fin
   mmgr(FINISH_LOAD, 0)
-
-  // Grab the function table for the godMode module (if enabled)
-  if global->b_godmode; pGodModule = pGodModule(); fin
 
   // Set up the command table
   initCmds()
@@ -3153,15 +3147,30 @@ def toggleGodMode()#1
       textDrawn = TRUE
       beep; beep
       clearTextWindow()
-      saveMapPos(); restoreMapPos()  // reload everything, including god module
+      initCmds() // rebuild the command table with new commands
     fin
   fin
   return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def setCmd(key, func)#0
-  cmdTbl[key] = func
+def cheatCmd()#1
+  byte key
+  word pModule
+  key = charToUpper((^kbd) & $7F)
+
+  // We don't use laodEngine, since godmode may use it too, and we'd get double modules
+  unloadTextures() // seems to be necessary for teleport-to-3d to work right
+  flipToPage1()
+  mmgr(START_LOAD, 1) // code is in partition 1
+  pModule = mmgr(QUEUE_LOAD, MOD_GODMODE<<8 | RES_TYPE_MODULE)
+  mmgr(FINISH_LOAD, 0)
+
+  pModule()=>godmode_cheatCmd(key)
+
+  mmgr(FREE_MEMORY, pModule)
+  if renderLoaded; texControl(1); texturesLoaded = TRUE; fin
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3186,7 +3195,16 @@ def initCmds()#0
   cmdTbl[' '] = @snooze  // "space out" (snooze)
   cmdTbl['-'] = @showAutomap
   if global->b_godmode
-    pGodModule=>godmode_setCheatCmds()
+    // install cheat commands
+    cmdTbl['T'] = @cheatCmd
+    cmdTbl['P'] = @cheatCmd
+    cmdTbl['>'] = @cheatCmd
+    cmdTbl['<'] = @cheatCmd
+    cmdTbl['!'] = @cheatCmd
+    cmdTbl['Y'] = @cheatCmd
+    cmdTbl['G'] = @cheatCmd
+    cmdTbl['&'] = @cheatCmd
+    cmdTbl['^'] = @cheatCmd
   fin
 
   // Commands handled differently in 3D vs 2D

@@ -26,6 +26,10 @@
                                         ;requires load_high to be set for arbitrary memory access
                                         ;else driver must be running from same memory target
                                         ;i.e. running from main if accessing main, running from aux if accessing aux
+                save_auxscr  = 1        ;set to 1 to save and restore the I/O scratchpad registers in aux
+                                        ;e.g. $478,x $4f8,x ... $7f8,x (where x = slot
+                                        ;needed if using the aux text page, and possibly some hard drive controller
+                                        ;cards will be confused if run in aux mem without this
                 allow_trees  = 1        ;enable support for tree files, as opposed to only seedlings and saplings
                                         ;requires an additional 512 bytes of RAM
                 bounds_check = 0        ;set to 1 to prevent access beyond the end of the file
@@ -144,6 +148,7 @@
                 ROMIN     = $c081
                 LCBANK2   = $c089
                 CLRAUXRD  = $c002
+                SETAUXRD  = $c003
                 CLRAUXWR  = $c004
                 SETAUXWR  = $c005
                 CLRAUXZP  = $c008
@@ -1329,13 +1334,24 @@ dataend         = nibtbl + 106
 
 unrelochdd
 !pseudopc reloc {
+hddrdwrpart
 !if override_adr = 1 {
-hddrdwrpart     jmp hddrdwrfile
+  !if save_auxscr = 1 {
+                jmp svhddrdwrfile
+  } else { ;save_auxscr
+                jmp hddrdwrfile
+  } ;save_auxscr
 } ;override_adr
                 ;read volume directory key block
                 ;self-modified by init code
 
 hddopendir
+!if save_auxscr = 1 {
+                jsr flipscratch
+                jsr +
+                jmp flipscratch
++
+}
 unrhddblocklo = unrelochdd + (* - reloc)
                 ldx #2
 unrhddblockhi = unrelochdd + (* - reloc)
@@ -1799,6 +1815,41 @@ hddsetaux       sta CLRAUXRD, x
                 sta CLRAUXWR, x
   } ;allow_aux
                 rts
+  !if save_auxscr = 1 {
+svhddrdwrfile
+                jsr flipscratch
+                jsr hddrdwrfile
+flipscratch     ldx auxreq
+                beq flipdone
+                dex
+                stx adrlo
+                lda #4
+flipouter		sta adrhi
+                pha
+                ldy #$F8
+flipinner		lda (adrlo),y
+				tax
+				sta SETAUXRD
+				sta SETAUXWR
+				lda (adrlo),y
+				pha
+				txa
+				sta (adrlo),y
+				sta CLRAUXWR
+				sta CLRAUXRD
+				pla
+				sta (adrlo),y
+				iny
+				bne flipnext
+				ldy #$78
+flipnext		cpy #$80
+				bne flipinner	; if eq, sets carry
+				pla
+				adc #0			; carry set above
+				cmp #8
+				bne flipouter
+flipdone		rts
+  }
 
   !if aligned_read = 0 {
                 ;cache partial block offset
@@ -1890,6 +1941,11 @@ hddseekrdwr     stx bloklo
 unrunit=unrelochdd+(*-reloc)
                 lda #$d1
                 sta unit
+
+!if (allow_aux + save_auxscr) > 1 {
+	            ldx auxreq
+    	        jsr hddsetaux
+} ;allow_aux
 
 unrentry=unrelochdd+(*-reloc)
                 jmp $d1d1

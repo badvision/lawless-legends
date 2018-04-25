@@ -413,8 +413,6 @@ asm mergeMarks(allMarks, mapNum, mapData, width, stride, height)#0
 .scan
   ldy #0
   jsr $10             ; read map num
-  +prA
-  +prWord pSrc
   cmp .param_mapNum,x
   beq .found
   cmp #0

@@ -48,8 +48,8 @@ def freePreloaded()#0
   byte i
   word p
   for i = 0 to NUM_PRELOADS-1
-    p = mmgr(QUEUE_LOAD, toPreload[i]<<8 | RES_TYPE_MODULE) // only way to get ptr back
-    mmgr(FREE_MEMORY, p)
+    p = mmgr(FIND_IN_MEM, toPreload[i]<<8 | RES_TYPE_MODULE)
+    if p; mmgr(FREE_MEMORY, p); fin
   next
   mmgr(FINISH_LOAD, 0)
 end

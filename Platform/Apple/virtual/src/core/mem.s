@@ -27,8 +27,8 @@
 ; Constants
 MAX_SEGS	= 96
 
-DEBUG		= 0
-SANITY_CHECK	= 0		; also prints out request data
+DEBUG		= 1
+SANITY_CHECK	= 1		; also prints out request data
 
 ; Zero page temporary variables.
 ; Don't move these - they overlap in clever ways with ProRWTS shadows (see below)
@@ -190,15 +190,12 @@ init: !zone
 	bne -
 ; clear other pointers
 	sta targetAddr+1
-	sta scanStart
 	sta partFileOpen
 	sta curPartition
 	lda #<diskLoader
 	sta nextLdVec+1
 	lda #>diskLoader
 	sta nextLdVec+2
-	lda #1
-	sta scanStart+1
 ; make reset go to monitor
 	lda #<ROM_monitor
 	sta resetVec
@@ -1081,7 +1078,6 @@ heapIntern: !zone
 ; Variables
 targetAddr:	!word 0
 unusedSeg:	!byte 0
-scanStart:	!byte 0, 1	; main, aux
 segNum:		!byte 0
 nextLdVec:	jmp diskLoader
 curPartition:	!byte 0
@@ -1188,13 +1184,7 @@ releaseSegment: !zone
 	lda unusedSeg	; previous head of list
 	sta tSegLink,y	; point this segment at it
 	sty unusedSeg	; this segment is now head of list
-	tya		; seg num to accumulator
-	ldx isAuxCmd
-	cmp scanStart,x	; was this seg the scan start?
-	bne +		; no, things are fine
-	txa		; yes, need to reset the scan start
-	sta scanStart,x	; scan at first mem block for (main or aux)
-+	rts
+	rts
 
 ;------------------------------------------------------------------------------
 scanForAddr: !zone
@@ -1234,9 +1224,7 @@ scanForAddr: !zone
 scanForResource: !zone
 ; Input:  resType, resNum: resource type and number to scan for
 ; Output: X-reg - segment found (zero if not found). N and Z set based on X reg.
-	ldy isAuxCmd	; grab correct starting segment
-	ldx scanStart,y	; start scanning at last scan point
-	stx .next+1	; it also marks the ending point. Yes, self-modifying code.
+	ldx isAuxCmd	; grab correct starting segment
 .loop:	ldy tSegLink,x	; grab link to next segment, which we'll need regardless
 	lda tSegRes,x	; check number
 	cmp resNum	; same resource number?
@@ -1244,29 +1232,18 @@ scanForResource: !zone
 	lda tSegType,x	; check get flag + type byte
 	and #$F		; mask off flags to get just the type
 	cmp resType	; same type?
-	bne .next	; no, check next seg
-	ldy isAuxCmd	; index for setting next scan start
-	txa		; set N and Z flags for return
-	sta scanStart,y	; set this seg as next scanning start
-	rts		; all done!
-.next:	cpy #11		; did we loop around to starting point? (filled in at beg)
-	beq .fail	; if so, failed to find what we wanted
-	tya		; next in chain
+	beq .done	; if so, all done!
+.next:	tya		; next in chain
 	tax		; to X reg index
 	bne .loop	; not end of chain - loop again
-	ldx isAuxCmd	; start over at beginning of memory chain
-	cpx .next+1	; back where we started?
-	bne .loop	; no, loop again
-.fail:	ldx #0		; failure return
+.done	cpx #0
 	rts
 
 ;------------------------------------------------------------------------------
 scanForAvail: !zone
 ; Input:  reqLen - 16-bit length to scan for
-; Output: X-reg - segment found (zero if not found)
-	ldy isAuxCmd	; grab correct starting segment
-	ldx scanStart,y	; start scanning at last scan point
-	stx .next+1	; it also marks the ending point. Yes, self-modifying code.
+; Output: X-reg - segment found (zero if not found); N and Z set based on X reg
+	ldx isAuxCmd	; grab correct starting segment
 .loop:	ldy tSegLink,x	; grab link to next segment, which we'll need regardless
 	lda tSegType,x	; check flags
 	bne .next	; skip allocated blocks (even if inactive)
@@ -1281,20 +1258,11 @@ scanForAvail: !zone
 .cmp1:	cmp #11		; self-modified earlier
 	lda tSegAdrHi,y	; all 16 bits
 .cmp2:	sbc #11		; self-modified earlier
-	bcc .next	; next seg addr < (this seg addr + len)? no good - keep looking
-	ldy isAuxCmd	; index for setting next scan start
-	txa		; set N and Z flags for return
-	sta scanStart,y	; set this seg as next scanning start
-	rts		; all done!
-.next:	cpy #11		; did we loop around to starting point? (filled in at beg)
-	beq .fail	; if so, failed to find what we wanted
-	tya		; next in chain
+	bcs .done	; next seg addr < (this seg addr + len)? if good - all done!
+.next:	tya		; next in chain
 	tax		; to X reg index
 	bne .loop	; not end of chain - loop again
-	ldx isAuxCmd	; start over at beginning of memory chain
-	cpx .next+1	; back where we started?
-	bne .loop	; no, loop again
-.fail:	ldx #0		; failure return
+.done	cpx #0
 	rts
 
 ;------------------------------------------------------------------------------

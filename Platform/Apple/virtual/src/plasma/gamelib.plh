@@ -97,6 +97,7 @@ import gamelib
   predef rawDisplayf3(fmt, arg1, arg2, arg3)#0
   predef rawDisplayStr(str)#0
   predef rdkey()#1
+  predef readAuxByte(ptr)#1
   predef removeFromList(pList, toRemove)#0
   predef removeNamed(name, pList)#1
   predef removePlayerFromParty(playerName)#0

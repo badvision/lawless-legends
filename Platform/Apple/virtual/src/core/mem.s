@@ -209,7 +209,7 @@ init: !zone
 ; We'll set up 8 initial segments:
 ; 0: main $0000 -> 4, active + locked
 ; 1: aux  $0000 -> 2, active + locked
-; 2: aux  $0800 -> 3, inactive			; TEMPORARY: until we figure out prob w aux screen holes
+; 2: aux  $0800 -> 3, inactive			; app can use $200.600, but ProRWTS can't r/w it
 ; 3: aux  $BFFD -> 0, active + locked
 ; 4: main $1000 -> 5, inactive
 ; 5: main $2000 -> 6, active + locked
@@ -243,7 +243,7 @@ init: !zone
 	inx
 	stx tSegLink+8
 ; Then the addresses
-	lda #8  ; Temporarily avoid aux screen holes; normally this would be 2.
+	lda #8
 	sta tSegAdrHi+2
 	dey
 	sty tSegAdrHi+3

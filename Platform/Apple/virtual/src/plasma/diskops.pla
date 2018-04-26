@@ -35,7 +35,8 @@ const fontEngineLen = $F00    // really a bit less, but this leaves space for de
 const fontData      = $FB00   // main mem LC
 const fontDataLen   = $4FA    // really only $474, but we need to fill all gaps
 
-const expandVec     = $800    // aux mem (only for raycaster)
+const expandVec     = $200    // aux mem (only for raycaster)
+const expandMax     = $3600   // max size of unsplit expander
 
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the the header.
@@ -73,7 +74,7 @@ tmp         = $2
 pTmp        = $4
 
 ; Yes, needs to be adjusted 3 places.
-expandVec   = $800
+expandVec   = $200
 
 end
 
@@ -85,7 +86,7 @@ asm setFont(pFont)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-asm splitExpander()#1   // param: expandVec; returns: remaining lo-aux size
+asm splitExpander()#1   // returns: remaining lo-aux size
 !zone {
   +asmPlasmRet 0
 .jsr
@@ -237,7 +238,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load and display the title screen, set up everything in memory
 def _startup()#1
-  word pEngine, pFont, pMarks, expanderSize
+  word pEngine, pFont, pMarks, pExpand, expanderSize
 
   puts("Loading game.\n")
 
@@ -277,9 +278,8 @@ def _startup()#1
   ^$C05F     // disable double-hi-res
   ^EMUSIG_FULL_COLOR
 
-  // While we're loading, let's get the expander into aux RAM.
-  auxMmgr(SET_MEM_TARGET, expandVec)
-  auxMmgr(QUEUE_LOAD, CODE_EXPAND<<8 | RES_TYPE_CODE)
+  // While we're loading, let's get the expander into main RAM (we'll copy to aux later)
+  pExpand = mmgr(QUEUE_LOAD, CODE_EXPAND<<8 | RES_TYPE_CODE)
 
   // Also the automap marking queue/flush code.
   pMarks = mmgr(QUEUE_LOAD, CODE_MARKS<<8 | RES_TYPE_CODE)
@@ -293,18 +293,16 @@ def _startup()#1
   mmgr(FREE_MEMORY, pFont)
   mmgr(FREE_MEMORY, pMarks)
 
-  // Split the expander (relocating most of it to aux LC ram)
+  // Move the expander to aux low mem (which can't be r/w by ProRWTS), then split it
+  // (relocating most of it to aux LC ram)
+  memcpy(pExpand, expandVec, expandMax, 1) // 1=target qux
   expanderSize = splitExpander()
 
-  // Lock in the part of the expander that remains in low aux mem.
-  auxMmgr(FREE_MEMORY, expandVec)
-  auxMmgr(SET_MEM_TARGET, expandVec)
-  auxMmgr(REQUEST_MEMORY, expanderSize)
-  auxMmgr(LOCK_MEMORY, expandVec)
+  // Done with the main mem copy of the expander
+  mmgr(FREE_MEMORY, pExpand)
 
-  // To reduce fragmentation, load the resource index directly after the
-  // remaining part of the expander
-  pResourceIndex = expandVec + expanderSize
+  // To reduce fragmentation, load the resource index in the lowest possible aux mem spot.
+  pResourceIndex = $800
   auxMmgr(SET_MEM_TARGET, pResourceIndex)
   auxMmgr(QUEUE_LOAD, CODE_RESOURCE_INDEX<<8 | RES_TYPE_CODE)
   auxMmgr(LOCK_MEMORY, pResourceIndex)

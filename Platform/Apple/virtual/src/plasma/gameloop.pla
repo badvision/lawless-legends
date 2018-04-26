@@ -486,7 +486,7 @@ asm _drawLine(color, len, xbyte, xbit, xinc, xdir, y, yinc, ydir)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-asm readAuxByte(ptr)#1
+export asm readAuxByte(ptr)#1
   +asmPlasmRet 1
   sta pTmp
   sty pTmp+1
@@ -2204,6 +2204,8 @@ def initMap(x, y, dir)#0
   // If we have a renderer loaded, let it know to flush automap marks
   unloadTextures()
 
+  printf1("\n\nin initMap: $%x\n", readAuxByte($200)) // FOO
+
   // Reset memory (our module will stay since memory manager locked it upon load)
   mmgr(RESET_MEMORY, 0)
   renderLoaded = FALSE // leave it this way until all scripts done, else scriptDisplayStr renders
@@ -3648,8 +3650,8 @@ def startGame(firstTime, ask)#0
   // Create a new game or load an existing one
   mmgr(START_LOAD, 1) // code is in partition 1
   if firstTime
-    auxMmgr(SET_MEM_TARGET, $800) // well above where expander loads at startup
-    auxMmgr(REQUEST_MEMORY, $6000) // plenty of room for expander
+    auxMmgr(SET_MEM_TARGET, $800) // well above where resource index loads at startup
+    auxMmgr(REQUEST_MEMORY, $6000) // plenty of room for resource index + temp expander
   fin
   p_module = mmgr(QUEUE_LOAD, MOD_DISKOPS<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)

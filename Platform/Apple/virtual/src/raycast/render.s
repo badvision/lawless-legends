@@ -1310,9 +1310,9 @@ drawRay: !zone
 	tax			; put in X for indexing
 	bne .lup		; if non-zero, we have more to draw
 	rts
-.blank	lda #0
+.blank	lda #<blankTexBuf
 	sta pTex
-	lda #2			; blank texture space at $200 (aux)
+	lda #>blankTexBuf	; blank texture space at $100 (aux)
 	bne .cont		; always taken
 .fade	; Fade this column in the distance
 	ldy pixNum		; get offset into the blit roll for this column
@@ -2048,7 +2048,7 @@ renderFrame: !zone
 	lda #$30
 +	sta setAuxWr
 	ldy #31
--	sta $200,y
+-	sta blankTexBuf,y
 	dey
 	bpl -
 	sta clrAuxWr

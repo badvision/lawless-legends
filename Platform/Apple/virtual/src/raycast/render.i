@@ -16,7 +16,6 @@
 TOP_LINE	= $2180	; 24 lines down from top
 NLINES		= 128
 TEX_SIZE	= $555	; 32x32 + 16x16 + 8x8 + 4x4 + 2x2 + 1x1
-PLASMA_FRAME_SIZE = $200
 
 ; Byte offset for each pixel in the blit unroll
 BLIT_OFF0	= 5
@@ -97,7 +96,8 @@ wSpriteLeft	= $B4
 
 ;---------------------------------
 ; The following are in aux mem...
-expandVec	= $800
+expandVec	= $200
+blankTexBuf	= $7E0 ; length 31
 ; back to main mem
 ;---------------------------------
 

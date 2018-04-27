@@ -3053,7 +3053,13 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def doCombat(mapCode, backUpOnFlee)#1
   word result
-  // Handled in a separate module. Clear enemies out of the heap when finished.
+
+  // Give a clue as to what's happening
+  setWindow2()
+  clearWindow()
+  callGlobalFunc(GS_COMBAT_INTRO, 0, 0, 0)
+
+  // Remainder handled in a separate module. Clear enemies out of the heap when finished.
   result = loadEngine(MOD_COMBAT)=>combat_zoneEncounter(mapCode)
   global=>p_enemyGroups = NULL
   heapCollect()
@@ -3181,7 +3187,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // This one godmode command needs to not load a module -- print memory without disturbing it
-def printMem()#1
+export def printMem()#1
   flipToPage1
   ^$c051
   mmgr(DEBUG_MEM, 0)

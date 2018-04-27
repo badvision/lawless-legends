@@ -32,8 +32,8 @@ byte[] S_A = "a "
 byte[] S_EMPTY = ""
 
 // To save time, we preload global funcs
-const NUM_PRELOADS = 4
-byte[] toPreload = GS_COMBAT_INTRO, GS_COMBAT_PROMPT, GS_ENEMY_INTRO, GS_COMBAT_WIN
+const NUM_PRELOADS = 3
+byte[] toPreload = GS_COMBAT_PROMPT, GS_ENEMY_INTRO, GS_COMBAT_WIN
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def preload()#0
@@ -1009,14 +1009,6 @@ def startCombat(mapCode)#1
   // Clear keyboard stobe, because while wandering the map, the player may have
   // queued up movement keys, which are made obsolete by the surprise of combat.
   ^kbdStrobe
-
-  // We're going to do all our text drawing in window 2. Also, might as well
-  // set everything up so that the map gets redrawn when combat finishes.
-  setWindow2()
-  clearWindow()
-
-  // General intro to the combat situation
-  callGlobalFunc(GS_COMBAT_INTRO, 0, 0, 0)
 
   // Say who we're fighting
   p = global=>p_enemyGroups

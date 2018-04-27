@@ -2750,7 +2750,7 @@ class A2PackPartitions
         return String.format("\$%X", ((nDice << 12) | (dieSize << 8) | add))
     }
 
-    def validateLootCode(code)
+    def validateLootCode(code, strings = null)
     {
         if (!code || code == "0")
             return "NULL"
@@ -2758,10 +2758,22 @@ class A2PackPartitions
             printWarning("Unknown loot-code '$code'")
             return "NULL"
         }
-        return escapeString(code)
+        if (strings)
+            return "@${strings[code.toLowerCase()]}"
+        else
+            return escapeString(code.toLowerCase())
     }
 
-    def genEnemy(out, row)
+    def extractEnemyStrings(row, strings)
+    {
+        def str = row.@"attack-text"
+        strings[str] = "_SE_${humanNameToSymbol(str, true)}"
+        str = row.@"loot-code"
+        if (str && str != "0")
+            strings[str.toLowerCase()] = "_SE_${humanNameToSymbol(str.toLowerCase(), true)}"
+    }
+
+    def genEnemy(out, row, strings)
     {
         def name = row.@name
         withContext(name)
@@ -2801,14 +2813,14 @@ class A2PackPartitions
                         "PO${humanNameToSymbol(image1, false)}, " +
                         (image2.size() > 0 ? "PO${humanNameToSymbol(image2, false)}, " : "0, ") +
                         "$attackTypeCode, " +
-                        "\"$attackText\", " +
+                        "@${strings[attackText]}, " +
                         "${range.replace("'", "").toInteger()}, " +
                         "${chanceToHit.toInteger()}, " +
                         "${parseDice(damage)}, " +
                         "${parseDice(experience)}), " + // end of pt1
                         "${parseDice(groupSize)}, " +
                         "${lootChance ? lootChance.toInteger() : 10}, " +
-                        "${validateLootCode(lootCode)}, " +
+                        "${validateLootCode(lootCode, strings)}, " +
                         "${parseDice(goldLoot)})")
             out.println("end")
 
@@ -2856,6 +2868,16 @@ class A2PackPartitions
                 sheet.rows.row.each { row ->
                     out.println("predef _NEn_${humanNameToSymbol(row.@name, false)}")
                 }
+                out.println()
+
+                def strings = [:]
+                sheet.rows.row.each { row ->
+                    extractEnemyStrings(row, strings)
+                }
+                strings.each { str, sym ->
+                    out.println("byte[] $sym = ${escapeString(str)}")
+                }
+                out.println()
 
                 // Figure out the mapping between "map code" and "enemy", and output the table for that
                 def codeToFunc = [:]
@@ -2894,12 +2916,12 @@ end
 
                 // Now output a function for each enemy
                 sheet.rows.row.each { row ->
-                    genEnemy(out, row)
+                    genEnemy(out, row, strings)
                 }
                 out.println()
 
                 // And finally, a function to select an enemy given a map code.
-                outCodeToFuncMethods("_enemies_forZone", "mapCode_", codeToFunc, out)
+                outCodeToFuncMethods("_enemies_forZone", "mapCode_", codeToFunc, out, strings)
 
                 out.println("return @funcTbl")
                 out.println("done")
@@ -3030,15 +3052,15 @@ end
         replaceIfDiff("build/src/plasma/gen_flags.pla")
     }
 
-    def genWeapon(func, row, out)
+    def genWeapon(func, row, out, strings)
     {
         out.println(
             "  return makeWeapon_pt2(makeWeapon_pt1(" +
             "${escapeString(parseStringAttr(row, "name"))}, " +
-            "${escapeString(parseStringAttr(row, "weapon-kind"))}, " +
+            "${strings[parseStringAttr(row, "weapon-kind")]}, " +
             "${parseWordAttr(row, "price")}, " +
             "${parseModifier(row, "bonus-value", "bonus-attribute")}, " +
-            "${escapeString(parseStringAttr(row, "ammo-kind"))}, " +
+            "${strings[parseStringAttr(row, "ammo-kind")]}, " +
             "${parseByteAttr(row, "clip-size")}, " +
             "${parseDiceAttr(row, "melee-damage")}, " +
             "${parseDiceAttr(row, "projectile-damage")}), " +
@@ -3046,22 +3068,22 @@ end
             "${parseByteAttr(row, "semi-auto-shots")}, " +
             "${parseByteAttr(row, "auto-shots")}, " +
             "${parseByteAttr(row, "range")}, " +
-            "${escapeString(parseStringAttr(row, "combat-text"))}, " +
+            "${strings[parseStringAttr(row, "combat-text")]}, " +
             "${parseBooleanAttr(row, 'single-use')})")
     }
 
-    def genArmor(func, row, out)
+    def genArmor(func, row, out, strings)
     {
         out.println(
             "  return makeArmor(" +
             "${escapeString(parseStringAttr(row, "name"))}, " +
-            "${escapeString(parseStringAttr(row, "armor-kind"))}, " +
+            "${strings[parseStringAttr(row, "armor-kind")]}, " +
             "${parseWordAttr(row, "price")}, " +
             "${parseByteAttr(row, "armor-value")}, " +
             "${parseModifier(row, "bonus-value", "bonus-attribute")})")
     }
 
-    def genItem(func, row, out)
+    def genItem(func, row, out, strings)
     {
         def name = parseStringAttr(row, "name")
         def price = parseWordAttr(row, "price")
@@ -3073,9 +3095,18 @@ end
 
         if ("$kind, $modifier, $count, $storeAmount, $lootAmount" != ", NULL, 0, 0, 0")
             out.println("  return makeFancyItem(${escapeString(name)}, $price, " +
-                "${escapeString(kind)}, $modifier, $count, $storeAmount, $lootAmount)")
+                "${strings[kind]}, $modifier, $count, $storeAmount, $lootAmount)")
         else
-            out.println("  return makePlainItem(${escapeString(name)}, $price)")
+            out.println("  return makePlainItem(${strings[name]}, $price)")
+    }
+
+    def extractItemStrings(row, strings)
+    {
+        ["ammo-kind", "weapon-kind", "armor-kind", "combat-text"].each { attr ->
+            def str = parseStringAttr(row, attr)
+            if (str)
+                strings[str] = "_SI_${humanNameToSymbol(str, true)}"
+        }
     }
 
     def genPlayer(func, row, out)
@@ -3150,11 +3181,12 @@ end
         }
     }
 
-    def outCodeToFuncMethods(funcName, prefix, codeToFunc, out)
+    def outCodeToFuncMethods(funcName, prefix, codeToFunc, out, strings = null)
     {
         out.println("def $funcName(code)#1")
         codeToFunc.sort().each { code, funcs ->
-            out.println("  if streqi(code, \"$code\"); return @$prefix${humanNameToSymbol(code, false)}; fin")
+            def s = (strings != null && strings[code]) ? "@${strings[code]}" : escapeString(code)
+            out.println("  if streqi(code, $s); return @$prefix${humanNameToSymbol(code, false)}; fin")
         }
         out.println("  puts(code)")
         out.println("  return fatal(\"$funcName\")")
@@ -3223,7 +3255,17 @@ end
             funcs.each { typeName, func, index, row ->
                 out.println("predef _$func")
             }
-            out.println("")
+            out.println()
+
+            // Shared strings
+            def strings = [:]
+            funcs.each { typeName, func, index, row ->
+                extractItemStrings(row, strings)
+            }
+            strings.each { str, sym ->
+                out.println("byte[] $sym = ${escapeString(str)}")
+            }
+            out.println()
 
             // Tables for converting loot codes and store codes to items
             outCodeToFuncTbl("lootCode_", lootCodeToFuncs, out)
@@ -3304,10 +3346,10 @@ end
                 {
                     out.println("def _$func()")
                     switch (typeName) {
-                        case "weapon": genWeapon(func, row, out); break
-                        case "armor":  genArmor(func, row, out);  break
-                        case "ammo":   genItem(func, row, out);   break
-                        case "item":   genItem(func, row, out);   break
+                        case "weapon": genWeapon(func, row, out, strings); break
+                        case "armor":  genArmor(func, row, out, strings);  break
+                        case "ammo":   genItem(func, row, out, strings);   break
+                        case "item":   genItem(func, row, out, strings);   break
                         default: assert false
                     }
                     out.println("end\n")

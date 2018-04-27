@@ -49,15 +49,15 @@
 ;          0000.01FF 6502 zero page and stack (main)
 ;          0200.03FF input buffer, misc vecs
 ;          0400.07FF text screen (used for debugging)
-;          0800.0Cxx memory manager part 1
-;          0Cxx.0Exx PLASMA locals storage (length $200)
-;          0Exx.17xx gameloop asm, data and stubs
-;          17xx.1FFF (free, managed)
+;          0800.0Dxx memory manager part 1
+;          0E00.0FFF PLASMA locals storage (length $200)
+;          1000.1Bxx gameloop asm, data and stubs
+;          1Bxx.1FFF (free, managed)
 ;          2000.3FFF hi-res page 1
 ;          4000.5FFF hi-res page 2 /
 ;                    memory manager work space
 ;          6000.6xxx 2D or 3D renderer
-;          7xxx.BFFF (free, managed)
+;          7xxx.BFFF (free, managed)  (but in 3D: A800.BF81 is raycaster tables)
 ;          C000.CFFF I/O
 ; (bank 1) D000.DEFF memory manager part 2
 ; (bank 1) DF00.DFFF decompressor
@@ -73,6 +73,8 @@
 ; ::::::::::::::
 ;          0000.01FF 6502 zero page and stack (aux)
 ;          0200.07FF texture expander part 1, and blank texture space (used by 3D renderer)
+;                    Note: Memory manager can't load resources directly into text screen because
+;                    hard disk cards fiddle the screen holes (but saved/restored by ProRWTS)
 ;          0800.08xx resource map
 ;          08xx.9xxx (free, managed)
 ;          A0xx.BFFF gameloop PLASMA code (loaded as high as possible)

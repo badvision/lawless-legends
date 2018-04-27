@@ -34,6 +34,10 @@ const CLOCK_ADV_3D_HOURS = 0
 const CLOCK_ADV_3D_MINS  = 0
 const CLOCK_ADV_3D_SECS  = 30
 
+// Raycaster tables - must match values in render.i
+const RAY_TABLE_START = $A800
+const RAY_TABLE_SIZE  = $1781
+
 // Max gold
 const GOLD_MAX = 20000
 
@@ -107,7 +111,6 @@ word triggerTbl
 
 word cmdTbl[96]   // ASCII $00..$5F
 byte frameLoaded = 0
-byte heapLocked = FALSE
 byte allowZoneInit = FALSE
 word curEngine = NULL
 word pIntimate = NULL
@@ -2204,8 +2207,6 @@ def initMap(x, y, dir)#0
   // If we have a renderer loaded, let it know to flush automap marks
   unloadTextures()
 
-  printf1("\n\nin initMap: $%x\n", readAuxByte($200)) // FOO
-
   // Reset memory (our module will stay since memory manager locked it upon load)
   mmgr(RESET_MEMORY, 0)
   renderLoaded = FALSE // leave it this way until all scripts done, else scriptDisplayStr renders
@@ -2216,6 +2217,9 @@ def initMap(x, y, dir)#0
   mmgr(SET_MEM_TARGET, displayEngine)
   if mapIs3D
     mmgr(QUEUE_LOAD, CODE_RENDER<<8 | RES_TYPE_CODE)
+    // Reserve memory for the raycaster's tables
+    mmgr(SET_MEM_TARGET, RAY_TABLE_START)
+    mmgr(REQUEST_MEMORY, RAY_TABLE_SIZE)
   else
     mmgr(QUEUE_LOAD, CODE_TILE_ENGINE<<8 | RES_TYPE_CODE)
   fin
@@ -3176,6 +3180,19 @@ def cheatCmd()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// This one godmode command needs to not load a module -- print memory without disturbing it
+def printMem()#1
+  flipToPage1
+  ^$c051
+  mmgr(DEBUG_MEM, 0)
+  rdkey
+  auxMmgr(DEBUG_MEM, 0)
+  rdkey
+  ^$c050
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set up the command table for 3D mode
 def initCmds()#0
 
@@ -3205,7 +3222,7 @@ def initCmds()#0
     cmdTbl['!'] = @cheatCmd
     cmdTbl['Y'] = @cheatCmd
     cmdTbl['G'] = @cheatCmd
-    cmdTbl['&'] = @cheatCmd
+    cmdTbl['&'] = @printMem
     cmdTbl['^'] = @cheatCmd
   fin
 
@@ -3255,13 +3272,6 @@ end
 // Set up the small-object heap. Set loadedSize to zero on initial, or non-zero for loaded game.
 export def initHeap(loadedSize)#0
   byte i
-
-  if !heapLocked
-    mmgr(SET_MEM_TARGET, HEAP_BOTTOM)
-    mmgr(REQUEST_MEMORY, HEAP_SIZE)
-    mmgr(LOCK_MEMORY,    HEAP_BOTTOM)
-    heapLocked = TRUE
-  fin
 
   if loadedSize
     mmgr(SET_MEM_TARGET, HEAP_BOTTOM + loadedSize)
@@ -3652,6 +3662,9 @@ def startGame(firstTime, ask)#0
   if firstTime
     auxMmgr(SET_MEM_TARGET, $800) // well above where resource index loads at startup
     auxMmgr(REQUEST_MEMORY, $6000) // plenty of room for resource index + temp expander
+    mmgr(SET_MEM_TARGET, HEAP_BOTTOM)
+    mmgr(REQUEST_MEMORY, HEAP_SIZE)
+    mmgr(LOCK_MEMORY,    HEAP_BOTTOM)
   fin
   p_module = mmgr(QUEUE_LOAD, MOD_DISKOPS<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)

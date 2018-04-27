@@ -159,18 +159,6 @@ def testCombat#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def printMem()#1
-  flipToPage1
-  ^$c051
-  mmgr(DEBUG_MEM, 0)
-  rdkey
-  auxMmgr(DEBUG_MEM, 0)
-  rdkey
-  ^$c050
-  return 0
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Switch to the next sky color (3D only)
 def nextSky()#1
   setSky((skyNum + 1) % 18)
@@ -233,7 +221,6 @@ def _cheatCmd(key)#1
     is '!'; testCombat(); break
     is 'Y'; nextSky(); break
     is 'G'; nextGround(); break
-    is '&'; printMem(); break
     is '^'; editFlags(); break
     otherwise fatal("gmcmd")
   wend

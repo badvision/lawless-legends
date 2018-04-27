@@ -27,8 +27,8 @@
 ; Constants
 MAX_SEGS	= 96
 
-DEBUG		= 1
-SANITY_CHECK	= 1		; also prints out request data
+DEBUG		= 0
+SANITY_CHECK	= 0		; also prints out request data
 
 ; Zero page temporary variables.
 ; Don't move these - they overlap in clever ways with ProRWTS shadows (see below)
@@ -1244,6 +1244,10 @@ scanForAvail: !zone
 ; Input:  reqLen - 16-bit length to scan for
 ; Output: X-reg - segment found (zero if not found); N and Z set based on X reg
 	ldx isAuxCmd	; grab correct starting segment
+	ldy #0
+	sty .ret+1	; default return = 0
+	dey
+	sty .cmp3+1	; match all fits to start with (set best fit size = $FF)
 .loop:	ldy tSegLink,x	; grab link to next segment, which we'll need regardless
 	lda tSegType,x	; check flags
 	bne .next	; skip allocated blocks (even if inactive)
@@ -1258,11 +1262,15 @@ scanForAvail: !zone
 .cmp1:	cmp #11		; self-modified earlier
 	lda tSegAdrHi,y	; all 16 bits
 .cmp2:	sbc #11		; self-modified earlier
-	bcs .done	; next seg addr < (this seg addr + len)? if good - all done!
+	bcc .next	; if not enough space - try the next one
+.cmp3	cmp #11		; is this a new record for best size fit?
+	bcs .next	; bigger than previous best fit? if so, try next
+	sta .cmp3+1	; note the new best fit
+	stx .ret+1	; and the matching segment for later return
 .next:	tya		; next in chain
 	tax		; to X reg index
 	bne .loop	; not end of chain - loop again
-.done	cpx #0
+.ret	ldx #11		; self-modified above
 	rts
 
 ;------------------------------------------------------------------------------

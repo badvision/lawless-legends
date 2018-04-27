@@ -102,7 +102,7 @@ blankTexBuf	= $7E0 ; length 31
 ;---------------------------------
 
 ; Main-mem tables and buffers
-tableStart	= $A200
+tableStart	= $A800			; must match gameloop.pla RAY_TABLE_START
 decodeTo01	= tableStart+$0000
 decodeTo01b	= tableStart+$0100
 decodeTo23	= tableStart+$0200

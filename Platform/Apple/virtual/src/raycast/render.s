@@ -2291,15 +2291,6 @@ pl_initMap: !zone
 	jsr pl_setDir
 	inx
 	jsr pl_setPos
-	; Reserve memory for all our tables.
-	lda #SET_MEM_TARGET
-	ldx #<tableStart
-	ldy #>tableStart
-	jsr mainLoader
-	lda #REQUEST_MEMORY
-	ldx #<(tableEnd-tableStart)
-	ldy #>(tableEnd-tableStart)
-	jsr mainLoader
 	jsr graphInit
 	; Proceed with loading
 	lda #1			; non-zero to init scripts also

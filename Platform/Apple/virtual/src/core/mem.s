@@ -28,7 +28,6 @@
 MAX_SEGS	= 96
 
 DEBUG		= 0
-SANITY_CHECK	= 0		; also prints out request data
 
 ; Zero page temporary variables.
 ; Don't move these - they overlap in clever ways with ProRWTS shadows (see below)
@@ -269,7 +268,7 @@ init: !zone
 	cpx #MAX_SEGS-1		; did all segments yet?
 	bne .loop		; no, loop again
 ; Allocate space for the PLASMA frame stack
-!if SANITY_CHECK {
+!if DEBUG {
 	lda #$20
 	sta framePtr+1		; because sanity check verifies it's not $BE or $BF
 }	
@@ -812,7 +811,7 @@ heapCheck: !zone
 	; fall through to heapCorrupt...
 
 heapCorrupt:
-       +prWord pTmp
+       +prWord pSrc
        jsr inlineFatal : !text "HeapCorrupt",0
 
 ; Begin a heap scan by setting pTmp to start-of-heap, then returns
@@ -1282,7 +1281,7 @@ dispatch:
 	rol		; transfer carry bit
 	sta isAuxCmd	; to isAuxCmd
 	pla
-!if SANITY_CHECK { jsr saneStart : jsr + : jmp saneEnd }
+!if DEBUG { jsr saneStart : jsr + : jmp saneEnd }
 +	cmp #REQUEST_MEMORY
 	bne +
 	jmp mem_request
@@ -1342,8 +1341,8 @@ dispatch:
 +	jmp nextLdVec	; Pass command to next chained loader
 
 ;------------------------------------------------------------------------------
-; Sanity check mode
-!if SANITY_CHECK {
+; Debug-mode sanity checking
+!if DEBUG {
 saneStart: !zone {
 	sta saneEnd+2	; save cmd num for end-checking
 	cmp #ADVANCE_ANIMS
@@ -2031,7 +2030,7 @@ openPartition: !zone
 	bne .open
 ; ask user to insert the disk
 ; TODO: handle dual drive configuration
-.insert	+safeHome
+.insert	!if DEBUG = 0 { +safeHome }
 	+prStr : !text "Insert disk ",0
 	bit $c051
 	lda curPartition
@@ -2039,7 +2038,7 @@ openPartition: !zone
 	adc #"0"
 	+safeCout
 	+waitKey
-	+safeHome
+	!if DEBUG = 0 { +safeHome }
 	bit $c050
 	jmp .retry		; try again
 .origFloppy: !byte 0

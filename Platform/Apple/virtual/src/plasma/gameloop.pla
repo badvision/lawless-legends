@@ -1682,7 +1682,7 @@ end
 // sectioNum: 1=map2d, 2=map3d, 3=portrait
 export def lookupResourcePart(sectionNum, resourceNum)#1
   word ptr
-  byte n
+  byte n, i
 
   // Skip to the requested section (starting just after version num)
   ptr = pResourceIndex
@@ -1695,13 +1695,18 @@ export def lookupResourcePart(sectionNum, resourceNum)#1
   n = readAuxByte(ptr)
   if resourceNum > n; fatal("lkupFail1"); fin
   n = readAuxByte(ptr + resourceNum)
-  // 255 is special code for map that is replicated on every data disk
-  if n == 255
-    if curMapPartition > 0; return curMapPartition; fin
-    return 2
+
+  // If resource is on the current map's disk, prefer that
+  if n & (1<<(curMapPartition-1))
+    return curMapPartition
   fin
-  if n < 0 or n > 20; fatal("lkupFail2"); fin // allow zero (e.g. portrait not used so not packed)
-  return n
+
+  // Otherwise return the first disk it's on
+  for i = 0 to 8
+    if n & (1<<i); return i+1; fin
+  next
+  fatal("lkupFail2")
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

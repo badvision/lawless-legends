@@ -59,7 +59,7 @@ class A2PackPartitions
     static final int AC_KLUDGE = 2      // minus 1 to work around last-block bug in AppleCommander
     static final int DOS_OVERHEAD = 3 // only 3 blks overhead! ProRWTS is so freaking amazing.
     static final int SAVE_GAME_BYTES = 0x1200
-    static final int MAX_DISKS = 20 // for now this should be way more than enough
+    static final int MAX_DISKS = 8 // if more are needed, we'd have to expand the resource index format
 
     def typeNumToDisplayName = [1:  "Code",
                                 2:  "2D map",
@@ -1700,6 +1700,9 @@ class A2PackPartitions
                         mapChunks[key] = chunk
                         chunk.buf.partNum = 1
                         portraitSpace += len
+                        if (!chunkDisks.containsKey(key.toString()))
+                            chunkDisks[key.toString()] = [] as Set
+                        chunkDisks[key.toString()].add(1)
                     }
                 }
             }
@@ -1765,9 +1768,9 @@ class A2PackPartitions
             mapChunks.each { k,v ->
                 v.buf.partNum = partNum
                 outChunks[k] = v
-                if (!chunkDisks.containsKey(k))
-                    chunkDisks[k] = [] as Set
-                chunkDisks[k].add(partNum)
+                if (!chunkDisks.containsKey(k.toString()))
+                    chunkDisks[k.toString()] = [] as Set
+                chunkDisks[k.toString()].add(partNum)
             }
             // Handle maps that get dupe'd on each data disk
             if (toDupe.contains(mapName))
@@ -1844,6 +1847,13 @@ class A2PackPartitions
         return String.format("%s%s%d", engineCode, offset < 0 ? "-" : ".", Math.abs(offset))
     }
 
+    def calcDiskBits(disks)
+    {
+        int out = 0
+        disks.each { out |= (1<<(it-1)) }
+        return out
+    }
+
     /**
      * Make an index listing the partition number wherein each map and portrait can be found.
      */
@@ -1859,16 +1869,18 @@ class A2PackPartitions
         // Then output 2D maps, 3d maps, and portraits
         tmp.put((byte) maps2D.size())
         maps2D.each { k, v ->
-            tmp.put((byte) ((parseOrder(v.order) < 0) ? 255 : v.buf.partNum))
+            tmp.put((byte) calcDiskBits(chunkDisks[["map2D", k].toString()]))
         }
 
         tmp.put((byte) maps3D.size())
         maps3D.each { k, v ->
-            tmp.put((byte) ((parseOrder(v.order) < 0) ? 255 : v.buf.partNum))
+            tmp.put((byte) calcDiskBits(chunkDisks[["map3D", k].toString()]))
         }
 
         tmp.put((byte) portraits.size())
-        portraits.each { k, v -> tmp.put((byte) (v.buf.partNum ? v.buf.partNum : 0)) }
+        portraits.each { k, v ->
+            tmp.put((byte) calcDiskBits(chunkDisks[["portrait", k].toString()]))
+        }
 
         code["resourceIndex"].buf = compress(unwrapByteBuffer(tmp))
         def chunk = [type:TYPE_CODE, num:code["resourceIndex"].num, 
@@ -2409,7 +2421,7 @@ class A2PackPartitions
             def dataKey = [type:type, name:name]
             if (!data.containsKey(dataKey)) {
                 data[dataKey] = [clen: v.clen, uclen: v.uclen,
-                                 disks: chunkDisks[[typeNumToName[k.type], k.name]],
+                                 disks: chunkDisks[[typeNumToName[k.type], k.name].toString()],
                                  ids: [k.num] as Set]
             }
             else {

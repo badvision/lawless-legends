@@ -2284,6 +2284,7 @@ class A2PackPartitions
         compileModule("intimate", "src/plasma/")
         compileModule("automap", "src/plasma/")
         compileModule("sndseq", "src/plasma/")
+        lastSysModule = modules.size()  // used only for reporting
         compileModule("gen_enemies", "src/plasma/")
         compileModule("gen_items", "src/plasma/")
         compileModule("gen_players", "src/plasma/")
@@ -2291,7 +2292,6 @@ class A2PackPartitions
         globalScripts.each { name, nArgs ->
             compileModule("gs_"+name, "src/plasma/")
         }
-        lastSysModule = modules.size()
 
         modules.each { k,v -> addResourceDep("map", "<root>", "module", k) }
     }
@@ -2404,12 +2404,18 @@ class A2PackPartitions
             if (type == "Code" && k.num > lastSysModule)
                 type = "Script"
             def name = k.name.replaceAll(/\s*-\s*[23][dD].*/, "")
-            def dataKey = [type:type, name:name, internalType: k.type, internalName: k.name, num:k.num]
-            if (!data.containsKey(dataKey))
-                data[dataKey] = v
+            if (type == "2D map" || type == "Script")
+                name = name.replaceAll(/\d\d$/, "")
+            def dataKey = [type:type, name:name]
+            if (!data.containsKey(dataKey)) {
+                data[dataKey] = [clen: v.clen, uclen: v.uclen,
+                                 disks: chunkDisks[[typeNumToName[k.type], k.name]],
+                                 ids: [k.num] as Set]
+            }
             else {
                 data[dataKey].clen += v.clen
                 data[dataKey].uclen += v.uclen
+                data[dataKey].ids.add(k.num)
             }
         }
 
@@ -2433,12 +2439,16 @@ class A2PackPartitions
                 cSub = 0
                 ucSub = 0
             }
-            def disks = chunkDisks[[typeNumToName[k.internalType], k.internalName]]
-            def disksStr = !disks ? "omitted/unused" :
-                           disks.size() == 1 ? "disk ${disks[0]}" :
-                           "disks ${disks.toList().sort().join(",")}"
-            reportWriter.println String.format("  %-20s: %6.1fK memory, %6.1fK disk (id %d; %s)",
-                k.name, v.uclen/1024.0, v.clen/1024.0, k.num, disksStr)
+            def ids = v.ids ? v.ids.toList().sort() : null
+            def idsStr = !ids ? "null" :
+                         ids.size() == 1 ? "id ${ids[0]}" :
+                         ids[-1]-ids[0] == ids.size()-1 ? "ids ${ids[0]}-${ids[-1]}" :
+                         "ids ${ids.join(",")}"
+            def disksStr = !v.disks ? "omitted/unused" :
+                           v.disks.size() == 1 ? "disk ${v.disks[0]}" :
+                           "disks ${v.disks.toList().sort().join(",")}"
+            reportWriter.println String.format("  %-20s: %6.1fK memory, %6.1fK disk (%s; %s)",
+                k.name, v.uclen/1024.0, v.clen/1024.0, idsStr, disksStr)
             cSub += v.clen
             cTot += v.clen
             ucSub += v.uclen

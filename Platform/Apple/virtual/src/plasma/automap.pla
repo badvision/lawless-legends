@@ -408,7 +408,7 @@ asm mergeMarks(allMarks, mapNum, mapData, width, stride, height)#0
   ldx ysav
   lda .param_allMarks,x
   sta pSrc
-  lda .param_allMarks+evalStkH-evalStkL,x
+  lda .param_allMarks+HB,x
   sta pSrc+1
 .scan
   ldy #0
@@ -430,7 +430,7 @@ asm mergeMarks(allMarks, mapNum, mapData, width, stride, height)#0
 .found
   lda .param_mapData,x
   sta pDst
-  lda .param_mapData+evalStkH-evalStkL,x
+  lda .param_mapData+HB,x
   sta pDst+1
   iny                 ; skip over size byte
   ; Process a row of data

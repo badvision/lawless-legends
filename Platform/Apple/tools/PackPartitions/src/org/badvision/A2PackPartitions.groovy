@@ -20,6 +20,7 @@ import java.nio.channels.Channels
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.util.Calendar
+import java.util.regex.Pattern
 import java.util.zip.GZIPInputStream
 import java.util.LinkedHashMap
 import java.security.MessageDigest
@@ -121,6 +122,9 @@ class A2PackPartitions
     def fixups    = [:]  // module name to fixup.num, fixup.buf
     def gameFlags = [:]  // flag name to number
     def chunkDisks = [:] // chunk name/type to set of disk partition numbers
+    def automapTiles = [:] // tile name to tile num
+    def automapPat = null  // regexp Pattern to match script names to automap tiles
+    def automapSpecials = []
 
     def maxMapSections = 0
 
@@ -1000,6 +1004,25 @@ class A2PackPartitions
         smTiles[imgEl.@id] = smBuf
     }
 
+    /** Identify the automap tiles, and number them */
+    def numberAutomapTiles(dataIn)
+    {
+        def tileNum = 0
+        def patStrs = []
+        dataIn.tile.sort{(it.@category + it.@name).toLowerCase()}.each { tile ->
+            def lname = tile.@name.toLowerCase().trim().replaceAll(/\s*-\s*[23][dD]\s*/, "")
+            def cat = tile.@category.toLowerCase().trim()
+            if (cat == "automap") {
+                automapTiles[lname] = ++tileNum
+                patStrs << lname
+            }
+        }
+
+        // Form a regular expression for quickly matching script names
+        if (!patStrs.isEmpty())
+            automapPat = Pattern.compile(patStrs.join("|"))
+    }
+
     /** Identify the avatars and other global tiles, and number them */
     def numberGlobalTiles(dataIn)
     {
@@ -1009,9 +1032,8 @@ class A2PackPartitions
             def cat = tile.@category.toLowerCase().trim()
             if (cat == "avatar")
                 avatars[lname] = tileNum++
-            else if (cat == "lamp") {
+            else if (cat == "lamp")
                 lampTiles << tileNum++
-            }
         }
         assert avatars.size() >= 1 : "Need at least one tile in 'Avatar' category."
     }
@@ -2281,6 +2303,7 @@ class A2PackPartitions
         assembleCode("fontEngine", "src/font/")
         assembleCode("tileEngine", "src/tile/")
         assembleCode("marks", "src/marks/")
+        assembleCode("gen_mapSpecials", "src/mapScripts/")
 
         code.each { k,v -> addResourceDep("map", "<root>", "code", k) }
 
@@ -2318,7 +2341,9 @@ class A2PackPartitions
         dataIn.map.each { map ->
             def name = map?.@name
             def shortName = name.replaceAll(/[\s-]*[23]D$/, '')
+            int baseMapNum = 0
             if (map?.@name =~ /\s*2D$/) {
+                baseMapNum = num2D+1
                 mapNames[name] = ['2D', num2D+1]
                 mapNames[shortName] = ['2D', num2D+1]
                 def rows = parseMap(map, dataIn.tile, true) // quick mode
@@ -2331,6 +2356,7 @@ class A2PackPartitions
                 maxMapSections = Math.max(maxMapSections, nHorzSections * nVertSections)
             }
             else if (map?.@name =~ /\s*3D$/) {
+                baseMapNum = (num3D+1) | 0x80  // special automap flag
                 mapNames[name] = ['3D', num3D+1]
                 mapNames[shortName] = ['3D', num3D+1]
                 def rows = parseMap(map, dataIn.tile, true) // quick mode
@@ -2340,7 +2366,81 @@ class A2PackPartitions
             }
             else
                 printWarning "map name '${map?.@name}' should contain '2D' or '3D'. Skipping."
+
+            // Add special script markers
+            if (baseMapNum > 0 && automapPat) {
+                map.scripts.script.each { script ->
+                    String scriptName = script?.@name.trim().toLowerCase()
+                    if (automapPat.matcher(scriptName).matches()) {
+                        def tile
+                        automapTiles.each { tileName, tileNum ->
+                            if (scriptName.contains(tileName))
+                                tile = tileNum
+                        }
+                        assert tile : "automap pat incorrect"
+                        script.locationTrigger.each { trig ->
+                            if (script.locationTrigger) {
+                                int x = trig.@x.toInteger()
+                                int y = trig.@y.toInteger()
+                                assert x >= 0 && x < 255 : "map too wide"
+                                assert y >= 0 && y < 255 : "map too high"
+                                automapSpecials << [baseMapNum, y, x, tile]
+                            }
+                        }
+                    }
+                }
+            }
         }
+    }
+
+    def genAutomapSpecials()
+    {
+        def scriptDir = "build/src/mapScripts/"
+        if (!new File(scriptDir).exists())
+            new File(scriptDir).mkdirs()
+        new File("build/src/mapScripts/gen_mapSpecials.s.new").withWriter { out ->
+            out.println("; Generated code - DO NOT MODIFY BY HAND\n")
+            out.println("*=0 ; origin irrelevant")
+            int prevMapNum = 0
+            int prevY
+            automapSpecials.sort().each { mapNum, y, x, tileNum ->
+                if (mapNum != prevMapNum) {
+                    if (prevY > 0) {
+                        out.println(" !byte 0 ; end of y=$prevY")
+                        out.println("+")
+                    }
+                    if (prevMapNum) {
+                        out.println(" !byte 0 ; end of data for map $prevMapNum")
+                        out.println("++")
+                    }
+                    out.println("")
+                    out.println(" !byte $mapNum ; start of data for map $mapNum")
+                    out.println(" !byte ++ - * + 1; length of this map's data (incl. hdr)")
+                    prevMapNum = mapNum
+                    prevY = -1
+                }
+                if (y != prevY) {
+                    if (prevY > 0) {
+                        out.println(" !byte 0 ; end of y=$prevY")
+                        out.println("+")
+                    }
+                    out.println(" !byte $y ; y=$y")
+                    out.println(" !byte + - * + 1 ; length of y=$y data (incl. hdr)")
+                    prevY = y
+                }
+                out.println(" !byte $x, 3, $tileNum ; x=$x, size=3, tile=$tileNum")
+            }
+            if (prevY > 0) {
+                out.println(" !byte 0 ; end of y=$prevY")
+                out.println("+")
+            }
+            if (prevMapNum) {
+                out.println(" !byte 0 ; end of data for map $prevMapNum")
+                out.println("++")
+            }
+            out.println(" !byte 0; end of all maps")
+        }
+        replaceIfDiff("build/src/mapScripts/gen_mapSpecials.s")
     }
 
     /*
@@ -2514,6 +2614,13 @@ class A2PackPartitions
         // Record global script names
         recordGlobalScripts(dataIn)
 
+        // Number all the maps and record them with names
+        numberAutomapTiles(dataIn)
+        numberMaps(dataIn)
+
+        // Generate the automap-specials table
+        genAutomapSpecials()
+
         // Read in code chunks. For now these are hard coded, but I guess they ought to
         // be configured in a config file somewhere...?
         //
@@ -2622,9 +2729,6 @@ class A2PackPartitions
             throw new Exception("Error: combatWin portrait not found")
         if (!deathFound)
             throw new Exception("Error: death portrait not found")
-
-        // Number all the maps and record them with names
-        numberMaps(dataIn)
 
         // Assign a number to each game flag
         numberGameFlags(dataIn)
@@ -3652,6 +3756,7 @@ end
         replaceIfDiff("build/src/plasma/gen_images.plh")
 
         // Before we can generate global script code, we need to identify and number all the maps.
+        numberAutomapTiles(dataIn)
         numberMaps(dataIn)
 
         // Assign a number to each game flag

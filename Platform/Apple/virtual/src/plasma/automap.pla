@@ -22,6 +22,9 @@ const SCREEN_COLS = 36
 const SECTION_WIDTH_2D  = 22
 const SECTION_HEIGHT_2D = 23
 
+const specPtr     = $BC // must match asm definition below for pSpecials
+const specScanFor = $BE // must match asm definition below for scanFor
+
 struc TMapSection
   byte bm_mapNum
   word pm_map
@@ -57,6 +60,10 @@ byte nHorzSects
 byte sectionBuf[SECT_BUF_SIZE]
 word pLastSection
 word pAllMarks
+word pSpecialsBuf
+word pSpecialTiles
+word scanSpecials = $100 // placed at $100 so it can easily access aux mem
+word pSpecTiles
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -81,6 +88,8 @@ ysav        = $34  ; length 1
 ; do not use $50..B5, as the current render (tile engine or raycaster) use these
 pSrc        = $B8  ; length 2
 pDst        = $BA  ; length 2
+pSpecials   = $BC  ; length 2
+scanFor     = $BE  ; length 1
 
 HB          = evalStkH-evalStkL   ; offset to get from lo byte to hi byte on eval stack
 
@@ -247,29 +256,36 @@ asm scroll(srcLine, srcOff, dstLine, dstOff, width, dir, nLines)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-asm fillRow(mapRowData, mask, tileTrans, pSmallTiles, blankTile, width, tilePtrs)#0
+asm fillRow(mapRowData, mask, tileTrans, pSmallTiles, pSpecialTiles, blankTile, width, tilePtrs)#0
 !zone
-  +asmPlasmNoRet              7
-.param_mapRowData  = evalStkL+6
-.param_mask        = evalStkL+5
-.param_tileTrans   = evalStkL+4
-.param_pSmallTiles = evalStkL+3
-.param_blankTile   = evalStkL+2
-.param_width       = evalStkL+1
-.param_tilePtrs    = evalStkL+0
-.srcOff = pTile
-.dstOff = pTile+1
+  +asmPlasmNoRet                8
+.param_mapRowData    = evalStkL+7
+.param_mask          = evalStkL+6
+.param_tileTrans     = evalStkL+5
+.param_pSmallTiles   = evalStkL+4
+.param_pSpecialTiles = evalStkL+3
+.param_blankTile     = evalStkL+2
+.param_width         = evalStkL+1
+.param_tilePtrs      = evalStkL+0
+.srcOff = scanFor
+.dstOff = pTile     ; temporary use since we don't need it in this routine
+.special = pTile+1  ; ditto
 ; psudocode:
 ;  byte x, mapRaw, tileNum
 ;  for x = 0 to width-1
 ;    mapRaw = ^(mapRowData + x) & $1F
-;    if mapRaw
-;      if tileTrans
-;        tileNum = ^(tileTrans + ((mapRaw - 1) << 1))
+;    if mapRaw and (^(mapRowData + x) & $40) // automap 'seen' flag
+;      tileNum = scanSpecials(x)
+;      if tileNum
+;        tilePtrs[x] = pSpecialTiles + ((tileNum-1) * 9) // 9 bytes per reduced tile in the tileset
 ;      else
-;        tileNum = mapRaw
+;        if tileTrans
+;          tileNum = ^(tileTrans + ((mapRaw - 1) << 1))
+;        else
+;          tileNum = mapRaw
+;        fin
+;        tilePtrs[x] = pSmallTiles + ((tileNum-1) * 9)  // 9 bytes per reduced tile in the tileset
 ;      fin
-;      tilePtrs[x] = pSmallTiles + ((tileNum-1) * 9)  // 9 bytes per reduced tile in the tileset
 ;    else
 ;      tilePtrs[x] = @blankTile
 ;    fin
@@ -297,6 +313,13 @@ asm fillRow(mapRowData, mask, tileTrans, pSmallTiles, blankTile, width, tilePtrs
   asl
   bpl .blank        ; skip unless $40 bit is set denoting this space has been seen
   lsr
+  pha
+  jsr $100          ; scan for automap specials override
+  sta .special
+  beq +
+  dex               ; to use pSpecialTiles instead of pSmallTiles
+  bpl .got          ; always taken
++ pla               ; normal processing (no special override)
   and .param_mask,x ; mask to get just tile number
   beq .blank
   tay
@@ -307,6 +330,7 @@ asm fillRow(mapRowData, mask, tileTrans, pSmallTiles, blankTile, width, tilePtrs
   asl
   tay
   lda (pTmp),y
+.got
   tay
 .notrans
   dey         ; tileNum - 1
@@ -324,11 +348,14 @@ asm fillRow(mapRowData, mask, tileTrans, pSmallTiles, blankTile, width, tilePtrs
   bcc +
   inc tmp+1
 + clc
-  adc .param_pSmallTiles,x
+  adc .param_pSmallTiles,x      ; X may have been adjusted to address pSpecialTiles instead
   pha
   lda tmp+1
   adc .param_pSmallTiles+HB,x
-  bcc .store      ; always taken
+  ldy .special
+  beq +
+  inx             ; back to using normal pSmallTiles
++ bcc .store      ; always taken
 .blank
   lda .param_blankTile,x
   pha
@@ -476,10 +503,57 @@ asm mergeMarks(allMarks, mapNum, mapData, width, stride, height)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+asm _scanSpecials_start()#0
+; Advance pSpecials looking for 'scanFor'
+!zone {
+  ; This gets copied to and run from $100 so it can easily access aux mem
+  sta setAuxRd
+
+  lda #$60
+  sta 0
+  jsr 0 ; FOO
+
+.loop
+  ldy #0
+  lda (pSpecials),y
+  iny
+  cmp scanFor
+  beq +
+  eor #$FF          ; if end of table...
+  beq .ret          ; ...return zero (and don't go past end of table)
+  lda (pSpecials),y
+  tay
++ tya               ; at this point, y=1 is match, 2+ is no-match skipping
+  sec               ; yes, add one extra
+  adc pSpecials
+  sta pSpecials
+  bcc +
+  inc pSpecials+1
++ dey               ; if len was 1, it was match; >=2 no match, loop again
+  bne .loop
+  lda (pSpecials),y ; y=0: match, get the value inside
+.ret
+  sta clrAuxRd
+  rts
+}
+end
+asm _scanSpecials_end()#0
+  nop ; dummy
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def loadMarks()#0
   word len
 
-  // First, call the automark write routine. This has not only the effect of flushing the marks
+  // Load the specials table since partition zero is probably still open
+  auxMmgr(START_LOAD, 1) // partition 1 is where the table lives
+  pSpecialsBuf = auxMmgr(QUEUE_LOAD, CODE_GEN_MAP_SPECIALS<<8 | RES_TYPE_CODE)
+
+  // While we're at it, load the automap special tiles.
+  pSpecTiles = mmgr(QUEUE_LOAD, 2<<8 | RES_TYPE_TILESET) // always tileset 2 (just after global tiles)
+  mmgr(FINISH_LOAD, 0)
+
+  // Call the automark write routine. This has not only the effect of flushing the marks
   // to disk, but also leaving them loaded for us at $4000 (main).
   writeMarks
 
@@ -487,17 +561,20 @@ def loadMarks()#0
   len = *$4000
   pAllMarks = auxMmgr(REQUEST_MEMORY, len)
   memcpy($4002, pAllMarks, len, 1)
+
+  // Figure out where the small versions of the special tiles reside (at the end of the full size tiles)
+  pSpecialTiles = pSpecialsBuf + 1 + ((^pSpecialsBuf) << 5)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayRow3D(pScreen, mapRowData, tileTrans, pSmallTiles, width)#0
-  fillRow(mapRowData, $1F, tileTrans, pSmallTiles, @blankTile, width, @tilePtrs)
+def displayRow3D(pScreen, mapRowData, tileTrans, pSmallTiles, pSpecialTiles, width)#0
+  fillRow(mapRowData, $1F, tileTrans, pSmallTiles, pSpecialTiles, @blankTile, width, @tilePtrs)
   drawSlice(@blankTile, pScreen, width, @tilePtrs)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayRow2D(pScreen, mapRowData, pSmallTiles, width)#0
-  fillRow(mapRowData, $3F, NULL, pSmallTiles, @blankTile, width, @tilePtrs)
+def displayRow2D(pScreen, mapRowData, pSmallTiles, pSpecialTiles, width)#0
+  fillRow(mapRowData, $3F, NULL, pSmallTiles, pSpecialTiles, @blankTile, width, @tilePtrs)
   drawSlice(@blankTile, pScreen, width, @tilePtrs)
 end
 
@@ -625,12 +702,9 @@ def freeSections#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displaySection3D(pSection)#0
-  word pSmallTiles, tileTrans, mapData, rowData
+def displaySection3D(pSection, pSmallTiles)#0
+  word tileTrans, mapData, rowData, specBlk
   byte nTextures, y, rowSize, line, lx
-
-  // Figure out where the small tiles reside (at the end of the full size tiles)
-  pSmallTiles = pSection=>pm_tileset + 1 + ((^(pSection=>pm_tileset)) << 5)
 
   // Extract significant pointers from the map blob
   rowSize = ^(pSection=>pm_map)
@@ -654,21 +728,27 @@ def displaySection3D(pSection)#0
   line = (pSection->bm_sy << 3) + MAP_TOP
   lx = MAP_LEFT + pSection->bm_sx
 
+  // Find the map data in the specials buf
+  *specPtr = pSpecialsBuf
+  ^specScanFor = pSection->bm_mapNum | $80
+  scanSpecials()#0
+  specBlk = *specPtr
+
   // Display each visible row
   for y = 1 to pSection->bm_ch  // offset is 1 to skip over sentinel row
-    displayRow3D(getScreenLine(line) + lx, rowData, tileTrans, pSmallTiles, pSection->bm_cw)
+    *specPtr = specBlk
+    ^specScanFor = y + pSection->wm_y0
+    scanSpecials()#0
+    displayRow3D(getScreenLine(line) + lx, rowData, tileTrans, pSmallTiles, pSpecialTiles, pSection->bm_cw)
     rowData = rowData + rowSize
     line = line + 8
   next
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displaySection2D(pSection)#0
-  word pSmallTiles, rowData
+def displaySection2D(pSection, pSmallTiles)#0
+  word rowData
   byte y, line, lx
-
-  // Figure out where the small tiles reside (at the end of the full size tiles)
-  pSmallTiles = pSection=>pm_tileset + 1 + ((^(pSection=>pm_tileset)) << 5)
 
   // Merge automap marks into the data if not done yet
   rowData = pSection=>pm_map + 6  // header = 6 bytes
@@ -683,9 +763,14 @@ def displaySection2D(pSection)#0
   line = (pSection->bm_sy << 3) + MAP_TOP
   lx = MAP_LEFT + pSection->bm_sx
 
+  // Find the map data in the specials buf
+  *specPtr = pSpecialsBuf
+  ^specScanFor = pSection->bm_mapNum
+  scanSpecials()#0
+
   // Display each visible row
   for y = 1 to pSection->bm_ch
-    displayRow2D(getScreenLine(line) + lx, rowData, pSmallTiles, pSection->bm_cw)
+    displayRow2D(getScreenLine(line) + lx, rowData, pSmallTiles, pSpecialTiles, pSection->bm_cw)
     rowData = rowData + SECTION_WIDTH_2D
     line = line + 8
   next
@@ -693,15 +778,23 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displaySections#0
-  word pSection
+  word pSection, pSmallTiles, x
   pSection = @sectionBuf
+
+  // Set up routine that scans the specials table in aux mem (routine lives in low stack page)
+  memcpy(@_scanSpecials_start, scanSpecials, @_scanSpecials_end - @_scanSpecials_start, 0)
+
   while pSection <> pLastSection
     //printSection(pSection)
     if pSection->bm_visible
+      // Figure out where the small tiles reside (at the end of the full size tiles)
+      pSmallTiles = pSection=>pm_tileset + 1 + ((^(pSection=>pm_tileset)) << 5)
+
+      // And draw (different routines to handle differing map data layouts)
       if mapIs3D
-        displaySection3D(pSection)
+        displaySection3D(pSection, pSmallTiles)
       else
-        displaySection2D(pSection)
+        displaySection2D(pSection, pSmallTiles)
       fin
     fin
     pSection = pSection + TMapSection
@@ -914,6 +1007,8 @@ def _automap_show()#1
   until key == 27 or key == 'Q' or key == '-' // esc or Q or - to exit
 
   auxMmgr(FREE_MEMORY, pAllMarks)
+  auxMmgr(FREE_MEMORY, pSpecialsBuf)
+  mmgr(FREE_MEMORY, pSpecTiles)
   return 0
 end
 

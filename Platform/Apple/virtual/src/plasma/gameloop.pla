@@ -2228,6 +2228,7 @@ def initMap(x, y, dir)#0
   else
     mmgr(QUEUE_LOAD, CODE_TILE_ENGINE<<8 | RES_TYPE_CODE)
   fin
+  pGlobalTileset = mmgr(QUEUE_LOAD, 1<<8 | RES_TYPE_TILESET)  // even in 3d, need tiles for lamp/etc.
   mmgr(FINISH_LOAD, 0)
 
   // Set up the command table
@@ -2237,7 +2238,6 @@ def initMap(x, y, dir)#0
   curMapPartition = lookupResourcePart(mapIs3D+1, mapNum)
   mmgr(START_LOAD, curMapPartition)
   pCurMap = mmgr(QUEUE_LOAD, mapNum<<8 | (RES_TYPE_2D_MAP+mapIs3D))
-  pGlobalTileset = mmgr(QUEUE_LOAD, 1<<8 | RES_TYPE_TILESET)  // even in 3d, need tiles for lamp/etc.
   mmgr(FINISH_LOAD, 0)
 
   // Clear all the windows to the background color (hi-bit set)

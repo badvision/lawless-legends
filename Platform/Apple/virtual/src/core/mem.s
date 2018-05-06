@@ -2142,6 +2142,8 @@ disk_queueLoad: !zone
 	ldx tmp			; get back lo part of addr
 	rts			; success! all done.
 .notFound:
+	+prByte resType
+	+prByte resNum
 	jsr inlineFatal : !text "ResNotFnd", 0
 .bump3:	iny			; skip resource number
 	iny			; skip lo byte of length

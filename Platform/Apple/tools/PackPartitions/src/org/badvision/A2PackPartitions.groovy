@@ -392,7 +392,7 @@ class A2PackPartitions
 
     /*
      * Parse raw tile image data and return it as a two buffers: fullsize mainBuf,
-     * and reduced size smBuf
+     * and reduced size smBuf (for automap display)
      */
     def parseTileData(imgEl)
     {
@@ -1027,6 +1027,7 @@ class A2PackPartitions
     def numberGlobalTiles(dataIn)
     {
         def tileNum = 0
+        def amapTnum = 0
         dataIn.tile.sort{(it.@category + it.@name).toLowerCase()}.each { tile ->
             def lname = tile.@name.toLowerCase().trim().replaceAll(/\s*-\s*[23][dD]\s*/, "")
             def cat = tile.@category.toLowerCase().trim()
@@ -1043,7 +1044,7 @@ class A2PackPartitions
     {
         def setNum = tileSets.size() + 1
         assert setNum == 1 : "Special tile set must be first."
-        def setName = "tileSet_special"
+        def setName = "tileSet_global"
         def tileIds = [] as Set
         def tileMap = [:]
         def buf = ByteBuffer.allocate(50000)
@@ -1064,6 +1065,37 @@ class A2PackPartitions
         }
 
         tileSets[setName] = [num:setNum, mainBuf:buf, smBuf:ByteBuffer.allocate(1), tileMap:tileMap, tileIds:tileIds]
+        addResourceDep("map", "<root>", "tileSet", "tileSet_global")
+        return [setNum, tileMap]
+    }
+
+    /** Pack tiles for special automap places into their own tile set. */
+    def packAutomapTileSet(dataIn)
+    {
+        def setNum = tileSets.size() + 1
+        assert setNum == 2 : "Automap tile set must be first."
+        def setName = "tileSet_automap"
+        def tileIds = [] as Set
+        def tileMap = [:]
+        def buf = ByteBuffer.allocate(50000)
+
+        // Add each automap tile to the set
+        dataIn.tile.sort{(it.@category + it.@name).toLowerCase()}.each { tile ->
+            def name = tile.@name
+            def id = tile.@id
+            def data = tiles[id]
+            def cat = tile.@category.toLowerCase().trim()
+            if (cat == "automap") {
+                def num = tileMap.size()
+                tileIds.add(id)
+                tileMap[id] = num
+                data.flip() // crazy stuff to append one buffer to another
+                buf.put(data)
+            }
+        }
+
+        tileSets[setName] = [num:setNum, mainBuf:buf, smBuf:ByteBuffer.allocate(1), tileMap:tileMap, tileIds:tileIds]
+        addResourceDep("map", "<root>", "tileSet", "tileSet_automap")
         return [setNum, tileMap]
     }
 
@@ -1120,7 +1152,6 @@ class A2PackPartitions
         }
 
         addMapDep("tileSet", "tileSet${setNum}")
-        addMapDep("tileSet", "tileSet_special")  // each map requires the global tileset as well
 
         // Start by assuming we'll create a new tileset
         def tileMap = tileSet.tileMap
@@ -2406,39 +2437,39 @@ class A2PackPartitions
             automapSpecials.sort().each { mapNum, y, x, tileNum ->
                 if (mapNum != prevMapNum) {
                     if (prevY > 0) {
-                        out.println(" !byte 0 ; end of y=$prevY")
+                        out.println(" !byte \$FF ; end of y=$prevY")
                         out.println("+")
                     }
                     if (prevMapNum) {
-                        out.println(" !byte 0 ; end of data for map $prevMapNum")
+                        out.println(" !byte \$FF ; end of data for map $prevMapNum")
                         out.println("++")
                     }
                     out.println("")
                     out.println(" !byte $mapNum ; start of data for map $mapNum")
-                    out.println(" !byte ++ - * + 1; length of this map's data (incl. hdr)")
+                    out.println(" !byte ++ - *; length of this map's data (incl. hdr) - 1")
                     prevMapNum = mapNum
                     prevY = -1
                 }
                 if (y != prevY) {
                     if (prevY > 0) {
-                        out.println(" !byte 0 ; end of y=$prevY")
+                        out.println(" !byte \$FF ; end of y=$prevY")
                         out.println("+")
                     }
                     out.println(" !byte $y ; y=$y")
-                    out.println(" !byte + - * + 1 ; length of y=$y data (incl. hdr)")
+                    out.println(" !byte + - * ; length of y=$y data (incl. hdr) - 1")
                     prevY = y
                 }
-                out.println(" !byte $x, 3, $tileNum ; x=$x, size=3, tile=$tileNum")
+                out.println(" !byte $x, 2, $tileNum ; x=$x, size=2, tile=$tileNum")
             }
             if (prevY > 0) {
-                out.println(" !byte 0 ; end of y=$prevY")
+                out.println(" !byte \$FF ; end of y=$prevY")
                 out.println("+")
             }
             if (prevMapNum) {
-                out.println(" !byte 0 ; end of data for map $prevMapNum")
+                out.println(" !byte \$FF ; end of data for map $prevMapNum")
                 out.println("++")
             }
-            out.println(" !byte 0; end of all maps")
+            out.println(" !byte \$FF; end of all maps")
         }
         replaceIfDiff("build/src/mapScripts/gen_mapSpecials.s")
     }
@@ -2639,6 +2670,9 @@ class A2PackPartitions
         numberGlobalTiles(dataIn)
         packGlobalTileSet(dataIn)
 
+        // Automap special tiles have to come next.
+        packAutomapTileSet(dataIn)
+
         // Play around with music
         def midiFile = new File(xmlFile.getAbsoluteFile().getParentFile(), "song.mid")
         if (midiFile.exists())
@@ -2757,6 +2791,7 @@ class A2PackPartitions
             buf.put((byte)(tileSet.tileIds.size()))
             tileSet.mainBuf.flip() // crazy stuff to append one buffer to another
             buf.put(tileSet.mainBuf)
+            // After the large size tiles, add the small size tiles for automap display
             tileSet.smBuf.flip() // crazy stuff to append one buffer to another
             buf.put(tileSet.smBuf)
             tileSet.buf = compress(unwrapByteBuffer(buf))

@@ -8,8 +8,48 @@
 ; governing permissions and limitations under the License.
 ;****************************************************************************************
 
-; Memory manager
-; ------------------
+;------------------------------------------------------------------------------
+; Resource types
+
+RES_TYPE_CODE     = $1
+RES_TYPE_2D_MAP   = $2
+RES_TYPE_3D_MAP   = $3
+RES_TYPE_TILESET  = $4
+RES_TYPE_TEXTURE  = $5
+RES_TYPE_SCREEN   = $6
+RES_TYPE_FONT     = $7
+RES_TYPE_MODULE   = $8
+RES_TYPE_BYTECODE = $9
+RES_TYPE_FIXUP    = $A
+RES_TYPE_PORTRAIT = $B
+RES_TYPE_SONG     = $C
+
+;------------------------------------------------------------------------------
+; Command codes
+RESET_MEMORY   = $10
+REQUEST_MEMORY = $11
+LOCK_MEMORY    = $12
+UNLOCK_MEMORY  = $13
+SET_MEM_TARGET = $14
+START_LOAD     = $15
+QUEUE_LOAD     = $16
+FINISH_LOAD    = $17
+FREE_MEMORY    = $18
+CALC_FREE      = $19
+DEBUG_MEM      = $1A
+CHECK_MEM      = $1B
+ADVANCE_ANIMS  = $1C
+FIND_IN_MEM    = $1D
+FATAL_ERROR    = $1F
+HEAP_SET       = $20
+HEAP_ADD_TYPE  = $21
+HEAP_ALLOC     = $22
+HEAP_INTERN    = $23
+HEAP_COLLECT   = $24
+
+;------------------------------------------------------------------------------
+; Memory manager description
+; --------------------------
 ;
 ; Memory is managed in variable-sized segments. In each 48kb memory bank (main and aux), 
 ; a linked list identifies each segment there as well as usage flags to mark free, used, 
@@ -151,26 +191,10 @@ mainLoader	= $800
 auxLoader	= mainLoader+3
 
 ;------------------------------------------------------------------------------
-; Resource types
-
-RES_TYPE_CODE	  = 1
-RES_TYPE_2D_MAP	  = 2
-RES_TYPE_3D_MAP	  = 3
-RES_TYPE_TILESET  = 4
-RES_TYPE_TEXTURE  = 5
-RES_TYPE_SCREEN	  = 6
-RES_TYPE_FONT	  = 7
-RES_TYPE_MODULE   = 8
-RES_TYPE_BYTECODE = 9
-RES_TYPE_FIXUP    = 10
-RES_TYPE_PORTRAIT = 11
-RES_TYPE_SONG     = 12
-
-;------------------------------------------------------------------------------
 ; Command codes
 
 ;------------------------------------------------------------------------------
-RESET_MEMORY = $10
+;RESET_MEMORY = $10
     ; Input: None
     ;
     ; Output: None
@@ -188,7 +212,7 @@ RESET_MEMORY = $10
     ; This command is acted upon and then passed on to chained loaders.
 
 ;------------------------------------------------------------------------------
-REQUEST_MEMORY = $11
+;REQUEST_MEMORY = $11
     ; Input:  X-reg(lo) / Y-reg(hi) - number of bytes to allocate
     ;
     ; Output: X-reg(lo) / Y-reg(hi) - address allocated
@@ -206,7 +230,7 @@ REQUEST_MEMORY = $11
     ; This command is acted upon immediately and chained loaders are not called.
 
 ;------------------------------------------------------------------------------
-LOCK_MEMORY = $12
+;LOCK_MEMORY = $12
     ; Input:  X-reg(lo) / Y-reg(hi) - address of segment to lock
     ;
     ; Output: None
@@ -217,7 +241,7 @@ LOCK_MEMORY = $12
     ; This command is acted upon immediately and chained loaders are not called.
 
 ;------------------------------------------------------------------------------
-UNLOCK_MEMORY = $13
+;UNLOCK_MEMORY = $13
     ; Input: X-reg(lo) / Y-reg(hi) - address of segment to unlock (must be start 
     ;    of a memory area that was previously locked)
     ;
@@ -227,7 +251,7 @@ UNLOCK_MEMORY = $13
     ; RESET_MEMORY.
 		
 ;------------------------------------------------------------------------------
-SET_MEM_TARGET = $14
+;SET_MEM_TARGET = $14
     ; Input:  X-reg(lo) / Y-reg(hi) - address to target
     ;
     ; Output: None
@@ -240,7 +264,7 @@ SET_MEM_TARGET = $14
     ; subsequent allocations will revert to their normal behavior.
 
 ;------------------------------------------------------------------------------
-START_LOAD = $15
+;START_LOAD = $15
     ; Input:  X-reg - disk partition number (1 for boot disk, 2-15 for others)
     ;
     ; Output: None
@@ -251,7 +275,7 @@ START_LOAD = $15
     ; The partition is recorded and passed on to chained loaders.
 
 ;------------------------------------------------------------------------------
-QUEUE_LOAD = $16
+;QUEUE_LOAD = $16
     ; Input: X-reg - resource type
     ;        Y-reg - resource number
     ;
@@ -273,7 +297,7 @@ QUEUE_LOAD = $16
     ; triggered.
 
 ;------------------------------------------------------------------------------
-FINISH_LOAD = $17
+;FINISH_LOAD = $17
     ; Input: None
     ;
     ; Output: None
@@ -284,7 +308,7 @@ FINISH_LOAD = $17
     ; This command is acted upon by this loader and passed to chained loaders.
 
 ;------------------------------------------------------------------------------
-FREE_MEMORY = $18
+;FREE_MEMORY = $18
     ; Input: X-reg(lo) / Y-reg(hi) - address of segment to mark as free (must 
     ;     be start of a memory area that was previously requested or loaded)
     ;
@@ -294,7 +318,7 @@ FREE_MEMORY = $18
     ; reused. This also clears the lock bit!
 		
 ;------------------------------------------------------------------------------
-CALC_FREE = $19
+;CALC_FREE = $19
     ; Input: None
     ;
     ; Output: X-reg(lo) / Y-reg(hi) - bytes of memory currently free
@@ -303,7 +327,7 @@ CALC_FREE = $19
     ; loader for main mem free, or aux mem loader for aux mem free.
 		
 ;------------------------------------------------------------------------------
-DEBUG_MEM = $1A
+;DEBUG_MEM = $1A
     ; Input: None
     ;
     ; Output: None
@@ -311,7 +335,7 @@ DEBUG_MEM = $1A
     ; Print out the currently allocated memory blocks and their states.
 
 ;------------------------------------------------------------------------------
-CHECK_MEM = $1B
+;CHECK_MEM = $1B
     ; Input: None
     ;
     ; Output: None
@@ -320,7 +344,7 @@ CHECK_MEM = $1B
     ; has been set) are all intact.
         
 ;------------------------------------------------------------------------------
-ADVANCE_ANIMS = $1C
+;ADVANCE_ANIMS = $1C
     ; Input: X-reg - direction change (0=no change, 1=change).
     ;           Only applied to resources marked as "forward/backward" order.
     ;        Y-reg - number of frames to skip.
@@ -340,7 +364,7 @@ ADVANCE_ANIMS = $1C
     ; or main) are processed.
         
 ;------------------------------------------------------------------------------
-FIND_IN_MEM = $1D
+;FIND_IN_MEM = $1D
     ; Input: X-reg - resource type
     ;        Y-reg - resource number
     ;
@@ -350,7 +374,7 @@ FIND_IN_MEM = $1D
     ; its address. Otherwise returns 0000.
 
 ;------------------------------------------------------------------------------
-FATAL_ERROR = $1F
+;FATAL_ERROR = $1F
     ; Input:  X-reg(lo) / Y-reg(hi): message pointer. Message can be:
     ; (1) a zero-terminated, hi-bit ASCII string, (assembly style), or
     ; (2) a length-prefixed, lo-bit ASCII string (PLASMA / ProDOS style)
@@ -364,7 +388,7 @@ FATAL_ERROR = $1F
     ; This command halts and thus never returns.
 
 ;------------------------------------------------------------------------------
-HEAP_SET = $20
+;HEAP_SET = $20
     ; Input:  X-reg(lo) / Y-reg(hi): pointer to allocated block for heap
     ;
     ; Output: None
@@ -377,7 +401,7 @@ HEAP_SET = $20
     ; setting the global type ($80).
 
 ;------------------------------------------------------------------------------
-HEAP_ADD_TYPE = $21
+;HEAP_ADD_TYPE = $21
     ; Input:  X-reg(lo) / Y-reg(hi): pointer to type table
     ;
     ; Output: None
@@ -395,7 +419,7 @@ HEAP_ADD_TYPE = $21
     ;  byte n: zero (0) value marks end of table
 
 ;------------------------------------------------------------------------------
-HEAP_ALLOC = $22
+;HEAP_ALLOC = $22
     ; Input:  X-reg: string length $00-7F, or type code $80-FF
     ;
     ; Output: X-reg(lo) / Y-reg(hi): pointer to allocated object space
@@ -419,7 +443,7 @@ HEAP_ALLOC = $22
     ; Note: strings of length zero are considered valid and supported.
 
 ;------------------------------------------------------------------------------
-HEAP_INTERN = $23
+;HEAP_INTERN = $23
     ; Input:  X-reg(lo) / Y-reg(hi): PLASMA-style string in regular RAM
     ;
     ; Output: X-reg(lo) / Y-reg(hi): pointer to allocated object space
@@ -431,7 +455,7 @@ HEAP_INTERN = $23
     ; Else, allocates heap space and copy the string into it.
 
 ;------------------------------------------------------------------------------
-HEAP_COLLECT = $24
+;HEAP_COLLECT = $24
     ; Input:  None.
     ;
     ; Output: X-reg(lo) / Y-reg(hi): new top of heap after collection. If you

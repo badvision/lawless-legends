@@ -24,6 +24,7 @@ const SECTION_HEIGHT_2D = 23
 
 const specPtr     = $BC // must match asm definition below for pSpecials
 const specScanFor = $BE // must match asm definition below for scanFor
+const specGodMask = $BF // must match asm definition below for godMask
 
 struc TMapSection
   byte bm_mapNum
@@ -63,7 +64,7 @@ word pAllMarks
 word pSpecialsBuf
 word pSpecialTiles
 word scanSpecials = $100 // placed at $100 so it can easily access aux mem
-word pSpecTiles
+word specTileset
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -90,6 +91,7 @@ pSrc        = $B8  ; length 2
 pDst        = $BA  ; length 2
 pSpecials   = $BC  ; length 2
 scanFor     = $BE  ; length 1
+godMask     = $BF  ; length 1
 
 HB          = evalStkH-evalStkL   ; offset to get from lo byte to hi byte on eval stack
 
@@ -308,18 +310,27 @@ asm fillRow(mapRowData, mask, tileTrans, pSmallTiles, pSpecialTiles, blankTile, 
 .loop
   ldy .srcOff
   lda (pSrc),y      ; get raw data
-  iny
-  sty .srcOff
+  ora godMask       ; mask in show-all mode
   asl
   bpl .blank        ; skip unless $40 bit is set denoting this space has been seen
   lsr
   pha
+  lda pSpecials+1
+  pha
+  lda pSpecials
+  pha
   jsr $100          ; scan for automap specials override
   sta .special
-  beq +
-  dex               ; to use pSpecialTiles instead of pSmallTiles
-  bpl .got          ; always taken
-+ pla               ; normal processing (no special override)
+  tay
+  pla
+  sta pSpecials
+  pla
+  sta pSpecials+1
+  pla
+  dex               ; index pSpecialTiles instead of pSmallTiles
+  cpy #0
+  bne .notrans      ; ... if it's a special tile
+  inx               ; otherwise, normal processing (no special override)
   and .param_mask,x ; mask to get just tile number
   beq .blank
   tay
@@ -330,14 +341,13 @@ asm fillRow(mapRowData, mask, tileTrans, pSmallTiles, pSpecialTiles, blankTile, 
   asl
   tay
   lda (pTmp),y
-.got
   tay
 .notrans
-  dey         ; tileNum - 1
+  dey               ; tileNum - 1
   lda #0
   sta tmp+1
   sty tmp
-  tya         ; multiply by 9 bytes per reduced tile in the tileset
+  tya               ; multiply by 9 bytes per reduced tile in the tileset
   asl
   rol tmp+1
   asl
@@ -347,15 +357,15 @@ asm fillRow(mapRowData, mask, tileTrans, pSmallTiles, pSpecialTiles, blankTile, 
   adc tmp
   bcc +
   inc tmp+1
-+ clc
-  adc .param_pSmallTiles,x      ; X may have been adjusted to address pSpecialTiles instead
++ clc               ; X may have been adjusted to address pSpecialTiles instead
+  adc .param_pSmallTiles,x
   pha
   lda tmp+1
   adc .param_pSmallTiles+HB,x
   ldy .special
   beq +
-  inx             ; back to using normal pSmallTiles
-+ bcc .store      ; always taken
+  inx               ; back to using normal pSmallTiles
++ bcc .store        ; always taken
 .blank
   lda .param_blankTile,x
   pha
@@ -370,6 +380,7 @@ asm fillRow(mapRowData, mask, tileTrans, pSmallTiles, pSpecialTiles, blankTile, 
   iny
   iny
   sty .dstOff
+  inc .srcOff
   dec .param_width,x
   bne .loop
   rts
@@ -508,11 +519,6 @@ asm _scanSpecials_start()#0
 !zone {
   ; This gets copied to and run from $100 so it can easily access aux mem
   sta setAuxRd
-
-  lda #$60
-  sta 0
-  jsr 0 ; FOO
-
 .loop
   ldy #0
   lda (pSpecials),y
@@ -550,7 +556,7 @@ def loadMarks()#0
   pSpecialsBuf = auxMmgr(QUEUE_LOAD, CODE_GEN_MAP_SPECIALS<<8 | RES_TYPE_CODE)
 
   // While we're at it, load the automap special tiles.
-  pSpecTiles = mmgr(QUEUE_LOAD, 2<<8 | RES_TYPE_TILESET) // always tileset 2 (just after global tiles)
+  specTileset = mmgr(QUEUE_LOAD, 2<<8 | RES_TYPE_TILESET) // always tileset 2 (just after global tiles)
   mmgr(FINISH_LOAD, 0)
 
   // Call the automark write routine. This has not only the effect of flushing the marks
@@ -563,7 +569,7 @@ def loadMarks()#0
   memcpy($4002, pAllMarks, len, 1)
 
   // Figure out where the small versions of the special tiles reside (at the end of the full size tiles)
-  pSpecialTiles = pSpecialsBuf + 1 + ((^pSpecialsBuf) << 5)
+  pSpecialTiles = specTileset + 1 + ((^specTileset) << 5)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -737,7 +743,7 @@ def displaySection3D(pSection, pSmallTiles)#0
   // Display each visible row
   for y = 1 to pSection->bm_ch  // offset is 1 to skip over sentinel row
     *specPtr = specBlk
-    ^specScanFor = y + pSection->wm_y0
+    ^specScanFor = y + pSection->bm_oy - 1
     scanSpecials()#0
     displayRow3D(getScreenLine(line) + lx, rowData, tileTrans, pSmallTiles, pSpecialTiles, pSection->bm_cw)
     rowData = rowData + rowSize
@@ -747,7 +753,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displaySection2D(pSection, pSmallTiles)#0
-  word rowData
+  word rowData, specBlk
   byte y, line, lx
 
   // Merge automap marks into the data if not done yet
@@ -767,9 +773,13 @@ def displaySection2D(pSection, pSmallTiles)#0
   *specPtr = pSpecialsBuf
   ^specScanFor = pSection->bm_mapNum
   scanSpecials()#0
+  specBlk = *specPtr
 
   // Display each visible row
   for y = 1 to pSection->bm_ch
+    *specPtr = specBlk
+    ^specScanFor = y + pSection->bm_oy - 1
+    scanSpecials()#0
     displayRow2D(getScreenLine(line) + lx, rowData, pSmallTiles, pSpecialTiles, pSection->bm_cw)
     rowData = rowData + SECTION_WIDTH_2D
     line = line + 8
@@ -969,6 +979,7 @@ def _automap_show()#1
   centerScreen
   loadMarks
   prepSections(0,0)
+  ^specGodMask = 0
   displaySections
 
   // Now allow the player to scroll the map
@@ -1003,12 +1014,27 @@ def _automap_show()#1
           scrollRight(8)
         fin
         break
+      is '*'
+        if global->b_godmode
+          ^specGodMask = ^specGodMask ^ $40 // toggle display-all
+          prepSections(0,0)
+          displaySections
+        fin
+        break
     wend
   until key == 27 or key == 'Q' or key == '-' // esc or Q or - to exit
 
+  // Free up stuff we allocated or loaded
   auxMmgr(FREE_MEMORY, pAllMarks)
   auxMmgr(FREE_MEMORY, pSpecialsBuf)
-  mmgr(FREE_MEMORY, pSpecTiles)
+  mmgr(FREE_MEMORY, specTileset)
+
+  // Ensure the global tileset is reloaded (otherwise tile eng will try to load it from wrong partition)
+  mmgr(START_LOAD, 1)
+  pGlobalTileset = mmgr(QUEUE_LOAD, 1<<8 | RES_TYPE_TILESET)
+  mmgr(FINISH_LOAD, 0)
+
+  // All done.
   return 0
 end
 

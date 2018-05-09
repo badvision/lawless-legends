@@ -1077,24 +1077,26 @@ class A2PackPartitions
         def setName = "tileSet_automap"
         def tileIds = [] as Set
         def tileMap = [:]
-        def buf = ByteBuffer.allocate(50000)
+        def mainBuf = ByteBuffer.allocate(50000)
+        def smBuf   = ByteBuffer.allocate(20000)
 
         // Add each automap tile to the set
         dataIn.tile.sort{(it.@category + it.@name).toLowerCase()}.each { tile ->
             def name = tile.@name
             def id = tile.@id
-            def data = tiles[id]
             def cat = tile.@category.toLowerCase().trim()
             if (cat == "automap") {
                 def num = tileMap.size()
                 tileIds.add(id)
                 tileMap[id] = num
-                data.flip() // crazy stuff to append one buffer to another
-                buf.put(data)
+                tiles[id].flip() // crazy stuff to append one buffer to another
+                mainBuf.put(tiles[id])
+                smTiles[id].flip()
+                smBuf.put(smTiles[id])
             }
         }
 
-        tileSets[setName] = [num:setNum, mainBuf:buf, smBuf:ByteBuffer.allocate(1), tileMap:tileMap, tileIds:tileIds]
+        tileSets[setName] = [num:setNum, mainBuf:mainBuf, smBuf:smBuf, tileMap:tileMap, tileIds:tileIds]
         addResourceDep("map", "<root>", "tileSet", "tileSet_automap")
         return [setNum, tileMap]
     }
@@ -2369,6 +2371,7 @@ class A2PackPartitions
     {
         def num2D = 0
         def num3D = 0
+        def width, height, nHorzSections, nVertSections
         dataIn.map.each { map ->
             def name = map?.@name
             def shortName = name.replaceAll(/[\s-]*[23]D$/, '')
@@ -2378,7 +2381,7 @@ class A2PackPartitions
                 mapNames[name] = ['2D', num2D+1]
                 mapNames[shortName] = ['2D', num2D+1]
                 def rows = parseMap(map, dataIn.tile, true) // quick mode
-                def (width, height, nHorzSections, nVertSections) = calcMapExtent(rows)
+                (width, height, nHorzSections, nVertSections) = calcMapExtent(rows)
                 (1..(nHorzSections * nVertSections)).each {
                     int rowBytes = (TILES_PER_ROW+7)/8
                     mapSizes << ['2D', it+num2D, 2 + (rowBytes * ROWS_PER_SECTION)]
@@ -2402,7 +2405,7 @@ class A2PackPartitions
             if (baseMapNum > 0 && automapPat) {
                 map.scripts.script.each { script ->
                     String scriptName = script?.@name.trim().toLowerCase()
-                    if (automapPat.matcher(scriptName).matches()) {
+                    if (automapPat.matcher(scriptName).find()) {
                         def tile
                         automapTiles.each { tileName, tileNum ->
                             if (scriptName.contains(tileName))
@@ -2415,7 +2418,14 @@ class A2PackPartitions
                                 int y = trig.@y.toInteger()
                                 assert x >= 0 && x < 255 : "map too wide"
                                 assert y >= 0 && y < 255 : "map too high"
-                                automapSpecials << [baseMapNum, y, x, tile]
+                                if (map?.@name =~ /\s*2D$/) {
+                                    int hsect = x / TILES_PER_ROW
+                                    int vsect = y / ROWS_PER_SECTION
+                                    int mapNum = baseMapNum + (vsect * nHorzSections) + hsect
+                                    automapSpecials << [mapNum, y % ROWS_PER_SECTION, x % TILES_PER_ROW, tile]
+                                }
+                                else
+                                    automapSpecials << [baseMapNum, y, x, tile]
                             }
                         }
                     }

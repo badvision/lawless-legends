@@ -2114,7 +2114,7 @@ disk_queueLoad: !zone
 	lda (pTmp),y		; and hi byte
 +	stx reqLen		; save the uncompressed length
 	sta reqLen+1		; both bytes
-	!if DEBUG { +prStr : !text "ucLen=",0 : +prWord reqLen : +crout }
+	!if DEBUG >= 2 { +prStr : !text "ucLen=",0 : +prWord reqLen : +crout }
 ; Load the bytecode of the gamelib (first) bytecode module at the highest possible point
 ; (to reduce fragmentation of the rest of aux mem) 
 	lda resType

@@ -158,6 +158,7 @@ import gamelib
   word pCurMap
   byte curMapPartition
   word pResourceIndex
+  word pGlobalTileset
 
   /////////// Shared string constants //////////////
 

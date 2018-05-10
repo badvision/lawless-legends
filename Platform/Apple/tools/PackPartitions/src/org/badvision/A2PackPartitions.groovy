@@ -3272,7 +3272,7 @@ end
             out.println("  return makeFancyItem(${escapeString(name)}, $price, " +
                 "${strings[kind]}, $modifier, $count, $storeAmount, $lootAmount)")
         else
-            out.println("  return makePlainItem(${strings[name]}, $price)")
+            out.println("  return makePlainItem(${escapeString(name)}, $price)")
     }
 
     def extractItemStrings(row, strings)
@@ -3645,7 +3645,7 @@ end
 
 def setItemCount(p, ct)#1
   if p->t_type == TYPE_FANCY_ITEM
-    p->w_count = ct
+    p=>w_count = ct
   else
     fatal(\"itemct\")
   fin

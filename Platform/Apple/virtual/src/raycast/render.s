@@ -329,13 +329,16 @@ castRay: !zone
 	lda deltaDistX		; re-init X distance
 	sta sideDistX
 	lda (pMap),y		; check map at current X/Y position
+	cmp #FLG_AUTOMAP
 	beq .DDA_step		; nothing there? do another step.
-	bpl .hitX
-	jmp .hitSprite
+	ora #FLG_AUTOMAP	; set automap bits always
+	sta (pMap),y
+	bpl +			; check hi-bit (sprite signal)
+	jmp .hitSprite		; sprite found - go process it
++	cmp #FLG_AUTOMAP	; not a sprite -- check again for blank after setting automap bit
+	beq .DDA_step		; nothing there? do another step
 	; We hit something!
 .hitX:	!if DEBUG >= 2 { +prStr : !text "  Hit.",0 }
-	ora #FLG_AUTOMAP	; remember that this square...
-	sta (pMap),y		;   ...has been seen
 	and #NOTFLG_AUTOMAP
 	sta txNum		; store the texture number we hit
 	lda #0
@@ -388,13 +391,17 @@ castRay: !zone
 	lda deltaDistY		; re-init Y distance
 	sta sideDistY
 	lda (pMap),y		; check map at current X/Y position
-	bmi .hitSprite
-	bne .hitY		; nothing there? do another step.
-	jmp .DDA_step
+	cmp #FLG_AUTOMAP
+	bne +
+-	jmp .DDA_step		; nothing there - do another step
++	ora #FLG_AUTOMAP	; always mark, even blank spaces
+	sta (pMap),y
+	bmi .hitSprite		; hi bit marks a sprite
+	cmp #FLG_AUTOMAP	; blank check after setting automap bit
+	bne .hitY
+	jmp .DDA_step		; nothing there - do another step
 .hitY:	; We hit something!
 	!if DEBUG >= 2 { +prStr : !text "  Hit.",0 }
-	ora #FLG_AUTOMAP	; remember that this square...
-	sta (pMap),y		;   ...has been seen
 	and #NOTFLG_AUTOMAP
 	sta txNum		; store the texture number we hit
 	lda #0
@@ -426,8 +433,6 @@ castRay: !zone
 	cmp #$FF		; check for special mark at edges of map
 	beq .hitEdge
 	tax
-	ora #FLG_AUTOMAP	; remember that this square...
-	sta (pMap),y		;   ...has been seen
 	; We found a sprite cell on the map. We only want to process this sprite once,
 	; so check if we've already done it.
 	and #FLG_SPDONE

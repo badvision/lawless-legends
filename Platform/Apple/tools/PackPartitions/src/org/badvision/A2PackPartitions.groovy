@@ -413,8 +413,10 @@ class A2PackPartitions
         def rows = pixelize(dataEl, 2, 2, 16) // stride, nBytes, nLines
         def smBuf = ByteBuffer.allocate(9)
         smBuf.put((byte)0) // placeholder for hi bits
-        def hibits = 0
+        int hibits = 0
         def pixBuf, inv
+        // Keep automap icons very simple - no dither/column/row detection
+        boolean keepSimple = (imgEl.@category.equalsIgnoreCase("automap"))
         for (int y = 0; y < 16; y += 2)
         {
             def hibitBuf = [:]
@@ -424,10 +426,12 @@ class A2PackPartitions
                 pixBuf = [:]
                 inv = 1
                 addTilePix(pixBuf, hibitBuf, rows[y]  [x])
-                addTilePix(pixBuf, hibitBuf, rows[y+1][x])
-                if (x < 6) {
-                    addTilePix(pixBuf, hibitBuf, rows[y]  [x+1])
-                    addTilePix(pixBuf, hibitBuf, rows[y+1][x+1])
+                if (!keepSimple) {
+                    addTilePix(pixBuf, hibitBuf, rows[y+1][x])
+                    if (x < 6) {
+                        addTilePix(pixBuf, hibitBuf, rows[y]  [x+1])
+                        addTilePix(pixBuf, hibitBuf, rows[y+1][x+1])
+                    }
                 }
 
                 if (isHDither(rows, x, y  ) || isHDither(rows, x-1, y  ) ||

@@ -2386,7 +2386,7 @@ export def _scriptDisplayStr(str)#0
   if pIntimate
     pIntimate=>intimate_displayStr(str)
   else
-    if renderLoaded and !curPortrait and !curFullscreenImg
+    if renderLoaded and !curPortrait and !curFullscreenImg and needRender
       doRender()
       flipToPage1()
       needRender = FALSE
@@ -3060,6 +3060,8 @@ def doCombat(mapCode, backUpOnFlee)#1
   word result
 
   // Give a clue as to what's happening
+  if needRender; doRender; fin
+  flipToPage1
   setWindow2()
   clearWindow()
   callGlobalFunc(GS_COMBAT_INTRO, 0, 0, 0)

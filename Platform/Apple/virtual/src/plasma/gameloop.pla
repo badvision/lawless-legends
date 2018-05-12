@@ -2978,14 +2978,14 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load the Party engine and show data for the given player
 def showPlayerSheet(num)#1
-  word pItemToUse, oldFlg
+  word sNameToUse, oldFlg
   if num+1 > countList(global=>p_players); beep; return 0; fin
-  pItemToUse = loadEngine(MOD_PARTY)=>party_showPlayerSheet(num)
+  sNameToUse = loadEngine(MOD_PARTY)=>party_showPlayerSheet(num)
   returnFromEngine(TRUE)
   // General 'use' handled here in case it triggers graphical effects
-  if pItemToUse
+  if sNameToUse
     anyInteraction = FALSE
-    scriptEvent(@S_USE, pItemToUse=>s_name)
+    scriptEvent(@S_USE, sNameToUse)
     if !anyInteraction
       scriptDisplayStr("Nothing happened.")
       textClearCountdown = 3

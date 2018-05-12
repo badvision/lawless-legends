@@ -415,7 +415,7 @@ class A2PackPartitions
         smBuf.put((byte)0) // placeholder for hi bits
         int hibits = 0
         def pixBuf, inv
-        // Keep automap icons very simple - no dither/column/row detection
+        // Keep automap icons very simple - no dither/column/row detection, just upper-left portion
         boolean keepSimple = (imgEl.@category.equalsIgnoreCase("automap"))
         for (int y = 0; y < 16; y += 2)
         {
@@ -425,8 +425,10 @@ class A2PackPartitions
             {
                 pixBuf = [:]
                 inv = 1
-                addTilePix(pixBuf, hibitBuf, rows[y]  [x])
-                if (!keepSimple) {
+                if (keepSimple)
+                    addTilePix(pixBuf, hibitBuf, rows[y>>1][x>>1])
+                else {
+                    addTilePix(pixBuf, hibitBuf, rows[y]  [x])
                     addTilePix(pixBuf, hibitBuf, rows[y+1][x])
                     if (x < 6) {
                         addTilePix(pixBuf, hibitBuf, rows[y]  [x+1])
@@ -3229,13 +3231,16 @@ end
 
     def genWeapon(func, row, out, strings)
     {
+        assert strings[parseStringAttr(row, "weapon-kind")] != null
+        assert strings[parseStringAttr(row, "ammo-kind")] != null
+        assert strings[parseStringAttr(row, "combat-text")] != null
         out.println(
             "  return makeWeapon_pt2(makeWeapon_pt1(" +
             "${escapeString(parseStringAttr(row, "name"))}, " +
-            "${strings[parseStringAttr(row, "weapon-kind")]}, " +
+            "@${strings[parseStringAttr(row, "weapon-kind")]}, " +
             "${parseWordAttr(row, "price")}, " +
             "${parseModifier(row, "bonus-value", "bonus-attribute")}, " +
-            "${strings[parseStringAttr(row, "ammo-kind")]}, " +
+            "@${strings[parseStringAttr(row, "ammo-kind")]}, " +
             "${parseByteAttr(row, "clip-size")}, " +
             "${parseDiceAttr(row, "melee-damage")}, " +
             "${parseDiceAttr(row, "projectile-damage")}), " +
@@ -3243,7 +3248,7 @@ end
             "${parseByteAttr(row, "semi-auto-shots")}, " +
             "${parseByteAttr(row, "auto-shots")}, " +
             "${parseByteAttr(row, "range")}, " +
-            "${strings[parseStringAttr(row, "combat-text")]}, " +
+            "@${strings[parseStringAttr(row, "combat-text")]}, " +
             "${parseBooleanAttr(row, 'single-use')})")
     }
 
@@ -3252,7 +3257,7 @@ end
         out.println(
             "  return makeArmor(" +
             "${escapeString(parseStringAttr(row, "name"))}, " +
-            "${strings[parseStringAttr(row, "armor-kind")]}, " +
+            "@${strings[parseStringAttr(row, "armor-kind")]}, " +
             "${parseWordAttr(row, "price")}, " +
             "${parseByteAttr(row, "armor-value")}, " +
             "${parseModifier(row, "bonus-value", "bonus-attribute")})")
@@ -3270,7 +3275,7 @@ end
 
         if ("$kind, $modifier, $count, $storeAmount, $lootAmount" != ", NULL, 0, 0, 0")
             out.println("  return makeFancyItem(${escapeString(name)}, $price, " +
-                "${strings[kind]}, $modifier, $count, $storeAmount, $lootAmount)")
+                "@${strings[kind]}, $modifier, $count, $storeAmount, $lootAmount)")
         else
             out.println("  return makePlainItem(${escapeString(name)}, $price)")
     }
@@ -3281,6 +3286,8 @@ end
             def str = parseStringAttr(row, attr)
             if (str)
                 strings[str] = "_SI_${humanNameToSymbol(str, true)}"
+            else
+                strings[str] = "S_EMPTY"
         }
     }
 

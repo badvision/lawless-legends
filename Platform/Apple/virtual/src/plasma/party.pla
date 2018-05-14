@@ -41,10 +41,13 @@ const INV_ROWS = (BIGWIN_HEIGHT / 9) - 4
 
 const MAX_SKILLS = 26 // should be plenty
 byte nSkills, canBumpSkills
+word skillName[MAX_SKILLS]
 word skillPtr[MAX_SKILLS]
 byte skillMin[MAX_SKILLS]
 word skillX[MAX_SKILLS]
 byte skillY[MAX_SKILLS]
+
+byte mode  // 'S' or 'I' for skills or inventory
 
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the header.
@@ -109,6 +112,7 @@ def showInventory(player, page, select)#1
   return s_item
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayDice(dice)#0
   byte n, d, p
   n = (dice >> 12) & $0F
@@ -117,10 +121,12 @@ def displayDice(dice)#0
   rightJustifyStr(sprintf2("%d-%d", n+p, (n*d)+p), STAT_X)
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def vspace()#0
   rawDisplayStr("^J^J^J^J")
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Derived stats like armor, damage, etc.
 def showDerived(player)#0
   word weapon, dmg, fmt
@@ -175,12 +181,14 @@ def showDerived(player)#0
 
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def clearLittleArea(x, y)#0
   setWindow(BIGWIN_TOP+y, BIGWIN_TOP+9+y, BIGWIN_LEFT+x+14, BIGWIN_LEFT+x+40)
   clearWindow()
   setBigWindow()
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display skill value
 def displaySkill(x, str, pVal, allowChg)#0
   word val, cursX, cursY
@@ -188,18 +196,18 @@ def displaySkill(x, str, pVal, allowChg)#0
   val = ^pVal
   skillX[nSkills] = x
   skillY[nSkills] = cursY
+  skillName[nSkills] = str
   skillPtr[nSkills] = pVal
   skillMin[nSkills] = val
-  if canBumpSkills and allowChg
+  if allowChg and canBumpSkills
     rawDisplayf2("^T%D%c.", x, 'A' + nSkills)
+    nSkills++
   fin
   rightJustifyStr(sprintf1(" %d ", val), x+SKILL_JUST_OFF)
   rawDisplayf2("^T%D%s^N\n", x+SKILL_LABEL_OFF, str)
-  if allowChg
-    nSkills++
-  fin
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Show aquired skills in lower right panel
 def showSkills(player)#0
   word skill
@@ -210,7 +218,6 @@ def showSkills(player)#0
   // First column: skills
   rawDisplayStr("^V024") // starting Y
   nSkills = 0
-  canBumpSkills = player->b_skillPoints > 0
   if canBumpSkills
     x1 = 10
     x2 = STAT_X - 30
@@ -247,8 +254,8 @@ def showSkills(player)#0
     rightJustifyStr(sprintf1(" %c ", player->c_gender), x2+SKILL_JUST_OFF)
   fin
 
-  if player->b_level == 1 and player->b_skillPoints and cursY < BIGWIN_HEIGHT - 46
-    setCursor(0, BIGWIN_HEIGHT - 42)
+  if player->b_level == 1 and player->b_skillPoints and cursY < BIGWIN_HEIGHT - 51
+    setCursor(0, BIGWIN_HEIGHT - 51)
     centerStr(sprintf1("Use keys A-%c to distribute your skill points.", nSkills - 1 + 'A'), BIGWIN_WIDTH)
     rawDisplayStr("\n")
     centerStr("To undo a choice use Ctrl-A, Ctrl-B, etc.", BIGWIN_WIDTH)
@@ -257,6 +264,7 @@ def showSkills(player)#0
   fin
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Returns 1 to redisplay everything, 0 if only minor change
 def adjustSkill(player, skillNum, dir)#0
   word p
@@ -285,13 +293,67 @@ def adjustSkill(player, skillNum, dir)#0
   rawDisplayStr("^N")
 end
 
-def clearMenuRect()#0
-  setWindow(BIGWIN_BOTTOM-10, BIGWIN_BOTTOM, BIGWIN_LEFT, BIGWIN_RIGHT)
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def clearInvRect()#0
+  setWindow(BIGWIN_TOP+9, BIGWIN_BOTTOM-10, BIGWIN_LEFT, INV_RT)
   clearWindow()
   setBigWindow()
-  rawDisplayf1("^V%D", BIGWIN_HEIGHT-10)
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def clearMainRect()#0
+  setWindow(BIGWIN_TOP+9, BIGWIN_BOTTOM-10, BIGWIN_LEFT, BIGWIN_RIGHT)
+  clearWindow()
+  setBigWindow()
+  rawDisplayStr("^V000\n^J^J^J")
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def clearMenuRect()#0
+  byte h
+  h = (mode == 'I') ?? 10 :: 19
+  setWindow(BIGWIN_BOTTOM-h, BIGWIN_BOTTOM, BIGWIN_LEFT, BIGWIN_RIGHT)
+  clearWindow()
+  setBigWindow()
+  rawDisplayf1("^V%D", BIGWIN_HEIGHT-h)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def doUseSkill(player)#1
+  byte sel
+
+  // If the skill key combos aren't showing, display them
+  clearMenuRect
+  if !player->b_skillPoints
+    clearMainRect()
+    canBumpSkills = TRUE // temporarily
+    showSkills(player)
+  fin
+
+  while TRUE
+    clearMenuRect
+    rawDisplayf1("\nUse which skill? [A-%c] or [Esc]", nSkills-1+'A')
+    sel = getUpperKey()
+    if sel >= 'A' and (sel-'A') < nSkills
+      return skillName[sel-'A']
+    elsif sel == $1B // esc
+      break
+    else
+      beep
+    fin
+  loop
+
+  // Refresh if we temporarily had to show key combos
+  clearMenuRect
+  if !player->b_skillPoints
+    clearMainRect()
+    canBumpSkills = FALSE
+    showSkills(player)
+  fin
+  return NULL // nothing valid
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display menu for selecting inventory items
 def showInvMenu(player, totalItems, itemPage, itemsOnPage)#0
   byte playerCount
@@ -299,7 +361,7 @@ def showInvMenu(player, totalItems, itemPage, itemsOnPage)#0
 
   clearMenuRect()
   if totalItems > 0
-    rawDisplayf1("Item [A-%c], ", itemsOnPage-1+'A')
+    rawDisplayf2("Item [%s%c], ", itemsOnPage>1 ?? "A-" :: "", itemsOnPage-1+'A')
     if totalItems > INV_ROWS
       rawDisplayStr("Pg [")
       if totalItems > (itemPage + 1) * INV_ROWS; rawDisplayStr(">"); fin
@@ -308,33 +370,38 @@ def showInvMenu(player, totalItems, itemPage, itemsOnPage)#0
     fin
   fin
 
-  if playerCount > 1; rawDisplayf1("Plyr [1-%d], ", playerCount); fin
+  if playerCount > 1; rawDisplayf1("Player [1-%d], ", playerCount); fin
 
   rawDisplayStr("S)kills, [Esc]")
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display menu for selecting inventory items
-def showSkillsMenu()#0
+def showSkillsMenu(player)#0
   byte playerCount
   playerCount = countList(global=>p_players)
   clearMenuRect()
-  if playerCount > 1; rawDisplayf1("Plyr [1-%d], ", playerCount); fin
-  if canBumpSkills
-    rawDisplayf2("+ [A-%c], - [^^A-^^%c], ", nSkills-1+'A', nSkills-1+'A')
+  if player->b_skillPoints > 0
+    rawDisplayf2("Assign point [A-%c], Undo pt [Ctrl-A - Ctrl-%c], ", nSkills-1+'A', nSkills-1+'A')
   fin
-  rawDisplayStr("X:Inv or [Esc]")
+  rawDisplayStr("\nU)se skill, X:Inventory, ")
+  if playerCount > 1; rawDisplayf1("Player [1-%d], ", playerCount); fin
+  rawDisplayStr("or [Esc]")
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def isSplittable(item)#1
   // Disallow splitting items with modifiers, because too edge-casey
   return item->t_type == TYPE_FANCY_ITEM and item=>w_count > 1 and !item=>p_modifiers
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def isJoinable(item)#1
   // Disallow joining items with modifiers, because too edge-casey
   return item->t_type == TYPE_FANCY_ITEM and item=>w_count > 0 and !item=>p_modifiers
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display menu for selecting inventory items
 def showItemMenu(item)#0
   byte type
@@ -352,21 +419,6 @@ def showItemMenu(item)#0
     rawDisplayStr("D)rop ")
   fin
   rawDisplayStr("or [Esc]")
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def clearInvRect()#0
-  setWindow(BIGWIN_TOP+9, BIGWIN_BOTTOM-10, BIGWIN_LEFT, INV_RT)
-  clearWindow()
-  setBigWindow()
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def clearMainRect()#0
-  setWindow(BIGWIN_TOP+9, BIGWIN_BOTTOM-10, BIGWIN_LEFT, BIGWIN_RIGHT)
-  clearWindow()
-  setBigWindow()
-  rawDisplayStr("^V000\n^J^J^J")
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -436,6 +488,7 @@ def displayDone()#1
   return displayResult("Done.", FALSE)
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Trade an item to another player/npc
 def doTrade(player, item)#1
   word destPlayer, destItem
@@ -482,6 +535,7 @@ def doTrade(player, item)#1
   return 0
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Split a stack of stackables
 def doSplit(player, item)#1
   word nToSplit, newItem
@@ -506,6 +560,7 @@ def doSplit(player, item)#1
   return 0
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Join a stack of stackables
 def doJoin(player, item)#1
   word match, pPrev
@@ -530,8 +585,9 @@ def doJoin(player, item)#1
   return displayResult("No joinable stack found.", TRUE)
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Select an item and use it. Returns item if it needs to be processed by outer loop, else NULL
-def doUse(player, item)#1
+def doUseItem(player, item)#1
   word pMod, oldVal, newVal
   if item->t_type == TYPE_FANCY_ITEM and item=>p_modifiers
     clearMenuRect()
@@ -558,6 +614,7 @@ def doUse(player, item)#1
   return item=>s_name // general 'use' handled by outer engine, because it might involve graphics
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Select an item and drop it. Returns TRUE if anything changed
 def doDestroy(player, item)#1
   clearMenuRect()
@@ -604,7 +661,7 @@ def interactWithItem(player, item)#1
         break
       // Use an item
       is 'U'
-        return doUse(player, item) // general 'use' handled by outer engine, because it might involve graphics
+        return doUseItem(player, item) // general 'use' handled by outer engine, because it might involve graphics
         break
       // Trade an item
       is 'T'
@@ -643,6 +700,7 @@ def interactWithItem(player, item)#1
   return NULL
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Do a cheat command, loading and unloading the godmode module
 def callGodModule(funcNum)#0
   word pModule, func
@@ -655,11 +713,12 @@ def callGodModule(funcNum)#0
   mmgr(FREE_MEMORY, pModule)
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Show player sheet and accept command. If using an item (not just for stats gain)
 // the item is returned; else NULL is returned.
 def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a value
   word player, item
-  byte i_page, totalItems, itemsOnPage, redisplay, sel, mode, noRepeatMenu
+  byte i_page, totalItems, itemsOnPage, redisplay, sel, noRepeatMenu
 
   setBigWindow()
 
@@ -682,6 +741,7 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
       if mode == 'I'
         showDerived(player)
       else // 'S'
+        canBumpSkills = player->b_skillPoints > 0
         showSkills(player)
       fin
     elsif redisplay > 0
@@ -696,7 +756,7 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
       if mode == 'I'
         showInvMenu(player, totalItems, i_page, itemsOnPage)
       else // 'S'
-        showSkillsMenu()
+        showSkillsMenu(player)
       fin
     fin
     noRepeatMenu = FALSE
@@ -715,7 +775,7 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
         fin
         break
       // Next inventory page
-      is '>'
+      is '>'; is '.'
         if mode=='I' and totalItems > (i_page + 1) * INV_ROWS
           i_page++
           redisplay = 1
@@ -725,7 +785,7 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
         fin
         break
       // Previous inventory page
-      is '<'
+      is '<'; is ','
       //is 8  // left-arrow // NO! overlaps with Ctrl-H on skills screen
         if mode=='I' and i_page
           i_page--
@@ -787,17 +847,21 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
             redisplay = 2
           else
             beep
-            noRepeatMenu = TRUE
           fin
         else // mode == 'S'
-          noRepeatMenu = TRUE
-          if sel >= 'A' and (sel-'A' < nSkills)
-            adjustSkill(player, sel - 'A', 1)
-          elsif sel >= 1 and (sel-1 < nSkills)
-            adjustSkill(player, sel - 1, -1)
+          if sel == 'U'
+            item = doUseSkill(player)
+            if item; return item; fin // Use a skill
           else
-            beep
-            noRepeatMenu = FALSE
+            noRepeatMenu = TRUE
+            if sel >= 'A' and (sel-'A' < nSkills)
+              adjustSkill(player, sel - 'A', 1)
+            elsif sel >= 1 and (sel-1 < nSkills)
+              adjustSkill(player, sel - 1, -1)
+            else
+              beep
+              noRepeatMenu = FALSE
+            fin
           fin
         fin
     wend

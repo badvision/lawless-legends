@@ -306,7 +306,7 @@ SET_XY
 }
 
 FREE_ALL_TILES
-	+freeResource GLOBAL_TILESET_LOC
+	;+freeResource GLOBAL_TILESET_LOC // NO - this is in part 1, so leave it in mem
 	+freeResource NW_TILESET_LOC
 	+freeResource NE_TILESET_LOC
 	+freeResource SW_TILESET_LOC

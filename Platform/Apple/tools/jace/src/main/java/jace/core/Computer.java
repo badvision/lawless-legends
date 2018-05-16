@@ -24,6 +24,7 @@ import jace.config.Reconfigurable;
 import jace.state.StateManager;
 import java.io.IOException;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ChangeListener;
@@ -44,7 +45,7 @@ public abstract class Computer implements Reconfigurable {
     public Keyboard keyboard;
     public StateManager stateManager;
     public Motherboard motherboard;
-    public boolean romLoaded;
+    public AtomicBoolean romLoaded = new AtomicBoolean(false);
     @ConfigurableField(category = "advanced", name = "State management", shortName = "rewind", description = "This enables rewind support, but consumes a lot of memory when active.")
     public boolean enableStateManager;
     public final SoundMixer mixer;
@@ -56,7 +57,7 @@ public abstract class Computer implements Reconfigurable {
     public Computer() {
         keyboard = new Keyboard(this);
         mixer = new SoundMixer(this);
-        romLoaded = false;
+        romLoaded.set(false);
     }
 
     public RAM getMemory() {
@@ -124,7 +125,7 @@ public abstract class Computer implements Reconfigurable {
 
     public void loadRom(String path) throws IOException {
         memory.loadRom(path);
-        romLoaded = true;
+        romLoaded.set(true);
     }
 
     public void deactivate() {
@@ -150,9 +151,9 @@ public abstract class Computer implements Reconfigurable {
             consumeKeyEvent = true,
             defaultKeyMapping = {"Ctrl+Shift+Backspace", "Ctrl+Shift+Delete"})
     public void invokeColdStart() {
-        if (!romLoaded) {
+        if (!romLoaded.get()) {
             Thread delayedStart = new Thread(() -> {
-                while (!romLoaded) {
+                while (!romLoaded.get()) {
                     Thread.yield();
                 }
                 coldStart();

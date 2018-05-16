@@ -169,9 +169,8 @@ public class LawlessComputer extends Apple2e {
         try {
             for (Optional<Card> c : getMemory().getAllCards()) {
                 c.ifPresent(Card::reset);
-                waitForVBL();
             }
-            getCpu().resume();
+            waitForVBL();
             reboot();
         } catch (InterruptedException ex) {
             Logger.getLogger(LawlessComputer.class.getName()).log(Level.SEVERE, null, ex);

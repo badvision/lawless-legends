@@ -40,7 +40,7 @@ import java.util.logging.Logger;
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com
  */
 public class Motherboard extends TimedDevice {
-
+    
     final public Set<Device> miscDevices = Collections.synchronizedSet(new LinkedHashSet<>());
     @ConfigurableField(name = "Enable Speaker", shortName = "speaker", defaultValue = "true")
     public static boolean enableSpeaker = true;
@@ -97,11 +97,9 @@ public class Motherboard extends TimedDevice {
             clockCounter = cpuPerClock;
             computer.getVideo().doTick();
             for (Optional<Card> card : cards) {
-                card.ifPresent(c -> c.doTick());
+                card.ifPresent(Card::doTick);
             }
-            miscDevices.stream().forEach((m) -> {
-                m.doTick();
-            });
+            miscDevices.forEach(Device::doTick);
         } catch (Throwable t) {
             Logger.getLogger(getClass().getName()).log(Level.SEVERE, null, t);
         }

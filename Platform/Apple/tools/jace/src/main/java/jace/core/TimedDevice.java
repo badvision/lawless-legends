@@ -58,10 +58,11 @@ public abstract class TimedDevice extends Device {
     public boolean suspend() {
         disableTempMaxSpeed();
         boolean result = super.suspend();
-        if (worker != null && worker.isAlive()) {
+        Thread w = worker;
+        if (w != null && w.isAlive()) {
             try {
-                worker.interrupt();
-                worker.join(1000);
+                w.interrupt();
+                w.join(1000);
             } catch (InterruptedException ex) {
             }
         }
@@ -118,22 +119,22 @@ public abstract class TimedDevice extends Device {
     public final int getSpeedRatio() {
         return speedRatio;
     }
-    
+
     public final void setMaxSpeed(boolean enabled) {
         maxspeed = enabled;
         if (!enabled) {
             disableTempMaxSpeed();
         }
     }
-    
+
     public final boolean isMaxSpeed() {
         return maxspeed;
     }
-    
+
     public final long getSpeedInHz() {
         return cyclesPerInterval * 100L;
     }
-    
+
     public final void setSpeedInHz(long cyclesPerSecond) {
 //        System.out.println("Raw set speed for " + getName() + " to " + cyclesPerSecond + "hz");
         speedRatio = (int) Math.round(cyclesPerSecond * 100.0 / defaultCyclesPerSecond());
@@ -143,16 +144,16 @@ public abstract class TimedDevice extends Device {
         cycleTimer = 0;
         resetSyncTimer();
     }
-    
+
     public final void setSpeedInPercentage(int ratio) {
 //        System.out.println("Setting " + getName() + " speed ratio to " + speedRatio);
         cyclesPerSecond = defaultCyclesPerSecond() * ratio / 100;
         if (cyclesPerSecond == 0) {
             cyclesPerSecond = defaultCyclesPerSecond();
         }
-        setSpeedInHz(cyclesPerSecond);        
+        setSpeedInHz(cyclesPerSecond);
     }
-    
+
     long skip = 0;
     long wait = 0;
 

@@ -735,12 +735,11 @@ gcHash_chk: !zone
 	inc gcHash_top
 	beq .corrup		; too many blks, or infinite loop? barf out
 	ldy gcHash_top
+	sta gcHash_dstHi,y
 	lda pSrc
 	sta gcHash_srcLo,y
 	lda pSrc+1
 	sta gcHash_srcHi,y
-	lda #0
-	sta gcHash_dstHi,y
 	lda gcHash_first,x
 	sta gcHash_link,y
 	tya
@@ -757,8 +756,7 @@ memCheck: !zone
 	ldx #0		; check main bank
 	jsr .chk
 	ldx #1		; 	then aux
-.chk	lda tSegLink,x
-	tay
+.chk	ldy tSegLink,x
 	beq .done
 	lda tSegAdrLo,y	; verify addresses are in ascending order
 	cmp tSegAdrLo,x
@@ -852,7 +850,7 @@ getHeapBlk:
 	bcs .done	;	if so we're done
 	lda (pSrc),y
 	bmi .isobj
-	clv		; it's a stirng
+	clv		; it's a string
 	tax
 .gotlen	sta reqLen
 .done	rts
@@ -1583,7 +1581,7 @@ shared_alloc:
 .noSplitEnd:
 	lda #$80		; flag segment as active, not locked, not holding a resource
 	sta tSegType,x		; save the flags and type
-	lda #0
+	asl                     ; zero
 	sta targetAddr+1	; clear target address for next time
 	sta tSegRes,x		; might as well clear resource number too
 	lda tSegAdrLo,x		; get address for return
@@ -1801,17 +1799,16 @@ mem_find:
 	tax			; in X for return
 	lda targetAddr+1	; was specific address requested?
 	beq .noChkTarg		; if not, skip target check
+	lda #0
 	cpx targetAddr		; verify addr lo
 	bne .redo
 	cpy targetAddr+1	; verify addr hi
 	bne .redo
 .noChkTarg:
-	lda #0
 	sta targetAddr+1	; clear targ addr for next time
 	rts			; all done
 ; different address requested than what we have: clear current block.
-.redo:	lda #0
-	ldx segNum
+.redo:  ldx segNum
 	sta tSegType,x
 	sta tSegRes,x
 ; fall through to re-load the resource
@@ -1876,14 +1873,14 @@ mem_find:
 	sta isAuxCmd
 	jmp scanForResource
 .forceFree:
-	cpx #0
+	txa
 	beq ++
 	lda tSegType,x
 	and #$C0		; make sure not active and not locked
 	beq +
 	+internalErr 'L' 	; should have been freed
-+	lda #0
-	sta tSegType,x		; force reload so fixup works right
+	lda #0
++	sta tSegType,x		; force reload so fixup works right
 ++	rts
 .findonly !byte 0
 
@@ -1979,8 +1976,7 @@ openPartition: !zone
 .mkname	lda curPartition
 	bne +
 	jmp sequenceError
-+	clc
-	adc #$30		; "0" in lo-bit ProDOS compatible ASCII
++	ora #$30		; "0" in lo-bit ProDOS compatible ASCII
 	sta partFilename+11
 ; open the file
 .open	lda #<partFilename
@@ -2223,8 +2219,8 @@ disk_finishLoad: !zone
 	lda .nFixups		; any fixups encountered?
 	beq .done
 	jsr doAllFixups		; found fixups - execute and free them
-.done	lda #0
-	sta nSegsQueued		; we loaded everything, so record that fact
+	lda #0
+.done	sta nSegsQueued		; we loaded everything, so record that fact
 	jmp showDiskActivity	; finally turn off disk activity marker (A is already zero)
 .notdone:
 	bmi .load		; hi bit set -> queued for load
@@ -2413,7 +2409,7 @@ lz4Decompress: !zone
 doAllFixups: !zone
 	!if DEBUG >= 3 { +prStr : !text "Doing all fixups.",0 }
 	; Now scan aux mem for fixup segments
-	cli			; prevent interrupts while we mess around in aux mem
+	sei			; prevent interrupts while we mess around in aux mem
 	ldx #1			; start at first aux mem segment (0=main mem, 1=aux)
 .loop:	lda tSegType,x		; grab flags & type
 	and #$F			; just type now
@@ -2422,7 +2418,7 @@ doAllFixups: !zone
 .next:	lda tSegLink,x		; next in chain
 	tax			; to X reg index
 	bne .loop		; non-zero = not end of chain - loop again
-	sei			; allow interrupts again
+	cli			; allow interrupts again
 	lda #1
 	sta isAuxCmd
 	jmp coalesce		; really free up the fixup blocks by coalescing them into free mem
@@ -2472,7 +2468,7 @@ doAllFixups: !zone
 +	asl			; check second-to-hi bit, which indicates main=0 or aux=1
 	bcs .fxAux		; yes, it's aux mem fixup
 .fxMain	jsr .fetchFixup		; get the lo byte of the offset (and set y to 0)
-	clc
+;;	clc
 	adc .mainBase
 	sta pDst
 	pla
@@ -2480,7 +2476,7 @@ doAllFixups: !zone
 	adc .mainBase+1
 	sta pDst+1
 	!if DEBUG >= 3 { jsr .debug2 }
-	clc
+;;	clc
 	jsr .adMain		; recalc and store lo byte
 	iny
 	inx
@@ -2493,7 +2489,7 @@ doAllFixups: !zone
 .fxAux	cmp #$FC		; end of fixups? ($FF shifted up two bits)
 	beq .stubs		; if so, go do the stubs
 	jsr .fetchFixup		; get lo byte of offset (and set y to 0)
-	clc
+;;	clc
 	adc .auxBase
 	sta pDst
 	pla
@@ -2664,7 +2660,7 @@ advanceAnims: !zone {
 	lda #0
 	sta .ret1+1	; clear count of animated resources found
 	sta .ret2+1	; clear count of actual changes made
-	cli		; no interrupts while we read and write aux mem
+	sei		; no interrupts while we read and write aux mem
 	ldx isAuxCmd	; grab starting segment for main or aux mem
 	sta clrAuxRd,x	; read and
 	sta clrAuxWr,x	;	write aux or main mem, depending on how called
@@ -2700,7 +2696,7 @@ advanceAnims: !zone {
 .ret2	ldy #0		; return count of number we actually changed
 	sta clrAuxRd	; read and
 	sta clrAuxWr	;	write main mem
-	sei		; allow interrupts again now that we're done with aux mem
+	cli		; allow interrupts again now that we're done with aux mem
 	rts
 
 ; Advance a single animated resource. On entry:

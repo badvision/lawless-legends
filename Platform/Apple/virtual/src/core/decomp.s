@@ -122,7 +122,7 @@ decomp	!zone {
 	ror tmp
 	eor #$FF	; make two's complement of offset hi-byte
 	tax
-	clc		; effectively add 1 to offset.
+;;	clc		; effectively add 1 to offset, always cleared by ror tmp because bit 0 was clear.
 .gotoff	lda pDst
 	sbc tmp
 	sta pTmp

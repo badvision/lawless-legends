@@ -131,12 +131,12 @@ public class LawlessLegends extends Application {
                 observe(RAMEvent.TYPE.EXECUTE, 0x0c700, (e) -> {
                     romStarted = true;
                 });
-        Emulator.computer.coldStart();
+        Emulator.computer.invokeColdStart();
         try {
-            Thread.sleep(10000);
+            Thread.sleep(7500);
             if (!romStarted) {
                 Logger.getLogger(getClass().getName()).log(Level.WARNING, "Boot not detected, performing a cold start");
-                Emulator.computer.coldStart();
+                Emulator.computer.invokeColdStart();
             }
         } catch (InterruptedException ex) {
             Logger.getLogger(LawlessLegends.class.getName()).log(Level.SEVERE, null, ex);

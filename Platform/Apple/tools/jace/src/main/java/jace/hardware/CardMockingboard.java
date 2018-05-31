@@ -209,6 +209,10 @@ public class CardMockingboard extends Card implements Runnable {
         }
     }
     
+    public boolean isRunning() {
+        return super.isRunning() && playbackThread != null && playbackThread.isAlive();
+    }
+    
     private void doSoundTick() {
         if (isRunning() && !pause) {
 //            buildMixerTable();
@@ -356,11 +360,11 @@ public class CardMockingboard extends Card implements Runnable {
             int zeroSamples = 0;
             setRun(true);
             LockSupport.parkNanos(5000);
-            while (isRunning()) {
+            while (isRunning() && !Thread.interrupted()) {
                 while (isRunning() && !computer.isRunning()) {
-                    Thread.currentThread().yield();
+                    Thread.sleep(1000);
                 }
-                if (isRunning()) {
+                if (isRunning() && !Thread.interrupted()) {
                     playSound(leftBuffer, rightBuffer);
                     int p = 0;
                     for (int idx = 0; idx < BUFFER_LENGTH; idx++) {
@@ -425,6 +429,8 @@ public class CardMockingboard extends Card implements Runnable {
         } catch (LineUnavailableException ex) {
             Logger.getLogger(CardMockingboard.class
                     .getName()).log(Level.SEVERE, null, ex);
+        } catch (InterruptedException ex) {
+            Logger.getLogger(CardMockingboard.class.getName()).log(Level.SEVERE, null, ex);
         } finally {
             computer.getMotherboard().cancelSpeedRequest(this);
             System.out.println("Mockingboard playback stopped");

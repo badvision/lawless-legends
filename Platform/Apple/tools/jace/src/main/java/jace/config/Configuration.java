@@ -151,8 +151,10 @@ public class Configuration implements Reconfigurable {
             settings = (Map) in.readObject();
             hotkeys = (Map) in.readObject();
             Object[] nodeArray = (Object[]) in.readObject();
-            for (Object child : nodeArray) {
-                children.add((ConfigNode) child);
+            synchronized (children) {
+                for (Object child : nodeArray) {
+                    children.add((ConfigNode) child);
+                }
             }
         }
 
@@ -222,13 +224,17 @@ public class Configuration implements Reconfigurable {
 
         private boolean removeChild(String childName) {
             ConfigNode child = findChild(childName);
-            return children.remove(child);
+            synchronized (children) {
+                return children.remove(child);
+            }
         }
 
         private ConfigNode findChild(String id) {
-            for (ConfigNode node : children) {
-                if (id.equalsIgnoreCase(node.id)) {
-                    return node;
+            synchronized (children) {
+                for (ConfigNode node : children) {
+                    if (id.equalsIgnoreCase(node.id)) {
+                        return node;
+                    }
                 }
             }
             return null;
@@ -245,7 +251,9 @@ public class Configuration implements Reconfigurable {
                     index++;
                 }
             }
-            children.add(index, newChild);
+            synchronized (children) {
+                children.add(index, newChild);
+            }
         }
 
         private void setChanged(boolean b) {
@@ -258,9 +266,11 @@ public class Configuration implements Reconfigurable {
         }
 
         public Stream<ConfigNode> getTreeAsStream() {
-            return Stream.concat(
-                    Stream.of(this),
-                    children.stream().flatMap(ConfigNode::getTreeAsStream));
+            synchronized (children) {
+                return Stream.concat(
+                        Stream.of(this),
+                        children.stream().flatMap(ConfigNode::getTreeAsStream));
+            }
         }
     }
     public static ConfigNode BASE;
@@ -346,11 +356,13 @@ public class Configuration implements Reconfigurable {
                                 continue;
                             }
 
-                            for (Optional<Reconfigurable> child : (Optional<Reconfigurable>[]) o) {
-                                if (child.isPresent()) {
-                                    children.add(child.get());
-                                } else {
-                                    children.add(null);
+                            synchronized (children) {
+                                for (Optional<Reconfigurable> child : (Optional<Reconfigurable>[]) o) {
+                                    if (child.isPresent()) {
+                                        children.add(child.get());
+                                    } else {
+                                        children.add(null);
+                                    }
                                 }
                             }
                         }
@@ -615,9 +627,11 @@ public class Configuration implements Reconfigurable {
     private static void buildNodeMap(ConfigNode n, Map<String, ConfigNode> shortNames) {
 //        System.out.println("Encountered " + n.subject.getShortName().toLowerCase());
         shortNames.put(n.subject.getShortName().toLowerCase(), n);
-        n.getChildren().stream().forEach((c) -> {
-            buildNodeMap(c, shortNames);
-        });
+        synchronized (n.getChildren()) {
+            n.getChildren().stream().forEach((c) -> {
+                buildNodeMap(c, shortNames);
+            });
+        }
     }
 
     private static void printTree(ConfigNode n, String prefix, int i) {

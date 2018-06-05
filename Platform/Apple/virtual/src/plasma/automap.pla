@@ -357,8 +357,8 @@ asm fillRow(mapRowData, mask, tileTrans, pSmallTiles, pSpecialTiles, blankTile, 
   adc tmp
   bcc +
   inc tmp+1
-+ clc               ; X may have been adjusted to address pSpecialTiles instead
-  adc .param_pSmallTiles,x
+  clc               ; X may have been adjusted to address pSpecialTiles instead
++ adc .param_pSmallTiles,x
   pha
   lda tmp+1
   adc .param_pSmallTiles+HB,x

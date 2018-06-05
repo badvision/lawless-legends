@@ -230,13 +230,13 @@ _writeMarks: !zone
 	bcc .outer
 	inc pTmp+1
 	bne .outer	; always taken
-.end	lda #0
+.end	;;lda #0
 	sta bufStart	; clear buffer of marks
 	ldx #3		; reseek
 -	sta rwts_mark,x
 	dex
 	bpl -
-	ldx #0		; seek to start of marks on disk: offset $1200
+	inx		; seek to start of marks on disk: offset $1200
 	ldy #$12
 	lda #cmdseek
 	sec		; rdwrpart

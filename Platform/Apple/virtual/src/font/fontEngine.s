@@ -207,8 +207,7 @@ GA_Lp2	LDY zTmp3	;Get index into stored addresses
 	STA GA_Ary,Y	;that also (each array element is 2-bytes)
 	INY
 	STY zTmp3	;save the index value of the array
-	TYA
-	CMP #18 	;when we've stored 9 pairs, we're done
+	CPY #18 	;when we've stored 9 pairs, we're done
 	BPL GA_Done
 	INC CursRow	;increment the {0..191} down one line
 	LDA CursRow
@@ -391,20 +390,20 @@ LpLMsk	ASL
 
 LpLMskp	LDA Byt2nd	;if pixels got rolled into 2nd byte
 	ORA Flg2nd	;then set 2nd-byte-flag
-	STA Flg2nd
-	LDX MskTx_Flg	;code needed when using mask mode
+	LDY MskTx_Flg	;code needed when using mask mode
 	BEQ NoAdj	;and char pixels blank
-	LDA MskBytH
+	LDX MskBytH
 	BEQ NoAdj
-	STA Flg2nd
+	TXA
 
-NoAdj	LDX MlpIdx	;get indx into 2-byt adrs wrds {0,2,4,etc}
+NoAdj	STA Flg2nd
+	LDX MlpIdx	;get indx into 2-byt adrs wrds {0,2,4,etc}
 	LDA GA_Ary,X	;get lo-byte HGR address word from array
 	STA zTmp1	;save in Zpage adrs (to do indrct adrssng)
 	INX  		;update 2-byte index to point to the hi-byte
 	LDA GA_Ary,X	;get hi-byte HGR address word
 	STA zTmp2	;save in Zpage+1 address
-	LDY MskTx_Flg
+	TYA
 	BEQ NoMask
 	LDY #0  	;clear the byte offset index
 	LDA MskBytL	;Load mask bit pattern
@@ -751,15 +750,12 @@ ClrSlp2	STA (GBasL),Y
 	BEQ ClrSlp1	;...or equal
 	RTS
 
-ClrColr	LDA BkgColor
-	TAY
+ClrColr	LDA LfMrgn
+	LSR
+	LDA BkgColor
+	BCS +
 	EOR #$7F
-	STA ClrFlip
-	LDA LfMrgn
-	AND #1
-	BEQ ClrSlp3
-	TYA
-	STA ClrFlip
++	STA ClrFlip
 ClrSlp3	JSR GetBasX	;to get the base address
 	LDY LfMrgn
 	LDA ClrFlip
@@ -966,27 +962,24 @@ LtrScrl	!byte 0 	;half of char width
 TtlScrl	!byte 0 	;cumulative sum of scrolls
 LpNScrl	!byte 0 	;number of scroll loops
 CtrJstfy SEC
-	LDA WrdWdth
-	ADC ChrWdth
+	LDA ChrWdth
+	PHA
+	ADC WrdWdth
 	STA WrdWdth	;WrdWdth = WrdWdth + ChrWdth
 	TAX
-	LDA ChrWdth
+	PLA
 	LSR
 	STA LtrScrl	;LtrScrl = ChrWdth / 2
 	CLC
-	LDA TtlScrl
-	ADC LtrScrl
+	ADC TtlScrl
 	STA TtlScrl	;TtlScrl = TtlScrl + LtrScrl
 	TXA  		;Get WrdWdth
 	LSR
 	STA WrdScrl	;WrdScrl = WrdWdth / 2
+	TAX
 	SEC
-	SBC TtlScrl
-	TAX  		;Delta = WrdScrl - TtlScrl
-	CLC
-	ADC TtlScrl
-	STA TtlScrl	;Save TtlScrl
-	TXA  		;Get Delta
+	SBC TtlScrl	;Delta = WrdScrl - TtlScrl
+	STX TtlScrl	;Save TtlScrl
 	CLC
 	ADC LtrScrl
 	STA LpNScrl	;Save # of scroll loops
@@ -1223,10 +1216,9 @@ In_Plt	LDX #1
 	ADC ChrWdth	;right margin?
 	STA CursColL
         TAX
-	LDA CursColH
-	ADC #0
-	STA CursColH
-	CMP CursXrh	;if so, ignore it, sound ERR,
+	BCC +
+	INC CursColH
++	CMP CursXrh	;if so, ignore it, sound ERR,
 	BMI In_Bchk	;wait for different key press
 	INX
 	INX		;allow 2 more pixels for cursor
@@ -1442,7 +1434,7 @@ TCl_14	CMP #$15	;Ctrl-U right arrow
 	LDA #1
 	STA ChrWdth
 	RTS
-TCl_14a	LDA #0 		;since moving right only one dot
+TCl_14a	;;LDA #0 		;since moving right only one dot
 	STA ChrWdth	;char width param is set to 0
 	LDA Tikr_Flg
 	BNE TCl_14t	;if not using ticker scrolling
@@ -1670,16 +1662,16 @@ Wp_CmbN3c JSR Wp_Tmx10	;multiply clamped digit x10
 	LDA Wp_Dig3	;get 3rd digit
 	ADC T1_vLo	;combine x100+x10+x1
 	STA T1_vLo	;save it
-	LDA #0
-	JMP Wp_CfHtVt	;chk Ht/Vt val & clr flg
+	LDX #0
+	BEQ Wp_CfHtVt	;chk Ht/Vt val & clr flg
 ;when no digits, load margin by setting tab
-Wp_LdHtVt LDA #0	;to zero
-	STA T1_vLo	;clear lo-byte
+Wp_LdHtVt ;;LDX #0	;to zero
+	STX T1_vLo	;clear lo-byte
 ;check Htab / Vtab value & assign the parameter
-Wp_CkHtVt LDA #0	;clear hi-byte when
-	STA T1_vHi	;parm is 1 or 2-digit
-	LDA #1
-Wp_CfHtVt STA Flg_PsC	;set Plot Separator flag
+Wp_CkHtVt ;;LDX #0	;clear hi-byte when
+	STX T1_vHi	;parm is 1 or 2-digit
+	INX
+Wp_CfHtVt STX Flg_PsC	;set Plot Separator flag
 	LDA WaitStat
 	CMP #5		;is param for hTab?
 	BNE Wp_VtVal	;no - then go do vTab

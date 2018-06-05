@@ -126,21 +126,20 @@ umul_bb_b: !zone
 	beq .two
 .three:	cpy #86			; x=3: 3*(0..85) results in hi=0
 	bcc .done
-	lda #1
 	cpy #171		; 3*(86..170) results in hi=1
-	bcc .done
+	bcc .retone
 	lda #2			; 3*(171..255) results in hi=2
 	rts
 .two:	cpy #$80		; x=2: high byte is 1 iff input >= 0x80
 	bcc .done
-	lda #1
+.retone	lda #1
 .done:	rts
 .y_lt_4:
 	stx tmp			; switch X and Y
 	tya
 	tax
 	ldy tmp
-	jmp .x_lt_4		; then re-use code
+	bne .x_lt_4		; then re-use code
 
 ;-------------------------------------------------------------------------------
 ; Calculate log2 of a 16-bit number.
@@ -148,17 +147,22 @@ umul_bb_b: !zone
 ; Output: fixed point 8+8 bit log2 in A(lo)/X(hi)
 ;
 log2_w_w: !zone
-	cpx #0
-	beq log2_b_w	; hi-byte zero? only consider low byte
+	cpx #1
+	bcc log2_b_w	; hi-byte zero? only consider low byte
+	beq .retMant8   ; avoid the expensive store and shift in one case
 	stx tmp
 	ldx #8		; start with exponent=8
 	lsr tmp		; shift down
-	beq .gotMant	; until high byte is exactly 1
 .hiLup:	ror		; save the bit we shifted out
 	inx		; bump the exponent
 	lsr tmp		; shift next bit
 	bne .hiLup	; loop again
 .gotMant:		; mantissa now in A, exponent in X. Translate mantissa to log using table, and we're done
+	tay
+	lda tbl_log2_w_w,y
+	rts
+.retMant8:
+	ldx #8		; exponent=8
 	tay
 	lda tbl_log2_w_w,y
 	rts
@@ -168,12 +172,10 @@ log2_b_w: !zone
 	tax		; special case: log(0) we call zero.
 	beq .zero
 .low:			; we know high byte is zero
-	ldx #7		; start with exponent=7
-	asl		; shift up
-	bcs .gotMant	; until high byte would be exactly 1
+	ldx #8		; start with exponent=8
 .loLup:	dex		; bump exponent down
 	asl		; shift next bit
-	bcc .loLup	; loop again
+	bcc .loLup	; loop until high byte would be exactly 1
 .gotMant:		; mantissa now in A, exponent in X. Translate mantissa to log using table, and we're done
 	tay
 	lda tbl_log2_w_w,y
@@ -928,15 +930,15 @@ spriteCalc: !zone
 	jsr pow2_w_w		; back to normal space (in: Y=lo,X=hi, out: A=lo,X=hi)
 	tay			; save lo byte to Y
 	lda bSgnRy		; check sign
-	and #1			; only the lo bit counts
-	beq +			; clear, no invert
+	lsr			; only the lo bit counts
+	bcc +			; clear, no invert
 	jsr .negYX
+	clc
 +	; don't need to actually store wX -- it's only needed for spriteLeft below
 	!if DEBUG >= 2 { jsr .debug5 }
 
 	; Calculate wSpriteLeft = wx + wSpriteTop
-	tya
-	clc			; lo byte already in A from code above
+	tya			; lo byte in A
 	adc wSpriteTop		; add to spriteTop (which if you think about it, is a function of dist just like spriteLeft)
 	sta wSpriteLeft		; store lo byte of left coord
 	tay			; also set aside for later
@@ -962,15 +964,15 @@ spriteCalc: !zone
 	bcc .offL
 	cpy #0-NUM_COLS		; now check lo byte, should be >= -63
 	bpl .clipL
-.offL	!if DEBUG >= 2 { +prStr : !text "Sprite is off-screen to left.",0 }
 	clc
+.offL	!if DEBUG >= 2 { +prStr : !text "Sprite is off-screen to left.",0 }
 	rts
 .clipL	; Sprite overlaps left edge of screen; calculate clipping.
 	; Calculate txColumn = Math.min(255, pow2_w_w(log2_w_w(-wSpriteLeft) - wLogSize + wLog256))
 	lda #0
+	tax			; We know high byte of wSpriteLeft is $FF, so neg will be 0.
 	sec
 	sbc wSpriteLeft		; Negate wSpriteLeft to get positive number
-	ldx #0			; We know high byte of wSpriteLeft is $FF, so neg will be 0.
 	jsr log2_w_w		; Get to log space (in: A=lo/X=hi; out: same)
 	sec
 	sbc wLogSize		; subtract lo byte of log size
@@ -1248,22 +1250,19 @@ nextLine: !zone
 	sbc #$20	; Back to start
 	tax
 	lda pLine	; Lo byte
-	clc
-	adc #$80	; Inner blks offset by 128 bytes
+	eor #$80	; Inner blks offset by 128 bytes
 	sta pLine
-	bcc .done
+	bmi .done
 	inx		; Next page
 	txa
 	and #7
 	cmp #4		; Still inside inner blk?
 	bne .done	; If so we're done
 	txa
-	sec
 	sbc #4		; Back to start of inner blk
 	tax
 	lda pLine
-	clc
-	adc #$28	; Outer blks offset by 40 bytes
+	adc #$27	; Outer blks offset by 40 bytes
 	sta pLine
 .done:	stx pLine+1
 	rts
@@ -1323,12 +1322,9 @@ drawRay: !zone
 	ldy pixNum		; get offset into the blit roll for this column
 	ldx .blitOffsets,y
 	tya			; find out if pixnum is even or odd
-	and #1
-	sta tmp
-	lda byteNum		; combine with oddness of byte-pair
+	asl
+	eor byteNum		; combine with oddness of byte-pair
 	lsr
-	and #1
-	eor tmp
 	lsr			; final result in carry
 	lda gndColorEven
 	and #$20		; just hi-bit of ground color
@@ -1594,14 +1590,14 @@ makeLines: !zone
 ; Set screen lines to current back buf
 setBackBuf: !zone
 ; calculate screen start
-	lda backBuf
+	ldx backBuf
+	inx
+	txa
 	asl
 	asl
 	asl
 	asl
 	asl
-	clc
-	adc #$20
 	sei
 	sta setAuxZP
 	ldx #0
@@ -2195,14 +2191,12 @@ pl_getPos: !zone {
 ; Parameters: x, y
 ; Returns: Nothing
 pl_setPos: !zone {
-	lda evalStkL,x		; normally handled by asmplasm, but we're also called by pl_initMap
-	clc
-	adc #1			; adjust for border guards
-	sta playerY+1
-	lda evalStkL+1,x
-	clc
-	adc #1			; adjust for border guards
-	sta playerX+1
+	ldy evalStkL,x		; normally handled by asmplasm, but we're also called by pl_initMap
+	iny			; adjust for border guards
+	sty playerY+1
+	ldy evalStkL+1,x
+	iny			; adjust for border guards
+	sty playerX+1
 	lda #$80
 	sta playerY
 	sta playerX

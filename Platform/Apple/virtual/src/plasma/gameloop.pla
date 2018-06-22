@@ -79,6 +79,7 @@ predef startGame(firstTime, ask)#0
 predef showAnimFrame()#0
 predef showParty()#0
 predef unloadTextures()#0
+predef clearEncounterZones()#0
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Global variables
@@ -111,7 +112,6 @@ word triggerTbl
 
 word cmdTbl[96]   // ASCII $00..$5F
 byte frameLoaded = 0
-byte allowZoneInit = FALSE
 word curEngine = NULL
 word pIntimate = NULL
 export word pResourceIndex = NULL
@@ -2246,9 +2246,7 @@ def initMap(x, y, dir)#0
   setWindow2(); clearWindow()
 
   // Clear the list of encounter zones from any previous maps
-  if allowZoneInit
-    global=>p_encounterZones = NULL
-  fin
+  clearEncounterZones
 
   // Start up the display engine with map data and starting position. This will also load and
   // init the script module, if any, which will end up calling us back at the setScriptInfo
@@ -2618,9 +2616,7 @@ export def setMap(is3D, num, x, y, dir)#0
     useMapWindow()
     mapIs3D = is3D
     mapNum = num
-    allowZoneInit = TRUE
     initMap(x, y, dir)
-    allowZoneInit = FALSE
   fin
   // Don't send enter event, because we often land on an "Exit to wilderness?" script
   //NO:scriptEvent(S_ENTER, NULL)
@@ -2726,7 +2722,7 @@ export def setScriptInfo(mapName, moduleNum, timeFn, trigTbl, wdt, hgt)#0
   showMapName(mapName)
 
   // Get ready for new encounter zones
-  if allowZoneInit; global=>p_encounterZones = NULL; fin
+  clearEncounterZones
 
   // Back to the main text window.
   setWindow2()
@@ -3027,15 +3023,13 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def addEncounterZone(code, x, y, dist, chance)#0
   word p
-  if allowZoneInit
-    p = mmgr(HEAP_ALLOC, TYPE_ENCOUNTER_ZONE)
-    p=>s_name = mmgr(HEAP_INTERN, code)
-    p=>w_encX = x
-    p=>w_encY = y
-    p=>w_encMaxDist = dist
-    p=>w_encChance = chance
-    addToList(@global=>p_encounterZones, p)
-  fin
+  p = mmgr(HEAP_ALLOC, TYPE_ENCOUNTER_ZONE)
+  p=>s_name = mmgr(HEAP_INTERN, code)
+  p=>w_encX = x
+  p=>w_encY = y
+  p=>w_encMaxDist = dist
+  p=>w_encChance = chance
+  addToList(@global=>p_encounterZones, p)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3100,7 +3094,8 @@ export def checkEncounter(x, y, force)#0
   p = global=>p_encounterZones
   while p
     d = min(abs(x - p=>w_encX), abs(y - p=>w_encY))
-    if d < bestDist and (p=>w_encMaxDist == 0 or d < p=>w_encMaxDist)
+    // Using '<=' below so that later-added zones added by a scripted event take precedence
+    if d <= bestDist and (p=>w_encMaxDist == 0 or d <= p=>w_encMaxDist)
       p_bestZone = p
       bestDist = d
     fin
@@ -3686,9 +3681,7 @@ def startGame(firstTime, ask)#0
     mapIs3D = q_mapIs3D
     mapNum = q_mapNum
     q_mapNum = 0
-    allowZoneInit = TRUE
     initMap(q_x, q_y, q_dir)
-    allowZoneInit = FALSE
     saveGame()
   else
     q_mapNum = 0

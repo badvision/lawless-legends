@@ -332,7 +332,7 @@ def doUseSkill(player)#1
 
   while TRUE
     clearMenuRect
-    rawDisplayf1("\nUse which skill? [A-%c] or [Esc]", nSkills-1+'A')
+    rawDisplayf1("\nUse which skill/attr? [A-%c] or [Esc]", nSkills-1+'A')
     sel = getUpperKey()
     if sel >= 'A' and (sel-'A') < nSkills
       return skillName[sel-'A']
@@ -384,9 +384,9 @@ def showSkillsMenu(player)#0
   if player->b_skillPoints > 0
     rawDisplayf2("Assign point [A-%c], Undo pt [Ctrl-A - Ctrl-%c], ", nSkills-1+'A', nSkills-1+'A')
   fin
-  rawDisplayStr("\nU)se skill, X:Inventory, ")
+  rawDisplayStr("\nU)se skill/attr, X:Inventory, ")
   if playerCount > 1; rawDisplayf1("Player [1-%d], ", playerCount); fin
-  rawDisplayStr("or [Esc]")
+  rawDisplayStr("[Esc]")
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

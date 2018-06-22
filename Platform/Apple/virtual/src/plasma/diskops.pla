@@ -144,42 +144,29 @@ asm moveMarks(pMarks)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Scan (and optionally clear) the automap marks, recording map numbers and sizes as a string-style
-// buffer at $200.
-asm scanMarks(bClear, pMarks)#0
-  +asmPlasmNoRet 2
-  sta pTmp
+// Clear the automap mark bits
+asm clearMarkBits(pMarks)#0
+  +asmPlasmNoRet 1
   sty pTmp+1
-  lda evalStkL,x
-  sta tmp
-  ldx #0        ; start at beginning of output buffer
 .outer
+  sta pTmp
+  ldy #0
   lda (pTmp),y  ; get map number
   beq .done     ; if zero, end of maps has been reached
-  inx
-  sta $200,x    ; record map number
   iny
-  lda (pTmp),y
-  inx
-  sta $200,x    ; record marks size for this map
-  bit tmp       ; check if we're clearing
-  bpl .next     ; if not, go to next
-  stx tmp+1     ; save output buffer offset
+  lda (pTmp),y  ; map len
   tax
   dex
-  dex           ; don't clear header
+  dex           ; don't clear header in length to clear
   iny
   lda #0
 - sta (pTmp),y
   iny
   dex
   bne -
-  ldx tmp+1     ; restore output buffer offset
   tya           ; cute way to know total length
-.next
   clc
   adc pTmp
-  sta pTmp
   bcc .outer
   inc pTmp+1
   bne .outer    ; always taken
@@ -231,6 +218,20 @@ asm callProRWTS(cmdPlusOpenFlg, filename, addr, size)#1
     ldy #0
     bit setLcRW+lcBank2
     bit setLcRW+lcBank2
+    sta clrAuxZP
+    rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// It's a little tricky reseeking ProRWTS's file marker
+asm reseekRwts#0
+    +asmPlasmNoRet 0
+    sta setAuxZP
+    lda #0
+    ldx #3
+-   sta rwts_mark,x
+    dex
+    bpl -
     sta clrAuxZP
     rts
 end
@@ -510,8 +511,29 @@ def getCharacterGender()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def clearDiskMarks()#0
+  word size
+  // First, read in the marks. Seek past the heap, then read the length
+  if callProRWTS(RWTS_SEEK | RWTS_OPENDIR, @game1_filename, NULL, HEAP_SIZE) <> 0
+    fatal("read marks")
+  fin
+  callProRWTS(RWTS_READ | RWTS_RDWRPART, NULL, LOAD_SAVE_BUF, 2)
+  size = *LOAD_SAVE_BUF
+  callProRWTS(RWTS_READ | RWTS_RDWRPART, NULL, LOAD_SAVE_BUF+2, size)
+
+  // Clear the fiddly bits
+  clearMarkBits(LOAD_SAVE_BUF+2)
+
+  // And write them back
+  reseekRwts
+  callProRWTS(RWTS_SEEK | RWTS_RDWRPART, NULL, NULL, HEAP_SIZE)
+  callProRWTS(RWTS_WRITE | RWTS_RDWRPART, NULL, LOAD_SAVE_BUF, size+2)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def newGame()#0
   word playersModule, newGameModule, partyModule
+  clearDiskMarks()
   initHeap(0) // initially empty heap
   global->b_curAvatar = BASE_AVATAR
   global=>w_combatPauseCt = DEFAULT_COMBAT_PAUSE_CT

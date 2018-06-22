@@ -2619,6 +2619,43 @@ class A2PackPartitions
             "GRAND TOTAL", ucTot/1024.0, cTot/1024.0)
     }
 
+    def recordTeleport(mapName, script, teleportLocs)
+    {
+        mapName = mapName.trim().replaceAll(/\s*-\s*[23][dD]\s*/, "")
+        script.locationTrigger.each { trig ->
+            script.block.'**'.each { blk ->
+                if (blk?.@type == "events_teleport") {
+                    assert blk.field[0].@name == 'X'
+                    assert blk.field[1].@name == 'Y'
+                    teleportLocs << [mapName, trig.@x.toInteger(), trig.@y.toInteger(), script?.@name,
+                                     mapName, blk.field[0].text().toInteger(), blk.field[1].text().toInteger()]
+                }
+                else if (blk?.@type == "events_set_map") {
+                    assert blk.field[0].@name == 'NAME'
+                    assert blk.field[1].@name == 'X'
+                    assert blk.field[2].@name == 'Y'
+                    def targetName = blk.field[0].text().trim().replaceAll(/\s*-\s*[23][dD]\s*/, "")
+                    teleportLocs << [mapName, trig.@x.toInteger(), trig.@y.toInteger(), script?.@name,
+                                     targetName, blk.field[1].text().toInteger(), blk.field[2].text().toInteger()]
+                }
+            }
+        }
+    }
+
+    def reportTeleports(data)
+    {
+        reportWriter.println(
+            "\n============================== Teleport/Set-map Cross-reference ==================================\n")
+        def teleportLocs = []
+        data.global.scripts.script.each { recordTeleport('global', it, teleportLocs) }
+        data.map.each { map ->
+            map.scripts.script.each { recordTeleport(map.@name, it, teleportLocs) }
+        }
+        teleportLocs.each { fromMap, fromX, fromY, scriptName, toMap, toX, toY ->
+            reportWriter.println "From '$fromMap' $fromX/$fromY (script '$scriptName') ... To '$toMap' $toX/$toY"
+        }
+    }
+
     def countArgs(script) {
         return script.block.mutation.arg.size()
     }
@@ -2822,8 +2859,10 @@ class A2PackPartitions
         fillAllDisks()
 
         // Print stats (unless there's a warning, in which case focus the user on that)
-        if (nWarnings == 0)
+        if (nWarnings == 0) {
             reportSizes()
+            reportTeleports(dataIn)
+        }
 
         if (debugCompression)
             println "Compression savings: $compressionSavings"

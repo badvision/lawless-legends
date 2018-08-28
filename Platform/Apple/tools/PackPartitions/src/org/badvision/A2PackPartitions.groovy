@@ -2656,6 +2656,78 @@ class A2PackPartitions
         }
     }
 
+    def recordFlagUse(mapName, script, flagUses)
+    {
+        mapName = mapName.trim().replaceAll(/\s*-\s*[23][dD]\s*/, "")
+        script.block.'**'.each { blk ->
+            if (blk?.@type =~ /^interaction_(get|set)_flag$/) {
+                assert blk.field.size() == 1
+                assert blk.field[0].@name == "NAME"
+                def flagName = blk.field[0].text().trim().toUpperCase()
+                def getOrSet = blk.@type == "interaction_get_flag" ? "Checked" : "Set"
+                if (!flagUses.containsKey(flagName))
+                    flagUses[flagName] = [] as Set
+                flagUses[flagName] << [mapName, script.@name, getOrSet]
+            }
+        }
+    }
+
+    def reportFlags(data)
+    {
+        reportWriter.println(
+            "\n============================== Flag Cross-reference ==================================\n")
+        def flagUses = [:]
+        data.global.scripts.script.each { recordFlagUse('global', it, flagUses) }
+        data.map.each { map ->
+            map.scripts.script.each { recordFlagUse(map.@name, it, flagUses) }
+        }
+        flagUses.keySet().sort().each { flagName ->
+            reportWriter.println "Flag '$flagName':"
+            flagUses[flagName].sort().each { mapName, scriptName, getOrSet ->
+                reportWriter.println "    $getOrSet on map '$mapName' in script '$scriptName'"
+            }
+        }
+    }
+
+    def reportScriptLocs(data)
+    {
+        reportWriter.println(
+            "\n============================== Script Location Cross-reference ==================================\n")
+        def scriptLocs = [:]
+        data.map.each { map ->
+            def mapName = map.@name.trim().replaceAll(/\s*-\s*[23][dD]\s*/, "")
+            map.scripts.script.each { script ->
+                def scriptName = script?.@name
+                if (!scriptLocs.containsKey(scriptName))
+                    scriptLocs[scriptName] = [:]
+                if (!scriptLocs[scriptName].containsKey(mapName))
+                    scriptLocs[scriptName][mapName] = []
+                script.locationTrigger.each { trig ->
+                    scriptLocs[scriptName][mapName] << [trig.@x.toInteger(), trig.@y.toInteger()]
+                }
+            }
+        }
+
+        scriptLocs.keySet().sort().each { scriptName ->
+            reportWriter.println "Script '$scriptName':"
+            scriptLocs[scriptName].keySet().sort().each { mapName ->
+                if (scriptLocs[scriptName][mapName].size() > 0) {
+                    reportWriter.print "    Map '$mapName': "
+                    def first = true
+                    scriptLocs[scriptName][mapName].each { x, y ->
+                        if (!first)
+                            reportWriter.print " | "
+                        first = false
+                        reportWriter.print "$x,$y"
+                    }
+                    reportWriter.println ""
+                }
+                else
+                    reportWriter.println "    Map '$mapName'"
+            }
+        }
+    }
+
     def countArgs(script) {
         return script.block.mutation.arg.size()
     }
@@ -2862,6 +2934,8 @@ class A2PackPartitions
         if (nWarnings == 0) {
             reportSizes()
             reportTeleports(dataIn)
+            reportScriptLocs(dataIn)
+            reportFlags(dataIn)
         }
 
         if (debugCompression)
@@ -3143,6 +3217,79 @@ end
                 out.println("done")
             }
             replaceIfDiff("build/src/plasma/gen_enemies.pla")
+        }
+    }
+
+    def genAllQuests(sheet)
+    {
+        assert sheet : "Missing 'quests' sheet"
+
+        withContext("quests sheet")
+        {
+            new File("build/src/plasma/gen_quests.pla.new").withWriter { out ->
+                out.println("// Generated code - DO NOT MODIFY BY HAND")
+                out.println()
+
+                def columns = sheet.columns.column.collect { it.@name }
+                ["Quest", "Order", "Description", "Trigger-Flag", "Trigger-Item", "Portrait",
+                 "Map1-Name", "Map1-X", "Map1-Y", "Map2-Name", "Map2-X", "Map2-Y"].each { col ->
+                    assert col in columns : "Missing column '$col'"
+                }
+
+                // Parse all the quest steps
+                sheet.rows.row.each { row ->
+                    def questName = row.@Quest?.trim()
+                    def order = row.@Order?.trim()
+                    if (!questName || !order)
+                        return // from the closure only
+
+                    assert order ==~ /^\d+\.\d+$/ : "\"order\" should be a decimal number like \"102.1\""
+                    def orderNum = order.toFloat()
+                    def orderMain = orderNum.toInteger()
+
+                    def descrip = row.@Description?.trim()
+
+                    def cond = []
+                    def triggerFlag = row.@"Trigger-Flag"?.trim()
+                    if (triggerFlag) {
+                        triggerFlag = triggerFlag.toLowerCase()
+                        assert gameFlags.containsKey(triggerFlag) : "unrecognized flag '$triggerFlag'"
+                        cond << "getGameFlag(GF_${humanNameToSymbol(triggerFlag, true)})"
+                    }
+                    def triggerItem = row.@"Trigger-Item"?.trim()
+                    if (triggerItem) {
+                        triggerItem = triggerItem.toLowerCase()
+                        assert itemNameToFunc.containsKey(triggerItem) : "unrecognized item '$triggerItem'"
+                        cond << "partyHasItem(${escapeString(triggerItem)})"
+                    }
+                    assert !cond.isEmpty() : "Quest '$questName' requires either Trigger-Flag or Trigger-Item, or both"
+
+                    def portraitName = row.@"Portrait".trim()
+                    assert portraits.containsKey(portraitName) : "unrecognized portrait '$portraitName'"
+
+                    def map1Name = row.@"Map1-Name"?.trim()
+                    def map1X = 0, map1Y = 0
+                    if (map1Name) {
+                        assert mapNames.containsKey(map1Name) : "unrecognized map '$map1Name'"
+                        map1X = row.@"Map1-X".toInteger()
+                        map1Y = row.@"Map1-Y".toInteger()
+                    }
+
+                    def map2Name = row.@"Map2-Name"?.trim()
+                    def map2X = 0, map2Y = 0
+                    if (map2Name) {
+                        assert mapNames.containsKey(map2Name) : "unrecognized map '$map2Name'"
+                        map2X = row.@"Map2-X".toInteger()
+                        map2Y = row.@"Map2-Y".toInteger()
+                    }
+
+                    out.println "  if ${cond.join(" and ")}"
+                    out.println "    printf2(\"Quest %s step %s started.\\n\", ${escapeString(questName)}, ${escapeString(descrip)})"
+                    out.println "  fin"
+                }
+                out.println()
+            }
+            replaceIfDiff("build/src/plasma/gen_quests.pla")
         }
     }
 
@@ -3876,6 +4023,7 @@ end
         genAllEnemies(dataIn.global.sheets.sheet.find { it?.@name.equalsIgnoreCase("enemies") })
         genAllPlayers(dataIn.global.sheets.sheet)
         genAllMapSizes()
+        genAllQuests(dataIn.global.sheets.sheet.find { it?.@name.equalsIgnoreCase("quests") })
 
         // Produce a list of assembly and PLASMA code segments
         binaryStubsOnly = true

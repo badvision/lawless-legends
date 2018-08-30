@@ -2363,6 +2363,7 @@ class A2PackPartitions
         compileModule("gen_items", "src/plasma/")
         compileModule("gen_players", "src/plasma/")
         compileModule("gen_flags", "src/plasma/")
+        compileModule("gen_quests", "src/plasma/")
         globalScripts.each { name, nArgs ->
             compileModule("gs_"+name, "src/plasma/")
         }
@@ -3220,6 +3221,78 @@ end
         }
     }
 
+    def genQuest(mainNum, rows, out)
+    {
+        def questName = rows[0].@Quest?.trim()
+        assert questName : "Quest name must be specified with order"
+
+        rows.each { row ->
+            def orderNum = row.@Order.toFloat()
+            withContext("step $orderNum")
+            {
+                out.println "def step_${orderNum.toString().replace(".","_")}(callback)#0"
+
+                def descrip = row.@Description?.trim()
+                assert descrip && descrip != "" : "missing description"
+
+                def portraitName = row.@"Portrait".trim()
+                assert portraits.containsKey(portraitName) : "unrecognized portrait '$portraitName'"
+
+                def map1Name = row.@"Map1-Name"?.trim()
+                def map1Num = 0, map1X = 0, map1Y = 0
+                if (map1Name) {
+                    assert mapNames.containsKey(map1Name) : "unrecognized map '$map1Name'"
+                    map1Num = mapNames[map1Name][1]
+                    map1X = row.@"Map1-X".toInteger()
+                    map1Y = row.@"Map1-Y".toInteger()
+                }
+
+                def map2Name = row.@"Map2-Name"?.trim()
+                def map2Num = 0, map2X = 0, map2Y = 0
+                if (map2Name) {
+                    assert mapNames.containsKey(map2Name) : "unrecognized map '$map2Name'"
+                    map2Num = mapNames[map2Name][1]
+                    map2X = row.@"Map2-X".toInteger()
+                    map2Y = row.@"Map2-Y".toInteger()
+                }
+
+                def portraitCode = "PO${humanNameToSymbol(portraitName, false)}"
+                out.println("  callback(${escapeString(descrip)}, $portraitCode, " +
+                            "$map1Num, $map1X, $map1Y, $map2Num, $map2X, $map2Y)")
+            }
+            out.println "end\n"
+        }
+
+        out.println "def quest_$mainNum(callback)#0"
+        out.println "  word name"
+        out.println "  name = ${escapeString(questName)}"
+
+        rows.eachWithIndex { row, idx ->
+            def orderNum = row.@Order.toFloat()
+            withContext("step $orderNum")
+            {
+                def triggerFlag = row.@"Trigger-Flag"?.trim()
+                if (triggerFlag) {
+                    triggerFlag = triggerFlag.toLowerCase()
+                    assert gameFlags.containsKey(triggerFlag) : "unrecognized flag '$triggerFlag'"
+                }
+                def triggerItem = row.@"Trigger-Item"?.trim()
+                if (triggerItem) {
+                    triggerItem = triggerItem.toLowerCase()
+                    assert itemNameToFunc.containsKey(triggerItem) : "unrecognized item '$triggerItem'"
+                }
+                assert (triggerFlag || triggerItem) : "Quest step requires either Trigger-Flag or Trigger-Item, or both"
+
+                def flagName = triggerFlag ? "GF_"+humanNameToSymbol(triggerFlag, true) : 0
+                def itemName = triggerItem ? escapeString(triggerItem) : "NULL"
+                out.println("  callback($mainNum, ${idx+1}, name, " +
+                            "$flagName, $itemName, @step_${orderNum.toString().replace(".","_")})")
+            }
+        }
+
+        out.println "end\n"
+    }
+
     def genAllQuests(sheet)
     {
         assert sheet : "Missing 'quests' sheet"
@@ -3229,65 +3302,44 @@ end
             new File("build/src/plasma/gen_quests.pla.new").withWriter { out ->
                 out.println("// Generated code - DO NOT MODIFY BY HAND")
                 out.println()
+                out.println("include \"globalDefs.plh\"")
+                out.println("include \"gen_images.plh\"")
+                out.println("include \"gen_flags.plh\"")
+                out.println()
 
+                // Check that all the required columns are present
                 def columns = sheet.columns.column.collect { it.@name }
                 ["Quest", "Order", "Description", "Trigger-Flag", "Trigger-Item", "Portrait",
                  "Map1-Name", "Map1-X", "Map1-Y", "Map2-Name", "Map2-X", "Map2-Y"].each { col ->
                     assert col in columns : "Missing column '$col'"
                 }
 
-                // Parse all the quest steps
-                sheet.rows.row.each { row ->
-                    def questName = row.@Quest?.trim()
-                    def order = row.@Order?.trim()
-                    if (!questName || !order)
-                        return // from the closure only
-
-                    assert order ==~ /^\d+\.\d+$/ : "\"order\" should be a decimal number like \"102.1\""
-                    def orderNum = order.toFloat()
-                    def orderMain = orderNum.toInteger()
-
-                    def descrip = row.@Description?.trim()
-
-                    def cond = []
-                    def triggerFlag = row.@"Trigger-Flag"?.trim()
-                    if (triggerFlag) {
-                        triggerFlag = triggerFlag.toLowerCase()
-                        assert gameFlags.containsKey(triggerFlag) : "unrecognized flag '$triggerFlag'"
-                        cond << "getGameFlag(GF_${humanNameToSymbol(triggerFlag, true)})"
-                    }
-                    def triggerItem = row.@"Trigger-Item"?.trim()
-                    if (triggerItem) {
-                        triggerItem = triggerItem.toLowerCase()
-                        assert itemNameToFunc.containsKey(triggerItem) : "unrecognized item '$triggerItem'"
-                        cond << "partyHasItem(${escapeString(triggerItem)})"
-                    }
-                    assert !cond.isEmpty() : "Quest '$questName' requires either Trigger-Flag or Trigger-Item, or both"
-
-                    def portraitName = row.@"Portrait".trim()
-                    assert portraits.containsKey(portraitName) : "unrecognized portrait '$portraitName'"
-
-                    def map1Name = row.@"Map1-Name"?.trim()
-                    def map1X = 0, map1Y = 0
-                    if (map1Name) {
-                        assert mapNames.containsKey(map1Name) : "unrecognized map '$map1Name'"
-                        map1X = row.@"Map1-X".toInteger()
-                        map1Y = row.@"Map1-Y".toInteger()
-                    }
-
-                    def map2Name = row.@"Map2-Name"?.trim()
-                    def map2X = 0, map2Y = 0
-                    if (map2Name) {
-                        assert mapNames.containsKey(map2Name) : "unrecognized map '$map2Name'"
-                        map2X = row.@"Map2-X".toInteger()
-                        map2Y = row.@"Map2-Y".toInteger()
-                    }
-
-                    out.println "  if ${cond.join(" and ")}"
-                    out.println "    printf2(\"Quest %s step %s started.\\n\", ${escapeString(questName)}, ${escapeString(descrip)})"
-                    out.println "  fin"
+                // Sort the quests steps by number and divvy them up by the integer part
+                def quests = [:]
+                sheet.rows.row.grep { row ->
+                    assert !row.@Order || row.@Order ==~ /^\d+\.\d+$/ :
+                        "order \"${row.@Order}\" should be a decimal number like \"102.1\""
+                    return row.@Order
+                }.sort { r1, r2 ->
+                    r1.@Order.toFloat() <=> r2.@Order.toFloat()
+                }.each { row ->
+                    def mainNum = row.@Order.toFloat().toInteger()
+                    if (!quests.containsKey(mainNum))
+                        quests[mainNum] = []
+                    quests[mainNum] << row
                 }
-                out.println()
+
+                // Now generate each quest
+                quests.keySet().sort().each { mainNum -> genQuest(mainNum, quests[mainNum], out) }
+
+                // And generate one function that calls them all
+                out.println "def allQuests(callback)#0"
+                quests.keySet().sort().each { mainNum -> out.println("  callback(@quest_$mainNum)") }
+                out.println "end\n"
+
+                out.println "// The main routine - just returns the generator"
+                out.println "return @allQuests"
+                out.println "done"
             }
             replaceIfDiff("build/src/plasma/gen_quests.pla")
         }

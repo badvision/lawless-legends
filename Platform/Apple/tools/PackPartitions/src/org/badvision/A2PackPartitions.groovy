@@ -2358,6 +2358,7 @@ class A2PackPartitions
         compileModule("intimate", "src/plasma/")
         compileModule("automap", "src/plasma/")
         compileModule("sndseq", "src/plasma/")
+        compileModule("questlog", "src/plasma/")
         lastSysModule = modules.size()  // used only for reporting
         compileModule("gen_enemies", "src/plasma/")
         compileModule("gen_items", "src/plasma/")
@@ -3230,7 +3231,7 @@ end
             def orderNum = row.@Order.toFloat()
             withContext("step $orderNum")
             {
-                out.println "def step_${orderNum.toString().replace(".","_")}(callback)#0"
+                out.println "def step_${orderNum.toString().replace(".","_")}(callback)"
 
                 def descrip = row.@Description?.trim()
                 assert descrip && descrip != "" : "missing description"
@@ -3260,10 +3261,11 @@ end
                 out.println("  callback(${escapeString(descrip)}, $portraitCode, " +
                             "$map1Num, $map1X, $map1Y, $map2Num, $map2X, $map2Y)")
             }
+            out.println "  return 0"
             out.println "end\n"
         }
 
-        out.println "def quest_$mainNum(callback)#0"
+        out.println "def quest_$mainNum(callback)"
         out.println "  word name"
         out.println "  name = ${escapeString(questName)}"
 
@@ -3285,11 +3287,12 @@ end
 
                 def flagName = triggerFlag ? "GF_"+humanNameToSymbol(triggerFlag, true) : 0
                 def itemName = triggerItem ? escapeString(triggerItem) : "NULL"
-                out.println("  callback($mainNum, ${idx+1}, name, " +
+                out.println("  callback(${idx}, name, " +
                             "$flagName, $itemName, @step_${orderNum.toString().replace(".","_")})")
             }
         }
 
+        out.println "  return 0"
         out.println "end\n"
     }
 
@@ -3333,8 +3336,9 @@ end
                 quests.keySet().sort().each { mainNum -> genQuest(mainNum, quests[mainNum], out) }
 
                 // And generate one function that calls them all
-                out.println "def allQuests(callback)#0"
-                quests.keySet().sort().each { mainNum -> out.println("  callback(@quest_$mainNum)") }
+                out.println "def allQuests(callback)"
+                quests.keySet().sort().each { mainNum -> out.println("  callback($mainNum, @quest_$mainNum)") }
+                out.println "  return 0"
                 out.println "end\n"
 
                 out.println "// The main routine - just returns the generator"

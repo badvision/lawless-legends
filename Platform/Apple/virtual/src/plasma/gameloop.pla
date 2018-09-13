@@ -55,6 +55,7 @@ include "diskops.plh"
 include "intimate.plh"
 include "godmode.plh"
 include "automap.plh"
+include "questlog.plh"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Data structures
@@ -2812,6 +2813,8 @@ export def setPortrait(portraitNum)#0
   word srcData
   byte part, cx, cy, cursX, cursY
 
+  if portraitNum == curPortraitNum; return; fin
+
   clearPortrait()
 
   // We're going to switch windows. Save the cursor pos in the text window.
@@ -3201,6 +3204,13 @@ export def printMem()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def showQuests()#1
+  loadEngine(MOD_QUESTLOG)=>questlog_showQuests()
+  returnFromEngine(TRUE) // do render
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set up the command table for 3D mode
 def initCmds()#0
 
@@ -3221,6 +3231,7 @@ def initCmds()#0
   cmdTbl[$07] = @toggleGodMode // ctrl-G
   cmdTbl[' '] = @snooze  // "space out" (snooze)
   cmdTbl['-'] = @showAutomap
+  cmdTbl['0'] = @showQuests
   if global->b_godmode
     // install cheat commands
     cmdTbl['T'] = @cheatCmd
@@ -3445,7 +3456,7 @@ export def addXP_all(val)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Initialize XP (and skill pts) for newly created character
+// Initialize XP (and skill pts) for newly created character (called by packer code)
 export def initPlayerXP(player)#0
   player->b_skillPoints = callGlobalFunc(GS_LEVEL_S_P, player->b_level, 0, 0)
   player=>w_curXP = callGlobalFunc(GS_LEVEL_X_P, player->b_level, 0, 0)
@@ -3648,15 +3659,12 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def buySell(storeCode, profitRatio)#0
-  word portrait
-  portrait = curPortraitNum
   if storeCode
     loadEngine(MOD_STORE)=>store_buyFromStore(storeCode, profitRatio)
   else
     loadEngine(MOD_STORE)=>store_sellToStore(profitRatio)
   fin
   returnFromEngine(FALSE) // no render, we're mid-script
-  if portrait; setPortrait(portrait); fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

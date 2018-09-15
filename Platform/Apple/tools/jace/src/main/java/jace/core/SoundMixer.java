@@ -154,16 +154,14 @@ public class SoundMixer extends Device {
             sdl = availableLines.iterator().next();
             availableLines.remove(sdl);
         }
-        activeLines.put(requester, sdl);
         sdl.start();
+        activeLines.put(requester, sdl);
         return sdl;
     }
 
     public void returnLine(Object requester) {
         if (activeLines.containsKey(requester)) {
             SourceDataLine sdl = activeLines.remove(requester);
-// Calling drain on pulse driver can cause it to freeze up (?)
-//            sdl.drain();
             if (sdl.isRunning()) {
                 sdl.flush();
                 sdl.stop();
@@ -207,16 +205,18 @@ public class SoundMixer extends Device {
 
     @Override
     public void attach() {
-//        if (Motherboard.enableSpeaker)
-//            Motherboard.speaker.attach();
     }
 
     @Override
     public void detach() {
         availableLines.stream().forEach((line) -> {
+            line.flush();
+            line.stop();
             line.close();
-        });
+        });        
         Set requesters = new HashSet(activeLines.keySet());
+        availableLines.clear();
+        activeLines.clear();
         requesters.stream().map((o) -> {
             if (o instanceof Device) {
                 ((Device) o).detach();
@@ -225,15 +225,6 @@ public class SoundMixer extends Device {
         }).filter((o) -> (o instanceof Card)).forEach((o) -> {
             ((Reconfigurable) o).reconfigure();
         });
-        if (theMixer != null) {
-            for (Line l : theMixer.getSourceLines()) {
-//                if (l.isOpen()) {
-//                    l.close();
-//                }
-            }
-        }
-        availableLines.clear();
-        activeLines.clear();
         super.detach();
     }
 

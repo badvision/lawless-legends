@@ -101,6 +101,7 @@ public abstract class Card extends Device {
 
     @Override
     public void reconfigure() {
+        super.reconfigure();
         boolean restart = suspend();
         unregisterListeners();
         if (restart) {

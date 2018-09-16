@@ -63,23 +63,15 @@ public class SheetEditorControllerImpl extends SheetEditorController {
         super.initialize();
         tableData = table.getGrid().getRows();
         table.setEditable(true);
-        /*
-        table.setRowFactory(tableView -> {
-            final TableRow<Row> row = new TableRow<>();
-
-            final ContextMenu contextMenu = new ContextMenu(
-                    createMenuItem("Insert Row", () -> tableData.add(row.getIndex(), new Row())),
-                    createMenuItem("Clone Row", () -> cloneRow(row.getItem())),
-                    createMenuItem("Delete Row", () -> deleteRowWithConfirmation(row.getItem()))
-            );
-            row.contextMenuProperty().bind(
-                    Bindings.when(row.emptyProperty())
-                            .then((ContextMenu) null)
-                            .otherwise(contextMenu)
-            );
-            return row;
-        });
-         */
+        table.getContextMenu().getItems().addAll(
+                createMenuItem("Insert Row", () -> insertRow(new Row(), getSelectedRow())),
+                createMenuItem("Clone Row", () -> cloneRow(editor.getSheet().getRows().getRow().get(getSelectedRow()))),
+                createMenuItem("Delete Row", () -> deleteRowWithConfirmation(editor.getSheet().getRows().getRow().get(getSelectedRow())))
+        );
+    }
+    
+    private int getSelectedRow() {
+        return table.getSelectionModel().getFocusedCell().getRow();
     }
 
     @Override
@@ -132,14 +124,14 @@ public class SheetEditorControllerImpl extends SheetEditorController {
             if (editor.getSheet().getColumns() == null) {
                 editor.getSheet().setColumns(new Columns());
             }
-            insertViewColumn(col);
+            insertColumn(col);
             rebuildGridUI();
         }
     }
 
     @Override
     public void addRowAction(ActionEvent event) {
-        insertViewRow(new Row());
+        insertRow(new Row(), -1);
     }
 
     //--------
@@ -154,11 +146,11 @@ public class SheetEditorControllerImpl extends SheetEditorController {
         });
     }
 
-    private void insertViewColumn(UserType col) {
-        insertViewColumn(col, -1);
+    private void insertColumn(UserType col) {
+        insertColumn(col, -1);
     }
 
-    private void insertViewColumn(UserType col, int pos) {
+    private void insertColumn(UserType col, int pos) {
         table.getGrid().getColumnHeaders().clear();
         if (pos < 0 || pos >= editor.getSheet().getColumns().getColumn().size()) {
             editor.getSheet().getColumns().getColumn().add(col);
@@ -168,8 +160,15 @@ public class SheetEditorControllerImpl extends SheetEditorController {
         rebuildColumnHeaders();
     }
 
-    private void insertViewRow(Row row) {
-        editor.getSheet().getRows().getRow().add(new Row());
+    private void insertRow(Row row, int pos) {
+        if (editor.getSheet().getRows() == null) {
+            editor.getSheet().setRows(new Rows());
+        }
+        if (pos < 0 || pos >= editor.getSheet().getRows().getRow().size()) {
+            editor.getSheet().getRows().getRow().add(row);
+        } else {
+            editor.getSheet().getRows().getRow().add(pos, row);
+        }
         rebuildGridUI();
     }
 
@@ -191,25 +190,22 @@ public class SheetEditorControllerImpl extends SheetEditorController {
             UserType newCol = new UserType();
             newCol.setName(newColName);
             editor.getSheet().getColumns().getColumn().add(newCol);
-//            tableData.forEach(row -> setValue(row.getOtherAttributes(), newColName, getValue(row.getOtherAttributes(), col.getName())));
-            int oldPos = deleteColumn(col);
-            insertViewColumn(newCol, oldPos);
+            editor.getSheet().getRows().getRow()
+                    .forEach(row -> {
+                        setValue(row.getOtherAttributes(), newColName, getValue(row.getOtherAttributes(), col.getName()));
+            });
+            deleteColumn(col);
         }
     }
 
-    private int deleteColumn(UserType col) {
-//        editor.getSheet().getColumns().getColumn().remove(col);
-//        tableData.stream()
-//                .map(Row::getOtherAttributes)
-//                .forEach(
-//                        m -> m.keySet().removeIf(n -> n.getLocalPart().equals(col.getName()))
-//                );
-//        int colNumber = findColumn(col);
-//        if (colNumber >= 0) {
-//            table.getColumns().remove(colNumber);
-//        }
-//        return colNumber;
-        return 0;
+    private void deleteColumn(UserType col) {
+        editor.getSheet().getColumns().getColumn().remove(col);
+        editor.getSheet().getRows().getRow().stream()
+                .map(Row::getOtherAttributes)
+                .forEach(
+                        m -> m.keySet().removeIf(n -> n.getLocalPart().equals(col.getName()))
+                );
+        rebuildGridUI();
     }
 
     private void deleteRowWithConfirmation(Row row) {
@@ -222,9 +218,9 @@ public class SheetEditorControllerImpl extends SheetEditorController {
 
     private void cloneRow(Row row) {
         try {
-            Row newRow = TransferHelper.cloneObject(row, Row.class, "row");
-            editor.getSheet().getRows().getRow().add(newRow);
-            rebuildGridUI();
+            Row newRow = TransferHelper.cloneObject(row, Row.class, "row");            
+            int pos = editor.getSheet().getRows().getRow().indexOf(row);
+            insertRow(newRow, pos);
         } catch (JAXBException ex) {
             Logger.getLogger(SheetEditorControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -232,28 +228,30 @@ public class SheetEditorControllerImpl extends SheetEditorController {
 
     private void rebuildGridUI() {
         int numCols = editor.getSheet().getColumns().getColumn().size();
-        int numRows = editor.getSheet().getRows().getRow().size();
+        int numRows = editor.getSheet().getRows() == null ? 0 : editor.getSheet().getRows().getRow().size();
         table.setGrid(new GridBase(numRows, numCols));
 
         rebuildColumnHeaders();
 
         tableData = FXCollections.observableList(new ArrayList(numRows));
-        int rowNum = 0;
-        for (Row row : editor.getSheet().getRows().getRow()) {
-            int colNum = 0;
-            ObservableList<SpreadsheetCell> rowUi = FXCollections.observableList(new ArrayList<>(numCols));
-            tableData.add(rowUi);
-            for (UserType col : editor.getSheet().getColumns().getColumn()) {
-                String value = getValue(row.getOtherAttributes(), col.getName());
-                SpreadsheetCellBase cell = new SpreadsheetCellBase(rowNum, colNum, 1, 1);
-                cell.setItem(value);
-                cell.itemProperty().addListener((ObservableValue<? extends Object> val, Object oldVal, Object newVal) -> {
-                    setValue(row.getOtherAttributes(), col.getName(), String.valueOf(newVal));
-                });
-                rowUi.add(cell);
-                colNum++;
+        if (editor.getSheet().getRows() != null) {
+            int rowNum = 0;
+            for (Row row : editor.getSheet().getRows().getRow()) {
+                int colNum = 0;
+                ObservableList<SpreadsheetCell> rowUi = FXCollections.observableList(new ArrayList<>(numCols));
+                tableData.add(rowUi);
+                for (UserType col : editor.getSheet().getColumns().getColumn()) {
+                    String value = getValue(row.getOtherAttributes(), col.getName());
+                    SpreadsheetCellBase cell = new SpreadsheetCellBase(rowNum, colNum, 1, 1);
+                    cell.setItem(value);
+                    cell.itemProperty().addListener((ObservableValue<? extends Object> val, Object oldVal, Object newVal) -> {
+                        setValue(row.getOtherAttributes(), col.getName(), String.valueOf(newVal));
+                    });
+                    rowUi.add(cell);
+                    colNum++;
+                }
+                rowNum++;
             }
-            rowNum++;
         }
         table.getGrid().setRows(tableData);
     }
@@ -264,7 +262,7 @@ public class SheetEditorControllerImpl extends SheetEditorController {
                 editor.getSheet().getColumns().getColumn().stream()
                         .map(UserType::getName)
                         .collect(Collectors.toCollection(
-                                () -> FXCollections.observableList(new ArrayList<String>(numCols))
+                                () -> FXCollections.observableList(new ArrayList<>(numCols))
                         ))
         );
     }

@@ -126,6 +126,7 @@ class A2PackPartitions
     def automapPat = null  // regexp Pattern to match script names to automap tiles
     def automapSpecials = []
 
+    def automapExitTile = -1
     def maxMapSections = 0
 
     def itemNameToFunc = [:]
@@ -1021,6 +1022,8 @@ class A2PackPartitions
             if (cat == "automap") {
                 automapTiles[lname] = ++tileNum
                 patStrs << lname
+                if (lname == "exit")
+                    automapExitTile = tileNum
             }
         }
 
@@ -2357,10 +2360,12 @@ class A2PackPartitions
         compileModule("godmode", "src/plasma/")
         compileModule("intimate", "src/plasma/")
         compileModule("automap", "src/plasma/")
-        compileModule("sndseq", "src/plasma/")
+        //compileModule("sndseq", "src/plasma/") // not yet
         compileModule("questlog", "src/plasma/")
         lastSysModule = modules.size()  // used only for reporting
         compileModule("gen_enemies", "src/plasma/")
+        compileModule("gen_enemies0", "src/plasma/")
+        compileModule("gen_enemies1", "src/plasma/")
         compileModule("gen_items", "src/plasma/")
         compileModule("gen_players", "src/plasma/")
         compileModule("gen_flags", "src/plasma/")
@@ -2447,6 +2452,10 @@ class A2PackPartitions
         def scriptDir = "build/src/mapScripts/"
         if (!new File(scriptDir).exists())
             new File(scriptDir).mkdirs()
+        new File("build/src/mapScripts/gen_mapSpecials.plh.new").withWriter { out ->
+            out.println("// Generated code - DO NOT MODIFY BY HAND\n")
+            out.println("const automap_exitTileNum = $automapExitTile")
+        }
         new File("build/src/mapScripts/gen_mapSpecials.s.new").withWriter { out ->
             out.println("; Generated code - DO NOT MODIFY BY HAND\n")
             out.println("*=0 ; origin irrelevant")
@@ -2490,6 +2499,7 @@ class A2PackPartitions
             out.println(" !byte \$FF; end of all maps")
         }
         replaceIfDiff("build/src/mapScripts/gen_mapSpecials.s")
+        replaceIfDiff("build/src/mapScripts/gen_mapSpecials.plh")
     }
 
     /*
@@ -2801,9 +2811,10 @@ class A2PackPartitions
         packAutomapTileSet(dataIn)
 
         // Play around with music
-        def midiFile = new File(xmlFile.getAbsoluteFile().getParentFile(), "song.mid")
-        if (midiFile.exists())
-            packSong(midiFile)
+        // For now, not using this, and need to save space on disk 1.
+        //def midiFile = new File(xmlFile.getAbsoluteFile().getParentFile(), "song.mid")
+        //if (midiFile.exists())
+        //    packSong(midiFile)
 
         // Divvy up the images by category
         def titleImgs      = []
@@ -2969,16 +2980,17 @@ class A2PackPartitions
             }
             else if (ch == ')') {
                 inParen = false
+                inSlash = false
                 ch = 0
             }
-            else if (ch == '/') {
+            else if (inParen && ch == '/') {
                 inSlash = true
                 ch = 0
             }
             else if (!isAlnum(ch))
                 inSlash = false
 
-            if (ch && !inParen && !inSlash) {
+            if (ch && (!inParen || !inSlash)) {
                 if ((ch >= 'A' && ch <= 'Z') || ch == ' ' || ch == '_')
                     needSeparator = (idx > 0)
                 if (isAlnum(ch)) {
@@ -3060,6 +3072,8 @@ class A2PackPartitions
     {
         def str = row.@"attack-text"
         strings[str] = "_SE_${humanNameToSymbol(str, true)}"
+        str = row.@"name"
+        strings[str] = "_SE_${humanNameToSymbol(str, true)}"
         str = row.@"loot-code"
         if (str && str != "0")
             strings[str.toLowerCase()] = "_SE_${humanNameToSymbol(str.toLowerCase(), true)}"
@@ -3070,8 +3084,6 @@ class A2PackPartitions
         def name = row.@name
         withContext(name)
         {
-            out.println("def _NEn_${humanNameToSymbol(name, false)}()")
-
             def image1 = row.@image1
             if (!portraits.containsKey(image1))
                 throw new Exception("Image '$image1' not found")
@@ -3099,22 +3111,21 @@ class A2PackPartitions
             def lootCode = row.@"loot-code"         // optional
             def goldLoot = row.@"gold-loot";        assert goldLoot
 
-            out.println("  return makeEnemy_pt2(makeEnemy_pt1(" +
-                        "\"$name\", " +
-                        "${parseDice(hitPoints)}, " +
-                        "PO${humanNameToSymbol(image1, false)}, " +
+            out.println("word = " +
+                        "@${strings[name]}, ${parseDice(hitPoints)} // name, hit dice")
+            out.println("byte = PO${humanNameToSymbol(image1, false)}, " +
                         (image2.size() > 0 ? "PO${humanNameToSymbol(image2, false)}, " : "0, ") +
-                        "$attackTypeCode, " +
-                        "@${strings[attackText]}, " +
-                        "${range.replace("'", "").toInteger()}, " +
-                        "${chanceToHit.toInteger()}, " +
-                        "${parseDice(damage)}, " +
-                        "${parseDice(experience)}), " + // end of pt1
-                        "${parseDice(groupSize)}, " +
-                        "${lootChance ? lootChance.toInteger() : 10}, " +
-                        "${validateLootCode(lootCode, strings)}, " +
-                        "${parseDice(goldLoot)})")
-            out.println("end")
+                        "$attackTypeCode // img0, img1, attack type")
+            out.println("word = @${strings[attackText]} // attack text")
+            out.println("byte = ${range.replace("'", "").toInteger()}, " +
+                        "${chanceToHit.toInteger()} // attack range, chance to hit")
+            out.println("word = ${parseDice(damage)}, " +
+                        "${parseDice(experience)}, " +
+                        "${parseDice(groupSize)} // damage dice, exp dice, group size dice")
+            out.println("byte = ${lootChance ? lootChance.toInteger() : 10} // loot chance")
+            out.println("word = ${validateLootCode(lootCode, strings)}, " +
+                        "${parseDice(goldLoot)} // lootCode, goldLoot")
+            out.println("")
 
             // Add portrait dependencies based on encounter zone(s)
             def codesString = row.@"map-code"
@@ -3136,89 +3147,86 @@ class A2PackPartitions
 
         withContext("enemies sheet")
         {
+            def columns = sheet.columns.column.collect { it.@name }
+            assert "name" in columns
+            assert "map-code" in columns
+
+            // Header with enemy numbers
             new File("build/src/plasma/gen_enemies.plh.new").withWriter { out ->
                 out.println("// Generated code - DO NOT MODIFY BY HAND\n")
                 out.println("const enemies_forZone = 0")
+                out.println()
+                sheet.rows.row.eachWithIndex { row, idx ->
+                    out.println("const En_${humanNameToSymbol(row."@name", true)} = ${idx+1}")
+                }
             }
             replaceIfDiff("build/src/plasma/gen_enemies.plh")
+
+            // Produce the central index file that maps code to enemy numbers
             new File("build/src/plasma/gen_enemies.pla.new").withWriter { out ->
                 out.println("// Generated code - DO NOT MODIFY BY HAND")
                 out.println()
                 out.println("include \"gamelib.plh\"")
                 out.println("include \"globalDefs.plh\"")
-                out.println("include \"playtype.plh\"")
-                out.println("include \"gen_images.plh\"")
+                out.println("include \"gen_enemies.plh\"")
                 out.println()
 
-                def columns = sheet.columns.column.collect { it.@name }
-                assert "name" in columns
-                assert "map-code" in columns
                 out.println("predef _enemies_forZone(zone)#1")
                 out.println("word[] funcTbl = @_enemies_forZone\n")
 
-                // Pre-define all the enemy creation functions
-                sheet.rows.row.each { row ->
-                    out.println("predef _NEn_${humanNameToSymbol(row.@name, false)}")
-                }
-                out.println()
-
-                def strings = [:]
-                sheet.rows.row.each { row ->
-                    extractEnemyStrings(row, strings)
-                }
-                strings.each { str, sym ->
-                    out.println("byte[] $sym = ${escapeString(str)}")
-                }
-                out.println()
-
-                // Figure out the mapping between "map code" and "enemy", and output the table for that
+                // Figure out the mapping between "map code" and "enemy"
                 def codeToFunc = [:]
                 sheet.rows.row.each { row ->
-                    addCodeToFunc("_NEn_${humanNameToSymbol(row.@name, false)}", row.@"map-code", codeToFunc) 
+                    addCodeToFunc("En_${humanNameToSymbol(row.@name, true)}", row.@"map-code", codeToFunc)
                 }
-                outCodeToFuncTbl("mapCode_", codeToFunc, out)
 
-                // Helper function to fill in the Enemy data structure
-                out.println("""
-def makeEnemy_pt1(name, hDice, img0, img1, attType, attText, attRange, chanceToHit, dmg, xp)
-  word p; p = mmgr(HEAP_ALLOC, TYPE_ENEMY)
-  p=>s_name = mmgr(HEAP_INTERN, name)
-  p=>w_health = rollDice(hDice) // e.g. 4d6
-  if !img1 or (rand16() % 2)
-    p->b_image = img0
-  else
-    p->b_image = img1
-  fin
-  p->b_attackType = attType
-  p=>s_attackText = mmgr(HEAP_INTERN, attText)
-  p->b_enemyAttackRange = attRange
-  p->b_chanceToHit = chanceToHit
-  p=>r_enemyDmg = dmg
-  p=>r_enemyXP = xp
-  return p
-end
-def makeEnemy_pt2(p, groupSize, lootChance, lootCode, goldLoot)
-  p=>r_groupSize = groupSize
-  p->b_lootChance = lootChance
-  if lootCode; p=>s_lootCode = mmgr(HEAP_INTERN, lootCode); fin
-  p=>r_goldLoot = goldLoot
-  return p
-end
-""")
-
-                // Now output a function for each enemy
-                sheet.rows.row.each { row ->
-                    genEnemy(out, row, strings)
-                }
-                out.println()
+                // Output the code to enemy table
+                outCodeToConstTbl("mapCode_", codeToFunc, out)
 
                 // And finally, a function to select an enemy given a map code.
-                outCodeToFuncMethods("_enemies_forZone", "mapCode_", codeToFunc, out, strings)
+                outCodeToFuncMethods("_enemies_forZone", "mapCode_", codeToFunc, out, null)
 
                 out.println("return @funcTbl")
                 out.println("done")
             }
             replaceIfDiff("build/src/plasma/gen_enemies.pla")
+
+            // And generate each subset of the enemy data tables.
+            [0,1].each { subset ->
+                new File("build/src/plasma/gen_enemies${subset}.pla.new").withWriter { out ->
+                    out.println("// Generated code - DO NOT MODIFY BY HAND")
+                    out.println()
+                    out.println("include \"globalDefs.plh\"")
+                    out.println("include \"gen_images.plh\"")
+                    out.println()
+
+                    def strings = [:]
+                    sheet.rows.row.eachWithIndex { row, idx ->
+                        if ((idx % 2) == subset)
+                            extractEnemyStrings(row, strings)
+                    }
+                    strings.sort().each { str, sym ->
+                        out.println("byte[] $sym = ${escapeString(str)}")
+                    }
+                    out.println()
+
+                    // The number of enemies in this subset
+                    out.println("byte enemyTblCt = ${(sheet.rows.row.size() + (1-subset)) >> 1} // number of entries")
+                    out.println("")
+
+                    // Now output the data for each enemy
+                    sheet.rows.row.eachWithIndex { row, idx ->
+                        if ((idx % 2) == subset)
+                            genEnemy(out, row, strings)
+                    }
+                    out.println()
+
+                    // And finally, return a pointer to the table
+                    out.println("return @enemyTblCt")
+                    out.println("done")
+                }
+                replaceIfDiff("build/src/plasma/gen_enemies${subset}.pla")
+            }
         }
     }
 
@@ -3599,6 +3607,18 @@ end
             funcs.eachWithIndex { func, index ->
                 out.println(
                     "${index==0 ? "word[] $prefix${humanNameToSymbol(code, false)} = " : "word         = "}@$func")
+            }
+            out.println("word         = 0")
+            out.println()
+        }
+    }
+
+    def outCodeToConstTbl(prefix, codeToFunc, out)
+    {
+        codeToFunc.sort { ent -> ent.key.toLowerCase() }.each { code, consts ->
+            consts.eachWithIndex { constVal, index ->
+                out.println(
+                    "${index==0 ? "word[] $prefix${humanNameToSymbol(code, false)} = " : "word         = "}$constVal")
             }
             out.println("word         = 0")
             out.println()

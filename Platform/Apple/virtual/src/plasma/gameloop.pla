@@ -887,12 +887,6 @@ export asm auxMmgr(cmd, wordParam)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Jump straight to the system monitor
-asm goMon()#0
-  jmp $FF69
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Execute a monitor breakpoint
 export asm brk()#0
   bit setText
@@ -1680,7 +1674,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Look up the partition for a resource.
-// sectioNum: 1=map2d, 2=map3d, 3=portrait
+// sectioNum: 0=version num (do not use here), 1=map2d, 2=map3d, 3=portrait
 export def lookupResourcePart(sectionNum, resourceNum)#1
   word ptr
   byte n, i
@@ -1703,7 +1697,7 @@ export def lookupResourcePart(sectionNum, resourceNum)#1
   fin
 
   // Otherwise return the first disk it's on
-  for i = 0 to 8
+  for i = 0 to 7
     if n & (1<<i); return i+1; fin
   next
   fatal("lkupFail2")

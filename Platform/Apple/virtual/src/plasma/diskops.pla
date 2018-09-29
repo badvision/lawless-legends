@@ -400,22 +400,22 @@ def getTextKey()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def soundKey()#1
-  byte key
-  word engine, funcTbl
-  key = getTextKey
-  if key <> 'S'; return key; fin
-  mmgr(START_LOAD, 1) // code is in partition 1
-  engine = mmgr(QUEUE_LOAD, MOD_SNDSEQ<<8 | RES_TYPE_MODULE)
-  mmgr(FINISH_LOAD, 0)
-  funcTbl = engine()
-  ^$c053
-  key = funcTbl=>sndseq_play(1) // temporarily, only 1 song
-  ^$c052
-  textHome()
-  ^$25 = 20
-  return key
-end
+//def soundKey()#1
+//  byte key
+//  word engine, funcTbl
+//  key = getTextKey
+//  if key <> 'S'; return key; fin
+//  mmgr(START_LOAD, 1) // code is in partition 1
+//  engine = mmgr(QUEUE_LOAD, MOD_SNDSEQ<<8 | RES_TYPE_MODULE)
+//  mmgr(FINISH_LOAD, 0)
+//  funcTbl = engine()
+//  ^$c053
+//  key = funcTbl=>sndseq_play(1) // temporarily, only 1 song
+//  ^$c052
+//  textHome()
+//  ^$25 = 20
+//  return key
+//end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def pressAnyKey()#0
@@ -573,7 +573,7 @@ def _newOrLoadGame(ask)#1
     puts("\n    Game: N)ew, ")
     if existing; puts("L)oad, "); fin
     puts("I)mport?")
-    key = soundKey() //getTextKey()
+    key = getTextKey() // soundKey()
     when key
       is 'N'
         newGame(); return 1

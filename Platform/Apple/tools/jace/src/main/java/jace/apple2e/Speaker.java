@@ -25,6 +25,7 @@ import jace.core.Device;
 import jace.core.Motherboard;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
+import jace.core.SoundGeneratorDevice;
 import jace.core.SoundMixer;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -44,7 +45,7 @@ import javax.sound.sampled.SourceDataLine;
  *
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com
  */
-public class Speaker extends Device {
+public class Speaker extends SoundGeneratorDevice {
 
     static boolean fileOutputActive = false;
     static OutputStream out;
@@ -126,10 +127,10 @@ public class Speaker extends Device {
      * Double-buffer used for playing processed sound -- as one is played the
      * other fills up.
      */
-    byte[] primaryBuffer;
-    byte[] secondaryBuffer;
-    int bufferPos = 0;
-    Timer playbackTimer;
+    private byte[] primaryBuffer;
+    private byte[] secondaryBuffer;
+    private int bufferPos = 0;
+    private Timer playbackTimer;
     private final double TICKS_PER_SAMPLE = ((double) Motherboard.SPEED) / SoundMixer.RATE;
     private final double TICKS_PER_SAMPLE_FLOOR = Math.floor(TICKS_PER_SAMPLE);
     private RAMListener listener = null;
@@ -292,6 +293,8 @@ public class Speaker extends Device {
 
     @Override
     public final void reconfigure() {
+        super.reconfigure();
+        
         if (primaryBuffer != null && secondaryBuffer != null) {
             return;
         }

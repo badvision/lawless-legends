@@ -96,7 +96,7 @@ public class DataUtilities {
     }
     
     private static void logScripts(Scripts scripts, PrintWriter logger) {
-        if (scripts != null && scripts.getScript() != null || !scripts.getScript().isEmpty()) {
+        if (scripts != null && scripts.getScript() != null && !scripts.getScript().isEmpty()) {
             scripts.getScript().forEach((script) -> {
                 if (script.getBlock() == null) {
                     return;

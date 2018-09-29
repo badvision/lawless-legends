@@ -209,8 +209,6 @@ public class Apple2e extends Computer {
             
         }
 
-        super.reconfigure();
-
         RAM128k currentMemory = (RAM128k) getMemory();
         if (currentMemory != null && ramCard.getValue() != null && !(currentMemory.getClass().equals(ramCard.getValue()))) {
             try {
@@ -242,46 +240,38 @@ public class Apple2e extends Computer {
                 accelerator = new ZipWarpAccelerator(this);
             }
             if (acceleratorEnabled) {
-                accelerator.attach();
-                motherboard.miscDevices.add(accelerator);
+                motherboard.addChildDevice(accelerator);
             } else {
-                accelerator.detach();
-                motherboard.miscDevices.remove(accelerator);
+                motherboard.removeChildDevice(accelerator);
             }
             
             if (joy1enabled) {
                 if (joystick1 == null) {
                     joystick1 = new Joystick(0, this);
-                    motherboard.miscDevices.add(joystick1);
-                    joystick1.attach();
+                    motherboard.addChildDevice(joystick1);
                 }
             } else if (joystick1 != null) {
-                joystick1.detach();
-                motherboard.miscDevices.remove(joystick1);
+                motherboard.removeChildDevice(joystick1);
                 joystick1 = null;
             }
 
             if (joy2enabled) {
                 if (joystick2 == null) {
                     joystick2 = new Joystick(1, this);
-                    motherboard.miscDevices.add(joystick2);
-                    joystick2.attach();
+                    motherboard.addChildDevice(joystick2);
                 }
             } else if (joystick2 != null) {
-                joystick2.detach();
-                motherboard.miscDevices.remove(joystick2);
+                motherboard.removeChildDevice(joystick2);
                 joystick2 = null;
             }
 
             if (clockEnabled) {
                 if (clock == null) {
                     clock = new NoSlotClock(this);
-                    motherboard.miscDevices.add(clock);
-                    clock.attach();
+                    motherboard.addChildDevice(clock);
                 }
             } else if (clock != null) {
-                motherboard.miscDevices.remove(clock);
-                clock.detach();
+                motherboard.removeChildDevice(clock);
                 clock = null;
             }
         }
@@ -344,7 +334,7 @@ public class Apple2e extends Computer {
             if (cheatEngine.getValue() == null) {
                 if (activeCheatEngine != null) {
                     activeCheatEngine.detach();
-                    motherboard.miscDevices.remove(activeCheatEngine);
+                    motherboard.addChildDevice(activeCheatEngine);
                 }
                 activeCheatEngine = null;
             } else {
@@ -353,9 +343,8 @@ public class Apple2e extends Computer {
                     if (activeCheatEngine.getClass().equals(cheatEngine.getValue())) {
                         startCheats = false;
                     } else {
-                        activeCheatEngine.detach();
+                        motherboard.removeChildDevice(activeCheatEngine);
                         activeCheatEngine = null;
-                        motherboard.miscDevices.remove(activeCheatEngine);
                     }
                 }
                 if (startCheats) {
@@ -364,13 +353,15 @@ public class Apple2e extends Computer {
                     } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | SecurityException | IllegalArgumentException | InvocationTargetException ex) {
                         Logger.getLogger(Apple2e.class.getName()).log(Level.SEVERE, null, ex);
                     }
-                    activeCheatEngine.attach();
-                    motherboard.miscDevices.add(activeCheatEngine);
+                    motherboard.addChildDevice(activeCheatEngine);
                 }
             }
         } catch (IOException ex) {
             Logger.getLogger(Apple2e.class.getName()).log(Level.SEVERE, null, ex);
         }
+
+        super.reconfigure();
+
         if (restart) {
             resume();
         }

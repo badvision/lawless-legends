@@ -41,7 +41,6 @@ import java.util.logging.Logger;
  */
 public class Motherboard extends TimedDevice {
     
-    final public Set<Device> miscDevices = Collections.synchronizedSet(new LinkedHashSet<>());
     @ConfigurableField(name = "Enable Speaker", shortName = "speaker", defaultValue = "true")
     public static boolean enableSpeaker = true;
     public Speaker speaker;
@@ -64,7 +63,7 @@ public class Motherboard extends TimedDevice {
     public Motherboard(Computer computer, Motherboard oldMotherboard) {
         super(computer);
         if (oldMotherboard != null) {
-            miscDevices.addAll(oldMotherboard.miscDevices);
+            addAllDevices(oldMotherboard.getChildren());
             speaker = oldMotherboard.speaker;
             accelorationRequestors.addAll(oldMotherboard.accelorationRequestors);
             setSpeedInHz(oldMotherboard.getSpeedInHz());
@@ -99,7 +98,6 @@ public class Motherboard extends TimedDevice {
             for (Optional<Card> card : cards) {
                 card.ifPresent(Card::doTick);
             }
-            miscDevices.forEach(Device::doTick);
         } catch (Throwable t) {
             Logger.getLogger(getClass().getName()).log(Level.SEVERE, null, t);
         }
@@ -127,7 +125,7 @@ public class Motherboard extends TimedDevice {
                     speaker = new Speaker(computer);
                     if (computer.mixer.lineAvailable) {
                         speaker.attach();
-                        miscDevices.add(speaker);
+                        addChildDevice(speaker);
                     } else {
                         System.out.print("No lines available!  Speaker not running.");
                     }
@@ -135,14 +133,12 @@ public class Motherboard extends TimedDevice {
                 speaker.reconfigure();
             } catch (Throwable t) {
                 System.out.println("Unable to initalize sound -- deactivating speaker out");
-                speaker.detach();
-                miscDevices.remove(speaker);
+                removeChildDevice(speaker);
             }
         } else {
             System.out.println("Speaker not enabled, leaving it off.");
             if (speaker != null) {
-                speaker.detach();
-                miscDevices.remove(speaker);
+                removeChildDevice(speaker);
             }
         }
         if (startAgain && computer.getMemory() != null) {
@@ -200,11 +196,6 @@ public class Motherboard extends TimedDevice {
     @Override
     public void detach() {
         System.out.println("Detaching motherboard");
-        miscDevices.stream().forEach((d) -> {
-            d.suspend();
-            d.detach();
-        });
-        miscDevices.clear();
 //        halt();
         super.detach();
     }

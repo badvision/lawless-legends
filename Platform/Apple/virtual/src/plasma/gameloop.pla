@@ -130,6 +130,9 @@ word q_x = 0
 word q_y = 0
 byte q_dir = 0
 
+// Queue of player death
+byte q_playerDeath = FALSE
+
 // Script tracking
 const MAX_MAP_SCRIPTS = 4
 byte nMapScripts = 0
@@ -2006,7 +2009,7 @@ end
 export def scriptEvent(event, param)#0
   byte i, argCount
   word script
-  if !nMapScripts; return; fin
+  if !nMapScripts or q_playerDeath; return; fin
 
   if inScript; return; fin // avoid doing scripted events inside other scripts
   inScript = TRUE 
@@ -2035,7 +2038,7 @@ export def scriptEvent(event, param)#0
   fin
   clearPortrait()
   if needShowParty; showParty(); fin
-  if global=>p_players=>w_health == 0; playerDeath(); fin
+  if global=>p_players=>w_health == 0; q_playerDeath = TRUE; fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2653,6 +2656,7 @@ def kbdLoop()#0
         func()
       fin
     fin
+    if q_playerDeath; playerDeath(); continue; fin
     if q_mapNum; setMap(q_mapIs3D, q_mapNum, q_x, q_y, q_dir); q_mapNum = 0; fin
     if needRender; doRender(); fin
     if prevScriptModule
@@ -3042,6 +3046,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def playerDeath()#0
+  setWindow2; clearWindow
   callGlobalFunc(GS_DEATH, 0, 0, 0)
   startGame(FALSE, FALSE) // don't ask, just load
 end
@@ -3063,7 +3068,7 @@ def doCombat(mapCode, backUpOnFlee)#1
   heapCollect()
 
   if (result == -99)
-    playerDeath()
+    q_playerDeath = TRUE
     return 0
   fin
   returnFromEngine(!inScript) // only re-render if outside script
@@ -3678,6 +3683,7 @@ def startGame(firstTime, ask)#0
   fin
   p_module = mmgr(QUEUE_LOAD, MOD_DISKOPS<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
+  q_playerDeath = FALSE
   if firstTime; p_module()=>diskops_startup(); fin
   if p_module()=>diskops_newOrLoadGame(ask)
     mapIs3D = q_mapIs3D

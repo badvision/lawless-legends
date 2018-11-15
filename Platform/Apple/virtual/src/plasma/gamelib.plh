@@ -36,6 +36,7 @@ import gamelib
   predef clearPortrait()#0
   predef clearWindow()#0
   predef centerStr(str, windowWidth)#0
+  predef copyWindow(flip)#0
   predef countList(p)#1
   predef crout()#0
   predef displayChar(chr)#0
@@ -84,6 +85,7 @@ import gamelib
   predef pause(count)#1
   predef payGold(amount)#1
   predef percentToRatio(pct)#1
+  predef plotLinePixels(page, color, len, xbyte, xbit, xinc, xdir, y, yinc, ydir)#0
   predef printf1(fmt, arg1)#0
   predef printf2(fmt, arg1, arg2)#0
   predef printf3(fmt, arg1, arg2, arg3)#0

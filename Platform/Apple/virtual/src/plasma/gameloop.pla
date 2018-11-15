@@ -388,9 +388,21 @@ export asm memset(pDst, val, len)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Specialized line routine for drawing the clock. Plots in black or white only, on hi-res pg 2.
-asm _drawLine(color, len, xbyte, xbit, xinc, xdir, y, yinc, ydir)#0
+// Specialized line routine for drawing the clock. Plots in black or white only.
+// Parameters:
+//    page : 0=page1, $60=page2
+//    color: 0=black, $7F=white
+//    len  : number of pixels to plot
+//    xbyte: x/7, e.g. 0-39 byte offset within screen row
+//    xbit : (3<<(x%7)) & $7F
+//    xinc : fraction 0..$FF telling how often to advance on X axis
+//    xdir : 0=left, 1=right
+//    y    : hi-res line number 0..191
+//    yinc : fraction 0..$FF telling how often to advance on X axis
+//    ydir : 0=up, 1=down
+export asm plotLinePixels(page, color, len, xbyte, xbit, xinc, xdir, y, yinc, ydir)#0
 !zone {
+.param_page   = evalStkL+9
 .param_color  = evalStkL+8
 .param_len    = evalStkL+7
 .param_xbyte  = evalStkL+6
@@ -402,7 +414,7 @@ asm _drawLine(color, len, xbyte, xbit, xinc, xdir, y, yinc, ydir)#0
 .param_ydir   = evalStkL+0
 .xfrac        = tmp
 .yfrac        = tmp+1
-  +asmPlasmNoRet 9
+  +asmPlasmNoRet 10
   lda #0
   sta .xfrac
   sta .yfrac
@@ -414,7 +426,7 @@ asm _drawLine(color, len, xbyte, xbit, xinc, xdir, y, yinc, ydir)#0
   pla
   tax
   lda pTmp+1
-  eor #$60            ; always draw on hi-res pg 2
+  eor .param_page,x   ; $60 flips to page 2, 0 for page 1
   sta pTmp+1
   clc                 ; signal to take X path first
 .pix
@@ -936,10 +948,10 @@ export asm clearWindow()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Use the font engine to copy the current text window to hi-res page 2.
+// Use the font engine to copy the current text window to hi-res page 2 (or vice-versa)
 // If flip=0, copies page 1 to page 2
 // If flip=$60, copies page 2 to page 1
-asm copyWindow(flip)#0
+export asm copyWindow(flip)#0
   +asmPlasmNoRet 1
   tay
   jmp CopyWindow
@@ -1228,92 +1240,92 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // The following only used for speed testing
-asm readNoSlotClock(dstBuf)#0  // param: dstBuf (will receive 8 BCD bytes)
-!zone {
-  +asmPlasmNoRet 1
-  ; record dst ptr
-  sta tmp
-  sty tmp+1
-  ; obtain a pointer to our little table of magic values
-  lda #$60
-  sta pTmp
-.base = *+2
-  jsr pTmp
-  tsx
-  dex
-  dex
-  txs
-  pla
-  sta pTmp
-  pla
-  sta pTmp+1
-  ldy #<(.tbl - .base)
-  ; record state of slot ROM, then turn on C3 ROM
-  sei
-  lda $CFFF
-  pha
-  sta $C300
-  lda $C304
-  ldx #8
-.wr1:
-  lda (pTmp),y
-  sec
-  ror
-.wr2:
-  bcs +
-  bit $C300
-  bcc ++
-+ bit $C301
-++ lsr
-  bne .wr2
-  iny
-  dex
-  bne .wr1
-  ldy #7
-.rd1:
-  ldx #8
-.rd2:
-  lda $C304
-  lsr
-  ror pTmp
-  dex
-  bne .rd2
-  lda pTmp
-  sta (tmp),y
-  dey
-  bpl .rd1
-  ; restore slot ROM state
-  pla
-  bmi +
-  sta $CFFF
-+ cli
-  rts
-.tbl !byte $C5,$3A,$A3,$5C,$C5,$3A,$A3,$5C
-} ; end zone
-end
-
-def getTick()
-  byte timeBuf[8]
-  word tick
-  readNoSlotClock(@timeBuf)
-  tick = (timeBuf[7] & $F) + ((timeBuf[7] >> 4) * 10)
-  tick = tick + ((timeBuf[6] & $F) * 100) + ((timeBuf[6] >> 4) * 1000)
-  return tick + (((timeBuf[5] & $F) % 5) * 6000)
-end
-
-def tickDiff(tStart, tEnd)
-  word diff
-  diff = tEnd - tStart
-  if diff >= 0; return diff; fin
-  return diff + 30000
-end
-
-def prtick(str)#0
-  if lastTick
-    printf2("%s:%d ", str, tickDiff(lastTick, getTick()))
-  fin
-  lastTick = getTick()
-end
+//asm readNoSlotClock(dstBuf)#0  // param: dstBuf (will receive 8 BCD bytes)
+//!zone {
+//  +asmPlasmNoRet 1
+//  ; record dst ptr
+//  sta tmp
+//  sty tmp+1
+//  ; obtain a pointer to our little table of magic values
+//  lda #$60
+//  sta pTmp
+//.base = *+2
+//  jsr pTmp
+//  tsx
+//  dex
+//  dex
+//  txs
+//  pla
+//  sta pTmp
+//  pla
+//  sta pTmp+1
+//  ldy #<(.tbl - .base)
+//  ; record state of slot ROM, then turn on C3 ROM
+//  sei
+//  lda $CFFF
+//  pha
+//  sta $C300
+//  lda $C304
+//  ldx #8
+//.wr1:
+//  lda (pTmp),y
+//  sec
+//  ror
+//.wr2:
+//  bcs +
+//  bit $C300
+//  bcc ++
+//+ bit $C301
+//++ lsr
+//  bne .wr2
+//  iny
+//  dex
+//  bne .wr1
+//  ldy #7
+//.rd1:
+//  ldx #8
+//.rd2:
+//  lda $C304
+//  lsr
+//  ror pTmp
+//  dex
+//  bne .rd2
+//  lda pTmp
+//  sta (tmp),y
+//  dey
+//  bpl .rd1
+//  ; restore slot ROM state
+//  pla
+//  bmi +
+//  sta $CFFF
+//+ cli
+//  rts
+//.tbl !byte $C5,$3A,$A3,$5C,$C5,$3A,$A3,$5C
+//} ; end zone
+//end
+//
+//def getTick()
+//  byte timeBuf[8]
+//  word tick
+//  readNoSlotClock(@timeBuf)
+//  tick = (timeBuf[7] & $F) + ((timeBuf[7] >> 4) * 10)
+//  tick = tick + ((timeBuf[6] & $F) * 100) + ((timeBuf[6] >> 4) * 1000)
+//  return tick + (((timeBuf[5] & $F) % 5) * 6000)
+//end
+//
+//def tickDiff(tStart, tEnd)
+//  word diff
+//  diff = tEnd - tStart
+//  if diff >= 0; return diff; fin
+//  return diff + 30000
+//end
+//
+//def prtick(str)#0
+//  if lastTick
+//    printf2("%s:%d ", str, tickDiff(lastTick, getTick()))
+//  fin
+//  lastTick = getTick()
+//end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // General methods
@@ -1328,31 +1340,25 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Return the max of two signed 16-bit numbers
 export def max(a, b)#1
-  if a < b; return b; fin
-  return a
+  return a > b ?? a :: b
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Return the min of two signed 16-bit numbers
 export def min(a, b)#1
-  if a < b; return a; fin
-  return b
+  return a < b ?? a :: b
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Return the absolute value of a number
 export def abs(n)#1
-  if n < 0; return -n; fin
-  return n
+  return n < 0 ?? -n :: n
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Convert a lower-case character to upper-case (or return unchanged if it's not lower-case)
 export def charToUpper(c)#1
-  if c >= 'a' and c <= 'z'
-    return c - $20
-  fin
-  return c
+  return (c >= 'a' and c <= 'z') ?? (c - $20) :: c
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2061,8 +2067,8 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def horzSegment(color, len, x, y)#0
-  //params: color, len, xbyte, xbit,             xinc, xdir, y, yinc, ydir
-  _drawLine(color, len, x/7,   (3<<(x%7)) & $7F, $FF,  1,    y, 0,    0)
+  //params:      page, color, len, xbyte, xbit,             xinc, xdir, y, yinc, ydir
+  plotLinePixels($60,  color, len, x/7,   (3<<(x%7)) & $7F, $FF,  1,    y, 0,    0)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2122,16 +2128,16 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def drawHand(color, hour, isShort)#0
   word xdir, xinc, ydir, yinc, len
-  ydir = (hour > 3 and hour < 9) & 1   // 3..9 = 1
-  xdir = (hour < 6) & 1             // 1..6 = 1
+  ydir = (hour > 3 and hour < 9) & 1 // 3..9 = 1
+  xdir = (hour < 6) & 1              // 1..6 = 1
   xinc = (^("123210123210"+hour) - '0') * 85
   yinc = (^("210123210123"+hour) - '0') * 85
   len = (hour % 3) ?? (CLOCK_RADIUS*3/2)-4 :: CLOCK_RADIUS-2
   if isShort
     len = len * 3 / 5
   fin
-  //params: color, len, xbyte,     xbit,                   xinc, xdir, y,       yinc, ydir
-  _drawLine(color, len, CLOCK_X/7, (3<<(CLOCK_X%7)) & $7F, xinc, xdir, CLOCK_Y, yinc, ydir)
+  //params:      page, color, len, xbyte,     xbit,                   xinc, xdir, y,       yinc, ydir
+  plotLinePixels($60,  color, len, CLOCK_X/7, (3<<(CLOCK_X%7)) & $7F, xinc, xdir, CLOCK_Y, yinc, ydir)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2967,7 +2973,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load the automap engine and display the map
 def showAutomap()#1
-  loadEngine(MOD_AUTOMAP)=>automap_show()
+  loadEngine(MOD_AUTOMAP)=>automap_show(9999, 9999)  // 9999 = no quest target
   returnFromEngine(TRUE)
   return 0
 end

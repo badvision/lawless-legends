@@ -64,7 +64,6 @@ proRWTS		= $D000
 ; Memory buffers
 plasmaFrames	= $E00	; 2 pages
 gameLoop	= $1000	; just after plasma frames
-unusedBuf	= $4000	; used to be for ProDOS file buf and a copy space, but no longer
 headerBuf 	= $4C00	; len $1400
 
 ; Memory used only during garbage collection

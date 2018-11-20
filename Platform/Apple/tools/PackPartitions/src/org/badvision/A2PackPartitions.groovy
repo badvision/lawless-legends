@@ -3251,7 +3251,8 @@ class A2PackPartitions
                 def map1Num = 0, map1X = 0, map1Y = 0
                 if (map1Name) {
                     assert mapNames.containsKey(map1Name) : "unrecognized map '$map1Name'"
-                    map1Num = mapNames[map1Name][1]
+                    assert mapNames[map1Name][0] =~ /^[23]D$/
+                    map1Num = mapNames[map1Name][1] | (mapNames[map1Name][0] == "3D" ? 0x80 : 0)
                     map1X = row.@"Map1-X".toInteger()
                     map1Y = row.@"Map1-Y".toInteger()
                 }
@@ -3260,7 +3261,8 @@ class A2PackPartitions
                 def map2Num = 0, map2X = 0, map2Y = 0
                 if (map2Name) {
                     assert mapNames.containsKey(map2Name) : "unrecognized map '$map2Name'"
-                    map2Num = mapNames[map2Name][1]
+                    assert mapNames[map2Name][0] =~ /^[23]D$/
+                    map2Num = mapNames[map2Name][1] | (mapNames[map2Name][0] == "3D" ? 0x80 : 0)
                     map2X = row.@"Map2-X".toInteger()
                     map2Y = row.@"Map2-Y".toInteger()
                 }

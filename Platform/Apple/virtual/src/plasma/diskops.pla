@@ -340,6 +340,49 @@ def _saveGame()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def readDiskMarks()#1
+  word size
+  // First, read in the marks. Seek past the heap, then read the length
+  if callProRWTS(RWTS_SEEK | RWTS_OPENDIR, @game1_filename, NULL, HEAP_SIZE) <> 0
+    fatal("read marks")
+  fin
+  callProRWTS(RWTS_READ | RWTS_RDWRPART, NULL, LOAD_SAVE_BUF, 2)
+  size = *LOAD_SAVE_BUF
+
+  // Now that we have the length, read the rest of the mark data
+  callProRWTS(RWTS_READ | RWTS_RDWRPART, NULL, LOAD_SAVE_BUF+2, size)
+  return size
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Validate the size of each map field in the automap marks buffer
+def checkMarks()#0
+  word sp, limit
+  byte mapNum, fieldLen, err
+
+  // Make an expanded array for quick access to the map sizes
+  memset($200, 0, $100)
+  for sp = @mapSizes + 1 to @mapSizes + mapSizes[0] - 1 step 2
+    ^($200 + ^sp) = ^(sp+1)
+  next
+
+  // Now check the buffer size and the size of each field of map marks
+  err = 0
+  sp = LOAD_SAVE_BUF+2
+  limit = min($6000, sp + *LOAD_SAVE_BUF - 1)
+  while TRUE
+    if sp > limit; err = 'B'; break; fin
+    mapNum = ^sp
+    if !mapNum; break; fin
+    fieldLen = ^(sp+1)
+    if fieldLen <> ^($200 + mapNum); err = 'C'; break; fin
+    sp = sp + fieldLen
+  loop
+  if sp <> limit; err = 'D'; fin
+  if err; printf1("code=%c\n", err); fatal("corrupt automap"); fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def loadInternal()#1
   word p_loaded
 
@@ -356,6 +399,10 @@ def loadInternal()#1
   memcpy(LOAD_SAVE_BUF, HEAP_BOTTOM, HEAP_SIZE, 0)  // low mem to LC
   initHeap(p_loaded=>w_heapSize)
   heapCollect() // make sure heap is valid, and record final size
+
+  // Check the map marks for valid field sizes
+  readDiskMarks; checkMarks
+
   return TRUE
 end
 
@@ -513,7 +560,9 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def clearDiskMarks()#0
   word size
-  // First, read in the marks. Seek past the heap, then read the length
+
+  // First, read in the marks.
+  size = readDiskMarks()
   if callProRWTS(RWTS_SEEK | RWTS_OPENDIR, @game1_filename, NULL, HEAP_SIZE) <> 0
     fatal("read marks")
   fin

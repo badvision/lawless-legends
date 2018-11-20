@@ -159,11 +159,11 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def _showQuests()#1
-  byte sel, resetup, redisplay
+  byte sel, needReInit, needRedisplay
 
-  resetup = TRUE
+  needReInit = TRUE
   while TRUE
-    if resetup
+    if needReInit
       // Setup
       showMapName("Quest Log")
       setWindow2; clearWindow
@@ -174,31 +174,31 @@ def _showQuests()#1
       displayMode = 'A'
       curQuestNum = 0
 
-      // Main work
-      redisplay = TRUE
-      resetup = FALSE
+      needRedisplay = TRUE
+      needReInit = FALSE // because it's done now
     fin
-    if redisplay
+    if needRedisplay
       countQuests // also sets current quest
       displayCurQuest
       showMenu
-      redisplay = FALSE
+      needRedisplay = FALSE
     fin
     sel = getUpperKey
     when sel
       is 'S'
         // Show on map
         if questMapNum[0] or questMapNum[1]
-          showOnMap; redisplay = TRUE
+          //showOnMap // FIXME TODO
+          needReInit = TRUE
         else
           beep
         fin
       is 'N'
         // Next quest
         if displayMode == 'A' and curQuestNum+1 < nActive
-          curQuestNum++; redisplay = TRUE
+          curQuestNum++; needRedisplay = TRUE
         elsif displayMode == 'D' and curQuestNum+1 < nDone
-          curQuestNum++; redisplay = TRUE
+          curQuestNum++; needRedisplay = TRUE
         else
           beep
         fin
@@ -206,7 +206,7 @@ def _showQuests()#1
       is 'P'
         // Prev quest
         if curQuestNum
-          curQuestNum--; redisplay = TRUE
+          curQuestNum--; needRedisplay = TRUE
         else
           beep
         fin
@@ -214,7 +214,7 @@ def _showQuests()#1
       is 'T'
         // Toggle active/done
         displayMode = displayMode=='D' ?? 'A' :: 'D'
-        redisplay = TRUE
+        needRedisplay = TRUE
         break
       is $1B // Esc
         setWindow2; clearWindow

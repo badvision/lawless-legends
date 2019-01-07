@@ -2346,6 +2346,7 @@ class A2PackPartitions
         assembleCode("tileEngine", "src/tile/")
         assembleCode("marks", "src/marks/")
         assembleCode("gen_mapSpecials", "src/mapScripts/")
+        assembleCode("gen_mapExits", "src/mapScripts/")
 
         code.each { k,v -> addResourceDep("map", "<root>", "code", k) }
 
@@ -2447,15 +2448,43 @@ class A2PackPartitions
         }
     }
 
+    def genMapExits(data)
+    {
+        def exits = [:]
+        data.map.each { map ->
+            map.scripts.script.each { script ->
+                if (script?.@name.toLowerCase() =~ /exit/) {
+                    script.locationTrigger.each { trig ->
+                        if (!exits.containsKey(map.@name))
+                            exits[map.@name] = []
+                        assert trig.@x.toInteger() >= 0 && trig.@x.toInteger() <= 255 &&
+                               trig.@y.toInteger() >= 0 && trig.@y.toInteger() <= 255 : "large maps can't have exits"
+                        exits[map.@name].add([trig.@x.toInteger(), trig.@y.toInteger()])
+                    }
+                }
+            }
+        }
+        new File("build/src/mapScripts/gen_mapexits.s.new").withWriter { out ->
+            out.println("; Generated code - DO NOT MODIFY BY HAND\n")
+            out.println("*=0 ; origin irrelevant")
+            exits.keySet().sort().each { mapName ->
+                assert mapNames.containsKey(mapName)
+                int mapNum = mapNames[mapName][1] | (mapNames[mapName][0] == '3D' ? 0x80 : 0)
+                out.println " !byte $mapNum, ${exits[mapName].size() * 2} ; map num, field size"
+                exits[mapName].each { coords ->
+                    out.println " !byte     ${coords[0]}, ${coords[1]} ; x, y"
+                }
+            }
+            out.println " !byte 0 ; end"
+        }
+        replaceIfDiff("build/src/mapScripts/gen_mapexits.s")
+    }
+
     def genAutomapSpecials()
     {
         def scriptDir = "build/src/mapScripts/"
         if (!new File(scriptDir).exists())
             new File(scriptDir).mkdirs()
-        new File("build/src/mapScripts/gen_mapSpecials.plh.new").withWriter { out ->
-            out.println("// Generated code - DO NOT MODIFY BY HAND\n")
-            out.println("const automap_exitTileNum = $automapExitTile")
-        }
         new File("build/src/mapScripts/gen_mapSpecials.s.new").withWriter { out ->
             out.println("; Generated code - DO NOT MODIFY BY HAND\n")
             out.println("*=0 ; origin irrelevant")
@@ -2499,7 +2528,6 @@ class A2PackPartitions
             out.println(" !byte \$FF; end of all maps")
         }
         replaceIfDiff("build/src/mapScripts/gen_mapSpecials.s")
-        replaceIfDiff("build/src/mapScripts/gen_mapSpecials.plh")
     }
 
     /*
@@ -2788,6 +2816,9 @@ class A2PackPartitions
 
         // Generate the automap-specials table
         genAutomapSpecials()
+
+        // Figure out where all the exit scripts are (for quest go-to-map functionality)
+        genMapExits(dataIn)
 
         // Read in code chunks. For now these are hard coded, but I guess they ought to
         // be configured in a config file somewhere...?
@@ -3985,7 +4016,6 @@ end
             def totalSize = mapSizes.size() * 2
             assert totalSize < 256 : "too many maps"
             out.println("byte[] mapSizes = $totalSize // overall buffer size")
-            boolean first = true
             mapSizes.sort().each { triple ->
                 out.println(String.format("byte            = \$%02X, \$%02X",
                                           (triple[0] == '3D' ? 0x80 : 0) | triple[1], triple[2]))

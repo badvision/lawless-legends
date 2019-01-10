@@ -55,12 +55,14 @@ class A2PackPartitions
     def TYPE_FIXUP       = 10
     def TYPE_PORTRAIT    = 11
     def TYPE_SONG        = 12
+    def TYPE_STORY       = 13
 
     static final int FLOPPY_SIZE = 35*8  // good old 140k floppy = 280 blks
     static final int AC_KLUDGE = 2      // minus 1 to work around last-block bug in AppleCommander
     static final int DOS_OVERHEAD = 3 // only 3 blks overhead! ProRWTS is so freaking amazing.
     static final int SAVE_GAME_BYTES = 0x1200
     static final int MAX_DISKS = 8 // if more are needed, we'd have to expand the resource index format
+    static final int CHUNK_HEADER_SIZE = 3
 
     def typeNumToDisplayName = [1:  "Code",
                                 2:  "2D map",
@@ -73,7 +75,8 @@ class A2PackPartitions
                                 9:  "Code",
                                 10: "Code",
                                 11: "Portrait image",
-                                12: "Song"]
+                                12: "Song",
+                                13: "Story"]
 
     def typeNameToNum = ["code":     TYPE_CODE,
                          "map2D":    TYPE_2D_MAP,
@@ -86,7 +89,8 @@ class A2PackPartitions
                          "bytecode": TYPE_BYTECODE,
                          "fixup":    TYPE_FIXUP,
                          "portrait": TYPE_PORTRAIT,
-                         "song":     TYPE_SONG]
+                         "song":     TYPE_SONG,
+                         "story":    TYPE_STORY]
 
     def typeNumToName = [1: "code",
                          2: "map2D",
@@ -99,7 +103,8 @@ class A2PackPartitions
                          9: "bytecode",
                          10: "fixup",
                          11: "portrait",
-                         12: "song"]
+                         12: "song",
+                         13: "story"]
 
     def mapNames  = [:]  // map name (and short name also) to map.2dor3d, map.num
     def mapSizes  = []   // array of [2dOr3D, mapNum, marksSize]
@@ -125,6 +130,8 @@ class A2PackPartitions
     def automapTiles = [:] // tile name to tile num
     def automapPat = null  // regexp Pattern to match script names to automap tiles
     def automapSpecials = []
+    def stories   = [:]  // story text to story.num, story.text
+    def storyPartition = 0
 
     def automapExitTile = -1
     def maxMapSections = 0
@@ -1791,7 +1798,6 @@ class A2PackPartitions
     def fillDisk(int partNum, int availBlks, ArrayList<String> maps, Set<String> toDupe)
     {
         //println "Filling disk $partNum, availBlks=$availBlks"
-        def CHUNK_HEADER_SIZE = 3
         def spaceUsed = CHUNK_HEADER_SIZE
 
         // On disk 1, reserve enough space for the map and portrait index
@@ -1946,6 +1952,11 @@ class A2PackPartitions
             tmp.put((byte) calcDiskBits(chunkDisks[["portrait", k].toString()]))
         }
 
+        // Stick on the partition number of the stories (used by non-floppy builds)
+        tmp.put((byte) 1)
+        tmp.put((byte) storyPartition)
+
+        // Pack it all up into a chunk and add it to the partition.
         code["resourceIndex"].buf = compress(unwrapByteBuffer(tmp))
         def chunk = [type:TYPE_CODE, num:code["resourceIndex"].num, 
                      name:"resourceIndex", buf:code["resourceIndex"].buf]
@@ -1970,6 +1981,7 @@ class A2PackPartitions
         recordChunks("module",   modules)
         recordChunks("bytecode", bytecodes)
         recordChunks("fixup",    fixups)
+        recordChunks("story",    stories)
 
         // Sort the maps in proper disk order
         allMaps << [name:"<root>", order:-999999]
@@ -2005,6 +2017,18 @@ class A2PackPartitions
             partChunks << [partNum:partNum, chunks:chunks, spaceUsed:spaceUsed]
         }
         assert allMaps.isEmpty : "All data must fit within $MAX_DISKS disks."
+
+        // If any stories, add them in a special final chunk.
+        if (stories.size() > 0) {
+            storyPartition = partChunks.size() + 1
+            def chunks = [:] as LinkedHashMap
+            def spaceUsed = CHUNK_HEADER_SIZE
+            stories.each { k, v ->
+                stories[k].buf = compress(stories[k].text.getBytes())
+                spaceUsed += traceResources(["story", k], chunks)
+            }
+            partChunks << [partNum:storyPartition, chunks:chunks, spaceUsed:spaceUsed]
+        }
 
         // Add the special resource index to disk 1
         def gameVersion = addResourceIndex(partChunks[0])
@@ -4258,6 +4282,10 @@ end
             if (!partFile.exists())
                 continue
 
+            // Skip the story partition (stories only included on 800k and higher builds)
+            if (i == storyPartition)
+                continue
+
             // Copy files.
             def rootDir = new File("build/root$i")
             rootDir.mkdir()
@@ -4645,7 +4673,9 @@ end
                 {
                     case 'text_print':
                     case 'text_println':
-                        packTextPrint(blk); break
+                        packTextPrint(blk, 'VALUE'); break
+                    case 'text_storybook':
+                        packStoryBook(blk); break
                     case 'text_clear_window':
                         packClearWindow(blk); break
                     case 'text_getanykey':
@@ -4735,14 +4765,8 @@ end
             return first
         }
 
-        def packTextPrint(blk)
+        def outTextBlock(valBlk, finishWithNewline)
         {
-            if (blk.value.size() == 0) {
-                printWarning "empty text_print block, skipping."
-                return
-            }
-            def valBlk = getSingle(blk.value, 'VALUE').block
-            assert valBlk.size() == 1
             if (valBlk[0].@type == 'text')
             {
                 // Break up long strings into shorter chunks for PLASMA.
@@ -4753,17 +4777,65 @@ end
                 if (!text || text == "") // interpret lack of text as a single empty string
                     chunks = [""]
                 chunks.eachWithIndex { chunk, idx ->
-                    String str = (idx == chunks.size()-1 && blk.@type == 'text_println') ? chunk+"\\n" : chunk
+                    String str = (idx == chunks.size()-1 && finishWithNewline) ? chunk+"\\n" : chunk
                     outIndented("scriptDisplayStr(" + escapeString(str) + ")\n")
                 }
             }
             else {
                 // For general expressions instead of literal strings, we can't do
                 // any fancy breaking-up business. Just pack.
-                outIndented(blk.@type == 'text_println' ? 'scriptDisplayStrNL(' : 'scriptDisplayStr(')
+                outIndented(finishWithNewline ? 'scriptDisplayStrNL(' : 'scriptDisplayStr(')
                 packExpr(valBlk[0])
                 out << ")\n"
             }
+        }
+
+        def packTextPrint(blk, valName)
+        {
+            if (blk.value.size() == 0) {
+                printWarning "empty text_print block, skipping."
+                return
+            }
+            def valBlk = getSingle(blk.value, valName).block
+            assert valBlk.size() == 1
+            outTextBlock(valBlk, blk.@type == 'text_println')
+        }
+
+        def packStoryBook(blk)
+        {
+            assert blk.value[0].@name == 'INTRO'
+            assert blk.value[1].@name == 'SHORT'
+            assert blk.value[2].@name == 'LONG'
+
+            // First output the shared intro text
+            outIndented("setStoryMode(TRUE)\n")
+            outTextBlock(blk.value[0].block, false)
+
+            // On floppy builds, follow the intro with just the short text (usually e.g. "read log X")
+            outIndented("if isFloppyVer\n")
+            ++indent
+            outTextBlock(blk.value[1].block, false)
+            --indent
+
+            // On 800k or hard drive builds, follow the intro with the full (long) text
+            def longBlk = blk.value[2].block
+            assert longBlk.size() == 1
+            def longText = getSingle(getSingle(longBlk, null, 'text').field, 'TEXT').text()
+            def longHash = Integer.toString(longText.hashCode(), 36)
+            def num
+            if (stories.containsKey(longHash))
+                num = stories[longHash].num
+            else {
+                num = stories.size() + 1
+                stories[longHash] = [num: num, text: longText]
+            }
+            outIndented("else\n")
+            ++indent
+            outIndented("displayStory($num)\n")
+            --indent
+            outIndented("fin\n")
+
+            outIndented("setStoryMode(FALSE)\n")
         }
 
         def packClearWindow(blk)

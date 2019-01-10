@@ -100,6 +100,7 @@ byte anyInteraction = FALSE
 byte textClearCountdown = 0
 export byte isPlural = 0 // valid values: 0 or $40
 byte inScript = FALSE
+export byte isFloppyVer
 
 byte scriptModule = 0
 byte prevScriptModule = 0
@@ -3648,6 +3649,16 @@ export def setIntimateMode(enable)#0
     returnFromEngine(TRUE)
     pIntimate = NULL
   fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def setStoryMode(enable)#0
+  // TODO
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def displayStory(num)#0
+  // TODO
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

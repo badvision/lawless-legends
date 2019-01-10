@@ -43,6 +43,7 @@ import gamelib
   predef displayf1(fmt, arg1)#0
   predef displayf2(fmt, arg1, arg2)#0
   predef displayf3(fmt, arg1, arg2, arg3)#0
+  predef displayStory(num)#0
   predef displayStr(str)#0
   predef encodeDice(nDice, dieSize, add)#1
   predef equipItem(item)#0
@@ -120,6 +121,7 @@ import gamelib
   predef setGround(num)#0
   predef setIntimateMode(enable)#0
   predef setMap(is3D, num, x, y, dir)#0
+  predef setStoryMode(enable)#0
   predef useMapWindow()#0
   predef setBigWindow()#0
   predef setPortrait(portraitNum)#0
@@ -161,6 +163,7 @@ import gamelib
   byte curMapPartition
   word pResourceIndex
   word pGlobalTileset
+  byte isFloppyVer
 
   /////////// Shared string constants //////////////
 

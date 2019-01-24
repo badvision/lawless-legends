@@ -56,6 +56,7 @@ include "intimate.plh"
 include "godmode.plh"
 include "automap.plh"
 include "questlog.plh"
+include "story.plh"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Data structures
@@ -155,6 +156,7 @@ word animPauseCt
 byte showingLamp = TRUE
 byte lampFrame = 0
 word lampDir = 1
+byte storyMode = FALSE
 
 // Time and clock
 byte prevClockColor, prevClockHour, prevClockMinute
@@ -1810,6 +1812,8 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def resetAnimPause()#0
+  anyAnims = TRUE  // for now; might get cleared if we discover otherwise on advance
+  animDirCt = 1
   animPauseCt = ANIM_PAUSE_MAX
   showingLamp = mapIs3D and (skyNum == 0 or skyNum == 8)
   lampFrame = 0
@@ -1837,8 +1841,6 @@ export def loadFrameImg(img)#0
     curFullscreenImg = auxMmgr(QUEUE_LOAD, img<<8 | RES_TYPE_SCREEN)
     auxMmgr(FINISH_LOAD, 0)
 
-    anyAnims = TRUE  // for now; might get cleared if we discover otherwise on advance
-    animDirCt = 1
     resetAnimPause()
 
     // And show the first frame of the screen image
@@ -2281,8 +2283,6 @@ def initMap(x, y, dir)#0
   fin
 
   // Assume there might be animations until we learn otherwise
-  anyAnims = TRUE  // for now; might get cleared if we discover otherwise on advance
-  animDirCt = 1
   resetAnimPause
 
   // Populate script handlers for the current square, so that leave handlers will trigger right.
@@ -2769,12 +2769,16 @@ end
 def showAnimFrame()#0
   byte top
   if curPortrait
-    // Blit portrait to the appropriate area on the screen
-    top = 32   // start at 4th text line in 2D
-    if frameLoaded == 3  // 3D-mode frame? Note: don't check mapIs3D, because we might be in an engine
-      top = 24 // start at 4th text line in 3D
+    if storyMode
+      blit(1, curPortrait + 2, getScreenLine(0)+20, 128, 18)
+    else
+      // Blit portrait to the appropriate area on the screen
+      top = 32   // start at 4th text line in 2D
+      if frameLoaded == 3  // 3D-mode frame? Note: don't check mapIs3D, because we might be in an engine
+        top = 24 // start at 4th text line in 3D
+      fin
+      blit(1, curPortrait + 2, getScreenLine(top)+2, 128, 18)
     fin
-    blit(1, curPortrait + 2, getScreenLine(top)+2, 128, 18)
     needRender = FALSE  // suppress display of map for this frame
     if showingLamp; nextLampFrame(); fin
   elsif curFullscreenImg
@@ -2843,8 +2847,6 @@ export def setPortrait(portraitNum)#0
   curPortrait = auxMmgr(QUEUE_LOAD, portraitNum<<8 | RES_TYPE_PORTRAIT)
   curPortraitNum = portraitNum
   mmgr(FINISH_LOAD, 0)
-  anyAnims = TRUE  // for now; might get cleared if we discover otherwise on advance
-  animDirCt = 1
   resetAnimPause
 
   // And show the first frame
@@ -3653,12 +3655,27 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def setStoryMode(enable)#0
-  // TODO
+  // Story mode only exists on 800K or hard drive builds
+  if !isFloppyVer
+    storyMode = enable
+    if enable
+      loadEngine(MOD_STORY)
+      curEngine()=>story_mode(TRUE, preEnginePortraitNum)
+      needRender = FALSE
+      frameLoaded = 0 // since we just destroyed it
+      textDrawn = FALSE
+      textClearCountdown = 0
+    else
+      curEngine()=>story_mode(FALSE, 0)
+      preEnginePortraitNum = 0 // so we don't restore it
+      returnFromEngine(TRUE)
+    fin
+  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def displayStory(num)#0
-  // TODO
+export def displayStory(storyNum)#0
+  curEngine()=>story_display(storyNum)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3718,6 +3735,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Main code.
 //
+isFloppyVer = FALSE // FIXME
 scriptDisplayStr(@_scriptDisplayStr) // 1-time init
 startGame(TRUE, TRUE) // first time init; ask whether new or load
 kbdLoop()

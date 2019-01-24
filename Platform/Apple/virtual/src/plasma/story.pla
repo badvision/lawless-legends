@@ -18,13 +18,49 @@ predef _story_mode(enable, portraitNum)#1, _story_display(storyNum)#1
 word[] funcTbl = @_story_mode, @_story_display
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Definitions used by assembly code
+asm __defs
+
+; Use hi-bit ASCII for Apple II
+!convtab "../../include/hiBitAscii.ct"
+
+; Headers
+!source "../../include/global.i"
+!source "../../include/plasma.i"
+!source "../../include/mem.i"
+!source "../../include/fontEngine.i"
+
+; General use
+tmp         = $2
+pTmp        = $4
+
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Display a string using the font engine, but prevent scrolling, and return the address of the
+// next character that would have been displayed after scrolling (or NULL if no scroll needed)
+asm displayStrNoScroll(str)#1
+  +asmPlasmRet 1
+  pha
+  lda #1
+  jsr SetScrollLock
+  pla
+  jsr DisplayStr
+  pha
+  lda #0
+  jsr SetScrollLock
+  pla
+  rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def setBlock1()#0
-  setWindow(0, 192, 7, 133)
+  setWindow(0, 189, 7, 133)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def setBlock2()#0
-  setWindow(135, 192, 140, 266)
+  setWindow(135, 189, 140, 266)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -44,13 +80,21 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display string on a blank screen, with blanking follow-up
 def _story_display(storyNum)#1
-  displayStr("\n\nHe heh hee lorem ipsum Blah blah blah. Also blah blah blah blah and blah.")
-  displayStr(" Blah blah blah. Blah blah blah blah and blah. Blah blah.")
-  displayStr("\n\nHe heh hee lorem ipsum Blah blah blah. Also blah blah blah blah and blah.")
-  displayStr(" Blah blah blah. Blah blah blah blah and blah. Blah blah.")
+  word p
+  p = displayStrNoScroll("\n\nHe heh hee lorem ipsum Blah blah blah. Also blah blah blah blah and blah.")
+  printf1("p=$%x\n", p)
+  p = displayStrNoScroll(" Blah blah blah. Blah blah blah blah and blah. Blah blah.")
+  printf1("p=$%x\n", p)
+  p = displayStrNoScroll("\n\nHe heh hee lorem ipsum Blah blah blah. Also blah blah blah blah and blah.")
+  printf1("p=$%x\n", p)
+  p = displayStrNoScroll(" Blah blah blah. Blah blah blah blah and blah. Blah blah, blah and blah blah ABC ***.")
+  printf1("p=$%x\n", p)
+  ^$c051
+  rdkey
+  ^$c050
   setBlock2
-  displayStr("More story goes here. Blah blah blah. Also blah blah blah blah and blah.")
-  displayStr(" Blah blah blah. Blah blah blah blah and blah. Blah blah, blah blabh.")
+  p = displayStrNoScroll("More story goes here. Blah blah blah. Also blah blah blah blah and blah.")
+  p = displayStrNoScroll(" Blah blah blah. Blah blah blah blah and blah. Blah blah, blah blabh.")
   getUpperKey
   return 0
 end

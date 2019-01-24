@@ -140,6 +140,9 @@ GetScreenLine	JMP GetScLn
 ;Advance to next line on the screen
 NextScreenLine	JMP NxtScLn
 
+;Set or clear scroll-lock mode
+SetScrollLock	JMP SetScLk
+
 ;If you know which of the {0..110} bitmapped characters
 ;you want plotted, you can bypass testing for control
 ;codes, making this a faster way to plot.
@@ -171,6 +174,7 @@ CursRow		!byte 0		;vertical Y-position {0..191}
 ChrWdth		!byte 0		;character width (number of pixels)
 PltChar		!byte 0		;character to be plotted {0..110}
 AscChar		!byte 0		;Ascii Char value {$80..$FF}
+ScrlLck_Flg	!byte 0		;Non-zero to prevent scrolling during parse
 
 ;Just record the font address.
 DoSetFont	STA Font0
@@ -808,6 +812,10 @@ CpWnd2	LDA (GBasL),Y
 	BEQ CpWnd1
 	RTS
 
+;Routine: set or clear the scroll-lock flag (prevents scrolling during parse)
+SetScLk	STA ScrlLck_Flg
+	RTS
+
 ;Routine: parser w/auto line break
 DoParse	STA PrsAdrL
 	STY PrsAdrH
@@ -860,7 +868,22 @@ Pa_Tskp	LDA AscChar
 	INY
 	BNE Pa_Lp1
 Pa_ToFr	!if DEBUG { +prChr '+' }
-	LDA Pa_WdCt	;if we didn't print any words yet, then it's
+	; MH: Added scroll lock checking
+	LDA ScrlLck_Flg	;check for scroll-lock mode
+	BEQ Pa_CBig	;if not locked, skip check for scroll
+	LDA CursRow	;current vertical coord
+	CLC
+	ADC #9  	;increment by 9 lines, down
+	CMP CursYb	;check if it's past the window end
+	BCC Pa_CBig	;if not then continue
+	LDY PrsAdrH	;calc adr of next word that would display
+	LDA PrsAdrL
+	CLC
+	ADC Pa_iSv
+	BCC +
+	INY
++	RTS		;and return early without scrolling
+Pa_CBig	LDA Pa_WdCt	;if we didn't print any words yet, then it's
 	BEQ Pa_BgWd	;	a word too big for line: split it
 Pa_ToF2	LDA #$8D
 	STA AscChar
@@ -912,6 +935,8 @@ Pa_Dn4	LDY Pa_iSv
 	INY
 	JMP Pa_Lp0
 ParsDn	!if DEBUG { +prChr '<' : +crout : BIT $C053 }
+	LDA #0		;return null to indicate all chars parsed
+	TAY
 	RTS
 
 ;

@@ -47,3 +47,4 @@ GetCursor	= CalcWidth+3
 GetStr          = GetCursor+3
 GetScreenLine	= GetStr+3
 NextScreenLine	= GetScreenLine+3
+SetScrollLock	= NextScreenLine+3

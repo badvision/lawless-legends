@@ -1954,7 +1954,7 @@ class A2PackPartitions
 
         // Stick on the partition number of the stories (used by non-floppy builds)
         tmp.put((byte) 1)
-        tmp.put((byte) storyPartition)
+        tmp.put((byte) (1<<(storyPartition-1)))
 
         // Pack it all up into a chunk and add it to the partition.
         code["resourceIndex"].buf = compress(unwrapByteBuffer(tmp))
@@ -2024,7 +2024,10 @@ class A2PackPartitions
             def chunks = [:] as LinkedHashMap
             def spaceUsed = CHUNK_HEADER_SIZE
             stories.each { k, v ->
-                stories[k].buf = compress(stories[k].text.getBytes())
+                // Prepend the length of the story text
+                def text = stories[k].text.getBytes().toList()
+                def textWithLen = [text.size() & 0xFF, (text.size()>>8) & 0xFF] + text
+                stories[k].buf = compress(textWithLen as byte[])
                 spaceUsed += traceResources(["story", k], chunks)
             }
             partChunks << [partNum:storyPartition, chunks:chunks, spaceUsed:spaceUsed]

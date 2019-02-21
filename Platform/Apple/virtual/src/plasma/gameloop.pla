@@ -633,7 +633,7 @@ export asm finishString(isPlural)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-asm blit(isAux, srcData, dstScreenPtr, nLines, lineSize)#0
+export asm blit(isAux, srcData, dstScreenPtr, nLines, lineSize)#0
   +asmPlasmNoRet 5
 
   ; Save line size
@@ -1686,7 +1686,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Look up the partition for a resource.
-// sectioNum: 0=version num (do not use here), 1=map2d, 2=map3d, 3=portrait
+// sectioNum: 0=version num (do not use here), 1=map2d, 2=map3d, 3=portrait, 4=story
 export def lookupResourcePart(sectionNum, resourceNum)#1
   word ptr
   byte n, i

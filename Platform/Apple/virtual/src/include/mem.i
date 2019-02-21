@@ -23,6 +23,7 @@ RES_TYPE_BYTECODE = $9
 RES_TYPE_FIXUP    = $A
 RES_TYPE_PORTRAIT = $B
 RES_TYPE_SONG     = $C
+RES_TYPE_STORY    = $D
 
 ;------------------------------------------------------------------------------
 ; Command codes

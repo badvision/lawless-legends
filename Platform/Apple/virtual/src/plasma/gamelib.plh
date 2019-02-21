@@ -24,6 +24,7 @@ import gamelib
   predef auxMmgr(cmd, wordParam)#1
   predef beep()#0
   predef benchPlayer()#0
+  predef blit(isAux, srcData, dstScreenPtr, nLines, lineSize)#0
   predef brk()#0
   predef buildString(pFunc)#0
   predef buySell(storeCode, profitRatio)#0

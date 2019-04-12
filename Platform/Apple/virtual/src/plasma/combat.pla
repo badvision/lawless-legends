@@ -238,7 +238,7 @@ def damageEnemy(pPlayer, pEnemy, dmg, sAction)#0
     getUpperKey
   fin
   isPlural = FALSE
-  buildString(@addToString)
+  buildString()
   printf3("\n%s %s %s ", pPlayer=>s_name, sAction, pEnemy=>s_name)
   printf1("for %d damage.", dmg)
   if pEnemy=>w_health > dmg

@@ -19,14 +19,13 @@ import gamelib
   predef addPercent(start, pct)#1
   predef addRatio(start, ratio)#1
   predef addToList(addTo, p)#0
-  predef addToString()#0
   predef addXP_all(xp)#0
   predef auxMmgr(cmd, wordParam)#1
   predef beep()#0
   predef benchPlayer()#0
   predef blit(isAux, srcData, dstScreenPtr, nLines, lineSize)#0
   predef brk()#0
-  predef buildString(pFunc)#0
+  predef buildString()#0
   predef buySell(storeCode, profitRatio)#0
   predef calcPlayerArmor(player)#0
   predef calcWidth(pStr)#1

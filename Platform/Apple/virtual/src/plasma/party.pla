@@ -1097,7 +1097,7 @@ def _displayItemName(pItem)#1
     isPlural = TRUE
     rawDisplayf1("%d ", pItem=>w_count)
   fin
-  buildString(@addToString)
+  buildString()
   printf1("%s", pItem=>s_name) // need proper plural processing
   rawDisplayStr(finishString(isPlural))
   return 0

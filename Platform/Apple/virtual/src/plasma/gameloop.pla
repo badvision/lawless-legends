@@ -197,6 +197,8 @@ export byte[] S_THEIR = "their"
 //word startTick = 0
 word lastTick = 0
 
+byte recordMode = TRUE
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
 asm _defs
@@ -229,6 +231,11 @@ magic       = $2227 ; there are 2048 magic values that work; this one caught my 
 ;
 ; So don't JMP to labels, declare any variables as !byte or !word here, etc. without
 ; accounting for that.
+;
+; The way to account for that is to use ABS_OFFSET, and only within this module. This
+; method works because this module is the only one loaded at an absolute address.
+;
+; See examples below.
 ABS_OFFSET = (_DEFCNT*5) - 13 ; 13 for plasma's module header (stripped by packer)
 
 end
@@ -530,22 +537,27 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // String building for display with the font engine. Includes plurality processing to handily
 // handle things like "Dirt bag(s)" and "his/their"
-export asm buildString(pFunc)#0
-  +asmPlasmNoRet 1
+export asm buildString()#0
+  +asmPlasmNoRet 0
+  lda cswl
+  sta prevCSWL+ABS_OFFSET
+  lda cswh
+  sta prevCSWL+1+ABS_OFFSET
+  lda #<addToString+ABS_OFFSET
   sta cswl
-  sty cswh
+  lda #>addToString+ABS_OFFSET
+  sta cswh
   lda #0
   sta inbuf
   rts
-end
-
-export asm addToString()#0
+addToString:
   sty ysav1
   inc inbuf
   ldy inbuf
   sta inbuf,y
   ldy ysav1
   rts
+prevCSWL !word 0
 end
 
 // Complete string building (including plural processing), and return pointer
@@ -554,9 +566,9 @@ export asm finishString(isPlural)#1
 !zone {
   +asmPlasmRet 1
   sta tmp     ; save isPlural flag
-  lda #$F0    ; put the cout vector back to default
+  lda prevCSWL+ABS_OFFSET ; put the cout vector back to default
   sta cswl
-  lda #$FD
+  lda prevCSWL+1+ABS_OFFSET ; put the cout vector back to default
   sta cswh
   clv         ; V flag for prev-is-alpha
   ldy #0      ; dest offset in Y (will be incremented before store)
@@ -1445,7 +1457,7 @@ export def printf2(str, arg1, arg2)#0; printf3(str, arg1, arg2, 0); end
 
 // Like printf, but displays text using font engine
 export def displayf3(str, arg1, arg2, arg3)#0
-  buildString(@addToString)
+  buildString()
   printf3(str, arg1, arg2, arg3)
   displayStr(finishString(isPlural))
 end
@@ -1455,7 +1467,7 @@ export def displayf2(str, arg1, arg2)#0; displayf3(str, arg1, arg2, 0); end
 
 // Like printf, but buffers string in $200
 export def sprintf3(str, arg1, arg2, arg3)#1
-  buildString(@addToString)
+  buildString()
   printf3(str, arg1, arg2, arg3)
   return finishString(isPlural)
 end
@@ -1785,7 +1797,7 @@ def printVersion()#0
   byte len
   if !pResourceIndex; return; fin
 
-  buildString(@addToString)
+  buildString()
   printChar('V')
   p = pResourceIndex
   len = readAuxByte(p)
@@ -2395,6 +2407,7 @@ export def _scriptDisplayStr(str)#0
       needRender = FALSE
     fin
     if textClearCountdown; clearTextWindow(); fin
+    if recordMode; printf1("DISP: %s\n", str); fin
     displayStr(str)
     textDrawn = TRUE
   fin

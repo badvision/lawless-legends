@@ -1037,37 +1037,37 @@ end
 asm internal_rand16()#1
 !zone {
   +asmPlasmRet 0
-  ldx #6
+  ldx #6        ; start check = 1, plus 5 loops to mul by 32 = 6 total
+  ldy seed
   lda seed+1
   and #$7F      ; in case kbd routine has advanced past MAGIC
-  beq .hiZero
   sta seed+1
-  bne .chk      ; always taken
+  bne .chk      ; zero check - hi byte
+  tya
+  bne .chk      ; zero check - lo byte
+  lda #1        ; force 0 seed to go to 1
+  bne .ret      ; always taken
 .shift
-  asl seed
+  asl
+  tay
   rol seed+1
 .chk
-  lda seed
-  sec
-  sbc #<MAGIC
-  tay
+  cpy #<MAGIC
   lda seed+1
   sbc #>MAGIC
   bcc .next
-  sty seed
   sta seed+1
+  tya
+  sbc #<MAGIC
+  !byte $C9  ; CMP imm - to skip next opcode
 .next
+  tya
   dex
-  bne .shift
+  bne .shift   ; 32 / 25
 .ret
-  lda seed
+  sta seed
   ldy seed+1
   rts
-.hiZero
-  lda seed      ; zero-check
-  bne .next
-  inc seed      ; force 0 seed to go to 1
-  bne .ret      ; always taken
 }
 end
 
@@ -1345,8 +1345,10 @@ export def rand16()#1
   word result
   if recordMode
     *seed = recordSeed
+    //printf1("%x:", recordSeed)
     result = internal_rand16()
     recordSeed = *seed
+    //printf1("%x ", recordSeed)
     return result
   fin
   return internal_rand16()

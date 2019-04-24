@@ -44,7 +44,8 @@ predef _startup()#1
 predef _saveGame()#1
 predef _loadGame()#1
 predef _newOrLoadGame(ask)#1
-word[] funcTbl = @_startup, @_saveGame, @_loadGame, @_newOrLoadGame
+predef _checkAutomap()#1  // TEMPORARY - FIXME FOO
+word[] funcTbl = @_startup, @_saveGame, @_loadGame, @_newOrLoadGame, @_checkAutomap
 
 byte[] game1_filename = "GAME.1.SAVE"
 byte[] legendos_filename = "LEGENDOS.SYSTEM"
@@ -328,18 +329,6 @@ def _rwGame(cmd)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _saveGame()#1
-  // Perform garbage collection and record the size of the heap so we can restore it correctly
-  // (also does a CHECK_MEM to be sure we never save corrupted heap)
-  heapCollect()
-
-  // Copy data to main memory, and write it out.
-  memcpy(HEAP_BOTTOM, LOAD_SAVE_BUF, HEAP_SIZE, 0)  // LC to low mem
-  _rwGame(RWTS_WRITE)
-  return 0
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 def readDiskMarks()#1
   word size
   // First, read in the marks. Seek past the heap, then read the length
@@ -380,6 +369,28 @@ def checkMarks()#0
   loop
   if sp <> limit; err = 'D'; fin
   if err; printf1("code=%c\n", err); fatal("corrupt automap"); fin
+  puts("Marks checked.\n")
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// TEMPORARY FOR DISK MARK CHECKING - FIXME FOO
+def _checkAutomap()#1
+  readDiskMarks; checkMarks
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def _saveGame()#1
+  // Perform garbage collection and record the size of the heap so we can restore it correctly
+  // (also does a CHECK_MEM to be sure we never save corrupted heap)
+  heapCollect()
+
+  readDiskMarks; checkMarks // TEMPORARY - FIXME FOO
+
+  // Copy data to main memory, and write it out.
+  memcpy(HEAP_BOTTOM, LOAD_SAVE_BUF, HEAP_SIZE, 0)  // LC to low mem
+  _rwGame(RWTS_WRITE)
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

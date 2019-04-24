@@ -75,6 +75,7 @@ predef clearPortrait()#0
 predef showMapName(mapName)#0
 predef doRender()#0
 predef pause(count)#1
+predef printf1(str, arg1)#0
 predef printf2(str, arg1, arg2)#0
 predef playerDeath()#0
 predef startGame(firstTime, ask)#0
@@ -197,7 +198,8 @@ export byte[] S_THEIR = "their"
 //word startTick = 0
 word lastTick = 0
 
-byte recordMode = TRUE
+export byte recordMode = FALSE
+word recordSeed
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -223,7 +225,7 @@ ysav1       = $35
 
 ; 16-bit random number seed - incremented by ROM kbd routine
 seed        = $4E
-magic       = $2227 ; there are 2048 magic values that work; this one caught my eye. - MH
+MAGIC       = $7FED ; largest prime < $8000
 
 ; NOTE ABOUT ABSOLUTE CODE ADDRESSING (e.g. STA .var, JMP .label, etc.)
 ; We cannot use it: this code will be preceded by stubs for the PLASMA routines, hence
@@ -1030,49 +1032,43 @@ export asm rawDisplayStr(pStr)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Random number generator
-// Adapted from http://codebase64.org/doku.php?id=base:small_fast_16-bit_prng
-export asm rand16()#1
+// Random number generator. A standard linear congruential prng featuring a full cycle (i.e.
+// every value from 1..MAGIC-1 is part of the sequence).
+asm internal_rand16()#1
+!zone {
   +asmPlasmRet 0
-
-  lda seed
-  beq .lowZero ; $0000 and $8000 are special values to test for
-
-  ; Do a normal shift
+  ldx #6
+  lda seed+1
+  and #$7F      ; in case kbd routine has advanced past MAGIC
+  beq .hiZero
+  sta seed+1
+  bne .chk      ; always taken
+.shift
   asl seed
-  lda seed+1
-  rol
-  bcc .noEor
-
-.doEor:
-  ; high byte is in A
-  eor #>magic
-  sta seed+1
-  and #$7F   ; keep it positive, because PLASMA does the icky C thing with negative modulo
-  tay        ; for asmPlasm, return hi byte in Y, lo byte in A
+  rol seed+1
+.chk
   lda seed
-  eor #<magic
-  sta seed
-  rts
-
-.lowZero:
+  sec
+  sbc #<MAGIC
+  tay
   lda seed+1
-  beq .doEor ; High byte is also zero, so apply the EOR
-             ; For speed, you could store 'magic' into 'seed' directly
-             ; instead of running the EORs
-
-  ; wasn't zero, check for $8000
-  asl
-  beq .noEor ; if $00 is left after the shift, then it was $80
-  bcs .doEor ; else, do the EOR based on the carry bit as usual
-
-.noEor:
+  sbc #>MAGIC
+  bcc .next
+  sty seed
   sta seed+1
-  and #$7F   ; keep it positive, because PLASMA does the icky C thing with negative modulo
-  tay        ; for asmPlasm, return hi byte in Y, lo byte in A
+.next
+  dex
+  bne .shift
+.ret
   lda seed
+  ldy seed+1
   rts
-
+.hiZero
+  lda seed      ; zero-check
+  bne .next
+  inc seed      ; force 0 seed to go to 1
+  bne .ret      ; always taken
+}
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1344,6 +1340,17 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // General methods
+
+export def rand16()#1
+  word result
+  if recordMode
+    *seed = recordSeed
+    result = internal_rand16()
+    recordSeed = *seed
+    return result
+  fin
+  return internal_rand16()
+end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Fatal error: print message and stop the system.
@@ -2228,6 +2235,8 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load code and data, set up everything to display a 2D or 3D map
 def initMap(x, y, dir)#0
+  word pDiskOps // TEMPORARY - FIXME FOO
+
   // If we have a renderer loaded, let it know to flush automap marks
   unloadTextures()
 
@@ -2248,7 +2257,11 @@ def initMap(x, y, dir)#0
     mmgr(QUEUE_LOAD, CODE_TILE_ENGINE<<8 | RES_TYPE_CODE)
   fin
   pGlobalTileset = mmgr(QUEUE_LOAD, 1<<8 | RES_TYPE_TILESET)  // even in 3d, need tiles for lamp/etc.
+  pDiskOps = mmgr(QUEUE_LOAD, MOD_DISKOPS<<8 | RES_TYPE_MODULE) // TEMPORARY - FIXME FOO
   mmgr(FINISH_LOAD, 0)
+
+  pDiskOps()=>diskops_checkAutomap() // TEMPORARY - FIXME FOO
+  mmgr(FREE_MEMORY, pDiskOps) // TEMPORARY - FIXME FOO
 
   // Set up the command table
   initCmds()
@@ -3172,20 +3185,25 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def toggleGodMode()#1
-  while ^kbd < 128; loop
-  if ^kbd == $8F  // ctrl-O
-    ^kbdStrobe
-    while ^kbd < 128; loop
-    if ^kbd == $84  // ctrl-D
-      ^kbdStrobe
-      global->b_godmode = !global->b_godmode
+  byte key
+  key = getUpperKey
+  if key == 15  // ctrl-O
+    key = getUpperKey
+    if key == 4 or key == 18 // ctrl-D or ctrl-R
       flipToPage1()
       clearTextWindow()
-      displayf1("gm:%d\n", global->b_godmode & 1)
+      if key == 4 // ctrl-D
+        global->b_godmode = !global->b_godmode
+        displayf1("gm:%d\n", global->b_godmode & 1)
+        initCmds() // rebuild the command table with new commands
+      else
+        recordMode = !recordMode
+        if recordMode; recordSeed = 1; fin
+        displayf1("rm:%d\n", recordMode & 1)
+      fin
       textDrawn = TRUE
       beep; beep
       clearTextWindow()
-      initCmds() // rebuild the command table with new commands
     fin
   fin
   return 0

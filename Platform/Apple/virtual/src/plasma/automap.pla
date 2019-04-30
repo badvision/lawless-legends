@@ -1074,9 +1074,8 @@ def cursorWait(targetX, targetY)#1
   // Erase target if it's still showing
   if targetX <> 9999 and targetOn; showTarget(targetX, targetY); fin
 
-  i = ^kbd
-  ^kbdStrobe
-  return charToUpper(i & $7F)
+  i = recordKey
+  return charToUpper(i)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

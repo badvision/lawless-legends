@@ -102,6 +102,7 @@ import gamelib
   predef rawDisplayStr(str)#0
   predef rdkey()#1
   predef readAuxByte(ptr)#1
+  predef recordKey()#1
   predef removeFromList(pList, toRemove)#0
   predef removeNamed(name, pList)#1
   predef removePlayerFromParty(playerName)#0
@@ -164,6 +165,7 @@ import gamelib
   word pResourceIndex
   word pGlobalTileset
   byte isFloppyVer
+  byte recordMode
 
   /////////// Shared string constants //////////////
 

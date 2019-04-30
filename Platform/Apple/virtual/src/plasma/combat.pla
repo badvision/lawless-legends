@@ -120,10 +120,10 @@ def combatPause()#0
   // Check for speed-up / slow-down
   key = ^kbd
   if key == (11 + 128) or key == ('-'+128) // up-arrow or minus
-    ^kbdStrobe
+    if !recordMode; ^kbdStrobe; fin
     global=>w_combatPauseCt = max(100, global=>w_combatPauseCt - addPercent(global=>w_combatPauseCt, 20))
   elsif key == (10 + 128) or key == ('+'+128) // down-arrow or plus
-    ^kbdStrobe
+    if !recordMode; ^kbdStrobe; fin
     global=>w_combatPauseCt = min(9999, global=>w_combatPauseCt + addPercent(global=>w_combatPauseCt, 20))
   fin
 end
@@ -1052,7 +1052,7 @@ def startCombat(mapCode)#1
 
   // Clear keyboard stobe, because while wandering the map, the player may have
   // queued up movement keys, which are made obsolete by the surprise of combat.
-  ^kbdStrobe
+  if !recordMode; ^kbdStrobe; fin
 
   // Say who we're fighting
   p = global=>p_enemyGroups

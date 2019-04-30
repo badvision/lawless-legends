@@ -198,7 +198,7 @@ export byte[] S_THEIR = "their"
 //word startTick = 0
 word lastTick = 0
 
-export byte recordMode = FALSE
+export byte recordMode = 0
 word recordSeed
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1072,6 +1072,21 @@ asm internal_rand16()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Turn the printer on or off (assumes slot 1)
+asm setPrinter(enable)#0
+  +asmPlasmNoRet 1
+  ldx #<ROM_cout
+  ldy #>ROM_cout
+  asl
+  beq +
+  ldx #0
+  ldy #$C1
++ stx cswl
+  sty cswh
+  rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Clear the text-mode screen, and put the text cursor at the top of it.
 export asm textHome()#0
   +asmPlasmNoRet 0
@@ -1391,6 +1406,9 @@ export def getStringResponse()#1
   word p
   rawGetStr()
   rawDisplayStr("\n") // so Outlaw user doesn't have to remember to make a newline
+  if recordMode
+    puts("STRING:"); puts($200); crout
+  fin
   return mmgr(HEAP_INTERN, $200)
 end
 
@@ -1521,6 +1539,35 @@ export def parseDec(str)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def recordChar(ch)#0
+  if ch < $20
+    printChar('^')
+    ch = ch + $40
+  fin
+  printChar(ch)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Used in record mode to print out a keystroke. Also handles caret -> ctrl translation during
+// playback of recordings.
+export def recordKey()#1
+  byte key
+  key = ^kbd & $7F
+  ^kbdStrobe
+  if recordMode
+    if key == '^'
+      while ^kbd < 128; loop
+      key = (^kbd & $7F) - $40
+      ^kbdStrobe
+    fin
+    puts("KEY:")
+    recordChar(key)
+    crout
+  fin
+  return key
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Get a keystroke and convert it to upper case
 export def getUpperKey()#1
   byte key
@@ -1551,9 +1598,8 @@ export def getUpperKey()#1
     // pause() will terminate on keypress, returning the count it did
     *seed = *seed + pause(30000)
   loop
-  key = ^kbd
-  ^kbdStrobe
-  return charToUpper(key & $7F)
+  key = recordKey
+  return charToUpper(key)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2410,6 +2456,16 @@ def advTime(hours, mins, secs)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def recordDisplay(str)#0
+  word i
+  puts("DISP:")
+  for i = 1 to ^str
+    recordChar(^(str + i))
+  next
+  crout
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Called by scripts to display a string. We set the flag noting that something has been
 // displayed, then use an assembly routine to do the work.
 export def _scriptDisplayStr(str)#0
@@ -2422,7 +2478,7 @@ export def _scriptDisplayStr(str)#0
       needRender = FALSE
     fin
     if textClearCountdown; clearTextWindow(); fin
-    if recordMode; printf1("DISP: %s\n", str); fin
+    if recordMode; recordDisplay(str); fin
     displayStr(str)
     textDrawn = TRUE
   fin
@@ -3199,9 +3255,10 @@ def toggleGodMode()#1
         displayf1("gm:%d\n", global->b_godmode & 1)
         initCmds() // rebuild the command table with new commands
       else
-        recordMode = !recordMode
+        recordMode = 1 - recordMode
         if recordMode; recordSeed = 1; fin
-        displayf1("rm:%d\n", recordMode & 1)
+        setPrinter(recordMode)
+        displayf1("rm:%d\n", recordMode)
       fin
       textDrawn = TRUE
       beep; beep

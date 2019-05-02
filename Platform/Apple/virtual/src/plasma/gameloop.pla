@@ -983,7 +983,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display a string using the font engine.
-export asm displayStr(str)#0
+asm internalDisplayStr(str)#0
   +asmPlasmNoRet 1
   jmp DisplayStr
 end
@@ -1401,6 +1401,31 @@ export def charToUpper(c)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def recordChar(ch)#0
+  if ch < $20
+    printChar('^')
+    ch = ch + $40
+  fin
+  printChar(ch)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def recordDisplay(str)#0
+  word i
+  puts("DISP:")
+  for i = 1 to ^str
+    recordChar(^(str + i) & $7F)
+  next
+  crout
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def displayStr(str)#0
+  if recordMode; recordDisplay(str); fin
+  internalDisplayStr(str)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Read a string from the keyboard using the font manager, and intern it to the heap.
 export def getStringResponse()#1
   word p
@@ -1539,22 +1564,13 @@ export def parseDec(str)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def recordChar(ch)#0
-  if ch < $20
-    printChar('^')
-    ch = ch + $40
-  fin
-  printChar(ch)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Used in record mode to print out a keystroke. Also handles caret -> ctrl translation during
 // playback of recordings.
 export def recordKey()#1
   byte key
   key = ^kbd & $7F
   ^kbdStrobe
-  if recordMode
+  if recordMode and key <> 13  // don't record [Return] since it gets inserted for readability
     if key == '^'
       while ^kbd < 128; loop
       key = (^kbd & $7F) - $40
@@ -1562,6 +1578,8 @@ export def recordKey()#1
     fin
     puts("KEY:")
     recordChar(key)
+    puts(" SEED:$")
+    printHex(recordSeed)
     crout
   fin
   return key
@@ -1693,7 +1711,8 @@ end
 // Pause for a specified count period, advancing the animation periodically. Terminates early
 // if a key is pressed. In either case, returns the number of counts waited.
 export def pause(count)#1
-  word i
+  word i, prevSeed
+  if recordMode; prevSeed = recordSeed; fin
   for i = 0 to count
     if ^kbd >= 128; break; fin
     animPauseCt--
@@ -1702,6 +1721,7 @@ export def pause(count)#1
       animPauseCt = ANIM_PAUSE_MAX
     fin
   next
+  if recordMode; recordSeed = prevSeed; fin
   return i
 end
 
@@ -2456,16 +2476,6 @@ def advTime(hours, mins, secs)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def recordDisplay(str)#0
-  word i
-  puts("DISP:")
-  for i = 1 to ^str
-    recordChar(^(str + i))
-  next
-  crout
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Called by scripts to display a string. We set the flag noting that something has been
 // displayed, then use an assembly routine to do the work.
 export def _scriptDisplayStr(str)#0
@@ -2478,7 +2488,6 @@ export def _scriptDisplayStr(str)#0
       needRender = FALSE
     fin
     if textClearCountdown; clearTextWindow(); fin
-    if recordMode; recordDisplay(str); fin
     displayStr(str)
     textDrawn = TRUE
   fin
@@ -3242,6 +3251,13 @@ def help()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+export def setRecordMode(enable)#0
+  recordMode = enable
+  if recordMode; recordSeed = 1; fin
+  setPrinter(recordMode)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def toggleGodMode()#1
   byte key
   key = getUpperKey
@@ -3255,9 +3271,7 @@ def toggleGodMode()#1
         displayf1("gm:%d\n", global->b_godmode & 1)
         initCmds() // rebuild the command table with new commands
       else
-        recordMode = 1 - recordMode
-        if recordMode; recordSeed = 1; fin
-        setPrinter(recordMode)
+        setRecordMode(1 - recordMode)
         displayf1("rm:%d\n", recordMode)
       fin
       textDrawn = TRUE

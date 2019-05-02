@@ -646,6 +646,8 @@ def _newOrLoadGame(ask)#1
         break
       is 'I'
         if importGame(); return 0; fin
+      is 18 // ctrl-R
+        setRecordMode(1)
     wend
     beep()
   loop

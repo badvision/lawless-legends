@@ -122,6 +122,7 @@ import gamelib
   predef setGround(num)#0
   predef setIntimateMode(enable)#0
   predef setMap(is3D, num, x, y, dir)#0
+  predef setRecordMode(enable)#0
   predef setStoryMode(enable)#0
   predef useMapWindow()#0
   predef setBigWindow()#0

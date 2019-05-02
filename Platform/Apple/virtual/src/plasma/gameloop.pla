@@ -1570,7 +1570,7 @@ export def recordKey()#1
   byte key
   key = ^kbd & $7F
   ^kbdStrobe
-  if recordMode and key <> 13  // don't record [Return] since it gets inserted for readability
+  if recordMode
     if key == '^'
       while ^kbd < 128; loop
       key = (^kbd & $7F) - $40

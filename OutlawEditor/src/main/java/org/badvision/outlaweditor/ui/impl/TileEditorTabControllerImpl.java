@@ -11,6 +11,7 @@
 package org.badvision.outlaweditor.ui.impl;
 
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -19,6 +20,7 @@ import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.scene.control.ListView;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.FlowPane;
 import javafx.util.StringConverter;
 import org.badvision.outlaweditor.TileEditor;
 import org.badvision.outlaweditor.api.ApplicationState;
@@ -41,7 +43,7 @@ import static org.badvision.outlaweditor.ui.UIAction.confirm;
  * @author blurry
  */
 public class TileEditorTabControllerImpl extends TileEditorTabController {
-
+    FlowPane quickMenu = new FlowPane();
     ChangeListener rebuildListener = (ObservableValue value, Object oldValue, Object newValue) -> rebuildTileSelectors();
 
     @Override
@@ -187,6 +189,9 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
             return;
         }
         tileEditorAnchorPane.getChildren().clear();
+        if (getCurrentTileEditor() != null) {
+            getCurrentTileEditor().unregister();
+        }
         if (t == null) {
             bind(tileIdField.textProperty(), null);
             bind(tileCategoryField.textProperty(), null);
@@ -244,13 +249,7 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
         Tile t = getCurrentTile();
         tileSelector.getItems().clear();
         List<Tile> allTiles = ApplicationState.getInstance().getGameData().getTile();
-        allTiles.sort((Tile o1, Tile o2) -> {
-            int c1 = String.valueOf(o1.getCategory()).compareTo(String.valueOf(o2.getCategory()));
-            if (c1 != 0) {
-                return c1;
-            }
-            return String.valueOf(o1.getName()).compareTo(String.valueOf(o2.getName()));
-        });
+        allTiles.sort(Comparator.comparing((Tile o) -> String.valueOf(o.getCategory())).thenComparing(o -> String.valueOf(o.getName())));
         tileSelector.getItems().addAll(allTiles);
         tileSelector.getSelectionModel().select(allTiles.indexOf(getCurrentTile()));
         setCurrentTile(t);

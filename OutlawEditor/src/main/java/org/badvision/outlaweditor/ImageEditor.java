@@ -10,6 +10,11 @@
  
 package org.badvision.outlaweditor;
 
+import javafx.event.EventHandler;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.Pane;
+import org.badvision.outlaweditor.api.ApplicationState;
 import org.badvision.outlaweditor.api.Platform;
 import java.util.EnumMap;
 import javafx.beans.property.SimpleStringProperty;
@@ -17,6 +22,7 @@ import javafx.beans.property.StringProperty;
 import javafx.scene.control.Menu;
 import org.badvision.outlaweditor.data.xml.Image;
 import org.badvision.outlaweditor.data.xml.PlatformData;
+import org.badvision.outlaweditor.ui.PatternSelectModal;
 
 /**
  *
@@ -59,5 +65,18 @@ public abstract class ImageEditor extends Editor<Image, ImageEditor.DrawMode> {
     StringProperty cursorInfo = new SimpleStringProperty();
     public StringProperty cursorInfoProperty() {
         return cursorInfo;
+    }
+
+    private Pane targetPane;
+    private PatternSelectModal patternSelectModal;
+
+    public void registerPatternSelectorModal(Pane pane, PatternSelectModal modal) {
+        this.targetPane = pane;
+        patternSelectModal = modal;
+    }
+
+    @Override
+    public void showSelectorModal() {
+        patternSelectModal.showPatternSelectModal(targetPane);
     }
 }

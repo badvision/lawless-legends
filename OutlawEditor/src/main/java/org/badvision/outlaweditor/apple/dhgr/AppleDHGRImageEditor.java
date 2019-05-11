@@ -11,6 +11,8 @@
 package org.badvision.outlaweditor.apple.dhgr;
 
 import java.util.HashMap;
+
+import javafx.scene.image.ImageView;
 import org.badvision.outlaweditor.apple.*;
 import javafx.event.EventHandler;
 import javafx.scene.control.Menu;
@@ -19,6 +21,7 @@ import javafx.scene.input.DataFormat;
 import javafx.scene.input.MouseEvent;
 import org.badvision.outlaweditor.api.Platform;
 import org.badvision.outlaweditor.data.DataObserver;
+import org.badvision.outlaweditor.ui.PatternSelectModal;
 
 /**
  *
@@ -29,7 +32,11 @@ public class AppleDHGRImageEditor extends AppleImageEditor implements EventHandl
     public AppleDHGRImageEditor() {
         xScale = 1;
         yScale = 2;
-        changeCurrentPattern(FillPattern.Magenta);
+        if (lastSelectedPattern != null) {
+            changeCurrentPattern(lastSelectedPattern);
+        } else {
+            changeCurrentPattern(FillPattern.Magenta);
+        }
     }
    
     @Override
@@ -48,11 +55,21 @@ public class AppleDHGRImageEditor extends AppleImageEditor implements EventHandl
         });
     }
 
+    static FillPattern lastSelectedPattern = null;
     public void changeCurrentPattern(FillPattern pattern) {
         currentFillPattern = pattern.getBytePattern();
+        lastSelectedPattern = pattern;
         hiBitMatters = pattern.hiBitMatters;
         lastActionX = -1;
         lastActionY = -1;
+    }
+
+    public PatternSelectModal buildPatternSelectorModal() {
+        return new PatternSelectModal<>(
+                FillPattern::getMapOfValues,
+                p -> new ImageView(p.getPreview()),
+                this::changeCurrentPattern
+        );
     }
 
     @Override

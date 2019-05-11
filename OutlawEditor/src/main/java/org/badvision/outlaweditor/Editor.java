@@ -13,6 +13,8 @@ package org.badvision.outlaweditor;
 import java.util.LinkedList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.Pane;
 import javax.xml.bind.JAXBException;
 import org.badvision.outlaweditor.data.DataObserver;
@@ -117,4 +119,6 @@ public abstract class Editor<T, D> implements DataObserver<T> {
     protected void onEntityUpdated() {
         
     }
+
+    public abstract void showSelectorModal();
 }

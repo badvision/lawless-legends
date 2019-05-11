@@ -9,10 +9,10 @@
  */
 package org.badvision.outlaweditor.apple;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import javafx.scene.Group;
 import javafx.scene.control.Menu;
+import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
@@ -27,13 +27,13 @@ import org.badvision.outlaweditor.TileEditor;
 import org.badvision.outlaweditor.data.DataUtilities;
 import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.xml.Tile;
+import org.badvision.outlaweditor.ui.PatternSelectModal;
 
 /**
  *
  * @author brobert
  */
 public class AppleTileEditor extends TileEditor {
-
     FillPattern currentPattern = FillPattern.DarkViolet1;
     DrawMode drawMode = DrawMode.Toggle;
     public static final long SAFE_WAIT_TIME = 100;
@@ -76,6 +76,15 @@ public class AppleTileEditor extends TileEditor {
         tileEditorAnchorPane.getChildren().add(mainGroup);
         TileUtils.redrawTile(getEntity());
         observedObjectChanged(getEntity());
+        registerPatternSelectorModal(tileEditorAnchorPane, buildPatternSelectorModal());
+        if (lastSelectedPattern != null) {
+             changeCurrentPattern(lastSelectedPattern);
+        }
+    }
+
+    @Override
+    public void unregister() {
+        // Nothing to do for this editor
     }
 
     private void handleMouse(MouseEvent t, int x, int y) {
@@ -161,15 +170,23 @@ public class AppleTileEditor extends TileEditor {
         });
     }
 
+
+    public PatternSelectModal buildPatternSelectorModal() {
+        return new PatternSelectModal<FillPattern>(
+                FillPattern::getMapOfValues,
+                p -> new ImageView(p.getPreview()),
+                this::changeCurrentPattern
+        );
+    }
+
+    static FillPattern lastSelectedPattern = null;
     public void changeCurrentPattern(FillPattern pat) {
         currentPattern = pat;
+        lastSelectedPattern = pat;
         lastActionX = -1;
         lastActionY = -1;
     }
 
-    @Override
-    public void unregister() {
-    }
     int zoom = 25;
     Group gridGroup;
     Rectangle[][] grid;

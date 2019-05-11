@@ -10,15 +10,17 @@
  
 package org.badvision.outlaweditor.apple;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
+
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
+import javafx.scene.control.Button;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
+import javafx.scene.layout.Pane;
 import org.badvision.outlaweditor.api.Platform;
 import static org.badvision.outlaweditor.apple.AppleNTSCGraphics.hgrToDhgr;
 import org.badvision.outlaweditor.data.DataObserver;
@@ -176,22 +178,28 @@ public enum FillPattern {
         target.getItems().clear();
         for (final FillPattern fill : FillPattern.values()) {
             MenuItem i = new MenuItem(fill.name(), new ImageView(fill.getPreview()));
-            i.setOnAction(new EventHandler<ActionEvent>() {
-                @Override
-                public void handle(ActionEvent t) {
-                    dataObserver.observedObjectChanged(fill);
-                }
-            });
+            i.setOnAction(t -> dataObserver.observedObjectChanged(fill));
             target.getItems().add(i);
         }
     }
+
+    public static Map<String,FillPattern> getMapOfValues() {
+        return Arrays.stream(values())
+                .collect(Collectors.toMap(
+                        v -> v.name(),
+                        v -> v,
+                        (a,b) -> a,
+                        LinkedHashMap::new
+                ));
+    }
+
     Integer[] pattern;
     int[] bytePattern;
     int width;
     boolean hiBitMatters;
     WritableImage preview;
 
-    private FillPattern(boolean hiBitMatters, int width, boolean hiBit, String... pattern) {
+    FillPattern(boolean hiBitMatters, int width, boolean hiBit, String... pattern) {
         this.pattern = buildPattern(hiBit, pattern);
         this.width = width;
         this.hiBitMatters = hiBitMatters;

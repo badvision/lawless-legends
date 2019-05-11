@@ -10,8 +10,11 @@
  
 package org.badvision.outlaweditor.ui.impl;
 
+import javafx.application.Platform;
 import javafx.event.Event;
 import javafx.scene.input.DataFormat;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import org.badvision.outlaweditor.Editor;
 import org.badvision.outlaweditor.api.ApplicationState;
 import org.badvision.outlaweditor.data.TileUtils;
@@ -38,13 +41,22 @@ public class ApplicationUIControllerImpl extends ApplicationUIController {
         imageController.initalize();
         globalController.initialize();
         menuController.initalize();
+        Platform.runLater(()-> {
+            ApplicationState.getInstance().getPrimaryStage().getScene().addEventHandler(KeyEvent.KEY_PRESSED, this::keyPressed);
+        });
+    }
+    private void keyPressed(KeyEvent e) {
+        if (e.isControlDown() && e.getCode() == KeyCode.SPACE) {
+            e.consume();
+            if (getVisibleEditor() != null) {
+                getVisibleEditor().showSelectorModal();
+            }
+        }
     }
 
     @Override
     public void platformChange() {
-        ApplicationState.getInstance().getGameData().getTile().stream().forEach((t) -> {
-            TileUtils.redrawTile(t);
-        });
+        ApplicationState.getInstance().getGameData().getTile().stream().forEach(TileUtils::redrawTile);
         Tile tile = tileController.getCurrentTile();
         rebuildTileSelectors();
         tileController.setCurrentTile(tile);

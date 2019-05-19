@@ -23,20 +23,16 @@ import java.util.ResourceBundle;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.scene.control.MenuItem;
-import javafx.scene.control.TableColumn;
 import javafx.stage.FileChooser;
 import javax.xml.bind.JAXBException;
 import org.badvision.outlaweditor.SheetEditor;
 import org.badvision.outlaweditor.TransferHelper;
 import org.badvision.outlaweditor.data.DataUtilities;
-import static org.badvision.outlaweditor.data.DataUtilities.getValue;
-import static org.badvision.outlaweditor.data.DataUtilities.setValue;
 import org.badvision.outlaweditor.data.xml.Columns;
 import org.badvision.outlaweditor.data.xml.Rows;
 import org.badvision.outlaweditor.data.xml.Rows.Row;
@@ -47,6 +43,9 @@ import org.badvision.outlaweditor.ui.UIAction;
 import org.controlsfx.control.spreadsheet.GridBase;
 import org.controlsfx.control.spreadsheet.SpreadsheetCell;
 import org.controlsfx.control.spreadsheet.SpreadsheetCellBase;
+
+import static org.badvision.outlaweditor.data.DataUtilities.getValue;
+import static org.badvision.outlaweditor.data.DataUtilities.setValue;
 
 public class SheetEditorControllerImpl extends SheetEditorController {
 
@@ -66,10 +65,26 @@ public class SheetEditorControllerImpl extends SheetEditorController {
         table.getContextMenu().getItems().addAll(
                 createMenuItem("Insert Row", () -> insertRow(new Row(), getSelectedRow())),
                 createMenuItem("Clone Row", () -> cloneRow(editor.getSheet().getRows().getRow().get(getSelectedRow()))),
-                createMenuItem("Delete Row", () -> deleteRowWithConfirmation(editor.getSheet().getRows().getRow().get(getSelectedRow())))
+                createMenuItem("Delete Row", () -> deleteRowWithConfirmation(editor.getSheet().getRows().getRow().get(getSelectedRow()))),
+                createMenuItem("Sort by", () -> {
+                    int sortCol = table.getSelectionModel().getFocusedCell().getColumn();
+                    table.setComparator((a,b)->compare(a.get(sortCol).getItem(), b.get(sortCol).getItem()));
+                })
         );
     }
-    
+
+    public int compare(Object a, Object b) {
+        if (a == null) return -1;
+        if (b == null) return 1;
+        String aStr = String.valueOf(a);
+        String bStr = String.valueOf(b);
+        try {
+            return (Double.compare(Double.parseDouble(aStr), Double.parseDouble(bStr)));
+        } catch (NumberFormatException ex) {
+            return aStr.compareTo(bStr);
+        }
+    }
+
     private int getSelectedRow() {
         return table.getSelectionModel().getFocusedCell().getRow();
     }
@@ -218,7 +233,7 @@ public class SheetEditorControllerImpl extends SheetEditorController {
 
     private void cloneRow(Row row) {
         try {
-            Row newRow = TransferHelper.cloneObject(row, Row.class, "row");            
+            Row newRow = TransferHelper.cloneObject(row, Row.class, "row");
             int pos = editor.getSheet().getRows().getRow().indexOf(row);
             insertRow(newRow, pos);
         } catch (JAXBException ex) {

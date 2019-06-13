@@ -1873,12 +1873,16 @@ def printVersion()#0
   if !pResourceIndex; return; fin
 
   buildString()
-  printChar('V')
-  p = pResourceIndex
-  len = readAuxByte(p)
-  while len
-    p++; printChar(readAuxByte(p)); len--
-  loop
+  if recordMode
+    puts("recording")
+  else
+    printChar('V')
+    p = pResourceIndex
+    len = readAuxByte(p)
+    while len
+      p++; printChar(readAuxByte(p)); len--
+    loop
+  fin
   p = finishString(FALSE)
   len = calcWidth(p)
   printAtBottom(p, 25, 154, 154 + len + 9, 3)

@@ -14,6 +14,7 @@
 !convtab "../include/hiBitAscii.ct"
 
 ; Other equates
+!source "../include/mem.i"
 !source "../include/prorwts.i"
 
 target  = $3	; len 1
@@ -256,6 +257,7 @@ _writeMarks: !zone
 	sec
 	; fall through to final ProRWTS command
 callProRWTS:
+	inc diskOpCt
 	stx sizelo
 	sty sizehi
 	sta reqcmd

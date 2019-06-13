@@ -1959,9 +1959,19 @@ pl_render: !zone
 	bne +
 	lda $2001
 	cmp $4001
+	bne +
+	lda $2C00
+	cmp $4C00
+	bne +
+	lda $2C01
+	cmp $4C01
+	bne +
+	lda diskOpCt		; check if any disk ops (ProRWTS can use aux zp)
 	beq ++
-+	jsr copyScreen		; if it was, restore by copying hgr1 to hgr2
-	jsr makeLines
++	jsr copyScreen		; restore by copying hgr1 to hgr2
+	jsr makeLines		; and regenerate line pointers on aux zp
+	lda #0
+	sta diskOpCt
 ++	jmp renderFrame		; then go ahead and render
 
 ;-------------------------------------------------------------------------------

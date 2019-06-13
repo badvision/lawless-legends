@@ -137,6 +137,19 @@ def displayStoryBlock()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def storyKeyWait()#1
+  byte key
+  while ^kbd < 128
+    ^$3FF5 = ^$3FF5 ^ $7F // lowermost, rightmost byte of screen
+    pause(300)
+  loop
+  ^$3FF5 = 0
+  key = ^kbd & $7F
+  ^kbdStrobe
+  return key
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display story and picture on a blank screen, with blanking follow-up
 def _story_display(storyNum)#1
   byte c
@@ -150,7 +163,7 @@ def _story_display(storyNum)#1
       displayStoryBlock
     fin
 
-    c = getUpperKey
+    c = storyKeyWait
     if c == 27 or pStoryCur >= pStoryEnd; break; fin
 
     clearWindow

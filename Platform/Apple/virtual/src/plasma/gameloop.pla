@@ -1613,8 +1613,12 @@ export def getUpperKey()#1
 
   // Now wait for a key, and animate while doing so.
   while ^kbd < 128
-    // pause() will terminate on keypress, returning the count it did
-    *seed = *seed + pause(30000)
+    if recordMode
+      pause(30000)
+    else
+      // pause() will terminate on keypress, returning the count it did
+      *seed = *seed + pause(30000)
+    fin
   loop
   key = recordKey
   return charToUpper(key)

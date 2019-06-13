@@ -124,7 +124,6 @@ def displayStoryBlock()#1
     fin
     bak = ^p
     ^p = len
-    printf2("pStoryCur=$%x len=%x\n", pStoryCur, len)
     pNext = displayStrNoScroll(p)
     ^p = bak
     if pNext
@@ -132,7 +131,6 @@ def displayStoryBlock()#1
       break
     else
       pStoryCur = pStoryCur + len
-      rdkey
     fin
   loop
   return pStoryCur < pStoryEnd

@@ -879,21 +879,8 @@ Pa_Tskp	LDA AscChar
 	BNE Pa_Lp1
 Pa_ToFr	!if DEBUG { +prChr '+' }
 	; MH: Added scroll lock checking
-	LDA ScrlLck_Flg	;check for scroll-lock mode
-	BEQ Pa_CBig	;if not locked, skip check for scroll
-	LDA CursRow	;current vertical coord
-	CLC
-	ADC #9  	;increment by 9 lines, down
-	CMP CursYb	;check if it's past the window end
-	BCC Pa_CBig	;if not then continue
-	LDY PrsAdrH	;calc adr of next word that would display
-	LDA PrsAdrL
-	CLC
-	ADC Pa_iBgn
-	BCC +
-	INY
-+	RTS		;and return early without scrolling
-Pa_CBig	LDA Pa_WdCt	;if we didn't print any words yet, then it's
+	JSR Pa_ScCk
+	LDA Pa_WdCt	;if we didn't print any words yet, then it's
 	BEQ Pa_BgWd	;	a word too big for line: split it
 	LDA #$8D
 	STA AscChar
@@ -929,25 +916,45 @@ Pa_Dn2b	LDA TtlWdth
 	CMP LinWdth
 	BPL Pa_Dn3
 	LDA (PrsAdrL),Y ;Get the character
+	ORA #$80
+	!if DEBUG { +prChr '>' : +safeCout }
 	CMP #$8D
-	BEQ Pa_Dn3
-	STA AscChar
-	!if DEBUG { +prChr '>' : ora #$80 : +safeCout }
+	BNE Pa_Dn2c
+	INC Pa_iBgn
+	JSR Pa_ScCk
+	DEC Pa_iBgn
+	LDA (PrsAdrL),Y
+Pa_Dn2c	STA AscChar
 	JSR TestChr
-	JMP Pa_Dn4
+	LDY Pa_iSv
+	INY
+	JMP Pa_Lp0
 Pa_Dn3	LDY Pa_iSv
 	LDA Pa_WdCt	;if we split a big word, then the splitting
 	BMI Pa_Dn3b	;	char needs to be printed too
 	INY
 Pa_Dn3b	STY Pa_iBgn
 	JMP Pa_ToFr
-Pa_Dn4	LDY Pa_iSv
-	INY
-	JMP Pa_Lp0
 ParsDn	!if DEBUG { +prChr '<' : +crout : BIT $C053 }
 	LDA #0		;return null to indicate all chars parsed
 	TAY
 	RTS
+Pa_ScCk	LDA ScrlLck_Flg	;check for scroll-lock mode
+	BEQ +		;if not locked, skip check for scroll
+	LDA CursRow	;current vertical coord
+	CLC
+	ADC #9  	;increment by 9 lines, down
+	CMP CursYb	;check if it's past the window end
+	BCC +		;if not then continue
+	PLA		;return early without scrolling
+	PLA
+	LDY PrsAdrH	;calc adr of next word that would display
+	LDA PrsAdrL
+	CLC
+	ADC Pa_iBgn
+	BCC +
+	INY
++	RTS
 
 ;
 ;Routine: Calculate width of string without plotting it

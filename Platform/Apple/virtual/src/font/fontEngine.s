@@ -821,7 +821,17 @@ DoParse	STA PrsAdrL
 	STY PrsAdrH
 	LDY #0  	;parse starting at beginning
 	STY TtlWdth
-	STY Pa_WdCt
+	; MH: Added code so that if we're mid-line, assume something
+	; was already printed
+	LDX #1
+	LDA CursColL
+	CMP CursXl
+	BNE +
+	LDA CursColH
+	CMP CursXh
+	BNE +
+	DEX
++	STX Pa_WdCt
 	LDA (PrsAdrL),Y ;Get the length
 	STA Pa_Len
 	INY
@@ -879,13 +889,13 @@ Pa_ToFr	!if DEBUG { +prChr '+' }
 	LDY PrsAdrH	;calc adr of next word that would display
 	LDA PrsAdrL
 	CLC
-	ADC Pa_iSv
+	ADC Pa_iBgn
 	BCC +
 	INY
 +	RTS		;and return early without scrolling
 Pa_CBig	LDA Pa_WdCt	;if we didn't print any words yet, then it's
 	BEQ Pa_BgWd	;	a word too big for line: split it
-Pa_ToF2	LDA #$8D
+	LDA #$8D
 	STA AscChar
 	JSR TestChr
 	LDY Pa_iBgn
@@ -930,7 +940,7 @@ Pa_Dn3	LDY Pa_iSv
 	BMI Pa_Dn3b	;	char needs to be printed too
 	INY
 Pa_Dn3b	STY Pa_iBgn
-	JMP Pa_ToF2
+	JMP Pa_ToFr
 Pa_Dn4	LDY Pa_iSv
 	INY
 	JMP Pa_Lp0

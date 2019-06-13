@@ -80,6 +80,8 @@ def _story_mode(enable, portraitNum)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Load the full story text onto HGR page 2 so it's easy to use. Sets pStoryCur to the start, and
+// pStoryEnd to the end.
 def loadStory(storyNum)#0
   byte storyPart
   word pAuxText, pEnd, pSrc, pDst, len
@@ -92,7 +94,8 @@ def loadStory(storyNum)#0
   // to hgr page 2 so it'll be easier to use.
   pEnd = pAuxText + 2 + (readAuxByte(pAuxText) | (readAuxByte(pAuxText+1) << 8))
   pSrc = pAuxText + 2
-  pDst = $4000
+  if (pEnd - pSrc) > $1FF0; fatal("storySize"); fin
+  pDst = $4001
   pStoryCur = pDst
   while pSrc < pEnd
     len = min(127, pEnd - pSrc)
@@ -106,26 +109,56 @@ def loadStory(storyNum)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def displayStoryBlock()#1
+  word p, pNext, len
+  byte bak
+
+  while TRUE
+    p = pStoryCur - 1
+    len = pStoryEnd - pStoryCur
+    if !len; return FALSE; fin
+    if len > 127
+      for len = 127 downto 100
+        if ^(pStoryCur + len) == ' '; break; fin
+      next
+    fin
+    bak = ^p
+    ^p = len
+    printf2("pStoryCur=$%x len=%x\n", pStoryCur, len)
+    pNext = displayStrNoScroll(p)
+    ^p = bak
+    if pNext
+      pStoryCur = pNext
+      break
+    else
+      pStoryCur = pStoryCur + len
+      rdkey
+    fin
+  loop
+  return pStoryCur < pStoryEnd
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display story and picture on a blank screen, with blanking follow-up
 def _story_display(storyNum)#1
-  word p
+  byte c
+
   loadStory(storyNum)
-  printf2("pStoryCur=$%x pStoryEnd=$%x\n", pStoryCur, pStoryEnd)
-  p = displayStrNoScroll("\n\nHe heh hee lorem ipsum Blah blah blah. Also blah blah blah blah and blah.")
-  printf1("p=$%x\n", p)
-  p = displayStrNoScroll(" Blah blah blah. Blah blah blah blah and blah. Blah blah.")
-  printf1("p=$%x\n", p)
-  p = displayStrNoScroll("\n\nHe heh hee lorem ipsum Blah blah blah. Also blah blah blah blah and blah.")
-  printf1("p=$%x\n", p)
-  p = displayStrNoScroll(" Blah blah blah. Blah blah blah blah and blah. Blah blah, blah and blah blah ABC ***.")
-  printf1("p=$%x\n", p)
-  ^$c051
-  rdkey
-  ^$c050
-  setBlock2
-  p = displayStrNoScroll("More story goes here. Blah blah blah. Also blah blah blah blah and blah.")
-  p = displayStrNoScroll(" Blah blah blah. Blah blah blah blah and blah. Blah blah, blah blabh.")
-  getUpperKey
+  rawDisplayStr("\n\n")
+
+  while pStoryCur < pStoryEnd
+    if displayStoryBlock
+      setBlock2
+      displayStoryBlock
+    fin
+
+    c = getUpperKey
+    if c == 27 or pStoryCur >= pStoryEnd; break; fin
+
+    clearWindow
+    setBlock1
+    clearWindow
+  loop
   return 0
 end
 

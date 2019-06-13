@@ -240,6 +240,34 @@ class A2PackPartitions
         return inStr[0].toUpperCase() + inStr.substring(1)
     }
 
+    // Translate ^M to carriage-return; etc. Used for raw strings e.g. story mode text.
+    def translateString(inStr)
+    {
+        def buf = new StringBuilder()
+        def prev = '\0'
+        inStr.eachWithIndex { ch, idx ->
+            if (ch == '^') {
+                if (prev == '^') {
+                    buf << ch
+                    ch = 'x' // so next char not treated as special
+                }
+            }
+            else if (prev == '^') {
+                def cp = Character.codePointAt(ch.toUpperCase(), 0)
+                // ^A = ctrl-A; ^M = ctrl-M (carriage return); ^Z = ctrl-Z; ^` = space
+                if (cp > 64 && cp < 97)
+                    buf << String.format("%c", cp - 64)
+                else
+                    printWarning("Unrecognized control code '^" + ch + "'")
+            }
+            else
+                buf << ch
+            prev = ch
+        }
+        return buf.toString()
+    }
+
+    // Form a PLASMA-quoted string, and translate ^M to carriage-return; etc. Used for displayStr() etc.
     def escapeString(inStr)
     {
         // Commonly used strings (e.g. event handler names, attributes)
@@ -1809,13 +1837,10 @@ class A2PackPartitions
                      + 1 + portraits.size()  // number of portraits, then 1 byte per
         }
 
-        if (nWarnings == 0)
-        {
-            reportWriter.println "\nDisk $partNum:"
-            reportWriter.println String.format("  %-22s: %6.1fK",
-                                    partNum == 1 ? "LegendOS+overhead" : "overhead",
-                                    ((FLOPPY_SIZE-availBlks)*512 + overhead) / 1024.0)
-        }
+        reportWriter.println "\nDisk $partNum:"
+        reportWriter.println String.format("  %-22s: %6.1fK",
+                                partNum == 1 ? "LegendOS+overhead" : "overhead",
+                                ((FLOPPY_SIZE-availBlks)*512 + overhead) / 1024.0)
 
         def outChunks = (partNum==1) ? part1Chunks : ([:] as LinkedHashMap)
         def addedMapNames = []
@@ -1850,13 +1875,11 @@ class A2PackPartitions
             // After adding the root map, stuff in the most-used portraits onto disk 1
             if (mapName == "<root>") {
                 assert partNum == 1
-                if (nWarnings == 0)
-                    reportWriter.println String.format("  %-22s: %6.1fK", "base resources", mapSpace / 1024.0)
+                reportWriter.println String.format("  %-22s: %6.1fK", "base resources", mapSpace / 1024.0)
                 def portraitsSpace = stuffMostUsedPortraits(maps, outChunks, availBlks, spaceUsed)
                 spaceUsed += portraitsSpace
                 blks = calcFileBlks(spaceUsed)
-                if (nWarnings == 0)
-                    reportWriter.println String.format("  %-22s: %6.1fK", "shared portraits", portraitsSpace / 1024.0)
+                reportWriter.println String.format("  %-22s: %6.1fK", "shared portraits", portraitsSpace / 1024.0)
                 //println "stuffed most-used portraits for $portraitsSpace bytes, totaling $blks blks."
             }
             else {
@@ -1866,14 +1889,12 @@ class A2PackPartitions
         }
         if (!maps.isEmpty())
             maps.addAll(0, readd) // handle maps that need dupe on each data disk
-        if (nWarnings == 0) {
-            if (mapsSpaceUsed > 0) {
-                reportWriter.println String.format("  %-22s: %6.1fK", "maps & resources", mapsSpaceUsed / 1024.0)
-                addedMapNames.each { reportWriter.println "    $it" }
-            }
-            reportWriter.println String.format("  %-22s: %6.1fK", "unused", (availBlks*512 - spaceUsed) / 1024.0)
-            reportWriter.println "Total: 140K"
+        if (mapsSpaceUsed > 0) {
+            reportWriter.println String.format("  %-22s: %6.1fK", "maps & resources", mapsSpaceUsed / 1024.0)
+            addedMapNames.each { reportWriter.println "    $it" }
         }
+        reportWriter.println String.format("  %-22s: %6.1fK", "unused", (availBlks*512 - spaceUsed) / 1024.0)
+        reportWriter.println "Total: 140K"
         return [outChunks, spaceUsed]
     }
 
@@ -1993,8 +2014,7 @@ class A2PackPartitions
             0
         }
 
-        if (nWarnings == 0)
-            reportWriter.println "======================== Floppy disk usage ==========================="
+        reportWriter.println "======================== Floppy disk usage ==========================="
 
         // Now fill up disk partitions until we run out of maps.
         def mapsToDupe = allMaps.grep{ it.name != "<root>" && it.order < 0 }.collect{ it.name }.toSet()
@@ -3003,12 +3023,10 @@ class A2PackPartitions
         fillAllDisks()
 
         // Print stats (unless there's a warning, in which case focus the user on that)
-        if (nWarnings == 0) {
-            reportSizes()
-            reportTeleports(dataIn)
-            reportScriptLocs(dataIn)
-            reportFlags(dataIn)
-        }
+        reportSizes()
+        reportTeleports(dataIn)
+        reportScriptLocs(dataIn)
+        reportFlags(dataIn)
 
         if (debugCompression)
             println "Compression savings: $compressionSavings"
@@ -4831,7 +4849,7 @@ end
                 num = stories[longHash].num
             else {
                 num = stories.size() + 1
-                stories[longHash] = [num: num, text: longText]
+                stories[longHash] = [num: num, text: translateString(longText)]
             }
             outIndented("else\n")
             ++indent

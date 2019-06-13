@@ -588,6 +588,8 @@ def clearDiskMarks()#0
   reseekRwts
   callProRWTS(RWTS_SEEK | RWTS_RDWRPART, NULL, NULL, HEAP_SIZE)
   callProRWTS(RWTS_WRITE | RWTS_RDWRPART, NULL, LOAD_SAVE_BUF, size+2)
+
+  _checkAutomap // FIXME FOO
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

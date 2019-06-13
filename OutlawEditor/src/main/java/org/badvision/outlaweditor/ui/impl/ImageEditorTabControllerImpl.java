@@ -9,6 +9,7 @@
  */
 package org.badvision.outlaweditor.ui.impl;
 
+import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.logging.Level;
@@ -263,13 +264,9 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
         Image i = getCurrentImage();
         imageSelector.getItems().clear();
         List<Image> allImages = ApplicationState.getInstance().getGameData().getImage();
-        allImages.sort((Image o1, Image o2) -> {
-            int c1 = String.valueOf(o1.getCategory()).compareTo(String.valueOf(o2.getCategory()));
-            if (c1 != 0) {
-                return c1;
-            }
-            return String.valueOf(o1.getName()).compareTo(String.valueOf(o2.getName()));
-        });
+        allImages.sort(Comparator
+                .comparing((Image o) -> String.valueOf(o.getCategory()))
+                .thenComparing(o -> String.valueOf(o.getName())));
 
         imageSelector.getItems().addAll(allImages);
         imageSelector.getSelectionModel().select(i);

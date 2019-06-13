@@ -10,9 +10,9 @@
  
 package org.badvision.outlaweditor.apple.dhgr;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
+
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.scene.control.Menu;
@@ -175,5 +175,15 @@ public enum FillPattern {
             b[i]=(byte) pattern[i];
         }
         return Platform.AppleII_DHGR.tileRenderer.redrawSprite(b, null, true);
+    }
+
+    public static Map<String, FillPattern> getMapOfValues() {
+        return Arrays.stream(values())
+                .collect(Collectors.toMap(
+                        v -> v.name(),
+                        v -> v,
+                        (a,b) -> a,
+                        LinkedHashMap::new
+                ));
     }
 }

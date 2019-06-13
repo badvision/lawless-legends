@@ -12,10 +12,7 @@ package org.badvision.outlaweditor.apple;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.EnumMap;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.event.EventHandler;
@@ -36,6 +33,7 @@ import org.badvision.outlaweditor.api.Platform;
 import org.badvision.outlaweditor.data.TileMap;
 import org.badvision.outlaweditor.data.xml.Image;
 import org.badvision.outlaweditor.data.xml.PlatformData;
+import org.badvision.outlaweditor.ui.PatternSelectModal;
 import org.badvision.outlaweditor.ui.UIAction;
 
 /**
@@ -44,7 +42,7 @@ import org.badvision.outlaweditor.ui.UIAction;
  */
 public class AppleImageEditor extends ImageEditor implements EventHandler<MouseEvent> {
 
-    public int[] currentFillPattern = FillPattern.White_PC.bytePattern;
+    public int[] currentFillPattern = (Optional.ofNullable(lastSelectedPattern).orElse(FillPattern.White_PC)).bytePattern;
     public boolean hiBitMatters = true;
     protected DrawMode currentDrawMode = DrawMode.Pencil1px;
     protected WritableImage currentImage;
@@ -82,20 +80,32 @@ public class AppleImageEditor extends ImageEditor implements EventHandler<MouseE
         screen.setOnMouseReleased(this);
         screen.setOnMouseDragged(this);
         screen.setOnMouseDragReleased(this);
+        if (lastSelectedPattern != null) {
+            changeCurrentPattern(lastSelectedPattern);
+        }
+        registerPatternSelectorModal(editorAnchorPane, buildPatternSelectorModal());
     }
 
     @Override
     public void buildPatternSelector(Menu tilePatternMenu) {
-        FillPattern.buildMenu(tilePatternMenu, (FillPattern object) -> {
-            changeCurrentPattern(object);
-            state.put(StateVars.PATTERN, object);
-        });
+        FillPattern.buildMenu(tilePatternMenu, this::changeCurrentPattern);
     }
 
+    public PatternSelectModal buildPatternSelectorModal() {
+        return new PatternSelectModal<>(
+                FillPattern::getMapOfValues,
+                p -> new ImageView(p.getPreview()),
+                this::changeCurrentPattern
+        );
+    }
+
+    static FillPattern lastSelectedPattern = null;
     public void changeCurrentPattern(FillPattern pattern) {
         if (pattern == null) {
             return;
         }
+        state.put(StateVars.PATTERN, pattern);
+        lastSelectedPattern = pattern;
         currentFillPattern = pattern.getBytePattern();
         hiBitMatters = pattern.hiBitMatters;
         lastActionX = -1;

@@ -12,6 +12,7 @@ package org.badvision.outlaweditor.apple.dhgr;
 
 import javafx.scene.Group;
 import javafx.scene.control.Menu;
+import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
@@ -23,6 +24,7 @@ import org.badvision.outlaweditor.api.Platform;
 import org.badvision.outlaweditor.TileEditor;
 import org.badvision.outlaweditor.data.xml.Tile;
 import org.badvision.outlaweditor.data.TileUtils;
+import org.badvision.outlaweditor.ui.PatternSelectModal;
 
 /**
  *
@@ -73,8 +75,24 @@ public class AppleDHGRTileEditor extends TileEditor {
         tileEditorAnchorPane.getChildren().add(mainGroup);
         TileUtils.redrawTile(getEntity());
         observedObjectChanged(getEntity());
+        registerPatternSelectorModal(tileEditorAnchorPane, buildPatternSelectorModal());
+        if (lastSelectedPattern != null) {
+            changeCurrentPattern(lastSelectedPattern);
+        }
     }
 
+    @Override
+    public void unregister() {
+        // Nothing to do for this editor
+    }
+
+    public PatternSelectModal buildPatternSelectorModal() {
+        return new PatternSelectModal<>(
+                FillPattern::getMapOfValues,
+                p -> new ImageView(p.getPreview()),
+                this::changeCurrentPattern
+        );
+    }
     private void handleMouse(MouseEvent t, int x, int y) {
         t.consume();
         if (t.getButton() == null || t.getButton() == MouseButton.NONE) {
@@ -147,20 +165,17 @@ public class AppleDHGRTileEditor extends TileEditor {
 
     @Override
     public void buildPatternSelector(Menu tilePatternMenu) {
-        FillPattern.buildMenu(tilePatternMenu, (FillPattern object) -> {
-            changeCurrentPattern(object);
-        });
+        FillPattern.buildMenu(tilePatternMenu, this::changeCurrentPattern);
     }
 
+    FillPattern lastSelectedPattern = null;
     public void changeCurrentPattern(FillPattern pat) {
         currentPattern = pat;
+        lastSelectedPattern = pat;
         lastActionX = -1;
         lastActionY = -1;
     }
 
-    @Override
-    public void unregister() {
-    }
     int zoom = 25;
     Group gridGroup;
     Rectangle[][] grid;

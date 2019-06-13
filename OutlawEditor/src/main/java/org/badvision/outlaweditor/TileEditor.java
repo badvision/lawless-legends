@@ -14,15 +14,35 @@ package org.badvision.outlaweditor;
  *
  * @author brobert
  */
+import javafx.event.EventHandler;
 import javafx.scene.control.Menu;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.Pane;
+import org.badvision.outlaweditor.api.ApplicationState;
 import org.badvision.outlaweditor.data.xml.Tile;
+import org.badvision.outlaweditor.ui.PatternSelectModal;
+import org.badvision.outlaweditor.ui.TileSelectModal;
 
 public abstract class TileEditor extends Editor<Tile, TileEditor.DrawMode> {
-
     abstract public void buildPatternSelector(Menu tilePatternMenu);
 
     public static enum DrawMode {
 
         Pencil1px, Pencil3px, Toggle
+    }
+
+    private Pane targetPane;
+    private PatternSelectModal patternSelectModal;
+
+    public void registerPatternSelectorModal(Pane pane, PatternSelectModal modal) {
+        this.targetPane = pane;
+        patternSelectModal = modal;
+    }
+
+    @Override
+    public void showSelectorModal() {
+        patternSelectModal.showPatternSelectModal(targetPane);
     }
 }

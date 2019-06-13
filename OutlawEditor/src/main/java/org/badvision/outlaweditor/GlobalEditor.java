@@ -82,6 +82,11 @@ public class GlobalEditor extends Editor<Global, Void>{
     }
 
     @Override
+    public void showSelectorModal() {
+        // There is no modal selector for this editor
+    }
+
+    @Override
     public void observedObjectChanged(Global object) {
         throw new UnsupportedOperationException("Not supported."); //To change body of generated methods, choose Tools | Templates.
     }

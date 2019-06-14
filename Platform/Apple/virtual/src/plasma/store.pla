@@ -11,7 +11,7 @@
 include "gamelib.plh"
 include "playtype.plh"
 include "globalDefs.plh"
-include "party.plh"
+include "itemutil.plh"
 include "gen_modules.plh"
 include "gen_items.plh"
 
@@ -27,7 +27,7 @@ predef _buyFromStore(storeCode, profitPercent)#1
 predef _sellToStore(profitPercent)#1
 word[] funcTbl = @_buyFromStore, @_sellToStore
 
-word pItemsModule, pPartyModule
+word pItemsModule, pItemutilModule
 const MAX_PAGE_ITEMS = 20 // should be plenty
 word pageItems[MAX_PAGE_ITEMS]
 word pagePrices[MAX_PAGE_ITEMS]
@@ -61,14 +61,14 @@ end
 def loadExtraModules()#0
   mmgr(START_LOAD, 1) // code is in partition 1
   pItemsModule = mmgr(QUEUE_LOAD, MOD_GEN_ITEMS<<8 | RES_TYPE_MODULE)
-  pPartyModule = mmgr(QUEUE_LOAD, MOD_PARTY<<8 | RES_TYPE_MODULE)
+  pItemutilModule = mmgr(QUEUE_LOAD, MOD_ITEMUTIL<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def unloadExtraModules()#0
   mmgr(FREE_MEMORY, pItemsModule)
-  mmgr(FREE_MEMORY, pPartyModule)
+  mmgr(FREE_MEMORY, pItemutilModule)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -85,7 +85,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayItemLine(num)#0
   rawDisplayf2("\n  %c.^T046%d^T085", num + 'A', pagePrices[num])
-  pPartyModule()=>party_displayItemName(pageItems[num])
+  pItemutilModule()=>itemutil_displayItemName(pageItems[num])
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -144,7 +144,7 @@ def displayItemBrowse(pItem1, price, pItem2)#0
   if pItem2
     rawDisplayf2("^T%D^L%s^L", STATS_COL_2, pPlayer=>s_name)
   fin
-  pPartyModule()=>party_displayItemStats(pItem1, pItem2)
+  pItemutilModule()=>itemutil_displayItemStats(pItem1, pItem2)
   rawDisplayf2("\n\nPrice^T%D%d", STATS_COL_1, price)
   rawDisplayf2("\nAvail^T%D%d", STATS_COL_1, global=>w_gold)
 end

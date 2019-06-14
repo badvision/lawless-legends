@@ -20,6 +20,7 @@ include "globalDefs.plh"
 include "gen_modules.plh"
 include "gen_items.plh"
 include "godmode.plh"
+include "itemutil.plh"
 
 // Definition of constants for functions exported by this module
 include "party.plh"
@@ -31,8 +32,6 @@ const INV_RT = 140
 
 const STAT_X = 174
 const STATLBL_X = 182
-const STATS_COL_1 = 45
-const STATS_COL_2 = 140
 
 const SKILL_JUST_OFF = 34
 const SKILL_LABEL_OFF = 40
@@ -49,15 +48,14 @@ byte skillY[MAX_SKILLS]
 
 byte mode  // 'S' or 'I' for skills or inventory
 
+word pItemutilModule
+
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the header.
 predef _showPlayerSheet(player_num)#1
 predef _benchPlayer()#1
 predef _unbenchPlayer()#1
-predef _displayItemStats(pItem1, pItem2)#1
-predef _displayItemName(pItem)#1
 word[] funcTbl = @_showPlayerSheet, @_benchPlayer, @_unbenchPlayer
-word           = @_displayItemStats, @_displayItemName
 
 // Other global variables here
 
@@ -105,7 +103,7 @@ def showInventory(player, page, select)#1
     s_item++
 
     rawDisplayf1("^T%D", INV_X)
-    _displayItemName(item)
+    pItemutilModule()=>itemutil_displayItemName(item)
     n_item++
     item = item=>p_nextObj
   loop
@@ -619,7 +617,7 @@ end
 def doDestroy(player, item)#1
   clearMenuRect()
   rawDisplayStr("Drop ")
-  _displayItemName(item)
+  pItemutilModule()=>itemutil_displayItemName(item)
   rawDisplayStr(" (Y/N)?")
   if getYN()
     removeFromList(@player=>p_items, item)
@@ -637,7 +635,7 @@ def displayItems(pItem1, pItem2)#0
     rawDisplayf1("^T%DEquipped", STATS_COL_2)
   fin
   rawDisplayStr("^N^J^J")
-  _displayItemStats(pItem1, pItem2)
+  pItemutilModule()=>itemutil_displayItemStats(pItem1, pItem2)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -716,9 +714,13 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Show player sheet and accept command. If using an item (not just for stats gain)
 // the item is returned; else NULL is returned.
-def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a value
+def doPlayerSheet(player_num)#1
   word player, item
   byte i_page, totalItems, itemsOnPage, redisplay, sel, noRepeatMenu
+
+  mmgr(START_LOAD, 1) // code is in partition 1
+  pItemutilModule = mmgr(QUEUE_LOAD, MOD_ITEMUTIL<<8 | RES_TYPE_MODULE)
+  mmgr(FINISH_LOAD, 0)
 
   setBigWindow()
 
@@ -870,6 +872,22 @@ def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Show player sheet and accept command. If using an item (not just for stats gain)
+// the item is returned; else NULL is returned.
+def _showPlayerSheet(player_num)#1  // funcTbl functions always have to return a value
+  word ret
+
+  mmgr(START_LOAD, 1) // code is in partition 1
+  pItemutilModule = mmgr(QUEUE_LOAD, MOD_ITEMUTIL<<8 | RES_TYPE_MODULE)
+  mmgr(FINISH_LOAD, 0)
+
+  ret = doPlayerSheet(player_num)
+
+  mmgr(FREE_MEMORY, pItemutilModule)
+  return ret
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display a list of NPCs and allow user to select one.
 def selectPlayer(players)#1
   byte n_item
@@ -926,180 +944,6 @@ def _unbenchPlayer()#1
     addToList(@global=>p_players, player)
     displayStr("\nDone.")
   fin
-  return 0
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def tabTo(cursorX)#0
-  rawDisplayf1("^T%D", cursorX)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def formatDice(encoded)#1
-  byte nDice, dieSize, add
-  nDice = encoded >> 12
-  dieSize = (encoded >> 8) & $F
-  add = encoded & $F
-  rawDisplayf2("%d-%d", nDice+add, (nDice*dieSize)+add)
-  return 0
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def formatNum(num)#1
-  rawDisplayf1("%d", num)
-  return 0
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def formatStr(str)#1
-  rawDisplayStr(str)
-  return 0
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def formatEquipped(num)#1
-  if num == 1
-    rawDisplayStr("yes")
-  else
-    rawDisplayStr("no")
-  fin
-  return 0
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def formatAttack(code)#1
-  if !code; return 0; fin
-  if code == 1
-    rawDisplayStr("single")
-  elsif code == 2
-    rawDisplayStr("double")
-  else
-    rawDisplayf1("%d-shot", code)
-  fin
-  return 0
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def byteField(pItem, field)#1
-  if pItem
-    return ^(pItem + field)
-  fin
-  return 0
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def equippedField(pItem, field)#1
-  if pItem
-    if ^(pItem + field) & ITEM_FLAG_EQUIP
-      return 1
-    else
-      return 2
-    fin
-  fin
-  return 0
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def wordField(pItem, field)#1
-  if pItem
-    return *(pItem + field)
-  fin
-  return 0
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayTwoCol(fieldName, pItem1, pItem2, field, fieldFunc, formatFunc)#0
-  word val1, val2
-  val1 = fieldFunc(pItem1, field)
-  val2 = fieldFunc(pItem2, field)
-  if val1 or val2
-    rawDisplayf1("\n%s", fieldName)
-    if val1; tabTo(STATS_COL_1); formatFunc(val1); fin
-    if val2; tabTo(STATS_COL_2); formatFunc(val2); fin
-  fin
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayWeaponStats(pItem1, pItem2)#0
-  displayTwoCol("Equip'd", pItem1, pItem2, b_flags,         @equippedField, @formatEquipped)
-  displayTwoCol("Ammo",    pItem1, pItem2, s_ammoKind,      @wordField, @formatStr)
-  displayTwoCol("Clip",    pItem1, pItem2, b_clipSize,      @byteField, @formatNum)
-  displayTwoCol("Melee",   pItem1, pItem2, r_meleeDmg,      @wordField, @formatDice)
-  displayTwoCol("Proj",    pItem1, pItem2, r_projectileDmg, @wordField, @formatDice)
-  displayTwoCol("Attack",  pItem1, pItem2, ba_attacks+0,    @byteField, @formatAttack)
-  displayTwoCol("Att 2",   pItem1, pItem2, ba_attacks+1,    @byteField, @formatAttack)
-  displayTwoCol("Att 3",   pItem1, pItem2, ba_attacks+2,    @byteField, @formatAttack)
-  displayTwoCol("Range",   pItem1, pItem2, b_weaponRange,   @byteField, @formatNum)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayArmorStats(pItem1, pItem2)#0
-  displayTwoCol("Equip'd", pItem1, pItem2, b_flags,      @equippedField, @formatEquipped)
-  displayTwoCol("Protec",  pItem1, pItem2, b_armorValue, @byteField, @formatNum)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def _displayItemStats(pItem1, pItem2)#1
-  word pMod1, pMod2
-
-  // First, show the item type and name
-  when pItem1->t_type
-    is TYPE_PLAIN_ITEM
-    is TYPE_FANCY_ITEM;   rawDisplayStr("\nItem");   break
-    is TYPE_WEAPON;       rawDisplayStr("\nWeapon"); break
-    is TYPE_ARMOR;        rawDisplayStr("\nArmor");  break
-    otherwise fatal("tItem")
-  wend
-  tabTo(STATS_COL_1); _displayItemName(pItem1)
-  if pItem2
-    tabTo(STATS_COL_2); _displayItemName(pItem2)
-  fin
-
-  // Type-specific attributes
-  when pItem1->t_type
-    is TYPE_WEAPON; displayWeaponStats(pItem1, pItem2); break
-    is TYPE_ARMOR;  displayArmorStats(pItem1, pItem2);  break
-  wend
-
-  // If either item has modifiers, show them
-  pMod1 = NULL
-  if pItem1->t_type <> TYPE_PLAIN_ITEM; pMod1 = pItem1=>p_modifiers; fin
-  pMod2 = NULL
-  if pItem2
-    if pItem2->t_type <> TYPE_PLAIN_ITEM; pMod2 = pItem2=>p_modifiers; fin
-  fin
-  if pMod1 or pMod2
-    rawDisplayStr("\nSpecial")
-    while pMod1 or pMod2
-      if pMod1
-        rawDisplayf1("^T%D", STATS_COL_1)
-        if pMod1=>w_modValue >= 999; rawDisplayStr("Full "); else rawDisplayf1("%d ", pMod1=>w_modValue); fin
-        rawDisplayStr(pMod1=>s_name)
-        pMod1 = pMod1=>p_nextObj
-      fin
-      if pMod2
-        rawDisplayf1("^T%D", STATS_COL_2)
-        if pMod2=>w_modValue >= 999; rawDisplayStr("Full "); else rawDisplayf1("%d ", pMod2=>w_modValue); fin
-        rawDisplayStr(pMod2=>s_name)
-        pMod2 = pMod2=>p_nextObj
-      fin
-    loop
-  fin
-  return 0
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// For non-countable items, display singular name.
-// For countable "stuff" (e.g. ammo), display the count and appropriate singular or plural name.
-def _displayItemName(pItem)#1
-  isPlural = FALSE
-  if pItem->t_type == TYPE_FANCY_ITEM and pItem=>w_count > 1
-    isPlural = TRUE
-    rawDisplayf1("%d ", pItem=>w_count)
-  fin
-  buildString()
-  printf1("%s", pItem=>s_name) // need proper plural processing
-  rawDisplayStr(finishString(isPlural))
   return 0
 end
 

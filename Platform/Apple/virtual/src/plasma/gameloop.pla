@@ -3085,7 +3085,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load the Party engine and show data for the given player
 def showPlayerSheet(num)#1
-  word sNameToUse, oldFlg
+  word sNameToUse, oldFlg, pItemutilModule
   if num+1 > countList(global=>p_players); beep; return 0; fin
   sNameToUse = loadEngine(MOD_PARTY)=>party_showPlayerSheet(num)
   returnFromEngine(TRUE)

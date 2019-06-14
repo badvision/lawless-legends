@@ -2411,6 +2411,7 @@ class A2PackPartitions
         //compileModule("sndseq", "src/plasma/") // not yet
         compileModule("questlog", "src/plasma/")
         compileModule("story", "src/plasma/")
+        compileModule("itemutil", "src/plasma/")
         lastSysModule = modules.size()  // used only for reporting
         compileModule("gen_enemies", "src/plasma/")
         compileModule("gen_enemies0", "src/plasma/")

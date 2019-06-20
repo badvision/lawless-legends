@@ -504,10 +504,10 @@ AdvCurs	LDA CursColL	;get lo-byte of {0..279}
 	ADC #0
 	STA CursColH
 	CMP CursXrh	;if pixel position {0..255}
-	BMI DoneCurs	;then done
+	BCC DoneCurs	;then done
 	LDA CursColL	;else check if past 263
 	CMP CursXrl
-	BMI DoneCurs	;if not then done
+	BCC DoneCurs	;if not then done
 DoCrLf	LDA CtrJs_Flg
 	BEQ Adv154
 	LDA CursXml
@@ -873,7 +873,7 @@ Pa_Tskp	LDA AscChar
 	BEQ Pa_Spc
 	LDA TtlWdth
 	CMP LinWdth
-	BPL Pa_ToFr 	;too far! force CR/LF
+	BCS Pa_ToFr 	;too far! force CR/LF
 	LDY Pa_iSv
 	INY
 	BNE Pa_Lp1
@@ -914,7 +914,7 @@ Pa_Dn2	STY Pa_iSv
 	BNE ParsDn	;if so, stop here
 Pa_Dn2b	LDA TtlWdth
 	CMP LinWdth
-	BPL Pa_Dn3
+	BCS Pa_Dn3
 	LDA (PrsAdrL),Y ;Get the character
 	ORA #$80
 	!if DEBUG { +prChr '>' : +safeCout }
@@ -1273,10 +1273,10 @@ In_Plt	LDX #1
 	INX
 	INX		;allow 2 more pixels for cursor
 	CPX CursXrl 
-	BPL In_Err
+	BCS In_Err
 In_Bchk	LDX InBfrMx
 	CPX InBfrX	;check for buffer overflow
-	BPL In_SvCh	;if ok, store in buffer
+	BCS In_SvCh	;if ok, store in buffer
 In_Err	JSR In_rCur	;else, restore cursor position
 	JSR SndErr	;and make ERR sound
 	JMP In_Key

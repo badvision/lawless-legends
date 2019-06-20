@@ -128,11 +128,10 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def advPortrait(dir)#1
   while TRUE
-    portraitNum = portraitNum + dir
-    if portraitNum > PO_LAST
-      portraitNum = 1
-    elsif portraitNum < 1
-      portraitNum = PO_LAST
+    if dir < 0
+      portraitNum = portraitNum <= 1 ?? PO_LAST :: portraitNum-1
+    else
+      portraitNum = portraitNum >= PO_LAST ?? 1 :: portraitNum+1
     fin
     if lookupResourcePart(3, portraitNum); break; fin
   loop

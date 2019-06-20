@@ -1803,7 +1803,6 @@ export def lookupResourcePart(sectionNum, resourceNum)#1
   for i = 0 to 7
     if n & (1<<i); return i+1; fin
   next
-  fatal("lkupFail2")
   return 0
 end
 
@@ -2344,6 +2343,7 @@ def initMap(x, y, dir)#0
 
   // Load the map
   curMapPartition = lookupResourcePart(mapIs3D+1, mapNum)
+  if !curMapPartition; fatal("lkupFail2"); fin
   mmgr(START_LOAD, curMapPartition)
   pCurMap = mmgr(QUEUE_LOAD, mapNum<<8 | (RES_TYPE_2D_MAP+mapIs3D))
   mmgr(FINISH_LOAD, 0)
@@ -2942,6 +2942,7 @@ export def setPortrait(portraitNum)#0
 
   // Load the portrait image and display it
   part = lookupResourcePart(3, portraitNum)
+  if !part; fatal("lkupFail2"); fin
   // Commented out below, because it prevents cycling thru all portraits (in god mode)
   // NO: if part > 1; part = curMapPartition; fin  // Look on disk 1 or current disk only
   mmgr(START_LOAD, part)

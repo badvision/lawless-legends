@@ -3251,8 +3251,8 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def help()#1
-  flipToPage1()
-  useMapWindow()
+  flipToPage1
+  setBigWindow; clearWindow
   loadEngine(GS_HELP)()
   returnFromEngine(TRUE)
   return 0

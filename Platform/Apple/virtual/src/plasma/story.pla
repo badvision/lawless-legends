@@ -57,12 +57,12 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def setBlock1()#0
-  setWindow(0, 189, 7, 133)
+  setWindow(0, 189, 0, 133)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def setBlock2()#0
-  setWindow(135, 189, 140, 266)
+  setWindow(135, 189, 140, 280)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -140,10 +140,10 @@ end
 def storyKeyWait()#1
   byte key
   while ^kbd < 128
-    ^$3FF5 = ^$3FF5 ^ $7F // lowermost, rightmost byte of screen
+    ^$3FF7 = ^$3FF7 ^ $7F // lowermost, rightmost byte of screen
     pause(300)
   loop
-  ^$3FF5 = 0
+  ^$3FF7 = 0
   key = ^kbd & $7F
   ^kbdStrobe
   return key

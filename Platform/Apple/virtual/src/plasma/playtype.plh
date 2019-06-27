@@ -46,6 +46,9 @@ struc TGlobal
   byte b_hour
   byte b_minute
   byte b_second
+
+  // move mode (1=normal, 2=fast, 4=classic)
+  byte b_moveMode
 end
 
 const PLAYER_FLAG_NPC  = $01

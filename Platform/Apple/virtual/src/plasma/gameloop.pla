@@ -290,8 +290,8 @@ asm setDir(dir)#0
   +asmPlasmNoRet 1
   jmp $600F
 end
-asm advance()#1         // returns: 0 if same pos, 1 if new pos, 2 if new pos and scripted
-  +asmPlasmRet 0
+asm advance(nSteps)#1         // returns: 0 if same pos, 1 if new pos, 2 if new pos and scripted
+  +asmPlasmRet 1
   jmp $6012
 end
 asm setColor(slot, color)#0  // params: slot (0=sky/1=ground), color (0-17)
@@ -2536,11 +2536,11 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def moveInternal(facingDir, moveDir, beepOK, shouldAdvTime)#1
-  byte val
+  byte val, i
   word x, y
 
   setDir(moveDir)
-  val = advance()
+  val = advance(global->b_moveMode)
   lastMoveDir = moveDir
   setDir(facingDir)
 
@@ -2558,7 +2558,9 @@ def moveInternal(facingDir, moveDir, beepOK, shouldAdvTime)#1
   // Advance time if requested
   if shouldAdvTime
     if mapIs3D
-      advTime(CLOCK_ADV_3D_HOURS, CLOCK_ADV_3D_MINS, CLOCK_ADV_3D_SECS)
+      for i = 0 to global->b_moveMode
+        advTime(CLOCK_ADV_3D_HOURS, CLOCK_ADV_3D_MINS, CLOCK_ADV_3D_SECS)
+      next
     else
       advTime(CLOCK_ADV_2D_HOURS, CLOCK_ADV_2D_MINS, CLOCK_ADV_2D_SECS)
     fin
@@ -2578,6 +2580,7 @@ def moveInternal(facingDir, moveDir, beepOK, shouldAdvTime)#1
       checkEncounter(x, y, FALSE)
     fin
   fin
+
   return val
 end
 
@@ -2609,7 +2612,7 @@ def moveBackward()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Move backward two steps (3D mode), or one step (2D mode). This is often used when exiting a
+// Move backward two quarter-steps (3D mode), or one step (2D mode). This is often used when exiting a
 // building or fleeing combat, so we don't want to generate any random encounters.
 export def moveWayBackward()#1
   byte facingDir, moveDir
@@ -2617,8 +2620,8 @@ export def moveWayBackward()#1
   if lastMoveDir <> $FF
     moveDir = (lastMoveDir + 8) & 15  // reverse of last move
     moveInternal(facingDir, moveDir, FALSE, TRUE) // no beep, but do adv time
-    if mapIs3D
-      moveInternal(facingDir, moveDir, FALSE, FALSE) // no beep, don't adv time
+    if global->b_moveMode == 1
+      moveInternal(facingDir, moveDir, FALSE, TRUE) // no beep, but do adv time
     fin
   fin
   lastMoveDir = $FF // avoid problems if moveWayBackward called repeatedly
@@ -2629,7 +2632,7 @@ end
 // Turn left (3D mode)
 def rotateLeft()#1
   needRender = TRUE
-  showCompassDir(adjustDir(-1))
+  showCompassDir(adjustDir(-global->b_moveMode))
   return 0
 end
 
@@ -2637,7 +2640,7 @@ end
 // Rotate to the right (3D mode)
 def rotateRight()#1
   needRender = TRUE
-  showCompassDir(adjustDir(1))
+  showCompassDir(adjustDir(global->b_moveMode))
   return 0
 end
 
@@ -3332,6 +3335,47 @@ def showQuests()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def showMoveMode()#0
+  flipToPage1()
+  clearTextWindow()
+  rawDisplayStr("Move mode:\n")
+  if global->b_moveMode == 1; rawDisplayStr("^I"); fin
+  rawDisplayStr("default^N  ")
+  if global->b_moveMode == 2; rawDisplayStr("^I"); fin
+  rawDisplayStr("fast^N  ")
+  if global->b_moveMode == 4; rawDisplayStr("^I"); fin
+  rawDisplayStr("classic^N\n")
+  textClearCountdown = 3
+  if mapIs3D and texturesLoaded; copyWindow(0); fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def switchMoveMode()#1
+  byte dir
+  word x, y
+
+  dir = getDir()
+  if global->b_moveMode == 1
+    global->b_moveMode = 2
+    dir = dir & ~1
+  elsif global->b_moveMode == 2
+    global->b_moveMode = 4
+    dir = dir & ~3
+  else
+    global->b_moveMode = 1
+  fin
+
+  setDir(dir)
+  getPos(@x, @y)
+  setPos(x, y) // to round it
+  needRender = TRUE
+
+  showMoveMode
+
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set up the command table for 3D mode
 def initCmds()#0
 
@@ -3368,6 +3412,8 @@ def initCmds()#0
 
   // Commands handled differently in 3D vs 2D
   if mapIs3D
+    cmdTbl[3]   = @switchMoveMode // ctrl-C
+
     cmdTbl['W'] = @moveForward
     cmdTbl['A'] = @rotateLeft
     cmdTbl['D'] = @rotateRight

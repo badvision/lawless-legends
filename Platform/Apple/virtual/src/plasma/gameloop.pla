@@ -19,13 +19,6 @@ const CHAR_WND_HEALTH_X = 112
 
 const ANIM_PAUSE_MAX = 150
 
-const CLOCK_X = 119
-const CLOCK_Y = 176
-const CLOCK_RADIUS = 14
-
-const LAMP_Y = 168
-const LAMP_XBYTE = 10
-
 const CLOCK_ADV_2D_HOURS = 1
 const CLOCK_ADV_2D_MINS  = 0
 const CLOCK_ADV_2D_SECS  = 0
@@ -52,11 +45,11 @@ include "combat.plh"
 include "party.plh"
 include "store.plh"
 include "diskops.plh"
-include "intimate.plh"
 include "godmode.plh"
 include "automap.plh"
 include "questlog.plh"
 include "story.plh"
+include "util3d.plh"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Data structures
@@ -81,7 +74,7 @@ predef playerDeath()#0
 predef startGame(firstTime, ask)#0
 predef showAnimFrame()#0
 predef showParty()#0
-predef unloadTextures()#0
+predef textureControl(flg)#0
 predef clearEncounterZones()#0
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -117,11 +110,11 @@ word triggerTbl
 word cmdTbl[96]   // ASCII $00..$5F
 byte frameLoaded = 0
 word curEngine = NULL
-word pIntimate = NULL
+word pModUtil3d = NULL
+word util3d = NULL
 export word pResourceIndex = NULL
 export word pGlobalTileset = NULL
 export byte curMapPartition = 0
-export word pGodModule = NULL
 export word typeHash = 0
 word curHeapPct = 0
 byte lastMoveDir = $FF
@@ -155,13 +148,13 @@ byte animDirCt
 byte anyAnims = TRUE
 word animPauseCt
 byte showingLamp = TRUE
-byte lampFrame = 0
-word lampDir = 1
+export byte lampFrame = 0
+export word lampDir = 1
 byte storyMode = FALSE
 
 // Time and clock
-byte prevClockColor, prevClockHour, prevClockMinute
-byte nextSignificantMinute
+export byte prevClockColor, prevClockHour, prevClockMinute
+export byte nextSignificantMinute
 byte snoozeX0, snoozeX1, snoozeY
 word timeEventFunc
 
@@ -193,9 +186,6 @@ export byte[] S_HIS = "his"
 export byte[] S_HER = "her"
 export byte[] S_THEIR = "their"
 
-//byte[] macro = "lddddwwwwwwwwwwwwwwaaaaawwwwwdwwwwwwwwddwwwwwwwwaw",0
-//word pMacro = NULL //@macro
-//word startTick = 0
 word lastTick = 0
 
 export byte recordMode = 0
@@ -302,7 +292,7 @@ asm render(intrOnKbd)#0
   +asmPlasmNoRet 1
   jmp $6018
 end
-asm texControl(doLoad)#0
+asm _texControl(doLoad)#0
   +asmPlasmNoRet 1
   jmp $601B
 end
@@ -397,123 +387,6 @@ export asm memset(pDst, val, len)#0
   dex
   bne -
 + rts
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Specialized line routine for drawing the clock. Plots in black or white only.
-// Parameters:
-//    page : 0=page1, $60=page2
-//    color: 0=black, $7F=white
-//    len  : number of pixels to plot
-//    xbyte: x/7, e.g. 0-39 byte offset within screen row
-//    xbit : (3<<(x%7)) & $7F
-//    xinc : fraction 0..$FF telling how often to advance on X axis
-//    xdir : 0=left, 1=right
-//    y    : hi-res line number 0..191
-//    yinc : fraction 0..$FF telling how often to advance on X axis
-//    ydir : 0=up, 1=down
-export asm plotLinePixels(page, color, len, xbyte, xbit, xinc, xdir, y, yinc, ydir)#0
-!zone {
-.param_page   = evalStkL+9
-.param_color  = evalStkL+8
-.param_len    = evalStkL+7
-.param_xbyte  = evalStkL+6
-.param_xbit   = evalStkL+5
-.param_xinc   = evalStkL+4
-.param_xdir   = evalStkL+3
-.param_y      = evalStkL+2
-.param_yinc   = evalStkL+1
-.param_ydir   = evalStkL+0
-.xfrac        = tmp
-.yfrac        = tmp+1
-  +asmPlasmNoRet 10
-  lda #0
-  sta .xfrac
-  sta .yfrac
-.getline
-  txa
-  pha
-  lda .param_y,x
-  jsr GetScreenLine
-  pla
-  tax
-  lda pTmp+1
-  eor .param_page,x   ; $60 flips to page 2, 0 for page 1
-  sta pTmp+1
-  clc                 ; signal to take X path first
-.pix
-  dec .param_len,x    ; decrement count of pixels todo
-  bmi .done           ; get out if it goes negative
-
-  ldy .param_xbyte,x  ; byte number on line
-  lda .param_color,x  ; get color mask
-  eor (pTmp),y        ; funny logic to plot in color - part 1
-  and .param_xbit,x   ; bit mask within byte
-  eor (pTmp),y        ; funny logic - part 2
-  ora #$80            ; force hi-bit colors for entire clock face (no mixing)
-  sta (pTmp),y        ; store the result
-
-  lda .param_xbit,x   ; check bit mask:
-  and #$60            ; was it the rightmost pixel?
-  eor #$40
-  bne +               ; if not, done w/ plotting
-  lda .param_color,x  ; it was, so we need to plot
-  iny                 ; ...next byte's...
-  eor (pTmp),y
-  and #1              ; ...first pixel
-  eor (pTmp),y
-  ora #$80            ; force hi-bit colors for entire clock face (no mixing)
-  sta (pTmp),y
-  dey                 ; back to where we were
-
-+ bcs .movey          ; skip X processing if we just did it
-.movex                ; check and move on X axis
-  lda .xfrac
-  clc
-  adc .param_xinc,x   ; bump the X fraction
-  sta .xfrac
-  bcc .movey          ; if not a whole number bump, don't move on X
-  lda .param_xbit,x
-  ldy .param_xdir,x   ; check X direction (0=left, 1=right)
-  bne .right
-.left
-  lsr                 ; 1 bit to the left
-  cmp #$20
-  bne +
-  ora #$40
-+ cmp #1
-  bne .ltrt
-  dec .param_xbyte,x  ; finished with byte, move 1 byte left
-  lda #$40            ; high bit of next-to-left byte
-  bne .ltrt           ; always taken
-.right
-  asl                 ; 1 bit to right
-  bpl .ltrt
-  and #$7F
-  bne .ltrt
-  inc .param_xbyte,x  ; finished with byte, move 1 byte right
-  lda #3              ; low bit of next-to-right byte
-.ltrt
-  sta .param_xbit,x
-  sec                 ; signal to take the Y path next time
-  bcs .pix            ; plot at the new position
-.movey
-  lda .yfrac
-  clc
-  adc .param_yinc,x   ; bump the Y fraction
-  sta .yfrac
-  bcc .movex          ; if not a whole number bump, don't move on Y, go bump X
-  lda .param_ydir,x   ; check Y direction (0=up, 1=down)
-  bne .down
-.up
-  dec .param_y,x      ; prev line (up)
-  bcs .getline        ; always taken
-.down
-  inc .param_y,x      ; next line (down)
-  bcs .getline        ; always taken
-.done
-  rts
-}
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1595,22 +1468,6 @@ export def getUpperKey()#1
     copyWindow(0)
   fin
 
-  //if pMacro
-  //  pMacro++
-  //  if ^pMacro
-  //    if ^pMacro <> 'l'
-  //      if !startTick; startTick = getTick(); fin
-  //    fin
-  //    return charToUpper(^pMacro)
-  //  else
-  //    pMacro = NULL
-  //    printf3("start=%d end=%d elapsed=%d\n", startTick, getTick(), tickDiff(startTick, getTick()))
-  //    ^$C054
-  //    ^$C051
-  //    rdkey()
-  //  fin
-  //fin
-
   // Now wait for a key, and animate while doing so.
   while ^kbd < 128
     if recordMode
@@ -1682,33 +1539,6 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def forEach(p, do)#0
   forSome(p, @trueFunc, do)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def nextLampFrame()#0
-  word n, pTile
-  if !mapIs3D or !frameLoaded; return; fin
-
-  if showingLamp
-    n = lampFrame - LAMP_1
-    n = n + lampDir
-    while n < 0
-      n = n + (LAMP_COUNT-1)  // because PLASMA's modulo operator adopts C's (IMO useless) behavior
-    loop
-    if n >= (LAMP_COUNT-1)
-      n = n % (LAMP_COUNT-1)
-    fin
-    n = n + LAMP_1
-    if (rand16() % 100) < 10
-      lampDir = -lampDir
-    fin
-  else
-    n = LAMP_0
-  fin
-  pTile = pGlobalTileset + (n << 5) + 1 // +1 to skip to the header (# of tiles)
-  blit(FALSE, pTile, getScreenLine(LAMP_Y)+LAMP_XBYTE,       16, 2)
-  blit(FALSE, pTile, getScreenLine(LAMP_Y)+LAMP_XBYTE+$2000, 16, 2)
-  lampFrame = n
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1813,8 +1643,8 @@ export def setSky(num)#0
     skyNum = num
     setColor(0, skyNum)
     needRender = TRUE
-    showingLamp = mapIs3D and (skyNum == 0 or skyNum == 8)
-    nextLampFrame // to update image
+    showingLamp = mapIs3D and texturesLoaded and (skyNum == 0 or skyNum == 8)
+    if showingLamp and util3d; util3d=>util3d_nextLampFrame(); fin // to update image
   fin
 end
 
@@ -1909,7 +1739,7 @@ def resetAnimPause()#0
   anyAnims = TRUE  // for now; might get cleared if we discover otherwise on advance
   animDirCt = 1
   animPauseCt = ANIM_PAUSE_MAX
-  showingLamp = mapIs3D and (skyNum == 0 or skyNum == 8)
+  showingLamp = mapIs3D and texturesLoaded and (skyNum == 0 or skyNum == 8)
   lampFrame = 0
   lampDir = 1
 end
@@ -1924,7 +1754,7 @@ export def loadFrameImg(img)#0
   clearPortrait()
 
   // Make room in aux mem by throwing out textures
-  unloadTextures()
+  textureControl(FALSE)
 
   // Load the image data into aux mem
   if img
@@ -2163,148 +1993,13 @@ export def loadMainFrameImg()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def horzSegment(color, len, x, y)#0
-  //params:      page, color, len, xbyte, xbit,             xinc, xdir, y, yinc, ydir
-  plotLinePixels($60,  color, len, x/7,   (3<<(x%7)) & $7F, $FF,  1,    y, 0,    0)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def putSegment(color, len, isOuter, x, y)#0
-  if isOuter
-    horzSegment(color ^ $7F, len, x, y)
-  else
-    horzSegment(color ^ $7F, 1,     x,     y)
-    horzSegment(color,       len-3, x+2,   y)
-    horzSegment(color ^ $7F, 1,     x+len, y)
+def loadUtil3d()#0
+  if !pModUtil3d and mapIs3D
+    mmgr(START_LOAD, 1) // code is in partition 1
+    pModUtil3d = mmgr(QUEUE_LOAD, MOD_UTIL3D<<8 | RES_TYPE_MODULE)
+    mmgr(FINISH_LOAD, 0)
+    util3d = pModUtil3d()
   fin
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Draw a filled, outlined circle
-def drawCircle(color, radius, x0, y0)#0
-  word x, y, dx, dy, err, r2, p
-
-  // Clear extents buffer
-  r2 = radius << 1
-  memset($280, 0, r2)
-
-  // Midpoint circle algorithm, but instead of plotting points, just record max extents
-  x = radius-1
-  y = 0
-  dx = 1
-  dy = 1
-  err = dx - r2
-
-  while (x >= y)
-    p = $280 + y
-    ^p = max(^p, x)
-
-    p = $280 + x
-    ^p = max(^p, y)
-
-    if err <= 0
-      y++
-      err = err + dy
-      dy = dy + 2
-    elsif err > 0
-      x--
-      dx = dx + 2
-      err = err + dx - r2
-    fin
-
-  loop
-
-  // Using the extents, draw an outline circle
-  for y = 0 to radius-1
-    x = ^($280+y)
-    putSegment(color, x<<1, y>=radius-2, x0-x, y0-y)
-    putSegment(color, x<<1, y>=radius-2, x0-x, y0+y)
-  next
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def drawHand(color, hour, isShort)#0
-  word xdir, xinc, ydir, yinc, len
-  ydir = (hour > 3 and hour < 9) & 1 // 3..9 = 1
-  xdir = (hour < 6) & 1              // 1..6 = 1
-  xinc = (^("123210123210"+hour) - '0') * 85
-  yinc = (^("210123210123"+hour) - '0') * 85
-  len = (hour % 3) ?? (CLOCK_RADIUS*3/2)-4 :: CLOCK_RADIUS-2
-  if isShort
-    len = len * 3 / 5
-  fin
-  //params:      page, color, len, xbyte,     xbit,                   xinc, xdir, y,       yinc, ydir
-  plotLinePixels($60,  color, len, CLOCK_X/7, (3<<(CLOCK_X%7)) & $7F, xinc, xdir, CLOCK_Y, yinc, ydir)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def drawHands(color, hour, min)#0
-  word n
-  n = min/5
-  drawHand(color, n ?? n :: 12, FALSE)
-  n = hour % 12
-  drawHand(color, n ?? n :: 12, TRUE)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def showClock()#0
-  word cursX, cursY, color
-
-  // Show page 1 while we do work on page 2
-  flipToPage1
-
-  // Erase old clock hands if applicable
-  if prevClockColor <> 99
-    drawHands(prevClockColor, prevClockHour, prevClockMinute)
-  fin
-
-  // New color
-  color = global->b_hour < 6 or global->b_hour >= 18 ?? 0 :: $7F
-  if color <> prevClockColor
-    // Draw entire circle in new color
-    drawCircle(color, CLOCK_RADIUS, CLOCK_X, CLOCK_Y)
-  else
-    // Erase old clock hands
-    drawHands(prevClockColor, prevClockHour, prevClockMinute)
-  fin
-
-  // Draw new clock hands
-  drawHands(color ^ $7F, global->b_hour, global->b_minute)
-
-  // Copy the image from pg 2 to pg 1
-  cursX, cursY = getCursor()
-  setWindow(CLOCK_Y-CLOCK_RADIUS, CLOCK_Y+CLOCK_RADIUS, (CLOCK_X-CLOCK_RADIUS)/7*7, (CLOCK_X+CLOCK_RADIUS+13)/7*7)
-  copyWindow($60) // page 2 to page 1
-  setWindow2()
-  setCursor(cursX, cursY)
-
-  // And record parameters for erasing the clock hands next time
-  prevClockColor  = color
-  prevClockHour   = global->b_hour
-  prevClockMinute = global->b_minute
-  nextSignificantMinute = global->b_minute - (global->b_minute % 5) + 5
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def showCompassDir(dir)#0
-  word cursX, cursY, str
-  cursX, cursY = getCursor()
-  setWindow(173, 182, 28, 49) // Top, Bottom, Left, Right
-  clearWindow()
-  when dir
-    is 15; is 0; is 1;   str = "E";  break
-    is 2;                str = "SE"; break
-    is 3; is 4; is 5;    str = "S";  break;
-    is 6;                str = "SW"; break;
-    is 7; is 8; is 9;    str = "W";  break;
-    is 10;               str = "NW"; break;
-    is 11; is 12; is 13; str = "N"; break;
-    is 14;               str = "NE"; break;
-  wend
-  centerStr(str, 21)
-  if mapIs3D and texturesLoaded; copyWindow(0); fin
-  setWindow2()
-  setCursor(cursX, cursY)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2313,7 +2008,7 @@ def initMap(x, y, dir)#0
   word pDiskOps // TEMPORARY - FIXME FOO
 
   // If we have a renderer loaded, let it know to flush automap marks
-  unloadTextures()
+  textureControl(FALSE)
 
   // Reset memory (our module will stay since memory manager locked it upon load)
   mmgr(RESET_MEMORY, 0)
@@ -2334,6 +2029,7 @@ def initMap(x, y, dir)#0
   pGlobalTileset = mmgr(QUEUE_LOAD, 1<<8 | RES_TYPE_TILESET)  // even in 3d, need tiles for lamp/etc.
   pDiskOps = mmgr(QUEUE_LOAD, MOD_DISKOPS<<8 | RES_TYPE_MODULE) // TEMPORARY - FIXME FOO
   mmgr(FINISH_LOAD, 0)
+  if mapIs3D; loadUtil3d(); fin
 
   pDiskOps()=>diskops_checkAutomap() // TEMPORARY - FIXME FOO
   mmgr(FREE_MEMORY, pDiskOps) // TEMPORARY - FIXME FOO
@@ -2376,8 +2072,10 @@ def initMap(x, y, dir)#0
   snoozeX1 = -1
   if timeEventFunc; timeEventFunc(global->b_hour); fin
   if mapIs3D
-    showCompassDir(dir)
-    showClock()
+    if util3d
+      util3d=>util3d_showCompassDir(dir)
+      util3d=>util3d_showClock()
+    fin
   elsif global->b_curAvatar <> 0
     setAvatar(global->b_curAvatar)
     doRender()
@@ -2403,12 +2101,23 @@ export def scriptSetAvatar(avatarTileNum)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def unloadTextures()#0
-  if renderLoaded and texturesLoaded
-    flipToPage1()
-    texControl(0)
-    texturesLoaded = FALSE
+export def textureControl(flg)#0
+  if !renderLoaded or !mapIs3D; return; fin
+  flipToPage1
+  if flg and !texturesLoaded
+    _texControl(1)
+    loadUtil3d
+    showingLamp = (skyNum == 0 or skyNum == 8)
+  elsif !flg and texturesLoaded
+    _texControl(0)
+    if pModUtil3d
+      mmgr(FREE_MEMORY, pModUtil3d)
+      pModUtil3d = NULL
+      util3d = NULL
+    fin
+    showingLamp = FALSE
   fin
+  texturesLoaded = flg
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2432,12 +2141,8 @@ end
 // Perform rendering, copy if necessary, clear appropriate flags
 def doRender()#0
   if curPortrait; clearPortrait(); fin
-  if !texturesLoaded
-    flipToPage1()
-    texControl(1)
-    texturesLoaded = TRUE
-  fin
-  if showingLamp; nextLampFrame; fin
+  textureControl(TRUE)
+  if showingLamp; util3d=>util3d_nextLampFrame(); fin
   render(0) // Don't interrupt on kbd - must finish the render
   needRender = FALSE
 end
@@ -2474,7 +2179,7 @@ def advTime(hours, mins, secs)#0
     fin
 
     if mapIs3D and redrawClock
-      showClock()
+      if util3d; util3d=>util3d_showClock(); fin
     fin
 
     if runScript and timeEventFunc
@@ -2487,18 +2192,14 @@ end
 // Called by scripts to display a string. We set the flag noting that something has been
 // displayed, then use an assembly routine to do the work.
 export def _scriptDisplayStr(str)#0
-  if pIntimate
-    pIntimate=>intimate_displayStr(str)
-  else
-    if renderLoaded and !curPortrait and !curFullscreenImg and needRender
-      doRender()
-      flipToPage1()
-      needRender = FALSE
-    fin
-    if textClearCountdown; clearTextWindow(); fin
-    displayStr(str)
-    textDrawn = TRUE
+  if renderLoaded and !curPortrait and !curFullscreenImg and needRender
+    doRender()
+    flipToPage1()
+    needRender = FALSE
   fin
+  if textClearCountdown; clearTextWindow(); fin
+  displayStr(str)
+  textDrawn = TRUE
   anyInteraction = TRUE
 end
 
@@ -2632,7 +2333,7 @@ end
 // Turn left (3D mode)
 def rotateLeft()#1
   needRender = TRUE
-  showCompassDir(adjustDir(-global->b_moveMode))
+  util3d=>util3d_showCompassDir(adjustDir(-global->b_moveMode))
   return 0
 end
 
@@ -2640,7 +2341,7 @@ end
 // Rotate to the right (3D mode)
 def rotateRight()#1
   needRender = TRUE
-  showCompassDir(adjustDir(global->b_moveMode))
+  util3d=>util3d_showCompassDir(adjustDir(global->b_moveMode))
   return 0
 end
 
@@ -2884,14 +2585,14 @@ def showAnimFrame()#0
       blit(1, curPortrait + 2, getScreenLine(top)+2, 128, 18)
     fin
     needRender = FALSE  // suppress display of map for this frame
-    if showingLamp; nextLampFrame(); fin
+    if showingLamp and util3d; util3d=>util3d_nextLampFrame(); fin
   elsif curFullscreenImg
     blit(1, curFullscreenImg + 2, getScreenLine(0), 192, 40) // the +2 is to skip anim hdr offset
     needRender = FALSE  // suppress display of map for this frame
   elsif mapIs3D
-    if showingLamp; nextLampFrame(); fin
+    if showingLamp and util3d; util3d=>util3d_nextLampFrame(); fin
     render($FF) // it's only animation, so do interrupt if a key is pressed
-    if showingLamp; nextLampFrame(); fin
+    if showingLamp and util3d; util3d=>util3d_nextLampFrame(); fin
   fin
 end
 
@@ -2934,7 +2635,7 @@ export def setPortrait(portraitNum)#0
   cursX, cursY = getCursor()
 
   // Make room by unloading the textures (only if renderer is loaded)
-  unloadTextures()
+  textureControl(FALSE)
 
   // Now clear out the map area
   useMapWindow()
@@ -3016,7 +2717,7 @@ def loadEngine(moduleNum)#1
   if curEngine; fatal("dblEng"); fin
   preEnginePortraitNum = curPortraitNum
   clearPortrait()
-  unloadTextures()
+  textureControl(FALSE)
   flipToPage1()
   mmgr(START_LOAD, 1) // code is in partition 1
   curEngine = mmgr(QUEUE_LOAD, moduleNum<<8 | RES_TYPE_MODULE)
@@ -3035,7 +2736,7 @@ def returnFromEngine(render)#0
     else
       clearPortrait()
     fin
-    if renderLoaded; texControl(1); texturesLoaded = TRUE; fin
+    textureControl(TRUE)
     mapNameHash = 0; showMapName(global=>s_mapName)
     clearTextWindow()
     if render
@@ -3044,9 +2745,11 @@ def returnFromEngine(render)#0
       needRender = TRUE
     fin
     if mapIs3D
-      showCompassDir(getDir())
       prevClockColor = 99
-      showClock()
+      if util3d
+        util3d=>util3d_showCompassDir(getDir())
+        util3d=>util3d_showClock()
+      fin
     fin
     showParty()
     setWindow2()  // in case we're mid-script
@@ -3275,16 +2978,13 @@ def toggleGodMode()#1
   key = getUpperKey
   if key == 15  // ctrl-O
     key = getUpperKey
-    if key == 4 or key == 18 // ctrl-D or ctrl-R
+    if key == 4 // ctrl-D
       flipToPage1()
       clearTextWindow()
       if key == 4 // ctrl-D
         global->b_godmode = !global->b_godmode
         displayf1("gm:%d\n", global->b_godmode & 1)
         initCmds() // rebuild the command table with new commands
-      else
-        setRecordMode(1 - recordMode)
-        displayf1("rm:%d\n", recordMode)
       fin
       textDrawn = TRUE
       beep; beep
@@ -3301,8 +3001,8 @@ def cheatCmd()#1
   key = charToUpper((^kbd) & $7F)
 
   // We don't use laodEngine, since godmode may use it too, and we'd get double modules
-  unloadTextures() // seems to be necessary for teleport-to-3d to work right
-  flipToPage1()
+  textureControl(FALSE) // seems to be necessary for teleport-to-3d to work right
+  flipToPage1
   mmgr(START_LOAD, 1) // code is in partition 1
   pModule = mmgr(QUEUE_LOAD, MOD_GODMODE<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
@@ -3310,7 +3010,7 @@ def cheatCmd()#1
   pModule()=>godmode_cheatCmd(key)
 
   mmgr(FREE_MEMORY, pModule)
-  if renderLoaded; texControl(1); texturesLoaded = TRUE; fin
+  textureControl(TRUE)
   return 0
 end
 
@@ -3525,7 +3225,7 @@ export def createThing(moduleID, creationFuncNum)#1
   word p_module, funcTbl, func, p_thing
 
   // Unload textures to make room for the module (also flips to page 1 if needed)
-  unloadTextures()
+  textureControl(FALSE)
 
   // Load the module that is capable of creating the thing
   mmgr(START_LOAD, 1) // code is in partition 1
@@ -3798,18 +3498,6 @@ export def getGameFlag(flagNum)#1
   byteNum = flagNum >> 3
   mask = 1<<(flagNum & 7)
   return global->ba_gameFlags[byteNum] & mask
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-export def setIntimateMode(enable)#0
-  if enable
-    pIntimate = loadEngine(MOD_INTIMATE)
-    pIntimate=>intimate_setMode(enable)
-  else
-    pIntimate=>intimate_setMode(enable)
-    returnFromEngine(TRUE)
-    pIntimate = NULL
-  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

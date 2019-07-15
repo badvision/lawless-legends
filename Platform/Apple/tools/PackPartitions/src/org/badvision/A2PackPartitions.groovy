@@ -2406,7 +2406,7 @@ class A2PackPartitions
         compileModule("store", "src/plasma/")
         compileModule("diskops", "src/plasma/")
         compileModule("godmode", "src/plasma/")
-        compileModule("intimate", "src/plasma/")
+        compileModule("util3d", "src/plasma/")
         compileModule("automap", "src/plasma/")
         //compileModule("sndseq", "src/plasma/") // not yet
         compileModule("questlog", "src/plasma/")

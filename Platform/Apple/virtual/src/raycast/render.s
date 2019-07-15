@@ -34,7 +34,7 @@ NOTFLG_SPRITE  = $FF-$80
 	jmp pl_setPos		; params: x (0-255), y (0-255); return: nothing
 	jmp pl_getDir		; params: none; return: dir (0-15)
 	jmp pl_setDir		; params: dir (0-15); return: nothing
-	jmp pl_advance		; params: none; return: 0 if same, 1 if new map tile, 2 if new and scripted
+	jmp pl_advance		; params: nSteps; return: 0 if same, 1 if new map tile, 2 if new and scripted
 	jmp pl_setColor		; params: slot (0=sky/1=ground), color (0-15); return: nothing
 	jmp pl_render		; params: intrOnKbd
 	jmp pl_texControl	; params: 0=unload textures, 1=load textures

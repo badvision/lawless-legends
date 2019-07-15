@@ -86,7 +86,6 @@ import gamelib
   predef pause(count)#1
   predef payGold(amount)#1
   predef percentToRatio(pct)#1
-  predef plotLinePixels(page, color, len, xbyte, xbit, xinc, xdir, y, yinc, ydir)#0
   predef printf1(fmt, arg1)#0
   predef printf2(fmt, arg1, arg2)#0
   predef printf3(fmt, arg1, arg2, arg3)#0
@@ -120,7 +119,6 @@ import gamelib
   predef setCursor(x, y)#0
   predef setGameFlag(flagName, val)#0
   predef setGround(num)#0
-  predef setIntimateMode(enable)#0
   predef setMap(is3D, num, x, y, dir)#0
   predef setRecordMode(enable)#0
   predef setStoryMode(enable)#0
@@ -167,6 +165,10 @@ import gamelib
   word pGlobalTileset
   byte isFloppyVer
   byte recordMode
+  byte prevClockColor, prevClockHour, prevClockMinute
+  byte nextSignificantMinute
+  byte lampFrame
+  word lampDir
 
   /////////// Shared string constants //////////////
 
@@ -179,4 +181,5 @@ import gamelib
 
   // Next: other useful strings
   byte[] S_HIS, S_HER, S_THEIR
+
 end

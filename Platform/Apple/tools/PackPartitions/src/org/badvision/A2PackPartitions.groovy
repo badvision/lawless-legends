@@ -260,6 +260,12 @@ class A2PackPartitions
                 else
                     printWarning("Unrecognized control code '^" + ch + "'")
             }
+            else if (ch == '“' || ch == '”')
+                buf << '\"'
+            else if (ch == '‘' || ch == '’')
+                buf << '\''
+            else if (Character.codePointAt(ch, 0) > 127)
+                printWarning("Non-ASCII character '" + ch + "' found")
             else
                 buf << ch
             prev = ch

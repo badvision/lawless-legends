@@ -62,7 +62,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def setBlock2()#0
-  setWindow(135, 189, 140, 280)
+  setWindow(135, 171, 140, 280)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -138,19 +138,6 @@ def displayStoryBlock()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def storyKeyWait()#1
-  byte key
-  while ^kbd < 128
-    ^$3FF7 = ^$3FF7 ^ $7F // lowermost, rightmost byte of screen
-    pause(300)
-  loop
-  ^$3FF7 = 0
-  key = ^kbd & $7F
-  ^kbdStrobe
-  return key
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display story and picture on a blank screen, with blanking follow-up
 def _story_display(storyNum)#1
   byte c
@@ -164,9 +151,13 @@ def _story_display(storyNum)#1
       displayStoryBlock
     fin
 
-    c = storyKeyWait
+    setWindow(180, 192, 160, 280)
+    rawDisplayStr("(press any key)")
+    c = getUpperKey
     if c == 27 or pStoryCur >= pStoryEnd; break; fin
 
+    clearWindow
+    setBlock2
     clearWindow
     setBlock1
     clearWindow

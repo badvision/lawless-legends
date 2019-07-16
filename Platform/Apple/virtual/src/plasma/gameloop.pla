@@ -86,7 +86,7 @@ export word totalMapHeight
 export word pCurMap
 word mapNameHash = 0
 
-byte needRender = FALSE
+export byte needRender = FALSE
 byte needShowParty = FALSE
 byte renderLoaded = FALSE
 byte texturesLoaded = FALSE
@@ -276,7 +276,7 @@ export asm getDir()#1   // returns: dir (0-15)
   +asmPlasmRet 0
   jmp $600C
 end
-asm setDir(dir)#0
+export asm setDir(dir)#0
   +asmPlasmNoRet 1
   jmp $600F
 end
@@ -1999,6 +1999,7 @@ def loadUtil3d()#0
     pModUtil3d = mmgr(QUEUE_LOAD, MOD_UTIL3D<<8 | RES_TYPE_MODULE)
     mmgr(FINISH_LOAD, 0)
     util3d = pModUtil3d()
+    initCmds() // rebuild the command table with new function ptrs
   fin
 end
 
@@ -2035,7 +2036,7 @@ def initMap(x, y, dir)#0
   mmgr(FREE_MEMORY, pDiskOps) // TEMPORARY - FIXME FOO
 
   // Set up the command table
-  initCmds()
+  initCmds() // must be after loading util3d
 
   // Load the map
   curMapPartition = lookupResourcePart(mapIs3D+1, mapNum)
@@ -2236,7 +2237,7 @@ def snooze()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def moveInternal(facingDir, moveDir, beepOK, shouldAdvTime)#1
+export def moveInternal(facingDir, moveDir, beepOK, shouldAdvTime)#1
   byte val, i
   word x, y
 
@@ -2294,25 +2295,6 @@ def moveForward()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Adjust player's direction plus or minus n increments; returns new dir
-def adjustDir(n)#1
-  byte dir
-  dir = (getDir() + n) & 15
-  setDir(dir)
-  return dir
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Move backward one step (3D mode). Also actually works in 2D mode.
-def moveBackward()#1
-  byte facingDir, moveDir
-  facingDir = getDir()
-  moveDir = (facingDir + 8) & 15
-  moveInternal(facingDir, moveDir, TRUE, TRUE) // beep ok, adv time
-  return 0
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Move backward two quarter-steps (3D mode), or one step (2D mode). This is often used when exiting a
 // building or fleeing combat, so we don't want to generate any random encounters.
 export def moveWayBackward()#1
@@ -2327,40 +2309,6 @@ export def moveWayBackward()#1
   fin
   lastMoveDir = $FF // avoid problems if moveWayBackward called repeatedly
   return 0
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Turn left (3D mode)
-def rotateLeft()#1
-  needRender = TRUE
-  util3d=>util3d_showCompassDir(adjustDir(-global->b_moveMode))
-  return 0
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Rotate to the right (3D mode)
-def rotateRight()#1
-  needRender = TRUE
-  util3d=>util3d_showCompassDir(adjustDir(global->b_moveMode))
-  return 0
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Sidestep to the right (3D mode)
-def strafeRight()#1
-  byte facingDir, moveDir
-  facingDir = getDir()
-  moveDir = (facingDir + 4) & 15
-  return moveInternal(facingDir, moveDir, TRUE, TRUE) // beep ok, adv time
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Sidestep to the left (3D mode)
-def strafeLeft()#1
-  byte facingDir, moveDir
-  facingDir = getDir()
-  moveDir = (facingDir - 4) & 15
-  return moveInternal(facingDir, moveDir, TRUE, TRUE) // beep ok, adv time
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3115,25 +3063,25 @@ def initCmds()#0
     cmdTbl[3]   = @switchMoveMode // ctrl-C
 
     cmdTbl['W'] = @moveForward
-    cmdTbl['A'] = @rotateLeft
-    cmdTbl['D'] = @rotateRight
-    cmdTbl['S'] = @moveBackward
-    cmdTbl['X'] = @moveBackward
-    cmdTbl['Z'] = @strafeLeft
-    cmdTbl['C'] = @strafeRight
+    cmdTbl['A'] = util3d=>util3d_rotateLeft
+    cmdTbl['D'] = util3d=>util3d_rotateRight
+    cmdTbl['S'] = util3d=>util3d_moveBackward
+    cmdTbl['X'] = util3d=>util3d_moveBackward
+    cmdTbl['Z'] = util3d=>util3d_strafeLeft
+    cmdTbl['C'] = util3d=>util3d_strafeRight
 
     cmdTbl['I'] = @moveForward
-    cmdTbl['J'] = @rotateLeft
-    cmdTbl['L'] = @rotateRight
-    cmdTbl['K'] = @moveBackward
-    cmdTbl[','] = @moveBackward
-    cmdTbl['M'] = @strafeLeft
-    cmdTbl['.'] = @strafeRight
+    cmdTbl['J'] = util3d=>util3d_rotateLeft
+    cmdTbl['L'] = util3d=>util3d_rotateRight
+    cmdTbl['K'] = util3d=>util3d_moveBackward
+    cmdTbl[','] = util3d=>util3d_moveBackward
+    cmdTbl['M'] = util3d=>util3d_strafeLeft
+    cmdTbl['.'] = util3d=>util3d_strafeRight
 
     cmdTbl[11] = @moveForward  // up-arrow
-    cmdTbl[8]  = @rotateLeft   // left-arrow
-    cmdTbl[21] = @rotateRight  // right-arrow
-    cmdTbl[10] = @moveBackward // down-arrow
+    cmdTbl[8]  = util3d=>util3d_rotateLeft   // left-arrow
+    cmdTbl[21] = util3d=>util3d_rotateRight  // right-arrow
+    cmdTbl[10] = util3d=>util3d_moveBackward // down-arrow
   else
     cmdTbl['W'] = @moveNorth
     cmdTbl['D'] = @moveEast

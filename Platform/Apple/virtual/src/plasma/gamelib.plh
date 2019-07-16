@@ -79,6 +79,7 @@ import gamelib
   predef memset(pDst, val, len)#0
   predef min(a, b)#1
   predef mmgr(cmd, wordParam)#1
+  predef moveInternal(facingDir, moveDir, beepOK, shouldAdvTime)#1
   predef moveWayBackward()#1
   predef parseDec(str)#1
   predef partyHasPlayer(playerName)#1
@@ -117,6 +118,7 @@ import gamelib
   predef scriptSetAvatar(avatarTileNum)#0
   predef select(p, sel, num)#1
   predef setCursor(x, y)#0
+  predef setDir(dir)#0
   predef setGameFlag(flagName, val)#0
   predef setGround(num)#0
   predef setMap(is3D, num, x, y, dir)#0
@@ -169,6 +171,7 @@ import gamelib
   byte nextSignificantMinute
   byte lampFrame
   word lampDir
+  byte needRender
 
   /////////// Shared string constants //////////////
 

@@ -31,7 +31,14 @@ const LAMP_XBYTE = 10
 predef _showClock()#1
 predef _showCompassDir(dir)#1
 predef _nextLampFrame()#1
+predef _rotateLeft()#1
+predef _rotateRight()#1
+predef _strafeRight()#1
+predef _strafeLeft()#1
+predef _moveBackward()#1
+
 word[] funcTbl = @_showClock, @_showCompassDir, @_nextLampFrame
+word           = @_rotateLeft, @_rotateRight, @_strafeLeft, @_strafeRight, @_moveBackward
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -335,6 +342,59 @@ def _nextLampFrame()#1
   blit(FALSE, pTile, getScreenLine(LAMP_Y)+LAMP_XBYTE,       16, 2)
   blit(FALSE, pTile, getScreenLine(LAMP_Y)+LAMP_XBYTE+$2000, 16, 2)
   lampFrame = n
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Adjust player's direction plus or minus n increments; returns new dir
+def adjustDir(n)#1
+  byte dir
+  dir = (getDir() + n) & 15
+  setDir(dir)
+  return dir
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Turn left (3D mode)
+def _rotateLeft()#1
+  needRender = TRUE
+  _showCompassDir(adjustDir(-global->b_moveMode))
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Rotate to the right (3D mode)
+def _rotateRight()#1
+  needRender = TRUE
+  _showCompassDir(adjustDir(global->b_moveMode))
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Sidestep to the right (3D mode)
+def _strafeRight()#1
+  byte facingDir, moveDir
+  facingDir = getDir()
+  moveDir = (facingDir + 4) & 15
+  return moveInternal(facingDir, moveDir, TRUE, TRUE) // beep ok, adv time
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Sidestep to the left (3D mode)
+def _strafeLeft()#1
+  byte facingDir, moveDir
+  facingDir = getDir()
+  moveDir = (facingDir - 4) & 15
+  return moveInternal(facingDir, moveDir, TRUE, TRUE) // beep ok, adv time
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Move backward one step (3D mode). Also actually works in 2D mode.
+def _moveBackward()#1
+  byte facingDir, moveDir
+  facingDir = getDir()
+  moveDir = (facingDir + 8) & 15
+  moveInternal(facingDir, moveDir, TRUE, TRUE) // beep ok, adv time
   return 0
 end
 

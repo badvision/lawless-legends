@@ -19,13 +19,6 @@ const CHAR_WND_HEALTH_X = 112
 
 const ANIM_PAUSE_MAX = 150
 
-const CLOCK_X = 119
-const CLOCK_Y = 176
-const CLOCK_RADIUS = 14
-
-const LAMP_Y = 168
-const LAMP_XBYTE = 10
-
 const CLOCK_ADV_2D_HOURS = 1
 const CLOCK_ADV_2D_MINS  = 0
 const CLOCK_ADV_2D_SECS  = 0
@@ -52,9 +45,11 @@ include "combat.plh"
 include "party.plh"
 include "store.plh"
 include "diskops.plh"
-include "intimate.plh"
 include "godmode.plh"
 include "automap.plh"
+include "questlog.plh"
+include "story.plh"
+include "util3d.plh"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Data structures
@@ -73,12 +68,13 @@ predef clearPortrait()#0
 predef showMapName(mapName)#0
 predef doRender()#0
 predef pause(count)#1
+predef printf1(str, arg1)#0
 predef printf2(str, arg1, arg2)#0
 predef playerDeath()#0
 predef startGame(firstTime, ask)#0
 predef showAnimFrame()#0
 predef showParty()#0
-predef unloadTextures()#0
+predef textureControl(flg)#0
 predef clearEncounterZones()#0
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -90,7 +86,7 @@ export word totalMapHeight
 export word pCurMap
 word mapNameHash = 0
 
-byte needRender = FALSE
+export byte needRender = FALSE
 byte needShowParty = FALSE
 byte renderLoaded = FALSE
 byte texturesLoaded = FALSE
@@ -99,6 +95,7 @@ byte anyInteraction = FALSE
 byte textClearCountdown = 0
 export byte isPlural = 0 // valid values: 0 or $40
 byte inScript = FALSE
+export byte isFloppyVer
 
 byte scriptModule = 0
 byte prevScriptModule = 0
@@ -113,11 +110,11 @@ word triggerTbl
 word cmdTbl[96]   // ASCII $00..$5F
 byte frameLoaded = 0
 word curEngine = NULL
-word pIntimate = NULL
+word pModUtil3d = NULL
+word util3d = NULL
 export word pResourceIndex = NULL
 export word pGlobalTileset = NULL
 export byte curMapPartition = 0
-export word pGodModule = NULL
 export word typeHash = 0
 word curHeapPct = 0
 byte lastMoveDir = $FF
@@ -128,6 +125,9 @@ byte q_mapNum = 1
 word q_x = 0
 word q_y = 0
 byte q_dir = 0
+
+// Queue of player death
+byte q_playerDeath = FALSE
 
 // Script tracking
 const MAX_MAP_SCRIPTS = 4
@@ -148,12 +148,13 @@ byte animDirCt
 byte anyAnims = TRUE
 word animPauseCt
 byte showingLamp = TRUE
-byte lampFrame = 0
-word lampDir = 1
+export byte lampFrame = 0
+export word lampDir = 1
+byte storyMode = FALSE
 
 // Time and clock
-byte prevClockColor, prevClockHour, prevClockMinute
-byte nextSignificantMinute
+export byte prevClockColor, prevClockHour, prevClockMinute
+export byte nextSignificantMinute
 byte snoozeX0, snoozeX1, snoozeY
 word timeEventFunc
 
@@ -185,10 +186,10 @@ export byte[] S_HIS = "his"
 export byte[] S_HER = "her"
 export byte[] S_THEIR = "their"
 
-//byte[] macro = "lddddwwwwwwwwwwwwwwaaaaawwwwwdwwwwwwwwddwwwwwwwwaw",0
-//word pMacro = NULL //@macro
-//word startTick = 0
 word lastTick = 0
+
+export byte recordMode = 0
+word recordSeed
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -214,7 +215,7 @@ ysav1       = $35
 
 ; 16-bit random number seed - incremented by ROM kbd routine
 seed        = $4E
-magic       = $2227 ; there are 2048 magic values that work; this one caught my eye. - MH
+MAGIC       = $7FED ; largest prime < $8000
 
 ; NOTE ABOUT ABSOLUTE CODE ADDRESSING (e.g. STA .var, JMP .label, etc.)
 ; We cannot use it: this code will be preceded by stubs for the PLASMA routines, hence
@@ -222,6 +223,11 @@ magic       = $2227 ; there are 2048 magic values that work; this one caught my 
 ;
 ; So don't JMP to labels, declare any variables as !byte or !word here, etc. without
 ; accounting for that.
+;
+; The way to account for that is to use ABS_OFFSET, and only within this module. This
+; method works because this module is the only one loaded at an absolute address.
+;
+; See examples below.
 ABS_OFFSET = (_DEFCNT*5) - 13 ; 13 for plasma's module header (stripped by packer)
 
 end
@@ -270,12 +276,12 @@ export asm getDir()#1   // returns: dir (0-15)
   +asmPlasmRet 0
   jmp $600C
 end
-asm setDir(dir)#0
+export asm setDir(dir)#0
   +asmPlasmNoRet 1
   jmp $600F
 end
-asm advance()#1         // returns: 0 if same pos, 1 if new pos, 2 if new pos and scripted
-  +asmPlasmRet 0
+asm advance(nSteps)#1         // returns: 0 if same pos, 1 if new pos, 2 if new pos and scripted
+  +asmPlasmRet 1
   jmp $6012
 end
 asm setColor(slot, color)#0  // params: slot (0=sky/1=ground), color (0-17)
@@ -286,7 +292,7 @@ asm render(intrOnKbd)#0
   +asmPlasmNoRet 1
   jmp $6018
 end
-asm texControl(doLoad)#0
+asm _texControl(doLoad)#0
   +asmPlasmNoRet 1
   jmp $601B
 end
@@ -384,111 +390,6 @@ export asm memset(pDst, val, len)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Specialized line routine for drawing the clock. Plots in black or white only, on hi-res pg 2.
-asm _drawLine(color, len, xbyte, xbit, xinc, xdir, y, yinc, ydir)#0
-!zone {
-.param_color  = evalStkL+8
-.param_len    = evalStkL+7
-.param_xbyte  = evalStkL+6
-.param_xbit   = evalStkL+5
-.param_xinc   = evalStkL+4
-.param_xdir   = evalStkL+3
-.param_y      = evalStkL+2
-.param_yinc   = evalStkL+1
-.param_ydir   = evalStkL+0
-.xfrac        = tmp
-.yfrac        = tmp+1
-  +asmPlasmNoRet 9
-  lda #0
-  sta .xfrac
-  sta .yfrac
-.getline
-  txa
-  pha
-  lda .param_y,x
-  jsr GetScreenLine
-  pla
-  tax
-  lda pTmp+1
-  eor #$60            ; always draw on hi-res pg 2
-  sta pTmp+1
-  clc                 ; signal to take X path first
-.pix
-  dec .param_len,x    ; decrement count of pixels todo
-  bmi .done           ; get out if it goes negative
-
-  ldy .param_xbyte,x  ; byte number on line
-  lda .param_color,x  ; get color mask
-  eor (pTmp),y        ; funny logic to plot in color - part 1
-  and .param_xbit,x   ; bit mask within byte
-  eor (pTmp),y        ; funny logic - part 2
-  ora #$80            ; force hi-bit colors for entire clock face (no mixing)
-  sta (pTmp),y        ; store the result
-
-  lda .param_xbit,x   ; check bit mask:
-  and #$60            ; was it the rightmost pixel?
-  eor #$40
-  bne +               ; if not, done w/ plotting
-  lda .param_color,x  ; it was, so we need to plot
-  iny                 ; ...next byte's...
-  eor (pTmp),y
-  and #1              ; ...first pixel
-  eor (pTmp),y
-  ora #$80            ; force hi-bit colors for entire clock face (no mixing)
-  sta (pTmp),y
-  dey                 ; back to where we were
-
-+ bcs .movey          ; skip X processing if we just did it
-.movex                ; check and move on X axis
-  lda .xfrac
-  clc
-  adc .param_xinc,x   ; bump the X fraction
-  sta .xfrac
-  bcc .movey          ; if not a whole number bump, don't move on X
-  lda .param_xbit,x
-  ldy .param_xdir,x   ; check X direction (0=left, 1=right)
-  bne .right
-.left
-  lsr                 ; 1 bit to the left
-  cmp #$20
-  bne +
-  ora #$40
-+ cmp #1
-  bne .ltrt
-  dec .param_xbyte,x  ; finished with byte, move 1 byte left
-  lda #$40            ; high bit of next-to-left byte
-  bne .ltrt           ; always taken
-.right
-  asl                 ; 1 bit to right
-  bpl .ltrt
-  and #$7F
-  bne .ltrt
-  inc .param_xbyte,x  ; finished with byte, move 1 byte right
-  lda #3              ; low bit of next-to-right byte
-.ltrt
-  sta .param_xbit,x
-  sec                 ; signal to take the Y path next time
-  bcs .pix            ; plot at the new position
-.movey
-  lda .yfrac
-  clc
-  adc .param_yinc,x   ; bump the Y fraction
-  sta .yfrac
-  bcc .movex          ; if not a whole number bump, don't move on Y, go bump X
-  lda .param_ydir,x   ; check Y direction (0=up, 1=down)
-  bne .down
-.up
-  dec .param_y,x      ; prev line (up)
-  bcs .getline        ; always taken
-.down
-  inc .param_y,x      ; next line (down)
-  bcs .getline        ; always taken
-.done
-  rts
-}
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 export asm readAuxByte(ptr)#1
   +asmPlasmRet 1
   sta pTmp
@@ -511,22 +412,27 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // String building for display with the font engine. Includes plurality processing to handily
 // handle things like "Dirt bag(s)" and "his/their"
-export asm buildString(pFunc)#0
-  +asmPlasmNoRet 1
+export asm buildString()#0
+  +asmPlasmNoRet 0
+  lda cswl
+  sta prevCSWL+ABS_OFFSET
+  lda cswh
+  sta prevCSWL+1+ABS_OFFSET
+  lda #<addToString+ABS_OFFSET
   sta cswl
-  sty cswh
+  lda #>addToString+ABS_OFFSET
+  sta cswh
   lda #0
   sta inbuf
   rts
-end
-
-export asm addToString()#0
+addToString:
   sty ysav1
   inc inbuf
   ldy inbuf
   sta inbuf,y
   ldy ysav1
   rts
+prevCSWL !word 0
 end
 
 // Complete string building (including plural processing), and return pointer
@@ -535,9 +441,9 @@ export asm finishString(isPlural)#1
 !zone {
   +asmPlasmRet 1
   sta tmp     ; save isPlural flag
-  lda #$F0    ; put the cout vector back to default
+  lda prevCSWL+ABS_OFFSET ; put the cout vector back to default
   sta cswl
-  lda #$FD
+  lda prevCSWL+1+ABS_OFFSET ; put the cout vector back to default
   sta cswh
   clv         ; V flag for prev-is-alpha
   ldy #0      ; dest offset in Y (will be incremented before store)
@@ -614,7 +520,7 @@ export asm finishString(isPlural)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-asm blit(isAux, srcData, dstScreenPtr, nLines, lineSize)#0
+export asm blit(isAux, srcData, dstScreenPtr, nLines, lineSize)#0
   +asmPlasmNoRet 5
 
   ; Save line size
@@ -886,12 +792,6 @@ export asm auxMmgr(cmd, wordParam)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Jump straight to the system monitor
-asm goMon()#0
-  jmp $FF69
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Execute a monitor breakpoint
 export asm brk()#0
   bit setText
@@ -938,10 +838,10 @@ export asm clearWindow()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Use the font engine to copy the current text window to hi-res page 2.
+// Use the font engine to copy the current text window to hi-res page 2 (or vice-versa)
 // If flip=0, copies page 1 to page 2
 // If flip=$60, copies page 2 to page 1
-asm copyWindow(flip)#0
+export asm copyWindow(flip)#0
   +asmPlasmNoRet 1
   tay
   jmp CopyWindow
@@ -956,7 +856,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display a string using the font engine.
-export asm displayStr(str)#0
+asm internalDisplayStr(str)#0
   +asmPlasmNoRet 1
   jmp DisplayStr
 end
@@ -1005,49 +905,58 @@ export asm rawDisplayStr(pStr)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Random number generator
-// Adapted from http://codebase64.org/doku.php?id=base:small_fast_16-bit_prng
-export asm rand16()#1
+// Random number generator. A standard linear congruential prng featuring a full cycle (i.e.
+// every value from 1..MAGIC-1 is part of the sequence).
+asm internal_rand16()#1
+!zone {
   +asmPlasmRet 0
-
-  lda seed
-  beq .lowZero ; $0000 and $8000 are special values to test for
-
-  ; Do a normal shift
-  asl seed
+  ldx #6        ; start check = 1, plus 5 loops to mul by 32 = 6 total
+  ldy seed
   lda seed+1
-  rol
-  bcc .noEor
-
-.doEor:
-  ; high byte is in A
-  eor #>magic
+  and #$7F      ; in case kbd routine has advanced past MAGIC
   sta seed+1
-  and #$7F   ; keep it positive, because PLASMA does the icky C thing with negative modulo
-  tay        ; for asmPlasm, return hi byte in Y, lo byte in A
-  lda seed
-  eor #<magic
-  sta seed
-  rts
-
-.lowZero:
-  lda seed+1
-  beq .doEor ; High byte is also zero, so apply the EOR
-             ; For speed, you could store 'magic' into 'seed' directly
-             ; instead of running the EORs
-
-  ; wasn't zero, check for $8000
+  bne .chk      ; zero check - hi byte
+  tya
+  bne .chk      ; zero check - lo byte
+  lda #1        ; force 0 seed to go to 1
+  bne .ret      ; always taken
+.shift
   asl
-  beq .noEor ; if $00 is left after the shift, then it was $80
-  bcs .doEor ; else, do the EOR based on the carry bit as usual
-
-.noEor:
+  tay
+  rol seed+1
+.chk
+  cpy #<MAGIC
+  lda seed+1
+  sbc #>MAGIC
+  bcc .next
   sta seed+1
-  and #$7F   ; keep it positive, because PLASMA does the icky C thing with negative modulo
-  tay        ; for asmPlasm, return hi byte in Y, lo byte in A
-  lda seed
+  tya
+  sbc #<MAGIC
+  !byte $C9  ; CMP imm - to skip next opcode
+.next
+  tya
+  dex
+  bne .shift   ; 32 / 25
+.ret
+  sta seed
+  ldy seed+1
   rts
+}
+end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Turn the printer on or off (assumes slot 1)
+asm setPrinter(enable)#0
+  +asmPlasmNoRet 1
+  ldx #<ROM_cout
+  ldy #>ROM_cout
+  asl
+  beq +
+  ldx #0
+  ldy #$C1
++ stx cswl
+  sty cswh
+  rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1230,95 +1139,108 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // The following only used for speed testing
-asm readNoSlotClock(dstBuf)#0  // param: dstBuf (will receive 8 BCD bytes)
-!zone {
-  +asmPlasmNoRet 1
-  ; record dst ptr
-  sta tmp
-  sty tmp+1
-  ; obtain a pointer to our little table of magic values
-  lda #$60
-  sta pTmp
-.base = *+2
-  jsr pTmp
-  tsx
-  dex
-  dex
-  txs
-  pla
-  sta pTmp
-  pla
-  sta pTmp+1
-  ldy #<(.tbl - .base)
-  ; record state of slot ROM, then turn on C3 ROM
-  sei
-  lda $CFFF
-  pha
-  sta $C300
-  lda $C304
-  ldx #8
-.wr1:
-  lda (pTmp),y
-  sec
-  ror
-.wr2:
-  bcs +
-  bit $C300
-  bcc ++
-+ bit $C301
-++ lsr
-  bne .wr2
-  iny
-  dex
-  bne .wr1
-  ldy #7
-.rd1:
-  ldx #8
-.rd2:
-  lda $C304
-  lsr
-  ror pTmp
-  dex
-  bne .rd2
-  lda pTmp
-  sta (tmp),y
-  dey
-  bpl .rd1
-  ; restore slot ROM state
-  pla
-  bmi +
-  sta $CFFF
-+ cli
-  rts
-.tbl !byte $C5,$3A,$A3,$5C,$C5,$3A,$A3,$5C
-} ; end zone
-end
-
-def getTick()
-  byte timeBuf[8]
-  word tick
-  readNoSlotClock(@timeBuf)
-  tick = (timeBuf[7] & $F) + ((timeBuf[7] >> 4) * 10)
-  tick = tick + ((timeBuf[6] & $F) * 100) + ((timeBuf[6] >> 4) * 1000)
-  return tick + (((timeBuf[5] & $F) % 5) * 6000)
-end
-
-def tickDiff(tStart, tEnd)
-  word diff
-  diff = tEnd - tStart
-  if diff >= 0; return diff; fin
-  return diff + 30000
-end
-
-def prtick(str)#0
-  if lastTick
-    printf2("%s:%d ", str, tickDiff(lastTick, getTick()))
-  fin
-  lastTick = getTick()
-end
+//asm readNoSlotClock(dstBuf)#0  // param: dstBuf (will receive 8 BCD bytes)
+//!zone {
+//  +asmPlasmNoRet 1
+//  ; record dst ptr
+//  sta tmp
+//  sty tmp+1
+//  ; obtain a pointer to our little table of magic values
+//  lda #$60
+//  sta pTmp
+//.base = *+2
+//  jsr pTmp
+//  tsx
+//  dex
+//  dex
+//  txs
+//  pla
+//  sta pTmp
+//  pla
+//  sta pTmp+1
+//  ldy #<(.tbl - .base)
+//  ; record state of slot ROM, then turn on C3 ROM
+//  sei
+//  lda $CFFF
+//  pha
+//  sta $C300
+//  lda $C304
+//  ldx #8
+//.wr1:
+//  lda (pTmp),y
+//  sec
+//  ror
+//.wr2:
+//  bcs +
+//  bit $C300
+//  bcc ++
+//+ bit $C301
+//++ lsr
+//  bne .wr2
+//  iny
+//  dex
+//  bne .wr1
+//  ldy #7
+//.rd1:
+//  ldx #8
+//.rd2:
+//  lda $C304
+//  lsr
+//  ror pTmp
+//  dex
+//  bne .rd2
+//  lda pTmp
+//  sta (tmp),y
+//  dey
+//  bpl .rd1
+//  ; restore slot ROM state
+//  pla
+//  bmi +
+//  sta $CFFF
+//+ cli
+//  rts
+//.tbl !byte $C5,$3A,$A3,$5C,$C5,$3A,$A3,$5C
+//} ; end zone
+//end
+//
+//def getTick()
+//  byte timeBuf[8]
+//  word tick
+//  readNoSlotClock(@timeBuf)
+//  tick = (timeBuf[7] & $F) + ((timeBuf[7] >> 4) * 10)
+//  tick = tick + ((timeBuf[6] & $F) * 100) + ((timeBuf[6] >> 4) * 1000)
+//  return tick + (((timeBuf[5] & $F) % 5) * 6000)
+//end
+//
+//def tickDiff(tStart, tEnd)
+//  word diff
+//  diff = tEnd - tStart
+//  if diff >= 0; return diff; fin
+//  return diff + 30000
+//end
+//
+//def prtick(str)#0
+//  if lastTick
+//    printf2("%s:%d ", str, tickDiff(lastTick, getTick()))
+//  fin
+//  lastTick = getTick()
+//end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // General methods
+
+export def rand16()#1
+  word result
+  if recordMode
+    *seed = recordSeed
+    //printf1("%x:", recordSeed)
+    result = internal_rand16()
+    recordSeed = *seed
+    //printf1("%x ", recordSeed)
+    return result
+  fin
+  return internal_rand16()
+end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Fatal error: print message and stop the system.
@@ -1330,31 +1252,50 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Return the max of two signed 16-bit numbers
 export def max(a, b)#1
-  if a < b; return b; fin
-  return a
+  return a > b ?? a :: b
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Return the min of two signed 16-bit numbers
 export def min(a, b)#1
-  if a < b; return a; fin
-  return b
+  return a < b ?? a :: b
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Return the absolute value of a number
 export def abs(n)#1
-  if n < 0; return -n; fin
-  return n
+  return n < 0 ?? -n :: n
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Convert a lower-case character to upper-case (or return unchanged if it's not lower-case)
 export def charToUpper(c)#1
-  if c >= 'a' and c <= 'z'
-    return c - $20
+  return (c >= 'a' and c <= 'z') ?? (c - $20) :: c
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def recordChar(ch)#0
+  if ch < $20
+    printChar('^')
+    ch = ch + $40
   fin
-  return c
+  printChar(ch)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def recordDisplay(str)#0
+  word i
+  puts("DISP:")
+  for i = 1 to ^str
+    recordChar(^(str + i) & $7F)
+  next
+  crout
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def displayStr(str)#0
+  if recordMode; recordDisplay(str); fin
+  internalDisplayStr(str)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1363,6 +1304,9 @@ export def getStringResponse()#1
   word p
   rawGetStr()
   rawDisplayStr("\n") // so Outlaw user doesn't have to remember to make a newline
+  if recordMode
+    puts("STRING:"); puts($200); crout
+  fin
   return mmgr(HEAP_INTERN, $200)
 end
 
@@ -1438,7 +1382,7 @@ export def printf2(str, arg1, arg2)#0; printf3(str, arg1, arg2, 0); end
 
 // Like printf, but displays text using font engine
 export def displayf3(str, arg1, arg2, arg3)#0
-  buildString(@addToString)
+  buildString()
   printf3(str, arg1, arg2, arg3)
   displayStr(finishString(isPlural))
 end
@@ -1448,7 +1392,7 @@ export def displayf2(str, arg1, arg2)#0; displayf3(str, arg1, arg2, 0); end
 
 // Like printf, but buffers string in $200
 export def sprintf3(str, arg1, arg2, arg3)#1
-  buildString(@addToString)
+  buildString()
   printf3(str, arg1, arg2, arg3)
   return finishString(isPlural)
 end
@@ -1493,6 +1437,28 @@ export def parseDec(str)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Used in record mode to print out a keystroke. Also handles caret -> ctrl translation during
+// playback of recordings.
+export def recordKey()#1
+  byte key
+  key = ^kbd & $7F
+  ^kbdStrobe
+  if recordMode
+    if key == '^'
+      while ^kbd < 128; loop
+      key = (^kbd & $7F) - $40
+      ^kbdStrobe
+    fin
+    puts("KEY:")
+    recordChar(key)
+    puts(" SEED:$")
+    printHex(recordSeed)
+    crout
+  fin
+  return key
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Get a keystroke and convert it to upper case
 export def getUpperKey()#1
   byte key
@@ -1502,30 +1468,17 @@ export def getUpperKey()#1
     copyWindow(0)
   fin
 
-  //if pMacro
-  //  pMacro++
-  //  if ^pMacro
-  //    if ^pMacro <> 'l'
-  //      if !startTick; startTick = getTick(); fin
-  //    fin
-  //    return charToUpper(^pMacro)
-  //  else
-  //    pMacro = NULL
-  //    printf3("start=%d end=%d elapsed=%d\n", startTick, getTick(), tickDiff(startTick, getTick()))
-  //    ^$C054
-  //    ^$C051
-  //    rdkey()
-  //  fin
-  //fin
-
   // Now wait for a key, and animate while doing so.
   while ^kbd < 128
-    // pause() will terminate on keypress, returning the count it did
-    *seed = *seed + pause(30000)
+    if recordMode
+      pause(30000)
+    else
+      // pause() will terminate on keypress, returning the count it did
+      *seed = *seed + pause(30000)
+    fin
   loop
-  key = ^kbd
-  ^kbdStrobe
-  return charToUpper(key & $7F)
+  key = recordKey
+  return charToUpper(key)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1589,37 +1542,11 @@ export def forEach(p, do)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def nextLampFrame()#0
-  word n, pTile
-  if !mapIs3D or !frameLoaded; return; fin
-
-  if showingLamp
-    n = lampFrame - LAMP_1
-    n = n + lampDir
-    while n < 0
-      n = n + (LAMP_COUNT-1)  // because PLASMA's modulo operator adopts C's (IMO useless) behavior
-    loop
-    if n >= (LAMP_COUNT-1)
-      n = n % (LAMP_COUNT-1)
-    fin
-    n = n + LAMP_1
-    if (rand16() % 100) < 10
-      lampDir = -lampDir
-    fin
-  else
-    n = LAMP_0
-  fin
-  pTile = pGlobalTileset + (n << 5) + 1 // +1 to skip to the header (# of tiles)
-  blit(FALSE, pTile, getScreenLine(LAMP_Y)+LAMP_XBYTE,       16, 2)
-  blit(FALSE, pTile, getScreenLine(LAMP_Y)+LAMP_XBYTE+$2000, 16, 2)
-  lampFrame = n
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Pause for a specified count period, advancing the animation periodically. Terminates early
 // if a key is pressed. In either case, returns the number of counts waited.
 export def pause(count)#1
-  word i
+  word i, prevSeed
+  if recordMode; prevSeed = recordSeed; fin
   for i = 0 to count
     if ^kbd >= 128; break; fin
     animPauseCt--
@@ -1628,6 +1555,7 @@ export def pause(count)#1
       animPauseCt = ANIM_PAUSE_MAX
     fin
   next
+  if recordMode; recordSeed = prevSeed; fin
   return i
 end
 
@@ -1679,7 +1607,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Look up the partition for a resource.
-// sectioNum: 1=map2d, 2=map3d, 3=portrait
+// sectioNum: 0=version num (do not use here), 1=map2d, 2=map3d, 3=portrait, 4=story
 export def lookupResourcePart(sectionNum, resourceNum)#1
   word ptr
   byte n, i
@@ -1702,10 +1630,9 @@ export def lookupResourcePart(sectionNum, resourceNum)#1
   fin
 
   // Otherwise return the first disk it's on
-  for i = 0 to 8
+  for i = 0 to 7
     if n & (1<<i); return i+1; fin
   next
-  fatal("lkupFail2")
   return 0
 end
 
@@ -1716,8 +1643,8 @@ export def setSky(num)#0
     skyNum = num
     setColor(0, skyNum)
     needRender = TRUE
-    showingLamp = mapIs3D and (skyNum == 0 or skyNum == 8)
-    nextLampFrame // to update image
+    showingLamp = mapIs3D and texturesLoaded and (skyNum == 0 or skyNum == 8)
+    if showingLamp and util3d; util3d=>util3d_nextLampFrame(); fin // to update image
   fin
 end
 
@@ -1778,13 +1705,17 @@ def printVersion()#0
   byte len
   if !pResourceIndex; return; fin
 
-  buildString(@addToString)
-  printChar('V')
-  p = pResourceIndex
-  len = readAuxByte(p)
-  while len
-    p++; printChar(readAuxByte(p)); len--
-  loop
+  buildString()
+  if recordMode
+    puts("recording")
+  else
+    printChar('V')
+    p = pResourceIndex
+    len = readAuxByte(p)
+    while len
+      p++; printChar(readAuxByte(p)); len--
+    loop
+  fin
   p = finishString(FALSE)
   len = calcWidth(p)
   printAtBottom(p, 25, 154, 154 + len + 9, 3)
@@ -1805,8 +1736,10 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def resetAnimPause()#0
+  anyAnims = TRUE  // for now; might get cleared if we discover otherwise on advance
+  animDirCt = 1
   animPauseCt = ANIM_PAUSE_MAX
-  showingLamp = mapIs3D and (skyNum == 0 or skyNum == 8)
+  showingLamp = mapIs3D and texturesLoaded and (skyNum == 0 or skyNum == 8)
   lampFrame = 0
   lampDir = 1
 end
@@ -1821,7 +1754,7 @@ export def loadFrameImg(img)#0
   clearPortrait()
 
   // Make room in aux mem by throwing out textures
-  unloadTextures()
+  textureControl(FALSE)
 
   // Load the image data into aux mem
   if img
@@ -1832,8 +1765,6 @@ export def loadFrameImg(img)#0
     curFullscreenImg = auxMmgr(QUEUE_LOAD, img<<8 | RES_TYPE_SCREEN)
     auxMmgr(FINISH_LOAD, 0)
 
-    anyAnims = TRUE  // for now; might get cleared if we discover otherwise on advance
-    animDirCt = 1
     resetAnimPause()
 
     // And show the first frame of the screen image
@@ -2011,7 +1942,7 @@ end
 export def scriptEvent(event, param)#0
   byte i, argCount
   word script
-  if !nMapScripts; return; fin
+  if !nMapScripts or q_playerDeath; return; fin
 
   if inScript; return; fin // avoid doing scripted events inside other scripts
   inScript = TRUE 
@@ -2040,7 +1971,7 @@ export def scriptEvent(event, param)#0
   fin
   clearPortrait()
   if needShowParty; showParty(); fin
-  if global=>p_players=>w_health == 0; playerDeath(); fin
+  if global=>p_players=>w_health == 0; q_playerDeath = TRUE; fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2062,155 +1993,23 @@ export def loadMainFrameImg()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def horzSegment(color, len, x, y)#0
-  //params: color, len, xbyte, xbit,             xinc, xdir, y, yinc, ydir
-  _drawLine(color, len, x/7,   (3<<(x%7)) & $7F, $FF,  1,    y, 0,    0)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def putSegment(color, len, isOuter, x, y)#0
-  if isOuter
-    horzSegment(color ^ $7F, len, x, y)
-  else
-    horzSegment(color ^ $7F, 1,     x,     y)
-    horzSegment(color,       len-3, x+2,   y)
-    horzSegment(color ^ $7F, 1,     x+len, y)
+def loadUtil3d()#0
+  if !pModUtil3d and mapIs3D
+    mmgr(START_LOAD, 1) // code is in partition 1
+    pModUtil3d = mmgr(QUEUE_LOAD, MOD_UTIL3D<<8 | RES_TYPE_MODULE)
+    mmgr(FINISH_LOAD, 0)
+    util3d = pModUtil3d()
+    initCmds() // rebuild the command table with new function ptrs
   fin
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Draw a filled, outlined circle
-def drawCircle(color, radius, x0, y0)#0
-  word x, y, dx, dy, err, r2, p
-
-  // Clear extents buffer
-  r2 = radius << 1
-  memset($280, 0, r2)
-
-  // Midpoint circle algorithm, but instead of plotting points, just record max extents
-  x = radius-1
-  y = 0
-  dx = 1
-  dy = 1
-  err = dx - r2
-
-  while (x >= y)
-    p = $280 + y
-    ^p = max(^p, x)
-
-    p = $280 + x
-    ^p = max(^p, y)
-
-    if err <= 0
-      y++
-      err = err + dy
-      dy = dy + 2
-    elsif err > 0
-      x--
-      dx = dx + 2
-      err = err + dx - r2
-    fin
-
-  loop
-
-  // Using the extents, draw an outline circle
-  for y = 0 to radius-1
-    x = ^($280+y)
-    putSegment(color, x<<1, y>=radius-2, x0-x, y0-y)
-    putSegment(color, x<<1, y>=radius-2, x0-x, y0+y)
-  next
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def drawHand(color, hour, isShort)#0
-  word xdir, xinc, ydir, yinc, len
-  ydir = (hour > 3 and hour < 9) & 1   // 3..9 = 1
-  xdir = (hour < 6) & 1             // 1..6 = 1
-  xinc = (^("123210123210"+hour) - '0') * 85
-  yinc = (^("210123210123"+hour) - '0') * 85
-  len = (hour % 3) ?? (CLOCK_RADIUS*3/2)-4 :: CLOCK_RADIUS-2
-  if isShort
-    len = len * 3 / 5
-  fin
-  //params: color, len, xbyte,     xbit,                   xinc, xdir, y,       yinc, ydir
-  _drawLine(color, len, CLOCK_X/7, (3<<(CLOCK_X%7)) & $7F, xinc, xdir, CLOCK_Y, yinc, ydir)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def drawHands(color, hour, min)#0
-  word n
-  n = min/5
-  drawHand(color, n ?? n :: 12, FALSE)
-  n = hour % 12
-  drawHand(color, n ?? n :: 12, TRUE)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def showClock()#0
-  word cursX, cursY, color
-
-  // Show page 1 while we do work on page 2
-  flipToPage1
-
-  // Erase old clock hands if applicable
-  if prevClockColor <> 99
-    drawHands(prevClockColor, prevClockHour, prevClockMinute)
-  fin
-
-  // New color
-  color = global->b_hour < 6 or global->b_hour >= 18 ?? 0 :: $7F
-  if color <> prevClockColor
-    // Draw entire circle in new color
-    drawCircle(color, CLOCK_RADIUS, CLOCK_X, CLOCK_Y)
-  else
-    // Erase old clock hands
-    drawHands(prevClockColor, prevClockHour, prevClockMinute)
-  fin
-
-  // Draw new clock hands
-  drawHands(color ^ $7F, global->b_hour, global->b_minute)
-
-  // Copy the image from pg 2 to pg 1
-  cursX, cursY = getCursor()
-  setWindow(CLOCK_Y-CLOCK_RADIUS, CLOCK_Y+CLOCK_RADIUS, (CLOCK_X-CLOCK_RADIUS)/7*7, (CLOCK_X+CLOCK_RADIUS+13)/7*7)
-  copyWindow($60) // page 2 to page 1
-  setWindow2()
-  setCursor(cursX, cursY)
-
-  // And record parameters for erasing the clock hands next time
-  prevClockColor  = color
-  prevClockHour   = global->b_hour
-  prevClockMinute = global->b_minute
-  nextSignificantMinute = global->b_minute - (global->b_minute % 5) + 5
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def showCompassDir(dir)#0
-  word cursX, cursY, str
-  cursX, cursY = getCursor()
-  setWindow(173, 182, 28, 49) // Top, Bottom, Left, Right
-  clearWindow()
-  when dir
-    is 15; is 0; is 1;   str = "E";  break
-    is 2;                str = "SE"; break
-    is 3; is 4; is 5;    str = "S";  break;
-    is 6;                str = "SW"; break;
-    is 7; is 8; is 9;    str = "W";  break;
-    is 10;               str = "NW"; break;
-    is 11; is 12; is 13; str = "N"; break;
-    is 14;               str = "NE"; break;
-  wend
-  centerStr(str, 21)
-  if mapIs3D and texturesLoaded; copyWindow(0); fin
-  setWindow2()
-  setCursor(cursX, cursY)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load code and data, set up everything to display a 2D or 3D map
 def initMap(x, y, dir)#0
+  word pDiskOps // TEMPORARY - FIXME FOO
+
   // If we have a renderer loaded, let it know to flush automap marks
-  unloadTextures()
+  textureControl(FALSE)
 
   // Reset memory (our module will stay since memory manager locked it upon load)
   mmgr(RESET_MEMORY, 0)
@@ -2229,13 +2028,19 @@ def initMap(x, y, dir)#0
     mmgr(QUEUE_LOAD, CODE_TILE_ENGINE<<8 | RES_TYPE_CODE)
   fin
   pGlobalTileset = mmgr(QUEUE_LOAD, 1<<8 | RES_TYPE_TILESET)  // even in 3d, need tiles for lamp/etc.
+  pDiskOps = mmgr(QUEUE_LOAD, MOD_DISKOPS<<8 | RES_TYPE_MODULE) // TEMPORARY - FIXME FOO
   mmgr(FINISH_LOAD, 0)
+  if mapIs3D; loadUtil3d(); fin
+
+  pDiskOps()=>diskops_checkAutomap() // TEMPORARY - FIXME FOO
+  mmgr(FREE_MEMORY, pDiskOps) // TEMPORARY - FIXME FOO
 
   // Set up the command table
-  initCmds()
+  initCmds() // must be after loading util3d
 
   // Load the map
   curMapPartition = lookupResourcePart(mapIs3D+1, mapNum)
+  if !curMapPartition; fatal("lkupFail2"); fin
   mmgr(START_LOAD, curMapPartition)
   pCurMap = mmgr(QUEUE_LOAD, mapNum<<8 | (RES_TYPE_2D_MAP+mapIs3D))
   mmgr(FINISH_LOAD, 0)
@@ -2268,16 +2073,16 @@ def initMap(x, y, dir)#0
   snoozeX1 = -1
   if timeEventFunc; timeEventFunc(global->b_hour); fin
   if mapIs3D
-    showCompassDir(dir)
-    showClock()
+    if util3d
+      util3d=>util3d_showCompassDir(dir)
+      util3d=>util3d_showClock()
+    fin
   elsif global->b_curAvatar <> 0
     setAvatar(global->b_curAvatar)
     doRender()
   fin
 
   // Assume there might be animations until we learn otherwise
-  anyAnims = TRUE  // for now; might get cleared if we discover otherwise on advance
-  animDirCt = 1
   resetAnimPause
 
   // Populate script handlers for the current square, so that leave handlers will trigger right.
@@ -2297,12 +2102,23 @@ export def scriptSetAvatar(avatarTileNum)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def unloadTextures()#0
-  if renderLoaded and texturesLoaded
-    flipToPage1()
-    texControl(0)
-    texturesLoaded = FALSE
+export def textureControl(flg)#0
+  if !renderLoaded or !mapIs3D; return; fin
+  flipToPage1
+  if flg and !texturesLoaded
+    _texControl(1)
+    loadUtil3d
+    showingLamp = (skyNum == 0 or skyNum == 8)
+  elsif !flg and texturesLoaded
+    _texControl(0)
+    if pModUtil3d
+      mmgr(FREE_MEMORY, pModUtil3d)
+      pModUtil3d = NULL
+      util3d = NULL
+    fin
+    showingLamp = FALSE
   fin
+  texturesLoaded = flg
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2326,12 +2142,8 @@ end
 // Perform rendering, copy if necessary, clear appropriate flags
 def doRender()#0
   if curPortrait; clearPortrait(); fin
-  if !texturesLoaded
-    flipToPage1()
-    texControl(1)
-    texturesLoaded = TRUE
-  fin
-  if showingLamp; nextLampFrame; fin
+  textureControl(TRUE)
+  if showingLamp; util3d=>util3d_nextLampFrame(); fin
   render(0) // Don't interrupt on kbd - must finish the render
   needRender = FALSE
 end
@@ -2368,7 +2180,7 @@ def advTime(hours, mins, secs)#0
     fin
 
     if mapIs3D and redrawClock
-      showClock()
+      if util3d; util3d=>util3d_showClock(); fin
     fin
 
     if runScript and timeEventFunc
@@ -2381,18 +2193,14 @@ end
 // Called by scripts to display a string. We set the flag noting that something has been
 // displayed, then use an assembly routine to do the work.
 export def _scriptDisplayStr(str)#0
-  if pIntimate
-    pIntimate=>intimate_displayStr(str)
-  else
-    if renderLoaded and !curPortrait and !curFullscreenImg and needRender
-      doRender()
-      flipToPage1()
-      needRender = FALSE
-    fin
-    if textClearCountdown; clearTextWindow(); fin
-    displayStr(str)
-    textDrawn = TRUE
+  if renderLoaded and !curPortrait and !curFullscreenImg and needRender
+    doRender()
+    flipToPage1()
+    needRender = FALSE
   fin
+  if textClearCountdown; clearTextWindow(); fin
+  displayStr(str)
+  textDrawn = TRUE
   anyInteraction = TRUE
 end
 
@@ -2429,12 +2237,12 @@ def snooze()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def moveInternal(facingDir, moveDir, beepOK, shouldAdvTime)#1
-  byte val
+export def moveInternal(facingDir, moveDir, beepOK, shouldAdvTime)#1
+  byte val, i
   word x, y
 
   setDir(moveDir)
-  val = advance()
+  val = advance(global->b_moveMode)
   lastMoveDir = moveDir
   setDir(facingDir)
 
@@ -2452,7 +2260,9 @@ def moveInternal(facingDir, moveDir, beepOK, shouldAdvTime)#1
   // Advance time if requested
   if shouldAdvTime
     if mapIs3D
-      advTime(CLOCK_ADV_3D_HOURS, CLOCK_ADV_3D_MINS, CLOCK_ADV_3D_SECS)
+      for i = 0 to global->b_moveMode
+        advTime(CLOCK_ADV_3D_HOURS, CLOCK_ADV_3D_MINS, CLOCK_ADV_3D_SECS)
+      next
     else
       advTime(CLOCK_ADV_2D_HOURS, CLOCK_ADV_2D_MINS, CLOCK_ADV_2D_SECS)
     fin
@@ -2472,6 +2282,7 @@ def moveInternal(facingDir, moveDir, beepOK, shouldAdvTime)#1
       checkEncounter(x, y, FALSE)
     fin
   fin
+
   return val
 end
 
@@ -2484,26 +2295,7 @@ def moveForward()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Adjust player's direction plus or minus n increments; returns new dir
-def adjustDir(n)#1
-  byte dir
-  dir = (getDir() + n) & 15
-  setDir(dir)
-  return dir
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Move backward one step (3D mode). Also actually works in 2D mode.
-def moveBackward()#1
-  byte facingDir, moveDir
-  facingDir = getDir()
-  moveDir = (facingDir + 8) & 15
-  moveInternal(facingDir, moveDir, TRUE, TRUE) // beep ok, adv time
-  return 0
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Move backward two steps (3D mode), or one step (2D mode). This is often used when exiting a
+// Move backward two quarter-steps (3D mode), or one step (2D mode). This is often used when exiting a
 // building or fleeing combat, so we don't want to generate any random encounters.
 export def moveWayBackward()#1
   byte facingDir, moveDir
@@ -2511,46 +2303,12 @@ export def moveWayBackward()#1
   if lastMoveDir <> $FF
     moveDir = (lastMoveDir + 8) & 15  // reverse of last move
     moveInternal(facingDir, moveDir, FALSE, TRUE) // no beep, but do adv time
-    if mapIs3D
-      moveInternal(facingDir, moveDir, FALSE, FALSE) // no beep, don't adv time
+    if global->b_moveMode == 1
+      moveInternal(facingDir, moveDir, FALSE, TRUE) // no beep, but do adv time
     fin
   fin
   lastMoveDir = $FF // avoid problems if moveWayBackward called repeatedly
   return 0
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Turn left (3D mode)
-def rotateLeft()#1
-  needRender = TRUE
-  showCompassDir(adjustDir(-1))
-  return 0
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Rotate to the right (3D mode)
-def rotateRight()#1
-  needRender = TRUE
-  showCompassDir(adjustDir(1))
-  return 0
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Sidestep to the right (3D mode)
-def strafeRight()#1
-  byte facingDir, moveDir
-  facingDir = getDir()
-  moveDir = (facingDir + 4) & 15
-  return moveInternal(facingDir, moveDir, TRUE, TRUE) // beep ok, adv time
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Sidestep to the left (3D mode)
-def strafeLeft()#1
-  byte facingDir, moveDir
-  facingDir = getDir()
-  moveDir = (facingDir - 4) & 15
-  return moveInternal(facingDir, moveDir, TRUE, TRUE) // beep ok, adv time
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2658,6 +2416,7 @@ def kbdLoop()#0
         func()
       fin
     fin
+    if q_playerDeath; playerDeath(); continue; fin
     if q_mapNum; setMap(q_mapIs3D, q_mapNum, q_x, q_y, q_dir); q_mapNum = 0; fin
     if needRender; doRender(); fin
     if prevScriptModule
@@ -2763,21 +2522,25 @@ end
 def showAnimFrame()#0
   byte top
   if curPortrait
-    // Blit portrait to the appropriate area on the screen
-    top = 32   // start at 4th text line in 2D
-    if frameLoaded == 3  // 3D-mode frame? Note: don't check mapIs3D, because we might be in an engine
-      top = 24 // start at 4th text line in 3D
+    if storyMode
+      blit(1, curPortrait + 2, getScreenLine(0)+20, 128, 18)
+    else
+      // Blit portrait to the appropriate area on the screen
+      top = 32   // start at 4th text line in 2D
+      if frameLoaded == 3  // 3D-mode frame? Note: don't check mapIs3D, because we might be in an engine
+        top = 24 // start at 4th text line in 3D
+      fin
+      blit(1, curPortrait + 2, getScreenLine(top)+2, 128, 18)
     fin
-    blit(1, curPortrait + 2, getScreenLine(top)+2, 128, 18)
     needRender = FALSE  // suppress display of map for this frame
-    if showingLamp; nextLampFrame(); fin
+    if showingLamp and util3d; util3d=>util3d_nextLampFrame(); fin
   elsif curFullscreenImg
     blit(1, curFullscreenImg + 2, getScreenLine(0), 192, 40) // the +2 is to skip anim hdr offset
     needRender = FALSE  // suppress display of map for this frame
   elsif mapIs3D
-    if showingLamp; nextLampFrame(); fin
+    if showingLamp and util3d; util3d=>util3d_nextLampFrame(); fin
     render($FF) // it's only animation, so do interrupt if a key is pressed
-    if showingLamp; nextLampFrame(); fin
+    if showingLamp and util3d; util3d=>util3d_nextLampFrame(); fin
   fin
 end
 
@@ -2812,13 +2575,15 @@ export def setPortrait(portraitNum)#0
   word srcData
   byte part, cx, cy, cursX, cursY
 
+  if portraitNum == curPortraitNum; return; fin
+
   clearPortrait()
 
   // We're going to switch windows. Save the cursor pos in the text window.
   cursX, cursY = getCursor()
 
   // Make room by unloading the textures (only if renderer is loaded)
-  unloadTextures()
+  textureControl(FALSE)
 
   // Now clear out the map area
   useMapWindow()
@@ -2829,14 +2594,13 @@ export def setPortrait(portraitNum)#0
 
   // Load the portrait image and display it
   part = lookupResourcePart(3, portraitNum)
+  if !part; fatal("lkupFail2"); fin
   // Commented out below, because it prevents cycling thru all portraits (in god mode)
   // NO: if part > 1; part = curMapPartition; fin  // Look on disk 1 or current disk only
   mmgr(START_LOAD, part)
   curPortrait = auxMmgr(QUEUE_LOAD, portraitNum<<8 | RES_TYPE_PORTRAIT)
   curPortraitNum = portraitNum
   mmgr(FINISH_LOAD, 0)
-  anyAnims = TRUE  // for now; might get cleared if we discover otherwise on advance
-  animDirCt = 1
   resetAnimPause
 
   // And show the first frame
@@ -2901,7 +2665,7 @@ def loadEngine(moduleNum)#1
   if curEngine; fatal("dblEng"); fin
   preEnginePortraitNum = curPortraitNum
   clearPortrait()
-  unloadTextures()
+  textureControl(FALSE)
   flipToPage1()
   mmgr(START_LOAD, 1) // code is in partition 1
   curEngine = mmgr(QUEUE_LOAD, moduleNum<<8 | RES_TYPE_MODULE)
@@ -2920,7 +2684,7 @@ def returnFromEngine(render)#0
     else
       clearPortrait()
     fin
-    if renderLoaded; texControl(1); texturesLoaded = TRUE; fin
+    textureControl(TRUE)
     mapNameHash = 0; showMapName(global=>s_mapName)
     clearTextWindow()
     if render
@@ -2929,9 +2693,11 @@ def returnFromEngine(render)#0
       needRender = TRUE
     fin
     if mapIs3D
-      showCompassDir(getDir())
       prevClockColor = 99
-      showClock()
+      if util3d
+        util3d=>util3d_showCompassDir(getDir())
+        util3d=>util3d_showClock()
+      fin
     fin
     showParty()
     setWindow2()  // in case we're mid-script
@@ -2966,7 +2732,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load the automap engine and display the map
 def showAutomap()#1
-  loadEngine(MOD_AUTOMAP)=>automap_show()
+  loadEngine(MOD_AUTOMAP)=>automap_show(9999, 9999)  // 9999 = no quest target
   returnFromEngine(TRUE)
   return 0
 end
@@ -2974,7 +2740,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load the Party engine and show data for the given player
 def showPlayerSheet(num)#1
-  word sNameToUse, oldFlg
+  word sNameToUse, oldFlg, pItemutilModule
   if num+1 > countList(global=>p_players); beep; return 0; fin
   sNameToUse = loadEngine(MOD_PARTY)=>party_showPlayerSheet(num)
   returnFromEngine(TRUE)
@@ -3045,6 +2811,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def playerDeath()#0
+  setWindow2; clearWindow
   callGlobalFunc(GS_DEATH, 0, 0, 0)
   startGame(FALSE, FALSE) // don't ask, just load
 end
@@ -3066,7 +2833,7 @@ def doCombat(mapCode, backUpOnFlee)#1
   heapCollect()
 
   if (result == -99)
-    playerDeath()
+    q_playerDeath = TRUE
     return 0
   fin
   returnFromEngine(!inScript) // only re-render if outside script
@@ -3139,29 +2906,37 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def help()#1
-  flipToPage1()
-  useMapWindow()
+  flipToPage1
+  setBigWindow; clearWindow
   loadEngine(GS_HELP)()
   returnFromEngine(TRUE)
   return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+export def setRecordMode(enable)#0
+  recordMode = enable
+  if recordMode; recordSeed = 1; fin
+  setPrinter(recordMode)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def toggleGodMode()#1
-  while ^kbd < 128; loop
-  if ^kbd == $8F  // ctrl-O
-    ^kbdStrobe
-    while ^kbd < 128; loop
-    if ^kbd == $84  // ctrl-D
-      ^kbdStrobe
-      global->b_godmode = !global->b_godmode
+  byte key
+  key = getUpperKey
+  if key == 15  // ctrl-O
+    key = getUpperKey
+    if key == 4 // ctrl-D
       flipToPage1()
       clearTextWindow()
-      displayf1("gm:%d\n", global->b_godmode & 1)
+      if key == 4 // ctrl-D
+        global->b_godmode = !global->b_godmode
+        displayf1("gm:%d\n", global->b_godmode & 1)
+        initCmds() // rebuild the command table with new commands
+      fin
       textDrawn = TRUE
       beep; beep
       clearTextWindow()
-      initCmds() // rebuild the command table with new commands
     fin
   fin
   return 0
@@ -3174,8 +2949,8 @@ def cheatCmd()#1
   key = charToUpper((^kbd) & $7F)
 
   // We don't use laodEngine, since godmode may use it too, and we'd get double modules
-  unloadTextures() // seems to be necessary for teleport-to-3d to work right
-  flipToPage1()
+  textureControl(FALSE) // seems to be necessary for teleport-to-3d to work right
+  flipToPage1
   mmgr(START_LOAD, 1) // code is in partition 1
   pModule = mmgr(QUEUE_LOAD, MOD_GODMODE<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
@@ -3183,7 +2958,7 @@ def cheatCmd()#1
   pModule()=>godmode_cheatCmd(key)
 
   mmgr(FREE_MEMORY, pModule)
-  if renderLoaded; texControl(1); texturesLoaded = TRUE; fin
+  textureControl(TRUE)
   return 0
 end
 
@@ -3197,6 +2972,54 @@ export def printMem()#1
   auxMmgr(DEBUG_MEM, 0)
   rdkey
   ^$c050
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def showQuests()#1
+  loadEngine(MOD_QUESTLOG)=>questlog_showQuests()
+  returnFromEngine(TRUE) // do render
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def showMoveMode()#0
+  flipToPage1()
+  clearTextWindow()
+  rawDisplayStr("Move mode:\n")
+  if global->b_moveMode == 1; rawDisplayStr("^I"); fin
+  rawDisplayStr("default^N  ")
+  if global->b_moveMode == 2; rawDisplayStr("^I"); fin
+  rawDisplayStr("fast^N  ")
+  if global->b_moveMode == 4; rawDisplayStr("^I"); fin
+  rawDisplayStr("classic^N\n")
+  textClearCountdown = 3
+  if mapIs3D and texturesLoaded; copyWindow(0); fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def switchMoveMode()#1
+  byte dir
+  word x, y
+
+  dir = getDir()
+  if global->b_moveMode == 1
+    global->b_moveMode = 2
+    dir = dir & ~1
+  elsif global->b_moveMode == 2
+    global->b_moveMode = 4
+    dir = dir & ~3
+  else
+    global->b_moveMode = 1
+  fin
+
+  setDir(dir)
+  getPos(@x, @y)
+  setPos(x, y) // to round it
+  needRender = TRUE
+
+  showMoveMode
+
   return 0
 end
 
@@ -3221,6 +3044,7 @@ def initCmds()#0
   cmdTbl[$07] = @toggleGodMode // ctrl-G
   cmdTbl[' '] = @snooze  // "space out" (snooze)
   cmdTbl['-'] = @showAutomap
+  cmdTbl['0'] = @showQuests
   if global->b_godmode
     // install cheat commands
     cmdTbl['T'] = @cheatCmd
@@ -3236,26 +3060,28 @@ def initCmds()#0
 
   // Commands handled differently in 3D vs 2D
   if mapIs3D
+    cmdTbl[3]   = @switchMoveMode // ctrl-C
+
     cmdTbl['W'] = @moveForward
-    cmdTbl['A'] = @rotateLeft
-    cmdTbl['D'] = @rotateRight
-    cmdTbl['S'] = @moveBackward
-    cmdTbl['X'] = @moveBackward
-    cmdTbl['Z'] = @strafeLeft
-    cmdTbl['C'] = @strafeRight
+    cmdTbl['A'] = util3d=>util3d_rotateLeft
+    cmdTbl['D'] = util3d=>util3d_rotateRight
+    cmdTbl['S'] = util3d=>util3d_moveBackward
+    cmdTbl['X'] = util3d=>util3d_moveBackward
+    cmdTbl['Z'] = util3d=>util3d_strafeLeft
+    cmdTbl['C'] = util3d=>util3d_strafeRight
 
     cmdTbl['I'] = @moveForward
-    cmdTbl['J'] = @rotateLeft
-    cmdTbl['L'] = @rotateRight
-    cmdTbl['K'] = @moveBackward
-    cmdTbl[','] = @moveBackward
-    cmdTbl['M'] = @strafeLeft
-    cmdTbl['.'] = @strafeRight
+    cmdTbl['J'] = util3d=>util3d_rotateLeft
+    cmdTbl['L'] = util3d=>util3d_rotateRight
+    cmdTbl['K'] = util3d=>util3d_moveBackward
+    cmdTbl[','] = util3d=>util3d_moveBackward
+    cmdTbl['M'] = util3d=>util3d_strafeLeft
+    cmdTbl['.'] = util3d=>util3d_strafeRight
 
     cmdTbl[11] = @moveForward  // up-arrow
-    cmdTbl[8]  = @rotateLeft   // left-arrow
-    cmdTbl[21] = @rotateRight  // right-arrow
-    cmdTbl[10] = @moveBackward // down-arrow
+    cmdTbl[8]  = util3d=>util3d_rotateLeft   // left-arrow
+    cmdTbl[21] = util3d=>util3d_rotateRight  // right-arrow
+    cmdTbl[10] = util3d=>util3d_moveBackward // down-arrow
   else
     cmdTbl['W'] = @moveNorth
     cmdTbl['D'] = @moveEast
@@ -3347,7 +3173,7 @@ export def createThing(moduleID, creationFuncNum)#1
   word p_module, funcTbl, func, p_thing
 
   // Unload textures to make room for the module (also flips to page 1 if needed)
-  unloadTextures()
+  textureControl(FALSE)
 
   // Load the module that is capable of creating the thing
   mmgr(START_LOAD, 1) // code is in partition 1
@@ -3445,7 +3271,7 @@ export def addXP_all(val)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Initialize XP (and skill pts) for newly created character
+// Initialize XP (and skill pts) for newly created character (called by packer code)
 export def initPlayerXP(player)#0
   player->b_skillPoints = callGlobalFunc(GS_LEVEL_S_P, player->b_level, 0, 0)
   player=>w_curXP = callGlobalFunc(GS_LEVEL_X_P, player->b_level, 0, 0)
@@ -3623,15 +3449,28 @@ export def getGameFlag(flagNum)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def setIntimateMode(enable)#0
-  if enable
-    pIntimate = loadEngine(MOD_INTIMATE)
-    pIntimate=>intimate_setMode(enable)
-  else
-    pIntimate=>intimate_setMode(enable)
-    returnFromEngine(TRUE)
-    pIntimate = NULL
+export def setStoryMode(enable)#0
+  // Story mode only exists on 800K or hard drive builds
+  if !isFloppyVer
+    storyMode = enable
+    if enable
+      loadEngine(MOD_STORY)
+      curEngine()=>story_mode(TRUE, preEnginePortraitNum)
+      needRender = FALSE
+      frameLoaded = 0 // since we just destroyed it
+      textDrawn = FALSE
+      textClearCountdown = 0
+    else
+      curEngine()=>story_mode(FALSE, 0)
+      preEnginePortraitNum = 0 // so we don't restore it
+      returnFromEngine(TRUE)
+    fin
   fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def displayStory(storyNum)#0
+  curEngine()=>story_display(storyNum)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3648,15 +3487,12 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def buySell(storeCode, profitRatio)#0
-  word portrait
-  portrait = curPortraitNum
   if storeCode
     loadEngine(MOD_STORE)=>store_buyFromStore(storeCode, profitRatio)
   else
     loadEngine(MOD_STORE)=>store_sellToStore(profitRatio)
   fin
   returnFromEngine(FALSE) // no render, we're mid-script
-  if portrait; setPortrait(portrait); fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3676,6 +3512,7 @@ def startGame(firstTime, ask)#0
   fin
   p_module = mmgr(QUEUE_LOAD, MOD_DISKOPS<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
+  q_playerDeath = FALSE
   if firstTime; p_module()=>diskops_startup(); fin
   if p_module()=>diskops_newOrLoadGame(ask)
     mapIs3D = q_mapIs3D
@@ -3693,6 +3530,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Main code.
 //
+isFloppyVer = FALSE // FIXME
 scriptDisplayStr(@_scriptDisplayStr) // 1-time init
 startGame(TRUE, TRUE) // first time init; ask whether new or load
 kbdLoop()

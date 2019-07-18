@@ -138,21 +138,18 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     @Override
     public void buildEditorUI(Pane tileEditorAnchorPane) {
         anchorPane = tileEditorAnchorPane;
-        ApplicationState.getInstance().getPrimaryStage().getScene().addEventHandler(KeyEvent.KEY_PRESSED, this::keyPressed);
         initCanvas();
         redraw();
     }
 
-    private void keyPressed(KeyEvent e) {
-        if (e.isControlDown() && e.getCode() == KeyCode.SPACE) {
-            e.consume();
-            String category = null;
-            if (currentTile != null) {
-                category = currentTile.getCategory();
-            }
-            if (this.equals(ApplicationState.getInstance().getController().getVisibleEditor())) {
-                TileSelectModal.showTileSelectModal(anchorPane, category, this::setCurrentTile);
-            }
+    @Override
+    public void showSelectorModal() {
+        String category = null;
+        if (currentTile != null) {
+            category = currentTile.getCategory();
+        }
+        if (this.equals(ApplicationState.getInstance().getController().getVisibleEditor())) {
+            TileSelectModal.showTileSelectModal(anchorPane, category, this::setCurrentTile);
         }
     }
 
@@ -466,7 +463,6 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         drawCanvas.heightProperty().unbind();
         anchorPane.getChildren().remove(drawCanvas);
         currentMap.updateBackingMap();
-        ApplicationState.getInstance().getPrimaryStage().getScene().removeEventHandler(KeyEvent.KEY_PRESSED, this::keyPressed);
     }
 
     /**

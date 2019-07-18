@@ -17,6 +17,23 @@ include "gen_enemies.plh"
 include "gen_modules.plh"
 include "combat.plh"
 
+struc EnemyData
+  word s_en_name
+  word r_en_hitDice
+  byte b_en_img0
+  byte b_en_img1
+  byte b_en_attType
+  word s_en_attText
+  byte b_en_attRange
+  byte b_en_chanceToHit
+  word r_en_dmgDice
+  word r_en_expDice
+  word r_en_groupSize
+  byte b_en_lootChance
+  word s_en_lootCode
+  word r_en_goldLoot
+end
+
 predef _combat_zoneEncounter(s_encZone)#1
 word[] funcTbl = @_combat_zoneEncounter
 
@@ -103,10 +120,10 @@ def combatPause()#0
   // Check for speed-up / slow-down
   key = ^kbd
   if key == (11 + 128) or key == ('-'+128) // up-arrow or minus
-    ^kbdStrobe
+    if !recordMode; ^kbdStrobe; fin
     global=>w_combatPauseCt = max(100, global=>w_combatPauseCt - addPercent(global=>w_combatPauseCt, 20))
   elsif key == (10 + 128) or key == ('+'+128) // down-arrow or plus
-    ^kbdStrobe
+    if !recordMode; ^kbdStrobe; fin
     global=>w_combatPauseCt = min(9999, global=>w_combatPauseCt + addPercent(global=>w_combatPauseCt, 20))
   fin
 end
@@ -221,7 +238,7 @@ def damageEnemy(pPlayer, pEnemy, dmg, sAction)#0
     getUpperKey
   fin
   isPlural = FALSE
-  buildString(@addToString)
+  buildString()
   printf3("\n%s %s %s ", pPlayer=>s_name, sAction, pEnemy=>s_name)
   printf1("for %d damage.", dmg)
   if pEnemy=>w_health > dmg
@@ -849,10 +866,33 @@ def determineCombatOrder()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def makeEnemyGroup(enemyFunc)#1
+def makeEnemy(pData)
+  word p; p = mmgr(HEAP_ALLOC, TYPE_ENEMY)
+  p=>s_name = mmgr(HEAP_INTERN, pData=>s_en_name)
+  p=>w_health = rollDice(pData=>r_en_hitDice) // e.g. 4d6
+  if !pData->b_en_img1 or (rand16() % 2)
+    p->b_image = pData->b_en_img0
+  else
+    p->b_image = pData->b_en_img1
+  fin
+  p->b_attackType = pData->b_en_attType
+  p=>s_attackText = mmgr(HEAP_INTERN, pData=>s_en_attText)
+  p->b_enemyAttackRange = pData->b_en_attRange
+  p->b_chanceToHit = pData->b_en_chanceToHit
+  p=>r_enemyDmg = pData=>r_en_dmgDice
+  p=>r_enemyXP = pData=>r_en_expDice
+  p=>r_groupSize = pData=>r_en_groupSize
+  p->b_lootChance = pData->b_en_lootChance
+  if pData=>s_en_lootCode; p=>s_lootCode = mmgr(HEAP_INTERN, pData=>s_en_lootCode); fin
+  p=>r_goldLoot = pData=>r_en_goldLoot
+  return p
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def makeEnemyGroup(pEnemyData)#1
   word p, enem, groupSize
   p = mmgr(HEAP_ALLOC, TYPE_ENEMY_GROUP)
-  enem = enemyFunc()
+  enem = makeEnemy(pEnemyData)
   p->b_enemyGroupRange = enem->b_enemyAttackRange
   if enem=>r_groupSize == 0  // handle unique enemies
     groupSize = 1
@@ -861,7 +901,7 @@ def makeEnemyGroup(enemyFunc)#1
   fin
   addToList(p + p_enemies, enem)
   while groupSize > 1
-    addToList(p + p_enemies, enemyFunc())
+    addToList(p + p_enemies, makeEnemy(pEnemyData))
     groupSize--
   loop
 
@@ -882,14 +922,18 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def makeRandomGroup(mapCode)#0
   word enemiesModule
-  word enemyFunc
+  byte enemyNum
+  word pEnemyData
 
   enemiesModule = mmgr(QUEUE_LOAD, MOD_GEN_ENEMIES<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
+  enemyNum = randomFromArray(enemiesModule()=>enemies_forZone(mapCode))
+  mmgr(FREE_MEMORY, enemiesModule)
 
-  enemyFunc = randomFromArray(enemiesModule()=>enemies_forZone(mapCode))
-  addToList(@global=>p_enemyGroups, makeEnemyGroup(enemyFunc))
-
+  enemiesModule = mmgr(QUEUE_LOAD, (MOD_GEN_ENEMIES + 1 + ((enemyNum-1)&1))<<8 | RES_TYPE_MODULE)
+  mmgr(FINISH_LOAD, 0)
+  pEnemyData = enemiesModule() + 1 + (((enemyNum-1)>>1) * EnemyData)
+  addToList(@global=>p_enemyGroups, makeEnemyGroup(pEnemyData))
   mmgr(FREE_MEMORY, enemiesModule)
 end
 
@@ -1008,7 +1052,7 @@ def startCombat(mapCode)#1
 
   // Clear keyboard stobe, because while wandering the map, the player may have
   // queued up movement keys, which are made obsolete by the surprise of combat.
-  ^kbdStrobe
+  if !recordMode; ^kbdStrobe; fin
 
   // Say who we're fighting
   p = global=>p_enemyGroups

@@ -1,0 +1,171 @@
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Copyright (C) 2019 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1
+// (the "License"); you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-1.1>.
+// Unless required by applicable law or agreed to in writing, software distributed under
+// the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+// ANY KIND, either express or implied. See the License for the specific language
+// governing permissions and limitations under the License.
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+include "gamelib.plh"
+include "globalDefs.plh"
+include "playtype.plh"
+
+// Exported functions go here. First a predef for each one, then a table with function pointers
+// in the same order as the constants are defined in the the header.
+predef _story_mode(enable, portraitNum)#1, _story_display(storyNum)#1
+word[] funcTbl = @_story_mode, @_story_display
+
+word pStoryCur, pStoryEnd
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Definitions used by assembly code
+asm __defs
+
+; Use hi-bit ASCII for Apple II
+!convtab "../../include/hiBitAscii.ct"
+
+; Headers
+!source "../../include/global.i"
+!source "../../include/plasma.i"
+!source "../../include/mem.i"
+!source "../../include/fontEngine.i"
+
+; General use
+tmp         = $2
+pTmp        = $4
+
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Display a string using the font engine, but prevent scrolling, and return the address of the
+// next character that would have been displayed after scrolling (or NULL if no scroll needed)
+asm displayStrNoScroll(str)#1
+  +asmPlasmRet 1
+  pha
+  lda #1
+  jsr SetScrollLock
+  pla
+  jsr DisplayStr
+  pha
+  lda #0
+  jsr SetScrollLock
+  pla
+  rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def setBlock1()#0
+  setWindow(0, 189, 0, 133)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def setBlock2()#0
+  setWindow(135, 171, 140, 280)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Set up (or clear) story mode
+def _story_mode(enable, portraitNum)#1
+  if enable
+    setWindow(0, 192, 0, 280)
+    clearWindow
+    setPortrait(portraitNum)
+    setBlock1
+  else
+    // nothing yet
+  fin
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Load the full story text onto HGR page 2 so it's easy to use. Sets pStoryCur to the start, and
+// pStoryEnd to the end.
+def loadStory(storyNum)#0
+  byte storyPart
+  word pAuxText, pEnd, pSrc, pDst, len
+  storyPart = lookupResourcePart(4, 1)  // special section just to record the partition
+  if !storyPart; fatal("lkupFail2"); fin
+  auxMmgr(START_LOAD, storyPart)
+  pAuxText = auxMmgr(QUEUE_LOAD, storyNum<<8 | RES_TYPE_STORY)
+  auxMmgr(FINISH_LOAD, 0)
+
+  // We can slightly abuse the blit() routine to copy the story text from aux mem temporarily
+  // to hgr page 2 so it'll be easier to use.
+  pEnd = pAuxText + 2 + (readAuxByte(pAuxText) | (readAuxByte(pAuxText+1) << 8))
+  pSrc = pAuxText + 2
+  if (pEnd - pSrc) > $1FF0; fatal("storySize"); fin
+  pDst = $4001
+  pStoryCur = pDst
+  while pSrc < pEnd
+    len = min(127, pEnd - pSrc)
+    blit(1, pSrc, pDst, 1, len)
+    pSrc = pSrc + len
+    pDst = pDst + len
+  loop
+  pStoryEnd = pDst
+
+  auxMmgr(FREE_MEMORY, pAuxText)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def displayStoryBlock()#1
+  word p, pNext, len
+  byte bak
+
+  while TRUE
+    p = pStoryCur - 1
+    len = pStoryEnd - pStoryCur
+    if !len; return FALSE; fin
+    if len > 127
+      for len = 127 downto 100
+        if ^(pStoryCur + len) == ' '; break; fin
+      next
+    fin
+    bak = ^p
+    ^p = len
+    pNext = displayStrNoScroll(p)
+    ^p = bak
+    if pNext
+      pStoryCur = pNext
+      break
+    else
+      pStoryCur = pStoryCur + len
+    fin
+  loop
+  return pStoryCur < pStoryEnd
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Display story and picture on a blank screen, with blanking follow-up
+def _story_display(storyNum)#1
+  byte c
+
+  loadStory(storyNum)
+  rawDisplayStr("\n\n")
+
+  while pStoryCur < pStoryEnd
+    if displayStoryBlock
+      setBlock2
+      displayStoryBlock
+    fin
+
+    setWindow(180, 192, 160, 280)
+    rawDisplayStr("(press any key)")
+    c = getUpperKey
+    if c == 27 or pStoryCur >= pStoryEnd; break; fin
+
+    clearWindow
+    setBlock2
+    clearWindow
+    setBlock1
+    clearWindow
+  loop
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Boilerplate module initialization code
+return @funcTbl
+done

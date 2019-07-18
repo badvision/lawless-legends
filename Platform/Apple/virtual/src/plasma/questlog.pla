@@ -1,0 +1,325 @@
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1
+// (the "License"); you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-1.1>.
+// Unless required by applicable law or agreed to in writing, software distributed under
+// the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+// ANY KIND, either express or implied. See the License for the specific language
+// governing permissions and limitations under the License.
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+include "gamelib.plh"
+include "globalDefs.plh"
+include "playtype.plh"
+include "gen_images.plh"
+include "gen_items.plh"
+include "gen_enemies.plh"
+include "gen_modules.plh"
+include "combat.plh"
+include "automap.plh"
+
+predef _showQuests()#1
+word[] funcTbl = @_showQuests
+
+word pQuestsModule, pExitsBuf
+
+byte nUnstarted, nActive, nDone
+byte nTriggeredSteps, lastTriggered, nSteps
+byte displayMode, curQuestNum
+word curQuestFunc, curStepFunc
+byte questMapNum[2]
+word questMapX[2]
+word questMapY[2]
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+def loadExtraModules()#0
+  mmgr(START_LOAD, 1) // code is in partition 1
+  pQuestsModule = mmgr(QUEUE_LOAD, MOD_GEN_QUESTS<<8 | RES_TYPE_MODULE)
+  pExitsBuf = mmgr(QUEUE_LOAD, CODE_GEN_MAP_EXITS<<8 | RES_TYPE_CODE)
+  mmgr(FINISH_LOAD, 0)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def unloadExtraModules()#0
+  mmgr(FREE_MEMORY, pQuestsModule)
+  mmgr(FREE_MEMORY, pExitsBuf)
+end
+
+///////////////////////////////////////////////////////////////////////////////////
+def displayQuest_cb3(descrip, portraitNum, map1Num, map1X, map1Y, map2Num, map2X, map2Y)
+  setPortrait(portraitNum)
+  displayStr(descrip)
+  questMapNum[0] = map1Num; questMapX[0] = map1X; questMapY[0] = map1Y
+  questMapNum[1] = map2Num; questMapX[1] = map2X; questMapY[1] = map2Y
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////
+def displayQuest_cb2(stepNum, questName, triggerFlag, triggerItem, stepFunc)#1
+  if stepNum == 0
+    displayf1("Quest: %s\n\n", questName)
+  fin
+  if displayMode == 'A'
+    nSteps++
+    if triggerFlag
+      if getGameFlag(triggerFlag); nTriggeredSteps++; fin
+    elsif triggerItem
+      if partyHasItem(triggerItem); nTriggeredSteps++; fin
+    fin
+    if nTriggeredSteps == nSteps
+      curStepFunc = stepFunc
+    fin
+  fin
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def displayCurQuest()#0
+  byte ct
+
+  questMapNum[0] = 0
+  questMapNum[1] = 0
+
+  clearPortrait
+  useMapWindow // with clear
+  setWindow2; clearWindow
+  rawDisplayStr("^I^Y")
+  if displayMode == 'A'
+    rawDisplayStr("Active")
+    ct = nActive
+  else
+    rawDisplayStr("Done")
+    ct = nDone
+  fin
+  if !ct
+    rawDisplayStr(" quests^N\n\nNone.")
+    return
+  fin
+  rawDisplayf2(" %d of %d^N\n\n", curQuestNum+1, ct)
+
+  if !curQuestFunc; return; fin
+
+  nTriggeredSteps = 0
+  nSteps = 0
+  curQuestFunc(@displayQuest_cb2)
+  if curStepFunc
+    curStepFunc(@displayQuest_cb3)
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////
+def countQuests_cb2(stepNum, name, triggerFlag, triggerItem, stepFunc)#1
+  lastTriggered = FALSE
+  if triggerFlag
+    if getGameFlag(triggerFlag); nTriggeredSteps++; lastTriggered = TRUE; fin
+  elsif triggerItem
+    if partyHasItem(triggerItem); nTriggeredSteps++; lastTriggered = TRUE; fin
+  fin
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////
+def countQuests_cb1(questNum, questFunc)#1
+  nTriggeredSteps = 0
+  lastTriggered = FALSE
+  questFunc(@countQuests_cb2)
+  if lastTriggered
+    if displayMode == 'D' and nDone == curQuestNum
+      curQuestFunc = questFunc
+    fin
+    nDone++
+  elsif nTriggeredSteps
+    if displayMode == 'A' and nActive == curQuestNum
+      curQuestFunc = questFunc
+    fin
+    nActive++
+  else
+    nUnstarted++
+  fin
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////
+def countQuests()#0
+  nUnstarted = 0
+  nActive = 0
+  nDone = 0
+  curQuestFunc = NULL
+  pQuestsModule()(@countQuests_cb1)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def showMenu()#0
+  byte ct
+  setWindow3
+  clearWindow
+  if questMapNum[0] or questMapNum[1]; displayStr("S)how on map,\n"); fin
+  ct = displayMode=='A' ?? nActive :: nDone
+  if curQuestNum+1 < ct; displayStr("N)ext, "); fin
+  if curQuestNum; displayStr("P)rev, "); fin
+  if curQuestNum+1 < ct or curQuestNum; displayStr("\n"); fin
+  displayStr("T)oggle active/done,\n[Esc] to exit")
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Locate the closest exit from the town the player is currently within
+def findExit(lookFor)#1
+  word p, pNext
+  word x, y, tmp, dist, minDist
+  word playerX, playerY
+  byte found
+
+  getPos(@playerX, @playerY)
+
+  // Scan the list of exits
+  p = pExitsBuf
+  minDist = $7FFF
+  found = FALSE
+  while ^p
+    // Each entry is map number (+128 for 3D maps), then length of field
+    pNext = p + ^(p+1) + 2
+    if ^p == lookFor
+      p = p + 2
+      // Found the map we want. There follows a list of x/y pairs
+      while p < pNext
+        x = ^p
+        y = ^(p+1)
+        p = p + 2
+        // Calculate the distance (squared) from the player to the exit
+        tmp = abs(x - playerX)
+        dist = tmp*tmp
+        tmp = abs(y - playerY)
+        dist = dist + (tmp*tmp)
+        // Record the closest exit when we find it.
+        if dist >= 0 and dist < minDist  // >= 0 check is in case of mult overflow
+          minDist = dist
+          questMapNum[0] = lookFor
+          questMapX[0] = x
+          questMapY[0] = y
+          found = TRUE
+        fin
+      loop
+    else
+      p = pNext
+    fin
+  loop
+
+  return found
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def showOnMap()#0
+  word automapModule
+  word playerX, playerY
+  byte lookFor
+  byte mapIdx
+
+  // If player isn't on either of the maps for this quest, direct them to the nearest exit
+  lookFor = mapNum + (mapIs3D ?? 128 :: 0)
+  if questMapNum[0] == lookFor
+    mapIdx = 0
+  elsif questMapNum[1] == lookFor
+    mapIdx = 1
+  else
+    if !findExit(lookFor)
+      clearWindow
+      setWindow2; clearWindow
+      rawDisplayStr("No route found.")
+      pause(800)
+      return
+    fin
+    mapIdx = 0
+  fin
+
+  // Load the automap code
+  mmgr(START_LOAD, 1) // code is in partition 1
+  automapModule = mmgr(QUEUE_LOAD, MOD_AUTOMAP<<8 | RES_TYPE_MODULE)
+  mmgr(FINISH_LOAD, 0)
+
+  // Show the position of this quest on the map
+  automapModule()=>automap_show(questMapX[mapIdx], questMapY[mapIdx])
+
+  // Free up memory from the automap module
+  mmgr(FREE_MEMORY, automapModule)
+
+  // Get the main frame image back
+  loadMainFrameImg()
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def _showQuests()#1
+  byte sel, needSetup, needRedisplay
+
+  needSetup = TRUE
+  while TRUE
+
+    // Setup (or re-setup after returning from show-on-map)
+    if needSetup
+      showMapName("Quest Log")
+      setWindow2; clearWindow
+      setWindow3; clearWindow
+      useMapWindow // with clear
+      loadExtraModules
+
+      displayMode = 'A'
+      curQuestNum = 0
+
+      needRedisplay = TRUE // display after init
+      needSetup = FALSE // because it's done now
+    fin
+
+    // Display after selecting new quest or mode
+    if needRedisplay
+      countQuests // also sets current quest
+      displayCurQuest
+      showMenu
+      needRedisplay = FALSE
+    fin
+
+    sel = getUpperKey
+    when sel
+      is 'S'
+        // Show on map
+        if questMapNum[0] or questMapNum[1]
+          showOnMap
+          needSetup = TRUE
+        else
+          beep
+        fin
+      is 'N'
+        // Next quest
+        if displayMode == 'A' and curQuestNum+1 < nActive
+          curQuestNum++; needRedisplay = TRUE
+        elsif displayMode == 'D' and curQuestNum+1 < nDone
+          curQuestNum++; needRedisplay = TRUE
+        else
+          beep
+        fin
+        break
+      is 'P'
+        // Prev quest
+        if curQuestNum
+          curQuestNum--; needRedisplay = TRUE
+        else
+          beep
+        fin
+        break
+      is 'T'
+        // Toggle active/done
+        displayMode = displayMode=='D' ?? 'A' :: 'D'
+        needRedisplay = TRUE
+        break
+      is $1B // Esc
+        setWindow2; clearWindow
+        unloadExtraModules
+        return 0
+    wend
+  loop
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// initialization code
+
+return @funcTbl
+done

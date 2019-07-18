@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015-17 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1
+ * Copyright (C) 2015-18 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1
  * (the "License"); you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-1.1>.
  * Unless required by applicable law or agreed to in writing, software distributed under
@@ -55,12 +55,14 @@ class A2PackPartitions
     def TYPE_FIXUP       = 10
     def TYPE_PORTRAIT    = 11
     def TYPE_SONG        = 12
+    def TYPE_STORY       = 13
 
     static final int FLOPPY_SIZE = 35*8  // good old 140k floppy = 280 blks
     static final int AC_KLUDGE = 2      // minus 1 to work around last-block bug in AppleCommander
     static final int DOS_OVERHEAD = 3 // only 3 blks overhead! ProRWTS is so freaking amazing.
     static final int SAVE_GAME_BYTES = 0x1200
     static final int MAX_DISKS = 8 // if more are needed, we'd have to expand the resource index format
+    static final int CHUNK_HEADER_SIZE = 3
 
     def typeNumToDisplayName = [1:  "Code",
                                 2:  "2D map",
@@ -73,7 +75,8 @@ class A2PackPartitions
                                 9:  "Code",
                                 10: "Code",
                                 11: "Portrait image",
-                                12: "Song"]
+                                12: "Song",
+                                13: "Story"]
 
     def typeNameToNum = ["code":     TYPE_CODE,
                          "map2D":    TYPE_2D_MAP,
@@ -86,7 +89,8 @@ class A2PackPartitions
                          "bytecode": TYPE_BYTECODE,
                          "fixup":    TYPE_FIXUP,
                          "portrait": TYPE_PORTRAIT,
-                         "song":     TYPE_SONG]
+                         "song":     TYPE_SONG,
+                         "story":    TYPE_STORY]
 
     def typeNumToName = [1: "code",
                          2: "map2D",
@@ -99,7 +103,8 @@ class A2PackPartitions
                          9: "bytecode",
                          10: "fixup",
                          11: "portrait",
-                         12: "song"]
+                         12: "song",
+                         13: "story"]
 
     def mapNames  = [:]  // map name (and short name also) to map.2dor3d, map.num
     def mapSizes  = []   // array of [2dOr3D, mapNum, marksSize]
@@ -125,7 +130,10 @@ class A2PackPartitions
     def automapTiles = [:] // tile name to tile num
     def automapPat = null  // regexp Pattern to match script names to automap tiles
     def automapSpecials = []
+    def stories   = [:]  // story text to story.num, story.text
+    def storyPartition = 0
 
+    def automapExitTile = -1
     def maxMapSections = 0
 
     def itemNameToFunc = [:]
@@ -232,6 +240,40 @@ class A2PackPartitions
         return inStr[0].toUpperCase() + inStr.substring(1)
     }
 
+    // Translate ^M to carriage-return; etc. Used for raw strings e.g. story mode text.
+    def translateString(inStr)
+    {
+        def buf = new StringBuilder()
+        def prev = '\0'
+        inStr.eachWithIndex { ch, idx ->
+            if (ch == '^') {
+                if (prev == '^') {
+                    buf << ch
+                    ch = 'x' // so next char not treated as special
+                }
+            }
+            else if (prev == '^') {
+                def cp = Character.codePointAt(ch.toUpperCase(), 0)
+                // ^A = ctrl-A; ^M = ctrl-M (carriage return); ^Z = ctrl-Z; ^` = space
+                if (cp > 64 && cp < 97)
+                    buf << String.format("%c", cp - 64)
+                else
+                    printWarning("Unrecognized control code '^" + ch + "'")
+            }
+            else if (ch == '“' || ch == '”')
+                buf << '\"'
+            else if (ch == '‘' || ch == '’')
+                buf << '\''
+            else if (Character.codePointAt(ch, 0) > 127)
+                printWarning("Non-ASCII character '" + ch + "' found")
+            else
+                buf << ch
+            prev = ch
+        }
+        return buf.toString()
+    }
+
+    // Form a PLASMA-quoted string, and translate ^M to carriage-return; etc. Used for displayStr() etc.
     def escapeString(inStr)
     {
         // Commonly used strings (e.g. event handler names, attributes)
@@ -1021,6 +1063,8 @@ class A2PackPartitions
             if (cat == "automap") {
                 automapTiles[lname] = ++tileNum
                 patStrs << lname
+                if (lname == "exit")
+                    automapExitTile = tileNum
             }
         }
 
@@ -1788,7 +1832,6 @@ class A2PackPartitions
     def fillDisk(int partNum, int availBlks, ArrayList<String> maps, Set<String> toDupe)
     {
         //println "Filling disk $partNum, availBlks=$availBlks"
-        def CHUNK_HEADER_SIZE = 3
         def spaceUsed = CHUNK_HEADER_SIZE
 
         // On disk 1, reserve enough space for the map and portrait index
@@ -1800,13 +1843,10 @@ class A2PackPartitions
                      + 1 + portraits.size()  // number of portraits, then 1 byte per
         }
 
-        if (nWarnings == 0)
-        {
-            reportWriter.println "\nDisk $partNum:"
-            reportWriter.println String.format("  %-22s: %6.1fK",
-                                    partNum == 1 ? "LegendOS+overhead" : "overhead",
-                                    ((FLOPPY_SIZE-availBlks)*512 + overhead) / 1024.0)
-        }
+        reportWriter.println "\nDisk $partNum:"
+        reportWriter.println String.format("  %-22s: %6.1fK",
+                                partNum == 1 ? "LegendOS+overhead" : "overhead",
+                                ((FLOPPY_SIZE-availBlks)*512 + overhead) / 1024.0)
 
         def outChunks = (partNum==1) ? part1Chunks : ([:] as LinkedHashMap)
         def addedMapNames = []
@@ -1841,13 +1881,11 @@ class A2PackPartitions
             // After adding the root map, stuff in the most-used portraits onto disk 1
             if (mapName == "<root>") {
                 assert partNum == 1
-                if (nWarnings == 0)
-                    reportWriter.println String.format("  %-22s: %6.1fK", "base resources", mapSpace / 1024.0)
+                reportWriter.println String.format("  %-22s: %6.1fK", "base resources", mapSpace / 1024.0)
                 def portraitsSpace = stuffMostUsedPortraits(maps, outChunks, availBlks, spaceUsed)
                 spaceUsed += portraitsSpace
                 blks = calcFileBlks(spaceUsed)
-                if (nWarnings == 0)
-                    reportWriter.println String.format("  %-22s: %6.1fK", "shared portraits", portraitsSpace / 1024.0)
+                reportWriter.println String.format("  %-22s: %6.1fK", "shared portraits", portraitsSpace / 1024.0)
                 //println "stuffed most-used portraits for $portraitsSpace bytes, totaling $blks blks."
             }
             else {
@@ -1857,14 +1895,12 @@ class A2PackPartitions
         }
         if (!maps.isEmpty())
             maps.addAll(0, readd) // handle maps that need dupe on each data disk
-        if (nWarnings == 0) {
-            if (mapsSpaceUsed > 0) {
-                reportWriter.println String.format("  %-22s: %6.1fK", "maps & resources", mapsSpaceUsed / 1024.0)
-                addedMapNames.each { reportWriter.println "    $it" }
-            }
-            reportWriter.println String.format("  %-22s: %6.1fK", "unused", (availBlks*512 - spaceUsed) / 1024.0)
-            reportWriter.println "Total: 140K"
+        if (mapsSpaceUsed > 0) {
+            reportWriter.println String.format("  %-22s: %6.1fK", "maps & resources", mapsSpaceUsed / 1024.0)
+            addedMapNames.each { reportWriter.println "    $it" }
         }
+        reportWriter.println String.format("  %-22s: %6.1fK", "unused", (availBlks*512 - spaceUsed) / 1024.0)
+        reportWriter.println "Total: 140K"
         return [outChunks, spaceUsed]
     }
 
@@ -1943,6 +1979,11 @@ class A2PackPartitions
             tmp.put((byte) calcDiskBits(chunkDisks[["portrait", k].toString()]))
         }
 
+        // Stick on the partition number of the stories (used by non-floppy builds)
+        tmp.put((byte) 1)
+        tmp.put((byte) (1<<(storyPartition-1)))
+
+        // Pack it all up into a chunk and add it to the partition.
         code["resourceIndex"].buf = compress(unwrapByteBuffer(tmp))
         def chunk = [type:TYPE_CODE, num:code["resourceIndex"].num, 
                      name:"resourceIndex", buf:code["resourceIndex"].buf]
@@ -1967,6 +2008,7 @@ class A2PackPartitions
         recordChunks("module",   modules)
         recordChunks("bytecode", bytecodes)
         recordChunks("fixup",    fixups)
+        recordChunks("story",    stories)
 
         // Sort the maps in proper disk order
         allMaps << [name:"<root>", order:-999999]
@@ -1978,8 +2020,7 @@ class A2PackPartitions
             0
         }
 
-        if (nWarnings == 0)
-            reportWriter.println "======================== Floppy disk usage ==========================="
+        reportWriter.println "======================== Floppy disk usage ==========================="
 
         // Now fill up disk partitions until we run out of maps.
         def mapsToDupe = allMaps.grep{ it.name != "<root>" && it.order < 0 }.collect{ it.name }.toSet()
@@ -2002,6 +2043,21 @@ class A2PackPartitions
             partChunks << [partNum:partNum, chunks:chunks, spaceUsed:spaceUsed]
         }
         assert allMaps.isEmpty : "All data must fit within $MAX_DISKS disks."
+
+        // If any stories, add them in a special final chunk.
+        if (stories.size() > 0) {
+            storyPartition = partChunks.size() + 1
+            def chunks = [:] as LinkedHashMap
+            def spaceUsed = CHUNK_HEADER_SIZE
+            stories.each { k, v ->
+                // Prepend the length of the story text
+                def text = stories[k].text.getBytes().toList()
+                def textWithLen = [text.size() & 0xFF, (text.size()>>8) & 0xFF] + text
+                stories[k].buf = compress(textWithLen as byte[])
+                spaceUsed += traceResources(["story", k], chunks)
+            }
+            partChunks << [partNum:storyPartition, chunks:chunks, spaceUsed:spaceUsed]
+        }
 
         // Add the special resource index to disk 1
         def gameVersion = addResourceIndex(partChunks[0])
@@ -2343,6 +2399,7 @@ class A2PackPartitions
         assembleCode("tileEngine", "src/tile/")
         assembleCode("marks", "src/marks/")
         assembleCode("gen_mapSpecials", "src/mapScripts/")
+        assembleCode("gen_mapExits", "src/mapScripts/")
 
         code.each { k,v -> addResourceDep("map", "<root>", "code", k) }
 
@@ -2355,14 +2412,20 @@ class A2PackPartitions
         compileModule("store", "src/plasma/")
         compileModule("diskops", "src/plasma/")
         compileModule("godmode", "src/plasma/")
-        compileModule("intimate", "src/plasma/")
+        compileModule("util3d", "src/plasma/")
         compileModule("automap", "src/plasma/")
-        compileModule("sndseq", "src/plasma/")
+        //compileModule("sndseq", "src/plasma/") // not yet
+        compileModule("questlog", "src/plasma/")
+        compileModule("story", "src/plasma/")
+        compileModule("itemutil", "src/plasma/")
         lastSysModule = modules.size()  // used only for reporting
         compileModule("gen_enemies", "src/plasma/")
+        compileModule("gen_enemies0", "src/plasma/")
+        compileModule("gen_enemies1", "src/plasma/")
         compileModule("gen_items", "src/plasma/")
         compileModule("gen_players", "src/plasma/")
         compileModule("gen_flags", "src/plasma/")
+        compileModule("gen_quests", "src/plasma/")
         globalScripts.each { name, nArgs ->
             compileModule("gs_"+name, "src/plasma/")
         }
@@ -2438,6 +2501,38 @@ class A2PackPartitions
                 }
             }
         }
+    }
+
+    def genMapExits(data)
+    {
+        def exits = [:]
+        data.map.each { map ->
+            map.scripts.script.each { script ->
+                if (script?.@name.toLowerCase() =~ /exit/) {
+                    script.locationTrigger.each { trig ->
+                        if (!exits.containsKey(map.@name))
+                            exits[map.@name] = []
+                        assert trig.@x.toInteger() >= 0 && trig.@x.toInteger() <= 255 &&
+                               trig.@y.toInteger() >= 0 && trig.@y.toInteger() <= 255 : "large maps can't have exits"
+                        exits[map.@name].add([trig.@x.toInteger(), trig.@y.toInteger()])
+                    }
+                }
+            }
+        }
+        new File("build/src/mapScripts/gen_mapexits.s.new").withWriter { out ->
+            out.println("; Generated code - DO NOT MODIFY BY HAND\n")
+            out.println("*=0 ; origin irrelevant")
+            exits.keySet().sort().each { mapName ->
+                assert mapNames.containsKey(mapName)
+                int mapNum = mapNames[mapName][1] | (mapNames[mapName][0] == '3D' ? 0x80 : 0)
+                out.println " !byte $mapNum, ${exits[mapName].size() * 2} ; map num, field size"
+                exits[mapName].each { coords ->
+                    out.println " !byte     ${coords[0]}, ${coords[1]} ; x, y"
+                }
+            }
+            out.println " !byte 0 ; end"
+        }
+        replaceIfDiff("build/src/mapScripts/gen_mapexits.s")
     }
 
     def genAutomapSpecials()
@@ -2656,6 +2751,78 @@ class A2PackPartitions
         }
     }
 
+    def recordFlagUse(mapName, script, flagUses)
+    {
+        mapName = mapName.trim().replaceAll(/\s*-\s*[23][dD]\s*/, "")
+        script.block.'**'.each { blk ->
+            if (blk?.@type =~ /^interaction_(get|set)_flag$/) {
+                assert blk.field.size() == 1
+                assert blk.field[0].@name == "NAME"
+                def flagName = blk.field[0].text().trim().toUpperCase()
+                def getOrSet = blk.@type == "interaction_get_flag" ? "Checked" : "Set"
+                if (!flagUses.containsKey(flagName))
+                    flagUses[flagName] = [] as Set
+                flagUses[flagName] << [mapName, script.@name, getOrSet]
+            }
+        }
+    }
+
+    def reportFlags(data)
+    {
+        reportWriter.println(
+            "\n============================== Flag Cross-reference ==================================\n")
+        def flagUses = [:]
+        data.global.scripts.script.each { recordFlagUse('global', it, flagUses) }
+        data.map.each { map ->
+            map.scripts.script.each { recordFlagUse(map.@name, it, flagUses) }
+        }
+        flagUses.keySet().sort().each { flagName ->
+            reportWriter.println "Flag '$flagName':"
+            flagUses[flagName].sort().each { mapName, scriptName, getOrSet ->
+                reportWriter.println "    $getOrSet on map '$mapName' in script '$scriptName'"
+            }
+        }
+    }
+
+    def reportScriptLocs(data)
+    {
+        reportWriter.println(
+            "\n============================== Script Location Cross-reference ==================================\n")
+        def scriptLocs = [:]
+        data.map.each { map ->
+            def mapName = map.@name.trim().replaceAll(/\s*-\s*[23][dD]\s*/, "")
+            map.scripts.script.each { script ->
+                def scriptName = script?.@name
+                if (!scriptLocs.containsKey(scriptName))
+                    scriptLocs[scriptName] = [:]
+                if (!scriptLocs[scriptName].containsKey(mapName))
+                    scriptLocs[scriptName][mapName] = []
+                script.locationTrigger.each { trig ->
+                    scriptLocs[scriptName][mapName] << [trig.@x.toInteger(), trig.@y.toInteger()]
+                }
+            }
+        }
+
+        scriptLocs.keySet().sort().each { scriptName ->
+            reportWriter.println "Script '$scriptName':"
+            scriptLocs[scriptName].keySet().sort().each { mapName ->
+                if (scriptLocs[scriptName][mapName].size() > 0) {
+                    reportWriter.print "    Map '$mapName': "
+                    def first = true
+                    scriptLocs[scriptName][mapName].each { x, y ->
+                        if (!first)
+                            reportWriter.print " | "
+                        first = false
+                        reportWriter.print "$x,$y"
+                    }
+                    reportWriter.println ""
+                }
+                else
+                    reportWriter.println "    Map '$mapName'"
+            }
+        }
+    }
+
     def countArgs(script) {
         return script.block.mutation.arg.size()
     }
@@ -2705,6 +2872,9 @@ class A2PackPartitions
         // Generate the automap-specials table
         genAutomapSpecials()
 
+        // Figure out where all the exit scripts are (for quest go-to-map functionality)
+        genMapExits(dataIn)
+
         // Read in code chunks. For now these are hard coded, but I guess they ought to
         // be configured in a config file somewhere...?
         //
@@ -2727,9 +2897,10 @@ class A2PackPartitions
         packAutomapTileSet(dataIn)
 
         // Play around with music
-        def midiFile = new File(xmlFile.getAbsoluteFile().getParentFile(), "song.mid")
-        if (midiFile.exists())
-            packSong(midiFile)
+        // For now, not using this, and need to save space on disk 1.
+        //def midiFile = new File(xmlFile.getAbsoluteFile().getParentFile(), "song.mid")
+        //if (midiFile.exists())
+        //    packSong(midiFile)
 
         // Divvy up the images by category
         def titleImgs      = []
@@ -2859,10 +3030,10 @@ class A2PackPartitions
         fillAllDisks()
 
         // Print stats (unless there's a warning, in which case focus the user on that)
-        if (nWarnings == 0) {
-            reportSizes()
-            reportTeleports(dataIn)
-        }
+        reportSizes()
+        reportTeleports(dataIn)
+        reportScriptLocs(dataIn)
+        reportFlags(dataIn)
 
         if (debugCompression)
             println "Compression savings: $compressionSavings"
@@ -2893,16 +3064,17 @@ class A2PackPartitions
             }
             else if (ch == ')') {
                 inParen = false
+                inSlash = false
                 ch = 0
             }
-            else if (ch == '/') {
+            else if (inParen && ch == '/') {
                 inSlash = true
                 ch = 0
             }
             else if (!isAlnum(ch))
                 inSlash = false
 
-            if (ch && !inParen && !inSlash) {
+            if (ch && (!inParen || !inSlash)) {
                 if ((ch >= 'A' && ch <= 'Z') || ch == ' ' || ch == '_')
                     needSeparator = (idx > 0)
                 if (isAlnum(ch)) {
@@ -2984,6 +3156,8 @@ class A2PackPartitions
     {
         def str = row.@"attack-text"
         strings[str] = "_SE_${humanNameToSymbol(str, true)}"
+        str = row.@"name"
+        strings[str] = "_SE_${humanNameToSymbol(str, true)}"
         str = row.@"loot-code"
         if (str && str != "0")
             strings[str.toLowerCase()] = "_SE_${humanNameToSymbol(str.toLowerCase(), true)}"
@@ -2994,8 +3168,6 @@ class A2PackPartitions
         def name = row.@name
         withContext(name)
         {
-            out.println("def _NEn_${humanNameToSymbol(name, false)}()")
-
             def image1 = row.@image1
             if (!portraits.containsKey(image1))
                 throw new Exception("Image '$image1' not found")
@@ -3023,22 +3195,21 @@ class A2PackPartitions
             def lootCode = row.@"loot-code"         // optional
             def goldLoot = row.@"gold-loot";        assert goldLoot
 
-            out.println("  return makeEnemy_pt2(makeEnemy_pt1(" +
-                        "\"$name\", " +
-                        "${parseDice(hitPoints)}, " +
-                        "PO${humanNameToSymbol(image1, false)}, " +
+            out.println("word = " +
+                        "@${strings[name]}, ${parseDice(hitPoints)} // name, hit dice")
+            out.println("byte = PO${humanNameToSymbol(image1, false)}, " +
                         (image2.size() > 0 ? "PO${humanNameToSymbol(image2, false)}, " : "0, ") +
-                        "$attackTypeCode, " +
-                        "@${strings[attackText]}, " +
-                        "${range.replace("'", "").toInteger()}, " +
-                        "${chanceToHit.toInteger()}, " +
-                        "${parseDice(damage)}, " +
-                        "${parseDice(experience)}), " + // end of pt1
-                        "${parseDice(groupSize)}, " +
-                        "${lootChance ? lootChance.toInteger() : 10}, " +
-                        "${validateLootCode(lootCode, strings)}, " +
-                        "${parseDice(goldLoot)})")
-            out.println("end")
+                        "$attackTypeCode // img0, img1, attack type")
+            out.println("word = @${strings[attackText]} // attack text")
+            out.println("byte = ${range.replace("'", "").toInteger()}, " +
+                        "${chanceToHit.toInteger()} // attack range, chance to hit")
+            out.println("word = ${parseDice(damage)}, " +
+                        "${parseDice(experience)}, " +
+                        "${parseDice(groupSize)} // damage dice, exp dice, group size dice")
+            out.println("byte = ${lootChance ? lootChance.toInteger() : 10} // loot chance")
+            out.println("word = ${validateLootCode(lootCode, strings)}, " +
+                        "${parseDice(goldLoot)} // lootCode, goldLoot")
+            out.println("")
 
             // Add portrait dependencies based on encounter zone(s)
             def codesString = row.@"map-code"
@@ -3060,89 +3231,215 @@ class A2PackPartitions
 
         withContext("enemies sheet")
         {
+            def columns = sheet.columns.column.collect { it.@name }
+            assert "name" in columns
+            assert "map-code" in columns
+
+            // Header with enemy numbers
             new File("build/src/plasma/gen_enemies.plh.new").withWriter { out ->
                 out.println("// Generated code - DO NOT MODIFY BY HAND\n")
                 out.println("const enemies_forZone = 0")
+                out.println()
+                sheet.rows.row.eachWithIndex { row, idx ->
+                    out.println("const En_${humanNameToSymbol(row."@name", true)} = ${idx+1}")
+                }
             }
             replaceIfDiff("build/src/plasma/gen_enemies.plh")
+
+            // Produce the central index file that maps code to enemy numbers
             new File("build/src/plasma/gen_enemies.pla.new").withWriter { out ->
                 out.println("// Generated code - DO NOT MODIFY BY HAND")
                 out.println()
                 out.println("include \"gamelib.plh\"")
                 out.println("include \"globalDefs.plh\"")
-                out.println("include \"playtype.plh\"")
-                out.println("include \"gen_images.plh\"")
+                out.println("include \"gen_enemies.plh\"")
                 out.println()
 
-                def columns = sheet.columns.column.collect { it.@name }
-                assert "name" in columns
-                assert "map-code" in columns
                 out.println("predef _enemies_forZone(zone)#1")
                 out.println("word[] funcTbl = @_enemies_forZone\n")
 
-                // Pre-define all the enemy creation functions
-                sheet.rows.row.each { row ->
-                    out.println("predef _NEn_${humanNameToSymbol(row.@name, false)}")
-                }
-                out.println()
-
-                def strings = [:]
-                sheet.rows.row.each { row ->
-                    extractEnemyStrings(row, strings)
-                }
-                strings.each { str, sym ->
-                    out.println("byte[] $sym = ${escapeString(str)}")
-                }
-                out.println()
-
-                // Figure out the mapping between "map code" and "enemy", and output the table for that
+                // Figure out the mapping between "map code" and "enemy"
                 def codeToFunc = [:]
                 sheet.rows.row.each { row ->
-                    addCodeToFunc("_NEn_${humanNameToSymbol(row.@name, false)}", row.@"map-code", codeToFunc) 
+                    addCodeToFunc("En_${humanNameToSymbol(row.@name, true)}", row.@"map-code", codeToFunc)
                 }
-                outCodeToFuncTbl("mapCode_", codeToFunc, out)
 
-                // Helper function to fill in the Enemy data structure
-                out.println("""
-def makeEnemy_pt1(name, hDice, img0, img1, attType, attText, attRange, chanceToHit, dmg, xp)
-  word p; p = mmgr(HEAP_ALLOC, TYPE_ENEMY)
-  p=>s_name = mmgr(HEAP_INTERN, name)
-  p=>w_health = rollDice(hDice) // e.g. 4d6
-  if !img1 or (rand16() % 2)
-    p->b_image = img0
-  else
-    p->b_image = img1
-  fin
-  p->b_attackType = attType
-  p=>s_attackText = mmgr(HEAP_INTERN, attText)
-  p->b_enemyAttackRange = attRange
-  p->b_chanceToHit = chanceToHit
-  p=>r_enemyDmg = dmg
-  p=>r_enemyXP = xp
-  return p
-end
-def makeEnemy_pt2(p, groupSize, lootChance, lootCode, goldLoot)
-  p=>r_groupSize = groupSize
-  p->b_lootChance = lootChance
-  if lootCode; p=>s_lootCode = mmgr(HEAP_INTERN, lootCode); fin
-  p=>r_goldLoot = goldLoot
-  return p
-end
-""")
-
-                // Now output a function for each enemy
-                sheet.rows.row.each { row ->
-                    genEnemy(out, row, strings)
-                }
-                out.println()
+                // Output the code to enemy table
+                outCodeToConstTbl("mapCode_", codeToFunc, out)
 
                 // And finally, a function to select an enemy given a map code.
-                outCodeToFuncMethods("_enemies_forZone", "mapCode_", codeToFunc, out, strings)
+                outCodeToFuncMethods("_enemies_forZone", "mapCode_", codeToFunc, out, null)
 
                 out.println("return @funcTbl")
                 out.println("done")
             }
             replaceIfDiff("build/src/plasma/gen_enemies.pla")
+
+            // And generate each subset of the enemy data tables.
+            [0,1].each { subset ->
+                new File("build/src/plasma/gen_enemies${subset}.pla.new").withWriter { out ->
+                    out.println("// Generated code - DO NOT MODIFY BY HAND")
+                    out.println()
+                    out.println("include \"globalDefs.plh\"")
+                    out.println("include \"gen_images.plh\"")
+                    out.println()
+
+                    def strings = [:]
+                    sheet.rows.row.eachWithIndex { row, idx ->
+                        if ((idx % 2) == subset)
+                            extractEnemyStrings(row, strings)
+                    }
+                    strings.sort().each { str, sym ->
+                        out.println("byte[] $sym = ${escapeString(str)}")
+                    }
+                    out.println()
+
+                    // The number of enemies in this subset
+                    out.println("byte enemyTblCt = ${(sheet.rows.row.size() + (1-subset)) >> 1} // number of entries")
+                    out.println("")
+
+                    // Now output the data for each enemy
+                    sheet.rows.row.eachWithIndex { row, idx ->
+                        if ((idx % 2) == subset)
+                            genEnemy(out, row, strings)
+                    }
+                    out.println()
+
+                    // And finally, return a pointer to the table
+                    out.println("return @enemyTblCt")
+                    out.println("done")
+                }
+                replaceIfDiff("build/src/plasma/gen_enemies${subset}.pla")
+            }
+        }
+    }
+
+    def genQuest(mainNum, rows, out)
+    {
+        def questName = rows[0].@Quest?.trim()
+        assert questName : "Quest name must be specified with order"
+
+        rows.each { row ->
+            def orderNum = row.@Order.toFloat()
+            withContext("step $orderNum")
+            {
+                out.println "def step_${orderNum.toString().replace(".","_")}(callback)"
+
+                def descrip = row.@Description?.trim()
+                assert descrip && descrip != "" : "missing description"
+
+                def portraitName = row.@"Portrait".trim()
+                assert portraits.containsKey(portraitName) : "unrecognized portrait '$portraitName'"
+
+                def map1Name = row.@"Map1-Name"?.trim()
+                def map1Num = 0, map1X = 0, map1Y = 0
+                if (map1Name) {
+                    assert mapNames.containsKey(map1Name) : "unrecognized map '$map1Name'"
+                    assert mapNames[map1Name][0] =~ /^[23]D$/
+                    map1Num = mapNames[map1Name][1] | (mapNames[map1Name][0] == "3D" ? 0x80 : 0)
+                    map1X = row.@"Map1-X".toInteger()
+                    map1Y = row.@"Map1-Y".toInteger()
+                }
+
+                def map2Name = row.@"Map2-Name"?.trim()
+                def map2Num = 0, map2X = 0, map2Y = 0
+                if (map2Name) {
+                    assert mapNames.containsKey(map2Name) : "unrecognized map '$map2Name'"
+                    assert mapNames[map2Name][0] =~ /^[23]D$/
+                    map2Num = mapNames[map2Name][1] | (mapNames[map2Name][0] == "3D" ? 0x80 : 0)
+                    map2X = row.@"Map2-X".toInteger()
+                    map2Y = row.@"Map2-Y".toInteger()
+                }
+
+                def portraitCode = "PO${humanNameToSymbol(portraitName, false)}"
+                out.println("  callback(${escapeString(descrip)}, $portraitCode, " +
+                            "$map1Num, $map1X, $map1Y, $map2Num, $map2X, $map2Y)")
+            }
+            out.println "  return 0"
+            out.println "end\n"
+        }
+
+        out.println "def quest_$mainNum(callback)"
+        out.println "  word name"
+        out.println "  name = ${escapeString(questName)}"
+
+        rows.eachWithIndex { row, idx ->
+            def orderNum = row.@Order.toFloat()
+            withContext("step $orderNum")
+            {
+                def triggerFlag = row.@"Trigger-Flag"?.trim()
+                if (triggerFlag) {
+                    triggerFlag = triggerFlag.toLowerCase()
+                    assert gameFlags.containsKey(triggerFlag) : "unrecognized flag '$triggerFlag'"
+                }
+                def triggerItem = row.@"Trigger-Item"?.trim()
+                if (triggerItem) {
+                    triggerItem = triggerItem.toLowerCase()
+                    assert itemNameToFunc.containsKey(triggerItem) : "unrecognized item '$triggerItem'"
+                }
+                assert (triggerFlag || triggerItem) : "Quest step requires either Trigger-Flag or Trigger-Item, or both"
+
+                def flagName = triggerFlag ? "GF_"+humanNameToSymbol(triggerFlag, true) : 0
+                def itemName = triggerItem ? escapeString(triggerItem) : "NULL"
+                out.println("  callback(${idx}, name, " +
+                            "$flagName, $itemName, @step_${orderNum.toString().replace(".","_")})")
+            }
+        }
+
+        out.println "  return 0"
+        out.println "end\n"
+    }
+
+    def genAllQuests(sheet)
+    {
+        assert sheet : "Missing 'quests' sheet"
+
+        withContext("quests sheet")
+        {
+            new File("build/src/plasma/gen_quests.pla.new").withWriter { out ->
+                out.println("// Generated code - DO NOT MODIFY BY HAND")
+                out.println()
+                out.println("include \"globalDefs.plh\"")
+                out.println("include \"gen_images.plh\"")
+                out.println("include \"gen_flags.plh\"")
+                out.println()
+
+                // Check that all the required columns are present
+                def columns = sheet.columns.column.collect { it.@name }
+                ["Quest", "Order", "Description", "Trigger-Flag", "Trigger-Item", "Portrait",
+                 "Map1-Name", "Map1-X", "Map1-Y", "Map2-Name", "Map2-X", "Map2-Y"].each { col ->
+                    assert col in columns : "Missing column '$col'"
+                }
+
+                // Sort the quests steps by number and divvy them up by the integer part
+                def quests = [:]
+                sheet.rows.row.grep { row ->
+                    assert !row.@Order || row.@Order ==~ /^\d+\.\d+$/ :
+                        "order \"${row.@Order}\" should be a decimal number like \"102.1\""
+                    return row.@Order
+                }.sort { r1, r2 ->
+                    r1.@Order.toFloat() <=> r2.@Order.toFloat()
+                }.each { row ->
+                    def mainNum = row.@Order.toFloat().toInteger()
+                    if (!quests.containsKey(mainNum))
+                        quests[mainNum] = []
+                    quests[mainNum] << row
+                }
+
+                // Now generate each quest
+                quests.keySet().sort().each { mainNum -> genQuest(mainNum, quests[mainNum], out) }
+
+                // And generate one function that calls them all
+                out.println "def allQuests(callback)"
+                quests.keySet().sort().each { mainNum -> out.println("  callback($mainNum, @quest_$mainNum)") }
+                out.println "  return 0"
+                out.println "end\n"
+
+                out.println "// The main routine - just returns the generator"
+                out.println "return @allQuests"
+                out.println "done"
+            }
+            replaceIfDiff("build/src/plasma/gen_quests.pla")
         }
     }
 
@@ -3396,6 +3693,18 @@ end
             funcs.eachWithIndex { func, index ->
                 out.println(
                     "${index==0 ? "word[] $prefix${humanNameToSymbol(code, false)} = " : "word         = "}@$func")
+            }
+            out.println("word         = 0")
+            out.println()
+        }
+    }
+
+    def outCodeToConstTbl(prefix, codeToFunc, out)
+    {
+        codeToFunc.sort { ent -> ent.key.toLowerCase() }.each { code, consts ->
+            consts.eachWithIndex { constVal, index ->
+                out.println(
+                    "${index==0 ? "word[] $prefix${humanNameToSymbol(code, false)} = " : "word         = "}$constVal")
             }
             out.println("word         = 0")
             out.println()
@@ -3760,7 +4069,6 @@ end
             def totalSize = mapSizes.size() * 2
             assert totalSize < 256 : "too many maps"
             out.println("byte[] mapSizes = $totalSize // overall buffer size")
-            boolean first = true
             mapSizes.sort().each { triple ->
                 out.println(String.format("byte            = \$%02X, \$%02X",
                                           (triple[0] == '3D' ? 0x80 : 0) | triple[1], triple[2]))
@@ -3876,6 +4184,7 @@ end
         genAllEnemies(dataIn.global.sheets.sheet.find { it?.@name.equalsIgnoreCase("enemies") })
         genAllPlayers(dataIn.global.sheets.sheet)
         genAllMapSizes()
+        genAllQuests(dataIn.global.sheets.sheet.find { it?.@name.equalsIgnoreCase("quests") })
 
         // Produce a list of assembly and PLASMA code segments
         binaryStubsOnly = true
@@ -4000,6 +4309,10 @@ end
             // Skip later partitions if they don't exist
             def partFile = new File("build/root/game.part.${i}.bin")
             if (!partFile.exists())
+                continue
+
+            // Skip the story partition (stories only included on 800k and higher builds)
+            if (i == storyPartition)
                 continue
 
             // Copy files.
@@ -4389,7 +4702,9 @@ end
                 {
                     case 'text_print':
                     case 'text_println':
-                        packTextPrint(blk); break
+                        packTextPrint(blk, 'VALUE'); break
+                    case 'text_storybook':
+                        packStoryBook(blk); break
                     case 'text_clear_window':
                         packClearWindow(blk); break
                     case 'text_getanykey':
@@ -4479,14 +4794,8 @@ end
             return first
         }
 
-        def packTextPrint(blk)
+        def outTextBlock(valBlk, finishWithNewline)
         {
-            if (blk.value.size() == 0) {
-                printWarning "empty text_print block, skipping."
-                return
-            }
-            def valBlk = getSingle(blk.value, 'VALUE').block
-            assert valBlk.size() == 1
             if (valBlk[0].@type == 'text')
             {
                 // Break up long strings into shorter chunks for PLASMA.
@@ -4497,17 +4806,65 @@ end
                 if (!text || text == "") // interpret lack of text as a single empty string
                     chunks = [""]
                 chunks.eachWithIndex { chunk, idx ->
-                    String str = (idx == chunks.size()-1 && blk.@type == 'text_println') ? chunk+"\\n" : chunk
+                    String str = (idx == chunks.size()-1 && finishWithNewline) ? chunk+"\\n" : chunk
                     outIndented("scriptDisplayStr(" + escapeString(str) + ")\n")
                 }
             }
             else {
                 // For general expressions instead of literal strings, we can't do
                 // any fancy breaking-up business. Just pack.
-                outIndented(blk.@type == 'text_println' ? 'scriptDisplayStrNL(' : 'scriptDisplayStr(')
+                outIndented(finishWithNewline ? 'scriptDisplayStrNL(' : 'scriptDisplayStr(')
                 packExpr(valBlk[0])
                 out << ")\n"
             }
+        }
+
+        def packTextPrint(blk, valName)
+        {
+            if (blk.value.size() == 0) {
+                printWarning "empty text_print block, skipping."
+                return
+            }
+            def valBlk = getSingle(blk.value, valName).block
+            assert valBlk.size() == 1
+            outTextBlock(valBlk, blk.@type == 'text_println')
+        }
+
+        def packStoryBook(blk)
+        {
+            assert blk.value[0].@name == 'INTRO'
+            assert blk.value[1].@name == 'SHORT'
+            assert blk.value[2].@name == 'LONG'
+
+            // First output the shared intro text
+            outIndented("setStoryMode(TRUE)\n")
+            outTextBlock(blk.value[0].block, false)
+
+            // On floppy builds, follow the intro with just the short text (usually e.g. "read log X")
+            outIndented("if isFloppyVer\n")
+            ++indent
+            outTextBlock(blk.value[1].block, false)
+            --indent
+
+            // On 800k or hard drive builds, follow the intro with the full (long) text
+            def longBlk = blk.value[2].block
+            assert longBlk.size() == 1
+            def longText = getSingle(getSingle(longBlk, null, 'text').field, 'TEXT').text()
+            def longHash = Integer.toString(longText.hashCode(), 36)
+            def num
+            if (stories.containsKey(longHash))
+                num = stories[longHash].num
+            else {
+                num = stories.size() + 1
+                stories[longHash] = [num: num, text: translateString(longText)]
+            }
+            outIndented("else\n")
+            ++indent
+            outIndented("displayStory($num)\n")
+            --indent
+            outIndented("fin\n")
+
+            outIndented("setStoryMode(FALSE)\n")
         }
 
         def packClearWindow(blk)

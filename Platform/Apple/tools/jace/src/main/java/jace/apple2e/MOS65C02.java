@@ -81,10 +81,6 @@ public class MOS65C02 extends CPU {
     }
 
     @Override
-    public void reconfigure() {
-    }
-
-    @Override
     public void clearState() {
         A = 0x0ff;
         X = 0x0ff;

@@ -140,6 +140,9 @@ GetScreenLine	JMP GetScLn
 ;Advance to next line on the screen
 NextScreenLine	JMP NxtScLn
 
+;Set or clear scroll-lock mode
+SetScrollLock	JMP SetScLk
+
 ;If you know which of the {0..110} bitmapped characters
 ;you want plotted, you can bypass testing for control
 ;codes, making this a faster way to plot.
@@ -171,6 +174,7 @@ CursRow		!byte 0		;vertical Y-position {0..191}
 ChrWdth		!byte 0		;character width (number of pixels)
 PltChar		!byte 0		;character to be plotted {0..110}
 AscChar		!byte 0		;Ascii Char value {$80..$FF}
+ScrlLck_Flg	!byte 0		;Non-zero to prevent scrolling during parse
 
 ;Just record the font address.
 DoSetFont	STA Font0
@@ -499,10 +503,10 @@ AdvCurs	LDA CursColL	;get lo-byte of {0..279}
 	ADC #0
 	STA CursColH
 	CMP CursXrh	;if pixel position {0..255}
-	BMI DoneCurs	;then done
+	BCC DoneCurs	;then done
 	LDA CursColL	;else check if past 263
 	CMP CursXrl
-	BMI DoneCurs	;if not then done
+	BCC DoneCurs	;if not then done
 DoCrLf	LDA CtrJs_Flg
 	BEQ Adv154
 	LDA CursXml
@@ -804,12 +808,26 @@ CpWnd2	LDA (GBasL),Y
 	BEQ CpWnd1
 	RTS
 
+;Routine: set or clear the scroll-lock flag (prevents scrolling during parse)
+SetScLk	STA ScrlLck_Flg
+	RTS
+
 ;Routine: parser w/auto line break
 DoParse	STA PrsAdrL
 	STY PrsAdrH
 	LDY #0  	;parse starting at beginning
 	STY TtlWdth
-	STY Pa_WdCt
+	; MH: Added code so that if we're mid-line, assume something
+	; was already printed
+	LDX #1
+	LDA CursColL
+	CMP CursXl
+	BNE +
+	LDA CursColH
+	CMP CursXh
+	BNE +
+	DEX
++	STX Pa_WdCt
 	LDA (PrsAdrL),Y ;Get the length
 	STA Pa_Len
 	INY
@@ -851,14 +869,16 @@ Pa_Tskp	LDA AscChar
 	BEQ Pa_Spc
 	LDA TtlWdth
 	CMP LinWdth
-	BPL Pa_ToFr 	;too far! force CR/LF
+	BCS Pa_ToFr 	;too far! force CR/LF
 	LDY Pa_iSv
 	INY
 	BNE Pa_Lp1
 Pa_ToFr	!if DEBUG { +prChr '+' }
+	; MH: Added scroll lock checking
+	JSR Pa_ScCk
 	LDA Pa_WdCt	;if we didn't print any words yet, then it's
 	BEQ Pa_BgWd	;	a word too big for line: split it
-Pa_ToF2	LDA #$8D
+	LDA #$8D
 	STA AscChar
 	JSR TestChr
 	LDY Pa_iBgn
@@ -890,25 +910,47 @@ Pa_Dn2	STY Pa_iSv
 	BNE ParsDn	;if so, stop here
 Pa_Dn2b	LDA TtlWdth
 	CMP LinWdth
-	BPL Pa_Dn3
+	BCS Pa_Dn3
 	LDA (PrsAdrL),Y ;Get the character
+	ORA #$80
+	!if DEBUG { +prChr '>' : +safeCout }
 	CMP #$8D
-	BEQ Pa_Dn3
-	STA AscChar
-	!if DEBUG { +prChr '>' : ora #$80 : +safeCout }
+	BNE Pa_Dn2c
+	INC Pa_iBgn
+	JSR Pa_ScCk
+	DEC Pa_iBgn
+	LDA (PrsAdrL),Y
+Pa_Dn2c	STA AscChar
 	JSR TestChr
-	JMP Pa_Dn4
+	LDY Pa_iSv
+	INY
+	JMP Pa_Lp0
 Pa_Dn3	LDY Pa_iSv
 	LDA Pa_WdCt	;if we split a big word, then the splitting
 	BMI Pa_Dn3b	;	char needs to be printed too
 	INY
 Pa_Dn3b	STY Pa_iBgn
-	JMP Pa_ToF2
-Pa_Dn4	LDY Pa_iSv
-	INY
-	JMP Pa_Lp0
+	JMP Pa_ToFr
 ParsDn	!if DEBUG { +prChr '<' : +crout : BIT $C053 }
+	LDA #0		;return null to indicate all chars parsed
+	TAY
 	RTS
+Pa_ScCk	LDA ScrlLck_Flg	;check for scroll-lock mode
+	BEQ +		;if not locked, skip check for scroll
+	LDA CursRow	;current vertical coord
+	CLC
+	ADC #9  	;increment by 9 lines, down
+	CMP CursYb	;check if it's past the window end
+	BCC +		;if not then continue
+	PLA		;return early without scrolling
+	PLA
+	LDY PrsAdrH	;calc adr of next word that would display
+	LDA PrsAdrL
+	CLC
+	ADC Pa_iBgn
+	BCC +
+	INY
++	RTS
 
 ;
 ;Routine: Calculate width of string without plotting it
@@ -1223,10 +1265,10 @@ In_Plt	LDX #1
 	INX
 	INX		;allow 2 more pixels for cursor
 	CPX CursXrl 
-	BPL In_Err
+	BCS In_Err
 In_Bchk	LDX InBfrMx
 	CPX InBfrX	;check for buffer overflow
-	BPL In_SvCh	;if ok, store in buffer
+	BCS In_SvCh	;if ok, store in buffer
 In_Err	JSR In_rCur	;else, restore cursor position
 	JSR SndErr	;and make ERR sound
 	JMP In_Key

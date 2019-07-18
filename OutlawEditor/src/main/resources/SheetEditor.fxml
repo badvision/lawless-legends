@@ -12,6 +12,7 @@
 <?import javafx.scene.control.ToolBar?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.VBox?>
+<?import org.controlsfx.control.spreadsheet.SpreadsheetView?>
 
 <AnchorPane id="AnchorPane" prefHeight="400.0" prefWidth="600.0" styleClass="sheetEditor" xmlns="http://javafx.com/javafx/8.0.65" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.badvision.outlaweditor.ui.impl.SheetEditorControllerImpl">
     <stylesheets>
@@ -48,7 +49,7 @@
                   <Button mnemonicParsing="false" onAction="#addRowAction" text="Add Row" />
               </items>
             </ToolBar>
-            <TableView fx:id="table" editable="true" prefHeight="200.0" prefWidth="200.0" VBox.vgrow="ALWAYS" />
+            <SpreadsheetView fx:id="table" editable="true" prefHeight="200.0" prefWidth="200.0" VBox.vgrow="ALWAYS" />
          </children>
       </VBox>
    </children>

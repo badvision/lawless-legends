@@ -87,9 +87,9 @@
             <block type="events_start_encounter"></block>
         </category>
         <category name="Text">
-            <block type="text_window"></block>
+            <!--<block type="text_window"></block>-->
             <block type="text_clear_window"></block>
-            <block type="text_moveto"></block>
+            <!--<block type="text_moveto"></block>-->
             <block type="text_print"></block>
             <block type="text_print">
                 <value name="VALUE">
@@ -106,9 +106,26 @@
                     </block>
                 </value>                
             </block>
+            <block type="text_storybook">
+                <value name="INTRO">
+                    <block type="text">
+                        <field name="TEXT"></field>
+                    </block>
+                </value>                
+                <value name="SHORT">
+                    <block type="text">
+                        <field name="TEXT"></field>
+                    </block>
+                </value>                
+                <value name="LONG">
+                    <block type="text">
+                        <field name="TEXT"></field>
+                    </block>
+                </value>                
+            </block>
             <block type="text_getanykey"></block>
-            <block type="text_mode"></block>
-            <block type="text_scroll"></block>
+            <!--<block type="text_mode"></block>-->
+            <!--<block type="text_scroll"></block>-->
             <block type="text"></block>
             <block type="text_getstring"></block>
             <block type="text_getnumber"></block>

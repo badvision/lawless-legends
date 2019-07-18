@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Copyright (C) 2016 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1 
+// Copyright (C) 2018 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1
 // (the "License"); you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-1.1>.
 // Unless required by applicable law or agreed to in writing, software distributed under 
@@ -8,7 +8,4 @@
 // governing permissions and limitations under the License.
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-// Each module-exported function needs its own constant, 0..n (multiples of 2)
-const party_showPlayerSheet = 0
-const party_benchPlayer = 2
-const party_unbenchPlayer = 4
+const questlog_showQuests = 0

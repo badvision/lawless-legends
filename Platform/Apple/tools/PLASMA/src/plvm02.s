@@ -689,6 +689,8 @@ _CEXSX  LDA     (IP),Y          ; SKIP TO NEXT OP ADDR AFTER STRING
 ;*
 LB      LDA     ESTKL,X
         STA     ESTKH-1,X
+        LDA     ESTKH,X
+        BEQ     LB_NULL
         LDA     (ESTKH-1,X)
         STA     ESTKL,X
         LDA     #$00
@@ -696,6 +698,8 @@ LB      LDA     ESTKL,X
         JMP     NEXTOP
 LW      LDA     ESTKL,X
         STA     ESTKH-1,X
+        LDA     ESTKH,X
+        BEQ     LB_NULL
         LDA     (ESTKH-1,X)
         STA     ESTKL,X
         INC     ESTKH-1,X
@@ -710,6 +714,8 @@ LW      LDA     ESTKL,X
 ;
 LBX     LDA     ESTKL,X
         STA     ESTKH-1,X
+        LDA     ESTKH,X
+        BEQ     LB_NULL
         STA     ALTRDOFF
         LDA     (ESTKH-1,X)
         STA     ESTKL,X
@@ -719,6 +725,8 @@ LBX     LDA     ESTKL,X
         JMP     NEXTOP
 LWX     LDA     ESTKL,X
         STA     ESTKH-1,X
+        LDA     ESTKH,X
+        BEQ     LB_NULL
         STA     ALTRDOFF
         LDA     (ESTKH-1,X)
         STA     ESTKL,X
@@ -733,6 +741,12 @@ LWX     LDA     ESTKL,X
         STA     ESTKH,X
         STA     ALTRDON
         JMP     NEXTOP
+LB_NULL BIT     $C051
+        BIT     $C054
+        LDA     #$E ; inverse 'N'
+        STA     $7D0
+        BNE     LB_NULL ; infinite loop
+
 ;*
 ;* LOAD ADDRESS OF LOCAL FRAME OFFSET
 ;*
@@ -877,12 +891,16 @@ LAWX    INY                     ;+INC_IP
 ;*
 SB      LDA     ESTKL,X
         STA     ESTKH-1,X
+        LDA     ESTKH,X
+        BEQ     SB_NULL
         LDA     ESTKL+1,X
         STA     (ESTKH-1,X)
         INX
         JMP     DROP
 SW      LDA     ESTKL,X
         STA     ESTKH-1,X
+        LDA     ESTKH,X
+        BEQ     SB_NULL
         LDA     ESTKL+1,X
         STA     (ESTKH-1,X)
         LDA     ESTKH+1,X
@@ -895,6 +913,7 @@ SW      LDA     ESTKL,X
         STA     (ESTKH-1,X)
         INX
         JMP     DROP
+SB_NULL JMP     LB_NULL
 ;*
 ;* STORE VALUE TO LOCAL FRAME OFFSET
 ;*
@@ -1237,6 +1256,7 @@ CALLX   INY                     ;+INC_IP
 ICAL    LDA     ESTKL,X
         STA     TMPL
         LDA     ESTKH,X
+        BEQ     ICAL_NULL
         STA     TMPH
         INX
         TYA
@@ -1260,6 +1280,7 @@ ICAL    LDA     ESTKL,X
 ICALX   LDA     ESTKL,X
         STA     TMPL
         LDA     ESTKH,X
+        BEQ     ICAL_NULL
         STA     TMPH
         INX
         TYA
@@ -1288,6 +1309,7 @@ ICALX   LDA     ESTKL,X
         BIT     LCRWEN+LCBNK2
         BIT     LCRWEN+LCBNK2
         JMP     FETCHOP
+ICAL_NULL JMP   LB_NULL
 ;*
 ;* JUMP INDIRECT TRHOUGH TMP
 ;*

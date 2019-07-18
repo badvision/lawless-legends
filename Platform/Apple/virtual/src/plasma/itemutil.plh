@@ -9,6 +9,8 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Each module-exported function needs its own constant, 0..n (multiples of 2)
-const party_showPlayerSheet = 0
-const party_benchPlayer = 2
-const party_unbenchPlayer = 4
+const itemutil_displayItemStats = 0
+const itemutil_displayItemName = 2
+
+const STATS_COL_1 = 45
+const STATS_COL_2 = 140

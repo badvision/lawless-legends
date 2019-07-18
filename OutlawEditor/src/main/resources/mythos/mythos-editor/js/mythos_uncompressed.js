@@ -507,6 +507,22 @@ if (typeof Mythos === "undefined") {
                     this.setTooltip('Print text and leave cursor at end of last printed character');
                 }
             };
+            Blockly.Blocks['text_storybook'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendValueInput("INTRO")
+                            .appendField("Storybook: intro");
+                    this.appendValueInput("SHORT")
+                            .appendField("short text");
+                    this.appendValueInput("LONG")
+                            .appendField("long text");
+                    this.setOutput(false);
+                    this.setTooltip('Show story text (floppy ver = intro+short, else intro+long)');
+                }
+            };
             Blockly.Blocks['text_getanykey'] = {
                 init: function () {
                     this.setHelpUrl(Mythos.helpUrl);

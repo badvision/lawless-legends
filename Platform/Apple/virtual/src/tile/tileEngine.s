@@ -114,7 +114,7 @@ next_zp		= $AD
 	JMP pl_setPos		; params: x (0-255), y (0-255); return: nothing
 	JMP pl_getDir		; params: none; return: dir (0-15)
 	JMP pl_setDir		; params: dir (0-15); return: nothing
-	JMP pl_advance		; params: none; return: 0 if blocked, 1 if same, 2 if new map tile
+	JMP pl_advance		; params: nSteps; return: 0 if blocked, 1 if same, 2 if new map tile
 	JMP pl_setColor		; params: slot (0=sky/1=ground), color (0-15); return: nothing
 	JMP pl_render		; params: intrOnKbd
 	JMP pl_texControl	; params: 1=load, 0=unload
@@ -1253,9 +1253,6 @@ SETPOS:
 ; >> pl_flipToPage1
 ; No-op, because in 2D we don't use hi-res page 2
 pl_flipToPage1:
-	rts
-
-;----------------------------------------------------------------------
 ; >> pl_setColor
 ; No-op, because in 2D we don't have sky and ground colors
 pl_setColor:
@@ -1401,7 +1398,8 @@ INNER_ADVANCE: !zone {
 
 ;----------------------------------------------------------------------
 ; >> pl_advance
-; Params: none; return: 0 if blocked, 1 if same, 2 if new map tile, 3 if new and scripted
+; Params: nSteps (ignored -- in 2D we always advance exactly 1 step)
+; return: 0 if blocked, 1 if same, 2 if new map tile, 3 if new and scripted
 ; Advance in the current direction
 pl_advance: !zone {
 	STX PLASMA_X		; save PLASMA eval stk pos

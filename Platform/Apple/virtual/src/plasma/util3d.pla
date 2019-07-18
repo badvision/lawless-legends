@@ -1,0 +1,404 @@
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1
+// (the "License"); you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-1.1>.
+// Unless required by applicable law or agreed to in writing, software distributed under
+// the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+// ANY KIND, either express or implied. See the License for the specific language
+// governing permissions and limitations under the License.
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+include "gamelib.plh"
+include "globalDefs.plh"
+include "playtype.plh"
+include "diskops.plh"
+include "party.plh"
+include "sndseq.plh"
+include "gen_images.plh"
+include "gen_modules.plh"
+include "gen_players.plh"
+
+// Constants
+const CLOCK_X = 119
+const CLOCK_Y = 176
+const CLOCK_RADIUS = 14
+
+const LAMP_Y = 168
+const LAMP_XBYTE = 10
+
+// Exported functions go here. First a predef for each one, then a table with function pointers
+// in the same order as the constants are defined in the the header.
+predef _showClock()#1
+predef _showCompassDir(dir)#1
+predef _nextLampFrame()#1
+predef _rotateLeft()#1
+predef _rotateRight()#1
+predef _strafeRight()#1
+predef _strafeLeft()#1
+predef _moveBackward()#1
+
+word[] funcTbl = @_showClock, @_showCompassDir, @_nextLampFrame
+word           = @_rotateLeft, @_rotateRight, @_strafeLeft, @_strafeRight, @_moveBackward
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Definitions used by assembly code
+asm __defs
+
+; Use hi-bit ASCII for Apple II
+!convtab "../../include/hiBitAscii.ct"
+
+; Headers
+!source "../../include/global.i"
+!source "../../include/plasma.i"
+!source "../../include/mem.i"
+!source "../../include/fontEngine.i"
+
+; Optional debug printing support
+DEBUG   = 0
+
+; General use
+tmp         = $2
+pTmp        = $4
+
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Specialized line routine for drawing the clock. Plots in black or white only.
+// Parameters:
+//    page : 0=page1, $60=page2
+//    color: 0=black, $7F=white
+//    len  : number of pixels to plot
+//    xbyte: x/7, e.g. 0-39 byte offset within screen row
+//    xbit : (3<<(x%7)) & $7F
+//    xinc : fraction 0..$FF telling how often to advance on X axis
+//    xdir : 0=left, 1=right
+//    y    : hi-res line number 0..191
+//    yinc : fraction 0..$FF telling how often to advance on X axis
+//    ydir : 0=up, 1=down
+asm plotLinePixels(page, color, len, xbyte, xbit, xinc, xdir, y, yinc, ydir)#0
+!zone {
+.param_page   = evalStkL+9
+.param_color  = evalStkL+8
+.param_len    = evalStkL+7
+.param_xbyte  = evalStkL+6
+.param_xbit   = evalStkL+5
+.param_xinc   = evalStkL+4
+.param_xdir   = evalStkL+3
+.param_y      = evalStkL+2
+.param_yinc   = evalStkL+1
+.param_ydir   = evalStkL+0
+.xfrac        = tmp
+.yfrac        = tmp+1
+  +asmPlasmNoRet 10
+  lda #0
+  sta .xfrac
+  sta .yfrac
+.getline
+  txa
+  pha
+  lda .param_y,x
+  jsr GetScreenLine
+  pla
+  tax
+  lda pTmp+1
+  eor .param_page,x   ; $60 flips to page 2, 0 for page 1
+  sta pTmp+1
+  clc                 ; signal to take X path first
+.pix
+  dec .param_len,x    ; decrement count of pixels todo
+  bmi .done           ; get out if it goes negative
+
+  ldy .param_xbyte,x  ; byte number on line
+  lda .param_color,x  ; get color mask
+  eor (pTmp),y        ; funny logic to plot in color - part 1
+  and .param_xbit,x   ; bit mask within byte
+  eor (pTmp),y        ; funny logic - part 2
+  ora #$80            ; force hi-bit colors for entire clock face (no mixing)
+  sta (pTmp),y        ; store the result
+
+  lda .param_xbit,x   ; check bit mask:
+  and #$60            ; was it the rightmost pixel?
+  eor #$40
+  bne +               ; if not, done w/ plotting
+  lda .param_color,x  ; it was, so we need to plot
+  iny                 ; ...next byte's...
+  eor (pTmp),y
+  and #1              ; ...first pixel
+  eor (pTmp),y
+  ora #$80            ; force hi-bit colors for entire clock face (no mixing)
+  sta (pTmp),y
+  dey                 ; back to where we were
+
++ bcs .movey          ; skip X processing if we just did it
+.movex                ; check and move on X axis
+  lda .xfrac
+  clc
+  adc .param_xinc,x   ; bump the X fraction
+  sta .xfrac
+  bcc .movey          ; if not a whole number bump, don't move on X
+  lda .param_xbit,x
+  ldy .param_xdir,x   ; check X direction (0=left, 1=right)
+  bne .right
+.left
+  lsr                 ; 1 bit to the left
+  cmp #$20
+  bne +
+  ora #$40
++ cmp #1
+  bne .ltrt
+  dec .param_xbyte,x  ; finished with byte, move 1 byte left
+  lda #$40            ; high bit of next-to-left byte
+  bne .ltrt           ; always taken
+.right
+  asl                 ; 1 bit to right
+  bpl .ltrt
+  and #$7F
+  bne .ltrt
+  inc .param_xbyte,x  ; finished with byte, move 1 byte right
+  lda #3              ; low bit of next-to-right byte
+.ltrt
+  sta .param_xbit,x
+  sec                 ; signal to take the Y path next time
+  bcs .pix            ; plot at the new position
+.movey
+  lda .yfrac
+  clc
+  adc .param_yinc,x   ; bump the Y fraction
+  sta .yfrac
+  bcc .movex          ; if not a whole number bump, don't move on Y, go bump X
+  lda .param_ydir,x   ; check Y direction (0=up, 1=down)
+  bne .down
+.up
+  dec .param_y,x      ; prev line (up)
+  bcs .getline        ; always taken
+.down
+  inc .param_y,x      ; next line (down)
+  bcs .getline        ; always taken
+.done
+  rts
+}
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def horzSegment(color, len, x, y)#0
+  //params:      page, color, len, xbyte, xbit,             xinc, xdir, y, yinc, ydir
+  plotLinePixels($60,  color, len, x/7,   (3<<(x%7)) & $7F, $FF,  1,    y, 0,    0)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def putSegment(color, len, isOuter, x, y)#0
+  if isOuter
+    horzSegment(color ^ $7F, len, x, y)
+  else
+    horzSegment(color ^ $7F, 1,     x,     y)
+    horzSegment(color,       len-3, x+2,   y)
+    horzSegment(color ^ $7F, 1,     x+len, y)
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Draw a filled, outlined circle
+def drawCircle(color, radius, x0, y0)#0
+  word x, y, dx, dy, err, r2, p
+
+  // Clear extents buffer
+  r2 = radius << 1
+  memset($280, 0, r2)
+
+  // Midpoint circle algorithm, but instead of plotting points, just record max extents
+  x = radius-1
+  y = 0
+  dx = 1
+  dy = 1
+  err = dx - r2
+
+  while (x >= y)
+    p = $280 + y
+    ^p = max(^p, x)
+
+    p = $280 + x
+    ^p = max(^p, y)
+
+    if err <= 0
+      y++
+      err = err + dy
+      dy = dy + 2
+    elsif err > 0
+      x--
+      dx = dx + 2
+      err = err + dx - r2
+    fin
+
+  loop
+
+  // Using the extents, draw an outline circle
+  for y = 0 to radius-1
+    x = ^($280+y)
+    putSegment(color, x<<1, y>=radius-2, x0-x, y0-y)
+    putSegment(color, x<<1, y>=radius-2, x0-x, y0+y)
+  next
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def drawHand(color, hour, isShort)#0
+  word xdir, xinc, ydir, yinc, len
+  ydir = (hour > 3 and hour < 9) & 1 // 3..9 = 1
+  xdir = (hour < 6) & 1              // 1..6 = 1
+  xinc = (^("123210123210"+hour) - '0') * 85
+  yinc = (^("210123210123"+hour) - '0') * 85
+  len = (hour % 3) ?? (CLOCK_RADIUS*3/2)-4 :: CLOCK_RADIUS-2
+  if isShort
+    len = len * 3 / 5
+  fin
+  //params:      page, color, len, xbyte,     xbit,                   xinc, xdir, y,       yinc, ydir
+  plotLinePixels($60,  color, len, CLOCK_X/7, (3<<(CLOCK_X%7)) & $7F, xinc, xdir, CLOCK_Y, yinc, ydir)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def drawHands(color, hour, min)#0
+  word n
+  n = min/5
+  drawHand(color, n ?? n :: 12, FALSE)
+  n = hour % 12
+  drawHand(color, n ?? n :: 12, TRUE)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def _showClock()#1
+  word cursX, cursY, color
+
+  // Show page 1 while we do work on page 2
+  flipToPage1
+  setWindow(CLOCK_Y-CLOCK_RADIUS, CLOCK_Y+CLOCK_RADIUS, (CLOCK_X-CLOCK_RADIUS)/7*7, (CLOCK_X+CLOCK_RADIUS+13)/7*7)
+
+  // Calculate new color
+  color = global->b_hour < 6 or global->b_hour >= 18 ?? 0 :: $7F
+  if color <> prevClockColor
+    // Draw entire circle in new color
+    copyWindow(0) // page 1 to page 2, in case mem-mgr op has been performed
+    drawCircle(color, CLOCK_RADIUS, CLOCK_X, CLOCK_Y)
+  elsif prevClockColor <> 99
+    // Erase old clock hands
+    drawHands(prevClockColor, prevClockHour, prevClockMinute)
+  fin
+
+  // Draw new clock hands
+  drawHands(color ^ $7F, global->b_hour, global->b_minute)
+
+  // Copy the image from pg 2 to pg 1
+  cursX, cursY = getCursor()
+  copyWindow($60) // page 2 to page 1
+  setWindow2()
+  setCursor(cursX, cursY)
+
+  // And record parameters for erasing the clock hands next time
+  prevClockColor  = color
+  prevClockHour   = global->b_hour
+  prevClockMinute = global->b_minute
+  nextSignificantMinute = global->b_minute - (global->b_minute % 5) + 5
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def _showCompassDir(dir)#1
+  word cursX, cursY, str
+  cursX, cursY = getCursor()
+  setWindow(173, 182, 28, 49) // Top, Bottom, Left, Right
+  clearWindow()
+  when dir
+    is 15; is 0; is 1;   str = "E";  break
+    is 2;                str = "SE"; break
+    is 3; is 4; is 5;    str = "S";  break;
+    is 6;                str = "SW"; break;
+    is 7; is 8; is 9;    str = "W";  break;
+    is 10;               str = "NW"; break;
+    is 11; is 12; is 13; str = "N"; break;
+    is 14;               str = "NE"; break;
+  wend
+  centerStr(str, 21)
+  copyWindow(0)  // mapIs3D and texturesLoaded are always true, since we're in util3d :)
+  setWindow2()
+  setCursor(cursX, cursY)
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def _nextLampFrame()#1
+  word n, pTile
+
+  n = lampFrame - LAMP_1
+  n = n + lampDir
+  while n < 0
+    n = n + (LAMP_COUNT-1)  // because PLASMA's modulo operator adopts C's (IMO useless) behavior
+  loop
+  if n >= (LAMP_COUNT-1)
+    n = n % (LAMP_COUNT-1)
+  fin
+  n = n + LAMP_1
+  if (rand16() % 100) < 10
+    lampDir = -lampDir
+  fin
+  pTile = pGlobalTileset + (n << 5) + 1 // +1 to skip to the header (# of tiles)
+  blit(FALSE, pTile, getScreenLine(LAMP_Y)+LAMP_XBYTE,       16, 2)
+  blit(FALSE, pTile, getScreenLine(LAMP_Y)+LAMP_XBYTE+$2000, 16, 2)
+  lampFrame = n
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Adjust player's direction plus or minus n increments; returns new dir
+def adjustDir(n)#1
+  byte dir
+  dir = (getDir() + n) & 15
+  setDir(dir)
+  return dir
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Turn left (3D mode)
+def _rotateLeft()#1
+  needRender = TRUE
+  _showCompassDir(adjustDir(-global->b_moveMode))
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Rotate to the right (3D mode)
+def _rotateRight()#1
+  needRender = TRUE
+  _showCompassDir(adjustDir(global->b_moveMode))
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Sidestep to the right (3D mode)
+def _strafeRight()#1
+  byte facingDir, moveDir
+  facingDir = getDir()
+  moveDir = (facingDir + 4) & 15
+  return moveInternal(facingDir, moveDir, TRUE, TRUE) // beep ok, adv time
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Sidestep to the left (3D mode)
+def _strafeLeft()#1
+  byte facingDir, moveDir
+  facingDir = getDir()
+  moveDir = (facingDir - 4) & 15
+  return moveInternal(facingDir, moveDir, TRUE, TRUE) // beep ok, adv time
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Move backward one step (3D mode). Also actually works in 2D mode.
+def _moveBackward()#1
+  byte facingDir, moveDir
+  facingDir = getDir()
+  moveDir = (facingDir + 8) & 15
+  moveInternal(facingDir, moveDir, TRUE, TRUE) // beep ok, adv time
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Boilerplate module initialization code
+return @funcTbl
+done

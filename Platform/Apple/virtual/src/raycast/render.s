@@ -34,12 +34,12 @@ NOTFLG_SPRITE  = $FF-$80
 	jmp pl_setPos		; params: x (0-255), y (0-255); return: nothing
 	jmp pl_getDir		; params: none; return: dir (0-15)
 	jmp pl_setDir		; params: dir (0-15); return: nothing
-	jmp pl_advance		; params: none; return: 0 if same, 1 if new map tile, 2 if new and scripted
+	jmp pl_advance		; params: nSteps; return: 0 if same, 1 if new map tile, 2 if new and scripted
 	jmp pl_setColor		; params: slot (0=sky/1=ground), color (0-15); return: nothing
 	jmp pl_render		; params: intrOnKbd
 	jmp pl_texControl	; params: 0=unload textures, 1=load textures
 	jmp pl_getScripts	; params: none
-	jmp pl_setAvatar	; params: A=tile number
+	jmp pl_setAvatar	; params: tile number
 	jmp pl_copyTile		; params: fromX, fromY, toX, toY
 
 ; Conditional assembly flags
@@ -1822,37 +1822,39 @@ calcMapOriginX:
 
 ;-------------------------------------------------------------------------------
 ; Advance in current direction if not blocked. 
-; Params: none
+; Params: # of steps
 ; Return: 0 if blocked;
 ;	  1 if advanced but still within same map tile;
 ;         2 if pos is on a new map tile
 pl_advance: !zone
+	sta .stepCt
+	; Save current coords on the stack for later compare or restore
+	ldx #0
+-	lda playerX,x
+	pha
+	inx
+	cpx #4
+	bne -
+	; Advance the coordinates based on the direction.
 	lda playerDir
 	asl
 	asl			; shift twice: each dir is 4 bytes in table
 	tax
-
-	; Advance the coordinates based on the direction.
-	; Along the way, we save each one on the stack for later compare or restore
-	lda playerX
-	pha
+.step	lda playerX
 	clc
 	adc walkDirs,x
 	sta playerX
 	lda playerX+1
-	pha
 	adc walkDirs+1,x
 	sta playerX+1
 	jsr .chk
 	sta .ora+1
 
 	lda playerY
-	pha
 	clc
 	adc walkDirs+2,x
 	sta playerY
 	lda playerY+1
-	pha
 	adc walkDirs+3,x
 	sta playerY+1
 	jsr .chk
@@ -1866,7 +1868,9 @@ pl_advance: !zone
 	bpl -
 	ldy #0
 	beq .done
-.ok	; Not blocked. See if we're in a new map tile.
+.ok	dec .stepCt
+	bne .step
+.finish ; Not blocked. See if we're in a new map tile.
 	pla
 	eor playerY+1
 	sta tmp
@@ -1898,6 +1902,7 @@ pl_advance: !zone
 .rstx	ldx #11			; self-modified above
 	cmp #0
 	rts
+.stepCt	!byte 0
 
 ;-------------------------------------------------------------------------------
 ; Copy a tile (destructively) from one position to another
@@ -1955,9 +1960,19 @@ pl_render: !zone
 	bne +
 	lda $2001
 	cmp $4001
+	bne +
+	lda $2C00
+	cmp $4C00
+	bne +
+	lda $2C01
+	cmp $4C01
+	bne +
+	lda diskOpCt		; check if any disk ops (ProRWTS can use aux zp)
 	beq ++
-+	jsr copyScreen		; if it was, restore by copying hgr1 to hgr2
-	jsr makeLines
++	jsr copyScreen		; restore by copying hgr1 to hgr2
+	jsr makeLines		; and regenerate line pointers on aux zp
+	lda #0
+	sta diskOpCt
 ++	jmp renderFrame		; then go ahead and render
 
 ;-------------------------------------------------------------------------------

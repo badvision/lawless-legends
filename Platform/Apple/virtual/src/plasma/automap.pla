@@ -49,7 +49,7 @@ const SECT_BUF_SIZE = MAX_MAP_SECT * TMapSection
 
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the header.
-predef _automap_show()#1
+predef _automap_show(targetX, targetY)#1
 word[] funcTbl = @_automap_show
 
 word tilePtrs[40]
@@ -65,6 +65,11 @@ word pSpecialsBuf
 word pSpecialTiles
 word scanSpecials = $100 // placed at $100 so it can easily access aux mem
 word specTileset
+word targetX, targetY
+
+// Pixel representation for displaying the target (shape of an "X")
+//byte[] targetData = 0, $63, $36, $1C, $1C, $36, $63, 0
+byte[] targetData = 0, 0, $36, $1C, $1C, $36, 0, 0
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -548,6 +553,42 @@ asm _scanSpecials_end()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Swap 8x7 pixel area from the target graphic buffer to the screen.
+asm swapTarget(x, y, swapBuf)#0
+!zone {
+  +asmPlasmNoRet 3
+  sta pSrc          ; swapBuf
+  sty pSrc+1
+  lda evalStkL+1,x
+  sta tmp+1         ; y
+  lda evalStkL+2,x
+  sta tmp           ; x
+  lda #8            ; lineCount
+.nextLine
+  pha
+  lda tmp+1
+  jsr GetScreenLine
+  ldy tmp
+  ldx #0
+  lda (pSrc,x)      ; swap buffer byte...
+  pha
+  lda (pTmp),y      ; ...with screen byte
+  sta (pSrc,x)
+  pla
+  sta (pTmp),y
+  inc pSrc          ; next buffer position
+  bne +
+  inc pSrc+1
++ inc tmp+1         ; advance to next line
+  pla
+  sec
+  sbc #1            ; decrement count
+  bne .nextLine     ; loop until done
+  rts
+}
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def loadMarks()#0
   word len
 
@@ -621,18 +662,18 @@ def make2DSection(pSection, sh, sv)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def printSection(pSection)#0
-  printf1("Sect %d: ", (pSection - @sectionBuf) / TMapSection)
-  printf2("%d/%d - ", pSection=>wm_x0, pSection=>wm_y0)
-  printf2("%d/%d; ", pSection=>wm_x1, pSection=>wm_y1)
-  printf1("vis=%d ", pSection->bm_visible)
-  if pSection->bm_visible
-    printf2("scrn=%d/%d ", pSection->bm_sx, pSection->bm_sy)
-    printf2("off=%d/%d ", pSection->bm_ox, pSection->bm_oy)
-    printf2("clip=%dw/%dh", pSection->bm_cw, pSection->bm_ch)
-  fin
-  puts(".\n")
-end
+//def printSection(pSection)#0
+//  printf1("Sect %d: ", (pSection - @sectionBuf) / TMapSection)
+//  printf2("%d/%d - ", pSection=>wm_x0, pSection=>wm_y0)
+//  printf2("%d/%d; ", pSection=>wm_x1, pSection=>wm_y1)
+//  printf1("vis=%d ", pSection->bm_visible)
+//  if pSection->bm_visible
+//    printf2("scrn=%d/%d ", pSection->bm_sx, pSection->bm_sy)
+//    printf2("off=%d/%d ", pSection->bm_ox, pSection->bm_oy)
+//    printf2("clip=%dw/%dh", pSection->bm_cw, pSection->bm_ch)
+//  fin
+//  puts(".\n")
+//end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def prepSections(extraLeft, extraTop)#0
@@ -926,12 +967,91 @@ def centerScreen#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def cursorWait#1
-  word x, y, i
-  byte phase, color
-  getPos(@x, @y)
+def showTarget(targetX, targetY)#0
+  word hx, hy, cx, cy, dx, dy, x, y
+  byte color, xbit, xbyte
+
+  // If the target is within the screen area, our work is easy
+  if targetX >= screenX0 and targetX < screenX1 and targetY >= screenY0 and targetY < screenY1
+    x = targetX - screenX0
+    y = targetY - screenY0
+  else
+
+    // Target is outside the screen area. Use line calculations to show the direction by clipping it.
+    hx = SCREEN_COLS >> 1 // half width
+    hy = SCREEN_ROWS >> 1 // half height
+
+    cx = (screenX0 + screenX1)>>1  // center coordinate
+    cy = (screenY0 + screenY1)>>1
+
+    dx = targetX - cx
+    dy = targetY - cy
+
+    // for a line through the origin 0,0:
+    //     m = dy/dx
+    //     y = mx
+    // so: y = dy*x / dx
+
+    if dy < 0
+      // Intersect with top
+      y = -hy
+      // -hy = dy*x / dx
+      // so: -hy*dx = dy*x
+      x = (-hy * dx) / dy
+    elsif dy > 0
+      // Intersect with bottom
+      y = hy
+      // hy = dy*x / dx
+      // so: hy*dx = dy*x
+      x = (hy*dx) / dy
+    elsif dx < 0
+      y = 0
+      x = -hx
+    else
+      y = 0
+      x = hx-1
+    fin
+
+    if x < -hx
+      // Intersect with left
+      x = -hx
+      y = (dy*-hx) / dx
+    elsif x > hx-1
+      // Intersect with right
+      x = hx-1
+      y = (dy*(hx-1)) / dx
+    fin
+
+    // Finally adjust for the origin at the center of the screen
+    x = x + hx
+    y = y + hy
+  fin
+
+  swapTarget(x + MAP_LEFT, (y<<3) + MAP_TOP, @targetData)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def cursorWait(targetX, targetY)#1
+  word playerX, playerY, i, j
+  byte phase, color, targetOn
+  getPos(@playerX, @playerY)
   phase = 0
+  targetOn = 0
+  i = 100
   while ^kbd < 128
+
+    // Blink the target on and off at a slower rate
+    i++
+    if i > 3 and targetX <> 9999
+      if playerX == targetX and playerY == targetY and !targetOn
+        showCursor(0, getScreenLine(((playerY-screenY0)<<3)+MAP_TOP) + (playerX-screenX0+MAP_LEFT))
+      fin
+      targetOn = !targetOn
+      showTarget(targetX, targetY)
+      i = 0
+    fin
+
+    // Determine color for the player marker
     when phase
       is 0; color = $AA; break
       is 1; color = $D5; break
@@ -939,18 +1059,23 @@ def cursorWait#1
       is 3; color = $D5; break
       is 4; color = $FF; break
     wend
-    if x >= screenX0 and x < screenX1 and y >= screenY0 and y < screenY1
-      showCursor(color, getScreenLine(((y-screenY0)<<3)+MAP_TOP) + (x-screenX0+MAP_LEFT))
+    if playerX >= screenX0 and playerX < screenX1 and playerY >= screenY0 and playerY < screenY1
+      if playerX <> targetX or playerY <> targetY or !targetOn
+        showCursor(color, getScreenLine(((playerY-screenY0)<<3)+MAP_TOP) + (playerX-screenX0+MAP_LEFT))
+      fin
     fin
-    i = 0
-    while i < 200 and ^kbd < 128
-      i++
+    j = 0
+    while j < 200 and ^kbd < 128
+      j++
     loop
     phase = (phase+1) % 5
   loop
-  i = ^kbd
-  ^kbdStrobe
-  return charToUpper(i & $7F)
+
+  // Erase target if it's still showing
+  if targetX <> 9999 and targetOn; showTarget(targetX, targetY); fin
+
+  i = recordKey
+  return charToUpper(i)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -963,7 +1088,7 @@ def showTitle#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _automap_show()#1
+def _automap_show(targetX, targetY)#1
   byte key
 
   // Clear out the blank tile buffer
@@ -984,7 +1109,7 @@ def _automap_show()#1
 
   // Now allow the player to scroll the map
   repeat
-    key = cursorWait
+    key = cursorWait(targetX, targetY)
     when key
       is 'W'; is 'I'; is 11
         if screenY1-8 > 0

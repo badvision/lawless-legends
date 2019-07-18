@@ -19,13 +19,13 @@ import gamelib
   predef addPercent(start, pct)#1
   predef addRatio(start, ratio)#1
   predef addToList(addTo, p)#0
-  predef addToString()#0
   predef addXP_all(xp)#0
   predef auxMmgr(cmd, wordParam)#1
   predef beep()#0
   predef benchPlayer()#0
+  predef blit(isAux, srcData, dstScreenPtr, nLines, lineSize)#0
   predef brk()#0
-  predef buildString(pFunc)#0
+  predef buildString()#0
   predef buySell(storeCode, profitRatio)#0
   predef calcPlayerArmor(player)#0
   predef calcWidth(pStr)#1
@@ -36,12 +36,14 @@ import gamelib
   predef clearPortrait()#0
   predef clearWindow()#0
   predef centerStr(str, windowWidth)#0
+  predef copyWindow(flip)#0
   predef countList(p)#1
   predef crout()#0
   predef displayChar(chr)#0
   predef displayf1(fmt, arg1)#0
   predef displayf2(fmt, arg1, arg2)#0
   predef displayf3(fmt, arg1, arg2, arg3)#0
+  predef displayStory(num)#0
   predef displayStr(str)#0
   predef encodeDice(nDice, dieSize, add)#1
   predef equipItem(item)#0
@@ -77,6 +79,7 @@ import gamelib
   predef memset(pDst, val, len)#0
   predef min(a, b)#1
   predef mmgr(cmd, wordParam)#1
+  predef moveInternal(facingDir, moveDir, beepOK, shouldAdvTime)#1
   predef moveWayBackward()#1
   predef parseDec(str)#1
   predef partyHasPlayer(playerName)#1
@@ -99,6 +102,7 @@ import gamelib
   predef rawDisplayStr(str)#0
   predef rdkey()#1
   predef readAuxByte(ptr)#1
+  predef recordKey()#1
   predef removeFromList(pList, toRemove)#0
   predef removeNamed(name, pList)#1
   predef removePlayerFromParty(playerName)#0
@@ -114,10 +118,12 @@ import gamelib
   predef scriptSetAvatar(avatarTileNum)#0
   predef select(p, sel, num)#1
   predef setCursor(x, y)#0
+  predef setDir(dir)#0
   predef setGameFlag(flagName, val)#0
   predef setGround(num)#0
-  predef setIntimateMode(enable)#0
   predef setMap(is3D, num, x, y, dir)#0
+  predef setRecordMode(enable)#0
+  predef setStoryMode(enable)#0
   predef useMapWindow()#0
   predef setBigWindow()#0
   predef setPortrait(portraitNum)#0
@@ -159,6 +165,13 @@ import gamelib
   byte curMapPartition
   word pResourceIndex
   word pGlobalTileset
+  byte isFloppyVer
+  byte recordMode
+  byte prevClockColor, prevClockHour, prevClockMinute
+  byte nextSignificantMinute
+  byte lampFrame
+  word lampDir
+  byte needRender
 
   /////////// Shared string constants //////////////
 
@@ -171,4 +184,5 @@ import gamelib
 
   // Next: other useful strings
   byte[] S_HIS, S_HER, S_THEIR
+
 end

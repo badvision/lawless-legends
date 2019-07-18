@@ -23,6 +23,7 @@ RES_TYPE_BYTECODE = $9
 RES_TYPE_FIXUP    = $A
 RES_TYPE_PORTRAIT = $B
 RES_TYPE_SONG     = $C
+RES_TYPE_STORY    = $D
 
 ;------------------------------------------------------------------------------
 ; Command codes
@@ -512,6 +513,7 @@ _crout      = _prY+3
 _waitKey    = _crout+3
 _internalErr = _waitKey+3
 fixedRTS    = _internalErr+3
+diskOpCt    = fixedRTS+1
 
 ; Debug macros
 !macro safeBell {

@@ -64,7 +64,6 @@ proRWTS		= $D000
 ; Memory buffers
 plasmaFrames	= $E00	; 2 pages
 gameLoop	= $1000	; just after plasma frames
-unusedBuf	= $4000	; used to be for ProDOS file buf and a copy space, but no longer
 headerBuf 	= $4C00	; len $1400
 
 ; Memory used only during garbage collection
@@ -326,6 +325,7 @@ loMemBegin: !pseudopc $800 {
 	jmp __internalErr
 _fixedRTS:
 	rts			; fixed place to find RTS, for setting V flag
+_diskOpCt !byte 0		; count of disk ops since last render
 
 __aux_dispatch:
 	sec
@@ -412,6 +412,7 @@ _jbrk	jmp $1111		; self-modified by init
 ; Clear carry to call opendir, set carry to call rdwrpart
 ; On return, A contains status (for opendir only)
 callProRWTS:
+	inc _diskOpCt
 	; Copy the parameters to aux zero page
 	ldx #$F
 -	sta clrAuxZP

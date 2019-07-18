@@ -260,10 +260,12 @@ class A2PackPartitions
                 else
                     printWarning("Unrecognized control code '^" + ch + "'")
             }
-            else if (ch == '“' || ch == '”')
+            else if (ch == '“' || ch == '”') // translate smart quotes to straight quotes
                 buf << '\"'
             else if (ch == '‘' || ch == '’')
                 buf << '\''
+            else if (ch == '…') // dot-dot-dot character
+                buf << "..."
             else if (Character.codePointAt(ch, 0) > 127)
                 printWarning("Non-ASCII character '" + ch + "' found")
             else
@@ -4289,7 +4291,7 @@ end
         // No need to delete old file; that was done by outer-level code.
         def dst = new File("game.2mg")
         Files.copy(new GZIPInputStream(new FileInputStream(
-            jitCopy(new File("build/data/disks/base_800k.2mg.gz")))), dst.toPath())
+            jitCopy(new File("build/data/disks/base_5m.2mg.gz")))), dst.toPath())
 
         // Now put the files into the image
         String[] args = ["-put", "game.2mg", "/", "build/root"]

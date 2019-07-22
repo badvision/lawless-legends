@@ -2612,6 +2612,11 @@ class A2PackPartitions
             assert first.@name == "NAME"
             def flg = first.text().toLowerCase()
             gameFlags << flg
+            // Must traverse following blocks
+            data.iterator().each {
+                if (it instanceof Node)
+                    numberGameFlags(it)
+            }
         }
         else {
             data.iterator().each {

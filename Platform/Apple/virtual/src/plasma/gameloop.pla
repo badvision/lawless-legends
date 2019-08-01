@@ -3043,19 +3043,19 @@ def initCmds()#0
   cmdTbl['?'] = @help
   cmdTbl[$07] = @toggleGodMode // ctrl-G
   cmdTbl[' '] = @snooze  // "space out" (snooze)
-  cmdTbl['-'] = @showAutomap
-  cmdTbl['0'] = @showQuests
+  cmdTbl['P'] = @showAutomap
+  cmdTbl['Q'] = @showQuests
   if global->b_godmode
     // install cheat commands
-    cmdTbl['T'] = @cheatCmd
-    cmdTbl['P'] = @cheatCmd
-    cmdTbl['>'] = @cheatCmd
-    cmdTbl['<'] = @cheatCmd
-    cmdTbl['!'] = @cheatCmd
-    cmdTbl['Y'] = @cheatCmd
-    cmdTbl['G'] = @cheatCmd
-    cmdTbl['&'] = @printMem
-    cmdTbl['^'] = @cheatCmd
+    cmdTbl['T'] = @cheatCmd // teleport
+    cmdTbl[$10] = @cheatCmd // ctrl-P: show pos
+    cmdTbl['>'] = @cheatCmd // next portrait
+    cmdTbl['<'] = @cheatCmd // prev portrait
+    cmdTbl['!'] = @cheatCmd // test combat
+    cmdTbl['Y'] = @cheatCmd // next sky
+    cmdTbl['G'] = @cheatCmd // next ground
+    cmdTbl['&'] = @printMem // print mem
+    cmdTbl['^'] = @cheatCmd // edit flags
   fin
 
   // Commands handled differently in 3D vs 2D

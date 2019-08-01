@@ -214,7 +214,7 @@ end
 def _cheatCmd(key)#1
   when key
     is 'T'; kbdTeleport(); break
-    is 'P'; showPos(); break
+    is $10; showPos(); break // ctrl-P
     is '>'; nextPortrait(); break
     is '<'; prevPortrait(); break
     is '!'; testCombat(); break

@@ -178,6 +178,7 @@ public class Lx47Algorithm
         }
 
         void writeByte(int value) {
+            //System.out.format("byte: pos=%d val=$%x\n", outPos, (byte)(value & 0xFF));
             buf[outPos++] = (byte)(value & 0xFF);
             bitPos += 8;
         }
@@ -189,6 +190,7 @@ public class Lx47Algorithm
                 writeByte(0);
                 bitPos -= 8;
             }
+            //System.out.format("bit: pos=%d mask=$%x bit=%d\n", bitIndex, mask, value > 0 ? 1 : 0);
             if (value > 0)
                 buf[bitIndex] |= mask;
             mask >>= 1;
@@ -344,24 +346,30 @@ public class Lx47Algorithm
         public byte[] buf;
         public int inPos;
         private int indexByte;
+        private int inStart;
+        private int indexPos;
         private int mask;
 
         Lx47Reader(byte[] inBuf, int inStart) {
+            this.inStart = inStart;
             buf = inBuf;
             mask = 0;
             inPos = inStart;
         }
 
         int readByte() {
+            //System.out.format("byte: pos=%d val=$%x\n", inPos - inStart, buf[inPos] & 0xFF);
             return buf[inPos++] & 0xFF;
         }
 
         int readBit() {
             if (mask == 0) {
                 mask = 128;
+                indexPos = inPos - inStart;
                 indexByte = readByte();
             }
             int ret = ((indexByte & mask) != 0) ? 1 : 0;
+            //System.out.format("bit: pos=%d mask=$%x bit=%d\n", indexPos, mask, ret);
             mask >>= 1;
             return ret;
         }
@@ -400,7 +408,7 @@ public class Lx47Algorithm
         String expect = debugs.removeFirst();
         assert expect.equals(toCheck) : 
             String.format("Expecting '%s', got '%s'", expect, toCheck);
-        //System.out.format("OK [%d]: %s\n", debugs.size(), expect);
+        System.out.format("OK [%d]: %s\n", debugs.size(), expect);
     }
 
     public void decompress(byte[] input_data, int inStart, byte[] output_data, int outStart, int outLen)

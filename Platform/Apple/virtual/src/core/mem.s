@@ -29,6 +29,12 @@ MAX_SEGS	= 96
 
 DEBUG		= 0
 
+; We overlap the compressed and uncompressed as much as possible, e.g.:
+;   DDDDDDDDDDDDDD
+;        SSSSSSSSSsssss  ; sssss is the 5-byte 'underlap'
+; Note: used to think this was 3, then found a case (gen_flags.b) requiring 5.
+UNDERLAP	= 5
+
 ; Zero page temporary variables.
 ; Don't move these - they overlap in clever ways with ProRWTS shadows (see below)
 tmp		= $2	; len 2
@@ -2124,12 +2130,12 @@ disk_queueLoad: !zone
 	lda resNum
 	cmp #1
 	bne +
-	; Take $BFFD - size. Why $BFFD and not $C000? Because decomp temporarily overwrites 3-byte "unnderlap" after.
-	lda #$FD
+	; Conservative end-of-mem, because decomp temporarily overwrites 5-byte "underlap" after.
+	lda #<($C000-UNDERLAP)
 	sec
 	sbc reqLen
 	sta targetAddr
-	lda #$BF
+	lda #>($C000-UNDERLAP)
 	sbc reqLen+1
 	sta targetAddr+1
 +	jsr shared_alloc	; reserve memory for this resource (main or aux as appropriate)
@@ -2304,7 +2310,7 @@ disk_finishLoad: !zone
 	; Calculate end of uncompressed data, and start of compressed data.
 	; We overlap the compressed and uncompressed as much as possible, e.g.:
 	;   DDDDDDDDDDDDDD
-	;        SSSSSSSSSsss  ; sss is the 3-byte 'underlap'
+	;        SSSSSSSSSsssss  ; sssss is the 5-byte 'underlap'
 	sta pSrc
 	sty pSrc+1
 	clc
@@ -2316,7 +2322,7 @@ disk_finishLoad: !zone
 	sta pEnd+1
 	tay
 	txa
-	adc #3			; this is the max "underlap" required for decompressing overlapped buffers
+	adc #UNDERLAP		; this is the max "underlap" required for decompressing overlapped buffers
 	bcc +
 	iny
 +	sec
@@ -2325,8 +2331,8 @@ disk_finishLoad: !zone
 	tya
 	sbc reqLen+1
 	sta pDst+1
-	; save the 3 byte underlap bytes because we're going to read over them
-	ldy #2
+	; save the 5 underlap bytes because we're going to read over them
+	ldy #UNDERLAP-1
 	ldx isAuxCmd
 	sta clrAuxRd,x		; from aux mem if appropriate
 -	lda (pEnd),y
@@ -2349,7 +2355,7 @@ disk_finishLoad: !zone
 -	pla
 	sta (pEnd),y
 	iny
-	cpy #3
+	cpy #UNDERLAP
 	bne -
 	sta clrAuxRd
 	sta clrAuxWr

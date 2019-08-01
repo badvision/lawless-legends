@@ -1657,9 +1657,10 @@ class A2PackPartitions
         def compressedLen = compressedData.length
         assert compressedLen > 0
 
-        // As a check, verify that decompression works with only a 3-byte underlap
+        // As a check, verify that decompression works with only a 5-byte underlap
+        // Note: used to think 3 bytes was sufficient, then gen_flags.b blew that out of the water.
         if (debugCompression && (uncompressedLen - compressedLen) > 0) {
-            def underlap = 3
+            def underlap = 5
             def checkData = new byte[uncompressedLen+underlap]
             def initialOffset = uncompressedLen - compressedLen + underlap
             System.arraycopy(compressedData, 0, checkData, initialOffset, compressedLen)

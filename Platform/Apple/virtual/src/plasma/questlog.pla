@@ -24,7 +24,7 @@ word[] funcTbl = @_showQuests
 word pQuestsModule, pExitsBuf
 
 byte nUnstarted, nActive, nDone
-byte nTriggeredSteps, lastTriggered, nSteps
+byte anyTriggeredSteps, lastTriggered
 byte displayMode, curQuestNum
 word curQuestFunc, curStepFunc
 byte questMapNum[2]
@@ -45,7 +45,8 @@ def unloadExtraModules()#0
   mmgr(FREE_MEMORY, pExitsBuf)
 end
 
-///////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Called only once, for the last matching step of the current quest.
 def displayQuest_cb3(descrip, portraitNum, map1Num, map1X, map1Y, map2Num, map2X, map2Y)
   setPortrait(portraitNum)
   displayStr(descrip)
@@ -54,21 +55,15 @@ def displayQuest_cb3(descrip, portraitNum, map1Num, map1X, map1Y, map2Num, map2X
   return 0
 end
 
-///////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Called once for each step in the current quest.
 def displayQuest_cb2(stepNum, questName, triggerFlag, triggerItem, stepFunc)#1
   if stepNum == 0
     displayf1("Quest: %s\n\n", questName)
   fin
-  if displayMode == 'A'
-    nSteps++
-    if triggerFlag
-      if getGameFlag(triggerFlag); nTriggeredSteps++; fin
-    elsif triggerItem
-      if partyHasItem(triggerItem); nTriggeredSteps++; fin
-    fin
-    if nTriggeredSteps == nSteps
-      curStepFunc = stepFunc
-    fin
+  if (triggerFlag and getGameFlag(triggerFlag)) or (triggerItem and partyHasItem(triggerItem))
+    anyTriggeredSteps = TRUE
+    curStepFunc = stepFunc
   fin
   return 0
 end
@@ -99,36 +94,41 @@ def displayCurQuest()#0
 
   if !curQuestFunc; return; fin
 
-  nTriggeredSteps = 0
-  nSteps = 0
+  // Call the each step of the quest in turn, passing it to cb2.
+  anyTriggeredSteps = FALSE
+  curStepFunc = NULL
   curQuestFunc(@displayQuest_cb2)
+
+  // We should have found a matching quest step; display the last one found.
   if curStepFunc
     curStepFunc(@displayQuest_cb3)
   fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////
+// This gets called for each step of one quest. 'stepFunc' will be e.g. step_101_1
 def countQuests_cb2(stepNum, name, triggerFlag, triggerItem, stepFunc)#1
   lastTriggered = FALSE
-  if triggerFlag
-    if getGameFlag(triggerFlag); nTriggeredSteps++; lastTriggered = TRUE; fin
-  elsif triggerItem
-    if partyHasItem(triggerItem); nTriggeredSteps++; lastTriggered = TRUE; fin
+  if (triggerFlag and getGameFlag(triggerFlag)) or (triggerItem and partyHasItem(triggerItem))
+    anyTriggeredSteps = TRUE
+    lastTriggered = TRUE
   fin
   return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////
+// This gets called for each quest in turn. 'questFunc' will be, e.g. quest_101
 def countQuests_cb1(questNum, questFunc)#1
-  nTriggeredSteps = 0
+  anyTriggeredSteps = 0
   lastTriggered = FALSE
+  // Call cb2 for every step of the quest in turn
   questFunc(@countQuests_cb2)
   if lastTriggered
     if displayMode == 'D' and nDone == curQuestNum
       curQuestFunc = questFunc
     fin
     nDone++
-  elsif nTriggeredSteps
+  elsif anyTriggeredSteps
     if displayMode == 'A' and nActive == curQuestNum
       curQuestFunc = questFunc
     fin
@@ -140,6 +140,7 @@ def countQuests_cb1(questNum, questFunc)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////
+// This gets called once. It runs cb1 on each quest in turn.
 def countQuests()#0
   nUnstarted = 0
   nActive = 0
@@ -307,6 +308,7 @@ def _showQuests()#1
       is 'T'
         // Toggle active/done
         displayMode = displayMode=='D' ?? 'A' :: 'D'
+        curQuestNum = 0
         needRedisplay = TRUE
         break
       is $1B // Esc

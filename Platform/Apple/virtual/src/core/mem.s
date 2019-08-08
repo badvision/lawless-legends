@@ -332,6 +332,7 @@ loMemBegin: !pseudopc $800 {
 _fixedRTS:
 	rts			; fixed place to find RTS, for setting V flag
 _diskOpCt !byte 0		; count of disk ops since last render
+_floppyFlg !byte 0		; set the first time we don't find the partition we're looking for
 
 __aux_dispatch:
 	sec
@@ -2030,7 +2031,9 @@ openPartition: !zone
 	pla
 	sta isAuxCmd		; back to aux if that's what outer was using
 	rts
-.flip	lda floppyDrive
+.flip	lda #1
+	sta _floppyFlg
+	lda floppyDrive
 	eor #$80
 	sta floppyDrive
 	cmp .origFloppy

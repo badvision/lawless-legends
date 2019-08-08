@@ -792,6 +792,15 @@ export asm auxMmgr(cmd, wordParam)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Get mem mgr's flag telling if this is the floppy version or not
+asm getFloppyFlg()#1
+  +asmPlasmRet 0
+  lda floppyFlg
+  ldy #0
+  rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Execute a monitor breakpoint
 export asm brk()#0
   bit setText
@@ -2082,6 +2091,10 @@ def initMap(x, y, dir)#0
     doRender()
   fin
 
+  // Init the floppy flag after the first full load, which will have certainly
+  // hit some disk besides 1 if there is such a disk.
+  isFloppyVer = getFloppyFlg
+
   // Assume there might be animations until we learn otherwise
   resetAnimPause
 
@@ -2192,7 +2205,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Called by scripts to display a string. We set the flag noting that something has been
 // displayed, then use an assembly routine to do the work.
-export def _scriptDisplayStr(str)#0
+def _scriptDisplayStr(str)#0
   if renderLoaded and !curPortrait and !curFullscreenImg and needRender
     doRender()
     flipToPage1()
@@ -2202,6 +2215,13 @@ export def _scriptDisplayStr(str)#0
   displayStr(str)
   textDrawn = TRUE
   anyInteraction = TRUE
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def promptAnyKeyAndClear()#0
+  scriptDisplayStr("\n(press any key)")
+  getUpperKey
+  clearWindow
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3524,13 +3544,11 @@ def startGame(firstTime, ask)#0
     q_mapNum = 0
     restoreMapPos()
   fin
-  crout()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Main code.
 //
-isFloppyVer = FALSE // FIXME
 scriptDisplayStr(@_scriptDisplayStr) // 1-time init
 startGame(TRUE, TRUE) // first time init; ask whether new or load
 kbdLoop()

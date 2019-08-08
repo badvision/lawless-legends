@@ -4847,11 +4847,13 @@ end
             // First output the shared intro text
             outIndented("setStoryMode(TRUE)\n")
             outTextBlock(blk.value[0].block, false)
+            outIndented("rawDisplayStr(\"\\n\\n\")\n")
 
             // On floppy builds, follow the intro with just the short text (usually e.g. "read log X")
             outIndented("if isFloppyVer\n")
             ++indent
             outTextBlock(blk.value[1].block, false)
+            outIndented("promptAnyKeyAndClear()\n")
             --indent
 
             // On 800k or hard drive builds, follow the intro with the full (long) text

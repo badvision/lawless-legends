@@ -514,6 +514,7 @@ _waitKey    = _crout+3
 _internalErr = _waitKey+3
 fixedRTS    = _internalErr+3
 diskOpCt    = fixedRTS+1
+floppyFlg   = diskOpCt+1
 
 ; Debug macros
 !macro safeBell {

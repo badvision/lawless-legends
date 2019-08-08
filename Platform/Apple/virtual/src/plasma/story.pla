@@ -143,7 +143,6 @@ def _story_display(storyNum)#1
   byte c
 
   loadStory(storyNum)
-  rawDisplayStr("\n\n")
 
   while pStoryCur < pStoryEnd
     if displayStoryBlock

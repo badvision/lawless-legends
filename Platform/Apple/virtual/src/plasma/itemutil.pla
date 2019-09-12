@@ -27,7 +27,8 @@ include "itemutil.plh"
 // in the same order as the constants are defined in the header.
 predef _displayItemStats(pItem1, pItem2)#1
 predef _displayItemName(pItem)#1
-word[] funcTbl = @_displayItemStats, @_displayItemName
+predef _reloadWeapon(pl, pWeapon, echo)#1
+word[] funcTbl = @_displayItemStats, @_displayItemName, @_reloadWeapon
 
 // Other global variables here
 
@@ -123,15 +124,18 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayWeaponStats(pItem1, pItem2)#0
-  displayTwoCol("Equip'd", pItem1, pItem2, b_flags,         @equippedField, @formatEquipped)
-  displayTwoCol("Ammo",    pItem1, pItem2, s_ammoKind,      @wordField, @formatStr)
-  displayTwoCol("Clip",    pItem1, pItem2, b_clipSize,      @byteField, @formatNum)
-  displayTwoCol("Melee",   pItem1, pItem2, r_meleeDmg,      @wordField, @formatDice)
-  displayTwoCol("Proj",    pItem1, pItem2, r_projectileDmg, @wordField, @formatDice)
-  displayTwoCol("Attack",  pItem1, pItem2, ba_attacks+0,    @byteField, @formatAttack)
-  displayTwoCol("Att 2",   pItem1, pItem2, ba_attacks+1,    @byteField, @formatAttack)
-  displayTwoCol("Att 3",   pItem1, pItem2, ba_attacks+2,    @byteField, @formatAttack)
-  displayTwoCol("Range",   pItem1, pItem2, b_weaponRange,   @byteField, @formatNum)
+  displayTwoCol("Equip'd",   pItem1, pItem2, b_flags,         @equippedField, @formatEquipped)
+  displayTwoCol("Ammo",      pItem1, pItem2, s_ammoKind,      @wordField, @formatStr)
+  displayTwoCol("Clip size", pItem1, pItem2, b_clipSize,      @byteField, @formatNum)
+  if (pItem1->b_flags & ITEM_FLAG_EQUIP) and !pItem2
+    displayTwoCol("Current", pItem1, pItem2, b_clipCurrent,   @byteField, @formatNum)
+  fin
+  displayTwoCol("Melee",     pItem1, pItem2, r_meleeDmg,      @wordField, @formatDice)
+  displayTwoCol("Proj",      pItem1, pItem2, r_projectileDmg, @wordField, @formatDice)
+  displayTwoCol("Attack",    pItem1, pItem2, ba_attacks+0,    @byteField, @formatAttack)
+  displayTwoCol("Att 2",     pItem1, pItem2, ba_attacks+1,    @byteField, @formatAttack)
+  displayTwoCol("Att 3",     pItem1, pItem2, ba_attacks+2,    @byteField, @formatAttack)
+  displayTwoCol("Range",     pItem1, pItem2, b_weaponRange,   @byteField, @formatNum)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -202,6 +206,53 @@ def _displayItemName(pItem)#1
   buildString()
   printf1("%s", pItem=>s_name) // need proper plural processing
   rawDisplayStr(finishString(isPlural))
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def ammoMatches(ammo, kind)
+  if ammo->t_type <> TYPE_FANCY_ITEM; return FALSE; fin
+  return streqi(ammo=>s_itemKind, kind)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Reloads the given weapon, as full as it can be given the player's ammo supply.
+def _reloadWeapon(pl, pWeapon, echo)#1
+  word item
+  byte orig, n
+
+  isPlural = FALSE
+  if !pWeapon; return 0; fin  // if no weapon equipped, no reload possible
+
+  // If ammo type is null, it means weapon doesn't use ammo in traditional sense.
+  if !pWeapon=>s_ammoKind
+    pWeapon->b_clipCurrent = 1
+    return 0
+  fin
+
+  // Find matching ammo
+  ctx = pWeapon; item = first(pl=>p_items, &(p) ammoMatches(p, ctx=>s_ammoKind))
+  if !item
+    if echo
+      displayf3("\n%s has no ammo for %s %s!\n", pl=>s_name, hisHerTheir(pl->c_gender), pWeapon=>s_name))
+    fin
+    return 0
+  fin
+
+  // Transfer ammo to weapon
+  if pWeapon->b_clipSize
+    n = min(item=>w_count, pWeapon->b_clipSize - pWeapon->b_clipCurrent)
+  else
+    n = min(item=>w_count, 1) // clipSize=0 implies auto-reloading weapon
+  fin
+  pWeapon->b_clipCurrent = pWeapon->b_clipCurrent + n
+  item=>w_count = item=>w_count - n
+  if item=>w_count == 0
+    removeFromList(@pl=>p_items, item)
+  fin
+  if echo
+    displayf3("\n%s reloads %s %s.\n", pl=>s_name, hisHerTheir(pl->c_gender), pWeapon=>s_name)
+  fin
   return 0
 end
 

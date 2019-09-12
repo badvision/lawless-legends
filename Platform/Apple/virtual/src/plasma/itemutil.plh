@@ -11,6 +11,7 @@
 // Each module-exported function needs its own constant, 0..n (multiples of 2)
 const itemutil_displayItemStats = 0
 const itemutil_displayItemName = 2
+const itemutil_reloadWeapon = 4
 
 const STATS_COL_1 = 45
 const STATS_COL_2 = 140

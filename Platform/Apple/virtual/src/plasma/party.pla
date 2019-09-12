@@ -409,6 +409,11 @@ def showItemMenu(item)#0
     if isEquipped(item); rawDisplayStr("un-"); fin
     rawDisplayStr("E)quip, ")
   fin
+  if type == TYPE_WEAPON
+    if item->b_clipCurrent < item->b_clipSize
+      rawDisplayStr("R)eload, ")
+    fin
+  fin
   rawDisplayStr("U)se, ")
   if isSplittable(item); rawDisplayStr("S)plit, "); fin
   if isJoinable(item); rawDisplayStr("J)oin, "); fin
@@ -665,6 +670,16 @@ def interactWithItem(player, item)#1
       is 'T'
         if global=>p_players=>p_nextObj and !isEquipped(item)
           return doTrade(player, item)
+        fin
+        break
+      is 'R'
+        if item->t_type == TYPE_WEAPON
+          if item->b_clipCurrent < item->b_clipSize
+            pItemutilModule()=>itemutil_reloadWeapon(player, item, FALSE)
+            displayDone
+            displayItems(item, NULL)
+            ok = TRUE
+          fin
         fin
         break
       // Split a stack

@@ -1830,7 +1830,7 @@ class A2PackPartitions
 
     /** Iterate an array of maps, adding them one at a time until we get to one
      *  that won't fit. The maps list is modified to remove all that were accepted.
-     *  Returns [chunks, spaceRemaining]
+     *  Returns [chunks, spaceUsed, spaceRemaining]
      */
     def fillDisk(int partNum, int availBlks, ArrayList<String> maps, Set<String> toDupe)
     {
@@ -1904,7 +1904,7 @@ class A2PackPartitions
         }
         reportWriter.println String.format("  %-22s: %6.1fK", "unused", (availBlks*512 - spaceUsed) / 1024.0)
         reportWriter.println "Total: 140K"
-        return [outChunks, spaceUsed]
+        return [outChunks, spaceUsed, availBlks*512 - spaceUsed]
     }
 
     def recordChunks(typeName, nameToData) {
@@ -2029,7 +2029,10 @@ class A2PackPartitions
         def mapsToDupe = allMaps.grep{ it.name != "<root>" && it.order < 0 }.collect{ it.name }.toSet()
         def mapsTodo = allMaps.collect { it.name }
         def partChunks = []
+        def totalFloppySpace = 0
+        def totalUnused = 0
         for (int partNum=1; partNum<=MAX_DISKS && !mapsTodo.isEmpty(); partNum++) {
+            totalFloppySpace += (FLOPPY_SIZE * 512)
             int availBlks = FLOPPY_SIZE - DOS_OVERHEAD
             availBlks -= AC_KLUDGE  // AppleCommander currently unable to allocate last block
             if (partNum == 1) {
@@ -2042,10 +2045,13 @@ class A2PackPartitions
                 availBlks -= calcSaveGameBlks()
             }
 
-            def (chunks, spaceUsed) = fillDisk(partNum, availBlks, mapsTodo, mapsToDupe)
+            def (chunks, spaceUsed, spaceUnused) = fillDisk(partNum, availBlks, mapsTodo, mapsToDupe)
             partChunks << [partNum:partNum, chunks:chunks, spaceUsed:spaceUsed]
+            totalUnused += spaceUnused
         }
         assert allMaps.isEmpty : "All data must fit within $MAX_DISKS disks."
+        reportWriter.println String.format("\nTotal space  on floppies: %6.1fK", totalFloppySpace / 1024.0)
+        reportWriter.println String.format("Total unused on floppies: %6.1fK", totalUnused / 1024.0)
 
         // If any stories, add them in a special final chunk.
         if (stories.size() > 0) {
@@ -4717,6 +4723,8 @@ end
                         packClearWindow(blk); break
                     case 'text_getanykey':
                         packGetAnyKey(blk); break
+                    case 'text_promptanykey':
+                        packPromptAnyKey(blk); break
                     case  'controls_if':
                         packIfStmt(blk); break
                     case 'flow_repeat':
@@ -4853,7 +4861,7 @@ end
             outIndented("if isFloppyVer\n")
             ++indent
             outTextBlock(blk.value[1].block, false)
-            outIndented("promptAnyKeyAndClear()\n")
+            outIndented("promptAnyKey(TRUE)\n") // TRUE = clear after
             --indent
 
             // On 800k or hard drive builds, follow the intro with the full (long) text
@@ -4887,6 +4895,13 @@ end
         {
             assert blk.value.size() == 0
             outIndented("getUpperKey()\n")
+        }
+
+        def packPromptAnyKey(blk)
+        {
+            def clrFlg = getSingle(blk.field, 'CLEAR').text()
+            assert clrFlg == "0" || clrFlg == "1"
+            outIndented("promptAnyKey($clrFlg)\n")
         }
 
         def packVarSet(blk)

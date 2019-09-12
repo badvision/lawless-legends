@@ -92,7 +92,7 @@ import gamelib
   predef printf3(fmt, arg1, arg2, arg3)#0
   predef printHex(num)#0
   predef printMem()#1
-  predef promptAnyKeyAndClear()#0
+  predef promptAnyKey(clearAfter)#0
   predef puts(str)#0
   predef queue_setMap(is3D, num, x, y, dir)#0
   predef queue_teleport(x, y, dir)#0

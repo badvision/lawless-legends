@@ -535,18 +535,30 @@ if (typeof Mythos === "undefined") {
                     this.setTooltip('Get a key from the keyboard (and discard it)');
                 }
             };
-            Blockly.Blocks['text_mode'] = {
+            Blockly.Blocks['text_getanykey'] = {
                 init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
                     this.setColour(54);
                     this.setPreviousStatement(true);
                     this.setNextStatement(true);
-                    var textModes = new Blockly.FieldDropdown([['Normal', 0], ['Inverse', 1]]);
                     this.appendDummyInput()
-                            .appendField("Text Mode")
-                            .appendField(textModes, "MODE");
+                            .appendField("Get any key");
                     this.setOutput(false);
-                    this.setTooltip('Print text and leave cursor at end of last printed character');
+                    this.setTooltip('Get a key from the keyboard (and discard it)');
+                }
+            };
+            Blockly.Blocks['text_promptanykey'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Prompt for key")
+                            .appendField(new Blockly.FieldDropdown([["with", "1"], ["without", "0"]]), "CLEAR")
+                            .appendField("clear");
+                    this.setOutput(false);
+                    this.setTooltip('Prompt "(press any key)", wait for key, optionally clear window after');
                 }
             };
             Blockly.Blocks['text_clear_window'] = {

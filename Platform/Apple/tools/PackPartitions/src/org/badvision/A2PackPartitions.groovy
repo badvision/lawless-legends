@@ -3120,12 +3120,14 @@ class A2PackPartitions
 
     def parseDice(str)
     {
+        str = str.trim()
+
         // Handle single value
         if (str =~ /^\d+$/) {
             def n = str.toInteger()
             if (n < 0 || n > 255) {
                 printWarning("Number $n forced to valid range 0..255")
-                return "0"
+                return n < 0 ? "0" : "255"
             }
             return str
         }
@@ -3182,11 +3184,15 @@ class A2PackPartitions
         def name = row.@name
         withContext(name)
         {
-            def image1 = row.@image1
+            def images = row.@images.split(", *")
+            if (images.length < 1 || images.length > 2)
+                throw new Exception("Required: 1 or 2 images")
+
+            def image1 = images[0]
             if (!portraits.containsKey(image1))
                 throw new Exception("Image '$image1' not found")
 
-            def image2 = row.@image2
+            def image2 = images.length > 1 ? images[1] : ""
             if (image2.size() > 0 && !portraits.containsKey(image2))
                 throw new Exception("Image '$image2' not found")
 
@@ -3208,6 +3214,7 @@ class A2PackPartitions
             def lootChance = row.@"loot-chance";    // optional, defaults to 10%
             def lootCode = row.@"loot-code"         // optional
             def goldLoot = row.@"gold-loot";        assert goldLoot
+            def gangChance = row.@"gang-chance";    // optional
 
             out.println("word = " +
                         "@${strings[name]}, ${parseDice(hitPoints)} // name, hit dice")
@@ -3215,14 +3222,15 @@ class A2PackPartitions
                         (image2.size() > 0 ? "PO${humanNameToSymbol(image2, false)}, " : "0, ") +
                         "$attackTypeCode // img0, img1, attack type")
             out.println("word = @${strings[attackText]} // attack text")
-            out.println("byte = ${range.replace("'", "").toInteger()}, " +
-                        "${chanceToHit.toInteger()} // attack range, chance to hit")
+            out.println("word = ${parseDice(range.replace("'", ""))} // attack range dice")
+            out.println("byte = ${chanceToHit.toInteger()} // chance to hit")
             out.println("word = ${parseDice(damage)}, " +
                         "${parseDice(experience)}, " +
                         "${parseDice(groupSize)} // damage dice, exp dice, group size dice")
             out.println("byte = ${lootChance ? lootChance.toInteger() : 10} // loot chance")
             out.println("word = ${validateLootCode(lootCode, strings)}, " +
                         "${parseDice(goldLoot)} // lootCode, goldLoot")
+            out.println("byte = ${gangChance ? parseDice(gangChance) : 0} // gang chance")
             out.println("")
 
             // Add portrait dependencies based on encounter zone(s)

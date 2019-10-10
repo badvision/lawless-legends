@@ -1606,7 +1606,7 @@ export def rollDice(encoded)#1
   word result
   nDice = (encoded >> 12) & $F  // must mask off replicated hi-bits
   dieSize = (encoded >> 8) & $F
-  result = encoded & $F // initial add
+  result = encoded & $FF // initial add
   while nDice
     result = result + (rand16() % dieSize) + 1
     nDice--

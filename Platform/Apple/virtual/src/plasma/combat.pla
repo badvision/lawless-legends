@@ -25,7 +25,7 @@ struc EnemyData
   byte b_en_img1
   byte b_en_attType
   word s_en_attText
-  byte b_en_attRange
+  byte r_en_attRange
   byte b_en_chanceToHit
   word r_en_dmgDice
   word r_en_expDice
@@ -33,6 +33,7 @@ struc EnemyData
   byte b_en_lootChance
   word s_en_lootCode
   word r_en_goldLoot
+  byte b_en_gangChance
 end
 
 predef _combat_zoneEncounter(s_encZone)#1
@@ -54,6 +55,10 @@ const NUM_PRELOADS = 4
 byte[] toPreload = MOD_ITEMUTIL, GS_COMBAT_PROMPT, GS_ENEMY_INTRO, GS_COMBAT_WIN
 word[4] preloads
 word pItemUtil
+
+const MAX_GROUPS = 3
+byte[MAX_GROUPS] groupEnemyNums
+byte nEnemyGroups
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def preload()#0
@@ -836,7 +841,7 @@ def makeEnemy(pData)
   fin
   p->b_attackType = pData->b_en_attType
   p=>s_attackText = mmgr(HEAP_INTERN, pData=>s_en_attText)
-  p->b_enemyAttackRange = pData->b_en_attRange
+  p->b_enemyAttackRange = rollDice(pData=>r_en_attRange)  // possibly random range
   p->b_chanceToHit = pData->b_en_chanceToHit
   p=>r_enemyDmg = pData=>r_en_dmgDice
   p=>r_enemyXP = pData=>r_en_expDice
@@ -869,31 +874,66 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Return a random entry from an array which is terminated by a zero entry
-def randomFromArray(arr)#1
-  byte siz
+def randomFromArray(arr, filter)#1
+  byte siz, start, cur
+  word p
+
+  // Determine the array size by looking for the terminating zero
   siz = 0
   while *((siz << 1) + arr)
     siz++
   loop
-  return *(((rand16() % siz) << 1) + arr)
+
+  // Pick a random starting point in the array
+  start = rand16() % siz
+
+  // Advance until we find a filter-approved entry (or run out)
+  cur = start
+  while TRUE
+    p = *((cur << 1) + arr)
+    if !filter; break; fin
+    if filter(p); break; fin
+    cur++
+    if cur >= siz; cur = 0; fin
+    if cur == start
+      p = NULL
+      break
+    fin
+  loop
+  return p
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def makeRandomGroup(mapCode)#0
+def nonDupeEnemy(enemyNum)#1
+  byte i
+  for i = 0 to nEnemyGroups
+    if enemyNum == groupEnemyNums[i]; return FALSE; fin
+  next
+  return TRUE
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def makeRandomGroup(mapCode)#1
   word enemiesModule
   byte enemyNum
-  word pEnemyData
+  word pEnemyData, pGroup
 
   enemiesModule = mmgr(QUEUE_LOAD, MOD_GEN_ENEMIES<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
-  enemyNum = randomFromArray(enemiesModule()=>enemies_forZone(mapCode))
+  enemyNum = randomFromArray(enemiesModule()=>enemies_forZone(mapCode), @nonDupeEnemy)
   mmgr(FREE_MEMORY, enemiesModule)
+  if !enemyNum; return NULL; fin // no non-dupe enemies left in mapCode zone
+  groupEnemyNums[nEnemyGroups] = enemyNum
+  nEnemyGroups++
 
   enemiesModule = mmgr(QUEUE_LOAD, (MOD_GEN_ENEMIES + 1 + ((enemyNum-1)&1))<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
   pEnemyData = enemiesModule() + 1 + (((enemyNum-1)>>1) * EnemyData)
-  addToList(@global=>p_enemyGroups, makeEnemyGroup(pEnemyData))
+  pGroup = makeEnemyGroup(pEnemyData)
+  addToList(@global=>p_enemyGroups, pGroup)
   mmgr(FREE_MEMORY, enemiesModule)
+
+  return pGroup
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -975,7 +1015,7 @@ def collectLootAndXP()#2
           mmgr(START_LOAD, 1) // code is in partition 1
           pItemsModule = mmgr(QUEUE_LOAD, MOD_GEN_ITEMS<<8 | RES_TYPE_MODULE)
           mmgr(FINISH_LOAD, 0)
-          itemFunc = randomFromArray(pItemsModule()=>items_forLootCode(enemy=>s_lootCode))
+          itemFunc = randomFromArray(pItemsModule()=>items_forLootCode(enemy=>s_lootCode), @trueFunc)
           pItem = itemFunc()
           if pItem->t_type == TYPE_FANCY_ITEM
             pItem=>w_count = rollDiceWithLuck(pItem=>r_lootAmount, global=>p_players->b_luck)
@@ -1003,7 +1043,18 @@ def startCombat(mapCode)#1
   isFleeing = FALSE
   combatDebug = FALSE
   global=>p_enemyGroups = NULL
-  makeRandomGroup(mapCode)
+  nEnemyGroups = 0
+
+  // Make one or more enemy groups (rolling for gangChance on each to see if we need another)
+  while TRUE
+    // Generate a random, non-duplicate group (can fail if non-duplicate is impossible)
+    if !makeRandomGroup(mapCode); break; fin
+
+    // If maxed out on groups, or dice roll for gang fails, we're done
+    if nEnemyGroups < MAX_GROUPS and (rand16() % 100) >= p->b_en_gangChance
+      break
+    fin
+  loop
 
   // Display portrait of first group
   setPortrait(global=>p_enemyGroups=>p_enemies->b_image)

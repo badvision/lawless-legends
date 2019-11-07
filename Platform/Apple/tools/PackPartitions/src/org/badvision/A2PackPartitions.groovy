@@ -3230,7 +3230,7 @@ class A2PackPartitions
             out.println("byte = ${lootChance ? lootChance.toInteger() : 10} // loot chance")
             out.println("word = ${validateLootCode(lootCode, strings)}, " +
                         "${parseDice(goldLoot)} // lootCode, goldLoot")
-            out.println("byte = ${gangChance ? parseDice(gangChance) : 0} // gang chance")
+            out.println("byte = ${gangChance ? gangChance.toInteger() : 0} // gang chance")
             out.println("")
 
             // Add portrait dependencies based on encounter zone(s)

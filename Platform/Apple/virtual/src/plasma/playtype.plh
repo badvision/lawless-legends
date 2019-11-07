@@ -197,7 +197,7 @@ struc TEnemyGroup
   byte t_type
   word p_nextObj
   word p_enemies
-  byte b_enemyGroupRange
+  byte b_enemyNum
 end
 
 const TYPE_ENCOUNTER_ZONE = $89

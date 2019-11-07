@@ -25,7 +25,7 @@ struc EnemyData
   byte b_en_img1
   byte b_en_attType
   word s_en_attText
-  byte r_en_attRange
+  word r_en_attRange
   byte b_en_chanceToHit
   word r_en_dmgDice
   word r_en_expDice
@@ -57,8 +57,8 @@ word[4] preloads
 word pItemUtil
 
 const MAX_GROUPS = 3
-byte[MAX_GROUPS] groupEnemyNums
 byte nEnemyGroups
+byte anyAdvancing
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def preload()#0
@@ -404,9 +404,9 @@ def displayOpponents()#0
     count = sum(p=>p_enemies, @canFight, @trueFunc)
     isPlural = count <> 1
     if (p=>p_enemies=>r_groupSize == 0)
-      displayf2("%s at %d'", p=>p_enemies=>s_name, p->b_enemyGroupRange)
+      displayf2("%s at %d'", p=>p_enemies=>s_name, p=>p_enemies->b_enemyAttackRange)
     else
-      displayf3("%d %s at %d'", count, p=>p_enemies=>s_name, p->b_enemyGroupRange)
+      displayf3("%d %s at %d'", count, p=>p_enemies=>s_name, p=>p_enemies->b_enemyAttackRange)
     fin
     p = p=>p_nextObj
   loop
@@ -430,7 +430,7 @@ def minEnemyDist()#1
   p = global=>p_enemyGroups
   while p
     if first(p=>p_enemies, @canFight)
-      minDist = min(minDist, p->b_enemyGroupRange)
+      minDist = min(minDist, p=>p_enemies->b_enemyAttackRange)
     fin
     p = p=>p_nextObj
   loop
@@ -559,8 +559,8 @@ def playerCombatChoose(pl)#0
 
   // Let them know their options
   setCursor(cursX, cursY)
-  rawDisplayf1("^D%s:", pl=>s_name)
-  displayOption('M', "Melee")
+  rawDisplayStr("^D") // clear to end of page
+  displayf1("%s:\nM)elee, ", pl=>s_name)
   if pWeapon
     // Special (for e.g. bows): clipSize zero means weapon reloads automatically
     if pWeapon=>r_projectileDmg and !pWeapon->b_clipCurrent and !pWeapon->b_clipSize
@@ -569,23 +569,23 @@ def playerCombatChoose(pl)#0
     if pWeapon->b_clipCurrent
       canShoot = TRUE
       if pWeapon->b_clipSize
-        displayOption('S', sprintf2("Shoot %d:%d", pWeapon->b_clipCurrent, pWeapon->b_clipSize))
+        displayf2("S)hoot %d:%d, ", pWeapon->b_clipCurrent, pWeapon->b_clipSize))
       else
-        displayOption('S', "Shoot")
+        displayStr("S)hoot, ")
       fin
     fin
     if pWeapon->b_clipCurrent < pWeapon->b_clipSize
       canReload = TRUE
-      displayOption('R', "Reload")
+      displayStr("R)eload, ")
     fin
   fin
   if canChange
-    displayOption('C', "Chg weapon")
+    displayStr("C)hange weapon, ")
   fin
-  displayOption('D', "Dodge")
-  displayOption('F', "Flee")
-  canAdvance = minEnemyDist() > 5
-  if canAdvance; displayOption('A', "Advance"); fin
+  displayStr("D)odge, ")
+  canAdvance = !anyAdvancing and minEnemyDist() > 5 // only one advance per turn
+  if canAdvance; displayStr("A)dvance, "); fin
+  displayStr("F)lee")
   setCursor(cursX, cursY)
 
   while TRUE
@@ -616,7 +616,10 @@ def playerCombatChoose(pl)#0
         fin
         break
       is 'A'
-        if canAdvance; return; fin
+        if canAdvance
+          anyAdvancing = TRUE
+          return
+        fin
         break
       is '%'
         if global->b_godmode
@@ -684,10 +687,11 @@ def playerCombatTurn(pl)#0
       if minEnemyDist() > 5
         pGroup = global=>p_enemyGroups
         while pGroup
-          pGroup->b_enemyGroupRange = pGroup->b_enemyGroupRange - 5
-          pEnemy = pGroup=>p_enemies
+          pGroup=>p_enemies->b_enemyAttackRange = pGroup=>p_enemies->b_enemyAttackRange - 5
+          // Copy new range to all enemies in the group
+          pEnemy = pGroup=>p_enemies=>p_nextObj
           while pEnemy
-            pEnemy->b_enemyAttackRange = pGroup->b_enemyGroupRange
+            pEnemy->b_enemyAttackRange = pGroup=>p_enemies->b_enemyAttackRange
             pEnemy = pEnemy=>p_nextObj
           loop
           pGroup = pGroup=>p_nextObj
@@ -819,7 +823,7 @@ def determineCombatOrder()#0
     while p2
       if canFight(p2)
         p2->b_combatOrder = rand16() % p2->b_chanceToHit
-        p2->b_enemyAttackRange = p->b_enemyGroupRange
+        p2->b_enemyAttackRange = p=>p_enemies->b_enemyAttackRange // force all to same range
         combatInsert(p2)
         nEnemiesFighting = nEnemiesFighting + 1
       fin
@@ -841,7 +845,10 @@ def makeEnemy(pData)
   fin
   p->b_attackType = pData->b_en_attType
   p=>s_attackText = mmgr(HEAP_INTERN, pData=>s_en_attText)
-  p->b_enemyAttackRange = rollDice(pData=>r_en_attRange)  // possibly random range
+  // Establish (possibly random) attack range.
+  // The range will propagate up to group, then back down to overwrite range on all
+  // enemies within the group to keep them consistent.
+  p->b_enemyAttackRange = rollDice(pData=>r_en_attRange)
   p->b_chanceToHit = pData->b_en_chanceToHit
   p=>r_enemyDmg = pData=>r_en_dmgDice
   p=>r_enemyXP = pData=>r_en_expDice
@@ -853,11 +860,11 @@ def makeEnemy(pData)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def makeEnemyGroup(pEnemyData)#1
+def makeEnemyGroup(enemyNum, pEnemyData)#1
   word p, enem, groupSize
   p = mmgr(HEAP_ALLOC, TYPE_ENEMY_GROUP)
   enem = makeEnemy(pEnemyData)
-  p->b_enemyGroupRange = enem->b_enemyAttackRange
+  p->b_enemyNum = enemyNum
   if enem=>r_groupSize == 0  // handle unique enemies
     groupSize = 1
   else
@@ -887,14 +894,16 @@ def randomFromArray(arr, filter)#1
   // Pick a random starting point in the array
   start = rand16() % siz
 
-  // Advance until we find a filter-approved entry (or run out)
+  // Advance (circularly) until we find a filter-approved entry or run out
   cur = start
   while TRUE
     p = *((cur << 1) + arr)
-    if !filter; break; fin
-    if filter(p); break; fin
+    if !filter; break; fin // no filter, this entry is good
+    if filter(p); break; fin // filter approved, this entry is good
     cur++
+    // Loop around circularly
     if cur >= siz; cur = 0; fin
+    // Stop when we've come around to our starting point
     if cur == start
       p = NULL
       break
@@ -905,35 +914,31 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def nonDupeEnemy(enemyNum)#1
-  byte i
-  for i = 0 to nEnemyGroups
-    if enemyNum == groupEnemyNums[i]; return FALSE; fin
-  next
-  return TRUE
+  ctx = enemyNum
+  return !first(global=>p_enemyGroups, &(p) p->b_enemyNum == ctx)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def makeRandomGroup(mapCode)#1
   word enemiesModule
-  byte enemyNum
+  byte enemyNum, gangChance
   word pEnemyData, pGroup
 
   enemiesModule = mmgr(QUEUE_LOAD, MOD_GEN_ENEMIES<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
   enemyNum = randomFromArray(enemiesModule()=>enemies_forZone(mapCode), @nonDupeEnemy)
   mmgr(FREE_MEMORY, enemiesModule)
-  if !enemyNum; return NULL; fin // no non-dupe enemies left in mapCode zone
-  groupEnemyNums[nEnemyGroups] = enemyNum
-  nEnemyGroups++
+  if !enemyNum; return 0; fin // no non-dupe enemies left in mapCode zone
 
   enemiesModule = mmgr(QUEUE_LOAD, (MOD_GEN_ENEMIES + 1 + ((enemyNum-1)&1))<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
   pEnemyData = enemiesModule() + 1 + (((enemyNum-1)>>1) * EnemyData)
-  pGroup = makeEnemyGroup(pEnemyData)
+  gangChance = pEnemyData->b_en_gangChance
+  pGroup = makeEnemyGroup(enemyNum, pEnemyData)
   addToList(@global=>p_enemyGroups, pGroup)
   mmgr(FREE_MEMORY, enemiesModule)
 
-  return pGroup
+  return gangChance
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1033,8 +1038,23 @@ def collectLootAndXP()#2
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Concatenate two strings to form a single one on the heap. It's unusual to need this, but we
+// do to display the enemy prompt for multiple groups.
+def concat(s1, s2)#1
+  byte len
+  word p
+  len = ^s1 + ^s2
+  p = mmgr(HEAP_ALLOC, len+1)
+  ^p = len
+  memcpy(s1+1, p+1, ^s1, FALSE)
+  memcpy(s2+1, p+(^s1)+1, ^s2, FALSE)
+  return p
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def startCombat(mapCode)#1
-  word p, p2, n, s
+  word p, n, s
+  byte n2
 
   // Pre-load some global funcs
   preload()
@@ -1043,17 +1063,16 @@ def startCombat(mapCode)#1
   isFleeing = FALSE
   combatDebug = FALSE
   global=>p_enemyGroups = NULL
-  nEnemyGroups = 0
 
   // Make one or more enemy groups (rolling for gangChance on each to see if we need another)
   while TRUE
-    // Generate a random, non-duplicate group (can fail if non-duplicate is impossible)
-    if !makeRandomGroup(mapCode); break; fin
+    // Generate a random, non-duplicate group. Returns chance for adding another group to gang
+    n = makeRandomGroup(mapCode)
+    if !n; break; fin
 
     // If maxed out on groups, or dice roll for gang fails, we're done
-    if nEnemyGroups < MAX_GROUPS and (rand16() % 100) >= p->b_en_gangChance
-      break
-    fin
+    if countList(global=>p_enemyGroups) >= MAX_GROUPS; break; fin
+    if (rand16() % 100) >= n; break; fin
   loop
 
   // Display portrait of first group
@@ -1065,17 +1084,24 @@ def startCombat(mapCode)#1
   // queued up movement keys, which are made obsolete by the surprise of combat.
   if !recordMode; ^kbdStrobe; fin
 
-  // Say who we're fighting
+  // Say who we're fighting. This is tricky because the global ENEMY_INTRO script
+  // is expecting a single group.
   p = global=>p_enemyGroups
+  n = countList(p=>p_enemies)
+  isPlural = n <> 1
+  s = mmgr(HEAP_INTERN, sprintf1(p=>p_enemies=>s_name, 0))
+  p = p=>p_nextObj
   while p
-    n = countList(p=>p_enemies)
-    isPlural = n <> 1
-    s = callGlobalFunc(GS_ENEMY_INTRO, 0, 0, 0)
-    displayf2(s, n, p=>p_enemies=>s_name)
+    n2 = countList(p=>p_enemies)
+    isPlural = n2 <> 1
+    s = concat(s, sprintf3("%s %d %s", p=>p_nextObj ?? "," :: " and", n2, p=>p_enemies=>s_name))
+    isPlural = TRUE // for display on final string below
     p = p=>p_nextObj
   loop
+  p = callGlobalFunc(GS_ENEMY_INTRO, 0, 0, 0)
+  displayf2(p, n, s)
 
-  rawDisplayStr("\n\nDo you:")
+  rawDisplayStr("\n")
   displayOption('B', "Battle")
   displayOption('F', "Flee")
   while TRUE
@@ -1160,6 +1186,7 @@ def _combat_zoneEncounter(s_encZone)#1
     rawDisplayStr("\n")
 
     // Get the choice of each player or NPC
+    anyAdvancing = FALSE
     forSome(global=>p_players, &(pl) canFight(pl) and nEnemiesFighting and !isFleeing, @playerCombatChoose)
     clearWindow()
 

@@ -44,7 +44,7 @@ byte nPartyFighting
 byte nPlayersFighting
 byte nEnemiesFighting
 byte isFleeing
-byte combatDebug
+//combatDebug// byte combatDebug
 
 byte[] S_AN = "an "
 byte[] S_A = "a "
@@ -58,7 +58,7 @@ word pItemUtil
 
 const MAX_GROUPS = 3
 byte nEnemyGroups
-byte anyAdvancing
+byte isAdvancing
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def preload()#0
@@ -135,7 +135,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def canFight(p)#1
-  return p=>w_health > 0
+  return p=>w_health > 0 ?? 1 :: 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -187,28 +187,28 @@ def rollPlayerHit(pPlayer, pWeapon, pEnemy, sAction)
   // * clamped to range 5% - 90%
   // * then reduced 1% per 5 feet range beyond 5'
   // * clamped to range 0% - 90%
-  if combatDebug; displayStr("Player hit calcs:\n"); fin
+  //combatDebug// if combatDebug; displayStr("Player hit calcs:\n"); fin
   agil = pPlayer->b_agility
   if pWeapon
     agil = agil + scanModifiers(pWeapon=>p_modifiers, @S_AGILITY)
   fin
-  if combatDebug; displayf3("Agil = %d+%d = %d\n", pPlayer->b_agility, agil - pPlayer->b_agility, agil); fin
+  //combatDebug// if combatDebug; displayf3("Agil = %d+%d = %d\n", pPlayer->b_agility, agil - pPlayer->b_agility, agil); fin
   chance = (agil * 10) + (pPlayer->b_aiming * 5)
-  if combatDebug; displayf3("Base chnc = %d*10 + %d*5 = %d%%\n", agil, pPlayer->b_aiming, chance); fin
+  //combatDebug// if combatDebug; displayf3("Base chnc = %d*10 + %d*5 = %d%%\n", agil, pPlayer->b_aiming, chance); fin
   if pWeapon
     chance = chance + (scanModifiers(pWeapon=>p_modifiers, @S_AIMING)*5)
-    if combatDebug; displayf1(" weap aim=%d*5\n", scanModifiers(pWeapon=>p_modifiers, @S_AIMING)); fin
+    //combatDebug// if combatDebug; displayf1(" weap aim=%d*5\n", scanModifiers(pWeapon=>p_modifiers, @S_AIMING)); fin
     chance = chance + (scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind)*5)
-    if combatDebug; displayf1(" plyr skill=%d*5\n", scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind)); fin
+    //combatDebug// if combatDebug; displayf1(" plyr skill=%d*5\n", scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind)); fin
   fin
   chance = chance - (max(0, pEnemy->b_enemyAttackRange - 5)) / 5)
-  if combatDebug; displayf1(" rng mod=%d\n", -max(0, pEnemy->b_enemyAttackRange - 5) / 5); fin
+  //combatDebug// if combatDebug; displayf1(" rng mod=%d\n", -max(0, pEnemy->b_enemyAttackRange - 5) / 5); fin
   chance = max(5, min(90, chance))
-  if combatDebug; displayf1("Final chnc = %d%%\n", chance); fin
+  //combatDebug// if combatDebug; displayf1("Final chnc = %d%%\n", chance); fin
 
   // See if it's a hit
   roll = rollPercentileWithLuck(-(pPlayer->b_luck)) // luck can reduce roll = increase chance to hit
-  if combatDebug; displayf2("Roll=%d, need <%d\n", roll, abs(roll < chance)); getUpperKey(); fin
+  //combatDebug// if combatDebug; displayf2("Roll=%d, need <%d\n", roll, abs(roll < chance)); getUpperKey(); fin
   if roll >= chance
     isPlural = FALSE
     displayf3("\n%s %s at %s but misses.\n", pPlayer=>s_name, sAction, pEnemy=>s_name)
@@ -238,10 +238,10 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def damageEnemy(pPlayer, pEnemy, dmg, sAction)#0
-  if combatDebug
-    displayf3("\nenemy health: %d-%d=%d\n", pEnemy=>w_health, dmg, pEnemy=>w_health-dmg)
-    getUpperKey
-  fin
+  //combatDebug// if combatDebug
+  //combatDebug//   displayf3("\nenemy health: %d-%d=%d\n", pEnemy=>w_health, dmg, pEnemy=>w_health-dmg)
+  //combatDebug//   getUpperKey
+  //combatDebug// fin
   isPlural = FALSE
   buildString()
   printf3("\n%s %s %s ", pPlayer=>s_name, sAction, pEnemy=>s_name)
@@ -263,11 +263,7 @@ def playerMelee(pPlayer, pWeapon)#0
   // Maybe in the future we'll put this under control of a global script
   sAction = "swings"
 
-  if pWeapon
-    pEnemy = chooseEnemy(pWeapon->b_weaponRange)
-  else
-    pEnemy = chooseEnemy(5) // max distance 5 feet for melee
-  fin
+  pEnemy = chooseEnemy(5) // max distance 5 feet for melee
   if !pEnemy
     if nEnemiesFighting
       displayf2("\n%s foolishly %s, misses by a mile.\n", pPlayer=>s_name, sAction)
@@ -285,12 +281,12 @@ def playerMelee(pPlayer, pWeapon)#0
   if pWeapon
     dmg = pWeapon=>r_meleeDmg
   else
-    // If using just fists, damage is nd4+h, where n is hand-to-hand skill + 1
+    // If using just fists, damage is nd4, where n is hand-to-hand skill + 1
     dmg = encodeDice(scanModifiers(pPlayer=>p_skills, @S_HAND_TO_HAND)+1, 4, 0)
   fin
-  if combatDebug; displayf3("Base dmg: %dd%d+%d = ", (dmg>>12) & $F, (dmg >> 8) & $F, dmg & $FF); fin
+  //combatDebug// if combatDebug; displayf3("Base dmg: %dd%d+%d = ", (dmg>>12) & $F, (dmg >> 8) & $F, dmg & $FF); fin
   dmg = rollDiceWithLuck(dmg, pPlayer->b_luck)
-  if combatDebug; displayf1("%d\n", dmg); fin
+  //combatDebug// if combatDebug; displayf1("%d\n", dmg); fin
 
   // Damage bonus is:
   // 1% per point of combined player and weapon agility
@@ -299,20 +295,20 @@ def playerMelee(pPlayer, pWeapon)#0
   // (no contribution of strength)
   // (enemies don't have armor)
   bonus = pPlayer->b_agility
-  if combatDebug; displayf1("Dmg bonus:\n agil=%d\n", pPlayer->b_agility); fin
+  //combatDebug// if combatDebug; displayf1("Dmg bonus:\n agil=%d\n", pPlayer->b_agility); fin
   if pWeapon
     bonus = bonus + scanModifiers(pWeapon=>p_modifiers, @S_AGILITY)
-    if combatDebug; displayf1(" weap agil=%d\n", scanModifiers(pWeapon=>p_modifiers, @S_AGILITY)); fin
+    //combatDebug// if combatDebug; displayf1(" weap agil=%d\n", scanModifiers(pWeapon=>p_modifiers, @S_AGILITY)); fin
     bonus = bonus + (scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind)*2)
-    if combatDebug; displayf1(" plyr skill*2=%d\n", scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind)*2); fin
+    //combatDebug// if combatDebug; displayf1(" plyr skill*2=%d\n", scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind)*2); fin
   fin
   if scanModifiers(pPlayer=>p_skills, @S_HAND_TO_HAND)
     bonus = bonus + (pPlayer->b_strength * 5)
-    if combatDebug; displayf1("  strngth*5=%d\n", pPlayer->b_strength * 5); fin
+    //combatDebug// if combatDebug; displayf1("  strngth*5=%d\n", pPlayer->b_strength * 5); fin
   fin
-  if combatDebug; displayf1("Final bonus=%d%%\n", bonus); fin
+  //combatDebug// if combatDebug; displayf1("Final bonus=%d%%\n", bonus); fin
   dmg = dmg + addPercent(dmg, bonus)
-  if combatDebug; displayf1("Final dmg=%d\n", dmg); getUpperKey(); fin
+  //combatDebug// if combatDebug; displayf1("Final dmg=%d\n", dmg); getUpperKey(); fin
   damageEnemy(pPlayer, pEnemy, dmg, sAction)
 end
 
@@ -343,11 +339,11 @@ def playerShoot(pPlayer, pWeapon)#0
   fin
 
   // Calculate damage
-  if combatDebug
-    displayf3("Base dmg: %dd%d+%d = ", (pWeapon=>r_projectileDmg>>12) & $F, (pWeapon=>r_projectileDmg >> 8) & $F, pWeapon=>r_projectileDmg & $FF)
-  fin
+  //combatDebug// if combatDebug
+  //combatDebug//   displayf3("Base dmg: %dd%d+%d = ", (pWeapon=>r_projectileDmg>>12) & $F, (pWeapon=>r_projectileDmg >> 8) & $F, pWeapon=>r_projectileDmg & $FF)
+  //combatDebug// fin
   dmg = rollDiceWithLuck(pWeapon=>r_projectileDmg, pPlayer->b_luck)
-  if combatDebug; displayf1("%d\n", dmg); fin
+  //combatDebug// if combatDebug; displayf1("%d\n", dmg); fin
 
   // Damage bonus is:
   // * 1% per point of combined player and weapon agility
@@ -355,13 +351,13 @@ def playerShoot(pPlayer, pWeapon)#0
   // (no contribution of strength)
   // (enemies don't have armor)
   dmg = dmg + addPercent(dmg, agil + scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind))
-  if combatDebug
-    displayf1("dmg bonus:\n agil=%d\n", agil)
-    displayf1("  plyr skill=%d\n", scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind))
-    displayf1("final bonus=%d%%\n", agil + scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind))
-    displayf1("final dmg=%d\n", dmg)
-    getUpperKey()
-  fin
+  //combatDebug// if combatDebug
+  //combatDebug//   displayf1("dmg bonus:\n agil=%d\n", agil)
+  //combatDebug//   displayf1("  plyr skill=%d\n", scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind))
+  //combatDebug//   displayf1("final bonus=%d%%\n", agil + scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind))
+  //combatDebug//   displayf1("final dmg=%d\n", dmg)
+  //combatDebug//   getUpperKey()
+  //combatDebug// fin
 
   // Okay, do that damage.
   damageEnemy(pPlayer, pEnemy, dmg, sAction)
@@ -371,7 +367,7 @@ end
 def consumeAmmo(pl, pWeapon)#0
   if !pWeapon->b_clipCurrent; fatal("clip zero"); fin // sanity check
   pWeapon->b_clipCurrent = pWeapon->b_clipCurrent - 1
-  if combatDebug; displayf1("Clip has %d\n", pWeapon->b_clipCurrent); fin
+  //combatDebug// if combatDebug; displayf1("Clip has %d\n", pWeapon->b_clipCurrent); fin
 
   // Special (for e.g. bows): clipSize zero means weapon reloads automatically
   if !pWeapon->b_clipCurrent and !pWeapon->b_clipSize
@@ -401,7 +397,7 @@ def displayOpponents()#0
       fin
     fin
     firstTime = FALSE
-    count = sum(p=>p_enemies, @canFight, @trueFunc)
+    count = sum(p=>p_enemies, NULL, @canFight)
     isPlural = count <> 1
     if (p=>p_enemies=>r_groupSize == 0)
       displayf2("%s at %d'", p=>p_enemies=>s_name, p=>p_enemies->b_enemyAttackRange)
@@ -438,6 +434,7 @@ def minEnemyDist()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Determine number of shots. Only gets called for projectile attack
 def chooseShotNumber(pl, pWeapon)#0
   byte i, nChoices, k
 
@@ -445,7 +442,7 @@ def chooseShotNumber(pl, pWeapon)#0
   nChoices = 0
   pl->b_shotChoice = 0
   for i = 0 to 2
-    if pWeapon->ba_attacks[i]
+    if pWeapon->ba_attacks[i] and (pWeapon->ba_attacks[i] == 1 or pWeapon->b_clipCurrent > 1)
       nChoices++
       pl->b_shotChoice = pWeapon->ba_attacks[i]  // in case only one choice
     fin
@@ -536,6 +533,12 @@ def playerCombatChoose(pl)#0
   byte canShoot, canReload, canChange, canAdvance
   word cursX, cursY
 
+  // The party advances all at once
+  if isAdvancing
+    pl->b_combatChoice = 'A'
+    return
+  fin
+
   // Before we start, save the cursor location so we can
   // later restore it for the next player's choice.
   cursX, cursY = getCursor()
@@ -583,7 +586,7 @@ def playerCombatChoose(pl)#0
     displayStr("C)hange weapon, ")
   fin
   displayStr("D)odge, ")
-  canAdvance = !anyAdvancing and minEnemyDist() > 5 // only one advance per turn
+  canAdvance = (pl == global=>p_players) and (minEnemyDist() > 5) // only one advance per turn
   if canAdvance; displayStr("A)dvance, "); fin
   displayStr("F)lee")
   setCursor(cursX, cursY)
@@ -617,18 +620,23 @@ def playerCombatChoose(pl)#0
         break
       is 'A'
         if canAdvance
-          anyAdvancing = TRUE
+          isAdvancing = TRUE
           return
         fin
         break
-      is '%'
+      //combatDebug// is '%'
+      //combatDebug//   if global->b_godmode
+      //combatDebug//     clearWindow()
+      //combatDebug//     combatDebug = 1-combatDebug
+      //combatDebug//     rawDisplayf1("Combat debug: %d\n\n", combatDebug)
+      //combatDebug//     return playerCombatChoose(pl) // to redisplay menu
+      //combatDebug//   fin
+      //combatDebug//   break
+      is '#'
         if global->b_godmode
-          clearWindow()
-          combatDebug = 1-combatDebug
-          rawDisplayf1("Combat debug: %d\n\n", combatDebug)
-          return playerCombatChoose(pl) // to redisplay menu
+          forEach(global=>p_enemyGroups, &(g) forEach(g=>p_enemies, @killEnemy))
         fin
-        break
+        return
     wend
     beep()
   loop
@@ -648,11 +656,11 @@ def getWeapon(pl)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def playerCombatTurn(pl)#0
+def playerCombatTurn(pl)#1
   word pWeapon, pGroup, pEnemy
   byte i
 
-  if !nEnemiesFighting; return; fin
+  if !nEnemiesFighting; return 0; fin
 
   // Get weapon
   pWeapon = getWeapon(pl)
@@ -664,7 +672,7 @@ def playerCombatTurn(pl)#0
       checkSingleUse(pl, pWeapon)
       break
     is 'F'
-      break
+      return 0
     is 'S'
       for i = 1 to pl->b_shotChoice
         if nEnemiesFighting and pWeapon->b_clipCurrent
@@ -676,6 +684,7 @@ def playerCombatTurn(pl)#0
       checkSingleUse(pl, pWeapon)
       break
     is 'R'
+      displayStr("\n")
       pItemUtil=>itemutil_reloadWeapon(pl, pWeapon, TRUE) // TRUE = echo
       break
     is 'C'
@@ -683,25 +692,24 @@ def playerCombatTurn(pl)#0
       displayf3("\n%s switches to %s %s.\n", pl=>s_name, hisHerTheir(pl->c_gender), pWeapon=>s_name)
       break
     is 'A'
-      // Advance 5 feet
-      if minEnemyDist() > 5
-        pGroup = global=>p_enemyGroups
-        while pGroup
-          pGroup=>p_enemies->b_enemyAttackRange = pGroup=>p_enemies->b_enemyAttackRange - 5
-          // Copy new range to all enemies in the group
-          pEnemy = pGroup=>p_enemies=>p_nextObj
-          while pEnemy
-            pEnemy->b_enemyAttackRange = pGroup=>p_enemies->b_enemyAttackRange
-            pEnemy = pEnemy=>p_nextObj
-          loop
-          pGroup = pGroup=>p_nextObj
+      // Advance 5 feet as a party (i.e. only the first player)
+      if !isAdvancing; return 0; fin // only advance once per turn
+      pGroup = global=>p_enemyGroups
+      while pGroup
+        pGroup=>p_enemies->b_enemyAttackRange = pGroup=>p_enemies->b_enemyAttackRange - 5
+        // Copy new range to all enemies in the group
+        pEnemy = pGroup=>p_enemies=>p_nextObj
+        while pEnemy
+          pEnemy->b_enemyAttackRange = pGroup=>p_enemies->b_enemyAttackRange
+          pEnemy = pEnemy=>p_nextObj
         loop
-        displayStr("\nYou move forward 5'.\n")
-      else
-        displayStr("\nEnemies in your way. You can't move forward.\n")
-      fin
+        pGroup = pGroup=>p_nextObj
+      loop
+      displayStr("\nYou move forward 5'.\n")
+      isAdvancing = FALSE  // only advance once per turn
       break
   wend
+  return 1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -717,26 +725,26 @@ def enemyCombatTurn(pe)#1
 
   // Roll to hit
   roll = rollPercentileWithLuck(pl->b_luck) // player luck can raise roll, reducing enemy chance to hit
-  if combatDebug; displayf2("\nenemy roll=%d, need <%d\n", roll, pe->b_chanceToHit); fin
+  //combatDebug// if combatDebug; displayf2("\nenemy roll=%d, need <%d\n", roll, pe->b_chanceToHit); fin
   needShow = FALSE
   if roll < pe->b_chanceToHit
 
     // Check for dodge
     dodgeChance = pl->b_agility * 5
-    if combatDebug; displayf2("plyr dodge: agil %dx5 = %d%%\n", pl->b_agility, dodgeChance); fin
-    if pl->b_combatChoice == 'D'
+    //combatDebug// if combatDebug; displayf2("plyr dodge: agil %dx5 = %d%%\n", pl->b_agility, dodgeChance); fin
+    if pl->b_combatChoice == 'D' or pl->b_combatChoice == 'A' // automatically dodge while advancing
       dodgeChance = dodgeChance + (pl->b_dodging * 5)
-      if combatDebug; displayf1(" +dodg-abil %dx5\n", pl->b_dodging); fin
+      //combatDebug// if combatDebug; displayf1(" +dodg-abil %dx5\n", pl->b_dodging); fin
     fin
     pItem = pl=>p_items
     while pItem
       if pItem->t_type == TYPE_ARMOR
         dodgeChance = dodgeChance + (scanModifiers(pItem=>p_modifiers, S_AGILITY) * 5)
-        if combatDebug
-          if scanModifiers(pItem=>p_modifiers, S_AGILITY)
-            displayf1(" +armor agil %dx5\n", scanModifiers(pItem=>p_modifiers, S_AGILITY))
-          fin
-        fin
+        //combatDebug// if combatDebug
+        //combatDebug//   if scanModifiers(pItem=>p_modifiers, S_AGILITY)
+        //combatDebug//     displayf1(" +armor agil %dx5\n", scanModifiers(pItem=>p_modifiers, S_AGILITY))
+        //combatDebug//   fin
+        //combatDebug// fin
       fin
       pItem = pItem=>p_nextObj
     loop
@@ -744,15 +752,15 @@ def enemyCombatTurn(pe)#1
     // Max dodge chance is 90%, min is 0.
     dodgeChance = max(0, min(90, dodgeChance))
     roll = rollPercentileWithLuck(-(pl->b_luck))  // negate so luck has chance of reducing roll = better
-    if combatDebug; displayf2("dodg roll %d, need <%d\n", roll, dodgeChance); fin
+    //combatDebug// if combatDebug; displayf2("dodg roll %d, need <%d\n", roll, dodgeChance); fin
     if roll < dodgeChance
       displayf1("but %s dodges!", pl=>s_name)
     else
       dam = rollDiceWithLuck(pe=>r_enemyDmg, -(pl->b_luck)) // player luck can reduce damage inflicted by enemy
-      if combatDebug; displayf1("base dmg %d\n", dam); fin
+      //combatDebug// if combatDebug; displayf1("base dmg %d\n", dam); fin
       // Each point of armor-value reduces damage 2%, up to max of 90%
       damReduce = max(0, min(90, pl->b_armor * 2))
-      if combatDebug; displayf1(" - armor %dx2%%\n", pl->b_armor); fin
+      //combatDebug// if combatDebug; displayf1(" - armor %dx2%%\n", pl->b_armor); fin
       dam = dam - addPercent(dam, damReduce)
       displayf1("and hits for %d damage!", dam)
       pl=>w_health = max(0, pl=>w_health - dam)
@@ -769,7 +777,7 @@ def enemyCombatTurn(pe)#1
     displayStr("and misses.")
   fin
   displayStr("\n")
-  if combatDebug; getUpperKey; fin
+  //combatDebug// if combatDebug; getUpperKey; fin
 
   if needShow; showParty(); fin
   return TRUE
@@ -1008,6 +1016,7 @@ def collectLootAndXP()#2
   byte lootedItem
 
   gold = 0
+  xp = 0
   group = global=>p_enemyGroups
   lootedItem = FALSE
   while group
@@ -1020,7 +1029,7 @@ def collectLootAndXP()#2
           mmgr(START_LOAD, 1) // code is in partition 1
           pItemsModule = mmgr(QUEUE_LOAD, MOD_GEN_ITEMS<<8 | RES_TYPE_MODULE)
           mmgr(FINISH_LOAD, 0)
-          itemFunc = randomFromArray(pItemsModule()=>items_forLootCode(enemy=>s_lootCode), @trueFunc)
+          itemFunc = randomFromArray(pItemsModule()=>items_forLootCode(enemy=>s_lootCode), NULL)
           pItem = itemFunc()
           if pItem->t_type == TYPE_FANCY_ITEM
             pItem=>w_count = rollDiceWithLuck(pItem=>r_lootAmount, global=>p_players->b_luck)
@@ -1061,7 +1070,7 @@ def startCombat(mapCode)#1
 
   // Setup
   isFleeing = FALSE
-  combatDebug = FALSE
+  //combatDebug// combatDebug = FALSE
   global=>p_enemyGroups = NULL
 
   // Make one or more enemy groups (rolling for gangChance on each to see if we need another)
@@ -1129,20 +1138,28 @@ def startCombat(mapCode)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def autoReload(pl)#0
-  pItemUtil=>itemutil_reloadWeapon(pl, getWeapon(pl), FALSE)
+def autoReload(pl)#1
+  if canFight(pl)
+    return pItemUtil=>itemutil_reloadWeapon(pl, getWeapon(pl), TRUE) // TRUE = echo
+  fin
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def processWin()#0
   word gold, xp, player, tmp
 
-  // Reload each player's weapon if possible
-  forEach(global=>p_players, &(pl) autoReload(pl))
-
   // Clear the window, then display the win message
   clearWindow
   callGlobalFunc(GS_COMBAT_WIN, 0, 0, 0)
+
+  // Reload each player's weapon if possible. If anything actually happened, be sure to
+  // wait for a keypress.
+  displayStr("\n")
+  if sum(global=>p_players, NULL, @autoReload)
+    promptAnyKey(FALSE)
+    clearWindow
+  fin
 
   // Grab the loot
   freePreloaded() // make max space avail for item tables
@@ -1155,6 +1172,7 @@ def processWin()#0
     displayf1("You earn %d experience! ", xp)
   fin
   promptAnyKey(FALSE)
+
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1186,7 +1204,7 @@ def _combat_zoneEncounter(s_encZone)#1
     rawDisplayStr("\n")
 
     // Get the choice of each player or NPC
-    anyAdvancing = FALSE
+    isAdvancing = FALSE
     forSome(global=>p_players, &(pl) canFight(pl) and nEnemiesFighting and !isFleeing, @playerCombatChoose)
     clearWindow()
 
@@ -1215,8 +1233,9 @@ def _combat_zoneEncounter(s_encZone)#1
               return 0
             fin
             if p->b_combatChoice <> 'D'
-              playerCombatTurn(p)
-              combatPause()
+              if playerCombatTurn(p)
+                combatPause()
+              fin
             fin
             break
           is TYPE_ENEMY

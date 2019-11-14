@@ -401,20 +401,22 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display menu for selecting inventory items
-def showItemMenu(item)#0
+def showItemMenu(player, item)#0
   byte type
   clearMenuRect()
   type = item->t_type
-  if type == TYPE_ARMOR or type == TYPE_WEAPON
-    if isEquipped(item); rawDisplayStr("un-"); fin
-    rawDisplayStr("E)quip, ")
-  fin
-  if type == TYPE_WEAPON
-    if item->b_clipCurrent < item->b_clipSize
-      rawDisplayStr("R)eload, ")
+  if player=>w_health > 0
+    if type == TYPE_ARMOR or type == TYPE_WEAPON
+      if isEquipped(item); rawDisplayStr("un-"); fin
+      rawDisplayStr("E)quip, ")
     fin
+    if type == TYPE_WEAPON
+      if item->b_clipCurrent < item->b_clipSize
+        rawDisplayStr("R)eload, ")
+      fin
+    fin
+    rawDisplayStr("U)se, ")
   fin
-  rawDisplayStr("U)se, ")
   if isSplittable(item); rawDisplayStr("S)plit, "); fin
   if isJoinable(item); rawDisplayStr("J)oin, "); fin
   if !isEquipped(item)
@@ -650,21 +652,23 @@ def interactWithItem(player, item)#1
   ok = TRUE
   displayItems(item, findMatchingEquip(player, item))
   while TRUE
-    showItemMenu(item)
+    showItemMenu(player, item)
     if !ok; beep; fin
     ok = FALSE
     sel = getUpperKey()
     when sel
       // Equip/unequip player with weapon/armor
       is 'E'
-        if (item->t_type == TYPE_ARMOR or item->t_type == TYPE_WEAPON)
+        if (item->t_type == TYPE_ARMOR or item->t_type == TYPE_WEAPON) and player=>w_health > 0
           doEquip(player, item)
           return displayDone()
         fin
         break
       // Use an item
       is 'U'
-        return doUseItem(player, item) // general 'use' handled by outer engine, because it might involve graphics
+        if player=>w_health > 0
+          return doUseItem(player, item) // general 'use' handled by outer engine, because it might involve graphics
+        fin
         break
       // Trade an item
       is 'T'
@@ -673,7 +677,7 @@ def interactWithItem(player, item)#1
         fin
         break
       is 'R'
-        if item->t_type == TYPE_WEAPON
+        if item->t_type == TYPE_WEAPON and player=>w_health > 0
           if item->b_clipCurrent < item->b_clipSize
             pItemutilModule()=>itemutil_reloadWeapon(player, item, FALSE)
             displayDone

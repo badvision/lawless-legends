@@ -84,6 +84,7 @@ struc TPlayer
   word w_maxHealth
   byte b_combatChoice
   byte b_shotChoice
+  byte b_gangChoice
   byte b_playerFlags
   byte b_level
   word w_curXP

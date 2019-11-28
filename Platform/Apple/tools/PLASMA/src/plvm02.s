@@ -184,13 +184,10 @@ OPXTBL  !WORD   ZERO,ADD,SUB,MUL,DIV,MOD,INCR,DECR              ; 00 02 04 06 08
 ;* ENTER INTO BYTECODE INTERPRETER
 ;*
 DINTRP  PLA
-        CLC
-        ADC     #$01
         STA     IPL
         PLA
-        ADC     #$00
         STA     IPH
-        LDY     #$00
+        LDY     #$01
         LDA     #>OPTBL
         STA     OPPAGE
         BIT     LCRWEN+LCBNK2

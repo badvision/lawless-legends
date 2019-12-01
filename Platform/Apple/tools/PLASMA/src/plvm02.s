@@ -1342,7 +1342,7 @@ ENTER   LDA     IFPH
         DEY
         STA     (IFP),Y
         BNE     -
-+       LDY     #$03
++       LDY     #$04
         JMP     FETCHOP
 ;*
 ;* LEAVE FUNCTION

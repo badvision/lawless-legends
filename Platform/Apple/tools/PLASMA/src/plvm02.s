@@ -184,10 +184,13 @@ OPXTBL  !WORD   ZERO,ADD,SUB,MUL,DIV,MOD,INCR,DECR              ; 00 02 04 06 08
 ;* ENTER INTO BYTECODE INTERPRETER
 ;*
 DINTRP  PLA
+        CLC
+        ADC     #$01
         STA     IPL
         PLA
+        ADC     #$00
         STA     IPH
-        LDY     #$01
+        LDY     #$00
         LDA     #>OPTBL
         STA     OPPAGE
         BIT     LCRWEN+LCBNK2
@@ -1342,7 +1345,7 @@ ENTER   LDA     IFPH
         DEY
         STA     (IFP),Y
         BNE     -
-+       LDY     #$04
++       LDY     #$03
         JMP     FETCHOP
 ;*
 ;* LEAVE FUNCTION

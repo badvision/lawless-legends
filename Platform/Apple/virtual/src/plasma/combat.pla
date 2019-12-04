@@ -44,6 +44,7 @@ byte nPartyFighting
 byte nPlayersFighting
 byte nEnemiesFighting
 byte isFleeing
+byte isAdvancing
 //combatDebug// byte combatDebug
 
 byte[] S_AN = "an "
@@ -58,7 +59,6 @@ word pItemUtil
 
 const MAX_GROUPS = 3
 byte nEnemyGroups
-byte isAdvancing
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def preload()#0
@@ -123,12 +123,12 @@ def combatPause()#0
   pause(global=>w_combatPauseCt)
 
   // Check for speed-up / slow-down
-  key = ^kbd
-  if key == (11 + 128) or key == ('-'+128) // up-arrow or minus
-    if !recordMode; ^kbdStrobe; fin
+  key = ^kbd & $7F
+  if key == 11 or key == '-' // up-arrow or minus
+    ^kbdStrobe
     global=>w_combatPauseCt = max(100, global=>w_combatPauseCt - addPercent(global=>w_combatPauseCt, 20))
-  elsif key == (10 + 128) or key == ('+'+128) // down-arrow or plus
-    if !recordMode; ^kbdStrobe; fin
+  elsif key == 10 or key == '+' // down-arrow or plus
+    ^kbdStrobe
     global=>w_combatPauseCt = min(9999, global=>w_combatPauseCt + addPercent(global=>w_combatPauseCt, 20))
   fin
 end
@@ -381,28 +381,43 @@ def playerDodge(pPlayer)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def groupCanFight(p)#1
+  return first(p=>p_enemies, @canFight)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def formatGroupName(p, withDist)#1
+  byte count
+  count = sum(p=>p_enemies, NULL, @canFight)
+  isPlural = count <> 1
+  if (p=>p_enemies=>r_groupSize == 0)
+    if withDist
+      return sprintf2("%s at %d'", p=>p_enemies=>s_name, p=>p_enemies->b_enemyAttackRange)
+    else
+      return sprintf1("%s", p=>p_enemies=>s_name)
+    fin
+  fin
+  if withDist
+    return sprintf3("%d %s at %d'", count, p=>p_enemies=>s_name, p=>p_enemies->b_enemyAttackRange)
+  fin
+  return sprintf2("%d %s", count, p=>p_enemies=>s_name)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayOpponents()#0
   word p
-  byte count, firstTime
+  byte firstTime
 
   displayStr("You face ")
   firstTime = TRUE
   p = global=>p_enemyGroups
   while p
-    if !firstTime
-      if p=>p_nextObj
-        displayStr(", ")
-      else
-        displayStr(" and ")
+    if groupCanFight(p)
+      if !firstTime
+        displayStr(p=>p_nextObj ?? ", " :: " and ")
       fin
-    fin
-    firstTime = FALSE
-    count = sum(p=>p_enemies, NULL, @canFight)
-    isPlural = count <> 1
-    if (p=>p_enemies=>r_groupSize == 0)
-      displayf2("%s at %d'", p=>p_enemies=>s_name, p=>p_enemies->b_enemyAttackRange)
-    else
-      displayf3("%d %s at %d'", count, p=>p_enemies=>s_name, p=>p_enemies->b_enemyAttackRange)
+      firstTime = FALSE
+      displayStr(formatGroupName(p, TRUE))
     fin
     p = p=>p_nextObj
   loop
@@ -414,7 +429,7 @@ def displayOption(key, str)#0
   rawDisplayStr("\n (")
   displayChar(key)
   rawDisplayStr(")^T028")
-  rawDisplayStr(str)
+  displayStr(str)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -425,12 +440,77 @@ def minEnemyDist()#1
   // Process each group
   p = global=>p_enemyGroups
   while p
-    if first(p=>p_enemies, @canFight)
+    if groupCanFight(p)
       minDist = min(minDist, p=>p_enemies->b_enemyAttackRange)
     fin
     p = p=>p_nextObj
   loop
   return minDist
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def noneInRange()#1
+  rawDisplayStr("^D") // clear to end of page
+  displayStr("No enemy in range.")
+  combatPause
+  return FALSE
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Phase 0: count alive & in-range gangs
+// Phase 1: display gangs
+// Phase 2: select gang by number, return enemyNum
+def groupLoop(minDist, phase, choiceNum)#1
+  word p
+  byte n
+
+  p = global=>p_enemyGroups
+  n = 0
+  while p
+    if p=>p_enemies->b_enemyAttackRange <= minDist and groupCanFight(p)
+      if phase == 1
+        displayOption(n + 'A', formatGroupName(p, FALSE))
+      elsif phase == 2 and n == choiceNum
+        return p->b_enemyNum
+      fin
+      n++
+    fin
+    p = p=>p_nextObj
+  loop
+  return n
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def chooseGroup(pl, minDist)#1
+  word p
+  byte nAvailGroups, choiceNum
+
+  // First, determine how many groups are alive and within striking distance
+  nAvailGroups = groupLoop(minDist, 0, 0)
+
+  // If nobody in range, ack!
+  if !nAvailGroups; return noneInRange(); fin
+
+  // If only one group, the choice is trivially obvious.
+  if nAvailGroups == 1
+    choiceNum = 0
+  else
+    rawDisplayf1("^D%s attack:", pl=>s_name) // ctrl-D = clear to end of page
+    groupLoop(minDist, 1, 0)
+    while TRUE
+      choiceNum = getUpperKey()
+      if choiceNum == $1B // esc
+        return FALSE
+      fin
+      choiceNum = choiceNum - 'A'
+      if choiceNum >= 0 and choiceNum < nAvailGroups; break; fin
+      beep()
+    loop
+  fin
+
+  // Success.
+  pl->b_gangChoice = groupLoop(minDist, 2, choiceNum)
+  return TRUE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -452,7 +532,7 @@ def chooseShotNumber(pl, pWeapon)#0
   if nChoices <= 1; return; fin
 
   // Let player choose
-  rawDisplayf1("^D%s shoot:", pl=>s_name) // ctrl-D = clear to end of page
+  rawDisplayf1("^D%s shot type:", pl=>s_name) // ctrl-D = clear to end of page
   if pWeapon->ba_attacks[0]; displayOption('O', "One shot"); fin
   if pWeapon->ba_attacks[1] == 2
     displayOption('D', "Double-shot")
@@ -530,7 +610,7 @@ end
 def playerCombatChoose(pl)#0
   word p, pWeapon
   byte key
-  byte canShoot, canReload, canChange, canAdvance
+  byte canShoot, canReload, canChange, canAdvance, redisplayMenu
   word cursX, cursY
 
   // The party advances all at once
@@ -560,41 +640,53 @@ def playerCombatChoose(pl)#0
     p = p=>p_nextObj
   loop
 
-  // Let them know their options
-  setCursor(cursX, cursY)
-  rawDisplayStr("^D") // clear to end of page
-  displayf1("%s:\nM)elee, ", pl=>s_name)
-  if pWeapon
-    // Special (for e.g. bows): clipSize zero means weapon reloads automatically
-    if pWeapon=>r_projectileDmg and !pWeapon->b_clipCurrent and !pWeapon->b_clipSize
-      pItemUtil=>itemutil_reloadWeapon(pl, pWeapon, FALSE) // silently reload
-    fin
-    if pWeapon->b_clipCurrent
-      canShoot = TRUE
-      if pWeapon->b_clipSize
-        displayf2("S)hoot %d:%d, ", pWeapon->b_clipCurrent, pWeapon->b_clipSize))
-      else
-        displayStr("S)hoot, ")
-      fin
-    fin
-    if pWeapon->b_clipCurrent < pWeapon->b_clipSize
-      canReload = TRUE
-      displayStr("R)eload, ")
-    fin
-  fin
-  if canChange
-    displayStr("C)hange weapon, ")
-  fin
-  displayStr("D)odge, ")
-  canAdvance = (pl == global=>p_players) and (minEnemyDist() > 5) // only one advance per turn
-  if canAdvance; displayStr("A)dvance, "); fin
-  displayStr("F)lee")
-  setCursor(cursX, cursY)
+  redisplayMenu = TRUE
 
+  // Loop until a valid option is chosen
   while TRUE
+
+    // Let them know their options
+    if redisplayMenu
+      setCursor(cursX, cursY)
+      rawDisplayStr("^D") // clear to end of page
+      displayf1("%s:\nM)elee, ", pl=>s_name)
+      if pWeapon
+        // Special (for e.g. bows): clipSize zero means weapon reloads automatically
+        if pWeapon=>r_projectileDmg and !pWeapon->b_clipCurrent and !pWeapon->b_clipSize
+          pItemUtil=>itemutil_reloadWeapon(pl, pWeapon, FALSE) // silently reload
+        fin
+        if pWeapon->b_clipCurrent
+          canShoot = TRUE
+          if pWeapon->b_clipSize
+            displayf2("S)hoot %d:%d, ", pWeapon->b_clipCurrent, pWeapon->b_clipSize))
+          else
+            displayStr("S)hoot, ")
+          fin
+        fin
+        if pWeapon->b_clipCurrent < pWeapon->b_clipSize
+          canReload = TRUE
+          displayStr("R)eload, ")
+        fin
+      fin
+      if canChange
+        displayStr("C)hange weapon, ")
+      fin
+      displayStr("D)odge, ")
+      canAdvance = (pl == global=>p_players) and (minEnemyDist() > 5) // only one advance per turn
+      if canAdvance; displayStr("A)dvance, "); fin
+      displayStr("F)lee")
+      setCursor(cursX, cursY)
+    fin
+
     pl->b_combatChoice = getUpperKey()
+    redisplayMenu = FALSE
     when pl->b_combatChoice
       is 'M'
+        if !chooseGroup(pl, 5)
+          redisplayMenu = TRUE
+          break
+        fin
+        setCursor(cursX, cursY)
         return
       is 'F'
         isFleeing = TRUE
@@ -603,6 +695,11 @@ def playerCombatChoose(pl)#0
         return
       is 'S'
         if canShoot
+          if !chooseGroup(pl, pWeapon->b_weaponRange)
+            redisplayMenu = TRUE
+            break
+          fin
+          setCursor(cursX, cursY)
           chooseShotNumber(pl, pWeapon)
           setCursor(cursX, cursY)
           return
@@ -638,7 +735,7 @@ def playerCombatChoose(pl)#0
         fin
         return
     wend
-    beep()
+    if !redisplayMenu; beep(); fin
   loop
 end
 

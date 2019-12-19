@@ -222,8 +222,6 @@ def _reloadWeapon(pl, pWeapon, echo)#1
   word item
   byte orig, n
 
-  printf3("reload for pl=%s weapon=%s echo=%d\n", pl=>s_name, pWeapon=>s_name, echo)
-
   isPlural = FALSE
   if !pWeapon; return 0; fin  // if no weapon equipped, no reload possible
 
@@ -237,7 +235,7 @@ def _reloadWeapon(pl, pWeapon, echo)#1
   ctx = pWeapon; item = first(pl=>p_items, &(p) ammoMatches(p, ctx=>s_ammoKind))
   if !item
     if echo
-      displayf3("%s has no ammo to reload %s %s!\n", pl=>s_name, hisHerTheir(pl->c_gender), pWeapon=>s_name))
+      displayf3("%s has no ammo to reload %s %s! ", pl=>s_name, hisHerTheir(pl->c_gender), pWeapon=>s_name))
     fin
     return 1
   fin
@@ -256,7 +254,7 @@ def _reloadWeapon(pl, pWeapon, echo)#1
     if item=>w_count == 0
       displayStr(" and is now out")
     fin
-    displayStr(".\n")
+    displayStr(". ")
   fin
   if item=>w_count == 0
     removeFromList(@pl=>p_items, item)

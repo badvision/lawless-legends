@@ -36,6 +36,8 @@ struc EnemyData
   byte b_en_gangChance
 end
 
+const COMBAT_CHOICE_Y = 54
+
 predef _combat_zoneEncounter(s_encZone)#1
 word[] funcTbl = @_combat_zoneEncounter
 
@@ -139,34 +141,47 @@ def canFight(p)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def chooseEnemy(maxDist)#1
-  word p
-  byte n, n2
+// Phase 0: count alive matching enemies
+// Phase 1: select matching enemy
+def enemyLoop(maxDist, gangChoice, phase, choiceNum)
+  byte n
+  word pGroup, pEnemy
 
-  // First, determine how many enemies are within striking distance
   n = 0
-  p = global=>p_combatFirst
-  while p
-    if p->t_type == TYPE_ENEMY and canFight(p) and p->b_enemyAttackRange <= maxDist
-      n++
+  pGroup = global=>p_enemyGroups
+  while pGroup
+    if !gangChoice or pGroup->b_enemyNum == gangChoice
+      pEnemy = pGroup=>p_enemies
+      while pEnemy
+        if pEnemy->t_type == TYPE_ENEMY and canFight(pEnemy) and pEnemy->b_enemyAttackRange <= maxDist
+          if phase == 1 and n == choiceNum; return pEnemy; fin
+          n++
+        fin
+        pEnemy = pEnemy=>p_nextObj
+      loop
     fin
-    p = p=>p_combatNext
+    pGroup = pGroup=>p_nextObj
   loop
+  return n
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def chooseEnemy(maxDist, gangChoice)#1
+  byte n
+
+  // See if there are any living enemies in the chosen gang that are in striking distance
+  n = enemyLoop(maxDist, gangChoice, 0, 0)
+  if n == 0
+    // Chosen gang may be all dead. Expand the selection to all gangs.
+    gangChoice = 0
+    n = enemyLoop(maxDist, gangChoice, 0, 0)
+  fin
 
   // If nobody in range, ack!
   if !n; return NULL; fin
 
   // Pick one of the in-range enemies to attack.
-  n2 = rand16() % n
-  p = global=>p_combatFirst
-  while p
-    if p->t_type == TYPE_ENEMY and canFight(p) and p->b_enemyAttackRange <= maxDist
-      if n2 == 0; return p; fin
-      n2--
-    fin
-    p = p=>p_combatNext
-  loop
-  return NULL
+  return enemyLoop(maxDist, gangChoice, 1, rand16() % n)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -263,7 +278,7 @@ def playerMelee(pPlayer, pWeapon)#0
   // Maybe in the future we'll put this under control of a global script
   sAction = "swings"
 
-  pEnemy = chooseEnemy(5) // max distance 5 feet for melee
+  pEnemy = chooseEnemy(5, pPlayer->b_gangChoice) // max distance 5 feet for melee
   if !pEnemy
     if nEnemiesFighting
       displayf2("\n%s foolishly %s, misses by a mile.\n", pPlayer=>s_name, sAction)
@@ -321,7 +336,7 @@ def playerShoot(pPlayer, pWeapon)#0
 
   sAction = pWeapon=>s_combatText
 
-  pEnemy = chooseEnemy(pWeapon->b_weaponRange)
+  pEnemy = chooseEnemy(pWeapon->b_weaponRange, pPlayer->b_gangChoice)
   if !pEnemy
     displayf2("\n%s %s but falls short.\n", pPlayer=>s_name, sAction)
     return
@@ -460,14 +475,14 @@ end
 // Phase 0: count alive & in-range gangs
 // Phase 1: display gangs
 // Phase 2: select gang by number, return enemyNum
-def groupLoop(minDist, phase, choiceNum)#1
+def groupLoop(maxDist, phase, choiceNum)#1
   word p
   byte n
 
   p = global=>p_enemyGroups
   n = 0
   while p
-    if p=>p_enemies->b_enemyAttackRange <= minDist and groupCanFight(p)
+    if p=>p_enemies->b_enemyAttackRange <= maxDist and groupCanFight(p)
       if phase == 1
         displayOption(n + 'A', formatGroupName(p, FALSE))
       elsif phase == 2 and n == choiceNum
@@ -481,12 +496,12 @@ def groupLoop(minDist, phase, choiceNum)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def chooseGroup(pl, minDist)#1
+def chooseGroup(pl, maxDist)#1
   word p
   byte nAvailGroups, choiceNum
 
   // First, determine how many groups are alive and within striking distance
-  nAvailGroups = groupLoop(minDist, 0, 0)
+  nAvailGroups = groupLoop(maxDist, 0, 0)
 
   // If nobody in range, ack!
   if !nAvailGroups; return noneInRange(); fin
@@ -496,7 +511,7 @@ def chooseGroup(pl, minDist)#1
     choiceNum = 0
   else
     rawDisplayf1("^D%s attack:", pl=>s_name) // ctrl-D = clear to end of page
-    groupLoop(minDist, 1, 0)
+    groupLoop(maxDist, 1, 0)
     while TRUE
       choiceNum = getUpperKey()
       if choiceNum == $1B // esc
@@ -509,7 +524,7 @@ def chooseGroup(pl, minDist)#1
   fin
 
   // Success.
-  pl->b_gangChoice = groupLoop(minDist, 2, choiceNum)
+  pl->b_gangChoice = groupLoop(maxDist, 2, choiceNum)
   return TRUE
 end
 
@@ -527,6 +542,12 @@ def chooseShotNumber(pl, pWeapon)#0
       pl->b_shotChoice = pWeapon->ba_attacks[i]  // in case only one choice
     fin
   next
+
+  // If it's a double-shot weapon but player has only 1 ammo, override to allow single-shot
+  if nChoices == 0 and pWeapon->ba_attacks[1] == 2 and pWeapon->b_clipCurrent == 1
+    pl->b_shotChoice = 1
+    return
+  fin
 
   // If only one choice, we're done.
   if nChoices <= 1; return; fin
@@ -611,17 +632,12 @@ def playerCombatChoose(pl)#0
   word p, pWeapon
   byte key
   byte canShoot, canReload, canChange, canAdvance, redisplayMenu
-  word cursX, cursY
 
   // The party advances all at once
   if isAdvancing
     pl->b_combatChoice = 'A'
     return
   fin
-
-  // Before we start, save the cursor location so we can
-  // later restore it for the next player's choice.
-  cursX, cursY = getCursor()
 
   // Count all weapons and get currently equipped
   canShoot  = FALSE
@@ -647,8 +663,9 @@ def playerCombatChoose(pl)#0
 
     // Let them know their options
     if redisplayMenu
-      setCursor(cursX, cursY)
+      setCursor(0, COMBAT_CHOICE_Y)
       rawDisplayStr("^D") // clear to end of page
+      callGlobalFunc(GS_COMBAT_PROMPT, 0, 0, 0)
       displayf1("%s:\nM)elee, ", pl=>s_name)
       if pWeapon
         // Special (for e.g. bows): clipSize zero means weapon reloads automatically
@@ -675,7 +692,7 @@ def playerCombatChoose(pl)#0
       canAdvance = (pl == global=>p_players) and (minEnemyDist() > 5) // only one advance per turn
       if canAdvance; displayStr("A)dvance, "); fin
       displayStr("F)lee")
-      setCursor(cursX, cursY)
+      setCursor(0, COMBAT_CHOICE_Y)
     fin
 
     pl->b_combatChoice = getUpperKey()
@@ -686,7 +703,7 @@ def playerCombatChoose(pl)#0
           redisplayMenu = TRUE
           break
         fin
-        setCursor(cursX, cursY)
+        setCursor(0, COMBAT_CHOICE_Y)
         return
       is 'F'
         isFleeing = TRUE
@@ -699,9 +716,9 @@ def playerCombatChoose(pl)#0
             redisplayMenu = TRUE
             break
           fin
-          setCursor(cursX, cursY)
+          setCursor(0, COMBAT_CHOICE_Y)
           chooseShotNumber(pl, pWeapon)
-          setCursor(cursX, cursY)
+          setCursor(0, COMBAT_CHOICE_Y)
           return
         fin
         break
@@ -711,7 +728,7 @@ def playerCombatChoose(pl)#0
       is 'C'
         if canChange
           chooseWeapon(pl, pWeapon)
-          setCursor(cursX, cursY)
+          setCursor(0, COMBAT_CHOICE_Y)
           return
         fin
         break
@@ -783,6 +800,7 @@ def playerCombatTurn(pl)#1
     is 'R'
       displayStr("\n")
       pItemUtil=>itemutil_reloadWeapon(pl, pWeapon, TRUE) // TRUE = echo
+      displayStr("\n")
       break
     is 'C'
       // Choose a different weapon
@@ -1297,8 +1315,9 @@ def _combat_zoneEncounter(s_encZone)#1
     // Tell what the party currently faces
     clearWindow()
     displayOpponents()
-    callGlobalFunc(GS_COMBAT_PROMPT, 0, 0, 0)
-    rawDisplayStr("\n")
+
+    // Make sure portrait reflects a living enemy
+    setPortrait(first(global=>p_enemyGroups, @groupCanFight)=>p_enemies->b_image)
 
     // Get the choice of each player or NPC
     isAdvancing = FALSE

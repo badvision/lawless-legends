@@ -107,6 +107,7 @@ export byte portraitNum = 0
 word triggerOriginX, triggerOriginY
 word triggerTbl
 
+byte cmdKey  // last command key pressed
 word cmdTbl[96]   // ASCII $00..$5F
 byte frameLoaded = 0
 word curEngine = NULL
@@ -1507,6 +1508,8 @@ export def getCharResponse()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Select the num'th entry in the list for which the selector returns TRUE. A NULL selector
+// is considered to always be TRUE.
 export def select(p, sel, num)#1
   while p
     if !sel
@@ -2430,7 +2433,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Get a key and dispatch it to a command. Then do it again, forever.
 def kbdLoop()#0
-  word key, func, tmp
+  word func, tmp
   byte xreg
   xreg = getXReg()
   while TRUE
@@ -2438,9 +2441,9 @@ def kbdLoop()#0
     // the X register should always have the same value.
     tmp = getXReg()
     if tmp <> xreg; printHex(xreg<<8 | tmp); fatal("xRegChg"); fin
-    key = getUpperKey()
-    if key >= 0 and key < $60
-      func = cmdTbl[key]
+    cmdKey = getUpperKey()
+    if cmdKey >= 0 and cmdKey < $60
+      func = cmdTbl[cmdKey]
       if func
         if textClearCountdown
           if textClearCountdown == 1; clearTextWindow(); fin
@@ -2979,7 +2982,6 @@ end
 def cheatCmd()#1
   byte key
   word pModule
-  key = charToUpper((^kbd) & $7F)
 
   // We don't use laodEngine, since godmode may use it too, and we'd get double modules
   textureControl(FALSE) // seems to be necessary for teleport-to-3d to work right
@@ -2988,7 +2990,7 @@ def cheatCmd()#1
   pModule = mmgr(QUEUE_LOAD, MOD_GODMODE<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
 
-  pModule()=>godmode_cheatCmd(key)
+  pModule()=>godmode_cheatCmd(cmdKey)
 
   mmgr(FREE_MEMORY, pModule)
   textureControl(TRUE)

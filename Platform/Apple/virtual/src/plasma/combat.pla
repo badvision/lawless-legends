@@ -1276,8 +1276,12 @@ def processWin()#0
     clearWindow
   fin
 
+  // Make max space avail for item tables. Really oughta break them up sometime.
+  freePreloaded
+  freePortrait
+  needRender = FALSE
+
   // Grab the loot
-  freePreloaded() // make max space avail for item tables
   gold, xp = collectLootAndXP()
   if gold > 0
     displayf1("You find %d gold! ", addGold(gold))

@@ -71,7 +71,7 @@ public class LawlessImageTool implements MediaConsumer {
 
     @Override
     public boolean isAccepted(MediaEntry e, MediaEntry.MediaFile f) {
-        return e.type == DiskType.FLOPPY800;
+        return e.type == DiskType.FLOPPY800 || e.type == DiskType.LARGE;
     }
 
     @Override

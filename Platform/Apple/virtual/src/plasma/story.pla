@@ -71,6 +71,7 @@ def _story_mode(enable, portraitNum)#1
   if enable
     setWindow(0, 192, 0, 280)
     clearWindow
+    ^EMUSIG_STORY
     setPortrait(portraitNum)
     setBlock1
   else

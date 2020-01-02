@@ -152,11 +152,15 @@ public class Speaker extends SoundGeneratorDevice {
     @Override
     public boolean suspend() {
         boolean result = super.suspend();
-        playbackTimer.cancel();
+        if (playbackTimer != null) {
+            playbackTimer.cancel();
+        }
         speakerBit = false;
         sdl = null;
-        computer.getMotherboard().cancelSpeedRequest(this);
-        computer.mixer.returnLine(this);
+        if (computer.getMotherboard() != null) {
+            computer.getMotherboard().cancelSpeedRequest(this);
+            computer.mixer.returnLine(this);
+        }
 
         return result;
     }

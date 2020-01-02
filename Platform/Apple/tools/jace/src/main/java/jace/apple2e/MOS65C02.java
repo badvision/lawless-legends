@@ -1379,4 +1379,9 @@ public class MOS65C02 extends CPU {
             default:
         }
     }
+
+    @Override
+    public void reconfigure() {
+        // Currently do nothing
+    }
 }

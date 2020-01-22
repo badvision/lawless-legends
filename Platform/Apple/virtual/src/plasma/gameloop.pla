@@ -2152,19 +2152,13 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display a portrait drawing (typically called from scripts)
-export def freePortrait()#0
+export def clearPortrait()#0
   if curPortrait
     auxMmgr(FREE_MEMORY, curPortrait)
     curPortrait = NULL
     curPortraitNum = 0
     needRender = TRUE
   fin
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Display a portrait drawing (typically called from scripts)
-export def clearPortrait()#0
-  freePortrait
   if curFullscreenImg
     auxMmgr(FREE_MEMORY, curFullscreenImg)
     curFullscreenImg = NULL

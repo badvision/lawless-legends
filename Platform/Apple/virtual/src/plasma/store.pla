@@ -27,7 +27,7 @@ predef _buyFromStore(storeCode, profitPercent)#1
 predef _sellToStore(profitPercent)#1
 word[] funcTbl = @_buyFromStore, @_sellToStore
 
-word pItemsModule, pItemutilModule
+word pItemTblModule, pItemutilModule
 const MAX_PAGE_ITEMS = 20 // should be plenty
 word pageItems[MAX_PAGE_ITEMS]
 word pagePrices[MAX_PAGE_ITEMS]
@@ -60,14 +60,14 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def loadExtraModules()#0
   mmgr(START_LOAD, 1) // code is in partition 1
-  pItemsModule = mmgr(QUEUE_LOAD, MOD_GEN_ITEMS<<8 | RES_TYPE_MODULE)
+  pItemTblModule = mmgr(QUEUE_LOAD, MOD_GEN_ITEM_TABLES<<8 | RES_TYPE_MODULE)
   pItemutilModule = mmgr(QUEUE_LOAD, MOD_ITEMUTIL<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def unloadExtraModules()#0
-  mmgr(FREE_MEMORY, pItemsModule)
+  mmgr(FREE_MEMORY, pItemTblModule)
   mmgr(FREE_MEMORY, pItemutilModule)
 end
 
@@ -76,7 +76,7 @@ def displayTitle(titleAction, columnAction, pageNum, nPages)#0
   clearWindow()
   rawDisplayf2("^I %s %s ", pPlayer=>s_name, titleAction)
   if (nPages > 1)
-    rawDisplayf2("p.%d/%d ", pageNum+1, nPages)
+    rawDisplayf2("p. %d/%d ", pageNum+1, nPages)
   fin
   rightJustifyStr(sprintf1(" %d party gold ", global=>w_gold), BIGWIN_RIGHT - 15)
   rawDisplayf1("^N\n^V014^L%s^T046Price^T085Item^L", columnAction)
@@ -114,27 +114,27 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayBuyPage(pItemTbl, markupRatio, pageNum, nPages)#1
-  byte itemNum
-  word pFunc, pItem
+  byte numOnPage
+  word pItemNum, pItem
 
   // Clear stuff from previous page
   heapCollect()
 
   displayTitle("buying", "Browse", pageNum, nPages)
-  pFunc = pItemTbl + ((pageNum*PAGE_SIZE) << 1)
-  for itemNum = 0 to PAGE_SIZE-1
-    if !(*pFunc); break; fin
-    pItem = (*pFunc)()
+  pItemNum = pItemTbl + ((pageNum*PAGE_SIZE) << 1)
+  for numOnPage = 0 to PAGE_SIZE-1
+    if !(*pItemNum); break; fin
+    pItem = createItem(*pItemNum)
     if pItem->t_type == TYPE_FANCY_ITEM
       pItem=>w_count = pItem=>w_storeAmount
     fin
-    pageItems[itemNum] = pItem
-    pagePrices[itemNum] = max(1, pItem=>w_price + addRatio(pItem=>w_price, markupRatio))
-    displayItemLine(itemNum)
-    pFunc = pFunc + 2
+    pageItems[numOnPage] = pItem
+    pagePrices[numOnPage] = max(1, pItem=>w_price + addRatio(pItem=>w_price, markupRatio))
+    displayItemLine(numOnPage)
+    pItemNum = pItemNum + 2
   next
-  displayPaging("Browse", itemNum, pageNum, nPages)
-  return itemNum
+  displayPaging("Browse", numOnPage, pageNum, nPages)
+  return numOnPage
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -259,7 +259,7 @@ def _buyFromStore(storeCode, profitPercent)#1
   byte nItemsOnPage, pageNum, nPages, redisplay
 
   storeSetup()
-  pItemTbl = pItemsModule()=>items_forStoreCode(storeCode)
+  pItemTbl = pItemTblModule()=>items_forStoreCode(storeCode)
 
   nPages = (countArray(pItemTbl) + PAGE_SIZE - 1) / PAGE_SIZE
   pageNum = 0

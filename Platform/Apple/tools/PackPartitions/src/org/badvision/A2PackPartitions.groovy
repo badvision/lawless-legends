@@ -3217,6 +3217,7 @@ class A2PackPartitions
             def mapCode = row.@"map-code";          assert mapCode
             def groupSize = row.@"group-size";      assert groupSize
             def lootChance = row.@"loot-chance";    // optional, defaults to 10%
+            lootChance = "100"; println("FIXME: setting lootChance to 100")
             def lootCode = row.@"loot-code"         // optional
             def goldLoot = row.@"gold-loot";        assert goldLoot
             def gangChance = row.@"gang-chance";    // optional

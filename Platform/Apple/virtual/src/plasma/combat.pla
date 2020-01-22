@@ -1127,7 +1127,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def collectLootAndXP()#2
-  word group, enemy, gold, xp, pItemsModule, itemFunc, pItem
+  word group, enemy, gold, xp, pItemTblModule, itemNum, pItem
   byte lootedItem
 
   gold = 0
@@ -1142,15 +1142,15 @@ def collectLootAndXP()#2
       if !lootedItem and enemy=>s_lootCode and enemy->b_lootChance
         if rollPercentileWithLuck(-(global=>p_players->b_luck)) < enemy->b_lootChance
           mmgr(START_LOAD, 1) // code is in partition 1
-          pItemsModule = mmgr(QUEUE_LOAD, MOD_GEN_ITEMS<<8 | RES_TYPE_MODULE)
+          pItemTblModule = mmgr(QUEUE_LOAD, MOD_GEN_ITEM_TABLES<<8 | RES_TYPE_MODULE)
           mmgr(FINISH_LOAD, 0)
-          itemFunc = randomFromArray(pItemsModule()=>items_forLootCode(enemy=>s_lootCode), NULL)
-          pItem = itemFunc()
+          itemNum = randomFromArray(pItemTblModule()=>items_forLootCode(enemy=>s_lootCode), NULL)
+          pItem = createItem(itemNum)
           if pItem->t_type == TYPE_FANCY_ITEM
             pItem=>w_count = rollDiceWithLuck(pItem=>r_lootAmount, global=>p_players->b_luck)
           fin
           addItem(pItem)
-          mmgr(FREE_MEMORY, pItemsModule)
+          mmgr(FREE_MEMORY, pItemTblModule)
           lootedItem = TRUE
         fin
       fin
@@ -1276,10 +1276,8 @@ def processWin()#0
     clearWindow
   fin
 
-  // Make max space avail for item tables. Really oughta break them up sometime.
+  // Make max space avail for item tables.
   freePreloaded
-  freePortrait
-  needRender = FALSE
 
   // Grab the loot
   gold, xp = collectLootAndXP()

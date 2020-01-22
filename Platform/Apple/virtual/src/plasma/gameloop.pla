@@ -3210,7 +3210,7 @@ export def scanForNamedObj(list, name)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def createThing(moduleID, creationFuncNum)#1
+export def createStruct(moduleID, creationFuncNum)#1
   word p_module, funcTbl, func, p_thing
 
   // Unload textures to make room for the module (also flips to page 1 if needed)
@@ -3242,9 +3242,19 @@ export def partyHasItem(itemName)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-export def giveItemToParty(itemFuncNum, displayFunc)#0
-  word p_item, p_existing, p_player, iname
-  p_item = createThing(MOD_GEN_ITEMS, itemFuncNum)
+export def createItem(itemNum)#1
+  if itemNum <= NUM_WEAPONS
+    return createStruct(MOD_GEN_WEAPONS, (itemNum-1)<<1)
+  fin
+  if itemNum <= NUM_WEAPONS+NUM_ARMORS
+    return createStruct(MOD_GEN_ARMORS, (itemNum-NUM_WEAPONS-1)<<1)
+  fin
+  return createStruct(MOD_GEN_MISC_ITEMS, (itemNum-NUM_WEAPONS-NUM_ARMORS-1)<<1)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+export def giveItemToParty(p_item, displayFunc)#0
+  word p_existing, p_player, iname
   iname = p_item=>s_name
 
   // Check for an existing item (or stack we can add to)
@@ -3345,7 +3355,7 @@ export def addPlayerToParty(playerFuncNum, displayFunc)#0
   fin
 
   // Create the player (NPC flag will be established inside the creation func)
-  p_player = createThing(MOD_GEN_PLAYERS, playerFuncNum)
+  p_player = createStruct(MOD_GEN_PLAYERS, playerFuncNum)
 
   // Add if not dupe
   if !scanForNamedObj(global=>p_players, p_player=>s_name)

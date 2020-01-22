@@ -38,6 +38,8 @@ import gamelib
   predef centerStr(str, windowWidth)#0
   predef copyWindow(flip)#0
   predef countList(p)#1
+  predef createItem(itemNum)#1
+  predef createStruct(moduleID, creationFuncNum)#1
   predef crout()#0
   predef displayChar(chr)#0
   predef displayf1(fmt, arg1)#0
@@ -65,7 +67,7 @@ import gamelib
   predef getUpperKey()#1
   predef getYN()#1
   predef girdPlayer(player)#0
-  predef giveItemToParty(itemFuncNum, displayFunc)#0
+  predef giveItemToParty(pItem, displayFunc)#0
   predef heapCollect()#0
   predef hisHerTheir(c_gender)#1
   predef index(p, num)#1

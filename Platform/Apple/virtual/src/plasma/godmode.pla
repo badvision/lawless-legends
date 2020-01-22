@@ -228,57 +228,51 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Abstract code for adding from a list of things (players, items, etc.)
-def selectThing(moduleNum, nThings, nSkip, prompt)#1
-  word pModule, funcTbl, nFunc, pFunc, p_thing, n_thing, n2
-  nFunc = -1
+def selectThing(isPlayers, nThings, prompt)#1
+  word pModule, funcTbl, p_thing, n_thing, n2
 
   flipToPage1()
   textHome()
   ^$c051
 
-  mmgr(START_LOAD, 1) // code is in partition 1
-  pModule = mmgr(QUEUE_LOAD, moduleNum<<8 | RES_TYPE_MODULE)
-  mmgr(FINISH_LOAD, 0)
-  funcTbl = pModule()
-
   for n_thing = 1 to nThings
-    nFunc = (n_thing-1+nSkip)<<1
-    pFunc = *(funcTbl + nFunc)
-    p_thing = pFunc()
+    p_thing = isPlayers ?? createStruct(MOD_GEN_PLAYERS, n_thing<<1) :: createItem(n_thing)
     printf2("%d: %s\n", n_thing, p_thing=>s_name)
     if (n_thing % 22) == 0 or n_thing == nThings
       mmgr(HEAP_COLLECT, 0)
       puts(prompt)
       n2 = parseDecWithDefault(readStr(), 0)
       if n2 >= 1 and n2 <= nThings
-        nFunc = (n2-1+nSkip) << 1
-        pFunc = *(funcTbl + nFunc)
-        p_thing = pFunc()
+        n_thing = n2
+        p_thing = isPlayers ?? createStruct(MOD_GEN_PLAYERS, n_thing<<1) :: createItem(n_thing)
         printf1("Adding '%s'\n", p_thing=>s_name)
+        pause(800)
         break
       else
-        nFunc = -1
         textHome()
       fin
-    elsif moduleNum == MOD_GEN_PLAYERS
+    elsif isPlayers
       // Players are big, so need collect each time
       mmgr(HEAP_COLLECT, 0)
     fin
   next
 
-  mmgr(FREE_MEMORY, pModule)
   ^$c050
   heapCollect()
-  return nFunc
+  return n_thing <= nThings ?? n_thing :: -1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Add an item cheat
 def _addItem()#1
-  word funcNum
-  funcNum = selectThing(MOD_GEN_ITEMS, NUM_ITEMS, 2, "Add item #: ")
-  if funcNum >= 0
-    giveItemToParty(funcNum, @rawDisplayStr)
+  word itemNum, pItem
+  itemNum = selectThing(FALSE, NUM_ITEMS, "Add item #: ")
+  if itemNum >= 0
+    pItem = createItem(itemNum)
+    if pItem->t_type == TYPE_FANCY_ITEM
+      pItem=>w_count = pItem=>w_storeAmount
+    fin
+    giveItemToParty(pItem, @rawDisplayStr)
     pause(400)
   fin
   return 0
@@ -287,10 +281,10 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Add a player cheat
 def _addPlayer()#1
-  word funcNum
-  funcNum = selectThing(MOD_GEN_PLAYERS, NUM_PLAYERS, 1, "Add player #: ")
-  if funcNum >= 0
-    addPlayerToParty(funcNum, @rawDisplayStr)
+  word playerNum
+  playerNum = selectThing(TRUE, NUM_PLAYERS, "Add player #: ")
+  if playerNum >= 0
+    addPlayerToParty(playerNum<<1, @rawDisplayStr)
     pause(400)
   fin
   return 0

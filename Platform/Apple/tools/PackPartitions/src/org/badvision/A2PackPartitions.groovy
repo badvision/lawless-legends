@@ -140,6 +140,8 @@ class A2PackPartitions
     def playerNameToFunc = [:]
 
     def allLootCodes
+    def nWeapons
+    def nArmors
 
     def requiredGlobalScripts = ["New Game", "Help",
                                  "Combat win", "Combat intro", "Combat prompt", "Enemy intro", "Death",
@@ -2431,7 +2433,10 @@ class A2PackPartitions
         compileModule("gen_enemies", "src/plasma/")
         compileModule("gen_enemies0", "src/plasma/")
         compileModule("gen_enemies1", "src/plasma/")
-        compileModule("gen_items", "src/plasma/")
+        compileModule("gen_itemTables", "src/plasma/")
+        compileModule("gen_weapons", "src/plasma/")
+        compileModule("gen_armors", "src/plasma/")
+        compileModule("gen_miscItems", "src/plasma/")
         compileModule("gen_players", "src/plasma/")
         compileModule("gen_flags", "src/plasma/")
         compileModule("gen_quests", "src/plasma/")
@@ -3651,9 +3656,7 @@ class A2PackPartitions
 
     def genPlayer(func, row, out)
     {
-        out.println("  word p, itemScripts")
-        out.println("  itemScripts = mmgr(QUEUE_LOAD, MOD_GEN_ITEMS<<8 | RES_TYPE_MODULE)")
-        out.println("  mmgr(FINISH_LOAD, 1) // 1 = keep open")
+        out.println("  word p")
         out.println(\
             "  p = makePlayer_pt2(makePlayer_pt1(" +
             "${escapeString(parseStringAttr(row, "name"))}, " +
@@ -3687,13 +3690,12 @@ class A2PackPartitions
                 def itemFunc = itemNameToFunc[name]
                 assert itemFunc : "Can't locate item '$name'"
                 if (num > 1)
-                    out.println("  addToList(@p=>p_items, setItemCount(itemScripts()=>$itemFunc(), $num))")
+                    out.println("  addToList(@p=>p_items, setItemCount(createItem($itemFunc), $num))")
                 else
-                    out.println("  addToList(@p=>p_items, itemScripts()=>$itemFunc())")
+                    out.println("  addToList(@p=>p_items, createItem($itemFunc))")
             }
         }
         out.println("  girdPlayer(p)")
-        out.println("  mmgr(FREE_MEMORY, itemScripts)")
         out.println "  return p"
     }
 
@@ -3709,12 +3711,12 @@ class A2PackPartitions
         }
     }
 
-    def outCodeToFuncTbl(prefix, codeToFunc, out)
+    def outCodeToFuncTbl(prefix, codeToFunc, out, funcPrefix="@")
     {
         codeToFunc.sort { ent -> ent.key.toLowerCase() }.each { code, funcs ->
             funcs.eachWithIndex { func, index ->
                 out.println(
-                    "${index==0 ? "word[] $prefix${humanNameToSymbol(code, false)} = " : "word         = "}@$func")
+                    "${index==0 ? "word[] $prefix${humanNameToSymbol(code, false)} = " : "word         = "}$funcPrefix$func")
             }
             out.println("word         = 0")
             out.println()
@@ -3749,13 +3751,15 @@ class A2PackPartitions
     {
         def funcs = []
         sheets.find { it?.@name.equalsIgnoreCase("weapons") }.rows.row.findAll{it.@name}.each { row ->
-            funcs << ["weapon", "NWp_${humanNameToSymbol(row.@name, false)}", funcs.size, row] }
+            funcs << ["weapon", "NWp_${humanNameToSymbol(row.@name, false)}", funcs.size+1, row] }
+        nWeapons = funcs.size()
         sheets.find { it?.@name.equalsIgnoreCase("armor") }.rows.row.findAll{it.@name}.each { row ->
-            funcs << ["armor",  "NAr_${humanNameToSymbol(row.@name, false)}", funcs.size, row] }
+            funcs << ["armor",  "NAr_${humanNameToSymbol(row.@name, false)}", funcs.size+1, row] }
+        nArmors = funcs.size() - nWeapons
         sheets.find { it?.@name.equalsIgnoreCase("ammo") }.rows.row.findAll{it.@name}.each { row ->
-            funcs << ["ammo",   "NAm_${humanNameToSymbol(row.@name, false)}", funcs.size, row] }
+            funcs << ["ammo",   "NAm_${humanNameToSymbol(row.@name, false)}", funcs.size+1, row] }
         sheets.find { it?.@name.equalsIgnoreCase("items") }.rows.row.findAll{it.@name}.each { row ->
-            funcs << ["item",   "NIt_${humanNameToSymbol(row.@name, false)}", funcs.size, row] }
+            funcs << ["item",   "NIt_${humanNameToSymbol(row.@name, false)}", funcs.size+1, row] }
 
         // Global mapping of item name to function, so that give/take functions can create items.
         funcs.each { typeName, func, index, row ->
@@ -3766,34 +3770,49 @@ class A2PackPartitions
         return funcs
     }
 
+    def matchItemKind(kind, typeName)
+    {
+        if (typeName == kind)
+            return true
+        else if (kind == "miscItem" && (typeName == "item" || typeName == "ammo"))
+            return true
+        else
+            return false
+    }
+
     def genAllItems(sheets)
     {
         // Grab all the raw data
-        def funcs = allItemFuncs(sheets)
+        def items = allItemFuncs(sheets)
 
         // Build up the mappings from loot codes and store codes to creation functions
-        def lootCodeToFuncs = [:]
-        def storeCodeToFuncs = [:]
-        funcs.each { typeName, func, index, row ->
-            addCodeToFunc("_$func", row.@"loot-code", lootCodeToFuncs)
-            addCodeToFunc("_$func", row.@"store-code", storeCodeToFuncs)
+        def lootCodeToItemNums = [:]
+        def storeCodeToItemNums = [:]
+        items.each { typeName, itemNum, index, row ->
+            addCodeToFunc(itemNum, row.@"loot-code", lootCodeToItemNums)   // no underscore because item num instead of func
+            addCodeToFunc(itemNum, row.@"store-code", storeCodeToItemNums) // ...ditto
         }
-        allLootCodes = (lootCodeToFuncs.keySet().collect{ it.toLowerCase() }) as Set
+        allLootCodes = (lootCodeToItemNums.keySet().collect{ it.toLowerCase() }) as Set
 
         // Make constants for the function table
         new File("build/src/plasma/gen_items.plh.new").withWriter { out ->
             out.println("// Generated code - DO NOT MODIFY BY HAND\n")
             out.println("const items_forLootCode = 0")
             out.println("const items_forStoreCode = 2")
-            funcs.each { typeName, func, index, row ->
-                out.println("const ${func} = ${(index+2)*2}")
+            out.println("")
+            items.each { typeName, itemNum, index, row ->
+                out.println("const ${itemNum} = ${index}")
+                if (index == nWeapons)
+                    out.println("\nconst NUM_WEAPONS = $nWeapons\n")
+                else if (index == nWeapons+nArmors)
+                    out.println("\nconst NUM_ARMORS = $nArmors\n")
             }
-            out.println("const NUM_ITEMS = ${funcs.size()}")
+            out.println("const NUM_ITEMS = ${items.size()}")
         }
         replaceIfDiff("build/src/plasma/gen_items.plh")
 
-        // Generate code
-        new File("build/src/plasma/gen_items.pla.new").withWriter { out ->
+        // Generate the store and loot tables
+        new File("build/src/plasma/gen_itemTables.pla.new").withWriter { out ->
             out.println("// Generated code - DO NOT MODIFY BY HAND")
             out.println()
             out.println("include \"gamelib.plh\"")
@@ -3802,46 +3821,69 @@ class A2PackPartitions
             out.println("include \"gen_items.plh\"")
             out.println()
 
-            // Pre-define all the creation functions
+            // Entry points
             out.println("predef _items_forLootCode(code)#1, _items_forStoreCode(code)#1")
-            funcs.each { typeName, func, index, row ->
-                out.println("predef _$func")
-            }
-            out.println()
-
-            // Shared strings
-            def strings = [:]
-            funcs.each { typeName, func, index, row ->
-                extractItemStrings(row, strings)
-            }
-            strings.each { str, sym ->
-                out.println("byte[] $sym = ${escapeString(str)}")
-            }
-            out.println()
-
-            // Tables for converting loot codes and store codes to items
-            outCodeToFuncTbl("lootCode_", lootCodeToFuncs, out)
-            outCodeToFuncTbl("storeCode_", storeCodeToFuncs, out)
-
-            // Next, output the function table
             out.println("word[] funcTbl = @_items_forLootCode, @_items_forStoreCode")
-            funcs.each { typeName, func, index, row ->
-                out.println("word         = @_$func")
-            }
             out.println("")
 
-            // Data structure filling helpers
-            out.print("""\n\
-def makeArmor(name, kind, price, armorValue, modifier)
-  word p; p = mmgr(HEAP_ALLOC, TYPE_ARMOR)
-  p=>s_name = mmgr(HEAP_INTERN, name)
-  p=>s_itemKind = mmgr(HEAP_INTERN, kind)
-  p=>w_price = price
-  p->b_armorValue = armorValue
-  p=>p_modifiers = modifier
-  return p
-end
+            // Tables for converting loot codes and store codes to item numbers
+            outCodeToFuncTbl("lootCode_", lootCodeToItemNums, out, "")   // no func prefix because item numbers instead
+            outCodeToFuncTbl("storeCode_", storeCodeToItemNums, out, "") // ...ditto
 
+            // Code for loot and store generation
+            outCodeToFuncMethods("_items_forLootCode", "lootCode_", lootCodeToItemNums, out)
+            outCodeToFuncMethods("_items_forStoreCode", "storeCode_", storeCodeToItemNums, out)
+
+            // Lastly, the outer module-level code
+            out.println("return @funcTbl")
+            out.println("done")
+        }
+        replaceIfDiff("build/src/plasma/gen_itemTables.pla")
+
+        // Generate code for each kind of the three groups of items
+        ["weapon", "armor", "miscItem"].each { kind ->
+            new File("build/src/plasma/gen_${kind}s.pla.new").withWriter { out ->
+                out.println("// Generated code - DO NOT MODIFY BY HAND")
+                out.println()
+                out.println("include \"gamelib.plh\"")
+                out.println("include \"globalDefs.plh\"")
+                out.println("include \"playtype.plh\"")
+                out.println("include \"gen_items.plh\"")
+                out.println()
+
+                // Shared strings
+                def strings = [:]
+                items.each { typeName, itemNum, index, row ->
+                    if (matchItemKind(kind, typeName))
+                        extractItemStrings(row, strings)
+                }
+                strings.each { str, sym ->
+                    out.println("byte[] $sym = ${escapeString(str)}")
+                }
+                out.println()
+
+                // Function predefs
+                items.each { typeName, itemNum, index, row ->
+                    if (matchItemKind(kind, typeName))
+                        out.println("predef _$itemNum")
+                }
+                out.println("")
+
+                // Next, output the function table
+                boolean first = true
+                items.each { typeName, itemNum, index, row ->
+                    if (matchItemKind(kind, typeName)) {
+                        if (first)
+                            out.println("word[] funcTbl = @_$itemNum")
+                        else
+                            out.println("word           = @_$itemNum")
+                        first = false
+                    }
+                }
+
+                // Data structure filling helpers
+                if (kind == "weapon")
+                    out.print("""\n\
 def makeWeapon_pt1(name, kind, price, modifier, ammoKind, clipSize, meleeDmg, projectileDmg)
   word p; p = mmgr(HEAP_ALLOC, TYPE_WEAPON)
   p=>s_name = mmgr(HEAP_INTERN, name)
@@ -3871,6 +3913,22 @@ def makeWeapon_pt2(p, attack0, attack1, attack2, weaponRange, combatText, single
   return p
 end
 
+""")
+                else if (kind == "armor")
+                    out.print("""\n\
+def makeArmor(name, kind, price, armorValue, modifier)
+  word p; p = mmgr(HEAP_ALLOC, TYPE_ARMOR)
+  p=>s_name = mmgr(HEAP_INTERN, name)
+  p=>s_itemKind = mmgr(HEAP_INTERN, kind)
+  p=>w_price = price
+  p->b_armorValue = armorValue
+  p=>p_modifiers = modifier
+  return p
+end
+
+""")
+                else
+                    out.print("""\n\
 def makePlainItem(name, price)
   word p; p = mmgr(HEAP_ALLOC, TYPE_PLAIN_ITEM)
   p=>s_name = mmgr(HEAP_INTERN, name)
@@ -3892,31 +3950,30 @@ end
 
 """)
 
-            // Generate all the functions themselves
-            funcs.each { typeName, func, index, row ->
-                withContext("$typeName '${row.@name}'")
-                {
-                    out.println("def _$func()")
-                    switch (typeName) {
-                        case "weapon": genWeapon(func, row, out, strings); break
-                        case "armor":  genArmor(func, row, out, strings);  break
-                        case "ammo":   genItem(func, row, out, strings);   break
-                        case "item":   genItem(func, row, out, strings);   break
-                        default: assert false
+                // Generate all the functions themselves
+                items.each { typeName, itemNum, index, row ->
+                    withContext("$typeName '${row.@name}'")
+                    {
+                        if (matchItemKind(kind, typeName)) {
+                            out.println("def _$itemNum()")
+                            switch (typeName) {
+                                case "weapon": genWeapon(itemNum, row, out, strings); break
+                                case "armor":  genArmor(itemNum, row, out, strings);  break
+                                case "ammo":   genItem(itemNum, row, out, strings);   break
+                                case "item":   genItem(itemNum, row, out, strings);   break
+                                default: assert false
+                            }
+                            out.println("end\n")
+                        }
                     }
-                    out.println("end\n")
                 }
+
+                // Lastly, the outer module-level code
+                out.println("return @funcTbl")
+                out.println("done")
             }
-
-            // Code for loot and store generation
-            outCodeToFuncMethods("_items_forLootCode", "lootCode_", lootCodeToFuncs, out)
-            outCodeToFuncMethods("_items_forStoreCode", "storeCode_", storeCodeToFuncs, out)
-
-            // Lastly, the outer module-level code
-            out.println("return @funcTbl")
-            out.println("done")
+            replaceIfDiff("build/src/plasma/gen_${kind}s.pla")
         }
-        replaceIfDiff("build/src/plasma/gen_items.pla")
     }
 
     def allPlayerFuncs(sheets)
@@ -4924,9 +4981,9 @@ end
         def packGiveItem(blk)
         {
             def name = getSingle(blk.field, 'NAME').text().trim()
-            def itemFunc = itemNameToFunc[name.toLowerCase()]
-            assert itemFunc : "Can't locate item '$name'"
-            outIndented("giveItemToParty($itemFunc, @scriptDisplayStr)\n")
+            def itemNum = itemNameToFunc[name.toLowerCase()]
+            assert itemNum : "Can't locate item '$name'"
+            outIndented("giveItemToParty(createItem($itemNum), @scriptDisplayStr)\n")
         }
 
         def packTakeItem(blk)

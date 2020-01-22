@@ -92,3 +92,7 @@ const EMUSIG_2D_MAP     = $C022 // e.g. wilderness
 const EMUSIG_3D_MAP     = $C023 // e.g. in town
 const EMUSIG_AUTOMAP    = $C024 // all color except the map title
 const EMUSIG_STORY      = $C025 // all text except a portrait
+
+// FIXME FOO
+const MOD_GEN_ITEMS = 99  // FIXME
+

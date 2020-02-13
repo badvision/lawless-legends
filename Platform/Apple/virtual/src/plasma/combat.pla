@@ -1102,45 +1102,6 @@ def youFind(pItem, suffix)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Returns:  0 = dupe
-//          -1 = no room
-//           1 = added normally
-//           2 = override-added quest item
-//           3 = combined with existing stackable
-def fullAddItem(pItem, doit)
-  word pPlayer, pComp, addToPlayer
-  pPlayer = global=>p_players
-  addToPlayer = NULL
-  while pPlayer
-    pComp = scanForNamedObj(pPlayer=>p_items, pItem=>s_name)
-    if pComp
-      if pComp->t_type == TYPE_FANCY_ITEM and pComp=>w_count > 0
-        pComp=>w_count =  min(30000, pComp=>w_count + pItem=>w_count)
-        return 3 // combined
-      fin
-      if !pComp=>w_price
-        return 0 // dupe quest item
-      fin
-    fin
-    if !addToPlayer and roomInPack(pPlayer); addToPlayer = pPlayer; fin
-    pPlayer = pPlayer=>p_nextObj
-  loop
-
-  if addToPlayer
-    if doit; addToList(@addToPlayer=>p_items, pItem); fin
-    return 1
-  fin
-
-  if pItem=>w_price
-    return -1 // no room, and item has a price so it's not a quest item
-  fin
-
-  // Override: quest items allowed to exceed pack limitations
-  if doit; addToList(@global=>p_players=>p_items, pItem); fin
-  return 2
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 def lootItem(ppItems, lootChance, lootCode)#0
   word pItemTblModule, itemNum, pItem, pComp
 

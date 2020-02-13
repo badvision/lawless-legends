@@ -55,6 +55,7 @@ import gamelib
   predef first(p, sel)#1
   predef forEach(p, do)#0
   predef forSome(p, sel, do)#0
+  predef fullAddItem(pItem, doit)#1
   predef getCharResponse()#1
   predef getCursor()#2
   predef getDir()#1

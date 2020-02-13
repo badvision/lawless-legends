@@ -183,19 +183,24 @@ def displayItemMenu(price, hasNextComp)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def askQuantity(nMax)#1
-  word num
-  if nMax == 1; return 1; fin
-  rawDisplayf1("How many (1-%d)? ", nMax)
-  num = parseDec(getStringResponse())
-  if num < 0 or num > nMax; return 0; fin
-  return num
+def displayMsg(msg, doBeep, pauseAmt)#0
+  rawDisplayf1("^V164^T000^C%s", msg)  // Vertical 164, Horz 0, Clear-to-end-of-line
+  if doBeep; beep; fin
+  if pauseAmt; pause(pauseAmt); fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def displayMsg(msg, beep)#0
-  rawDisplayf1("^T000^C%s", msg)
-  pause(800)
+def askQuantity(nMax, setSize)#1
+  word num
+  if nMax == 1; return 1; fin
+  displayMsg("How many ", FALSE, 0) // no beep, no pause
+  if setSize
+    rawDisplayf1("sets of %d ", setSize)
+  fin
+  rawDisplayf1("(1-%d)? ", nMax)
+  num = parseDec(getStringResponse())
+  if num < 1 or num > nMax; return 0; fin
+  return num
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -215,22 +220,17 @@ def browseItem(num)#0
         if pItem->t_type == TYPE_FANCY_ITEM and pItem=>w_count > 0
           pComp=>w_count = min(30000, pComp=>w_count + pItem=>w_count)
         else
-          rawDisplayStr("^T000^CDuplicate item.")
-          beep()
-          pause(400)
+          displayMsg("Duplicate item.", TRUE, 400) // beep, pause 400
           return
         fin
       elsif roomInPack(pPlayer)
         addToList(@pPlayer=>p_items, pItem)
       else
-        rawDisplayStr("^T000^CNo room.")
-        beep()
-        pause(400)
+        displayMsg("No room.", TRUE, 400) // beep, pause 400
         return
       fin
       global=>w_gold = global=>w_gold - price
-      rawDisplayStr("^T000^CDone.")
-      pause(800)
+      displayMsg("Done.", FALSE, 800) // no beep, pause 800
       break
     elsif sel == 'N' and (compSkip or matchEquipped(pItem, 1+compSkip))
       compSkip++
@@ -342,15 +342,37 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def sellItem(num)#0
-  word pItem, price
+  word pItem, price, quant, gain
 
   pItem = pageItems[num]
   price = pagePrices[num]
 
-  global=>w_gold = global=>w_gold + price
-  removeFromList(@pPlayer=>p_items, pItem)
+  // For countable items, sell in sets of w_storeAmount
+  if pItem->t_type == TYPE_FANCY_ITEM and pItem=>w_count
+    if pItem=>w_count < pItem=>w_storeAmount
+      displayMsg("Must have at least ", FALSE, 0)
+      rawDisplayf1("%d to sell.", pItem=>w_storeAmount)
+      beep; pause(800); return
+    fin
+    quant = pItem=>w_count / pItem=>w_storeAmount
+    if quant > 1
+      quant = askQuantity(quant, pItem=>w_storeAmount)
+      if !quant; return; fin
+    fin
+    gain = quant * price
+    if (quant * pItem=>w_storeAmount) < pItem=>w_count
+      pItem=>w_count = pItem=>w_count - (quant * pItem=>w_storeAmount)
+    else
+      removeFromList(@pPlayer=>p_items, pItem)
+    fin
+  else
+    gain = price
+    removeFromList(@pPlayer=>p_items, pItem)
+  fin
 
-  rawDisplayStr("^T000^CDone.")
+  gain = addGold(gain)
+  displayMsg("Sold for ", FALSE, 0)
+  rawDisplayf1("%d gold.", gain)
   pause(800)
 end
 

@@ -30,8 +30,10 @@ struc EnemyData
   word r_en_dmgDice
   word r_en_expDice
   word r_en_groupSize
-  byte b_en_lootChance
-  word s_en_lootCode
+  byte b_en_lootChance0
+  byte b_en_lootChance1
+  byte b_en_lootCode0
+  byte b_en_lootCode1
   word r_en_goldLoot
   byte b_en_gangChance
 end
@@ -52,6 +54,8 @@ byte isAdvancing
 byte[] S_AN = "an "
 byte[] S_A = "a "
 byte[] S_EMPTY = ""
+byte[] S_COMMA = ", "
+byte[] S_AND = " and "
 
 // To save time, we preload global funcs
 const NUM_PRELOADS = 4
@@ -976,8 +980,10 @@ def makeEnemy(pData)
   p=>r_enemyDmg = pData=>r_en_dmgDice
   p=>r_enemyXP = pData=>r_en_expDice
   p=>r_groupSize = pData=>r_en_groupSize
-  p->b_lootChance = pData->b_en_lootChance
-  if pData=>s_en_lootCode; p=>s_lootCode = mmgr(HEAP_INTERN, pData=>s_en_lootCode); fin
+  p->b_lootChance0 = pData->b_en_lootChance0
+  p->b_lootChance1 = pData->b_en_lootChance1
+  p->b_lootCode0 = pData->b_en_lootCode0
+  p->b_lootCode1 = pData->b_en_lootCode1
   p=>r_goldLoot = pData=>r_en_goldLoot
   return p
 end
@@ -1096,69 +1102,147 @@ def youFind(pItem, suffix)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def addIfPossible(pl, pItem)#1
-  word pComp
-  pComp = scanForNamedObj(pl=>p_items, pItem=>s_name)
-  if pComp
-    if pItem->t_type == TYPE_FANCY_ITEM
-      pComp=>w_count = min(30000, pComp=>w_count + pItem=>w_count)
-      return youFind(pItem, "")
+// Returns:  0 = dupe
+//          -1 = no room
+//           1 = added normally
+//           2 = override-added quest item
+//           3 = combined with existing stackable
+def fullAddItem(pItem, doit)
+  word pPlayer, pComp, addToPlayer
+  pPlayer = global=>p_players
+  addToPlayer = NULL
+  while pPlayer
+    pComp = scanForNamedObj(pPlayer=>p_items, pItem=>s_name)
+    if pComp
+      if pComp->t_type == TYPE_FANCY_ITEM and pComp=>w_count > 0
+        pComp=>w_count =  min(30000, pComp=>w_count + pItem=>w_count)
+        return 3 // combined
+      fin
+      if !pComp=>w_price
+        return 0 // dupe quest item
+      fin
+    fin
+    if !addToPlayer and roomInPack(pPlayer); addToPlayer = pPlayer; fin
+    pPlayer = pPlayer=>p_nextObj
+  loop
+
+  if addToPlayer
+    if doit; addToList(@addToPlayer=>p_items, pItem); fin
+    return 1
+  fin
+
+  if pItem=>w_price
+    return -1 // no room, and item has a price so it's not a quest item
+  fin
+
+  // Override: quest items allowed to exceed pack limitations
+  if doit; addToList(@global=>p_players=>p_items, pItem); fin
+  return 2
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def lootItem(ppItems, lootChance, lootCode)#0
+  word pItemTblModule, itemNum, pItem, pComp
+
+  if lootCode == 0; return; fin
+  if rollPercentileWithLuck(-(global=>p_players->b_luck)) >= lootChance; return; fin
+
+  mmgr(START_LOAD, 1) // code is in partition 1
+  pItemTblModule = mmgr(QUEUE_LOAD, MOD_GEN_ITEM_TABLES<<8 | RES_TYPE_MODULE)
+  mmgr(FINISH_LOAD, 0)
+
+  itemNum = randomFromArray(pItemTblModule()=>items_forLootCode(lootCode), NULL)
+  pItem = createItem(itemNum)
+  if pItem->t_type == TYPE_FANCY_ITEM
+    pItem=>w_count = rollDiceWithLuck(pItem=>r_lootAmount, global=>p_players->b_luck)
+  fin
+
+  mmgr(FREE_MEMORY, pItemTblModule)
+
+  pComp = scanForNamedObj(*ppItems, pItem=>s_name)
+  if pComp and pItem->t_type == TYPE_FANCY_ITEM
+    pComp=>w_count = min(30000, pComp=>w_count + pItem=>w_count)
+  elsif fullAddItem(pItem, FALSE) >= 1 // trial-run, don't add to main inv
+    addToList(ppItems, pItem)
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def calcListSuffix(pThing, final)#1
+  if pThing=>p_nextObj
+    if pThing=>p_nextObj=>p_nextObj
+      return @S_COMMA
     else
-      return FALSE // duplicate item
+      return @S_AND
     fin
   fin
-  if roomInPack(pl)
-    addToList(@pl=>p_items, pItem)
-    return youFind(pItem, "")
-  fin
-  return FALSE // no room
+  return final
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def addItem(pItem)#0
-  byte ok
-  ctx = pItem; ok = first(global=>p_players, &(pl) addIfPossible(pl, ctx))
-  if ok; return; fin
-  if first(global=>p_players, &(pl) scanForNamedObj(pl=>p_items, ctx=>s_name))
-    return // duplicate item, silently pretend it didn't happen
-  fin
-  youFind(pItem, " but have no room")
+def dispLoot(pItems)#0
+  word pItem, final, suffix
+  final = "!\n"
+  displayStr("You find ")
+  pItem = pItems
+  while pItem
+    suffix = calcListSuffix(pItem, final)
+    if pItem->t_type == TYPE_FANCY_ITEM and pItem=>w_count > 1
+      isPlural = TRUE
+      displayf3("%d %s%s", pItem=>w_count, pItem=>s_name, suffix)
+    else
+      isPlural = FALSE
+      displayf2("%s%s", pItem=>s_name, suffix)
+    fin
+    pItem = pItem=>p_nextObj
+  loop
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def collectLootAndXP()#2
-  word group, enemy, gold, xp, pItemTblModule, itemNum, pItem
-  byte lootedItem
+def collectLootAndXP()#0
+  word group, enemy, gold, xp, pItems, pItem, first
 
   gold = 0
   xp = 0
+  pItems = NULL
   group = global=>p_enemyGroups
-  lootedItem = FALSE
   while group
     enemy = group=>p_enemies
+    if enemy
+      lootItem(@pItems, enemy->b_lootChance0, enemy->b_lootCode0)
+      lootItem(@pItems, enemy->b_lootChance1, enemy->b_lootCode1)
+    fin
     while enemy
       gold = gold + rollDiceWithLuck(enemy=>r_goldLoot, global=>p_players->b_luck)
       xp = xp + rollDiceWithLuck(enemy=>r_enemyXP, global=>p_players->b_luck)
-      if !lootedItem and enemy=>s_lootCode and enemy->b_lootChance
-        if rollPercentileWithLuck(-(global=>p_players->b_luck)) < enemy->b_lootChance
-          mmgr(START_LOAD, 1) // code is in partition 1
-          pItemTblModule = mmgr(QUEUE_LOAD, MOD_GEN_ITEM_TABLES<<8 | RES_TYPE_MODULE)
-          mmgr(FINISH_LOAD, 0)
-          itemNum = randomFromArray(pItemTblModule()=>items_forLootCode(enemy=>s_lootCode), NULL)
-          pItem = createItem(itemNum)
-          if pItem->t_type == TYPE_FANCY_ITEM
-            pItem=>w_count = rollDiceWithLuck(pItem=>r_lootAmount, global=>p_players->b_luck)
-          fin
-          addItem(pItem)
-          mmgr(FREE_MEMORY, pItemTblModule)
-          lootedItem = TRUE
-        fin
-      fin
       enemy = enemy=>p_nextObj
     loop
     group = group=>p_nextObj
   loop
-  return gold, xp
+
+  if pItems
+    dispLoot(pItems)
+    // When taking out of one list and into another, we can't use forEach, because the p_nextObj
+    // link gets destroyed as we go along.
+    while pItems
+      pItem = pItems
+      pItems = pItems=>p_nextObj
+      fullAddItem(pItem, TRUE)
+    loop
+  fin
+
+  if gold > 0
+    displayf1("You collect %d gold!\n", addGold(gold))
+  fin
+
+  if xp > 0
+    addXP_all(xp)
+    displayf1("You earn %d experience!\n", xp); first = FALSE
+  fin
+
+  if pItems or gold or xp
+    promptAnyKey(FALSE)
+  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1262,8 +1346,6 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def processWin()#0
-  word gold, xp, player, tmp
-
   // Clear the window, then display the win message
   clearWindow
   callGlobalFunc(GS_COMBAT_WIN, 0, 0, 0)
@@ -1276,20 +1358,8 @@ def processWin()#0
     clearWindow
   fin
 
-  // Make max space avail for item tables.
-  freePreloaded
-
-  // Grab the loot
-  gold, xp = collectLootAndXP()
-  if gold > 0
-    displayf1("You find %d gold! ", addGold(gold))
-  fin
-  if xp > 0
-    addXP_all(xp)
-    displayf1("You earn %d experience! ", xp)
-  fin
-  promptAnyKey(FALSE)
-
+  // Make max space avail for item tables, then grab the loot
+  collectLootAndXP()
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1316,10 +1386,13 @@ def _combat_zoneEncounter(s_encZone)#1
 
     // Tell what the party currently faces
     clearWindow()
-    displayOpponents()
 
     // Make sure portrait reflects a living enemy
-    setPortrait(first(global=>p_enemyGroups, @groupCanFight)=>p_enemies->b_image)
+    p = first(global=>p_enemyGroups, @groupCanFight)
+    if p
+      displayOpponents()
+      setPortrait(p=>p_enemies->b_image)
+    fin
 
     // Get the choice of each player or NPC
     isAdvancing = FALSE

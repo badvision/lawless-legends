@@ -188,8 +188,10 @@ struc TEnemy
   word r_enemyDmg     // 3 hex digits: num dice, die size, add. E.g. $361 = 3d6+1
   word r_enemyXP      // 3 hex digits: num dice, die size, add. E.g. $361 = 3d6+1
   word r_groupSize    // number encountered, as 3 hex digits for dice
-  byte b_lootChance   // % chance for loot item
-  word s_lootCode     // code in loot table
+  byte b_lootChance0  // % chance for first loot item
+  byte b_lootChance1  // % chance for second loot item
+  byte b_lootCode0    // code in loot table for first loot item
+  byte b_lootCode1    // code in loot table for second loot item
   word r_goldLoot     // monetary loot when killed, as 3 hex digits for dice
 end
 

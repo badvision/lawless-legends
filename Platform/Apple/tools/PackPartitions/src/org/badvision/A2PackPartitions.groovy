@@ -132,6 +132,7 @@ class A2PackPartitions
     def automapSpecials = []
     def stories   = [:]  // story text to story.num, story.text
     def storyPartition = 0
+    def lootCodes  = [:] // loot code to loot.num
 
     def automapExitTile = -1
     def maxMapSections = 0
@@ -139,7 +140,6 @@ class A2PackPartitions
     def itemNameToFunc = [:]
     def playerNameToFunc = [:]
 
-    def allLootCodes
     def nWeapons
     def nArmors
 
@@ -3118,7 +3118,10 @@ class A2PackPartitions
             // significant, calculate a digest and replace the excess characters
             // with part of it.
             def bigHash = Integer.toString(result.hashCode(), 36)
-            result = result.substring(0, 10) + "_" + bigHash.substring(bigHash.length() - 4)
+            def toAdd = bigHash.substring(bigHash.length() - 4)
+            if (allUpper)
+                toAdd = toAdd.toUpperCase()
+            result = result.substring(0, 10) + "_" + toAdd
         }
         return result
     }
@@ -3159,18 +3162,15 @@ class A2PackPartitions
         return String.format("\$%X", ((nDice << 12) | (dieSize << 8) | add))
     }
 
-    def validateLootCode(code, strings = null)
+    def validateLootCode(code)
     {
         if (!code || code == "0")
-            return "NULL"
-        if (!allLootCodes.contains(code.toLowerCase())) {
+            return "0"
+        if (!lootCodes.containsKey(code.toLowerCase())) {
             printWarning("Unknown loot-code '$code'")
-            return "NULL"
+            return "0"
         }
-        if (strings)
-            return "@${strings[code.toLowerCase()]}"
-        else
-            return escapeString(code.toLowerCase())
+        return "LOOT_${humanNameToSymbol(code.toLowerCase(), true)}"
     }
 
     def extractEnemyStrings(row, strings)
@@ -3216,11 +3216,17 @@ class A2PackPartitions
             def experience = row.@experience;       assert experience
             def mapCode = row.@"map-code";          assert mapCode
             def groupSize = row.@"group-size";      assert groupSize
-            def lootChance = row.@"loot-chance";    // optional, defaults to 10%
-            lootChance = "100"; println("FIXME: setting lootChance to 100")
-            def lootCode = row.@"loot-code"         // optional
+            def lootChances = row.@"loot-chance";    // optional, defaults to 10%
+            def lootCodes = row.@"loot-code"         // optional
             def goldLoot = row.@"gold-loot";        assert goldLoot
             def gangChance = row.@"gang-chance";    // optional
+
+            def parsedLootCodes = (lootCodes ? lootCodes : "").split(/[,.;]/).collect { validateLootCode(it.trim()) }
+            if (parsedLootCodes.size() > 2)
+                throw new Exception("Max of two loot codes allowed")
+            def parsedLootChances = (lootChances ? lootChances : "").split(/[,.;]/).collect { it.toInteger() }
+            if (parsedLootChances.size() > parsedLootCodes.size())
+                throw new Exception("Excess loot chances - or not enough loot codes")
 
             out.println("word = " +
                         "@${strings[name]}, ${parseDice(hitPoints)} // name, hit dice")
@@ -3233,9 +3239,11 @@ class A2PackPartitions
             out.println("word = ${parseDice(damage)}, " +
                         "${parseDice(experience)}, " +
                         "${parseDice(groupSize)} // damage dice, exp dice, group size dice")
-            out.println("byte = ${lootChance ? lootChance.toInteger() : 10} // loot chance")
-            out.println("word = ${validateLootCode(lootCode, strings)}, " +
-                        "${parseDice(goldLoot)} // lootCode, goldLoot")
+            out.println("byte = ${parsedLootChances.size() >= 1 ? parsedLootChances[0] : 10}, " +
+                               "${parsedLootChances.size() >= 2 ? parsedLootChances[1] : 10} // loot chances")
+            out.println("byte = ${parsedLootCodes.size() >= 1 ? parsedLootCodes[0] : "NULL"}, " +
+                               "${parsedLootCodes.size() >= 2 ? parsedLootCodes[1] : "NULL"} // loot codes")
+            out.println("word = ${parseDice(goldLoot)} // goldLoot")
             out.println("byte = ${gangChance ? gangChance.toInteger() : 0} // gang chance")
             out.println("")
 
@@ -3310,6 +3318,7 @@ class A2PackPartitions
                     out.println()
                     out.println("include \"globalDefs.plh\"")
                     out.println("include \"gen_images.plh\"")
+                    out.println("include \"gen_items.plh\"")
                     out.println()
 
                     def strings = [:]
@@ -3637,9 +3646,12 @@ class A2PackPartitions
         def storeAmount = parseWordAttr(row, "store-amount")
         def lootAmount = parseDiceAttr(row, "loot-amount")
 
-        if ("$kind, $modifier, $count, $storeAmount, $lootAmount" != ", NULL, 0, 0, 0")
+        if ("$kind, $modifier, $count, $storeAmount, $lootAmount" != ", NULL, 0, 0, 0") {
+            if (count > 0 && !name.contains("("))
+                printWarning("countable item should have (singular/plural) in name")
             out.println("  return makeFancyItem(${escapeString(name)}, $price, " +
                 "@${strings[kind]}, $modifier, $count, $storeAmount, $lootAmount)")
+        }
         else
             out.println("  return makePlainItem(${escapeString(name)}, $price)")
     }
@@ -3740,10 +3752,17 @@ class A2PackPartitions
     {
         out.println("def $funcName(code)#1")
         codeToFunc.sort().each { code, funcs ->
-            def s = (strings != null && strings[code]) ? "@${strings[code]}" : escapeString(code)
-            out.println("  if streqi(code, $s); return @$prefix${humanNameToSymbol(code, false)}; fin")
+            if (prefix == "lootCode_")
+                out.println("  if code == LOOT_${humanNameToSymbol(code, true)}; return @$prefix${humanNameToSymbol(code, false)}; fin")
+            else {
+                def s = (strings != null && strings[code]) ? "@${strings[code]}" : escapeString(code)
+                out.println("  if streqi(code, $s); return @$prefix${humanNameToSymbol(code, false)}; fin")
+            }
         }
-        out.println("  puts(code)")
+        if (prefix == "lootCode_")
+            out.println("  printf1(\"%d\", code)")
+        else
+            out.println("  puts(code)")
         out.println("  return fatal(\"$funcName\")")
         out.println("end\n")
     }
@@ -3793,7 +3812,7 @@ class A2PackPartitions
             addCodeToFunc(itemNum, row.@"loot-code", lootCodeToItemNums)   // no underscore because item num instead of func
             addCodeToFunc(itemNum, row.@"store-code", storeCodeToItemNums) // ...ditto
         }
-        allLootCodes = (lootCodeToItemNums.keySet().collect{ it.toLowerCase() }) as Set
+        lootCodeToItemNums.keySet().each { lootCodes[it.toLowerCase()] = [num: lootCodes.size() + 1] }
 
         // Make constants for the function table
         new File("build/src/plasma/gen_items.plh.new").withWriter { out ->
@@ -3801,6 +3820,12 @@ class A2PackPartitions
             out.println("const items_forLootCode = 0")
             out.println("const items_forStoreCode = 2")
             out.println("")
+
+            lootCodes.keySet().sort().each {
+                out.println("const LOOT_${humanNameToSymbol(it, true)} = ${lootCodes[it].num}")
+            }
+            out.println("")
+
             items.each { typeName, itemNum, index, row ->
                 out.println("const ${itemNum} = ${index}")
                 if (index == nWeapons)

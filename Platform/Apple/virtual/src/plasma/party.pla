@@ -593,7 +593,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Select an item and use it. Returns item if it needs to be processed by outer loop, else NULL
 def doUseItem(player, item)#1
-  word pMod, oldVal, newVal
+  word pMod, oldVal, newVal, name
   if item->t_type == TYPE_FANCY_ITEM and item=>p_modifiers
     clearMenuRect()
     clearMainRect()
@@ -616,7 +616,11 @@ def doUseItem(player, item)#1
     pause(800)
     return NULL
   fin
-  return item=>s_name // general 'use' handled by outer engine, because it might involve graphics
+
+  // General 'use' handled by outer engine, because it might involve graphics.
+  // Depluralize the name on the way out, because scripts will match on that.
+  isPlural = FALSE
+  return mmgr(HEAP_INTERN, sprintf1("%s", item=>s_name))
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

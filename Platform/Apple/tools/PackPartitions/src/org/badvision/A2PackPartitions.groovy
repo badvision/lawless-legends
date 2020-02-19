@@ -1062,12 +1062,13 @@ class A2PackPartitions
         def tileNum = 0
         def patStrs = []
         dataIn.tile.sort{(it.@category + it.@name).toLowerCase()}.each { tile ->
-            def lname = tile.@name.toLowerCase().trim().replaceAll(/\s*-\s*[23][dD]\s*/, "")
+            def (name, animFrameNum, animFlags) = decodeImageName(tile.@name)
+            assert animFrameNum == 1 : "animated automap tiles not yet supported"
             def cat = tile.@category.toLowerCase().trim()
             if (cat == "automap") {
-                automapTiles[lname] = ++tileNum
-                patStrs << lname
-                if (lname == "exit")
+                automapTiles[name] = ++tileNum
+                patStrs << name
+                if (name == "exit")
                     automapExitTile = tileNum
             }
         }
@@ -1081,14 +1082,15 @@ class A2PackPartitions
     def numberGlobalTiles(dataIn)
     {
         def tileNum = 0
-        def amapTnum = 0
         dataIn.tile.sort{(it.@category + it.@name).toLowerCase()}.each { tile ->
-            def lname = tile.@name.toLowerCase().trim().replaceAll(/\s*-\s*[23][dD]\s*/, "")
-            def cat = tile.@category.toLowerCase().trim()
-            if (cat == "avatar")
-                avatars[lname] = tileNum++
-            else if (cat == "lamp")
-                lampTiles << tileNum++
+            def (name, animFrameNum, animFlags) = decodeImageName(tile.@name)
+            if (animFrameNum == 1) {
+                def cat = tile.@category.toLowerCase().trim()
+                if (cat == "avatar")
+                    avatars[name] = tileNum++
+                else if (cat == "lamp")
+                    lampTiles << tileNum++
+            }
         }
         assert avatars.size() >= 1 : "Need at least one tile in 'Avatar' category."
     }
@@ -1103,18 +1105,27 @@ class A2PackPartitions
         def tileMap = [:]
         def buf = ByteBuffer.allocate(50000)
 
+        // Figure out the maximum anim frame num
+        def maxFrame = 1
+        dataIn.tile.each { tile ->
+            def (name, animFrameNum, animFlags) = decodeImageName(tile.@name)
+            maxFrame = Math.max(maxFrame, animFrameNum)
+        }
+
         // Add each special tile to the set
         dataIn.tile.sort{(it.@category + it.@name).toLowerCase()}.each { tile ->
-            def name = tile.@name
+            def (name, animFrameNum, animFlags) = decodeImageName(tile.@name)
             def id = tile.@id
             def data = tiles[id]
             def cat = tile.@category.toLowerCase().trim()
             if (cat == "avatar" || cat == "lamp") {
-                def num = tileMap.size()
-                tileIds.add(id)
-                tileMap[id] = num
-                data.flip() // crazy stuff to append one buffer to another
-                buf.put(data)
+                if (animFrameNum == 1) {
+                    def num = tileMap.size()
+                    tileIds.add(id)
+                    tileMap[id] = num
+                    data.flip() // crazy stuff to append one buffer to another
+                    buf.put(data)
+                }
             }
         }
 
@@ -1775,7 +1786,7 @@ class A2PackPartitions
     def tracePortraits(key, portraits)
     {
         if (key[0] == "portrait")
-            portraits << key[1]
+            portraits << key[1].toLowerCase()
         if (resourceDeps.containsKey(key))
             resourceDeps[key].each { tracePortraits(it, portraits) }
     }
@@ -1801,7 +1812,7 @@ class A2PackPartitions
         def portraitSpace = 0
         pairs.sort{-it.count}.each { pair ->
             if (pair.count > 1) {
-                def key = ["portrait", pair.name]
+                def key = ["portrait", pair.name.toLowerCase()]
                 if (!mapChunks.containsKey(key)) {
                     def chunk = findResourceChunk(key)
                     def len = calcChunkLen(chunk)
@@ -1981,7 +1992,7 @@ class A2PackPartitions
 
         tmp.put((byte) portraits.size())
         portraits.each { k, v ->
-            tmp.put((byte) calcDiskBits(chunkDisks[["portrait", k].toString()]))
+            tmp.put((byte) calcDiskBits(chunkDisks[["portrait", k.toLowerCase()].toString()]))
         }
 
         // Stick on the partition number of the stories (used by non-floppy builds)
@@ -2994,11 +3005,11 @@ class A2PackPartitions
         def deathFound = false
         portraits.each { name, portrait ->
             if (name.toLowerCase() == "combatwin") {
-                addResourceDep("map", "<root>", "portrait", name)
+                addResourceDep("map", "<root>", "portrait", name.toLowerCase())
                 combatWinFound = true
             }
             if (name.toLowerCase() == "death") {
-                addResourceDep("map", "<root>", "portrait", name)
+                addResourceDep("map", "<root>", "portrait", name.toLowerCase())
                 deathFound = true
             }
         }
@@ -3194,11 +3205,11 @@ class A2PackPartitions
                 throw new Exception("Required: 1 or 2 images")
 
             def image1 = images[0]
-            if (!portraits.containsKey(image1))
+            if (!portraits.containsKey(image1.toLowerCase()))
                 throw new Exception("Image '$image1' not found")
 
             def image2 = images.length > 1 ? images[1] : ""
-            if (image2.size() > 0 && !portraits.containsKey(image2))
+            if (image2.size() > 0 && !portraits.containsKey(image2.toLowerCase()))
                 throw new Exception("Image '$image2' not found")
 
             def hitPoints = row.@"hit-points"; assert hitPoints
@@ -3253,9 +3264,9 @@ class A2PackPartitions
             {
                 codesString.replace("\"", "").split(",").collect{it.trim()}.grep{it!=""}.each { code ->
                     code = code.toLowerCase()
-                    addResourceDep("encounterZone", code, "portrait", image1)
+                    addResourceDep("encounterZone", code, "portrait", image1.toLowerCase())
                     if (image2.size() > 0)
-                        addResourceDep("encounterZone", code, "portrait", image2)
+                        addResourceDep("encounterZone", code, "portrait", image2.toLowerCase())
                 }
             }
         }
@@ -3366,7 +3377,7 @@ class A2PackPartitions
                 assert descrip && descrip != "" : "missing description"
 
                 def portraitName = row.@"Portrait".trim()
-                assert portraits.containsKey(portraitName) : "unrecognized portrait '$portraitName'"
+                assert portraits.containsKey(portraitName.toLowerCase()) : "unrecognized portrait '$portraitName'"
 
                 def map1Name = row.@"Map1-Name"?.trim()
                 def map1Num = 0, map1X = 0, map1Y = 0
@@ -3388,7 +3399,7 @@ class A2PackPartitions
                     map2Y = row.@"Map2-Y".toInteger()
                 }
 
-                def portraitCode = "PO${humanNameToSymbol(portraitName, false)}"
+                def portraitCode = "PO${humanNameToSymbol(portraitName.toLowerCase(), false)}"
                 out.println("  callback(${escapeString(descrip)}, $portraitCode, " +
                             "$map1Num, $map1X, $map1Y, $map2Num, $map2X, $map2Y)")
             }
@@ -4203,7 +4214,7 @@ end
 
     def decodeImageName(rawName)
     {
-        def name = rawName
+        def name = rawName.toLowerCase().trim().replaceAll(/\s*-\s*[23][dD]\s*/, "")
         def animFrameNum = 1
         def animFlags
         def m = (name =~ /^(.*)\*(\d+)(\w*)$/)
@@ -5432,12 +5443,12 @@ end
         def packSetPortrait(blk)
         {
             def portraitName = getSingle(blk.field, 'NAME').text()
-            if (!portraits.containsKey(portraitName)) {
+            if (!portraits.containsKey(portraitName.toLowerCase())) {
                 printWarning "portrait '$portraitName' not found; skipping set_portrait."
                 return
             }
-            outIndented("setPortrait(PO${humanNameToSymbol(portraitName, false)})\n")
-            addMapDep("portrait", portraitName)
+            outIndented("setPortrait(PO${humanNameToSymbol(portraitName.toLowerCase(), false)})\n")
+            addMapDep("portrait", portraitName.toLowerCase())
         }
 
         def packSetFullscreen(blk)

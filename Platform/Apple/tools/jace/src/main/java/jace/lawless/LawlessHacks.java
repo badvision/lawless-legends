@@ -12,10 +12,15 @@ public class LawlessHacks extends Cheats {
 
     // Modes specified by the game engine
     int MODE_SOFTSWITCH = 0x0C020;
-    
-    
+
+
     public LawlessHacks(Computer computer) {
         super(computer);
+    }
+
+    @Override
+    public void toggleCheats() {
+        // Do nothing -- you cannot toggle this once it's active.
     }
 
     @Override

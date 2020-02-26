@@ -16,12 +16,12 @@ public class LawlessVideo extends VideoNTSC {
     private static RenderEngine activeEngine = RenderEngine.UNKNOWN;
     private boolean titleScreen = true;
     private boolean[][] activeMask = new boolean[192][80];
-    
-    
+
+
     public static enum RenderEngine {
         FULL_COLOR,
         FULL_TEXT(new int[]{
-            2, 6, 78, 186            
+            2, 6, 78, 186
         }),
         _2D(new int[]{
             9, 8, 34, 17,
@@ -31,15 +31,19 @@ public class LawlessVideo extends VideoNTSC {
         _3D(new int[]{
             9, 8, 34, 17,
             44, 24, 76, 136,
-            44, 143, 76, 184,
+            44, 143, 76, 183,
             8, 172, 14, 182,}),
         MAP(new int[]{
             2, 6, 78, 11,
             2, 11, 4, 186,
-            76, 11, 78, 186,            
+            76, 11, 78, 186,
             2, 182, 78, 186,
             28, 3, 52, 6
-        }), 
+        }),
+        STORYBOOK(new int[]{
+            0, 0, 39, 191,
+            39, 130, 78, 191
+        }),
         UNKNOWN;
         boolean[][] colorMask;
 
@@ -81,7 +85,7 @@ public class LawlessVideo extends VideoNTSC {
             Emulator.computer.onNextVBL(() -> Emulator.computer.getVideo().forceRefresh());
             System.out.println("Detected engine: " + e.name());
         } else {
-            System.out.println("Detected engine same as before: " + e.name());            
+            System.out.println("Detected engine same as before: " + e.name());
         }
     }
 

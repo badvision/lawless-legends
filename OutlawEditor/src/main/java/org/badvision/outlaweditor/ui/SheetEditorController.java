@@ -18,11 +18,7 @@ import java.util.ResourceBundle;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
-import org.badvision.outlaweditor.data.xml.Rows.Row;
-import org.badvision.outlaweditor.data.xml.UserType;
 import org.controlsfx.control.spreadsheet.SpreadsheetColumn;
 import org.controlsfx.control.spreadsheet.SpreadsheetView;
 
@@ -38,22 +34,22 @@ public abstract class SheetEditorController implements Initializable {
 
     @FXML
     protected SpreadsheetColumn addColumn;
-    
+
     @FXML
     protected SpreadsheetView table;
 
     @FXML
     protected TextField sheetNameField;
-    
+
     @FXML
     abstract public void addColumnAction(ActionEvent event);
 
     @FXML
     abstract public void addRowAction(ActionEvent event);
-    
+
     @FXML
     abstract public void doImport(ActionEvent event);
-    
+
     @FXML
     protected void initialize() {
         assert addColumn != null : "fx:id=\"addColumn\" was not injected: check your FXML file 'SheetEditor.fxml'.";

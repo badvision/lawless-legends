@@ -67,12 +67,12 @@ public class LawlessLegends extends Application {
         primaryStage.show();
         new Thread(() -> {
             new Emulator(getParameters().getRaw());
+            configureEmulatorForGame();
             reconnectUIHooks();
             EmulatorUILogic.scaleIntegerRatio();
             while (Emulator.computer.getVideo() == null || Emulator.computer.getVideo().getFrameBuffer() == null) {
                 Thread.yield();
             }
-            configureEmulatorForGame();
             bootWatchdog();
         }).start();
         primaryStage.setOnCloseRequest(event -> {
@@ -81,9 +81,9 @@ public class LawlessLegends extends Application {
             System.exit(0);
         });
     }
-    
+
     public void reconnectUIHooks() {
-        controller.connectComputer(Emulator.computer, primaryStage);        
+        controller.connectComputer(Emulator.computer, primaryStage);
     }
 
     public static LawlessLegends getApplication() {

@@ -51,8 +51,14 @@ public class SheetEditorControllerImpl extends SheetEditorController {
 
     private SheetEditor editor;
     private ObservableList<ObservableList<SpreadsheetCell>> tableData;
-    private int lastEditRow = 0;
-    private int lastEditCol = 0;
+
+    private static Object getCellFromRow(ObservableList<SpreadsheetCell> row, int sortCol) {
+        if (row.size() > sortCol) {
+            return row.get(sortCol).getItem();
+        } else {
+            return null;
+        }
+    }
 
     /**
      * Initializes the controller class.
@@ -66,9 +72,13 @@ public class SheetEditorControllerImpl extends SheetEditorController {
                 createMenuItem("Insert Row", () -> insertRow(new Row(), getSelectedRow())),
                 createMenuItem("Clone Row", () -> cloneRow(editor.getSheet().getRows().getRow().get(getSelectedRow()))),
                 createMenuItem("Delete Row", () -> deleteRowWithConfirmation(editor.getSheet().getRows().getRow().get(getSelectedRow()))),
-                createMenuItem("Sort by", () -> {
+                createMenuItem("Sort ascending", () -> {
                     int sortCol = table.getSelectionModel().getFocusedCell().getColumn();
-                    table.setComparator((a,b)->compare(a.get(sortCol).getItem(), b.get(sortCol).getItem()));
+                    table.setComparator((a,b)->compare(getCellFromRow(a, sortCol), getCellFromRow(b, sortCol)));
+                }),
+                createMenuItem("Sort descending", () -> {
+                    int sortCol = table.getSelectionModel().getFocusedCell().getColumn();
+                    table.setComparator((a,b)->compare(getCellFromRow(b, sortCol), getCellFromRow(a, sortCol)));
                 })
         );
     }

@@ -17,7 +17,7 @@ mg
 
 # Skip build directories
 **/build/
-/OutlawEditor/target/
+**/target/
 /Platform/Apple/tools/*/nbproject/private/
 /Platform/Apple/tools/*/dist/
 

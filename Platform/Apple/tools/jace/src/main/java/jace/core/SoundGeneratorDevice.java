@@ -25,7 +25,6 @@ public abstract class SoundGeneratorDevice extends Device {
     
     @Override
     public void reconfigure() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
     
     @Override

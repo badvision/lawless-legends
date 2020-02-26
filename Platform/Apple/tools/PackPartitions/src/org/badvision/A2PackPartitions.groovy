@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015-18 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1
+ * Copyright (C) 2015-20 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1
  * (the "License"); you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-1.1>.
  * Unless required by applicable law or agreed to in writing, software distributed under
@@ -1063,9 +1063,9 @@ class A2PackPartitions
         def patStrs = []
         dataIn.tile.sort{(it.@category + it.@name).toLowerCase()}.each { tile ->
             def (name, animFrameNum, animFlags) = decodeImageName(tile.@name)
-            assert animFrameNum == 1 : "animated automap tiles not yet supported"
             def cat = tile.@category.toLowerCase().trim()
             if (cat == "automap") {
+                assert animFrameNum == 1 : "animated automap tiles not yet supported"
                 automapTiles[name] = ++tileNum
                 patStrs << name
                 if (name == "exit")
@@ -1103,33 +1103,20 @@ class A2PackPartitions
         def setName = "tileSet_global"
         def tileIds = [] as Set
         def tileMap = [:]
-        def buf = ByteBuffer.allocate(50000)
-
-        // Figure out the maximum anim frame num
-        def maxFrame = 1
-        dataIn.tile.each { tile ->
-            def (name, animFrameNum, animFlags) = decodeImageName(tile.@name)
-            maxFrame = Math.max(maxFrame, animFrameNum)
-        }
 
         // Add each special tile to the set
         dataIn.tile.sort{(it.@category + it.@name).toLowerCase()}.each { tile ->
-            def (name, animFrameNum, animFlags) = decodeImageName(tile.@name)
-            def id = tile.@id
-            def data = tiles[id]
             def cat = tile.@category.toLowerCase().trim()
             if (cat == "avatar" || cat == "lamp") {
+                def (name, animFrameNum, animFlags) = decodeImageName(tile.@name)
                 if (animFrameNum == 1) {
-                    def num = tileMap.size()
-                    tileIds.add(id)
-                    tileMap[id] = num
-                    data.flip() // crazy stuff to append one buffer to another
-                    buf.put(data)
+                    tileIds.add(tile.@id)
+                    tileMap[tile.@id] = tileMap.size()
                 }
             }
         }
 
-        tileSets[setName] = [num:setNum, mainBuf:buf, smBuf:ByteBuffer.allocate(1), tileMap:tileMap, tileIds:tileIds]
+        tileSets[setName] = [num:setNum, tileMap:tileMap, tileIds:tileIds]
         addResourceDep("map", "<root>", "tileSet", "tileSet_global")
         return [setNum, tileMap]
     }
@@ -1142,26 +1129,18 @@ class A2PackPartitions
         def setName = "tileSet_automap"
         def tileIds = [] as Set
         def tileMap = [:]
-        def mainBuf = ByteBuffer.allocate(50000)
-        def smBuf   = ByteBuffer.allocate(20000)
 
         // Add each automap tile to the set
         dataIn.tile.sort{(it.@category + it.@name).toLowerCase()}.each { tile ->
-            def name = tile.@name
-            def id = tile.@id
+            def (name, animFrameNum, animFlags) = decodeImageName(tile.@name)
             def cat = tile.@category.toLowerCase().trim()
-            if (cat == "automap") {
-                def num = tileMap.size()
-                tileIds.add(id)
-                tileMap[id] = num
-                tiles[id].flip() // crazy stuff to append one buffer to another
-                mainBuf.put(tiles[id])
-                smTiles[id].flip()
-                smBuf.put(smTiles[id])
+            if (cat == "automap" && animFrameNum == 1) {
+                tileIds.add(tile.@id)
+                tileMap[tile.@id] = tileMap.size()
             }
         }
 
-        tileSets[setName] = [num:setNum, mainBuf:mainBuf, smBuf:smBuf, tileMap:tileMap, tileIds:tileIds]
+        tileSets[setName] = [num:setNum, tileMap:tileMap, tileIds:tileIds]
         addResourceDep("map", "<root>", "tileSet", "tileSet_automap")
         return [setNum, tileMap]
     }
@@ -1211,8 +1190,6 @@ class A2PackPartitions
             setNum = tileSets.size() + 1
             //println "Creating new tileSet $setNum."
             tileSet = [num:setNum,
-                       mainBuf:ByteBuffer.allocate(50000),
-                       smBuf:ByteBuffer.allocate(20000),
                        tileMap:[:],
                        tileIds:tileIds]
             tileSets["tileSet${setNum}"] = tileSet
@@ -1222,8 +1199,6 @@ class A2PackPartitions
 
         // Start by assuming we'll create a new tileset
         def tileMap = tileSet.tileMap
-        def mainBuf = tileSet.mainBuf
-        def smBuf   = tileSet.smBuf
 
         // Then add each non-null tile to the set
         (yOff ..< yOff+height).each { y ->
@@ -1235,16 +1210,10 @@ class A2PackPartitions
                     def num = tileMap.size()+1
                     assert num < 64 : "Error: Only 63 kinds of tiles are allowed on any given map."
                     tileMap[id] = num
-                    tiles[id].flip() // crazy stuff to append one buffer to another
-                    mainBuf.put(tiles[id])
-                    smTiles[id].flip()
-                    smBuf.put(smTiles[id])
                 }
             }
         }
         assert tileMap.size() > 0
-        assert mainBuf.position() > 0
-        assert smBuf.position() > 0
 
         return [setNum, tileMap]
     }
@@ -2884,6 +2853,64 @@ class A2PackPartitions
         addResourceDep("map", curMapName, toType, toName)
     }
 
+    def finishAllTileSets(dataIn)
+    {
+        // Build up maps of all the tile names and their corresponding animation frames
+        def tileNames = [:]
+        def tileFrames = [:]
+        dataIn.tile.sort{(it.@category + it.@name).toLowerCase()}.each { tile ->
+            def (name, animFrameNum, animFlags) = decodeImageName(tile.@name)
+            def fullName = tile.@category + "/" + name
+            tileNames[tile.@id] = fullName
+            if (!tileFrames.containsKey(fullName))
+                tileFrames[fullName] = []
+            tileFrames[fullName] << tile.@id
+        }
+
+        // Then finish each set
+        tileSets.each { name, tileSet -> finishTileSet(tileNames, tileFrames, tileSet) }
+    }
+
+    def finishTileSet(tileNames, tileFrames, tileSet)
+    {
+        // Determine the max # of animation frames
+        def maxFrames = 0
+        tileSet.tileIds.each { id ->
+            maxFrames = Math.max(maxFrames, tileFrames[tileNames[id]].size)
+        }
+        //println("tileSet.num=${tileSet.num}, maxFrames=$maxFrames")
+
+        def animBuf = new AnimBuf()
+        for (int frameNum = 1; frameNum <= maxFrames; frameNum++)
+        {
+            def frameBuf = ByteBuffer.allocate(50000)
+            frameBuf.put((byte)(tileSet.tileIds.size()))
+
+            // First the large size tiles
+            tileSet.tileIds.each { id ->
+                def frames = tileFrames[tileNames[id]]
+                def frame = frames[(frameNum-1) % frames.size()]
+                tiles[frame].flip() // crazy stuff to append one buffer to another
+                frameBuf.put(tiles[frame])
+            }
+
+            // Then add the small size tiles for automap display
+            tileSet.tileIds.each { id ->
+                def frames = tileFrames[tileNames[id]]
+                def frame = frames[(frameNum-1) % frames.size()]
+                smTiles[frame].flip() // crazy stuff to append one buffer to another
+                frameBuf.put(smTiles[frame])
+            }
+
+            // Now that we have all the tiles for this frame, put it in the animation buffer
+            //println("  frame=$frameNum buf.size=${frameBuf.position()}")
+            animBuf.addImage(frameNum, "f", frameBuf)
+        }
+
+        // Make the diffs and do the final packing.
+        tileSet.buf = compress(animBuf.pack())
+    }
+
     def pack(xmlFile, dataIn)
     {
         // Save time by using cache of previous run
@@ -3029,27 +3056,18 @@ class A2PackPartitions
         // Pack each map. This uses the image and tile maps filled earlier.
         println "Packing maps and scripts."
         dataIn.map.each { map ->
-            curMapName = map.@name
-            if (map?.@name =~ /2D/)
+            curMapName = map?.@name
+            if (curMapName =~ /2D/)
                 pack2DMap(map, dataIn.tile)
-            else if (map?.@name =~ /3D/)
+            else if (curMapName =~ /3D/)
                 pack3DMap(map, dataIn.tile)
             else
-                printWarning "map name '${map?.@name}' should contain '2D' or '3D'. Skipping."
+                printWarning "map name '$curMapName' should contain '2D' or '3D'. Skipping."
             curMapName = null
         }
 
-        // Now that the tileSets are complete, compress them.
-        tileSets.each { name, tileSet ->
-            def buf = ByteBuffer.allocate(50000)
-            buf.put((byte)(tileSet.tileIds.size()))
-            tileSet.mainBuf.flip() // crazy stuff to append one buffer to another
-            buf.put(tileSet.mainBuf)
-            // After the large size tiles, add the small size tiles for automap display
-            tileSet.smBuf.flip() // crazy stuff to append one buffer to another
-            buf.put(tileSet.smBuf)
-            tileSet.buf = compress(unwrapByteBuffer(buf))
-        }
+        // Now that the tileSet ID lists are complete, gather the tiles' data and compress them.
+        finishAllTileSets(dataIn)
 
         //println("rdeps - phase 2:" + JsonOutput.prettyPrint(JsonOutput.toJson(resourceDeps)))
 

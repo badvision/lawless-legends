@@ -947,7 +947,14 @@ ROW_OFFSET = 3
 	LDA TILE_SOURCE+1
 	ADC TILE_BASE + 1
 .store_src
-	STY TILE_SOURCE
+	CLC
+	INY			; add first of 2 to skip anim header
+	BNE +
+	ADC #1
++	INY			; add second of 2 to skip anim header
+	BNE +
+	ADC #1
++	STY TILE_SOURCE
 	STA TILE_SOURCE+1
 
 	LDA CALC_MODE			; check the mode

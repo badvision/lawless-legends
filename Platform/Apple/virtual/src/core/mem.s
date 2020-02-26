@@ -2687,6 +2687,8 @@ advanceAnims: !zone {
 	beq .anim
 	cmp #RES_TYPE_TEXTURE
 	beq .anim
+	cmp #RES_TYPE_TILESET
+	beq .anim
 	bne .next	; not animated; skip
 .anim	lda tSegAdrLo,x	; pointer to start of resource
 	sta pTmp

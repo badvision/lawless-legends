@@ -2577,13 +2577,16 @@ def showAnimFrame()#0
     if showingLamp and util3d; util3d=>util3d_nextLampFrame(); fin
     render($FF) // it's only animation, so do interrupt if a key is pressed
     if showingLamp and util3d; util3d=>util3d_nextLampFrame(); fin
+  else
+    render(0) // 2d map view
   fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Advance to next frame of current animation, if any
 def nextAnimFrame()#0
-  word flags
+  word flags, param
+  byte dir, randNum
   if !anyAnims; return; fin
 
   // Choose a new direction based on the flags. Do this the first time, and once every 3-7 frames.
@@ -2595,7 +2598,8 @@ def nextAnimFrame()#0
   // Advance animations.
   // First part is whether to switch directions on fwd/back anims.
   // Second part is how many frames to advance random anims.
-  flags = auxMmgr(ADVANCE_ANIMS, ((animDirCt==1) & 1) | (((rand16() % 10)+1)<<8))
+  param = ((animDirCt==1) & 1) | (((rand16() % 10)+1)<<8)
+  flags = auxMmgr(ADVANCE_ANIMS, param) | mmgr(ADVANCE_ANIMS, param)
   if (flags >> 8)
     // An animation was changed -- display it
     showAnimFrame()

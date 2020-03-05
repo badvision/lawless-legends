@@ -2132,20 +2132,21 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def textureControl(flg)#0
-  if !renderLoaded or !mapIs3D; return; fin
   flipToPage1
-  if flg and !texturesLoaded
-    _texControl(1)
-    loadUtil3d
-    showingLamp = (skyNum == 0 or skyNum == 8)
-  elsif !flg and texturesLoaded
-    _texControl(0)
-    if pModUtil3d
-      mmgr(FREE_MEMORY, pModUtil3d)
-      pModUtil3d = NULL
-      util3d = NULL
+  if flg <> texturesLoaded and renderLoaded and mapIs3D
+    if flg
+      _texControl(1)
+      loadUtil3d
+      showingLamp = (skyNum == 0 or skyNum == 8)
+    else
+      _texControl(0)
+      if pModUtil3d
+        mmgr(FREE_MEMORY, pModUtil3d)
+        pModUtil3d = NULL
+        util3d = NULL
+      fin
+      showingLamp = FALSE
     fin
-    showingLamp = FALSE
   fin
   texturesLoaded = flg
 end
@@ -2573,12 +2574,14 @@ def showAnimFrame()#0
   elsif curFullscreenImg
     blit(1, curFullscreenImg + 2, getScreenLine(0), 192, 40) // the +2 is to skip anim hdr offset
     needRender = FALSE  // suppress display of map for this frame
-  elsif mapIs3D
-    if showingLamp and util3d; util3d=>util3d_nextLampFrame(); fin
-    render($FF) // it's only animation, so do interrupt if a key is pressed
-    if showingLamp and util3d; util3d=>util3d_nextLampFrame(); fin
-  else
-    render(0) // 2d map view
+  elsif texturesLoaded
+    if mapIs3D
+      if showingLamp and util3d; util3d=>util3d_nextLampFrame(); fin
+      render($FF) // it's only animation, so do interrupt if a key is pressed
+      if showingLamp and util3d; util3d=>util3d_nextLampFrame(); fin
+    else
+      render(0) // 2d map view
+    fin
   fin
 end
 
@@ -2587,6 +2590,7 @@ end
 def nextAnimFrame()#0
   word flags, param
   byte dir, randNum
+
   if !anyAnims; return; fin
 
   // Choose a new direction based on the flags. Do this the first time, and once every 3-7 frames.
@@ -2705,8 +2709,7 @@ def loadEngine(moduleNum)#1
   if curEngine; fatal("dblEng"); fin
   preEnginePortraitNum = curPortraitNum
   clearPortrait()
-  textureControl(FALSE)
-  flipToPage1()
+  textureControl(FALSE) // also flips to page 1
   mmgr(START_LOAD, 1) // code is in partition 1
   curEngine = mmgr(QUEUE_LOAD, moduleNum<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)

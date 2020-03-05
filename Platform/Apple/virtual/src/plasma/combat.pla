@@ -537,6 +537,11 @@ end
 def chooseShotNumber(pl, pWeapon)#0
   byte i, nChoices, k
 
+  // Treat single-use weapons as having infinite ammo
+  if pWeapon->b_flags & WEAPON_FLAG_SINGLE_USE
+    pWeapon->b_clipCurrent = 99
+  fin
+
   // Determine number of shot choices this weapon has
   nChoices = 0
   pl->b_shotChoice = 0

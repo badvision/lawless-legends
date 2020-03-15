@@ -2140,7 +2140,7 @@ export def textureControl(flg)#0
       showingLamp = (skyNum == 0 or skyNum == 8)
     else
       _texControl(0)
-      if pModUtil3d
+      if pModUtil3d and !inScript   // e.g. strafe -> script -> combat: need strafe to stay in mem!
         mmgr(FREE_MEMORY, pModUtil3d)
         pModUtil3d = NULL
         util3d = NULL

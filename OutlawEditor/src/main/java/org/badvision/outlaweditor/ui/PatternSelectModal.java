@@ -15,10 +15,14 @@
  */
 package org.badvision.outlaweditor.ui;
 
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import javafx.animation.ScaleTransition;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
-import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.effect.BlurType;
@@ -30,15 +34,8 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
-import javafx.util.Callback;
 import javafx.util.Duration;
 import org.badvision.outlaweditor.api.ApplicationState;
-
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Supplier;
 
 import static org.badvision.outlaweditor.ui.UIAction.fadeOut;
 
@@ -67,6 +64,9 @@ public class PatternSelectModal<P> {
             return;
         }
         currentPatternSelector = new AnchorPane();
+        Double zoom = 1 / anchorPane.getParent().getScaleX();
+        currentPatternSelector.setScaleX(zoom);
+        currentPatternSelector.setScaleY(zoom);
         Map<String, P> selections = patternSupplier.get();
         ImageView firstSelection = imageViewGenerator.apply(selections.values().iterator().next());
 
@@ -111,8 +111,8 @@ public class PatternSelectModal<P> {
             tileIcon.setLayoutY(GRID_SPACING + (i.get() / tilesPerRow) * (TILE_HEIGHT + GRID_SPACING));
             i.incrementAndGet();
         });
-        currentPatternSelector.setLayoutX((anchorPane.getWidth() - currentPatternSelector.getPrefWidth()) / 2);
-        currentPatternSelector.setLayoutY((anchorPane.getHeight() - currentPatternSelector.getPrefHeight()) / 2);
+        currentPatternSelector.setLayoutX((anchorPane.getWidth() - currentPatternSelector.getPrefWidth()) / 2 / zoom);
+        currentPatternSelector.setLayoutY((anchorPane.getHeight() - currentPatternSelector.getPrefHeight()) / 2 / zoom);
         currentPatternSelector.setBackground(
                 new Background(
                         new BackgroundFill(
@@ -137,7 +137,7 @@ public class PatternSelectModal<P> {
             }
         });
     }
-    
+
     private final EventHandler<MouseEvent> cancelPatternSelectMouseHandler = (MouseEvent e) -> {
         if (!(e.getSource() instanceof ImageView)) {
             e.consume();

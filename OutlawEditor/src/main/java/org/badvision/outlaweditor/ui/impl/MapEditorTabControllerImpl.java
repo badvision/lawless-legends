@@ -28,8 +28,6 @@ import org.badvision.outlaweditor.MapEditor;
 import org.badvision.outlaweditor.TransferHelper;
 import org.badvision.outlaweditor.api.ApplicationState;
 import org.badvision.outlaweditor.data.DataUtilities;
-import static org.badvision.outlaweditor.data.PropertyHelper.bind;
-import static org.badvision.outlaweditor.data.PropertyHelper.stringProp;
 import org.badvision.outlaweditor.data.TileUtils;
 import org.badvision.outlaweditor.data.xml.Map;
 import org.badvision.outlaweditor.data.xml.Script;
@@ -38,6 +36,9 @@ import org.badvision.outlaweditor.ui.EntitySelectorCell;
 import org.badvision.outlaweditor.ui.MapEditorTabController;
 import org.badvision.outlaweditor.ui.ToolType;
 import org.badvision.outlaweditor.ui.UIAction;
+
+import static org.badvision.outlaweditor.data.PropertyHelper.bind;
+import static org.badvision.outlaweditor.data.PropertyHelper.stringProp;
 import static org.badvision.outlaweditor.ui.UIAction.confirm;
 import static org.badvision.outlaweditor.ui.UIAction.createAndEditScript;
 import static org.badvision.outlaweditor.ui.UIAction.editScript;
@@ -123,12 +124,16 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
 
     @Override
     public void onMapClonePressed(ActionEvent event) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        Map clonedMap = (Map) getCurrentMap().clone();
+        clonedMap.setName(clonedMap.getName() + " (clone)");
+        ApplicationState.getInstance().getGameData().getMap().add(clonedMap);
+        rebuildMapSelectors();
+        setCurrentMap(clonedMap);
     }
 
     @Override
     public void onMapCreatePressed(ActionEvent event) {
-        org.badvision.outlaweditor.data.xml.Map m = new org.badvision.outlaweditor.data.xml.Map();
+        Map m = new Map();
         m.setName("Untitled");
         m.setWidth(512);
         m.setHeight(512);
@@ -329,7 +334,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
         }
         redrawMapScripts();
     }
-    
+
     @Override
     public void showShiftUI(ActionEvent evt) {
         Dialog dialog = new Dialog();
@@ -348,11 +353,11 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
         pane.add(moveLeft, 0, 1);
         Button moveRight = new Button("→");
         moveRight.setOnMouseClicked(v->getCurrentEditor().moveMapByX(1));
-        pane.add(moveRight, 2, 1);        
+        pane.add(moveRight, 2, 1);
         dialog.getDialogPane().setContent(pane);
          dialog.show();
-    }    
-    
+    }
+
     @Override
     public void rebuildMapSelectors() {
         Map m = mapSelect.getSelectionModel().getSelectedItem();

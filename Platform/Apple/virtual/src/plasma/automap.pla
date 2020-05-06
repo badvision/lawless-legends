@@ -610,7 +610,7 @@ def loadMarks()#0
   memcpy($4002, pAllMarks, len, 1)
 
   // Figure out where the small versions of the special tiles reside (at the end of the full size tiles)
-  pSpecialTiles = specTileset + 1 + ((^specTileset) << 5)
+  pSpecialTiles = specTileset + 3 + ((^(specTileset+2)) << 5)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -839,7 +839,7 @@ def displaySections#0
     //printSection(pSection)
     if pSection->bm_visible
       // Figure out where the small tiles reside (at the end of the full size tiles)
-      pSmallTiles = pSection=>pm_tileset + 1 + ((^(pSection=>pm_tileset)) << 5)
+      pSmallTiles = pSection=>pm_tileset + 3 + ((^(pSection=>pm_tileset + 2)) << 5)
 
       // And draw (different routines to handle differing map data layouts)
       if mapIs3D

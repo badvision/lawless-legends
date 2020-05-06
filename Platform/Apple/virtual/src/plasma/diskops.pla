@@ -158,7 +158,7 @@ asm clearMarkBits(pMarks)#0
   lda (pTmp),y  ; map len
   tax
   dex
-  dex           ; don't clear header in length to clear
+  dex           ; don't count header in length to clear
   iny
   lda #0
 - sta (pTmp),y
@@ -172,7 +172,6 @@ asm clearMarkBits(pMarks)#0
   inc pTmp+1
   bne .outer    ; always taken
 .done
-  stx $200      ; record length of output buffer
   rts
 end
 

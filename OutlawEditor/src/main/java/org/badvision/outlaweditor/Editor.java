@@ -1,20 +1,18 @@
 /*
- * Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1 
+ * Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1
  * (the "License"); you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-1.1>.
- * Unless required by applicable law or agreed to in writing, software distributed under 
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF 
- * ANY KIND, either express or implied. See the License for the specific language 
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+ * ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
- 
+
 package org.badvision.outlaweditor;
 
 import java.util.LinkedList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.Pane;
 import javax.xml.bind.JAXBException;
 import org.badvision.outlaweditor.data.DataObserver;
@@ -55,7 +53,7 @@ public abstract class Editor<T, D> implements DataObserver<T> {
     abstract public void copy();
 
     abstract public void copyData();
-        
+
     abstract public void paste();
 
     abstract public void select();
@@ -95,7 +93,7 @@ public abstract class Editor<T, D> implements DataObserver<T> {
     }
 
     abstract public void redraw();
-    
+
     protected void trackState() {
         if (undoStates.size() >= UNDO_HISTORY_LENGTH) {
             undoStates.removeLast();
@@ -106,7 +104,7 @@ public abstract class Editor<T, D> implements DataObserver<T> {
             Logger.getLogger(Editor.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
-    
+
     public void undo() {
         if (!undoStates.isEmpty()) {
             CopyTo2 undoState = (CopyTo2) undoStates.removeFirst();
@@ -115,9 +113,9 @@ public abstract class Editor<T, D> implements DataObserver<T> {
             redraw();
         }
     }
-    
+
     protected void onEntityUpdated() {
-        
+
     }
 
     public abstract void showSelectorModal();

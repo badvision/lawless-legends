@@ -2038,6 +2038,16 @@ def initMap(x, y, dir)#0
 
   // Reset memory (our module will stay since memory manager locked it upon load)
   mmgr(RESET_MEMORY, 0)
+
+  // Reset all pointers to non-locked memory, since the stuff might go away
+  pModUtil3d = NULL
+  util3d = NULL
+  pCurMap = NULL
+  curEngine = NULL
+  pGlobalTileset = NULL
+  curPortrait = NULL
+  curPortraitNum = 0
+  curFullscreenImg = NULL
   renderLoaded = FALSE // leave it this way until all scripts done, else scriptDisplayStr renders
 
   // Load the frame image, then raycaster or tile engine

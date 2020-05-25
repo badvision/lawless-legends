@@ -56,6 +56,7 @@ class A2PackPartitions
     def TYPE_PORTRAIT    = 11
     def TYPE_SONG        = 12
     def TYPE_STORY       = 13
+    def TYPE_SM_TILE_SET = 14
 
     static final int FLOPPY_SIZE = 35*8  // good old 140k floppy = 280 blks
     static final int AC_KLUDGE = 2      // minus 1 to work around last-block bug in AppleCommander
@@ -76,21 +77,23 @@ class A2PackPartitions
                                 10: "Code",
                                 11: "Portrait image",
                                 12: "Song",
-                                13: "Story"]
+                                13: "Story",
+                                14: "Small tile set"]
 
-    def typeNameToNum = ["code":     TYPE_CODE,
-                         "map2D":    TYPE_2D_MAP,
-                         "map3D":    TYPE_3D_MAP,
-                         "tileSet":  TYPE_TILE_SET,
-                         "texture":  TYPE_TEXTURE_IMG,
-                         "frame":    TYPE_SCREEN,
-                         "font":     TYPE_FONT,
-                         "module":   TYPE_MODULE,
-                         "bytecode": TYPE_BYTECODE,
-                         "fixup":    TYPE_FIXUP,
-                         "portrait": TYPE_PORTRAIT,
-                         "song":     TYPE_SONG,
-                         "story":    TYPE_STORY]
+    def typeNameToNum = ["code":      TYPE_CODE,
+                         "map2D":     TYPE_2D_MAP,
+                         "map3D":     TYPE_3D_MAP,
+                         "tileSet":   TYPE_TILE_SET,
+                         "texture":   TYPE_TEXTURE_IMG,
+                         "frame":     TYPE_SCREEN,
+                         "font":      TYPE_FONT,
+                         "module":    TYPE_MODULE,
+                         "bytecode":  TYPE_BYTECODE,
+                         "fixup":     TYPE_FIXUP,
+                         "portrait":  TYPE_PORTRAIT,
+                         "song":      TYPE_SONG,
+                         "story":     TYPE_STORY,
+                         "smTileSet": TYPE_SM_TILE_SET]
 
     def typeNumToName = [1: "code",
                          2: "map2D",
@@ -104,7 +107,8 @@ class A2PackPartitions
                          10: "fixup",
                          11: "portrait",
                          12: "song",
-                         13: "story"]
+                         13: "story",
+                         14: "smTileSet"]
 
     def mapNames  = [:]  // map name (and short name also) to map.2dor3d, map.num
     def mapSizes  = []   // array of [2dOr3D, mapNum, marksSize]
@@ -115,6 +119,7 @@ class A2PackPartitions
     def tiles     = [:]  // tile id to tile.buf
     def smTiles   = [:]  // tile id to small-size tile.buf
     def tileSets  = [:]  // tileset name to tileset.num, tileset.buf
+    def smTileSets= [:]  // tileset name to tileset.num, tileset.buf
     def avatars   = [:]  // avatar tile name to tile num (within the special tileset)
     def lampTiles = []   // animated series of lamp tiles
     def textures  = [:]  // img name to img.num, img.buf
@@ -1117,6 +1122,7 @@ class A2PackPartitions
         }
 
         tileSets[setName] = [num:setNum, tileMap:tileMap, tileIds:tileIds]
+        smTileSets[setName] = [num:setNum, tileMap:tileMap, tileIds:tileIds]
         addResourceDep("map", "<root>", "tileSet", "tileSet_global")
         return [setNum, tileMap]
     }
@@ -1141,6 +1147,7 @@ class A2PackPartitions
         }
 
         tileSets[setName] = [num:setNum, tileMap:tileMap, tileIds:tileIds]
+        smTileSets[setName] = [num:setNum, tileMap:tileMap, tileIds:tileIds]
         addResourceDep("map", "<root>", "tileSet", "tileSet_automap")
         return [setNum, tileMap]
     }
@@ -1189,10 +1196,9 @@ class A2PackPartitions
         else {
             setNum = tileSets.size() + 1
             //println "Creating new tileSet $setNum."
-            tileSet = [num:setNum,
-                       tileMap:[:],
-                       tileIds:tileIds]
+            tileSet = [num:setNum, tileMap:[:], tileIds:tileIds]
             tileSets["tileSet${setNum}"] = tileSet
+            smTileSets["tileSet${setNum}"] = [num:setNum, tileMap: tileSet.tileMap, tileIds:tileIds]
         }
 
         addMapDep("tileSet", "tileSet${setNum}")
@@ -1985,6 +1991,7 @@ class A2PackPartitions
         recordChunks("map2D",    maps2D)
         recordChunks("map3D",    maps3D)
         recordChunks("tileSet",  tileSets)
+        recordChunks("smTileSet",smTileSets)
         recordChunks("texture",  textures)
         recordChunks("frame",    frames)
         recordChunks("portrait", portraits)
@@ -2845,6 +2852,8 @@ class A2PackPartitions
         if (!resourceDeps.containsKey(fromKey))
             resourceDeps[fromKey] = [] as Set
         resourceDeps[fromKey] << [toType, toName]
+        if (toType == "tileSet")
+            addResourceDep(fromType, fromName, "smTileSet", toName)
     }
 
     def addMapDep(toType, toName)
@@ -2867,48 +2876,35 @@ class A2PackPartitions
             tileFrames[fullName] << tile.@id
         }
 
-        // Then finish each set
-        tileSets.each { name, tileSet -> finishTileSet(tileNames, tileFrames, tileSet) }
+        // Then finish each tile set
+        tileSets.each { name, tileSet ->
+            // Determine the max # of animation frames
+            tileSet.buf = packAnimTiles(tileSet, tileNames, tileFrames, tiles)
+            smTileSets[name].buf = packAnimTiles(tileSet, tileNames, tileFrames, smTiles)
+        }
     }
 
-    def finishTileSet(tileNames, tileFrames, tileSet)
+    def packAnimTiles(tileSet, tileNames, tileFrames, tiles)
     {
-        // Determine the max # of animation frames
         def maxFrames = 0
         tileSet.tileIds.each { id ->
             maxFrames = Math.max(maxFrames, tileFrames[tileNames[id]].size)
         }
-        //println("tileSet.num=${tileSet.num}, maxFrames=$maxFrames")
 
         def animBuf = new AnimBuf()
         for (int frameNum = 1; frameNum <= maxFrames; frameNum++)
         {
             def frameBuf = ByteBuffer.allocate(50000)
             frameBuf.put((byte)(tileSet.tileIds.size()))
-
-            // First the large size tiles
             tileSet.tileIds.each { id ->
                 def frames = tileFrames[tileNames[id]]
                 def frame = frames[(frameNum-1) % frames.size()]
                 tiles[frame].flip() // crazy stuff to append one buffer to another
                 frameBuf.put(tiles[frame])
             }
-
-            // Then add the small size tiles for automap display
-            tileSet.tileIds.each { id ->
-                def frames = tileFrames[tileNames[id]]
-                def frame = frames[(frameNum-1) % frames.size()]
-                smTiles[frame].flip() // crazy stuff to append one buffer to another
-                frameBuf.put(smTiles[frame])
-            }
-
-            // Now that we have all the tiles for this frame, put it in the animation buffer
-            //println("  frame=$frameNum buf.size=${frameBuf.position()}")
             animBuf.addImage(frameNum, "f", frameBuf)
         }
-
-        // Make the diffs and do the final packing.
-        tileSet.buf = compress(animBuf.pack())
+        return compress(animBuf.pack())
     }
 
     def pack(xmlFile, dataIn)

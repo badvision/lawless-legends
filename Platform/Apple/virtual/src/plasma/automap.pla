@@ -597,7 +597,7 @@ def loadMarks()#0
   pSpecialsBuf = auxMmgr(QUEUE_LOAD, CODE_GEN_MAP_SPECIALS<<8 | RES_TYPE_CODE)
 
   // While we're at it, load the automap special tiles.
-  specTileset = mmgr(QUEUE_LOAD, 2<<8 | RES_TYPE_TILESET) // always tileset 2 (just after global tiles)
+  specTileset = mmgr(QUEUE_LOAD, 2<<8 | RES_TYPE_SM_TILESET) // always tileset 2 (just after global tiles)
   mmgr(FINISH_LOAD, 0)
 
   // Call the automark write routine. This has not only the effect of flushing the marks
@@ -609,8 +609,8 @@ def loadMarks()#0
   pAllMarks = auxMmgr(REQUEST_MEMORY, len)
   memcpy($4002, pAllMarks, len, 1)
 
-  // Figure out where the small versions of the special tiles reside (at the end of the full size tiles)
-  pSpecialTiles = specTileset + 3 + ((^(specTileset+2)) << 5)
+  // Figure out where the small versions of the special tiles reside
+  pSpecialTiles = specTileset + 3
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -722,7 +722,7 @@ def prepSections(extraLeft, extraTop)#0
         // This part only happens in 2D mode (a 3D section have tileset filled in at construction)
         pSection->bm_tilesetNum = ^(pSection=>pm_map + 4)
       fin
-      pSection=>pm_tileset = mmgr(QUEUE_LOAD, (pSection->bm_tilesetNum)<<8 | RES_TYPE_TILESET)
+      pSection=>pm_tileset = mmgr(QUEUE_LOAD, (pSection->bm_tilesetNum)<<8 | RES_TYPE_SM_TILESET)
     fin
     pSection = pSection + TMapSection
   loop
@@ -839,7 +839,7 @@ def displaySections#0
     //printSection(pSection)
     if pSection->bm_visible
       // Figure out where the small tiles reside (at the end of the full size tiles)
-      pSmallTiles = pSection=>pm_tileset + 3 + ((^(pSection=>pm_tileset + 2)) << 5)
+      pSmallTiles = pSection=>pm_tileset + 3
 
       // And draw (different routines to handle differing map data layouts)
       if mapIs3D
@@ -1156,7 +1156,7 @@ def _automap_show(targetX, targetY)#1
 
   // Ensure the global tileset is reloaded (otherwise tile eng will try to load it from wrong partition)
   mmgr(START_LOAD, 1)
-  pGlobalTileset = mmgr(QUEUE_LOAD, 1<<8 | RES_TYPE_TILESET)
+  pGlobalTileset = mmgr(QUEUE_LOAD, 1<<8 | RES_TYPE_SM_TILESET)
   mmgr(FINISH_LOAD, 0)
 
   // All done.

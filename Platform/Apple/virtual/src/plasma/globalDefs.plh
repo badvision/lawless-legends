@@ -34,19 +34,20 @@ const BIGWIN_HEIGHT = BIGWIN_BOTTOM - BIGWIN_TOP
 // Memory manager definitions
 
 // Resource types
-const RES_TYPE_CODE     = 1
-const RES_TYPE_2D_MAP   = 2
-const RES_TYPE_3D_MAP   = 3
-const RES_TYPE_TILESET  = 4
-const RES_TYPE_TEXTURE  = 5
-const RES_TYPE_SCREEN   = 6
-const RES_TYPE_FONT     = 7
-const RES_TYPE_MODULE   = 8
-const RES_TYPE_BYTECODE = 9
-const RES_TYPE_FIXUP    = 10
-const RES_TYPE_PORTRAIT = 11
-const RES_TYPE_SONG     = 12
-const RES_TYPE_STORY    = 13
+const RES_TYPE_CODE       = 1
+const RES_TYPE_2D_MAP     = 2
+const RES_TYPE_3D_MAP     = 3
+const RES_TYPE_TILESET    = 4
+const RES_TYPE_TEXTURE    = 5
+const RES_TYPE_SCREEN     = 6
+const RES_TYPE_FONT       = 7
+const RES_TYPE_MODULE     = 8
+const RES_TYPE_BYTECODE   = 9
+const RES_TYPE_FIXUP      = 10
+const RES_TYPE_PORTRAIT   = 11
+const RES_TYPE_SONG       = 12
+const RES_TYPE_STORY      = 13
+const RES_TYPE_SM_TILESET = 14
 
 // Command codes
 const RESET_MEMORY   = $10

@@ -2143,14 +2143,14 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def textureControl(flg)#0
   flipToPage1
-  if flg <> texturesLoaded and renderLoaded and mapIs3D
+  if flg <> texturesLoaded and renderLoaded
     if flg
       _texControl(1)
-      loadUtil3d
-      showingLamp = (skyNum == 0 or skyNum == 8)
+      if mapIs3D; loadUtil3d; fin
+      showingLamp = mapIs3D and (skyNum == 0 or skyNum == 8)
     else
       _texControl(0)
-      if pModUtil3d and !inScript   // e.g. strafe -> script -> combat: need strafe to stay in mem!
+      if pModUtil3d and mapIs3D and !inScript   // e.g. strafe -> script -> combat: need strafe to stay in mem!
         mmgr(FREE_MEMORY, pModUtil3d)
         pModUtil3d = NULL
         util3d = NULL

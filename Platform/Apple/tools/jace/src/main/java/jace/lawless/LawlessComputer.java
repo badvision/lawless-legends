@@ -28,19 +28,22 @@ public class LawlessComputer extends Apple2e {
     LawlessImageTool gameDiskHandler = new LawlessImageTool();
     @ConfigurableField(name = "Boot Animation")
     public boolean showBootAnimation = true;
-    
+
     public LawlessComputer() {
         super();
+        this.cheatEngine.setValue(LawlessHacks.class);
+        this.activeCheatEngine = new LawlessHacks(this);
+        this.activeCheatEngine.attach();
         blankTextPage1();
     }
-    
+
     private void blankTextPage1() {
         // Fill text page 1 with spaces
         for (int i = 0x0400; i < 0x07FF; i++) {
             getMemory().write(i, (byte) (0x080 | ' '), false, false);
-        }        
+        }
     }
-    
+
     @Override
     public void coldStart() {
         pause();

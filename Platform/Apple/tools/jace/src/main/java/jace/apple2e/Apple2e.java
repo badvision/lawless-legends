@@ -31,7 +31,6 @@ import jace.core.RAM;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
 import jace.core.Utility;
-import jace.state.Stateful;
 import jace.core.Video;
 import jace.hardware.CardDiskII;
 import jace.hardware.CardExt80Col;
@@ -40,6 +39,7 @@ import jace.hardware.Joystick;
 import jace.hardware.NoSlotClock;
 import jace.hardware.ZipWarpAccelerator;
 import jace.hardware.massStorage.CardMassStorage;
+import jace.state.Stateful;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -163,6 +163,8 @@ public class Apple2e extends Computer {
     @Override
     public void warmStart() {
         boolean restart = pause();
+        // This isn't really authentic behavior but sometimes games like memory to have a consistent state when booting.
+        ((RAM128k)getMemory()).zeroAllRam();
         for (SoftSwitches s : SoftSwitches.values()) {
             if (! (s.getSwitch() instanceof VideoSoftSwitch)) {
                 s.getSwitch().reset();
@@ -202,11 +204,11 @@ public class Apple2e extends Computer {
     @Override
     public final void reconfigure() {
         boolean restart = pause();
-        
+
         if (Utility.isHeadlessMode()) {
             joy1enabled = false;
             joy2enabled = false;
-            
+
         }
 
         RAM128k currentMemory = (RAM128k) getMemory();
@@ -244,7 +246,7 @@ public class Apple2e extends Computer {
             } else {
                 motherboard.removeChildDevice(accelerator);
             }
-            
+
             if (joy1enabled) {
                 if (joystick1 == null) {
                     joystick1 = new Joystick(0, this);
@@ -453,8 +455,8 @@ public class Apple2e extends Computer {
     private void enableHints() {
         if (hints.isEmpty()) {
             hints.add(getMemory().observe(RAMEvent.TYPE.EXECUTE, 0x0FB63, (e)->{
-                animationTimer.schedule(drawHints, 1, TimeUnit.SECONDS);                    
-                animationSchedule = 
+                animationTimer.schedule(drawHints, 1, TimeUnit.SECONDS);
+                animationSchedule =
                             animationTimer.scheduleAtFixedRate(doAnimation, 1250, 100, TimeUnit.MILLISECONDS);
             }));
             // Latch to the PRODOS SYNTAX CHECK parser
@@ -471,7 +473,7 @@ public class Apple2e extends Computer {
              if (c == 0x0d) break;
              in += c;
              }
-                    
+
              System.err.println("Intercepted command: "+in);
              }
              });
@@ -489,4 +491,4 @@ public class Apple2e extends Computer {
     public String getShortName() {
         return "computer";
     }
-} 
+}

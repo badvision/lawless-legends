@@ -129,12 +129,7 @@ abstract public class RAM128k extends RAM {
         activeRead = new PagedMemory(0x10000, PagedMemory.Type.RAM, computer);
         activeWrite = new PagedMemory(0x10000, PagedMemory.Type.RAM, computer);
         blank = new PagedMemory(0x100, PagedMemory.Type.RAM, computer);
-
-        // Format memory with FF FF 00 00 pattern
-        for (int i = 0; i < 0x0100; i++) {
-            blank.get(0)[i] = (byte) 0x0FF;
-        }
-        initMemoryPattern(mainMemory);
+        zeroAllRam();
     }
 
     public final void initMemoryPattern(PagedMemory mem) {
@@ -145,6 +140,14 @@ abstract public class RAM128k extends RAM {
                 mem.get(j)[i] = use;
             }
         }
+    }
+
+    public final void zeroAllRam() {
+        // Format memory with FF FF 00 00 pattern
+        for (int i = 0; i < 0x0100; i++) {
+            blank.get(0)[i] = (byte) 0x0FF;
+        }
+        initMemoryPattern(mainMemory);
     }
 
     private final Semaphore configurationSemaphone = new Semaphore(1, true);

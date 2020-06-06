@@ -21,9 +21,7 @@ package jace.core;
 import jace.apple2e.SoftSwitches;
 import jace.apple2e.Speaker;
 import jace.config.ConfigurableField;
-import java.util.Collections;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Level;
@@ -40,7 +38,7 @@ import java.util.logging.Logger;
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com
  */
 public class Motherboard extends TimedDevice {
-    
+
     @ConfigurableField(name = "Enable Speaker", shortName = "speaker", defaultValue = "true")
     public static boolean enableSpeaker = true;
     public Speaker speaker;

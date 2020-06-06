@@ -127,7 +127,7 @@ public abstract class RAM implements Reconfigurable {
         write(address, (byte) (w & 0x0ff), generateEvent, requireSynchronization);
         write(address + 1, (byte) (w >> 8), generateEvent, requireSynchronization);
     }
-    
+
     public byte readRaw(int address) {
         //    if (address >= 65536) return 0;
         return activeRead.getMemoryPage(address)[address & 0x0FF];
@@ -198,7 +198,7 @@ public abstract class RAM implements Reconfigurable {
         listeners.stream().forEach((l) -> {
             addListenerRange(l);
         });
-    }
+        }
 
     public RAMListener observe(RAMEvent.TYPE type, int address, RAMEvent.RAMEventHandler handler) {
         return addListener(new RAMListener(type, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY) {
@@ -334,4 +334,6 @@ public abstract class RAM implements Reconfigurable {
     abstract public void detach();
 
     abstract public void performExtendedCommand(int i);
+
+    abstract public String getState();
 }

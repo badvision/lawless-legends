@@ -40,9 +40,11 @@ import java.util.logging.Logger;
  */
 @Stateful
 abstract public class RAM128k extends RAM {
+
     Logger LOG = Logger.getLogger(RAM128k.class.getName());
 
     Map<String, PagedMemory> banks;
+    String state = "???";
 
     private Map<String, PagedMemory> getBanks() {
         if (banks == null) {
@@ -77,6 +79,11 @@ abstract public class RAM128k extends RAM {
     }
 
     @Override
+    public String getState() {
+        return state;
+    }
+
+    @Override
     public void performExtendedCommand(int param) {
         switch (param) {
             case 0xda:
@@ -85,7 +92,7 @@ abstract public class RAM128k extends RAM {
                 for (int i = 0; i < 256; i++) {
                     byte[] read = activeRead.get(i);
                     byte[] write = activeWrite.get(i);
-                    String readBank = getBanks().keySet().stream().filter(bank->{
+                    String readBank = getBanks().keySet().stream().filter(bank -> {
                         PagedMemory mem = getBanks().get(bank);
                         for (byte[] page : mem.getMemory()) {
                             if (page == read) {
@@ -94,7 +101,7 @@ abstract public class RAM128k extends RAM {
                         }
                         return false;
                     }).findFirst().orElse("unknown");
-                    String writeBank = getBanks().keySet().stream().filter(bank->{
+                    String writeBank = getBanks().keySet().stream().filter(bank -> {
                         PagedMemory mem = getBanks().get(bank);
                         for (byte[] page : mem.getMemory()) {
                             if (page == write) {
@@ -103,7 +110,7 @@ abstract public class RAM128k extends RAM {
                         }
                         return false;
                     }).findFirst().orElse("unknown");
-                    LOG.log(Level.INFO,"Bank {0}\t{1}\t{2}", new Object[]{Integer.toHexString(i), readBank, writeBank});
+                    LOG.log(Level.INFO, "Bank {0}\t{1}\t{2}", new Object[]{Integer.toHexString(i), readBank, writeBank});
                 }
             default:
         }
@@ -148,6 +155,9 @@ abstract public class RAM128k extends RAM {
             blank.get(0)[i] = (byte) 0x0FF;
         }
         initMemoryPattern(mainMemory);
+        if (getAuxMemory() != null) {
+            initMemoryPattern(getAuxMemory());
+        }
     }
 
     private final Semaphore configurationSemaphone = new Semaphore(1, true);
@@ -158,10 +168,21 @@ abstract public class RAM128k extends RAM {
     @Override
     public void configureActiveMemory() {
         try {
+            state = "";
             log("MMU Switches");
             configurationSemaphone.acquire();
             // First off, set up read/write for main memory (might get changed later on)
+            if (SoftSwitches.RAMRD.getState()) {
+                state = "Ra";
+            } else {
+                state = "R0";
+            }
             activeRead.fillBanks(SoftSwitches.RAMRD.getState() ? getAuxMemory() : mainMemory);
+            if (SoftSwitches.RAMWRT.getState()) {
+                state += "Wa";
+            } else {
+                state += "W0";
+            }
             activeWrite.fillBanks(SoftSwitches.RAMWRT.getState() ? getAuxMemory() : mainMemory);
 
             // Handle language card softswitches
@@ -170,30 +191,40 @@ abstract public class RAM128k extends RAM {
             for (int i = 0x0c0; i < 0x0d0; i++) {
                 activeWrite.set(i, null);
             }
+            String LCR = "L0R";
             if (SoftSwitches.LCRAM.isOn()) {
                 if (SoftSwitches.AUXZP.isOff()) {
+                    LCR = "L1R";
                     activeRead.fillBanks(languageCard);
                     if (SoftSwitches.LCBANK1.isOff()) {
+                        LCR = "L2R";
                         activeRead.fillBanks(languageCard2);
                     }
                 } else {
                     activeRead.fillBanks(getAuxLanguageCard());
+                    LCR = "L1aR";
                     if (SoftSwitches.LCBANK1.isOff()) {
+                        LCR = "L2aR";
                         activeRead.fillBanks(getAuxLanguageCard2());
                     }
                 }
             }
 
+            String LCW = "L0W";
             if (SoftSwitches.LCWRITE.isOn()) {
                 if (SoftSwitches.AUXZP.isOff()) {
+                    LCW = "L1W";
                     activeWrite.fillBanks(languageCard);
                     if (SoftSwitches.LCBANK1.isOff()) {
+                        LCW = "L2W";
                         activeWrite.fillBanks(languageCard2);
                     }
                 } else {
                     activeWrite.fillBanks(getAuxLanguageCard());
+                    LCW = "L1aW";
                     if (SoftSwitches.LCBANK1.isOff()) {
                         activeWrite.fillBanks(getAuxLanguageCard2());
+                        LCW = "L2aW";
                     }
                 }
             } else {
@@ -203,13 +234,19 @@ abstract public class RAM128k extends RAM {
                 }
             }
 
+            state += String.format(",%s,%s", LCR, LCW);
             // Handle 80STORE logic for bankswitching video ram
             if (SoftSwitches._80STORE.isOn()) {
+                state += ",80S";
+                if (SoftSwitches.PAGE2.isOn()) {
+                    state += "2";
+                }
                 activeRead.setBanks(0x04, 0x04, 0x04,
                         SoftSwitches.PAGE2.isOn() ? getAuxMemory() : mainMemory);
                 activeWrite.setBanks(0x04, 0x04, 0x04,
                         SoftSwitches.PAGE2.isOn() ? getAuxMemory() : mainMemory);
                 if (SoftSwitches.HIRES.isOn()) {
+                    state += "H";
                     activeRead.setBanks(0x020, 0x020, 0x020,
                             SoftSwitches.PAGE2.isOn() ? getAuxMemory() : mainMemory);
                     activeWrite.setBanks(0x020, 0x020, 0x020,
@@ -219,10 +256,12 @@ abstract public class RAM128k extends RAM {
 
             // Handle zero-page bankswitching
             if (SoftSwitches.AUXZP.getState()) {
+                state += ",Za";
                 // Aux pages 0 and 1
                 activeRead.setBanks(0, 2, 0, getAuxMemory());
                 activeWrite.setBanks(0, 2, 0, getAuxMemory());
             } else {
+                state += ",Z0";
                 // Main pages 0 and 1
                 activeRead.setBanks(0, 2, 0, mainMemory);
                 activeWrite.setBanks(0, 2, 0, mainMemory);
@@ -253,10 +292,14 @@ abstract public class RAM128k extends RAM {
                 if (SoftSwitches.SLOTC3ROM.isOff()) {
                     // Enable C3 to point to internal ROM
                     activeRead.setBanks(2, 1, 0x0C3, cPageRom);
+                    state += ",C30";
                 }
                 if (SoftSwitches.INTC8ROM.isOn()) {
+                    state += ",C80";
                     // Enable C8-CF to point to internal ROM
                     activeRead.setBanks(7, 8, 0x0C8, cPageRom);
+                } else {
+                    state += String.format(",C8%d", getActiveSlot());
                 }
             }
             // All ROM reads not intecepted will return 0xFF! (TODO: floating bus)

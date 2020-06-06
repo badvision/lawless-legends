@@ -79,11 +79,11 @@ public abstract class Computer implements Reconfigurable {
     public BooleanProperty getRunningProperty() {
         return runningProperty;
     }
-    
+
     public boolean isRunning() {
         return getRunningProperty().get();
     }
-    
+
     public void notifyVBLStateChanged(boolean state) {
         for (Optional<Card> c : getMemory().cards) {
             c.ifPresent(card -> card.notifyVBLStateChanged(state));
@@ -136,7 +136,7 @@ public abstract class Computer implements Reconfigurable {
             motherboard.suspend();
         }
         if (video != null) {
-            video.suspend();            
+            video.suspend();
         }
         if (mixer != null) {
             mixer.detach();

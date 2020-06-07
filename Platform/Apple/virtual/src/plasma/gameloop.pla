@@ -3591,8 +3591,10 @@ def startGame(firstTime, ask)#0
   // Create a new game or load an existing one
   mmgr(START_LOAD, 1) // code is in partition 1
   if firstTime
+    // Temporarily reserve a big chunk of aux mem to keep diskops bytecode out
     auxMmgr(SET_MEM_TARGET, $800) // well above where resource index loads at startup
-    auxMmgr(REQUEST_MEMORY, $6000) // plenty of room for resource index + temp expander
+    auxMmgr(REQUEST_MEMORY, $7F00) // plenty of room for resource index + temp expander
+    // Reserve space for the small-object heap
     mmgr(SET_MEM_TARGET, HEAP_BOTTOM)
     mmgr(REQUEST_MEMORY, HEAP_SIZE)
     mmgr(LOCK_MEMORY,    HEAP_BOTTOM)

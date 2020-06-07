@@ -629,6 +629,9 @@ def _newOrLoadGame(ask)#1
     loadInternal(); return 0
   fin
 
+  // Pause a bit so the player can see the full title screen in all its glory
+  pause(3000)
+
   while TRUE
     textHome()
     ^$25 = 20
@@ -651,7 +654,6 @@ def _newOrLoadGame(ask)#1
       is 18 // ctrl-R
         setRecordMode(1)
     wend
-    beep()
   loop
   return 0
 end

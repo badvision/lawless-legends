@@ -49,8 +49,7 @@ public class LawlessComputer extends Apple2e {
         pause();
         reinitMotherboard();
         RAM128k ram = (RAM128k) getMemory();
-        ram.initMemoryPattern(ram.mainMemory);
-        ram.initMemoryPattern(ram.getAuxMemory());
+        ram.zeroAllRam();
         blankTextPage1();
         for (SoftSwitches s : SoftSwitches.values()) {
             s.getSwitch().reset();

@@ -34,7 +34,7 @@ import java.util.Map;
 /**
  * Emulates the Ramworks Basic and Ramworks III cards
  *
- * @author Brendan Robert (BLuRry) brendan.robert@gmail.com 
+ * @author Brendan Robert (BLuRry) brendan.robert@gmail.com
  */
 @Stateful
 @Name("Ramworks III Memory Expansion")
@@ -69,7 +69,7 @@ public class CardRamworks extends RAM128k {
         memory = new ArrayList<>(maxBank);
         reconfigure();
     }
-    
+
     private PagedMemory getAuxBank(BankType type, int bank) {
         if (bank >= maxBank) {
             return nullBank.get(type);
@@ -136,7 +136,7 @@ public class CardRamworks extends RAM128k {
     public void attach() {
         bankSelectListener = computer.getMemory().observe(RAMEvent.TYPE.WRITE, BANK_SELECT, (e) -> {
             currentBank = e.getNewValue();
-            configureActiveMemory();            
+            configureActiveMemory();
         });
     }
 

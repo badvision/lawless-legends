@@ -18,8 +18,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.StandardCopyOption;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.scene.control.Label;
@@ -53,10 +51,20 @@ public class LawlessImageTool implements MediaConsumer {
 
     @Override
     public void insertMedia(MediaEntry e, MediaEntry.MediaFile f) throws IOException {
+        Utility.decision("Upgrade Game", "Do you want to attempt to preserve your save game?", "Yes", "No", () -> performGameUpgradeConfirmation(e, f), () -> replaceGameImageConfirmation(e, f));
+    }
+
+    public void performGameUpgradeConfirmation(MediaEntry e, MediaEntry.MediaFile f) {
         Utility.confirm("Upgrade Game",
                 "This will upgrade your game and attempt to copy your progress.  "
-                + "If this is unsuccessful you might have to start a new game.  Proceed?",
+                + "If this is unsuccessful you will lose your progress and have to start over.  Proceed?",
                 () -> performGameUpgrade(e, f));
+    }
+
+    public void replaceGameImageConfirmation(MediaEntry e, MediaEntry.MediaFile f) {
+        Utility.confirm("Upgrade Game",
+                "You are about to replace your game and lose any saved progress.  Proceed?",
+                () -> performGameReplace(e, f));
     }
 
     @Override
@@ -96,7 +104,16 @@ public class LawlessImageTool implements MediaConsumer {
         }
 
     }
-    
+
+    private void readCurrentDisk(int drive) {
+        RAM memory = Emulator.computer.memory;
+
+        memory.getCard(7).ifPresent(card -> {
+            gameMediaEntry = ((CardMassStorage) card).getConsumers()[drive].getMediaEntry();
+            gameMediaFile = ((CardMassStorage) card).getConsumers()[drive].getMediaFile();
+        });
+    }
+
     private void ejectHardDisk(int drive) {
         RAM memory = Emulator.computer.memory;
 
@@ -109,7 +126,6 @@ public class LawlessImageTool implements MediaConsumer {
             gameMediaFile = null;
         }
     }
-    
 
     public void loadGame() {
         // Insert game disk image
@@ -171,9 +187,32 @@ public class LawlessImageTool implements MediaConsumer {
         }
     }
 
+    private void performGameReplace(MediaEntry e, MediaFile f) {
+        try {
+            File target = getMediaFile().path;
+            ejectHardDisk(0);
+            java.nio.file.Files.copy(f.path.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            f.path = target;
+            insertHardDisk(0, e, f);
+            Emulator.computer.coldStart();
+            System.out.println("Upgrade completed");
+        } catch (IOException ex) {
+            Logger.getLogger(LawlessImageTool.class.getName()).log(Level.SEVERE, null, ex);
+            Utility.gripe(ex.getMessage());
+        }
+    }
+
     private void performGameUpgrade(MediaEntry e, MediaFile f) {
         try {
             System.out.println("Game upgrade starting");
+            readCurrentDisk(0);
+            MediaEntry originalEntry = gameMediaEntry;
+            MediaFile originalFile = gameMediaFile;
+
+            // Put in new disk and boot it -- we want to use its importer in case that importer works better!
+            ejectHardDisk(0);
+            insertHardDisk(0, e, f);
+            Emulator.computer.coldStart();
             if (!waitForText("I)mport", 1)) {
                 Emulator.computer.coldStart();
                 if (!waitForText("I)mport", 1000)) {
@@ -181,16 +220,23 @@ public class LawlessImageTool implements MediaConsumer {
                 }
             }
             System.out.println("Menu Propmt detected");
+
             Keyboard.pasteFromString("i");
             if (!waitForText("Insert disk for import", 100)) {
-                throw new Exception("Unable to detect first insert prompt - Upgrade aborted.");                
+                throw new Exception("Unable to detect first insert prompt - Upgrade aborted.");
             }
             System.out.println("First Propmt detected");
+
+            // Now put in the original disk to load its saved game (hopefully!)
+            ejectHardDisk(0);
+            insertHardDisk(0, originalEntry, originalFile);
+
             Keyboard.pasteFromString(" ");
             if (!waitForText("Game imported", 100)) {
-                throw new Exception("Unable to detect second insert prompt - Upgrade aborted.");                
+                throw new Exception("Unable to detect second insert prompt - Upgrade aborted.");
             }
-            System.out.println("Performing upgrade");
+            System.out.println("Completing upgrade");
+            // Now we copy the new game disk over the old and insert it to write the save game and complete the upgrade.
             File target = getMediaFile().path;
             ejectHardDisk(0);
             java.nio.file.Files.copy(f.path.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
@@ -209,7 +255,7 @@ public class LawlessImageTool implements MediaConsumer {
         RAM128k mem = (RAM128k) compy.getMemory();
         while (timeout-- > 0) {
             StringBuilder allText = new StringBuilder();
-            for (int i=0x0400; i < 0x07ff; i++) {
+            for (int i = 0x0400; i < 0x07ff; i++) {
                 allText.append((char) (mem.getMainMemory().readByte(i) & 0x07f));
             }
             if (allText.toString().contains(message)) {

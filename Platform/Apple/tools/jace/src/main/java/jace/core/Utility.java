@@ -25,7 +25,6 @@ import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import org.reflections.Reflections;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -38,10 +37,10 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
@@ -49,6 +48,7 @@ import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.paint.Color;
+import org.reflections.Reflections;
 
 /**
  * This is a set of helper functions which do not belong anywhere else.
@@ -104,9 +104,10 @@ public class Utility {
         }
         return dist[m][n];
     }
-    
+
     /**
      * Normalize distance based on longest string
+     *
      * @param s
      * @param t
      * @return Similarity ranking, higher is better
@@ -114,7 +115,6 @@ public class Utility {
     public static int adjustedLevenshteinDistance(String s, String t) {
         return Math.max(s.length(), t.length()) - levenshteinDistance(s, t);
     }
-    
 
     /**
      * Compare strings based on a tally of similar patterns found, using a fixed
@@ -209,6 +209,25 @@ public class Utility {
             response.ifPresent(b -> {
                 if (b.getButtonData().isDefaultButton()) {
                     (new Thread(accept)).start();
+                }
+            });
+        });
+    }
+
+    public static void decision(String title, String message, String aLabel, String bLabel, Runnable aAction, Runnable bAction) {
+        Platform.runLater(() -> {
+            ButtonType buttonA = new ButtonType(aLabel, ButtonData.LEFT);
+            ButtonType buttonB = new ButtonType(bLabel, ButtonData.RIGHT);
+
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, message, buttonA, buttonB);
+            confirm.setTitle(title);
+
+            Optional<ButtonType> response = confirm.showAndWait();
+            response.ifPresent(b -> {
+                if (b.getButtonData() == ButtonData.LEFT && aAction != null) {
+                    (new Thread(aAction)).start();
+                } else if (b.getButtonData() == ButtonData.RIGHT && bAction != null) {
+                    (new Thread(bAction)).start();
                 }
             });
         });
@@ -508,14 +527,14 @@ public class Utility {
     public static Runnable getNamedInvokableAction(String action) {
         Map<InvokableAction, Runnable> actions = getAllInvokableActions();
         List<InvokableAction> actionsList = new ArrayList(actions.keySet());
-        actionsList.sort((a,b) -> Integer.compare(getActionNameMatch(action, a), getActionNameMatch(action, b)));
+        actionsList.sort((a, b) -> Integer.compare(getActionNameMatch(action, a), getActionNameMatch(action, b)));
 //        for (InvokableAction a : actionsList) {
 //            String actionName = a.alternatives() == null ? a.name() : (a.name() + ";" + a.alternatives());
 //            System.out.println("Score for " + action + " evaluating " + a.name() + ": " + getActionNameMatch(action, a));
 //        }
         return actions.get(actionsList.get(0));
     }
-    
+
     private static int getActionNameMatch(String str, InvokableAction action) {
         int nameMatch = levenshteinDistance(str, action.name());
         if (action.alternatives() != null) {

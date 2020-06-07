@@ -96,7 +96,7 @@ public class MOS65C02 extends CPU {
         STACK = 0xff;
         setWaitCycles(0);
     }
-    
+
     public enum OPCODE {
         ADC_IMM(0x0069, COMMAND.ADC, MODE.IMMEDIATE, 2),
         ADC_ZP(0x0065, COMMAND.ADC, MODE.ZEROPAGE, 3),
@@ -1061,7 +1061,7 @@ public class MOS65C02 extends CPU {
 
         String traceEntry = null;
         if (isSingleTraceEnabled() || isTraceEnabled() || isLogEnabled() || warnAboutExtendedOpcodes) {
-            traceEntry = getState().toUpperCase() + "  " + Integer.toString(pc, 16) + " : " + disassemble();
+            traceEntry = String.format("%s  %X : %s; %s", getState().toUpperCase(), pc, disassemble(), getMemory().getState());
             captureSingleTrace(traceEntry);
             if (isTraceEnabled()) {
                 LOG.log(Level.INFO, traceEntry);
@@ -1080,7 +1080,7 @@ public class MOS65C02 extends CPU {
                 log(">>EXTENDED OPCODE DETECTED " + Integer.toHexString(opcode.code) + "<<");
                 log(traceEntry);
             }
-        }        
+        }
         if (opcode == null) {
             // handle bad opcode as a NOP
             int wait = 0;
@@ -1343,7 +1343,7 @@ public class MOS65C02 extends CPU {
      * !byte $fc, $5b, NN ; print number NN to stdout with newline
      * !byte $fc, $5c, NN ; print character NN to stdout
      * @param param1
-     * @param param2 
+     * @param param2
      */
     public void performExtendedCommand(byte param1, byte param2) {
 //        LOG.log(Level.INFO, "Extended command {0},{1}", new Object[]{Integer.toHexString(param1), Integer.toHexString(param2)});
@@ -1358,7 +1358,7 @@ public class MOS65C02 extends CPU {
                 break;
             case 0x5c:
                 // System out (with line break)
-                System.out.println((char) (param2 & 0x0ff));           
+                System.out.println((char) (param2 & 0x0ff));
                 break;
             case 0x65:
                 // CPU functions

@@ -72,7 +72,7 @@ public class CardRamworks extends RAM128k {
 
     private PagedMemory getAuxBank(BankType type, int bank) {
         if (bank >= maxBank) {
-            return nullBank.get(type);
+            return nullBank == null ? null : nullBank.get(type);
         }
         Map<BankType, PagedMemory> memoryBank = memory.get(bank);
         if (memoryBank == null) {

@@ -117,7 +117,7 @@ export word pResourceIndex = NULL
 export word pGlobalTileset = NULL
 export byte curMapPartition = 0
 export word typeHash = 0
-word curHeapPct = 0
+export byte curHeapPct = 0
 byte lastMoveDir = $FF
 
 // Queue setMap / teleport / start_encounter, since otherwise script might be replaced while executing
@@ -191,6 +191,8 @@ word lastTick = 0
 
 export byte recordMode = 0
 word recordSeed
+
+export byte diskLimit = 0
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -750,7 +752,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Print a single character
-asm printChar(ch)#0
+export asm printChar(ch)#0
   +asmPlasmNoRet 1
   ora #$80
   jmp _safeCout
@@ -1684,79 +1686,11 @@ export def setGround(num)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def printAtBottom(str, textX, botLeft, botRight, strX)#0
-  byte cv
-  word origX, origY, origTop, origBottom, origLeft, origRight
-
-  // Save text cursor, and print at bottom of text window
-  cv = ^$25
-  ^$23 = 24 // full height window
-  ^$25 = 22
-  crout()
-  ^$24 = textX
-  puts(str)
-  ^$23 = 23 // shrink window to protect version num
-  ^$25 = cv-1
-  crout()
-
-  // Save graphics cursor and window
-  origX, origY = getCursor()
-  origTop, origBottom, origLeft, origRight = getWindow()
-
-  // Establish new graphics window, clear it, and display the string
-  setWindow(183, 192, botLeft, botRight)
-  clearWindow()
-  rawDisplayStr("^T")  // do not use printf variants, since it might overwrite str
-  rawDisplayStr(convert3Dec(strX))
-  rawDisplayStr(str)
-  if mapIs3D and texturesLoaded; copyWindow(0); fin
-
-  // Restore original graphics cursor and window
-  setWindow(origTop, origBottom, origLeft, origRight)
-  setCursor(origX, origY)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def printHeapPct()#0
-  word str, len
-  str = sprintf1("%d%%", curHeapPct)
-  len = calcWidth(str)
-  printAtBottom(str, 36, 240, 268, (28-len) >> 1) // center
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def printVersion()#0
-  word p
-  byte len
-  if !pResourceIndex; return; fin
-
-  buildString()
-  if recordMode
-    puts("recording")
-  else
-    printChar('V')
-    p = pResourceIndex
-    len = readAuxByte(p)
-    while len
-      p++; printChar(readAuxByte(p)); len--
-    loop
-  fin
-  p = finishString(FALSE)
-  len = calcWidth(p)
-  printAtBottom(p, 25, 154, 154 + len + 9, 3)
-  printHeapPct()
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 export def heapCollect()#0
   word pct
   mmgr(CHECK_MEM, 0)
   global=>w_heapSize = mmgr(HEAP_COLLECT, 0) - HEAP_BOTTOM
-  pct = min(99, max(0, ((global=>w_heapSize / 10) * 100) / (HEAP_SIZE / 10)))
-  if pct <> curHeapPct
-    curHeapPct = pct
-    printHeapPct()
-  fin
+  curHeapPct = min(99, max(0, ((global=>w_heapSize / 10) * 100) / (HEAP_SIZE / 10)))
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1795,9 +1729,6 @@ export def loadFrameImg(img)#0
     // And show the first frame of the screen image
     ^EMUSIG_FULL_COLOR
     showAnimFrame()
-
-    // Brand the image with the version number
-    printVersion()
   else
     curFullscreenImg = NULL
     anyAnims = FALSE
@@ -3537,8 +3468,8 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def setStoryMode(enable)#0
-  // Story mode only exists on 800K or hard drive builds
-  if !isFloppyVer
+  // Story mode only exists on 800K or hard drive builds, and not the disk-limited ones.
+  if !isFloppyVer and !diskLimit
     storyMode = enable
     if enable
       loadEngine(MOD_STORY)

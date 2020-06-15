@@ -138,6 +138,7 @@ class A2PackPartitions
     def stories   = [:]  // story text to story.num, story.text
     def storyPartition = 0
     def lootCodes  = [:] // loot code to loot.num
+    def diskLimit = 0
 
     def automapExitTile = -1
     def maxMapSections = 0
@@ -150,7 +151,8 @@ class A2PackPartitions
 
     def requiredGlobalScripts = ["New Game", "Help",
                                  "Combat win", "Combat intro", "Combat prompt", "Enemy intro", "Death",
-                                 "Level XP", "Level SP"]
+                                 "Level XP", "Level SP",
+                                 "Disk limit", "Copyright"]
     def globalScripts = [:]
     def lastSysModule
 
@@ -2833,9 +2835,27 @@ class A2PackPartitions
         return script.block.mutation.arg.size()
     }
 
+    def recordDiskLimit(script) {
+        if (script.block.size() != 0) {
+            def proc = script.block[0]
+            if (proc.value.size() > 0) {
+                assert proc.value[0].@name == "RETURN"
+                assert proc.value[0].block.size() == 1
+                def expr = proc.value[0].block[0]
+                assert expr.@type == 'math_number'
+                def field = expr.field
+                assert field.size() == 1
+                assert field[0].@name == "NUM"
+                diskLimit = field[0].text().toInteger()
+            }
+        }
+    }
+
     def recordGlobalScripts(dataIn) {
         dataIn.global.scripts.script.each {
             globalScripts[humanNameToSymbol(it.@name, false)] = countArgs(it)
+            if (it.@name.equalsIgnoreCase("Disk limit"))
+                recordDiskLimit(it)
         }
         requiredGlobalScripts.each { humanName ->
             def name = humanNameToSymbol(humanName, false)
@@ -3437,7 +3457,7 @@ class A2PackPartitions
                 def triggerItem = row.@"Trigger-Item"?.trim()
                 if (triggerItem) {
                     triggerItem = triggerItem.toLowerCase()
-                    assert itemNameToFunc.containsKey(triggerItem) : "unrecognized item '$triggerItem'"
+                    assert itemNameToFunc.containsKey(toSingular(triggerItem)) : "unrecognized item '$triggerItem'"
                 }
                 assert (triggerFlag || triggerItem) : "Quest step requires either Trigger-Flag or Trigger-Item, or both"
 
@@ -3725,7 +3745,7 @@ class A2PackPartitions
                     name = p1
                     num = p2.toInteger()
                 }
-                def itemFunc = itemNameToFunc[name]
+                def itemFunc = itemNameToFunc[toSingular(name)]
                 assert itemFunc : "Can't locate item '$name'"
                 if (num > 1)
                     out.println("  addToList(@p=>p_items, setItemCount(createItem($itemFunc), $num))")
@@ -3792,6 +3812,14 @@ class A2PackPartitions
         out.println("end\n")
     }
 
+    def toSingular(rawName)
+    {
+        def name = rawName.toLowerCase().trim()
+        name = name.replaceAll(/\((\w+)\/\w+\)/, '$1')
+        name = name.replaceAll(/\(\w+\)/, '')
+        return name
+    }
+
     def allItemFuncs(sheets)
     {
         def funcs = []
@@ -3808,7 +3836,7 @@ class A2PackPartitions
 
         // Global mapping of item name to function, so that give/take functions can create items.
         funcs.each { typeName, func, index, row ->
-            itemNameToFunc[row.@name.trim().toLowerCase()] = func
+            itemNameToFunc[toSingular(row.@name)] = func
         }
 
         // And return the funcs.
@@ -4200,8 +4228,8 @@ end
             assert totalSize < 256 : "too many maps"
             out.println("byte[] mapSizes = $totalSize // overall buffer size")
             mapSizes.sort().each { triple ->
-                out.println(String.format("byte            = \$%02X, \$%02X",
-                                          (triple[0] == '3D' ? 0x80 : 0) | triple[1], triple[2]))
+                def num = (triple[0] == '3D' ? 0x80 : 0) | triple[1]
+                out.println(String.format("byte            = \$%02X, \$%02X", num, triple[2]))
             }
         }
         replaceIfDiff("build/src/plasma/gen_mapsizes.pla")
@@ -4827,7 +4855,8 @@ end
 
         def packBlock(blk)
         {
-            withContext("${blk.@type}") {
+            def ctx = blk.@type
+            withContext(ctx) {
                 switch (blk.@type)
                 {
                     case 'text_print':
@@ -4945,7 +4974,8 @@ end
             else {
                 // For general expressions instead of literal strings, we can't do
                 // any fancy breaking-up business. Just pack.
-                outIndented(finishWithNewline ? 'scriptDisplayStrNL(' : 'scriptDisplayStr(')
+                def caller = finishWithNewline ? 'scriptDisplayStrNL(' : 'scriptDisplayStr('
+                outIndented(caller)
                 packExpr(valBlk[0])
                 out << ")\n"
             }
@@ -5032,7 +5062,7 @@ end
         def packGiveItem(blk)
         {
             def name = getSingle(blk.field, 'NAME').text().trim()
-            def itemNum = itemNameToFunc[name.toLowerCase()]
+            def itemNum = itemNameToFunc[toSingular(name)]
             assert itemNum : "Can't locate item '$name'"
             outIndented("giveItemToParty(createItem($itemNum), @scriptDisplayStr)\n")
         }
@@ -5040,7 +5070,7 @@ end
         def packTakeItem(blk)
         {
             def name = getSingle(blk.field, 'NAME').text().trim()
-            assert itemNameToFunc.containsKey(name.toLowerCase()) : "Can't locate item '$name'"
+            assert itemNameToFunc.containsKey(toSingular(name)) : "Can't locate item '$name'"
             outIndented("takeItemFromParty(${escapeString(name)})\n")
         }
 
@@ -5319,7 +5349,7 @@ end
         def packHasItem(blk)
         {
             def name = getSingle(blk.field, "NAME").text().trim()
-            assert itemNameToFunc.containsKey(name.toLowerCase()) : "Can't locate item '$name'"
+            assert itemNameToFunc.containsKey(toSingular(name)) : "Can't locate item '$name'"
             out << "partyHasItem(${escapeString(name)})"
         }
 
@@ -5468,12 +5498,12 @@ end
         def packSetFullscreen(blk)
         {
             def imgName = getSingle(blk.field, 'NAME').text()
-            if (!frames.containsKey(imgName)) {
+            if (!frames.containsKey(imgName.toLowerCase())) {
                 printWarning "full screen image '$imgName' not found; skipping set_fullscreen."
                 return
             }
-            outIndented("loadFrameImg(PF${humanNameToSymbol(imgName, false)})\n")
-            addMapDep("frame", imgName)
+            outIndented("loadFrameImg(PF${humanNameToSymbol(imgName.toLowerCase(), false)})\n")
+            addMapDep("frame", imgName.toLowerCase())
         }
 
         def packClrPortrait(blk)

@@ -284,6 +284,10 @@ def _startup()#1
 
   // Also the automap marking queue/flush code.
   pMarks = mmgr(QUEUE_LOAD, CODE_MARKS<<8 | RES_TYPE_CODE)
+
+  // And the global funcs we'll need for the title screen
+  mmgr(QUEUE_LOAD, GS_DISK_LIMIT<<8 | RES_TYPE_MODULE)
+  mmgr(QUEUE_LOAD, GS_COPYRIGHT<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
 
   // Move the marks code up to its out-of-the-way corner of RAM
@@ -308,6 +312,9 @@ def _startup()#1
   auxMmgr(QUEUE_LOAD, CODE_RESOURCE_INDEX<<8 | RES_TYPE_CODE)
   auxMmgr(LOCK_MEMORY, pResourceIndex)
   mmgr(FINISH_LOAD, 0)
+
+  // Record the disk limit
+  diskLimit = callGlobalFunc(GS_DISK_LIMIT, 0, 0, 0)
 
   // All done.
   return 0
@@ -368,7 +375,9 @@ def checkMarks()#0
   loop
   if sp <> limit; err = 'D'; fin
   if err; printf1("code=%c\n", err); fatal("corrupt automap"); fin
-  puts("Marks checked.\n")
+
+  // Print out the heap fullness, for later debugging
+  printf1("Heap %d%%\n", curHeapPct)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -495,10 +504,14 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def importGame()#1
+  textHome
+  ^$c053
+  ^$25 = 20
   puts("\n    Insert disk for import")
   pressAnyKey()
   if gameExists()
     loadInternal()
+    ^$25 = 20
     puts("\n    Game imported.")
     reinsert()
     _saveGame()
@@ -621,8 +634,50 @@ def newGame()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Print version, right-justified in graphics mode and in a protected text area
+def printVersion(windowWidth)#0
+  word p
+  byte len
+
+  buildString()
+  if recordMode
+    puts("recording")
+  else
+    printChar('V')
+    p = pResourceIndex
+    len = readAuxByte(p)
+    while len
+      p++; printChar(readAuxByte(p)); len--
+    loop
+  fin
+  p = finishString(FALSE)
+
+  // Save text cursor, and print at bottom of text window
+  ^$23 = 24 // full height window
+  ^$25 = 22
+  crout()
+  ^$24 = 25 // Text X here
+  puts(p)
+
+  // And print in graphics mode too
+  rightJustifyStr(p, windowWidth)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def showCopyrightAndVer()#0
+  setWindow(181, 192, 28, 252)
+  clearWindow()
+  rawDisplayStr("^J") // down one line for nice-looking spacing from graphics
+  callGlobalFunc(GS_COPYRIGHT, 0, 0 ,0)
+  rawDisplayStr("^N")
+  setWindow(182, 192, 28, 252)
+  printVersion(224) // win width
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def _newOrLoadGame(ask)#1
   byte key, existing
+  word p, ret
 
   existing = gameExists()
   if existing and !ask
@@ -632,30 +687,51 @@ def _newOrLoadGame(ask)#1
   // Pause a bit so the player can see the full title screen in all its glory
   pause(3000)
 
-  while TRUE
-    textHome()
-    ^$25 = 20
-    puts("\n    Game: N)ew, ")
+  ^$23 = 24 // Full text window until we're done
+  showCopyrightAndVer
+
+  ret = -1
+  while ret < 0
+
+    // Establish a window at the bottom
+    setWindow(171, 182, 56, 224)
+    clearWindow()
+
+    // Prompt the user for the main game options
+    buildString()
+    puts("^JGame: N)ew, ")
     if existing; puts("L)oad, "); fin
-    puts("I)mport?")
-    key = getTextKey() // soundKey()
+    puts("I)mport?^N")
+    p = finishString(FALSE)
+    centerStr(p, 168)
+    puts(p) // display on text screen too, since Jace looks for Import prompt there.
+
+    // Get their choice and act on it
+    key = getUpperKey()
+    clearWindow
     when key
       is 'N'
-        newGame(); return 1
+        newGame(); ret = 1; break
       is 'L'
         if gameExists
-          if loadInternal(); return 0; fin
+          if loadInternal(); ret = 0; break; fin
         else
           beep
         fin
         break
       is 'I'
-        if importGame(); return 0; fin
+        if importGame(); ret = 0; break; fin
       is 18 // ctrl-R
         setRecordMode(1)
     wend
   loop
-  return 0
+
+  // Brand future text screens with the version (adjust window to protect it)
+  ^$23 = 23
+  textHome
+
+  // All done
+  return ret
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

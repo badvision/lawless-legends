@@ -120,7 +120,7 @@ export word typeHash = 0
 export byte curHeapPct = 0
 byte lastMoveDir = $FF
 
-// Queue setMap / teleport / start_encounter, since otherwise script might be replaced while executing
+// Queue setMap / teleport, since otherwise script might be replaced while executing
 byte q_mapIs3D = 0
 byte q_mapNum = 1
 word q_x = 0
@@ -2363,7 +2363,39 @@ export def setMap(is3D, num, x, y, dir)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+export def callGlobalFunc(moduleNum, arg1, arg2, arg3)#1
+  word pModule, pFunc, ret
+
+  // First load the module
+  if renderLoaded; flipToPage1(); fin
+  mmgr(START_LOAD, 1) // code is in partition 1
+  pModule = mmgr(QUEUE_LOAD, moduleNum<<8 | RES_TYPE_MODULE)
+  mmgr(FINISH_LOAD, 0)
+
+  // Call the function, passing it the number of args it expects
+  pFunc = pModule()
+  when getArgCount(pFunc)
+    is 0; ret = pFunc(); break
+    is 1; ret = pFunc(arg1); break
+    is 2; ret = pFunc(arg1, arg2); break
+    is 3; ret = pFunc(arg1, arg2, arg3); break
+    otherwise fatal("maxGlobParams")
+  wend
+
+  // Unload the module and we're done.
+  mmgr(FREE_MEMORY, pModule)
+  return ret
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 export def queue_setMap(is3D, num, x, y, dir)#0
+  byte part
+  part = lookupResourcePart(is3d+1, num)
+  if part > diskLimit
+    clearWindow
+    callGlobalFunc(GS_DISK_LIMIT, 1, 0, 0)
+    return
+  fin
   q_mapIs3D = is3D
   q_mapNum = num
   q_x = x
@@ -2690,31 +2722,6 @@ def returnFromEngine(render)#0
     showParty()
     setWindow2()  // in case we're mid-script
   fin
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-export def callGlobalFunc(moduleNum, arg1, arg2, arg3)#1
-  word pModule, pFunc, ret
-
-  // First load the module
-  if renderLoaded; flipToPage1(); fin
-  mmgr(START_LOAD, 1) // code is in partition 1
-  pModule = mmgr(QUEUE_LOAD, moduleNum<<8 | RES_TYPE_MODULE)
-  mmgr(FINISH_LOAD, 0)
-
-  // Call the function, passing it the number of args it expects
-  pFunc = pModule()
-  when getArgCount(pFunc)
-    is 0; ret = pFunc(); break
-    is 1; ret = pFunc(arg1); break
-    is 2; ret = pFunc(arg1, arg2); break
-    is 3; ret = pFunc(arg1, arg2, arg3); break
-    otherwise fatal("maxGlobParams")
-  wend
-
-  // Unload the module and we're done.
-  mmgr(FREE_MEMORY, pModule)
-  return ret
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

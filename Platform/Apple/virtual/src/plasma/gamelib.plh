@@ -41,6 +41,7 @@ import gamelib
   predef createItem(itemNum)#1
   predef createStruct(moduleID, creationFuncNum)#1
   predef crout()#0
+  predef diskLimitChk(is3d, mapNum)#1
   predef displayChar(chr)#0
   predef displayf1(fmt, arg1)#0
   predef displayf2(fmt, arg1, arg2)#0

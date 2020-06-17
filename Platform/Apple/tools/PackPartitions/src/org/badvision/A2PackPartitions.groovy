@@ -1924,8 +1924,8 @@ class A2PackPartitions
         def day = cal.get(Calendar.DAY_OF_MONTH)
         def hour = cal.get(Calendar.HOUR_OF_DAY)
 
-        def yearCode = (year-2010 < 10) ? (char) (48+year-2010) : // 0=2010, 1=2011, etc.
-                       (char) (65+year-2020)                      // A=2020, B=2021, etc.
+        def yearCode = (year-2020 < 10) ? (char) (48+year-2020) : // 0=2020, 1=2021, etc.
+                       (char) (65+year-2030)                      // A=2030, B=2031, etc.
         def monthCode = (month < 9) ? (char) (48+month+1) :       // 1=Jan, 2=Feb...
                         month == 9 ? 'o' :                        // o=Oct
                         month == 10 ? 'n' :                       // n=Nov
@@ -2605,7 +2605,7 @@ class A2PackPartitions
             flagSet.sort().each { flg -> gameFlags[flg] = gameFlags.size() }
         }
         else if (name == "{outlaw}block" &&
-                 (data.@type == "interaction_get_flag" || data.@type == "interaction_set_flag"))
+                 (data.@type == "interaction_get_flag" || data.@type == "interaction_set_flag" || data.@type == "interaction_clr_flag" ))
         {
             def els = data.field
             assert els.size() == 1

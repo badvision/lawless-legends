@@ -660,7 +660,9 @@ def printVersion(windowWidth)#0
   puts(p)
 
   // And print in graphics mode too
-  rightJustifyStr(p, windowWidth)
+  if windowWidth
+    rightJustifyStr(p, windowWidth)
+  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -727,6 +729,7 @@ def _newOrLoadGame(ask)#1
   loop
 
   // Brand future text screens with the version (adjust window to protect it)
+  printVersion(0) // not on graphics
   ^$23 = 23
   textHome
 

@@ -2065,12 +2065,16 @@ class A2PackPartitions
         // And write out each disk
         partChunks.each { part ->
             //println "Writing disk ${part.partNum}."
-            def partFile = new File("build/root/game.part.${part.partNum}.bin")
-            partFile.withOutputStream { stream ->
-                writePartition(stream, part.partNum, part.chunks.values())
+            if (!diskLimit || part.partNum <= diskLimit) {
+                def partFile = new File("build/root/game.part.${part.partNum}.bin")
+                partFile.withOutputStream { stream ->
+                    writePartition(stream, part.partNum, part.chunks.values())
+                }
+                def spaceUsed = part.spaceUsed  // use var to avoid gigantic assert fail msg
+                assert spaceUsed == partFile.length()
             }
-            def spaceUsed = part.spaceUsed  // use var to avoid gigantic assert fail msg
-            assert spaceUsed == partFile.length()
+            else
+                println "Note: skipping part ${part.partNum} > diskLimit($diskLimit)"
         }
 
         println "Game version: V$gameVersion"
@@ -4471,6 +4475,10 @@ end
 
             // Skip the story partition (stories only included on 800k and higher builds)
             if (i == storyPartition)
+                continue
+
+            // Obey disk limit if any
+            if (i > diskLimit)
                 continue
 
             // Copy files.

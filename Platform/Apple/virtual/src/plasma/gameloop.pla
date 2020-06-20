@@ -1894,6 +1894,15 @@ def getArgCount(pFunc)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def setTextCountdown()#0
+  textClearCountdown = 3
+  if mapIs3D and texturesLoaded
+    copyWindow(0)
+  fin
+  textDrawn = FALSE
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Send an event to the scripts on the current map square
 export def scriptEvent(event, param)#0
   byte i, argCount
@@ -1920,11 +1929,7 @@ export def scriptEvent(event, param)#0
   
   inScript = FALSE
 
-  if textDrawn
-    textClearCountdown = 3
-    if mapIs3D and texturesLoaded; copyWindow(0); fin
-    textDrawn = FALSE
-  fin
+  if textDrawn; setTextCountdown; fin
   clearPortrait()
   if needShowParty; showParty(); fin
   if global=>p_players=>w_health == 0; q_playerDeath = TRUE; fin
@@ -2211,10 +2216,7 @@ def snooze()#1
   rawDisplayf2("%s%d ", global->b_minute < 10 ?? "0" :: "", global->b_minute)
   rawDisplayf1("%s.", global->b_hour < 12 ?? "am" :: "pm")
   snoozeX1, snoozeY = getCursor()
-  textClearCountdown = 3
-  if mapIs3D
-    copyWindow(0)
-  fin
+  setTextCountdown
   return 0
 end
 
@@ -2230,7 +2232,11 @@ export def moveInternal(facingDir, moveDir, beepOK, shouldAdvTime)#1
 
   // If not blocked, render at the new position.
   if val == 0
-    if beepOK and !inScript; beep(); fin // don't beep for scripted moves
+    if beepOK and !inScript // don't beep for scripted moves
+      clearTextWindow
+      rawDisplayStr("Blocked!\n")
+      setTextCountdown
+    fin
   else
     if !mapIs3D
       doRender()
@@ -2745,8 +2751,7 @@ def showPlayerSheet(num)#1
     scriptEvent(@S_USE, sNameToUse)
     if !anyInteraction
       scriptDisplayStr("Nothing happened.")
-      textClearCountdown = 3
-      if mapIs3D and texturesLoaded; copyWindow(0); fin
+      setTextCountdown
     fin
   fin
   return 0
@@ -2987,8 +2992,7 @@ def showMoveMode()#0
   rawDisplayStr("fast^N  ")
   if global->b_moveMode == 4; rawDisplayStr("^I"); fin
   rawDisplayStr("classic^N\n")
-  textClearCountdown = 3
-  if mapIs3D and texturesLoaded; copyWindow(0); fin
+  setTextCountdown
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

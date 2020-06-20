@@ -5012,7 +5012,7 @@ end
             outIndented("rawDisplayStr(\"\\n\\n\")\n")
 
             // On floppy builds, follow the intro with just the short text (usually e.g. "read log X")
-            outIndented("if isFloppyVer\n")
+            outIndented("if isFloppyVer or diskLimit\n")
             ++indent
             outTextBlock(blk.value[1].block, false)
             outIndented("promptAnyKey(TRUE)\n") // TRUE = clear after

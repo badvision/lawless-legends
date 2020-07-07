@@ -374,7 +374,7 @@ def checkMarks()#0
     if fieldLen <> ^($200 + mapNum); err = 'C'; break; fin
     sp = sp + fieldLen
   loop
-  if sp <> limit; err = 'D'; fin
+  if !err and sp <> limit; err = 'D'; fin
   if err; printf1("code=%c\n", err); fatal("corrupt automap"); fin
 
   // Print out the heap fullness, for later debugging

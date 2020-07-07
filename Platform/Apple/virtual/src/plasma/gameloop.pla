@@ -71,6 +71,7 @@ predef pause(count)#1
 predef printf1(str, arg1)#0
 predef printf2(str, arg1, arg2)#0
 predef playerDeath()#0
+predef setStat(player, statName, val)#0
 predef startGame(firstTime, ask)#0
 predef showAnimFrame()#0
 predef showParty()#0
@@ -1967,7 +1968,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load code and data, set up everything to display a 2D or 3D map
 def initMap(x, y, dir)#0
-  word pDiskOps // TEMPORARY - FIXME FOO
+  //AUTOMAP_CHECK// word pDiskOps
 
   // If we have a renderer loaded, let it know to flush automap marks
   textureControl(FALSE)
@@ -1999,12 +2000,12 @@ def initMap(x, y, dir)#0
     mmgr(QUEUE_LOAD, CODE_TILE_ENGINE<<8 | RES_TYPE_CODE)
   fin
   pGlobalTileset = mmgr(QUEUE_LOAD, 1<<8 | RES_TYPE_TILESET)  // even in 3d, need tiles for lamp/etc.
-  pDiskOps = mmgr(QUEUE_LOAD, MOD_DISKOPS<<8 | RES_TYPE_MODULE) // TEMPORARY - FIXME FOO
+  //AUTOMAP_CHECK// pDiskOps = mmgr(QUEUE_LOAD, MOD_DISKOPS<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
   if mapIs3D; loadUtil3d(); fin
 
-  pDiskOps()=>diskops_checkAutomap() // TEMPORARY - FIXME FOO
-  mmgr(FREE_MEMORY, pDiskOps) // TEMPORARY - FIXME FOO
+  //AUTOMAP_CHECK// pDiskOps()=>diskops_checkAutomap()
+  //AUTOMAP_CHECK// mmgr(FREE_MEMORY, pDiskOps)
 
   // Set up the command table
   initCmds() // must be after loading util3d
@@ -2130,7 +2131,8 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def advTime(hours, mins, secs)#0
-  byte redrawClock, runScript
+  byte redrawClock, runScript, prevHour, add
+  word player
 
   if secs
     global->b_second = global->b_second + secs
@@ -2152,11 +2154,23 @@ def advTime(hours, mins, secs)#0
 
     if hours
       redrawClock = TRUE
+      prevHour = global->b_hour
       global->b_hour = global->b_hour + hours
       while global->b_hour >= 24
         global->b_hour = global->b_hour - 24
       loop
       runScript = TRUE
+
+      // Heal over time every 12 hours
+      if (prevHour / 12) <> (global->b_hour / 12)
+        player = global=>p_players
+        while player
+          add = (rand16 % player->b_stamina)/3
+          setStat(player, @S_HEALTH, player=>w_health + add)
+          player = player=>p_nextObj
+        loop
+        if needShowParty; showParty(); fin
+      fin
     fin
 
     if mapIs3D and redrawClock
@@ -2248,7 +2262,7 @@ export def moveInternal(facingDir, moveDir, beepOK, shouldAdvTime)#1
   // Advance time if requested
   if shouldAdvTime
     if mapIs3D
-      for i = 0 to global->b_moveMode
+      for i = 1 to global->b_moveMode
         advTime(CLOCK_ADV_3D_HOURS, CLOCK_ADV_3D_MINS, CLOCK_ADV_3D_SECS)
       next
     else
@@ -2397,7 +2411,7 @@ end
 export def queue_setMap(is3D, num, x, y, dir)#0
   byte part
   part = lookupResourcePart(is3d+1, num)
-  if part > diskLimit
+  if diskLimit and part > diskLimit
     clearWindow
     callGlobalFunc(GS_DISK_LIMIT, 1, 0, 0)
     return

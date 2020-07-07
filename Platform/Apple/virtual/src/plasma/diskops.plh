@@ -13,4 +13,4 @@ const diskops_startup = 0
 const diskops_saveGame = 2
 const diskops_loadGame = 4
 const diskops_newOrLoadGame = 6
-const diskops_checkAutomap = 8  // TEMPORARY - FIXME FOO
+//AUTOMAP_CHECK// const diskops_checkAutomap = 8

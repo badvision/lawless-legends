@@ -44,8 +44,9 @@ predef _startup()#1
 predef _saveGame()#1
 predef _loadGame()#1
 predef _newOrLoadGame(ask)#1
-predef _checkAutomap()#1  // TEMPORARY - FIXME FOO
-word[] funcTbl = @_startup, @_saveGame, @_loadGame, @_newOrLoadGame, @_checkAutomap
+//AUTOMAP_CHECK// predef _checkAutomap()#1
+word[] funcTbl = @_startup, @_saveGame, @_loadGame, @_newOrLoadGame
+//AUTOMAP_CHECK// word           = @_checkAutomap
 
 byte[] game1_filename = "GAME.1.SAVE"
 byte[] legendos_filename = "LEGENDOS.SYSTEM"
@@ -381,11 +382,11 @@ def checkMarks()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// TEMPORARY FOR DISK MARK CHECKING - FIXME FOO
-def _checkAutomap()#1
-  readDiskMarks; checkMarks
-  return 0
-end
+// TEMPORARY FOR DISK MARK CHECKING
+//AUTOMAP_CHECK// def _checkAutomap()#1
+//AUTOMAP_CHECK//   readDiskMarks; checkMarks
+//AUTOMAP_CHECK//   return 0
+//AUTOMAP_CHECK// end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def _saveGame()#1
@@ -393,7 +394,7 @@ def _saveGame()#1
   // (also does a CHECK_MEM to be sure we never save corrupted heap)
   heapCollect()
 
-  readDiskMarks; checkMarks // TEMPORARY - FIXME FOO
+  //AUTOMAP_CHECK// readDiskMarks; checkMarks
 
   // Copy data to main memory, and write it out.
   memcpy(HEAP_BOTTOM, LOAD_SAVE_BUF, HEAP_SIZE, 0)  // LC to low mem
@@ -601,7 +602,7 @@ def clearDiskMarks()#0
   callProRWTS(RWTS_SEEK | RWTS_RDWRPART, NULL, NULL, HEAP_SIZE)
   callProRWTS(RWTS_WRITE | RWTS_RDWRPART, NULL, LOAD_SAVE_BUF, size+2)
 
-  _checkAutomap // FIXME FOO
+  //AUTOMAP_CHECK// _checkAutomap
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

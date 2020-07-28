@@ -5,15 +5,14 @@
  */
 package jace;
 
+import jace.apple2e.VideoNTSC;
 import jace.config.Configuration;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
 import jace.core.Utility;
 import jace.hardware.CardDiskII;
-import jace.hardware.CardMockingboard;
 import jace.hardware.CardRamFactor;
 import jace.hardware.CardRamworks;
-import jace.hardware.PassportMidiInterface;
 import jace.hardware.massStorage.CardMassStorage;
 import jace.lawless.LawlessHacks;
 import jace.lawless.LawlessImageTool;
@@ -155,11 +154,12 @@ public class LawlessLegends extends Application {
         Emulator.computer.card7.setValue(CardMassStorage.class);
         Emulator.computer.card6.setValue(CardDiskII.class);
         Emulator.computer.card5.setValue(CardRamFactor.class);
-        Emulator.computer.card4.setValue(CardMockingboard.class);
-        Emulator.computer.card2.setValue(PassportMidiInterface.class);
+        Emulator.computer.card4.setValue(null);
+        Emulator.computer.card2.setValue(null);
         Emulator.computer.cheatEngine.setValue(LawlessHacks.class);
         Configuration.buildTree();
         Emulator.computer.reconfigure();
+        VideoNTSC.setVideoMode(VideoNTSC.VideoMode.TextFriendly, false);
         ((LawlessImageTool) Emulator.computer.getUpgradeHandler()).loadGame();
     }
 }

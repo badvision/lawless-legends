@@ -2699,10 +2699,29 @@ export def saveMapPos()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def showMoveMode()#0
+  rawDisplayStr("Move mode:\n")
+  if global->b_moveMode == 1; rawDisplayStr("^I"); fin
+  rawDisplayStr("default^N  ")
+  if global->b_moveMode == 2; rawDisplayStr("^I"); fin
+  rawDisplayStr("fast^N  ")
+  if global->b_moveMode == 4; rawDisplayStr("^I"); fin
+  rawDisplayStr("classic^N\n")
+  setTextCountdown
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def promptHelp()#0
+  displayStr("Help key is '?'.\n\n")
+  setTextCountdown
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def restoreMapPos()#0
   mapIs3D = global->b_mapIs3D
   mapNum = global->b_mapNum
   initMap(global=>w_mapX, global=>w_mapY, global->b_mapDir)
+  promptHelp
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3003,20 +3022,6 @@ def showQuests()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def showMoveMode()#0
-  flipToPage1()
-  clearTextWindow()
-  rawDisplayStr("Move mode:\n")
-  if global->b_moveMode == 1; rawDisplayStr("^I"); fin
-  rawDisplayStr("default^N  ")
-  if global->b_moveMode == 2; rawDisplayStr("^I"); fin
-  rawDisplayStr("fast^N  ")
-  if global->b_moveMode == 4; rawDisplayStr("^I"); fin
-  rawDisplayStr("classic^N\n")
-  setTextCountdown
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 def switchMoveMode()#1
   byte dir
   word x, y
@@ -3037,6 +3042,8 @@ def switchMoveMode()#1
   setPos(x, y) // to round it
   needRender = TRUE
 
+  flipToPage1()
+  clearTextWindow()
   showMoveMode
 
   return 0
@@ -3572,6 +3579,10 @@ def startGame(firstTime, ask)#0
     q_mapNum = 0
     initMap(q_x, q_y, q_dir)
     saveGame()
+    promptHelp
+    showMoveMode
+    displayStr("Ctrl-C to change.\n")
+    setTextCountdown
   else
     q_mapNum = 0
     restoreMapPos()

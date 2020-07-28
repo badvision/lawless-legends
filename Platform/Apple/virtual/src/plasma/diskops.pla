@@ -673,9 +673,8 @@ def displayMenu(existing)#0
 
   setWindow(162, 190, 49, 231)
   clearWindow
-
+  ^EMUSIG_TITLE
   setWindow(162, 190, 56, 224)
-  clearWindow()
   rawDisplayStr("^J\n^Y") // down one line for nice-looking spacing from graphics
   callGlobalFunc(GS_COPYRIGHT, 0, 0 ,0)
   rawDisplayStr("\n^N")

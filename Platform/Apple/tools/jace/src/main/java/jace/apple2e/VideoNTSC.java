@@ -20,7 +20,6 @@ package jace.apple2e;
 
 import jace.Emulator;
 import jace.EmulatorUILogic;
-import static jace.apple2e.VideoDHGR.BLACK;
 import jace.config.ConfigurableField;
 import jace.config.InvokableAction;
 import jace.core.Computer;
@@ -33,6 +32,8 @@ import java.util.Set;
 import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
+
+import static jace.apple2e.VideoDHGR.BLACK;
 
 /**
  * Provides a clean color monitor simulation, complete with text-friendly
@@ -81,25 +82,28 @@ public class VideoNTSC extends VideoDHGR {
         Greenscreen("Green"),
         Amber("Amber");
         String name;
+
         VideoMode(String n) {
             name = n;
         }
     }
-    
+
     static int currentMode = -1;
+
     @InvokableAction(name = "Toggle video mode",
             category = "video",
             alternatives = "Gfx mode;color;b&w;monochrome",
             defaultKeyMapping = {"ctrl+shift+g"})
     public static void changeVideoMode() {
+        currentMode = (currentMode + 1) % VideoMode.values().length;
+        setVideoMode(VideoMode.values()[currentMode], true);
+    }
+
+    public static void setVideoMode(VideoMode newMode, boolean showNotification) {
         VideoNTSC thiss = (VideoNTSC) Emulator.computer.video;
-        currentMode++;
-        if (currentMode >= VideoMode.values().length) {
-            currentMode = 0;
-        }
         thiss.monochomeMode = false;
         WHITE = Color.WHITE;
-        switch (VideoMode.values()[currentMode]) {
+        switch (newMode) {
             case Amber:
                 thiss.monochomeMode = true;
                 WHITE = Color.web("ff8000");
@@ -129,10 +133,12 @@ public class VideoNTSC extends VideoDHGR {
                 break;
         }
         thiss.activePalette = thiss.useTextPalette ? TEXT_PALETTE : SOLID_PALETTE;
-        EmulatorUILogic.notify("Video mode: "+VideoMode.values()[currentMode].name);
+        if (showNotification) {
+            EmulatorUILogic.notify("Video mode: " + newMode.name);
+        }
         forceRefresh();
     }
-    
+
     @Override
     protected void showBW(WritableImage screen, int x, int y, int dhgrWord) {
         int pos = divBy28[x];
@@ -235,6 +241,7 @@ public class VideoNTSC extends VideoDHGR {
     }
 
     boolean monochomeMode = false;
+
     private void renderScanline(WritableImage screen, int y) {
         int p = 0;
         if (rowStart != 0) {
@@ -369,7 +376,7 @@ public class VideoNTSC extends VideoDHGR {
     }
     // The following section captures changes to the RGB mode
     // The details of this are in Brodener's patent application #4631692
-    // http://www.freepatentsonline.com/4631692.pdf    
+    // http://www.freepatentsonline.com/4631692.pdf
     // as well as the AppleColor adapter card manual
     // http://apple2.info/download/Ext80ColumnAppleColorCardHR.pdf
     rgbMode graphicsMode = rgbMode.MIX;
@@ -426,7 +433,7 @@ public class VideoNTSC extends VideoDHGR {
         }));
         rgbStateListeners.add(memory.observe(RAMEvent.TYPE.EXECUTE, 0x0fa62, (e) -> {
             // When reset hook is called, reset the graphics mode
-            // This is useful in case a program is running that 
+            // This is useful in case a program is running that
             // is totally clueless how to set the RGB state correctly.
             f1 = true;
             f2 = true;

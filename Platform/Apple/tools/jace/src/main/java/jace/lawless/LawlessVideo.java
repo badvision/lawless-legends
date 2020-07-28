@@ -44,6 +44,9 @@ public class LawlessVideo extends VideoNTSC {
             0, 0, 39, 191,
             39, 130, 78, 191
         }),
+        TITLE(new int[]{
+            56, 162, 224, 190
+        }),
         UNKNOWN;
         boolean[][] colorMask;
 

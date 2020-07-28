@@ -1,13 +1,12 @@
 /*
- * Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1 
+ * Copyright (C) 2015 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1
  * (the "License"); you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-1.1>.
- * Unless required by applicable law or agreed to in writing, software distributed under 
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF 
- * ANY KIND, either express or implied. See the License for the specific language 
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+ * ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
- 
 package org.badvision.outlaweditor.ui;
 
 import java.net.URL;
@@ -15,6 +14,8 @@ import java.util.ListResourceBundle;
 import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.Set;
+import javafx.application.Platform;
+import javafx.beans.value.ObservableValue;
 import javafx.concurrent.Worker.State;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -22,6 +23,7 @@ import javafx.fxml.Initializable;
 import javafx.scene.control.MenuItem;
 import javafx.scene.web.PromptData;
 import javafx.scene.web.WebView;
+import javafx.stage.Stage;
 import netscape.javascript.JSObject;
 import org.badvision.outlaweditor.MythosEditor;
 
@@ -111,11 +113,21 @@ public class MythosScriptEditorController
                             editorView.getEngine().executeScript(loadScript);
                         }
                     });
-            
+
             editorView.getEngine().setPromptHandler((PromptData prompt) -> {
                 return UIAction.getText(prompt.getMessage(), prompt.getDefaultValue());
             });
         }
+
+        // JavaFX8 has a bug where stage maximize events do not trigger resize events to webview components
+        Platform.runLater(() -> {
+            Stage stage = (Stage) editorView.getScene().getWindow();
+            if (stage != null) {
+                stage.maximizedProperty().addListener((ObservableValue<? extends Boolean> observable, Boolean oldValue, Boolean newValue) -> {
+                    Platform.runLater(()->editorView.getEngine().executeScript("window.dispatchEvent(new Event('resize'));"));
+                });
+            }
+        });
 
         //TODO: Verify the path conversion works in Win7 with a jar file
         // Affected by https://bugs.openjdk.java.net/browse/JDK-8136466

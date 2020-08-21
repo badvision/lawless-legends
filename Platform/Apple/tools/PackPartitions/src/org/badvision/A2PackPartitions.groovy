@@ -3824,19 +3824,26 @@ class A2PackPartitions
         return name
     }
 
+    def addFuncs(sheets, plName, singName, funcs)
+    {
+        def el = sheets.find { it?.@name.equalsIgnoreCase(plName) }
+        assert el : "Missing sheet '" + plName + "'"
+        withContext("sheet '" + plName + "'") {
+            el.rows.row.findAll{it.@name}.each { row ->
+                funcs << [singName, "NWp_${humanNameToSymbol(row.@name, false)}", funcs.size+1, row]
+            }
+        }
+    }
+
     def allItemFuncs(sheets)
     {
         def funcs = []
-        sheets.find { it?.@name.equalsIgnoreCase("weapons") }.rows.row.findAll{it.@name}.each { row ->
-            funcs << ["weapon", "NWp_${humanNameToSymbol(row.@name, false)}", funcs.size+1, row] }
+        addFuncs(sheets, "weapons", "weapon", funcs)
         nWeapons = funcs.size()
-        sheets.find { it?.@name.equalsIgnoreCase("armor") }.rows.row.findAll{it.@name}.each { row ->
-            funcs << ["armor",  "NAr_${humanNameToSymbol(row.@name, false)}", funcs.size+1, row] }
+        addFuncs(sheets, "armor",   "armor",  funcs)
         nArmors = funcs.size() - nWeapons
-        sheets.find { it?.@name.equalsIgnoreCase("ammo") }.rows.row.findAll{it.@name}.each { row ->
-            funcs << ["ammo",   "NAm_${humanNameToSymbol(row.@name, false)}", funcs.size+1, row] }
-        sheets.find { it?.@name.equalsIgnoreCase("items") }.rows.row.findAll{it.@name}.each { row ->
-            funcs << ["item",   "NIt_${humanNameToSymbol(row.@name, false)}", funcs.size+1, row] }
+        addFuncs(sheets, "ammo",    "ammo",   funcs)
+        addFuncs(sheets, "items",   "item",   funcs)
 
         // Global mapping of item name to function, so that give/take functions can create items.
         funcs.each { typeName, func, index, row ->

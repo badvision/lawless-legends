@@ -2702,11 +2702,11 @@ end
 def showMoveMode()#0
   rawDisplayStr("Move mode:\n")
   if global->b_moveMode == 1; rawDisplayStr("^I"); fin
-  rawDisplayStr("default^N  ")
+  rawDisplayStr("Default^N  ")
   if global->b_moveMode == 2; rawDisplayStr("^I"); fin
-  rawDisplayStr("fast^N  ")
+  rawDisplayStr("Fast^N  ")
   if global->b_moveMode == 4; rawDisplayStr("^I"); fin
-  rawDisplayStr("classic^N\n")
+  rawDisplayStr("Classic^N\n")
   setTextCountdown
 end
 
@@ -3067,9 +3067,10 @@ def initCmds()#0
   cmdTbl[$13] = @saveGame // ctrl-S
   cmdTbl[$0c] = @loadGame // ctrl-L
   cmdTbl['?'] = @help
+  cmdTbl['/'] = @help // in case they forget to hit shift
   cmdTbl[$07] = @toggleGodMode // ctrl-G
   cmdTbl[' '] = @snooze  // "space out" (snooze)
-  cmdTbl['P'] = @showAutomap
+  cmdTbl['M'] = @showAutomap
   cmdTbl['Q'] = @showQuests
   if global->b_godmode
     // install cheat commands
@@ -3092,7 +3093,6 @@ def initCmds()#0
     cmdTbl['A'] = util3d=>util3d_rotateLeft
     cmdTbl['D'] = util3d=>util3d_rotateRight
     cmdTbl['S'] = util3d=>util3d_moveBackward
-    cmdTbl['X'] = util3d=>util3d_moveBackward
     cmdTbl['Z'] = util3d=>util3d_strafeLeft
     cmdTbl['C'] = util3d=>util3d_strafeRight
 
@@ -3100,9 +3100,8 @@ def initCmds()#0
     cmdTbl['J'] = util3d=>util3d_rotateLeft
     cmdTbl['L'] = util3d=>util3d_rotateRight
     cmdTbl['K'] = util3d=>util3d_moveBackward
-    cmdTbl[','] = util3d=>util3d_moveBackward
-    cmdTbl['M'] = util3d=>util3d_strafeLeft
-    cmdTbl['.'] = util3d=>util3d_strafeRight
+    cmdTbl['H'] = util3d=>util3d_strafeLeft
+    cmdTbl[';'] = util3d=>util3d_strafeRight
 
     cmdTbl[11] = @moveForward  // up-arrow
     cmdTbl[8]  = util3d=>util3d_rotateLeft   // left-arrow
@@ -3112,14 +3111,12 @@ def initCmds()#0
     cmdTbl['W'] = @moveNorth
     cmdTbl['D'] = @moveEast
     cmdTbl['S'] = @moveSouth
-    cmdTbl['X'] = @moveSouth
     cmdTbl['A'] = @moveWest
 
     cmdTbl['I'] = @moveNorth
     cmdTbl['J'] = @moveWest
     cmdTbl['L'] = @moveEast
     cmdTbl['K'] = @moveSouth
-    cmdTbl[','] = @moveSouth
 
     cmdTbl[11] = @moveNorth  // up-arrow
     cmdTbl[8]  = @moveWest   // left-arrow

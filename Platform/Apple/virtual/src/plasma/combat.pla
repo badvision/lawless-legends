@@ -758,8 +758,9 @@ def playerCombatChoose(pl)#0
       is '#'
         if global->b_godmode
           forEach(global=>p_enemyGroups, &(g) forEach(g=>p_enemies, @killEnemy))
+          return
         fin
-        return
+        break
     wend
     if !redisplayMenu; beep(); fin
   loop

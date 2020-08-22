@@ -234,7 +234,7 @@ def _reloadWeapon(pl, pWeapon, echo)#1
   // Find matching ammo
   ctx = pWeapon; item = first(pl=>p_items, &(p) ammoMatches(p, ctx=>s_ammoKind))
   if !item
-    if echo
+    if echo and (pWeapon->b_clipCurrent < pWeapon->b_clipSize or !pWeapon->b_clipSize)
       displayf3("%s has no ammo to reload %s %s! ", pl=>s_name, hisHerTheir(pl->c_gender), pWeapon=>s_name))
     fin
     return 1
@@ -246,18 +246,20 @@ def _reloadWeapon(pl, pWeapon, echo)#1
   else
     n = min(item=>w_count, 1) // clipSize=0 implies auto-reloading weapon
   fin
-  pWeapon->b_clipCurrent = pWeapon->b_clipCurrent + n
-  item=>w_count = item=>w_count - n
-  if echo
-    displayf2("%s %sreloads ", pl=>s_name, pWeapon->b_clipCurrent < pWeapon->b_clipSize ?? "partially " :: "")
-    displayf2("%s %s", hisHerTheir(pl->c_gender), pWeapon=>s_name)
-    if item=>w_count == 0
-      displayStr(" and is now out")
+  if n > 0
+    pWeapon->b_clipCurrent = pWeapon->b_clipCurrent + n
+    item=>w_count = item=>w_count - n
+    if echo
+      displayf2("%s %sreloads ", pl=>s_name, pWeapon->b_clipCurrent < pWeapon->b_clipSize ?? "partially " :: "")
+      displayf2("%s %s", hisHerTheir(pl->c_gender), pWeapon=>s_name)
+      if item=>w_count == 0
+        displayStr(" and is now out")
+      fin
+      displayStr(". ")
     fin
-    displayStr(". ")
-  fin
-  if item=>w_count == 0
-    removeFromList(@pl=>p_items, item)
+    if item=>w_count == 0
+      removeFromList(@pl=>p_items, item)
+    fin
   fin
   return 1
 end

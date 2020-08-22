@@ -10,7 +10,6 @@
 
 // Each module-exported function needs its own constant, 0..n
 const diskops_startup = 0
-const diskops_saveGame = 2
-const diskops_loadGame = 4
-const diskops_newOrLoadGame = 6
+const diskops_loadGame = 2
+const diskops_newOrLoadGame = 4
 //AUTOMAP_CHECK// const diskops_checkAutomap = 8

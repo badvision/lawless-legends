@@ -75,6 +75,7 @@ predef pause(count)#1
 predef printf1(str, arg1)#0
 predef printf2(str, arg1, arg2)#0
 predef playerDeath()#0
+predef saveGame()#1
 predef setStat(player, statName, val)#0
 predef startGame(firstTime, ask)#0
 predef showAnimFrame()#0
@@ -98,6 +99,7 @@ byte texturesLoaded = FALSE
 byte textDrawn = FALSE
 byte anyInteraction = FALSE
 byte textClearCountdown = 0
+byte forceRawScrDisp = FALSE
 export byte isPlural = 0
 byte inScript = FALSE
 export byte isFloppyVer
@@ -164,6 +166,8 @@ export byte nextSignificantMinute
 byte snoozeX0, snoozeX1, snoozeY
 word timeEventFunc
 
+export byte[] S_GAME1_FILENAME = "GAME.1.SAVE"
+
 // Context for lambda functions (in lieu of closures, for now at least)
 export word ctx
 
@@ -211,6 +215,7 @@ asm _defs
 !source "../../include/plasma.i"
 !source "../../include/mem.i"
 !source "../../include/fontEngine.i"
+!source "../../include/prorwts.i"
 
 ; Optional debug printing support
 DEBUG   = 0
@@ -1162,6 +1167,53 @@ asm scanScripts(x, y, triggerTbl, mapScripts)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Params: cmd | open<<8, filename, addr, size. Returns: status (for open only)
+export asm callProRWTS(cmdPlusOpenFlg, filename, addr, size)#1
+    +asmPlasmRet 4
+    ; Params come to us from PLASMA in reverse order
+    sta setAuxZP
+    sta sizelo
+    sty sizehi
+
+    sta clrAuxZP
+    lda evalStkL+1,x
+    ldy evalStkH+1,x
+    sta setAuxZP
+    sta ldrlo
+    sty ldrhi
+
+    sta clrAuxZP
+    lda evalStkL+2,x
+    ldy evalStkH+2,x
+    sta setAuxZP
+    sta namlo
+    sty namhi
+
+    sta clrAuxZP
+    lda evalStkL+3,x
+    ldy evalStkH+3,x
+    sta setAuxZP
+    sta reqcmd
+    lda #0
+    sta auxreq
+
+    bit setLcRW+lcBank1
+    bit setLcRW+lcBank1
+    tya
+    bne +
+    jsr proRWTS
+    clc
+    bcc ++
++   jsr proRWTS+3
+++  lda status
+    ldy #0
+    bit setLcRW+lcBank2
+    bit setLcRW+lcBank2
+    sta clrAuxZP
+    rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // The following only used for speed testing
 //asm readNoSlotClock(dstBuf)#0  // param: dstBuf (will receive 8 BCD bytes)
 //!zone {
@@ -2098,6 +2150,7 @@ export def textureControl(flg)#0
           util3d = NULL
         fin
         showingLamp = FALSE
+        needRender = FALSE
       fin
     fin
     texturesLoaded = flg
@@ -2191,13 +2244,17 @@ end
 // Called by scripts to display a string. We set the flag noting that something has been
 // displayed, then use an assembly routine to do the work.
 def _scriptDisplayStr(str)#0
-  if renderLoaded and !curPortrait and !curFullscreenImg and needRender
+  if needRender and renderLoaded and texturesLoaded and !curPortrait and !curFullscreenImg
     doRender()
     flipToPage1()
     needRender = FALSE
   fin
   if textClearCountdown; clearTextWindow(); fin
-  displayStr(str)
+  if forceRawScrDisp
+    rawDisplayStr(str)
+  else
+    displayStr(str)
+  fin
   textDrawn = TRUE
   anyInteraction = TRUE
 end
@@ -2381,6 +2438,7 @@ export def setMap(is3D, num, x, y, dir)#0
     mapIs3D = is3D
     mapNum = num
     initMap(x, y, dir)
+    saveGame
   fin
   // Don't send enter event, because we often land on an "Exit to wilderness?" script
   //NO:scriptEvent(S_ENTER, NULL)
@@ -2480,7 +2538,7 @@ export def showMapName(mapName)#0
   if newNameHash <> mapNameHash
     setWindow1()
     clearWindow()
-    rawDisplayf1("^Y%s^N", mapName)
+    centerStr(mapName, 84)
     if mapIs3D and texturesLoaded; copyWindow(0); fin
     mapNameHash = newNameHash
   fin
@@ -2920,12 +2978,44 @@ export def checkEncounter(x, y, force)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+export def rwGame(cmd)#0
+  while TRUE
+    if callProRWTS(cmd | RWTS_OPENDIR, @S_GAME1_FILENAME, LOAD_SAVE_BUF, HEAP_SIZE) == 0
+      break
+    fin
+    textHome()
+    ^$c051
+    puts("Insert disk 1")
+    rdkey()
+    ^$c050
+  loop
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def saveGame()#1
+  word cursX, cursY
+
+  cursX, cursY = getCursor()
   saveMapPos()
-  flipToPage1()
   showMapName("Saving game...")
-  loadEngine(MOD_DISKOPS)=>diskops_saveGame()
-  returnFromEngine(TRUE)
+
+  textureControl(FALSE) // also flips to page 1
+
+  // Perform garbage collection and record the size of the heap so we can restore it correctly
+  // (also does a CHECK_MEM to be sure we never save corrupted heap)
+  heapCollect()
+
+  //AUTOMAP_CHECK// readDiskMarks; checkMarks
+
+  // Copy data to main memory, and write it out.
+  memcpy(HEAP_BOTTOM, LOAD_SAVE_BUF, HEAP_SIZE, 0)  // LC to low mem
+  rwGame(RWTS_WRITE)
+
+  mapNameHash = 0; showMapName(global=>s_mapName)
+  doRender
+  setWindow2()
+  setCursor(cursX, cursY)
+
   return 0
 end
 
@@ -2948,7 +3038,9 @@ end
 def help()#1
   flipToPage1
   setBigWindow; clearWindow
+  forceRawScrDisp = TRUE
   loadEngine(GS_HELP)()
+  forceRawScrDisp = FALSE
   returnFromEngine(TRUE)
   return 0
 end
@@ -3577,8 +3669,6 @@ def startGame(firstTime, ask)#0
     initMap(q_x, q_y, q_dir)
     saveGame()
     promptHelp
-    showMoveMode
-    displayStr("Ctrl-C to change.\n")
     setTextCountdown
   else
     q_mapNum = 0

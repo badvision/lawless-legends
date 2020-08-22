@@ -30,6 +30,7 @@ import gamelib
   predef calcPlayerArmor(player)#0
   predef calcWidth(pStr)#1
   predef callGlobalFunc(moduleNum, arg1, arg2, arg3)#1
+  predef callProRWTS(cmdPlusOpenFlg, filename, addr, size)#1
   predef charToUpper(c)#1
   predef checkEncounter(x, y, force)#0
   predef clearEncounterZones()#0
@@ -116,6 +117,7 @@ import gamelib
   predef rightJustifyStr(str, rightX)#0
   predef rollDice(encoded)#1
   predef roomInPack(p_player)#1
+  predef rwGame(cmd)#0
   predef scanForNamedObj(p_obj, name)#1
   predef scriptCombat(mapCode)#1
   predef scriptCopyTile(fromX, fromY, toX, toY)#0
@@ -191,5 +193,8 @@ import gamelib
 
   // Next: other useful strings
   byte[] S_HIS, S_HER, S_THEIR
+
+  // Load/save filename
+  byte[] S_GAME1_FILENAME
 
 end

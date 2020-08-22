@@ -4974,13 +4974,30 @@ end
         {
             if (valBlk[0].@type == 'text')
             {
+                def text = getSingle(getSingle(valBlk, null, 'text').field, 'TEXT').text()
+                if (!text) // interpret lack of text as a single empty string
+                    text = ""
+
                 // Break up long strings into shorter chunks for PLASMA.
                 // Note: this used to be 253, but still had some random mem overwrites.
-                // Decreasing to chunks of 200 seems to fix it.
-                def text = getSingle(getSingle(valBlk, null, 'text').field, 'TEXT').text()
-                def chunks = text.findAll(/.{200}|.*/).grep(~/.+/)
-                if (!text || text == "") // interpret lack of text as a single empty string
-                    chunks = [""]
+                //       Decreasing to chunks of 200 seems to fix it.
+                // Note: Take special care not to break things like "^M" into two separate chunks.
+                def chunks = []
+                def buf = new StringBuilder()
+                def count = 0
+                text.each { ch ->
+                    buf << ch
+                    if (ch != '^')
+                        ++count
+                    if (count >= 200) {
+                        chunks << buf.toString()
+                        buf.setLength(0)
+                        count = 0
+                    }
+                }
+                chunks << buf.toString()
+
+                // Now display each string
                 chunks.eachWithIndex { chunk, idx ->
                     String str = (idx == chunks.size()-1 && finishWithNewline) ? chunk+"\\n" : chunk
                     outIndented("scriptDisplayStr(" + escapeString(str) + ")\n")

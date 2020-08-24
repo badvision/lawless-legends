@@ -649,7 +649,7 @@ def _newOrLoadGame(ask)#1
           displayMenu(existing)
         fin
         break
-      is 18 // ctrl-R
+      is 'R'
         setRecordMode(1)
         break
     wend

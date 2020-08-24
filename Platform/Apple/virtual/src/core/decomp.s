@@ -31,8 +31,6 @@ DEBUG	= 0
 ; This guarantees that the decompression won't overwrite any source material
 ; before it gets used.
 decomp	!zone {
-	lda #$B0	; bcs
-	sta .ifend
 	jsr .chkdst
 	ldy #0		; In lit loop Y must be zero
 .fill1A	jsr .getbt2
@@ -41,10 +39,11 @@ decomp	!zone {
 .incdst	inc pDst+1
 .chkdst	ldx pDst+1
 	cpx pEnd+1
-	bne +
+	ldx #$B0	; bcs
+	bcc +
+	clc
 	ldx #$90	; bcc
-	stx .ifend
-+	clc
++	stx .ifend
 	rts
 
 .endchk	lda pDst
@@ -52,7 +51,8 @@ decomp	!zone {
 	bcc .seq
 	bne .bad
 	rts
-.bad	brk
+.bad	sta $C002	; clrAuxRd
+	brk
 
 .src1A	inc pSrc+1
 	bne .src1B	; always taken

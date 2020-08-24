@@ -273,7 +273,7 @@ init: !zone
 	cpx #MAX_SEGS-1		; did all segments yet?
 	bne .loop		; no, loop again
 ; Allocate space for the PLASMA frame stack
-!if DEBUG {
+!if DEBUG >= 2 {
 	lda #$20
 	sta framePtr+1		; because sanity check verifies it's not $BE or $BF
 }	
@@ -987,7 +987,7 @@ gc2_sweep: !zone
 closePartFile: !zone
 	lda partFileOpen	; check if open
 	beq .done
-	!if DEBUG { +prStr : !text "ClosePart.",0 }
+	!if DEBUG >= 2 { +prStr : !text "ClosePart.",0 }
 	dec partFileOpen
 .done	rts
 
@@ -1289,7 +1289,7 @@ dispatch:
 	rol		; transfer carry bit
 	sta isAuxCmd	; to isAuxCmd
 	pla
-!if DEBUG { jsr saneStart : jsr + : jmp saneEnd }
+!if DEBUG >= 1 { jsr saneStart : jsr + : jmp saneEnd }
 +	cmp #REQUEST_MEMORY
 	bne +
 	jmp mem_request
@@ -1350,7 +1350,7 @@ dispatch:
 
 ;------------------------------------------------------------------------------
 ; Debug-mode sanity checking
-!if DEBUG {
+!if DEBUG >= 1 {
 saneStart: !zone {
 	sta saneEnd+2	; save cmd num for end-checking
 	cmp #ADVANCE_ANIMS
@@ -1607,7 +1607,7 @@ shared_alloc:
 ; at the same time to guarantee that we never have the main part of a module
 ; without its aux part, or vice versa.
 reclaim: !zone
-	!if DEBUG { +prStr : !text "Reclaim.",0 }
+	!if DEBUG >= 2 { +prStr : !text "Reclaim.",0 }
 	lda isAuxCmd	; save whether current command is aux or not
 	pha
 	lda #1		; we do aux bank first
@@ -1640,7 +1640,7 @@ coalesce: !zone
 	ora tSegType,y		; and next seg
 	bne .next		; if either is active or has a type, can't combine
 	; we can combine the next segment into this one.
-	!if DEBUG >= 3 { jsr .debug }
+	!if DEBUG >= 4 { jsr .debug }
 	lda tSegLink,y
 	sta tSegLink,x
 	stx tmp
@@ -1650,7 +1650,7 @@ coalesce: !zone
 	tax			; to X reg index
 	bne .loop		; non-zero = not end of chain - loop again
 .done	rts
-!if DEBUG >= 3 {
+!if DEBUG >= 4 {
 .debug	+prStr : !text "Coalesce ",0
 	pha
 	txa
@@ -1975,7 +1975,7 @@ calcBufferDigest: !zone
 
 ;------------------------------------------------------------------------------
 openPartition: !zone
-	!if DEBUG { +prStr : !text "OpenPart ",0 : +prByte curPartition : +crout }
+	!if DEBUG >= 2 { +prStr : !text "OpenPart ",0 : +prByte curPartition : +crout }
 	; Make sure to read header into main mem, even if outer cmd is aux
 	lda isAuxCmd
 	pha
@@ -2124,7 +2124,7 @@ disk_queueLoad: !zone
 	lda (pTmp),y		; and hi byte
 +	stx reqLen		; save the uncompressed length
 	sta reqLen+1		; both bytes
-	!if DEBUG >= 2 { +prStr : !text "ucLen=",0 : +prWord reqLen : +crout }
+	!if DEBUG >= 3 { +prStr : !text "ucLen=",0 : +prWord reqLen : +crout }
 ; Load the bytecode of the gamelib (first) bytecode module at the highest possible point
 ; (to reduce fragmentation of the rest of aux mem) 
 	lda resType
@@ -2260,7 +2260,7 @@ disk_finishLoad: !zone
 	beq +			; not aux, skip
 	inc isAuxCmd		; set aux flag
 +	sty .ysave		; Save Y so we can resume scanning later.
-	!if DEBUG { jsr .debug1 }
+	!if DEBUG >= 1 { jsr .debug1 }
 	jsr disk_seek		; move the file pointer to the current block
 	ldy .ysave
 	lda (pTmp),y		; grab resource length on disk
@@ -2283,7 +2283,7 @@ disk_finishLoad: !zone
 	ldy tSegAdrHi,x		; hi byte too
 	sta pDst		; and save it for later
 	sty pDst+1
-	!if DEBUG { jsr .debug2 }
+	!if DEBUG >= 1 { jsr .debug2 }
 	plp			; retrieve isCompressed flag
 	bmi .readAndDecomp	; if so, go do read/decompress thing
 	lda #cmdread		; else, just read.
@@ -2346,7 +2346,7 @@ disk_finishLoad: !zone
 	; Now read the raw (compressed) data
 	lda #cmdread
 	jsr readAndAdj
-	!if DEBUG { jsr .debug3 }
+	!if DEBUG >= 1 { jsr .debug3 }
 	; Stuff was read to into pDst. Now that becomes the source. Decompressor is set up
 	; to decompress *from* our pDst to our pSrc. Its labels are swapped.
 	ldx isAuxCmd
@@ -2367,7 +2367,7 @@ disk_finishLoad: !zone
 .ysave:		!byte 0
 .nFixups:	!byte 0
 
-!if DEBUG {
+!if DEBUG >= 1 {
 .debug1:+prStr : !text "Ld t=",0
 	pha
 	lda resType
@@ -2397,6 +2397,22 @@ disk_finishLoad: !zone
 	+prStr : !text "end=",0
 	+prWord pEnd
 	+crout
+
+	;FIXME FOO
+	php
+	pha
+	lda resType
+	cmp #5
+	bne +
+	lda resNum
+	cmp #$27
+	bne +
+	lda #$60
+	sta 0
+	jsr 0
++	pla
+	plp
+
 	rts
 } ; end DEBUG
 
@@ -2421,7 +2437,7 @@ lz4Decompress: !zone
 ; Apply fixups to all modules that were loaded this round, and free the fixup
 ; resources from memory.
 doAllFixups: !zone
-	!if DEBUG >= 3 { +prStr : !text "Doing all fixups.",0 }
+	!if DEBUG >= 4 { +prStr : !text "Doing all fixups.",0 }
 	; Now scan aux mem for fixup segments
 	cli			; prevent interrupts while we mess around in aux mem
 	ldx #1			; start at first aux mem segment (0=main mem, 1=aux)
@@ -2470,7 +2486,7 @@ doAllFixups: !zone
 	lda tSegAdrHi,x
 	sta .auxBase+1
 
-	!if DEBUG >= 3 { jsr .debug1 }
+	!if DEBUG >= 4 { jsr .debug1 }
 
 	; Process the fixups
 .proc	jsr .fetchFixup		; get key byte
@@ -2489,7 +2505,7 @@ doAllFixups: !zone
 	and #$3F		; mask off the flags
 	adc .mainBase+1
 	sta pDst+1
-	!if DEBUG >= 3 { jsr .debug2 }
+	!if DEBUG >= 4 { jsr .debug2 }
 	clc
 	jsr .adMain		; recalc and store lo byte
 	iny
@@ -2510,7 +2526,7 @@ doAllFixups: !zone
 	and #$3F		; mask off the flags
 	adc .auxBase+1
 	sta pDst+1
-	!if DEBUG >= 3 { jsr .debug3 }
+	!if DEBUG >= 4 { jsr .debug3 }
 	sta setAuxWr
 	jsr .adAux		; recalc and store lo byte
 	iny
@@ -2543,7 +2559,7 @@ doAllFixups: !zone
 	cmp #$03
 	bne .resume		; not a stub, resume scanning
 	; found a stub, adjust it.
-	!if DEBUG >= 3 { jsr .debug4 }
+	!if DEBUG >= 4 { jsr .debug4 }
 	clc
 	ldx #0
 	jsr .adStub
@@ -2575,7 +2591,7 @@ doAllFixups: !zone
 	bne +
 	inc pSrc+1		; hi byte too, if necessary
 +	rts
-!if DEBUG >= 3 {
+!if DEBUG >= 4 {
 .debug1	+prStr : !text "Found fixup, res=",0
 	+prByte resNum
 	+prStr : !text "mainBase=",0
@@ -2737,7 +2753,7 @@ advSingleAnim:
 	iny		; now y=3, index current frame number
 	lda (tmp),y
 	sta .curFrame	; save it for comparison later
-	!if DEBUG = 2 { jsr .dbgB1 }
+	!if DEBUG >= 3 { jsr .dbgB1 }
 
 .chkr	ldy #0
 	lda (tmp),y	; get animation type (1=Forward, 2=Forward/Backward, 3=Forward+Stop, 4=Random)
@@ -2792,13 +2808,13 @@ advSingleAnim:
 	lda #0		; back to start
 +	iny		; index of current frame number
 	sta (tmp),y	; and store it
-	!if DEBUG = 2 { jsr .dbgB2 }
+	!if DEBUG >= 3 { jsr .dbgB2 }
 	rts
 
 .curFrame !byte 0
 .maxFrame !byte 0
 
-!if DEBUG = 2 { 
+!if DEBUG >= 3 {
 .dbgin	sta clrAuxRd
 	sta clrAuxWr
 	bit $c051
@@ -2831,7 +2847,7 @@ applyPatch:
 	tax		; patch zero?
 	beq .done	; if so, nothing to do
 	sta reqLen	; index of patch number to find
-	!if DEBUG = 2 { jsr .dbgC1 }
+	!if DEBUG >= 3 { jsr .dbgC1 }
 
 	ldx #3
 -	lda tmp,x	; copy pointers to load/store data: tmp->pSrc, pTmp->pDst
@@ -2857,7 +2873,7 @@ applyPatch:
 	pla		; get lo byte of len back
 	jsr .srcadd	; skip pSrc past last partial page in patch
 	jmp -
-+	!if DEBUG = 2 { jsr .dbgC2 }
++	!if DEBUG >= 3 { jsr .dbgC2 }
 
 	; pSrc now points at the patch to apply
 	; pDst now points at the base data to modify
@@ -2903,7 +2919,7 @@ applyPatch:
 	inc 1,x
 +	rts
 
-!if DEBUG = 2 { 
+!if DEBUG >= 3 {
 .dbgC1	jsr .dbgin
 	+prStr : !text "apply ",0
 	+prByte reqLen

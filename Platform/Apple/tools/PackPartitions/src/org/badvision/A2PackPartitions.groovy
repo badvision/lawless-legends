@@ -31,7 +31,6 @@ import javax.sound.midi.MidiSystem;
 import javax.sound.midi.Sequence;
 import javax.sound.midi.ShortMessage;
 import javax.sound.midi.Track;
-import javax.xml.bind.DatatypeConverter
 import groovy.json.JsonOutput
 import groovy.util.Node
 
@@ -351,7 +350,9 @@ class A2PackPartitions
     {
         def md = MessageDigest.getInstance("MD5")
         imgEls.each { md.update(it.toString().getBytes()) }
-        return DatatypeConverter.printHexBinary(md.digest())
+        def bytes = md.digest()
+        BigInteger bi = new BigInteger(1, bytes)
+        return String.format("%0" + (bytes.length << 1) + "X", bi)
     }
 
     def pixelize(dataEl, stride, nBytes, nLines)
@@ -919,17 +920,17 @@ class A2PackPartitions
         (0..<width).each { buf.put((byte)0xFF) }
 
         // Document memory usage so user can make intelligent choices about what/when to cut
-        def gameloopSize = bytecodes['gameloop'].buf.uncompressedLen
-        def mapScriptsSize = bytecodes[makeScriptName(mapName)].buf.uncompressedLen
-        def mapTexturesSize = texList.size() * 0x555
-        def totalAux = gameloopSize + mapScriptsSize + mapTexturesSize
-        def safeLimit = 38 * 1024  // observed by doing a DEBUG_MEM at very start of gameloop.pla
+        int gameloopSize = bytecodes['gameloop'].buf.uncompressedLen
+        int mapScriptsSize = bytecodes[makeScriptName(mapName)].buf.uncompressedLen
+        int mapTexturesSize = texList.size() * 0x555
+        int totalAux = gameloopSize + mapScriptsSize + mapTexturesSize
+        int safeLimit = 38.5 * 1024  // observed by doing a DEBUG_MEM at very start of gameloop.pla
         memUsage3D << String.format("%-20s: %4.1fK of %4.1fK used: %4.1fK scripts, %4.1fK in %2d textures, %4.1fK overhead%s",
             mapName, totalAux/1024.0, safeLimit/1024.0,
             mapScriptsSize/1024.0, mapTexturesSize/1024.0, texList.size(), gameloopSize/1024.0,
             totalAux > safeLimit ? " [WARNING]" : "")
         if (totalAux > safeLimit)
-            printWarning "memory will be dangerously full; see pack_report.txt for details."
+            printWarning "memory will be dangerously full ($totalAux > $safeLimit); see pack_report.txt for details."
 
         // Record texture dependencies
         texNames.each { addMapDep("texture", it) }
@@ -4251,8 +4252,8 @@ end
         def newFile = new File(oldFile + ".new")
         oldFile = new File(oldFile)
 
-        def newText = newFile.text
-        def oldText = oldFile.exists() ? oldFile.text : ""
+        def newText = newFile.text.normalize()
+        def oldText = oldFile.exists() ? oldFile.text.normalize() : ""
 
         if (newText == oldText) {
             //println "Same text, deleting $newFile"
@@ -4261,7 +4262,10 @@ end
         else {
             //println "Changed text, renaming $newFile to $oldFile"
             oldFile.delete() // needed on Windows
-            newFile.renameTo(oldFile)
+            oldFile.withWriter { out ->
+                out.append(newText)
+            }
+            newFile.delete()
         }
     }
 

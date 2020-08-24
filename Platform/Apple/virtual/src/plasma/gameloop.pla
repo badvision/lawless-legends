@@ -2230,8 +2230,8 @@ def advTime(hours, mins, secs)#0
       fin
     fin
 
-    if mapIs3D and redrawClock
-      if util3d; util3d=>util3d_showClock(); fin
+    if mapIs3D and redrawClock and renderLoaded and texturesLoaded and util3d
+      util3d=>util3d_showClock()
     fin
 
     if runScript and timeEventFunc

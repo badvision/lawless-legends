@@ -251,7 +251,10 @@ end
 def _showQuests()#1
   byte sel, needSetup, needRedisplay
 
+  displayMode = 'A'
+  curQuestNum = 0
   needSetup = TRUE
+
   while TRUE
 
     // Setup (or re-setup after returning from show-on-map)
@@ -261,9 +264,6 @@ def _showQuests()#1
       setWindow3; clearWindow
       useMapWindow // with clear
       loadExtraModules
-
-      displayMode = 'A'
-      curQuestNum = 0
 
       needRedisplay = TRUE // display after init
       needSetup = FALSE // because it's done now
@@ -287,6 +287,7 @@ def _showQuests()#1
         else
           beep
         fin
+        break
       is 'N'
         // Next quest
         if displayMode == 'A' and curQuestNum+1 < nActive

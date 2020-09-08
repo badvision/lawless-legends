@@ -1125,7 +1125,7 @@ def _automap_show(targetX, targetY)#1
           scrollLeft(8)
         fin
         break
-      is 'S'; is 'X'; is 'K'; is ','; is 10
+      is 'S'; is 'K'; is 10
         if screenY0+8 < totalMapHeight-1
           screenY0 = screenY0 + 8   // south
           screenY1 = screenY1 + 8

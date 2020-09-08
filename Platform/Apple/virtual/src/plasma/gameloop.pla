@@ -2769,17 +2769,10 @@ def showMoveMode()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def promptHelp()#0
-  displayStr("Help key is '?'.\n\n")
-  setTextCountdown
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 def restoreMapPos()#0
   mapIs3D = global->b_mapIs3D
   mapNum = global->b_mapNum
   initMap(global=>w_mapX, global=>w_mapY, global->b_mapDir)
-  promptHelp
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3668,7 +3661,6 @@ def startGame(firstTime, ask)#0
     q_mapNum = 0
     initMap(q_x, q_y, q_dir)
     saveGame()
-    promptHelp
     setTextCountdown
   else
     q_mapNum = 0

@@ -136,6 +136,7 @@ class A2PackPartitions
     def automapSpecials = []
     def stories   = [:]  // story text to story.num, story.text
     def storyPartition = 0
+    def logStories = [:] // log num to story.text
     def lootCodes  = [:] // loot code to loot.num
     def diskLimit = 0
 
@@ -2797,6 +2798,23 @@ class A2PackPartitions
         }
     }
 
+    def reportStoryLogs()
+    {
+        reportWriter.println(
+            "\n============================== Story Log Entries ==================================\n")
+        def maxLogNum = -9999999
+        logStories.each { key, val -> maxLogNum = Math.max(maxLogNum, key) }
+        for (def i=1; i<=maxLogNum; i++) {
+            if (logStories[i]) {
+                def text = logStories[i].replace("“", "\"").replace("”", "\"").
+                                         replace("‘", "'").replace("‘", "'").
+                                         replace("…", "...").
+                                         replace("^M", "\n")
+                reportWriter.println("Log $i - $text\n")
+            }
+        }
+    }
+
     def reportScriptLocs(data)
     {
         reportWriter.println(
@@ -3103,6 +3121,7 @@ class A2PackPartitions
         reportTeleports(dataIn)
         reportScriptLocs(dataIn)
         reportFlags(dataIn)
+        reportStoryLogs()
 
         if (debugCompression)
             println "Compression savings: $compressionSavings"
@@ -4974,13 +4993,18 @@ end
             return first
         }
 
-        def outTextBlock(valBlk, finishWithNewline)
+        def outTextBlock(valBlk, finishWithNewline, checkNoLog=false)
         {
             if (valBlk[0].@type == 'text')
             {
                 def text = getSingle(getSingle(valBlk, null, 'text').field, 'TEXT').text()
                 if (!text) // interpret lack of text as a single empty string
                     text = ""
+
+                if (checkNoLog) {
+                    if (text =~ /(?i)log\s+\d+/)
+                        printWarning "regular text block mentions log entry, should be story: \"$text\""
+                }
 
                 // Break up long strings into shorter chunks for PLASMA.
                 // Note: this used to be 253, but still had some random mem overwrites.
@@ -5025,7 +5049,7 @@ end
             }
             def valBlk = getSingle(blk.value, valName).block
             assert valBlk.size() == 1
-            outTextBlock(valBlk, blk.@type == 'text_println')
+            outTextBlock(valBlk, blk.@type == 'text_println', true)
         }
 
         def packStoryBook(blk)
@@ -5042,7 +5066,8 @@ end
             // On floppy builds, follow the intro with just the short text (usually e.g. "read log X")
             outIndented("if isFloppyVer or diskLimit\n")
             ++indent
-            outTextBlock(blk.value[1].block, false)
+            def shortBlk = blk.value[1].block
+            outTextBlock(shortBlk, false)
             outIndented("promptAnyKey(TRUE)\n") // TRUE = clear after
             --indent
 
@@ -5065,6 +5090,18 @@ end
             outIndented("fin\n")
 
             outIndented("setStoryMode(FALSE)\n")
+
+            // Checking
+            def shortText = getSingle(getSingle(shortBlk, null, 'text').field, 'TEXT').text()
+            def match = shortText =~ /(?i)log\s+(\d+)/
+            if (!match)
+                printWarning("Story short text doesn't mention 'log #': \"$shortText\".")
+            else {
+                def logNum = Integer.parseInt(match[0][1])
+                if (logStories.containsKey(logNum) && logStories[logNum] != longText)
+                    printWarning("Text for log $logNum is inconsistent.")
+                logStories[logNum] = longText
+            }
         }
 
         def packClearWindow(blk)

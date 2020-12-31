@@ -49,6 +49,8 @@ struc TGlobal
 
   // move mode (1=normal, 2=fast, 4=classic)
   byte b_moveMode
+
+  word w_bankBal
 end
 
 const PLAYER_FLAG_NPC  = $01

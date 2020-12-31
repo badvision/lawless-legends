@@ -195,7 +195,8 @@ class A2PackPartitions
         "Gold":         "@S_GOLD",
         "Time":         "@S_TIME",
         "XP":           "@S_XP",
-        "SP":           "@S_SP"
+        "SP":           "@S_SP",
+        "Bank bal":     "@S_BANK_BAL"
     ]
 
     def predefStrings = stats + [

@@ -195,6 +195,7 @@ export byte[] S_USE = "Use"
 export byte[] S_HIS = "his"
 export byte[] S_HER = "her"
 export byte[] S_THEIR = "their"
+export byte[] S_BANK_BAL = "Bank bal"
 
 word lastTick = 0
 
@@ -3507,6 +3508,7 @@ export def getStat(player, statName)#1
     is streqi(statName, @S_XP);           return player=>w_curXP
     is streqi(statName, @S_SP);           return player->b_skillPoints
     is streqi(statName, @S_PACK_SIZE);    return player->b_packSize
+    is streqi(statName, @S_BANK_BAL);     return global=>w_bankBal
   wend
   pSkill = scanForNamedObj(player=>p_skills, statName)
   if pSkill; return pSkill=>w_modValue; fin
@@ -3557,6 +3559,7 @@ export def setStat(player, statName, val)#0
     is streqi(statName, @S_XP);           addXP(player, val - player=>w_curXP); needShowParty = TRUE; break
     is streqi(statName, @S_SP);           player->b_skillPoints = clampByte(max(0, val)); needShowParty = TRUE; break
     is streqi(statName, @S_PACK_SIZE);    player->b_packSize = clampByte(max(player->b_packSize, val)); break
+    is streqi(statName, @S_BANK_BAL);     global=>w_bankBal = val; break
     otherwise
       pSkill = scanForNamedObj(player=>p_skills, statName)
       if pSkill

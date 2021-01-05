@@ -188,6 +188,7 @@ export byte[] S_GOLD = "Gold"
 export byte[] S_TIME = "Time"
 export byte[] S_XP = "XP"
 export byte[] S_SP = "SP"
+export byte[] S_BANK_BAL = "Bank bal"
 export byte[] S_PACK_SIZE = "Pack size"
 export byte[] S_ENTER = "Enter"
 export byte[] S_LEAVE = "Leave"
@@ -195,7 +196,6 @@ export byte[] S_USE = "Use"
 export byte[] S_HIS = "his"
 export byte[] S_HER = "her"
 export byte[] S_THEIR = "their"
-export byte[] S_BANK_BAL = "Bank bal"
 
 word lastTick = 0
 

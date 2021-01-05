@@ -507,6 +507,18 @@ if (typeof Mythos === "undefined") {
                     this.setTooltip('Print text and leave cursor at end of last printed character');
                 }
             };
+            Blockly.Blocks['text_printnum'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendValueInput("VALUE")
+                            .appendField("Print number");
+                    this.setOutput(false);
+                    this.setTooltip('Print a number and leave cursor at end of last printed character');
+                }
+            };
             Blockly.Blocks['text_storybook'] = {
                 init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
@@ -628,7 +640,7 @@ if (typeof Mythos === "undefined") {
             Blockly.Blocks['text_getnumber'] = {
                 init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
-                    this.setColour(54);
+                    this.setColour(Blockly.Blocks.logic.HUE);
                     this.appendDummyInput()
                             .appendField("Get Number");
                     this.setOutput(true, "Number");
@@ -820,6 +832,20 @@ if (typeof Mythos === "undefined") {
                     this.setTooltip('Set a player stat');
                 }
             };
+            Blockly.Blocks['interaction_set_stat_expr'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendValueInput("EXPR")
+                            .appendField("Set player's")
+                            .appendField(new Blockly.FieldTextInput(""), "NAME")
+                            .appendField("stat to");
+                    this.setOutput(false);
+                    this.setTooltip('Set a player stat by variable amount');
+                }
+            };
             Blockly.Blocks['interaction_increase_stat'] = {
                 init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
@@ -835,6 +861,20 @@ if (typeof Mythos === "undefined") {
                     this.setTooltip('Increase stat of player');
                 }
             };
+            Blockly.Blocks['interaction_increase_stat_expr'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendValueInput("EXPR")
+                            .appendField("Increase player's")
+                            .appendField(new Blockly.FieldTextInput(""), "NAME")
+                            .appendField("stat by");
+                    this.setOutput(false);
+                    this.setTooltip('Increase stat of player by variable amount');
+                }
+            };
             Blockly.Blocks['interaction_decrease_stat'] = {
                 init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
@@ -848,6 +888,20 @@ if (typeof Mythos === "undefined") {
                             .appendField(new Blockly.FieldTextInput("0"), "AMOUNT");
                     this.setOutput(false);
                     this.setTooltip('Decrease stat of player');
+                }
+            };
+            Blockly.Blocks['interaction_decrease_stat_expr'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendValueInput("EXPR")
+                            .appendField("Decrease player's")
+                            .appendField(new Blockly.FieldTextInput(""), "NAME")
+                            .appendField("stat by");
+                    this.setOutput(false);
+                    this.setTooltip('Decrease stat of player by variable amount');
                 }
             };
             Blockly.Blocks['interaction_increase_party_stats'] = {

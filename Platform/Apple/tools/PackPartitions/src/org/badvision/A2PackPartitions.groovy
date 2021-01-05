@@ -4901,6 +4901,8 @@ end
                     case 'text_print':
                     case 'text_println':
                         packTextPrint(blk, 'VALUE'); break
+                    case 'text_printnum':
+                        packTextPrintNum(blk); break
                     case 'text_storybook':
                         packStoryBook(blk); break
                     case 'text_clear_window':
@@ -4957,8 +4959,11 @@ end
                     case 'interaction_unbench_player':
                         packUnbenchPlayer(blk); break
                     case 'interaction_increase_stat':
+                    case 'interaction_increase_stat_expr':
                     case 'interaction_decrease_stat':
+                    case 'interaction_decrease_stat_expr':
                     case 'interaction_set_stat':
+                    case 'interaction_set_stat_expr':
                         packChangeStat(blk); break
                     case 'interaction_increase_party_stats':
                     case 'interaction_decrease_party_stats':
@@ -5051,6 +5056,16 @@ end
             def valBlk = getSingle(blk.value, valName).block
             assert valBlk.size() == 1
             outTextBlock(valBlk, blk.@type == 'text_println', true)
+        }
+
+        def packTextPrintNum(blk)
+        {
+            def valBlk = getSingle(blk.value, 'VALUE').block
+            assert valBlk.size() == 1
+            outIndented("scriptDisplayStr(sprintf1(\"%d\", ")
+            assert valBlk.size() == 1
+            packExpr(valBlk[0])
+            out << "))\n"
         }
 
         def packStoryBook(blk)
@@ -5212,20 +5227,31 @@ end
 
         def packChangeStat(blk)
         {
-            assert blk.field.size() == 2
+            assert blk.field.size() >= 1
             assert blk.field[0].@name == 'NAME'
-            assert blk.field[1].@name == 'AMOUNT' || blk.field[1].@name == 'NUMBER'
             def name = blk.field[0].text()
-            def amount = blk.field[1].text().toInteger()
-            assert amount > 0 && amount < 32767
             def stat = nameToStat(name)
-            if (blk.@type == 'interaction_set_stat')
-                outIndented("setStat(global=>p_players, $stat, $amount)\n")
+            if (blk.@type == 'interaction_set_stat' || blk.@type == 'interaction_set_stat_expr')
+                outIndented("setStat(global=>p_players, $stat, ")
             else {
-                def operator = blk.@type == 'interaction_increase_stat' ? '+' : '-'
+                def operator = (blk.@type == 'interaction_increase_stat' || blk.@type == 'interaction_increase_stat_expr') ? '+' : '-'
                 outIndented(
-                    "setStat(global=>p_players, $stat, getStat(global=>p_players, $stat) $operator $amount)\n")
+                    "setStat(global=>p_players, $stat, getStat(global=>p_players, $stat) $operator ")
             }
+
+            if (blk.field.size() >= 2) {
+                assert blk.field.size() == 2
+                assert blk.field[1].@name == 'AMOUNT' || blk.field[1].@name == 'NUMBER'
+                def amount = blk.field[1].text().toInteger()
+                assert amount > 0 && amount < 32767
+                out << amount
+            }
+            else {
+                assert blk.value.size() == 1
+                packExpr(blk.value[0].block[0], false)
+            }
+
+            out << ")\n"
         }
 
         def packChangePartyStats(blk)
@@ -5451,6 +5477,9 @@ end
                     break
                 case 'text_getcharacter':
                     out << "getCharResponse()"
+                    break
+                case 'text_getnumber':
+                    out << "parseDec(getStringResponse())"
                     break
                 case 'logic_compare':
                     packLogicCompare(blk)

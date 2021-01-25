@@ -2451,7 +2451,7 @@ export def callGlobalFunc(moduleNum, arg1, arg2, arg3)#1
 
   // First load the module
   if renderLoaded; flipToPage1(); fin
-  mmgr(START_LOAD, 1) // code is in partition 1
+  mmgr(START_LOAD, moduleNum <= LAST_REQ_GS_MOD ?? 1 :: curMapPartition)
   pModule = mmgr(QUEUE_LOAD, moduleNum<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
 

@@ -87,13 +87,13 @@ const MAX_PARTY = 3
 const DEFAULT_COMBAT_PAUSE_CT = 800
 
 // Signals to Jace, if present.
-const EMUSIG_FULL_COLOR = $C020 // e.g. title screen
-const EMUSIG_FULL_TEXT  = $C021 // e.g. inventory - big text window w/ graphics border
-const EMUSIG_2D_MAP     = $C022 // e.g. wilderness
-const EMUSIG_3D_MAP     = $C023 // e.g. in town
-const EMUSIG_AUTOMAP    = $C024 // all color except the map title
-const EMUSIG_STORY      = $C025 // all text except a portrait
-const EMUSIG_TITLE      = $C026 // all color except title screen menu area
+const EMUSIG_FULL_COLOR = $C049 // e.g. title screen
+const EMUSIG_FULL_TEXT  = $C04A // e.g. inventory - big text window w/ graphics border
+const EMUSIG_2D_MAP     = $C04B // e.g. wilderness
+const EMUSIG_3D_MAP     = $C04C // e.g. in town
+const EMUSIG_AUTOMAP    = $C04D // all color except the map title
+const EMUSIG_STORY      = $C04E // all text except a portrait
+const EMUSIG_TITLE      = $C04F // all color except title screen menu area
 
 // Game load/save
 const RWTS_SEEK  = 0

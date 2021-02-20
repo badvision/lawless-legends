@@ -204,6 +204,8 @@ init            jsr SETVID
 
                 ;fetch path, if any
 
+                lda #$FF    ; Martin Haye 2021-02-20: patch to avoid...
+                sta $200    ; ... using uninitialized value on MLI err
                 jsr MLI
                 !byte $c7
                 !word c7_parms

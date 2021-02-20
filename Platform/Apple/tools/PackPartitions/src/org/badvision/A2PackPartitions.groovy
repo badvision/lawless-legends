@@ -152,9 +152,11 @@ class A2PackPartitions
     def requiredGlobalScripts = ["New Game", "Help",
                                  "Combat win", "Combat intro", "Combat prompt", "Enemy intro", "Death",
                                  "Level XP", "Level SP",
-                                 "Disk limit", "Copyright"]
+                                 "Disk limit", "Copyright"
+                                ] as Set
     def globalScripts = [:]
     def lastSysModule
+    def lastReqGsModule
 
     def compressor = new Lx47Algorithm()
 
@@ -1839,6 +1841,9 @@ class A2PackPartitions
                      + 1 + portraits.size()  // number of portraits, then 1 byte per
         }
 
+        int partRootBlks = (partNum == 1) ? 1 : 3
+        availBlks -= partRootBlks
+
         reportWriter.println "\nDisk $partNum:"
         reportWriter.println String.format("  %-22s: %6.1fK",
                                 partNum == 1 ? "LegendOS+overhead" : "overhead",
@@ -1854,9 +1859,9 @@ class A2PackPartitions
             //println "Trying map $mapName"
             def mapSpace = traceResources(["map", mapName], mapChunks)
 
-            int blks = calcFileBlks(spaceUsed + overhead + mapSpace)
+            int blks = calcFileBlks(spaceUsed + overhead + mapSpace) - partRootBlks
             if (blks > availBlks) {
-                //println "stopping: map $mapName would add $mapSpace bytes, totaling $blks blks, too big."
+                //println "stopping: map $mapName would add $mapSpace bytes, totaling $blks blks w/ indexBlk, but only have $availBlks avail."
                 break
             }
 
@@ -1876,13 +1881,13 @@ class A2PackPartitions
 
             // After adding the root map, stuff in the most-used portraits onto disk 1
             if (mapName == "<root>") {
-                assert partNum == 1
                 reportWriter.println String.format("  %-22s: %6.1fK", "base resources", mapSpace / 1024.0)
                 def portraitsSpace = stuffMostUsedPortraits(maps, outChunks, availBlks, spaceUsed)
                 spaceUsed += portraitsSpace
                 blks = calcFileBlks(spaceUsed)
                 reportWriter.println String.format("  %-22s: %6.1fK", "shared portraits", portraitsSpace / 1024.0)
                 //println "stuffed most-used portraits for $portraitsSpace bytes, totaling $blks blks."
+                assert partNum == 1 : "Root resources must fit on disk 1"
             }
             else {
                 addedMapNames << mapName
@@ -2436,11 +2441,27 @@ class A2PackPartitions
         compileModule("gen_players", "src/plasma/")
         compileModule("gen_flags", "src/plasma/")
         compileModule("gen_quests", "src/plasma/")
+
+        // Pack required global scripts before non-required, so that their module IDs are contiguous.
+        def requiredGlobalScriptNames = [] as Set
+        requiredGlobalScripts.each { humanName -> requiredGlobalScriptNames << humanNameToSymbol(humanName, false) }
+        def nonReqGlobalScriptModules = [] as Set
         globalScripts.each { name, nArgs ->
-            compileModule("gs_"+name, "src/plasma/")
+            if (requiredGlobalScriptNames.contains(name))
+                compileModule("gs_"+name, "src/plasma/")
+        }
+        lastReqGsModule = modules.size()
+        globalScripts.each { name, nArgs ->
+            if (!requiredGlobalScriptNames.contains(name)) {
+                nonReqGlobalScriptModules << "gs_"+name
+                compileModule("gs_"+name, "src/plasma/")
+            }
         }
 
-        modules.each { k,v -> addResourceDep("map", "<root>", "module", k) }
+        modules.each { k,v ->
+            if (!nonReqGlobalScriptModules.contains(k))
+                addResourceDep("map", "<root>", "module", k)
+        }
     }
 
     /**
@@ -4387,6 +4408,8 @@ end
             code.each { k, v ->
                 out.println "const CODE_${humanNameToSymbol(k, true)} = ${v.num}"
             }
+            out.println ""
+            out.println "const LAST_REQ_GS_MOD = $lastReqGsModule"
             out.println ""
             modules.each { k, v ->
                 if (humanNameToSymbol(k, true).startsWith("GS_"))

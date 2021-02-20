@@ -86,7 +86,7 @@ INTERP  =       $03D0
         INC     SRCH
         INC     DSTH
         LDA     DSTH
-        CMP     #$E0
+        CMP     #$DF
         BNE     -
 ;
 ; INSTALL PAGE 0 FETCHOP ROUTINE

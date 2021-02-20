@@ -28,6 +28,7 @@ pEnd	= $10		; len 2
 
 pData	= $80		; len 2
 pRun	= $82		; len 2
+pDcmp	= $84		; len 2
 
 decomp	= $DF00
 
@@ -50,27 +51,29 @@ init	; Put something interesting on the screen :)
 	sta pData
 	lda #>dataStart
 	sta pData+1
-	bit setLcWr+lcBank1	; read from ROM, write to LC ram
-	bit setLcWr+lcBank1
-	; temporary: copy monitor ROM so we can debug decompressor
-	ldy #0
-	sty pSrc
-	ldx #$f8
---	stx pSrc+1
--	lda (pSrc),y
-	sta (pSrc),y
-	iny
-	bne -
-	inx
-	bne --
+	; For first phase, before initting ProRWTS, decomp needs to be in bank 2
+	; to avoid trashing ProDOS. (Only safe to trash after ProRWTS init).
+	bit setLcWr+lcBank2	; read from ROM, write to LC ram
+	bit setLcWr+lcBank2
 	; First is the decompressor itself (special: just copy one page)
 	jsr getBlk
+	lda pSrc	; save src ptr for later re-copy to final home
+	sta pDcmp
+	lda pSrc+1
+	sta pDcmp+1
 -	lda (pSrc),y
-.st	sta decomp,y
+	sta decomp,y
 	iny
 	bne -
 	; Next comes ProRWTS
 	jsr runBlk
+	; Now we can move decomp to its final home in bank 1
+	bit setLcWr+lcBank1	; read from ROM, write to LC ram
+	ldy #0
+-	lda (pDcmp),y
+	sta decomp,y
+	iny
+	bne -
 	; Then PLASMA
 	jsr runBlk
 	; And finally the memory mgr (fall through)
@@ -80,9 +83,9 @@ runBlk	jsr getBlk	; get block size and calc pointers
 	jsr $FE95
 	jsr debug
 }
-	bit setLcRW+lcBank1
+	bit setLcRW+lcBank2
 	jsr decomp	; decompress the code
-	bit setLcWr+lcBank1
+	bit setLcWr+lcBank2
 !if DEBUG {
 	lda #"R"
 	jsr ROM_cout

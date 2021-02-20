@@ -79,8 +79,8 @@ init	; Put something interesting on the screen :)
 	; And finally the memory mgr (fall through)
 runBlk	jsr getBlk	; get block size and calc pointers
 !if DEBUG { 
-	lda #1		; turn on printer
-	jsr $FE95
+;	lda #1		; turn on printer
+;	jsr $FE95
 	jsr debug
 }
 	bit setLcRW+lcBank2
@@ -91,7 +91,14 @@ runBlk	jsr getBlk	; get block size and calc pointers
 	jsr ROM_cout
 	jsr ROM_crout
 }
-	jmp $4000	; and run it so it'll relocate itself
+	jsr $4000	; and run it so it'll relocate itself
+	bit setLcWr+lcBank2
+!if DEBUG {
+	lda #"r"
+	jsr ROM_cout
+	jsr ROM_crout
+}
+	rts
 
 getByte	ldy #0
 	lda (pData),y

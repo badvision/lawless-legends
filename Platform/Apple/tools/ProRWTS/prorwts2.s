@@ -3,13 +3,19 @@
 ;copyright (c) Peter Ferrie 2013-2021
 ;assemble using ACME
 
-!cpu 6502
+ver_02 = 1
+
+!if ver_02 = 1 {
+  !cpu 6502
+} else { ;ver_02 = 0
+  !cpu 65c02
+} ;ver_02
 *=$4000
 
 ;place no code before init label below.
 
                 ;user-defined options
-                verbose_info = 0        ;set to 1 to enable display of memory usage
+                verbose_info = 1        ;set to 1 to enable display of memory usage
                 enable_floppy= 1        ;set to 1 to enable floppy drive support
                 poll_drive   = 1        ;set to 1 to check if disk is in drive, recommended if allow_multi is enabled
                 use_smartport= 1        ;set to 1 to enable support for more than two MicroDrive (or more than four CFFA) partitions

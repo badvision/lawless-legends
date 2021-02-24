@@ -21,7 +21,7 @@ ver_02 = 1
                 use_smartport= 1        ;set to 1 to enable support for more than two MicroDrive (or more than four CFFA) partitions
                 override_adr = 1        ;set to 1 to require an explicit load address
                 aligned_read = 0        ;set to 1 if all reads can be a multiple of block size (required for RWTS mode)
-                enable_readseq=0        ;set to 1 to enable reading multiple sequential times from the same file without seek
+                enable_readseq=1        ;set to 1 to enable reading multiple sequential times from the same file without seek
                                         ;(exposes a fixed address that can be called for either floppy or hard disk support)
                 enable_write = 1        ;set to 1 to enable write support
                                         ;file must exist already and its size cannot be altered
@@ -41,18 +41,18 @@ ver_02 = 1
                                         ;requires load_high to be set for arbitrary memory access
                                         ;else driver must be running from same memory target
                                         ;i.e. running from main if accessing main, running from aux if accessing aux
-                allow_saplings=0        ;enable support for saplings
-                allow_trees  = 0        ;enable support for tree files, as opposed to only seedlings and saplings
+                allow_saplings=1        ;enable support for saplings
+                allow_trees  = 1        ;enable support for tree files, as opposed to only seedlings and saplings
                                         ;required in RWTS mode if file > 128kb
-                fast_trees   = 0        ;keep tree block in memory, requires an additional 512 bytes of RAM
-                always_trees = 1        ;set to 1 if the only file access involves tree files
+                fast_trees   = 1        ;keep tree block in memory, requires an additional 512 bytes of RAM
+                always_trees = 0        ;set to 1 if the only file access involves tree files
                                         ;not compatible with allow_subdir, allow_saplings
                                         ;required in RWTS mode if allow_trees is enabled
                 detect_treof = 0        ;detect EOF during read of tree files
                 fast_subindex= 0        ;keep subindex block in memory, requires an additional 512 bytes of RAM
                                         ;halves the disk access for double the speed (ideal for RWTS mode)
                 allow_sparse = 0        ;enable support for reading sparse files
-                write_sparse = 1        ;enable support for writing to sparse files (blocks are allocated even if empty)
+                write_sparse = 0        ;enable support for writing to sparse files (blocks are allocated even if empty)
                                         ;used only by RWTS mode, writing to sparse files in non-RWTS mode will corrupt the file!
                 bounds_check = 0        ;set to 1 to prevent access beyond the end of the file
                                         ;but limits file size to 64k-2 bytes.
@@ -87,7 +87,7 @@ ver_02 = 1
   !if load_high = 1 {
     !ifdef PASS2 {
     } else { ;PASS2 not defined
-                reloc     = $ff00       ;page-aligned, as high as possible, the ideal value will be shown on mismatch
+                reloc     = $fb00       ;page-aligned, as high as possible, the ideal value will be shown on mismatch
     } ;PASS2
   } else { ;load_high = 0
                 reloc     = $d000       ;page-aligned, but otherwise wherever you want
@@ -113,31 +113,30 @@ ver_02 = 1
                 ;feel free to move them around
 
 !if (might_exist + poll_drive) > 0 {
-                status    = $50         ;returns non-zero on error
+                status    = $3          ;returns non-zero on error
 } ;might_exist = 1 or poll_drive = 1
 !if write_sparse = 1 {
-                sparseblk  = $50        ;(internal) last-read block was sparse if zero
+                sparseblk  = $3         ;(internal) last-read block was sparse if zero
 } ;write_sparse = 1
 !if allow_aux = 1 {
-                auxreq    = $51         ;set to 1 to read/write aux memory, else main memory is used
+                auxreq    = $a          ;set to 1 to read/write aux memory, else main memory is used
 } ;allow_aux = 1
-                sizelo    = $52         ;set if enable_write=1 and writing, or reading, or if enable_seek=1 and seeking
-                sizehi    = $53         ;set if enable_write=1 and writing, or reading, or if enable_seek=1 and seeking
+                sizelo    = $6          ;set if enable_write=1 and writing, or reading, or if enable_seek=1 and seeking
+                sizehi    = $7          ;set if enable_write=1 and writing, or reading, or if enable_seek=1 and seeking
 !if (enable_write + enable_seek + allow_multi + rwts_mode) > 0 {
-                reqcmd    = $54         ;set (read/write/seek) if enable_write=1 or enable_seek=1
+                reqcmd    = $2          ;set (read/write/seek) if enable_write=1 or enable_seek=1
                                         ;if allow_multi=1, bit 7 selects floppy drive in current slot (clear=drive 1, set=drive 2) during open call
                                         ;bit 7 must be clear for read/write/seek on opened file
 } ;enable_write = 1 or enable_seek = 1 or allow_multi = 1 or rwts_mode = 1
-                ldrlo     = $55         ;set to load address if override_adr=1
-                ldrhi     = $56         ;set to load address if override_adr=1
-                namlo     = $57         ;name of file to access
-                namhi     = $58         ;name of file to access
-                !set last_zp = $58      ;highest address to save if swap_zp enabled (max 127 entries later)
+                ldrlo     = $E          ;set to load address if override_adr=1
+                ldrhi     = $F          ;set to load address if override_adr=1
+                namlo     = $C          ;name of file to access
+                namhi     = $D          ;name of file to access
 
 !if enable_floppy = 1 {
-                tmpsec    = $3c         ;(internal) sector number read from disk
-                reqsec    = $3d         ;(internal) requested sector number
-                curtrk    = $40         ;(internal) track number read from disk
+                tmpsec    = $15         ;(internal) sector number read from disk
+                reqsec    = $16         ;(internal) requested sector number
+                curtrk    = $17         ;(internal) track number read from disk
 } ;enable_floppy = 1
 
                 command   = $42         ;ProDOS constant
@@ -150,51 +149,46 @@ ver_02 = 1
                 scratchlo = $48         ;(internal)
                 scratchhi = $49         ;(internal)
 
-                entries   = $3f         ;(internal) total number of entries in directory
+                entries   = $18         ;(internal) total number of entries in directory
 !if many_files = 1 {
-                entrieshi = $3b         ;(internal) total number of entries in directory
+                entrieshi = invalid    ;(internal) total number of entries in directory
 } ;many_files = 1
 
 !if mem_swap = 0 {
   !if rwts_mode = 1 {
-                lasttree  = $59         ;(internal) last used index in tree buffer
+                lasttree  = invalid    ;(internal) last used index in tree buffer
   } ;rwts_mode = 1
   !if allow_trees = 1 {
-                treeidx   = $5a         ;(internal) index into tree block
-                !set last_zp = $5a      ;highest address to save if swap_zp enabled (max 127 entries later)
+                treeidx   = $1b         ;(internal) index into tree block
+                                        ;MH: must be just after blkoffhi for proper seek reset in LegendOS
     !if always_trees = 0 {
-                istree    = $5b         ;(internal) flag to indicate tree file
+                istree    = $1c         ;(internal) flag to indicate tree file
     } ;always_trees = 0
     !if fast_trees = 0 {
-                treeblklo = $5c
-                treeblkhi = $5d
-                !set last_zp = $5d      ;highest address to save if swap_zp enabled (max 127 entries later)
+                treeblklo = invalid
+                treeblkhi = invalid
     } ;fast_trees = 0
   } ;allow_trees = 1
-                blkidx    = $5e         ;(internal) index into sapling block list
+                blkidx    = $12         ;(internal) index into sapling block list
   !if rwts_mode = 1 {
-                lastblk   = $5f         ;(internal) previous index into sapling block list
-                !set last_zp = $5f      ;highest address to save if swap_zp enabled (max 127 entries later)
+                lastblk   = invalid     ;(internal) previous index into sapling block list
   } ;rwts_mode = 1
   !if ((bounds_check or return_size) > 0) and ((rwts_mode or one_shot) = 0) {
-                bleftlo   = $60         ;(internal) bytes left in file
+                bleftlo   = $13         ;(internal) bytes left in file
   } ;(bounds_check = 1 or return_size = 1) and (rwts_mode = 0 and one_shot = 0)
   !if ((bounds_check or return_size or aligned_read) > 0) and ((rwts_mode or one_shot) = 0) {
-                blefthi   = $61         ;(internal) bytes left in file
-                !set last_zp = $61      ;highest address to save if swap_zp enabled (max 127 entries later)
+                blefthi   = $14         ;(internal) bytes left in file
   } ;(bounds_check = 1 or return_size = 1 or aligned_read = 1) and (rwts_mode and one_shot = 0)
   !if aligned_read = 0 {
-                blkofflo  = $62         ;(internal) offset within cache block
-                blkoffhi  = $63         ;(internal) offset within cache block
-                !set last_zp = $63      ;highest address to save if swap_zp enabled (max 127 entries later)
+                blkofflo  = $19         ;(internal) offset within cache block
+                blkoffhi  = $1a         ;(internal) offset within cache block
   } ;aligned_read = 0
 } ;mem_swap = 0
 
 !if enable_floppy = 1 {
-                step      = $64         ;(internal) state for stepper motor
-                tmptrk    = $65         ;(internal) temporary copy of current track
-                phase     = $66         ;(internal) current phase for seek
-                !set last_zp = $66      ;highest address to save if swap_zp enabled (max 127 entries later)
+                step      = $1d         ;(internal) state for stepper motor
+                tmptrk    = $1e         ;(internal) temporary copy of current track
+                phase     = $1f         ;(internal) current phase for seek
 } ;enable_floppy = 1
 
                 ;constants
@@ -234,9 +228,6 @@ ver_02 = 1
                 SETAUXWR  = $c005
                 CLRAUXZP  = $c008
                 SETAUXZP  = $c009
-
-                first_zp  = $40         ;lowest address to save if swap_zp enabled
-                                        ;last_zp is calculated automatically
 
                 D1S1      = 1           ;disk 1 side 1 volume ID if rwts_mode enabled
 
@@ -521,8 +512,8 @@ slot            ldx     $cfff
                 sty     unrcommand2
   } ;rwts_mode = 0 and aligned_read = 0 and enable_write = 1
                 sty     unrbloklo1
-                ;;lda     #>pblock
-                ;;pblock_enabled=1
+                lda     #>pblock
+                pblock_enabled=1
                 sta     unrbloklo1 + 2
   !if (rwts_mode + write_sparse) > 1 {
                 sta     unrbloklo2 + 2
@@ -534,7 +525,7 @@ slot            ldx     $cfff
                 sta     unrblokhi2 + 2
                 sta     unrblokhi3 + 2
   } ;rwts_mode = 1 and write_sparse = 1
-                ;;lda     #>paddr
+                lda     #>paddr
                 sta     unrunit1 + 4
                 ldy     #<pblock
                 sty     unrbloklo1 + 1

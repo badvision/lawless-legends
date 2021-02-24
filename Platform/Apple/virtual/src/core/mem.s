@@ -27,7 +27,7 @@
 ; Constants
 MAX_SEGS	= 96
 
-DEBUG		= 0
+DEBUG		= 1
 
 ; We overlap the compressed and uncompressed as much as possible, e.g.:
 ;   DDDDDDDDDDDDDD
@@ -2261,6 +2261,11 @@ disk_finishLoad: !zone
 	inc isAuxCmd		; set aux flag
 +	sty .ysave		; Save Y so we can resume scanning later.
 	!if DEBUG >= 1 { jsr .debug1 }
+
+	lda #$60
+	sta 0
+	jsr 0
+
 	jsr disk_seek		; move the file pointer to the current block
 	ldy .ysave
 	lda (pTmp),y		; grab resource length on disk

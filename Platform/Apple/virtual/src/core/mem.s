@@ -2007,7 +2007,8 @@ openPartition: !zone
 	ora floppyDrive		; $80 for drive 2
 	sta tmp
 	clc
-	jsr callProRWTS		; opendir
+!if DEBUG { jsr dbgrwts } else { jsr callProRWTS }
+;	jsr callProRWTS		; opendir
 	bne .flip		; status: zero=ok, 1=err
 	sta curMarkPos+1	; by opening we did an implicit seek to zero
 	sta curMarkPos+2
@@ -2170,7 +2171,8 @@ disk_queueLoad: !zone
 readAndAdj:
 	sta tmp			; store cmd num
 	sec			; calling rdwrpart (not opendir)
-	jsr callProRWTS		; and seek or read on the underlying file
+!if DEBUG { jsr dbgrwts } else { jsr callProRWTS }
+;	jsr callProRWTS		; and seek or read on the underlying file
 	; Advance our record of the mark position by the specified # of bytes.
 	; reqLen is still intact, because ProRWTS changes its copy in aux zp only
 	lda curMarkPos
@@ -2183,6 +2185,26 @@ readAndAdj:
 	bcc +
 	inc curMarkPos+2
 +	rts
+
+!if DEBUG {
+dbgrwts:
+	+prStr : !text $8d," rwts c/cmd/aux=",0
+	bcs +
+	+prChr 'o'
+	bcc ++
++	+prChr 'r'
+++	+prA
+	+prByte isAuxCmd
+	+prStr : !text "src/dst/len=",0
+	+prWord pSrc
+	+prWord pDst
+	+prWord reqLen
+	jsr callProRWTS
+	+prStr : !text "-> ",0
+	+prA
+	+crout
+	rts
+}
 
 ;------------------------------------------------------------------------------
 disk_seek: !zone

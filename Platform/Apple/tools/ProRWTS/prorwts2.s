@@ -49,7 +49,7 @@ ver_02 = 1
                                         ;not compatible with allow_subdir, allow_saplings
                                         ;required in RWTS mode if allow_trees is enabled
                 detect_treof = 0        ;detect EOF during read of tree files
-                fast_subindex= 0        ;keep subindex block in memory, requires an additional 512 bytes of RAM
+                fast_subindex= 1        ;keep subindex block in memory, requires an additional 512 bytes of RAM
                                         ;halves the disk access for double the speed (ideal for RWTS mode)
                 allow_sparse = 0        ;enable support for reading sparse files
                 write_sparse = 0        ;enable support for writing to sparse files (blocks are allocated even if empty)

@@ -2195,14 +2195,15 @@ dbgrwts:
 +	+prChr 'r'
 ++	+prA
 	+prByte isAuxCmd
-	+prStr : !text "src/dst/len=",0
-	+prWord pSrc
-	+prWord pDst
+	+prStr : !text "len/dst/src=",0
 	+prWord reqLen
+	+prWord pDst
+	+prWord pSrc
 	jsr callProRWTS
 	+prStr : !text "-> ",0
 	+prA
 	+crout
+	+waitKey
 	rts
 }
 

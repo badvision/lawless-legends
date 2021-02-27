@@ -1706,6 +1706,25 @@ nodelay
                 pla
                 jmp     nodisk
 +
+                ; Drive is spinning. See if there's real disk data.
+                ldx     #0
+                ldy     #0
+--              jsr     readnib
+-               cmp     #$D5
+                beq     +
+                inx
+                bne     --
+                iny
+                bne     --
+                pla
+                pla
+                jmp     nodisk
++               jsr     readnib
+                cmp     #$AA
+                bne     -
+                jsr     readnib
+                cmp     #$96
+                bne     -
   } ;poll_drive = 1
                 rts
 

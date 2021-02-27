@@ -64,7 +64,7 @@ cmdread		= 1
 cmdwrite	= 2
 
 ; ProRWTS locations
-rwts_mark	= $18		; to reset seek ptr, zero out 4 bytes here
+rwts_mark	= $18		; to reset seek ptr, zero out 5 bytes here
 proRWTS		= $D000
 
 ; Memory buffers
@@ -438,12 +438,16 @@ callProRWTS:
 
 ;------------------------------------------------------------------------------
 disk_rewind: !zone
++prStr : !text $8d,"rsk",$8d,0
 	lda #0
-	ldx #3			; clear all 32 bits
+	ldx #4			; clear all 5 bytes
 -	sta setAuxZP
 	sta rwts_mark,x		; rewind the ProRWTS seek pointer
 	sta clrAuxZP
-	sta curMarkPos,x	; reset our record of the current mark
+	dex
+	bpl -
+	ldx #2
+-	sta curMarkPos,x	; reset our record of the current mark
 	dex
 	bpl -
 	rts
@@ -1089,7 +1093,7 @@ segNum:		!byte 0
 nextLdVec:	jmp diskLoader
 curPartition:	!byte 0
 partFileOpen:	!byte 0
-curMarkPos:	!fill 4		; really 3, but 1 extra to match ProRWTS needs
+curMarkPos:	!fill 3
 setMarkPos:	!fill 3
 nSegsQueued:	!byte 0
 bufferDigest:	!fill 4
@@ -2040,7 +2044,6 @@ openPartition: !zone
 	cmp .origFloppy
 	bne .open
 ; ask user to insert the disk
-; TODO: handle dual drive configuration
 .insert	!if DEBUG = 0 { +safeHome }
 	+prStr : !text "Insert disk ",0
 	bit $c051
@@ -2203,7 +2206,6 @@ dbgrwts:
 	+prStr : !text "-> ",0
 	+prA
 	+crout
-	+waitKey
 	rts
 }
 
@@ -2284,11 +2286,6 @@ disk_finishLoad: !zone
 	inc isAuxCmd		; set aux flag
 +	sty .ysave		; Save Y so we can resume scanning later.
 	!if DEBUG >= 1 { jsr .debug1 }
-
-	lda #$60
-	sta 0
-	jsr 0
-
 	jsr disk_seek		; move the file pointer to the current block
 	ldy .ysave
 	lda (pTmp),y		; grab resource length on disk
@@ -2425,22 +2422,6 @@ disk_finishLoad: !zone
 	+prStr : !text "end=",0
 	+prWord pEnd
 	+crout
-
-	;FIXME FOO
-	php
-	pha
-	lda resType
-	cmp #5
-	bne +
-	lda resNum
-	cmp #$27
-	bne +
-	lda #$60
-	sta 0
-	jsr 0
-+	pla
-	plp
-
 	rts
 } ; end DEBUG
 
@@ -2455,11 +2436,6 @@ adjYpTmp: !zone
 	bmi +			; if still the same page, we're done
 	inc pTmp+1		; go to next page
 +	rts
-
-;------------------------------------------------------------------------------
-lz4Decompress: !zone
-; TODO: replace with LX47
-	brk
 
 ;------------------------------------------------------------------------------
 ; Apply fixups to all modules that were loaded this round, and free the fixup

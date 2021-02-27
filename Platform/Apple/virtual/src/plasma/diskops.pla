@@ -168,7 +168,7 @@ asm reseekRwts#0
     +asmPlasmNoRet 0
     sta setAuxZP
     lda #0
-    ldx #3
+    ldx #4      ; 5 bytes total to clear
 -   sta rwts_mark,x
     dex
     bpl -

@@ -651,6 +651,7 @@ def _newOrLoadGame(ask)#1
         break
       is 'R'
         setRecordMode(1)
+        displayMenu(existing)
         break
     wend
   loop

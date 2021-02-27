@@ -27,7 +27,7 @@
 ; Constants
 MAX_SEGS	= 96
 
-DEBUG		= 1
+DEBUG		= 0
 
 ; We overlap the compressed and uncompressed as much as possible, e.g.:
 ;   DDDDDDDDDDDDDD
@@ -438,7 +438,6 @@ callProRWTS:
 
 ;------------------------------------------------------------------------------
 disk_rewind: !zone
-+prStr : !text $8d,"rsk",$8d,0
 	lda #0
 	ldx #4			; clear all 5 bytes
 -	sta setAuxZP

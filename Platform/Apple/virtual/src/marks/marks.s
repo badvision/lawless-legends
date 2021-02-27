@@ -233,7 +233,7 @@ _writeMarks: !zone
 	bne .outer	; always taken
 .end	lda #0
 	sta bufStart	; clear buffer of marks
-	ldx #3		; reseek
+	ldx #4		; reseek
 -	sta rwts_mark,x
 	dex
 	bpl -

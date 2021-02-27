@@ -4471,7 +4471,9 @@ end
             // Create empty save file
             newSave.withOutputStream { outStream ->
                 // First, a big block for copying the small-object heap
-                (1..SAVE_GAME_BYTES).each { outStream.write( (byte) 0) }
+                // Per Peter Ferrie, it's necessary to write non-zeros here, so that
+                // when copied to a hard drive it doesn't end up as a sparse file.
+                (1..SAVE_GAME_BYTES).each { outStream.write( (byte) 0xbb) }
 
                 // Followed by empty automap marks
                 // Header: size of remaining marks data

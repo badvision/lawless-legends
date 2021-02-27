@@ -162,14 +162,14 @@ ver_02 = 1
                 treeidx   = $1b         ;(internal) index into tree block
                                         ;MH: must be just after blkoffhi for proper seek reset in LegendOS
     !if always_trees = 0 {
-                istree    = $1c         ;(internal) flag to indicate tree file
+                istree    = $12         ;(internal) flag to indicate tree file
     } ;always_trees = 0
     !if fast_trees = 0 {
                 treeblklo = invalid
                 treeblkhi = invalid
     } ;fast_trees = 0
   } ;allow_trees = 1
-                blkidx    = $12         ;(internal) index into sapling block list
+                blkidx    = $1c         ;(internal) index into sapling block list
   !if rwts_mode = 1 {
                 lastblk   = invalid     ;(internal) previous index into sapling block list
   } ;rwts_mode = 1

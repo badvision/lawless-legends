@@ -1211,8 +1211,8 @@ foundname       iny
                 jmp     rdwrfilei
 
 rdwrfile
-                jsr     prepdrive
-
+                ldy     driveind + 1
+                jsr     prepdrivei
   !if allow_subdir = 1 {
                 clc
   } ;allow_subdir = 1
@@ -1718,6 +1718,7 @@ prepdrive
   !if allow_multi = 1 {
                 ldy     #0
   } ;allow_multi = 1
+prepdrivei
                 jsr     poll
                 php
 

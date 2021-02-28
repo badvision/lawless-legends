@@ -148,17 +148,22 @@ umul_bb_b: !zone
 ; Output: fixed point 8+8 bit log2 in A(lo)/X(hi)
 ;
 log2_w_w: !zone
-	cpx #0
-	beq log2_b_w	; hi-byte zero? only consider low byte
+	cpx #1
+	bcc log2_b_w	; hi-byte zero? only consider low byte
+	beq .retMant8   ; avoid the expensive store and shift in one case
 	stx tmp
 	ldx #8		; start with exponent=8
 	lsr tmp		; shift down
-	beq .gotMant	; until high byte is exactly 1
 .hiLup:	ror		; save the bit we shifted out
 	inx		; bump the exponent
 	lsr tmp		; shift next bit
 	bne .hiLup	; loop again
 .gotMant:		; mantissa now in A, exponent in X. Translate mantissa to log using table, and we're done
+	tay
+	lda tbl_log2_w_w,y
+	rts
+.retMant8:
+	ldx #8		; exponent=8
 	tay
 	lda tbl_log2_w_w,y
 	rts

@@ -863,7 +863,7 @@ getHeapBlk:
 	bcs .done	;	if so we're done
 	lda (pSrc),y
 	bmi .isobj
-	clv		; it's a stirng
+	clv		; it's a string
 	tax
 .gotlen	sta reqLen
 .done	rts
@@ -2442,7 +2442,7 @@ adjYpTmp: !zone
 doAllFixups: !zone
 	!if DEBUG >= 4 { +prStr : !text "Doing all fixups.",0 }
 	; Now scan aux mem for fixup segments
-	cli			; prevent interrupts while we mess around in aux mem
+	sei			; prevent interrupts while we mess around in aux mem
 	ldx #1			; start at first aux mem segment (0=main mem, 1=aux)
 .loop:	lda tSegType,x		; grab flags & type
 	and #$F			; just type now
@@ -2451,7 +2451,7 @@ doAllFixups: !zone
 .next:	lda tSegLink,x		; next in chain
 	tax			; to X reg index
 	bne .loop		; non-zero = not end of chain - loop again
-	sei			; allow interrupts again
+	cli			; allow interrupts again
 	lda #1
 	sta isAuxCmd
 	jmp coalesce		; really free up the fixup blocks by coalescing them into free mem
@@ -2693,7 +2693,7 @@ advanceAnims: !zone {
 	lda #0
 	sta .ret1+1	; clear count of animated resources found
 	sta .ret2+1	; clear count of actual changes made
-	cli		; no interrupts while we read and write aux mem
+	sei		; no interrupts while we read and write aux mem
 	ldx isAuxCmd	; grab starting segment for main or aux mem
 	sta clrAuxRd,x	; read and
 	sta clrAuxWr,x	;	write aux or main mem, depending on how called
@@ -2733,7 +2733,7 @@ advanceAnims: !zone {
 .ret2	ldy #0		; return count of number we actually changed
 	sta clrAuxRd	; read and
 	sta clrAuxWr	;	write main mem
-	sei		; allow interrupts again now that we're done with aux mem
+	cli		; allow interrupts again now that we're done with aux mem
 	rts
 
 ; Advance a single animated resource. On entry:

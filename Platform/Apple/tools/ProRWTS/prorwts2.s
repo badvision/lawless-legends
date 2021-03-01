@@ -944,7 +944,6 @@ nextent         ldy     #0
   !if (might_exist + allow_subdir + allow_saplings + (allow_trees xor always_trees)) > 0 {
                 lda     (scratchlo), y
     !if might_exist = 1 {
-                sty     status
 
                 ;skip deleted entries without counting
 
@@ -1211,8 +1210,11 @@ foundname       iny
                 jmp     rdwrfilei
 
 rdwrfile
+  !if allow_multi = 1 {
                 ldy     driveind + 1
+  } ;allow_multi = 1
                 jsr     prepdrivei
+
   !if allow_subdir = 1 {
                 clc
   } ;allow_subdir = 1
@@ -1714,42 +1716,56 @@ unrseek = unrelocdsk + (* - reloc)
                 lda     PHASEOFF, x
                 rts
 
-prepdrive
-  !if allow_multi = 1 {
-                ldy     #0
-  } ;allow_multi = 1
+prepdrive       ldy     #0
 prepdrivei
-                jsr     poll
-                php
-
-unrdrvon2 = unrelocdsk + (* - reloc)
-                lda     MOTORON
+  !if allow_multi = 1 {
+                lda     #0              ;not TYA because LDY #0 might be skipped
+  } ;allow_multi = 1
+  !if might_exist = 1 {
+                sta     status
+  } ;might_exist = 1
   !if allow_multi = 1 {
                 asl     reqcmd
                 bcc     seldrive
 twodrives       nop                     ;replace with INY if drive exists
 seldrive        lsr     reqcmd
-unrdrvsel2 = unrelocdsk + (* - reloc)
-                lda     DRV0EN, y
 driveind        cpy     #0
-                beq     nodelay
                 sty     driveind + 1
-                plp
-                ldy     #0
-                php
-
-nodelay
+                clc
+                bne     newdrive
   } ;allow_multi = 1
-                plp
-  !if poll_drive = 0 {
+                jsr     poll
+  !if allow_multi = 1 {
+                cpx     #1
+  } ;allow_multi = 1
+
+newdrive
+unrdrvon2 = unrelocdsk + (* - reloc)
+                sta     MOTORON
+
+  !if allow_multi = 1 {
+unrdrvsel2 = unrelocdsk + (* - reloc)
+                sta     DRV0EN, y
+    !if poll_drive = 0 {
+                bcs     seekret
+
+                ;else fall through to spinup
+    } else { ;poll_drive = 1
+                bcs     +
+                jsr     spinup
+    } ;poll_drive = 0
+  } else { ;allow_multi = 0
+    !if poll_drive = 0 {
                 bne     seekret
 
                 ;else fall through to spinup
-
-  } else { ;poll_drive = 1 {
+    } else { ;poll_drive = 1
                 bne     +
                 jsr     spinup
+    } ;poll_drive = 0
+  } ;allow_multi = 1
 +
+  !if poll_drive = 1 {
                 jsr     readd5aa
                 bcs     seekret
                 pla

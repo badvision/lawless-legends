@@ -2131,6 +2131,17 @@ class A2PackPartitions
         // Finally, write out each chunk's data, including the header.
         stream.write(unwrapByteBuffer(hdrBuf))
         chunks.each {
+            // Uncomment and change below to print out raw compressed block data for chunk debug
+            //if (it.type == 8 && it.num == 2) {
+            //    println "Chunk t=8 n=2:"
+            //    for (int i=0; i<it.buf.len; i+=16) {
+            //        for (int j=0; j<16; j++) {
+            //            if ((i+j) < it.buf.len)
+            //                print String.format("%02X ", it.buf.data[i+j])
+            //        }
+            //        println ""
+            //    }
+            //}
             stream.write(it.buf.data, 0, it.buf.len)
         }
     }

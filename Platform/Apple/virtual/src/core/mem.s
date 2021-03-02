@@ -47,6 +47,7 @@ unused____0B	= $B	; len 1
 pSrc		= $C	; len 2
 pDst		= $E	; len 2
 pEnd		= $10	; len 2
+treeflg		= $12	; ProRWTS only - in aux
 
 ; Mapping of ProRWTS register names to mem mgr registers:
 ; "status"	-> tmp+1
@@ -428,16 +429,23 @@ callProRWTS:
 	sta 0,x
 	dex
 	bpl -
+	ldx treeflgsave	; save the (only) ProRWTS flag that might...
+	stx treeflg	; ...get overwritten between calls to mem mgr
 	bcc +
 	jsr proRWTS	; rdwrpart
 	jmp ++
 +	jsr proRWTS+3	; opendir
 	lda tmp+1	; grab the status code (only applicable for opendir)
-++	sta clrAuxZP
+++	ldx treeflg	; restore the (only) ProRWTS flag that might...
+	stx treeflgsave	; ...get overwritten between calls to mem mgr
+	tax		; re-test A for zero
+	sta clrAuxZP
 	rts
+treeflgsave !byte 0
 
 ;------------------------------------------------------------------------------
 disk_rewind: !zone
+!if DEBUG { +prStr : !text "rewind ",0 }
 	lda #0
 	ldx #4			; clear all 5 bytes
 -	sta setAuxZP
@@ -2190,19 +2198,19 @@ readAndAdj:
 
 !if DEBUG {
 dbgrwts:
-	+prStr : !text $8d," rwts c/cmd/aux=",0
+	+prStr : !text $8d," rwts c/a=",0
 	bcs +
 	+prChr 'o'
 	bcc ++
 +	+prChr 'r'
 ++	+prA
 	+prByte isAuxCmd
-	+prStr : !text "len/dst/src=",0
+	+prStr : !text "l/d/s=",0
 	+prWord reqLen
 	+prWord pDst
 	+prWord pSrc
 	jsr callProRWTS
-	+prStr : !text "-> ",0
+	+prChr '='
 	+prA
 	+crout
 	rts

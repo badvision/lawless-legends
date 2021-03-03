@@ -1171,6 +1171,7 @@ end
 // Params: cmd | open<<8, filename, addr, size. Returns: status (for open only)
 export asm callProRWTS(cmdPlusOpenFlg, filename, addr, size)#1
     +asmPlasmRet 4
+    sei   ; inhibit interrupts during aux operations
     ; Params come to us from PLASMA in reverse order
     sta setAuxZP
     sta sizelo
@@ -1211,6 +1212,7 @@ export asm callProRWTS(cmdPlusOpenFlg, filename, addr, size)#1
     bit setLcRW+lcBank2
     bit setLcRW+lcBank2
     sta clrAuxZP
+    cli   ; interrupts ok again
     rts
 end
 

@@ -421,6 +421,7 @@ _jbrk	jmp $1111		; self-modified by init
 ; On return, A contains status (for opendir only)
 callProRWTS:
 	inc _diskOpCt
+	sei		; inhibit interrupts during aux operations
 	; Copy the parameters to aux zero page
 	ldx #$F
 -	sta clrAuxZP
@@ -440,6 +441,7 @@ callProRWTS:
 	stx treeflgsave	; ...get overwritten between calls to mem mgr
 	tax		; re-test A for zero
 	sta clrAuxZP
+	cli		; interrupts ok again
 	rts
 treeflgsave !byte 0
 

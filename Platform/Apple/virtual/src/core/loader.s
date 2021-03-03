@@ -38,15 +38,30 @@ init	; Put something interesting on the screen :)
 	jsr ROM_setkbd
 	jsr ROM_setvid
 	jsr ROM_home
-	ldy #0
++	; Test that we have AUX RAM (required)
+	sty pSrc
+	sta setAuxZP
+	iny
+	sty pSrc
+	cpy pSrc
+	sta clrAuxZP
+	bne +
+	cpy pSrc
+	bne ++
++	ldy #0
+-	lda .insuffText,y
+	beq -		; loop forever
+	jsr ROM_cout
+	iny
+	bne -
+	; Display welcome message
+++	ldy #0
 -	lda .welcomeText,y
 	beq +
 	jsr ROM_cout
 	iny
 	bne -
-	beq +
-.welcomeText: !text "Welcome to LegendOS.",$8D,0
-; Init pointer to blocks we're going to move/decompress
+	; Init pointer to blocks we're going to move/decompress
 +	lda #<dataStart
 	sta pData
 	lda #>dataStart
@@ -166,5 +181,8 @@ debug	jsr ROM_crout
 	lda #" "
 	jmp ROM_cout
 }
+
+.insuffText : !text "REQUIRES 128K IIE OR LATER.",0
+.welcomeText: !text "Welcome to LegendOS.",$8D,0
 
 dataStart = *

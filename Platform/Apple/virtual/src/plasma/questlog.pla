@@ -313,6 +313,7 @@ def _showQuests()#1
         needRedisplay = TRUE
         break
       is $1B // Esc
+      is 'Q' // so that Q-Q opens and closes quest log
         setWindow2; clearWindow
         unloadExtraModules
         return 0

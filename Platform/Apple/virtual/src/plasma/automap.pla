@@ -1147,7 +1147,7 @@ def _automap_show(targetX, targetY)#1
         fin
         break
     wend
-  until key == 27 or key == 'Q' or key == '-' // esc or Q or - to exit
+  until key == 27 or key == 'Q' or key == 'M' // esc or Q or - to exit
 
   // Free up stuff we allocated or loaded
   auxMmgr(FREE_MEMORY, pAllMarks)

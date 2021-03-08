@@ -11,8 +11,8 @@ import jace.lawless.LawlessVideo.RenderEngine;
 public class LawlessHacks extends Cheats {
 
     // Modes specified by the game engine
-    int MODE_SOFTSWITCH = 0x0C020;
-
+    int MODE_SOFTSWITCH_MIN = 0x0C049;
+    int MODE_SOFTSWITCH_MAX = 0x0C04F;
 
     public LawlessHacks(Computer computer) {
         super(computer);
@@ -27,11 +27,12 @@ public class LawlessHacks extends Cheats {
     public void registerListeners() {
         // Observe graphics changes
         addCheat(RAMEvent.TYPE.ANY, false, (e) -> {
-            if ((e.getAddress() & 0x0FFF0) == MODE_SOFTSWITCH) {
+            int addr = e.getAddress() ;
+            if (addr >= MODE_SOFTSWITCH_MIN && e.getAddress()  <= MODE_SOFTSWITCH_MAX) {
                 System.out.println("Trapped " + e.getType().toString() + " to $"+Integer.toHexString(e.getAddress()));
-                setEngineByOrdinal(e.getAddress() - MODE_SOFTSWITCH);
+                setEngineByOrdinal(e.getAddress() - MODE_SOFTSWITCH_MIN);
             }
-        }, MODE_SOFTSWITCH, MODE_SOFTSWITCH | 0x0f);
+        }, MODE_SOFTSWITCH_MIN, MODE_SOFTSWITCH_MAX);
     }
 
     @Override

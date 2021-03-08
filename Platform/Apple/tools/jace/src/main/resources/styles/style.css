@@ -32,7 +32,7 @@
 }
 
 .uiActionButton ImageView, .uiSpeedSlider ImageView {
-    -fx-effect: dropshadow(gaussian , rgba(128,255,128,0.75) , 2,1.0,0,0);
+    -fx-effect: dropshadow(gaussian , rgba(64,255,64,0.25) , 2,1.0,0,0);
 }
 
 .uiSpeedSlider AnchorPane {

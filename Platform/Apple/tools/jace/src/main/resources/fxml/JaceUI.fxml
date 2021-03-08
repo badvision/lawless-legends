@@ -83,7 +83,7 @@
                               </Button>
                            </children>
                         </TilePane>
-                        <TilePane alignment="TOP_RIGHT" hgap="5.0" vgap="5.0" HBox.hgrow="ALWAYS">
+<!--                        <TilePane alignment="TOP_RIGHT" hgap="5.0" vgap="5.0" HBox.hgrow="ALWAYS">
                            <children>
                               <Button contentDisplay="TOP" mnemonicParsing="false" styleClass="uiActionButton" text="IDE">
                                  <graphic>
@@ -113,7 +113,7 @@
                                  </graphic>
                               </Button>
                            </children>
-                        </TilePane>
+                        </TilePane>-->
                      </children>
                   </HBox>
                </top>
@@ -153,7 +153,7 @@
                         </TilePane>
                         <TilePane alignment="TOP_RIGHT" hgap="5.0" vgap="5.0" HBox.hgrow="ALWAYS">
                            <children>
-                              <Button contentDisplay="TOP" mnemonicParsing="false" styleClass="uiActionButton" text="Play">
+<!--                              <Button contentDisplay="TOP" mnemonicParsing="false" styleClass="uiActionButton" text="Play">
                                  <graphic>
                                     <ImageView>
                                        <image>
@@ -161,7 +161,7 @@
                                        </image>
                                     </ImageView>
                                  </graphic>
-                              </Button>
+                              </Button>-->
                               <Button alignment="TOP_LEFT" contentDisplay="TOP" mnemonicParsing="false" styleClass="uiActionButton" text="Restart" TilePane.alignment="TOP_RIGHT">
                                  <graphic>
                                     <ImageView>

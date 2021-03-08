@@ -35,8 +35,6 @@ import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.Pane;
@@ -72,6 +70,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     double tileWidth = getCurrentPlatform().tileRenderer.getWidth() * zoom;
     double tileHeight = getCurrentPlatform().tileRenderer.getHeight() * zoom;
     Color cursorAssistColor = new Color(0.2, 0.2, 1.0, 0.4);
+    Script highlightedScript = null;
 
     @Override
     protected void onEntityUpdated() {
@@ -134,7 +133,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         getCurrentMap().shift(amt, 0);
         redraw();
     }
-    
+
     @Override
     public void buildEditorUI(Pane tileEditorAnchorPane) {
         anchorPane = tileEditorAnchorPane;
@@ -192,6 +191,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
 
     public void setSelectedScript(Script script) {
         selectedScript = script;
+        highlightedScript = script;
     }
 
     public Script getSelectedScript() {
@@ -314,7 +314,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         }
         for (int x = 0; x <= cols; x++) {
             for (int y = 0; y <= rows; y++) {
-                if (highlightScripts(x, y, currentMap.getLocationScripts(posX + x, posY + y))) {
+                if (highlightScripts(x, y, currentMap.getLocationScripts(posX + x, posY + y), highlightedScript)) {
                     tiles[x][y] = "SCRIPT";
                 }
             }
@@ -391,7 +391,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         }
     }
 
-    private boolean highlightScripts(int x, int y, List<Script> scripts) {
+    private boolean highlightScripts(int x, int y, List<Script> scripts, Script extraHighlight) {
         if (scripts == null || scripts.isEmpty()) {
             return false;
         }
@@ -400,6 +400,14 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
             return false;
         }
         GraphicsContext gc = drawCanvas.getGraphicsContext2D();
+        if (highlightedScript != null && visibleScripts.contains(extraHighlight)) {
+            Color color = currentMap.getScriptColor(extraHighlight).get().brighter();
+            color = Color.color(color.getRed(), color.getGreen(), color.getBlue(), 0.5);
+            gc.setFill(color);
+            double xx = x * tileWidth;
+            double yy = y * tileHeight;
+            gc.fillRect(xx, yy, tileWidth, tileHeight);
+        }
         int idx = 0;
         double xx = x * tileWidth;
         double yy = y * tileHeight;
@@ -499,8 +507,8 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
 
     public void copyScript(Script s) {
         java.util.Map<DataFormat, Object> clip = new HashMap<>();
-        clip.put(DataFormat.PLAIN_TEXT, "selection/map/" + 
-            ApplicationState.getInstance().getGameData().getMap().indexOf(getEntity()) + 
+        clip.put(DataFormat.PLAIN_TEXT, "selection/map/" +
+            ApplicationState.getInstance().getGameData().getMap().indexOf(getEntity()) +
             "/script/" + getEntity().getScripts().getScript().indexOf(s));
         Clipboard.getSystemClipboard().setContent(clip);
     }

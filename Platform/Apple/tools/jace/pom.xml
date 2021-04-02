@@ -4,7 +4,7 @@
 
     <groupId>org.8bitbunch</groupId>
     <artifactId>lawlesslegends</artifactId>
-    <version>2.0-SNAPSHOT</version>
+    <version>3.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>lawlesslegends</name>
@@ -26,7 +26,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
-                <version>2.10</version>
+                <version>3.1.2</version>
                 <executions>
                     <execution>
                         <id>unpack-dependencies</id>
@@ -45,7 +45,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
-                <version>1.4.0</version>
+                <version>3.0.0</version>
                 <executions>
                     <execution>
                         <id>unpack-dependencies</id>
@@ -78,7 +78,7 @@
                     <source>1.8</source>
                     <target>1.8</target>
                 </configuration>
-                <version>3.5</version>
+                <version>3.8.1</version>
             </plugin>
         </plugins>
     </build>
@@ -87,14 +87,19 @@
         <dependency>
             <groupId>org.reflections</groupId>
             <artifactId>reflections</artifactId>
-            <version>0.9.9</version>
+            <version>0.9.12</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.10</version>
+            <version>4.13.2</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>30.1.1-jre</version>
+        </dependency>            
         <dependency>
             <groupId>org.xerial.thirdparty</groupId>
             <artifactId>nestedvm</artifactId>

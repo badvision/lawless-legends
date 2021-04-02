@@ -20,11 +20,8 @@ package jace.core;
 
 import jace.state.Stateful;
 import jace.config.Reconfigurable;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
+import org.eclipse.collections.api.list.MutableList;
+import org.eclipse.collections.impl.factory.Lists;
 
 /**
  * Device is a very simple abstraction of any emulation component. A device
@@ -34,25 +31,26 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * Depending on the type of device, some special work might be required to
  * attach or detach it to the active emulation (such as what should happen when
- * a card is inserted or removed from a slot?)
- * Created on May 10, 2007, 5:46 PM
+ * a card is inserted or removed from a slot?) Created on May 10, 2007, 5:46 PM
  *
- * @author Brendan Robert (BLuRry) brendan.robert@gmail.com 
+ * @author Brendan Robert (BLuRry) brendan.robert@gmail.com
  */
 @Stateful
 public abstract class Device implements Reconfigurable {
+
     protected Computer computer;
-    private List<Device> children;
-    
+    private MutableList<Device> children;
+
     private Device() {
-        children = Collections.synchronizedList(new ArrayList<>());
+        // TODO: Previously this was synchronized -- confirm this is safe to leave unsynchronized
+        children = Lists.mutable.<Device>empty();
     }
-    
+
     public Device(Computer computer) {
         this();
         this.computer = computer;
     }
-    
+
     // Number of cycles to do nothing (for cpu/video cycle accuracy)
     @Stateful
     private int waitCycles = 0;
@@ -62,14 +60,14 @@ public abstract class Device implements Reconfigurable {
     public boolean isPaused = false;
     @Stateful
     public boolean isAttached = false;
-    
+
     public void addChildDevice(Device d) {
         children.add(d);
         if (isAttached) {
             d.attach();
         }
     }
-    
+
     public void removeChildDevice(Device d) {
         children.remove(d);
         d.suspend();
@@ -77,19 +75,19 @@ public abstract class Device implements Reconfigurable {
             d.detach();
         }
     }
-    
-    public void addAllDevices(Collection<Device> devices) {
+
+    public void addAllDevices(Iterable<Device> devices) {
         devices.forEach(this::addChildDevice);
     }
-    
-    public List<Device> getChildren() {
-        return Collections.unmodifiableList(children);
+
+    public Iterable<Device> getChildren() {
+        return children.asUnmodifiable();
     }
 
     public boolean getRunningProperty() {
         return run;
     }
-    
+
     public void addWaitCycles(int wait) {
         waitCycles += wait;
     }

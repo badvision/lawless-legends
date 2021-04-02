@@ -195,7 +195,7 @@ public class ZipWarpAccelerator extends Device {
     
     @Override
     public void tick() {
-        if (zipUnlockCount > 0) {
+        if (zipUnlockCount > 0.0) {
             zipUnlockCount -= UNLOCK_PENALTY_PER_TICK;
         }
     }

@@ -24,8 +24,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Device is a very simple abstraction of any emulation component. A device
@@ -58,7 +57,7 @@ public abstract class Device implements Reconfigurable {
     @Stateful
     private int waitCycles = 0;
     @Stateful
-    private final BooleanProperty run = new SimpleBooleanProperty(true);
+    private boolean run = true;
     @Stateful
     public boolean isPaused = false;
     @Stateful
@@ -87,7 +86,7 @@ public abstract class Device implements Reconfigurable {
         return Collections.unmodifiableList(children);
     }
 
-    public BooleanProperty getRunningProperty() {
+    public boolean getRunningProperty() {
         return run;
     }
     
@@ -100,38 +99,24 @@ public abstract class Device implements Reconfigurable {
     }
 
     public void doTick() {
-        /*
-         if (waitCycles <= 0)
-         tick();
-         else
-         waitCycles--;
-         */
-
-        if (!run.get()) {
-//            System.out.println("Device stopped: " + getName());
-            isPaused = true;
-            return;
-        }
-        // The following might be as much as 7% faster than the above
-        // My guess is that the above results in a GOTO
-        // whereas the following pre-emptive return avoids that
-        if (waitCycles > 0) {
+        if (run) {
+            children.forEach(Device::tick);
+            if (waitCycles <= 0) {
+                tick();
+                return;
+            }
             waitCycles--;
-            return;
         }
-        // Implicit else...
-        children.forEach(Device::doTick);
-        tick();
     }
 
     public boolean isRunning() {
-        return run.get();
+        return run;
     }
 
     public synchronized void setRun(boolean run) {
 //        System.out.println(Thread.currentThread().getName() + (run ? " resuming " : " suspending ")+ getDeviceName());
         isPaused = false;
-        this.run.set(run);
+        this.run = run;
     }
 
     protected abstract String getDeviceName();

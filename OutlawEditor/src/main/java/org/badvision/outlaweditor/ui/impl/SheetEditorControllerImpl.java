@@ -116,12 +116,13 @@ public class SheetEditorControllerImpl extends SheetEditorController {
                 }).collect(Collectors.toCollection(editor.getSheet().getColumns()::getColumn));
 
                 editor.getSheet().setRows(new Rows());
+                List<String> header = data.get(0);
                 data.stream().skip(1)
                         .map(cols -> {
                             Row r = new Row();
                             for (int i = 0; i < cols.size(); i++) {
-                                if (cols.get(i) != null) {
-                                    setValue(r.getOtherAttributes(), data.get(0).get(i), cols.get(i));
+                                if (cols.get(i) != null && header.size() > i && header.get(i) != null) {                                    
+                                    setValue(r.getOtherAttributes(), header.get(i), cols.get(i));
                                 }
                             }
                             return r;

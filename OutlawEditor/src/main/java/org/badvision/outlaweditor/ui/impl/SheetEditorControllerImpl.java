@@ -72,6 +72,8 @@ public class SheetEditorControllerImpl extends SheetEditorController {
                 createMenuItem("Insert Row", () -> insertRow(new Row(), getSelectedRow())),
                 createMenuItem("Clone Row", () -> cloneRow(editor.getSheet().getRows().getRow().get(getSelectedRow()))),
                 createMenuItem("Delete Row", () -> deleteRowWithConfirmation(editor.getSheet().getRows().getRow().get(getSelectedRow()))),
+                createMenuItem("Delete Column", () -> deleteColumnWithConfirmation(editor.getSheet().getColumns().getColumn().get(getSelectedColumn()))),
+                createMenuItem("Rename Column", () -> renameColumn(editor.getSheet().getColumns().getColumn().get(getSelectedColumn()))),
                 createMenuItem("Sort ascending", () -> {
                     int sortCol = table.getSelectionModel().getFocusedCell().getColumn();
                     table.setComparator((a,b)->compare(getCellFromRow(a, sortCol), getCellFromRow(b, sortCol)));
@@ -99,6 +101,10 @@ public class SheetEditorControllerImpl extends SheetEditorController {
         return table.getSelectionModel().getFocusedCell().getRow();
     }
 
+    private int getSelectedColumn() {
+        return table.getSelectionModel().getFocusedCell().getColumn();
+    }
+    
     @Override
     public void doImport(ActionEvent event) {
         FileChooser openFileDialog = new FileChooser();

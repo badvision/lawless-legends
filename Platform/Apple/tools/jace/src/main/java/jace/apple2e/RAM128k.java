@@ -44,6 +44,7 @@ abstract public class RAM128k extends RAM {
     Logger LOG = Logger.getLogger(RAM128k.class.getName());
 
     Map<String, PagedMemory> banks;
+    Map<String, PagedMemory> memoryConfigurations = new HashMap<>();
     String state = "???";
 
     private Map<String, PagedMemory> getBanks() {
@@ -90,8 +91,8 @@ abstract public class RAM128k extends RAM {
                 // 64 da : Dump all memory mappings
                 System.out.println("Active banks");
                 for (int i = 0; i < 256; i++) {
-                    byte[] read = activeRead.get(i);
-                    byte[] write = activeWrite.get(i);
+                    byte[] read = this.activeRead.get(i);
+                    byte[] write = this.activeWrite.get(i);
                     String readBank = getBanks().keySet().stream().filter(bank -> {
                         PagedMemory mem = getBanks().get(bank);
                         for (byte[] page : mem.getMemory()) {
@@ -162,148 +163,250 @@ abstract public class RAM128k extends RAM {
 
     private final Semaphore configurationSemaphone = new Semaphore(1, true);
 
+    public String getReadConfiguration() {
+        String rstate = "";
+        if (SoftSwitches.RAMRD.getState()) {
+            rstate += "Ra";
+        } else {
+            rstate += "R0";
+        }
+        String LCR = "L0R";
+        if (SoftSwitches.LCRAM.isOn()) {
+            if (SoftSwitches.AUXZP.isOff()) {
+                LCR = "L1R";
+                if (SoftSwitches.LCBANK1.isOff()) {
+                    LCR = "L2R";
+                }
+            } else {
+                LCR = "L1aR";
+                if (SoftSwitches.LCBANK1.isOff()) {
+                    LCR = "L2aR";
+                }
+            }
+        }
+        rstate += LCR;
+        if (SoftSwitches.CXROM.getState()) {
+            rstate += "CXROM";
+        } else {
+            rstate += "!CX";
+            if (SoftSwitches.SLOTC3ROM.isOff()) {
+                rstate += "C3";
+            }
+            if (SoftSwitches.INTC8ROM.isOn()) {
+                rstate += "C8";
+            } else {
+                rstate += String.format("C8%d", getActiveSlot());
+            }
+        }
+
+        return rstate;
+    }
+
+    public String getWriteConfiguration() {
+        String wstate = "";
+        if (SoftSwitches.RAMWRT.getState()) {
+            wstate += "Wa";
+        } else {
+            wstate += "W0";
+        }
+        String LCW = "L0W";
+        if (SoftSwitches.LCWRITE.isOn()) {
+            if (SoftSwitches.AUXZP.isOff()) {
+                LCW = "L1W";
+                if (SoftSwitches.LCBANK1.isOff()) {
+                    LCW = "L2W";
+                }
+            } else {
+                LCW = "L1aW";
+                if (SoftSwitches.LCBANK1.isOff()) {
+                    LCW = "L2aW";
+                }
+            }
+        }
+        wstate += LCW;
+        return wstate;
+    }
+
+    public String getAuxZPConfiguration() {
+        String astate = "";
+        if (SoftSwitches._80STORE.isOn()) {
+            astate += "80S";
+            if (SoftSwitches.PAGE2.isOn()) {
+                astate += "2";
+            }
+            if (SoftSwitches.HIRES.isOn()) {
+                astate += "H";
+            }
+        }
+
+        // Handle zero-page bankswitching
+        if (SoftSwitches.AUXZP.getState()) {
+            astate += "Za";
+        } else {
+            astate += "Z0";
+        }
+        return astate;
+    }
+
+    public PagedMemory buildReadConfiguration() {
+        PagedMemory read = new PagedMemory(0x10000, PagedMemory.Type.RAM, computer);
+        // First off, set up read/write for main memory (might get changed later on)
+        read.fillBanks(SoftSwitches.RAMRD.getState() ? getAuxMemory() : mainMemory);
+
+        // Handle language card softswitches
+        read.fillBanks(rom);
+        if (SoftSwitches.LCRAM.isOn()) {
+            if (SoftSwitches.AUXZP.isOff()) {
+                read.fillBanks(languageCard);
+                if (SoftSwitches.LCBANK1.isOff()) {
+                    read.fillBanks(languageCard2);
+                }
+            } else {
+                read.fillBanks(getAuxLanguageCard());
+                if (SoftSwitches.LCBANK1.isOff()) {
+                    read.fillBanks(getAuxLanguageCard2());
+                }
+            }
+        }
+
+        // Handle 80STORE logic for bankswitching video ram
+        if (SoftSwitches._80STORE.isOn()) {
+            read.setBanks(0x04, 0x04, 0x04,
+                    SoftSwitches.PAGE2.isOn() ? getAuxMemory() : mainMemory);
+            if (SoftSwitches.HIRES.isOn()) {
+                read.setBanks(0x020, 0x020, 0x020,
+                        SoftSwitches.PAGE2.isOn() ? getAuxMemory() : mainMemory);
+            }
+        }
+
+        // Handle zero-page bankswitching
+        if (SoftSwitches.AUXZP.getState()) {
+            // Aux pages 0 and 1
+            read.setBanks(0, 2, 0, getAuxMemory());
+        } else {
+            // Main pages 0 and 1
+            read.setBanks(0, 2, 0, mainMemory);
+        }
+
+        /*
+            INTCXROM   SLOTC3ROM  C1,C2,C4-CF   C3
+            0         0          slot         rom
+            0         1          slot         slot
+            1         -          rom          rom
+         */
+        if (SoftSwitches.CXROM.getState()) {
+            // Enable C1-CF to point to rom
+            read.setBanks(0, 0x0F, 0x0C1, cPageRom);
+        } else {
+            // Enable C1-CF to point to slots
+            for (int slot = 1; slot <= 7; slot++) {
+                PagedMemory page = getCard(slot).map(Card::getCxRom).orElse(blank);
+                read.setBanks(0, 1, 0x0c0 + slot, page);
+            }
+            if (getActiveSlot() == 0) {
+                for (int i = 0x0C8; i < 0x0D0; i++) {
+                    read.set(i, blank.get(0));
+                }
+            } else {
+                getCard(getActiveSlot()).ifPresent(c -> read.setBanks(0, 8, 0x0c8, c.getC8Rom()));
+            }
+            if (SoftSwitches.SLOTC3ROM.isOff()) {
+                // Enable C3 to point to internal ROM
+                read.setBanks(2, 1, 0x0C3, cPageRom);
+            }
+            if (SoftSwitches.INTC8ROM.isOn()) {
+                // Enable C8-CF to point to internal ROM
+                read.setBanks(7, 8, 0x0C8, cPageRom);
+            }
+        }
+        // All ROM reads not intecepted will return 0xFF! (TODO: floating bus)
+        read.set(0x0c0, blank.get(0));
+        return read;
+    }
+
+    public PagedMemory buildWriteConfiguration() {
+        PagedMemory write = new PagedMemory(0x10000, PagedMemory.Type.RAM, computer);
+        // First off, set up read/write for main memory (might get changed later on)
+        write.fillBanks(SoftSwitches.RAMWRT.getState() ? getAuxMemory() : mainMemory);
+
+        // Handle language card softswitches
+        for (int i = 0x0c0; i < 0x0d0; i++) {
+            write.set(i, null);
+        }
+        if (SoftSwitches.LCWRITE.isOn()) {
+            if (SoftSwitches.AUXZP.isOff()) {
+                write.fillBanks(languageCard);
+                if (SoftSwitches.LCBANK1.isOff()) {
+                    write.fillBanks(languageCard2);
+                }
+            } else {
+                write.fillBanks(getAuxLanguageCard());
+                if (SoftSwitches.LCBANK1.isOff()) {
+                    write.fillBanks(getAuxLanguageCard2());
+                }
+            }
+        } else {
+            // Make 0xd000 - 0xffff non-writable!
+            for (int i = 0x0d0; i < 0x0100; i++) {
+                write.set(i, null);
+            }
+        }
+
+        // Handle 80STORE logic for bankswitching video ram
+        if (SoftSwitches._80STORE.isOn()) {
+            write.setBanks(0x04, 0x04, 0x04,
+                    SoftSwitches.PAGE2.isOn() ? getAuxMemory() : mainMemory);
+            if (SoftSwitches.HIRES.isOn()) {
+                write.setBanks(0x020, 0x020, 0x020,
+                        SoftSwitches.PAGE2.isOn() ? getAuxMemory() : mainMemory);
+            }
+        }
+
+        // Handle zero-page bankswitching
+        if (SoftSwitches.AUXZP.getState()) {
+            // Aux pages 0 and 1
+            write.setBanks(0, 2, 0, getAuxMemory());
+        } else {
+            // Main pages 0 and 1
+            write.setBanks(0, 2, 0, mainMemory);
+        }
+
+        return write;
+    }
+
     /**
      *
      */
     @Override
     public void configureActiveMemory() {
+
+        String auxZpConfiguration = getAuxZPConfiguration();
+        String readConfiguration = getReadConfiguration() + auxZpConfiguration;
+        String writeConfiguration = getWriteConfiguration() + auxZpConfiguration;
+        String newState = readConfiguration + ";" + writeConfiguration;
+        if (newState.equals(state)) {
+            return;
+        }
+        state = newState;
+
         try {
-            state = "";
             log("MMU Switches");
             configurationSemaphone.acquire();
-            // First off, set up read/write for main memory (might get changed later on)
-            if (SoftSwitches.RAMRD.getState()) {
-                state = "Ra";
-            } else {
-                state = "R0";
-            }
-            activeRead.fillBanks(SoftSwitches.RAMRD.getState() ? getAuxMemory() : mainMemory);
-            if (SoftSwitches.RAMWRT.getState()) {
-                state += "Wa";
-            } else {
-                state += "W0";
-            }
-            activeWrite.fillBanks(SoftSwitches.RAMWRT.getState() ? getAuxMemory() : mainMemory);
 
-            // Handle language card softswitches
-            activeRead.fillBanks(rom);
-            //activeRead.fillBanks(cPageRom);
-            for (int i = 0x0c0; i < 0x0d0; i++) {
-                activeWrite.set(i, null);
-            }
-            String LCR = "L0R";
-            if (SoftSwitches.LCRAM.isOn()) {
-                if (SoftSwitches.AUXZP.isOff()) {
-                    LCR = "L1R";
-                    activeRead.fillBanks(languageCard);
-                    if (SoftSwitches.LCBANK1.isOff()) {
-                        LCR = "L2R";
-                        activeRead.fillBanks(languageCard2);
-                    }
-                } else {
-                    activeRead.fillBanks(getAuxLanguageCard());
-                    LCR = "L1aR";
-                    if (SoftSwitches.LCBANK1.isOff()) {
-                        LCR = "L2aR";
-                        activeRead.fillBanks(getAuxLanguageCard2());
-                    }
-                }
+            if (memoryConfigurations.containsKey(readConfiguration)) {
+                activeRead = memoryConfigurations.get(readConfiguration);
+            } else {
+                activeRead = buildReadConfiguration();
+                memoryConfigurations.put(readConfiguration, activeRead);
             }
 
-            String LCW = "L0W";
-            if (SoftSwitches.LCWRITE.isOn()) {
-                if (SoftSwitches.AUXZP.isOff()) {
-                    LCW = "L1W";
-                    activeWrite.fillBanks(languageCard);
-                    if (SoftSwitches.LCBANK1.isOff()) {
-                        LCW = "L2W";
-                        activeWrite.fillBanks(languageCard2);
-                    }
-                } else {
-                    activeWrite.fillBanks(getAuxLanguageCard());
-                    LCW = "L1aW";
-                    if (SoftSwitches.LCBANK1.isOff()) {
-                        activeWrite.fillBanks(getAuxLanguageCard2());
-                        LCW = "L2aW";
-                    }
-                }
+            if (memoryConfigurations.containsKey(writeConfiguration)) {
+                activeWrite = memoryConfigurations.get(writeConfiguration);
             } else {
-                // Make 0xd000 - 0xffff non-writable!
-                for (int i = 0x0d0; i < 0x0100; i++) {
-                    activeWrite.set(i, null);
-                }
+                activeWrite = buildWriteConfiguration();
+                memoryConfigurations.put(writeConfiguration, activeWrite);
             }
 
-            state += String.format(",%s,%s", LCR, LCW);
-            // Handle 80STORE logic for bankswitching video ram
-            if (SoftSwitches._80STORE.isOn()) {
-                state += ",80S";
-                if (SoftSwitches.PAGE2.isOn()) {
-                    state += "2";
-                }
-                activeRead.setBanks(0x04, 0x04, 0x04,
-                        SoftSwitches.PAGE2.isOn() ? getAuxMemory() : mainMemory);
-                activeWrite.setBanks(0x04, 0x04, 0x04,
-                        SoftSwitches.PAGE2.isOn() ? getAuxMemory() : mainMemory);
-                if (SoftSwitches.HIRES.isOn()) {
-                    state += "H";
-                    activeRead.setBanks(0x020, 0x020, 0x020,
-                            SoftSwitches.PAGE2.isOn() ? getAuxMemory() : mainMemory);
-                    activeWrite.setBanks(0x020, 0x020, 0x020,
-                            SoftSwitches.PAGE2.isOn() ? getAuxMemory() : mainMemory);
-                }
-            }
-
-            // Handle zero-page bankswitching
-            if (SoftSwitches.AUXZP.getState()) {
-                state += ",Za";
-                // Aux pages 0 and 1
-                activeRead.setBanks(0, 2, 0, getAuxMemory());
-                activeWrite.setBanks(0, 2, 0, getAuxMemory());
-            } else {
-                state += ",Z0";
-                // Main pages 0 and 1
-                activeRead.setBanks(0, 2, 0, mainMemory);
-                activeWrite.setBanks(0, 2, 0, mainMemory);
-            }
-
-            /*
-            INTCXROM   SLOTC3ROM  C1,C2,C4-CF   C3
-            0         0          slot         rom
-            0         1          slot         slot
-            1         -          rom          rom
-             */
-            if (SoftSwitches.CXROM.getState()) {
-                // Enable C1-CF to point to rom
-                activeRead.setBanks(0, 0x0F, 0x0C1, cPageRom);
-            } else {
-                // Enable C1-CF to point to slots
-                for (int slot = 1; slot <= 7; slot++) {
-                    PagedMemory page = getCard(slot).map(Card::getCxRom).orElse(blank);
-                    activeRead.setBanks(0, 1, 0x0c0 + slot, page);
-                }
-                if (getActiveSlot() == 0) {
-                    for (int i = 0x0C8; i < 0x0D0; i++) {
-                        activeRead.set(i, blank.get(0));
-                    }
-                } else {
-                    getCard(getActiveSlot()).ifPresent(c -> activeRead.setBanks(0, 8, 0x0c8, c.getC8Rom()));
-                }
-                if (SoftSwitches.SLOTC3ROM.isOff()) {
-                    // Enable C3 to point to internal ROM
-                    activeRead.setBanks(2, 1, 0x0C3, cPageRom);
-                    state += ",C30";
-                }
-                if (SoftSwitches.INTC8ROM.isOn()) {
-                    state += ",C80";
-                    // Enable C8-CF to point to internal ROM
-                    activeRead.setBanks(7, 8, 0x0C8, cPageRom);
-                } else {
-                    state += String.format(",C8%d", getActiveSlot());
-                }
-            }
-            // All ROM reads not intecepted will return 0xFF! (TODO: floating bus)
-            activeRead.set(0x0c0, blank.get(0));
             configurationSemaphone.release();
         } catch (InterruptedException ex) {
             Logger.getLogger(RAM128k.class.getName()).log(Level.SEVERE, null, ex);
@@ -349,6 +452,8 @@ abstract public class RAM128k extends RAM {
         }
 //            System.out.println("Finished reading rom with " + inputRom.available() + " bytes left unread!");
         //dump();
+        // Clear cached configurations as we might have outdated references now        
+        memoryConfigurations.clear();        
         configureActiveMemory();
     }
 
@@ -406,5 +511,7 @@ abstract public class RAM128k extends RAM {
         languageCard2 = currentMemory.languageCard2;
         cards = currentMemory.cards;
         activeSlot = currentMemory.activeSlot;
+        // Clear cached configurations as we might have outdated references now
+        memoryConfigurations.clear();
     }
 }

@@ -1,5 +1,6 @@
 package jace.lawless;
 
+import jace.LawlessLegends;
 import jace.apple2e.Apple2e;
 import jace.apple2e.RAM128k;
 import jace.apple2e.SoftSwitches;
@@ -54,7 +55,7 @@ public class LawlessComputer extends Apple2e {
         for (SoftSwitches s : SoftSwitches.values()) {
             s.getSwitch().reset();
         }
-        if (showBootAnimation) {
+        if (showBootAnimation && LawlessLegends.PRODUCTION_MODE) {
             (new Thread(this::startAnimation)).start();
         } else {
             finishColdStart();

@@ -5,6 +5,7 @@
  */
 package jace;
 
+import jace.apple2e.SoftSwitches;
 import jace.apple2e.VideoNTSC;
 import jace.config.Configuration;
 import jace.core.RAMEvent;
@@ -18,9 +19,6 @@ import jace.lawless.LawlessHacks;
 import jace.lawless.LawlessImageTool;
 import jace.lawless.LawlessVideo;
 import jace.ui.MetacheatUI;
-import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
@@ -30,6 +28,10 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+
+import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -43,6 +45,7 @@ public class LawlessLegends extends Application {
     public JaceUIController controller;
 
     static boolean romStarted = false;
+    static public boolean PRODUCTION_MODE = true;
 
     @Override
     public void start(Stage stage) throws Exception {
@@ -126,21 +129,26 @@ public class LawlessLegends extends Application {
      */
     private void bootWatchdog() {
         romStarted = false;
-        RAMListener startListener = Emulator.computer.getMemory().
-                observe(RAMEvent.TYPE.EXECUTE, 0x0c700, (e) -> {
-                    romStarted = true;
-                });
-        Emulator.computer.invokeColdStart();
-        try {
-            Thread.sleep(7500);
-            if (!romStarted) {
-                Logger.getLogger(getClass().getName()).log(Level.WARNING, "Boot not detected, performing a cold start");
-                Emulator.computer.invokeColdStart();
+        if (PRODUCTION_MODE) {
+            RAMListener startListener = Emulator.computer.getMemory().
+                    observe(RAMEvent.TYPE.EXECUTE, 0x0c700, (e) -> {
+                        romStarted = true;
+                    });
+            Emulator.computer.invokeColdStart();
+            try {
+                Thread.sleep(7500);
+                if (!romStarted) {
+                    Logger.getLogger(getClass().getName()).log(Level.WARNING, "Boot not detected, performing a cold start");
+                    Emulator.computer.invokeColdStart();
+                }
+            } catch (InterruptedException ex) {
+                Logger.getLogger(LawlessLegends.class.getName()).log(Level.SEVERE, null, ex);
             }
-        } catch (InterruptedException ex) {
-            Logger.getLogger(LawlessLegends.class.getName()).log(Level.SEVERE, null, ex);
+            Emulator.computer.getMemory().removeListener(startListener);
+        } else {
+            romStarted = true;
+            Emulator.computer.invokeColdStart();
         }
-        Emulator.computer.getMemory().removeListener(startListener);
     }
 
     private void configureEmulatorForGame() {
@@ -151,15 +159,23 @@ public class LawlessLegends extends Application {
         Emulator.computer.enableStateManager = false;
         Emulator.computer.ramCard.setValue(CardRamworks.class);
         Emulator.computer.videoRenderer.setValue(LawlessVideo.class);
-        Emulator.computer.card7.setValue(CardMassStorage.class);
-        Emulator.computer.card6.setValue(CardDiskII.class);
-        Emulator.computer.card5.setValue(CardRamFactor.class);
-        Emulator.computer.card4.setValue(null);
-        Emulator.computer.card2.setValue(null);
+        if (PRODUCTION_MODE) {
+            Emulator.computer.card7.setValue(CardMassStorage.class);
+            Emulator.computer.card6.setValue(CardDiskII.class);
+            Emulator.computer.card5.setValue(CardRamFactor.class);
+            Emulator.computer.card4.setValue(null);
+            Emulator.computer.card2.setValue(null);
+        }
         Emulator.computer.cheatEngine.setValue(LawlessHacks.class);
         Configuration.buildTree();
         Emulator.computer.reconfigure();
         VideoNTSC.setVideoMode(VideoNTSC.VideoMode.TextFriendly, false);
-        ((LawlessImageTool) Emulator.computer.getUpgradeHandler()).loadGame();
+        if (PRODUCTION_MODE) {
+            ((LawlessImageTool) Emulator.computer.getUpgradeHandler()).loadGame();
+        } else {
+            for (SoftSwitches s : SoftSwitches.values()) {
+                s.getSwitch().reset();
+            }
+        }
     }
 }

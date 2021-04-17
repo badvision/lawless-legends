@@ -470,7 +470,7 @@ disk_rewind: !zone
 ; 4. Write-enable Language Card bank 2
 ; 5. Run the calling routine (X still points into evalStk for add'l params if needed)
 ; 6. Restore PLASMA's X register, and advance it over the parameter(s)
-; 7. (optional) store A=lo/Y=hi as PLASMA return value
+; 7. (optional - skipped in asmPlasmNoRet) store A=lo/Y=hi as PLASMA return value
 ; 8. Return to PLASMA
 __asmPlasmRet: !zone {
 	sec

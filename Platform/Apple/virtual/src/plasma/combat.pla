@@ -196,7 +196,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def rollPlayerHit(pPlayer, pWeapon, pEnemy, sAction)
   word chance
-  byte agil, roll
+  byte agil, roll, bonus
 
   // Chance to hit:
   // * agil *4
@@ -212,13 +212,16 @@ def rollPlayerHit(pPlayer, pWeapon, pEnemy, sAction)
     agil = agil + scanModifiers(pWeapon=>p_modifiers, @S_AGILITY)
   fin
   //combatDebug// if combatDebug; displayf3("Agil = %d+%d = %d\n", pPlayer->b_agility, agil - pPlayer->b_agility, agil); fin
-  chance = (agil * 10) + (pPlayer->b_aiming * 5)
-  //combatDebug// if combatDebug; displayf3("Base chnc = %d*10 + %d*5 = %d%%\n", agil, pPlayer->b_aiming, chance); fin
+  chance = (agil * 9) + (pPlayer->b_aiming * 5)
+  //combatDebug// if combatDebug; displayf3("Base chnc = %d*9 + %d*5 = %d%%\n", agil, pPlayer->b_aiming, chance); fin
   if pWeapon
     chance = chance + (scanModifiers(pWeapon=>p_modifiers, @S_AIMING)*5)
     //combatDebug// if combatDebug; displayf1(" weap aim=%d*5\n", scanModifiers(pWeapon=>p_modifiers, @S_AIMING)); fin
     chance = chance + (scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind)*5)
     //combatDebug// if combatDebug; displayf1(" plyr skill=%d*5\n", scanModifiers(pPlayer=>p_skills, pWeapon=>s_itemKind)); fin
+  else
+    chance = chance + scanModifiers(pPlayer=>p_skills, @S_HAND_TO_HAND)*5
+    //combatDebug// if combatDebug; displayf1(" h-t-h skill=%d*5\n", scanModifiers(pPlayer=>p_skills, @S_HAND_TO_HAND)); fin
   fin
   chance = chance - (max(0, pEnemy->b_enemyAttackRange - 5)) / 5)
   //combatDebug// if combatDebug; displayf1(" rng mod=%d\n", -max(0, pEnemy->b_enemyAttackRange - 5) / 5); fin
@@ -227,7 +230,7 @@ def rollPlayerHit(pPlayer, pWeapon, pEnemy, sAction)
 
   // See if it's a hit
   roll = rollPercentileWithLuck(-(pPlayer->b_luck)) // luck can reduce roll = increase chance to hit
-  //combatDebug// if combatDebug; displayf2("Roll=%d, need <%d\n", roll, abs(roll < chance)); getUpperKey(); fin
+  //combatDebug// if combatDebug; displayf2("Roll=%d, need <%d\n", roll, chance); getUpperKey(); fin
   if roll >= chance
     isPlural = FALSE
     displayf3("\n%s %s at %s but misses.\n", pPlayer=>s_name, sAction, pEnemy=>s_name)
@@ -280,7 +283,7 @@ def playerMelee(pPlayer, pWeapon)#0
   byte agil
 
   // Maybe in the future we'll put this under control of a global script
-  sAction = "swings"
+  sAction = (rand16() % 2) ?? "punches" :: "kicks"
 
   pEnemy = chooseEnemy(5, pPlayer->b_gangChoice) // max distance 5 feet for melee
   if !pEnemy
@@ -314,7 +317,7 @@ def playerMelee(pPlayer, pWeapon)#0
   // (no contribution of strength)
   // (enemies don't have armor)
   bonus = pPlayer->b_agility
-  //combatDebug// if combatDebug; displayf1("Dmg bonus:\n agil=%d\n", pPlayer->b_agility); fin
+  //combatDebug// if combatDebug; displayf1("Dmg bonus%%:\n agil=%d\n", pPlayer->b_agility); fin
   if pWeapon
     bonus = bonus + scanModifiers(pWeapon=>p_modifiers, @S_AGILITY)
     //combatDebug// if combatDebug; displayf1(" weap agil=%d\n", scanModifiers(pWeapon=>p_modifiers, @S_AGILITY)); fin
@@ -323,7 +326,7 @@ def playerMelee(pPlayer, pWeapon)#0
   fin
   if scanModifiers(pPlayer=>p_skills, @S_HAND_TO_HAND)
     bonus = bonus + (pPlayer->b_strength * 5)
-    //combatDebug// if combatDebug; displayf1("  strngth*5=%d\n", pPlayer->b_strength * 5); fin
+    //combatDebug// if combatDebug; displayf1(" strngth*5=%d\n", pPlayer->b_strength * 5); fin
   fin
   //combatDebug// if combatDebug; displayf1("Final bonus=%d%%\n", bonus); fin
   dmg = dmg + addPercent(dmg, bonus)

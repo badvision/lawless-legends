@@ -481,10 +481,11 @@ auxLoader	= mainLoader+3
 ; 1. Save PLASMA's X register index to evalStk
 ; 2. Verify X register is in the range 0-$10
 ; 3. Load the *last* parameter into A=lo, Y=hi
-; 4. Run the calling routine (X still points into evalStk for add'l params if needed)
-; 5. Restore PLASMA's X register, and advance it over the parameter(s)
-; 6. (optional) Store A=lo/Y=hi into PLASMA return value
-; 7. Return to PLASMA
+; 4. Write-enable Language Card bank 2
+; 5. Run the calling routine (X still points into evalStk for add'l params if needed)
+; 6. Restore PLASMA's X register, and advance it over the parameter(s)
+; 7. (optional - skipped in asmPlasmNoRet) Store A=lo/Y=hi into PLASMA return value
+; 8. Return to PLASMA
 !macro asmPlasmNoRet nArgs {
     ldy #nArgs
     jsr _asmPlasm

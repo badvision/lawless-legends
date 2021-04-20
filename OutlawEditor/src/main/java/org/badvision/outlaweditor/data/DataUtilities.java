@@ -307,13 +307,13 @@ public class DataUtilities {
 
     public static String getStringValueFromCell(Cell cell) {
         switch (cell.getCellType()) {
-            case Cell.CELL_TYPE_BOOLEAN:
+            case BOOLEAN:
                 return Boolean.toString(cell.getBooleanCellValue());
-            case Cell.CELL_TYPE_BLANK:
+            case BLANK:
                 return null;
-            case Cell.CELL_TYPE_NUMERIC:
+            case NUMERIC:
                 return Double.toString(cell.getNumericCellValue());
-            case Cell.CELL_TYPE_STRING:
+            case STRING:
                 return cell.getStringCellValue();
             default:
                 return "???";

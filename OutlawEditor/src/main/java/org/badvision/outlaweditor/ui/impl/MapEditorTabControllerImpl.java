@@ -401,6 +401,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
                 } else {
                     getCurrentEditor().setSelectedScript(newValue);
                 }
+                getCurrentEditor().redraw();
             }
         });
         scriptEraseTool.addEventHandler(MouseEvent.MOUSE_CLICKED, e -> {

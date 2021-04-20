@@ -20,12 +20,8 @@ package jace.core;
 
 import jace.state.Stateful;
 import jace.config.Reconfigurable;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
+import org.eclipse.collections.api.list.MutableList;
+import org.eclipse.collections.impl.factory.Lists;
 
 /**
  * Device is a very simple abstraction of any emulation component. A device
@@ -35,42 +31,43 @@ import javafx.beans.property.SimpleBooleanProperty;
  *
  * Depending on the type of device, some special work might be required to
  * attach or detach it to the active emulation (such as what should happen when
- * a card is inserted or removed from a slot?)
- * Created on May 10, 2007, 5:46 PM
+ * a card is inserted or removed from a slot?) Created on May 10, 2007, 5:46 PM
  *
- * @author Brendan Robert (BLuRry) brendan.robert@gmail.com 
+ * @author Brendan Robert (BLuRry) brendan.robert@gmail.com
  */
 @Stateful
 public abstract class Device implements Reconfigurable {
+
     protected Computer computer;
-    private List<Device> children;
-    
+    private MutableList<Device> children;
+
     private Device() {
-        children = Collections.synchronizedList(new ArrayList<>());
+        // TODO: Previously this was synchronized -- confirm this is safe to leave unsynchronized
+        children = Lists.mutable.<Device>empty();
     }
-    
+
     public Device(Computer computer) {
         this();
         this.computer = computer;
     }
-    
+
     // Number of cycles to do nothing (for cpu/video cycle accuracy)
     @Stateful
     private int waitCycles = 0;
     @Stateful
-    private final BooleanProperty run = new SimpleBooleanProperty(true);
+    private boolean run = true;
     @Stateful
     public boolean isPaused = false;
     @Stateful
     public boolean isAttached = false;
-    
+
     public void addChildDevice(Device d) {
         children.add(d);
         if (isAttached) {
             d.attach();
         }
     }
-    
+
     public void removeChildDevice(Device d) {
         children.remove(d);
         d.suspend();
@@ -78,19 +75,19 @@ public abstract class Device implements Reconfigurable {
             d.detach();
         }
     }
-    
-    public void addAllDevices(Collection<Device> devices) {
+
+    public void addAllDevices(Iterable<Device> devices) {
         devices.forEach(this::addChildDevice);
     }
-    
-    public List<Device> getChildren() {
-        return Collections.unmodifiableList(children);
+
+    public Iterable<Device> getChildren() {
+        return children.asUnmodifiable();
     }
 
-    public BooleanProperty getRunningProperty() {
+    public boolean getRunningProperty() {
         return run;
     }
-    
+
     public void addWaitCycles(int wait) {
         waitCycles += wait;
     }
@@ -100,38 +97,24 @@ public abstract class Device implements Reconfigurable {
     }
 
     public void doTick() {
-        /*
-         if (waitCycles <= 0)
-         tick();
-         else
-         waitCycles--;
-         */
-
-        if (!run.get()) {
-//            System.out.println("Device stopped: " + getName());
-            isPaused = true;
-            return;
-        }
-        // The following might be as much as 7% faster than the above
-        // My guess is that the above results in a GOTO
-        // whereas the following pre-emptive return avoids that
-        if (waitCycles > 0) {
+        if (run) {
+            children.forEach(Device::tick);
+            if (waitCycles <= 0) {
+                tick();
+                return;
+            }
             waitCycles--;
-            return;
         }
-        // Implicit else...
-        children.forEach(Device::doTick);
-        tick();
     }
 
     public boolean isRunning() {
-        return run.get();
+        return run;
     }
 
     public synchronized void setRun(boolean run) {
 //        System.out.println(Thread.currentThread().getName() + (run ? " resuming " : " suspending ")+ getDeviceName());
         isPaused = false;
-        this.run.set(run);
+        this.run = run;
     }
 
     protected abstract String getDeviceName();

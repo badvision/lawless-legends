@@ -5,13 +5,13 @@
  */
 package jace.ide;
 
-import com.google.common.collect.Lists;
 import jace.applesoft.ApplesoftProgram;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -55,14 +55,14 @@ public class ApplesoftTest {
     
     @Test
     public void deserializeBinaryTest() {
-        ApplesoftProgram program = ApplesoftProgram.fromBinary(Lists.newArrayList(lemonadeStandBinary), 0x0801);
+        ApplesoftProgram program = ApplesoftProgram.fromBinary(Arrays.asList(lemonadeStandBinary), 0x0801);
         assertNotNull(program);
         assertNotSame("", program.toString());
     }
     
     @Test
     public void roundTripStringComparisonTest() {
-        ApplesoftProgram program = ApplesoftProgram.fromBinary(Lists.newArrayList(lemonadeStandBinary), 0x0801);
+        ApplesoftProgram program = ApplesoftProgram.fromBinary(Arrays.asList(lemonadeStandBinary), 0x0801);
         String serialized = program.toString();
         ApplesoftProgram deserialized = ApplesoftProgram.fromString(serialized);
         String[] serializedLines = serialized.split("\\n");

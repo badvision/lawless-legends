@@ -104,6 +104,11 @@ public class CardRamworks extends RAM128k {
     }
 
     @Override
+    public String getAuxZPConfiguration() {
+        return super.getAuxZPConfiguration() + String.format("AB%2d", currentBank);
+    }  
+    
+    @Override
     public String getName() {
         return "Ramworks III";
     }

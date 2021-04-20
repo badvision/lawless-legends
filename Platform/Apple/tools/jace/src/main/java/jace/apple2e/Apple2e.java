@@ -291,8 +291,11 @@ public class Apple2e extends Computer {
                 loadRom("jace/data/apple2e.rom");
             }
             RAM128k ram = (RAM128k) getMemory();
-            ram.activeRead.writeByte(0x0fffc, (byte) 0x000);
-            ram.activeRead.writeByte(0x0fffd, (byte) 0x0c7);
+            if (LawlessLegends.PRODUCTION_MODE) {
+                // Force Slot 7 boot
+                ram.activeRead.writeByte(0x0fffc, (byte) 0x000);
+                ram.activeRead.writeByte(0x0fffd, (byte) 0x0c7);
+            }
 
             if (getVideo() == null || getVideo().getClass() != videoRenderer.getValue()) {
                 if (getVideo() != null) {

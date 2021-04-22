@@ -5013,6 +5013,11 @@ end
                         packBuyFromStore(blk); break
                     case 'interaction_sell_to_store':
                         packSellToStore(blk); break
+                    case 'sound_play_emu_track':
+                    case 'sound_play_emu_sfx':
+                        packSoundPlayEmu(blk); break
+                    case 'sound_stop_emu_playback':
+                        packSoundStopEmu(blk); break
                     case ~/^Globalignore_.*$/:
                         packGlobalCall(blk); break
                     default:
@@ -5173,6 +5178,28 @@ end
             def clrFlg = getSingle(blk.field, 'CLEAR').text()
             assert clrFlg == "0" || clrFlg == "1"
             outIndented("promptAnyKey($clrFlg)\n")
+        }
+
+        def packSoundPlayEmu(blk)
+        {
+            assert blk.field.size() >= 1
+            assert blk.field[0].@name == 'NUM'
+            def soundNum = blk.field[0].text().toInteger()
+            assert soundNum >= 1 && soundNum <= 63
+            if (blk.@type == 'sound_play_emu_track') {
+                assert blk.field.size() == 2
+                assert blk.field[1].@name == 'REPEAT'
+                def repeatFlg = blk.field[1].text()
+                assert repeatFlg == "0" || repeatFlg == "1"
+                outIndented("soundPlayEmu($soundNum | ($repeatFlg << 6))\n")
+            }
+            else
+                outIndented("soundPlayEmu($soundNum | \$80)\n")
+        }
+
+        def packSoundStopEmu(blk)
+        {
+            outIndented("soundPlayEmu(0)\n")
         }
 
         def packVarSet(blk)

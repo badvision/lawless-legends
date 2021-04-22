@@ -1001,6 +1001,47 @@ if (typeof Mythos === "undefined") {
                     this.setTooltip('Display the given portait image (by name)');
                 }
             };
+            Blockly.Blocks['sound_play_emu_track'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Play track")
+                            .appendField(new Blockly.FieldTextInput("1"), "NUM")
+                            .appendField("in emulator")
+                            .appendField(new Blockly.FieldDropdown([["once", "0"], ["repeating", "1"]]), "REPEAT");
+                    this.setOutput(false);
+                    this.setTooltip('Play track in emulator');
+                }
+            };
+            Blockly.Blocks['sound_play_emu_sfx'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Play special effect")
+                            .appendField(new Blockly.FieldTextInput("1"), "NUM")
+                            .appendField("in emulator");
+                    this.setOutput(false);
+                    this.setTooltip('Play special effect in emulator');
+                }
+            };
+            Blockly.Blocks['sound_stop_emu_playback'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                            .appendField("Stop playback in emulator")
+                    this.setOutput(false);
+                    this.setTooltip('Stop playback in emulator');
+                }
+            };
             Blockly.Blocks['graphics_set_avatar'] = {
                 init: function () {
                     this.setHelpUrl(Mythos.helpUrl);

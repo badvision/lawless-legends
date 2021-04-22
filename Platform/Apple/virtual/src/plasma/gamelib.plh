@@ -132,6 +132,7 @@ import gamelib
   predef setMap(is3D, num, x, y, dir)#0
   predef setRecordMode(enable)#0
   predef setStoryMode(enable)#0
+  predef soundPlayEmu(numAndFlgs)#0
   predef useMapWindow()#0
   predef setBigWindow()#0
   predef setPortrait(portraitNum)#0

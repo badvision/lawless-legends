@@ -94,6 +94,7 @@ const EMUSIG_3D_MAP     = $C04C // e.g. in town
 const EMUSIG_AUTOMAP    = $C04D // all color except the map title
 const EMUSIG_STORY      = $C04E // all text except a portrait
 const EMUSIG_TITLE      = $C04F // all color except title screen menu area
+const EMUSOUND_PLAY     = $C069 // num | ($40=repeat) | ($80=SFX)
 
 // Game load/save
 const RWTS_SEEK  = 0

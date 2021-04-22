@@ -1846,6 +1846,12 @@ def clearTextWindow()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+export def soundPlayEmu(numAndFlgs)#0
+  printf1("soundPlayEmu($%x)\n", numAndFlgs)
+  ^EMUSOUND_PLAY = numAndFlgs
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def hline(addr, startByte, midByte, midSize, endByte)#0
   ^addr = startByte
   memset(addr+1, midByte, midSize)

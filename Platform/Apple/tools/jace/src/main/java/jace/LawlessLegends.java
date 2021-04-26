@@ -34,7 +34,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- *
+ *  
  * @author blurry
  */
 public class LawlessLegends extends Application {

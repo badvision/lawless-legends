@@ -1,0 +1,16 @@
+---- Scores file defines all the music and SFX
+---- Note: Anything that is shared for all scores is under the "common" section
+---- Lines that start with dashes, hash marks, single quotes are treated as comments
+Common
+
+---- Orchestral version uses sampled synthesis
+Orchestral
+1   BGM-1.mp3
+2   someotherfile.mp3
+--- Sound effects start at number 129
+129 bang.mp3
+130 boom.mp3
+
+---- Chiptune verison uses the blips and bleeps that are the voice of a generation
+Chiptune
+1   BGM-2.mp3

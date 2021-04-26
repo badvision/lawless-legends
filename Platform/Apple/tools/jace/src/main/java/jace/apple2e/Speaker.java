@@ -20,25 +20,16 @@ package jace.apple2e;
 
 import jace.LawlessLegends;
 import jace.config.ConfigurableField;
-import jace.core.Computer;
-import jace.core.Device;
-import jace.core.Motherboard;
-import jace.core.RAMEvent;
-import jace.core.RAMListener;
-import jace.core.SoundGeneratorDevice;
-import jace.core.SoundMixer;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
+import jace.core.*;
+import javafx.stage.FileChooser;
+
+import javax.sound.sampled.LineUnavailableException;
+import javax.sound.sampled.SourceDataLine;
+import java.io.*;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javafx.stage.FileChooser;
-import javax.sound.sampled.LineUnavailableException;
-import javax.sound.sampled.SourceDataLine;
 
 /**
  * Apple // Speaker Emulation Created on May 9, 2007, 9:55 PM
@@ -205,7 +196,9 @@ public class Speaker extends SoundGeneratorDevice {
             bufferPos = 0;
         }
         secondaryBuffer = buffer;
-        sdl.write(buffer, 0, len);
+        if (sdl != null && buffer != null) {
+            sdl.write(buffer, 0, len);
+        }
     }
 
     /**

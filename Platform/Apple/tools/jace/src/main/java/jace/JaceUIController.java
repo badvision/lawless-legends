@@ -10,26 +10,12 @@ import jace.core.Card;
 import jace.core.Computer;
 import jace.core.Motherboard;
 import jace.core.Utility;
+import jace.lawless.LawlessComputer;
+import jace.lawless.LawlessHacks;
 import jace.library.MediaCache;
 import jace.library.MediaConsumer;
 import jace.library.MediaConsumerParent;
 import jace.library.MediaEntry;
-import java.io.File;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javafx.animation.FadeTransition;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -44,6 +30,7 @@ import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.effect.DropShadow;
@@ -52,17 +39,20 @@ import javafx.scene.input.DragEvent;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.TransferMode;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.Background;
-import javafx.scene.layout.BackgroundFill;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.CornerRadii;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.StackPane;
+import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URL;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -96,6 +86,9 @@ public class JaceUIController {
 
     @FXML
     private Button menuButton;
+
+    @FXML
+    private ComboBox musicSelection;
 
     Computer computer;
 
@@ -166,6 +159,12 @@ public class JaceUIController {
     }
 
     private void hideControlOverlay(MouseEvent evt) {
+        if (evt == null || evt.getSource() != null && (
+                evt.getSource() == musicSelection ||
+                (evt.getSource() == rootPane && musicSelection.isFocused())
+        )) {
+            return;
+        }
         if (menuButtonPane.isVisible()) {
             FadeTransition ft1 = new FadeTransition(Duration.millis(500), menuButtonPane);
             ft1.setFromValue(1.0);
@@ -236,6 +235,9 @@ public class JaceUIController {
             speedSlider.setValue(Emulator.logic.speedSetting);
             // Kind of redundant but make sure speed is properly set as if the user did it
             setSpeed(Emulator.logic.speedSetting);
+        });
+        musicSelection.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            ((LawlessHacks) ((LawlessComputer) computer).activeCheatEngine).changeMusicScore(String.valueOf(newValue));
         });
     }
 

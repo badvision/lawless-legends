@@ -250,6 +250,7 @@ public class LawlessHacks extends Cheats {
         currentScore = score.toLowerCase(Locale.ROOT);
         if (currentScore.equalsIgnoreCase(SCORE_NONE)) {
             stopMusic();
+            currentSong = -1;
         } else if ((currentSongPlayer != null || wasStoppedPreviously) && currentSong > 0) {
             int currentSongTemp = currentSong;
             currentSong = Integer.MAX_VALUE;

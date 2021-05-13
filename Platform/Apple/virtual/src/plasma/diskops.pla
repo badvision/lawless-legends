@@ -528,8 +528,10 @@ def newGame()#0
   global->b_moveMode = 1 // normal
   mmgr(START_LOAD, 1) // players module and new game module both in partition 1
   playersModule = mmgr(QUEUE_LOAD, MOD_GEN_PLAYERS<<8 | RES_TYPE_MODULE)
-  newGameModule = mmgr(QUEUE_LOAD, GS_NEW_GAME<<8 | RES_TYPE_MODULE)
   partyModule = mmgr(QUEUE_LOAD, MOD_PARTY<<8 | RES_TYPE_MODULE)
+  mmgr(FINISH_LOAD, 0)
+  mmgr(START_LOAD, 2) // new game in partition 2
+  newGameModule = mmgr(QUEUE_LOAD, GS_NEW_GAME<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
   playersModule()=>makeInitialParty()
   loadMainFrameImg()

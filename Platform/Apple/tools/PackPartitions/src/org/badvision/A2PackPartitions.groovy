@@ -1889,6 +1889,8 @@ class A2PackPartitions
                 //println "stuffed most-used portraits for $portraitsSpace bytes, totaling $blks blks."
                 assert partNum == 1 : "Root resources must fit on disk 1"
             }
+            else if (mapName == "<second>")
+                reportWriter.println String.format("  %-22s: %6.1fK", "new game", mapSpace / 1024.0)
             else {
                 addedMapNames << mapName
                 mapsSpaceUsed += mapSpace
@@ -2013,7 +2015,7 @@ class A2PackPartitions
         recordChunks("story",    stories)
 
         // Sort the maps in proper disk order
-        allMaps << [name:"<root>", order:-999999]
+        allMaps << [name:"<root>", order:-999999] << [name:"<second>", order: -888888]
         Collections.sort(allMaps) { a,b ->
             a.order < b.order ? -1 :
             a.order > b.order ?  1 :
@@ -2025,7 +2027,7 @@ class A2PackPartitions
         reportWriter.println "======================== Floppy disk usage ==========================="
 
         // Now fill up disk partitions until we run out of maps.
-        def mapsToDupe = allMaps.grep{ it.name != "<root>" && it.order < 0 }.collect{ it.name }.toSet()
+        def mapsToDupe = allMaps.grep{ it.name != "<root>" && it.name != "<second>" && it.order < 0 }.collect{ it.name }.toSet()
         def mapsTodo = allMaps.collect { it.name }
         def partChunks = []
         def totalFloppySpace = 0
@@ -2470,7 +2472,7 @@ class A2PackPartitions
         }
 
         modules.each { k,v ->
-            if (!nonReqGlobalScriptModules.contains(k))
+            if (!nonReqGlobalScriptModules.contains(k) && k != "gs_newGame")
                 addResourceDep("map", "<root>", "module", k)
         }
     }
@@ -4262,6 +4264,8 @@ end
             def gsmod = new ScriptModule()
             def name = humanNameToSymbol(script.@name, false)
             found << name
+            curMapName = (name == "newGame") ? "<second>" : "<root>"
+            addMapDep("module", "gs_" + name)
             gsmod.packGlobalScript(new File("build/src/plasma/gs_${name}.pla.new"), script)
             addResourceDep("globalFunc", name, "module", "gs_" + name)
             replaceIfDiff("build/src/plasma/gs_${name}.pla")
@@ -4396,7 +4400,6 @@ end
         allPlayerFuncs(dataIn.global.sheets.sheet)
 
         // Translate global scripts to code. Record their deps as system-level.
-        curMapName = "<root>"
         recordGlobalScripts(dataIn)
         genAllGlobalScripts(dataIn.global.scripts.script)
         curMapName = null

@@ -1,17 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.collections.FXCollections?>
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.Slider?>
-<?import javafx.scene.image.Image?>
-<?import javafx.scene.image.ImageView?>
-<?import javafx.scene.layout.AnchorPane?>
-<?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.Pane?>
-<?import javafx.scene.layout.StackPane?>
-<?import javafx.scene.layout.TilePane?>
-
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.*?>
+<?import javafx.scene.layout.*?>
+<?import java.lang.String?>
 <AnchorPane id="AnchorPane" fx:id="rootPane" prefHeight="384.0" prefWidth="560.0" style="-fx-background-color: black;" stylesheets="@../styles/style.css" xmlns="http://javafx.com/javafx/8.0.111" xmlns:fx="http://javafx.com/fxml/1" fx:controller="jace.JaceUIController">
     <children>
       <StackPane fx:id="stackPane" prefHeight="384.0" prefWidth="560.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
@@ -83,8 +77,22 @@
                               </Button>
                            </children>
                         </TilePane>
-<!--                        <TilePane alignment="TOP_RIGHT" hgap="5.0" vgap="5.0" HBox.hgrow="ALWAYS">
+                        <TilePane alignment="TOP_RIGHT" hgap="5.0" vgap="5.0" HBox.hgrow="ALWAYS">
                            <children>
+                              <Label styleClass="musicLabel">Music:</Label>
+                              <ComboBox fx:id="musicSelection">
+                                 <items>
+                                    <FXCollections fx:factory="observableArrayList">
+                                       <String fx:value="Orchestral" />
+                                       <String fx:value="Chiptune" />
+                                       <String fx:value="None" />
+                                    </FXCollections>
+                                 </items>
+                                 <value>
+                                    <String fx:value="Orchestral"/>
+                                 </value>
+                              </ComboBox>
+                              <!--
                               <Button contentDisplay="TOP" mnemonicParsing="false" styleClass="uiActionButton" text="IDE">
                                  <graphic>
                                     <ImageView>
@@ -112,8 +120,9 @@
                                     </ImageView>
                                  </graphic>
                               </Button>
+                              -->
                            </children>
-                        </TilePane>-->
+                        </TilePane>
                      </children>
                   </HBox>
                </top>

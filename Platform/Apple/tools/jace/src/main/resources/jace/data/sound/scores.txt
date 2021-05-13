@@ -1,0 +1,48 @@
+---- Scores file defines all the music and SFX
+---- Note: Anything that is shared for all scores is under the "common" section
+---- Lines that start with dashes, hash marks, single quotes are treated as comments
+Common
+--- Sound effects start at number 129
+129 bang.mp3
+130 boom.mp3
+
+Orchestral
+1	Title.mp3
+2	Miller.mp3
+3	Tragedy.mp3
+4	Victory.mp3
+5	Grub.mp3
+6	mines.mp3
+7	Texas.mp3
+8	Strange.mp3
+9	Oro.mp3
+10	Village.mp3
+11	Sanctuary.mp3
+12	Meriposa.mp3
+13	Freemont.mp3
+14	Littlecreek.mp3
+15	Grove.mp3
+16	Poverty.mp3
+17	Killed.mp3
+18	Wilderness.mp3
+
+---- Chiptune version uses the blips and bleeps that are the voice of a generation
+Chiptune
+1	Title8.mp3
+2	Miller8.mp3
+3	Tragedy8.mp3
+4	Victory8.mp3
+5	Grub8.mp3
+6	Mines8.mp3
+7	Texas8.mp3
+8	Strange8.mp3
+9	Oro8.mp3
+10	Village8.mp3
+11	Sanctuary8.mp3
+12	Mariposa8.mp3
+13	Freemont8.mp3
+14	Littlecreek8.mp3
+15	Grove8.mp3
+16	Poverty8.mp3
+17	Killed8.mp3
+18	Wilderness8.mp3

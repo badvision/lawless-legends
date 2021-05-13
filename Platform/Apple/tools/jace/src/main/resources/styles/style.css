@@ -26,9 +26,14 @@
     -fx-background-radius: 10px;
 }
 
-.menuButton, .uiActionButton, .uiSpeedSlider ImageView, .uiSpeedSlider Slider, .uiSpeedSlider AnchorPane {
+.menuButton, .uiActionButton, .uiSpeedSlider ImageView, .uiSpeedSlider Slider, .uiSpeedSlider AnchorPane, .musicLabel {
     -fx-background-color: rgba(0, 0, 0, 0.75);
     -fx-text-fill: #a0FFa0
+}
+
+.musicLabel {
+    -fx-text-alignment: right;
+    -fx-font-size:18pt;
 }
 
 .uiActionButton ImageView, .uiSpeedSlider ImageView {

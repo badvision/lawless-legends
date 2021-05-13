@@ -8,8 +8,16 @@ import javafx.beans.property.DoubleProperty;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Hacks that affect lawless legends gameplay
@@ -23,6 +31,8 @@ public class LawlessHacks extends Cheats {
 
     public LawlessHacks(Computer computer) {
         super(computer);
+        readScores();
+        currentScore = SCORE_ORCHESTRAL;
     }
 
     @Override
@@ -64,13 +74,15 @@ public class LawlessHacks extends Cheats {
     }
 
     int currentSong;
+    boolean repeatSong = false;
     Thread playbackEffect;
     MediaPlayer currentSongPlayer;
     MediaPlayer currentSfxPlayer;
 
     private void playSound(int soundNumber) {
         boolean isMusic = soundNumber >= 0;
-        int track = soundNumber & 0x07f;
+        int track = soundNumber & 0x03f;
+        repeatSong = (soundNumber & 0x040) > 0;
         if (track == 0) {
             if (isMusic) {
 //                System.out.println("Stop music");
@@ -88,8 +100,20 @@ public class LawlessHacks extends Cheats {
         }
     }
 
-    private Media getAudioTrack(String file) {
-        String pathStr = "jace/data/sound/" + file;
+    private Media getAudioTrack(int number) {
+        Map<Integer, String> score = scores.get(currentScore);
+        if (score == null) {
+            return null;
+        }
+        String filename = score.get(number);
+        if (filename == null) {
+            score = scores.get("common");
+            if (score == null || !score.containsKey(number)) {
+                return null;
+            }
+            filename = score.get(number);
+        }
+        String pathStr = "jace/data/sound/" + filename;
 //        System.out.println("looking in "+pathStr);
         URL path = getClass().getClassLoader().getResource(pathStr);
         if (path == null) {
@@ -150,15 +174,15 @@ public class LawlessHacks extends Cheats {
     int FADE_SPEED = 100; // 100ms per 5%, or 2 second duration
 
     private void startNewSong(int track) {
-        if (track != currentSong || currentSongPlayer == null) {
+        if (track != currentSong || currentSongPlayer == null || isMusicEnabled()) {
             // If the same song is already playing don't restart it
-            Media song = getAudioTrack("BGM-" + track + ".mp3");
+            Media song = getAudioTrack(track);
             if (song == null) {
                 System.out.println("Unable to start song " + track + "; File not found");
                 return;
             }
             currentSongPlayer = new MediaPlayer(song);
-            currentSongPlayer.setCycleCount(MediaPlayer.INDEFINITE);
+            currentSongPlayer.setCycleCount(repeatSong ? MediaPlayer.INDEFINITE : 1);
             currentSongPlayer.setVolume(0.0);
             currentSongPlayer.play();
             currentSong = track;
@@ -185,12 +209,16 @@ public class LawlessHacks extends Cheats {
 
     private void stopMusic() {
         stopSongEffect();
-        fadeOutSong(null);
+        fadeOutSong(()->{
+            if (!repeatSong) {
+                currentSong = 0;
+            }
+        });
     }
 
     private void playSfx(int track) {
         new Thread(() -> {
-            Media sfx = getAudioTrack("SFX-" + track + ".mp3");
+            Media sfx = getAudioTrack(track + 128);
             if (sfx == null) {
                 System.out.println("Unable to start SFX " + track + "; File not found");
                 return;
@@ -208,4 +236,63 @@ public class LawlessHacks extends Cheats {
         }
     }
 
+    public static final String SCORE_NONE = "none";
+    public static final String SCORE_COMMON = "common";
+    public static final String SCORE_ORCHESTRAL = "orchestral";
+    public static final String SCORE_CHIPTUNE = "chiptune";
+
+    private String currentScore = SCORE_COMMON;
+    public void changeMusicScore(String score) {
+        if (currentScore.equalsIgnoreCase(score)) {
+            return;
+        }
+        boolean wasStoppedPreviously = !isMusicEnabled();
+        currentScore = score.toLowerCase(Locale.ROOT);
+        if (currentScore.equalsIgnoreCase(SCORE_NONE)) {
+            stopMusic();
+            currentSong = -1;
+        } else if ((currentSongPlayer != null || wasStoppedPreviously) && currentSong > 0) {
+            int currentSongTemp = currentSong;
+            currentSong = Integer.MAX_VALUE;
+            startNewSong(currentSongTemp);
+        }
+    }
+
+    public boolean isMusicEnabled() {
+        return currentScore != null && !currentScore.equalsIgnoreCase(SCORE_NONE);
+    }
+
+    Pattern COMMENT = Pattern.compile("\\s*[-#;']+.*");
+    Pattern LABEL = Pattern.compile("[A-Za-z\\s\\-_]+");
+    Pattern ENTRY = Pattern.compile("([0-9]+)\\s+(.*)");
+    private Map<String, Map<Integer, String>> scores = new HashMap<>();
+    private void readScores() {
+        InputStream data = getClass().getClassLoader().getResourceAsStream("jace/data/sound/scores.txt");
+        readScores(data);
+    }
+
+    private void readScores(InputStream data) {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(data));
+        reader.lines().forEach(line -> {
+            if (COMMENT.matcher(line).matches() || line.trim().isEmpty()) {
+//                System.out.println("Ignoring: "+line);
+                return;
+            } else if (LABEL.matcher(line).matches()) {
+                currentScore = line.toLowerCase(Locale.ROOT);
+                scores.put(currentScore, new HashMap<>());
+//                System.out.println("Score: "+ currentScore);
+            } else {
+                Matcher m = ENTRY.matcher(line);
+                if (m.matches()) {
+                    int num = Integer.parseInt(m.group(1));
+                    String file = m.group(2);
+                    scores.get(currentScore).put(num, file);
+//                    System.out.println("Score: " + currentScore + "; Song: " + num + "; " + file);
+                } else {
+//                    System.out.println("Couldn't parse: " + line);
+                }
+            }
+        });
+
+    }
 }

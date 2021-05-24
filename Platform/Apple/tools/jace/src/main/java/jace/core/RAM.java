@@ -214,7 +214,7 @@ public abstract class RAM implements Reconfigurable {
         });
     }
 
-    public RAMListener observe(RAMEvent.TYPE type, int address, boolean auxFlag, RAMEvent.RAMEventHandler handler) {
+    public RAMListener observe(RAMEvent.TYPE type, int address, Boolean auxFlag, RAMEvent.RAMEventHandler handler) {
         return addListener(new RAMListener(type, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY) {
             @Override
             protected void doConfig() {
@@ -245,7 +245,7 @@ public abstract class RAM implements Reconfigurable {
         });
     }
 
-    public RAMListener observe(RAMEvent.TYPE type, int addressStart, int addressEnd, boolean auxFlag, RAMEvent.RAMEventHandler handler) {
+    public RAMListener observe(RAMEvent.TYPE type, int addressStart, int addressEnd, Boolean auxFlag, RAMEvent.RAMEventHandler handler) {
         return addListener(new RAMListener(type, RAMEvent.SCOPE.RANGE, RAMEvent.VALUE.ANY) {
             @Override
             protected void doConfig() {
@@ -262,12 +262,15 @@ public abstract class RAM implements Reconfigurable {
         });
     }
 
-    private boolean isAuxFlagCorrect(RAMEvent e, boolean auxFlag) {
+    private boolean isAuxFlagCorrect(RAMEvent e, Boolean auxFlag) {
         if (e.getAddress() < 0x0100) {
             if (SoftSwitches.AUXZP.getState() != auxFlag) {
                 return false;
             }
-        } else if (SoftSwitches.RAMRD.getState() != auxFlag) {
+        } else if (e.getAddress() >= 0x0C000 && e.getAddress() <= 0x0CFFF) {
+            // I/O page doesn't care about the aux flag
+            return true;
+        } else if (auxFlag != null && SoftSwitches.RAMRD.getState() != auxFlag) {
             return false;
         }
         return true;

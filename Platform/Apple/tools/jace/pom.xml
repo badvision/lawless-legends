@@ -35,6 +35,7 @@
                             <goal>unpack-dependencies</goal>
                         </goals>
                         <configuration>
+                            <excludes>**/*.SF,**/*.DSA,**/*.RSA</excludes>
                             <excludeScope>system</excludeScope>
                             <excludeGroupIds>junit,org.mockito,org.hamcrest</excludeGroupIds>
                             <outputDirectory>${project.build.directory}/classes</outputDirectory>

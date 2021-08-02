@@ -782,10 +782,32 @@ def getWeapon(pl)#1
   return first(pl=>p_items, &(p) p->t_type == TYPE_WEAPON and p->b_flags & ITEM_FLAG_EQUIP)
 end
 
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def calcNumAtt(pl, isMelee, pWeapon)
+  byte skillPts
+
+  skillPts = 0
+  if pWeapon
+    if pWeapon->b_flags & WEAPON_FLAG_SINGLE_USE; return 1; fin
+    skillPts = scanModifiers(pl=>p_skills, pWeapon=>s_itemKind)
+  elsif isMelee
+    skillPts = scanModifiers(pl=>p_skills, @S_HAND_TO_HAND)
+  fin
+
+  if skillPts >= 9
+    return 3
+  elsif skillPts >= 6
+    return 2
+  fin
+  return 1
+end
+
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def playerCombatTurn(pl)#1
   word pWeapon, pGroup, pEnemy
-  byte i
+  byte i, j, nAttacks
 
   if !nEnemiesFighting; return 0; fin
 
@@ -795,18 +817,28 @@ def playerCombatTurn(pl)#1
   // Execute the player's choice
   when pl->b_combatChoice
     is 'M'
-      playerMelee(pl, pWeapon)
+      nAttacks = calcNumAtt(pl, TRUE, pWeapon) // TRUE=melee
+      displayf1("nAttacks=%d\n", nAttacks)
+      for i = 1 to nAttacks
+        playerMelee(pl, pWeapon)
+        if i < nAttacks; combatPause; fin
+      next
       checkSingleUse(pl, pWeapon)
       break
     is 'F'
       return 0
     is 'S'
-      for i = 1 to pl->b_shotChoice
-        if nEnemiesFighting and pWeapon->b_clipCurrent
-          playerShoot(pl, pWeapon)
-          consumeAmmo(pl, pWeapon)
-          if i+1 < pl->b_shotChoice; combatPause; fin
-        fin
+      nAttacks = calcNumAtt(pl, FALSE, pWeapon) // FALSE=not melee
+      displayf1("nAttacks=%d\n", nAttacks)
+      for i = 1 to nAttacks
+        for j = 1 to pl->b_shotChoice
+          if nEnemiesFighting and pWeapon->b_clipCurrent
+            playerShoot(pl, pWeapon)
+            consumeAmmo(pl, pWeapon)
+            if j < pl->b_shotChoice; combatPause; fin
+          fin
+        next
+        if i < nAttacks; combatPause; fin
       next
       checkSingleUse(pl, pWeapon)
       break

@@ -314,6 +314,10 @@ class A2PackPartitions
                 }
                 else if (ch == '\"')
                     buf << "\\\""
+                else if (ch == '“' || ch == '”') // translate smart quotes to straight quotes
+                    buf << "\\\""
+                else if (ch == '‘' || ch == '’')
+                    buf << '\''
                 else if (prev == '^') {
                     def cp = Character.codePointAt(ch.toUpperCase(), 0)
                     // ^A = ctrl-A; ^M = ctrl-M (carriage return); ^Z = ctrl-Z; ^` = space
@@ -2922,6 +2926,70 @@ class A2PackPartitions
         }
     }
 
+    def recordStatUse(mapName, script, statUses)
+    {
+        mapName = mapName.trim().replaceAll(/\s*-\s*[23][dD]\s*/, "")
+        script.block.'**'.each { blk ->
+            if (blk?.@type =~ /^interaction_(increase|decrease|set|get)_stat.*/) {
+                def statName = blk.field[0].text().trim().toLowerCase()
+                def getOrSet = blk.@type == "interaction_get_stat" ? "Checked" : "Set"
+                if (!statUses.containsKey(statName))
+                    statUses[statName] = [] as Set
+                def scriptName = script.@name
+                statUses[statName] << "$getOrSet on map '$mapName' in script '$scriptName'"
+            }
+        }
+    }
+
+    def recordStats(data, statUses, skills)
+    {
+        def funcs = allPlayerFuncs(data.global.sheets.sheet)
+        funcs.each { func, index, row ->
+            row.attributes().sort().eachWithIndex { name, val, idx ->
+                if (name =~ /^skill-(.*)/) {
+                    def skillName = name.replace("skill-", "").toLowerCase()
+                    skills << skillName
+                    if (!statUses.containsKey(skillName))
+                        statUses[skillName] = [] as Set
+                    statUses[skillName] << "Initialized in players sheet"
+                }
+            }
+        }
+
+        def el = data.global.sheets.sheet.find { it?.@name.equalsIgnoreCase("weapons") }
+        el.rows.row.findAll{"weapon"}.each { row ->
+            def kind = parseStringAttr(row, "weapon-kind").toLowerCase()
+            if (!statUses.containsKey(kind))
+                statUses[kind] = [] as Set
+            statUses[kind] << "Checked by weapon-kind in combat"
+        }
+
+        data.global.scripts.script.each { recordStatUse('global', it, statUses) }
+        data.map.each { map ->
+            map.scripts.script.each { recordStatUse(map.@name, it, statUses) }
+        }
+
+        return [statUses, skills]
+    }
+
+    def reportStatUse(data)
+    {
+        def statUses = [:]
+        def skills = [] as Set
+
+        reportWriter.println(
+            "\n============================== Stats and Skills Cross-reference ==================================\n")
+        recordStats(data, statUses, skills)
+        statUses.keySet().sort().each { statName ->
+            def uses = statUses[statName]
+            def skillOrStat = skills.contains(statName) ? "Skill" : "Stat"
+            reportWriter.println "$skillOrStat '$statName':"
+            statUses[statName].sort().each { useStr ->
+                reportWriter.println "    $useStr"
+            }
+        }
+    }
+
     def addResourceDep(fromType, fromName, toType, toName)
     {
         assert fromType != null && fromName != null
@@ -3157,6 +3225,7 @@ class A2PackPartitions
         reportScriptLocs(dataIn)
         reportFlags(dataIn)
         reportStoryLogs()
+        reportStatUse(dataIn)
 
         if (debugCompression)
             println "Compression savings: $compressionSavings"
@@ -3793,9 +3862,11 @@ class A2PackPartitions
             "${parseByteAttr(row, "pack size")})")
         row.attributes().sort().eachWithIndex { name, val, idx ->
             if (name =~ /^skill-(.*)/) {
+                def skillName = name.replace("skill-", "")
                 out.println("  addToList(@p=>p_skills, " +
-                    "makeModifier(${escapeString(titleCase(name.replace("skill-", "")))}, " +
+                    "makeModifier(${escapeString(titleCase(skillName))}, " +
                     "${parseByteAttr(row, name)}))")
+                skillName = skillName.toLowerCase()
             }
             else if (name =~ /^item-/) {
                 name = val.trim().toLowerCase()
@@ -4671,7 +4742,8 @@ end
             }
 
             if (inst2.nWarnings > 0) {
-                reportWriter.println "Packing warnings:\n"
+                reportWriter.println(
+                    "\n============================== Packing warnings ==================================\n")
                 reportWriter.println inst2.warningBuf.toString()
                 reportWriter.write()
                 watcher.warnings(inst2.nWarnings, inst2.warningBuf.toString())

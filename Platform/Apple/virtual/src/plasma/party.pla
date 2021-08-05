@@ -266,6 +266,8 @@ end
 // Returns 1 to redisplay everything, 0 if only minor change
 def adjustSkill(player, skillNum, dir)#0
   word p
+  word stamDiff
+  stamDiff = player->b_stamina
   p = skillPtr[skillNum]
   if dir < 0 and skillMin[skillNum] == ^p
     beep; return
@@ -289,6 +291,11 @@ def adjustSkill(player, skillNum, dir)#0
   if player->b_skillPoints < skillMin[nSkills]; rawDisplayStr("^I"); fin
   rightJustifyStr(sprintf1(" %d ", player->b_skillPoints), skillX[nSkills]+SKILL_JUST_OFF)
   rawDisplayStr("^N")
+
+  // Adjusting stamina also immediately affects health
+  stamDiff = player->b_stamina - stamDiff
+  player=>w_maxHealth = max(0, player=>w_maxHealth + stamDiff)
+  player=>w_health    = max(0, player=>w_health    + stamDiff)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

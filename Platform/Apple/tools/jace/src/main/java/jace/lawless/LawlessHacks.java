@@ -43,16 +43,17 @@ public class LawlessHacks extends Cheats {
     @Override
     public void registerListeners() {
         // Observe graphics changes
-        addCheat(RAMEvent.TYPE.ANY, false, (e) -> {
+        addCheat(RAMEvent.TYPE.ANY, (e) -> {
             int addr = e.getAddress();
             if (addr >= MODE_SOFTSWITCH_MIN && e.getAddress() <= MODE_SOFTSWITCH_MAX) {
-                System.out.println("Trapped " + e.getType().toString() + " to $" + Integer.toHexString(e.getAddress()));
+//                System.out.println("Trapped " + e.getType().toString() + " to $" + Integer.toHexString(e.getAddress()));
                 setEngineByOrdinal(e.getAddress() - MODE_SOFTSWITCH_MIN);
             }
         }, MODE_SOFTSWITCH_MIN, MODE_SOFTSWITCH_MAX);
-        addCheat(RAMEvent.TYPE.WRITE, false, (e) -> {
+        addCheat(RAMEvent.TYPE.WRITE, (e) -> {
+//            System.out.println(Integer.toHexString(e.getAddress()) + " => " + Integer.toHexString(e.getNewValue() & 0x0ff));
             playSound(e.getNewValue());
-        }, SFX_TRIGGER, SFX_TRIGGER);
+        }, SFX_TRIGGER);
     }
 
     @Override
@@ -73,11 +74,17 @@ public class LawlessHacks extends Cheats {
         }
     }
 
-    int currentSong;
-    boolean repeatSong = false;
-    Thread playbackEffect;
-    MediaPlayer currentSongPlayer;
-    MediaPlayer currentSfxPlayer;
+    public static final String SCORE_NONE = "none";
+    public static final String SCORE_COMMON = "common";
+    public static final String SCORE_ORCHESTRAL = "orchestral";
+    public static final String SCORE_CHIPTUNE = "chiptune";
+
+    private static int currentSong;
+    private static boolean repeatSong = false;
+    private static Thread playbackEffect;
+    private static MediaPlayer currentSongPlayer;
+    private static MediaPlayer currentSfxPlayer;
+    private static String currentScore = SCORE_COMMON;
 
     private void playSound(int soundNumber) {
         boolean isMusic = soundNumber >= 0;
@@ -85,17 +92,17 @@ public class LawlessHacks extends Cheats {
         repeatSong = (soundNumber & 0x040) > 0;
         if (track == 0) {
             if (isMusic) {
-//                System.out.println("Stop music");
+                System.out.println("Stop music");
                 stopMusic();
             } else {
-//                System.out.println("Stop sfx");
+                System.out.println("Stop sfx");
                 stopSfx();
             }
         } else if (isMusic) {
-//            System.out.println("Play music "+track);
+            System.out.println("Play music "+track);
             playMusic(track);
         } else {
-//            System.out.println("Play sfx "+track);
+            System.out.println("Play sfx "+track);
             playSfx(track);
         }
     }
@@ -133,6 +140,11 @@ public class LawlessHacks extends Cheats {
         } else {
             new Thread(() -> startNewSong(track)).start();
         }
+        currentSong = track;
+    }
+
+    private boolean isPlayingMusic() {
+        return currentSongPlayer != null && currentSongPlayer.getStatus() == MediaPlayer.Status.PLAYING;
     }
 
     private void stopSongEffect() {
@@ -145,11 +157,11 @@ public class LawlessHacks extends Cheats {
 
     private void fadeOutSong(Runnable nextAction) {
         stopSongEffect();
-        if (currentSongPlayer != null) {
+        MediaPlayer player = currentSongPlayer;
+        if (player != null) {
             playbackEffect = new Thread(() -> {
-                DoubleProperty volume = currentSongPlayer.volumeProperty();
-                while (playbackEffect == Thread.currentThread() && currentSongPlayer != null && volume.get() > 0.0) {
-//                    System.out.println("Fading down: " + volume.get());
+                DoubleProperty volume = player.volumeProperty();
+                while (playbackEffect == Thread.currentThread() && volume.get() > 0.0) {
                     volume.set(volume.get() - FADE_AMT);
                     try {
                         Thread.sleep(FADE_SPEED);
@@ -158,8 +170,10 @@ public class LawlessHacks extends Cheats {
                         return;
                     }
                 }
-                currentSongPlayer.stop();
-                currentSongPlayer = null;
+                player.stop();
+                if (currentSongPlayer == player) {
+                    currentSongPlayer = null;
+                }
                 if (nextAction != null) {
                     nextAction.run();
                 }
@@ -170,32 +184,17 @@ public class LawlessHacks extends Cheats {
         }
     }
 
-    double FADE_AMT = 0.05; // 5% per interval, or 20 stops between 0% and 100%
-    int FADE_SPEED = 100; // 100ms per 5%, or 2 second duration
-
-    private void startNewSong(int track) {
-        if (track != currentSong || currentSongPlayer == null || isMusicEnabled()) {
-            // If the same song is already playing don't restart it
-            Media song = getAudioTrack(track);
-            if (song == null) {
-                System.out.println("Unable to start song " + track + "; File not found");
-                return;
-            }
-            currentSongPlayer = new MediaPlayer(song);
-            currentSongPlayer.setCycleCount(repeatSong ? MediaPlayer.INDEFINITE : 1);
-            currentSongPlayer.setVolume(0.0);
-            currentSongPlayer.play();
-            currentSong = track;
-        }
-        // But if the same song was already playing but possibly fading out
-        // then this will fade it back in neatly.
+    private void fadeInSong(MediaPlayer player) {
         stopSongEffect();
-//        System.out.println("Starting "+track+" NOW");
+        currentSongPlayer = player;
+        DoubleProperty volume = player.volumeProperty();
+        if (volume.get() >= 1.0) {
+            return;
+        }
+
         playbackEffect = new Thread(() -> {
-            DoubleProperty volume = currentSongPlayer.volumeProperty();
-            while (playbackEffect == Thread.currentThread() && currentSongPlayer != null && volume.get() < 1.0) {
+            while (playbackEffect == Thread.currentThread() && volume.get() < 1.0) {
                 volume.set(volume.get() + FADE_AMT);
-//                System.out.println("Fading up: " + volume.get());
                 try {
                     Thread.sleep(FADE_SPEED);
                 } catch (InterruptedException e) {
@@ -205,6 +204,33 @@ public class LawlessHacks extends Cheats {
             }
         });
         playbackEffect.start();
+    }
+
+    double FADE_AMT = 0.05; // 5% per interval, or 20 stops between 0% and 100%
+    int FADE_SPEED = 100; // 100ms per 5%, or 2 second duration
+
+    private void startNewSong(int track) {
+        if (!isMusicEnabled()) {
+            return;
+        }
+        MediaPlayer player;
+        if (track != currentSong || !isPlayingMusic()) {
+            // If the same song is already playing don't restart it
+            Media song = getAudioTrack(track);
+            if (song == null) {
+                System.out.println("Unable to start song " + track + "; File not found");
+                return;
+            }
+            player = new MediaPlayer(song);
+            player.setCycleCount(repeatSong ? MediaPlayer.INDEFINITE : 1);
+            player.setVolume(0.0);
+            player.play();
+        } else {
+            // But if the same song was already playing but possibly fading out
+            // then this will fade it back in neatly.
+            player = currentSongPlayer;
+        }
+        fadeInSong(player);
     }
 
     private void stopMusic() {
@@ -236,12 +262,6 @@ public class LawlessHacks extends Cheats {
         }
     }
 
-    public static final String SCORE_NONE = "none";
-    public static final String SCORE_COMMON = "common";
-    public static final String SCORE_ORCHESTRAL = "orchestral";
-    public static final String SCORE_CHIPTUNE = "chiptune";
-
-    private String currentScore = SCORE_COMMON;
     public void changeMusicScore(String score) {
         if (currentScore.equalsIgnoreCase(score)) {
             return;
@@ -252,6 +272,7 @@ public class LawlessHacks extends Cheats {
             stopMusic();
             currentSong = -1;
         } else if ((currentSongPlayer != null || wasStoppedPreviously) && currentSong > 0) {
+            stopSongEffect();
             int currentSongTemp = currentSong;
             currentSong = Integer.MAX_VALUE;
             startNewSong(currentSongTemp);

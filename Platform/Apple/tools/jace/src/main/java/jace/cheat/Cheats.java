@@ -60,7 +60,7 @@ public abstract class Cheats extends Device {
         return addCheat(RAMEvent.TYPE.ANY, (e) -> e.setNewValue(value), address);
     }
 
-    public RAMListener forceValue(int value, boolean auxFlag, int... address) {
+    public RAMListener forceValue(int value, Boolean auxFlag, int... address) {
         return addCheat(RAMEvent.TYPE.ANY, auxFlag, (e) -> e.setNewValue(value), address);
     }
 
@@ -75,7 +75,7 @@ public abstract class Cheats extends Device {
         return listener;
     }
 
-    public RAMListener addCheat(RAMEvent.TYPE type, boolean auxFlag, RAMEvent.RAMEventHandler handler, int... address) {
+    public RAMListener addCheat(RAMEvent.TYPE type, Boolean auxFlag, RAMEvent.RAMEventHandler handler, int... address) {
         RAMListener listener;
         if (address.length == 1) {
             listener = computer.getMemory().observe(type, address[0], auxFlag, handler);

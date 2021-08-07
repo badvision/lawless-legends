@@ -3388,10 +3388,10 @@ export def addXP(player, val)#0
   if val < 0; return; fin
   player=>w_curXP = player=>w_curXP + val
   // Enforce cap on number of points to stay well within limit of 15 bits
-  if player=>w_curXP < 0 or player=>w_curXP > 29999
-    player=>w_curXP = 29999
+  if player=>w_curXP < 0 or player=>w_curXP >= 30000
+    player=>w_curXP = 30000
   fin
-  while player=>w_curXP >= player=>w_nextXP
+  while player=>w_curXP >= player=>w_nextXP and player=>w_curXP < 30000
     // Level up!
     player->b_level++
     player->b_skillPoints = player->b_skillPoints + callGlobalFunc(GS_LEVEL_S_P, player->b_level, 0, 0)
@@ -3401,7 +3401,7 @@ export def addXP(player, val)#0
 
     // Check XP for next level, and enforce level cap if any
     n = callGlobalFunc(GS_LEVEL_X_P, player->b_level + 1, 0, 0)
-    if n > w_nextXP and n <= 30000
+    if n > player=>w_nextXP and n <= 30000
       player=>w_nextXP = n
     else
       player=>w_nextXP = 30000 // level cap reached

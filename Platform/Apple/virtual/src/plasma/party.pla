@@ -142,7 +142,11 @@ def showDerived(player)#0
   fin
   rightJustifyNum(player=>w_curXP, STAT_X)
   rawDisplayf2(fmt, STATLBL_X, "Current XP")
-  rightJustifyNum(player=>w_nextXP, STAT_X)
+  if player=>w_nextXP < 30000  // check for level cap
+    rightJustifyNum(player=>w_nextXP, STAT_X)
+  else
+    rightJustifyStr("-----", STAT_X)
+  fin
   rawDisplayf2(fmt, STATLBL_X, "Next lvl XP")
 
   vspace()

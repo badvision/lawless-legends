@@ -1156,7 +1156,7 @@ def _automap_show(targetX, targetY)#1
 
   // Ensure the global tileset is reloaded (otherwise tile eng will try to load it from wrong partition)
   mmgr(START_LOAD, 1)
-  pGlobalTileset = mmgr(QUEUE_LOAD, 1<<8 | RES_TYPE_SM_TILESET)
+  pGlobalTileset = mmgr(QUEUE_LOAD, 1<<8 | RES_TYPE_TILESET)
   mmgr(FINISH_LOAD, 0)
 
   // All done.

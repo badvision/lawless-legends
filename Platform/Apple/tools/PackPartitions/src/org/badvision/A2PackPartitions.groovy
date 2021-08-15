@@ -3005,7 +3005,11 @@ class A2PackPartitions
     def addMapDep(toType, toName)
     {
         assert curMapName != null
-        addResourceDep("map", curMapName, toType, toName)
+        // Make sure non-required global functions don't get added to <root> map
+        if (curMapName.startsWith("globalFunc:"))
+            addResourceDep("globalFunc", curMapName.replace("globalFunc:", ""), toType, toName)
+        else
+            addResourceDep("map", curMapName, toType, toName)
     }
 
     def finishAllTileSets(dataIn)
@@ -4330,16 +4334,24 @@ end
 
     def genAllGlobalScripts(scripts)
     {
+        def requiredGlobalScriptNames = [] as Set
+        requiredGlobalScripts.each { humanName -> requiredGlobalScriptNames << humanNameToSymbol(humanName, false) }
+
         def found = [] as Set
         scripts.each { script ->
             def gsmod = new ScriptModule()
             def name = humanNameToSymbol(script.@name, false)
             found << name
-            curMapName = (name == "newGame") ? "<second>" : "<root>"
-            addMapDep("module", "gs_" + name)
+            if (requiredGlobalScriptNames.contains(name)) {
+                curMapName = (name == "newGame") ? "<second>" : "<root>"
+                addMapDep("module", "gs_" + name)
+            }
+            else
+                curMapName = "globalFunc:" + name // don't add non-req global scripts to <root> map
             gsmod.packGlobalScript(new File("build/src/plasma/gs_${name}.pla.new"), script)
             addResourceDep("globalFunc", name, "module", "gs_" + name)
             replaceIfDiff("build/src/plasma/gs_${name}.pla")
+            curMapName = null
         }
 
         // For missing global funcs, generate a warning and a stub
@@ -4524,6 +4536,7 @@ end
         maps2D.each { k,v -> size += 2 + ((v.width+7)>>3)*(v.height) } // 2 = mapNum+len header
         maps3D.each { k,v -> size += 2 + ((v.width+7)>>3)*(v.height) } // 2 = mapNum+len header
         size += 1 // end of marks
+        assert size < 0x1400 // $4C00.$6000 LOAD_SAVE_BUF for autosave_marks
         return size
     }
 

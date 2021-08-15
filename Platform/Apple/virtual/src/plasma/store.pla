@@ -33,6 +33,7 @@ word pageItems[MAX_PAGE_ITEMS]
 word pagePrices[MAX_PAGE_ITEMS]
 byte playerNum, playerCount
 word pPlayer
+word charmRatio
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -115,7 +116,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayBuyPage(pItemTbl, markupRatio, pageNum, nPages)#1
   byte numOnPage
-  word pItemNum, pItem
+  word pItemNum, pItem, price
 
   // Clear stuff from previous page
   heapCollect()
@@ -129,7 +130,9 @@ def displayBuyPage(pItemTbl, markupRatio, pageNum, nPages)#1
       pItem=>w_count = pItem=>w_storeAmount
     fin
     pageItems[numOnPage] = pItem
-    pagePrices[numOnPage] = max(1, pItem=>w_price + addRatio(pItem=>w_price, markupRatio))
+    price = max(1, pItem=>w_price + addRatio(pItem=>w_price, markupRatio))
+    price = max(1, price - addRatio(price, charmRatio))
+    pagePrices[numOnPage] = price
     displayItemLine(numOnPage)
     pItemNum = pItemNum + 2
   next
@@ -244,13 +247,20 @@ def browseItem(num)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def setPlayer(num)#0
+  playerNum = num
+  pPlayer = index(global=>p_players, playerNum)
+  // Charisma discounts 3% per point when buying from a merchant; adds 3% when selling to merchant
+  charmRatio = percentToRatio(pPlayer->b_charisma * 3)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def storeSetup()#0
   loadExtraModules()
   setBigWindow()
 
   playerCount = countList(global=>p_players)
-  playerNum = 0
-  pPlayer = index(global=>p_players, playerNum)
+  setPlayer(0)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -278,8 +288,7 @@ def _buyFromStore(storeCode, profitPercent)#1
     elsif choice == '>' and pageNum+1 < nPages
       pageNum++
     elsif choice >= '1' and (choice-'1') < playerCount and (choice-'1') <> playerNum
-      playerNum = choice - '1'
-      pPlayer = index(global=>p_players, playerNum)
+      setPlayer(choice - '1')
     elsif choice >= 'A' and (choice-'A' < nItemsOnPage)
       browseItem(choice-'A')
     elsif choice == $1B // Esc
@@ -311,6 +320,7 @@ def iterateSellables(skipItems, markdownRatio)#1
     fin
     if ok
       price = max(0, pItem=>w_price - addRatio(pItem=>w_price, markdownRatio))
+      price = price + addRatio(price, charmRatio)
       if !price; ok = FALSE; fin
     fin
     if ok
@@ -400,8 +410,7 @@ def _sellToStore(profitPercent)#1
     elsif choice == '>' and pageNum+1 < nPages
       pageNum++
     elsif choice >= '1' and (choice-'1') < playerCount and (choice-'1') <> playerNum
-      playerNum = choice - '1'
-      pPlayer = index(global=>p_players, playerNum)
+      setPlayer(choice - '1')
       totalItems = iterateSellables(9999, 0)
     elsif choice >= 'A' and (choice-'A' < nItemsOnPage)
       sellItem(choice-'A')

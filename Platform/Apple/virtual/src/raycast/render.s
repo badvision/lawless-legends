@@ -89,7 +89,7 @@ nTextures:	!byte 0
 scripts:	!word 0		; pointer to loaded scripts module
 shadow_pTex:	!word 0		; backup of pTmp space on aux (because it gets overwritten by expander)
 mapPartition:	!byte 0		; mem mgr partition of map and resources
-darkHeight:     !byte 0		; height below which darkness kicks in (changes in darkness)
+blankHeight:    !byte 0		; height below which darkness/whiteout kicks in (changes in darkness)
 fadeHeight:     !byte 0		; height below which fade kicks in (changes in darkness)
 intrOnKbd:      !byte 0		; whether we should stop render if key is pressed (e.g. while doing anim)
 
@@ -495,9 +495,9 @@ castRay: !zone
 
 	; special case: hit edge of map
 .hitEdge:
-	ldy darkHeight		; height
+	ldy blankHeight		; height
 	lda #1			; depth
-	ldx #0			; dark texture
+	ldx #0			; dark texture (not a real texture; addresses blankTexBuf)
 	stx txNum		; texture number
 	jsr saveLink		; allocate a link and save those
 	lda #0			; column number
@@ -579,11 +579,11 @@ castRay: !zone
 	beq +
 	ldy #$FF	; clamp large line heights to 255
 +	pla		; get the depth back
-	cpy darkHeight	; check for darkness in the distance
+	cpy blankHeight	; check for darkness/whiteout in the distance
 	bcs +
-	ldy #0		; switch to special 'dark' texture
+	ldy #0		; switch to special 'dark' texture (not a real texture; addresses blankTexBuf)
 	sty txNum
-	ldy darkHeight	; visually hide the distance (depth is probably ok unchanged)
+	ldy blankHeight	; visually hide the distance (depth is probably ok unchanged)
 +	jmp saveLink	; save final column data to link buffer
 
 !if DEBUG >= 2 {
@@ -888,7 +888,7 @@ spriteCalc: !zone
 	txa			; work on hi byte
 	beq +
 	ldy #$FF
-+	cpy darkHeight
++	cpy blankHeight
 	bcs +
 	!if DEBUG >= 2 { +prStr : !text "Sprite is beyond dark limit.",0 }
 	rts
@@ -1335,11 +1335,8 @@ drawRay: !zone
 	and #1
 	eor tmp
 	lsr			; final result in carry
-	lda gndColorEven
-	and #$20		; just hi-bit of ground color
-	tay
 	lda skyColorEven
-	and #$20		; just hi-bit of sky color
+	tay
 	bcs +
 	jmp clrBlitRollO
 +	jmp clrBlitRollE
@@ -2066,11 +2063,18 @@ renderFrame: !zone
 	sta byteNum
 	sta screenCol
 
-	; clear blank buffer (used to display the 'blank' texture in the far distance)
+	; clear blank buffer (used to display the 'blank' texture in the far distance, and darkness)
 	lda skyColorEven
-	and #$20	; hi bit
-	beq +
-	lda #$30
+	and skyColorOdd
+	and #$1F	; shared color bits
+	tay		; cache for white-out check
+	lda skyColorEven
+	and #$20	; hi bit only; color is black
+	beq +		; lo bit black
+	lda #$30	; hi bit black
++	cpy #$A		; check for white-out
+	bne +
+	ora #$F		; if whiteout, set all color bits in blank texture
 +	sta setAuxWr
 	ldy #31
 -	sta blankTexBuf,y
@@ -2267,10 +2271,15 @@ pl_setColor: !zone
 	lda skyColorEven
 	ora skyColorOdd
 	and #$1F
+	beq .dark
+	lda skyColorEven
+	and skyColorOdd
+	and #$1F		; check for whiteout
+	cmp #$A			; if whiteout, its a lot like darkness but with a different blank texture
 	bne .fin
 .dark	ldx #15			; for nighttime: 15 dark height
 	ldy #30			; ... 30 fade height
-.fin	stx darkHeight
+.fin	stx blankHeight
 	sty fadeHeight
 	rts
 

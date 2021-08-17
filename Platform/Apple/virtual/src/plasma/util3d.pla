@@ -267,6 +267,9 @@ end
 def _showClock()#1
   word cursX, cursY, color
 
+  // Record the cursor position before we do anything, so we can put it back at the end.
+  cursX, cursY = getCursor()
+
   // Show page 1 while we do work on page 2
   flipToPage1
   setWindow(CLOCK_Y-CLOCK_RADIUS, CLOCK_Y+CLOCK_RADIUS, (CLOCK_X-CLOCK_RADIUS)/7*7, (CLOCK_X+CLOCK_RADIUS+13)/7*7)
@@ -286,8 +289,9 @@ def _showClock()#1
   drawHands(color ^ $7F, global->b_hour, global->b_minute)
 
   // Copy the image from pg 2 to pg 1
-  cursX, cursY = getCursor()
   copyWindow($60) // page 2 to page 1
+
+  // Restore the previous cursor position in the main dialog window
   setWindow2()
   setCursor(cursX, cursY)
 

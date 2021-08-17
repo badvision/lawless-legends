@@ -3414,7 +3414,7 @@ end
 // Add XP to every player in the party, leveling them up as appropriate
 export def addXP_all(val)#0
   ctx = val
-  forEach(global=>p_players, &(p) addXP(p, ctx))
+  forEach(global=>p_players, &(p) addXP(p, ctx + addPercent(ctx, 10*p->b_intelligence)))
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

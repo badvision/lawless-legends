@@ -125,6 +125,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def displayWeaponStats(pItem1, pItem2)#0
   displayTwoCol("Equip'd",   pItem1, pItem2, b_flags,         @equippedField, @formatEquipped)
+  displayTwoCol("Skill",     pItem1, pItem2, s_itemKind,      @wordField, @formatStr)
   displayTwoCol("Ammo",      pItem1, pItem2, s_ammoKind,      @wordField, @formatStr)
   displayTwoCol("Clip size", pItem1, pItem2, b_clipSize,      @byteField, @formatNum)
   if (pItem1->b_flags & ITEM_FLAG_EQUIP) and !pItem2

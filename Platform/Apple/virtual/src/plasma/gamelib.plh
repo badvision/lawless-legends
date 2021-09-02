@@ -19,7 +19,7 @@ import gamelib
   predef addPercent(start, pct)#1
   predef addRatio(start, ratio)#1
   predef addToList(addTo, p)#0
-  predef addXP_all(xp)#0
+  predef adjustPartyStat(statName, val)#0
   predef auxMmgr(cmd, wordParam)#1
   predef beep()#0
   predef benchPlayer()#0

@@ -858,7 +858,7 @@ def doPlayerSheet(player_num)#1
         break
       is '+' // level up cheat
         if global->b_godmode
-          addXP_all(player=>w_nextXP - player=>w_curXP)
+          adjustPartyStat(@S_XP, player=>w_nextXP - player=>w_curXP)
           redisplay = 2
         fin
         break

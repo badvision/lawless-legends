@@ -818,7 +818,6 @@ def playerCombatTurn(pl)#1
   when pl->b_combatChoice
     is 'M'
       nAttacks = calcNumAtt(pl, TRUE, pWeapon) // TRUE=melee
-      displayf1("nAttacks=%d\n", nAttacks)
       for i = 1 to nAttacks
         playerMelee(pl, pWeapon)
         if i < nAttacks; combatPause; fin
@@ -1238,8 +1237,8 @@ def collectLootAndXP()#0
   fin
 
   if xp > 0
-    addXP_all(xp)
     displayf1("You earn %d experience!\n", xp); first = FALSE
+    adjustPartyStat(@S_XP, xp)
   fin
 
   if pItems or gold or xp

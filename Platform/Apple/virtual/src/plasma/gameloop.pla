@@ -82,6 +82,7 @@ predef showAnimFrame()#0
 predef showParty()#0
 predef textureControl(flg)#0
 predef clearEncounterZones()#0
+predef adjustPartyStat(statName, val)#0
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Global variables
@@ -3382,13 +3383,14 @@ export def giveItemToParty(p_item, displayFunc)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Add XP to every player in the party, leveling them up as appropriate
-export def addXP(player, val)#0
+// Add XP to one player, leveling them up as appropriate
+def addXP(player, val)#0
   word n
   if val < 0; return; fin
-  player=>w_curXP = player=>w_curXP + val
+  // Add the value plus an intelligence-based bonus
+  player=>w_curXP = player=>w_curXP + val + addPercent(val, 10 * player->b_intelligence)
   // Enforce cap on number of points to stay well within limit of 15 bits
-  if player=>w_curXP < 0 or player=>w_curXP >= 30000
+  if player=>w_curXP < 0 or player=>w_curXP >= 30000  // goes neg if wrapped around
     player=>w_curXP = 30000
   fin
   while player=>w_curXP >= player=>w_nextXP and player=>w_curXP < 30000
@@ -3408,13 +3410,6 @@ export def addXP(player, val)#0
       break
     fin
   loop
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Add XP to every player in the party, leveling them up as appropriate
-export def addXP_all(val)#0
-  ctx = val
-  forEach(global=>p_players, &(p) addXP(p, ctx + addPercent(ctx, 10*p->b_intelligence)))
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3456,7 +3451,7 @@ export def addPlayerToParty(playerFuncNum, displayFunc)#0
   // Add if not dupe
   if !scanForNamedObj(global=>p_players, p_player=>s_name)
     addToList(@global=>p_players, p_player)
-    addXP_all(0) // to set initial skill pts
+    adjustPartyStat(@S_XP, 0) // to set initial skill pts
     heapCollect
     needShowParty = TRUE
   fin
@@ -3510,12 +3505,9 @@ export def getStat(player, statName)#1
     is streqi(statName, @S_AIMING);       return player->b_aiming
     is streqi(statName, @S_HAND_TO_HAND); return player->b_handToHand
     is streqi(statName, @S_DODGING);      return player->b_dodging
-    is streqi(statName, @S_GOLD);         return global=>w_gold
-    is streqi(statName, @S_TIME);         return global->b_hour
     is streqi(statName, @S_XP);           return player=>w_curXP
     is streqi(statName, @S_SP);           return player->b_skillPoints
     is streqi(statName, @S_PACK_SIZE);    return player->b_packSize
-    is streqi(statName, @S_BANK_BAL);     return global=>w_bankBal
   wend
   pSkill = scanForNamedObj(player=>p_skills, statName)
   if pSkill; return pSkill=>w_modValue; fin
@@ -3545,6 +3537,44 @@ def setHour(val) #0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Adjust the given stat for every (living) player in the party
+export def adjustPartyStat(statName, val)#0
+  word p_player
+  when 1
+    is streqi(statName, @S_GOLD);         global=>w_gold = max(0, global=>w_gold + val); needShowParty = TRUE; break
+    is streqi(statName, @S_TIME);         setHour(global->b_hour + val); break;
+    is streqi(statName, @S_BANK_BAL);     global=>w_bankBal = global=>w_bankBal + val; break
+    otherwise
+      p_player = global=>p_players
+      while p_player
+        if p_player=>w_health > 0
+          setStat(p_player, statName, getStat(p_player, statName) + val)
+        fin
+        p_player = p_player=>p_nextObj
+      loop
+  wend
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Get the max value of the stat for any (living) character in the party
+export def getPartyStat(statName)#1
+  word p_player, val
+  val = 0
+  when 1
+    is streqi(statName, @S_GOLD);         return global=>w_gold
+    is streqi(statName, @S_TIME);         return global->b_hour
+    is streqi(statName, @S_BANK_BAL);     return global=>w_bankBal
+    otherwise
+      p_player = global=>p_players
+      while p_player
+        val = max(val, getStat(p_player, statName))
+        p_player = p_player=>p_nextObj
+      loop
+  wend
+  return val
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 export def setStat(player, statName, val)#0
   word pSkill
   when 1
@@ -3561,12 +3591,9 @@ export def setStat(player, statName, val)#0
     is streqi(statName, @S_AIMING);       player->b_aiming = clampByte(val); break
     is streqi(statName, @S_HAND_TO_HAND); player->b_handToHand = clampByte(val); break
     is streqi(statName, @S_DODGING);      player->b_dodging = clampByte(val); break
-    is streqi(statName, @S_GOLD);         global=>w_gold = max(0, val); needShowParty = TRUE; break
-    is streqi(statName, @S_TIME);         setHour(val); break;
     is streqi(statName, @S_XP);           addXP(player, val - player=>w_curXP); needShowParty = TRUE; break
     is streqi(statName, @S_SP);           player->b_skillPoints = clampByte(max(0, val)); needShowParty = TRUE; break
     is streqi(statName, @S_PACK_SIZE);    player->b_packSize = clampByte(max(player->b_packSize, val)); break
-    is streqi(statName, @S_BANK_BAL);     global=>w_bankBal = val; break
     otherwise
       pSkill = scanForNamedObj(player=>p_skills, statName)
       if pSkill

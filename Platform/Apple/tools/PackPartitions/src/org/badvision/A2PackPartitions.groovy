@@ -1970,7 +1970,7 @@ class A2PackPartitions
         tmp.put((byte)(combinedVersion.length()))
         combinedVersion.getBytes().each { b -> tmp.put((byte)b) }
 
-        // Then output 2D maps, 3d maps, and portraits
+        // Then output 2D maps, 3d maps, portraits, and full screen images
         tmp.put((byte) maps2D.size())
         maps2D.each { k, v ->
             tmp.put((byte) calcDiskBits(chunkDisks[["map2D", k].toString()]))
@@ -1984,6 +1984,11 @@ class A2PackPartitions
         tmp.put((byte) portraits.size())
         portraits.each { k, v ->
             tmp.put((byte) calcDiskBits(chunkDisks[["portrait", k.toLowerCase()].toString()]))
+        }
+
+        tmp.put((byte) frames.size())
+        frames.each { k, v ->
+            tmp.put((byte) calcDiskBits(chunkDisks[["frame", k.toLowerCase()].toString()]))
         }
 
         // Stick on the partition number of the stories (used by non-floppy builds)
@@ -2909,6 +2914,8 @@ class A2PackPartitions
                 assert field.size() == 1
                 assert field[0].@name == "NUM"
                 diskLimit = field[0].text().toInteger()
+                if (diskLimit >= 8) // Seth likes to set it to 8 to mean no limit
+                    diskLimit = 0
             }
         }
     }
@@ -3148,7 +3155,8 @@ class A2PackPartitions
             addEntireToCache("frames", frames, hash)
         }
         frames.each { k,v ->
-            addResourceDep("map", "<root>", "frame", k)
+            if (k.toLowerCase() =~ /frame|title/)
+                addResourceDep("map", "<root>", "frame", k)
         }
 
         hash = calcImagesHash(textureImgs)

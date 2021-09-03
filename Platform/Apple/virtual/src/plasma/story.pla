@@ -86,7 +86,7 @@ end
 def loadStory(storyNum)#0
   byte storyPart
   word pAuxText, pEnd, pSrc, pDst, len
-  storyPart = lookupResourcePart(4, 1)  // special section just to record the partition
+  storyPart = lookupResourcePart(5, 1)  // special section just to record the partition of stories
   if !storyPart; fatal("lkupFail2"); fin
   auxMmgr(START_LOAD, storyPart)
   pAuxText = auxMmgr(QUEUE_LOAD, storyNum<<8 | RES_TYPE_STORY)

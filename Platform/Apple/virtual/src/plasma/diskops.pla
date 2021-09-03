@@ -255,6 +255,9 @@ def _startup()#1
 
   // Record the disk limit
   diskLimit = callGlobalFunc(GS_DISK_LIMIT, 0, 0, 0)
+  if diskLimit >= 8 // Seth likes to set it to 8 to mean "no limit"
+    diskLimit = 0
+  fin
 
   // All done.
   return 0

@@ -1771,6 +1771,11 @@ export def loadFrameImg(img)#0
   if frameLoaded == img; return; fin
 
   // Free prev img and/or portrait (if any)
+  if curFullscreenImg
+    // must clear img directly, to avoid loading main frame img only to replace it
+    auxMmgr(FREE_MEMORY, curFullscreenImg)
+    curFullscreenImg = NULL
+  fin
   clearPortrait()
 
   // Make room in aux mem by throwing out textures
@@ -1778,7 +1783,7 @@ export def loadFrameImg(img)#0
 
   // Load the image data into aux mem
   if img
-    auxMmgr(START_LOAD, 1) // partition 1 is where full screen images live
+    auxMmgr(START_LOAD, lookupResourcePart(4, img))
     if img == 1
       auxMmgr(SET_MEM_TARGET, $4000) // well above where expander loads at startup
     fin
@@ -3505,9 +3510,11 @@ export def getStat(player, statName)#1
     is streqi(statName, @S_AIMING);       return player->b_aiming
     is streqi(statName, @S_HAND_TO_HAND); return player->b_handToHand
     is streqi(statName, @S_DODGING);      return player->b_dodging
-    is streqi(statName, @S_XP);           return player=>w_curXP
+    is streqi(statName, @S_GOLD);         return global=>w_gold
+    is streqi(statName, @S_TIME);         return global->b_hour
     is streqi(statName, @S_SP);           return player->b_skillPoints
     is streqi(statName, @S_PACK_SIZE);    return player->b_packSize
+    is streqi(statName, @S_BANK_BAL);     return global=>w_bankBal
   wend
   pSkill = scanForNamedObj(player=>p_skills, statName)
   if pSkill; return pSkill=>w_modValue; fin
@@ -3591,9 +3598,12 @@ export def setStat(player, statName, val)#0
     is streqi(statName, @S_AIMING);       player->b_aiming = clampByte(val); break
     is streqi(statName, @S_HAND_TO_HAND); player->b_handToHand = clampByte(val); break
     is streqi(statName, @S_DODGING);      player->b_dodging = clampByte(val); break
+    is streqi(statName, @S_GOLD);         global=>w_gold = max(0, val); needShowParty = TRUE; break
+    is streqi(statName, @S_TIME);         setHour(val); break;
     is streqi(statName, @S_XP);           addXP(player, val - player=>w_curXP); needShowParty = TRUE; break
     is streqi(statName, @S_SP);           player->b_skillPoints = clampByte(max(0, val)); needShowParty = TRUE; break
     is streqi(statName, @S_PACK_SIZE);    player->b_packSize = clampByte(max(player->b_packSize, val)); break
+    is streqi(statName, @S_BANK_BAL);     global=>w_bankBal = val; break
     otherwise
       pSkill = scanForNamedObj(player=>p_skills, statName)
       if pSkill

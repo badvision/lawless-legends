@@ -1277,6 +1277,7 @@ scanForAvail: !zone
 	sta .cmp1+1	; save for later comparison (self-modifying)
 	lda tSegAdrHi,x	; all 16 bits
 	adc reqLen+1
+	bcs .next	; skip if beyond end of memory
 	sta .cmp2+1	; again save for later (self-modifying)
 	lda tSegAdrLo,y	; compare *next* seg start addr
 .cmp1:	cmp #11		; self-modified earlier

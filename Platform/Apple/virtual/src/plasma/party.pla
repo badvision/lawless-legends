@@ -432,7 +432,7 @@ def showItemMenu(player, item)#0
   if isJoinable(item); rawDisplayStr("J)oin, "); fin
   if !isEquipped(item)
     if global=>p_players=>p_nextObj; rawDisplayStr("T)rade, "); fin
-    rawDisplayStr("D)rop ")
+    if item=>w_price > 0; rawDisplayStr("D)rop "); fin
   fin
   rawDisplayStr("or [Esc]")
 end
@@ -717,7 +717,7 @@ def interactWithItem(player, item)#1
         break
       // Destroy an item
       is 'D'
-        if !isEquipped(item)
+        if !isEquipped(item) and item=>w_price > 0
           if doDestroy(player, item)
             displayDone()
             return NULL

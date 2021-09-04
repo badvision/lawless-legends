@@ -2852,7 +2852,7 @@ def showPlayerSheet(num)#1
     anyInteraction = FALSE
     scriptEvent(@S_USE, sNameToUse)
     if !anyInteraction
-      scriptDisplayStr("Nothing happened.")
+      scriptDisplayStr("Nothing happens.")
       setTextCountdown
     fin
   fin
@@ -3512,6 +3512,7 @@ export def getStat(player, statName)#1
     is streqi(statName, @S_DODGING);      return player->b_dodging
     is streqi(statName, @S_GOLD);         return global=>w_gold
     is streqi(statName, @S_TIME);         return global->b_hour
+    is streqi(statName, @S_XP);           return player=>w_curXP
     is streqi(statName, @S_SP);           return player->b_skillPoints
     is streqi(statName, @S_PACK_SIZE);    return player->b_packSize
     is streqi(statName, @S_BANK_BAL);     return global=>w_bankBal

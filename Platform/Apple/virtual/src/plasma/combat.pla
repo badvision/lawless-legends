@@ -283,7 +283,11 @@ def playerMelee(pPlayer, pWeapon)#0
   byte agil
 
   // Maybe in the future we'll put this under control of a global script
-  sAction = (rand16() % 2) ?? "punches" :: "kicks"
+  if pWeapon
+    sAction = pWeapon=>s_combatText
+  else
+    sAction = (rand16() % 2) ?? "punches" :: "kicks"
+  fin
 
   pEnemy = chooseEnemy(5, pPlayer->b_gangChoice) // max distance 5 feet for melee
   if !pEnemy
@@ -619,6 +623,7 @@ def chooseWeapon(pl, pWeapon)#0
       fin
       pi = pi=>p_nextObj
     loop
+    displayOption(i, "Fists & Feet")
     while TRUE
       k = getUpperKey
       sel = NULL
@@ -631,12 +636,15 @@ def chooseWeapon(pl, pWeapon)#0
         pi = pi=>p_nextObj
       loop
       if sel; break; fin
+      if k == 'A'; break; fin  // selected Fists & Feet
       beep
     loop
   fin
 
   // Apply the final selection
-  sel->b_flags = sel->b_flags | ITEM_FLAG_EQUIP
+  if sel
+    sel->b_flags = sel->b_flags | ITEM_FLAG_EQUIP
+  fin
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -659,10 +667,9 @@ def playerCombatChoose(pl)#0
   p = pl=>p_items
   while p
     if p->t_type == TYPE_WEAPON
+      canChange = TRUE
       if p->b_flags & ITEM_FLAG_EQUIP
         pWeapon = p
-      else
-        canChange = TRUE
       fin
     fin
     p = p=>p_nextObj
@@ -828,7 +835,6 @@ def playerCombatTurn(pl)#1
       return 0
     is 'S'
       nAttacks = calcNumAtt(pl, FALSE, pWeapon) // FALSE=not melee
-      displayf1("nAttacks=%d\n", nAttacks)
       for i = 1 to nAttacks
         for j = 1 to pl->b_shotChoice
           if nEnemiesFighting and pWeapon->b_clipCurrent
@@ -848,7 +854,7 @@ def playerCombatTurn(pl)#1
       break
     is 'C'
       // Choose a different weapon
-      displayf3("\n%s switches to %s %s.\n", pl=>s_name, hisHerTheir(pl->c_gender), pWeapon=>s_name)
+      displayf3("\n%s switches to %s %s.\n", pl=>s_name, hisHerTheir(pl->c_gender), pWeapon ?? pWeapon=>s_name :: "fists & feet")
       break
     is 'A'
       // Advance 5 feet as a party (i.e. only the first player)

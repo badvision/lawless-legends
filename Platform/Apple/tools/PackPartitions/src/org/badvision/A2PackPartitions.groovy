@@ -3787,18 +3787,24 @@ class A2PackPartitions
         replaceIfDiff("build/src/plasma/gen_flags.pla")
     }
 
+    def lookupStringOrNull(strings, str)
+    {
+        if (str == null || str.trim() == "")
+            return "NULL"
+        assert strings[str] != null
+        return "@${strings[str]}"
+    }
+
     def genWeapon(func, row, out, strings)
     {
-        assert strings[parseStringAttr(row, "weapon-kind")] != null
-        assert strings[parseStringAttr(row, "ammo-kind")] != null
         assert strings[parseStringAttr(row, "combat-text")] != null
         out.println(
             "  return makeWeapon_pt2(makeWeapon_pt1(" +
             "${escapeString(parseStringAttr(row, "name"))}, " +
-            "@${strings[parseStringAttr(row, "weapon-kind")]}, " +
+            "${lookupStringOrNull(strings, parseStringAttr(row, "weapon-kind"))}, " +
             "${parseWordAttr(row, "price")}, " +
             "${parseModifier(row, "bonus-value", "bonus-attribute")}, " +
-            "@${strings[parseStringAttr(row, "ammo-kind")]}, " +
+            "${lookupStringOrNull(strings, parseStringAttr(row, "ammo-kind"))}, " +
             "${parseByteAttr(row, "clip-size")}, " +
             "${parseDiceAttr(row, "melee-damage")}, " +
             "${parseDiceAttr(row, "projectile-damage")}), " +
@@ -3812,6 +3818,8 @@ class A2PackPartitions
 
     def genArmor(func, row, out, strings)
     {
+        assert strings[parseStringAttr(row, "armor-kind")] != null
+        assert strings[parseStringAttr(row, "armor-kind")] != ""
         out.println(
             "  return makeArmor(" +
             "${escapeString(parseStringAttr(row, "name"))}, " +
@@ -3835,7 +3843,7 @@ class A2PackPartitions
             if (count > 0 && !name.contains("("))
                 printWarning("countable item should have (singular/plural) in name")
             out.println("  return makeFancyItem(${escapeString(name)}, $price, " +
-                "@${strings[kind]}, $modifier, $count, $storeAmount, $lootAmount)")
+                "${lookupStringOrNull(strings, kind)}, $modifier, $count, $storeAmount, $lootAmount)")
         }
         else
             out.println("  return makePlainItem(${escapeString(name)}, $price)")

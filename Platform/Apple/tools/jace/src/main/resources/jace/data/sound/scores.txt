@@ -1,48 +1,49 @@
 ---- Scores file defines all the music and SFX
 ---- Note: Anything that is shared for all scores is under the "common" section
 ---- Lines that start with dashes, hash marks, single quotes are treated as comments
+---- Lines that contain an asterisk will use auto-resume, otherwise will always restart
 Common
 --- Sound effects start at number 129
 129 bang.mp3
 130 boom.mp3
 
-Orchestral
-1	Title.mp3
-2	Miller.mp3
-3	Tragedy.mp3
-4	Victory.mp3
-5	Grub.mp3
-6	mines.mp3
-7	Texas.mp3
-8	Strange.mp3
-9	Oro.mp3
-10	Village.mp3
-11	Sanctuary.mp3
-12	Meriposa.mp3
-13	Freemont.mp3
-14	Littlecreek.mp3
-15	Grove.mp3
-16	Poverty.mp3
-17	Killed.mp3
-18	Wilderness.mp3
+8-bit Orchestral samples
+1	8 Bit Weapon - Lawless Legends Original Double Score - 19 Lawless Legends 8-Bit Samples.mp3
+2	8 Bit Weapon - Lawless Legends Original Double Score - 20 Fort Miller 8-Bit Samples.mp3
+3	8 Bit Weapon - Lawless Legends Original Double Score - 21 Tragedy in the West 8-Bit Samples.mp3
+4	8 Bit Weapon - Lawless Legends Original Double Score - 22 Victory! 8-Bit Samples.mp3
+5	8 Bit Weapon - Lawless Legends Original Double Score - 23 Grub Gulch 8-Bit Samples.mp3
+6	8 Bit Weapon - Lawless Legends Original Double Score - 25 Mines of Mystery 8-Bit Samples.mp3
+7	8 Bit Weapon - Lawless Legends Original Double Score - 24 Texas Flats 8-Bit Samples.mp3
+8	8 Bit Weapon - Lawless Legends Original Double Score - 26 Strange Tales 8-Bit Samples.mp3
+9	8 Bit Weapon - Lawless Legends Original Double Score - 27 Oro's Villa 8-Bit Samples.mp3
+10	8 Bit Weapon - Lawless Legends Original Double Score - 28 Tahnku Village 8-Bit Samples.mp3
+11	8 Bit Weapon - Lawless Legends Original Double Score - 29 Tahnku Sanctuary 8-Bit Samples.mp3
+12	8 Bit Weapon - Lawless Legends Original Double Score - 30 Mariposa City 8-Bit Samples.mp3
+13	8 Bit Weapon - Lawless Legends Original Double Score - 31 Freemont Estate 8-Bit Samples.mp3
+14	8 Bit Weapon - Lawless Legends Original Double Score - 32 Fort Littlecreek 8-Bit Samples.mp3
+15	8 Bit Weapon - Lawless Legends Original Double Score - 33 Sacred Grove 8-Bit Samples.mp3
+16	8 Bit Weapon - Lawless Legends Original Double Score - 34 Poverty Flats 8-Bit Samples.mp3
+17	8 Bit Weapon - Lawless Legends Original Double Score - 35 Killed in Cold Blood 8-Bit Samples.mp3
+18	*8 Bit Weapon - Lawless Legends Original Double Score - 36 The Sierra Nevada Wilderness 8-Bit Samples.mp3
 
 ---- Chiptune version uses the blips and bleeps that are the voice of a generation
-Chiptune
-1	Title8.mp3
-2	Miller8.mp3
-3	Tragedy8.mp3
-4	Victory8.mp3
-5	Grub8.mp3
-6	Mines8.mp3
-7	Texas8.mp3
-8	Strange8.mp3
-9	Oro8.mp3
-10	Village8.mp3
-11	Sanctuary8.mp3
-12	Mariposa8.mp3
-13	Freemont8.mp3
-14	Littlecreek8.mp3
-15	Grove8.mp3
-16	Poverty8.mp3
-17	Killed8.mp3
-18	Wilderness8.mp3
+8-bit Chipmusic
+1       8 Bit Weapon - Lawless Legends Original Double Score - 01 Lawless Legends 8-Bit C64.mp3
+2       8 Bit Weapon - Lawless Legends Original Double Score - 02 Fort Miller 8-Bit C64.mp3
+3       8 Bit Weapon - Lawless Legends Original Double Score - 03 Tragedy in the West 8-Bit C64.mp3
+4       8 Bit Weapon - Lawless Legends Original Double Score - 04 Victory! 8-Bit C64.mp3
+5       8 Bit Weapon - Lawless Legends Original Double Score - 05 Grub Gulch 8-Bit C64.mp3
+6       8 Bit Weapon - Lawless Legends Original Double Score - 06 Mines of Mystery 8-Bit C64.mp3
+7       8 Bit Weapon - Lawless Legends Original Double Score - 07 Texas Flats 8-Bit C64.mp3
+8       8 Bit Weapon - Lawless Legends Original Double Score - 08 Strange Tales 8-Bit C64.mp3
+9       8 Bit Weapon - Lawless Legends Original Double Score - 09 Oro's Villa 8-Bit C64.mp3
+10      8 Bit Weapon - Lawless Legends Original Double Score - 10 Tahnku Village 8-Bit C64.mp3
+11      8 Bit Weapon - Lawless Legends Original Double Score - 11 Tahnku Sanctuary 8-Bit C64.mp3
+12      8 Bit Weapon - Lawless Legends Original Double Score - 12 Mariposa 8-Bit C64.mp3
+13      8 Bit Weapon - Lawless Legends Original Double Score - 13 Freemont Estate 8-Bit C64.mp3
+14      8 Bit Weapon - Lawless Legends Original Double Score - 14 Fort Littlecreek 8-Bit C64.mp3
+15      8 Bit Weapon - Lawless Legends Original Double Score - 15 Sacred Grove 8-Bit C64.mp3
+16      8 Bit Weapon - Lawless Legends Original Double Score - 16 Poverty Flats 8-Bit C64.mp3
+17      8 Bit Weapon - Lawless Legends Original Double Score - 17 Killed in Cold Blood 8-Bit C64.mp3
+18      *8 Bit Weapon - Lawless Legends Original Double Score - 18 The Sierra Nevada Wilderness 8-Bit C64.mp3

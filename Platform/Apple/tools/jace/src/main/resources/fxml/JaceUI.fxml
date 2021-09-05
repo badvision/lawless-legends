@@ -83,13 +83,13 @@
                               <ComboBox fx:id="musicSelection">
                                  <items>
                                     <FXCollections fx:factory="observableArrayList">
-                                       <String fx:value="Orchestral" />
-                                       <String fx:value="Chiptune" />
+                                       <String fx:value="8-bit Chipmusic" />
+                                       <String fx:value="8-bit Orchestral samples" />
                                        <String fx:value="None" />
                                     </FXCollections>
                                  </items>
                                  <value>
-                                    <String fx:value="Orchestral"/>
+                                    <String fx:value="8-bit Chipmusic"/>
                                  </value>
                               </ComboBox>
                               <!--

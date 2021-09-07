@@ -166,6 +166,7 @@ export byte prevClockColor, prevClockHour, prevClockMinute
 export byte nextSignificantMinute
 byte snoozeX0, snoozeX1, snoozeY
 word timeEventFunc
+byte mapEmuSound = 0
 
 export byte[] S_GAME1_FILENAME = "GAME.1.SAVE"
 
@@ -1853,6 +1854,9 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def soundPlayEmu(numAndFlgs)#0
+  if mapEmuSound == $FF       // if in initMap...
+    mapEmuSound = numAndFlgs  // ... then record the music for resume after combat
+  fin
   ^EMUSOUND_PLAY = numAndFlgs
 end
 
@@ -2102,7 +2106,11 @@ def initMap(x, y, dir)#0
   skyNum = 9 // default
   groundNum = 10 // default
   timeEventFunc = NULL
+  mapEmuSound = $FF // special value to mark init
   initDisplay(curMapPartition, mapNum, pCurMap, x, y, dir)
+  if mapEmuSound == $FF // if no music assigned...
+    mapEmuSound = 0     // ...then record that fact.
+  fin
   texturesLoaded = TRUE
   needRender = FALSE
   textDrawn = FALSE
@@ -2919,6 +2927,13 @@ def playerDeath()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def resumeMapMusic()#0
+  if mapEmuSound > 0 and mapEmuSound <> $FF
+    soundPlayEmu(mapEmuSound)
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def doCombat(mapCode, backUpOnFlee)#1
   word result
 
@@ -2939,6 +2954,7 @@ def doCombat(mapCode, backUpOnFlee)#1
     return 0
   fin
   returnFromEngine(!inScript) // only re-render if outside script
+  resumeMapMusic
 
   // Advance time a little. It's tricky advancing during combat; this is an ok substitute.
   advTime(CLOCK_ADV_COMBAT_HOURS, CLOCK_ADV_COMBAT_MINS, CLOCK_ADV_COMBAT_SECS)

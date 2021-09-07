@@ -14,10 +14,14 @@ import java.io.InputStreamReader;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javafx.util.Duration;
 
 /**
  * Hacks that affect lawless legends gameplay
@@ -32,7 +36,7 @@ public class LawlessHacks extends Cheats {
     public LawlessHacks(Computer computer) {
         super(computer);
         readScores();
-        currentScore = SCORE_ORCHESTRAL;
+        currentScore = SCORE_CHIPTUNE;
     }
 
     @Override
@@ -76,8 +80,8 @@ public class LawlessHacks extends Cheats {
 
     public static final String SCORE_NONE = "none";
     public static final String SCORE_COMMON = "common";
-    public static final String SCORE_ORCHESTRAL = "orchestral";
-    public static final String SCORE_CHIPTUNE = "chiptune";
+    public static final String SCORE_ORCHESTRAL = "8-bit orchestral samples";
+    public static final String SCORE_CHIPTUNE = "8-bit chipmusic";
 
     private static int currentSong;
     private static boolean repeatSong = false;
@@ -100,14 +104,14 @@ public class LawlessHacks extends Cheats {
             }
         } else if (isMusic) {
             System.out.println("Play music "+track);
-            playMusic(track);
+            playMusic(track, false);
         } else {
             System.out.println("Play sfx "+track);
             playSfx(track);
         }
     }
-
-    private Media getAudioTrack(int number) {
+    
+    private String getSongName(int number) {
         Map<Integer, String> score = scores.get(currentScore);
         if (score == null) {
             return null;
@@ -120,6 +124,11 @@ public class LawlessHacks extends Cheats {
             }
             filename = score.get(number);
         }
+        return filename;
+    }
+
+    private Media getAudioTrack(int number) {
+        String filename = getSongName(number);
         String pathStr = "jace/data/sound/" + filename;
 //        System.out.println("looking in "+pathStr);
         URL path = getClass().getClassLoader().getResource(pathStr);
@@ -134,11 +143,11 @@ public class LawlessHacks extends Cheats {
         }
     }
 
-    private void playMusic(int track) {
-        if (currentSong != track) {
-            fadeOutSong(() -> startNewSong(track));
+    private void playMusic(int track, boolean switchScores) {
+        if (currentSong != track || switchScores) {
+            fadeOutSong(() -> startNewSong(track, switchScores));
         } else {
-            new Thread(() -> startNewSong(track)).start();
+            new Thread(() -> startNewSong(track, false)).start();
         }
         currentSong = track;
     }
@@ -154,11 +163,22 @@ public class LawlessHacks extends Cheats {
         }
         playbackEffect = null;
     }
+    
+    private Optional<Double> getCurrentTime() {
+        if (currentSongPlayer == null) {
+            return Optional.empty();
+        } else if (currentSongPlayer.getCurrentTime() == null) {
+            return Optional.empty();
+        } else {
+            return Optional.of(currentSongPlayer.getCurrentTime().toMillis());
+        }
+    }
 
     private void fadeOutSong(Runnable nextAction) {
         stopSongEffect();
         MediaPlayer player = currentSongPlayer;
         if (player != null) {
+            getCurrentTime().ifPresent(val -> lastTime.put(currentSong, val + 1500));
             playbackEffect = new Thread(() -> {
                 DoubleProperty volume = player.volumeProperty();
                 while (playbackEffect == Thread.currentThread() && volume.get() > 0.0) {
@@ -207,23 +227,29 @@ public class LawlessHacks extends Cheats {
     }
 
     double FADE_AMT = 0.05; // 5% per interval, or 20 stops between 0% and 100%
-    int FADE_SPEED = 100; // 100ms per 5%, or 2 second duration
+//    int FADE_SPEED = 100; // 100ms per 5%, or 2 second duration
+    int FADE_SPEED = 75; // 75ms per 5%, or 1.5 second duration
 
-    private void startNewSong(int track) {
+    private void startNewSong(int track, boolean switchScores) {
         if (!isMusicEnabled()) {
             return;
         }
         MediaPlayer player;
-        if (track != currentSong || !isPlayingMusic()) {
+        if (track != currentSong || !isPlayingMusic() || switchScores) {
             // If the same song is already playing don't restart it
             Media song = getAudioTrack(track);
             if (song == null) {
-                System.out.println("Unable to start song " + track + "; File not found");
+                System.out.println("Unable to start song " + track + "; File " + getSongName(track) + " not found");
                 return;
             }
             player = new MediaPlayer(song);
             player.setCycleCount(repeatSong ? MediaPlayer.INDEFINITE : 1);
             player.setVolume(0.0);
+            if (autoResume.contains(track) || switchScores) {
+                double time = lastTime.getOrDefault(track, 0.0);
+                System.out.println("Auto-resume from time " + time);
+                player.setStartTime(Duration.millis(time));
+            }                
             player.play();
         } else {
             // But if the same song was already playing but possibly fading out
@@ -272,10 +298,7 @@ public class LawlessHacks extends Cheats {
             stopMusic();
             currentSong = -1;
         } else if ((currentSongPlayer != null || wasStoppedPreviously) && currentSong > 0) {
-            stopSongEffect();
-            int currentSongTemp = currentSong;
-            currentSong = Integer.MAX_VALUE;
-            startNewSong(currentSongTemp);
+            playMusic(currentSong, true);
         }
     }
 
@@ -284,9 +307,11 @@ public class LawlessHacks extends Cheats {
     }
 
     Pattern COMMENT = Pattern.compile("\\s*[-#;']+.*");
-    Pattern LABEL = Pattern.compile("[A-Za-z\\s\\-_]+");
+    Pattern LABEL = Pattern.compile("(8-)?[A-Za-z\\s\\-_]+");
     Pattern ENTRY = Pattern.compile("([0-9]+)\\s+(.*)");
-    private Map<String, Map<Integer, String>> scores = new HashMap<>();
+    private final Map<String, Map<Integer, String>> scores = new HashMap<>();
+    private final Set<Integer> autoResume = new HashSet<>();
+    private final Map<Integer, Double> lastTime = new HashMap<>();
     private void readScores() {
         InputStream data = getClass().getClassLoader().getResourceAsStream("jace/data/sound/scores.txt");
         readScores(data);
@@ -295,6 +320,11 @@ public class LawlessHacks extends Cheats {
     private void readScores(InputStream data) {
         BufferedReader reader = new BufferedReader(new InputStreamReader(data));
         reader.lines().forEach(line -> {
+            boolean useAutoResume = false;
+            if (line.indexOf('*') > 0) {
+                useAutoResume = true;
+                line = line.replace("*", "");
+            }
             if (COMMENT.matcher(line).matches() || line.trim().isEmpty()) {
 //                System.out.println("Ignoring: "+line);
                 return;
@@ -308,6 +338,9 @@ public class LawlessHacks extends Cheats {
                     int num = Integer.parseInt(m.group(1));
                     String file = m.group(2);
                     scores.get(currentScore).put(num, file);
+                    if (useAutoResume) {
+                        autoResume.add(num);
+                    }
 //                    System.out.println("Score: " + currentScore + "; Song: " + num + "; " + file);
                 } else {
 //                    System.out.println("Couldn't parse: " + line);

@@ -648,6 +648,13 @@ def chooseWeapon(pl, pWeapon)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def killAllEnemies()#0
+  buildString() // so we don't get bogus stuff to the screen
+  forEach(global=>p_enemyGroups, &(g) forEach(g=>p_enemies, @killEnemy))
+  finishString(0) // but don't display it
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def playerCombatChoose(pl)#0
   word p, pWeapon
   byte key
@@ -767,7 +774,7 @@ def playerCombatChoose(pl)#0
       //combatDebug//   break
       is '#'
         if global->b_godmode
-          forEach(global=>p_enemyGroups, &(g) forEach(g=>p_enemies, @killEnemy))
+          killAllEnemies
           return
         fin
         break
@@ -1377,7 +1384,7 @@ def _combat_zoneEncounter(s_encZone)#1
   // Show portrait and threat details, find out if player wants to fight (vs. run)
   answer = startCombat(s_encZone)
   if answer == 99
-    forEach(global=>p_enemyGroups, &(g) forEach(g=>p_enemies, @killEnemy))
+    killAllEnemies
   elsif answer == -99
     return answer // special code for death
   elsif !answer

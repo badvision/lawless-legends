@@ -142,7 +142,7 @@ def showDerived(player)#0
   fin
   rightJustifyNum(player=>w_curXP, STAT_X)
   rawDisplayf2(fmt, STATLBL_X, "Current XP")
-  if player=>w_nextXP < 30000  // check for level cap
+  if player=>w_nextXP < 32767  // check for level cap
     rightJustifyNum(player=>w_nextXP, STAT_X)
   else
     rightJustifyStr("-----", STAT_X)
@@ -858,7 +858,7 @@ def doPlayerSheet(player_num)#1
         break
       is '+' // level up cheat
         if global->b_godmode
-          adjustPartyStat(@S_XP, player=>w_nextXP - player=>w_curXP)
+          setStat(player, @S_XP, player=>w_nextXP)
           redisplay = 2
         fin
         break

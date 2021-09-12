@@ -342,7 +342,7 @@ def _nextLampFrame()#1
   if (rand16() % 100) < 10
     lampDir = -lampDir
   fin
-  pTile = pGlobalTileset + (n << 5) + 1 // +1 to skip to the header (# of tiles)
+  pTile = pGlobalTileset + (n << 5) + 3 // +1 to skip to the header (# of tiles + anim)
   blit(FALSE, pTile, getScreenLine(LAMP_Y)+LAMP_XBYTE,       16, 2)
   blit(FALSE, pTile, getScreenLine(LAMP_Y)+LAMP_XBYTE+$2000, 16, 2)
   lampFrame = n

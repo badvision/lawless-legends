@@ -3339,13 +3339,18 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def createItem(itemNum)#1
+  word pItem
   if itemNum <= NUM_WEAPONS
-    return createStruct(MOD_GEN_WEAPONS, (itemNum-1)<<1)
+    pItem = createStruct(MOD_GEN_WEAPONS, (itemNum-1)<<1)
+  elsif itemNum <= NUM_WEAPONS+NUM_ARMORS
+    pItem = createStruct(MOD_GEN_ARMORS, (itemNum-NUM_WEAPONS-1)<<1)
+  else
+    pItem = createStruct(MOD_GEN_MISC_ITEMS, (itemNum-NUM_WEAPONS-NUM_ARMORS-1)<<1)
+    if pItem->t_type == TYPE_FANCY_ITEM
+      pItem=>w_count = pItem=>w_storeAmount
+    fin
   fin
-  if itemNum <= NUM_WEAPONS+NUM_ARMORS
-    return createStruct(MOD_GEN_ARMORS, (itemNum-NUM_WEAPONS-1)<<1)
-  fin
-  return createStruct(MOD_GEN_MISC_ITEMS, (itemNum-NUM_WEAPONS-NUM_ARMORS-1)<<1)
+  return pItem
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

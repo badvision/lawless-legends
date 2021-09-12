@@ -126,9 +126,6 @@ def displayBuyPage(pItemTbl, markupRatio, pageNum, nPages)#1
   for numOnPage = 0 to PAGE_SIZE-1
     if !(*pItemNum); break; fin
     pItem = createItem(*pItemNum)
-    if pItem->t_type == TYPE_FANCY_ITEM
-      pItem=>w_count = pItem=>w_storeAmount
-    fin
     pageItems[numOnPage] = pItem
     price = max(1, pItem=>w_price + addRatio(pItem=>w_price, markupRatio))
     price = max(1, price - addRatio(price, charmRatio))

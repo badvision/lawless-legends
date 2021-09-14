@@ -206,6 +206,8 @@ word recordSeed
 
 export byte diskLimit = 0
 
+export word playerUsing = NULL
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
 asm _defs
@@ -2864,6 +2866,7 @@ def showPlayerSheet(num)#1
       setTextCountdown
     fin
   fin
+  playerUsing = NULL
   return 0
 end
 
@@ -3585,14 +3588,16 @@ export def adjustPartyStat(statName, val)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Get the max value of the stat for any (living) character in the party
-export def getPartyStat(statName)#1
+// Get the max value of the stat for any (living) character in the party.
+// Except if a particular player is using a skill or item in which case it's their stat only.
+export def getStatInContext(statName)#1
   word p_player, val
   val = 0
   when 1
     is streqi(statName, @S_GOLD);         return global=>w_gold
     is streqi(statName, @S_TIME);         return global->b_hour
     is streqi(statName, @S_BANK_BAL);     return global=>w_bankBal
+    is playerUsing <> NULL;               return getStat(playerUsing, statName)
     otherwise
       p_player = global=>p_players
       while p_player

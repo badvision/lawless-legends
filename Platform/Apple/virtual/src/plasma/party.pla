@@ -344,6 +344,7 @@ def doUseSkill(player)#1
     rawDisplayf1("\nUse which skill/attr? [A-%c] or [Esc]", nSkills-1+'A')
     sel = getUpperKey()
     if sel >= 'A' and (sel-'A') < nSkills
+      playerUsing = player
       return skillName[sel-'A']
     elsif sel == $1B // esc
       break
@@ -390,10 +391,13 @@ def showSkillsMenu(player)#0
   byte playerCount
   playerCount = countList(global=>p_players)
   clearMenuRect()
-  if player->b_skillPoints > 0
-    rawDisplayf2("Assign point [A-%c], Undo pt [Ctrl-A - Ctrl-%c], ", nSkills-1+'A', nSkills-1+'A')
+  if player=>w_health > 0
+    if player->b_skillPoints > 0
+      rawDisplayf2("Assign point [A-%c], Undo pt [Ctrl-A - Ctrl-%c], ", nSkills-1+'A', nSkills-1+'A')
+    fin
+    rawDisplayStr("\nU)se skill/attr, ")
   fin
-  rawDisplayStr("\nU)se skill/attr, X:Inventory, ")
+  rawDisplayStr("X:Inventory, ")
   if playerCount > 1; rawDisplayf1("Player [1-%d], ", playerCount); fin
   rawDisplayStr("[Esc]")
 end
@@ -631,6 +635,7 @@ def doUseItem(player, item)#1
   // General 'use' handled by outer engine, because it might involve graphics.
   // Depluralize the name on the way out, because scripts will match on that.
   isPlural = FALSE
+  playerUsing = player
   return mmgr(HEAP_INTERN, sprintf1("%s", item=>s_name))
 end
 
@@ -885,14 +890,14 @@ def doPlayerSheet(player_num)#1
             beep
           fin
         else // mode == 'S'
-          if sel == 'U'
+          if sel == 'U' and player=>w_health > 0
             item = doUseSkill(player)
             if item; return item; fin // Use a skill
           else
             noRepeatMenu = TRUE
-            if sel >= 'A' and (sel-'A' < nSkills)
+            if sel >= 'A' and (sel-'A' < nSkills) and player=>w_health > 0
               adjustSkill(player, sel - 'A', 1)
-            elsif sel >= 1 and (sel-1 < nSkills)
+            elsif sel >= 1 and (sel-1 < nSkills) and player=>w_health > 0
               adjustSkill(player, sel - 1, -1)
             else
               beep

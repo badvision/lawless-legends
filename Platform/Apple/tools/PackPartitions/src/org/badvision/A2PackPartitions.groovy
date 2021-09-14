@@ -2937,7 +2937,7 @@ class A2PackPartitions
     {
         mapName = mapName.trim().replaceAll(/\s*-\s*[23][dD]\s*/, "")
         script.block.'**'.each { blk ->
-            if (blk?.@type =~ /^interaction_(increase|decrease|set|get)_stat.*/) {
+            if (blk?.@type =~ /^interaction_(increase|decrease|get)(_party)?_stat.*/) {
                 def statName = blk.field[0].text().trim().toLowerCase()
                 def getOrSet = blk.@type == "interaction_get_stat" ? "Checked" : "Set"
                 if (!statUses.containsKey(statName))
@@ -5102,8 +5102,6 @@ end
                     case 'interaction_increase_stat_expr':
                     case 'interaction_decrease_stat':
                     case 'interaction_decrease_stat_expr':
-                    case 'interaction_set_stat':
-                    case 'interaction_set_stat_expr':
                         packChangeStat(blk); break
                     case 'interaction_increase_party_stats':
                     case 'interaction_decrease_party_stats':
@@ -5430,15 +5428,7 @@ end
             def amount = blk.field[1].text().toInteger()
             assert amount > 0 && amount < 32767
             def stat = nameToStat(name)
-            variables << "p_player"
-            outIndented("p_player = global=>p_players\n")
-            outIndented("while p_player\n")
-            ++indent
-            outIndented("setStat(p_player, $stat, getStat(p_player, $stat) " +
-                        "${blk.@type == 'interaction_increase_party_stats' ? '+' : '-'} $amount)\n")
-            outIndented("p_player = p_player=>p_nextObj\n")
-            --indent
-            outIndented("loop\n")
+            outIndented("adjustPartyStat($stat, ${blk.@type == 'interaction_increase_party_stats' ? '+' : '-'}$amount)\n")
         }
 
         def packPause(blk)
@@ -5494,7 +5484,7 @@ end
         {
             def name = getSingle(blk.field, 'NAME').text()
             def stat = nameToStat(name)
-            out << "getStat(global=>p_players, $stat)"
+            out << "getStatInContext($stat)"
         }
 
         def packGetFlag(blk)

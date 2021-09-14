@@ -65,6 +65,7 @@ import gamelib
   predef getPos(px, py)#0
   predef getScreenLine(n)#1
   predef getStat(player, statName)#1
+  predef getStatInContext(statName)#1
   predef getStringResponse()#1
   predef getUpperKey()#1
   predef getYN()#1
@@ -182,6 +183,8 @@ import gamelib
   byte needRender
   byte diskLimit
   byte curHeapPct
+  word playerUsing
+
 
   /////////// Shared string constants //////////////
 

@@ -284,7 +284,8 @@ def playerMelee(pPlayer, pWeapon)#0
 
   // Maybe in the future we'll put this under control of a global script
   if pWeapon
-    sAction = pWeapon=>s_combatText
+    // If weapon takes ammo, it's not a melee weapon, so use generic "bashes"
+    sAction = pWeapon=>s_ammoKind ?? "bashes" :: pWeapon=>s_combatText
   else
     sAction = (rand16() % 2) ?? "punches" :: "kicks"
   fin
@@ -318,7 +319,6 @@ def playerMelee(pPlayer, pWeapon)#0
   // 1% per point of combined player and weapon agility
   // 2% per skill level in the weapon type
   // 5% per point of strength, but only if at least 1 pt in hand-to-hand skill
-  // (no contribution of strength)
   // (enemies don't have armor)
   bonus = pPlayer->b_agility
   //combatDebug// if combatDebug; displayf1("Dmg bonus%%:\n agil=%d\n", pPlayer->b_agility); fin
@@ -596,7 +596,7 @@ def chooseShotNumber(pl, pWeapon)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def chooseWeapon(pl, pWeapon)#0
+def chooseWeapon(pl, pWeapon)#1
   byte nChoices, i, k
   word pi, sel
   pi = pl=>p_items
@@ -604,10 +604,8 @@ def chooseWeapon(pl, pWeapon)#0
   while pi
     if pi->t_type == TYPE_WEAPON
       pi->b_flags = pi->b_flags & !ITEM_FLAG_EQUIP // de-equip all weapons before selecting one
-      if pi <> pWeapon
-        nChoices++
-        sel = pi // in case only one choice
-      fin
+      nChoices++
+      sel = pi // in case only one choice
     fin
     pi = pi=>p_nextObj
   loop
@@ -617,19 +615,19 @@ def chooseWeapon(pl, pWeapon)#0
     i = 'A'
     pi = pl=>p_items
     while pi
-      if pi->t_type == TYPE_WEAPON and pi <> pWeapon
-        displayOption(i, pi=>s_name)
+      if pi->t_type == TYPE_WEAPON
+        displayOption(i, sprintf1(pi==pWeapon ?? "*%s" :: "%s", pi=>s_name))
         i++
       fin
       pi = pi=>p_nextObj
     loop
-    displayOption(i, "Fists & Feet")
+    displayOption(i, sprintf1(pWeapon ?? "%s" :: "*%s", "Fists & Feet"))
     while TRUE
       k = getUpperKey
       sel = NULL
       pi = pl=>p_items
       while pi
-        if pi->t_type == TYPE_WEAPON and pi <> pWeapon
+        if pi->t_type == TYPE_WEAPON
           if k == 'A'; sel = pi; break; fin
           k--
         fin
@@ -645,6 +643,8 @@ def chooseWeapon(pl, pWeapon)#0
   if sel
     sel->b_flags = sel->b_flags | ITEM_FLAG_EQUIP
   fin
+
+  return sel <> pWeapon
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -753,9 +753,11 @@ def playerCombatChoose(pl)#0
         break
       is 'C'
         if canChange
-          chooseWeapon(pl, pWeapon)
-          setCursor(0, COMBAT_CHOICE_Y)
-          return
+          if chooseWeapon(pl, pWeapon)
+            setCursor(0, COMBAT_CHOICE_Y)
+            return
+          fin
+          redisplayMenu = TRUE
         fin
         break
       is 'A'

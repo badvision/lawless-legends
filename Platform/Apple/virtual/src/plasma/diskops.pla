@@ -665,6 +665,7 @@ def _newOrLoadGame(ask)#1
   printVersion(0) // not on graphics
   ^$23 = 23 // adjust window to protect it
   textHome
+  crout // so the very first debug print shows after reset
 
   // All done
   return ret

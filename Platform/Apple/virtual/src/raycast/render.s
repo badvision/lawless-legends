@@ -1846,24 +1846,15 @@ pl_advance: !zone
 	asl
 	asl			; shift twice: each dir is 4 bytes in table
 	tax
-.step	lda playerX
-	clc
-	adc walkDirs,x
-	sta playerX
-	lda playerX+1
-	adc walkDirs+1,x
-	sta playerX+1
-	jsr .chk
+.step	cpx #32			; dir 0-7 step Y then X; dir 8-15 step X then Y. (Allows consistent backing up)
+	bcc .stepyx
+.stepxy	jsr .chkx
 	sta .ora+1
-
-	lda playerY
-	clc
-	adc walkDirs+2,x
-	sta playerY
-	lda playerY+1
-	adc walkDirs+3,x
-	sta playerY+1
-	jsr .chk
+	jsr .chky
+	jmp .ora
+.stepyx	jsr .chky
+	sta .ora+1
+	jsr .chkx
 .ora	ora #11			; self-modified above
 	beq .ok
 	; Blocked! Restore old position.
@@ -1894,6 +1885,22 @@ pl_advance: !zone
 .done	tya			; retrieve ret value
 	ldy #0			; hi byte of ret is always 0
 	rts			; all done
+.chkx	lda playerX
+	clc
+	adc walkDirs,x
+	sta playerX
+	lda playerX+1
+	adc walkDirs+1,x
+	sta playerX+1
+	jmp.chk
+.chky	lda playerY
+	clc
+	adc walkDirs+2,x
+	sta playerY
+	lda playerY+1
+	adc walkDirs+3,x
+	sta playerY+1
+	; fall through to:
 	; Check if the new position is blocked
 .chk	stx .rstx+1
 	jsr calcMapOrigin
@@ -1906,7 +1913,6 @@ pl_advance: !zone
 	sta tmp+1
 	and #2			; tile flag 2 is for obstructions
 .rstx	ldx #11			; self-modified above
-	cmp #0
 	rts
 .stepCt	!byte 0
 

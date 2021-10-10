@@ -24,7 +24,6 @@ import gamelib
   predef beep()#0
   predef benchPlayer()#0
   predef blit(isAux, srcData, dstScreenPtr, nLines, lineSize)#0
-  predef brk()#0
   predef buildString()#0
   predef buySell(storeCode, profitRatio)#0
   predef calcPlayerArmor(player)#0
@@ -33,6 +32,7 @@ import gamelib
   predef callProRWTS(cmdPlusOpenFlg, filename, addr, size)#1
   predef charToUpper(c)#1
   predef checkEncounter(x, y, force)#0
+  predef clampByte(val)#1
   predef clearEncounterZones()#0
   predef clearPortrait()#0
   predef clearWindow()#0
@@ -58,6 +58,7 @@ import gamelib
   predef forEach(p, do)#0
   predef forSome(p, sel, do)#0
   predef fullAddItem(pItem, doit)#1
+  predef genSound(dnnoise, dnvelo, dndelay, upnoise, upvelo, updelay, negdur)#0
   predef getCharResponse()#1
   predef getCursor()#2
   predef getDir()#1

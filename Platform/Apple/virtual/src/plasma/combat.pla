@@ -1448,8 +1448,6 @@ def _combat_zoneEncounter(s_encZone)#1
           is TYPE_ENEMY
             if enemyCombatTurn(p); combatPause(); fin
             break
-          otherwise
-            brk()
         wend
       fin
       p = p=>p_combatNext

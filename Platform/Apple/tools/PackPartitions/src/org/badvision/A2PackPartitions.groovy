@@ -2432,6 +2432,7 @@ class A2PackPartitions
         assembleCode("fontEngine", "src/font/")
         assembleCode("tileEngine", "src/tile/")
         assembleCode("marks", "src/marks/")
+        assembleCode("sound", "src/sound/")
         assembleCode("gen_mapSpecials", "src/mapScripts/")
         assembleCode("gen_mapExits", "src/mapScripts/")
 

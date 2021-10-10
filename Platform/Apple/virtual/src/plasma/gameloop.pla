@@ -220,6 +220,7 @@ asm _defs
 !source "../../include/plasma.i"
 !source "../../include/mem.i"
 !source "../../include/fontEngine.i"
+!source "../../include/sound.i"
 !source "../../include/prorwts.i"
 
 ; Optional debug printing support
@@ -826,11 +827,10 @@ asm getFloppyFlg()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Execute a monitor breakpoint
-export asm brk()#0
-  bit setText
-  bit page1
-  brk
+// Generate a sound on the Apple II speaker
+export asm genSound(dnnoise, dnvelo, dndelay, upnoise, upvelo, updelay, dur)#0
+  +asmPlasmNoRet 7
+  jmp genSound
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1703,6 +1703,9 @@ export def lookupResourcePart(sectionNum, resourceNum)#1
   word ptr
   byte n, i
 
+  // Special case: main frame img laods before resource index
+  if !pResourceIndex; return 1; fin
+
   // Skip to the requested section (starting just after version num)
   ptr = pResourceIndex
   while sectionNum > 0
@@ -1712,7 +1715,7 @@ export def lookupResourcePart(sectionNum, resourceNum)#1
 
   // And grab the number from that section's table
   n = readAuxByte(ptr)
-  if resourceNum > n; fatal("lkupFail1"); fin
+  if resourceNum > n; fatal("lkup1"); fin
   n = readAuxByte(ptr + resourceNum)
 
   // If resource is on the current map's disk, prefer that
@@ -2088,7 +2091,7 @@ def initMap(x, y, dir)#0
 
   // Load the map
   curMapPartition = lookupResourcePart(mapIs3D+1, mapNum)
-  if !curMapPartition; fatal("lkupFail2"); fin
+  if !curMapPartition; fatal("lkup2"); fin
   mmgr(START_LOAD, curMapPartition)
   pCurMap = mmgr(QUEUE_LOAD, mapNum<<8 | (RES_TYPE_2D_MAP+mapIs3D))
   mmgr(FINISH_LOAD, 0)
@@ -2721,7 +2724,7 @@ export def setPortrait(portraitNum)#0
 
   // Load the portrait image and display it
   part = lookupResourcePart(3, portraitNum)
-  if !part; fatal("lkupFail2"); fin
+  if !part; fatal("lkup3"); fin
   // Commented out below, because it prevents cycling thru all portraits (in god mode)
   // NO: if part > 1; part = curMapPartition; fin  // Look on disk 1 or current disk only
   mmgr(START_LOAD, part)
@@ -3201,6 +3204,7 @@ def initCmds()#0
     cmdTbl['G'] = @cheatCmd // next ground
     cmdTbl['&'] = @printMem // print mem
     cmdTbl['^'] = @cheatCmd // edit flags
+    cmdTbl['*'] = @cheatCmd // soundGen test
   fin
 
   // Commands handled differently in 3D vs 2D
@@ -3555,7 +3559,7 @@ export def hisHerTheir(gender)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def clampByte(val)#1
+export def clampByte(val)#1
   return max(0, min(255, val))
 end
 

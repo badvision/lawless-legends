@@ -25,6 +25,8 @@ predef _addItem()#1
 predef _addPlayer()#1
 word[] funcTbl = @_cheatCmd, @_addItem, @_addPlayer
 
+predef parseDecWithDefault(str, default)#1
+
 asm _defs
 
 ; Use hi-bit ASCII for Apple II
@@ -57,6 +59,49 @@ asm readStr()#1
   lda #<inbuf
   ldy #>inbuf
   rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def testSoundGen()#0
+  word pStr, n, dur, updelay, upvelo, upnoise, dndelay, dnvelo, dnnoise, print
+  ^$C051; ^$C054
+  updelay = 0
+  upvelo  = 0
+  dndelay = 0
+  dnvelo  = 0
+  upnoise = 0
+  dnnoise = 0
+  dur = 1000
+  print = TRUE
+  while TRUE
+    if print
+      puts("\n")
+      printf3("Up: A:dly=%d B:velo=%d C:noise=%d\n", updelay, upvelo, upnoise)
+      printf3("Dn: D:dly=%d E:velo=%d F:noise=%d\n", dndelay, dnvelo, dnnoise)
+      printf1("Dur: G=%d\n", dur)
+    fin
+    puts("Noise cmd, e.g. 50G: ")
+    pStr = readStr()
+    if ^pStr >= 2
+      print = TRUE
+      n = parseDec(pStr)
+      when charToUpper(^(pStr + ^pStr))
+        is 'A'; updelay = n; break
+        is 'B'; upvelo  = n; break
+        is 'C'; upnoise = clampByte(n); break
+        is 'D'; dndelay = n; break
+        is 'E'; dnvelo  = n; break
+        is 'F'; dnnoise = clampByte(n); break
+        is 'G'; dur = n; break
+        otherwise
+          puts("Error.\n")
+      wend
+    else
+      print = FALSE
+      ^$25 = ^$25 - 1
+    fin
+    genSound(dnnoise, dnvelo, dndelay, upnoise, upvelo, updelay, dur)
+  loop
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -221,6 +266,7 @@ def _cheatCmd(key)#1
     is 'Y'; nextSky(); break
     is 'G'; nextGround(); break
     is '^'; editFlags(); break
+    is '*'; testSoundGen(); break
     otherwise fatal("gmcmd")
   wend
   return 0

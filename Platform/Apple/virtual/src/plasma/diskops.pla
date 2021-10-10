@@ -22,6 +22,8 @@ const fontEngine    = $EC00   // main mem LC
 const fontEngineLen = $F00    // really a bit less, but this leaves space for debug code
 const fontData      = $FB00   // main mem LC
 const fontDataLen   = $4FA    // really only $474, but we need to fill all gaps
+const soundCode     = $FF80   // main mem LC
+const soundLen      = $7A     // FF80.FFF9
 
 const expandVec     = $200    // aux mem (only for raycaster)
 const expandMax     = $3600   // max size of unsplit expander
@@ -179,13 +181,14 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load and display the title screen, set up everything in memory
 def _startup()#1
-  word pEngine, pFont, pMarks, pExpand, expanderSize
+  word pEngine, pFont, pMarks, pExpand, expanderSize, pSound
 
   puts("Loading game.\n")
 
   auxMmgr(FREE_MEMORY, $800)  // was temporarily reserved by gameloop to keep diskops bytecode out
 
   // Allocate and permanently lock mem for the font engine and its font (up in LC ram)
+  // Also we can load the sound generator now.
   mmgr(START_LOAD, 1) // partition 1 is where code lives
   mmgr(SET_MEM_TARGET, fontEngine)
   mmgr(REQUEST_MEMORY, fontEngineLen)
@@ -198,6 +201,7 @@ def _startup()#1
   // Load them into lo mem
   pEngine = mmgr(QUEUE_LOAD, CODE_FONT_ENGINE<<8 | RES_TYPE_CODE)
   pFont   = mmgr(QUEUE_LOAD, 1<<8 | RES_TYPE_FONT)
+  pSound  = mmgr(QUEUE_LOAD, CODE_SOUND<<8 | RES_TYPE_CODE)
   mmgr(FINISH_LOAD, 0)
 
   // Relocate font engine and font data to their final spots up in the language card
@@ -207,7 +211,11 @@ def _startup()#1
   // Tell the font engine where to find its font
   setFont(fontData)
 
+  // Relocate the sound routine to its proper place
+  memcpy(pSound, soundCode, soundLen, 0)
+
   // Load the title screen and show it.
+  pResourceIndex = 0 // special case - can't load resourceIndex yet because future expander
   loadFrameImg(1) // title screen is fixed at #1
   ^$C050     // graphics
   ^$C057     // hi-res
@@ -247,6 +255,7 @@ def _startup()#1
   mmgr(FREE_MEMORY, pExpand)
 
   // To reduce fragmentation, load the resource index in the lowest possible aux mem spot.
+  // Note: this has to be done after the expander, since it temporarily uses this space.
   pResourceIndex = $800
   auxMmgr(SET_MEM_TARGET, pResourceIndex)
   auxMmgr(QUEUE_LOAD, CODE_RESOURCE_INDEX<<8 | RES_TYPE_CODE)

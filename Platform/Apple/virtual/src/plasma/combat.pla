@@ -339,6 +339,16 @@ def playerMelee(pPlayer, pWeapon)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def genShotSound(kindOrText)#0
+  printf1("\nkindOrText=%s\n", kindOrText)
+  if streqi(kindOrText, "handguns") or streqi(kindOrText, "rifles") or streqi(kindOrText, "shoots")
+    genSound(63, 40, 0, 15, 0, 0, 800)
+  elsif streqi(kindOrText, "bows")
+    genSound(15, 500, 0, 15, 0, 0, 100)
+  fin
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def playerShoot(pPlayer, pWeapon)#0
   word pEnemy, pSkill, dmg
   word chance
@@ -347,9 +357,11 @@ def playerShoot(pPlayer, pWeapon)#0
 
   sAction = pWeapon=>s_combatText
 
+  // See if there's anybody in range
   pEnemy = chooseEnemy(pWeapon->b_weaponRange, pPlayer->b_gangChoice)
   if !pEnemy
     displayf2("\n%s %s but falls short.\n", pPlayer=>s_name, sAction)
+    genShotSound(pWeapon=>s_itemKind)
     return
   fin
 
@@ -358,9 +370,11 @@ def playerShoot(pPlayer, pWeapon)#0
 
   // Roll for hitting and dodging
   if !rollPlayerHit(pPlayer, pWeapon, pEnemy, sAction)
+    genShotSound(pWeapon=>s_itemKind)
     return
   fin
   if rollEnemyDodge(pPlayer, pEnemy, sAction)
+    genShotSound(pWeapon=>s_itemKind)
     return
   fin
 
@@ -387,6 +401,7 @@ def playerShoot(pPlayer, pWeapon)#0
 
   // Okay, do that damage.
   damageEnemy(pPlayer, pEnemy, dmg, sAction)
+  genShotSound(pWeapon=>s_itemKind)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -951,6 +966,7 @@ def enemyCombatTurn(pe)#1
     displayStr("and misses.")
   fin
   displayStr("\n")
+  genShotSound(pe=>s_attackText)
   //combatDebug// if combatDebug; getUpperKey; fin
 
   if needShow; showParty(); fin

@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+cp game.2mg ~/lawless-legends/game.2mg && open ~/AppleII/Projects/LawlessLegends/Lawless\ Legends-osx/Lawless\ Legends.app

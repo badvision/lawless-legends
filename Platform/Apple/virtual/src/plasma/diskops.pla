@@ -179,9 +179,27 @@ asm reseekRwts#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def decideJace()#0
+  word i, a0count
+
+  // Jace is unusual among emulators in that at the paddle locations, it returns a "floating"
+  // bus value that reflects the video scanner data.
+  a0Count = 0
+  ^$C070
+  for i = 1 to 100
+    if ^$C064 == $A0; a0Count++; fin
+  next
+  isJace = (a0Count > 50)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load and display the title screen, set up everything in memory
 def _startup()#1
   word pEngine, pFont, pMarks, pExpand, expanderSize, pSound
+
+  // Decide if we're running on Jace (if so, later we'll need to credit the music). This has
+  // to be done with a mostly blank, text mode, screen.
+  decideJace
 
   puts("Loading game.\n")
 
@@ -236,6 +254,7 @@ def _startup()#1
   // And the global funcs we'll need for the title screen
   mmgr(QUEUE_LOAD, GS_DISK_LIMIT<<8 | RES_TYPE_MODULE)
   mmgr(QUEUE_LOAD, GS_COPYRIGHT<<8 | RES_TYPE_MODULE)
+  mmgr(QUEUE_LOAD, GS_EMU_CREDIT<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
 
   // Move the marks code up to its out-of-the-way corner of RAM
@@ -597,12 +616,16 @@ end
 def displayMenu(existing)#0
   word p
 
-  setWindow(162, 190, 49, 231)
+  setWindow(isJace ?? 153 :: 162, 190, 49, 231) // t,b,l,r
   clearWindow
   ^EMUSIG_TITLE
-  setWindow(162, 190, 56, 224)
+  setWindow(isJace ?? 153 :: 162, 190, 56, 224) // t,b,l,r
   rawDisplayStr("^J\n^Y") // down one line for nice-looking spacing from graphics
   callGlobalFunc(GS_COPYRIGHT, 0, 0 ,0)
+  if isJace
+    rawDisplayStr("\n")
+    callGlobalFunc(GS_EMU_CREDIT, 0, 0, 0)
+  fin
   rawDisplayStr("\n^N")
   printVersion(168) // win width
 

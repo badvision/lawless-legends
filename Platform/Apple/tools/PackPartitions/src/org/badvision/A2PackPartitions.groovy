@@ -152,7 +152,7 @@ class A2PackPartitions
     def requiredGlobalScripts = ["New Game", "Help",
                                  "Combat win", "Combat intro", "Combat prompt", "Enemy intro", "Death",
                                  "Level XP", "Level SP",
-                                 "Disk limit", "Copyright"
+                                 "Disk limit", "Copyright", "Emu credit"
                                 ] as Set
     def globalScripts = [:]
     def lastSysModule

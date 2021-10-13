@@ -104,6 +104,7 @@ byte forceRawScrDisp = FALSE
 export byte isPlural = 0
 byte inScript = FALSE
 export byte isFloppyVer
+export byte isJace
 
 byte scriptModule = 0
 byte prevScriptModule = 0

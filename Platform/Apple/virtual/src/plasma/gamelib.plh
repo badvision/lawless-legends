@@ -176,6 +176,7 @@ import gamelib
   word pResourceIndex
   word pGlobalTileset
   byte isFloppyVer
+  byte isJace
   byte recordMode
   byte prevClockColor, prevClockHour, prevClockMinute
   byte nextSignificantMinute

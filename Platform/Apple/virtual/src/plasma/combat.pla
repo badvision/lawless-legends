@@ -345,6 +345,8 @@ def genShotSound(kindOrText)#0
     genSound(63, 40, 0, 15, 0, 0, 800)
   elsif streqi(kindOrText, "bows")
     genSound(15, 500, 0, 15, 0, 0, 100)
+  elsif streqi(kindOrText, "explosives")
+    genSound(255, 300, 0, 127, 0, 0, 400)
   fin
 end
 

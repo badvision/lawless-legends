@@ -357,6 +357,10 @@ public class Lx47Algorithm
             inPos = inStart;
         }
 
+        int getInPos() {
+            return inPos;
+        }
+
         int readByte() {
             //System.out.format("byte: pos=%d val=$%x\n", inPos - inStart, buf[inPos] & 0xFF);
             return buf[inPos++] & 0xFF;
@@ -431,6 +435,8 @@ public class Lx47Algorithm
                     output_data[outPos++] = (byte) r.readByte();
                     if (checkDebugs)
                         chkDebug("lit $%02x", output_data[outPos-1]);
+                    if (input_data == output_data && checkDebugs)
+                        assert outPos-1 < r.getInPos() : "underlap exceeded";
                 }
                 if (len != 255)
                     break;
@@ -449,6 +455,8 @@ public class Lx47Algorithm
             while (len-- > 0) {
                 output_data[outPos] = output_data[outPos - off];
                 ++outPos;
+                if (input_data == output_data && checkDebugs)
+                    assert outPos-1 < r.getInPos() : "underlap exceeded";
             }
         }
 

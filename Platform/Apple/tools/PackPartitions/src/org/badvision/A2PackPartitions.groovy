@@ -161,6 +161,7 @@ class A2PackPartitions
     def compressor = new Lx47Algorithm()
 
     def debugCompression = false
+    def checkUnderlap = true // always have this on - underlap errors can crop up unexpectedly!
 
     def currentContext = []
     def nWarnings = 0
@@ -1656,10 +1657,11 @@ class A2PackPartitions
         def compressedLen = compressedData.length
         assert compressedLen > 0
 
-        // As a check, verify that decompression works with only a 5-byte underlap
-        // Note: used to think 3 bytes was sufficient, then gen_flags.b blew that out of the water.
-        if (debugCompression && (uncompressedLen - compressedLen) > 0) {
-            def underlap = 5
+        // As a check, verify that decompression works with only a 3-byte underlap.
+        // Note: Always need to be checking this, even though it does take time. Things like gen_flags.b
+        // can blow it out -- has something to do with repeated similar strings?
+        if (uncompressedLen - compressedLen > 0) {
+            def underlap = 3
             def checkData = new byte[uncompressedLen+underlap]
             def initialOffset = uncompressedLen - compressedLen + underlap
             System.arraycopy(compressedData, 0, checkData, initialOffset, compressedLen)
@@ -1668,7 +1670,6 @@ class A2PackPartitions
             assert Arrays.equals(uncompressedData, outBlk)
         }
 
-        // If we saved at least 10 bytes, take the compressed version.
         // If we saved at least 10 bytes, take the compressed version.
         if ((uncompressedLen - compressedLen) >= 10) {
             if (debugCompression)
@@ -2380,6 +2381,16 @@ class A2PackPartitions
         new File("build/src/core/build/LEGENDOS.SYSTEM.sys#2000").withOutputStream { stream ->
             stream.write(unwrapByteBuffer(outBuf))
         }
+    }
+
+    def printHexBlob(arr)
+    {
+        for (int i=0; i<arr.length; i++) {
+            print(String.format("%02X ", arr[i]))
+            if ((i & 7) == 7)
+                println()
+        }
+        println()
     }
 
     def compileModule(moduleName, codeDir, verbose = true)
@@ -3755,7 +3766,12 @@ class A2PackPartitions
             out.println()
             out.println("word[] funcTbl = @_flags_nameForNumber, @_flags_numberForName")
             out.println()
-            gameFlags.each { name, num ->
+
+            // Kludge alert! When we have a bunch of similar strings all in a row, the decompressor
+            // requires a crazy underlap of 9. We semi-randomize them in order to get back to the
+            // reasonable underlap of 3 that works for everything else.
+            gameFlags.keySet().sort { k -> -k.hashCode() }.each { name ->
+                def num = gameFlags[name]
                 out.println("byte[] SF_${humanNameToSymbol(name, true)} = ${escapeString(name.toUpperCase())}")
             }
             out.println()

@@ -31,9 +31,11 @@ DEBUG		= 0
 
 ; We overlap the compressed and uncompressed as much as possible, e.g.:
 ;   DDDDDDDDDDDDDD
-;        SSSSSSSSSsssss  ; sssss is the 5-byte 'underlap'
-; Note: used to think this was 3, then found a case (gen_flags.b) requiring 5.
-UNDERLAP	= 5
+;        SSSSSSSSSsss  ; sss is the 5-byte 'underlap'
+; Note: 3 is sufficient for 99% of cases. Found a case (gen_flags.b) requiring 5,
+; something to do with repeated similar strings, but randomized the order to get
+; back down to 3.
+UNDERLAP	= 3
 
 ; Zero page temporary variables.
 ; Don't move these - they overlap in clever ways with ProRWTS shadows (see below)

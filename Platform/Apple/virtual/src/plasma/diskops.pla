@@ -292,6 +292,13 @@ def _startup()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def disableSound()#0
+  // In record mode, disable sound for quick playback
+  ^0 = $60
+  memcpy(0, soundCode, 1, 0)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def readDiskMarks()#1
   word size
   // First, read in the marks. Seek past the heap, then read the length
@@ -688,6 +695,7 @@ def _newOrLoadGame(ask)#1
         break
       is 'R'
         setRecordMode(1)
+        disableSound
         displayMenu(existing)
         break
     wend

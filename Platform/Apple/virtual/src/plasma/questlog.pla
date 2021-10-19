@@ -56,12 +56,20 @@ def displayQuest_cb3(descrip, portraitNum, map1Num, map1X, map1Y, map2Num, map2X
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def isTriggered(triggerFlag, triggerItem)#1
+  if triggerFlag; return getGameFlag(triggerFlag); fin
+  if triggerItem; return partyHasItem(triggerItem); fin
+  return FALSE
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Called once for each step in the current quest.
 def displayQuest_cb2(stepNum, questName, triggerFlag, triggerItem, stepFunc)#1
+  byte triggered
   if stepNum == 0
     displayf1("Quest: %s\n\n", questName)
   fin
-  if (triggerFlag and getGameFlag(triggerFlag)) or (triggerItem and partyHasItem(triggerItem))
+  if isTriggered(triggerFlag, triggerItem)
     anyTriggeredSteps = TRUE
     curStepFunc = stepFunc
   fin
@@ -109,7 +117,7 @@ end
 // This gets called for each step of one quest. 'stepFunc' will be e.g. step_101_1
 def countQuests_cb2(stepNum, name, triggerFlag, triggerItem, stepFunc)#1
   lastTriggered = FALSE
-  if (triggerFlag and getGameFlag(triggerFlag)) or (triggerItem and partyHasItem(triggerItem))
+  if isTriggered(triggerFlag, triggerItem)
     anyTriggeredSteps = TRUE
     lastTriggered = TRUE
   fin

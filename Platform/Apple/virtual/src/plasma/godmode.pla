@@ -222,27 +222,21 @@ def editFlags()#1
   word pModule, funcTbl, flagName, flagNum
   flipToPage1
   ^$c051
-  textHome()
   *$4000 = 0 // so renderer knows we messed up the page
-  puts("Game flags:")
   mmgr(START_LOAD, 1) // code is in partition 1
   pModule = mmgr(QUEUE_LOAD, MOD_GEN_FLAGS<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
   funcTbl = pModule()
   while TRUE
-    ^$25 = 0
-    crout()
+    textHome()
     for flagNum = 0 to NUM_GAME_FLAGS-1
-      if flagNum > 0; puts(", "); fin
       flagName = funcTbl=>flags_nameForNumber(flagNum)
-      // make sure flag name will fit on line
-      if ^$24 + ^flagName > 37; crout(); fin
-      ^$32 = $FF // normal mode
       if getGameFlag(flagNum); ^$32 = $3F; fin // inverse mode
       puts(flagName)
       ^$32 = $FF
+      printChar(' ')
     next
-    puts("\nToggle:          ")
+    puts("\nToggle:             ")
     ^$24 = 8
     flagName = readStr()
     if !^flagName; break; fin

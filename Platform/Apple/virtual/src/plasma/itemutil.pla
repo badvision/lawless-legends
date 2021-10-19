@@ -134,8 +134,8 @@ def displayWeaponStats(pItem1, pItem2)#0
   displayTwoCol("Melee",     pItem1, pItem2, r_meleeDmg,      @wordField, @formatDice)
   displayTwoCol("Proj",      pItem1, pItem2, r_projectileDmg, @wordField, @formatDice)
   displayTwoCol("Attack",    pItem1, pItem2, ba_attacks+0,    @byteField, @formatAttack)
-  displayTwoCol("Att 2",     pItem1, pItem2, ba_attacks+1,    @byteField, @formatAttack)
-  displayTwoCol("Att 3",     pItem1, pItem2, ba_attacks+2,    @byteField, @formatAttack)
+  displayTwoCol("Attck+",    pItem1, pItem2, ba_attacks+1,    @byteField, @formatAttack)
+  displayTwoCol("Attck+",    pItem1, pItem2, ba_attacks+2,    @byteField, @formatAttack)
   displayTwoCol("Range",     pItem1, pItem2, b_weaponRange,   @byteField, @formatNum)
 end
 

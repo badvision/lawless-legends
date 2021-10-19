@@ -2341,6 +2341,7 @@ export def moveInternal(facingDir, moveDir, beepOK, shouldAdvTime)#1
     if beepOK and !inScript // don't beep for scripted moves
       clearTextWindow
       rawDisplayStr("Blocked!\n")
+      beep
       setTextCountdown
     fin
   else

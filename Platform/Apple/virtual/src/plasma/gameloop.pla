@@ -1000,12 +1000,13 @@ export asm streqi(a, b)#1
   +asmPlasmRet 2
   sta tmp
   sty tmp+1
-  beq .noteqi      ; NULL is never equal
+  tya
+  beq .null
   lda evalStkL+1,x
   sta pTmp
   lda evalStkH+1,x
   sta pTmp+1
-  beq .noteqi      ; NULL is never equal
+  beq .null
   ldy #0
   lda (tmp),y
   cmp (pTmp),y
@@ -1036,6 +1037,10 @@ export asm streqi(a, b)#1
   lda #1
   ldy #0           ; okay, they're equal. Return 1 (not just any char; so that PLASMA when...is can work)
   rts
+.null
+  lda #$13         ; inverse 'S'
+  sta $7D0
+  brk
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

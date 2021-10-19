@@ -144,6 +144,7 @@ class A2PackPartitions
     def maxMapSections = 0
 
     def itemNameToFunc = [:]
+    def itemSingularToPlural = [:]
     def playerNameToFunc = [:]
 
     def nWeapons
@@ -4011,6 +4012,7 @@ class A2PackPartitions
         // Global mapping of item name to function, so that give/take functions can create items.
         funcs.each { typeName, func, index, row ->
             itemNameToFunc[toSingular(row.@name)] = func
+            itemSingularToPlural[toSingular(row.@name)] = row.@name
         }
 
         // And return the funcs.
@@ -5341,8 +5343,9 @@ end
         def packTakeItem(blk)
         {
             def name = getSingle(blk.field, 'NAME').text().trim()
-            assert itemNameToFunc.containsKey(toSingular(name)) : "Can't locate item '$name'"
-            outIndented("takeItemFromParty(${escapeString(name)})\n")
+            def singular = toSingular(name)
+            assert itemNameToFunc.containsKey(singular) : "Can't locate item '$name'"
+            outIndented("takeItemFromParty(${escapeString(itemSingularToPlural[singular])})\n")
         }
 
         def packBuyFromStore(blk)
@@ -5623,8 +5626,9 @@ end
         def packHasItem(blk)
         {
             def name = getSingle(blk.field, "NAME").text().trim()
-            assert itemNameToFunc.containsKey(toSingular(name)) : "Can't locate item '$name'"
-            out << "partyHasItem(${escapeString(name)})"
+            def singular = toSingular(name)
+            assert itemNameToFunc.containsKey(singular) : "Can't locate item '$name'"
+            out << "partyHasItem(${escapeString(itemSingularToPlural[singular])})"
         }
 
         def packHasPlayer(blk)

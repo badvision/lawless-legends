@@ -1008,9 +1008,39 @@ if (typeof Mythos === "undefined") {
                     this.setPreviousStatement(true);
                     this.setNextStatement(true);
                     this.appendDummyInput()
-                            .appendField("Stop playback in emulator")
+                            .appendField("Stop playback in emulator");
                     this.setOutput(false);
                     this.setTooltip('Stop playback in emulator');
+                }
+            };
+            Blockly.Blocks['sound_generate_sfx'] = {
+                init: function () {
+                    this.setHelpUrl(Mythos.helpUrl);
+                    this.setColour(54);
+                    this.setPreviousStatement(true);
+                    this.setNextStatement(true);
+                    this.appendDummyInput()
+                        .appendField("Generate sound effect: Name =")
+                        .appendField(new Blockly.FieldTextInput(""), "NAME");
+                    this.appendDummyInput()
+                        .appendField("Up: A:dly=")
+                        .appendField(new Blockly.FieldTextInput("0"), "A")
+                        .appendField("  B:velo=")
+                        .appendField(new Blockly.FieldTextInput("0"), "B")
+                        .appendField("  C:noise=")
+                        .appendField(new Blockly.FieldTextInput("0"), "C");
+                    this.appendDummyInput()
+                        .appendField("Dn: D:dly=")
+                        .appendField(new Blockly.FieldTextInput("0"), "D")
+                        .appendField("  E:velo=")
+                        .appendField(new Blockly.FieldTextInput("0"), "E")
+                        .appendField("  F:noise=")
+                        .appendField(new Blockly.FieldTextInput("0"), "F");
+                    this.appendDummyInput()
+                        .appendField("Dur: G=")
+                        .appendField(new Blockly.FieldTextInput("0"), "G");
+                    this.setOutput(false);
+                    this.setTooltip('Generate sound effect on internal speaker');
                 }
             };
             Blockly.Blocks['graphics_set_avatar'] = {

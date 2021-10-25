@@ -5139,6 +5139,8 @@ end
                         packSoundPlayEmu(blk); break
                     case 'sound_stop_emu_playback':
                         packSoundStopEmu(blk); break
+                    case 'sound_generate_sfx':
+                        packSoundGenerateSfx(blk); break
                     case ~/^Globalignore_.*$/:
                         packGlobalCall(blk); break
                     default:
@@ -5321,6 +5323,30 @@ end
         def packSoundStopEmu(blk)
         {
             outIndented("soundPlayEmu(0)\n")
+        }
+
+        def packSoundGenerateSfx(blk)
+        {
+            assert blk.field.size() == 8
+            assert blk.field[0].@name == 'NAME'
+            assert blk.field[1].@name == 'A'
+            assert blk.field[2].@name == 'B'
+            assert blk.field[3].@name == 'C'
+            assert blk.field[4].@name == 'D'
+            assert blk.field[5].@name == 'E'
+            assert blk.field[6].@name == 'F'
+            assert blk.field[7].@name == 'G'
+            def name = blk.field[0].text()
+            def a = blk.field[1].text().toInteger()
+            def b = blk.field[2].text().toInteger()
+            def c = blk.field[3].text().toInteger()
+            def d = blk.field[4].text().toInteger()
+            def e = blk.field[5].text().toInteger()
+            def f = blk.field[6].text().toInteger()
+            def g = blk.field[7].text().toInteger()
+            assert c >= 0 && c <= 255
+            assert f >= 0 && f <= 255
+            outIndented("genSound($f, $e, $d, $c, $b, $a, $g)\n")
         }
 
         def packVarSet(blk)

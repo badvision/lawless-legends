@@ -342,7 +342,7 @@ end
 def genShotSound(kindOrText)#0
   printf1("\nkindOrText=%s\n", kindOrText)
   if streqi(kindOrText, "handguns") or streqi(kindOrText, "rifles") or streqi(kindOrText, "shoots")
-    genSound(63, 40, 0, 15, 0, 0, 800)
+    genSound(63, 100, 0, 15, 0, 0, 300)
   elsif streqi(kindOrText, "bows")
     genSound(15, 500, 0, 15, 0, 0, 100)
   elsif streqi(kindOrText, "explosives")

@@ -179,6 +179,43 @@ asm reseekRwts#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Turn the printer on or off (assumes slot 1)
+asm setPrinter(enable)#0
+  +asmPlasmNoRet 1
+  ldx #<ROM_cout1
+  ldy #>ROM_cout1
+  asl
+  beq +
+  ; check slot ID bytes for printer in slot 1. If no printer, don't redirect.
+  lda $C105
+  cmp #$38
+  bne +
+  lda $C107
+  cmp #$18
+  bne +
+  lda $C10B
+  cmp #$01
+  bne +
+  lda $C10C
+  and #$F0
+  cmp #$10  ; printers appear to be $1x
+  bne +
+  ; redirect cout to the printer
+  ldx #0
+  ldy #$C1
++ stx cswl
+  sty cswh
+  rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def setRecordMode(enable)#0
+  recordMode = enable
+  if recordMode; recordSeed = 1; fin
+  setPrinter(recordMode)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def decideJace()#0
   word i, a0count
 

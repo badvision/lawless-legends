@@ -87,6 +87,7 @@ ROM_crout	= $FD8E
 ROM_prbyte	= $FDDA
 ROM_prhex	= $FDE3
 ROM_cout	= $FDED
+ROM_cout1	= $FDF0
 ROM_setnorm	= $FE84
 ROM_setkbd	= $FE89
 ROM_setvid	= $FE93

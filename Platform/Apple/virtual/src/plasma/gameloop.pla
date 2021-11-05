@@ -203,7 +203,7 @@ export byte[] S_THEIR = "their"
 word lastTick = 0
 
 export byte recordMode = 0
-word recordSeed
+export word recordSeed
 
 export byte diskLimit = 0
 
@@ -969,21 +969,6 @@ asm internal_rand16()#1
   ldy seed+1
   rts
 }
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Turn the printer on or off (assumes slot 1)
-asm setPrinter(enable)#0
-  +asmPlasmNoRet 1
-  ldx #<ROM_cout
-  ldy #>ROM_cout
-  asl
-  beq +
-  ldx #0
-  ldy #$C1
-+ stx cswl
-  sty cswh
-  rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3077,13 +3062,6 @@ def help()#1
   forceRawScrDisp = FALSE
   returnFromEngine(TRUE)
   return 0
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-export def setRecordMode(enable)#0
-  recordMode = enable
-  if recordMode; recordSeed = 1; fin
-  setPrinter(recordMode)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

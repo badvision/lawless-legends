@@ -132,7 +132,6 @@ import gamelib
   predef setGameFlag(flagName, val)#0
   predef setGround(num)#0
   predef setMap(is3D, num, x, y, dir)#0
-  predef setRecordMode(enable)#0
   predef setStoryMode(enable)#0
   predef soundPlayEmu(numAndFlgs)#0
   predef useMapWindow()#0
@@ -178,6 +177,7 @@ import gamelib
   byte isFloppyVer
   byte isJace
   byte recordMode
+  word recordSeed
   byte prevClockColor, prevClockHour, prevClockMinute
   byte nextSignificantMinute
   byte lampFrame

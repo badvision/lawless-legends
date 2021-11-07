@@ -32,7 +32,10 @@ pDcmp	= $84		; len 2
 
 decomp	= $DF00
 
-init	; Put something interesting on the screen :)
+init	; ensure a reasonable stack ptr
+	ldx #$FF
+	txs
+	; Put something interesting on the screen :)
 	sta clr80Vid
 	jsr ROM_setnorm
 	jsr ROM_setkbd

@@ -60,9 +60,9 @@ public class CardRamworks extends RAM128k {
             return memoryBank;
     }
 
-    public static enum BankType {
+    public enum BankType {
         MAIN_MEMORY, LANGUAGE_CARD_1, LANGUAGE_CARD_2
-    };
+    }
 
     public CardRamworks(Computer computer) {
         super(computer);
@@ -139,7 +139,7 @@ public class CardRamworks extends RAM128k {
     private RAMListener bankSelectListener;
     @Override
     public void attach() {
-        bankSelectListener = computer.getMemory().observe(RAMEvent.TYPE.WRITE, BANK_SELECT, (e) -> {
+        bankSelectListener = observe(RAMEvent.TYPE.WRITE, BANK_SELECT, (e) -> {
             currentBank = e.getNewValue();
             configureActiveMemory();
         });

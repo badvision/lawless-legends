@@ -54,7 +54,7 @@ public abstract class RAM implements Reconfigurable {
     public RAM(Computer computer) {
         this.computer = computer;
         listeners = new HashSet<>();
-        cards = new Optional[8];
+        cards = (Optional<Card>[]) new Optional[8];
         for (int i = 0; i < 8; i++) {
             cards[i] = Optional.empty();
         }
@@ -80,7 +80,7 @@ public abstract class RAM implements Reconfigurable {
 
     public Optional<Card> getCard(int slot) {
         if (slot >= 1 && slot <= 7) {
-            return cards[slot].flatMap(card->card == null ? Optional.empty() : Optional.of(card));
+            return cards[slot];
         }
         return Optional.empty();
     }
@@ -152,8 +152,7 @@ public abstract class RAM implements Reconfigurable {
     public int readWord(int address, RAMEvent.TYPE eventType, boolean triggerEvent, boolean requireSynchronization) {
         int lsb = 0x00ff & read(address, eventType, triggerEvent, requireSynchronization);
         int msb = (0x00ff & read(address + 1, eventType, triggerEvent, requireSynchronization)) << 8;
-        int value = msb + lsb;
-        return value;
+        return msb + lsb;
     }
 
     private void mapListener(RAMListener l, int address) {
@@ -193,11 +192,9 @@ public abstract class RAM implements Reconfigurable {
     }
 
     private void refreshListenerMap() {
-        listenerMap = new Set[256];
-        ioListenerMap = new Set[256];
-        listeners.stream().forEach((l) -> {
-            addListenerRange(l);
-        });
+        listenerMap = (Set<RAMListener>[]) new Set[256];
+        ioListenerMap = (Set<RAMListener>[]) new Set[256];
+        listeners.forEach(this::addListenerRange);
         }
 
     public RAMListener observe(RAMEvent.TYPE type, int address, RAMEvent.RAMEventHandler handler) {
@@ -264,16 +261,11 @@ public abstract class RAM implements Reconfigurable {
 
     private boolean isAuxFlagCorrect(RAMEvent e, Boolean auxFlag) {
         if (e.getAddress() < 0x0100) {
-            if (SoftSwitches.AUXZP.getState() != auxFlag) {
-                return false;
-            }
+            return SoftSwitches.AUXZP.getState() == auxFlag;
         } else if (e.getAddress() >= 0x0C000 && e.getAddress() <= 0x0CFFF) {
             // I/O page doesn't care about the aux flag
             return true;
-        } else if (auxFlag != null && SoftSwitches.RAMRD.getState() != auxFlag) {
-            return false;
-        }
-        return true;
+        } else return auxFlag == null || SoftSwitches.RAMRD.getState() == auxFlag;
     }
 
     public RAMListener addListener(final RAMListener l) {
@@ -300,13 +292,14 @@ public abstract class RAM implements Reconfigurable {
 
     public byte callListener(RAMEvent.TYPE t, int address, int oldValue, int newValue, boolean requireSyncronization) {
         Set<RAMListener> activeListeners;
+        boolean resume = false;
         if (requireSyncronization) {
-            computer.getCpu().suspend();
+            resume = computer.getCpu().suspend();
         }
         if ((address & 0x0FF00) == 0x0C000) {
             activeListeners = ioListenerMap[address & 0x0FF];
             if (activeListeners == null && t.isRead()) {
-                if (requireSyncronization) {
+                if (resume) {
                     computer.getCpu().resume();
                 }
                 return computer.getVideo().getFloatingBus();
@@ -314,17 +307,15 @@ public abstract class RAM implements Reconfigurable {
         } else {
             activeListeners = listenerMap[(address >> 8) & 0x0ff];
         }
-        if (activeListeners != null) {
+        if (activeListeners != null && !activeListeners.isEmpty()) {
             RAMEvent e = new RAMEvent(t, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY, address, oldValue, newValue);
-            activeListeners.stream().forEach((l) -> {
-                l.handleEvent(e);
-            });
-            if (requireSyncronization) {
+            activeListeners.forEach((l) -> l.handleEvent(e));
+            if (resume) {
                 computer.getCpu().resume();
             }
             return (byte) e.getNewValue();
         }
-        if (requireSyncronization) {
+        if (resume) {
             computer.getCpu().resume();
         }
         return (byte) newValue;

@@ -167,7 +167,7 @@ public class MetacheatUI {
 
     @FXML
     void loadCheats(ActionEvent event) {
-        boolean resume = Emulator.computer.pause();
+        boolean resume = Emulator.getComputer().pause();
         FileChooser chooser = new FileChooser();
         chooser.setTitle("Load cheats");
         chooser.setInitialFileName("cheat.txt");
@@ -176,13 +176,13 @@ public class MetacheatUI {
             cheatEngine.loadCheats(saveFile);
         }
         if (resume) {
-            Emulator.computer.resume();
+            Emulator.getComputer().resume();
         }
     }
 
     @FXML
     void saveCheats(ActionEvent event) {
-        boolean resume = Emulator.computer.pause();
+        boolean resume = Emulator.getComputer().pause();
         FileChooser chooser = new FileChooser();
         chooser.setTitle("Save current cheats");
         chooser.setInitialFileName("cheat.txt");
@@ -191,7 +191,7 @@ public class MetacheatUI {
             cheatEngine.saveCheats(saveFile);
         }
         if (resume) {
-            Emulator.computer.resume();
+            Emulator.getComputer().resume();
         }
     }
 
@@ -206,10 +206,10 @@ public class MetacheatUI {
     @FXML
     void pauseClicked(ActionEvent event) {
         Application.invokeLater(() -> {
-            if (Emulator.computer.isRunning()) {
-                Emulator.computer.pause();
+            if (Emulator.getComputer().isRunning()) {
+                Emulator.getComputer().pause();
             } else {
-                Emulator.computer.resume();
+                Emulator.getComputer().resume();
             }
         });
     }
@@ -262,7 +262,7 @@ public class MetacheatUI {
 
         isRetina = Screen.getPrimary().getDpi() >= 110;
         
-        Emulator.computer.getRunningProperty().addListener((val, oldVal, newVal) -> {
+        Emulator.getComputer().getRunningProperty().addListener((val, oldVal, newVal) -> {
             Platform.runLater(() -> pauseButton.setText(newVal ? "Pause" : "Resume"));
         });
 
@@ -429,7 +429,7 @@ public class MetacheatUI {
     }
 
     private void processMemoryViewUpdates() {
-        if (!Emulator.computer.getRunningProperty().get()) {
+        if (!Emulator.getComputer().getRunningProperty().get()) {
             return;
         }
         GraphicsContext context = memoryViewCanvas.getGraphicsContext2D();
@@ -457,7 +457,7 @@ public class MetacheatUI {
         if (cheatEngine == null) {
             return;
         }
-        boolean resume = Emulator.computer.pause();
+        boolean resume = Emulator.getComputer().pause();
 
         if (animationTimer == null) {
             animationTimer = new ScheduledThreadPoolExecutor(1);
@@ -498,7 +498,7 @@ public class MetacheatUI {
         setZoom(1/drawScale);
 
         if (resume) {
-            Emulator.computer.resume();
+            Emulator.getComputer().resume();
         }
     }
 

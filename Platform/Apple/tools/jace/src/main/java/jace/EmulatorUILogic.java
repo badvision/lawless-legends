@@ -34,7 +34,6 @@ import static jace.core.Utility.*;
 import jace.ide.IdeController;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -76,7 +75,7 @@ public class EmulatorUILogic implements Reconfigurable {
             @Override
             public void updateStatus() {
                 enableDebug(true);
-                MOS65C02 cpu = (MOS65C02) Emulator.computer.getCpu();
+                MOS65C02 cpu = (MOS65C02) Emulator.getComputer().getCpu();
                 updateCPURegisters(cpu);
             }
         };
@@ -114,7 +113,7 @@ public class EmulatorUILogic implements Reconfigurable {
     }
 
     public static void enableTrace(boolean b) {
-        Emulator.computer.getCpu().setTraceEnabled(b);
+        Emulator.getComputer().getCpu().setTraceEnabled(b);
     }
 
     public static void stepForward() {
@@ -122,7 +121,7 @@ public class EmulatorUILogic implements Reconfigurable {
     }
 
     static void registerDebugger() {
-        Emulator.computer.getCpu().setDebug(debugger);
+        Emulator.getComputer().getCpu().setDebug(debugger);
     }
 
     public static Integer getValidAddress(String s) {
@@ -141,7 +140,7 @@ public class EmulatorUILogic implements Reconfigurable {
 //    public static void updateWatchList(final DebuggerPanel panel) {
 //        java.awt.EventQueue.invokeLater(() -> {
 //            watches.stream().forEach((oldWatch) -> {
-//                Emulator.computer.getMemory().removeListener(oldWatch);
+//                Emulator.getComputer().getMemory().removeListener(oldWatch);
 //            });
 //            if (panel == null) {
 //                return;
@@ -168,10 +167,10 @@ public class EmulatorUILogic implements Reconfigurable {
 //                    watchValue.setText(Integer.toHexString(e.getNewValue() & 0x0FF));
 //                }
 //            };
-//            Emulator.computer.getMemory().addListener(newListener);
+//            Emulator.getComputer().getMemory().addListener(newListener);
 //            watches.add(newListener);
 //            // Print out the current value right away
-//            byte b = Emulator.computer.getMemory().readRaw(address);
+//            byte b = Emulator.getComputer().getMemory().readRaw(address);
 //            watchValue.setText(Integer.toString(b & 0x0ff, 16));
 //        } else {
 //            watchValue.setText("00");
@@ -211,11 +210,11 @@ public class EmulatorUILogic implements Reconfigurable {
             alternatives = "Execute program;Load binary;Load program;Load rom;Play single-load game",
             defaultKeyMapping = "ctrl+shift+b")
     public static void runFile() {
-        Emulator.computer.pause();
+        Emulator.getComputer().pause();
         FileChooser select = new FileChooser();
         File binary = select.showOpenDialog(LawlessLegends.getApplication().primaryStage);
         if (binary == null) {
-            Emulator.computer.resume();
+            Emulator.getComputer().resume();
             return;
         }
         runFileNamed(binary);
@@ -233,25 +232,24 @@ public class EmulatorUILogic implements Reconfigurable {
             }
         } catch (NumberFormatException | IOException ex) {
         }
-        Emulator.computer.getCpu().resume();
+        Emulator.getComputer().getCpu().resume();
     }
 
-    public static void brun(File binary, int address) throws FileNotFoundException, IOException {
+    public static void brun(File binary, int address) throws IOException {
         // If it was halted already, then it was initiated outside of an opcode execution
         // If it was not yet halted, then it is the case that the CPU is processing another opcode
         // So if that is the case, the program counter will need to be decremented here to compensate
         // TODO: Find a better mousetrap for this one -- it's an ugly hack
-        Emulator.computer.pause();
+        Emulator.getComputer().pause();
         FileInputStream in = new FileInputStream(binary);
         byte[] data = new byte[in.available()];
         in.read(data);
-        RAM ram = Emulator.computer.getMemory();
+        RAM ram = Emulator.getComputer().getMemory();
         for (int i = 0; i < data.length; i++) {
             ram.write(address + i, data[i], false, true);
         }
-        CPU cpu = Emulator.computer.getCpu();
-        Emulator.computer.getCpu().setProgramCounter(address);
-        Emulator.computer.resume();
+        Emulator.getComputer().getCpu().setProgramCounter(address);
+        Emulator.getComputer().resume();
     }
 
     @InvokableAction(
@@ -291,11 +289,11 @@ public class EmulatorUILogic implements Reconfigurable {
             description = "Save raw (RAM) format of visible screen",
             alternatives = "screendump;raw screenshot",
             defaultKeyMapping = "ctrl+shift+z")
-    public static void saveScreenshotRaw() throws FileNotFoundException, IOException {
+    public static void saveScreenshotRaw() throws IOException {
         SimpleDateFormat df = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss");
         String timestamp = df.format(new Date());
         String type;
-        int start = Emulator.computer.getVideo().getCurrentWriter().actualWriter().getYOffset(0);
+        int start = Emulator.getComputer().getVideo().getCurrentWriter().actualWriter().getYOffset(0);
         int len;
         if (start < 0x02000) {
             // Lo-res or double-lores
@@ -312,8 +310,8 @@ public class EmulatorUILogic implements Reconfigurable {
         }
         File outFile = new File("screen_" + type + "_a" + Integer.toHexString(start) + "_" + timestamp);
         try (FileOutputStream out = new FileOutputStream(outFile)) {
-            RAM128k ram = (RAM128k) Emulator.computer.memory;
-            Emulator.computer.pause();
+            RAM128k ram = (RAM128k) Emulator.getComputer().memory;
+            Emulator.getComputer().pause();
             if (dres) {
                 for (int i = 0; i < len; i++) {
                     out.write(ram.getAuxVideoMemory().readByte(start + i));
@@ -334,8 +332,8 @@ public class EmulatorUILogic implements Reconfigurable {
             defaultKeyMapping = "ctrl+shift+s")
     public static void saveScreenshot() throws IOException {
         FileChooser select = new FileChooser();
-        Emulator.computer.pause();
-        Image i = Emulator.computer.getVideo().getFrameBuffer();
+        Emulator.getComputer().pause();
+        Image i = Emulator.getComputer().getVideo().getFrameBuffer();
 //        BufferedImage bufImageARGB = SwingFXUtils.fromFXImage(i, null);
         File targetFile = select.showSaveDialog(LawlessLegends.getApplication().primaryStage);
         if (targetFile == null) {
@@ -366,7 +364,7 @@ public class EmulatorUILogic implements Reconfigurable {
         fxmlLoader.setResources(null);
         try {
             Stage configWindow = new Stage();
-            AnchorPane node = (AnchorPane) fxmlLoader.load();
+            AnchorPane node = fxmlLoader.load();
             ConfigurationUIController controller = fxmlLoader.getController();
             controller.initialize();
             Scene s = new Scene(node);
@@ -388,7 +386,7 @@ public class EmulatorUILogic implements Reconfigurable {
         fxmlLoader.setResources(null);
         try {
             Stage editorWindow = new Stage();
-            AnchorPane node = (AnchorPane) fxmlLoader.load();
+            AnchorPane node = fxmlLoader.load();
             IdeController controller = fxmlLoader.getController();
             controller.initialize();
             Scene s = new Scene(node);
@@ -421,7 +419,7 @@ public class EmulatorUILogic implements Reconfigurable {
             if (stage.isFullScreen()) {
                 LawlessLegends.getApplication().controller.toggleAspectRatio();
             } else {
-                int width = 0, height = 0;
+                int width, height;
                 switch (size) {
                     case 0: // 1x
                         width = 560;

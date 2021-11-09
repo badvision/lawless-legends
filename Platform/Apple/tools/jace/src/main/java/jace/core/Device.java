@@ -18,10 +18,12 @@
  */
 package jace.core;
 
-import jace.state.Stateful;
 import jace.config.Reconfigurable;
-import org.eclipse.collections.api.list.MutableList;
-import org.eclipse.collections.impl.factory.Lists;
+import jace.state.Stateful;
+import org.eclipse.collections.api.factory.Sets;
+import org.eclipse.collections.api.set.MutableSet;
+
+import java.util.Collection;
 
 /**
  * Device is a very simple abstraction of any emulation component. A device
@@ -39,11 +41,10 @@ import org.eclipse.collections.impl.factory.Lists;
 public abstract class Device implements Reconfigurable {
 
     protected Computer computer;
-    private MutableList<Device> children;
+    private final MutableSet<Device> children;
 
     private Device() {
-        // TODO: Previously this was synchronized -- confirm this is safe to leave unsynchronized
-        children = Lists.mutable.<Device>empty();
+        children = Sets.mutable.empty();
     }
 
     public Device(Computer computer) {
@@ -55,13 +56,16 @@ public abstract class Device implements Reconfigurable {
     @Stateful
     private int waitCycles = 0;
     @Stateful
-    private boolean run = true;
+    private boolean run = false;
     @Stateful
     public boolean isPaused = false;
     @Stateful
     public boolean isAttached = false;
 
     public void addChildDevice(Device d) {
+        if (d == null || children.contains(d) || d.equals(this)) {
+            return;
+        }
         children.add(d);
         if (isAttached) {
             d.attach();
@@ -69,6 +73,9 @@ public abstract class Device implements Reconfigurable {
     }
 
     public void removeChildDevice(Device d) {
+        if (d == null) {
+            return;
+        }
         children.remove(d);
         d.suspend();
         if (isAttached) {
@@ -83,6 +90,11 @@ public abstract class Device implements Reconfigurable {
     public Iterable<Device> getChildren() {
         return children.asUnmodifiable();
     }
+    
+    public void setAllDevices(Collection<Device> newDevices) {
+        children.stream().filter(d-> !newDevices.contains(d)).forEach(this::removeChildDevice);
+        newDevices.stream().filter(d-> !children.contains(d)).forEach(this::addChildDevice);
+    }
 
     public boolean getRunningProperty() {
         return run;
@@ -96,14 +108,14 @@ public abstract class Device implements Reconfigurable {
         waitCycles = wait;
     }
 
-    public void doTick() {
-        if (run) {
-            children.forEach(Device::tick);
-            if (waitCycles <= 0) {
-                tick();
+    public void doTick() {        
+        if (isRunning()) {
+            children.forEach(Device::doTick);
+            if (waitCycles > 0) {
+                waitCycles--;
                 return;
             }
-            waitCycles--;
+            tick();
         }
     }
 
@@ -112,7 +124,6 @@ public abstract class Device implements Reconfigurable {
     }
 
     public synchronized void setRun(boolean run) {
-//        System.out.println(Thread.currentThread().getName() + (run ? " resuming " : " suspending ")+ getDeviceName());
         isPaused = false;
         this.run = run;
     }
@@ -126,19 +137,45 @@ public abstract class Device implements Reconfigurable {
 
     public abstract void tick();
 
+    private Runnable buildSuspendedRunnable(Runnable r) {
+        Runnable finalProcess = () -> {
+            if (isRunning()) {
+                suspend();
+                r.run();
+                resume();
+            } else {
+                r.run();
+            }        
+        };
+        for (Device child : getChildren()) {
+            finalProcess = child.buildSuspendedRunnable(finalProcess);
+        }
+        return finalProcess;        
+    }
+    
+    public void whileSuspended(Runnable r) {
+        buildSuspendedRunnable(r).run();
+    }
+    
     public boolean suspend() {
+        children.forEach(Device::suspend);
         if (isRunning()) {
+//            System.out.println(getName() + " Suspended");
+//            Utility.printStackTrace();
             setRun(false);
             return true;
         }
-        children.forEach(Device::suspend);
         return false;
     }
 
     public void resume() {
-        setRun(true);
-        waitCycles = 0;
         children.forEach(Device::resume);
+        if (!isRunning()) {
+//            System.out.println(getName() + " Resumed");
+//            Utility.printStackTrace();
+            setRun(true);            
+            waitCycles = 0;
+        }
     }
 
     public void attach() {

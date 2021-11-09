@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package jace;
 
 import jace.apple2e.SoftSwitches;
@@ -45,7 +40,6 @@ public class LawlessLegends extends Application {
     public JaceUIController controller;
 
     static boolean romStarted = false;
-    static public boolean PRODUCTION_MODE = true;
 
     @Override
     public void start(Stage stage) throws Exception {
@@ -54,7 +48,7 @@ public class LawlessLegends extends Application {
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/fxml/JaceUI.fxml"));
         fxmlLoader.setResources(null);
         try {
-            AnchorPane node = (AnchorPane) fxmlLoader.load();
+            AnchorPane node = fxmlLoader.load();
             controller = fxmlLoader.getController();
             controller.initialize();
             Scene s = new Scene(node);
@@ -67,25 +61,25 @@ public class LawlessLegends extends Application {
         }
 
         primaryStage.show();
-        new Thread(() -> {
-            new Emulator(getParameters().getRaw());
+        Platform.runLater(() -> new Thread(() -> {
+            Emulator.getInstance(getParameters().getRaw());
             configureEmulatorForGame();
             reconnectUIHooks();
             EmulatorUILogic.scaleIntegerRatio();
-            while (Emulator.computer.getVideo() == null || Emulator.computer.getVideo().getFrameBuffer() == null) {
+            while (Emulator.getComputer().getVideo() == null || Emulator.getComputer().getVideo().getFrameBuffer() == null) {
                 Thread.yield();
             }
             bootWatchdog();
-        }).start();
+        }).start());
         primaryStage.setOnCloseRequest(event -> {
-            Emulator.computer.deactivate();
+            Emulator.getComputer().deactivate();
             Platform.exit();
             System.exit(0);
         });
     }
 
     public void reconnectUIHooks() {
-        controller.connectComputer(Emulator.computer, primaryStage);
+        controller.connectComputer(Emulator.getComputer(), primaryStage);
     }
 
     public static LawlessLegends getApplication() {
@@ -129,49 +123,47 @@ public class LawlessLegends extends Application {
      */
     private void bootWatchdog() {
         romStarted = false;
-        if (PRODUCTION_MODE) {
-            RAMListener startListener = Emulator.computer.getMemory().
-                    observe(RAMEvent.TYPE.EXECUTE, 0x0c700, (e) -> {
-                        romStarted = true;
-                    });
-            Emulator.computer.invokeColdStart();
+        if (Emulator.getComputer().PRODUCTION_MODE) {
+            RAMListener startListener = Emulator.getComputer().getMemory().
+                    observe(RAMEvent.TYPE.EXECUTE, 0x0c700, (e) -> romStarted = true);
+            Emulator.getComputer().invokeColdStart();
             try {
                 Thread.sleep(7500);
                 if (!romStarted) {
                     Logger.getLogger(getClass().getName()).log(Level.WARNING, "Boot not detected, performing a cold start");
-                    Emulator.computer.invokeColdStart();
+                    Emulator.getComputer().invokeColdStart();
                 }
             } catch (InterruptedException ex) {
                 Logger.getLogger(LawlessLegends.class.getName()).log(Level.SEVERE, null, ex);
             }
-            Emulator.computer.getMemory().removeListener(startListener);
+            Emulator.getComputer().getMemory().removeListener(startListener);
         } else {
             romStarted = true;
-            Emulator.computer.invokeColdStart();
+            Emulator.getComputer().invokeColdStart();
         }
     }
 
     private void configureEmulatorForGame() {
-        Emulator.computer.enableHints = false;
-        Emulator.computer.clockEnabled = true;
-        Emulator.computer.joy1enabled = false;
-        Emulator.computer.joy2enabled = false;
-        Emulator.computer.enableStateManager = false;
-        Emulator.computer.ramCard.setValue(CardRamworks.class);
-        Emulator.computer.videoRenderer.setValue(LawlessVideo.class);
-        if (PRODUCTION_MODE) {
-            Emulator.computer.card7.setValue(CardMassStorage.class);
-            Emulator.computer.card6.setValue(CardDiskII.class);
-            Emulator.computer.card5.setValue(CardRamFactor.class);
-            Emulator.computer.card4.setValue(null);
-            Emulator.computer.card2.setValue(null);
+        Emulator.getComputer().enableHints = false;
+        Emulator.getComputer().clockEnabled = true;
+        Emulator.getComputer().joy1enabled = false;
+        Emulator.getComputer().joy2enabled = false;
+        Emulator.getComputer().enableStateManager = false;
+        Emulator.getComputer().ramCard.setValue(CardRamworks.class);
+        Emulator.getComputer().videoRenderer.setValue(LawlessVideo.class);
+        if (Emulator.getComputer().PRODUCTION_MODE) {
+            Emulator.getComputer().card7.setValue(CardMassStorage.class);
+            Emulator.getComputer().card6.setValue(CardDiskII.class);
+            Emulator.getComputer().card5.setValue(CardRamFactor.class);
+            Emulator.getComputer().card4.setValue(null);
+            Emulator.getComputer().card2.setValue(null);
         }
-        Emulator.computer.cheatEngine.setValue(LawlessHacks.class);
+        Emulator.getComputer().cheatEngine.setValue(LawlessHacks.class);
         Configuration.buildTree();
-        Emulator.computer.reconfigure();
+        Emulator.getComputer().reconfigure();
         VideoNTSC.setVideoMode(VideoNTSC.VideoMode.TextFriendly, false);
-        if (PRODUCTION_MODE) {
-            ((LawlessImageTool) Emulator.computer.getUpgradeHandler()).loadGame();
+        if (Emulator.getComputer().PRODUCTION_MODE) {
+            ((LawlessImageTool) Emulator.getComputer().getUpgradeHandler()).loadGame();
         } else {
             for (SoftSwitches s : SoftSwitches.values()) {
                 s.getSwitch().reset();

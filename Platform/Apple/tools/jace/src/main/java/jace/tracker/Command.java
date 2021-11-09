@@ -23,8 +23,8 @@ package jace.tracker;
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com 
  */
 public class Command {
-    public static enum CommandScope {global, channel}
-    public static enum CommandType {
+    public enum CommandScope {global, channel}
+    public enum CommandType {
         Rest(0, 0, 0, false),
         Ay1(1, 1, 17, false),
         Ay2(2, 1, 17, false),

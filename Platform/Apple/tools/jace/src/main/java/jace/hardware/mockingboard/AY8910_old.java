@@ -111,7 +111,7 @@ public class AY8910_old {
     }
     
 ///////////////////////////////////////////////////////////
-    private List<PSG> chips;
+    private final List<PSG> chips;
     
     static int[] VolTable;
     static {
@@ -558,8 +558,8 @@ buf3[index] = (volc * VolC) / STEP;
                 length--;
             }
         }
-    };
-    
+    }
+
     public void writeReg(int chipNumber, int register, int value) {
         Reg r = Reg.get(register);
         writeReg(chipNumber, r, value);

@@ -69,7 +69,7 @@ public class ApplesoftProgram {
             Logger.getLogger(ApplesoftProgram.class.getName()).log(Level.SEVERE, null, ex);
         }
         ApplesoftProgram test = ApplesoftProgram.fromBinary(Arrays.asList(toObjects(source)));
-        System.out.println(test.toString());
+        System.out.println(test);
     }
 
     public static Byte[] toObjects(byte[] bytesPrim) {
@@ -149,8 +149,8 @@ public class ApplesoftProgram {
     }
 
     public void run() {
-        RAM memory = Emulator.computer.memory;
-        Emulator.computer.pause();
+        RAM memory = Emulator.getComputer().memory;
+        Emulator.getComputer().pause();
         int programStart = memory.readWordRaw(START_OF_PROG_POINTER);
         int programEnd = programStart + getProgramSize();
         if (isProgramRunning()) {
@@ -162,11 +162,11 @@ public class ApplesoftProgram {
             injectProgram();
             clearVariables(programEnd);
         }
-        Emulator.computer.resume();
+        Emulator.getComputer().resume();
     }
     
     private void injectProgram() {
-        RAM memory = Emulator.computer.memory;
+        RAM memory = Emulator.getComputer().memory;
         int pos = memory.readWordRaw(START_OF_PROG_POINTER);
         for (Line line : lines) {
             int nextPos = pos + line.getLength();
@@ -193,7 +193,7 @@ public class ApplesoftProgram {
     }
     
     private boolean isProgramRunning() {
-        RAM memory = Emulator.computer.memory;
+        RAM memory = Emulator.getComputer().memory;
         return (memory.readRaw(RUNNING_FLAG) & 0x0FF) != NOT_RUNNING;
     }
     
@@ -201,7 +201,7 @@ public class ApplesoftProgram {
      * If the program is running, wait until it advances to the next line
      */
     private void whenReady(Runnable r) {
-        RAM memory = Emulator.computer.memory;
+        RAM memory = Emulator.getComputer().memory;
         memory.addListener(new RAMListener(RAMEvent.TYPE.EXECUTE, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY) {
             @Override
             protected void doConfig() {
@@ -222,7 +222,7 @@ public class ApplesoftProgram {
      * @param programEnd Program ending address
      */
     private void clearVariables(int programEnd) {
-        RAM memory = Emulator.computer.memory;
+        RAM memory = Emulator.getComputer().memory;
         memory.writeWord(ARRAY_TABLE, programEnd, false, true);
         memory.writeWord(VARIABLE_TABLE, programEnd, false, true);
         memory.writeWord(VARIABLE_TABLE_END, programEnd, false, true);
@@ -234,7 +234,7 @@ public class ApplesoftProgram {
      * @param programEnd Program ending address
      */
     private void relocateVariables(int programEnd) {
-        RAM memory = Emulator.computer.memory;
+        RAM memory = Emulator.getComputer().memory;
         int currentEnd = memory.readWordRaw(END_OF_PROG_POINTER);
         memory.writeWord(END_OF_PROG_POINTER, programEnd, false, true);
         if (programEnd > currentEnd) {
@@ -253,5 +253,9 @@ public class ApplesoftProgram {
     private int getProgramSize() {
         int size = lines.stream().collect(Collectors.summingInt(Line::getLength)) + 4;
         return size;
+    }
+
+    public int getLength() {
+        return lines.size();
     }
 }

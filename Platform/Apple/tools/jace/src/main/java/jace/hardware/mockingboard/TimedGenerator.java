@@ -78,4 +78,4 @@ public class TimedGenerator {
         counter = 0;
         period = 1;
     }
-};
+}

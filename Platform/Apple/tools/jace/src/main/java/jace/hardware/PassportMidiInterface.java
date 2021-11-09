@@ -59,11 +59,11 @@ public class PassportMidiInterface extends Card {
     }
 
     // MIDI timing: 31250 BPS, 8-N-1  (roughly 3472k per second)
-    public static enum TIMER_MODE {
+    public enum TIMER_MODE {
 
         CONTINUOUS, SINGLE_SHOT, FREQ_COMPARISON, PULSE_COMPARISON
-    };
-    
+    }
+
     @ConfigurableField(name = "Midi Output Device", description = "Midi output device")
     public static DynamicSelection<String> preferredMidiDevice = new DynamicSelection<String>(null) {
         @Override

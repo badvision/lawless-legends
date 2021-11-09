@@ -22,7 +22,11 @@ import jace.Emulator;
 import jace.apple2e.SoftSwitches;
 import jace.config.InvokableAction;
 import jace.config.Reconfigurable;
-import java.awt.Toolkit;
+import javafx.event.EventHandler;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+
+import java.awt.*;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.UnsupportedFlavorException;
@@ -37,10 +41,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javafx.event.EventHandler;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
-import javafx.stage.WindowEvent;
 
 /**
  * Keyboard manages all keyboard-related activities. For now, all hotkeys are
@@ -96,15 +96,15 @@ public class Keyboard implements Reconfigurable {
      */
     public Keyboard() {
     }
-    private static Map<KeyCode, Set<KeyHandler>> keyHandlersByKey = new HashMap<>();
-    private static Map<Object, Set<KeyHandler>> keyHandlersByOwner = new HashMap<>();
+    private static final Map<KeyCode, Set<KeyHandler>> keyHandlersByKey = new HashMap<>();
+    private static final Map<Object, Set<KeyHandler>> keyHandlersByOwner = new HashMap<>();
 
     public static void registerInvokableAction(InvokableAction action, Object owner, Method method, String code) {
         boolean isStatic = Modifier.isStatic(method.getModifiers());
         registerKeyHandler(new KeyHandler(code) {
             @Override
             public boolean handleKeyUp(KeyEvent e) {
-                Emulator.computer.getKeyboard().shiftPressed = e.isShiftDown();
+                Emulator.getComputer().getKeyboard().shiftPressed = e.isShiftDown();
                 if (action == null || !action.notifyOnRelease()) {
                     return false;
                 }
@@ -128,7 +128,7 @@ public class Keyboard implements Reconfigurable {
             @Override
             public boolean handleKeyDown(KeyEvent e) {
 //                System.out.println("Key down: "+method.toString());
-                Emulator.computer.getKeyboard().shiftPressed = e.isShiftDown();
+                Emulator.getComputer().getKeyboard().shiftPressed = e.isShiftDown();
                 Object returnValue = null;
                 try {
                     if (method.getParameterCount() > 0) {
@@ -163,9 +163,8 @@ public class Keyboard implements Reconfigurable {
         if (!keyHandlersByOwner.containsKey(owner)) {
             return;
         }
-        keyHandlersByOwner.get(owner).stream().filter((handler) -> !(!keyHandlersByKey.containsKey(handler.key))).forEach((handler) -> {
-            keyHandlersByKey.get(handler.key).remove(handler);
-        });
+        keyHandlersByOwner.get(owner).stream().filter((handler) -> keyHandlersByKey.containsKey(handler.key)).forEach(
+                (handler) -> keyHandlersByKey.get(handler.key).remove(handler));
         keyHandlersByOwner.remove(owner);
     }
 
@@ -252,7 +251,7 @@ public class Keyboard implements Reconfigurable {
             default:
         }
 
-        Emulator.computer.getKeyboard().shiftPressed = e.isShiftDown();
+        Emulator.getComputer().getKeyboard().shiftPressed = e.isShiftDown();
         if (e.isShiftDown()) {
             c = fixShiftedChar(c);
         }
@@ -312,16 +311,20 @@ public class Keyboard implements Reconfigurable {
 
     @InvokableAction(name = "Open Apple Key", alternatives = "OA", category = "Keyboard", notifyOnRelease = true, defaultKeyMapping = "Alt", consumeKeyEvent = false)
     public void openApple(boolean pressed) {
-        computer.pause();
+        boolean isRunning = computer.pause();
         SoftSwitches.PB0.getSwitch().setState(pressed);
-        computer.resume();
+        if (isRunning) {
+            computer.resume();
+        }
     }
 
     @InvokableAction(name = "Closed Apple Key", alternatives = "CA", category = "Keyboard", notifyOnRelease = true, defaultKeyMapping = {"Shortcut","Meta","Command"}, consumeKeyEvent = false)
     public void solidApple(boolean pressed) {
-        computer.pause();
+        boolean isRunning = computer.pause();
         SoftSwitches.PB1.getSwitch().setState(pressed);
-        computer.resume();
+        if (isRunning) {
+            computer.resume();
+        }
     }
 
     public static void pasteFromString(String text) {

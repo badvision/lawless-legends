@@ -18,19 +18,12 @@
  */
 package jace.apple2e;
 
-import jace.core.Computer;
-import jace.core.Font;
-import jace.core.Palette;
-import jace.core.RAMEvent;
-import jace.core.Video;
-import static jace.core.Video.hiresOffset;
-import static jace.core.Video.hiresRowLookup;
-import static jace.core.Video.textRowLookup;
-import jace.core.VideoWriter;
-import java.util.logging.Logger;
+import jace.core.*;
 import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
+
+import java.util.logging.Logger;
 
 /**
  * This is the primary video rendering class, which provides all necessary video
@@ -51,19 +44,19 @@ public class VideoDHGR extends Video {
         9, 11, 13, 15
     };
     private static final boolean USE_GS_MOUSETEXT = false;
-    private VideoWriter textPage1;
-    private VideoWriter textPage2;
-    private VideoWriter loresPage1;
-    private VideoWriter loresPage2;
-    private VideoWriter hiresPage1;
-    private VideoWriter hiresPage2;
+    private final VideoWriter textPage1;
+    private final VideoWriter textPage2;
+    private final VideoWriter loresPage1;
+    private final VideoWriter loresPage2;
+    private final VideoWriter hiresPage1;
+    private final VideoWriter hiresPage2;
     // Special 80-column modes
-    private VideoWriter text80Page1;
-    private VideoWriter text80Page2;
-    private VideoWriter dloresPage1;
-    private VideoWriter dloresPage2;
-    private VideoWriter dhiresPage1;
-    private VideoWriter dhiresPage2;
+    private final VideoWriter text80Page1;
+    private final VideoWriter text80Page2;
+    private final VideoWriter dloresPage1;
+    private final VideoWriter dloresPage2;
+    private final VideoWriter dhiresPage1;
+    private final VideoWriter dhiresPage2;
     // Mixed mode
     private final VideoWriter mixed;
     private VideoWriter currentGraphicsWriter = null;
@@ -76,6 +69,10 @@ public class VideoDHGR extends Video {
      */
     public VideoDHGR(Computer computer) {
         super(computer);
+        
+        initCharMap();
+        initLookupTables();
+
         hiresPage1 = new VideoWriter() {
             @Override
             public int getYOffset(int y) {
@@ -334,26 +331,23 @@ public class VideoDHGR extends Video {
     // Take two consecutive bytes and double them, taking hi-bit into account
     // This should yield a 28-bit word of 7 color dhgr pixels
     // This looks like crap on text...
-    static final int[][] HGR_TO_DHGR;
+    static final int[][] HGR_TO_DHGR = new int[512][256];
     // Take two consecutive bytes and double them, disregarding hi-bit
     // Useful for text mode
-    static final int[][] HGR_TO_DHGR_BW;
-    static final int[] TIMES_14;
-    static final int[] FLIP_BITS;
-
-    static {
+    static final int[][] HGR_TO_DHGR_BW = new int[256][256];
+    static final int[] TIMES_14 = new int[40];
+    static final int[] FLIP_BITS = new int[256];
+    
+    static void initLookupTables() {
         // complete reverse of 8 bits
-        FLIP_BITS = new int[256];
         for (int i = 0; i < 256; i++) {
             FLIP_BITS[i] = (((i * 0x0802 & 0x22110) | (i * 0x8020 & 0x88440)) * 0x10101 >> 16) & 0x0ff;
         }
 
-        TIMES_14 = new int[40];
         for (int i = 0; i < 40; i++) {
             TIMES_14[i] = i * 14;
         }
-        HGR_TO_DHGR = new int[512][256];
-        HGR_TO_DHGR_BW = new int[256][256];
+
         for (int bb1 = 0; bb1 < 512; bb1++) {
             for (int bb2 = 0; bb2 < 256; bb2++) {
                 int value = ((bb1 & 0x0181) >= 0x0101) ? 1 : 0;
@@ -403,7 +397,7 @@ public class VideoDHGR extends Video {
         writer.setColor(xx++, y, color);
         writer.setColor(xx++, y, color);
         writer.setColor(xx++, y, color);
-        writer.setColor(xx++, y, color);
+        writer.setColor(xx, y, color);
     }
 
     protected void displayDoubleLores(WritableImage screen, int xOffset, int y, int rowAddress) {
@@ -435,17 +429,17 @@ public class VideoDHGR extends Video {
         writer.setColor(xx++, y, color);
         writer.setColor(xx++, y, color);
         writer.setColor(xx++, y, color);
-        writer.setColor(xx++, y, color);
+        writer.setColor(xx, y, color);
     }
     boolean flashInverse = false;
     int flashTimer = 0;
     int FLASH_SPEED = 16; // UTAIIe:8-13,P7 - FLASH toggles every 16 scans
     int[] currentCharMap = CHAR_MAP1;
-    static final int[] CHAR_MAP1;
-    static final int[] CHAR_MAP2;
-    static final int[] CHAR_MAP3;
+    static final int[] CHAR_MAP1 = new int[256];
+    static final int[] CHAR_MAP2 = new int[256];
+    static final int[] CHAR_MAP3 = new int[256];
 
-    static {
+    static void initCharMap() {
         // Generate screen text lookup maps ahead of time
         // ALTCHR clear
         // 00-3F - Inverse characters (uppercase only) "@P 0"
@@ -462,11 +456,8 @@ public class VideoDHGR extends Video {
         // C0-DF - Normal characters (repeat 80-9F)
         // E0-FF - Normal characters (lowercase)
         // MAP1: Normal map, flash inverse = false
-        CHAR_MAP1 = new int[256];
         // MAP2: Normal map, flash inverse = true
-        CHAR_MAP2 = new int[256];
         // MAP3: Alt map, mousetext mode
-        CHAR_MAP3 = new int[256];
         for (int b = 0; b < 256; b++) {
             int mod = b % 0x020;
             // Inverse

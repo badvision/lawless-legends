@@ -20,23 +20,6 @@ package jace.core;
 
 import jace.config.Configuration;
 import jace.config.InvokableAction;
-import java.io.File;
-import java.io.InputStream;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
@@ -50,6 +33,15 @@ import javafx.scene.image.ImageView;
 import javafx.scene.paint.Color;
 import org.reflections.Reflections;
 
+import java.io.File;
+import java.io.InputStream;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 /**
  * This is a set of helper functions which do not belong anywhere else.
  * Functions vary from introspection, discovery, and string/pattern matching.
@@ -60,7 +52,7 @@ public class Utility {
 
     static Reflections reflections = new Reflections("jace");
 
-    public static Set<Class> findAllSubclasses(Class clazz) {
+    public static <T> Set<Class<? extends T>> findAllSubclasses(Class<T> clazz) {
         return reflections.getSubTypesOf(clazz);
     }
 
@@ -148,8 +140,9 @@ public class Utility {
         return score * adjustment * adjustment;
     }
 
+    @Deprecated
     public static String join(Collection<String> c, String d) {
-        return c.stream().collect(Collectors.joining(d));
+        return String.join(d, c);
     }
 
     private static boolean isHeadless = false;
@@ -315,9 +308,16 @@ public class Utility {
     }
 
     public static void printStackTrace() {
-        System.out.println("CURRENT STACK TRACE:");
+        System.out.println("START OF STACK TRACE:");
+        int skip = 2;
         for (StackTraceElement s : Thread.currentThread().getStackTrace()) {
-            System.out.println(s.getClassName() + "." + s.getMethodName() + " (line " + s.getLineNumber() + ") " + (s.isNativeMethod() ? "NATIVE" : ""));
+            if (skip-- > 0) {
+                continue;
+            }
+            if (s.getClassName().startsWith("com.sun.javafx.event")) {
+                break;
+            }
+            System.out.println("    " + s.getClassName() + "." + s.getMethodName() + " (line " + s.getLineNumber() + ") " + (s.isNativeMethod() ? "NATIVE" : ""));
         }
         System.out.println("END OF STACK TRACE");
     }
@@ -372,7 +372,7 @@ public class Utility {
             for (Method m : object.getClass().getMethods()) {
                 if (m.getName().equalsIgnoreCase("get" + fieldName) && m.getParameterTypes().length == 0) {
                     try {
-                        return m.invoke(object, new Object[0]);
+                        return m.invoke(object);
                     } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException ex1) {
                     }
                 }
@@ -543,5 +543,5 @@ public class Utility {
             }
         }
         return nameMatch;
-    }
+    }    
 }

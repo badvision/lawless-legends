@@ -19,24 +19,12 @@
 package jace.tracker;
 
 import jace.core.Utility;
-import java.awt.CardLayout;
-import java.awt.Component;
-import java.awt.Container;
-import java.awt.EventQueue;
-import java.awt.event.FocusEvent;
-import java.awt.event.FocusListener;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import javax.swing.ImageIcon;
-import javax.swing.JComboBox;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JTextField;
+
+import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.text.JTextComponent;
+import java.awt.*;
+import java.awt.event.*;
 
 /**
  *
@@ -59,10 +47,10 @@ public class EditableLabel extends JPanel implements MouseListener, FocusListene
         labelComponent.setText(s);
     }
 
-    public static enum cards {
+    public enum cards {
 
         label, edit
-    };
+    }
 
     public EditableLabel(JLabel label, Component edit, int width, Object owner, String property) {
         this(label, edit, width, DEFAULT_GAP, DEFAULT_GAP, owner, property);
@@ -235,14 +223,11 @@ public class EditableLabel extends JPanel implements MouseListener, FocusListene
         }
 
         public void focus(final Component c) {
-            Runnable r = new Runnable() {
-                @Override
-                public void run() {
-                    if (c instanceof EditableLabel) {
-                        ((EditableLabel) c).activateEdit();
-                    } else {
-                        c.requestFocusInWindow();
-                    }
+            Runnable r = () -> {
+                if (c instanceof EditableLabel) {
+                    ((EditableLabel) c).activateEdit();
+                } else {
+                    c.requestFocusInWindow();
                 }
             };
             EventQueue.invokeLater(r);

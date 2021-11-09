@@ -31,8 +31,8 @@ package jace.core;
  */
 public class RAMEvent {
 
-    static public interface RAMEventHandler {
-        public void handleEvent(RAMEvent e);
+    public interface RAMEventHandler {
+        void handleEvent(RAMEvent e);
     }
 
     public enum TYPE {
@@ -43,7 +43,7 @@ public class RAMEvent {
         READ_OPERAND(true),
         WRITE(false),
         ANY(false);
-        boolean read = false;
+        boolean read;
 
         TYPE(boolean r) {
             this.read = r;
@@ -52,14 +52,14 @@ public class RAMEvent {
         public boolean isRead() {
             return read;
         }
-    };
+    }
 
     public enum SCOPE {
 
         ADDRESS,
         RANGE,
         ANY
-    };
+    }
 
     public enum VALUE {
 
@@ -68,7 +68,8 @@ public class RAMEvent {
         EQUALS,
         NOT_EQUALS,
         CHANGE_BY
-    };
+    }
+
     private TYPE type;
     private SCOPE scope;
     private VALUE value;

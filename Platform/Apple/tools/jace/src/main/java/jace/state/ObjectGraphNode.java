@@ -49,10 +49,10 @@ public class ObjectGraphNode<T> implements Serializable {
     transient public Class<T> type;
     public boolean isPrimitive = false;
 
-    public static enum DirtyFlag {
+    public enum DirtyFlag {
 
         UNKNOWN, CLEAN, DIRTY
-    };
+    }
 
     public ObjectGraphNode(Class<T> clazz) {
         children = new ArrayList<>();

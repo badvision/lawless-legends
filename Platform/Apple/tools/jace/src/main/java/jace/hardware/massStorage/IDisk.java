@@ -27,18 +27,18 @@ import java.io.IOException;
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com 
  */
 public interface IDisk {
-    public static int BLOCK_SIZE = 512;
-    public static int MAX_BLOCK = 0x07fff;
+    int BLOCK_SIZE = 512;
+    int MAX_BLOCK = 0x07fff;
 
-    public void mliFormat() throws IOException;
-    public void mliRead(int block, int bufferAddress, RAM memory) throws IOException;
-    public void mliWrite(int block, int bufferAddress, RAM memory) throws IOException;
-    public void boot0(int slot, Computer computer) throws IOException;
+    void mliFormat() throws IOException;
+    void mliRead(int block, int bufferAddress, RAM memory) throws IOException;
+    void mliWrite(int block, int bufferAddress, RAM memory) throws IOException;
+    void boot0(int slot, Computer computer) throws IOException;
 
     // Return size in 512k blocks
-    public int getSize();
+    int getSize();
     
-    public void eject();
-    public boolean isWriteProtected();
+    void eject();
+    boolean isWriteProtected();
 
 }

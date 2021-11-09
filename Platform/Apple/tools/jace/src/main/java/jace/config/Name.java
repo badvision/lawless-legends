@@ -30,6 +30,6 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 public @interface Name {
-    public String value();
-    public String description() default "";
+    String value();
+    String description() default "";
 }

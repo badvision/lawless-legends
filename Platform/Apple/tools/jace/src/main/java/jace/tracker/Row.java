@@ -31,7 +31,7 @@ import javax.swing.ImageIcon;
  */
 public class Row {
 
-    public static enum Note {
+    public enum Note {
         C0(3901),
         CS0(3682),
         D0(3476),
@@ -149,7 +149,7 @@ public class Row {
             ENVELOPE_ICONS[i++] = shape.getIcon();
         }
     }
-    public static enum EnvelopeShape {
+    public enum EnvelopeShape {
         unspecified(-1, ""),
         pulse(0, "|\\____"),
         pulseinv(4, "/|____"),
@@ -178,7 +178,7 @@ public class Row {
         }
     }    
     
-    public static enum Channel {A1, B1, C1, A2, B2, C2}
+    public enum Channel {A1, B1, C1, A2, B2, C2}
     
     public static class ChannelData {
         public Note tone;
@@ -189,8 +189,7 @@ public class Row {
         public Set<Command> commands = new HashSet<Command>();
         public boolean isEmpty() {
             if (!commands.isEmpty()) return false;
-            if (tone != null || volume != null || toneActive != null || noiseActive != null || envelopeActive != null) return false;
-            return true;
+            return tone == null && volume == null && toneActive == null && noiseActive == null && envelopeActive == null;
         }
     }
     

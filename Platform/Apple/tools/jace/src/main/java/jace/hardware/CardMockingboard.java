@@ -78,7 +78,7 @@ public class CardMockingboard extends Card implements Runnable {
     Condition cpuCountReached = timerSync.newCondition();
     Condition playbackFinished = timerSync.newCondition();
     @ConfigurableField(name = "Idle sample threshold", description = "Number of samples to wait before suspending sound")
-    private int MAX_IDLE_SAMPLES = SAMPLE_RATE;
+    private final int MAX_IDLE_SAMPLES = SAMPLE_RATE;
     
     @Override
     public String getDeviceName() {
@@ -92,7 +92,7 @@ public class CardMockingboard extends Card implements Runnable {
             // has to be final to be used inside of anonymous class below
             final int j = i;
             controllers[i] = new R6522(computer) {
-                int controller = j;
+                final int controller = j;
 
                 @Override
                 public void sendOutputA(int value) {

@@ -39,48 +39,61 @@ public class Emulator {
 //        instance = new Emulator(args);
 //    }
 
-    public static LawlessComputer computer;
+    private final LawlessComputer computer;
+    
+    public static Emulator getInstance(List<String> args) {
+        Emulator i = getInstance();
+        i.processCmdlineArgs(args);
+        return i;
+    }
+    
+    public static Emulator getInstance() {
+        if (instance == null) {
+            instance = new Emulator();
+        }
+        return instance;
+    }
+    
+    public static LawlessComputer getComputer() {
+        return getInstance().computer;        
+    }
 
     /**
      * Creates a new instance of Emulator
-     * @param args
      */
-    public Emulator(List<String> args) {
+    private Emulator() {
         instance = this;
         computer = new LawlessComputer();
         Configuration.buildTree();
         Configuration.loadSettings();
         mainThread = Thread.currentThread();
-        Map<String, String> settings = new LinkedHashMap<>();
-        if (args != null) {
-            for (int i = 0; i < args.size(); i++) {
-                if (args.get(i).startsWith("-")) {
-                    String key = args.get(i).substring(1);
-                    if ((i + 1) < args.size()) {
-                        String val = args.get(i + 1);
-                        if (!val.startsWith("-")) {
-                            settings.put(key, val);
-                            i++;
-                        } else {
-                            settings.put(key, "true");
-                        }
-                    } else {
-                        settings.put(key, "true");
-                    }
-                } else {
-                    System.err.println("Did not understand parameter " + args.get(i) + ", skipping.");
-                }
-            }
-        }
-        Configuration.applySettings(settings);
 //        EmulatorUILogic.registerDebugger();
 //        computer.coldStart();
     }
 
-    public static void resizeVideo() {
-//        AbstractEmulatorFrame window = getFrame();
-//        if (window != null) {
-//            window.resizeVideo();
-//        }
+    private void processCmdlineArgs(List<String> args) {
+        if (args == null || args.isEmpty()) {
+            return;
+        }
+        Map<String, String> settings = new LinkedHashMap<>();
+        for (int i = 0; i < args.size(); i++) {
+            if (args.get(i).startsWith("-")) {
+                String key = args.get(i).substring(1);
+                if ((i + 1) < args.size()) {
+                    String val = args.get(i + 1);
+                    if (!val.startsWith("-")) {
+                        settings.put(key, val);
+                        i++;
+                    } else {
+                        settings.put(key, "true");
+                    }
+                } else {
+                    settings.put(key, "true");
+                }
+            } else {
+                System.err.println("Did not understand parameter " + args.get(i) + ", skipping.");
+            }
+        }
+        Configuration.applySettings(settings);
     }
 }

@@ -47,9 +47,9 @@ import java.util.logging.Logger;
 @Name("Mass Storage Device")
 public class CardMassStorage extends Card implements MediaConsumerParent {
 
-    @ConfigurableField(category = "Disk", defaultValue = "", shortName = "d1", name = "Drive 1 disk image", description = "Path of disk 1")
+    @ConfigurableField(category = "Disk", shortName = "d1", name = "Drive 1 disk image", description = "Path of disk 1")
     public String disk1;
-    @ConfigurableField(category = "Disk", defaultValue = "", shortName = "d2", name = "Drive 2 disk image", description = "Path of disk 2")
+    @ConfigurableField(category = "Disk", shortName = "d2", name = "Drive 2 disk image", description = "Path of disk 2")
     public String disk2;
     MassStorageDrive drive1;
     MassStorageDrive drive2;
@@ -109,7 +109,7 @@ public class CardMassStorage extends Card implements MediaConsumerParent {
 
         @Override
         public boolean isWriteProtected() {
-            return getCurrentDisk() != null ? getCurrentDisk().isWriteProtected() : true;
+            return getCurrentDisk() == null || getCurrentDisk().isWriteProtected();
         }
 
         @Override
@@ -194,6 +194,8 @@ public class CardMassStorage extends Card implements MediaConsumerParent {
                     try {
                         if (drive1.getCurrentDisk() != null) {
                             currentDrive = drive1;
+                            // Reset stack pointer on boot helps prevent random crashes!
+                            ((MOS65C02) computer.getCpu()).STACK = 0x0ff;
                             getCurrentDisk().boot0(getSlot(), computer);
                         } else {
                             // Patch for crash on start when no image is mounted

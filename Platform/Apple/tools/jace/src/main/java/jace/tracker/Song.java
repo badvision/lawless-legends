@@ -28,7 +28,7 @@ import java.util.Map;
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com 
  */
 public class Song {
-    public static enum Format {
+    public enum Format {
         woz0
     }
     Format format;
@@ -36,9 +36,9 @@ public class Song {
     String songName;
     String authorName;
     
-    Map<Integer, Pattern> patterns = new HashMap<Integer, Pattern>();
-    Map<Integer, Pattern> macros = new HashMap<Integer, Pattern>();
+    Map<Integer, Pattern> patterns = new HashMap<>();
+    Map<Integer, Pattern> macros = new HashMap<>();
     int defaultPatternLength = 64;
     int defaultMacroLength = 16;
-    List<Integer> order = new ArrayList<Integer>();
+    List<Integer> order = new ArrayList<>();
 }

@@ -48,7 +48,7 @@ public abstract class R6522 extends TimedDevice {
     // 6522 VIA
     // http://www.applevault.com/twiki/Main/Mockingboard/6522.pdf
     // I/O registers
-    public static enum Register {
+    public enum Register {
         ORB(0), // Output Register B
         ORA(1), // Output Register A
         DDRB(2),// Data direction reg B

@@ -37,7 +37,7 @@ public abstract class SmartportDriver {
         this.computer = computer;
     }
     
-    public static enum ERROR_CODE {
+    public enum ERROR_CODE {
         NO_ERROR(0), INVALID_COMMAND(0x01), BAD_PARAM_COUNT(0x04), INVALID_UNIT(0x011), INVALID_CODE(0x021), BAD_BLOCK_NUMBER(0x02d);
         int intValue;
         ERROR_CODE(int c) {
@@ -50,7 +50,7 @@ public abstract class SmartportDriver {
         MOS65C02 cpu = (MOS65C02) computer.getCpu();
         cpu.A = returnCode;
         // Clear carry flag if no error, otherwise set carry flag
-        cpu.C = (returnCode == 0x00) ? 00 : 01;
+        cpu.C = (returnCode == 0x00) ? 0 : 1;
     }
 
     private ERROR_CODE callSmartport() {

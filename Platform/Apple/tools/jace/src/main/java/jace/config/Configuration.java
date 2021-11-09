@@ -23,37 +23,16 @@ import jace.EmulatorUILogic;
 import jace.core.Computer;
 import jace.core.Keyboard;
 import jace.core.Utility;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.ObjectStreamException;
-import java.io.Serializable;
-import java.lang.reflect.Field;
-import java.lang.reflect.GenericArrayType;
-import java.lang.reflect.Method;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.TreeMap;
+import javafx.collections.ObservableList;
+import javafx.scene.control.TreeItem;
+import javafx.scene.image.ImageView;
+
+import java.io.*;
+import java.lang.reflect.*;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
-import javafx.collections.ObservableList;
-import javafx.scene.control.TreeItem;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 
 /**
  * Manages the configuration state of the emulator components.
@@ -125,7 +104,7 @@ public class Configuration implements Reconfigurable {
 
         public transient ConfigNode root;
         public transient ConfigNode parent;
-        private transient ObservableList<ConfigNode> children;
+        private transient final ObservableList<ConfigNode> children;
         public transient Reconfigurable subject;
         private transient boolean changed = true;
 
@@ -145,7 +124,7 @@ public class Configuration implements Reconfigurable {
 
         private void readObject(java.io.ObjectInputStream in)
                 throws IOException, ClassNotFoundException {
-            children = super.getChildren();
+            children.setAll(super.getChildren());
             id = (String) in.readObject();
             name = (String) in.readObject();
             settings = (Map) in.readObject();
@@ -218,7 +197,7 @@ public class Configuration implements Reconfigurable {
         }
 
         @Override
-        public ObservableList<ConfigNode> getChildren() {
+        final public ObservableList<ConfigNode> getChildren() {
             return super.getChildren();
         }
 
@@ -275,7 +254,7 @@ public class Configuration implements Reconfigurable {
     }
     public static ConfigNode BASE;
     public static EmulatorUILogic ui = Emulator.logic;
-    public static Computer emulator = Emulator.computer;
+    public static Computer emulator = Emulator.getComputer();
     @ConfigurableField(name = "Autosave Changes", description = "If unchecked, changes are only saved when the Save button is pressed.")
     public static boolean saveAutomatically = false;
 
@@ -301,7 +280,7 @@ public class Configuration implements Reconfigurable {
 //            System.out.println("Evaluating field " + f.getName());
             try {
                 Object o = f.get(node.subject);
-                if (!f.getType().isPrimitive() && f.getType() != String.class && visited.contains(o)) {
+                if (o == null || !f.getType().isPrimitive() && f.getType() != String.class && visited.contains(o)) {
                     continue;
                 }
                 visited.add(o);
@@ -311,15 +290,12 @@ public class Configuration implements Reconfigurable {
 //                if (o.getClass().isAssignableFrom(Reconfigurable.class)) {
 //                if (Reconfigurable.class.isAssignableFrom(o.getClass())) {
                 if (f.isAnnotationPresent(ConfigurableField.class)) {
-                    if (o != null && ISelection.class.isAssignableFrom(o.getClass())) {
+                    if (ISelection.class.isAssignableFrom(o.getClass())) {
                         ISelection selection = (ISelection) o;
                         node.setRawFieldValue(f.getName(), (Serializable) selection.getSelections().get(selection.getValue()));
                     } else {
                         node.setRawFieldValue(f.getName(), (Serializable) o);
                     }
-                    continue;
-                }
-                if (o == null) {
                     continue;
                 }
 
@@ -398,7 +374,6 @@ public class Configuration implements Reconfigurable {
             defaultKeyMapping = "meta+ctrl+s"
     )
     public static void saveSettings() {
-        FileOutputStream fos = null;
         {
             ObjectOutputStream oos = null;
             try {
@@ -429,29 +404,29 @@ public class Configuration implements Reconfigurable {
             defaultKeyMapping = "meta+ctrl+r"
     )
     public static void loadSettings() {
-        {
-            boolean successful = false;
-            ObjectInputStream ois = null;
+        boolean successful = false;
+        ObjectInputStream ois = null;
+        try {
+            ois = new ObjectInputStream(new FileInputStream(getSettingsFile()));
+            ConfigNode newRoot = (ConfigNode) ois.readObject();
+            applyConfigTree(newRoot, BASE);
+            successful = true;
+        } catch (FileNotFoundException ex) {
+            // This just means there are no settings to be saved -- just ignore it.
+        } catch (InvalidClassException ex) {
+            Logger.getLogger(Configuration.class.getName()).log(Level.WARNING, "Unable to load settings, Jace version is newer and incompatible with old settings.");            
+        } catch (ClassNotFoundException | IOException ex) {
+            Logger.getLogger(Configuration.class.getName()).log(Level.SEVERE, null, ex);
+        } finally {
             try {
-                ois = new ObjectInputStream(new FileInputStream(getSettingsFile()));
-                ConfigNode newRoot = (ConfigNode) ois.readObject();
-                applyConfigTree(newRoot, BASE);
-                successful = true;
-            } catch (FileNotFoundException ex) {
-                // This just means there are no settings to be saved -- just ignore it.
-            } catch (ClassNotFoundException | IOException ex) {
-                Logger.getLogger(Configuration.class.getName()).log(Level.SEVERE, null, ex);
-            } finally {
-                try {
-                    if (ois != null) {
-                        ois.close();
-                    }
-                    if (!successful) {
-                        applySettings(BASE);
-                    }
-                } catch (IOException ex) {
-                    Logger.getLogger(Configuration.class.getName()).log(Level.SEVERE, null, ex);
+                if (ois != null) {
+                    ois.close();
                 }
+                if (!successful) {
+                    applySettings(BASE);
+                }
+            } catch (IOException ex) {
+                Logger.getLogger(Configuration.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
     }
@@ -475,7 +450,7 @@ public class Configuration implements Reconfigurable {
     public static boolean applySettings(ConfigNode node) {
         boolean resume = false;
         if (node == BASE) {
-            resume = Emulator.computer.pause();
+            resume = Emulator.getComputer().pause();
         }
         boolean hasChanged = false;
         if (node.changed) {
@@ -494,7 +469,7 @@ public class Configuration implements Reconfigurable {
         }
 
         if (resume) {
-            Emulator.computer.resume();
+            Emulator.getComputer().resume();
         }
 
         return hasChanged;
@@ -649,7 +624,7 @@ public class Configuration implements Reconfigurable {
             System.out.println(prefix + ">>" + setting + " (" + n.subject.getShortName() + "." + sn + ")");
         });
         n.getChildren().stream().forEach((c) -> {
-            printTree(c, prefix + "." + c.toString(), i + 1);
+            printTree(c, prefix + "." + c, i + 1);
         });
     }
 }

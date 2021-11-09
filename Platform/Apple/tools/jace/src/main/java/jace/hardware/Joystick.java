@@ -201,7 +201,6 @@ public class Joystick extends Device {
         return hogKeyboard;
     }
 
-    ;
     @InvokableAction(name = "Right", category = "joystick", defaultKeyMapping = "right", notifyOnRelease = true)
     public boolean joystickRight(boolean pressed) {
         if (!useKeyboard) {
@@ -214,7 +213,6 @@ public class Joystick extends Device {
         return hogKeyboard;
     }
 
-    ;
     @InvokableAction(name = "Up", category = "joystick", defaultKeyMapping = "up", notifyOnRelease = true)
     public boolean joystickUp(boolean pressed) {
         if (!useKeyboard) {
@@ -227,7 +225,6 @@ public class Joystick extends Device {
         return hogKeyboard;
     }
 
-    ;
     @InvokableAction(name = "Down", category = "joystick", defaultKeyMapping = "down", notifyOnRelease = true)
     public boolean joystickDown(boolean pressed) {
         if (!useKeyboard) {

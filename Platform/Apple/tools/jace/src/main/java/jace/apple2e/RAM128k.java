@@ -18,12 +18,9 @@
  */
 package jace.apple2e;
 
-import jace.core.CPU;
-import jace.core.Card;
-import jace.core.Computer;
-import jace.core.PagedMemory;
-import jace.core.RAM;
+import jace.core.*;
 import jace.state.Stateful;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
@@ -31,6 +28,8 @@ import java.util.Map;
 import java.util.concurrent.Semaphore;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Implementation of a 128k memory space and the MMU found in an Apple //e. The
@@ -41,7 +40,7 @@ import java.util.logging.Logger;
 @Stateful
 abstract public class RAM128k extends RAM {
 
-    Logger LOG = Logger.getLogger(RAM128k.class.getName());
+    static final Logger LOG = Logger.getLogger(RAM128k.class.getName());
 
     Map<String, PagedMemory> banks;
     Map<String, PagedMemory> memoryConfigurations = new HashMap<>();
@@ -86,34 +85,31 @@ abstract public class RAM128k extends RAM {
 
     @Override
     public void performExtendedCommand(int param) {
-        switch (param) {
-            case 0xda:
-                // 64 da : Dump all memory mappings
-                System.out.println("Active banks");
-                for (int i = 0; i < 256; i++) {
-                    byte[] read = this.activeRead.get(i);
-                    byte[] write = this.activeWrite.get(i);
-                    String readBank = getBanks().keySet().stream().filter(bank -> {
-                        PagedMemory mem = getBanks().get(bank);
-                        for (byte[] page : mem.getMemory()) {
-                            if (page == read) {
-                                return true;
-                            }
+        if (param == 0xda) {// 64 da : Dump all memory mappings
+            System.out.println("Active banks");
+            for (int i = 0; i < 256; i++) {
+                byte[] read = this.activeRead.get(i);
+                byte[] write = this.activeWrite.get(i);
+                String readBank = getBanks().keySet().stream().filter(bank -> {
+                    PagedMemory mem = getBanks().get(bank);
+                    for (byte[] page : mem.getMemory()) {
+                        if (page == read) {
+                            return true;
                         }
-                        return false;
-                    }).findFirst().orElse("unknown");
-                    String writeBank = getBanks().keySet().stream().filter(bank -> {
-                        PagedMemory mem = getBanks().get(bank);
-                        for (byte[] page : mem.getMemory()) {
-                            if (page == write) {
-                                return true;
-                            }
+                    }
+                    return false;
+                }).findFirst().orElse("unknown");
+                String writeBank = getBanks().keySet().stream().filter(bank -> {
+                    PagedMemory mem = getBanks().get(bank);
+                    for (byte[] page : mem.getMemory()) {
+                        if (page == write) {
+                            return true;
                         }
-                        return false;
-                    }).findFirst().orElse("unknown");
-                    LOG.log(Level.INFO, "Bank {0}\t{1}\t{2}", new Object[]{Integer.toHexString(i), readBank, writeBank});
-                }
-            default:
+                    }
+                    return false;
+                }).findFirst().orElse("unknown");
+                LOG.log(Level.INFO, "Bank {0}\t{1}\t{2}", new Object[]{Integer.toHexString(i), readBank, writeBank});
+            }
         }
     }
 
@@ -161,7 +157,7 @@ abstract public class RAM128k extends RAM {
         }
     }
 
-    private final Semaphore configurationSemaphone = new Semaphore(1, true);
+    private final Semaphore configurationSemaphore = new Semaphore(1, true);
 
     public String getReadConfiguration() {
         String rstate = "";
@@ -391,7 +387,7 @@ abstract public class RAM128k extends RAM {
 
         try {
             log("MMU Switches");
-            configurationSemaphone.acquire();
+            configurationSemaphore.acquire();
 
             if (memoryConfigurations.containsKey(readConfiguration)) {
                 activeRead = memoryConfigurations.get(readConfiguration);
@@ -407,7 +403,7 @@ abstract public class RAM128k extends RAM {
                 memoryConfigurations.put(writeConfiguration, activeWrite);
             }
 
-            configurationSemaphone.release();
+            configurationSemaphore.release();
         } catch (InterruptedException ex) {
             Logger.getLogger(RAM128k.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -416,12 +412,17 @@ abstract public class RAM128k extends RAM {
     public void log(String message) {
         CPU cpu = computer.getCpu();
         if (cpu != null && cpu.isLogEnabled()) {
-            String stack = "";
+            StringBuilder stack = new StringBuilder();
             for (StackTraceElement e : Thread.currentThread().getStackTrace()) {
-                stack += e.getClassName() + "." + e.getMethodName() + "(" + e.getLineNumber() + ");";
+                stack.append(String.format("%s.%s(%s);",e.getClassName(), e.getMethodName(), e.getLineNumber()));
             }
-            cpu.log(stack);
-            cpu.log(message + ";" + SoftSwitches.RAMRD + ";" + SoftSwitches.RAMWRT + ";" + SoftSwitches.AUXZP + ";" + SoftSwitches._80STORE + ";" + SoftSwitches.HIRES + ";" + SoftSwitches.PAGE2 + ";" + SoftSwitches.LCBANK1 + ";" + SoftSwitches.LCRAM + ";" + SoftSwitches.LCWRITE);
+            cpu.log(stack.toString());
+            String switches = Stream.of(
+                    SoftSwitches.RAMRD, SoftSwitches.RAMWRT, SoftSwitches.AUXZP,
+                    SoftSwitches._80STORE, SoftSwitches.HIRES, SoftSwitches.PAGE2,
+                    SoftSwitches.LCBANK1, SoftSwitches.LCRAM, SoftSwitches.LCWRITE
+            ).map(Object::toString).collect(Collectors.joining(";"));
+            cpu.log(String.join(";", message, switches));
         }
     }
 
@@ -434,14 +435,19 @@ abstract public class RAM128k extends RAM {
     protected void loadRom(String path) throws IOException {
         // Remap writable ram to reflect rom file structure
         byte[] ignore = new byte[256];
-        activeWrite.set(0, ignore);  // Ignore first bank of data
-        for (int i = 1; i < 17; i++) {
+        byte[][] restore = new byte[18][];
+        for (int i = 0; i < 17; i++) {
+            restore[i] = activeWrite.get(i);
             activeWrite.set(i, ignore);
         }
         activeWrite.setBanks(0, cPageRom.getMemory().length, 0x011, cPageRom);
         activeWrite.setBanks(0, rom.getMemory().length, 0x020, rom);
         //----------------------
         InputStream inputRom = getClass().getClassLoader().getResourceAsStream(path);
+        if (inputRom == null) {
+            LOG.log(Level.SEVERE, "Rom not found: " + path);
+            return;
+        }
         int read = 0;
         int addr = 0;
         byte[] in = new byte[1024];
@@ -453,7 +459,10 @@ abstract public class RAM128k extends RAM {
 //            System.out.println("Finished reading rom with " + inputRom.available() + " bytes left unread!");
         //dump();
         // Clear cached configurations as we might have outdated references now        
-        memoryConfigurations.clear();        
+        for (int i = 0; i < 17; i++) {
+            activeWrite.set(i, restore[i]);
+        }
+        memoryConfigurations.clear();
         configureActiveMemory();
     }
 

@@ -26,14 +26,13 @@ import jace.core.Computer;
 import jace.core.RAM;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
 import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
 
-import static jace.apple2e.VideoDHGR.BLACK;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Provides a clean color monitor simulation, complete with text-friendly
@@ -53,27 +52,32 @@ public class VideoNTSC extends VideoDHGR {
 
     @ConfigurableField(name = "Text palette", shortName = "textPalette", defaultValue = "false", description = "Use text-friendly color palette")
     public boolean useTextPalette = false;
-    int activePalette[][] = SOLID_PALETTE;
+    final int[][] SOLID_PALETTE = new int[4][128];
+    final int[][] TEXT_PALETTE = new int[4][128];
+    int[][] activePalette = SOLID_PALETTE;
     @ConfigurableField(name = "Video 7", shortName = "video7", defaultValue = "true", description = "Enable Video 7 RGB rendering support")
     public boolean enableVideo7 = true;
     // Scanline represents 560 bits, divided up into 28-bit words
-    int[] scanline = new int[20];
-    static public int[] divBy28 = new int[560];
+    final int[] scanline = new int[20];
+    final public int[] divBy28 = new int[560];
 
-    static {
+    public final void initDivideTables() {
         for (int i = 0; i < 560; i++) {
             divBy28[i] = i / 28;
         }
     }
+    
     protected boolean[] colorActive = new boolean[80];
     int rowStart = 0;
 
     public VideoNTSC(Computer computer) {
         super(computer);
+        initDivideTables();
+        initNtscPalette();
         registerStateListeners();
     }
 
-    public static enum VideoMode {
+    public enum VideoMode {
         TextFriendly("Text-friendly color"),
         Color("Color"),
         Mode7TextFriendly("Mode7 with Text-friendly palette"),
@@ -96,11 +100,15 @@ public class VideoNTSC extends VideoDHGR {
             defaultKeyMapping = {"ctrl+shift+g"})
     public static void changeVideoMode() {
         currentMode = (currentMode + 1) % VideoMode.values().length;
-        setVideoMode(VideoMode.values()[currentMode], true);
+        ((VideoNTSC) Emulator.getComputer().getVideo())._setVideoMode(VideoMode.values()[currentMode], true);
     }
 
     public static void setVideoMode(VideoMode newMode, boolean showNotification) {
-        VideoNTSC thiss = (VideoNTSC) Emulator.computer.video;
+        ((VideoNTSC) Emulator.getComputer().getVideo())._setVideoMode(newMode, showNotification);        
+    }
+
+    private void _setVideoMode(VideoMode newMode, boolean showNotification) {
+        VideoNTSC thiss = (VideoNTSC) Emulator.getComputer().video;
         thiss.monochomeMode = false;
         WHITE = Color.WHITE;
         switch (newMode) {
@@ -208,16 +216,16 @@ public class VideoNTSC extends VideoDHGR {
         } else {
             c2 >>= 4;
         }
+        int pat;
         if ((xOffset & 0x01) == 0) {
-            int pat = c1 | (c1 & 7) << 4;
+            pat = c1 | (c1 & 7) << 4;
             pat |= c2 << 7 | (c2 & 7) << 11;
-            scanline[pos] = pat;
         } else {
-            int pat = scanline[pos];
+            pat = scanline[pos];
             pat |= (c1 & 12) << 12 | c1 << 16 | (c1 & 1) << 20;
             pat |= (c2 & 12) << 19 | c2 << 23 | (c2 & 1) << 27;
-            scanline[pos] = pat;
         }
+        scanline[pos] = pat;
     }
 
     @Override
@@ -229,7 +237,7 @@ public class VideoNTSC extends VideoDHGR {
     // Offset is based on location in graphics buffer that corresponds with the row and
     // a number (0-20) that represents how much of the scanline was rendered
     // This is based off the xyOffset but is different because of P
-    static int pyOffset[][];
+    static int[][] pyOffset;
 
     static {
         pyOffset = new int[192][21];
@@ -308,8 +316,6 @@ public class VideoNTSC extends VideoDHGR {
     public static final double MAX_I = 0.5957;
     // q Range [-0.5226, 0.5226]
     public static final double MAX_Q = 0.5226;
-    static final int SOLID_PALETTE[][] = new int[4][128];
-    static final int[][] TEXT_PALETTE = new int[4][128];
     static final double[][] YIQ_VALUES = {
         {0.0, 0.0, 0.0}, //0000 0
         {0.25, 0.5, 0.5}, //0001 1
@@ -329,7 +335,7 @@ public class VideoNTSC extends VideoDHGR {
         {1.0, 0.0, 0.0}, //1111 f
     };
 
-    static {
+    private void initNtscPalette() {
         int maxLevel = 10;
         for (int offset = 0; offset < 4; offset++) {
             for (int pattern = 0; pattern < 128; pattern++) {
@@ -363,10 +369,7 @@ public class VideoNTSC extends VideoDHGR {
         if (x < minX) {
             return minX;
         }
-        if (x > maxX) {
-            return maxX;
-        }
-        return x;
+        return Math.min(x, maxX);
     }
 
     @Override
@@ -381,7 +384,7 @@ public class VideoNTSC extends VideoDHGR {
     // http://apple2.info/download/Ext80ColumnAppleColorCardHR.pdf
     rgbMode graphicsMode = rgbMode.MIX;
 
-    public static enum rgbMode {
+    public enum rgbMode {
 
         COLOR(true), MIX(true), BW(false), COL_160(false);
         boolean colorMode = false;
@@ -395,10 +398,6 @@ public class VideoNTSC extends VideoDHGR {
         }
     }
 
-    public static enum ModeStateChanges {
-
-        SET_AN3, CLEAR_AN3, SET_80, CLEAR_80;
-    }
     boolean f1 = true;
     boolean f2 = true;
     boolean an3 = false;

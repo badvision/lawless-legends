@@ -26,21 +26,16 @@ import jace.config.Reconfigurable;
 import jace.core.Computer;
 import jace.core.PagedMemory;
 import jace.core.Video;
+import javafx.scene.image.Image;
+import javafx.scene.image.WritableImage;
+
 import java.awt.image.BufferedImage;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.WeakHashMap;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javafx.scene.image.Image;
-import javafx.scene.image.WritableImage;
-import javafx.scene.input.KeyCode;
 
 /**
  *
@@ -210,7 +205,7 @@ public class StateManager implements Reconfigurable {
     /**
      * Track a stateful video framebuffer.
      *
-     * @param objectGraphNode
+     * @param node
      * @param f
      */
     private void addVideoFrame(ObjectGraphNode<BufferedImage> node, Field f) {
@@ -220,7 +215,7 @@ public class StateManager implements Reconfigurable {
     /**
      * Track a stateful set of memory.
      *
-     * @param objectGraphNode
+     * @param node
      * @param f
      */
     private void addMemoryPages(ObjectGraphNode<PagedMemory> node, Field f) {
@@ -371,9 +366,7 @@ public class StateManager implements Reconfigurable {
             // If there are no changes to this node value, don't waste memory on it.
             s.put(node, new StateValue(node));
             return node;
-        }).forEach((node) -> {
-            node.markClean();
-        });
+        }).forEach(ObjectGraphNode::markClean);
         return s;
 
     }
@@ -414,7 +407,7 @@ public class StateManager implements Reconfigurable {
             defaultKeyMapping = {"ctrl+shift+Open Bracket"}
     )
     public static void beKindRewind() {
-        StateManager manager = getInstance(Emulator.computer);
+        StateManager manager = getInstance(Emulator.getComputer());
         new Thread(()->manager.rewind(60 / manager.captureFrequency)).start();
     }
 

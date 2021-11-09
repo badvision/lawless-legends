@@ -25,6 +25,7 @@ import jace.apple2e.softswitch.MemorySoftSwitch;
 import jace.apple2e.softswitch.VideoSoftSwitch;
 import jace.core.RAMEvent;
 import jace.core.SoftSwitch;
+import jace.core.Video;
 
 /**
  * Softswitches reside in the addresses C000-C07f and control everything from
@@ -62,7 +63,7 @@ public enum SoftSwitches {
         @Override
         public void stateChanged() {
             super.stateChanged();
-            computer.getVideo().forceRefresh();
+            Video.forceRefresh();
         }
     }),
     TEXT(new VideoSoftSwitch("Text", 0x0c050, 0x0c051, 0x0c01a, RAMEvent.TYPE.ANY, true)),
@@ -167,7 +168,7 @@ public enum SoftSwitches {
     /**
      * Creates a new instance of SoftSwitches
      */
-    private SoftSwitches(SoftSwitch softswitch) {
+    SoftSwitches(SoftSwitch softswitch) {
         this.softswitch = softswitch;
     }
 

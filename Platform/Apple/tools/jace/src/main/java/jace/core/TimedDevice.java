@@ -20,6 +20,8 @@ package jace.core;
 
 import jace.config.ConfigurableField;
 
+import java.util.concurrent.locks.LockSupport;
+
 /**
  * A timed device is a device which executes so many ticks in a given time interval. This is the core of the emulator
  * timing mechanics.
@@ -69,8 +71,6 @@ public abstract class TimedDevice extends Device {
         worker = null;
         return result;
     }
-    Thread timerThread;
-
     public boolean pause() {
         if (!isRunning()) {
             return false;
@@ -92,20 +92,18 @@ public abstract class TimedDevice extends Device {
             return;
         }
         worker = new Thread(() -> {
+            System.out.println("Worker thread for " + getDeviceName() + " starting");
             while (isRunning()) {
                 hasStopped = false;
                 doTick();
                 while (isPaused) {
                     hasStopped = true;
-                    try {
-                        Thread.sleep(10);
-                    } catch (InterruptedException ex) {
-                        return;
-                    }
+                    LockSupport.parkNanos(1000);
                 }
                 resync();
             }
             hasStopped = true;
+            System.out.println("Worker thread for " + getDeviceName() + " stopped");
         });
         worker.setDaemon(false);
         worker.setPriority(Thread.MAX_PRIORITY);

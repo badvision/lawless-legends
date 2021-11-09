@@ -32,28 +32,26 @@ import java.util.Set;
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com 
  */
 
-public class ClassSelection extends DynamicSelection<Class> {
+public class ClassSelection<C> extends DynamicSelection<Class<? extends C>> {
 
-    Class template = null;
+    Class<C> template;
 
-    public ClassSelection(Class supertype, Class defaultValue) {
+    public ClassSelection(Class<C> supertype, Class<? extends C> defaultValue) {
         super(defaultValue);
         template = supertype;
     }
 
     @Override
-    public LinkedHashMap<Class, String> getSelections() {
-        LinkedHashMap<Class, String> selections = new LinkedHashMap<>();
-        Set<? extends Class> allClasses = Utility.findAllSubclasses(template);
-        if (!allClasses.contains(null)) {
-            allClasses.add(null);
-        }
-        List<Entry<Class, String>> values = new ArrayList<>();
+    public LinkedHashMap<Class<C>, String> getSelections() {
+        LinkedHashMap<Class<C>, String> selections = new LinkedHashMap<>();
+        Set<Class<? extends C>> allClasses = Utility.findAllSubclasses(template);
+        allClasses.add(null);
+        List<Entry<Class<? extends C>, String>> values = new ArrayList<>();
         if (allowNull()) {
-            values.add(new Entry<Class, String>() {
+            values.add(new Entry<Class<? extends C>, String>() {
 
                 @Override
-                public Class getKey() {
+                public Class<? extends C> getKey() {
                     return null;
                 }
 
@@ -68,11 +66,11 @@ public class ClassSelection extends DynamicSelection<Class> {
                 }
             });
         }
-        for (final Class c : allClasses) {
-            Entry<Class, String> entry = new Map.Entry<Class, String>() {
+        for (final Class<? extends C> c : allClasses) {
+            Entry<Class<? extends C>, String> entry = new Map.Entry<Class<? extends C>, String>() {
 
                 @Override
-                public Class getKey() {
+                public Class<? extends C> getKey() {
                     return c;
                 }
 
@@ -82,7 +80,7 @@ public class ClassSelection extends DynamicSelection<Class> {
                         return "**Empty**";
                     }
                     if (c.isAnnotationPresent(Name.class)) {
-                        return ((Name) c.getAnnotation(Name.class)).value();
+                        return c.getAnnotation(Name.class).value();
                     }
                     return c.getSimpleName();
                 }
@@ -114,7 +112,7 @@ public class ClassSelection extends DynamicSelection<Class> {
                 return (o1.getValue().compareTo(o2.getValue()));
             }
         });
-        values.stream().forEach((entry) -> {
+        values.forEach((entry) -> {
             Class key = entry.getKey();
             selections.put(key, entry.getValue());
         });

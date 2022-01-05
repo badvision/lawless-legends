@@ -73,4 +73,4 @@ public class SoundGenerator extends TimedGenerator {
         noiseActive = false;
         inverted = false;
     }
-};
+}

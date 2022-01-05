@@ -23,5 +23,5 @@ package jace.library;
  * @author brobert
  */
 public interface MediaConsumerParent {
-    public MediaConsumer[] getConsumers();
+    MediaConsumer[] getConsumers();
 }

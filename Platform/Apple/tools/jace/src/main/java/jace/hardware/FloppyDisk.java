@@ -99,7 +99,7 @@ public class FloppyDisk {
             NIBBLE_62_REVERSE[NIBBLE_62[i] & 0x0ff] = 0x0ff & i;
         }
     }
-    private static boolean DEBUG = false;
+    private static final boolean DEBUG = false;
 
     public FloppyDisk() throws IOException {
         // This constructor is only used for disk conversion...
@@ -220,8 +220,7 @@ public class FloppyDisk {
 
     private int decodeOddEven(byte b1, byte b2) {
 //        return (((b1 ^ 0x0AA) << 1) & 0x0ff) | ((b2 ^ 0x0AA) & 0x0ff);
-        int result = ((((b1 << 1) | 1) & b2) & 0x0ff);
-        return result;
+        return ((((b1 << 1) | 1) & b2) & 0x0ff);
     }
 
     private void nibblizeBlock(ByteArrayOutputStream output, int track, int sector, byte[] nibbles) {

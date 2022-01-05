@@ -73,14 +73,14 @@ public abstract class CPU extends Device {
     }
     
     public void dumpTrace() {
-        computer.pause();
-        ArrayList<String> newLog = new ArrayList<>();
-        ArrayList<String> oldLog = traceLog;
-        traceLog = newLog;
-        computer.resume();
-        LOG.log(Level.INFO, "Most recent {0} instructions:", traceLength);
-        oldLog.stream().forEach(LOG::info);
-        oldLog.clear();
+        whileSuspended(()->{
+            ArrayList<String> newLog = new ArrayList<>();
+            ArrayList<String> oldLog = traceLog;
+            traceLog = newLog;     
+            LOG.log(Level.INFO, "Most recent {0} instructions:", traceLength);
+            oldLog.forEach(LOG::info);
+            oldLog.clear();
+        });        
     }
 
     public void setDebug(Debugger d) {
@@ -117,9 +117,9 @@ public abstract class CPU extends Device {
         try {
             if (debugger != null) {
                 if (!debugger.isActive() && debugger.hasBreakpoints()) {
-                    debugger.getBreakpoints().stream().filter((i) -> (i == getProgramCounter())).forEach((_item) -> {
+                    if (debugger.getBreakpoints().contains(getProgramCounter())){
                         debugger.setActive(true);
-                    });
+                    }
                 }
                 if (debugger.isActive()) {
                     debugger.updateStatus();

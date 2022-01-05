@@ -40,7 +40,7 @@ public abstract class ProdosDriver {
     public static int MLI_BUFFER_ADDRESS = 0x044;
     public static int MLI_BLOCK_NUMBER = 0x046;
     
-    public static enum MLI_RETURN {
+    public enum MLI_RETURN {
         NO_ERROR(0), IO_ERROR(0x027), NO_DEVICE(0x028), WRITE_PROTECTED(0x02B);
         public int intValue;
 
@@ -49,7 +49,7 @@ public abstract class ProdosDriver {
         }
     }
 
-    public static enum MLI_COMMAND_TYPE {
+    public enum MLI_COMMAND_TYPE {
         STATUS(0x0), READ(0x01), WRITE(0x02), FORMAT(0x03);
         public int intValue;
 

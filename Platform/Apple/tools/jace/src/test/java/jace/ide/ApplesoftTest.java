@@ -58,6 +58,8 @@ public class ApplesoftTest {
         ApplesoftProgram program = ApplesoftProgram.fromBinary(Arrays.asList(lemonadeStandBinary), 0x0801);
         assertNotNull(program);
         assertNotSame("", program.toString());
+        assertEquals("Lemonade stand has 380 lines", 380, program.getLength());
+        assertTrue("Should have last line 31114", program.toString().contains("31114 "));
     }
     
     @Test
@@ -67,8 +69,7 @@ public class ApplesoftTest {
         ApplesoftProgram deserialized = ApplesoftProgram.fromString(serialized);
         String[] serializedLines = serialized.split("\\n");
         String[] researializedLines = deserialized.toString().split("\\n");
-        for (int i=0; i < serializedLines.length; i++) {
-            assertEquals("Line "+(i+1)+" should match", serializedLines[i], researializedLines[i]);
-        }
+        assertEquals("Lemonade stand has 380 lines", 380, deserialized.getLength());
+        assertArrayEquals("Program listing should be not change if re-keyed in as printed", serializedLines, researializedLines);
     }
 }

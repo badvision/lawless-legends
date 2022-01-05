@@ -1,6 +1,5 @@
 package jace.lawless;
 
-import jace.LawlessLegends;
 import jace.apple2e.Apple2e;
 import jace.apple2e.RAM128k;
 import jace.apple2e.SoftSwitches;
@@ -32,12 +31,18 @@ public class LawlessComputer extends Apple2e {
 
     public LawlessComputer() {
         super();
+        motherboard.whileSuspended(this::initLawlessLegendsConfiguration);
+    }
+
+    private void initLawlessLegendsConfiguration() {
+        reconfigure();  // Required before anything so that memory is initialized
         this.cheatEngine.setValue(LawlessHacks.class);
         this.activeCheatEngine = new LawlessHacks(this);
         this.activeCheatEngine.attach();
         blankTextPage1();
+        reconfigure();        
     }
-
+    
     private void blankTextPage1() {
         // Fill text page 1 with spaces
         for (int i = 0x0400; i < 0x07FF; i++) {
@@ -47,15 +52,15 @@ public class LawlessComputer extends Apple2e {
 
     @Override
     public void coldStart() {
-        pause();
-        reinitMotherboard();
-        RAM128k ram = (RAM128k) getMemory();
-        ram.zeroAllRam();
-        blankTextPage1();
-        for (SoftSwitches s : SoftSwitches.values()) {
-            s.getSwitch().reset();
-        }
-        if (showBootAnimation && LawlessLegends.PRODUCTION_MODE) {
+        motherboard.whileSuspended(()->{
+            RAM128k ram = (RAM128k) getMemory();
+            ram.zeroAllRam();
+            blankTextPage1();
+            for (SoftSwitches s : SoftSwitches.values()) {
+                s.getSwitch().reset();
+            }
+        });
+        if (showBootAnimation && PRODUCTION_MODE) {
             (new Thread(this::startAnimation)).start();
         } else {
             finishColdStart();

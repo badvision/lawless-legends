@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
  */
 public class Command {
 
-    public static enum TOKEN {
+    public enum TOKEN {
 
         END((byte) 0x080, "END"),
         FOR((byte) 0x081, "FOR"),
@@ -160,7 +160,7 @@ public class Command {
             }
             return null;
         }
-        private String str;
+        private final String str;
         public byte code;
 
         TOKEN(byte b, String str) {

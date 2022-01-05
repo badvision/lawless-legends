@@ -18,6 +18,7 @@
  */
 package jace.apple2e;
 
+import jace.Emulator;
 import jace.config.ConfigurableField;
 import jace.core.CPU;
 import jace.core.Computer;
@@ -77,6 +78,7 @@ public class MOS65C02 extends CPU {
 
     public MOS65C02(Computer computer) {
         super(computer);
+        initOpcodes();
         clearState();
     }
 
@@ -313,23 +315,23 @@ public class MOS65C02 extends CPU {
         TXS(0x009A, COMMAND.TXS, MODE.IMPLIED, 2),
         TYA(0x0098, COMMAND.TYA, MODE.IMPLIED, 2),
         WAI(0x00CB, COMMAND.WAI, MODE.IMPLIED, 3, true);
-        private int code;
-        private boolean isExtendedOpcode;
+        private final int code;
+        private final boolean isExtendedOpcode;
 
         public int getCode() {
             return code;
         }
-        private int waitCycles;
+        private final int waitCycles;
 
         public int getWaitCycles() {
             return waitCycles;
         }
-        private COMMAND command;
+        private final COMMAND command;
 
         public COMMAND getCommand() {
             return command;
         }
-        private MODE addressingMode;
+        private final MODE addressingMode;
 
         public MODE getMode() {
             return addressingMode;
@@ -347,15 +349,15 @@ public class MOS65C02 extends CPU {
             command.getProcessor().processCommand(address, value, addressingMode, cpu);
         }
 
-        private OPCODE(int val, COMMAND c, MODE m, int wait) {
+        OPCODE(int val, COMMAND c, MODE m, int wait) {
             this(val, c, m, wait, m.fetchValue, false);
         }
 
-        private OPCODE(int val, COMMAND c, MODE m, int wait, boolean extended) {
+        OPCODE(int val, COMMAND c, MODE m, int wait, boolean extended) {
             this(val, c, m, wait, m.fetchValue, extended);
         }
 
-        private OPCODE(int val, COMMAND c, MODE m, int wait, boolean fetch, boolean extended) {
+        OPCODE(int val, COMMAND c, MODE m, int wait, boolean fetch, boolean extended) {
             code = val;
             waitCycles = wait - 1;
             command = c;
@@ -365,9 +367,9 @@ public class MOS65C02 extends CPU {
         }
     }
 
-    public static interface AddressCalculator {
+    public interface AddressCalculator {
 
-        abstract int calculateAddress(MOS65C02 cpu);
+        int calculateAddress(MOS65C02 cpu);
 
         default int getValue(boolean generateEvent, MOS65C02 cpu) {
             int address = calculateAddress(cpu);
@@ -450,7 +452,7 @@ public class MOS65C02 extends CPU {
                 return cpu.getMemory().read(address, TYPE.READ_DATA, true, false);
             }
         });
-        private int size;
+        private final int size;
 
         public int getSize() {
             return this.size;
@@ -460,27 +462,20 @@ public class MOS65C02 extends CPU {
 //        public String getFormat() {
 //            return this.format;
 //        }
-        private AddressCalculator calculator;
+        private final AddressCalculator calculator;
 
-        public int calcAddress(MOS65C02 cpu) {
-            return calculator.calculateAddress(cpu);
-        }
-        private boolean indirect;
-
-        public boolean isIndirect() {
-            return indirect;
-        }
         String f1;
         String f2;
         boolean twoByte = false;
         boolean relative = false;
         boolean implied = true;
-        boolean fetchValue = true;
+        boolean fetchValue;
 
-        private MODE(int size, String fmt, AddressCalculator calc) {
+        MODE(int size, String fmt, AddressCalculator calc) {
             this(size, fmt, calc, true);
         }
-        private MODE(int size, String fmt, AddressCalculator calc, boolean fetch) {
+
+        MODE(int size, String fmt, AddressCalculator calc, boolean fetch) {
             this.fetchValue = fetch;
             this.size = size;
             if (fmt.contains("~")) {
@@ -499,11 +494,6 @@ public class MOS65C02 extends CPU {
 //            this.format = fmt;
 
             this.calculator = calc;
-            this.indirect = toString().startsWith("INDIRECT");
-        }
-
-        public MOS65C02.AddressCalculator getCalculator() {
-            return calculator;
         }
 
         public String formatMode(int pc, MOS65C02 cpu) {
@@ -524,9 +514,8 @@ public class MOS65C02 extends CPU {
         }
     }
 
-    public static interface CommandProcessor {
-
-        public void processCommand(int address, int value, MODE addressMode, MOS65C02 cpu);
+    public interface CommandProcessor {
+        void processCommand(int address, int value, MODE addressMode, MOS65C02 cpu);
     }
 
     private static class BBRCommand implements CommandProcessor {
@@ -1023,30 +1012,29 @@ public class MOS65C02 extends CPU {
         WAI((address, value, addressMode, cpu) -> {
             cpu.waitForInterrupt();
         });
-        private CommandProcessor processor;
+        private final CommandProcessor processor;
 
         public CommandProcessor getProcessor() {
             return processor;
         }
-        private boolean storeOnly;
+        private final boolean storeOnly;
 
         public boolean isStoreOnly() {
             return storeOnly;
         }
 
-        private COMMAND(CommandProcessor processor) {
+        COMMAND(CommandProcessor processor) {
             this(false, processor);
         }
 
-        private COMMAND(boolean storeOnly, CommandProcessor processor) {
+        COMMAND(boolean storeOnly, CommandProcessor processor) {
             this.storeOnly = storeOnly;
             this.processor = processor;
         }
     }
-    static private OPCODE[] opcodes;
+    private final OPCODE[] opcodes = new OPCODE[256];
 
-    static {
-        opcodes = new OPCODE[256];
+    private void initOpcodes() {
         for (OPCODE o : OPCODE.values()) {
             opcodes[o.getCode()] = o;
         }
@@ -1084,10 +1072,11 @@ public class MOS65C02 extends CPU {
         if (opcode == null) {
             // handle bad opcode as a NOP
             int wait = 0;
-            int bytes = 2;
+            int bytes;
             int n = op & 0x0f;
             switch (n) {
                 case 2:
+                    bytes = 2;
                     wait = 2;
                     break;
                 case 3:
@@ -1112,6 +1101,7 @@ public class MOS65C02 extends CPU {
                         wait = 4;
                     }   break;
                 default:
+                    bytes = 2;
             }
             incrementProgramCounter(bytes);
             addWaitCycles(wait);
@@ -1151,8 +1141,7 @@ public class MOS65C02 extends CPU {
 
     public byte pop() {
         STACK = (STACK + 1) & 0x0FF;
-        byte val = getMemory().read(0x0100 + STACK, TYPE.READ_DATA, true, false);
-        return val;
+        return getMemory().read(0x0100 + STACK, TYPE.READ_DATA, true, false);
     }
 
     private byte getStatus() {
@@ -1227,10 +1216,6 @@ public class MOS65C02 extends CPU {
         }
     }
 
-    public int getSTACK() {
-        return STACK;
-    }
-
     // Cold/Warm boot procedure
     @Override
     public void reset() {
@@ -1246,6 +1231,9 @@ public class MOS65C02 extends CPU {
 //        V = true;
 //        Z = true;
         int newPC = getMemory().readWord(RESET_VECTOR, TYPE.READ_DATA, true, false);
+        if (Emulator.getComputer().PRODUCTION_MODE) {
+            newPC = 0x0C700;
+        }
         LOG.log(Level.WARNING, "Reset called, setting PC to ({0}) = {1}", new Object[]{Integer.toString(RESET_VECTOR, 16), Integer.toString(newPC, 16)});
         setProgramCounter(newPC);
     }
@@ -1278,27 +1266,25 @@ public class MOS65C02 extends CPU {
     }
 
     public String getState() {
-        StringBuilder out = new StringBuilder();
-        out.append(byte2(A)).append(" ");
-        out.append(byte2(X)).append(" ");
-        out.append(byte2(Y)).append(" ");
-        //        out += "PC:"+wordString(getProgramCounter())+" ";
-        out.append("01").append(byte2(STACK)).append(" ");
-        out.append(getFlags());
-        return out.toString();
+        return String.format("%s %s %s 01%s %s",
+                byte2(A),
+                byte2(X),
+                byte2(Y),
+                byte2(STACK),
+                getFlags()
+        );
     }
 
     public String getFlags() {
-        StringBuilder out = new StringBuilder();
-        out.append(N ? "N" : ".");
-        out.append(V ? "V" : ".");
-        out.append("R");
-        out.append(B ? "B" : ".");
-        out.append(D ? "D" : ".");
-        out.append(I ? "I" : ".");
-        out.append(Z ? "Z" : ".");
-        out.append((C != 0) ? "C" : ".");
-        return out.toString();
+        return String.format("%s%sR%s%s%s%s%s",
+                N ? "N" : ".",
+                V ? "V" : ".",
+                B ? "B" : ".",
+                D ? "D" : ".",
+                I ? "I" : ".",
+                Z ? "Z" : ".",
+                (C != 0) ? "C" : "."
+        );
     }
 
     public String disassemble() {
@@ -1320,9 +1306,7 @@ public class MOS65C02 extends CPU {
          ((o.getMode().getSize() > 2) ?
          byte2(b2) : "  " ) + "  ";
          */
-        StringBuilder out = new StringBuilder(o.getCommand().toString());
-        out.append(" ").append(format);
-        return out.toString();
+        return String.format("%s %s", o.getCommand().toString(), format);
     }
     private boolean pageBoundaryPenalty = false;
 
@@ -1382,6 +1366,6 @@ public class MOS65C02 extends CPU {
 
     @Override
     public void reconfigure() {
-        // Currently do nothing
+        // Do nothing
     }
 }

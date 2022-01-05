@@ -39,10 +39,10 @@ import java.lang.annotation.Target;
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface ConfigurableField {
-    public String name();
-    public String shortName() default "";
-    public String defaultValue() default "";
-    public String description() default "";
-    public String category() default "General";
-    public boolean enablesDevice() default false;
+    String name();
+    String shortName() default "";
+    String defaultValue() default "";
+    String description() default "";
+    String category() default "General";
+    boolean enablesDevice() default false;
 }

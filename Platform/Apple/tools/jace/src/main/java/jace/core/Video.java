@@ -59,20 +59,16 @@ public abstract class Video extends Device {
     static final public int APPLE_SCREEN_LINES = 192;
     static final public int HBLANK = CYCLES_PER_LINE - APPLE_CYCLES_PER_LINE;
     static final public int VBLANK = (TOTAL_LINES - APPLE_SCREEN_LINES) * CYCLES_PER_LINE;
-    static public int[] textOffset;
-    static public int[] hiresOffset;
-    static public int[] textRowLookup;
-    static public int[] hiresRowLookup;
-    private boolean screenDirty;
-    private boolean lineDirty;
+    static final public int[] textOffset = new int[192];
+    static final public int[] hiresOffset = new int[192];
+    static final public int[] textRowLookup = new int[0x0400];
+    static final public int[] hiresRowLookup = new int[0x02000];
+    private boolean screenDirty = true;
+    private boolean lineDirty = true;
     private boolean isVblank = false;
-    static VideoWriter[][] writerCheck = new VideoWriter[40][192];
+    static final VideoWriter[][] writerCheck = new VideoWriter[40][192];
 
-    static {
-        textOffset = new int[192];
-        hiresOffset = new int[192];
-        textRowLookup = new int[0x0400];
-        hiresRowLookup = new int[0x02000];
+    static void initLookupTables() {
         for (int i = 0; i < 192; i++) {
             textOffset[i] = calculateTextOffset(i >> 3);
             hiresOffset[i] = calculateHiresOffset(i);
@@ -94,7 +90,7 @@ public abstract class Video extends Device {
      */
     public Video(Computer computer) {
         super(computer);
-        suspend();
+        initLookupTables();
         video = new WritableImage(560, 192);
         visible = new WritableImage(560, 192);
         vPeriod = 0;
@@ -278,9 +274,9 @@ public abstract class Video extends Device {
             description = "Marks screen contents as changed, forcing full screen redraw",
             alternatives = "redraw",
             defaultKeyMapping = {"ctrl+shift+r"})
-    public static final void forceRefresh() {
-        if (Emulator.computer != null && Emulator.computer.video != null) {
-            Emulator.computer.video._forceRefresh();
+    public static void forceRefresh() {
+        if (Emulator.getComputer().video != null) {
+            Emulator.getComputer().video._forceRefresh();
         }
     }
 

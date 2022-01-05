@@ -28,11 +28,11 @@ import javafx.scene.control.Label;
  * @author brobert
  */
 public interface MediaConsumer {
-    public Optional<Label> getIcon();
-    public void setIcon(Optional<Label> i);
-    public void insertMedia(MediaEntry e, MediaFile f) throws IOException;
-    public MediaEntry getMediaEntry();
-    public MediaFile getMediaFile();
-    public boolean isAccepted(MediaEntry e, MediaFile f);
-    public void eject();
+    Optional<Label> getIcon();
+    void setIcon(Optional<Label> i);
+    void insertMedia(MediaEntry e, MediaFile f) throws IOException;
+    MediaEntry getMediaEntry();
+    MediaFile getMediaFile();
+    boolean isAccepted(MediaEntry e, MediaFile f);
+    void eject();
 }

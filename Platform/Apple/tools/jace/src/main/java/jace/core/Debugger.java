@@ -20,6 +20,7 @@ package jace.core;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * A debugger has the ability to track a list of breakpoints and step a CPU one
@@ -48,19 +49,9 @@ public abstract class Debugger {
     public List<Integer> getBreakpoints() {
         return breakpoints;
     }
-    private boolean hasBreakpoints = false;
 
     boolean hasBreakpoints() {
-        return hasBreakpoints;
-    }
-
-    public void updateBreakpoints() {
-        hasBreakpoints = false;
-        for (Integer i : breakpoints) {
-            if (i != null) {
-                hasBreakpoints = true;
-            }
-        }
+        return !breakpoints.isEmpty() && breakpoints.stream().anyMatch(Objects::nonNull);
     }
 
     boolean takeStep() {

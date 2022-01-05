@@ -31,28 +31,28 @@ public class AssemblyHandler implements LanguageHandler<File> {
     @Override
     public void execute(CompileResult<File> lastResult) {
         if (lastResult.isSuccessful()) {
-            try {
-                boolean resume = false;
-                if (Emulator.computer.isRunning()) {
-                    resume = true;
-                    Emulator.computer.pause();
+                RAM memory = Emulator.getComputer().getMemory();
+                try {
+                    FileInputStream input = new FileInputStream(lastResult.getCompiledAsset());
+                    int startLSB = input.read();
+                    int startMSB = input.read();
+                    int start = startLSB + startMSB << 8;
+                    System.out.printf("Issuing JSR to $%s%n", Integer.toHexString(start));
+                    Emulator.getComputer().getCpu().whileSuspended(() -> {
+                        try {
+                            int pos = start;
+                            int next;
+                            while ((next=input.read()) != -1) {
+                                memory.write(pos++, (byte) next, false, true);
+                            }
+                            Emulator.getComputer().getCpu().JSR(start);
+                        } catch (IOException ex) {
+                            Logger.getLogger(AssemblyHandler.class.getName()).log(Level.SEVERE, null, ex);
+                        }
+                    });
+                } catch (IOException ex) {
+                    Logger.getLogger(AssemblyHandler.class.getName()).log(Level.SEVERE, null, ex);
                 }
-                RAM memory = Emulator.computer.getMemory();
-                FileInputStream input = new FileInputStream(lastResult.getCompiledAsset());
-                int startLSB = input.read();
-                int startMSB = input.read();
-                int pos = startLSB + startMSB << 8;
-                Emulator.computer.getCpu().JSR(pos);
-                int next;
-                while ((next=input.read()) != -1) {
-                    memory.write(pos++, (byte) next, false, true);
-                }
-                if (resume) {
-                    Emulator.computer.resume();
-                }
-            } catch (IOException ex) {
-                Logger.getLogger(AssemblyHandler.class.getName()).log(Level.SEVERE, null, ex);
-            }
         }
         clean(lastResult);
     }

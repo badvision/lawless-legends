@@ -16,20 +16,20 @@
 package jace.cpu;
 
 import jace.Emulator;
-import jace.apple2e.Apple2e;
 import jace.apple2e.MOS65C02;
+import jace.apple2e.RAM128k;
 import jace.core.Computer;
-import jace.core.RAM;
 import jace.core.SoundMixer;
 import jace.core.Utility;
 import jace.ide.HeadlessProgram;
 import jace.ide.Program;
-import jace.lawless.LawlessComputer;
 import org.junit.AfterClass;
-import static org.junit.Assert.*;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 /**
  * Basic test functionality to assert correct 6502 decode and execution.
@@ -40,17 +40,15 @@ public class Basic6502FuncationalityTest {
 
     static Computer computer;
     static MOS65C02 cpu;
-    static RAM ram;
+    static RAM128k ram;
 
     @BeforeClass
     public static void setupClass() {
         Utility.setHeadlessMode(true);
         SoundMixer.MUTE = true;
-        computer = new LawlessComputer();
+        computer = Emulator.getComputer();
         cpu = (MOS65C02) computer.getCpu();
-        ram = computer.getMemory();
-        Emulator.computer = (LawlessComputer) computer;
-        computer.pause();
+        ram = (RAM128k) computer.getMemory();
     }
 
     @AfterClass
@@ -59,8 +57,19 @@ public class Basic6502FuncationalityTest {
 
     @Before
     public void setup() {
-        cpu.suspend();
+        computer.pause();
         cpu.clearState();
+    }
+
+    @Test
+    public void assertMemoryConfiguredCorrectly() {
+        assertEquals("Active read bank 3 should be main memory page 3",
+                ram.mainMemory.getMemoryPage(3),
+                ram.activeRead.getMemoryPage(3));
+
+        assertEquals("Active write bank 3 should be main memory page 3",
+                ram.mainMemory.getMemoryPage(3),
+                ram.activeWrite.getMemoryPage(3));
     }
 
     @Test
@@ -68,9 +77,10 @@ public class Basic6502FuncationalityTest {
         cpu.A = 0;
         cpu.D = false;
         cpu.C = 0;
-        assemble(" adc #1");
+        runAssemblyCode("adc #1");
         assertEquals("0+1 (c=0) = 1", 1, cpu.A);
         assertFalse("Result is not zero", cpu.Z);
+        assertEquals("Carry is clear", 0, cpu.C);
     }
 
     @Test
@@ -78,9 +88,10 @@ public class Basic6502FuncationalityTest {
         cpu.A = 0;
         cpu.D = false;
         cpu.C = 1;
-        assemble(" adc #1");
+        runAssemblyCode("adc #1");
         assertEquals("0+1 (c=1) = 2", 2, cpu.A);
         assertFalse("Result is not zero", cpu.Z);
+        assertEquals("Carry is clear", 0, cpu.C);
     }
     
     @Test
@@ -88,9 +99,10 @@ public class Basic6502FuncationalityTest {
         cpu.A = 9;
         cpu.D = true;
         cpu.C = 0;
-        assemble(" adc #1");
+        runAssemblyCode("adc #1");
         assertEquals("9+1 (c=0) = 0x10", 0x10, cpu.A);
         assertFalse("Result is not zero", cpu.Z);
+        assertEquals("Carry is clear", 0, cpu.C);
     }
     
     @Test
@@ -98,19 +110,22 @@ public class Basic6502FuncationalityTest {
         cpu.A = 9;
         cpu.D = true;
         cpu.C = 1;
-        assemble(" adc #1");
+        runAssemblyCode("adc #1");
         assertEquals("9+1 (c=1) = 0x11", 0x11, cpu.A);
         assertFalse("Result is not zero", cpu.Z);
+        assertEquals("Carry is clear", 0, cpu.C);
     }
     
-    private void assemble(String code) {
-        assembleAt(code, 0x0300);
+    private void runAssemblyCode(String code) {
+        runAssemblyCode(code, 0x0300);
     }
     
-    private void assembleAt(String code, int addr) {
+    private void runAssemblyCode(String code, int addr) {
+        cpu.trace = true;
         HeadlessProgram program = new HeadlessProgram(Program.DocumentType.assembly);
-        program.setValue("*="+Integer.toHexString(addr)+"\n"+code+"\n BRK");
+        program.setValue("*=$"+Integer.toHexString(addr)+"\n "+code+"\n NOP\n RTS");
         program.execute();
+        cpu.tick();
         cpu.tick();
     }
 }

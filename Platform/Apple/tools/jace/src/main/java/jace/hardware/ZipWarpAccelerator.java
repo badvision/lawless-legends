@@ -132,7 +132,7 @@ public class ZipWarpAccelerator extends Device {
         return "ZipChip Accelerator";
     }
 
-    public static enum SPEED {
+    public enum SPEED {
         MAX(4.0, 0b000000000, 0b011111100),
         _2_667(2.6667, 0b000000100, 0b011111100),
         _3(3.0, 0b000001000, 0b011111000),
@@ -178,14 +178,14 @@ public class ZipWarpAccelerator extends Device {
     private void setSpeed(SPEED speed) {
         speedValue = speed.val;
         if (speed.max) {
-            Emulator.computer.getMotherboard().setMaxSpeed(true);
+            Emulator.getComputer().getMotherboard().setMaxSpeed(true);
             Motherboard.cpuPerClock = 3;
         } else {
-            Emulator.computer.getMotherboard().setMaxSpeed(false);
-            Emulator.computer.getMotherboard().setSpeedInPercentage((int) (speed.ratio * 100));
+            Emulator.getComputer().getMotherboard().setMaxSpeed(false);
+            Emulator.getComputer().getMotherboard().setSpeedInPercentage((int) (speed.ratio * 100));
             Motherboard.cpuPerClock = 1;
         }
-        Emulator.computer.getMotherboard().reconfigure();
+        Emulator.getComputer().getMotherboard().reconfigure();
     }
 
     private void turnOffAcceleration() {

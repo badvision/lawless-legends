@@ -74,7 +74,7 @@ class Watch extends VBox {
     }
 
     public void redraw() {
-        if (!Emulator.computer.getRunningProperty().get()) {
+        if (!Emulator.getComputer().getRunningProperty().get()) {
             return;
         }
         int val = cell.value.get() & 0x0ff;
@@ -117,7 +117,7 @@ class Watch extends VBox {
             outer.cheatEngine.removeListener(holdListener);
             holdListener = null;
         } else {
-            value = Emulator.computer.memory.readRaw(address) & 0x0ff;
+            value = Emulator.getComputer().memory.readRaw(address) & 0x0ff;
             holdListener = outer.cheatEngine.forceValue(value, address);
         }
     }

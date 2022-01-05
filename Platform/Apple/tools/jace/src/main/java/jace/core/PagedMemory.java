@@ -41,9 +41,9 @@ public class PagedMemory {
         FIRMWARE_80COL(0x0c300),
         SLOW_ROM(0x0c100),
         RAM(0x0000);
-        protected int baseAddress;
+        int baseAddress;
 
-        private Type(int newBase) {
+        Type(int newBase) {
             baseAddress = newBase;
         }
 
@@ -80,9 +80,7 @@ public class PagedMemory {
     public void loadData(byte[] romData) {
         for (int i = 0; i < romData.length; i += 256) {
             byte[] b = new byte[256];
-            for (int j = 0; j < 256; j++) {
-                b[j] = romData[i + j];
-            }
+            System.arraycopy(romData, i, b, 0, 256);
             internalMemory[i >> 8] = b;
         }
     }
@@ -137,10 +135,10 @@ public class PagedMemory {
         byte[][] sourceMemory = source.getMemory();
         int sourceBase = source.type.getBaseAddress() >> 8;
         int thisBase = type.getBaseAddress() >> 8;
-        int start = sourceBase > thisBase ? sourceBase : thisBase;
+        int start = Math.max(sourceBase, thisBase);
         int sourceEnd = sourceBase + source.getMemory().length;
         int thisEnd = thisBase + getMemory().length;
-        int end = sourceEnd < thisEnd ? sourceEnd : thisEnd;
+        int end = Math.min(sourceEnd, thisEnd);
         for (int i = start; i < end; i++) {
             set(i - thisBase, sourceMemory[i - sourceBase]);
         }

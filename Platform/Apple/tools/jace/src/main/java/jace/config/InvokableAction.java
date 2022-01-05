@@ -51,37 +51,37 @@ public @interface InvokableAction {
     /*
      * Should be short and meaningful name for action being invoked, e.g. "Insert disk"
      */
-    public String name();
+    String name();
     /*
      * Can be used to group actions by overall topic, for example an automated table of contents
      * To be determined...
      */
-    public String category() default "General";
+    String category() default "General";
     /*
      * More descriptive text which provides additional clarity, e.g. 
      * "This will present you with a file selection dialog to pick a floppy disk image.  
      *  Currently, dos-ordered (DSK, DO), Prodos-ordered (PO), and Nibble (NIB) formats are supported."
      */
-    public String description() default "";
+    String description() default "";
     /*
      * Alternatives should be delimited by semicolons) can provide more powerful search
      * For "insert disk", alternatives might be "change disk;switch disk" and 
      * reboot might have alternatives as "warm start;cold start;boot;restart".
      */
-    public String alternatives() default "";
+    String alternatives() default "";
     /*
      * If true, the key event will be consumed and not processed by any other event handlers
      * If the corresponding method returns a boolean, that value will be used instead.
      * True = consume (stop processing keystroke), false = pass-through to other handlers
      */
-    public boolean consumeKeyEvent() default true;
+    boolean consumeKeyEvent() default true;
     /*
      * If false (default) event is only triggered on press, not release.  If true,
      * method is notified on press and on release
      */
-    public boolean notifyOnRelease() default false;
+    boolean notifyOnRelease() default false;
     /*
      * Standard keyboard mapping
      */
-    public String[] defaultKeyMapping();
+    String[] defaultKeyMapping();
 }

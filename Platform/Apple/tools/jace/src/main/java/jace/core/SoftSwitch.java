@@ -40,12 +40,12 @@ public abstract class SoftSwitch {
 
     @Stateful
     public Boolean state;
-    private Boolean initalState;
-    private List<RAMListener> listeners;
+    private final Boolean initalState;
+    private final List<RAMListener> listeners;
     private final List<Integer> exclusionActivate = new ArrayList<>();
     private final List<Integer> exclusionDeactivate = new ArrayList<>();
     private final List<Integer> exclusionQuery = new ArrayList<>();
-    private String name;
+    private final String name;
     private boolean toggleType = false;
     protected Computer computer;
 
@@ -241,17 +241,13 @@ public abstract class SoftSwitch {
 
     public void register(Computer computer) {
         this.computer = computer;
-        RAM m = computer.getMemory();
-        listeners.stream().forEach((l) -> {
-            m.addListener(l);
-        });
+        listeners.forEach(computer.getMemory()::addListener);
     }
 
     public void unregister() {
-        RAM m = computer.getMemory();
-        listeners.stream().forEach((l) -> {
-            m.removeListener(l);
-        });
+        if (computer != null && computer.getMemory() != null) {
+            listeners.forEach(computer.getMemory()::removeListener);
+        }
         this.computer = null;
     }
 

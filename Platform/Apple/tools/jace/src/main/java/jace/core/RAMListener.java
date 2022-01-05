@@ -145,9 +145,7 @@ public abstract class RAMListener implements RAMEvent.RAMEventHandler {
                 return false;
             } else if (value == RAMEvent.VALUE.NOT_EQUALS && e.getNewValue() == valueAmount) {
                 return false;
-            } else if (value == RAMEvent.VALUE.RANGE && (e.getNewValue() < valueStart || e.getNewValue() > valueEnd)) {
-                return false;
-            }
+            } else return value != RAMEvent.VALUE.RANGE || (e.getNewValue() >= valueStart && e.getNewValue() <= valueEnd);
         }
 
         // Ok, so we've filtered out the uninteresting stuff

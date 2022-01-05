@@ -23,7 +23,7 @@ package jace.config;
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com 
  */
 public interface Reconfigurable {
-    public String getName();
-    public String getShortName();
-    public void reconfigure();
+    String getName();
+    String getShortName();
+    void reconfigure();
 }

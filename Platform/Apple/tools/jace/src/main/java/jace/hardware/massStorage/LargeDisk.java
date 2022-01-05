@@ -21,15 +21,14 @@ package jace.hardware.massStorage;
 import jace.apple2e.MOS65C02;
 import jace.core.Computer;
 import jace.core.RAM;
-import static jace.hardware.ProdosDriver.*;
 import jace.hardware.ProdosDriver.MLI_COMMAND_TYPE;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.RandomAccessFile;
+
+import java.io.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import static jace.hardware.ProdosDriver.MLI_COMMAND;
+import static jace.hardware.ProdosDriver.MLI_UNITNUMBER;
 
 /**
  * Representation of a hard drive or 800k disk image used by CardMassStorage
@@ -119,8 +118,6 @@ public class LargeDisk implements IDisk {
                 logicalBlocks = physicalBlocks;
                 result = true;
             }
-        } catch (FileNotFoundException ex) {
-            Logger.getLogger(LargeDisk.class.getName()).log(Level.SEVERE, null, ex);
         } catch (IOException ex) {
             Logger.getLogger(LargeDisk.class.getName()).log(Level.SEVERE, null, ex);
         } finally {
@@ -142,7 +139,7 @@ public class LargeDisk implements IDisk {
         logicalBlocks = physicalBlocks;
     }
 
-    private void readDiskImage(File f) throws FileNotFoundException, IOException {
+    private void readDiskImage(File f) throws IOException {
         eject();
         setPhysicalPath(f);
         if (!read2mg(f)) {

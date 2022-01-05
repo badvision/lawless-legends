@@ -123,7 +123,7 @@ public class TocTreeModel implements TreeModel {
     public Set<Long> getEntries(Object selection) {
         if (selection.equals(this)) return getEntries(tree);
         if (selection instanceof Set) return (Set<Long>) selection;
-        if (Map.class.isInstance(selection)) {
+        if (selection instanceof Map) {
             Set<Long> all =  new LinkedHashSet<Long>();
              for (Object val : ((Map) selection).values()) {
                  Set<Long> entries = getEntries(val);

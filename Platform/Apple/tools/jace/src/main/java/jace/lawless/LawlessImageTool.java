@@ -88,7 +88,7 @@ public class LawlessImageTool implements MediaConsumer {
     }
 
     private void insertHardDisk(int drive, MediaEntry entry, MediaFile file) {
-        RAM memory = Emulator.computer.memory;
+        RAM memory = Emulator.getComputer().memory;
 
         memory.getCard(7).ifPresent(card -> {
             try {
@@ -106,7 +106,7 @@ public class LawlessImageTool implements MediaConsumer {
     }
 
     private void readCurrentDisk(int drive) {
-        RAM memory = Emulator.computer.memory;
+        RAM memory = Emulator.getComputer().memory;
 
         memory.getCard(7).ifPresent(card -> {
             gameMediaEntry = ((CardMassStorage) card).getConsumers()[drive].getMediaEntry();
@@ -115,7 +115,7 @@ public class LawlessImageTool implements MediaConsumer {
     }
 
     private void ejectHardDisk(int drive) {
-        RAM memory = Emulator.computer.memory;
+        RAM memory = Emulator.getComputer().memory;
 
         memory.getCard(7).ifPresent(card -> {
             ((CardMassStorage) card).getConsumers()[drive].eject();
@@ -194,7 +194,7 @@ public class LawlessImageTool implements MediaConsumer {
             java.nio.file.Files.copy(f.path.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
             f.path = target;
             insertHardDisk(0, e, f);
-            Emulator.computer.coldStart();
+            Emulator.getComputer().coldStart();
             System.out.println("Upgrade completed");
         } catch (IOException ex) {
             Logger.getLogger(LawlessImageTool.class.getName()).log(Level.SEVERE, null, ex);
@@ -212,9 +212,9 @@ public class LawlessImageTool implements MediaConsumer {
             // Put in new disk and boot it -- we want to use its importer in case that importer works better!
             ejectHardDisk(0);
             insertHardDisk(0, e, f);
-            Emulator.computer.coldStart();
+            Emulator.getComputer().coldStart();
             if (!waitForText("I)mport", 1)) {
-                Emulator.computer.coldStart();
+                Emulator.getComputer().coldStart();
                 if (!waitForText("I)mport", 1000)) {
                     throw new Exception("Unable to detect upgrade prompt - Upgrade aborted.");
                 }
@@ -251,7 +251,7 @@ public class LawlessImageTool implements MediaConsumer {
     }
 
     private boolean waitForText(String message, int timeout) throws InterruptedException {
-        LawlessComputer compy = Emulator.computer;
+        LawlessComputer compy = Emulator.getComputer();
         RAM128k mem = (RAM128k) compy.getMemory();
         while (timeout-- > 0) {
             StringBuilder allText = new StringBuilder();

@@ -21,9 +21,9 @@ package jace.core;
 import jace.apple2e.SoftSwitches;
 import jace.apple2e.Speaker;
 import jace.config.ConfigurableField;
+
 import java.util.HashSet;
 import java.util.Optional;
-import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -78,13 +78,12 @@ public class Motherboard extends TimedDevice {
     public String getShortName() {
         return "mb";
     }
-    @ConfigurableField(category = "advanced", name = "CPU per clock", defaultValue = "1", description = "Number of CPU cycles per clock cycle (normal = 1)")
-    public static int cpuPerClock = 1;
+    @ConfigurableField(category = "advanced", shortName = "cpuPerClock", name = "CPU per clock", defaultValue = "1", description = "Number of CPU cycles per clock cycle (normal = 1)")
+    public static int cpuPerClock = 4;
     public int clockCounter = 1;
 
     @Override
     public void tick() {
-        Optional<Card>[] cards = computer.getMemory().getAllCards();
         try {
             clockCounter--;
             computer.getCpu().doTick();
@@ -93,10 +92,12 @@ public class Motherboard extends TimedDevice {
             }
             clockCounter = cpuPerClock;
             computer.getVideo().doTick();
+            Optional<Card>[] cards = computer.getMemory().getAllCards();
             for (Optional<Card> card : cards) {
                 card.ifPresent(Card::doTick);
             }
         } catch (Throwable t) {
+            System.out.print("!");
             Logger.getLogger(getClass().getName()).log(Level.SEVERE, null, t);
         }
     }
@@ -112,36 +113,30 @@ public class Motherboard extends TimedDevice {
 
     @Override
     public synchronized void reconfigure() {
-        boolean startAgain = pause();
-        accelorationRequestors.clear();
-        super.reconfigure();
-        // Now create devices as needed, e.g. sound
+        whileSuspended(() -> {
+            accelorationRequestors.clear();
+            super.reconfigure();
 
-        if (enableSpeaker) {
-            try {
-                if (speaker == null) {
-                    speaker = new Speaker(computer);
-                    if (computer.mixer.lineAvailable) {
-                        speaker.attach();
-                        addChildDevice(speaker);
-                    } else {
-                        System.out.print("No lines available!  Speaker not running.");
+            // Now create devices as needed, e.g. sound
+
+            if (enableSpeaker) {
+                try {
+                    if (speaker == null) {
+                        speaker = new Speaker(computer);
+                        if (computer.mixer.lineAvailable) {
+                            speaker.attach();
+                        } else {
+                            System.out.print("No lines available!  Speaker not running.");
+                        }
                     }
+                    speaker.reconfigure();
+                } catch (Throwable t) {
+                    System.out.println("Unable to initalize sound -- deactivating speaker out");
                 }
-                speaker.reconfigure();
-            } catch (Throwable t) {
-                System.out.println("Unable to initalize sound -- deactivating speaker out");
-                removeChildDevice(speaker);
+            } else {
+                System.out.println("Speaker not enabled, leaving it off.");
             }
-        } else {
-            System.out.println("Speaker not enabled, leaving it off.");
-            if (speaker != null) {
-                removeChildDevice(speaker);
-            }
-        }
-        if (startAgain && computer.getMemory() != null) {
-            resume();
-        }
+        });
     }
     HashSet<Object> accelorationRequestors = new HashSet<>();
 
@@ -155,46 +150,5 @@ public class Motherboard extends TimedDevice {
         if (accelorationRequestors.isEmpty()) {
             disableTempMaxSpeed();
         }
-    }
-
-    @Override
-    public void attach() {
-    }
-    final Set<Card> resume = new HashSet<>();
-
-    @Override
-    public boolean suspend() {
-        synchronized (resume) {
-            resume.clear();
-            for (Optional<Card> c : computer.getMemory().getAllCards()) {
-                if (!c.isPresent()) {
-                    continue;
-                }
-                if (!c.get().suspendWithCPU() || !c.get().isRunning()) {
-                    continue;
-                }
-                if (c.get().suspend()) {
-                    resume.add(c.get());
-                }
-            }
-        }
-        return super.suspend();
-    }
-
-    @Override
-    public void resume() {
-        super.resume();
-        synchronized (resume) {
-            resume.stream().forEach((c) -> {
-                c.resume();
-            });
-        }
-    }
-
-    @Override
-    public void detach() {
-        System.out.println("Detaching motherboard");
-//        halt();
-        super.detach();
     }
 }

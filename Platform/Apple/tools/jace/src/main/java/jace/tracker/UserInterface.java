@@ -43,7 +43,7 @@ public class UserInterface {
 
     static Font EDITOR_FONT = new Font(Font.MONOSPACED, Font.PLAIN, 12);
 
-    public static enum Theme {
+    public enum Theme {
 
         background(0x000000),
         foreground(0xffffff),
@@ -57,7 +57,7 @@ public class UserInterface {
     }
     public static int BASE_OCTAVE = 3;
 
-    public static enum Note {
+    public enum Note {
 
         C0("C", -1),
         CS0("CS", -1),
@@ -95,7 +95,8 @@ public class UserInterface {
             note = n;
             octaveOffset = offset;
         }
-    };
+    }
+
     public static final Map<Integer, Note> KEYBOARD_MAP = new HashMap<Integer, Note>();
 
     static {

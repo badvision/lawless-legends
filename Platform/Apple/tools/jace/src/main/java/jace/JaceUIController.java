@@ -219,9 +219,9 @@ public class JaceUIController {
                 }
                 double v = convertSpeedToRatio(val);
                 if (v != Math.floor(v)) {
-                    return String.valueOf(v) + "x";
+                    return v + "x";
                 } else {
-                    return String.valueOf((int) v) + "x";
+                    return (int) v + "x";
                 }
             }
 
@@ -236,9 +236,9 @@ public class JaceUIController {
             // Kind of redundant but make sure speed is properly set as if the user did it
             setSpeed(Emulator.logic.speedSetting);
         });
-        musicSelection.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            ((LawlessHacks) ((LawlessComputer) computer).activeCheatEngine).changeMusicScore(String.valueOf(newValue));
-        });
+        musicSelection.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) ->
+                ((LawlessHacks) ((LawlessComputer) computer).activeCheatEngine).changeMusicScore(String.valueOf(newValue))
+        );
     }
 
     private void connectButtons(Node n) {
@@ -247,9 +247,7 @@ public class JaceUIController {
             Runnable action = Utility.getNamedInvokableAction(button.getText());
             button.setOnMouseClicked(evt -> action.run());
         } else if (n instanceof Parent) {
-            for (Node child : ((Parent) n).getChildrenUnmodifiable()) {
-                connectButtons(child);
-            }
+            ((Parent) n).getChildrenUnmodifiable().forEach(child -> connectButtons(child));
         }
     }
 
@@ -259,19 +257,19 @@ public class JaceUIController {
         if (speedSlider.getValue() != speed) {
             Platform.runLater(()->speedSlider.setValue(speed));
         }
-        if (speedRatio > 100.0) {
-            Emulator.computer.getMotherboard().setMaxSpeed(true);
-            Motherboard.cpuPerClock = 3;
+        if (speedRatio >= 100.0) {
+            Emulator.getComputer().getMotherboard().setMaxSpeed(true);
+            Motherboard.cpuPerClock = 10;
         } else {
             if (speedRatio > 25) {
                 Motherboard.cpuPerClock = 2;
             } else {
                 Motherboard.cpuPerClock = 1;
             }
-            Emulator.computer.getMotherboard().setMaxSpeed(false);
-            Emulator.computer.getMotherboard().setSpeedInPercentage((int) (speedRatio * 100));
+            Emulator.getComputer().getMotherboard().setMaxSpeed(false);
+            Emulator.getComputer().getMotherboard().setSpeedInPercentage((int) (speedRatio * 100));
         }
-        Emulator.computer.getMotherboard().reconfigure();
+        Emulator.getComputer().getMotherboard().reconfigure();
     }
 
     public void toggleAspectRatio() {
@@ -375,19 +373,17 @@ public class JaceUIController {
 
     private void endDragEvent() {
         stackPane.getChildren().remove(drivePanel);
-        drivePanel.getChildren().stream().forEach((n) -> {
-            n.setOnDragDropped(null);
-        });
+        drivePanel.getChildren().forEach((n) -> n.setOnDragDropped(null));
     }
 
     private List<MediaConsumer> getMediaConsumers() {
         List<MediaConsumer> consumers = new ArrayList<>();
-        consumers.add(Emulator.computer.getUpgradeHandler());
+        consumers.add(Emulator.getComputer().getUpgradeHandler());
         if (Emulator.logic.showDrives) {
             for (Optional<Card> card : computer.memory.getAllCards()) {
-                card.filter(c -> c instanceof MediaConsumerParent).ifPresent(parent -> {
-                    consumers.addAll(Arrays.asList(((MediaConsumerParent) parent).getConsumers()));
-                });
+                card.filter(c -> c instanceof MediaConsumerParent).ifPresent(parent ->
+                        consumers.addAll(Arrays.asList(((MediaConsumerParent) parent).getConsumers()))
+                );
             }
         }
         return consumers;
@@ -432,9 +428,7 @@ public class JaceUIController {
         Long now = System.currentTimeMillis();
         iconTTL.keySet().stream()
                 .filter((icon) -> (iconTTL.get(icon) <= now))
-                .forEach((icon) -> {
-                    removeIndicator(icon);
-                });
+                .forEach(this::removeIndicator);
         if (iconTTL.isEmpty()) {
             ttlCleanupTask.cancel(true);
             ttlCleanupTask = null;
@@ -463,10 +457,8 @@ public class JaceUIController {
             stackPane.getChildren().add(notification);
         });
 
-        notificationExecutor.schedule(() -> {
-            Application.invokeLater(() -> {
-                stackPane.getChildren().remove(notification);
-            });
-        }, 4, TimeUnit.SECONDS);
+        notificationExecutor.schedule(
+                () -> Application.invokeLater(() -> stackPane.getChildren().remove(notification)),
+                4, TimeUnit.SECONDS);
     }
 }

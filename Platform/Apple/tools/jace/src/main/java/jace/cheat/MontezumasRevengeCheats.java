@@ -71,7 +71,7 @@ public class MontezumasRevengeCheats extends Cheats {
 
     @Override
     public void registerListeners() {
-        RAM memory = Emulator.computer.memory;
+        RAM memory = Emulator.getComputer().memory;
         if (repulsiveHack) {
             addCheat(RAMEvent.TYPE.WRITE, this::repulsiveBehavior, 0x1508, 0x1518);
         }

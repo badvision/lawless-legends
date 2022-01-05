@@ -22,12 +22,16 @@ import jace.config.ConfigurableField;
 import jace.config.InvokableAction;
 import jace.config.Reconfigurable;
 import jace.state.StateManager;
-import java.io.IOException;
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ChangeListener;
+
+import java.io.IOException;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * This is a very generic stub of a Computer and provides a generic set of
@@ -45,7 +49,7 @@ public abstract class Computer implements Reconfigurable {
     public Keyboard keyboard;
     public StateManager stateManager;
     public Motherboard motherboard;
-    public AtomicBoolean romLoaded = new AtomicBoolean(false);
+    public final CompletableFuture<Boolean> romLoaded;
     @ConfigurableField(category = "advanced", name = "State management", shortName = "rewind", description = "This enables rewind support, but consumes a lot of memory when active.")
     public boolean enableStateManager;
     public final SoundMixer mixer;
@@ -57,7 +61,7 @@ public abstract class Computer implements Reconfigurable {
     public Computer() {
         keyboard = new Keyboard(this);
         mixer = new SoundMixer(this);
-        romLoaded.set(false);
+        romLoaded = new CompletableFuture<>();
     }
 
     public RAM getMemory() {
@@ -125,7 +129,7 @@ public abstract class Computer implements Reconfigurable {
 
     public void loadRom(String path) throws IOException {
         memory.loadRom(path);
-        romLoaded.set(true);
+        romLoaded.complete(true);
     }
 
     public void deactivate() {
@@ -148,15 +152,16 @@ public abstract class Computer implements Reconfigurable {
             description = "Process startup sequence from power-up",
             category = "general",
             alternatives = "Full reset;reset emulator",
-            consumeKeyEvent = true,
             defaultKeyMapping = {"Ctrl+Shift+Backspace", "Ctrl+Shift+Delete"})
     public void invokeColdStart() {
-        if (!romLoaded.get()) {
+        if (!romLoaded.isDone()) {
             Thread delayedStart = new Thread(() -> {
-                while (!romLoaded.get()) {
-                    Thread.yield();
+                try {
+                    romLoaded.get();
+                    coldStart();
+                } catch (InterruptedException | ExecutionException ex) {
+                    Logger.getLogger(Computer.class.getName()).log(Level.SEVERE, null, ex);
                 }
-                coldStart();
             });
             delayedStart.start();
         } else {

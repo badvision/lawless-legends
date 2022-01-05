@@ -27,11 +27,11 @@ import java.util.LinkedHashMap;
  */
 public interface ISelection<T> extends Serializable {
 
-    public LinkedHashMap<? extends T, String> getSelections();
+    LinkedHashMap<? extends T, String> getSelections();
 
-    public T getValue();
+    T getValue();
 
-    public void setValue(T value);
+    void setValue(T value);
     
-    public void setValueByMatch(String value);
+    void setValueByMatch(String value);
 }

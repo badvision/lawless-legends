@@ -2,46 +2,35 @@ package jace.cheat;
 
 import jace.Emulator;
 import jace.LawlessLegends;
-import jace.core.CPU;
-import jace.core.Computer;
-import jace.core.RAM;
-import jace.core.RAMEvent;
-import jace.core.RAMListener;
+import jace.core.*;
 import jace.state.State;
 import jace.ui.MetacheatUI;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
+import javafx.application.Platform;
+import javafx.beans.property.*;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+
+import javax.script.Invocable;
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+import java.io.*;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javafx.application.Platform;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.Property;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
-import javafx.beans.value.ObservableValue;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
-import javax.script.Invocable;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
 
 public class MetaCheat extends Cheats {
 
     static final ScriptEngine NASHORN_ENGINE = new ScriptEngineManager().getEngineByName("nashorn");
     static Invocable NASHORN_INVOCABLE = (Invocable) NASHORN_ENGINE;
 
-    public static enum SearchType {
+    public enum SearchType {
         VALUE, TEXT, CHANGE
     }
 
-    public static enum SearchChangeType {
+    public enum SearchChangeType {
         NO_CHANGE, ANY_CHANGE, LESS, GREATER, AMOUNT
     }
 
@@ -156,7 +145,7 @@ public class MetaCheat extends Cheats {
     @Override
     protected void unregisterListeners() {
         super.unregisterListeners();
-        cheatList.stream().forEach(computer.getMemory()::removeListener);
+        cheatList.forEach(computer.getMemory()::removeListener);
     }
 
     @Override
@@ -230,7 +219,7 @@ public class MetaCheat extends Cheats {
     }
 
     public void newSearch() {
-        RAM memory = Emulator.computer.getMemory();
+        RAM memory = Emulator.getComputer().getMemory();
         resultList.clear();
         int compare = parseInt(searchValueProperty.get());
         for (int i = 0; i < 0x10000; i++) {
@@ -247,7 +236,7 @@ public class MetaCheat extends Cheats {
     }
 
     public void performSearch() {
-        RAM memory = Emulator.computer.getMemory();
+        RAM memory = Emulator.getComputer().getMemory();
         boolean signed = signedProperty.get();
         resultList.removeIf((SearchResult result) -> {
             int val = byteSized
@@ -289,7 +278,7 @@ public class MetaCheat extends Cheats {
     }
 
     public void initMemoryView() {
-        RAM memory = Emulator.computer.getMemory();
+        RAM memory = Emulator.getComputer().getMemory();
         for (int addr = getStartAddress(); addr <= getEndAddress(); addr++) {
             if (getMemoryCell(addr) == null) {
                 MemoryCell cell = new MemoryCell();
@@ -305,7 +294,7 @@ public class MetaCheat extends Cheats {
     }
 
     int fadeCounter = 0;
-    int FADE_TIMER_VALUE = (int) (Emulator.computer.getMotherboard().getSpeedInHz() / 60);
+    int FADE_TIMER_VALUE = (int) (Emulator.getComputer().getMotherboard().getSpeedInHz() / 60);
 
     @Override
     public void tick() {
@@ -313,7 +302,7 @@ public class MetaCheat extends Cheats {
         if (fadeCounter-- <= 0) {
             fadeCounter = FADE_TIMER_VALUE;
             memoryCells.values().stream()
-                    .filter((cell) -> cell.hasCounts())
+                    .filter(MemoryCell::hasCounts)
                     .forEach((cell) -> {
                         if (cell.execCount.get() > 0) {
                             cell.execCount.set(Math.max(0, cell.execCount.get() - fadeRate));
@@ -339,7 +328,7 @@ public class MetaCheat extends Cheats {
     private void processMemoryEvent(RAMEvent e) {
         MemoryCell cell = getMemoryCell(e.getAddress());
         if (cell != null) {
-            CPU cpu = Emulator.computer.getCpu();
+            CPU cpu = Emulator.getComputer().getCpu();
             int pc = cpu.getProgramCounter();
             String trace = cpu.getLastTrace();
             switch (e.getType()) {

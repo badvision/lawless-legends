@@ -18,33 +18,20 @@
  */
 package jace.apple2e;
 
-import jace.Emulator;
 import jace.LawlessLegends;
 import jace.apple2e.softswitch.VideoSoftSwitch;
 import jace.cheat.Cheats;
 import jace.config.ClassSelection;
 import jace.config.ConfigurableField;
-import jace.core.Card;
-import jace.core.Computer;
-import jace.core.Motherboard;
-import jace.core.RAM;
-import jace.core.RAMEvent;
-import jace.core.RAMListener;
-import jace.core.Utility;
-import jace.core.Video;
-import jace.hardware.CardDiskII;
-import jace.hardware.CardExt80Col;
-import jace.hardware.ConsoleProbe;
-import jace.hardware.Joystick;
-import jace.hardware.NoSlotClock;
-import jace.hardware.ZipWarpAccelerator;
+import jace.core.*;
+import jace.hardware.*;
 import jace.hardware.massStorage.CardMassStorage;
+import jace.lawless.LawlessVideo;
 import jace.state.Stateful;
+
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -66,30 +53,30 @@ public class Apple2e extends Computer {
 
     static int IRQ_VECTOR = 0x003F2;
     @ConfigurableField(name = "Slot 1", shortName = "s1card")
-    public ClassSelection card1 = new ClassSelection(Card.class, null);
+    public ClassSelection<Card> card1 = new ClassSelection<>(Card.class, null);
     @ConfigurableField(name = "Slot 2", shortName = "s2card")
-    public ClassSelection card2 = new ClassSelection(Card.class, null);
+    public ClassSelection<Card> card2 = new ClassSelection<>(Card.class, null);
     @ConfigurableField(name = "Slot 3", shortName = "s3card")
-    public ClassSelection card3 = new ClassSelection(Card.class, null);
+    public ClassSelection<Card> card3 = new ClassSelection<>(Card.class, null);
     @ConfigurableField(name = "Slot 4", shortName = "s4card")
-    public ClassSelection card4 = new ClassSelection(Card.class, null);
+    public ClassSelection<Card> card4 = new ClassSelection<>(Card.class, null);
     @ConfigurableField(name = "Slot 5", shortName = "s5card")
-    public ClassSelection card5 = new ClassSelection(Card.class, null);
+    public ClassSelection<Card> card5 = new ClassSelection<>(Card.class, null);
     @ConfigurableField(name = "Slot 6", shortName = "s6card")
-    public ClassSelection card6 = new ClassSelection(Card.class, CardDiskII.class);
+    public ClassSelection<Card> card6 = new ClassSelection<>(Card.class, CardDiskII.class);
     @ConfigurableField(name = "Slot 7", shortName = "s7card")
-    public ClassSelection card7 = new ClassSelection(Card.class, CardMassStorage.class);
+    public ClassSelection<Card> card7 = new ClassSelection<>(Card.class, CardMassStorage.class);
     @ConfigurableField(name = "Debug rom", shortName = "debugRom", description = "Use debugger //e rom")
     public boolean useDebugRom = false;
     @ConfigurableField(name = "Console probe", description = "Enable console redirection (experimental!)")
     public boolean useConsoleProbe = false;
-    private ConsoleProbe probe = new ConsoleProbe();
+    private final ConsoleProbe probe = new ConsoleProbe();
     @ConfigurableField(name = "Helpful hints", shortName = "hints")
     public boolean enableHints = true;
     @ConfigurableField(name = "Renderer", shortName = "video", description = "Video rendering implementation")
-    public ClassSelection videoRenderer = new ClassSelection(Video.class, VideoNTSC.class);
+    public ClassSelection<Video> videoRenderer = new ClassSelection<>(Video.class, LawlessVideo.class);
     @ConfigurableField(name = "Aux Ram", shortName = "ram", description = "Aux ram card")
-    public ClassSelection ramCard = new ClassSelection(RAM128k.class, CardExt80Col.class);
+    public ClassSelection<RAM128k> ramCard = new ClassSelection<>(RAM128k.class, CardRamworks.class);
     @ConfigurableField(name = "Joystick 1 Enabled", shortName = "joy1", description = "If unchecked, then there is no joystick support.", enablesDevice = true)
     public boolean joy1enabled = true;
     @ConfigurableField(name = "Joystick 2 Enabled", shortName = "joy2", description = "If unchecked, then there is no joystick support.", enablesDevice = true)
@@ -98,11 +85,13 @@ public class Apple2e extends Computer {
     public boolean clockEnabled = true;
     @ConfigurableField(name = "Accelerator Enabled", shortName = "zip", description = "If checked, add support for Zip/Transwarp", enablesDevice = true)
     public boolean acceleratorEnabled = true;
-
+    @ConfigurableField(name = "Production mode", shortName = "production")
+    public boolean PRODUCTION_MODE = true;
+    
     public Joystick joystick1;
     public Joystick joystick2;
-    @ConfigurableField(name = "Activate Cheats", shortName = "cheat", defaultValue = "")
-    public ClassSelection cheatEngine = new ClassSelection(Cheats.class, null);
+    @ConfigurableField(name = "Activate Cheats", shortName = "cheat")
+    public ClassSelection<Cheats> cheatEngine = new ClassSelection<>(Cheats.class, null);
     public Cheats activeCheatEngine = null;
     public NoSlotClock clock;
     public ZipWarpAccelerator accelerator;
@@ -113,11 +102,10 @@ public class Apple2e extends Computer {
     public Apple2e() {
         super();
         try {
-            reconfigure();
             setCpu(new MOS65C02(this));
-            reinitMotherboard();
+            setMotherboard(new Motherboard(this, null));
         } catch (Throwable t) {
-            System.err.println("Unable to initalize virtual machine");
+            System.err.println("Unable to initialize virtual machine");
             t.printStackTrace(System.err);
         }
     }
@@ -127,29 +115,21 @@ public class Apple2e extends Computer {
         return "Computer (Apple //e)";
     }
 
-    protected void reinitMotherboard() {
-        if (motherboard != null && motherboard.isRunning()) {
-            motherboard.suspend();
-        }
-        setMotherboard(new Motherboard(this, motherboard));
-        reconfigure();
-        motherboard.reconfigure();
-    }
-
+    
     @Override
     public void coldStart() {
-        pause();
-        reinitMotherboard();
-        for (SoftSwitches s : SoftSwitches.values()) {
-            s.getSwitch().reset();
-        }
-        getMemory().configureActiveMemory();
-        getVideo().configureVideoMode();
-        for (Optional<Card> c : getMemory().getAllCards()) {
-            c.ifPresent(Card::reset);
-        }
+        motherboard.whileSuspended(()->{
+            for (SoftSwitches s : SoftSwitches.values()) {
+                s.getSwitch().reset();
+            }
+            reconfigure();
+            getMemory().configureActiveMemory();
+            getVideo().configureVideoMode();
+            for (Optional<Card> c : getMemory().getAllCards()) {
+                c.ifPresent(Card::reset);
+            }
+        });
         reboot();
-        resume();
     }
 
     public void reboot() {
@@ -162,21 +142,21 @@ public class Apple2e extends Computer {
 
     @Override
     public void warmStart() {
-        boolean restart = pause();
-        // This isn't really authentic behavior but sometimes games like memory to have a consistent state when booting.
-        ((RAM128k)getMemory()).zeroAllRam();
-        for (SoftSwitches s : SoftSwitches.values()) {
-            if (! (s.getSwitch() instanceof VideoSoftSwitch)) {
-                s.getSwitch().reset();
+        motherboard.whileSuspended(()->{
+            // This isn't really authentic behavior but sometimes games like memory to have a consistent state when booting.
+            for (SoftSwitches s : SoftSwitches.values()) {
+                if (! (s.getSwitch() instanceof VideoSoftSwitch)) {
+                    s.getSwitch().reset();
+                }
             }
-        }
-        getMemory().configureActiveMemory();
-        getVideo().configureVideoMode();
-        getCpu().reset();
-        for (Optional<Card> c : getMemory().getAllCards()) {
-            c.ifPresent(Card::reset);
-        }
-        getCpu().resume();
+            ((RAM128k)getMemory()).zeroAllRam();
+            getMemory().configureActiveMemory();
+            getVideo().configureVideoMode();
+            getCpu().reset();
+            for (Optional<Card> c : getMemory().getAllCards()) {
+                c.ifPresent(Card::reset);
+            }
+        });
         resume();
     }
 
@@ -201,118 +181,126 @@ public class Apple2e extends Computer {
         }
     }
 
+    private Class<? extends RAM128k> getDesiredMemoryConfiguration() {
+        if (ramCard.getValue() == null) {
+            return CardExt80Col.class;
+        } else {
+            return ramCard.getValue();
+        }
+    }
+    
+    private boolean isMemoryConfigurationCorrect() {
+        if (getMemory() == null) {
+            return false;
+        }
+        return getMemory().getClass().equals(getDesiredMemoryConfiguration());
+    }
+    
     @Override
     public final void reconfigure() {
-        boolean restart = pause();
+        super.reconfigure();
 
         if (Utility.isHeadlessMode()) {
             joy1enabled = false;
             joy2enabled = false;
-
         }
 
-        RAM128k currentMemory = (RAM128k) getMemory();
-        if (currentMemory != null && ramCard.getValue() != null && !(currentMemory.getClass().equals(ramCard.getValue()))) {
-            try {
-                RAM128k newMemory = (RAM128k) ramCard.getValue().getConstructor(Computer.class).newInstance(this);
-                newMemory.copyFrom(currentMemory);
-                setMemory(newMemory);
-            } catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException ex) {
-                Logger.getLogger(Apple2e.class.getName()).log(Level.SEVERE, null, ex);
-            }
+        if (motherboard == null) {
+            return;
         }
-        if (getMemory() == null) {
-            try {
-                currentMemory = (RAM128k) ramCard.getValue().getConstructor(Computer.class).newInstance(this);
-            } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | SecurityException | IllegalArgumentException | InvocationTargetException ex) {
-                Logger.getLogger(Apple2e.class.getName()).log(Level.SEVERE, null, ex);
-            }
-            try {
-                setMemory(currentMemory);
+        motherboard.whileSuspended(()-> {
+            if (getMemory() != null) {
                 for (SoftSwitches s : SoftSwitches.values()) {
-                    s.getSwitch().register(this);
+                    s.getSwitch().unregister();
                 }
-            } catch (Throwable ex) {
             }
-        }
-        currentMemory.reconfigure();
+            if (!isMemoryConfigurationCorrect()) {
+                try {
+                    System.out.println("Creating new ram using " + getDesiredMemoryConfiguration().getName());
+                    RAM128k newMemory = getDesiredMemoryConfiguration().getConstructor(Computer.class).newInstance(this);
 
-        if (motherboard != null) {
-            if (accelerator == null) {
-                accelerator = new ZipWarpAccelerator(this);
+                    if (getMemory() != null) {
+                        newMemory.copyFrom((RAM128k) getMemory());
+                    }
+                    setMemory(newMemory);
+                } catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException ex) {
+                    Logger.getLogger(Apple2e.class.getName()).log(Level.SEVERE, null, ex);
+                }                
             }
+            for (SoftSwitches s : SoftSwitches.values()) {
+                s.getSwitch().register(this);
+            }
+
+            try {
+                if (useDebugRom) {
+                    loadRom("jace/data/apple2e_debug.rom");
+                } else {
+                    loadRom("jace/data/apple2e.rom");
+                }
+            } catch (IOException ex) {
+                Logger.getLogger(Apple2e.class.getName()).log(Level.SEVERE, null, ex);
+            }
+
+            getMemory().configureActiveMemory();
+
+            Set<Device> newDeviceSet = new HashSet<>();
+
             if (acceleratorEnabled) {
-                motherboard.addChildDevice(accelerator);
-            } else {
-                motherboard.removeChildDevice(accelerator);
+                if (accelerator == null) {
+                    accelerator = new ZipWarpAccelerator(this);
+                }
+                newDeviceSet.add(accelerator);
             }
 
             if (joy1enabled) {
                 if (joystick1 == null) {
                     joystick1 = new Joystick(0, this);
-                    motherboard.addChildDevice(joystick1);
                 }
-            } else if (joystick1 != null) {
-                motherboard.removeChildDevice(joystick1);
+                newDeviceSet.add(joystick1);
+            } else {
                 joystick1 = null;
             }
 
             if (joy2enabled) {
                 if (joystick2 == null) {
                     joystick2 = new Joystick(1, this);
-                    motherboard.addChildDevice(joystick2);
                 }
-            } else if (joystick2 != null) {
-                motherboard.removeChildDevice(joystick2);
+                newDeviceSet.add(joystick2);
+            } else {
                 joystick2 = null;
             }
 
             if (clockEnabled) {
                 if (clock == null) {
                     clock = new NoSlotClock(this);
-                    motherboard.addChildDevice(clock);
                 }
-            } else if (clock != null) {
-                motherboard.removeChildDevice(clock);
+                newDeviceSet.add(clock);
+            } else {
                 clock = null;
             }
-        }
 
-        try {
             if (useConsoleProbe) {
                 probe.init(this);
             } else {
                 probe.shutdown();
             }
 
-            if (useDebugRom) {
-                loadRom("jace/data/apple2e_debug.rom");
-            } else {
-                loadRom("jace/data/apple2e.rom");
-            }
-            RAM128k ram = (RAM128k) getMemory();
-            if (LawlessLegends.PRODUCTION_MODE) {
-                // Force Slot 7 boot
-                ram.activeRead.writeByte(0x0fffc, (byte) 0x000);
-                ram.activeRead.writeByte(0x0fffd, (byte) 0x0c7);
-            }
-
             if (getVideo() == null || getVideo().getClass() != videoRenderer.getValue()) {
+                boolean resumeVideo = false;
                 if (getVideo() != null) {
-                    getVideo().suspend();
+                    resumeVideo = getVideo().suspend();
                 }
                 try {
-                    setVideo((Video) videoRenderer.getValue().getConstructor(Computer.class).newInstance(this));
+                    setVideo(videoRenderer.getValue().getConstructor(Computer.class).newInstance(this));
                     getVideo().configureVideoMode();
                     getVideo().reconfigure();
-                    Emulator.resizeVideo();
                     if (LawlessLegends.getApplication() != null) {
                         LawlessLegends.getApplication().reconnectUIHooks();
                     }
-                    getVideo().resume();
-                } catch (InstantiationException | IllegalAccessException ex) {
-                    Logger.getLogger(Apple2e.class.getName()).log(Level.SEVERE, null, ex);
-                } catch (NoSuchMethodException | SecurityException | IllegalArgumentException | InvocationTargetException ex) {
+                    if (resumeVideo) {
+                        getVideo().resume();
+                    }
+                } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | SecurityException | IllegalArgumentException | InvocationTargetException ex) {
                     Logger.getLogger(Apple2e.class.getName()).log(Level.SEVERE, null, ex);
                 }
             }
@@ -334,12 +322,11 @@ public class Apple2e extends Computer {
             } else {
                 disableHints();
             }
-            getMemory().configureActiveMemory();
 
             if (cheatEngine.getValue() == null) {
                 if (activeCheatEngine != null) {
                     activeCheatEngine.detach();
-                    motherboard.addChildDevice(activeCheatEngine);
+                    newDeviceSet.add(activeCheatEngine);
                 }
                 activeCheatEngine = null;
             } else {
@@ -348,28 +335,27 @@ public class Apple2e extends Computer {
                     if (activeCheatEngine.getClass().equals(cheatEngine.getValue())) {
                         startCheats = false;
                     } else {
-                        motherboard.removeChildDevice(activeCheatEngine);
                         activeCheatEngine = null;
                     }
                 }
                 if (startCheats) {
                     try {
-                        activeCheatEngine = (Cheats) cheatEngine.getValue().getConstructor(Computer.class).newInstance(this);
+                        activeCheatEngine = cheatEngine.getValue().getConstructor(Computer.class).newInstance(this);
                     } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | SecurityException | IllegalArgumentException | InvocationTargetException ex) {
                         Logger.getLogger(Apple2e.class.getName()).log(Level.SEVERE, null, ex);
                     }
-                    motherboard.addChildDevice(activeCheatEngine);
+                    newDeviceSet.add(activeCheatEngine);
                 }
             }
-        } catch (IOException ex) {
-            Logger.getLogger(Apple2e.class.getName()).log(Level.SEVERE, null, ex);
-        }
 
-        super.reconfigure();
-
-        if (restart) {
-            resume();
-        }
+            newDeviceSet.add(cpu);
+            newDeviceSet.add(video);
+            for (Optional<Card> c : getMemory().getAllCards()) {
+                c.ifPresent(newDeviceSet::add);
+            }                
+            motherboard.setAllDevices(newDeviceSet);
+            motherboard.reconfigure();
+        });
     }
 
     @Override
@@ -394,7 +380,7 @@ public class Apple2e extends Computer {
 //        }
 //        return motherboard.isRunning() && !motherboard.isPaused;
 //    }
-    private List<RAMListener> hints = new ArrayList<>();
+    private final List<RAMListener> hints = new ArrayList<>();
 
     ScheduledExecutorService animationTimer = new ScheduledThreadPoolExecutor(1);
     Runnable drawHints = () -> {
@@ -411,7 +397,7 @@ public class Apple2e extends Computer {
             "    Java Apple Computer Emulator",
             "",
             "        Presented by BLuRry",
-            "        http://goo.gl/SnzqG",
+            "       https://goo.gl/SnzqG",
             "",
             "To insert a disk, please drag it over",
             "this window and drop on the desired",
@@ -485,9 +471,7 @@ public class Apple2e extends Computer {
     }
 
     private void disableHints() {
-        hints.stream().forEach((hint) -> {
-            getMemory().removeListener(hint);
-        });
+        hints.forEach((hint) -> getMemory().removeListener(hint));
     }
 
     @Override

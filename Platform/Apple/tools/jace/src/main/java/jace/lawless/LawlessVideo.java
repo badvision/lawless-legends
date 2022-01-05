@@ -5,8 +5,10 @@ import jace.apple2e.RAM128k;
 import jace.apple2e.VideoNTSC;
 import jace.core.Computer;
 import jace.core.PagedMemory;
-import java.util.Arrays;
+import jace.core.Video;
 import javafx.scene.image.WritableImage;
+
+import java.util.Arrays;
 
 /**
  * Lawless-enhanced video output for readable text
@@ -15,10 +17,10 @@ public class LawlessVideo extends VideoNTSC {
 
     private static RenderEngine activeEngine = RenderEngine.UNKNOWN;
     private boolean titleScreen = true;
-    private boolean[][] activeMask = new boolean[192][80];
+    private final boolean[][] activeMask = new boolean[192][80];
 
 
-    public static enum RenderEngine {
+    public enum RenderEngine {
         FULL_COLOR,
         FULL_TEXT(new int[]{
             2, 6, 78, 186
@@ -72,7 +74,7 @@ public class LawlessVideo extends VideoNTSC {
                 Arrays.fill(colorMask[y], true);
             }
         }
-    };
+    }
 
     public LawlessVideo(Computer computer) {
         super(computer);
@@ -85,7 +87,7 @@ public class LawlessVideo extends VideoNTSC {
             for (int y=0; y < 192; y++) {
                 System.arraycopy(activeEngine.colorMask[y], 0, activeMask[y], 0, 80);
             }
-            Emulator.computer.onNextVBL(() -> Emulator.computer.getVideo().forceRefresh());
+            Emulator.getComputer().onNextVBL(Video::forceRefresh);
             System.out.println("Detected engine: " + e.name());
         } else {
             System.out.println("Detected engine same as before: " + e.name());

@@ -136,7 +136,9 @@ class A2PackPartitions
     def automapSpecials = []
     def stories   = [:]  // story text to story.num, story.text
     def storyPartition = 0
+    def curScriptName = null
     def logStories = [:] // log num to story.text
+    def logCrossref = [:]
     def lootCodes  = [:] // loot code to loot.num
     def diskLimit = 0
 
@@ -3010,6 +3012,26 @@ class A2PackPartitions
         }
     }
 
+    def reportLogUse(data)
+    {
+        reportWriter.println(
+            "\n============================== Log Story Cross-reference ==================================\n")
+        def maxLogNum = logCrossref.keySet().max()
+        for (def i in 1..maxLogNum) {
+            def scripts = logCrossref[i]
+            reportWriter.print "log $i:"
+            if (!scripts)
+                reportWriter.print " (none)"
+            else {
+                for (def sc in scripts) {
+                    sc = sc.replaceAll(/[\s-]*[23][dD]/, '').replaceAll("sc_", "")
+                    reportWriter.print(" $sc")
+                }
+            }
+            reportWriter.println("")
+        }
+    }
+
     def addResourceDep(fromType, fromName, toType, toName)
     {
         assert fromType != null && fromName != null
@@ -3251,6 +3273,7 @@ class A2PackPartitions
         reportFlags(dataIn)
         reportStoryLogs()
         reportStatUse(dataIn)
+        reportLogUse()
 
         if (debugCompression)
             println "Compression savings: $compressionSavings"
@@ -4985,6 +5008,7 @@ end
             //println "   Script '$name'"
             withContext(scriptNames[script])
             {
+                curScriptName = scriptNames[script]
                 if (script.block.size() == 0) {
                     printWarning("empty script found; skipping.")
                     return
@@ -5048,6 +5072,7 @@ end
 
                 // And complete the function
                 out << buf.toString() + "end\n\n"
+                curScriptName = null
             }
         }
 
@@ -5219,7 +5244,7 @@ end
             }
             def valBlk = getSingle(blk.value, valName).block
             assert valBlk.size() == 1
-            outTextBlock(valBlk, blk.@type == 'text_println', true)
+            outTextBlock(valBlk, blk.@type == 'text_println', true) // true=checkNoLog
         }
 
         def packTextPrintNum(blk)
@@ -5281,6 +5306,10 @@ end
                 if (logStories.containsKey(logNum) && logStories[logNum] != longText)
                     printWarning("Text for log $logNum is inconsistent.")
                 logStories[logNum] = longText
+                def key = "map '$curMapName' in script '$curScriptName'"
+                if (!logCrossref.containsKey(key))
+                    logCrossref[logNum] = []
+                logCrossref[logNum] << key
             }
         }
 

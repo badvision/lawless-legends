@@ -28,10 +28,10 @@ include "party.plh"
 // Tab positions
 const INVLBL_X = 10
 const INV_X = 25
-const INV_RT = 140
+const INV_RT = 170
 
-const STAT_X = 174
-const STATLBL_X = 182
+const STAT_X = 186
+const STATLBL_X = 194
 
 const SKILL_JUST_OFF = 34
 const SKILL_LABEL_OFF = 40

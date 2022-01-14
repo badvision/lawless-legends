@@ -2460,6 +2460,7 @@ class A2PackPartitions
         compileModule("party", "src/plasma/")
         compileModule("store", "src/plasma/")
         compileModule("diskops", "src/plasma/")
+        compileModule("import", "src/plasma/")
         compileModule("godmode", "src/plasma/")
         compileModule("util3d", "src/plasma/")
         compileModule("automap", "src/plasma/")

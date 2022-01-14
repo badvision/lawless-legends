@@ -14,6 +14,7 @@ include "playtype.plh"
 include "diskops.plh"
 include "party.plh"
 include "sndseq.plh"
+include "import.plh"
 include "gen_images.plh"
 include "gen_modules.plh"
 include "gen_players.plh"
@@ -38,6 +39,8 @@ word[] funcTbl = @_startup, @_loadGame, @_newOrLoadGame
 //AUTOMAP_CHECK// word           = @_checkAutomap
 
 byte[] legendos_filename = "LEGENDOS.SYSTEM"
+
+word pImportModule
 
 // For checking automap mark sizes
 include "gen_mapsizes.pla"
@@ -288,6 +291,9 @@ def _startup()#1
   // Also the automap marking queue/flush code.
   pMarks = mmgr(QUEUE_LOAD, CODE_MARKS<<8 | RES_TYPE_CODE)
 
+  // We may need to import a game, so let's load that module now.
+  pImportModule = mmgr(QUEUE_LOAD, MOD_IMPORT<<8 | RES_TYPE_MODULE)
+
   // And the global funcs we'll need for the title screen
   mmgr(QUEUE_LOAD, GS_DISK_LIMIT<<8 | RES_TYPE_MODULE)
   mmgr(QUEUE_LOAD, GS_COPYRIGHT<<8 | RES_TYPE_MODULE)
@@ -430,24 +436,6 @@ end
 def gameExists()#1
   word p_loaded
 
-  // See if there's a Nox game in drive 2.
-  ^$c051
-  puts("Insert nox\n")
-  rdkey()
-  if callProRWTS(RWTS_READ | RWTS_OPENDIR, "NA", LOAD_SAVE_BUF, 512) == 0
-    puts("op1 ok")
-    rdkey()
-    if callProRWTS(RWTS_READ | RWTS_READDIR, "DATA.SAVE.GAME1", LOAD_SAVE_BUF, 512) == 0
-      puts("op2 ok")
-    else
-      puts("f2")
-    fin
-  else
-    puts("f1")
-  fin
-  rdkey
-  ^$c050
-
   // Load first part of save game into mem... 1 block should be plenty to verify it's real.
   if callProRWTS(RWTS_READ | RWTS_OPENDIR, @S_GAME1_FILENAME, LOAD_SAVE_BUF, 512) == 0
     // If heap size is reasonable and type hash matches, chances are high that it's a real save game.
@@ -505,27 +493,6 @@ def reinsert()#0
     puts("\n   ")
     beep()
   loop
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def importGame()#1
-  textHome
-  ^$c053
-  ^$25 = 20
-  puts("\n    Insert disk for import")
-  pressAnyKey()
-  if gameExists()
-    loadInternal()
-    ^$25 = 20
-    puts("\n    Game imported.")
-    reinsert()
-    memcpy(HEAP_BOTTOM, LOAD_SAVE_BUF, HEAP_SIZE, 0)  // LC to low mem
-    rwGame(RWTS_WRITE)
-    return TRUE
-  fin
-  puts("\n    Not found.")
-  reinsert()
-  return FALSE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -742,7 +709,7 @@ def _newOrLoadGame(ask)#1
         break
       is 'I'
         clearWindow
-        if importGame()
+        if pImportModule()=>import_getGame()
           ret = 0
         else
           displayMenu(existing)

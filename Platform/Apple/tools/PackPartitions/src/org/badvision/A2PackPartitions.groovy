@@ -4690,7 +4690,7 @@ end
                 continue
 
             // Obey disk limit if any
-            if (i > diskLimit)
+            if (diskLimit > 0 && i > diskLimit)
                 continue
 
             // Copy files.

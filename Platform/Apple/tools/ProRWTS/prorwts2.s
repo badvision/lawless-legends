@@ -33,7 +33,7 @@ ver_02 = 1
                 allow_multi  = 1        ;set to 1 to allow multiple floppies
                 allow_zerovol= 0        ;set to 1 to support volume 0 (=last used volume)
                 check_chksum = 1        ;set to 1 to enforce checksum verification for floppies
-                allow_subdir = 0        ;set to 1 to allow opening subdirectories to access files
+                allow_subdir = 1        ;set to 1 to allow opening subdirectories to access files
                 might_exist  = 1        ;set to 1 if file is not known to always exist already
                                         ;makes use of status to indicate success or failure
                 many_files   = 0        ;set to 1 to support more than 256 files in a directory
@@ -2637,7 +2637,7 @@ hddnextent      ldy     #0
 
                 ldx     hdddirbuf + NEXT_BLOCK_LO
                 lda     hdddirbuf + NEXT_BLOCK_HI
-                jsr     hddreaddirsec
+                jsr     hddreaddirsel   ; mhaye patch: this was hddreaddirsec, which didn't clear adrlo
                 lda     #NAME_LENGTH
                 bne     hddfirstent
 

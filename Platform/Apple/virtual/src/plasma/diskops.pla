@@ -31,14 +31,15 @@ const expandMax     = $3600   // max size of unsplit expander
 
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the the header.
-predef _startup()#1
-predef _loadGame()#1
-predef _newOrLoadGame(ask)#1
-//AUTOMAP_CHECK// predef _checkAutomap()#1
-word[] funcTbl = @_startup, @_loadGame, @_newOrLoadGame
+predef startup()#1
+predef loadGame()#1
+predef newOrLoadGame(ask)#1
+predef pressAnyKey()#1
+predef gameExists()#1
+predef loadInternal()#1
+//AUTOMAP_CHECK// predef checkAutomap()#1
+word[] funcTbl = @startup, @loadGame, @newOrLoadGame, @pressAnyKey, @gameExists, @loadInternal
 //AUTOMAP_CHECK// word           = @_checkAutomap
-
-byte[] legendos_filename = "LEGENDOS.SYSTEM"
 
 word pImportModule
 
@@ -234,7 +235,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load and display the title screen, set up everything in memory
-def _startup()#1
+def startup()#1
   word pEngine, pFont, pMarks, pExpand, expanderSize, pSound
 
   // Decide if we're running on Jace (if so, later we'll need to credit the music). This has
@@ -389,7 +390,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // TEMPORARY FOR DISK MARK CHECKING
-//AUTOMAP_CHECK// def _checkAutomap()#1
+//AUTOMAP_CHECK// def checkAutomap()#1
 //AUTOMAP_CHECK//   readDiskMarks; checkMarks
 //AUTOMAP_CHECK//   return 0
 //AUTOMAP_CHECK// end
@@ -419,7 +420,7 @@ def loadInternal()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _loadGame()#1
+def loadGame()#1
   useMapWindow()
   showMapName("Loading game...")
 
@@ -477,22 +478,10 @@ end
 //end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def pressAnyKey()#0
+def pressAnyKey()#1
   puts("\n    and press any key to continue.")
   getTextKey()
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def reinsert()#0
-  while TRUE
-    puts(" Re-insert disk 1")
-    pressAnyKey()
-    if callProRWTS(RWTS_READ | RWTS_OPENDIR, @legendos_filename, LOAD_SAVE_BUF, 512) == 0
-      break
-    fin
-    puts("\n   ")
-    beep()
-  loop
+  return 0 // dummy value for exported func
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -671,7 +660,7 @@ def displayMenu(existing)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def _newOrLoadGame(ask)#1
+def newOrLoadGame(ask)#1
   byte key, existing
   word ret
 
@@ -709,7 +698,7 @@ def _newOrLoadGame(ask)#1
         break
       is 'I'
         clearWindow
-        if pImportModule()=>import_getGame()
+        if pImportModule()=>import_getGame(@funcTbl)
           ret = 0
         else
           displayMenu(existing)

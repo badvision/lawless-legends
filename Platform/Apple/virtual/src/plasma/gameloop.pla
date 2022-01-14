@@ -1188,13 +1188,13 @@ export asm callProRWTS(cmdPlusOpenFlg, filename, addr, size)#1
 
     bit setLcRW+lcBank1
     bit setLcRW+lcBank1
-    tya
-    bne +
-    jsr proRWTS
-    clc
-    bcc ++
-+   jsr proRWTS+3
-++  lda status
+    lda #$4C      ; set up JMP to the requested proRWTS vector
+    sta $44
+    sty $45
+    lda #>proRWTS
+    sta $46
+    jsr $44
+    lda status
     ldy #0
     bit setLcRW+lcBank2
     bit setLcRW+lcBank2

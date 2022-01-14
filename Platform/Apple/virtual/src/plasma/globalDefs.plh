@@ -105,6 +105,7 @@ const RWTS_DRV1  = 0
 const RWTS_DRV2  = $80
 
 const RWTS_RDWRPART = (0<<8)
-const RWTS_OPENDIR  = (1<<8)
+const RWTS_OPENDIR  = (3<<8)
+const RWTS_READDIR  = (13<<8)
 
 const LOAD_SAVE_BUF = $4C00

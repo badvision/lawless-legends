@@ -430,6 +430,24 @@ end
 def gameExists()#1
   word p_loaded
 
+  // See if there's a Nox game in drive 2.
+  ^$c051
+  puts("Insert nox\n")
+  rdkey()
+  if callProRWTS(RWTS_READ | RWTS_OPENDIR, "NA", LOAD_SAVE_BUF, 512) == 0
+    puts("op1 ok")
+    rdkey()
+    if callProRWTS(RWTS_READ | RWTS_READDIR, "DATA.SAVE.GAME1", LOAD_SAVE_BUF, 512) == 0
+      puts("op2 ok")
+    else
+      puts("f2")
+    fin
+  else
+    puts("f1")
+  fin
+  rdkey
+  ^$c050
+
   // Load first part of save game into mem... 1 block should be plenty to verify it's real.
   if callProRWTS(RWTS_READ | RWTS_OPENDIR, @S_GAME1_FILENAME, LOAD_SAVE_BUF, 512) == 0
     // If heap size is reasonable and type hash matches, chances are high that it's a real save game.

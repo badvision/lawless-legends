@@ -1664,7 +1664,7 @@ class A2PackPartitions
         // Note: Always need to be checking this, even though it does take time. Things like gen_flags.b
         // can blow it out -- has something to do with repeated similar strings?
         if (uncompressedLen - compressedLen > 0) {
-            def underlap = 3
+            def underlap = 5
             def checkData = new byte[uncompressedLen+underlap]
             def initialOffset = uncompressedLen - compressedLen + underlap
             System.arraycopy(compressedData, 0, checkData, initialOffset, compressedLen)
@@ -5907,9 +5907,12 @@ end
             def y = blk.field[2].text().toInteger()
             def maxDist = blk.field[3].text().toInteger()
             def chance = (int)(blk.field[4].text().toFloat() * 10.0)
-            assert chance > 0 && chance <= 1000
-            outIndented("addEncounterZone(${escapeString(code)}, $x, $y, $maxDist, $chance)\n")
-            addMapDep("encounterZone", code.toLowerCase())
+            if (chance <= 0 || chance > 1000)
+                printWarning("Invalid encounter chance ${blk.field[4].text()} - should be >0.0, <=100.0. Skipping.")
+            else {
+                outIndented("addEncounterZone(${escapeString(code)}, $x, $y, $maxDist, $chance)\n")
+                addMapDep("encounterZone", code.toLowerCase())
+            }
         }
 
         def packClrEncounterZones(blk)

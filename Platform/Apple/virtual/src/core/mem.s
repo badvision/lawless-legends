@@ -35,7 +35,8 @@ DEBUG		= 0
 ; Note: 3 is sufficient for 99% of cases. Found a case (gen_flags.b) requiring 5,
 ; something to do with repeated similar strings, but randomized the order to get
 ; back down to 3.
-UNDERLAP	= 3
+; 2022-01-28: Found another case, and randomization didn't help. Back up to 5.
+UNDERLAP	= 5
 
 ; Zero page temporary variables.
 ; Don't move these - they overlap in clever ways with ProRWTS shadows (see below)

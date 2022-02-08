@@ -61,12 +61,6 @@ public class VideoNTSC extends VideoDHGR {
     final int[] scanline = new int[20];
     final public int[] divBy28 = new int[560];
 
-    public final void initDivideTables() {
-        for (int i = 0; i < 560; i++) {
-            divBy28[i] = i / 28;
-        }
-    }
-    
     protected boolean[] colorActive = new boolean[80];
     int rowStart = 0;
 
@@ -335,6 +329,12 @@ public class VideoNTSC extends VideoDHGR {
         {1.0, 0.0, 0.0}, //1111 f
     };
 
+    private void initDivideTables() {
+        for (int i = 0; i < 560; i++) {
+            divBy28[i] = i / 28;
+        }
+    }
+    
     private void initNtscPalette() {
         int maxLevel = 10;
         for (int offset = 0; offset < 4; offset++) {

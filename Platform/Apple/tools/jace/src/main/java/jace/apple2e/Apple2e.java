@@ -26,6 +26,7 @@ import jace.config.ConfigurableField;
 import jace.core.*;
 import jace.hardware.*;
 import jace.hardware.massStorage.CardMassStorage;
+import jace.lawless.FPSMonitorDevice;
 import jace.lawless.LawlessVideo;
 import jace.state.Stateful;
 
@@ -95,12 +96,16 @@ public class Apple2e extends Computer {
     public Cheats activeCheatEngine = null;
     public NoSlotClock clock;
     public ZipWarpAccelerator accelerator;
+    FPSMonitorDevice fpsCounters;
+    @ConfigurableField(name = "Show speed monitors", shortName = "showFps")
+    public boolean showSpeedMonitors = false;
 
     /**
      * Creates a new instance of Apple2e
      */
     public Apple2e() {
         super();
+        fpsCounters = new FPSMonitorDevice(this);
         try {
             setCpu(new MOS65C02(this));
             setMotherboard(new Motherboard(this, null));
@@ -353,6 +358,10 @@ public class Apple2e extends Computer {
             for (Optional<Card> c : getMemory().getAllCards()) {
                 c.ifPresent(newDeviceSet::add);
             }                
+            if (showSpeedMonitors) {
+                newDeviceSet.add(fpsCounters);
+            }
+            motherboard.attach();
             motherboard.setAllDevices(newDeviceSet);
             motherboard.reconfigure();
         });

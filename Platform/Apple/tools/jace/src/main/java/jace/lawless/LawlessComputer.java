@@ -33,7 +33,7 @@ public class LawlessComputer extends Apple2e {
         super();
         motherboard.whileSuspended(this::initLawlessLegendsConfiguration);
     }
-
+    
     private void initLawlessLegendsConfiguration() {
         reconfigure();  // Required before anything so that memory is initialized
         this.cheatEngine.setValue(LawlessHacks.class);

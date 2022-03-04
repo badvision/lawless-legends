@@ -78,6 +78,7 @@ public class LawlessVideo extends VideoNTSC {
 
     public LawlessVideo(Computer computer) {
         super(computer);
+        this.vblankStart();
     }
 
     public void setEngine(RenderEngine e) {

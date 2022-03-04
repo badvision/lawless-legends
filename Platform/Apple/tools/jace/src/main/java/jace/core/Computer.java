@@ -21,6 +21,7 @@ package jace.core;
 import jace.config.ConfigurableField;
 import jace.config.InvokableAction;
 import jace.config.Reconfigurable;
+import jace.lawless.FPSMonitorDevice;
 import jace.state.StateManager;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;

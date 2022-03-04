@@ -74,6 +74,8 @@ public class VideoDHGR extends Video {
         initHgrDhgrTables();
         initVideoWriters();
         registerDirtyFlagChecks();
+        currentTextWriter = textPage1;
+        currentGraphicsWriter = loresPage1;
     }
 
     // Take two consecutive bytes and double them, taking hi-bit into account

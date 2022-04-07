@@ -5,7 +5,7 @@
     <!-- override javasdoc target, since we have no Java sources -->
     <target depends="init" description="Don't build Javadoc." name="javadoc"/>
     <!-- use local groovy jar instead of NetBeans' version -->
-    <property name="libs.groovy-all.classpath" value="./lib/groovy-all-2.4.6.jar"/>
+    <property name="libs.groovy-all.classpath" value="./lib/groovy-4.0.1.jar:./lib/groovy-ant-4.0.1.jar:./lib/groovy-xml-4.0.1.jar:./lib/groovy-json-4.0.1.jar"/>
     <!-- after building the 'thin' jar, make a 'thick' one incorporating all dependencies -->
     <target name="-post-jar">
         <echo message="Packaging ${application.title} into a single JAR at ${dist.jar}"/>
@@ -15,7 +15,9 @@
             <zipfileset src="../ACME/src/acme.jar"/>
             <zipfileset src="../A2Copy/dist/A2Copy.jar"/>
             <zipfileset src="../A2Copy/lib/ac.jar"/>
-            <zipfileset src="./lib/groovy-all-2.4.6.jar"/>
+            <zipfileset src="./lib/groovy-4.0.1.jar"/>
+            <zipfileset src="./lib/groovy-xml-4.0.1.jar"/>
+            <zipfileset src="./lib/groovy-json-4.0.1.jar"/>
             <zipfileset src="dist/${application.title}-thin.jar" />
             <manifest>
                 <attribute name="Main-Class" value="org.badvision.A2PackPartitions"/>

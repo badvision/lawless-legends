@@ -22,6 +22,9 @@ word pDiskOps
 
 byte[] legendos_filename = "LEGENDOS.SYSTEM"
 
+word origChksum_0, origChksum_1
+word curChksum_0,  curChksum_1
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
 asm __defs
@@ -38,27 +41,138 @@ asm __defs
 ; General use
 tmp         = $2
 pTmp        = $4
+chksum      = $8 ; 4 bytes
+xsav        = $46
 
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Set up the font engine
-asm fooFunc(param)#0
+// Calculate a 4-byte checksum of a buffer.
+// If doStore=1, store it in *pSum.
+// If doStore=0, compare to *pSum, and return zero if equal
+asm calcChecksum(doStore, pBuf, nPages, pSum)#0
+!zone {
   +asmPlasmNoRet 1
+  sta tmp           ; pSum
+  sty tmp+1
+  lda evalStkL+1,x  ; pBuf
+  sta pTmp
+  lda evalStkH+1,x
+  sta pTmp+1
+  lda evalStkL+3,x  ; save doStore flg for later
+  pha
+  lda evalStkL+2,x  ; nPages
+  ldy #0
+  ldx #3
+- sta chksum,x      ; a-reg still has nPages, fine for consistent init
+  dex
+  bpl -
+  clc
+.pag
+  pha               ; save # pages left
+.quad
+  ldx #3
+- lda chksum,x
+  rol
+  adc (pTmp),y
+  sta chksum,x
+  iny
+  dex
+  bpl -
+  tya
+  bne .quad
+
+  pla             ; next page
+  sec
+  sbc #1
+  bne .pag
+
+  ldy #3
+  pla             ; check doStore flg
+  beq .chk
+
+.sto
+  lda chksum,y
+  sta (tmp),y
+  dey
+  bpl .sto
+  rts             ; return val irrelevant for store mode
+
+.chk
+  lda chksum,y
+  eor (tmp),y
+  bne +
+  dey
+  bpl .chk
++ ldy #0          ; return zero if equal
   rts
+} ; end of zone
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def reinsert()#0
   while TRUE
-    puts(" Re-insert disk 1")
-    pDiskOps=>diskops_pressAnyKey()
-    if callProRWTS(RWTS_READ | RWTS_OPENDIR, @legendos_filename, LOAD_SAVE_BUF, 512) == 0
-      break
+    puts("Re-insert current disk 1 and press a key.\n")
+    rdkey()
+    if callProRWTS(RWTS_READ | RWTS_OPENDIR, @legendos_filename, LOAD_SAVE_BUF, HEAP_SIZE) == 0
+      calcChecksum(TRUE, LOAD_SAVE_BUF, HEAP_SIZE >> 8, @curChksum_0)
+      if curChksum_0 == origChksum_0 and curChksum_1 == origChksum_1
+        break
+      fin
     fin
-    puts("\n   ")
     beep()
   loop
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def importNox()#1
+
+  // See if there's a Nox game in drive 2.
+  ^LOAD_SAVE_BUF = $AA
+  if callProRWTS(RWTS_READ | RWTS_OPENDIR, "NA", LOAD_SAVE_BUF, 512) == 0
+    printf1("First open succeeded: $%x\n", ^LOAD_SAVE_BUF)
+    rdkey()
+    ^LOAD_SAVE_BUF = $BB
+    if callProRWTS(RWTS_SEEK | RWTS_READDIR, "DATA.SAVE.GAME1", NULL, $C00) == 0
+      printf1("Seek succeeded: $%x\n", ^LOAD_SAVE_BUF)
+      rdkey()
+      ^LOAD_SAVE_BUF = $CC
+      if callProRWTS(RWTS_READ | RWTS_RDWRPART, NULL, LOAD_SAVE_BUF, $200) == 0
+        printf1("Read succeeded: $%x\n", ^LOAD_SAVE_BUF)
+      else
+        puts("Read failed\n")
+      fin
+    else
+      puts("Seek failed\n")
+    fin
+  else
+    puts("First open failed\n")
+  fin
+  rdkey
+  return FALSE
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def importLL()#1
+  if !pDiskOps=>diskops_gameExists()
+    return FALSE
+  fin
+
+  calcChecksum(TRUE, LOAD_SAVE_BUF, HEAP_SIZE >> 8, @curChksum_0)
+  printf2("curChksum=$%x%x\n", curChksum_0, curChksum_1)
+  if curChksum_0 == origChksum_0 and curChksum_1 == origChksum_1
+    return FALSE // same disk as original
+  fin
+
+  printf1("Lawless Legends game with found.\nMain character: \"%s\"\nImport? (Y/N) ", global=>p_players=>s_name)
+  if !getYN
+    return FALSE
+  fin
+
+  reinsert()
+  memcpy(HEAP_BOTTOM, LOAD_SAVE_BUF, HEAP_SIZE, 0)  // LC to low mem
+  rwGame(RWTS_WRITE)
+  return TRUE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -66,42 +180,30 @@ end
 def _getGame(_pDiskOps)#1
   pDiskOps = _pDiskOps
 
-  // See if there's a Nox game in drive 2.
+  // May want to use graphic font someday, but text mode for now
   ^$c051
-  puts("Insert nox")
-  pDiskOps=>diskops_pressAnyKey()
-  if callProRWTS(RWTS_READ | RWTS_OPENDIR, "NA", LOAD_SAVE_BUF, 512) == 0
-    puts("First open succeeded")
-    rdkey()
-    if callProRWTS(RWTS_READ | RWTS_READDIR, "DATA.SAVE.GAME1", LOAD_SAVE_BUF, 512) == 0
-      puts("Second open succeeded")
-    else
-      puts("Second open failed")
-    fin
-  else
-    puts("First open failed")
-  fin
-  rdkey
-  ^$c050
-
-  // Old code
+  ^$c054
   textHome
-  ^$c053
-  ^$25 = 20
-  puts("\n    Insert disk for import")
-  pDiskOps=>diskops_pressAnyKey()
-  if pDiskOps=>diskops_gameExists()
-    pDiskOps=>diskops_loadInternal()
-    ^$25 = 20
-    puts("\n    Game imported.")
-    reinsert()
-    memcpy(HEAP_BOTTOM, LOAD_SAVE_BUF, HEAP_SIZE, 0)  // LC to low mem
-    rwGame(RWTS_WRITE)
-    return TRUE
-  fin
-  puts("\n    Not found.")
-  reinsert()
-  return FALSE
+
+  // Record checksum of the original data so we can tell when a different LL game is inserted
+  calcChecksum(TRUE, LOAD_SAVE_BUF, HEAP_SIZE >> 8, @origChksum_0)
+  printf2("origChksum=$%x%x\n", origChksum_0, origChksum_1)
+
+  // Find a game to import
+  while TRUE
+    puts("Trying nox.\n")
+    if importNox; break; fin
+    puts("Trying LL\n")
+    if importLL; break; fin
+    puts("Insert disk to import from (into same drive), then\npress a key, or [Esc] to cancel.\n")
+    if rdkey == $9B // esc
+      reinsert
+      ^$c050
+      return FALSE
+    fin
+  loop
+  ^$c050
+  return TRUE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

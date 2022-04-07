@@ -399,17 +399,12 @@ end
 def loadInternal()#1
   word p_loaded
 
-  // Load data to main memory
+  // Can be duplicative since gameExists also loaded it, but is needed when re-loading (Ctrl-L)
   rwGame(RWTS_READ)
 
   // Copy the heap up, and init it with the correct size.
   p_loaded = LOAD_SAVE_BUF
-  if p_loaded=>w_heapSize == 0
-    return FALSE  // no game saved yet
-  elsif p_loaded=>w_heapSize < 100 or p_loaded=>w_heapSize > HEAP_SIZE or p_loaded=>w_typeHash <> typeHash
-    fatal("Incompatible game file.")
-  fin
-  memcpy(LOAD_SAVE_BUF, HEAP_BOTTOM, HEAP_SIZE, 0)  // low mem to LC
+  memcpy(p_loaded, HEAP_BOTTOM, HEAP_SIZE, 0)  // low mem to LC
   initHeap(p_loaded=>w_heapSize)
   heapCollect() // make sure heap is valid, and record final size
 
@@ -426,10 +421,7 @@ def loadGame()#1
 
   // Open the file
   ^$4000 = 0  // so 3D engine knows we overwrite HGR page 2, even if we fail
-  if !loadInternal()
-    showMapName("Not found.")
-    getUpperKey()
-  fin
+  loadInternal
   return 0
 end
 
@@ -437,8 +429,8 @@ end
 def gameExists()#1
   word p_loaded
 
-  // Load first part of save game into mem... 1 block should be plenty to verify it's real.
-  if callProRWTS(RWTS_READ | RWTS_OPENDIR, @S_GAME1_FILENAME, LOAD_SAVE_BUF, 512) == 0
+  // Load save game into mem... the whole thing, so that import code can calc a digest later.
+  if callProRWTS(RWTS_READ | RWTS_OPENDIR, @S_GAME1_FILENAME, LOAD_SAVE_BUF, HEAP_SIZE) == 0
     // If heap size is reasonable and type hash matches, chances are high that it's a real save game.
     p_loaded = LOAD_SAVE_BUF
     if p_loaded=>w_heapSize >= 100 and p_loaded=>w_heapSize <= HEAP_SIZE and p_loaded=>w_typeHash == typeHash
@@ -688,10 +680,10 @@ def newOrLoadGame(ask)#1
         ret = 1
         break
       is 'L'
-        if gameExists
+        if existing
           clearWindow
           rawDisplayStr("\n^YLoading...^N")
-          if loadInternal(); ret = 0; break; fin
+          loadInternal(); ret = 0; break
         else
           beep
         fin

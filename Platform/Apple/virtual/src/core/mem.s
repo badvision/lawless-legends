@@ -1931,7 +1931,7 @@ diskLoader: !zone
 ;------------------------------------------------------------------------------
 ; Calculate a digest of the file and header buffers, and store it in
 ; bufferDigest.
-; Returns: Z if digest the same as last time
+; Returns: z-flg set (for beq) if digest the same as last time
 calcBufferDigest: !zone
 	lda #>headerBuf
 	sta .ld1+2

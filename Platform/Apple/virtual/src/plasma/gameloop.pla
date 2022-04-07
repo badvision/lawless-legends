@@ -1165,22 +1165,22 @@ export asm callProRWTS(cmdPlusOpenFlg, filename, addr, size)#1
     sty sizehi
 
     sta clrAuxZP
-    lda evalStkL+1,x
+    lda evalStkL+1,x  ; addr
     ldy evalStkH+1,x
     sta setAuxZP
     sta ldrlo
     sty ldrhi
 
     sta clrAuxZP
-    lda evalStkL+2,x
+    lda evalStkL+2,x  ; filename
     ldy evalStkH+2,x
     sta setAuxZP
     sta namlo
     sty namhi
 
     sta clrAuxZP
-    lda evalStkL+3,x
-    ldy evalStkH+3,x
+    lda evalStkL+3,x  ; openFlg
+    ldy evalStkH+3,x  ; cmd
     sta setAuxZP
     sta reqcmd
     lda #0

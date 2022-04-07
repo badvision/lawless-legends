@@ -100,7 +100,9 @@ public abstract class TimedDevice extends Device {
                     hasStopped = true;
                     LockSupport.parkNanos(1000);
                 }
-                resync();
+                if (!maxspeed) {
+                    resync();
+                }
             }
             hasStopped = true;
             System.out.println("Worker thread for " + getDeviceName() + " stopped");
@@ -171,10 +173,8 @@ public abstract class TimedDevice extends Device {
 
     protected void resync() {
         if (++cycleTimer >= cyclesPerInterval) {
-            if (maxspeed || tempSpeedDuration > 0) {
-                if (tempSpeedDuration > 0) {
-                    tempSpeedDuration -= cyclesPerInterval;
-                }
+            if (tempSpeedDuration > 0) {
+                tempSpeedDuration -= cyclesPerInterval;
                 resetSyncTimer();
                 return;
             }

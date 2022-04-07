@@ -229,13 +229,15 @@ public class LawlessHacks extends Cheats {
     double FADE_AMT = 0.05; // 5% per interval, or 20 stops between 0% and 100%
 //    int FADE_SPEED = 100; // 100ms per 5%, or 2 second duration
     int FADE_SPEED = 75; // 75ms per 5%, or 1.5 second duration
-
+    int FIGHT_SONG = 17;
+    boolean playingFightSong = false;
     private void startNewSong(int track, boolean switchScores) {
         if (!isMusicEnabled()) {
             return;
         }
         MediaPlayer player;
         if (track != currentSong || !isPlayingMusic() || switchScores) {
+            
             // If the same song is already playing don't restart it
             Media song = getAudioTrack(track);
             if (song == null) {
@@ -245,7 +247,7 @@ public class LawlessHacks extends Cheats {
             player = new MediaPlayer(song);
             player.setCycleCount(repeatSong ? MediaPlayer.INDEFINITE : 1);
             player.setVolume(0.0);
-            if (autoResume.contains(track) || switchScores) {
+            if (playingFightSong || autoResume.contains(track) || switchScores) {
                 double time = lastTime.getOrDefault(track, 0.0);
                 System.out.println("Auto-resume from time " + time);
                 player.setStartTime(Duration.millis(time));
@@ -257,6 +259,7 @@ public class LawlessHacks extends Cheats {
             player = currentSongPlayer;
         }
         fadeInSong(player);
+        playingFightSong = track == FIGHT_SONG;
     }
 
     private void stopMusic() {

@@ -259,9 +259,10 @@ public class JaceUIController {
         }
         if (speedRatio >= 100.0) {
             Emulator.getComputer().getMotherboard().setMaxSpeed(true);
-            Motherboard.cpuPerClock = 10;
+            Emulator.getComputer().getMotherboard().setSpeedInPercentage(20000);
+//            Motherboard.cpuPerClock = 10;
         } else {
-            if (speedRatio > 25) {
+            if (speedRatio > 1000) {
                 Motherboard.cpuPerClock = 2;
             } else {
                 Motherboard.cpuPerClock = 1;
@@ -391,11 +392,11 @@ public class JaceUIController {
 
     Map<Label, Long> iconTTL = new ConcurrentHashMap<>();
 
-    void addIndicator(Label icon) {
+    public void addIndicator(Label icon) {
         addIndicator(icon, 250);
     }
 
-    void addIndicator(Label icon, long TTL) {
+    public void addIndicator(Label icon, long TTL) {
         if (!iconTTL.containsKey(icon)) {
             Application.invokeLater(() -> {
                 if (!notificationBox.getChildren().contains(icon)) {
@@ -406,7 +407,7 @@ public class JaceUIController {
         trackTTL(icon, TTL);
     }
 
-    void removeIndicator(Label icon) {
+    public void removeIndicator(Label icon) {
         Application.invokeLater(() -> {
             notificationBox.getChildren().remove(icon);
             iconTTL.remove(icon);

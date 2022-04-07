@@ -23,9 +23,6 @@ import jace.apple2e.Speaker;
 import jace.config.ConfigurableField;
 
 import java.util.HashSet;
-import java.util.Optional;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Motherboard is the heart of the computer. It can have a list of cards
@@ -79,11 +76,16 @@ public class Motherboard extends TimedDevice {
         return "mb";
     }
     @ConfigurableField(category = "advanced", shortName = "cpuPerClock", name = "CPU per clock", defaultValue = "1", description = "Number of CPU cycles per clock cycle (normal = 1)")
-    public static int cpuPerClock = 4;
+    public static int cpuPerClock = 1;
     public int clockCounter = 1;
 
     @Override
     public void tick() {
+        // Extra CPU cycles requested, other devices are called by the TimedDevice abstraction
+        for (int i=1; i < cpuPerClock; i++) {
+            computer.getCpu().doTick();            
+        }
+        /*
         try {
             clockCounter--;
             computer.getCpu().doTick();
@@ -100,6 +102,7 @@ public class Motherboard extends TimedDevice {
             System.out.print("!");
             Logger.getLogger(getClass().getName()).log(Level.SEVERE, null, t);
         }
+*/
     }
     // From the holy word of Sather 3:5 (Table 3.1) :-)
     // This average speed averages in the "long" cycles
@@ -137,6 +140,7 @@ public class Motherboard extends TimedDevice {
                 System.out.println("Speaker not enabled, leaving it off.");
             }
         });
+        adjustRelativeSpeeds();
     }
     HashSet<Object> accelorationRequestors = new HashSet<>();
 
@@ -150,5 +154,15 @@ public class Motherboard extends TimedDevice {
         if (accelorationRequestors.isEmpty()) {
             disableTempMaxSpeed();
         }
+    }
+    
+    void adjustRelativeSpeeds() {
+        if (isMaxSpeed()) {
+            computer.getVideo().setWaitPerCycle(8);
+        } else if (getSpeedInHz() > SPEED) {
+            computer.getVideo().setWaitPerCycle(getSpeedInHz()/SPEED);
+        } else {
+            computer.getVideo().setWaitPerCycle(0);            
+        }        
     }
 }

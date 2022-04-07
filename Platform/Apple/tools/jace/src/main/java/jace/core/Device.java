@@ -42,6 +42,7 @@ public abstract class Device implements Reconfigurable {
 
     protected Computer computer;
     private final MutableSet<Device> children;
+    private Device[] childrenArray = new Device[0];
 
     private Device() {
         children = Sets.mutable.empty();
@@ -70,6 +71,7 @@ public abstract class Device implements Reconfigurable {
         if (isAttached) {
             d.attach();
         }
+        childrenArray = children.toArray(new Device[0]);
     }
 
     public void removeChildDevice(Device d) {
@@ -81,6 +83,7 @@ public abstract class Device implements Reconfigurable {
         if (isAttached) {
             d.detach();
         }
+        childrenArray = children.toArray(new Device[0]);
     }
 
     public void addAllDevices(Iterable<Device> devices) {
@@ -110,7 +113,9 @@ public abstract class Device implements Reconfigurable {
 
     public void doTick() {        
         if (isRunning()) {
-            children.forEach(Device::doTick);
+            for (Device d : childrenArray) {
+                d.doTick();
+            }
             if (waitCycles > 0) {
                 waitCycles--;
                 return;

@@ -44,21 +44,21 @@ public class VideoDHGR extends Video {
         9, 11, 13, 15
     };
     private static final boolean USE_GS_MOUSETEXT = false;
-    private final VideoWriter textPage1;
-    private final VideoWriter textPage2;
-    private final VideoWriter loresPage1;
-    private final VideoWriter loresPage2;
-    private final VideoWriter hiresPage1;
-    private final VideoWriter hiresPage2;
+    private VideoWriter textPage1;
+    private VideoWriter textPage2;
+    private VideoWriter loresPage1;
+    private VideoWriter loresPage2;
+    private VideoWriter hiresPage1;
+    private VideoWriter hiresPage2;
     // Special 80-column modes
-    private final VideoWriter text80Page1;
-    private final VideoWriter text80Page2;
-    private final VideoWriter dloresPage1;
-    private final VideoWriter dloresPage2;
-    private final VideoWriter dhiresPage1;
-    private final VideoWriter dhiresPage2;
+    private VideoWriter text80Page1;
+    private VideoWriter text80Page2;
+    private VideoWriter dloresPage1;
+    private VideoWriter dloresPage2;
+    private VideoWriter dhiresPage1;
+    private VideoWriter dhiresPage2;
     // Mixed mode
-    private final VideoWriter mixed;
+    private VideoWriter mixed;
     private VideoWriter currentGraphicsWriter = null;
     private VideoWriter currentTextWriter = null;
 
@@ -71,8 +71,138 @@ public class VideoDHGR extends Video {
         super(computer);
         
         initCharMap();
-        initLookupTables();
+        initHgrDhgrTables();
+        initVideoWriters();
+        registerDirtyFlagChecks();
+        currentTextWriter = textPage1;
+        currentGraphicsWriter = loresPage1;
+    }
 
+    // Take two consecutive bytes and double them, taking hi-bit into account
+    // This should yield a 28-bit word of 7 color dhgr pixels
+    // This looks like crap on text...
+    final int[][] HGR_TO_DHGR = new int[512][256];
+    // Take two consecutive bytes and double them, disregarding hi-bit
+    // Useful for text mode
+    final int[][] HGR_TO_DHGR_BW = new int[256][256];
+    final int[] TIMES_14 = new int[40];
+    final int[] FLIP_BITS = new int[256];
+    
+    private void initHgrDhgrTables() {
+        // complete reverse of 8 bits
+        for (int i = 0; i < 256; i++) {
+            FLIP_BITS[i] = (((i * 0x0802 & 0x22110) | (i * 0x8020 & 0x88440)) * 0x10101 >> 16) & 0x0ff;
+        }
+
+        for (int i = 0; i < 40; i++) {
+            TIMES_14[i] = i * 14;
+        }
+
+        for (int bb1 = 0; bb1 < 512; bb1++) {
+            for (int bb2 = 0; bb2 < 256; bb2++) {
+                int value = ((bb1 & 0x0181) >= 0x0101) ? 1 : 0;
+                int b1 = byteDoubler((byte) (bb1 & 0x07f));
+                if ((bb1 & 0x080) != 0) {
+                    b1 <<= 1;
+                }
+                int b2 = byteDoubler((byte) (bb2 & 0x07f));
+                if ((bb2 & 0x080) != 0) {
+                    b2 <<= 1;
+                }
+                if ((bb1 & 0x040) == 0x040 && (bb2 & 1) != 0) {
+                    b2 |= 1;
+                }
+                value |= b1 | (b2 << 14);
+                if ((bb2 & 0x040) != 0) {
+                    value |= 0x10000000;
+                }
+                HGR_TO_DHGR[bb1][bb2] = value;
+                HGR_TO_DHGR_BW[bb1 & 0x0ff][bb2]
+                        = byteDoubler((byte) bb1) | (byteDoubler((byte) bb2) << 14);
+            }
+        }
+    }
+
+    boolean flashInverse = false;
+    int flashTimer = 0;
+    int FLASH_SPEED = 16; // UTAIIe:8-13,P7 - FLASH toggles every 16 scans
+    final int[] CHAR_MAP1 = new int[256];
+    final int[] CHAR_MAP2 = new int[256];
+    final int[] CHAR_MAP3 = new int[256];
+    int[] currentCharMap = CHAR_MAP1;
+
+    private void initCharMap() {
+        // Generate screen text lookup maps ahead of time
+        // ALTCHR clear
+        // 00-3F - Inverse characters (uppercase only) "@P 0"
+        // 40-7F - Flashing characters (uppercase only) "@P 0"
+        // 80-BF - Normal characters (uppercase only) "@P 0"
+        // C0-DF - Normal characters (repeat 80-9F) "@P"
+        // E0-FF - Normal characters (lowercase) "`p"
+
+        // ALTCHR set
+        // 00-3f - Inverse characters (uppercase only) "@P 0"
+        // 40-5f - Mousetext (//gs alts are at 0x46 and 0x47, swap with 0x11 and 0x12 for //e and //c)
+        // 60-7f - Inverse characters (lowercase only)
+        // 80-BF - Normal characters (uppercase only)
+        // C0-DF - Normal characters (repeat 80-9F)
+        // E0-FF - Normal characters (lowercase)
+        // MAP1: Normal map, flash inverse = false
+        // MAP2: Normal map, flash inverse = true
+        // MAP3: Alt map, mousetext mode
+        for (int b = 0; b < 256; b++) {
+            int mod = b % 0x020;
+            // Inverse
+            if (b < 0x020) {
+                CHAR_MAP1[b] = mod + 0x0c0;
+                CHAR_MAP2[b] = mod + 0x0c0;
+                CHAR_MAP3[b] = mod + 0x0c0;
+            } else if (b < 0x040) {
+                CHAR_MAP1[b] = mod + 0x0a0;
+                CHAR_MAP2[b] = mod + 0x0a0;
+                CHAR_MAP3[b] = mod + 0x0a0;
+            } else if (b < 0x060) {
+                // Flash/Mouse
+                CHAR_MAP1[b] = mod + 0x0c0;
+                CHAR_MAP2[b] = mod + 0x040;
+                if (!USE_GS_MOUSETEXT && mod == 6) {
+                    CHAR_MAP3[b] = 0x011;
+                } else if (!USE_GS_MOUSETEXT && mod == 7) {
+                    CHAR_MAP3[b] = 0x012;
+                } else {
+                    CHAR_MAP3[b] = mod + 0x080;
+                }
+            } else if (b < 0x080) {
+                // Flash/Inverse lowercase
+                CHAR_MAP1[b] = mod + 0x0a0;
+                CHAR_MAP2[b] = mod + 0x020;
+                CHAR_MAP3[b] = mod + 0x0e0;
+            } else if (b < 0x0a0) {
+                // Normal uppercase
+                CHAR_MAP1[b] = mod + 0x040;
+                CHAR_MAP2[b] = mod + 0x040;
+                CHAR_MAP3[b] = mod + 0x040;
+            } else if (b < 0x0c0) {
+                // Normal uppercase
+                CHAR_MAP1[b] = mod + 0x020;
+                CHAR_MAP2[b] = mod + 0x020;
+                CHAR_MAP3[b] = mod + 0x020;
+            } else if (b < 0x0e0) {
+                // Normal uppercase (repeat)
+                CHAR_MAP1[b] = mod + 0x040;
+                CHAR_MAP2[b] = mod + 0x040;
+                CHAR_MAP3[b] = mod + 0x040;
+            } else {
+                // Normal lowercase
+                CHAR_MAP1[b] = mod + 0x060;
+                CHAR_MAP2[b] = mod + 0x060;
+                CHAR_MAP3[b] = mod + 0x060;
+            }
+        }
+    }
+
+
+    private void initVideoWriters() {
         hiresPage1 = new VideoWriter() {
             @Override
             public int getYOffset(int y) {
@@ -284,8 +414,8 @@ public class VideoDHGR extends Video {
                 return true;
             }
         };
-        registerDirtyFlagChecks();
-    }
+    }    
+    
     // color burst per byte (chat mauve compatibility)
     boolean[] useColor = new boolean[80];
 
@@ -328,51 +458,7 @@ public class VideoDHGR extends Video {
 // If you want monochrome, use this instead...
 //            showBW(screen, times14[xOffset], y, dhgrWord);
     }
-    // Take two consecutive bytes and double them, taking hi-bit into account
-    // This should yield a 28-bit word of 7 color dhgr pixels
-    // This looks like crap on text...
-    static final int[][] HGR_TO_DHGR = new int[512][256];
-    // Take two consecutive bytes and double them, disregarding hi-bit
-    // Useful for text mode
-    static final int[][] HGR_TO_DHGR_BW = new int[256][256];
-    static final int[] TIMES_14 = new int[40];
-    static final int[] FLIP_BITS = new int[256];
     
-    static void initLookupTables() {
-        // complete reverse of 8 bits
-        for (int i = 0; i < 256; i++) {
-            FLIP_BITS[i] = (((i * 0x0802 & 0x22110) | (i * 0x8020 & 0x88440)) * 0x10101 >> 16) & 0x0ff;
-        }
-
-        for (int i = 0; i < 40; i++) {
-            TIMES_14[i] = i * 14;
-        }
-
-        for (int bb1 = 0; bb1 < 512; bb1++) {
-            for (int bb2 = 0; bb2 < 256; bb2++) {
-                int value = ((bb1 & 0x0181) >= 0x0101) ? 1 : 0;
-                int b1 = byteDoubler((byte) (bb1 & 0x07f));
-                if ((bb1 & 0x080) != 0) {
-                    b1 <<= 1;
-                }
-                int b2 = byteDoubler((byte) (bb2 & 0x07f));
-                if ((bb2 & 0x080) != 0) {
-                    b2 <<= 1;
-                }
-                if ((bb1 & 0x040) == 0x040 && (bb2 & 1) != 0) {
-                    b2 |= 1;
-                }
-                value |= b1 | (b2 << 14);
-                if ((bb2 & 0x040) != 0) {
-                    value |= 0x10000000;
-                }
-                HGR_TO_DHGR[bb1][bb2] = value;
-                HGR_TO_DHGR_BW[bb1 & 0x0ff][bb2]
-                        = byteDoubler((byte) bb1) | (byteDoubler((byte) bb2) << 14);
-            }
-        }
-    }
-
     protected void displayLores(WritableImage screen, int xOffset, int y, int rowAddress) {
         int c1 = ((RAM128k) computer.getMemory()).getMainMemory().readByte(rowAddress + xOffset) & 0x0FF;
         if ((y & 7) < 4) {
@@ -430,85 +516,8 @@ public class VideoDHGR extends Video {
         writer.setColor(xx++, y, color);
         writer.setColor(xx++, y, color);
         writer.setColor(xx, y, color);
-    }
-    boolean flashInverse = false;
-    int flashTimer = 0;
-    int FLASH_SPEED = 16; // UTAIIe:8-13,P7 - FLASH toggles every 16 scans
-    int[] currentCharMap = CHAR_MAP1;
-    static final int[] CHAR_MAP1 = new int[256];
-    static final int[] CHAR_MAP2 = new int[256];
-    static final int[] CHAR_MAP3 = new int[256];
-
-    static void initCharMap() {
-        // Generate screen text lookup maps ahead of time
-        // ALTCHR clear
-        // 00-3F - Inverse characters (uppercase only) "@P 0"
-        // 40-7F - Flashing characters (uppercase only) "@P 0"
-        // 80-BF - Normal characters (uppercase only) "@P 0"
-        // C0-DF - Normal characters (repeat 80-9F) "@P"
-        // E0-FF - Normal characters (lowercase) "`p"
-
-        // ALTCHR set
-        // 00-3f - Inverse characters (uppercase only) "@P 0"
-        // 40-5f - Mousetext (//gs alts are at 0x46 and 0x47, swap with 0x11 and 0x12 for //e and //c)
-        // 60-7f - Inverse characters (lowercase only)
-        // 80-BF - Normal characters (uppercase only)
-        // C0-DF - Normal characters (repeat 80-9F)
-        // E0-FF - Normal characters (lowercase)
-        // MAP1: Normal map, flash inverse = false
-        // MAP2: Normal map, flash inverse = true
-        // MAP3: Alt map, mousetext mode
-        for (int b = 0; b < 256; b++) {
-            int mod = b % 0x020;
-            // Inverse
-            if (b < 0x020) {
-                CHAR_MAP1[b] = mod + 0x0c0;
-                CHAR_MAP2[b] = mod + 0x0c0;
-                CHAR_MAP3[b] = mod + 0x0c0;
-            } else if (b < 0x040) {
-                CHAR_MAP1[b] = mod + 0x0a0;
-                CHAR_MAP2[b] = mod + 0x0a0;
-                CHAR_MAP3[b] = mod + 0x0a0;
-            } else if (b < 0x060) {
-                // Flash/Mouse
-                CHAR_MAP1[b] = mod + 0x0c0;
-                CHAR_MAP2[b] = mod + 0x040;
-                if (!USE_GS_MOUSETEXT && mod == 6) {
-                    CHAR_MAP3[b] = 0x011;
-                } else if (!USE_GS_MOUSETEXT && mod == 7) {
-                    CHAR_MAP3[b] = 0x012;
-                } else {
-                    CHAR_MAP3[b] = mod + 0x080;
-                }
-            } else if (b < 0x080) {
-                // Flash/Inverse lowercase
-                CHAR_MAP1[b] = mod + 0x0a0;
-                CHAR_MAP2[b] = mod + 0x020;
-                CHAR_MAP3[b] = mod + 0x0e0;
-            } else if (b < 0x0a0) {
-                // Normal uppercase
-                CHAR_MAP1[b] = mod + 0x040;
-                CHAR_MAP2[b] = mod + 0x040;
-                CHAR_MAP3[b] = mod + 0x040;
-            } else if (b < 0x0c0) {
-                // Normal uppercase
-                CHAR_MAP1[b] = mod + 0x020;
-                CHAR_MAP2[b] = mod + 0x020;
-                CHAR_MAP3[b] = mod + 0x020;
-            } else if (b < 0x0e0) {
-                // Normal uppercase (repeat)
-                CHAR_MAP1[b] = mod + 0x040;
-                CHAR_MAP2[b] = mod + 0x040;
-                CHAR_MAP3[b] = mod + 0x040;
-            } else {
-                // Normal lowercase
-                CHAR_MAP1[b] = mod + 0x060;
-                CHAR_MAP2[b] = mod + 0x060;
-                CHAR_MAP3[b] = mod + 0x060;
-            }
-        }
-    }
-
+    }        
+    
     @Override
     public void vblankStart() {
         // ALTCHR set only affects character mapping and disables FLASH.

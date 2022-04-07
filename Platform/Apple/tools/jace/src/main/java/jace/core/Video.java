@@ -156,6 +156,8 @@ public abstract class Video extends Device {
 
     @Override
     public void tick() {
+        addWaitCycles(waitsPerCycle);
+        addWaitCycles((int) motherboardAdjustedWaitsPerCycle);
         setScannerLocation(currentWriter.getYOffset(y));
         setFloatingBus(computer.getMemory().readRaw(scannerAddress + x));
         if (hPeriod > 0) {
@@ -232,7 +234,6 @@ public abstract class Video extends Device {
             lineDirty = true;
             currentWriter.displayByte(video, x, y, textOffset[y], hiresOffset[y]);
         }
-        setWaitCycles(waitsPerCycle);
         doPostDraw();
     }
 
@@ -293,5 +294,11 @@ public abstract class Video extends Device {
 
     public Image getFrameBuffer() {
         return visible;
+    }
+
+    long motherboardAdjustedWaitsPerCycle = 0;
+    public void setWaitPerCycle(long l) {
+        motherboardAdjustedWaitsPerCycle = Math.max(0,l);
+        System.out.println("Adjusting video rendering speed to 1/"+(l+1));
     }
 }

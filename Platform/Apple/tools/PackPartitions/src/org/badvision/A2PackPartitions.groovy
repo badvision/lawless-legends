@@ -33,6 +33,7 @@ import javax.sound.midi.ShortMessage;
 import javax.sound.midi.Track;
 import groovy.json.JsonOutput
 import groovy.util.Node
+import groovy.xml.XmlParser
 
 /**
  *
@@ -617,11 +618,11 @@ class A2PackPartitions
      */
     def calcTransparency(img)
     {
-        def height = img.size
-        def width  = img[0].size
+        def height = img.size()
+        def width  = img[0].size()
 
         // Keep track of which pixels we have traversed
-        def marks = img.collect { new boolean[it.size] }
+        def marks = img.collect { new boolean[it.size()] }
 
         // Initial positions to check
         def queue = [] as Queue
@@ -967,7 +968,7 @@ class A2PackPartitions
         {
             // Process double rows
             for (x in 0..<image[0].size()) {
-                for (y in (0..<image.size).step(2))
+                for (y in (0..<image.size()).step(2))
                     buf.put((byte) combine(image[y][x], image[y+1][x]))
             }
             // Generate next mip-map level
@@ -1173,9 +1174,9 @@ class A2PackPartitions
         // First, determine the set of unique tile IDs for this map section
         def tileIds = [] as Set
         (yOff ..< yOff+height).each { y ->
-            def row = (y < rows.size) ? rows[y] : null
+            def row = (y < rows.size()) ? rows[y] : null
             (xOff ..< xOff+width).each { x ->
-                def tile = (row && x < row.size) ? row[x] : null
+                def tile = (row && x < row.size()) ? row[x] : null
                 if (tile?.@id)
                     tileIds.add(tile?.@id)
             }
@@ -1223,9 +1224,9 @@ class A2PackPartitions
 
         // Then add each non-null tile to the set
         (yOff ..< yOff+height).each { y ->
-            def row = (y < rows.size) ? rows[y] : null
+            def row = (y < rows.size()) ? rows[y] : null
             (xOff ..< xOff+width).each { x ->
-                def tile = (row && x < row.size) ? row[x] : null
+                def tile = (row && x < row.size()) ? row[x] : null
                 def id = tile?.@id
                 if (tile && !tileMap.containsKey(id)) {
                     def num = tileMap.size()+1
@@ -1469,7 +1470,7 @@ class A2PackPartitions
             invDefs[addr] = it*5
             addr -= 0x1000
             addr -= byteCodeStart
-            assert addr >= 0 && addr < byteCode.size
+            assert addr >= 0 && addr < byteCode.size()
             defs.add(addr)
             assert fixup[sp++] == 0  // not sure what the zero byte is
         }
@@ -1477,7 +1478,7 @@ class A2PackPartitions
         // Construct asm stubs for all the bytecode functions that'll be in aux mem
         def dp = 0
         def stubsSize = defCount * 5
-        def newAsmCode = new byte[stubsSize + asmCode.size + 2]
+        def newAsmCode = new byte[stubsSize + asmCode.size() + 2]
         (0..<defCount).each {
             newAsmCode[dp++] = 0x20 // JSR
             newAsmCode[dp++] = 0xDC // Aux mem interp ($3DC)
@@ -1487,7 +1488,7 @@ class A2PackPartitions
         }
 
         // Stick the asm code onto the end of the stubs
-        (0..<asmCode.size).each {
+        (0..<asmCode.size()).each {
             newAsmCode[dp++] = asmCode[it]
         }
 
@@ -1611,11 +1612,20 @@ class A2PackPartitions
         }
         newFixup.add((byte)0xFF)
 
+        // KLUDGE ALERT!
+        // Something about gen_flags.b blows out the underlap window on decompression. I have whacked this
+        // mole several times, e.g. by trying to randomize the contents. Still don't really understand the
+        // problem, so for now just avoiding compressing that one.
+        if (name == "gen_flags")
+            return [ [data:newAsmCode, len:newAsmCode.length, compressed:false],
+                     compress(wrapByteList(byteCode)), compress(wrapByteList(newFixup)) ]
+
+        // normal case
         return [compress(newAsmCode), compress(wrapByteList(byteCode)), compress(wrapByteList(newFixup))]
     }
 
     def wrapByteList(list) {
-        byte[] arr = new byte[list.size]
+        byte[] arr = new byte[list.size()]
         list.eachWithIndex { n, idx -> arr[idx] = (byte)n }
         return arr
     }
@@ -3081,7 +3091,7 @@ class A2PackPartitions
     {
         def maxFrames = 0
         tileSet.tileIds.each { id ->
-            maxFrames = Math.max(maxFrames, tileFrames[tileNames[id]].size)
+            maxFrames = Math.max(maxFrames, tileFrames[tileNames[id]].size())
         }
 
         def animBuf = new AnimBuf()
@@ -3792,10 +3802,7 @@ class A2PackPartitions
             out.println("word[] funcTbl = @_flags_nameForNumber, @_flags_numberForName")
             out.println()
 
-            // Kludge alert! When we have a bunch of similar strings all in a row, the decompressor
-            // requires a crazy underlap of 9. We semi-randomize them in order to get back to the
-            // reasonable underlap of 3 that works for everything else.
-            gameFlags.keySet().sort { k -> -k.hashCode() }.each { name ->
+            gameFlags.keySet().each { name ->
                 def num = gameFlags[name]
                 out.println("byte[] SF_${humanNameToSymbol(name, true)} = ${escapeString(name.toUpperCase())}")
             }
@@ -4018,7 +4025,7 @@ class A2PackPartitions
         assert el : "Missing sheet '" + plName + "'"
         withContext("sheet '" + plName + "'") {
             el.rows.row.findAll{it.@name}.each { row ->
-                funcs << [singName, "NWp_${humanNameToSymbol(row.@name, false)}", funcs.size+1, row]
+                funcs << [singName, "NWp_${humanNameToSymbol(row.@name, false)}", funcs.size()+1, row]
             }
         }
     }
@@ -4261,7 +4268,7 @@ end
         def funcs = []
         sheets.find { it?.@name.equalsIgnoreCase("players") }.rows.row.each { row ->
             if (row.@name && row.@"starting-party")
-                funcs << ["NPl_${humanNameToSymbol(row.@name, false)}", funcs.size, row]
+                funcs << ["NPl_${humanNameToSymbol(row.@name, false)}", funcs.size(), row]
             // While we're at it, add each skill to the set of stats that can be set/gotten
             row.attributes().sort().each { name, val ->
                 if (name =~ /^skill-(.*)/) {
@@ -4912,7 +4919,7 @@ end
             def name = getScriptName(script)
             assert name : "Can't find script name in $script"
             getScriptArgs(script)
-            scriptNames[script] = "sc_${humanNameToSymbol(name, false)}"
+            scriptNames[script] = humanNameToSymbol("sc_$name", false)
             packScript(script)
 
             // Set up the pointer to global vars and finish up the module.
@@ -4967,7 +4974,7 @@ end
                     scripts << script
                 }
                 if (name != null)
-                    scriptNames[script] = "sc_${humanNameToSymbol(name, false)}"
+                    scriptNames[script] = humanNameToSymbol("sc_$name", false)
             }
 
             // Pack init script last

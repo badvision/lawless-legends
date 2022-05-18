@@ -352,6 +352,8 @@ def readDiskMarks()#1
   callProRWTS(RWTS_READ | RWTS_RDWRPART, NULL, LOAD_SAVE_BUF, 2)
   size = *LOAD_SAVE_BUF
 
+  if LOAD_SAVE_BUF+size >= $6000; fatal("mrkSiz"); fin
+
   // Now that we have the length, read the rest of the mark data
   callProRWTS(RWTS_READ | RWTS_RDWRPART, NULL, LOAD_SAVE_BUF+2, size)
   return size
@@ -431,7 +433,7 @@ def gameExists()#1
 
   // Load save game into mem... the whole thing, so that import code can calc a digest later.
   if callProRWTS(RWTS_READ | RWTS_OPENDIR, @S_GAME1_FILENAME, LOAD_SAVE_BUF, HEAP_SIZE) == 0
-    // If heap size is reasonable and type hash matches, chances are high that it's a real save game.
+    // If heap size is reasonable and type hash matches, chances are high that it's a real saved game.
     p_loaded = LOAD_SAVE_BUF
     if p_loaded=>w_heapSize >= 100 and p_loaded=>w_heapSize <= HEAP_SIZE and p_loaded=>w_typeHash == typeHash
       return TRUE

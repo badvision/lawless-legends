@@ -48,26 +48,31 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Calculate a 4-byte checksum of a buffer.
-// If doStore=1, store it in *pSum.
-// If doStore=0, compare to *pSum, and return zero if equal
+// If doStore=1, store it in *pSum (4 bytes).
+// If doStore=0, compare to *pSum (4 bytes), and return zero if equal
 asm calcChecksum(doStore, pBuf, nPages, pSum)#0
 !zone {
-  +asmPlasmNoRet 1
+  +asmPlasmNoRet 4
   sta tmp           ; pSum
   sty tmp+1
-  lda evalStkL+1,x  ; pBuf
+  lda evalStkL+2,x  ; pBuf
   sta pTmp
-  lda evalStkH+1,x
+  lda evalStkH+2,x
   sta pTmp+1
   lda evalStkL+3,x  ; save doStore flg for later
   pha
-  lda evalStkL+2,x  ; nPages
+  lda evalStkL+1,x  ; nPages
   ldy #0
   ldx #3
 - sta chksum,x      ; a-reg still has nPages, fine for consistent init
   dex
   bpl -
   clc
+
+  ldx #$60
+  stx 0
+  jsr 0
+
 .pag
   pha               ; save # pages left
 .quad
@@ -82,7 +87,8 @@ asm calcChecksum(doStore, pBuf, nPages, pSum)#0
   tya
   bne .quad
 
-  pla             ; next page
+  inc pTmp+1      ; next page
+  pla
   sec
   sbc #1
   bne .pag
@@ -110,18 +116,14 @@ asm calcChecksum(doStore, pBuf, nPages, pSum)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def reinsert()#0
-  while TRUE
-    puts("Re-insert current disk 1 and press a key.\n")
-    rdkey()
-    if callProRWTS(RWTS_READ | RWTS_OPENDIR, @legendos_filename, LOAD_SAVE_BUF, HEAP_SIZE) == 0
-      calcChecksum(TRUE, LOAD_SAVE_BUF, HEAP_SIZE >> 8, @curChksum_0)
-      if curChksum_0 == origChksum_0 and curChksum_1 == origChksum_1
-        break
-      fin
+def reinserted()#1
+  if callProRWTS(RWTS_READ | RWTS_OPENDIR, @S_GAME1_FILENAME, LOAD_SAVE_BUF, HEAP_SIZE) == 0
+    calcChecksum(TRUE, LOAD_SAVE_BUF, HEAP_SIZE >> 8, @curChksum_0)
+    if curChksum_0 == origChksum_0 and curChksum_1 == origChksum_1
+      return TRUE
     fin
-    beep()
-  loop
+  fin
+  return FALSE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -154,24 +156,48 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def importLL()#1
+  word p_loaded, marksSize, p_marks
+
   if !pDiskOps=>diskops_gameExists()
     return FALSE
   fin
 
-  calcChecksum(TRUE, LOAD_SAVE_BUF, HEAP_SIZE >> 8, @curChksum_0)
-  printf2("curChksum=$%x%x\n", curChksum_0, curChksum_1)
-  if curChksum_0 == origChksum_0 and curChksum_1 == origChksum_1
-    return FALSE // same disk as original
-  fin
+  // Put game in high mem and check it. Also loads the disk marks into LOAD_SAVE_BUF
+  textHome // so that "Heap %" is on non-visible part of the screen
+  pDiskOps=>diskops_loadInternal()
 
-  printf1("Lawless Legends game with found.\nMain character: \"%s\"\nImport? (Y/N) ", global=>p_players=>s_name)
-  if !getYN
-    return FALSE
-  fin
+  // Keep a copy of the imported disk marks aside in main mem
+  marksSize = *LOAD_SAVE_BUF
+  p_marks = mmgr(REQUEST_MEMORY, marksSize+2)
+  memcpy(LOAD_SAVE_BUF, p_marks, marksSize+2, 0)
 
-  reinsert()
-  memcpy(HEAP_BOTTOM, LOAD_SAVE_BUF, HEAP_SIZE, 0)  // LC to low mem
+  // Make sure the user wants to import this game
+  while True
+    textHome()
+    ^$25 = 19
+    printf1("\nGame found with this main character:\n  ==>  %s  <==\n", global=>p_players=>s_name)
+    puts("Re-insert disk 1 and press a key,\nor hit [Esc] to cancel import.")
+    if rdkey == $9B // esc
+      mmgr(FREE_MEMORY, p_marks)
+      // To cancel, we need the original disk back in the drive
+      if reinserted; return FALSE; fin
+    else
+      if reinserted(); break; fin
+    fin
+  loop
+
+  // Write the imported game data
+  memcpy(HEAP_BOTTOM, LOAD_SAVE_BUF, HEAP_SIZE, 0)  // LC to low mem to get the import data back
   rwGame(RWTS_WRITE)
+
+  // Write the imported marks right after the heap data
+  callProRWTS(RWTS_WRITE | RWTS_RDWRPART, NULL, p_marks, marksSize+2)
+  mmgr(FREE_MEMORY, p_marks)
+
+  // Proceed with normal load
+  ^$c052 // no text
+  clearWindow
+  rawDisplayStr("\n^YLoading...^N")
   return TRUE
 end
 
@@ -180,29 +206,33 @@ end
 def _getGame(_pDiskOps)#1
   pDiskOps = _pDiskOps
 
-  // May want to use graphic font someday, but text mode for now
-  ^$c051
-  ^$c054
-  textHome
+  // May want to use graphic font someday, but mixed-text mode for now
+  ^$c053
 
-  // Record checksum of the original data so we can tell when a different LL game is inserted
+  // Record checksum of the original data so we can tell when a different LL game is inserted, and
+  // also when the original is re-inserted.
   calcChecksum(TRUE, LOAD_SAVE_BUF, HEAP_SIZE >> 8, @origChksum_0)
-  printf2("origChksum=$%x%x\n", origChksum_0, origChksum_1)
 
   // Find a game to import
   while TRUE
-    puts("Trying nox.\n")
-    if importNox; break; fin
-    puts("Trying LL\n")
-    if importLL; break; fin
-    puts("Insert disk to import from (into same drive), then\npress a key, or [Esc] to cancel.\n")
+    textHome
+    ^$25 = 19
+    puts("\nInsert disk for import (in same drive),\nthen press a key, or [Esc] to cancel.\n")
     if rdkey == $9B // esc
-      reinsert
-      ^$c050
+      while TRUE
+        if reinserted; break; fin
+        puts("Re-insert disk 1 and press a key.")
+        rdkey
+      loop
+      ^$c052 // no text
       return FALSE
     fin
+    //puts("Trying nox.\n")
+    //if importNox; break; fin
+    //puts("Trying LL\n")
+    if importLL; break; fin
   loop
-  ^$c050
+  ^$c052 // no text
   return TRUE
 end
 

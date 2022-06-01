@@ -25,7 +25,7 @@ byte[] legendos_filename = "LEGENDOS.SYSTEM"
 word origChksum_0, origChksum_1
 word curChksum_0,  curChksum_1
 
-byte[] S_NOX_FILENAME = "Intelligence"
+byte[] S_NOX_FILENAME = "DATA.SAVE.GAME1"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
@@ -128,13 +128,40 @@ def reinserted()#1
   return FALSE
 end
 
+//  // See if there's a Nox game in drive 2.
+//  ^LOAD_SAVE_BUF = $AA
+//  if callProRWTS(RWTS_READ | RWTS_OPENDIR, "NA", LOAD_SAVE_BUF, 512) == 0
+//    printf1("First open succeeded: $%x\n", ^LOAD_SAVE_BUF)
+//    rdkey()
+//    ^LOAD_SAVE_BUF = $BB
+//    if callProRWTS(RWTS_SEEK | RWTS_READDIR, "DATA.SAVE.GAME1", NULL, $C00) == 0
+//      printf1("Seek succeeded: $%x\n", ^LOAD_SAVE_BUF)
+//      rdkey()
+//      ^LOAD_SAVE_BUF = $CC
+//      if callProRWTS(RWTS_READ | RWTS_RDWRPART, NULL, LOAD_SAVE_BUF, $200) == 0
+//        printf1("Read succeeded: $%x\n", ^LOAD_SAVE_BUF)
+//      else
+//        puts("Read failed\n")
+//      fin
+//    else
+//      puts("Seek failed\n")
+//    fin
+//  else
+//    puts("First open failed\n")
+//  fin
+//  rdkey
+//  return FALSE
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def findNox()#1
-  if callProRWTS(RWTS_SEEK | RWTS_READDIR, @S_NOX_FILENAME, NULL, $C00) == 0
+def findNox(readOrOpen)#1
+  ^LOAD_SAVE_BUF = $AA
+  if callProRWTS(RWTS_SEEK | readOrOpen, @S_NOX_FILENAME, NULL, $C00) == 0
     printf1("Seek succeeded: $%x\n", ^LOAD_SAVE_BUF)
     rdkey()
+    ^LOAD_SAVE_BUF = $BB
     if callProRWTS(RWTS_READ | RWTS_RDWRPART, NULL, LOAD_SAVE_BUF, $200) == 0
       printf1("Read succeeded: $%x\n", ^LOAD_SAVE_BUF)
+      return TRUE
     else
       puts("Read failed\n")
     fin
@@ -146,6 +173,61 @@ def findNox()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def printNox()#0
+  word len, c, prev
+
+  // Nox fields
+  // 
+  // $0     - health status - ask Mark what this means
+  // $1     - level
+  // $2-3   - HP lo/hi
+  // $10    - str
+  // $11    - dex
+  // $12    - int
+  // $13    - gender - 0=male, 1=female, 2=other
+  // $19    - skill score - melee
+  // $1C    - skill score - ranged
+  // $1F    - skill score - dodge-parry
+  // $22    - skill score - critical hit
+  // $25    - skill score - lockpick
+  // $28    - skill score - pilfer
+  // $2B    - training - melee
+  // $2C    - training - ranged
+  // $2D    - training - dodge-parry
+  // $2E    - training - critical hit
+  // $2F    - training - lockpick
+  // $30    - training - pilfer
+  // $47    - attrib upgrade points
+  // $48-49 - hp max lo/hi
+  // $4B-59 - character name
+
+  textHome
+  printf1("level=%d\n", ^(LOAD_SAVE_BUF+1))
+  printf1("strength=%d\n", ^(LOAD_SAVE_BUF+$10))
+  printf1("dexterity=%d\n", ^(LOAD_SAVE_BUF+$11))
+  printf1("intelligence=%d\n", ^(LOAD_SAVE_BUF+$12))
+  printf1("gender=%d\n", ^(LOAD_SAVE_BUF+$13))
+  printf1("hp-max=%d\n", *(LOAD_SAVE_BUF+$48))
+
+  len = 0
+  prev = 0
+  while TRUE
+    c = ^(LOAD_SAVE_BUF + $4B + len)
+    if c == 0; break; fin
+    if c < $A0; break; fin
+    c = c & $7F
+    // Convert to Title Case:
+    // if prev and c are both upper letters, convert this char to lower
+    ^($201+len) = (prev >= 'A' and prev <= 'Z' and c >= 'A' and c <= 'Z') ?? c + $20 :: c
+    prev = c
+    len++
+  loop
+  ^$200 = len
+  printf1("name=%s\n", $200)
+  rdkey
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def importNox()#1
 
   ^$c051
@@ -153,21 +235,24 @@ def importNox()#1
   textHome
 
   // Check for a nox game file outside the "NA" subdir
-  if !findNox
+  if !findNox(RWTS_OPENDIR)
     // Check for game file within the "NA" subdir
     if callProRWTS(RWTS_READ | RWTS_OPENDIR, "NA", LOAD_SAVE_BUF, 512) == 0
-      if !findNox
+      puts("Opendir succeeded\n")
+      rdkey
+      if !findNox(RWTS_READDIR)
         ^$c050
         return FALSE
       fin
     else
+      puts("Opendir failed\n")
+      rdkey
       ^$c050
       return FALSE
     fin
   fin
 
-  puts("Got nox data!\n")
-  rdkey
+  printNox
   ^$c050
   return TRUE
 end

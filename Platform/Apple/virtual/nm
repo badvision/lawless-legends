@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+set -e
+
+java -ea -jar ~/plat/tools/PackPartitions/dist/PackPartitions.jar data/world/world.xml
+
+echo "Adding NOX"
+rm -rf nox.tmp
+mkdir nox.tmp
+cadius EXTRACTFILE nox.hdv "NOXARCHAIST/NA/DATA.SAVE.GAME1" nox.tmp
+cadius ADDFILE game.2mg "RPG.5M" nox.tmp/DATA.SAVE.GAME1#06A000
+rm -rf nox.tmp

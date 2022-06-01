@@ -25,6 +25,8 @@ byte[] legendos_filename = "LEGENDOS.SYSTEM"
 word origChksum_0, origChksum_1
 word curChksum_0,  curChksum_1
 
+byte[] S_NOX_FILENAME = "Intelligence"
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions used by assembly code
 asm __defs
@@ -127,31 +129,47 @@ def reinserted()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def importNox()#1
-
-  // See if there's a Nox game in drive 2.
-  ^LOAD_SAVE_BUF = $AA
-  if callProRWTS(RWTS_READ | RWTS_OPENDIR, "NA", LOAD_SAVE_BUF, 512) == 0
-    printf1("First open succeeded: $%x\n", ^LOAD_SAVE_BUF)
+def findNox()#1
+  if callProRWTS(RWTS_SEEK | RWTS_READDIR, @S_NOX_FILENAME, NULL, $C00) == 0
+    printf1("Seek succeeded: $%x\n", ^LOAD_SAVE_BUF)
     rdkey()
-    ^LOAD_SAVE_BUF = $BB
-    if callProRWTS(RWTS_SEEK | RWTS_READDIR, "DATA.SAVE.GAME1", NULL, $C00) == 0
-      printf1("Seek succeeded: $%x\n", ^LOAD_SAVE_BUF)
-      rdkey()
-      ^LOAD_SAVE_BUF = $CC
-      if callProRWTS(RWTS_READ | RWTS_RDWRPART, NULL, LOAD_SAVE_BUF, $200) == 0
-        printf1("Read succeeded: $%x\n", ^LOAD_SAVE_BUF)
-      else
-        puts("Read failed\n")
-      fin
+    if callProRWTS(RWTS_READ | RWTS_RDWRPART, NULL, LOAD_SAVE_BUF, $200) == 0
+      printf1("Read succeeded: $%x\n", ^LOAD_SAVE_BUF)
     else
-      puts("Seek failed\n")
+      puts("Read failed\n")
     fin
   else
-    puts("First open failed\n")
+    puts("Seek failed\n")
   fin
   rdkey
   return FALSE
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def importNox()#1
+
+  ^$c051
+  ^$c054
+  textHome
+
+  // Check for a nox game file outside the "NA" subdir
+  if !findNox
+    // Check for game file within the "NA" subdir
+    if callProRWTS(RWTS_READ | RWTS_OPENDIR, "NA", LOAD_SAVE_BUF, 512) == 0
+      if !findNox
+        ^$c050
+        return FALSE
+      fin
+    else
+      ^$c050
+      return FALSE
+    fin
+  fin
+
+  puts("Got nox data!\n")
+  rdkey
+  ^$c050
+  return TRUE
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -175,7 +193,7 @@ def importLL()#1
   while True
     textHome()
     ^$25 = 19
-    printf1("\nGame found with this main character:\n  ==>  %s  <==\n", global=>p_players=>s_name)
+    printf1("\nGame imported with this main character:\n  ==>  %s  <==\n", global=>p_players=>s_name)
     puts("Re-insert disk 1 and press a key,\nor hit [Esc] to cancel import.")
     if rdkey == $9B // esc
       mmgr(FREE_MEMORY, p_marks)
@@ -217,19 +235,19 @@ def _getGame(_pDiskOps)#1
   while TRUE
     textHome
     ^$25 = 19
-    puts("\nInsert disk for import (in same drive),\nthen press a key, or [Esc] to cancel.\n")
+    puts("\nInsert disk for import (in same drive),\nthen press a key, or [Esc] to cancel.")
     if rdkey == $9B // esc
       while TRUE
         if reinserted; break; fin
-        puts("Re-insert disk 1 and press a key.")
+        textHome
+        ^$25 = 19
+        puts("\nRe-insert disk 1 and press a key.")
         rdkey
       loop
       ^$c052 // no text
       return FALSE
     fin
-    //puts("Trying nox.\n")
-    //if importNox; break; fin
-    //puts("Trying LL\n")
+    if importNox; break; fin
     if importLL; break; fin
   loop
   ^$c052 // no text

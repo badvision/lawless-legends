@@ -25,6 +25,8 @@ byte[] legendos_filename = "LEGENDOS.SYSTEM"
 word origChksum_0, origChksum_1
 word curChksum_0,  curChksum_1
 
+word noxName
+
 byte[] S_NOX_FILENAME = "DATA.SAVE.GAME1"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -223,8 +225,16 @@ def printNox()#0
     len++
   loop
   ^$200 = len
-  printf1("name=%s\n", $200)
+  noxName=mmgr(HEAP_INTERN, $200)
+  printf1("name=%s\n", noxName)
   rdkey
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def noxMod()#1
+  displayStr("Noxmod")
+  rdkey
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -250,6 +260,23 @@ def importNox()#1
 
   printNox
   ^$c050
+
+  // Make sure the user wants to import this game
+  while True
+    textHome()
+    ^$25 = 19
+    printf1("\nNox Archaist character imported:\n  ==>  %s  <==\n", noxName)
+    puts("Re-insert disk 1 and press a key,\nor hit [Esc] to cancel import.")
+    if rdkey == $9B // esc
+      // To cancel, we need the original disk back in the drive
+      if reinserted; return FALSE; fin
+    else
+      if reinserted(); break; fin
+    fin
+  loop
+
+  ^$c052 // all graphics now
+  pDiskOps=>diskops_newGame(@noxMod)
   return TRUE
 end
 

@@ -15,4 +15,5 @@ const diskops_newOrLoadGame = 4
 const diskops_pressAnyKey = 6
 const diskops_gameExists = 8
 const diskops_loadInternal = 10
+const diskops_newGame = 12
 //AUTOMAP_CHECK// const diskops_checkAutomap = 8

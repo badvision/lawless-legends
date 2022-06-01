@@ -37,8 +37,9 @@ predef newOrLoadGame(ask)#1
 predef pressAnyKey()#1
 predef gameExists()#1
 predef loadInternal()#1
+predef newGame(pImportFunc)#1
 //AUTOMAP_CHECK// predef checkAutomap()#1
-word[] funcTbl = @startup, @loadGame, @newOrLoadGame, @pressAnyKey, @gameExists, @loadInternal
+word[] funcTbl = @startup, @loadGame, @newOrLoadGame, @pressAnyKey, @gameExists, @loadInternal, @newGame
 //AUTOMAP_CHECK// word           = @_checkAutomap
 
 word pImportModule
@@ -561,10 +562,9 @@ def clearDiskMarks()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def newGame()#0
+def newGame(pImportFunc)#1
   word playersModule, newGameModule, partyModule
   clearDiskMarks()
-  initHeap(0) // initially empty heap
   global->b_curAvatar = BASE_AVATAR
   global=>w_combatPauseCt = DEFAULT_COMBAT_PAUSE_CT
   global->b_hour = 12  // start at high noon
@@ -583,12 +583,17 @@ def newGame()#0
   setWindow2()
   newGameModule()()
   clearWindow()
-  getCharacterName()
-  getCharacterGender()
+  if pImportFunc
+    pImportFunc()
+  else
+    getCharacterName()
+    getCharacterGender()
+  fin
   if global=>p_players->b_skillPoints
     partyModule()=>party_showPlayerSheet(0)
   fin
   heapCollect()
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -669,6 +674,9 @@ def newOrLoadGame(ask)#1
   ^$23 = 24 // Full text window until we're done
   displayMenu(existing)
 
+  // Import functions need a working heap, initially empty
+  initHeap(0)
+
   ret = -1
   while ret < 0
 
@@ -678,7 +686,7 @@ def newOrLoadGame(ask)#1
       is 'N'
         clearWindow
         rawDisplayStr("\n^YStarting new game...^N")
-        newGame()
+        newGame(NULL)
         ret = 1
         break
       is 'L'

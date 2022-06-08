@@ -13,6 +13,8 @@ include "globalDefs.plh"
 include "playtype.plh"
 include "diskops.plh"
 
+const NOX_LEN = $80  // max size of the data block we care about
+
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the the header.
 predef _getGame(pDiskOps)#1
@@ -25,7 +27,7 @@ byte[] legendos_filename = "LEGENDOS.SYSTEM"
 word origChksum_0, origChksum_1
 word curChksum_0,  curChksum_1
 
-word noxName
+word noxData
 
 byte[] S_NOX_FILENAME = "DATA.SAVE.GAME1"
 
@@ -130,29 +132,34 @@ def reinserted()#1
   return FALSE
 end
 
-//  // See if there's a Nox game in drive 2.
-//  ^LOAD_SAVE_BUF = $AA
-//  if callProRWTS(RWTS_READ | RWTS_OPENDIR, "NA", LOAD_SAVE_BUF, 512) == 0
-//    printf1("First open succeeded: $%x\n", ^LOAD_SAVE_BUF)
-//    rdkey()
-//    ^LOAD_SAVE_BUF = $BB
-//    if callProRWTS(RWTS_SEEK | RWTS_READDIR, "DATA.SAVE.GAME1", NULL, $C00) == 0
-//      printf1("Seek succeeded: $%x\n", ^LOAD_SAVE_BUF)
-//      rdkey()
-//      ^LOAD_SAVE_BUF = $CC
-//      if callProRWTS(RWTS_READ | RWTS_RDWRPART, NULL, LOAD_SAVE_BUF, $200) == 0
-//        printf1("Read succeeded: $%x\n", ^LOAD_SAVE_BUF)
-//      else
-//        puts("Read failed\n")
-//      fin
-//    else
-//      puts("Seek failed\n")
-//    fin
-//  else
-//    puts("First open failed\n")
-//  fin
-//  rdkey
-//  return FALSE
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Nox fields
+// 
+// $0     - health status - ask Mark what this means
+// $1     - level
+// $2-3   - HP lo/hi
+// $10    - str
+// $11    - dex
+// $12    - int
+// $13    - gender - 0=male, 1=female, 2=other
+// $19    - skill score - melee
+// $1C    - skill score - ranged
+// $1F    - skill score - dodge-parry
+// $22    - skill score - critical hit
+// $25    - skill score - lockpick
+// $28    - skill score - pilfer
+// $2B    - training - melee
+// $2C    - training - ranged
+// $2D    - training - dodge-parry
+// $2E    - training - critical hit
+// $2F    - training - lockpick
+// $30    - training - pilfer
+// $47    - attrib upgrade points
+// $48-49 - hp max lo/hi
+// $4B-59 - character name (hi-bit ASCII, zero terminated)
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def findNox(readOrOpen)#1
@@ -160,7 +167,7 @@ def findNox(readOrOpen)#1
   ^LOAD_SAVE_BUF = $AA
   if callProRWTS(RWTS_SEEK | readOrOpen, @S_NOX_FILENAME, NULL, $C00) == 0
     ^LOAD_SAVE_BUF = $AA
-    if callProRWTS(RWTS_READ | RWTS_RDWRPART, NULL, LOAD_SAVE_BUF, $200) == 0
+    if callProRWTS(RWTS_READ | RWTS_RDWRPART, NULL, LOAD_SAVE_BUF, NOX_LEN) == 0
       // Check for valid name
       len = 0
       while ^(LOAD_SAVE_BUF+$4B+len) >= $A0
@@ -175,46 +182,13 @@ def findNox(readOrOpen)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-def printNox()#0
+def parseNoxName()#1
   word len, c, prev
-
-  // Nox fields
-  // 
-  // $0     - health status - ask Mark what this means
-  // $1     - level
-  // $2-3   - HP lo/hi
-  // $10    - str
-  // $11    - dex
-  // $12    - int
-  // $13    - gender - 0=male, 1=female, 2=other
-  // $19    - skill score - melee
-  // $1C    - skill score - ranged
-  // $1F    - skill score - dodge-parry
-  // $22    - skill score - critical hit
-  // $25    - skill score - lockpick
-  // $28    - skill score - pilfer
-  // $2B    - training - melee
-  // $2C    - training - ranged
-  // $2D    - training - dodge-parry
-  // $2E    - training - critical hit
-  // $2F    - training - lockpick
-  // $30    - training - pilfer
-  // $47    - attrib upgrade points
-  // $48-49 - hp max lo/hi
-  // $4B-59 - character name
-
-  textHome
-  printf1("level=%d\n", ^(LOAD_SAVE_BUF+1))
-  printf1("strength=%d\n", ^(LOAD_SAVE_BUF+$10))
-  printf1("dexterity=%d\n", ^(LOAD_SAVE_BUF+$11))
-  printf1("intelligence=%d\n", ^(LOAD_SAVE_BUF+$12))
-  printf1("gender=%d\n", ^(LOAD_SAVE_BUF+$13))
-  printf1("hp-max=%d\n", *(LOAD_SAVE_BUF+$48))
 
   len = 0
   prev = 0
   while TRUE
-    c = ^(LOAD_SAVE_BUF + $4B + len)
+    c = ^(noxData + $4B + len)
     if c == 0; break; fin
     if c < $A0; break; fin
     c = c & $7F
@@ -225,15 +199,27 @@ def printNox()#0
     len++
   loop
   ^$200 = len
-  noxName=mmgr(HEAP_INTERN, $200)
-  printf1("name=%s\n", noxName)
+  return mmgr(HEAP_INTERN, $200)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+def printNox()#0
+  word len, c, prev
+
+  textHome
+  printf1("level=%d\n", ^(noxData+1))
+  printf1("strength=%d\n", ^(noxData+$10))
+  printf1("dexterity=%d\n", ^(noxData+$11))
+  printf1("intelligence=%d\n", ^(noxData+$12))
+  printf1("gender=%d\n", ^(noxData+$13))
+  printf1("hp-max=%d\n", *(noxData+$48))
+  printf1("name=%s\n", parseNoxName())
   rdkey
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def noxMod()#1
-  displayStr("Noxmod")
-  rdkey
+  global=>p_players=>s_name = parseNoxName()
   return 0
 end
 
@@ -258,25 +244,34 @@ def importNox()#1
     fin
   fin
 
-  printNox
+  // Save aside the Nox data for use when creating the character
+  noxData = mmgr(REQUEST_MEMORY, NOX_LEN)
+  memcpy(LOAD_SAVE_BUF, noxData, NOX_LEN, 0)
   ^$c050
 
   // Make sure the user wants to import this game
   while True
     textHome()
     ^$25 = 19
-    printf1("\nNox Archaist character imported:\n  ==>  %s  <==\n", noxName)
+    printf1("\nNox Archaist character imported:\n  ==>  %s  <==\n", parseNoxName())
     puts("Re-insert disk 1 and press a key,\nor hit [Esc] to cancel import.")
     if rdkey == $9B // esc
       // To cancel, we need the original disk back in the drive
-      if reinserted; return FALSE; fin
+      if reinserted
+        mmgr(FREE_MEMORY, noxData)
+        return FALSE
+      fin
     else
       if reinserted(); break; fin
     fin
   loop
 
-  ^$c052 // all graphics now
+  ^$c052 // all graphics from here on...
+
+  // Create a new game, and hook in just after the character is created but before
+  // they are displayed.
   pDiskOps=>diskops_newGame(@noxMod)
+  mmgr(FREE_MEMORY, noxData)
   return TRUE
 end
 

@@ -12,6 +12,7 @@ include "gamelib.plh"
 include "globalDefs.plh"
 include "playtype.plh"
 include "diskops.plh"
+include "gen_modules.plh"
 
 const NOX_LEN = $80  // max size of the data block we care about
 
@@ -218,8 +219,75 @@ def printNox()#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Stats should be converted like nox 8-20 = 5 LL / 21-60 = 6 / 61+ =7
+def calcAttrBonus(noxOffset)#1
+  word val
+  val = ^(noxData+noxOffset)
+  if val <= 20
+    return 1
+  elsif val <= 60
+    return 2
+  fin
+  return 3
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Levels : 1-2= 2 /3-5 =3/5-8=4/9+=5
+def calcLevelBonus(noxOffset)#1
+  word val
+  val = ^(noxData+noxOffset)
+  if val <= 2
+    return 1
+  elsif val <= 5
+    return 2
+  elsif val <= 8
+    return 3
+  fin
+  return 4
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def noxMod()#1
-  global=>p_players=>s_name = parseNoxName()
+  word pl
+  byte intBonus, strBonus, dexBonus, lvlBonus, skpBonus, i
+  word hpBonus, healthBefore
+
+  pl = global=>p_players
+  pl=>s_name = parseNoxName()
+  
+  displayf1("Nox import bonuses:\n\n", pl=>s_name)
+  lvlBonus = calcLevelBonus(1)
+  intBonus = calcAttrBonus($12)
+  strBonus = calcAttrBonus($10)
+  dexBonus = calcAttrBonus($11)
+  skpBonus = 0
+  for i = 1 to lvlBonus
+    skpBonus = skpBonus + callGlobalFunc(GS_LEVEL_S_P, i+1, 0, 0)
+  next
+  hpBonus = lvlBonus * 12
+
+  displayf1("+%d Level\n", lvlBonus)
+  displayf1("+%d Intelligence\n", intBonus)
+  displayf1("+%d Strength\n", strBonus)
+  displayf1("+%d Agility\n", dexBonus)
+  displayf1("+%d Stamina\n", lvlBonus)
+  displayf1("+%d Skill points\n", skpBonus)
+  displayf1("+%d Health\n", lvlBonus*12)
+
+  displayStr("\nApply these bonuses?")
+  if getYN
+    healthBefore = pl=>w_maxHealth
+    for i = 1 to lvlBonus
+      pl->b_stamina++
+      setStat(pl, @S_XP, pl=>w_nextXP)
+    next
+    pl->b_strength = pl->b_strength + strBonus
+    pl->b_intelligence = pl->b_intelligence + intBonus
+    pl->b_agility = pl->b_agility + dexBonus
+    pl=>w_maxHealth = healthBefore + hpBonus
+    pl=>w_health = pl=>w_maxHealth
+  fin
+
   return 0
 end
 
@@ -325,6 +393,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load and display the title screen, set up everything in memory
 def _getGame(_pDiskOps)#1
+  byte ret
   pDiskOps = _pDiskOps
 
   // May want to use graphic font someday, but mixed-text mode for now
@@ -348,13 +417,13 @@ def _getGame(_pDiskOps)#1
         rdkey
       loop
       ^$c052 // no text
-      return FALSE
+      return 0
     fin
-    if importNox; break; fin
-    if importLL; break; fin
+    if importNox; ret = 2; break; fin  // like a New game
+    if importLL; ret = 1; break; fin   // like a Load game
   loop
   ^$c052 // no text
-  return TRUE
+  return ret
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

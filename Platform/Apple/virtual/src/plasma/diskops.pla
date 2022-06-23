@@ -700,10 +700,13 @@ def newOrLoadGame(ask)#1
         break
       is 'I'
         clearWindow
-        if pImportModule()=>import_getGame(@funcTbl)
-          ret = 0
-        else
+        ret = pImportModule()=>import_getGame(@funcTbl)
+        if ret == 0
           displayMenu(existing)
+        elsif ret == 1
+          ret = 0  // imported LL, which is like Loading a game
+        else
+          ret = 1  // imported Nox, which is like a New game
         fin
         break
       is 'R'

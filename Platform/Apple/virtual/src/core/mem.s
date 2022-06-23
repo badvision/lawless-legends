@@ -2024,7 +2024,7 @@ openPartition: !zone
 	ora floppyDrive		; $80 for drive 2
 	sta tmp
 	clc
-!if DEBUG { jsr dbgrwts } else { jsr callProRWTS }
+!if DEBUG >= 2 { jsr dbgrwts } else { jsr callProRWTS }
 ;	jsr callProRWTS		; opendir
 	bne .flip		; status: zero=ok, 1=err
 	sta curMarkPos+1	; by opening we did an implicit seek to zero
@@ -2187,7 +2187,7 @@ disk_queueLoad: !zone
 readAndAdj:
 	sta tmp			; store cmd num
 	sec			; calling rdwrpart (not opendir)
-!if DEBUG { jsr dbgrwts } else { jsr callProRWTS }
+!if DEBUG >= 2 { jsr dbgrwts } else { jsr callProRWTS }
 ;	jsr callProRWTS		; and seek or read on the underlying file
 	; Advance our record of the mark position by the specified # of bytes.
 	; reqLen is still intact, because ProRWTS changes its copy in aux zp only
@@ -2202,7 +2202,7 @@ readAndAdj:
 	inc curMarkPos+2
 +	rts
 
-!if DEBUG {
+!if DEBUG >= 2 {
 dbgrwts:
 	+prStr : !text $8d," rwts c/a=",0
 	bcs +
@@ -2298,7 +2298,7 @@ disk_finishLoad: !zone
 	beq +			; not aux, skip
 	inc isAuxCmd		; set aux flag
 +	sty .ysave		; Save Y so we can resume scanning later.
-	!if DEBUG >= 1 { jsr .debug1 }
+	!if DEBUG >= 2 { jsr .debug1 }
 	jsr disk_seek		; move the file pointer to the current block
 	ldy .ysave
 	lda (pTmp),y		; grab resource length on disk
@@ -2321,7 +2321,7 @@ disk_finishLoad: !zone
 	ldy tSegAdrHi,x		; hi byte too
 	sta pDst		; and save it for later
 	sty pDst+1
-	!if DEBUG >= 1 { jsr .debug2 }
+	!if DEBUG >= 2 { jsr .debug2 }
 	plp			; retrieve isCompressed flag
 	bmi .readAndDecomp	; if so, go do read/decompress thing
 	lda #cmdread		; else, just read.
@@ -2384,7 +2384,7 @@ disk_finishLoad: !zone
 	; Now read the raw (compressed) data
 	lda #cmdread
 	jsr readAndAdj
-	!if DEBUG >= 1 { jsr .debug3 }
+	!if DEBUG >= 2 { jsr .debug3 }
 	; Stuff was read to into pDst. Now that becomes the source. Decompressor is set up
 	; to decompress *from* our pDst to our pSrc. Its labels are swapped.
 	ldx isAuxCmd
@@ -2405,7 +2405,7 @@ disk_finishLoad: !zone
 .ysave:		!byte 0
 .nFixups:	!byte 0
 
-!if DEBUG >= 1 {
+!if DEBUG >= 2 {
 .debug1:+prStr : !text "Ld t=",0
 	pha
 	lda resType

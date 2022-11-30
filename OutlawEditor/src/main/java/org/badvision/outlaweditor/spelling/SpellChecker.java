@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -73,7 +74,7 @@ public class SpellChecker {
     }
 
     private Set<Suggestion> getSuggestions(String word) {
-        TreeSet<Suggestion> suggestions = new TreeSet<>();
+        Set<Suggestion> suggestions = Collections.synchronizedSet(new TreeSet<>());
         if (word == null || word.isEmpty()) {
             return suggestions;
         }

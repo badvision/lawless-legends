@@ -111,6 +111,7 @@ public class MythosScriptEditorController
                             mythos = (JSObject) editorView.getEngine().executeScript("Mythos");
                             mythos.setMember("editor", editor);
                             editorView.getEngine().executeScript(loadScript);
+                            editorView.getEngine().executeScript("window.dispatchEvent(new Event('resize'));");
                         }
                     });
 

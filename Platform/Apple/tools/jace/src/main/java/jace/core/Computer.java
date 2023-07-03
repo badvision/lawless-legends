@@ -18,21 +18,22 @@
  */
 package jace.core;
 
-import jace.config.ConfigurableField;
-import jace.config.InvokableAction;
-import jace.config.Reconfigurable;
-import jace.lawless.FPSMonitorDevice;
-import jace.state.StateManager;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.value.ChangeListener;
-
 import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import jace.LawlessLegends;
+import jace.apple2e.SoftSwitches;
+import jace.config.ConfigurableField;
+import jace.config.InvokableAction;
+import jace.config.Reconfigurable;
+import jace.state.StateManager;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.value.ChangeListener;
 
 /**
  * This is a very generic stub of a Computer and provides a generic set of
@@ -44,9 +45,9 @@ import java.util.logging.Logger;
  */
 public abstract class Computer implements Reconfigurable {
 
-    public RAM memory;
+    private RAM memory;
     public CPU cpu;
-    public Video video;
+    private Video video;
     public Keyboard keyboard;
     public StateManager stateManager;
     public Motherboard motherboard;
@@ -100,12 +101,20 @@ public abstract class Computer implements Reconfigurable {
 
     public void setMemory(RAM memory) {
         if (this.memory != memory) {
+            // for (SoftSwitches s : SoftSwitches.values()) {
+            //     s.getSwitch().unregister();
+            // }            
             if (this.memory != null) {
                 this.memory.detach();
             }
-            memory.attach();
+            this.memory = memory;
+            if (memory != null) {
+                memory.attach();
+                for (SoftSwitches s : SoftSwitches.values()) {
+                    s.getSwitch().register();
+                }
+            }
         }
-        this.memory = memory;
     }
 
     public void waitForNextCycle() {
@@ -118,6 +127,9 @@ public abstract class Computer implements Reconfigurable {
 
     public void setVideo(Video video) {
         this.video = video;
+        if (LawlessLegends.getApplication() != null) {
+            LawlessLegends.getApplication().controller.connectVideo(video);
+        }
     }
 
     public CPU getCpu() {
@@ -159,6 +171,7 @@ public abstract class Computer implements Reconfigurable {
             Thread delayedStart = new Thread(() -> {
                 try {
                     romLoaded.get();
+                    memory.resetState();            
                     coldStart();
                 } catch (InterruptedException | ExecutionException ex) {
                     Logger.getLogger(Computer.class.getName()).log(Level.SEVERE, null, ex);
@@ -166,6 +179,7 @@ public abstract class Computer implements Reconfigurable {
             });
             delayedStart.start();
         } else {
+            memory.resetState();            
             coldStart();
         }
     }

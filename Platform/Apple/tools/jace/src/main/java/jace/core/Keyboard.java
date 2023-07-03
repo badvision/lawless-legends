@@ -18,15 +18,7 @@
  */
 package jace.core;
 
-import jace.Emulator;
-import jace.apple2e.SoftSwitches;
-import jace.config.InvokableAction;
-import jace.config.Reconfigurable;
-import javafx.event.EventHandler;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
-
-import java.awt.*;
+import java.awt.Toolkit;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.UnsupportedFlavorException;
@@ -41,6 +33,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import jace.Emulator;
+import jace.apple2e.SoftSwitches;
+import jace.config.InvokableAction;
+import jace.config.Reconfigurable;
+import javafx.event.EventHandler;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 
 /**
  * Keyboard manages all keyboard-related activities. For now, all hotkeys are
@@ -104,7 +104,7 @@ public class Keyboard implements Reconfigurable {
         registerKeyHandler(new KeyHandler(code) {
             @Override
             public boolean handleKeyUp(KeyEvent e) {
-                Emulator.getComputer().getKeyboard().shiftPressed = e.isShiftDown();
+                Emulator.withComputer(c -> c.getKeyboard().shiftPressed = e.isShiftDown());
                 if (action == null || !action.notifyOnRelease()) {
                     return false;
                 }
@@ -128,7 +128,7 @@ public class Keyboard implements Reconfigurable {
             @Override
             public boolean handleKeyDown(KeyEvent e) {
 //                System.out.println("Key down: "+method.toString());
-                Emulator.getComputer().getKeyboard().shiftPressed = e.isShiftDown();
+                Emulator.withComputer(c -> c.getKeyboard().shiftPressed = e.isShiftDown());
                 Object returnValue = null;
                 try {
                     if (method.getParameterCount() > 0) {
@@ -251,7 +251,7 @@ public class Keyboard implements Reconfigurable {
             default:
         }
 
-        Emulator.getComputer().getKeyboard().shiftPressed = e.isShiftDown();
+        Emulator.withComputer(compter -> computer.getKeyboard().shiftPressed = e.isShiftDown());
         if (e.isShiftDown()) {
             c = fixShiftedChar(c);
         }
@@ -311,20 +311,20 @@ public class Keyboard implements Reconfigurable {
 
     @InvokableAction(name = "Open Apple Key", alternatives = "OA", category = "Keyboard", notifyOnRelease = true, defaultKeyMapping = "Alt", consumeKeyEvent = false)
     public void openApple(boolean pressed) {
-        boolean isRunning = computer.pause();
+        // boolean isRunning = computer.pause();
         SoftSwitches.PB0.getSwitch().setState(pressed);
-        if (isRunning) {
-            computer.resume();
-        }
+        // if (isRunning) {
+        //     computer.resume();
+        // }
     }
 
     @InvokableAction(name = "Closed Apple Key", alternatives = "CA", category = "Keyboard", notifyOnRelease = true, defaultKeyMapping = {"Shortcut","Meta","Command"}, consumeKeyEvent = false)
     public void solidApple(boolean pressed) {
-        boolean isRunning = computer.pause();
+        // boolean isRunning = computer.pause();
         SoftSwitches.PB1.getSwitch().setState(pressed);
-        if (isRunning) {
-            computer.resume();
-        }
+        // if (isRunning) {
+        //     computer.resume();
+        // }
     }
 
     public static void pasteFromString(String text) {

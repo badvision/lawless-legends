@@ -68,7 +68,7 @@ public class CardRamFactor extends Card {
         super(computer);
         indicator = Utility.loadIconLabel("ram.png");
         try {
-            loadRom("jace/data/RAMFactor14.rom");
+            loadRom("/jace/data/RAMFactor14.rom");
         } catch (IOException ex) {
             Logger.getLogger(CardRamFactor.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -215,7 +215,7 @@ public class CardRamFactor extends Card {
     final int cxRomLength = 0x02000;
     byte[] romData = new byte[cxRomLength];
     public void loadRom(String path) throws IOException {
-        InputStream romFile = CardRamFactor.class.getClassLoader().getResourceAsStream(path);
+        InputStream romFile = CardRamFactor.class.getResourceAsStream(path);
         try {
             if (romFile.read(romData) != cxRomLength) {
                 throw new IOException("Bad RamFactor rom size");

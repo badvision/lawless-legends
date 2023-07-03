@@ -19,7 +19,6 @@
 package jace.hardware.mockingboard;
 
 import jace.core.Computer;
-import jace.core.Device;
 import jace.core.TimedDevice;
 
 /**
@@ -151,43 +150,39 @@ public abstract class R6522 extends TimedDevice {
     @Override
     public void tick() {
         if (!unclocked) {
-            doTick();
+            if (timer1running) {
+                timer1counter--;
+                if (timer1counter < 0) {
+                    timer1counter = timer1latch;
+                    if (!timer1freerun) {
+                        timer1running = false;
+                    }
+                    if (timer1interruptEnabled) {
+    //                    System.out.println("Timer 1 generated interrupt");
+                        timer1IRQ = true;
+                        computer.getCpu().generateInterrupt();
+                    }
+                }
+            }
+            if (timer2running) {
+                timer2counter--;
+                if (timer2counter < 0) {
+                    timer2running = false;
+                    timer2counter = timer2latch;
+                    if (timer2interruptEnabled) {
+                        timer2IRQ = true;
+                        computer.getCpu().generateInterrupt();
+                    }
+                }
+            }
+            if (!timer1running && !timer2running) {
+                setRun(false);
+            }
         }
     }
     
     public void setUnclocked(boolean unclocked) {
         this.unclocked = unclocked;
-    }
-    
-    public void doTick() {
-        if (timer1running) {
-            timer1counter--;
-            if (timer1counter < 0) {
-                timer1counter = timer1latch;
-                if (!timer1freerun) {
-                    timer1running = false;
-                }
-                if (timer1interruptEnabled) {
-//                    System.out.println("Timer 1 generated interrupt");
-                    timer1IRQ = true;
-                    computer.getCpu().generateInterrupt();
-                }
-            }
-        }
-        if (timer2running) {
-            timer2counter--;
-            if (timer2counter < 0) {
-                timer2running = false;
-                timer2counter = timer2latch;
-                if (timer2interruptEnabled) {
-                    timer2IRQ = true;
-                    computer.getCpu().generateInterrupt();
-                }
-            }
-        }
-        if (!timer1running && !timer2running) {
-            setRun(false);
-        }
     }
     
     @Override
@@ -294,47 +289,58 @@ public abstract class R6522 extends TimedDevice {
         Register r = Register.fromInt(reg);
 //        System.out.println("Reading register "+r.toString());
         switch (r) {
-            case ORB:
+            case ORB -> {
                 if (dataDirectionB == 0x0ff) {
                     break;
                 }
                 return receiveOutputB() & (dataDirectionB ^ 0x0ff);
-            case ORA:
-            case ORAH:
+            }
+            case ORA, ORAH -> {
                 if (dataDirectionA == 0x0ff) {
                     break;
                 }
                 return receiveOutputA() & (dataDirectionA ^ 0x0ff);
-            case DDRB:
+            }
+            case DDRB -> {
                 return dataDirectionB;
-            case DDRA:
+            }
+            case DDRA -> {
                 return dataDirectionA;
-            case T1CL:
+            }
+            case T1CL -> {
                 timer1IRQ = false;
                 return timer1counter & 0x0ff;
-            case T1CH:
+            }
+            case T1CH -> {
                 return (timer1counter & 0x0ff00) >> 8;
-            case T1LL:
+            }
+            case T1LL -> {
                 return timer1latch & 0x0ff;
-            case T1LH:
+            }
+            case T1LH -> {
                 return (timer1latch & 0x0ff00) >> 8;
-            case T2CL:
+            }
+            case T2CL -> {
                 timer2IRQ = false;
                 return timer2counter & 0x0ff;
-            case T2CH:
+            }
+            case T2CH -> {
                 return (timer2counter & 0x0ff00) >> 8;
-            case SR:
+            }
+            case SR -> {
                 // SHIFT REGISTER NOT IMPLEMENTED
                 return 0;
-            case ACR:
+            }
+            case ACR -> {
                 // SHIFT REGISTER NOT IMPLEMENTED
                 if (timer1freerun) {
                     return 64;
                 }
                 return 0;
-            case PCR:
-                break;
-            case IFR:
+            }
+            case PCR -> {
+            }
+            case IFR -> {
                 int val = 0;
                 if (timer1IRQ) {
                     val |= 64;
@@ -346,8 +352,9 @@ public abstract class R6522 extends TimedDevice {
                     val |= 128;
                 }
                 return val;
-            case IER:
-                val = 128;
+            }
+            case IER -> {
+                int val = 128;
                 if (timer1interruptEnabled) {
                     val |= 64;
                 }
@@ -355,6 +362,7 @@ public abstract class R6522 extends TimedDevice {
                     val |= 32;
                 }
                 return val;
+            }
         }
         return 0;
     }

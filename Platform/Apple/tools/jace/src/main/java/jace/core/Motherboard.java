@@ -18,11 +18,11 @@
  */
 package jace.core;
 
+import java.util.HashSet;
+
 import jace.apple2e.SoftSwitches;
 import jace.apple2e.Speaker;
 import jace.config.ConfigurableField;
-
-import java.util.HashSet;
 
 /**
  * Motherboard is the heart of the computer. It can have a list of cards
@@ -75,15 +75,18 @@ public class Motherboard extends TimedDevice {
     public String getShortName() {
         return "mb";
     }
-    @ConfigurableField(category = "advanced", shortName = "cpuPerClock", name = "CPU per clock", defaultValue = "1", description = "Number of CPU cycles per clock cycle (normal = 1)")
-    public static int cpuPerClock = 1;
+    @ConfigurableField(category = "advanced", shortName = "cpuPerClock", name = "CPU per clock", defaultValue = "1", description = "Number of extra CPU cycles per clock cycle (normal = 1)")
+    public static int cpuPerClock = 0;
     public int clockCounter = 1;
 
     @Override
     public void tick() {
         // Extra CPU cycles requested, other devices are called by the TimedDevice abstraction
         for (int i=1; i < cpuPerClock; i++) {
-            computer.getCpu().doTick();            
+            computer.getCpu().doTick();
+            if (Speaker.force1mhz) {
+                speaker.tick();
+            }
         }
         /*
         try {
@@ -106,12 +109,12 @@ public class Motherboard extends TimedDevice {
     }
     // From the holy word of Sather 3:5 (Table 3.1) :-)
     // This average speed averages in the "long" cycles
-    public static long SPEED = 1020484L; // (NTSC)
+    public static final long DEFAULT_SPEED = 1020484L; // (NTSC)
     //public static long SPEED = 1015625L; // (PAL)
 
     @Override
     public long defaultCyclesPerSecond() {
-        return SPEED;
+        return DEFAULT_SPEED;
     }
 
     @Override
@@ -126,13 +129,10 @@ public class Motherboard extends TimedDevice {
                 try {
                     if (speaker == null) {
                         speaker = new Speaker(computer);
-                        if (computer.mixer.lineAvailable) {
-                            speaker.attach();
-                        } else {
-                            System.out.print("No lines available!  Speaker not running.");
-                        }
+                        speaker.attach();
                     }
                     speaker.reconfigure();
+                    addChildDevice(speaker);
                 } catch (Throwable t) {
                     System.out.println("Unable to initalize sound -- deactivating speaker out");
                 }
@@ -157,12 +157,14 @@ public class Motherboard extends TimedDevice {
     }
     
     void adjustRelativeSpeeds() {
-        if (isMaxSpeed()) {
-            computer.getVideo().setWaitPerCycle(8);
-        } else if (getSpeedInHz() > SPEED) {
-            computer.getVideo().setWaitPerCycle(getSpeedInHz()/SPEED);
-        } else {
-            computer.getVideo().setWaitPerCycle(0);            
-        }        
+        if (computer.getVideo() != null) {
+            if (isMaxSpeed()) {
+                computer.getVideo().setWaitPerCycle(8);
+            } else if (getSpeedInHz() > DEFAULT_SPEED) {
+                computer.getVideo().setWaitPerCycle(getSpeedInHz() / DEFAULT_SPEED);
+            } else {
+                computer.getVideo().setWaitPerCycle(0);            
+            }
+        }
     }
 }

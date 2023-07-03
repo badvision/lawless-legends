@@ -18,26 +18,16 @@
  */
 package jace.core;
 
-import jace.config.ConfigurableField;
-import jace.config.DynamicSelection;
-import jace.config.Reconfigurable;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.regex.Pattern;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.DataLine;
-import javax.sound.sampled.Line;
 import javax.sound.sampled.LineUnavailableException;
-import javax.sound.sampled.Mixer;
-import javax.sound.sampled.Mixer.Info;
 import javax.sound.sampled.SourceDataLine;
+
+import jace.config.ConfigurableField;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.sound.sampled.FloatControl;
 
 /**
  * Manages sound resources used by various audio devices (such as speaker and
@@ -50,8 +40,6 @@ import javax.sound.sampled.SourceDataLine;
  */
 public class SoundMixer extends Device {
 
-    private final Set<SourceDataLine> availableLines = Collections.synchronizedSet(new HashSet<>());
-    private final Map<Object, SourceDataLine> activeLines = Collections.synchronizedMap(new HashMap<>());
     /**
      * Bits per sample
      */
@@ -65,36 +53,35 @@ public class SoundMixer extends Device {
     @ConfigurableField(name = "Mute", shortName = "mute")
     public static boolean MUTE = false;
     
-    /**
-     * Sound format used for playback
-     */
-    private AudioFormat af;
-    /**
-     * Is sound line available for playback at all?
-     */
-    public boolean lineAvailable;
-    @ConfigurableField(name = "Audio device", description = "Audio output device")
-    public static DynamicSelection<String> preferredMixer = new DynamicSelection<String>(null) {
-        @Override
-        public boolean allowNull() {
-            return false;
-        }
-
-        @Override
-        public LinkedHashMap<? extends String, String> getSelections() {
-            Info[] mixerInfo = AudioSystem.getMixerInfo();
-            LinkedHashMap<String, String> out = new LinkedHashMap<>();
-            for (Info i : mixerInfo) {
-                out.put(i.getName(), i.getName());
-            }
-            return out;
-        }
-    };
-    private Mixer theMixer;
-
     public SoundMixer(Computer computer) {
         super(computer);
     }
+
+    /**
+     * Get a javafx media sourcedataline for stereo 44.1KHz 16-bit signed PCM data.
+     * Confirm the line is open before using it.
+     * 
+     * @return 
+     */
+    public SourceDataLine getLine() {
+        if (MUTE) {
+            return null;
+        }
+        
+        SourceDataLine line = null;
+        try {
+            // WAV is a little endian format, so it makes sense to stick with that.
+            AudioFormat format = new AudioFormat(RATE, BITS, 2, true, false);
+            DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
+            line = (SourceDataLine) AudioSystem.getLine(info);
+            line.open(format);
+            line.start();
+//            Logger.getLogger(getClass().getName()).log(Level.INFO, "Obtained source data line: %s, buffer size %d".formatted(line.getFormat(), line.getBufferSize()));
+        } catch (LineUnavailableException e) {
+            Logger.getLogger(getClass().getName()).log(Level.SEVERE, "Error getting sound line: {0}", e.getMessage());
+        }
+        return line;
+    }    
 
     @Override
     public String getDeviceName() {
@@ -110,89 +97,7 @@ public class SoundMixer extends Device {
     public synchronized void reconfigure() {
         if (MUTE) {
             detach();
-        } else if (isConfigDifferent()) {
-            detach();
-            try {
-                initMixer();
-                if (lineAvailable) {
-                    initAudio();
-                } else {
-                    System.out.println("Sound not stared: Line not available");
-                }
-            } catch (LineUnavailableException ex) {
-                System.out.println("Unable to start sound");
-                Logger.getLogger(SoundMixer.class.getName()).log(Level.SEVERE, null, ex);
-            }
-            attach();
         }
-    }
-
-    private AudioFormat getAudioFormat() {
-        return new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, RATE, BITS, 2, BITS / 4, RATE, true);
-    }
-
-    /**
-     * Obtain sound playback line if available
-     *
-     * @throws javax.sound.sampled.LineUnavailableException If there is no line
-     * available
-     */
-    private void initAudio() throws LineUnavailableException {
-        af = getAudioFormat();
-        DataLine.Info dli = new DataLine.Info(SourceDataLine.class, af);
-        lineAvailable = AudioSystem.isLineSupported(dli);
-    }
-
-    public synchronized SourceDataLine getLine(Object requester) throws LineUnavailableException {
-        if (activeLines.containsKey(requester)) {
-            return activeLines.get(requester);
-        }
-        SourceDataLine sdl;
-        if (availableLines.isEmpty()) {
-            sdl = getNewLine();
-        } else {
-            sdl = availableLines.iterator().next();
-            availableLines.remove(sdl);
-        }
-        sdl.start();
-        activeLines.put(requester, sdl);
-        return sdl;
-    }
-
-    public void returnLine(Object requester) {
-        if (activeLines.containsKey(requester)) {
-            SourceDataLine sdl = activeLines.remove(requester);
-            if (sdl.isRunning()) {
-                sdl.flush();
-                sdl.stop();
-            }
-            availableLines.add(sdl);
-        }
-    }
-
-    private SourceDataLine getNewLine() throws LineUnavailableException {
-        SourceDataLine l = null;
-//        Line.Info[] info = theMixer.getSourceLineInfo();
-        DataLine.Info dli = new DataLine.Info(SourceDataLine.class, af);
-        System.out.println("Maximum output lines: " + theMixer.getMaxLines(dli));
-        System.out.println("Allocated output lines: " + theMixer.getSourceLines().length);
-        System.out.println("Getting source line from " + theMixer.getMixerInfo().toString() + ": " + af.toString());
-        try {
-            l = (SourceDataLine) theMixer.getLine(dli);
-        } catch (IllegalArgumentException e) {
-            lineAvailable = false;
-            throw new LineUnavailableException(e.getMessage());
-        } catch (LineUnavailableException e) {
-            lineAvailable = false;
-            throw e;
-        }
-        if (!(l instanceof SourceDataLine)) {
-            lineAvailable = false;
-            throw new LineUnavailableException("Line is not an output line!");
-        }
-        final SourceDataLine sdl = l;
-        sdl.open();
-        return sdl;
     }
 
     public byte randomByte() {
@@ -201,71 +106,5 @@ public class SoundMixer extends Device {
 
     @Override
     public void tick() {
-    }
-
-    @Override
-    public void attach() {
-    }
-
-    @Override
-    public void detach() {
-        availableLines.stream().forEach((line) -> {
-            line.flush();
-            line.stop();
-            line.close();
-        });        
-        Set requesters = new HashSet(activeLines.keySet());
-        availableLines.clear();
-        activeLines.clear();
-        requesters.stream().map((o) -> {
-            if (o instanceof Device) {
-                ((Device) o).detach();
-            }
-            return o;
-        }).filter((o) -> (o instanceof Card)).forEach((o) -> {
-            ((Reconfigurable) o).reconfigure();
-        });
-        super.detach();
-    }
-
-    private void initMixer() {
-        Info selected;
-        Info[] mixerInfo = AudioSystem.getMixerInfo();
-
-        if (mixerInfo == null || mixerInfo.length == 0) {
-            theMixer = null;
-            lineAvailable = false;
-            System.out.println("No sound mixer is available!");
-            return;
-        }
-
-        String mixer = preferredMixer.getValue();
-        selected = mixerInfo[0];
-        for (Info i : mixerInfo) {
-            if (i.getName().equalsIgnoreCase(mixer)) {
-                selected = i;
-                break;
-            }
-        }
-        theMixer = AudioSystem.getMixer(selected);
-//        for (Line l : theMixer.getSourceLines()) {
-//            l.close();
-//        }
-        lineAvailable = true;
-    }
-
-    String oldPreferredMixer = null;
-
-    private boolean isConfigDifferent() {
-        boolean changed = false;
-        AudioFormat newAf = getAudioFormat();
-        changed |= (af == null || !newAf.matches(af));
-        if (oldPreferredMixer == null) {
-            changed |= preferredMixer.getValue() != null;
-        } else {
-            changed |= !oldPreferredMixer.matches(Pattern.quote(preferredMixer.getValue()));
-        }
-        oldPreferredMixer = preferredMixer.getValue();
-        return changed;
     }
 }

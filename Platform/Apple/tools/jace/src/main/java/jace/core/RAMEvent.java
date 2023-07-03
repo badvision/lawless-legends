@@ -39,8 +39,8 @@ public class RAMEvent {
 
         READ(true),
         READ_DATA(true),
-        EXECUTE(true),
         READ_OPERAND(true),
+        EXECUTE(true),
         WRITE(false),
         ANY(false);
         boolean read;
@@ -98,6 +98,9 @@ public class RAMEvent {
     }
 
     public final void setType(TYPE type) {
+        if (type == TYPE.ANY) {
+            throw new RuntimeException("Event type=Any is reserved for listeners, not for triggering events!");
+        }
         this.type = type;
     }
 

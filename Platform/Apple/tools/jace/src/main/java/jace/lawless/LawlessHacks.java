@@ -1,13 +1,5 @@
 package jace.lawless;
 
-import jace.cheat.Cheats;
-import jace.core.Computer;
-import jace.core.RAMEvent;
-import jace.lawless.LawlessVideo.RenderEngine;
-import javafx.beans.property.DoubleProperty;
-import javafx.scene.media.Media;
-import javafx.scene.media.MediaPlayer;
-
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -21,6 +13,14 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import jace.cheat.Cheats;
+import jace.core.Computer;
+import jace.core.RAMEvent;
+import jace.lawless.LawlessVideo.RenderEngine;
+import javafx.beans.property.DoubleProperty;
+import javafx.scene.media.Media;
+import javafx.scene.media.MediaPlayer;
 import javafx.util.Duration;
 
 /**
@@ -94,6 +94,7 @@ public class LawlessHacks extends Cheats {
         boolean isMusic = soundNumber >= 0;
         int track = soundNumber & 0x03f;
         repeatSong = (soundNumber & 0x040) > 0;
+//        System.out.println("(invoked sound on "+getName()+")");
         if (track == 0) {
             if (isMusic) {
                 System.out.println("Stop music");
@@ -129,9 +130,9 @@ public class LawlessHacks extends Cheats {
 
     private Media getAudioTrack(int number) {
         String filename = getSongName(number);
-        String pathStr = "jace/data/sound/" + filename;
+        String pathStr = "/jace/data/sound/" + filename;
 //        System.out.println("looking in "+pathStr);
-        URL path = getClass().getClassLoader().getResource(pathStr);
+        URL path = getClass().getResource(pathStr);
         if (path == null) {
             return null;
         }
@@ -316,7 +317,7 @@ public class LawlessHacks extends Cheats {
     private final Set<Integer> autoResume = new HashSet<>();
     private final Map<Integer, Double> lastTime = new HashMap<>();
     private void readScores() {
-        InputStream data = getClass().getClassLoader().getResourceAsStream("jace/data/sound/scores.txt");
+        InputStream data = getClass().getResourceAsStream("/jace/data/sound/scores.txt");
         readScores(data);
     }
 

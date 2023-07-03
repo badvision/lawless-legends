@@ -1,15 +1,26 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package jace;
 
-import com.sun.glass.ui.Application;
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import jace.core.Card;
-import jace.core.Computer;
 import jace.core.Motherboard;
 import jace.core.Utility;
+import jace.core.Video;
 import jace.lawless.LawlessComputer;
 import jace.lawless.LawlessHacks;
 import jace.library.MediaCache;
@@ -39,20 +50,17 @@ import javafx.scene.input.DragEvent;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.TransferMode;
-import javafx.scene.layout.*;
+import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.CornerRadii;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
-
-import java.io.File;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URL;
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  *
@@ -90,8 +98,6 @@ public class JaceUIController {
     @FXML
     private ComboBox musicSelection;
 
-    Computer computer;
-
     private final BooleanProperty aspectRatioCorrectionEnabled = new SimpleBooleanProperty(false);
 
     @FXML
@@ -117,12 +123,14 @@ public class JaceUIController {
         rootPane.setBackground(new Background(new BackgroundFill(Color.BLACK, null, null)));
         rootPane.setOnMouseMoved(this::showMenuButton);
         rootPane.setOnMouseExited(this::hideControlOverlay);
+        rootPane.setOnMouseClicked((evt)->rootPane.requestFocus());
         menuButton.setOnMouseClicked(this::showControlOverlay);
         controlOverlay.setOnMouseClicked(this::hideControlOverlay);
         delayTimer.getKeyFrames().add(new KeyFrame(Duration.millis(3000), evt -> {
             hideControlOverlay(null);
             rootPane.requestFocus();
         }));
+        rootPane.requestFocus();
     }
 
     private void showMenuButton(MouseEvent evt) {
@@ -198,15 +206,24 @@ public class JaceUIController {
         }
     }
 
-    private void connectControls(Stage primaryStage) {
+    Stage primaryStage;
+
+    public void reconnectKeyboard() {
+        Emulator.withComputer(computer -> {
+            if (computer.getKeyboard() != null) {
+                EventHandler<KeyEvent> keyboardHandler = computer.getKeyboard().getListener();
+                primaryStage.setOnShowing(evt -> computer.getKeyboard().resetState());
+                rootPane.setOnKeyPressed(keyboardHandler);
+                rootPane.setOnKeyReleased(keyboardHandler);
+                rootPane.setFocusTraversable(true);
+            }
+        });
+    }
+
+    private void connectControls(Stage ps) {
+        primaryStage = ps;
+
         connectButtons(controlOverlay);
-        if (computer.getKeyboard() != null) {
-            EventHandler<KeyEvent> keyboardHandler = computer.getKeyboard().getListener();
-            primaryStage.setOnShowing(evt -> computer.getKeyboard().resetState());
-            rootPane.setOnKeyPressed(keyboardHandler);
-            rootPane.setOnKeyReleased(keyboardHandler);
-            rootPane.setFocusTraversable(true);
-        }
         speedSlider.setMinorTickCount(0);
         speedSlider.setMajorTickUnit(1);
         speedSlider.setLabelFormatter(new StringConverter<Double>() {
@@ -237,29 +254,33 @@ public class JaceUIController {
             setSpeed(Emulator.logic.speedSetting);
         });
         musicSelection.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) ->
+            Emulator.withComputer(computer -> 
                 ((LawlessHacks) ((LawlessComputer) computer).activeCheatEngine).changeMusicScore(String.valueOf(newValue))
+            )
         );
+        reconnectKeyboard();
     }
 
     private void connectButtons(Node n) {
-        if (n instanceof Button) {
-            Button button = (Button) n;
+        if (n instanceof Button button) {
             Runnable action = Utility.getNamedInvokableAction(button.getText());
             button.setOnMouseClicked(evt -> action.run());
-        } else if (n instanceof Parent) {
-            ((Parent) n).getChildrenUnmodifiable().forEach(child -> connectButtons(child));
+        } else if (n instanceof Parent parent) {
+            parent.getChildrenUnmodifiable().forEach(child -> connectButtons(child));
         }
     }
 
-    protected void setSpeed(double speed) {
+    public void setSpeed(double speed) {
         Emulator.logic.speedSetting = (int) speed;
         double speedRatio = convertSpeedToRatio(speed);
         if (speedSlider.getValue() != speed) {
             Platform.runLater(()->speedSlider.setValue(speed));
         }
         if (speedRatio >= 100.0) {
-            Emulator.getComputer().getMotherboard().setMaxSpeed(true);
-            Emulator.getComputer().getMotherboard().setSpeedInPercentage(20000);
+            Emulator.withComputer(c -> {
+                c.getMotherboard().setSpeedInPercentage(20000);
+                c.getMotherboard().setMaxSpeed(true);
+            });
 //            Motherboard.cpuPerClock = 10;
         } else {
             if (speedRatio > 1000) {
@@ -267,10 +288,12 @@ public class JaceUIController {
             } else {
                 Motherboard.cpuPerClock = 1;
             }
-            Emulator.getComputer().getMotherboard().setMaxSpeed(false);
-            Emulator.getComputer().getMotherboard().setSpeedInPercentage((int) (speedRatio * 100));
+            Emulator.withComputer(c -> {
+                c.getMotherboard().setMaxSpeed(false);
+                c.getMotherboard().setSpeedInPercentage((int) (speedRatio * 100));
+            });
         }
-        Emulator.getComputer().getMotherboard().reconfigure();
+        Emulator.withComputer(c -> c.getMotherboard().reconfigure());
     }
 
     public void toggleAspectRatio() {
@@ -281,17 +304,21 @@ public class JaceUIController {
         aspectRatioCorrectionEnabled.set(enabled);
     }
 
-    public void connectComputer(Computer computer, Stage primaryStage) {
-        if (computer == null) {
-            return;
-        }
-        this.computer = computer;
+    public void connectComputer(Stage primaryStage) {
         Platform.runLater(() -> {
             connectControls(primaryStage);
-            appleScreen.setImage(computer.getVideo().getFrameBuffer());
+            Emulator.withVideo(this::connectVideo);
             appleScreen.setVisible(true);
             rootPane.requestFocus();
         });
+    }
+
+    public void connectVideo(Video video) {
+        if (video != null) {
+            appleScreen.setImage(video.getFrameBuffer());
+        } else {
+            appleScreen.setImage(null);
+        }
     }
 
     private void processDragEnteredEvent(DragEvent evt) {
@@ -355,15 +382,17 @@ public class JaceUIController {
                     });
                     icon.setOnDragDropped(event -> {
                         System.out.println("Dropping media on " + icon.getText());
-                        try {
-                            computer.pause();
-                            consumer.insertMedia(media, media.files.get(0));
-                            computer.resume();
+                            Emulator.withComputer(c -> {
+                                c.getMotherboard().whileSuspended(() -> {
+                                    try {
+                                        consumer.insertMedia(media, media.files.get(0));
+                                    } catch (IOException ex) {
+                                        Logger.getLogger(JaceUIController.class.getName()).log(Level.SEVERE, null, ex);
+                                    }
+                                });
+                            });
                             event.setDropCompleted(true);
                             event.consume();
-                        } catch (IOException ex) {
-                            Logger.getLogger(JaceUIController.class.getName()).log(Level.SEVERE, null, ex);
-                        }
                         endDragEvent();
                     });
                 });
@@ -379,13 +408,15 @@ public class JaceUIController {
 
     private List<MediaConsumer> getMediaConsumers() {
         List<MediaConsumer> consumers = new ArrayList<>();
-        consumers.add(Emulator.getComputer().getUpgradeHandler());
+        Emulator.withComputer(c -> consumers.add(((LawlessComputer) c).getUpgradeHandler()));
         if (Emulator.logic.showDrives) {
-            for (Optional<Card> card : computer.memory.getAllCards()) {
-                card.filter(c -> c instanceof MediaConsumerParent).ifPresent(parent ->
+            Emulator.withMemory(m -> {
+                for (Optional<Card> card : m.getAllCards()) {
+                    card.filter(c -> c instanceof MediaConsumerParent).ifPresent(parent ->
                         consumers.addAll(Arrays.asList(((MediaConsumerParent) parent).getConsumers()))
-                );
-            }
+                    );
+                }
+            });
         }
         return consumers;
     }
@@ -398,7 +429,7 @@ public class JaceUIController {
 
     public void addIndicator(Label icon, long TTL) {
         if (!iconTTL.containsKey(icon)) {
-            Application.invokeLater(() -> {
+            Platform.runLater(() -> {
                 if (!notificationBox.getChildren().contains(icon)) {
                     notificationBox.getChildren().add(icon);
                 }
@@ -408,7 +439,7 @@ public class JaceUIController {
     }
 
     public void removeIndicator(Label icon) {
-        Application.invokeLater(() -> {
+        Platform.runLater(() -> {
             notificationBox.getChildren().remove(icon);
             iconTTL.remove(icon);
         });
@@ -453,13 +484,13 @@ public class JaceUIController {
         notification.setEffect(new DropShadow(2.0, Color.BLACK));
         notification.setTextFill(Color.WHITE);
         notification.setBackground(new Background(new BackgroundFill(Color.rgb(0, 0, 80, 0.7), new CornerRadii(5.0), new Insets(-5.0))));
-        Application.invokeLater(() -> {
+        Platform.runLater(() -> {
             stackPane.getChildren().remove(oldNotification);
             stackPane.getChildren().add(notification);
         });
 
         notificationExecutor.schedule(
-                () -> Application.invokeLater(() -> stackPane.getChildren().remove(notification)),
+                () -> Platform.runLater(() -> stackPane.getChildren().remove(notification)),
                 4, TimeUnit.SECONDS);
     }
 }

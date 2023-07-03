@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * RAM is a 64K address space of paged memory. It also manages sets of memory
@@ -125,7 +126,7 @@ public abstract class RAM implements Reconfigurable {
 
     public void writeWord(int address, int w, boolean generateEvent, boolean requireSynchronization) {
         write(address, (byte) (w & 0x0ff), generateEvent, requireSynchronization);
-        write(address + 1, (byte) (w >> 8), generateEvent, requireSynchronization);
+        write(address + 1, (byte) ((w >> 8) & 0x0ff), generateEvent, requireSynchronization);
     }
 
     public byte readRaw(int address) {
@@ -137,7 +138,8 @@ public abstract class RAM implements Reconfigurable {
         //    if (address >= 65536) return 0;
         byte value = activeRead.getMemoryPage(address)[address & 0x0FF];
 //        if (triggerEvent || ((address & 0x0FF00) == 0x0C000)) {
-        if (triggerEvent || (address & 0x0FFF0) == 0x0c030) {
+//        if (triggerEvent || (address & 0x0FFF0) == 0x0c030) {
+        if (triggerEvent) {
             value = callListener(eventType, address, value, value, requireSyncronization);
         }
         return value;
@@ -165,7 +167,7 @@ public abstract class RAM implements Reconfigurable {
             }
             ioListeners.add(l);
         } else {
-            int index = address >> 8;
+            int index = (address >> 8) & 0x0FF;
             Set<RAMListener> otherListeners = listenerMap[index];
             if (otherListeners == null) {
                 otherListeners = Collections.synchronizedSet(new HashSet<>());
@@ -179,11 +181,12 @@ public abstract class RAM implements Reconfigurable {
         if (l.getScope() == RAMEvent.SCOPE.ADDRESS) {
             mapListener(l, l.getScopeStart());
         } else {
-            int start = 0;
-            int end = 0x0ffff;
-            if (l.getScope() == RAMEvent.SCOPE.RANGE) {
-                start = l.getScopeStart();
-                end = l.getScopeEnd();
+            int start = l.getScopeStart();
+            int end = l.getScopeEnd();
+            if (l.getScope() == RAMEvent.SCOPE.ANY) {
+                Thread.dumpStack();
+                start = 0;
+                end = 0x0FFFF;
             }
             for (int i = start; i <= end; i++) {
                 mapListener(l, i);
@@ -269,16 +272,30 @@ public abstract class RAM implements Reconfigurable {
     }
 
     public RAMListener addListener(final RAMListener l) {
-        boolean restart = computer.pause();
         if (listeners.contains(l)) {
             return l;
         }
-        listeners.add(l);
-        addListenerRange(l);
-        if (restart) {
-            computer.resume();
-        }
+        computer.cpu.whileSuspended(()->{
+            listeners.add(l);
+            addListenerRange(l);            
+        });
         return l;
+    }
+    
+    public RAMListener addExecutionTrap(int address, Consumer<RAMEvent> handler) {
+        RAMListener listener = new RAMListener(RAMEvent.TYPE.EXECUTE, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY) {
+            @Override
+            protected void doConfig() {
+                setScopeStart(address);
+            }
+            
+            @Override
+            protected void doEvent(RAMEvent e) {
+                handler.accept(e);
+            }
+        };
+        addListener(listener);
+        return listener;
     }
 
     public void removeListener(final RAMListener l) {
@@ -330,4 +347,6 @@ public abstract class RAM implements Reconfigurable {
     abstract public void performExtendedCommand(int i);
 
     abstract public String getState();
+    
+    abstract public void resetState();
 }

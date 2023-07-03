@@ -18,11 +18,15 @@
  */
 package jace;
 
-import jace.config.Configuration;
-import jace.lawless.LawlessComputer;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
+import java.util.function.Function;
+
+import jace.config.Configuration;
+import jace.core.RAM;
+import jace.lawless.LawlessComputer;
 
 /**
  * Created on January 15, 2007, 10:10 PM
@@ -47,6 +51,16 @@ public class Emulator {
         return i;
     }
     
+    public static void abort() {
+        if (instance != null) {
+            if (instance.computer != null) {
+                instance.computer.getMotherboard().suspend();
+                instance.computer.getMotherboard().detach();
+            }
+        }
+        instance = null;
+    }
+    
     public static Emulator getInstance() {
         if (instance == null) {
             instance = new Emulator();
@@ -54,8 +68,53 @@ public class Emulator {
         return instance;
     }
     
-    public static LawlessComputer getComputer() {
+    private static LawlessComputer getComputer() {
         return getInstance().computer;        
+    }
+
+    public static void withComputer(Consumer<LawlessComputer> c) {
+        LawlessComputer computer = getComputer();
+        if (computer != null) {
+            c.accept(computer);
+        } else {
+            System.err.println("No computer available!");
+            Thread.dumpStack();
+        }
+    }
+
+    public static <T> T withComputer(Function<LawlessComputer, T> f, T defaultValue) {
+        LawlessComputer computer = getComputer();
+        if (computer != null) {
+            return f.apply(computer);
+        } else {
+            System.err.println("No computer available!");
+            Thread.dumpStack();
+            return defaultValue;
+        }
+    }
+
+    public static void withMemory(Consumer<RAM> m) {
+        withComputer(c->{
+            RAM memory = c.getMemory();
+            if (memory != null) {
+                m.accept(memory);
+            } else {
+                System.err.println("No memory available!");
+                Thread.dumpStack();
+            }
+        });
+    }
+
+    public static void withVideo(Consumer<jace.core.Video> v) {
+        withComputer(c->{
+            jace.core.Video video = c.getVideo();
+            if (video != null) {
+                v.accept(video);
+            } else {
+                System.err.println("No video available!");
+                Thread.dumpStack();
+            }
+        });
     }
 
     /**
@@ -65,6 +124,7 @@ public class Emulator {
         instance = this;
         computer = new LawlessComputer();
         Configuration.buildTree();
+        computer.getMotherboard().suspend();
         Configuration.loadSettings();
         mainThread = Thread.currentThread();
 //        EmulatorUILogic.registerDebugger();

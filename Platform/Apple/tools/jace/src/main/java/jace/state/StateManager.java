@@ -18,6 +18,19 @@
  */
 package jace.state;
 
+import java.awt.image.BufferedImage;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
+import java.lang.reflect.Type;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.WeakHashMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import jace.Emulator;
 import jace.apple2e.SoftSwitches;
 import jace.config.ConfigurableField;
@@ -28,14 +41,6 @@ import jace.core.PagedMemory;
 import jace.core.Video;
 import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
-
-import java.awt.image.BufferedImage;
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Field;
-import java.lang.reflect.Type;
-import java.util.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  *
@@ -407,7 +412,7 @@ public class StateManager implements Reconfigurable {
             defaultKeyMapping = {"ctrl+shift+Open Bracket"}
     )
     public static void beKindRewind() {
-        StateManager manager = getInstance(Emulator.getComputer());
+        StateManager manager = Emulator.withComputer(StateManager::getInstance, null);
         new Thread(()->manager.rewind(60 / manager.captureFrequency)).start();
     }
 

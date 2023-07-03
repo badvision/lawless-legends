@@ -1075,33 +1075,31 @@ public class MOS65C02 extends CPU {
             int bytes;
             int n = op & 0x0f;
             switch (n) {
-                case 2:
+                case 2 -> {
                     bytes = 2;
                     wait = 2;
-                    break;
-                case 3:
-                case 7:
-                case 0x0b:
-                case 0x0f:
+                }
+                case 3, 7, 0x0b, 0x0f -> {
                     wait = 1;
                     bytes = 1;
-                    break;
-                case 4:
+                }
+                case 4 -> {
                     bytes = 2;
                     if ((op & 0x0f0) == 0x040) {
                         wait = 3;
                     } else {
                         wait = 4;
-                    }   break;
-                case 0x0c:
+                    }
+                }
+                case 0x0c -> {
                     bytes = 3;
                     if ((op & 0x0f0) == 0x050) {
                         wait = 8;
                     } else {
                         wait = 4;
-                    }   break;
-                default:
-                    bytes = 2;
+                    }
+                }
+                default -> bytes = 2;
             }
             incrementProgramCounter(bytes);
             addWaitCycles(wait);
@@ -1230,10 +1228,8 @@ public class MOS65C02 extends CPU {
 //        N = true;
 //        V = true;
 //        Z = true;
-        int newPC = getMemory().readWord(RESET_VECTOR, TYPE.READ_DATA, true, false);
-        if (Emulator.getComputer().PRODUCTION_MODE) {
-            newPC = 0x0C700;
-        }
+        int resetVector = getMemory().readWord(RESET_VECTOR, TYPE.READ_DATA, true, false);
+        int newPC = Emulator.withComputer(c->c.PRODUCTION_MODE ? 0x0C700 : resetVector, resetVector);
         LOG.log(Level.WARNING, "Reset called, setting PC to ({0}) = {1}", new Object[]{Integer.toString(RESET_VECTOR, 16), Integer.toString(newPC, 16)});
         setProgramCounter(newPC);
     }
@@ -1347,16 +1343,13 @@ public class MOS65C02 extends CPU {
             case 0x65:
                 // CPU functions
                 switch (param2 & 0x0ff) {
-                    case 0x00:
-                        // Turn off tracing
+                    case 0x00 -> // Turn off tracing
                         trace = false;
-                        break;
-                    case 0x01:
-                        // Turn on tracing
+                    case 0x01 -> // Turn on tracing
                         trace = true;
-                        break;
                 }
                 break;
+
             case 0x64:
                 // Memory functions
                 getMemory().performExtendedCommand(param2 & 0x0ff);

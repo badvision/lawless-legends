@@ -16,7 +16,6 @@
 package jace.ide;
 
 import java.util.Collections;
-import java.util.Map;
 
 /**
  * This is a program that is intended to be defined and executed outside of a IDE session

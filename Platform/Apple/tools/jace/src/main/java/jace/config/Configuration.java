@@ -18,6 +18,35 @@
  */
 package jace.config;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InvalidClassException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.ObjectStreamException;
+import java.io.Serializable;
+import java.lang.reflect.Field;
+import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.stream.Stream;
+
 import jace.Emulator;
 import jace.EmulatorUILogic;
 import jace.core.Computer;
@@ -26,13 +55,6 @@ import jace.core.Utility;
 import javafx.collections.ObservableList;
 import javafx.scene.control.TreeItem;
 import javafx.scene.image.ImageView;
-
-import java.io.*;
-import java.lang.reflect.*;
-import java.util.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.stream.Stream;
 
 /**
  * Manages the configuration state of the emulator components.
@@ -104,7 +126,7 @@ public class Configuration implements Reconfigurable {
 
         public transient ConfigNode root;
         public transient ConfigNode parent;
-        private transient final ObservableList<ConfigNode> children;
+        private transient ObservableList<ConfigNode> children;
         public transient Reconfigurable subject;
         private transient boolean changed = true;
 
@@ -124,6 +146,9 @@ public class Configuration implements Reconfigurable {
 
         private void readObject(java.io.ObjectInputStream in)
                 throws IOException, ClassNotFoundException {
+            if (children == null) {
+                children = getChildren();
+            }
             children.setAll(super.getChildren());
             id = (String) in.readObject();
             name = (String) in.readObject();
@@ -254,13 +279,18 @@ public class Configuration implements Reconfigurable {
     }
     public static ConfigNode BASE;
     public static EmulatorUILogic ui = Emulator.logic;
-    public static Computer emulator = Emulator.getComputer();
     @ConfigurableField(name = "Autosave Changes", description = "If unchecked, changes are only saved when the Save button is pressed.")
     public static boolean saveAutomatically = false;
 
     public static void buildTree() {
         BASE = new ConfigNode(new Configuration());
-        buildTree(BASE, new LinkedHashSet());
+        Set visited = new LinkedHashSet();
+        buildTree(BASE, visited);
+        Emulator.withComputer(c->{
+            ConfigNode computer = new ConfigNode(BASE, c);
+            BASE.putChild(c.getName(), computer);
+            buildTree(computer, visited);
+        });
     }
 
     private static void buildTree(ConfigNode node, Set visited) {
@@ -299,8 +329,7 @@ public class Configuration implements Reconfigurable {
                     continue;
                 }
 
-                if (o instanceof Reconfigurable) {
-                    Reconfigurable r = (Reconfigurable) o;
+                if (o instanceof Reconfigurable r) {
                     ConfigNode child = node.findChild(r.getName());
                     if (child == null || !child.subject.equals(o)) {
                         child = new ConfigNode(node, r);
@@ -317,8 +346,7 @@ public class Configuration implements Reconfigurable {
                         if (Optional.class.isAssignableFrom(type)) {
                             Type genericTypes = f.getGenericType();
 //                            System.out.println("Looking at generic parmeters " + genericTypes.getTypeName() + " for reconfigurable class, type " + genericTypes.getClass().getName());
-                            if (genericTypes instanceof GenericArrayType) {
-                                GenericArrayType aType = (GenericArrayType) genericTypes;
+                            if (genericTypes instanceof GenericArrayType aType) {
                                 ParameterizedType pType = (ParameterizedType) aType.getGenericComponentType();
                                 if (pType.getActualTypeArguments().length != 1) {
                                     continue;
@@ -450,7 +478,7 @@ public class Configuration implements Reconfigurable {
     public static boolean applySettings(ConfigNode node) {
         boolean resume = false;
         if (node == BASE) {
-            resume = Emulator.getComputer().pause();
+            resume = Emulator.withComputer(c->c.pause(), false);
         }
         boolean hasChanged = false;
         if (node.changed) {
@@ -469,7 +497,7 @@ public class Configuration implements Reconfigurable {
         }
 
         if (resume) {
-            Emulator.getComputer().resume();
+            Emulator.withComputer(Computer::resume);
         }
 
         return hasChanged;

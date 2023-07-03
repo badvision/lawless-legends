@@ -111,7 +111,7 @@ public class CardSSC extends Card implements Reconfigurable {
     @Override
     public void setSlot(int slot) {
         try {
-            loadRom("jace/data/SSC.rom");
+            loadRom("/jace/data/SSC.rom");
         } catch (IOException ex) {
             Logger.getLogger(CardSSC.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -178,7 +178,7 @@ public class CardSSC extends Card implements Reconfigurable {
     public void loadRom(String path) throws IOException {
         // Load rom file, first 0x0700 bytes are C8 rom, last 0x0100 bytes are CX rom
         // CF00-CFFF are unused by the SSC
-        InputStream romFile = CardSSC.class.getClassLoader().getResourceAsStream(path);
+        InputStream romFile = CardSSC.class.getResourceAsStream(path);
         final int cxRomLength = 0x0100;
         final int c8RomLength = 0x0700;
         byte[] romxData = new byte[cxRomLength];

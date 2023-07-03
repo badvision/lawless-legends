@@ -18,6 +18,7 @@
  */
 package jace.apple2e;
 
+import jace.Emulator;
 import jace.apple2e.softswitch.IntC8SoftSwitch;
 import jace.apple2e.softswitch.KeyboardSoftSwitch;
 import jace.apple2e.softswitch.Memory2SoftSwitch;
@@ -83,9 +84,9 @@ public enum SoftSwitches {
 
             // PAGE2 is a hybrid switch; 80STORE ? memory : video
             if (_80STORE.isOn()) {
-                computer.getMemory().configureActiveMemory();
+                Emulator.withMemory(m->m.configureActiveMemory());
             } else {
-                computer.getVideo().configureVideoMode();
+                Emulator.withVideo(v->v.configureVideoMode());
             }
         }
     }),
@@ -102,7 +103,7 @@ public enum SoftSwitches {
         @Override
         protected byte readSwitch() {
             setState(true);
-            return computer.getVideo().getFloatingBus();
+            return Emulator.withComputer(c->c.getVideo().getFloatingBus(), (byte) 0);
         }
 
         @Override
@@ -129,7 +130,7 @@ public enum SoftSwitches {
     KEYBOARD_STROBE_READ(new SoftSwitch("KeyStrobe_Read", 0x0c010, -1, -1, RAMEvent.TYPE.READ, false) {
         @Override
         protected byte readSwitch() {
-            return computer.getVideo().getFloatingBus();
+            return Emulator.withComputer(c->c.getVideo().getFloatingBus(), (byte) 0);
         }
 
         @Override
@@ -142,10 +143,7 @@ public enum SoftSwitches {
     FLOATING_BUS(new SoftSwitch("FloatingBus", null, null, new int[]{0x0C050, 0x0C051, 0x0C052, 0x0C053, 0x0C054}, RAMEvent.TYPE.READ, null) {
         @Override
         protected byte readSwitch() {
-            if (computer.getVideo() == null) {
-                return 0;
-            }
-            return computer.getVideo().getFloatingBus();
+            return Emulator.withComputer(c->c.getVideo().getFloatingBus(), (byte) 0);
         }
 
         @Override

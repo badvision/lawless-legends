@@ -18,9 +18,10 @@
  */
 package jace.core;
 
+import java.util.Arrays;
+
 import jace.state.StateManager;
 import jace.state.Stateful;
-import java.util.Arrays;
 
 /**
  * This represents bank-switchable ram which can reside at fixed portions of the
@@ -77,7 +78,7 @@ public class PagedMemory {
         loadData(romData);
     }
 
-    public void loadData(byte[] romData) {
+    public final void loadData(byte[] romData) {
         for (int i = 0; i < romData.length; i += 256) {
             byte[] b = new byte[256];
             System.arraycopy(romData, i, b, 0, 256);

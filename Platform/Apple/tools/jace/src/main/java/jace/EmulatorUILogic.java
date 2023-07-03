@@ -18,20 +18,6 @@
  */
 package jace;
 
-import jace.apple2e.MOS65C02;
-import jace.apple2e.RAM128k;
-import jace.apple2e.SoftSwitches;
-import jace.config.ConfigurableField;
-import jace.config.ConfigurationUIController;
-import jace.config.InvokableAction;
-import jace.config.Reconfigurable;
-import jace.core.CPU;
-import jace.core.Computer;
-import jace.core.Debugger;
-import jace.core.RAM;
-import jace.core.RAMListener;
-import static jace.core.Utility.*;
-import jace.ide.IdeController;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -43,15 +29,28 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import jace.apple2e.MOS65C02;
+import jace.apple2e.RAM128k;
+import jace.apple2e.SoftSwitches;
+import jace.config.ConfigurableField;
+import jace.config.ConfigurationUIController;
+import jace.config.InvokableAction;
+import jace.config.Reconfigurable;
+import jace.core.Debugger;
+import jace.core.RAM;
+import jace.core.RAMListener;
+import static jace.core.Utility.gripe;
+import jace.ide.IdeController;
 import javafx.application.Platform;
 import javafx.event.EventHandler;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
-import javafx.scene.image.Image;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
@@ -75,7 +74,7 @@ public class EmulatorUILogic implements Reconfigurable {
             @Override
             public void updateStatus() {
                 enableDebug(true);
-                MOS65C02 cpu = (MOS65C02) Emulator.getComputer().getCpu();
+                MOS65C02 cpu = (MOS65C02) Emulator.withComputer(c->c.getCpu(), null);
                 updateCPURegisters(cpu);
             }
         };
@@ -113,7 +112,7 @@ public class EmulatorUILogic implements Reconfigurable {
     }
 
     public static void enableTrace(boolean b) {
-        Emulator.getComputer().getCpu().setTraceEnabled(b);
+        Emulator.withComputer(c->c.getCpu().setTraceEnabled(b));
     }
 
     public static void stepForward() {
@@ -121,7 +120,7 @@ public class EmulatorUILogic implements Reconfigurable {
     }
 
     static void registerDebugger() {
-        Emulator.getComputer().getCpu().setDebug(debugger);
+        Emulator.withComputer(c->c.getCpu().setDebug(debugger));
     }
 
     public static Integer getValidAddress(String s) {
@@ -210,14 +209,14 @@ public class EmulatorUILogic implements Reconfigurable {
             alternatives = "Execute program;Load binary;Load program;Load rom;Play single-load game",
             defaultKeyMapping = "ctrl+shift+b")
     public static void runFile() {
-        Emulator.getComputer().pause();
-        FileChooser select = new FileChooser();
-        File binary = select.showOpenDialog(LawlessLegends.getApplication().primaryStage);
-        if (binary == null) {
-            Emulator.getComputer().resume();
-            return;
-        }
-        runFileNamed(binary);
+        Emulator.withComputer(c->
+            c.getMotherboard().whileSuspended(()->{
+                FileChooser select = new FileChooser();
+                File binary = select.showOpenDialog(LawlessLegends.getApplication().primaryStage);
+                if (binary != null) {
+                    runFileNamed(binary);
+                }                
+            }));
     }
 
     public static void runFileNamed(File binary) {
@@ -232,7 +231,6 @@ public class EmulatorUILogic implements Reconfigurable {
             }
         } catch (NumberFormatException | IOException ex) {
         }
-        Emulator.getComputer().getCpu().resume();
     }
 
     public static void brun(File binary, int address) throws IOException {
@@ -240,16 +238,19 @@ public class EmulatorUILogic implements Reconfigurable {
         // If it was not yet halted, then it is the case that the CPU is processing another opcode
         // So if that is the case, the program counter will need to be decremented here to compensate
         // TODO: Find a better mousetrap for this one -- it's an ugly hack
-        Emulator.getComputer().pause();
-        FileInputStream in = new FileInputStream(binary);
-        byte[] data = new byte[in.available()];
-        in.read(data);
-        RAM ram = Emulator.getComputer().getMemory();
-        for (int i = 0; i < data.length; i++) {
-            ram.write(address + i, data[i], false, true);
+        byte[] data;
+        try (FileInputStream in = new FileInputStream(binary)) {
+            data = new byte[in.available()];
+            in.read(data);
         }
-        Emulator.getComputer().getCpu().setProgramCounter(address);
-        Emulator.getComputer().resume();
+
+        Emulator.withComputer(c->c.getMotherboard().whileSuspended(()->{
+            RAM ram = c.getMemory();
+            for (int i = 0; i < data.length; i++) {
+                ram.write(address + i, data[i], false, true);
+            }
+            c.getCpu().setProgramCounter(address);
+        }));
     }
 
     @InvokableAction(
@@ -293,7 +294,7 @@ public class EmulatorUILogic implements Reconfigurable {
         SimpleDateFormat df = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss");
         String timestamp = df.format(new Date());
         String type;
-        int start = Emulator.getComputer().getVideo().getCurrentWriter().actualWriter().getYOffset(0);
+        int start = Emulator.withComputer(c->c.getVideo().getCurrentWriter().actualWriter().getYOffset(0), 0);
         int len;
         if (start < 0x02000) {
             // Lo-res or double-lores
@@ -310,16 +311,23 @@ public class EmulatorUILogic implements Reconfigurable {
         }
         File outFile = new File("screen_" + type + "_a" + Integer.toHexString(start) + "_" + timestamp);
         try (FileOutputStream out = new FileOutputStream(outFile)) {
-            RAM128k ram = (RAM128k) Emulator.getComputer().memory;
-            Emulator.getComputer().pause();
-            if (dres) {
-                for (int i = 0; i < len; i++) {
-                    out.write(ram.getAuxVideoMemory().readByte(start + i));
-                }
-            }
-            for (int i = 0; i < len; i++) {
-                out.write(ram.getMainMemory().readByte(start + i));
-            }
+            Emulator.withComputer(c -> {
+                RAM128k ram = (RAM128k) c.getMemory();
+                c.getMotherboard().whileSuspended(() -> {
+                    try {
+                        if (dres) {
+                            for (int i = 0; i < len; i++) {
+                                out.write(ram.getAuxVideoMemory().readByte(start + i));
+                            }
+                        }
+                        for (int i = 0; i < len; i++) {
+                            out.write(ram.getMainMemory().readByte(start + i));
+                        }
+                    } catch (IOException e) {
+                        Logger.getLogger(EmulatorUILogic.class.getName()).log(Level.SEVERE, "Error writing screenshot", e);
+                    }
+                });                
+            });
         }
         System.out.println("Wrote screenshot to " + outFile.getAbsolutePath());
     }
@@ -332,8 +340,7 @@ public class EmulatorUILogic implements Reconfigurable {
             defaultKeyMapping = "ctrl+shift+s")
     public static void saveScreenshot() throws IOException {
         FileChooser select = new FileChooser();
-        Emulator.getComputer().pause();
-        Image i = Emulator.getComputer().getVideo().getFrameBuffer();
+        // Image i = Emulator.getComputer().getVideo().getFrameBuffer();
 //        BufferedImage bufImageARGB = SwingFXUtils.fromFXImage(i, null);
         File targetFile = select.showSaveDialog(LawlessLegends.getApplication().primaryStage);
         if (targetFile == null) {
@@ -421,25 +428,31 @@ public class EmulatorUILogic implements Reconfigurable {
             } else {
                 int width, height;
                 switch (size) {
-                    case 0: // 1x
+                    case 0 -> {
+                        // 1x
                         width = 560;
                         height = 384;
-                        break;
-                    case 1: // 1.5x
+                    }
+                    case 1 -> {
+                        // 1.5x
                         width = 840;
                         height = 576;
-                        break;
-                    case 2: // 2x
+                    }
+                    case 2 -> {
+                        // 2x
                         width = 560 * 2;
                         height = 384 * 2;
-                        break;
-                    case 3: // 3x (retina) 2880x1800
+                    }
+                    case 3 -> {
+                        // 3x (retina) 2880x1800
                         width = 560 * 3;
                         height = 384 * 3;
-                        break;
-                    default: // 2x
+                    }
+                    default -> {
+                        // 2x
                         width = 560 * 2;
                         height = 384 * 2;
+                    }
                 }
                 double vgap = stage.getScene().getY();
                 double hgap = stage.getScene().getX();
@@ -527,16 +540,17 @@ public class EmulatorUILogic implements Reconfigurable {
     }
 
     public static void simulateCtrlAppleReset() {
-        Computer computer = LawlessLegends.singleton.controller.computer;
-        computer.keyboard.openApple(true);
-        computer.warmStart();
-        Platform.runLater(() -> {
-            try {
-                Thread.sleep(500);
-            } catch (InterruptedException ex) {
-                Logger.getLogger(EmulatorUILogic.class.getName()).log(Level.SEVERE, null, ex);
-            }
-            computer.keyboard.openApple(false);
+        Emulator.withComputer(c -> {
+            c.getKeyboard().openApple(true);
+            c.warmStart();
+            Platform.runLater(() -> {
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException ex) {
+                    Logger.getLogger(EmulatorUILogic.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                c.getKeyboard().openApple(false);
+            });
         });
     }
 
@@ -558,6 +572,8 @@ public class EmulatorUILogic implements Reconfigurable {
 
     @Override
     public void reconfigure() {
-        LawlessLegends.getApplication().controller.setSpeed(speedSetting);
+        // Null-safe so there are no errors in unit tests
+        Optional.ofNullable(LawlessLegends.getApplication())
+                .ifPresent(app->app.controller.setSpeed(speedSetting));
     }
 }

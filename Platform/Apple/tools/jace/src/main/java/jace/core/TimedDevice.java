@@ -20,8 +20,6 @@ package jace.core;
 
 import jace.config.ConfigurableField;
 
-import java.util.concurrent.locks.LockSupport;
-
 /**
  * A timed device is a device which executes so many ticks in a given time interval. This is the core of the emulator
  * timing mechanics.
@@ -75,7 +73,7 @@ public abstract class TimedDevice extends Device {
         if (!isRunning()) {
             return false;
         }
-        isPaused = true;
+        setPaused(true);
         try {
             // KLUDGE: Sleeping to wait for worker thread to hit paused state.  We might be inside the worker (?)
             Thread.sleep(10);
@@ -84,10 +82,20 @@ public abstract class TimedDevice extends Device {
         return true;
     }
 
+    /**
+     * This is used in unit tests where we want the device
+     * to act like it is resumed, but not actual free-running.
+     * This allows tests to step manually to check behaviors, etc.
+     */
+    public void resumeInThread() {
+        super.resume();
+        setPaused(false);
+    }
+    
     @Override
     public void resume() {
         super.resume();
-        isPaused = false;
+        setPaused(false);
         if (worker != null && worker.isAlive()) {
             return;
         }
@@ -96,9 +104,9 @@ public abstract class TimedDevice extends Device {
             while (isRunning()) {
                 hasStopped = false;
                 doTick();
-                while (isPaused) {
+                while (isPaused() && isRunning()) {
                     hasStopped = true;
-                    LockSupport.parkNanos(1000);
+                    Thread.onSpinWait();
                 }
                 if (!maxspeed) {
                     resync();
@@ -154,9 +162,6 @@ public abstract class TimedDevice extends Device {
         setSpeedInHz(cyclesPerSecond);
     }
 
-    long skip = 0;
-    long wait = 0;
-
     public final void resetSyncTimer() {
         nextSync = System.nanoTime() + nanosPerInterval;
         cycleTimer = 0;
@@ -173,7 +178,7 @@ public abstract class TimedDevice extends Device {
 
     protected void resync() {
         if (++cycleTimer >= cyclesPerInterval) {
-            if (tempSpeedDuration > 0) {
+            if (tempSpeedDuration > 0 || isMaxSpeed()) {
                 tempSpeedDuration -= cyclesPerInterval;
                 resetSyncTimer();
                 return;

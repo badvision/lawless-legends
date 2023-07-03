@@ -62,7 +62,7 @@ public class CardThunderclock extends Card {
     public CardThunderclock(Computer computer) {
         super(computer);
         try {
-            loadRom("jace/data/thunderclock_plus.rom");
+            loadRom("/jace/data/thunderclock_plus.rom");
         } catch (IOException ex) {
             Logger.getLogger(CardDiskII.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -169,13 +169,13 @@ public class CardThunderclock extends Card {
         if (timerEnabled) {
             switch (value & 0x038) {
                 case 0x020:
-                    timerRate = (int) (Motherboard.SPEED / 64);
+                    timerRate = (int) (Motherboard.DEFAULT_SPEED / 64);
                     break;
                 case 0x028:
-                    timerRate = (int) (Motherboard.SPEED / 256);
+                    timerRate = (int) (Motherboard.DEFAULT_SPEED / 256);
                     break;
                 case 0x030:
-                    timerRate = (int) (Motherboard.SPEED / 2048);
+                    timerRate = (int) (Motherboard.DEFAULT_SPEED / 2048);
                     break;
                 default:
                     timerEnabled = false;
@@ -261,7 +261,7 @@ public class CardThunderclock extends Card {
     }
 
     public void loadRom(String path) throws IOException {
-        InputStream romFile = CardThunderclock.class.getClassLoader().getResourceAsStream(path);
+        InputStream romFile = CardThunderclock.class.getResourceAsStream(path);
         final int cxRomLength = 0x0100;
         final int c8RomLength = 0x0700;
         byte[] romxData = new byte[cxRomLength];
@@ -272,7 +272,7 @@ public class CardThunderclock extends Card {
             }
             getCxRom().loadData(romxData);
             romFile.close();
-            romFile = CardThunderclock.class.getClassLoader().getResourceAsStream(path);
+            romFile = CardThunderclock.class.getResourceAsStream(path);
             if (romFile.read(rom8Data) != c8RomLength) {
                 throw new IOException("Bad Thunderclock rom size");
             }

@@ -26,19 +26,19 @@ import java.lang.annotation.Target;
 /**
  * A invokable action annotation means that an object method can be called by the end-user.
  * This serves as a hook for keybindings as well as semantic navigation potential.
- * <br/>
+ * <br>
  * Name should be short, meaningful, and succinct. e.g. "Insert disk"
- * <br/>
+ * <br>
  * Category can be used to group actions by overall topic, for example an automated table of contents
- * <br/>
+ * <br>
  * Description is descriptive text which provides additional clarity, e.g. 
  * "This will present you with a file selection dialog to pick a floppy disk image.  
  *  Currently, dos-ordered (DSK, DO), Prodos-ordered (PO), and Nibble (NIB) formats are supported.
- * <br/>
+ * <br>
  * Alternatives should be delimited by semicolons) can provide more powerful search
  * For "insert disk", alternatives might be "change disk;switch disk" and 
  * reboot might have alternatives as "warm start;cold start;boot;restart".
- * <hr/>
+ * <hr>
  * NOTE: Any method that implements this must be public and take no parameters!
  * If a method signature is not correct, it will result in a runtime exception
  * when the action is triggered.  There is no way to offer a compiler

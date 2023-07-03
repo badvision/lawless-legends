@@ -18,6 +18,7 @@
  */
 package jace.apple2e.softswitch;
 
+import jace.Emulator;
 import jace.apple2e.SoftSwitches;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
@@ -76,8 +77,6 @@ public class IntC8SoftSwitch extends SoftSwitch {
 
     @Override
     public void stateChanged() {
-        if (computer.getMemory() != null) {
-            computer.getMemory().configureActiveMemory();
-        }
+        Emulator.withMemory(m->m.configureActiveMemory());
     }
 }

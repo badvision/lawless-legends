@@ -18,12 +18,17 @@
  */
 package jace.apple2e;
 
-import jace.core.*;
+import java.util.logging.Logger;
+
+import jace.core.Computer;
+import jace.core.Font;
+import jace.core.Palette;
+import jace.core.RAMEvent;
+import jace.core.Video;
+import jace.core.VideoWriter;
 import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
-
-import java.util.logging.Logger;
 
 /**
  * This is the primary video rendering class, which provides all necessary video
@@ -430,7 +435,7 @@ public class VideoDHGR extends Video {
         int b4 = ((RAM128k) computer.getMemory()).getMainMemory()    .readByte(rowAddress + xOffset + 1);
         int useColOffset = xOffset << 1;
         // This shouldn't be necessary but prevents an index bounds exception when graphics modes are flipped (Race condition?)
-        if (useColOffset >= 77) {
+        if (useColOffset >= 77 || useColOffset < 0) {
             useColOffset = 76;
         }
         useColor[useColOffset    ] = (b1 & 0x80) != 0;

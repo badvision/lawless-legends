@@ -24,7 +24,6 @@ import jace.config.ConfigurableField;
 import jace.config.InvokableAction;
 import jace.core.Computer;
 import jace.core.Device;
-import jace.core.Keyboard;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
 import jace.state.Stateful;

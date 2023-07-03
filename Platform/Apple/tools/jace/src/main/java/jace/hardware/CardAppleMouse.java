@@ -28,16 +28,16 @@ import jace.core.Computer;
 import jace.core.PagedMemory;
 import jace.core.RAMEvent;
 import jace.core.RAMEvent.TYPE;
-import jace.state.Stateful;
 import jace.core.Utility;
+import jace.state.Stateful;
 import javafx.event.EventHandler;
 import javafx.geometry.Bounds;
+import javafx.geometry.Point2D;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
-import javafx.geometry.Point2D;
-import javafx.geometry.Rectangle2D;
 
 /**
  * Apple Mouse interface implementation. This is fully compatible with several
@@ -359,7 +359,7 @@ public class CardAppleMouse extends Card {
      *      //gs homes mouse to low address, but //c and //e do not
      */
     private void clampMouse() {
-        RAM128k memory = (RAM128k) computer.memory;
+        RAM128k memory = (RAM128k) computer.getMemory();
         byte clampMinLo = memory.getMainMemory().readByte(0x0478);
         byte clampMaxLo = memory.getMainMemory().readByte(0x04F8);
         byte clampMinHi = memory.getMainMemory().readByte(0x0578);
@@ -444,30 +444,14 @@ public class CardAppleMouse extends Card {
         byte reg = computer.getMemory().readRaw(0x0478);
         byte val = 0;
         switch (reg - 0x047) {
-            case 0:
-                val = (byte) ((int) clampWindow.getMinX() >> 8);
-                break;
-            case 1:
-                val = (byte) ((int) clampWindow.getMinY() >> 8);
-                break;
-            case 2:
-                val = (byte) ((int) clampWindow.getMinX() & 255);
-                break;
-            case 3:
-                val = (byte) ((int) clampWindow.getMinY() & 255);
-                break;
-            case 4:
-                val = (byte) ((int) clampWindow.getMaxX() >> 8);
-                break;
-            case 5:
-                val = (byte) ((int) clampWindow.getMaxY() >> 8);
-                break;
-            case 6:
-                val = (byte) ((int) clampWindow.getMaxX() & 255);
-                break;
-            case 7:
-                val = (byte) ((int) clampWindow.getMaxY() & 255);
-                break;
+            case 0 -> val = (byte) ((int) clampWindow.getMinX() >> 8);
+            case 1 -> val = (byte) ((int) clampWindow.getMinY() >> 8);
+            case 2 -> val = (byte) ((int) clampWindow.getMinX() & 255);
+            case 3 -> val = (byte) ((int) clampWindow.getMinY() & 255);
+            case 4 -> val = (byte) ((int) clampWindow.getMaxX() >> 8);
+            case 5 -> val = (byte) ((int) clampWindow.getMaxY() >> 8);
+            case 6 -> val = (byte) ((int) clampWindow.getMaxX() & 255);
+            case 7 -> val = (byte) ((int) clampWindow.getMaxY() & 255);
         }
         computer.getMemory().write(0x0578, val, false, false);
     }

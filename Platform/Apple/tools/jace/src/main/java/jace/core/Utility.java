@@ -18,6 +18,25 @@
  */
 package jace.core;
 
+import java.io.File;
+import java.io.InputStream;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import org.reflections.Reflections;
+
 import jace.config.Configuration;
 import jace.config.InvokableAction;
 import javafx.application.Platform;
@@ -31,16 +50,6 @@ import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.paint.Color;
-import org.reflections.Reflections;
-
-import java.io.File;
-import java.io.InputStream;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * This is a set of helper functions which do not belong anywhere else.
@@ -159,7 +168,7 @@ public class Utility {
         if (isHeadless) {
             return Optional.empty();
         }
-        InputStream stream = Utility.class.getClassLoader().getResourceAsStream("jace/data/" + filename);
+        InputStream stream = Utility.class.getResourceAsStream("/jace/data/" + filename);
         return Optional.of(new Image(stream));
     }
 
@@ -171,8 +180,7 @@ public class Utility {
         Label label = new Label() {
             @Override
             public boolean equals(Object obj) {
-                if (obj instanceof Label) {
-                    Label l2 = (Label) obj;
+                if (obj instanceof Label l2) {
                     return super.equals(l2) || l2.getText().equals(getText());
                 } else {
                     return super.equals(obj);
@@ -218,9 +226,9 @@ public class Utility {
             Optional<ButtonType> response = confirm.showAndWait();
             response.ifPresent(b -> {
                 if (b.getButtonData() == ButtonData.LEFT && aAction != null) {
-                    (new Thread(aAction)).start();
+                    Platform.runLater(aAction);
                 } else if (b.getButtonData() == ButtonData.RIGHT && bAction != null) {
-                    (new Thread(bAction)).start();
+                    Platform.runLater(bAction);
                 }
             });
         });
@@ -326,8 +334,8 @@ public class Utility {
         if (s == null) {
             return -1;
         }
-        if (s instanceof Integer) {
-            return (Integer) s;
+        if (s instanceof Integer integer) {
+            return integer;
         }
         String val = String.valueOf(s).trim();
         int base = 10;
@@ -347,17 +355,27 @@ public class Utility {
     }
 
     public static void gripe(final String message) {
+        gripe(message, false, null);
+    }
+
+    public static void gripe(final String message, boolean wait, Runnable andThen) {
         Platform.runLater(() -> {
             Alert errorAlert = new Alert(Alert.AlertType.ERROR);
             errorAlert.setContentText(message);
             errorAlert.setTitle("Error");
-            errorAlert.show();
+            if (wait) {
+                errorAlert.showAndWait();
+                if (andThen != null) {
+                    andThen.run();
+                }
+            } else {
+                errorAlert.show();
+            }
         });
     }
 
     public static Object findChild(Object object, String fieldName) {
-        if (object instanceof Map) {
-            Map map = (Map) object;
+        if (object instanceof Map map) {
             for (Object key : map.keySet()) {
                 if (key.toString().equalsIgnoreCase(fieldName)) {
                     return map.get(key);
@@ -444,28 +462,28 @@ public class Utility {
         if (type.equals(Integer.TYPE) || type == Integer.class) {
             value = value.replaceAll(hex ? "[^0-9\\-A-Fa-f]" : "[^0-9\\-]", "");
             try {
-                return Integer.parseInt(value, radix);
+                return Integer.valueOf(value, radix);
             } catch (NumberFormatException ex) {
                 return null;
             }
         } else if (type.equals(Short.TYPE) || type == Short.class) {
             value = value.replaceAll(hex ? "[^0-9\\-\\.A-Fa-f]" : "[^0-9\\-\\.]", "");
             try {
-                return Short.parseShort(value, radix);
+                return Short.valueOf(value, radix);
             } catch (NumberFormatException ex) {
                 return null;
             }
         } else if (type.equals(Long.TYPE) || type == Long.class) {
             value = value.replaceAll(hex ? "[^0-9\\-\\.A-Fa-f]" : "[^0-9\\-\\.]", "");
             try {
-                return Long.parseLong(value, radix);
+                return Long.valueOf(value, radix);
             } catch (NumberFormatException ex) {
                 return null;
             }
         } else if (type.equals(Byte.TYPE) || type == Byte.class) {
             try {
                 value = value.replaceAll(hex ? "[^0-9\\-A-Fa-f]" : "[^0-9\\-]", "");
-                return Byte.parseByte(value, radix);
+                return Byte.valueOf(value, radix);
             } catch (NumberFormatException ex) {
                 return null;
             }

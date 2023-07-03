@@ -19,9 +19,9 @@
 package jace.core;
 
 import jace.Emulator;
-import jace.state.Stateful;
 import jace.config.ConfigurableField;
 import jace.config.InvokableAction;
+import jace.state.Stateful;
 import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
 
@@ -66,7 +66,6 @@ public abstract class Video extends Device {
     private boolean screenDirty = true;
     private boolean lineDirty = true;
     private boolean isVblank = false;
-    static final VideoWriter[][] writerCheck = new VideoWriter[40][192];
 
     static void initLookupTables() {
         for (int i = 0; i < 192; i++) {
@@ -81,7 +80,6 @@ public abstract class Video extends Device {
         }
     }
     private int forceRedrawRowCount = 0;
-    Thread updateThread;
 
     /**
      * Creates a new instance of Video
@@ -276,9 +274,7 @@ public abstract class Video extends Device {
             alternatives = "redraw",
             defaultKeyMapping = {"ctrl+shift+r"})
     public static void forceRefresh() {
-        if (Emulator.getComputer().video != null) {
-            Emulator.getComputer().video._forceRefresh();
-        }
+        Emulator.withVideo(v->v._forceRefresh());
     }
 
     private void _forceRefresh() {

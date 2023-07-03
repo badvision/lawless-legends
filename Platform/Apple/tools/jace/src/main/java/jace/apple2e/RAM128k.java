@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Semaphore;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -156,8 +155,6 @@ abstract public class RAM128k extends RAM {
             initMemoryPattern(getAuxMemory());
         }
     }
-
-    private final Semaphore configurationSemaphore = new Semaphore(1, true);
 
     public String getReadConfiguration() {
         String rstate = "";
@@ -374,8 +371,7 @@ abstract public class RAM128k extends RAM {
      *
      */
     @Override
-    public void configureActiveMemory() {
-
+    public synchronized void configureActiveMemory() {
         String auxZpConfiguration = getAuxZPConfiguration();
         String readConfiguration = getReadConfiguration() + auxZpConfiguration;
         String writeConfiguration = getWriteConfiguration() + auxZpConfiguration;
@@ -385,27 +381,20 @@ abstract public class RAM128k extends RAM {
         }
         state = newState;
 
-        try {
-            log("MMU Switches");
-            configurationSemaphore.acquire();
+        log("MMU Switches");
 
-            if (memoryConfigurations.containsKey(readConfiguration)) {
-                activeRead = memoryConfigurations.get(readConfiguration);
-            } else {
-                activeRead = buildReadConfiguration();
-                memoryConfigurations.put(readConfiguration, activeRead);
-            }
+        if (memoryConfigurations.containsKey(readConfiguration)) {
+            activeRead = memoryConfigurations.get(readConfiguration);
+        } else {
+            activeRead = buildReadConfiguration();
+            memoryConfigurations.put(readConfiguration, activeRead);
+        }
 
-            if (memoryConfigurations.containsKey(writeConfiguration)) {
-                activeWrite = memoryConfigurations.get(writeConfiguration);
-            } else {
-                activeWrite = buildWriteConfiguration();
-                memoryConfigurations.put(writeConfiguration, activeWrite);
-            }
-
-            configurationSemaphore.release();
-        } catch (InterruptedException ex) {
-            Logger.getLogger(RAM128k.class.getName()).log(Level.SEVERE, null, ex);
+        if (memoryConfigurations.containsKey(writeConfiguration)) {
+            activeWrite = memoryConfigurations.get(writeConfiguration);
+        } else {
+            activeWrite = buildWriteConfiguration();
+            memoryConfigurations.put(writeConfiguration, activeWrite);
         }
     }
 
@@ -443,11 +432,13 @@ abstract public class RAM128k extends RAM {
         activeWrite.setBanks(0, cPageRom.getMemory().length, 0x011, cPageRom);
         activeWrite.setBanks(0, rom.getMemory().length, 0x020, rom);
         //----------------------
-        InputStream inputRom = getClass().getClassLoader().getResourceAsStream(path);
+        InputStream inputRom = getClass().getResourceAsStream(path);
         if (inputRom == null) {
-            LOG.log(Level.SEVERE, "Rom not found: " + path);
+            LOG.log(Level.SEVERE, "Rom not found: {0}", path);
             return;
         }
+        // Clear cached configurations as we might have outdated references now        
+        memoryConfigurations.clear();
         int read = 0;
         int addr = 0;
         byte[] in = new byte[1024];
@@ -458,11 +449,9 @@ abstract public class RAM128k extends RAM {
         }
 //            System.out.println("Finished reading rom with " + inputRom.available() + " bytes left unread!");
         //dump();
-        // Clear cached configurations as we might have outdated references now        
         for (int i = 0; i < 17; i++) {
             activeWrite.set(i, restore[i]);
         }
-        memoryConfigurations.clear();
         configureActiveMemory();
     }
 
@@ -521,6 +510,11 @@ abstract public class RAM128k extends RAM {
         cards = currentMemory.cards;
         activeSlot = currentMemory.activeSlot;
         // Clear cached configurations as we might have outdated references now
+        memoryConfigurations.clear();
+    }
+    
+    @Override
+    public void resetState() {
         memoryConfigurations.clear();
     }
 }

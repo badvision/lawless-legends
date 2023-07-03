@@ -18,6 +18,7 @@
  */
 package jace.apple2e.softswitch;
 
+import jace.Emulator;
 import jace.core.RAMEvent;
 import jace.core.SoftSwitch;
 
@@ -40,9 +41,7 @@ public class VideoSoftSwitch extends SoftSwitch {
     @Override
     public void stateChanged() {
 //        System.out.println("Set "+getName()+" -> "+getState());
-        if (computer.getVideo() != null) {
-            computer.getVideo().configureVideoMode();
-        }
+        Emulator.withVideo(video -> video.configureVideoMode());
     }
 
     @Override

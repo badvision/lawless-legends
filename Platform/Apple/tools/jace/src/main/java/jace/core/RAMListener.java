@@ -118,16 +118,6 @@ public abstract class RAMListener implements RAMEvent.RAMEventHandler {
     }
 
     public boolean isRelevant(RAMEvent e) {
-        // Skip event if it's not the right type
-        if (type != TYPE.ANY && type != e.getType()) {
-            if (e.getType() != TYPE.ANY && type == TYPE.READ) {
-                if (!e.getType().isRead()) {
-                    return false;
-                }
-            } else {
-                return false;
-            }
-        }
         // Skip event if it's not in the scope we care about
         if (scope != RAMEvent.SCOPE.ANY) {
             if (scope == RAMEvent.SCOPE.ADDRESS && e.getAddress() != scopeStart) {
@@ -137,6 +127,11 @@ public abstract class RAMListener implements RAMEvent.RAMEventHandler {
             }
         }
 
+        // Skip event if it's not the right type
+        if (!(type == TYPE.ANY || type == e.getType() || (type == TYPE.READ && e.getType().isRead()))) {
+            return false;
+        }
+        
         // Skip event if the value modification is uninteresting
         if (value != RAMEvent.VALUE.ANY) {
             if (value == RAMEvent.VALUE.CHANGE_BY && e.getNewValue() - e.getOldValue() != valueAmount) {
@@ -154,7 +149,7 @@ public abstract class RAMListener implements RAMEvent.RAMEventHandler {
     }
     
     @Override
-    public void handleEvent(RAMEvent e) {
+    public final void handleEvent(RAMEvent e) {
         if (isRelevant(e)) {
             doEvent(e);
         }

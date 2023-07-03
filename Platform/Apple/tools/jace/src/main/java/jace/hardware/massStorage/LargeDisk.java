@@ -82,19 +82,26 @@ public class LargeDisk implements IDisk {
     }
 
     @Override
-    public void boot0(int slot, Computer computer) throws IOException {
-        computer.pause();
-        mliRead(0, 0x0800, computer.getMemory());
-        byte slot16 = (byte) (slot << 4);
-        ((MOS65C02) computer.getCpu()).X = slot16;
-        RAM memory = computer.getMemory();
-        memory.write(CardMassStorage.SLT16, slot16, false, false);
-        memory.write(MLI_COMMAND, (byte) MLI_COMMAND_TYPE.READ.intValue, false, false);
-        memory.write(MLI_UNITNUMBER, slot16, false, false);
-        // Write location to block read routine to zero page
-        memory.writeWord(0x048, 0x0c000 + CardMassStorage.DEVICE_DRIVER_OFFSET + (slot * 0x0100), false, false);
-        computer.getCpu().setProgramCounter(0x0800);
-        computer.resume();
+    public void boot0(int slot, Computer computer) {
+        computer.getCpu().whileSuspended(()->{
+            try {
+//                System.out.println("Loading boot0 to $800");
+                mliRead(0, 0x0800, computer.getMemory());
+            } catch (IOException ex) {
+                Logger.getLogger(LargeDisk.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            byte slot16 = (byte) (slot << 4);
+//            System.out.println("X = "+Integer.toHexString(slot16));
+            ((MOS65C02) computer.getCpu()).X = slot16;
+            RAM memory = computer.getMemory();
+            memory.write(CardMassStorage.SLT16, slot16, false, false);
+            memory.write(MLI_COMMAND, (byte) MLI_COMMAND_TYPE.READ.intValue, false, false);
+            memory.write(MLI_UNITNUMBER, slot16, false, false);
+            // Write location to block read routine to zero page
+            memory.writeWord(0x048, 0x0c000 + CardMassStorage.DEVICE_DRIVER_OFFSET + (slot * 0x0100), false, false);
+//            System.out.println("JMP $800 issued");
+            computer.getCpu().setProgramCounter(0x0800);
+        });
     }
 
     public File getPhysicalPath() {

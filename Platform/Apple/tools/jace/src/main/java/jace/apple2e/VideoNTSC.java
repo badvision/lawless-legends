@@ -18,6 +18,10 @@
  */
 package jace.apple2e;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+
 import jace.Emulator;
 import jace.EmulatorUILogic;
 import jace.config.ConfigurableField;
@@ -29,10 +33,6 @@ import jace.core.RAMListener;
 import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
-
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
 
 /**
  * Provides a clean color monitor simulation, complete with text-friendly
@@ -94,51 +94,51 @@ public class VideoNTSC extends VideoDHGR {
             defaultKeyMapping = {"ctrl+shift+g"})
     public static void changeVideoMode() {
         currentMode = (currentMode + 1) % VideoMode.values().length;
-        ((VideoNTSC) Emulator.getComputer().getVideo())._setVideoMode(VideoMode.values()[currentMode], true);
+        Emulator.withVideo(v->((VideoNTSC) v)._setVideoMode(VideoMode.values()[currentMode], true));
     }
 
     public static void setVideoMode(VideoMode newMode, boolean showNotification) {
-        ((VideoNTSC) Emulator.getComputer().getVideo())._setVideoMode(newMode, showNotification);        
+        Emulator.withVideo(v->((VideoNTSC) v)._setVideoMode(newMode, showNotification));
     }
 
     private void _setVideoMode(VideoMode newMode, boolean showNotification) {
-        VideoNTSC thiss = (VideoNTSC) Emulator.getComputer().video;
-        thiss.monochomeMode = false;
-        WHITE = Color.WHITE;
-        switch (newMode) {
-            case Amber:
-                thiss.monochomeMode = true;
-                WHITE = Color.web("ff8000");
-                break;
-            case Greenscreen:
-                thiss.monochomeMode = true;
-                WHITE = Color.web("0ccc68");
-                break;
-            case Monochrome:
-                thiss.monochomeMode = true;
-                break;
-            case Color:
-                thiss.useTextPalette = false;
-                thiss.enableVideo7 = false;
-                break;
-            case Mode7:
-                thiss.useTextPalette = false;
-                thiss.enableVideo7 = true;
-                break;
-            case Mode7TextFriendly:
-                thiss.useTextPalette = true;
-                thiss.enableVideo7 = true;
-                break;
-            case TextFriendly:
-                thiss.useTextPalette = true;
-                thiss.enableVideo7 = false;
-                break;
-        }
-        thiss.activePalette = thiss.useTextPalette ? TEXT_PALETTE : SOLID_PALETTE;
-        if (showNotification) {
-            EmulatorUILogic.notify("Video mode: " + newMode.name);
-        }
-        forceRefresh();
+        Emulator.withVideo(v-> {
+            VideoNTSC thiss = (VideoNTSC) v;
+            thiss.monochomeMode = false;
+            WHITE = Color.WHITE;
+            switch (newMode) {
+                case Amber -> {
+                    thiss.monochomeMode = true;
+                    WHITE = Color.web("ff8000");
+                }
+                case Greenscreen -> {
+                    thiss.monochomeMode = true;
+                    WHITE = Color.web("0ccc68");
+                }
+                case Monochrome -> thiss.monochomeMode = true;
+                case Color -> {
+                    thiss.useTextPalette = false;
+                    thiss.enableVideo7 = false;
+                }
+                case Mode7 -> {
+                    thiss.useTextPalette = false;
+                    thiss.enableVideo7 = true;
+                }
+                case Mode7TextFriendly -> {
+                    thiss.useTextPalette = true;
+                    thiss.enableVideo7 = true;
+                }
+                case TextFriendly -> {
+                    thiss.useTextPalette = true;
+                    thiss.enableVideo7 = false;
+                }
+            }
+            thiss.activePalette = thiss.useTextPalette ? TEXT_PALETTE : SOLID_PALETTE;
+            if (showNotification) {
+                EmulatorUILogic.notify("Video mode: " + newMode.name);
+            }
+            forceRefresh();
+        });
     }
 
     @Override

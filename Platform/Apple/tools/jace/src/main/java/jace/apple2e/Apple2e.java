@@ -18,27 +18,45 @@
  */
 package jace.apple2e;
 
-import jace.LawlessLegends;
-import jace.apple2e.softswitch.VideoSoftSwitch;
-import jace.cheat.Cheats;
-import jace.config.ClassSelection;
-import jace.config.ConfigurableField;
-import jace.core.*;
-import jace.hardware.*;
-import jace.hardware.massStorage.CardMassStorage;
-import jace.lawless.FPSMonitorDevice;
-import jace.lawless.LawlessVideo;
-import jace.state.Stateful;
-
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import jace.LawlessLegends;
+import jace.apple2e.softswitch.VideoSoftSwitch;
+import jace.cheat.Cheats;
+import jace.config.ClassSelection;
+import jace.config.ConfigurableField;
+import jace.core.Card;
+import jace.core.Computer;
+import jace.core.Device;
+import jace.core.Motherboard;
+import jace.core.RAM;
+import jace.core.RAMEvent;
+import jace.core.RAMListener;
+import jace.core.Utility;
+import jace.core.Video;
+import jace.hardware.CardDiskII;
+import jace.hardware.CardExt80Col;
+import jace.hardware.CardRamworks;
+import jace.hardware.ConsoleProbe;
+import jace.hardware.Joystick;
+import jace.hardware.NoSlotClock;
+import jace.hardware.ZipWarpAccelerator;
+import jace.hardware.massStorage.CardMassStorage;
+import jace.lawless.FPSMonitorDevice;
+import jace.lawless.LawlessVideo;
+import jace.state.Stateful;
 
 /**
  * Apple2e is a computer with a 65c02 CPU, 128k of bankswitched ram,
@@ -173,7 +191,7 @@ public class Apple2e extends Computer {
         if (getMemory().getCard(slot).isPresent()) {
             if (getMemory().getCard(slot).get().getClass().equals(type)) {
                 return;
-            }
+            }            
             getMemory().removeCard(slot);
         }
         if (type != null) {
@@ -214,13 +232,12 @@ public class Apple2e extends Computer {
             return;
         }
         motherboard.whileSuspended(()-> {
-            if (getMemory() != null) {
-                for (SoftSwitches s : SoftSwitches.values()) {
-                    s.getSwitch().unregister();
-                }
-            }
             if (!isMemoryConfigurationCorrect()) {
                 try {
+                    if (getVideo() != null) {
+                        getVideo().suspend();
+                    }
+                    setVideo(null);
                     System.out.println("Creating new ram using " + getDesiredMemoryConfiguration().getName());
                     RAM128k newMemory = getDesiredMemoryConfiguration().getConstructor(Computer.class).newInstance(this);
 
@@ -232,15 +249,12 @@ public class Apple2e extends Computer {
                     Logger.getLogger(Apple2e.class.getName()).log(Level.SEVERE, null, ex);
                 }                
             }
-            for (SoftSwitches s : SoftSwitches.values()) {
-                s.getSwitch().register(this);
-            }
 
             try {
                 if (useDebugRom) {
-                    loadRom("jace/data/apple2e_debug.rom");
+                    loadRom("/jace/data/apple2e_debug.rom");
                 } else {
-                    loadRom("jace/data/apple2e.rom");
+                    loadRom("/jace/data/apple2e.rom");
                 }
             } catch (IOException ex) {
                 Logger.getLogger(Apple2e.class.getName()).log(Level.SEVERE, null, ex);
@@ -331,15 +345,18 @@ public class Apple2e extends Computer {
             if (cheatEngine.getValue() == null) {
                 if (activeCheatEngine != null) {
                     activeCheatEngine.detach();
-                    newDeviceSet.add(activeCheatEngine);
+                    activeCheatEngine.suspend();
+                    activeCheatEngine = null;
                 }
-                activeCheatEngine = null;
             } else {
                 boolean startCheats = true;
                 if (activeCheatEngine != null) {
                     if (activeCheatEngine.getClass().equals(cheatEngine.getValue())) {
                         startCheats = false;
+                        newDeviceSet.add(activeCheatEngine);
                     } else {
+                        activeCheatEngine.detach();
+                        activeCheatEngine.suspend();
                         activeCheatEngine = null;
                     }
                 }
@@ -354,7 +371,7 @@ public class Apple2e extends Computer {
             }
 
             newDeviceSet.add(cpu);
-            newDeviceSet.add(video);
+            newDeviceSet.add(getVideo());
             for (Optional<Card> c : getMemory().getAllCards()) {
                 c.ifPresent(newDeviceSet::add);
             }                
@@ -481,6 +498,7 @@ public class Apple2e extends Computer {
 
     private void disableHints() {
         hints.forEach((hint) -> getMemory().removeListener(hint));
+        hints.clear();
     }
 
     @Override

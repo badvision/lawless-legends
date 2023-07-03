@@ -6,15 +6,11 @@
                 <packaging>jar</packaging>
             </packagings>
             <goals>
-                <goal>-X</goal>
-                <goal>-e</goal>
-                <goal>process-classes</goal>
-                <goal>org.codehaus.mojo:exec-maven-plugin:1.2.1:exec</goal>
+                <goal>clean</goal>
+                <goal>javafx:run</goal>
+                
+                
             </goals>
-            <properties>
-                <exec.args>-classpath %classpath jace.LawlessLegends</exec.args>
-                <exec.executable>java</exec.executable>
-            </properties>
         </action>
         <action>
             <actionName>profile</actionName>
@@ -22,12 +18,13 @@
                 <packaging>jar</packaging>
             </packagings>
             <goals>
+                <goal>clean</goal>
                 <goal>process-classes</goal>
-                <goal>org.codehaus.mojo:exec-maven-plugin:1.2.1:exec</goal>
+                <goal>javafx:run@ide-debug</goal>
             </goals>
             <properties>
-                <exec.args>-classpath %classpath jace.LawlessLegends</exec.args>                
-                <exec.executable>java</exec.executable>
+                                
+                
                 <jpda.listen>true</jpda.listen>                
             </properties>
         </action>
@@ -37,12 +34,12 @@
                 <packaging>jar</packaging>
             </packagings>
             <goals>
-                <goal>process-classes</goal>
-                <goal>org.codehaus.mojo:exec-maven-plugin:1.2.1:exec</goal>
+                <goal>clean</goal>
+                <goal>javafx:run@ide-debug</goal>
             </goals>
             <properties>
-                <exec.args>-agentlib:jdwp=transport=dt_socket,server=n,address=${jpda.address} -classpath %classpath jace.LawlessLegends</exec.args>
-                <exec.executable>java</exec.executable>
+                
+                
                 <jpda.listen>true</jpda.listen>
             </properties>
         </action>

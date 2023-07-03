@@ -4,7 +4,6 @@ import jace.Emulator;
 import jace.EmulatorUILogic;
 import jace.config.ConfigurableField;
 import jace.core.Computer;
-import jace.core.RAM;
 import jace.core.RAMEvent;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
@@ -71,7 +70,6 @@ public class MontezumasRevengeCheats extends Cheats {
 
     @Override
     public void registerListeners() {
-        RAM memory = Emulator.getComputer().memory;
         if (repulsiveHack) {
             addCheat(RAMEvent.TYPE.WRITE, this::repulsiveBehavior, 0x1508, 0x1518);
         }
@@ -91,22 +89,24 @@ public class MontezumasRevengeCheats extends Cheats {
         }
 
         if (safePassage) {
-            //blank out pattern for floors/doors
-            for (int addr = 0x0b54; addr <= 0xb5f; addr++) {
-                memory.write(addr, (byte) 0, false, false);
-                memory.write(addr + 0x0400, (byte) 0, false, false);
-            }
-            memory.write(0x0b50, (byte) 0b11010111, false, false);
-            memory.write(0x0b51, (byte) 0b00010000, false, false);
-            memory.write(0x0b52, (byte) 0b10001000, false, false);
-            memory.write(0x0b53, (byte) 0b10101010, false, false);
-            memory.write(0x0f50, (byte) 0b10101110, false, false);
-            memory.write(0x0f51, (byte) 0b00001000, false, false);
-            memory.write(0x0f52, (byte) 0b10000100, false, false);
-            memory.write(0x0f53, (byte) 0b11010101, false, false);            
-            forceValue(32, FLOOR_TIMER);
-            forceValue(32, HAZARD_TIMER);
-            forceValue(1, HAZARD_FLAG);
+            Emulator.withMemory(memory -> {
+                //blank out pattern for floors/doors
+                for (int addr = 0x0b54; addr <= 0xb5f; addr++) {
+                    memory.write(addr, (byte) 0, false, false);
+                    memory.write(addr + 0x0400, (byte) 0, false, false);
+                }
+                memory.write(0x0b50, (byte) 0b11010111, false, false);
+                memory.write(0x0b51, (byte) 0b00010000, false, false);
+                memory.write(0x0b52, (byte) 0b10001000, false, false);
+                memory.write(0x0b53, (byte) 0b10101010, false, false);
+                memory.write(0x0f50, (byte) 0b10101110, false, false);
+                memory.write(0x0f51, (byte) 0b00001000, false, false);
+                memory.write(0x0f52, (byte) 0b10000100, false, false);
+                memory.write(0x0f53, (byte) 0b11010101, false, false);            
+                forceValue(32, FLOOR_TIMER);
+                forceValue(32, HAZARD_TIMER);
+                forceValue(1, HAZARD_FLAG);
+            });
         }
 
         if (scoreHack) {
@@ -198,7 +198,7 @@ public class MontezumasRevengeCheats extends Cheats {
     private void mouseClicked(MouseButton button) {
         byte newX = (byte) (mouseX * X_MAX);
         byte newY = (byte) (mouseY * Y_MAX);
-        computer.memory.write(PLAYER_X, newX, false, false);
-        computer.memory.write(PLAYER_Y, newY, false, false);
+        computer.getMemory().write(PLAYER_X, newX, false, false);
+        computer.getMemory().write(PLAYER_Y, newY, false, false);
     }
 }

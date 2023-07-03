@@ -21,15 +21,15 @@ import jace.apple2e.RAM128k;
 import jace.core.Computer;
 import jace.core.SoundMixer;
 import jace.core.Utility;
-import jace.ide.HeadlessProgram;
-import jace.ide.Program;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static jace.TestUtils.*;
 
 /**
  * Basic test functionality to assert correct 6502 decode and execution.
@@ -63,11 +63,11 @@ public class Basic6502FuncationalityTest {
 
     @Test
     public void assertMemoryConfiguredCorrectly() {
-        assertEquals("Active read bank 3 should be main memory page 3",
+        assertArrayEquals("Active read bank 3 should be main memory page 3",
                 ram.mainMemory.getMemoryPage(3),
                 ram.activeRead.getMemoryPage(3));
 
-        assertEquals("Active write bank 3 should be main memory page 3",
+        assertArrayEquals("Active write bank 3 should be main memory page 3",
                 ram.mainMemory.getMemoryPage(3),
                 ram.activeWrite.getMemoryPage(3));
     }
@@ -77,7 +77,7 @@ public class Basic6502FuncationalityTest {
         cpu.A = 0;
         cpu.D = false;
         cpu.C = 0;
-        runAssemblyCode("adc #1");
+        runAssemblyCode("adc #1", 2);
         assertEquals("0+1 (c=0) = 1", 1, cpu.A);
         assertFalse("Result is not zero", cpu.Z);
         assertEquals("Carry is clear", 0, cpu.C);
@@ -88,7 +88,7 @@ public class Basic6502FuncationalityTest {
         cpu.A = 0;
         cpu.D = false;
         cpu.C = 1;
-        runAssemblyCode("adc #1");
+        runAssemblyCode("adc #1", 2);
         assertEquals("0+1 (c=1) = 2", 2, cpu.A);
         assertFalse("Result is not zero", cpu.Z);
         assertEquals("Carry is clear", 0, cpu.C);
@@ -99,7 +99,7 @@ public class Basic6502FuncationalityTest {
         cpu.A = 9;
         cpu.D = true;
         cpu.C = 0;
-        runAssemblyCode("adc #1");
+        runAssemblyCode("adc #1", 2);
         assertEquals("9+1 (c=0) = 0x10", 0x10, cpu.A);
         assertFalse("Result is not zero", cpu.Z);
         assertEquals("Carry is clear", 0, cpu.C);
@@ -110,22 +110,9 @@ public class Basic6502FuncationalityTest {
         cpu.A = 9;
         cpu.D = true;
         cpu.C = 1;
-        runAssemblyCode("adc #1");
+        runAssemblyCode("adc #1", 2);
         assertEquals("9+1 (c=1) = 0x11", 0x11, cpu.A);
         assertFalse("Result is not zero", cpu.Z);
         assertEquals("Carry is clear", 0, cpu.C);
-    }
-    
-    private void runAssemblyCode(String code) {
-        runAssemblyCode(code, 0x0300);
-    }
-    
-    private void runAssemblyCode(String code, int addr) {
-        cpu.trace = true;
-        HeadlessProgram program = new HeadlessProgram(Program.DocumentType.assembly);
-        program.setValue("*=$"+Integer.toHexString(addr)+"\n "+code+"\n NOP\n RTS");
-        program.execute();
-        cpu.tick();
-        cpu.tick();
     }
 }

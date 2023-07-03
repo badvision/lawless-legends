@@ -131,8 +131,8 @@ public class CardMockingboard extends Card implements Runnable {
                     return "timer" + j;
                 }
                 
-                public void doTick() {
-                    super.doTick();
+                public void tick() {
+                    super.tick();
                     if (controller == 0) {
                         doSoundTick();
                     }
@@ -345,8 +345,13 @@ public class CardMockingboard extends Card implements Runnable {
      * This is the audio playback thread
      */
     public void run() {
+        SourceDataLine out = null;
         try {
-            SourceDataLine out = computer.mixer.getLine(this);
+            out = computer.mixer.getLine();
+            if (out == null) {
+                setRun(false);
+                return;
+            }
             int[] leftBuffer = new int[BUFFER_LENGTH];
             int[] rightBuffer = new int[BUFFER_LENGTH];
             int frameSize = out.getFormat().getFrameSize();
@@ -354,7 +359,7 @@ public class CardMockingboard extends Card implements Runnable {
             System.out.println("Mockingboard playback started");
             int bytesPerSample = frameSize / 2;
             buildMixerTable();
-            ticksBetweenPlayback = (int) ((Motherboard.SPEED * BUFFER_LENGTH) / SAMPLE_RATE);
+            ticksBetweenPlayback = (int) ((Motherboard.DEFAULT_SPEED * BUFFER_LENGTH) / SAMPLE_RATE);
             System.out.println("Ticks between playback: "+ticksBetweenPlayback);
             ticksSinceLastPlayback = 0;
             int zeroSamples = 0;
@@ -426,15 +431,15 @@ public class CardMockingboard extends Card implements Runnable {
                     }
                 }
             }
-        } catch (LineUnavailableException ex) {
-            Logger.getLogger(CardMockingboard.class
-                    .getName()).log(Level.SEVERE, null, ex);
         } catch (InterruptedException ex) {
             Logger.getLogger(CardMockingboard.class.getName()).log(Level.SEVERE, null, ex);
         } finally {
             computer.getMotherboard().cancelSpeedRequest(this);
             System.out.println("Mockingboard playback stopped");
-            computer.mixer.returnLine(this);
+            if (out != null && out.isRunning()) {
+                out.drain();
+                out.close();
+            }
         }
     }
 

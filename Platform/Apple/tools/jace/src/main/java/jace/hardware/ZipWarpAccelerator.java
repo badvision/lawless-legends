@@ -52,8 +52,8 @@ public class ZipWarpAccelerator extends Device {
 
     public ZipWarpAccelerator(Computer computer) {
         super(computer);
-        zipListener = computer.memory.observe(RAMEvent.TYPE.ANY, ENABLE_ADDR, SET_SPEED, this::handleZipChipEvent);
-        transwarpListener = computer.memory.observe(RAMEvent.TYPE.ANY, TRANSWARP, this::handleTranswarpEvent);
+        zipListener = computer.getMemory().observe(RAMEvent.TYPE.ANY, ENABLE_ADDR, SET_SPEED, this::handleZipChipEvent);
+        transwarpListener = computer.getMemory().observe(RAMEvent.TYPE.ANY, TRANSWARP, this::handleTranswarpEvent);
     }
 
     private void handleZipChipEvent(RAMEvent e) {
@@ -85,24 +85,22 @@ public class ZipWarpAccelerator extends Device {
             }
         } else if (!zipLocked && isWrite) {
             switch (e.getAddress()) {
-                case MAX_SPEED:
+                case MAX_SPEED -> {
                     setSpeed(SPEED.MAX);
                     if (debugMessagesEnabled) {
                         System.out.println("MAXIMUM WARP!");
                     }
-                    break;
-                case SET_SPEED:
+                }
+                case SET_SPEED -> {
                     SPEED s = lookupSpeedSetting(e.getNewValue());
                     setSpeed(s);
                     if (debugMessagesEnabled) {
                         System.out.println("Set speed to " + s.ratio);
                     }
-                    break;
-                case REGISTERS:
-                    zipRegisters = e.getNewValue();
-                    break;
-                default:
-                    break;
+                }
+                case REGISTERS -> zipRegisters = e.getNewValue();
+                default -> {
+                }
             }
         } else if (!zipLocked && e.getAddress() == REGISTERS) {
             e.setNewValue(zipRegisters);
@@ -177,15 +175,17 @@ public class ZipWarpAccelerator extends Device {
 
     private void setSpeed(SPEED speed) {
         speedValue = speed.val;
-        if (speed.max) {
-            Emulator.getComputer().getMotherboard().setMaxSpeed(true);
-            Motherboard.cpuPerClock = 3;
-        } else {
-            Emulator.getComputer().getMotherboard().setMaxSpeed(false);
-            Emulator.getComputer().getMotherboard().setSpeedInPercentage((int) (speed.ratio * 100));
-            Motherboard.cpuPerClock = 1;
-        }
-        Emulator.getComputer().getMotherboard().reconfigure();
+        Emulator.withComputer(c -> {
+            if (speed.max) {
+                c.getMotherboard().setMaxSpeed(true);
+                Motherboard.cpuPerClock = 3;
+            } else {
+                c.getMotherboard().setMaxSpeed(false);
+                c.getMotherboard().setSpeedInPercentage((int) (speed.ratio * 100));
+                Motherboard.cpuPerClock = 1;
+            }
+            c.getMotherboard().reconfigure();            
+        });
     }
 
     private void turnOffAcceleration() {
@@ -202,15 +202,15 @@ public class ZipWarpAccelerator extends Device {
 
     @Override
     public void attach() {
-        computer.memory.addListener(zipListener);
-        computer.memory.addListener(transwarpListener);
+        computer.getMemory().addListener(zipListener);
+        computer.getMemory().addListener(transwarpListener);
     }
 
     @Override
     public void detach() {
         super.detach();
-        computer.memory.removeListener(zipListener);
-        computer.memory.removeListener(transwarpListener);
+        computer.getMemory().removeListener(zipListener);
+        computer.getMemory().removeListener(transwarpListener);
     }
 
     @Override

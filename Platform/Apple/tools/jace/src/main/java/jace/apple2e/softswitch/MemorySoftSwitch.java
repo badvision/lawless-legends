@@ -18,6 +18,7 @@
  */
 package jace.apple2e.softswitch;
 
+import jace.Emulator;
 import jace.core.RAMEvent;
 import jace.core.SoftSwitch;
 
@@ -40,15 +41,13 @@ public class MemorySoftSwitch extends SoftSwitch {
     @Override
     public void stateChanged() {
 //        System.out.println(getName()+ " was switched to "+getState());
-        if (computer.getMemory() != null) {
-            computer.getMemory().configureActiveMemory();
-        }
+        Emulator.withMemory(m->m.configureActiveMemory());
     }
 
     // Todo: Implement floating bus, maybe?
     @Override
     protected byte readSwitch() {
-        byte value = computer.getVideo().getFloatingBus();
+        byte value = Emulator.withComputer(c->c.getVideo().getFloatingBus(), (byte) 0);
         if (getState()) {
             return (byte) (value | 0x080);
         } else {

@@ -159,6 +159,7 @@ public class CardMassStorage extends Card implements MediaConsumerParent {
             if (drive1.getCurrentDisk() != null && getSlot() == 7 && (pc >= 0x0c65e && pc <= 0x0c66F)) {
                 // If the computer is in a loop trying to boot from cards 6, fast-boot from here instead
                 // This is a convenience to boot a hard-drive if the emulator has started waiting for a currentDisk
+                System.out.println("Fast-booting to mass storage drive");
                 currentDrive = drive1;
                 EmulatorUILogic.simulateCtrlAppleReset();
             }
@@ -178,7 +179,7 @@ public class CardMassStorage extends Card implements MediaConsumerParent {
     @Override
     protected void handleFirmwareAccess(int offset, TYPE type, int value, RAMEvent e) {
         MOS65C02 cpu = (MOS65C02) computer.getCpu();
-//                System.out.println(e.getType()+" "+Integer.toHexString(e.getAddress())+" from instruction at  "+Integer.toHexString(cpu.getProgramCounter()));
+//        System.out.println(e.getType()+" "+Integer.toHexString(e.getAddress())+" from instruction at  "+Integer.toHexString(cpu.getProgramCounter()));
         if (type.isRead()) {
 //            Emulator.getFrame().addIndicator(this, currentDrive.getIcon());
             if (drive1.getCurrentDisk() == null && drive2.getCurrentDisk() == null) {
@@ -228,19 +229,10 @@ public class CardMassStorage extends Card implements MediaConsumerParent {
                 e.setNewValue(cardSignature[offset]);
             } else {
                 switch (offset) {
-                    // Disk capacity = 65536 blocks
-                    case 0x0FC:
-                        e.setNewValue(0x0ff);
-                        break;
-                    case 0x0FD:
-                        e.setNewValue(0x07f);
-                        break;
-                    // Status bits
-                    case 0x0FE:
-                        e.setNewValue(0x0D7);
-                        break;
-                    case 0x0FF:
-                        e.setNewValue(DEVICE_DRIVER_OFFSET);
+                    case 0x0FC -> e.setNewValue(0x0ff); // Disk capacity = 65536 blocks
+                    case 0x0FD -> e.setNewValue(0x07f);
+                    case 0x0FE -> e.setNewValue(0x0D7); // Status bits
+                    case 0x0FF -> e.setNewValue(DEVICE_DRIVER_OFFSET);
                 }
             }
         }

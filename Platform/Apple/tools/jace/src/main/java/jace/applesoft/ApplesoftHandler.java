@@ -17,7 +17,7 @@ public class ApplesoftHandler implements LanguageHandler<ApplesoftProgram> {
 
     @Override
     public String getNewDocumentContent() {
-        return ApplesoftProgram.fromMemory(Emulator.getComputer().getMemory()).toString();
+        return Emulator.withComputer(c->ApplesoftProgram.fromMemory(c.getMemory()).toString(), "");
     }
 
     @Override

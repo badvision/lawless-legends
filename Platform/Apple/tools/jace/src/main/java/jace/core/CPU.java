@@ -127,11 +127,7 @@ public abstract class CPU extends Device {
                         // If the debugger is active and we aren't ready for the next step, sleep and exit
                         // Without the sleep, this would constitute a very rapid-fire loop and would eat
                         // an unnecessary amount of CPU.
-                        try {
-                            Thread.sleep(10);
-                        } catch (InterruptedException ex) {
-                            Logger.getLogger(CPU.class.getName()).log(Level.SEVERE, null, ex);
-                        }
+                        Thread.onSpinWait();
                         return;
                     }
                 }

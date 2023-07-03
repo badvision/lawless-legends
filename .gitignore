@@ -61,3 +61,10 @@ error_stack.txt
 /Platform/Apple/virtual/genBuild
 /Platform/Apple/virtual/mapBuild
 /Platform/Apple/virtual/plasBuild
+
+# Hey, don't include the commercial game data you ninny!
+/Platform/Apple/tools/jace/src/main/resources/jace/data/game.2mg
+
+# Ignore NetBeans project files
+Platform/Apple/tools/jace/nb-configuration.xml
+Platform/Apple/tools/jace/nbactions.xml

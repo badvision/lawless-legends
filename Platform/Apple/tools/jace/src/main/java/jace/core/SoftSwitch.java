@@ -18,10 +18,12 @@
  */
 package jace.core;
 
-import jace.state.Stateful;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
+import jace.Emulator;
+import jace.state.Stateful;
 
 /**
  * A softswitch is a hidden bit that lives in the MMU, it can be activated or
@@ -47,7 +49,6 @@ public abstract class SoftSwitch {
     private final List<Integer> exclusionQuery = new ArrayList<>();
     private final String name;
     private boolean toggleType = false;
-    protected Computer computer;
 
     /**
      * Creates a new instance of SoftSwitch
@@ -145,7 +146,7 @@ public abstract class SoftSwitch {
                     @Override
                     protected void doEvent(RAMEvent e) {
                         if (e.getType().isRead()) {
-                            e.setNewValue(computer.getVideo().getFloatingBus());
+                            e.setNewValue(Emulator.withComputer(c->c.getVideo().getFloatingBus(), (byte) 0));
                         }
                         if (!exclusionActivate.contains(e.getAddress())) {
                             //                        System.out.println("Access to "+Integer.toHexString(e.getAddress())+" ENABLES switch "+getName());
@@ -239,16 +240,16 @@ public abstract class SoftSwitch {
         }
     }
 
-    public void register(Computer computer) {
-        this.computer = computer;
-        listeners.forEach(computer.getMemory()::addListener);
+    public void register() {
+        Emulator.withMemory(m -> {
+            listeners.forEach(m::addListener);
+        });
     }
 
     public void unregister() {
-        if (computer != null && computer.getMemory() != null) {
-            listeners.forEach(computer.getMemory()::removeListener);
-        }
-        this.computer = null;
+        Emulator.withMemory(m -> {
+            listeners.forEach(m::removeListener);
+        });
     }
 
     public void setState(boolean newState) {

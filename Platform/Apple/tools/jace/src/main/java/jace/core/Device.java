@@ -20,10 +20,9 @@ package jace.core;
 
 import jace.config.Reconfigurable;
 import jace.state.Stateful;
-import org.eclipse.collections.api.factory.Sets;
-import org.eclipse.collections.api.set.MutableSet;
-
 import java.util.Collection;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 
 /**
  * Device is a very simple abstraction of any emulation component. A device
@@ -41,11 +40,12 @@ import java.util.Collection;
 public abstract class Device implements Reconfigurable {
 
     protected Computer computer;
-    private final MutableSet<Device> children;
+    private final Set<Device> children;
     private Device[] childrenArray = new Device[0];
+    private Runnable tickHandler = this::__doTickNotRunning;
 
     private Device() {
-        children = Sets.mutable.empty();
+        children = new CopyOnWriteArraySet<>();
     }
 
     public Device(Computer computer) {
@@ -59,7 +59,9 @@ public abstract class Device implements Reconfigurable {
     @Stateful
     private boolean run = false;
     @Stateful
-    public boolean isPaused = false;
+    // Pausing a device overrides its run state, and is not reset by resuming directly
+    // Therefore a caller pausing a device must unpause it directly!
+    private boolean paused = false;
     @Stateful
     public boolean isAttached = false;
 
@@ -68,10 +70,9 @@ public abstract class Device implements Reconfigurable {
             return;
         }
         children.add(d);
-        if (isAttached) {
-            d.attach();
-        }
-        childrenArray = children.toArray(new Device[0]);
+        d.attach();
+        childrenArray = children.toArray(Device[]::new);
+        updateTickHandler();
     }
 
     public void removeChildDevice(Device d) {
@@ -80,10 +81,9 @@ public abstract class Device implements Reconfigurable {
         }
         children.remove(d);
         d.suspend();
-        if (isAttached) {
-            d.detach();
-        }
-        childrenArray = children.toArray(new Device[0]);
+        d.detach();
+        childrenArray = children.toArray(Device[]::new);
+        updateTickHandler();
     }
 
     public void addAllDevices(Iterable<Device> devices) {
@@ -91,7 +91,7 @@ public abstract class Device implements Reconfigurable {
     }
 
     public Iterable<Device> getChildren() {
-        return children.asUnmodifiable();
+        return children;
     }
     
     public void setAllDevices(Collection<Device> newDevices) {
@@ -111,28 +111,61 @@ public abstract class Device implements Reconfigurable {
         waitCycles = wait;
     }
 
-    public void doTick() {        
-        if (isRunning()) {
-            for (Device d : childrenArray) {
-                d.doTick();
-            }
-            if (waitCycles > 0) {
-                waitCycles--;
-                return;
-            }
-            tick();
+    private void updateTickHandler() {
+        if (!isRunning() || isPaused()) {
+            tickHandler = this::__doTickNotRunning;
+        } else if (childrenArray.length == 0) {
+            tickHandler = this::__doTickNoDevices;           
+        } else {
+            tickHandler = this::__doTickIsRunning;
         }
+    }
+    
+    private void __doTickNotRunning() {
+        // Do nothing
+    }
+    
+    private void __doTickIsRunning() {
+        for (Device d : childrenArray) {
+            d.doTick();
+        }
+        if (waitCycles <= 0) {
+            tick();
+            return;
+        }
+        waitCycles--;
+    }
+    
+    private void __doTickNoDevices() {
+        if (waitCycles <= 0) {
+            tick();
+            return;
+        }
+        waitCycles--;
+    }
+    
+    public final void doTick() {
+        tickHandler.run();
     }
 
     public boolean isRunning() {
         return run;
     }
-
-    public synchronized void setRun(boolean run) {
-        isPaused = false;
-        this.run = run;
+    
+    public boolean isPaused() {
+        return paused;
     }
 
+    public final synchronized void setRun(boolean run) {
+        this.run = run;
+        updateTickHandler();
+    }
+
+    public final synchronized void setPaused(boolean paused) {
+        this.paused = paused;
+        updateTickHandler();
+    }
+    
     protected abstract String getDeviceName();
 
     @Override
@@ -141,35 +174,25 @@ public abstract class Device implements Reconfigurable {
     }
 
     public abstract void tick();
-
-    private Runnable buildSuspendedRunnable(Runnable r) {
-        Runnable finalProcess = () -> {
-            if (isRunning()) {
-                suspend();
-                r.run();
-                resume();
-            } else {
-                r.run();
-            }        
-        };
-        for (Device child : getChildren()) {
-            finalProcess = child.buildSuspendedRunnable(finalProcess);
-        }
-        return finalProcess;        
-    }
     
     public void whileSuspended(Runnable r) {
-        buildSuspendedRunnable(r).run();
+        if (isRunning()) {
+            suspend();
+            r.run();
+            resume();
+        } else {
+            r.run();
+        }        
     }
     
     public boolean suspend() {
-        children.forEach(Device::suspend);
         if (isRunning()) {
 //            System.out.println(getName() + " Suspended");
 //            Utility.printStackTrace();
             setRun(false);
             return true;
         }
+        children.forEach(Device::suspend);
         return false;
     }
 
@@ -189,8 +212,8 @@ public abstract class Device implements Reconfigurable {
     }
 
     public void detach() {
-        Keyboard.unregisterAllHandlers(this);
         children.forEach(Device::suspend);
         children.forEach(Device::detach);
+        Keyboard.unregisterAllHandlers(this);
     }
 }

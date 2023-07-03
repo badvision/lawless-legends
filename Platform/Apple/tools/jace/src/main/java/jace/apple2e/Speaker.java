@@ -18,18 +18,28 @@
  */
 package jace.apple2e;
 
-import jace.LawlessLegends;
-import jace.config.ConfigurableField;
-import jace.core.*;
-import javafx.stage.FileChooser;
-
-import javax.sound.sampled.LineUnavailableException;
-import javax.sound.sampled.SourceDataLine;
-import java.io.*;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.Timer;
-import java.util.TimerTask;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.sound.sampled.SourceDataLine;
+
+import jace.Emulator;
+import jace.LawlessLegends;
+import jace.config.ConfigurableField;
+import jace.config.InvokableAction;
+import jace.core.Computer;
+import jace.core.Motherboard;
+import jace.core.RAMEvent;
+import jace.core.RAMListener;
+import jace.core.SoundGeneratorDevice;
+import jace.core.SoundMixer;
+import javafx.stage.FileChooser;
 
 /**
  * Apple // Speaker Emulation Created on May 9, 2007, 9:55 PM
@@ -40,7 +50,11 @@ public class Speaker extends SoundGeneratorDevice {
 
     static boolean fileOutputActive = false;
     static OutputStream out;
+    
+    @ConfigurableField(category = "sound", name = "1mhz timing", description = "Force speaker output to 1mhz?")
+    public static boolean force1mhz = true;
 
+    @InvokableAction(category = "sound", name = "Record sound", description="Toggles recording (saving) sound output to a file", defaultKeyMapping = "ctrl+shift+w")
     public static void toggleFileOutput() {
         if (fileOutputActive) {
             try {
@@ -56,12 +70,6 @@ public class Speaker extends SoundGeneratorDevice {
             if (f == null) {
                 return;
             }
-//            if (f.exists()) {
-//                int i = JOptionPane.showConfirmDialog(null, "Overwrite existing file?");
-//                if (i != JOptionPane.OK_OPTION && i != JOptionPane.YES_OPTION) {
-//                    return;
-//                }
-//            }
             try {
                 out = new FileOutputStream(f);
                 fileOutputActive = true;
@@ -70,6 +78,7 @@ public class Speaker extends SoundGeneratorDevice {
             }
         }
     }
+    
     /**
      * Counter tracks the number of cycles between sampling
      */
@@ -87,9 +96,6 @@ public class Speaker extends SoundGeneratorDevice {
      * Number of samples in buffer
      */
     static int BUFFER_SIZE = (int) (SoundMixer.RATE * 0.4);
-    // Number of samples available in output stream before playback happens (avoid extra blocking)
-//    static int MIN_PLAYBACK_BUFFER = BUFFER_SIZE / 2;
-    static int MIN_PLAYBACK_BUFFER = 64;
     /**
      * Playback volume (should be < 1423)
      */
@@ -122,8 +128,8 @@ public class Speaker extends SoundGeneratorDevice {
     private byte[] secondaryBuffer;
     private int bufferPos = 0;
     private Timer playbackTimer;
-    private final double TICKS_PER_SAMPLE = ((double) Motherboard.SPEED) / SoundMixer.RATE;
-    private final double TICKS_PER_SAMPLE_FLOOR = Math.floor(TICKS_PER_SAMPLE);
+    private double TICKS_PER_SAMPLE = ((double) Motherboard.DEFAULT_SPEED) / SoundMixer.RATE;
+    private double TICKS_PER_SAMPLE_FLOOR = Math.floor(TICKS_PER_SAMPLE);
     private RAMListener listener = null;
 
     /**
@@ -145,13 +151,14 @@ public class Speaker extends SoundGeneratorDevice {
         boolean result = super.suspend();
         if (playbackTimer != null) {
             playbackTimer.cancel();
+            playbackTimer = null;
         }
         speakerBit = false;
-        sdl = null;
-        if (computer.getMotherboard() != null) {
-            computer.getMotherboard().cancelSpeedRequest(this);
-            computer.mixer.returnLine(this);
+        if (sdl != null && sdl.isOpen()) {
+            sdl.stop();
+            sdl.close();
         }
+        sdl = null;
 
         return result;
     }
@@ -161,29 +168,29 @@ public class Speaker extends SoundGeneratorDevice {
      */
     @Override
     public void resume() {
-        if (sdl != null && isRunning()) {
-            return;
-        }
-        try {
-            if (sdl == null || !sdl.isOpen()) {
-                sdl = computer.mixer.getLine(this);
+        if (sdl == null || !sdl.isOpen()) {
+            sdl = computer.mixer.getLine();
+            if (sdl != null) {
+                sdl.start();
+                counter = 0;
+                idleCycles = 0;
+                level = 0;
+                bufferPos = 0;
+            } else {
+                Logger.getLogger(getClass().getName()).severe("Unable to get audio line for speaker!");
+                detach();
+                return;
             }
-            sdl.start();
-            setRun(true);
-            counter = 0;
-            idleCycles = 0;
-            level = 0;
-            bufferPos = 0;
-            playbackTimer = new Timer();
-            playbackTimer.scheduleAtFixedRate(new TimerTask() {
-                @Override
-                public void run() {
-                    playCurrentBuffer();
-                }
-            }, 10, 30);
-        } catch (LineUnavailableException ex) {
-            Logger.getLogger(getClass().getName()).log(Level.SEVERE, "ERROR: Could not output sound", ex);
         }
+
+        if (force1mhz) {
+            TICKS_PER_SAMPLE = ((double) Motherboard.DEFAULT_SPEED) / SoundMixer.RATE;
+        } else {
+            TICKS_PER_SAMPLE = Emulator.withComputer(c-> ((double) c.getMotherboard().getSpeedInHz()) / SoundMixer.RATE, 0.0);
+        }
+        TICKS_PER_SAMPLE_FLOOR = Math.floor(TICKS_PER_SAMPLE);
+
+        setRun(true);
     }
 
     public void playCurrentBuffer() {
@@ -196,7 +203,7 @@ public class Speaker extends SoundGeneratorDevice {
             bufferPos = 0;
         }
         secondaryBuffer = buffer;
-        if (sdl != null && buffer != null) {
+        if (sdl != null && len > 0) {
             sdl.write(buffer, 0, len);
         }
     }
@@ -218,9 +225,6 @@ public class Speaker extends SoundGeneratorDevice {
      */
     @Override
     public void tick() {
-        if (!isRunning() || sdl == null) {
-            return;
-        }
         if (idleCycles++ >= MAX_IDLE_CYCLES) {
             suspend();
         }
@@ -229,22 +233,7 @@ public class Speaker extends SoundGeneratorDevice {
         }
         counter += 1.0d;
         if (counter >= TICKS_PER_SAMPLE) {
-            int sample = level * VOLUME;
-            int bytes = SoundMixer.BITS >> 3;
-            int shift = SoundMixer.BITS;
-
-            while (bufferPos >= primaryBuffer.length) {
-                Thread.yield();
-            }
-            synchronized (bufferLock) {
-                int index = bufferPos;
-                for (int i = 0; i < SoundMixer.BITS; i += 8, index++) {
-                    shift -= 8;
-                    primaryBuffer[index] = primaryBuffer[index + bytes] = (byte) ((sample >> shift) & 0x0ff);
-                }
-
-                bufferPos += bytes * 2;
-            }
+            playSample(level * VOLUME);
 
             // Set level back to 0
             level = 0;
@@ -256,10 +245,32 @@ public class Speaker extends SoundGeneratorDevice {
     private void toggleSpeaker(RAMEvent e) {
         if (e.getType() == RAMEvent.TYPE.WRITE) {
             level += 2;
-        } else {
-            speakerBit = !speakerBit;
         }
+        speakerBit = !speakerBit;
         resetIdle();
+    }
+    
+    private void playSample(int sample) {
+        if (sdl == null || !sdl.isOpen()) {
+            resume();
+        }
+        int bytes = SoundMixer.BITS >> 3;
+
+        // Prepare sound output in little endian format
+        for (int i = 0; i < bytes; i++) {
+            primaryBuffer[i] = primaryBuffer[i+bytes] = (byte) (sample & 0x0ff);
+            sample >>= 8;
+        }            
+        sdl.write(primaryBuffer, 0, bytes*2);
+        if (fileOutputActive) {
+            try {
+                out.write(primaryBuffer, 0, bytes*2);
+            } catch (IOException ex) {
+                Logger.getLogger(getClass().getName()).log(Level.SEVERE, "Error recording sound", ex);
+                toggleFileOutput();
+            }
+        }
+        
     }
 
     /**

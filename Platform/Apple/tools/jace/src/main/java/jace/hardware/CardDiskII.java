@@ -62,7 +62,7 @@ public class CardDiskII extends Card implements Reconfigurable, MediaConsumerPar
     public CardDiskII(Computer computer) {
         super(computer);
         try {
-            loadRom("jace/data/DiskII.rom");
+            loadRom("/jace/data/DiskII.rom");
         } catch (IOException ex) {
             Logger.getLogger(CardDiskII.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -168,7 +168,8 @@ public class CardDiskII extends Card implements Reconfigurable, MediaConsumerPar
     }
 
     public void loadRom(String path) throws IOException {
-        InputStream romFile = CardDiskII.class.getClassLoader().getResourceAsStream(path);
+        InputStream romFile = CardDiskII.class.getResourceAsStream(path);
+        
         final int cxRomLength = 0x100;
         byte[] romData = new byte[cxRomLength];
         try {

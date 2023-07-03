@@ -1,16 +1,5 @@
 package jace.lawless;
 
-import jace.Emulator;
-import jace.LawlessLegends;
-import jace.apple2e.RAM128k;
-import jace.core.Keyboard;
-import jace.core.RAM;
-import jace.core.Utility;
-import jace.hardware.massStorage.CardMassStorage;
-import jace.library.DiskType;
-import jace.library.MediaConsumer;
-import jace.library.MediaEntry;
-import jace.library.MediaEntry.MediaFile;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -20,7 +9,20 @@ import java.nio.file.StandardCopyOption;
 import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import jace.Emulator;
+import jace.LawlessLegends;
+import jace.apple2e.RAM128k;
+import jace.core.Computer;
+import jace.core.Keyboard;
+import jace.core.Utility;
+import jace.hardware.massStorage.CardMassStorage;
+import jace.library.DiskType;
+import jace.library.MediaConsumer;
+import jace.library.MediaEntry;
+import jace.library.MediaEntry.MediaFile;
 import javafx.scene.control.Label;
+import javafx.stage.FileChooser;
 
 /**
  *
@@ -88,15 +90,13 @@ public class LawlessImageTool implements MediaConsumer {
     }
 
     private void insertHardDisk(int drive, MediaEntry entry, MediaFile file) {
-        RAM memory = Emulator.getComputer().memory;
-
-        memory.getCard(7).ifPresent(card -> {
+        Emulator.withMemory(m->m.getCard(7).ifPresent(card -> {
             try {
                 ((CardMassStorage) card).getConsumers()[drive].insertMedia(entry, file);
             } catch (IOException ex) {
                 Logger.getLogger(LawlessLegends.class.getName()).log(Level.SEVERE, null, ex);
             }
-        });
+        }));
 
         if (drive == 0) {
             gameMediaEntry = entry;
@@ -106,20 +106,16 @@ public class LawlessImageTool implements MediaConsumer {
     }
 
     private void readCurrentDisk(int drive) {
-        RAM memory = Emulator.getComputer().memory;
-
-        memory.getCard(7).ifPresent(card -> {
+        Emulator.withMemory(m->m.getCard(7).ifPresent(card -> {
             gameMediaEntry = ((CardMassStorage) card).getConsumers()[drive].getMediaEntry();
             gameMediaFile = ((CardMassStorage) card).getConsumers()[drive].getMediaFile();
-        });
+        }));
     }
 
     private void ejectHardDisk(int drive) {
-        RAM memory = Emulator.getComputer().memory;
-
-        memory.getCard(7).ifPresent(card -> {
+        Emulator.withMemory(m->m.getCard(7).ifPresent(card -> {
             ((CardMassStorage) card).getConsumers()[drive].eject();
-        });
+        }));
 
         if (drive == 0) {
             gameMediaEntry = null;
@@ -156,16 +152,20 @@ public class LawlessImageTool implements MediaConsumer {
             path = System.getProperty("user.home");
         }
         if (path == null) {
-            path = ".";
+            path = System.getProperty("user.dir");
         }
         File base = new File(path);
         File appPath = new File(base, "lawless-legends");
         appPath.mkdirs();
         return appPath;
     }
+    
+    private File getUserGameFile() {
+        return new File(getApplicationStoragePath(), "game.2mg");
+    }
 
     private void copyResource(String filename, File target) {
-        File localResource = new File(".", filename);
+        File localResource = getUserGameFile();
         InputStream in = null;
         if (localResource.exists()) {
             try {
@@ -174,7 +174,7 @@ public class LawlessImageTool implements MediaConsumer {
                 Logger.getLogger(LawlessLegends.class.getName()).log(Level.SEVERE, null, ex);
             }
         } else {
-            in = getClass().getClassLoader().getResourceAsStream("jace/data/" + filename);
+            in = getClass().getResourceAsStream("/jace/data/" + filename);
         }
         if (in != null) {
             try {
@@ -184,7 +184,27 @@ public class LawlessImageTool implements MediaConsumer {
             }
         } else {
             Logger.getLogger(LawlessLegends.class.getName()).log(Level.SEVERE, "Unable to find resource {0}", filename);
+            Utility.decision("Unable to find game", "Sorry partner, we can't find yer game disk.  What're ya' gonna do about it?", "I have it", "Tuck tail and leave", this::selectGameFile, ()->System.exit(1));
         }
+    }
+    
+    private void selectGameFile() {
+        try {
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setInitialFileName("game.2mg");
+            fileChooser.setTitle("Please locate your Lawless Legends game.2mg file to continue");
+            File gameFile = fileChooser.showOpenDialog(null);
+            if (gameFile == null || !gameFile.exists()) {
+                Utility.gripe("Sorry pardner, can't help ya' this time.", true, ()->{System.exit(1);});
+            } else {
+                java.nio.file.Files.copy(gameFile.toPath(), getUserGameFile().toPath(), StandardCopyOption.REPLACE_EXISTING);
+                loadGame();
+                Emulator.withComputer(Computer::coldStart);
+            }
+        } catch (IOException ex) {
+            Logger.getLogger(LawlessImageTool.class.getName()).log(Level.SEVERE, null, ex);
+            Utility.gripe("Couldn't load yer game, friend.  Heard some fellow mumbling something about " + ex.getMessage(), true, ()->{System.exit(1);});
+        }        
     }
 
     private void performGameReplace(MediaEntry e, MediaFile f) {
@@ -194,7 +214,7 @@ public class LawlessImageTool implements MediaConsumer {
             java.nio.file.Files.copy(f.path.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
             f.path = target;
             insertHardDisk(0, e, f);
-            Emulator.getComputer().coldStart();
+            Emulator.withComputer(Computer::coldStart);
             System.out.println("Upgrade completed");
         } catch (IOException ex) {
             Logger.getLogger(LawlessImageTool.class.getName()).log(Level.SEVERE, null, ex);
@@ -212,17 +232,17 @@ public class LawlessImageTool implements MediaConsumer {
             // Put in new disk and boot it -- we want to use its importer in case that importer works better!
             ejectHardDisk(0);
             insertHardDisk(0, e, f);
-            Emulator.getComputer().coldStart();
+            Emulator.withComputer(Computer::coldStart);
             if (!waitForText("I)mport", 1)) {
-                Emulator.getComputer().coldStart();
-                if (!waitForText("I)mport", 1000)) {
+                Emulator.withComputer(Computer::coldStart);
+                if (!waitForText("I)mport", 2000)) {
                     throw new Exception("Unable to detect upgrade prompt - Upgrade aborted.");
                 }
             }
             System.out.println("Menu Propmt detected");
 
             Keyboard.pasteFromString("i");
-            if (!waitForText("Insert disk for import", 100)) {
+            if (!waitForText("Insert disk for import", 1500)) {
                 throw new Exception("Unable to detect first insert prompt - Upgrade aborted.");
             }
             System.out.println("First Propmt detected");
@@ -232,7 +252,7 @@ public class LawlessImageTool implements MediaConsumer {
             insertHardDisk(0, originalEntry, originalFile);
 
             Keyboard.pasteFromString(" ");
-            if (!waitForText("Game imported", 100)) {
+            if (!waitForText("Game imported", 2000)) {
                 throw new Exception("Unable to detect second insert prompt - Upgrade aborted.");
             }
             System.out.println("Completing upgrade");
@@ -251,17 +271,23 @@ public class LawlessImageTool implements MediaConsumer {
     }
 
     private boolean waitForText(String message, int timeout) throws InterruptedException {
-        LawlessComputer compy = Emulator.getComputer();
-        RAM128k mem = (RAM128k) compy.getMemory();
         while (timeout-- > 0) {
             StringBuilder allText = new StringBuilder();
-            for (int i = 0x0400; i < 0x07ff; i++) {
-                allText.append((char) (mem.getMainMemory().readByte(i) & 0x07f));
-            }
+            Emulator.withMemory(mem -> {
+                for (int i = 0x0400; i < 0x07ff; i++) {
+                    allText.append((char) ((RAM128k) mem).getMainMemory().readByte(i) & 0x07f);
+                }
+            });
             if (allText.toString().contains(message)) {
                 return true;
             } else {
-                compy.waitForVBL();
+                Emulator.withComputer(c->{
+                    try {
+                        ((LawlessComputer)c).waitForVBL();
+                    } catch (InterruptedException ex) {
+                        // Ignore
+                    }
+                });
             }
         }
         return false;

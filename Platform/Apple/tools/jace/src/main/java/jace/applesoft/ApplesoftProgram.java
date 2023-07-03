@@ -18,10 +18,6 @@
  */
 package jace.applesoft;
 
-import jace.Emulator;
-import jace.core.RAM;
-import jace.core.RAMEvent;
-import jace.core.RAMListener;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -32,6 +28,11 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+
+import jace.Emulator;
+import jace.core.RAM;
+import jace.core.RAMEvent;
+import jace.core.RAMListener;
 
 /**
  * Decode an applesoft program into a list of program lines Right now this is an
@@ -149,70 +150,70 @@ public class ApplesoftProgram {
     }
 
     public void run() {
-        RAM memory = Emulator.getComputer().memory;
-        Emulator.getComputer().pause();
-        int programStart = memory.readWordRaw(START_OF_PROG_POINTER);
-        int programEnd = programStart + getProgramSize();
-        if (isProgramRunning()) {
-            whenReady(()->{
-                relocateVariables(programEnd);
+        Emulator.withComputer(c->c.getMotherboard().whileSuspended(()->{
+            int programStart = c.getMemory().readWordRaw(START_OF_PROG_POINTER);
+            int programEnd = programStart + getProgramSize();
+            if (isProgramRunning()) {
+                whenReady(()->{
+                    relocateVariables(programEnd);
+                    injectProgram();
+                });
+            } else {
                 injectProgram();
-            });
-        } else {
-            injectProgram();
-            clearVariables(programEnd);
-        }
-        Emulator.getComputer().resume();
+                clearVariables(programEnd);
+            }
+        }));
     }
     
     private void injectProgram() {
-        RAM memory = Emulator.getComputer().memory;
-        int pos = memory.readWordRaw(START_OF_PROG_POINTER);
-        for (Line line : lines) {
-            int nextPos = pos + line.getLength();
-            memory.writeWord(pos, nextPos, false, true);
-            pos += 2;
-            memory.writeWord(pos, line.getNumber(), false, true);
-            pos += 2;
-            boolean isFirst = true;
-            for (Command command : line.getCommands()) {
-                if (!isFirst) {
-                    memory.write(pos++, (byte) ':', false, true);
+        Emulator.withMemory(memory->{
+            int pos = memory.readWordRaw(START_OF_PROG_POINTER);
+            for (Line line : lines) {
+                int nextPos = pos + line.getLength();
+                memory.writeWord(pos, nextPos, false, true);
+                pos += 2;
+                memory.writeWord(pos, line.getNumber(), false, true);
+                pos += 2;
+                boolean isFirst = true;
+                for (Command command : line.getCommands()) {
+                    if (!isFirst) {
+                        memory.write(pos++, (byte) ':', false, true);
+                    }
+                    isFirst = false;
+                    for (Command.ByteOrToken part : command.parts) {
+                        memory.write(pos++, part.getByte(), false, true);
+                    }
                 }
-                isFirst = false;
-                for (Command.ByteOrToken part : command.parts) {
-                    memory.write(pos++, part.getByte(), false, true);
-                }
+                memory.write(pos++, (byte) 0, false, true);
             }
             memory.write(pos++, (byte) 0, false, true);
-        }
-        memory.write(pos++, (byte) 0, false, true);
-        memory.write(pos++, (byte) 0, false, true);
-        memory.write(pos++, (byte) 0, false, true);
-        memory.write(pos++, (byte) 0, false, true);        
+            memory.write(pos++, (byte) 0, false, true);
+            memory.write(pos++, (byte) 0, false, true);
+            memory.write(pos++, (byte) 0, false, true);        
+        });
     }
     
     private boolean isProgramRunning() {
-        RAM memory = Emulator.getComputer().memory;
-        return (memory.readRaw(RUNNING_FLAG) & 0x0FF) != NOT_RUNNING;
+        return Emulator.withComputer(c->(c.getMemory().readRaw(RUNNING_FLAG) & 0x0FF) != NOT_RUNNING, false);
     }
     
     /**
      * If the program is running, wait until it advances to the next line
      */
     private void whenReady(Runnable r) {
-        RAM memory = Emulator.getComputer().memory;
-        memory.addListener(new RAMListener(RAMEvent.TYPE.EXECUTE, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY) {
-            @Override
-            protected void doConfig() {
-                setScopeStart(GOTO_CMD);
-            }
+        Emulator.withMemory(memory->{
+            memory.addListener(new RAMListener(RAMEvent.TYPE.EXECUTE, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY) {
+                @Override
+                protected void doConfig() {
+                    setScopeStart(GOTO_CMD);
+                }
 
-            @Override
-            protected void doEvent(RAMEvent e) {
-                r.run();
-                memory.removeListener(this);
-            }
+                @Override
+                protected void doEvent(RAMEvent e) {
+                    r.run();
+                    memory.removeListener(this);
+                }
+            });
         });
     }
 
@@ -222,11 +223,12 @@ public class ApplesoftProgram {
      * @param programEnd Program ending address
      */
     private void clearVariables(int programEnd) {
-        RAM memory = Emulator.getComputer().memory;
-        memory.writeWord(ARRAY_TABLE, programEnd, false, true);
-        memory.writeWord(VARIABLE_TABLE, programEnd, false, true);
-        memory.writeWord(VARIABLE_TABLE_END, programEnd, false, true);
-        memory.writeWord(END_OF_PROG_POINTER, programEnd, false, true);        
+        Emulator.withMemory(memory->{
+            memory.writeWord(ARRAY_TABLE, programEnd, false, true);
+            memory.writeWord(VARIABLE_TABLE, programEnd, false, true);
+            memory.writeWord(VARIABLE_TABLE_END, programEnd, false, true);
+            memory.writeWord(END_OF_PROG_POINTER, programEnd, false, true);        
+        });
     }
     
     /**
@@ -234,20 +236,21 @@ public class ApplesoftProgram {
      * @param programEnd Program ending address
      */
     private void relocateVariables(int programEnd) {
-        RAM memory = Emulator.getComputer().memory;
-        int currentEnd = memory.readWordRaw(END_OF_PROG_POINTER);
-        memory.writeWord(END_OF_PROG_POINTER, programEnd, false, true);
-        if (programEnd > currentEnd) {
-            int diff = programEnd - currentEnd;
-            int himem = memory.readWordRaw(HIMEM);
-            for (int i=himem - diff; i >= programEnd; i--) {
-                memory.write(i+diff, memory.readRaw(i), false, true);
+        Emulator.withMemory(memory->{
+            int currentEnd = memory.readWordRaw(END_OF_PROG_POINTER);
+            memory.writeWord(END_OF_PROG_POINTER, programEnd, false, true);
+            if (programEnd > currentEnd) {
+                int diff = programEnd - currentEnd;
+                int himem = memory.readWordRaw(HIMEM);
+                for (int i=himem - diff; i >= programEnd; i--) {
+                    memory.write(i+diff, memory.readRaw(i), false, true);
+                }
+                memory.writeWord(VARIABLE_TABLE, memory.readWordRaw(VARIABLE_TABLE) + diff, false, true);
+                memory.writeWord(ARRAY_TABLE, memory.readWordRaw(ARRAY_TABLE) + diff, false, true);
+                memory.writeWord(VARIABLE_TABLE_END, memory.readWordRaw(VARIABLE_TABLE_END) + diff, false, true);
+                memory.writeWord(STRING_TABLE, memory.readWordRaw(STRING_TABLE) + diff, false, true);
             }
-            memory.writeWord(VARIABLE_TABLE, memory.readWordRaw(VARIABLE_TABLE) + diff, false, true);
-            memory.writeWord(ARRAY_TABLE, memory.readWordRaw(ARRAY_TABLE) + diff, false, true);
-            memory.writeWord(VARIABLE_TABLE_END, memory.readWordRaw(VARIABLE_TABLE_END) + diff, false, true);
-            memory.writeWord(STRING_TABLE, memory.readWordRaw(STRING_TABLE) + diff, false, true);
-        }
+        });
     }
 
     private int getProgramSize() {

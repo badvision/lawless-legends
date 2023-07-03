@@ -1,25 +1,37 @@
 package jace.cheat;
 
-import jace.Emulator;
-import jace.LawlessLegends;
-import jace.core.*;
-import jace.state.State;
-import jace.ui.MetacheatUI;
-import javafx.application.Platform;
-import javafx.beans.property.*;
-import javafx.beans.value.ObservableValue;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
-
-import javax.script.Invocable;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.script.Invocable;
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+
+import jace.Emulator;
+import jace.LawlessLegends;
+import jace.core.CPU;
+import jace.core.Computer;
+import jace.core.RAMEvent;
+import jace.core.RAMListener;
+import jace.state.State;
+import jace.ui.MetacheatUI;
+import javafx.application.Platform;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.Property;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 
 public class MetaCheat extends Cheats {
 
@@ -219,54 +231,56 @@ public class MetaCheat extends Cheats {
     }
 
     public void newSearch() {
-        RAM memory = Emulator.getComputer().getMemory();
-        resultList.clear();
-        int compare = parseInt(searchValueProperty.get());
-        for (int i = 0; i < 0x10000; i++) {
-            boolean signed = signedProperty.get();
-            int val
-                    = byteSized
-                            ? signed ? memory.readRaw(i) : memory.readRaw(i) & 0x0ff
-                            : signed ? memory.readWordRaw(i) : memory.readWordRaw(i) & 0x0ffff;
-            if (!searchType.equals(SearchType.VALUE) || val == compare) {
-                SearchResult result = new SearchResult(i, val);
-                resultList.add(result);
+        Emulator.withMemory(memory -> {
+            resultList.clear();
+            int compare = parseInt(searchValueProperty.get());
+            for (int i = 0; i < 0x10000; i++) {
+                boolean signed = signedProperty.get();
+                int val
+                        = byteSized
+                                ? signed ? memory.readRaw(i) : memory.readRaw(i) & 0x0ff
+                                : signed ? memory.readWordRaw(i) : memory.readWordRaw(i) & 0x0ffff;
+                if (!searchType.equals(SearchType.VALUE) || val == compare) {
+                    SearchResult result = new SearchResult(i, val);
+                    resultList.add(result);
+                }
             }
-        }
+        });
     }
 
     public void performSearch() {
-        RAM memory = Emulator.getComputer().getMemory();
-        boolean signed = signedProperty.get();
-        resultList.removeIf((SearchResult result) -> {
-            int val = byteSized
-                    ? signed ? memory.readRaw(result.address) : memory.readRaw(result.address) & 0x0ff
-                    : signed ? memory.readWordRaw(result.address) : memory.readWordRaw(result.address) & 0x0ffff;
-            int last = result.lastObservedValue;
-            result.lastObservedValue = val;
-            switch (searchType) {
-                case VALUE:
-                    int compare = parseInt(searchValueProperty.get());
-                    return compare != val;
-                case CHANGE:
-                    switch (searchChangeType) {
-                        case AMOUNT:
-                            int amount = parseInt(searchChangeByProperty().getValue());
-                            return (val - last) != amount;
-                        case GREATER:
-                            return val <= last;
-                        case ANY_CHANGE:
-                            return val == last;
-                        case LESS:
-                            return val >= last;
-                        case NO_CHANGE:
-                            return val != last;
-                    }
-                    break;
-                case TEXT:
-                    break;
-            }
-            return false;
+        Emulator.withMemory(memory -> {
+            boolean signed = signedProperty.get();
+            resultList.removeIf((SearchResult result) -> {
+                int val = byteSized
+                        ? signed ? memory.readRaw(result.address) : memory.readRaw(result.address) & 0x0ff
+                        : signed ? memory.readWordRaw(result.address) : memory.readWordRaw(result.address) & 0x0ffff;
+                int last = result.lastObservedValue;
+                result.lastObservedValue = val;
+                switch (searchType) {
+                    case VALUE:
+                        int compare = parseInt(searchValueProperty.get());
+                        return compare != val;
+                    case CHANGE:
+                        switch (searchChangeType) {
+                            case AMOUNT:
+                                int amount = parseInt(searchChangeByProperty().getValue());
+                                return (val - last) != amount;
+                            case GREATER:
+                                return val <= last;
+                            case ANY_CHANGE:
+                                return val == last;
+                            case LESS:
+                                return val >= last;
+                            case NO_CHANGE:
+                                return val != last;
+                        }
+                        break;
+                    case TEXT:
+                        break;
+                }
+                return false;
+            });
         });
     }
 
@@ -278,23 +292,24 @@ public class MetaCheat extends Cheats {
     }
 
     public void initMemoryView() {
-        RAM memory = Emulator.getComputer().getMemory();
-        for (int addr = getStartAddress(); addr <= getEndAddress(); addr++) {
-            if (getMemoryCell(addr) == null) {
-                MemoryCell cell = new MemoryCell();
-                cell.address = addr;
-                cell.value.set(memory.readRaw(addr));
-                memoryCells.put(addr, cell);
+        Emulator.withMemory(memory -> {
+            for (int addr = getStartAddress(); addr <= getEndAddress(); addr++) {
+                if (getMemoryCell(addr) == null) {
+                    MemoryCell cell = new MemoryCell();
+                    cell.address = addr;
+                    cell.value.set(memory.readRaw(addr));
+                    memoryCells.put(addr, cell);
+                }
             }
-        }
-        if (memoryViewListener == null) {
-            memoryViewListener = memory.observe(RAMEvent.TYPE.ANY, startAddress, endAddress, this::processMemoryEvent);
-            listeners.add(memoryViewListener);
-        }
+            if (memoryViewListener == null) {
+                memoryViewListener = memory.observe(RAMEvent.TYPE.ANY, startAddress, endAddress, this::processMemoryEvent);
+                listeners.add(memoryViewListener);
+            }
+        });
     }
 
     int fadeCounter = 0;
-    int FADE_TIMER_VALUE = (int) (Emulator.getComputer().getMotherboard().getSpeedInHz() / 60);
+    int FADE_TIMER_VALUE = Emulator.withComputer(c-> (int) (c.getMotherboard().getSpeedInHz() / 60), 100);
 
     @Override
     public void tick() {
@@ -328,107 +343,90 @@ public class MetaCheat extends Cheats {
     private void processMemoryEvent(RAMEvent e) {
         MemoryCell cell = getMemoryCell(e.getAddress());
         if (cell != null) {
-            CPU cpu = Emulator.getComputer().getCpu();
-            int pc = cpu.getProgramCounter();
-            String trace = cpu.getLastTrace();
-            switch (e.getType()) {
-                case EXECUTE:
-                    cell.execInstructionsDisassembly.add(trace);
-                    if (cell.execInstructionsDisassembly.size() > historyLength) {
-                        cell.execInstructionsDisassembly.remove(0);
-                    }
-                case READ_OPERAND:
-                    cell.execCount.set(Math.min(255, cell.execCount.get() + lightRate));
-                    break;
-                case WRITE:
-                    cell.writeCount.set(Math.min(255, cell.writeCount.get() + lightRate));
-                    if (ui.isInspecting(cell.address)) {
-                        if (pendingInspectorUpdates.incrementAndGet() < 5) {
-                            Platform.runLater(() -> {
-                                pendingInspectorUpdates.decrementAndGet();
-                                cell.writeInstructions.add(pc);
-                                cell.writeInstructionsDisassembly.add(trace);
-                                if (cell.writeInstructions.size() > historyLength) {
-                                    cell.writeInstructions.remove(0);
-                                    cell.writeInstructionsDisassembly.remove(0);
-                                }
-                            });
+            Emulator.withComputer(c -> {
+                CPU cpu = c.getCpu();
+                int pc = cpu.getProgramCounter();
+                String trace = cpu.getLastTrace();
+                switch (e.getType()) {
+                    case EXECUTE:
+                        cell.execInstructionsDisassembly.add(trace);
+                        if (cell.execInstructionsDisassembly.size() > historyLength) {
+                            cell.execInstructionsDisassembly.remove(0);
                         }
-                    } else {
-                        cell.writeInstructions.add(cpu.getProgramCounter());
-                        cell.writeInstructionsDisassembly.add(cpu.getLastTrace());
-                        if (cell.writeInstructions.size() > historyLength) {
-                            cell.writeInstructions.remove(0);
-                            cell.writeInstructionsDisassembly.remove(0);
+                    case READ_OPERAND:
+                        cell.execCount.set(Math.min(255, cell.execCount.get() + lightRate));
+                        break;
+                    case WRITE:
+                        cell.writeCount.set(Math.min(255, cell.writeCount.get() + lightRate));
+                        if (ui.isInspecting(cell.address)) {
+                            if (pendingInspectorUpdates.incrementAndGet() < 5) {
+                                Platform.runLater(() -> {
+                                    pendingInspectorUpdates.decrementAndGet();
+                                    cell.writeInstructions.add(pc);
+                                    cell.writeInstructionsDisassembly.add(trace);
+                                    if (cell.writeInstructions.size() > historyLength) {
+                                        cell.writeInstructions.remove(0);
+                                        cell.writeInstructionsDisassembly.remove(0);
+                                    }
+                                });
+                            }
+                        } else {
+                            cell.writeInstructions.add(cpu.getProgramCounter());
+                            cell.writeInstructionsDisassembly.add(cpu.getLastTrace());
+                            if (cell.writeInstructions.size() > historyLength) {
+                                cell.writeInstructions.remove(0);
+                                cell.writeInstructionsDisassembly.remove(0);
+                            }
                         }
-                    }
-                    break;
-                default:
-                    cell.readCount.set(Math.min(255, cell.readCount.get() + lightRate));
-                    if (ui.isInspecting(cell.address)) {
-                        if (pendingInspectorUpdates.incrementAndGet() < 5) {
-                            Platform.runLater(() -> {
-                                pendingInspectorUpdates.decrementAndGet();
-                                cell.readInstructions.add(pc);
-                                cell.readInstructionsDisassembly.add(trace);
-                                if (cell.readInstructions.size() > historyLength) {
-                                    cell.readInstructions.remove(0);
-                                    cell.readInstructionsDisassembly.remove(0);
-                                }
-                            });
+                        break;
+                    default:
+                        cell.readCount.set(Math.min(255, cell.readCount.get() + lightRate));
+                        if (ui.isInspecting(cell.address)) {
+                            if (pendingInspectorUpdates.incrementAndGet() < 5) {
+                                Platform.runLater(() -> {
+                                    pendingInspectorUpdates.decrementAndGet();
+                                    cell.readInstructions.add(pc);
+                                    cell.readInstructionsDisassembly.add(trace);
+                                    if (cell.readInstructions.size() > historyLength) {
+                                        cell.readInstructions.remove(0);
+                                        cell.readInstructionsDisassembly.remove(0);
+                                    }
+                                });
+                            }
+                        } else {
+                            cell.readInstructions.add(cpu.getProgramCounter());
+                            cell.readInstructionsDisassembly.add(cpu.getLastTrace());
+                            if (cell.readInstructions.size() > historyLength) {
+                                cell.readInstructions.remove(0);
+                                cell.readInstructionsDisassembly.remove(0);
+                            }
                         }
-                    } else {
-                        cell.readInstructions.add(cpu.getProgramCounter());
-                        cell.readInstructionsDisassembly.add(cpu.getLastTrace());
-                        if (cell.readInstructions.size() > historyLength) {
-                            cell.readInstructions.remove(0);
-                            cell.readInstructionsDisassembly.remove(0);
-                        }
-                    }
-            }
-            cell.value.set(e.getNewValue());
+                }
+                cell.value.set(e.getNewValue());
+            });
         }
     }
 
     public void saveCheats(File saveFile) {
-        FileWriter writer = null;
-        try {
-            writer = new FileWriter(saveFile);
+        try (FileWriter writer = new FileWriter(saveFile)) {
             for (DynamicCheat cheat : cheatList) {
                 writer.write(cheat.serialize());
                 writer.write("\n");
             }
-            writer.close();
         } catch (IOException ex) {
             Logger.getLogger(MetaCheat.class.getName()).log(Level.SEVERE, null, ex);
-        } finally {
-            try {
-                writer.close();
-            } catch (IOException ex) {
-                Logger.getLogger(MetaCheat.class.getName()).log(Level.SEVERE, null, ex);
-            }
         }
     }
 
     public void loadCheats(File saveFile) {
-        BufferedReader in = null;
-        try {
-            in = new BufferedReader(new FileReader(saveFile));
-            StringBuilder guts = new StringBuilder();
+        try (BufferedReader in = new BufferedReader(new FileReader(saveFile))) {
             String line;
             while ((line = in.readLine()) != null) {
                 DynamicCheat cheat = DynamicCheat.deserialize(line);
                 addCheat(cheat);
             }
-            in.close();
         } catch (IOException ex) {
             Logger.getLogger(MetaCheat.class.getName()).log(Level.SEVERE, null, ex);
-        } finally {
-            try {
-                in.close();
-            } catch (IOException ex) {
-                Logger.getLogger(MetaCheat.class.getName()).log(Level.SEVERE, null, ex);
-            }
         }
     }
 }

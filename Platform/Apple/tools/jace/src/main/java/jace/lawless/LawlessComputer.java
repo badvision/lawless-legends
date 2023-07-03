@@ -1,22 +1,21 @@
 package jace.lawless;
 
-import jace.apple2e.Apple2e;
-import jace.apple2e.RAM128k;
-import jace.apple2e.SoftSwitches;
-import jace.apple2e.VideoNTSC;
-import jace.config.ConfigurableField;
-import jace.core.Card;
-import jace.core.Video;
-import jace.library.MediaConsumer;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.Semaphore;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import jace.apple2e.Apple2e;
+import jace.apple2e.RAM128k;
+import jace.apple2e.SoftSwitches;
+import jace.apple2e.VideoNTSC;
+import jace.config.ConfigurableField;
+import jace.core.Video;
+import jace.library.MediaConsumer;
 
 /**
  * Extends standard implementation to provide different cold start behavior
@@ -31,10 +30,9 @@ public class LawlessComputer extends Apple2e {
 
     public LawlessComputer() {
         super();
-        motherboard.whileSuspended(this::initLawlessLegendsConfiguration);
     }
     
-    private void initLawlessLegendsConfiguration() {
+    public void initLawlessLegendsConfiguration() {
         reconfigure();  // Required before anything so that memory is initialized
         this.cheatEngine.setValue(LawlessHacks.class);
         this.activeCheatEngine = new LawlessHacks(this);
@@ -64,12 +62,14 @@ public class LawlessComputer extends Apple2e {
             (new Thread(this::startAnimation)).start();
         } else {
             finishColdStart();
-            getMotherboard().requestSpeed(this);
         }
     }
 
     public void startAnimation() {
-        getCpu().suspend();
+        cpu.setPaused(true);
+        for (SoftSwitches s : SoftSwitches.values()) {
+            s.getSwitch().reset();
+        }
         SoftSwitches._80COL.getSwitch().setState(true);
         SoftSwitches.TEXT.getSwitch().setState(false);
         SoftSwitches.HIRES.getSwitch().setState(true);
@@ -84,64 +84,64 @@ public class LawlessComputer extends Apple2e {
             try {
                 performedBootAnimation = true;
                 waitForVBL();
+                renderWithMask(0, 0, 0, 0);
+                renderWithMask(0x0, 0x10, 0, 0x40, 0, 0x01, 0, 0x4);
+                renderWithMask(0x8, 0x10, 0x02, 0x40, 0, 0x01, 0x20, 0x4);
                 renderWithMask(0x8, 0x11, 0x22, 0x44);
-                Video.forceRefresh();
-                waitForVBL(10);
+                renderWithMask(0x8, 0x19, 0x22, 0x66, 0x4c, 0x11, 0x33, 044);
                 renderWithMask(0x4c, 0x19, 0x33, 0x66);
-                Video.forceRefresh();
-                waitForVBL(10);
+                renderWithMask(0x4c, 0x5d, 0x33, 0x77, 0x6e, 0x19, 0x3B, 0x66);
                 renderWithMask(0x6e, 0x5d, 0x3B, 0x77);
-                Video.forceRefresh();
-                waitForVBL(10);
+                renderWithMask(0x6e, 0x7f, 0x3b, 0x7f, 0x7f, 0x5d, 0x7f, 0x77);
                 renderWithMask(0x7f, 0x7f, 0x7f, 0x7f);
-                Video.forceRefresh();
-                waitForVBL(250);
-//                renderWithMask(0x6e, 0x5d, 0x3B, 0x77);
+                waitForVBL(230);
+                renderWithMask(0x7f, 0x6e, 0x7f, 0x3b, 0x77, 0x6e, 0x5d, 0x3b);
                 renderWithMask(0x77, 0x6e, 0x5d, 0x3b);
-                Video.forceRefresh();
-                waitForVBL(10);
-//                renderWithMask(0x4c, 0x19, 0x33, 0x66);
+                renderWithMask(0x77, 0x66, 0x5d, 0x19, 0x33, 0x6e, 0x4c, 0x3b);
                 renderWithMask(0x33, 0x66, 0x4c, 0x19);
-                Video.forceRefresh();
-                waitForVBL(10);
-//                renderWithMask(0x8, 0x11, 0x22, 0x44);
+                renderWithMask(0x33, 0x22, 0x4c, 0x8, 0x11, 0x66, 0x44, 0x19);
                 renderWithMask(0x11, 0x22, 0x44, 0x8);
-                Video.forceRefresh();
-                waitForVBL(10);
+                renderWithMask(0x11, 0, 0x44, 0, 0, 0x22, 0, 0x8);
+                renderWithMask(0, 0, 0, 0);
             } catch (InterruptedException ex) {
                 Logger.getLogger(LawlessComputer.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
+        cpu.setPaused(false);
         finishColdStart();
 
     }
 
-    private void renderWithMask(int i1, int i2, int i3, int i4) {
+    private void renderWithMask(int... mask) throws InterruptedException {
         RAM128k ram = (RAM128k) getMemory();
         byte[] framebuffer = getBootScreen();
+        int maskOffset = 0;
         for (int i = 0; i < 0x02000; i += 2) {
-            int next = 0;
-            if (i < 0x02000) {
-                next = (framebuffer[i] & 1) << 6;
-            }
+            int next = (framebuffer[i] & 1) << 6;
             Byte b1 = (byte) ((framebuffer[i + 0x02000] & 0x07f) >> 1 | next);
-            ram.getAuxMemory().writeByte(0x02000 + i, (byte) (b1 & i1 | 0x080));
+            ram.getAuxMemory().writeByte(0x02000 + i, (byte) (b1 & mask[maskOffset] | 0x080));
+
             if (i < 0x01FFF) {
                 next = (framebuffer[i + 0x02001] & 1) << 6;
-            }
-            Byte b2 = (byte) ((framebuffer[i] & 0x07f) >> 1 | next);
-            ram.getMainMemory().writeByte(0x02000 + i, (byte) (b2 & i2 | 0x080));
-            if (i < 0x01FFF) {
+                Byte b2 = (byte) ((framebuffer[i] & 0x07f) >> 1 | next);
+                ram.getMainMemory().writeByte(0x02000 + i, (byte) (b2 & mask[maskOffset + 1] | 0x080));
+
                 next = (framebuffer[i + 1] & 1) << 6;
+                Byte b3 = (byte) ((framebuffer[i + 0x02001] & 0x07f) >> 1 | next);
+                ram.getAuxMemory().writeByte(0x02001 + i, (byte) (b3 & mask[maskOffset + 2] | 0x080));
             }
-            Byte b3 = (byte) ((framebuffer[i + 0x02001] & 0x07f) >> 1 | next);
-            ram.getAuxMemory().writeByte(0x02001 + i, (byte) (b3 & i3 | 0x080));
+
             if (i < 0x01FFE) {
                 next = (framebuffer[i + 0x02002] & 1) << 6;
+                Byte b4 = (byte) ((framebuffer[i + 1] & 0x07f) >> 1 | next);
+                ram.getMainMemory().writeByte(0x02001 + i, (byte) (b4 & mask[maskOffset + 3] | 0x080));
             }
-            Byte b4 = (byte) ((framebuffer[i + 1] & 0x07f) >> 1 | next);
-            ram.getMainMemory().writeByte(0x02001 + i, (byte) (b4 & i4 | 0x080));
+            if (i % 20 != 0) {
+                maskOffset = (maskOffset + 4) % mask.length;
+            }
         }
+        Video.forceRefresh();
+        waitForVBL(5);
     }
 
     List<Runnable> vblCallbacks = Collections.synchronizedList(new ArrayList<>());
@@ -175,9 +175,6 @@ public class LawlessComputer extends Apple2e {
 
     public void finishColdStart() {
         try {
-            for (Optional<Card> c : getMemory().getAllCards()) {
-                c.ifPresent(Card::reset);
-            }
             waitForVBL();
             reboot();
         } catch (InterruptedException ex) {
@@ -187,7 +184,7 @@ public class LawlessComputer extends Apple2e {
 
     private byte[] getBootScreen() {
         if (bootScreen == null) {
-            InputStream in = getClass().getClassLoader().getResourceAsStream("jace/data/bootscreen.bin");
+            InputStream in = getClass().getResourceAsStream("/jace/data/bootscreen.bin");
             bootScreen = new byte[0x04000];
             int len, offset = 0;
             try {

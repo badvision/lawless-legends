@@ -126,7 +126,7 @@ public class Configuration implements Reconfigurable {
 
         public transient ConfigNode root;
         public transient ConfigNode parent;
-        private transient ObservableList<ConfigNode> children;
+        private final transient ObservableList<ConfigNode> children;
         public transient Reconfigurable subject;
         private transient boolean changed = true;
 
@@ -147,7 +147,7 @@ public class Configuration implements Reconfigurable {
         private void readObject(java.io.ObjectInputStream in)
                 throws IOException, ClassNotFoundException {
             if (children == null) {
-                children = getChildren();
+                children.setAll(getChildren());
             }
             children.setAll(super.getChildren());
             id = (String) in.readObject();

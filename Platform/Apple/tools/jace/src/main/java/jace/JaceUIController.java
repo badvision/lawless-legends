@@ -3,7 +3,6 @@ package jace;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -67,9 +66,6 @@ import javafx.util.StringConverter;
  * @author blurry
  */
 public class JaceUIController {
-
-    @FXML
-    private URL location;
 
     @FXML
     private AnchorPane rootPane;

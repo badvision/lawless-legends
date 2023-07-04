@@ -11,6 +11,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -139,7 +141,7 @@ public class LawlessHacks extends Cheats {
         try {
             return new Media(path.toURI().toString());
         } catch (URISyntaxException e) {
-            e.printStackTrace();
+            Logger.getLogger(getClass().getName()).log(Level.WARNING, "Unable to load audio track " + number + " from " + pathStr, e);
             return null;
         }
     }
@@ -160,7 +162,7 @@ public class LawlessHacks extends Cheats {
     private void stopSongEffect() {
         if (playbackEffect != null && playbackEffect.isAlive()) {
             playbackEffect.interrupt();
-            Thread.yield();
+            Thread.onSpinWait();
         }
         playbackEffect = null;
     }
@@ -331,7 +333,6 @@ public class LawlessHacks extends Cheats {
             }
             if (COMMENT.matcher(line).matches() || line.trim().isEmpty()) {
 //                System.out.println("Ignoring: "+line);
-                return;
             } else if (LABEL.matcher(line).matches()) {
                 currentScore = line.toLowerCase(Locale.ROOT);
                 scores.put(currentScore, new HashMap<>());

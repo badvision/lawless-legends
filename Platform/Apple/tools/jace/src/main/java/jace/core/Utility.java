@@ -400,8 +400,7 @@ public class Utility {
     }
 
     public static Object setChild(Object object, String fieldName, String value, boolean hex) {
-        if (object instanceof Map) {
-            Map map = (Map) object;
+        if (object instanceof Map map) {
             for (Object key : map.entrySet()) {
                 if (key.toString().equalsIgnoreCase(fieldName)) {
                     map.put(key, value);

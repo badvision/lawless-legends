@@ -235,7 +235,7 @@ class A2PackPartitions
         finally {
             // Preserve context in the case of an exception
             if (!threw)
-                currentContext.pop()
+                currentContext.removeLast()
         }
     }
 
@@ -5013,7 +5013,7 @@ end
 
         def packScript(script)
         {
-            //println "   Script '$name'"
+            //println "   Script '${scriptNames[script]}'"
             withContext(scriptNames[script])
             {
                 curScriptName = scriptNames[script]
@@ -5045,6 +5045,7 @@ end
                 def buf = new StringWriter()
                 out = new PrintWriter(buf)
                 variables = [] as Set
+                variables += scriptArgs[script]
 
                 // Process the code inside it
                 assert proc.@type == "procedures_defreturn"
@@ -5682,6 +5683,8 @@ end
         def packVarGet(blk)
         {
             def name = "v_" + humanNameToSymbol(getSingle(blk.field, "VAR").text(), false)
+            if (!variables.contains(name))
+                printWarning(String.format("used before set: '%s'", name))
             variables << name
             out << name
         }

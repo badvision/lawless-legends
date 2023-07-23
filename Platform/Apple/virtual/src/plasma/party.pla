@@ -434,7 +434,7 @@ def showItemMenu(player, item)#0
   fin
   if isSplittable(item); rawDisplayStr("S)plit, "); fin
   if isJoinable(item); rawDisplayStr("J)oin, "); fin
-  if !isEquipped(item)
+  if !isEquipped(item) and item=>w_price > 0
     if global=>p_players=>p_nextObj; rawDisplayStr("T)rade, "); fin
     if item=>w_price > 0; rawDisplayStr("D)rop "); fin
   fin
@@ -535,19 +535,22 @@ def doTrade(player, item)#1
     if sel == $1B; return 0; fin
     destPlayer = index(global=>p_players, sel-'1')
     if destPlayer and destPlayer <> player
-      removeFromList(@player=>p_items, item)
       destItem = scanForNamedObj(destPlayer=>p_items, item=>s_name)
       if destItem
         if destItem->t_type == TYPE_FANCY_ITEM and destItem=>w_count > 0
-          destItem=>w_count = destItem=>w_count + item=>w_count
+          removeFromList(@player=>p_items, item)
+          destItem=>w_count = min(30000, destItem=>w_count + item=>w_count)
           return displayDone
         fin
       fin
       if roomInPack(destPlayer)
+        removeFromList(@player=>p_items, item)
         addToList(@destPlayer=>p_items, item)
         return displayDone
       else
         displayResult("No room.", TRUE)
+        beep
+        return 0
       fin
     fin
     beep
@@ -591,7 +594,7 @@ def doJoin(player, item)#1
   while match
     if match <> item and match->t_type == TYPE_FANCY_ITEM
       if streqi(match=>s_name, item=>s_name)
-        item=>w_count = item=>w_count + match=>w_count
+        item=>w_count = min(30000, item=>w_count + match=>w_count)
         *pPrev = match=>p_nextObj
         match = match=>p_nextObj
         anyJoined = TRUE
@@ -692,7 +695,7 @@ def interactWithItem(player, item)#1
         break
       // Trade an item
       is 'T'
-        if global=>p_players=>p_nextObj and !isEquipped(item)
+        if global=>p_players=>p_nextObj and !isEquipped(item) and item=>w_price > 0
           return doTrade(player, item)
         fin
         break

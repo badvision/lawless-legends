@@ -3319,6 +3319,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def roomInPack(p_player)#1
+  // Note: initial pack size is established by gen_players.pla, by code generated in PackPartitions.
   return countList(p_player=>p_items) < p_player->b_packSize
 end
 

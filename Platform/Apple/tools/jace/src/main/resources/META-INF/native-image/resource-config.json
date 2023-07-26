@@ -1,24 +1,36 @@
 {
   "resources":{
-  "includes":[{
+  "includes":[
+    {
       "pattern":"\\Qjace\\E"
-    }]},
+    }, 
+    {
+      "pattern":"^codemirror.*$"
+    }, 
+    {
+      "pattern":"^jace.*$"
+    }, 
+    {
+      "pattern":"^jace.data..*$"
+    }, 
+    {
+      "pattern":"^jace.data.sound..*$"
+    }
+  ]},
   "bundles":[
     {
       "name":"com.sun.javafx.tk.quantum.QuantumMessagesBundle",
-      "locales":[""]
+      "locales":[
+        "", 
+        "und"
+      ]
     }, 
     {
       "name":"com/sun/javafx/scene/control/skin/resources/controls",
-      "locales":[""]
-    }, 
-    {
-      "name":"sun.awt.resources.awt",
-      "classNames":["sun.awt.resources.awt"]
-    }, 
-    {
-      "name":"sun.awt.resources.awtosx",
-      "classNames":["sun.awt.resources.awtosx"]
+      "locales":[
+        "", 
+        "und"
+      ]
     }
   ]
 }

@@ -13,6 +13,7 @@ import jace.apple2e.Apple2e;
 import jace.apple2e.RAM128k;
 import jace.apple2e.SoftSwitches;
 import jace.apple2e.VideoNTSC;
+import jace.cheat.Cheats;
 import jace.config.ConfigurableField;
 import jace.core.Video;
 import jace.library.MediaConsumer;
@@ -33,10 +34,10 @@ public class LawlessComputer extends Apple2e {
     }
     
     public void initLawlessLegendsConfiguration() {
+        this.cheatEngine.setValue(Cheats.Cheat.LawlessHacks);
         reconfigure();  // Required before anything so that memory is initialized
-        this.cheatEngine.setValue(LawlessHacks.class);
-        this.activeCheatEngine = new LawlessHacks(this);
-        this.activeCheatEngine.attach();
+        // this.activeCheatEngine = new LawlessHacks(this);
+        // this.activeCheatEngine.attach();
         blankTextPage1();
         reconfigure();        
     }

@@ -18,10 +18,6 @@
  */
 package jace.core;
 
-import java.awt.Toolkit;
-import java.awt.datatransfer.Clipboard;
-import java.awt.datatransfer.DataFlavor;
-import java.awt.datatransfer.UnsupportedFlavorException;
 import java.io.IOException;
 import java.io.StringReader;
 import java.lang.reflect.InvocationTargetException;
@@ -39,6 +35,7 @@ import jace.apple2e.SoftSwitches;
 import jace.config.InvokableAction;
 import jace.config.Reconfigurable;
 import javafx.event.EventHandler;
+import javafx.scene.input.Clipboard;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 
@@ -334,18 +331,10 @@ public class Keyboard implements Reconfigurable {
 
     @InvokableAction(name = "Paste clipboard", alternatives = "paste", category = "Keyboard", notifyOnRelease = false, defaultKeyMapping = {"Ctrl+Shift+V","Shift+Insert"}, consumeKeyEvent = true)
     public static void pasteFromClipboard() {
-        try {
-            Clipboard clip = Toolkit.getDefaultToolkit().getSystemClipboard();
-            String contents = (String) clip.getData(DataFlavor.stringFlavor);
-            if (contents != null && !"".equals(contents)) {
-                contents = contents.replaceAll("\\r?\\n|\\r", (char) 0x0d + "");
-                pasteBuffer = new StringReader(contents);
-            }
-        } catch (UnsupportedFlavorException | IOException ex) {
-            Logger.getLogger(Keyboard.class
-                    .getName()).log(Level.SEVERE, null, ex);
+        Clipboard clipboard = Clipboard.getSystemClipboard();
+        if (clipboard.hasString()) {
+            pasteFromString(clipboard.getString());
         }
-
     }
     static StringReader pasteBuffer = null;
 

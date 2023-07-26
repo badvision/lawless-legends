@@ -14,15 +14,19 @@
  * limitations under the License.
  */
 package jace.core;
-import jace.Emulator;
-import jace.apple2e.MOS65C02;
-import jace.apple2e.RAM128k;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import static org.junit.Assert.*;
-import static jace.TestUtils.*;
+import jace.Emulator;
+import static jace.TestUtils.initComputer;
+import static jace.TestUtils.runAssemblyCode;
+import jace.apple2e.MOS65C02;
+import jace.apple2e.RAM128k;
 
 /**
  * Test that memory listeners fire appropriately.
@@ -35,9 +39,9 @@ public class MemoryListenerTest {
 
     @BeforeClass
     public static void setupClass() {
-        Utility.setHeadlessMode(true);
+        initComputer();
         SoundMixer.MUTE = true;
-        computer = Emulator.getComputer();
+        computer = Emulator.withComputer(c->c, null);
         cpu = (MOS65C02) computer.getCpu();
         ram = (RAM128k) computer.getMemory();
     }

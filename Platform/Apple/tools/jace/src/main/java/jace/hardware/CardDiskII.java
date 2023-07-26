@@ -18,6 +18,12 @@
  */
 package jace.hardware;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import jace.EmulatorUILogic;
 import jace.config.ConfigurableField;
 import jace.config.Name;
@@ -29,11 +35,6 @@ import jace.core.RAMEvent.TYPE;
 import jace.core.Utility;
 import jace.library.MediaConsumer;
 import jace.library.MediaConsumerParent;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Apple Disk ][ interface implementation. This card represents the interface

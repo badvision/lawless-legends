@@ -35,13 +35,16 @@ module lawlesslegends {
     requires javafx.mediaEmpty;
     requires javafx.media;
     requires jdk.jsobject;
-    requires org.reflections;
+    // requires org.reflections;
     
     opens jace to javafx.graphics, javafx.fxml, javafx.controls;
     opens jace.config to javafx.fxml, javafx.controls;
     opens jace.data to javafx.graphics, javafx.fxml, javafx.controls;
+    opens jace.ide to javafx.graphics, javafx.fxml, javafx.controls;
     opens fxml to javafx.graphics, javafx.fxml, javafx.controls;
     opens styles to javafx.graphics, javafx.fxml, javafx.controls;
     
+    uses javax.sound.sampled.SourceDataLine;
+
     exports jace;
 }

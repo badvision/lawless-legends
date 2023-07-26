@@ -29,7 +29,7 @@ import jace.core.RAMEvent.TYPE;
  *
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com 
  */
-public abstract class RAMListener implements RAMEvent.RAMEventHandler {
+public abstract class RAMListener implements RAMEvent.RAMEventHandler, Comparable<RAMListener> {
     
     private RAMEvent.TYPE type;
     private RAMEvent.SCOPE scope;
@@ -158,4 +158,21 @@ public abstract class RAMListener implements RAMEvent.RAMEventHandler {
     abstract protected void doConfig();
 
     abstract protected void doEvent(RAMEvent e);
+
+    @Override
+    public int compareTo(RAMListener o) {
+        if (o.scopeStart == scopeStart) {
+            if (o.scopeEnd == scopeEnd) {
+                if (o.type == type) {
+                    return Integer.compare(o.hashCode(), hashCode());
+                } else {
+                    return Integer.compare(o.type.ordinal(), type.ordinal());
+                }
+            } else {
+                return Integer.compare(o.scopeEnd, scopeEnd);
+            }
+        } else {
+            return Integer.compare(o.scopeStart, scopeStart);
+        }
+    }
 }

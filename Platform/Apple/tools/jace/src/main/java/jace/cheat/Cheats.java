@@ -18,14 +18,18 @@
  */
 package jace.cheat;
 
+import java.util.HashSet;
+import java.util.Set;
+import java.util.function.Function;
+
 import jace.apple2e.MOS65C02;
+import jace.config.DeviceEnum;
 import jace.config.InvokableAction;
 import jace.core.Computer;
 import jace.core.Device;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
-import java.util.HashSet;
-import java.util.Set;
+import jace.lawless.LawlessHacks;
 
 /**
  * Represents some combination of hacks that can be enabled or disabled through
@@ -34,6 +38,38 @@ import java.util.Set;
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com
  */
 public abstract class Cheats extends Device {
+    public static enum Cheat implements DeviceEnum<Cheats> {
+        Metacheat("Metacheat", MetaCheat.class, MetaCheat::new),
+        MontezumasRevenge("Montezuma's Revenge", MontezumasRevengeCheats.class, MontezumasRevengeCheats::new),
+        PrinceOfPersia("Prince of Persia", PrinceOfPersiaCheats.class, PrinceOfPersiaCheats::new),
+        LawlessHacks("Lawless Legends Enhancements", LawlessHacks.class, LawlessHacks::new);
+
+        Function<Computer, Cheats> factory;
+        String name;
+        Class clazz;
+
+        Cheat(String name, Class clazz, Function<Computer, Cheats> factory) {
+            this.name = name;
+            this.clazz = clazz;
+            this.factory = factory;
+        }
+
+        @Override
+        public String getName() {
+            return name;
+        }
+
+        @Override
+        public Cheats create(Computer computer) {
+            return factory.apply(computer);
+        }
+
+        @Override
+        public boolean isInstance(Cheats cheat) {
+            return clazz.isInstance(cheat);
+        }
+    }
+
     boolean cheatsActive = true;
     Set<RAMListener> listeners = new HashSet<>();
 

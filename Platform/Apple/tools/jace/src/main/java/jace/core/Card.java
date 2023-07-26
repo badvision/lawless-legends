@@ -35,8 +35,8 @@ import jace.apple2e.SoftSwitches;
  */
 public abstract class Card extends Device {
 
-    private final PagedMemory cxRom;
-    private final PagedMemory c8Rom;
+    private PagedMemory cxRom;
+    private PagedMemory c8Rom;
     private int slot;
     private RAMListener ioListener;
     private RAMListener firmwareListener;

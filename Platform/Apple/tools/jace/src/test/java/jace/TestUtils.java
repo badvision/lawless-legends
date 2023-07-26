@@ -15,10 +15,10 @@
  */
 package jace;
 
-import jace.apple2e.MOS65C02;
-import jace.assembly.AssemblyHandler;
 import jace.core.CPU;
+import jace.core.Computer;
 import jace.core.Device;
+import jace.core.Utility;
 import jace.ide.HeadlessProgram;
 import jace.ide.Program;
 
@@ -31,6 +31,11 @@ public class TestUtils {
         // Utility class has no constructor
     }
 
+    public static void initComputer() {
+        Utility.setHeadlessMode(true);
+        Emulator.withComputer(Computer::reconfigure);
+    }
+
     public static void assemble(String code, int addr) {
         runAssemblyCode(code, addr, 0);
     }
@@ -40,40 +45,43 @@ public class TestUtils {
     }
     
     public static void runAssemblyCode(String code, int addr, int ticks) {
-        CPU cpu = Emulator.getComputer().getCpu();
-        cpu.trace = true;
-        HeadlessProgram program = new HeadlessProgram(Program.DocumentType.assembly);
-        program.setValue("*=$"+Integer.toHexString(addr)+"\n "+code+"\n NOP\n RTS");
-        program.execute();
-        if (ticks > 0) {
-            cpu.resume();
-            for (int i=0; i < ticks; i++) {
-                cpu.doTick();
+        Emulator.withComputer(computer -> {
+            CPU cpu = computer.getCpu();
+            cpu.trace = true;
+            HeadlessProgram program = new HeadlessProgram(Program.DocumentType.assembly);
+            program.setValue("*=$"+Integer.toHexString(addr)+"\n "+code+"\n NOP\n RTS");
+            program.execute();
+            if (ticks > 0) {
+                cpu.resume();
+                for (int i=0; i < ticks; i++) {
+                    cpu.doTick();
+                }
+                cpu.suspend();
             }
-            cpu.suspend();
-        }
+        });
     }
 
     public static Device createSimpleDevice(Runnable r, String name) {
-        return new Device(Emulator.getComputer()) {
-            @Override
-            public void tick() {
-                r.run();
-            }
-            
-            @Override
-            public String getShortName() {
-                return name;
-            }
-            
-            @Override
-            public void reconfigure() {
-            }
-            
-            @Override
-            protected String getDeviceName() {
-                return name;
-            }
-        };
+        return Emulator.withComputer(computer -> 
+            new Device(computer) {
+                @Override
+                public void tick() {
+                    r.run();
+                }
+                
+                @Override
+                public String getShortName() {
+                    return name;
+                }
+                
+                @Override
+                public void reconfigure() {
+                }
+                
+                @Override
+                protected String getDeviceName() {
+                    return name;
+                }
+            }, null);
     }
 }

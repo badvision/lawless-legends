@@ -91,8 +91,6 @@ public class LawlessVideo extends VideoNTSC {
             
             Emulator.withComputer(c->c.onNextVBL(Video::forceRefresh));
             System.out.println("Detected engine: " + e.name());
-        } else {
-            System.out.println("Detected engine same as before: " + e.name());
         }
     }
 

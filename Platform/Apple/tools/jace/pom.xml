@@ -46,7 +46,7 @@
                 <version>0.0.8</version>
                 <configuration>
                     <mainClass>lawlesslegends/jace.LawlessLegends</mainClass>
-                                    <executions>
+                    <executions>
                     <execution>
                         <!-- Default configuration for running -->
                         <!-- Usage: mvn clean javafx:run -->
@@ -180,12 +180,6 @@
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-swing</artifactId>
             <version>18</version>
-            <type>jar</type>
-        </dependency>
-        <dependency>
-            <groupId>org.reflections</groupId>
-            <artifactId>reflections</artifactId>
-            <version>0.10.2</version>
             <type>jar</type>
         </dependency>
     </dependencies>

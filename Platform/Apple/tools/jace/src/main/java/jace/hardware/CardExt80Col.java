@@ -45,7 +45,7 @@ public class CardExt80Col extends RAM128k {
     public String getShortName() {
         return "128kb";
     }
-    
+
     public CardExt80Col(Computer computer) {
         super(computer);
         auxMemory = new PagedMemory(0xc000, PagedMemory.Type.RAM, computer);

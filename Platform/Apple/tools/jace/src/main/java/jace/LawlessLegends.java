@@ -1,31 +1,26 @@
 package jace;
 
-import java.awt.Taskbar;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import jace.apple2e.Apple2e;
+import jace.apple2e.RAM128k;
 import jace.apple2e.SoftSwitches;
 import jace.apple2e.VideoNTSC;
+import jace.cheat.Cheats.Cheat;
 import jace.config.Configuration;
 import jace.core.Computer;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
 import jace.core.Utility;
-import jace.hardware.CardDiskII;
-import jace.hardware.CardRamFactor;
-import jace.hardware.CardRamworks;
-import jace.hardware.massStorage.CardMassStorage;
+import jace.hardware.Cards;
+import jace.hardware.VideoImpls;
 import jace.lawless.LawlessComputer;
-import jace.lawless.LawlessHacks;
 import jace.lawless.LawlessImageTool;
-import jace.lawless.LawlessVideo;
 import jace.ui.MetacheatUI;
 import javafx.application.Application;
 import javafx.application.Platform;
-import javafx.embed.swing.SwingFXUtils;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.layout.AnchorPane;
@@ -63,14 +58,6 @@ public class LawlessLegends extends Application {
             primaryStage.titleProperty().set("Lawless Legends");
             Utility.loadIcon("game_icon.png").ifPresent(icon -> {
                 primaryStage.getIcons().add(icon);
-                try {
-                    //set icon for mac os (and other systems which do support this method)
-                    Taskbar.getTaskbar().setIconImage(SwingFXUtils.fromFXImage(icon, null));
-                } catch (final UnsupportedOperationException e) {
-                    System.out.println("The os does not support: 'taskbar.setIconImage'");
-                } catch (final SecurityException e) {
-                    System.out.println("There was a security exception for: 'taskbar.setIconImage'");
-                }
             });
         } catch (IOException exception) {
             throw new RuntimeException(exception);
@@ -195,17 +182,17 @@ public class LawlessLegends extends Application {
             c.joy1enabled = false;
             c.joy2enabled = false;
             c.enableStateManager = false;
-            c.ramCard.setValue(CardRamworks.class);
-            c.videoRenderer.setValue(LawlessVideo.class);
+            c.ramCard.setValue(RAM128k.RamCards.CardRamworks);
+            c.videoRenderer.setValue(VideoImpls.Lawless);
             if (c.PRODUCTION_MODE) {
-                c.card7.setValue(CardMassStorage.class);
-                c.card6.setValue(CardDiskII.class);
-                c.card5.setValue(CardRamFactor.class);
+                c.card7.setValue(Cards.MassStorage);
+                c.card6.setValue(Cards.DiskIIDrive);
+                c.card5.setValue(Cards.RamFactor);
                 c.card4.setValue(null);
                 c.card2.setValue(null);
                 c.getMemory().writeWord(0x03f0, 0x0c700, false, false);
             }
-            c.cheatEngine.setValue(LawlessHacks.class);
+            c.cheatEngine.setValue(Cheat.LawlessHacks);
             Configuration.buildTree();
             c.reconfigure();
             VideoNTSC.setVideoMode(VideoNTSC.VideoMode.TextFriendly, false);

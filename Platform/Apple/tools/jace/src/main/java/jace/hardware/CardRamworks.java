@@ -18,6 +18,11 @@
  */
 package jace.hardware;
 
+import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
+
 import jace.apple2e.RAM128k;
 import jace.config.ConfigurableField;
 import jace.config.Name;
@@ -26,10 +31,6 @@ import jace.core.PagedMemory;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
 import jace.state.Stateful;
-import java.util.ArrayList;
-import java.util.EnumMap;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Emulates the Ramworks Basic and Ramworks III cards
@@ -47,10 +48,10 @@ public class CardRamworks extends RAM128k {
     public Map<BankType, PagedMemory> nullBank = generateBank();
     @ConfigurableField(
             category = "memory",
-            defaultValue = "3072",
+            defaultValue = "4096",
             name = "Memory Size",
             description = "Size in KB.  Should be a multiple of 64 and not exceed 8192.  The real card cannot support more than 3072k")
-    public int memorySize = 3072;
+    public int memorySize = 4096;
     public int maxBank = memorySize / 64;
     private Map<BankType, PagedMemory> generateBank() {
             Map<BankType, PagedMemory> memoryBank = new EnumMap<>(BankType.class);

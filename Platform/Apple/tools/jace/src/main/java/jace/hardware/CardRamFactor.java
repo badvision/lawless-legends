@@ -18,6 +18,13 @@
  */
 package jace.hardware;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Arrays;
+import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import jace.config.ConfigurableField;
 import jace.config.Name;
 import jace.core.Card;
@@ -26,12 +33,6 @@ import jace.core.RAMEvent;
 import jace.core.RAMEvent.TYPE;
 import jace.core.Utility;
 import jace.state.Stateful;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Arrays;
-import java.util.Optional;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javafx.scene.control.Label;
 
 /**

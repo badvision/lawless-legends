@@ -18,14 +18,15 @@
  */
 package jace.core;
 
-import jace.apple2e.SoftSwitches;
-import jace.config.Reconfigurable;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
+
+import jace.apple2e.SoftSwitches;
+import jace.config.Reconfigurable;
 
 /**
  * RAM is a 64K address space of paged memory. It also manages sets of memory
@@ -45,7 +46,10 @@ public abstract class RAM implements Reconfigurable {
     public Optional<Card>[] cards;
     // card 0 = 80 column card firmware / system rom
     public int activeSlot = 0;
-    protected final Computer computer;
+    protected Computer computer;
+
+    public RAM() {
+    }
 
     /**
      * Creates a new instance of RAM
@@ -54,7 +58,7 @@ public abstract class RAM implements Reconfigurable {
      */
     public RAM(Computer computer) {
         this.computer = computer;
-        listeners = new HashSet<>();
+        listeners = new ConcurrentSkipListSet<>();
         cards = (Optional<Card>[]) new Optional[8];
         for (int i = 0; i < 8; i++) {
             cards[i] = Optional.empty();
@@ -157,12 +161,12 @@ public abstract class RAM implements Reconfigurable {
         return msb + lsb;
     }
 
-    private void mapListener(RAMListener l, int address) {
+    private synchronized void mapListener(RAMListener l, int address) {
         if ((address & 0x0FF00) == 0x0C000) {
             int index = address & 0x0FF;
             Set<RAMListener> ioListeners = ioListenerMap[index];
             if (ioListeners == null) {
-                ioListeners = Collections.synchronizedSet(new HashSet<>());
+                ioListeners = new ConcurrentSkipListSet<>();
                 ioListenerMap[index] = ioListeners;
             }
             ioListeners.add(l);
@@ -170,7 +174,7 @@ public abstract class RAM implements Reconfigurable {
             int index = (address >> 8) & 0x0FF;
             Set<RAMListener> otherListeners = listenerMap[index];
             if (otherListeners == null) {
-                otherListeners = Collections.synchronizedSet(new HashSet<>());
+                otherListeners = new ConcurrentSkipListSet<>();
                 listenerMap[index] = otherListeners;
             }
             otherListeners.add(l);
@@ -275,8 +279,8 @@ public abstract class RAM implements Reconfigurable {
         if (listeners.contains(l)) {
             return l;
         }
+        listeners.add(l);
         computer.cpu.whileSuspended(()->{
-            listeners.add(l);
             addListenerRange(l);            
         });
         return l;
@@ -299,26 +303,20 @@ public abstract class RAM implements Reconfigurable {
     }
 
     public void removeListener(final RAMListener l) {
-        boolean restart = computer.pause();
-        listeners.remove(l);
-        refreshListenerMap();
-        if (restart) {
-            computer.resume();
+        if (!listeners.contains(l)) {
+            return;
         }
+        listeners.remove(l);
+        computer.cpu.whileSuspended(()->{
+            refreshListenerMap();
+        });
     }
 
-    public byte callListener(RAMEvent.TYPE t, int address, int oldValue, int newValue, boolean requireSyncronization) {
+    private byte _callListener(RAMEvent.TYPE t, int address, int oldValue, int newValue) {
         Set<RAMListener> activeListeners;
-        boolean resume = false;
-        if (requireSyncronization) {
-            resume = computer.getCpu().suspend();
-        }
         if ((address & 0x0FF00) == 0x0C000) {
             activeListeners = ioListenerMap[address & 0x0FF];
             if (activeListeners == null && t.isRead()) {
-                if (resume) {
-                    computer.getCpu().resume();
-                }
                 return computer.getVideo().getFloatingBus();
             }
         } else {
@@ -327,15 +325,17 @@ public abstract class RAM implements Reconfigurable {
         if (activeListeners != null && !activeListeners.isEmpty()) {
             RAMEvent e = new RAMEvent(t, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY, address, oldValue, newValue);
             activeListeners.forEach((l) -> l.handleEvent(e));
-            if (resume) {
-                computer.getCpu().resume();
-            }
             return (byte) e.getNewValue();
         }
-        if (resume) {
-            computer.getCpu().resume();
-        }
         return (byte) newValue;
+    }
+
+    public byte callListener(RAMEvent.TYPE t, int address, int oldValue, int newValue, boolean requireSyncronization) {
+        if (requireSyncronization) {
+            return computer.cpu.whileSuspended((Supplier<Byte>) () -> _callListener(t, address, oldValue, newValue), (byte) 0);
+        } else {
+            return _callListener(t, address, oldValue, newValue);
+        }
     }
 
     abstract protected void loadRom(String path) throws IOException;

@@ -175,33 +175,15 @@ public class CardAppleMouse extends Card {
         if (type == RAMEvent.TYPE.EXECUTE) {
             // This means the CPU is calling firmware at this location
             switch (offset - 0x080) {
-                case 0:
-                    setMouse();
-                    break;
-                case 1:
-                    serveMouse();
-                    break;
-                case 2:
-                    readMouse();
-                    break;
-                case 3:
-                    clearMouse();
-                    break;
-                case 4:
-                    posMouse();
-                    break;
-                case 5:
-                    clampMouse();
-                    break;
-                case 6:
-                    homeMouse();
-                    break;
-                case 7:
-                    initMouse();
-                    break;
-                case 8:
-                    getMouseClamp();
-                    break;
+                case 0 -> setMouse();
+                case 1 -> serveMouse();
+                case 2 -> readMouse();
+                case 3 -> clearMouse();
+                case 4 -> posMouse();
+                case 5 -> clampMouse();
+                case 6 -> homeMouse();
+                case 7 -> initMouse();
+                case 8 -> getMouseClamp();
             }
             // Always pass back RTS
             e.setNewValue(0x060);

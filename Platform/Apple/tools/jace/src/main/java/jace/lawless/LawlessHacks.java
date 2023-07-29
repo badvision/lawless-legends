@@ -106,7 +106,6 @@ public class LawlessHacks extends Cheats {
                 stopSfx();
             }
         } else if (isMusic) {
-            System.out.println("Play music "+track);
             playMusic(track, false);
         } else {
             System.out.println("Play sfx "+track);
@@ -150,7 +149,7 @@ public class LawlessHacks extends Cheats {
         if (currentSong != track || switchScores) {
             fadeOutSong(() -> startNewSong(track, switchScores));
         } else {
-            new Thread(() -> startNewSong(track, false)).start();
+            // new Thread(() -> startNewSong(track, false)).start();
         }
         currentSong = track;
     }
@@ -240,6 +239,7 @@ public class LawlessHacks extends Cheats {
         }
         MediaPlayer player;
         if (track != currentSong || !isPlayingMusic() || switchScores) {
+            System.out.println("Play music "+track);
             
             // If the same song is already playing don't restart it
             Media song = getAudioTrack(track);

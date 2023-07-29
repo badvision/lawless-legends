@@ -20,7 +20,6 @@ package jace.core;
 
 import java.io.File;
 import java.io.InputStream;
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -31,11 +30,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import org.reflections.Reflections;
 
 import jace.config.Configuration;
 import jace.config.InvokableAction;
@@ -58,12 +55,6 @@ import javafx.scene.paint.Color;
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com
  */
 public class Utility {
-
-    static Reflections reflections = new Reflections("jace");
-
-    public static <T> Set<Class<? extends T>> findAllSubclasses(Class<T> clazz) {
-        return reflections.getSubTypesOf(clazz);
-    }
 
     //------------------------------ String comparators
     /**
@@ -233,27 +224,7 @@ public class Utility {
             });
         });
     }
-
-//    public static void runModalProcess(String title, final Runnable runnable) {
-////        final JDialog frame = new JDialog(Emulator.getFrame());
-//        final JProgressBar progressBar = new JProgressBar();
-//        progressBar.setIndeterminate(true);
-//        final JPanel contentPane = new JPanel();
-//        contentPane.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-//        contentPane.setLayout(new BorderLayout());
-//        contentPane.add(new JLabel(title), BorderLayout.NORTH);
-//        contentPane.add(progressBar, BorderLayout.CENTER);
-//        frame.setContentPane(contentPane);
-//        frame.pack();
-//        frame.setLocationRelativeTo(null);
-//        frame.setVisible(true);
-//
-//        new Thread(() -> {
-//            runnable.run();
-//            frame.setVisible(false);
-//            frame.dispose();
-//        }).start();
-//    }
+    
     public static class RankingComparator implements Comparator<String> {
 
         String match;
@@ -374,68 +345,6 @@ public class Utility {
         });
     }
 
-    public static Object findChild(Object object, String fieldName) {
-        if (object instanceof Map map) {
-            for (Object key : map.keySet()) {
-                if (key.toString().equalsIgnoreCase(fieldName)) {
-                    return map.get(key);
-                }
-            }
-            return null;
-        }
-        try {
-            Field f = object.getClass().getField(fieldName);
-            return f.get(object);
-        } catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException ex) {
-            for (Method m : object.getClass().getMethods()) {
-                if (m.getName().equalsIgnoreCase("get" + fieldName) && m.getParameterTypes().length == 0) {
-                    try {
-                        return m.invoke(object);
-                    } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException ex1) {
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
-    public static Object setChild(Object object, String fieldName, String value, boolean hex) {
-        if (object instanceof Map map) {
-            for (Object key : map.entrySet()) {
-                if (key.toString().equalsIgnoreCase(fieldName)) {
-                    map.put(key, value);
-                    return null;
-                }
-            }
-            return null;
-        }
-        Field f;
-        try {
-            f = object.getClass().getField(fieldName);
-        } catch (NoSuchFieldException ex) {
-            System.out.println("Object type " + object.getClass().getName() + " has no field named " + fieldName);
-            Logger.getLogger(Utility.class.getName()).log(Level.SEVERE, null, ex);
-            return null;
-        } catch (SecurityException ex) {
-            Logger.getLogger(Utility.class.getName()).log(Level.SEVERE, null, ex);
-            return null;
-        }
-        Object useValue = deserializeString(value, f.getType(), hex);
-        try {
-            f.set(object, useValue);
-            return useValue;
-        } catch (IllegalArgumentException | IllegalAccessException ex) {
-            for (Method m : object.getClass().getMethods()) {
-                if (m.getName().equalsIgnoreCase("set" + fieldName) && m.getParameterTypes().length == 0) {
-                    try {
-                        m.invoke(object, useValue);
-                    } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException ex1) {
-                    }
-                }
-            }
-        }
-        return useValue;
-    }
     static Map<Class, Map<String, Object>> enumCache = new HashMap<>();
 
     public static Object findClosestEnumConstant(String value, Class type) {
@@ -497,46 +406,25 @@ public class Utility {
         return null;
     }
 
-    public static Object getProperty(Object object, String path) {
-        String[] paths = path.split("\\.");
-        for (String path1 : paths) {
-            object = findChild(object, path1);
-            if (object == null) {
-                return null;
-            }
-        }
-        return object;
-    }
-
-    public static Object setProperty(Object object, String path, String value, boolean hex) {
-        String[] paths = path.split("\\.");
-        for (int i = 0; i < paths.length - 1; i++) {
-            object = findChild(object, paths[i]);
-            if (object == null) {
-                return null;
-            }
-        }
-        return setChild(object, paths[paths.length - 1], value, hex);
-    }
-
-    static Map<InvokableAction, Runnable> allActions = null;
+    static final Map<InvokableAction, Runnable> allActions = new ConcurrentHashMap<>();
 
     public static Map<InvokableAction, Runnable> getAllInvokableActions() {
-        if (allActions == null) {
-            allActions = new HashMap<>();
-            Configuration.BASE.getTreeAsStream().forEach((Configuration.ConfigNode node) -> {
-                for (Method m : node.subject.getClass().getMethods()) {
-                    if (m.isAnnotationPresent(InvokableAction.class)) {
-                        allActions.put(m.getAnnotation(InvokableAction.class), () -> {
-                            try {
-                                m.invoke(node.subject);
-                            } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException ex) {
-                                Logger.getLogger(Utility.class.getName()).log(Level.SEVERE, null, ex);
-                            }
-                        });
+        synchronized (allActions) {            
+            if (allActions.isEmpty()) {
+                Configuration.BASE.getTreeAsStream().forEach((Configuration.ConfigNode node) -> {
+                    for (Method m : node.subject.getClass().getMethods()) {
+                        if (m.isAnnotationPresent(InvokableAction.class)) {
+                            allActions.put(m.getAnnotation(InvokableAction.class), () -> {
+                                try {
+                                    m.invoke(node.subject);
+                                } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException ex) {
+                                    Logger.getLogger(Utility.class.getName()).log(Level.SEVERE, null, ex);
+                                }
+                            });
+                        }
                     }
-                }
-            });
+                });
+            }
         }
         return allActions;
     }

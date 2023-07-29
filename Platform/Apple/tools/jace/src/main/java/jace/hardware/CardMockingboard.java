@@ -18,6 +18,16 @@
  */
 package jace.hardware;
 
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.LockSupport;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import javax.sound.sampled.SourceDataLine;
+
 import jace.config.ConfigurableField;
 import jace.config.Name;
 import jace.core.Card;
@@ -29,15 +39,6 @@ import jace.core.RAMListener;
 import jace.core.SoundMixer;
 import jace.hardware.mockingboard.PSG;
 import jace.hardware.mockingboard.R6522;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.LockSupport;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import javax.sound.sampled.LineUnavailableException;
-import javax.sound.sampled.SourceDataLine;
 
 /**
  * Mockingboard-C implementation (with partial Phasor support). This uses two

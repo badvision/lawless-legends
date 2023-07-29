@@ -18,6 +18,9 @@
  */
 package jace.core;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.DataLine;
@@ -25,9 +28,6 @@ import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.SourceDataLine;
 
 import jace.config.ConfigurableField;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import javax.sound.sampled.FloatControl;
 
 /**
  * Manages sound resources used by various audio devices (such as speaker and
@@ -77,7 +77,7 @@ public class SoundMixer extends Device {
             line.open(format);
             line.start();
 //            Logger.getLogger(getClass().getName()).log(Level.INFO, "Obtained source data line: %s, buffer size %d".formatted(line.getFormat(), line.getBufferSize()));
-        } catch (LineUnavailableException e) {
+        } catch (IllegalArgumentException | LineUnavailableException e) {
             Logger.getLogger(getClass().getName()).log(Level.SEVERE, "Error getting sound line: {0}", e.getMessage());
         }
         return line;

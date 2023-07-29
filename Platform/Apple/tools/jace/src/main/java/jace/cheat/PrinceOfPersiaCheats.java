@@ -20,7 +20,6 @@ package jace.cheat;
 
 import jace.EmulatorUILogic;
 import jace.apple2e.RAM128k;
-import jace.apple2e.SoftSwitches;
 import jace.config.ConfigurableField;
 import jace.core.Computer;
 import jace.core.PagedMemory;

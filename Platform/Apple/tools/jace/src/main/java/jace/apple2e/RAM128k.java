@@ -18,17 +18,25 @@
  */
 package jace.apple2e;
 
-import jace.core.*;
-import jace.state.Stateful;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import jace.config.DeviceEnum;
+import jace.core.CPU;
+import jace.core.Card;
+import jace.core.Computer;
+import jace.core.PagedMemory;
+import jace.core.RAM;
+import jace.hardware.CardExt80Col;
+import jace.hardware.CardRamworks;
+import jace.state.Stateful;
 
 /**
  * Implementation of a 128k memory space and the MMU found in an Apple //e. The
@@ -38,6 +46,36 @@ import java.util.stream.Stream;
  */
 @Stateful
 abstract public class RAM128k extends RAM {
+    // Memory card implementations
+    public static enum RamCards implements DeviceEnum<RAM128k> {
+        CardExt80Col("80-Column Card (128k)", CardExt80Col.class, CardExt80Col::new),
+        CardRamworks("Ramworks (4mb)", CardRamworks.class, CardRamworks::new);
+
+        Function<Computer, ? extends RAM128k> factory;
+        String name;
+        Class clazz;
+
+        RamCards(String name, Class clazz, Function<Computer, ? extends RAM128k> factory) {
+            this.factory = factory;
+            this.name = name;
+            this.clazz = clazz;
+        }
+
+        @Override
+        public RAM128k create(Computer c) {
+            return factory.apply(c);
+        }
+
+        @Override
+        public String getName() {
+            return name;
+        }
+
+        @Override
+        public boolean isInstance(RAM128k card) {
+            return card != null && clazz.isInstance(card);
+        }
+    }
 
     static final Logger LOG = Logger.getLogger(RAM128k.class.getName());
 

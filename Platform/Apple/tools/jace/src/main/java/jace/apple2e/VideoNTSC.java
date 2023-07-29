@@ -63,7 +63,7 @@ public class VideoNTSC extends VideoDHGR {
 
     protected boolean[] colorActive = new boolean[80];
     int rowStart = 0;
-
+    
     public VideoNTSC(Computer computer) {
         super(computer);
         initDivideTables();

@@ -18,6 +18,7 @@
  */
 package jace.hardware;
 
+import jace.LawlessLegends;
 import jace.apple2e.SoftSwitches;
 import jace.apple2e.softswitch.MemorySoftSwitch;
 import jace.config.ConfigurableField;
@@ -27,14 +28,8 @@ import jace.core.Device;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
 import jace.state.Stateful;
-import java.awt.AWTException;
-import java.awt.Dimension;
-import java.awt.MouseInfo;
-import java.awt.Point;
-import java.awt.Robot;
-import java.awt.Toolkit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import javafx.scene.input.MouseEvent;
+import javafx.stage.Stage;
 
 /**
  * Simple implementation of joystick support that supports mouse or keyboard.
@@ -61,14 +56,18 @@ public class Joystick extends Device {
     private int joyY = 0;
     MemorySoftSwitch xSwitch;
     MemorySoftSwitch ySwitch;
-    Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-    Point lastMouseLocation;
-    Robot robot;
-    Point centerPoint;
 
     public Joystick(int port, Computer computer) {
         super(computer);
-        centerPoint = new Point(screenSize.width / 2, screenSize.height / 2);
+        Stage stage = LawlessLegends.getApplication().primaryStage;
+        // Register a mouse handler on the primary stage that tracks the 
+        // mouse x/y position as a percentage of window width and height
+        stage.addEventHandler(MouseEvent.MOUSE_MOVED, event -> {
+            if (!useKeyboard) {
+                joyX = (int) (event.getX() / stage.getWidth() * 255);
+                joyY = (int) (event.getY() / stage.getHeight() * 255);
+            }
+        });
         this.port = port;
         if (port == 0) {
             xSwitch = (MemorySoftSwitch) SoftSwitches.PDL0.getSwitch();
@@ -76,12 +75,6 @@ public class Joystick extends Device {
         } else {
             xSwitch = (MemorySoftSwitch) SoftSwitches.PDL2.getSwitch();
             ySwitch = (MemorySoftSwitch) SoftSwitches.PDL3.getSwitch();
-        }
-        lastMouseLocation = MouseInfo.getPointerInfo().getLocation();
-        try {
-            robot = new Robot();
-        } catch (AWTException ex) {
-            Logger.getLogger(Joystick.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
     public boolean leftPressed = false;
@@ -93,47 +86,6 @@ public class Joystick extends Device {
         if (useKeyboard) {
             joyX = (leftPressed ? -128 : 0) + (rightPressed ? 255 : 128);
             joyY = (upPressed ? -128 : 0) + (downPressed ? 255 : 128);
-        } else {
-            Point l = MouseInfo.getPointerInfo().getLocation();
-            if (l.x < lastMouseLocation.x) {
-                joyX = 0;
-            } else if (l.x > lastMouseLocation.x) {
-                joyX = 255;
-            } else {
-                joyX = 128;
-            }
-
-            if (l.y < lastMouseLocation.y) {
-                joyY = 0;
-            } else if (l.y > lastMouseLocation.y) {
-                joyY = 255;
-            } else {
-                joyY = 128;
-            }
-
-            if (centerMouse) {
-                lastMouseLocation = centerPoint;
-                robot.mouseMove(centerPoint.x, centerPoint.y);
-            } else {
-                if (l.x <= 20) {
-                    robot.mouseMove(20, l.y);
-                    l = MouseInfo.getPointerInfo().getLocation();
-                }
-                if ((l.x + 21) == screenSize.getWidth()) {
-                    robot.mouseMove((int) (screenSize.getWidth() - 20), l.y);
-                    l = MouseInfo.getPointerInfo().getLocation();
-                }
-                if (l.y <= 20) {
-                    robot.mouseMove(l.x, 20);
-                    l = MouseInfo.getPointerInfo().getLocation();
-                }
-                if ((l.y + 21) == screenSize.getHeight()) {
-                    robot.mouseMove(l.x, (int) (screenSize.getHeight() - 20));
-                    l = MouseInfo.getPointerInfo().getLocation();
-                }
-
-                lastMouseLocation = l;
-            }
         }
     }
 

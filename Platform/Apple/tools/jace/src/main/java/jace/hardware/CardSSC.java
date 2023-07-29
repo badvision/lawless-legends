@@ -18,15 +18,6 @@
  */
 package jace.hardware;
 
-import jace.EmulatorUILogic;
-import jace.config.ConfigurableField;
-import jace.config.Name;
-import jace.config.Reconfigurable;
-import jace.core.Card;
-import jace.core.Computer;
-import jace.core.RAMEvent;
-import jace.core.RAMEvent.TYPE;
-import jace.core.Utility;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,6 +27,16 @@ import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import jace.EmulatorUILogic;
+import jace.config.ConfigurableField;
+import jace.config.Name;
+import jace.config.Reconfigurable;
+import jace.core.Card;
+import jace.core.Computer;
+import jace.core.RAMEvent;
+import jace.core.RAMEvent.TYPE;
+import jace.core.Utility;
 import javafx.scene.control.Label;
 
 /**

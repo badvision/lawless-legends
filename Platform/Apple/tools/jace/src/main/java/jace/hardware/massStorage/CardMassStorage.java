@@ -18,6 +18,11 @@
  */
 package jace.hardware.massStorage;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import jace.EmulatorUILogic;
 import jace.apple2e.MOS65C02;
 import jace.config.ConfigurableField;
@@ -33,10 +38,6 @@ import jace.library.MediaCache;
 import jace.library.MediaConsumer;
 import jace.library.MediaConsumerParent;
 import jace.library.MediaEntry;
-import java.io.File;
-import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Hard disk and 800k floppy (smartport) controller card. HDV and 2MG images are

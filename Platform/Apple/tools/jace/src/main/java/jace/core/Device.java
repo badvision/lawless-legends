@@ -18,11 +18,13 @@
  */
 package jace.core;
 
-import jace.config.Reconfigurable;
-import jace.state.Stateful;
 import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.function.Supplier;
+
+import jace.config.Reconfigurable;
+import jace.state.Stateful;
 
 /**
  * Device is a very simple abstraction of any emulation component. A device
@@ -184,6 +186,18 @@ public abstract class Device implements Reconfigurable {
             r.run();
         }        
     }
+
+    public <T> T whileSuspended(Supplier<T> r, T defaultValue) {
+        if (isRunning()) {
+            suspend();
+            T result = r.get();
+            resume();
+            return result;
+        } else {
+            return defaultValue;
+        }
+    }
+
     
     public boolean suspend() {
         if (isRunning()) {

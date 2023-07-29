@@ -19,7 +19,6 @@
 package jace.apple2e;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -35,8 +34,8 @@ import java.util.logging.Logger;
 import jace.LawlessLegends;
 import jace.apple2e.softswitch.VideoSoftSwitch;
 import jace.cheat.Cheats;
-import jace.config.ClassSelection;
 import jace.config.ConfigurableField;
+import jace.config.DeviceSelection;
 import jace.core.Card;
 import jace.core.Computer;
 import jace.core.Device;
@@ -45,17 +44,12 @@ import jace.core.RAM;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
 import jace.core.Utility;
-import jace.core.Video;
-import jace.hardware.CardDiskII;
-import jace.hardware.CardExt80Col;
-import jace.hardware.CardRamworks;
-import jace.hardware.ConsoleProbe;
+import jace.hardware.Cards;
 import jace.hardware.Joystick;
 import jace.hardware.NoSlotClock;
+import jace.hardware.VideoImpls;
 import jace.hardware.ZipWarpAccelerator;
-import jace.hardware.massStorage.CardMassStorage;
 import jace.lawless.FPSMonitorDevice;
-import jace.lawless.LawlessVideo;
 import jace.state.Stateful;
 
 /**
@@ -72,30 +66,27 @@ public class Apple2e extends Computer {
 
     static int IRQ_VECTOR = 0x003F2;
     @ConfigurableField(name = "Slot 1", shortName = "s1card")
-    public ClassSelection<Card> card1 = new ClassSelection<>(Card.class, null);
+    public DeviceSelection<Cards> card1 = new DeviceSelection<>(Cards.class, null);
     @ConfigurableField(name = "Slot 2", shortName = "s2card")
-    public ClassSelection<Card> card2 = new ClassSelection<>(Card.class, null);
+    public DeviceSelection<Cards> card2 = new DeviceSelection<>(Cards.class, null);
     @ConfigurableField(name = "Slot 3", shortName = "s3card")
-    public ClassSelection<Card> card3 = new ClassSelection<>(Card.class, null);
+    public DeviceSelection<Cards> card3 = new DeviceSelection<>(Cards.class, null);
     @ConfigurableField(name = "Slot 4", shortName = "s4card")
-    public ClassSelection<Card> card4 = new ClassSelection<>(Card.class, null);
+    public DeviceSelection<Cards> card4 = new DeviceSelection<>(Cards.class, null);
     @ConfigurableField(name = "Slot 5", shortName = "s5card")
-    public ClassSelection<Card> card5 = new ClassSelection<>(Card.class, null);
+    public DeviceSelection<Cards> card5 = new DeviceSelection<>(Cards.class, null);
     @ConfigurableField(name = "Slot 6", shortName = "s6card")
-    public ClassSelection<Card> card6 = new ClassSelection<>(Card.class, CardDiskII.class);
+    public DeviceSelection<Cards> card6 = new DeviceSelection<>(Cards.class, Cards.DiskIIDrive);
     @ConfigurableField(name = "Slot 7", shortName = "s7card")
-    public ClassSelection<Card> card7 = new ClassSelection<>(Card.class, CardMassStorage.class);
+    public DeviceSelection<Cards> card7 = new DeviceSelection<>(Cards.class, Cards.MassStorage);
     @ConfigurableField(name = "Debug rom", shortName = "debugRom", description = "Use debugger //e rom")
     public boolean useDebugRom = false;
-    @ConfigurableField(name = "Console probe", description = "Enable console redirection (experimental!)")
-    public boolean useConsoleProbe = false;
-    private final ConsoleProbe probe = new ConsoleProbe();
     @ConfigurableField(name = "Helpful hints", shortName = "hints")
     public boolean enableHints = true;
     @ConfigurableField(name = "Renderer", shortName = "video", description = "Video rendering implementation")
-    public ClassSelection<Video> videoRenderer = new ClassSelection<>(Video.class, LawlessVideo.class);
+    public DeviceSelection<VideoImpls> videoRenderer = new DeviceSelection<>(VideoImpls.class, VideoImpls.Lawless, false);
     @ConfigurableField(name = "Aux Ram", shortName = "ram", description = "Aux ram card")
-    public ClassSelection<RAM128k> ramCard = new ClassSelection<>(RAM128k.class, CardRamworks.class);
+    public DeviceSelection<RAM128k.RamCards> ramCard = new DeviceSelection<>(RAM128k.RamCards.class, RAM128k.RamCards.CardRamworks, false);
     @ConfigurableField(name = "Joystick 1 Enabled", shortName = "joy1", description = "If unchecked, then there is no joystick support.", enablesDevice = true)
     public boolean joy1enabled = true;
     @ConfigurableField(name = "Joystick 2 Enabled", shortName = "joy2", description = "If unchecked, then there is no joystick support.", enablesDevice = true)
@@ -110,7 +101,7 @@ public class Apple2e extends Computer {
     public Joystick joystick1;
     public Joystick joystick2;
     @ConfigurableField(name = "Activate Cheats", shortName = "cheat")
-    public ClassSelection<Cheats> cheatEngine = new ClassSelection<>(Cheats.class, null);
+    public DeviceSelection<Cheats.Cheat> cheatEngine = new DeviceSelection<>(Cheats.Cheat.class, null);
     public Cheats activeCheatEngine = null;
     public NoSlotClock clock;
     public ZipWarpAccelerator accelerator;
@@ -187,26 +178,22 @@ public class Apple2e extends Computer {
         return activeCheatEngine;
     }
 
-    private void insertCard(Class<? extends Card> type, int slot) throws NoSuchMethodException, IllegalArgumentException, InvocationTargetException {
+    private void insertCard(DeviceSelection<Cards> type, int slot) {
         if (getMemory().getCard(slot).isPresent()) {
-            if (getMemory().getCard(slot).get().getClass().equals(type)) {
+            if (type.getValue() != null && type.getValue().isInstance(getMemory().getCard(slot).get())) {
                 return;
             }            
             getMemory().removeCard(slot);
         }
-        if (type != null) {
-            try {
-                Card card = type.getConstructor(Computer.class).newInstance(this);
-                getMemory().addCard(card, slot);
-            } catch (InstantiationException | IllegalAccessException ex) {
-                Logger.getLogger(Apple2e.class.getName()).log(Level.SEVERE, null, ex);
-            }
+        if (type != null && type.getValue() != null) {
+            Card card = type.getValue().create(this);
+            getMemory().addCard(card, slot);
         }
     }
 
-    private Class<? extends RAM128k> getDesiredMemoryConfiguration() {
+    private RAM128k.RamCards getDesiredMemoryConfiguration() {
         if (ramCard.getValue() == null) {
-            return CardExt80Col.class;
+            return RAM128k.RamCards.CardExt80Col;
         } else {
             return ramCard.getValue();
         }
@@ -216,7 +203,7 @@ public class Apple2e extends Computer {
         if (getMemory() == null) {
             return false;
         }
-        return getMemory().getClass().equals(getDesiredMemoryConfiguration());
+        return getDesiredMemoryConfiguration().isInstance((RAM128k) getMemory());
     }
     
     @Override
@@ -233,21 +220,17 @@ public class Apple2e extends Computer {
         }
         motherboard.whileSuspended(()-> {
             if (!isMemoryConfigurationCorrect()) {
-                try {
-                    if (getVideo() != null) {
-                        getVideo().suspend();
-                    }
-                    setVideo(null);
-                    System.out.println("Creating new ram using " + getDesiredMemoryConfiguration().getName());
-                    RAM128k newMemory = getDesiredMemoryConfiguration().getConstructor(Computer.class).newInstance(this);
+                if (getVideo() != null) {
+                    getVideo().suspend();
+                }
+                setVideo(null);
+                System.out.println("Creating new ram using " + getDesiredMemoryConfiguration().getName());
+                RAM128k newMemory = getDesiredMemoryConfiguration().create(this);
 
-                    if (getMemory() != null) {
-                        newMemory.copyFrom((RAM128k) getMemory());
-                    }
-                    setMemory(newMemory);
-                } catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException ex) {
-                    Logger.getLogger(Apple2e.class.getName()).log(Level.SEVERE, null, ex);
-                }                
+                if (getMemory() != null) {
+                    newMemory.copyFrom((RAM128k) getMemory());
+                }
+                setMemory(newMemory);
             }
 
             try {
@@ -298,44 +281,30 @@ public class Apple2e extends Computer {
                 clock = null;
             }
 
-            if (useConsoleProbe) {
-                probe.init(this);
-            } else {
-                probe.shutdown();
-            }
-
-            if (getVideo() == null || getVideo().getClass() != videoRenderer.getValue()) {
+            if (videoRenderer.getValue() != null && !videoRenderer.getValue().isInstance(getVideo())) {
                 boolean resumeVideo = false;
                 if (getVideo() != null) {
                     resumeVideo = getVideo().suspend();
                 }
-                try {
-                    setVideo(videoRenderer.getValue().getConstructor(Computer.class).newInstance(this));
-                    getVideo().configureVideoMode();
-                    getVideo().reconfigure();
-                    if (LawlessLegends.getApplication() != null) {
-                        LawlessLegends.getApplication().reconnectUIHooks();
-                    }
-                    if (resumeVideo) {
-                        getVideo().resume();
-                    }
-                } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | SecurityException | IllegalArgumentException | InvocationTargetException ex) {
-                    Logger.getLogger(Apple2e.class.getName()).log(Level.SEVERE, null, ex);
+                setVideo(videoRenderer.getValue().create(this));
+                getVideo().configureVideoMode();
+                getVideo().reconfigure();
+                if (LawlessLegends.getApplication() != null) {
+                    LawlessLegends.getApplication().reconnectUIHooks();
+                }
+                if (resumeVideo) {
+                    getVideo().resume();
                 }
             }
 
-            try {
-                // Add all new cards
-                insertCard(card1.getValue(), 1);
-                insertCard(card2.getValue(), 2);
-                insertCard(card3.getValue(), 3);
-                insertCard(card4.getValue(), 4);
-                insertCard(card5.getValue(), 5);
-                insertCard(card6.getValue(), 6);
-                insertCard(card7.getValue(), 7);
-            } catch (NoSuchMethodException | IllegalArgumentException | InvocationTargetException ex) {
-                Logger.getLogger(Apple2e.class.getName()).log(Level.SEVERE, null, ex);
-            }
+            // Add all new cards
+            insertCard(card1, 1);
+            insertCard(card2, 2);
+            insertCard(card3, 3);
+            insertCard(card4, 4);
+            insertCard(card5, 5);
+            insertCard(card6, 6);
+            insertCard(card7, 7);
             if (enableHints) {
                 enableHints();
             } else {
@@ -351,7 +320,7 @@ public class Apple2e extends Computer {
             } else {
                 boolean startCheats = true;
                 if (activeCheatEngine != null) {
-                    if (activeCheatEngine.getClass().equals(cheatEngine.getValue())) {
+                    if (cheatEngine.getValue().isInstance(activeCheatEngine)) {
                         startCheats = false;
                         newDeviceSet.add(activeCheatEngine);
                     } else {
@@ -360,12 +329,8 @@ public class Apple2e extends Computer {
                         activeCheatEngine = null;
                     }
                 }
-                if (startCheats) {
-                    try {
-                        activeCheatEngine = cheatEngine.getValue().getConstructor(Computer.class).newInstance(this);
-                    } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | SecurityException | IllegalArgumentException | InvocationTargetException ex) {
-                        Logger.getLogger(Apple2e.class.getName()).log(Level.SEVERE, null, ex);
-                    }
+                if (startCheats && cheatEngine.getValue() != null) {
+                    activeCheatEngine = cheatEngine.getValue().create(this);
                     newDeviceSet.add(activeCheatEngine);
                 }
             }

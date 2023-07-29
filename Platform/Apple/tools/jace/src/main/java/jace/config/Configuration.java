@@ -52,6 +52,7 @@ import jace.EmulatorUILogic;
 import jace.core.Computer;
 import jace.core.Keyboard;
 import jace.core.Utility;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.control.TreeItem;
 import javafx.scene.image.ImageView;
@@ -126,7 +127,7 @@ public class Configuration implements Reconfigurable {
 
         public transient ConfigNode root;
         public transient ConfigNode parent;
-        private final transient ObservableList<ConfigNode> children;
+        private transient ObservableList<ConfigNode> children;
         public transient Reconfigurable subject;
         private transient boolean changed = true;
 
@@ -146,7 +147,9 @@ public class Configuration implements Reconfigurable {
 
         private void readObject(java.io.ObjectInputStream in)
                 throws IOException, ClassNotFoundException {
+                // Create children list if it doesn't exist
             if (children == null) {
+                children = FXCollections.observableArrayList();
                 children.setAll(getChildren());
             }
             children.setAll(super.getChildren());
@@ -441,8 +444,8 @@ public class Configuration implements Reconfigurable {
             successful = true;
         } catch (FileNotFoundException ex) {
             // This just means there are no settings to be saved -- just ignore it.
-        } catch (InvalidClassException ex) {
-            Logger.getLogger(Configuration.class.getName()).log(Level.WARNING, "Unable to load settings, Jace version is newer and incompatible with old settings.");            
+        } catch (InvalidClassException | NullPointerException ex) {
+            Logger.getLogger(Configuration.class.getName()).log(Level.WARNING, "Unable to load settings, Jace version is newer and incompatible with old settings.");
         } catch (ClassNotFoundException | IOException ex) {
             Logger.getLogger(Configuration.class.getName()).log(Level.SEVERE, null, ex);
         } finally {

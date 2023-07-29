@@ -15,18 +15,22 @@
  */
 package jace.cpu;
 
-import jace.Emulator;
-import jace.core.Computer;
-import jace.core.Utility;
-import jace.core.SoundMixer;
-import jace.apple2e.MOS65C02;
-import jace.apple2e.RAM128k;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.junit.Assert.assertEquals;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import static org.junit.Assert.*;
-import static jace.TestUtils.*;
+import jace.Emulator;
+import static jace.TestUtils.assemble;
+import static jace.TestUtils.createSimpleDevice;
+import static jace.TestUtils.initComputer;
+import static jace.TestUtils.runAssemblyCode;
+import jace.apple2e.MOS65C02;
+import jace.apple2e.RAM128k;
+import jace.core.Computer;
+import jace.core.RAMListener;
+import jace.core.SoundMixer;
 
 
 /**
@@ -42,9 +46,9 @@ public class CycleCountTest {
 
     @BeforeClass
     public static void setupClass() {
-        Utility.setHeadlessMode(true);
+        initComputer();
         SoundMixer.MUTE = true;
-        computer = Emulator.getComputer();
+        computer = Emulator.withComputer(c->c, null);
         cpu = (MOS65C02) computer.getCpu();
         ram = (RAM128k) computer.getMemory();
 
@@ -86,8 +90,7 @@ WAIT3   sbc #$01
         AtomicInteger breakpointEncountered = new AtomicInteger();
         AtomicInteger cycleCount = new AtomicInteger();
         // This listener will increment our breakpoint counter if it reaches our desired stoppoing point in time
-        ram.addExecutionTrap(0x01000, e -> breakpointEncountered.incrementAndGet());
-
+        RAMListener l = ram.addExecutionTrap(0x01000, e -> breakpointEncountered.incrementAndGet());
         // This faux device counts the number of cycles executed
         cpu.addChildDevice(createSimpleDevice(()->{
             if (breakpointEncountered.get() == 0) {
@@ -101,6 +104,7 @@ WAIT3   sbc #$01
         runAssemblyCode(BELL, 552);
         assertEquals("Should have encountered the breakpoint", 1, breakpointEncountered.get());
         assertEquals("Should have taken about 551 cycles to complete", 551, cycleCount.get());
+        ram.removeListener(l);
         cpu.suspend();
     }
     
@@ -112,7 +116,7 @@ WAIT3   sbc #$01
         AtomicInteger breakpointEncountered = new AtomicInteger();
         AtomicInteger cycleCount = new AtomicInteger();
         // This listener will increment our breakpoint counter if it reaches our desired stoppoing point in time
-        ram.addExecutionTrap(0x01000, e -> breakpointEncountered.incrementAndGet());
+        RAMListener l = ram.addExecutionTrap(0x01000, e -> breakpointEncountered.incrementAndGet());
 
         // This faux device counts the number of cycles executed
         cpu.addChildDevice(createSimpleDevice(()->{
@@ -124,24 +128,25 @@ WAIT3   sbc #$01
 
         // This assembles the code and sets PC but doesn't actually do anything
         assemble(BELL, 0x0300);
-        Emulator.getComputer().getMotherboard().resumeInThread();
-        for (int i=0; i < 552; i++) {
-            Emulator.getComputer().getMotherboard().doTick();
+        computer.getMotherboard().resumeInThread();
+        for (int i=0; i < 553; i++) {
+            computer.getMotherboard().doTick();
         }
-        Emulator.getComputer().getMotherboard().suspend();
+        computer.getMotherboard().suspend();
         
         assertEquals("Should have encountered the breakpoint", 1, breakpointEncountered.get());
         assertEquals("Should have taken about 551 cycles to complete", 551, cycleCount.get());    
+        ram.removeListener(l);
     }
     
     // The CPU cycle count should work the same even when the emulator is sped up.
     @Test
     public void testAcceleratedCycleCount() {
-        Emulator.getComputer().getMotherboard().setMaxSpeed(true);
-        Emulator.getComputer().getMotherboard().setSpeedInPercentage(20000);
+        computer.getMotherboard().setMaxSpeed(true);
+        computer.getMotherboard().setSpeedInPercentage(20000);
         testMachineBeeperCycleCount();
-        Emulator.getComputer().getMotherboard().setMaxSpeed(false);
-        Emulator.getComputer().getMotherboard().setSpeedInPercentage(100);
+        computer.getMotherboard().setMaxSpeed(false);
+        computer.getMotherboard().setSpeedInPercentage(100);
     }
     
     

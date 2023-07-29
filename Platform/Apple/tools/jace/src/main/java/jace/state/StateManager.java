@@ -18,7 +18,6 @@
  */
 package jace.state;
 
-import java.awt.image.BufferedImage;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
@@ -65,7 +64,7 @@ public class StateManager implements Reconfigurable {
     public int maxStates = 100;
     @ConfigurableField(category = "Emulator", name = "Capture frequency", description = "How often states are captured, in relation to each VBL (1 = 60 states/second, 2 = 30 states/second, 3 = 15 states/second, etc", defaultValue = "3")
     public int captureFrequency = 3;
-    private ObjectGraphNode<BufferedImage> imageGraphNode;
+    private ObjectGraphNode<Image> imageGraphNode;
 
     Computer computer;
 
@@ -166,7 +165,7 @@ public class StateManager implements Reconfigurable {
         Class type = node.getCurrentValue().getClass();
         if (PagedMemory.class.isAssignableFrom(type)) {
             addMemoryPages(node, f);
-        } else if (BufferedImage.class.isAssignableFrom(type)) {
+        } else if (Image.class.isAssignableFrom(type)) {
             addVideoFrame(node, f);
         } else if (List.class.isAssignableFrom(type)) {
             List l = (List) node.getCurrentValue();
@@ -213,7 +212,7 @@ public class StateManager implements Reconfigurable {
      * @param node
      * @param f
      */
-    private void addVideoFrame(ObjectGraphNode<BufferedImage> node, Field f) {
+    private void addVideoFrame(ObjectGraphNode<Image> node, Field f) {
         imageGraphNode = node;
     }
 

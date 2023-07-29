@@ -18,13 +18,14 @@
  */
 package jace.hardware;
 
+import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import jace.config.Name;
 import jace.core.Computer;
 import jace.core.RAMEvent;
 import jace.core.RAMEvent.TYPE;
-import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Partial Hayes Micromodem II implementation, acting more as a bridge to

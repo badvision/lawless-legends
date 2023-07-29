@@ -18,6 +18,14 @@
  */
 package jace.hardware;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Calendar;
+import java.util.Optional;
+import java.util.Stack;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import jace.EmulatorUILogic;
 import jace.apple2e.MOS65C02;
 import jace.config.ConfigurableField;
@@ -29,13 +37,6 @@ import jace.core.PagedMemory;
 import jace.core.RAMEvent;
 import jace.core.RAMEvent.TYPE;
 import jace.core.Utility;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Calendar;
-import java.util.Optional;
-import java.util.Stack;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javafx.scene.control.Label;
 
 /**

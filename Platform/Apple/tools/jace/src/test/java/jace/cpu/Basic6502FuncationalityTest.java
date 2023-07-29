@@ -15,21 +15,21 @@
  */
 package jace.cpu;
 
-import jace.Emulator;
-import jace.apple2e.MOS65C02;
-import jace.apple2e.RAM128k;
-import jace.core.Computer;
-import jace.core.SoundMixer;
-import jace.core.Utility;
 import org.junit.AfterClass;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static jace.TestUtils.*;
+import jace.Emulator;
+import jace.TestUtils;
+import static jace.TestUtils.runAssemblyCode;
+import jace.apple2e.MOS65C02;
+import jace.apple2e.RAM128k;
+import jace.core.Computer;
+import jace.core.SoundMixer;
 
 /**
  * Basic test functionality to assert correct 6502 decode and execution.
@@ -44,9 +44,9 @@ public class Basic6502FuncationalityTest {
 
     @BeforeClass
     public static void setupClass() {
-        Utility.setHeadlessMode(true);
+        TestUtils.initComputer();
         SoundMixer.MUTE = true;
-        computer = Emulator.getComputer();
+        computer = Emulator.withComputer(c->c, null);
         cpu = (MOS65C02) computer.getCpu();
         ram = (RAM128k) computer.getMemory();
     }

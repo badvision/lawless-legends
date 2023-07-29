@@ -5,19 +5,26 @@
  */
 package jace.ide;
 
-import jace.applesoft.ApplesoftProgram;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+
 import org.junit.After;
 import org.junit.AfterClass;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertTrue;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import static org.junit.Assert.*;
+
+import static jace.TestUtils.initComputer;
+import jace.applesoft.ApplesoftProgram;
 
 /**
  *
@@ -32,6 +39,7 @@ public class ApplesoftTest {
     
     @BeforeClass
     public static void setUpClass() throws URISyntaxException, IOException {
+        initComputer();
         byte[] lemonadeStand = readBinary("/jace/lemonade_stand.bin");
         lemonadeStandBinary = ApplesoftProgram.toObjects(lemonadeStand);
     }

@@ -13,6 +13,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -259,8 +260,8 @@ public class JaceUIController {
 
     private void connectButtons(Node n) {
         if (n instanceof Button button) {
-            Runnable action = Utility.getNamedInvokableAction(button.getText());
-            button.setOnMouseClicked(evt -> action.run());
+            Function<Boolean, Boolean> action = Utility.getNamedInvokableAction(button.getText());
+            button.setOnMouseClicked(evt -> action.apply(false));
         } else if (n instanceof Parent parent) {
             parent.getChildrenUnmodifiable().forEach(child -> connectButtons(child));
         }

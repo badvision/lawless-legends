@@ -21,6 +21,7 @@ module lawlesslegends {
     requires java.desktop;
     requires java.datatransfer;
     requires java.scripting;
+    requires static java.compiler;
     requires javafx.fxmlEmpty;
     requires javafx.fxml;
     requires javafx.swing;
@@ -46,5 +47,8 @@ module lawlesslegends {
     
     uses javax.sound.sampled.SourceDataLine;
 
+    provides javax.annotation.processing.Processor with jace.config.InvokableActionAnnotationProcessor;
+
     exports jace;
+    exports jace.config;
 }

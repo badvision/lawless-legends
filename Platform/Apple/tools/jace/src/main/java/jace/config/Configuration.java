@@ -30,7 +30,6 @@ import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.GenericArrayType;
-import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -64,15 +63,6 @@ import javafx.scene.image.ImageView;
  */
 public class Configuration implements Reconfigurable {
 
-    private static Method findAnyMethodByName(Class<? extends Reconfigurable> aClass, String m) {
-        for (Method method : aClass.getMethods()) {
-            if (method.getName().equals(m)) {
-                return method;
-            }
-        }
-        return null;
-    }
-
     static ConfigurableField getConfigurableFieldInfo(Reconfigurable subject, String settingName) {
         Field f;
         try {
@@ -86,15 +76,6 @@ public class Configuration implements Reconfigurable {
 
     public static String getShortName(ConfigurableField f, String longName) {
         return (f != null && !f.shortName().equals("")) ? f.shortName() : longName;
-    }
-
-    public static InvokableAction getInvokableActionInfo(Reconfigurable subject, String actionName) {
-        for (Method m : subject.getClass().getMethods()) {
-            if (m.getName().equals(actionName) && m.isAnnotationPresent(InvokableAction.class)) {
-                return m.getAnnotation(InvokableAction.class);
-            }
-        }
-        return null;
     }
 
     public static Optional<ImageView> getChangedIcon() {
@@ -301,13 +282,19 @@ public class Configuration implements Reconfigurable {
             return;
         }
 
-        for (Method m : node.subject.getClass().getMethods()) {
-            if (!m.isAnnotationPresent(InvokableAction.class)) {
-                continue;
+        InvokableActionRegistry registry = InvokableActionRegistry.getInstance();
+        registry.getStaticMethodNames(node.subject.getClass()).stream().forEach((name) -> {
+            InvokableAction action = registry.getStaticMethodInfo(name);
+            if (action != null) {
+                node.hotkeys.put(name, action.defaultKeyMapping());
             }
-            InvokableAction action = m.getDeclaredAnnotation(InvokableAction.class);
-            node.hotkeys.put(m.getName(), action.defaultKeyMapping());
-        }
+        });
+        registry.getInstanceMethodNames(node.subject.getClass()).stream().forEach((name) -> {
+            InvokableAction action = registry.getInstanceMethodInfo(name);
+            if (action != null) {
+                node.hotkeys.put(name, action.defaultKeyMapping());
+            }
+        });
 
         for (Field f : node.subject.getClass().getFields()) {
 //            System.out.println("Evaluating field " + f.getName());
@@ -530,12 +517,18 @@ public class Configuration implements Reconfigurable {
     private static void doApply(ConfigNode node) {
         List<String> removeList = new ArrayList<>();
         Keyboard.unregisterAllHandlers(node.subject);
-        node.hotkeys.keySet().stream().forEach((m) -> {
-            Method method = findAnyMethodByName(node.subject.getClass(), m);
-            if (method != null) {
-                InvokableAction action = method.getAnnotation(InvokableAction.class);
-                for (String code : node.hotkeys.get(m)) {
-                    Keyboard.registerInvokableAction(action, node.subject, method, code);
+        InvokableActionRegistry registry = InvokableActionRegistry.getInstance();
+        node.hotkeys.keySet().stream().forEach((name) -> {
+            InvokableAction action = registry.getStaticMethodInfo(name);
+            if (action != null) {
+                for (String code : node.hotkeys.get(name)) {
+                    Keyboard.registerInvokableAction(action, name, registry.getStaticFunction(name), code);
+                }
+            }
+            action = registry.getInstanceMethodInfo(name);
+            if (action != null) {
+                for (String code : node.hotkeys.get(name)) {
+                    Keyboard.registerInvokableAction(action, name, registry.getInstanceFunction(name), code);
                 }
             }
         });

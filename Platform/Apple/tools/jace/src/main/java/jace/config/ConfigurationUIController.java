@@ -1,18 +1,5 @@
 package jace.config;
 
-import jace.config.Configuration.ConfigNode;
-import javafx.beans.Observable;
-import javafx.beans.value.ObservableValue;
-import javafx.collections.FXCollections;
-import javafx.fxml.FXML;
-import javafx.scene.Node;
-import javafx.scene.control.*;
-import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
-import javafx.scene.text.Text;
-import javafx.util.StringConverter;
-
 import java.io.File;
 import java.io.Serializable;
 import java.lang.reflect.Field;
@@ -24,6 +11,26 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
+
+import jace.config.Configuration.ConfigNode;
+import javafx.beans.Observable;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.fxml.FXML;
+import javafx.scene.Node;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.ChoiceBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.SplitPane;
+import javafx.scene.control.TextField;
+import javafx.scene.control.TreeItem;
+import javafx.scene.control.TreeView;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
+import javafx.util.StringConverter;
 
 public class ConfigurationUIController {
     public static final String DELIMITER = "~!~";
@@ -177,7 +184,8 @@ public class ConfigurationUIController {
     }
 
     private Node buildKeyShortcutRow(ConfigNode node, String actionName, String[] values) {
-        InvokableAction actionInfo = Configuration.getInvokableActionInfo(node.subject, actionName);
+        InvokableActionRegistry registry = InvokableActionRegistry.getInstance();
+        InvokableAction actionInfo = registry.getInstanceMethodInfo(actionName);
         if (actionInfo == null) {
             return null;
         }

@@ -29,6 +29,14 @@
                 <configuration>
                     <source>17</source>
                     <target>17</target>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.8bitbunch</groupId>
+                            <artifactId>lawlesslegends</artifactId>
+                            <version>3.0-SNAPSHOT</version>
+                        </path>
+                    </annotationProcessorPaths>
+                    <annotationProcessors>jace.config.InvokableActionAnnotationProcessor</annotationProcessors>
                 </configuration>
                 <version>3.11.0</version>
             </plugin>
@@ -110,18 +118,6 @@
                                         module nestedvm {
                                             exports org.ibex.nestedvm;
                                             exports org.ibex.nestedvm.util;
-                                        }
-                                    </moduleInfoSource>
-                                </module>
-                                <module>
-                                    <artifact>
-                                        <groupId>org.reflections</groupId>
-                                        <artifactId>reflections</artifactId>
-                                        <version>0.10.2</version>
-                                    </artifact>
-                                    <moduleInfoSource>
-                                        module reflections {
-                                            exports org.reflections;
                                         }
                                     </moduleInfoSource>
                                 </module>

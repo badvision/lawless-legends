@@ -156,7 +156,7 @@ public abstract class Video extends Device {
     public void tick() {
         addWaitCycles(waitsPerCycle);
         addWaitCycles((int) motherboardAdjustedWaitsPerCycle);
-        setScannerLocation(currentWriter.getYOffset(y));
+        if (y < APPLE_SCREEN_LINES) setScannerLocation(currentWriter.getYOffset(y));
         setFloatingBus(computer.getMemory().readRaw(scannerAddress + x));
         if (hPeriod > 0) {
             hPeriod--;
@@ -164,7 +164,7 @@ public abstract class Video extends Device {
                 x = -1;
             }
         } else {
-            if (!isVblank && x < APPLE_CYCLES_PER_LINE) {
+            if (!isVblank && x < APPLE_CYCLES_PER_LINE && x >= 0) {
                 draw();
             }
             if (x >= APPLE_CYCLES_PER_LINE - 1) {

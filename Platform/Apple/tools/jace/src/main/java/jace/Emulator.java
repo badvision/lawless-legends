@@ -72,6 +72,14 @@ public class Emulator {
         return getInstance().computer;        
     }
 
+    public static void whileSuspended(Consumer<LawlessComputer> action) {
+        withComputer(c->c.getMotherboard().whileSuspended(()->action.accept(c)));
+    }
+
+    public static <T> T whileSuspended(Function<LawlessComputer, T> action, T defaultValue) {
+        return withComputer(c->c.getMotherboard().whileSuspended(()->action.apply(c), defaultValue), defaultValue);
+    }
+
     public static void withComputer(Consumer<LawlessComputer> c) {
         LawlessComputer computer = getComputer();
         if (computer != null) {

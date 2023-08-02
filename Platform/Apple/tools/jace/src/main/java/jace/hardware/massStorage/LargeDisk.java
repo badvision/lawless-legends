@@ -18,16 +18,18 @@
  */
 package jace.hardware.massStorage;
 
-import jace.apple2e.MOS65C02;
-import jace.core.Computer;
-import jace.core.RAM;
-import jace.hardware.ProdosDriver.MLI_COMMAND_TYPE;
-
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import jace.apple2e.MOS65C02;
+import jace.core.Computer;
+import jace.core.RAM;
 import static jace.hardware.ProdosDriver.MLI_COMMAND;
+import jace.hardware.ProdosDriver.MLI_COMMAND_TYPE;
 import static jace.hardware.ProdosDriver.MLI_UNITNUMBER;
 
 /**

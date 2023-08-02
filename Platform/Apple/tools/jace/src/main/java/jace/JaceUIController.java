@@ -379,17 +379,15 @@ public class JaceUIController {
                     });
                     icon.setOnDragDropped(event -> {
                         System.out.println("Dropping media on " + icon.getText());
-                            Emulator.withComputer(c -> {
-                                c.getMotherboard().whileSuspended(() -> {
-                                    try {
-                                        consumer.insertMedia(media, media.files.get(0));
-                                    } catch (IOException ex) {
-                                        Logger.getLogger(JaceUIController.class.getName()).log(Level.SEVERE, null, ex);
-                                    }
-                                });
-                            });
-                            event.setDropCompleted(true);
-                            event.consume();
+                        Emulator.whileSuspended(c-> {
+                            try {
+                                consumer.insertMedia(media, media.files.get(0));
+                            } catch (IOException ex) {
+                                Logger.getLogger(JaceUIController.class.getName()).log(Level.SEVERE, null, ex);
+                            }
+                        });
+                        event.setDropCompleted(true);
+                        event.consume();
                         endDragEvent();
                     });
                 });

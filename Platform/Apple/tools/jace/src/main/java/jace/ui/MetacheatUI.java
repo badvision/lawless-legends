@@ -167,31 +167,27 @@ public class MetacheatUI {
 
     @FXML
     void loadCheats(ActionEvent event) {
-        Emulator.withComputer(c -> {
-            c.getMotherboard().whileSuspended(() -> {
-                FileChooser chooser = new FileChooser();
-                chooser.setTitle("Load cheats");
-                chooser.setInitialFileName("cheat.txt");
-                File saveFile = chooser.showOpenDialog(LawlessLegends.getApplication().primaryStage);
-                if (saveFile != null) {
-                    cheatEngine.loadCheats(saveFile);
-                }
-            });
+        Emulator.whileSuspended(c-> {
+            FileChooser chooser = new FileChooser();
+            chooser.setTitle("Load cheats");
+            chooser.setInitialFileName("cheat.txt");
+            File saveFile = chooser.showOpenDialog(LawlessLegends.getApplication().primaryStage);
+            if (saveFile != null) {
+                cheatEngine.loadCheats(saveFile);
+            }
         });
     }
 
     @FXML
     void saveCheats(ActionEvent event) {
-        Emulator.withComputer(c -> {
-            c.getMotherboard().whileSuspended(() -> {
-                FileChooser chooser = new FileChooser();
-                chooser.setTitle("Save current cheats");
-                chooser.setInitialFileName("cheat.txt");
-                File saveFile = chooser.showSaveDialog(LawlessLegends.getApplication().primaryStage);
-                if (saveFile != null) {
-                    cheatEngine.saveCheats(saveFile);
-                }
-            });
+        Emulator.whileSuspended(c-> {
+            FileChooser chooser = new FileChooser();
+            chooser.setTitle("Save current cheats");
+            chooser.setInitialFileName("cheat.txt");
+            File saveFile = chooser.showSaveDialog(LawlessLegends.getApplication().primaryStage);
+            if (saveFile != null) {
+                cheatEngine.saveCheats(saveFile);
+            }
         });
     }
 
@@ -458,46 +454,44 @@ public class MetacheatUI {
         if (cheatEngine == null) {
             return;
         }
-        Emulator.withComputer(c -> {
-            c.getMotherboard().whileSuspended(() -> {
-                if (animationTimer == null) {
-                    animationTimer = new ScheduledThreadPoolExecutor(1);
-                }
+        Emulator.whileSuspended(c-> {
+            if (animationTimer == null) {
+                animationTimer = new ScheduledThreadPoolExecutor(1);
+            }
 
-                if (animationFuture != null) {
-                    animationFuture.cancel(false);
-                }
+            if (animationFuture != null) {
+                animationFuture.cancel(false);
+            }
 
-                animationFuture = animationTimer.scheduleAtFixedRate(this::processMemoryViewUpdates, FRAME_RATE, FRAME_RATE, TimeUnit.MILLISECONDS);
+            animationFuture = animationTimer.scheduleAtFixedRate(this::processMemoryViewUpdates, FRAME_RATE, FRAME_RATE, TimeUnit.MILLISECONDS);
 
-                cheatEngine.initMemoryView();
-                int pixelsPerBlock = 16 * MEMORY_BOX_TOTAL_SIZE;
-                memoryViewColumns = (int) (memoryViewPane.getWidth() / pixelsPerBlock) * 16;
-                memoryViewRows = ((cheatEngine.getEndAddress() - cheatEngine.getStartAddress()) / memoryViewColumns) + 1;
-                double canvasHeight = memoryViewRows * MEMORY_BOX_TOTAL_SIZE * drawScale;
+            cheatEngine.initMemoryView();
+            int pixelsPerBlock = 16 * MEMORY_BOX_TOTAL_SIZE;
+            memoryViewColumns = (int) (memoryViewPane.getWidth() / pixelsPerBlock) * 16;
+            memoryViewRows = ((cheatEngine.getEndAddress() - cheatEngine.getStartAddress()) / memoryViewColumns) + 1;
+            double canvasHeight = memoryViewRows * MEMORY_BOX_TOTAL_SIZE * drawScale;
 
-                memoryViewContents.setPrefHeight(canvasHeight);
-                memoryViewCanvas.setHeight(canvasHeight);
-                GraphicsContext context = memoryViewCanvas.getGraphicsContext2D();
-                context.setFill(Color.rgb(40, 40, 40));
-                context.fillRect(0, 0, memoryViewCanvas.getWidth(), memoryViewCanvas.getHeight());
-                for (int addr = cheatEngine.getStartAddress(); addr <= cheatEngine.getEndAddress(); addr++) {
-                    int col = (addr - cheatEngine.getStartAddress()) % memoryViewColumns;
-                    int row = (addr - cheatEngine.getStartAddress()) / memoryViewColumns;
-                    MemoryCell cell = cheatEngine.getMemoryCell(addr);
-                    cell.setRect(
-                            (int) (col * MEMORY_BOX_TOTAL_SIZE * drawScale), 
-                            (int) (row * MEMORY_BOX_TOTAL_SIZE * drawScale), 
-                            (int) (MEMORY_BOX_SIZE * drawScale), 
-                            (int) (MEMORY_BOX_SIZE * drawScale));
-                    redrawNodes.add(cell);
-                }
-                MemoryCell.setListener((javafx.beans.value.ObservableValue<? extends jace.cheat.MemoryCell> prop, jace.cheat.MemoryCell oldCell, jace.cheat.MemoryCell newCell) -> {
-                    redrawNodes.add(newCell);
-                });
-                
-                setZoom(1/drawScale);
+            memoryViewContents.setPrefHeight(canvasHeight);
+            memoryViewCanvas.setHeight(canvasHeight);
+            GraphicsContext context = memoryViewCanvas.getGraphicsContext2D();
+            context.setFill(Color.rgb(40, 40, 40));
+            context.fillRect(0, 0, memoryViewCanvas.getWidth(), memoryViewCanvas.getHeight());
+            for (int addr = cheatEngine.getStartAddress(); addr <= cheatEngine.getEndAddress(); addr++) {
+                int col = (addr - cheatEngine.getStartAddress()) % memoryViewColumns;
+                int row = (addr - cheatEngine.getStartAddress()) / memoryViewColumns;
+                MemoryCell cell = cheatEngine.getMemoryCell(addr);
+                cell.setRect(
+                        (int) (col * MEMORY_BOX_TOTAL_SIZE * drawScale), 
+                        (int) (row * MEMORY_BOX_TOTAL_SIZE * drawScale), 
+                        (int) (MEMORY_BOX_SIZE * drawScale), 
+                        (int) (MEMORY_BOX_SIZE * drawScale));
+                redrawNodes.add(cell);
+            }
+            MemoryCell.setListener((javafx.beans.value.ObservableValue<? extends jace.cheat.MemoryCell> prop, jace.cheat.MemoryCell oldCell, jace.cheat.MemoryCell newCell) -> {
+                redrawNodes.add(newCell);
             });
+            
+            setZoom(1/drawScale);
         });
     }
 

@@ -426,7 +426,7 @@ public class VideoDHGR extends Video {
 
     protected void displayDoubleHires(WritableImage screen, int xOffset, int y, int rowAddress) {
         // Skip odd columns since this does two at once
-        if ((xOffset & 0x01) == 1) {
+        if ((xOffset & 0x01) == 1 || xOffset < 0) {
             return;
         }
         int b1 = ((RAM128k) computer.getMemory()).getAuxVideoMemory().readByte(rowAddress + xOffset    );
@@ -452,7 +452,7 @@ public class VideoDHGR extends Video {
 
     protected void displayHires(WritableImage screen, int xOffset, int y, int rowAddress) {
         // Skip odd columns since this does two at once
-        if ((xOffset & 0x01) == 1) {
+        if ((xOffset & 0x01) == 1 || xOffset < 0) {
             return;
         }
         int b1 = 0x0ff & ((RAM128k) computer.getMemory()).getMainMemory().readByte(rowAddress + xOffset);
@@ -465,6 +465,7 @@ public class VideoDHGR extends Video {
     }
     
     protected void displayLores(WritableImage screen, int xOffset, int y, int rowAddress) {
+        if (xOffset < 0) return;
         int c1 = ((RAM128k) computer.getMemory()).getMainMemory().readByte(rowAddress + xOffset) & 0x0FF;
         if ((y & 7) < 4) {
             c1 &= 15;
@@ -492,6 +493,7 @@ public class VideoDHGR extends Video {
     }
 
     protected void displayDoubleLores(WritableImage screen, int xOffset, int y, int rowAddress) {
+        if (xOffset < 0) return;
         int c1 = ((RAM128k) computer.getMemory()).getAuxVideoMemory().readByte(rowAddress + xOffset) & 0x0FF;
         int c2 = ((RAM128k) computer.getMemory()).getMainMemory().readByte(rowAddress + xOffset) & 0x0FF;
         if ((y & 7) < 4) {
@@ -554,7 +556,7 @@ public class VideoDHGR extends Video {
 
     protected void displayText(WritableImage screen, int xOffset, int y, int rowAddress) {
         // Skip odd columns since this does two at once
-        if ((xOffset & 0x01) == 1) {
+        if ((xOffset & 0x01) == 1 || xOffset < 0) {
             return;
         }
         int yOffset = y & 7;
@@ -571,7 +573,7 @@ public class VideoDHGR extends Video {
 
     protected void displayText80(WritableImage screen, int xOffset, int y, int rowAddress) {
         // Skip odd columns since this does two at once
-        if ((xOffset & 0x01) == 1) {
+        if ((xOffset & 0x01) == 1 || xOffset < 0) {
             return;
         }
         int yOffset = y & 7;

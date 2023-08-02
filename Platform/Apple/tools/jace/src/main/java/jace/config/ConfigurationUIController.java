@@ -6,6 +6,7 @@ import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.logging.Level;
@@ -162,7 +163,7 @@ public class ConfigurationUIController {
         if (node == null) {
             return;
         }
-        node.hotkeys.forEach((name, values) -> settingsVbox.getChildren().add(buildKeyShortcutRow(node, name, values)));
+        node.hotkeys.forEach((name, values) -> buildKeyShortcutRow(node, name, values).ifPresent(settingsVbox.getChildren()::add));
         node.settings.forEach((name, value) -> settingsVbox.getChildren().add(buildSettingRow(node, name, value)));
     }
 
@@ -183,11 +184,14 @@ public class ConfigurationUIController {
         return row;
     }
 
-    private Node buildKeyShortcutRow(ConfigNode node, String actionName, String[] values) {
+    private Optional<Node> buildKeyShortcutRow(ConfigNode node, String actionName, String[] values) {
         InvokableActionRegistry registry = InvokableActionRegistry.getInstance();
         InvokableAction actionInfo = registry.getInstanceMethodInfo(actionName);
         if (actionInfo == null) {
-            return null;
+            actionInfo = registry.getStaticMethodInfo(actionName);
+        }
+        if (actionInfo == null) {
+            return Optional.empty();
         }
         HBox row = new HBox();
         row.getStyleClass().add("setting-row");
@@ -202,7 +206,7 @@ public class ConfigurationUIController {
         label.setLabelFor(widget);
         row.getChildren().add(label);
         row.getChildren().add(widget);
-        return row;
+        return Optional.of(row);
     }
 
     private void editKeyboardShortcut(ConfigNode node, String actionName, Text widget) {

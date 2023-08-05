@@ -513,13 +513,13 @@ public class Configuration implements Reconfigurable {
             InvokableAction action = registry.getStaticMethodInfo(name);
             if (action != null) {
                 for (String code : node.hotkeys.get(name)) {
-                    Keyboard.registerInvokableAction(action, name, registry.getStaticFunction(name), code);
+                    Keyboard.registerInvokableAction(action, node.subject, registry.getStaticFunction(name), code);
                 }
             }
             action = registry.getInstanceMethodInfo(name);
             if (action != null) {
                 for (String code : node.hotkeys.get(name)) {
-                    Keyboard.registerInvokableAction(action, name, registry.getInstanceFunction(name), code);
+                    Keyboard.registerInvokableAction(action, node.subject, registry.getInstanceFunction(name), code);
                 }
             }
         });

@@ -453,6 +453,34 @@ public class Configuration implements Reconfigurable {
         return new File(System.getProperty("user.dir"), ".jace.conf");
     }
 
+    public static void registerKeyHandlers() {
+        registerKeyHandlers(BASE, true);
+    }
+
+    public static void registerKeyHandlers(ConfigNode node, boolean recursive) {
+        Keyboard.unregisterAllHandlers(node.subject);
+        InvokableActionRegistry registry = InvokableActionRegistry.getInstance();
+        node.hotkeys.keySet().stream().forEach((name) -> {
+            InvokableAction action = registry.getStaticMethodInfo(name);
+            if (action != null) {
+                for (String code : node.hotkeys.get(name)) {
+                    Keyboard.registerInvokableAction(action, node.subject, registry.getStaticFunction(name), code);
+                }
+            }
+            action = registry.getInstanceMethodInfo(name);
+            if (action != null) {
+                for (String code : node.hotkeys.get(name)) {
+                    Keyboard.registerInvokableAction(action, node.subject, registry.getInstanceFunction(name), code);
+                }
+            }
+        });
+        if (recursive) {
+            node.getChildren().stream().forEach((child) -> {
+                registerKeyHandlers(child, true);
+            });
+        }
+    }
+
     /**
      * Apply settings from node tree to the object model This also calls
      * "reconfigure" on objects in sequence
@@ -507,22 +535,7 @@ public class Configuration implements Reconfigurable {
 
     private static void doApply(ConfigNode node) {
         List<String> removeList = new ArrayList<>();
-        Keyboard.unregisterAllHandlers(node.subject);
-        InvokableActionRegistry registry = InvokableActionRegistry.getInstance();
-        node.hotkeys.keySet().stream().forEach((name) -> {
-            InvokableAction action = registry.getStaticMethodInfo(name);
-            if (action != null) {
-                for (String code : node.hotkeys.get(name)) {
-                    Keyboard.registerInvokableAction(action, node.subject, registry.getStaticFunction(name), code);
-                }
-            }
-            action = registry.getInstanceMethodInfo(name);
-            if (action != null) {
-                for (String code : node.hotkeys.get(name)) {
-                    Keyboard.registerInvokableAction(action, node.subject, registry.getInstanceFunction(name), code);
-                }
-            }
-        });
+        registerKeyHandlers(node, false);
 
         for (String f : node.settings.keySet()) {
             try {

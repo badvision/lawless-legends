@@ -15,6 +15,7 @@ import jace.apple2e.SoftSwitches;
 import jace.apple2e.VideoNTSC;
 import jace.cheat.Cheats;
 import jace.config.ConfigurableField;
+import jace.config.Configuration;
 import jace.core.Video;
 import jace.library.MediaConsumer;
 
@@ -79,6 +80,7 @@ public class LawlessComputer extends Apple2e {
         ((VideoNTSC) getVideo()).enableVideo7 = false;
         getMemory().configureActiveMemory();
         getVideo().configureVideoMode();
+        Configuration.registerKeyHandlers();
         doResume();
 
         if (!performedBootAnimation) {

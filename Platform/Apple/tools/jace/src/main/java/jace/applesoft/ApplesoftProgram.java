@@ -150,7 +150,7 @@ public class ApplesoftProgram {
     }
 
     public void run() {
-        Emulator.withComputer(c->c.getMotherboard().whileSuspended(()->{
+        Emulator.whileSuspended(c-> {
             int programStart = c.getMemory().readWordRaw(START_OF_PROG_POINTER);
             int programEnd = programStart + getProgramSize();
             if (isProgramRunning()) {
@@ -162,7 +162,7 @@ public class ApplesoftProgram {
                 injectProgram();
                 clearVariables(programEnd);
             }
-        }));
+        });
     }
     
     private void injectProgram() {

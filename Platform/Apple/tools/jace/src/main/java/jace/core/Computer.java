@@ -45,9 +45,9 @@ import javafx.beans.value.ChangeListener;
  */
 public abstract class Computer implements Reconfigurable {
 
-    private RAM memory;
+    public RAM memory;
     public CPU cpu;
-    private Video video;
+    public Video video;
     public Keyboard keyboard;
     public StateManager stateManager;
     public Motherboard motherboard;

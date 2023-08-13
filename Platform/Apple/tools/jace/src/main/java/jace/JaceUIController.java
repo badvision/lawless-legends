@@ -13,6 +13,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -259,8 +260,8 @@ public class JaceUIController {
 
     private void connectButtons(Node n) {
         if (n instanceof Button button) {
-            Runnable action = Utility.getNamedInvokableAction(button.getText());
-            button.setOnMouseClicked(evt -> action.run());
+            Function<Boolean, Boolean> action = Utility.getNamedInvokableAction(button.getText());
+            button.setOnMouseClicked(evt -> action.apply(false));
         } else if (n instanceof Parent parent) {
             parent.getChildrenUnmodifiable().forEach(child -> connectButtons(child));
         }
@@ -378,17 +379,15 @@ public class JaceUIController {
                     });
                     icon.setOnDragDropped(event -> {
                         System.out.println("Dropping media on " + icon.getText());
-                            Emulator.withComputer(c -> {
-                                c.getMotherboard().whileSuspended(() -> {
-                                    try {
-                                        consumer.insertMedia(media, media.files.get(0));
-                                    } catch (IOException ex) {
-                                        Logger.getLogger(JaceUIController.class.getName()).log(Level.SEVERE, null, ex);
-                                    }
-                                });
-                            });
-                            event.setDropCompleted(true);
-                            event.consume();
+                        Emulator.whileSuspended(c-> {
+                            try {
+                                consumer.insertMedia(media, media.files.get(0));
+                            } catch (IOException ex) {
+                                Logger.getLogger(JaceUIController.class.getName()).log(Level.SEVERE, null, ex);
+                            }
+                        });
+                        event.setDropCompleted(true);
+                        event.consume();
                         endDragEvent();
                     });
                 });

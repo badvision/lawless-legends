@@ -18,6 +18,7 @@
  */
 package jace.core;
 
+import jace.Emulator;
 import jace.apple2e.SoftSwitches;
 
 /**
@@ -102,7 +103,7 @@ public abstract class Card extends Device {
     @Override
     public void reconfigure() {
         //super.reconfigure();
-        computer.motherboard.whileSuspended(() -> {
+        Emulator.whileSuspended(c-> {
             unregisterListeners();
             registerListeners();
         });

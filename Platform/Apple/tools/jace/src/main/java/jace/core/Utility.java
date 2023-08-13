@@ -20,8 +20,6 @@ package jace.core;
 
 import java.io.File;
 import java.io.InputStream;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -30,12 +28,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.function.Function;
 
-import jace.config.Configuration;
 import jace.config.InvokableAction;
+import jace.config.InvokableActionRegistry;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
@@ -406,38 +402,15 @@ public class Utility {
         return null;
     }
 
-    static final Map<InvokableAction, Runnable> allActions = new ConcurrentHashMap<>();
-
-    public static Map<InvokableAction, Runnable> getAllInvokableActions() {
-        synchronized (allActions) {            
-            if (allActions.isEmpty()) {
-                Configuration.BASE.getTreeAsStream().forEach((Configuration.ConfigNode node) -> {
-                    for (Method m : node.subject.getClass().getMethods()) {
-                        if (m.isAnnotationPresent(InvokableAction.class)) {
-                            allActions.put(m.getAnnotation(InvokableAction.class), () -> {
-                                try {
-                                    m.invoke(node.subject);
-                                } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException ex) {
-                                    Logger.getLogger(Utility.class.getName()).log(Level.SEVERE, null, ex);
-                                }
-                            });
-                        }
-                    }
-                });
-            }
-        }
-        return allActions;
-    }
-
-    public static Runnable getNamedInvokableAction(String action) {
-        Map<InvokableAction, Runnable> actions = getAllInvokableActions();
-        List<InvokableAction> actionsList = new ArrayList(actions.keySet());
+    public static Function<Boolean, Boolean> getNamedInvokableAction(String action) {
+        InvokableActionRegistry registry = InvokableActionRegistry.getInstance();        
+        List<InvokableAction> actionsList = new ArrayList(registry.getAllStaticActions());
         actionsList.sort((a, b) -> Integer.compare(getActionNameMatch(action, a), getActionNameMatch(action, b)));
 //        for (InvokableAction a : actionsList) {
 //            String actionName = a.alternatives() == null ? a.name() : (a.name() + ";" + a.alternatives());
 //            System.out.println("Score for " + action + " evaluating " + a.name() + ": " + getActionNameMatch(action, a));
 //        }
-        return actions.get(actionsList.get(0));
+        return registry.getStaticFunction(actionsList.get(0).name());
     }
 
     private static int getActionNameMatch(String str, InvokableAction action) {

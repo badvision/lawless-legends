@@ -73,13 +73,22 @@ public abstract class TimedDevice extends Device {
         if (!isRunning()) {
             return false;
         }
-        setPaused(true);
+        super.setPaused(true);
         try {
             // KLUDGE: Sleeping to wait for worker thread to hit paused state.  We might be inside the worker (?)
             Thread.sleep(10);
         } catch (InterruptedException ex) {
         }
         return true;
+    }
+
+    @Override
+    public void setPaused(boolean paused) {
+        if (!isPaused() && paused) {
+            pause();
+        } else {
+            super.setPaused(paused);
+        }
     }
 
     /**
@@ -100,7 +109,7 @@ public abstract class TimedDevice extends Device {
             return;
         }
         worker = new Thread(() -> {
-            System.out.println("Worker thread for " + getDeviceName() + " starting");
+            // System.out.println("Worker thread for " + getDeviceName() + " starting");
             while (isRunning()) {
                 hasStopped = false;
                 doTick();
@@ -113,7 +122,7 @@ public abstract class TimedDevice extends Device {
                 }
             }
             hasStopped = true;
-            System.out.println("Worker thread for " + getDeviceName() + " stopped");
+            // System.out.println("Worker thread for " + getDeviceName() + " stopped");
         });
         worker.setDaemon(false);
         worker.setPriority(Thread.MAX_PRIORITY);

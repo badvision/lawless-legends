@@ -20,13 +20,12 @@ package jace.core;
 
 import java.io.IOException;
 import java.io.StringReader;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -96,8 +95,14 @@ public class Keyboard implements Reconfigurable {
     private static final Map<KeyCode, Set<KeyHandler>> keyHandlersByKey = new HashMap<>();
     private static final Map<Object, Set<KeyHandler>> keyHandlersByOwner = new HashMap<>();
 
-    public static void registerInvokableAction(InvokableAction action, Object owner, Method method, String code) {
-        boolean isStatic = Modifier.isStatic(method.getModifiers());
+    /**
+     *
+     * @param action
+     * @param owner
+     * @param method
+     * @param code
+     */
+    public static void registerInvokableAction(InvokableAction action, Object owner, Function<Boolean, Boolean> method, String code) {
         registerKeyHandler(new KeyHandler(code) {
             @Override
             public boolean handleKeyUp(KeyEvent e) {
@@ -105,41 +110,40 @@ public class Keyboard implements Reconfigurable {
                 if (action == null || !action.notifyOnRelease()) {
                     return false;
                 }
-//                System.out.println("Key up: "+method.toString());
-                Object returnValue = null;
-                try {
-                    if (method.getParameterCount() > 0) {
-                        returnValue = method.invoke(isStatic ? null : owner, false);
-                    } else {
-                        returnValue = method.invoke(isStatic ? null : owner);
-                    }
-                } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException ex) {
-                    Logger.getLogger(Keyboard.class.getName()).log(Level.SEVERE, null, ex);
-                }
-                if (returnValue != null) {
-                    return (Boolean) returnValue;
-                }
-                return action.consumeKeyEvent();
+                return method.apply(false) || action.consumeKeyEvent();
             }
 
             @Override
             public boolean handleKeyDown(KeyEvent e) {
 //                System.out.println("Key down: "+method.toString());
                 Emulator.withComputer(c -> c.getKeyboard().shiftPressed = e.isShiftDown());
-                Object returnValue = null;
-                try {
-                    if (method.getParameterCount() > 0) {
-                        returnValue = method.invoke(isStatic ? null : owner, true);
-                    } else {
-                        returnValue = method.invoke(isStatic ? null : owner);
-                    }
-                } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException ex) {
-                    Logger.getLogger(Keyboard.class.getName()).log(Level.SEVERE, null, ex);
+                if (action == null) {
+                    return false;
                 }
-                if (returnValue != null) {
-                    return (Boolean) returnValue;
+                return method.apply(true) || action.consumeKeyEvent();
+            }
+        }, owner);
+    }
+
+    public static void registerInvokableAction(InvokableAction action, Object owner, BiFunction<Object, Boolean, Boolean> method, String code) {
+        registerKeyHandler(new KeyHandler(code) {
+            @Override
+            public boolean handleKeyUp(KeyEvent e) {
+                Emulator.withComputer(c -> c.getKeyboard().shiftPressed = e.isShiftDown());
+                if (action == null || !action.notifyOnRelease()) {
+                    return false;
                 }
-                return action != null ? action.consumeKeyEvent() : null;
+                return method.apply(owner, false) || action.consumeKeyEvent();
+            }
+
+            @Override
+            public boolean handleKeyDown(KeyEvent e) {
+//                System.out.println("Key down: "+method.toString());
+                Emulator.withComputer(c -> c.getKeyboard().shiftPressed = e.isShiftDown());
+                if (action == null) {
+                    return false;
+                }
+                return method.apply(owner, true) || action.consumeKeyEvent();
             }
         }, owner);
     }

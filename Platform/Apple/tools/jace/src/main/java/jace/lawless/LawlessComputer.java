@@ -15,6 +15,7 @@ import jace.apple2e.SoftSwitches;
 import jace.apple2e.VideoNTSC;
 import jace.cheat.Cheats;
 import jace.config.ConfigurableField;
+import jace.config.Configuration;
 import jace.core.Video;
 import jace.library.MediaConsumer;
 
@@ -79,31 +80,31 @@ public class LawlessComputer extends Apple2e {
         ((VideoNTSC) getVideo()).enableVideo7 = false;
         getMemory().configureActiveMemory();
         getVideo().configureVideoMode();
+        Configuration.registerKeyHandlers();
         doResume();
 
         if (!performedBootAnimation) {
             try {
                 performedBootAnimation = true;
                 waitForVBL();
-                renderWithMask(0, 0, 0, 0);
-                renderWithMask(0x0, 0x10, 0, 0x40, 0, 0x01, 0, 0x4);
-                renderWithMask(0x8, 0x10, 0x02, 0x40, 0, 0x01, 0x20, 0x4);
-                renderWithMask(0x8, 0x11, 0x22, 0x44);
-                renderWithMask(0x8, 0x19, 0x22, 0x66, 0x4c, 0x11, 0x33, 044);
-                renderWithMask(0x4c, 0x19, 0x33, 0x66);
-                renderWithMask(0x4c, 0x5d, 0x33, 0x77, 0x6e, 0x19, 0x3B, 0x66);
-                renderWithMask(0x6e, 0x5d, 0x3B, 0x77);
-                renderWithMask(0x6e, 0x7f, 0x3b, 0x7f, 0x7f, 0x5d, 0x7f, 0x77);
-                renderWithMask(0x7f, 0x7f, 0x7f, 0x7f);
+                renderWithMask(0x00,0x00,0x00,0x00);
+                renderWithMask(0x08,0x10,0x20,0x40,0x00,0x01,0x02,0x04);
+                renderWithMask(0x08,0x11,0x22,0x44);
+                renderWithMask(0x0C,0x19,0x32,0x64,0x48,0x11,0x23,0x46);
+                renderWithMask(0x4C,0x19,0x33,0x66);
+                renderWithMask(0x4E,0x1D,0x3B,0x76,0x6C,0x59,0x33,0x67);
+                renderWithMask(0x6E,0x5D,0x3B,0x77);
+                renderWithMask(0x7F,0x7E,0x7D,0x7B,0x77,0x6F,0x5F,0x3F);
+                renderWithMask(0x7F,0x7F,0x7F,0x7F);
                 waitForVBL(230);
-                renderWithMask(0x7f, 0x6e, 0x7f, 0x3b, 0x77, 0x6e, 0x5d, 0x3b);
-                renderWithMask(0x77, 0x6e, 0x5d, 0x3b);
-                renderWithMask(0x77, 0x66, 0x5d, 0x19, 0x33, 0x6e, 0x4c, 0x3b);
-                renderWithMask(0x33, 0x66, 0x4c, 0x19);
-                renderWithMask(0x33, 0x22, 0x4c, 0x8, 0x11, 0x66, 0x44, 0x19);
-                renderWithMask(0x11, 0x22, 0x44, 0x8);
-                renderWithMask(0x11, 0, 0x44, 0, 0, 0x22, 0, 0x8);
-                renderWithMask(0, 0, 0, 0);
+                renderWithMask(0x77,0x6F,0x5F,0x3F,0x7F,0x7E,0x7D,0x7B);
+                renderWithMask(0x77,0x6E,0x5D,0x3B);
+                renderWithMask(0x73,0x66,0x4D,0x1B,0x37,0x6E,0x5C,0x39);
+                renderWithMask(0x33,0x66,0x4C,0x19);
+                renderWithMask(0x31,0x62,0x44,0x09,0x13,0x26,0x4C,0x18);
+                renderWithMask(0x11,0x22,0x44,0x08);
+                renderWithMask(0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x00);
+                renderWithMask(0x00,0x00,0x00,0x00);
             } catch (InterruptedException ex) {
                 Logger.getLogger(LawlessComputer.class.getName()).log(Level.SEVERE, null, ex);
             }
@@ -118,6 +119,15 @@ public class LawlessComputer extends Apple2e {
         byte[] framebuffer = getBootScreen();
         int maskOffset = 0;
         for (int i = 0; i < 0x02000; i += 2) {
+            int y = Video.identifyHiresRow(i + 0x02000);
+            int x = i - Video.calculateHiresOffset(y);
+            if (y < 0 || y >= 192 || x >= 40 || x < 0) {
+                continue;
+            }
+            maskOffset = (y % 2) * 4;
+            maskOffset += ((x / 2) % 2) * 4;
+            maskOffset %= mask.length;
+
             int next = (framebuffer[i] & 1) << 6;
             Byte b1 = (byte) ((framebuffer[i + 0x02000] & 0x07f) >> 1 | next);
             ram.getAuxMemory().writeByte(0x02000 + i, (byte) (b1 & mask[maskOffset] | 0x080));
@@ -136,9 +146,6 @@ public class LawlessComputer extends Apple2e {
                 next = (framebuffer[i + 0x02002] & 1) << 6;
                 Byte b4 = (byte) ((framebuffer[i + 1] & 0x07f) >> 1 | next);
                 ram.getMainMemory().writeByte(0x02001 + i, (byte) (b4 & mask[maskOffset + 3] | 0x080));
-            }
-            if (i % 20 != 0) {
-                maskOffset = (maskOffset + 4) % mask.length;
             }
         }
         Video.forceRefresh();

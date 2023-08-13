@@ -1,29 +1,37 @@
 package jace.config;
 
-import jace.config.Configuration.ConfigNode;
-import javafx.beans.Observable;
-import javafx.beans.value.ObservableValue;
-import javafx.collections.FXCollections;
-import javafx.fxml.FXML;
-import javafx.scene.Node;
-import javafx.scene.control.*;
-import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
-import javafx.scene.text.Text;
-import javafx.util.StringConverter;
-
 import java.io.File;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
+
+import jace.config.Configuration.ConfigNode;
+import javafx.beans.Observable;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.fxml.FXML;
+import javafx.scene.Node;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.ChoiceBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.SplitPane;
+import javafx.scene.control.TextField;
+import javafx.scene.control.TreeItem;
+import javafx.scene.control.TreeView;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
+import javafx.util.StringConverter;
 
 public class ConfigurationUIController {
     public static final String DELIMITER = "~!~";
@@ -155,7 +163,7 @@ public class ConfigurationUIController {
         if (node == null) {
             return;
         }
-        node.hotkeys.forEach((name, values) -> settingsVbox.getChildren().add(buildKeyShortcutRow(node, name, values)));
+        node.hotkeys.forEach((name, values) -> buildKeyShortcutRow(node, name, values).ifPresent(settingsVbox.getChildren()::add));
         node.settings.forEach((name, value) -> settingsVbox.getChildren().add(buildSettingRow(node, name, value)));
     }
 
@@ -176,10 +184,14 @@ public class ConfigurationUIController {
         return row;
     }
 
-    private Node buildKeyShortcutRow(ConfigNode node, String actionName, String[] values) {
-        InvokableAction actionInfo = Configuration.getInvokableActionInfo(node.subject, actionName);
+    private Optional<Node> buildKeyShortcutRow(ConfigNode node, String actionName, String[] values) {
+        InvokableActionRegistry registry = InvokableActionRegistry.getInstance();
+        InvokableAction actionInfo = registry.getInstanceMethodInfo(actionName);
         if (actionInfo == null) {
-            return null;
+            actionInfo = registry.getStaticMethodInfo(actionName);
+        }
+        if (actionInfo == null) {
+            return Optional.empty();
         }
         HBox row = new HBox();
         row.getStyleClass().add("setting-row");
@@ -194,7 +206,7 @@ public class ConfigurationUIController {
         label.setLabelFor(widget);
         row.getChildren().add(label);
         row.getChildren().add(widget);
-        return row;
+        return Optional.of(row);
     }
 
     private void editKeyboardShortcut(ConfigNode node, String actionName, Text widget) {

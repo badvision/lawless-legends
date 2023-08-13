@@ -30,7 +30,6 @@ import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.GenericArrayType;
-import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -43,13 +42,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
 import jace.Emulator;
 import jace.EmulatorUILogic;
-import jace.core.Computer;
 import jace.core.Keyboard;
 import jace.core.Utility;
 import javafx.collections.FXCollections;
@@ -64,15 +63,6 @@ import javafx.scene.image.ImageView;
  */
 public class Configuration implements Reconfigurable {
 
-    private static Method findAnyMethodByName(Class<? extends Reconfigurable> aClass, String m) {
-        for (Method method : aClass.getMethods()) {
-            if (method.getName().equals(m)) {
-                return method;
-            }
-        }
-        return null;
-    }
-
     static ConfigurableField getConfigurableFieldInfo(Reconfigurable subject, String settingName) {
         Field f;
         try {
@@ -86,15 +76,6 @@ public class Configuration implements Reconfigurable {
 
     public static String getShortName(ConfigurableField f, String longName) {
         return (f != null && !f.shortName().equals("")) ? f.shortName() : longName;
-    }
-
-    public static InvokableAction getInvokableActionInfo(Reconfigurable subject, String actionName) {
-        for (Method m : subject.getClass().getMethods()) {
-            if (m.getName().equals(actionName) && m.isAnnotationPresent(InvokableAction.class)) {
-                return m.getAnnotation(InvokableAction.class);
-            }
-        }
-        return null;
     }
 
     public static Optional<ImageView> getChangedIcon() {
@@ -301,13 +282,13 @@ public class Configuration implements Reconfigurable {
             return;
         }
 
-        for (Method m : node.subject.getClass().getMethods()) {
-            if (!m.isAnnotationPresent(InvokableAction.class)) {
-                continue;
-            }
-            InvokableAction action = m.getDeclaredAnnotation(InvokableAction.class);
-            node.hotkeys.put(m.getName(), action.defaultKeyMapping());
-        }
+        InvokableActionRegistry registry = InvokableActionRegistry.getInstance();
+        registry.getStaticMethodNames(node.subject.getClass()).stream().forEach((name) -> 
+            node.hotkeys.put(name, registry.getStaticMethodInfo(name).defaultKeyMapping())
+        );
+        registry.getInstanceMethodNames(node.subject.getClass()).stream().forEach((name) -> 
+            node.hotkeys.put(name, registry.getInstanceMethodInfo(name).defaultKeyMapping())
+        );
 
         for (Field f : node.subject.getClass().getFields()) {
 //            System.out.println("Evaluating field " + f.getName());
@@ -337,6 +318,8 @@ public class Configuration implements Reconfigurable {
                     if (child == null || !child.subject.equals(o)) {
                         child = new ConfigNode(node, r);
                         node.putChild(f.getName(), child);
+                    } else {
+                        Logger.getLogger(Configuration.class.getName()).severe("Unable to find child named %s for node %s".formatted(r.getName(), node.name));
                     }
                     buildTree(child, visited);
                 } else if (o.getClass().isArray()) {
@@ -470,6 +453,34 @@ public class Configuration implements Reconfigurable {
         return new File(System.getProperty("user.dir"), ".jace.conf");
     }
 
+    public static void registerKeyHandlers() {
+        registerKeyHandlers(BASE, true);
+    }
+
+    public static void registerKeyHandlers(ConfigNode node, boolean recursive) {
+        Keyboard.unregisterAllHandlers(node.subject);
+        InvokableActionRegistry registry = InvokableActionRegistry.getInstance();
+        node.hotkeys.keySet().stream().forEach((name) -> {
+            InvokableAction action = registry.getStaticMethodInfo(name);
+            if (action != null) {
+                for (String code : node.hotkeys.get(name)) {
+                    Keyboard.registerInvokableAction(action, node.subject, registry.getStaticFunction(name), code);
+                }
+            }
+            action = registry.getInstanceMethodInfo(name);
+            if (action != null) {
+                for (String code : node.hotkeys.get(name)) {
+                    Keyboard.registerInvokableAction(action, node.subject, registry.getInstanceFunction(name), code);
+                }
+            }
+        });
+        if (recursive) {
+            node.getChildren().stream().forEach((child) -> {
+                registerKeyHandlers(child, true);
+            });
+        }
+    }
+
     /**
      * Apply settings from node tree to the object model This also calls
      * "reconfigure" on objects in sequence
@@ -479,31 +490,26 @@ public class Configuration implements Reconfigurable {
      * descendants
      */
     public static boolean applySettings(ConfigNode node) {
-        boolean resume = false;
-        if (node == BASE) {
-            resume = Emulator.withComputer(c->c.pause(), false);
-        }
-        boolean hasChanged = false;
-        if (node.changed) {
-            doApply(node);
-            hasChanged = true;
-        }
+        AtomicBoolean hasChanged = new AtomicBoolean(false);
 
-        // Now that the object structure reflects the current configuration,
-        // process reconfiguration from the children, etc.
-        for (ConfigNode child : node.getChildren()) {
-            hasChanged |= applySettings(child);
-        }
+        Emulator.whileSuspended(c-> {
+            if (node.changed) {
+                doApply(node);
+                hasChanged.set(true);
+            }
 
-        if (node.equals(BASE) && hasChanged) {
+            // Now that the object structure reflects the current configuration,
+            // process reconfiguration from the children, etc.
+            for (ConfigNode child : node.getChildren()) {
+                if (applySettings(child)) hasChanged.set(true);
+            }
+        });
+
+        if (node.equals(BASE) && hasChanged.get()) {
             buildTree();
         }
 
-        if (resume) {
-            Emulator.withComputer(Computer::resume);
-        }
-
-        return hasChanged;
+        return hasChanged.get();
     }
 
     private static void applyConfigTree(ConfigNode newRoot, ConfigNode oldRoot) {
@@ -529,16 +535,7 @@ public class Configuration implements Reconfigurable {
 
     private static void doApply(ConfigNode node) {
         List<String> removeList = new ArrayList<>();
-        Keyboard.unregisterAllHandlers(node.subject);
-        node.hotkeys.keySet().stream().forEach((m) -> {
-            Method method = findAnyMethodByName(node.subject.getClass(), m);
-            if (method != null) {
-                InvokableAction action = method.getAnnotation(InvokableAction.class);
-                for (String code : node.hotkeys.get(m)) {
-                    Keyboard.registerInvokableAction(action, node.subject, method, code);
-                }
-            }
-        });
+        registerKeyHandlers(node, false);
 
         for (String f : node.settings.keySet()) {
             try {

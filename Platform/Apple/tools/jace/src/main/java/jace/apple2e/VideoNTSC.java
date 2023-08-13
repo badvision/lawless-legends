@@ -143,6 +143,7 @@ public class VideoNTSC extends VideoDHGR {
 
     @Override
     protected void showBW(WritableImage screen, int x, int y, int dhgrWord) {
+        if (x < 0) return;
         int pos = divBy28[x];
         if (rowStart < 0) {
             rowStart = pos;
@@ -153,6 +154,7 @@ public class VideoNTSC extends VideoDHGR {
 
     @Override
     protected void showDhgr(WritableImage screen, int x, int y, int dhgrWord) {
+        if (x < 0) return;
         int pos = divBy28[x];
         if (rowStart < 0) {
             rowStart = pos;
@@ -163,6 +165,7 @@ public class VideoNTSC extends VideoDHGR {
 
     @Override
     protected void displayLores(WritableImage screen, int xOffset, int y, int rowAddress) {
+        if (xOffset < 0) return;
         int data = ((RAM128k) computer.getMemory()).getMainMemory().readByte(rowAddress + xOffset) & 0x0FF;
         int pos = xOffset >> 1;
         if (rowStart < 0) {
@@ -193,6 +196,7 @@ public class VideoNTSC extends VideoDHGR {
 
     @Override
     protected void displayDoubleLores(WritableImage screen, int xOffset, int y, int rowAddress) {
+        if (xOffset < 0) return;
         int pos = xOffset >> 1;
         if (rowStart < 0) {
             rowStart = pos;
@@ -257,6 +261,7 @@ public class VideoNTSC extends VideoDHGR {
         // Reset scanline position
         int byteCounter = 0;
         for (int s = rowStart; s < 20; s++) {
+            if (s < 0) continue;
             int add = 0;
             int bits;
             if (hiresMode) {

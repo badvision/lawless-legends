@@ -229,7 +229,11 @@
   "name":"jace.apple2e.VideoDHGR"
 },
 {
-  "name":"jace.apple2e.VideoNTSC"
+  "name":"jace.apple2e.VideoNTSC",
+  "fields":[
+    {"name":"enableVideo7"}, 
+    {"name":"useTextPalette"}
+  ]
 },
 {
   "name":"jace.cheat.MetaCheat"
@@ -310,20 +314,32 @@
   ]
 },
 {
+  "name":"jace.core.Video",
+  "fields":[
+    {"name":"MIN_SCREEN_REFRESH"}, 
+    {"name":"hblankOffsetX"}, 
+    {"name":"hblankOffsetY"}, 
+    {"name":"waitsPerCycle"}
+  ]
+},
+{
   "name":"jace.core.VideoWriter"
 },
 {
-  "name":"jace.hardware.CardAppleMouse"
+  "name":"jace.hardware.CardAppleMouse",
+  "allPublicFields":true
 },
 {
   "name":"jace.hardware.CardDiskII",
+  "allPublicFields":true,
   "methods":[{"name":"<init>","parameterTypes":["jace.core.Computer"] }]
 },
 {
   "name":"jace.hardware.CardExt80Col"
 },
 {
-  "name":"jace.hardware.CardHayesMicromodem"
+  "name":"jace.hardware.CardHayesMicromodem",
+  "allPublicFields":true
 },
 {
   "name":"jace.hardware.CardMockingboard",
@@ -331,17 +347,21 @@
 },
 {
   "name":"jace.hardware.CardRamFactor",
+  "allPublicFields":true,
   "methods":[{"name":"<init>","parameterTypes":["jace.core.Computer"] }]
 },
 {
   "name":"jace.hardware.CardRamworks",
+  "allPublicFields":true,
   "methods":[{"name":"<init>","parameterTypes":["jace.core.Computer"] }]
 },
 {
-  "name":"jace.hardware.CardSSC"
+  "name":"jace.hardware.CardSSC",
+  "allPublicFields":true
 },
 {
-  "name":"jace.hardware.CardThunderclock"
+  "name":"jace.hardware.CardThunderclock",
+  "allPublicFields":true
 },
 {
   "name":"jace.hardware.Joystick",
@@ -369,6 +389,7 @@
 },
 {
   "name":"jace.hardware.massStorage.CardMassStorage",
+  "allPublicFields":true,
   "methods":[{"name":"<init>","parameterTypes":["jace.core.Computer"] }]
 },
 {
@@ -393,6 +414,7 @@
     {"name":"newApplesoftBasicClicked","parameterTypes":["javafx.event.ActionEvent"] }, 
     {"name":"newApplesoftBasicFromMemoryClicked","parameterTypes":["javafx.event.ActionEvent"] }, 
     {"name":"newAssemblyListingClicked","parameterTypes":["javafx.event.ActionEvent"] }, 
+    {"name":"newHexdataClicked","parameterTypes":["javafx.event.ActionEvent"] }, 
     {"name":"onCloseClicked","parameterTypes":["javafx.event.ActionEvent"] }, 
     {"name":"testCompileClicked","parameterTypes":["javafx.event.ActionEvent"] }, 
     {"name":"viewCompilerOutputClicked","parameterTypes":["javafx.event.ActionEvent"] }
@@ -416,6 +438,7 @@
 },
 {
   "name":"jace.lawless.LawlessVideo",
+  "allPublicFields":true,
   "methods":[{"name":"<init>","parameterTypes":["jace.core.Computer"] }]
 },
 {
@@ -907,7 +930,8 @@
   "methods":[
     {"name":"<init>","parameterTypes":[] }, 
     {"name":"setVgrow","parameterTypes":["javafx.scene.Node","javafx.scene.layout.Priority"] }
-  ]
+  ],
+  "queriedMethods":[{"name":"getVgrow","parameterTypes":["javafx.scene.Node"] }]
 },
 {
   "name":"javafx.scene.shape.LineTo"

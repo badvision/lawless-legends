@@ -154,7 +154,7 @@ public abstract class Device implements Reconfigurable {
         return run;
     }
     
-    public boolean isPaused() {
+    public final boolean isPaused() {
         return paused;
     }
 
@@ -163,7 +163,7 @@ public abstract class Device implements Reconfigurable {
         updateTickHandler();
     }
 
-    public final synchronized void setPaused(boolean paused) {
+    public synchronized void setPaused(boolean paused) {
         this.paused = paused;
         updateTickHandler();
     }
@@ -187,22 +187,43 @@ public abstract class Device implements Reconfigurable {
         }        
     }
 
+    public void whilePaused(Runnable r) {
+        if (isRunning() && !isPaused()) {
+            setPaused(true);
+            r.run();
+            setPaused(false);
+        } else {
+            r.run();
+        }        
+    }
+
     public <T> T whileSuspended(Supplier<T> r, T defaultValue) {
+        T result;
         if (isRunning()) {
             suspend();
-            T result = r.get();
+            result = r.get();
             resume();
-            return result;
         } else {
-            return defaultValue;
+            result = r.get();
         }
+        return result != null ? result : defaultValue;
+    }
+
+    public <T> T whilePaused(Supplier<T> r, T defaultValue) {
+        T result;
+        if (!isPaused() && isRunning()) {
+            setPaused(true);
+            result = r.get();
+            setPaused(false);
+        } else {
+            result = r.get();
+        }
+        return result != null ? result : defaultValue;
     }
 
     
     public boolean suspend() {
         if (isRunning()) {
-//            System.out.println(getName() + " Suspended");
-//            Utility.printStackTrace();
             setRun(false);
             return true;
         }
@@ -213,8 +234,6 @@ public abstract class Device implements Reconfigurable {
     public void resume() {
         children.forEach(Device::resume);
         if (!isRunning()) {
-//            System.out.println(getName() + " Resumed");
-//            Utility.printStackTrace();
             setRun(true);            
             waitCycles = 0;
         }

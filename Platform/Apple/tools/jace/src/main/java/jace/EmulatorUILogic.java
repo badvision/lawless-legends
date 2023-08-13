@@ -209,14 +209,13 @@ public class EmulatorUILogic implements Reconfigurable {
             alternatives = "Execute program;Load binary;Load program;Load rom;Play single-load game",
             defaultKeyMapping = "ctrl+shift+b")
     public static void runFile() {
-        Emulator.withComputer(c->
-            c.getMotherboard().whileSuspended(()->{
-                FileChooser select = new FileChooser();
-                File binary = select.showOpenDialog(LawlessLegends.getApplication().primaryStage);
-                if (binary != null) {
-                    runFileNamed(binary);
-                }                
-            }));
+        Emulator.whileSuspended(c-> {
+            FileChooser select = new FileChooser();
+            File binary = select.showOpenDialog(LawlessLegends.getApplication().primaryStage);
+            if (binary != null) {
+                runFileNamed(binary);
+            }
+        });
     }
 
     public static void runFileNamed(File binary) {
@@ -244,13 +243,13 @@ public class EmulatorUILogic implements Reconfigurable {
             in.read(data);
         }
 
-        Emulator.withComputer(c->c.getMotherboard().whileSuspended(()->{
+        Emulator.whileSuspended(c-> {
             RAM ram = c.getMemory();
             for (int i = 0; i < data.length; i++) {
                 ram.write(address + i, data[i], false, true);
             }
             c.getCpu().setProgramCounter(address);
-        }));
+        });
     }
 
     @InvokableAction(
@@ -311,22 +310,20 @@ public class EmulatorUILogic implements Reconfigurable {
         }
         File outFile = new File("screen_" + type + "_a" + Integer.toHexString(start) + "_" + timestamp);
         try (FileOutputStream out = new FileOutputStream(outFile)) {
-            Emulator.withComputer(c -> {
+            Emulator.whileSuspended(c -> {
                 RAM128k ram = (RAM128k) c.getMemory();
-                c.getMotherboard().whileSuspended(() -> {
-                    try {
-                        if (dres) {
-                            for (int i = 0; i < len; i++) {
-                                out.write(ram.getAuxVideoMemory().readByte(start + i));
-                            }
-                        }
+                try {
+                    if (dres) {
                         for (int i = 0; i < len; i++) {
-                            out.write(ram.getMainMemory().readByte(start + i));
+                            out.write(ram.getAuxVideoMemory().readByte(start + i));
                         }
-                    } catch (IOException e) {
-                        Logger.getLogger(EmulatorUILogic.class.getName()).log(Level.SEVERE, "Error writing screenshot", e);
                     }
-                });                
+                    for (int i = 0; i < len; i++) {
+                        out.write(ram.getMainMemory().readByte(start + i));
+                    }
+                } catch (IOException e) {
+                    Logger.getLogger(EmulatorUILogic.class.getName()).log(Level.SEVERE, "Error writing screenshot", e);
+                }
             });
         }
         System.out.println("Wrote screenshot to " + outFile.getAbsolutePath());

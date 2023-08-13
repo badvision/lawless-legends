@@ -3930,14 +3930,14 @@ class A2PackPartitions
             "${parseGenderAttr(row, "gender")}, " +
             "${parseByteAttr(row, "pack size")})")
         row.attributes().sort().eachWithIndex { name, val, idx ->
-            if (name =~ /^skill-(.*)/) {
+            if (name =~ /^skill-(.*)/ && val != "") {
                 def skillName = name.replace("skill-", "")
                 out.println("  addToList(@p=>p_skills, " +
                     "makeModifier(${escapeString(titleCase(skillName))}, " +
                     "${parseByteAttr(row, name)}))")
                 skillName = skillName.toLowerCase()
             }
-            else if (name =~ /^item-/) {
+            else if (name =~ /^item-/ && val != "") {
                 name = val.trim().toLowerCase()
                 def num = 1
                 name.find(/^(.*?)#(\d+)$/) { str, p1, p2 ->

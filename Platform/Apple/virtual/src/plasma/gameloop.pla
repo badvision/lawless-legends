@@ -1002,19 +1002,15 @@ export asm streqi(a, b)#1
 + tax              ; count up to (verified same) length of the strings
 - iny
   lda (tmp),y
-  cmp #('z'&$7F)+1 ; convert to upper case
-  bcs +
-  cmp #'a'&$7F
-  bcc ++
-  sbc #$20
-  !byte $C9  ; CMP imm - to skip next opcode
-+ clc              ; clear carry if not alpha
-                   ; CMP will set carry
-++eor (pTmp),y
+  eor (pTmp),y
   beq +            ; matched
-  bcc .noteqi      ; abort on non-alpha inequality
-  eor #$20         ; check for case bit
+  cmp #$20         ; check for case bit
   bne .noteqi      ; abort on alpha inequality
+  ora (tmp),y      ; convert to lower case
+  cmp #('z'&$7F)+1
+  bcs .noteqi      ; abort on inequality
+  cmp #'a'&$7F
+  bcc .noteqi      ; abort on inequality
 + dex
   bne -
   lda #1

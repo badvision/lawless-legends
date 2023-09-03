@@ -389,8 +389,8 @@ export asm memset(pDst, val, len)#0
   lda evalStkL,x      ; len lo
   pha
   lda evalStkH,x      ; len hi
-  tax
   beq +
+  tax
   lda tmp
 - sta (pTmp),y
   iny
@@ -487,11 +487,11 @@ export asm finishString(isPlural)#1
 
   dey         ; undo copy of the paren
   stx tmp+1   ; save position in input
-  bcs .done   ; failsafe: handle missing end-paren
   bit tmp     ; set copy flag (V) initially to same as isPlural flag
 .findsl       ; see if there's a slash within the parens
   inx
   cpx inbuf
+  bcs .done   ; failsafe: handle missing end-paren
   lda inbuf,x
   ora #$80    ; normalize hi-bit for comparisons below
   cmp #"/"
@@ -989,8 +989,8 @@ export asm streqi(a, b)#1
   lda evalStkL+1,x
   sta pTmp
   lda evalStkH+1,x
-  sta pTmp+1
   beq .null
+  sta pTmp+1
   ldy #0
   lda (tmp),y
   cmp (pTmp),y

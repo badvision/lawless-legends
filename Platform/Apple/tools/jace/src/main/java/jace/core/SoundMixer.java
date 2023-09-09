@@ -18,14 +18,13 @@
  */
 package jace.core;
 
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.sound.sampled.AudioFormat;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.DataLine;
-import javax.sound.sampled.LineUnavailableException;
-import javax.sound.sampled.SourceDataLine;
+import org.lwjgl.openal.AL;
+import org.lwjgl.openal.ALC;
+import org.lwjgl.openal.ALC10;
+import org.lwjgl.openal.ALCCapabilities;
+import org.lwjgl.openal.ALCapabilities;
 
 import jace.config.ConfigurableField;
 
@@ -53,37 +52,42 @@ public class SoundMixer extends Device {
     @ConfigurableField(name = "Mute", shortName = "mute")
     public static boolean MUTE = false;
     
+    private final String defaultDeviceName;
+    private long audioDevice;
+    private long audioContext;
+    private ALCCapabilities audioCapabilities;
+    private ALCapabilities audioLibCapabilities;
     public SoundMixer(Computer computer) {
         super(computer);
+        defaultDeviceName = ALC10.alcGetString(0, ALC10.ALC_DEFAULT_DEVICE_SPECIFIER);
     }
 
-    /**
-     * Get a javafx media sourcedataline for stereo 44.1KHz 16-bit signed PCM data.
-     * Confirm the line is open before using it.
-     * 
-     * @return 
-     */
-    public SourceDataLine getLine() {
-        if (MUTE) {
-            return null;
+    // Lots of inspiration from https://www.youtube.com/watch?v=dLrqBTeipwg
+    @Override
+    public void attach() {
+        super.attach();
+        audioDevice = ALC10.alcOpenDevice(defaultDeviceName);
+        // TODO: Other attributes?
+        audioContext = ALC10.alcCreateContext(audioDevice, new int[]{0});
+        ALC10.alcMakeContextCurrent(audioContext);
+        audioCapabilities = ALC.createCapabilities(audioDevice);
+        audioLibCapabilities = AL.createCapabilities(audioCapabilities);
+        if (!audioLibCapabilities.OpenAL10) {
+            Logger.getLogger(SoundMixer.class.getName()).warning("OpenAL 1.0 not supported");
+            detach();
         }
-        
-        SourceDataLine line = null;
-        try {
-            // WAV is a little endian format, so it makes sense to stick with that.
-            AudioFormat format = new AudioFormat(RATE, BITS, 2, true, false);
-            DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
-            line = (SourceDataLine) AudioSystem.getLine(info);
-            line.open(format);
-            line.start();
-//            Logger.getLogger(getClass().getName()).log(Level.INFO, "Obtained source data line: %s, buffer size %d".formatted(line.getFormat(), line.getBufferSize()));
-        } catch (IllegalArgumentException | LineUnavailableException e) {
-            Logger.getLogger(getClass().getName()).log(Level.SEVERE, "Error getting sound line: {0}", e.getMessage());
-        }
-        return line;
-    }    
+    }
 
     @Override
+    public void detach() {
+        ALC10.alcDestroyContext(audioContext);
+        ALC10.alcCloseDevice(audioDevice);
+        MUTE = true;
+        super.detach();
+    }
+
+    @Override
+
     public String getDeviceName() {
         return "Sound Output";
     }
@@ -93,15 +97,14 @@ public class SoundMixer extends Device {
         return "mixer";
     }
 
+
     @Override
     public synchronized void reconfigure() {
         if (MUTE) {
             detach();
+        } else {
+            attach();
         }
-    }
-
-    public byte randomByte() {
-        return (byte) (Math.random() * 256);
     }
 
     @Override

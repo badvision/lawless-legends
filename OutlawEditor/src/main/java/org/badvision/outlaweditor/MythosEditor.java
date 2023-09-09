@@ -13,9 +13,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.logging.Level;
@@ -23,19 +21,12 @@ import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Scene;
-import javafx.scene.layout.AnchorPane;
-import javafx.stage.Stage;
-import javafx.stage.WindowEvent;
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBElement;
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.Unmarshaller;
+
 import javax.xml.namespace.QName;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
+
 import org.badvision.outlaweditor.api.ApplicationState;
 import static org.badvision.outlaweditor.data.DataUtilities.extract;
 import static org.badvision.outlaweditor.data.DataUtilities.extractFirst;
@@ -55,6 +46,16 @@ import org.badvision.outlaweditor.ui.ApplicationUIController;
 import org.badvision.outlaweditor.ui.MythosScriptEditorController;
 import org.w3c.dom.Document;
 import org.xml.sax.SAXException;
+
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBElement;
+import jakarta.xml.bind.JAXBException;
+import jakarta.xml.bind.Unmarshaller;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Scene;
+import javafx.scene.layout.AnchorPane;
+import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 
 /**
  * Mythos Scripting Editor
@@ -80,9 +81,6 @@ public class MythosEditor {
     public void show() {
         primaryStage = new Stage();
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/MythosScriptEditor.fxml"));
-        Map<String, String> properties = new HashMap<>();
-        properties.put(MythosScriptEditorController.ONLOAD_SCRIPT, generateLoadScript());
-        fxmlLoader.setResources(MythosScriptEditorController.createResourceBundle(properties));
         try {
             AnchorPane node = (AnchorPane) fxmlLoader.load();
             controller = fxmlLoader.getController();

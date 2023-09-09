@@ -19,6 +19,26 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import org.badvision.outlaweditor.Application;
+import org.badvision.outlaweditor.FileUtils;
+import org.badvision.outlaweditor.MythosEditor;
+import org.badvision.outlaweditor.SheetEditor;
+import org.badvision.outlaweditor.api.ApplicationState;
+import org.badvision.outlaweditor.apple.ImageDitherEngine;
+import org.badvision.outlaweditor.data.DataUtilities;
+import org.badvision.outlaweditor.data.TilesetUtils;
+import org.badvision.outlaweditor.data.xml.GameData;
+import org.badvision.outlaweditor.data.xml.Global;
+import org.badvision.outlaweditor.data.xml.Scope;
+import org.badvision.outlaweditor.data.xml.Script;
+import org.badvision.outlaweditor.data.xml.Sheet;
+import org.badvision.outlaweditor.data.xml.UserType;
+import org.badvision.outlaweditor.data.xml.Variable;
+import org.badvision.outlaweditor.data.xml.Variables;
+import org.badvision.outlaweditor.ui.impl.ImageConversionWizardController;
+
+import jakarta.xml.bind.JAXB;
 import javafx.animation.FadeTransition;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
@@ -41,32 +61,14 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
 import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.HBoxBuilder;
-import javafx.scene.layout.VBoxBuilder;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import javafx.util.Duration;
 import javafx.util.converter.DefaultStringConverter;
-import javax.xml.bind.JAXB;
-import org.badvision.outlaweditor.Application;
-import org.badvision.outlaweditor.FileUtils;
-import org.badvision.outlaweditor.MythosEditor;
-import org.badvision.outlaweditor.SheetEditor;
-import org.badvision.outlaweditor.api.ApplicationState;
-import org.badvision.outlaweditor.apple.ImageDitherEngine;
-import org.badvision.outlaweditor.data.DataUtilities;
-import org.badvision.outlaweditor.data.TilesetUtils;
-import org.badvision.outlaweditor.data.xml.GameData;
-import org.badvision.outlaweditor.data.xml.Global;
-import org.badvision.outlaweditor.data.xml.Scope;
-import org.badvision.outlaweditor.data.xml.Script;
-import org.badvision.outlaweditor.data.xml.Sheet;
-import org.badvision.outlaweditor.data.xml.UserType;
-import org.badvision.outlaweditor.data.xml.Variable;
-import org.badvision.outlaweditor.data.xml.Variables;
-import org.badvision.outlaweditor.ui.impl.ImageConversionWizardController;
 
 /**
  *
@@ -184,7 +186,7 @@ public class UIAction {
 
     public static WritableImage getBadImage(int width, int height) {
         if (badImage == null) {
-            badImage = new Image("images/icon_brokenLink.png");
+            badImage = new Image(UIAction.class.getResourceAsStream("/images/icon_brokenLink.png"));
         }
         WritableImage img = new WritableImage(width, height);
         img.getPixelWriter().setPixels(0, 0, (int) badImage.getWidth(), (int) badImage.getHeight(), badImage.getPixelReader(), 0, 0);
@@ -214,7 +216,10 @@ public class UIAction {
     public static void choose(String message, Choice... choices) {
         final Stage dialogStage = new Stage();
 
-        HBoxBuilder options = HBoxBuilder.create().alignment(Pos.CENTER).spacing(10.0).padding(new Insets(5));
+        HBox hbox = new HBox();
+        hbox.setAlignment(Pos.CENTER);
+        hbox.setSpacing(10.0);
+        hbox.setPadding(new Insets(5));
         List<Button> buttons = new ArrayList<>();
         for (final Choice c : choices) {
             Button b = new Button(c.text);
@@ -226,11 +231,13 @@ public class UIAction {
             });
             buttons.add(b);
         }
-        options.children(buttons);
+        hbox.getChildren().addAll(buttons);
         dialogStage.initModality(Modality.WINDOW_MODAL);
-        dialogStage.setScene(new Scene(VBoxBuilder.create().
-                children(new Text(message), options.build()).
-                alignment(Pos.CENTER).padding(new Insets(5)).build()));
+        VBox vbox = new VBox();
+        vbox.getChildren().addAll(new Text(message), hbox);
+        vbox.setAlignment(Pos.CENTER);
+        vbox.setPadding(new Insets(5));
+        dialogStage.setScene(new Scene(vbox));
         dialogStage.show();
     }
 
@@ -238,7 +245,7 @@ public class UIAction {
         TextInputDialog dialog = new TextInputDialog(defaultValue);
         dialog.setTitle("MythosScript Editor");
         dialog.setHeaderText("Respond and press OK, or Cancel to abort");
-        ImageView graphic = new ImageView(new Image("images/revolver_icon.png"));
+        ImageView graphic = new ImageView(new Image(UIAction.class.getResourceAsStream("/images/revolver_icon.png")));
         graphic.setFitHeight(50.0);
         graphic.setFitWidth(50.0);
         graphic.setSmooth(true);

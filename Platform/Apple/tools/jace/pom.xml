@@ -43,7 +43,7 @@
             <plugin>
                 <groupId>com.gluonhq</groupId>
                 <artifactId>gluonfx-maven-plugin</artifactId>
-                <version>1.0.18</version>
+                <version>1.0.19</version>
                 <configuration>
                     <mainClass>jace.LawlessLegends</mainClass>
                 </configuration>
@@ -177,6 +177,16 @@
             <artifactId>javafx-swing</artifactId>
             <version>18</version>
             <type>jar</type>
+        </dependency>
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-openal</artifactId>
+            <version>3.3.2</version>
+        </dependency>
+        <dependency>
+            <groupId>javazoom</groupId>
+            <artifactId>jlayer</artifactId>
+            <version>1.0.1</version>
         </dependency>
     </dependencies>
 </project>

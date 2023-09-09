@@ -17,6 +17,18 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+
+import org.badvision.outlaweditor.api.ApplicationState;
+import org.badvision.outlaweditor.data.TileMap;
+import org.badvision.outlaweditor.data.TileUtils;
+import org.badvision.outlaweditor.data.xml.Map;
+import org.badvision.outlaweditor.data.xml.Script;
+import org.badvision.outlaweditor.data.xml.Scripts;
+import org.badvision.outlaweditor.data.xml.Tile;
+import org.badvision.outlaweditor.ui.TileSelectModal;
+import org.badvision.outlaweditor.ui.ToolType;
+
+import jakarta.xml.bind.JAXBException;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
@@ -42,16 +54,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.paint.Paint;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
-import javax.xml.bind.JAXBException;
-import org.badvision.outlaweditor.api.ApplicationState;
-import org.badvision.outlaweditor.data.TileMap;
-import org.badvision.outlaweditor.data.TileUtils;
-import org.badvision.outlaweditor.data.xml.Map;
-import org.badvision.outlaweditor.data.xml.Script;
-import org.badvision.outlaweditor.data.xml.Scripts;
-import org.badvision.outlaweditor.data.xml.Tile;
-import org.badvision.outlaweditor.ui.TileSelectModal;
-import org.badvision.outlaweditor.ui.ToolType;
 
 /**
  *
@@ -101,7 +103,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
         this.drawMode = drawMode;
         switch (drawMode) {
             case TileEraser:
-                ImageCursor cursor = new ImageCursor(new Image("images/eraser.png"));
+                ImageCursor cursor = new ImageCursor(new Image(MapEditor.class.getResourceAsStream("/images/eraser.png")));
                 drawCanvas.setCursor(cursor);
                 break;
             case Select:

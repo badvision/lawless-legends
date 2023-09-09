@@ -10,10 +10,10 @@
 package org.badvision.outlaweditor.ui;
 
 import java.net.URL;
-import java.util.ListResourceBundle;
-import java.util.Map;
 import java.util.ResourceBundle;
-import java.util.Set;
+
+import org.badvision.outlaweditor.MythosEditor;
+
 import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
 import javafx.concurrent.Worker.State;
@@ -25,13 +25,11 @@ import javafx.scene.web.PromptData;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import netscape.javascript.JSObject;
-import org.badvision.outlaweditor.MythosEditor;
 
 public class MythosScriptEditorController
         implements Initializable {
 
     public static final String MYTHOS_EDITOR = "/mythos/mythos-editor/html/editor.html";
-    public static final String ONLOAD_SCRIPT = "onloadScript";
     // This is tied to the Mythos object defined in mythos_uncompressed
     JSObject mythos;
 
@@ -60,6 +58,26 @@ public class MythosScriptEditorController
 
     public void setEditor(MythosEditor editor) {
         this.editor = editor;
+        final String loadScript = editor.generateLoadScript();
+        if (loadScript != null) {
+            editorView.getEngine().getLoadWorker().stateProperty().addListener(
+                    (value, old, newState) -> {
+                        if (newState == State.SUCCEEDED) {
+                            mythos = (JSObject) editorView.getEngine().executeScript("Mythos");
+                            mythos.setMember("editor", editor);
+                            editorView.getEngine().executeScript(loadScript);
+                            editorView.getEngine().executeScript("window.dispatchEvent(new Event('resize'));");
+                        }
+                    });
+
+            editorView.getEngine().setPromptHandler((PromptData prompt) -> {
+                return UIAction.getText(prompt.getMessage(), prompt.getDefaultValue());
+            });
+        }
+
+        //TODO: Verify the path conversion works in Win7 with a jar file
+        // Affected by https://bugs.openjdk.java.net/browse/JDK-8136466
+        editorView.getEngine().load(getClass().getResource(MYTHOS_EDITOR).toExternalForm());
     }
 
     // Handler for MenuItem[fx:id="menuItemAbortChanges"] onAction
@@ -92,6 +110,11 @@ public class MythosScriptEditorController
     public void onUndoSelected(ActionEvent event) {
         // handle the event here
     }
+    /**
+     *
+     * @param fxmlFileLocation
+     * @param resources
+     */
 
     @Override // This method is called by the FXMLLoader when initialization is complete
     public void initialize(URL fxmlFileLocation, ResourceBundle resources) {
@@ -103,23 +126,6 @@ public class MythosScriptEditorController
         assert menuItemRedo != null : "fx:id=\"menuItemRedo\" was not injected: check your FXML file 'MythosScriptEditor.fxml'.";
         assert menuItemUndo != null : "fx:id=\"menuItemUndo\" was not injected: check your FXML file 'MythosScriptEditor.fxml'.";
 
-        final String loadScript = resources.getString(ONLOAD_SCRIPT);
-        if (loadScript != null) {
-            editorView.getEngine().getLoadWorker().stateProperty().addListener(
-                    (value, old, newState) -> {
-                        if (newState == State.SUCCEEDED) {
-                            mythos = (JSObject) editorView.getEngine().executeScript("Mythos");
-                            mythos.setMember("editor", editor);
-                            editorView.getEngine().executeScript(loadScript);
-                            editorView.getEngine().executeScript("window.dispatchEvent(new Event('resize'));");
-                        }
-                    });
-
-            editorView.getEngine().setPromptHandler((PromptData prompt) -> {
-                return UIAction.getText(prompt.getMessage(), prompt.getDefaultValue());
-            });
-        }
-
         // JavaFX8 has a bug where stage maximize events do not trigger resize events to webview components
         Platform.runLater(() -> {
             Stage stage = (Stage) editorView.getScene().getWindow();
@@ -129,26 +135,6 @@ public class MythosScriptEditorController
                 });
             }
         });
-
-        //TODO: Verify the path conversion works in Win7 with a jar file
-        // Affected by https://bugs.openjdk.java.net/browse/JDK-8136466
-        editorView.getEngine().load(getClass().getResource(MYTHOS_EDITOR).toExternalForm());
-    }
-
-    public static ResourceBundle createResourceBundle(final Map<String, String> input) {
-        return new ListResourceBundle() {
-            @Override
-            protected Object[][] getContents() {
-                Object[][] output = new Object[input.size()][2];
-                Set<String> keys = input.keySet();
-                int i = 0;
-                for (String key : keys) {
-                    output[i] = new Object[]{key, input.get(key)};
-                    i++;
-                }
-                return output;
-            }
-        };
     }
 
     public String getScriptXml() {

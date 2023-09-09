@@ -15,13 +15,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
-import javafx.event.ActionEvent;
-import javafx.scene.control.ListView;
-import javafx.scene.image.ImageView;
-import javafx.scene.layout.FlowPane;
-import javafx.util.StringConverter;
+
 import org.badvision.outlaweditor.TileEditor;
 import org.badvision.outlaweditor.api.ApplicationState;
 import static org.badvision.outlaweditor.data.PropertyHelper.bind;
@@ -36,6 +30,14 @@ import org.badvision.outlaweditor.ui.EntitySelectorCell;
 import org.badvision.outlaweditor.ui.TileEditorTabController;
 import org.badvision.outlaweditor.ui.UIAction;
 import static org.badvision.outlaweditor.ui.UIAction.confirm;
+
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
+import javafx.event.ActionEvent;
+import javafx.scene.control.ListView;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.FlowPane;
+import javafx.util.StringConverter;
 
 /**
  * FXML Controller class for tile editor tab
@@ -161,6 +163,9 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
         tileSelector.setConverter(new StringConverter<Tile>() {
             @Override
             public String toString(Tile object) {
+                if (object == null) {
+                    return "";
+                }
                 return String.valueOf(object.getCategory() + "/" + object.getName());
             }
 

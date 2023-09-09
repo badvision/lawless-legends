@@ -36,6 +36,8 @@ module lawlesslegends {
     requires javafx.mediaEmpty;
     requires javafx.media;
     requires jdk.jsobject;
+    requires org.lwjgl.openal;
+    
     // requires org.reflections;
     
     opens jace to javafx.graphics, javafx.fxml, javafx.controls;

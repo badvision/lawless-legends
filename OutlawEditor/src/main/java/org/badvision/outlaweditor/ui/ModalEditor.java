@@ -10,7 +10,6 @@
  
 package org.badvision.outlaweditor.ui;
 
-import com.sun.glass.ui.Application;
 import java.beans.BeanInfo;
 import java.beans.IntrospectionException;
 import java.beans.Introspector;
@@ -23,6 +22,9 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import static org.badvision.outlaweditor.data.DataUtilities.uppercaseFirst;
+
 import javafx.application.Platform;
 import javafx.beans.property.adapter.JavaBeanStringPropertyBuilder;
 import javafx.beans.value.ObservableValue;
@@ -43,7 +45,6 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.util.Callback;
-import static org.badvision.outlaweditor.data.DataUtilities.uppercaseFirst;
 
 /**
  *
@@ -98,7 +99,7 @@ public class ModalEditor {
                 TableColumn<T, S> col = new TableColumn<>(uppercaseFirst(colName));
                 col.setCellValueFactory((TableColumn.CellDataFeatures<T, S> param) -> {
                     try {
-                        return (ObservableValue<S>) new JavaBeanStringPropertyBuilder().bean(param.getValue()).name(colName).build();
+                        return (ObservableValue<S>) JavaBeanStringPropertyBuilder.create().bean(param.getValue()).name(colName).build();
                     } catch (NoSuchMethodException ex) {
                         Logger.getLogger(ModalEditor.class.getName()).log(Level.SEVERE, null, ex);
                         throw new RuntimeException(ex);
@@ -116,7 +117,7 @@ public class ModalEditor {
             addButton.setOnAction((event) -> {
                 try {
                     rows.add(rowType.newInstance());
-                    Application.invokeLater(() -> {
+                    Platform.runLater(() -> {
                         try {
                             Thread.sleep(100);
                         } catch (InterruptedException ex) {
@@ -210,8 +211,7 @@ public class ModalEditor {
                             descriptor.getWriteMethod().invoke(sourceObject, control.getValue());
                         } else {
                             Object val = descriptor.getReadMethod().invoke(sourceObject);
-                            if (val instanceof List) {
-                                List sourceList = (List) val;
+                            if (val instanceof List sourceList) {
                                 sourceList.clear();
                                 sourceList.addAll((Collection) control.getValue());
                             }

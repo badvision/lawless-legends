@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import javafx.event.ActionEvent;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.ComboBoxListCell;
@@ -23,7 +24,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
-import javax.xml.bind.JAXBException;
+
 import org.badvision.outlaweditor.MapEditor;
 import org.badvision.outlaweditor.TransferHelper;
 import org.badvision.outlaweditor.api.ApplicationState;
@@ -42,6 +43,8 @@ import static org.badvision.outlaweditor.data.PropertyHelper.stringProp;
 import static org.badvision.outlaweditor.ui.UIAction.confirm;
 import static org.badvision.outlaweditor.ui.UIAction.createAndEditScript;
 import static org.badvision.outlaweditor.ui.UIAction.editScript;
+
+import jakarta.xml.bind.JAXBException;
 
 /**
  *
@@ -124,7 +127,16 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
 
     @Override
     public void onMapClonePressed(ActionEvent event) {
-        Map clonedMap = (Map) getCurrentMap().clone();
+        // Map clonedMap = (Map) getCurrentMap().clone();
+        // Clone map using jaxb to marshal and unmarshal
+        Map clonedMap;
+        try {
+            clonedMap = TransferHelper.cloneObject(getCurrentMap(), Map.class, "map");
+        } catch (JAXBException ex) {
+            Logger.getLogger(MapEditorTabControllerImpl.class.getName()).log(Level.SEVERE, null, ex);
+            UIAction.alert("Error occured when attempting clone operation:\n" + ex.getMessage());
+            return;
+        }
         clonedMap.setName(clonedMap.getName() + " (clone)");
         ApplicationState.getInstance().getGameData().getMap().add(clonedMap);
         rebuildMapSelectors();
@@ -197,7 +209,7 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
                         message = "I really can't help you";
                         break;
                     case 6:
-                        message = "Bored?  Lonely?  Have you trolled any YouTube comments lately?";
+                        message = "I'm sorry, but this is not going to work out.";
                         break;
                     default:
                 }
@@ -536,9 +548,8 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
                 null);
         }
     }
-
-    public static final Image VISIBLE_IMAGE = new Image("images/visible.png");
-    public static final Image INVISIBLE_IMAGE = new Image("images/not_visible.png");
+    public static final Image VISIBLE_IMAGE = new Image(MapEditorTabControllerImpl.class.getResourceAsStream("/images/visible.png"));
+    public static final Image INVISIBLE_IMAGE = new Image(MapEditorTabControllerImpl.class.getResourceAsStream("/images/not_visible.png"));
 
     private ImageView getVisibleIcon(Script script) {
         if (getCurrentEditor().isScriptVisible(script)) {

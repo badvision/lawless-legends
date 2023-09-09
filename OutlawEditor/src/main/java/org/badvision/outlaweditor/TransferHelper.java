@@ -12,7 +12,16 @@ package org.badvision.outlaweditor;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
-import javafx.scene.ImageCursor;
+
+import javax.xml.namespace.QName;
+
+import org.badvision.outlaweditor.ui.ToolType;
+
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBElement;
+import jakarta.xml.bind.JAXBException;
+import jakarta.xml.bind.Marshaller;
+import jakarta.xml.bind.util.JAXBSource;
 import javafx.scene.Node;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.DataFormat;
@@ -20,14 +29,6 @@ import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.TransferMode;
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBElement;
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.Marshaller;
-import javax.xml.bind.util.JAXBSource;
-import javax.xml.namespace.QName;
-import org.badvision.outlaweditor.data.xml.Script;
-import org.badvision.outlaweditor.ui.ToolType;
 
 /**
  * Simplify management of drag/drop operations

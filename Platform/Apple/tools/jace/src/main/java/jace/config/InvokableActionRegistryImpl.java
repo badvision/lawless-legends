@@ -1,5 +1,6 @@
 package jace.config;
 
+import java.io.IOException;
 import java.util.logging.Level;
 
 // NOTE: This is generated code. Do not edit.
@@ -68,7 +69,7 @@ public class InvokableActionRegistryImpl extends InvokableActionRegistry {
         putStaticAction(annotation.name(), jace.EmulatorUILogic.class, annotation, (b) -> {
             try {
                 jace.EmulatorUILogic.saveScreenshotRaw();
-            } catch (Exception ex) {
+            } catch (IOException ex) {
                 logger.log(Level.SEVERE, "Error invoking jace.EmulatorUILogic.saveScreenshotRaw", ex);
             }
         });
@@ -116,7 +117,7 @@ public class InvokableActionRegistryImpl extends InvokableActionRegistry {
         putStaticAction(annotation.name(), jace.EmulatorUILogic.class, annotation, (b) -> {
             try {
                 jace.EmulatorUILogic.saveScreenshot();
-            } catch (Exception ex) {
+            } catch (IOException ex) {
                 logger.log(Level.SEVERE, "Error invoking jace.EmulatorUILogic.saveScreenshot", ex);
             }
         });

@@ -817,4 +817,21 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
 
         }
     }
+
+    @Override
+    public void copyEntityFrom(Map src) {
+        Map dest = getEntity();
+        dest.setCategory(src.getCategory());
+        dest.setDisplay3D(src.isDisplay3D());
+        dest.setHeight(src.getHeight());
+        dest.setName(src.getName());
+        dest.setOrder(src.getOrder());
+        dest.setScripts(src.getScripts());
+        dest.setStartX(src.getStartX());
+        dest.setStartY(src.getStartY());
+        dest.setVariables(src.getVariables());
+        dest.setWidth(src.getWidth());
+        dest.getChunk().clear();
+        dest.getChunk().addAll(src.getChunk());
+    }
 }

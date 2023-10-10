@@ -10,6 +10,7 @@
  
 package org.badvision.outlaweditor.ui.impl;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -46,7 +47,7 @@ import javafx.util.StringConverter;
  */
 public class TileEditorTabControllerImpl extends TileEditorTabController {
     FlowPane quickMenu = new FlowPane();
-    ChangeListener rebuildListener = (ObservableValue value, Object oldValue, Object newValue) -> rebuildTileSelectors();
+    ChangeListener<String> rebuildListener = (ObservableValue<? extends String> value, String oldValue, String newValue) -> rebuildTileSelectors();
 
     @Override
     public void onCurrentTileSelected(ActionEvent event) {
@@ -235,12 +236,12 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
                 bind(tileSpriteField.selectedProperty(), boolProp(t, "sprite"));
                 bind(tileBlockerField.selectedProperty(), boolProp(t, "blocker"));
                 bind(tileNameField.textProperty(), stringProp(t, "name"));
-                TileEditor editor = ApplicationState.getInstance().getCurrentPlatform().tileEditor.newInstance();
+                TileEditor editor = ApplicationState.getInstance().getCurrentPlatform().tileEditor.getDeclaredConstructor().newInstance();
                 editor.setEntity(t);
                 setCurrentTileEditor(editor);
                 tileNameField.textProperty().addListener(rebuildListener);
                 tileCategoryField.textProperty().addListener(rebuildListener);
-            } catch (NoSuchMethodException ex) {
+            } catch (IllegalArgumentException | InvocationTargetException | SecurityException | NoSuchMethodException ex) {
                 Logger.getLogger(ApplicationUIController.class.getName()).log(Level.SEVERE, null, ex);
             } catch (InstantiationException | IllegalAccessException ex) {
                 Logger.getLogger(ApplicationUIControllerImpl.class.getName()).log(Level.SEVERE, null, ex);

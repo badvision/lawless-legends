@@ -144,6 +144,8 @@ public class UIAction {
                     JAXB.marshal(ApplicationState.getInstance().getGameData(), currentSaveFile);
                 }
                 break;
+            default:
+                break;
         }
     }
 

@@ -1,8 +1,6 @@
 module outlaweditor {
-    requires org.controlsfx.controls;
     requires javafx.controls;
     requires javafx.graphics;
-    requires jdk.jsobject;
     requires javafx.web;
     requires javafx.media;
     requires javafx.fxml;
@@ -10,8 +8,12 @@ module outlaweditor {
     requires java.desktop;
     requires java.scripting;
     requires java.xml;
+    requires jdk.jsobject;
     requires jakarta.xml.bind;
-    requires org.apache.poi.ooxml;
+    requires org.glassfish.jaxb.runtime;
+
+    requires org.controlsfx.controls;
+    // requires org.apache.poi.ooxml;
 
     opens org.badvision.outlaweditor to javafx.graphics, javafx.fxml, javafx.web, org.apache.poi.ooxml;
     opens org.badvision.outlaweditor.ui to javafx.fxml;

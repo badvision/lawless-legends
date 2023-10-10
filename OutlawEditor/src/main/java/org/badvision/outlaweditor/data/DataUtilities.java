@@ -34,12 +34,6 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.xml.namespace.QName;
-import org.apache.poi.hssf.usermodel.HSSFWorkbook;
-import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.badvision.outlaweditor.api.ApplicationState;
 import org.badvision.outlaweditor.data.xml.Block;
 import org.badvision.outlaweditor.data.xml.Field;
@@ -266,12 +260,8 @@ public class DataUtilities {
             if (file.getName().toLowerCase().endsWith("txt")
                     || file.getName().toLowerCase().endsWith("tsv")) {
                 return readTextFile(file);
-            } else if (file.getName().toLowerCase().endsWith("xls")) {
-                return readLegacyExcel(file);
-            } else if (file.getName().toLowerCase().endsWith("xlsx")) {
-                return readExcel(file);
-            }
-        } catch (IOException | InvalidFormatException ex) {
+            } 
+        } catch (IOException ex) {
             Logger.getLogger(DataUtilities.class.getName()).log(Level.SEVERE, null, ex);
         }
         UIAction.alert("Couldn't figure out how to import file " + file.getName());
@@ -283,42 +273,6 @@ public class DataUtilities {
         return reader.lines().map(line -> Arrays.asList(line.split("\\t"))).collect(Collectors.toList());
     }
 
-    public static List<List<String>> readLegacyExcel(File file) throws FileNotFoundException, IOException {
-        return readSheet(new HSSFWorkbook(new FileInputStream(file)));
-    }
-
-    public static List<List<String>> readExcel(File file) throws FileNotFoundException, IOException, InvalidFormatException {
-        return readSheet(new XSSFWorkbook(file));
-    }
-
-    public static List<List<String>> readSheet(Workbook workbook) {
-        Sheet sheet = workbook.getSheetAt(0);
-        List<List<String>> data = new ArrayList<>();
-        sheet.forEach(row -> {
-            List<String> rowData = new ArrayList<>();
-            row.forEach(cell -> {
-                String col = getStringValueFromCell(cell);
-                rowData.add(col);
-            });
-            data.add(rowData);
-        });
-        return data;
-    }
-
-    public static String getStringValueFromCell(Cell cell) {
-        switch (cell.getCellType()) {
-            case BOOLEAN:
-                return Boolean.toString(cell.getBooleanCellValue());
-            case BLANK:
-                return null;
-            case NUMERIC:
-                return Double.toString(cell.getNumericCellValue());
-            case STRING:
-                return cell.getStringCellValue();
-            default:
-                return "???";
-        }
-    }
 
     public static String hexDump(byte[] data) {
         StringBuilder dump = new StringBuilder();

@@ -14,13 +14,14 @@
 package org.badvision.outlaweditor;
 
 import java.io.IOException;
+
+import org.badvision.outlaweditor.data.xml.Sheet;
+import org.badvision.outlaweditor.ui.impl.SheetEditorControllerImpl;
+
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.layout.AnchorPane;
 import javafx.stage.Stage;
-import javafx.stage.WindowEvent;
-import org.badvision.outlaweditor.data.xml.Sheet;
-import org.badvision.outlaweditor.ui.impl.SheetEditorControllerImpl;
 
 /**
  * Edit a spreadsheet of information

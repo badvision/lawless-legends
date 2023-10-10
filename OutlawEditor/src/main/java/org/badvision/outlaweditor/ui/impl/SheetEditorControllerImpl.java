@@ -266,7 +266,7 @@ public class SheetEditorControllerImpl extends SheetEditorController {
 
         rebuildColumnHeaders();
 
-        tableData = FXCollections.observableList(new ArrayList(numRows));
+        tableData = FXCollections.observableList(new ArrayList<>(numRows));
         if (editor.getSheet().getRows() != null) {
             int rowNum = 0;
             for (Row row : editor.getSheet().getRows().getRow()) {

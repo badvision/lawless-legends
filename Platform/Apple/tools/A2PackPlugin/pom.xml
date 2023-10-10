@@ -30,24 +30,6 @@
                     </instructions>
                 </configuration>
             </plugin>
-            <plugin>
-                <groupId>org.apache.felix</groupId>
-                <artifactId>maven-scr-plugin</artifactId>
-                <version>1.22.0</version>
-                <executions>
-                    <execution>
-                        <id>generate-scr-scrdescriptor</id>
-                        <goals>
-                            <goal>scr</goal>
-                        </goals>
-                        <configuration>
-                            <properties>
-                                <service.vendor>8-Bit Bunch</service.vendor>
-                            </properties>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
             <plugin> 
                 <groupId>com.googlecode.addjars-maven-plugin</groupId> 
                 <artifactId>addjars-maven-plugin</artifactId> 

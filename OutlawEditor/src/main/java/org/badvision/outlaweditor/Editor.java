@@ -109,11 +109,13 @@ public abstract class Editor<T, D> implements DataObserver<T> {
     public void undo() {
         if (!undoStates.isEmpty()) {
             T undoState = undoStates.removeFirst();
-            setEntity(undoState);            
+            copyEntityFrom(undoState);            
             onEntityUpdated();
             redraw();
         }
     }
+
+    public abstract void copyEntityFrom(T copyFrom);
 
     protected void onEntityUpdated() {
 

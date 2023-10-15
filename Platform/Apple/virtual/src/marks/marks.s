@@ -22,10 +22,7 @@ tmp	= $4	; len 2
 pTmp    = $6    ; len 2
 pBuf	= $8	; len 2
 ; free: $9-$F (but used by prorwts)
-retAddr = $10    ; len 2
-width   = $12	 ; len 1
-stride  = $13	 ; len 1
-mask    = $14	 ; len 1
+mask    = $14	; len 1
 
 
 	jmp _writeMarks
@@ -37,14 +34,14 @@ mask    = $14	 ; len 1
 ;       TOS-1 = ...and hi byte
 ;       TOS   = map number (with hi bit set if 3D)
 saveMarks: !zone
-	sta stride
-	stx width
+	sta .stride
+	stx .width
 	sty .lineCt
 	pla
-	sta retAddr
+	sta .ret+4
 	pla
-	sta retAddr+1
-.rescan	lda width	; need to reload (not just txa) in case rescanning after write
+	sta .ret+1
+.rescan	lda .width	; need to reload (not just txa) in case rescanning after write
 	clc
 	adc #7
 	lsr
@@ -111,7 +108,7 @@ saveMarks: !zone
 	lda #$80	; restore sentinel
 	sta tmp
 +	inx
-	cpx width
+	cpx .width
 	bne .get	; loop until row width is complete
 	lda tmp
 	cmp #$80
@@ -125,18 +122,20 @@ saveMarks: !zone
 	iny
 +	lda .get+1
 	clc
-	adc stride	; add stride (self-modified above)
+	adc .stride	; add stride (self-modified above)
 	sta .get+1
 	bcc +
 	inc .get+2
 +	dec .lineCt
 	bne .nxtrow
-.ret	lda retAddr+1
+.ret	lda #11		; self-modified above
 	pha
-	lda retAddr
+	lda #11		; self-modified above
 	pha
 	rts
 .lineCt !byte 0
+.width  !byte 0
+.stride !byte 0
 
 ; Scan the buffer for A-reg as target map
 ; Advances pBuf through the buffer

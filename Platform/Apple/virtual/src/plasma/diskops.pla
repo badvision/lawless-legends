@@ -703,6 +703,7 @@ def newOrLoadGame(ask)#1
         ret = pImportModule()=>import_getGame(@funcTbl)
         if ret == 0
           displayMenu(existing)
+          ret = -1 // ask again
         elsif ret == 1
           ret = 0  // imported LL, which is like Loading a game
         else

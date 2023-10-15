@@ -341,6 +341,8 @@ LOAD_ALL_TILES
 
 FREE_SCRIPTS
 	+freeResource SCRIPTS_LOC
+	LDA #0
+	STA SCRIPTS_ID
 	RTS
 
 !macro freeScripts {

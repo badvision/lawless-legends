@@ -83,6 +83,7 @@ predef showParty()#0
 predef textureControl(flg)#0
 predef clearEncounterZones()#0
 predef adjustPartyStat(statName, val)#0
+predef printMem()#1
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Global variables
@@ -1114,7 +1115,9 @@ asm scanScripts(x, y, triggerTbl, mapScripts)#1
   cmp .yCoord,x         ; check for Y coordinate we want
   beq .goty
   lda (.pTriggerTbl),y  ; not found, add offset to find next Y section
-  clc
+  bne +
+  brk
++ clc
   adc .pTriggerTbl
   sta .pTriggerTbl
   bcc .ylup
@@ -1631,8 +1634,7 @@ export def pause(count)#1
     if ^kbd >= 128; break; fin
     animPauseCt--
     if animPauseCt < 0
-      if anyAnims; nextAnimFrame(); fin
-      animPauseCt = ANIM_PAUSE_MAX
+      nextAnimFrame()  // also resets animPauseCt
     fin
   next
   if recordMode; recordSeed = prevSeed; fin
@@ -2160,6 +2162,9 @@ export def textureControl(flg)#0
         showingLamp = mapIs3D and (skyNum == 0 or skyNum == 8)
       else
         _texControl(0)
+        if !mapIs3D
+          pCurMap = NULL // tile engine frees all maps, even current one
+        fin
         if pModUtil3d and mapIs3D and !inScript   // e.g. strafe -> script -> combat: need strafe to stay in mem!
           mmgr(FREE_MEMORY, pModUtil3d)
           pModUtil3d = NULL
@@ -2293,6 +2298,8 @@ def snooze()#1
       advTime(0, 59 - global->b_minute, 60 - global->b_second)  // start of next hour
     fin
   fin
+
+  nextAnimFrame()
 
   cursX, cursY = getCursor()
   if cursX == snoozeX1 and cursY == snoozeY
@@ -2666,6 +2673,8 @@ end
 def nextAnimFrame()#0
   word flags, param
   byte dir, randNum
+
+  animPauseCt = ANIM_PAUSE_MAX
 
   if !anyAnims; return; fin
 

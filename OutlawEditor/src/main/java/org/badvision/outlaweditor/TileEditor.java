@@ -10,20 +10,11 @@
  
 package org.badvision.outlaweditor;
 
-/**
- *
- * @author brobert
- */
-import javafx.event.EventHandler;
-import javafx.scene.control.Menu;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
-import javafx.scene.layout.FlowPane;
-import javafx.scene.layout.Pane;
-import org.badvision.outlaweditor.api.ApplicationState;
 import org.badvision.outlaweditor.data.xml.Tile;
 import org.badvision.outlaweditor.ui.PatternSelectModal;
-import org.badvision.outlaweditor.ui.TileSelectModal;
+
+import javafx.scene.control.Menu;
+import javafx.scene.layout.Pane;
 
 public abstract class TileEditor extends Editor<Tile, TileEditor.DrawMode> {
     abstract public void buildPatternSelector(Menu tilePatternMenu);
@@ -45,4 +36,19 @@ public abstract class TileEditor extends Editor<Tile, TileEditor.DrawMode> {
     public void showSelectorModal() {
         patternSelectModal.showPatternSelectModal(targetPane);
     }
+    
+    @Override
+    public void copyEntityFrom(Tile src) {
+        Tile dest = getEntity();
+        dest.setBlocker(src.isBlocker());
+        dest.setCategory(src.getCategory());
+        dest.setComment(src.getComment());
+        dest.setId(src.getId());
+        dest.setName(src.getName());
+        dest.setObstruction(src.isObstruction());
+        dest.setSprite(src.isSprite());
+        dest.getDisplayData().clear();
+        dest.getDisplayData().addAll(src.getDisplayData());
+    }
+
 }

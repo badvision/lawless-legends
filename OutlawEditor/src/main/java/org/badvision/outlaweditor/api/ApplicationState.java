@@ -15,12 +15,12 @@
  */
 package org.badvision.outlaweditor.api;
 
-import javafx.stage.Stage;
-import org.badvision.outlaweditor.Application;
 import org.badvision.outlaweditor.data.xml.GameData;
 import org.badvision.outlaweditor.ui.ApplicationUIController;
-import org.osgi.framework.BundleContext;
-import org.osgi.framework.FrameworkUtil;
+
+import javafx.stage.Stage;
+// import org.osgi.framework.BundleContext;
+// import org.osgi.framework.FrameworkUtil;
 
 /**
  *
@@ -40,7 +40,7 @@ public interface ApplicationState {
     public ApplicationUIController getController();
 
     public Stage getPrimaryStage();
-
+    /*
     static public BundleContext getBundleContext() {
         if (Application.felix != null) {
             return Application.felix.getBundleContext();
@@ -52,6 +52,10 @@ public interface ApplicationState {
     public static ApplicationState getInstance() {
         BundleContext bc = getBundleContext();
         return bc.getService(bc.getServiceReference(ApplicationState.class));
+    }
+    */
+    public static ApplicationState getInstance() {
+        return org.badvision.outlaweditor.Application.applicationStateSingleton;
     }
 
 }

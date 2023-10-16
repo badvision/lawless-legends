@@ -43,7 +43,7 @@ public enum Platform {
     public int maxImageWidth;
     public int maxImageHeight;
 
-    Platform(Class ed, Class imged, TileRenderer ren, ImageRenderer img, int w, int h, int maxW, int maxH) {
+    Platform(Class<? extends TileEditor> ed, Class<? extends ImageEditor> imged, TileRenderer ren, ImageRenderer img, int w, int h, int maxW, int maxH) {
         tileEditor = ed;
         imageEditor = imged;
         tileRenderer = ren;

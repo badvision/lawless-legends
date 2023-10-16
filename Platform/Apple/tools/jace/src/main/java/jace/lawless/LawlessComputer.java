@@ -117,7 +117,7 @@ public class LawlessComputer extends Apple2e {
     private void renderWithMask(int... mask) throws InterruptedException {
         RAM128k ram = (RAM128k) getMemory();
         byte[] framebuffer = getBootScreen();
-        int maskOffset = 0;
+        int maskOffset;
         for (int i = 0; i < 0x02000; i += 2) {
             int y = Video.identifyHiresRow(i + 0x02000);
             int x = i - Video.calculateHiresOffset(y);

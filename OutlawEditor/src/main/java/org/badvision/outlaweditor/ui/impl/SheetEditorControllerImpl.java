@@ -23,16 +23,12 @@ import java.util.ResourceBundle;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import javafx.beans.value.ObservableValue;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
-import javafx.event.ActionEvent;
-import javafx.scene.control.MenuItem;
-import javafx.stage.FileChooser;
-import javax.xml.bind.JAXBException;
+
 import org.badvision.outlaweditor.SheetEditor;
 import org.badvision.outlaweditor.TransferHelper;
 import org.badvision.outlaweditor.data.DataUtilities;
+import static org.badvision.outlaweditor.data.DataUtilities.getValue;
+import static org.badvision.outlaweditor.data.DataUtilities.setValue;
 import org.badvision.outlaweditor.data.xml.Columns;
 import org.badvision.outlaweditor.data.xml.Rows;
 import org.badvision.outlaweditor.data.xml.Rows.Row;
@@ -44,8 +40,13 @@ import org.controlsfx.control.spreadsheet.GridBase;
 import org.controlsfx.control.spreadsheet.SpreadsheetCell;
 import org.controlsfx.control.spreadsheet.SpreadsheetCellBase;
 
-import static org.badvision.outlaweditor.data.DataUtilities.getValue;
-import static org.badvision.outlaweditor.data.DataUtilities.setValue;
+import jakarta.xml.bind.JAXBException;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.event.ActionEvent;
+import javafx.scene.control.MenuItem;
+import javafx.stage.FileChooser;
 
 public class SheetEditorControllerImpl extends SheetEditorController {
 
@@ -265,7 +266,7 @@ public class SheetEditorControllerImpl extends SheetEditorController {
 
         rebuildColumnHeaders();
 
-        tableData = FXCollections.observableList(new ArrayList(numRows));
+        tableData = FXCollections.observableList(new ArrayList<>(numRows));
         if (editor.getSheet().getRows() != null) {
             int rowNum = 0;
             for (Row row : editor.getSheet().getRows().getRow()) {

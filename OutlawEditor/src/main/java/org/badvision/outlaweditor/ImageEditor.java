@@ -79,4 +79,14 @@ public abstract class ImageEditor extends Editor<Image, ImageEditor.DrawMode> {
     public void showSelectorModal() {
         patternSelectModal.showPatternSelectModal(targetPane);
     }
+
+    @Override
+    public void copyEntityFrom(Image src) {
+        Image dest = getEntity();
+        dest.setCategory(src.getCategory());
+        dest.setComment(src.getComment());
+        dest.setName(src.getName());
+        dest.getDisplayData().clear();
+        dest.getDisplayData().addAll(src.getDisplayData());
+    }
 }

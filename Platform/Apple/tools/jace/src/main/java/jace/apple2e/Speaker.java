@@ -27,8 +27,6 @@ import java.util.Timer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.sound.sampled.SourceDataLine;
-
 import jace.Emulator;
 import jace.LawlessLegends;
 import jace.config.ConfigurableField;
@@ -106,10 +104,6 @@ public class Speaker extends SoundGeneratorDevice {
      */
     @ConfigurableField(name = "Idle cycles before sleep", shortName = "idle")
     public static int MAX_IDLE_CYCLES = 2000000;
-    /**
-     * Java sound output
-     */
-    private SourceDataLine sdl;
     /**
      * Manifestation of the apple speaker softswitch
      */

@@ -3,16 +3,14 @@ package jace.lawless;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -132,17 +130,18 @@ public class LawlessHacks extends Cheats {
     private Media getAudioTrack(int number) {
         String filename = getSongName(number);
         String pathStr = "/jace/data/sound/" + filename;
-//        System.out.println("looking in "+pathStr);
         URL path = getClass().getResource(pathStr);
         if (path == null) {
             return null;
         }
-        try {
-            return new Media(path.toURI().toString());
-        } catch (URISyntaxException e) {
-            Logger.getLogger(getClass().getName()).log(Level.WARNING, "Unable to load audio track " + number + " from " + pathStr, e);
-            return null;
+        String resourcePath = path.toString();
+        System.out.println("Playing " + resourcePath);
+        if (resourcePath.startsWith("resource:")) {
+            resourcePath = Paths.get(resourcePath).toFile().getAbsolutePath();
+            System.out.println("Playing " + resourcePath);
         }
+        // Log path
+        return new Media(resourcePath);
     }
 
     private void playMusic(int track, boolean switchScores) {

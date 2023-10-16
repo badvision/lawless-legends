@@ -13,12 +13,13 @@ package org.badvision.outlaweditor;
 import java.util.LinkedList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javafx.scene.layout.Pane;
-import javax.xml.bind.JAXBException;
+
 import org.badvision.outlaweditor.data.DataObserver;
 import org.badvision.outlaweditor.data.DataProducer;
 import org.badvision.outlaweditor.data.xml.Script;
-import org.jvnet.jaxb2_commons.lang.CopyTo2;
+
+import jakarta.xml.bind.JAXBException;
+import javafx.scene.layout.Pane;
 
 /**
  * Extremely generic editor abstraction -- useful for uniform edit features
@@ -107,12 +108,14 @@ public abstract class Editor<T, D> implements DataObserver<T> {
 
     public void undo() {
         if (!undoStates.isEmpty()) {
-            CopyTo2 undoState = (CopyTo2) undoStates.removeFirst();
-            undoState.copyTo(getEntity());
+            T undoState = undoStates.removeFirst();
+            copyEntityFrom(undoState);            
             onEntityUpdated();
             redraw();
         }
     }
+
+    public abstract void copyEntityFrom(T copyFrom);
 
     protected void onEntityUpdated() {
 

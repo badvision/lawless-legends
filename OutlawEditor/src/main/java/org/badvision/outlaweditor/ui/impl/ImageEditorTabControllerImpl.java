@@ -14,13 +14,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
-import javafx.event.ActionEvent;
-import javafx.scene.control.ListView;
-import javafx.util.StringConverter;
-import javax.xml.bind.JAXBException;
-import org.badvision.outlaweditor.Application;
+
 import org.badvision.outlaweditor.Editor;
 import org.badvision.outlaweditor.ImageEditor;
 import org.badvision.outlaweditor.TransferHelper;
@@ -31,6 +25,13 @@ import org.badvision.outlaweditor.data.xml.Image;
 import org.badvision.outlaweditor.ui.EntitySelectorCell;
 import org.badvision.outlaweditor.ui.ImageEditorTabController;
 import static org.badvision.outlaweditor.ui.UIAction.confirm;
+
+import jakarta.xml.bind.JAXBException;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
+import javafx.event.ActionEvent;
+import javafx.scene.control.ListView;
+import javafx.util.StringConverter;
 
 /**
  * FXML Controller class
@@ -56,6 +57,9 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
         imageSelector.setConverter(new StringConverter<Image>() {
             @Override
             public String toString(Image object) {
+                if (object == null) {
+                    return "";
+                }
                 return String.valueOf(object.getCategory()) + "/" + String.valueOf(object.getName());
             }
 

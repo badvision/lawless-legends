@@ -3,7 +3,13 @@
   "name":"[Lcom.sun.glass.ui.Screen;"
 },
 {
+  "name":"[Ljava.lang.Object;"
+},
+{
   "name":"[Ljava.lang.String;"
+},
+{
+  "name":"[[Ljava.lang.String;"
 },
 {
   "name":"com.sun.glass.ui.Application",
@@ -56,10 +62,7 @@
 },
 {
   "name":"com.sun.glass.ui.Screen",
-  "methods":[
-    {"name":"<init>","parameterTypes":["long","int","int","int","int","int","int","int","int","int","int","int","int","int","int","int","float","float","float","float"] }, 
-    {"name":"notifySettingsChanged","parameterTypes":[] }
-  ]
+  "methods":[{"name":"<init>","parameterTypes":["long","int","int","int","int","int","int","int","int","int","int","int","int","int","int","int","float","float","float","float"] }]
 },
 {
   "name":"com.sun.glass.ui.Size",
@@ -122,62 +125,6 @@
   "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
-  "name":"com.sun.javafx.iio.common.ImageLoaderImpl",
-  "methods":[{"name":"emitWarning","parameterTypes":["java.lang.String"] }]
-},
-{
-  "name":"com.sun.javafx.iio.jpeg.JPEGImageLoader",
-  "methods":[
-    {"name":"setInputAttributes","parameterTypes":["int","int","int","int","int","byte[]"] }, 
-    {"name":"setOutputAttributes","parameterTypes":["int","int"] }, 
-    {"name":"updateImageProgress","parameterTypes":["int"] }
-  ]
-},
-{
-  "name":"com.sun.media.jfxmedia.locator.Locator",
-  "methods":[{"name":"getStringLocation","parameterTypes":[] }]
-},
-{
-  "name":"com.sun.media.jfxmedia.logging.Logger",
-  "methods":[
-    {"name":"logMsg","parameterTypes":["int","java.lang.String"] }, 
-    {"name":"logMsg","parameterTypes":["int","java.lang.String","java.lang.String","java.lang.String"] }
-  ]
-},
-{
-  "name":"com.sun.media.jfxmediaimpl.NativeMediaPlayer",
-  "methods":[
-    {"name":"sendAudioSpectrumEvent","parameterTypes":["double","double","boolean"] }, 
-    {"name":"sendAudioTrack","parameterTypes":["boolean","long","java.lang.String","int","java.lang.String","int","int","float"] }, 
-    {"name":"sendBufferProgressEvent","parameterTypes":["double","long","long","long"] }, 
-    {"name":"sendDurationUpdateEvent","parameterTypes":["double"] }, 
-    {"name":"sendFrameSizeChangedEvent","parameterTypes":["int","int"] }, 
-    {"name":"sendMarkerEvent","parameterTypes":["java.lang.String","double"] }, 
-    {"name":"sendNewFrameEvent","parameterTypes":["long"] }, 
-    {"name":"sendPlayerHaltEvent","parameterTypes":["java.lang.String","double"] }, 
-    {"name":"sendPlayerMediaErrorEvent","parameterTypes":["int"] }, 
-    {"name":"sendPlayerStateEvent","parameterTypes":["int","double"] }, 
-    {"name":"sendSubtitleTrack","parameterTypes":["boolean","long","java.lang.String","int","java.lang.String"] }, 
-    {"name":"sendVideoTrack","parameterTypes":["boolean","long","java.lang.String","int","int","int","float","boolean"] }, 
-    {"name":"sendWarning","parameterTypes":["int","java.lang.String"] }
-  ]
-},
-{
-  "name":"com.sun.media.jfxmediaimpl.platform.osx.OSXMediaPlayer"
-},
-{
-  "name":"com.sun.media.sound.DirectAudioDevice",
-  "methods":[{"name":"addFormat","parameterTypes":["java.util.Vector","int","int","int","float","int","boolean","boolean"] }]
-},
-{
-  "name":"com.sun.media.sound.DirectAudioDeviceProvider$DirectAudioDeviceInfo",
-  "methods":[{"name":"<init>","parameterTypes":["int","int","int","java.lang.String","java.lang.String","java.lang.String","java.lang.String"] }]
-},
-{
-  "name":"com.sun.media.sound.PortMixerProvider$PortMixerInfo",
-  "methods":[{"name":"<init>","parameterTypes":["int","java.lang.String","java.lang.String","java.lang.String","java.lang.String"] }]
-},
-{
   "name":"com.sun.webkit.BackForwardList",
   "methods":[{"name":"notifyChanged","parameterTypes":[] }]
 },
@@ -214,6 +161,10 @@
     {"name":"fwkSetFireTime","parameterTypes":["double"] }, 
     {"name":"fwkStopTimer","parameterTypes":[] }
   ]
+},
+{
+  "name":"com.sun.webkit.Utilities",
+  "methods":[{"name":"fwkInvokeWithContext","parameterTypes":["java.lang.reflect.Method","java.lang.Object","java.lang.Object[]","java.security.AccessControlContext"] }]
 },
 {
   "name":"com.sun.webkit.WCWidget",
@@ -277,6 +228,7 @@
 {
   "name":"com.sun.webkit.graphics.Ref",
   "methods":[
+    {"name":"deref","parameterTypes":[] }, 
     {"name":"getID","parameterTypes":[] }, 
     {"name":"ref","parameterTypes":[] }
   ]
@@ -288,15 +240,14 @@
 {
   "name":"com.sun.webkit.graphics.WCFont",
   "methods":[
+    {"name":"equals","parameterTypes":["java.lang.Object"] }, 
     {"name":"getAscent","parameterTypes":[] }, 
     {"name":"getCapHeight","parameterTypes":[] }, 
     {"name":"getDescent","parameterTypes":[] }, 
-    {"name":"getGlyphBoundingBox","parameterTypes":["int"] }, 
     {"name":"getGlyphCodes","parameterTypes":["char[]"] }, 
     {"name":"getGlyphWidth","parameterTypes":["int"] }, 
     {"name":"getLineGap","parameterTypes":[] }, 
     {"name":"getLineSpacing","parameterTypes":[] }, 
-    {"name":"getTextRuns","parameterTypes":["java.lang.String"] }, 
     {"name":"getXHeight","parameterTypes":[] }, 
     {"name":"hasUniformLineMetrics","parameterTypes":[] }, 
     {"name":"hashCode","parameterTypes":[] }
@@ -305,9 +256,55 @@
 {
   "name":"com.sun.webkit.graphics.WCGraphicsManager",
   "methods":[
+    {"name":"createBufferedContextRQ","parameterTypes":["com.sun.webkit.graphics.WCImage"] }, 
+    {"name":"createRTImage","parameterTypes":["int","int"] }, 
     {"name":"createWCPath","parameterTypes":[] }, 
+    {"name":"createWCPath","parameterTypes":["com.sun.webkit.graphics.WCPath"] }, 
     {"name":"getGraphicsManager","parameterTypes":[] }, 
+    {"name":"getImageDecoder","parameterTypes":[] }, 
     {"name":"getWCFont","parameterTypes":["java.lang.String","boolean","boolean","float"] }
+  ]
+},
+{
+  "name":"com.sun.webkit.graphics.WCImageDecoder",
+  "methods":[
+    {"name":"addImageData","parameterTypes":["byte[]"] }, 
+    {"name":"destroy","parameterTypes":[] }, 
+    {"name":"getFrame","parameterTypes":["int"] }, 
+    {"name":"getFrameCompleteStatus","parameterTypes":["int"] }, 
+    {"name":"getFrameCount","parameterTypes":[] }, 
+    {"name":"getFrameDuration","parameterTypes":["int"] }, 
+    {"name":"getFrameSize","parameterTypes":["int"] }, 
+    {"name":"getImageSize","parameterTypes":[] }, 
+    {"name":"loadFromResource","parameterTypes":["java.lang.String"] }
+  ]
+},
+{
+  "name":"com.sun.webkit.graphics.WCImageFrame",
+  "methods":[{"name":"getSize","parameterTypes":[] }]
+},
+{
+  "name":"com.sun.webkit.graphics.WCPath",
+  "methods":[
+    {"name":"addBezierCurveTo","parameterTypes":["double","double","double","double","double","double"] }, 
+    {"name":"addLineTo","parameterTypes":["double","double"] }, 
+    {"name":"addRect","parameterTypes":["double","double","double","double"] }, 
+    {"name":"closeSubpath","parameterTypes":[] }, 
+    {"name":"contains","parameterTypes":["int","double","double"] }, 
+    {"name":"getBounds","parameterTypes":[] }, 
+    {"name":"getPathIterator","parameterTypes":[] }, 
+    {"name":"isEmpty","parameterTypes":[] }, 
+    {"name":"moveTo","parameterTypes":["double","double"] }, 
+    {"name":"strokeContains","parameterTypes":["double","double","double","double","int","int","double","double[]"] }, 
+    {"name":"transform","parameterTypes":["double","double","double","double","double","double"] }
+  ]
+},
+{
+  "name":"com.sun.webkit.graphics.WCPathIterator",
+  "methods":[
+    {"name":"currentSegment","parameterTypes":["double[]"] }, 
+    {"name":"isDone","parameterTypes":[] }, 
+    {"name":"next","parameterTypes":[] }
   ]
 },
 {
@@ -337,18 +334,6 @@
   ]
 },
 {
-  "name":"com.sun.webkit.graphics.WCTextRun",
-  "methods":[
-    {"name":"getCharOffset","parameterTypes":["int"] }, 
-    {"name":"getEnd","parameterTypes":[] }, 
-    {"name":"getGlyph","parameterTypes":["int"] }, 
-    {"name":"getGlyphCount","parameterTypes":[] }, 
-    {"name":"getGlyphPosAndAdvance","parameterTypes":["int"] }, 
-    {"name":"getStart","parameterTypes":[] }, 
-    {"name":"isLeftToRight","parameterTypes":[] }
-  ]
-},
-{
   "name":"com.sun.webkit.network.FormDataElement",
   "methods":[
     {"name":"fwkCreateFromByteArray","parameterTypes":["byte[]"] }, 
@@ -368,85 +353,23 @@
   "methods":[{"name":"fwkCancel","parameterTypes":[] }]
 },
 {
-  "name":"jace.ide.Program"
-},
-{
   "name":"java.io.File",
   "methods":[{"name":"<init>","parameterTypes":["java.lang.String"] }]
 },
 {
-  "name":"java.io.InputStream",
-  "methods":[
-    {"name":"read","parameterTypes":["byte[]","int","int"] }, 
-    {"name":"skip","parameterTypes":["long"] }
-  ]
-},
-{
-  "name":"com.sun.media.sound.DirectAudioDevice",
-  "methods":[
-     {
-        "name":"addFormat",
-        "parameterTypes":[
-           "java.util.Vector",
-           "int",
-           "int",
-           "int",
-           "float",
-           "int",
-           "boolean",
-           "boolean"
-        ]
-     }
-  ]
-},
-{
-  "name":"com.sun.media.sound.DirectAudioDeviceProvider$DirectAudioDeviceInfo",
-  "methods":[
-     {
-        "name":"<init>",
-        "parameterTypes":[
-           "int",
-           "int",
-           "int",
-           "java.lang.String",
-           "java.lang.String",
-           "java.lang.String",
-           "java.lang.String"
-        ]
-     }
-  ]
-},
-{
-  "name":"com.sun.media.sound.PortMixerProvider$PortMixerInfo",
-  "methods":[
-     {
-        "name":"<init>",
-        "parameterTypes":[
-           "int",
-           "java.lang.String",
-           "java.lang.String",
-           "java.lang.String",
-           "java.lang.String"
-        ]
-     }
-  ]
-},
-{
   "name":"java.lang.Boolean",
   "methods":[
-     {
-        "name":"getBoolean",
-        "parameterTypes":[
-           "java.lang.String"
-        ]
-     },
-    {"name":"booleanValue","parameterTypes":[] }
+    {"name":"booleanValue","parameterTypes":[] }, 
+    {"name":"valueOf","parameterTypes":["boolean"] }
   ]
 },
 {
   "name":"java.lang.Class",
   "methods":[
     {"name":"forName","parameterTypes":["java.lang.String","boolean","java.lang.ClassLoader"] }, 
+    {"name":"getFields","parameterTypes":[] }, 
+    {"name":"getMethods","parameterTypes":[] }, 
+    {"name":"getName","parameterTypes":[] }, 
     {"name":"isArray","parameterTypes":[] }
   ]
 },
@@ -461,7 +384,8 @@
   "name":"java.lang.Integer",
   "methods":[
     {"name":"<init>","parameterTypes":["int"] }, 
-    {"name":"intValue","parameterTypes":[] }
+    {"name":"intValue","parameterTypes":[] }, 
+    {"name":"valueOf","parameterTypes":["int"] }
   ]
 },
 {
@@ -482,6 +406,7 @@
 {
   "name":"java.lang.String",
   "methods":[
+    {"name":"<init>","parameterTypes":["byte[]","java.lang.String"] }, 
     {"name":"lastIndexOf","parameterTypes":["int"] }, 
     {"name":"substring","parameterTypes":["int"] }
   ]
@@ -494,8 +419,28 @@
   ]
 },
 {
+  "name":"java.lang.reflect.Field",
+  "methods":[
+    {"name":"getName","parameterTypes":[] }, 
+    {"name":"getType","parameterTypes":[] }
+  ]
+},
+{
+  "name":"java.lang.reflect.Method",
+  "methods":[
+    {"name":"getModifiers","parameterTypes":[] }, 
+    {"name":"getName","parameterTypes":[] }, 
+    {"name":"getParameterTypes","parameterTypes":[] }, 
+    {"name":"getReturnType","parameterTypes":[] }
+  ]
+},
+{
   "name":"java.util.ArrayList",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
+  "methods":[
+    {"name":"<init>","parameterTypes":[] }, 
+    {"name":"get","parameterTypes":["int"] }, 
+    {"name":"size","parameterTypes":[] }
+  ]
 },
 {
   "name":"java.util.List",
@@ -507,6 +452,26 @@
 },
 {
   "name":"jdk.internal.loader.ClassLoaders$PlatformClassLoader"
+},
+{
+  "name":"org.badvision.outlaweditor.MythosEditor",
+  "methods":[
+    {"name":"checkSpelling","parameterTypes":["java.lang.String"] }, 
+    {"name":"getGlobalFunctions","parameterTypes":[] }, 
+    {"name":"getLocalFunctions","parameterTypes":[] }, 
+    {"name":"getUserTypes","parameterTypes":[] }, 
+    {"name":"setFunctionName","parameterTypes":["java.lang.String"] }
+  ]
+},
+{
+  "name":"org.badvision.outlaweditor.data.xml.NamedEntity",
+  "methods":[{"name":"getName","parameterTypes":[] }]
+},
+{
+  "name":"org.badvision.outlaweditor.data.xml.Script"
+},
+{
+  "name":"org.badvision.outlaweditor.data.xml.UserType"
 },
 {
   "name":"org.graalvm.jniutils.JNIExceptionWrapperEntryPoints",

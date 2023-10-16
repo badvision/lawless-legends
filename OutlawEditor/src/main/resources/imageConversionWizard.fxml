@@ -23,7 +23,7 @@
 
 <AnchorPane id="AnchorPane" maxHeight="482.0" maxWidth="600.0" prefHeight="482.0" prefWidth="600.0" styleClass="mainFxmlClass" xmlns="http://javafx.com/javafx/8.0.60" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.badvision.outlaweditor.ui.impl.ImageConversionWizardController">
     <stylesheets>
-        <URL value="@/styles/imageconversionwizard.css" />
+        <URL value="@styles/imageconversionwizard.css" />
     </stylesheets>
     <children>
         <HBox layoutX="14.0" layoutY="14.0" styleClass="imageViews" AnchorPane.bottomAnchor="276.0" AnchorPane.leftAnchor="14.0" AnchorPane.rightAnchor="14.0" AnchorPane.topAnchor="14.0">

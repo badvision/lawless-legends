@@ -141,8 +141,8 @@ public class Configuration implements Reconfigurable {
             children.setAll(super.getChildren());
             id = (String) in.readObject();
             name = (String) in.readObject();
-            settings = (Map) in.readObject();
-            hotkeys = (Map) in.readObject();
+            settings = (Map<String, Serializable>) in.readObject();
+            hotkeys = (Map<String, String[]>) in.readObject();
             Object[] nodeArray = (Object[]) in.readObject();
             synchronized (children) {
                 for (Object child : nodeArray) {
@@ -604,7 +604,7 @@ public class Configuration implements Reconfigurable {
             String fieldName = parts[1];
             ConfigNode n = shortNames.get(deviceName.toLowerCase());
             if (n == null) {
-                System.err.println("Unable to find device named " + deviceName + ", try one of these: " + Utility.join(shortNames.keySet(), ", "));
+                System.err.println("Unable to find device named " + deviceName + ", try one of these: " + String.join(", ", shortNames.keySet()));
                 continue;
             }
 
@@ -626,7 +626,7 @@ public class Configuration implements Reconfigurable {
                 }
             }
             if (!found) {
-                System.err.println("Unable to find property " + fieldName + " for device " + deviceName + ".  Try one of these: " + Utility.join(shortFieldNames, ", "));
+                System.err.println("Unable to find property " + fieldName + " for device " + deviceName + ".  Try one of these: " + String.join(", ", shortFieldNames));
             }
         }
     }

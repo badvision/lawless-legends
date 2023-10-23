@@ -346,7 +346,7 @@ public class EmulatorUILogic implements Reconfigurable {
         }
         String filename = targetFile.getName();
         System.out.println("Writing screenshot to " + filename);
-        String extension = filename.substring(filename.lastIndexOf(".") + 1);
+        // String extension = filename.substring(filename.lastIndexOf(".") + 1);
 //        BufferedImage bufImageRGB = new BufferedImage(bufImageARGB.getWidth(), bufImageARGB.getHeight(), BufferedImage.OPAQUE);
 //
 //        Graphics2D graphics = bufImageRGB.createGraphics();

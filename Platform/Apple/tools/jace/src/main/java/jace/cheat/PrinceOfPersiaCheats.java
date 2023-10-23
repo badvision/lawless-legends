@@ -290,7 +290,7 @@ public class PrinceOfPersiaCheats extends Cheats {
             }
             currentScrn = (byte) scrnLeft;
             byte prev = auxMem.readByte(PREV + row);
-            byte sprev = auxMem.readByte(SPREV + row);
+            // byte sprev = auxMem.readByte(SPREV + row);
             // If the block to the left is gate, let's lie about it being open... for science
             // This causes odd-looking screen behavior but it gets the job done.
             if (prev == 4) {

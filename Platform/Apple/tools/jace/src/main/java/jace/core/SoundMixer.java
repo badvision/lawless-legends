@@ -100,9 +100,11 @@ public class SoundMixer extends Device {
                     }
                 }
                 return result.get();
-            } catch (InterruptedException | ExecutionException e) {
+            } catch (ExecutionException e) {
                 System.out.println("Error when executing sound action: " + e.getMessage());
                 e.printStackTrace();
+            } catch (InterruptedException e) {
+                // Do nothing: sound is probably being reset
             }
         return null;
     }

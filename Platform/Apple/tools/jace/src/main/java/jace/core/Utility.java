@@ -136,11 +136,6 @@ public class Utility {
         return score * adjustment * adjustment;
     }
 
-    @Deprecated
-    public static String join(Collection<String> c, String d) {
-        return String.join(d, c);
-    }
-
     private static boolean isHeadless = false;
 
     public static void setHeadlessMode(boolean headless) {

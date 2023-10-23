@@ -46,9 +46,9 @@ public abstract class Cheats extends Device {
 
         Function<Computer, Cheats> factory;
         String name;
-        Class clazz;
+        Class<? extends Cheats> clazz;
 
-        Cheat(String name, Class clazz, Function<Computer, Cheats> factory) {
+        Cheat(String name, Class<? extends Cheats> clazz, Function<Computer, Cheats> factory) {
             this.name = name;
             this.clazz = clazz;
             this.factory = factory;

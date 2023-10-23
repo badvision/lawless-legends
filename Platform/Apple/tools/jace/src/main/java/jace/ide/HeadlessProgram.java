@@ -23,7 +23,7 @@ import java.util.Collections;
  */
 public class HeadlessProgram extends Program {    
     public HeadlessProgram(DocumentType type) {
-        super(type, Collections.EMPTY_MAP);
+        super(type, Collections.emptyMap());
     }
 
     String program;

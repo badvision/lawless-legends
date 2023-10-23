@@ -18,16 +18,10 @@
  */
 package jace.hardware;
 
-import jace.config.ConfigurableField;
-import jace.config.DynamicSelection;
-import jace.config.Name;
-import jace.core.Card;
-import jace.core.Computer;
-import jace.core.RAMEvent;
-import jace.core.RAMEvent.TYPE;
 import java.util.LinkedHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import javax.sound.midi.InvalidMidiDataException;
 import javax.sound.midi.MidiDevice;
 import javax.sound.midi.MidiSystem;
@@ -35,6 +29,14 @@ import javax.sound.midi.MidiUnavailableException;
 import javax.sound.midi.Receiver;
 import javax.sound.midi.ShortMessage;
 import javax.sound.midi.Synthesizer;
+
+import jace.config.ConfigurableField;
+import jace.config.DynamicSelection;
+import jace.config.Name;
+import jace.core.Card;
+import jace.core.Computer;
+import jace.core.RAMEvent;
+import jace.core.RAMEvent.TYPE;
 
 /**
  * Partial implementation of Passport midi card, supporting midi output routed
@@ -188,8 +190,8 @@ public class PassportMidiInterface extends Card {
     };
     private boolean ptmStatusReadSinceIRQ = false;
     // ---------------------- ACIA CONFIGURATION
-    private final boolean aciaInterruptOnSend = false;
-    private final boolean aciaInterruptOnReceive = false;
+    // private final boolean aciaInterruptOnSend = false;
+    // private final boolean aciaInterruptOnReceive = false;
     // ---------------------- ACIA STATUS BITS
     // True when MIDI IN receives a byte
     private final boolean receivedACIAByte = false;

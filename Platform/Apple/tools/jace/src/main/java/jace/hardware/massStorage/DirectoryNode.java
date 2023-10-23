@@ -19,6 +19,7 @@
 package jace.hardware.massStorage;
 
 import static jace.hardware.massStorage.IDisk.BLOCK_SIZE;
+
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
@@ -28,7 +29,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -295,9 +295,9 @@ public class DirectoryNode extends DiskNode implements FileFilter {
         }
     }
     
-    private Optional<DiskNode> findChildByFilename(String name) {
-        return directoryEntries.stream().filter((child) -> child.getPhysicalFile().getName().equals(name)).findFirst();
-    }    
+    // private Optional<DiskNode> findChildByFilename(String name) {
+    //     return directoryEntries.stream().filter((child) -> child.getPhysicalFile().getName().equals(name)).findFirst();
+    // }    
     
     private void addFile(File file) {
         if (!hasChildNamed(file.getName())) {

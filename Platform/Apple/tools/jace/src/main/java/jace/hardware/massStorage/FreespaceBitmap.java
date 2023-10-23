@@ -42,7 +42,8 @@ public class FreespaceBitmap extends DiskNode {
     @Override
     public void doAllocate() throws IOException {
         for (int i = 1; i < size; i++) {
-            SubNode subNode = new SubNode(i, this, getBaseBlock());
+            // SubNode subNode = 
+            new SubNode(i, this, getBaseBlock());
         }
     }
 

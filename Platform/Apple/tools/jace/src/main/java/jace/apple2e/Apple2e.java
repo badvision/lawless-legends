@@ -76,9 +76,9 @@ public class Apple2e extends Computer {
     @ConfigurableField(name = "Slot 5", shortName = "s5card")
     public DeviceSelection<Cards> card5 = new DeviceSelection<>(Cards.class, null);
     @ConfigurableField(name = "Slot 6", shortName = "s6card")
-    public DeviceSelection<Cards> card6 = new DeviceSelection<>(Cards.class, Cards.DiskIIDrive);
+    public DeviceSelection<Cards> card6 = new DeviceSelection<>(Cards.class, Cards.DiskIIDrive, true);
     @ConfigurableField(name = "Slot 7", shortName = "s7card")
-    public DeviceSelection<Cards> card7 = new DeviceSelection<>(Cards.class, Cards.MassStorage);
+    public DeviceSelection<Cards> card7 = new DeviceSelection<>(Cards.class, Cards.MassStorage, true);
     @ConfigurableField(name = "Debug rom", shortName = "debugRom", description = "Use debugger //e rom")
     public boolean useDebugRom = false;
     @ConfigurableField(name = "Helpful hints", shortName = "hints")
@@ -434,7 +434,7 @@ public class Apple2e extends Computer {
 
     private void enableHints() {
         if (hints.isEmpty()) {
-            hints.add(getMemory().observe(RAMEvent.TYPE.EXECUTE, 0x0FB63, (e)->{
+            hints.add(getMemory().observe("Helpful hints", RAMEvent.TYPE.EXECUTE, 0x0FB63, (e)->{
                 animationTimer.schedule(drawHints, 1, TimeUnit.SECONDS);
                 animationSchedule =
                             animationTimer.scheduleAtFixedRate(doAnimation, 1250, 100, TimeUnit.MILLISECONDS);

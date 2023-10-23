@@ -53,9 +53,9 @@ abstract public class RAM128k extends RAM {
 
         Function<Computer, ? extends RAM128k> factory;
         String name;
-        Class clazz;
+        Class<? extends RAM128k> clazz;
 
-        RamCards(String name, Class clazz, Function<Computer, ? extends RAM128k> factory) {
+        RamCards(String name, Class<? extends RAM128k> clazz, Function<Computer, ? extends RAM128k> factory) {
             this.factory = factory;
             this.name = name;
             this.clazz = clazz;
@@ -409,7 +409,7 @@ abstract public class RAM128k extends RAM {
      *
      */
     @Override
-    public synchronized void configureActiveMemory() {
+    public void configureActiveMemory() {
         String auxZpConfiguration = getAuxZPConfiguration();
         String readConfiguration = getReadConfiguration() + auxZpConfiguration;
         String writeConfiguration = getWriteConfiguration() + auxZpConfiguration;

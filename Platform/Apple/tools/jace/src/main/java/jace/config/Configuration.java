@@ -62,6 +62,11 @@ import javafx.scene.image.ImageView;
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com
  */
 public class Configuration implements Reconfigurable {
+    public EmulatorUILogic ui;
+
+    public Configuration() {
+        ui = Emulator.getUILogic();
+    }
 
     static ConfigurableField getConfigurableFieldInfo(Reconfigurable subject, String settingName) {
         Field f;
@@ -262,13 +267,12 @@ public class Configuration implements Reconfigurable {
         }
     }
     public static ConfigNode BASE;
-    public static EmulatorUILogic ui = Emulator.logic;
     @ConfigurableField(name = "Autosave Changes", description = "If unchecked, changes are only saved when the Save button is pressed.")
     public static boolean saveAutomatically = false;
 
     public static void buildTree() {
         BASE = new ConfigNode(new Configuration());
-        Set visited = new LinkedHashSet();
+        Set<ConfigNode> visited = new LinkedHashSet<>();
         buildTree(BASE, visited);
         Emulator.withComputer(c->{
             ConfigNode computer = new ConfigNode(BASE, c);

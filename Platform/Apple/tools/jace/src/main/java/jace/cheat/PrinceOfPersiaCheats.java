@@ -172,19 +172,19 @@ public class PrinceOfPersiaCheats extends Cheats {
     @Override
     public void registerListeners() {
         if (velocityHack) {
-            addCheat(RAMEvent.TYPE.READ_DATA, true, this::velocityHackBehavior, CharYVel);
+            addCheat("Hack velocity", RAMEvent.TYPE.READ_DATA, true, this::velocityHackBehavior, CharYVel);
         }
         if (invincibilityHack) {
-            forceValue(3, true, KidStrength);
+            forceValue("Hack invincibility", 3, true, KidStrength);
         }
         if (sleepHack) {
-            forceValue(0, true, EnemyAlert);
+            forceValue("Go to sleep!", 0, true, EnemyAlert);
         }
         if (swordHack) {
-            forceValue(1, true, hasSword);
+            forceValue("Can haz sword", 1, true, hasSword);
         }
         if (timeHack) {
-            forceValue(0x69, true, MinLeft);
+            forceValue("Hack time", 0x69, true, MinLeft);
         }
         if (mouseHack) {
             EmulatorUILogic.addMouseListener(listener);

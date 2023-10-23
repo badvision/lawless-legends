@@ -63,6 +63,7 @@ public class LawlessComputer extends Apple2e {
         if (showBootAnimation && PRODUCTION_MODE) {
             (new Thread(this::startAnimation)).start();
         } else {
+            cpu.setPaused(false);
             finishColdStart();
         }
     }

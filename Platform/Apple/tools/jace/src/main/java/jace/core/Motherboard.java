@@ -135,6 +135,7 @@ public class Motherboard extends TimedDevice {
                     addChildDevice(speaker);
                 } catch (Throwable t) {
                     System.out.println("Unable to initalize sound -- deactivating speaker out");
+                    t.printStackTrace();
                 }
             } else {
                 System.out.println("Speaker not enabled, leaving it off.");

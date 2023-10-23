@@ -202,7 +202,7 @@ public class ApplesoftProgram {
      */
     private void whenReady(Runnable r) {
         Emulator.withMemory(memory->{
-            memory.addListener(new RAMListener(RAMEvent.TYPE.EXECUTE, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY) {
+            memory.addListener(new RAMListener("Applesoft: Trap GOTO command", RAMEvent.TYPE.EXECUTE, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY) {
                 @Override
                 protected void doConfig() {
                     setScopeStart(GOTO_CMD);

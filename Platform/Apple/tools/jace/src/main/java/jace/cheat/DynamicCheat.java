@@ -1,5 +1,7 @@
 package jace.cheat;
 
+import javax.script.ScriptException;
+
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
 import javafx.beans.property.BooleanProperty;
@@ -9,7 +11,6 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.util.Callback;
-import javax.script.ScriptException;
 
 /**
  *
@@ -21,10 +22,11 @@ public class DynamicCheat extends RAMListener {
     StringProperty expression;
     BooleanProperty active;
     StringProperty name;
+    String cheatName;
     Callback<RAMEvent, Integer> expressionCallback;
 
-    public DynamicCheat(int address, String expr) {
-        super(RAMEvent.TYPE.ANY, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY);
+    public DynamicCheat(String cheatName, int address, String expr) {
+        super(cheatName, RAMEvent.TYPE.ANY, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY);
         id = (int) (Math.random() * 10000000);
         addr = new SimpleIntegerProperty(address);
         expression = new SimpleStringProperty(expr);
@@ -106,18 +108,19 @@ public class DynamicCheat extends RAMListener {
     
     public static final String DELIMITER = ";";
     public String serialize() {
-        return escape(name.get()) + DELIMITER 
+        return escape(cheatName) + DELIMITER + escape(name.get()) + DELIMITER 
                 + escape("$"+Integer.toHexString(addr.get())) + DELIMITER
                 + escape(expression.get());
     }
 
     static public DynamicCheat deserialize(String in) {
         String[] parts = in.split(DELIMITER);
-        String name = unescape(parts[0]);
-        Integer addr = Integer.parseInt(parts[1].substring(1), 16);
-        String expr = unescape(parts[2]);
+        String cheatName = unescape(parts[0]);
+        String name = unescape(parts[1]);
+        Integer addr = Integer.parseInt(parts[2].substring(1), 16);
+        String expr = unescape(parts[3]);
         
-        DynamicCheat out = new DynamicCheat(addr, expr);
+        DynamicCheat out = new DynamicCheat(cheatName, addr, expr);
         out.name.set(name);
         return out;
     }

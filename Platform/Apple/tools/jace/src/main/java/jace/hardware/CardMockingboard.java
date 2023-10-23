@@ -348,7 +348,7 @@ public class CardMockingboard extends Card implements Runnable {
     public void run() {
         SourceDataLine out = null;
         try {
-            out = computer.mixer.getLine();
+            // out = computer.mixer.getLine();
             if (out == null) {
                 setRun(false);
                 return;

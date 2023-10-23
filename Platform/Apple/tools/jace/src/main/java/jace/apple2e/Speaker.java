@@ -24,6 +24,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Timer;
+import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -37,6 +38,7 @@ import jace.core.RAMEvent;
 import jace.core.RAMListener;
 import jace.core.SoundGeneratorDevice;
 import jace.core.SoundMixer;
+import jace.core.SoundMixer.SoundBuffer;
 import javafx.stage.FileChooser;
 
 /**
@@ -108,23 +110,15 @@ public class Speaker extends SoundGeneratorDevice {
      * Manifestation of the apple speaker softswitch
      */
     private boolean speakerBit = false;
-    //
-    /**
-     * Locking semaphore to prevent race conditions when working with buffer or
-     * related variables
-     */
-    private final Object bufferLock = new Object();
     /**
      * Double-buffer used for playing processed sound -- as one is played the
      * other fills up.
      */
-    private byte[] primaryBuffer;
-    private byte[] secondaryBuffer;
-    private int bufferPos = 0;
     private Timer playbackTimer;
     private double TICKS_PER_SAMPLE = ((double) Motherboard.DEFAULT_SPEED) / SoundMixer.RATE;
     private double TICKS_PER_SAMPLE_FLOOR = Math.floor(TICKS_PER_SAMPLE);
     private RAMListener listener = null;
+    private SoundBuffer buffer = null;
 
     /**
      * Creates a new instance of Speaker
@@ -148,11 +142,14 @@ public class Speaker extends SoundGeneratorDevice {
             playbackTimer = null;
         }
         speakerBit = false;
-        if (sdl != null && sdl.isOpen()) {
-            sdl.stop();
-            sdl.close();
+        if (buffer != null) {
+            try {
+                buffer.shutdown();
+            } catch (InterruptedException | ExecutionException e) {
+                // Ignore
+            }
         }
-        sdl = null;
+        buffer = null;
 
         return result;
     }
@@ -162,19 +159,17 @@ public class Speaker extends SoundGeneratorDevice {
      */
     @Override
     public void resume() {
-        if (sdl == null || !sdl.isOpen()) {
-            sdl = computer.mixer.getLine();
-            if (sdl != null) {
-                sdl.start();
-                counter = 0;
-                idleCycles = 0;
-                level = 0;
-                bufferPos = 0;
-            } else {
-                Logger.getLogger(getClass().getName()).severe("Unable to get audio line for speaker!");
-                detach();
-                return;
-            }
+        if (buffer == null || !buffer.isAlive()) {
+            buffer = SoundMixer.createBuffer(false);
+        }
+        if (buffer != null) {
+            counter = 0;
+            idleCycles = 0;
+            level = 0;
+        } else {
+            Logger.getLogger(getClass().getName()).severe("Unable to get audio buffer for speaker!");
+            detach();
+            return;
         }
 
         if (force1mhz) {
@@ -187,27 +182,13 @@ public class Speaker extends SoundGeneratorDevice {
         setRun(true);
     }
 
-    public void playCurrentBuffer() {
-        byte[] buffer;
-        int len;
-        synchronized (bufferLock) {
-            len = bufferPos;
-            buffer = primaryBuffer;
-            primaryBuffer = secondaryBuffer;
-            bufferPos = 0;
-        }
-        secondaryBuffer = buffer;
-        if (sdl != null && len > 0) {
-            sdl.write(buffer, 0, len);
-        }
-    }
-
     /**
      * Reset idle counter whenever sound playback occurs
      */
     public void resetIdle() {
         idleCycles = 0;
         if (!isRunning()) {
+            speakerBit = false;
             resume();
         }
     }
@@ -237,28 +218,32 @@ public class Speaker extends SoundGeneratorDevice {
     }
 
     private void toggleSpeaker(RAMEvent e) {
-        if (e.getType() == RAMEvent.TYPE.WRITE) {
-            level += 2;
-        }
+        // if (e.getType() == RAMEvent.TYPE.WRITE) {
+        //     level += 2;
+        // }
         speakerBit = !speakerBit;
         resetIdle();
     }
     
     private void playSample(int sample) {
-        if (sdl == null || !sdl.isOpen()) {
-            resume();
+        if (buffer == null || !buffer.isAlive()) {
+            Logger.getLogger(getClass().getName()).severe("Audio buffer not initalized properly!");
+            buffer = SoundMixer.createBuffer(false);
         }
-        int bytes = SoundMixer.BITS >> 3;
+        try {
+            buffer.playSample((short) sample);
+        } catch (InterruptedException | ExecutionException e) {
+            // TODO: Do we need to really worry about this?
+            e.printStackTrace();
+        }
 
-        // Prepare sound output in little endian format
-        for (int i = 0; i < bytes; i++) {
-            primaryBuffer[i] = primaryBuffer[i+bytes] = (byte) (sample & 0x0ff);
-            sample >>= 8;
-        }            
-        sdl.write(primaryBuffer, 0, bytes*2);
         if (fileOutputActive) {
+            byte[] bytes = new byte[2];
+            bytes[0] = (byte) (sample & 0x0ff);
+            bytes[1] = (byte) ((sample >> 8) & 0x0ff);
+
             try {
-                out.write(primaryBuffer, 0, bytes*2);
+                out.write(bytes, 0, 2);
             } catch (IOException ex) {
                 Logger.getLogger(getClass().getName()).log(Level.SEVERE, "Error recording sound", ex);
                 toggleFileOutput();
@@ -271,7 +256,7 @@ public class Speaker extends SoundGeneratorDevice {
      * Add a memory event listener for C03x for capturing speaker events
      */
     private void configureListener() {
-        listener = computer.getMemory().observe(RAMEvent.TYPE.ANY, 0x0c030, 0x0c03f, this::toggleSpeaker);
+        listener = computer.getMemory().observe("Speaker", RAMEvent.TYPE.ANY, 0x0c030, 0x0c03f, this::toggleSpeaker);
     }
 
     private void removeListener() {
@@ -295,14 +280,7 @@ public class Speaker extends SoundGeneratorDevice {
 
     @Override
     public final void reconfigure() {
-        super.reconfigure();
-        
-        if (primaryBuffer != null && secondaryBuffer != null) {
-            return;
-        }
-        BUFFER_SIZE = 20000 * (SoundMixer.BITS >> 3);
-        primaryBuffer = new byte[BUFFER_SIZE];
-        secondaryBuffer = new byte[BUFFER_SIZE];
+        super.reconfigure();        
     }
 
     @Override

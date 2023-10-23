@@ -14,17 +14,18 @@
  * limitations under the License.
  */
 package jace.core;
-import java.util.concurrent.atomic.AtomicInteger;
-
+import static jace.TestUtils.initComputer;
+import static jace.TestUtils.runAssemblyCode;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import jace.Emulator;
-import static jace.TestUtils.initComputer;
-import static jace.TestUtils.runAssemblyCode;
 import jace.apple2e.MOS65C02;
 import jace.apple2e.RAM128k;
 
@@ -50,7 +51,7 @@ public class MemoryListenerTest {
     @Test
     public void testListenerRelevance() {
         AtomicInteger anyEventCaught = new AtomicInteger();
-        RAMListener anyListener = new RAMListener(RAMEvent.TYPE.ANY, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY) {
+        RAMListener anyListener = new RAMListener("Execution test", RAMEvent.TYPE.ANY, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY) {
             @Override
             protected void doConfig() {
                 setScopeStart(0x0100);
@@ -63,7 +64,7 @@ public class MemoryListenerTest {
         };
                 
         AtomicInteger readAnyEventCaught = new AtomicInteger();
-        RAMListener readAnyListener = new RAMListener(RAMEvent.TYPE.READ, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY) {
+        RAMListener readAnyListener = new RAMListener("Execution test 1", RAMEvent.TYPE.READ, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY) {
             @Override
             protected void doConfig() {
                 setScopeStart(0x0100);
@@ -76,7 +77,7 @@ public class MemoryListenerTest {
         };
         
         AtomicInteger writeEventCaught = new AtomicInteger();
-        RAMListener writeListener = new RAMListener(RAMEvent.TYPE.WRITE, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY) {
+        RAMListener writeListener = new RAMListener("Execution test 2", RAMEvent.TYPE.WRITE, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY) {
             @Override
             protected void doConfig() {
                 setScopeStart(0x0100);
@@ -89,7 +90,7 @@ public class MemoryListenerTest {
         };
 
         AtomicInteger executeEventCaught = new AtomicInteger();
-        RAMListener executeListener = new RAMListener(RAMEvent.TYPE.EXECUTE, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY) {
+        RAMListener executeListener = new RAMListener("Execution test 3", RAMEvent.TYPE.EXECUTE, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY) {
             @Override
             protected void doConfig() {
                 setScopeStart(0x0100);

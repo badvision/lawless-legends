@@ -106,7 +106,7 @@ public abstract class SoftSwitch {
                     exclusionActivate.add(i);
                 }
             }
-            RAMListener l = new RAMListener(changeType, RAMEvent.SCOPE.RANGE, RAMEvent.VALUE.ANY) {
+            RAMListener l = new RAMListener("Softswitch toggle " + name, changeType, RAMEvent.SCOPE.RANGE, RAMEvent.VALUE.ANY) {
                 @Override
                 protected void doConfig() {
                     setScopeStart(beginAddr);
@@ -136,7 +136,7 @@ public abstract class SoftSwitch {
                         exclusionActivate.add(i);
                     }
                 }
-                RAMListener l = new RAMListener(changeType, RAMEvent.SCOPE.RANGE, RAMEvent.VALUE.ANY) {
+                RAMListener l = new RAMListener("Softswitch on " + name, changeType, RAMEvent.SCOPE.RANGE, RAMEvent.VALUE.ANY) {
                     @Override
                     protected void doConfig() {
                         setScopeStart(beginAddr);
@@ -169,7 +169,7 @@ public abstract class SoftSwitch {
                         exclusionDeactivate.add(i);
                     }
                 }
-                RAMListener l = new RAMListener(changeType, RAMEvent.SCOPE.RANGE, RAMEvent.VALUE.ANY) {
+                RAMListener l = new RAMListener("Softswitch off " + name, changeType, RAMEvent.SCOPE.RANGE, RAMEvent.VALUE.ANY) {
                     @Override
                     protected void doConfig() {
                         setScopeStart(beginAddr);
@@ -201,7 +201,7 @@ public abstract class SoftSwitch {
                 }
             }
 //            RAMListener l = new RAMListener(changeType, RAMEvent.SCOPE.RANGE, RAMEvent.VALUE.ANY) {
-            RAMListener l = new RAMListener(RAMEvent.TYPE.READ, RAMEvent.SCOPE.RANGE, RAMEvent.VALUE.ANY) {
+            RAMListener l = new RAMListener("Softswitch read state " + name, RAMEvent.TYPE.READ, RAMEvent.SCOPE.RANGE, RAMEvent.VALUE.ANY) {
                 @Override
                 protected void doConfig() {
                     setScopeStart(beginAddr);

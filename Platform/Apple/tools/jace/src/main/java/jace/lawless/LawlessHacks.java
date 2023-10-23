@@ -47,14 +47,14 @@ public class LawlessHacks extends Cheats {
     @Override
     public void registerListeners() {
         // Observe graphics changes
-        addCheat(RAMEvent.TYPE.ANY, (e) -> {
+        addCheat("Lawless Legends Graphics Modes", RAMEvent.TYPE.ANY, (e) -> {
             int addr = e.getAddress();
             if (addr >= MODE_SOFTSWITCH_MIN && e.getAddress() <= MODE_SOFTSWITCH_MAX) {
 //                System.out.println("Trapped " + e.getType().toString() + " to $" + Integer.toHexString(e.getAddress()));
                 setEngineByOrdinal(e.getAddress() - MODE_SOFTSWITCH_MIN);
             }
         }, MODE_SOFTSWITCH_MIN, MODE_SOFTSWITCH_MAX);
-        addCheat(RAMEvent.TYPE.WRITE, (e) -> {
+        addCheat("Lawless Legends Music Commands", RAMEvent.TYPE.WRITE, (e) -> {
 //            System.out.println(Integer.toHexString(e.getAddress()) + " => " + Integer.toHexString(e.getNewValue() & 0x0ff));
             playSound(e.getNewValue());
         }, SFX_TRIGGER);

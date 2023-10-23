@@ -39,14 +39,17 @@ public abstract class RAMListener implements RAMEvent.RAMEventHandler, Comparabl
     private int valueStart;
     private int valueEnd;
     private int valueAmount;
+    private String name;
 
     /**
      * Creates a new instance of RAMListener
+     * @param name
      * @param t
      * @param s
      * @param v
      */
-    public RAMListener(RAMEvent.TYPE t, RAMEvent.SCOPE s, RAMEvent.VALUE v) {
+    public RAMListener(String name, RAMEvent.TYPE t, RAMEvent.SCOPE s, RAMEvent.VALUE v) {
+        setName(name);
         setType(t);
         setScope(s);
         setValue(v);
@@ -75,6 +78,14 @@ public abstract class RAMListener implements RAMEvent.RAMEventHandler, Comparabl
 
     public final void setValue(RAMEvent.VALUE value) {
         this.value = value;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public int getScopeStart() {
@@ -161,18 +172,23 @@ public abstract class RAMListener implements RAMEvent.RAMEventHandler, Comparabl
 
     @Override
     public int compareTo(RAMListener o) {
-        if (o.scopeStart == scopeStart) {
-            if (o.scopeEnd == scopeEnd) {
-                if (o.type == type) {
-                    return Integer.compare(o.hashCode(), hashCode());
+        if (o.name == name) {
+           if (o.scopeStart == scopeStart) {
+                if (o.scopeEnd == scopeEnd) {
+                    if (o.type == type) {
+                        // Ignore hash codes -- combination of name, address range and type should identify similar listeners.
+                        return (int) 0;
+                    } else {
+                        return Integer.compare(o.type.ordinal(), type.ordinal());
+                    }
                 } else {
-                    return Integer.compare(o.type.ordinal(), type.ordinal());
+                    return Integer.compare(o.scopeEnd, scopeEnd);
                 }
             } else {
-                return Integer.compare(o.scopeEnd, scopeEnd);
+                return Integer.compare(o.scopeStart, scopeStart);
             }
         } else {
-            return Integer.compare(o.scopeStart, scopeStart);
+            return o.name.compareTo(name);
         }
     }
 }

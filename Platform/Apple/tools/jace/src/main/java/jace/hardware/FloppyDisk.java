@@ -18,9 +18,6 @@
  */
 package jace.hardware;
 
-import jace.core.Computer;
-import jace.state.StateManager;
-import jace.state.Stateful;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -31,6 +28,10 @@ import java.io.RandomAccessFile;
 import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import jace.core.Computer;
+import jace.state.StateManager;
+import jace.state.Stateful;
 
 /**
  * Representation of a 140kb floppy disk image. This also performs conversions
@@ -180,6 +181,17 @@ public class FloppyDisk {
                 writeJunkBytes(output, 38 - gap2);
             }
         }
+        // Write output to stdout for debugging purposes
+        if (DEBUG) {
+            System.out.println("Nibblized disk:");
+            for (int i = 0; i < output.size(); i++) {
+                System.out.print(Integer.toString(output.toByteArray()[i] & 0x0ff, 16) + " ");
+                if (i % 16 == 255) {
+                    System.out.println();
+                }
+            }
+            System.out.println();
+        }
         return output.toByteArray();
     }
 
@@ -298,17 +310,23 @@ public class FloppyDisk {
             byte[] trackNibbles = new byte[TRACK_NIBBLE_LENGTH];
             byte[] trackData = new byte[SECTOR_COUNT * 256];
             // Copy track into temporary buffer
-//            System.out.println("Nibblized track "+track);
-//            System.out.printf("%04d:",0);
-            for (int i = 0, pos = track * TRACK_NIBBLE_LENGTH; i < TRACK_NIBBLE_LENGTH; i++, pos++) {
-                trackNibbles[i] = nibbles[pos];
-//                System.out.print(Integer.toString(nibbles[pos] & 0x0ff, 16)+" ");
-//                if (i % 16 == 15) {
-//                    System.out.println();
-//                    System.out.printf("%04d:",i+1);
-//                }
+            if (DEBUG) {
+                System.out.println("Nibblized track "+track);
+                System.out.printf("%04d:",0);
             }
-//            System.out.println();
+           for (int i = 0, pos = track * TRACK_NIBBLE_LENGTH; i < TRACK_NIBBLE_LENGTH; i++, pos++) {
+                trackNibbles[i] = nibbles[pos];
+                if (DEBUG) {
+                    System.out.print(Integer.toString(nibbles[pos] & 0x0ff, 16)+" ");
+                    if (i % 16 == 15) {
+                        System.out.println();
+                        System.out.printf("%04d:",i+1);
+                    }
+                }
+            }
+            if (DEBUG) {
+               System.out.println();
+            }
 
             int pos = 0;
             for (int i = 0; i < SECTOR_COUNT; i++) {
@@ -318,7 +336,9 @@ public class FloppyDisk {
                 int trackVerify = decodeOddEven(trackNibbles[pos + 5], trackNibbles[pos + 6]);
                 // Locate sector number
                 int sector = decodeOddEven(trackNibbles[pos + 7], trackNibbles[pos + 8]);
-//                System.out.println("Writing track " + track + ", getting address block for T" + trackVerify + ".S" + sector + " found at NIB offset "+pos);
+                if (DEBUG) {
+                    System.out.println("Writing track " + track + ", getting address block for T" + trackVerify + ".S" + sector + " found at NIB offset "+pos);
+                }
                 // Skip to end of address block
                 pos = locatePattern(pos, trackNibbles, 0x0de, 0x0aa /*, 0x0eb this is sometimes being written as FF??*/);
                 // Locate start of sector data
@@ -326,7 +346,9 @@ public class FloppyDisk {
                 // Determine offset in output data for sector
                 //int offset = reverseLoopkup(currentSectorOrder, sector) * 256;
                 int offset = currentSectorOrder[sector] * 256;
-//                System.out.println("Sector "+sector+" maps to physical sector "+reverseLoopkup(currentSectorOrder, sector));
+                if (DEBUG) {
+                    System.out.println("Sector "+sector+" maps to physical sector "+reverseLoopkup(currentSectorOrder, sector));
+                }
                 // Decode sector data
                 denibblizeSector(trackNibbles, pos + 3, trackData, offset);
                 // Skip to end of sector

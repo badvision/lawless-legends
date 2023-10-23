@@ -1,5 +1,8 @@
 package jace.hardware;
 
+import java.util.Calendar;
+import java.util.Optional;
+
 import jace.EmulatorUILogic;
 import jace.apple2e.SoftSwitches;
 import jace.config.ConfigurableField;
@@ -8,8 +11,6 @@ import jace.core.Device;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
 import jace.core.Utility;
-import java.util.Calendar;
-import java.util.Optional;
 import javafx.scene.control.Label;
 
 /**
@@ -31,7 +32,7 @@ public class NoSlotClock extends Device {
     public boolean patchProdosClock = false;
     Optional<Label> clockIcon;
 
-    private final RAMListener listener = new RAMListener(RAMEvent.TYPE.ANY, RAMEvent.SCOPE.RANGE, RAMEvent.VALUE.ANY) {
+    private final RAMListener listener = new RAMListener("No slot clock read", RAMEvent.TYPE.ANY, RAMEvent.SCOPE.RANGE, RAMEvent.VALUE.ANY) {
         @Override
         protected void doConfig() {
             setScopeStart(0x0C100);

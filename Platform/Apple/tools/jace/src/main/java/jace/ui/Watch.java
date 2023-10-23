@@ -118,7 +118,7 @@ class Watch extends VBox {
             holdListener = null;
         } else {
             value = Emulator.withComputer(c->c.getMemory().readRaw(address) & 0x0ff, 0);
-            holdListener = outer.cheatEngine.forceValue(value, address);
+            holdListener = outer.cheatEngine.forceValue("Watch force value", value, address);
         }
     }
 

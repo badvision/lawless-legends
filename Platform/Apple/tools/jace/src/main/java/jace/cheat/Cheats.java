@@ -87,36 +87,36 @@ public abstract class Cheats extends Device {
         }
     }
 
-    public RAMListener bypassCode(int address, int addressEnd) {
+    public RAMListener bypassCode(String name, int address, int addressEnd) {
         int noOperation = MOS65C02.COMMAND.NOP.ordinal();
-        return addCheat(RAMEvent.TYPE.READ, (e) -> e.setNewValue(noOperation), address, addressEnd);
+        return addCheat(name, RAMEvent.TYPE.READ, (e) -> e.setNewValue(noOperation), address, addressEnd);
     }
 
-    public RAMListener forceValue(int value, int... address) {
-        return addCheat(RAMEvent.TYPE.ANY, (e) -> e.setNewValue(value), address);
+    public RAMListener forceValue(String name, int value, int... address) {
+        return addCheat(name, RAMEvent.TYPE.ANY, (e) -> e.setNewValue(value), address);
     }
 
-    public RAMListener forceValue(int value, Boolean auxFlag, int... address) {
-        return addCheat(RAMEvent.TYPE.ANY, auxFlag, (e) -> e.setNewValue(value), address);
+    public RAMListener forceValue(String name, int value, Boolean auxFlag, int... address) {
+        return addCheat(name, RAMEvent.TYPE.ANY, auxFlag, (e) -> e.setNewValue(value), address);
     }
 
-    public RAMListener addCheat(RAMEvent.TYPE type, RAMEvent.RAMEventHandler handler, int... address) {
+    public RAMListener addCheat(String name, RAMEvent.TYPE type, RAMEvent.RAMEventHandler handler, int... address) {
         RAMListener listener;
         if (address.length == 1) {
-            listener = computer.getMemory().observe(type, address[0], handler);
+            listener = computer.getMemory().observe(getName() + ": " + name, type, address[0], handler);
         } else {
-            listener = computer.getMemory().observe(type, address[0], address[1], handler);
+            listener = computer.getMemory().observe(getName() + ": " + name, type, address[0], address[1], handler);
         }
         listeners.add(listener);
         return listener;
     }
 
-    public RAMListener addCheat(RAMEvent.TYPE type, Boolean auxFlag, RAMEvent.RAMEventHandler handler, int... address) {
+    public RAMListener addCheat(String name, RAMEvent.TYPE type, Boolean auxFlag, RAMEvent.RAMEventHandler handler, int... address) {
         RAMListener listener;
         if (address.length == 1) {
-            listener = computer.getMemory().observe(type, address[0], auxFlag, handler);
+            listener = computer.getMemory().observe(getName() + ": " + name, type, address[0], auxFlag, handler);
         } else {
-            listener = computer.getMemory().observe(type, address[0], address[1], auxFlag, handler);
+            listener = computer.getMemory().observe(getName() + ": " + name, type, address[0], address[1], auxFlag, handler);
         }
         listeners.add(listener);
         return listener;

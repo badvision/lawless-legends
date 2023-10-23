@@ -201,7 +201,7 @@ public class Joystick extends Device {
     RAMListener listener;
 
     private void registerListeners() {
-        listener = computer.getMemory().observe(RAMEvent.TYPE.ANY, 0x0c070, 0x0c07f, this::initJoystickRead);
+        listener = computer.getMemory().observe("Joystick I/O", RAMEvent.TYPE.ANY, 0x0c070, 0x0c07f, this::initJoystickRead);
     }
 
     private void removeListeners() {

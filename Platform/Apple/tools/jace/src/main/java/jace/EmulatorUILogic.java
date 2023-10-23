@@ -18,6 +18,8 @@
  */
 package jace;
 
+import static jace.core.Utility.gripe;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -44,7 +46,6 @@ import jace.config.Reconfigurable;
 import jace.core.Debugger;
 import jace.core.RAM;
 import jace.core.RAMListener;
-import static jace.core.Utility.gripe;
 import jace.ide.IdeController;
 import javafx.application.Platform;
 import javafx.event.EventHandler;
@@ -90,7 +91,7 @@ public class EmulatorUILogic implements Reconfigurable {
             category = "General",
             name = "Show Drives"
     )
-    public boolean showDrives = false;
+    public boolean showDrives = Emulator.withComputer(c->!c.PRODUCTION_MODE, false);
 
     public static void updateCPURegisters(MOS65C02 cpu) {
 //        DebuggerPanel debuggerPanel = Emulator.getFrame().getDebuggerPanel();

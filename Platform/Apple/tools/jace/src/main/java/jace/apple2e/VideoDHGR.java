@@ -719,8 +719,8 @@ public class VideoDHGR extends Video {
     }
 
     private void registerDirtyFlagChecks() {
-        computer.getMemory().observe(RAMEvent.TYPE.WRITE, 0x0400, 0x0bff, this::registerTextDirtyFlag);
-        computer.getMemory().observe(RAMEvent.TYPE.WRITE, 0x02000, 0x05fff, this::registerHiresDirtyFlag);
+        computer.getMemory().observe("Check for text changes", RAMEvent.TYPE.WRITE, 0x0400, 0x0bff, this::registerTextDirtyFlag);
+        computer.getMemory().observe("Check for graphics changes", RAMEvent.TYPE.WRITE, 0x02000, 0x05fff, this::registerHiresDirtyFlag);
     }
 
     @Override

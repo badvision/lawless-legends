@@ -238,8 +238,6 @@ public class ConfigurationUIController {
             }
         } else if (type.equals(File.class)) {
             // TODO: Add file support!
-        } else if (Class.class.isEnum()) {
-            // TODO: Add enumeration support!
         } else if (ISelection.class.isAssignableFrom(type)) {
             return buildDynamicSelectComponent(node, settingName, value);
         }

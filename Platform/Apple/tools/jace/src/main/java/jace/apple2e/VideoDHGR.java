@@ -533,7 +533,9 @@ public class VideoDHGR extends Video {
         } else {
             flashTimer--;
             if (flashTimer <= 0) {
-                markFlashDirtyBits();
+                if (SoftSwitches.MIXED.isOn() || SoftSwitches.TEXT.isOn()) {
+                    markFlashDirtyBits();
+                }
                 flashTimer = FLASH_SPEED;
                 flashInverse = !flashInverse;
                 if (flashInverse) {
@@ -690,7 +692,6 @@ public class VideoDHGR extends Video {
     }
 
     private void markFlashDirtyBits() {
-        // TODO: Be smarter about detecting where flash is used... one day...
         for (int row = 0; row < 192; row++) {
             currentTextWriter.markDirty(row);
         }

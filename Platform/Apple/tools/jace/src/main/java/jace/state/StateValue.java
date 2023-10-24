@@ -57,6 +57,7 @@ public class StateValue<T> implements Serializable {
         // Do nothing -- this is here in case it is necessary to implement partial changes
     }
 
+    @SuppressWarnings("all")
     private T copyObject(T currentValue) {
         if (currentValue == null) return null;
         if (type.isPrimitive()) {

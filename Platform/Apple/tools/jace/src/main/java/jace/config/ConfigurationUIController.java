@@ -93,6 +93,7 @@ public class ConfigurationUIController {
         deviceTree.maxWidthProperty().bind(treeScroll.widthProperty());
     }
     
+    @SuppressWarnings("all")
     private void resetDeviceTree() {
         Set<String> expanded = new HashSet<>();
         String current = getCurrentNodePath();
@@ -133,6 +134,7 @@ public class ConfigurationUIController {
         return out;
     }
     
+    @SuppressWarnings("all")
     private void setCurrentNodePath(String value) {
         if (value == null) return;
         String[] parts = value.split(Pattern.quote(DELIMITER));
@@ -213,6 +215,7 @@ public class ConfigurationUIController {
         throw new UnsupportedOperationException("Not supported yet.");
     }    
     
+    @SuppressWarnings("all")
     private Node buildEditField(ConfigNode node, String settingName, Serializable value) {
         Field field;
         try {
@@ -256,6 +259,7 @@ public class ConfigurationUIController {
         return widget;
     }
 
+    @SuppressWarnings("all")
     private Node buildDynamicSelectComponent(ConfigNode node, String settingName, Serializable value) {
         try {
             DynamicSelection sel = (DynamicSelection) node.subject.getClass().getField(settingName).get(node.subject);

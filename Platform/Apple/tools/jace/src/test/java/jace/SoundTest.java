@@ -28,7 +28,6 @@ public class SoundTest {
         System.out.println("Deactivating sound");
         mixer.detach();
         } catch (InterruptedException | ExecutionException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         }
     }

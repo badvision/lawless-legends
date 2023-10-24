@@ -410,7 +410,7 @@ public class Apple2e extends Computer {
     int animAddr, animCycleNumber;
     byte animOldValue;
     final String animation = "+xX*+-";
-    ScheduledFuture animationSchedule;
+    ScheduledFuture<?> animationSchedule;
     Runnable doAnimation = () -> {
         if (animAddr == 0 || animCycleNumber >= animation.length()) {
             if (animAddr > 0) {

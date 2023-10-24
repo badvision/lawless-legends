@@ -93,7 +93,7 @@ public class JaceUIController {
     private Button menuButton;
 
     @FXML
-    private ComboBox musicSelection;
+    private ComboBox<String> musicSelection;
 
     private final BooleanProperty aspectRatioCorrectionEnabled = new SimpleBooleanProperty(false);
 
@@ -441,6 +441,7 @@ public class JaceUIController {
     }
 
     ScheduledExecutorService notificationExecutor = Executors.newSingleThreadScheduledExecutor();
+    @SuppressWarnings("all")
     ScheduledFuture ttlCleanupTask = null;
 
     private void trackTTL(Label icon, long TTL) {

@@ -94,6 +94,7 @@ public class TocTreeModel implements TreeModel {
         return getChildCount(node) == 0;
     }
 
+    @SuppressWarnings("all")
     public void valueForPathChanged(TreePath path, Object newValue) {
         // Do nothing...
     }
@@ -120,6 +121,7 @@ public class TocTreeModel implements TreeModel {
         // Do nothing...
     }
 
+    @SuppressWarnings("all")
     public Set<Long> getEntries(Object selection) {
         if (selection.equals(this)) return getEntries(tree);
         if (selection instanceof Set) return (Set<Long>) selection;

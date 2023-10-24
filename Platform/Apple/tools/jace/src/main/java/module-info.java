@@ -18,7 +18,7 @@ module lawlesslegends {
     requires nestedvm;
     requires java.base;
     requires java.logging;
-    requires java.desktop;
+    requires transitive java.desktop;
     requires java.datatransfer;
     requires java.scripting;
     requires static transitive java.compiler;
@@ -52,5 +52,15 @@ module lawlesslegends {
     provides javax.annotation.processing.Processor with jace.config.InvokableActionAnnotationProcessor;
 
     exports jace;
+    exports jace.apple2e;
+    exports jace.cheat;
     exports jace.config;
+    exports jace.core;
+    exports jace.hardware;
+    exports jace.hardware.mockingboard;
+    exports jace.lawless;
+    exports jace.library;
+    exports jace.state;
+    exports jace.ui;
+
 }

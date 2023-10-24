@@ -233,7 +233,6 @@ public class Speaker extends SoundGeneratorDevice {
         try {
             buffer.playSample((short) sample);
         } catch (InterruptedException | ExecutionException e) {
-            // TODO: Do we need to really worry about this?
             e.printStackTrace();
         }
 

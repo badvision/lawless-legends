@@ -336,8 +336,10 @@ public class Utility {
         });
     }
 
+    @SuppressWarnings("all")
     static Map<Class, Map<String, Object>> enumCache = new HashMap<>();
 
+    @SuppressWarnings("all")
     public static Object findClosestEnumConstant(String value, Class type) {
         Map<String, Object> enumConstants = enumCache.get(type);
         if (enumConstants == null) {
@@ -356,6 +358,7 @@ public class Utility {
         return enumConstants.get(key);
     }
 
+    @SuppressWarnings("all")
     public static Object deserializeString(String value, Class type, boolean hex) {
         int radix = hex ? 16 : 10;
         if (type.equals(Integer.TYPE) || type == Integer.class) {

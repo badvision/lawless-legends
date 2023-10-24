@@ -30,6 +30,7 @@ import java.util.List;
  * @param <C> Enum class which implements DeviceEnum
  */
 // C is an enum class which implements DeviceEnum
+@SuppressWarnings("all")
 public class DeviceSelection<C extends Enum & DeviceEnum> extends DynamicSelection<C> {
 
     Class<C> enumClass;

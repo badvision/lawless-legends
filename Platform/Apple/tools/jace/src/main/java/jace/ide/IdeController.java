@@ -267,6 +267,7 @@ public class IdeController {
         });
     }
 
+    @SuppressWarnings("all")
     private void updateStatusMessages(CompileResult lastResult) {
         String message = "Compiler was " + (lastResult.isSuccessful() ? " successful" : " NOT SUCCESSFUL");
         message += " -- ";

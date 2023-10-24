@@ -316,14 +316,17 @@ public class MetacheatUI {
         searchStartAddressField.textProperty().addListener(addressRangeListener);
         searchEndAddressField.textProperty().addListener(addressRangeListener);
 
+        @SuppressWarnings("all")
         TableColumn<DynamicCheat, Boolean> activeColumn = (TableColumn<DynamicCheat, Boolean>) cheatsTableView.getColumns().get(0);
         activeColumn.setCellValueFactory(new PropertyValueFactory<>("active"));
         activeColumn.setCellFactory((TableColumn<DynamicCheat, Boolean> param) -> new CheckBoxTableCell<>());
 
+        @SuppressWarnings("all")
         TableColumn<DynamicCheat, String> nameColumn = (TableColumn<DynamicCheat, String>) cheatsTableView.getColumns().get(1);
         nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
         nameColumn.setCellFactory((TableColumn<DynamicCheat, String> param) -> new TextFieldTableCell<>(new DefaultStringConverter()));
 
+        @SuppressWarnings("all")
         TableColumn<DynamicCheat, Integer> addrColumn = (TableColumn<DynamicCheat, Integer>) cheatsTableView.getColumns().get(2);
         addrColumn.setCellValueFactory(new PropertyValueFactory<>("address"));
         addrColumn.setCellFactory((TableColumn<DynamicCheat, Integer> param) -> {
@@ -340,6 +343,7 @@ public class MetacheatUI {
             });
         });
 
+        @SuppressWarnings("all")
         TableColumn<DynamicCheat, String> exprColumn = (TableColumn<DynamicCheat, String>) cheatsTableView.getColumns().get(3);
         exprColumn.setCellValueFactory(new PropertyValueFactory<>("expression"));
         exprColumn.setCellFactory((TableColumn<DynamicCheat, String> param) -> new TextFieldTableCell<>(new DefaultStringConverter()));
@@ -383,6 +387,7 @@ public class MetacheatUI {
 
     public static Set<MemoryCell> redrawNodes = new ConcurrentSkipListSet<>();
     ScheduledExecutorService animationTimer = null;
+    @SuppressWarnings("all")
     ScheduledFuture animationFuture = null;
     Tooltip memoryWatchTooltip = new Tooltip();
 

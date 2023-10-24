@@ -38,7 +38,7 @@ public class Motherboard extends TimedDevice {
 
     @ConfigurableField(name = "Enable Speaker", shortName = "speaker", defaultValue = "true")
     public static boolean enableSpeaker = true;
-    public Speaker speaker;
+    private Speaker speaker;
 
     void vblankEnd() {
         SoftSwitches.VBL.getSwitch().setState(true);

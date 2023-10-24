@@ -109,6 +109,7 @@ public class Configuration implements Reconfigurable {
      * configuration 2) Provide a simple persistence mechanism to load/store
      * configuration
      */
+    @SuppressWarnings("all")
     public static class ConfigNode extends TreeItem implements Serializable {
 
         public transient ConfigNode root;
@@ -281,6 +282,7 @@ public class Configuration implements Reconfigurable {
         });
     }
 
+    @SuppressWarnings("all")
     private static void buildTree(ConfigNode node, Set visited) {
         if (node.subject == null) {
             return;
@@ -516,6 +518,7 @@ public class Configuration implements Reconfigurable {
         return hasChanged.get();
     }
 
+    @SuppressWarnings("all")
     private static void applyConfigTree(ConfigNode newRoot, ConfigNode oldRoot) {
         if (oldRoot == null || newRoot == null) {
             return;
@@ -537,6 +540,7 @@ public class Configuration implements Reconfigurable {
         });
     }
 
+    @SuppressWarnings("all")
     private static void doApply(ConfigNode node) {
         List<String> removeList = new ArrayList<>();
         registerKeyHandlers(node, false);

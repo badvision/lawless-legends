@@ -33,6 +33,7 @@ import javafx.scene.image.Image;
  *
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com
  */
+@SuppressWarnings("all")
 public class State extends HashMap<ObjectGraphNode, StateValue> {
 
     boolean deltaState;

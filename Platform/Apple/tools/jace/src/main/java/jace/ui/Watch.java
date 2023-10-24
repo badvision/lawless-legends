@@ -38,6 +38,7 @@ class Watch extends VBox {
     private static final int GRAPH_WIDTH = 50;
     private static final double GRAPH_HEIGHT = 50;
     int address;
+    @SuppressWarnings("all")
     ScheduledFuture redraw;
     Canvas graph;
     List<Integer> samples = Collections.synchronizedList(new ArrayList<>());

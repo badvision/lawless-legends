@@ -277,7 +277,7 @@ public class CardMockingboard extends Card implements Runnable {
         double out = (MAX_AMPLITUDE * volume) / 100.0;
         // Reduce max amplitude to reflect post-mixer values so we don't have to scale volume when mixing channels
         out = out * 2.0 / 3.0 / numChips;
-        double delta = 1.15;
+        // double delta = 1.15;
         for (int i = 15; i > 0; i--) {
             VolTable[i] = (int) (out / Math.pow(Math.sqrt(2),(15-i)));
 //            out /= 1.188502227;	/* = 10 ^ (1.5/20) = 1.5dB */

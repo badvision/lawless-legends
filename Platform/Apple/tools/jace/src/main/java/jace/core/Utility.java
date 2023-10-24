@@ -399,7 +399,7 @@ public class Utility {
 
     public static Function<Boolean, Boolean> getNamedInvokableAction(String action) {
         InvokableActionRegistry registry = InvokableActionRegistry.getInstance();        
-        List<InvokableAction> actionsList = new ArrayList(registry.getAllStaticActions());
+        List<InvokableAction> actionsList = new ArrayList<>(registry.getAllStaticActions());
         actionsList.sort((a, b) -> Integer.compare(getActionNameMatch(action, a), getActionNameMatch(action, b)));
 //        for (InvokableAction a : actionsList) {
 //            String actionName = a.alternatives() == null ? a.name() : (a.name() + ";" + a.alternatives());

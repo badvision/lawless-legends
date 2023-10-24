@@ -21,12 +21,12 @@ module lawlesslegends {
     requires java.desktop;
     requires java.datatransfer;
     requires java.scripting;
-    requires static java.compiler;
+    requires static transitive java.compiler;
     requires javafx.fxmlEmpty;
     requires javafx.fxml;
     requires javafx.swing;
     requires javafx.controlsEmpty;
-    requires javafx.controls;
+    requires transitive javafx.controls;
     requires javafx.baseEmpty;
     requires javafx.base;
     requires javafx.webEmpty;

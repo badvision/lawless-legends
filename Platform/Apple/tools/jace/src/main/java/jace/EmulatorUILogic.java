@@ -234,10 +234,6 @@ public class EmulatorUILogic implements Reconfigurable {
     }
 
     public static void brun(File binary, int address) throws IOException {
-        // If it was halted already, then it was initiated outside of an opcode execution
-        // If it was not yet halted, then it is the case that the CPU is processing another opcode
-        // So if that is the case, the program counter will need to be decremented here to compensate
-        // TODO: Find a better mousetrap for this one -- it's an ugly hack
         byte[] data;
         try (FileInputStream in = new FileInputStream(binary)) {
             data = new byte[in.available()];

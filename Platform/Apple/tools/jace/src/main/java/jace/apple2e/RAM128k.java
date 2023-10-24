@@ -350,7 +350,7 @@ abstract public class RAM128k extends RAM {
                 read.setBanks(7, 8, 0x0C8, cPageRom);
             }
         }
-        // All ROM reads not intecepted will return 0xFF! (TODO: floating bus)
+        // All ROM reads not intecepted will return 0xFF!
         read.set(0x0c0, blank.get(0));
         return read;
     }

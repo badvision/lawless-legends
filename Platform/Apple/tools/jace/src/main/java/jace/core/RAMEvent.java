@@ -74,6 +74,7 @@ public class RAMEvent {
     private SCOPE scope;
     private VALUE value;
     private int address, oldValue, newValue;
+    private boolean valueIntercepted = false;
 
     /**
      * Creates a new instance of RAMEvent
@@ -142,5 +143,10 @@ public class RAMEvent {
 
     public final void setNewValue(int newValue) {
         this.newValue = newValue;
+        valueIntercepted = true;
+    }
+
+    public final boolean isIntercepted() {
+        return valueIntercepted;
     }
 }

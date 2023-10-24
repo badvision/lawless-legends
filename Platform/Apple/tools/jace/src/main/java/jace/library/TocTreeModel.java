@@ -101,7 +101,7 @@ public class TocTreeModel implements TreeModel {
 
     public int getIndexOfChild(Object parent, Object child) {
         if (parent instanceof String) {
-            String n = (String) parent;
+            // String n = (String) parent;
             int index = 0;
             for (String c : tree.get(parent).keySet()) {
                 if (c.equals(child)) {

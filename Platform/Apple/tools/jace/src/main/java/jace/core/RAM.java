@@ -323,6 +323,9 @@ public abstract class RAM implements Reconfigurable {
         if (activeListeners != null && !activeListeners.isEmpty()) {
             RAMEvent e = new RAMEvent(t, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY, address, oldValue, newValue);
             activeListeners.forEach((l) -> l.handleEvent(e));
+            if (!e.isIntercepted() && (address & 0x0FF00) == 0x0C000) {
+                return computer.getVideo().getFloatingBus();
+            }
             return (byte) e.getNewValue();
         }
         return (byte) newValue;

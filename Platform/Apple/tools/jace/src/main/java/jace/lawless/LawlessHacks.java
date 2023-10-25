@@ -1,6 +1,7 @@
 package jace.lawless;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
@@ -11,6 +12,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -136,7 +139,12 @@ public class LawlessHacks extends Cheats {
             System.out.println("Playing " + resourcePath);
         }
         // Log path
-        return new Media(resourcePath);
+        try {
+            return new Media(resourcePath);
+        } catch (IOException e) {
+            Logger.getLogger(getClass().getName()).log(Level.SEVERE, "Unable to load audio track " + resourcePath, e);
+            return null;
+        }
     }
 
     private void playMusic(int track, boolean switchScores) {

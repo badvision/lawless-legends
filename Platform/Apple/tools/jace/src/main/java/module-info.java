@@ -38,6 +38,7 @@ module lawlesslegends {
     requires javafx.media;
     requires jdk.jsobject;
     requires org.lwjgl.openal;
+    requires org.lwjgl.stb;
     
     // requires org.reflections;
     

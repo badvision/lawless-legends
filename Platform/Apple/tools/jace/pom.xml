@@ -203,6 +203,10 @@
         </dependency>
         <dependency>
             <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-stb</artifactId>
+          </dependency>    
+        <dependency>
+            <groupId>org.lwjgl</groupId>
             <artifactId>lwjgl</artifactId>
             <classifier>${lwjgl.natives}</classifier>
         </dependency>
@@ -216,7 +220,7 @@
             <artifactId>jlayer</artifactId>
             <version>1.0.2-gdx</version>
         </dependency>
-    </dependencies>
+</dependencies>
     <profiles>
         <profile>
             <id>lwjgl-natives-linux-amd64</id>

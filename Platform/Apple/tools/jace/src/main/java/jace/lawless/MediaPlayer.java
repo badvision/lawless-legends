@@ -19,7 +19,7 @@ public class MediaPlayer {
     Executor executor = Executors.newSingleThreadExecutor();
 
     public static enum Status {
-        PLAYING, PAUSED, STOPPED
+        NOT_STARTED, PLAYING, PAUSED, STOPPED
     }
 
     public static final int INDEFINITE = -1;
@@ -40,6 +40,7 @@ public class MediaPlayer {
         return vol;
     }
 
+    // NOTE: Once a song is stopped, it cannot be restarted.
     public void stop() {
         status = Status.STOPPED;
         try {
@@ -47,6 +48,7 @@ public class MediaPlayer {
         } catch (InterruptedException | ExecutionException e) {
             // Ignore exception on shutdown
         }
+        song.close();
     }
 
     public void setCycleCount(int i) {
@@ -61,11 +63,19 @@ public class MediaPlayer {
         song.seekToTime(millis);
     }
 
+    public void pause() {
+        status = Status.PAUSED;
+    }
+
     public void play() {
-        repeats = 0;
-        status = Status.PLAYING;
-        if (playbackBuffer == null || !playbackBuffer.isAlive()) {
-            playbackBuffer = SoundMixer.createBuffer(true);
+        if (status == Status.STOPPED) {
+            return;
+        } else if (status == Status.NOT_STARTED) {
+            repeats = 0;
+            status = Status.PLAYING;
+            if (playbackBuffer == null || !playbackBuffer.isAlive()) {
+                playbackBuffer = SoundMixer.createBuffer(true);
+            }
         }
         executor.execute(() -> {
             while (status == Status.PLAYING && (maxRepetitions == INDEFINITE || repeats < maxRepetitions)) {

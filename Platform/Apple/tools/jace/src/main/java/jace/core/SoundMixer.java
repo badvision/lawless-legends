@@ -198,7 +198,6 @@ public class SoundMixer extends Device {
                 Logger.getLogger(SoundMixer.class.getName()).warning("Playback attempted on stopped buffer!");                
                 return;
             }
-            currentBuffer.put(sample);
             if (!currentBuffer.hasRemaining()) {
                 buffersGenerated++;
                 currentBuffer.flip();
@@ -232,6 +231,7 @@ public class SoundMixer extends Device {
                 currentBuffer = alternateBuffer;
                 alternateBuffer = tempBuffer;                
             }
+            currentBuffer.put(sample);
         }
 
         public void shutdown() throws InterruptedException, ExecutionException {            

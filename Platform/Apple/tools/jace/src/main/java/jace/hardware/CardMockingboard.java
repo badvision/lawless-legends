@@ -324,14 +324,13 @@ public class CardMockingboard extends Card implements Runnable {
     }
     
     public boolean suspendSound() {
+        setRun(false);
         if (playbackThread == null || !playbackThread.isAlive()) {
             return false;
         }
         if (playbackThread != null) {
-            playbackThread.interrupt();
             try {
-                // Wait for thread to die
-                playbackThread.join();
+                playbackThread.join(500);
             } catch (InterruptedException ex) {
             }
         }

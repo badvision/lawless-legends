@@ -18,9 +18,6 @@ import jace.cheat.Cheats;
 import jace.core.Computer;
 import jace.core.RAMEvent;
 import jace.lawless.LawlessVideo.RenderEngine;
-import javafx.beans.property.DoubleProperty;
-import javafx.scene.media.Media;
-import javafx.scene.media.MediaPlayer;
 import javafx.util.Duration;
 
 /**
@@ -50,12 +47,10 @@ public class LawlessHacks extends Cheats {
         addCheat("Lawless Legends Graphics Modes", RAMEvent.TYPE.ANY, (e) -> {
             int addr = e.getAddress();
             if (addr >= MODE_SOFTSWITCH_MIN && e.getAddress() <= MODE_SOFTSWITCH_MAX) {
-//                System.out.println("Trapped " + e.getType().toString() + " to $" + Integer.toHexString(e.getAddress()));
                 setEngineByOrdinal(e.getAddress() - MODE_SOFTSWITCH_MIN);
             }
         }, MODE_SOFTSWITCH_MIN, MODE_SOFTSWITCH_MAX);
         addCheat("Lawless Legends Music Commands", RAMEvent.TYPE.WRITE, (e) -> {
-//            System.out.println(Integer.toHexString(e.getAddress()) + " => " + Integer.toHexString(e.getNewValue() & 0x0ff));
             playSound(e.getNewValue());
         }, SFX_TRIGGER);
     }
@@ -165,7 +160,7 @@ public class LawlessHacks extends Cheats {
         playbackEffect = null;
     }
     
-    private Optional<Double> getCurrentTime() {
+    private Optional<Long> getCurrentTime() {
         if (currentSongPlayer == null) {
             return Optional.empty();
         } else if (currentSongPlayer.getCurrentTime() == null) {
@@ -181,9 +176,8 @@ public class LawlessHacks extends Cheats {
         if (player != null) {
             getCurrentTime().ifPresent(val -> lastTime.put(currentSong, val + 1500));
             playbackEffect = new Thread(() -> {
-                DoubleProperty volume = player.volumeProperty();
-                while (playbackEffect == Thread.currentThread() && volume.get() > 0.0) {
-                    volume.set(volume.get() - FADE_AMT);
+                while (playbackEffect == Thread.currentThread() && player.getVolume() > 0.0) {
+                    player.setVolume(player.getVolume() - FADE_AMT);
                     try {
                         Thread.sleep(FADE_SPEED);
                     } catch (InterruptedException e) {
@@ -208,14 +202,13 @@ public class LawlessHacks extends Cheats {
     private void fadeInSong(MediaPlayer player) {
         stopSongEffect();
         currentSongPlayer = player;
-        DoubleProperty volume = player.volumeProperty();
-        if (volume.get() >= 1.0) {
+        if (player.getVolume() >= 1.0) {
             return;
         }
 
         playbackEffect = new Thread(() -> {
-            while (playbackEffect == Thread.currentThread() && volume.get() < 1.0) {
-                volume.set(volume.get() + FADE_AMT);
+            while (playbackEffect == Thread.currentThread() && player.getVolume() < 1.0) {
+                player.setVolume(player.getVolume() + FADE_AMT);
                 try {
                     Thread.sleep(FADE_SPEED);
                 } catch (InterruptedException e) {
@@ -250,7 +243,7 @@ public class LawlessHacks extends Cheats {
             player.setCycleCount(repeatSong ? MediaPlayer.INDEFINITE : 1);
             player.setVolume(0.0);
             if (playingFightSong || autoResume.contains(track) || switchScores) {
-                double time = lastTime.getOrDefault(track, 0.0);
+                long time = lastTime.getOrDefault(track, 0L);
                 System.out.println("Auto-resume from time " + time);
                 player.setStartTime(Duration.millis(time));
             }                
@@ -316,7 +309,7 @@ public class LawlessHacks extends Cheats {
     Pattern ENTRY = Pattern.compile("([0-9]+)\\s+(.*)");
     private final Map<String, Map<Integer, String>> scores = new HashMap<>();
     private final Set<Integer> autoResume = new HashSet<>();
-    private final Map<Integer, Double> lastTime = new HashMap<>();
+    private final Map<Integer, Long> lastTime = new HashMap<>();
     private void readScores() {
         InputStream data = getClass().getResourceAsStream("/jace/data/sound/scores.txt");
         readScores(data);

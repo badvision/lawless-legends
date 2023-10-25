@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+@SuppressWarnings("all")
 module lawlesslegends {
     requires nestedvm;
     requires java.base;

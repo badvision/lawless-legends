@@ -19,6 +19,7 @@ import java.nio.ByteBuffer
 import java.nio.channels.Channels
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
+import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.regex.Pattern
 import java.util.zip.GZIPInputStream
@@ -1002,8 +1003,14 @@ class A2PackPartitions
         cache[key] = [hash:hash, data:buf]
     }
 
-    def updateEngineStamp(name, hash)
+    def updateEngineStamp()
     {
+        def hash
+        def tsfile = new File("build/tstamp.txt")
+        jitCopy(tsfile)
+        tsfile.withReader { reader ->
+            hash = Long.parseLong(reader.readLine())
+        }
         if (!cache.containsKey("engineStamp") || cache["engineStamp"].hash < hash)
             cache["engineStamp"] = [hash:hash]
     }
@@ -2334,7 +2341,6 @@ class A2PackPartitions
         def uncompData = readBinary(inDir + "build/" + codeName + ".b")
 
         addToCache("code", code, codeName, hash, compress(uncompData))
-        updateEngineStamp(codeName, hash)
     }
 
     def assembleCore(inDir)
@@ -2356,7 +2362,6 @@ class A2PackPartitions
                 hash = file.lastModified()
                 if (!grabFromCache("sysCode", sysCode, name, hash)) {
                     addToCache("sysCode", sysCode, name, hash, compress(readBinary(file.toString())))
-                    updateEngineStamp(name, hash)
                 }
             }
             else {
@@ -2370,7 +2375,6 @@ class A2PackPartitions
                     addToCache("sysCode", sysCode, name, hash,
                         (name ==~ /loader|decomp/) ? [data:uncompData, len:uncompData.length, compressed:false]
                                                    : compress(uncompData))
-                    updateEngineStamp(name, hash)
                 }
             }
 
@@ -2441,12 +2445,13 @@ class A2PackPartitions
         addToCache("modules", modules, moduleName, hash, module)
         addToCache("bytecodes", bytecodes, moduleName, hash, bytecode)
         addToCache("fixups", fixups, moduleName, hash, fixup)
-        if (!(moduleName ==~ /.*(gs|gen)_.*/ || codeDir ==~ /.*mapScript.*/))
-            updateEngineStamp(moduleName, hash)
     }
 
     def readAllCode()
     {
+        // Update the engine stamp from the tstamp.txt file
+        updateEngineStamp()
+
         // Loader, ProRWTS, PLASMA VM, and memory manager
         assembleCore("src/core/")
 

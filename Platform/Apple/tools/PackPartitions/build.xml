@@ -6,6 +6,10 @@
     <target depends="init" description="Don't build Javadoc." name="javadoc"/>
     <!-- use local groovy jar instead of NetBeans' version -->
     <property name="libs.groovy-all.classpath" value="./lib/groovy-4.0.13.jar:./lib/groovy-ant-4.0.13.jar:./lib/groovy-xml-4.0.13.jar:./lib/groovy-json-4.0.13.jar"/>
+    <!-- put the current time/date into a file for engine timestamping -->
+    <exec executable="date" output="dist/tstamp.txt">
+        <arg value="+%s000"/>
+    </exec>
     <!-- after building the 'thin' jar, make a 'thick' one incorporating all dependencies -->
     <target name="-post-jar">
         <echo message="Packaging ${application.title} into a single JAR at ${dist.jar}"/>
@@ -22,6 +26,9 @@
             <manifest>
                 <attribute name="Main-Class" value="org.badvision.A2PackPartitions"/>
             </manifest>
+            <fileset dir="dist">
+                <include name="tstamp.txt"/>
+            </fileset>
             <fileset dir="../..">
                 <include name="virtual/src/**/*.pla"/>
                 <include name="virtual/src/**/*.plh"/>

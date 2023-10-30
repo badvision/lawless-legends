@@ -108,7 +108,7 @@ public abstract class TimedDevice extends Device {
         if (worker != null && worker.isAlive()) {
             return;
         }
-        worker = new Thread(() -> {
+        Thread newWorker = new Thread(() -> {
             // System.out.println("Worker thread for " + getDeviceName() + " starting");
             while (isRunning()) {
                 hasStopped = false;
@@ -124,10 +124,11 @@ public abstract class TimedDevice extends Device {
             hasStopped = true;
             // System.out.println("Worker thread for " + getDeviceName() + " stopped");
         });
-        worker.setDaemon(false);
-        worker.setPriority(Thread.MAX_PRIORITY);
-        worker.start();
-        worker.setName("Timed device " + getDeviceName() + " worker");
+        this.worker = newWorker;
+        newWorker.setDaemon(false);
+        newWorker.setPriority(Thread.MAX_PRIORITY);
+        newWorker.setName("Timed device " + getDeviceName() + " worker");
+        newWorker.start();
     }
     long nanosPerInterval; // How long to wait between pauses
     long cyclesPerInterval; // How many cycles to wait until a pause interval

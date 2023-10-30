@@ -27,7 +27,6 @@ import java.util.logging.Logger;
 import jace.EmulatorUILogic;
 import jace.config.ConfigurableField;
 import jace.config.Name;
-import jace.config.Reconfigurable;
 import jace.core.Card;
 import jace.core.Computer;
 import jace.core.RAMEvent;
@@ -46,7 +45,7 @@ import jace.library.MediaConsumerParent;
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com
  */
 @Name("Disk ][ Controller")
-public class CardDiskII extends Card implements Reconfigurable, MediaConsumerParent {
+public class CardDiskII extends Card implements MediaConsumerParent {
 
     DiskIIDrive currentDrive;
     DiskIIDrive drive1 = new DiskIIDrive(computer);
@@ -128,7 +127,8 @@ public class CardDiskII extends Card implements Reconfigurable, MediaConsumerPar
             case 0xC:
                 // read/write latch
                 currentDrive.write();
-                e.setNewValue(currentDrive.readLatch());
+                int latch = currentDrive.readLatch();
+                e.setNewValue(latch);
                 break;
             case 0xF:
                 // write mode

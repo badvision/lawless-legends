@@ -136,11 +136,6 @@ public class Utility {
         return score * adjustment * adjustment;
     }
 
-    @Deprecated
-    public static String join(Collection<String> c, String d) {
-        return String.join(d, c);
-    }
-
     private static boolean isHeadless = false;
 
     public static void setHeadlessMode(boolean headless) {
@@ -341,8 +336,10 @@ public class Utility {
         });
     }
 
+    @SuppressWarnings("all")
     static Map<Class, Map<String, Object>> enumCache = new HashMap<>();
 
+    @SuppressWarnings("all")
     public static Object findClosestEnumConstant(String value, Class type) {
         Map<String, Object> enumConstants = enumCache.get(type);
         if (enumConstants == null) {
@@ -361,6 +358,7 @@ public class Utility {
         return enumConstants.get(key);
     }
 
+    @SuppressWarnings("all")
     public static Object deserializeString(String value, Class type, boolean hex) {
         int radix = hex ? 16 : 10;
         if (type.equals(Integer.TYPE) || type == Integer.class) {
@@ -404,7 +402,7 @@ public class Utility {
 
     public static Function<Boolean, Boolean> getNamedInvokableAction(String action) {
         InvokableActionRegistry registry = InvokableActionRegistry.getInstance();        
-        List<InvokableAction> actionsList = new ArrayList(registry.getAllStaticActions());
+        List<InvokableAction> actionsList = new ArrayList<>(registry.getAllStaticActions());
         actionsList.sort((a, b) -> Integer.compare(getActionNameMatch(action, a), getActionNameMatch(action, b)));
 //        for (InvokableAction a : actionsList) {
 //            String actionName = a.alternatives() == null ? a.name() : (a.name() + ";" + a.alternatives());

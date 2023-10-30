@@ -15,17 +15,18 @@
  */
 package jace.cpu;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.junit.Assert.assertEquals;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
-import jace.Emulator;
 import static jace.TestUtils.assemble;
 import static jace.TestUtils.createSimpleDevice;
 import static jace.TestUtils.initComputer;
 import static jace.TestUtils.runAssemblyCode;
+import static org.junit.Assert.assertEquals;
+
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import jace.Emulator;
 import jace.apple2e.MOS65C02;
 import jace.apple2e.RAM128k;
 import jace.core.Computer;
@@ -90,7 +91,7 @@ WAIT3   sbc #$01
         AtomicInteger breakpointEncountered = new AtomicInteger();
         AtomicInteger cycleCount = new AtomicInteger();
         // This listener will increment our breakpoint counter if it reaches our desired stoppoing point in time
-        RAMListener l = ram.addExecutionTrap(0x01000, e -> breakpointEncountered.incrementAndGet());
+        RAMListener l = ram.addExecutionTrap("Halting test", 0x01000, e -> breakpointEncountered.incrementAndGet());
         // This faux device counts the number of cycles executed
         cpu.addChildDevice(createSimpleDevice(()->{
             if (breakpointEncountered.get() == 0) {
@@ -116,7 +117,7 @@ WAIT3   sbc #$01
         AtomicInteger breakpointEncountered = new AtomicInteger();
         AtomicInteger cycleCount = new AtomicInteger();
         // This listener will increment our breakpoint counter if it reaches our desired stoppoing point in time
-        RAMListener l = ram.addExecutionTrap(0x01000, e -> breakpointEncountered.incrementAndGet());
+        RAMListener l = ram.addExecutionTrap("Halting test", 0x01000, e -> breakpointEncountered.incrementAndGet());
 
         // This faux device counts the number of cycles executed
         cpu.addChildDevice(createSimpleDevice(()->{

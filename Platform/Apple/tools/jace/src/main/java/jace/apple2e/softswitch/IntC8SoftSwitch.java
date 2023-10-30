@@ -40,7 +40,7 @@ public class IntC8SoftSwitch extends SoftSwitch {
         super("InternalC8Rom", false);
         // INTC8Rom should activate whenever C3xx memory is accessed and SLOTC3ROM is off
         addListener(
-                new RAMListener(RAMEvent.TYPE.ANY, RAMEvent.SCOPE.RANGE, RAMEvent.VALUE.ANY) {
+                new RAMListener("Softswitch " + getName() + " on", RAMEvent.TYPE.ANY, RAMEvent.SCOPE.RANGE, RAMEvent.VALUE.ANY) {
             @Override
             protected void doConfig() {
                 setScopeStart(0x0C300);
@@ -57,7 +57,7 @@ public class IntC8SoftSwitch extends SoftSwitch {
 
         // INTCXRom shoud deactivate whenever CFFF is accessed
         addListener(
-                new RAMListener(RAMEvent.TYPE.ANY, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY) {
+                new RAMListener("Softswitch " + getName() + " off", RAMEvent.TYPE.ANY, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY) {
             @Override
             protected void doConfig() {
                 setScopeStart(0x0CFFF);

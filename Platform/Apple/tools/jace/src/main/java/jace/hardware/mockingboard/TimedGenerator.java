@@ -35,9 +35,6 @@ public class TimedGenerator {
     double cyclesPerSample;
     int clocksPerPeriod;
 
-    private TimedGenerator() {
-    }
-
     public TimedGenerator(int _clock, int _sampleRate) {
         setRate(clock, sampleRate);
         reset();

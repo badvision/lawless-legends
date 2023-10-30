@@ -15,10 +15,10 @@ public enum VideoImpls implements DeviceEnum<Video> {
     Lawless("Lawless enhanced video", LawlessVideo.class, LawlessVideo::new);
 
     private final String name;
-    private final Class clazz;
+    private final Class<? extends Video> clazz;
     private final Function<Computer, Video> factory;
 
-    VideoImpls(String name, Class clazz, Function<Computer, Video> factory) {
+    VideoImpls(String name, Class<? extends Video> clazz, Function<Computer, Video> factory) {
         this.name = name;
         this.clazz = clazz;
         this.factory = factory;

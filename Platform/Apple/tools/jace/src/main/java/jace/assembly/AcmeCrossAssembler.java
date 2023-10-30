@@ -1,6 +1,10 @@
 package jace.assembly;
 
 import  org.ibex.nestedvm.UnixRuntime;
+
+// Auto-generated file, don't perform any code lint checks
+ @SuppressWarnings("all")
+
 /* This file was generated from acme by Mips2Java on Tue Jul 14 00:46:52 CDT 2015 */
 
 public final class AcmeCrossAssembler extends UnixRuntime {

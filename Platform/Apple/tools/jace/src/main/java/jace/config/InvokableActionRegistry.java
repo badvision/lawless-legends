@@ -12,6 +12,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.logging.Logger;
 
+@SuppressWarnings("all")
 public abstract class InvokableActionRegistry {
     protected static final Logger logger = Logger.getLogger(InvokableActionRegistry.class.getName());
     private final Map<Class, Set<String>> staticMethodNames = new HashMap<>();

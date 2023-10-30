@@ -140,7 +140,7 @@ public class CardRamworks extends RAM128k {
     private RAMListener bankSelectListener;
     @Override
     public void attach() {
-        bankSelectListener = observe(RAMEvent.TYPE.WRITE, BANK_SELECT, (e) -> {
+        bankSelectListener = observe("Ramworks bank select", RAMEvent.TYPE.WRITE, BANK_SELECT, (e) -> {
             currentBank = e.getNewValue();
             configureActiveMemory();
         });

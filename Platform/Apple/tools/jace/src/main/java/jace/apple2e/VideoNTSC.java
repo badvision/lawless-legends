@@ -423,11 +423,11 @@ public class VideoNTSC extends VideoDHGR {
             return;
         }
         RAM memory = computer.getMemory();
-        rgbStateListeners.add(memory.observe(RAMEvent.TYPE.ANY, 0x0c05e, (e) -> {
+        rgbStateListeners.add(memory.observe("NTSC: AN3 state change", RAMEvent.TYPE.ANY, 0x0c05e, (e) -> {
             an3 = false;
             rgbStateChange();
         }));
-        rgbStateListeners.add(memory.observe(RAMEvent.TYPE.ANY, 0x0c05f, (e) -> {
+        rgbStateListeners.add(memory.observe("NTSC: 80COL state change", RAMEvent.TYPE.ANY, 0x0c05f, (e) -> {
             if (!an3) {
                 f2 = f1;
                 f1 = SoftSwitches._80COL.getState();
@@ -435,7 +435,7 @@ public class VideoNTSC extends VideoDHGR {
             an3 = true;
             rgbStateChange();
         }));
-        rgbStateListeners.add(memory.observe(RAMEvent.TYPE.EXECUTE, 0x0fa62, (e) -> {
+        rgbStateListeners.add(memory.observe("NTSC: Reset hook for reverting RGB mode", RAMEvent.TYPE.EXECUTE, 0x0fa62, (e) -> {
             // When reset hook is called, reset the graphics mode
             // This is useful in case a program is running that
             // is totally clueless how to set the RGB state correctly.

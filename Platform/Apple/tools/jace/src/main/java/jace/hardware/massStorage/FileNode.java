@@ -202,6 +202,8 @@ public class FileNode extends DiskNode {
                     readFile(buffer, (block - treeBlocks - 1));
                 }
                 break;
+            default:
+                // ignore
         }
     }
 

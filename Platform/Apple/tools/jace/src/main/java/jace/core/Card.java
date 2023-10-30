@@ -18,7 +18,6 @@
  */
 package jace.core;
 
-import jace.Emulator;
 import jace.apple2e.SoftSwitches;
 
 /**
@@ -103,10 +102,10 @@ public abstract class Card extends Device {
     @Override
     public void reconfigure() {
         //super.reconfigure();
-        Emulator.whileSuspended(c-> {
+        // Emulator.whileSuspended(c-> {
             unregisterListeners();
             registerListeners();
-        });
+        // });
     }
 
     public void notifyVBLStateChanged(boolean state) {
@@ -121,12 +120,12 @@ public abstract class Card extends Device {
         RAM memory = computer.getMemory();
         int baseIO = 0x0c080 + slot * 16;
         int baseRom = 0x0c000 + slot * 256;
-        ioListener = memory.observe(RAMEvent.TYPE.ANY, baseIO, baseIO + 15, (e) -> {
+        ioListener = memory.observe("Slot " + getSlot() + " " + getDeviceName() + " IO access", RAMEvent.TYPE.ANY, baseIO, baseIO + 15, (e) -> {
             int address = e.getAddress() & 0x0f;
             handleIOAccess(address, e.getType(), e.getNewValue(), e);
         });
 
-        firmwareListener = memory.observe(RAMEvent.TYPE.ANY, baseRom, baseRom + 255, (e) -> {
+        firmwareListener = memory.observe("Slot " + getSlot() + " " + getDeviceName() + " CX Firmware access", RAMEvent.TYPE.ANY, baseRom, baseRom + 255, (e) -> {
             computer.getMemory().setActiveCard(slot);
             // Sather 6-4: Writes will still go through even when CXROM inhibits slot ROM
             if (SoftSwitches.CXROM.isOff() || !e.getType().isRead()) {
@@ -134,7 +133,7 @@ public abstract class Card extends Device {
             }
         });
 
-        c8firmwareListener = memory.observe(RAMEvent.TYPE.ANY, 0xc800, 0xcfff, (e) -> {
+        c8firmwareListener = memory.observe("Slot " + getSlot() + " " + getDeviceName() + " C8 Firmware access", RAMEvent.TYPE.ANY, 0xc800, 0xcfff, (e) -> {
             if (SoftSwitches.CXROM.isOff() && SoftSwitches.INTC8ROM.isOff()
                     && computer.getMemory().getActiveSlot() == slot) {
                 handleC8FirmwareAccess(e.getAddress() - 0x0c800, e.getType(), e.getNewValue(), e);

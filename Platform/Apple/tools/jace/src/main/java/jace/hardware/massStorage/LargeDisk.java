@@ -42,7 +42,7 @@ public class LargeDisk implements IDisk {
     // Offset in input file where data can be found
     private int dataOffset = 0;
     private int physicalBlocks = 0;
-    private int logicalBlocks = 0;
+    // private int logicalBlocks;
 
     public LargeDisk(File f) {
         try {
@@ -124,7 +124,7 @@ public class LargeDisk implements IDisk {
                 // todo: read header
                 dataOffset = 64;
                 physicalBlocks = (int) (f.length() / BLOCK_SIZE);
-                logicalBlocks = physicalBlocks;
+                // logicalBlocks = physicalBlocks;
                 result = true;
             }
         } catch (IOException ex) {
@@ -145,7 +145,7 @@ public class LargeDisk implements IDisk {
         System.out.println("Disk is HDV");
         dataOffset = 0;
         physicalBlocks = (int) (f.length() / BLOCK_SIZE);
-        logicalBlocks = physicalBlocks;
+        // logicalBlocks = physicalBlocks;
     }
 
     private void readDiskImage(File f) throws IOException {

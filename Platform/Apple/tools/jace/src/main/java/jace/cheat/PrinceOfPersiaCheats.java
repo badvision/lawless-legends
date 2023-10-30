@@ -172,19 +172,19 @@ public class PrinceOfPersiaCheats extends Cheats {
     @Override
     public void registerListeners() {
         if (velocityHack) {
-            addCheat(RAMEvent.TYPE.READ_DATA, true, this::velocityHackBehavior, CharYVel);
+            addCheat("Hack velocity", RAMEvent.TYPE.READ_DATA, true, this::velocityHackBehavior, CharYVel);
         }
         if (invincibilityHack) {
-            forceValue(3, true, KidStrength);
+            forceValue("Hack invincibility", 3, true, KidStrength);
         }
         if (sleepHack) {
-            forceValue(0, true, EnemyAlert);
+            forceValue("Go to sleep!", 0, true, EnemyAlert);
         }
         if (swordHack) {
-            forceValue(1, true, hasSword);
+            forceValue("Can haz sword", 1, true, hasSword);
         }
         if (timeHack) {
-            forceValue(0x69, true, MinLeft);
+            forceValue("Hack time", 0x69, true, MinLeft);
         }
         if (mouseHack) {
             EmulatorUILogic.addMouseListener(listener);
@@ -290,7 +290,7 @@ public class PrinceOfPersiaCheats extends Cheats {
             }
             currentScrn = (byte) scrnLeft;
             byte prev = auxMem.readByte(PREV + row);
-            byte sprev = auxMem.readByte(SPREV + row);
+            // byte sprev = auxMem.readByte(SPREV + row);
             // If the block to the left is gate, let's lie about it being open... for science
             // This causes odd-looking screen behavior but it gets the job done.
             if (prev == 4) {

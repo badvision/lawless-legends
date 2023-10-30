@@ -62,6 +62,11 @@ import javafx.scene.image.ImageView;
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com
  */
 public class Configuration implements Reconfigurable {
+    public EmulatorUILogic ui;
+
+    public Configuration() {
+        ui = Emulator.getUILogic();
+    }
 
     static ConfigurableField getConfigurableFieldInfo(Reconfigurable subject, String settingName) {
         Field f;
@@ -104,6 +109,7 @@ public class Configuration implements Reconfigurable {
      * configuration 2) Provide a simple persistence mechanism to load/store
      * configuration
      */
+    @SuppressWarnings("all")
     public static class ConfigNode extends TreeItem implements Serializable {
 
         public transient ConfigNode root;
@@ -136,8 +142,8 @@ public class Configuration implements Reconfigurable {
             children.setAll(super.getChildren());
             id = (String) in.readObject();
             name = (String) in.readObject();
-            settings = (Map) in.readObject();
-            hotkeys = (Map) in.readObject();
+            settings = (Map<String, Serializable>) in.readObject();
+            hotkeys = (Map<String, String[]>) in.readObject();
             Object[] nodeArray = (Object[]) in.readObject();
             synchronized (children) {
                 for (Object child : nodeArray) {
@@ -262,13 +268,12 @@ public class Configuration implements Reconfigurable {
         }
     }
     public static ConfigNode BASE;
-    public static EmulatorUILogic ui = Emulator.logic;
     @ConfigurableField(name = "Autosave Changes", description = "If unchecked, changes are only saved when the Save button is pressed.")
     public static boolean saveAutomatically = false;
 
     public static void buildTree() {
         BASE = new ConfigNode(new Configuration());
-        Set visited = new LinkedHashSet();
+        Set<ConfigNode> visited = new LinkedHashSet<>();
         buildTree(BASE, visited);
         Emulator.withComputer(c->{
             ConfigNode computer = new ConfigNode(BASE, c);
@@ -277,6 +282,7 @@ public class Configuration implements Reconfigurable {
         });
     }
 
+    @SuppressWarnings("all")
     private static void buildTree(ConfigNode node, Set visited) {
         if (node.subject == null) {
             return;
@@ -512,6 +518,7 @@ public class Configuration implements Reconfigurable {
         return hasChanged.get();
     }
 
+    @SuppressWarnings("all")
     private static void applyConfigTree(ConfigNode newRoot, ConfigNode oldRoot) {
         if (oldRoot == null || newRoot == null) {
             return;
@@ -533,6 +540,7 @@ public class Configuration implements Reconfigurable {
         });
     }
 
+    @SuppressWarnings("all")
     private static void doApply(ConfigNode node) {
         List<String> removeList = new ArrayList<>();
         registerKeyHandlers(node, false);
@@ -600,7 +608,7 @@ public class Configuration implements Reconfigurable {
             String fieldName = parts[1];
             ConfigNode n = shortNames.get(deviceName.toLowerCase());
             if (n == null) {
-                System.err.println("Unable to find device named " + deviceName + ", try one of these: " + Utility.join(shortNames.keySet(), ", "));
+                System.err.println("Unable to find device named " + deviceName + ", try one of these: " + String.join(", ", shortNames.keySet()));
                 continue;
             }
 
@@ -622,7 +630,7 @@ public class Configuration implements Reconfigurable {
                 }
             }
             if (!found) {
-                System.err.println("Unable to find property " + fieldName + " for device " + deviceName + ".  Try one of these: " + Utility.join(shortFieldNames, ", "));
+                System.err.println("Unable to find property " + fieldName + " for device " + deviceName + ".  Try one of these: " + String.join(", ", shortFieldNames));
             }
         }
     }

@@ -36,6 +36,7 @@ import java.util.logging.Logger;
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com
  * @param <T>
  */
+@SuppressWarnings("all")
 public class ObjectGraphNode<T> implements Serializable {
 
     public ObjectGraphNode parent;

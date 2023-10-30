@@ -18,6 +18,7 @@
  */
 package jace.hardware;
 
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -26,8 +27,6 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.sound.sampled.SourceDataLine;
-
 import jace.config.ConfigurableField;
 import jace.config.Name;
 import jace.core.Card;
@@ -35,6 +34,7 @@ import jace.core.Computer;
 import jace.core.Motherboard;
 import jace.core.RAMEvent;
 import jace.core.RAMEvent.TYPE;
+import jace.core.SoundMixer.SoundBuffer;
 import jace.core.RAMListener;
 import jace.core.SoundMixer;
 import jace.hardware.mockingboard.PSG;
@@ -254,8 +254,6 @@ public class CardMockingboard extends Card implements Runnable {
 
 ///////////////////////////////////////////////////////////
     public static int[] VolTable;
-    int[][] buffers;
-    int bufferLength = -1;
 
     public void playSound(int[] left, int[] right) {
         chips[0].update(left, true, left, false, left, false, BUFFER_LENGTH);
@@ -277,7 +275,7 @@ public class CardMockingboard extends Card implements Runnable {
         double out = (MAX_AMPLITUDE * volume) / 100.0;
         // Reduce max amplitude to reflect post-mixer values so we don't have to scale volume when mixing channels
         out = out * 2.0 / 3.0 / numChips;
-        double delta = 1.15;
+        // double delta = 1.15;
         for (int i = 15; i > 0; i--) {
             VolTable[i] = (int) (out / Math.pow(Math.sqrt(2),(15-i)));
 //            out /= 1.188502227;	/* = 10 ^ (1.5/20) = 1.5dB */
@@ -326,14 +324,13 @@ public class CardMockingboard extends Card implements Runnable {
     }
     
     public boolean suspendSound() {
+        setRun(false);
         if (playbackThread == null || !playbackThread.isAlive()) {
             return false;
         }
         if (playbackThread != null) {
-            playbackThread.interrupt();
             try {
-                // Wait for thread to die
-                playbackThread.join();
+                playbackThread.join(500);
             } catch (InterruptedException ex) {
             }
         }
@@ -346,19 +343,16 @@ public class CardMockingboard extends Card implements Runnable {
      * This is the audio playback thread
      */
     public void run() {
-        SourceDataLine out = null;
+        SoundBuffer buffer = SoundMixer.createBuffer(true);
         try {
-            out = computer.mixer.getLine();
-            if (out == null) {
+            if (buffer == null) {
                 setRun(false);
                 return;
             }
-            int[] leftBuffer = new int[BUFFER_LENGTH];
-            int[] rightBuffer = new int[BUFFER_LENGTH];
-            int frameSize = out.getFormat().getFrameSize();
-            byte[] buffer = new byte[BUFFER_LENGTH * frameSize];
             System.out.println("Mockingboard playback started");
-            int bytesPerSample = frameSize / 2;
+            int bufferSize  = SoundMixer.BUFFER_SIZE;
+            int[] left = new int[bufferSize];
+            int[] right = new int[bufferSize];
             buildMixerTable();
             ticksBetweenPlayback = (int) ((Motherboard.DEFAULT_SPEED * BUFFER_LENGTH) / SAMPLE_RATE);
             System.out.println("Ticks between playback: "+ticksBetweenPlayback);
@@ -371,30 +365,27 @@ public class CardMockingboard extends Card implements Runnable {
                     Thread.sleep(1000);
                 }
                 if (isRunning() && !Thread.interrupted()) {
-                    playSound(leftBuffer, rightBuffer);
-                    int p = 0;
-                    for (int idx = 0; idx < BUFFER_LENGTH; idx++) {
-                        int sampleL = leftBuffer[idx];
-                        int sampleR = rightBuffer[idx];
-                        // Convert left + right samples into buffer format
-                        if (sampleL == 0 && sampleR == 0) {
-                            zeroSamples++;
-                        } else {
-                            zeroSamples = 0;
-                        }
-                        for (int shift = SoundMixer.BITS - 8, index = 0; shift >= 0; shift -= 8, index++) {
-                            buffer[p + index] = (byte) (sampleR >> shift);
-                            buffer[p + index + bytesPerSample] = (byte) (sampleL >> shift);
-                        }
-                        p += frameSize;
-                    }
+                    playSound(left, right);
                     try {
+                        for (int i=0; i < bufferSize; i++) {
+                            buffer.playSample((short) left[i]);
+                            buffer.playSample((short) right[i]);
+                        }
                         timerSync.lock();
                         ticksSinceLastPlayback -= ticksBetweenPlayback;
+                    } catch (ExecutionException e) {
+                        Logger.getLogger(CardMockingboard.class.getName()).log(Level.SEVERE, "Mockingboard playback encountered fatal exception", e);
+                        try {
+                            buffer.shutdown();
+                        } catch (ExecutionException e1) {
+                            // Ignore shutdown errors, we're already reporting a fatal error
+                        }
+                        buffer=null;
+                        setRun(false);
+                        break;
                     } finally {
                         timerSync.unlock();
                     }
-                    out.write(buffer, 0, buffer.length);
                     if (zeroSamples >= MAX_IDLE_SAMPLES) {
                         zeroSamples = 0;
                         pause = true;
@@ -437,9 +428,12 @@ public class CardMockingboard extends Card implements Runnable {
         } finally {
             computer.getMotherboard().cancelSpeedRequest(this);
             System.out.println("Mockingboard playback stopped");
-            if (out != null && out.isRunning()) {
-                out.drain();
-                out.close();
+            if (buffer != null && buffer.isAlive()) {
+                try {
+                    buffer.shutdown();
+                } catch (InterruptedException | ExecutionException e) {
+                    // Ignore errors during shutdown
+                }
             }
         }
     }

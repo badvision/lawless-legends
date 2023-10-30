@@ -63,6 +63,7 @@ public class LawlessComputer extends Apple2e {
         if (showBootAnimation && PRODUCTION_MODE) {
             (new Thread(this::startAnimation)).start();
         } else {
+            cpu.setPaused(false);
             finishColdStart();
         }
     }
@@ -159,6 +160,9 @@ public class LawlessComputer extends Apple2e {
     }
 
     public void waitForVBL(int count) throws InterruptedException {
+        if (!isRunning()) {
+            return;
+        }
         Semaphore s = new Semaphore(0);
         onNextVBL(s::release);
         s.acquire();

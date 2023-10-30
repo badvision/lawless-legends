@@ -18,6 +18,8 @@
  */
 package jace;
 
+import static jace.core.Utility.gripe;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -44,7 +46,6 @@ import jace.config.Reconfigurable;
 import jace.core.Debugger;
 import jace.core.RAM;
 import jace.core.RAMListener;
-import static jace.core.Utility.gripe;
 import jace.ide.IdeController;
 import javafx.application.Platform;
 import javafx.event.EventHandler;
@@ -90,7 +91,7 @@ public class EmulatorUILogic implements Reconfigurable {
             category = "General",
             name = "Show Drives"
     )
-    public boolean showDrives = false;
+    public boolean showDrives = Emulator.withComputer(c->!c.PRODUCTION_MODE, false);
 
     public static void updateCPURegisters(MOS65C02 cpu) {
 //        DebuggerPanel debuggerPanel = Emulator.getFrame().getDebuggerPanel();
@@ -233,10 +234,6 @@ public class EmulatorUILogic implements Reconfigurable {
     }
 
     public static void brun(File binary, int address) throws IOException {
-        // If it was halted already, then it was initiated outside of an opcode execution
-        // If it was not yet halted, then it is the case that the CPU is processing another opcode
-        // So if that is the case, the program counter will need to be decremented here to compensate
-        // TODO: Find a better mousetrap for this one -- it's an ugly hack
         byte[] data;
         try (FileInputStream in = new FileInputStream(binary)) {
             data = new byte[in.available()];
@@ -345,7 +342,7 @@ public class EmulatorUILogic implements Reconfigurable {
         }
         String filename = targetFile.getName();
         System.out.println("Writing screenshot to " + filename);
-        String extension = filename.substring(filename.lastIndexOf(".") + 1);
+        // String extension = filename.substring(filename.lastIndexOf(".") + 1);
 //        BufferedImage bufImageRGB = new BufferedImage(bufImageARGB.getWidth(), bufImageARGB.getHeight(), BufferedImage.OPAQUE);
 //
 //        Graphics2D graphics = bufImageRGB.createGraphics();

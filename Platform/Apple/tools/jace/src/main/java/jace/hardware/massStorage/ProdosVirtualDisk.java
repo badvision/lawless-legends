@@ -18,7 +18,6 @@
  */
 package jace.hardware.massStorage;
 
-import jace.Emulator;
 import jace.EmulatorUILogic;
 import jace.apple2e.MOS65C02;
 import jace.core.Computer;

@@ -71,21 +71,21 @@ public class MontezumasRevengeCheats extends Cheats {
     @Override
     public void registerListeners() {
         if (repulsiveHack) {
-            addCheat(RAMEvent.TYPE.WRITE, this::repulsiveBehavior, 0x1508, 0x1518);
+            addCheat("Repulsive", RAMEvent.TYPE.WRITE, this::repulsiveBehavior, 0x1508, 0x1518);
         }
 
         if (featherFall) {
-            addCheat(RAMEvent.TYPE.WRITE, this::featherFallBehavior, PLAYER_Y);
+            addCheat("Feather fall", RAMEvent.TYPE.WRITE, this::featherFallBehavior, PLAYER_Y);
             // Bypass the part that realizes you should die when you hit the floor
-            bypassCode(0x6bb3, 0x6bb4);
+            bypassCode("Feather fall code hack", 0x6bb3, 0x6bb4);
         }
 
         if (moonJump) {
-            addCheat(RAMEvent.TYPE.WRITE, this::moonJumpBehavior, Y_VELOCITY);
+            addCheat("Moon jump", RAMEvent.TYPE.WRITE, this::moonJumpBehavior, Y_VELOCITY);
         }
 
         if (infiniteLives) {
-            forceValue(11, LIVES);
+            forceValue("Infinite lives", 11, LIVES);
         }
 
         if (safePassage) {
@@ -103,22 +103,22 @@ public class MontezumasRevengeCheats extends Cheats {
                 memory.write(0x0f51, (byte) 0b00001000, false, false);
                 memory.write(0x0f52, (byte) 0b10000100, false, false);
                 memory.write(0x0f53, (byte) 0b11010101, false, false);            
-                forceValue(32, FLOOR_TIMER);
-                forceValue(32, HAZARD_TIMER);
-                forceValue(1, HAZARD_FLAG);
+                forceValue("Hack floor timer", 32, FLOOR_TIMER);
+                forceValue("Hack hazard timer", 32, HAZARD_TIMER);
+                forceValue("Hack hazard flag", 1, HAZARD_FLAG);
             });
         }
 
         if (scoreHack) {
             // Score: 900913
-            forceValue(0x90, SCORE);
-            forceValue(0x09, SCORE + 1);
-            forceValue(0x13, SCORE + 2);
+            forceValue("Hack score 1", 0x90, SCORE);
+            forceValue("Hack score 2", 0x09, SCORE + 1);
+            forceValue("Hack score 3", 0x13, SCORE + 2);
         }
 
         if (snakeCharmer) {
             // Skip the code that determines you're touching an enemy
-            bypassCode(0x07963, 0x07964);
+            bypassCode("Snake charmer", 0x07963, 0x07964);
         }
         if (mouseHack) {
             EmulatorUILogic.addMouseListener(listener);

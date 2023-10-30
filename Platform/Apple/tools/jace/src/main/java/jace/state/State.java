@@ -18,11 +18,10 @@
  */
 package jace.state;
 
-import java.io.Serializable;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
+
 import javafx.scene.image.Image;
 
 /**
@@ -34,7 +33,8 @@ import javafx.scene.image.Image;
  *
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com
  */
-public class State extends HashMap<ObjectGraphNode, StateValue> implements Serializable {
+@SuppressWarnings("all")
+public class State extends HashMap<ObjectGraphNode, StateValue> {
 
     boolean deltaState;
     State previousState;

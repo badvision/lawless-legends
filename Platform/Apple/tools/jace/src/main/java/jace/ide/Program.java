@@ -18,6 +18,7 @@ import java.util.logging.Logger;
  *
  * @author blurry
  */
+@SuppressWarnings("all")
 public class Program {
 
     public static String CODEMIRROR_EDITOR = "/codemirror/editor.html";

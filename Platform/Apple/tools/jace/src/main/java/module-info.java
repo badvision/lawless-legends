@@ -14,19 +14,20 @@
  * limitations under the License.
  */
 
+@SuppressWarnings("all")
 module lawlesslegends {
     requires nestedvm;
     requires java.base;
     requires java.logging;
-    requires java.desktop;
+    requires transitive java.desktop;
     requires java.datatransfer;
     requires java.scripting;
-    requires static java.compiler;
+    requires static transitive java.compiler;
     requires javafx.fxmlEmpty;
     requires javafx.fxml;
     requires javafx.swing;
     requires javafx.controlsEmpty;
-    requires javafx.controls;
+    requires transitive javafx.controls;
     requires javafx.baseEmpty;
     requires javafx.base;
     requires javafx.webEmpty;
@@ -37,20 +38,31 @@ module lawlesslegends {
     requires javafx.media;
     requires jdk.jsobject;
     requires org.lwjgl.openal;
+    requires org.lwjgl.stb;
     
     // requires org.reflections;
     
     opens jace to javafx.graphics, javafx.fxml, javafx.controls;
     opens jace.config to javafx.fxml, javafx.controls;
-    opens jace.data to javafx.graphics, javafx.fxml, javafx.controls;
+    // opens jace.data to javafx.graphics, javafx.fxml, javafx.controls;
     opens jace.ide to javafx.graphics, javafx.fxml, javafx.controls;
-    opens fxml to javafx.graphics, javafx.fxml, javafx.controls;
-    opens styles to javafx.graphics, javafx.fxml, javafx.controls;
+    // opens fxml to javafx.graphics, javafx.fxml, javafx.controls;
+    // opens styles to javafx.graphics, javafx.fxml, javafx.controls;
     
     uses javax.sound.sampled.SourceDataLine;
 
     provides javax.annotation.processing.Processor with jace.config.InvokableActionAnnotationProcessor;
 
     exports jace;
+    exports jace.apple2e;
+    exports jace.cheat;
     exports jace.config;
+    exports jace.core;
+    exports jace.hardware;
+    exports jace.hardware.mockingboard;
+    exports jace.lawless;
+    exports jace.library;
+    exports jace.state;
+    exports jace.ui;
+
 }

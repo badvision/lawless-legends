@@ -52,8 +52,8 @@ public class ZipWarpAccelerator extends Device {
 
     public ZipWarpAccelerator(Computer computer) {
         super(computer);
-        zipListener = computer.getMemory().observe(RAMEvent.TYPE.ANY, ENABLE_ADDR, SET_SPEED, this::handleZipChipEvent);
-        transwarpListener = computer.getMemory().observe(RAMEvent.TYPE.ANY, TRANSWARP, this::handleTranswarpEvent);
+        zipListener = computer.getMemory().observe("Zip chip access", RAMEvent.TYPE.ANY, ENABLE_ADDR, SET_SPEED, this::handleZipChipEvent);
+        transwarpListener = computer.getMemory().observe("Transwarp access", RAMEvent.TYPE.ANY, TRANSWARP, this::handleTranswarpEvent);
     }
 
     private void handleZipChipEvent(RAMEvent e) {
@@ -190,7 +190,7 @@ public class ZipWarpAccelerator extends Device {
 
     private void turnOffAcceleration() {
         // The UI Logic retains the user's desired normal speed, reset to that
-        Emulator.logic.reconfigure();
+        Emulator.getUILogic().reconfigure();
     }
     
     @Override

@@ -533,7 +533,9 @@ public class VideoDHGR extends Video {
         } else {
             flashTimer--;
             if (flashTimer <= 0) {
-                markFlashDirtyBits();
+                if (SoftSwitches.MIXED.isOn() || SoftSwitches.TEXT.isOn()) {
+                    markFlashDirtyBits();
+                }
                 flashTimer = FLASH_SPEED;
                 flashInverse = !flashInverse;
                 if (flashInverse) {
@@ -690,7 +692,6 @@ public class VideoDHGR extends Video {
     }
 
     private void markFlashDirtyBits() {
-        // TODO: Be smarter about detecting where flash is used... one day...
         for (int row = 0; row < 192; row++) {
             currentTextWriter.markDirty(row);
         }
@@ -719,8 +720,8 @@ public class VideoDHGR extends Video {
     }
 
     private void registerDirtyFlagChecks() {
-        computer.getMemory().observe(RAMEvent.TYPE.WRITE, 0x0400, 0x0bff, this::registerTextDirtyFlag);
-        computer.getMemory().observe(RAMEvent.TYPE.WRITE, 0x02000, 0x05fff, this::registerHiresDirtyFlag);
+        computer.getMemory().observe("Check for text changes", RAMEvent.TYPE.WRITE, 0x0400, 0x0bff, this::registerTextDirtyFlag);
+        computer.getMemory().observe("Check for graphics changes", RAMEvent.TYPE.WRITE, 0x02000, 0x05fff, this::registerHiresDirtyFlag);
     }
 
     @Override

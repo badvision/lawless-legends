@@ -94,13 +94,14 @@ public class TocTreeModel implements TreeModel {
         return getChildCount(node) == 0;
     }
 
+    @SuppressWarnings("all")
     public void valueForPathChanged(TreePath path, Object newValue) {
         // Do nothing...
     }
 
     public int getIndexOfChild(Object parent, Object child) {
         if (parent instanceof String) {
-            String n = (String) parent;
+            // String n = (String) parent;
             int index = 0;
             for (String c : tree.get(parent).keySet()) {
                 if (c.equals(child)) {
@@ -120,6 +121,7 @@ public class TocTreeModel implements TreeModel {
         // Do nothing...
     }
 
+    @SuppressWarnings("all")
     public Set<Long> getEntries(Object selection) {
         if (selection.equals(this)) return getEntries(tree);
         if (selection instanceof Set) return (Set<Long>) selection;

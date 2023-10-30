@@ -302,7 +302,7 @@ public class MetaCheat extends Cheats {
                 }
             }
             if (memoryViewListener == null) {
-                memoryViewListener = memory.observe(RAMEvent.TYPE.ANY, startAddress, endAddress, this::processMemoryEvent);
+                memoryViewListener = memory.observe("Metacheat memory viewer", RAMEvent.TYPE.ANY, startAddress, endAddress, this::processMemoryEvent);
                 listeners.add(memoryViewListener);
             }
         });

@@ -45,6 +45,7 @@ import javafx.scene.image.WritableImage;
  *
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com
  */
+@SuppressWarnings("all")
 public class StateManager implements Reconfigurable {
 
     private static StateManager instance;

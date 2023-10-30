@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.8bitbunch</groupId>
@@ -13,6 +15,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <mainClass>jace.LawlessLegends</mainClass>
         <netbeans.hint.license>apache20</netbeans.hint.license>
+        <lwjgl.version>3.3.3</lwjgl.version>
     </properties>
 
     <organization>
@@ -43,7 +46,7 @@
             <plugin>
                 <groupId>com.gluonhq</groupId>
                 <artifactId>gluonfx-maven-plugin</artifactId>
-                <version>1.0.19</version>
+                <version>1.0.21</version>
                 <configuration>
                     <mainClass>jace.LawlessLegends</mainClass>
                 </configuration>
@@ -55,44 +58,44 @@
                 <configuration>
                     <mainClass>lawlesslegends/jace.LawlessLegends</mainClass>
                     <executions>
-                    <execution>
-                        <!-- Default configuration for running -->
-                        <!-- Usage: mvn clean javafx:run -->
-                        <id>default-cli</id>
-                    </execution>
-                    <execution>
-                        <!-- Configuration for manual attach debugging -->
-                        <!-- Usage: mvn clean javafx:run@debug -->
-                        <id>debug</id>
-                        <configuration>
-                            <options>
-                                <option>-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:8000</option>
-                            </options>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <!-- Configuration for automatic IDE debugging -->
-                        <id>ide-debug</id>
-                        <configuration>
-                            <options>
-                                <option>-agentlib:jdwp=transport=dt_socket,server=n,address=${jpda.address}</option>
-                            </options>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <!-- Configuration for automatic IDE profiling -->
-                        <id>ide-profile</id>
-                        <configuration>
-                            <options>
-				<option>${profiler.jvmargs.arg1}</option>
-				<option>${profiler.jvmargs.arg2}</option>
-				<option>${profiler.jvmargs.arg3}</option>
-				<option>${profiler.jvmargs.arg4}</option>
-				<option>${profiler.jvmargs.arg5}</option>
-                            </options>
-                        </configuration>
-                    </execution>
-                </executions>
+                        <execution>
+                            <!-- Default configuration for running -->
+                            <!-- Usage: mvn clean javafx:run -->
+                            <id>default-cli</id>
+                        </execution>
+                        <execution>
+                            <!-- Configuration for manual attach debugging -->
+                            <!-- Usage: mvn clean javafx:run@debug -->
+                            <id>debug</id>
+                            <configuration>
+                                <options>
+                                    <option>-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:8000</option>
+                                </options>
+                            </configuration>
+                        </execution>
+                        <execution>
+                            <!-- Configuration for automatic IDE debugging -->
+                            <id>ide-debug</id>
+                            <configuration>
+                                <options>
+                                    <option>-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:8000</option>
+                                </options>
+                            </configuration>
+                        </execution>
+                        <execution>
+                            <!-- Configuration for automatic IDE profiling -->
+                            <id>ide-profile</id>
+                            <configuration>
+                                <options>
+                                    <option>${profiler.jvmargs.arg1}</option>
+                                    <option>${profiler.jvmargs.arg2}</option>
+                                    <option>${profiler.jvmargs.arg3}</option>
+                                    <option>${profiler.jvmargs.arg4}</option>
+                                    <option>${profiler.jvmargs.arg5}</option>
+                                </options>
+                            </configuration>
+                        </execution>
+                    </executions>
                 </configuration>
             </plugin>
             <plugin>
@@ -116,8 +119,8 @@
                                     </artifact>
                                     <moduleInfoSource>
                                         module nestedvm {
-                                            exports org.ibex.nestedvm;
-                                            exports org.ibex.nestedvm.util;
+                                        exports org.ibex.nestedvm;
+                                        exports org.ibex.nestedvm.util;
                                         }
                                     </moduleInfoSource>
                                 </module>
@@ -130,13 +133,25 @@
         </plugins>
     </build>
 
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.lwjgl</groupId>
+                <artifactId>lwjgl-bom</artifactId>
+                <version>${lwjgl.version}</version>
+                <scope>import</scope>
+                <type>pom</type>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>4.13.2</version>
             <scope>test</scope>
-        </dependency>            
+        </dependency>
         <dependency>
             <groupId>org.xerial.thirdparty</groupId>
             <artifactId>nestedvm</artifactId>
@@ -175,18 +190,73 @@
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-swing</artifactId>
-            <version>18</version>
+            <version>20</version>
             <type>jar</type>
         </dependency>
         <dependency>
             <groupId>org.lwjgl</groupId>
-            <artifactId>lwjgl-openal</artifactId>
-            <version>3.3.2</version>
+            <artifactId>lwjgl</artifactId>
         </dependency>
         <dependency>
-            <groupId>javazoom</groupId>
-            <artifactId>jlayer</artifactId>
-            <version>1.0.1</version>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-openal</artifactId>
         </dependency>
-    </dependencies>
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-stb</artifactId>
+          </dependency>    
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl</artifactId>
+            <classifier>${lwjgl.natives}</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-openal</artifactId>
+            <classifier>${lwjgl.natives}</classifier>
+        </dependency>
+        <dependency>
+            <groupId>com.badlogicgames.jlayer</groupId>
+            <artifactId>jlayer</artifactId>
+            <version>1.0.2-gdx</version>
+        </dependency>
+</dependencies>
+    <profiles>
+        <profile>
+            <id>lwjgl-natives-linux-amd64</id>
+            <activation>
+                <os>
+                    <family>unix</family>
+                    <arch>amd64</arch>
+                </os>
+            </activation>
+            <properties>
+                <lwjgl.natives>natives-linux</lwjgl.natives>
+            </properties>
+        </profile>
+        <profile>
+            <id>lwjgl-natives-macos-x86_64</id>
+            <activation>
+                <os>
+                    <family>mac</family>
+                    <arch>x86_64</arch>
+                </os>
+            </activation>
+            <properties>
+                <lwjgl.natives>natives-macos</lwjgl.natives>
+            </properties>
+        </profile>
+        <profile>
+            <id>lwjgl-natives-windows-amd64</id>
+            <activation>
+                <os>
+                    <family>windows</family>
+                    <arch>amd64</arch>
+                </os>
+            </activation>
+            <properties>
+                <lwjgl.natives>natives-windows</lwjgl.natives>
+            </properties>
+        </profile>
+    </profiles>
 </project>

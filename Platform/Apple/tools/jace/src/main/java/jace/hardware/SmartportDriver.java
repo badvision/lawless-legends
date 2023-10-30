@@ -18,13 +18,14 @@
  */
 package jace.hardware;
 
+import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import jace.apple2e.MOS65C02;
 import jace.core.Computer;
 import jace.core.RAM;
 import jace.hardware.massStorage.CardMassStorage;
-import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Generic abstraction of a smartport device.
@@ -77,7 +78,7 @@ public abstract class SmartportDriver {
         }
         // Now process command
         System.out.println("Received command " + command + " with address block " + Integer.toHexString(parmAddr));
-        byte numParms = ram.readRaw(parmAddr);
+        // byte numParms = ram.readRaw(parmAddr);
         int[] params = new int[16];
         for (int i = 0; i < 16; i++) {
             int value = 0x0ff & ram.readRaw(parmAddr + i);

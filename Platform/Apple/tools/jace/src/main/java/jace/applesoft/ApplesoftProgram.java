@@ -59,9 +59,8 @@ public class ApplesoftProgram {
 
     public static void main(String... args) {
         byte[] source = null;
-        try {
-            File f = new File("/home/brobert/Documents/Personal/a2gameserver/lib/data/games/LEMONADE#fc0801");
-            FileInputStream in = new FileInputStream(f);
+        File f = new File("/home/brobert/Documents/Personal/a2gameserver/lib/data/games/LEMONADE#fc0801");
+        try (FileInputStream in = new FileInputStream(f)) {
             source = new byte[(int) f.length()];
             in.read(source);
         } catch (FileNotFoundException ex) {
@@ -202,7 +201,7 @@ public class ApplesoftProgram {
      */
     private void whenReady(Runnable r) {
         Emulator.withMemory(memory->{
-            memory.addListener(new RAMListener(RAMEvent.TYPE.EXECUTE, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY) {
+            memory.addListener(new RAMListener("Applesoft: Trap GOTO command", RAMEvent.TYPE.EXECUTE, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY) {
                 @Override
                 protected void doConfig() {
                     setScopeStart(GOTO_CMD);

@@ -93,7 +93,7 @@ public class JaceUIController {
     private Button menuButton;
 
     @FXML
-    private ComboBox musicSelection;
+    private ComboBox<String> musicSelection;
 
     private final BooleanProperty aspectRatioCorrectionEnabled = new SimpleBooleanProperty(false);
 
@@ -246,9 +246,9 @@ public class JaceUIController {
         });
         speedSlider.valueProperty().addListener((val, oldValue, newValue) -> setSpeed(newValue.doubleValue()));
         Platform.runLater(() -> {
-            speedSlider.setValue(Emulator.logic.speedSetting);
+            speedSlider.setValue(Emulator.getUILogic().speedSetting);
             // Kind of redundant but make sure speed is properly set as if the user did it
-            setSpeed(Emulator.logic.speedSetting);
+            setSpeed(Emulator.getUILogic().speedSetting);
         });
         musicSelection.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) ->
             Emulator.withComputer(computer -> 
@@ -268,7 +268,7 @@ public class JaceUIController {
     }
 
     public void setSpeed(double speed) {
-        Emulator.logic.speedSetting = (int) speed;
+        Emulator.getUILogic().speedSetting = (int) speed;
         double speedRatio = convertSpeedToRatio(speed);
         if (speedSlider.getValue() != speed) {
             Platform.runLater(()->speedSlider.setValue(speed));
@@ -404,7 +404,7 @@ public class JaceUIController {
     private List<MediaConsumer> getMediaConsumers() {
         List<MediaConsumer> consumers = new ArrayList<>();
         Emulator.withComputer(c -> consumers.add(((LawlessComputer) c).getUpgradeHandler()));
-        if (Emulator.logic.showDrives) {
+        if (Emulator.getUILogic().showDrives) {
             Emulator.withMemory(m -> {
                 for (Optional<Card> card : m.getAllCards()) {
                     card.filter(c -> c instanceof MediaConsumerParent).ifPresent(parent ->
@@ -441,6 +441,7 @@ public class JaceUIController {
     }
 
     ScheduledExecutorService notificationExecutor = Executors.newSingleThreadScheduledExecutor();
+    @SuppressWarnings("all")
     ScheduledFuture ttlCleanupTask = null;
 
     private void trackTTL(Label icon, long TTL) {

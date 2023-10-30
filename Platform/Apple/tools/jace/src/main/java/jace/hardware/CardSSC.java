@@ -31,7 +31,6 @@ import java.util.logging.Logger;
 import jace.EmulatorUILogic;
 import jace.config.ConfigurableField;
 import jace.config.Name;
-import jace.config.Reconfigurable;
 import jace.core.Card;
 import jace.core.Computer;
 import jace.core.RAMEvent;
@@ -46,7 +45,7 @@ import javafx.scene.control.Label;
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com
  */
 @Name("Super Serial Card")
-public class CardSSC extends Card implements Reconfigurable {
+public class CardSSC extends Card {
 
     @ConfigurableField(name = "TCP/IP Port", shortName = "port")
     public short IP_PORT = 1977;
@@ -217,6 +216,7 @@ public class CardSSC extends Card implements Reconfigurable {
         try {
             int newValue = -1;
             switch (type) {
+                case ANY:
                 case EXECUTE:
                 case READ_OPERAND:
                 case READ_DATA:

@@ -18,6 +18,14 @@
  */
 package jace.hardware;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.LockSupport;
+
 import jace.EmulatorUILogic;
 import jace.core.Computer;
 import jace.library.MediaConsumer;
@@ -25,12 +33,6 @@ import jace.library.MediaEntry;
 import jace.library.MediaEntry.MediaFile;
 import jace.state.StateManager;
 import jace.state.Stateful;
-import java.io.File;
-import java.io.IOException;
-import java.util.HashSet;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.locks.LockSupport;
 import javafx.scene.control.Label;
 
 /**
@@ -50,11 +52,13 @@ public class DiskIIDrive implements MediaConsumer {
         this.computer = computer;
     }
     
+    public boolean DEBUG = true;
+
     FloppyDisk disk;
     // Number of milliseconds to wait between last write and update to disk image
     public static long WRITE_UPDATE_DELAY = 1000;
     // Flag to halt if any writes to floopy occur when updating physical disk image
-    boolean diskUpdatePending = false;
+    AtomicBoolean diskUpdatePending = new AtomicBoolean();
     // Last time of write operation
     long lastWriteTime;
     // Managed thread to update disk image in background
@@ -86,7 +90,7 @@ public class DiskIIDrive implements MediaConsumer {
         driveOn = false;
         magnets = 0;
         dirtyTracks = new HashSet<>();
-        diskUpdatePending = false;
+        diskUpdatePending.set(false);
     }
 
     void step(int register) {
@@ -113,13 +117,18 @@ public class DiskIIDrive implements MediaConsumer {
                     }
                     nibbleOffset = 0;
 
-                    //System.out.printf("new half track %d\n", currentHalfTrack);
+                    if (DEBUG) {
+                        System.out.printf("step %d, new half track %d\n", register, halfTrack);
+                    }
                 }
             }
         }
     }
 
     void setOn(boolean b) {
+        if (DEBUG) {
+            System.out.println("Drive setOn: "+b);
+        }
         driveOn = b;
     }
 
@@ -155,17 +164,20 @@ public class DiskIIDrive implements MediaConsumer {
 
     void write() {
         if (writeMode) {
-            while (diskUpdatePending) {
+            while (diskUpdatePending.get()) {
                 // If another thread requested writes to block (e.g. because of disk activity), wait for it to finish!
-                LockSupport.parkNanos(1000);
+                Thread.onSpinWait();
             }
-            if (disk != null) {
-                // Do nothing if write-protection is enabled!
-                if (getMediaEntry() == null || !getMediaEntry().writeProtected) {
-                    dirtyTracks.add(trackStartOffset / FloppyDisk.TRACK_NIBBLE_LENGTH);
-                    disk.nibbles[trackStartOffset + nibbleOffset++] = latch;
-                    triggerDiskUpdate();
-                    StateManager.markDirtyValue(disk.nibbles, computer);
+            // Holding the lock should block any other threads from writing to disk
+            synchronized (diskUpdatePending) {
+                if (disk != null) {
+                    // Do nothing if write-protection is enabled!
+                    if (getMediaEntry() == null || !getMediaEntry().writeProtected) {
+                        dirtyTracks.add(trackStartOffset / FloppyDisk.TRACK_NIBBLE_LENGTH);
+                        disk.nibbles[trackStartOffset + nibbleOffset++] = latch;
+                        triggerDiskUpdate();
+                        StateManager.markDirtyValue(disk.nibbles, computer);
+                    }
                 }
             }
 
@@ -192,19 +204,20 @@ public class DiskIIDrive implements MediaConsumer {
     }
 
     private void updateDisk() {
-
         // Signal disk update is underway
-        diskUpdatePending = true;
-        // Update all tracks as necessary
-        if (disk != null) {
-            dirtyTracks.stream().forEach((track) -> {
-                disk.updateTrack(track);
-            });
+        synchronized (diskUpdatePending) {
+            diskUpdatePending.set(true);
+            // Update all tracks as necessary
+            if (disk != null) {
+                dirtyTracks.stream().forEach((track) -> {
+                    disk.updateTrack(track);
+                });
+            }
+            // Empty out dirty list
+            dirtyTracks.clear();
         }
-        // Empty out dirty list
-        dirtyTracks.clear();
         // Signal disk update is completed
-        diskUpdatePending = false;
+        diskUpdatePending.set(false);
     }
 
     private void triggerDiskUpdate() {
@@ -226,6 +239,9 @@ public class DiskIIDrive implements MediaConsumer {
     }
 
     void insertDisk(File diskPath) throws IOException {
+        if (DEBUG) {
+            System.out.println("inserting disk " + diskPath.getAbsolutePath() + " into drive");
+        }
         disk = new FloppyDisk(diskPath, computer);
         dirtyTracks = new HashSet<>();
         // Emulator state has changed significantly, reset state manager
@@ -300,14 +316,16 @@ public class DiskIIDrive implements MediaConsumer {
     @Override
     public boolean isAccepted(MediaEntry e, MediaFile f) {
         if (f == null) return false;
-//        System.out.println("Type is accepted: "+f.path+"; "+e.type.toString()+": "+e.type.is140kb);
+        if (DEBUG) {
+            System.out.println("Type is accepted: "+f.path+"; "+e.type.toString()+": "+e.type.is140kb);
+        }
         return e.type.is140kb;
     }
 
     private void waitForPendingWrites() {
-        while (diskUpdatePending || !dirtyTracks.isEmpty()) {
+        while (diskUpdatePending.get()) {
             // If the current disk has unsaved changes, wait!!!
-            LockSupport.parkNanos(1000);
+            Thread.onSpinWait();
         }
     }
 }

@@ -19,9 +19,9 @@ public enum Cards implements DeviceEnum<Card> {
 
     Function<Computer, Card> factory;
     String name;
-    Class clazz;
+    Class<? extends Card> clazz;
 
-    Cards(String name, Class clazz, Function<Computer, Card> factory) {
+    Cards(String name, Class<? extends Card> clazz, Function<Computer, Card> factory) {
         this.name = name;
         this.factory = factory;
         this.clazz = clazz;

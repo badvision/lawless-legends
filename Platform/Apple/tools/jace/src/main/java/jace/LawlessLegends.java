@@ -138,7 +138,7 @@ public class LawlessLegends extends Application {
                 new Thread(()->{
                     Logger.getLogger(getClass().getName()).log(Level.WARNING, "Booting with watchdog");
                     RAMListener startListener = c.getMemory().
-                            observe(RAMEvent.TYPE.EXECUTE, 0x2000, (e) -> {
+                            observe("Lawless Legends watchdog", RAMEvent.TYPE.EXECUTE, 0x2000, (e) -> {
                                 Logger.getLogger(getClass().getName()).log(Level.WARNING, "Boot was detected, watchdog terminated.");
                                 romStarted = true;
                             });

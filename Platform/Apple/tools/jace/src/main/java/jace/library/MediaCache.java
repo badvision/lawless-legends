@@ -18,8 +18,6 @@
  */
 package jace.library;
 
-import jace.core.Utility;
-import jace.library.MediaEntry.MediaFile;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -29,9 +27,6 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
-import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -40,6 +35,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import jace.core.Utility;
+import jace.library.MediaEntry.MediaFile;
 
 /**
  * Holds all information about media titles, manages low-level operations of

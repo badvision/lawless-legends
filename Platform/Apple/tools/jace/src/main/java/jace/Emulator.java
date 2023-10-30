@@ -35,7 +35,7 @@ import jace.lawless.LawlessComputer;
 public class Emulator {
 
     public static Emulator instance;
-    public static EmulatorUILogic logic = new EmulatorUILogic();
+    private static EmulatorUILogic logic;
     public static Thread mainThread;
 
 //    public static void main(String... args) {
@@ -44,6 +44,13 @@ public class Emulator {
 //    }
 
     private final LawlessComputer computer;
+
+    public static EmulatorUILogic getUILogic() {
+        if (logic == null) {
+            logic = new EmulatorUILogic();
+        }
+        return logic;
+    }
     
     public static Emulator getInstance(List<String> args) {
         Emulator i = getInstance();

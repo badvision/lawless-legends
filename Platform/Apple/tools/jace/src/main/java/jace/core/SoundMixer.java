@@ -65,7 +65,7 @@ public class SoundMixer extends Device {
     public static boolean MUTE = false;
 
     @ConfigurableField(name = "Buffer size", shortName = "buffer")
-    public static int BUFFER_SIZE = 512;
+    public static int BUFFER_SIZE = 1024;
 
     public static boolean PLAYBACK_ENABLED = false;
     // Innocent until proven guilty by a failed initialization
@@ -183,7 +183,11 @@ public class SoundMixer extends Device {
             alternateBuffer = BufferUtils.createShortBuffer(BUFFER_SIZE * (stereo ? 2 : 1));
             currentBufferId = performSoundFunction(AL10::alGenBuffers);
             alternateBufferId = performSoundFunction(AL10::alGenBuffers);
-            sourceId = performSoundFunction(AL10::alGenSources);
+            boolean hasSource = false;
+            while (!hasSource) {
+                sourceId = performSoundFunction(AL10::alGenSources);
+                hasSource = performSoundFunction(()->AL10.alIsSource(sourceId));
+            }
             audioFormat = stereo ? AL10.AL_FORMAT_STEREO16 : AL10.AL_FORMAT_MONO16;
             isAlive = true;
         }
@@ -195,7 +199,6 @@ public class SoundMixer extends Device {
         /* If stereo, call this once for left and then again for right sample */
         public void playSample(short sample) throws InterruptedException, ExecutionException {
             if (!isAlive) {
-                Logger.getLogger(SoundMixer.class.getName()).warning("Playback attempted on stopped buffer!");                
                 return;
             }
             if (!currentBuffer.hasRemaining()) {
@@ -210,11 +213,20 @@ public class SoundMixer extends Device {
                             buffersProcessed = AL10.alGetSourcei(sourceId, AL10.AL_BUFFERS_PROCESSED);
                         }
                     });
+                    if (!isAlive) {
+                        return;
+                    }
                     performSoundOperation(()->{
                         AL10.alSourceUnqueueBuffers(sourceId, unqueueBuffers);
                     });
                 }
+                if (!isAlive) {
+                    return;
+                }
                 performSoundOperation(()->AL10.alBufferData(currentBufferId, audioFormat, currentBuffer, RATE));
+                if (!isAlive) {
+                    return;
+                }
                 performSoundOperation(()->AL10.alSourceQueueBuffers(sourceId, currentBufferId));
                 performSoundOperationAsync(()->{
                     if (AL10.alGetSourcei(sourceId, AL10.AL_SOURCE_STATE) != AL10.AL_PLAYING) {
@@ -240,10 +252,26 @@ public class SoundMixer extends Device {
             }
             isAlive = false;
             
-            performSoundOperation(()->{if (AL10.alIsSource(sourceId)) AL10.alSourceStop(sourceId);});
-            performSoundOperation(()->{if (AL10.alIsSource(sourceId)) AL10.alDeleteSources(sourceId);});
-            performSoundOperation(()->{if (AL10.alIsBuffer(alternateBufferId)) AL10.alDeleteBuffers(alternateBufferId);});
-            performSoundOperation(()->{if (AL10.alIsBuffer(currentBufferId)) AL10.alDeleteBuffers(currentBufferId);});
+            try {
+                performSoundOperation(()->{if (AL10.alIsSource(sourceId)) AL10.alSourceStop(sourceId);});
+            } finally {
+                try {
+                    performSoundOperation(()->{if (AL10.alIsSource(sourceId)) AL10.alDeleteSources(sourceId);});
+                } finally {
+                    sourceId = -1;
+                    try {
+                        performSoundOperation(()->{if (AL10.alIsBuffer(alternateBufferId)) AL10.alDeleteBuffers(alternateBufferId);});
+                    } finally {
+                        alternateBufferId = -1;
+                        try {
+                            performSoundOperation(()->{if (AL10.alIsBuffer(currentBufferId)) AL10.alDeleteBuffers(currentBufferId);});
+                        } finally {
+                            currentBufferId = -1;
+                            buffers.remove(this);
+                        }
+                    }
+                }
+            }
         }
     }
 

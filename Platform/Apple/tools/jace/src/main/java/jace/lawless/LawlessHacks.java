@@ -4,8 +4,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.URL;
-import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
@@ -109,7 +107,7 @@ public class LawlessHacks extends Cheats {
         }
     }
     
-    private String getSongName(int number) {
+    public String getSongName(int number) {
         Map<Integer, String> score = scores.get(currentScore);
         if (score == null) {
             return null;
@@ -125,24 +123,24 @@ public class LawlessHacks extends Cheats {
         return filename;
     }
 
-    private Media getAudioTrack(int number) {
+    public Media getAudioTrack(int number) {
         String filename = getSongName(number);
         String pathStr = "/jace/data/sound/" + filename;
-        URL path = getClass().getResource(pathStr);
-        if (path == null) {
-            return null;
-        }
-        String resourcePath = path.toString();
-        System.out.println("Playing " + resourcePath);
-        if (resourcePath.startsWith("resource:")) {
-            resourcePath = Paths.get(resourcePath).toFile().getAbsolutePath();
-            System.out.println("Playing " + resourcePath);
-        }
+        // URL path = getClass().getResource(pathStr);
+        // if (path == null) {
+        //     return null;
+        // }
+        // String resourcePath = path.toString();
+        // System.out.println("Playing " + resourcePath);
+        // if (resourcePath.startsWith("resource:")) {
+        //     resourcePath = Paths.get(resourcePath).toFile().getAbsolutePath();
+        //     System.out.println("Playing " + resourcePath);
+        // }
         // Log path
         try {
-            return new Media(resourcePath);
+            return new Media(pathStr);
         } catch (IOException e) {
-            Logger.getLogger(getClass().getName()).log(Level.SEVERE, "Unable to load audio track " + resourcePath, e);
+            Logger.getLogger(getClass().getName()).log(Level.SEVERE, "Unable to load audio track " + pathStr, e);
             return null;
         }
     }
@@ -315,7 +313,7 @@ public class LawlessHacks extends Cheats {
     Pattern COMMENT = Pattern.compile("\\s*[-#;']+.*");
     Pattern LABEL = Pattern.compile("(8-)?[A-Za-z\\s\\-_]+");
     Pattern ENTRY = Pattern.compile("([0-9]+)\\s+(.*)");
-    private final Map<String, Map<Integer, String>> scores = new HashMap<>();
+    public final Map<String, Map<Integer, String>> scores = new HashMap<>();
     private final Set<Integer> autoResume = new HashSet<>();
     private final Map<Integer, Long> lastTime = new HashMap<>();
     private void readScores() {
@@ -323,7 +321,7 @@ public class LawlessHacks extends Cheats {
         readScores(data);
     }
 
-    private void readScores(InputStream data) {
+    public void readScores(InputStream data) {
         BufferedReader reader = new BufferedReader(new InputStreamReader(data));
         reader.lines().forEach(line -> {
             boolean useAutoResume = false;

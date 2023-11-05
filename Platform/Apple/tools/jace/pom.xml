@@ -204,7 +204,7 @@
         <dependency>
             <groupId>org.lwjgl</groupId>
             <artifactId>lwjgl-stb</artifactId>
-          </dependency>    
+        </dependency>    
         <dependency>
             <groupId>org.lwjgl</groupId>
             <artifactId>lwjgl</artifactId>
@@ -215,6 +215,11 @@
             <artifactId>lwjgl-openal</artifactId>
             <classifier>${lwjgl.natives}</classifier>
         </dependency>
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-stb</artifactId>
+            <classifier>${lwjgl.natives}</classifier>
+        </dependency>    
         <dependency>
             <groupId>com.badlogicgames.jlayer</groupId>
             <artifactId>jlayer</artifactId>

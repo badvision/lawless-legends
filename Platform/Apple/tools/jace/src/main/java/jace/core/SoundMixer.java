@@ -60,7 +60,7 @@ public class SoundMixer extends Device {
      * Sample playback rate
      */
     @ConfigurableField(name = "Playback Rate", shortName = "freq")
-    public static int RATE = 48000;
+    public static int RATE = 44100;
     @ConfigurableField(name = "Mute", shortName = "mute")
     public static boolean MUTE = false;
 
@@ -239,10 +239,11 @@ public class SoundMixer extends Device {
                 return;
             }
             isAlive = false;
-            performSoundOperation(()->AL10.alSourceStop(sourceId));
-            performSoundOperation(()->AL10.alDeleteSources(sourceId));
-            performSoundOperation(()->AL10.alDeleteBuffers(alternateBufferId));
-            performSoundOperation(()->AL10.alDeleteBuffers(currentBufferId));
+            
+            performSoundOperation(()->{if (AL10.alIsSource(sourceId)) AL10.alSourceStop(sourceId);});
+            performSoundOperation(()->{if (AL10.alIsSource(sourceId)) AL10.alDeleteSources(sourceId);});
+            performSoundOperation(()->{if (AL10.alIsBuffer(alternateBufferId)) AL10.alDeleteBuffers(alternateBufferId);});
+            performSoundOperation(()->{if (AL10.alIsBuffer(currentBufferId)) AL10.alDeleteBuffers(currentBufferId);});
         }
     }
 

@@ -13,7 +13,7 @@ public class MediaPlayer {
     double vol = 1.0;
     int repeats = 0;
     int maxRepetitions = 1;
-    Status status = Status.STOPPED;
+    Status status = Status.NOT_STARTED;
     Media song;
     SoundBuffer playbackBuffer;
     Executor executor = Executors.newSingleThreadExecutor();
@@ -47,8 +47,9 @@ public class MediaPlayer {
             playbackBuffer.shutdown();
         } catch (InterruptedException | ExecutionException e) {
             // Ignore exception on shutdown
+        } finally {
+            song.close();
         }
-        song.close();
     }
 
     public void setCycleCount(int i) {
@@ -72,12 +73,13 @@ public class MediaPlayer {
             return;
         } else if (status == Status.NOT_STARTED) {
             repeats = 0;
-            status = Status.PLAYING;
             if (playbackBuffer == null || !playbackBuffer.isAlive()) {
                 playbackBuffer = SoundMixer.createBuffer(true);
             }
         }
         executor.execute(() -> {
+            status = Status.PLAYING;
+            System.out.println("Song playback thread started");
             while (status == Status.PLAYING && (maxRepetitions == INDEFINITE || repeats < maxRepetitions)) {
                 if (song.isEnded()) {
                     if (maxRepetitions == INDEFINITE) {
@@ -87,16 +89,15 @@ public class MediaPlayer {
                         if (repeats < maxRepetitions) {
                             song.restart();
                         } else {
+                            System.out.println("Song ended");
                             this.stop();
                             break;
                         }
                     }
                 }
-                short leftSample = song.getNextLeftSample();
-                short rightSample = song.getNextRightSample();
                 try {
-                    playbackBuffer.playSample((short) (leftSample * vol));
-                    playbackBuffer.playSample((short) (rightSample * vol));
+                    playbackBuffer.playSample((short) (song.getNextLeftSample() * vol));
+                    playbackBuffer.playSample((short) (song.getNextRightSample() * vol));
                 } catch (InterruptedException | ExecutionException e) {
                     e.printStackTrace();
                     this.stop();

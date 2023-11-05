@@ -2,10 +2,28 @@ package jace;
 
 import java.util.concurrent.ExecutionException;
 
+import org.junit.Test;
+
 import jace.core.SoundMixer;
 import jace.core.SoundMixer.SoundBuffer;
+import jace.lawless.LawlessHacks;
+import jace.lawless.Media;
 
 public class SoundTest {
+    @Test
+    public void musicDecodeTest() {
+        // For every song in the music folder, decode it and print out the duration
+        // This is to make sure that the decoding is working properly
+        LawlessHacks lawless = Emulator.withComputer(LawlessHacks::new, null);
+        for (String score : lawless.scores.keySet()) {
+            lawless.changeMusicScore(score);
+            for (int track : lawless.scores.get(score).keySet()) {
+                System.out.println("Loading score %s, track %d".formatted(score, track));
+                Media m = lawless.getAudioTrack(track);
+                System.out.println("Duration: " + m.getTotalDuration());
+            }
+        }
+    }
     
     // @Test
     public void soundGenerationTest() {

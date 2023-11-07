@@ -101,6 +101,7 @@ public class Media {
 
     public void seekToTime(Duration millis) {
         int sampleNumber = (int) (millis.toMillis() * sampleRate / 1000);
+        sampleNumber = Math.max(0, Math.min(sampleNumber, totalSamples));
         sampleBuffer.position(sampleNumber * (isStereo ? 2 : 1));
     }
 

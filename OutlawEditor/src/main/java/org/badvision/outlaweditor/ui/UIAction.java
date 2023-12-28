@@ -295,8 +295,19 @@ public class UIAction {
         }
     }
 
+    // Track open editors
+    static Map<Variable, ModalEditor> editors = new LinkedHashMap<>();
+
     public static Optional<Variable> editAndGetVariable(Variable v) throws IntrospectionException {
+        // Check if editor is already open
+        if (editors.containsKey(v)) {
+            editors.get(v);
+            if (editors.get(v).isOpen()) {
+                return Optional.empty();
+            }
+        }
         ModalEditor editor = new ModalEditor();
+        editors.put(v, editor);
         Map<String, ModalEditor.EditControl> controls = new LinkedHashMap<>();
 
         controls.put("name", new ModalEditor.TextControl());
@@ -362,12 +373,19 @@ public class UIAction {
         return editSheet(sheet);
     }
 
+    static Map<Sheet, SheetEditor> sheetEditors = new LinkedHashMap<>();
     public static Sheet editSheet(Sheet item) {
         if (item == null) {
             System.err.println("Requested to edit a null sheet object, ignoring!");
             return null;
         }
+        // Check if we don't already have an open editor first
+        if (sheetEditors.containsKey(item) && sheetEditors.get(item).isShowing()) {
+            sheetEditors.get(item).toFront();
+            return item;
+        }
         SheetEditor editor = new SheetEditor(item);
+        sheetEditors.put(item, editor);
         editor.show();
         return item;
     }

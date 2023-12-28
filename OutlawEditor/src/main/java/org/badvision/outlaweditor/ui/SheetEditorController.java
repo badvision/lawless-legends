@@ -15,12 +15,14 @@ package org.badvision.outlaweditor.ui;
 
 import java.net.URL;
 import java.util.ResourceBundle;
+
+import org.controlsfx.control.spreadsheet.SpreadsheetColumn;
+import org.controlsfx.control.spreadsheet.SpreadsheetView;
+
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.TextField;
-import org.controlsfx.control.spreadsheet.SpreadsheetColumn;
-import org.controlsfx.control.spreadsheet.SpreadsheetView;
 
 /**
  *

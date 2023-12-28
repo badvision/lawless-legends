@@ -10,6 +10,8 @@
  
 package org.badvision.outlaweditor.ui;
 
+import static org.badvision.outlaweditor.data.DataUtilities.uppercaseFirst;
+
 import java.beans.BeanInfo;
 import java.beans.IntrospectionException;
 import java.beans.Introspector;
@@ -22,8 +24,6 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import static org.badvision.outlaweditor.data.DataUtilities.uppercaseFirst;
 
 import javafx.application.Platform;
 import javafx.beans.property.adapter.JavaBeanStringPropertyBuilder;
@@ -51,6 +51,7 @@ import javafx.util.Callback;
  * @author blurry
  */
 public class ModalEditor {
+    Dialog dialog;
 
     public static interface EditControl<V> {
 
@@ -62,7 +63,6 @@ public class ModalEditor {
     }
 
     public static class TextControl implements EditControl<String> {
-
         TextField control = new TextField();
 
         @Override
@@ -173,7 +173,7 @@ public class ModalEditor {
     public <T> Optional<T> editObject(T sourceObject, Map<String, EditControl> obj, Class<T> clazz, String title, String header) throws IntrospectionException {
         BeanInfo info = Introspector.getBeanInfo(clazz);
 
-        Dialog dialog = new Dialog();
+        dialog = new Dialog();
         dialog.setTitle(title);
         dialog.setHeaderText(header);
 
@@ -226,5 +226,15 @@ public class ModalEditor {
         });
 
         return dialog.showAndWait();
+    }
+
+    public boolean isOpen() {
+        return dialog != null && dialog.isShowing();
+    }
+
+    public void close() {
+        if (isOpen()) {
+            dialog.close();
+        }
     }
 }

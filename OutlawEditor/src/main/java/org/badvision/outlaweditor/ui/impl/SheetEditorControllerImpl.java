@@ -15,6 +15,9 @@
  */
 package org.badvision.outlaweditor.ui.impl;
 
+import static org.badvision.outlaweditor.data.DataUtilities.getValue;
+import static org.badvision.outlaweditor.data.DataUtilities.setValue;
+
 import java.io.File;
 import java.net.URL;
 import java.util.ArrayList;
@@ -27,8 +30,6 @@ import java.util.stream.Collectors;
 import org.badvision.outlaweditor.SheetEditor;
 import org.badvision.outlaweditor.TransferHelper;
 import org.badvision.outlaweditor.data.DataUtilities;
-import static org.badvision.outlaweditor.data.DataUtilities.getValue;
-import static org.badvision.outlaweditor.data.DataUtilities.setValue;
 import org.badvision.outlaweditor.data.xml.Columns;
 import org.badvision.outlaweditor.data.xml.Rows;
 import org.badvision.outlaweditor.data.xml.Rows.Row;

@@ -39,6 +39,16 @@ public class SheetEditor {
         return sheet;
     }
     
+    public boolean isShowing() {
+        return primaryStage != null && primaryStage.isShowing();
+    }
+
+    public void toFront() {
+        if (isShowing()) {
+            primaryStage.toFront();
+        }
+    }
+
     public void show() {
         primaryStage = new Stage();
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/SheetEditor.fxml"));

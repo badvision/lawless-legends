@@ -1,7 +1,7 @@
 package jace.lawless;
 
+import java.io.File;
 import java.io.IOException;
-import java.net.URLDecoder;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 
@@ -18,10 +18,17 @@ public class Media {
     long sampleRate = 0;
     boolean isStereo = true;
     ShortBuffer sampleBuffer;
+    File tempFile;
 
     public Media(String resourcePath) throws IOException {
+        // Copy resource to temp file because STBVorbis can't read from jar
+        tempFile = File.createTempFile("temp", ".ogg");
+        tempFile.deleteOnExit();
+        getClass().getResource(resourcePath).openStream().transferTo(new java.io.FileOutputStream(tempFile));
+        String canonicalPath = tempFile.getAbsolutePath();
+
         // Get caononical file path from relative resource path
-        String canonicalPath = URLDecoder.decode(getClass().getResource(resourcePath).getPath(), "UTF-8");
+        // String canonicalPath = URLDecoder.decode(getClass().getResource(resourcePath).getPath(), "UTF-8");
         System.out.println("Loading media: " + canonicalPath);
         
         try (MemoryStack stack = MemoryStack.stackPush()) {
@@ -97,6 +104,8 @@ public class Media {
 
     public void close() {
         MemoryUtil.memFree(sampleBuffer);
+        if (tempFile != null && tempFile.exists())
+            tempFile.delete();
     }
 
     public void seekToTime(Duration millis) {

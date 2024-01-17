@@ -410,6 +410,7 @@
   "queryAllDeclaredMethods":true,
   "methods":[
     {"name":"<init>","parameterTypes":[] }, 
+    {"name":"executeClicked","parameterTypes":["javafx.event.ActionEvent"] }, 
     {"name":"initialize","parameterTypes":[] }, 
     {"name":"newApplesoftBasicClicked","parameterTypes":["javafx.event.ActionEvent"] }, 
     {"name":"newApplesoftBasicFromMemoryClicked","parameterTypes":["javafx.event.ActionEvent"] }, 
@@ -510,12 +511,52 @@
   "methods":[{"name":"getContentLengthLong","parameterTypes":[] }]
 },
 {
+  "name":"java.nio.Buffer",
+  "allDeclaredFields":true
+},
+{
   "name":"java.nio.ByteBuffer",
+  "allDeclaredFields":true,
   "methods":[{"name":"order","parameterTypes":["java.nio.ByteOrder"] }]
 },
 {
   "name":"java.nio.ByteOrder",
   "methods":[{"name":"nativeOrder","parameterTypes":[] }]
+},
+{
+  "name":"java.nio.DirectByteBuffer",
+  "allDeclaredFields":true,
+  "unsafeAllocated":true
+},
+{
+  "name":"java.nio.DirectCharBufferU",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.DirectDoubleBufferU",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.DirectFloatBufferU",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.DirectIntBufferU",
+  "allDeclaredFields":true,
+  "unsafeAllocated":true
+},
+{
+  "name":"java.nio.DirectLongBufferU",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.DirectShortBufferU",
+  "allDeclaredFields":true,
+  "unsafeAllocated":true
+},
+{
+  "name":"java.nio.MappedByteBuffer",
+  "allDeclaredFields":true
 },
 {
   "name":"java.security.AlgorithmParametersSpi"
@@ -1007,8 +1048,22 @@
   "name":"org.ibex.nestedvm.util.Seekable"
 },
 {
+  "name":"org.lwjgl.system.CustomBuffer",
+  "fields":[
+    {"name":"capacity"}, 
+    {"name":"container"}, 
+    {"name":"limit"}, 
+    {"name":"mark"}, 
+    {"name":"position"}
+  ]
+},
+{
+  "name":"org.lwjgl.system.Pointer$Default",
+  "fields":[{"name":"address"}]
+},
+{
   "name":"sun.misc.Unsafe",
-  "fields":[{"name":"theUnsafe"}]
+  "allDeclaredFields":true
 },
 {
   "name":"sun.security.pkcs12.PKCS12KeyStore",

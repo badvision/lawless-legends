@@ -382,65 +382,10 @@
   ]
 },
 {
-  "name":"com.sun.media.sound.DirectAudioDevice",
-  "methods":[
-     {
-        "name":"addFormat",
-        "parameterTypes":[
-           "java.util.Vector",
-           "int",
-           "int",
-           "int",
-           "float",
-           "int",
-           "boolean",
-           "boolean"
-        ]
-     }
-  ]
-},
-{
-  "name":"com.sun.media.sound.DirectAudioDeviceProvider$DirectAudioDeviceInfo",
-  "methods":[
-     {
-        "name":"<init>",
-        "parameterTypes":[
-           "int",
-           "int",
-           "int",
-           "java.lang.String",
-           "java.lang.String",
-           "java.lang.String",
-           "java.lang.String"
-        ]
-     }
-  ]
-},
-{
-  "name":"com.sun.media.sound.PortMixerProvider$PortMixerInfo",
-  "methods":[
-     {
-        "name":"<init>",
-        "parameterTypes":[
-           "int",
-           "java.lang.String",
-           "java.lang.String",
-           "java.lang.String",
-           "java.lang.String"
-        ]
-     }
-  ]
-},
-{
   "name":"java.lang.Boolean",
   "methods":[
-     {
-        "name":"getBoolean",
-        "parameterTypes":[
-           "java.lang.String"
-        ]
-     },
-    {"name":"booleanValue","parameterTypes":[] }
+    {"name":"booleanValue","parameterTypes":[] }, 
+    {"name":"getBoolean","parameterTypes":["java.lang.String"] }
   ]
 },
 {

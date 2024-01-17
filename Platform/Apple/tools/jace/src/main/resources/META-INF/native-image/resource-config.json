@@ -1,30 +1,105 @@
 {
   "resources":{
-    "includes":[
-      {"pattern": ".*\\.bin$"},
-      {"pattern": ".*\\.rom$"},
-      {"pattern": ".*\\.mp3$"},
-      {"pattern": ".*\\.png$"},
-      {"pattern": ".*\\.jpg$"},
-      {"pattern": ".*\\.jpeg$"},
-      {"pattern": ".*\\.gif$"},
-      {"pattern": ".*\\.bmp$"},
-      {"pattern": ".*\\.ttf$"},
-      {"pattern": ".*\\.raw$"},
-      {"pattern": ".*\\.xml$"},
-      {"pattern": ".*\\.fxml$"},
-      {"pattern": ".*\\.css$"},
-      {"pattern": ".*\\.gls$"},
-      {"pattern": ".*\\.json$"},
-      {"pattern": ".*\\.dat$"},
-      {"pattern": ".*\\.license$"},
-      {"pattern": ".*\\.frag$"},
-      {"pattern": ".*\\.vert$"},
-      {"pattern": ".*\\.obj$"},
-      {"pattern": ".*\\.mtl$"},
-      {"pattern": ".*\\.js$"},
-      {"pattern": ".*\\.html$"},
-      {"pattern": ".*\\.txt$"}
-    ]
-  }
+  "includes":[
+    {
+      "pattern":".*\\.bin$"
+    }, 
+    {
+      "pattern":".*\\.bmp$"
+    }, 
+    {
+      "pattern":".*\\.css$"
+    }, 
+    {
+      "pattern":".*\\.dat$"
+    }, 
+    {
+      "pattern":".*\\.frag$"
+    }, 
+    {
+      "pattern":".*\\.fxml$"
+    }, 
+    {
+      "pattern":".*\\.gif$"
+    }, 
+    {
+      "pattern":".*\\.gls$"
+    }, 
+    {
+      "pattern":".*\\.html$"
+    }, 
+    {
+      "pattern":".*\\.jpeg$"
+    }, 
+    {
+      "pattern":".*\\.jpg$"
+    }, 
+    {
+      "pattern":".*\\.js$"
+    }, 
+    {
+      "pattern":".*\\.json$"
+    }, 
+    {
+      "pattern":".*\\.license$"
+    }, 
+    {
+      "pattern":".*\\.ogg$"
+    }, 
+    {
+      "pattern":".*\\.mtl$"
+    }, 
+    {
+      "pattern":".*\\.obj$"
+    }, 
+    {
+      "pattern":".*\\.png$"
+    }, 
+    {
+      "pattern":".*\\.raw$"
+    }, 
+    {
+      "pattern":".*\\.rom$"
+    }, 
+    {
+      "pattern":".*\\.ttf$"
+    }, 
+    {
+      "pattern":".*\\.txt$"
+    }, 
+    {
+      "pattern":".*\\.vert$"
+    }, 
+    {
+      "pattern":".*\\.xml$"
+    }, 
+    {
+      "pattern":"\\QMETA-INF/macos/x64/org/lwjgl/liblwjgl.dylib.sha1\\E"
+    }, 
+    {
+      "pattern":"\\QMETA-INF/macos/x64/org/lwjgl/openal/libopenal.dylib.sha1\\E"
+    }, 
+    {
+      "pattern":"\\QMETA-INF/macos/x64/org/lwjgl/stb/liblwjgl_stb.dylib.sha1\\E"
+    }, 
+    {
+      "pattern":"\\Qmacos/x64/org/lwjgl/liblwjgl.dylib\\E"
+    }, 
+    {
+      "pattern":"\\Qmacos/x64/org/lwjgl/openal/libopenal.dylib\\E"
+    }, 
+    {
+      "pattern":"\\Qmacos/x64/org/lwjgl/stb/liblwjgl_stb.dylib\\E"
+    }
+  ]},
+  "bundles":[
+    {
+      "name":"com.sun.javafx.tk.quantum.QuantumMessagesBundle",
+      "locales":[""]
+    }, 
+    {
+      "name":"com/sun/javafx/scene/control/skin/resources/controls",
+      "locales":[""]
+    }
+  ]
 }

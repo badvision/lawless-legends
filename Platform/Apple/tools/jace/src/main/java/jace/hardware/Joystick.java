@@ -44,7 +44,7 @@ public class Joystick extends Device {
     @ConfigurableField(name = "Center Mouse", shortName = "center", description = "Moves mouse back to the center of the screen, can get annoying.")
     public boolean centerMouse = false;
     @ConfigurableField(name = "Use keyboard", shortName = "useKeys", description = "Arrow keys will control joystick instead of the mouse.")
-    public boolean useKeyboard = true;
+    public boolean useKeyboard = false;
     @ConfigurableField(name = "Hog keypresses", shortName = "hog", description = "Key presses will not be sent to emulator.")
     public boolean hogKeyboard = false;
     public int port;
@@ -145,7 +145,7 @@ public class Joystick extends Device {
 
     @InvokableAction(name = "Left", category = "joystick", defaultKeyMapping = "left", notifyOnRelease = true)
     public boolean joystickLeft(boolean pressed) {
-        if (!useKeyboard) {
+        if (!isAttached || !useKeyboard) {
             return false;
         }
         leftPressed = pressed;
@@ -157,7 +157,7 @@ public class Joystick extends Device {
 
     @InvokableAction(name = "Right", category = "joystick", defaultKeyMapping = "right", notifyOnRelease = true)
     public boolean joystickRight(boolean pressed) {
-        if (!useKeyboard) {
+        if (!isAttached || !useKeyboard) {
             return false;
         }
         rightPressed = pressed;
@@ -169,7 +169,7 @@ public class Joystick extends Device {
 
     @InvokableAction(name = "Up", category = "joystick", defaultKeyMapping = "up", notifyOnRelease = true)
     public boolean joystickUp(boolean pressed) {
-        if (!useKeyboard) {
+        if (!isAttached || !useKeyboard) {
             return false;
         }
         upPressed = pressed;
@@ -181,7 +181,7 @@ public class Joystick extends Device {
 
     @InvokableAction(name = "Down", category = "joystick", defaultKeyMapping = "down", notifyOnRelease = true)
     public boolean joystickDown(boolean pressed) {
-        if (!useKeyboard) {
+        if (!isAttached || !useKeyboard) {
             return false;
         }
         downPressed = pressed;

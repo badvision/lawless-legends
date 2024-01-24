@@ -110,7 +110,7 @@ public class Keyboard implements Reconfigurable {
                 if (action == null || !action.notifyOnRelease()) {
                     return false;
                 }
-                return method.apply(false) || action.consumeKeyEvent();
+                return method.apply(false) && action.consumeKeyEvent();
             }
 
             @Override
@@ -120,7 +120,7 @@ public class Keyboard implements Reconfigurable {
                 if (action == null) {
                     return false;
                 }
-                return method.apply(true) || action.consumeKeyEvent();
+                return method.apply(true) && action.consumeKeyEvent();
             }
         }, owner);
     }
@@ -133,7 +133,7 @@ public class Keyboard implements Reconfigurable {
                 if (action == null || !action.notifyOnRelease()) {
                     return false;
                 }
-                return method.apply(owner, false) || action.consumeKeyEvent();
+                return method.apply(owner, false) && action.consumeKeyEvent();
             }
 
             @Override
@@ -143,7 +143,7 @@ public class Keyboard implements Reconfigurable {
                 if (action == null) {
                     return false;
                 }
-                return method.apply(owner, true) || action.consumeKeyEvent();
+                return method.apply(owner, true) && action.consumeKeyEvent();
             }
         }, owner);
     }

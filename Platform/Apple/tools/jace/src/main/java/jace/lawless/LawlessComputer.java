@@ -160,7 +160,7 @@ public class LawlessComputer extends Apple2e {
     }
 
     public void waitForVBL(int count) throws InterruptedException {
-        if (!isRunning()) {
+        if (getVideo() == null || !getVideo().isRunning()) {
             return;
         }
         Semaphore s = new Semaphore(0);

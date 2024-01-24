@@ -9,7 +9,7 @@ import jace.core.SoundMixer.SoundBuffer;
 import jace.lawless.LawlessHacks;
 import jace.lawless.Media;
 
-public class SoundTest {
+public class SoundTest extends AbstractFXTest {
     @Test
     public void musicDecodeTest() {
         // For every song in the music folder, decode it and print out the duration
@@ -25,7 +25,7 @@ public class SoundTest {
         }
     }
     
-    // @Test
+    //@Test (Only use this to ensure the sound engine produces audible output, it's otherwise annoying to hear all the time)
     public void soundGenerationTest() {
         try {
         System.out.println("Performing sound test...");

@@ -158,7 +158,10 @@ public class Utility {
         if (isHeadless) {
             return Optional.empty();
         }
-        Image img = loadIcon(filename).get();
+        Optional<Image> img = loadIcon(filename);
+        if (img.isEmpty()) {
+            return Optional.empty();
+        }
         Label label = new Label() {
             @Override
             public boolean equals(Object obj) {
@@ -174,7 +177,7 @@ public class Utility {
                 return getText().hashCode();
             }
         };
-        label.setGraphic(new ImageView(img));
+        label.setGraphic(new ImageView(img.get()));
         label.setAlignment(Pos.CENTER);
         label.setContentDisplay(ContentDisplay.TOP);
         label.setTextFill(Color.WHITE);

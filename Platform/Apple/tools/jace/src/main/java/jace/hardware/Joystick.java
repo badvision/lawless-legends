@@ -59,6 +59,9 @@ public class Joystick extends Device {
 
     public Joystick(int port, Computer computer) {
         super(computer);
+        if (LawlessLegends.getApplication() == null) {
+            return;
+        }
         Stage stage = LawlessLegends.getApplication().primaryStage;
         // Register a mouse handler on the primary stage that tracks the 
         // mouse x/y position as a percentage of window width and height

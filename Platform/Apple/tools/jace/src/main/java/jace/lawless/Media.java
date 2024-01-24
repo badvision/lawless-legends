@@ -2,6 +2,8 @@ package jace.lawless;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 
@@ -21,21 +23,20 @@ public class Media {
     File tempFile;
 
     public Media(String resourcePath) throws IOException {
-        // Copy resource to temp file because STBVorbis can't read from jar
-        tempFile = File.createTempFile("temp", ".ogg");
-        tempFile.deleteOnExit();
-        getClass().getResource(resourcePath).openStream().transferTo(new java.io.FileOutputStream(tempFile));
-        String canonicalPath = tempFile.getAbsolutePath();
-
-        // Get caononical file path from relative resource path
-        // String canonicalPath = URLDecoder.decode(getClass().getResource(resourcePath).getPath(), "UTF-8");
-        System.out.println("Loading media: " + canonicalPath);
+        System.out.println("Loading media: " + resourcePath);
+        byte[] oggFile;
+        try (InputStream oggStream = getClass().getResourceAsStream(resourcePath)) {
+            oggFile = oggStream.readAllBytes();
+        }
         
         try (MemoryStack stack = MemoryStack.stackPush()) {
+            ByteBuffer oggBuffer = MemoryUtil.memAlloc(oggFile.length);
+            oggBuffer.put(oggFile);
+            oggBuffer.flip();
             IntBuffer error = stack.callocInt(1);
-            Long decoder = STBVorbis.stb_vorbis_open_filename(canonicalPath, error, null);
+            Long decoder = STBVorbis.stb_vorbis_open_memory(oggBuffer, error, null);
             if (decoder == null || decoder <= 0) {
-                throw new RuntimeException("Failed to open Ogg Vorbis file. Error: " + getError(error.get(0)));
+                throw new RuntimeException("Failed to open Ogg Vorbis file. Error: " + getError(error.get(0)) + " -- file is located at " + resourcePath);
             }
             STBVorbisInfo info = STBVorbisInfo.malloc(stack);
             STBVorbis.stb_vorbis_get_info(decoder, info);

@@ -283,7 +283,8 @@ public class SoundMixer extends Device {
         MUTE = true;
         PLAYBACK_ENABLED = false;
         
-        for (SoundBuffer buffer : buffers) {
+        while (!buffers.isEmpty()) {
+            SoundBuffer buffer = buffers.get(0);
             try {
                 buffer.shutdown();
             } catch (InterruptedException | ExecutionException e) {

@@ -336,6 +336,8 @@ public class PassportMidiInterface extends Card {
                 }
 
                 break;
+            default:
+            // Nothing
         }
     }
 

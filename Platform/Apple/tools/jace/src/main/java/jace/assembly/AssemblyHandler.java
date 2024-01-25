@@ -1,11 +1,6 @@
 package jace.assembly;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import jace.Emulator;
 import jace.core.RAM;

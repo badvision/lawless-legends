@@ -6,7 +6,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import jace.apple2e.RAM128k;
-import jace.apple2e.SoftSwitches;
 import jace.apple2e.VideoNTSC;
 import jace.cheat.Cheats.Cheat;
 import jace.config.Configuration;
@@ -40,7 +39,7 @@ public class LawlessLegends extends Application {
     public Stage primaryStage;
     public JaceUIController controller;
 
-    static boolean romStarted = false;
+    static AtomicBoolean romStarted = new AtomicBoolean(false);
 
     @Override
     public void start(Stage stage) throws Exception {
@@ -132,36 +131,33 @@ public class LawlessLegends extends Application {
      * for cold boot
      */
     private void bootWatchdog() {
-        romStarted = false;
         Emulator.withComputer(c -> {
-            if (c.PRODUCTION_MODE) {
-                new Thread(()->{
-                    Logger.getLogger(getClass().getName()).log(Level.WARNING, "Booting with watchdog");
-                    RAMListener startListener = c.getMemory().
-                            observe("Lawless Legends watchdog", RAMEvent.TYPE.EXECUTE, 0x2000, (e) -> {
-                                Logger.getLogger(getClass().getName()).log(Level.WARNING, "Boot was detected, watchdog terminated.");
-                                romStarted = true;
-                            });
-                    c.invokeColdStart();
-                    try {
-                        Thread.sleep(6500);
-                        if (!romStarted) {
-                            Logger.getLogger(getClass().getName()).log(Level.WARNING, "Boot not detected, performing a cold start");
-                            resetEmulator();
-                            configureEmulatorForGame();
-                            bootWatchdog();
-                            // Emulator.getComputer().getCpu().trace=true;
-                        } else {
-                            c.getMemory().removeListener(startListener);
-                        }
-                    } catch (InterruptedException ex) {
-                        Logger.getLogger(LawlessLegends.class.getName()).log(Level.SEVERE, null, ex);
-                    }
-                }).start();
-            } else {
-                romStarted = true;
+            int watchAddress = c.PRODUCTION_MODE ? 0x02000 : 0x0ff3a;
+            int watchdogDelay = c.PRODUCTION_MODE ? 6500 : 500;
+            new Thread(()->{
+                Logger.getLogger(getClass().getName()).log(Level.WARNING, "Booting with watchdog");
+                final RAMListener startListener = c.getMemory().observeOnce("Lawless Legends watchdog", RAMEvent.TYPE.EXECUTE, watchAddress, (e) -> {
+                    Logger.getLogger(getClass().getName()).log(Level.WARNING, "Boot was detected, watchdog terminated.");
+                    romStarted.set(true);
+                });
+                romStarted.set(false);
                 c.invokeColdStart();
-            }
+                try {
+                    Thread.sleep(watchdogDelay);
+                    if (!romStarted.get() || !c.isRunning() || c.getCpu().getProgramCounter() == 0xc700 || c.getCpu().getProgramCounter() == 0) {
+                        Logger.getLogger(getClass().getName()).log(Level.WARNING, "Boot not detected, performing a cold start");
+                        Logger.getLogger(getClass().getName()).log(Level.WARNING, "Old PC: {0}", c.getCpu().getProgramCounter());
+                        resetEmulator();
+                        configureEmulatorForGame();
+                        bootWatchdog();
+                        // Emulator.getComputer().getCpu().trace=true;
+                    } else {
+                        startListener.unregister();
+                    }
+                } catch (InterruptedException ex) {
+                    Logger.getLogger(LawlessLegends.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }).start();
         });
     }
 
@@ -198,10 +194,6 @@ public class LawlessLegends extends Application {
             VideoNTSC.setVideoMode(VideoNTSC.VideoMode.TextFriendly, false);
             if (c.PRODUCTION_MODE) {
                 ((LawlessImageTool) c.getUpgradeHandler()).loadGame();
-            } else {
-                for (SoftSwitches s : SoftSwitches.values()) {
-                    s.getSwitch().reset();
-                }
             }
         });
     }

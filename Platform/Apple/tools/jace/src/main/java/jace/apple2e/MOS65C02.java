@@ -18,15 +18,16 @@
  */
 package jace.apple2e;
 
+import java.util.HashMap;
+import java.util.function.Consumer;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import jace.Emulator;
 import jace.config.ConfigurableField;
 import jace.core.CPU;
-import jace.core.Computer;
-import jace.core.RAM;
 import jace.core.RAMEvent.TYPE;
 import jace.state.Stateful;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * This is a full implementation of a MOS-65c02 processor, including the BBR,
@@ -72,12 +73,7 @@ public class MOS65C02 extends CPU {
     @ConfigurableField(name = "Ext. opcode warnings", description = "If on, uses of 65c02 extended opcodes (or undocumented 6502 opcodes -- which will fail) will be logged to stdout for debugging purposes")
     public boolean warnAboutExtendedOpcodes = false;
 
-    private RAM getMemory() {
-        return computer.getMemory();
-    }
-
-    public MOS65C02(Computer computer) {
-        super(computer);
+    public MOS65C02() {
         initOpcodes();
         clearState();
     }
@@ -142,15 +138,15 @@ public class MOS65C02 extends CPU {
         BBS6(0x0ef, COMMAND.BBS6, MODE.ZP_REL, 5, true),
         BBS7(0x0ff, COMMAND.BBS7, MODE.ZP_REL, 5, true),
         BEQ_REL0(0x00F0, COMMAND.BEQ, MODE.RELATIVE, 2),
-        BIT_IMM(0x0089, COMMAND.BIT, MODE.IMMEDIATE, 3, true),
+        BIT_IMM(0x0089, COMMAND.BIT, MODE.IMMEDIATE, 2, true),
         BIT_ZP(0x0024, COMMAND.BIT, MODE.ZEROPAGE, 3),
-        BIT_ZP_X(0x0034, COMMAND.BIT, MODE.ZEROPAGE_X, 3, true),
+        BIT_ZP_X(0x0034, COMMAND.BIT, MODE.ZEROPAGE_X, 4, true),
         BIT_AB(0x002C, COMMAND.BIT, MODE.ABSOLUTE, 4),
         BIT_AB_X(0x003C, COMMAND.BIT, MODE.ABSOLUTE_X, 4, true),
         BMI_REL(0x0030, COMMAND.BMI, MODE.RELATIVE, 2),
         BNE_REL(0x00D0, COMMAND.BNE, MODE.RELATIVE, 2),
         BPL_REL(0x0010, COMMAND.BPL, MODE.RELATIVE, 2),
-        BRA_REL(0x0080, COMMAND.BRA, MODE.RELATIVE, 2, true),
+        BRA_REL(0x0080, COMMAND.BRA, MODE.RELATIVE, 3, true),
         //        BRK(0x0000, COMMAND.BRK, MODE.IMPLIED, 7),
         // Do this so that BRK is treated as a two-byte instruction
         BRK(0x0000, COMMAND.BRK, MODE.IMMEDIATE, 7),
@@ -412,26 +408,23 @@ public class MOS65C02 extends CPU {
             int address = 0x00FF & cpu.getMemory().read(cpu.getProgramCounter() + 1, TYPE.READ_OPERAND, cpu.readAddressTriggersEvent, false);
             address = cpu.getMemory().readWord(address, TYPE.READ_DATA, true, false);
             int address2 = address + cpu.Y;
-            if ((address & 0x00ff00) != (address2 & 0x00ff00)) {
-                cpu.addWaitCycles(1);
-            }
+            cpu.setPageBoundaryPenalty((address & 0x00ff00) != (address2 & 0x00ff00));
+            cpu.setPageBoundaryApplied(true);
             return address2;
         }),
         ABSOLUTE(3, "$~2~1", (cpu) -> cpu.getMemory().readWord(cpu.getProgramCounter() + 1, TYPE.READ_OPERAND, cpu.readAddressTriggersEvent, false)),
         ABSOLUTE_X(3, "$~2~1,X", (cpu) -> {
             int address2 = cpu.getMemory().readWord(cpu.getProgramCounter() + 1, TYPE.READ_OPERAND, cpu.readAddressTriggersEvent, false);
             int address = 0x0FFFF & (address2 + cpu.X);
-            if ((address & 0x00FF00) != (address2 & 0x00FF00)) {
-                cpu.addWaitCycles(1);
-            }
+            cpu.setPageBoundaryPenalty((address & 0x00ff00) != (address2 & 0x00ff00));
+            cpu.setPageBoundaryApplied(true);
             return address;
         }),
         ABSOLUTE_Y(3, "$~2~1,Y", (cpu) -> {
             int address2 = cpu.getMemory().readWord(cpu.getProgramCounter() + 1, TYPE.READ_OPERAND, cpu.readAddressTriggersEvent, false);
             int address = 0x0FFFF & (address2 + cpu.Y);
-            if ((address & 0x00FF00) != (address2 & 0x00FF00)) {
-                cpu.addWaitCycles(1);
-            }
+            cpu.setPageBoundaryPenalty((address & 0x00ff00) != (address2 & 0x00ff00));
+            cpu.setPageBoundaryApplied(true);
             return address;
         }),
         ZP_REL(3, "$~1,$R", new AddressCalculator() {
@@ -442,6 +435,7 @@ public class MOS65C02 extends CPU {
                 int address = pc + 3 + cpu.getMemory().read(pc + 2, TYPE.READ_OPERAND, cpu.readAddressTriggersEvent, false);
                 // The wait cycles are not added unless the branch actually happens!
                 cpu.setPageBoundaryPenalty((address & 0x00ff00) != ((pc+3) & 0x00ff00));
+                cpu.setPageBoundaryApplied(true);
                 return address;
             }
 
@@ -547,7 +541,8 @@ public class MOS65C02 extends CPU {
         public void processCommand(int address, int value, MODE addressMode, MOS65C02 cpu) {
             if ((value & (1 << bit)) != 0) {
                 cpu.setProgramCounter(address);
-                cpu.addWaitCycles(cpu.pageBoundaryPenalty ? 2 : 1);
+                cpu.setPageBoundaryApplied(true);
+                cpu.addWaitCycles(1);
             }
         }
     }
@@ -589,36 +584,24 @@ public class MOS65C02 extends CPU {
             if (cpu.D) {
                 // Decimal Mode
                 w = (cpu.A & 0x0f) + (value & 0x0f) + cpu.C;
-                if (w >= 10) {
-                    w = 0x010 | ((w + 6) & 0x0f);
+                if (w >= 0x0A) {
+                    w = 0x10 | ((w + 6) & 0x0f);
                 }
-                w += (cpu.A & 0x0f0) + (value & 0x00f0);
-                if (w >= 0x0A0) {
+                w += (cpu.A & 0xf0) + (value & 0xf0);
+                if (w >= 0xA0) {
                     cpu.C = 1;
-                    if (cpu.V && w >= 0x0180) {
-                        cpu.V = false;
-                    }
-                    w += 0x060;
+                    cpu.V &= w < 0x180;
+                    w += 0x60;
                 } else {
                     cpu.C = 0;
-                    if (cpu.V && w < 0x080) {
-                        cpu.V = false;
-                    }
+                    cpu.V &= w >= 0x80;
                 }
+                cpu.addWaitCycles(1);
             } else {
                 // Binary Mode
                 w = cpu.A + value + cpu.C;
-                if (w >= 0x0100) {
-                    cpu.C = 1;
-                    if (cpu.V && w >= 0x0180) {
-                        cpu.V = false;
-                    }
-                } else {
-                    cpu.C = 0;
-                    if (cpu.V && w < 0x080) {
-                        cpu.V = false;
-                    }
-                }
+                cpu.V = ((cpu.A ^ w) & (value ^ w) & 0x080) != 0;
+                cpu.C = (w >= 0x0100) ? 1 : 0;
             }
             cpu.A = w & 0x0ff;
             cpu.setNZ(cpu.A);
@@ -660,19 +643,22 @@ public class MOS65C02 extends CPU {
         BCC((address, value, addressMode, cpu) -> {
             if (cpu.C == 0) {
                 cpu.setProgramCounter(address);
-                cpu.addWaitCycles(cpu.pageBoundaryPenalty ? 2 : 1);
+                cpu.setPageBoundaryApplied(true);
+                cpu.addWaitCycles(1);
             }
         }),
         BCS((address, value, addressMode, cpu) -> {
             if (cpu.C != 0) {
                 cpu.setProgramCounter(address);
-                cpu.addWaitCycles(cpu.pageBoundaryPenalty ? 2 : 1);
+                cpu.setPageBoundaryApplied(true);
+                cpu.addWaitCycles(1);
             }
         }),
         BEQ((address, value, addressMode, cpu) -> {
             if (cpu.Z) {
                 cpu.setProgramCounter(address);
-                cpu.addWaitCycles(cpu.pageBoundaryPenalty ? 2 : 1);
+                cpu.setPageBoundaryApplied(true);
+                cpu.addWaitCycles(1);
             }
         }),
         BIT((address, value, addressMode, cpu) -> {
@@ -687,24 +673,27 @@ public class MOS65C02 extends CPU {
         BMI((address, value, addressMode, cpu) -> {
             if (cpu.N) {
                 cpu.setProgramCounter(address);
-                cpu.addWaitCycles(cpu.pageBoundaryPenalty ? 2 : 1);
+                cpu.setPageBoundaryApplied(true);
+                cpu.addWaitCycles(1);
             }
         }),
         BNE((address, value, addressMode, cpu) -> {
             if (!cpu.Z) {
                 cpu.setProgramCounter(address);
-                cpu.addWaitCycles(cpu.pageBoundaryPenalty ? 2 : 1);
+                cpu.setPageBoundaryApplied(true);
+                cpu.addWaitCycles(1);
             }
         }),
         BPL((address, value, addressMode, cpu) -> {
             if (!cpu.N) {
                 cpu.setProgramCounter(address);
-                cpu.addWaitCycles(cpu.pageBoundaryPenalty ? 2 : 1);
+                cpu.setPageBoundaryApplied(true);
+                cpu.addWaitCycles(1);
             }
         }),
         BRA((address, value, addressMode, cpu) -> {
             cpu.setProgramCounter(address);
-            cpu.addWaitCycles(cpu.pageBoundaryPenalty ? 1 : 0);
+            cpu.setPageBoundaryApplied(true);
         }),
         BRK((address, value, addressMode, cpu) -> {
             cpu.BRK();
@@ -712,13 +701,15 @@ public class MOS65C02 extends CPU {
         BVC((address, value, addressMode, cpu) -> {
             if (!cpu.V) {
                 cpu.setProgramCounter(address);
-                cpu.addWaitCycles(cpu.pageBoundaryPenalty ? 2 : 1);
+                cpu.setPageBoundaryApplied(true);
+                cpu.addWaitCycles(1);
             }
         }),
         BVS((address, value, addressMode, cpu) -> {
             if (cpu.V) {
                 cpu.setProgramCounter(address);
-                cpu.addWaitCycles(cpu.pageBoundaryPenalty ? 2 : 1);
+                cpu.setPageBoundaryApplied(true);
+                cpu.addWaitCycles(1);
             }
         }),
         CLC((address, value, addressMode, cpu) -> {
@@ -754,6 +745,7 @@ public class MOS65C02 extends CPU {
             cpu.getMemory().write(address, (byte) value, true, false);
             cpu.getMemory().write(address, (byte) value, true, false);
             cpu.setNZ(value);
+            cpu.setPageBoundaryApplied(false); // AB,X already takes 7 cycles, no boundary penalties
         }),
         DEA((address, value, addressMode, cpu) -> {
             cpu.A = 0x0FF & (cpu.A - 1);
@@ -777,6 +769,7 @@ public class MOS65C02 extends CPU {
             cpu.getMemory().write(address, (byte) value, true, false);
             cpu.getMemory().write(address, (byte) value, true, false);
             cpu.setNZ(value);
+            cpu.setPageBoundaryApplied(false); // AB,X already takes 7 cycles, no boundary penalties
         }),
         INA((address, value, addressMode, cpu) -> {
             cpu.A = 0x0FF & (cpu.A + 1);
@@ -904,47 +897,32 @@ public class MOS65C02 extends CPU {
             cpu.setProgramCounter(cpu.popWord() + 1);
         }),
         SBC((address, value, addressMode, cpu) -> {
-            cpu.V = ((cpu.A ^ value) & 0x080) != 0;
-            int w;
-            if (cpu.D) {
-                int temp = 0x0f + (cpu.A & 0x0f) - (value & 0x0f) + cpu.C;
-                if (temp < 0x10) {
-                    w = 0;
-                    temp -= 6;
-                } else {
-                    w = 0x10;
-                    temp -= 0x10;
-                }
-                w += 0x00f0 + (cpu.A & 0x00f0) - (value & 0x00f0);
-                if (w < 0x100) {
-                    cpu.C = 0;
-                    if (cpu.V && w < 0x080) {
-                        cpu.V = false;
-                    }
-                    w -= 0x60;
-                } else {
-                    cpu.C = 1;
-                    if (cpu.V && w >= 0x180) {
-                        cpu.V = false;
-                    }
-                }
-                w += temp;
+            if (!cpu.D) {
+                ADC.getProcessor().processCommand(address, 0x0ff & (~value), addressMode, cpu);
             } else {
-                w = 0x0ff + cpu.A - value + cpu.C;
-                if (w < 0x100) {
+                cpu.V = ((cpu.A ^ value) & 0x80) != 0;
+                int w = 0x0F + (cpu.A & 0x0F) - (value & 0x0F) + cpu.C;
+                int val = 0;
+                if (w < 0x10) {
+                    w -= 0x06;
+                } else {	
+                    val = 0x10;
+                    w -= 0x10;
+                }
+                val += 0xF0 + (cpu.A & 0xF0) - (value & 0xF0);
+                if (val < 0x100) {
                     cpu.C = 0;
-                    if (cpu.V && (w < 0x080)) {
-                        cpu.V = false;
-                    }
+                    cpu.V &= val >= 0x80;
+                    val -= 0x60;
                 } else {
                     cpu.C = 1;
-                    if (cpu.V && (w >= 0x180)) {
-                        cpu.V = false;
-                    }
+                    cpu.V &= val < 0x180;
                 }
+                val += w;
+                cpu.A = val & 0xFF;
+                cpu.setNZ(cpu.A);
+                cpu.addWaitCycles(1);
             }
-            cpu.A = w & 0x0ff;
-            cpu.setNZ(cpu.A);
         }),
         SEC((address, value, addressMode, cpu) -> {
             cpu.C = 1;
@@ -965,6 +943,7 @@ public class MOS65C02 extends CPU {
         SMB7(new SMBCommand(7)),
         STA(true, (address, value, addressMode, cpu) -> {
             cpu.getMemory().write(address, (byte) cpu.A, true, false);
+            cpu.setPageBoundaryApplied(false); // AB,X has no noted penalty for this opcode
         }),
         STP((address, value, addressMode, cpu) -> {
             cpu.suspend();
@@ -977,6 +956,7 @@ public class MOS65C02 extends CPU {
         }),
         STZ(true, (address, value, addressMode, cpu) -> {
             cpu.getMemory().write(address, (byte) 0, true, false);
+            cpu.setPageBoundaryApplied(false); // AB,X has no noted penalty for this opcode
         }),
         TAX((address, value, addressMode, cpu) -> {
             cpu.X = cpu.A;
@@ -1115,6 +1095,11 @@ public class MOS65C02 extends CPU {
             incrementProgramCounter(opcode.getMode().getSize());
             opcode.execute(this);
             addWaitCycles(opcode.getWaitCycles());
+            if (isPageBoundaryPenalty()) {
+                addWaitCycles(1);
+            }
+            setPageBoundaryPenalty(false);
+            setPageBoundaryApplied(false);
         }
     }
 
@@ -1175,8 +1160,8 @@ public class MOS65C02 extends CPU {
 
     @Override
     public void JSR(int address) {
-            pushPC();
-            setProgramCounter(address);
+        pushPC();
+        setProgramCounter(address);
     }
 
     public void BRK() {
@@ -1305,9 +1290,15 @@ public class MOS65C02 extends CPU {
         return String.format("%s %s", o.getCommand().toString(), format);
     }
     private boolean pageBoundaryPenalty = false;
-
+    private boolean applyPageBoundaryPenalty = false;
     private void setPageBoundaryPenalty(boolean b) {
         pageBoundaryPenalty = b;
+    }
+    public void setPageBoundaryApplied(boolean e) {
+        applyPageBoundaryPenalty = e;
+    }
+    boolean isPageBoundaryPenalty() {
+        return applyPageBoundaryPenalty && pageBoundaryPenalty;
     }
 
     @Override
@@ -1315,6 +1306,8 @@ public class MOS65C02 extends CPU {
         pushWord(getProgramCounter() - 1);
     }
 
+    // FC is typically a NOP instruction, but let's pretend it is our own opcode that we can use for special commands
+    HashMap<Integer, Consumer<Byte>> extendedCommandHandlers = new HashMap<>();
     /**
      * Special commands -- these are usually treated as NOP but can be reused for emulator controls
      * !byte $fc, $65, $00 ; Turn off tracing
@@ -1329,16 +1322,16 @@ public class MOS65C02 extends CPU {
 //        LOG.log(Level.INFO, "Extended command {0},{1}", new Object[]{Integer.toHexString(param1), Integer.toHexString(param2)});
         switch (param1 & 0x0ff) {
             case 0x50:
-                // System out
+                // System out #
                 System.out.print(param2 & 0x0ff);
                 break;
             case 0x5b:
-                // System out (with line break)
+                // System out # (with line break)
                 System.out.println(param2 & 0x0ff);
                 break;
             case 0x5c:
-                // System out (with line break)
-                System.out.println((char) (param2 & 0x0ff));
+                // System out char
+                System.out.print((char) (param2 & 0x0ff));
                 break;
             case 0x65:
                 // CPU functions
@@ -1353,12 +1346,29 @@ public class MOS65C02 extends CPU {
             case 0x64:
                 // Memory functions
                 getMemory().performExtendedCommand(param2 & 0x0ff);
+                break;
             default:
+                Consumer<Byte> handler = extendedCommandHandlers.get((int) param1);
+                if (handler != null) {
+                    handler.accept(param2);
+                }
         }
+    }
+
+    public void registerExtendedCommandHandler(int param1, Consumer<Byte> handler) {
+        extendedCommandHandlers.put(param1, handler);
+    }
+
+    public void unregisterExtendedCommandHandler(int param1) {
+        extendedCommandHandlers.remove(param1);
+    }
+
+    public void unregisterExtendedCommandHandler(Consumer<Byte> handler) {
+        extendedCommandHandlers.values().remove(handler);
     }
 
     @Override
     public void reconfigure() {
-        // Do nothing
+        // Nothing to do here
     }
 }

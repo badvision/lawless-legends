@@ -219,8 +219,12 @@ public class IdeController {
     @FXML
     void executeClicked(ActionEvent event) {
         getCurrentProgram().ifPresent(program -> {
-            program.execute();
-            updateStatusMessages(program.lastResult);
+            try {
+                program.execute();
+                updateStatusMessages(program.lastResult);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         });
     }
 

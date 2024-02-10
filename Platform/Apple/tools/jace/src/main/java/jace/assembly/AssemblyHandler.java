@@ -3,6 +3,7 @@ package jace.assembly;
 import java.nio.ByteBuffer;
 
 import jace.Emulator;
+import jace.core.Computer;
 import jace.core.RAM;
 import jace.ide.CompileResult;
 import jace.ide.HeadlessProgram;
@@ -51,24 +52,32 @@ public class AssemblyHandler implements LanguageHandler<ByteBuffer> {
     }
     
     @Override
-    public void execute(CompileResult<ByteBuffer> lastResult) {
+    public void execute(CompileResult<ByteBuffer> lastResult) throws Exception {
         if (lastResult.isSuccessful()) {
-            Emulator.withComputer(c -> {
+            Computer c = Emulator.withComputer(c1 -> c1, null);
+
                 RAM memory = c.getMemory();
                 ByteBuffer input = lastResult.getCompiledAsset();
                 input.rewind();
-                int startLSB = input.get();
-                int startMSB = input.get();
+                int startLSB = input.get() & 0x0ff;
+                int startMSB = input.get() & 0x0ff;
                 int start = startLSB + startMSB << 8;
-                System.out.printf("Issuing JSR to $%s%n", Integer.toHexString(start));
+                // System.out.printf("Executing code at $%s%n", Integer.toHexString(start));
                 c.getCpu().whileSuspended(() -> {
+                    // System.out.printf("Storing assembled code to $%s%n", Integer.toHexString(start));
                     int pos = start;
                     while (input.hasRemaining()) {
                         memory.write(pos++, input.get(), false, true);
                     }
+                    // System.out.printf("Issuing JSR to $%s%n", Integer.toHexString(start));
                     c.getCpu().JSR(start);
                 });
-            });
+            // });
+        } else {
+            System.err.println("Compilation failed");
+            lastResult.getErrors().forEach((line, message) -> System.err.printf("Line %d: %s%n", line, message));
+            lastResult.getOtherMessages().forEach(System.err::println);
+            throw new Exception("Compilation failed");
         }
         clean(lastResult);
     }

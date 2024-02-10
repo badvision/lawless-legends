@@ -18,7 +18,7 @@
  */
 package jace.hardware.mockingboard;
 
-import jace.core.Computer;
+import jace.Emulator;
 import jace.core.TimedDevice;
 
 /**
@@ -29,8 +29,8 @@ import jace.core.TimedDevice;
 public abstract class R6522 extends TimedDevice {
     public static long SPEED = 1020484L; // (NTSC)
     
-    public R6522(Computer computer) {
-        super(computer);
+    public R6522() {
+        super();
         timer1freerun = true;
         timer1running = true;
         timer1latch = 0x1fff;
@@ -160,7 +160,7 @@ public abstract class R6522 extends TimedDevice {
                     if (timer1interruptEnabled) {
     //                    System.out.println("Timer 1 generated interrupt");
                         timer1IRQ = true;
-                        computer.getCpu().generateInterrupt();
+                        Emulator.withComputer(c->c.getCpu().generateInterrupt());
                     }
                 }
             }
@@ -171,7 +171,7 @@ public abstract class R6522 extends TimedDevice {
                     timer2counter = timer2latch;
                     if (timer2interruptEnabled) {
                         timer2IRQ = true;
-                        computer.getCpu().generateInterrupt();
+                        Emulator.withComputer(c->c.getCpu().generateInterrupt());
                     }
                 }
             }

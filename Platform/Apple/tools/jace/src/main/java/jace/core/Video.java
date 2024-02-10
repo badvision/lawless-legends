@@ -86,8 +86,7 @@ public abstract class Video extends Device {
      *
      * @param computer
      */
-    public Video(Computer computer) {
-        super(computer);
+    public Video() {
         initLookupTables();
         video = new WritableImage(560, 192);
         visible = new WritableImage(560, 192);
@@ -157,17 +156,18 @@ public abstract class Video extends Device {
         addWaitCycles(waitsPerCycle);
         addWaitCycles((int) motherboardAdjustedWaitsPerCycle);
         if (y < APPLE_SCREEN_LINES) setScannerLocation(currentWriter.getYOffset(y));
-        setFloatingBus(computer.getMemory().readRaw(scannerAddress + x));
+        setFloatingBus(getMemory().readRaw(scannerAddress + x));
         if (hPeriod > 0) {
             hPeriod--;
             if (hPeriod == 0) {
                 x = -1;
             }
         } else {
-            if (!isVblank && x < APPLE_CYCLES_PER_LINE && x >= 0) {
-                draw();
+            int xVal = x;
+            if (!isVblank && xVal < APPLE_CYCLES_PER_LINE && xVal >= 0) {
+                draw(xVal);
             }
-            if (x >= APPLE_CYCLES_PER_LINE - 1) {
+            if (xVal >= APPLE_CYCLES_PER_LINE - 1) {
                 int yy = y + hblankOffsetY;
                 if (yy < 0) {
                     yy += APPLE_SCREEN_LINES;
@@ -192,12 +192,12 @@ public abstract class Video extends Device {
                         y = APPLE_SCREEN_LINES - (TOTAL_LINES - APPLE_SCREEN_LINES);
                         isVblank = true;
                         vblankStart();
-                        computer.getMotherboard().vblankStart();
+                        Emulator.withComputer(c->c.getMotherboard().vblankStart());
                     } else {
                         y = 0;
                         isVblank = false;
                         vblankEnd();
-                        computer.getMotherboard().vblankEnd();
+                        Emulator.withComputer(c->c.getMotherboard().vblankEnd());
                     }
                 }
             }
@@ -227,10 +227,10 @@ public abstract class Video extends Device {
     @ConfigurableField(name = "Hblank Y offset", category = "Advanced", description = "Adjust which line the HBLANK starts on (0=current, 1=next, etc)")
     public static int hblankOffsetY = 1;
 
-    private void draw() {
+    private void draw(int xVal) {
         if (lineDirty || forceRedrawRowCount > 0 || currentWriter.isRowDirty(y)) {
             lineDirty = true;
-            currentWriter.displayByte(video, x, y, textOffset[y], hiresOffset[y]);
+            currentWriter.displayByte(video, xVal, y, textOffset[y], hiresOffset[y]);
         }
         doPostDraw();
     }

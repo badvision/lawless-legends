@@ -20,6 +20,7 @@ package jace.core;
 
 import java.util.HashSet;
 
+import jace.Emulator;
 import jace.apple2e.SoftSwitches;
 import jace.apple2e.Speaker;
 import jace.config.ConfigurableField;
@@ -42,12 +43,12 @@ public class Motherboard extends TimedDevice {
 
     void vblankEnd() {
         SoftSwitches.VBL.getSwitch().setState(true);
-        computer.notifyVBLStateChanged(true);
+        Emulator.withComputer(c->c.notifyVBLStateChanged(true));
     }
 
     void vblankStart() {
         SoftSwitches.VBL.getSwitch().setState(false);
-        computer.notifyVBLStateChanged(false);
+        Emulator.withComputer(c->c.notifyVBLStateChanged(false));
     }
 
     /**
@@ -55,8 +56,8 @@ public class Motherboard extends TimedDevice {
      * @param computer
      * @param oldMotherboard
      */
-    public Motherboard(Computer computer, Motherboard oldMotherboard) {
-        super(computer);
+    public Motherboard(Motherboard oldMotherboard) {
+        super();
         if (oldMotherboard != null) {
             addAllDevices(oldMotherboard.getChildren());
             speaker = oldMotherboard.speaker;
@@ -79,33 +80,23 @@ public class Motherboard extends TimedDevice {
     public static int cpuPerClock = 0;
     public int clockCounter = 1;
 
+    private CPU _cpu = null;
+    public CPU getCpu() {
+        if (_cpu == null) {
+            _cpu = Emulator.withComputer(Computer::getCpu, null);
+        }
+        return _cpu;
+    }
+
     @Override
     public void tick() {
         // Extra CPU cycles requested, other devices are called by the TimedDevice abstraction
         for (int i=1; i < cpuPerClock; i++) {
-            computer.getCpu().doTick();
+            getCpu().doTick();
             if (Speaker.force1mhz) {
                 speaker.tick();
             }
         }
-        /*
-        try {
-            clockCounter--;
-            computer.getCpu().doTick();
-            if (clockCounter > 0) {
-                return;
-            }
-            clockCounter = cpuPerClock;
-            computer.getVideo().doTick();
-            Optional<Card>[] cards = computer.getMemory().getAllCards();
-            for (Optional<Card> card : cards) {
-                card.ifPresent(Card::doTick);
-            }
-        } catch (Throwable t) {
-            System.out.print("!");
-            Logger.getLogger(getClass().getName()).log(Level.SEVERE, null, t);
-        }
-*/
     }
     // From the holy word of Sather 3:5 (Table 3.1) :-)
     // This average speed averages in the "long" cycles
@@ -119,6 +110,7 @@ public class Motherboard extends TimedDevice {
 
     @Override
     public synchronized void reconfigure() {
+        _cpu = null;
         whileSuspended(() -> {
             accelorationRequestors.clear();
             super.reconfigure();
@@ -128,7 +120,7 @@ public class Motherboard extends TimedDevice {
             if (enableSpeaker) {
                 try {
                     if (speaker == null) {
-                        speaker = new Speaker(computer);
+                        speaker = new Speaker();
                         speaker.attach();
                     }
                     speaker.reconfigure();
@@ -158,14 +150,14 @@ public class Motherboard extends TimedDevice {
     }
     
     void adjustRelativeSpeeds() {
-        if (computer.getVideo() != null) {
+        Emulator.withVideo(v-> {
             if (isMaxSpeed()) {
-                computer.getVideo().setWaitPerCycle(8);
+                v.setWaitPerCycle(8);
             } else if (getSpeedInHz() > DEFAULT_SPEED) {
-                computer.getVideo().setWaitPerCycle(getSpeedInHz() / DEFAULT_SPEED);
+                v.setWaitPerCycle(getSpeedInHz() / DEFAULT_SPEED);
             } else {
-                computer.getVideo().setWaitPerCycle(0);            
+                v.setWaitPerCycle(0);            
             }
-        }
+        });
     }
 }

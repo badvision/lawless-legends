@@ -27,7 +27,6 @@ import jace.EmulatorUILogic;
 import jace.config.ConfigurableField;
 import jace.config.InvokableAction;
 import jace.core.Computer;
-import jace.core.RAM;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
 import javafx.scene.image.PixelWriter;
@@ -64,8 +63,8 @@ public class VideoNTSC extends VideoDHGR {
     protected boolean[] colorActive = new boolean[80];
     int rowStart = 0;
     
-    public VideoNTSC(Computer computer) {
-        super(computer);
+    public VideoNTSC() {
+        super();
         initDivideTables();
         initNtscPalette();
         registerStateListeners();
@@ -166,7 +165,7 @@ public class VideoNTSC extends VideoDHGR {
     @Override
     protected void displayLores(WritableImage screen, int xOffset, int y, int rowAddress) {
         if (xOffset < 0) return;
-        int data = ((RAM128k) computer.getMemory()).getMainMemory().readByte(rowAddress + xOffset) & 0x0FF;
+        int data = ((RAM128k) getMemory()).getMainMemory().readByte(rowAddress + xOffset) & 0x0FF;
         int pos = xOffset >> 1;
         if (rowStart < 0) {
             rowStart = pos;
@@ -202,13 +201,13 @@ public class VideoNTSC extends VideoDHGR {
             rowStart = pos;
         }
         colorActive[xOffset * 2] = colorActive[xOffset * 2 + 1] = true;
-        int c1 = ((RAM128k) computer.getMemory()).getAuxVideoMemory().readByte(rowAddress + xOffset) & 0x0FF;
+        int c1 = ((RAM128k) getMemory()).getAuxVideoMemory().readByte(rowAddress + xOffset) & 0x0FF;
         if ((y & 7) < 4) {
             c1 &= 15;
         } else {
             c1 >>= 4;
         }
-        int c2 = ((RAM128k) computer.getMemory()).getMainMemory().readByte(rowAddress + xOffset) & 0x0FF;
+        int c2 = ((RAM128k) getMemory()).getMainMemory().readByte(rowAddress + xOffset) & 0x0FF;
         if ((y & 7) < 4) {
             c2 &= 15;
         } else {
@@ -419,15 +418,14 @@ public class VideoNTSC extends VideoDHGR {
     Set<RAMListener> rgbStateListeners = new HashSet<>();
 
     private void registerStateListeners() {
-        if (!rgbStateListeners.isEmpty() || computer.getVideo() != this) {
+        if (!rgbStateListeners.isEmpty() || Emulator.withComputer(Computer::getVideo, null) != this) {
             return;
         }
-        RAM memory = computer.getMemory();
-        rgbStateListeners.add(memory.observe("NTSC: AN3 state change", RAMEvent.TYPE.ANY, 0x0c05e, (e) -> {
+        rgbStateListeners.add(getMemory().observe("NTSC: AN3 state change", RAMEvent.TYPE.ANY, 0x0c05e, (e) -> {
             an3 = false;
             rgbStateChange();
         }));
-        rgbStateListeners.add(memory.observe("NTSC: 80COL state change", RAMEvent.TYPE.ANY, 0x0c05f, (e) -> {
+        rgbStateListeners.add(getMemory().observe("NTSC: 80COL state change", RAMEvent.TYPE.ANY, 0x0c05f, (e) -> {
             if (!an3) {
                 f2 = f1;
                 f1 = SoftSwitches._80COL.getState();
@@ -435,7 +433,7 @@ public class VideoNTSC extends VideoDHGR {
             an3 = true;
             rgbStateChange();
         }));
-        rgbStateListeners.add(memory.observe("NTSC: Reset hook for reverting RGB mode", RAMEvent.TYPE.EXECUTE, 0x0fa62, (e) -> {
+        rgbStateListeners.add(getMemory().observe("NTSC: Reset hook for reverting RGB mode", RAMEvent.TYPE.EXECUTE, 0x0fa62, (e) -> {
             // When reset hook is called, reset the graphics mode
             // This is useful in case a program is running that
             // is totally clueless how to set the RGB state correctly.
@@ -451,7 +449,7 @@ public class VideoNTSC extends VideoDHGR {
 
     public void detach() {
         rgbStateListeners.stream().forEach((l) -> {
-            computer.getMemory().removeListener(l);
+            getMemory().removeListener(l);
         });
         rgbStateListeners.clear();
         super.detach();

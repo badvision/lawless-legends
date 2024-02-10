@@ -21,12 +21,10 @@ package jace.core;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import jace.LawlessLegends;
-import jace.apple2e.SoftSwitches;
 import jace.config.ConfigurableField;
 import jace.config.InvokableAction;
 import jace.config.Reconfigurable;
@@ -45,37 +43,41 @@ import javafx.beans.value.ChangeListener;
  */
 public abstract class Computer implements Reconfigurable {
 
-    public RAM memory;
-    public CPU cpu;
-    public Video video;
-    public Keyboard keyboard;
-    public StateManager stateManager;
-    public Motherboard motherboard;
+    private RAM memory;
+    private CPU cpu;
+    private Video video;
+    private Keyboard keyboard;
+    private StateManager stateManager;
+    private Motherboard motherboard;
     public final CompletableFuture<Boolean> romLoaded;
     @ConfigurableField(category = "advanced", name = "State management", shortName = "rewind", description = "This enables rewind support, but consumes a lot of memory when active.")
     public boolean enableStateManager;
-    public final SoundMixer mixer;
+    public final SoundMixer mixer = new SoundMixer();
     final private BooleanProperty runningProperty = new SimpleBooleanProperty(false);
 
     /**
      * Creates a new instance of Computer
      */
     public Computer() {
-        keyboard = new Keyboard(this);
-        mixer = new SoundMixer(this);
-        romLoaded = new CompletableFuture<>();
+        romLoaded = new CompletableFuture<>();    
     }
 
-    public RAM getMemory() {
+    abstract protected RAM createMemory();
+
+    final public RAM getMemory() {
+        if (memory == null) {
+            memory = createMemory();
+            memory.configureActiveMemory();
+        }
         return memory;
     }
 
-    public Motherboard getMotherboard() {
+    final public Motherboard getMotherboard() {
         return motherboard;
     }
 
     ChangeListener<Boolean> runningPropertyListener = (prop, oldVal, newVal) -> runningProperty.set(newVal);
-    public void setMotherboard(Motherboard m) {
+    final public void setMotherboard(Motherboard m) {
         if (motherboard != null && motherboard.isRunning()) {
             motherboard.suspend();
         }
@@ -86,7 +88,7 @@ public abstract class Computer implements Reconfigurable {
         return runningProperty;
     }
 
-    public boolean isRunning() {
+    final public boolean isRunning() {
         return getRunningProperty().get();
     }
 
@@ -99,20 +101,19 @@ public abstract class Computer implements Reconfigurable {
         }
     }
 
-    public void setMemory(RAM memory) {
+    final public void setMemory(RAM memory) {
         if (this.memory != memory) {
-            // for (SoftSwitches s : SoftSwitches.values()) {
-            //     s.getSwitch().unregister();
-            // }            
-            if (this.memory != null) {
-                this.memory.detach();
+            RAM oldMemory = this.memory;
+            if (oldMemory != null) {
+                oldMemory.detach();
             }
             this.memory = memory;
             if (memory != null) {
-                memory.attach();
-                for (SoftSwitches s : SoftSwitches.values()) {
-                    s.getSwitch().register();
+                if (oldMemory != null) {
+                    memory.copyFrom(oldMemory);
+                    oldMemory.detach();
                 }
+                memory.attach();
             }
         }
     }
@@ -121,31 +122,33 @@ public abstract class Computer implements Reconfigurable {
         //@TODO IMPLEMENT TIMER SLEEP CODE!
     }
 
-    public Video getVideo() {
+    final public Video getVideo() {
         return video;
     }
 
-    public void setVideo(Video video) {
+    final public void setVideo(Video video) {
         this.video = video;
         if (LawlessLegends.getApplication() != null) {
             LawlessLegends.getApplication().controller.connectVideo(video);
         }
     }
 
-    public CPU getCpu() {
+    final public CPU getCpu() {
         return cpu;
     }
 
-    public void setCpu(CPU cpu) {
+    final public void setCpu(CPU cpu) {
         this.cpu = cpu;
     }
+
+    abstract public void loadRom(boolean reload) throws IOException;
 
     public void loadRom(String path) throws IOException {
         memory.loadRom(path);
         romLoaded.complete(true);
     }
 
-    public void deactivate() {
+    final public void deactivate() {
         if (cpu != null) {
             cpu.suspend();
         }
@@ -167,20 +170,12 @@ public abstract class Computer implements Reconfigurable {
             alternatives = "Full reset;reset emulator",
             defaultKeyMapping = {"Ctrl+Shift+Backspace", "Ctrl+Shift+Delete"})
     public void invokeColdStart() {
-        if (!romLoaded.isDone()) {
-            Thread delayedStart = new Thread(() -> {
-                try {
-                    romLoaded.get();
-                    memory.resetState();            
-                    coldStart();
-                } catch (InterruptedException | ExecutionException ex) {
-                    Logger.getLogger(Computer.class.getName()).log(Level.SEVERE, null, ex);
-                }
-            });
-            delayedStart.start();
-        } else {
+        try {
+            loadRom(false);
             memory.resetState();            
             coldStart();
+        } catch (IOException e) {
+            Logger.getLogger(Computer.class.getName()).log(Level.SEVERE, "Failed to load system rom ROMs", e);
         }
     }
 
@@ -207,7 +202,7 @@ public abstract class Computer implements Reconfigurable {
     protected abstract void doResume();
 
     @InvokableAction(name = "Pause", description = "Stops the computer, allowing reconfiguration of core elements", alternatives = "freeze;halt", defaultKeyMapping = {"meta+pause", "alt+pause"})
-    public boolean pause() {
+    final public boolean pause() {
         boolean result = getRunningProperty().get();
         doPause();
         getRunningProperty().set(false);
@@ -215,13 +210,16 @@ public abstract class Computer implements Reconfigurable {
     }
 
     @InvokableAction(name = "Resume", description = "Resumes the computer if it was previously paused", alternatives = "unpause;unfreeze;resume;play", defaultKeyMapping = {"meta+shift+pause", "alt+shift+pause"})
-    public void resume() {
+    final public void resume() {
         doResume();
         getRunningProperty().set(true);
     }
 
     @Override
     public void reconfigure() {
+        if (keyboard == null) {
+            keyboard = new Keyboard();
+        }
         mixer.reconfigure();
         if (enableStateManager) {
             stateManager = StateManager.getInstance(this);

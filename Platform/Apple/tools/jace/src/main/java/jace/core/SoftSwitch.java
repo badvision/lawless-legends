@@ -149,7 +149,7 @@ public abstract class SoftSwitch {
                             e.setNewValue(Emulator.withComputer(c->c.getVideo().getFloatingBus(), (byte) 0));
                         }
                         if (!exclusionActivate.contains(e.getAddress())) {
-                            //                        System.out.println("Access to "+Integer.toHexString(e.getAddress())+" ENABLES switch "+getName());
+                            // System.out.println("Access to "+Integer.toHexString(e.getAddress())+" ENABLES switch "+getName());
                             setState(true);
                         }
                     }
@@ -180,7 +180,7 @@ public abstract class SoftSwitch {
                     protected void doEvent(RAMEvent e) {
                         if (!exclusionDeactivate.contains(e.getAddress())) {
                             setState(false);
-//                          System.out.println("Access to "+Integer.toHexString(e.getAddress())+" disables switch "+getName());
+                            // System.out.println("Access to "+Integer.toHexString(e.getAddress())+" disables switch "+getName());
                         }
                     }
                 };
@@ -256,19 +256,7 @@ public abstract class SoftSwitch {
         if (inhibit()) {
             return;
         }
-//        if (this != SoftSwitches.VBL.getSwitch() &&
-//            this != SoftSwitches.KEYBOARD.getSwitch())
-//            System.out.println("Switch "+name+" set to "+newState);
         state = newState;
-        /*
-         if (queryAddresses != null) {
-         RAM m = computer.getMemory();
-         for (int i:queryAddresses) {
-         byte old = m.read(i, false);
-         m.write(i, (byte) (old & 0x7f | (state ? 0x080:0x000)), false);
-         }
-         }
-         */
         stateChanged();
     }
 

@@ -18,6 +18,7 @@
  */
 package jace.hardware;
 
+import jace.Emulator;
 import jace.EmulatorUILogic;
 import jace.apple2e.MOS65C02;
 import jace.apple2e.RAM128k;
@@ -88,8 +89,8 @@ public class CardAppleMouse extends Card {
     public boolean movedSinceLastTick = false;
     public boolean movedSinceLastRead = false;
     
-    public CardAppleMouse(Computer computer) {
-        super(computer);
+    public CardAppleMouse() {
+        super();
     }
 
     @Override
@@ -250,7 +251,7 @@ public class CardAppleMouse extends Card {
     }
 
     private MOS65C02 getCPU() {
-        return (MOS65C02) computer.getCpu();
+        return (MOS65C02) Emulator.withComputer(Computer::getCpu, null);
     }
 
     /*
@@ -341,7 +342,7 @@ public class CardAppleMouse extends Card {
      *      //gs homes mouse to low address, but //c and //e do not
      */
     private void clampMouse() {
-        RAM128k memory = (RAM128k) computer.getMemory();
+        RAM128k memory = (RAM128k) getMemory();
         byte clampMinLo = memory.getMainMemory().readByte(0x0478);
         byte clampMaxLo = memory.getMainMemory().readByte(0x04F8);
         byte clampMinHi = memory.getMainMemory().readByte(0x0578);
@@ -423,7 +424,7 @@ public class CardAppleMouse extends Card {
      * MinXH, MinYH, MinXL, MinYL, MaxXH, MaxYH, MaxXL, MaxYL
      */
     private void getMouseClamp() {
-        byte reg = computer.getMemory().readRaw(0x0478);
+        byte reg = getMemory().readRaw(0x0478);
         byte val = 0;
         switch (reg - 0x047) {
             case 0 -> val = (byte) ((int) clampWindow.getMinX() >> 8);
@@ -435,7 +436,7 @@ public class CardAppleMouse extends Card {
             case 6 -> val = (byte) ((int) clampWindow.getMaxX() & 255);
             case 7 -> val = (byte) ((int) clampWindow.getMaxY() & 255);
         }
-        computer.getMemory().write(0x0578, val, false, false);
+        getMemory().write(0x0578, val, false, false);
     }
 
     /*
@@ -516,7 +517,7 @@ public class CardAppleMouse extends Card {
         y += clampWindow.getMinY();
         y = Math.min(Math.max(y, clampWindow.getMinY()), clampWindow.getMaxY());
 
-        PagedMemory m = ((RAM128k) computer.getMemory()).getMainMemory();
+        PagedMemory m = ((RAM128k) getMemory()).getMainMemory();
         int s = getSlot();
         /*
          * $0478 + slot Low byte of absolute X position 

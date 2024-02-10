@@ -22,8 +22,8 @@ import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import jace.Emulator;
 import jace.apple2e.MOS65C02;
-import jace.core.Computer;
 import jace.core.RAM;
 import jace.hardware.massStorage.CardMassStorage;
 
@@ -32,11 +32,6 @@ import jace.hardware.massStorage.CardMassStorage;
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com 
  */
 public abstract class SmartportDriver {
-    Computer computer;
-
-    public SmartportDriver(Computer computer) {
-        this.computer = computer;
-    }
     
     public enum ERROR_CODE {
         NO_ERROR(0), INVALID_COMMAND(0x01), BAD_PARAM_COUNT(0x04), INVALID_UNIT(0x011), INVALID_CODE(0x021), BAD_BLOCK_NUMBER(0x02d);
@@ -47,80 +42,84 @@ public abstract class SmartportDriver {
     }
     
     public void handleSmartport() {
-        int returnCode = callSmartport().intValue;
-        MOS65C02 cpu = (MOS65C02) computer.getCpu();
-        cpu.A = returnCode;
-        // Clear carry flag if no error, otherwise set carry flag
-        cpu.C = (returnCode == 0x00) ? 0 : 1;
+        Emulator.withComputer(computer -> {
+            int returnCode = callSmartport().intValue;
+            MOS65C02 cpu = (MOS65C02) computer.getCpu();
+            cpu.A = returnCode;
+            // Clear carry flag if no error, otherwise set carry flag
+            cpu.C = (returnCode == 0x00) ? 0 : 1;
+        });
     }
 
     private ERROR_CODE callSmartport() {
-        MOS65C02 cpu = (MOS65C02) computer.getCpu();
-        RAM ram = computer.getMemory();
-        int callAddress = cpu.popWord() + 1;
-        int command = ram.readRaw(callAddress);
-        boolean extendedCall = command >= 0x040;
-//            command &= 0x0f;
-        // Modify stack so that RTS goes to the right place after the smartport device call
-        //cpu.pushWord(callAddress + (extendedCall ? 5 : 3));
-        // Kludge due to the CPU not getting the faked RTS opcode
-        cpu.setProgramCounter(callAddress + (extendedCall ? 5 : 3));
+        return Emulator.withComputer(computer -> {
+            MOS65C02 cpu = (MOS65C02) computer.getCpu();
+            RAM ram = computer.getMemory();
+            int callAddress = cpu.popWord() + 1;
+            int command = ram.readRaw(callAddress);
+            boolean extendedCall = command >= 0x040;
+    //            command &= 0x0f;
+            // Modify stack so that RTS goes to the right place after the smartport device call
+            //cpu.pushWord(callAddress + (extendedCall ? 5 : 3));
+            // Kludge due to the CPU not getting the faked RTS opcode
+            cpu.setProgramCounter(callAddress + (extendedCall ? 5 : 3));
 
-        // Calculate parameter address block
-        int parmAddr;
-        if (!extendedCall) {
-            parmAddr = ram.readWordRaw(callAddress + 1);
-        } else {
-            // Extended calls -- not gonna happen on this platform anyway
-            int parmAddrLo = ram.readWordRaw(callAddress + 1);
-            int parmAddrHi = ram.readWordRaw(callAddress + 3);
-            parmAddr = parmAddrHi << 16 | parmAddrLo;
-        }
-        // Now process command
-        System.out.println("Received command " + command + " with address block " + Integer.toHexString(parmAddr));
-        // byte numParms = ram.readRaw(parmAddr);
-        int[] params = new int[16];
-        for (int i = 0; i < 16; i++) {
-            int value = 0x0ff & ram.readRaw(parmAddr + i);
-            params[i] = value;
-            System.out.print(Integer.toHexString(value) + " ");
-        }
-        System.out.println();
-        int unitNumber = params[1];
-        if (!changeUnit(unitNumber)) {
-            System.out.println("Invalid unit: "+unitNumber);
-            return ERROR_CODE.INVALID_UNIT;
-        }
-        int dataBuffer = params[2] | (params[3] << 8);
-        
-        try {
-            switch (command) {
-                case 0: //Status
-                    return returnStatus(dataBuffer, params);
-                case 1: //Read Block
-                    int blockNum = params[4] | (params[5] << 8) | (params[6] << 16);
-                    read(blockNum, dataBuffer);
-                    return ERROR_CODE.NO_ERROR;
-                    //                  System.out.println("reading "+blockNum+" to $"+Integer.toHexString(dataBuffer));
-                case 2: //Write Block
-                    blockNum = params[4] | (params[5] << 8) | (params[6] << 16);
-                    write(blockNum, dataBuffer);
-                    return ERROR_CODE.NO_ERROR;
-                case 3: //Format
-                case 4: //Control
-                case 5: //Init
-                case 6: //Open
-                case 7: //Close
-                case 8: //Read
-                case 9: //Write
-                default:
-                    System.out.println("Unimplemented command "+command);
-                    return ERROR_CODE.INVALID_COMMAND;
+            // Calculate parameter address block
+            int parmAddr;
+            if (!extendedCall) {
+                parmAddr = ram.readWordRaw(callAddress + 1);
+            } else {
+                // Extended calls -- not gonna happen on this platform anyway
+                int parmAddrLo = ram.readWordRaw(callAddress + 1);
+                int parmAddrHi = ram.readWordRaw(callAddress + 3);
+                parmAddr = parmAddrHi << 16 | parmAddrLo;
             }
-        } catch (IOException ex) {
-            Logger.getLogger(CardMassStorage.class.getName()).log(Level.SEVERE, null, ex);
-            return ERROR_CODE.INVALID_CODE;
-        }
+            // Now process command
+            System.out.println("Received command " + command + " with address block " + Integer.toHexString(parmAddr));
+            // byte numParms = ram.readRaw(parmAddr);
+            int[] params = new int[16];
+            for (int i = 0; i < 16; i++) {
+                int value = 0x0ff & ram.readRaw(parmAddr + i);
+                params[i] = value;
+                System.out.print(Integer.toHexString(value) + " ");
+            }
+            System.out.println();
+            int unitNumber = params[1];
+            if (!changeUnit(unitNumber)) {
+                System.out.println("Invalid unit: "+unitNumber);
+                return ERROR_CODE.INVALID_UNIT;
+            }
+            int dataBuffer = params[2] | (params[3] << 8);
+            
+            try {
+                switch (command) {
+                    case 0: //Status
+                        return returnStatus(dataBuffer, params);
+                    case 1: //Read Block
+                        int blockNum = params[4] | (params[5] << 8) | (params[6] << 16);
+                        read(blockNum, dataBuffer);
+                        return ERROR_CODE.NO_ERROR;
+                        //                  System.out.println("reading "+blockNum+" to $"+Integer.toHexString(dataBuffer));
+                    case 2: //Write Block
+                        blockNum = params[4] | (params[5] << 8) | (params[6] << 16);
+                        write(blockNum, dataBuffer);
+                        return ERROR_CODE.NO_ERROR;
+                    case 3: //Format
+                    case 4: //Control
+                    case 5: //Init
+                    case 6: //Open
+                    case 7: //Close
+                    case 8: //Read
+                    case 9: //Write
+                    default:
+                        System.out.println("Unimplemented command "+command);
+                        return ERROR_CODE.INVALID_COMMAND;
+                }
+            } catch (IOException ex) {
+                Logger.getLogger(CardMassStorage.class.getName()).log(Level.SEVERE, null, ex);
+                return ERROR_CODE.INVALID_CODE;
+            }
+        }, ERROR_CODE.NO_ERROR);
     }
 
     abstract public boolean changeUnit(int unitNumber);

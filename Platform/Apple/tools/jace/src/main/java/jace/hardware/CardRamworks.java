@@ -23,10 +23,10 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
+import jace.Emulator;
 import jace.apple2e.RAM128k;
 import jace.config.ConfigurableField;
 import jace.config.Name;
-import jace.core.Computer;
 import jace.core.PagedMemory;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
@@ -55,9 +55,9 @@ public class CardRamworks extends RAM128k {
     public int maxBank = memorySize / 64;
     private Map<BankType, PagedMemory> generateBank() {
             Map<BankType, PagedMemory> memoryBank = new EnumMap<>(BankType.class);
-            memoryBank.put(BankType.MAIN_MEMORY, new PagedMemory(0xc000, PagedMemory.Type.RAM, computer));
-            memoryBank.put(BankType.LANGUAGE_CARD_1, new PagedMemory(0x3000, PagedMemory.Type.LANGUAGE_CARD, computer));
-            memoryBank.put(BankType.LANGUAGE_CARD_2, new PagedMemory(0x1000, PagedMemory.Type.LANGUAGE_CARD, computer));
+            memoryBank.put(BankType.MAIN_MEMORY, new PagedMemory(0xc000, PagedMemory.Type.RAM));
+            memoryBank.put(BankType.LANGUAGE_CARD_1, new PagedMemory(0x3000, PagedMemory.Type.LANGUAGE_CARD));
+            memoryBank.put(BankType.LANGUAGE_CARD_2, new PagedMemory(0x1000, PagedMemory.Type.LANGUAGE_CARD));
             return memoryBank;
     }
 
@@ -65,8 +65,8 @@ public class CardRamworks extends RAM128k {
         MAIN_MEMORY, LANGUAGE_CARD_1, LANGUAGE_CARD_2
     }
 
-    public CardRamworks(Computer computer) {
-        super(computer);
+    public CardRamworks() {
+        super();
         memory = new ArrayList<>(maxBank);
         reconfigure();
     }
@@ -121,20 +121,18 @@ public class CardRamworks extends RAM128k {
 
     @Override
     public void reconfigure() {
-        boolean resume = computer.pause();
-        maxBank = memorySize / 64;
-        if (maxBank < 1) {
-            maxBank = 1;
-        } else if (maxBank > 128) {
-            maxBank = 128;
-        }
-        for (int i = memory.size(); i < maxBank; i++) {
-            memory.add(null);
-        }
-        configureActiveMemory();
-        if (resume) {
-            computer.resume();
-        }
+        Emulator.whileSuspended(computer -> {
+            maxBank = memorySize / 64;
+            if (maxBank < 1) {
+                maxBank = 1;
+            } else if (maxBank > 128) {
+                maxBank = 128;
+            }
+            for (int i = memory.size(); i < maxBank; i++) {
+                memory.add(null);
+            }
+            configureActiveMemory();    
+        });
     }
 
     private RAMListener bankSelectListener;
@@ -149,5 +147,6 @@ public class CardRamworks extends RAM128k {
     @Override
     public void detach() {
         removeListener(bankSelectListener);
+        super.detach();
     }
 }

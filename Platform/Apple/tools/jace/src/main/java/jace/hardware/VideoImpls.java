@@ -1,11 +1,10 @@
 package jace.hardware;
 
-import java.util.function.Function;
+import java.util.function.Supplier;
 
 import jace.apple2e.VideoDHGR;
 import jace.apple2e.VideoNTSC;
 import jace.config.DeviceEnum;
-import jace.core.Computer;
 import jace.core.Video;
 import jace.lawless.LawlessVideo;
 
@@ -16,9 +15,9 @@ public enum VideoImpls implements DeviceEnum<Video> {
 
     private final String name;
     private final Class<? extends Video> clazz;
-    private final Function<Computer, Video> factory;
+    private final Supplier<Video> factory;
 
-    VideoImpls(String name, Class<? extends Video> clazz, Function<Computer, Video> factory) {
+    VideoImpls(String name, Class<? extends Video> clazz, Supplier<Video> factory) {
         this.name = name;
         this.clazz = clazz;
         this.factory = factory;
@@ -30,8 +29,8 @@ public enum VideoImpls implements DeviceEnum<Video> {
     }
 
     @Override
-    public Video create(Computer computer) {
-        return factory.apply(computer);
+    public Video create() {
+        return factory.get();
     }
 
     @Override

@@ -18,19 +18,21 @@
  */
 package jace.hardware.massStorage;
 
+import static jace.hardware.ProdosDriver.MLI_COMMAND;
+import static jace.hardware.ProdosDriver.MLI_UNITNUMBER;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import jace.Emulator;
 import jace.apple2e.MOS65C02;
-import jace.core.Computer;
 import jace.core.RAM;
-import static jace.hardware.ProdosDriver.MLI_COMMAND;
 import jace.hardware.ProdosDriver.MLI_COMMAND_TYPE;
-import static jace.hardware.ProdosDriver.MLI_UNITNUMBER;
 
 /**
  * Representation of a hard drive or 800k disk image used by CardMassStorage
@@ -58,52 +60,74 @@ public class LargeDisk implements IDisk {
     }
 
     @Override
-    public void mliRead(int block, int bufferAddress, RAM memory) throws IOException {
-        if (block < physicalBlocks) {
-            diskImage.seek((block * BLOCK_SIZE) + dataOffset);
-            for (int i = 0; i < BLOCK_SIZE; i++) {
-                memory.write(bufferAddress + i, diskImage.readByte(), true, false);
-            }
-        } else {
-            for (int i = 0; i < BLOCK_SIZE; i++) {
-                memory.write(bufferAddress + i, (byte) 0, true, false);
-            }
-        }
-    }
-
-    @Override
-    public void mliWrite(int block, int bufferAddress, RAM memory) throws IOException {
-        if (block < physicalBlocks) {
-            diskImage.seek((block * BLOCK_SIZE) + dataOffset);
-            byte[] buf = new byte[BLOCK_SIZE];
-            for (int i = 0; i < BLOCK_SIZE; i++) {
-                buf[i]=memory.readRaw(bufferAddress + i);
-            }
-            diskImage.write(buf);
-        }
-    }
-
-    @Override
-    public void boot0(int slot, Computer computer) {
-        computer.getCpu().whileSuspended(()->{
+    public void mliRead(int block, int bufferAddress) throws IOException {
+        AtomicReference<IOException> error = new AtomicReference<>();
+        Emulator.withMemory(memory -> {
             try {
-//                System.out.println("Loading boot0 to $800");
-                mliRead(0, 0x0800, computer.getMemory());
+                if (block < physicalBlocks) {
+                    diskImage.seek((block * BLOCK_SIZE) + dataOffset);
+                    for (int i = 0; i < BLOCK_SIZE; i++) {
+                        memory.write(bufferAddress + i, diskImage.readByte(), true, false);
+                    }
+                } else {
+                    for (int i = 0; i < BLOCK_SIZE; i++) {
+                        memory.write(bufferAddress + i, (byte) 0, true, false);
+                    }
+                }
             } catch (IOException ex) {
-                Logger.getLogger(LargeDisk.class.getName()).log(Level.SEVERE, null, ex);
+                error.set(ex);
             }
-            byte slot16 = (byte) (slot << 4);
-//            System.out.println("X = "+Integer.toHexString(slot16));
-            ((MOS65C02) computer.getCpu()).X = slot16;
-            RAM memory = computer.getMemory();
-            memory.write(CardMassStorage.SLT16, slot16, false, false);
-            memory.write(MLI_COMMAND, (byte) MLI_COMMAND_TYPE.READ.intValue, false, false);
-            memory.write(MLI_UNITNUMBER, slot16, false, false);
-            // Write location to block read routine to zero page
-            memory.writeWord(0x048, 0x0c000 + CardMassStorage.DEVICE_DRIVER_OFFSET + (slot * 0x0100), false, false);
-//            System.out.println("JMP $800 issued");
-            computer.getCpu().setProgramCounter(0x0800);
         });
+        if (error.get() != null) {
+            throw error.get();
+        }
+    }
+
+    @Override
+    public void mliWrite(int block, int bufferAddress) throws IOException {
+        AtomicReference<IOException> error = new AtomicReference<>();
+        Emulator.withMemory(memory -> {
+            try {
+                if (block < physicalBlocks) {
+                    diskImage.seek((block * BLOCK_SIZE) + dataOffset);
+                    byte[] buf = new byte[BLOCK_SIZE];
+                    for (int i = 0; i < BLOCK_SIZE; i++) {
+                        buf[i]=memory.readRaw(bufferAddress + i);
+                    }
+                    diskImage.write(buf);
+                }
+            } catch (IOException ex) {
+                error.set(ex);
+            }
+        });
+        if (error.get() != null) {
+            throw error.get();
+        }
+    }
+
+    @Override
+    public void boot0(int slot) {
+        Emulator.withComputer(c->
+            c.getCpu().whileSuspended(()->{
+                try {
+    //                System.out.println("Loading boot0 to $800");
+                    mliRead(0, 0x0800);
+                } catch (IOException ex) {
+                    Logger.getLogger(LargeDisk.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                byte slot16 = (byte) (slot << 4);
+    //            System.out.println("X = "+Integer.toHexString(slot16));
+                ((MOS65C02) c.getCpu()).X = slot16;
+                RAM memory = c.getMemory();
+                memory.write(CardMassStorage.SLT16, slot16, false, false);
+                memory.write(MLI_COMMAND, (byte) MLI_COMMAND_TYPE.READ.intValue, false, false);
+                memory.write(MLI_UNITNUMBER, slot16, false, false);
+                // Write location to block read routine to zero page
+                memory.writeWord(0x048, 0x0c000 + CardMassStorage.DEVICE_DRIVER_OFFSET + (slot * 0x0100), false, false);
+    //            System.out.println("JMP $800 issued");
+                c.getCpu().setProgramCounter(0x0800);
+            })
+        );
     }
 
     public File getPhysicalPath() {

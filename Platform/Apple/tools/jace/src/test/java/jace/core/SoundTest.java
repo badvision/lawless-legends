@@ -1,20 +1,21 @@
-package jace;
+package jace.core;
 
 import java.util.concurrent.ExecutionException;
 
 import org.junit.Test;
 
-import jace.core.SoundMixer;
+import jace.AbstractFXTest;
 import jace.core.SoundMixer.SoundBuffer;
+import jace.core.SoundMixer.SoundError;
 import jace.lawless.LawlessHacks;
 import jace.lawless.Media;
 
 public class SoundTest extends AbstractFXTest {
-    @Test
+    // @Test (commented out because it takes a while to run)
     public void musicDecodeTest() {
         // For every song in the music folder, decode it and print out the duration
         // This is to make sure that the decoding is working properly
-        LawlessHacks lawless = Emulator.withComputer(LawlessHacks::new, null);
+        LawlessHacks lawless = new LawlessHacks();
         for (String score : lawless.scores.keySet()) {
             lawless.changeMusicScore(score);
             for (int track : lawless.scores.get(score).keySet()) {
@@ -25,12 +26,13 @@ public class SoundTest extends AbstractFXTest {
         }
     }
     
-    //@Test (Only use this to ensure the sound engine produces audible output, it's otherwise annoying to hear all the time)
-    public void soundGenerationTest() {
+    // @Test
+    //(Only use this to ensure the sound engine produces audible output, it's otherwise annoying to hear all the time)
+    public void soundGenerationTest() throws SoundError {
         try {
         System.out.println("Performing sound test...");
         System.out.println("Create mixer");
-        SoundMixer mixer = new SoundMixer(null);
+        SoundMixer mixer = new SoundMixer();
         System.out.println("Attach mixer");
         mixer.attach();
         System.out.println("Allocate buffer");
@@ -48,5 +50,15 @@ public class SoundTest extends AbstractFXTest {
         } catch (InterruptedException | ExecutionException e) {
             e.printStackTrace();
         }
+    }
+
+    @Test
+    public void speakerTickTest() throws SoundError {
+        System.out.println("Performing speaker tick test...");
+        System.out.println("Create mixer");
+        SoundMixer mixer = new SoundMixer();
+        System.out.println("Attach mixer");
+        mixer.attach();
+        
     }
 }

@@ -18,10 +18,11 @@
  */
 package jace.core;
 
-import jace.config.ConfigurableField;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import jace.config.ConfigurableField;
 
 /**
  * CPU is a vague abstraction of a CPU. It is defined as something which can be
@@ -35,10 +36,6 @@ import java.util.logging.Logger;
 public abstract class CPU extends Device {
     private static final Logger LOG = Logger.getLogger(CPU.class.getName());
 
-    public CPU(Computer computer) {
-        super(computer);
-    }
-    
     @Override
     public String getShortName() {
         return "cpu";
@@ -152,6 +149,7 @@ public abstract class CPU extends Device {
 
     @Override
     public void attach() {
+        reset();
     }
 
     abstract public void JSR(int pointer);

@@ -19,11 +19,13 @@
 package jace.core;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 import jace.Emulator;
 import jace.apple2e.SoftSwitches;
@@ -41,16 +43,12 @@ public abstract class RAM implements Reconfigurable {
 
     public PagedMemory activeRead;
     public PagedMemory activeWrite;
-    public Set<RAMListener> listeners;
-    public Set<RAMListener>[] listenerMap;
-    public Set<RAMListener>[] ioListenerMap;
+    private Set<RAMListener> listeners;
+    private Set<RAMListener>[] listenerMap;
+    private Set<RAMListener>[] ioListenerMap;
     public Optional<Card>[] cards;
     // card 0 = 80 column card firmware / system rom
     public int activeSlot = 0;
-    protected Computer computer;
-
-    public RAM() {
-    }
 
     /**
      * Creates a new instance of RAM
@@ -58,8 +56,7 @@ public abstract class RAM implements Reconfigurable {
      * @param computer
      */
     @SuppressWarnings("unchecked")
-    public RAM(Computer computer) {
-        this.computer = computer;
+    public RAM() {
         listeners = new ConcurrentSkipListSet<>();
         cards = (Optional<Card>[]) new Optional[8];
         for (int i = 0; i < 8; i++) {
@@ -111,6 +108,13 @@ public abstract class RAM implements Reconfigurable {
     }
 
     abstract public void configureActiveMemory();
+    public void copyFrom(RAM other) {
+        cards = other.cards;
+        activeSlot = other.activeSlot;
+        listeners.addAll(other.listeners);
+        refreshListenerMap();
+        configureActiveMemory();
+    }
 
     public void write(int address, byte b, boolean generateEvent, boolean requireSynchronization) {
         byte[] page = activeWrite.getMemoryPage(address);
@@ -189,7 +193,6 @@ public abstract class RAM implements Reconfigurable {
             int start = l.getScopeStart();
             int end = l.getScopeEnd();
             if (l.getScope() == RAMEvent.SCOPE.ANY) {
-                Thread.dumpStack();
                 start = 0;
                 end = 0x0FFFF;
             }
@@ -204,6 +207,21 @@ public abstract class RAM implements Reconfigurable {
         listenerMap = (Set<RAMListener>[]) new Set[256];
         ioListenerMap = (Set<RAMListener>[]) new Set[256];
         listeners.forEach(this::addListenerRange);
+    }
+
+    public RAMListener observeOnce(String observerationName, RAMEvent.TYPE type, int address, RAMEvent.RAMEventHandler handler) {
+        return addListener(new RAMListener(observerationName, type, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY) {
+            @Override
+            protected void doConfig() {
+                setScopeStart(address);
+            }
+
+            @Override
+            protected void doEvent(RAMEvent e) {
+                handler.handleEvent(e);
+                unregister();
+            }
+        });
     }
 
     public RAMListener observe(String observerationName, RAMEvent.TYPE type, int address, RAMEvent.RAMEventHandler handler) {
@@ -315,7 +333,7 @@ public abstract class RAM implements Reconfigurable {
         if ((address & 0x0FF00) == 0x0C000) {
             activeListeners = ioListenerMap[address & 0x0FF];
             if (activeListeners == null && t.isRead()) {
-                return computer.getVideo().getFloatingBus();
+                return Emulator.withComputer(c->c.getVideo().getFloatingBus(), (byte) 0);
             }
         } else {
             activeListeners = listenerMap[(address >> 8) & 0x0ff];
@@ -324,7 +342,7 @@ public abstract class RAM implements Reconfigurable {
             RAMEvent e = new RAMEvent(t, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY, address, oldValue, newValue);
             activeListeners.forEach((l) -> l.handleEvent(e));
             if (!e.isIntercepted() && (address & 0x0FF00) == 0x0C000) {
-                return computer.getVideo().getFloatingBus();
+                return Emulator.withComputer(c->c.getVideo().getFloatingBus(), (byte) 0);
             }
             return (byte) e.getNewValue();
         }
@@ -332,8 +350,13 @@ public abstract class RAM implements Reconfigurable {
     }
 
     public byte callListener(RAMEvent.TYPE t, int address, int oldValue, int newValue, boolean requireSyncronization) {
-        if (requireSyncronization) {
-            return computer.cpu.whileSuspended((Supplier<Byte>) () -> _callListener(t, address, oldValue, newValue), (byte) 0);
+        if (requireSyncronization && Emulator.withComputer(c->c.getMotherboard().isDeviceThread(), false)) {
+            AtomicInteger returnValue = new AtomicInteger();
+            Emulator.withComputer(computer -> {
+                computer.getCpu().whileSuspended(()-> returnValue.set(_callListener(t, address, oldValue, newValue)));
+                _callListener(t, address, oldValue, newValue);
+            });
+            return (byte) returnValue.get();
         } else {
             return _callListener(t, address, oldValue, newValue);
         }
@@ -343,11 +366,18 @@ public abstract class RAM implements Reconfigurable {
 
     abstract public void attach();
 
-    abstract public void detach();
+    public void detach() {
+        detachListeners.forEach(Runnable::run);
+    }
 
     abstract public void performExtendedCommand(int i);
 
     abstract public String getState();
     
     abstract public void resetState();
+
+    List<Runnable> detachListeners = new ArrayList<>();
+    public void onDetach(Runnable r) {
+        detachListeners.add(r);
+    }
 }

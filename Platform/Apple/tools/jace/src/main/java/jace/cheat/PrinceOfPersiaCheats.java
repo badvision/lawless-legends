@@ -21,7 +21,6 @@ package jace.cheat;
 import jace.EmulatorUILogic;
 import jace.apple2e.RAM128k;
 import jace.config.ConfigurableField;
-import jace.core.Computer;
 import jace.core.PagedMemory;
 import jace.core.RAMEvent;
 import javafx.event.EventHandler;
@@ -144,10 +143,6 @@ public class PrinceOfPersiaCheats extends Cheats {
     // This is the correct value for an open exit door.
     public static int ExitOpen = 172;
 
-    public PrinceOfPersiaCheats(Computer computer) {
-        super(computer);
-    }
-
     double mouseX;
     double mouseY;
     EventHandler<javafx.scene.input.MouseEvent> listener = (event) -> {
@@ -233,7 +228,7 @@ public class PrinceOfPersiaCheats extends Cheats {
         // Note: POP uses a 255-pixel horizontal axis, Pixels 0-57 are offscreen to the left
         // and 198-255 offscreen to the right.
 //        System.out.println("Clicked on " + col + "," + row + " -- screen " + (x * 280) + "," + (y * 192));
-        RAM128k mem = (RAM128k) computer.getMemory();
+        RAM128k mem = (RAM128k) getMemory();
         PagedMemory auxMem = mem.getAuxMemory();
 
         if (button == MouseButton.PRIMARY) {
@@ -279,7 +274,7 @@ public class PrinceOfPersiaCheats extends Cheats {
      * @param direction
      */
     public void performAction(int row, int col, int direction) {
-        RAM128k mem = (RAM128k) computer.getMemory();
+        RAM128k mem = (RAM128k) getMemory();
         PagedMemory auxMem = mem.getAuxMemory();
         byte currentScrn = auxMem.readByte(KidScrn);
         if (col < 0) {

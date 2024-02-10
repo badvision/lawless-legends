@@ -23,6 +23,7 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.function.Supplier;
 
+import jace.Emulator;
 import jace.config.Reconfigurable;
 import jace.state.Stateful;
 
@@ -41,19 +42,9 @@ import jace.state.Stateful;
 @Stateful
 public abstract class Device implements Reconfigurable {
 
-    protected Computer computer;
-    private final Set<Device> children;
+    private final Set<Device> children = new CopyOnWriteArraySet<>();
     private Device[] childrenArray = new Device[0];
     private Runnable tickHandler = this::__doTickNotRunning;
-
-    private Device() {
-        children = new CopyOnWriteArraySet<>();
-    }
-
-    public Device(Computer computer) {
-        this();
-        this.computer = computer;
-    }
 
     // Number of cycles to do nothing (for cpu/video cycle accuracy)
     @Stateful
@@ -66,6 +57,15 @@ public abstract class Device implements Reconfigurable {
     private boolean paused = false;
     @Stateful
     public boolean isAttached = false;
+
+    private RAM _ram = null;
+    protected RAM getMemory() {
+        if (_ram == null) {
+            _ram = Emulator.withMemory(m->m, null);
+            _ram.onDetach(()->_ram = null);
+        }
+        return _ram;
+    }
 
     public void addChildDevice(Device d) {
         if (d == null || children.contains(d) || d.equals(this)) {
@@ -178,23 +178,17 @@ public abstract class Device implements Reconfigurable {
     public abstract void tick();
     
     public void whileSuspended(Runnable r) {
-        if (isRunning()) {
-            suspend();
+        whileSuspended(()->{
             r.run();
-            resume();
-        } else {
-            r.run();
-        }        
+            return null;
+        }, null);
     }
 
     public void whilePaused(Runnable r) {
-        if (isRunning() && !isPaused()) {
-            setPaused(true);
+        whilePaused(()->{
             r.run();
-            setPaused(false);
-        } else {
-            r.run();
-        }        
+            return null;
+        }, null);
     }
 
     public <T> T whileSuspended(Supplier<T> r, T defaultValue) {
@@ -223,11 +217,11 @@ public abstract class Device implements Reconfigurable {
 
     
     public boolean suspend() {
+        children.forEach(Device::suspend);
         if (isRunning()) {
             setRun(false);
             return true;
         }
-        children.forEach(Device::suspend);
         return false;
     }
 
@@ -248,5 +242,7 @@ public abstract class Device implements Reconfigurable {
         children.forEach(Device::suspend);
         children.forEach(Device::detach);
         Keyboard.unregisterAllHandlers(this);
+        isAttached = false;
+        _ram = null;
     }
 }

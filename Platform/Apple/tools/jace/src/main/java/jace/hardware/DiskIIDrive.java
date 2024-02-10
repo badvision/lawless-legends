@@ -26,8 +26,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
 
+import jace.Emulator;
 import jace.EmulatorUILogic;
-import jace.core.Computer;
 import jace.library.MediaConsumer;
 import jace.library.MediaEntry;
 import jace.library.MediaEntry.MediaFile;
@@ -46,13 +46,11 @@ import javafx.scene.control.Label;
  */
 @Stateful
 public class DiskIIDrive implements MediaConsumer {
-    Computer computer;
 
-    public DiskIIDrive(Computer computer) {
-        this.computer = computer;
+    public DiskIIDrive() {
     }
     
-    public boolean DEBUG = true;
+    public boolean DEBUG = false;
 
     FloppyDisk disk;
     // Number of milliseconds to wait between last write and update to disk image
@@ -176,7 +174,7 @@ public class DiskIIDrive implements MediaConsumer {
                         dirtyTracks.add(trackStartOffset / FloppyDisk.TRACK_NIBBLE_LENGTH);
                         disk.nibbles[trackStartOffset + nibbleOffset++] = latch;
                         triggerDiskUpdate();
-                        StateManager.markDirtyValue(disk.nibbles, computer);
+                        StateManager.markDirtyValue(disk.nibbles);
                     }
                 }
             }
@@ -242,10 +240,10 @@ public class DiskIIDrive implements MediaConsumer {
         if (DEBUG) {
             System.out.println("inserting disk " + diskPath.getAbsolutePath() + " into drive");
         }
-        disk = new FloppyDisk(diskPath, computer);
+        disk = new FloppyDisk(diskPath);
         dirtyTracks = new HashSet<>();
         // Emulator state has changed significantly, reset state manager
-        StateManager.getInstance(computer).invalidate();
+        Emulator.withComputer(c->StateManager.getInstance(c).invalidate());
     }
     private Optional<Label> icon;
 
@@ -289,7 +287,7 @@ public class DiskIIDrive implements MediaConsumer {
         disk = null;
         dirtyTracks = new HashSet<>();
         // Emulator state has changed significantly, reset state manager
-        StateManager.getInstance(computer).invalidate();
+        Emulator.withComputer(c->StateManager.getInstance(c).invalidate());
     }
 
     @Override

@@ -5,7 +5,6 @@ import java.util.Arrays;
 import jace.Emulator;
 import jace.apple2e.RAM128k;
 import jace.apple2e.VideoNTSC;
-import jace.core.Computer;
 import jace.core.PagedMemory;
 import jace.core.Video;
 import javafx.scene.image.WritableImage;
@@ -76,8 +75,8 @@ public class LawlessVideo extends VideoNTSC {
         }
     }
 
-    public LawlessVideo(Computer computer) {
-        super(computer);
+    public LawlessVideo() {
+        super();
         this.vblankStart();
     }
 
@@ -103,7 +102,7 @@ public class LawlessVideo extends VideoNTSC {
     }
 
     public int getSummary(int row) {
-        PagedMemory mainMemory = ((RAM128k) computer.getMemory()).getMainMemory();
+        PagedMemory mainMemory = ((RAM128k) getMemory()).getMainMemory();
         int rowAddr = getCurrentWriter().getYOffset(row);
         int total = 0;
         for (int i = rowAddr + 4; i < rowAddr + 14; i++) {
@@ -114,6 +113,9 @@ public class LawlessVideo extends VideoNTSC {
 
     @Override
     public void hblankStart(WritableImage screen, int y, boolean isDirty) {
+        if (y < 0 || y > 192) {
+            return;
+        }
         int rowStart = getCurrentWriter().getYOffset(y);
         if (rowStart >= 0x02000) {
             boolean[] color = activeMask[y];

@@ -72,16 +72,6 @@ public enum SoftSwitches {
     PAGE2(new VideoSoftSwitch("Page2", 0x0c054, 0x0c055, 0x0c01c, RAMEvent.TYPE.ANY, false) {
         @Override
         public void stateChanged() {
-//            if (computer == null) {
-//                return;
-//            }
-//            if (computer == null && computer.getMemory() == null) {
-//                return;
-//            }
-//            if (computer == null && computer.getVideo() == null) {
-//                return;
-//            }
-
             // PAGE2 is a hybrid switch; 80STORE ? memory : video
             if (_80STORE.isOn()) {
                 Emulator.withMemory(m->m.configureActiveMemory());

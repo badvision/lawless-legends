@@ -29,7 +29,6 @@ import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import jace.core.Computer;
 import jace.state.StateManager;
 import jace.state.Stateful;
 
@@ -109,19 +108,18 @@ public class FloppyDisk {
     /**
      *
      * @param diskFile
-     * @param computer
      * @throws IOException
      */
-    public FloppyDisk(File diskFile, Computer computer) throws IOException {
+    public FloppyDisk(File diskFile) throws IOException {
         FileInputStream input = new FileInputStream(diskFile);
         String name = diskFile.getName().toUpperCase();
-        readDisk(input, name.endsWith(".PO"), computer);
+        readDisk(input, name.endsWith(".PO"));
         writeProtected = !diskFile.canWrite();
         diskPath = diskFile;
     }
 
     // brendanr: refactored to use input stream
-    public void readDisk(InputStream diskFile, boolean prodosOrder, Computer computer) throws IOException {
+    public void readDisk(InputStream diskFile, boolean prodosOrder) throws IOException {
         isNibblizedImage = true;
         volumeNumber = CardDiskII.DEFAULT_VOLUME_NUMBER;
         headerLength = 0;
@@ -157,8 +155,8 @@ public class FloppyDisk {
         } catch (IOException ex) {
             throw ex;
         }
-        StateManager.markDirtyValue(nibbles, computer);
-        StateManager.markDirtyValue(currentSectorOrder, computer);
+        StateManager.markDirtyValue(nibbles);
+        StateManager.markDirtyValue(currentSectorOrder);
     }
 
     /*

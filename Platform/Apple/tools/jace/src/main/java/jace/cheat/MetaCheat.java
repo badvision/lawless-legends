@@ -18,7 +18,6 @@ import javax.script.ScriptEngineManager;
 import jace.Emulator;
 import jace.LawlessLegends;
 import jace.core.CPU;
-import jace.core.Computer;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
 import jace.state.State;
@@ -86,8 +85,7 @@ public class MetaCheat extends Cheats {
     private final ObservableList<SearchResult> resultList = FXCollections.observableArrayList();
     private final ObservableList<State> snapshotList = FXCollections.observableArrayList();
 
-    public MetaCheat(Computer computer) {
-        super(computer);
+    public MetaCheat() {
         addNumericValidator(startAddressProperty);
         addNumericValidator(endAddressProperty);
         addNumericValidator(searchValueProperty);
@@ -140,24 +138,24 @@ public class MetaCheat extends Cheats {
 
     public void addCheat(DynamicCheat cheat) {
         cheatList.add(cheat);
-        computer.getMemory().addListener(cheat);
+        getMemory().addListener(cheat);
         cheat.addressProperty().addListener((prop, oldVal, newVal) -> {
-            computer.getMemory().removeListener(cheat);
+            getMemory().removeListener(cheat);
             cheat.doConfig();
-            computer.getMemory().addListener(cheat);
+            getMemory().addListener(cheat);
         });
     }
 
     public void removeCheat(DynamicCheat cheat) {
         cheat.active.set(false);
-        computer.getMemory().removeListener(cheat);
+        getMemory().removeListener(cheat);
         cheatList.remove(cheat);
     }
 
     @Override
     protected void unregisterListeners() {
         super.unregisterListeners();
-        cheatList.forEach(computer.getMemory()::removeListener);
+        cheatList.forEach(getMemory()::removeListener);
     }
 
     @Override
@@ -313,7 +311,7 @@ public class MetaCheat extends Cheats {
 
     @Override
     public void tick() {
-        computer.cpu.performSingleTrace();
+        Emulator.withComputer(c-> c.getCpu().performSingleTrace());
         if (fadeCounter-- <= 0) {
             fadeCounter = FADE_TIMER_VALUE;
             memoryCells.values().stream()

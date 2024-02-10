@@ -19,6 +19,7 @@
 package jace.core;
 
 import java.io.InputStream;
+
 import javafx.scene.image.Image;
 import javafx.scene.image.PixelReader;
 import javafx.scene.paint.Color;
@@ -35,34 +36,31 @@ public class Font {
     static public boolean initialized = false;
 
     static public int getByte(int c, int yOffset) {
-        if (!initialized) {
+        if (font == null || !initialized) {
             initalize();
         }
         return font[c][yOffset];
     }
 
     private static void initalize() {
-        initialized = true;
         font = new int[256][8];
-        Thread fontLoader = new Thread(() -> {
-            InputStream in = Font.class.getResourceAsStream("/jace/data/font.png");
-            Image image = new Image(in);
-            PixelReader reader = image.getPixelReader();
-            for (int i = 0; i < 256; i++) {
-                int x = (i >> 4) * 13 + 2;
-                int y = (i & 15) * 13 + 4;
-                for (int j = 0; j < 8; j++) {
-                    int row = 0;
-                    for (int k = 0; k < 7; k++) {
-                        Color color = reader.getColor((7 - k) + x, j + y);
-                        boolean on = color.getRed() != 0;
-                        row = (row << 1) | (on ? 0 : 1);
-                    }
-                    font[i][j] = row;
+        InputStream in = Font.class.getResourceAsStream("/jace/data/font.png");
+        Image image = new Image(in);
+        PixelReader reader = image.getPixelReader();
+        for (int i = 0; i < 256; i++) {
+            int x = (i >> 4) * 13 + 2;
+            int y = (i & 15) * 13 + 4;
+            for (int j = 0; j < 8; j++) {
+                int row = 0;
+                for (int k = 0; k < 7; k++) {
+                    Color color = reader.getColor((7 - k) + x, j + y);
+                    boolean on = color.getRed() != 0;
+                    row = (row << 1) | (on ? 0 : 1);
                 }
+                font[i][j] = row;
             }
-        });
-        fontLoader.start();
+        }
+        initialized = true;
     }
 
     /**

@@ -52,7 +52,7 @@ public class LawlessComputer extends Apple2e {
 
     @Override
     public void coldStart() {
-        motherboard.whileSuspended(()->{
+        getMotherboard().whileSuspended(()->{
             RAM128k ram = (RAM128k) getMemory();
             ram.zeroAllRam();
             blankTextPage1();
@@ -63,16 +63,13 @@ public class LawlessComputer extends Apple2e {
         if (showBootAnimation && PRODUCTION_MODE) {
             (new Thread(this::startAnimation)).start();
         } else {
-            cpu.setPaused(false);
+            getCpu().setPaused(false);
             finishColdStart();
         }
     }
 
     public void startAnimation() {
-        cpu.setPaused(true);
-        for (SoftSwitches s : SoftSwitches.values()) {
-            s.getSwitch().reset();
-        }
+        getCpu().setPaused(true);
         SoftSwitches._80COL.getSwitch().setState(true);
         SoftSwitches.TEXT.getSwitch().setState(false);
         SoftSwitches.HIRES.getSwitch().setState(true);
@@ -110,7 +107,7 @@ public class LawlessComputer extends Apple2e {
                 Logger.getLogger(LawlessComputer.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
-        cpu.setPaused(false);
+        getCpu().setPaused(false);
         finishColdStart();
 
     }

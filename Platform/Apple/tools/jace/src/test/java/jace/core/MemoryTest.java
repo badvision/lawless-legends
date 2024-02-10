@@ -33,7 +33,7 @@ import jace.apple2e.RAM128k;
  * Test that memory listeners fire appropriately.
  * @author brobert
  */
-public class MemoryListenerTest {
+public class MemoryTest {
     static Computer computer;
     static MOS65C02 cpu;
     static RAM128k ram;
@@ -47,9 +47,19 @@ public class MemoryListenerTest {
         ram = (RAM128k) computer.getMemory();
     }
 
+    @Test
+    public void assertMemoryConfiguredCorrectly() {
+        assertEquals("Active read bank 3 should be main memory page 3",
+                ram.mainMemory.getMemoryPage(3),
+                ram.activeRead.getMemoryPage(3));
+
+        assertEquals("Active write bank 3 should be main memory page 3",
+                ram.mainMemory.getMemoryPage(3),
+                ram.activeWrite.getMemoryPage(3));
+    }
 
     @Test
-    public void testListenerRelevance() {
+    public void testListenerRelevance() throws Exception {
         AtomicInteger anyEventCaught = new AtomicInteger();
         RAMListener anyListener = new RAMListener("Execution test", RAMEvent.TYPE.ANY, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY) {
             @Override

@@ -20,7 +20,6 @@ package jace.apple2e;
 
 import java.util.logging.Logger;
 
-import jace.core.Computer;
 import jace.core.Font;
 import jace.core.Palette;
 import jace.core.RAMEvent;
@@ -72,8 +71,8 @@ public class VideoDHGR extends Video {
      *
      * @param computer
      */
-    public VideoDHGR(Computer computer) {
-        super(computer);
+    public VideoDHGR() {
+        super();
         
         initCharMap();
         initHgrDhgrTables();
@@ -429,10 +428,10 @@ public class VideoDHGR extends Video {
         if ((xOffset & 0x01) == 1 || xOffset < 0) {
             return;
         }
-        int b1 = ((RAM128k) computer.getMemory()).getAuxVideoMemory().readByte(rowAddress + xOffset    );
-        int b2 = ((RAM128k) computer.getMemory()).getMainMemory()    .readByte(rowAddress + xOffset    );
-        int b3 = ((RAM128k) computer.getMemory()).getAuxVideoMemory().readByte(rowAddress + xOffset + 1);
-        int b4 = ((RAM128k) computer.getMemory()).getMainMemory()    .readByte(rowAddress + xOffset + 1);
+        int b1 = ((RAM128k) getMemory()).getAuxVideoMemory().readByte(rowAddress + xOffset    );
+        int b2 = ((RAM128k) getMemory()).getMainMemory()    .readByte(rowAddress + xOffset    );
+        int b3 = ((RAM128k) getMemory()).getAuxVideoMemory().readByte(rowAddress + xOffset + 1);
+        int b4 = ((RAM128k) getMemory()).getMainMemory()    .readByte(rowAddress + xOffset + 1);
         int useColOffset = xOffset << 1;
         // This shouldn't be necessary but prevents an index bounds exception when graphics modes are flipped (Race condition?)
         if (useColOffset >= 77 || useColOffset < 0) {
@@ -452,11 +451,11 @@ public class VideoDHGR extends Video {
 
     protected void displayHires(WritableImage screen, int xOffset, int y, int rowAddress) {
         // Skip odd columns since this does two at once
-        if ((xOffset & 0x01) == 1 || xOffset < 0) {
+        if ((xOffset & 0x01) == 1 || xOffset < 0 || xOffset > 39) {
             return;
         }
-        int b1 = 0x0ff & ((RAM128k) computer.getMemory()).getMainMemory().readByte(rowAddress + xOffset);
-        int b2 = 0x0ff & ((RAM128k) computer.getMemory()).getMainMemory().readByte(rowAddress + xOffset + 1);
+        int b1 = 0x0ff & ((RAM128k) getMemory()).getMainMemory().readByte(rowAddress + xOffset);
+        int b2 = 0x0ff & ((RAM128k) getMemory()).getMainMemory().readByte(rowAddress + xOffset + 1);
         int dhgrWord = HGR_TO_DHGR[(extraHalfBit && xOffset > 0) ? b1 | 0x0100 : b1][b2];
         extraHalfBit = (dhgrWord & 0x10000000) != 0;
         showDhgr(screen, TIMES_14[xOffset], y, dhgrWord & 0xfffffff);
@@ -466,7 +465,7 @@ public class VideoDHGR extends Video {
     
     protected void displayLores(WritableImage screen, int xOffset, int y, int rowAddress) {
         if (xOffset < 0) return;
-        int c1 = ((RAM128k) computer.getMemory()).getMainMemory().readByte(rowAddress + xOffset) & 0x0FF;
+        int c1 = ((RAM128k) getMemory()).getMainMemory().readByte(rowAddress + xOffset) & 0x0FF;
         if ((y & 7) < 4) {
             c1 &= 15;
         } else {
@@ -494,8 +493,8 @@ public class VideoDHGR extends Video {
 
     protected void displayDoubleLores(WritableImage screen, int xOffset, int y, int rowAddress) {
         if (xOffset < 0) return;
-        int c1 = ((RAM128k) computer.getMemory()).getAuxVideoMemory().readByte(rowAddress + xOffset) & 0x0FF;
-        int c2 = ((RAM128k) computer.getMemory()).getMainMemory().readByte(rowAddress + xOffset) & 0x0FF;
+        int c1 = ((RAM128k) getMemory()).getAuxVideoMemory().readByte(rowAddress + xOffset) & 0x0FF;
+        int c2 = ((RAM128k) getMemory()).getMainMemory().readByte(rowAddress + xOffset) & 0x0FF;
         if ((y & 7) < 4) {
             c1 &= 15;
             c2 &= 15;
@@ -562,8 +561,8 @@ public class VideoDHGR extends Video {
             return;
         }
         int yOffset = y & 7;
-        byte byte2 = ((RAM128k) computer.getMemory()).getMainMemory().readByte(rowAddress + xOffset + 1);
-        int c1 = getFontChar(((RAM128k) computer.getMemory()).getMainMemory().readByte(rowAddress + xOffset));
+        byte byte2 = ((RAM128k) getMemory()).getMainMemory().readByte(rowAddress + xOffset + 1);
+        int c1 = getFontChar(((RAM128k) getMemory()).getMainMemory().readByte(rowAddress + xOffset));
         int c2 = getFontChar(byte2);
         int b1 = Font.getByte(c1, yOffset);
         int b2 = Font.getByte(c2, yOffset);
@@ -579,10 +578,10 @@ public class VideoDHGR extends Video {
             return;
         }
         int yOffset = y & 7;
-        int c1 = getFontChar(((RAM128k) computer.getMemory()).getAuxVideoMemory().readByte(rowAddress + xOffset));
-        int c2 = getFontChar(((RAM128k) computer.getMemory()).getMainMemory().readByte(rowAddress + xOffset));
-        int c3 = getFontChar(((RAM128k) computer.getMemory()).getAuxVideoMemory().readByte(rowAddress + xOffset + 1));
-        int c4 = getFontChar(((RAM128k) computer.getMemory()).getMainMemory().readByte(rowAddress + xOffset + 1));
+        int c1 = getFontChar(((RAM128k) getMemory()).getAuxVideoMemory().readByte(rowAddress + xOffset));
+        int c2 = getFontChar(((RAM128k) getMemory()).getMainMemory().readByte(rowAddress + xOffset));
+        int c3 = getFontChar(((RAM128k) getMemory()).getAuxVideoMemory().readByte(rowAddress + xOffset + 1));
+        int c4 = getFontChar(((RAM128k) getMemory()).getMainMemory().readByte(rowAddress + xOffset + 1));
         int bits = Font.getByte(c1, yOffset) | (Font.getByte(c2, yOffset) << 7)
                 | (Font.getByte(c3, yOffset) << 14) | (Font.getByte(c4, yOffset) << 21);
         showBW(screen, TIMES_14[xOffset], y, bits);
@@ -720,8 +719,8 @@ public class VideoDHGR extends Video {
     }
 
     private void registerDirtyFlagChecks() {
-        computer.getMemory().observe("Check for text changes", RAMEvent.TYPE.WRITE, 0x0400, 0x0bff, this::registerTextDirtyFlag);
-        computer.getMemory().observe("Check for graphics changes", RAMEvent.TYPE.WRITE, 0x02000, 0x05fff, this::registerHiresDirtyFlag);
+        getMemory().observe("Check for text changes", RAMEvent.TYPE.WRITE, 0x0400, 0x0bff, this::registerTextDirtyFlag);
+        getMemory().observe("Check for graphics changes", RAMEvent.TYPE.WRITE, 0x02000, 0x05fff, this::registerHiresDirtyFlag);
     }
 
     @Override

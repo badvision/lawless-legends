@@ -15,8 +15,8 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import jace.Emulator;
 import jace.cheat.Cheats;
-import jace.core.Computer;
 import jace.core.RAMEvent;
 import jace.lawless.LawlessVideo.RenderEngine;
 import javafx.util.Duration;
@@ -31,8 +31,8 @@ public class LawlessHacks extends Cheats {
     int MODE_SOFTSWITCH_MAX = 0x0C04F;
     int SFX_TRIGGER = 0x0C069;
 
-    public LawlessHacks(Computer computer) {
-        super(computer);
+    public LawlessHacks() {
+        super();
         readScores();
         currentScore = SCORE_CHIPTUNE;
     }
@@ -66,12 +66,16 @@ public class LawlessHacks extends Cheats {
     }
 
     private void setEngineByOrdinal(int mode) {
-        LawlessVideo video = (LawlessVideo) computer.getVideo();
-        if (mode >= 0 && mode < RenderEngine.values().length) {
-            video.setEngine(RenderEngine.values()[mode]);
-        } else {
-            video.setEngine(RenderEngine.UNKNOWN);
-        }
+        Emulator.withVideo(v -> {
+            if (v instanceof LawlessVideo) {
+                LawlessVideo video = (LawlessVideo) v;
+                if (mode >= 0 && mode < RenderEngine.values().length) {
+                    video.setEngine(RenderEngine.values()[mode]);
+                } else {
+                    video.setEngine(RenderEngine.UNKNOWN);
+                }
+            }
+        });
     }
 
     public static final String SCORE_NONE = "none";

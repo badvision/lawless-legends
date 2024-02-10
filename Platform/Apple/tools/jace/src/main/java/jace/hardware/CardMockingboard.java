@@ -27,6 +27,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import jace.Emulator;
 import jace.config.ConfigurableField;
 import jace.config.Name;
 import jace.core.Card;
@@ -34,9 +35,10 @@ import jace.core.Computer;
 import jace.core.Motherboard;
 import jace.core.RAMEvent;
 import jace.core.RAMEvent.TYPE;
-import jace.core.SoundMixer.SoundBuffer;
 import jace.core.RAMListener;
 import jace.core.SoundMixer;
+import jace.core.SoundMixer.SoundBuffer;
+import jace.core.SoundMixer.SoundError;
 import jace.hardware.mockingboard.PSG;
 import jace.hardware.mockingboard.R6522;
 
@@ -86,13 +88,13 @@ public class CardMockingboard extends Card implements Runnable {
         return "Mockingboard";
     }
 
-    public CardMockingboard(Computer computer) {
-        super(computer);
+    public CardMockingboard() {
+        super();
         controllers = new R6522[2];
         for (int i = 0; i < 2; i++) {
             // has to be final to be used inside of anonymous class below
             final int j = i;
-            controllers[i] = new R6522(computer) {
+            controllers[i] = new R6522() {
                 final int controller = j;
 
                 @Override
@@ -172,7 +174,7 @@ public class CardMockingboard extends Card implements Runnable {
         }
         if (chip >= 2) {
             System.err.println("Could not determine which PSG to communicate to for access to regsiter + " + Integer.toHexString(register));
-            e.setNewValue(computer.getVideo().getFloatingBus());
+            Emulator.withVideo(v->e.setNewValue(v.getFloatingBus()));
             return;
         }
         R6522 controller = controllers[chip & 1];
@@ -190,7 +192,7 @@ public class CardMockingboard extends Card implements Runnable {
     protected void handleIOAccess(int register, TYPE type, int value, RAMEvent e) {
         // Oddly, all IO is done at the firmware address bank.  It's a strange card.
 //        System.out.println("MB I/O Access "+type.name()+" "+register+":"+value);
-        e.setNewValue(computer.getVideo().getFloatingBus());
+        Emulator.withVideo(v->e.setNewValue(v.getFloatingBus()));
     }
     long ticksSinceLastPlayback = 0;
 
@@ -343,7 +345,14 @@ public class CardMockingboard extends Card implements Runnable {
      * This is the audio playback thread
      */
     public void run() {
-        SoundBuffer buffer = SoundMixer.createBuffer(true);
+        SoundBuffer buffer;
+        try {
+            buffer = SoundMixer.createBuffer(true);
+        } catch (InterruptedException | ExecutionException | SoundError e) {
+            e.printStackTrace();
+            setRun(false);
+            return;
+        }
         try {
             if (buffer == null) {
                 setRun(false);
@@ -361,7 +370,7 @@ public class CardMockingboard extends Card implements Runnable {
             setRun(true);
             LockSupport.parkNanos(5000);
             while (isRunning() && !Thread.interrupted()) {
-                while (isRunning() && !computer.isRunning()) {
+                while (isRunning() && !Emulator.withComputer(Computer::isRunning, false)) {
                     Thread.sleep(1000);
                 }
                 if (isRunning() && !Thread.interrupted()) {
@@ -373,11 +382,11 @@ public class CardMockingboard extends Card implements Runnable {
                         }
                         timerSync.lock();
                         ticksSinceLastPlayback -= ticksBetweenPlayback;
-                    } catch (ExecutionException e) {
+                    } catch (ExecutionException | SoundError e) {
                         Logger.getLogger(CardMockingboard.class.getName()).log(Level.SEVERE, "Mockingboard playback encountered fatal exception", e);
                         try {
                             buffer.shutdown();
-                        } catch (ExecutionException e1) {
+                        } catch (ExecutionException | SoundError e1) {
                             // Ignore shutdown errors, we're already reporting a fatal error
                         }
                         buffer=null;
@@ -389,7 +398,7 @@ public class CardMockingboard extends Card implements Runnable {
                     if (zeroSamples >= MAX_IDLE_SAMPLES) {
                         zeroSamples = 0;
                         pause = true;
-                        computer.getMotherboard().cancelSpeedRequest(this);
+                        Emulator.withComputer(c->c.getMotherboard().cancelSpeedRequest(this));
                         while (pause && isRunning()) {
                             try {
                                 Thread.sleep(50);
@@ -412,9 +421,9 @@ public class CardMockingboard extends Card implements Runnable {
                         timerSync.lock();
                         playbackFinished.signalAll();
                         while (isRunning() && ticksSinceLastPlayback < ticksBetweenPlayback) {
-                            computer.getMotherboard().requestSpeed(this);
+                            Emulator.withComputer(c->c.getMotherboard().requestSpeed(this));
                             cpuCountReached.await();
-                            computer.getMotherboard().cancelSpeedRequest(this);                    
+                            Emulator.withComputer(c->c.getMotherboard().cancelSpeedRequest(this));
                         }
                     } catch (InterruptedException ex) {
                         // Do nothing, probably killing playback thread on purpose
@@ -426,12 +435,12 @@ public class CardMockingboard extends Card implements Runnable {
         } catch (InterruptedException ex) {
             Logger.getLogger(CardMockingboard.class.getName()).log(Level.SEVERE, null, ex);
         } finally {
-            computer.getMotherboard().cancelSpeedRequest(this);
+            Emulator.withComputer(c->c.getMotherboard().cancelSpeedRequest(this));
             System.out.println("Mockingboard playback stopped");
             if (buffer != null && buffer.isAlive()) {
                 try {
                     buffer.shutdown();
-                } catch (InterruptedException | ExecutionException e) {
+                } catch (InterruptedException | ExecutionException | SoundError e) {
                     // Ignore errors during shutdown
                 }
             }

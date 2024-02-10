@@ -109,15 +109,23 @@ public class Emulator {
     }
 
     public static void withMemory(Consumer<RAM> m) {
-        withComputer(c->{
+        Emulator.withMemory(mem-> {
+            m.accept(mem);
+            return null;
+        }, null);
+    }
+
+    public static <T> T withMemory(Function<RAM, T> m, T defaultValue) {
+        return withComputer(c->{
             RAM memory = c.getMemory();
             if (memory != null) {
-                m.accept(memory);
+                return m.apply(memory);
             } else {
                 System.err.println("No memory available!");
                 Thread.dumpStack();
+                return defaultValue;
             }
-        });
+        }, defaultValue);
     }
 
     public static void withVideo(Consumer<jace.core.Video> v) {

@@ -114,10 +114,10 @@ public class Apple2e extends Computer {
      */
     public Apple2e() {
         super();
-        fpsCounters = new FPSMonitorDevice(this);
+        fpsCounters = new FPSMonitorDevice();
         try {
-            setCpu(new MOS65C02(this));
-            setMotherboard(new Motherboard(this, null));
+            setCpu(new MOS65C02());
+            setMotherboard(new Motherboard(null));
         } catch (Throwable t) {
             System.err.println("Unable to initialize virtual machine");
             t.printStackTrace(System.err);
@@ -132,7 +132,8 @@ public class Apple2e extends Computer {
     
     @Override
     public void coldStart() {
-        motherboard.whileSuspended(()->{
+        getMotherboard().whileSuspended(()->{
+            System.err.println("Cold starting computer: RESETTING SOFT SWITCHES");
             for (SoftSwitches s : SoftSwitches.values()) {
                 s.getSwitch().reset();
             }
@@ -156,7 +157,7 @@ public class Apple2e extends Computer {
 
     @Override
     public void warmStart() {
-        motherboard.whileSuspended(()->{
+        getMotherboard().whileSuspended(()->{
             // This isn't really authentic behavior but sometimes games like memory to have a consistent state when booting.
             for (SoftSwitches s : SoftSwitches.values()) {
                 if (! (s.getSwitch() instanceof VideoSoftSwitch)) {
@@ -186,7 +187,7 @@ public class Apple2e extends Computer {
             getMemory().removeCard(slot);
         }
         if (type != null && type.getValue() != null) {
-            Card card = type.getValue().create(this);
+            Card card = type.getValue().create();
             getMemory().addCard(card, slot);
         }
     }
@@ -207,6 +208,22 @@ public class Apple2e extends Computer {
     }
     
     @Override
+    protected RAM createMemory() {
+        return getDesiredMemoryConfiguration().create();
+    }
+
+    @Override
+    public void loadRom(boolean reload) throws IOException {
+        if (!romLoaded.isDone() && reload) {
+            if (useDebugRom) {
+                loadRom("/jace/data/apple2e_debug.rom");
+            } else {
+                loadRom("/jace/data/apple2e.rom");
+            }
+        }
+    }
+
+    @Override
     public final void reconfigure() {
         super.reconfigure();
 
@@ -215,41 +232,40 @@ public class Apple2e extends Computer {
             joy2enabled = false;
         }
 
-        if (motherboard == null) {
+        if (getMotherboard() == null) {
+            System.err.println("No motherboard, cannot reconfigure");
+            Thread.dumpStack();
             return;
         }
-        motherboard.whileSuspended(()-> {
+        getMotherboard().whileSuspended(()-> {
+            System.err.println("Reconfiguring computer...");
             if (!isMemoryConfigurationCorrect()) {
                 if (getVideo() != null) {
                     getVideo().suspend();
                 }
                 setVideo(null);
                 System.out.println("Creating new ram using " + getDesiredMemoryConfiguration().getName());
-                RAM128k newMemory = getDesiredMemoryConfiguration().create(this);
+                setMemory(createMemory());
+            }
 
-                if (getMemory() != null) {
-                    newMemory.copyFrom((RAM128k) getMemory());
-                }
-                setMemory(newMemory);
+            // Make sure all softswitches are configured after confirming memory exists
+            for (SoftSwitches s : SoftSwitches.values()) {
+                s.getSwitch().register();
             }
 
             try {
-                if (useDebugRom) {
-                    loadRom("/jace/data/apple2e_debug.rom");
-                } else {
-                    loadRom("/jace/data/apple2e.rom");
-                }
-            } catch (IOException ex) {
-                Logger.getLogger(Apple2e.class.getName()).log(Level.SEVERE, null, ex);
+                loadRom(true);
+            } catch (IOException e) {
+                Logger.getLogger(Apple2e.class.getName()).log(Level.SEVERE, "Failed to load system rom ROMs", e);
             }
-
+            
             getMemory().configureActiveMemory();
 
             Set<Device> newDeviceSet = new HashSet<>();
 
             if (acceleratorEnabled) {
                 if (accelerator == null) {
-                    accelerator = new ZipWarpAccelerator(this);
+                    accelerator = new ZipWarpAccelerator();
                 }
                 newDeviceSet.add(accelerator);
             }
@@ -274,7 +290,7 @@ public class Apple2e extends Computer {
 
             if (clockEnabled) {
                 if (clock == null) {
-                    clock = new NoSlotClock(this);
+                    clock = new NoSlotClock();
                 }
                 newDeviceSet.add(clock);
             } else {
@@ -286,7 +302,7 @@ public class Apple2e extends Computer {
                 if (getVideo() != null) {
                     resumeVideo = getVideo().suspend();
                 }
-                setVideo(videoRenderer.getValue().create(this));
+                setVideo(videoRenderer.getValue().create());
                 getVideo().configureVideoMode();
                 getVideo().reconfigure();
                 if (LawlessLegends.getApplication() != null) {
@@ -330,12 +346,12 @@ public class Apple2e extends Computer {
                     }
                 }
                 if (startCheats && cheatEngine.getValue() != null) {
-                    activeCheatEngine = cheatEngine.getValue().create(this);
+                    activeCheatEngine = cheatEngine.getValue().create();
                     newDeviceSet.add(activeCheatEngine);
                 }
             }
 
-            newDeviceSet.add(cpu);
+            newDeviceSet.add(getCpu());
             newDeviceSet.add(getVideo());
             for (Optional<Card> c : getMemory().getAllCards()) {
                 c.ifPresent(newDeviceSet::add);
@@ -343,26 +359,26 @@ public class Apple2e extends Computer {
             if (showSpeedMonitors) {
                 newDeviceSet.add(fpsCounters);
             }
-            motherboard.attach();
-            motherboard.setAllDevices(newDeviceSet);
-            motherboard.reconfigure();
+            getMotherboard().attach();
+            getMotherboard().setAllDevices(newDeviceSet);
+            getMotherboard().reconfigure();
         });
     }
 
     @Override
     protected void doPause() {
-        if (motherboard == null) {
+        if (getMotherboard() == null) {
             return;
         }
-        motherboard.pause();
+        getMotherboard().pause();
     }
 
     @Override
     protected void doResume() {
-        if (motherboard == null) {
+        if (getMotherboard() == null) {
             return;
         }
-        motherboard.resume();
+        getMotherboard().resume();
     }
 
 //    public boolean isRunning() {

@@ -54,12 +54,6 @@ public class Keyboard implements Reconfigurable {
         solidApple(false);
     }
 
-    private Computer computer;
-
-    public Keyboard(Computer computer) {
-        this.computer = computer;
-    }
-
     @Override
     public String getShortName() {
         return "kbd";
@@ -252,7 +246,7 @@ public class Keyboard implements Reconfigurable {
             default:
         }
 
-        Emulator.withComputer(compter -> computer.getKeyboard().shiftPressed = e.isShiftDown());
+        Emulator.withComputer(computer -> computer.getKeyboard().shiftPressed = e.isShiftDown());
         if (e.isShiftDown()) {
             c = fixShiftedChar(c);
         }

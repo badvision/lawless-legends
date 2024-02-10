@@ -18,6 +18,7 @@
  */
 package jace.hardware;
 
+import jace.Emulator;
 import jace.LawlessLegends;
 import jace.apple2e.SoftSwitches;
 import jace.apple2e.softswitch.MemorySoftSwitch;
@@ -58,7 +59,7 @@ public class Joystick extends Device {
     MemorySoftSwitch ySwitch;
 
     public Joystick(int port, Computer computer) {
-        super(computer);
+        super();
         if (LawlessLegends.getApplication() == null) {
             return;
         }
@@ -197,17 +198,17 @@ public class Joystick extends Device {
         x = 10 + joyX * 11;
         ySwitch.setState(true);
         y = 10 + joyY * 11;
-        e.setNewValue(computer.getVideo().getFloatingBus());
+        Emulator.withVideo(v->e.setNewValue(v.getFloatingBus()));
         resume();
     }
 
     RAMListener listener;
 
     private void registerListeners() {
-        listener = computer.getMemory().observe("Joystick I/O", RAMEvent.TYPE.ANY, 0x0c070, 0x0c07f, this::initJoystickRead);
+        listener = getMemory().observe("Joystick I/O", RAMEvent.TYPE.ANY, 0x0c070, 0x0c07f, this::initJoystickRead);
     }
 
     private void removeListeners() {
-        computer.getMemory().removeListener(listener);
+        getMemory().removeListener(listener);
     }
 }

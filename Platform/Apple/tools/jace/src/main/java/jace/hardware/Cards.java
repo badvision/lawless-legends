@@ -1,10 +1,9 @@
 package jace.hardware;
 
-import java.util.function.Function;
+import java.util.function.Supplier;
 
 import jace.config.DeviceEnum;
 import jace.core.Card;
-import jace.core.Computer;
 import jace.hardware.massStorage.CardMassStorage;
 
 public enum Cards implements DeviceEnum<Card> {
@@ -17,11 +16,11 @@ public enum Cards implements DeviceEnum<Card> {
     RamFactor("RamFactor", CardRamFactor.class, CardRamFactor::new),
     Thunderclock("Thunderclock", CardThunderclock.class, CardThunderclock::new);
 
-    Function<Computer, Card> factory;
+    Supplier<Card> factory;
     String name;
     Class<? extends Card> clazz;
 
-    Cards(String name, Class<? extends Card> clazz, Function<Computer, Card> factory) {
+    Cards(String name, Class<? extends Card> clazz, Supplier<Card> factory) {
         this.name = name;
         this.factory = factory;
         this.clazz = clazz;
@@ -33,8 +32,8 @@ public enum Cards implements DeviceEnum<Card> {
     }
 
     @Override
-    public Card create(Computer computer) {
-        return factory.apply(computer);
+    public Card create() {
+        return factory.get();
     }
 
     @Override

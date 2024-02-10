@@ -28,11 +28,11 @@ import java.net.SocketTimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import jace.Emulator;
 import jace.EmulatorUILogic;
 import jace.config.ConfigurableField;
 import jace.config.Name;
 import jace.core.Card;
-import jace.core.Computer;
 import jace.core.RAMEvent;
 import jace.core.RAMEvent.TYPE;
 import jace.core.Utility;
@@ -97,8 +97,8 @@ public class CardSSC extends Card {
     // Bitmask for stop bits (FF = 8, 7F = 7, etc)
     private int DATA_BITS = 0x07F;
 
-    public CardSSC(Computer computer) {
-        super(computer);
+    public CardSSC() {
+        super();
     }
 
     @Override
@@ -412,7 +412,7 @@ public class CardSSC extends Card {
 
     private void triggerIRQ() {
         IRQ_TRIGGERED = true;
-        computer.getCpu().generateInterrupt();            
+        Emulator.withComputer(c->c.getCpu().generateInterrupt());
     }
 
     public void hangUp() {

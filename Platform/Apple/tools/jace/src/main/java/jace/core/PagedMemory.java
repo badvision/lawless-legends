@@ -60,10 +60,10 @@ public class PagedMemory {
 
     /**
      * Creates a new instance of PagedMemory
+     * @param size The size of the memory region, in multiples of 256
+     * @param memType The type of the memory region
      */
-    Computer computer;
-    public PagedMemory(int size, Type memType, Computer computer) {
-        this.computer = computer;
+    public PagedMemory(int size, Type memType) {
         type = memType;
         internalMemory = new byte[size >> 8][256];
         for (int i = 0; i < size; i += 256) {
@@ -110,9 +110,7 @@ public class PagedMemory {
 
     public byte[] getMemoryPage(int memoryBase) {
         int offset = memoryBase - type.baseAddress;
-//        int page = offset >> 8;
         int page = (offset >> 8) & 0x0ff;
-//        return get(page);
         return internalMemory[page];
     }
 
@@ -128,7 +126,7 @@ public class PagedMemory {
 
     public void writeByte(int address, byte value) {
         byte[] page = getMemoryPage(address);
-        StateManager.markDirtyValue(page, computer);
+        StateManager.markDirtyValue(page);
         getMemoryPage(address)[address & 0x0ff] = value;
     }
 

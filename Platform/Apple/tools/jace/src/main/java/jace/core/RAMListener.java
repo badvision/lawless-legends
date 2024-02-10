@@ -18,6 +18,7 @@
  */
 package jace.core;
 
+import jace.Emulator;
 import jace.core.RAMEvent.TYPE;
 
 /**
@@ -56,6 +57,10 @@ public abstract class RAMListener implements RAMEvent.RAMEventHandler, Comparabl
         doConfig();
     }
 
+    public void unregister() {
+        Emulator.withMemory(m -> m.removeListener(this));
+    }
+    
     public RAMEvent.TYPE getType() {
         return type;
     }
@@ -172,7 +177,7 @@ public abstract class RAMListener implements RAMEvent.RAMEventHandler, Comparabl
 
     @Override
     public int compareTo(RAMListener o) {
-        if (o.name == name) {
+        if (o.name.equals(name)) {
            if (o.scopeStart == scopeStart) {
                 if (o.scopeEnd == scopeEnd) {
                     if (o.type == type) {
@@ -190,5 +195,18 @@ public abstract class RAMListener implements RAMEvent.RAMEventHandler, Comparabl
         } else {
             return o.name.compareTo(name);
         }
+    }
+    
+    /**
+     *
+     * @param o
+     * @return
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || ! (o instanceof RAMListener) ) {
+            return false;
+        }
+        return this.compareTo((RAMListener) o) == 0;
     }
 }

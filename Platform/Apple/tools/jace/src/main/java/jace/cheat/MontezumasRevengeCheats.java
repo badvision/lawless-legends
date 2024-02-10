@@ -3,7 +3,6 @@ package jace.cheat;
 import jace.Emulator;
 import jace.EmulatorUILogic;
 import jace.config.ConfigurableField;
-import jace.core.Computer;
 import jace.core.RAMEvent;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
@@ -52,10 +51,6 @@ public class MontezumasRevengeCheats extends Cheats {
     public static int CHAR_STATE = 0x01570;
 
     public static int lastX = 0;
-
-    public MontezumasRevengeCheats(Computer computer) {
-        super(computer);
-    }
 
     double mouseX;
     double mouseY;
@@ -132,11 +127,11 @@ public class MontezumasRevengeCheats extends Cheats {
     }
         
     private void repulsiveBehavior(RAMEvent e) {
-        int playerX = computer.getMemory().readRaw(PLAYER_X);
-        int playerY = computer.getMemory().readRaw(PLAYER_Y);
+        int playerX = getMemory().readRaw(PLAYER_X);
+        int playerY = getMemory().readRaw(PLAYER_Y);
         for (int num = 7; num > 0; num--) {
-            int monsterX = computer.getMemory().readRaw(PLAYER_X + num);
-            int monsterY = computer.getMemory().readRaw(PLAYER_Y + num);
+            int monsterX = getMemory().readRaw(PLAYER_X + num);
+            int monsterY = getMemory().readRaw(PLAYER_Y + num);
             if (monsterX != 0 && monsterY != 0) {
                 if (Math.abs(monsterY - playerY) < 19) {
                     if (Math.abs(monsterX - playerX) < 7) {
@@ -149,7 +144,7 @@ public class MontezumasRevengeCheats extends Cheats {
                                 monsterX = 80;
                             }
                         }
-                        computer.getMemory().write(PLAYER_X + num, (byte) monsterX, false, false);
+                        getMemory().write(PLAYER_X + num, (byte) monsterX, false, false);
                     }
                 }
             }
@@ -159,9 +154,9 @@ public class MontezumasRevengeCheats extends Cheats {
 
     private void featherFallBehavior(RAMEvent yCoordChangeEvent) {
         if (yCoordChangeEvent.getNewValue() != yCoordChangeEvent.getOldValue()) {
-            int yVel = computer.getMemory().readRaw(Y_VELOCITY);
+            int yVel = getMemory().readRaw(Y_VELOCITY);
             if (yVel > MAX_VEL) {
-                computer.getMemory().write(Y_VELOCITY, (byte) MAX_VEL, false, false);
+                getMemory().write(Y_VELOCITY, (byte) MAX_VEL, false, false);
             }
         }
     }
@@ -177,7 +172,7 @@ public class MontezumasRevengeCheats extends Cheats {
     }
 
     private boolean inStartingSequence() {
-        int roomLevel = computer.getMemory().readRaw(ROOM_LEVEL);
+        int roomLevel = getMemory().readRaw(ROOM_LEVEL);
         return roomLevel == -1;
     }
 
@@ -198,7 +193,7 @@ public class MontezumasRevengeCheats extends Cheats {
     private void mouseClicked(MouseButton button) {
         byte newX = (byte) (mouseX * X_MAX);
         byte newY = (byte) (mouseY * Y_MAX);
-        computer.getMemory().write(PLAYER_X, newX, false, false);
-        computer.getMemory().write(PLAYER_Y, newY, false, false);
+        getMemory().write(PLAYER_X, newX, false, false);
+        getMemory().write(PLAYER_Y, newY, false, false);
     }
 }

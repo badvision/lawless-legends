@@ -1,9 +1,7 @@
 package jace.lawless;
 
 import jace.LawlessLegends;
-import jace.apple2e.Apple2e;
 import jace.apple2e.SoftSwitches;
-import jace.core.Computer;
 import jace.core.Device;
 import jace.core.Motherboard;
 import javafx.application.Platform;
@@ -21,7 +19,6 @@ import javafx.scene.paint.Color;
  */
 public class FPSMonitorDevice extends Device {
     public static final long UPDATE_CHECK_FREQUENCY = 1000;
-    Apple2e computer;
     Label cpuSpeedIcon;
     Label fpsIcon;
 
@@ -32,9 +29,7 @@ public class FPSMonitorDevice extends Device {
     long UPDATE_INTERVAL = 1000/2;
     boolean lastVBLState = false;
     
-    public FPSMonitorDevice(Computer c) {
-        super(c);
-        computer = (Apple2e) c;
+    public FPSMonitorDevice() {
     }
     
     @Override

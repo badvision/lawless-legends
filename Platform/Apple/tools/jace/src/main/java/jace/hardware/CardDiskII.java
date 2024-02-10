@@ -24,11 +24,11 @@ import java.io.InputStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import jace.Emulator;
 import jace.EmulatorUILogic;
 import jace.config.ConfigurableField;
 import jace.config.Name;
 import jace.core.Card;
-import jace.core.Computer;
 import jace.core.RAMEvent;
 import jace.core.RAMEvent.TYPE;
 import jace.core.Utility;
@@ -48,8 +48,8 @@ import jace.library.MediaConsumerParent;
 public class CardDiskII extends Card implements MediaConsumerParent {
 
     DiskIIDrive currentDrive;
-    DiskIIDrive drive1 = new DiskIIDrive(computer);
-    DiskIIDrive drive2 = new DiskIIDrive(computer);
+    DiskIIDrive drive1 = new DiskIIDrive();
+    DiskIIDrive drive2 = new DiskIIDrive();
     @ConfigurableField(category = "Disk", defaultValue = "254", name = "Default volume", description = "Value to use for disk volume number")
     static public int DEFAULT_VOLUME_NUMBER = 0x0FE;
     @ConfigurableField(category = "Disk", defaultValue = "true", name = "Speed boost", description = "If enabled, emulator will run at max speed during disk access")
@@ -59,8 +59,8 @@ public class CardDiskII extends Card implements MediaConsumerParent {
     @ConfigurableField(category = "Disk", defaultValue = "", shortName = "d2", name = "Drive 2 disk image", description = "Path of disk 2")
     public String disk2;
 
-    public CardDiskII(Computer computer) {
-        super(computer);
+    public CardDiskII() {
+        super();
         try {
             loadRom("/jace/data/DiskII.rom");
         } catch (IOException ex) {
@@ -170,7 +170,9 @@ public class CardDiskII extends Card implements MediaConsumerParent {
 
     public void loadRom(String path) throws IOException {
         InputStream romFile = CardDiskII.class.getResourceAsStream(path);
-        
+        if (romFile == null) {
+            throw new IOException("Cannot find Disk ][ ROM at " + path);
+        }
         final int cxRomLength = 0x100;
         byte[] romData = new byte[cxRomLength];
         try {
@@ -211,10 +213,10 @@ public class CardDiskII extends Card implements MediaConsumerParent {
     private void tweakTiming() {
         if ((drive1.isOn() && drive1.disk != null) || (drive2.isOn() && drive2.disk != null)) {
             if (USE_MAX_SPEED) {
-                computer.getMotherboard().requestSpeed(this);
+                Emulator.withComputer(c->c.getMotherboard().requestSpeed(this));
             }
         } else {
-            computer.getMotherboard().cancelSpeedRequest(this);
+            Emulator.withComputer(c->c.getMotherboard().cancelSpeedRequest (this));
         }
     }
 

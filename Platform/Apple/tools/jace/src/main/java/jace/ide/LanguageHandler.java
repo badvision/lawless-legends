@@ -6,7 +6,7 @@ public interface LanguageHandler<T> {
     
     CompileResult<T> compile(Program program);
 
-    void execute(CompileResult<T> lastResult);
+    void execute(CompileResult<T> lastResult) throws Exception;
     
     void clean(CompileResult<T> lastResult);
 }

@@ -23,12 +23,12 @@ import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import jace.Emulator;
 import jace.EmulatorUILogic;
 import jace.apple2e.MOS65C02;
 import jace.config.ConfigurableField;
 import jace.config.Name;
 import jace.core.Card;
-import jace.core.Computer;
 import jace.core.RAMEvent;
 import jace.core.RAMEvent.TYPE;
 import jace.core.Utility;
@@ -55,8 +55,8 @@ public class CardMassStorage extends Card implements MediaConsumerParent {
     MassStorageDrive drive1;
     MassStorageDrive drive2;
 
-    public CardMassStorage(Computer computer) {
-        super(computer);
+    public CardMassStorage() {
+        super();
         drive1 = new MassStorageDrive();
         drive2 = new MassStorageDrive();
         drive1.setIcon(Utility.loadIconLabel("drive-harddisk.png"));
@@ -96,7 +96,7 @@ public class CardMassStorage extends Card implements MediaConsumerParent {
         }
         return null;
     }
-    ProdosDriver driver = new ProdosDriver(computer) {
+    ProdosDriver driver = new ProdosDriver() {
         @Override
         public boolean changeUnit(int unit) {
             currentDrive = unit == 0 ? drive1 : drive2;
@@ -120,12 +120,12 @@ public class CardMassStorage extends Card implements MediaConsumerParent {
 
         @Override
         public void mliRead(int block, int bufferAddress) throws IOException {
-            getCurrentDisk().mliRead(block, bufferAddress, computer.getMemory());
+            getCurrentDisk().mliRead(block, bufferAddress);
         }
 
         @Override
         public void mliWrite(int block, int bufferAddress) throws IOException {
-            getCurrentDisk().mliWrite(block, bufferAddress, computer.getMemory());
+            getCurrentDisk().mliWrite(block, bufferAddress);
         }
 
         @Override
@@ -155,16 +155,18 @@ public class CardMassStorage extends Card implements MediaConsumerParent {
                 Logger.getLogger(CardMassStorage.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
-        if (computer.getCpu() != null) {
-            int pc = computer.getCpu().getProgramCounter();
-            if (drive1.getCurrentDisk() != null && getSlot() == 7 && (pc >= 0x0c65e && pc <= 0x0c66F)) {
-                // If the computer is in a loop trying to boot from cards 6, fast-boot from here instead
-                // This is a convenience to boot a hard-drive if the emulator has started waiting for a currentDisk
-                System.out.println("Fast-booting to mass storage drive");
-                currentDrive = drive1;
-                EmulatorUILogic.simulateCtrlAppleReset();
+        Emulator.withComputer(computer -> { 
+            if (computer.getCpu() != null) {
+                int pc = computer.getCpu().getProgramCounter();
+                if (drive1.getCurrentDisk() != null && getSlot() == 7 && (pc >= 0x0c65e && pc <= 0x0c66F)) {
+                    // If the computer is in a loop trying to boot from cards 6, fast-boot from here instead
+                    // This is a convenience to boot a hard-drive if the emulator has started waiting for a currentDisk
+                    System.out.println("Fast-booting to mass storage drive");
+                    currentDrive = drive1;
+                    EmulatorUILogic.simulateCtrlAppleReset();
+                }
             }
-        }
+        });
         registerListeners();
     }
 
@@ -179,7 +181,6 @@ public class CardMassStorage extends Card implements MediaConsumerParent {
 
     @Override
     protected void handleFirmwareAccess(int offset, TYPE type, int value, RAMEvent e) {
-        MOS65C02 cpu = (MOS65C02) computer.getCpu();
 //        System.out.println(e.getType()+" "+Integer.toHexString(e.getAddress())+" from instruction at  "+Integer.toHexString(cpu.getProgramCounter()));
         if (type.isRead()) {
 //            Emulator.getFrame().addIndicator(this, currentDrive.getIcon());
@@ -197,8 +198,8 @@ public class CardMassStorage extends Card implements MediaConsumerParent {
                         if (drive1.getCurrentDisk() != null) {
                             currentDrive = drive1;
                             // Reset stack pointer on boot helps prevent random crashes!
-                            ((MOS65C02) computer.getCpu()).STACK = 0x0ff;
-                            getCurrentDisk().boot0(getSlot(), computer);
+                            Emulator.withComputer(computer -> ((MOS65C02) computer.getCpu()).STACK = 0x0ff);
+                            getCurrentDisk().boot0(getSlot());
                         } else {
                             // Patch for crash on start when no image is mounted
                             e.setNewValue(0x060);
@@ -208,10 +209,10 @@ public class CardMassStorage extends Card implements MediaConsumerParent {
                         Logger.getLogger(CardMassStorage.class.getName()).log(Level.SEVERE, null, ex);
                         error = ex.getMessage();
                         // Jump to the basic interpreter for now
-                        cpu.setProgramCounter(0x0dfff);
+                        Emulator.withComputer(computer -> computer.getCpu().setProgramCounter(0x0dfff));
                         int address = 0x0480;
                         for (char c : error.toCharArray()) {
-                            computer.getMemory().write(address++, (byte) (c + 0x080), false, false);
+                            getMemory().write(address++, (byte) (c + 0x080), false, false);
                         }
                     }
                 } else {
@@ -248,7 +249,7 @@ public class CardMassStorage extends Card implements MediaConsumerParent {
     public void tick() {
         // Nothing is done per CPU cycle
     }
-    SmartportDriver smartport = new SmartportDriver(computer) {
+    SmartportDriver smartport = new SmartportDriver() {
         @Override
         public boolean changeUnit(int unitNumber) {
             currentDrive = unitNumber == 1 ? drive1 : drive2;
@@ -257,12 +258,12 @@ public class CardMassStorage extends Card implements MediaConsumerParent {
 
         @Override
         public void read(int blockNum, int buffer) throws IOException {
-            getCurrentDisk().mliRead(blockNum, buffer, computer.getMemory());
+            getCurrentDisk().mliRead(blockNum, buffer);
         }
 
         @Override
         public void write(int blockNum, int buffer) throws IOException {
-            getCurrentDisk().mliWrite(blockNum, buffer, computer.getMemory());
+            getCurrentDisk().mliWrite(blockNum, buffer);
         }
 
         @Override

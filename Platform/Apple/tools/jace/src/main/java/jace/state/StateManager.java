@@ -243,8 +243,8 @@ public class StateManager implements Reconfigurable {
         }
     }
 
-    public static void markDirtyValue(Object o, Computer computer) {
-        StateManager manager = getInstance(computer);
+    public static void markDirtyValue(Object o) {
+        StateManager manager = Emulator.withComputer(StateManager::getInstance, null);
         if (manager.objectLookup == null) {
             return;
         }

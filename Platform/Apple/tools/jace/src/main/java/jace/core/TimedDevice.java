@@ -33,8 +33,8 @@ public abstract class TimedDevice extends Device {
      *
      * @param computer
      */
-    public TimedDevice(Computer computer) {
-        super(computer);
+    public TimedDevice() {
+        super();
         setSpeedInHz(cyclesPerSecond);
     }
     @ConfigurableField(name = "Speed", description = "(Percentage)")
@@ -69,6 +69,31 @@ public abstract class TimedDevice extends Device {
         worker = null;
         return result;
     }
+
+    @Override
+    /* We really don't want to suspect the worker thread if we're running in it.
+     * The goal for suspending the thread is to prevent any concurrent activity
+     * affecting the emulator state.  However, if we're already in the worker
+     * thread, then we're already blocking the execution of the emulator, so
+     * we don't need to suspend it.
+     */
+    public void whileSuspended(Runnable r) {
+        if (isDeviceThread()) {
+            r.run();            
+        } else {
+            super.whileSuspended(r);
+        }
+    }
+
+    @Override
+    public <T> T whileSuspended(java.util.function.Supplier<T> r, T defaultValue) {
+        if (isDeviceThread()) {
+            return r.get();
+        } else {
+            return super.whileSuspended(r, defaultValue);
+        }
+    }
+
     public boolean pause() {
         if (!isRunning()) {
             return false;
@@ -76,7 +101,9 @@ public abstract class TimedDevice extends Device {
         super.setPaused(true);
         try {
             // KLUDGE: Sleeping to wait for worker thread to hit paused state.  We might be inside the worker (?)
-            Thread.sleep(10);
+            if (!isDeviceThread()) {
+                Thread.sleep(10);
+            }
         } catch (InterruptedException ex) {
         }
         return true;
@@ -89,6 +116,10 @@ public abstract class TimedDevice extends Device {
         } else {
             super.setPaused(paused);
         }
+    }
+
+    public boolean isDeviceThread() {
+        return worker != null && worker.isAlive() && Thread.currentThread() == worker;
     }
 
     /**

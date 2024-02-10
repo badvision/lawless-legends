@@ -25,10 +25,10 @@ import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import jace.Emulator;
 import jace.config.ConfigurableField;
 import jace.config.Name;
 import jace.core.Card;
-import jace.core.Computer;
 import jace.core.RAMEvent;
 import jace.core.RAMEvent.TYPE;
 import jace.core.Utility;
@@ -65,8 +65,8 @@ public class CardRamFactor extends Card {
         return "RamFactor";
     }
     Optional<Label> indicator;
-    public CardRamFactor(Computer computer) {
-        super(computer);
+    public CardRamFactor() {
+        super();
         indicator = Utility.loadIconLabel("ram.png");
         try {
             loadRom("/jace/data/RAMFactor14.rom");
@@ -164,7 +164,7 @@ public class CardRamFactor extends Card {
     @Override
     protected void handleFirmwareAccess(int register, TYPE type, int value, RAMEvent e) {
         if (speedBoost) {
-            computer.getMotherboard().requestSpeed(this);
+            Emulator.withComputer(c->c.getMotherboard().requestSpeed(this));
         }
     }
 
@@ -176,7 +176,7 @@ public class CardRamFactor extends Card {
     @Override
     protected void handleC8FirmwareAccess(int register, TYPE type, int value, RAMEvent e) {
         if (speedBoost) {
-            computer.getMotherboard().requestSpeed(this);
+            Emulator.withComputer(c->c.getMotherboard().requestSpeed(this));
         }
     }
 

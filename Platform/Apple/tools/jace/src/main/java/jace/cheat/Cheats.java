@@ -20,12 +20,11 @@ package jace.cheat;
 
 import java.util.HashSet;
 import java.util.Set;
-import java.util.function.Function;
+import java.util.function.Supplier;
 
 import jace.apple2e.MOS65C02;
 import jace.config.DeviceEnum;
 import jace.config.InvokableAction;
-import jace.core.Computer;
 import jace.core.Device;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
@@ -44,11 +43,11 @@ public abstract class Cheats extends Device {
         PrinceOfPersia("Prince of Persia", PrinceOfPersiaCheats.class, PrinceOfPersiaCheats::new),
         LawlessHacks("Lawless Legends Enhancements", LawlessHacks.class, LawlessHacks::new);
 
-        Function<Computer, Cheats> factory;
+        Supplier<Cheats> factory;
         String name;
         Class<? extends Cheats> clazz;
 
-        Cheat(String name, Class<? extends Cheats> clazz, Function<Computer, Cheats> factory) {
+        Cheat(String name, Class<? extends Cheats> clazz, Supplier<Cheats> factory) {
             this.name = name;
             this.clazz = clazz;
             this.factory = factory;
@@ -60,8 +59,8 @@ public abstract class Cheats extends Device {
         }
 
         @Override
-        public Cheats create(Computer computer) {
-            return factory.apply(computer);
+        public Cheats create() {
+            return factory.get();
         }
 
         @Override
@@ -72,11 +71,7 @@ public abstract class Cheats extends Device {
 
     boolean cheatsActive = true;
     Set<RAMListener> listeners = new HashSet<>();
-
-    public Cheats(Computer computer) {
-        super(computer);
-    }
-    
+   
     @InvokableAction(name = "Toggle Cheats", alternatives = "cheat;Plug-in", defaultKeyMapping = "ctrl+shift+m")
     public void toggleCheats() {
         cheatsActive = !cheatsActive;
@@ -103,9 +98,9 @@ public abstract class Cheats extends Device {
     public RAMListener addCheat(String name, RAMEvent.TYPE type, RAMEvent.RAMEventHandler handler, int... address) {
         RAMListener listener;
         if (address.length == 1) {
-            listener = computer.getMemory().observe(getName() + ": " + name, type, address[0], handler);
+            listener = getMemory().observe(getName() + ": " + name, type, address[0], handler);
         } else {
-            listener = computer.getMemory().observe(getName() + ": " + name, type, address[0], address[1], handler);
+            listener = getMemory().observe(getName() + ": " + name, type, address[0], address[1], handler);
         }
         listeners.add(listener);
         return listener;
@@ -114,9 +109,9 @@ public abstract class Cheats extends Device {
     public RAMListener addCheat(String name, RAMEvent.TYPE type, Boolean auxFlag, RAMEvent.RAMEventHandler handler, int... address) {
         RAMListener listener;
         if (address.length == 1) {
-            listener = computer.getMemory().observe(getName() + ": " + name, type, address[0], auxFlag, handler);
+            listener = getMemory().observe(getName() + ": " + name, type, address[0], auxFlag, handler);
         } else {
-            listener = computer.getMemory().observe(getName() + ": " + name, type, address[0], address[1], auxFlag, handler);
+            listener = getMemory().observe(getName() + ": " + name, type, address[0], address[1], auxFlag, handler);
         }
         listeners.add(listener);
         return listener;
@@ -137,13 +132,13 @@ public abstract class Cheats extends Device {
 
     protected void unregisterListeners() {
         listeners.stream().forEach((l) -> {
-            computer.getMemory().removeListener(l);
+            getMemory().removeListener(l);
         });
         listeners.clear();
     }
 
     public void removeListener(RAMListener l) {
-        computer.getMemory().removeListener(l);
+        getMemory().removeListener(l);
         listeners.remove(l);
     }
 

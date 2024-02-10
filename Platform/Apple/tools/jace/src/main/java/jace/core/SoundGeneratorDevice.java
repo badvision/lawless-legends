@@ -19,10 +19,6 @@ package jace.core;
  * Encapsulate a thread-managed sound device, abstracting aspects of buffer and device management
  */
 public abstract class SoundGeneratorDevice extends Device {
-    public SoundGeneratorDevice(Computer computer) {
-        super(computer);
-    }
-    
     @Override
     public void reconfigure() {
     }

@@ -6,7 +6,6 @@ import java.util.Optional;
 import jace.EmulatorUILogic;
 import jace.apple2e.SoftSwitches;
 import jace.config.ConfigurableField;
-import jace.core.Computer;
 import jace.core.Device;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
@@ -88,8 +87,8 @@ public class NoSlotClock extends Device {
         }
     };
 
-    public NoSlotClock(Computer computer) {
-        super(computer);
+    public NoSlotClock() {
+        super();
         this.clockIcon = Utility.loadIconLabel("clock.png");
         this.clockIcon.ifPresent(icon -> icon.setText("No Slot Clock"));
     }
@@ -114,12 +113,12 @@ public class NoSlotClock extends Device {
 
     @Override
     public void attach() {
-        computer.getMemory().addListener(listener);
+        getMemory().addListener(listener);
     }
 
     @Override
     public void detach() {
-        computer.getMemory().removeListener(listener);
+        getMemory().removeListener(listener);
     }
 
     public void activateClock() {
@@ -138,7 +137,7 @@ public class NoSlotClock extends Device {
         clockIcon.ifPresent(icon
                 -> EmulatorUILogic.addIndicator(this, icon, 1000));
         if (patchProdosClock) {
-            CardThunderclock.performProdosPatch(computer);
+            CardThunderclock.performProdosPatch(getMemory());
         }
     }
 

@@ -80,16 +80,24 @@ public class SoundMixer extends Device {
     private static ALCapabilities audioLibCapabilities;
     // In case the OpenAL implementation wants to be run in a single thread, use a single thread executor
     protected static ExecutorService soundThreadExecutor = Executors.newSingleThreadExecutor();
-    public SoundMixer(Computer computer) {
-        super(computer);
-        defaultDeviceName = ALC10.alcGetString(0, ALC10.ALC_DEFAULT_DEVICE_SPECIFIER);        
+    public SoundMixer() {
+        if (!Utility.isHeadlessMode()) {
+            defaultDeviceName = ALC10.alcGetString(0, ALC10.ALC_DEFAULT_DEVICE_SPECIFIER);        
+        }
     }
 
-    public static <T> T performSoundFunction(Callable<T> operation) {
+    public static class SoundError extends Exception {
+        private static final long serialVersionUID = 1L;
+        public SoundError(String message) {
+            super(message);
+        }
+    }
+
+    public static <T> T performSoundFunction(Callable<T> operation) throws SoundError {
         return performSoundFunction(operation, false);
     }
 
-    public static <T> T performSoundFunction(Callable<T> operation, boolean ignoreError) {
+    public static <T> T performSoundFunction(Callable<T> operation, boolean ignoreError) throws SoundError {
         Future<T> result = soundThreadExecutor.submit(operation);
             try {
                 if (!ignoreError) {
@@ -97,7 +105,7 @@ public class SoundMixer extends Device {
                     int err;
                     err = error.get();
                     if (err != AL10.AL_NO_ERROR) {
-                        throw new RuntimeException(AL10.alGetString(err));
+                        throw new SoundError(AL10.alGetString(err));
                     }
                 }
                 return result.get();
@@ -110,11 +118,11 @@ public class SoundMixer extends Device {
         return null;
     }
 
-    public static void performSoundOperation(Runnable operation) {        
+    public static void performSoundOperation(Runnable operation) throws SoundError {        
         performSoundOperation(operation, false);
     }
 
-    public static void performSoundOperation(Runnable operation, boolean ignoreError) {
+    public static void performSoundOperation(Runnable operation, boolean ignoreError) throws SoundError {
         performSoundFunction(()->{
             operation.run();
             return null;
@@ -126,28 +134,40 @@ public class SoundMixer extends Device {
     }
 
     protected static void initSound() {
-        performSoundOperation(()->{
-            if (!PLAYBACK_INITIALIZED) {                
-                audioDevice = ALC10.alcOpenDevice(defaultDeviceName);
-                audioContext = ALC10.alcCreateContext(audioDevice, new int[]{0});
-                ALC10.alcMakeContextCurrent(audioContext);
-                audioCapabilities = ALC.createCapabilities(audioDevice);
-                audioLibCapabilities = AL.createCapabilities(audioCapabilities);
-                if (!audioLibCapabilities.OpenAL10) {                    
-                    PLAYBACK_DRIVER_DETECTED = false;
-                    Logger.getLogger(SoundMixer.class.getName()).warning("OpenAL 1.0 not supported");
-                    Emulator.withComputer(c->c.mixer.detach());
+        if (Utility.isHeadlessMode()) {
+            return;
+        }
+        try {
+            performSoundOperation(()->{
+                if (!PLAYBACK_INITIALIZED) {                
+                    audioDevice = ALC10.alcOpenDevice(defaultDeviceName);
+                    audioContext = ALC10.alcCreateContext(audioDevice, new int[]{0});
+                    ALC10.alcMakeContextCurrent(audioContext);
+                    audioCapabilities = ALC.createCapabilities(audioDevice);
+                    audioLibCapabilities = AL.createCapabilities(audioCapabilities);
+                    if (!audioLibCapabilities.OpenAL10) {
+                        PLAYBACK_DRIVER_DETECTED = false;
+                        Logger.getLogger(SoundMixer.class.getName()).warning("OpenAL 1.0 not supported");
+                        Emulator.withComputer(c->c.mixer.detach());
+                    }
+                    PLAYBACK_INITIALIZED = true;
+                } else {
+                    ALC10.alcMakeContextCurrent(audioContext);
                 }
-                PLAYBACK_INITIALIZED = true;
-            } else {
-                ALC10.alcMakeContextCurrent(audioContext);
-            }
-        });
+            });
+        } catch (SoundError e) {
+            PLAYBACK_DRIVER_DETECTED = false;
+            Logger.getLogger(SoundMixer.class.getName()).warning("Error when initializing sound: " + e.getMessage());
+            Emulator.withComputer(c->c.mixer.detach());
+        }
     }
 
     // Lots of inspiration from https://www.youtube.com/watch?v=dLrqBTeipwg
     @Override
     public void attach() {
+        if (Utility.isHeadlessMode()) {
+            return;
+        }
         if (!PLAYBACK_DRIVER_DETECTED) {
             Logger.getLogger(SoundMixer.class.getName()).warning("Sound driver not detected");
             return;
@@ -158,8 +178,9 @@ public class SoundMixer extends Device {
     }
 
     private static List<SoundBuffer> buffers = new ArrayList<>();
-    public static SoundBuffer createBuffer(boolean stereo) {
+    public static SoundBuffer createBuffer(boolean stereo) throws InterruptedException, ExecutionException, SoundError {
         if (!PLAYBACK_ENABLED) {
+            System.err.println("Sound playback not enabled, buffer not created.");
             return null;
         }
         SoundBuffer buffer = new SoundBuffer(stereo);
@@ -178,16 +199,23 @@ public class SoundMixer extends Device {
         private boolean isAlive;
         private int buffersGenerated = 0;
         
-        public SoundBuffer(boolean stereo) {
+        public SoundBuffer(boolean stereo) throws InterruptedException, ExecutionException, SoundError {
             initSound();
             currentBuffer = BufferUtils.createShortBuffer(BUFFER_SIZE * (stereo ? 2 : 1));
             alternateBuffer = BufferUtils.createShortBuffer(BUFFER_SIZE * (stereo ? 2 : 1));
-            currentBufferId = performSoundFunction(AL10::alGenBuffers);
-            alternateBufferId = performSoundFunction(AL10::alGenBuffers);
-            boolean hasSource = false;
-            while (!hasSource) {
-                sourceId = performSoundFunction(AL10::alGenSources);
-                hasSource = performSoundFunction(()->AL10.alIsSource(sourceId));
+            try {
+                currentBufferId = performSoundFunction(AL10::alGenBuffers);
+                alternateBufferId = performSoundFunction(AL10::alGenBuffers);
+                boolean hasSource = false;
+                while (!hasSource) {
+                    sourceId = performSoundFunction(AL10::alGenSources);
+                    hasSource = performSoundFunction(()->AL10.alIsSource(sourceId));
+                }
+            } catch (SoundError e) {
+                Logger.getLogger(SoundMixer.class.getName()).warning("Error when creating sound buffer: " + e.getMessage());
+                Thread.dumpStack();
+                shutdown();
+                throw e;
             }
             audioFormat = stereo ? AL10.AL_FORMAT_STEREO16 : AL10.AL_FORMAT_MONO16;
             isAlive = true;
@@ -198,7 +226,7 @@ public class SoundMixer extends Device {
         }
 
         /* If stereo, call this once for left and then again for right sample */
-        public void playSample(short sample) throws InterruptedException, ExecutionException {
+        public void playSample(short sample) throws InterruptedException, ExecutionException, SoundError {
             if (!isAlive) {
                 return;
             }
@@ -247,7 +275,7 @@ public class SoundMixer extends Device {
             currentBuffer.put(sample);
         }
 
-        public void shutdown() throws InterruptedException, ExecutionException {            
+        public void shutdown() throws InterruptedException, ExecutionException, SoundError {            
             if (!isAlive) {
                 return;
             }
@@ -288,14 +316,18 @@ public class SoundMixer extends Device {
             SoundBuffer buffer = buffers.get(0);
             try {
                 buffer.shutdown();
-            } catch (InterruptedException | ExecutionException e) {
+            } catch (InterruptedException | ExecutionException | SoundError e) {
                 Logger.getLogger(SoundMixer.class.getName()).warning("Error when detaching sound mixer: " + e.getMessage());
             }
         }
         buffers.clear();
         PLAYBACK_INITIALIZED = false;
-        performSoundOperation(()->ALC10.alcDestroyContext(audioContext), true);
-        performSoundOperation(()->ALC10.alcCloseDevice(audioDevice), true);
+        try {
+            performSoundOperation(()->ALC10.alcDestroyContext(audioContext), true);
+            performSoundOperation(()->ALC10.alcCloseDevice(audioDevice), true);
+        } catch (SoundError e) {
+            // Shouldn't throw but have to catch anyway
+        }
         super.detach();
     }
 

@@ -30,11 +30,11 @@ import javax.sound.midi.Receiver;
 import javax.sound.midi.ShortMessage;
 import javax.sound.midi.Synthesizer;
 
+import jace.Emulator;
 import jace.config.ConfigurableField;
 import jace.config.DynamicSelection;
 import jace.config.Name;
 import jace.core.Card;
-import jace.core.Computer;
 import jace.core.RAMEvent;
 import jace.core.RAMEvent.TYPE;
 
@@ -51,8 +51,8 @@ public class PassportMidiInterface extends Card {
 
     private Receiver midiOut;
 
-    public PassportMidiInterface(Computer computer) {
-        super(computer);
+    public PassportMidiInterface() {
+        super();
     }
 
     @Override
@@ -354,7 +354,7 @@ public class PassportMidiInterface extends Card {
                     if (t.irqEnabled) {
 //                        System.out.println("Timer generating interrupt!");
                         t.irqRequested = true;
-                        computer.getCpu().generateInterrupt();
+                        Emulator.withComputer(c->c.getCpu().generateInterrupt());
                         ptmStatusReadSinceIRQ = false;
                     }
                     if (t.mode == TIMER_MODE.CONTINUOUS || t.mode == TIMER_MODE.FREQ_COMPARISON) {

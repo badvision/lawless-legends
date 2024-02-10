@@ -26,14 +26,15 @@ import java.util.Stack;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import jace.Emulator;
 import jace.EmulatorUILogic;
 import jace.apple2e.MOS65C02;
 import jace.config.ConfigurableField;
 import jace.config.Name;
 import jace.core.Card;
-import jace.core.Computer;
 import jace.core.Motherboard;
 import jace.core.PagedMemory;
+import jace.core.RAM;
 import jace.core.RAMEvent;
 import jace.core.RAMEvent.TYPE;
 import jace.core.Utility;
@@ -60,8 +61,8 @@ public class CardThunderclock extends Card {
     @ConfigurableField(category = "OS", name = "Patch Prodos Year", description = "If enabled, the Prodos clock driver will be patched to use the current year.")
     public boolean attemptYearPatch = true;
 
-    public CardThunderclock(Computer computer) {
-        super(computer);
+    public CardThunderclock() {
+        super();
         try {
             loadRom("/jace/data/thunderclock_plus.rom");
         } catch (IOException ex) {
@@ -150,7 +151,7 @@ public class CardThunderclock extends Card {
             shiftMode = isShift;
             if (isRead) {
                 if (attemptYearPatch) {
-                    performProdosPatch(computer);
+                    _performProdosPatch();
                 }
                 getTime();
                 clockIcon.ifPresent(icon->{
@@ -215,7 +216,7 @@ public class CardThunderclock extends Card {
                 ticks = 0;
                 irqAsserted = true;
                 if (irqEnabled) {
-                    computer.getCpu().generateInterrupt();
+                    Emulator.withComputer(c->c.getCpu().generateInterrupt());
                 }
             }
         }
@@ -297,8 +298,12 @@ public class CardThunderclock extends Card {
      * always tell time correctly.
      * @param computer
      */
-    public static void performProdosPatch(Computer computer) {
-        PagedMemory ram = computer.getMemory().activeRead;
+    public void _performProdosPatch() {
+        performProdosPatch(getMemory());
+    }
+
+    public static void performProdosPatch(RAM memory) {
+        PagedMemory ram = memory.activeRead;
         if (patchLoc > 0) {
             // We've already patched, just validate
             if (ram.readByte(patchLoc) == (byte) MOS65C02.OPCODE.LDA_IMM.getCode()) {

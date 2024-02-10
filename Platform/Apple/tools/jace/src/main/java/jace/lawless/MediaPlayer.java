@@ -7,6 +7,7 @@ import java.util.concurrent.Executors;
 
 import jace.core.SoundMixer;
 import jace.core.SoundMixer.SoundBuffer;
+import jace.core.SoundMixer.SoundError;
 
 public class MediaPlayer {
 
@@ -44,8 +45,10 @@ public class MediaPlayer {
     public void stop() {
         status = Status.STOPPED;
         try {
-            playbackBuffer.shutdown();
-        } catch (InterruptedException | ExecutionException e) {
+            if (playbackBuffer != null) {
+                playbackBuffer.shutdown();
+            }
+        } catch (InterruptedException | ExecutionException | SoundError e) {
             // Ignore exception on shutdown
         } finally {
             song.close();
@@ -74,7 +77,16 @@ public class MediaPlayer {
         } else if (status == Status.NOT_STARTED) {
             repeats = 0;
             if (playbackBuffer == null || !playbackBuffer.isAlive()) {
-                playbackBuffer = SoundMixer.createBuffer(true);
+                try {
+                    playbackBuffer = SoundMixer.createBuffer(true);
+                } catch (InterruptedException | ExecutionException | SoundError e) {
+                    stop();
+                    return;
+                }
+                if (playbackBuffer == null) {
+                    stop();
+                    return;
+                }
             }
         }
         executor.execute(() -> {
@@ -98,7 +110,7 @@ public class MediaPlayer {
                 try {
                     playbackBuffer.playSample((short) (song.getNextLeftSample() * vol));
                     playbackBuffer.playSample((short) (song.getNextRightSample() * vol));
-                } catch (InterruptedException | ExecutionException e) {
+                } catch (InterruptedException | ExecutionException | SoundError e) {
                     e.printStackTrace();
                     this.stop();
                 }

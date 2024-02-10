@@ -23,7 +23,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import jace.config.Name;
-import jace.core.Computer;
 import jace.core.RAMEvent;
 import jace.core.RAMEvent.TYPE;
 
@@ -44,8 +43,8 @@ public class CardHayesMicromodem extends CardSSC {
     public int RING_INDICATOR_REG = 5;
     private boolean ringIndicator = false;
 
-    public CardHayesMicromodem(Computer computer) {
-        super(computer);
+    public CardHayesMicromodem() {
+        super();
         ACIA_Data = 7;
         ACIA_Status = 6;
         ACIA_Control = 5;

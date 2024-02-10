@@ -17,7 +17,6 @@ package jace.hardware;
 
 import jace.Emulator;
 import jace.config.ConfigurableField;
-import jace.core.Computer;
 import jace.core.Device;
 import jace.core.Motherboard;
 import jace.core.RAMEvent;
@@ -50,10 +49,10 @@ public class ZipWarpAccelerator extends Device {
     RAMListener zipListener;
     RAMListener transwarpListener;
 
-    public ZipWarpAccelerator(Computer computer) {
-        super(computer);
-        zipListener = computer.getMemory().observe("Zip chip access", RAMEvent.TYPE.ANY, ENABLE_ADDR, SET_SPEED, this::handleZipChipEvent);
-        transwarpListener = computer.getMemory().observe("Transwarp access", RAMEvent.TYPE.ANY, TRANSWARP, this::handleTranswarpEvent);
+    public ZipWarpAccelerator() {
+        super();
+        zipListener = getMemory().observe("Zip chip access", RAMEvent.TYPE.ANY, ENABLE_ADDR, SET_SPEED, this::handleZipChipEvent);
+        transwarpListener = getMemory().observe("Transwarp access", RAMEvent.TYPE.ANY, TRANSWARP, this::handleTranswarpEvent);
     }
 
     private void handleZipChipEvent(RAMEvent e) {
@@ -202,15 +201,15 @@ public class ZipWarpAccelerator extends Device {
 
     @Override
     public void attach() {
-        computer.getMemory().addListener(zipListener);
-        computer.getMemory().addListener(transwarpListener);
+        getMemory().addListener(zipListener);
+        getMemory().addListener(transwarpListener);
     }
 
     @Override
     public void detach() {
         super.detach();
-        computer.getMemory().removeListener(zipListener);
-        computer.getMemory().removeListener(transwarpListener);
+        getMemory().removeListener(zipListener);
+        getMemory().removeListener(transwarpListener);
     }
 
     @Override

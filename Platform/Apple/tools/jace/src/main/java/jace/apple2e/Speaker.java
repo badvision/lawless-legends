@@ -32,13 +32,14 @@ import jace.Emulator;
 import jace.LawlessLegends;
 import jace.config.ConfigurableField;
 import jace.config.InvokableAction;
-import jace.core.Computer;
 import jace.core.Motherboard;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
 import jace.core.SoundGeneratorDevice;
 import jace.core.SoundMixer;
 import jace.core.SoundMixer.SoundBuffer;
+import jace.core.SoundMixer.SoundError;
+import jace.core.Utility;
 import javafx.stage.FileChooser;
 
 /**
@@ -121,15 +122,6 @@ public class Speaker extends SoundGeneratorDevice {
     private SoundBuffer buffer = null;
 
     /**
-     * Creates a new instance of Speaker
-     *
-     * @param computer
-     */
-    public Speaker(Computer computer) {
-        super(computer);
-    }
-
-    /**
      * Suspend playback of sound
      *
      * @return
@@ -145,7 +137,7 @@ public class Speaker extends SoundGeneratorDevice {
         if (buffer != null) {
             try {
                 buffer.shutdown();
-            } catch (InterruptedException | ExecutionException e) {
+            } catch (InterruptedException | ExecutionException | SoundError e) {
                 // Ignore
             }
         }
@@ -154,13 +146,26 @@ public class Speaker extends SoundGeneratorDevice {
         return result;
     }
 
+    // Buffer creation mutex
+    private static final Object BUFFER_MUTEX = new Object();
     /**
      * Start or resume playback of sound
      */
     @Override
     public void resume() {
-        if (buffer == null || !buffer.isAlive()) {
-            buffer = SoundMixer.createBuffer(false);
+        if (Utility.isHeadlessMode()) {
+            return;
+        }
+        synchronized (BUFFER_MUTEX) {
+            if (buffer == null || !buffer.isAlive()) {
+                try {
+                    buffer = SoundMixer.createBuffer(false);
+                } catch (InterruptedException | ExecutionException | SoundError e) {
+                    e.printStackTrace();
+                    detach();
+                    return;
+                }
+            }
         }
         if (buffer != null) {
             counter = 0;
@@ -226,14 +231,25 @@ public class Speaker extends SoundGeneratorDevice {
     }
     
     private void playSample(int sample) {
-        if (buffer == null || !buffer.isAlive()) {
-            Logger.getLogger(getClass().getName()).severe("Audio buffer not initalized properly!");
-            buffer = SoundMixer.createBuffer(false);
-        }
         try {
+            if (buffer == null || !buffer.isAlive()) {
+                Logger.getLogger(getClass().getName()).severe("Audio buffer not initalized properly!");
+                Thread.dumpStack();
+                buffer = SoundMixer.createBuffer(false);
+                if (buffer == null) {
+                    System.err.println("Unable to create emergency audio buffer, detaching speaker");
+                    detach();
+                    return;
+                }
+            }
             buffer.playSample((short) sample);
         } catch (InterruptedException | ExecutionException e) {
             e.printStackTrace();
+        } catch (SoundError e) {
+            System.err.println("Sound error, detaching speaker: " + e.getMessage());
+            e.printStackTrace();
+            detach();
+            buffer = null;
         }
 
         if (fileOutputActive) {
@@ -255,11 +271,11 @@ public class Speaker extends SoundGeneratorDevice {
      * Add a memory event listener for C03x for capturing speaker events
      */
     private void configureListener() {
-        listener = computer.getMemory().observe("Speaker", RAMEvent.TYPE.ANY, 0x0c030, 0x0c03f, this::toggleSpeaker);
+        listener = Emulator.withMemory(m->m.observe("Speaker", RAMEvent.TYPE.ANY, 0x0c030, 0x0c03f, this::toggleSpeaker), null);
     }
 
     private void removeListener() {
-        computer.getMemory().removeListener(listener);
+        Emulator.withMemory(m->m.removeListener(listener));
     }
 
     /**

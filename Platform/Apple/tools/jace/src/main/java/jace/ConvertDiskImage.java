@@ -18,10 +18,11 @@
  */
 package jace;
 
-import jace.hardware.FloppyDisk;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+
+import jace.hardware.FloppyDisk;
 
 /**
  * Generic disk conversion utility, using the FloppyDisk nibblize/denibblize to
@@ -71,7 +72,7 @@ public class ConvertDiskImage {
         // First read in the disk image, this decodes the disk as necessary
         FloppyDisk theDisk;
         try {
-            theDisk = new FloppyDisk(in, null);
+            theDisk = new FloppyDisk(in);
         } catch (IOException ex) {
             System.out.println("Couldn't read disk image");
             return;

@@ -244,7 +244,7 @@ public class Full65C02Test {
     @Test
     /* Full test of ADC and SBC with binary coded decimal mode */
     public void testBCD() throws ProgramException, URISyntaxException, IOException {
-        Path resource = Paths.get(getClass().getResource("/jace/bcd_test.a").toURI());
+        Path resource = Paths.get(getClass().getResource("/jace/bcd_test.asm").toURI());
         String testCode = Files.readString(resource);
         TestProgram test = new TestProgram(testCode);
         test.defineError("Error when performing ADC operation");

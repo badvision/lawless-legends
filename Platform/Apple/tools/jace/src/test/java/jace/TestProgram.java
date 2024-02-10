@@ -305,11 +305,8 @@ public class TestProgram {
         String condition = "X != %s <<%s>>".formatted(Integer.toHexString(val), caller);
         _test("""
             PHP
-            PHA
-            TXA
-            CMP #%s
+            CPX #%s
             BNE ++
-            PLA
             PLP
             BRA +
         ++  ; Error
@@ -324,11 +321,8 @@ public class TestProgram {
         String condition = "Y != %s <<%s>>".formatted(Integer.toHexString(val), caller);
         _test("""
             PHP
-            PHA
-            TYA
-            CMP #%s
+            CPY #%s
             BNE ++
-            PLA
             PLP
             BRA +
         ++  ; Error

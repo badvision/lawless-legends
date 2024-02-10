@@ -765,6 +765,7 @@ public class Full65C02Test {
     /* Test JSR */
     @Test
     public void testJsr() throws ProgramException {
+        // "Easy" test that JSR + RTS work as expected and together take 12 cycles
         new TestProgram()
             .add("""
                 jmp +
@@ -775,6 +776,34 @@ public class Full65C02Test {
             .assertTimed("""
                 JSR sub1
             """, 12)
+            .run();
+        // Check that JSR pushes the expected PC values to the stack
+        new TestProgram()
+            .add("""
+                jmp start
+            test
+                plx
+                ply
+                phy
+                phx
+                rts
+            """)
+            .test("", "RTS did not return to the correct address")
+            .add("""
+            start
+                +traceOn
+                jsr test
+            ret
+            """)
+            .test("""
+                cpy #>ret
+                beq +
+            """, "Y = MSB of return address")
+            .test("""
+                inx
+                cpx #<ret
+                beq +
+            """, "X = LSB of return address-1")
             .run();
     }
 }

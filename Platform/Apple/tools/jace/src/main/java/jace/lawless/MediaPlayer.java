@@ -46,6 +46,7 @@ public class MediaPlayer {
         status = Status.STOPPED;
         try {
             if (playbackBuffer != null) {
+                playbackBuffer.flush();
                 playbackBuffer.shutdown();
             }
         } catch (InterruptedException | ExecutionException | SoundError e) {

@@ -29,8 +29,11 @@ public class Media {
             oggFile = oggStream.readAllBytes();
         }
         
+        ByteBuffer oggBuffer = null;
+        STBVorbisInfo info = null;
+        ShortBuffer tempSampleBuffer = null;
         try (MemoryStack stack = MemoryStack.stackPush()) {
-            ByteBuffer oggBuffer = MemoryUtil.memAlloc(oggFile.length);
+            oggBuffer = MemoryUtil.memAlloc(oggFile.length);
             oggBuffer.put(oggFile);
             oggBuffer.flip();
             IntBuffer error = stack.callocInt(1);
@@ -38,19 +41,28 @@ public class Media {
             if (decoder == null || decoder <= 0) {
                 throw new RuntimeException("Failed to open Ogg Vorbis file. Error: " + getError(error.get(0)) + " -- file is located at " + resourcePath);
             }
-            STBVorbisInfo info = STBVorbisInfo.malloc(stack);
+            info = STBVorbisInfo.malloc(stack);
             STBVorbis.stb_vorbis_get_info(decoder, info);
             totalSamples = STBVorbis.stb_vorbis_stream_length_in_samples(decoder);
             totalDuration = STBVorbis.stb_vorbis_stream_length_in_seconds(decoder);
             sampleRate = info.sample_rate();
             isStereo = info.channels() == 2;
 
-            sampleBuffer = MemoryUtil.memAllocShort(totalSamples);
-            STBVorbis.stb_vorbis_get_samples_short_interleaved(decoder, isStereo?2:1, sampleBuffer);
+            tempSampleBuffer = MemoryUtil.memAllocShort(totalSamples);
+            STBVorbis.stb_vorbis_get_samples_short_interleaved(decoder, isStereo?2:1, tempSampleBuffer);
             STBVorbis.stb_vorbis_close(decoder);
+            tempSampleBuffer.rewind();
+            // copy sample buffer into byte buffer so we can deallocate, then transfer the buffer contents
+            sampleBuffer = ShortBuffer.allocate(totalSamples*2);
+            sampleBuffer.put(tempSampleBuffer);
             sampleBuffer.rewind();
         } catch (RuntimeException ex) {
             throw ex;
+        } finally {
+            if (oggBuffer != null)
+                MemoryUtil.memFree(oggBuffer);
+            if (tempSampleBuffer != null)
+                MemoryUtil.memFree(tempSampleBuffer);
         }
     }
 
@@ -104,7 +116,8 @@ public class Media {
     }
 
     public void close() {
-        MemoryUtil.memFree(sampleBuffer);
+        if (sampleBuffer != null)
+            sampleBuffer.clear();
         if (tempFile != null && tempFile.exists())
             tempFile.delete();
     }
@@ -146,4 +159,12 @@ public class Media {
     public float getTotalDuration() {
         return totalDuration;
     }    
+
+    public int getTotalSamples() {
+        return totalSamples;
+    }
+
+    public long getSampleRate() {
+        return sampleRate;
+    }
 }

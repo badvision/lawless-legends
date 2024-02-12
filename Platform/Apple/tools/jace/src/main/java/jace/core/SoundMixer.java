@@ -20,6 +20,7 @@ package jace.core;
 
 import java.nio.ShortBuffer;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -177,7 +178,7 @@ public class SoundMixer extends Device {
         PLAYBACK_ENABLED = true;
     }
 
-    private static List<SoundBuffer> buffers = new ArrayList<>();
+    private static List<SoundBuffer> buffers = Collections.synchronizedList(new ArrayList<>());
     public static SoundBuffer createBuffer(boolean stereo) throws InterruptedException, ExecutionException, SoundError {
         if (!PLAYBACK_ENABLED) {
             System.err.println("Sound playback not enabled, buffer not created.");
@@ -231,46 +232,7 @@ public class SoundMixer extends Device {
                 return;
             }
             if (!currentBuffer.hasRemaining()) {
-                buffersGenerated++;
-                currentBuffer.flip();
-                if (buffersGenerated > 2) {
-                    int[] unqueueBuffers = new int[]{currentBufferId};
-                    performSoundOperation(()->{
-                        int buffersProcessed = AL10.alGetSourcei(sourceId, AL10.AL_BUFFERS_PROCESSED);
-                        while (buffersProcessed < 1) {
-                            Thread.onSpinWait();
-                            buffersProcessed = AL10.alGetSourcei(sourceId, AL10.AL_BUFFERS_PROCESSED);
-                        }
-                    });
-                    if (!isAlive) {
-                        return;
-                    }
-                    performSoundOperation(()->{
-                        AL10.alSourceUnqueueBuffers(sourceId, unqueueBuffers);
-                    });
-                }
-                if (!isAlive) {
-                    return;
-                }
-                performSoundOperation(()->AL10.alBufferData(currentBufferId, audioFormat, currentBuffer, RATE));
-                if (!isAlive) {
-                    return;
-                }
-                performSoundOperation(()->AL10.alSourceQueueBuffers(sourceId, currentBufferId));
-                performSoundOperationAsync(()->{
-                    if (AL10.alGetSourcei(sourceId, AL10.AL_SOURCE_STATE) != AL10.AL_PLAYING) {
-                        AL10.alSourcePlay(sourceId);
-                    }
-                });
-
-                // Swap AL buffers
-                int tempId = currentBufferId;
-                currentBufferId = alternateBufferId;
-                alternateBufferId = tempId;
-                // Swap Java buffers
-                ShortBuffer tempBuffer = currentBuffer;
-                currentBuffer = alternateBuffer;
-                alternateBuffer = tempBuffer;                
+                this.flush();
             }
             currentBuffer.put(sample);
         }
@@ -302,6 +264,53 @@ public class SoundMixer extends Device {
                 }
             }
         }
+
+        public void flush() throws SoundError {
+            buffersGenerated++;
+            currentBuffer.flip();
+            if (buffersGenerated > 2) {
+                int[] unqueueBuffers = new int[]{currentBufferId};
+                performSoundOperation(()->{
+                    int buffersProcessed = AL10.alGetSourcei(sourceId, AL10.AL_BUFFERS_PROCESSED);
+                    while (buffersProcessed < 1) {
+                        Thread.onSpinWait();
+                        buffersProcessed = AL10.alGetSourcei(sourceId, AL10.AL_BUFFERS_PROCESSED);
+                    }
+                });
+                if (!isAlive) {
+                    return;
+                }
+                performSoundOperation(()->{
+                    AL10.alSourceUnqueueBuffers(sourceId, unqueueBuffers);
+                });
+            }
+            if (!isAlive) {
+                return;
+            }
+            performSoundOperation(()->AL10.alBufferData(currentBufferId, audioFormat, currentBuffer, RATE));
+            if (!isAlive) {
+                return;
+            }
+            performSoundOperation(()->AL10.alSourceQueueBuffers(sourceId, currentBufferId));
+            performSoundOperationAsync(()->{
+                if (AL10.alGetSourcei(sourceId, AL10.AL_SOURCE_STATE) != AL10.AL_PLAYING) {
+                    AL10.alSourcePlay(sourceId);
+                }
+            });
+
+            // Swap AL buffers
+            int tempId = currentBufferId;
+            currentBufferId = alternateBufferId;
+            alternateBufferId = tempId;
+            // Swap Java buffers
+            ShortBuffer tempBuffer = currentBuffer;
+            currentBuffer = alternateBuffer;
+            alternateBuffer = tempBuffer;                
+        }
+    }
+
+    public int getActiveBuffers() {
+        return buffers.size();
     }
 
     @Override
@@ -313,7 +322,7 @@ public class SoundMixer extends Device {
         PLAYBACK_ENABLED = false;
         
         while (!buffers.isEmpty()) {
-            SoundBuffer buffer = buffers.get(0);
+            SoundBuffer buffer = buffers.remove(0);
             try {
                 buffer.shutdown();
             } catch (InterruptedException | ExecutionException | SoundError e) {
@@ -341,7 +350,6 @@ public class SoundMixer extends Device {
     public String getShortName() {
         return "mixer";
     }
-
 
     @Override
     public synchronized void reconfigure() {

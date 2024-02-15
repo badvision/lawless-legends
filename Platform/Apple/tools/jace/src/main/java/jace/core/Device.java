@@ -129,7 +129,9 @@ public abstract class Device implements Reconfigurable {
     
     private void __doTickIsRunning() {
         for (Device d : childrenArray) {
-            d.doTick();
+            if (d.isRunning() && !d.isPaused()) {
+                d.doTick();
+            }
         }
         if (waitCycles <= 0) {
             tick();

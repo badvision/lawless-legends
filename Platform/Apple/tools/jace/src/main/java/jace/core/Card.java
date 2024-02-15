@@ -100,7 +100,6 @@ public abstract class Card extends Device {
 
     @Override
     public void reconfigure() {
-        //super.reconfigure();
         // Emulator.whileSuspended(c-> {
             unregisterListeners();
             registerListeners();

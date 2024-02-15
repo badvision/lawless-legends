@@ -43,9 +43,9 @@ public abstract class RAM implements Reconfigurable {
 
     public PagedMemory activeRead;
     public PagedMemory activeWrite;
-    private Set<RAMListener> listeners;
-    private Set<RAMListener>[] listenerMap;
-    private Set<RAMListener>[] ioListenerMap;
+    private final Set<RAMListener> listeners;
+    private final Set<RAMListener>[] listenerMap;
+    private final Set<RAMListener>[] ioListenerMap;
     public Optional<Card>[] cards;
     // card 0 = 80 column card firmware / system rom
     public int activeSlot = 0;
@@ -58,6 +58,8 @@ public abstract class RAM implements Reconfigurable {
     @SuppressWarnings("unchecked")
     public RAM() {
         listeners = new ConcurrentSkipListSet<>();
+        listenerMap = (Set<RAMListener>[]) new Set[256];
+        ioListenerMap = (Set<RAMListener>[]) new Set[256];
         cards = (Optional<Card>[]) new Optional[8];
         for (int i = 0; i < 8; i++) {
             cards[i] = Optional.empty();
@@ -202,10 +204,12 @@ public abstract class RAM implements Reconfigurable {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private void refreshListenerMap() {
-        listenerMap = (Set<RAMListener>[]) new Set[256];
-        ioListenerMap = (Set<RAMListener>[]) new Set[256];
+        // Wipe out existing maps
+        for (int i = 0; i < 256; i++) {
+            listenerMap[i] = null;
+            ioListenerMap[i] = null;
+        }
         listeners.forEach(this::addListenerRange);
     }
 

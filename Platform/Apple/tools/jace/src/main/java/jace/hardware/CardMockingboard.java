@@ -19,11 +19,6 @@
 package jace.hardware;
 
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.LockSupport;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -31,8 +26,6 @@ import jace.Emulator;
 import jace.config.ConfigurableField;
 import jace.config.Name;
 import jace.core.Card;
-import jace.core.Computer;
-import jace.core.Motherboard;
 import jace.core.RAMEvent;
 import jace.core.RAMEvent.TYPE;
 import jace.core.RAMListener;
@@ -50,7 +43,7 @@ import jace.hardware.mockingboard.R6522;
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com
  */
 @Name("Mockingboard")
-public class CardMockingboard extends Card implements Runnable {
+public class CardMockingboard extends Card {
     // If true, emulation will cover 4 AY chips.  Otherwise, only 2 AY chips
 
     @ConfigurableField(name = "Volume", shortName = "vol",
@@ -67,7 +60,6 @@ public class CardMockingboard extends Card implements Runnable {
             defaultValue = "1020484",
             description = "Clock rate of AY oscillators")
     public int CLOCK_SPEED = 1020484;
-    public int SAMPLE_RATE = 48000;
     @ConfigurableField(name = "Buffer size",
             category = "Sound",
             description = "Number of samples to generate on each pass")
@@ -76,13 +68,14 @@ public class CardMockingboard extends Card implements Runnable {
     public PSG[] chips;
     // The 6522 controllr chips (always 2)
     public R6522[] controllers;
-    static private int ticksBetweenPlayback = 200;
-    Lock timerSync = new ReentrantLock();
-    Condition cpuCountReached = timerSync.newCondition();
-    Condition playbackFinished = timerSync.newCondition();
     @ConfigurableField(name = "Idle sample threshold", description = "Number of samples to wait before suspending sound")
-    private final int MAX_IDLE_SAMPLES = SAMPLE_RATE;
-    
+    int[] left, right;
+    SoundBuffer buffer;
+    int ticksBetweenPlayback = 24;
+    int MAX_IDLE_TICKS = 1000000;
+    boolean activatedAfterReset = false;
+    boolean debug = false;
+
     @Override
     public String getDeviceName() {
         return "Mockingboard";
@@ -90,13 +83,14 @@ public class CardMockingboard extends Card implements Runnable {
 
     public CardMockingboard() {
         super();
+        activatedAfterReset = false;
+        left = new int[BUFFER_LENGTH];
+        right = new int[BUFFER_LENGTH];
         controllers = new R6522[2];
         for (int i = 0; i < 2; i++) {
             // has to be final to be used inside of anonymous class below
             final int j = i;
             controllers[i] = new R6522() {
-                final int controller = j;
-
                 @Override
                 public void sendOutputA(int value) {
                     chips[j].setBus(value);
@@ -132,39 +126,25 @@ public class CardMockingboard extends Card implements Runnable {
                 @Override
                 public String getShortName() {
                     return "timer" + j;
-                }
-                
-                public void tick() {
-                    super.tick();
-                    if (controller == 0) {
-                        doSoundTick();
-                    }
-                }
+                }                
             };
+            addChildDevice(controllers[i]);
         }
     }
 
     @Override
     public void reset() {
+        activatedAfterReset = false;
         suspend();
     }
     RAMListener mainListener = null;
     
-    boolean heatbeatUnclocked = false;
-    long heartbeatReclockTime = 0L;
-    long unclockTime = 5000L;
-    
-    private void setUnclocked(boolean unclocked) {
-        heatbeatUnclocked = unclocked;
-        for (R6522 controller : controllers) {
-            controller.setUnclocked(unclocked);
-        }
-        heartbeatReclockTime = System.currentTimeMillis() + unclockTime;
-    }
-
     @Override
     protected void handleFirmwareAccess(int register, TYPE type, int value, RAMEvent e) {
-        resume();
+        if (chips == null) {
+            reconfigure();
+        }
+
         int chip = 0;
         for (PSG psg : chips) {
             if (psg.getBaseReg() == (register & 0x0f0)) {
@@ -181,12 +161,19 @@ public class CardMockingboard extends Card implements Runnable {
         if (e.getType().isRead()) {
             int val = controller.readRegister(register & 0x0f);
             e.setNewValue(val);
-//            System.out.println("Read "+Integer.toHexString(register)+" == "+val);
+            if (debug) System.out.println("Chip " + chip + " Read "+Integer.toHexString(register & 0x0f)+" == "+val);
         } else {
             controller.writeRegister(register & 0x0f, e.getNewValue());
-//            System.out.println("Write "+Integer.toHexString(register)+" == "+e.getNewValue());
+            if (debug) System.out.println("Chip " + chip + " Write "+Integer.toHexString(register & 0x0f)+" == "+e.getNewValue());
         }
-    }
+        // Any firmware access will reset the idle counter and wake up the card, this allows the timers to start running again
+        // Games such as "Skyfox" use the timer to detect if the card is present.
+        idleTicks = 0;
+        if (!isRunning() || isPaused()) {
+            activatedAfterReset = true;
+            resume();
+        }
+}
 
     @Override
     protected void handleIOAccess(int register, TYPE type, int value, RAMEvent e) {
@@ -195,75 +182,66 @@ public class CardMockingboard extends Card implements Runnable {
         Emulator.withVideo(v->e.setNewValue(v.getFloatingBus()));
     }
     long ticksSinceLastPlayback = 0;
-
+    long idleTicks = 0;
     @Override
     public void tick() {
-        if (heatbeatUnclocked) {
-            if (System.currentTimeMillis() - heartbeatReclockTime >= unclockTime) {
-                setUnclocked(false);
-            } else {
-                for (R6522 c : controllers) {
-                    if (c == null || !c.isRunning()) {
-                        continue;
-                    }
-                    c.doTick();
+        try {
+            ticksSinceLastPlayback++;
+            if (ticksSinceLastPlayback >= ticksBetweenPlayback) {
+                ticksSinceLastPlayback -= ticksBetweenPlayback;
+                if (playSound(left, right)) {
+                    idleTicks = 0;
+                } else {
+                    idleTicks += ticksBetweenPlayback;
                 }
             }
+        } catch (InterruptedException | ExecutionException | SoundError | NullPointerException ex) {
+            Logger.getLogger(CardMockingboard.class.getName()).log(Level.SEVERE, "Mockingboard playback encountered fatal exception", ex);
+            suspend();
+            // Do nothing, probably suspending CPU
         }
-    }
-    
-    public boolean isRunning() {
-        return super.isRunning() && playbackThread != null && playbackThread.isAlive();
-    }
-    
-    private void doSoundTick() {
-        if (isRunning() && !pause) {
-//            buildMixerTable();
-            timerSync.lock();
-            try {
-                ticksSinceLastPlayback++;
-                if (ticksSinceLastPlayback >= ticksBetweenPlayback) {
-                    cpuCountReached.signalAll();
-                    while (isRunning() && ticksSinceLastPlayback >= ticksBetweenPlayback) {
-                        if (!playbackFinished.await(1, TimeUnit.SECONDS)) {
-//                            gripe("The mockingboard playback thread has stalled.  Disabling mockingboard.");
-                            suspendSound();
-                        }
-                    }
-                }
-            } catch (InterruptedException ex) {
-                suspend();
-                // Do nothing, probably suspending CPU
-            } finally {
-                timerSync.unlock();
-            }
+
+        if (idleTicks >= MAX_IDLE_TICKS) {
+            suspend();
         }
     }
 
     @Override
     public void reconfigure() {
-        boolean restart = suspend();
         initPSG();
         for (PSG chip : chips) {
-            chip.setRate(phasorMode ? CLOCK_SPEED * 2 : CLOCK_SPEED, SAMPLE_RATE);
+            chip.setRate(phasorMode ? CLOCK_SPEED * 2 : CLOCK_SPEED, SoundMixer.RATE);
             chip.reset();
         }
+        long motherboardSpeed = Emulator.withComputer(c->c.getMotherboard().getSpeedInHz(), 1L);
+        ticksBetweenPlayback = (int) ((motherboardSpeed * BUFFER_LENGTH) / SoundMixer.RATE);
+        buildMixerTable();
+
         super.reconfigure();
-        if (restart) {
-            resume();
-        }
     }
 
 ///////////////////////////////////////////////////////////
     public static int[] VolTable;
 
-    public void playSound(int[] left, int[] right) {
+    public boolean playSound(int[] left, int[] right) throws InterruptedException, ExecutionException, SoundError {
+        if (buffer == null) {
+            return false;
+        }
         chips[0].update(left, true, left, false, left, false, BUFFER_LENGTH);
         chips[1].update(right, true, right, false, right, false, BUFFER_LENGTH);
         if (phasorMode) {
             chips[2].update(left, false, left, false, left, false, BUFFER_LENGTH);
             chips[3].update(right, false, right, false, right, false, BUFFER_LENGTH);
         }
+        boolean nonZeroSamples = false;
+        for (int i=0; i < BUFFER_LENGTH; i++) {
+            buffer.playSample((short) left[i]);
+            buffer.playSample((short) right[i]);
+            if (left[i] != 0 || right[i] != 0) {
+                nonZeroSamples = true;
+            }
+        }
+        return nonZeroSamples;
     }
 
     public void buildMixerTable() {
@@ -288,176 +266,61 @@ public class CardMockingboard extends Card implements Runnable {
         
         VolTable[0] = 0;
     }
-    Thread playbackThread = null;
-    boolean pause = false;
 
     @Override
     public void resume() {
-        pause = false;
+        if (!activatedAfterReset) {
+            // Do not re-activate until firmware access was made
+            return;
+        }
+        if (buffer == null || !buffer.isAlive()) {
+            try {
+                buffer = SoundMixer.createBuffer(true);
+            } catch (InterruptedException | ExecutionException | SoundError e) {
+                System.out.println("Error whhen trying to create sound buffer for Mockingboard: " + e.getMessage());
+                e.printStackTrace();
+                suspend();
+            }
+        }
         if (chips == null) {
             initPSG();
             for (PSG psg : chips) {
-                psg.setRate(phasorMode ? CLOCK_SPEED * 2 : CLOCK_SPEED, SAMPLE_RATE);
+                psg.setRate(phasorMode ? CLOCK_SPEED * 2 : CLOCK_SPEED, SoundMixer.RATE);
                 psg.reset();
             }
         }
-        if (!isRunning()) {
-            setUnclocked(true);
-            for (R6522 controller : controllers) {
-                controller.attach();
-                controller.resume();
-            }
-        }
+        idleTicks = 0;
+        setPaused(false);
+        reconfigure();
         super.resume();
-        if (playbackThread == null || !playbackThread.isAlive()) {
-            playbackThread = new Thread(this, "Mockingboard sound playback");
-            playbackThread.start();
-        }
     }
 
     @Override
     public boolean suspend() {
-        super.suspend();
-        for (R6522 controller : controllers) {
-            controller.suspend();
-            controller.detach();
+        if (buffer != null) {
+            try {
+                buffer.shutdown();
+            } catch (InterruptedException | ExecutionException | SoundError e) {
+                System.out.println("Error when trying to shutdown sound buffer for Mockingboard: " + e.getMessage());
+                e.printStackTrace();
+            } finally { 
+                buffer = null;
+            }
         }
-        return suspendSound();
+        return super.suspend();
     }
     
-    public boolean suspendSound() {
-        setRun(false);
-        if (playbackThread == null || !playbackThread.isAlive()) {
-            return false;
-        }
-        if (playbackThread != null) {
-            try {
-                playbackThread.join(500);
-            } catch (InterruptedException ex) {
-            }
-        }
-        playbackThread = null;
-        return true;
-    }
-
-    @Override
-    /**
-     * This is the audio playback thread
-     */
-    public void run() {
-        SoundBuffer buffer;
-        try {
-            buffer = SoundMixer.createBuffer(true);
-        } catch (InterruptedException | ExecutionException | SoundError e) {
-            e.printStackTrace();
-            setRun(false);
-            return;
-        }
-        try {
-            if (buffer == null) {
-                setRun(false);
-                return;
-            }
-            System.out.println("Mockingboard playback started");
-            int bufferSize  = SoundMixer.BUFFER_SIZE;
-            int[] left = new int[bufferSize];
-            int[] right = new int[bufferSize];
-            buildMixerTable();
-            ticksBetweenPlayback = (int) ((Motherboard.DEFAULT_SPEED * BUFFER_LENGTH) / SAMPLE_RATE);
-            System.out.println("Ticks between playback: "+ticksBetweenPlayback);
-            ticksSinceLastPlayback = 0;
-            int zeroSamples = 0;
-            setRun(true);
-            LockSupport.parkNanos(5000);
-            while (isRunning() && !Thread.interrupted()) {
-                while (isRunning() && !Emulator.withComputer(Computer::isRunning, false)) {
-                    Thread.sleep(1000);
-                }
-                if (isRunning() && !Thread.interrupted()) {
-                    playSound(left, right);
-                    try {
-                        for (int i=0; i < bufferSize; i++) {
-                            buffer.playSample((short) left[i]);
-                            buffer.playSample((short) right[i]);
-                        }
-                        timerSync.lock();
-                        ticksSinceLastPlayback -= ticksBetweenPlayback;
-                    } catch (ExecutionException | SoundError e) {
-                        Logger.getLogger(CardMockingboard.class.getName()).log(Level.SEVERE, "Mockingboard playback encountered fatal exception", e);
-                        try {
-                            buffer.shutdown();
-                        } catch (ExecutionException | SoundError e1) {
-                            // Ignore shutdown errors, we're already reporting a fatal error
-                        }
-                        buffer=null;
-                        setRun(false);
-                        break;
-                    } finally {
-                        timerSync.unlock();
-                    }
-                    if (zeroSamples >= MAX_IDLE_SAMPLES) {
-                        zeroSamples = 0;
-                        pause = true;
-                        Emulator.withComputer(c->c.getMotherboard().cancelSpeedRequest(this));
-                        while (pause && isRunning()) {
-                            try {
-                                Thread.sleep(50);
-                                timerSync.lock();
-                                playbackFinished.signalAll();
-                            } catch (InterruptedException ex) {
-                                return;
-                            } catch (IllegalMonitorStateException ex) {
-                                // Do nothing
-                            } finally {
-                                try {
-                                    timerSync.unlock();
-                                } catch (IllegalMonitorStateException ex) {
-                                    // Do nothing -- this is probably caused by a suspension event
-                                }
-                            }
-                        }
-                    }
-                    try {
-                        timerSync.lock();
-                        playbackFinished.signalAll();
-                        while (isRunning() && ticksSinceLastPlayback < ticksBetweenPlayback) {
-                            Emulator.withComputer(c->c.getMotherboard().requestSpeed(this));
-                            cpuCountReached.await();
-                            Emulator.withComputer(c->c.getMotherboard().cancelSpeedRequest(this));
-                        }
-                    } catch (InterruptedException ex) {
-                        // Do nothing, probably killing playback thread on purpose
-                    } finally {
-                        timerSync.unlock();
-                    }
-                }
-            }
-        } catch (InterruptedException ex) {
-            Logger.getLogger(CardMockingboard.class.getName()).log(Level.SEVERE, null, ex);
-        } finally {
-            Emulator.withComputer(c->c.getMotherboard().cancelSpeedRequest(this));
-            System.out.println("Mockingboard playback stopped");
-            if (buffer != null && buffer.isAlive()) {
-                try {
-                    buffer.shutdown();
-                } catch (InterruptedException | ExecutionException | SoundError e) {
-                    // Ignore errors during shutdown
-                }
-            }
-        }
-    }
-
     private void initPSG() {
         if (phasorMode) {
             chips = new PSG[4];
-            chips[0] = new PSG(0x10, CLOCK_SPEED * 2, SAMPLE_RATE, "AY1", 8);
-            chips[1] = new PSG(0x80, CLOCK_SPEED * 2, SAMPLE_RATE, "AY2", 8);
-            chips[2] = new PSG(0x10, CLOCK_SPEED * 2, SAMPLE_RATE, "AY3", 16);
-            chips[3] = new PSG(0x80, CLOCK_SPEED * 2, SAMPLE_RATE, "AY4", 16);
+            chips[0] = new PSG(0x10, CLOCK_SPEED * 2, SoundMixer.RATE, "AY1", 8);
+            chips[1] = new PSG(0x80, CLOCK_SPEED * 2, SoundMixer.RATE, "AY2", 8);
+            chips[2] = new PSG(0x10, CLOCK_SPEED * 2, SoundMixer.RATE, "AY3", 16);
+            chips[3] = new PSG(0x80, CLOCK_SPEED * 2, SoundMixer.RATE, "AY4", 16);
         } else {
             chips = new PSG[2];
-            chips[0] = new PSG(0, CLOCK_SPEED, SAMPLE_RATE, "AY1", 255);
-            chips[1] = new PSG(0x80, CLOCK_SPEED, SAMPLE_RATE, "AY2", 255);
+            chips[0] = new PSG(0, CLOCK_SPEED, SoundMixer.RATE, "AY1", 255);
+            chips[1] = new PSG(0x80, CLOCK_SPEED, SoundMixer.RATE, "AY2", 255);
         }
     }
 
@@ -467,8 +330,8 @@ public class CardMockingboard extends Card implements Runnable {
     }
 
     // This fixes freezes when resizing the window, etc.
-    @Override
-    public boolean suspendWithCPU() {
-        return true;
-    }
+    // @Override
+    // public boolean suspendWithCPU() {
+    //     return true;
+    // }
 }

@@ -19,14 +19,14 @@
 package jace.hardware.mockingboard;
 
 import jace.Emulator;
-import jace.core.TimedDevice;
+import jace.core.Device;
 
 /**
  * Implementation of 6522 VIA chip
  *
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com
  */
-public abstract class R6522 extends TimedDevice {
+public abstract class R6522 extends Device {
     public static long SPEED = 1020484L; // (NTSC)
     
     public R6522() {
@@ -35,14 +35,14 @@ public abstract class R6522 extends TimedDevice {
         timer1running = true;
         timer1latch = 0x1fff;
         timer1interruptEnabled = false;
-        setSpeedInHz(SPEED);
-        setRun(true);
+        // setSpeedInHz(SPEED);
+        // setRun(true);
     }
 
-    @Override
-    public long defaultCyclesPerSecond() {
-        return SPEED;
-    }
+    // @Override
+    // public long defaultCyclesPerSecond() {
+    //     return SPEED;
+    // }
     
     // 6522 VIA
     // http://www.applevault.com/twiki/Main/Mockingboard/6522.pdf
@@ -141,7 +141,8 @@ public abstract class R6522 extends TimedDevice {
     public int timer2counter = 0;
     public boolean timer2running = false;
     public boolean unclocked = false;
-    
+    public boolean debug = false;    
+
     @Override
     protected String getDeviceName() {
         return "6522 VIA Chip";
@@ -149,16 +150,18 @@ public abstract class R6522 extends TimedDevice {
     
     @Override
     public void tick() {
-        if (!unclocked) {
+        // if (!unclocked) {
             if (timer1running) {
                 timer1counter--;
+                if (debug && timer1counter % 1000 == 0)
+                    System.out.println(getShortName() + " Timer 1 counter: "+timer1counter+" Timer 1 interrupt enabled: "+timer1interruptEnabled);
                 if (timer1counter < 0) {
                     timer1counter = timer1latch;
                     if (!timer1freerun) {
                         timer1running = false;
                     }
                     if (timer1interruptEnabled) {
-    //                    System.out.println("Timer 1 generated interrupt");
+                        if (debug) System.out.println("Timer 1 generated interrupt");
                         timer1IRQ = true;
                         Emulator.withComputer(c->c.getCpu().generateInterrupt());
                     }
@@ -166,19 +169,23 @@ public abstract class R6522 extends TimedDevice {
             }
             if (timer2running) {
                 timer2counter--;
+                if (debug && timer2counter % 1000 == 0)
+                    System.out.println(getShortName() + " Timer 2 counter: "+timer2counter+" Timer 2 interrupt enabled: "+timer2interruptEnabled);
                 if (timer2counter < 0) {
                     timer2running = false;
                     timer2counter = timer2latch;
                     if (timer2interruptEnabled) {
+                        if (debug) System.out.println("Timer 2 generated interrupt");
                         timer2IRQ = true;
                         Emulator.withComputer(c->c.getCpu().generateInterrupt());
                     }
                 }
             }
             if (!timer1running && !timer2running) {
-                setRun(false);
+                if (debug) System.out.println("No timers active, suspending");
+                suspend();
             }
-        }
+        // }
     }
     
     public void setUnclocked(boolean unclocked) {
@@ -198,7 +205,7 @@ public abstract class R6522 extends TimedDevice {
     public void writeRegister(int reg, int val) {
         int value = val & 0x0ff;
         Register r = Register.fromInt(reg);
-//        System.out.println("Writing "+(value&0x0ff)+" to register "+r.toString());
+        if (debug) System.out.println(getShortName() + " Writing "+Integer.toHexString(value&0x0ff)+" to register "+r.toString());
         switch (r) {
             case ORB:
                 if (dataDirectionB == 0) {
@@ -228,7 +235,6 @@ public abstract class R6522 extends TimedDevice {
                 timer1IRQ = false;
                 timer1counter = timer1latch;
                 timer1running = true;
-                setRun(true);
                 break;
             case T1LH:
                 timer1latch = (timer1latch & 0x0ff) | (value << 8);
@@ -242,7 +248,6 @@ public abstract class R6522 extends TimedDevice {
                 timer2IRQ = false;
                 timer2counter = timer2latch;
                 timer2running = true;
-                setRun(true);
                 break;
             case SR:
                 // SHIFT REGISTER NOT IMPLEMENTED
@@ -252,7 +257,6 @@ public abstract class R6522 extends TimedDevice {
                 timer1freerun = (value & 64) != 0;
                 if (timer1freerun) {
                     timer1running = true;
-                    setRun(true);
                 }
                 break;
             case PCR:
@@ -277,6 +281,10 @@ public abstract class R6522 extends TimedDevice {
                 break;
             default:
         }
+        if (timer1running || timer2running) {
+            if (debug) System.out.println("One or more timers active, resuming");
+            resume();
+        }
     }
 
     // Whatever uses 6522 will want to know when it is outputting values
@@ -287,7 +295,7 @@ public abstract class R6522 extends TimedDevice {
     
     public int readRegister(int reg) {
         Register r = Register.fromInt(reg);
-//        System.out.println("Reading register "+r.toString());
+        if (debug) System.out.println(getShortName() + " Reading register "+r.toString());
         switch (r) {
             case ORB -> {
                 if (dataDirectionB == 0x0ff) {

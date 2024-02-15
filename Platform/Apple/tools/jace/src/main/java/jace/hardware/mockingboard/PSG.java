@@ -33,7 +33,7 @@ import java.util.Map;
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com 
  */
 public class PSG {
-
+    boolean debug = false;
     int baseReg;
     /* register ids */
 
@@ -129,22 +129,22 @@ public class PSG {
     public void setControl(int c) {
         BusControl cmd = BusControl.fromInt(c);
         if (cmd == null) {
-//            System.out.println("Bad control param "+c);
+            if (debug) System.out.println("Bad control param "+c);
             return;
         }
         switch (cmd) {
             case inactive:
                 break;
             case latch:
-//                System.out.println("PSG latched register "+selectedReg);
+                if (debug) System.out.println("PSG latched register "+selectedReg);
                 selectedReg = bus & 0x0f;
                 break;
             case read:
                 bus = getReg(Reg.get(selectedReg));
-//                System.out.println("PSG read register "+selectedReg + " == "+bus);
+                if (debug) System.out.println("PSG read register "+selectedReg + " == "+bus);
                 break;
             case write:
-//                System.out.println("PSG wrote register "+selectedReg + " == "+bus);
+                if (debug) System.out.println("PSG wrote register "+selectedReg + " == "+bus);
                 setReg(Reg.get(selectedReg), bus);
                 break;
         }

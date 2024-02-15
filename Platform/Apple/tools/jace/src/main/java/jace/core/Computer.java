@@ -43,12 +43,12 @@ import javafx.beans.value.ChangeListener;
  */
 public abstract class Computer implements Reconfigurable {
 
-    private RAM memory;
-    private CPU cpu;
-    private Video video;
-    private Keyboard keyboard;
-    private StateManager stateManager;
-    private Motherboard motherboard;
+    public RAM memory;
+    public CPU cpu;
+    public Video video;
+    public Keyboard keyboard;
+    public StateManager stateManager;
+    public Motherboard motherboard;
     public final CompletableFuture<Boolean> romLoaded;
     @ConfigurableField(category = "advanced", name = "State management", shortName = "rewind", description = "This enables rewind support, but consumes a lot of memory when active.")
     public boolean enableStateManager;

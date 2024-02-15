@@ -170,7 +170,6 @@ public class Full65C02Test {
             .assertA(0x00)
             .assertFlags(IS_ZERO, OVERFLOW_CLEAR, CARRY_SET, POSITIVE)
             // Now check boundary conditions on indexed addressing for timing differences
-            .setTrace(true)
             .add("LDX #$FF")
             .assertTimed("ADC $10FF,X", 5)
             .add("LDY #$FF")
@@ -682,7 +681,6 @@ public class Full65C02Test {
         new TestProgram()
             // Zero and Negative flags
             .add("LDA #0")
-            .setTrace(true)
             .assertTimed("BEQ *+2",3)
             .assertTimed("BNE *+2",2)
             .assertTimed("BPL *+2",3)
@@ -791,7 +789,6 @@ public class Full65C02Test {
             .test("", "RTS did not return to the correct address")
             .add("""
             start
-                +traceOn
                 jsr test
             ret
             """)

@@ -71,6 +71,8 @@ LD=mips-unknown-elf-ld
 RANLIB=mips-unknown-elf-ranlib
 CFLAGS= -O2 -mmemcpy -ffunction-sections -fdata-sections -falign-functions=512 -fno-rename-registers -fno-schedule-insns -fno-delayed-branch -Wstrict-prototypes -march=mips1 -specs=/Users/brobert/Documents/code/nestedvm/upstream/install/mips-unknown-elf/lib/crt0-override.spec -static -mmemcpy --static -Wl,--gc-sect>
 ```
+Note that I used -O2 not -O3.  It probably doesn't make much of a functional difference but -O3 produced something that was 20% larger.
+
 Also remove the `strip acme` line because nestedvm needs the symbol table.
 
 ## Converting to Java

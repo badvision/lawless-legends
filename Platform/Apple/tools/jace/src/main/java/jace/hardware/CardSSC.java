@@ -25,6 +25,7 @@ import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -59,6 +60,8 @@ public class CardSSC extends Card {
     private boolean TRANS_ACTIVE = true;
 //    private boolean RECV_STRIP_LF = true;
 //    private boolean TRANS_ADD_LF = true;
+    @ConfigurableField(category = "Advanced", name = "Liveness check interval", description = "How often the connection is polled for signs of life when idle (in milliseconds)")
+    public int livenessCheck = 5000000;
     @ConfigurableField(name = "Strip LF (recv)", shortName = "stripLF", defaultValue = "false", description = "Strip incoming linefeeds")
     public boolean RECV_STRIP_LF = false;
     @ConfigurableField(name = "Add LF (send)", shortName = "addLF", defaultValue = "false", description = "Append linefeeds after outgoing carriage returns")
@@ -122,7 +125,7 @@ public class CardSSC extends Card {
         });
     }
 
-    boolean newInputAvailable = false;
+    AtomicBoolean newInputAvailable = new AtomicBoolean();
     public void socketMonitor() {
         try {
             socket = new ServerSocket(IP_PORT);
@@ -141,13 +144,12 @@ public class CardSSC extends Card {
                     clientConnected();
                     clientSocket.setTcpNoDelay(true);
                     while (isConnected()) {
-                        try {
-                            Thread.sleep(10);
-                            if (socketInput.ready()) {
-                                newInputAvailable = true;
+                        Thread.onSpinWait();
+                        if (!newInputAvailable.get() && inputAvailable()) {
+                            lastTransmission = System.currentTimeMillis();
+                            synchronized (newInputAvailable) {
+                                newInputAvailable.set(true);
                             }
-                        } catch (InterruptedException ex) {
-                            // Do nothing
                         }
                     }
                     clientDisconnected();
@@ -183,29 +185,25 @@ public class CardSSC extends Card {
         final int c8RomLength = 0x0700;
         byte[] romxData = new byte[cxRomLength];
         byte[] rom8Data = new byte[c8RomLength];
-        try {
-            if (romFile.read(rom8Data) != c8RomLength) {
-                throw new IOException("Bad SSC rom size");
-            }
-            getC8Rom().loadData(rom8Data);
-            if (romFile.read(romxData) != cxRomLength) {
-                throw new IOException("Bad SSC rom size");
-            }
-            getCxRom().loadData(romxData);
-        } catch (IOException ex) {
-            throw ex;
+        if (romFile.read(rom8Data) != c8RomLength) {
+            throw new IOException("Bad SSC rom size");
         }
+        getC8Rom().loadData(rom8Data);
+        if (romFile.read(romxData) != cxRomLength) {
+            throw new IOException("Bad SSC rom size");
+        }
+        getCxRom().loadData(romxData);
     }
 
     @Override
     public void reset() {
+        suspend();
         Thread resetThread = new Thread(() -> {
             try {
-                Thread.sleep(50);
+                Thread.sleep(100);
             } catch (InterruptedException ex) {
                 Logger.getLogger(CardSSC.class.getName()).log(Level.SEVERE, null, ex);
             }
-            suspend();
             resume();
         });
         resetThread.start();
@@ -227,7 +225,7 @@ public class CardSSC extends Card {
                     if (register == SW2_CTS) {
                         newValue = SW2_SETTING & 0x0FE;
                         // if port is connected and ready to send another byte, set CTS bit on
-                        newValue |= (PORT_CONNECTED && inputAvailable()) ? 0x00 : 0x01;
+                        newValue |= (PORT_CONNECTED && newInputAvailable.get() ? 0x00 : 0x01);
                     }
                     if (register == ACIA_Data) {
                         EmulatorUILogic.addIndicator(this, activityIndicator);
@@ -239,7 +237,7 @@ public class CardSSC extends Card {
                         // 1 = Framing error (1)
                         // 2 = Overrun error (1)
                         // 3 = ACIA Receive Register full (1)
-                        if (newInputAvailable || inputAvailable()) {
+                        if (newInputAvailable.get()) {
                             newValue |= 0x08;
                         }
                         // 4 = ACIA Transmit Register empty (1)
@@ -354,15 +352,14 @@ public class CardSSC extends Card {
 
     @Override
     public void tick() {
-        if (RECV_IRQ_ENABLED && newInputAvailable) {
-            newInputAvailable = false;
+        if (RECV_IRQ_ENABLED && newInputAvailable.get()) {
+            // newInputAvailable = false;
             triggerIRQ();
         }
     }
 
     public boolean inputAvailable() throws IOException {
         if (isConnected() && clientSocket != null && socketInput != null) {
-//            return socketInput.available() > 0;
             return socketInput.ready();
         } else {
             return false;
@@ -370,16 +367,19 @@ public class CardSSC extends Card {
     }
 
     private int getInputByte() throws IOException {
-        if (inputAvailable()) {
-            int in = socketInput.read() & DATA_BITS;
-            if (RECV_STRIP_LF && in == 10 && lastInputByte == 13) {
-                in = socketInput.read() & DATA_BITS;
-            }
-            lastInputByte = in;
+        if (newInputAvailable.get()) {
+            synchronized (newInputAvailable) {
+                int in = socketInput.read() & DATA_BITS;
+                if (RECV_STRIP_LF && in == 10 && lastInputByte == 13) {
+                    in = socketInput.read() & DATA_BITS;
+                }
+                lastInputByte = in;
+                newInputAvailable.set(false);
+           }
         }
         return lastInputByte;
     }
-    long lastSuccessfulWrite = -1L;
+    long lastTransmission = -1L;
 
     private void sendOutputByte(int i) throws IOException {
         if (clientSocket != null && clientSocket.isConnected()) {
@@ -389,13 +389,13 @@ public class CardSSC extends Card {
                     clientSocket.getOutputStream().write(10);
                 }
                 clientSocket.getOutputStream().flush();
-                lastSuccessfulWrite = System.currentTimeMillis();
+                lastTransmission = System.currentTimeMillis();
             } catch (IOException e) {
-                lastSuccessfulWrite = -1L;
+                lastTransmission = -1L;
                 hangUp();
             }
         } else {
-            lastSuccessfulWrite = -1L;
+            lastTransmission = -1L;
         }
     }
 
@@ -417,7 +417,7 @@ public class CardSSC extends Card {
 
     public void hangUp() {
         lastInputByte = 0;
-        lastSuccessfulWrite = -1L;
+        lastTransmission = -1L;
         if (clientSocket != null && clientSocket.isConnected()) {
             try {
                 clientSocket.shutdownInput();
@@ -438,55 +438,48 @@ public class CardSSC extends Card {
      */
     @Override
     public boolean suspend() {
-        synchronized (this) {
-            if (socket != null) {
-                try {
-                    socket.close();
-                } catch (IOException ex) {
-                    Logger.getLogger(CardSSC.class.getName()).log(Level.SEVERE, null, ex);
-                }
+        if (socket != null) {
+            try {
+                socket.close();
+            } catch (IOException ex) {
+                Logger.getLogger(CardSSC.class.getName()).log(Level.SEVERE, null, ex);
             }
-            hangUp();
-            if (listenThread != null && listenThread.isAlive()) {
-                try {
-                    listenThread.interrupt();
-                    listenThread.join(100);
-                } catch (InterruptedException ex) {
-                    Logger.getLogger(CardSSC.class.getName()).log(Level.SEVERE, null, ex);
-                }
-            }
-            listenThread = null;
-            socket = null;
-            return super.suspend();
         }
+        hangUp();
+        if (listenThread != null && listenThread.isAlive()) {
+            try {
+                listenThread.interrupt();
+                listenThread.join(100);
+            } catch (InterruptedException ex) {
+                Logger.getLogger(CardSSC.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+        listenThread = null;
+        socket = null;
+        return super.suspend();
     }
 
     @Override
     public void resume() {
-        synchronized (this) {
+        if (!isRunning()) {
+            RECV_IRQ_ENABLED = false;
+            TRANS_IRQ_ENABLED = false;
+            IRQ_TRIGGERED = false;
 
-            if (!isRunning()) {
-                super.resume();
-                RECV_IRQ_ENABLED = false;
-                TRANS_IRQ_ENABLED = false;
-                IRQ_TRIGGERED = false;
-
-                    //socket.setReuseAddress(true);
-                    listenThread = new Thread(this::socketMonitor);
-                    listenThread.setDaemon(false);
-                    listenThread.setName("SSC port listener, slot" + getSlot());
-                    listenThread.start();
-            }
+            //socket.setReuseAddress(true);
+            listenThread = new Thread(this::socketMonitor);
+            listenThread.setDaemon(false);
+            listenThread.setName("SSC port listener, slot" + getSlot());
+            listenThread.start();
         }
+        super.resume();
     }
-    @ConfigurableField(category = "Advanced", name = "Liveness check interval", description = "How often the connection is polled for signs of life (in milliseconds)")
-    public int livenessCheck = 10000;
 
     public boolean isConnected() {
         if (clientSocket == null || !clientSocket.isConnected()) {
             return false;
         }
-        if (lastSuccessfulWrite == -1 || System.currentTimeMillis() > (lastSuccessfulWrite + livenessCheck)) {
+        if (lastTransmission == -1 || System.currentTimeMillis() > (lastTransmission + livenessCheck)) {
             try {
                 sendOutputByte(0);
                 return true;

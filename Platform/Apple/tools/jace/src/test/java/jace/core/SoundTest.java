@@ -66,7 +66,7 @@ public class SoundTest extends AbstractFXTest {
         }
     }
 
-    // @Test
+     @Test
     // Commented out because it's annoying to hear all the time, but it worked without issues
     public void mixerTortureTest() throws SoundError, InterruptedException, ExecutionException {
         System.out.println("Performing speaker tick test...");

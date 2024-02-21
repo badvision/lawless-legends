@@ -2,6 +2,7 @@ package jace.lawless;
 
 import jace.LawlessLegends;
 import jace.apple2e.SoftSwitches;
+import jace.apple2e.softswitch.VideoSoftSwitch;
 import jace.core.Device;
 import jace.core.Motherboard;
 import javafx.application.Platform;
@@ -37,10 +38,13 @@ public class FPSMonitorDevice extends Device {
         return "FPS Monitor";
     }
 
+    int cpuPerClock = 1;
+    VideoSoftSwitch vss;
+    
     @Override
     public void tick() {
-        tickCounter += Math.min(Motherboard.cpuPerClock, 1);
-        boolean vblState = SoftSwitches.VBL.getSwitch().getState();
+        tickCounter += cpuPerClock;
+        boolean vblState = vss.getState();
         if (!vblState && lastVBLState) {
             frameCounter++;
         }
@@ -61,6 +65,7 @@ public class FPSMonitorDevice extends Device {
     }
     
     void updateIcon() {
+        cpuPerClock = Math.max(Motherboard.cpuPerClock, 1);
         long now = System.currentTimeMillis();
         long ellapsed = now - lastUpdate;
         if (ellapsed < UPDATE_INTERVAL) {
@@ -95,9 +100,14 @@ public class FPSMonitorDevice extends Device {
     }
 
     @Override
-    public void reconfigure() {        
-        tickCounter = 0;        
+    public void attach() {
+        tickCounter = 0;
         frameCounter = 0;
+        vss = (VideoSoftSwitch) SoftSwitches.VBL.getSwitch();        
+    }
+    
+    @Override
+    public void reconfigure() {        
     }
 
     @Override

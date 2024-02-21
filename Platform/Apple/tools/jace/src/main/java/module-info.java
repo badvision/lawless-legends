@@ -44,6 +44,7 @@ module lawlesslegends {
     
     opens jace to javafx.graphics, javafx.fxml, javafx.controls;
     opens jace.config to javafx.fxml, javafx.controls;
+    opens jace.ui to javafx.graphics, javafx.fxml, javafx.controls;
     // opens jace.data to javafx.graphics, javafx.fxml, javafx.controls;
     opens jace.ide to javafx.graphics, javafx.fxml, javafx.controls;
     // opens fxml to javafx.graphics, javafx.fxml, javafx.controls;

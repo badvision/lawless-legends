@@ -1,24 +1,23 @@
-/*
- * Copyright (C) 2012 Brendan Robert (BLuRry) brendan.robert@gmail.com.
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA 02110-1301  USA
- */
+/** 
+* Copyright 2024 Brendan Robert
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*    http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+**/
+
 package jace.hardware;
 
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -60,18 +59,13 @@ public class CardMockingboard extends Card {
             defaultValue = "1020484",
             description = "Clock rate of AY oscillators")
     public int CLOCK_SPEED = 1020484;
-    @ConfigurableField(name = "Buffer size",
-            category = "Sound",
-            description = "Number of samples to generate on each pass")
-    public int BUFFER_LENGTH = 2;
     // The array of configured AY chips
     public PSG[] chips;
     // The 6522 controllr chips (always 2)
     public R6522[] controllers;
     @ConfigurableField(name = "Idle sample threshold", description = "Number of samples to wait before suspending sound")
-    int[] left, right;
     SoundBuffer buffer;
-    int ticksBetweenPlayback = 24;
+    double ticksBetweenPlayback = 24.0;
     int MAX_IDLE_TICKS = 1000000;
     boolean activatedAfterReset = false;
     boolean debug = false;
@@ -82,10 +76,8 @@ public class CardMockingboard extends Card {
     }
 
     public CardMockingboard() {
-        super();
+        super(true);
         activatedAfterReset = false;
-        left = new int[BUFFER_LENGTH];
-        right = new int[BUFFER_LENGTH];
         controllers = new R6522[2];
         for (int i = 0; i < 2; i++) {
             // has to be final to be used inside of anonymous class below
@@ -181,7 +173,7 @@ public class CardMockingboard extends Card {
 //        System.out.println("MB I/O Access "+type.name()+" "+register+":"+value);
         Emulator.withVideo(v->e.setNewValue(v.getFloatingBus()));
     }
-    long ticksSinceLastPlayback = 0;
+    double ticksSinceLastPlayback = 0;
     long idleTicks = 0;
     @Override
     public void tick() {
@@ -189,7 +181,7 @@ public class CardMockingboard extends Card {
             ticksSinceLastPlayback++;
             if (ticksSinceLastPlayback >= ticksBetweenPlayback) {
                 ticksSinceLastPlayback -= ticksBetweenPlayback;
-                if (playSound(left, right)) {
+                if (playSound()) {
                     idleTicks = 0;
                 } else {
                     idleTicks += ticksBetweenPlayback;
@@ -208,40 +200,41 @@ public class CardMockingboard extends Card {
 
     @Override
     public void reconfigure() {
+        boolean isActive = isRunning();
         initPSG();
         for (PSG chip : chips) {
             chip.setRate(phasorMode ? CLOCK_SPEED * 2 : CLOCK_SPEED, SoundMixer.RATE);
             chip.reset();
         }
-        long motherboardSpeed = Emulator.withComputer(c->c.getMotherboard().getSpeedInHz(), 1L);
-        ticksBetweenPlayback = (int) ((motherboardSpeed * BUFFER_LENGTH) / SoundMixer.RATE);
+        ticksBetweenPlayback = (double) CLOCK_SPEED / (double) SoundMixer.RATE;
         buildMixerTable();
 
+        super.reconfigure();
+        if (isActive) {
+            resume();
+        }
         super.reconfigure();
     }
 
 ///////////////////////////////////////////////////////////
     public static int[] VolTable;
 
-    public boolean playSound(int[] left, int[] right) throws InterruptedException, ExecutionException, SoundError {
-        if (buffer == null) {
+    AtomicInteger left  = new AtomicInteger(0);
+    AtomicInteger right = new AtomicInteger(0);
+    public boolean playSound() throws InterruptedException, ExecutionException, SoundError {
+        chips[0].update(left, true, left, false, left, false);
+        chips[1].update(right, true, right, false, right, false);
+        if (phasorMode) {
+            chips[2].update(left, false, left, false, left, false);
+            chips[3].update(right, false, right, false, right, false);
+        }
+        SoundBuffer b = buffer;
+        if (b == null) {
             return false;
         }
-        chips[0].update(left, true, left, false, left, false, BUFFER_LENGTH);
-        chips[1].update(right, true, right, false, right, false, BUFFER_LENGTH);
-        if (phasorMode) {
-            chips[2].update(left, false, left, false, left, false, BUFFER_LENGTH);
-            chips[3].update(right, false, right, false, right, false, BUFFER_LENGTH);
-        }
-        boolean nonZeroSamples = false;
-        for (int i=0; i < BUFFER_LENGTH; i++) {
-            buffer.playSample((short) left[i]);
-            buffer.playSample((short) right[i]);
-            if (left[i] != 0 || right[i] != 0) {
-                nonZeroSamples = true;
-            }
-        }
-        return nonZeroSamples;
+        b.playSample((short) left.get());
+        b.playSample((short) right.get());
+        return (left.get() != 0 || right.get() != 0);
     }
 
     public void buildMixerTable() {
@@ -328,10 +321,4 @@ public class CardMockingboard extends Card {
     protected void handleC8FirmwareAccess(int register, TYPE type, int value, RAMEvent e) {
         // There is no c8 rom access to emulate
     }
-
-    // This fixes freezes when resizing the window, etc.
-    // @Override
-    // public boolean suspendWithCPU() {
-    //     return true;
-    // }
 }

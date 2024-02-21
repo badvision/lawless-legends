@@ -7,11 +7,8 @@
 <?import javafx.scene.text.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-
-<VBox maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="520.0" prefWidth="710.0" stylesheets="@../styles/style.css" xmlns="http://javafx.com/javafx/8.0.40" xmlns:fx="http://javafx.com/fxml/1" fx:controller="jace.ui.MetacheatUI">
-    <stylesheets>
-        <URL value="@/styles/style.css" />
-    </stylesheets>
+<!--stylesheets="@../styles/style.css" -->
+<VBox maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="520.0" prefWidth="710.0" xmlns="http://javafx.com/javafx/8.0.40" xmlns:fx="http://javafx.com/fxml/1" fx:controller="jace.ui.MetacheatUI">
    <children>
       <ToolBar prefHeight="40.0" prefWidth="200.0" VBox.vgrow="NEVER">
          <items>

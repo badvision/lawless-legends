@@ -1,21 +1,19 @@
-/*
- * Copyright (C) 2012 Brendan Robert (BLuRry) brendan.robert@gmail.com.
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA 02110-1301  USA
- */
+/** 
+* Copyright 2024 Brendan Robert
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*    http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+**/
+
 package jace.apple2e;
 
 import java.io.File;
@@ -23,7 +21,6 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.Timer;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -32,13 +29,13 @@ import jace.Emulator;
 import jace.LawlessLegends;
 import jace.config.ConfigurableField;
 import jace.config.InvokableAction;
-import jace.core.Motherboard;
+import jace.core.Device;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
-import jace.core.SoundGeneratorDevice;
 import jace.core.SoundMixer;
 import jace.core.SoundMixer.SoundBuffer;
 import jace.core.SoundMixer.SoundError;
+import jace.core.TimedDevice;
 import jace.core.Utility;
 import javafx.stage.FileChooser;
 
@@ -47,7 +44,7 @@ import javafx.stage.FileChooser;
  *
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com
  */
-public class Speaker extends SoundGeneratorDevice {
+public class Speaker extends Device {
 
     static boolean fileOutputActive = false;
     static OutputStream out;
@@ -94,10 +91,6 @@ public class Speaker extends SoundGeneratorDevice {
      */
     private int idleCycles = 0;
     /**
-     * Number of samples in buffer
-     */
-    static int BUFFER_SIZE = (int) (SoundMixer.RATE * 0.4);
-    /**
      * Playback volume (should be < 1423)
      */
     @ConfigurableField(name = "Speaker Volume", shortName = "vol", description = "Should be under 1400")
@@ -111,12 +104,7 @@ public class Speaker extends SoundGeneratorDevice {
      * Manifestation of the apple speaker softswitch
      */
     private boolean speakerBit = false;
-    /**
-     * Double-buffer used for playing processed sound -- as one is played the
-     * other fills up.
-     */
-    private Timer playbackTimer;
-    private double TICKS_PER_SAMPLE = ((double) Motherboard.DEFAULT_SPEED) / SoundMixer.RATE;
+    private double TICKS_PER_SAMPLE = ((double) TimedDevice.NTSC_1MHZ) / SoundMixer.RATE;
     private double TICKS_PER_SAMPLE_FLOOR = Math.floor(TICKS_PER_SAMPLE);
     private RAMListener listener = null;
     private SoundBuffer buffer = null;
@@ -129,25 +117,20 @@ public class Speaker extends SoundGeneratorDevice {
     @Override
     public boolean suspend() {
         boolean result = super.suspend();
-        if (playbackTimer != null) {
-            playbackTimer.cancel();
-            playbackTimer = null;
-        }
         speakerBit = false;
         if (buffer != null) {
             try {
                 buffer.shutdown();
             } catch (InterruptedException | ExecutionException | SoundError e) {
                 // Ignore
+            } finally {
+                buffer = null;
             }
         }
-        buffer = null;
 
         return result;
     }
 
-    // Buffer creation mutex
-    private static final Object BUFFER_MUTEX = new Object();
     /**
      * Start or resume playback of sound
      */
@@ -156,15 +139,13 @@ public class Speaker extends SoundGeneratorDevice {
         if (Utility.isHeadlessMode()) {
             return;
         }
-        synchronized (BUFFER_MUTEX) {
-            if (buffer == null || !buffer.isAlive()) {
-                try {
-                    buffer = SoundMixer.createBuffer(false);
-                } catch (InterruptedException | ExecutionException | SoundError e) {
-                    e.printStackTrace();
-                    detach();
-                    return;
-                }
+        if (buffer == null || !buffer.isAlive()) {
+            try {
+                buffer = SoundMixer.createBuffer(false);
+            } catch (InterruptedException | ExecutionException | SoundError e) {
+                e.printStackTrace();
+                detach();
+                return;
             }
         }
         if (buffer != null) {
@@ -178,7 +159,7 @@ public class Speaker extends SoundGeneratorDevice {
         }
 
         if (force1mhz) {
-            TICKS_PER_SAMPLE = ((double) Motherboard.DEFAULT_SPEED) / SoundMixer.RATE;
+            TICKS_PER_SAMPLE = ((double) TimedDevice.NTSC_1MHZ) / SoundMixer.RATE;
         } else {
             TICKS_PER_SAMPLE = Emulator.withComputer(c-> ((double) c.getMotherboard().getSpeedInHz()) / SoundMixer.RATE, 0.0);
         }
@@ -233,8 +214,7 @@ public class Speaker extends SoundGeneratorDevice {
     private void playSample(int sample) {
         try {
             if (buffer == null || !buffer.isAlive()) {
-                Logger.getLogger(getClass().getName()).severe("Audio buffer not initalized properly!");
-                Thread.dumpStack();
+                // Logger.getLogger(getClass().getName()).severe("Audio buffer not initalized properly!");
                 buffer = SoundMixer.createBuffer(false);
                 if (buffer == null) {
                     System.err.println("Unable to create emergency audio buffer, detaching speaker");
@@ -295,7 +275,6 @@ public class Speaker extends SoundGeneratorDevice {
 
     @Override
     public final void reconfigure() {
-        super.reconfigure();        
     }
 
     @Override

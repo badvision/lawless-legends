@@ -426,7 +426,7 @@ public class JaceUIController {
         if (!iconTTL.containsKey(icon)) {
             Platform.runLater(() -> {
                 if (!notificationBox.getChildren().contains(icon)) {
-                    notificationBox.getChildren().add(icon);
+                    notificationBox.getChildren().add(0, icon);;
                 }
             });
         }

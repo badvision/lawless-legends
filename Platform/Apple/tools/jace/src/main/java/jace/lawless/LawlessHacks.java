@@ -25,7 +25,7 @@ import javafx.util.Duration;
  * Hacks that affect lawless legends gameplay
  */
 public class LawlessHacks extends Cheats {
-
+    boolean DEBUG = false;
     // Modes specified by the game engine
     int MODE_SOFTSWITCH_MIN = 0x0C049;
     int MODE_SOFTSWITCH_MAX = 0x0C04F;
@@ -87,14 +87,17 @@ public class LawlessHacks extends Cheats {
     private static boolean repeatSong = false;
     private static Thread playbackEffect;
     private static MediaPlayer currentSongPlayer;
+    private static MediaPlayer previousSongPlayer;
     private static MediaPlayer currentSfxPlayer;
     private static String currentScore = SCORE_COMMON;
 
-    private void playSound(int soundNumber) {
+    public  void playSound(int soundNumber) {
         boolean isMusic = soundNumber >= 0;
         int track = soundNumber & 0x03f;
         repeatSong = (soundNumber & 0x040) > 0;
-//        System.out.println("(invoked sound on "+getName()+")");
+        if (DEBUG) {
+            System.out.println("Play sound " + soundNumber + " (track " + track + "; repeat " + repeatSong + ") invoked on " + getName());
+        }
         if (track == 0) {
             if (isMusic) {
                 System.out.println("Stop music");
@@ -185,9 +188,9 @@ public class LawlessHacks extends Cheats {
         MediaPlayer player = currentSongPlayer;
         if (player != null) {
             getCurrentTime().ifPresent(val -> lastTime.put(currentSong, val + 1500));
-            playbackEffect = new Thread(() -> {
+            Thread effect = new Thread(() -> {
                 while (playbackEffect == Thread.currentThread() && player.getVolume() > 0.0) {
-                    player.setVolume(player.getVolume() - FADE_AMT);
+                    player.setVolume(Math.max(player.getVolume() - FADE_AMT, 0.0));
                     try {
                         Thread.sleep(FADE_SPEED);
                     } catch (InterruptedException e) {
@@ -203,7 +206,8 @@ public class LawlessHacks extends Cheats {
                     nextAction.run();
                 }
             });
-            playbackEffect.start();
+            playbackEffect = effect;
+            effect.start();
         } else if (nextAction != null) {
             new Thread(nextAction).start();
         }
@@ -211,14 +215,18 @@ public class LawlessHacks extends Cheats {
 
     private void fadeInSong(MediaPlayer player) {
         stopSongEffect();
+        if (previousSongPlayer != null) {
+            previousSongPlayer.stop();
+        }
+        previousSongPlayer = currentSongPlayer;
         currentSongPlayer = player;
         if (player.getVolume() >= 1.0) {
             return;
         }
 
-        playbackEffect = new Thread(() -> {
+        Thread effect = new Thread(() -> {
             while (playbackEffect == Thread.currentThread() && player.getVolume() < 1.0) {
-                player.setVolume(player.getVolume() + FADE_AMT);
+                player.setVolume(Math.min(player.getVolume() + FADE_AMT, 1.0));
                 try {
                     Thread.sleep(FADE_SPEED);
                 } catch (InterruptedException e) {
@@ -227,7 +235,8 @@ public class LawlessHacks extends Cheats {
                 }
             }
         });
-        playbackEffect.start();
+        playbackEffect = effect;
+        effect.start();
     }
 
     double FADE_AMT = 0.05; // 5% per interval, or 20 stops between 0% and 100%
@@ -240,10 +249,12 @@ public class LawlessHacks extends Cheats {
             return;
         }
         MediaPlayer player;
+        // If the same song is already playing don't restart it
         if (track != currentSong || !isPlayingMusic() || switchScores) {
-            System.out.println("Play music "+track);
-            
-            // If the same song is already playing don't restart it
+            if (DEBUG) {
+                System.out.println("Start new song " + track + " (switch " + switchScores + ")");
+            }
+
             Media song = getAudioTrack(track);
             if (song == null) {
                 System.out.println("Unable to start song " + track + "; File " + getSongName(track) + " not found");
@@ -334,11 +345,13 @@ public class LawlessHacks extends Cheats {
                 line = line.replace("*", "");
             }
             if (COMMENT.matcher(line).matches() || line.trim().isEmpty()) {
-//                System.out.println("Ignoring: "+line);
+                if (DEBUG)
+                   System.out.println("Ignoring: "+line);
             } else if (LABEL.matcher(line).matches()) {
                 currentScore = line.toLowerCase(Locale.ROOT);
                 scores.put(currentScore, new HashMap<>());
-//                System.out.println("Score: "+ currentScore);
+                if (DEBUG)
+                   System.out.println("Score: "+ currentScore);
             } else {
                 Matcher m = ENTRY.matcher(line);
                 if (m.matches()) {
@@ -348,9 +361,11 @@ public class LawlessHacks extends Cheats {
                     if (useAutoResume) {
                         autoResume.add(num);
                     }
-//                    System.out.println("Score: " + currentScore + "; Song: " + num + "; " + file);
+                    if (DEBUG)
+                       System.out.println("Score: " + currentScore + "; Song: " + num + "; " + file);
                 } else {
-//                    System.out.println("Couldn't parse: " + line);
+                    if (DEBUG)
+                       System.out.println("Couldn't parse: " + line);
                 }
             }
         });

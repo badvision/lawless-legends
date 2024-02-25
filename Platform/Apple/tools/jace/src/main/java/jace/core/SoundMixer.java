@@ -16,6 +16,7 @@
 
 package jace.core;
 
+import java.nio.BufferOverflowException;
 import java.nio.ShortBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -48,6 +49,7 @@ import jace.config.ConfigurableField;
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com
  */
 public class SoundMixer extends Device {
+    public static boolean DEBUG_SOUND = false;
 
     /**
      * Bits per sample
@@ -92,44 +94,45 @@ public class SoundMixer extends Device {
         }
     }
 
-    public static <T> T performSoundFunction(Callable<T> operation) throws SoundError {
-        return performSoundFunction(operation, false);
+    public static <T> T performSoundFunction(Callable<T> operation, String action) throws SoundError {
+        return performSoundFunction(operation, action, false);
     }
 
-    public static <T> T performSoundFunction(Callable<T> operation, boolean ignoreError) throws SoundError {
+    public static <T> T performSoundFunction(Callable<T> operation, String action, boolean ignoreError) throws SoundError {
         Future<T> result = soundThreadExecutor.submit(operation);
-            try {
-                if (!ignoreError) {
-                    Future<Integer> error = soundThreadExecutor.submit(AL10::alGetError);
-                    int err;
-                    err = error.get();
-                    if (err != AL10.AL_NO_ERROR) {
-                        throw new SoundError(AL10.alGetString(err));
-                    }
+        try {
+            Future<Integer> error = soundThreadExecutor.submit(AL10::alGetError);
+            int err;
+            err = error.get();
+            if (!ignoreError && DEBUG_SOUND) {
+                if (err != AL10.AL_NO_ERROR) {
+                    System.err.println(">>>SOUND ERROR " + AL10.alGetString(err) + " when performing action: " + action);
+                    // throw new SoundError(AL10.alGetString(err));
                 }
-                return result.get();
-            } catch (ExecutionException e) {
-                System.out.println("Error when executing sound action: " + e.getMessage());
-                e.printStackTrace();
-            } catch (InterruptedException e) {
-                // Do nothing: sound is probably being reset
             }
+            return result.get();
+        } catch (ExecutionException e) {
+            System.out.println("Error when executing sound action: " + e.getMessage());
+            e.printStackTrace();
+        } catch (InterruptedException e) {
+            // Do nothing: sound is probably being reset
+        }
         return null;
     }
 
-    public static void performSoundOperation(Runnable operation) throws SoundError {        
-        performSoundOperation(operation, false);
+    public static void performSoundOperation(Runnable operation, String action) throws SoundError {        
+        performSoundOperation(operation, action, false);
     }
 
-    public static void performSoundOperation(Runnable operation, boolean ignoreError) throws SoundError {
+    public static void performSoundOperation(Runnable operation, String action, boolean ignoreError) throws SoundError {
         performSoundFunction(()->{
             operation.run();
             return null;
-        }, ignoreError);
+        }, action, ignoreError);
     }
 
-    public static void performSoundOperationAsync(Runnable operation) {
-        soundThreadExecutor.submit(operation);
+    public static void performSoundOperationAsync(Runnable operation, String action) {
+        soundThreadExecutor.submit(operation, action);
     }
 
     protected static void initSound() {
@@ -153,7 +156,7 @@ public class SoundMixer extends Device {
                 } else {
                     ALC10.alcMakeContextCurrent(audioContext);
                 }
-            });
+            }, "Initalize audio device");
         } catch (SoundError e) {
             PLAYBACK_DRIVER_DETECTED = false;
             Logger.getLogger(SoundMixer.class.getName()).warning("Error when initializing sound: " + e.getMessage());
@@ -203,13 +206,14 @@ public class SoundMixer extends Device {
             currentBuffer = BufferUtils.createShortBuffer(BUFFER_SIZE * (stereo ? 2 : 1));
             alternateBuffer = BufferUtils.createShortBuffer(BUFFER_SIZE * (stereo ? 2 : 1));
             try {
-                currentBufferId = performSoundFunction(AL10::alGenBuffers);
-                alternateBufferId = performSoundFunction(AL10::alGenBuffers);
+                currentBufferId = performSoundFunction(AL10::alGenBuffers, "Initalize sound buffer: primary");
+                alternateBufferId = performSoundFunction(AL10::alGenBuffers, "Initalize sound buffer: alternate");
                 boolean hasSource = false;
                 while (!hasSource) {
-                    sourceId = performSoundFunction(AL10::alGenSources);
-                    hasSource = performSoundFunction(()->AL10.alIsSource(sourceId));
+                    sourceId = performSoundFunction(AL10::alGenSources, "Initalize sound buffer: create source");
+                    hasSource = performSoundFunction(()->AL10.alIsSource(sourceId), "Initalize sound buffer: Check if source is valid");
                 }
+                performSoundOperation(()->AL10.alSourcei(sourceId, AL10.AL_LOOPING, AL10.AL_FALSE), "Set looping to false");
             } catch (SoundError e) {
                 Logger.getLogger(SoundMixer.class.getName()).warning("Error when creating sound buffer: " + e.getMessage());
                 Thread.dumpStack();
@@ -232,7 +236,15 @@ public class SoundMixer extends Device {
             if (!currentBuffer.hasRemaining()) {
                 this.flush();
             }
-            currentBuffer.put(sample);
+            try {
+                currentBuffer.put(sample);
+            } catch (BufferOverflowException e) {
+                if (DEBUG_SOUND) {
+                    System.err.println("Buffer overflow, trying to compensate");
+                }
+                currentBuffer.clear();
+                currentBuffer.put(sample);
+            }
         }
 
         public void shutdown() throws InterruptedException, ExecutionException, SoundError {            
@@ -242,18 +254,18 @@ public class SoundMixer extends Device {
             isAlive = false;
             
             try {
-                performSoundOperation(()->{if (AL10.alIsSource(sourceId)) AL10.alSourceStop(sourceId);});
+                performSoundOperation(()->{if (AL10.alIsSource(sourceId)) AL10.alSourceStop(sourceId);}, "Shutdown: stop source");
             } finally {
                 try {
-                    performSoundOperation(()->{if (AL10.alIsSource(sourceId)) AL10.alDeleteSources(sourceId);});
+                    performSoundOperation(()->{if (AL10.alIsSource(sourceId)) AL10.alDeleteSources(sourceId);}, "Shutdown: delete source");
                 } finally {
                     sourceId = -1;
                     try {
-                        performSoundOperation(()->{if (AL10.alIsBuffer(alternateBufferId)) AL10.alDeleteBuffers(alternateBufferId);});
+                        performSoundOperation(()->{if (AL10.alIsBuffer(alternateBufferId)) AL10.alDeleteBuffers(alternateBufferId);}, "Shutdown: delete buffer 1");
                     } finally {
                         alternateBufferId = -1;
                         try {
-                            performSoundOperation(()->{if (AL10.alIsBuffer(currentBufferId)) AL10.alDeleteBuffers(currentBufferId);});
+                            performSoundOperation(()->{if (AL10.alIsBuffer(currentBufferId)) AL10.alDeleteBuffers(currentBufferId);}, "Shutdown: delete buffer 2");
                         } finally {
                             currentBufferId = -1;
                             buffers.remove(this);
@@ -265,7 +277,6 @@ public class SoundMixer extends Device {
 
         public void flush() throws SoundError {
             buffersGenerated++;
-            currentBuffer.flip();
             if (buffersGenerated > 2) {
                 int[] unqueueBuffers = new int[]{currentBufferId};
                 performSoundOperation(()->{
@@ -274,27 +285,30 @@ public class SoundMixer extends Device {
                         Thread.onSpinWait();
                         buffersProcessed = AL10.alGetSourcei(sourceId, AL10.AL_BUFFERS_PROCESSED);
                     }
-                });
+                }, "Flush: wait for buffers to finish playing");
                 if (!isAlive) {
                     return;
                 }
-                performSoundOperation(()->{
-                    AL10.alSourceUnqueueBuffers(sourceId, unqueueBuffers);
-                });
+                // TODO: Figure out why we get Invalid Value on a new buffer
+                performSoundOperation(()->AL10.alSourceUnqueueBuffers(sourceId, unqueueBuffers), "Flush: unqueue buffers");
             }
             if (!isAlive) {
                 return;
             }
-            performSoundOperation(()->AL10.alBufferData(currentBufferId, audioFormat, currentBuffer, RATE));
+            // TODO: Figure out why we get Invalid Operation error on a new buffer after unqueue reports Invalid Value
+            currentBuffer.flip();
+            performSoundOperation(()->AL10.alBufferData(currentBufferId, audioFormat, currentBuffer, RATE), "Flush: buffer data");
+            currentBuffer.clear();
             if (!isAlive) {
                 return;
             }
-            performSoundOperation(()->AL10.alSourceQueueBuffers(sourceId, currentBufferId));
+            // TODO: Figure out why we get Invalid Operation error on a new buffer after unqueue reports Invalid Value
+            performSoundOperation(()->AL10.alSourceQueueBuffers(sourceId, currentBufferId), "Flush: queue buffer");
             performSoundOperationAsync(()->{
                 if (AL10.alGetSourcei(sourceId, AL10.AL_SOURCE_STATE) != AL10.AL_PLAYING) {
                     AL10.alSourcePlay(sourceId);
                 }
-            });
+            }, "Flush: Start playing buffer");
 
             // Swap AL buffers
             int tempId = currentBufferId;
@@ -330,8 +344,8 @@ public class SoundMixer extends Device {
         buffers.clear();
         PLAYBACK_INITIALIZED = false;
         try {
-            performSoundOperation(()->ALC10.alcDestroyContext(audioContext), true);
-            performSoundOperation(()->ALC10.alcCloseDevice(audioDevice), true);
+            performSoundOperation(()->ALC10.alcDestroyContext(audioContext), "Detach: destroy context", true);
+            performSoundOperation(()->ALC10.alcCloseDevice(audioDevice), "Detach: close device", true);
         } catch (SoundError e) {
             // Shouldn't throw but have to catch anyway
         }

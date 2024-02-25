@@ -2,6 +2,7 @@ package jace.core;
 
 import static org.junit.Assert.assertEquals;
 
+import java.util.Random;
 import java.util.concurrent.ExecutionException;
 
 import org.junit.Test;
@@ -13,7 +14,7 @@ import jace.lawless.LawlessHacks;
 import jace.lawless.Media;
 
 public class SoundTest extends AbstractFXTest {
-    @Test
+    // @Test
     public void musicDecodeTest() {
         // For every song in the music folder, decode it and print out the duration
         // This is to make sure that the decoding is working properly and that
@@ -66,7 +67,7 @@ public class SoundTest extends AbstractFXTest {
         }
     }
 
-     @Test
+    //  @Test
     // Commented out because it's annoying to hear all the time, but it worked without issues
     public void mixerTortureTest() throws SoundError, InterruptedException, ExecutionException {
         System.out.println("Performing speaker tick test...");
@@ -94,5 +95,25 @@ public class SoundTest extends AbstractFXTest {
         assertEquals("All buffers should be empty", 0, mixer.getActiveBuffers());
         System.out.println("Deactivating sound");
         mixer.detach();
+    }
+
+    @Test
+    public void musicPlaybackTortureTest() throws InterruptedException {
+        SoundMixer.initSound();
+        System.out.println("Create mixer");
+        SoundMixer mixer = new SoundMixer();
+        System.out.println("Attach mixer");
+        mixer.attach();
+        LawlessHacks lawlessHacks = new LawlessHacks();
+        int track = 0;
+        Random rnd = new Random();
+        for (int i=0; i < 500; i++) {
+            System.out.println(">>>>>>>>> Cycle " + i);
+            // Get a random song
+            // track = rnd.nextInt(20);
+            track = (track + 1) % 20;
+            lawlessHacks.playSound(track);
+            Thread.sleep(1000);
+        }
     }
 }

@@ -15,7 +15,7 @@ public class MediaPlayer {
     int repeats = 0;
     int maxRepetitions = 1;
     Status status = Status.NOT_STARTED;
-    Media song;
+    Media soundData;
     SoundBuffer playbackBuffer;
     Executor executor = Executors.newSingleThreadExecutor();
 
@@ -26,7 +26,7 @@ public class MediaPlayer {
     public static final int INDEFINITE = -1;
 
     public MediaPlayer(Media song) {
-        this.song = song;
+        this.soundData = song;
     }
 
     public Status getStatus() {
@@ -34,7 +34,7 @@ public class MediaPlayer {
     }
 
     public Duration getCurrentTime() {
-        return song.getCurrentTime();
+        return soundData.getCurrentTime();
     }
 
     public double getVolume() {
@@ -48,11 +48,15 @@ public class MediaPlayer {
             if (playbackBuffer != null) {
                 playbackBuffer.flush();
                 playbackBuffer.shutdown();
+                playbackBuffer = null;
             }
         } catch (InterruptedException | ExecutionException | SoundError e) {
             // Ignore exception on shutdown
         } finally {
-            song.close();
+            if (soundData != null) {
+                soundData.close();
+            }
+            soundData = null;
         }
     }
 
@@ -65,7 +69,7 @@ public class MediaPlayer {
     }
 
     public void setStartTime(javafx.util.Duration millis) {
-        song.seekToTime(millis);
+        soundData.seekToTime(millis);
     }
 
     public void pause() {
@@ -92,15 +96,16 @@ public class MediaPlayer {
         }
         executor.execute(() -> {
             status = Status.PLAYING;
-            System.out.println("Song playback thread started");
-            while (status == Status.PLAYING && (maxRepetitions == INDEFINITE || repeats < maxRepetitions)) {
-                if (song.isEnded()) {
+            // System.out.println("Song playback thread started");
+            Media theSoundData = soundData;
+            while (status == Status.PLAYING && (maxRepetitions == INDEFINITE || repeats < maxRepetitions) && theSoundData != null) {
+                if (theSoundData.isEnded()) {
                     if (maxRepetitions == INDEFINITE) {
-                        song.restart();
+                        theSoundData.restart();
                     } else {
                         repeats++;
                         if (repeats < maxRepetitions) {
-                            song.restart();
+                            theSoundData.restart();
                         } else {
                             System.out.println("Song ended");
                             this.stop();
@@ -109,12 +114,13 @@ public class MediaPlayer {
                     }
                 }
                 try {
-                    playbackBuffer.playSample((short) (song.getNextLeftSample() * vol));
-                    playbackBuffer.playSample((short) (song.getNextRightSample() * vol));
+                    playbackBuffer.playSample((short) (theSoundData.getNextLeftSample() * vol));
+                    playbackBuffer.playSample((short) (theSoundData.getNextRightSample() * vol));
                 } catch (InterruptedException | ExecutionException | SoundError e) {
                     e.printStackTrace();
                     this.stop();
                 }
+                theSoundData = soundData;
             }
         });
     }

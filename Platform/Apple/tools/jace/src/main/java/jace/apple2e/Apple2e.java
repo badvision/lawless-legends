@@ -94,7 +94,7 @@ public class Apple2e extends Computer {
     @ConfigurableField(name = "Accelerator Enabled", shortName = "zip", description = "If checked, add support for Zip/Transwarp", enablesDevice = true)
     public boolean acceleratorEnabled = true;
     @ConfigurableField(name = "Production mode", shortName = "production")
-    public boolean PRODUCTION_MODE = false;
+    public boolean PRODUCTION_MODE = true;
     
     public Joystick joystick1;
     public Joystick joystick2;

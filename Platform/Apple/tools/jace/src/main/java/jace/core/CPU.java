@@ -147,7 +147,6 @@ public abstract class CPU extends Device {
 
     @Override
     public void attach() {
-        reset();
     }
 
     abstract public void JSR(int pointer);

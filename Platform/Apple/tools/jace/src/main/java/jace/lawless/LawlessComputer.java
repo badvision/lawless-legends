@@ -36,11 +36,11 @@ public class LawlessComputer extends Apple2e {
     
     public void initLawlessLegendsConfiguration() {
         this.cheatEngine.setValue(Cheats.Cheat.LawlessHacks);
-        reconfigure();  // Required before anything so that memory is initialized
         // this.activeCheatEngine = new LawlessHacks(this);
         // this.activeCheatEngine.attach();
         blankTextPage1();
         reconfigure();        
+        Configuration.registerKeyHandlers();
     }
     
     private void blankTextPage1() {
@@ -84,6 +84,8 @@ public class LawlessComputer extends Apple2e {
         if (!performedBootAnimation) {
             try {
                 performedBootAnimation = true;
+                waitForVBL();
+                waitForVBL();
                 waitForVBL();
                 renderWithMask(0x00,0x00,0x00,0x00);
                 renderWithMask(0x08,0x10,0x20,0x40,0x00,0x01,0x02,0x04);

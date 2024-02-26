@@ -17,6 +17,7 @@ public class MediaPlayer {
     Status status = Status.NOT_STARTED;
     Media soundData;
     SoundBuffer playbackBuffer;
+    Duration lastKnownDuration = Duration.ZERO;
     Executor executor = Executors.newSingleThreadExecutor();
 
     public static enum Status {
@@ -34,7 +35,11 @@ public class MediaPlayer {
     }
 
     public Duration getCurrentTime() {
-        return soundData.getCurrentTime();
+        if (soundData == null) {
+            return lastKnownDuration;
+        } else {
+            return soundData.getCurrentTime();
+        }
     }
 
     public double getVolume() {
@@ -54,6 +59,7 @@ public class MediaPlayer {
             // Ignore exception on shutdown
         } finally {
             if (soundData != null) {
+                lastKnownDuration = soundData.getCurrentTime();
                 soundData.close();
             }
             soundData = null;

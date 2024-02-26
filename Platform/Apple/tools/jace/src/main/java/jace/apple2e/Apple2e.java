@@ -105,7 +105,7 @@ public class Apple2e extends Computer {
     public ZipWarpAccelerator accelerator;
     FPSMonitorDevice fpsCounters;
     @ConfigurableField(name = "Show speed monitors", shortName = "showFps")
-    public boolean showSpeedMonitors = true;
+    public boolean showSpeedMonitors = false;
 
     /**
      * Creates a new instance of Apple2e

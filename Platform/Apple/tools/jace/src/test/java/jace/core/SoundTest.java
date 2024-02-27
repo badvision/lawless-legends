@@ -97,12 +97,7 @@ public class SoundTest extends AbstractFXTest {
 
     // @Test
     /**
-     * TODO: Fix the playback buffer NPE issue
      * Runs through 500 iterations of playing a random song for 1 second and switching songs
-     * Currently, no major issues except that 2% of the time there is this error:
-     * Exception in thread "pool-36-thread-1" java.lang.NullPointerException: 
-     *      Cannot invoke "jace.core.SoundMixer$SoundBuffer.playSample(short)" because "this.playbackBuffer" is null
-     * at lawlesslegends/jace.lawless.MediaPlayer.lambda$0(MediaPlayer.java:124)
      */
     public void musicPlaybackTortureTest() throws InterruptedException {
         SoundMixer.initSound();

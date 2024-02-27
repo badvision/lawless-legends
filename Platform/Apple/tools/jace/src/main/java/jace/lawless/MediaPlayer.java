@@ -101,10 +101,11 @@ public class MediaPlayer {
             }
         }
         executor.execute(() -> {
+            SoundBuffer theBuffer = playbackBuffer;
             status = Status.PLAYING;
             // System.out.println("Song playback thread started");
             Media theSoundData = soundData;
-            while (status == Status.PLAYING && (maxRepetitions == INDEFINITE || repeats < maxRepetitions) && theSoundData != null) {
+            while (status == Status.PLAYING && (maxRepetitions == INDEFINITE || repeats < maxRepetitions) && theSoundData != null && theBuffer != null) {
                 if (theSoundData.isEnded()) {
                     if (maxRepetitions == INDEFINITE) {
                         theSoundData.restart();
@@ -120,13 +121,14 @@ public class MediaPlayer {
                     }
                 }
                 try {
-                    playbackBuffer.playSample((short) (theSoundData.getNextLeftSample() * vol));
-                    playbackBuffer.playSample((short) (theSoundData.getNextRightSample() * vol));
+                    theBuffer.playSample((short) (theSoundData.getNextLeftSample() * vol));
+                    theBuffer.playSample((short) (theSoundData.getNextRightSample() * vol));
                 } catch (InterruptedException | ExecutionException | SoundError e) {
                     e.printStackTrace();
                     this.stop();
                 }
                 theSoundData = soundData;
+                theBuffer = playbackBuffer;
             }
         });
     }

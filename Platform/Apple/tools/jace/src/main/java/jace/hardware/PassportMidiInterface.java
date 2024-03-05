@@ -1,19 +1,18 @@
-/** 
-* Copyright 2024 Brendan Robert
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*    http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-**/
-
+/**
+ * Copyright 2024 Brendan Robert
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * */
 package jace.hardware;
 
 import java.util.LinkedHashMap;
@@ -42,7 +41,7 @@ import jace.core.RAMEvent.TYPE;
  * operational notes taken from the Passport MIDI interface manual
  * ftp://ftp.apple.asimov.net/pub/apple_II/documentation/hardware/misc/passport_midi.pdf
  *
- * @author Brendan Robert (BLuRry) brendan.robert@gmail.com 
+ * @author Brendan Robert (BLuRry) brendan.robert@gmail.com
  */
 @Name(value = "Passport Midi Interface", description = "MIDI sound card")
 public class PassportMidiInterface extends Card {
@@ -78,8 +77,9 @@ public class PassportMidiInterface extends Card {
             for (MidiDevice.Info dev : devices) {
                 try {
                     MidiDevice device = MidiSystem.getMidiDevice(dev);
-                    if (device.getMaxReceivers() > 0 || dev instanceof Synthesizer)
+                    if (device.getMaxReceivers() > 0 || dev instanceof Synthesizer) {
                         System.out.println("MIDI Device found: " + dev);
+                    }
                     out.put(dev.getName(), dev.getName());
                 } catch (MidiUnavailableException ex) {
                     Logger.getLogger(PassportMidiInterface.class.getName()).log(Level.SEVERE, null, ex);
@@ -202,13 +202,11 @@ public class PassportMidiInterface extends Card {
 
     @Override
     public void reset() {
-        // TODO: Deactivate card
         suspend();
     }
 
     @Override
     public boolean suspend() {
-        // TODO: Deactivate card
         suspendACIA();
         return super.suspend();
     }
@@ -221,77 +219,70 @@ public class PassportMidiInterface extends Card {
     @Override
     protected void handleIOAccess(int register, TYPE type, int value, RAMEvent e) {
         switch (type) {
-            case READ_DATA:
+            case READ_DATA -> {
                 int returnValue = 0;
                 switch (register) {
-                    case ACIA_STATUS:
+                    case ACIA_STATUS ->
                         returnValue = getACIAStatus();
-                        break;
-                    case ACIA_RECV:
+                    case ACIA_RECV ->
                         returnValue = getACIARecieve();
-                        break;
-                    //TODO: Implement PTM registers
-                    case TIMER_CONTROL_1:
-                        // Technically it's not supposed to return anything...
+                    case TIMER_CONTROL_1 -> // Technically it's not supposed to return anything...
                         returnValue = getPTMStatus();
-                        break;
-                    case TIMER_CONTROL_2:
+                    case TIMER_CONTROL_2 ->
                         returnValue = getPTMStatus();
-                        break;
-                    case TIMER1_LSB:
+                    case TIMER1_LSB -> {
                         returnValue = (int) (ptmTimer[0].value & 0x0ff);
                         if (ptmStatusReadSinceIRQ) {
                             ptmTimer[0].irqRequested = false;
                         }
-                        break;
-                    case TIMER1_MSB:
+                    }
+                    case TIMER1_MSB -> {
                         returnValue = (int) (ptmTimer[0].value >> 8) & 0x0ff;
                         if (ptmStatusReadSinceIRQ) {
                             ptmTimer[0].irqRequested = false;
                         }
-                        break;
-                    case TIMER2_LSB:
+                    }
+                    case TIMER2_LSB -> {
                         returnValue = (int) (ptmTimer[1].value & 0x0ff);
                         if (ptmStatusReadSinceIRQ) {
                             ptmTimer[1].irqRequested = false;
                         }
-                        break;
-                    case TIMER2_MSB:
+                    }
+                    case TIMER2_MSB -> {
                         returnValue = (int) (ptmTimer[1].value >> 8) & 0x0ff;
                         if (ptmStatusReadSinceIRQ) {
                             ptmTimer[1].irqRequested = false;
                         }
-                        break;
-                    case TIMER3_LSB:
+                    }
+                    case TIMER3_LSB -> {
                         returnValue = (int) (ptmTimer[2].value & 0x0ff);
                         if (ptmStatusReadSinceIRQ) {
                             ptmTimer[2].irqRequested = false;
                         }
-                        break;
-                    case TIMER3_MSB:
+                    }
+                    case TIMER3_MSB -> {
                         returnValue = (int) (ptmTimer[2].value >> 8) & 0x0ff;
                         if (ptmStatusReadSinceIRQ) {
                             ptmTimer[2].irqRequested = false;
                         }
-                        break;
-                    default:
+                    }
+                    default ->
                         System.out.println("Passport midi read unrecognized, port " + register);
                 }
-
+                //TODO: Implement PTM registers
                 e.setNewValue(returnValue);
 //                System.out.println("Passport I/O read register " + register + " == " + returnValue);
-                break;
-            case WRITE:
+            }
+
+            case WRITE -> {
                 int v = e.getNewValue() & 0x0ff;
 //                System.out.println("Passport I/O write register " + register + " == " + v);
                 switch (register) {
-                    case ACIA_CONTROL:
+                    case ACIA_CONTROL ->
                         processACIAControl(v);
-                        break;
-                    case ACIA_SEND:
+                    case ACIA_SEND ->
                         processACIASend(v);
-                        break;
-                    case TIMER_CONTROL_1:
+                    case TIMER_CONTROL_1 -> {
                         if (ptmTimer3Selected) {
 //                            System.out.println("Configuring timer 3");
                             ptmTimer[2].prescaledTimer = ((v & TIMER3_PRESCALED) != 0);
@@ -305,38 +296,32 @@ public class PassportMidiInterface extends Card {
                             }
                             processPTMConfiguration(ptmTimer[0], v);
                         }
-                        break;
-                    case TIMER_CONTROL_2:
-//                        System.out.println("Configuring timer 2");
+                    }
+                    case TIMER_CONTROL_2 -> {
+                        //                        System.out.println("Configuring timer 2");
                         ptmTimer3Selected = ((v & PTM_SELECT_REG_1) == 0);
                         processPTMConfiguration(ptmTimer[1], v);
-                        break;
-                    case TIMER1_LSB:
+                    }
+                    case TIMER1_LSB ->
                         ptmTimer[0].duration = (ptmTimer[0].duration & 0x0ff00) | v;
-                        break;
-                    case TIMER1_MSB:
+                    case TIMER1_MSB ->
                         ptmTimer[0].duration = (ptmTimer[0].duration & 0x0ff) | (v << 8);
-                        break;
-                    case TIMER2_LSB:
+                    case TIMER2_LSB ->
                         ptmTimer[1].duration = (ptmTimer[1].duration & 0x0ff00) | v;
-                        break;
-                    case TIMER2_MSB:
+                    case TIMER2_MSB ->
                         ptmTimer[1].duration = (ptmTimer[1].duration & 0x0ff) | (v << 8);
-                        break;
-                    case TIMER3_LSB:
+                    case TIMER3_LSB ->
                         ptmTimer[2].duration = (ptmTimer[2].duration & 0x0ff00) | v;
-                        break;
-                    case TIMER3_MSB:
+                    case TIMER3_MSB ->
                         ptmTimer[2].duration = (ptmTimer[2].duration & 0x0ff00) | (v << 8);
-                        break;
-                    default:
+                    default ->
                         System.out.println("Passport midi write unrecognized, port " + register);
                 }
-
-                break;
-            default:
-            // Nothing
+            }
+            default -> {
+            }
         }
+        // Nothing
     }
 
     @Override
@@ -352,7 +337,7 @@ public class PassportMidiInterface extends Card {
                     if (t.irqEnabled) {
 //                        System.out.println("Timer generating interrupt!");
                         t.irqRequested = true;
-                        Emulator.withComputer(c->c.getCpu().generateInterrupt());
+                        Emulator.withComputer(c -> c.getCpu().generateInterrupt());
                         ptmStatusReadSinceIRQ = false;
                     }
                     if (t.mode == TIMER_MODE.CONTINUOUS || t.mode == TIMER_MODE.FREQ_COMPARISON) {
@@ -425,6 +410,7 @@ public class PassportMidiInterface extends Card {
         }
         return status;
     }
+
     //------------------------------------------------------ ACIA
     /*
      ACIA status register
@@ -554,9 +540,8 @@ public class PassportMidiInterface extends Card {
                         continue;
                     }
                     System.out.println("MIDI Device found: " + dev);
-                    if ((preferredMidiDevice.getValue() == null && dev.getName().contains("Java Sound") && dev instanceof Synthesizer) ||
-                            preferredMidiDevice.getValue().equalsIgnoreCase(dev.getName())
-                        ) {
+                    if ((preferredMidiDevice.getValue() == null && dev.getName().contains("Java Sound") && dev instanceof Synthesizer)
+                            || preferredMidiDevice.getValue().equalsIgnoreCase(dev.getName())) {
                         selectedDevice = MidiSystem.getMidiDevice(dev);
                         break;
                     }
@@ -575,7 +560,6 @@ public class PassportMidiInterface extends Card {
     }
 
     private void suspendACIA() {
-        // TODO: Stop ACIA thread...
         if (midiOut != null) {
             currentMessage = new ShortMessage();
             // Send a note-off on every channel
@@ -583,10 +567,10 @@ public class PassportMidiInterface extends Card {
                 try {
                     // All Notes Off
                     currentMessage.setMessage(0x0B0 | channel, 123, 0);
-                    midiOut.send(currentMessage, 0);                
+                    midiOut.send(currentMessage, 0);
                     // All Oscillators Off
                     currentMessage.setMessage(0x0B0 | channel, 120, 0);
-                    midiOut.send(currentMessage, 0);                
+                    midiOut.send(currentMessage, 0);
                 } catch (InvalidMidiDataException ex) {
                     Logger.getLogger(PassportMidiInterface.class.getName()).log(Level.SEVERE, null, ex);
                 }

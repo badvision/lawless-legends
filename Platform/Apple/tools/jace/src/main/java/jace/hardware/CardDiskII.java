@@ -84,18 +84,24 @@ public class CardDiskII extends Card implements MediaConsumerParent {
 //        Motherboard.cancelSpeedRequest(this);
     }
 
-    @SuppressWarnings("fallthrough")
     @Override
     protected void handleIOAccess(int register, RAMEvent.TYPE type, int value, RAMEvent e) {
         // handle Disk ][ registers
         switch (register) {
             case 0x0:
+                // Fall-through
             case 0x1:
+                // Fall-through
             case 0x2:
+                // Fall-through
             case 0x3:
+                // Fall-through
             case 0x4:
+                // Fall-through
             case 0x5:
+                // Fall-through
             case 0x6:
+                // Fall-through
             case 0x7:
                 currentDrive.step(register);
                 break;

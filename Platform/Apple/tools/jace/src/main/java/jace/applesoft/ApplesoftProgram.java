@@ -16,15 +16,9 @@
 
 package jace.applesoft;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import jace.Emulator;
@@ -53,22 +47,7 @@ public class ApplesoftProgram {
     public static final int RUNNING_FLAG = 0x076;
     public static final int NOT_RUNNING = 0x0FF;
     public static final int GOTO_CMD = 0x0D944;  //actually starts at D93E
-    int startingAddress = 0x0801;
-
-    public static void main(String... args) {
-        byte[] source = null;
-        File f = new File("/home/brobert/Documents/Personal/a2gameserver/lib/data/games/LEMONADE#fc0801");
-        try (FileInputStream in = new FileInputStream(f)) {
-            source = new byte[(int) f.length()];
-            in.read(source);
-        } catch (FileNotFoundException ex) {
-            Logger.getLogger(ApplesoftProgram.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (IOException ex) {
-            Logger.getLogger(ApplesoftProgram.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        ApplesoftProgram test = ApplesoftProgram.fromBinary(Arrays.asList(toObjects(source)));
-        System.out.println(test);
-    }
+    public static final int START_ADDRESS = 0x0801;
 
     public static Byte[] toObjects(byte[] bytesPrim) {
         Byte[] bytes = new Byte[bytesPrim.length];
@@ -91,7 +70,7 @@ public class ApplesoftProgram {
     }
 
     public static ApplesoftProgram fromBinary(List<Byte> binary) {
-        return fromBinary(binary, 0x0801);
+        return fromBinary(binary, START_ADDRESS);
     }
 
     public static ApplesoftProgram fromBinary(List<Byte> binary, int startAddress) {

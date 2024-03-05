@@ -73,7 +73,7 @@ public class CardAppleMouse extends Card {
     @Stateful
     public int statusByte;
     @Stateful
-    public Point2D lastMouseLocation;
+    public Point2D lastMouseLocation = new Point2D(0, 0);
     @Stateful
     public Rectangle2D clampWindow = new Rectangle2D(0, 0, 0x03ff, 0x03ff);
     // By default, update 60 times a second -- roughly every VBL period (in theory)
@@ -107,8 +107,16 @@ public class CardAppleMouse extends Card {
     
     private void processMouseEvent(MouseEvent event) {
         if (event.getEventType() == MouseEvent.MOUSE_MOVED || event.getEventType() == MouseEvent.MOUSE_DRAGGED) {
-            Node source = (Node) event.getSource();
-            updateLocation(event.getSceneX(), event.getSceneY(), source.getBoundsInLocal());
+            double x = 0.0;
+            double y = 0.0;
+            if (event.getSource() != null && event.getSource() instanceof Node) {
+                // This is a bit of a hack to get the mouse position in the local coordinate system of the source (the emulator screen
+                Node source = (Node) event.getSource();
+                Bounds bounds = source.getBoundsInLocal();
+                x=event.getSceneX() / bounds.getWidth();
+                y=event.getSceneY() / bounds.getHeight();
+            }
+            updateLocation(x, y);
             event.consume();
         }
         if (event.getEventType() == MouseEvent.MOUSE_PRESSED || event.getEventType() == MouseEvent.MOUSE_DRAGGED) {
@@ -120,10 +128,8 @@ public class CardAppleMouse extends Card {
         }
     }
 
-    private void updateLocation(double x, double y, Bounds bounds) {
-        double scaledX = x / bounds.getWidth();
-        double scaledY = y / bounds.getHeight();
-        lastMouseLocation = new Point2D(scaledX, scaledY);
+    private void updateLocation(double x, double y) {
+        lastMouseLocation = new Point2D(x, y);
         movedSinceLastTick = true;
         movedSinceLastRead = true;
     }
@@ -210,6 +216,7 @@ public class CardAppleMouse extends Card {
                 case 0x08:
                     // Pascal signature byte
                     e.setNewValue(0x001);
+                    break;
                 case 0x011:
                     e.setNewValue(0x000);
                     break;
@@ -376,7 +383,9 @@ public class CardAppleMouse extends Card {
      *      Screen holes are updated
      */
     private void initMouse() {
-        mouseActive.setText("Active");
+        if (mouseActive != null) {
+            mouseActive.setText("Active");
+        }
         EmulatorUILogic.addIndicator(this, mouseActive, 2000);
         setClampWindowX(0, 0x3ff);
         setClampWindowY(0, 0x3ff);

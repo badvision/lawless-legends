@@ -125,10 +125,8 @@ public abstract class Video extends TimedDevice {
 
     Runnable redrawScreen = () -> {
         if (visible != null && video != null) {
-//            if (computer.getRunningProperty().get()) {
-                screenDirty = false;
-                visible.getPixelWriter().setPixels(0, 0, 560, 192, video.getPixelReader(), 0, 0);
-//            }
+            screenDirty = false;
+            visible.getPixelWriter().setPixels(0, 0, 560, 192, video.getPixelReader(), 0, 0);
         }
     };
 

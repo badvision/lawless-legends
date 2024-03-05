@@ -18,7 +18,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import jace.core.Card;
-import jace.core.Motherboard;
 import jace.core.Utility;
 import jace.core.Video;
 import jace.lawless.LawlessComputer;
@@ -96,6 +95,9 @@ public class JaceUIController {
     private ComboBox<String> musicSelection;
 
     private final BooleanProperty aspectRatioCorrectionEnabled = new SimpleBooleanProperty(false);
+
+    public static final double MIN_SPEED = 0.5;
+    public static final double MAX_SPEED = 5.0;
 
     @FXML
     void initialize() {
@@ -191,15 +193,10 @@ public class JaceUIController {
             return 0.5;
         } else if (setting == 1.0) {
             return 1.0;
-        } else if (setting >= 10) {
+        } else if (setting >= 5) {
             return Double.MAX_VALUE;
         } else {
-            double val = Math.pow(2.0, (setting - 1.0) / 1.5);
-            val = Math.floor(val * 2.0) / 2.0;
-            if (val > 2.0) {
-                val = Math.floor(val);
-            }
-            return val;
+            return setting;
         }
     }
 
@@ -221,14 +218,16 @@ public class JaceUIController {
         primaryStage = ps;
 
         connectButtons(controlOverlay);
-        speedSlider.setMinorTickCount(0);
+        speedSlider.setMinorTickCount(3);
         speedSlider.setMajorTickUnit(1);
+        speedSlider.setMax(MAX_SPEED);
+        speedSlider.setMin(MIN_SPEED);
         speedSlider.setLabelFormatter(new StringConverter<Double>() {
             @Override
             public String toString(Double val) {
-                if (val < 1.0) {
+                if (val <= MIN_SPEED) {
                     return "Half";
-                } else if (val >= 10.0) {
+                } else if (val >= MAX_SPEED) {
                     return "∞";
                 }
                 double v = convertSpeedToRatio(val);
@@ -244,11 +243,10 @@ public class JaceUIController {
                 return 1.0;
             }
         });
-        speedSlider.valueProperty().addListener((val, oldValue, newValue) -> setSpeed(newValue.doubleValue()));
         Platform.runLater(() -> {
-            speedSlider.setValue(Emulator.getUILogic().speedSetting);
-            // Kind of redundant but make sure speed is properly set as if the user did it
-            setSpeed(Emulator.getUILogic().speedSetting);
+            double currentSpeed = (double) Emulator.withComputer(c->c.getMotherboard().getSpeedRatio(), 100) / 100.0;
+            speedSlider.valueProperty().set(currentSpeed);
+            speedSlider.valueProperty().addListener((val, oldValue, newValue) -> setSpeed(newValue.doubleValue()));
         });
         musicSelection.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) ->
             Emulator.withComputer(computer -> 
@@ -268,29 +266,20 @@ public class JaceUIController {
     }
 
     public void setSpeed(double speed) {
-        Emulator.getUILogic().speedSetting = (int) speed;
-        double speedRatio = convertSpeedToRatio(speed);
+        double newSpeed = Math.max(speed, MIN_SPEED);
         if (speedSlider.getValue() != speed) {
-            Platform.runLater(()->speedSlider.setValue(speed));
+            Platform.runLater(()->speedSlider.setValue(newSpeed));
         }
-        if (speedRatio >= 100.0) {
+        if (newSpeed >= MAX_SPEED) {
             Emulator.withComputer(c -> {
-                c.getMotherboard().setSpeedInPercentage(20000);
                 c.getMotherboard().setMaxSpeed(true);
             });
-//            Motherboard.cpuPerClock = 10;
         } else {
-            if (speedRatio > 1000) {
-                Motherboard.cpuPerClock = 2;
-            } else {
-                Motherboard.cpuPerClock = 1;
-            }
             Emulator.withComputer(c -> {
                 c.getMotherboard().setMaxSpeed(false);
-                c.getMotherboard().setSpeedInPercentage((int) (speedRatio * 100));
+                c.getMotherboard().setSpeedInPercentage((int) (newSpeed * 100));
             });
         }
-        Emulator.withComputer(c -> c.getMotherboard().reconfigure());
     }
 
     public void toggleAspectRatio() {

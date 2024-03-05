@@ -37,9 +37,6 @@ public abstract class IndependentTimedDevice extends TimedDevice {
     // The actual worker that the device runs as
     public Thread worker;
     public boolean hasStopped = true;
-    // From the holy word of Sather 3:5 (Table 3.1) :-)
-    // This average speed averages in the "long" cycles
-
 
     @Override
     /* We really don't want to suspect the worker thread if we're running in it.
@@ -67,7 +64,7 @@ public abstract class IndependentTimedDevice extends TimedDevice {
 
 
     public boolean isDeviceThread() {
-        return worker != null && worker.isAlive() && Thread.currentThread() == worker;
+        return Thread.currentThread() == worker;
     }
 
     /**
@@ -84,14 +81,14 @@ public abstract class IndependentTimedDevice extends TimedDevice {
     public boolean suspend() {
         boolean result = super.suspend();
         Thread w = worker;
+        worker = null;
         if (w != null && w.isAlive()) {
             try {
                 w.interrupt();
-                w.join(1000);
+                w.join(100);
             } catch (InterruptedException ex) {
             }
         }
-        worker = null;
         return result;
     }
     
@@ -112,9 +109,9 @@ public abstract class IndependentTimedDevice extends TimedDevice {
     }
     
     @Override
-    public void resume() {
+    public synchronized void resume() {
         super.resume();
-                if (worker != null && worker.isAlive()) {
+        if (worker != null && worker.isAlive()) {
             return;
         }
         Thread newWorker = new Thread(() -> {

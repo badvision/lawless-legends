@@ -226,12 +226,6 @@
             <version>21.0.2</version>
             <type>jar</type>
         </dependency>
-        <!-- <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-media</artifactId>
-            <version>21.0.2</version>
-            <type>jar</type>
-        </dependency> -->
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-graphics</artifactId>
@@ -271,11 +265,6 @@
             <artifactId>lwjgl-stb</artifactId>
             <classifier>${lwjgl.natives}</classifier>
         </dependency>    
-        <!-- <dependency>
-            <groupId>com.badlogicgames.jlayer</groupId>
-            <artifactId>jlayer</artifactId>
-            <version>1.0.2-gdx</version>
-        </dependency> -->
     </dependencies>
     <profiles>
         <profile>

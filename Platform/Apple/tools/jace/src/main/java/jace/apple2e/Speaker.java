@@ -94,7 +94,7 @@ public class Speaker extends Device {
      * Playback volume (should be < 1423)
      */
     @ConfigurableField(name = "Speaker Volume", shortName = "vol", description = "Should be under 1400")
-    public static int VOLUME = 600;
+    public static int VOLUME = 400;
     /**
      * Number of idle cycles until speaker playback is deactivated
      */
@@ -118,6 +118,7 @@ public class Speaker extends Device {
     public boolean suspend() {
         boolean result = super.suspend();
         speakerBit = false;
+        Emulator.withComputer(c->c.getMotherboard().cancelSpeedRequest(this));
         if (buffer != null) {
             try {
                 buffer.shutdown();
@@ -164,8 +165,7 @@ public class Speaker extends Device {
             TICKS_PER_SAMPLE = Emulator.withComputer(c-> ((double) c.getMotherboard().getSpeedInHz()) / SoundMixer.RATE, 0.0);
         }
         TICKS_PER_SAMPLE_FLOOR = Math.floor(TICKS_PER_SAMPLE);
-
-        setRun(true);
+        super.resume();
     }
 
     /**
@@ -195,6 +195,7 @@ public class Speaker extends Device {
         counter += 1.0d;
         if (counter >= TICKS_PER_SAMPLE) {
             playSample(level * VOLUME);
+            Emulator.withComputer(c->c.getMotherboard().requestSpeed(this));
 
             // Set level back to 0
             level = 0;
@@ -280,13 +281,11 @@ public class Speaker extends Device {
     @Override
     public void attach() {
         configureListener();
-        resume();
     }
 
     @Override
     public void detach() {
         removeListener();
-        suspend();
         super.detach();
     }
 }

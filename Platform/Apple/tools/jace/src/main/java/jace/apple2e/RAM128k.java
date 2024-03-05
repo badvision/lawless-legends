@@ -182,7 +182,6 @@ abstract public class RAM128k extends RAM {
     }
 
     public final void zeroAllRam() {
-        // Format memory with FF FF 00 00 pattern
         for (int i = 0; i < 0x0100; i++) {
             blank.get(0)[i] = (byte) 0x0FF;
         }

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jace.cpu;
+package jace.apple2e;
 
 import static jace.TestUtils.initComputer;
 

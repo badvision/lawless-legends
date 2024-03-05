@@ -19,11 +19,11 @@ package jace.core;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import jace.LawlessLegends;
+import jace.apple2e.SoftSwitches;
 import jace.config.ConfigurableField;
+import jace.config.Configuration;
 import jace.config.InvokableAction;
 import jace.config.Reconfigurable;
 import jace.state.StateManager;
@@ -161,34 +161,37 @@ public abstract class Computer implements Reconfigurable {
         }
     }
 
+    /**
+     * If the user wants a full reset, use the coldStart method.
+     * This ensures a more consistent state of the machine.
+     * Some games make bad assumptions about the initial state of the machine
+     * and that fails to work if the machine is not reset to a known state first.
+     */
     @InvokableAction(
-            name = "Cold boot",
-            description = "Process startup sequence from power-up",
-            category = "general",
-            alternatives = "Full reset;reset emulator",
-            defaultKeyMapping = {"Ctrl+Shift+Backspace", "Ctrl+Shift+Delete"})
-    public void invokeColdStart() {
-        try {
-            loadRom(false);
-            memory.resetState();            
-            coldStart();
-        } catch (IOException e) {
-            Logger.getLogger(Computer.class.getName()).log(Level.SEVERE, "Failed to load system rom ROMs", e);
-        }
-    }
-
-    public abstract void coldStart();
-
-    @InvokableAction(
-            name = "Warm boot",
+            name = "Reset",
             description = "Process user-initatiated reboot (ctrl+apple+reset)",
             category = "general",
             alternatives = "reboot;reset;three-finger-salute;restart",
             defaultKeyMapping = {"Ctrl+Ignore Alt+Ignore Meta+Backspace", "Ctrl+Ignore Alt+Ignore Meta+Delete"})
-    public void invokeWarmStart() {
-        warmStart();
+    public void invokeReset() {
+        if (SoftSwitches.PDL0.isOn()) {
+            coldStart();
+        } else {
+            warmStart();
+        }
     }
 
+    /**
+     * In a cold start, memory is reset (either two bytes per page as per Sather 4-15) or full-wipe
+     * Also video softswitches are reset
+     * Otherwise it does the same as warm start
+     **/ 
+    public abstract void coldStart();
+
+    /**
+     * In a warm start, memory is not reset, but the CPU and cards are reset
+     * All but video softswitches are reset, putting the MMU in a known state
+     */
     public abstract void warmStart();
 
     public Keyboard getKeyboard() {
@@ -225,5 +228,6 @@ public abstract class Computer implements Reconfigurable {
             stateManager = null;
             StateManager.getInstance(this).invalidate();
         }
+        Configuration.registerKeyHandlers();
     }
 }

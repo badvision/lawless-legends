@@ -5,8 +5,12 @@ import org.junit.BeforeClass;
 import javafx.application.Platform;
 
 public abstract class AbstractFXTest {
+    public static boolean fxInitialized = false;
     @BeforeClass
     public static void initJfxRuntime() {
-        Platform.startup(() -> {});
+        if (!fxInitialized) {
+            fxInitialized = true;
+            Platform.startup(() -> {});
+        }
     }    
 }

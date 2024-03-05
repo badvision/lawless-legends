@@ -643,22 +643,22 @@ public class Configuration implements Reconfigurable {
         }
     }
 
-    private static void printTree(ConfigNode n, String prefix, int i) {
-        n.getAllSettingNames().stream().forEach((setting) -> {
-            for (int j = 0; j < i; j++) {
-                System.out.print(" ");
-            }
-            ConfigurableField f = null;
-            try {
-                f = n.subject.getClass().getField(setting).getAnnotation(ConfigurableField.class);
-            } catch (NoSuchFieldException | SecurityException ex) {
-                Logger.getLogger(Configuration.class.getName()).log(Level.SEVERE, null, ex);
-            }
-            String sn = (f != null && !f.shortName().equals("")) ? f.shortName() : setting;
-            System.out.println(prefix + ">>" + setting + " (" + n.subject.getShortName() + "." + sn + ")");
-        });
-        n.getChildren().stream().forEach((c) -> {
-            printTree(c, prefix + "." + c, i + 1);
-        });
-    }
+    // private static void printTree(ConfigNode n, String prefix, int i) {
+    //     n.getAllSettingNames().stream().forEach((setting) -> {
+    //         for (int j = 0; j < i; j++) {
+    //             System.out.print(" ");
+    //         }
+    //         ConfigurableField f = null;
+    //         try {
+    //             f = n.subject.getClass().getField(setting).getAnnotation(ConfigurableField.class);
+    //         } catch (NoSuchFieldException | SecurityException ex) {
+    //             Logger.getLogger(Configuration.class.getName()).log(Level.SEVERE, null, ex);
+    //         }
+    //         String sn = (f != null && !f.shortName().equals("")) ? f.shortName() : setting;
+    //         System.out.println(prefix + ">>" + setting + " (" + n.subject.getShortName() + "." + sn + ")");
+    //     });
+    //     n.getChildren().stream().forEach((c) -> {
+    //         printTree(c, prefix + "." + c, i + 1);
+    //     });
+    // }
 }

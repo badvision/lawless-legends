@@ -61,8 +61,10 @@ import jace.state.Stateful;
  */
 @Stateful
 public class Apple2e extends Computer {
-
     static int IRQ_VECTOR = 0x003F2;
+
+    @ConfigurableField(name = "Production mode", shortName = "production")
+    public boolean PRODUCTION_MODE = false;
     @ConfigurableField(name = "Slot 1", shortName = "s1card")
     public DeviceSelection<Cards> card1 = new DeviceSelection<>(Cards.class, null);
     @ConfigurableField(name = "Slot 2", shortName = "s2card")
@@ -92,9 +94,7 @@ public class Apple2e extends Computer {
     @ConfigurableField(name = "No-Slot Clock Enabled", shortName = "clock", description = "If checked, no-slot clock will be enabled", enablesDevice = true)
     public boolean clockEnabled = true;
     @ConfigurableField(name = "Accelerator Enabled", shortName = "zip", description = "If checked, add support for Zip/Transwarp", enablesDevice = true)
-    public boolean acceleratorEnabled = true;
-    @ConfigurableField(name = "Production mode", shortName = "production")
-    public boolean PRODUCTION_MODE = true;
+    public boolean acceleratorEnabled = PRODUCTION_MODE;
     
     public Joystick joystick1;
     public Joystick joystick2;
@@ -105,7 +105,7 @@ public class Apple2e extends Computer {
     public ZipWarpAccelerator accelerator;
     FPSMonitorDevice fpsCounters;
     @ConfigurableField(name = "Show speed monitors", shortName = "showFps")
-    public boolean showSpeedMonitors = false;
+    public boolean showSpeedMonitors = !PRODUCTION_MODE;
 
     /**
      * Creates a new instance of Apple2e
@@ -130,46 +130,42 @@ public class Apple2e extends Computer {
     
     @Override
     public void coldStart() {
-        getMotherboard().whileSuspended(()->{
-            System.err.println("Cold starting computer: RESETTING SOFT SWITCHES");
-            for (SoftSwitches s : SoftSwitches.values()) {
+        RAM128k r = (RAM128k) getMemory();
+        System.err.println("Cold starting computer: RESETTING SOFT SWITCHES");
+        r.resetState();            
+        for (SoftSwitches s : SoftSwitches.values()) {
+            if ((s.getSwitch() instanceof VideoSoftSwitch)) {
                 s.getSwitch().reset();
             }
-            reconfigure();
-            getMemory().configureActiveMemory();
-            getVideo().configureVideoMode();
-            for (Optional<Card> c : getMemory().getAllCards()) {
-                c.ifPresent(Card::reset);
-            }
-        });
-        reboot();
-    }
-
-    public void reboot() {
-        RAM r = getMemory();
-        r.write(IRQ_VECTOR, (byte) 0x00, false, true);
-        r.write(IRQ_VECTOR + 1, (byte) 0x00, false, true);
-        r.write(IRQ_VECTOR + 2, (byte) 0x00, false, true);
+        }
+        // This isn't really authentic behavior but sometimes games like memory to have a consistent state when booting.
+        r.zeroAllRam();
+        // Sather 4-15: 
+        // An open Apple (left Apple) reset causes meaningless values to be stored in two locations
+        // of every memory page from Page $01 through Page $BF before the power-up byte is checked.
+        int offset = IRQ_VECTOR & 0x0ff;
+        byte garbage = (byte) (Math.random() * 256.0);
+        for (int page=1; page < 0xc0; page++) {
+            r.write(page << 8 + offset, garbage, false, true);
+            r.write(page << 8 + 1 + offset, garbage, false, true);
+        }
         warmStart();
     }
 
     @Override
     public void warmStart() {
-        getMotherboard().whileSuspended(()->{
-            // This isn't really authentic behavior but sometimes games like memory to have a consistent state when booting.
-            for (SoftSwitches s : SoftSwitches.values()) {
-                if (! (s.getSwitch() instanceof VideoSoftSwitch)) {
-                    s.getSwitch().reset();
-                }
+        for (SoftSwitches s : SoftSwitches.values()) {
+            if (! (s.getSwitch() instanceof VideoSoftSwitch)) {
+                s.getSwitch().reset();
             }
-            ((RAM128k)getMemory()).zeroAllRam();
-            getMemory().configureActiveMemory();
-            getVideo().configureVideoMode();
-            getCpu().reset();
-            for (Optional<Card> c : getMemory().getAllCards()) {
-                c.ifPresent(Card::reset);
-            }
-        });
+        }
+        getMemory().configureActiveMemory();
+        getVideo().configureVideoMode();
+        getCpu().reset();
+        for (Optional<Card> c : getMemory().getAllCards()) {
+            c.ifPresent(Card::reset);
+        }
+        motherboard.disableTempMaxSpeed();
         resume();
     }
 
@@ -376,15 +372,9 @@ public class Apple2e extends Computer {
         if (getMotherboard() == null) {
             return;
         }
-        getMotherboard().resume();
+        getMotherboard().resumeAll();
     }
 
-//    public boolean isRunning() {
-//        if (motherboard == null) {
-//            return false;
-//        }
-//        return motherboard.isRunning() && !motherboard.isPaused;
-//    }
     private final List<RAMListener> hints = new ArrayList<>();
 
     ScheduledExecutorService animationTimer = new ScheduledThreadPoolExecutor(1);

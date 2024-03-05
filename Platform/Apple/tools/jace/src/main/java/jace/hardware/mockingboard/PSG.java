@@ -99,16 +99,12 @@ public class PSG {
     List<SoundGenerator> channels;
     EnvelopeGenerator envelopeGenerator;
     NoiseGenerator noiseGenerator;
-    int CLOCK;
-    int SAMPLE_RATE;
     public int bus;
     int selectedReg;
-    String name;
     Map<Reg, Integer> regValues;
     public int mask;
 
     public PSG(int base, int clock, int sample_rate, String name, int DDR_Mask) {
-        this.name = name;
         this.mask = DDR_Mask;
         baseReg = base;
         channels = new ArrayList<>();
@@ -117,7 +113,7 @@ public class PSG {
         }
         envelopeGenerator = new EnvelopeGenerator(clock, sample_rate);
         noiseGenerator = new NoiseGenerator(clock, sample_rate);
-        regValues = Collections.synchronizedMap(new EnumMap<Reg, Integer>(Reg.class));
+        regValues = Collections.synchronizedMap(new EnumMap<>(Reg.class));
         reset();
     }
 
@@ -132,20 +128,20 @@ public class PSG {
             return;
         }
         switch (cmd) {
-            case inactive:
-                break;
-            case latch:
+            case inactive -> {
+            }
+            case latch -> {
                 if (debug) System.out.println("PSG latched register "+selectedReg);
                 selectedReg = bus & 0x0f;
-                break;
-            case read:
+            }
+            case read -> {
                 bus = getReg(Reg.get(selectedReg));
                 if (debug) System.out.println("PSG read register "+selectedReg + " == "+bus);
-                break;
-            case write:
+            }
+            case write -> {
                 if (debug) System.out.println("PSG wrote register "+selectedReg + " == "+bus);
                 setReg(Reg.get(selectedReg), bus);
-                break;
+            }
         }
     }
 
@@ -154,14 +150,11 @@ public class PSG {
     }
 
     public void setRate(int clock, int sample_rate) {
-        CLOCK = clock;
-        SAMPLE_RATE = sample_rate;
         channels.stream().forEach((c) -> {
             c.setRate(clock, sample_rate);
         });
         envelopeGenerator.setRate(clock, sample_rate);
         noiseGenerator.setRate(clock, sample_rate);
-        reset();
     }
 
     public final void reset() {
@@ -208,50 +201,29 @@ public class PSG {
         /* period. In that case, period = 0 is half as period = 1. */
         value = value & 0x0ff;
         switch (r) {
-            case ACoarse:
-            case AFine:
-                channels.get(0).setPeriod(getReg(Reg.AFine) + (getReg(Reg.ACoarse) << 8));
-                break;
-            case BCoarse:
-            case BFine:
-                channels.get(1).setPeriod(getReg(Reg.BFine) + (getReg(Reg.BCoarse) << 8));
-                break;
-            case CCoarse:
-            case CFine:
-                channels.get(2).setPeriod(getReg(Reg.CFine) + (getReg(Reg.CCoarse) << 8));
-                break;
-            case NoisePeriod:
+            case ACoarse, AFine -> channels.get(0).setPeriod(getReg(Reg.AFine) + (getReg(Reg.ACoarse) << 8));
+            case BCoarse, BFine -> channels.get(1).setPeriod(getReg(Reg.BFine) + (getReg(Reg.BCoarse) << 8));
+            case CCoarse, CFine -> channels.get(2).setPeriod(getReg(Reg.CFine) + (getReg(Reg.CCoarse) << 8));
+            case NoisePeriod -> {
                 if (value == 0) value = 32;
                 noiseGenerator.setPeriod(value+16);
                 noiseGenerator.counter = 0;
-                break;
-            case Enable:
+            }
+            case Enable -> {
                 channels.get(0).setActive((value & 1) == 0);
                 channels.get(0).setNoiseActive((value & 8) == 0);
                 channels.get(1).setActive((value & 2) == 0);
                 channels.get(1).setNoiseActive((value & 16) == 0);
                 channels.get(2).setActive((value & 4) == 0);
                 channels.get(2).setNoiseActive((value & 32) == 0);
-                break;
-            case AVol:
-                channels.get(0).setAmplitude(value);
-                break;
-            case BVol:
-                channels.get(1).setAmplitude(value);
-                break;
-            case CVol:
-                channels.get(2).setAmplitude(value);
-                break;
-            case EnvFine:
-            case EnvCoarse:
-                envelopeGenerator.setPeriod(getReg(Reg.EnvFine) + 256 * getReg(Reg.EnvCoarse));
-                break;
-            case EnvShape:
-                envelopeGenerator.setShape(value);
-                break;
-            case PortA:
-            case PortB:
-                break;
+            }
+            case AVol -> channels.get(0).setAmplitude(value);
+            case BVol -> channels.get(1).setAmplitude(value);
+            case CVol -> channels.get(2).setAmplitude(value);
+            case EnvFine, EnvCoarse -> envelopeGenerator.setPeriod(getReg(Reg.EnvFine) + 256 * getReg(Reg.EnvCoarse));
+            case EnvShape -> envelopeGenerator.setShape(value);
+            case PortA, PortB -> {
+            }
         }
     }
 

@@ -198,18 +198,10 @@ public class InvokableActionRegistryImpl extends InvokableActionRegistry {
                 return false;
             }
         });
-        annotation = createInvokableAction("Cold boot", "general", "Process startup sequence from power-up", "Full reset;reset emulator", true, false, new String[]{"Ctrl+Shift+Backspace", "Ctrl+Shift+Delete"});
+        annotation = createInvokableAction("Reset", "general", "Process user-initatiated reboot (ctrl+apple+reset)", "reboot;reset;three-finger-salute;restart", true, false, new String[]{"Ctrl+Ignore Alt+Ignore Meta+Backspace", "Ctrl+Ignore Alt+Ignore Meta+Delete"});
         putInstanceAction(annotation.name(), jace.core.Computer.class, annotation, (o, b) -> {
             try {
-                ((jace.core.Computer) o).invokeColdStart();
-            } catch (Exception ex) {
-                logger.log(Level.SEVERE, "Error invoking jace.core.Computer.invokeColdStart", ex);
-            }
-        });
-        annotation = createInvokableAction("Warm boot", "general", "Process user-initatiated reboot (ctrl+apple+reset)", "reboot;reset;three-finger-salute;restart", true, false, new String[]{"Ctrl+Ignore Alt+Ignore Meta+Backspace", "Ctrl+Ignore Alt+Ignore Meta+Delete"});
-        putInstanceAction(annotation.name(), jace.core.Computer.class, annotation, (o, b) -> {
-            try {
-                ((jace.core.Computer) o).invokeWarmStart();
+                ((jace.core.Computer) o).invokeReset();
             } catch (Exception ex) {
                 logger.log(Level.SEVERE, "Error invoking jace.core.Computer.invokeWarmStart", ex);
             }

@@ -28,19 +28,20 @@ public class LawlessComputer extends Apple2e {
     boolean performedBootAnimation = false;
     LawlessImageTool gameDiskHandler = new LawlessImageTool();
     @ConfigurableField(name = "Boot Animation")
-    public boolean showBootAnimation = true;
+    public boolean showBootAnimation = PRODUCTION_MODE;
 
     public LawlessComputer() {
         super();
     }
     
     public void initLawlessLegendsConfiguration() {
-        this.cheatEngine.setValue(Cheats.Cheat.LawlessHacks);
+        if (PRODUCTION_MODE) {
+            this.cheatEngine.setValue(Cheats.Cheat.LawlessHacks);
+        }
         // this.activeCheatEngine = new LawlessHacks(this);
         // this.activeCheatEngine.attach();
         blankTextPage1();
         reconfigure();        
-        Configuration.registerKeyHandlers();
     }
     
     private void blankTextPage1() {
@@ -60,7 +61,7 @@ public class LawlessComputer extends Apple2e {
                 s.getSwitch().reset();
             }
         });
-        if (showBootAnimation && PRODUCTION_MODE) {
+        if (showBootAnimation) {
             (new Thread(this::startAnimation)).start();
         } else {
             getCpu().setPaused(false);
@@ -187,7 +188,7 @@ public class LawlessComputer extends Apple2e {
     public void finishColdStart() {
         try {
             waitForVBL();
-            reboot();
+            warmStart();
         } catch (InterruptedException ex) {
             Logger.getLogger(LawlessComputer.class.getName()).log(Level.SEVERE, null, ex);
         }

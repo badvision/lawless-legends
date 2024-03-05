@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jace.cpu;
+package jace.apple2e;
 
 import static jace.TestProgram.Flag.CARRY_CLEAR;
 import static jace.TestProgram.Flag.CARRY_SET;
@@ -43,8 +43,6 @@ import jace.Emulator;
 import jace.ProgramException;
 import jace.TestProgram;
 import jace.TestUtils;
-import jace.apple2e.MOS65C02;
-import jace.apple2e.RAM128k;
 import jace.core.Computer;
 import jace.core.RAMEvent.TYPE;
 import jace.core.SoundMixer;

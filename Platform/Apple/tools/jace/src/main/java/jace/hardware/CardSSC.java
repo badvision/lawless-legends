@@ -54,8 +54,6 @@ public class CardSSC extends Card {
     protected Thread listenThread;
     private int lastInputByte = 0;
     private boolean FULL_ECHO = true;
-    private final boolean RECV_ACTIVE = true;
-    private boolean TRANS_ACTIVE = true;
 //    private boolean RECV_STRIP_LF = true;
 //    private boolean TRANS_ADD_LF = true;
     @ConfigurableField(category = "Advanced", name = "Liveness check interval", description = "How often the connection is polled for signs of life when idle (in milliseconds)")
@@ -65,7 +63,7 @@ public class CardSSC extends Card {
     @ConfigurableField(name = "Add LF (send)", shortName = "addLF", defaultValue = "false", description = "Append linefeeds after outgoing carriage returns")
     public boolean TRANS_ADD_LF = false;
     private boolean DTR = true;
-    public int SW1 = 0x01;              // Read = Jumper block SW1
+    public static int SW1 = 0x01;              // Read = Jumper block SW1
     //Bit 0 = !SW1-6
     //Bit 1 = !SW1-5
     //Bit 4 = !SW1-4
@@ -75,7 +73,7 @@ public class CardSSC extends Card {
     // 19200 baud (SW1-1,2,3,4 off)
     // Communications mode (SW1-5,6 on)
     public int SW1_SETTING = 0x0F0;
-    public int SW2_CTS = 0x02;          // Read = Jumper block SW2 and CTS
+    public static int SW2_CTS = 0x02;          // Read = Jumper block SW2 and CTS
     //Bit 0 = !CTS
     //SW2-6 = Allow interrupts (disable in ][, ][+)
     //Bit 1 = !SW2-5  -- Generate LF after CR
@@ -87,10 +85,10 @@ public class CardSSC extends Card {
     // 8 data bits (SW2-2 on)
     // No parity (SW2-3 don't care, SW2-4 off)
     private final int SW2_SETTING = 0x04;
-    public int ACIA_Data = 0x08;        // Read=Receive / Write=transmit
-    public int ACIA_Status = 0x09;     // Read=Status / Write=Reset
-    public int ACIA_Command = 0x0A;
-    public int ACIA_Control = 0x0B;
+    public static int ACIA_Data = 0x08;        // Read=Receive / Write=transmit
+    public static int ACIA_Status = 0x09;     // Read=Status / Write=Reset
+    public static int ACIA_Command = 0x0A;
+    public static int ACIA_Control = 0x0B;
     public boolean PORT_CONNECTED = false;
     public boolean RECV_IRQ_ENABLED = false;
     public boolean TRANS_IRQ_ENABLED = false;
@@ -296,19 +294,15 @@ public class CardSSC extends Card {
                         switch ((value >> 2) & 3) {
                             case 0:
                                 TRANS_IRQ_ENABLED = false;
-                                TRANS_ACTIVE = false;
                                 break;
                             case 1:
                                 TRANS_IRQ_ENABLED = true;
-                                TRANS_ACTIVE = true;
                                 break;
                             case 2:
                                 TRANS_IRQ_ENABLED = false;
-                                TRANS_ACTIVE = true;
                                 break;
                             case 3:
                                 TRANS_IRQ_ENABLED = false;
-                                TRANS_ACTIVE = true;
                                 break;
                         }
                         // 4 = Normal mode 0, or Echo mode 1 (bits 2 and 3 must be 0)
@@ -397,16 +391,17 @@ public class CardSSC extends Card {
         }
     }
 
-    private void setCTS(boolean b) throws InterruptedException {
-        PORT_CONNECTED = b;
-        if (b == false) {
-            reset();
-        }
-    }
+    // CTS isn't used here -- it's assumed that we're always clear-to-send
+    // private void setCTS(boolean b) throws InterruptedException {
+    //     PORT_CONNECTED = b;
+    //     if (b == false) {
+    //         reset();
+    //     }
+    // }
 
-    private boolean getCTS() throws InterruptedException {
-        return PORT_CONNECTED;
-    }
+    // private boolean getCTS() throws InterruptedException {
+    //     return PORT_CONNECTED;
+    // }
 
     private void triggerIRQ() {
         IRQ_TRIGGERED = true;

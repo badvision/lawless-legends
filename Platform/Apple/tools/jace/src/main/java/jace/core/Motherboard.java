@@ -37,7 +37,7 @@ public class Motherboard extends IndependentTimedDevice {
 
     @ConfigurableField(name = "Enable Speaker", shortName = "speaker", defaultValue = "true")
     public static boolean enableSpeaker = true;
-    private Speaker speaker;
+    public Speaker speaker;
 
     void vblankEnd() {
         SoftSwitches.VBL.getSwitch().setState(true);
@@ -74,9 +74,6 @@ public class Motherboard extends IndependentTimedDevice {
     public String getShortName() {
         return "mb";
     }
-    @ConfigurableField(category = "advanced", shortName = "cpuPerClock", name = "CPU per clock", defaultValue = "1", description = "Number of extra CPU cycles per clock cycle (normal = 1)")
-    public static int cpuPerClock = 0;
-    public int clockCounter = 1;
 
     private CPU _cpu = null;
     public CPU getCpu() {
@@ -88,45 +85,32 @@ public class Motherboard extends IndependentTimedDevice {
 
     @Override
     public void tick() {
-        // Extra CPU cycles requested, other devices are called by the TimedDevice abstraction
-        for (int i=1; i < cpuPerClock; i++) {
-            getCpu().doTick();
-            if (Speaker.force1mhz) {
-                speaker.tick();
-            }
-        }
-    }
-    @Override
-    public long defaultCyclesPerSecond() {
-        return NTSC_1MHZ;
     }
 
     @Override
     public synchronized void reconfigure() {
         _cpu = null;
-        whileSuspended(() -> {
-            accelorationRequestors.clear();
-            disableTempMaxSpeed();
-            super.reconfigure();
+        accelorationRequestors.clear();
+        disableTempMaxSpeed();
+        super.reconfigure();
 
-            // Now create devices as needed, e.g. sound
+        // Now create devices as needed, e.g. sound
 
-            if (enableSpeaker) {
-                try {
-                    if (speaker == null) {
-                        speaker = new Speaker();
-                        speaker.attach();
-                    }
-                    speaker.reconfigure();
-                    addChildDevice(speaker);
-                } catch (Throwable t) {
-                    System.out.println("Unable to initalize sound -- deactivating speaker out");
-                    t.printStackTrace();
+        if (enableSpeaker) {
+            try {
+                if (speaker == null) {
+                    speaker = new Speaker();
+                    speaker.attach();
                 }
-            } else {
-                System.out.println("Speaker not enabled, leaving it off.");
+                speaker.reconfigure();
+                addChildDevice(speaker);
+            } catch (Throwable t) {
+                System.out.println("Unable to initalize sound -- deactivating speaker out");
+                t.printStackTrace();
             }
-        });
+        } else {
+            System.out.println("Speaker not enabled, leaving it off.");
+        }
     }
     HashSet<Object> accelorationRequestors = new HashSet<>();
 
@@ -136,8 +120,7 @@ public class Motherboard extends IndependentTimedDevice {
     }
 
     public void cancelSpeedRequest(Object requester) {
-        accelorationRequestors.remove(requester);
-        if (accelorationRequestors.isEmpty()) {
+        if (accelorationRequestors.remove(requester) && accelorationRequestors.isEmpty()) {
             disableTempMaxSpeed();
         }
     }    

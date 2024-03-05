@@ -141,7 +141,7 @@ public class LawlessLegends extends Application {
                     romStarted.set(true);
                 });
                 romStarted.set(false);
-                c.invokeColdStart();
+                c.coldStart();
                 try {
                     Thread.sleep(watchdogDelay);
                     if (!romStarted.get() || !c.isRunning() || c.getCpu().getProgramCounter() == 0xc700 || c.getCpu().getProgramCounter() == 0) {
@@ -162,12 +162,10 @@ public class LawlessLegends extends Application {
     }
 
     public void resetEmulator() {
-        // Reset the emulator memory and reconfigure
+        // Reset the emulator memory and restart
         Emulator.withComputer(c -> {
-            c.pause();
             c.getMemory().resetState();
-            c.reconfigure();
-            c.resume();
+            c.warmStart();
         });
     }
 

@@ -45,6 +45,9 @@ import jace.hardware.mockingboard.R6522;
 public class CardMockingboard extends Card {
     // If true, emulation will cover 4 AY chips.  Otherwise, only 2 AY chips
 
+    @ConfigurableField(name = "Debug", category = "Sound", description = "Enable debug output")
+    public static boolean DEBUG = false;
+
     @ConfigurableField(name = "Volume", shortName = "vol",
             category = "Sound",
             description = "Mockingboard volume, 100=max, 0=silent")
@@ -68,7 +71,6 @@ public class CardMockingboard extends Card {
     double ticksBetweenPlayback = 24.0;
     int MAX_IDLE_TICKS = 1000000;
     boolean activatedAfterReset = false;
-    boolean debug = false;
 
     @Override
     public String getDeviceName() {
@@ -127,6 +129,11 @@ public class CardMockingboard extends Card {
     @Override
     public void reset() {
         activatedAfterReset = false;
+        if (chips != null) {
+            for (PSG p : chips) {
+                p.reset();
+            }
+        }
         suspend();
     }
     RAMListener mainListener = null;
@@ -145,7 +152,9 @@ public class CardMockingboard extends Card {
             chip++;
         }
         if (chip >= 2) {
-            System.err.println("Could not determine which PSG to communicate to for access to regsiter + " + Integer.toHexString(register));
+            if (DEBUG) {
+                System.err.println("Could not determine which PSG to communicate to for access to regsiter + " + Integer.toHexString(register));
+            }
             Emulator.withVideo(v->e.setNewValue(v.getFloatingBus()));
             return;
         }
@@ -153,24 +162,27 @@ public class CardMockingboard extends Card {
         if (e.getType().isRead()) {
             int val = controller.readRegister(register & 0x0f);
             e.setNewValue(val);
-            if (debug) System.out.println("Chip " + chip + " Read "+Integer.toHexString(register & 0x0f)+" == "+val);
+            if (DEBUG) System.out.println("Chip " + chip + " Read "+Integer.toHexString(register & 0x0f)+" == "+val);
         } else {
             controller.writeRegister(register & 0x0f, e.getNewValue());
-            if (debug) System.out.println("Chip " + chip + " Write "+Integer.toHexString(register & 0x0f)+" == "+e.getNewValue());
+            if (DEBUG) System.out.println("Chip " + chip + " Write "+Integer.toHexString(register & 0x0f)+" == "+e.getNewValue());
         }
         // Any firmware access will reset the idle counter and wake up the card, this allows the timers to start running again
         // Games such as "Skyfox" use the timer to detect if the card is present.
         idleTicks = 0;
         if (!isRunning() || isPaused()) {
             activatedAfterReset = true;
-            resume();
+            // ResumeAll is important so that the 6522's can start their timers
+            resumeAll();
         }
 }
 
     @Override
     protected void handleIOAccess(int register, TYPE type, int value, RAMEvent e) {
         // Oddly, all IO is done at the firmware address bank.  It's a strange card.
-//        System.out.println("MB I/O Access "+type.name()+" "+register+":"+value);
+        if (DEBUG) {
+            System.out.println("MB I/O Access "+type.name()+" "+register+":"+value);
+        }
         Emulator.withVideo(v->e.setNewValue(v.getFloatingBus()));
     }
     double ticksSinceLastPlayback = 0;
@@ -200,20 +212,16 @@ public class CardMockingboard extends Card {
 
     @Override
     public void reconfigure() {
-        boolean isActive = isRunning();
-        initPSG();
-        for (PSG chip : chips) {
-            chip.setRate(phasorMode ? CLOCK_SPEED * 2 : CLOCK_SPEED, SoundMixer.RATE);
-            chip.reset();
+        if (DEBUG) {
+            System.out.println("Reconfiguring Mockingboard");
         }
         ticksBetweenPlayback = (double) CLOCK_SPEED / (double) SoundMixer.RATE;
-        buildMixerTable();
+        initPSG();
 
         super.reconfigure();
-        if (isActive) {
-            resume();
+        if (DEBUG) {
+            System.out.println("Reconfiguring Mockingboard completed");
         }
-        super.reconfigure();
     }
 
 ///////////////////////////////////////////////////////////
@@ -222,6 +230,10 @@ public class CardMockingboard extends Card {
     AtomicInteger left  = new AtomicInteger(0);
     AtomicInteger right = new AtomicInteger(0);
     public boolean playSound() throws InterruptedException, ExecutionException, SoundError {
+        if (phasorMode && chips.length != 4) {
+            System.err.println("Wrong number of chips for phasor mode, correcting this");
+            initPSG();
+        }
         chips[0].update(left, true, left, false, left, false);
         chips[1].update(right, true, right, false, right, false);
         if (phasorMode) {
@@ -262,11 +274,22 @@ public class CardMockingboard extends Card {
 
     @Override
     public void resume() {
+        if (DEBUG) {
+            System.out.println("Resuming Mockingboard");
+            Thread.dumpStack();
+        }
         if (!activatedAfterReset) {
+            if (DEBUG) {
+                System.out.println("Resuming Mockingboard: not activated after reset, not resuming");
+            }
             // Do not re-activate until firmware access was made
             return;
         }
+        initPSG();
         if (buffer == null || !buffer.isAlive()) {
+            if (DEBUG) {
+                System.out.println("Resuming Mockingboard: creating sound buffer");
+            }
             try {
                 buffer = SoundMixer.createBuffer(true);
             } catch (InterruptedException | ExecutionException | SoundError e) {
@@ -275,21 +298,18 @@ public class CardMockingboard extends Card {
                 suspend();
             }
         }
-        if (chips == null) {
-            initPSG();
-            for (PSG psg : chips) {
-                psg.setRate(phasorMode ? CLOCK_SPEED * 2 : CLOCK_SPEED, SoundMixer.RATE);
-                psg.reset();
-            }
-        }
         idleTicks = 0;
-        setPaused(false);
-        reconfigure();
         super.resume();
+        System.out.println("Resuming Mockingboard: resume completed");
     }
 
     @Override
     public boolean suspend() {
+        if (DEBUG) {
+            System.out.println("Suspending Mockingboard");
+            Thread.dumpStack();
+        }
+
         if (buffer != null) {
             try {
                 buffer.shutdown();
@@ -300,21 +320,28 @@ public class CardMockingboard extends Card {
                 buffer = null;
             }
         }
+        for (R6522 c : controllers) {
+            c.suspend();
+        }
         return super.suspend();
     }
     
     private void initPSG() {
-        if (phasorMode) {
+        if (phasorMode && (chips == null || chips.length < 4)) {
             chips = new PSG[4];
             chips[0] = new PSG(0x10, CLOCK_SPEED * 2, SoundMixer.RATE, "AY1", 8);
             chips[1] = new PSG(0x80, CLOCK_SPEED * 2, SoundMixer.RATE, "AY2", 8);
             chips[2] = new PSG(0x10, CLOCK_SPEED * 2, SoundMixer.RATE, "AY3", 16);
             chips[3] = new PSG(0x80, CLOCK_SPEED * 2, SoundMixer.RATE, "AY4", 16);
-        } else {
+        } else if (chips == null || chips.length != 2) {
             chips = new PSG[2];
             chips[0] = new PSG(0, CLOCK_SPEED, SoundMixer.RATE, "AY1", 255);
             chips[1] = new PSG(0x80, CLOCK_SPEED, SoundMixer.RATE, "AY2", 255);
         }
+        for (PSG psg : chips) {
+            psg.setRate(phasorMode ? CLOCK_SPEED * 2 : CLOCK_SPEED, SoundMixer.RATE);
+        }
+        buildMixerTable();
     }
 
     @Override

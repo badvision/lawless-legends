@@ -4,7 +4,6 @@ import jace.LawlessLegends;
 import jace.apple2e.SoftSwitches;
 import jace.apple2e.softswitch.VideoSoftSwitch;
 import jace.core.Device;
-import jace.core.Motherboard;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.control.Label;
@@ -65,7 +64,6 @@ public class FPSMonitorDevice extends Device {
     }
     
     void updateIcon() {
-        cpuPerClock = Math.max(Motherboard.cpuPerClock, 1);
         long now = System.currentTimeMillis();
         long ellapsed = now - lastUpdate;
         if (ellapsed < UPDATE_INTERVAL) {

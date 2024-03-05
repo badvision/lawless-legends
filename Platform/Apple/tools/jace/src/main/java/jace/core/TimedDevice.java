@@ -28,12 +28,11 @@ import jace.config.ConfigurableField;
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com
  */
 public abstract class TimedDevice extends Device {
-    
     // From the holy word of Sather 3:5 (Table 3.1) :-)
     // This average speed averages in the "long" cycles
     public static final long NTSC_1MHZ = 1020484L;
     public static final long PAL_1MHZ = 1015625L;
-    public static final long SYNC_FREQ_HZ = 30; // Check sync every 2 frames
+    public static final long SYNC_FREQ_HZ = 60;
     public static final double NANOS_PER_SECOND = 1000000000.0;
     public static final long NANOS_PER_MILLISECOND = 1000000L;
     public static final long SYNC_SLOP = NANOS_PER_MILLISECOND * 10L; // 10ms slop for synchronization
@@ -41,6 +40,7 @@ public abstract class TimedDevice extends Device {
     @ConfigurableField(name = "Speed", description = "(Percentage)")
     public int speedRatio = 100;
     @ConfigurableField(name = "Max speed")
+    public boolean forceMaxspeed = false;
     public boolean maxspeed = false;
     private long cyclesPerSecond = defaultCyclesPerSecond();
     private int cycleTimer = 0;
@@ -120,29 +120,30 @@ public abstract class TimedDevice extends Device {
     public final void setMaxSpeed(boolean enabled) {
         maxspeed = enabled;
         if (!enabled) {
-            disableTempMaxSpeed();
+            resetSyncTimer();
         }
     }
 
     public final boolean isMaxSpeed() {
-        return maxspeed;
+        return forceMaxspeed || maxspeed;
     }
 
     public final long getSpeedInHz() {
-        return cyclesPerInterval * SYNC_FREQ_HZ;
+        return cyclesPerSecond;
     }
 
-    public final void setSpeedInHz(long cyclesPerSecond) {
-        //        System.out.println("Raw set speed for " + getName() + " to " + cyclesPerSecond + "hz");
+    public final void setSpeedInHz(long newSpeed) {
+        // System.out.println("Raw set speed for " + getName() + " to " + cyclesPerSecond + "hz");
+        // Thread.dumpStack();
+        cyclesPerSecond = newSpeed;
         speedRatio = (int) Math.round(cyclesPerSecond * 100.0 / defaultCyclesPerSecond());
         cyclesPerInterval = cyclesPerSecond / SYNC_FREQ_HZ;
         nanosPerInterval = (long) (cyclesPerInterval * NANOS_PER_SECOND / cyclesPerSecond);
-        //        System.out.println("Will pause " + nanosPerInterval + " nanos every " + cyclesPerInterval + " cycles");
+            //    System.out.println("Will pause " + nanosPerInterval + " nanos every " + cyclesPerInterval + " cycles");
         resetSyncTimer();
     }
 
     public final void setSpeedInPercentage(int ratio) {
-        //        System.out.println("Setting " + getName() + " speed ratio to " + speedRatio);
         cyclesPerSecond = defaultCyclesPerSecond() * ratio / 100;
         if (cyclesPerSecond == 0) {
             cyclesPerSecond = defaultCyclesPerSecond();
@@ -169,21 +170,17 @@ public abstract class TimedDevice extends Device {
     }
 
     protected Long calculateResyncDelay() {        
-        if (!maxspeed && ++cycleTimer >= cyclesPerInterval) {
+        if (!isMaxSpeed() && ++cycleTimer >= cyclesPerInterval) {
             cycleTimer = 0;
             if (tempSpeedDuration > 0) {
                 tempSpeedDuration -= cyclesPerInterval;
                 if (tempSpeedDuration <= 0) {
                     disableTempMaxSpeed();
                 }
-            } else if (nextSync < System.nanoTime()) {
-                // We're outside the expected range of timing so don't bother trying to sync
-                nextSync = System.nanoTime() + nanosPerInterval;
             } else {
-                // Return the number of nanoseconds we're ahead (subtract the slop allowed for synchronization deltas)
-                long returnVal = nextSync-SYNC_SLOP;
-                nextSync += nanosPerInterval;
-                return returnVal;
+                long retVal = nextSync;
+                nextSync = Math.min(nextSync + nanosPerInterval, System.nanoTime() + nanosPerInterval * 2); // Avoid drift (but not too much!
+                return retVal;
             }
         }
         return null;

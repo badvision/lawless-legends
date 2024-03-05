@@ -149,6 +149,10 @@ public class Utility {
             return Optional.empty();
         }
         InputStream stream = Utility.class.getResourceAsStream("/jace/data/" + filename);
+        if (stream == null) {
+            System.err.println("Could not load icon: " + filename);
+            return Optional.empty();
+        }
         return Optional.of(new Image(stream));
     }
 
@@ -276,45 +280,6 @@ public class Utility {
             return candidates.get(0);
         }
         return null;
-    }
-
-    public static void printStackTrace() {
-        System.out.println("START OF STACK TRACE:");
-        int skip = 2;
-        for (StackTraceElement s : Thread.currentThread().getStackTrace()) {
-            if (skip-- > 0) {
-                continue;
-            }
-            if (s.getClassName().startsWith("com.sun.javafx.event")) {
-                break;
-            }
-            System.out.println("    " + s.getClassName() + "." + s.getMethodName() + " (line " + s.getLineNumber() + ") " + (s.isNativeMethod() ? "NATIVE" : ""));
-        }
-        System.out.println("END OF STACK TRACE");
-    }
-
-    public static int parseHexInt(Object s) {
-        if (s == null) {
-            return -1;
-        }
-        if (s instanceof Integer integer) {
-            return integer;
-        }
-        String val = String.valueOf(s).trim();
-        int base = 10;
-        if (val.startsWith("$")) {
-            base = 16;
-            val = val.contains(" ") ? val.substring(1, val.indexOf(' ')) : val.substring(1);
-        } else if (val.startsWith("0x")) {
-            base = 16;
-            val = val.contains(" ") ? val.substring(2, val.indexOf(' ')) : val.substring(2);
-        }
-        try {
-            return Integer.parseInt(val, base);
-        } catch (NumberFormatException ex) {
-            gripe("This isn't a valid number: " + val + ".  If you put a $ in front of that then I'll know you meant it to be a hex number.");
-            throw ex;
-        }
     }
 
     public static void gripe(final String message) {

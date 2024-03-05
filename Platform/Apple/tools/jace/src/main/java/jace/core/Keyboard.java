@@ -304,20 +304,12 @@ public class Keyboard implements Reconfigurable {
 
     @InvokableAction(name = "Open Apple Key", alternatives = "OA", category = "Keyboard", notifyOnRelease = true, defaultKeyMapping = "Alt", consumeKeyEvent = false)
     public void openApple(boolean pressed) {
-        // boolean isRunning = computer.pause();
         SoftSwitches.PB0.getSwitch().setState(pressed);
-        // if (isRunning) {
-        //     computer.resume();
-        // }
     }
 
     @InvokableAction(name = "Closed Apple Key", alternatives = "CA", category = "Keyboard", notifyOnRelease = true, defaultKeyMapping = {"Shortcut","Meta","Command"}, consumeKeyEvent = false)
     public void solidApple(boolean pressed) {
-        // boolean isRunning = computer.pause();
         SoftSwitches.PB1.getSwitch().setState(pressed);
-        // if (isRunning) {
-        //     computer.resume();
-        // }
     }
 
     public static void pasteFromString(String text) {

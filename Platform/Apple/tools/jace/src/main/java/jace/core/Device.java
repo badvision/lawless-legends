@@ -222,7 +222,8 @@ public abstract class Device implements Reconfigurable {
 
     
     public boolean suspend() {
-        children.forEach(Device::suspend);
+        // Suspending the parent device means the children are not going to run
+        // children.forEach(Device::suspend);
         if (isRunning()) {
             setRun(false);
             return true;
@@ -230,10 +231,17 @@ public abstract class Device implements Reconfigurable {
         return false;
     }
 
+    public void resumeAll() {
+        resume();
+        children.forEach(Device::resumeAll);
+    }
+
     public void resume() {
-        children.forEach(Device::resume);
+        // Resuming children pre-emptively might lead to unexpected behavior
+        // Don't do that unless we really mean to (such as cold-starting the computer)
+        // children.forEach(Device::resume);
         if (!isRunning()) {
-            setRun(true);            
+            setRun(true);
             waitCycles = 0;
         }
     }

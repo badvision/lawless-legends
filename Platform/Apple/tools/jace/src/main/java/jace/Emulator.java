@@ -145,8 +145,8 @@ public class Emulator {
         instance = this;
         computer = new LawlessComputer();
         Configuration.buildTree();
-        computer.getMotherboard().suspend();
         Configuration.loadSettings();
+        Configuration.applySettings(Configuration.BASE);
         mainThread = Thread.currentThread();
 //        EmulatorUILogic.registerDebugger();
 //        computer.coldStart();

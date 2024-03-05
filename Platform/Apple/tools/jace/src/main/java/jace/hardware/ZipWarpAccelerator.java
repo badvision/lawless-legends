@@ -18,7 +18,6 @@ package jace.hardware;
 import jace.Emulator;
 import jace.config.ConfigurableField;
 import jace.core.Device;
-import jace.core.Motherboard;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
 
@@ -175,14 +174,12 @@ public class ZipWarpAccelerator extends Device {
     private void setSpeed(SPEED speed) {
         speedValue = speed.val;
         Emulator.withComputer(c -> {
-//            if (speed.max) {
-//                c.getMotherboard().setMaxSpeed(true);
-//                Motherboard.cpuPerClock = 3;
-//            } else {
+            if (speed.max) {
+                c.getMotherboard().setMaxSpeed(true);
+            } else {
                 c.getMotherboard().setMaxSpeed(false);
                 c.getMotherboard().setSpeedInPercentage((int) (speed.ratio * 100));
-                Motherboard.cpuPerClock = 1;
-//            }
+            }
             c.getMotherboard().reconfigure();            
         });
     }

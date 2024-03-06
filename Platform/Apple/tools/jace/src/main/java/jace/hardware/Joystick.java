@@ -93,6 +93,8 @@ public class Joystick extends Device {
     public boolean useDPad = false;
     @ConfigurableField(name = "Timer resolution", shortName = "timerres", description = "How many ticks until we poll the buttons again?")
     public static long TIMER_RESOLUTION = TimedDevice.NTSC_1MHZ / 15; // 15FPS resolution reads when joystick is not used
+    @ConfigurableField(name = "Dead Zone", shortName = "deadZone", description = "Dead zone for joystick (0-1)")
+    public static float deadZone = 0.1f;
 
     Integer controllerNumber = null;
 
@@ -191,6 +193,12 @@ public class Joystick extends Device {
                         } else {
                             y = 0;
                         }
+                    }
+                    if (Math.abs(x) < deadZone) {
+                        x = 0;
+                    }
+                    if (Math.abs(y) < deadZone) {
+                        y = 0;
                     }
                     joyX = (int) (x * 128.0 + 128.0);
                     joyY = (int) (y * 128.0 + 128.0);

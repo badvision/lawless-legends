@@ -39,6 +39,7 @@ module lawlesslegends {
     requires jdk.jsobject;
     requires org.lwjgl.openal;
     requires org.lwjgl.stb;
+    requires org.lwjgl.glfw;
     
     // requires org.reflections;
     

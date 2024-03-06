@@ -16,19 +16,29 @@
 
 package jace.hardware;
 
+import java.nio.ByteBuffer;
+import java.nio.FloatBuffer;
+import java.util.LinkedHashMap;
+
+import org.lwjgl.glfw.GLFW;
+
 import jace.Emulator;
 import jace.LawlessLegends;
 import jace.apple2e.SoftSwitches;
 import jace.apple2e.softswitch.MemorySoftSwitch;
 import jace.config.ConfigurableField;
+import jace.config.DynamicSelection;
 import jace.config.InvokableAction;
 import jace.core.Computer;
 import jace.core.Device;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
+import jace.core.TimedDevice;
 import jace.state.Stateful;
+import javafx.application.Platform;
 import javafx.scene.input.MouseEvent;
 import javafx.stage.Stage;
+
 
 /**
  * Simple implementation of joystick support that supports mouse or keyboard.
@@ -39,13 +49,78 @@ import javafx.stage.Stage;
  */
 @Stateful
 public class Joystick extends Device {
-
+    static {
+        Platform.runLater(()->{
+            GLFW.glfwInit();
+        });
+    }
+    
     @ConfigurableField(name = "Center Mouse", shortName = "center", description = "Moves mouse back to the center of the screen, can get annoying.")
     public boolean centerMouse = false;
     @ConfigurableField(name = "Use keyboard", shortName = "useKeys", description = "Arrow keys will control joystick instead of the mouse.")
     public boolean useKeyboard = false;
     @ConfigurableField(name = "Hog keypresses", shortName = "hog", description = "Key presses will not be sent to emulator.")
     public boolean hogKeyboard = false;
+    @ConfigurableField(name = "Controller", shortName = "glfwController", description = "Physical game controller")
+    public DynamicSelection<String> glfwController = new DynamicSelection<>(null) {
+        @Override
+        public boolean allowNull() {
+            return true;
+        }
+
+        @Override
+        public LinkedHashMap<String, String> getSelections() {
+            // Get list of joysticks from GLFW
+            LinkedHashMap<String, String> selections = new LinkedHashMap<>();
+            selections.put("", "***Empty***");
+            for (int i = GLFW.GLFW_JOYSTICK_1; i <= GLFW.GLFW_JOYSTICK_LAST; i++) {
+                if (GLFW.glfwJoystickPresent(i)) {
+                    selections.put(GLFW.glfwGetJoystickName(i), GLFW.glfwGetJoystickName(i));
+                }
+            }
+            return selections;
+        }
+    };
+    @ConfigurableField(name = "X Axis", shortName = "xaxis", description = "Physical game controller X Axis")
+    public int xaxis = GLFW.GLFW_GAMEPAD_AXIS_LEFT_X;
+    @ConfigurableField(name = "Y Axis", shortName = "yaxis", description = "Physical game controller Y Axis")
+    public int yaxis = GLFW.GLFW_GAMEPAD_AXIS_LEFT_Y;
+    @ConfigurableField(name = "Button 0", shortName = "buttonA", description = "Physical game controller A button")
+    public int button0 = GLFW.GLFW_GAMEPAD_BUTTON_A;
+    @ConfigurableField(name = "Button 1", shortName = "buttonB", description = "Physical game controller B button")
+    public int button1 = GLFW.GLFW_GAMEPAD_BUTTON_B;
+    @ConfigurableField(name = "Prefer D-PAD", shortName = "dpad", description = "Physical game controller enable D-PAD")
+    public boolean useDPad = false;
+    @ConfigurableField(name = "Timer resolution", shortName = "timerres", description = "How many ticks until we poll the buttons again?")
+    public static long TIMER_RESOLUTION = TimedDevice.NTSC_1MHZ / 20; // 20FPS resolution
+
+    Integer controllerNumber = null;
+
+    public Integer getControllerNum() {
+        if (controllerNumber != null) {
+            return controllerNumber >= 0  && GLFW.glfwJoystickPresent(controllerNumber) ? controllerNumber : null;
+        }
+        String controllerName = glfwController.getValue();
+        if (controllerName == null || controllerName.isEmpty()) {
+            return null;
+        }
+        for (int i = GLFW.GLFW_JOYSTICK_1; i <= GLFW.GLFW_JOYSTICK_LAST; i++) {
+            if (GLFW.glfwJoystickPresent(i) && controllerName.equals(GLFW.glfwGetJoystickName(i))) {
+                controllerNumber = i;
+                // Let's list out all the buttons and axis data
+                Platform.runLater(()->{
+                    FloatBuffer axes = GLFW.glfwGetJoystickAxes(controllerNumber);
+                    ByteBuffer buttons = GLFW.glfwGetJoystickButtons(controllerNumber);
+                    System.out.println("Controller " + controllerName + " has " + axes.capacity() + " axes and " + buttons.capacity() + " buttons");
+                });
+                return i;
+            }
+        }
+        return null;
+    }
+    private boolean selectedPhysicalController() {
+        return getControllerNum() != null;
+    }
     public int port;
     @Stateful
     public int x = 0;
@@ -65,7 +140,7 @@ public class Joystick extends Device {
         // Register a mouse handler on the primary stage that tracks the 
         // mouse x/y position as a percentage of window width and height
         stage.addEventHandler(MouseEvent.MOUSE_MOVED, event -> {
-            if (!useKeyboard) {
+            if (!useKeyboard && !selectedPhysicalController()) {
                 joyX = (int) (event.getX() / stage.getWidth() * 255);
                 joyY = (int) (event.getY() / stage.getHeight() * 255);
             }
@@ -85,9 +160,42 @@ public class Joystick extends Device {
     public boolean downPressed = false;
 
     private void readJoystick() {
+        ticksSinceLastRead = 0;
         if (useKeyboard) {
             joyX = (leftPressed ? -128 : 0) + (rightPressed ? 255 : 128);
             joyY = (upPressed ? -128 : 0) + (downPressed ? 255 : 128);
+        } else if (selectedPhysicalController()) {
+            Platform.runLater(()->{
+                Integer controllerNum = getControllerNum();
+
+                if (controllerNum != null) {
+                    FloatBuffer axes = GLFW.glfwGetJoystickAxes(controllerNumber);
+                    ByteBuffer buttons = GLFW.glfwGetJoystickButtons(controllerNumber);
+                    float x = xaxis >= 0 && xaxis < axes.capacity() ? axes.get(xaxis) : -0.5f;
+                    float y = yaxis >= 0 && yaxis < axes.capacity() ? axes.get(yaxis) : 0.5f;
+
+                    if (useDPad) {
+                        // ByteBuffer buttons = GLFW.glfwGetJoystickButtons(controllerNum);
+                        if (buttons.get(GLFW.GLFW_GAMEPAD_BUTTON_DPAD_LEFT) != 0) {
+                            x = -1;
+                        } else if (buttons.get(GLFW.GLFW_GAMEPAD_BUTTON_DPAD_RIGHT) != 0) {
+                            x = 1;
+                        } else {
+                            x = 0;
+                        }
+
+                        if (buttons.get(GLFW.GLFW_GAMEPAD_BUTTON_DPAD_UP) != 0) {
+                            y = -1;
+                        } else if (buttons.get(GLFW.GLFW_GAMEPAD_BUTTON_DPAD_DOWN) != 0) {
+                            y = 1;
+                        } else {
+                            y = 0;
+                        }
+                    }
+                    joyX = (int) (x * 128.0 + 128.0);
+                    joyY = (int) (y * 128.0 + 128.0);
+                }
+            });
         }
     }
 
@@ -101,8 +209,11 @@ public class Joystick extends Device {
         return "joy" + port;
     }
 
+    int ticksSinceLastRead = Integer.MAX_VALUE;
+
     @Override
     public void tick() {
+        ticksSinceLastRead++;
         boolean finished = true;
         if (x > 0) {
             if (--x == 0) {
@@ -118,7 +229,23 @@ public class Joystick extends Device {
                 finished = false;
             }
         }
-        if (finished) {
+        if (selectedPhysicalController()) {
+            if (finished && ticksSinceLastRead >= 1000000) {
+                setRun(false);
+            } else if (ticksSinceLastRead % TIMER_RESOLUTION == 0) {
+                // Read joystick buttons ~60 times a second as long as joystick is actively in use
+                Integer controllerNum = getControllerNum();
+                if (controllerNum != null) {
+                    Platform.runLater(()->{
+                        ByteBuffer buttons = GLFW.glfwGetJoystickButtons(controllerNumber);
+                        byte b0 = button0 >=0 && button0 < buttons.capacity() ? buttons.get(button0) : 0;
+                        byte b1 = button1 >=0 && button1 < buttons.capacity() ? buttons.get(button1) : 0;
+                        SoftSwitches.PB0.getSwitch().setState(b0 != 0);
+                        SoftSwitches.PB1.getSwitch().setState(b1 != 0);
+                    });
+                }
+            }
+        } else if (finished) {
             setRun(false);
         }
     }
@@ -140,6 +267,7 @@ public class Joystick extends Device {
         x = 0;
         y = 0;
         registerListeners();
+        controllerNumber = null;
     }
 
     @InvokableAction(name = "Left", category = "joystick", defaultKeyMapping = "left", notifyOnRelease = true)

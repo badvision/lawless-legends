@@ -92,7 +92,7 @@ public class Joystick extends Device {
     @ConfigurableField(name = "Prefer D-PAD", shortName = "dpad", description = "Physical game controller enable D-PAD")
     public boolean useDPad = false;
     @ConfigurableField(name = "Timer resolution", shortName = "timerres", description = "How many ticks until we poll the buttons again?")
-    public static long TIMER_RESOLUTION = TimedDevice.NTSC_1MHZ / 20; // 20FPS resolution
+    public static long TIMER_RESOLUTION = TimedDevice.NTSC_1MHZ / 15; // 15FPS resolution reads when joystick is not used
 
     Integer controllerNumber = null;
 
@@ -194,8 +194,23 @@ public class Joystick extends Device {
                     }
                     joyX = (int) (x * 128.0 + 128.0);
                     joyY = (int) (y * 128.0 + 128.0);
+
+                    readButtons();
                 }
             });
+        }
+    }
+
+    private void readButtons() {
+        if (selectedPhysicalController()) {
+            Integer controllerNum = getControllerNum();
+            if (controllerNum != null) {
+                ByteBuffer buttons = GLFW.glfwGetJoystickButtons(controllerNumber);
+                byte b0 = button0 >=0 && button0 < buttons.capacity() ? buttons.get(button0) : 0;
+                byte b1 = button1 >=0 && button1 < buttons.capacity() ? buttons.get(button1) : 0;
+                SoftSwitches.PB0.getSwitch().setState(b0 != 0);
+                SoftSwitches.PB1.getSwitch().setState(b1 != 0);
+            }
         }
     }
 
@@ -236,13 +251,7 @@ public class Joystick extends Device {
                 // Read joystick buttons ~60 times a second as long as joystick is actively in use
                 Integer controllerNum = getControllerNum();
                 if (controllerNum != null) {
-                    Platform.runLater(()->{
-                        ByteBuffer buttons = GLFW.glfwGetJoystickButtons(controllerNumber);
-                        byte b0 = button0 >=0 && button0 < buttons.capacity() ? buttons.get(button0) : 0;
-                        byte b1 = button1 >=0 && button1 < buttons.capacity() ? buttons.get(button1) : 0;
-                        SoftSwitches.PB0.getSwitch().setState(b0 != 0);
-                        SoftSwitches.PB1.getSwitch().setState(b1 != 0);
-                    });
+                    Platform.runLater(this::readButtons);
                 }
             }
         } else if (finished) {

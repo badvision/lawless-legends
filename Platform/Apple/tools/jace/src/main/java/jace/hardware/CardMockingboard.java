@@ -276,7 +276,6 @@ public class CardMockingboard extends Card {
     public void resume() {
         if (DEBUG) {
             System.out.println("Resuming Mockingboard");
-            Thread.dumpStack();
         }
         if (!activatedAfterReset) {
             if (DEBUG) {
@@ -300,7 +299,9 @@ public class CardMockingboard extends Card {
         }
         idleTicks = 0;
         super.resume();
-        System.out.println("Resuming Mockingboard: resume completed");
+        if (DEBUG) {
+            System.out.println("Resuming Mockingboard: resume completed");
+        }
     }
 
     @Override

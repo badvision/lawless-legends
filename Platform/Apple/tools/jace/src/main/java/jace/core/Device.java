@@ -65,10 +65,16 @@ public abstract class Device implements Reconfigurable {
         return _ram;
     }
 
+    Device parentDevice = null;
+    public Device getParent() {
+        return parentDevice;
+    }
+
     public void addChildDevice(Device d) {
         if (d == null || children.contains(d) || d.equals(this)) {
             return;
         }
+        d.parentDevice = this;
         children.add(d);
         d.attach();
         childrenArray = children.toArray(Device[]::new);

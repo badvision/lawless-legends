@@ -169,20 +169,33 @@ public abstract class TimedDevice extends Device {
         return NTSC_1MHZ;
     }
 
+    private boolean useParentTiming() {
+        if (getParent() != null && getParent() instanceof TimedDevice) {
+            TimedDevice pd = (TimedDevice) getParent();
+            if (pd.useParentTiming() || (!pd.isMaxSpeed() && pd.getSpeedInHz() <= getSpeedInHz())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     protected Long calculateResyncDelay() {        
-        if (!isMaxSpeed() && ++cycleTimer >= cyclesPerInterval) {
-            cycleTimer = 0;
+        if (++cycleTimer < cyclesPerInterval) {
+            return null;
+        }
+        cycleTimer = 0;
+        if (isMaxSpeed() || useParentTiming()) {
             if (tempSpeedDuration > 0) {
                 tempSpeedDuration -= cyclesPerInterval;
                 if (tempSpeedDuration <= 0) {
                     disableTempMaxSpeed();
                 }
-            } else {
-                long retVal = nextSync;
-                nextSync = Math.min(nextSync + nanosPerInterval, System.nanoTime() + nanosPerInterval * 2); // Avoid drift (but not too much!
-                return retVal;
             }
+            nextSync += nanosPerInterval;
+            return null;
         }
-        return null;
+        long retVal = nextSync;
+        nextSync = Math.min(nextSync + nanosPerInterval, System.nanoTime() + nanosPerInterval * 2); // Avoid drift (but not too much!
+        return retVal;
     }
 }

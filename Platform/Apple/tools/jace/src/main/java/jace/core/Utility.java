@@ -357,6 +357,10 @@ public class Utility {
             }
         } else if (type.equals(Boolean.TYPE) || type == Boolean.class) {
             return Boolean.valueOf(value);
+        } else if (type.equals(Float.TYPE) || type == Float.class) {
+            return Float.parseFloat(value);
+        } else if (type.equals(Double.TYPE) || type == Double.class) {
+            return Double.parseDouble(value);
         } else if (type == File.class) {
             return new File(String.valueOf(value));
         } else if (type.isEnum()) {

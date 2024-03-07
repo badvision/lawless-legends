@@ -33,7 +33,6 @@ import jace.core.Computer;
 import jace.core.Device;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
-import jace.core.TimedDevice;
 import jace.state.Stateful;
 import javafx.application.Platform;
 import javafx.scene.input.MouseEvent;
@@ -82,17 +81,19 @@ public class Joystick extends Device {
         }
     };
     @ConfigurableField(name = "X Axis", shortName = "xaxis", description = "Physical game controller X Axis")
-    public int xaxis = GLFW.GLFW_GAMEPAD_AXIS_LEFT_X;
+    public int xaxis = -1;
     @ConfigurableField(name = "Y Axis", shortName = "yaxis", description = "Physical game controller Y Axis")
-    public int yaxis = GLFW.GLFW_GAMEPAD_AXIS_LEFT_Y;
+    public int yaxis = -1;
     @ConfigurableField(name = "Button 0", shortName = "buttonA", description = "Physical game controller A button")
-    public int button0 = GLFW.GLFW_GAMEPAD_BUTTON_A;
+    public int button0 = -1;
     @ConfigurableField(name = "Button 1", shortName = "buttonB", description = "Physical game controller B button")
-    public int button1 = GLFW.GLFW_GAMEPAD_BUTTON_B;
-    @ConfigurableField(name = "Prefer D-PAD", shortName = "dpad", description = "Physical game controller enable D-PAD")
-    public boolean useDPad = false;
-    @ConfigurableField(name = "Timer resolution", shortName = "timerres", description = "How many ticks until we poll the buttons again?")
-    public static long TIMER_RESOLUTION = TimedDevice.NTSC_1MHZ / 15; // 15FPS resolution reads when joystick is not used
+    public int button1 = -1;
+    @ConfigurableField(name = "Use D-PAD", shortName = "dpad", description = "Physical game controller enable D-PAD")
+    public boolean useDPad = true;
+    ControllerMappings mapping = null;
+    @ConfigurableField(name = "Polling time", shortName = "pollTime", description = "How many milliseconds between joystick reads?  -1=auto-calibrate.")
+    public static long POLLING_TIME = -1;
+    public static int CALIBRATION_ITERATIONS = 15;
     @ConfigurableField(name = "Dead Zone", shortName = "deadZone", description = "Dead zone for joystick (0-1)")
     public static float deadZone = 0.1f;
 
@@ -100,21 +101,16 @@ public class Joystick extends Device {
 
     public Integer getControllerNum() {
         if (controllerNumber != null) {
-            return controllerNumber >= 0  && GLFW.glfwJoystickPresent(controllerNumber) ? controllerNumber : null;
+            return controllerNumber >= 0 ? controllerNumber : null;
         }
         String controllerName = glfwController.getValue();
         if (controllerName == null || controllerName.isEmpty()) {
             return null;
         }
         for (int i = GLFW.GLFW_JOYSTICK_1; i <= GLFW.GLFW_JOYSTICK_LAST; i++) {
-            if (GLFW.glfwJoystickPresent(i) && controllerName.equals(GLFW.glfwGetJoystickName(i))) {
+            if (controllerName.equals(GLFW.glfwGetJoystickName(i)) && GLFW.glfwJoystickPresent(i)) {
                 controllerNumber = i;
-                // Let's list out all the buttons and axis data
-                Platform.runLater(()->{
-                    FloatBuffer axes = GLFW.glfwGetJoystickAxes(controllerNumber);
-                    ByteBuffer buttons = GLFW.glfwGetJoystickButtons(controllerNumber);
-                    System.out.println("Controller " + controllerName + " has " + axes.capacity() + " axes and " + buttons.capacity() + " buttons");
-                });
+                applyControllerMapping();
                 return i;
             }
         }
@@ -132,6 +128,10 @@ public class Joystick extends Device {
     private int joyY = 0;
     MemorySoftSwitch xSwitch;
     MemorySoftSwitch ySwitch;
+
+    long lastPollTime = System.currentTimeMillis();
+    FloatBuffer axes;
+    ByteBuffer buttons;
 
     public Joystick(int port, Computer computer) {
         super();
@@ -166,59 +166,79 @@ public class Joystick extends Device {
         if (useKeyboard) {
             joyX = (leftPressed ? -128 : 0) + (rightPressed ? 255 : 128);
             joyY = (upPressed ? -128 : 0) + (downPressed ? 255 : 128);
-        } else if (selectedPhysicalController()) {
-            Platform.runLater(()->{
-                Integer controllerNum = getControllerNum();
+        } else if (readGLFWJoystick()) {
+            float x = xaxis >= 0 && xaxis < axes.capacity() ? axes.get(xaxis) : -0.5f;
+            float y = yaxis >= 0 && yaxis < axes.capacity() ? axes.get(yaxis) : 0.5f;
 
-                if (controllerNum != null) {
-                    FloatBuffer axes = GLFW.glfwGetJoystickAxes(controllerNumber);
-                    ByteBuffer buttons = GLFW.glfwGetJoystickButtons(controllerNumber);
-                    float x = xaxis >= 0 && xaxis < axes.capacity() ? axes.get(xaxis) : -0.5f;
-                    float y = yaxis >= 0 && yaxis < axes.capacity() ? axes.get(yaxis) : 0.5f;
-
-                    if (useDPad) {
-                        // ByteBuffer buttons = GLFW.glfwGetJoystickButtons(controllerNum);
-                        if (buttons.get(GLFW.GLFW_GAMEPAD_BUTTON_DPAD_LEFT) != 0) {
-                            x = -1;
-                        } else if (buttons.get(GLFW.GLFW_GAMEPAD_BUTTON_DPAD_RIGHT) != 0) {
-                            x = 1;
-                        } else {
-                            x = 0;
-                        }
-
-                        if (buttons.get(GLFW.GLFW_GAMEPAD_BUTTON_DPAD_UP) != 0) {
-                            y = -1;
-                        } else if (buttons.get(GLFW.GLFW_GAMEPAD_BUTTON_DPAD_DOWN) != 0) {
-                            y = 1;
-                        } else {
-                            y = 0;
-                        }
-                    }
-                    if (Math.abs(x) < deadZone) {
-                        x = 0;
-                    }
-                    if (Math.abs(y) < deadZone) {
-                        y = 0;
-                    }
-                    joyX = (int) (x * 128.0 + 128.0);
-                    joyY = (int) (y * 128.0 + 128.0);
-
-                    readButtons();
+            if (useDPad && mapping != null) {
+                // ByteBuffer buttons = GLFW.glfwGetJoystickButtons(controllerNum);
+                if (buttons.get(mapping.dpadLeft) != 0) {
+                    x = -1;
+                } else if (buttons.get(mapping.dpadRight) != 0) {
+                    x = 1;
                 }
-            });
+
+                if (buttons.get(mapping.dpadUp) != 0) {
+                    y = -1;
+                } else if (buttons.get(mapping.dpadDown) != 0) {
+                    y = 1;
+                }
+            }
+            if (Math.abs(x) < deadZone) {
+                x = 0;
+            }
+            if (Math.abs(y) < deadZone) {
+                y = 0;
+            }
+            joyX = (int) (x * 128.0 + 128.0);
+            joyY = (int) (y * 128.0 + 128.0);
+
+            readButtons();
         }
     }
 
-    private void readButtons() {
+    private void calibrateTiming() {
+        if (POLLING_TIME > 0) {
+            return;
+        }
         if (selectedPhysicalController()) {
             Integer controllerNum = getControllerNum();
             if (controllerNum != null) {
-                ByteBuffer buttons = GLFW.glfwGetJoystickButtons(controllerNumber);
-                byte b0 = button0 >=0 && button0 < buttons.capacity() ? buttons.get(button0) : 0;
-                byte b1 = button1 >=0 && button1 < buttons.capacity() ? buttons.get(button1) : 0;
-                SoftSwitches.PB0.getSwitch().setState(b0 != 0);
-                SoftSwitches.PB1.getSwitch().setState(b1 != 0);
+                long start = System.currentTimeMillis();
+
+                for (int i = 0; i < CALIBRATION_ITERATIONS; i++) {
+                    buttons = GLFW.glfwGetJoystickButtons(controllerNumber);
+                    axes = GLFW.glfwGetJoystickAxes(controllerNumber);
+                }
+                long end = System.currentTimeMillis();
+                POLLING_TIME = (end - start) / CALIBRATION_ITERATIONS + 1;
+                System.out.println("Calibrated polling time to " + POLLING_TIME + "ms");
             }
+        }
+    }
+
+    private boolean readGLFWJoystick() {
+        if (System.currentTimeMillis() - lastPollTime >= POLLING_TIME) {
+            lastPollTime = System.currentTimeMillis();
+            if (selectedPhysicalController()) {
+                Integer controllerNum = getControllerNum();
+                if (controllerNum != null) {
+                    Platform.runLater(()->{
+                        buttons = GLFW.glfwGetJoystickButtons(controllerNumber);
+                        axes = GLFW.glfwGetJoystickAxes(controllerNumber);
+                    });
+                }
+            }
+        }
+        return axes != null && buttons != null;
+    }
+
+    private void readButtons() {
+        if (readGLFWJoystick()) {
+            byte b0 = button0 >=0 && button0 < buttons.capacity() ? buttons.get(button0) : 0;
+            byte b1 = button1 >=0 && button1 < buttons.capacity() ? buttons.get(button1) : 0;
+            SoftSwitches.PB0.getSwitch().setState(b0 != 0);
+            SoftSwitches.PB1.getSwitch().setState(b1 != 0);
         }
     }
 
@@ -255,12 +275,8 @@ public class Joystick extends Device {
         if (selectedPhysicalController()) {
             if (finished && ticksSinceLastRead >= 1000000) {
                 setRun(false);
-            } else if (ticksSinceLastRead % TIMER_RESOLUTION == 0) {
-                // Read joystick buttons ~60 times a second as long as joystick is actively in use
-                Integer controllerNum = getControllerNum();
-                if (controllerNum != null) {
-                    Platform.runLater(this::readButtons);
-                }
+            } else if (ticksSinceLastRead > 1000 && ticksSinceLastRead % 1000 == 0) {
+                readButtons();
             }
         } else if (finished) {
             setRun(false);
@@ -283,8 +299,68 @@ public class Joystick extends Device {
         removeListeners();
         x = 0;
         y = 0;
-        registerListeners();
         controllerNumber = null;
+        Platform.runLater(this::calibrateTiming);
+        registerListeners();
+    }
+
+    private void applyControllerMapping() {
+        mapping = ControllerMappings.getMapping(glfwController.getValue());
+        if (mapping != null) {
+            System.out.println("Applying controller mapping " + mapping);
+            if (xaxis < 0) {
+                xaxis = mapping.xaxis;
+            }
+            if (yaxis < 0) {
+                yaxis = mapping.yaxis;
+            }
+            if (button0 < 0) {
+                button0 = mapping.button0;
+            }
+            if (button1 < 0) {
+                button1 = mapping.button1;
+            }
+        }
+    }
+
+    public static enum ControllerMappings{
+        mocute("MOCUTE-032.*", 1, 3, 3, 6),
+        ps3("PLAYSTATION\\(R\\)3.*", 0, 1, 7, 5, 4, 6, 14, 13),
+        generic("UNKNOWN", GLFW.GLFW_GAMEPAD_AXIS_LEFT_X, GLFW.GLFW_GAMEPAD_AXIS_LEFT_Y, GLFW.GLFW_GAMEPAD_BUTTON_A, GLFW.GLFW_GAMEPAD_BUTTON_B);
+        public final String pattern;
+        public final int xaxis;
+        public final int yaxis;
+        public final int dpadLeft;
+        public final int dpadRight;
+        public final int dpadUp;
+        public final int dpadDown;
+        public final int button0;
+        public final int button1;
+        ControllerMappings(String pattern, int xaxis, int yaxis, int button0, int button1) {
+            this(pattern, xaxis, yaxis, GLFW.GLFW_GAMEPAD_BUTTON_DPAD_LEFT,GLFW. GLFW_GAMEPAD_BUTTON_DPAD_RIGHT, GLFW.GLFW_GAMEPAD_BUTTON_DPAD_UP, GLFW.GLFW_GAMEPAD_BUTTON_DPAD_DOWN, button0, button1);
+        }
+        ControllerMappings(String pattern, int xaxis, int yaxis, int dpadLeft, int dpadRight, int dpadUp, int dpadDown, int button0, int button1) {
+            this.pattern = pattern;
+            this.xaxis = xaxis;
+            this.yaxis = yaxis;
+            this.dpadLeft = dpadLeft;
+            this.dpadRight = dpadRight;
+            this.dpadUp = dpadUp;
+            this.dpadDown = dpadDown;
+            this.button0 = button0;
+            this.button1 = button1;
+        }
+
+        public static ControllerMappings getMapping(String name) {
+            if (name == null) return null;
+            for (ControllerMappings mapping : ControllerMappings.values()) {
+                if (name.matches(mapping.pattern)) {
+                    return mapping;
+                }
+            }
+            System.out.println("No mapping found for " + name);
+            return ControllerMappings.generic;
+        }
     }
 
     @InvokableAction(name = "Left", category = "joystick", defaultKeyMapping = "left", notifyOnRelease = true)

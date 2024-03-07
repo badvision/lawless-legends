@@ -16,9 +16,12 @@
 
 package jace.hardware;
 
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.Map;
 
 import org.lwjgl.glfw.GLFW;
 
@@ -51,9 +54,115 @@ public class Joystick extends Device {
     static {
         Platform.runLater(()->{
             GLFW.glfwInit();
+            // Load joystick mappings from resources
+            // First read the file into a ByteBuffer
+            try (InputStream inputStream = Joystick.class.getResourceAsStream("/jace/data/gamecontrollerdb.txt")) {
+                // Throw it into a string
+                String mappings = new String(inputStream.readAllBytes());
+                parseGameControllerDB(mappings);
+            } catch (Exception e) {
+                System.err.println("Failed to load joystick mappings; error: " + e.getMessage());
+                e.printStackTrace();
+            }
         });
     }
-    
+
+    static public class ControllerMapping {
+        public String name;
+        public String guid;
+        public String platform;
+        public int button0;
+        public int button1;
+        public boolean xinvert;
+        public int xaxis;
+        public boolean yinvert;
+        public int yaxis;
+        public int up;
+        public int down;
+        public int left;
+        public int right;
+    }
+
+    static Map<String, ControllerMapping> controllerMappings = new HashMap<>();
+    static void parseGameControllerDB(String mappings) {
+        // File format: 
+        // Any line starting with a # or empty is a comment
+        // Format is GUID, name, mappings
+        // Mappings are a comma-separated list of buttons, axes, and hats with a : delimiter
+        // Buttons are B<index>, axes are A<index>, hats are H<index>
+
+        // Read into a map of GUID to mappings
+        String[] lines = mappings.split("\n");
+
+        for (String line : lines) {
+            line = line.trim();
+            if (line.isEmpty() || line.startsWith("#")) {
+                continue;
+            }
+            String[] parts = line.split(",");
+            if (parts.length < 3) {
+                continue;
+            }
+            String guid = parts[0].trim();
+            String name = parts[1].trim();
+            ControllerMapping controller = new ControllerMapping();
+            controller.guid = guid;
+            controller.name = name;
+            controllerMappings.put(guid, controller);
+            // Split the mapping into parts
+            for (int i = 2; i < parts.length; i++) {
+                String[] mappingParts = parts[i].split(":");
+                if (mappingParts.length < 2) {
+                    continue;
+                }
+                String target = mappingParts[0].trim();
+                String source = mappingParts[1].trim();
+                boolean inverted = source.endsWith("~");
+                if (inverted) {
+                    source = source.substring(0, source.length() - 1);
+                }
+                boolean isAxis = source.charAt(0) == 'a';
+                boolean isButton = source.charAt(0) == 'b';
+                boolean isHat = source.charAt(0) == 'h';
+                boolean isNAN = !isAxis && !isButton && !isHat;
+                int index = isNAN ? -1 : Integer.parseInt(source.substring(isHat ? 3 : 1));
+                switch (target) {
+                    case "a":
+                        controller.button0 = isButton ? index : 1;
+                        break;
+                    case "b":
+                        controller.button1 = isButton ? index : 2;
+                        break;
+                    case "leftx":
+                        controller.xaxis = isAxis ? index : 0;
+                        controller.xinvert = inverted;
+                        break;
+                    case "lefty":
+                        controller.yaxis = isAxis ? index : 1;
+                        controller.yinvert = inverted;
+                        break;
+                    case "dpup":
+                        controller.up = isButton ? index : 3;
+                        break;
+                    case "dpdown":
+                        controller.down = isButton ? index : 4;
+                        break;
+                    case "dpleft":
+                        controller.left = isButton ? index : 5;
+                        break;
+                    case "dpright":
+                        controller.right = isButton ? index : 6;
+                        break;
+                    case "platform":
+                        controller.platform = source;
+                        break;
+                }
+            }
+
+        }
+
+    }
+
     @ConfigurableField(name = "Center Mouse", shortName = "center", description = "Moves mouse back to the center of the screen, can get annoying.")
     public boolean centerMouse = false;
     @ConfigurableField(name = "Use keyboard", shortName = "useKeys", description = "Arrow keys will control joystick instead of the mouse.")
@@ -81,16 +190,15 @@ public class Joystick extends Device {
         }
     };
     @ConfigurableField(name = "X Axis", shortName = "xaxis", description = "Physical game controller X Axis")
-    public int xaxis = -1;
+    public int xaxis = 0;
     @ConfigurableField(name = "Y Axis", shortName = "yaxis", description = "Physical game controller Y Axis")
-    public int yaxis = -1;
+    public int yaxis = 1;
     @ConfigurableField(name = "Button 0", shortName = "buttonA", description = "Physical game controller A button")
-    public int button0 = -1;
+    public int button0 = 1;
     @ConfigurableField(name = "Button 1", shortName = "buttonB", description = "Physical game controller B button")
-    public int button1 = -1;
+    public int button1 = 2;
     @ConfigurableField(name = "Use D-PAD", shortName = "dpad", description = "Physical game controller enable D-PAD")
     public boolean useDPad = true;
-    ControllerMappings mapping = null;
     @ConfigurableField(name = "Polling time", shortName = "pollTime", description = "How many milliseconds between joystick reads?  -1=auto-calibrate.")
     public static long POLLING_TIME = -1;
     public static int CALIBRATION_ITERATIONS = 15;
@@ -98,6 +206,7 @@ public class Joystick extends Device {
     public static float deadZone = 0.1f;
 
     Integer controllerNumber = null;
+    ControllerMapping controllerMapping = null;
 
     public Integer getControllerNum() {
         if (controllerNumber != null) {
@@ -110,7 +219,6 @@ public class Joystick extends Device {
         for (int i = GLFW.GLFW_JOYSTICK_1; i <= GLFW.GLFW_JOYSTICK_LAST; i++) {
             if (controllerName.equals(GLFW.glfwGetJoystickName(i)) && GLFW.glfwJoystickPresent(i)) {
                 controllerNumber = i;
-                applyControllerMapping();
                 return i;
             }
         }
@@ -167,20 +275,30 @@ public class Joystick extends Device {
             joyX = (leftPressed ? -128 : 0) + (rightPressed ? 255 : 128);
             joyY = (upPressed ? -128 : 0) + (downPressed ? 255 : 128);
         } else if (readGLFWJoystick()) {
-            float x = xaxis >= 0 && xaxis < axes.capacity() ? axes.get(xaxis) : -0.5f;
-            float y = yaxis >= 0 && yaxis < axes.capacity() ? axes.get(yaxis) : 0.5f;
+            float x = -0.5f;
+            float y = 0.5f;
+            if (controllerMapping != null) {
+                x = axes.get(controllerMapping.xaxis) * (controllerMapping.xinvert ? -1.0f : 1.0f);
+                y = axes.get(controllerMapping.yaxis) * (controllerMapping.yinvert ? -1.0f : 1.0f);
+            } else {
+                if (xaxis >= 0 && xaxis < axes.capacity()) {
+                    x = axes.get(xaxis);
+                }
+                if (yaxis >= 0 && yaxis < axes.capacity()) {
+                    y = axes.get(yaxis);
+                }
+            }
 
-            if (useDPad && mapping != null) {
-                // ByteBuffer buttons = GLFW.glfwGetJoystickButtons(controllerNum);
-                if (buttons.get(mapping.dpadLeft) != 0) {
+            if (useDPad && controllerMapping != null) {
+                if (buttons.get(controllerMapping.left) != 0) {
                     x = -1;
-                } else if (buttons.get(mapping.dpadRight) != 0) {
+                } else if (buttons.get(controllerMapping.right) != 0) {
                     x = 1;
                 }
 
-                if (buttons.get(mapping.dpadUp) != 0) {
+                if (buttons.get(controllerMapping.up) != 0) {
                     y = -1;
-                } else if (buttons.get(mapping.dpadDown) != 0) {
+                } else if (buttons.get(controllerMapping.down) != 0) {
                     y = 1;
                 }
             }
@@ -210,9 +328,10 @@ public class Joystick extends Device {
                     buttons = GLFW.glfwGetJoystickButtons(controllerNumber);
                     axes = GLFW.glfwGetJoystickAxes(controllerNumber);
                 }
+                String guid = GLFW.glfwGetJoystickGUID(controllerNumber);
                 long end = System.currentTimeMillis();
                 POLLING_TIME = (end - start) / CALIBRATION_ITERATIONS + 1;
-                System.out.println("Calibrated polling time to " + POLLING_TIME + "ms");
+                System.out.println("Calibrated polling time to " + POLLING_TIME + "ms for joystick " + guid);
             }
         }
     }
@@ -235,8 +354,15 @@ public class Joystick extends Device {
 
     private void readButtons() {
         if (readGLFWJoystick()) {
-            byte b0 = button0 >=0 && button0 < buttons.capacity() ? buttons.get(button0) : 0;
-            byte b1 = button1 >=0 && button1 < buttons.capacity() ? buttons.get(button1) : 0;
+            byte b0 = 0;
+            byte b1 = 0;
+            if (controllerMapping != null) {
+                b0 = buttons.get(controllerMapping.button0);
+                b1 = buttons.get(controllerMapping.button1);
+            } else if (button0 >= 0 && button0 < buttons.capacity()) {
+                b0 = button0 >=0 && button0 < buttons.capacity() ? buttons.get(button0) : 0;
+                b1 = button1 >=0 && button1 < buttons.capacity() ? buttons.get(button1) : 0;
+            }
             SoftSwitches.PB0.getSwitch().setState(b0 != 0);
             SoftSwitches.PB1.getSwitch().setState(b1 != 0);
         }
@@ -300,67 +426,19 @@ public class Joystick extends Device {
         x = 0;
         y = 0;
         controllerNumber = null;
+        Integer controllerNum = getControllerNum();
+        if (controllerNum != null) {
+            controllerMapping = controllerMappings.get(GLFW.glfwGetJoystickGUID(controllerNum));
+            if (controllerMapping != null) {
+                System.out.println("Using controller " + controllerMapping.name);
+            } else {
+                System.out.println("No controller mapping found for " + GLFW.glfwGetJoystickGUID(controllerNum));
+            }
+        } else {
+            controllerMapping = null;
+        }
         Platform.runLater(this::calibrateTiming);
         registerListeners();
-    }
-
-    private void applyControllerMapping() {
-        mapping = ControllerMappings.getMapping(glfwController.getValue());
-        if (mapping != null) {
-            System.out.println("Applying controller mapping " + mapping);
-            if (xaxis < 0) {
-                xaxis = mapping.xaxis;
-            }
-            if (yaxis < 0) {
-                yaxis = mapping.yaxis;
-            }
-            if (button0 < 0) {
-                button0 = mapping.button0;
-            }
-            if (button1 < 0) {
-                button1 = mapping.button1;
-            }
-        }
-    }
-
-    public static enum ControllerMappings{
-        mocute("MOCUTE-032.*", 1, 3, 3, 6),
-        ps3("PLAYSTATION\\(R\\)3.*", 0, 1, 7, 5, 4, 6, 14, 13),
-        generic("UNKNOWN", GLFW.GLFW_GAMEPAD_AXIS_LEFT_X, GLFW.GLFW_GAMEPAD_AXIS_LEFT_Y, GLFW.GLFW_GAMEPAD_BUTTON_A, GLFW.GLFW_GAMEPAD_BUTTON_B);
-        public final String pattern;
-        public final int xaxis;
-        public final int yaxis;
-        public final int dpadLeft;
-        public final int dpadRight;
-        public final int dpadUp;
-        public final int dpadDown;
-        public final int button0;
-        public final int button1;
-        ControllerMappings(String pattern, int xaxis, int yaxis, int button0, int button1) {
-            this(pattern, xaxis, yaxis, GLFW.GLFW_GAMEPAD_BUTTON_DPAD_LEFT,GLFW. GLFW_GAMEPAD_BUTTON_DPAD_RIGHT, GLFW.GLFW_GAMEPAD_BUTTON_DPAD_UP, GLFW.GLFW_GAMEPAD_BUTTON_DPAD_DOWN, button0, button1);
-        }
-        ControllerMappings(String pattern, int xaxis, int yaxis, int dpadLeft, int dpadRight, int dpadUp, int dpadDown, int button0, int button1) {
-            this.pattern = pattern;
-            this.xaxis = xaxis;
-            this.yaxis = yaxis;
-            this.dpadLeft = dpadLeft;
-            this.dpadRight = dpadRight;
-            this.dpadUp = dpadUp;
-            this.dpadDown = dpadDown;
-            this.button0 = button0;
-            this.button1 = button1;
-        }
-
-        public static ControllerMappings getMapping(String name) {
-            if (name == null) return null;
-            for (ControllerMappings mapping : ControllerMappings.values()) {
-                if (name.matches(mapping.pattern)) {
-                    return mapping;
-                }
-            }
-            System.out.println("No mapping found for " + name);
-            return ControllerMappings.generic;
-        }
     }
 
     @InvokableAction(name = "Left", category = "joystick", defaultKeyMapping = "left", notifyOnRelease = true)

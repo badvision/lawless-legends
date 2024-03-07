@@ -199,9 +199,6 @@ public class Joystick extends Device {
     public int button1 = 2;
     @ConfigurableField(name = "Use D-PAD", shortName = "dpad", description = "Physical game controller enable D-PAD")
     public boolean useDPad = true;
-    @ConfigurableField(name = "Polling time", shortName = "pollTime", description = "How many milliseconds between joystick reads?  -1=auto-calibrate.")
-    public static long POLLING_TIME = -1;
-    public static int CALIBRATION_ITERATIONS = 15;
     @ConfigurableField(name = "Dead Zone", shortName = "deadZone", description = "Dead zone for joystick (0-1)")
     public static float deadZone = 0.1f;
 
@@ -315,22 +312,24 @@ public class Joystick extends Device {
         }
     }
 
+    public static long POLLING_TIME = 15;
+    public static int CALIBRATION_ITERATIONS = 15;
     private void calibrateTiming() {
-        if (POLLING_TIME > 0) {
-            return;
-        }
         if (selectedPhysicalController()) {
             Integer controllerNum = getControllerNum();
             if (controllerNum != null) {
                 long start = System.currentTimeMillis();
 
-                for (int i = 0; i < CALIBRATION_ITERATIONS; i++) {
-                    buttons = GLFW.glfwGetJoystickButtons(controllerNumber);
-                    axes = GLFW.glfwGetJoystickAxes(controllerNumber);
-                }
+                Emulator.whileSuspended((c) -> {
+                    for (int i = 0; i < CALIBRATION_ITERATIONS; i++) {
+                        buttons = GLFW.glfwGetJoystickButtons(controllerNumber);
+                        axes = GLFW.glfwGetJoystickAxes(controllerNumber);
+                    }
+                });
                 String guid = GLFW.glfwGetJoystickGUID(controllerNumber);
                 long end = System.currentTimeMillis();
                 POLLING_TIME = (end - start) / CALIBRATION_ITERATIONS + 1;
+                lastPollTime = end;
                 System.out.println("Calibrated polling time to " + POLLING_TIME + "ms for joystick " + guid);
             }
         }

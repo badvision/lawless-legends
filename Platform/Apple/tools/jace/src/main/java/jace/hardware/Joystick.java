@@ -288,7 +288,7 @@ public class Joystick extends Device {
         } else if (readGLFWJoystick()) {
             float x = -0.5f;
             float y = 0.5f;
-            if (controllerMapping != null) {
+            if (controllerMapping != null && !useManualMapping) {
                 x = axes.get(controllerMapping.xaxis) * (controllerMapping.xinvert ? -1.0f : 1.0f);
                 y = axes.get(controllerMapping.yaxis) * (controllerMapping.yinvert ? -1.0f : 1.0f);
             } else {
@@ -386,7 +386,7 @@ public class Joystick extends Device {
             boolean b0rapid = getButton(hasMapping ? controllerMapping.button0rapid : null, button0rapid);
             boolean b1 = getButton(hasMapping ? controllerMapping.button1 : null, button1);
             boolean b1rapid = getButton(hasMapping ? controllerMapping.button1rapid : null, button1rapid);
-            boolean pause = getButton(!hasMapping ? controllerMapping.pause : null);
+            boolean pause = getButton(hasMapping ? controllerMapping.pause : null);
 
             if (b0rapid) {
                 if (button0heldSince == 0) {

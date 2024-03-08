@@ -76,10 +76,10 @@ public class Joystick extends Device {
         public int button0rapid = -1;
         public int button1 = -1;
         public int button1rapid = -1;
-        public int pause;
-        public boolean xinvert;
+        public int pause = -1;
+        public boolean xinvert = false;
         public int xaxis = -1;
-        public boolean yinvert;
+        public boolean yinvert = false;
         public int yaxis = -1;
         public int up = -1;
         public int down = -1;
@@ -134,45 +134,33 @@ public class Joystick extends Device {
                 boolean isHat = source.charAt(0) == 'h';
                 boolean isNAN = !isAxis && !isButton && !isHat;
                 int index = isNAN ? -1 : Integer.parseInt(source.substring(isHat ? 3 : 1));
-                switch (target) {
-                    case "a":
-                        controller.button0 = isButton ? index : 1;
-                        break;
-                    case "b":
-                        controller.button1 = isButton ? index : 2;
-                        break;
-                    case "leftx":
-                        controller.xaxis = isAxis ? index : 0;
-                        controller.xinvert = inverted;
-                        break;
-                    case "lefty":
-                        controller.yaxis = isAxis ? index : 1;
-                        controller.yinvert = inverted;
-                        break;
-                    case "dpup":
-                        controller.up = isButton ? index : 3;
-                        break;
-                    case "dpdown":
-                        controller.down = isButton ? index : 4;
-                        break;
-                    case "dpleft":
-                        controller.left = isButton ? index : 5;
-                        break;
-                    case "dpright":
-                        controller.right = isButton ? index : 6;
-                        break;
-                    case "start":
-                        controller.pause = isButton ? index : 7;
-                        break;
-                    case "x":
-                        controller.button0rapid = isButton ? index : 8;
-                        break;
-                    case "y":
-                        controller.button1rapid = isButton ? index : 9;
-                        break;
-                    case "platform":
+                if (isAxis) {
+                    switch (target) {
+                        case "leftx" -> {
+                            controller.xaxis = index;
+                            controller.xinvert = inverted;
+                        }
+                        case "lefty" -> {
+                            controller.yaxis = index;
+                            controller.yinvert = inverted;
+                        }
+                    }
+                } else if (isButton) {
+                    switch (target) {
+                        case "a" -> controller.button0 = index;
+                        case "b" -> controller.button1 = index;
+                        case "x" -> controller.button0rapid = index;
+                        case "y" -> controller.button1rapid = index;
+                        case "dpup" -> controller.up = index;
+                        case "dpdown" -> controller.down = index;
+                        case "dpleft" -> controller.left = index;
+                        case "dpright" -> controller.right = index;
+                        case "start" -> controller.pause = index;
+                    }
+                } else {
+                    if (target.equals("platform")) {
                         controller.platform = source;
-                        break;
+                    }
                 }
             }
 
@@ -218,10 +206,13 @@ public class Joystick extends Device {
     public int button1 = 2;
     @ConfigurableField(name = "Button 1 rapid", shortName = "buttonX", description = "Physical game controller X button")
     public int button1rapid = 4;
+    @ConfigurableField(name = "Manual mapping", shortName = "manual", description = "Use custom controller mapping instead of DB settings")
+    public boolean useManualMapping = false;
+
     @ConfigurableField(name = "Use D-PAD", shortName = "dpad", description = "Physical game controller enable D-PAD")
     public boolean useDPad = true;
     @ConfigurableField(name = "Dead Zone", shortName = "deadZone", description = "Dead zone for joystick (0-1)")
-    public static float deadZone = 0.1f;
+    public static float deadZone = 0.05f;
     @ConfigurableField(name = "Rapid fire interval (ms)", shortName = "rapidfire", description = "Interval for rapid fire (ms)")
     public int rapidFireInterval = 16;
 
@@ -310,15 +301,15 @@ public class Joystick extends Device {
             }
 
             if (useDPad && controllerMapping != null) {
-                if (buttons.get(controllerMapping.left) != 0) {
+                if (getButton(controllerMapping.left)) {
                     x = -1;
-                } else if (buttons.get(controllerMapping.right) != 0) {
+                } else if (getButton(controllerMapping.right)) {
                     x = 1;
                 }
 
-                if (buttons.get(controllerMapping.up) != 0) {
+                if (getButton(controllerMapping.up)) {
                     y = -1;
-                } else if (buttons.get(controllerMapping.down) != 0) {
+                } else if (getButton(controllerMapping.down)) {
                     y = 1;
                 }
             }
@@ -381,8 +372,8 @@ public class Joystick extends Device {
 
     private boolean getButton(Integer... choices) {
         for (Integer choice : choices) {
-            if (choice != null && choice >= 0 && choice < buttons.capacity() && buttons.get(choice) != 0) {         
-                return true;
+            if (choice != null && choice >= 0 && choice < buttons.capacity()) {         
+                return buttons.get(choice) != 0;
             }
         }
         return false;
@@ -390,11 +381,12 @@ public class Joystick extends Device {
 
     private void readButtons() {
         if (readGLFWJoystick()) {
-            boolean b0 = getButton(controllerMapping != null ? controllerMapping.button0 : null, button0);
-            boolean b0rapid = getButton(controllerMapping != null ? controllerMapping.button0rapid : null, button0rapid);
-            boolean b1 = getButton(controllerMapping != null ? controllerMapping.button1 : null, button1);
-            boolean b1rapid = getButton(controllerMapping != null ? controllerMapping.button1rapid : null, button1rapid);
-            boolean pause = getButton(controllerMapping != null ? controllerMapping.pause : null);
+            boolean hasMapping = !useManualMapping && controllerMapping != null;
+            boolean b0 = getButton(hasMapping ? controllerMapping.button0 : null, button0);
+            boolean b0rapid = getButton(hasMapping ? controllerMapping.button0rapid : null, button0rapid);
+            boolean b1 = getButton(hasMapping ? controllerMapping.button1 : null, button1);
+            boolean b1rapid = getButton(hasMapping ? controllerMapping.button1rapid : null, button1rapid);
+            boolean pause = getButton(!hasMapping ? controllerMapping.pause : null);
 
             if (b0rapid) {
                 if (button0heldSince == 0) {

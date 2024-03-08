@@ -147,7 +147,7 @@ public class PrinceOfPersiaCheats extends Cheats {
         Node source = (Node) event.getSource();
         mouseX = event.getSceneX() / source.getBoundsInLocal().getWidth();
         mouseY = event.getSceneY() / source.getBoundsInLocal().getHeight();
-        if (event.isPrimaryButtonDown()) {
+        if (event.isPrimaryButtonDown() || event.isSecondaryButtonDown()) {
             mouseClicked(event.getButton());
         }
     };
@@ -254,7 +254,7 @@ public class PrinceOfPersiaCheats extends Cheats {
             byte warpX = (byte) (x * 140 + 58);
             // This aliases the Y coordinate so the prince is on the floor at the correct spot.
             byte warpY = (byte) ((row * 63) + 54);
-//            System.out.println("Warping to " + warpX + "," + warpY);
+            // System.out.println("Warping to " + warpX + "," + warpY);
             auxMem.writeByte(KidX, warpX);
             auxMem.writeByte(KidY, warpY);
             auxMem.writeByte(KidBlockX, (byte) col);

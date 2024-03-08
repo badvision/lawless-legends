@@ -109,7 +109,7 @@ public class JaceUIController {
         controlOverlay.setVisible(false);
         menuButtonPane.setVisible(false);
         controlOverlay.setFocusTraversable(false);
-        menuButtonPane.setFocusTraversable(false);
+        menuButtonPane.setFocusTraversable(true);
         NumberBinding aspectCorrectedWidth = rootPane.heightProperty().multiply(3.0).divide(2.0);
         NumberBinding width = new When(
                 aspectRatioCorrectionEnabled.and(aspectCorrectedWidth.lessThan(rootPane.widthProperty()))
@@ -122,7 +122,9 @@ public class JaceUIController {
         rootPane.setBackground(new Background(new BackgroundFill(Color.BLACK, null, null)));
         rootPane.setOnMouseMoved(this::showMenuButton);
         rootPane.setOnMouseExited(this::hideControlOverlay);
-        rootPane.setOnMouseClicked((evt)->rootPane.requestFocus());
+        rootPane.setOnMouseClicked((evt)->{
+            rootPane.requestFocus();
+        });
         menuButton.setOnMouseClicked(this::showControlOverlay);
         controlOverlay.setOnMouseClicked(this::hideControlOverlay);
         delayTimer.getKeyFrames().add(new KeyFrame(Duration.millis(3000), evt -> {
@@ -454,10 +456,12 @@ public class JaceUIController {
 
     public void addMouseListener(EventHandler<MouseEvent> handler) {
         appleScreen.addEventHandler(MouseEvent.ANY, handler);
+        rootPane.addEventHandler(MouseEvent.ANY, handler);
     }
 
     public void removeMouseListener(EventHandler<MouseEvent> handler) {
         appleScreen.removeEventHandler(MouseEvent.ANY, handler);
+        rootPane.removeEventHandler(MouseEvent.ANY, handler);
     }
 
     Label currentNotification = null;

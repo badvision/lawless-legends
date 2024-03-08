@@ -181,7 +181,11 @@ public class CardMassStorage extends Card implements MediaConsumerParent {
     protected void handleFirmwareAccess(int offset, TYPE type, int value, RAMEvent e) {
 //        System.out.println(e.getType()+" "+Integer.toHexString(e.getAddress())+" from instruction at  "+Integer.toHexString(cpu.getProgramCounter()));
         if (type.isRead()) {
-//            Emulator.getFrame().addIndicator(this, currentDrive.getIcon());
+            Emulator.withComputer(c->{
+                if (!c.PRODUCTION_MODE) {
+                    currentDrive.getIcon().ifPresent(icon -> EmulatorUILogic.addIndicator(this, icon));
+                }
+            });
             if (drive1.getCurrentDisk() == null && drive2.getCurrentDisk() == null) {
                 e.setNewValue(0);
                 return;

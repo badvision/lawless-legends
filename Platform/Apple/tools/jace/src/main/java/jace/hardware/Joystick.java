@@ -72,16 +72,23 @@ public class Joystick extends Device {
         public String name;
         public String guid;
         public String platform;
-        public int button0;
-        public int button1;
+        public int button0 = -1;
+        public int button0rapid = -1;
+        public int button1 = -1;
+        public int button1rapid = -1;
+        public int pause;
         public boolean xinvert;
-        public int xaxis;
+        public int xaxis = -1;
         public boolean yinvert;
-        public int yaxis;
-        public int up;
-        public int down;
-        public int left;
-        public int right;
+        public int yaxis = -1;
+        public int up = -1;
+        public int down = -1;
+        public int left = -1;
+        public int right = -1;
+
+        public boolean hasGamepad() {
+            return up >=0 && down >= 0 && left >= 0 && right >= 0;
+        }
     }
 
     static Map<String, ControllerMapping> controllerMappings = new HashMap<>();
@@ -154,6 +161,15 @@ public class Joystick extends Device {
                     case "dpright":
                         controller.right = isButton ? index : 6;
                         break;
+                    case "start":
+                        controller.pause = isButton ? index : 7;
+                        break;
+                    case "x":
+                        controller.button0rapid = isButton ? index : 8;
+                        break;
+                    case "y":
+                        controller.button1rapid = isButton ? index : 9;
+                        break;
                     case "platform":
                         controller.platform = source;
                         break;
@@ -196,12 +212,18 @@ public class Joystick extends Device {
     public int yaxis = 1;
     @ConfigurableField(name = "Button 0", shortName = "buttonA", description = "Physical game controller A button")
     public int button0 = 1;
+    @ConfigurableField(name = "Button 0 rapid", shortName = "buttonX", description = "Physical game controller X button")
+    public int button0rapid = 3;
     @ConfigurableField(name = "Button 1", shortName = "buttonB", description = "Physical game controller B button")
     public int button1 = 2;
+    @ConfigurableField(name = "Button 1 rapid", shortName = "buttonX", description = "Physical game controller X button")
+    public int button1rapid = 4;
     @ConfigurableField(name = "Use D-PAD", shortName = "dpad", description = "Physical game controller enable D-PAD")
     public boolean useDPad = true;
     @ConfigurableField(name = "Dead Zone", shortName = "deadZone", description = "Dead zone for joystick (0-1)")
     public static float deadZone = 0.1f;
+    @ConfigurableField(name = "Rapid fire interval (ms)", shortName = "rapidfire", description = "Interval for rapid fire (ms)")
+    public int rapidFireInterval = 16;
 
     Integer controllerNumber = null;
     ControllerMapping controllerMapping = null;
@@ -353,19 +375,63 @@ public class Joystick extends Device {
         return axes != null && buttons != null;
     }
 
+    long button0heldSince = 0;
+    long button1heldSince = 0;
+    boolean justPaused = false;
+
+    private boolean getButton(Integer... choices) {
+        for (Integer choice : choices) {
+            if (choice != null && choice >= 0 && choice < buttons.capacity() && buttons.get(choice) != 0) {         
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void readButtons() {
         if (readGLFWJoystick()) {
-            byte b0 = 0;
-            byte b1 = 0;
-            if (controllerMapping != null) {
-                b0 = buttons.get(controllerMapping.button0);
-                b1 = buttons.get(controllerMapping.button1);
-            } else if (button0 >= 0 && button0 < buttons.capacity()) {
-                b0 = button0 >=0 && button0 < buttons.capacity() ? buttons.get(button0) : 0;
-                b1 = button1 >=0 && button1 < buttons.capacity() ? buttons.get(button1) : 0;
+            boolean b0 = getButton(controllerMapping != null ? controllerMapping.button0 : null, button0);
+            boolean b0rapid = getButton(controllerMapping != null ? controllerMapping.button0rapid : null, button0rapid);
+            boolean b1 = getButton(controllerMapping != null ? controllerMapping.button1 : null, button1);
+            boolean b1rapid = getButton(controllerMapping != null ? controllerMapping.button1rapid : null, button1rapid);
+            boolean pause = getButton(controllerMapping != null ? controllerMapping.pause : null);
+
+            if (b0rapid) {
+                if (button0heldSince == 0) {
+                    button0heldSince = System.currentTimeMillis();
+                } else {
+                    long timeHeld = System.currentTimeMillis() - button0heldSince;
+                    int intervalNumber = (int) (timeHeld / rapidFireInterval);
+                    b0 = (intervalNumber % 2 == 0);
+                }
+            } else {
+                button0heldSince = 0;
             }
-            SoftSwitches.PB0.getSwitch().setState(b0 != 0 || Keyboard.isOpenApplePressed);
-            SoftSwitches.PB1.getSwitch().setState(b1 != 0 || Keyboard.isClosedApplePressed);
+
+            if (b1rapid) {
+                if (button1heldSince == 0) {
+                    button1heldSince = System.currentTimeMillis();
+                } else {
+                    long timeHeld = System.currentTimeMillis() - button1heldSince;
+                    int intervalNumber = (int) (timeHeld / rapidFireInterval);
+                    b1 = (intervalNumber % 2 == 0);
+                }
+            } else {
+                button1heldSince = 0;
+            }
+
+            if (pause) {
+                if (!justPaused) {
+                    // Paste the esc character
+                    Keyboard.pasteFromString("\u001b");
+                }
+                justPaused = true;
+            } else {
+                justPaused = false;
+            }
+
+            SoftSwitches.PB0.getSwitch().setState(b0 || Keyboard.isOpenApplePressed);
+            SoftSwitches.PB1.getSwitch().setState(b1 || Keyboard.isClosedApplePressed);
         }
     }
 

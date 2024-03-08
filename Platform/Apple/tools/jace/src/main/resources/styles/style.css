@@ -11,7 +11,7 @@
 }
 
 .setting-keyboard-shortcut {
-    -fx-graphic: "/jace/data/icon_keyboard.gif";
+    -fx-graphic: url("../jace/data/icon_keyboard.gif");
     -fx-graphic-text-gap: 2;
 }
 

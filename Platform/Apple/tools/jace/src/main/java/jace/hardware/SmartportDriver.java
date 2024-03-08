@@ -58,9 +58,8 @@ public abstract class SmartportDriver {
             boolean extendedCall = command >= 0x040;
     //            command &= 0x0f;
             // Modify stack so that RTS goes to the right place after the smartport device call
-            //cpu.pushWord(callAddress + (extendedCall ? 5 : 3));
             // Kludge due to the CPU not getting the faked RTS opcode
-            cpu.setProgramCounter(callAddress + (extendedCall ? 5 : 3));
+            cpu.setProgramCounter(callAddress + (extendedCall ? 4 : 2));
 
             // Calculate parameter address block
             int parmAddr;
@@ -73,15 +72,15 @@ public abstract class SmartportDriver {
                 parmAddr = parmAddrHi << 16 | parmAddrLo;
             }
             // Now process command
-            System.out.println("Received command " + command + " with address block " + Integer.toHexString(parmAddr));
+            // System.out.println(String.format("Received %s command %d with address block %s", (extendedCall ? "extended" : "normal"), command, Integer.toHexString(parmAddr)));
             // byte numParms = ram.readRaw(parmAddr);
             int[] params = new int[16];
             for (int i = 0; i < 16; i++) {
                 int value = 0x0ff & ram.readRaw(parmAddr + i);
                 params[i] = value;
-                System.out.print(Integer.toHexString(value) + " ");
+                // System.out.print(Integer.toHexString(value) + " ");
             }
-            System.out.println();
+            // System.out.println();
             int unitNumber = params[1];
             if (!changeUnit(unitNumber)) {
                 System.out.println("Invalid unit: "+unitNumber);
@@ -96,8 +95,8 @@ public abstract class SmartportDriver {
                     case 1: //Read Block
                         int blockNum = params[4] | (params[5] << 8) | (params[6] << 16);
                         read(blockNum, dataBuffer);
+                        // System.out.println("reading "+blockNum+" to $"+Integer.toHexString(dataBuffer));
                         return ERROR_CODE.NO_ERROR;
-                        //                  System.out.println("reading "+blockNum+" to $"+Integer.toHexString(dataBuffer));
                     case 2: //Write Block
                         blockNum = params[4] | (params[5] << 8) | (params[6] << 16);
                         write(blockNum, dataBuffer);

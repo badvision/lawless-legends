@@ -34,6 +34,7 @@ import jace.config.DynamicSelection;
 import jace.config.InvokableAction;
 import jace.core.Computer;
 import jace.core.Device;
+import jace.core.Keyboard;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
 import jace.state.Stateful;
@@ -329,6 +330,7 @@ public class Joystick extends Device {
                 String guid = GLFW.glfwGetJoystickGUID(controllerNumber);
                 long end = System.currentTimeMillis();
                 POLLING_TIME = (end - start) / CALIBRATION_ITERATIONS + 1;
+                POLLING_TIME = Math.min(POLLING_TIME*2, 45);
                 lastPollTime = end;
                 System.out.println("Calibrated polling time to " + POLLING_TIME + "ms for joystick " + guid);
             }
@@ -362,8 +364,8 @@ public class Joystick extends Device {
                 b0 = button0 >=0 && button0 < buttons.capacity() ? buttons.get(button0) : 0;
                 b1 = button1 >=0 && button1 < buttons.capacity() ? buttons.get(button1) : 0;
             }
-            SoftSwitches.PB0.getSwitch().setState(b0 != 0);
-            SoftSwitches.PB1.getSwitch().setState(b1 != 0);
+            SoftSwitches.PB0.getSwitch().setState(b0 != 0 || Keyboard.isOpenApplePressed);
+            SoftSwitches.PB1.getSwitch().setState(b1 != 0 || Keyboard.isClosedApplePressed);
         }
     }
 
@@ -381,7 +383,6 @@ public class Joystick extends Device {
 
     @Override
     public void tick() {
-        ticksSinceLastRead++;
         boolean finished = true;
         if (x > 0) {
             if (--x == 0) {
@@ -398,9 +399,8 @@ public class Joystick extends Device {
             }
         }
         if (selectedPhysicalController()) {
-            if (finished && ticksSinceLastRead >= 1000000) {
-                setRun(false);
-            } else if (ticksSinceLastRead > 1000 && ticksSinceLastRead % 1000 == 0) {
+            ticksSinceLastRead++;
+            if (ticksSinceLastRead % 1000 == 0) {
                 readButtons();
             }
         } else if (finished) {

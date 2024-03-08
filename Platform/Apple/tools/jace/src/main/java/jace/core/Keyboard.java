@@ -302,13 +302,17 @@ public class Keyboard implements Reconfigurable {
         e.consume();
     }
 
+    public static boolean isOpenApplePressed = false;
     @InvokableAction(name = "Open Apple Key", alternatives = "OA", category = "Keyboard", notifyOnRelease = true, defaultKeyMapping = "Alt", consumeKeyEvent = false)
     public void openApple(boolean pressed) {
+        isOpenApplePressed = pressed;
         SoftSwitches.PB0.getSwitch().setState(pressed);
     }
 
+    public static boolean isClosedApplePressed = false;
     @InvokableAction(name = "Closed Apple Key", alternatives = "CA", category = "Keyboard", notifyOnRelease = true, defaultKeyMapping = {"Shortcut","Meta","Command"}, consumeKeyEvent = false)
     public void solidApple(boolean pressed) {
+        isClosedApplePressed = pressed;
         SoftSwitches.PB1.getSwitch().setState(pressed);
     }
 

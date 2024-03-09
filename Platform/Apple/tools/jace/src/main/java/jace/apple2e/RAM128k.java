@@ -71,7 +71,7 @@ abstract public class RAM128k extends RAM {
 
         @Override
         public boolean isInstance(RAM128k card) {
-            return card != null && clazz.isInstance(card);
+            return card != null && clazz.equals(card.getClass());
         }
     }
 

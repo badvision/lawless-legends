@@ -35,6 +35,6 @@ public enum VideoImpls implements DeviceEnum<Video> {
 
     @Override
     public boolean isInstance(Video video) {
-        return clazz.isInstance(video);
+        return video != null && clazz.equals(video.getClass());
     }
 }

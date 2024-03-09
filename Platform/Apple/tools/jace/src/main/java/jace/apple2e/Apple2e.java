@@ -200,7 +200,12 @@ public class Apple2e extends Computer {
         }
         return getDesiredMemoryConfiguration().isInstance((RAM128k) getMemory());
     }
-    
+
+    private boolean isVideoConfigurationCorrect() {
+        VideoImpls videoSelection = videoRenderer.getValue();
+        return videoSelection != null && videoSelection.isInstance(getVideo());
+    }
+
     @Override
     protected RAM createMemory() {
         return getDesiredMemoryConfiguration().create();
@@ -291,7 +296,7 @@ public class Apple2e extends Computer {
                 clock = null;
             }
 
-            if (videoRenderer.getValue() != null && !videoRenderer.getValue().isInstance(getVideo())) {
+            if (!isVideoConfigurationCorrect()) {
                 boolean resumeVideo = false;
                 if (getVideo() != null) {
                     resumeVideo = getVideo().suspend();

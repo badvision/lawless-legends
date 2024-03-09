@@ -1,7 +1,5 @@
 package jace.cheat;
 
-import javax.script.ScriptException;
-
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
 import javafx.beans.property.BooleanProperty;
@@ -25,19 +23,19 @@ public class DynamicCheat extends RAMListener {
     String cheatName;
     Callback<RAMEvent, Integer> expressionCallback;
 
-    public DynamicCheat(String cheatName, int address, String expr) {
+    public DynamicCheat(String cheatName, int address, int holdValue) {
         super(cheatName, RAMEvent.TYPE.ANY, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY);
         id = (int) (Math.random() * 10000000);
         addr = new SimpleIntegerProperty(address);
-        expression = new SimpleStringProperty(expr);
+        expression = new SimpleStringProperty(String.valueOf(holdValue));
+        isHold = true;
         active = new SimpleBooleanProperty(false);
         name = new SimpleStringProperty("Untitled");
-        expression.addListener((param, oldValue, newValue) -> {
-            expressionCallback = parseExpression(newValue);
-        });
-        expressionCallback = parseExpression(expr);
+        expressionCallback = (RAMEvent e) -> holdValue;
         doConfig();
     }
+
+    boolean isHold = false;
 
     @Override
     protected void doConfig() {
@@ -75,29 +73,6 @@ public class DynamicCheat extends RAMListener {
         return expression;
     }
 
-    private Callback<RAMEvent, Integer> parseExpression(String expr) {
-        String functionName = "processCheat" + id;
-        String functionBody = "function " + functionName + "(old,val){" + (expr.contains("return") ? expr : "return " + expr) + "}";
-        try {
-            MetaCheat.NASHORN_ENGINE.eval(functionBody);
-            return (RAMEvent e) -> {
-                try {
-                    Object result = MetaCheat.NASHORN_INVOCABLE.invokeFunction(functionName, e.getOldValue(), e.getNewValue());
-                    if (result instanceof Number) {
-                        return ((Number) result).intValue();
-                    } else {
-                        System.err.println("Not able to handle non-numeric return value: " + result.getClass());
-                        return null;
-                    }
-                } catch (ScriptException | NoSuchMethodException ex) {
-                    return null;
-                }
-            };
-        } catch (ScriptException ex) {
-            return null;
-        }
-    }
-
     public static String escape(String in) {
         return in.replaceAll(";", "~~").replaceAll("\n","\\n");
     }
@@ -120,7 +95,7 @@ public class DynamicCheat extends RAMListener {
         Integer addr = Integer.parseInt(parts[2].substring(1), 16);
         String expr = unescape(parts[3]);
         
-        DynamicCheat out = new DynamicCheat(cheatName, addr, expr);
+        DynamicCheat out = new DynamicCheat(cheatName, addr, Integer.parseInt(expr));
         out.name.set(name);
         return out;
     }

@@ -11,10 +11,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.script.Invocable;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-
 import jace.Emulator;
 import jace.LawlessLegends;
 import jace.core.CPU;
@@ -33,10 +29,6 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
 public class MetaCheat extends Cheats {
-
-    static final ScriptEngine NASHORN_ENGINE = new ScriptEngineManager().getEngineByName("nashorn");
-    static Invocable NASHORN_INVOCABLE = (Invocable) NASHORN_ENGINE;
-
     public enum SearchType {
         VALUE, TEXT, CHANGE
     }

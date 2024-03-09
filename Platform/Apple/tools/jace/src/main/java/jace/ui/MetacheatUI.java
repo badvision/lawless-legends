@@ -157,7 +157,7 @@ public class MetacheatUI {
 
     @FXML
     void addCheat(ActionEvent event) {
-        cheatEngine.addCheat(new DynamicCheat(event.toString(), 0, "?"));
+        cheatEngine.addCheat(new DynamicCheat(event.toString(), 0, 0));
     }
 
     @FXML
@@ -562,7 +562,7 @@ public class MetacheatUI {
     }
 
     private void addCheat(String name, int addr, int val) {
-        cheatEngine.addCheat(new DynamicCheat(name, addr, String.valueOf(val)));
+        cheatEngine.addCheat(new DynamicCheat(name, addr, val));
     }
 
     int currentlyInspecting = 0;

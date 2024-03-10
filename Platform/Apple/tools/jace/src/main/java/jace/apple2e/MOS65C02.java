@@ -42,6 +42,7 @@ public class MOS65C02 extends CPU {
     public boolean readAddressTriggersEvent = true;
     static int RESET_VECTOR = 0x00FFFC;
     static int INT_VECTOR = 0x00FFFE;
+    static int FASTBOOT = 0x00FAA9;
     @Stateful
     public int A = 0x0FF;
     @Stateful
@@ -1027,7 +1028,7 @@ public class MOS65C02 extends CPU {
 
         String traceEntry = null;
         if (isSingleTraceEnabled() || isTraceEnabled() || isLogEnabled() || warnAboutExtendedOpcodes) {
-            traceEntry = String.format("%s  %X : %s; %s", getState().toUpperCase(), pc, disassemble(), getMemory().getState());
+            traceEntry = String.format("%s  %X : %s; %s", getState(), pc, disassemble(), getMemory().getState());
             captureSingleTrace(traceEntry);
             if (isTraceEnabled()) {
                 LOG.log(Level.INFO, traceEntry);
@@ -1212,7 +1213,7 @@ public class MOS65C02 extends CPU {
 //        V = true;
 //        Z = true;
         int resetVector = getMemory().readWord(RESET_VECTOR, TYPE.READ_DATA, true, false);
-        int newPC = Emulator.withComputer(c->c.PRODUCTION_MODE ? 0x0C700 : resetVector, resetVector);
+        int newPC = Emulator.withComputer(c->c.PRODUCTION_MODE ? FASTBOOT : resetVector, resetVector);
         LOG.log(Level.WARNING, "Reset called, setting PC to ({0}) = {1}", new Object[]{Integer.toString(RESET_VECTOR, 16), Integer.toString(newPC, 16)});
         setProgramCounter(newPC);
     }
@@ -1255,15 +1256,15 @@ public class MOS65C02 extends CPU {
     }
 
     public String getFlags() {
-        return String.format("%s%sR%s%s%s%s%s",
-                N ? "N" : ".",
-                V ? "V" : ".",
-                B ? "B" : ".",
-                D ? "D" : ".",
-                I ? "I" : ".",
-                Z ? "Z" : ".",
-                (C != 0) ? "C" : "."
-        );
+        StringBuilder sb = new StringBuilder(7);
+        sb.append(N ? "N" : ".");
+        sb.append(V ? "V" : ".");
+        sb.append(B ? "B" : ".");
+        sb.append(D ? "D" : ".");
+        sb.append(I ? "I" : ".");
+        sb.append(Z ? "Z" : ".");
+        sb.append(C != 0 ? "C" : ".");
+        return sb.toString();
     }
 
     public String disassemble() {

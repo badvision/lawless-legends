@@ -389,5 +389,20 @@ public class Utility {
             }
         }
         return nameMatch;
-    }    
+    }
+
+    public static enum OS {Windows, Linux, Mac, Unknown}
+    public static OS getOS() {
+        String osName = System.getProperty("os.name").toLowerCase();
+        if (osName.contains("windows")) {
+            return OS.Windows;
+        } else if (osName.contains("Linux")) {
+            return OS.Linux;
+        } else if (osName.contains("Mac")) {
+            return OS.Mac;
+        } else {
+            System.out.println("Unknown %s".formatted(osName));
+            return OS.Unknown;
+        }
+    }
 }

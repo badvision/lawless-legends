@@ -37,6 +37,8 @@ import jace.core.Device;
 import jace.core.Keyboard;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
+import jace.core.Utility;
+import jace.core.Utility.OS;
 import jace.state.Stateful;
 import javafx.application.Platform;
 import javafx.scene.input.MouseEvent;
@@ -91,8 +93,12 @@ public class Joystick extends Device {
         }
     }
 
-    static Map<String, ControllerMapping> controllerMappings = new HashMap<>();
+    static Map<OS, Map<String, ControllerMapping>> controllerMappings = new HashMap<>();
+    
     static void parseGameControllerDB(String mappings) {
+        for (OS os : OS.values()) {
+            controllerMappings.put(os, new HashMap<>());
+        }
         // File format: 
         // Any line starting with a # or empty is a comment
         // Format is GUID, name, mappings
@@ -116,7 +122,7 @@ public class Joystick extends Device {
             ControllerMapping controller = new ControllerMapping();
             controller.guid = guid;
             controller.name = name;
-            controllerMappings.put(guid, controller);
+            OS os = OS.Unknown;
             // Split the mapping into parts
             for (int i = 2; i < parts.length; i++) {
                 String[] mappingParts = parts[i].split(":");
@@ -160,12 +166,18 @@ public class Joystick extends Device {
                 } else {
                     if (target.equals("platform")) {
                         controller.platform = source;
+                        if (source.toLowerCase().contains("windows")) {
+                            os = OS.Windows;
+                        } else if (source.toLowerCase().contains("mac")) {
+                            os = OS.Mac;
+                        } else if (source.toLowerCase().contains("linux")) {
+                            os = OS.Linux;
+                        }
                     }
                 }
             }
-
+            controllerMappings.get(os).put(guid, controller);
         }
-
     }
 
     @ConfigurableField(name = "Center Mouse", shortName = "center", description = "Moves mouse back to the center of the screen, can get annoying.")
@@ -485,7 +497,33 @@ public class Joystick extends Device {
         controllerNumber = null;
         Integer controllerNum = getControllerNum();
         if (controllerNum != null) {
-            controllerMapping = controllerMappings.get(GLFW.glfwGetJoystickGUID(controllerNum));
+            OS currentOS = Utility.getOS();
+            OS[] searchOrder = {};
+            switch (currentOS) {
+                case Linux:
+                    searchOrder = new OS[]{OS.Linux, OS.Windows, OS.Mac, OS.Unknown};
+                    break;
+                case Mac:
+                    searchOrder = new OS[]{OS.Mac, OS.Windows, OS.Linux, OS.Unknown};
+                    break;
+                case Unknown:
+                    searchOrder = new OS[]{OS.Unknown, OS.Linux, OS.Windows, OS.Mac};
+                    break;
+                case Windows:
+                    searchOrder = new OS[]{OS.Windows, OS.Unknown, OS.Linux, OS.Mac};
+                    break;
+                default:
+                    break;
+            }
+            String guid = GLFW.glfwGetJoystickGUID(controllerNum);
+            controllerMapping = null;
+            for (OS searchOS : searchOrder) {
+                if (controllerMappings.get(searchOS).containsKey(guid)) {
+                    System.out.println("Found mapping for %s, OS=%s".formatted(guid, searchOS));
+                    controllerMapping = controllerMappings.get(searchOS).get(guid);
+                    break;
+                }
+            }
             if (controllerMapping != null) {
                 System.out.println("Using controller " + controllerMapping.name);
             } else {

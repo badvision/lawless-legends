@@ -5,6 +5,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import jace.apple2e.MOS65C02;
 import jace.apple2e.RAM128k;
 import jace.apple2e.VideoNTSC;
 import jace.cheat.Cheats.Cheat;
@@ -144,7 +145,7 @@ public class LawlessLegends extends Application {
                 c.coldStart();
                 try {
                     Thread.sleep(watchdogDelay);
-                    if (!romStarted.get() || !c.isRunning() || c.getCpu().getProgramCounter() == 0xc700 || c.getCpu().getProgramCounter() == 0) {
+                    if (!romStarted.get() || !c.isRunning() || c.getCpu().getProgramCounter() == MOS65C02.FASTBOOT || c.getCpu().getProgramCounter() == 0) {
                         Logger.getLogger(getClass().getName()).log(Level.WARNING, "Boot not detected, performing a cold start");
                         Logger.getLogger(getClass().getName()).log(Level.WARNING, "Old PC: {0}", c.getCpu().getProgramCounter());
                         resetEmulator();

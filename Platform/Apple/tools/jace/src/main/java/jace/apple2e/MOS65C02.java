@@ -40,9 +40,9 @@ public class MOS65C02 extends CPU {
     private static final Logger LOG = Logger.getLogger(MOS65C02.class.getName());
 
     public boolean readAddressTriggersEvent = true;
-    static int RESET_VECTOR = 0x00FFFC;
-    static int INT_VECTOR = 0x00FFFE;
-    static int FASTBOOT = 0x00FAA9;
+    public static int RESET_VECTOR = 0x00FFFC;
+    public static int INT_VECTOR = 0x00FFFE;
+    public static int FASTBOOT = 0x00FAA9;
     @Stateful
     public int A = 0x0FF;
     @Stateful

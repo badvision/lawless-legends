@@ -16,6 +16,8 @@
 
 package jace.core;
 
+import jace.apple2e.SoftSwitches;
+
 /**
  * A RAM event is defined as anything that causes a read or write to the
  * mainboard RAM of the computer. This could be the result of an indirect
@@ -146,5 +148,22 @@ public class RAMEvent {
 
     public final boolean isIntercepted() {
         return valueIntercepted;
+    }
+
+    public boolean isMainMemory() {
+        if (type.isRead() && SoftSwitches.RAMRD.isOn()) {
+            return false;
+        } else if (!type.isRead() && SoftSwitches.RAMWRT.isOn()) {
+            return false;
+        } else if (address < 0x0200) {
+            // Check if zero page is pointed to auxiliary memory
+            return SoftSwitches.AUXZP.isOff();
+        }
+        if ((address >= 0x400 && address < 0x0800) || (address >= 0x2000 && address < 0x4000)) {
+            if (SoftSwitches._80STORE.isOn() && SoftSwitches.PAGE2.isOn()) {                
+                return false;
+            }
+        }
+        return true;
     }
 }

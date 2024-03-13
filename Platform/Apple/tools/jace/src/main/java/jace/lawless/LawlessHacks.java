@@ -16,9 +16,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import jace.Emulator;
+import jace.apple2e.VideoDHGR;
 import jace.cheat.Cheats;
 import jace.core.RAMEvent;
-import jace.lawless.LawlessVideo.RenderEngine;
 import javafx.util.Duration;
 
 /**
@@ -45,12 +45,8 @@ public class LawlessHacks extends Cheats {
     @Override
     public void registerListeners() {
         // Observe graphics changes
-        addCheat("Lawless Legends Graphics Modes", RAMEvent.TYPE.ANY, (e) -> {
-            int addr = e.getAddress();
-            if (addr >= MODE_SOFTSWITCH_MIN && e.getAddress() <= MODE_SOFTSWITCH_MAX) {
-                setEngineByOrdinal(e.getAddress() - MODE_SOFTSWITCH_MIN);
-            }
-        }, MODE_SOFTSWITCH_MIN, MODE_SOFTSWITCH_MAX);
+        addCheat("Lawless Text Speedup", RAMEvent.TYPE.EXECUTE, this::fastText, 0x0ee00, 0x0ee00 + 0x0f00);
+        addCheat("Lawless Text Enhancement", RAMEvent.TYPE.WRITE, this::enhanceText, 0x02000, 0x03fff);
         addCheat("Lawless Legends Music Commands", RAMEvent.TYPE.WRITE, (e) -> {
             playSound(e.getNewValue());
         }, SFX_TRIGGER);
@@ -65,14 +61,33 @@ public class LawlessHacks extends Cheats {
     public void tick() {
     }
 
-    private void setEngineByOrdinal(int mode) {
+    // Speed up text rendering
+    private void fastText(RAMEvent e) {
+        if (e.isMainMemory() && e.getOldValue() != 0x060) {
+            Emulator.withComputer((c->c.getMotherboard().requestSpeed(this)));
+        } else {
+            Emulator.withComputer((c->c.getMotherboard().cancelSpeedRequest(this)));
+        }
+    }
+
+    // Enhance text rendering by forcing the text to be pure B&W
+    private void enhanceText(RAMEvent e) {
+        if (!e.isMainMemory()) {
+            return;
+        }
+        int pc = Emulator.withComputer(c->c.getCpu().getProgramCounter(), 0);
+        boolean drawingText = pc == 0x0ee46 || pc > 0x0f300;
         Emulator.withVideo(v -> {
             if (v instanceof LawlessVideo) {
                 LawlessVideo video = (LawlessVideo) v;
-                if (mode >= 0 && mode < RenderEngine.values().length) {
-                    video.setEngine(RenderEngine.values()[mode]);
-                } else {
-                    video.setEngine(RenderEngine.UNKNOWN);
+                int addr = e.getAddress();
+                int y = VideoDHGR.identifyHiresRow(addr);
+                if (y >= 0 && y <= 192) {
+                    int x = addr - video.getCurrentWriter().getYOffset(y);
+                    if (x >= 0 && x < 40) {                    
+                        video.activeMask[y][x*2] = !drawingText;
+                        video.activeMask[y][x*2+1] = !drawingText;
+                    }
                 }
             }
         });

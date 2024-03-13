@@ -64,7 +64,7 @@ public class Apple2e extends Computer {
     static int IRQ_VECTOR = 0x003F2;
 
     @ConfigurableField(name = "Production mode", shortName = "production")
-    public boolean PRODUCTION_MODE = false;
+    public boolean PRODUCTION_MODE = true;
     @ConfigurableField(name = "Slot 1", shortName = "s1card")
     public DeviceSelection<Cards> card1 = new DeviceSelection<>(Cards.class, null);
     @ConfigurableField(name = "Slot 2", shortName = "s2card")
@@ -116,6 +116,9 @@ public class Apple2e extends Computer {
         try {
             setCpu(new MOS65C02());
             setMotherboard(new Motherboard(null));
+            if (PRODUCTION_MODE) {
+                getMotherboard().setSpeedInPercentage(200);
+            }
         } catch (Throwable t) {
             System.err.println("Unable to initialize virtual machine");
             t.printStackTrace(System.err);
@@ -135,6 +138,11 @@ public class Apple2e extends Computer {
         r.resetState();            
         for (SoftSwitches s : SoftSwitches.values()) {
             if ((s.getSwitch() instanceof VideoSoftSwitch)) {
+                if (s == SoftSwitches.TEXT && PRODUCTION_MODE) {
+                    s.getSwitch().setState(true);
+                } else {
+                    s.getSwitch().reset();
+                }
                 s.getSwitch().reset();
             }
         }

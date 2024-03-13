@@ -245,7 +245,7 @@ public class Apple2e extends Computer {
             return;
         }
         getMotherboard().whileSuspended(()-> {
-            System.err.println("Reconfiguring computer...");
+            // System.err.println("Reconfiguring computer...");
             if (!isMemoryConfigurationCorrect()) {
                 if (getVideo() != null) {
                     getVideo().suspend();

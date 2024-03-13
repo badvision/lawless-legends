@@ -85,6 +85,7 @@ public class LawlessComputer extends Apple2e {
         if (!performedBootAnimation) {
             try {
                 performedBootAnimation = true;
+                showBootAnimation = false;
                 waitForVBL();
                 waitForVBL();
                 waitForVBL();

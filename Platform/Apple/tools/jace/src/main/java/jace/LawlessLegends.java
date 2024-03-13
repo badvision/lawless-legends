@@ -41,6 +41,7 @@ public class LawlessLegends extends Application {
     public JaceUIController controller;
 
     static AtomicBoolean romStarted = new AtomicBoolean(false);
+    int watchdogDelay = 500;
 
     @Override
     public void start(Stage stage) throws Exception {
@@ -66,7 +67,12 @@ public class LawlessLegends extends Application {
         primaryStage.show();
         Platform.runLater(() -> new Thread(() -> {
             Emulator.getInstance(getParameters().getRaw());
-            Emulator.withComputer(c->((LawlessComputer)c).initLawlessLegendsConfiguration());
+            Emulator.withComputer(c-> {
+                ((LawlessComputer)c).initLawlessLegendsConfiguration();
+                if (c.PRODUCTION_MODE) {
+                    watchdogDelay = 7000;
+                }
+            });
             configureEmulatorForGame();
             reconnectUIHooks();
             EmulatorUILogic.scaleIntegerRatio();
@@ -133,21 +139,22 @@ public class LawlessLegends extends Application {
      */
     private void bootWatchdog() {
         Emulator.withComputer(c -> {
-            int watchAddress = c.PRODUCTION_MODE ? 0x02000 : 0x0ff3a;
-            int watchdogDelay = c.PRODUCTION_MODE ? 6500 : 500;
+            // We know the game started properly when it runs the decompressor the first time
+            int watchAddress = c.PRODUCTION_MODE ? 0x0DF00 : 0x0ff3a;
             new Thread(()->{
-                Logger.getLogger(getClass().getName()).log(Level.WARNING, "Booting with watchdog");
+                // Logger.getLogger(getClass().getName()).log(Level.WARNING, "Booting with watchdog");
                 final RAMListener startListener = c.getMemory().observeOnce("Lawless Legends watchdog", RAMEvent.TYPE.EXECUTE, watchAddress, (e) -> {
-                    Logger.getLogger(getClass().getName()).log(Level.WARNING, "Boot was detected, watchdog terminated.");
+                    // Logger.getLogger(getClass().getName()).log(Level.WARNING, "Boot was detected, watchdog terminated.");
                     romStarted.set(true);
                 });
                 romStarted.set(false);
                 c.coldStart();
                 try {
                     Thread.sleep(watchdogDelay);
+                    watchdogDelay = 500;
                     if (!romStarted.get() || !c.isRunning() || c.getCpu().getProgramCounter() == MOS65C02.FASTBOOT || c.getCpu().getProgramCounter() == 0) {
                         Logger.getLogger(getClass().getName()).log(Level.WARNING, "Boot not detected, performing a cold start");
-                        Logger.getLogger(getClass().getName()).log(Level.WARNING, "Old PC: {0}", c.getCpu().getProgramCounter());
+                        Logger.getLogger(getClass().getName()).log(Level.WARNING, "Old PC: {0}", Integer.toHexString(c.getCpu().getProgramCounter()));
                         resetEmulator();
                         configureEmulatorForGame();
                         bootWatchdog();

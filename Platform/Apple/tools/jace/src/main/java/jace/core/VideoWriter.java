@@ -30,6 +30,11 @@ import javafx.scene.image.WritableImage;
  */
 public abstract class VideoWriter {
 
+    int currentRow = -1;
+    public void setCurrentRow(int y) {
+        currentRow = y;
+    }
+
     public abstract void displayByte(WritableImage screen, int xOffset, int y, int yTextOffset, int yGraphicsOffset);
 
     // This is used to support composite mixed-mode writers so that we can talk to the writer being used for a scanline
@@ -42,12 +47,19 @@ public abstract class VideoWriter {
     // Very useful for knowing if we should bother drawing changes
     private final boolean[] dirtyFlags = new boolean[192];
 
+    boolean updatedDuringRaster = false;
     public void markDirty(int y) {
         actualWriter().dirtyFlags[y] = true;
+        if (y == currentRow) {
+            updatedDuringRaster = true;
+        }
     }
 
     public void clearDirty(int y) {
-        actualWriter().dirtyFlags[y] = false;
+        if (!updatedDuringRaster) {
+            actualWriter().dirtyFlags[y] = false;
+        }
+        updatedDuringRaster = false;
     }
 
     public boolean isRowDirty(int y) {

@@ -183,6 +183,7 @@ public abstract class Video extends TimedDevice {
                 }
                 hPeriod = HBLANK;
                 y++;
+                getCurrentWriter().setCurrentRow(y);
                 if (y >= APPLE_SCREEN_LINES) {
                     if (!isVblank) {
                         y = APPLE_SCREEN_LINES - (TOTAL_LINES - APPLE_SCREEN_LINES);

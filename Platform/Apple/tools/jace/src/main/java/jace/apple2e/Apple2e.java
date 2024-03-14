@@ -29,7 +29,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import jace.LawlessLegends;
 import jace.apple2e.softswitch.VideoSoftSwitch;
 import jace.cheat.Cheats;
 import jace.config.ConfigurableField;
@@ -247,10 +246,6 @@ public class Apple2e extends Computer {
         getMotherboard().whileSuspended(()-> {
             // System.err.println("Reconfiguring computer...");
             if (!isMemoryConfigurationCorrect()) {
-                if (getVideo() != null) {
-                    getVideo().suspend();
-                }
-                setVideo(null);
                 System.out.println("Creating new ram using " + getDesiredMemoryConfiguration().getName());
                 setMemory(createMemory());
             }
@@ -305,19 +300,7 @@ public class Apple2e extends Computer {
             }
 
             if (!isVideoConfigurationCorrect()) {
-                boolean resumeVideo = false;
-                if (getVideo() != null) {
-                    resumeVideo = getVideo().suspend();
-                }
                 setVideo(videoRenderer.getValue().create());
-                getVideo().configureVideoMode();
-                getVideo().reconfigure();
-                if (LawlessLegends.getApplication() != null) {
-                    LawlessLegends.getApplication().reconnectUIHooks();
-                }
-                if (resumeVideo) {
-                    getVideo().resume();
-                }
             }
 
             // Add all new cards
@@ -366,8 +349,8 @@ public class Apple2e extends Computer {
             if (showSpeedMonitors) {
                 newDeviceSet.add(fpsCounters);
             }
-            getMotherboard().attach();
             getMotherboard().setAllDevices(newDeviceSet);
+            getMotherboard().attach();
             getMotherboard().reconfigure();
         });
     }

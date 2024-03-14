@@ -296,8 +296,11 @@ public abstract class RAM implements Reconfigurable {
     }
 
     public RAMListener addListener(final RAMListener l) {
-        if (l == null || listeners.contains(l)) {
+        if (l == null) {
             return l;
+        }
+        if (listeners.contains(l)) {
+            removeListener(l);
         }
         listeners.add(l);
         Emulator.whileSuspended((c)->addListenerRange(l));

@@ -125,8 +125,18 @@ public abstract class Computer implements Reconfigurable {
     }
 
     final public void setVideo(Video video) {
+        if (this.video != null && this.video != video) {
+            getMotherboard().removeChildDevice(this.video);
+        }
         this.video = video;
+        if (video != null) {
+            getMotherboard().addChildDevice(video);
+            video.configureVideoMode();
+            video.reconfigure();
+            video.resume();
+        }
         if (LawlessLegends.getApplication() != null) {
+            LawlessLegends.getApplication().reconnectUIHooks();
             LawlessLegends.getApplication().controller.connectVideo(video);
         }
     }

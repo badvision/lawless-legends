@@ -261,6 +261,9 @@ public abstract class Device implements Reconfigurable {
         children.forEach(Device::suspend);
         children.forEach(Device::detach);
         Keyboard.unregisterAllHandlers(this);
+        if (this.isRunning()) {
+            this.suspend();
+        }
         isAttached = false;
         _ram = null;
     }

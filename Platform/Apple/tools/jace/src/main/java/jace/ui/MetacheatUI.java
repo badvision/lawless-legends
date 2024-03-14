@@ -527,8 +527,10 @@ public class MetacheatUI {
         searchValueField.textProperty().unbind();
         searchChangeByField.textProperty().unbind();
         memoryWatchTooltip.hide();
-        animationTimer.shutdown();
-        animationTimer = null;
+        if (animationTimer != null) {
+            animationTimer.shutdown();
+            animationTimer = null;
+        }
         cheatEngine = null;
     }
 

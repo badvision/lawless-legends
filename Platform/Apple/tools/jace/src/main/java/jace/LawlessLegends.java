@@ -8,14 +8,12 @@ import java.util.logging.Logger;
 import jace.apple2e.MOS65C02;
 import jace.apple2e.RAM128k;
 import jace.apple2e.VideoNTSC;
-import jace.cheat.Cheats.Cheat;
 import jace.config.Configuration;
 import jace.core.Computer;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
 import jace.core.Utility;
 import jace.hardware.Cards;
-import jace.hardware.VideoImpls;
 import jace.lawless.LawlessComputer;
 import jace.lawless.LawlessImageTool;
 import jace.ui.MetacheatUI;
@@ -126,6 +124,16 @@ public class LawlessLegends extends Application {
         return cheatController;
     }
 
+    public void closeMetacheat() {
+        if (cheatStage != null) {
+            cheatStage.close();
+        }
+        if (cheatController != null) {
+            cheatController.detach();
+            cheatController = null;
+        }
+    }
+
     /**
      * @param args the command line arguments
      */
@@ -150,6 +158,7 @@ public class LawlessLegends extends Application {
                 romStarted.set(false);
                 c.coldStart();
                 try {
+                    // Logger.getLogger(getClass().getName()).log(Level.WARNING, "Watchdog: waiting " + watchdogDelay + "ms for boot to start.");
                     Thread.sleep(watchdogDelay);
                     watchdogDelay = 500;
                     if (!romStarted.get() || !c.isRunning() || c.getCpu().getProgramCounter() == MOS65C02.FASTBOOT || c.getCpu().getProgramCounter() == 0) {
@@ -185,16 +194,13 @@ public class LawlessLegends extends Application {
             c.joy2enabled = false;
             c.enableStateManager = false;
             c.ramCard.setValue(RAM128k.RamCards.CardRamworks);
-            c.videoRenderer.setValue(VideoImpls.Lawless);
             if (c.PRODUCTION_MODE) {
                 c.card7.setValue(Cards.MassStorage);
                 c.card6.setValue(Cards.DiskIIDrive);
                 c.card5.setValue(Cards.RamFactor);
                 c.card4.setValue(null);
                 c.card2.setValue(null);
-                c.getMemory().writeWord(0x03f0, 0x0c700, false, false);
             }
-            c.cheatEngine.setValue(Cheat.LawlessHacks);
             Configuration.buildTree();
             c.reconfigure();
             VideoNTSC.setVideoMode(VideoNTSC.VideoMode.TextFriendly, false);

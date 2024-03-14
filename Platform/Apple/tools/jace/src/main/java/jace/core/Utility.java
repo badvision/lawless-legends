@@ -396,9 +396,9 @@ public class Utility {
         String osName = System.getProperty("os.name").toLowerCase();
         if (osName.contains("windows")) {
             return OS.Windows;
-        } else if (osName.contains("Linux")) {
+        } else if (osName.contains("linux")) {
             return OS.Linux;
-        } else if (osName.contains("Mac")) {
+        } else if (osName.contains("mac")) {
             return OS.Mac;
         } else {
             System.out.println("Unknown %s".formatted(osName));

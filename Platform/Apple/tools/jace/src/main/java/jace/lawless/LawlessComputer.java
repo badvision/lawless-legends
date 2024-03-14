@@ -38,8 +38,6 @@ public class LawlessComputer extends Apple2e {
         if (PRODUCTION_MODE) {
             this.cheatEngine.setValue(Cheats.Cheat.LawlessHacks);
         }
-        // this.activeCheatEngine = new LawlessHacks(this);
-        // this.activeCheatEngine.attach();
         blankTextPage1();
         reconfigure();        
     }
@@ -161,7 +159,7 @@ public class LawlessComputer extends Apple2e {
     }
 
     public void waitForVBL(int count) throws InterruptedException {
-        if (getVideo() == null || !getVideo().isRunning()) {
+        if (getVideo() == null || !getVideo().isRunning() || !getMotherboard().isRunning()) {
             return;
         }
         Semaphore s = new Semaphore(0);

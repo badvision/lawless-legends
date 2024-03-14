@@ -47,9 +47,7 @@ public class LawlessHacks extends Cheats {
         // Observe graphics changes
         addCheat("Lawless Text Speedup", RAMEvent.TYPE.EXECUTE, this::fastText, 0x0ee00, 0x0ee00 + 0x0f00);
         addCheat("Lawless Text Enhancement", RAMEvent.TYPE.WRITE, this::enhanceText, 0x02000, 0x03fff);
-        addCheat("Lawless Legends Music Commands", RAMEvent.TYPE.WRITE, (e) -> {
-            playSound(e.getNewValue());
-        }, SFX_TRIGGER);
+        addCheat("Lawless Legends Music Commands", RAMEvent.TYPE.WRITE, (e) -> playSound(e.getNewValue()), SFX_TRIGGER);
     }
 
     @Override
@@ -59,6 +57,13 @@ public class LawlessHacks extends Cheats {
 
     @Override
     public void tick() {
+    }
+
+    @Override
+    public void detach() {
+        super.detach();
+        stopMusic();
+        Emulator.withComputer((c->c.getMotherboard().cancelSpeedRequest(this)));
     }
 
     // Speed up text rendering

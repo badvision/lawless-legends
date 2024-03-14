@@ -63,7 +63,10 @@ public abstract class Cheats extends Device {
 
         @Override
         public boolean isInstance(Cheats cheat) {
-            return clazz.isInstance(cheat);
+            if (cheat == null) {
+                return false;
+            }
+            return clazz == cheat.getClass();
         }
     }
 

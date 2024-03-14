@@ -158,7 +158,7 @@ public class MetaCheat extends Cheats {
     @Override
     public void detach() {
         super.detach();
-        ui.detach();
+        LawlessLegends.getApplication().closeMetacheat();
     }
 
     @Override

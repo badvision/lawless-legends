@@ -83,7 +83,7 @@ public class Apple2e extends Computer {
     @ConfigurableField(name = "Helpful hints", shortName = "hints")
     public boolean enableHints = true;
     @ConfigurableField(name = "Renderer", shortName = "video", description = "Video rendering implementation")
-    public DeviceSelection<VideoImpls> videoRenderer = new DeviceSelection<>(VideoImpls.class, VideoImpls.Lawless, false);
+    public DeviceSelection<VideoImpls> videoRenderer = new DeviceSelection<>(VideoImpls.class, PRODUCTION_MODE ? VideoImpls.Lawless : VideoImpls.NTSC, false);
     @ConfigurableField(name = "Aux Ram", shortName = "ram", description = "Aux ram card")
     public DeviceSelection<RAM128k.RamCards> ramCard = new DeviceSelection<>(RAM128k.RamCards.class, RAM128k.RamCards.CardRamworks, false);
     @ConfigurableField(name = "Joystick 1 Enabled", shortName = "joy1", description = "If unchecked, then there is no joystick support.", enablesDevice = true)
@@ -324,19 +324,15 @@ public class Apple2e extends Computer {
                     activeCheatEngine = null;
                 }
             } else {
-                boolean startCheats = true;
-                if (activeCheatEngine != null) {
-                    if (cheatEngine.getValue().isInstance(activeCheatEngine)) {
-                        startCheats = false;
-                        newDeviceSet.add(activeCheatEngine);
-                    } else {
-                        activeCheatEngine.detach();
-                        activeCheatEngine.suspend();
-                        activeCheatEngine = null;
-                    }
+                if (activeCheatEngine != null && !cheatEngine.getValue().isInstance(activeCheatEngine)) {
+                    activeCheatEngine.detach();
+                    activeCheatEngine.suspend();
+                    activeCheatEngine = null;
                 }
-                if (startCheats && cheatEngine.getValue() != null) {
+                if (activeCheatEngine == null && cheatEngine.getValue() != null) {
                     activeCheatEngine = cheatEngine.getValue().create();
+                }
+                if (activeCheatEngine != null) {
                     newDeviceSet.add(activeCheatEngine);
                 }
             }

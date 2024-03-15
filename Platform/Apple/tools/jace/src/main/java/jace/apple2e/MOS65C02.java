@@ -1246,13 +1246,11 @@ public class MOS65C02 extends CPU {
     }
 
     public String getState() {
-        return String.format("%s %s %s 01%s %s",
-                byte2(A),
-                byte2(X),
-                byte2(Y),
-                byte2(STACK),
-                getFlags()
-        );
+        return byte2(A) +
+                " " + byte2(X) +
+                " " + byte2(Y) +
+                " 01" + byte2(STACK) +
+                getFlags();
     }
 
     public String getFlags() {

@@ -6,6 +6,7 @@
 package jace.cheat;
 
 import java.util.ArrayList;
+
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -77,6 +78,15 @@ public class MemoryCell implements Comparable<MemoryCell> {
         return address - o.address;
     }
     
+    @Override
+    public boolean equals(Object o) {
+        if (o instanceof MemoryCell) {
+            MemoryCell om = (MemoryCell) o;
+            return address == om.address || (x == om.x && y == om.y);
+        }
+        return false;
+    }
+
     public boolean hasCounts() {
         return hasCount.get();
     }    

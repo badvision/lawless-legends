@@ -223,7 +223,7 @@ abstract public class RAM128k extends RAM {
             if (SoftSwitches.INTC8ROM.isOn()) {
                 rstate += "C8";
             } else {
-                rstate += String.format("C8%d", getActiveSlot());
+                rstate += "C8"+getActiveSlot();
             }
         }
 

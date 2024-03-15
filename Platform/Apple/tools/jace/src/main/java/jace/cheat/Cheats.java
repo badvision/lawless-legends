@@ -39,7 +39,8 @@ public abstract class Cheats extends Device {
         Metacheat("Metacheat", MetaCheat.class, MetaCheat::new),
         MontezumasRevenge("Montezuma's Revenge", MontezumasRevengeCheats.class, MontezumasRevengeCheats::new),
         PrinceOfPersia("Prince of Persia", PrinceOfPersiaCheats.class, PrinceOfPersiaCheats::new),
-        LawlessHacks("Lawless Legends Enhancements", LawlessHacks.class, LawlessHacks::new);
+        LawlessHacks("Lawless Legends Enhancements", LawlessHacks.class, LawlessHacks::new),
+        ProgramIdentity("Identify program", ProgramIdentity.class, ProgramIdentity::new);
 
         Supplier<Cheats> factory;
         String name;

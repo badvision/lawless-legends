@@ -1,9 +1,8 @@
 package jace.ui;
 
 import java.io.File;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.Map;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -384,8 +383,7 @@ public class MetacheatUI {
     public static final int MEMORY_BOX_TOTAL_SIZE = (MEMORY_BOX_SIZE + MEMORY_BOX_GAP);
     public int memoryViewColumns;
     public int memoryViewRows;
-
-    public static Set<MemoryCell> redrawNodes = new ConcurrentSkipListSet<>();
+    public static Map<Integer, MemoryCell> redrawNodes = new ConcurrentSkipListMap<>();
     ScheduledExecutorService animationTimer = null;
     @SuppressWarnings("all")
     ScheduledFuture animationFuture = null;
@@ -432,13 +430,11 @@ public class MetacheatUI {
     }
 
     private void processMemoryViewUpdates() {
-        boolean isRunning = Emulator.withComputer(c->c.getRunningProperty().get(), false);
+        boolean isRunning = Emulator.withComputer(c->c.getMotherboard().isRunning(), false);
         if (!isRunning) return;
         GraphicsContext context = memoryViewCanvas.getGraphicsContext2D();
-        Set<MemoryCell> draw = new HashSet<>(redrawNodes);
-        redrawNodes.clear();
         Platform.runLater(() -> {
-            draw.stream().forEach((jace.cheat.MemoryCell cell) -> {
+            redrawNodes.values().stream().forEach((jace.cheat.MemoryCell cell) -> {
                 if (showValuesCheckbox.isSelected()) {
                     int val = cell.value.get() & 0x0ff;
                     context.setFill(Color.rgb(val, val, val));
@@ -450,10 +446,11 @@ public class MetacheatUI {
                 }
                 context.fillRect(cell.getX(), cell.getY(), cell.getWidth(), cell.getHeight());
             });
+            redrawNodes.clear();
         });
     }
 
-    public static int FRAME_RATE = 1000 / 60;
+    public static int FRAME_RATE = 1000 / 30;
 
     public void redrawMemoryView() {
         if (cheatEngine == null) {
@@ -467,8 +464,6 @@ public class MetacheatUI {
             if (animationFuture != null) {
                 animationFuture.cancel(false);
             }
-
-            animationFuture = animationTimer.scheduleAtFixedRate(this::processMemoryViewUpdates, FRAME_RATE, FRAME_RATE, TimeUnit.MILLISECONDS);
 
             cheatEngine.initMemoryView();
             int pixelsPerBlock = 16 * MEMORY_BOX_TOTAL_SIZE;
@@ -490,13 +485,14 @@ public class MetacheatUI {
                         (int) (row * MEMORY_BOX_TOTAL_SIZE * drawScale), 
                         (int) (MEMORY_BOX_SIZE * drawScale), 
                         (int) (MEMORY_BOX_SIZE * drawScale));
-                redrawNodes.add(cell);
+                redrawNodes.put(cell.address, cell);
             }
             MemoryCell.setListener((javafx.beans.value.ObservableValue<? extends jace.cheat.MemoryCell> prop, jace.cheat.MemoryCell oldCell, jace.cheat.MemoryCell newCell) -> {
-                redrawNodes.add(newCell);
+                redrawNodes.put(newCell.address, newCell);
             });
             
             setZoom(1/drawScale);
+            animationFuture = animationTimer.scheduleAtFixedRate(this::processMemoryViewUpdates, FRAME_RATE, FRAME_RATE, TimeUnit.MILLISECONDS);
         });
     }
 

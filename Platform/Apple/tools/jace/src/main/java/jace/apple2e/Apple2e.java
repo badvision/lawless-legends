@@ -63,7 +63,7 @@ public class Apple2e extends Computer {
     static int IRQ_VECTOR = 0x003F2;
 
     @ConfigurableField(name = "Production mode", shortName = "production")
-    public boolean PRODUCTION_MODE = true;
+    public boolean PRODUCTION_MODE = false;
     @ConfigurableField(name = "Slot 1", shortName = "s1card")
     public DeviceSelection<Cards> card1 = new DeviceSelection<>(Cards.class, null);
     @ConfigurableField(name = "Slot 2", shortName = "s2card")

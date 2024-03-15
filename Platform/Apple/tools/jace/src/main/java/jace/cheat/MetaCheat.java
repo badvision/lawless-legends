@@ -64,7 +64,7 @@ public class MetaCheat extends Cheats {
     public int historyLength = 10;
 
     private int startAddress = 0;
-    private int endAddress = 0x0ffff;
+    private int endAddress = 0x0BFFF;
     private final StringProperty startAddressProperty = new SimpleStringProperty(Integer.toHexString(startAddress));
     private final StringProperty endAddressProperty = new SimpleStringProperty(Integer.toHexString(endAddress));
     private boolean byteSized = true;
@@ -248,26 +248,33 @@ public class MetaCheat extends Cheats {
                 int last = result.lastObservedValue;
                 result.lastObservedValue = val;
                 switch (searchType) {
-                    case VALUE:
+                    case VALUE -> {
                         int compare = parseInt(searchValueProperty.get());
                         return compare != val;
-                    case CHANGE:
+                    }
+                    case CHANGE -> {
                         switch (searchChangeType) {
-                            case AMOUNT:
+                            case AMOUNT -> {
                                 int amount = parseInt(searchChangeByProperty().getValue());
                                 return (val - last) != amount;
-                            case GREATER:
+                            }
+                            case GREATER -> {
                                 return val <= last;
-                            case ANY_CHANGE:
+                            }
+                            case ANY_CHANGE -> {
                                 return val == last;
-                            case LESS:
+                            }
+                            case LESS -> {
                                 return val >= last;
-                            case NO_CHANGE:
+                            }
+                            case NO_CHANGE -> {
                                 return val != last;
+                            }
                         }
-                        break;
-                    case TEXT:
-                        break;
+                    }
+
+                    case TEXT -> {
+                    }
                 }
                 return false;
             });
@@ -309,15 +316,9 @@ public class MetaCheat extends Cheats {
             memoryCells.values().stream()
                     .filter(MemoryCell::hasCounts)
                     .forEach((cell) -> {
-                        if (cell.execCount.get() > 0) {
-                            cell.execCount.set(Math.max(0, cell.execCount.get() - fadeRate));
-                        }
-                        if (cell.readCount.get() > 0) {
-                            cell.readCount.set(Math.max(0, cell.readCount.get() - fadeRate));
-                        }
-                        if (cell.writeCount.get() > 0) {
-                            cell.writeCount.set(Math.max(0, cell.writeCount.get() - fadeRate));
-                        }
+                        cell.execCount.set(Math.max(0, cell.execCount.get() - fadeRate));
+                        cell.readCount.set(Math.max(0, cell.readCount.get() - fadeRate));
+                        cell.writeCount.set(Math.max(0, cell.writeCount.get() - fadeRate));
                         if (MemoryCell.listener != null) {
                             MemoryCell.listener.changed(null, cell, cell);
                         }

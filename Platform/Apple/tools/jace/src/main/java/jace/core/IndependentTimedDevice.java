@@ -100,10 +100,20 @@ public abstract class IndependentTimedDevice extends TimedDevice {
         }
     }
     
+    public static int SLEEP_PRECISION_LIMIT = 100;
     public void sleepUntil(Long time) {
         if (time != null) {
             while (System.nanoTime() < time) {
-                Thread.onSpinWait();
+                int waitTime = (int) ((time - System.nanoTime()) / 1000000);
+                if (waitTime >= SLEEP_PRECISION_LIMIT) {
+                    try {
+                        Thread.sleep(waitTime);
+                    } catch (InterruptedException ex) {
+                        return;
+                    }
+                } else {
+                    Thread.onSpinWait();
+                }
             }
         }
     }

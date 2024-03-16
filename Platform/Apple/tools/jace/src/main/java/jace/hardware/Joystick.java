@@ -224,7 +224,9 @@ public class Joystick extends Device {
     @ConfigurableField(name = "Use D-PAD", shortName = "dpad", description = "Physical game controller enable D-PAD")
     public boolean useDPad = true;
     @ConfigurableField(name = "Dead Zone", shortName = "deadZone", description = "Dead zone for joystick (0-1)")
-    public static float deadZone = 0.05f;
+    public static float deadZone = 0.095f;
+    @ConfigurableField(name = "Sensitivity", shortName = "sensitivity", description = "Joystick value mutiplier")
+    public static float sensitivity = 1.1f;
     @ConfigurableField(name = "Rapid fire interval (ms)", shortName = "rapidfire", description = "Interval for rapid fire (ms)")
     public int rapidFireInterval = 16;
 
@@ -295,8 +297,8 @@ public class Joystick extends Device {
     private void readJoystick() {
         ticksSinceLastRead = 0;
         if (useKeyboard) {
-            joyX = (leftPressed ? -128 : 0) + (rightPressed ? 255 : 128);
-            joyY = (upPressed ? -128 : 0) + (downPressed ? 255 : 128);
+            joyX = (leftPressed ? -128 : 0) + (rightPressed ? 256 : 128);
+            joyY = (upPressed ? -128 : 0) + (downPressed ? 256 : 128);
         } else if (readGLFWJoystick()) {
             float x = -0.5f;
             float y = 0.5f;
@@ -331,6 +333,12 @@ public class Joystick extends Device {
             if (Math.abs(y) < deadZone) {
                 y = 0;
             }
+
+            // We have to let the joystick go a little further in the positive direction
+            // because boulderdash is a little too sensitive!
+            x = Math.max(-1.0f, Math.min(1.1f, x * sensitivity));
+            y = Math.max(-1.0f, Math.min(1.1f, y * sensitivity));
+
             joyX = (int) (x * 128.0 + 128.0);
             joyY = (int) (y * 128.0 + 128.0);
 

@@ -188,7 +188,6 @@ public class LawlessLegends extends Application {
 
     private void configureEmulatorForGame() {
         Emulator.withComputer(c -> {
-            System.out.println("CONFIUGRE EMULATOR START");
             c.enableHints = false;
             c.clockEnabled = true;
             c.joy1enabled = false;
@@ -208,7 +207,6 @@ public class LawlessLegends extends Application {
             if (c.PRODUCTION_MODE) {
                 ((LawlessImageTool) c.getUpgradeHandler()).loadGame();
             }
-            System.out.println("CONFIUGRE EMULATOR END");
         });
     }
 }

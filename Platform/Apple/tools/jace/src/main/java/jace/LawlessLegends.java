@@ -63,7 +63,7 @@ public class LawlessLegends extends Application {
         }
 
         primaryStage.show();
-        Platform.runLater(() -> new Thread(() -> {
+        new Thread(() -> {
             Emulator.getInstance(getParameters().getRaw());
             Emulator.withComputer(c-> {
                 ((LawlessComputer)c).initLawlessLegendsConfiguration();
@@ -84,7 +84,7 @@ public class LawlessLegends extends Application {
                 Thread.onSpinWait();
             }
             bootWatchdog();
-        }).start());
+        }).start();
         primaryStage.setOnCloseRequest(event -> {
             Emulator.withComputer(Computer::deactivate);
             Platform.exit();
@@ -188,6 +188,7 @@ public class LawlessLegends extends Application {
 
     private void configureEmulatorForGame() {
         Emulator.withComputer(c -> {
+            System.out.println("CONFIUGRE EMULATOR START");
             c.enableHints = false;
             c.clockEnabled = true;
             c.joy1enabled = false;
@@ -207,6 +208,7 @@ public class LawlessLegends extends Application {
             if (c.PRODUCTION_MODE) {
                 ((LawlessImageTool) c.getUpgradeHandler()).loadGame();
             }
+            System.out.println("CONFIUGRE EMULATOR END");
         });
     }
 }

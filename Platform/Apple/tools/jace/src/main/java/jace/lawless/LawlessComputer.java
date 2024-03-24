@@ -39,7 +39,7 @@ public class LawlessComputer extends Apple2e {
             this.cheatEngine.setValue(Cheats.Cheat.LawlessHacks);
         }
         blankTextPage1();
-        reconfigure();        
+        reconfigure();
     }
     
     private void blankTextPage1() {
@@ -109,9 +109,8 @@ public class LawlessComputer extends Apple2e {
                 Logger.getLogger(LawlessComputer.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
-        getCpu().setPaused(false);
         finishColdStart();
-
+        getCpu().setPaused(false);
     }
 
     private void renderWithMask(int... mask) throws InterruptedException {

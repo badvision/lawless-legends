@@ -29,6 +29,7 @@ import java.util.logging.Logger;
 
 import jace.Emulator;
 import jace.apple2e.MOS65C02;
+import jace.apple2e.SoftSwitches;
 import jace.core.RAM;
 import jace.hardware.ProdosDriver.MLI_COMMAND_TYPE;
 
@@ -106,7 +107,7 @@ public class LargeDisk implements IDisk {
     @Override
     public void boot0(int slot) {
         Emulator.withComputer(c->
-            c.getCpu().whileSuspended(()->{
+            c.getCpu().whilePaused(()->{
                 try {
     //                System.out.println("Loading boot0 to $800");
                     mliRead(0, 0x0800);
@@ -117,6 +118,16 @@ public class LargeDisk implements IDisk {
     //            System.out.println("X = "+Integer.toHexString(slot16));
                 ((MOS65C02) c.getCpu()).X = slot16;
                 RAM memory = c.getMemory();
+                SoftSwitches.AUXZP.getSwitch().setState(false);
+                SoftSwitches.LCBANK1.getSwitch().setState(false);
+                SoftSwitches.LCRAM.getSwitch().setState(false);
+                SoftSwitches.LCWRITE.getSwitch().setState(true);
+                SoftSwitches.RAMRD.getSwitch().setState(false);
+                SoftSwitches.RAMWRT.getSwitch().setState(false);
+                SoftSwitches.CXROM.getSwitch().setState(false);
+                SoftSwitches.SLOTC3ROM.getSwitch().setState(false);
+                SoftSwitches.INTC8ROM.getSwitch().setState(false);
+
                 memory.write(CardMassStorage.SLT16, slot16, false, false);
                 memory.write(MLI_COMMAND, (byte) MLI_COMMAND_TYPE.READ.intValue, false, false);
                 memory.write(MLI_UNITNUMBER, slot16, false, false);

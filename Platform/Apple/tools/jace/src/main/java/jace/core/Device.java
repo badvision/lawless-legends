@@ -105,10 +105,6 @@ public abstract class Device implements Reconfigurable {
         newDevices.stream().filter(d-> !children.contains(d)).forEach(this::addChildDevice);
     }
 
-    public boolean getRunningProperty() {
-        return run;
-    }
-
     public void addWaitCycles(int wait) {
         waitCycles += wait;
     }
@@ -170,11 +166,19 @@ public abstract class Device implements Reconfigurable {
     }
 
     public final synchronized void setRun(boolean run) {
+        // if (this.run != run) {
+        //     System.out.println(getDeviceName() + " " + (run ? "RUN" : "STOP"));
+        //     Thread.dumpStack();
+        // }
         this.run = run;
         updateTickHandler();
     }
 
     public synchronized void setPaused(boolean paused) {
+        // if (this.paused != paused) {
+        //     System.out.println(getDeviceName() + " " + (paused ? "PAUSED" : "UNPAUSED"));
+        //     Thread.dumpStack();
+        // }
         this.paused = paused;
         updateTickHandler();
     }

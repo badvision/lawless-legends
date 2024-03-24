@@ -336,8 +336,8 @@ public class Joystick extends Device {
 
             // We have to let the joystick go a little further in the positive direction
             // because boulderdash is a little too sensitive!
-            x = Math.max(-1.0f, Math.min(1.1f, x * sensitivity));
-            y = Math.max(-1.0f, Math.min(1.1f, y * sensitivity));
+            x = Math.max(-1.0f, Math.min(1.0f, x * sensitivity));
+            y = Math.max(-1.0f, Math.min(1.0f, y * sensitivity));
 
             joyX = (int) (x * 128.0 + 128.0);
             joyY = (int) (y * 128.0 + 128.0);
@@ -595,6 +595,14 @@ public class Joystick extends Device {
     public void initJoystickRead(RAMEvent e) {
         readJoystick();
         xSwitch.setState(true);
+        // Some games just suck and don't want to read the joystick properly
+        // Use larger-than-necessary values to try to get around this
+        if (joyX >= 254) {
+            joyX = 280;
+        }
+        if (joyY >= 255) {
+            joyY = 280;
+        }
         x = 10 + joyX * 11;
         ySwitch.setState(true);
         y = 10 + joyY * 11;

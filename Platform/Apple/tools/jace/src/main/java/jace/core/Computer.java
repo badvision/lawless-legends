@@ -133,7 +133,6 @@ public abstract class Computer implements Reconfigurable {
             getMotherboard().addChildDevice(video);
             video.configureVideoMode();
             video.reconfigure();
-            video.resume();
         }
         if (LawlessLegends.getApplication() != null) {
             LawlessLegends.getApplication().reconnectUIHooks();

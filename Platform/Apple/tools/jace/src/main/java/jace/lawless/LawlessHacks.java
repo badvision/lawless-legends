@@ -10,6 +10,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -76,12 +77,27 @@ public class LawlessHacks extends Cheats {
     }
 
     // Enhance text rendering by forcing the text to be pure B&W
+    Map<Integer, Integer> detectedEntryPoints = new TreeMap<>();
+    long lastStatus = 0;
     private void enhanceText(RAMEvent e) {
         if (!e.isMainMemory()) {
             return;
         }
         int pc = Emulator.withComputer(c->c.getCpu().getProgramCounter(), 0);
-        boolean drawingText = pc == 0x0ee46 || pc > 0x0f300;
+        boolean drawingText = (pc >= 0x0ee00 && pc <= 0x0f0c0) || pc > 0x0f100;
+        if (DEBUG) {
+            if (drawingText) {
+                detectedEntryPoints.put(pc, detectedEntryPoints.getOrDefault(pc, 0) + 1);
+            }
+            if ((System.currentTimeMillis() - lastStatus) >= 10000) {
+                lastStatus = System.currentTimeMillis();
+                System.out.println("---text entry points---");
+                detectedEntryPoints.forEach((addr, count) -> {
+                    System.out.println(Integer.toHexString(addr) + ": " + count);
+                });
+            }
+        }
+
         Emulator.withVideo(v -> {
             if (v instanceof LawlessVideo) {
                 LawlessVideo video = (LawlessVideo) v;

@@ -49,6 +49,7 @@ public class LawlessHacks extends Cheats {
         addCheat("Lawless Text Speedup", RAMEvent.TYPE.EXECUTE, this::fastText, 0x0ee00, 0x0ee00 + 0x0f00);
         addCheat("Lawless Text Enhancement", RAMEvent.TYPE.WRITE, this::enhanceText, 0x02000, 0x03fff);
         addCheat("Lawless Legends Music Commands", RAMEvent.TYPE.WRITE, (e) -> playSound(e.getNewValue()), SFX_TRIGGER);
+        addCheat("Lawless Adjust Animation Speed", RAMEvent.TYPE.READ, this::adjustAnimationSpeed, 0x0c000, 0x0c010);
     }
 
     @Override
@@ -113,6 +114,23 @@ public class LawlessHacks extends Cheats {
             }
         });
     }
+
+    private Map<Integer, Integer> keyReadAddresses = new TreeMap<>();
+    long lastKeyStatus = 0;
+    private void adjustAnimationSpeed(RAMEvent e) {
+        if (DEBUG) {
+            int pc = Emulator.withComputer(c->c.getCpu().getProgramCounter(), 0);
+            keyReadAddresses.put(pc, keyReadAddresses.getOrDefault(pc, 0) + 1);
+            if ((System.currentTimeMillis() - lastKeyStatus) >= 10000) {
+                lastKeyStatus = System.currentTimeMillis();
+                System.out.println("---keyin points---");
+                keyReadAddresses.forEach((addr, count) -> {
+                    System.out.println(Integer.toHexString(addr) + ": " + count);
+                });
+            }
+        }
+        // D5FE: Key-in routine used when animating portraits
+    }    
 
     public static final String SCORE_NONE = "none";
     public static final String SCORE_COMMON = "common";

@@ -167,7 +167,6 @@ public class LawlessLegends extends Application {
                         resetEmulator();
                         configureEmulatorForGame();
                         bootWatchdog();
-                        // Emulator.getComputer().getCpu().trace=true;
                     } else {
                         startListener.unregister();
                     }

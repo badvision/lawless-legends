@@ -123,5 +123,5 @@ public class Motherboard extends IndependentTimedDevice {
         if (accelorationRequestors.remove(requester) && accelorationRequestors.isEmpty()) {
             disableTempMaxSpeed();
         }
-    }    
+    }
 }

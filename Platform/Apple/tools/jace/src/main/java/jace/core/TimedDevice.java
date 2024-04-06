@@ -124,6 +124,10 @@ public abstract class TimedDevice extends Device {
         }
     }
 
+    public final boolean isMaxSpeedEnabled() {
+        return maxspeed;
+    }
+
     public final boolean isMaxSpeed() {
         return forceMaxspeed || maxspeed;
     }

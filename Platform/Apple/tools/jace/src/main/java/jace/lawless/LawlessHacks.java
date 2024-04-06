@@ -19,7 +19,10 @@ import java.util.regex.Pattern;
 import jace.Emulator;
 import jace.apple2e.VideoDHGR;
 import jace.cheat.Cheats;
+import jace.core.Computer;
+import jace.core.Motherboard;
 import jace.core.RAMEvent;
+import jace.core.TimedDevice;
 import javafx.util.Duration;
 
 /**
@@ -117,9 +120,11 @@ public class LawlessHacks extends Cheats {
 
     private Map<Integer, Integer> keyReadAddresses = new TreeMap<>();
     long lastKeyStatus = 0;
+    long lastKnownSpeed = -1;
+    boolean isCurrentlyMaxSpeed = false;
     private void adjustAnimationSpeed(RAMEvent e) {
+        int pc = Emulator.withComputer(c->c.getCpu().getProgramCounter(), 0);
         if (DEBUG) {
-            int pc = Emulator.withComputer(c->c.getCpu().getProgramCounter(), 0);
             keyReadAddresses.put(pc, keyReadAddresses.getOrDefault(pc, 0) + 1);
             if ((System.currentTimeMillis() - lastKeyStatus) >= 10000) {
                 lastKeyStatus = System.currentTimeMillis();
@@ -129,8 +134,28 @@ public class LawlessHacks extends Cheats {
                 });
             }
         }
-        // D5FE: Key-in routine used when animating portraits
-    }    
+        Motherboard m = Emulator.withComputer(Computer::getMotherboard, null);
+        long currentSpeed = m.getSpeedInHz();
+        if (pc == 0x0D5FE) {        
+            long slowerSpeed = (long) (TimedDevice.NTSC_1MHZ * 1.5);
+            // We are waiting for a key in portait mode, slow to 1.5x
+            if (currentSpeed > slowerSpeed || m.isMaxSpeedEnabled()) {
+                lastKnownSpeed = currentSpeed;
+                isCurrentlyMaxSpeed = m.isMaxSpeedEnabled();
+                m.setSpeedInHz(slowerSpeed);
+                m.setMaxSpeed(false);
+                m.cancelSpeedRequest(this);
+            }
+        } else {
+            // We're in some other mode, go back the default speed
+            if (currentSpeed < lastKnownSpeed || isCurrentlyMaxSpeed) {
+                m.setSpeedInHz(lastKnownSpeed);
+                m.setMaxSpeed(isCurrentlyMaxSpeed);
+                isCurrentlyMaxSpeed = false;
+                lastKnownSpeed = -1;
+            }
+        }
+    }
 
     public static final String SCORE_NONE = "none";
     public static final String SCORE_COMMON = "common";

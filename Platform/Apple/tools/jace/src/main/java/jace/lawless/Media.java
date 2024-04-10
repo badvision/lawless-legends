@@ -47,14 +47,25 @@ public class Media {
             totalDuration = STBVorbis.stb_vorbis_stream_length_in_seconds(decoder);
             sampleRate = info.sample_rate();
             isStereo = info.channels() == 2;
+            if (isStereo) {
+                totalSamples *= 2;
+            }
 
-            tempSampleBuffer = MemoryUtil.memAllocShort(totalSamples);
-            STBVorbis.stb_vorbis_get_samples_short_interleaved(decoder, isStereo?2:1, tempSampleBuffer);
+            tempSampleBuffer = MemoryUtil.memAllocShort(2048);
+            sampleBuffer = ShortBuffer.allocate(totalSamples);
+            int sampleCount = 1;
+            int currentOffset = 0;
+            while (sampleCount > 0) {
+                sampleCount = STBVorbis.stb_vorbis_get_samples_short_interleaved(decoder, isStereo?2:1, tempSampleBuffer);
+                if (sampleCount == 0) {
+                    break;
+                }
+                // copy sample buffer into byte buffer so we can deallocate, then transfer the buffer contents
+                sampleBuffer.put(currentOffset, tempSampleBuffer, 0, sampleCount * (isStereo ? 2 : 1));
+                tempSampleBuffer.rewind();
+                currentOffset += sampleCount * (isStereo ? 2 : 1);
+            }
             STBVorbis.stb_vorbis_close(decoder);
-            tempSampleBuffer.rewind();
-            // copy sample buffer into byte buffer so we can deallocate, then transfer the buffer contents
-            sampleBuffer = ShortBuffer.allocate(totalSamples*2);
-            sampleBuffer.put(tempSampleBuffer);
             sampleBuffer.rewind();
         } catch (RuntimeException ex) {
             throw ex;

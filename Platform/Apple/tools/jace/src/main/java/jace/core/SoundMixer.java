@@ -189,7 +189,6 @@ public class SoundMixer extends Device {
         buffers.add(buffer);
         return buffer;
     }
-
     public static class SoundBuffer {
         public static int MAX_BUFFER_ID;
         private ShortBuffer currentBuffer;

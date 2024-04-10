@@ -113,6 +113,7 @@
                 <version>1.0.0.Final</version>
                 <executions>
                     <execution>
+                        <?m2e execute onConfiguration,onIncremental?>
                         <id>add-module-infos</id>
                         <phase>generate-resources</phase>
                         <goals>

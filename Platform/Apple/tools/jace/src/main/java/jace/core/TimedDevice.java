@@ -188,6 +188,8 @@ public abstract class TimedDevice extends Device {
             return null;
         }
         cycleTimer = 0;
+        long retVal = nextSync;
+        nextSync = Math.max(nextSync, System.nanoTime()) + nanosPerInterval; 
         if (isMaxSpeed() || useParentTiming()) {
             if (tempSpeedDuration > 0) {
                 tempSpeedDuration -= cyclesPerInterval;
@@ -195,11 +197,8 @@ public abstract class TimedDevice extends Device {
                     disableTempMaxSpeed();
                 }
             }
-            nextSync += nanosPerInterval;
             return null;
         }
-        long retVal = nextSync;
-        nextSync = Math.min(nextSync + nanosPerInterval, System.nanoTime() + nanosPerInterval * 2); // Avoid drift (but not too much!
         return retVal;
     }
 }

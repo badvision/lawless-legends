@@ -27,6 +27,7 @@ import jace.config.InvokableAction;
 import jace.core.Computer;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
+import jace.core.Video;
 import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
@@ -331,6 +332,19 @@ public class VideoNTSC extends VideoDHGR {
         {1.0, 0.0, 0.0}, //1111 f
     };
 
+    public static void CHANGE_BLACK_COLOR(int r, int g, int b) {
+        Emulator.withVideo(v->{
+            VideoNTSC vntsc = (VideoNTSC) v;
+            BLACK = Color.rgb(r, g, b);
+            int c = colorToInt(BLACK);
+            for (int i1 = 0; i1 < 4; i1++) {                
+                vntsc.SOLID_PALETTE[i1][0] = c;
+                vntsc.TEXT_PALETTE[i1][0] = c;
+            }
+        });
+        Video.forceRefresh();
+    }
+
     private void initDivideTables() {
         for (int i = 0; i < 560; i++) {
             divBy28[i] = i / 28;
@@ -361,10 +375,18 @@ public class VideoNTSC extends VideoDHGR {
     }
 
     static public int yiqToRgb(double y, double i, double q) {
+        return colorToInt(yiqToRgbColor(y, i, q));
+    }
+
+    static public Color yiqToRgbColor(double y, double i, double q) {
         int r = (int) (normalize((y + 0.956 * i + 0.621 * q), 0, 1) * 255);
         int g = (int) (normalize((y - 0.272 * i - 0.647 * q), 0, 1) * 255);
         int b = (int) (normalize((y - 1.105 * i + 1.702 * q), 0, 1) * 255);
-        return (255 << 24) | (r << 16) | (g << 8) | b;
+        return Color.rgb(r, g, b);
+    }
+
+    static public int colorToInt(Color c) {
+        return (int) (255 << 24) | (int) (c.getRed() * 255) << 16 | (int) (c.getGreen() * 255) << 8 | (int) (c.getBlue() * 255);
     }
 
     public static double normalize(double x, double minX, double maxX) {

@@ -426,7 +426,7 @@ public class CardAppleMouse extends Card {
      * Described in Apple Mouse technical note #7
      * Cn1A: Read mouse clamping values
      * Register number is stored in $478 and ranges from x47 to x4e
-     * Return value should be stored in $5782
+     * Return value should be stored in $578
      * Values should be returned in this order:
      * MinXH, MinYH, MinXL, MinYL, MaxXH, MaxYH, MaxXL, MaxYL
      */

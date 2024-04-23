@@ -52,6 +52,9 @@ public class Speaker extends Device {
     @ConfigurableField(category = "sound", name = "1mhz timing", description = "Force speaker output to 1mhz?")
     public static boolean force1mhz = true;
 
+    @ConfigurableField(category = "sound", name = "Show sound", description = "Use black color value to show sound output")
+    public static boolean showSound = false;
+
     @InvokableAction(category = "sound", name = "Record sound", description="Toggles recording (saving) sound output to a file", defaultKeyMapping = "ctrl+shift+w")
     public static void toggleFileOutput() {
         if (fileOutputActive) {
@@ -95,19 +98,22 @@ public class Speaker extends Device {
      */
     @ConfigurableField(name = "Speaker Volume", shortName = "vol", description = "Should be under 1400")
     public static int VOLUME = 400;
-    /**
-     * Number of idle cycles until speaker playback is deactivated
-     */
-    @ConfigurableField(name = "Idle cycles before sleep", shortName = "idle")
-    public static int MAX_IDLE_CYCLES = 2000000;
+    private int currentVolume = 0;
+    private int fadeOffAmount = 1;
     /**
      * Manifestation of the apple speaker softswitch
      */
     private boolean speakerBit = false;
-    private double TICKS_PER_SAMPLE = ((double) TimedDevice.NTSC_1MHZ) / SoundMixer.RATE;
-    private double TICKS_PER_SAMPLE_FLOOR = Math.floor(TICKS_PER_SAMPLE);
+    private static double TICKS_PER_SAMPLE = ((double) TimedDevice.NTSC_1MHZ) / SoundMixer.RATE;
     private RAMListener listener = null;
     private SoundBuffer buffer = null;
+
+    /**
+     * Number of idle cycles until speaker playback is deactivated
+     */
+    @ConfigurableField(name = "Idle cycles before sleep", shortName = "idle")
+    // public static int MAX_IDLE_CYCLES = (int) (SoundMixer.BUFFER_SIZE * TICKS_PER_SAMPLE * 2);
+    public static int MAX_IDLE_CYCLES = (int) TimedDevice.NTSC_1MHZ / 4;
 
     /**
      * Suspend playback of sound
@@ -118,7 +124,6 @@ public class Speaker extends Device {
     public boolean suspend() {
         boolean result = super.suspend();
         speakerBit = false;
-        Emulator.withComputer(c->c.getMotherboard().cancelSpeedRequest(this));
         if (buffer != null) {
             try {
                 buffer.shutdown();
@@ -128,6 +133,7 @@ public class Speaker extends Device {
                 buffer = null;
             }
         }
+        Emulator.withComputer(c->c.getMotherboard().cancelSpeedRequest(this));
 
         return result;
     }
@@ -164,7 +170,6 @@ public class Speaker extends Device {
         } else {
             TICKS_PER_SAMPLE = Emulator.withComputer(c-> ((double) c.getMotherboard().getSpeedInHz()) / SoundMixer.RATE, 0.0);
         }
-        TICKS_PER_SAMPLE_FLOOR = Math.floor(TICKS_PER_SAMPLE);
         super.resume();
     }
 
@@ -172,9 +177,9 @@ public class Speaker extends Device {
      * Reset idle counter whenever sound playback occurs
      */
     public void resetIdle() {
+        currentVolume = VOLUME;
         idleCycles = 0;
         if (!isRunning()) {
-            speakerBit = false;
             resume();
         }
     }
@@ -186,21 +191,32 @@ public class Speaker extends Device {
      */
     @Override
     public void tick() {
-        if (idleCycles++ >= MAX_IDLE_CYCLES) {
-            suspend();
-        }
         if (speakerBit) {
             level++;
+            if (showSound) {
+                VideoNTSC.CHANGE_BLACK_COLOR(40, 20, 20);
+            }
+        } else if (showSound) {
+            VideoNTSC.CHANGE_BLACK_COLOR(20,20,40);
+        }
+        if (idleCycles++ >= MAX_IDLE_CYCLES && (currentVolume <= 0 || !speakerBit)) {
+            suspend();
+            if (showSound) {
+                VideoNTSC.CHANGE_BLACK_COLOR(0,0,0);
+            }
         }
         counter += 1.0d;
         if (counter >= TICKS_PER_SAMPLE) {
-            playSample(level * VOLUME);
-            Emulator.withComputer(c->c.getMotherboard().requestSpeed(this));
+            if (idleCycles >= MAX_IDLE_CYCLES) {
+                currentVolume -= fadeOffAmount;
+            }
+            playSample(level * currentVolume);
+            // Emulator.withComputer(c->c.getMotherboard().requestSpeed(this));
 
             // Set level back to 0
             level = 0;
             // Set counter to 0
-            counter -= TICKS_PER_SAMPLE_FLOOR;
+            counter -= TICKS_PER_SAMPLE;
         }
     }
 

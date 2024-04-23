@@ -274,7 +274,7 @@ public abstract class Video extends TimedDevice {
         Emulator.withVideo(v->v._forceRefresh());
     }
 
-    private void _forceRefresh() {
+    protected void _forceRefresh() {
         lineDirty = true;
         screenDirty = true;
         forceRedrawRowCount = APPLE_SCREEN_LINES + 1;

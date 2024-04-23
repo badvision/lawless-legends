@@ -640,7 +640,7 @@ public class VideoDHGR extends Video {
             Logger.getLogger(getClass().getName()).warning("Went out of bounds in video display");
         }
     }
-    static final Color BLACK = Color.BLACK;
+    static Color BLACK = Color.BLACK;
     static Color WHITE = Color.WHITE;
     static final int[][] XY_OFFSET;
 

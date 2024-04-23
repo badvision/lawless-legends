@@ -24,6 +24,7 @@ import jace.core.RAMListener;
 /**
  * Implements a basic hardware accelerator that is able to adjust the speed of the emulator
  */
+// TODO: Support the registers used here: https://github.com/a2-4am/4cade/blob/main/src/hw.accel.a#L238
 public class ZipWarpAccelerator extends Device {
     @ConfigurableField(category = "debug", name = "Debug messages")
     public boolean debugMessagesEnabled = false;

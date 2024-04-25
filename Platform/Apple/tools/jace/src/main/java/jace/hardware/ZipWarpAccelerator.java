@@ -24,7 +24,6 @@ import jace.core.RAMListener;
 /**
  * Implements a basic hardware accelerator that is able to adjust the speed of the emulator
  */
-// TODO: Support the registers used here: https://github.com/a2-4am/4cade/blob/main/src/hw.accel.a#L238
 public class ZipWarpAccelerator extends Device {
     @ConfigurableField(category = "debug", name = "Debug messages")
     public boolean debugMessagesEnabled = false;
@@ -38,8 +37,14 @@ public class ZipWarpAccelerator extends Device {
     public static final double UNLOCK_PENALTY_PER_TICK = 0.19;
     public static final double UNLOCK_MIN = 4.0;
 
+    /**
+     * Valid values for C074 are:
+     * 0: Enable full speed
+     * 1: Set speed to 1mhz (temporarily disable)
+     * 3: Disable completely (requres cold-start to re-enable -- this isn't implemented)
+     */
     public static final int TRANSWARP = 0x0c074;
-    public static final int TRANSWARP_ON = 1; // Any other value written disables acceleration
+    public static final int TRANSWARP_ON = 0; // Any other value written disables acceleration
 
     boolean zipLocked = true;
     double zipUnlockCount = 0;
@@ -187,7 +192,10 @@ public class ZipWarpAccelerator extends Device {
 
     private void turnOffAcceleration() {
         // The UI Logic retains the user's desired normal speed, reset to that
-        Emulator.getUILogic().reconfigure();
+        Emulator.withComputer(c -> {
+            c.getMotherboard().setMaxSpeed(false);
+            c.getMotherboard().setSpeedInPercentage(100);
+        });
     }
     
     @Override

@@ -93,7 +93,7 @@ public class Apple2e extends Computer {
     @ConfigurableField(name = "No-Slot Clock Enabled", shortName = "clock", description = "If checked, no-slot clock will be enabled", enablesDevice = true)
     public boolean clockEnabled = true;
     @ConfigurableField(name = "Accelerator Enabled", shortName = "zip", description = "If checked, add support for Zip/Transwarp", enablesDevice = true)
-    public boolean acceleratorEnabled = PRODUCTION_MODE;
+    public boolean acceleratorEnabled = true;
     
     public Joystick joystick1;
     public Joystick joystick2;

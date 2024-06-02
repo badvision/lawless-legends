@@ -26,7 +26,7 @@
     -fx-background-radius: 10px;
 }
 
-.menuButton, .uiActionButton, .uiSpeedSlider ImageView, .uiSpeedSlider Slider, .uiSpeedSlider AnchorPane, .musicLabel {
+.menuButton, .uiActionButton, .uiSpeedSlider ImageView, .uiSpeedSlider Slider, .uiSpeedSlider AnchorPane, .musicLabel, GridPane {
     -fx-background-color: rgba(0, 0, 0, 0.75);
     -fx-text-fill: #a0FFa0
 }

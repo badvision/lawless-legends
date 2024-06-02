@@ -18,6 +18,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import jace.core.Card;
+import jace.core.Motherboard;
 import jace.core.Utility;
 import jace.core.Video;
 import jace.lawless.LawlessComputer;
@@ -34,6 +35,7 @@ import javafx.beans.binding.NumberBinding;
 import javafx.beans.binding.When;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.value.ObservableNumberValue;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
@@ -93,6 +95,9 @@ public class JaceUIController {
 
     @FXML
     private ComboBox<String> musicSelection;
+    
+    @FXML
+    private Slider speakerToggle;
 
     private final BooleanProperty aspectRatioCorrectionEnabled = new SimpleBooleanProperty(false);
 
@@ -132,7 +137,23 @@ public class JaceUIController {
             rootPane.requestFocus();
         }));
         rootPane.requestFocus();
+        speakerToggle.setValue(1.0);
+        speakerToggle.setOnMouseClicked(evt -> {
+            speakerEnabled = !speakerEnabled;
+            int desiredValue = speakerEnabled ? 1 : 0;
+            speakerToggle.setValue(desiredValue);
+            Emulator.withComputer(computer -> {
+                Motherboard.enableSpeaker = speakerEnabled;
+                computer.motherboard.reconfigure();
+                if (!speakerEnabled) {
+                    computer.motherboard.speaker.detach();
+                } else {
+                    computer.motherboard.speaker.attach();                    
+                }
+            });
+        });
     }
+    boolean speakerEnabled = true;
 
     private void showMenuButton(MouseEvent evt) {
         if (!evt.isPrimaryButtonDown() && !evt.isSecondaryButtonDown() && !controlOverlay.isVisible()) {

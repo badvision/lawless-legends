@@ -415,6 +415,7 @@ public class MediaCache implements Serializable {
         }
     }
 
+    @SuppressWarnings("unused")
     private MediaFile resolveLocalCopy(MediaEntry e) {
         if (!e.isLocal) {
             e = findLocalEntry(e);
@@ -461,6 +462,7 @@ public class MediaCache implements Serializable {
         return tempDir;
     }
 
+    @SuppressWarnings("unused")
     private MediaFile convertTemporaryFileToLocal(MediaFile f) {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }

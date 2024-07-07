@@ -113,7 +113,7 @@
                                     <String fx:value="8-bit Chipmusic" />
                                  </value>
                               </ComboBox>
-                              <Label alignment="CENTER_RIGHT" prefHeight="53.0" prefWidth="201.0" styleClass="musicLabel" text="Speaker:" textAlignment="RIGHT" GridPane.rowIndex="1" />
+                              <Label alignment="CENTER_RIGHT" prefHeight="53.0" prefWidth="201.0" styleClass="musicLabel" text="SFX:" textAlignment="RIGHT" GridPane.rowIndex="1" />
                               <Slider fx:id="speakerToggle" blockIncrement="1.0" majorTickUnit="1.0" max="1.0" maxWidth="32.0" minWidth="32.0" minorTickCount="0" prefWidth="32.0" snapToTicks="true" GridPane.columnIndex="1" GridPane.rowIndex="1" />
                            </children>
                         </GridPane>

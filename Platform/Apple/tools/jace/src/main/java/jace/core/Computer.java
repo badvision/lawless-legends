@@ -22,7 +22,6 @@ import java.util.concurrent.CompletableFuture;
 
 import jace.Emulator;
 import jace.LawlessLegends;
-import jace.apple2e.SoftSwitches;
 import jace.config.ConfigurableField;
 import jace.config.Configuration;
 import jace.config.InvokableAction;

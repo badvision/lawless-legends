@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import jace.Emulator;
 import jace.LawlessLegends;
 import jace.apple2e.SoftSwitches;
 import jace.config.ConfigurableField;
@@ -182,12 +183,8 @@ public abstract class Computer implements Reconfigurable {
             category = "general",
             alternatives = "reboot;reset;three-finger-salute;restart",
             defaultKeyMapping = {"Ctrl+Ignore Alt+Ignore Meta+Backspace", "Ctrl+Ignore Alt+Ignore Meta+Delete"})
-    public void invokeReset() {
-        if (SoftSwitches.PDL0.isOn()) {
-            coldStart();
-        } else {
-            warmStart();
-        }
+    public static void invokeReset() {
+        Emulator.withComputer(Computer::coldStart);
     }
 
     /**

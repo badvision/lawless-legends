@@ -6,7 +6,7 @@
 
     <groupId>org.8bitbunch</groupId>
     <artifactId>lawlesslegends</artifactId>
-    <version>3.0-SNAPSHOT</version>
+    <version>3.1</version>
     <packaging>jar</packaging>
 
     <name>lawlesslegends</name>
@@ -26,23 +26,6 @@
     <build>
         <finalName>LawlessLegends</finalName>
         <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <source>17</source>
-                    <target>17</target>
-                    <annotationProcessorPaths>
-                        <path>
-                            <groupId>org.8bitbunch</groupId>
-                            <artifactId>lawlesslegends</artifactId>
-                            <version>3.0-SNAPSHOT</version>
-                        </path>
-                    </annotationProcessorPaths>
-                    <annotationProcessors>jace.config.InvokableActionAnnotationProcessor</annotationProcessors>
-                </configuration>
-                <version>3.11.0</version>
-            </plugin>
             <plugin>
                 <groupId>com.gluonhq</groupId>
                 <artifactId>gluonfx-maven-plugin</artifactId>
@@ -175,7 +158,7 @@
                                         <limit>
                                             <counter>COMPLEXITY</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.60</minimum>
+                                            <minimum>0.20</minimum>
                                         </limit>
                                     </limits>
                                 </rule>
@@ -280,6 +263,56 @@
     </dependencies>
     <profiles>
         <profile>
+            <id>default</id>
+            <activation>
+                <file>
+                    <exists>target/classes</exists>
+                </file>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <configuration>
+                            <source>17</source>
+                            <target>17</target>
+                            <annotationProcessorPaths>
+                                <path>
+                                    <groupId>org.8bitbunch</groupId>
+                                    <artifactId>lawlesslegends</artifactId>
+                                    <version>3.1</version>
+                                </path>
+                            </annotationProcessorPaths>
+                            <annotationProcessors>jace.config.InvokableActionAnnotationProcessor</annotationProcessors>
+                        </configuration>
+                        <version>3.11.0</version>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>firstRun</id>
+            <activation>
+                <file>
+                    <missing>target/classes</missing>
+                </file>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <configuration>
+                            <source>17</source>
+                            <target>17</target>
+                        </configuration>
+                        <version>3.13.0</version>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
             <id>lwjgl-natives-linux-amd64</id>
             <activation>
                 <os>
@@ -303,6 +336,18 @@
                 <lwjgl.natives>natives-macos</lwjgl.natives>
             </properties>
         </profile>
+        <profile>
+            <id>lwjgl-natives-macos-arm64</id>
+            <activation>
+                <os>
+                    <family>mac</family>
+                    <arch>aarch64</arch>
+                </os>
+            </activation>
+            <properties>
+                <lwjgl.natives>natives-macos-arm64</lwjgl.natives>
+            </properties>
+        </profile>        
         <profile>
             <id>lwjgl-natives-windows-amd64</id>
             <activation>

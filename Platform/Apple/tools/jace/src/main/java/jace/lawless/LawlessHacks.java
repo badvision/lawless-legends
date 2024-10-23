@@ -17,6 +17,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import jace.Emulator;
+import jace.apple2e.SoftSwitches;
 import jace.apple2e.VideoDHGR;
 import jace.cheat.Cheats;
 import jace.core.Computer;
@@ -84,11 +85,11 @@ public class LawlessHacks extends Cheats {
     Map<Integer, Integer> detectedEntryPoints = new TreeMap<>();
     long lastStatus = 0;
     private void enhanceText(RAMEvent e) {
-        if (!e.isMainMemory()) {
+        if (!e.isMainMemory() || SoftSwitches.RAMWRT.isOn() || (SoftSwitches.PAGE2.isOn() && SoftSwitches._80STORE.isOn())) {
             return;
         }
         int pc = Emulator.withComputer(c->c.getCpu().getProgramCounter(), 0);
-        boolean drawingText = (pc >= 0x0ee00 && pc <= 0x0f0c0) || pc > 0x0f100;
+        boolean drawingText = (pc >= 0x0ee00 && pc <= 0x0f0c0 && pc != 0x0f005) || pc > 0x0f100;
         if (DEBUG) {
             if (drawingText) {
                 detectedEntryPoints.put(pc, detectedEntryPoints.getOrDefault(pc, 0) + 1);
@@ -102,20 +103,20 @@ public class LawlessHacks extends Cheats {
             }
         }
 
-        Emulator.withVideo(v -> {
-            if (v instanceof LawlessVideo) {
-                LawlessVideo video = (LawlessVideo) v;
-                int addr = e.getAddress();
-                int y = VideoDHGR.identifyHiresRow(addr);
-                if (y >= 0 && y <= 192) {
-                    int x = addr - video.getCurrentWriter().getYOffset(y);
-                    if (x >= 0 && x < 40) {                    
+        int addr = e.getAddress();
+        int y = VideoDHGR.identifyHiresRow(addr);
+        if (y >= 0 && y <= 192) {
+            int x = addr - VideoDHGR.hiresOffset[y] - 0x02000;
+            if (x >= 0 && x < 40) {
+                Emulator.withVideo(v -> {
+                    if (v instanceof LawlessVideo) {
+                        LawlessVideo video = (LawlessVideo) v;
                         video.activeMask[y][x*2] = !drawingText;
                         video.activeMask[y][x*2+1] = !drawingText;
                     }
-                }
+                });
             }
-        });
+        }
     }
 
     private Map<Integer, Integer> keyReadAddresses = new TreeMap<>();

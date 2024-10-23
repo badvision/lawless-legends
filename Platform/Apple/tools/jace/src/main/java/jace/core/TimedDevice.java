@@ -30,8 +30,8 @@ import jace.config.ConfigurableField;
 public abstract class TimedDevice extends Device {
     // From the holy word of Sather 3:5 (Table 3.1) :-)
     // This average speed averages in the "long" cycles
-    public static final long NTSC_1MHZ = 1020484L;
-    public static final long PAL_1MHZ = 1015625L;
+    public static final int NTSC_1MHZ = 1020484;
+    public static final int PAL_1MHZ = 1015625;
     public static final long SYNC_FREQ_HZ = 60;
     public static final double NANOS_PER_SECOND = 1000000000.0;
     public static final long NANOS_PER_MILLISECOND = 1000000L;
@@ -81,6 +81,7 @@ public abstract class TimedDevice extends Device {
 
     public final void resetSyncTimer() {
         nextSync = System.nanoTime() + nanosPerInterval;
+        waitUntil = null;
         cycleTimer = 0;
     }
     
@@ -119,9 +120,7 @@ public abstract class TimedDevice extends Device {
 
     public final void setMaxSpeed(boolean enabled) {
         maxspeed = enabled;
-        if (!enabled) {
-            resetSyncTimer();
-        }
+        resetSyncTimer();
     }
 
     public final boolean isMaxSpeedEnabled() {
@@ -129,7 +128,7 @@ public abstract class TimedDevice extends Device {
     }
 
     public final boolean isMaxSpeed() {
-        return forceMaxspeed || maxspeed;
+        return forceMaxspeed || maxspeed || tempSpeedDuration > 0;
     }
 
     public final long getSpeedInHz() {

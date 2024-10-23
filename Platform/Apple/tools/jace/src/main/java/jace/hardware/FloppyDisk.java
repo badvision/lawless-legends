@@ -103,6 +103,14 @@ public class FloppyDisk {
         // This constructor is only used for disk conversion...
     }
 
+    public static enum SectorOrder {
+        DOS(DOS_33_SECTOR_ORDER), PRODOS(PRODOS_SECTOR_ORDER), UNKNOWN(DOS_33_SECTOR_ORDER);
+        public final int[] sectors;
+        SectorOrder(int[] sectors) {
+            this.sectors = sectors;
+        }
+    }
+
     /**
      *
      * @param diskFile
@@ -110,17 +118,17 @@ public class FloppyDisk {
      */
     public FloppyDisk(File diskFile) throws IOException {
         FileInputStream input = new FileInputStream(diskFile);
-        String name = diskFile.getName().toUpperCase();
-        readDisk(input, name.endsWith(".PO"));
+        readDisk(input, diskFile.getName().toUpperCase().endsWith(".PO") ? SectorOrder.PRODOS : SectorOrder.DOS);
         writeProtected = !diskFile.canWrite();
         diskPath = diskFile;
     }
 
     // brendanr: refactored to use input stream
-    public void readDisk(InputStream diskFile, boolean prodosOrder) throws IOException {
+    public void readDisk(InputStream diskFile, SectorOrder assumedOrder) throws IOException {
         isNibblizedImage = true;
         volumeNumber = CardDiskII.DEFAULT_VOLUME_NUMBER;
         headerLength = 0;
+        SectorOrder sectorOrder = SectorOrder.UNKNOWN;
         try {
             int bytesRead = diskFile.read(nibbles);
             if (bytesRead == DISK_2MG_NIB_LENGTH) {
@@ -134,13 +142,38 @@ public class FloppyDisk {
             if (bytesRead == DISK_2MG_NON_NIB_LENGTH) {
                 bytesRead -= 0x040;
                 // Try to pick up correct sector ordering and volume from 2MG header.
-                prodosOrder = (nibbles[12] == 01);
+                if (nibbles[12] == 01) {
+                    sectorOrder = SectorOrder.PRODOS;
+                } else {
+                    sectorOrder = SectorOrder.DOS;
+                }
                 volumeNumber = ((nibbles[17] & 1) == 1) ? nibbles[16] : 254;
                 nibbles = Arrays.copyOfRange(nibbles, 0x040, nibbles.length);
 
                 headerLength = 0x040;
             }
-            currentSectorOrder = prodosOrder ? PRODOS_SECTOR_ORDER : DOS_33_SECTOR_ORDER;
+            
+            if (sectorOrder == SectorOrder.UNKNOWN) {
+                if (isProdosVolumeBlock(nibbles, 0x0400)) {
+                    if (DEBUG) {
+                        System.out.println("Prodos volume block found at 0x0400");
+                    }
+                    sectorOrder = SectorOrder.PRODOS;
+                } else if (isProdosVolumeBlock(nibbles, 0x0B00)) {
+                    if (DEBUG) {
+                        System.out.println("Prodos volume block found at 0x0B00");
+                    }
+                    sectorOrder = SectorOrder.DOS;
+                }
+            }
+            if (sectorOrder == SectorOrder.UNKNOWN) {
+                if (DEBUG) {
+                    System.out.println("Assuming sector order based on file extension");
+                }
+                sectorOrder = assumedOrder;
+            }
+            System.out.println(null == sectorOrder ? "Sector order is null" : "Sector order is " + sectorOrder.name());
+            currentSectorOrder = sectorOrder.sectors;
             if (bytesRead == DISK_PLAIN_LENGTH) {
                 isNibblizedImage = false;
                 nibbles = nibblize(nibbles);
@@ -157,6 +190,23 @@ public class FloppyDisk {
         StateManager.markDirtyValue(currentSectorOrder);
     }
 
+    private boolean isProdosVolumeBlock(byte[] nibbles, int offset) {
+        // First two bytes are zero (no previous block)
+        if (nibbles[offset] != 0 || nibbles[offset+1] != 0) {
+            return false;
+        }
+        // Next two bytes are either both zero or at least in the range of 3...280
+        int nextBlock = (nibbles[offset+2] & 0x0ff) | (nibbles[offset+3] << 8);
+        if (nextBlock == 1 || nextBlock == 2 || nextBlock > 280) {
+            return false;
+        }
+        // Now check total blocks at offset 0x29
+        int totalBlocks = (nibbles[offset+0x29] & 0x0ff) | (nibbles[offset+0x2a] << 8);
+        if (totalBlocks != 280) {
+            return false;
+        }
+        return true;
+    }
     /*
      * Convert a block-format disk to a 6-by-2 nibblized encoding scheme (raw NIB disk format)
      */

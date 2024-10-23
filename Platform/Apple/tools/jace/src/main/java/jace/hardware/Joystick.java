@@ -41,8 +41,9 @@ import jace.core.Utility;
 import jace.core.Utility.OS;
 import jace.state.Stateful;
 import javafx.application.Platform;
+import javafx.scene.Scene;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
-import javafx.stage.Stage;
 
 
 /**
@@ -200,6 +201,7 @@ public class Joystick extends Device {
             selections.put("", "***Empty***");
             for (int i = GLFW.GLFW_JOYSTICK_1; i <= GLFW.GLFW_JOYSTICK_LAST; i++) {
                 if (GLFW.glfwJoystickPresent(i)) {
+                    // System.out.println("Detected " + GLFW.glfwGetJoystickName(i) + ": " + GLFW.glfwGetJoystickGUID(i));
                     selections.put(GLFW.glfwGetJoystickName(i), GLFW.glfwGetJoystickName(i));
                 }
             }
@@ -271,15 +273,47 @@ public class Joystick extends Device {
         if (LawlessLegends.getApplication() == null) {
             return;
         }
-        Stage stage = LawlessLegends.getApplication().primaryStage;
+        Scene scene = LawlessLegends.getApplication().primaryStage.getScene();
         // Register a mouse handler on the primary stage that tracks the 
         // mouse x/y position as a percentage of window width and height
-        stage.addEventHandler(MouseEvent.MOUSE_MOVED, event -> {
+        scene.addEventHandler(MouseEvent.MOUSE_MOVED, event -> {
             if (!useKeyboard && !selectedPhysicalController()) {
-                joyX = (int) (event.getX() / stage.getWidth() * 255);
-                joyY = (int) (event.getY() / stage.getHeight() * 255);
+                joyX = (int) (event.getX() / scene.getWidth() * 255);
+                joyY = (int) (event.getY() / scene.getHeight() * 255);
             }
         });
+        scene.addEventHandler(MouseEvent.MOUSE_PRESSED, event -> {
+            if (!useKeyboard && !selectedPhysicalController()) {
+                if (event.getButton() == MouseButton.PRIMARY) {
+                    if (port == 0) {
+                        SoftSwitches.PB0.getSwitch().setState(true);                       
+                        Keyboard.isOpenApplePressed = true;
+                    } else {
+                        SoftSwitches.PB2.getSwitch().setState(true);
+                    }
+                } 
+                
+                if (event.getButton() == MouseButton.SECONDARY) {
+                    Keyboard.isClosedApplePressed = true;
+                    SoftSwitches.PB1.getSwitch().setState(true);
+                }
+            }
+        });
+        scene.addEventHandler(MouseEvent.MOUSE_RELEASED, event -> {
+            if (event.getButton() == MouseButton.PRIMARY) {
+                if (port == 0) {
+                    SoftSwitches.PB0.getSwitch().setState(false);
+                    Keyboard.isOpenApplePressed = false;
+                } else {
+                    SoftSwitches.PB2.getSwitch().setState(false);
+                }
+            } 
+            
+            if (event.getButton() == MouseButton.SECONDARY) {
+                Keyboard.isClosedApplePressed = false;
+                SoftSwitches.PB1.getSwitch().setState(false);
+            }
+       });
         this.port = port;
         if (port == 0) {
             xSwitch = (MemorySoftSwitch) SoftSwitches.PDL0.getSwitch();
@@ -288,6 +322,25 @@ public class Joystick extends Device {
             xSwitch = (MemorySoftSwitch) SoftSwitches.PDL2.getSwitch();
             ySwitch = (MemorySoftSwitch) SoftSwitches.PDL3.getSwitch();
         }
+        new Thread(()->{
+            try {
+                // We have to wait for the the library to be loaded and the UI to be active
+                // Otherwise this will fail
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            if (port == 0 && glfwController.getSelections().keySet().size() == 2) {
+                // Get the entry that is not null
+                glfwController.setValue(glfwController.getSelections().keySet().stream().filter(s->s != null && !s.isBlank()).findFirst().get());
+                System.out.println("Using device for joystick: " + glfwController.getValue());
+                useKeyboard = false;
+                useDPad = true;
+                reconfigure();
+            } else {
+                System.out.println("Using device for joystick: " + (useKeyboard ? "keyboard" : "mouse"));
+            }
+        }).start();
     }
     public boolean leftPressed = false;
     public boolean rightPressed = false;
@@ -546,7 +599,7 @@ public class Joystick extends Device {
 
     @InvokableAction(name = "Left", category = "joystick", defaultKeyMapping = "left", notifyOnRelease = true)
     public boolean joystickLeft(boolean pressed) {
-        if (!isAttached || !useKeyboard) {
+        if (!useKeyboard) {
             return false;
         }
         leftPressed = pressed;
@@ -558,7 +611,7 @@ public class Joystick extends Device {
 
     @InvokableAction(name = "Right", category = "joystick", defaultKeyMapping = "right", notifyOnRelease = true)
     public boolean joystickRight(boolean pressed) {
-        if (!isAttached || !useKeyboard) {
+        if (!useKeyboard) {
             return false;
         }
         rightPressed = pressed;
@@ -570,7 +623,7 @@ public class Joystick extends Device {
 
     @InvokableAction(name = "Up", category = "joystick", defaultKeyMapping = "up", notifyOnRelease = true)
     public boolean joystickUp(boolean pressed) {
-        if (!isAttached || !useKeyboard) {
+        if (!useKeyboard) {
             return false;
         }
         upPressed = pressed;
@@ -582,7 +635,7 @@ public class Joystick extends Device {
 
     @InvokableAction(name = "Down", category = "joystick", defaultKeyMapping = "down", notifyOnRelease = true)
     public boolean joystickDown(boolean pressed) {
-        if (!isAttached || !useKeyboard) {
+        if (!useKeyboard) {
             return false;
         }
         downPressed = pressed;

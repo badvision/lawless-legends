@@ -39,7 +39,7 @@ import org.badvision.outlaweditor.ui.SheetEditorController;
 import org.badvision.outlaweditor.ui.UIAction;
 import org.controlsfx.control.spreadsheet.GridBase;
 import org.controlsfx.control.spreadsheet.SpreadsheetCell;
-import org.controlsfx.control.spreadsheet.SpreadsheetCellBase;
+import org.controlsfx.control.spreadsheet.SpreadsheetCellType;
 
 import jakarta.xml.bind.JAXBException;
 import javafx.beans.value.ObservableValue;
@@ -70,6 +70,7 @@ public class SheetEditorControllerImpl extends SheetEditorController {
         super.initialize();
         tableData = table.getGrid().getRows();
         table.setEditable(true);
+        
         table.getContextMenu().getItems().addAll(
                 createMenuItem("Insert Row", () -> insertRow(new Row(), getSelectedRow())),
                 createMenuItem("Clone Row", () -> cloneRow(editor.getSheet().getRows().getRow().get(getSelectedRow()))),
@@ -153,11 +154,16 @@ public class SheetEditorControllerImpl extends SheetEditorController {
     public void addColumnAction(ActionEvent event) {
         String newColName = UIAction.getText("Enter new column name", "new");
         if (newColName != null && !newColName.isEmpty()) {
+            // If the column exists with that name, show an error instead
             UserType col = new UserType();
             col.setName(newColName);
             if (editor.getSheet().getColumns() == null) {
                 editor.getSheet().setColumns(new Columns());
+            } else if (editor.getSheet().getColumns().getColumn().stream().anyMatch(c -> c.getName().equals(newColName))) {
+                UIAction.alert("A column with that name already exists.  Please choose a different name.");
+                return;
             }
+
             insertColumn(col);
             rebuildGridUI();
         }
@@ -276,8 +282,7 @@ public class SheetEditorControllerImpl extends SheetEditorController {
                 tableData.add(rowUi);
                 for (UserType col : editor.getSheet().getColumns().getColumn()) {
                     String value = getValue(row.getOtherAttributes(), col.getName());
-                    SpreadsheetCellBase cell = new SpreadsheetCellBase(rowNum, colNum, 1, 1);
-                    cell.setItem(value);
+                    SpreadsheetCell cell =  SpreadsheetCellType.STRING.createCell(rowNum, colNum, 1, 1, value);
                     cell.itemProperty().addListener((ObservableValue<? extends Object> val, Object oldVal, Object newVal) -> {
                         setValue(row.getOtherAttributes(), col.getName(), String.valueOf(newVal));
                     });

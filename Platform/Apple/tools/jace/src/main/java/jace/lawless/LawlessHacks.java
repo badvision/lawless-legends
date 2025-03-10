@@ -17,6 +17,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import jace.Emulator;
+import jace.apple2e.MOS65C02;
 import jace.apple2e.SoftSwitches;
 import jace.apple2e.VideoDHGR;
 import jace.cheat.Cheats;
@@ -35,6 +36,7 @@ public class LawlessHacks extends Cheats {
     int MODE_SOFTSWITCH_MIN = 0x0C049;
     int MODE_SOFTSWITCH_MAX = 0x0C04F;
     int SFX_TRIGGER = 0x0C069;
+    double PORTRAIT_SPEED = 1.0;
 
     public LawlessHacks() {
         super();
@@ -123,8 +125,11 @@ public class LawlessHacks extends Cheats {
     long lastKeyStatus = 0;
     long lastKnownSpeed = -1;
     boolean isCurrentlyMaxSpeed = false;
+    long keyEventTraceDuration = 0;
     private void adjustAnimationSpeed(RAMEvent e) {
         int pc = Emulator.withComputer(c->c.getCpu().getProgramCounter(), 0);
+        int eventAddress = e.getAddress();
+
         if (DEBUG) {
             keyReadAddresses.put(pc, keyReadAddresses.getOrDefault(pc, 0) + 1);
             if ((System.currentTimeMillis() - lastKeyStatus) >= 10000) {
@@ -135,29 +140,50 @@ public class LawlessHacks extends Cheats {
                 });
             }
         }
-        Motherboard m = Emulator.withComputer(Computer::getMotherboard, null);
-        long currentSpeed = m.getSpeedInHz();
-        if (pc == 0x0D5FE) {        
-            long slowerSpeed = (long) (TimedDevice.NTSC_1MHZ * 1.5);
-            // We are waiting for a key in portait mode, slow to 1.5x
-            if (currentSpeed > slowerSpeed || m.isMaxSpeedEnabled()) {
-                lastKnownSpeed = currentSpeed;
-                isCurrentlyMaxSpeed = m.isMaxSpeedEnabled();
-                m.setSpeedInHz(slowerSpeed);
-                m.setMaxSpeed(false);
-                m.cancelSpeedRequest(this);
-            }
-        } else {
-            // We're in some other mode, go back the default speed
-            if (currentSpeed < lastKnownSpeed || isCurrentlyMaxSpeed) {
-                m.setSpeedInHz(lastKnownSpeed);
-                m.setMaxSpeed(isCurrentlyMaxSpeed);
-                isCurrentlyMaxSpeed = false;
-                lastKnownSpeed = -1;
+
+        if (eventAddress == 0x0c000 && pc == 0x0D5FE) {
+            // We are waiting for a key in portait mode
+            // Check where we were called from in the stack
+            MOS65C02 cpu = (MOS65C02) Emulator.withComputer(c->c.getCpu(), null);
+            int stackAddr1 = 0x0100 + cpu.STACK;
+            int lastStackByte = Emulator.withMemory(ram-> ram.readRaw(stackAddr1), (byte) 0) & 0x0ff;
+            if (lastStackByte == 0x09b) {
+                // Turns out the last value on the stack is consistently
+                // the same value whenever we also want to be running in a
+                // slower speed for animation, but not in other key read
+                // routines where we're needing more speed.  Convenient!
+                beginSlowdown();
+            } else {
+                endSlowdown();
             }
         }
     }
 
+    public void beginSlowdown() {
+        Motherboard m = Emulator.withComputer(Computer::getMotherboard, null);
+        long slowerSpeed = (long) (TimedDevice.NTSC_1MHZ * PORTRAIT_SPEED);
+        long currentSpeed = m.getSpeedInHz();
+
+        if (currentSpeed > slowerSpeed || m.isMaxSpeedEnabled()) {
+            lastKnownSpeed = currentSpeed;
+            isCurrentlyMaxSpeed = m.isMaxSpeedEnabled();
+            m.setSpeedInHz(slowerSpeed);
+            m.setMaxSpeed(false);
+            m.cancelSpeedRequest(this);
+        }
+    }
+
+    public void endSlowdown() {
+        Motherboard m = Emulator.withComputer(Computer::getMotherboard, null);
+        long currentSpeed = m.getSpeedInHz();
+        if ((currentSpeed < lastKnownSpeed || isCurrentlyMaxSpeed)) {
+            m.setSpeedInHz(lastKnownSpeed);
+            m.setMaxSpeed(isCurrentlyMaxSpeed);
+            isCurrentlyMaxSpeed = false;
+            lastKnownSpeed = -1;
+        }
+    }
+    
     public static final String SCORE_NONE = "none";
     public static final String SCORE_COMMON = "common";
     public static final String SCORE_ORCHESTRAL = "8-bit orchestral samples";

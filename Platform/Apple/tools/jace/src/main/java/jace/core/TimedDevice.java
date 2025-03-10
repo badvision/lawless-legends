@@ -136,7 +136,10 @@ public abstract class TimedDevice extends Device {
     }
 
     public final void setSpeedInHz(long newSpeed) {
-        // System.out.println("Raw set speed for " + getName() + " to " + cyclesPerSecond + "hz");
+        // If the speed has actually changed, log it
+        // if (newSpeed != cyclesPerSecond) {
+        //     System.out.println("Raw set speed for " + getName() + " to " + cyclesPerSecond + "hz");
+        // }
         // Thread.dumpStack();
         cyclesPerSecond = newSpeed;
         speedRatio = (int) Math.round(cyclesPerSecond * 100.0 / defaultCyclesPerSecond());

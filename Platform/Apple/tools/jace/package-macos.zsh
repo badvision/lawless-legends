@@ -963,7 +963,7 @@ log "Preparing DMG contents..."
 /bin/ln -s /Applications "${DMG_TEMP_DIR}/Applications"
 
 # Copy README file from external source
-README_SOURCE="${SCRIPT_DIR}/readme-macos.txt"
+README_SOURCE="${JACE_DIR}/readme-macos.txt"
 if [[ -f "${README_SOURCE}" ]]; then
     log "Using external README file from ${README_SOURCE}"
     /bin/cp "${README_SOURCE}" "${DMG_TEMP_DIR}/README.txt"

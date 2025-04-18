@@ -96,7 +96,10 @@ public class JaceUIController {
     private ComboBox<String> musicSelection;
     
     @FXML
-    private Slider speakerToggle;
+    private Slider musicVolumeSlider;
+    
+    @FXML
+    private Slider sfxVolumeSlider;
 
     private final BooleanProperty aspectRatioCorrectionEnabled = new SimpleBooleanProperty(false);
 
@@ -136,18 +139,37 @@ public class JaceUIController {
             rootPane.requestFocus();
         }));
         rootPane.requestFocus();
-        speakerToggle.setValue(1.0);
-        speakerToggle.setOnMouseClicked(evt -> {
-            speakerEnabled = !speakerEnabled;
-            int desiredValue = speakerEnabled ? 1 : 0;
-            speakerToggle.setValue(desiredValue);
+        
+        // Initialize volume sliders
+        musicVolumeSlider.setValue(0.5);
+        sfxVolumeSlider.setValue(0.5);
+        
+        // Set listeners for volume changes
+        musicVolumeSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
             Emulator.withComputer(computer -> {
-                Motherboard.enableSpeaker = speakerEnabled;
+                if (computer instanceof LawlessComputer) {
+                    LawlessHacks lawlessHacks = (LawlessHacks) ((LawlessComputer) computer).activeCheatEngine;
+                    lawlessHacks.setMusicVolume(newValue.doubleValue());
+                }
+            });
+        });
+        
+        sfxVolumeSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
+            Emulator.withComputer(computer -> {
+                // Update SFX volume
+                Motherboard.enableSpeaker = newValue.doubleValue() > 0.0;
                 computer.motherboard.reconfigure();
-                if (!speakerEnabled) {
+                
+                // Set volume scale on speaker
+                if (computer.motherboard.speaker != null) {
+                    computer.motherboard.speaker.setVolumeScale(newValue.doubleValue());
+                }
+                
+                // Only detach speaker if volume is zero
+                if (newValue.doubleValue() == 0.0) {
                     computer.motherboard.speaker.detach();
                 } else {
-                    computer.motherboard.speaker.attach();                    
+                    computer.motherboard.speaker.attach();
                 }
             });
         });

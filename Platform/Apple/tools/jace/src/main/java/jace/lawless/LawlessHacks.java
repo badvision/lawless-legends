@@ -1,7 +1,6 @@
 package jace.lawless;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.HashMap;
@@ -200,7 +199,21 @@ public class LawlessHacks extends Cheats {
     private static MediaPlayer previousSongPlayer;
     private static MediaPlayer currentSfxPlayer;
     private static String currentScore = SCORE_COMMON;
-
+    
+    // Volume control for music
+    private static double musicVolume = 0.5;
+    
+    /**
+     * Set the music volume
+     * @param volume Volume between 0.0 and 1.0
+     */
+    public void setMusicVolume(double volume) {
+        musicVolume = Math.max(0.0, Math.min(1.0, volume));
+        if (currentSongPlayer != null) {
+            currentSongPlayer.setVolume(musicVolume);
+        }
+    }
+    
     public  void playSound(int soundNumber) {
         boolean isMusic = soundNumber >= 0;
         int track = soundNumber & 0x03f;
@@ -256,7 +269,7 @@ public class LawlessHacks extends Cheats {
         // Log path
         try {
             return new Media(pathStr);
-        } catch (IOException e) {
+        } catch (Exception e) {
             Logger.getLogger(getClass().getName()).log(Level.SEVERE, "Unable to load audio track " + pathStr, e);
             return null;
         }
@@ -335,8 +348,8 @@ public class LawlessHacks extends Cheats {
         }
 
         Thread effect = new Thread(() -> {
-            while (playbackEffect == Thread.currentThread() && player.getVolume() < 1.0) {
-                player.setVolume(Math.min(player.getVolume() + FADE_AMT, 1.0));
+            while (playbackEffect == Thread.currentThread() && player.getVolume() < musicVolume) {
+                player.setVolume(Math.min(player.getVolume() + FADE_AMT, musicVolume));
                 try {
                     Thread.sleep(FADE_SPEED);
                 } catch (InterruptedException e) {

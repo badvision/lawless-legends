@@ -29,7 +29,7 @@
             <plugin>
                 <groupId>com.gluonhq</groupId>
                 <artifactId>gluonfx-maven-plugin</artifactId>
-                <version>1.0.22</version>
+                <version>1.0.25</version>
                 <configuration>
                     <mainClass>jace.LawlessLegends</mainClass>
                     <resourcesList>
@@ -126,7 +126,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.11</version>
+                <version>0.8.12</version>
                 <configuration>
                     <excludes>
                         <exclude>jace/assembly/AcmeCrossAssembler.class</exclude>

@@ -75,3 +75,4 @@ Platform/Apple/tools/jace/nbactions.xml
 
 # Ignore temporary pom files
 Platform/Apple/tools/jace/runPom.xml
+Platform/Apple/tools/jace/*.log

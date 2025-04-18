@@ -17,6 +17,7 @@ Most folks are too nervous to venture far from town...even for gold.
 
 Technical Notes:
 This application includes its own Java runtime - no need to install Java separately.
+Version information is displayed in the About window (press Ctrl+Shift+.)
 
 For more information and updates, visit:
 https://lawlesslegends.wordpress.com/

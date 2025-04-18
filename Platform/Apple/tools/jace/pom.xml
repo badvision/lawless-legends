@@ -16,6 +16,7 @@
         <mainClass>jace.LawlessLegends</mainClass>
         <netbeans.hint.license>apache20</netbeans.hint.license>
         <lwjgl.version>3.3.3</lwjgl.version>
+        <app.version>1.0</app.version>
     </properties>
 
     <organization>
@@ -25,6 +26,17 @@
 
     <build>
         <finalName>LawlessLegends</finalName>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <resource>
+                <directory>${project.basedir}</directory>
+                <includes>
+                    <include>version.properties</include>
+                </includes>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>com.gluonhq</groupId>

@@ -12,6 +12,15 @@ This document summarizes the successful approach for packaging the Lawless Legen
 - The embedded runtime is created using `jlink` to include only the necessary Java modules, resulting in a smaller package size.
 - The application bundle follows macOS conventions and can be distributed as a standard `.app` package.
 
+### Version Management
+
+- The application version is managed through a single `version.properties` file in the project root.
+- The packaging script automatically reads the version from this file and applies it to:
+  - The application bundle version
+  - The DMG file name
+  - The Info.plist file's version information
+- To update the version before packaging, simply edit the `version.properties` file.
+
 ### Architecture-Specific Support
 
 - The solution correctly handles ARM64 architecture for Apple Silicon Macs.

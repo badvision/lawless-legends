@@ -43,6 +43,7 @@ import jace.config.Reconfigurable;
 import jace.core.Debugger;
 import jace.core.RAM;
 import jace.core.RAMListener;
+import jace.core.Utility;
 import jace.ide.IdeController;
 import javafx.application.Platform;
 import javafx.event.EventHandler;
@@ -454,7 +455,26 @@ public class EmulatorUILogic implements Reconfigurable {
             alternatives = "info;credits",
             defaultKeyMapping = {"ctrl+shift+."})
     public static void showAboutWindow() {
-        //TODO: Implement
+        FXMLLoader fxmlLoader = new FXMLLoader(EmulatorUILogic.class.getResource("/fxml/About.fxml"));
+        fxmlLoader.setResources(null);
+        try {
+            Stage aboutWindow = new Stage();
+            AnchorPane node = fxmlLoader.load();
+            AboutController controller = fxmlLoader.getController();
+            Scene s = new Scene(node);
+            aboutWindow.setScene(s);
+            aboutWindow.setTitle("About Lawless Legends");
+            aboutWindow.setResizable(false);
+            
+            // Set application icon on the about window
+            Utility.loadIcon("game_icon.png").ifPresent(icon -> {
+                aboutWindow.getIcons().add(icon);
+            });
+            
+            aboutWindow.show();
+        } catch (IOException exception) {
+            throw new RuntimeException(exception);
+        }
     }    
 
     public static boolean confirm(String message) {

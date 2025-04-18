@@ -38,7 +38,24 @@ ICON_FILE="${MAIN_TEMP_DIR}/AppIcon.icns"
 DMG_TEMP_DIR="${MAIN_TEMP_DIR}/dmg_temp"
 
 # Application info
-VERSION="1.0.0"
+# Read version from version.properties file
+VERSION_PROPS_FILE="${JACE_DIR}/version.properties"
+if [[ -f "${VERSION_PROPS_FILE}" ]]; then
+    FULL_VERSION=$(grep "^version=" "${VERSION_PROPS_FILE}" | cut -d= -f2)
+    # Extract only the first part of the version before any hyphen for macOS compatibility
+    VERSION=$(echo ${FULL_VERSION} | cut -d- -f1)
+    log "✅ Read full version ${FULL_VERSION} from ${VERSION_PROPS_FILE}"
+    log "✅ Using macOS-compatible version ${VERSION} for packaging"
+else
+    VERSION="1.0.0"
+    FULL_VERSION="${VERSION}"
+    log "⚠️ Version properties file not found at ${VERSION_PROPS_FILE}, defaulting to version ${VERSION}"
+fi
+
+# Update the final DMG name to include the full version
+FINAL_DMG="${DESKTOP_DIR}/Lawless Legends ${FULL_VERSION}.dmg"
+log "✅ DMG will be created at: ${FINAL_DMG}"
+
 MAIN_CLASS="jace.LawlessLegends"
 JAVA_FX_JMODS=""
 
@@ -398,10 +415,12 @@ section "CREATING APPLICATION PACKAGE"
 LAUNCHER_ARGS=(
     # Main application properties
     "--name" "Lawless Legends"
+    # Use macOS-compatible version (before any hyphen) for app-version
     "--app-version" "${VERSION}"
     "--vendor" "The 8-Bit Bunch"
     "--copyright" "Copyright © 2025 The 8-Bit Bunch. All rights reserved."
-    "--description" "Lawless Legends - A retro-style RPG game"
+    # Use full version in description for reference
+    "--description" "Lawless Legends ${FULL_VERSION} - A retro-style RPG game"
     
     # Input and output paths
     "--input" "${PACKAGE_DIR}"
@@ -857,7 +876,7 @@ log "Updating Info.plist at ${INFO_PLIST}..."
 </plist>
 EOF
 
-log "✅ Info.plist updated with proper icon references"
+log "✅ Info.plist updated with proper icon references and clean version: ${VERSION} (from full version: ${FULL_VERSION})"
 
 # Show contents of Info.plist for verification
 log "Contents of Info.plist:"
@@ -986,7 +1005,7 @@ fi
 # Generate DMG file
 log "Creating DMG file with hdiutil..."
 /usr/bin/hdiutil create \
-  -volname "Lawless Legends ${VERSION}" \
+  -volname "Lawless Legends ${FULL_VERSION}" \
   -srcfolder "${DMG_TEMP_DIR}" \
   -ov -format UDZO \
   "${TEMP_DMG}"

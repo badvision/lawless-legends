@@ -120,7 +120,7 @@ public abstract class TimedDevice extends Device {
 
     public final void setMaxSpeed(boolean enabled) {
         maxspeed = enabled;
-        resetSyncTimer();
+        // resetSyncTimer();
     }
 
     public final boolean isMaxSpeedEnabled() {
@@ -163,12 +163,12 @@ public abstract class TimedDevice extends Device {
 
     public void disableTempMaxSpeed() {
         tempSpeedDuration = 0;
-        resetSyncTimer();
+        // resetSyncTimer();
     }
 
     @Override
     public void reconfigure() {
-        resetSyncTimer();
+        // resetSyncTimer();
     }
 
     public long defaultCyclesPerSecond() {

@@ -22,6 +22,7 @@ import jace.apple2e.SoftSwitches;
 import jace.apple2e.VideoDHGR;
 import jace.cheat.Cheats;
 import jace.core.Computer;
+import jace.core.Keyboard;
 import jace.core.Motherboard;
 import jace.core.RAMEvent;
 import jace.core.TimedDevice;
@@ -63,8 +64,12 @@ public class LawlessHacks extends Cheats {
         return "Lawless Legends optimizations";
     }
 
+    boolean isSlowedDown = false;
     @Override
     public void tick() {
+        if (isSlowedDown && (Keyboard.readState() & 0x080) > 0) {
+            endSlowdown();
+        }
     }
 
     @Override
@@ -153,30 +158,29 @@ public class LawlessHacks extends Cheats {
                 // slower speed for animation, but not in other key read
                 // routines where we're needing more speed.  Convenient!
                 beginSlowdown();
-            } else {
-                endSlowdown();
             }
         }
     }
 
     public void beginSlowdown() {
         Motherboard m = Emulator.withComputer(Computer::getMotherboard, null);
-        long slowerSpeed = (long) (TimedDevice.NTSC_1MHZ * PORTRAIT_SPEED);
+        long portraitSpeed = (long) (TimedDevice.NTSC_1MHZ * PORTRAIT_SPEED);
         long currentSpeed = m.getSpeedInHz();
 
-        if (currentSpeed > slowerSpeed || m.isMaxSpeedEnabled()) {
+        if (!isSlowedDown && (currentSpeed != portraitSpeed || m.isMaxSpeedEnabled())) {
+            isSlowedDown = true;
             lastKnownSpeed = currentSpeed;
             isCurrentlyMaxSpeed = m.isMaxSpeedEnabled();
-            m.setSpeedInHz(slowerSpeed);
-            m.setMaxSpeed(false);
             m.cancelSpeedRequest(this);
+            m.setSpeedInHz(portraitSpeed);
+            m.setMaxSpeed(false);
         }
     }
 
     public void endSlowdown() {
         Motherboard m = Emulator.withComputer(Computer::getMotherboard, null);
-        long currentSpeed = m.getSpeedInHz();
-        if ((currentSpeed < lastKnownSpeed || isCurrentlyMaxSpeed)) {
+        if (isSlowedDown) {
+            isSlowedDown = false;
             m.setSpeedInHz(lastKnownSpeed);
             m.setMaxSpeed(isCurrentlyMaxSpeed);
             isCurrentlyMaxSpeed = false;

@@ -364,7 +364,7 @@ export asm memcpy(pSrc, pDst, len, auxWr)#0
   inc pTmp+1
   bne .pglup          ; always taken
 .part:
-  cpx #0
+  txa
   beq .done
 - lda (tmp),y
   sta (pTmp),y
@@ -390,8 +390,8 @@ export asm memset(pDst, val, len)#0
   lda evalStkL,x      ; len lo
   pha
   lda evalStkH,x      ; len hi
-  tax
   beq +
+  tax
   lda tmp
 - sta (pTmp),y
   iny
@@ -420,10 +420,10 @@ export asm readAuxByte(ptr)#1
   sta $10-1,y
   dey
   bne -
-  jmp $10
-.rdauxb
   sei     ; prevent interrupts while in aux mem
   sta setAuxRd
+  jmp $10
+.rdauxb
   lda (pTmp),y
   sta clrAuxRd
   cli
@@ -462,19 +462,19 @@ end
 export asm finishString(isPlural)#1
 !zone {
   +asmPlasmRet 1
+  ldy prevCSWL+ABS_OFFSET ; put the cout vector back to default
+  sty cswl
+  ldy prevCSWL+1+ABS_OFFSET ; put the cout vector back to default
+  sty cswh
+  ldy #0      ; dest offset in Y (will be incremented before store)
+  cpy inbuf
+  beq .done1  ; failsafe: handle zero-length string
   tax         ; test for isPlural == 0
   beq +
   lda #$40    ; for setting V later
 + sta tmp     ; save isPlural flag
-  lda prevCSWL+ABS_OFFSET ; put the cout vector back to default
-  sta cswl
-  lda prevCSWL+1+ABS_OFFSET ; put the cout vector back to default
-  sta cswh
   clv         ; V flag for prev-is-alpha
-  ldy #0      ; dest offset in Y (will be incremented before store)
   ldx #0      ; source offset in X (will be incremented before load)
-  cpx inbuf
-  beq .done   ; failsafe: handle zero-length string
 .fetch
   inx
   lda inbuf,x ; get next input char
@@ -488,11 +488,11 @@ export asm finishString(isPlural)#1
 
   dey         ; undo copy of the paren
   stx tmp+1   ; save position in input
-  dex         ; needed for failsafe operation
   bit tmp     ; set copy flag (V) initially to same as isPlural flag
 .findsl       ; see if there's a slash within the parens
   inx
   cpx inbuf
+  bcs .done   ; failsafe: handle missing end-paren
   lda inbuf,x
   ora #$80    ; normalize hi-bit for comparisons below
   cmp #"/"
@@ -503,11 +503,8 @@ export asm finishString(isPlural)#1
   pha
   plp
 + cmp #")"    ; scan until ending paren
-  beq +
-  cpx inbuf
-  bcc .findsl ; loop to scan next char
-  bcs .done   ; failsafe: handle missing end-paren (always taken)
-+ ldx tmp+1   ; get back to start of parens
+  bne .findsl ; loop to scan next char
+  ldx tmp+1   ; get back to start of parens
   ; copy mode flag is now in V: if slash present, single=copy,   plural=nocopy
   ;                             if no slash:      single=nocopy, plural=copy
 .plup
@@ -541,6 +538,7 @@ export asm finishString(isPlural)#1
 
 .done
   sty inbuf   ; save new length
+.done1
   lda #<inbuf ; return pointer to string
   ldy #>inbuf
   rts
@@ -575,8 +573,8 @@ export asm blit(isAux, srcData, dstScreenPtr, nLines, lineSize)#0
   lsr                 ; to carry bit
   bcc +
   ldy #15       ; put aux copy routine in zero page
-- lda .cpaux + ABS_OFFSET,y
-  sta $10,y
+- ldx .cpaux + ABS_OFFSET,y
+  stx $10,y
   dey
   bpl -
 + pla       ; get line count
@@ -694,8 +692,9 @@ export asm puts(str)#0
   sta pTmp
   lda #'!'
   ldx #1
-  sty pTmp+1
+  tya
   beq +       ; safety: print '!' instead of null string
+  sty pTmp+1
   ldy #0
   lda (pTmp),y
   tax
@@ -913,9 +912,8 @@ export asm rawDisplayStr(pStr)#0
   lda (pTmp),y
   sta tmp
 - cpy tmp
-  bcc +
-  rts
-+ iny
+  bcs ++
+  iny
   lda (pTmp),y
   ora #$80
   cmp #"^"
@@ -929,7 +927,8 @@ export asm rawDisplayStr(pStr)#0
 + sty tmp+1
   jsr DisplayChar
   ldy tmp+1
-  bne -
+  bne -         ; always taken
+++rts
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -991,8 +990,8 @@ export asm streqi(a, b)#1
   lda evalStkL+1,x
   sta pTmp
   lda evalStkH+1,x
-  sta pTmp+1
   beq .null
+  sta pTmp+1
   ldy #0
   lda (tmp),y
   cmp (pTmp),y
@@ -1004,21 +1003,16 @@ export asm streqi(a, b)#1
 + tax              ; count up to (verified same) length of the strings
 - iny
   lda (tmp),y
-  cmp #('z'&$7F)+1 ; convert to upper case
-  bcs +
+  eor (pTmp),y
+  beq +            ; matched
+  cmp #$20         ; check for case bit
+  bne .noteqi      ; abort on alpha inequality
+  ora (tmp),y      ; convert to lower case
+  cmp #('z'&$7F)+1
+  bcs .noteqi      ; abort on inequality
   cmp #'a'&$7F
-  bcc +
-  sbc #$20
-+ sta ysav
-  lda (pTmp),y
-  cmp #('z'&$7F)+1 ; convert to upper case
-  bcs +
-  cmp #'a'&$7F
-  bcc +
-  sbc #$20
-+ cmp ysav
-  bne .noteqi      ; abort on inequality
-  dex
+  bcc .noteqi      ; abort on inequality
++ dex
   bne -
   lda #1
   ldy #0           ; okay, they're equal. Return 1 (not just any char; so that PLASMA when...is can work)

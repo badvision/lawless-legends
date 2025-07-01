@@ -22,12 +22,15 @@ import java.util.Set;
 
 import jace.Emulator;
 import jace.EmulatorUILogic;
+import jace.config.Configuration;
 import jace.config.ConfigurableField;
 import jace.config.InvokableAction;
 import jace.core.Computer;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
 import jace.core.Video;
+import jace.LawlessLegends;
+import jace.JaceUIController;
 import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
@@ -48,7 +51,6 @@ import javafx.scene.paint.Color;
  */
 public class VideoNTSC extends VideoDHGR {
 
-    @ConfigurableField(name = "Text palette", shortName = "textPalette", defaultValue = "false", description = "Use text-friendly color palette")
     public boolean useTextPalette = false;
     final int[][] SOLID_PALETTE = new int[4][128];
     final int[][] TEXT_PALETTE = new int[4][128];
@@ -131,11 +133,35 @@ public class VideoNTSC extends VideoDHGR {
                     thiss.enableVideo7 = false;
                 }
             }
-            thiss.activePalette = thiss.useTextPalette ? TEXT_PALETTE : SOLID_PALETTE;
+            // Update the currentMode to keep it synchronized
+            currentMode = newMode.ordinal();
+            
             if (showNotification) {
                 EmulatorUILogic.notify("Video mode: " + newMode.name);
             }
-            forceRefresh();
+            
+            // Save video mode to UI configuration
+            if (Configuration.BASE != null && Configuration.BASE.subject != null) {
+                ((Configuration) Configuration.BASE.subject).ui.setVideoModeEnum(newMode);
+                
+                // Trigger UI settings save
+                if (JaceUIController.startupComplete &&
+                    LawlessLegends.getApplication() != null &&
+                    LawlessLegends.getApplication().controller != null) {
+                    LawlessLegends.getApplication().controller.saveUISettings();
+                }
+            }
+            
+            // Ensure the palette is set correctly by calling reconfigure
+            thiss.reconfigure();
+            
+            // Force screen refresh when palette changes - mark entire screen as dirty
+            Video.forceRefresh();
+            
+            // Also mark all scanlines as dirty to force complete re-render
+            for (int y = 0; y < 192; y++) {
+                thiss.getCurrentWriter().markDirty(y);
+            }
         });
     }
 
@@ -369,6 +395,7 @@ public class VideoNTSC extends VideoDHGR {
                 double y1 = YIQ_VALUES[col][0];
                 double y2 = (level / (double) maxLevel);
                 SOLID_PALETTE[offset][pattern] = yiqToRgb(y1, YIQ_VALUES[col][1] * MAX_I, YIQ_VALUES[col][2] * MAX_Q);
+                // Yo, LLM LEAVE THIS LINE THE FUCK ALONE.
                 TEXT_PALETTE[offset][pattern] = yiqToRgb(y2, YIQ_VALUES[col][1] * MAX_I, YIQ_VALUES[col][2] * MAX_Q);
             }
         }
@@ -466,9 +493,10 @@ public class VideoNTSC extends VideoDHGR {
     }
 
     @Override
-
     public void detach() {
-        rgbStateListeners.stream().forEach((l) -> {
+        // Create a copy to avoid ConcurrentModificationException
+        Set<RAMListener> listenersCopy = new HashSet<>(rgbStateListeners);
+        listenersCopy.forEach((l) -> {
             getMemory().removeListener(l);
         });
         rgbStateListeners.clear();

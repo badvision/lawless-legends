@@ -16,6 +16,7 @@
 
 @SuppressWarnings("all")
 module lawlesslegends {
+    requires com.fasterxml.jackson.databind;    
     requires nestedvm;
     requires java.base;
     requires java.logging;

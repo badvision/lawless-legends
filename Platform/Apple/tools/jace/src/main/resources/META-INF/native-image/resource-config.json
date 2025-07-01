@@ -1,24 +1,39 @@
 {
-  "resources": {
-    "includes": [
-      {"pattern": "\\QMETA-INF/services/\\E.*"},
-      {"pattern": "\\Qfxml/\\E.*\\.fxml$"},
-      {"pattern": "\\Qjace/data/\\E.*\\.png$"},
-      {"pattern": "\\Qjace/data/\\E.*\\.gif$"},
-      {"pattern": "\\Qjace/data/\\E.*\\.rom$"},
-      {"pattern": "\\Qjace/data/\\E.*\\.bin$"},
-      {"pattern": "\\Qjace/data/\\E.*\\.txt$"},
-      {"pattern": "\\Qjace/data/\\E.*\\.ogg$"},
-      {"pattern": "\\Qicons/\\E.*\\.png$"},
-      {"pattern": "\\Qcss/\\E.*\\.css$"},
-      {"pattern": "\\Qcom/sun/javafx/\\E.*"},
-      {"pattern": "\\Qcom/sun/prism/\\E.*"},
-      {"pattern": ".*\\.properties$"},
-      {"pattern": "META-INF/MANIFEST.MF"}
-    ]
-  },
-  "bundles": [
-    {"name": "jace.lawless.Message", "locales": ["en", "en_US"]},
-    {"name": "com.sun.javafx.tk.quantum.QuantumMessagesBundle", "locales": ["en", "en_US"]}
+  "resources":{
+  "includes":[
+    {
+      "pattern":"\\QMETA-INF/macos/arm64/org/lwjgl/glfw/libglfw.dylib.sha1\\E"
+    }, 
+    {
+      "pattern":"\\QMETA-INF/macos/arm64/org/lwjgl/liblwjgl.dylib.sha1\\E"
+    }, 
+    {
+      "pattern":"\\QMETA-INF/macos/arm64/org/lwjgl/openal/libopenal.dylib.sha1\\E"
+    }, 
+    {
+      "pattern":"\\QMETA-INF/macos/arm64/org/lwjgl/stb/liblwjgl_stb.dylib.sha1\\E"
+    }, 
+    {
+      "pattern":"\\Qmacos/arm64/org/lwjgl/glfw/libglfw.dylib\\E"
+    }, 
+    {
+      "pattern":"\\Qmacos/arm64/org/lwjgl/liblwjgl.dylib\\E"
+    }, 
+    {
+      "pattern":"\\Qmacos/arm64/org/lwjgl/openal/libopenal.dylib\\E"
+    }, 
+    {
+      "pattern":"\\Qmacos/arm64/org/lwjgl/stb/liblwjgl_stb.dylib\\E"
+    }
+  ]},
+  "bundles":[
+    {
+      "name":"com.sun.javafx.tk.quantum.QuantumMessagesBundle",
+      "locales":[""]
+    }, 
+    {
+      "name":"com/sun/javafx/scene/control/skin/resources/controls",
+      "locales":[""]
+    }
   ]
 }

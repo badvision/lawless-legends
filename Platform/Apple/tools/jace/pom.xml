@@ -41,7 +41,7 @@
             <plugin>
                 <groupId>com.gluonhq</groupId>
                 <artifactId>gluonfx-maven-plugin</artifactId>
-                <version>1.0.25</version>
+                <version>1.0.23</version>
                 <configuration>
                     <mainClass>jace.LawlessLegends</mainClass>
                     <resourcesList>
@@ -271,6 +271,11 @@
             <groupId>org.lwjgl</groupId>
             <artifactId>lwjgl-glfw</artifactId>
             <classifier>${lwjgl.natives}</classifier>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.19.0</version>
         </dependency>
     </dependencies>
     <profiles>

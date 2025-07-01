@@ -41,7 +41,7 @@ public class LawlessHacks extends Cheats {
     public LawlessHacks() {
         super();
         readScores();
-        currentScore = SCORE_ORCHESTRAL;
+        currentScore = SCORE_CHIPTUNE;
     }
 
     @Override
@@ -446,14 +446,6 @@ public class LawlessHacks extends Cheats {
 
     public boolean isMusicEnabled() {
         return currentScore != null && !currentScore.equalsIgnoreCase(SCORE_NONE);
-    }
-
-    /**
-     * Get the current music score selection
-     * @return The current score name
-     */
-    public String getCurrentScore() {
-        return currentScore;
     }
 
     Pattern COMMENT = Pattern.compile("\\s*[-#;']+.*");

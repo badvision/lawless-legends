@@ -71,9 +71,22 @@ public class LawlessLegends extends Application {
                     watchdogDelay = 7000;
                 }
             });
+            // Initialize base configuration structure without reading current field values
+            // Configuration load message removed for cleaner logs
+            
             configureEmulatorForGame();
             reconnectUIHooks();
-            EmulatorUILogic.scaleIntegerRatio();
+            // Delay UI settings loading to ensure configuration system is fully ready
+            Platform.runLater(() -> {
+                Platform.runLater(() -> {
+                    if (controller != null) {
+                        controller.loadUISettings();
+                    }
+                    // Restore UI settings AFTER configureEmulatorForGame to avoid being overridden
+                    restoreUISettings();
+                });
+            });
+            // Don't call scaleIntegerRatio() here - it will override our restored window size
             AtomicBoolean waitingForVideo = new AtomicBoolean(true);
             while (waitingForVideo.get()) {
                 Emulator.withVideo(v -> {
@@ -86,14 +99,63 @@ public class LawlessLegends extends Application {
             bootWatchdog();
         }).start();
         primaryStage.setOnCloseRequest(event -> {
+            // Save UI settings before closing
+            if (controller != null) {
+                controller.saveUISettings();
+                controller.shutdown();
+            }
             Emulator.withComputer(Computer::deactivate);
             Platform.exit();
             System.exit(0);
         });
+
+        // Ensure UI settings are persisted even if the window is closed via SIGTERM or pkill
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            if (controller != null) {
+                controller.saveUISettings();
+                controller.shutdown();
+            }
+        }));
     }
 
     public void reconnectUIHooks() {
         controller.connectComputer(primaryStage);
+    }
+    
+    private void restoreUISettings() {
+        Platform.runLater(() -> {
+            if (controller != null && controller.getUIConfiguration() != null) {
+                controller.beginProgrammaticUpdate();
+                EmulatorUILogic uiConfig = controller.getUIConfiguration();
+                
+                // Debug output removed
+                
+                // Restore video mode
+                Emulator.withVideo(v -> {
+                    if (v instanceof VideoNTSC) {
+                        VideoNTSC.setVideoMode(uiConfig.getVideoModeEnum(), false);
+                        // Debug output removed
+                    }
+                });
+                
+                // Restore window size index for the resize function
+                // Note: scaleIntegerRatio() increments size first, so we set it to one less
+                EmulatorUILogic.size = uiConfig.windowSizeIndex - 1;
+                // Debug output removed
+                
+                // Apply the window size by calling scaleIntegerRatio
+                EmulatorUILogic.scaleIntegerRatio();
+                Platform.runLater(() -> {
+                    controller.endProgrammaticUpdate();
+                    JaceUIController.startupComplete = true;
+                });
+            } else {
+                // Apply some defaults
+                EmulatorUILogic.size = 1;
+                EmulatorUILogic.scaleIntegerRatio();
+                VideoNTSC.setVideoMode(VideoNTSC.VideoMode.Color, false);
+            }
+        });
     }
 
     public static LawlessLegends getApplication() {
@@ -200,9 +262,8 @@ public class LawlessLegends extends Application {
                 c.card4.setValue(null);
                 c.card2.setValue(null);
             }
-            Configuration.buildTree();
             c.reconfigure();
-            VideoNTSC.setVideoMode(VideoNTSC.VideoMode.TextFriendly, false);
+            restoreUISettings();            
             if (c.PRODUCTION_MODE) {
                 ((LawlessImageTool) c.getUpgradeHandler()).loadGame();
             }

@@ -107,13 +107,13 @@
                               <ComboBox fx:id="musicSelection" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS">
                                  <items>
                                     <FXCollections fx:factory="observableArrayList">
-                                       <String fx:value="8-bit Chipmusic" />
-                                       <String fx:value="8-bit Orchestral samples" />
-                                       <String fx:value="None" />
+                                       <String fx:value="8-bit chipmusic" />
+                                       <String fx:value="8-bit orchestral samples" />
+                                       <String fx:value="none" />
                                     </FXCollections>
                                  </items>
                                  <value>
-                                    <String fx:value="8-bit Chipmusic" />
+                                    <String fx:value="8-bit orchestral samples" />
                                  </value>
                               </ComboBox>
                               <Label alignment="CENTER" styleClass="musicLabel" text="Volume" textAlignment="CENTER" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="1">
@@ -125,9 +125,9 @@
                                  </font>
                               </Label>
                               <Label alignment="CENTER_RIGHT" prefHeight="53.0" prefWidth="201.0" styleClass="musicLabel" text="Music:" textAlignment="RIGHT" GridPane.rowIndex="2" />
-                              <Slider fx:id="musicVolumeSlider" blockIncrement="0.1" majorTickUnit="0.5" max="1.0" minorTickCount="4" style="-fx-: #040;" value="1.0" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                              <Slider fx:id="musicVolumeSlider" blockIncrement="0.1" majorTickUnit="0.5" max="1.0" minorTickCount="4" style="-fx-: #040;" value="0.5" GridPane.columnIndex="1" GridPane.rowIndex="2" />
                               <Label alignment="CENTER_RIGHT" prefHeight="53.0" prefWidth="201.0" styleClass="musicLabel" text="SFX:" textAlignment="RIGHT" GridPane.rowIndex="3" />
-                              <Slider fx:id="sfxVolumeSlider" blockIncrement="0.1" majorTickUnit="0.5" max="1.0" minorTickCount="4" value="1.0" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+                              <Slider fx:id="sfxVolumeSlider" blockIncrement="0.1" majorTickUnit="0.5" max="1.0" minorTickCount="4" value="0.5" GridPane.columnIndex="1" GridPane.rowIndex="3" />
                            </children>
                         </GridPane>
                      </children>

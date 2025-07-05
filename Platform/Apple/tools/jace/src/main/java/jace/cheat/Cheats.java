@@ -133,7 +133,9 @@ public abstract class Cheats extends Device {
     public abstract void registerListeners();
 
     protected void unregisterListeners() {
-        listeners.stream().forEach((l) -> {
+        // Create a copy to avoid ConcurrentModificationException
+        Set<RAMListener> listenersCopy = new HashSet<>(listeners);
+        listenersCopy.forEach((l) -> {
             getMemory().removeListener(l);
         });
         listeners.clear();

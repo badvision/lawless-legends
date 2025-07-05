@@ -1,24 +1,49 @@
 {
-  "resources": {
-    "includes": [
-      {"pattern": "\\QMETA-INF/services/\\E.*"},
-      {"pattern": "\\Qfxml/\\E.*\\.fxml$"},
-      {"pattern": "\\Qjace/data/\\E.*\\.png$"},
-      {"pattern": "\\Qjace/data/\\E.*\\.gif$"},
-      {"pattern": "\\Qjace/data/\\E.*\\.rom$"},
-      {"pattern": "\\Qjace/data/\\E.*\\.bin$"},
-      {"pattern": "\\Qjace/data/\\E.*\\.txt$"},
-      {"pattern": "\\Qjace/data/\\E.*\\.ogg$"},
-      {"pattern": "\\Qicons/\\E.*\\.png$"},
-      {"pattern": "\\Qcss/\\E.*\\.css$"},
-      {"pattern": "\\Qcom/sun/javafx/\\E.*"},
-      {"pattern": "\\Qcom/sun/prism/\\E.*"},
-      {"pattern": ".*\\.properties$"},
-      {"pattern": "META-INF/MANIFEST.MF"}
-    ]
-  },
-  "bundles": [
-    {"name": "jace.lawless.Message", "locales": ["en", "en_US"]},
-    {"name": "com.sun.javafx.tk.quantum.QuantumMessagesBundle", "locales": ["en", "en_US"]}
+  "resources":{
+  "includes":[
+    {
+      "pattern":"\\QMETA-INF/windows/x64/org/lwjgl/glfw/glfw.dll.sha1\\E"
+    }, 
+    {
+      "pattern":"\\QMETA-INF/windows/x64/org/lwjgl/lwjgl.dll.sha1\\E"
+    }, 
+    {
+      "pattern":"\\QMETA-INF/windows/x64/org/lwjgl/openal/OpenAL.dll.sha1\\E"
+    }, 
+    {
+      "pattern":"\\QMETA-INF/windows/x64/org/lwjgl/stb/lwjgl_stb.dll.sha1\\E"
+    }, 
+    {
+      "pattern":"\\Qversion.properties\\E"
+    }, 
+    {
+      "pattern":"\\Qwindows/x64/org/lwjgl/glfw/glfw.dll\\E"
+    }, 
+    {
+      "pattern":"\\Qwindows/x64/org/lwjgl/lwjgl.dll\\E"
+    }, 
+    {
+      "pattern":"\\Qwindows/x64/org/lwjgl/openal/OpenAL.dll\\E"
+    }, 
+    {
+      "pattern":"\\Qwindows/x64/org/lwjgl/stb/lwjgl_stb.dll\\E"
+    }
+  ]},
+  "bundles":[
+    {
+      "name":"com.sun.javafx.tk.quantum.QuantumMessagesBundle",
+      "locales":[""]
+    }, 
+    {
+      "name":"com/sun/glass/ui/win/themes",
+      "locales":[
+        "", 
+        "en"
+      ]
+    }, 
+    {
+      "name":"com/sun/javafx/scene/control/skin/resources/controls",
+      "locales":[""]
+    }
   ]
 }

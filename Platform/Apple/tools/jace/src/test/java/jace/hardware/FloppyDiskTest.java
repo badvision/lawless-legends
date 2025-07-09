@@ -1,5 +1,6 @@
 package jace.hardware;
 import jace.AbstractFXTest;
+import jace.hardware.FloppyDisk.SectorOrder;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -31,7 +32,7 @@ public class FloppyDiskTest extends AbstractFXTest {
         ByteArrayInputStream diskInputStream = new ByteArrayInputStream(diskData);
 
         // Read the disk file
-        floppyDisk.readDisk(diskInputStream, false);
+        floppyDisk.readDisk(diskInputStream, SectorOrder.DOS);
 
         // Verify the disk properties
         assert(floppyDisk.isNibblizedImage);

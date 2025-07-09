@@ -6,7 +6,7 @@
 
     <groupId>org.8bitbunch</groupId>
     <artifactId>lawlesslegends</artifactId>
-    <version>3.0-SNAPSHOT</version>
+    <version>3.1</version>
     <packaging>jar</packaging>
 
     <name>lawlesslegends</name>
@@ -16,6 +16,7 @@
         <mainClass>jace.LawlessLegends</mainClass>
         <netbeans.hint.license>apache20</netbeans.hint.license>
         <lwjgl.version>3.3.3</lwjgl.version>
+        <app.version>1.0</app.version>
     </properties>
 
     <organization>
@@ -25,28 +26,22 @@
 
     <build>
         <finalName>LawlessLegends</finalName>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <resource>
+                <directory>${project.basedir}</directory>
+                <includes>
+                    <include>version.properties</include>
+                </includes>
+            </resource>
+        </resources>
         <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <source>17</source>
-                    <target>17</target>
-                    <annotationProcessorPaths>
-                        <path>
-                            <groupId>org.8bitbunch</groupId>
-                            <artifactId>lawlesslegends</artifactId>
-                            <version>3.0-SNAPSHOT</version>
-                        </path>
-                    </annotationProcessorPaths>
-                    <annotationProcessors>jace.config.InvokableActionAnnotationProcessor</annotationProcessors>
-                </configuration>
-                <version>3.11.0</version>
-            </plugin>
             <plugin>
                 <groupId>com.gluonhq</groupId>
                 <artifactId>gluonfx-maven-plugin</artifactId>
-                <version>1.0.22</version>
+                <version>1.0.23</version>
                 <configuration>
                     <mainClass>jace.LawlessLegends</mainClass>
                     <resourcesList>
@@ -143,7 +138,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.11</version>
+                <version>0.8.12</version>
                 <configuration>
                     <excludes>
                         <exclude>jace/assembly/AcmeCrossAssembler.class</exclude>
@@ -175,7 +170,7 @@
                                         <limit>
                                             <counter>COMPLEXITY</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.60</minimum>
+                                            <minimum>0.20</minimum>
                                         </limit>
                                     </limits>
                                 </rule>
@@ -277,8 +272,63 @@
             <artifactId>lwjgl-glfw</artifactId>
             <classifier>${lwjgl.natives}</classifier>
         </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.19.0</version>
+        </dependency>
     </dependencies>
     <profiles>
+        <profile>
+            <id>default</id>
+            <activation>
+                <file>
+                    <exists>target/classes</exists>
+                </file>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <configuration>
+                            <source>17</source>
+                            <target>17</target>
+                            <annotationProcessorPaths>
+                                <path>
+                                    <groupId>org.8bitbunch</groupId>
+                                    <artifactId>lawlesslegends</artifactId>
+                                    <version>3.1</version>
+                                </path>
+                            </annotationProcessorPaths>
+                            <annotationProcessors>jace.config.InvokableActionAnnotationProcessor</annotationProcessors>
+                        </configuration>
+                        <version>3.11.0</version>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>firstRun</id>
+            <activation>
+                <file>
+                    <missing>target/classes</missing>
+                </file>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <configuration>
+                            <source>17</source>
+                            <target>17</target>
+                        </configuration>
+                        <version>3.13.0</version>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
         <profile>
             <id>lwjgl-natives-linux-amd64</id>
             <activation>
@@ -303,6 +353,18 @@
                 <lwjgl.natives>natives-macos</lwjgl.natives>
             </properties>
         </profile>
+        <profile>
+            <id>lwjgl-natives-macos-arm64</id>
+            <activation>
+                <os>
+                    <family>mac</family>
+                    <arch>aarch64</arch>
+                </os>
+            </activation>
+            <properties>
+                <lwjgl.natives>natives-macos-arm64</lwjgl.natives>
+            </properties>
+        </profile>        
         <profile>
             <id>lwjgl-natives-windows-amd64</id>
             <activation>

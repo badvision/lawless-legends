@@ -100,6 +100,27 @@ public class Speaker extends Device {
     public static int VOLUME = 400;
     private int currentVolume = 0;
     private int fadeOffAmount = 1;
+    
+    /**
+     * Volume scaling factor (0.0 to 1.0)
+     */
+    private double volumeScale = 0.5;
+    
+    /**
+     * Set the speaker volume scaling factor
+     * @param scale Volume scale between 0.0 and 1.0
+     */
+    public void setVolumeScale(double scale) {
+        volumeScale = Math.max(0.0, Math.min(1.0, scale));
+    }
+    
+    /**
+     * Get the current volume scaling factor
+     * @return Volume scale between 0.0 and 1.0
+     */
+    public double getVolumeScale() {
+        return volumeScale;
+    }
     /**
      * Manifestation of the apple speaker softswitch
      */
@@ -210,7 +231,7 @@ public class Speaker extends Device {
             if (idleCycles >= MAX_IDLE_CYCLES) {
                 currentVolume -= fadeOffAmount;
             }
-            playSample(level * currentVolume);
+            playSample((int)(level * currentVolume * volumeScale));
             // Emulator.withComputer(c->c.getMotherboard().requestSpeed(this));
 
             // Set level back to 0

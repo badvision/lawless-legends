@@ -1,7 +1,6 @@
 package jace.lawless;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.HashMap;
@@ -17,9 +16,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import jace.Emulator;
+import jace.apple2e.MOS65C02;
+import jace.apple2e.SoftSwitches;
 import jace.apple2e.VideoDHGR;
 import jace.cheat.Cheats;
 import jace.core.Computer;
+import jace.core.Keyboard;
 import jace.core.Motherboard;
 import jace.core.RAMEvent;
 import jace.core.TimedDevice;
@@ -34,11 +36,12 @@ public class LawlessHacks extends Cheats {
     int MODE_SOFTSWITCH_MIN = 0x0C049;
     int MODE_SOFTSWITCH_MAX = 0x0C04F;
     int SFX_TRIGGER = 0x0C069;
+    double PORTRAIT_SPEED = 1.0;
 
     public LawlessHacks() {
         super();
         readScores();
-        currentScore = SCORE_CHIPTUNE;
+        currentScore = SCORE_ORCHESTRAL;
     }
 
     @Override
@@ -60,8 +63,12 @@ public class LawlessHacks extends Cheats {
         return "Lawless Legends optimizations";
     }
 
+    boolean isSlowedDown = false;
     @Override
     public void tick() {
+        if (isSlowedDown && (Keyboard.readState() & 0x080) > 0) {
+            endSlowdown();
+        }
     }
 
     @Override
@@ -84,11 +91,11 @@ public class LawlessHacks extends Cheats {
     Map<Integer, Integer> detectedEntryPoints = new TreeMap<>();
     long lastStatus = 0;
     private void enhanceText(RAMEvent e) {
-        if (!e.isMainMemory()) {
+        if (!e.isMainMemory() || SoftSwitches.RAMWRT.isOn() || (SoftSwitches.PAGE2.isOn() && SoftSwitches._80STORE.isOn())) {
             return;
         }
         int pc = Emulator.withComputer(c->c.getCpu().getProgramCounter(), 0);
-        boolean drawingText = (pc >= 0x0ee00 && pc <= 0x0f0c0) || pc > 0x0f100;
+        boolean drawingText = (pc >= 0x0ee00 && pc <= 0x0f0c0 && pc != 0x0f005) || pc > 0x0f100;
         if (DEBUG) {
             if (drawingText) {
                 detectedEntryPoints.put(pc, detectedEntryPoints.getOrDefault(pc, 0) + 1);
@@ -102,28 +109,31 @@ public class LawlessHacks extends Cheats {
             }
         }
 
-        Emulator.withVideo(v -> {
-            if (v instanceof LawlessVideo) {
-                LawlessVideo video = (LawlessVideo) v;
-                int addr = e.getAddress();
-                int y = VideoDHGR.identifyHiresRow(addr);
-                if (y >= 0 && y <= 192) {
-                    int x = addr - video.getCurrentWriter().getYOffset(y);
-                    if (x >= 0 && x < 40) {                    
+        int addr = e.getAddress();
+        int y = VideoDHGR.identifyHiresRow(addr);
+        if (y >= 0 && y <= 192) {
+            int x = addr - VideoDHGR.hiresOffset[y] - 0x02000;
+            if (x >= 0 && x < 40) {
+                Emulator.withVideo(v -> {
+                    if (v instanceof LawlessVideo) {
+                        LawlessVideo video = (LawlessVideo) v;
                         video.activeMask[y][x*2] = !drawingText;
                         video.activeMask[y][x*2+1] = !drawingText;
                     }
-                }
+                });
             }
-        });
+        }
     }
 
     private Map<Integer, Integer> keyReadAddresses = new TreeMap<>();
     long lastKeyStatus = 0;
     long lastKnownSpeed = -1;
     boolean isCurrentlyMaxSpeed = false;
+    long keyEventTraceDuration = 0;
     private void adjustAnimationSpeed(RAMEvent e) {
         int pc = Emulator.withComputer(c->c.getCpu().getProgramCounter(), 0);
+        int eventAddress = e.getAddress();
+
         if (DEBUG) {
             keyReadAddresses.put(pc, keyReadAddresses.getOrDefault(pc, 0) + 1);
             if ((System.currentTimeMillis() - lastKeyStatus) >= 10000) {
@@ -134,29 +144,49 @@ public class LawlessHacks extends Cheats {
                 });
             }
         }
-        Motherboard m = Emulator.withComputer(Computer::getMotherboard, null);
-        long currentSpeed = m.getSpeedInHz();
-        if (pc == 0x0D5FE) {        
-            long slowerSpeed = (long) (TimedDevice.NTSC_1MHZ * 1.5);
-            // We are waiting for a key in portait mode, slow to 1.5x
-            if (currentSpeed > slowerSpeed || m.isMaxSpeedEnabled()) {
-                lastKnownSpeed = currentSpeed;
-                isCurrentlyMaxSpeed = m.isMaxSpeedEnabled();
-                m.setSpeedInHz(slowerSpeed);
-                m.setMaxSpeed(false);
-                m.cancelSpeedRequest(this);
-            }
-        } else {
-            // We're in some other mode, go back the default speed
-            if (currentSpeed < lastKnownSpeed || isCurrentlyMaxSpeed) {
-                m.setSpeedInHz(lastKnownSpeed);
-                m.setMaxSpeed(isCurrentlyMaxSpeed);
-                isCurrentlyMaxSpeed = false;
-                lastKnownSpeed = -1;
+
+        if (eventAddress == 0x0c000 && pc == 0x0D5FE) {
+            // We are waiting for a key in portait mode
+            // Check where we were called from in the stack
+            MOS65C02 cpu = (MOS65C02) Emulator.withComputer(c->c.getCpu(), null);
+            int stackAddr1 = 0x0100 + cpu.STACK;
+            int lastStackByte = Emulator.withMemory(ram-> ram.readRaw(stackAddr1), (byte) 0) & 0x0ff;
+            if (lastStackByte == 0x09b) {
+                // Turns out the last value on the stack is consistently
+                // the same value whenever we also want to be running in a
+                // slower speed for animation, but not in other key read
+                // routines where we're needing more speed.  Convenient!
+                beginSlowdown();
             }
         }
     }
 
+    public void beginSlowdown() {
+        Motherboard m = Emulator.withComputer(Computer::getMotherboard, null);
+        long portraitSpeed = (long) (TimedDevice.NTSC_1MHZ * PORTRAIT_SPEED);
+        long currentSpeed = m.getSpeedInHz();
+
+        if (!isSlowedDown && (currentSpeed != portraitSpeed || m.isMaxSpeedEnabled())) {
+            isSlowedDown = true;
+            lastKnownSpeed = currentSpeed;
+            isCurrentlyMaxSpeed = m.isMaxSpeedEnabled();
+            m.cancelSpeedRequest(this);
+            m.setSpeedInHz(portraitSpeed);
+            m.setMaxSpeed(false);
+        }
+    }
+
+    public void endSlowdown() {
+        Motherboard m = Emulator.withComputer(Computer::getMotherboard, null);
+        if (isSlowedDown) {
+            isSlowedDown = false;
+            m.setSpeedInHz(lastKnownSpeed);
+            m.setMaxSpeed(isCurrentlyMaxSpeed);
+            isCurrentlyMaxSpeed = false;
+            lastKnownSpeed = -1;
+        }
+    }
+    
     public static final String SCORE_NONE = "none";
     public static final String SCORE_COMMON = "common";
     public static final String SCORE_ORCHESTRAL = "8-bit orchestral samples";
@@ -169,7 +199,21 @@ public class LawlessHacks extends Cheats {
     private static MediaPlayer previousSongPlayer;
     private static MediaPlayer currentSfxPlayer;
     private static String currentScore = SCORE_COMMON;
-
+    
+    // Volume control for music
+    private static double musicVolume = 0.5;
+    
+    /**
+     * Set the music volume
+     * @param volume Volume between 0.0 and 1.0
+     */
+    public void setMusicVolume(double volume) {
+        musicVolume = Math.max(0.0, Math.min(1.0, volume));
+        if (currentSongPlayer != null) {
+            currentSongPlayer.setVolume(musicVolume);
+        }
+    }
+    
     public  void playSound(int soundNumber) {
         boolean isMusic = soundNumber >= 0;
         int track = soundNumber & 0x03f;
@@ -225,7 +269,7 @@ public class LawlessHacks extends Cheats {
         // Log path
         try {
             return new Media(pathStr);
-        } catch (IOException e) {
+        } catch (Exception e) {
             Logger.getLogger(getClass().getName()).log(Level.SEVERE, "Unable to load audio track " + pathStr, e);
             return null;
         }
@@ -304,8 +348,8 @@ public class LawlessHacks extends Cheats {
         }
 
         Thread effect = new Thread(() -> {
-            while (playbackEffect == Thread.currentThread() && player.getVolume() < 1.0) {
-                player.setVolume(Math.min(player.getVolume() + FADE_AMT, 1.0));
+            while (playbackEffect == Thread.currentThread() && player.getVolume() < musicVolume) {
+                player.setVolume(Math.min(player.getVolume() + FADE_AMT, musicVolume));
                 try {
                     Thread.sleep(FADE_SPEED);
                 } catch (InterruptedException e) {
@@ -402,6 +446,14 @@ public class LawlessHacks extends Cheats {
 
     public boolean isMusicEnabled() {
         return currentScore != null && !currentScore.equalsIgnoreCase(SCORE_NONE);
+    }
+
+    /**
+     * Get the current music score selection
+     * @return The current score name
+     */
+    public String getCurrentScore() {
+        return currentScore;
     }
 
     Pattern COMMENT = Pattern.compile("\\s*[-#;']+.*");

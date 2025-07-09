@@ -18,8 +18,9 @@
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.TilePane?>
+<?import javafx.scene.text.Font?>
 
-<AnchorPane id="AnchorPane" fx:id="rootPane" prefHeight="384.0" prefWidth="560.0" style="-fx-background-color: black;" stylesheets="@../styles/style.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="jace.JaceUIController">
+<AnchorPane id="AnchorPane" fx:id="rootPane" prefHeight="384.0" prefWidth="560.0" style="-fx-background-color: black;" stylesheets="@../styles/style.css" xmlns="http://javafx.com/javafx/22" xmlns:fx="http://javafx.com/fxml/1" fx:controller="jace.JaceUIController">
     <children>
       <StackPane fx:id="stackPane" prefHeight="384.0" prefWidth="560.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
          <children>
@@ -90,7 +91,7 @@
                               </Button>
                            </children>
                         </TilePane>
-                        <GridPane prefHeight="70.0" prefWidth="467.0">
+                        <GridPane prefHeight="120.0" prefWidth="467.0">
                           <columnConstraints>
                             <ColumnConstraints halignment="RIGHT" hgrow="ALWAYS" minWidth="10.0" prefWidth="100.0" />
                             <ColumnConstraints halignment="LEFT" hgrow="ALWAYS" minWidth="10.0" prefWidth="100.0" />
@@ -98,23 +99,35 @@
                           <rowConstraints>
                             <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                             <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                            <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                            <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                           </rowConstraints>
                            <children>
-                              <Label alignment="CENTER_RIGHT" styleClass="musicLabel" textAlignment="RIGHT">Music:</Label>
+                              <Label alignment="CENTER_RIGHT" styleClass="musicLabel" text="Soundtrack:" textAlignment="RIGHT">Music:</Label>
                               <ComboBox fx:id="musicSelection" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS">
                                  <items>
                                     <FXCollections fx:factory="observableArrayList">
-                                       <String fx:value="8-bit Chipmusic" />
-                                       <String fx:value="8-bit Orchestral samples" />
-                                       <String fx:value="None" />
+                                       <String fx:value="8-bit chipmusic" />
+                                       <String fx:value="8-bit orchestral samples" />
+                                       <String fx:value="none" />
                                     </FXCollections>
                                  </items>
                                  <value>
-                                    <String fx:value="8-bit Chipmusic" />
+                                    <String fx:value="8-bit orchestral samples" />
                                  </value>
                               </ComboBox>
-                              <Label alignment="CENTER_RIGHT" prefHeight="53.0" prefWidth="201.0" styleClass="musicLabel" text="SFX:" textAlignment="RIGHT" GridPane.rowIndex="1" />
-                              <Slider fx:id="speakerToggle" blockIncrement="1.0" majorTickUnit="1.0" max="1.0" maxWidth="32.0" minWidth="32.0" minorTickCount="0" prefWidth="32.0" snapToTicks="true" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                              <Label alignment="CENTER" styleClass="musicLabel" text="Volume" textAlignment="CENTER" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="1">
+                                 <GridPane.margin>
+                                    <Insets bottom="5.0" top="10.0" />
+                                 </GridPane.margin>
+                                 <font>
+                                    <Font size="8.0" />
+                                 </font>
+                              </Label>
+                              <Label alignment="CENTER_RIGHT" prefHeight="53.0" prefWidth="201.0" styleClass="musicLabel" text="Music:" textAlignment="RIGHT" GridPane.rowIndex="2" />
+                              <Slider fx:id="musicVolumeSlider" blockIncrement="0.1" majorTickUnit="0.5" max="1.0" minorTickCount="4" style="-fx-: #040;" value="0.5" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                              <Label alignment="CENTER_RIGHT" prefHeight="53.0" prefWidth="201.0" styleClass="musicLabel" text="SFX:" textAlignment="RIGHT" GridPane.rowIndex="3" />
+                              <Slider fx:id="sfxVolumeSlider" blockIncrement="0.1" majorTickUnit="0.5" max="1.0" minorTickCount="4" value="0.5" GridPane.columnIndex="1" GridPane.rowIndex="3" />
                            </children>
                         </GridPane>
                      </children>

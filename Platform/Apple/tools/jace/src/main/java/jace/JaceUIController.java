@@ -21,7 +21,9 @@ import jace.core.Card;
 import jace.core.Motherboard;
 import jace.core.Utility;
 import jace.core.Video;
+import jace.config.Configuration;
 import jace.lawless.LawlessComputer;
+import jace.EmulatorUILogic;
 import jace.lawless.LawlessHacks;
 import jace.library.MediaCache;
 import jace.library.MediaConsumer;
@@ -96,9 +98,29 @@ public class JaceUIController {
     private ComboBox<String> musicSelection;
     
     @FXML
-    private Slider speakerToggle;
+    private Slider musicVolumeSlider;
+    
+    @FXML
+    private Slider sfxVolumeSlider;
 
     private final BooleanProperty aspectRatioCorrectionEnabled = new SimpleBooleanProperty(false);
+    
+    // UI configuration is now part of EmulatorUILogic
+    
+    // Store listeners so we can remove them during loading
+    private javafx.beans.value.ChangeListener<Number> musicVolumeListener;
+    private javafx.beans.value.ChangeListener<Number> sfxVolumeListener;
+    private javafx.beans.value.ChangeListener<String> musicSelectionListener;
+    
+    // Flag to prevent concurrent saves
+    private volatile boolean isSaving = false;
+    private volatile boolean loadingSettings = false;
+    public static volatile boolean startupComplete = false;
+
+    // Debounce machinery
+    private final ScheduledExecutorService saveExecutor = Executors.newSingleThreadScheduledExecutor();
+    private volatile ScheduledFuture<?> pendingSave = null;
+    private static final int SAVE_DEBOUNCE_MS = 2000;
 
     public static final double MIN_SPEED = 0.5;
     public static final double MAX_SPEED = 5.0;
@@ -136,22 +158,187 @@ public class JaceUIController {
             rootPane.requestFocus();
         }));
         rootPane.requestFocus();
-        speakerToggle.setValue(1.0);
-        speakerToggle.setOnMouseClicked(evt -> {
-            speakerEnabled = !speakerEnabled;
-            int desiredValue = speakerEnabled ? 1 : 0;
-            speakerToggle.setValue(desiredValue);
+        
+        loadingSettings = true;
+        
+        // Initialize UI configuration
+        initializeUIConfiguration();
+        
+        // UI settings will be loaded later when configuration system is ready
+        
+        // Set listeners for volume changes
+        musicVolumeListener = (observable, oldValue, newValue) -> {
             Emulator.withComputer(computer -> {
-                Motherboard.enableSpeaker = speakerEnabled;
-                computer.motherboard.reconfigure();
-                if (!speakerEnabled) {
-                    computer.motherboard.speaker.detach();
-                } else {
-                    computer.motherboard.speaker.attach();                    
+                if (computer instanceof LawlessComputer) {
+                    LawlessHacks lawlessHacks = (LawlessHacks) ((LawlessComputer) computer).activeCheatEngine;
+                    if (lawlessHacks != null) {
+                        lawlessHacks.setMusicVolume(newValue.doubleValue());
+                    }
                 }
             });
+            // Save settings when volume changes
+            saveUISettings();
+        };
+        musicVolumeSlider.valueProperty().addListener(musicVolumeListener);
+        
+        sfxVolumeListener = (observable, oldValue, newValue) -> {
+            Emulator.withComputer(computer -> {
+                // Update SFX volume
+                Motherboard.enableSpeaker = newValue.doubleValue() > 0.0;
+                computer.motherboard.reconfigure();
+                
+                // Set volume scale on speaker
+                if (computer.motherboard.speaker != null) {
+                    computer.motherboard.speaker.setVolumeScale(newValue.doubleValue());
+                }
+                
+                // Only detach speaker if volume is zero
+                if (newValue.doubleValue() == 0.0) {
+                    computer.motherboard.speaker.detach();
+                } else {
+                    computer.motherboard.speaker.attach();
+                }
+            });
+            // Save settings when volume changes
+            saveUISettings();
+        };
+        sfxVolumeSlider.valueProperty().addListener(sfxVolumeListener);
+    }
+    
+    private void initializeUIConfiguration() {
+        // UI configuration is now part of EmulatorUILogic, no separate initialization needed
+        // The configuration tree already includes EmulatorUILogic as part of the main Configuration
+    }
+    
+    public void loadUISettings() {
+        loadingSettings = true;
+        // Apply loaded settings to UI components
+        Platform.runLater(() -> {
+            // Check if configuration system is ready
+            if (Configuration.BASE == null || Configuration.BASE.subject == null) {
+                System.out.println("Configuration not ready yet, skipping UI settings load");
+                return;
+            }
+            
+            System.out.println("Configuration is ready, loading UI settings");
+            
+            // Set volume sliders from saved values (avoid triggering listeners during load)
+            if (musicVolumeListener != null) {
+                musicVolumeSlider.valueProperty().removeListener(musicVolumeListener);
+            }
+            if (sfxVolumeListener != null) {
+                sfxVolumeSlider.valueProperty().removeListener(sfxVolumeListener);
+            }
+            if (musicSelectionListener != null) {
+                musicSelection.getSelectionModel().selectedItemProperty().removeListener(musicSelectionListener);
+            }
+            
+            EmulatorUILogic ui = ((Configuration) Configuration.BASE.subject).ui;
+            if (ui != null) {
+                musicVolumeSlider.setValue(ui.musicVolume);
+                sfxVolumeSlider.setValue(ui.sfxVolume);
+                
+                // Set soundtrack selection from saved value
+                if (musicSelection.getItems().contains(ui.soundtrackSelection)) {
+                    musicSelection.setValue(ui.soundtrackSelection);
+                }
+                
+                // Set aspect ratio correction
+                aspectRatioCorrectionEnabled.set(ui.aspectRatioCorrection);
+            }
+            
+            // Re-add listeners if they exist
+            if (musicVolumeListener != null) {
+                musicVolumeSlider.valueProperty().addListener(musicVolumeListener);
+            }
+            if (sfxVolumeListener != null) {
+                sfxVolumeSlider.valueProperty().addListener(sfxVolumeListener);
+            }
+            if (musicSelectionListener != null) {
+                musicSelection.getSelectionModel().selectedItemProperty().addListener(musicSelectionListener);
+            }
+            
+            // Update LawlessHacks with the loaded settings
+            syncLawlessHacksWithUISettings();
+            
+            loadingSettings = false;
         });
     }
+    
+    public synchronized void saveUISettings() {
+        if (Configuration.BASE != null && Configuration.BASE.subject != null && !isSaving && !loadingSettings && startupComplete) {
+            isSaving = true;
+            try {
+                EmulatorUILogic ui = ((Configuration) Configuration.BASE.subject).ui;
+                
+                // Update configuration with current UI state
+                if (musicVolumeSlider != null) {
+                    ui.musicVolume = musicVolumeSlider.getValue();
+                }
+                if (sfxVolumeSlider != null) {
+                    ui.sfxVolume = sfxVolumeSlider.getValue();
+                }
+                if (musicSelection != null && musicSelection.getValue() != null) {
+                    ui.soundtrackSelection = musicSelection.getValue();
+                }
+                ui.aspectRatioCorrection = aspectRatioCorrectionEnabled.get();
+                
+                // Save window state if we have a primary stage
+                if (primaryStage != null) {
+                    ui.windowWidth = (int) primaryStage.getWidth();
+                    ui.windowHeight = (int) primaryStage.getHeight();
+                    ui.fullscreen = primaryStage.isFullScreen();
+                }
+                
+                // Save the window size index from EmulatorUILogic
+                ui.windowSizeIndex = EmulatorUILogic.size;
+                
+                // Debounced save
+                scheduleDebouncedSave();
+            } catch (Exception e) {
+                // Log error but don't let it crash the application
+                System.err.println("Error saving UI settings: " + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()));
+                e.printStackTrace();
+            } finally {
+                isSaving = false;
+            }
+        }
+    }
+    
+    private void scheduleDebouncedSave() {
+        // cancel previous pending save
+        if (pendingSave != null && !pendingSave.isDone()) {
+            pendingSave.cancel(false);
+        }
+        if (saveExecutor.isShutdown()) {
+            // executor gone, save directly
+            Configuration.saveSettingsImmediate();
+            return;
+        }
+        pendingSave = saveExecutor.schedule(() -> {
+            try {
+                Configuration.saveSettingsImmediate();
+            } catch (Exception e) {
+                System.err.println("Error saving settings: " + e.getMessage());
+            }
+        }, SAVE_DEBOUNCE_MS, TimeUnit.MILLISECONDS);
+    }
+
+    /** Call this when application is shutting down to flush pending save and stop executor */
+    public void shutdown() {
+        try {
+            if (pendingSave != null && !pendingSave.isDone()) {
+                pendingSave.get(); // wait for completion
+            }
+        } catch (Exception ignored) {}
+        saveExecutor.shutdownNow();
+    }
+    
+    public EmulatorUILogic getUIConfiguration() {
+        return Configuration.BASE != null && Configuration.BASE.subject != null ? 
+               ((Configuration) Configuration.BASE.subject).ui : null;
+    }
+    
     boolean speakerEnabled = true;
 
     private void showMenuButton(MouseEvent evt) {
@@ -270,11 +457,16 @@ public class JaceUIController {
             speedSlider.valueProperty().set(currentSpeed);
             speedSlider.valueProperty().addListener((val, oldValue, newValue) -> setSpeed(newValue.doubleValue()));
         });
-        musicSelection.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) ->
-            Emulator.withComputer(computer -> 
-                ((LawlessHacks) ((LawlessComputer) computer).activeCheatEngine).changeMusicScore(String.valueOf(newValue))
-            )
-        );
+        musicSelectionListener = (observable, oldValue, newValue) -> {
+            Emulator.withComputer(computer -> {
+                if (((LawlessComputer) computer).activeCheatEngine != null) {
+                    ((LawlessHacks) ((LawlessComputer) computer).activeCheatEngine).changeMusicScore(String.valueOf(newValue));
+                }
+            });
+            // Save settings when soundtrack selection changes
+            saveUISettings();
+        };
+        musicSelection.getSelectionModel().selectedItemProperty().addListener(musicSelectionListener);
         reconnectKeyboard();
     }
 
@@ -310,6 +502,10 @@ public class JaceUIController {
 
     public void setAspectRatioEnabled(boolean enabled) {
         aspectRatioCorrectionEnabled.set(enabled);
+        // Save settings when aspect ratio changes (only if config is initialized)
+        if (getUIConfiguration() != null) {
+            saveUISettings();
+        }
     }
 
     public void connectComputer(Stage primaryStage) {
@@ -318,6 +514,106 @@ public class JaceUIController {
             Emulator.withVideo(this::connectVideo);
             appleScreen.setVisible(true);
             rootPane.requestFocus();
+            
+            // Restore window size from saved settings
+            restoreWindowSize(primaryStage);
+            
+            // Only sync with LawlessHacks if we don't have saved settings
+            // (saved settings will be loaded later and will sync LawlessHacks with UI)
+            // We check if the configuration has been loaded from a file by checking if startupComplete is false
+            if (!startupComplete) {
+                syncMusicSelectionWithLawlessHacks();
+            }
+        });
+    }
+    
+    private void restoreWindowSize(Stage stage) {
+        EmulatorUILogic ui = getUIConfiguration();
+        if (ui != null && stage != null) {
+            // Restore window size
+            stage.setWidth(ui.windowWidth);
+            stage.setHeight(ui.windowHeight);
+            
+            // Restore fullscreen state
+            if (ui.fullscreen) {
+                stage.setFullScreen(true);
+            }
+            
+            // Restore window size index for integer scaling
+            EmulatorUILogic.size = ui.windowSizeIndex;
+            
+            // Add listener to save window size changes
+            stage.widthProperty().addListener((obs, oldVal, newVal) -> saveUISettings());
+            stage.heightProperty().addListener((obs, oldVal, newVal) -> saveUISettings());
+            stage.fullScreenProperty().addListener((obs, oldVal, newVal) -> saveUISettings());
+        }
+    }
+    
+    /**
+     * Sync the music selection dropdown with the current score from LawlessHacks
+     * This ensures the UI reflects the actual current state without creating callback loops
+     */
+    private void syncMusicSelectionWithLawlessHacks() {
+        // Only sync if we're not currently loading settings to avoid interference
+        if (loadingSettings) {
+            return;
+        }
+        
+        // Only sync if the musicSelection component is available
+        if (musicSelection == null) {
+            return;
+        }
+        
+        Emulator.withComputer(computer -> {
+            if (computer instanceof LawlessComputer) {
+                LawlessHacks lawlessHacks = (LawlessHacks) ((LawlessComputer) computer).activeCheatEngine;
+                if (lawlessHacks != null) {
+                    String currentScore = lawlessHacks.getCurrentScore();
+                    if (currentScore != null) {
+                        // Check if the current selection is different from LawlessHacks
+                        String currentSelection = musicSelection.getValue();
+                        if (!currentScore.equals(currentSelection)) {
+                            // Temporarily remove the listener to avoid triggering a callback loop
+                            if (musicSelectionListener != null) {
+                                musicSelection.getSelectionModel().selectedItemProperty().removeListener(musicSelectionListener);
+                            }
+                            
+                            // Update the dropdown to match the current score
+                            if (musicSelection.getItems().contains(currentScore)) {
+                                musicSelection.setValue(currentScore);
+                            }
+                            
+                            // Re-add the listener
+                            if (musicSelectionListener != null) {
+                                musicSelection.getSelectionModel().selectedItemProperty().addListener(musicSelectionListener);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    /**
+     * Update LawlessHacks with the current UI settings
+     * This is called when loading saved settings to ensure LawlessHacks reflects the saved state
+     */
+    private void syncLawlessHacksWithUISettings() {
+        Emulator.withComputer(computer -> {
+            if (computer instanceof LawlessComputer) {
+                LawlessHacks lawlessHacks = (LawlessHacks) ((LawlessComputer) computer).activeCheatEngine;
+                if (lawlessHacks != null) {
+                    // Update music volume
+                    if (musicVolumeSlider != null) {
+                        lawlessHacks.setMusicVolume(musicVolumeSlider.getValue());
+                    }
+                    
+                    // Update soundtrack selection
+                    if (musicSelection != null && musicSelection.getValue() != null) {
+                        lawlessHacks.changeMusicScore(musicSelection.getValue());
+                    }
+                }
+            }
         });
     }
 
@@ -501,5 +797,15 @@ public class JaceUIController {
         notificationExecutor.schedule(
                 () -> Platform.runLater(() -> stackPane.getChildren().remove(notification)),
                 4, TimeUnit.SECONDS);
+    }
+
+    /** Begin a programmatic update block during which saves are suppressed */
+    public void beginProgrammaticUpdate() {
+        loadingSettings = true;
+    }
+
+    /** End a programmatic update block */
+    public void endProgrammaticUpdate() {
+        loadingSettings = false;
     }
 }

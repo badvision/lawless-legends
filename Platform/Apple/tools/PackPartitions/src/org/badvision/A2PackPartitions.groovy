@@ -2108,7 +2108,7 @@ class A2PackPartitions
         // And write out each disk
         partChunks.each { part ->
             //println "Writing disk ${part.partNum}."
-            if (!diskLimit || part.partNum <= diskLimit) {
+            if (!diskLimit || part.partNum <= diskLimit || part.partNum == storyPartition) {
                 def partFile = new File("build/root/game.part.${part.partNum}.bin")
                 partFile.withOutputStream { stream ->
                     writePartition(stream, part.partNum, part.chunks.values())
@@ -5341,7 +5341,7 @@ end
             outIndented("rawDisplayStr(\"\\n\\n\")\n")
 
             // On floppy builds, follow the intro with just the short text (usually e.g. "read log X")
-            outIndented("if isFloppyVer or diskLimit\n")
+            outIndented("if isFloppyVer\n")
             ++indent
             def shortBlk = blk.value[1].block
             outTextBlock(shortBlk, false)

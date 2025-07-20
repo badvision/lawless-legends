@@ -16,7 +16,8 @@
         <mainClass>jace.LawlessLegends</mainClass>
         <netbeans.hint.license>apache20</netbeans.hint.license>
         <lwjgl.version>3.3.3</lwjgl.version>
-        <app.version>1.0</app.version>
+        <app.version>1.1</app.version>
+        <javafx.version>24.0.1</javafx.version>
     </properties>
 
     <organization>
@@ -41,7 +42,7 @@
             <plugin>
                 <groupId>com.gluonhq</groupId>
                 <artifactId>gluonfx-maven-plugin</artifactId>
-                <version>1.0.23</version>
+                <version>1.0.26</version>
                 <configuration>
                     <mainClass>jace.LawlessLegends</mainClass>
                     <resourcesList>
@@ -138,7 +139,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.12</version>
+                <version>0.8.13</version>
                 <configuration>
                     <excludes>
                         <exclude>jace/assembly/AcmeCrossAssembler.class</exclude>
@@ -209,31 +210,31 @@
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-base</artifactId>
-            <version>21.0.2</version>
+            <version>${javafx.version}</version>
             <type>jar</type>
         </dependency>
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-fxml</artifactId>
-            <version>21.0.2</version>
+            <version>${javafx.version}</version>
             <type>jar</type>
         </dependency>
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-web</artifactId>
-            <version>21.0.2</version>
+            <version>${javafx.version}</version>
             <type>jar</type>
         </dependency>
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-graphics</artifactId>
-            <version>21.0.2</version>
+            <version>${javafx.version}</version>
             <type>jar</type>
         </dependency>
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-swing</artifactId>
-            <version>21.0.2</version>
+            <version>${javafx.version}</version>
             <type>jar</type>
         </dependency>
         <dependency>
@@ -303,7 +304,7 @@
                             </annotationProcessorPaths>
                             <annotationProcessors>jace.config.InvokableActionAnnotationProcessor</annotationProcessors>
                         </configuration>
-                        <version>3.11.0</version>
+                        <version>3.14.0</version>
                     </plugin>
                 </plugins>
             </build>
@@ -324,7 +325,7 @@
                             <source>17</source>
                             <target>17</target>
                         </configuration>
-                        <version>3.13.0</version>
+                        <version>3.14.0</version>
                     </plugin>
                 </plugins>
             </build>

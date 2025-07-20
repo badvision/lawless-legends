@@ -45,41 +45,5 @@
       "name":"com/sun/javafx/scene/control/skin/resources/controls",
       "locales":[""]
     }
-  "resources":{
-  "includes":[
-    {
-      "pattern":"\\QMETA-INF/macos/arm64/org/lwjgl/glfw/libglfw.dylib.sha1\\E"
-    }, 
-    {
-      "pattern":"\\QMETA-INF/macos/arm64/org/lwjgl/liblwjgl.dylib.sha1\\E"
-    }, 
-    {
-      "pattern":"\\QMETA-INF/macos/arm64/org/lwjgl/openal/libopenal.dylib.sha1\\E"
-    }, 
-    {
-      "pattern":"\\QMETA-INF/macos/arm64/org/lwjgl/stb/liblwjgl_stb.dylib.sha1\\E"
-    }, 
-    {
-      "pattern":"\\Qmacos/arm64/org/lwjgl/glfw/libglfw.dylib\\E"
-    }, 
-    {
-      "pattern":"\\Qmacos/arm64/org/lwjgl/liblwjgl.dylib\\E"
-    }, 
-    {
-      "pattern":"\\Qmacos/arm64/org/lwjgl/openal/libopenal.dylib\\E"
-    }, 
-    {
-      "pattern":"\\Qmacos/arm64/org/lwjgl/stb/liblwjgl_stb.dylib\\E"
-    }
-  ]},
-  "bundles":[
-    {
-      "name":"com.sun.javafx.tk.quantum.QuantumMessagesBundle",
-      "locales":[""]
-    }, 
-    {
-      "name":"com/sun/javafx/scene/control/skin/resources/controls",
-      "locales":[""]
-    }
   ]
 }

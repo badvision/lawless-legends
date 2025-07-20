@@ -37,6 +37,7 @@ public abstract class TimedDevice extends Device {
     public static final long NANOS_PER_MILLISECOND = 1000000L;
     public static final long SYNC_SLOP = NANOS_PER_MILLISECOND * 10L; // 10ms slop for synchronization
     public static int TEMP_SPEED_MAX_DURATION = 1000000;
+    public static int MAX_TIMER_DELAY_MS = 50;
     @ConfigurableField(name = "Speed", description = "(Percentage)")
     public int speedRatio = 100;
     @ConfigurableField(name = "Max speed")
@@ -191,7 +192,11 @@ public abstract class TimedDevice extends Device {
         }
         cycleTimer = 0;
         long retVal = nextSync;
-        nextSync = Math.max(nextSync, System.nanoTime()) + nanosPerInterval; 
+        long currentTime = System.nanoTime();
+        long maxFutureDrift = MAX_TIMER_DELAY_MS * NANOS_PER_MILLISECOND;
+        nextSync = Math.max(nextSync, currentTime) + nanosPerInterval; 
+        // Cap nextSync to prevent excessive drift during max speed periods
+        nextSync = Math.min(nextSync, currentTime + maxFutureDrift);
         if (isMaxSpeed() || useParentTiming()) {
             if (tempSpeedDuration > 0) {
                 tempSpeedDuration -= cyclesPerInterval;

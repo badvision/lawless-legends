@@ -27,9 +27,9 @@ byte nUnstarted, nActive, nDone
 byte anyTriggeredSteps, lastTriggered
 byte displayMode, curQuestNum
 word curQuestFunc, curStepFunc
-byte questMapNum[2]
-word questMapX[2]
-word questMapY[2]
+byte questMapNum[4]
+word questMapX[4]
+word questMapY[4]
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 def loadExtraModules()#0
@@ -47,11 +47,13 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Called only once, for the last matching step of the current quest.
-def displayQuest_cb3(descrip, portraitNum, map1Num, map1X, map1Y, map2Num, map2X, map2Y)
+def displayQuest_cb3(descrip, portraitNum, map1Num, map1XY, map2Num, map2XY, map3Num, map3XY, map4Num, map4XY)
   setPortrait(portraitNum)
   displayStr(descrip)
-  questMapNum[0] = map1Num; questMapX[0] = map1X; questMapY[0] = map1Y
-  questMapNum[1] = map2Num; questMapX[1] = map2X; questMapY[1] = map2Y
+  questMapNum[0] = map1Num; questMapX[0] = map1XY & $FF; questMapY[0] = map1XY >> 8
+  questMapNum[1] = map2Num; questMapX[1] = map2XY & $FF; questMapY[1] = map2XY >> 8
+  questMapNum[2] = map3Num; questMapX[2] = map3XY & $FF; questMapY[2] = map3XY >> 8
+  questMapNum[3] = map4Num; questMapX[3] = map4XY & $FF; questMapY[3] = map4XY >> 8
   return 0
 end
 
@@ -82,6 +84,8 @@ def displayCurQuest()#0
 
   questMapNum[0] = 0
   questMapNum[1] = 0
+  questMapNum[2] = 0
+  questMapNum[3] = 0
 
   clearPortrait
   useMapWindow // with clear
@@ -162,7 +166,7 @@ def showMenu()#0
   byte ct
   setWindow3
   clearWindow
-  if questMapNum[0] or questMapNum[1]; displayStr("S)how on map,\n"); fin
+  if questMapNum[0] or questMapNum[1] or questMapNum[2] or questMapNum[3]; displayStr("S)how on map,\n"); fin
   ct = displayMode=='A' ?? nActive :: nDone
   if curQuestNum+1 < ct; displayStr("N)ext, "); fin
   if curQuestNum; displayStr("P)rev, "); fin
@@ -229,6 +233,10 @@ def showOnMap()#0
     mapIdx = 0
   elsif questMapNum[1] == lookFor
     mapIdx = 1
+  elsif questMapNum[2] == lookFor
+    mapIdx = 2
+  elsif questMapNum[3] == lookFor
+    mapIdx = 3
   else
     if !findExit(lookFor)
       clearWindow
@@ -289,7 +297,7 @@ def _showQuests()#1
     when sel
       is 'S'
         // Show on map
-        if questMapNum[0] or questMapNum[1]
+        if questMapNum[0] or questMapNum[1] or questMapNum[2] or questMapNum[3]
           showOnMap
           needSetup = TRUE
         else

@@ -3660,8 +3660,8 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def setStoryMode(enable)#0
-  // Story mode only exists on 800K or hard drive builds, and not the disk-limited ones.
-  if !isFloppyVer and !diskLimit
+  // Story mode only exists on 800K or hard drive builds.
+  if !isFloppyVer
     storyMode = enable
     if enable
       loadEngine(MOD_STORY)

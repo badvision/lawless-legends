@@ -3,6 +3,14 @@
   "name":"[D"
 },
 {
+  "name":"apple.security.AppleProvider",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.fasterxml.jackson.databind.ext.Java7SupportImpl",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
   "name":"com.sun.crypto.provider.AESCipher$General",
   "methods":[{"name":"<init>","parameterTypes":[] }]
 },
@@ -35,7 +43,26 @@
   "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
+  "name":"com.sun.glass.ui.Application"
+},
+{
+  "name":"com.sun.glass.ui.Menu"
+},
+{
+  "name":"com.sun.glass.ui.MenuItem$Callback"
+},
+{
   "name":"com.sun.glass.ui.Screen"
+},
+{
+  "name":"com.sun.glass.ui.Size"
+},
+{
+  "name":"com.sun.glass.ui.View"
+},
+{
+  "name":"com.sun.javafx.font.coretext.CTFactory",
+  "methods":[{"name":"getFactory","parameterTypes":[] }]
 },
 {
   "name":"com.sun.javafx.font.directwrite.DWFactory",
@@ -132,6 +159,10 @@
   "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
+  "name":"double",
+  "queryAllDeclaredMethods":true
+},
+{
   "name":"jace.AboutController",
   "allDeclaredFields":true,
   "queryAllDeclaredMethods":true,
@@ -198,6 +229,7 @@
     {"name":"useTextPalette"}
   ]
 },
+
 {
   "name":"jace.config.Configuration",
   "allPublicFields":true
@@ -208,6 +240,7 @@
   "queryAllDeclaredMethods":true,
   "methods":[
     {"name":"<init>","parameterTypes":[] }, 
+    {"name":"applyConfig","parameterTypes":["javafx.scene.input.MouseEvent"] }, 
     {"name":"initialize","parameterTypes":[] }
   ]
 },
@@ -286,7 +319,9 @@
     {"name":"<init>","parameterTypes":[] }, 
     {"name":"executeClicked","parameterTypes":["javafx.event.ActionEvent"] }, 
     {"name":"initialize","parameterTypes":[] }, 
-    {"name":"newAssemblyListingClicked","parameterTypes":["javafx.event.ActionEvent"] }
+    {"name":"newApplesoftBasicClicked","parameterTypes":["javafx.event.ActionEvent"] }, 
+    {"name":"newAssemblyListingClicked","parameterTypes":["javafx.event.ActionEvent"] }, 
+    {"name":"testCompileClicked","parameterTypes":["javafx.event.ActionEvent"] }
   ]
 },
 {
@@ -656,6 +691,12 @@
     {"name":"setImage","parameterTypes":["javafx.scene.image.Image"] }, 
     {"name":"setPreserveRatio","parameterTypes":["boolean"] }
   ]
+},
+{
+  "name":"javafx.scene.input.Clipboard"
+},
+{
+  "name":"javafx.scene.input.Dragboard"
 },
 {
   "name":"javafx.scene.input.KeyCode",
@@ -1041,7 +1082,7 @@
 {
   "name":"sun.security.x509.SubjectKeyIdentifierExtension",
   "methods":[{"name":"<init>","parameterTypes":["java.lang.Boolean","java.lang.Object"] }]
-}
+},
 {
   "name":"[D"
 },
@@ -1243,6 +1284,14 @@
   ]
 },
 {
+  "name": "jace.config.AppSettingsDTO",
+  "allPublicFields": true
+},
+{
+  "name": "jace.config.AppSettingsDTO$UiSettings",
+  "allPublicFields": true
+},
+{
   "name":"jace.core.CPU",
   "fields":[
     {"name":"trace"}, 
@@ -1306,6 +1355,7 @@
   "queryAllDeclaredMethods":true,
   "methods":[
     {"name":"<init>","parameterTypes":[] }, 
+    {"name":"executeClicked","parameterTypes":["javafx.event.ActionEvent"] }, 
     {"name":"initialize","parameterTypes":[] }, 
     {"name":"newAssemblyListingClicked","parameterTypes":["javafx.event.ActionEvent"] }, 
     {"name":"testCompileClicked","parameterTypes":["javafx.event.ActionEvent"] }
@@ -1349,9 +1399,6 @@
     {"name":"boot","parameterTypes":[] }, 
     {"name":"findModule","parameterTypes":["java.lang.String"] }
   ]
-},
-{
-  "name":"java.lang.Runnable"
 },
 {
   "name":"java.lang.String",
@@ -1540,7 +1587,8 @@
     {"name":"setGraphic","parameterTypes":["javafx.scene.Node"] }, 
     {"name":"setMnemonicParsing","parameterTypes":["boolean"] }, 
     {"name":"setText","parameterTypes":["java.lang.String"] }, 
-    {"name":"setTextAlignment","parameterTypes":["javafx.scene.text.TextAlignment"] }
+    {"name":"setTextAlignment","parameterTypes":["javafx.scene.text.TextAlignment"] }, 
+    {"name":"setTextFill","parameterTypes":["javafx.scene.paint.Paint"] }
   ]
 },
 {

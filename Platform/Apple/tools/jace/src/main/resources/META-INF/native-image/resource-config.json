@@ -32,18 +32,35 @@
   "bundles":[
     {
       "name":"com.sun.javafx.tk.quantum.QuantumMessagesBundle",
-      "locales":[""]
+      "locales":[
+        "", 
+        "und"
+      ]
     }, 
     {
       "name":"com/sun/glass/ui/win/themes",
       "locales":[
         "", 
-        "en"
+        "de", 
+        "en", 
+        "es", 
+        "fr", 
+        "it", 
+        "ja", 
+        "ko", 
+        "pt-BR", 
+        "sv", 
+        "und", 
+        "zh-CN", 
+        "zh-TW"
       ]
     }, 
     {
       "name":"com/sun/javafx/scene/control/skin/resources/controls",
-      "locales":[""]
+      "locales":[
+        "", 
+        "und"
+      ]
     }
   ]
 }

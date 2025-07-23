@@ -101,7 +101,7 @@ public abstract class IndependentTimedDevice extends TimedDevice {
     }
     
     public static int SLEEP_PRECISION_LIMIT = 100;
-    public void sleepUnno ttil(Long time) {
+    public void sleepUntil(Long time) {
         if (time != null) {
             while (System.nanoTime() < time) {
                 int waitTime = (int) ((time - System.nanoTime()) / 1000000);

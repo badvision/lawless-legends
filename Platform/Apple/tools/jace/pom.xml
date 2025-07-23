@@ -17,7 +17,7 @@
         <netbeans.hint.license>apache20</netbeans.hint.license>
         <lwjgl.version>3.3.3</lwjgl.version>
         <app.version>1.1</app.version>
-        <javafx.version>24.0.1</javafx.version>
+        <javafx.version>22.0.2</javafx.version>
     </properties>
 
     <organization>

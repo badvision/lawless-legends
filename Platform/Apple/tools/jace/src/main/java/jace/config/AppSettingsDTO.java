@@ -12,6 +12,10 @@ public class AppSettingsDTO {
     @JsonProperty
     public UiSettings ui = new UiSettings();
 
+    public AppSettingsDTO() {
+        // Default constructor for Jackson
+    }
+
     public static class UiSettings {
         @JsonProperty
         public int windowWidth;

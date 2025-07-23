@@ -1285,10 +1285,12 @@
 },
 {
   "name": "jace.config.AppSettingsDTO",
+  "allDeclaredConstructors": true,
   "allPublicFields": true
 },
 {
   "name": "jace.config.AppSettingsDTO$UiSettings",
+  "allDeclaredConstructors": true,
   "allPublicFields": true
 },
 {

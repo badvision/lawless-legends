@@ -1,21 +1,19 @@
-/*
- * Copyright (C) 2012 Brendan Robert (BLuRry) brendan.robert@gmail.com.
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA 02110-1301  USA
- */
+/** 
+* Copyright 2024 Brendan Robert
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*    http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+**/
+
 package jace.core;
 
 import java.util.Collection;
@@ -23,6 +21,7 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.function.Supplier;
 
+import jace.Emulator;
 import jace.config.Reconfigurable;
 import jace.state.Stateful;
 
@@ -41,19 +40,9 @@ import jace.state.Stateful;
 @Stateful
 public abstract class Device implements Reconfigurable {
 
-    protected Computer computer;
-    private final Set<Device> children;
+    private final Set<Device> children = new CopyOnWriteArraySet<>();
     private Device[] childrenArray = new Device[0];
     private Runnable tickHandler = this::__doTickNotRunning;
-
-    private Device() {
-        children = new CopyOnWriteArraySet<>();
-    }
-
-    public Device(Computer computer) {
-        this();
-        this.computer = computer;
-    }
 
     // Number of cycles to do nothing (for cpu/video cycle accuracy)
     @Stateful
@@ -67,10 +56,30 @@ public abstract class Device implements Reconfigurable {
     @Stateful
     public boolean isAttached = false;
 
+    private RAM _ram = null;
+    protected RAM getMemory() {
+        if (_ram == null) {
+            _ram = Emulator.withMemory(m->m, null);
+            _ram.onDetach(()->_ram = null);
+        }
+        return _ram;
+    }
+
+    // NOTE: This is for unit testing only, don't actually use this for anything else or expect things to be weird.
+    public void setMemory(RAM ram) {
+        _ram = ram;
+    }
+
+    Device parentDevice = null;
+    public Device getParent() {
+        return parentDevice;
+    }
+
     public void addChildDevice(Device d) {
         if (d == null || children.contains(d) || d.equals(this)) {
             return;
         }
+        d.parentDevice = this;
         children.add(d);
         d.attach();
         childrenArray = children.toArray(Device[]::new);
@@ -101,10 +110,6 @@ public abstract class Device implements Reconfigurable {
         newDevices.stream().filter(d-> !children.contains(d)).forEach(this::addChildDevice);
     }
 
-    public boolean getRunningProperty() {
-        return run;
-    }
-
     public void addWaitCycles(int wait) {
         waitCycles += wait;
     }
@@ -129,7 +134,9 @@ public abstract class Device implements Reconfigurable {
     
     private void __doTickIsRunning() {
         for (Device d : childrenArray) {
-            d.doTick();
+            if (d.isRunning() && !d.isPaused()) {
+                d.doTick();
+            }
         }
         if (waitCycles <= 0) {
             tick();
@@ -146,7 +153,12 @@ public abstract class Device implements Reconfigurable {
         waitCycles--;
     }
     
-    public final void doTick() {
+    /**
+     * This is called every tick, but it is critical that tick() should be overridden
+     * not this method!  This is only overridable so timed device can implement timing
+     * semantics around this without interfering with the tick() method implementations.
+     */
+    public void doTick() {
         tickHandler.run();
     }
 
@@ -159,11 +171,19 @@ public abstract class Device implements Reconfigurable {
     }
 
     public final synchronized void setRun(boolean run) {
+        // if (this.run != run) {
+        //     System.out.println(getDeviceName() + " " + (run ? "RUN" : "STOP"));
+        //     Thread.dumpStack();
+        // }
         this.run = run;
         updateTickHandler();
     }
 
     public synchronized void setPaused(boolean paused) {
+        // if (this.paused != paused) {
+        //     System.out.println(getDeviceName() + " " + (paused ? "PAUSED" : "UNPAUSED"));
+        //     Thread.dumpStack();
+        // }
         this.paused = paused;
         updateTickHandler();
     }
@@ -178,23 +198,17 @@ public abstract class Device implements Reconfigurable {
     public abstract void tick();
     
     public void whileSuspended(Runnable r) {
-        if (isRunning()) {
-            suspend();
+        whileSuspended(()->{
             r.run();
-            resume();
-        } else {
-            r.run();
-        }        
+            return null;
+        }, null);
     }
 
     public void whilePaused(Runnable r) {
-        if (isRunning() && !isPaused()) {
-            setPaused(true);
+        whilePaused(()->{
             r.run();
-            setPaused(false);
-        } else {
-            r.run();
-        }        
+            return null;
+        }, null);
     }
 
     public <T> T whileSuspended(Supplier<T> r, T defaultValue) {
@@ -223,18 +237,26 @@ public abstract class Device implements Reconfigurable {
 
     
     public boolean suspend() {
+        // Suspending the parent device means the children are not going to run
+        // children.forEach(Device::suspend);
         if (isRunning()) {
             setRun(false);
             return true;
         }
-        children.forEach(Device::suspend);
         return false;
     }
 
+    public void resumeAll() {
+        resume();
+        children.forEach(Device::resumeAll);
+    }
+
     public void resume() {
-        children.forEach(Device::resume);
+        // Resuming children pre-emptively might lead to unexpected behavior
+        // Don't do that unless we really mean to (such as cold-starting the computer)
+        // children.forEach(Device::resume);
         if (!isRunning()) {
-            setRun(true);            
+            setRun(true);
             waitCycles = 0;
         }
     }
@@ -248,5 +270,10 @@ public abstract class Device implements Reconfigurable {
         children.forEach(Device::suspend);
         children.forEach(Device::detach);
         Keyboard.unregisterAllHandlers(this);
+        if (this.isRunning()) {
+            this.suspend();
+        }
+        isAttached = false;
+        _ram = null;
     }
 }

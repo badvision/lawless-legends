@@ -1,21 +1,19 @@
-/*
- * Copyright (C) 2012 Brendan Robert (BLuRry) brendan.robert@gmail.com.
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA 02110-1301  USA
- */
+/** 
+* Copyright 2024 Brendan Robert
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*    http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+**/
+
 package jace.config;
 
 import java.io.File;
@@ -49,12 +47,18 @@ import java.util.stream.Stream;
 
 import jace.Emulator;
 import jace.EmulatorUILogic;
+import jace.LawlessLegends;
 import jace.core.Keyboard;
 import jace.core.Utility;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.control.TreeItem;
 import javafx.scene.image.ImageView;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 
 /**
  * Manages the configuration state of the emulator components.
@@ -62,6 +66,11 @@ import javafx.scene.image.ImageView;
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com
  */
 public class Configuration implements Reconfigurable {
+    public EmulatorUILogic ui;
+
+    public Configuration() {
+        ui = Emulator.getUILogic();
+    }
 
     static ConfigurableField getConfigurableFieldInfo(Reconfigurable subject, String settingName) {
         Field f;
@@ -104,6 +113,7 @@ public class Configuration implements Reconfigurable {
      * configuration 2) Provide a simple persistence mechanism to load/store
      * configuration
      */
+    @SuppressWarnings("all")
     public static class ConfigNode extends TreeItem implements Serializable {
 
         public transient ConfigNode root;
@@ -136,8 +146,8 @@ public class Configuration implements Reconfigurable {
             children.setAll(super.getChildren());
             id = (String) in.readObject();
             name = (String) in.readObject();
-            settings = (Map) in.readObject();
-            hotkeys = (Map) in.readObject();
+            settings = (Map<String, Serializable>) in.readObject();
+            hotkeys = (Map<String, String[]>) in.readObject();
             Object[] nodeArray = (Object[]) in.readObject();
             synchronized (children) {
                 for (Object child : nodeArray) {
@@ -217,10 +227,17 @@ public class Configuration implements Reconfigurable {
             }
         }
 
-        private ConfigNode findChild(String id) {
+        /**
+         * Locate a child by its internal id (field-name) or its display name.
+         * Older configuration files used the display name (e.g. "Jace User Interface")
+         * as the id, while newer builds use the Java field name (e.g. "ui").
+         * To remain backward-compatible we look for a match on either.
+         */
+        private ConfigNode findChild(String key) {
+            if (key == null) return null;
             synchronized (children) {
                 for (ConfigNode node : children) {
-                    if (id.equalsIgnoreCase(node.id)) {
+                    if (key.equalsIgnoreCase(node.id) || key.equalsIgnoreCase(node.name)) {
                         return node;
                     }
                 }
@@ -262,13 +279,20 @@ public class Configuration implements Reconfigurable {
         }
     }
     public static ConfigNode BASE;
-    public static EmulatorUILogic ui = Emulator.logic;
     @ConfigurableField(name = "Autosave Changes", description = "If unchecked, changes are only saved when the Save button is pressed.")
     public static boolean saveAutomatically = false;
 
+    public static void initializeBaseConfiguration() {
+        if (BASE == null) {
+            BASE = new ConfigNode(new Configuration());
+        }
+    }
+    
     public static void buildTree() {
-        BASE = new ConfigNode(new Configuration());
-        Set visited = new LinkedHashSet();
+        if (BASE == null) {
+            BASE = new ConfigNode(new Configuration());
+        }
+        Set<ConfigNode> visited = new LinkedHashSet<>();
         buildTree(BASE, visited);
         Emulator.withComputer(c->{
             ConfigNode computer = new ConfigNode(BASE, c);
@@ -277,6 +301,7 @@ public class Configuration implements Reconfigurable {
         });
     }
 
+    @SuppressWarnings("all")
     private static void buildTree(ConfigNode node, Set visited) {
         if (node.subject == null) {
             return;
@@ -314,12 +339,11 @@ public class Configuration implements Reconfigurable {
                 }
 
                 if (o instanceof Reconfigurable r) {
-                    ConfigNode child = node.findChild(r.getName());
+                    ConfigNode child = node.findChild(f.getName());
                     if (child == null || !child.subject.equals(o)) {
+                        // Use display name for id to maintain compatibility with existing settings files
                         child = new ConfigNode(node, r);
                         node.putChild(f.getName(), child);
-                    } else {
-                        Logger.getLogger(Configuration.class.getName()).severe("Unable to find child named %s for node %s".formatted(r.getName(), node.name));
                     }
                     buildTree(child, visited);
                 } else if (o.getClass().isArray()) {
@@ -388,6 +412,7 @@ public class Configuration implements Reconfigurable {
             defaultKeyMapping = "meta+ctrl+s"
     )
     public static void saveSettings() {
+        Logger.getLogger(Configuration.class.getName()).log(Level.INFO, "Saving configuration (full) to {0}", getSettingsFile().getAbsolutePath());
         {
             ObjectOutputStream oos = null;
             try {
@@ -410,6 +435,41 @@ public class Configuration implements Reconfigurable {
         }
     }
 
+    /**
+     * Save settings without applying them first - useful for UI settings that don't need computer suspension
+     */
+    public static void saveSettingsImmediate() {
+        try {
+            buildTree(); // make sure BASE reflects latest in-memory values
+
+            // construct DTO from live objects
+            AppSettingsDTO dto = new AppSettingsDTO();
+            if (BASE.subject instanceof Configuration cfg && cfg.ui != null) {
+                EmulatorUILogic ui = cfg.ui;
+                dto.ui.windowWidth = ui.windowWidth;
+                dto.ui.windowHeight = ui.windowHeight;
+                dto.ui.windowSizeIndex = ui.windowSizeIndex;
+                dto.ui.fullscreen = ui.fullscreen;
+                dto.ui.videoMode = ui.videoMode;
+                dto.ui.musicVolume = ui.musicVolume;
+                dto.ui.sfxVolume = ui.sfxVolume;
+                dto.ui.soundtrackSelection = ui.soundtrackSelection;
+                dto.ui.aspectRatio = ui.aspectRatioCorrection;
+            }
+
+            ObjectMapper mapper = JsonMapper.builder()
+                .enable(SerializationFeature.INDENT_OUTPUT)
+                .configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
+                .build();
+
+            File json = getJsonSettingsFile();
+            Logger.getLogger(Configuration.class.getName()).log(Level.FINE, "Saving configuration (JSON) to {0}", json.getAbsolutePath());
+            mapper.writeValue(json, dto);
+        } catch (IOException ex) {
+            Logger.getLogger(Configuration.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+
     @InvokableAction(
             name = "Load settings",
             description = "Load all configuration settings previously saved",
@@ -418,30 +478,40 @@ public class Configuration implements Reconfigurable {
             defaultKeyMapping = "meta+ctrl+r"
     )
     public static void loadSettings() {
+        File json = getJsonSettingsFile();
+        if (json.exists()) {
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                AppSettingsDTO dto = mapper.readValue(json, AppSettingsDTO.class);
+                Logger.getLogger(Configuration.class.getName()).log(Level.FINE, "Loading configuration from {0}", json.getAbsolutePath());
+                applyDto(dto);
+                return;
+            } catch (IOException e) {
+                Logger.getLogger(Configuration.class.getName()).log(Level.WARNING, "Failed to parse JSON settings, falling back to legacy format", e);
+            }
+        }
+
+        // fallback to legacy binary format
+        Logger.getLogger(Configuration.class.getName()).log(Level.FINE, "Loading configuration (legacy) from {0}", getSettingsFile().getAbsolutePath());
         boolean successful = false;
-        ObjectInputStream ois = null;
-        try {
-            ois = new ObjectInputStream(new FileInputStream(getSettingsFile()));
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(getSettingsFile()))) {
             ConfigNode newRoot = (ConfigNode) ois.readObject();
             applyConfigTree(newRoot, BASE);
             successful = true;
-        } catch (FileNotFoundException ex) {
-            // This just means there are no settings to be saved -- just ignore it.
+        } catch (FileNotFoundException ignored) {
         } catch (InvalidClassException | NullPointerException ex) {
-            Logger.getLogger(Configuration.class.getName()).log(Level.WARNING, "Unable to load settings, Jace version is newer and incompatible with old settings.");
+            Logger.getLogger(Configuration.class.getName()).log(Level.WARNING, "Legacy settings incompatible with current version.");
         } catch (ClassNotFoundException | IOException ex) {
             Logger.getLogger(Configuration.class.getName()).log(Level.SEVERE, null, ex);
-        } finally {
+        }
+
+        if (successful) {
+            // immediately migrate to JSON for future runs
+            saveSettingsImmediate();
+            // optional: backup old file once
             try {
-                if (ois != null) {
-                    ois.close();
-                }
-                if (!successful) {
-                    applySettings(BASE);
-                }
-            } catch (IOException ex) {
-                Logger.getLogger(Configuration.class.getName()).log(Level.SEVERE, null, ex);
-            }
+                Files.move(getSettingsFile().toPath(), getSettingsFile().toPath().resolveSibling(".jace.conf.bak"), StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException ignore) {}
         }
     }
 
@@ -450,7 +520,7 @@ public class Configuration implements Reconfigurable {
     }
 
     public static File getSettingsFile() {
-        return new File(System.getProperty("user.dir"), ".jace.conf");
+        return new File(System.getProperty("user.home"), ".jace.conf");
     }
 
     public static void registerKeyHandlers() {
@@ -512,6 +582,7 @@ public class Configuration implements Reconfigurable {
         return hasChanged.get();
     }
 
+    @SuppressWarnings("all")
     private static void applyConfigTree(ConfigNode newRoot, ConfigNode oldRoot) {
         if (oldRoot == null || newRoot == null) {
             return;
@@ -523,16 +594,16 @@ public class Configuration implements Reconfigurable {
             buildTree(oldRoot, new HashSet());
         }
         newRoot.getChildren().stream().forEach((child) -> {
-            String childName = child.toString();
-            ConfigNode oldChild = oldRoot.findChild(childName);
+            // First try by id (field name), then by human-readable name
+            ConfigNode oldChild = oldRoot.findChild(child.id);
             if (oldChild == null) {
-                oldChild = oldRoot.findChild(child.id);
+                oldChild = oldRoot.findChild(child.toString());
             }
-            //            System.out.println("Applying settings for " + childName);
             applyConfigTree(child, oldChild);
         });
     }
 
+    @SuppressWarnings("all")
     private static void doApply(ConfigNode node) {
         List<String> removeList = new ArrayList<>();
         registerKeyHandlers(node, false);
@@ -600,7 +671,7 @@ public class Configuration implements Reconfigurable {
             String fieldName = parts[1];
             ConfigNode n = shortNames.get(deviceName.toLowerCase());
             if (n == null) {
-                System.err.println("Unable to find device named " + deviceName + ", try one of these: " + Utility.join(shortNames.keySet(), ", "));
+                System.err.println("Unable to find device named " + deviceName + ", try one of these: " + String.join(", ", shortNames.keySet()));
                 continue;
             }
 
@@ -622,7 +693,7 @@ public class Configuration implements Reconfigurable {
                 }
             }
             if (!found) {
-                System.err.println("Unable to find property " + fieldName + " for device " + deviceName + ".  Try one of these: " + Utility.join(shortFieldNames, ", "));
+                System.err.println("Unable to find property " + fieldName + " for device " + deviceName + ".  Try one of these: " + String.join(", ", shortFieldNames));
             }
         }
     }
@@ -637,22 +708,26 @@ public class Configuration implements Reconfigurable {
         }
     }
 
-    private static void printTree(ConfigNode n, String prefix, int i) {
-        n.getAllSettingNames().stream().forEach((setting) -> {
-            for (int j = 0; j < i; j++) {
-                System.out.print(" ");
-            }
-            ConfigurableField f = null;
-            try {
-                f = n.subject.getClass().getField(setting).getAnnotation(ConfigurableField.class);
-            } catch (NoSuchFieldException | SecurityException ex) {
-                Logger.getLogger(Configuration.class.getName()).log(Level.SEVERE, null, ex);
-            }
-            String sn = (f != null && !f.shortName().equals("")) ? f.shortName() : setting;
-            System.out.println(prefix + ">>" + setting + " (" + n.subject.getShortName() + "." + sn + ")");
-        });
-        n.getChildren().stream().forEach((c) -> {
-            printTree(c, prefix + "." + c, i + 1);
-        });
+    private static File getJsonSettingsFile() {
+        return new File(System.getProperty("user.home"), ".jace.json");
+    }
+
+    private static void applyDto(AppSettingsDTO dto) {
+        if (dto == null) return;
+        EmulatorUILogic ui = ((Configuration) BASE.subject).ui;
+        AppSettingsDTO.UiSettings s = dto.ui;
+        if (s != null) {
+            ui.windowWidth = s.windowWidth;
+            ui.windowHeight = s.windowHeight;
+            ui.windowSizeIndex = s.windowSizeIndex;
+            ui.fullscreen = s.fullscreen;
+            ui.videoMode = s.videoMode;
+            ui.musicVolume = s.musicVolume;
+            ui.sfxVolume = s.sfxVolume;
+            ui.soundtrackSelection = s.soundtrackSelection;
+            ui.aspectRatioCorrection = s.aspectRatio;
+        }
+        // ensure tree reflects settings
+        buildTree();
     }
 }

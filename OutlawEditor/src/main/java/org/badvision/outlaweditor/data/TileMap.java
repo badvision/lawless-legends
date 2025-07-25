@@ -17,11 +17,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import javafx.scene.control.Alert;
-import javafx.scene.image.WritableImage;
-import javafx.scene.paint.Color;
-import javax.xml.bind.JAXBElement;
-import org.badvision.outlaweditor.Application;
+
 import org.badvision.outlaweditor.api.ApplicationState;
 import org.badvision.outlaweditor.api.Platform;
 import org.badvision.outlaweditor.data.xml.Map;
@@ -32,6 +28,11 @@ import org.badvision.outlaweditor.data.xml.Script.LocationTrigger;
 import org.badvision.outlaweditor.data.xml.Scripts;
 import org.badvision.outlaweditor.data.xml.Tile;
 import org.badvision.outlaweditor.ui.UIAction;
+
+import jakarta.xml.bind.JAXBElement;
+import javafx.scene.control.Alert;
+import javafx.scene.image.WritableImage;
+import javafx.scene.paint.Color;
 
 /**
  *

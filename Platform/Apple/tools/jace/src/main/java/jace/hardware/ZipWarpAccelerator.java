@@ -17,9 +17,7 @@ package jace.hardware;
 
 import jace.Emulator;
 import jace.config.ConfigurableField;
-import jace.core.Computer;
 import jace.core.Device;
-import jace.core.Motherboard;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
 
@@ -39,8 +37,14 @@ public class ZipWarpAccelerator extends Device {
     public static final double UNLOCK_PENALTY_PER_TICK = 0.19;
     public static final double UNLOCK_MIN = 4.0;
 
+    /**
+     * Valid values for C074 are:
+     * 0: Enable full speed
+     * 1: Set speed to 1mhz (temporarily disable)
+     * 3: Disable completely (requres cold-start to re-enable -- this isn't implemented)
+     */
     public static final int TRANSWARP = 0x0c074;
-    public static final int TRANSWARP_ON = 1; // Any other value written disables acceleration
+    public static final int TRANSWARP_ON = 0; // Any other value written disables acceleration
 
     boolean zipLocked = true;
     double zipUnlockCount = 0;
@@ -50,10 +54,10 @@ public class ZipWarpAccelerator extends Device {
     RAMListener zipListener;
     RAMListener transwarpListener;
 
-    public ZipWarpAccelerator(Computer computer) {
-        super(computer);
-        zipListener = computer.getMemory().observe(RAMEvent.TYPE.ANY, ENABLE_ADDR, SET_SPEED, this::handleZipChipEvent);
-        transwarpListener = computer.getMemory().observe(RAMEvent.TYPE.ANY, TRANSWARP, this::handleTranswarpEvent);
+    public ZipWarpAccelerator() {
+        super();
+        zipListener = getMemory().observe("Zip chip access", RAMEvent.TYPE.ANY, ENABLE_ADDR, SET_SPEED, this::handleZipChipEvent);
+        transwarpListener = getMemory().observe("Transwarp access", RAMEvent.TYPE.ANY, TRANSWARP, this::handleTranswarpEvent);
     }
 
     private void handleZipChipEvent(RAMEvent e) {
@@ -131,7 +135,7 @@ public class ZipWarpAccelerator extends Device {
     }
 
     public enum SPEED {
-        MAX(4.0, 0b000000000, 0b011111100),
+        MAX(8.0, 0b000000000, 0b011111100),
         _2_667(2.6667, 0b000000100, 0b011111100),
         _3(3.0, 0b000001000, 0b011111000),
         _3_2(3.2, 0b000010000, 0b011110000),
@@ -178,11 +182,9 @@ public class ZipWarpAccelerator extends Device {
         Emulator.withComputer(c -> {
             if (speed.max) {
                 c.getMotherboard().setMaxSpeed(true);
-                Motherboard.cpuPerClock = 3;
             } else {
                 c.getMotherboard().setMaxSpeed(false);
                 c.getMotherboard().setSpeedInPercentage((int) (speed.ratio * 100));
-                Motherboard.cpuPerClock = 1;
             }
             c.getMotherboard().reconfigure();            
         });
@@ -190,7 +192,10 @@ public class ZipWarpAccelerator extends Device {
 
     private void turnOffAcceleration() {
         // The UI Logic retains the user's desired normal speed, reset to that
-        Emulator.logic.reconfigure();
+        Emulator.withComputer(c -> {
+            c.getMotherboard().setMaxSpeed(false);
+            c.getMotherboard().setSpeedInPercentage(100);
+        });
     }
     
     @Override
@@ -202,15 +207,15 @@ public class ZipWarpAccelerator extends Device {
 
     @Override
     public void attach() {
-        computer.getMemory().addListener(zipListener);
-        computer.getMemory().addListener(transwarpListener);
+        getMemory().addListener(zipListener);
+        getMemory().addListener(transwarpListener);
     }
 
     @Override
     public void detach() {
         super.detach();
-        computer.getMemory().removeListener(zipListener);
-        computer.getMemory().removeListener(transwarpListener);
+        getMemory().removeListener(zipListener);
+        getMemory().removeListener(transwarpListener);
     }
 
     @Override

@@ -1,21 +1,19 @@
-/*
- * Copyright (C) 2012 Brendan Robert (BLuRry) brendan.robert@gmail.com.
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA 02110-1301  USA
- */
+/** 
+* Copyright 2024 Brendan Robert
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*    http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+**/
+
 package jace.core;
 
 import java.io.File;
@@ -136,11 +134,6 @@ public class Utility {
         return score * adjustment * adjustment;
     }
 
-    @Deprecated
-    public static String join(Collection<String> c, String d) {
-        return String.join(d, c);
-    }
-
     private static boolean isHeadless = false;
 
     public static void setHeadlessMode(boolean headless) {
@@ -156,6 +149,10 @@ public class Utility {
             return Optional.empty();
         }
         InputStream stream = Utility.class.getResourceAsStream("/jace/data/" + filename);
+        if (stream == null) {
+            System.err.println("Could not load icon: " + filename);
+            return Optional.empty();
+        }
         return Optional.of(new Image(stream));
     }
 
@@ -163,7 +160,10 @@ public class Utility {
         if (isHeadless) {
             return Optional.empty();
         }
-        Image img = loadIcon(filename).get();
+        Optional<Image> img = loadIcon(filename);
+        if (img.isEmpty()) {
+            return Optional.empty();
+        }
         Label label = new Label() {
             @Override
             public boolean equals(Object obj) {
@@ -179,7 +179,7 @@ public class Utility {
                 return getText().hashCode();
             }
         };
-        label.setGraphic(new ImageView(img));
+        label.setGraphic(new ImageView(img.get()));
         label.setAlignment(Pos.CENTER);
         label.setContentDisplay(ContentDisplay.TOP);
         label.setTextFill(Color.WHITE);
@@ -282,45 +282,6 @@ public class Utility {
         return null;
     }
 
-    public static void printStackTrace() {
-        System.out.println("START OF STACK TRACE:");
-        int skip = 2;
-        for (StackTraceElement s : Thread.currentThread().getStackTrace()) {
-            if (skip-- > 0) {
-                continue;
-            }
-            if (s.getClassName().startsWith("com.sun.javafx.event")) {
-                break;
-            }
-            System.out.println("    " + s.getClassName() + "." + s.getMethodName() + " (line " + s.getLineNumber() + ") " + (s.isNativeMethod() ? "NATIVE" : ""));
-        }
-        System.out.println("END OF STACK TRACE");
-    }
-
-    public static int parseHexInt(Object s) {
-        if (s == null) {
-            return -1;
-        }
-        if (s instanceof Integer integer) {
-            return integer;
-        }
-        String val = String.valueOf(s).trim();
-        int base = 10;
-        if (val.startsWith("$")) {
-            base = 16;
-            val = val.contains(" ") ? val.substring(1, val.indexOf(' ')) : val.substring(1);
-        } else if (val.startsWith("0x")) {
-            base = 16;
-            val = val.contains(" ") ? val.substring(2, val.indexOf(' ')) : val.substring(2);
-        }
-        try {
-            return Integer.parseInt(val, base);
-        } catch (NumberFormatException ex) {
-            gripe("This isn't a valid number: " + val + ".  If you put a $ in front of that then I'll know you meant it to be a hex number.");
-            throw ex;
-        }
-    }
-
     public static void gripe(final String message) {
         gripe(message, false, null);
     }
@@ -341,8 +302,10 @@ public class Utility {
         });
     }
 
+    @SuppressWarnings("all")
     static Map<Class, Map<String, Object>> enumCache = new HashMap<>();
 
+    @SuppressWarnings("all")
     public static Object findClosestEnumConstant(String value, Class type) {
         Map<String, Object> enumConstants = enumCache.get(type);
         if (enumConstants == null) {
@@ -361,6 +324,7 @@ public class Utility {
         return enumConstants.get(key);
     }
 
+    @SuppressWarnings("all")
     public static Object deserializeString(String value, Class type, boolean hex) {
         int radix = hex ? 16 : 10;
         if (type.equals(Integer.TYPE) || type == Integer.class) {
@@ -393,6 +357,10 @@ public class Utility {
             }
         } else if (type.equals(Boolean.TYPE) || type == Boolean.class) {
             return Boolean.valueOf(value);
+        } else if (type.equals(Float.TYPE) || type == Float.class) {
+            return Float.parseFloat(value);
+        } else if (type.equals(Double.TYPE) || type == Double.class) {
+            return Double.parseDouble(value);
         } else if (type == File.class) {
             return new File(String.valueOf(value));
         } else if (type.isEnum()) {
@@ -404,7 +372,7 @@ public class Utility {
 
     public static Function<Boolean, Boolean> getNamedInvokableAction(String action) {
         InvokableActionRegistry registry = InvokableActionRegistry.getInstance();        
-        List<InvokableAction> actionsList = new ArrayList(registry.getAllStaticActions());
+        List<InvokableAction> actionsList = new ArrayList<>(registry.getAllStaticActions());
         actionsList.sort((a, b) -> Integer.compare(getActionNameMatch(action, a), getActionNameMatch(action, b)));
 //        for (InvokableAction a : actionsList) {
 //            String actionName = a.alternatives() == null ? a.name() : (a.name() + ";" + a.alternatives());
@@ -421,5 +389,20 @@ public class Utility {
             }
         }
         return nameMatch;
-    }    
+    }
+
+    public static enum OS {Windows, Linux, Mac, Unknown}
+    public static OS getOS() {
+        String osName = System.getProperty("os.name").toLowerCase();
+        if (osName.contains("windows")) {
+            return OS.Windows;
+        } else if (osName.contains("linux")) {
+            return OS.Linux;
+        } else if (osName.contains("mac")) {
+            return OS.Mac;
+        } else {
+            System.out.println("Unknown %s".formatted(osName));
+            return OS.Unknown;
+        }
+    }
 }

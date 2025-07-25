@@ -1,21 +1,19 @@
-/*
- * Copyright (C) 2012 Brendan Robert (BLuRry) brendan.robert@gmail.com.
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA 02110-1301  USA
- */
+/** 
+* Copyright 2024 Brendan Robert
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*    http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+**/
+
 package jace.core;
 
 import java.util.ArrayList;
@@ -106,7 +104,7 @@ public abstract class SoftSwitch {
                     exclusionActivate.add(i);
                 }
             }
-            RAMListener l = new RAMListener(changeType, RAMEvent.SCOPE.RANGE, RAMEvent.VALUE.ANY) {
+            RAMListener l = new RAMListener("Softswitch toggle " + name, changeType, RAMEvent.SCOPE.RANGE, RAMEvent.VALUE.ANY) {
                 @Override
                 protected void doConfig() {
                     setScopeStart(beginAddr);
@@ -116,8 +114,7 @@ public abstract class SoftSwitch {
                 @Override
                 protected void doEvent(RAMEvent e) {
                     if (!exclusionActivate.contains(e.getAddress())) {
-                        //                        System.out.println("Access to "+Integer.toHexString(e.getAddress())+" ENABLES switch "+getName());
-                        setState(!getState());
+                        setState(!getState(), e);
                     }
                 }
             };
@@ -136,7 +133,7 @@ public abstract class SoftSwitch {
                         exclusionActivate.add(i);
                     }
                 }
-                RAMListener l = new RAMListener(changeType, RAMEvent.SCOPE.RANGE, RAMEvent.VALUE.ANY) {
+                RAMListener l = new RAMListener("Softswitch on " + name, changeType, RAMEvent.SCOPE.RANGE, RAMEvent.VALUE.ANY) {
                     @Override
                     protected void doConfig() {
                         setScopeStart(beginAddr);
@@ -149,8 +146,8 @@ public abstract class SoftSwitch {
                             e.setNewValue(Emulator.withComputer(c->c.getVideo().getFloatingBus(), (byte) 0));
                         }
                         if (!exclusionActivate.contains(e.getAddress())) {
-                            //                        System.out.println("Access to "+Integer.toHexString(e.getAddress())+" ENABLES switch "+getName());
-                            setState(true);
+                            // System.out.println("Access to "+Integer.toHexString(e.getAddress())+" ENABLES switch "+getName());
+                            setState(true, e);
                         }
                     }
                 };
@@ -169,7 +166,7 @@ public abstract class SoftSwitch {
                         exclusionDeactivate.add(i);
                     }
                 }
-                RAMListener l = new RAMListener(changeType, RAMEvent.SCOPE.RANGE, RAMEvent.VALUE.ANY) {
+                RAMListener l = new RAMListener("Softswitch off " + name, changeType, RAMEvent.SCOPE.RANGE, RAMEvent.VALUE.ANY) {
                     @Override
                     protected void doConfig() {
                         setScopeStart(beginAddr);
@@ -179,8 +176,8 @@ public abstract class SoftSwitch {
                     @Override
                     protected void doEvent(RAMEvent e) {
                         if (!exclusionDeactivate.contains(e.getAddress())) {
-                            setState(false);
-//                          System.out.println("Access to "+Integer.toHexString(e.getAddress())+" disables switch "+getName());
+                            setState(false, e);
+                            // System.out.println("Access to "+Integer.toHexString(e.getAddress())+" disables switch "+getName());
                         }
                     }
                 };
@@ -201,7 +198,7 @@ public abstract class SoftSwitch {
                 }
             }
 //            RAMListener l = new RAMListener(changeType, RAMEvent.SCOPE.RANGE, RAMEvent.VALUE.ANY) {
-            RAMListener l = new RAMListener(RAMEvent.TYPE.READ, RAMEvent.SCOPE.RANGE, RAMEvent.VALUE.ANY) {
+            RAMListener l = new RAMListener("Softswitch read state " + name, RAMEvent.TYPE.READ, RAMEvent.SCOPE.RANGE, RAMEvent.VALUE.ANY) {
                 @Override
                 protected void doConfig() {
                     setScopeStart(beginAddr);
@@ -252,23 +249,17 @@ public abstract class SoftSwitch {
         });
     }
 
+    // Most softswitches act the same regardless of the ram event triggering them
+    // But some softswitches are a little tricky (such as language card write) and need to assert extra conditions
+    public void setState(boolean newState, RAMEvent e) {
+        setState(newState);
+    }
+
     public void setState(boolean newState) {
         if (inhibit()) {
             return;
         }
-//        if (this != SoftSwitches.VBL.getSwitch() &&
-//            this != SoftSwitches.KEYBOARD.getSwitch())
-//            System.out.println("Switch "+name+" set to "+newState);
         state = newState;
-        /*
-         if (queryAddresses != null) {
-         RAM m = computer.getMemory();
-         for (int i:queryAddresses) {
-         byte old = m.read(i, false);
-         m.write(i, (byte) (old & 0x7f | (state ? 0x080:0x000)), false);
-         }
-         }
-         */
         stateChanged();
     }
 

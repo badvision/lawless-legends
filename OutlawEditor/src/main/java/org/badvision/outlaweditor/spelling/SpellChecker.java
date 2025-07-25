@@ -10,17 +10,14 @@
 package org.badvision.outlaweditor.spelling;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.URL;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
 import org.badvision.outlaweditor.data.DataUtilities;
 
 /**
@@ -54,22 +51,18 @@ public class SpellChecker {
 
     private static void loadDictionary() {
         if (dictionary == null) {
-            URL dictionaryPath = SpellChecker.class.getResource("/mythos/dictionary.txt");
-            try {
-                BufferedReader content = new BufferedReader(new InputStreamReader((InputStream) dictionaryPath.getContent()));
-                dictionary = new HashMap<>();
-                content.lines().forEach((String word)-> {
-                    String lower = word.toLowerCase();
-                    Set<String> words = dictionary.get(lower.charAt(0));
-                    if (words == null) {
-                        words = new LinkedHashSet<>();
-                        dictionary.put(lower.charAt(0), words);
-                    }
-                    words.add(word);
-                });
-            } catch (IOException ex) {
-                Logger.getLogger(SpellChecker.class.getName()).log(Level.SEVERE, null, ex);
-            }
+            InputStream dictionaryStream = SpellChecker.class.getResourceAsStream("/mythos/dictionary.txt");
+            BufferedReader content = new BufferedReader(new InputStreamReader(dictionaryStream));
+            dictionary = new HashMap<>();
+            content.lines().forEach((String word)-> {
+                String lower = word.toLowerCase();
+                Set<String> words = dictionary.get(lower.charAt(0));
+                if (words == null) {
+                    words = new LinkedHashSet<>();
+                    dictionary.put(lower.charAt(0), words);
+                }
+                words.add(word);
+            });
         }    
     }
 

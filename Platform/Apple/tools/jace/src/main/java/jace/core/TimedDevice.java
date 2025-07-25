@@ -1,20 +1,17 @@
 /*
- * Copyright (C) 2012 Brendan Robert (BLuRry) brendan.robert@gmail.com.
+ * Copyright (C) 2024 Brendan Robert brendan.robert@gmail.com.
+ * *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA 02110-1301  USA
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package jace.core;
 
@@ -23,115 +20,100 @@ import jace.config.ConfigurableField;
 /**
  * A timed device is a device which executes so many ticks in a given time interval. This is the core of the emulator
  * timing mechanics.
+ * 
+ * This basic implementation does not run freely and instead will skip cycles if it is running too fast
+ * This allows a parent timer to run at a faster rate without causing this device to do the same.
+ * Useful for devices which generate sound or video at a specific rate.
  *
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com
  */
 public abstract class TimedDevice extends Device {
-
-    /**
-     * Creates a new instance of TimedDevice
-     *
-     * @param computer
-     */
-    public TimedDevice(Computer computer) {
-        super(computer);
-        setSpeedInHz(cyclesPerSecond);
-    }
+    // From the holy word of Sather 3:5 (Table 3.1) :-)
+    // This average speed averages in the "long" cycles
+    public static final int NTSC_1MHZ = 1020484;
+    public static final int PAL_1MHZ = 1015625;
+    public static final long SYNC_FREQ_HZ = 60;
+    public static final double NANOS_PER_SECOND = 1000000000.0;
+    public static final long NANOS_PER_MILLISECOND = 1000000L;
+    public static final long SYNC_SLOP = NANOS_PER_MILLISECOND * 10L; // 10ms slop for synchronization
+    public static int TEMP_SPEED_MAX_DURATION = 1000000;
+    public static int MAX_TIMER_DELAY_MS = 50;
     @ConfigurableField(name = "Speed", description = "(Percentage)")
     public int speedRatio = 100;
-    private long cyclesPerSecond = defaultCyclesPerSecond();
     @ConfigurableField(name = "Max speed")
+    public boolean forceMaxspeed = false;
     public boolean maxspeed = false;
-
-    @Override
-    public abstract void tick();
-    private static final double NANOS_PER_SECOND = 1000000000.0;
-    // current cycle within the period
+    private long cyclesPerSecond = defaultCyclesPerSecond();
     private int cycleTimer = 0;
-    // The actual worker that the device runs as
-    public Thread worker;
-    public static int TEMP_SPEED_MAX_DURATION = 1000000;
     private int tempSpeedDuration = 0;
-    public boolean hasStopped = true;
+    private long nanosPerInterval; // How long to wait between pauses
+    private long cyclesPerInterval; // How many cycles to wait until a pause interval
+    private long nextSync = System.nanoTime(); // When is the next sync interval supposed to finish?
+    protected Runnable unthrottledTick = () -> super.doTick();
+    Long waitUntil = null;
+    protected Runnable throttledTick = () -> {
+        if (waitUntil == null || System.nanoTime() >= waitUntil) {
+            super.doTick();
+            waitUntil = calculateResyncDelay();            
+        }
+    };
+    protected final Runnable tickHandler;
 
+    /**
+     * Creates a new instance of TimedDevice, setting default speed
+     * Protected as overriding the tick handler should only done
+     * for the independent timed device
+     */
+    protected TimedDevice(boolean throttleUsingTicks) {
+        super();
+        setSpeedInHz(defaultCyclesPerSecond());
+        tickHandler = throttleUsingTicks ? throttledTick : unthrottledTick;
+        resetSyncTimer();
+    }
+
+    public TimedDevice() {
+        this(true);
+    }
+    
+    @Override
+    public final void doTick() {
+        tickHandler.run();
+    }
+
+    public final void resetSyncTimer() {
+        nextSync = System.nanoTime() + nanosPerInterval;
+        waitUntil = null;
+        cycleTimer = 0;
+    }
+    
     @Override
     public boolean suspend() {
         disableTempMaxSpeed();
-        boolean result = super.suspend();
-        Thread w = worker;
-        if (w != null && w.isAlive()) {
-            try {
-                w.interrupt();
-                w.join(1000);
-            } catch (InterruptedException ex) {
-            }
-        }
-        worker = null;
-        return result;
+        return super.suspend();
     }
-    public boolean pause() {
-        if (!isRunning()) {
-            return false;
-        }
-        super.setPaused(true);
-        try {
-            // KLUDGE: Sleeping to wait for worker thread to hit paused state.  We might be inside the worker (?)
-            Thread.sleep(10);
-        } catch (InterruptedException ex) {
-        }
-        return true;
-    }
+
 
     @Override
     public void setPaused(boolean paused) {
         if (!isPaused() && paused) {
-            pause();
-        } else {
-            super.setPaused(paused);
+            pauseStart();
+        }
+        super.setPaused(paused);
+        if (!paused) {
+            resetSyncTimer();
         }
     }
-
-    /**
-     * This is used in unit tests where we want the device
-     * to act like it is resumed, but not actual free-running.
-     * This allows tests to step manually to check behaviors, etc.
-     */
-    public void resumeInThread() {
-        super.resume();
-        setPaused(false);
-    }
     
+    protected void pauseStart() {
+        // Override if you need to add a pause behavior
+    }
+
     @Override
     public void resume() {
         super.resume();
         setPaused(false);
-        if (worker != null && worker.isAlive()) {
-            return;
-        }
-        worker = new Thread(() -> {
-            // System.out.println("Worker thread for " + getDeviceName() + " starting");
-            while (isRunning()) {
-                hasStopped = false;
-                doTick();
-                while (isPaused() && isRunning()) {
-                    hasStopped = true;
-                    Thread.onSpinWait();
-                }
-                if (!maxspeed) {
-                    resync();
-                }
-            }
-            hasStopped = true;
-            // System.out.println("Worker thread for " + getDeviceName() + " stopped");
-        });
-        worker.setDaemon(false);
-        worker.setPriority(Thread.MAX_PRIORITY);
-        worker.start();
-        worker.setName("Timed device " + getDeviceName() + " worker");
+        resetSyncTimer();
     }
-    long nanosPerInterval; // How long to wait between pauses
-    long cyclesPerInterval; // How many cycles to wait until a pause interval
-    long nextSync; // When was the last pause?
 
     public final int getSpeedRatio() {
         return speedRatio;
@@ -139,41 +121,41 @@ public abstract class TimedDevice extends Device {
 
     public final void setMaxSpeed(boolean enabled) {
         maxspeed = enabled;
-        if (!enabled) {
-            disableTempMaxSpeed();
-        }
+        // resetSyncTimer();
     }
 
-    public final boolean isMaxSpeed() {
+    public final boolean isMaxSpeedEnabled() {
         return maxspeed;
     }
 
-    public final long getSpeedInHz() {
-        return cyclesPerInterval * 100L;
+    public final boolean isMaxSpeed() {
+        return forceMaxspeed || maxspeed || tempSpeedDuration > 0;
     }
 
-    public final void setSpeedInHz(long cyclesPerSecond) {
-//        System.out.println("Raw set speed for " + getName() + " to " + cyclesPerSecond + "hz");
+    public final long getSpeedInHz() {
+        return cyclesPerSecond;
+    }
+
+    public final void setSpeedInHz(long newSpeed) {
+        // If the speed has actually changed, log it
+        // if (newSpeed != cyclesPerSecond) {
+        //     System.out.println("Raw set speed for " + getName() + " to " + cyclesPerSecond + "hz");
+        // }
+        // Thread.dumpStack();
+        cyclesPerSecond = newSpeed;
         speedRatio = (int) Math.round(cyclesPerSecond * 100.0 / defaultCyclesPerSecond());
-        cyclesPerInterval = cyclesPerSecond / 100L;
+        cyclesPerInterval = cyclesPerSecond / SYNC_FREQ_HZ;
         nanosPerInterval = (long) (cyclesPerInterval * NANOS_PER_SECOND / cyclesPerSecond);
-//        System.out.println("Will pause " + nanosPerInterval + " nanos every " + cyclesPerInterval + " cycles");
-        cycleTimer = 0;
+            //    System.out.println("Will pause " + nanosPerInterval + " nanos every " + cyclesPerInterval + " cycles");
         resetSyncTimer();
     }
 
     public final void setSpeedInPercentage(int ratio) {
-//        System.out.println("Setting " + getName() + " speed ratio to " + speedRatio);
         cyclesPerSecond = defaultCyclesPerSecond() * ratio / 100;
         if (cyclesPerSecond == 0) {
             cyclesPerSecond = defaultCyclesPerSecond();
         }
         setSpeedInHz(cyclesPerSecond);
-    }
-
-    public final void resetSyncTimer() {
-        nextSync = System.nanoTime() + nanosPerInterval;
-        cycleTimer = 0;
     }
 
     public void enableTempMaxSpeed() {
@@ -182,41 +164,48 @@ public abstract class TimedDevice extends Device {
 
     public void disableTempMaxSpeed() {
         tempSpeedDuration = 0;
-        resetSyncTimer();
-    }
-
-    protected void resync() {
-        if (++cycleTimer >= cyclesPerInterval) {
-            if (tempSpeedDuration > 0 || isMaxSpeed()) {
-                tempSpeedDuration -= cyclesPerInterval;
-                resetSyncTimer();
-                return;
-            }
-            long now = System.nanoTime();
-            if (now < nextSync) {
-                cycleTimer = 0;
-                long currentSyncDiff = nextSync - now;
-                // Don't bother resynchronizing unless we're off by 10ms
-                if (currentSyncDiff > 10000000L) {
-                    try {
-//                        System.out.println("Sleeping for " + currentSyncDiff / 1000000 + " milliseconds");
-                        Thread.sleep(currentSyncDiff / 1000000L, (int) (currentSyncDiff % 1000000L));
-                    } catch (InterruptedException ex) {
-                        System.err.println(getDeviceName() + " was trying to sleep for " + (currentSyncDiff / 1000000) + " millis but was woken up");
-//                        Logger.getLogger(TimedDevice.class.getName()).log(Level.SEVERE, null, ex);
-                    }
-                } else {
-//                    System.out.println("Sleeping for " + currentSyncDiff + " nanoseconds");
-//                    LockSupport.parkNanos(currentSyncDiff);
-                }
-            }
-            nextSync += nanosPerInterval;
-        }
+        // resetSyncTimer();
     }
 
     @Override
     public void reconfigure() {
+        // resetSyncTimer();
     }
 
-    public abstract long defaultCyclesPerSecond();
+    public long defaultCyclesPerSecond() {
+        return NTSC_1MHZ;
+    }
+
+    private boolean useParentTiming() {
+        if (getParent() != null && getParent() instanceof TimedDevice) {
+            TimedDevice pd = (TimedDevice) getParent();
+            if (pd.useParentTiming() || (!pd.isMaxSpeed() && pd.getSpeedInHz() <= getSpeedInHz())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    protected Long calculateResyncDelay() {        
+        if (++cycleTimer < cyclesPerInterval) {
+            return null;
+        }
+        cycleTimer = 0;
+        long retVal = nextSync;
+        long currentTime = System.nanoTime();
+        long maxFutureDrift = MAX_TIMER_DELAY_MS * NANOS_PER_MILLISECOND;
+        nextSync = Math.max(nextSync, currentTime) + nanosPerInterval; 
+        // Cap nextSync to prevent excessive drift during max speed periods
+        nextSync = Math.min(nextSync, currentTime + maxFutureDrift);
+        if (isMaxSpeed() || useParentTiming()) {
+            if (tempSpeedDuration > 0) {
+                tempSpeedDuration -= cyclesPerInterval;
+                if (tempSpeedDuration <= 0) {
+                    disableTempMaxSpeed();
+                }
+            }
+            return null;
+        }
+        return retVal;
+    }
 }

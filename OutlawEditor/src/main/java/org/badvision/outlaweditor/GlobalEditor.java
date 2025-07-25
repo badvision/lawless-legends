@@ -99,5 +99,9 @@ public class GlobalEditor extends Editor<Global, Void>{
     public void copyData() {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
-    
+
+    @Override
+    public void copyEntityFrom(Global src) {
+        throw new UnsupportedOperationException("Not supported."); //To change body of generated methods, choose Tools | Templates.
+    }
 }

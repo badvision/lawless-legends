@@ -1,23 +1,22 @@
-/*
- * Copyright (C) 2012 Brendan Robert (BLuRry) brendan.robert@gmail.com.
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA 02110-1301  USA
- */
+/** 
+* Copyright 2024 Brendan Robert
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*    http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+**/
+
 package jace.core;
 
+import jace.Emulator;
 import jace.core.RAMEvent.TYPE;
 
 /**
@@ -39,20 +38,27 @@ public abstract class RAMListener implements RAMEvent.RAMEventHandler, Comparabl
     private int valueStart;
     private int valueEnd;
     private int valueAmount;
+    private String name;
 
     /**
      * Creates a new instance of RAMListener
+     * @param name
      * @param t
      * @param s
      * @param v
      */
-    public RAMListener(RAMEvent.TYPE t, RAMEvent.SCOPE s, RAMEvent.VALUE v) {
+    public RAMListener(String name, RAMEvent.TYPE t, RAMEvent.SCOPE s, RAMEvent.VALUE v) {
+        setName(name);
         setType(t);
         setScope(s);
         setValue(v);
         doConfig();
     }
 
+    public void unregister() {
+        Emulator.withMemory(m -> m.removeListener(this));
+    }
+    
     public RAMEvent.TYPE getType() {
         return type;
     }
@@ -75,6 +81,14 @@ public abstract class RAMListener implements RAMEvent.RAMEventHandler, Comparabl
 
     public final void setValue(RAMEvent.VALUE value) {
         this.value = value;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public int getScopeStart() {
@@ -161,18 +175,36 @@ public abstract class RAMListener implements RAMEvent.RAMEventHandler, Comparabl
 
     @Override
     public int compareTo(RAMListener o) {
-        if (o.scopeStart == scopeStart) {
-            if (o.scopeEnd == scopeEnd) {
-                if (o.type == type) {
-                    return Integer.compare(o.hashCode(), hashCode());
+        if (o.name.equals(name)) {
+           if (o.scopeStart == scopeStart) {
+                if (o.scopeEnd == scopeEnd) {
+                    if (o.type == type) {
+                        // Ignore hash codes -- combination of name, address range and type should identify similar listeners.
+                        return (int) 0;
+                    } else {
+                        return Integer.compare(o.type.ordinal(), type.ordinal());
+                    }
                 } else {
-                    return Integer.compare(o.type.ordinal(), type.ordinal());
+                    return Integer.compare(o.scopeEnd, scopeEnd);
                 }
             } else {
-                return Integer.compare(o.scopeEnd, scopeEnd);
+                return Integer.compare(o.scopeStart, scopeStart);
             }
         } else {
-            return Integer.compare(o.scopeStart, scopeStart);
+            return o.name.compareTo(name);
         }
+    }
+    
+    /**
+     *
+     * @param o
+     * @return
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || ! (o instanceof RAMListener) ) {
+            return false;
+        }
+        return this.compareTo((RAMListener) o) == 0;
     }
 }

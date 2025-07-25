@@ -1,32 +1,24 @@
-/*
- * Copyright (C) 2012 Brendan Robert (BLuRry) brendan.robert@gmail.com.
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA 02110-1301  USA
- */
+/** 
+* Copyright 2024 Brendan Robert
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*    http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+**/
+
 package jace.applesoft;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import jace.Emulator;
@@ -55,23 +47,7 @@ public class ApplesoftProgram {
     public static final int RUNNING_FLAG = 0x076;
     public static final int NOT_RUNNING = 0x0FF;
     public static final int GOTO_CMD = 0x0D944;  //actually starts at D93E
-    int startingAddress = 0x0801;
-
-    public static void main(String... args) {
-        byte[] source = null;
-        try {
-            File f = new File("/home/brobert/Documents/Personal/a2gameserver/lib/data/games/LEMONADE#fc0801");
-            FileInputStream in = new FileInputStream(f);
-            source = new byte[(int) f.length()];
-            in.read(source);
-        } catch (FileNotFoundException ex) {
-            Logger.getLogger(ApplesoftProgram.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (IOException ex) {
-            Logger.getLogger(ApplesoftProgram.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        ApplesoftProgram test = ApplesoftProgram.fromBinary(Arrays.asList(toObjects(source)));
-        System.out.println(test);
-    }
+    public static final int START_ADDRESS = 0x0801;
 
     public static Byte[] toObjects(byte[] bytesPrim) {
         Byte[] bytes = new Byte[bytesPrim.length];
@@ -94,7 +70,7 @@ public class ApplesoftProgram {
     }
 
     public static ApplesoftProgram fromBinary(List<Byte> binary) {
-        return fromBinary(binary, 0x0801);
+        return fromBinary(binary, START_ADDRESS);
     }
 
     public static ApplesoftProgram fromBinary(List<Byte> binary, int startAddress) {
@@ -202,7 +178,7 @@ public class ApplesoftProgram {
      */
     private void whenReady(Runnable r) {
         Emulator.withMemory(memory->{
-            memory.addListener(new RAMListener(RAMEvent.TYPE.EXECUTE, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY) {
+            memory.addListener(new RAMListener("Applesoft: Trap GOTO command", RAMEvent.TYPE.EXECUTE, RAMEvent.SCOPE.ADDRESS, RAMEvent.VALUE.ANY) {
                 @Override
                 protected void doConfig() {
                     setScopeStart(GOTO_CMD);
@@ -235,7 +211,7 @@ public class ApplesoftProgram {
      * Move variables around to accommodate bigger program
      * @param programEnd Program ending address
      */
-    private void relocateVariables(int programEnd) {
+    public void relocateVariables(int programEnd) {
         Emulator.withMemory(memory->{
             int currentEnd = memory.readWordRaw(END_OF_PROG_POINTER);
             memory.writeWord(END_OF_PROG_POINTER, programEnd, false, true);

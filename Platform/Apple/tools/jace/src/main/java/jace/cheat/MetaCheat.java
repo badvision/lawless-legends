@@ -11,14 +11,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.script.Invocable;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-
 import jace.Emulator;
 import jace.LawlessLegends;
 import jace.core.CPU;
-import jace.core.Computer;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
 import jace.state.State;
@@ -34,10 +29,6 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
 public class MetaCheat extends Cheats {
-
-    static final ScriptEngine NASHORN_ENGINE = new ScriptEngineManager().getEngineByName("nashorn");
-    static Invocable NASHORN_INVOCABLE = (Invocable) NASHORN_ENGINE;
-
     public enum SearchType {
         VALUE, TEXT, CHANGE
     }
@@ -73,7 +64,7 @@ public class MetaCheat extends Cheats {
     public int historyLength = 10;
 
     private int startAddress = 0;
-    private int endAddress = 0x0ffff;
+    private int endAddress = 0x0BFFF;
     private final StringProperty startAddressProperty = new SimpleStringProperty(Integer.toHexString(startAddress));
     private final StringProperty endAddressProperty = new SimpleStringProperty(Integer.toHexString(endAddress));
     private boolean byteSized = true;
@@ -86,8 +77,7 @@ public class MetaCheat extends Cheats {
     private final ObservableList<SearchResult> resultList = FXCollections.observableArrayList();
     private final ObservableList<State> snapshotList = FXCollections.observableArrayList();
 
-    public MetaCheat(Computer computer) {
-        super(computer);
+    public MetaCheat() {
         addNumericValidator(startAddressProperty);
         addNumericValidator(endAddressProperty);
         addNumericValidator(searchValueProperty);
@@ -140,24 +130,24 @@ public class MetaCheat extends Cheats {
 
     public void addCheat(DynamicCheat cheat) {
         cheatList.add(cheat);
-        computer.getMemory().addListener(cheat);
+        getMemory().addListener(cheat);
         cheat.addressProperty().addListener((prop, oldVal, newVal) -> {
-            computer.getMemory().removeListener(cheat);
+            getMemory().removeListener(cheat);
             cheat.doConfig();
-            computer.getMemory().addListener(cheat);
+            getMemory().addListener(cheat);
         });
     }
 
     public void removeCheat(DynamicCheat cheat) {
         cheat.active.set(false);
-        computer.getMemory().removeListener(cheat);
+        getMemory().removeListener(cheat);
         cheatList.remove(cheat);
     }
 
     @Override
     protected void unregisterListeners() {
         super.unregisterListeners();
-        cheatList.forEach(computer.getMemory()::removeListener);
+        cheatList.forEach(getMemory()::removeListener);
     }
 
     @Override
@@ -168,7 +158,7 @@ public class MetaCheat extends Cheats {
     @Override
     public void detach() {
         super.detach();
-        ui.detach();
+        LawlessLegends.getApplication().closeMetacheat();
     }
 
     @Override
@@ -258,26 +248,33 @@ public class MetaCheat extends Cheats {
                 int last = result.lastObservedValue;
                 result.lastObservedValue = val;
                 switch (searchType) {
-                    case VALUE:
+                    case VALUE -> {
                         int compare = parseInt(searchValueProperty.get());
                         return compare != val;
-                    case CHANGE:
+                    }
+                    case CHANGE -> {
                         switch (searchChangeType) {
-                            case AMOUNT:
+                            case AMOUNT -> {
                                 int amount = parseInt(searchChangeByProperty().getValue());
                                 return (val - last) != amount;
-                            case GREATER:
+                            }
+                            case GREATER -> {
                                 return val <= last;
-                            case ANY_CHANGE:
+                            }
+                            case ANY_CHANGE -> {
                                 return val == last;
-                            case LESS:
+                            }
+                            case LESS -> {
                                 return val >= last;
-                            case NO_CHANGE:
+                            }
+                            case NO_CHANGE -> {
                                 return val != last;
+                            }
                         }
-                        break;
-                    case TEXT:
-                        break;
+                    }
+
+                    case TEXT -> {
+                    }
                 }
                 return false;
             });
@@ -302,7 +299,7 @@ public class MetaCheat extends Cheats {
                 }
             }
             if (memoryViewListener == null) {
-                memoryViewListener = memory.observe(RAMEvent.TYPE.ANY, startAddress, endAddress, this::processMemoryEvent);
+                memoryViewListener = memory.observe("Metacheat memory viewer", RAMEvent.TYPE.ANY, startAddress, endAddress, this::processMemoryEvent);
                 listeners.add(memoryViewListener);
             }
         });
@@ -313,21 +310,15 @@ public class MetaCheat extends Cheats {
 
     @Override
     public void tick() {
-        computer.cpu.performSingleTrace();
+        Emulator.withComputer(c-> c.getCpu().performSingleTrace());
         if (fadeCounter-- <= 0) {
             fadeCounter = FADE_TIMER_VALUE;
             memoryCells.values().stream()
                     .filter(MemoryCell::hasCounts)
                     .forEach((cell) -> {
-                        if (cell.execCount.get() > 0) {
-                            cell.execCount.set(Math.max(0, cell.execCount.get() - fadeRate));
-                        }
-                        if (cell.readCount.get() > 0) {
-                            cell.readCount.set(Math.max(0, cell.readCount.get() - fadeRate));
-                        }
-                        if (cell.writeCount.get() > 0) {
-                            cell.writeCount.set(Math.max(0, cell.writeCount.get() - fadeRate));
-                        }
+                        cell.execCount.set(Math.max(0, cell.execCount.get() - fadeRate));
+                        cell.readCount.set(Math.max(0, cell.readCount.get() - fadeRate));
+                        cell.writeCount.set(Math.max(0, cell.writeCount.get() - fadeRate));
                         if (MemoryCell.listener != null) {
                             MemoryCell.listener.changed(null, cell, cell);
                         }

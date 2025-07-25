@@ -1,5 +1,6 @@
 package jace.config;
 
+import java.io.IOException;
 import java.util.logging.Level;
 
 // NOTE: This is generated code. Do not edit.
@@ -68,7 +69,7 @@ public class InvokableActionRegistryImpl extends InvokableActionRegistry {
         putStaticAction(annotation.name(), jace.EmulatorUILogic.class, annotation, (b) -> {
             try {
                 jace.EmulatorUILogic.saveScreenshotRaw();
-            } catch (Exception ex) {
+            } catch (IOException ex) {
                 logger.log(Level.SEVERE, "Error invoking jace.EmulatorUILogic.saveScreenshotRaw", ex);
             }
         });
@@ -116,7 +117,7 @@ public class InvokableActionRegistryImpl extends InvokableActionRegistry {
         putStaticAction(annotation.name(), jace.EmulatorUILogic.class, annotation, (b) -> {
             try {
                 jace.EmulatorUILogic.saveScreenshot();
-            } catch (Exception ex) {
+            } catch (IOException ex) {
                 logger.log(Level.SEVERE, "Error invoking jace.EmulatorUILogic.saveScreenshot", ex);
             }
         });
@@ -196,19 +197,11 @@ public class InvokableActionRegistryImpl extends InvokableActionRegistry {
                 logger.log(Level.SEVERE, "Error invoking jace.core.Computer.pause", ex);
                 return false;
             }
-        });
-        annotation = createInvokableAction("Cold boot", "general", "Process startup sequence from power-up", "Full reset;reset emulator", true, false, new String[]{"Ctrl+Shift+Backspace", "Ctrl+Shift+Delete"});
-        putInstanceAction(annotation.name(), jace.core.Computer.class, annotation, (o, b) -> {
+        });        
+        annotation = createInvokableAction("Reset", "general", "Process user-initatiated reboot (ctrl+apple+reset)", "reboot;reset;three-finger-salute;restart", true, false, new String[]{"Ctrl+Ignore Alt+Ignore Meta+Backspace", "Ctrl+Ignore Alt+Ignore Meta+Delete"});
+        putStaticAction(annotation.name(), jace.core.Computer.class, annotation, (b) -> {
             try {
-                ((jace.core.Computer) o).invokeColdStart();
-            } catch (Exception ex) {
-                logger.log(Level.SEVERE, "Error invoking jace.core.Computer.invokeColdStart", ex);
-            }
-        });
-        annotation = createInvokableAction("Warm boot", "general", "Process user-initatiated reboot (ctrl+apple+reset)", "reboot;reset;three-finger-salute;restart", true, false, new String[]{"Ctrl+Ignore Alt+Ignore Meta+Backspace", "Ctrl+Ignore Alt+Ignore Meta+Delete"});
-        putInstanceAction(annotation.name(), jace.core.Computer.class, annotation, (o, b) -> {
-            try {
-                ((jace.core.Computer) o).invokeWarmStart();
+                jace.core.Computer.invokeReset();
             } catch (Exception ex) {
                 logger.log(Level.SEVERE, "Error invoking jace.core.Computer.invokeWarmStart", ex);
             }

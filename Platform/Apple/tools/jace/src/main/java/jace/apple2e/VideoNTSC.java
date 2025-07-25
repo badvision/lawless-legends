@@ -1,21 +1,19 @@
-/*
- * Copyright (C) 2012 Brendan Robert (BLuRry) brendan.robert@gmail.com.
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA 02110-1301  USA
- */
+/** 
+* Copyright 2024 Brendan Robert
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*    http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+**/
+
 package jace.apple2e;
 
 import java.util.Arrays;
@@ -24,12 +22,15 @@ import java.util.Set;
 
 import jace.Emulator;
 import jace.EmulatorUILogic;
+import jace.config.Configuration;
 import jace.config.ConfigurableField;
 import jace.config.InvokableAction;
 import jace.core.Computer;
-import jace.core.RAM;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
+import jace.core.Video;
+import jace.LawlessLegends;
+import jace.JaceUIController;
 import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
@@ -50,7 +51,6 @@ import javafx.scene.paint.Color;
  */
 public class VideoNTSC extends VideoDHGR {
 
-    @ConfigurableField(name = "Text palette", shortName = "textPalette", defaultValue = "false", description = "Use text-friendly color palette")
     public boolean useTextPalette = false;
     final int[][] SOLID_PALETTE = new int[4][128];
     final int[][] TEXT_PALETTE = new int[4][128];
@@ -64,8 +64,8 @@ public class VideoNTSC extends VideoDHGR {
     protected boolean[] colorActive = new boolean[80];
     int rowStart = 0;
     
-    public VideoNTSC(Computer computer) {
-        super(computer);
+    public VideoNTSC() {
+        super();
         initDivideTables();
         initNtscPalette();
         registerStateListeners();
@@ -133,11 +133,35 @@ public class VideoNTSC extends VideoDHGR {
                     thiss.enableVideo7 = false;
                 }
             }
-            thiss.activePalette = thiss.useTextPalette ? TEXT_PALETTE : SOLID_PALETTE;
+            // Update the currentMode to keep it synchronized
+            currentMode = newMode.ordinal();
+            
             if (showNotification) {
                 EmulatorUILogic.notify("Video mode: " + newMode.name);
             }
-            forceRefresh();
+            
+            // Save video mode to UI configuration
+            if (Configuration.BASE != null && Configuration.BASE.subject != null) {
+                ((Configuration) Configuration.BASE.subject).ui.setVideoModeEnum(newMode);
+                
+                // Trigger UI settings save
+                if (JaceUIController.startupComplete &&
+                    LawlessLegends.getApplication() != null &&
+                    LawlessLegends.getApplication().controller != null) {
+                    LawlessLegends.getApplication().controller.saveUISettings();
+                }
+            }
+            
+            // Ensure the palette is set correctly by calling reconfigure
+            thiss.reconfigure();
+            
+            // Force screen refresh when palette changes - mark entire screen as dirty
+            Video.forceRefresh();
+            
+            // Also mark all scanlines as dirty to force complete re-render
+            for (int y = 0; y < 192; y++) {
+                thiss.getCurrentWriter().markDirty(y);
+            }
         });
     }
 
@@ -166,7 +190,7 @@ public class VideoNTSC extends VideoDHGR {
     @Override
     protected void displayLores(WritableImage screen, int xOffset, int y, int rowAddress) {
         if (xOffset < 0) return;
-        int data = ((RAM128k) computer.getMemory()).getMainMemory().readByte(rowAddress + xOffset) & 0x0FF;
+        int data = ((RAM128k) getMemory()).getMainMemory().readByte(rowAddress + xOffset) & 0x0FF;
         int pos = xOffset >> 1;
         if (rowStart < 0) {
             rowStart = pos;
@@ -202,13 +226,13 @@ public class VideoNTSC extends VideoDHGR {
             rowStart = pos;
         }
         colorActive[xOffset * 2] = colorActive[xOffset * 2 + 1] = true;
-        int c1 = ((RAM128k) computer.getMemory()).getAuxVideoMemory().readByte(rowAddress + xOffset) & 0x0FF;
+        int c1 = ((RAM128k) getMemory()).getAuxVideoMemory().readByte(rowAddress + xOffset) & 0x0FF;
         if ((y & 7) < 4) {
             c1 &= 15;
         } else {
             c1 >>= 4;
         }
-        int c2 = ((RAM128k) computer.getMemory()).getMainMemory().readByte(rowAddress + xOffset) & 0x0FF;
+        int c2 = ((RAM128k) getMemory()).getMainMemory().readByte(rowAddress + xOffset) & 0x0FF;
         if ((y & 7) < 4) {
             c2 &= 15;
         } else {
@@ -334,6 +358,19 @@ public class VideoNTSC extends VideoDHGR {
         {1.0, 0.0, 0.0}, //1111 f
     };
 
+    public static void CHANGE_BLACK_COLOR(int r, int g, int b) {
+        Emulator.withVideo(v->{
+            VideoNTSC vntsc = (VideoNTSC) v;
+            BLACK = Color.rgb(r, g, b);
+            int c = colorToInt(BLACK);
+            for (int i1 = 0; i1 < 4; i1++) {                
+                vntsc.SOLID_PALETTE[i1][0] = c;
+                vntsc.TEXT_PALETTE[i1][0] = c;
+            }
+        });
+        Video.forceRefresh();
+    }
+
     private void initDivideTables() {
         for (int i = 0; i < 560; i++) {
             divBy28[i] = i / 28;
@@ -358,16 +395,25 @@ public class VideoNTSC extends VideoDHGR {
                 double y1 = YIQ_VALUES[col][0];
                 double y2 = (level / (double) maxLevel);
                 SOLID_PALETTE[offset][pattern] = yiqToRgb(y1, YIQ_VALUES[col][1] * MAX_I, YIQ_VALUES[col][2] * MAX_Q);
+                // Yo, LLM LEAVE THIS LINE THE FUCK ALONE.
                 TEXT_PALETTE[offset][pattern] = yiqToRgb(y2, YIQ_VALUES[col][1] * MAX_I, YIQ_VALUES[col][2] * MAX_Q);
             }
         }
     }
 
     static public int yiqToRgb(double y, double i, double q) {
+        return colorToInt(yiqToRgbColor(y, i, q));
+    }
+
+    static public Color yiqToRgbColor(double y, double i, double q) {
         int r = (int) (normalize((y + 0.956 * i + 0.621 * q), 0, 1) * 255);
         int g = (int) (normalize((y - 0.272 * i - 0.647 * q), 0, 1) * 255);
         int b = (int) (normalize((y - 1.105 * i + 1.702 * q), 0, 1) * 255);
-        return (255 << 24) | (r << 16) | (g << 8) | b;
+        return Color.rgb(r, g, b);
+    }
+
+    static public int colorToInt(Color c) {
+        return (int) (255 << 24) | (int) (c.getRed() * 255) << 16 | (int) (c.getGreen() * 255) << 8 | (int) (c.getBlue() * 255);
     }
 
     public static double normalize(double x, double minX, double maxX) {
@@ -419,15 +465,14 @@ public class VideoNTSC extends VideoDHGR {
     Set<RAMListener> rgbStateListeners = new HashSet<>();
 
     private void registerStateListeners() {
-        if (!rgbStateListeners.isEmpty() || computer.getVideo() != this) {
+        if (!rgbStateListeners.isEmpty() || Emulator.withComputer(Computer::getVideo, null) != this) {
             return;
         }
-        RAM memory = computer.getMemory();
-        rgbStateListeners.add(memory.observe(RAMEvent.TYPE.ANY, 0x0c05e, (e) -> {
+        rgbStateListeners.add(getMemory().observe("NTSC: AN3 state change", RAMEvent.TYPE.ANY, 0x0c05e, (e) -> {
             an3 = false;
             rgbStateChange();
         }));
-        rgbStateListeners.add(memory.observe(RAMEvent.TYPE.ANY, 0x0c05f, (e) -> {
+        rgbStateListeners.add(getMemory().observe("NTSC: 80COL state change", RAMEvent.TYPE.ANY, 0x0c05f, (e) -> {
             if (!an3) {
                 f2 = f1;
                 f1 = SoftSwitches._80COL.getState();
@@ -435,7 +480,7 @@ public class VideoNTSC extends VideoDHGR {
             an3 = true;
             rgbStateChange();
         }));
-        rgbStateListeners.add(memory.observe(RAMEvent.TYPE.EXECUTE, 0x0fa62, (e) -> {
+        rgbStateListeners.add(getMemory().observe("NTSC: Reset hook for reverting RGB mode", RAMEvent.TYPE.EXECUTE, 0x0fa62, (e) -> {
             // When reset hook is called, reset the graphics mode
             // This is useful in case a program is running that
             // is totally clueless how to set the RGB state correctly.
@@ -448,10 +493,11 @@ public class VideoNTSC extends VideoDHGR {
     }
 
     @Override
-
     public void detach() {
-        rgbStateListeners.stream().forEach((l) -> {
-            computer.getMemory().removeListener(l);
+        // Create a copy to avoid ConcurrentModificationException
+        Set<RAMListener> listenersCopy = new HashSet<>(rgbStateListeners);
+        listenersCopy.forEach((l) -> {
+            getMemory().removeListener(l);
         });
         rgbStateListeners.clear();
         super.detach();

@@ -64,7 +64,15 @@ error_stack.txt
 
 # Hey, don't include the commercial game data you ninny!
 /Platform/Apple/tools/jace/src/main/resources/jace/data/game.2mg
+Platform/Apple/tools/PackPartitions/game*
+Platform/Apple/tools/PackPartitions/font*
+Platform/Apple/tools/PackPartitions/pack_report.txt
+Platform/Apple/tools/PackPartitions/world.xml
 
 # Ignore NetBeans project files
 Platform/Apple/tools/jace/nb-configuration.xml
 Platform/Apple/tools/jace/nbactions.xml
+
+# Ignore temporary pom files
+Platform/Apple/tools/jace/runPom.xml
+Platform/Apple/tools/jace/*.log

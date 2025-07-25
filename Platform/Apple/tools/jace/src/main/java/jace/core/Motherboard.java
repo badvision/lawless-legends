@@ -1,25 +1,24 @@
-/*
- * Copyright (C) 2012 Brendan Robert (BLuRry) brendan.robert@gmail.com.
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA 02110-1301  USA
- */
+/** 
+* Copyright 2024 Brendan Robert
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*    http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+**/
+
 package jace.core;
 
 import java.util.HashSet;
 
+import jace.Emulator;
 import jace.apple2e.SoftSwitches;
 import jace.apple2e.Speaker;
 import jace.config.ConfigurableField;
@@ -34,7 +33,7 @@ import jace.config.ConfigurableField;
  *
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com
  */
-public class Motherboard extends TimedDevice {
+public class Motherboard extends IndependentTimedDevice {
 
     @ConfigurableField(name = "Enable Speaker", shortName = "speaker", defaultValue = "true")
     public static boolean enableSpeaker = true;
@@ -42,12 +41,12 @@ public class Motherboard extends TimedDevice {
 
     void vblankEnd() {
         SoftSwitches.VBL.getSwitch().setState(true);
-        computer.notifyVBLStateChanged(true);
+        Emulator.withComputer(c->c.notifyVBLStateChanged(true));
     }
 
     void vblankStart() {
         SoftSwitches.VBL.getSwitch().setState(false);
-        computer.notifyVBLStateChanged(false);
+        Emulator.withComputer(c->c.notifyVBLStateChanged(false));
     }
 
     /**
@@ -55,8 +54,8 @@ public class Motherboard extends TimedDevice {
      * @param computer
      * @param oldMotherboard
      */
-    public Motherboard(Computer computer, Motherboard oldMotherboard) {
-        super(computer);
+    public Motherboard(Motherboard oldMotherboard) {
+        super();
         if (oldMotherboard != null) {
             addAllDevices(oldMotherboard.getChildren());
             speaker = oldMotherboard.speaker;
@@ -75,72 +74,43 @@ public class Motherboard extends TimedDevice {
     public String getShortName() {
         return "mb";
     }
-    @ConfigurableField(category = "advanced", shortName = "cpuPerClock", name = "CPU per clock", defaultValue = "1", description = "Number of extra CPU cycles per clock cycle (normal = 1)")
-    public static int cpuPerClock = 0;
-    public int clockCounter = 1;
+
+    private CPU _cpu = null;
+    public CPU getCpu() {
+        if (_cpu == null) {
+            _cpu = Emulator.withComputer(Computer::getCpu, null);
+        }
+        return _cpu;
+    }
 
     @Override
     public void tick() {
-        // Extra CPU cycles requested, other devices are called by the TimedDevice abstraction
-        for (int i=1; i < cpuPerClock; i++) {
-            computer.getCpu().doTick();
-            if (Speaker.force1mhz) {
-                speaker.tick();
-            }
-        }
-        /*
-        try {
-            clockCounter--;
-            computer.getCpu().doTick();
-            if (clockCounter > 0) {
-                return;
-            }
-            clockCounter = cpuPerClock;
-            computer.getVideo().doTick();
-            Optional<Card>[] cards = computer.getMemory().getAllCards();
-            for (Optional<Card> card : cards) {
-                card.ifPresent(Card::doTick);
-            }
-        } catch (Throwable t) {
-            System.out.print("!");
-            Logger.getLogger(getClass().getName()).log(Level.SEVERE, null, t);
-        }
-*/
-    }
-    // From the holy word of Sather 3:5 (Table 3.1) :-)
-    // This average speed averages in the "long" cycles
-    public static final long DEFAULT_SPEED = 1020484L; // (NTSC)
-    //public static long SPEED = 1015625L; // (PAL)
-
-    @Override
-    public long defaultCyclesPerSecond() {
-        return DEFAULT_SPEED;
     }
 
     @Override
     public synchronized void reconfigure() {
-        whileSuspended(() -> {
-            accelorationRequestors.clear();
-            super.reconfigure();
+        _cpu = null;
+        accelorationRequestors.clear();
+        disableTempMaxSpeed();
+        super.reconfigure();
 
-            // Now create devices as needed, e.g. sound
+        // Now create devices as needed, e.g. sound
 
-            if (enableSpeaker) {
-                try {
-                    if (speaker == null) {
-                        speaker = new Speaker(computer);
-                        speaker.attach();
-                    }
-                    speaker.reconfigure();
-                    addChildDevice(speaker);
-                } catch (Throwable t) {
-                    System.out.println("Unable to initalize sound -- deactivating speaker out");
+        if (enableSpeaker) {
+            try {
+                if (speaker == null) {
+                    speaker = new Speaker();
+                    speaker.attach();
                 }
-            } else {
-                System.out.println("Speaker not enabled, leaving it off.");
+                speaker.reconfigure();
+                addChildDevice(speaker);
+            } catch (Throwable t) {
+                System.out.println("Unable to initalize sound -- deactivating speaker out");
+                t.printStackTrace();
             }
-        });
-        adjustRelativeSpeeds();
+        } else {
+            System.out.println("Speaker not enabled, leaving it off.");
+        }
     }
     HashSet<Object> accelorationRequestors = new HashSet<>();
 
@@ -150,21 +120,8 @@ public class Motherboard extends TimedDevice {
     }
 
     public void cancelSpeedRequest(Object requester) {
-        accelorationRequestors.remove(requester);
-        if (accelorationRequestors.isEmpty()) {
+        if (accelorationRequestors.remove(requester) && accelorationRequestors.isEmpty()) {
             disableTempMaxSpeed();
-        }
-    }
-    
-    void adjustRelativeSpeeds() {
-        if (computer.getVideo() != null) {
-            if (isMaxSpeed()) {
-                computer.getVideo().setWaitPerCycle(8);
-            } else if (getSpeedInHz() > DEFAULT_SPEED) {
-                computer.getVideo().setWaitPerCycle(getSpeedInHz() / DEFAULT_SPEED);
-            } else {
-                computer.getVideo().setWaitPerCycle(0);            
-            }
         }
     }
 }

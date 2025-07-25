@@ -1,21 +1,19 @@
-/*
- * Copyright (C) 2012 Brendan Robert (BLuRry) brendan.robert@gmail.com.
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA 02110-1301  USA
- */
+/** 
+* Copyright 2024 Brendan Robert
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*    http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+**/
+
 package jace;
 
 import java.util.LinkedHashMap;
@@ -35,7 +33,7 @@ import jace.lawless.LawlessComputer;
 public class Emulator {
 
     public static Emulator instance;
-    public static EmulatorUILogic logic = new EmulatorUILogic();
+    private static EmulatorUILogic logic;
     public static Thread mainThread;
 
 //    public static void main(String... args) {
@@ -44,6 +42,13 @@ public class Emulator {
 //    }
 
     private final LawlessComputer computer;
+
+    public static EmulatorUILogic getUILogic() {
+        if (logic == null) {
+            logic = new EmulatorUILogic();
+        }
+        return logic;
+    }
     
     public static Emulator getInstance(List<String> args) {
         Emulator i = getInstance();
@@ -102,15 +107,23 @@ public class Emulator {
     }
 
     public static void withMemory(Consumer<RAM> m) {
-        withComputer(c->{
+        Emulator.withMemory(mem-> {
+            m.accept(mem);
+            return null;
+        }, null);
+    }
+
+    public static <T> T withMemory(Function<RAM, T> m, T defaultValue) {
+        return withComputer(c->{
             RAM memory = c.getMemory();
             if (memory != null) {
-                m.accept(memory);
+                return m.apply(memory);
             } else {
                 System.err.println("No memory available!");
                 Thread.dumpStack();
+                return defaultValue;
             }
-        });
+        }, defaultValue);
     }
 
     public static void withVideo(Consumer<jace.core.Video> v) {
@@ -132,8 +145,8 @@ public class Emulator {
         instance = this;
         computer = new LawlessComputer();
         Configuration.buildTree();
-        computer.getMotherboard().suspend();
         Configuration.loadSettings();
+        Configuration.applySettings(Configuration.BASE);
         mainThread = Thread.currentThread();
 //        EmulatorUILogic.registerDebugger();
 //        computer.coldStart();

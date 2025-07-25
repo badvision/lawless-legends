@@ -9,17 +9,13 @@
  */
 package org.badvision.outlaweditor.ui.impl;
 
+import static org.badvision.outlaweditor.ui.UIAction.editScript;
+
 import java.beans.IntrospectionException;
 import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javafx.application.Platform;
-import javafx.event.ActionEvent;
-import javafx.scene.control.ListCell;
-import javafx.scene.control.Tooltip;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
-import javax.xml.bind.JAXBException;
+
 import org.badvision.outlaweditor.TransferHelper;
 import org.badvision.outlaweditor.api.ApplicationState;
 import org.badvision.outlaweditor.data.DataUtilities;
@@ -29,7 +25,14 @@ import org.badvision.outlaweditor.data.xml.UserType;
 import org.badvision.outlaweditor.data.xml.Variable;
 import org.badvision.outlaweditor.ui.GlobalEditorTabController;
 import org.badvision.outlaweditor.ui.UIAction;
-import static org.badvision.outlaweditor.ui.UIAction.editScript;
+
+import jakarta.xml.bind.JAXBException;
+import javafx.application.Platform;
+import javafx.event.ActionEvent;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.Tooltip;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 
 public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
 
@@ -53,6 +56,7 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
 
             @Override
             public void startEdit() {
+                Platform.runLater(()->variableList.getSelectionModel().clearSelection());
                 UIAction.editVariable(getItem(), ApplicationState.getInstance().getGameData().getGlobal());
                 cancelEdit();
                 updateItem(getItem(), false);
@@ -72,6 +76,7 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
 
             @Override
             public void startEdit() {
+                Platform.runLater(()->globalScriptList.getSelectionModel().clearSelection());
                 UIAction.editScript(getItem(), ApplicationState.getInstance().getGameData().getGlobal());
                 cancelEdit();
                 updateItem(getItem(), false);
@@ -94,6 +99,7 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
 
             @Override
             public void startEdit() {
+                Platform.runLater(()->dataTypeList.getSelectionModel().clearSelection());
                 UIAction.editUserType(getItem());
                 cancelEdit();
                 updateItem(getItem(), false);

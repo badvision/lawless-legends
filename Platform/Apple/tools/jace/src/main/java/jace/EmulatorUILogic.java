@@ -1,22 +1,22 @@
-/**
- * Copyright (C) 2012 Brendan Robert (BLuRry) brendan.robert@gmail.com.
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA 02110-1301  USA
- */
+/** 
+* Copyright 2024 Brendan Robert
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*    http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+**/
+
 package jace;
+
+import static jace.core.Utility.gripe;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -29,7 +29,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -37,6 +36,8 @@ import java.util.logging.Logger;
 import jace.apple2e.MOS65C02;
 import jace.apple2e.RAM128k;
 import jace.apple2e.SoftSwitches;
+import jace.apple2e.VideoNTSC;
+import jace.config.Configuration;
 import jace.config.ConfigurableField;
 import jace.config.ConfigurationUIController;
 import jace.config.InvokableAction;
@@ -44,7 +45,7 @@ import jace.config.Reconfigurable;
 import jace.core.Debugger;
 import jace.core.RAM;
 import jace.core.RAMListener;
-import static jace.core.Utility.gripe;
+import jace.core.Utility;
 import jace.ide.IdeController;
 import javafx.application.Platform;
 import javafx.event.EventHandler;
@@ -56,6 +57,8 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+
+import static jace.lawless.LawlessHacks.SCORE_ORCHESTRAL;
 
 /**
  * This class contains miscellaneous user-invoked actions such as debugger
@@ -82,15 +85,82 @@ public class EmulatorUILogic implements Reconfigurable {
     
     @ConfigurableField(
             category = "General",
-            name = "Speed Setting"
-    )
-    public int speedSetting = 3;
-
-    @ConfigurableField(
-            category = "General",
             name = "Show Drives"
     )
-    public boolean showDrives = false;
+    public boolean showDrives = Emulator.withComputer(c->!c.PRODUCTION_MODE, false);
+
+    // UI Configuration fields for persistent settings
+    @ConfigurableField(
+        category = "UI", 
+        name = "Window Width", 
+        description = "Width of the main window",
+        defaultValue = "1120"
+    )
+    public int windowWidth = 1120;
+
+    @ConfigurableField(
+        category = "UI", 
+        name = "Window Height", 
+        description = "Height of the main window",
+        defaultValue = "768"
+    )
+    public int windowHeight = 768;
+
+    @ConfigurableField(
+        category = "UI", 
+        name = "Window Size Index", 
+        description = "Current window size index (0=1x, 1=1.5x, 2=2x, 3=3x)",
+        defaultValue = "2"
+    )
+    public int windowSizeIndex = 2;
+
+    @ConfigurableField(
+        category = "UI", 
+        name = "Fullscreen", 
+        description = "Whether the window is in fullscreen mode",
+        defaultValue = "false"
+    )
+    public boolean fullscreen = false;
+
+    @ConfigurableField(
+        category = "UI", 
+        name = "Video Mode", 
+        description = "Current video rendering mode",
+        defaultValue = "Color"
+    )
+    public String videoMode = "Color";
+
+    @ConfigurableField(
+        category = "UI", 
+        name = "Music Volume", 
+        description = "Music volume level (0.0 to 1.0)",
+        defaultValue = "0.5"
+    )
+    public double musicVolume = 0.5;
+
+    @ConfigurableField(
+        category = "UI", 
+        name = "SFX Volume", 
+        description = "Sound effects volume level (0.0 to 1.0)",
+        defaultValue = "0.5"
+    )
+    public double sfxVolume = 0.5;
+
+    @ConfigurableField(
+        category = "UI", 
+        name = "Soundtrack Selection", 
+        description = "Currently selected soundtrack",
+        defaultValue = SCORE_ORCHESTRAL
+    )
+    public String soundtrackSelection = SCORE_ORCHESTRAL;
+
+    @ConfigurableField(
+        category = "UI", 
+        name = "Aspect Ratio Correction", 
+        description = "Whether aspect ratio correction is enabled",
+        defaultValue = "false"
+    )
+    public boolean aspectRatioCorrection = false;
 
     public static void updateCPURegisters(MOS65C02 cpu) {
 //        DebuggerPanel debuggerPanel = Emulator.getFrame().getDebuggerPanel();
@@ -233,10 +303,6 @@ public class EmulatorUILogic implements Reconfigurable {
     }
 
     public static void brun(File binary, int address) throws IOException {
-        // If it was halted already, then it was initiated outside of an opcode execution
-        // If it was not yet halted, then it is the case that the CPU is processing another opcode
-        // So if that is the case, the program counter will need to be decremented here to compensate
-        // TODO: Find a better mousetrap for this one -- it's an ugly hack
         byte[] data;
         try (FileInputStream in = new FileInputStream(binary)) {
             data = new byte[in.available()];
@@ -345,7 +411,7 @@ public class EmulatorUILogic implements Reconfigurable {
         }
         String filename = targetFile.getName();
         System.out.println("Writing screenshot to " + filename);
-        String extension = filename.substring(filename.lastIndexOf(".") + 1);
+        // String extension = filename.substring(filename.lastIndexOf(".") + 1);
 //        BufferedImage bufImageRGB = new BufferedImage(bufImageARGB.getWidth(), bufImageARGB.getHeight(), BufferedImage.OPAQUE);
 //
 //        Graphics2D graphics = bufImageRGB.createGraphics();
@@ -401,7 +467,7 @@ public class EmulatorUILogic implements Reconfigurable {
         }
     }
 
-    static int size = -1;
+    public static int size = -1;
 
     @InvokableAction(
             name = "Resize window",
@@ -455,6 +521,13 @@ public class EmulatorUILogic implements Reconfigurable {
                 double hgap = stage.getScene().getX();
                 stage.setWidth(hgap * 2 + width);
                 stage.setHeight(vgap + height);
+                
+                // Save the window size index to UI configuration
+                if (LawlessLegends.getApplication() != null && 
+                    LawlessLegends.getApplication().controller != null) {
+                    ((Configuration) Configuration.BASE.subject).ui.windowSizeIndex = size;
+                    LawlessLegends.getApplication().controller.saveUISettings();
+                }
             }
         });
     }
@@ -466,7 +539,26 @@ public class EmulatorUILogic implements Reconfigurable {
             alternatives = "info;credits",
             defaultKeyMapping = {"ctrl+shift+."})
     public static void showAboutWindow() {
-        //TODO: Implement
+        FXMLLoader fxmlLoader = new FXMLLoader(EmulatorUILogic.class.getResource("/fxml/About.fxml"));
+        fxmlLoader.setResources(null);
+        try {
+            Stage aboutWindow = new Stage();
+            AnchorPane node = fxmlLoader.load();
+            AboutController controller = fxmlLoader.getController();
+            Scene s = new Scene(node);
+            aboutWindow.setScene(s);
+            aboutWindow.setTitle("About Lawless Legends");
+            aboutWindow.setResizable(false);
+            
+            // Set application icon on the about window
+            Utility.loadIcon("game_icon.png").ifPresent(icon -> {
+                aboutWindow.getIcons().add(icon);
+            });
+            
+            aboutWindow.show();
+        } catch (IOException exception) {
+            throw new RuntimeException(exception);
+        }
     }    
 
     public static boolean confirm(String message) {
@@ -569,8 +661,23 @@ public class EmulatorUILogic implements Reconfigurable {
 
     @Override
     public void reconfigure() {
-        // Null-safe so there are no errors in unit tests
-        Optional.ofNullable(LawlessLegends.getApplication())
-                .ifPresent(app->app.controller.setSpeed(speedSetting));
+    }
+
+    /**
+     * Get the video mode enum value from the string
+     */
+    public VideoNTSC.VideoMode getVideoModeEnum() {
+        try {
+            return VideoNTSC.VideoMode.valueOf(videoMode);
+        } catch (IllegalArgumentException e) {
+            return VideoNTSC.VideoMode.Color; // Default fallback
+        }
+    }
+
+    /**
+     * Set the video mode from enum value
+     */
+    public void setVideoModeEnum(VideoNTSC.VideoMode mode) {
+        this.videoMode = mode.name();
     }
 }

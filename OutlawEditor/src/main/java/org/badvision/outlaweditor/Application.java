@@ -10,54 +10,59 @@
 package org.badvision.outlaweditor;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
+import org.badvision.outlaweditor.api.ApplicationState;
+import org.badvision.outlaweditor.api.Platform;
+import org.badvision.outlaweditor.data.xml.GameData;
+import org.badvision.outlaweditor.ui.ApplicationUIController;
+
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.layout.AnchorPane;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
-import org.apache.felix.framework.Felix;
-import org.apache.felix.framework.util.FelixConstants;
-import org.apache.felix.main.AutoProcessor;
-import org.apache.felix.scr.annotations.Component;
-import org.apache.felix.scr.annotations.Service;
-import org.apache.felix.scr.impl.Activator;
-import org.badvision.outlaweditor.api.ApplicationState;
-import org.badvision.outlaweditor.api.MenuAction;
-import org.badvision.outlaweditor.api.Platform;
-import org.badvision.outlaweditor.data.xml.GameData;
-import org.badvision.outlaweditor.ui.ApplicationUIController;
-import org.osgi.framework.BundleActivator;
-import org.osgi.framework.BundleContext;
-import org.osgi.framework.BundleException;
-import org.osgi.framework.launch.Framework;
-import org.osgi.util.tracker.ServiceTracker;
+// import org.apache.felix.scr.annotations.Component;
+// import org.apache.felix.scr.annotations.Service;
+// import org.apache.felix.scr.impl.Activator;
+// import org.badvision.outlaweditor.api.ApplicationState;
+// import org.badvision.outlaweditor.api.MenuAction;
+// import org.badvision.outlaweditor.api.Platform;
+// import org.badvision.outlaweditor.data.xml.GameData;
+// import org.badvision.outlaweditor.ui.ApplicationUIController;
+// import org.apache.felix.framework.Felix;
+// import org.apache.felix.framework.util.FelixConstants;
+// import org.apache.felix.main.AutoProcessor;
+// import org.osgi.framework.BundleActivator;
+// import org.osgi.framework.BundleContext;
+// import org.osgi.framework.BundleException;
+// import org.osgi.framework.launch.Framework;
+// import org.osgi.util.tracker.ServiceTracker;
 
 /**
  *
  * @author brobert
  */
-@Component
-@Service(org.badvision.outlaweditor.api.ApplicationState.class)
-public class Application extends javafx.application.Application implements ApplicationState, BundleActivator {
+// @Component
+// @Service(org.badvision.outlaweditor.api.ApplicationState.class)
+public class Application extends javafx.application.Application implements ApplicationState/*, BundleActivator*/ {
 
-    public static Framework felix;
+    // public static Framework felix;
     private GameData gameData = new GameData();
     private Platform currentPlatform = Platform.AppleII;
     private ApplicationUIController controller;
     private Stage primaryStage;
 
     public static void shutdown() {
+        /*
         try {
             felix.stop();
             felix.waitForStop(0L);
         } catch (BundleException | InterruptedException ex) {
             Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
         }
+        */
     }
+    public static ApplicationState applicationStateSingleton;
 
     @Override
     public GameData getGameData() {
@@ -96,16 +101,17 @@ public class Application extends javafx.application.Application implements Appli
 
     @Override
     public void start(Stage primaryStage) {
+        applicationStateSingleton = this;
         this.primaryStage = primaryStage;
         javafx.application.Platform.setImplicitExit(true);
-
+/*
         try {
             startPluginContainer();
         } catch (Exception ex) {
             Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
             throw new RuntimeException(ex);
         }
-        
+*/      
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/ApplicationUI.fxml"));
         fxmlLoader.setResources(null);
         try {
@@ -135,6 +141,7 @@ public class Application extends javafx.application.Application implements Appli
         launch(args);
     }
 
+/*
     ServiceTracker tracker;
     private void startPluginContainer() throws BundleException, Exception {
         Map<String, String> config = new HashMap<>();
@@ -175,4 +182,5 @@ public class Application extends javafx.application.Application implements Appli
     @Override
     public void stop(BundleContext bc) throws Exception {
     }
+*/    
 }

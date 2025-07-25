@@ -15,6 +15,11 @@ To Build:
 
 * See [build.sh](build.sh)
 
+Version Management:
+
+* The application version is stored in [version.properties](version.properties) at the project root
+* To update the version, edit this file (see [README-DEVELOPERS.md](README-DEVELOPERS.md) for details)
+
 Jace is a java-based Apple //e emulator with many compelling features:
 * NEW: Built-in IDE for writing basic and assembly programs, using ACME to compile and execute directly without leaving the emulator.
 * Disk and Mass-storage (hard drive, 3.5 floppy) images

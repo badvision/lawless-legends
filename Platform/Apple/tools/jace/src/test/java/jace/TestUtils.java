@@ -36,52 +36,48 @@ public class TestUtils {
         Emulator.withComputer(Computer::reconfigure);
     }
 
-    public static void assemble(String code, int addr) {
+    public static void assemble(String code, int addr) throws Exception {
         runAssemblyCode(code, addr, 0);
     }
     
-    public static void runAssemblyCode(String code, int ticks) {
-        runAssemblyCode(code, 0x0300, ticks);
+    public static void runAssemblyCode(String code, int ticks) throws Exception {
+        runAssemblyCode(code, 0x6000, ticks);
     }
     
-    public static void runAssemblyCode(String code, int addr, int ticks) {
-        Emulator.withComputer(computer -> {
-            CPU cpu = computer.getCpu();
-            cpu.trace = true;
-            HeadlessProgram program = new HeadlessProgram(Program.DocumentType.assembly);
-            program.setValue("*=$"+Integer.toHexString(addr)+"\n "+code+"\n NOP\n RTS");
-            program.execute();
-            if (ticks > 0) {
-                cpu.resume();
-                for (int i=0; i < ticks; i++) {
-                    cpu.doTick();
-                }
-                cpu.suspend();
+    public static void runAssemblyCode(String code, int addr, int ticks) throws Exception {
+        CPU cpu = Emulator.withComputer(c->c.getCpu(), null);
+        HeadlessProgram program = new HeadlessProgram(Program.DocumentType.assembly);
+        program.setValue("*=$"+Integer.toHexString(addr)+"\n "+code+"\n NOP\n RTS");
+        program.execute();
+        if (ticks > 0) {                
+            cpu.resume();
+            for (int i=0; i < ticks; i++) {
+                cpu.doTick();
             }
-        });
+            cpu.suspend();
+        }
     }
 
     public static Device createSimpleDevice(Runnable r, String name) {
-        return Emulator.withComputer(computer -> 
-            new Device(computer) {
-                @Override
-                public void tick() {
-                    r.run();
-                }
-                
-                @Override
-                public String getShortName() {
-                    return name;
-                }
-                
-                @Override
-                public void reconfigure() {
-                }
-                
-                @Override
-                protected String getDeviceName() {
-                    return name;
-                }
-            }, null);
+        return new Device() {
+            @Override
+            public void tick() {
+                r.run();
+            }
+            
+            @Override
+            public String getShortName() {
+                return name;
+            }
+            
+            @Override
+            public void reconfigure() {
+            }
+            
+            @Override
+            protected String getDeviceName() {
+                return name;
+            }
+        };
     }
 }

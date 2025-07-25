@@ -5,17 +5,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import jace.apple2e.MOS65C02;
 import jace.apple2e.RAM128k;
-import jace.apple2e.SoftSwitches;
 import jace.apple2e.VideoNTSC;
-import jace.cheat.Cheats.Cheat;
 import jace.config.Configuration;
 import jace.core.Computer;
 import jace.core.RAMEvent;
 import jace.core.RAMListener;
 import jace.core.Utility;
 import jace.hardware.Cards;
-import jace.hardware.VideoImpls;
 import jace.lawless.LawlessComputer;
 import jace.lawless.LawlessImageTool;
 import jace.ui.MetacheatUI;
@@ -40,7 +38,8 @@ public class LawlessLegends extends Application {
     public Stage primaryStage;
     public JaceUIController controller;
 
-    static boolean romStarted = false;
+    static AtomicBoolean romStarted = new AtomicBoolean(false);
+    int watchdogDelay = 500;
 
     @Override
     public void start(Stage stage) throws Exception {
@@ -64,12 +63,30 @@ public class LawlessLegends extends Application {
         }
 
         primaryStage.show();
-        Platform.runLater(() -> new Thread(() -> {
+        new Thread(() -> {
             Emulator.getInstance(getParameters().getRaw());
-            Emulator.withComputer(c->((LawlessComputer)c).initLawlessLegendsConfiguration());
+            Emulator.withComputer(c-> {
+                ((LawlessComputer)c).initLawlessLegendsConfiguration();
+                if (c.PRODUCTION_MODE) {
+                    watchdogDelay = 7000;
+                }
+            });
+            // Initialize base configuration structure without reading current field values
+            // Configuration load message removed for cleaner logs
+            
             configureEmulatorForGame();
             reconnectUIHooks();
-            EmulatorUILogic.scaleIntegerRatio();
+            // Delay UI settings loading to ensure configuration system is fully ready
+            Platform.runLater(() -> {
+                Platform.runLater(() -> {
+                    if (controller != null) {
+                        controller.loadUISettings();
+                    }
+                    // Restore UI settings AFTER configureEmulatorForGame to avoid being overridden
+                    restoreUISettings();
+                });
+            });
+            // Don't call scaleIntegerRatio() here - it will override our restored window size
             AtomicBoolean waitingForVideo = new AtomicBoolean(true);
             while (waitingForVideo.get()) {
                 Emulator.withVideo(v -> {
@@ -80,16 +97,65 @@ public class LawlessLegends extends Application {
                 Thread.onSpinWait();
             }
             bootWatchdog();
-        }).start());
+        }).start();
         primaryStage.setOnCloseRequest(event -> {
+            // Save UI settings before closing
+            if (controller != null) {
+                controller.saveUISettings();
+                controller.shutdown();
+            }
             Emulator.withComputer(Computer::deactivate);
             Platform.exit();
             System.exit(0);
         });
+
+        // Ensure UI settings are persisted even if the window is closed via SIGTERM or pkill
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            if (controller != null) {
+                controller.saveUISettings();
+                controller.shutdown();
+            }
+        }));
     }
 
     public void reconnectUIHooks() {
         controller.connectComputer(primaryStage);
+    }
+    
+    private void restoreUISettings() {
+        Platform.runLater(() -> {
+            if (controller != null && controller.getUIConfiguration() != null) {
+                controller.beginProgrammaticUpdate();
+                EmulatorUILogic uiConfig = controller.getUIConfiguration();
+                
+                // Debug output removed
+                
+                // Restore video mode
+                Emulator.withVideo(v -> {
+                    if (v instanceof VideoNTSC) {
+                        VideoNTSC.setVideoMode(uiConfig.getVideoModeEnum(), false);
+                        // Debug output removed
+                    }
+                });
+                
+                // Restore window size index for the resize function
+                // Note: scaleIntegerRatio() increments size first, so we set it to one less
+                EmulatorUILogic.size = uiConfig.windowSizeIndex - 1;
+                // Debug output removed
+                
+                // Apply the window size by calling scaleIntegerRatio
+                EmulatorUILogic.scaleIntegerRatio();
+                Platform.runLater(() -> {
+                    controller.endProgrammaticUpdate();
+                    JaceUIController.startupComplete = true;
+                });
+            } else {
+                // Apply some defaults
+                EmulatorUILogic.size = 1;
+                EmulatorUILogic.scaleIntegerRatio();
+                VideoNTSC.setVideoMode(VideoNTSC.VideoMode.Color, false);
+            }
+        });
     }
 
     public static LawlessLegends getApplication() {
@@ -120,6 +186,16 @@ public class LawlessLegends extends Application {
         return cheatController;
     }
 
+    public void closeMetacheat() {
+        if (cheatStage != null) {
+            cheatStage.close();
+        }
+        if (cheatController != null) {
+            cheatController.detach();
+            cheatController = null;
+        }
+    }
+
     /**
      * @param args the command line arguments
      */
@@ -132,46 +208,42 @@ public class LawlessLegends extends Application {
      * for cold boot
      */
     private void bootWatchdog() {
-        romStarted = false;
         Emulator.withComputer(c -> {
-            if (c.PRODUCTION_MODE) {
-                new Thread(()->{
-                    Logger.getLogger(getClass().getName()).log(Level.WARNING, "Booting with watchdog");
-                    RAMListener startListener = c.getMemory().
-                            observe(RAMEvent.TYPE.EXECUTE, 0x2000, (e) -> {
-                                Logger.getLogger(getClass().getName()).log(Level.WARNING, "Boot was detected, watchdog terminated.");
-                                romStarted = true;
-                            });
-                    c.invokeColdStart();
-                    try {
-                        Thread.sleep(6500);
-                        if (!romStarted) {
-                            Logger.getLogger(getClass().getName()).log(Level.WARNING, "Boot not detected, performing a cold start");
-                            resetEmulator();
-                            configureEmulatorForGame();
-                            bootWatchdog();
-                            // Emulator.getComputer().getCpu().trace=true;
-                        } else {
-                            c.getMemory().removeListener(startListener);
-                        }
-                    } catch (InterruptedException ex) {
-                        Logger.getLogger(LawlessLegends.class.getName()).log(Level.SEVERE, null, ex);
+            // We know the game started properly when it runs the decompressor the first time
+            int watchAddress = c.PRODUCTION_MODE ? 0x0DF00 : 0x0ff3a;
+            new Thread(()->{
+                // Logger.getLogger(getClass().getName()).log(Level.WARNING, "Booting with watchdog");
+                final RAMListener startListener = c.getMemory().observeOnce("Lawless Legends watchdog", RAMEvent.TYPE.EXECUTE, watchAddress, (e) -> {
+                    // Logger.getLogger(getClass().getName()).log(Level.WARNING, "Boot was detected, watchdog terminated.");
+                    romStarted.set(true);
+                });
+                romStarted.set(false);
+                c.coldStart();
+                try {
+                    // Logger.getLogger(getClass().getName()).log(Level.WARNING, "Watchdog: waiting " + watchdogDelay + "ms for boot to start.");
+                    Thread.sleep(watchdogDelay);
+                    watchdogDelay = 500;
+                    if (!romStarted.get() || !c.isRunning() || c.getCpu().getProgramCounter() == MOS65C02.FASTBOOT || c.getCpu().getProgramCounter() == 0) {
+                        Logger.getLogger(getClass().getName()).log(Level.WARNING, "Boot not detected, performing a cold start");
+                        Logger.getLogger(getClass().getName()).log(Level.WARNING, "Old PC: {0}", Integer.toHexString(c.getCpu().getProgramCounter()));
+                        resetEmulator();
+                        configureEmulatorForGame();
+                        bootWatchdog();
+                    } else {
+                        startListener.unregister();
                     }
-                }).start();
-            } else {
-                romStarted = true;
-                c.invokeColdStart();
-            }
+                } catch (InterruptedException ex) {
+                    Logger.getLogger(LawlessLegends.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }).start();
         });
     }
 
     public void resetEmulator() {
-        // Reset the emulator memory and reconfigure
+        // Reset the emulator memory and restart
         Emulator.withComputer(c -> {
-            c.pause();
             c.getMemory().resetState();
-            c.reconfigure();
-            c.resume();
+            c.warmStart();
         });
     }
 
@@ -183,25 +255,17 @@ public class LawlessLegends extends Application {
             c.joy2enabled = false;
             c.enableStateManager = false;
             c.ramCard.setValue(RAM128k.RamCards.CardRamworks);
-            c.videoRenderer.setValue(VideoImpls.Lawless);
             if (c.PRODUCTION_MODE) {
                 c.card7.setValue(Cards.MassStorage);
                 c.card6.setValue(Cards.DiskIIDrive);
                 c.card5.setValue(Cards.RamFactor);
                 c.card4.setValue(null);
                 c.card2.setValue(null);
-                c.getMemory().writeWord(0x03f0, 0x0c700, false, false);
             }
-            c.cheatEngine.setValue(Cheat.LawlessHacks);
-            Configuration.buildTree();
             c.reconfigure();
-            VideoNTSC.setVideoMode(VideoNTSC.VideoMode.TextFriendly, false);
+            restoreUISettings();            
             if (c.PRODUCTION_MODE) {
                 ((LawlessImageTool) c.getUpgradeHandler()).loadGame();
-            } else {
-                for (SoftSwitches s : SoftSwitches.values()) {
-                    s.getSwitch().reset();
-                }
             }
         });
     }

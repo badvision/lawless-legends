@@ -16,7 +16,7 @@
 
 <AnchorPane id="AnchorPane" prefHeight="400.0" prefWidth="600.0" styleClass="sheetEditor" xmlns="http://javafx.com/javafx/8.0.65" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.badvision.outlaweditor.ui.impl.SheetEditorControllerImpl">
     <stylesheets>
-        <URL value="@/styles/styles.css" />
+        <URL value="@styles/styles.css" />
     </stylesheets>
    <children>
       <VBox layoutX="167.0" layoutY="63.0" prefHeight="200.0" prefWidth="100.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">

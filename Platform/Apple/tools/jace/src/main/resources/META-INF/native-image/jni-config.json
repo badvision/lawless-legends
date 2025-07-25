@@ -10,34 +10,16 @@
   "methods":[
     {"name":"notifyDidBecomeActive","parameterTypes":[] }, 
     {"name":"notifyDidFinishLaunching","parameterTypes":[] }, 
-    {"name":"notifyDidHide","parameterTypes":[] }, 
-    {"name":"notifyDidResignActive","parameterTypes":[] }, 
-    {"name":"notifyDidUnhide","parameterTypes":[] }, 
     {"name":"notifyOpenFiles","parameterTypes":["java.lang.String[]"] }, 
     {"name":"notifyWillBecomeActive","parameterTypes":[] }, 
-    {"name":"notifyWillFinishLaunching","parameterTypes":[] }, 
-    {"name":"notifyWillHide","parameterTypes":[] }, 
-    {"name":"notifyWillResignActive","parameterTypes":[] }, 
-    {"name":"notifyWillUnhide","parameterTypes":[] }
+    {"name":"notifyWillFinishLaunching","parameterTypes":[] }
   ]
 },
 {
-  "name":"com.sun.glass.ui.CommonDialogs$ExtensionFilter",
+  "name":"com.sun.glass.ui.Cursor",
   "methods":[
-    {"name":"extensionsToArray","parameterTypes":[] }, 
-    {"name":"getDescription","parameterTypes":[] }
-  ]
-},
-{
-  "name":"com.sun.glass.ui.CommonDialogs$FileChooserResult",
-  "methods":[{"name":"<init>","parameterTypes":["java.util.List","com.sun.glass.ui.CommonDialogs$ExtensionFilter"] }]
-},
-{
-  "name":"com.sun.glass.ui.EventLoop",
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"enter","parameterTypes":[] }, 
-    {"name":"leave","parameterTypes":["java.lang.Object"] }
+    {"name":"getNativeCursor","parameterTypes":[] }, 
+    {"name":"getType","parameterTypes":[] }
   ]
 },
 {
@@ -56,10 +38,7 @@
 },
 {
   "name":"com.sun.glass.ui.Screen",
-  "methods":[
-    {"name":"<init>","parameterTypes":["long","int","int","int","int","int","int","int","int","int","int","int","int","int","int","int","float","float","float","float"] }, 
-    {"name":"notifySettingsChanged","parameterTypes":[] }
-  ]
+  "methods":[{"name":"<init>","parameterTypes":["long","int","int","int","int","int","int","int","int","int","int","int","int","int","int","int","float","float","float","float"] }]
 },
 {
   "name":"com.sun.glass.ui.Size",
@@ -122,60 +101,108 @@
   "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
-  "name":"com.sun.javafx.iio.common.ImageLoaderImpl",
-  "methods":[{"name":"emitWarning","parameterTypes":["java.lang.String"] }]
+  "name":"com.sun.javafx.font.directwrite.D2D1_COLOR_F",
+  "fields":[
+    {"name":"a"}, 
+    {"name":"b"}, 
+    {"name":"g"}, 
+    {"name":"r"}
+  ],
+  "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
-  "name":"com.sun.javafx.iio.jpeg.JPEGImageLoader",
-  "methods":[
-    {"name":"setInputAttributes","parameterTypes":["int","int","int","int","int","byte[]"] }, 
-    {"name":"setOutputAttributes","parameterTypes":["int","int"] }, 
-    {"name":"updateImageProgress","parameterTypes":["int"] }
+  "name":"com.sun.javafx.font.directwrite.D2D1_MATRIX_3X2_F",
+  "fields":[
+    {"name":"_11"}, 
+    {"name":"_12"}, 
+    {"name":"_21"}, 
+    {"name":"_22"}, 
+    {"name":"_31"}, 
+    {"name":"_32"}
+  ],
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.sun.javafx.font.directwrite.D2D1_PIXEL_FORMAT",
+  "fields":[
+    {"name":"alphaMode"}, 
+    {"name":"format"}
+  ],
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.sun.javafx.font.directwrite.D2D1_POINT_2F",
+  "fields":[
+    {"name":"x"}, 
+    {"name":"y"}
+  ],
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.sun.javafx.font.directwrite.D2D1_RENDER_TARGET_PROPERTIES",
+  "fields":[
+    {"name":"dpiX"}, 
+    {"name":"dpiY"}, 
+    {"name":"minLevel"}, 
+    {"name":"pixelFormat"}, 
+    {"name":"type"}, 
+    {"name":"usage"}
+  ],
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.sun.javafx.font.directwrite.DWRITE_GLYPH_METRICS",
+  "fields":[
+    {"name":"advanceHeight"}, 
+    {"name":"advanceWidth"}, 
+    {"name":"bottomSideBearing"}, 
+    {"name":"leftSideBearing"}, 
+    {"name":"rightSideBearing"}, 
+    {"name":"topSideBearing"}, 
+    {"name":"verticalOriginY"}
+  ],
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.sun.javafx.font.directwrite.DWRITE_GLYPH_RUN",
+  "fields":[
+    {"name":"advanceOffset"}, 
+    {"name":"ascenderOffset"}, 
+    {"name":"bidiLevel"}, 
+    {"name":"fontEmSize"}, 
+    {"name":"fontFace"}, 
+    {"name":"glyphAdvances"}, 
+    {"name":"glyphIndices"}, 
+    {"name":"isSideways"}
+  ],
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.sun.javafx.font.directwrite.DWRITE_SCRIPT_ANALYSIS",
+  "fields":[
+    {"name":"script"}, 
+    {"name":"shapes"}
+  ],
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.sun.javafx.font.directwrite.RECT",
+  "fields":[
+    {"name":"bottom"}, 
+    {"name":"left"}, 
+    {"name":"right"}, 
+    {"name":"top"}
+  ],
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.sun.prism.impl.PrismSettings",
+  "fields":[
+    {"name":"disableD3D9Ex"}, 
+    {"name":"forceGPU"}, 
+    {"name":"isVsyncEnabled"}, 
+    {"name":"verbose"}
   ]
-},
-{
-  "name":"com.sun.media.jfxmedia.locator.Locator",
-  "methods":[{"name":"getStringLocation","parameterTypes":[] }]
-},
-{
-  "name":"com.sun.media.jfxmedia.logging.Logger",
-  "methods":[
-    {"name":"logMsg","parameterTypes":["int","java.lang.String"] }, 
-    {"name":"logMsg","parameterTypes":["int","java.lang.String","java.lang.String","java.lang.String"] }
-  ]
-},
-{
-  "name":"com.sun.media.jfxmediaimpl.NativeMediaPlayer",
-  "methods":[
-    {"name":"sendAudioSpectrumEvent","parameterTypes":["double","double","boolean"] }, 
-    {"name":"sendAudioTrack","parameterTypes":["boolean","long","java.lang.String","int","java.lang.String","int","int","float"] }, 
-    {"name":"sendBufferProgressEvent","parameterTypes":["double","long","long","long"] }, 
-    {"name":"sendDurationUpdateEvent","parameterTypes":["double"] }, 
-    {"name":"sendFrameSizeChangedEvent","parameterTypes":["int","int"] }, 
-    {"name":"sendMarkerEvent","parameterTypes":["java.lang.String","double"] }, 
-    {"name":"sendNewFrameEvent","parameterTypes":["long"] }, 
-    {"name":"sendPlayerHaltEvent","parameterTypes":["java.lang.String","double"] }, 
-    {"name":"sendPlayerMediaErrorEvent","parameterTypes":["int"] }, 
-    {"name":"sendPlayerStateEvent","parameterTypes":["int","double"] }, 
-    {"name":"sendSubtitleTrack","parameterTypes":["boolean","long","java.lang.String","int","java.lang.String"] }, 
-    {"name":"sendVideoTrack","parameterTypes":["boolean","long","java.lang.String","int","int","int","float","boolean"] }, 
-    {"name":"sendWarning","parameterTypes":["int","java.lang.String"] }
-  ]
-},
-{
-  "name":"com.sun.media.jfxmediaimpl.platform.osx.OSXMediaPlayer"
-},
-{
-  "name":"com.sun.media.sound.DirectAudioDevice",
-  "methods":[{"name":"addFormat","parameterTypes":["java.util.Vector","int","int","int","float","int","boolean","boolean"] }]
-},
-{
-  "name":"com.sun.media.sound.DirectAudioDeviceProvider$DirectAudioDeviceInfo",
-  "methods":[{"name":"<init>","parameterTypes":["int","int","int","java.lang.String","java.lang.String","java.lang.String","java.lang.String"] }]
-},
-{
-  "name":"com.sun.media.sound.PortMixerProvider$PortMixerInfo",
-  "methods":[{"name":"<init>","parameterTypes":["int","java.lang.String","java.lang.String","java.lang.String","java.lang.String"] }]
 },
 {
   "name":"com.sun.webkit.BackForwardList",
@@ -185,8 +212,7 @@
   "name":"com.sun.webkit.BackForwardList$Entry",
   "methods":[
     {"name":"<init>","parameterTypes":["long","long"] }, 
-    {"name":"notifyItemChanged","parameterTypes":[] }, 
-    {"name":"notifyItemDestroyed","parameterTypes":[] }
+    {"name":"notifyItemChanged","parameterTypes":[] }
   ]
 },
 {
@@ -359,7 +385,6 @@
   "name":"com.sun.webkit.network.NetworkContext",
   "methods":[
     {"name":"canHandleURL","parameterTypes":["java.lang.String"] }, 
-    {"name":"fwkGetMaximumHTTPConnectionCountPerHost","parameterTypes":[] }, 
     {"name":"fwkLoad","parameterTypes":["com.sun.webkit.WebPage","boolean","java.lang.String","java.lang.String","java.lang.String","com.sun.webkit.network.FormDataElement[]","long"] }
   ]
 },
@@ -371,18 +396,11 @@
   "name":"jace.ide.Program"
 },
 {
-  "name":"java.io.File",
-  "methods":[{"name":"<init>","parameterTypes":["java.lang.String"] }]
-},
-{
-  "name":"java.io.InputStream",
-  "methods":[
-    {"name":"read","parameterTypes":["byte[]","int","int"] }, 
-    {"name":"skip","parameterTypes":["long"] }
-  ]
-},
-{
   "name":"java.lang.Boolean",
+  "fields":[
+    {"name":"FALSE"}, 
+    {"name":"TRUE"}
+  ],
   "methods":[{"name":"booleanValue","parameterTypes":[] }]
 },
 {
@@ -415,7 +433,10 @@
 },
 {
   "name":"java.lang.Object",
-  "methods":[{"name":"getClass","parameterTypes":[] }]
+  "methods":[
+    {"name":"equals","parameterTypes":["java.lang.Object"] }, 
+    {"name":"getClass","parameterTypes":[] }
+  ]
 },
 {
   "name":"java.lang.Runnable",
@@ -425,7 +446,8 @@
   "name":"java.lang.String",
   "methods":[
     {"name":"lastIndexOf","parameterTypes":["int"] }, 
-    {"name":"substring","parameterTypes":["int"] }
+    {"name":"substring","parameterTypes":["int"] }, 
+    {"name":"toLowerCase","parameterTypes":["java.util.Locale"] }
   ]
 },
 {
@@ -437,7 +459,22 @@
 },
 {
   "name":"java.util.ArrayList",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
+  "methods":[
+    {"name":"<init>","parameterTypes":["int"] }, 
+    {"name":"add","parameterTypes":["java.lang.Object"] }
+  ]
+},
+{
+  "name":"java.util.Collections",
+  "methods":[{"name":"unmodifiableMap","parameterTypes":["java.util.Map"] }]
+},
+{
+  "name":"java.util.HashMap",
+  "methods":[
+    {"name":"<init>","parameterTypes":[] }, 
+    {"name":"containsKey","parameterTypes":["java.lang.Object"] }, 
+    {"name":"put","parameterTypes":["java.lang.Object","java.lang.Object"] }
+  ]
 },
 {
   "name":"java.util.List",
@@ -445,7 +482,14 @@
 },
 {
   "name":"java.util.Map",
-  "methods":[{"name":"get","parameterTypes":["java.lang.Object"] }]
+  "methods":[
+    {"name":"get","parameterTypes":["java.lang.Object"] }, 
+    {"name":"put","parameterTypes":["java.lang.Object","java.lang.Object"] }
+  ]
+},
+{
+  "name":"javafx.scene.paint.Color",
+  "methods":[{"name":"rgb","parameterTypes":["int","int","int","double"] }]
 },
 {
   "name":"jdk.internal.loader.ClassLoaders$PlatformClassLoader"
@@ -453,6 +497,10 @@
 {
   "name":"org.graalvm.jniutils.JNIExceptionWrapperEntryPoints",
   "methods":[{"name":"getClassName","parameterTypes":["java.lang.Class"] }]
+},
+{
+  "name":"org.lwjgl.system.ThreadLocalUtil",
+  "methods":[{"name":"setupEnvData","parameterTypes":[] }]
 },
 {
   "name":"sun.launcher.LauncherHelper$FXHelper",

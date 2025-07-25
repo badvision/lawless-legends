@@ -16,9 +16,6 @@
       "name":"java.lang.Object[]"
     },
     {
-      "name":"java.lang.String"
-    },
-    {
       "name":"java.util.TreeMap"
     }
   ],

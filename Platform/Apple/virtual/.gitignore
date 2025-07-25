@@ -5,3 +5,5 @@ correction*
 *.exe
 data/world/world*
 launch4j/
+packer-bundle*
+A2PackPartitions.groovy

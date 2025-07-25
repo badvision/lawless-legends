@@ -4,4 +4,4 @@
 /.jace.conf
 *.classpath
 *.project
-/src/main/resources/jace/data/sound/*.mp3
+/src/main/resources/jace/data/sound/*.ogg

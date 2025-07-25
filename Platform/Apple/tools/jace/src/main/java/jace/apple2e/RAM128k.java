@@ -1,37 +1,35 @@
-/*
- * Copyright (C) 2012 Brendan Robert (BLuRry) brendan.robert@gmail.com.
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA 02110-1301  USA
- */
+/** 
+* Copyright 2024 Brendan Robert
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*    http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+**/
+
 package jace.apple2e;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import jace.Emulator;
 import jace.config.DeviceEnum;
 import jace.core.CPU;
 import jace.core.Card;
-import jace.core.Computer;
 import jace.core.PagedMemory;
 import jace.core.RAM;
 import jace.hardware.CardExt80Col;
@@ -51,19 +49,19 @@ abstract public class RAM128k extends RAM {
         CardExt80Col("80-Column Card (128k)", CardExt80Col.class, CardExt80Col::new),
         CardRamworks("Ramworks (4mb)", CardRamworks.class, CardRamworks::new);
 
-        Function<Computer, ? extends RAM128k> factory;
+        Supplier<? extends RAM128k> factory;
         String name;
-        Class clazz;
+        Class<? extends RAM128k> clazz;
 
-        RamCards(String name, Class clazz, Function<Computer, ? extends RAM128k> factory) {
+        RamCards(String name, Class<? extends RAM128k> clazz, Supplier<? extends RAM128k> factory) {
             this.factory = factory;
             this.name = name;
             this.clazz = clazz;
         }
 
         @Override
-        public RAM128k create(Computer c) {
-            return factory.apply(c);
+        public RAM128k create() {
+            return factory.get();
         }
 
         @Override
@@ -73,7 +71,7 @@ abstract public class RAM128k extends RAM {
 
         @Override
         public boolean isInstance(RAM128k card) {
-            return card != null && clazz.isInstance(card);
+            return card != null && clazz.equals(card.getClass());
         }
     }
 
@@ -160,16 +158,16 @@ abstract public class RAM128k extends RAM {
     public PagedMemory rom;
     public PagedMemory blank;
 
-    public RAM128k(Computer computer) {
-        super(computer);
-        mainMemory = new PagedMemory(0xc000, PagedMemory.Type.RAM, computer);
-        rom = new PagedMemory(0x3000, PagedMemory.Type.FIRMWARE_MAIN, computer);
-        cPageRom = new PagedMemory(0x1000, PagedMemory.Type.SLOW_ROM, computer);
-        languageCard = new PagedMemory(0x3000, PagedMemory.Type.LANGUAGE_CARD, computer);
-        languageCard2 = new PagedMemory(0x1000, PagedMemory.Type.LANGUAGE_CARD, computer);
-        activeRead = new PagedMemory(0x10000, PagedMemory.Type.RAM, computer);
-        activeWrite = new PagedMemory(0x10000, PagedMemory.Type.RAM, computer);
-        blank = new PagedMemory(0x100, PagedMemory.Type.RAM, computer);
+    public RAM128k() {
+        super();
+        mainMemory = new PagedMemory(0xc000, PagedMemory.Type.RAM);
+        rom = new PagedMemory(0x3000, PagedMemory.Type.FIRMWARE_MAIN);
+        cPageRom = new PagedMemory(0x1000, PagedMemory.Type.SLOW_ROM);
+        languageCard = new PagedMemory(0x3000, PagedMemory.Type.LANGUAGE_CARD);
+        languageCard2 = new PagedMemory(0x1000, PagedMemory.Type.LANGUAGE_CARD);
+        activeRead = new PagedMemory(0x10000, PagedMemory.Type.RAM);
+        activeWrite = new PagedMemory(0x10000, PagedMemory.Type.RAM);
+        blank = new PagedMemory(0x100, PagedMemory.Type.RAM);
         zeroAllRam();
     }
 
@@ -184,7 +182,6 @@ abstract public class RAM128k extends RAM {
     }
 
     public final void zeroAllRam() {
-        // Format memory with FF FF 00 00 pattern
         for (int i = 0; i < 0x0100; i++) {
             blank.get(0)[i] = (byte) 0x0FF;
         }
@@ -197,9 +194,9 @@ abstract public class RAM128k extends RAM {
     public String getReadConfiguration() {
         String rstate = "";
         if (SoftSwitches.RAMRD.getState()) {
-            rstate += "Ra";
+            rstate += "Ra_";
         } else {
-            rstate += "R0";
+            rstate += "R0_";
         }
         String LCR = "L0R";
         if (SoftSwitches.LCRAM.isOn()) {
@@ -217,16 +214,16 @@ abstract public class RAM128k extends RAM {
         }
         rstate += LCR;
         if (SoftSwitches.CXROM.getState()) {
-            rstate += "CXROM";
+            rstate += "_CXROM";
         } else {
-            rstate += "!CX";
+            rstate += "_!CX";
             if (SoftSwitches.SLOTC3ROM.isOff()) {
-                rstate += "C3";
+                rstate += "_C3";
             }
             if (SoftSwitches.INTC8ROM.isOn()) {
-                rstate += "C8";
+                rstate += "_C8";
             } else {
-                rstate += String.format("C8%d", getActiveSlot());
+                rstate += "_C8"+getActiveSlot();
             }
         }
 
@@ -236,9 +233,9 @@ abstract public class RAM128k extends RAM {
     public String getWriteConfiguration() {
         String wstate = "";
         if (SoftSwitches.RAMWRT.getState()) {
-            wstate += "Wa";
+            wstate += "Wa_";
         } else {
-            wstate += "W0";
+            wstate += "W0_";
         }
         String LCW = "L0W";
         if (SoftSwitches.LCWRITE.isOn()) {
@@ -259,28 +256,32 @@ abstract public class RAM128k extends RAM {
     }
 
     public String getAuxZPConfiguration() {
-        String astate = "";
+        String astate = "__";
         if (SoftSwitches._80STORE.isOn()) {
-            astate += "80S";
+            astate += "80S_";
             if (SoftSwitches.PAGE2.isOn()) {
-                astate += "2";
+                astate += "P2_";
+            } else {
+                astate += "P1_";
             }
             if (SoftSwitches.HIRES.isOn()) {
-                astate += "H";
+                astate += "H1_";
+            } else {
+                astate += "H0_";
             }
         }
 
         // Handle zero-page bankswitching
         if (SoftSwitches.AUXZP.getState()) {
-            astate += "Za";
+            astate += "Za_";
         } else {
-            astate += "Z0";
+            astate += "Z0_";
         }
         return astate;
     }
 
     public PagedMemory buildReadConfiguration() {
-        PagedMemory read = new PagedMemory(0x10000, PagedMemory.Type.RAM, computer);
+        PagedMemory read = new PagedMemory(0x10000, PagedMemory.Type.RAM);
         // First off, set up read/write for main memory (might get changed later on)
         read.fillBanks(SoftSwitches.RAMRD.getState() ? getAuxMemory() : mainMemory);
 
@@ -350,13 +351,13 @@ abstract public class RAM128k extends RAM {
                 read.setBanks(7, 8, 0x0C8, cPageRom);
             }
         }
-        // All ROM reads not intecepted will return 0xFF! (TODO: floating bus)
+        // All ROM reads not intecepted will return 0xFF!
         read.set(0x0c0, blank.get(0));
         return read;
     }
 
     public PagedMemory buildWriteConfiguration() {
-        PagedMemory write = new PagedMemory(0x10000, PagedMemory.Type.RAM, computer);
+        PagedMemory write = new PagedMemory(0x10000, PagedMemory.Type.RAM);
         // First off, set up read/write for main memory (might get changed later on)
         write.fillBanks(SoftSwitches.RAMWRT.getState() ? getAuxMemory() : mainMemory);
 
@@ -409,7 +410,7 @@ abstract public class RAM128k extends RAM {
      *
      */
     @Override
-    public synchronized void configureActiveMemory() {
+    public void configureActiveMemory() {
         String auxZpConfiguration = getAuxZPConfiguration();
         String readConfiguration = getReadConfiguration() + auxZpConfiguration;
         String writeConfiguration = getWriteConfiguration() + auxZpConfiguration;
@@ -420,7 +421,8 @@ abstract public class RAM128k extends RAM {
         state = newState;
 
         log("MMU Switches");
-
+        // System.out.println("read: " + readConfiguration);
+        // System.out.println("write: " + writeConfiguration);
         if (memoryConfigurations.containsKey(readConfiguration)) {
             activeRead = memoryConfigurations.get(readConfiguration);
         } else {
@@ -437,20 +439,22 @@ abstract public class RAM128k extends RAM {
     }
 
     public void log(String message) {
-        CPU cpu = computer.getCpu();
-        if (cpu != null && cpu.isLogEnabled()) {
-            StringBuilder stack = new StringBuilder();
-            for (StackTraceElement e : Thread.currentThread().getStackTrace()) {
-                stack.append(String.format("%s.%s(%s);",e.getClassName(), e.getMethodName(), e.getLineNumber()));
+        Emulator.withComputer(computer -> {
+            CPU cpu = computer.getCpu();
+            if (cpu != null && cpu.isLogEnabled()) {
+                StringBuilder stack = new StringBuilder();
+                for (StackTraceElement e : Thread.currentThread().getStackTrace()) {
+                    stack.append(String.format("%s.%s(%s);",e.getClassName(), e.getMethodName(), e.getLineNumber()));
+                }
+                cpu.log(stack.toString());
+                String switches = Stream.of(
+                        SoftSwitches.RAMRD, SoftSwitches.RAMWRT, SoftSwitches.AUXZP,
+                        SoftSwitches._80STORE, SoftSwitches.HIRES, SoftSwitches.PAGE2,
+                        SoftSwitches.LCBANK1, SoftSwitches.LCRAM, SoftSwitches.LCWRITE
+                ).map(Object::toString).collect(Collectors.joining(";"));
+                cpu.log(String.join(";", message, switches));
             }
-            cpu.log(stack.toString());
-            String switches = Stream.of(
-                    SoftSwitches.RAMRD, SoftSwitches.RAMWRT, SoftSwitches.AUXZP,
-                    SoftSwitches._80STORE, SoftSwitches.HIRES, SoftSwitches.PAGE2,
-                    SoftSwitches.LCBANK1, SoftSwitches.LCRAM, SoftSwitches.LCWRITE
-            ).map(Object::toString).collect(Collectors.joining(";"));
-            cpu.log(String.join(";", message, switches));
-        }
+        });
     }
 
     /**
@@ -536,12 +540,14 @@ abstract public class RAM128k extends RAM {
         return rom;
     }
 
-    void copyFrom(RAM128k currentMemory) {
+    @Override
+    public void copyFrom(RAM otherMemory) {
+        RAM128k currentMemory = (RAM128k) otherMemory;
+
         // This is really quick and dirty but should be sufficient to avoid most crashes...
         blank = currentMemory.blank;
         cPageRom = currentMemory.cPageRom;
         rom = currentMemory.rom;
-        listeners = currentMemory.listeners;
         mainMemory = currentMemory.mainMemory;
         languageCard = currentMemory.languageCard;
         languageCard2 = currentMemory.languageCard2;
@@ -549,6 +555,8 @@ abstract public class RAM128k extends RAM {
         activeSlot = currentMemory.activeSlot;
         // Clear cached configurations as we might have outdated references now
         memoryConfigurations.clear();
+
+        super.copyFrom(otherMemory);
     }
     
     @Override

@@ -1,5 +1,18 @@
 package jace.ide;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import jace.applesoft.ApplesoftHandler;
 import jace.assembly.AssemblyHandler;
 import javafx.application.Platform;
@@ -9,15 +22,11 @@ import javafx.scene.web.PromptData;
 import javafx.scene.web.WebView;
 import netscape.javascript.JSObject;
 
-import java.io.*;
-import java.util.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 /**
  *
  * @author blurry
  */
+@SuppressWarnings("all")
 public class Program {
 
     public static String CODEMIRROR_EDITOR = "/codemirror/editor.html";
@@ -208,14 +217,17 @@ public class Program {
         return builder.toString();
     }
 
-    public void execute() {
+    public void execute() throws Exception {
         lastResult = getHandler().compile(this);
         manageCompileResult(lastResult);
         if (lastResult.isSuccessful()) {
             getHandler().execute(lastResult);
         } else {
-            lastResult.getOtherMessages().forEach(System.err::println);
+            StringBuilder error = new StringBuilder("Compilation failed:\n");
+            lastResult.getErrors().forEach((line, message) -> error.append("Line %d: %s%n".formatted(line, message)));
+            lastResult.getOtherMessages().forEach(message -> error.append(message).append("\n"));
             getHandler().clean(lastResult);
+            throw new Exception(error.toString());
         }
     }
 

@@ -27,15 +27,15 @@ import javafx.beans.property.adapter.JavaBeanStringPropertyBuilder;
 public class PropertyHelper {
 
     public static JavaBeanIntegerProperty intProp(Object t, String fieldName) throws NoSuchMethodException {
-        return new JavaBeanIntegerPropertyBuilder().bean(t).name(fieldName).build();
+        return JavaBeanIntegerPropertyBuilder.create().bean(t).name(fieldName).build();
     }
 
     public static JavaBeanBooleanProperty boolProp(Object t, String fieldName) throws NoSuchMethodException {
-        return new JavaBeanBooleanPropertyBuilder().bean(t).name(fieldName).build();
+        return JavaBeanBooleanPropertyBuilder.create().bean(t).name(fieldName).build();
     }
 
     public static JavaBeanStringProperty stringProp(Object t, String fieldName) throws NoSuchMethodException {
-        return new JavaBeanStringPropertyBuilder().bean(t).name(fieldName).build();
+        return JavaBeanStringPropertyBuilder.create().bean(t).name(fieldName).build();
     }
 
     private static final Map<Property, Property> boundProperties = new HashMap<>();

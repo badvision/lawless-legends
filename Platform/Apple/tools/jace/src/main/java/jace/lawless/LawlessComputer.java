@@ -28,19 +28,18 @@ public class LawlessComputer extends Apple2e {
     boolean performedBootAnimation = false;
     LawlessImageTool gameDiskHandler = new LawlessImageTool();
     @ConfigurableField(name = "Boot Animation")
-    public boolean showBootAnimation = true;
+    public boolean showBootAnimation = PRODUCTION_MODE;
 
     public LawlessComputer() {
         super();
     }
     
     public void initLawlessLegendsConfiguration() {
-        this.cheatEngine.setValue(Cheats.Cheat.LawlessHacks);
-        reconfigure();  // Required before anything so that memory is initialized
-        // this.activeCheatEngine = new LawlessHacks(this);
-        // this.activeCheatEngine.attach();
+        if (PRODUCTION_MODE) {
+            this.cheatEngine.setValue(Cheats.Cheat.LawlessHacks);
+        }
         blankTextPage1();
-        reconfigure();        
+        reconfigure();
     }
     
     private void blankTextPage1() {
@@ -52,7 +51,7 @@ public class LawlessComputer extends Apple2e {
 
     @Override
     public void coldStart() {
-        motherboard.whileSuspended(()->{
+        getMotherboard().whileSuspended(()->{
             RAM128k ram = (RAM128k) getMemory();
             ram.zeroAllRam();
             blankTextPage1();
@@ -60,18 +59,16 @@ public class LawlessComputer extends Apple2e {
                 s.getSwitch().reset();
             }
         });
-        if (showBootAnimation && PRODUCTION_MODE) {
+        if (showBootAnimation) {
             (new Thread(this::startAnimation)).start();
         } else {
+            getCpu().setPaused(false);
             finishColdStart();
         }
     }
 
     public void startAnimation() {
-        cpu.setPaused(true);
-        for (SoftSwitches s : SoftSwitches.values()) {
-            s.getSwitch().reset();
-        }
+        getCpu().setPaused(true);
         SoftSwitches._80COL.getSwitch().setState(true);
         SoftSwitches.TEXT.getSwitch().setState(false);
         SoftSwitches.HIRES.getSwitch().setState(true);
@@ -86,6 +83,9 @@ public class LawlessComputer extends Apple2e {
         if (!performedBootAnimation) {
             try {
                 performedBootAnimation = true;
+                showBootAnimation = false;
+                waitForVBL();
+                waitForVBL();
                 waitForVBL();
                 renderWithMask(0x00,0x00,0x00,0x00);
                 renderWithMask(0x08,0x10,0x20,0x40,0x00,0x01,0x02,0x04);
@@ -109,15 +109,14 @@ public class LawlessComputer extends Apple2e {
                 Logger.getLogger(LawlessComputer.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
-        cpu.setPaused(false);
         finishColdStart();
-
+        getCpu().setPaused(false);
     }
 
     private void renderWithMask(int... mask) throws InterruptedException {
         RAM128k ram = (RAM128k) getMemory();
         byte[] framebuffer = getBootScreen();
-        int maskOffset = 0;
+        int maskOffset;
         for (int i = 0; i < 0x02000; i += 2) {
             int y = Video.identifyHiresRow(i + 0x02000);
             int x = i - Video.calculateHiresOffset(y);
@@ -159,6 +158,9 @@ public class LawlessComputer extends Apple2e {
     }
 
     public void waitForVBL(int count) throws InterruptedException {
+        if (getVideo() == null || !getVideo().isRunning() || !getMotherboard().isRunning()) {
+            return;
+        }
         Semaphore s = new Semaphore(0);
         onNextVBL(s::release);
         s.acquire();
@@ -184,7 +186,7 @@ public class LawlessComputer extends Apple2e {
     public void finishColdStart() {
         try {
             waitForVBL();
-            reboot();
+            warmStart();
         } catch (InterruptedException ex) {
             Logger.getLogger(LawlessComputer.class.getName()).log(Level.SEVERE, null, ex);
         }

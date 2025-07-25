@@ -1,21 +1,19 @@
-/*
- * Copyright (C) 2012 Brendan Robert (BLuRry) brendan.robert@gmail.com.
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA 02110-1301  USA
- */
+/** 
+* Copyright 2024 Brendan Robert
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*    http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+**/
+
 package jace.hardware;
 
 import java.io.IOException;
@@ -26,16 +24,17 @@ import java.util.Stack;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import jace.Emulator;
 import jace.EmulatorUILogic;
 import jace.apple2e.MOS65C02;
 import jace.config.ConfigurableField;
 import jace.config.Name;
 import jace.core.Card;
-import jace.core.Computer;
-import jace.core.Motherboard;
 import jace.core.PagedMemory;
+import jace.core.RAM;
 import jace.core.RAMEvent;
 import jace.core.RAMEvent.TYPE;
+import jace.core.TimedDevice;
 import jace.core.Utility;
 import javafx.scene.control.Label;
 
@@ -60,8 +59,8 @@ public class CardThunderclock extends Card {
     @ConfigurableField(category = "OS", name = "Patch Prodos Year", description = "If enabled, the Prodos clock driver will be patched to use the current year.")
     public boolean attemptYearPatch = true;
 
-    public CardThunderclock(Computer computer) {
-        super(computer);
+    public CardThunderclock() {
+        super(true);
         try {
             loadRom("/jace/data/thunderclock_plus.rom");
         } catch (IOException ex) {
@@ -150,7 +149,7 @@ public class CardThunderclock extends Card {
             shiftMode = isShift;
             if (isRead) {
                 if (attemptYearPatch) {
-                    performProdosPatch(computer);
+                    _performProdosPatch();
                 }
                 getTime();
                 clockIcon.ifPresent(icon->{
@@ -170,13 +169,13 @@ public class CardThunderclock extends Card {
         if (timerEnabled) {
             switch (value & 0x038) {
                 case 0x020:
-                    timerRate = (int) (Motherboard.DEFAULT_SPEED / 64);
+                    timerRate = (int) (TimedDevice.NTSC_1MHZ / 64);
                     break;
                 case 0x028:
-                    timerRate = (int) (Motherboard.DEFAULT_SPEED / 256);
+                    timerRate = (int) (TimedDevice.NTSC_1MHZ / 256);
                     break;
                 case 0x030:
-                    timerRate = (int) (Motherboard.DEFAULT_SPEED / 2048);
+                    timerRate = (int) (TimedDevice.NTSC_1MHZ / 2048);
                     break;
                 default:
                     timerEnabled = false;
@@ -215,7 +214,7 @@ public class CardThunderclock extends Card {
                 ticks = 0;
                 irqAsserted = true;
                 if (irqEnabled) {
-                    computer.getCpu().generateInterrupt();
+                    Emulator.withComputer(c->c.getCpu().generateInterrupt());
                 }
             }
         }
@@ -297,8 +296,12 @@ public class CardThunderclock extends Card {
      * always tell time correctly.
      * @param computer
      */
-    public static void performProdosPatch(Computer computer) {
-        PagedMemory ram = computer.getMemory().activeRead;
+    public void _performProdosPatch() {
+        performProdosPatch(getMemory());
+    }
+
+    public static void performProdosPatch(RAM memory) {
+        PagedMemory ram = memory.activeRead;
         if (patchLoc > 0) {
             // We've already patched, just validate
             if (ram.readByte(patchLoc) == (byte) MOS65C02.OPCODE.LDA_IMM.getCode()) {

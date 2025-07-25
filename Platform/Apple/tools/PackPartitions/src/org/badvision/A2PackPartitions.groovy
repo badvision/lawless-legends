@@ -19,6 +19,7 @@ import java.nio.ByteBuffer
 import java.nio.channels.Channels
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
+import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.regex.Pattern
 import java.util.zip.GZIPInputStream
@@ -186,6 +187,9 @@ class A2PackPartitions
     def allMaps = []
     def allChunks = [:] as LinkedHashMap
     def part1Chunks = [:] as LinkedHashMap
+
+    def allQuestSteps = []
+    def finalQuestSteps = []
 
     def stats = [
         "Intelligence": "@S_INTELLIGENCE",
@@ -1002,8 +1006,14 @@ class A2PackPartitions
         cache[key] = [hash:hash, data:buf]
     }
 
-    def updateEngineStamp(name, hash)
+    def updateEngineStamp()
     {
+        def hash
+        def tsfile = new File("build/tstamp.txt")
+        jitCopy(tsfile)
+        tsfile.withReader { reader ->
+            hash = Long.parseLong(reader.readLine())
+        }
         if (!cache.containsKey("engineStamp") || cache["engineStamp"].hash < hash)
             cache["engineStamp"] = [hash:hash]
     }
@@ -2098,7 +2108,7 @@ class A2PackPartitions
         // And write out each disk
         partChunks.each { part ->
             //println "Writing disk ${part.partNum}."
-            if (!diskLimit || part.partNum <= diskLimit) {
+            if (!diskLimit || part.partNum <= diskLimit || part.partNum == storyPartition) {
                 def partFile = new File("build/root/game.part.${part.partNum}.bin")
                 partFile.withOutputStream { stream ->
                     writePartition(stream, part.partNum, part.chunks.values())
@@ -2334,7 +2344,6 @@ class A2PackPartitions
         def uncompData = readBinary(inDir + "build/" + codeName + ".b")
 
         addToCache("code", code, codeName, hash, compress(uncompData))
-        updateEngineStamp(codeName, hash)
     }
 
     def assembleCore(inDir)
@@ -2356,7 +2365,6 @@ class A2PackPartitions
                 hash = file.lastModified()
                 if (!grabFromCache("sysCode", sysCode, name, hash)) {
                     addToCache("sysCode", sysCode, name, hash, compress(readBinary(file.toString())))
-                    updateEngineStamp(name, hash)
                 }
             }
             else {
@@ -2370,7 +2378,6 @@ class A2PackPartitions
                     addToCache("sysCode", sysCode, name, hash,
                         (name ==~ /loader|decomp/) ? [data:uncompData, len:uncompData.length, compressed:false]
                                                    : compress(uncompData))
-                    updateEngineStamp(name, hash)
                 }
             }
 
@@ -2441,12 +2448,13 @@ class A2PackPartitions
         addToCache("modules", modules, moduleName, hash, module)
         addToCache("bytecodes", bytecodes, moduleName, hash, bytecode)
         addToCache("fixups", fixups, moduleName, hash, fixup)
-        if (!(moduleName ==~ /.*(gs|gen)_.*/ || codeDir ==~ /.*mapScript.*/))
-            updateEngineStamp(moduleName, hash)
     }
 
     def readAllCode()
     {
+        // Update the engine stamp from the tstamp.txt file
+        updateEngineStamp()
+
         // Loader, ProRWTS, PLASMA VM, and memory manager
         assembleCore("src/core/")
 
@@ -2885,6 +2893,35 @@ class A2PackPartitions
         }
     }
 
+    def reportQuests(data)
+    {
+        reportWriter.println(
+            "\n============================== Quest Checks ==================================\n")
+        def scriptLocs = [:]
+        data.map.each { map ->
+            def mapName = map.@name.trim().replaceAll(/\s*-\s*[23][dD]\s*/, "")
+            map.scripts.script.each { script ->
+                script.locationTrigger.each { trig ->
+                    scriptLocs[ [mapName, trig.@x.toInteger(), trig.@y.toInteger()] ] = true
+                }
+            }
+        }
+
+        def nFailed = 0
+        allQuestSteps.each { qs ->
+            def key = [qs.mapName, qs.x, qs.y]
+            if (!(key in scriptLocs)) {
+                reportWriter.println("Target location has no script: " +
+                    "quest \"${qs.quest}\", step ${qs.stepNum}:\"${qs.stepDescrip}\",\n" +
+                    "    map \"${qs.mapName}\", location ${qs.x},${qs.y}\n")
+                nFailed++
+            }
+        }
+
+        if (nFailed == 0)
+            reportWriter.println("All quest checks passed.")
+    }
+
     def reportScriptLocs(data)
     {
         reportWriter.println(
@@ -3282,6 +3319,7 @@ class A2PackPartitions
         reportTeleports(dataIn)
         reportScriptLocs(dataIn)
         reportFlags(dataIn)
+        reportQuests(dataIn)
         reportStoryLogs()
         reportStatUse(dataIn)
         reportLogUse()
@@ -3590,7 +3628,7 @@ class A2PackPartitions
 
         rows.each { row ->
             def orderNum = row.@Order.toFloat()
-            withContext("step $orderNum")
+            withContext("quest \"$questName\" step $orderNum")
             {
                 out.println "def step_${orderNum.toString().replace(".","_")}(callback)"
 
@@ -3600,29 +3638,52 @@ class A2PackPartitions
                 def portraitName = row.@"Portrait".trim()
                 assert portraits.containsKey(portraitName.toLowerCase()) : "unrecognized portrait '$portraitName'"
 
-                def map1Name = row.@"Map1-Name"?.trim()
-                def map1Num = 0, map1X = 0, map1Y = 0
-                if (map1Name) {
-                    assert mapNames.containsKey(map1Name) : "unrecognized map '$map1Name'"
-                    assert mapNames[map1Name][0] =~ /^[23]D$/
-                    map1Num = mapNames[map1Name][1] | (mapNames[map1Name][0] == "3D" ? 0x80 : 0)
-                    map1X = row.@"Map1-X".toInteger()
-                    map1Y = row.@"Map1-Y".toInteger()
+                def maps = []
+                def lastLocNum = -1
+                for (def locNum in 0..3) {
+                    def mapName = row.@"Map${locNum+1}-Name"?.trim()
+                    def mapNum = 0, x = 0, y = 0
+                    if (mapName) {
+                        assert mapNames.containsKey(mapName) : "unrecognized map '$mapName'"
+                        assert mapNames[mapName][0] =~ /^[23]D$/
+                        mapNum = mapNames[mapName][1] | (mapNames[mapName][0] == "3D" ? 0x80 : 0)
+                        x = row.@"Map${locNum+1}-X".toInteger()
+                        y = row.@"Map${locNum+1}-Y".toInteger()
+                        lastLocNum = locNum
+                    }
+                    maps[locNum] = [ 'name': mapName,
+                                     'num': mapNum,
+                                     'x': x,
+                                     'y': y,
+                                     'xy': String.format("\$%04x", x | (y << 8)) ]
+                    if (mapName) {
+                        allQuestSteps << [ 'quest': questName,
+                                           'stepNum': orderNum,
+                                           'stepDescrip': descrip,
+                                           'subStep': locNum+1,
+                                           'mapName': mapName,
+                                           'x': x,
+                                           'y': y
+                        ]
+                    }
                 }
-
-                def map2Name = row.@"Map2-Name"?.trim()
-                def map2Num = 0, map2X = 0, map2Y = 0
-                if (map2Name) {
-                    assert mapNames.containsKey(map2Name) : "unrecognized map '$map2Name'"
-                    assert mapNames[map2Name][0] =~ /^[23]D$/
-                    map2Num = mapNames[map2Name][1] | (mapNames[map2Name][0] == "3D" ? 0x80 : 0)
-                    map2X = row.@"Map2-X".toInteger()
-                    map2Y = row.@"Map2-Y".toInteger()
+                if (lastLocNum >= 0) {
+                    finalQuestSteps << [ 'step': orderNum,
+                                         'subStep': lastLocNum+1,
+                                         'mapName': maps[lastLocNum]['name'],
+                                         'x': maps[lastLocNum]['x'],
+                                         'y': maps[lastLocNum]['y'],
+                                         'triggerFlag': row.@"Trigger-Flag"?.trim(),
+                                         'triggerItem': row.@"Trigger-Item"?.trim()
+                    ]
                 }
 
                 def portraitCode = "PO${humanNameToSymbol(portraitName.toLowerCase(), false)}"
                 out.println("  callback(${escapeString(descrip)}, $portraitCode, " +
-                            "$map1Num, $map1X, $map1Y, $map2Num, $map2X, $map2Y)")
+                            "${maps[0]['num']}, ${maps[0]['xy']}, " +
+                            "${maps[1]['num']}, ${maps[1]['xy']}, " +
+                            "${maps[2]['num']}, ${maps[2]['xy']}, " +
+                            "${maps[3]['num']}, ${maps[3]['xy']})")
             }
             out.println "  return 0"
             out.println "end\n"
@@ -4793,6 +4854,8 @@ end
                 inst2.buildDir = buildDir
                 inst2.worldFileDir = xmlFile.getAbsoluteFile().getParentFile()
                 inst2.reportWriter = reportWriter
+                inst2.allQuestSteps = inst1.allQuestSteps
+                inst2.finalQuestSteps = inst1.finalQuestSteps
                 inst2.pack(xmlFile, dataIn)
 
                 // And create the final disk images
@@ -5278,7 +5341,7 @@ end
             outIndented("rawDisplayStr(\"\\n\\n\")\n")
 
             // On floppy builds, follow the intro with just the short text (usually e.g. "read log X")
-            outIndented("if isFloppyVer or diskLimit\n")
+            outIndented("if isFloppyVer\n")
             ++indent
             def shortBlk = blk.value[1].block
             outTextBlock(shortBlk, false)

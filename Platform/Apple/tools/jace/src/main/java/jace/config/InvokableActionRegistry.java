@@ -12,6 +12,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.logging.Logger;
 
+@SuppressWarnings("all")
 public abstract class InvokableActionRegistry {
     protected static final Logger logger = Logger.getLogger(InvokableActionRegistry.class.getName());
     private final Map<Class, Set<String>> staticMethodNames = new HashMap<>();
@@ -37,7 +38,7 @@ public abstract class InvokableActionRegistry {
     final public void putStaticAction(String name, Class c, InvokableAction action, Consumer<Boolean> caller) {
         putStaticAction(name, c, action, (b) -> {
             caller.accept(b);
-            return false;
+            return true;
         });
     }
 
@@ -50,7 +51,7 @@ public abstract class InvokableActionRegistry {
     public void putInstanceAction(String name, Class c, InvokableAction action, BiConsumer<Object, Boolean> caller) {
         putInstanceAction(name, c, action, (o, b) -> {
             caller.accept(o, b);
-            return false;
+            return true;
         });
     }
 

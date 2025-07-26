@@ -6,6 +6,9 @@
   "name":"[Ljava.lang.String;"
 },
 {
+  "name":"[Ljavafx.scene.paint.Color;"
+},
+{
   "name":"com.sun.glass.ui.Application",
   "methods":[
     {"name":"notifyDidBecomeActive","parameterTypes":[] }, 

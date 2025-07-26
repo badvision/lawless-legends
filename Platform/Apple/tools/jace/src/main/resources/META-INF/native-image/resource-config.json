@@ -2,6 +2,18 @@
   "resources":{
   "includes":[
     {
+      "pattern":"\\QMETA-INF/macos/arm64/org/lwjgl/glfw/libglfw.dylib.sha1\\E"
+    }, 
+    {
+      "pattern":"\\QMETA-INF/macos/arm64/org/lwjgl/liblwjgl.dylib.sha1\\E"
+    }, 
+    {
+      "pattern":"\\QMETA-INF/macos/arm64/org/lwjgl/openal/libopenal.dylib.sha1\\E"
+    }, 
+    {
+      "pattern":"\\QMETA-INF/macos/arm64/org/lwjgl/stb/liblwjgl_stb.dylib.sha1\\E"
+    }, 
+    {
       "pattern":"\\QMETA-INF/windows/x64/org/lwjgl/glfw/glfw.dll.sha1\\E"
     }, 
     {
@@ -12,6 +24,18 @@
     }, 
     {
       "pattern":"\\QMETA-INF/windows/x64/org/lwjgl/stb/lwjgl_stb.dll.sha1\\E"
+    }, 
+    {
+      "pattern":"\\Qmacos/arm64/org/lwjgl/glfw/libglfw.dylib\\E"
+    }, 
+    {
+      "pattern":"\\Qmacos/arm64/org/lwjgl/liblwjgl.dylib\\E"
+    }, 
+    {
+      "pattern":"\\Qmacos/arm64/org/lwjgl/openal/libopenal.dylib\\E"
+    }, 
+    {
+      "pattern":"\\Qmacos/arm64/org/lwjgl/stb/liblwjgl_stb.dylib\\E"
     }, 
     {
       "pattern":"\\Qversion.properties\\E"
@@ -40,7 +64,6 @@
     {
       "name":"com/sun/glass/ui/win/themes",
       "locales":[
-        "", 
         "de", 
         "en", 
         "es", 

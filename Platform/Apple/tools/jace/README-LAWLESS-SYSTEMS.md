@@ -41,6 +41,77 @@ graph TD
     style S fill:#e8f5e8
 ```
 
+### EMUSIG Communication System
+
+The game engine communicates its current mode to the emulator via **EMUSIG** (Emulator Signal) constants:
+
+| Address | Constant | Purpose | Speed Behavior |
+|---------|----------|---------|----------------|
+| 0xC049 | EMUSIG_FULL_COLOR | Title screen | Normal |
+| 0xC04A | EMUSIG_FULL_TEXT | Inventory/menus | Normal |
+| 0xC04B | EMUSIG_2D_MAP | Wilderness | Normal |
+| 0xC04C | EMUSIG_3D_MAP | Towns/dungeons | Normal |
+| 0xC04D | EMUSIG_AUTOMAP | Automap display | Normal |
+| 0xC04E | EMUSIG_STORY | **Portrait/story mode** | **1MHz** |
+| 0xC04F | EMUSIG_TITLE | Title menu area | Normal |
+
+When the game writes to any EMUSIG address, the emulator knows the current display context and can adjust behavior accordingly, except that determining when we're in a "portrait animation" is rather tricky as it doesn't have its own flag presently.  However, when a portrait is done displaying the EMUSIG mode corresponding to what we were doing previously is triggered, signaling we are out of portrait mode.
+
+### Hybrid Portrait Detection Algorithm
+
+The system uses a multi-layered approach to detect portrait dialogues:
+
+```mermaid
+graph TD
+    A[Key Read Detected] --> B{PC in Portrait Range?}
+    B -->|DB00-DC00<br/>EED0-EEE0| C[Start Key Wait Timer]
+    B -->|Other PC| D[Ignore - Not Portrait]
+    C --> E{Wait Time > 200ms?}
+    E -->|Yes| F[Begin Slowdown - Portrait Mode]
+    E -->|No| G[Continue Monitoring]
+    
+    H[EMUSIG Signal] --> I{Signal Type?}
+    I -->|STORY| J[Begin Slowdown - Full Story Mode]
+    I -->|Other| K[End Slowdown + Reset Key Wait]
+    
+    L[Key Pressed] --> M[End Slowdown]
+    
+    N[Quiet Period > 100ms] --> O[Reset Key Wait State]
+    
+    style F fill:#fff3e0
+    style J fill:#fff3e0
+    style M fill:#e8f5e8
+    style K fill:#e8f5e8
+```
+
+#### Detection Logic Flow
+
+1. **PC-Based Key Read Detection**: Monitor keyboard reads with specific program counter ranges:
+   - **0xDB00-0xDC00**: Primary portrait dialogue routine
+   - **0xEED0-0xEEE0**: Secondary portrait routine
+   - Other PC addresses are ignored to avoid false positives
+2. **Timer Analysis**: If portrait PC key waiting exceeds 200ms → begin slowdown
+3. **EMUSIG Confirmation**: Mode changes confirm portrait end
+4. **User Input**: Key press immediately exits slowdown
+5. **Timeout Reset**: 100ms quiet period resets detection state
+
+This approach combines:
+- **Precise PC analysis** (specific code addresses for portrait routines)
+- **Timing patterns** (portrait dialogues have characteristic wait times)
+- **Official signals** (EMUSIG provides reliable mode transitions)
+- **User behavior** (key presses indicate interaction completion)
+
+#### EMUSIG Debugging
+
+To debug EMUSIG mode changes, set `DEBUG = true` in `LawlessHacks.java`. This will log all mode transitions:
+
+```
+EMUSIG: 3D_MAP (0xC04C)
+Exiting portrait mode - restoring normal speed
+EMUSIG: STORY (0xC04E)  
+Entering portrait mode - slowing to 1MHz
+```
+
 ### Speed Control Components
 
 #### 1. UI Speed Setting
@@ -57,13 +128,14 @@ graph TD
 - **Duration**: Active only during text rendering operations
 
 #### 3. Animation Speed Control
-- **Location**: `LawlessHacks.adjustAnimationSpeed()`
-- **Detection Method**: Heuristic-based using:
-  - Program Counter at `0x0D5FE`
-  - Memory access at `0x0c000`
-  - Stack analysis (specific byte pattern `0x09b`)
+- **Location**: `LawlessHacks.handleModeChange()` + `LawlessHacks.detectKeyWaiting()`
+- **Detection Method**: Hybrid approach combining multiple signals:
+  - `EMUSIG_STORY` (0xC04E) = Full-screen story mode (1MHz)
+  - Key read patterns = Portrait dialogue detection
+  - EMUSIG mode changes = Portrait end detection
+  - Time-based heuristics = Portrait duration analysis
 - **Purpose**: Slows character animations to 1MHz to prevent comical speed
-- **Challenge**: Animation detection is imperfect, may cause false positives during idle
+- **Reliability**: Multi-layered detection, more robust than single-method approaches
 
 #### 4. Memory Access Speed Boost
 - **Location**: `CardRamFactor.speedBoost`

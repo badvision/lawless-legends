@@ -203,6 +203,12 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>net.sf.applecommander</groupId>
+            <artifactId>AppleCommander</artifactId>
+            <version>1.9.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.xerial.thirdparty</groupId>
             <artifactId>nestedvm</artifactId>
             <version>1.0</version>

@@ -16,6 +16,8 @@
 
 package jace.hardware.massStorage;
 
+import jace.hardware.massStorage.core.BlockReader;
+import jace.hardware.massStorage.core.ProDOSConstants;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -26,7 +28,7 @@ import java.io.IOException;
  *
  * @author Brendan Robert (BLuRry) brendan.robert@gmail.com
  */
-public class FileNode extends DiskNode {
+public class FileNode extends DiskNode implements BlockReader {
 
     @Override
     public int getLength() {
@@ -81,8 +83,8 @@ public class FileNode extends DiskNode {
     }
     public int fileType = 0x00;
     public int loadAddress = 0x00;
-    public static int SEEDLING_MAX_SIZE = ProdosVirtualDisk.BLOCK_SIZE;
-    public static int SAPLING_MAX_SIZE = ProdosVirtualDisk.BLOCK_SIZE * 128;
+    public static int SEEDLING_MAX_SIZE = ProDOSConstants.BLOCK_SIZE;
+    public static int SAPLING_MAX_SIZE = ProDOSConstants.BLOCK_SIZE * 128;
 
     @Override
     public EntryType getType() {
@@ -155,8 +157,8 @@ public class FileNode extends DiskNode {
 
     @Override
     public void doAllocate() throws IOException {
-        int dataBlocks = (int) ((getPhysicalFile().length() + ProdosVirtualDisk.BLOCK_SIZE - 1) / ProdosVirtualDisk.BLOCK_SIZE);
-        int treeBlocks = (((dataBlocks * 2) + (ProdosVirtualDisk.BLOCK_SIZE - 2)) / ProdosVirtualDisk.BLOCK_SIZE);
+        int dataBlocks = (int) ((getPhysicalFile().length() + ProDOSConstants.BLOCK_SIZE - 1) / ProDOSConstants.BLOCK_SIZE);
+        int treeBlocks = (((dataBlocks * 2) + (ProDOSConstants.BLOCK_SIZE - 2)) / ProDOSConstants.BLOCK_SIZE);
         if (treeBlocks > 1) {
             treeBlocks++;
         }
@@ -172,8 +174,8 @@ public class FileNode extends DiskNode {
     @Override
     public void readBlock(int block, byte[] buffer) throws IOException {
         allocate();
-        int dataBlocks = (int) ((getPhysicalFile().length() + ProdosVirtualDisk.BLOCK_SIZE - 1) / ProdosVirtualDisk.BLOCK_SIZE);
-        int treeBlocks = (((dataBlocks * 2) + (ProdosVirtualDisk.BLOCK_SIZE - 2)) / ProdosVirtualDisk.BLOCK_SIZE);
+        int dataBlocks = (int) ((getPhysicalFile().length() + ProDOSConstants.BLOCK_SIZE - 1) / ProDOSConstants.BLOCK_SIZE);
+        int treeBlocks = (((dataBlocks * 2) + (ProDOSConstants.BLOCK_SIZE - 2)) / ProDOSConstants.BLOCK_SIZE);
         if (treeBlocks > 1) {
             treeBlocks++;
         }
@@ -205,10 +207,60 @@ public class FileNode extends DiskNode {
         }
     }
 
+    // ========================================================================
+    // BlockReader interface implementation
+    // ========================================================================
+
+    /**
+     * Implements BlockReader.readBlock() by adapting to DiskNode.readBlock().
+     * This allows FileNode to be used with storage strategies from the core layer.
+     *
+     * @param blockNumber the block number to read (0-based)
+     * @return a 512-byte array containing the block data
+     * @throws IOException if an I/O error occurs
+     */
+    @Override
+    public byte[] readBlock(int blockNumber) throws IOException {
+        byte[] buffer = new byte[ProDOSConstants.BLOCK_SIZE];
+        readBlock(blockNumber, buffer);
+        return buffer;
+    }
+
+    /**
+     * Implements BlockReader.getTotalBlocks().
+     * Returns the total number of blocks needed for this file including
+     * data blocks and any index blocks (for SAPLING/TREE files).
+     *
+     * @return the total block count
+     */
+    @Override
+    public int getTotalBlocks() {
+        long fileSize = getPhysicalFile().length();
+        int dataBlocks = (int) ((fileSize + ProDOSConstants.BLOCK_SIZE - 1) / ProDOSConstants.BLOCK_SIZE);
+
+        EntryType type = getType();
+        if (type == EntryType.SEEDLING) {
+            return 1;  // Just the data block
+        } else if (type == EntryType.SAPLING) {
+            return 1 + dataBlocks;  // Index block + data blocks
+        } else if (type == EntryType.TREE) {
+            int treeBlocks = (((dataBlocks * 2) + (ProDOSConstants.BLOCK_SIZE - 2)) / ProDOSConstants.BLOCK_SIZE);
+            if (treeBlocks > 1) {
+                treeBlocks++;  // Master index block
+            }
+            return treeBlocks + dataBlocks;  // Index blocks + data blocks
+        }
+        return dataBlocks;
+    }
+
+    // ========================================================================
+    // Private helper methods
+    // ========================================================================
+
     private void readFile(byte[] buffer, int start) throws IOException {
         try (FileInputStream f = new FileInputStream(physicalFile)) {
-            f.skip(start * ProdosVirtualDisk.BLOCK_SIZE);
-            f.read(buffer, 0, ProdosVirtualDisk.BLOCK_SIZE);
+            f.skip(start * ProDOSConstants.BLOCK_SIZE);
+            f.read(buffer, 0, ProDOSConstants.BLOCK_SIZE);
         }
     }
 

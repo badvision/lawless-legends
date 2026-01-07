@@ -21,6 +21,7 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
@@ -53,6 +54,7 @@ public class LawlessLegends extends Application {
             controller.initialize();
             Scene s = new Scene(node);
             s.setFill(Color.BLACK);
+
             primaryStage.setScene(s);
             primaryStage.titleProperty().set("Lawless Legends");
             Utility.loadIcon("game_icon.png").ifPresent(icon -> {
@@ -62,8 +64,29 @@ public class LawlessLegends extends Application {
             throw new RuntimeException(exception);
         }
 
+        // Set up Shift+J detection before showing the stage
+        // This allows users to press Shift+J before the window fully initializes
+        AtomicBoolean bypassChecked = new AtomicBoolean(false);
+        primaryStage.getScene().setOnKeyPressed(event -> {
+            if (!bypassChecked.get() && event.isShiftDown() && event.getCode() == KeyCode.J) {
+                bypassChecked.set(true);
+                if (System.getProperty("jace.developerBypass") == null) {
+                    System.setProperty("jace.developerBypass", "true");
+                    Logger.getLogger(LawlessLegends.class.getName()).log(Level.INFO,
+                        "Developer bypass mode enabled via Shift+J");
+                }
+            }
+        });
+
         primaryStage.show();
+
+        // Give user a brief moment to press Shift+J before creating the Emulator
         new Thread(() -> {
+            try {
+                Thread.sleep(100); // 100ms window to press Shift+J
+            } catch (InterruptedException e) {
+                // Continue anyway
+            }
             Emulator.getInstance(getParameters().getRaw());
             Emulator.withComputer(c-> {
                 ((LawlessComputer)c).initLawlessLegendsConfiguration();
@@ -200,7 +223,25 @@ public class LawlessLegends extends Application {
      * @param args the command line arguments
      */
     public static void main(String[] args) {
+        // Install custom exception handler to suppress noisy MacAccessible errors
+        Thread.UncaughtExceptionHandler defaultHandler = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler(new MacAccessibleExceptionHandler(defaultHandler));
+
+        // Check for developer bypass mode via Shift+J at startup
+        checkForDeveloperBypass();
         launch(args);
+    }
+
+    private static void checkForDeveloperBypass() {
+        // Developer bypass mode can be enabled via:
+        // 1. Holding Shift+J during startup (detected in start() method)
+        // 2. Command line: -Djace.developerBypass=true
+        // Note: Keyboard state cannot be detected before JavaFX starts,
+        // so actual Shift+J detection happens in the start() method.
+        if (System.getProperty("jace.developerBypass") == null) {
+            Logger.getLogger(LawlessLegends.class.getName()).log(Level.INFO,
+                "To enable developer bypass mode, hold Shift+J during startup or use -Djace.developerBypass=true");
+        }
     }
 
     /**
@@ -249,13 +290,15 @@ public class LawlessLegends extends Application {
 
     private void configureEmulatorForGame() {
         Emulator.withComputer(c -> {
+            LawlessComputer computer = (LawlessComputer) c;
             c.enableHints = false;
             c.clockEnabled = true;
             c.joy1enabled = false;
             c.joy2enabled = false;
             c.enableStateManager = false;
             c.ramCard.setValue(RAM128k.RamCards.CardRamworks);
-            if (c.PRODUCTION_MODE) {
+            // Only configure production hardware and load game if NOT in developer bypass mode
+            if (c.PRODUCTION_MODE && !computer.isDeveloperBypassMode()) {
                 c.card7.setValue(Cards.MassStorage);
                 c.card6.setValue(Cards.DiskIIDrive);
                 c.card5.setValue(Cards.RamFactor);
@@ -263,9 +306,9 @@ public class LawlessLegends extends Application {
                 c.card2.setValue(null);
             }
             c.reconfigure();
-            restoreUISettings();            
-            if (c.PRODUCTION_MODE) {
-                ((LawlessImageTool) c.getUpgradeHandler()).loadGame();
+            restoreUISettings();
+            if (c.PRODUCTION_MODE && !computer.isDeveloperBypassMode()) {
+                ((LawlessImageTool) c.getUpgradeHandler()).loadGame(c.getAutoUpgradeHandler());
             }
         });
     }

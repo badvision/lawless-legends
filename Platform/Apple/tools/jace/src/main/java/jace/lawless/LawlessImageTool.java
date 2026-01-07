@@ -124,6 +124,10 @@ public class LawlessImageTool implements MediaConsumer {
     }
 
     public void loadGame() {
+        loadGame(null);
+    }
+
+    public void loadGame(UpgradeHandler upgradeHandler) {
         // Insert game disk image
         MediaEntry e = new MediaEntry();
         e.author = "8 Bit Bunch";
@@ -133,6 +137,16 @@ public class LawlessImageTool implements MediaConsumer {
         f.path = getGamePath("game.2mg");
 
         if (f.path != null && f.path.exists()) {
+            // Check for upgrades before loading if handler is provided
+            if (upgradeHandler != null) {
+                boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(f.path);
+                if (!shouldContinue) {
+                    // User cancelled - exit the application
+                    System.exit(0);
+                    return;
+                }
+            }
+
             insertHardDisk(0, e, f);
         }
     }
@@ -146,7 +160,7 @@ public class LawlessImageTool implements MediaConsumer {
         return target;
     }
 
-    private File getApplicationStoragePath() {
+    public File getApplicationStoragePath() {
         String path = System.getenv("APPDATA");
         if (path == null) {
             path = System.getProperty("user.home");
@@ -222,7 +236,7 @@ public class LawlessImageTool implements MediaConsumer {
         }
     }
 
-    private void performGameUpgrade(MediaEntry e, MediaFile f) {
+    void performGameUpgrade(MediaEntry e, MediaFile f) {
         try {
             System.out.println("Game upgrade starting");
             readCurrentDisk(0);

@@ -190,16 +190,20 @@ public class GameVersionTracker {
         }
 
         // METHOD 1: Try version string comparison (most reliable)
-        String currentVersion = GameVersionReader.extractVersion(gameFile);
-        if (currentVersion != null && lastKnownVersion != null) {
-            if (!currentVersion.equals(lastKnownVersion)) {
-                LOGGER.info("Version changed: " + lastKnownVersion + " -> " + currentVersion +
+        String currentVersionStr = GameVersionReader.extractVersion(gameFile);
+        if (currentVersionStr != null && lastKnownVersion != null) {
+            int comparison = currentVersionStr.compareTo(lastKnownVersion);
+            if (comparison == 0) {
+                LOGGER.fine("Version unchanged: " + currentVersionStr + " (version string comparison)");
+                return UpdateStatus.CURRENT;
+            } else if (comparison > 0) {
+                LOGGER.info("Upgrade detected: " + lastKnownVersion + " -> " + currentVersionStr +
                            " (version string comparison)");
-                // Since we can't reliably order version strings, treat any change as upgrade
                 return UpdateStatus.UPGRADED;
             } else {
-                LOGGER.fine("Version unchanged: " + currentVersion + " (version string comparison)");
-                return UpdateStatus.CURRENT;
+                LOGGER.info("Downgrade detected: " + lastKnownVersion + " -> " + currentVersionStr +
+                           " (version string comparison)");
+                return UpdateStatus.DOWNGRADED;
             }
         }
 

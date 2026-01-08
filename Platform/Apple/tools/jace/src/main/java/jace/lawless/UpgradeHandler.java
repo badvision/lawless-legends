@@ -193,6 +193,21 @@ public class UpgradeHandler {
             return performUpgrade(gameFile);
         }
 
+        if (status == GameVersionTracker.UpdateStatus.DOWNGRADED) {
+            // User has manually installed a newer version
+            // Accept it and update our tracking
+            try {
+                String version = GameVersionReader.extractVersion(gameFile);
+                versionTracker.saveVersionInfo(gameFile.lastModified(), gameFile.length(), version);
+                createOrUpdateLastKnownGoodBackup(gameFile);
+                String versionInfo = (version != null) ? ", version=" + version : "";
+                LOGGER.info("Newer game version detected - accepting manual upgrade: size=" + gameFile.length() + " bytes" + versionInfo);
+            } catch (IOException e) {
+                LOGGER.log(Level.WARNING, "Failed to save updated version", e);
+            }
+            return true;
+        }
+
         return true;
     }
 

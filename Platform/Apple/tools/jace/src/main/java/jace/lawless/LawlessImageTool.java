@@ -238,49 +238,100 @@ public class LawlessImageTool implements MediaConsumer {
 
     void performGameUpgrade(MediaEntry e, MediaFile f) {
         try {
-            System.out.println("Game upgrade starting");
-            readCurrentDisk(0);
-            MediaEntry originalEntry = gameMediaEntry;
-            MediaFile originalFile = gameMediaFile;
+            System.out.println("Game upgrade starting - using silent upgrade");
 
-            // Put in new disk and boot it -- we want to use its importer in case that importer works better!
+            // Get the UpgradeHandler from the computer
+            UpgradeHandler upgradeHandler = Emulator.withComputer(
+                c -> ((LawlessComputer) c).getAutoUpgradeHandler(), null);
+            if (upgradeHandler == null) {
+                throw new Exception("UpgradeHandler not available");
+            }
+
+            // Get current game file
+            File currentGameFile = getMediaFile().path;
+            if (currentGameFile == null || !currentGameFile.exists()) {
+                throw new Exception("Current game file not found");
+            }
+
+            // Create backup of current game as .lkg (for save extraction)
+            File lkgBackup = new File(currentGameFile.getParentFile(), currentGameFile.getName() + ".lkg");
+            if (!lkgBackup.exists() || lkgBackup.length() != currentGameFile.length()) {
+                System.out.println("Creating .lkg backup of current game");
+                java.nio.file.Files.copy(currentGameFile.toPath(), lkgBackup.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
+
+            // Eject current disk before replacing file
             ejectHardDisk(0);
+
+            // Copy new game file over the old one
+            System.out.println("Replacing game file with new version");
+            java.nio.file.Files.copy(f.path.toPath(), currentGameFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+
+            // Use UpgradeHandler to perform silent upgrade (extract save from .lkg, write to new game)
+            System.out.println("Performing silent upgrade to preserve save game");
+            File safetyBackup = upgradeHandler.createBackup(currentGameFile);
+            if (safetyBackup == null) {
+                throw new Exception("Failed to create safety backup");
+            }
+
+            // Perform the silent upgrade using the private method logic
+            // We need to call the upgrade handler's internal upgrade logic
+            boolean success = performSilentUpgradeViaHandler(upgradeHandler, currentGameFile, lkgBackup);
+
+            if (!success) {
+                System.out.println("Silent upgrade failed - restoring backup");
+                upgradeHandler.restoreFromBackup(currentGameFile, safetyBackup);
+                throw new Exception("Silent upgrade failed - game restored to new version without save");
+            }
+
+            System.out.println("Silent upgrade completed successfully");
+
+            // Insert the upgraded disk
+            f.path = currentGameFile;
             insertHardDisk(0, e, f);
+
+            // Automatically reboot to complete the upgrade
+            System.out.println("Rebooting to complete upgrade");
             Emulator.withComputer(Computer::coldStart);
-            if (!waitForText("I)mport", 1)) {
-                Emulator.withComputer(Computer::coldStart);
-                if (!waitForText("I)mport", 2000)) {
-                    throw new Exception("Unable to detect upgrade prompt - Upgrade aborted.");
-                }
-            }
-            System.out.println("Menu Propmt detected");
 
-            Keyboard.pasteFromString("i");
-            if (!waitForText("Insert disk for import", 1500)) {
-                throw new Exception("Unable to detect first insert prompt - Upgrade aborted.");
-            }
-            System.out.println("First Propmt detected");
-
-            // Now put in the original disk to load its saved game (hopefully!)
-            ejectHardDisk(0);
-            insertHardDisk(0, originalEntry, originalFile);
-
-            Keyboard.pasteFromString(" ");
-            if (!waitForText("Game imported", 2000)) {
-                throw new Exception("Unable to detect second insert prompt - Upgrade aborted.");
-            }
-            System.out.println("Completing upgrade");
-            // Now we copy the new game disk over the old and insert it to write the save game and complete the upgrade.
-            File target = getMediaFile().path;
-            ejectHardDisk(0);
-            java.nio.file.Files.copy(f.path.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            f.path = target;
-            insertHardDisk(0, e, f);
-            Keyboard.pasteFromString(" ");
-            System.out.println("Upgrade completed");
         } catch (Exception ex) {
             Logger.getLogger(LawlessImageTool.class.getName()).log(Level.SEVERE, null, ex);
-            Utility.gripe(ex.getMessage());
+            Utility.gripe("Upgrade failed: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Performs silent upgrade by copying save game from old disk to new disk.
+     * This mirrors the logic from UpgradeHandler.performSilentUpgrade().
+     */
+    private boolean performSilentUpgradeViaHandler(UpgradeHandler upgradeHandler, File newGameFile, File oldGameBackup) {
+        try {
+            // Extract save from old disk using readFile
+            byte[] saveGameData;
+            try (jace.hardware.massStorage.image.ProDOSDiskImage reader =
+                    new jace.hardware.massStorage.image.ProDOSDiskImage(oldGameBackup)) {
+                saveGameData = reader.readFile("GAME.1.SAVE");
+            }
+
+            if (saveGameData == null) {
+                System.out.println("No save game found in backup - booting clean");
+                return true;
+            }
+
+            System.out.println("Found save game (" + saveGameData.length + " bytes) - transferring to new disk");
+
+            // Write save to new disk
+            try (jace.hardware.massStorage.image.ProDOSDiskImage writer =
+                    new jace.hardware.massStorage.image.ProDOSDiskImage(newGameFile)) {
+                writer.writeFile("GAME.1.SAVE", saveGameData, 0x00);
+            }
+
+            System.out.println("Save game transferred successfully");
+            return true;
+
+        } catch (IOException ex) {
+            Logger.getLogger(LawlessImageTool.class.getName()).log(Level.SEVERE, "Silent upgrade failed", ex);
+            return false;
         }
     }
 

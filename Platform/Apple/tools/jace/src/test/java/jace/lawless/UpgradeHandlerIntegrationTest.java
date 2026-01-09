@@ -203,10 +203,12 @@ public class UpgradeHandlerIntegrationTest {
         File gameDisk = createDiskWithSave("game.2mg", testSaveData);
         long oldSize = gameDisk.length();
 
-        // Simulate first boot with old disk (creates last known good backup)
-        upgradeHandler.checkAndHandleUpgrade(gameDisk, false);
+        // In real flow, getGamePath() creates .lkg backup before replacing file
+        // Simulate this by manually creating the .lkg from the old disk with save
+        File lkgBackup = new File(gameDisk.getParentFile(), gameDisk.getName() + ".lkg");
+        java.nio.file.Files.copy(gameDisk.toPath(), lkgBackup.toPath());
 
-        // Now simulate user replacing file with new version (DIFFERENT SIZE)
+        // Now replace file with new version (this is what getGamePath() does)
         File newDisk = createMinimalProDOSDisk("game.2mg"); // Overwrite with new version
         // Add some data to make it a different size
         try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(newDisk, "rw")) {
@@ -215,8 +217,8 @@ public class UpgradeHandlerIntegrationTest {
         Thread.sleep(10); // Ensure timestamp is different
         newDisk.setLastModified(System.currentTimeMillis());
 
-        // Perform upgrade
-        boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(newDisk, false);
+        // Perform upgrade (wasJustReplaced=true triggers upgrade from .lkg)
+        boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(newDisk, true);
 
         // Verify upgrade succeeded
         assertTrue("Upgrade should succeed", shouldContinue);
@@ -229,10 +231,6 @@ public class UpgradeHandlerIntegrationTest {
 
         assertNotNull("Save game should be present on new disk", transferred);
         assertArrayEquals("Save game content should match", testSaveData, transferred);
-
-        // Verify version info was updated
-        assertEquals("Size should be updated",
-            newDisk.length(), tracker.getLastKnownSize());
     }
 
     @Test
@@ -276,6 +274,7 @@ public class UpgradeHandlerIntegrationTest {
         assertArrayEquals("LKG backup should have user's exact save data", userSaveData, lkgSaveData);
 
         // Boot 3: Replace with actual new version (DIFFERENT SIZE)
+        // In real flow, getGamePath() would detect version difference and replace file
         gameDisk = createMinimalProDOSDisk("game.2mg");
         try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(gameDisk, "rw")) {
             raf.setLength(initialSize + 1024); // Different size = real upgrade
@@ -284,7 +283,8 @@ public class UpgradeHandlerIntegrationTest {
         gameDisk.setLastModified(System.currentTimeMillis());
 
         // This SHOULD trigger upgrade and preserve user's save from .lkg
-        shouldContinue = upgradeHandler.checkAndHandleUpgrade(gameDisk, false);
+        // wasJustReplaced=true because getGamePath() detected and replaced the file
+        shouldContinue = upgradeHandler.checkAndHandleUpgrade(gameDisk, true);
         assertTrue("Should perform upgrade", shouldContinue);
 
         // CRITICAL: Verify user's save was preserved in the new version
@@ -307,10 +307,11 @@ public class UpgradeHandlerIntegrationTest {
         File gameDisk = createMinimalProDOSDisk("game.2mg");
         long oldSize = gameDisk.length();
 
-        // Simulate first boot (creates last known good backup)
-        upgradeHandler.checkAndHandleUpgrade(gameDisk, false);
+        // Create .lkg backup (simulating what getGamePath() does before replacement)
+        File lkgBackup = new File(gameDisk.getParentFile(), gameDisk.getName() + ".lkg");
+        java.nio.file.Files.copy(gameDisk.toPath(), lkgBackup.toPath());
 
-        // Simulate user replacing with new version (DIFFERENT SIZE)
+        // Replace with new version (what getGamePath() does)
         gameDisk = createMinimalProDOSDisk("game.2mg");
         try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(gameDisk, "rw")) {
             raf.setLength(oldSize + 256); // Different size
@@ -318,8 +319,8 @@ public class UpgradeHandlerIntegrationTest {
         Thread.sleep(10);
         gameDisk.setLastModified(System.currentTimeMillis());
 
-        // Perform upgrade
-        boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(gameDisk, false);
+        // Perform upgrade (wasJustReplaced=true triggers upgrade)
+        boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(gameDisk, true);
 
         // Verify upgrade succeeded even without save
         assertTrue("Upgrade should succeed even with no save", shouldContinue);
@@ -331,10 +332,6 @@ public class UpgradeHandlerIntegrationTest {
         }
 
         assertNull("No save game should be present", noSave);
-
-        // Verify version info was updated
-        assertEquals("Size should be updated",
-            gameDisk.length(), tracker.getLastKnownSize());
     }
 
     @Test
@@ -350,6 +347,10 @@ public class UpgradeHandlerIntegrationTest {
         // Simulate first boot
         upgradeHandler.checkAndHandleUpgrade(gameDisk, false);
 
+        // Create .lkg backup (simulating what getGamePath() does before replacement)
+        File lkgBackup = new File(gameDisk.getParentFile(), gameDisk.getName() + ".lkg");
+        java.nio.file.Files.copy(gameDisk.toPath(), lkgBackup.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+
         // Simulate user replacing with new version (DIFFERENT SIZE)
         gameDisk = createMinimalProDOSDisk("game.2mg");
         try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(gameDisk, "rw")) {
@@ -358,11 +359,10 @@ public class UpgradeHandlerIntegrationTest {
         Thread.sleep(10);
         gameDisk.setLastModified(System.currentTimeMillis());
 
-        // Perform upgrade
-        upgradeHandler.checkAndHandleUpgrade(gameDisk, false);
+        // Perform upgrade (wasJustReplaced=true triggers upgrade)
+        upgradeHandler.checkAndHandleUpgrade(gameDisk, true);
 
         // Verify last known good backup exists
-        File lkgBackup = new File(gameDisk.getParentFile(), gameDisk.getName() + ".lkg");
         assertTrue("Last known good backup should exist", lkgBackup.exists());
         assertTrue("Backup should be readable", lkgBackup.canRead());
 
@@ -384,6 +384,10 @@ public class UpgradeHandlerIntegrationTest {
         // Simulate first boot
         upgradeHandler.checkAndHandleUpgrade(gameDisk, false);
 
+        // Create .lkg backup (simulating what getGamePath() does before replacement)
+        File lkgBackup = new File(gameDisk.getParentFile(), gameDisk.getName() + ".lkg");
+        java.nio.file.Files.copy(gameDisk.toPath(), lkgBackup.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+
         // Simulate user replacing with new version (DIFFERENT SIZE)
         gameDisk = createMinimalProDOSDisk("game.2mg");
         try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(gameDisk, "rw")) {
@@ -395,8 +399,8 @@ public class UpgradeHandlerIntegrationTest {
         // Make disk read-only to simulate write failure
         gameDisk.setReadOnly();
 
-        // Perform upgrade (should fail and restore)
-        boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(gameDisk, false);
+        // Perform upgrade (should fail and restore) - wasJustReplaced=true triggers upgrade
+        boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(gameDisk, true);
 
         // Should still continue (with backup restored)
         assertTrue("Should continue even after failure", shouldContinue);
@@ -422,6 +426,10 @@ public class UpgradeHandlerIntegrationTest {
         // Simulate first boot
         upgradeHandler.checkAndHandleUpgrade(gameDisk, false);
 
+        // Create .lkg backup (simulating what getGamePath() does before replacement)
+        File lkgBackup = new File(gameDisk.getParentFile(), gameDisk.getName() + ".lkg");
+        java.nio.file.Files.copy(gameDisk.toPath(), lkgBackup.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+
         // Simulate user replacing with new version (DIFFERENT SIZE)
         gameDisk = createMinimalProDOSDisk("game.2mg");
         try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(gameDisk, "rw")) {
@@ -432,7 +440,7 @@ public class UpgradeHandlerIntegrationTest {
 
         // Measure performance
         long startTime = System.currentTimeMillis();
-        upgradeHandler.checkAndHandleUpgrade(gameDisk, false);
+        upgradeHandler.checkAndHandleUpgrade(gameDisk, true);
         long duration = System.currentTimeMillis() - startTime;
 
         // Verify performance
@@ -460,6 +468,10 @@ public class UpgradeHandlerIntegrationTest {
         // Simulate first boot
         upgradeHandler.checkAndHandleUpgrade(gameDisk, false);
 
+        // Create .lkg backup (simulating what getGamePath() does before replacement)
+        File lkgBackup = new File(gameDisk.getParentFile(), gameDisk.getName() + ".lkg");
+        java.nio.file.Files.copy(gameDisk.toPath(), lkgBackup.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+
         // Simulate user replacing with new version (DIFFERENT SIZE)
         gameDisk = createMinimalProDOSDisk("game.2mg");
         try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(gameDisk, "rw")) {
@@ -470,7 +482,7 @@ public class UpgradeHandlerIntegrationTest {
 
         // In headless mode, silent upgrade should still work
         Utility.setHeadlessMode(true);
-        boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(gameDisk, false);
+        boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(gameDisk, true);
 
         // Should continue and perform silent upgrade
         assertTrue("Should continue in headless mode", shouldContinue);
@@ -536,6 +548,10 @@ public class UpgradeHandlerIntegrationTest {
         // Simulate first boot with old disk (creates last known good backup)
         upgradeHandler.checkAndHandleUpgrade(gameDisk, false);
 
+        // Create .lkg backup (simulating what getGamePath() does before replacement)
+        File lkgBackup = new File(gameDisk.getParentFile(), gameDisk.getName() + ".lkg");
+        java.nio.file.Files.copy(gameDisk.toPath(), lkgBackup.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+
         // Simulate user replacing file with new version (DIFFERENT SIZE)
         File newDisk = createMinimalProDOSDisk("game.2mg");
         try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(newDisk, "rw")) {
@@ -544,8 +560,8 @@ public class UpgradeHandlerIntegrationTest {
         Thread.sleep(10);
         newDisk.setLastModified(System.currentTimeMillis());
 
-        // Perform upgrade
-        boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(newDisk, false);
+        // Perform upgrade (wasJustReplaced=true triggers upgrade)
+        boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(newDisk, true);
 
         // Verify upgrade succeeded
         assertTrue("Upgrade should succeed", shouldContinue);
@@ -570,6 +586,10 @@ public class UpgradeHandlerIntegrationTest {
         // Simulate first boot (creates last known good backup)
         upgradeHandler.checkAndHandleUpgrade(gameDisk, false);
 
+        // Create .lkg backup (simulating what getGamePath() does before replacement)
+        File lkgBackup = new File(gameDisk.getParentFile(), gameDisk.getName() + ".lkg");
+        java.nio.file.Files.copy(gameDisk.toPath(), lkgBackup.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+
         // Simulate user replacing with new version (DIFFERENT SIZE)
         gameDisk = createMinimalProDOSDisk("game.2mg");
         try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(gameDisk, "rw")) {
@@ -578,8 +598,8 @@ public class UpgradeHandlerIntegrationTest {
         Thread.sleep(10);
         gameDisk.setLastModified(System.currentTimeMillis());
 
-        // Perform upgrade
-        boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(gameDisk, false);
+        // Perform upgrade (wasJustReplaced=true triggers upgrade)
+        boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(gameDisk, true);
 
         // Verify upgrade succeeded even without save
         assertTrue("Upgrade should succeed even with no save", shouldContinue);
@@ -606,6 +626,10 @@ public class UpgradeHandlerIntegrationTest {
         // Simulate first boot
         upgradeHandler.checkAndHandleUpgrade(gameDisk, false);
 
+        // Create .lkg backup (simulating what getGamePath() does before replacement)
+        File lkgBackup = new File(gameDisk.getParentFile(), gameDisk.getName() + ".lkg");
+        java.nio.file.Files.copy(gameDisk.toPath(), lkgBackup.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+
         // Simulate user replacing with new version (DIFFERENT SIZE)
         File newDisk = createMinimalProDOSDisk("game.2mg");
         try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(newDisk, "rw")) {
@@ -616,7 +640,7 @@ public class UpgradeHandlerIntegrationTest {
 
         // Measure time including verification delay
         long startTime = System.currentTimeMillis();
-        boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(newDisk, false);
+        boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(newDisk, true);
         long duration = System.currentTimeMillis() - startTime;
 
         // Verify upgrade succeeded

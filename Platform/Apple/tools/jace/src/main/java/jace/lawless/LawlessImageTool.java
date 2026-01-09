@@ -224,13 +224,26 @@ public class LawlessImageTool implements MediaConsumer {
             try {
                 InputStream packagedGame = getClass().getResourceAsStream("/jace/data/" + filename);
                 if (packagedGame != null) {
-                    java.nio.file.Files.copy(packagedGame, target.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                    packagedGame.close();
+                    try {
+                        java.nio.file.Files.copy(packagedGame, target.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                        System.out.println("Successfully copied packaged game to storage");
+                    } finally {
+                        try {
+                            packagedGame.close();
+                        } catch (IOException e) {
+                            // Ignore close error
+                        }
+                    }
                 } else {
                     System.err.println("Error: Could not find packaged game resource: /jace/data/" + filename);
+                    System.err.println("This is likely a build configuration issue - the resource may not be included in native image");
                 }
             } catch (IOException e) {
                 System.err.println("Error copying packaged game to storage: " + e.getMessage());
+                e.printStackTrace();
+            } catch (Throwable t) {
+                System.err.println("Unexpected error during game copy: " + t.getMessage());
+                t.printStackTrace();
             }
 
             // Mark that we just replaced the storage file (signals upgrade needed)

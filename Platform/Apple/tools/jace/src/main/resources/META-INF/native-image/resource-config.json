@@ -51,6 +51,9 @@
     }, 
     {
       "pattern":"\\Qwindows/x64/org/lwjgl/stb/lwjgl_stb.dll\\E"
+    },
+    {
+      "pattern":"\\Qjace/data/game.2mg\\E"
     }
   ]},
   "bundles":[

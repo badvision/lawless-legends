@@ -24,7 +24,7 @@ public class GameVersionReaderTest {
 
     @Test
     public void testExtractVersion_NullFile() {
-        String version = GameVersionReader.extractVersion(null);
+        String version = GameVersionReader.extractVersion((File) null);
 
         assertNull("Version should be null for null file", version);
     }

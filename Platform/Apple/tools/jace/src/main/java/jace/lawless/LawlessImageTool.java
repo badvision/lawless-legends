@@ -154,9 +154,52 @@ public class LawlessImageTool implements MediaConsumer {
     private File getGamePath(String filename) {
         File base = getApplicationStoragePath();
         File target = new File(base, filename);
+
+        // Extract version from packaged game in resources
+        String packagedVersion = null;
+        InputStream packagedGame = getClass().getResourceAsStream("/jace/data/" + filename);
+        if (packagedGame != null) {
+            packagedVersion = GameVersionReader.extractVersion(packagedGame);
+            try {
+                packagedGame.close();
+            } catch (IOException e) {
+                // Ignore close error
+            }
+        }
+
+        // Extract version from storage file (if it exists)
+        String storageVersion = null;
+        if (target.exists()) {
+            storageVersion = GameVersionReader.extractVersion(target);
+        }
+
+        // Log both versions
+        System.out.println("Game versions - Packaged: " +
+                          (packagedVersion != null ? packagedVersion : "unknown") +
+                          ", Storage: " +
+                          (storageVersion != null ? storageVersion : "unknown"));
+
+        // Determine if we need to copy packaged game to storage
+        boolean shouldCopy = false;
         if (!target.exists()) {
+            shouldCopy = true;
+            System.out.println("Storage file does not exist - copying packaged game");
+        } else if (packagedVersion != null && storageVersion != null) {
+            int comparison = packagedVersion.compareTo(storageVersion);
+            if (comparison > 0) {
+                shouldCopy = true;
+                System.out.println("Packaged game is newer - replacing storage file");
+            } else if (comparison < 0) {
+                System.out.println("Storage game is newer (manual upgrade) - keeping storage file");
+            } else {
+                System.out.println("Packaged and storage versions match - no copy needed");
+            }
+        }
+
+        if (shouldCopy) {
             copyResource(filename, target);
         }
+
         return target;
     }
 

@@ -233,11 +233,6 @@ public class ProDOSDiskWriter implements BlockWriter, Closeable {
         byte[] volDir = readBlock(ProDOSConstants.VOLUME_DIR_BLOCK);
         int bitmapPointer = ProDOSConstants.readLittleEndianWord(volDir, ProDOSConstants.VOL_BITMAP_POINTER);
 
-        // Debug: log the bitmap pointer
-        java.util.logging.Logger.getLogger(getClass().getName()).info(
-            String.format("Flush bitmap: pointer=%d (0x%04X), total blocks=%d",
-                        bitmapPointer, bitmapPointer, totalBlocks));
-
         // Calculate number of bitmap blocks needed
         int bitmapBlocks = (totalBlocks + (ProDOSConstants.BLOCK_SIZE * 8) - 1) /
                           (ProDOSConstants.BLOCK_SIZE * 8);
@@ -277,11 +272,6 @@ public class ProDOSDiskWriter implements BlockWriter, Closeable {
         // Read volume directory to get bitmap pointer
         byte[] volDir = readBlock(ProDOSConstants.VOLUME_DIR_BLOCK);
         int bitmapPointer = ProDOSConstants.readLittleEndianWord(volDir, ProDOSConstants.VOL_BITMAP_POINTER);
-
-        // Debug: log the bitmap pointer
-        java.util.logging.Logger.getLogger(getClass().getName()).info(
-            String.format("Load bitmap: pointer=%d (0x%04X), total blocks=%d",
-                        bitmapPointer, bitmapPointer, totalBlocks));
 
         // Calculate number of bitmap blocks
         int bitmapBlocks = (totalBlocks + (ProDOSConstants.BLOCK_SIZE * 8) - 1) /

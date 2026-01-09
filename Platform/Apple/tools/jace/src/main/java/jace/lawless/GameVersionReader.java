@@ -4,7 +4,10 @@ import jace.hardware.massStorage.image.ProDOSDiskImage;
 import jace.lawless.compression.Lx47Algorithm;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -22,6 +25,47 @@ public class GameVersionReader {
 
     private static final Logger LOGGER = Logger.getLogger(GameVersionReader.class.getName());
     private static final String PARTITION_FILE = "GAME.PART.1";
+
+    /**
+     * Extracts the game version string from a disk image InputStream.
+     * This is useful for reading from packaged resources.
+     *
+     * @param inputStream The input stream containing the game disk image
+     * @return The version string (e.g., "5123a.2"), or null if extraction fails
+     */
+    public static String extractVersion(InputStream inputStream) {
+        if (inputStream == null) {
+            LOGGER.warning("InputStream is null");
+            return null;
+        }
+
+        File tempFile = null;
+        try {
+            // Create temporary file
+            tempFile = Files.createTempFile("game-version-", ".2mg").toFile();
+            tempFile.deleteOnExit();
+
+            // Copy stream to temp file
+            try (FileOutputStream out = new FileOutputStream(tempFile)) {
+                byte[] buffer = new byte[8192];
+                int bytesRead;
+                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                    out.write(buffer, 0, bytesRead);
+                }
+            }
+
+            // Extract version from temp file
+            return extractVersion(tempFile);
+
+        } catch (IOException e) {
+            LOGGER.log(Level.WARNING, "Failed to extract version from InputStream", e);
+            return null;
+        } finally {
+            if (tempFile != null && tempFile.exists()) {
+                tempFile.delete();
+            }
+        }
+    }
 
     /**
      * Extracts the game version string from a disk image.
@@ -43,8 +87,6 @@ public class GameVersionReader {
                 return null;
             }
 
-            LOGGER.fine("Read " + PARTITION_FILE + ": " + partitionData.length + " bytes");
-
             // Find the resourceIndex chunk
             PartitionParser.ChunkInfo resourceIndex = PartitionParser.findResourceIndexChunk(partitionData);
             if (resourceIndex == null) {
@@ -52,15 +94,10 @@ public class GameVersionReader {
                 return null;
             }
 
-            // Extract the chunk data
+            // Extract and decompress the chunk data
             byte[] compressedData = PartitionParser.extractChunkData(partitionData, resourceIndex);
-            LOGGER.fine("Extracted compressed chunk: " + compressedData.length + " bytes, uncompressed: " +
-                       resourceIndex.uncompressedLength + " bytes");
-
-            // Decompress the chunk
             byte[] decompressedData = new byte[resourceIndex.uncompressedLength];
             Lx47Algorithm.decompress(compressedData, 0, decompressedData, 0, resourceIndex.uncompressedLength);
-            LOGGER.fine("Decompressed resourceIndex: " + decompressedData.length + " bytes");
 
             // Read Pascal string at the beginning (length byte followed by characters)
             if (decompressedData.length < 1) {
@@ -77,10 +114,7 @@ public class GameVersionReader {
             // Extract version string
             byte[] versionBytes = new byte[versionLength];
             System.arraycopy(decompressedData, 1, versionBytes, 0, versionLength);
-            String version = new String(versionBytes, "US-ASCII");
-
-            LOGGER.info("Extracted game version: " + version);
-            return version;
+            return new String(versionBytes, "US-ASCII");
 
         } catch (IOException e) {
             LOGGER.log(Level.WARNING, "Failed to extract version from " + gameFile.getName(), e);

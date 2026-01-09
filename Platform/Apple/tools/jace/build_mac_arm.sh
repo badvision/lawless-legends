@@ -3,6 +3,7 @@ export GRAALVM_HOME=/Library/Java/JavaVirtualMachines/graalvm-gluon-22.1.0.1/Con
 cd ~/Documents/code/lawless-legends/Platform/Apple/tools/jace
 
 # Build native executable
+echo "Building native executable..."
 mvn gluonfx:build
 
 # Create .app bundle structure
@@ -51,8 +52,43 @@ EOF
 
 echo ".app bundle created successfully"
 
-# Copy .app bundle to Desktop
-echo "Copying to Desktop..."
-cp -R "$APP_DIR" ~/Desktop/
+# Create DMG
+echo "Creating DMG installer..."
+DMG_TEMP="/tmp/lawless-dmg-$$"
+DMG_NAME="LawlessLegends-3.1-macOS-arm64.dmg"
 
-echo "Build complete! lawlesslegends.app is on your Desktop"
+# Create temporary directory for DMG contents
+rm -rf "$DMG_TEMP"
+mkdir -p "$DMG_TEMP"
+
+# Copy app bundle to DMG contents
+cp -R "$APP_DIR" "$DMG_TEMP/"
+
+# Copy README
+cp README.txt "$DMG_TEMP/"
+
+# Create Applications folder symlink
+ln -s /Applications "$DMG_TEMP/Applications"
+
+# Create the DMG
+echo "Packaging DMG..."
+cd target/gluonfx/aarch64-darwin
+rm -f "$DMG_NAME"
+hdiutil create -volname "Lawless Legends" \
+    -srcfolder "$DMG_TEMP" \
+    -ov -format UDZO \
+    "$DMG_NAME"
+cd - > /dev/null
+
+# Copy DMG to Desktop
+echo "Copying DMG to Desktop..."
+cp "target/gluonfx/aarch64-darwin/$DMG_NAME" ~/Desktop/
+
+# Clean up
+rm -rf "$DMG_TEMP"
+
+echo ""
+echo "════════════════════════════════════════════════════════════"
+echo "Build complete!"
+echo "DMG created: ~/Desktop/$DMG_NAME"
+echo "════════════════════════════════════════════════════════════"

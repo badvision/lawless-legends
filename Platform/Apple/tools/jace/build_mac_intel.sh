@@ -72,6 +72,11 @@ ln -s /Applications "$DMG_TEMP/Applications"
 
 # Create the DMG
 echo "Packaging DMG..."
+
+# Unmount any existing "Lawless Legends" volumes
+hdiutil detach "/Volumes/Lawless Legends" 2>/dev/null || true
+sleep 1
+
 cd target/gluonfx/x86_64-darwin
 rm -f "$DMG_NAME"
 hdiutil create -volname "Lawless Legends" \

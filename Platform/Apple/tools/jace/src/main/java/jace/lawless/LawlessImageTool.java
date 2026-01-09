@@ -157,20 +157,28 @@ public class LawlessImageTool implements MediaConsumer {
 
         // Extract version from packaged game in resources
         String packagedVersion = null;
-        InputStream packagedGame = getClass().getResourceAsStream("/jace/data/" + filename);
-        if (packagedGame != null) {
-            packagedVersion = GameVersionReader.extractVersion(packagedGame);
-            try {
-                packagedGame.close();
-            } catch (IOException e) {
-                // Ignore close error
+        try {
+            InputStream packagedGame = getClass().getResourceAsStream("/jace/data/" + filename);
+            if (packagedGame != null) {
+                packagedVersion = GameVersionReader.extractVersion(packagedGame);
+                try {
+                    packagedGame.close();
+                } catch (IOException e) {
+                    // Ignore close error
+                }
             }
+        } catch (Exception e) {
+            System.err.println("Warning: Failed to extract packaged game version: " + e.getMessage());
         }
 
         // Extract version from storage file (if it exists)
         String storageVersion = null;
-        if (target.exists()) {
-            storageVersion = GameVersionReader.extractVersion(target);
+        try {
+            if (target.exists()) {
+                storageVersion = GameVersionReader.extractVersion(target);
+            }
+        } catch (Exception e) {
+            System.err.println("Warning: Failed to extract storage game version: " + e.getMessage());
         }
 
         // Log both versions
@@ -197,7 +205,26 @@ public class LawlessImageTool implements MediaConsumer {
         }
 
         if (shouldCopy) {
+            // Before copying, back up the old storage file as .lkg to preserve save games
+            if (target.exists()) {
+                File lkgBackup = new File(target.getParentFile(), target.getName() + ".lkg");
+                try {
+                    System.out.println("Backing up current storage as .lkg before replacement");
+                    java.nio.file.Files.copy(target.toPath(), lkgBackup.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                } catch (IOException e) {
+                    System.err.println("Warning: Failed to create .lkg backup: " + e.getMessage());
+                }
+            }
+
+            // Copy packaged game to storage
             copyResource(filename, target);
+
+            // Clear version tracker so the upgrade will be detected on next check
+            File versionFile = new File(getApplicationStoragePath(), "version.properties");
+            if (versionFile.exists()) {
+                System.out.println("Clearing version tracker to trigger upgrade detection");
+                versionFile.delete();
+            }
         }
 
         return target;

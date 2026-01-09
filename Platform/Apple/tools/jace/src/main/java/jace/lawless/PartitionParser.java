@@ -111,7 +111,7 @@ public class PartitionParser {
             currentDataOffset += length;
         }
 
-        LOGGER.info("Parsed " + chunks.size() + " chunks from partition");
+        LOGGER.fine("Parsed " + chunks.size() + " chunks from partition");
         return chunks;
     }
 
@@ -140,7 +140,7 @@ public class PartitionParser {
         }
 
         if (resourceIndex != null) {
-            LOGGER.info("Found resourceIndex chunk (last CODE): " + resourceIndex);
+            LOGGER.fine("Found resourceIndex chunk (last CODE): " + resourceIndex);
             return resourceIndex;
         }
 

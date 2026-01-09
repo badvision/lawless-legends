@@ -41,8 +41,17 @@ public class GameVersionReader {
 
         File tempFile = null;
         try {
-            // Create temporary file
-            tempFile = Files.createTempFile("game-version-", ".2mg").toFile();
+            // Create temporary file in system temp directory
+            File tempDir = new File(System.getProperty("java.io.tmpdir"));
+            if (!tempDir.exists()) {
+                tempDir = new File("/tmp");  // Fallback for native mode
+            }
+            if (!tempDir.exists()) {
+                LOGGER.warning("No temporary directory available for version extraction");
+                return null;
+            }
+
+            tempFile = Files.createTempFile(tempDir.toPath(), "game-version-", ".2mg").toFile();
             tempFile.deleteOnExit();
 
             // Copy stream to temp file
@@ -55,14 +64,32 @@ public class GameVersionReader {
             }
 
             // Extract version from temp file
-            return extractVersion(tempFile);
+            String version = extractVersion(tempFile);
+
+            // Clean up immediately in native mode (deleteOnExit may not work)
+            if (tempFile.exists()) {
+                try {
+                    tempFile.delete();
+                } catch (Exception e) {
+                    // Ignore cleanup errors
+                }
+            }
+
+            return version;
 
         } catch (IOException e) {
             LOGGER.log(Level.WARNING, "Failed to extract version from InputStream", e);
             return null;
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Unexpected error extracting version from InputStream", e);
+            return null;
         } finally {
             if (tempFile != null && tempFile.exists()) {
-                tempFile.delete();
+                try {
+                    tempFile.delete();
+                } catch (Exception e) {
+                    // Ignore cleanup errors
+                }
             }
         }
     }
@@ -120,7 +147,7 @@ public class GameVersionReader {
             LOGGER.log(Level.WARNING, "Failed to extract version from " + gameFile.getName(), e);
             return null;
         } catch (Exception e) {
-            LOGGER.log(Level.WARNING, "Unexpected error extracting version", e);
+            LOGGER.log(Level.SEVERE, "Unexpected error extracting version from " + gameFile.getName() + ": " + e.getClass().getName() + ": " + e.getMessage(), e);
             return null;
         }
     }

@@ -139,7 +139,7 @@ public class LawlessImageTool implements MediaConsumer {
         if (f.path != null && f.path.exists()) {
             // Check for upgrades before loading if handler is provided
             if (upgradeHandler != null) {
-                boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(f.path);
+                boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(f.path, storageFileWasJustReplaced);
                 if (!shouldContinue) {
                     // User cancelled - exit the application
                     System.exit(0);
@@ -151,7 +151,11 @@ public class LawlessImageTool implements MediaConsumer {
         }
     }
 
+    // Flag to track if we just replaced the storage file with a newer packaged version
+    private boolean storageFileWasJustReplaced = false;
+
     private File getGamePath(String filename) {
+        storageFileWasJustReplaced = false;  // Reset flag
         File base = getApplicationStoragePath();
         File target = new File(base, filename);
 
@@ -219,15 +223,20 @@ public class LawlessImageTool implements MediaConsumer {
             // Copy packaged game to storage
             copyResource(filename, target);
 
-            // Clear version tracker so the upgrade will be detected on next check
-            File versionFile = new File(getApplicationStoragePath(), "version.properties");
-            if (versionFile.exists()) {
-                System.out.println("Clearing version tracker to trigger upgrade detection");
-                versionFile.delete();
-            }
+            // Mark that we just replaced the storage file (signals upgrade needed)
+            storageFileWasJustReplaced = true;
+            System.out.println("Storage file replaced - upgrade will be triggered");
         }
 
         return target;
+    }
+
+    /**
+     * Returns whether the storage file was just replaced by a newer packaged version.
+     * This flag is used by UpgradeHandler to determine if a silent upgrade is needed.
+     */
+    public boolean wasStorageFileJustReplaced() {
+        return storageFileWasJustReplaced;
     }
 
     public File getApplicationStoragePath() {

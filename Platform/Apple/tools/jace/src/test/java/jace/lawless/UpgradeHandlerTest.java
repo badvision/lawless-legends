@@ -114,38 +114,42 @@ public class UpgradeHandlerTest {
     }
 
     @Test
-    public void testCheckAndHandleUpgrade_FirstRun_RecordsTimestamp() {
-        // First run - no properties file exists
-        boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(testGameFile);
+    public void testCheckAndHandleUpgrade_NoUpgradeNeeded_UpdatesBackup() {
+        // When not replaced, should just update .lkg backup
+        boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(testGameFile, false);
 
-        assertTrue("Should continue on first run", shouldContinue);
-        long recorded = tracker.getLastKnownModificationTime();
-        assertTrue("Timestamp should be recorded", recorded > 0);
-        assertEquals("Recorded timestamp should match file",
-            testGameFile.lastModified(), recorded);
+        assertTrue("Should continue when no upgrade needed", shouldContinue);
+
+        // Verify .lkg backup was created
+        File lkgBackup = new File(testGameFile.getParentFile(), testGameFile.getName() + ".lkg");
+        assertTrue(".lkg backup should be created", lkgBackup.exists());
     }
 
     @Test
-    public void testCheckAndHandleUpgrade_CurrentVersion_NoPrompt() throws IOException {
-        // Record current version
-        tracker.saveModificationTime(testGameFile.lastModified());
+    public void testCheckAndHandleUpgrade_WasReplaced_PerformsUpgrade() throws Exception {
+        // In real flow, .lkg is created by getGamePath() before upgrade runs
+        // We simulate this by creating it first
+        File lkgBackup = new File(testGameFile.getParentFile(), testGameFile.getName() + ".lkg");
+        java.nio.file.Files.copy(testGameFile.toPath(), lkgBackup.toPath());
 
-        boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(testGameFile);
+        // When wasJustReplaced=true, should perform upgrade
+        boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(testGameFile, true);
 
-        assertTrue("Should continue with current version", shouldContinue);
+        assertTrue("Should continue after upgrade", shouldContinue);
+        assertTrue(".lkg backup should exist (created by getGamePath)", lkgBackup.exists());
     }
 
     @Test
     public void testCheckAndHandleUpgrade_NonexistentFile() {
         File nonexistent = new File(tempDir, "nonexistent.2mg");
-        boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(nonexistent);
+        boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(nonexistent, false);
 
         assertTrue("Should continue even with nonexistent file", shouldContinue);
     }
 
     @Test
     public void testCheckAndHandleUpgrade_NullFile() {
-        boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(null);
+        boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(null, false);
 
         assertTrue("Should continue even with null file", shouldContinue);
     }

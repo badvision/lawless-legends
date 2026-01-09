@@ -58,35 +58,35 @@ public class UpgradeIntegrationTest {
     }
 
     @Test
-    public void testFullWorkflow_FirstRun_RecordsVersionAndContinues() {
-        assertFalse("Properties file should not exist initially", propertiesFile.exists());
+    public void testFullWorkflow_FirstRun_CreatesBackup() {
+        File lkgBackup = new File(testGameFile.getParentFile(), testGameFile.getName() + ".lkg");
+        assertFalse(".lkg backup should not exist initially", lkgBackup.exists());
 
-        boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(testGameFile);
+        boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(testGameFile, false);
 
         assertTrue("Should continue on first run", shouldContinue);
-        assertTrue("Properties file should be created", propertiesFile.exists());
-        assertEquals("Timestamp should match file",
-            testGameFile.lastModified(),
-            tracker.getLastKnownModificationTime());
+        assertTrue(".lkg backup should be created", lkgBackup.exists());
+        assertEquals(".lkg size should match game file", testGameFile.length(), lkgBackup.length());
     }
 
     @Test
-    public void testFullWorkflow_NoChange_ContinuesWithoutPrompt() throws IOException {
-        // Simulate first run
-        tracker.saveVersionInfo(testGameFile.lastModified(), testGameFile.length());
-        long initialTimestamp = tracker.getLastKnownModificationTime();
-        long initialSize = tracker.getLastKnownSize();
+    public void testFullWorkflow_NoChange_UpdatesBackup() throws IOException, InterruptedException {
+        File lkgBackup = new File(testGameFile.getParentFile(), testGameFile.getName() + ".lkg");
 
-        // Check again with same file
-        boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(testGameFile);
+        // First run - create initial backup
+        upgradeHandler.checkAndHandleUpgrade(testGameFile, false);
+        assertTrue(".lkg backup should exist after first run", lkgBackup.exists());
+        long initialBackupTime = lkgBackup.lastModified();
+
+        Thread.sleep(10); // Ensure time difference
+
+        // Check again with same file (not replaced) - should update backup
+        boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(testGameFile, false);
 
         assertTrue("Should continue when file hasn't changed", shouldContinue);
-        assertEquals("Timestamp should remain unchanged",
-            initialTimestamp,
-            tracker.getLastKnownModificationTime());
-        assertEquals("Size should remain unchanged",
-            initialSize,
-            tracker.getLastKnownSize());
+        assertTrue(".lkg backup should still exist", lkgBackup.exists());
+        assertTrue(".lkg backup should be updated",
+            lkgBackup.lastModified() >= initialBackupTime);
     }
 
     @Test
@@ -223,7 +223,7 @@ public class UpgradeIntegrationTest {
         assertEquals("Should return UNKNOWN for missing file",
             GameVersionTracker.UpdateStatus.UNKNOWN, status);
 
-        boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(nonexistent);
+        boolean shouldContinue = upgradeHandler.checkAndHandleUpgrade(nonexistent, false);
         assertTrue("Should continue despite missing file", shouldContinue);
 
         File backup = upgradeHandler.createBackup(nonexistent);

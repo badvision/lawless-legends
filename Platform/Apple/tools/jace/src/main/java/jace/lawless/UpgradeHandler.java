@@ -153,61 +153,26 @@ public class UpgradeHandler {
 
     /**
      * Checks for updates on startup and handles the upgrade flow if needed.
+     * Now checks if storage file was just replaced (via needsUpgrade flag set by getGamePath).
      *
-     * @param gameFile The game disk file to check
+     * @param storageGameFile The game disk file in storage
+     * @param wasJustReplaced True if the storage file was just replaced by getGamePath()
      * @return true if the game should continue booting, false if it should exit
      */
-    public boolean checkAndHandleUpgrade(File gameFile) {
-        if (gameFile == null || !gameFile.exists()) {
-            LOGGER.warning("Game file does not exist - skipping upgrade check");
+    public boolean checkAndHandleUpgrade(File storageGameFile, boolean wasJustReplaced) {
+        if (storageGameFile == null || !storageGameFile.exists()) {
+            LOGGER.warning("Storage game file does not exist - skipping upgrade check");
             return true;
         }
 
-        GameVersionTracker.UpdateStatus status = versionTracker.checkForUpdate(gameFile);
-
-        if (status == GameVersionTracker.UpdateStatus.CURRENT) {
-            LOGGER.info("Game is current - no upgrade needed");
-            // Keep .lkg synchronized with latest user progress
-            // This ensures upgrades can preserve the user's save game
-            createOrUpdateLastKnownGoodBackup(gameFile);
-            return true;
+        if (wasJustReplaced) {
+            LOGGER.info("Storage file was replaced with newer packaged game - performing silent upgrade");
+            return performUpgrade(storageGameFile);
         }
 
-        if (status == GameVersionTracker.UpdateStatus.UNKNOWN) {
-            // First run - record the current version and create initial backup
-            try {
-                String version = GameVersionReader.extractVersion(gameFile);
-                versionTracker.saveVersionInfo(gameFile.lastModified(), gameFile.length(), version);
-                createOrUpdateLastKnownGoodBackup(gameFile);
-                String versionInfo = (version != null) ? ", version=" + version : "";
-                LOGGER.info("Initial game version recorded: size=" + gameFile.length() + " bytes" + versionInfo);
-            } catch (IOException e) {
-                LOGGER.log(Level.WARNING, "Failed to save initial version", e);
-            }
-            return true;
-        }
-
-        if (status == GameVersionTracker.UpdateStatus.UPGRADED) {
-            LOGGER.info("Upgrade detected - performing silent upgrade");
-            // Perform silent upgrade automatically (no user prompt)
-            return performUpgrade(gameFile);
-        }
-
-        if (status == GameVersionTracker.UpdateStatus.DOWNGRADED) {
-            // User has manually installed a newer version
-            // Accept it and update our tracking
-            try {
-                String version = GameVersionReader.extractVersion(gameFile);
-                versionTracker.saveVersionInfo(gameFile.lastModified(), gameFile.length(), version);
-                createOrUpdateLastKnownGoodBackup(gameFile);
-                String versionInfo = (version != null) ? ", version=" + version : "";
-                LOGGER.info("Newer game version detected - accepting manual upgrade: size=" + gameFile.length() + " bytes" + versionInfo);
-            } catch (IOException e) {
-                LOGGER.log(Level.WARNING, "Failed to save updated version", e);
-            }
-            return true;
-        }
-
+        // No upgrade needed - just keep .lkg backup synchronized with latest progress
+        LOGGER.info("Game is current - no upgrade needed");
+        createOrUpdateLastKnownGoodBackup(storageGameFile);
         return true;
     }
 

@@ -40,7 +40,7 @@ public class DirectoryNode extends DiskNode implements FileFilter {
     public static final byte STANDARD_PERMISSIONS = (byte) 0x0c3;
     public static final int PRODOS_VERSION = 0x023;
     public static final int FILE_ENTRY_SIZE = 0x027;
-    public static final int ENTRIES_PER_BLOCK = (ProdosVirtualDisk.BLOCK_SIZE - 4) / FILE_ENTRY_SIZE;
+    public static final int ENTRIES_PER_BLOCK = (BLOCK_SIZE - 4) / FILE_ENTRY_SIZE;
     private boolean isRoot;
 
     private List<DiskNode> directoryEntries;

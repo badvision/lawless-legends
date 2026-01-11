@@ -22,6 +22,7 @@ import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import jace.hardware.massStorage.image.ProDOSDiskImage;
 import jace.library.MediaConsumer;
 import jace.library.MediaEntry;
 import jace.library.MediaEntry.MediaFile;
@@ -116,7 +117,13 @@ public class MassStorageDrive implements MediaConsumer {
     
      private IDisk readDisk(File f) {
         if (f.isFile()) {
-            return new LargeDisk(f);
+            try {
+                return new ProDOSDiskImage(f);
+            } catch (IOException ex) {
+                Logger.getLogger(CardMassStorage.class.getName()).log(Level.SEVERE,
+                    "Unable to open disk image", ex);
+                return null;
+            }
         } else if (f.isDirectory()) {
             try {
                 return new ProdosVirtualDisk(f);

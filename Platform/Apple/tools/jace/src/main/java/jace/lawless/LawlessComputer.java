@@ -27,18 +27,41 @@ public class LawlessComputer extends Apple2e {
     byte[] bootScreen = null;
     boolean performedBootAnimation = false;
     LawlessImageTool gameDiskHandler = new LawlessImageTool();
+    UpgradeHandler upgradeHandler = null;
     @ConfigurableField(name = "Boot Animation")
     public boolean showBootAnimation = PRODUCTION_MODE;
 
+    private boolean developerBypassMode = false;
+
     public LawlessComputer() {
         super();
+        // Check for developer bypass mode via system property
+        developerBypassMode = Boolean.getBoolean("jace.developerBypass");
+    }
+
+    public boolean isDeveloperBypassMode() {
+        return developerBypassMode;
     }
     
     public void initLawlessLegendsConfiguration() {
+        // If developer bypass mode is enabled, disable production mode
+        if (developerBypassMode) {
+            PRODUCTION_MODE = false;
+            showBootAnimation = false;
+        }
+
         if (PRODUCTION_MODE) {
             this.cheatEngine.setValue(Cheats.Cheat.LawlessHacks);
         }
         blankTextPage1();
+
+        // Initialize upgrade handler
+        if (upgradeHandler == null) {
+            java.io.File storageDir = gameDiskHandler.getApplicationStoragePath();
+            GameVersionTracker tracker = new GameVersionTracker(storageDir);
+            upgradeHandler = new UpgradeHandler(gameDiskHandler, tracker);
+        }
+
         reconfigure();
     }
     
@@ -211,5 +234,9 @@ public class LawlessComputer extends Apple2e {
 
     public MediaConsumer getUpgradeHandler() {
         return gameDiskHandler;
+    }
+
+    public UpgradeHandler getAutoUpgradeHandler() {
+        return upgradeHandler;
     }
 }

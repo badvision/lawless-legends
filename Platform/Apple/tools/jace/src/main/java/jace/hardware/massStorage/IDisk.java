@@ -16,14 +16,15 @@
 
 package jace.hardware.massStorage;
 
+import jace.hardware.massStorage.core.ProDOSConstants;
 import java.io.IOException;
 
 /**
  * Generic representation of a mass storage disk, either an image or a virtual volume.
- * @author Brendan Robert (BLuRry) brendan.robert@gmail.com 
+ * @author Brendan Robert (BLuRry) brendan.robert@gmail.com
  */
 public interface IDisk {
-    int BLOCK_SIZE = 512;
+    int BLOCK_SIZE = ProDOSConstants.BLOCK_SIZE;
     int MAX_BLOCK = 0x07fff;
 
     void mliFormat() throws IOException;

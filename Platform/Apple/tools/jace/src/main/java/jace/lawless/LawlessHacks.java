@@ -16,7 +16,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import jace.Emulator;
-import jace.apple2e.MOS65C02;
 import jace.apple2e.SoftSwitches;
 import jace.apple2e.VideoDHGR;
 import jace.cheat.Cheats;
@@ -55,7 +54,8 @@ public class LawlessHacks extends Cheats {
         addCheat("Lawless Text Speedup", RAMEvent.TYPE.EXECUTE, this::fastText, 0x0ee00, 0x0ee00 + 0x0f00);
         addCheat("Lawless Text Enhancement", RAMEvent.TYPE.WRITE, this::enhanceText, 0x02000, 0x03fff);
         addCheat("Lawless Legends Music Commands", RAMEvent.TYPE.WRITE, (e) -> playSound(e.getNewValue()), SFX_TRIGGER);
-        addCheat("Lawless Adjust Animation Speed", RAMEvent.TYPE.READ, this::adjustAnimationSpeed, 0x0c000, 0x0c010);
+        addCheat("Lawless Mode Detection", RAMEvent.TYPE.ANY, this::handleModeChange, MODE_SOFTSWITCH_MIN, MODE_SOFTSWITCH_MAX);
+        addCheat("Lawless Key Read Detection", RAMEvent.TYPE.READ, this::detectKeyWaiting, 0x0c000, 0x0c010);
     }
 
     @Override
@@ -66,8 +66,36 @@ public class LawlessHacks extends Cheats {
     boolean isSlowedDown = false;
     @Override
     public void tick() {
+        long currentTime = System.currentTimeMillis();
+        
+        // Hybrid portrait detection logic
+        checkPortraitMode(currentTime);
+        
+        // Original key press detection for exiting slowdown
         if (isSlowedDown && (Keyboard.readState() & 0x080) > 0) {
+            if (DEBUG) {
+                System.out.println("Key pressed - ending slowdown");
+            }
             endSlowdown();
+        }
+    }
+    
+    private void checkPortraitMode(long currentTime) {
+        // Reset key waiting state if we haven't seen key reads recently
+        if (isWaitingForKey && (currentTime - lastKeyReadTime) > KEY_READ_QUIET_PERIOD) {
+            if (DEBUG) {
+                System.out.println("Key wait period ended (quiet period)");
+            }
+            isWaitingForKey = false;
+        }
+        
+        // Check if we've been waiting for a key long enough to indicate portrait mode
+        if (isWaitingForKey && !isSlowedDown && 
+            (currentTime - keyWaitStartTime) > KEY_WAIT_THRESHOLD) {
+            if (DEBUG) {
+                System.out.println("Long key wait detected - likely portrait mode, beginning slowdown");
+            }
+            beginSlowdown();
         }
     }
 
@@ -125,38 +153,108 @@ public class LawlessHacks extends Cheats {
         }
     }
 
-    private Map<Integer, Integer> keyReadAddresses = new TreeMap<>();
-    long lastKeyStatus = 0;
+    // EMUSIG constants from the game engine (globalDefs.plh)
+    private static final int EMUSIG_FULL_COLOR = 0x0C049; // e.g. title screen
+    private static final int EMUSIG_FULL_TEXT  = 0x0C04A; // e.g. inventory - big text window w/ graphics border
+    private static final int EMUSIG_2D_MAP     = 0x0C04B; // e.g. wilderness
+    private static final int EMUSIG_3D_MAP     = 0x0C04C; // e.g. in town
+    private static final int EMUSIG_AUTOMAP    = 0x0C04D; // all color except the map title
+    private static final int EMUSIG_STORY      = 0x0C04E; // all text except a portrait
+    private static final int EMUSIG_TITLE      = 0x0C04F; // all color except title screen menu area
+
     long lastKnownSpeed = -1;
     boolean isCurrentlyMaxSpeed = false;
-    long keyEventTraceDuration = 0;
-    private void adjustAnimationSpeed(RAMEvent e) {
-        int pc = Emulator.withComputer(c->c.getCpu().getProgramCounter(), 0);
-        int eventAddress = e.getAddress();
+    
+    // Portrait detection state
+    private boolean isWaitingForKey = false;
+    private long keyWaitStartTime = 0;
+    private static final long KEY_WAIT_THRESHOLD = 200; // ms - reduced since we have more precise PC detection
+    private long lastKeyReadTime = 0;
+    private static final long KEY_READ_QUIET_PERIOD = 100; // ms - quiet period before considering portrait mode
 
+    private void handleModeChange(RAMEvent e) {
+        int address = e.getAddress();
+        
         if (DEBUG) {
-            keyReadAddresses.put(pc, keyReadAddresses.getOrDefault(pc, 0) + 1);
-            if ((System.currentTimeMillis() - lastKeyStatus) >= 10000) {
-                lastKeyStatus = System.currentTimeMillis();
-                System.out.println("---keyin points---");
-                keyReadAddresses.forEach((addr, count) -> {
-                    System.out.println(Integer.toHexString(addr) + ": " + count);
-                });
+            String modeName = getEmusigName(address);
+            int pc = Emulator.withComputer(c->c.getCpu().getProgramCounter(), 0);
+            System.out.println("EMUSIG: " + modeName + " (0x" + Integer.toHexString(address).toUpperCase() + ") " +
+                             "PC=0x" + Integer.toHexString(pc).toUpperCase() + " " +
+                             "Type=" + e.getType() + " " +
+                             "Value=0x" + Integer.toHexString(e.getNewValue() & 0xFF).toUpperCase());
+        }
+        
+        // EMUSIG_STORY = full-screen story text mode (requires slow speed)
+        if (address == EMUSIG_STORY) {
+            if (DEBUG) {
+                System.out.println("  --> Entering full-screen story mode - slowing to 1MHz");
+            }
+            beginSlowdown();
+        } 
+        // Any other mode signal = check if we should exit slowdown
+        else if (address >= MODE_SOFTSWITCH_MIN && address <= MODE_SOFTSWITCH_MAX) {
+            if (DEBUG) {
+                System.out.println("  --> Mode change detected, current slowdown state: " + isSlowedDown);
+            }
+            
+            // Reset key waiting state on mode changes (likely portrait ending)
+            if (isWaitingForKey) {
+                if (DEBUG) {
+                    System.out.println("  --> Resetting key wait state due to mode change");
+                }
+                isWaitingForKey = false;
+            }
+            
+            // End slowdown if we're currently slowed down and it's not STORY mode
+            if (isSlowedDown && address != EMUSIG_STORY) {
+                if (DEBUG) {
+                    System.out.println("  --> Ending slowdown due to mode change");
+                }
+                endSlowdown();
             }
         }
+    }
 
-        if (eventAddress == 0x0c000 && pc == 0x0D5FE) {
-            // We are waiting for a key in portait mode
-            // Check where we were called from in the stack
-            MOS65C02 cpu = (MOS65C02) Emulator.withComputer(c->c.getCpu(), null);
-            int stackAddr1 = 0x0100 + cpu.STACK;
-            int lastStackByte = Emulator.withMemory(ram-> ram.readRaw(stackAddr1), (byte) 0) & 0x0ff;
-            if (lastStackByte == 0x09b) {
-                // Turns out the last value on the stack is consistently
-                // the same value whenever we also want to be running in a
-                // slower speed for animation, but not in other key read
-                // routines where we're needing more speed.  Convenient!
-                beginSlowdown();
+    private String getEmusigName(int address) {
+        return switch (address) {
+            case EMUSIG_FULL_COLOR -> "FULL_COLOR";
+            case EMUSIG_FULL_TEXT -> "FULL_TEXT";
+            case EMUSIG_2D_MAP -> "2D_MAP";
+            case EMUSIG_3D_MAP -> "3D_MAP";
+            case EMUSIG_AUTOMAP -> "AUTOMAP";
+            case EMUSIG_STORY -> "STORY";
+            case EMUSIG_TITLE -> "TITLE";
+            default -> "UNKNOWN";
+        };
+    }
+
+    private void detectKeyWaiting(RAMEvent e) {
+        long currentTime = System.currentTimeMillis();
+        int pc = Emulator.withComputer(c->c.getCpu().getProgramCounter(), 0);
+        
+        // Check if PC is in portrait mode ranges
+        boolean isPortraitPC = (pc >= 0xDA00 && pc <= 0xDC00) || // Portrait dialogue routine
+                              (pc >= 0xEED0 && pc <= 0xEEE0);   // Secondary portrait routine
+        
+        if (isPortraitPC) {
+            lastKeyReadTime = currentTime;
+            
+            if (DEBUG) {
+                System.out.println("Key read at PC=0x" + Integer.toHexString(pc).toUpperCase() + 
+                " addr=0x" + Integer.toHexString(e.getAddress()).toUpperCase());
+            }
+            
+            // Start tracking key wait period for portrait mode
+            if (!isWaitingForKey) {
+                isWaitingForKey = true;
+                keyWaitStartTime = currentTime;
+                if (DEBUG) {
+                    System.out.println("Portrait key wait period started");
+                }
+            }
+        } else {
+            if (DEBUG) {
+                // System.out.println("Non-portrait PC - ignoring");
             }
         }
     }

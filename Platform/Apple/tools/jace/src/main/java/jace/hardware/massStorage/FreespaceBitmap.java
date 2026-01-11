@@ -16,6 +16,7 @@
 
 package jace.hardware.massStorage;
 
+import jace.hardware.massStorage.core.ProDOSConstants;
 import java.io.IOException;
 
 /**
@@ -25,7 +26,7 @@ import java.io.IOException;
  */
 public class FreespaceBitmap extends DiskNode {
 
-    int size = (ProdosVirtualDisk.MAX_BLOCK + 1) / 8 / ProdosVirtualDisk.BLOCK_SIZE;
+    int size = (ProdosVirtualDisk.MAX_BLOCK + 1) / 8 / ProDOSConstants.BLOCK_SIZE;
 
     public FreespaceBitmap(ProdosVirtualDisk fs, int start) throws IOException {
         super(fs, start);
@@ -52,8 +53,8 @@ public class FreespaceBitmap extends DiskNode {
 
     @Override
     public void readBlock(int sequence, byte[] buffer) throws IOException {
-        int startBlock = sequence * ProdosVirtualDisk.BLOCK_SIZE * 8;
-        int endBlock = (sequence + 1) * ProdosVirtualDisk.BLOCK_SIZE * 8;
+        int startBlock = sequence * ProDOSConstants.BLOCK_SIZE * 8;
+        int endBlock = (sequence + 1) * ProDOSConstants.BLOCK_SIZE * 8;
         for (int i = startBlock; i < endBlock; i++) {
             if (!getOwnerFilesystem().isBlockAllocated(i)) {
                 int pos = (i - startBlock) / 8;

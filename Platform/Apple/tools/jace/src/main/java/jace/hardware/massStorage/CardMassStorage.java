@@ -75,10 +75,10 @@ public class CardMassStorage extends Card implements MediaConsumerParent {
         return "Mass Storage Device";
     }
     // boot0 stores cards*16 of boot device here
-    static int SLT16 = 0x02B;
+    public static final int SLT16 = 0x02B;
     // "rom" offset where device driver is called by MLI
-//    static int DEVICE_DRIVER_OFFSET = 0x042;
-    static int DEVICE_DRIVER_OFFSET = 0x0A;
+//    public static final int DEVICE_DRIVER_OFFSET = 0x042;
+    public static final int DEVICE_DRIVER_OFFSET = 0x0A;
     byte[] cardSignature = new byte[]{
         (byte) 0x0a9 /*NOP*/, 0x020, (byte) 0x0a9, 0x00,
         (byte) 0x0a9, 0x03 /*currentDisk cards*/, (byte) 0x0a9, 0x03c /*currentDisk cards*/,

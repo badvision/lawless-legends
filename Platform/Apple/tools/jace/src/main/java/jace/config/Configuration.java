@@ -56,6 +56,7 @@ import javafx.scene.control.TreeItem;
 import javafx.scene.image.ImageView;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 
@@ -456,7 +457,11 @@ public class Configuration implements Reconfigurable {
                 dto.ui.aspectRatio = ui.aspectRatioCorrection;
             }
 
-            ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
+            ObjectMapper mapper = JsonMapper.builder()
+                .enable(SerializationFeature.INDENT_OUTPUT)
+                .configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
+                .build();
+
             File json = getJsonSettingsFile();
             Logger.getLogger(Configuration.class.getName()).log(Level.FINE, "Saving configuration (JSON) to {0}", json.getAbsolutePath());
             mapper.writeValue(json, dto);

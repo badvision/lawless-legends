@@ -20,5 +20,6 @@
     <requires64Bit>false</requires64Bit>
     <minVersion></minVersion>
     <maxVersion></maxVersion>
+    <opt>-Djdk.xml.maxElementDepth=512</opt>
   </jre>
 </launch4jConfig>

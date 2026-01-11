@@ -20,6 +20,8 @@ mv packer-bundle packer-bundle-$1
 rm packer-bundle-$1/PackPartitions.exe
 rm -f packer-bundle-$1/world.xml
 mv ../PackPartitions.exe packer-bundle-$1/PackPartitions.exe
+rm -rf packer-bundle-$1/jdk
+cp -r ../win-jdk packer-bundle-$1/jdk
 zip -r packer-bundle-$1.zip *
 cp packer-bundle-$1.zip ../packer-bundle.zip
 cd ..

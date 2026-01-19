@@ -1440,7 +1440,8 @@ def _combat_zoneEncounter(s_encZone)#1
         freePreloaded()
         return -99  // special code for death
       elsif !nEnemiesFighting
-        processWin()  // also calls freePreloaded
+        processWin()
+        freePreloaded()
         // Note: no need to clear heap -- the caller does that.
         return 1
       elsif !p

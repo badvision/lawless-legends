@@ -3033,7 +3033,10 @@ def saveGame()#1
   // (also does a CHECK_MEM to be sure we never save corrupted heap)
   heapCollect()
 
-  //AUTOMAP_CHECK// readDiskMarks; checkMarks
+  // Write out accumulated map marks.
+  // Note: writeMarks has the side effect of also leaving the marks loaded at $4000, 
+  // so checkMarks can check them there without an explicit readMapMarks
+  //AUTOMAP_CHECK// writeMarks; checkMarks
 
   // Copy data to main memory, and write it out.
   memcpy(HEAP_BOTTOM, LOAD_SAVE_BUF, HEAP_SIZE, 0)  // LC to low mem

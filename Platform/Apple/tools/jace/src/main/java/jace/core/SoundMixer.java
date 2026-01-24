@@ -67,7 +67,8 @@ public class SoundMixer extends Device {
 
     @ConfigurableField(name = "Buffer size", shortName = "buffer")
     //public static int BUFFER_SIZE = 1024;  Ok on MacOS but choppy on Windows!
-    public static int BUFFER_SIZE = 2048;
+    //public static int BUFFER_SIZE = 2048;  Choppy on newer systems
+    public static int BUFFER_SIZE = 4096;
 
     public static boolean PLAYBACK_ENABLED = false;
     // Innocent until proven guilty by a failed initialization

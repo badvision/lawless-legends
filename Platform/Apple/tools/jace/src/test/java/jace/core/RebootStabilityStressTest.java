@@ -21,18 +21,18 @@ import java.util.logging.Logger;
 import static org.junit.Assert.*;
 
 /**
- * Comprehensive stress test to reproduce race conditions identified in threading analysis.
+ * Comprehensive stress test to validate reboot stability fixes.
  *
- * This test is designed to FAIL on the current codebase to demonstrate:
+ * This test validates fixes for race conditions identified in threading analysis:
  * - RC-1: Upgrade timing race condition (boot watchdog vs upgrade completion)
  * - RC-3: Recursive boot watchdog death spiral
  * - Reboot state management bugs (video switches, RAM state, callbacks)
  *
  * Test strategy:
- * - Run 50 iterations per scenario to capture intermittent failures
+ * - Run 50 iterations per scenario to verify stability under stress
  * - Mock minimal external dependencies (JavaFX, file I/O, sound)
  * - Keep REAL: emulator lifecycle, threading, state management
- * - Collect detailed statistics on failure rates and timing
+ * - Collect detailed statistics on success rates and timing
  */
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public class RebootStabilityStressTest extends AbstractFXTest {
@@ -427,11 +427,11 @@ public class RebootStabilityStressTest extends AbstractFXTest {
         // Write detailed results to workspace
         writeTestResults("test3-state-reset-verification.txt", resetStats.getReport());
 
-        // Assertions - expect state corruption
-        // Note: warmStart SHOULD preserve RAM, so this is not necessarily a bug
-        // However, callbacks SHOULD be cleared
-        assertTrue("Expected callbacks to persist across warmStart",
-            resetStats.callbacksPersisted.get() > 0);
+        // Assertions - validate that callbacks are properly cleared
+        // Note: warmStart SHOULD preserve RAM, so RAM persistence is expected
+        // However, callbacks SHOULD be cleared per fix
+        assertEquals("Callbacks should be cleared by warmStart (fix validation)",
+            0, resetStats.callbacksPersisted.get());
     }
 
     /**
@@ -439,13 +439,13 @@ public class RebootStabilityStressTest extends AbstractFXTest {
      *
      * Scenario:
      * - Complete cycle: boot → warm reset → boot → cold reset → boot
-     * - Introduce random delays to trigger race conditions
+     * - Introduce random delays to stress timing-sensitive code paths
      * - Use ExecutorService with timeouts to prevent thread leaks
      * - Measure: Success rate, failure modes, thread safety
      *
-     * Expected failures on current code:
-     * - Multiple failure modes should occur
-     * - Timing-dependent failures should manifest
+     * Expected behavior with fixes:
+     * - High success rate (>90%) demonstrating stability
+     * - Minimal timing-dependent failures
      *
      * CRITICAL FIX: Reduced iterations from 50 to 10, added proper thread management
      * to prevent thread leaks that were causing system instability.
@@ -702,9 +702,10 @@ public class RebootStabilityStressTest extends AbstractFXTest {
                 cycleStats.iterationThreadLeaks.get(), ITERATIONS_TEST4));
         }
 
-        // We expect some failures due to race conditions, but not thread leaks
-        assertTrue("Expected some failures in full reboot cycles",
-            cycleStats.failedCycles.get() > 0);
+        // With fixes in place, we expect high success rate
+        // Note: Thread leak detection may report false positives due to async cleanup timing
+        assertTrue("Expected high success rate in full reboot cycles (>90%)",
+            cycleStats.getSuccessRate() >= 0.9);
     }
 
     // ==================== Statistics Classes ====================

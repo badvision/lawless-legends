@@ -161,10 +161,10 @@ public class Apple2e extends Computer {
 
     @Override
     public void warmStart() {
+        // Reset ALL soft switches including video switches
+        // Per Sather 4-15, authentic Apple IIe resets video mode to TEXT on warm reset
         for (SoftSwitches s : SoftSwitches.values()) {
-            if (! (s.getSwitch() instanceof VideoSoftSwitch)) {
-                s.getSwitch().reset();
-            }
+            s.getSwitch().reset();
         }
         getMemory().configureActiveMemory();
         getVideo().configureVideoMode();

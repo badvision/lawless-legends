@@ -6,7 +6,7 @@
 
     <groupId>org.8bitbunch</groupId>
     <artifactId>lawlesslegends</artifactId>
-    <version>3.1</version>
+    <version>3.5</version>
     <packaging>jar</packaging>
 
     <name>lawlesslegends</name>
@@ -18,6 +18,7 @@
         <lwjgl.version>3.3.3</lwjgl.version>
         <app.version>1.1</app.version>
         <javafx.version>22.0.2</javafx.version>
+        <maven.build.timestamp.format>yyyy-MM-dd</maven.build.timestamp.format>
     </properties>
 
     <organization>
@@ -30,12 +31,14 @@
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
+                <filtering>false</filtering>
             </resource>
             <resource>
                 <directory>${project.basedir}</directory>
                 <includes>
                     <include>version.properties</include>
                 </includes>
+                <filtering>true</filtering>
             </resource>
         </resources>
         <plugins>
@@ -305,7 +308,7 @@
                                 <path>
                                     <groupId>org.8bitbunch</groupId>
                                     <artifactId>lawlesslegends</artifactId>
-                                    <version>3.1</version>
+                                    <version>3.5</version>
                                 </path>
                             </annotationProcessorPaths>
                             <annotationProcessors>jace.config.InvokableActionAnnotationProcessor</annotationProcessors>

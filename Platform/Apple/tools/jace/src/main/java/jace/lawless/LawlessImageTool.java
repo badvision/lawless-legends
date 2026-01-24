@@ -315,7 +315,7 @@ public class LawlessImageTool implements MediaConsumer {
             } else {
                 java.nio.file.Files.copy(gameFile.toPath(), getUserGameFile().toPath(), StandardCopyOption.REPLACE_EXISTING);
                 loadGame();
-                Emulator.withComputer(Computer::coldStart);
+                LawlessLegends.getApplication().bootWatchdog();
             }
         } catch (IOException ex) {
             Logger.getLogger(LawlessImageTool.class.getName()).log(Level.SEVERE, null, ex);
@@ -330,7 +330,7 @@ public class LawlessImageTool implements MediaConsumer {
             java.nio.file.Files.copy(f.path.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
             f.path = target;
             insertHardDisk(0, e, f);
-            Emulator.withComputer(Computer::coldStart);
+            LawlessLegends.getApplication().bootWatchdog();
             System.out.println("Upgrade completed");
         } catch (IOException ex) {
             Logger.getLogger(LawlessImageTool.class.getName()).log(Level.SEVERE, null, ex);
@@ -392,9 +392,9 @@ public class LawlessImageTool implements MediaConsumer {
             f.path = currentGameFile;
             insertHardDisk(0, e, f);
 
-            // Automatically reboot to complete the upgrade
-            System.out.println("Rebooting to complete upgrade");
-            Emulator.withComputer(Computer::coldStart);
+            // Automatically reboot to complete the upgrade with boot watchdog monitoring
+            System.out.println("Rebooting to complete upgrade with boot watchdog");
+            LawlessLegends.getApplication().bootWatchdog();
 
         } catch (Exception ex) {
             Logger.getLogger(LawlessImageTool.class.getName()).log(Level.SEVERE, null, ex);

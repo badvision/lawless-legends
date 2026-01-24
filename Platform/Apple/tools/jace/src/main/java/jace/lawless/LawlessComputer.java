@@ -5,7 +5,9 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -16,6 +18,9 @@ import jace.apple2e.VideoNTSC;
 import jace.cheat.Cheats;
 import jace.config.ConfigurableField;
 import jace.config.Configuration;
+import jace.core.Card;
+import jace.core.IndependentTimedDevice;
+import jace.core.Motherboard;
 import jace.core.Video;
 import jace.library.MediaConsumer;
 
@@ -23,6 +28,8 @@ import jace.library.MediaConsumer;
  * Extends standard implementation to provide different cold start behavior
  */
 public class LawlessComputer extends Apple2e {
+
+    private static final Logger LOGGER = Logger.getLogger(LawlessComputer.class.getName());
 
     byte[] bootScreen = null;
     boolean performedBootAnimation = false;
@@ -75,13 +82,33 @@ public class LawlessComputer extends Apple2e {
     @Override
     public void coldStart() {
         getMotherboard().whileSuspended(()->{
+            // PHASE 1: COMPLETE STATE CLEANUP
             RAM128k ram = (RAM128k) getMemory();
             ram.zeroAllRam();
+            ram.resetState();  // Clear memory cache (fixes black screen freeze)
+
             blankTextPage1();
+
+            // Clear keyboard state (fixes self-test mode issue)
+            getKeyboard().resetState();
+
+            // Reset all softswitches
             for (SoftSwitches s : SoftSwitches.values()) {
                 s.getSwitch().reset();
             }
+
+            // PHASE 2: COMPLETE REINITIALIZATION (before workers resume)
+            getMemory().configureActiveMemory();  // Rebuild memory map
+            getVideo().configureVideoMode();       // Configure video
+            getCpu().reset();                      // Reset CPU state
+
+            // Reset all cards (fixes BASIC prompt issue)
+            for (Optional<Card> c : getMemory().getAllCards()) {
+                c.ifPresent(Card::reset);
+            }
         });
+
+        // Workers resume HERE with COMPLETE state
         if (showBootAnimation) {
             (new Thread(this::startAnimation)).start();
         } else {
@@ -181,12 +208,44 @@ public class LawlessComputer extends Apple2e {
     }
 
     public void waitForVBL(int count) throws InterruptedException {
-        if (getVideo() == null || !getVideo().isRunning() || !getMotherboard().isRunning()) {
+        // Defensive check 1: Basic null checks
+        Video video = getVideo();
+        Motherboard mb = getMotherboard();
+
+        if (video == null || mb == null) {
+            LOGGER.fine("Video or motherboard null, skipping VBL wait");
             return;
         }
+
+        // Defensive check 2: isRunning() flag check
+        if (!video.isRunning() || !mb.isRunning()) {
+            LOGGER.fine("Video or motherboard not running, skipping VBL wait");
+            return;
+        }
+
+        // Defensive check 3: Verify worker thread actually alive
+        if (mb instanceof IndependentTimedDevice) {
+            IndependentTimedDevice device = (IndependentTimedDevice) mb;
+            Thread worker = device.worker;
+            if (worker == null || !worker.isAlive()) {
+                LOGGER.warning("Motherboard worker thread not running, skipping VBL wait");
+                return;
+            }
+        }
+
         Semaphore s = new Semaphore(0);
-        onNextVBL(s::release);
-        s.acquire();
+        Runnable callback = s::release;
+        onNextVBL(callback);
+
+        // Defensive check 4: Timeout to prevent infinite hang
+        // VBL should occur every ~16ms, so 2 seconds is extremely generous
+        if (!s.tryAcquire(2000, TimeUnit.MILLISECONDS)) {
+            // Timeout - clean up callback and log warning
+            vblCallbacks.remove(callback);
+            LOGGER.warning("VBL wait timed out after 2 seconds - continuing anyway");
+            return;
+        }
+
         if (count > 1) {
             waitForVBL(count - 1);
         }
@@ -204,6 +263,15 @@ public class LawlessComputer extends Apple2e {
                 vblCallbacks.remove(0).run();
             }
         }
+    }
+
+    @Override
+    public void warmStart() {
+        // Clear VBL callbacks to prevent accumulation across warm reboots
+        if (vblCallbacks != null) {
+            vblCallbacks.clear();
+        }
+        super.warmStart();
     }
 
     public void finishColdStart() {

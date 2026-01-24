@@ -162,4 +162,95 @@ public class UpgradeHandlerTest {
         assertEquals("Headless mode should return SKIP",
             UpgradeHandler.UpgradeDecision.SKIP, decision);
     }
+
+    @Test(timeout = 5000)
+    public void testAwaitUpgradeCompletion_SignalsImmediatelyAfterCheckAndHandleUpgrade() throws Exception {
+        // This test verifies that checkAndHandleUpgrade() signals the latch
+        // and awaitUpgradeCompletion() returns immediately
+
+        // Start a thread that will call checkAndHandleUpgrade
+        Thread upgradeThread = new Thread(() -> {
+            upgradeHandler.checkAndHandleUpgrade(testGameFile, false);
+        });
+
+        // Start a thread that waits for completion
+        final boolean[] completedWithinTimeout = new boolean[1];
+        Thread waitingThread = new Thread(() -> {
+            completedWithinTimeout[0] = upgradeHandler.awaitUpgradeCompletion(10000);
+        });
+
+        // Start both threads
+        waitingThread.start();
+        Thread.sleep(100); // Give waiting thread time to start waiting
+        upgradeThread.start();
+
+        // Wait for both to complete
+        upgradeThread.join(2000);
+        waitingThread.join(2000);
+
+        assertTrue("Upgrade completion should be signaled", completedWithinTimeout[0]);
+    }
+
+    @Test(timeout = 2000)
+    public void testAwaitUpgradeCompletion_TimeoutWhenNotSignaled() {
+        // Create a fresh UpgradeHandler that hasn't signaled
+        UpgradeHandler freshHandler = new UpgradeHandler(imageTool, tracker);
+
+        // This should timeout quickly
+        long startTime = System.currentTimeMillis();
+        boolean completed = freshHandler.awaitUpgradeCompletion(500);
+        long duration = System.currentTimeMillis() - startTime;
+
+        assertFalse("Should timeout when upgrade not complete", completed);
+        assertTrue("Should wait approximately the timeout duration", duration >= 450 && duration < 1000);
+    }
+
+    @Test(timeout = 5000)
+    public void testSynchronization_BootWatchdogWaitsForUpgrade() throws Exception {
+        // Simulate the race condition scenario from RC-1
+        // This test verifies that boot watchdog waits for upgrade to complete
+
+        final long[] upgradeStartTime = new long[1];
+        final long[] upgradeEndTime = new long[1];
+        final long[] bootStartTime = new long[1];
+
+        // Create a new UpgradeHandler for this test
+        UpgradeHandler testHandler = new UpgradeHandler(imageTool, tracker);
+
+        // Thread 1: Simulate upgrade with delay
+        Thread upgradeThread = new Thread(() -> {
+            upgradeStartTime[0] = System.currentTimeMillis();
+            try {
+                Thread.sleep(200); // Simulate 200ms upgrade time
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            testHandler.checkAndHandleUpgrade(testGameFile, false);
+            upgradeEndTime[0] = System.currentTimeMillis();
+        });
+
+        // Thread 2: Simulate boot watchdog waiting for upgrade
+        Thread bootThread = new Thread(() -> {
+            testHandler.awaitUpgradeCompletion(10000);
+            bootStartTime[0] = System.currentTimeMillis();
+        });
+
+        // Start both threads
+        upgradeThread.start();
+        bootThread.start();
+
+        // Wait for both to complete
+        upgradeThread.join(5000);
+        bootThread.join(5000);
+
+        // Verify that boot started AFTER upgrade completed
+        assertTrue("Upgrade should complete", upgradeEndTime[0] > 0);
+        assertTrue("Boot should start", bootStartTime[0] > 0);
+        assertTrue("Boot should start AFTER upgrade completes",
+            bootStartTime[0] >= upgradeEndTime[0]);
+
+        long raceWindow = bootStartTime[0] - upgradeEndTime[0];
+        assertTrue("Boot should start within 50ms of upgrade completion",
+            raceWindow < 50);
+    }
 }

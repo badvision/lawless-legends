@@ -1,12 +1,17 @@
 package jace;
 
 import java.io.IOException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import jace.apple2e.MOS65C02;
 import jace.apple2e.RAM128k;
+import jace.apple2e.SoftSwitches;
 import jace.apple2e.VideoNTSC;
 import jace.config.Configuration;
 import jace.core.Computer;
@@ -40,6 +45,12 @@ public class LawlessLegends extends Application {
     public JaceUIController controller;
 
     static AtomicBoolean romStarted = new AtomicBoolean(false);
+    private final AtomicBoolean watchdogRunning = new AtomicBoolean(false);
+    private final ScheduledExecutorService watchdogScheduler = Executors.newSingleThreadScheduledExecutor();
+    private final AtomicInteger retryDelayMs = new AtomicInteger(500);
+    private static final int MAX_RETRY_DELAY = 10000;  // 10 seconds cap
+    private static final int MAX_RETRIES = 5;
+    private final AtomicInteger retryCount = new AtomicInteger(0);
     int watchdogDelay = 500;
 
     @Override
@@ -119,6 +130,16 @@ public class LawlessLegends extends Application {
                 });
                 Thread.onSpinWait();
             }
+
+            // Wait for upgrade to complete before starting boot watchdog
+            // This prevents RC-1: Boot watchdog starting before upgrade completes
+            Emulator.withComputer(c-> {
+                LawlessComputer computer = (LawlessComputer) c;
+                if (computer.getAutoUpgradeHandler() != null) {
+                    computer.getAutoUpgradeHandler().awaitUpgradeCompletion(10000);
+                }
+            });
+
             bootWatchdog();
         }).start();
         primaryStage.setOnCloseRequest(event -> {
@@ -126,6 +147,15 @@ public class LawlessLegends extends Application {
             if (controller != null) {
                 controller.saveUISettings();
                 controller.shutdown();
+            }
+            // Shutdown watchdog scheduler
+            watchdogScheduler.shutdown();
+            try {
+                if (!watchdogScheduler.awaitTermination(1, TimeUnit.SECONDS)) {
+                    watchdogScheduler.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                watchdogScheduler.shutdownNow();
             }
             Emulator.withComputer(Computer::deactivate);
             Platform.exit();
@@ -137,6 +167,15 @@ public class LawlessLegends extends Application {
             if (controller != null) {
                 controller.saveUISettings();
                 controller.shutdown();
+            }
+            // Shutdown watchdog scheduler
+            watchdogScheduler.shutdown();
+            try {
+                if (!watchdogScheduler.awaitTermination(1, TimeUnit.SECONDS)) {
+                    watchdogScheduler.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                watchdogScheduler.shutdownNow();
             }
         }));
     }
@@ -245,36 +284,100 @@ public class LawlessLegends extends Application {
     }
 
     /**
-     * Start the computer and make sure it runs through the expected rom routine
-     * for cold boot
+     * Detects if the system has dropped to the BASIC prompt, indicating a boot failure.
+     * Looks for the "]" character in text mode page 1 (first 2 lines).
+     *
+     * @return true if at BASIC prompt, false otherwise
      */
-    private void bootWatchdog() {
+    private boolean isAtBasicPrompt() {
+        return Emulator.withComputer(c -> {
+            // Check text mode and page 1 active
+            boolean textMode = SoftSwitches.TEXT.isOn() && SoftSwitches.HIRES.isOff();
+            boolean page1 = SoftSwitches.PAGE2.isOff();
+
+            if (!textMode || !page1) return false;
+
+            // Look for "]" BASIC prompt character in first few lines
+            for (int addr = 0x0400; addr < 0x0480; addr++) {  // First 2 lines
+                byte b = c.getMemory().readRaw(addr);
+                if ((b & 0x7F) == ']') return true;
+            }
+            return false;
+        }, false);
+    }
+
+    /**
+     * Start the computer and make sure it runs through the expected rom routine
+     * for cold boot.
+     *
+     * Public to allow access from upgrade handlers and other subsystems.
+     */
+    public void bootWatchdog() {
+        // Atomic guard to prevent concurrent watchdog instances - debounce with exponential backoff
+        if (!watchdogRunning.compareAndSet(false, true)) {
+            // Already running - schedule retry with backoff
+            int currentRetries = retryCount.incrementAndGet();
+            if (currentRetries > MAX_RETRIES) {
+                Logger.getLogger(getClass().getName()).log(Level.SEVERE,
+                    "Boot watchdog max retries exceeded, giving up");
+                retryCount.set(0);
+                return;
+            }
+
+            int delay = retryDelayMs.get();
+            Logger.getLogger(getClass().getName()).log(Level.INFO,
+                "Boot watchdog busy, scheduling retry in " + delay + "ms (attempt " + currentRetries + ")");
+            watchdogScheduler.schedule(this::bootWatchdog, delay, TimeUnit.MILLISECONDS);
+            retryDelayMs.set(Math.min(delay * 2, MAX_RETRY_DELAY));  // Exponential backoff
+            return;
+        }
+
+        // Successfully acquired watchdog lock
+        retryCount.set(0);  // Reset retry counter
+        retryDelayMs.set(2000);  // Reset delay
+
         Emulator.withComputer(c -> {
             // We know the game started properly when it runs the decompressor the first time
             int watchAddress = c.PRODUCTION_MODE ? 0x0DF00 : 0x0ff3a;
             new Thread(()->{
-                // Logger.getLogger(getClass().getName()).log(Level.WARNING, "Booting with watchdog");
-                final RAMListener startListener = c.getMemory().observeOnce("Lawless Legends watchdog", RAMEvent.TYPE.EXECUTE, watchAddress, (e) -> {
-                    // Logger.getLogger(getClass().getName()).log(Level.WARNING, "Boot was detected, watchdog terminated.");
-                    romStarted.set(true);
-                });
-                romStarted.set(false);
-                c.coldStart();
                 try {
-                    // Logger.getLogger(getClass().getName()).log(Level.WARNING, "Watchdog: waiting " + watchdogDelay + "ms for boot to start.");
-                    Thread.sleep(watchdogDelay);
-                    watchdogDelay = 500;
-                    if (!romStarted.get() || !c.isRunning() || c.getCpu().getProgramCounter() == MOS65C02.FASTBOOT || c.getCpu().getProgramCounter() == 0) {
-                        Logger.getLogger(getClass().getName()).log(Level.WARNING, "Boot not detected, performing a cold start");
-                        Logger.getLogger(getClass().getName()).log(Level.WARNING, "Old PC: {0}", Integer.toHexString(c.getCpu().getProgramCounter()));
-                        resetEmulator();
-                        configureEmulatorForGame();
-                        bootWatchdog();
-                    } else {
-                        startListener.unregister();
+                    // Logger.getLogger(getClass().getName()).log(Level.WARNING, "Booting with watchdog");
+                    final RAMListener startListener = c.getMemory().observeOnce("Lawless Legends watchdog", RAMEvent.TYPE.EXECUTE, watchAddress, (e) -> {
+                        // Logger.getLogger(getClass().getName()).log(Level.WARNING, "Boot was detected, watchdog terminated.");
+                        romStarted.set(true);
+                    });
+                    romStarted.set(false);
+                    c.coldStart();
+                    try {
+                        // Logger.getLogger(getClass().getName()).log(Level.WARNING, "Watchdog: waiting " + watchdogDelay + "ms for boot to start.");
+                        Thread.sleep(watchdogDelay);
+                        watchdogDelay = 500;
+                        boolean invalidPC = c.getCpu().getProgramCounter() == MOS65C02.FASTBOOT ||
+                                            c.getCpu().getProgramCounter() == 0;
+                        boolean atBasic = isAtBasicPrompt();
+
+                        if (!romStarted.get() || !c.isRunning() || invalidPC || atBasic) {
+                            if (atBasic) {
+                                Logger.getLogger(getClass().getName()).log(Level.WARNING,
+                                    "Boot failed: System dropped to BASIC prompt, retrying...");
+                            } else {
+                                Logger.getLogger(getClass().getName()).log(Level.WARNING,
+                                    "Boot not detected, performing a cold start");
+                                Logger.getLogger(getClass().getName()).log(Level.WARNING,
+                                    "Old PC: {0}", Integer.toHexString(c.getCpu().getProgramCounter()));
+                            }
+                            resetEmulator();
+                            configureEmulatorForGame();
+                            bootWatchdog();
+                        } else {
+                            startListener.unregister();
+                        }
+                    } catch (InterruptedException ex) {
+                        Logger.getLogger(LawlessLegends.class.getName()).log(Level.SEVERE, null, ex);
                     }
-                } catch (InterruptedException ex) {
-                    Logger.getLogger(LawlessLegends.class.getName()).log(Level.SEVERE, null, ex);
+                } finally {
+                    // Clear guard to allow future watchdog instances
+                    watchdogRunning.set(false);
                 }
             }).start();
         });

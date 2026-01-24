@@ -261,15 +261,19 @@ public class DiskIIDrive implements MediaConsumer {
     public void addIndicator() {
         long now = System.currentTimeMillis();
         if (lastAdded == 0 || now - lastAdded >= 500) {
-            EmulatorUILogic.addIndicator(this, icon.get());
-            lastAdded = now;
+            icon.ifPresent(i -> {
+                EmulatorUILogic.addIndicator(this, i);
+                lastAdded = now;
+            });
         }
     }
 
     public void removeIndicator() {
         if (lastAdded > 0) {
-            EmulatorUILogic.removeIndicator(this, icon.get());
-            lastAdded = 0;
+            icon.ifPresent(i -> {
+                EmulatorUILogic.removeIndicator(this, i);
+                lastAdded = 0;
+            });
         }
     }
     

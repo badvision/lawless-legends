@@ -561,6 +561,8 @@ abstract public class RAM128k extends RAM {
     
     @Override
     public void resetState() {
-        memoryConfigurations.clear();
+        state = "???";
+        memoryConfigurations.clear();  // Force rebuild of memory configurations
+        banks = null;  // Force refresh of bank mappings
     }
 }

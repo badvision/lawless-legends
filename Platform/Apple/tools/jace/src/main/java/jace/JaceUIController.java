@@ -117,6 +117,9 @@ public class JaceUIController {
     private volatile boolean loadingSettings = false;
     public static volatile boolean startupComplete = false;
 
+    // Shutdown flag to bypass debouncing during shutdown
+    private volatile boolean shuttingDown = false;
+
     // Debounce machinery
     private final ScheduledExecutorService saveExecutor = Executors.newSingleThreadScheduledExecutor();
     private volatile ScheduledFuture<?> pendingSave = null;
@@ -270,7 +273,7 @@ public class JaceUIController {
             isSaving = true;
             try {
                 EmulatorUILogic ui = ((Configuration) Configuration.BASE.subject).ui;
-                
+
                 // Update configuration with current UI state
                 if (musicVolumeSlider != null) {
                     ui.musicVolume = musicVolumeSlider.getValue();
@@ -282,19 +285,24 @@ public class JaceUIController {
                     ui.soundtrackSelection = musicSelection.getValue();
                 }
                 ui.aspectRatioCorrection = aspectRatioCorrectionEnabled.get();
-                
+
                 // Save window state if we have a primary stage
                 if (primaryStage != null) {
                     ui.windowWidth = (int) primaryStage.getWidth();
                     ui.windowHeight = (int) primaryStage.getHeight();
                     ui.fullscreen = primaryStage.isFullScreen();
                 }
-                
+
                 // Save the window size index from EmulatorUILogic
                 ui.windowSizeIndex = EmulatorUILogic.size;
-                
-                // Debounced save
-                scheduleDebouncedSave();
+
+                // During shutdown, save immediately to bypass debouncing
+                if (shuttingDown) {
+                    Configuration.saveSettingsImmediate();
+                } else {
+                    // Normal operation: debounced save
+                    scheduleDebouncedSave();
+                }
             } catch (Exception e) {
                 // Log error but don't let it crash the application
                 System.err.println("Error saving UI settings: " + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()));
@@ -326,11 +334,18 @@ public class JaceUIController {
 
     /** Call this when application is shutting down to flush pending save and stop executor */
     public void shutdown() {
-        try {
-            if (pendingSave != null && !pendingSave.isDone()) {
-                pendingSave.get(); // wait for completion
-            }
-        } catch (Exception ignored) {}
+        // Set shutdown flag to bypass debouncing
+        shuttingDown = true;
+
+        // Cancel any pending debounced save
+        if (pendingSave != null && !pendingSave.isDone()) {
+            pendingSave.cancel(false);
+        }
+
+        // Trigger immediate save of current settings
+        saveUISettings();
+
+        // Shutdown the executor
         saveExecutor.shutdownNow();
     }
     

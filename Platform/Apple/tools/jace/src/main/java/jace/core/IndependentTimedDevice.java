@@ -16,19 +16,24 @@
 
 package jace.core;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
+
 /**
  * This is the core of a device that runs with its own independent clock in its
  * own thread.  Device timing is controlled by pausing the thread at regular
  * intervals as necessary.
- * 
+ *
  * This is primarily only used for the system clock, but it is possible to
  * use for other devices that need to operate independently -- but it is best
  * to do so only with caution as extra threads can lead to weird glitches if they
  * need to have guarantees of synchronization, etc.
- * 
+ *
  * @author brobert
  */
 public abstract class IndependentTimedDevice extends TimedDevice {
+    private static final Logger LOGGER = Logger.getLogger(IndependentTimedDevice.class.getName());
 
     public IndependentTimedDevice() {
         super(false);
@@ -124,7 +129,12 @@ public abstract class IndependentTimedDevice extends TimedDevice {
         if (worker != null && worker.isAlive()) {
             return;
         }
+
+        // Use CountDownLatch to ensure worker thread has actually started before returning
+        CountDownLatch workerStarted = new CountDownLatch(1);
         Thread newWorker = new Thread(() -> {
+            // Signal thread started FIRST thing in worker body
+            workerStarted.countDown();
             // System.out.println("Worker thread for " + getDeviceName() + " starting");
             while (isRunning()) {
                 if (isPaused()) {
@@ -146,5 +156,15 @@ public abstract class IndependentTimedDevice extends TimedDevice {
         newWorker.setPriority(Thread.MAX_PRIORITY);
         newWorker.setName("Timed device " + getDeviceName() + " worker");
         newWorker.start();
+
+        // Wait for worker to signal it has started (with timeout to prevent indefinite blocking)
+        try {
+            if (!workerStarted.await(1000, TimeUnit.MILLISECONDS)) {
+                LOGGER.warning("Worker thread for " + getDeviceName() + " did not start within 1 second");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            LOGGER.severe("Interrupted while waiting for worker thread " + getDeviceName() + " to start");
+        }
     }
 }

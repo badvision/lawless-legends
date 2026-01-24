@@ -8,6 +8,8 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -18,6 +20,9 @@ import java.util.logging.Logger;
 public class UpgradeHandler {
 
     private static final Logger LOGGER = Logger.getLogger(UpgradeHandler.class.getName());
+
+    // Synchronization latch to coordinate upgrade completion with boot start
+    private final CountDownLatch upgradeCompletionLatch = new CountDownLatch(1);
 
     public enum UpgradeDecision {
         UPGRADE,
@@ -160,20 +165,50 @@ public class UpgradeHandler {
      * @return true if the game should continue booting, false if it should exit
      */
     public boolean checkAndHandleUpgrade(File storageGameFile, boolean wasJustReplaced) {
-        if (storageGameFile == null || !storageGameFile.exists()) {
-            LOGGER.warning("Storage game file does not exist - skipping upgrade check");
+        try {
+            if (storageGameFile == null || !storageGameFile.exists()) {
+                LOGGER.warning("Storage game file does not exist - skipping upgrade check");
+                return true;
+            }
+
+            if (wasJustReplaced) {
+                LOGGER.info("Storage file was replaced with newer packaged game - performing silent upgrade");
+                return performUpgrade(storageGameFile);
+            }
+
+            // No upgrade needed - just keep .lkg backup synchronized with latest progress
+            LOGGER.info("Game is current - no upgrade needed");
+            createOrUpdateLastKnownGoodBackup(storageGameFile);
             return true;
+        } finally {
+            // Always signal completion (whether upgrade happened or not)
+            upgradeCompletionLatch.countDown();
+            LOGGER.info("Upgrade check complete - boot can proceed");
         }
+    }
 
-        if (wasJustReplaced) {
-            LOGGER.info("Storage file was replaced with newer packaged game - performing silent upgrade");
-            return performUpgrade(storageGameFile);
+    /**
+     * Waits for upgrade completion before allowing boot to proceed.
+     * This prevents the boot watchdog from starting before upgrade finishes.
+     *
+     * @param timeoutMs Maximum time to wait in milliseconds (default: 10000ms)
+     * @return true if upgrade completed within timeout, false if timeout occurred
+     */
+    public boolean awaitUpgradeCompletion(long timeoutMs) {
+        try {
+            LOGGER.info("Waiting for upgrade completion (timeout: " + timeoutMs + "ms)");
+            boolean completed = upgradeCompletionLatch.await(timeoutMs, TimeUnit.MILLISECONDS);
+            if (completed) {
+                LOGGER.info("Upgrade completion confirmed - proceeding with boot");
+            } else {
+                LOGGER.warning("Upgrade completion timeout after " + timeoutMs + "ms - proceeding anyway");
+            }
+            return completed;
+        } catch (InterruptedException e) {
+            LOGGER.log(Level.WARNING, "Interrupted while waiting for upgrade completion", e);
+            Thread.currentThread().interrupt();
+            return false;
         }
-
-        // No upgrade needed - just keep .lkg backup synchronized with latest progress
-        LOGGER.info("Game is current - no upgrade needed");
-        createOrUpdateLastKnownGoodBackup(storageGameFile);
-        return true;
     }
 
     /**

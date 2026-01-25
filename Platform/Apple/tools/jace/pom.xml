@@ -16,8 +16,9 @@
         <mainClass>jace.LawlessLegends</mainClass>
         <netbeans.hint.license>apache20</netbeans.hint.license>
         <lwjgl.version>3.3.3</lwjgl.version>
-        <app.version>1.1</app.version>
+        <app.version>${project.version}</app.version>
         <javafx.version>22.0.2</javafx.version>
+        <build.timestamp>${maven.build.timestamp}</build.timestamp>
         <maven.build.timestamp.format>yyyy-MM-dd</maven.build.timestamp.format>
     </properties>
 
@@ -56,6 +57,28 @@
                         <skipSigning>true</skipSigning>
                     </releaseConfiguration>
                 </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>properties-maven-plugin</artifactId>
+                <groupId>org.codehaus.mojo</groupId>
+                <version>1.2.1</version>
+                <executions>
+                    <execution>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>write-project-properties</goal>
+                        </goals>
+                        <configuration>
+                            <outputFile>version.properties</outputFile> 
+                            <properties>
+                                <write-project-properties>
+                                    <app.version>${app.version}</app.version>
+                                    <build.timestamp>${build.timestamp}</build.timestamp>
+                                </write-project-properties>
+                            </properties>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.openjfx</groupId>

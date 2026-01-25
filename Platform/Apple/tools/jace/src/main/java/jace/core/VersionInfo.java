@@ -32,8 +32,8 @@ public class VersionInfo {
         try (InputStream input = VersionInfo.class.getClassLoader().getResourceAsStream("version.properties")) {
             if (input != null) {
                 properties.load(input);
-                appVersion = properties.getProperty("version", "1.0");
-                buildDate = properties.getProperty("build.date", "");
+                appVersion = properties.getProperty("app.version", "??");
+                buildDate = properties.getProperty("build.timestamp", "??");
             } else {
                 LOG.log(Level.WARNING, "version.properties file not found in classpath");
             }

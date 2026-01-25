@@ -314,38 +314,52 @@ public class JaceUIController {
     }
     
     private void scheduleDebouncedSave() {
+        Logger logger = Logger.getLogger(JaceUIController.class.getName());
+
         // cancel previous pending save
         if (pendingSave != null && !pendingSave.isDone()) {
+            logger.log(Level.FINE, "Cancelling previous debounced save");
             pendingSave.cancel(false);
         }
+
         if (saveExecutor.isShutdown()) {
             // executor gone, save directly
+            logger.log(Level.INFO, "Executor shutdown - saving configuration immediately");
             Configuration.saveSettingsImmediate();
             return;
         }
+
+        logger.log(Level.FINE, "Scheduling debounced save in {0}ms", SAVE_DEBOUNCE_MS);
         pendingSave = saveExecutor.schedule(() -> {
             try {
+                logger.log(Level.FINE, "Executing debounced save");
                 Configuration.saveSettingsImmediate();
             } catch (Exception e) {
-                System.err.println("Error saving settings: " + e.getMessage());
+                logger.log(Level.SEVERE, "Error saving settings from debounce", e);
             }
         }, SAVE_DEBOUNCE_MS, TimeUnit.MILLISECONDS);
     }
 
     /** Call this when application is shutting down to flush pending save and stop executor */
     public void shutdown() {
+        Logger logger = Logger.getLogger(JaceUIController.class.getName());
+        logger.log(Level.INFO, "JaceUIController shutting down - flushing pending saves");
+
         // Set shutdown flag to bypass debouncing
         shuttingDown = true;
 
         // Cancel any pending debounced save
         if (pendingSave != null && !pendingSave.isDone()) {
+            logger.log(Level.FINE, "Cancelling pending debounced save during shutdown");
             pendingSave.cancel(false);
         }
 
         // Trigger immediate save of current settings
+        logger.log(Level.INFO, "Saving UI settings during shutdown");
         saveUISettings();
 
         // Shutdown the executor
+        logger.log(Level.FINE, "Shutting down save executor");
         saveExecutor.shutdownNow();
     }
     

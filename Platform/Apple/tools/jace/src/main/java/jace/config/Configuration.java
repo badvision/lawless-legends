@@ -282,9 +282,46 @@ public class Configuration implements Reconfigurable {
     @ConfigurableField(name = "Autosave Changes", description = "If unchecked, changes are only saved when the Save button is pressed.")
     public static boolean saveAutomatically = false;
 
+    // Track whether shutdown hook has been registered (GH-9 fix)
+    private static final AtomicBoolean shutdownHookRegistered = new AtomicBoolean(false);
+
+    // Track shutdown hook execution for testing (package-private for test access)
+    static final AtomicBoolean shutdownHookExecuted = new AtomicBoolean(false);
+
     public static void initializeBaseConfiguration() {
         if (BASE == null) {
             BASE = new ConfigNode(new Configuration());
+            registerShutdownHook();
+        }
+    }
+
+    /**
+     * Register a JVM shutdown hook to ensure configuration is saved even if
+     * the application exits during the debounce window (GH-9 fix).
+     *
+     * This prevents settings loss when the application shuts down within
+     * 2 seconds of the last setting change.
+     */
+    private static void registerShutdownHook() {
+        if (shutdownHookRegistered.compareAndSet(false, true)) {
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                Logger logger = Logger.getLogger(Configuration.class.getName());
+                logger.log(Level.INFO, "Shutdown hook triggered - flushing configuration to disk");
+
+                try {
+                    // Mark that shutdown hook executed (for testing validation)
+                    shutdownHookExecuted.set(true);
+
+                    // Save immediately on shutdown, bypassing any debounce
+                    saveSettingsImmediate();
+                    logger.log(Level.INFO, "Configuration saved successfully during shutdown");
+                } catch (Exception e) {
+                    logger.log(Level.SEVERE, "Failed to save configuration during shutdown", e);
+                }
+            }, "Configuration-Shutdown-Hook"));
+
+            Logger.getLogger(Configuration.class.getName()).log(Level.FINE,
+                "Shutdown hook registered for configuration persistence (GH-9 fix)");
         }
     }
     
@@ -436,9 +473,16 @@ public class Configuration implements Reconfigurable {
     }
 
     /**
-     * Save settings without applying them first - useful for UI settings that don't need computer suspension
+     * Save settings without applying them first - useful for UI settings that don't need computer suspension.
+     *
+     * This method ensures durability by:
+     * 1. Writing to FileOutputStream directly for control over flush behavior
+     * 2. Calling flush() to ensure data leaves application buffers
+     * 3. Calling getFD().sync() to force OS to write to physical storage
+     * 4. Verifying the file was written successfully
      */
     public static void saveSettingsImmediate() {
+        Logger logger = Logger.getLogger(Configuration.class.getName());
         try {
             buildTree(); // make sure BASE reflects latest in-memory values
 
@@ -463,10 +507,34 @@ public class Configuration implements Reconfigurable {
                 .build();
 
             File json = getJsonSettingsFile();
-            Logger.getLogger(Configuration.class.getName()).log(Level.FINE, "Saving configuration (JSON) to {0}", json.getAbsolutePath());
-            mapper.writeValue(json, dto);
+            logger.log(Level.FINE, "Saving configuration (JSON) to {0}", json.getAbsolutePath());
+
+            // Write with explicit flush and sync for durability (GH-9 fix)
+            try (FileOutputStream fos = new FileOutputStream(json)) {
+                mapper.writeValue(fos, dto);
+                fos.flush(); // Ensure data leaves application buffers
+
+                // Attempt fsync - may fail on some filesystems (e.g., tmpfs on macOS)
+                // but that's acceptable for test environments
+                try {
+                    fos.getFD().sync(); // Force OS to write to physical storage
+                } catch (java.io.SyncFailedException e) {
+                    // Sync not supported on this filesystem - acceptable in test/temp directories
+                    logger.log(Level.FINE, "fsync not supported on this filesystem (acceptable for temp directories)");
+                }
+            }
+
+            // Verify file was written successfully
+            if (!json.exists() || json.length() == 0) {
+                throw new IOException("Configuration file not written or is empty");
+            }
+
+            logger.log(Level.INFO, "Configuration saved successfully: {0} bytes at {1}",
+                new Object[]{json.length(), System.currentTimeMillis()});
+
         } catch (IOException ex) {
-            Logger.getLogger(Configuration.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(Configuration.class.getName()).log(Level.SEVERE,
+                "Failed to save configuration", ex);
         }
     }
 

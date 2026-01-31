@@ -2683,10 +2683,35 @@ class A2PackPartitions
             data.global.scripts.script.each { numberGameFlags(it) }
             data.map.scripts.script.each { numberGameFlags(it) }
 
-            // Now that we have them all, sort and assign numbers
+            // Now that we have them all, cross-reference with the "flags" sheet
+            def sheetFlags = [:]
+            def el = data.global.sheets.sheet.find { it?.@name.equalsIgnoreCase("flags") }
+            el.rows.row.each { row ->
+                def elname = parseStringAttr(row, "name").toLowerCase();
+                def elnum = parseByteAttr(row, "number");
+                sheetFlags[elname] = elnum;
+            }
+
+            // Determine which flags in gameFlags are missing from sheetFlags
+            def missingFlags = gameFlags.findAll { !sheetFlags.containsKey(it) }
+
+            // Likewise, determine which flags in sheetFlags are extra (not in gameFlags)
+            def extraFlags = sheetFlags.findAll { !gameFlags.contains(it.key) }
+
+            // Check for duplicate sheet flag numbers
+            def duplicateNumbers = sheetFlags.values().findAll { sheetFlags.values().count(it) > 1 }
+            if (duplicateNumbers.size() > 0)
+                throw new Exception("Error: duplicate flag numbers in 'flags' sheet: ${duplicateNumbers.join(", ")}")
+
+            // Report the missing and extra flags
+            if (missingFlags.size() > 0)
+                throw new Exception("Error: missing flags in 'flags' sheet: ${missingFlags.join(", ")}")
+            if (extraFlags.size() > 0)
+                reportWriter.println("Warning: extra flags in 'flags' sheet: ${extraFlags.join(", ")}")
+
             def flagSet = gameFlags
             gameFlags = [:]
-            flagSet.sort().each { flg -> gameFlags[flg] = gameFlags.size() }
+            flagSet.sort().each { flg -> gameFlags[flg] = sheetFlags[flg] }
         }
         else if (name == "{outlaw}block" &&
                  (data.@type == "interaction_get_flag" || data.@type == "interaction_set_flag" || data.@type == "interaction_clr_flag" ))

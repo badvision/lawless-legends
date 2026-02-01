@@ -1971,8 +1971,12 @@ class A2PackPartitions
         def hourCode = (char) (97 + hour) // 'a'=0, 'b'=1, etc.
         def engineCode = String.format("%c%s%02d%c", yearCode, monthCode, day, hourCode)
 
-        def offset = Math.max(-99, Math.min(99, (int) ((scenarioStamp - engineStamp) / (1000 * 60 * 60))))
-        return String.format("%s%s%d", engineCode, offset < 0 ? "-" : ".", Math.abs(offset))
+        // Calculate time offset between scenario and engine
+        def days = (scenarioStamp - engineStamp) / (1000.0 * 60 * 60 * 24)
+        def dayfrac = days * 100.0
+        
+        // Compress the time offset into hundreths of a day
+        return String.format("%s%s%d", engineCode, dayfrac < 0 ? ".x" : ".", Math.abs(dayfrac as int))
     }
 
     def calcDiskBits(disks)

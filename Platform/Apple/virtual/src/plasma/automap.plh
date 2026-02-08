@@ -10,3 +10,4 @@
 
 // Each module-exported function needs its own constant, 0..n (multiples of 2)
 const automap_show = 0
+const automap_flush = 2

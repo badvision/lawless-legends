@@ -3027,23 +3027,20 @@ def saveGame()#1
   saveMapPos()
   showMapName("Saving game...")
 
-  textureControl(FALSE) // also flips to page 1
+  // Save the automap marks. There are two stages:
+  // (1) loadEngine calls texControl(0) which buffers marks from the rendering engine.
+  // (2) automap_flush calls writeMarks which load disk marks, merges buffered, and writes back.
+  loadEngine(MOD_AUTOMAP)=>automap_flush() // also flips to page 1
+  returnFromEngine(TRUE)
 
   // Perform garbage collection and record the size of the heap so we can restore it correctly
   // (also does a CHECK_MEM to be sure we never save corrupted heap)
   heapCollect()
 
-  // Write out accumulated map marks.
-  // Note: writeMarks has the side effect of also leaving the marks loaded at $4000, 
-  // so checkMarks can check them there without an explicit readMapMarks
-  //AUTOMAP_CHECK// writeMarks; checkMarks
-
-  // Copy data to main memory, and write it out.
+  // Copy heap data to main memory, and write it out.
   memcpy(HEAP_BOTTOM, LOAD_SAVE_BUF, HEAP_SIZE, 0)  // LC to low mem
   rwGame(RWTS_WRITE)
 
-  mapNameHash = 0; showMapName(global=>s_mapName)
-  doRender
   setWindow2()
   setCursor(cursX, cursY)
 

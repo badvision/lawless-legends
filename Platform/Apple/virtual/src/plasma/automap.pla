@@ -50,7 +50,8 @@ const SECT_BUF_SIZE = MAX_MAP_SECT * TMapSection
 // Exported functions go here. First a predef for each one, then a table with function pointers
 // in the same order as the constants are defined in the header.
 predef _automap_show(targetX, targetY)#1
-word[] funcTbl = @_automap_show
+predef _automap_flush()#1
+word[] funcTbl = @_automap_show, @_automap_flush
 
 word tilePtrs[40]
 byte blankTile[9]
@@ -611,6 +612,11 @@ def loadMarks()#0
 
   // Figure out where the small versions of the special tiles reside
   pSpecialTiles = specTileset + 3
+end
+
+def _automap_flush()#1
+  writeMarks
+  return 0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

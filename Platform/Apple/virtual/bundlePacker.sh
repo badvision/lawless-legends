@@ -25,9 +25,9 @@ cp -r ../win-jdk packer-bundle-$1/jdk
 zip -r packer-bundle-$1.zip *
 cp packer-bundle-$1.zip ../packer-bundle.zip
 mv ~/Dropbox/Lawless\ Legends/packer-bundle-V*.zip ~/Dropbox/Lawless\ Legends/packer-bundle.zip
-sleep 5  # allow time for Dropbox to pick up the rename
+sleep 10  # allow time for Dropbox to pick up the rename
 cp packer-bundle-$1.zip ~/Dropbox/Lawless\ Legends/packer-bundle.zip
-sleep 5  # allow time for Dropbox up detect the diff
+sleep 15  # allow time for Dropbox up detect the diff
 mv ~/Dropbox/Lawless\ Legends/packer-bundle.zip ~/Dropbox/Lawless\ Legends/packer-bundle-$1.zip
 cd ..
 rm -rf bundle-tmp

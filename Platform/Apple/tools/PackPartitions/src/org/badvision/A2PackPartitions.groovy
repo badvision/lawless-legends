@@ -1973,10 +1973,17 @@ class A2PackPartitions
 
         // Calculate time offset between scenario and engine
         def days = (scenarioStamp - engineStamp) / (1000.0 * 60 * 60 * 24)
-        def dayfrac = days * 100.0
+        def daycode
+        if (days < 0)
+            // scenario older than engine: code 0000..0999, in hours rather than quarter-hours
+            // older scenarios give lower numbers, newer give higher numbers
+            daycode = 1000 - Math.max(0, Math.min(999, (-days * 24) as int))
+        else
+            // scenario newer than engine: code 1000..9999, in quarter-hours
+            daycode = 1000 + ((days * 100.0) as int)
         
         // Compress the time offset into hundreths of a day
-        return String.format("%s%s%d", engineCode, dayfrac < 0 ? ".x" : ".", Math.abs(dayfrac as int))
+        return String.format("%s.%04d", engineCode, daycode)
     }
 
     def calcDiskBits(disks)

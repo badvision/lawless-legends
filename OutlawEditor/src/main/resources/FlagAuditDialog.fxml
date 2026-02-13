@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.*?>
+
+<VBox xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="org.badvision.outlaweditor.ui.FlagAuditDialogController"
+      prefWidth="900.0" prefHeight="700.0" spacing="10" style="-fx-padding: 15;">
+
+    <!-- Header -->
+    <Label text="Game Flag Audit Report" style="-fx-font-size: 18px; -fx-font-weight: bold;">
+        <padding>
+            <Insets bottom="10"/>
+        </padding>
+    </Label>
+
+    <!-- Summary Section -->
+    <HBox spacing="20">
+        <VBox spacing="5">
+            <Label fx:id="totalFlagsLabel" text="Total Flags: 0" style="-fx-font-weight: bold;"/>
+            <Label fx:id="trackedFlagsLabel" text="Tracked in Sheet: 0"/>
+            <Label fx:id="untrackedFlagsLabel" text="Missing from Sheet: 0" style="-fx-text-fill: #cc0000;"/>
+            <Label fx:id="unusedFlagsLabel" text="Unused in Sheet: 0" style="-fx-text-fill: #cc8800;"/>
+        </VBox>
+    </HBox>
+
+    <!-- Main content area with tabs -->
+    <TabPane VBox.vgrow="ALWAYS">
+        <!-- All Flags Tab -->
+        <Tab text="All Flags" closable="false">
+            <VBox spacing="5" style="-fx-padding: 10;">
+                <Label text="All flags referenced in scripts:" style="-fx-font-weight: bold;"/>
+                <TableView fx:id="allFlagsTable" VBox.vgrow="ALWAYS">
+                    <columns>
+                        <TableColumn fx:id="allFlagsNameColumn" text="Flag Name" prefWidth="200"/>
+                        <TableColumn fx:id="allFlagsStatusColumn" text="Status" prefWidth="120"/>
+                        <TableColumn fx:id="allFlagsNumberColumn" text="Sheet #" prefWidth="80"/>
+                        <TableColumn fx:id="allFlagsCountColumn" text="References" prefWidth="100"/>
+                        <TableColumn fx:id="allFlagsLocationsColumn" text="Used In" prefWidth="380"/>
+                    </columns>
+                </TableView>
+            </VBox>
+        </Tab>
+
+        <!-- Missing from Sheet Tab -->
+        <Tab text="Missing from Sheet" closable="false">
+            <VBox spacing="5" style="-fx-padding: 10;">
+                <HBox spacing="10" alignment="CENTER_LEFT">
+                    <Label text="Flags used in scripts but not tracked in the flags sheet:" style="-fx-font-weight: bold;"/>
+                    <Button fx:id="addMissingButton" text="Add All to Sheet" onAction="#onAddMissingFlags"/>
+                </HBox>
+                <TableView fx:id="missingFlagsTable" VBox.vgrow="ALWAYS">
+                    <columns>
+                        <TableColumn fx:id="missingFlagsNameColumn" text="Flag Name" prefWidth="200"/>
+                        <TableColumn fx:id="missingFlagsCountColumn" text="References" prefWidth="100"/>
+                        <TableColumn fx:id="missingFlagsLocationsColumn" text="Used In" prefWidth="560"/>
+                    </columns>
+                </TableView>
+            </VBox>
+        </Tab>
+
+        <!-- Unused in Scripts Tab -->
+        <Tab text="Unused in Scripts" closable="false">
+            <VBox spacing="5" style="-fx-padding: 10;">
+                <Label text="Flags tracked in sheet but not referenced in any scripts:" style="-fx-font-weight: bold;"/>
+                <TableView fx:id="unusedFlagsTable" VBox.vgrow="ALWAYS">
+                    <columns>
+                        <TableColumn fx:id="unusedFlagsNameColumn" text="Flag Name" prefWidth="300"/>
+                        <TableColumn fx:id="unusedFlagsNumberColumn" text="Sheet #" prefWidth="100"/>
+                    </columns>
+                </TableView>
+            </VBox>
+        </Tab>
+
+        <!-- Details Tab -->
+        <Tab text="Flag Details" closable="false">
+            <VBox spacing="5" style="-fx-padding: 10;">
+                <HBox spacing="10">
+                    <Label text="Select a flag to see all references:"/>
+                    <ComboBox fx:id="flagSelector" promptText="Select a flag..." prefWidth="300"/>
+                </HBox>
+                <Separator/>
+                <VBox fx:id="flagDetailsContainer" spacing="5" VBox.vgrow="ALWAYS">
+                    <Label fx:id="flagDetailsTitle" text="No flag selected" style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
+                    <Label fx:id="flagDetailsStatus" text=""/>
+                    <Label fx:id="flagDetailsRefCount" text=""/>
+                    <Label text="References:" style="-fx-font-weight: bold; -fx-padding: 10 0 5 0;"/>
+                    <TableView fx:id="flagDetailsTable" VBox.vgrow="ALWAYS">
+                        <columns>
+                            <TableColumn fx:id="detailsLocationColumn" text="Location" prefWidth="200"/>
+                            <TableColumn fx:id="detailsScriptColumn" text="Script" prefWidth="250"/>
+                            <TableColumn fx:id="detailsOperationColumn" text="Operation" prefWidth="100"/>
+                        </columns>
+                    </TableView>
+                </VBox>
+            </VBox>
+        </Tab>
+    </TabPane>
+
+    <!-- Bottom buttons -->
+    <HBox spacing="10" alignment="CENTER_RIGHT" style="-fx-padding: 10 0 0 0;">
+        <Button text="Export Report..." onAction="#onExportReport"/>
+        <Button text="Close" onAction="#onClose" defaultButton="true"/>
+    </HBox>
+</VBox>

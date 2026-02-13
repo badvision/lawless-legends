@@ -66,7 +66,10 @@ public abstract class ApplicationMenuController {
     abstract public void onHelpAbout(ActionEvent event);
 
     @FXML
-    abstract public void performUndo(ActionEvent event);    
+    abstract public void performUndo(ActionEvent event);
+
+    @FXML
+    abstract public void onToolsAuditFlags(ActionEvent event);
 
     abstract public void initalize();
 }

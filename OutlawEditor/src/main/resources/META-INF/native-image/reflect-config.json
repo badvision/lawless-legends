@@ -60,13 +60,26 @@
   "name":"com.sun.glass.ui.MenuItem$Callback"
 },
 {
+  "name":"com.sun.glass.ui.Screen"
+},
+{
   "name":"com.sun.glass.ui.Size"
 },
 {
   "name":"com.sun.glass.ui.View"
 },
 {
+  "name":"com.sun.glass.ui.mac.MacAccessible",
+  "allDeclaredFields":true,
+  "allPublicFields":true,
+  "allDeclaredConstructors":true
+},
+{
   "name":"com.sun.javafx.font.coretext.CTFactory",
+  "methods":[{"name":"getFactory","parameterTypes":[] }]
+},
+{
+  "name":"com.sun.javafx.font.directwrite.DWFactory",
   "methods":[{"name":"getFactory","parameterTypes":[] }]
 },
 {
@@ -105,10 +118,6 @@
 },
 {
   "name":"com.sun.javafx.webkit.theme.ScrollBarWidget"
-},
-{
-  "name":"com.sun.org.apache.xerces.internal.jaxp.DocumentBuilderFactoryImpl",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
   "name":"com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl",
@@ -190,15 +199,7 @@
   "methods":[{"name":"<init>","parameterTypes":["com.sun.scenario.effect.FilterContext","com.sun.scenario.effect.impl.Renderer","java.lang.String"] }]
 },
 {
-  "name":"com.sun.scenario.effect.impl.prism.ps.PPSBlend_SRC_ATOPPeer",
-  "methods":[{"name":"<init>","parameterTypes":["com.sun.scenario.effect.FilterContext","com.sun.scenario.effect.impl.Renderer","java.lang.String"] }]
-},
-{
   "name":"com.sun.scenario.effect.impl.prism.ps.PPSColorAdjustPeer",
-  "methods":[{"name":"<init>","parameterTypes":["com.sun.scenario.effect.FilterContext","com.sun.scenario.effect.impl.Renderer","java.lang.String"] }]
-},
-{
-  "name":"com.sun.scenario.effect.impl.prism.ps.PPSInvertMaskPeer",
   "methods":[{"name":"<init>","parameterTypes":["com.sun.scenario.effect.FilterContext","com.sun.scenario.effect.impl.Renderer","java.lang.String"] }]
 },
 {
@@ -300,12 +301,52 @@
   "name":"java.net.URL"
 },
 {
+  "name":"java.nio.Buffer",
+  "allDeclaredFields":true
+},
+{
   "name":"java.nio.ByteBuffer",
+  "allDeclaredFields":true,
   "methods":[{"name":"order","parameterTypes":["java.nio.ByteOrder"] }]
 },
 {
   "name":"java.nio.ByteOrder",
   "methods":[{"name":"nativeOrder","parameterTypes":[] }]
+},
+{
+  "name":"java.nio.DirectByteBuffer",
+  "allDeclaredFields":true,
+  "unsafeAllocated":true
+},
+{
+  "name":"java.nio.DirectCharBufferU",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.DirectDoubleBufferU",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.DirectFloatBufferU",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.DirectIntBufferU",
+  "allDeclaredFields":true,
+  "unsafeAllocated":true
+},
+{
+  "name":"java.nio.DirectLongBufferU",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.DirectShortBufferU",
+  "allDeclaredFields":true,
+  "unsafeAllocated":true
+},
+{
+  "name":"java.nio.MappedByteBuffer",
+  "allDeclaredFields":true
 },
 {
   "name":"java.security.AlgorithmParametersSpi"
@@ -325,8 +366,207 @@
   ]
 },
 {
-  "name":"java.util.ServiceLoader",
-  "methods":[{"name":"load","parameterTypes":["java.lang.Class","java.lang.ClassLoader"] }]
+  "name":"javafx.animation.KeyValue"
+},
+{
+  "name":"javafx.beans.property.BooleanProperty",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.beans.property.DoubleProperty",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.beans.property.IntegerProperty",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.beans.property.ListProperty",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.beans.property.ObjectProperty",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.beans.property.Property",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.beans.property.ReadOnlyBooleanProperty",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.beans.property.ReadOnlyDoubleProperty",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.beans.property.ReadOnlyIntegerProperty",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.beans.property.ReadOnlyListProperty",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.beans.property.ReadOnlyObjectProperty",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.beans.property.ReadOnlyProperty",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.beans.property.ReadOnlyStringProperty",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.beans.property.SimpleBooleanProperty",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.beans.property.SimpleDoubleProperty",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.beans.property.SimpleIntegerProperty",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.beans.property.SimpleListProperty",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.beans.property.SimpleObjectProperty",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.beans.property.SimpleStringProperty",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.beans.property.StringProperty",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.collections.FXCollections",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.collections.ObservableArray",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.collections.ObservableList",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.collections.ObservableMap",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.collections.ObservableSet",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"javafx.fxml.FXMLLoader"
@@ -337,9 +577,14 @@
 },
 {
   "name":"javafx.geometry.Insets",
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true,
   "queryAllPublicMethods":true,
-  "queryAllPublicConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":["double","double","double","double"] }]
+  "methods":[{"name":"<init>","parameterTypes":["double"] }]
+},
+{
+  "name":"javafx.geometry.NodeOrientation",
+  "methods":[{"name":"valueOf","parameterTypes":["java.lang.String"] }]
 },
 {
   "name":"javafx.geometry.Orientation",
@@ -370,25 +615,18 @@
 },
 {
   "name":"javafx.scene.Node",
-  "queryAllDeclaredMethods":true,
-  "methods":[
-    {"name":"getId","parameterTypes":[] }, 
-    {"name":"getStyleClass","parameterTypes":[] }, 
-    {"name":"setEffect","parameterTypes":["javafx.scene.effect.Effect"] }, 
-    {"name":"setId","parameterTypes":["java.lang.String"] }, 
-    {"name":"setLayoutX","parameterTypes":["double"] }, 
-    {"name":"setLayoutY","parameterTypes":["double"] }, 
-    {"name":"setPickOnBounds","parameterTypes":["boolean"] }, 
-    {"name":"setRotate","parameterTypes":["double"] }
-  ]
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true
 },
 {
   "name":"javafx.scene.ParallelCamera"
 },
 {
   "name":"javafx.scene.Parent",
-  "queryAllDeclaredMethods":true,
-  "methods":[{"name":"getStylesheets","parameterTypes":[] }]
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true
 },
 {
   "name":"javafx.scene.Scene"
@@ -398,118 +636,192 @@
 },
 {
   "name":"javafx.scene.control.Button",
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"javafx.scene.control.ButtonBase",
-  "queryAllDeclaredMethods":true,
-  "methods":[{"name":"setOnAction","parameterTypes":["javafx.event.EventHandler"] }]
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true
 },
 {
   "name":"javafx.scene.control.CheckBox",
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicConstructors":true,
+  "allDeclaredFields":true,
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.scene.control.CheckMenuItem",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true,
   "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"javafx.scene.control.ChoiceBox",
+  "allDeclaredFields":true,
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"javafx.scene.control.ComboBox",
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"javafx.scene.control.ComboBoxBase",
-  "queryAllDeclaredMethods":true,
-  "methods":[{"name":"setOnAction","parameterTypes":["javafx.event.EventHandler"] }]
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true
 },
 {
   "name":"javafx.scene.control.ContentDisplay",
   "methods":[{"name":"valueOf","parameterTypes":["java.lang.String"] }]
 },
 {
+  "name":"javafx.scene.control.ContextMenu",
+  "allDeclaredFields":true,
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
   "name":"javafx.scene.control.Control",
-  "queryAllDeclaredMethods":true
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true
+},
+{
+  "name":"javafx.scene.control.CustomMenuItem",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true
 },
 {
   "name":"javafx.scene.control.Label",
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"javafx.scene.control.Labeled",
-  "queryAllDeclaredMethods":true,
-  "methods":[
-    {"name":"setAlignment","parameterTypes":["javafx.geometry.Pos"] }, 
-    {"name":"setContentDisplay","parameterTypes":["javafx.scene.control.ContentDisplay"] }, 
-    {"name":"setMnemonicParsing","parameterTypes":["boolean"] }, 
-    {"name":"setText","parameterTypes":["java.lang.String"] }, 
-    {"name":"setTextAlignment","parameterTypes":["javafx.scene.text.TextAlignment"] }, 
-    {"name":"setTextFill","parameterTypes":["javafx.scene.paint.Paint"] }
-  ]
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true
 },
 {
   "name":"javafx.scene.control.ListView",
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicConstructors":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"setEditable","parameterTypes":["boolean"] }
-  ]
+  "allDeclaredFields":true,
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"javafx.scene.control.Menu",
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicConstructors":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"getItems","parameterTypes":[] }
-  ]
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"javafx.scene.control.MenuBar",
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicConstructors":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"getMenus","parameterTypes":[] }
-  ]
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"javafx.scene.control.MenuButton",
+  "allDeclaredFields":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true,
   "queryAllDeclaredMethods":true,
-  "queryAllPublicConstructors":true,
   "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"getItems","parameterTypes":[] }
+    {"name":"getItems","parameterTypes":[] }, 
+    {"name":"setOnAction","parameterTypes":["javafx.event.EventHandler"] }, 
+    {"name":"setOnDragDetected","parameterTypes":["javafx.event.EventHandler"] }, 
+    {"name":"setOnDragDone","parameterTypes":["javafx.event.EventHandler"] }, 
+    {"name":"setOnKeyPressed","parameterTypes":["javafx.event.EventHandler"] }, 
+    {"name":"setOnKeyReleased","parameterTypes":["javafx.event.EventHandler"] }, 
+    {"name":"setOnMouseClicked","parameterTypes":["javafx.event.EventHandler"] }, 
+    {"name":"setOnMousePressed","parameterTypes":["javafx.event.EventHandler"] }, 
+    {"name":"setOnMouseReleased","parameterTypes":["javafx.event.EventHandler"] }
   ]
 },
 {
   "name":"javafx.scene.control.MenuItem",
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicConstructors":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"getId","parameterTypes":[] }, 
-    {"name":"setAccelerator","parameterTypes":["javafx.scene.input.KeyCombination"] }, 
-    {"name":"setId","parameterTypes":["java.lang.String"] }, 
-    {"name":"setMnemonicParsing","parameterTypes":["boolean"] }, 
-    {"name":"setOnAction","parameterTypes":["javafx.event.EventHandler"] }, 
-    {"name":"setText","parameterTypes":["java.lang.String"] }
-  ]
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.scene.control.ProgressBar",
+  "allDeclaredFields":true,
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.scene.control.ProgressIndicator",
+  "allDeclaredFields":true,
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.scene.control.RadioButton",
+  "allDeclaredFields":true,
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.scene.control.RadioMenuItem",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true,
+  "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
   "name":"javafx.scene.control.ScrollPane",
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicConstructors":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"setContent","parameterTypes":["javafx.scene.Node"] }, 
-    {"name":"setFitToHeight","parameterTypes":["boolean"] }, 
-    {"name":"setFitToWidth","parameterTypes":["boolean"] }
-  ]
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"javafx.scene.control.Separator",
@@ -521,19 +833,21 @@
   ]
 },
 {
+  "name":"javafx.scene.control.SeparatorMenuItem",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true,
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
   "name":"javafx.scene.control.Slider",
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicConstructors":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"setBlockIncrement","parameterTypes":["double"] }, 
-    {"name":"setMajorTickUnit","parameterTypes":["double"] }, 
-    {"name":"setMax","parameterTypes":["double"] }, 
-    {"name":"setMin","parameterTypes":["double"] }, 
-    {"name":"setMinorTickCount","parameterTypes":["int"] }, 
-    {"name":"setShowTickMarks","parameterTypes":["boolean"] }, 
-    {"name":"setSnapToTicks","parameterTypes":["boolean"] }
-  ]
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"javafx.scene.control.SplitMenuButton",
@@ -542,42 +856,80 @@
   "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
+  "name":"javafx.scene.control.SplitPane",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true,
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
   "name":"javafx.scene.control.Tab",
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicConstructors":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"setContent","parameterTypes":["javafx.scene.Node"] }, 
-    {"name":"setOnSelectionChanged","parameterTypes":["javafx.event.EventHandler"] }, 
-    {"name":"setText","parameterTypes":["java.lang.String"] }
-  ]
+  "allDeclaredFields":true,
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"javafx.scene.control.TabPane",
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicConstructors":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"getTabs","parameterTypes":[] }, 
-    {"name":"setSide","parameterTypes":["javafx.geometry.Side"] }, 
-    {"name":"setTabClosingPolicy","parameterTypes":["javafx.scene.control.TabPane$TabClosingPolicy"] }
-  ]
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"javafx.scene.control.TabPane$TabClosingPolicy",
   "methods":[{"name":"valueOf","parameterTypes":["java.lang.String"] }]
 },
 {
-  "name":"javafx.scene.control.TableColumnBase"
+  "name":"javafx.scene.control.TableColumn",
+  "allDeclaredFields":true,
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
-  "name":"javafx.scene.control.TableView"
+  "name":"javafx.scene.control.TableColumnBase",
+  "queryAllDeclaredMethods":true,
+  "methods":[
+    {"name":"getId","parameterTypes":[] }, 
+    {"name":"setId","parameterTypes":["java.lang.String"] }, 
+    {"name":"setPrefWidth","parameterTypes":["double"] }, 
+    {"name":"setText","parameterTypes":["java.lang.String"] }
+  ]
+},
+{
+  "name":"javafx.scene.control.TableView",
+  "allDeclaredFields":true,
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.scene.control.TextArea",
+  "allDeclaredFields":true,
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"javafx.scene.control.TextField",
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
+  "allDeclaredFields":true,
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"javafx.scene.control.TextInputControl",
@@ -588,13 +940,45 @@
   ]
 },
 {
+  "name":"javafx.scene.control.ToggleGroup",
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true,
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
   "name":"javafx.scene.control.ToolBar",
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicConstructors":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"getItems","parameterTypes":[] }
-  ]
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.scene.control.Tooltip",
+  "allDeclaredFields":true,
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.scene.control.TreeItem",
+  "allDeclaredFields":true,
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.scene.control.TreeView",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true,
+  "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
   "name":"javafx.scene.effect.BlurType",
@@ -623,17 +1007,17 @@
 },
 {
   "name":"javafx.scene.image.ImageView",
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicConstructors":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"setFitHeight","parameterTypes":["double"] }, 
-    {"name":"setFitWidth","parameterTypes":["double"] }, 
-    {"name":"setPreserveRatio","parameterTypes":["boolean"] }
-  ]
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"javafx.scene.input.Clipboard"
+},
+{
+  "name":"javafx.scene.input.Dragboard"
 },
 {
   "name":"javafx.scene.input.KeyCode",
@@ -641,9 +1025,9 @@
 },
 {
   "name":"javafx.scene.input.KeyCodeCombination",
-  "queryAllPublicMethods":true,
-  "queryAllPublicConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":["javafx.scene.input.KeyCode","javafx.scene.input.KeyCombination$ModifierValue","javafx.scene.input.KeyCombination$ModifierValue","javafx.scene.input.KeyCombination$ModifierValue","javafx.scene.input.KeyCombination$ModifierValue","javafx.scene.input.KeyCombination$ModifierValue"] }]
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true,
+  "queryAllPublicMethods":true
 },
 {
   "name":"javafx.scene.input.KeyCombination$ModifierValue",
@@ -651,71 +1035,68 @@
 },
 {
   "name":"javafx.scene.layout.AnchorPane",
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicConstructors":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"setBottomAnchor","parameterTypes":["javafx.scene.Node","java.lang.Double"] }, 
-    {"name":"setLeftAnchor","parameterTypes":["javafx.scene.Node","java.lang.Double"] }, 
-    {"name":"setRightAnchor","parameterTypes":["javafx.scene.Node","java.lang.Double"] }, 
-    {"name":"setTopAnchor","parameterTypes":["javafx.scene.Node","java.lang.Double"] }
-  ],
-  "queriedMethods":[
-    {"name":"getBottomAnchor","parameterTypes":["javafx.scene.Node"] }, 
-    {"name":"getLeftAnchor","parameterTypes":["javafx.scene.Node"] }, 
-    {"name":"getRightAnchor","parameterTypes":["javafx.scene.Node"] }, 
-    {"name":"getTopAnchor","parameterTypes":["javafx.scene.Node"] }
-  ]
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.scene.layout.BorderPane",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true,
+  "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
   "name":"javafx.scene.layout.ColumnConstraints",
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicConstructors":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"setHgrow","parameterTypes":["javafx.scene.layout.Priority"] }, 
-    {"name":"setMinWidth","parameterTypes":["double"] }, 
-    {"name":"setPrefWidth","parameterTypes":["double"] }
-  ]
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"javafx.scene.layout.ConstraintsBase",
-  "queryAllDeclaredMethods":true
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true
+},
+{
+  "name":"javafx.scene.layout.FlowPane",
+  "allDeclaredFields":true,
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"javafx.scene.layout.GridPane",
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicConstructors":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"getColumnConstraints","parameterTypes":[] }, 
-    {"name":"getRowConstraints","parameterTypes":[] }, 
-    {"name":"setColumnIndex","parameterTypes":["javafx.scene.Node","java.lang.Integer"] }, 
-    {"name":"setHalignment","parameterTypes":["javafx.scene.Node","javafx.geometry.HPos"] }, 
-    {"name":"setMargin","parameterTypes":["javafx.scene.Node","javafx.geometry.Insets"] }, 
-    {"name":"setRowIndex","parameterTypes":["javafx.scene.Node","java.lang.Integer"] }
-  ],
-  "queriedMethods":[
-    {"name":"getColumnIndex","parameterTypes":["javafx.scene.Node"] }, 
-    {"name":"getHalignment","parameterTypes":["javafx.scene.Node"] }, 
-    {"name":"getRowIndex","parameterTypes":["javafx.scene.Node"] }
-  ]
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"javafx.scene.layout.HBox",
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicConstructors":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"setHgrow","parameterTypes":["javafx.scene.Node","javafx.scene.layout.Priority"] }, 
-    {"name":"setSpacing","parameterTypes":["double"] }
-  ],
-  "queriedMethods":[{"name":"getHgrow","parameterTypes":["javafx.scene.Node"] }]
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"javafx.scene.layout.Pane",
-  "queryAllDeclaredMethods":true,
-  "methods":[{"name":"getChildren","parameterTypes":[] }]
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true,
+  "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
   "name":"javafx.scene.layout.Priority",
@@ -723,37 +1104,43 @@
 },
 {
   "name":"javafx.scene.layout.Region",
-  "queryAllDeclaredMethods":true,
-  "methods":[
-    {"name":"setMaxHeight","parameterTypes":["double"] }, 
-    {"name":"setMaxWidth","parameterTypes":["double"] }, 
-    {"name":"setMinHeight","parameterTypes":["double"] }, 
-    {"name":"setMinWidth","parameterTypes":["double"] }, 
-    {"name":"setPadding","parameterTypes":["javafx.geometry.Insets"] }, 
-    {"name":"setPrefHeight","parameterTypes":["double"] }, 
-    {"name":"setPrefWidth","parameterTypes":["double"] }
-  ]
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true
 },
 {
   "name":"javafx.scene.layout.RowConstraints",
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicConstructors":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"setMinHeight","parameterTypes":["double"] }, 
-    {"name":"setPrefHeight","parameterTypes":["double"] }, 
-    {"name":"setVgrow","parameterTypes":["javafx.scene.layout.Priority"] }
-  ]
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"javafx.scene.layout.StackPane",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true,
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"javafx.scene.layout.TilePane",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true,
+  "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
   "name":"javafx.scene.layout.VBox",
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicConstructors":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"setVgrow","parameterTypes":["javafx.scene.Node","javafx.scene.layout.Priority"] }
-  ],
-  "queriedMethods":[{"name":"getVgrow","parameterTypes":["javafx.scene.Node"] }]
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"javafx.scene.paint.Color",
@@ -798,6 +1185,15 @@
   "name":"javafx.scene.transform.Transform"
 },
 {
+  "name":"javafx.scene.web.WebEngine",
+  "allDeclaredFields":true,
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
   "name":"javafx.scene.web.WebView",
   "queryAllDeclaredMethods":true
 },
@@ -816,94 +1212,31 @@
   "queriedMethods":[{"name":"<init>","parameterTypes":["sun.security.x509.X500Name"] }]
 },
 {
-  "name":"org.apache.commons.compress.archivers.zip.AsiExtraField",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"org.apache.commons.compress.archivers.zip.JarMarker",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"org.apache.commons.compress.archivers.zip.ResourceAlignmentExtraField",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"org.apache.commons.compress.archivers.zip.UnicodeCommentExtraField",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"org.apache.commons.compress.archivers.zip.UnicodePathExtraField",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"org.apache.commons.compress.archivers.zip.X000A_NTFS",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"org.apache.commons.compress.archivers.zip.X0014_X509Certificates",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"org.apache.commons.compress.archivers.zip.X0015_CertificateIdForFile",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"org.apache.commons.compress.archivers.zip.X0016_CertificateIdForCentralDirectory",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"org.apache.commons.compress.archivers.zip.X0017_StrongEncryptionHeader",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"org.apache.commons.compress.archivers.zip.X0019_EncryptionRecipientCertificateList",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"org.apache.commons.compress.archivers.zip.X5455_ExtendedTimestamp",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"org.apache.commons.compress.archivers.zip.X7875_NewUnix",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"org.apache.commons.compress.archivers.zip.Zip64ExtendedInformationExtraField",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"org.apache.logging.log4j.message.DefaultFlowMessageFactory",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"org.apache.logging.log4j.message.ReusableMessageFactory",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"org.apache.xmlbeans.metadata.system.sXMLCONFIG.TypeSystemHolder",
-  "fields":[{"name":"typeSystem"}]
-},
-{
-  "name":"org.apache.xmlbeans.metadata.system.sXMLLANG.TypeSystemHolder",
-  "fields":[{"name":"typeSystem"}]
-},
-{
-  "name":"org.apache.xmlbeans.metadata.system.sXMLSCHEMA.TypeSystemHolder",
-  "fields":[{"name":"typeSystem"}]
-},
-{
-  "name":"org.apache.xmlbeans.metadata.system.sXMLTOOLS.TypeSystemHolder",
-  "fields":[{"name":"typeSystem"}]
-},
-{
   "name":"org.badvision.outlaweditor.Application",
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"main","parameterTypes":["java.lang.String[]"] }
-  ]
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"org.badvision.outlaweditor.GlobalEditor",
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"org.badvision.outlaweditor.ImageEditor",
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"org.badvision.outlaweditor.MapEditor",
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.MythosEditor",
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true,
   "methods":[
     {"name":"checkSpelling","parameterTypes":["java.lang.String"] }, 
     {"name":"getGlobalFunctions","parameterTypes":[] }, 
@@ -911,6 +1244,16 @@
     {"name":"getUserTypes","parameterTypes":[] }, 
     {"name":"setFunctionName","parameterTypes":["java.lang.String"] }
   ]
+},
+{
+  "name":"org.badvision.outlaweditor.SheetEditor",
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"org.badvision.outlaweditor.TileEditor",
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.apple.AppleImageEditor",
@@ -921,40 +1264,66 @@
   "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
+  "name":"org.badvision.outlaweditor.apple.dhgr.AppleDHGRImageEditor",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"org.badvision.outlaweditor.apple.dhgr.AppleDHGRTileEditor",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
   "name":"org.badvision.outlaweditor.data.xml.Arg",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.data.xml.Block",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.data.xml.Columns",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.data.xml.Field",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.data.xml.GameData",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.data.xml.Global",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.data.xml.Global$Sheets",
@@ -971,26 +1340,20 @@
 {
   "name":"org.badvision.outlaweditor.data.xml.Image",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"getCategory","parameterTypes":[] }
-  ],
-  "queriedMethods":[{"name":"setCategory","parameterTypes":["java.lang.String"] }]
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.data.xml.Map",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"getName","parameterTypes":[] }, 
-    {"name":"getOrder","parameterTypes":[] }
-  ],
-  "queriedMethods":[
-    {"name":"setName","parameterTypes":["java.lang.String"] }, 
-    {"name":"setOrder","parameterTypes":["java.lang.String"] }
-  ]
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.data.xml.Map$Chunk",
@@ -1001,43 +1364,56 @@
 {
   "name":"org.badvision.outlaweditor.data.xml.Mutation",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.data.xml.NamedEntity",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicMethods":true,
-  "methods":[
-    {"name":"getComment","parameterTypes":[] }, 
-    {"name":"getName","parameterTypes":[] }, 
-    {"name":"setComment","parameterTypes":["java.lang.String"] }, 
-    {"name":"setName","parameterTypes":["java.lang.String"] }
-  ],
-  "queriedMethods":[{"name":"<init>","parameterTypes":[] }]
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.data.xml.Next",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.data.xml.ObjectFactory",
-  "queryAllDeclaredMethods":true
+  "allDeclaredFields":true,
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.data.xml.PlatformData",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.data.xml.Rows",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.data.xml.Rows$Row",
@@ -1048,14 +1424,20 @@
 {
   "name":"org.badvision.outlaweditor.data.xml.Scope",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "queriedMethods":[{"name":"<init>","parameterTypes":[] }]
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.data.xml.Script",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.data.xml.Script$IntervalTrigger",
@@ -1072,71 +1454,83 @@
 {
   "name":"org.badvision.outlaweditor.data.xml.Scripts",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.data.xml.Sheet",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.data.xml.Statement",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.data.xml.Tile",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"getId","parameterTypes":[] }, 
-    {"name":"isBlocker","parameterTypes":[] }, 
-    {"name":"isObstruction","parameterTypes":[] }, 
-    {"name":"isSprite","parameterTypes":[] }
-  ],
-  "queriedMethods":[
-    {"name":"setBlocker","parameterTypes":["java.lang.Boolean"] }, 
-    {"name":"setId","parameterTypes":["java.lang.String"] }, 
-    {"name":"setObstruction","parameterTypes":["java.lang.Boolean"] }, 
-    {"name":"setSprite","parameterTypes":["java.lang.Boolean"] }
-  ]
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.data.xml.UserType",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicMethods":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"getAttribute","parameterTypes":[] }
-  ]
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.data.xml.Value",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.data.xml.Variable",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicMethods":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"getType","parameterTypes":[] }, 
-    {"name":"setType","parameterTypes":["java.lang.String"] }
-  ]
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.data.xml.Variables",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "queriedMethods":[{"name":"<init>","parameterTypes":[] }]
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "name":"org.badvision.outlaweditor.data.xml.package-info",
+  "allDeclaredFields":true,
+  "allPublicFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.ui.ApplicationMenuController",
@@ -1149,10 +1543,17 @@
   "queryAllDeclaredMethods":true
 },
 {
+  "name":"org.badvision.outlaweditor.ui.FlagAuditDialogController",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
   "name":"org.badvision.outlaweditor.ui.GlobalEditorTabController",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "methods":[{"name":"onVariableAddPressed","parameterTypes":["javafx.event.ActionEvent"] }]
+  "queryAllDeclaredMethods":true
 },
 {
   "name":"org.badvision.outlaweditor.ui.ImageEditorTabController",
@@ -1167,11 +1568,10 @@
 {
   "name":"org.badvision.outlaweditor.ui.MythosScriptEditorController",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"onAbortChangesSelected","parameterTypes":["javafx.event.ActionEvent"] }
-  ]
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.ui.SheetEditorController",
@@ -1186,108 +1586,66 @@
 {
   "name":"org.badvision.outlaweditor.ui.impl.ApplicationMenuControllerImpl",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"onChangePlatformAppleDHGRSolid","parameterTypes":["javafx.event.ActionEvent"] }, 
-    {"name":"onChangePlatformAppleDHGRText","parameterTypes":["javafx.event.ActionEvent"] }, 
-    {"name":"onChangePlatformAppleSolid","parameterTypes":["javafx.event.ActionEvent"] }, 
-    {"name":"onChangePlatformAppleText","parameterTypes":["javafx.event.ActionEvent"] }, 
-    {"name":"onEditCopy","parameterTypes":["javafx.event.ActionEvent"] }, 
-    {"name":"onEditCopyData","parameterTypes":["javafx.event.ActionEvent"] }, 
-    {"name":"onEditPaste","parameterTypes":["javafx.event.ActionEvent"] }, 
-    {"name":"onFileOpen","parameterTypes":["javafx.event.ActionEvent"] }, 
-    {"name":"onFileQuit","parameterTypes":["javafx.event.ActionEvent"] }, 
-    {"name":"onFileSave","parameterTypes":["javafx.event.ActionEvent"] }, 
-    {"name":"onFileSaveAs","parameterTypes":["javafx.event.ActionEvent"] }
-  ]
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.ui.impl.ApplicationUIControllerImpl",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"globalTabActivated","parameterTypes":["javafx.event.Event"] }, 
-    {"name":"imageTabActivated","parameterTypes":["javafx.event.Event"] }, 
-    {"name":"initialize","parameterTypes":[] }, 
-    {"name":"mapTabActivated","parameterTypes":["javafx.event.Event"] }, 
-    {"name":"tileTabActivated","parameterTypes":["javafx.event.Event"] }
-  ]
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.ui.impl.GlobalEditorTabControllerImpl",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"initialize","parameterTypes":[] }
-  ]
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.ui.impl.ImageConversionWizardController",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"configureAtkinsonPreset","parameterTypes":["javafx.event.ActionEvent"] }, 
-    {"name":"configureBurkesPreset","parameterTypes":["javafx.event.ActionEvent"] }, 
-    {"name":"configureFastFloydSteinbergPreset","parameterTypes":["javafx.event.ActionEvent"] }, 
-    {"name":"configureSierraLitePreset","parameterTypes":["javafx.event.ActionEvent"] }, 
-    {"name":"configureSierraPreset","parameterTypes":["javafx.event.ActionEvent"] }, 
-    {"name":"configureTwoRowSierraPreset","parameterTypes":["javafx.event.ActionEvent"] }, 
-    {"name":"performDiffusionPass","parameterTypes":["javafx.event.ActionEvent"] }, 
-    {"name":"performOK","parameterTypes":["javafx.event.ActionEvent"] }, 
-    {"name":"performQuantizePass","parameterTypes":["javafx.event.ActionEvent"] }
-  ]
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.ui.impl.ImageEditorTabControllerImpl",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"imageZoomIn","parameterTypes":["javafx.event.ActionEvent"] }, 
-    {"name":"imageZoomOut","parameterTypes":["javafx.event.ActionEvent"] }, 
-    {"name":"initialize","parameterTypes":[] }, 
-    {"name":"onImageSelected","parameterTypes":["javafx.event.ActionEvent"] }
-  ]
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.ui.impl.MapEditorTabControllerImpl",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"onMapScriptAddPressed","parameterTypes":["javafx.event.ActionEvent"] }, 
-    {"name":"onMapScriptClonePressed","parameterTypes":["javafx.event.ActionEvent"] }, 
-    {"name":"onMapScriptDeletePressed","parameterTypes":["javafx.event.ActionEvent"] }, 
-    {"name":"onMapSelected","parameterTypes":["javafx.event.ActionEvent"] }
-  ]
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.ui.impl.SheetEditorControllerImpl",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"addColumnAction","parameterTypes":["javafx.event.ActionEvent"] }, 
-    {"name":"addRowAction","parameterTypes":["javafx.event.ActionEvent"] }, 
-    {"name":"doImport","parameterTypes":["javafx.event.ActionEvent"] }
-  ]
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.badvision.outlaweditor.ui.impl.TileEditorTabControllerImpl",
   "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"initialize","parameterTypes":[] }, 
-    {"name":"onCurrentTileSelected","parameterTypes":["javafx.event.ActionEvent"] }, 
-    {"name":"onTileClonePressed","parameterTypes":["javafx.event.ActionEvent"] }, 
-    {"name":"onTileExportPressed","parameterTypes":["javafx.event.ActionEvent"] }, 
-    {"name":"tileShift","parameterTypes":["javafx.event.ActionEvent"] }
-  ]
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
 },
 {
   "name":"org.controlsfx.control.spreadsheet.SpreadsheetView",
@@ -1335,174 +1693,6 @@
   "queryAllPublicConstructors":true
 },
 {
-  "name":"org.openxmlformats.schemas.drawingml.x2006.main.impl.ThemeDocumentImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.officeDocument.x2006.relationships.impl.STRelationshipIdImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.officeDocument.x2006.sharedTypes.impl.STXstringImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.STCellFormulaType$Enum",
-  "fields":[{"name":"table"}]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.STCellType$Enum",
-  "fields":[{"name":"table"}]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.CTBorderImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.CTBordersImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.CTCalcChainImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.CTCellFormulaImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.CTCellImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.CTCellStyleXfsImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.CTCellXfsImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.CTColImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.CTColsImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.CTDxfsImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.CTFillImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.CTFillsImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.CTFontImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.CTFontsImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.CTNumFmtImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.CTNumFmtsImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.CTRowImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.CTRstImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.CTSheetDataImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.CTSheetImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.CTSheetsImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.CTSstImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.CTStylesheetImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.CTTableStylesImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.CTWorkbookImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.CTWorksheetImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.CTXfImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.CalcChainDocumentImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.STCellFormulaTypeImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.STCellRefImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.STCellTypeImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.STNumFmtIdImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.STRefImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.SstDocumentImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.StyleSheetDocumentImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.WorkbookDocumentImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
-  "name":"org.openxmlformats.schemas.spreadsheetml.x2006.main.impl.WorksheetDocumentImpl",
-  "methods":[{"name":"<init>","parameterTypes":["org.apache.xmlbeans.SchemaType"] }]
-},
-{
   "name":"sun.misc.Unsafe",
   "fields":[{"name":"theUnsafe"}]
 },
@@ -1513,6 +1703,10 @@
 {
   "name":"sun.security.pkcs12.PKCS12KeyStore$DualFormatPKCS12",
   "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"sun.security.provider.DRBG",
+  "methods":[{"name":"<init>","parameterTypes":["java.security.SecureRandomParameters"] }]
 },
 {
   "name":"sun.security.provider.DSA$SHA224withDSA",

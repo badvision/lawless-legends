@@ -18,11 +18,19 @@ import org.badvision.outlaweditor.Editor;
 import org.badvision.outlaweditor.api.ApplicationState;
 import org.badvision.outlaweditor.api.Platform;
 import org.badvision.outlaweditor.apple.AppleTileRenderer;
+import org.badvision.outlaweditor.data.FlagAuditor;
 import org.badvision.outlaweditor.ui.ApplicationMenuController;
 import org.badvision.outlaweditor.ui.ApplicationUIController;
+import org.badvision.outlaweditor.ui.FlagAuditDialogController;
 import org.badvision.outlaweditor.ui.UIAction;
 
 import javafx.event.ActionEvent;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.layout.VBox;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
 // import org.osgi.framework.BundleContext;
 // import org.osgi.framework.InvalidSyntaxException;
 
@@ -148,6 +156,50 @@ public class ApplicationMenuControllerImpl extends ApplicationMenuController {
         Editor editor = ApplicationUIController.getController().getVisibleEditor();
         if (editor != null) {
             editor.undo();
+        }
+    }
+
+    @Override
+    public void onToolsAuditFlags(ActionEvent event) {
+        try {
+            // Get game data
+            var gameData = ApplicationState.getInstance().getGameData();
+            if (gameData == null || gameData.getGlobal() == null) {
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.setTitle("No Game Data");
+                alert.setHeaderText(null);
+                alert.setContentText("Please load or create a game file first.");
+                alert.showAndWait();
+                return;
+            }
+
+            // Perform audit
+            FlagAuditor auditor = new FlagAuditor(gameData);
+            FlagAuditor.AuditReport report = auditor.performAudit();
+
+            // Load and show dialog
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/FlagAuditDialog.fxml"));
+            VBox root = loader.load();
+
+            FlagAuditDialogController controller = loader.getController();
+            controller.setReport(report, auditor);
+
+            Stage dialogStage = new Stage();
+            dialogStage.setTitle("Game Flag Audit");
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(ApplicationState.getInstance().getPrimaryStage());
+            dialogStage.setScene(new Scene(root));
+
+            controller.setDialogStage(dialogStage);
+            dialogStage.showAndWait();
+
+        } catch (Exception ex) {
+            Logger.getLogger(ApplicationMenuControllerImpl.class.getName()).log(Level.SEVERE, "Error performing flag audit", ex);
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Audit Error");
+            alert.setHeaderText("Failed to perform flag audit");
+            alert.setContentText(ex.getMessage());
+            alert.showAndWait();
         }
     }
 }

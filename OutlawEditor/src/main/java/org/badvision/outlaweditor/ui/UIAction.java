@@ -39,6 +39,9 @@ import org.badvision.outlaweditor.data.xml.Variables;
 import org.badvision.outlaweditor.ui.impl.ImageConversionWizardController;
 
 import jakarta.xml.bind.JAXB;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.Unmarshaller;
+import javax.xml.parsers.SAXParserFactory;
 import javafx.animation.FadeTransition;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
@@ -117,6 +120,9 @@ public class UIAction {
                     return;
                 }
                 currentSaveFile = f;
+
+                // Increase XML element depth limit to 200 for deeply nested blocks
+                System.setProperty("jdk.xml.maxElementDepth", "200");
                 GameData newData = JAXB.unmarshal(currentSaveFile, GameData.class);
                 ApplicationUIController.getController().clearData();
                 TilesetUtils.clear();

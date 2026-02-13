@@ -9,6 +9,9 @@
   "name":"[Ljava.lang.String;"
 },
 {
+  "name":"[Ljavafx.scene.paint.Color;"
+},
+{
   "name":"[[Ljava.lang.String;"
 },
 {
@@ -37,6 +40,13 @@
 {
   "name":"com.sun.glass.ui.CommonDialogs$FileChooserResult",
   "methods":[{"name":"<init>","parameterTypes":["java.util.List","com.sun.glass.ui.CommonDialogs$ExtensionFilter"] }]
+},
+{
+  "name":"com.sun.glass.ui.Cursor",
+  "methods":[
+    {"name":"getNativeCursor","parameterTypes":[] }, 
+    {"name":"getType","parameterTypes":[] }
+  ]
 },
 {
   "name":"com.sun.glass.ui.EventLoop",
@@ -123,6 +133,110 @@
     {"name":"width"}
   ],
   "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.sun.javafx.font.directwrite.D2D1_COLOR_F",
+  "fields":[
+    {"name":"a"}, 
+    {"name":"b"}, 
+    {"name":"g"}, 
+    {"name":"r"}
+  ],
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.sun.javafx.font.directwrite.D2D1_MATRIX_3X2_F",
+  "fields":[
+    {"name":"_11"}, 
+    {"name":"_12"}, 
+    {"name":"_21"}, 
+    {"name":"_22"}, 
+    {"name":"_31"}, 
+    {"name":"_32"}
+  ],
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.sun.javafx.font.directwrite.D2D1_PIXEL_FORMAT",
+  "fields":[
+    {"name":"alphaMode"}, 
+    {"name":"format"}
+  ],
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.sun.javafx.font.directwrite.D2D1_POINT_2F",
+  "fields":[
+    {"name":"x"}, 
+    {"name":"y"}
+  ],
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.sun.javafx.font.directwrite.D2D1_RENDER_TARGET_PROPERTIES",
+  "fields":[
+    {"name":"dpiX"}, 
+    {"name":"dpiY"}, 
+    {"name":"minLevel"}, 
+    {"name":"pixelFormat"}, 
+    {"name":"type"}, 
+    {"name":"usage"}
+  ],
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.sun.javafx.font.directwrite.DWRITE_GLYPH_METRICS",
+  "fields":[
+    {"name":"advanceHeight"}, 
+    {"name":"advanceWidth"}, 
+    {"name":"bottomSideBearing"}, 
+    {"name":"leftSideBearing"}, 
+    {"name":"rightSideBearing"}, 
+    {"name":"topSideBearing"}, 
+    {"name":"verticalOriginY"}
+  ],
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.sun.javafx.font.directwrite.DWRITE_GLYPH_RUN",
+  "fields":[
+    {"name":"advanceOffset"}, 
+    {"name":"ascenderOffset"}, 
+    {"name":"bidiLevel"}, 
+    {"name":"fontEmSize"}, 
+    {"name":"fontFace"}, 
+    {"name":"glyphAdvances"}, 
+    {"name":"glyphIndices"}, 
+    {"name":"isSideways"}
+  ],
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.sun.javafx.font.directwrite.DWRITE_SCRIPT_ANALYSIS",
+  "fields":[
+    {"name":"script"}, 
+    {"name":"shapes"}
+  ],
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.sun.javafx.font.directwrite.RECT",
+  "fields":[
+    {"name":"bottom"}, 
+    {"name":"left"}, 
+    {"name":"right"}, 
+    {"name":"top"}
+  ],
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.sun.prism.impl.PrismSettings",
+  "fields":[
+    {"name":"disableD3D9Ex"}, 
+    {"name":"forceGPU"}, 
+    {"name":"isVsyncEnabled"}, 
+    {"name":"verbose"}
+  ]
 },
 {
   "name":"com.sun.webkit.BackForwardList",
@@ -223,7 +337,10 @@
 {
   "name":"com.sun.webkit.dom.JSObject",
   "fields":[{"name":"UNDEFINED"}],
-  "methods":[{"name":"<init>","parameterTypes":["long","int"] }]
+  "methods":[
+    {"name":"<init>","parameterTypes":["long","int"] }, 
+    {"name":"fwkMakeException","parameterTypes":["java.lang.Object"] }
+  ]
 },
 {
   "name":"com.sun.webkit.graphics.Ref",
@@ -244,10 +361,12 @@
     {"name":"getAscent","parameterTypes":[] }, 
     {"name":"getCapHeight","parameterTypes":[] }, 
     {"name":"getDescent","parameterTypes":[] }, 
+    {"name":"getGlyphBoundingBox","parameterTypes":["int"] }, 
     {"name":"getGlyphCodes","parameterTypes":["char[]"] }, 
     {"name":"getGlyphWidth","parameterTypes":["int"] }, 
     {"name":"getLineGap","parameterTypes":[] }, 
     {"name":"getLineSpacing","parameterTypes":[] }, 
+    {"name":"getTextRuns","parameterTypes":["java.lang.String"] }, 
     {"name":"getXHeight","parameterTypes":[] }, 
     {"name":"hasUniformLineMetrics","parameterTypes":[] }, 
     {"name":"hashCode","parameterTypes":[] }
@@ -334,6 +453,18 @@
   ]
 },
 {
+  "name":"com.sun.webkit.graphics.WCTextRun",
+  "methods":[
+    {"name":"getCharOffset","parameterTypes":["int"] }, 
+    {"name":"getEnd","parameterTypes":[] }, 
+    {"name":"getGlyph","parameterTypes":["int"] }, 
+    {"name":"getGlyphCount","parameterTypes":[] }, 
+    {"name":"getGlyphPosAndAdvance","parameterTypes":["int"] }, 
+    {"name":"getStart","parameterTypes":[] }, 
+    {"name":"isLeftToRight","parameterTypes":[] }
+  ]
+},
+{
   "name":"com.sun.webkit.network.FormDataElement",
   "methods":[
     {"name":"fwkCreateFromByteArray","parameterTypes":["byte[]"] }, 
@@ -358,6 +489,10 @@
 },
 {
   "name":"java.lang.Boolean",
+  "fields":[
+    {"name":"FALSE"}, 
+    {"name":"TRUE"}
+  ],
   "methods":[
     {"name":"booleanValue","parameterTypes":[] }, 
     {"name":"valueOf","parameterTypes":["boolean"] }
@@ -397,7 +532,10 @@
 },
 {
   "name":"java.lang.Object",
-  "methods":[{"name":"getClass","parameterTypes":[] }]
+  "methods":[
+    {"name":"equals","parameterTypes":["java.lang.Object"] }, 
+    {"name":"getClass","parameterTypes":[] }
+  ]
 },
 {
   "name":"java.lang.Runnable",
@@ -408,7 +546,8 @@
   "methods":[
     {"name":"<init>","parameterTypes":["byte[]","java.lang.String"] }, 
     {"name":"lastIndexOf","parameterTypes":["int"] }, 
-    {"name":"substring","parameterTypes":["int"] }
+    {"name":"substring","parameterTypes":["int"] }, 
+    {"name":"toLowerCase","parameterTypes":["java.util.Locale"] }
   ]
 },
 {
@@ -438,8 +577,22 @@
   "name":"java.util.ArrayList",
   "methods":[
     {"name":"<init>","parameterTypes":[] }, 
+    {"name":"<init>","parameterTypes":["int"] }, 
+    {"name":"add","parameterTypes":["java.lang.Object"] }, 
     {"name":"get","parameterTypes":["int"] }, 
     {"name":"size","parameterTypes":[] }
+  ]
+},
+{
+  "name":"java.util.Collections",
+  "methods":[{"name":"unmodifiableMap","parameterTypes":["java.util.Map"] }]
+},
+{
+  "name":"java.util.HashMap",
+  "methods":[
+    {"name":"<init>","parameterTypes":[] }, 
+    {"name":"containsKey","parameterTypes":["java.lang.Object"] }, 
+    {"name":"put","parameterTypes":["java.lang.Object","java.lang.Object"] }
   ]
 },
 {
@@ -448,7 +601,14 @@
 },
 {
   "name":"java.util.Map",
-  "methods":[{"name":"get","parameterTypes":["java.lang.Object"] }]
+  "methods":[
+    {"name":"get","parameterTypes":["java.lang.Object"] }, 
+    {"name":"put","parameterTypes":["java.lang.Object","java.lang.Object"] }
+  ]
+},
+{
+  "name":"javafx.scene.paint.Color",
+  "methods":[{"name":"rgb","parameterTypes":["int","int","int","double"] }]
 },
 {
   "name":"jdk.internal.loader.ClassLoaders$PlatformClassLoader"

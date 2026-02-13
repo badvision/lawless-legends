@@ -127,10 +127,19 @@ public class MythosScriptEditorController
         assert menuItemUndo != null : "fx:id=\"menuItemUndo\" was not injected: check your FXML file 'MythosScriptEditor.fxml'.";
 
         // JavaFX8 has a bug where stage maximize events do not trigger resize events to webview components
+        // Also fix general window resize not triggering WebView resize
         Platform.runLater(() -> {
             Stage stage = (Stage) editorView.getScene().getWindow();
             if (stage != null) {
+                // Handle maximize events
                 stage.maximizedProperty().addListener((ObservableValue<? extends Boolean> observable, Boolean oldValue, Boolean newValue) -> {
+                    Platform.runLater(()->editorView.getEngine().executeScript("window.dispatchEvent(new Event('resize'));"));
+                });
+                // Handle general window size changes
+                stage.widthProperty().addListener((observable, oldValue, newValue) -> {
+                    Platform.runLater(()->editorView.getEngine().executeScript("window.dispatchEvent(new Event('resize'));"));
+                });
+                stage.heightProperty().addListener((observable, oldValue, newValue) -> {
                     Platform.runLater(()->editorView.getEngine().executeScript("window.dispatchEvent(new Event('resize'));"));
                 });
             }

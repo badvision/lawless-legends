@@ -5,7 +5,7 @@
     <artifactId>OutlawEditor</artifactId>
     <name>OutlawEditor</name>
     <packaging>jar</packaging>
-    <version>3.0</version>
+    <version>3.5</version>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <mainClass>org.badvision.outlaweditor.Application</mainClass>
@@ -24,15 +24,16 @@
             <plugin>
                 <groupId>com.gluonhq</groupId>
                 <artifactId>gluonfx-maven-plugin</artifactId>
-                <version>1.0.24</version>
+                <version>1.0.26</version>
                 <configuration>
                     <mainClass>${mainClass}</mainClass>
-                    <options>
-                        <option>--add-exports</option>
-                        <option>javafx.base/com.sun.javafx.event=org.controlsfx.controls</option>
-                        <option>--add-exports</option>
-                        <option>javafx.controls/com.sun.javafx.scene.control.behavior=org.controlsfx.controls</option>
-                     </options>
+                    <resourcesList>
+                        <resource>.*</resource>
+                    </resourcesList>
+                    <releaseConfiguration>
+                        <vendor>The 8-Bit Bunch</vendor>
+                        <skipSigning>true</skipSigning>
+                    </releaseConfiguration>
                 </configuration>
             </plugin>
             <plugin>

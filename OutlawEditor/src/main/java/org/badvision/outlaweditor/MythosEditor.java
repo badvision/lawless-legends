@@ -13,7 +13,9 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.logging.Level;
@@ -64,12 +66,16 @@ import javafx.stage.WindowEvent;
  */
 public class MythosEditor {
 
+    // Static map to track which scripts are currently being edited (prevents duplicate windows)
+    private static final Map<Script, MythosEditor> activeEditors = new HashMap<>();
+
     Scope scope;
     Script script;
     Stage primaryStage;
     MythosScriptEditorController controller;
     public static final String XML_HEADER = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n";
     SpellChecker spellChecker;
+    private boolean isShowing = false;
 
     public MythosEditor(Script theScript, Scope theScope) {
         script = theScript;
@@ -79,6 +85,28 @@ public class MythosEditor {
     }
 
     public void show() {
+        // Guard against duplicate window creation (bug fix)
+        // Check if this script is already being edited
+        synchronized (activeEditors) {
+            MythosEditor existingEditor = activeEditors.get(script);
+            if (existingEditor != null && existingEditor.isShowing) {
+                if (existingEditor.primaryStage != null) {
+                    existingEditor.primaryStage.toFront();
+                }
+                return;
+            }
+            // Register this editor for this script
+            activeEditors.put(script, this);
+        }
+
+        if (isShowing) {
+            if (primaryStage != null) {
+                primaryStage.toFront();
+            }
+            return;
+        }
+        isShowing = true;
+
         primaryStage = new Stage();
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/MythosScriptEditor.fxml"));
         try {
@@ -88,6 +116,10 @@ public class MythosEditor {
             Scene s = new Scene(node);
             primaryStage.setScene(s);
         } catch (IOException exception) {
+            isShowing = false;
+            synchronized (activeEditors) {
+                activeEditors.remove(script);
+            }
             throw new RuntimeException(exception);
         }
 
@@ -101,6 +133,10 @@ public class MythosEditor {
         javafx.application.Platform.runLater(() -> {
             primaryStage.getScene().getRoot().setDisable(true);
             primaryStage.close();
+            isShowing = false;
+            synchronized (activeEditors) {
+                activeEditors.remove(script);
+            }
         });
     }
 

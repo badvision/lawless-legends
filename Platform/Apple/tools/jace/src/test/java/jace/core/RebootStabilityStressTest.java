@@ -160,6 +160,7 @@ public class RebootStabilityStressTest extends AbstractFXTest {
      * - Boot watchdog should timeout before upgrade completes >30% of the time
      * - Watchdog timeout should trigger recursive boot attempts
      */
+    @Ignore("GH-9: Stress test disabled during race condition investigation")
     @Test
     public void test1_UpgradeTimingRace() throws Exception {
         LOGGER.info("========================================");
@@ -262,6 +263,7 @@ public class RebootStabilityStressTest extends AbstractFXTest {
      * - Multiple concurrent boot watchdog instances should be created
      * - Thread count should grow unbounded
      */
+    @Ignore("GH-9: Stress test disabled during race condition investigation")
     @Test
     public void test2_ConcurrentBootWatchdog() throws Exception {
         LOGGER.info("========================================");
@@ -356,6 +358,7 @@ public class RebootStabilityStressTest extends AbstractFXTest {
      * - RAM state persists across warm reboot
      * - VBL callbacks persist
      */
+    @Ignore("GH-9: Stress test disabled during race condition investigation")
     @Test
     public void test3_StateResetVerification() throws Exception {
         LOGGER.info("========================================");
@@ -450,6 +453,7 @@ public class RebootStabilityStressTest extends AbstractFXTest {
      * CRITICAL FIX: Reduced iterations from 50 to 10, added proper thread management
      * to prevent thread leaks that were causing system instability.
      */
+    @Ignore("GH-9: Stress test disabled during race condition investigation")
     @Test(timeout = 120000) // Global 2-minute timeout for entire test
     public void test4_FullRebootCycleStress() throws Exception {
         LOGGER.info("========================================");

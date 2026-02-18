@@ -131,7 +131,8 @@ def kbdTeleport()#1
   splitScreenMode()
   getPos(@x, @y)
   dir = getDir()
-  printf3("Current: X=%d Y=%d Facing=%d\n", x, y, dir)
+  printf1("Current: Map=%d ", mapNum)
+  printf3("X=%d Y=%d Facing=%d\n", x, y, dir)
 
   d3 = mapIs3D
   num = mapNum
@@ -154,6 +155,12 @@ def kbdTeleport()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def hitAnyKey()#0
+  puts("\nHit any key.\n")
+  rdkey()
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def showPos()#1
   word x, y
   byte dir
@@ -164,8 +171,7 @@ def showPos()#1
   if mapIs3D
     printf3("Facing=%d Sky=%d Ground=%d", getDir(), skyNum, groundNum)
   fin
-  puts("\nHit any key.\n")
-  rdkey()
+  hitAnyKey()
   ^$c052
   return 0
 end
@@ -229,12 +235,16 @@ def editFlags()#1
   funcTbl = pModule()
   while TRUE
     textHome()
-    for flagNum = 0 to NUM_GAME_FLAGS-1
+    for flagNum = 0 to MAX_GAME_FLAG
       flagName = funcTbl=>flags_nameForNumber(flagNum)
       if getGameFlag(flagNum); ^$32 = $3F; fin // inverse mode
       puts(flagName)
       ^$32 = $FF
       printChar(' ')
+      if ^$25 == 21
+        hitAnyKey()
+        textHome()
+      fin
     next
     puts("\nToggle:             ")
     ^$24 = 8

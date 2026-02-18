@@ -92,6 +92,7 @@ mapPartition:	!byte 0		; mem mgr partition of map and resources
 blankHeight:    !byte 0		; height below which darkness/whiteout kicks in (changes in darkness)
 fadeHeight:     !byte 0		; height below which fade kicks in (changes in darkness)
 intrOnKbd:      !byte 0		; whether we should stop render if key is pressed (e.g. while doing anim)
+needJitter:	!byte 0		; mark automap around player so exit is always visible on map
 
 skyColorEven:   !byte $20
 skyColorOdd:    !byte $22
@@ -1810,6 +1811,7 @@ calcMapOrigin: !zone
 calcMapOriginX:
 	lda mapBase		; start at row 0, col 0 of the map
 	ldy mapBase+1
+	cpx #0
 	beq .gotMapRow
 	clc
 .mapLup:			; advance forward one row
@@ -1985,7 +1987,29 @@ pl_render: !zone
 	jsr makeLines		; and regenerate line pointers on aux zp
 	lda #0
 	sta diskOpCt
-++	jmp renderFrame		; then go ahead and render
+++	lda needJitter
+	beq .doren
+	dec needJitter
+	; mark automap bits around the player so their exit is displayed even if behind
+.jitter	ldx playerY+1
+	jsr .mrkrow
+	dex
+	jsr .mrkrow
+	inx
+	jsr .mrkrow
+.doren	jmp renderFrame		; then go ahead and render
+.mrkrow	jsr calcMapOriginX
+	ldy playerX+1
+	dey
+	ldx #3
+.mrkcol	lda (pMap),y
+	ora #FLG_AUTOMAP
+	sta (pMap),y
+	iny
+	dex
+	bne .mrkcol
+	ldx playerY+1
+	rts
 
 ;-------------------------------------------------------------------------------
 ; Cast all the rays from the current player coord
@@ -2233,9 +2257,11 @@ pl_setPos: !zone {
 	clc
 	adc #1			; adjust for border guards
 	sta playerX+1
-	lda #$80
+	lda #$80		; in the middle of the designated map square
 	sta playerY
 	sta playerX
+	lda #1
+	sta needJitter		; after map is really loaded, mark around player
 	rts
 }
 

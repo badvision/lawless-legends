@@ -70,7 +70,16 @@ public class SheetEditorControllerImpl extends SheetEditorController {
         super.initialize();
         tableData = table.getGrid().getRows();
         table.setEditable(true);
-        
+
+        // Fix bug where cell editor retains previous value when clicking another cell
+        // Monitor when editing cell changes and ensure proper commit
+        table.editingCellProperty().addListener((obs, oldEditingCell, newEditingCell) -> {
+            if (oldEditingCell != null && newEditingCell == null) {
+                // Editing has ended - requestLayout to ensure editor is cleared
+                javafx.application.Platform.runLater(() -> table.requestLayout());
+            }
+        });
+
         table.getContextMenu().getItems().addAll(
                 createMenuItem("Insert Row", () -> insertRow(new Row(), getSelectedRow())),
                 createMenuItem("Clone Row", () -> cloneRow(editor.getSheet().getRows().getRow().get(getSelectedRow()))),

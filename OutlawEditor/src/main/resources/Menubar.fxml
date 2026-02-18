@@ -37,6 +37,11 @@
                 </Menu>
             </items>
         </Menu>
+        <Menu mnemonicParsing="false" text="Tools">
+            <items>
+                <MenuItem mnemonicParsing="false" onAction="#onToolsAuditFlags" text="Audit Game Flags..." />
+            </items>
+        </Menu>
         <Menu mnemonicParsing="false" text="Help">
             <items>
                 <MenuItem mnemonicParsing="false" onAction="#onHelpAbout" text="About" />

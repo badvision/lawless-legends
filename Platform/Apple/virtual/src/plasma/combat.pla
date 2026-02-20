@@ -78,7 +78,10 @@ end
 def freePreloaded()#0
   byte i
   for i = 0 to NUM_PRELOADS-1
-    mmgr(FREE_MEMORY, preloads[i])
+    if preloads[i]
+      mmgr(FREE_MEMORY, preloads[i])
+      preloads[i] = NULL
+    fin
   next
 end
 

@@ -2471,12 +2471,19 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def callGlobalFunc(moduleNum, arg1, arg2, arg3)#1
   word pModule, pFunc, ret
+  byte unload
 
   // First load the module
   if renderLoaded; flipToPage1(); fin
-  mmgr(START_LOAD, moduleNum <= LAST_REQ_GS_MOD ?? 1 :: curMapPartition)
-  pModule = mmgr(QUEUE_LOAD, moduleNum<<8 | RES_TYPE_MODULE)
-  mmgr(FINISH_LOAD, 0)
+  pModule = mmgr(FIND_IN_MEM, moduleNum<<8 | RES_TYPE_MODULE)
+  if pModule
+    unload = FALSE
+  else
+    mmgr(START_LOAD, moduleNum <= LAST_REQ_GS_MOD ?? 1 :: curMapPartition)
+    pModule = mmgr(QUEUE_LOAD, moduleNum<<8 | RES_TYPE_MODULE)
+    mmgr(FINISH_LOAD, 0)
+    unload = TRUE
+  fin
 
   // Call the function, passing it the number of args it expects
   pFunc = pModule()
@@ -2489,7 +2496,9 @@ export def callGlobalFunc(moduleNum, arg1, arg2, arg3)#1
   wend
 
   // Unload the module and we're done.
-  mmgr(FREE_MEMORY, pModule)
+  if unload
+    mmgr(FREE_MEMORY, pModule)
+  fin
   return ret
 end
 

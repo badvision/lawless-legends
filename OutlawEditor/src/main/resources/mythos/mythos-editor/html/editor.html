@@ -44,47 +44,6 @@
                 overflow: hidden;
             }
 
-            /*
-             * JavaFX WebView / WebKit workspace-comment fixes.
-             *
-             * Blockly v12 renders workspace comments as SVG <g> elements that
-             * contain a <foreignObject> wrapping an HTML <textarea>.  In
-             * JavaFX's embedded WebKit, pointer events do not automatically
-             * propagate into HTML content hosted inside SVG <foreignObject>
-             * when ancestor elements have overflow:hidden set.  The two rules
-             * below restore interactivity:
-             *
-             *   1.  .blocklyCommentForeignObject - the SVG foreignObject
-             *       element itself must pass pointer events through to its
-             *       HTML children (pointer-events:none on the SVG node so the
-             *       SVG hit-test machinery doesn't swallow them; the HTML
-             *       children opt back in with pointer-events:auto).
-             *
-             *   2.  The <body> and <textarea> inside the foreignObject need
-             *       pointer-events:auto so they actually receive clicks/drags.
-             *
-             * Without these rules the comment textarea is visible but
-             * completely unresponsive to mouse input in JavaFX WebView.
-             */
-            .blocklyCommentForeignObject {
-                overflow: visible;
-                pointer-events: none;
-            }
-            .blocklyCommentForeignObject body,
-            .blocklyCommentForeignObject textarea {
-                pointer-events: auto;
-            }
-
-            /*
-             * The comment's SVG <g> root (.blocklyComment .blocklyDraggable)
-             * is the drag target.  Blockly wires its pointerdown listener on
-             * it.  Ensure the entire comment group (topbar, resize handle, and
-             * the gap between the foreignObject and the SVG frame) receives
-             * pointer events so dragging and the delete/collapse buttons work.
-             */
-            .blocklyComment {
-                pointer-events: auto;
-            }
         </style>
     </head>
     <body>
@@ -816,32 +775,9 @@
         // becomes NaN → defaults to 0,0 → every new comment appears at the
         // top-left of the workspace regardless of where the user right-clicked.
         // Map x/y to clientX/clientY, which ARE always available.
-        // In older WebKit (including the version embedded in JavaFX), some host
-        // object prototypes are non-extensible and Object.defineProperty throws.
-        // Wrap in try/catch so a failure here never stops page initialisation.
-        try {
-            if (typeof MouseEvent !== 'undefined' &&
-                    typeof MouseEvent.prototype.x === 'undefined') {
-                Object.defineProperty(MouseEvent.prototype, 'x', {
-                    get: function() { return this.clientX; },
-                    configurable: true
-                });
-                Object.defineProperty(MouseEvent.prototype, 'y', {
-                    get: function() { return this.clientY; },
-                    configurable: true
-                });
-            }
-        } catch(e) { /* host prototype not extensible – polyfill skipped */ }
-
         Mythos.initBlocks();
         Mythos.workspace = Blockly.inject(blocklyDiv,
                 {media: '../../media/', toolbox: document.getElementById('toolbox'), sounds: false});
-
-        // Blockly v12: registerDefaultOptions() does not call registerCommentOptions(),
-        // so the workspace-level "Add Comment" context menu item (which creates floating
-        // sticky-note workspace comments) is never registered.  Call it once here to
-        // enable right-click → "Add Comment" on the canvas.
-        Blockly.ContextMenuItems.registerCommentOptions();
 
         // Blockly v12 bug workaround: in JavaFX's immediate-render mode,
         // child blocks (value-input shadows and next-chain blocks) are
@@ -850,24 +786,6 @@
         // call.  Re-queuing every descendant after the block is fully placed
         // (deferred via setTimeout so positionNewBlock has already run) fixes
         // both the "white blips" and the missing shadow-value-input blocks.
-        //
-        // Workspace-comment layout fix (same root cause as the block rendering bug):
-        // CommentView.setSizeWithoutFiringEvents() calls SVG getBBox() on child
-        // elements (topbar RECT, resize-handle IMAGE, button icons) to compute
-        // exact layout geometry.  In JavaFX WebKit, getBBox() returns {w:0,h:0}
-        // for elements that are in the DOM but have not yet had a browser layout
-        // pass.  The CommentView constructor calls setSizeWithoutFiringEvents()
-        // synchronously right after appending the SVG root to the layer – so the
-        // topbar-background height (24 px set via CSS) reads as 0.  Consequences:
-        //   • foreignObject y is set to 0 instead of 24 → textarea overlaps topbar
-        //   • resize handle lands at (120, 100) instead of (108, 88) → off-edge
-        //   • deleteButton.reposition() places the icon at x=0 because
-        //     container.getBBox().width = 0
-        // Deferring a repeat setSizeWithoutFiringEvents() call via setTimeout(0)
-        // lets one browser paint cycle complete so all getBBox() calls return the
-        // real CSS-computed dimensions.  view.setSizeWithoutFiringEvents is used
-        // rather than comment.setSize so no spurious COMMENT_RESIZE undo event
-        // is fired during initialisation.
         Mythos.workspace.addChangeListener(function(event) {
             if (event.type === Blockly.Events.BLOCK_CREATE) {
                 var blockId = event.blockId;
@@ -880,40 +798,6 @@
                         if (b.queueRender && !b.isDisposed()) b.queueRender();
                     }
                 }, 0);
-            }
-
-            if (event.type === Blockly.Events.COMMENT_CREATE) {
-                var commentId = event.commentId;
-                // JavaFX WebKit bug: getBBox() on a <rect> with CSS-only height
-                // (e.g. .blocklyCommentTopbarBackground { height: 24px }) returns
-                // {height:0} because getBBox() reads SVG attributes, not CSS.
-                // CommentView.setSizeWithoutFiringEvents() calls
-                //   topBarBackground.getBBox().height
-                // to position the foreignObject (textarea), so the textarea ends
-                // up at y=0 (overlapping the topbar) instead of y=24.
-                //
-                // Fix: set the explicit 'height' attribute on the topbar rect before
-                // calling setSizeWithoutFiringEvents so getBBox().height = 24.
-                // Then the foreignObject, resize handle, and delete button all land
-                // in the correct positions.
-                //
-                // TOPBAR_HEIGHT must match the CSS rule:
-                //   .blocklyCommentTopbarBackground { height: 24px }
-                var TOPBAR_HEIGHT = 24;
-                setTimeout(function() {
-                    var comment = Mythos.workspace.getCommentById(commentId);
-                    if (!comment || comment.isDisposed()) return;
-                    var view = comment.view;
-                    if (!view) return;
-                    // Stamp the height attribute so getBBox() returns a non-zero value.
-                    if (view.topBarBackground) {
-                        view.topBarBackground.setAttribute('height', String(TOPBAR_HEIGHT));
-                    }
-                    var sz = comment.getSize();
-                    if (view.setSizeWithoutFiringEvents) {
-                        view.setSizeWithoutFiringEvents(sz);
-                    }
-                }, 50);
             }
         });
 

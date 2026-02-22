@@ -1156,7 +1156,10 @@ class MythosFieldTextArea extends Blockly.FieldTextInput {
 
         var sourceBlock = this.getSourceBlock();
         var rtl = sourceBlock ? sourceBlock.RTL : false;
-        Blockly.WidgetDiv.show(this, rtl, () => {});
+        var workspace = sourceBlock ? sourceBlock.workspace : null;
+        // Pass workspace (arg 4) and false for takeFocus (arg 5) so Blockly's
+        // focus manager doesn't steal focus away from the textarea we create.
+        Blockly.WidgetDiv.show(this, rtl, () => {}, workspace, false);
         var div = Blockly.WidgetDiv.getDiv ? Blockly.WidgetDiv.getDiv() : Blockly.WidgetDiv.DIV;
         if (!div) {
             super.showEditor_(e);
@@ -1169,11 +1172,31 @@ class MythosFieldTextArea extends Blockly.FieldTextInput {
         htmlInput.setAttribute('cols', 80);
         htmlInput.setAttribute('rows', 7);
         div.style.fontSize = '11pt';
-        div.style.width = '30em';
-        htmlInput.style.width = '30em';
+        div.style.width = '400px';
+        htmlInput.style.width = '100%';
+        htmlInput.style.boxSizing = 'border-box';
         htmlInput.style.fontSize = '11pt';
         htmlInput.style.backgroundColor = '#eee';
         div.appendChild(htmlInput);
+
+        // Position the WidgetDiv near the field being edited.
+        // getScaledBBox() returns absolute page coordinates of the field.
+        // We position directly rather than using positionWithAnchor, to avoid
+        // positionWithAnchor clamping div.style.height to a fixed estimate.
+        try {
+            var bbox = this.getScaledBBox();
+            var viewportWidth = document.documentElement.clientWidth;
+            var WIDGET_WIDTH = 400;
+            // Place below the field; flip above if not enough room below.
+            var left = rtl ? Math.max(0, bbox.right - WIDGET_WIDTH) : bbox.left;
+            // Clamp to viewport so the widget doesn't overflow right edge.
+            left = Math.min(left, viewportWidth - WIDGET_WIDTH);
+            left = Math.max(0, left);
+            div.style.left = left + 'px';
+            div.style.top = bbox.bottom + 'px';
+        } catch (ex) {
+            // Leave positioning to browser defaults if bbox APIs are unavailable.
+        }
 
         htmlInput.value = htmlInput.defaultValue = this.getValue();
         htmlInput.oldValue_ = null;

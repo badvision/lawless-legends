@@ -21,6 +21,8 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.MenuItem;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.web.PromptData;
 import javafx.scene.web.WebView;
@@ -157,6 +159,75 @@ public class MythosScriptEditorController
                 });
                 stage.heightProperty().addListener((observable, oldValue, newValue) -> {
                     Platform.runLater(()->editorView.getEngine().executeScript("window.dispatchEvent(new Event('resize'));"));
+                });
+
+                // Cross-window Cmd+C / Cmd+V clipboard bridge.
+                //
+                // The JS-to-Java bridge (Mythos.editor.setClipboard / getClipboard)
+                // is unreliable in JavaFX WebView when the window calling into Java is
+                // not the one that exposed the Java object.  Instead, drive both
+                // directions from the Java side:
+                //
+                //   Cmd+C  – ask the WebView for Blockly's current copy-stash via
+                //            executeScript (Java→JS) and store it in the shared static
+                //            field.  This is a fallback in case the JS-side copy handler
+                //            never fires.
+                //
+                //   Cmd+V  – read the shared static field (pure Java) and inject the
+                //            JSON into this window's Blockly stash + trigger paste via
+                //            executeScript (Java→JS).  We consume the event only when
+                //            there is cross-window data to paste; otherwise the WebView
+                //            handles Cmd+V normally so same-window paste keeps working.
+                stage.addEventFilter(KeyEvent.KEY_PRESSED, (KeyEvent event) -> {
+                    boolean isMeta = event.isMetaDown() || event.isControlDown();
+                    if (!isMeta) return;
+
+                    if (event.getCode() == KeyCode.C) {
+                        // Backup copy capture: read Blockly's stash from JS and
+                        // store in shared field.  The JS-side handler does the same
+                        // thing but may be silently failing.
+                        Platform.runLater(() -> {
+                            try {
+                                Object result = editorView.getEngine().executeScript(
+                                    "(function(){" +
+                                    "  try{" +
+                                    "    var d=Blockly.clipboard.getLastCopiedData ? Blockly.clipboard.getLastCopiedData() : null;" +
+                                    "    return d ? JSON.stringify(d) : null;" +
+                                    "  }catch(e){return null;}" +
+                                    "})()"
+                                );
+                                if (result != null && !"null".equals(result.toString())) {
+                                    if (editor != null) editor.setClipboard(result.toString());
+                                }
+                            } catch (Exception ignored) {}
+                        });
+                    }
+
+                    if (event.getCode() == KeyCode.V && editor != null) {
+                        String clipboard = editor.getClipboard();
+                        if (clipboard != null && !clipboard.isEmpty()) {
+                            // Consume the event so the WebView does not also fire its
+                            // own Cmd+V handler and produce a double-paste.
+                            event.consume();
+                            final String json = clipboard;
+                            Platform.runLater(() -> {
+                                try {
+                                    editorView.getEngine().executeScript(
+                                        "(function(){" +
+                                        "  try{" +
+                                        "    var d=" + json + ";" +
+                                        "    if(typeof Blockly!=='undefined'&&Mythos&&Mythos.workspace){" +
+                                        "      Blockly.clipboard.setLastCopiedData(d);" +
+                                        "      Blockly.clipboard.setLastCopiedWorkspace(Mythos.workspace);" +
+                                        "      Blockly.clipboard.paste(Mythos.workspace);" +
+                                        "    }" +
+                                        "  }catch(e){}" +
+                                        "})()"
+                                    );
+                                } catch (Exception ignored) {}
+                            });
+                        }
+                    }
                 });
             }
         });

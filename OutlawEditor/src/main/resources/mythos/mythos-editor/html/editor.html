@@ -807,6 +807,27 @@
     <script>
         var blocklyArea = document.getElementById('blocklyArea');
         var blocklyDiv = document.getElementById('blocklyDiv');
+
+        // JavaFX WebKit compatibility: MouseEvent.x and MouseEvent.y are not
+        // part of the original DOM Level 3 MouseEvent spec and are absent in
+        // older WebKit builds embedded in JavaFX.  Blockly v12 uses event.x/y
+        // to compute where to place a new workspace comment (in the context-menu
+        // "Add Comment" callback).  When they are undefined the coordinate
+        // becomes NaN → defaults to 0,0 → every new comment appears at the
+        // top-left of the workspace regardless of where the user right-clicked.
+        // Map x/y to clientX/clientY, which ARE always available.
+        if (typeof MouseEvent !== 'undefined' &&
+                typeof MouseEvent.prototype.x === 'undefined') {
+            Object.defineProperty(MouseEvent.prototype, 'x', {
+                get: function() { return this.clientX; },
+                configurable: true
+            });
+            Object.defineProperty(MouseEvent.prototype, 'y', {
+                get: function() { return this.clientY; },
+                configurable: true
+            });
+        }
+
         Mythos.initBlocks();
         Mythos.workspace = Blockly.inject(blocklyDiv,
                 {media: '../../media/', toolbox: document.getElementById('toolbox'), sounds: false});
@@ -858,30 +879,34 @@
 
             if (event.type === Blockly.Events.COMMENT_CREATE) {
                 var commentId = event.commentId;
-                // Defer so the browser completes at least one layout pass and
-                // getBBox() on SVG elements returns real CSS-computed dimensions.
-                // Use 50ms rather than 0ms to handle slower paint cycles in JavaFX.
+                // JavaFX WebKit bug: getBBox() on a <rect> with CSS-only height
+                // (e.g. .blocklyCommentTopbarBackground { height: 24px }) returns
+                // {height:0} because getBBox() reads SVG attributes, not CSS.
+                // CommentView.setSizeWithoutFiringEvents() calls
+                //   topBarBackground.getBBox().height
+                // to position the foreignObject (textarea), so the textarea ends
+                // up at y=0 (overlapping the topbar) instead of y=24.
+                //
+                // Fix: set the explicit 'height' attribute on the topbar rect before
+                // calling setSizeWithoutFiringEvents so getBBox().height = 24.
+                // Then the foreignObject, resize handle, and delete button all land
+                // in the correct positions.
+                //
+                // TOPBAR_HEIGHT must match the CSS rule:
+                //   .blocklyCommentTopbarBackground { height: 24px }
+                var TOPBAR_HEIGHT = 24;
                 setTimeout(function() {
                     var comment = Mythos.workspace.getCommentById(commentId);
                     if (!comment || comment.isDisposed()) return;
                     var view = comment.view;
-                    if (!view) {
-                        console.warn('[Mythos] COMMENT_CREATE: no view on comment', commentId);
-                        return;
+                    if (!view) return;
+                    // Stamp the height attribute so getBBox() returns a non-zero value.
+                    if (view.topBarBackground) {
+                        view.topBarBackground.setAttribute('height', String(TOPBAR_HEIGHT));
                     }
-                    // getSize() on RenderedWorkspaceComment reads WorkspaceComment.size
-                    // which was set via the sizeChangeListener when view.setSize() was
-                    // called during construction – so it should be the defaultCommentSize.
                     var sz = comment.getSize();
-                    console.warn('[Mythos] COMMENT_CREATE relayout: id=' + commentId +
-                        ' size=' + sz.width + 'x' + sz.height);
                     if (view.setSizeWithoutFiringEvents) {
                         view.setSizeWithoutFiringEvents(sz);
-                    }
-                    // Also force the delete-button to reposition now that its container
-                    // getBBox() is valid.
-                    if (view.commentBar && view.commentBar.reposition) {
-                        view.commentBar.reposition();
                     }
                 }, 50);
             }

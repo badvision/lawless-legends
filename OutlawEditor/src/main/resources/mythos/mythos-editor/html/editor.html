@@ -768,6 +768,12 @@
         Mythos.workspace = Blockly.inject(blocklyDiv,
                 {media: '../../media/', toolbox: document.getElementById('toolbox'), sounds: false});
 
+        // Blockly v12: registerDefaultOptions() does not call registerCommentOptions(),
+        // so the workspace-level "Add Comment" context menu item (which creates floating
+        // sticky-note workspace comments) is never registered.  Call it once here to
+        // enable right-click → "Add Comment" on the canvas.
+        Blockly.ContextMenuItems.registerCommentOptions();
+
         // Blockly v12 bug workaround: in JavaFX's immediate-render mode,
         // child blocks (value-input shadows and next-chain blocks) are
         // prematurely removed from the render dirty-queue before the parent

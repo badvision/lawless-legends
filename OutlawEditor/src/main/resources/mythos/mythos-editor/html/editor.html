@@ -790,6 +790,68 @@
             }
         });
 
+        // Cross-window clipboard bridge (JavaFX WebView has isolated JS contexts per window).
+        // Blockly v12 stores copy/paste state in module-level JS variables, so a block
+        // copied in Window A is invisible to Window B.  We fix this by:
+        //   Copy  – after Blockly copies internally, push the copy-data JSON to Java via
+        //           Mythos.editor.setClipboard().
+        //   Paste – before Blockly tries to paste, pull the Java-side data and inject it
+        //           into Blockly's internal stash, then let Blockly paste normally.
+        (function() {
+            // Helper: serialise an object as a compact JSON string without relying on
+            // JSON.stringify producing a stable format across engines.
+            function toJson(obj) {
+                try { return JSON.stringify(obj); } catch(e) { return null; }
+            }
+            function fromJson(str) {
+                try { return str ? JSON.parse(str) : null; } catch(e) { return null; }
+            }
+
+            // Push a copy to Java whenever a block is selected and Ctrl/Cmd+C fires.
+            // We listen at the capture phase on the document so we run after Blockly's
+            // own shortcut handler (Blockly registers on window at bubble phase).
+            document.addEventListener('keydown', function(e) {
+                var isCopy  = (e.ctrlKey || e.metaKey) && e.key === 'c';
+                var isPaste = (e.ctrlKey || e.metaKey) && e.key === 'v';
+
+                if (isCopy) {
+                    // Let Blockly's handler run first (it fires on window bubble).
+                    // Use setTimeout so our code executes after all synchronous
+                    // event handlers in this turn have completed.
+                    setTimeout(function() {
+                        try {
+                            var selected = Blockly.getSelected ? Blockly.getSelected() : null;
+                            if (!selected || typeof selected.toCopyData !== 'function') return;
+                            var copyData = selected.toCopyData();
+                            if (!copyData) return;
+                            var json = toJson(copyData);
+                            if (json && Mythos.editor) {
+                                Mythos.editor.setClipboard(json);
+                            }
+                        } catch(err) { /* ignore */ }
+                    }, 0);
+                }
+
+                if (isPaste) {
+                    // Before Blockly's paste handler runs, inject Java's clipboard into
+                    // Blockly's stash.  We run synchronously so the stash is ready when
+                    // Blockly's keydown handler fires (it also fires synchronously on
+                    // window bubble).
+                    try {
+                        if (!Mythos.editor) return;
+                        var json = Mythos.editor.getClipboard();
+                        if (!json) return;
+                        var copyData = fromJson(json);
+                        if (!copyData) return;
+                        Blockly.clipboard.setLastCopiedData(copyData);
+                        // Point the stashed workspace at our own workspace so Blockly
+                        // knows where to paste.
+                        Blockly.clipboard.setLastCopiedWorkspace(Mythos.workspace);
+                    } catch(err) { /* ignore */ }
+                }
+            }, true /* capture so we run before Blockly's window-level bubble handler */);
+        })();
+
         var onresize = function (e) {
             // Compute the absolute coordinates and dimensions of blocklyArea.
             var element = blocklyArea;

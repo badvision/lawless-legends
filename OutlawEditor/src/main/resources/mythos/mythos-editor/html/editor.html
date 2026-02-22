@@ -917,25 +917,49 @@
         // connection just before unplug() erases it, then monkeypatch
         // BlockDelete.prototype.run to reconnect the restored block after
         // append() has recreated it.
+        //
+        // Middle-of-chain fix:
+        // When deleting B from A→B→C, unplug(healStack=true) fires BEFORE
+        // captureConnInfo, so at capture time B.prev→A.next and B.next→C.prev
+        // are both still live.  We record both parentId (A) and nextBlockId (C).
+        // On undo we must:
+        //   1. Disconnect C from A.next (the healed connection)
+        //   2. Connect B to A.next
+        //   3. Connect C to B.next
+        // Simply calling pConn.connect(bPrev) when A.next is occupied by C
+        // causes Blockly v12 to walk to the end of the chain and append B
+        // there instead of inserting it in the middle.  Explicit
+        // disconnect-then-connect avoids that misplacement.
         (function() {
-            // Side-table: blockId → {parentId, inputName, isNext}
-            // 'isNext' = true means the block's previousConnection was
-            //            attached to the parent's nextConnection (statement
-            //            chain linkage).  When isNext===false the block's
-            //            outputConnection was inside a value input of the
-            //            parent; in that case inputName holds the input name.
+            // Side-table: blockId → {parentId, nextBlockId, inputName, isNext}
+            // 'isNext' = true  → block's previousConnection was attached to
+            //                    the parent's nextConnection (statement chain).
+            //                    nextBlockId holds the id of the block that was
+            //                    immediately after the deleted block (may be null).
+            // 'isNext' = false → block's outputConnection was inside a value
+            //                    input of the parent; inputName holds that name.
             var _connInfo = {};
 
             // Helper: record parent connection info for block 'blk' into
-            // _connInfo.  Must be called before unplug() erases the connection.
+            // _connInfo.  Must be called before unplug() erases the connections.
             function captureConnInfo(blk) {
                 if (!Blockly.Events.isEnabled()) return;
                 var blockId = blk.id;
                 if (blk.previousConnection && blk.previousConnection.isConnected()) {
                     var parentConn = blk.previousConnection.targetConnection;
                     if (parentConn) {
+                        // Also capture the block immediately after blk (C in A→B→C)
+                        // while the connection is still intact.
+                        var nextBlockId = null;
+                        if (blk.nextConnection && blk.nextConnection.isConnected()) {
+                            var nextConn = blk.nextConnection.targetConnection;
+                            if (nextConn) {
+                                nextBlockId = nextConn.getSourceBlock().id;
+                            }
+                        }
                         _connInfo[blockId] = {
                             parentId: parentConn.getSourceBlock().id,
+                            nextBlockId: nextBlockId,
                             isNext: true
                         };
                     }
@@ -975,14 +999,21 @@
             //
             // Undo sequence for "delete B from chain A→B→C":
             //   Undo event group: [BlockDelete-B, BlockMove-C]
-            //   e[0].run(false): BlockDelete → B recreated floating; A.next still→C
-            //   e[1].run(false): BlockMove   → C unplug from A, connect to B.next
+            //   e[0].run(false): BlockDelete → B recreated floating; A.next→C
+            //   e[1].run(false): BlockMove   → C moves from A.next to B.next
             //
-            // We inject A.next→B.prev inside BlockDelete.run(false), which runs
-            // while setRecordUndo=false so the extra connect() events are not
-            // pushed to the undo stack.  If A.next is occupied by C (the healed
-            // block), Blockly's connect_() will bump C to floating first; then
-            // BlockMove-C.run(false) correctly re-attaches C to B.next.
+            // We inject the correct reconnection inside BlockDelete.run(false).
+            // Because setRecordUndo=false during undo replay, these extra
+            // connect/disconnect calls are not pushed onto the undo stack.
+            //
+            // For the middle-of-chain case we explicitly:
+            //   1. Save C (= parentBlock.nextConnection.targetBlock())
+            //   2. Disconnect C from A.next
+            //   3. Connect B to A.next
+            //   4. Connect C to B.next (if B has no existing next block)
+            // This keeps the subsequent BlockMove-C event consistent: it will
+            // attempt to move C from wherever it currently is to B.next, which
+            // is a no-op if C is already there – harmless either way.
             var BlockDelete = Blockly.Events.BlockDelete;
             var _origRun = BlockDelete.prototype.run;
             BlockDelete.prototype.run = function(forward) {
@@ -998,17 +1029,46 @@
                                 parentBlock && !parentBlock.isDisposed()) {
                             try {
                                 if (info.isNext) {
-                                    // Reconnect: parent.nextConnection ↔ restored.previousConnection
                                     var pConn = parentBlock.nextConnection;
-                                    var cConn = restoredBlock.previousConnection;
-                                    if (pConn && cConn) {
-                                        pConn.connect(cConn);
+                                    var bPrevConn = restoredBlock.previousConnection;
+                                    if (pConn && bPrevConn) {
+                                        // If A.next is occupied (by C, the healed block),
+                                        // disconnect C first so that connect() places B
+                                        // immediately after A rather than walking to the
+                                        // end of the chain and appending there.
+                                        var displacedBlock = null;
+                                        if (pConn.isConnected()) {
+                                            displacedBlock = pConn.targetBlock();
+                                            pConn.disconnect();
+                                        }
+
+                                        // Connect B after A.
+                                        pConn.connect(bPrevConn);
+
+                                        // Re-attach the displaced block (C) after B,
+                                        // but only if B's next slot is still free.
+                                        // The subsequent BlockMove-C undo event will
+                                        // also attempt this; whichever runs first
+                                        // establishes the connection.
+                                        if (displacedBlock &&
+                                                !displacedBlock.isDisposed() &&
+                                                restoredBlock.nextConnection &&
+                                                !restoredBlock.nextConnection.isConnected() &&
+                                                displacedBlock.previousConnection) {
+                                            restoredBlock.nextConnection.connect(
+                                                displacedBlock.previousConnection);
+                                        }
                                     }
                                 } else if (info.inputName !== null) {
                                     // Reconnect: parent value-input ↔ restored.outputConnection
                                     var input = parentBlock.getInput(info.inputName);
                                     var cConn = restoredBlock.outputConnection;
                                     if (input && input.connection && cConn) {
+                                        // Disconnect any block currently occupying the
+                                        // value input before re-inserting the restored block.
+                                        if (input.connection.isConnected()) {
+                                            input.connection.disconnect();
+                                        }
                                         input.connection.connect(cConn);
                                     }
                                 }

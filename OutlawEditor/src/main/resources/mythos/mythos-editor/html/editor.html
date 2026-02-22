@@ -858,15 +858,32 @@
 
             if (event.type === Blockly.Events.COMMENT_CREATE) {
                 var commentId = event.commentId;
+                // Defer so the browser completes at least one layout pass and
+                // getBBox() on SVG elements returns real CSS-computed dimensions.
+                // Use 50ms rather than 0ms to handle slower paint cycles in JavaFX.
                 setTimeout(function() {
                     var comment = Mythos.workspace.getCommentById(commentId);
                     if (!comment || comment.isDisposed()) return;
-                    // Re-run SVG layout now that the browser has had a paint
-                    // cycle and getBBox() returns real CSS-computed dimensions.
-                    if (comment.view && comment.view.setSizeWithoutFiringEvents) {
-                        comment.view.setSizeWithoutFiringEvents(comment.getSize());
+                    var view = comment.view;
+                    if (!view) {
+                        console.warn('[Mythos] COMMENT_CREATE: no view on comment', commentId);
+                        return;
                     }
-                }, 0);
+                    // getSize() on RenderedWorkspaceComment reads WorkspaceComment.size
+                    // which was set via the sizeChangeListener when view.setSize() was
+                    // called during construction – so it should be the defaultCommentSize.
+                    var sz = comment.getSize();
+                    console.warn('[Mythos] COMMENT_CREATE relayout: id=' + commentId +
+                        ' size=' + sz.width + 'x' + sz.height);
+                    if (view.setSizeWithoutFiringEvents) {
+                        view.setSizeWithoutFiringEvents(sz);
+                    }
+                    // Also force the delete-button to reposition now that its container
+                    // getBBox() is valid.
+                    if (view.commentBar && view.commentBar.reposition) {
+                        view.commentBar.reposition();
+                    }
+                }, 50);
             }
         });
 
@@ -901,18 +918,25 @@
                     // before we read it back.
                     setTimeout(function() {
                         try {
-                            if (!Mythos.editor) return;
+                            if (!Mythos.editor) {
+                                console.warn('[Mythos] copy: Mythos.editor not set');
+                                return;
+                            }
                             // Read what Blockly just stashed – more reliable than
                             // re-calling toCopyData() on the (possibly-unfocused) block.
                             var copyData = Blockly.clipboard.getLastCopiedData
                                 ? Blockly.clipboard.getLastCopiedData()
                                 : null;
+                            console.warn('[Mythos] copy: copyData=' + (copyData ? 'present' : 'null'));
                             if (!copyData) return;
                             var json = toJson(copyData);
                             if (json) {
                                 Mythos.editor.setClipboard(json);
+                                console.warn('[Mythos] copy: setClipboard done, len=' + json.length);
                             }
-                        } catch(err) { /* ignore */ }
+                        } catch(err) {
+                            console.warn('[Mythos] copy error: ' + err);
+                        }
                     }, 0);
                 }
 
@@ -1004,9 +1028,26 @@
                                 nextBlockId = nextConn.getSourceBlock().id;
                             }
                         }
+                        var parentBlkForConn = parentConn.getSourceBlock();
+                        // Determine whether the parent connection is the block-chaining
+                        // nextConnection or a statement input (DO0, DO1, ELSE, etc.).
+                        // Both have ConnectionType.NEXT_STATEMENT so we compare by identity.
+                        // IF blocks, for example, have no nextConnection on the same level
+                        // as their THEN/ELSE inputs — we must look up the input by name.
+                        var stmtInputName = null;
+                        if (parentConn !== parentBlkForConn.nextConnection) {
+                            for (var i = 0; i < parentBlkForConn.inputList.length; i++) {
+                                var inp = parentBlkForConn.inputList[i];
+                                if (inp.connection && inp.connection === parentConn) {
+                                    stmtInputName = inp.name;
+                                    break;
+                                }
+                            }
+                        }
                         _connInfo[blockId] = {
-                            parentId: parentConn.getSourceBlock().id,
+                            parentId: parentBlkForConn.id,
                             nextBlockId: nextBlockId,
+                            stmtInputName: stmtInputName, // null = chain; non-null = statement input
                             isNext: true
                         };
                     }
@@ -1076,7 +1117,15 @@
                                 parentBlock && !parentBlock.isDisposed()) {
                             try {
                                 if (info.isNext) {
-                                    var pConn = parentBlock.nextConnection;
+                                    // Resolve the parent connection: sequential chain or
+                                    // statement input (e.g. IF THEN/ELSE branch).
+                                    var pConn;
+                                    if (info.stmtInputName !== null && info.stmtInputName !== undefined) {
+                                        var stmtInput = parentBlock.getInput(info.stmtInputName);
+                                        pConn = stmtInput ? stmtInput.connection : null;
+                                    } else {
+                                        pConn = parentBlock.nextConnection;
+                                    }
                                     var bPrevConn = restoredBlock.previousConnection;
                                     if (pConn && bPrevConn) {
                                         // If A.next is occupied (by C, the healed block),

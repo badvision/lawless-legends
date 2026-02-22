@@ -816,17 +816,22 @@
         // becomes NaN → defaults to 0,0 → every new comment appears at the
         // top-left of the workspace regardless of where the user right-clicked.
         // Map x/y to clientX/clientY, which ARE always available.
-        if (typeof MouseEvent !== 'undefined' &&
-                typeof MouseEvent.prototype.x === 'undefined') {
-            Object.defineProperty(MouseEvent.prototype, 'x', {
-                get: function() { return this.clientX; },
-                configurable: true
-            });
-            Object.defineProperty(MouseEvent.prototype, 'y', {
-                get: function() { return this.clientY; },
-                configurable: true
-            });
-        }
+        // In older WebKit (including the version embedded in JavaFX), some host
+        // object prototypes are non-extensible and Object.defineProperty throws.
+        // Wrap in try/catch so a failure here never stops page initialisation.
+        try {
+            if (typeof MouseEvent !== 'undefined' &&
+                    typeof MouseEvent.prototype.x === 'undefined') {
+                Object.defineProperty(MouseEvent.prototype, 'x', {
+                    get: function() { return this.clientX; },
+                    configurable: true
+                });
+                Object.defineProperty(MouseEvent.prototype, 'y', {
+                    get: function() { return this.clientY; },
+                    configurable: true
+                });
+            }
+        } catch(e) { /* host prototype not extensible – polyfill skipped */ }
 
         Mythos.initBlocks();
         Mythos.workspace = Blockly.inject(blocklyDiv,
